@@ -1,0 +1,6 @@
+The AI provider and its model
+20-the-ai-helper
+One provider and one model serve every account. The check box marks the provider in use; none marked means the AI is off. Anthropic, OpenAI and DeepSeek come with their connection details filled in: you supply the model and the key. Custom is the fourth choice, where you fill in everything yourself.
+The key is typed into the AI helper's own prompt, which shows nothing. It is kept for the helper only (the operating system user sdai), never passes through SD, and is sent only to the provider's address over https, with the certificate checked.
+Selecting a provider means that the text accounts send leaves this machine for that provider. An account can send text only if its ai gate is on (the Accounts box). Nothing is on as delivered: no provider, no model, no key and no account.
+Enter selects or deselects the provider. M sets the model, K the key, X clears the key, C fills in Custom, D removes it, A sets the file of certificate authorities for a private CA, L changes a limit. At the prompt: set.ai.

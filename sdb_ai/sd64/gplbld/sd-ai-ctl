@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+#
+# sd-ai-ctl - the administrator's client of the AI helper (S.69 step 2, plan .claude/plan-ai-step2.md).  Run as sdsys (or root): the helper refuses
+# everyone else, by the uid it reads from the socket, so there is no password here and nothing to guess.  Standard library only.
+#
+#   sd-ai-ctl [--socket PATH] show [--json]
+#   sd-ai-ctl [--socket PATH] provider anthropic | openai | deepseek | custom | none
+#   sd-ai-ctl [--socket PATH] model PROVIDER NAME            (NAME - clears it)
+#   sd-ai-ctl [--socket PATH] custom NAME URL FORMAT AUTH VERSION MAXPARAM      (VERSION - for none; FORMAT anthropic | openai; AUTH bearer | x-api-key)
+#   sd-ai-ctl [--socket PATH] custom-clear
+#   sd-ai-ctl [--socket PATH] ca PATH                         (PATH - for the system store)
+#   sd-ai-ctl [--socket PATH] limit NAME NUMBER               (requests-hour tokens-day timeout bytes-request bytes-reply max-tokens)
+#   sd-ai-ctl [--socket PATH] key PROVIDER                    (the key is read from the terminal and not shown; from stdin when it is not a terminal)
+#   sd-ai-ctl [--socket PATH] key-clear PROVIDER
+#
+# THE KEY IS NEVER AN ARGUMENT (an argument is in the process list and the shell's history) and never printed.  SD's set.ai.key verb runs this program
+# with the terminal handed to it, so the key is typed here and never passes through SD.  Exit 0 done, 1 the helper refused (its code and words are
+# printed), 2 the helper could not be reached or the command line is wrong.
+#
+# START-HISTORY:
+# 23 Oct 26 dm  New.
+# END-HISTORY
+
+import getpass
+import json
+import os
+import socket
+import sys
+
+DEFAULT_SOCKET = "/run/sd-ai/sock"      # --socket PATH names another; so does SD_AI_SOCKET in the environment (the tests; the product never sets either)
+PROVIDERS = ("anthropic", "openai", "deepseek", "custom")
+
+
+def usage():
+    sys.stderr.write("usage: sd-ai-ctl [--socket PATH] show [--json] | provider NAME|none | model PROVIDER NAME|- | custom NAME URL FORMAT AUTH VERSION|- MAXPARAM |\n"
+                     "                 custom-clear | ca PATH|- | limit NAME NUMBER | key PROVIDER | key-clear PROVIDER\n")
+    return 2
+
+
+def talk(path, req):
+    """One request, one reply (a dict).  The request is one JSON line; the helper answers with one and ends the connection."""
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(60)
+    try:
+        s.connect(path)
+        s.sendall((json.dumps(req) + "\n").encode("utf-8"))
+        buf = b""
+        while b"\n" not in buf:
+            chunk = s.recv(65536)
+            if not chunk:
+                break
+            buf += chunk
+    finally:
+        s.close()
+    if not buf.strip():
+        raise OSError("the helper gave no answer")
+    return json.loads(buf.split(b"\n", 1)[0].decode("utf-8"))
+
+
+def show(reply, as_json):
+    if as_json:
+        print(json.dumps(reply, indent=1, sort_keys=True))
+        return
+    print("AI provider in use by every account: %s" % (reply.get("provider") or "none (the AI is off)"))
+    if "providers" not in reply:
+        print("  model %s, key %s, your account's gate %s" % (reply.get("model") or "-", "set" if reply.get("key") else "not set", "on" if reply.get("gate") else "off"))
+        return
+    for n in PROVIDERS:
+        p = reply["providers"][n]
+        print("  [%s] %-9s %-10s %s  (%s, %s%s, size field %s)" % ("x" if reply.get("provider") == n else " ", n, p["name"], p["url"] or "(not set)", p["format"] or "-", p["auth"] or "-",
+              (", version " + p["version"]) if p["version"] else "", p["maxparam"] or "-"))
+        print("      model: %s   key: %s" % (p["model"] or "(not set)", "set" if p["key"] else "(not set)"))
+    print("  ca-file: %s" % (reply.get("ca-file") or "(the system store)"))
+    print("  limits: " + ", ".join("%s=%s" % (k, v) for k, v in sorted(reply.get("limits", {}).items())))
+
+
+def main(argv):
+    path = os.environ.get("SD_AI_SOCKET") or DEFAULT_SOCKET
+    args = argv[1:]
+    if len(args) >= 2 and args[0] == "--socket":
+        path, args = args[1], args[2:]
+    if not args:
+        return usage()
+    cmd, rest = args[0], args[1:]
+    req = None
+    if cmd == "show" and rest in ([], ["--json"]):
+        req = {"v": 1, "op": "status"}
+    elif cmd == "provider" and len(rest) == 1:
+        req = {"v": 1, "op": "set", "what": "provider", "value": "" if rest[0] == "none" else rest[0]}
+    elif cmd == "model" and len(rest) == 2:
+        req = {"v": 1, "op": "set", "what": "model", "provider": rest[0], "value": "" if rest[1] == "-" else rest[1]}
+    elif cmd == "custom" and len(rest) == 6:
+        req = {"v": 1, "op": "set", "what": "custom", "name": rest[0], "url": rest[1], "format": rest[2], "auth": rest[3], "version": "" if rest[4] == "-" else rest[4], "maxparam": rest[5]}
+    elif cmd == "custom-clear" and not rest:
+        req = {"v": 1, "op": "set", "what": "custom-clear"}
+    elif cmd == "ca" and len(rest) == 1:
+        req = {"v": 1, "op": "set", "what": "ca", "value": "" if rest[0] == "-" else rest[0]}
+    elif cmd == "limit" and len(rest) == 2:
+        req = {"v": 1, "op": "set", "what": "limit", "name": rest[0], "value": rest[1]}
+    elif cmd == "key-clear" and len(rest) == 1:
+        req = {"v": 1, "op": "keyclear", "provider": rest[0]}
+    elif cmd == "key" and len(rest) == 1:
+        if rest[0] not in PROVIDERS:
+            sys.stderr.write("sd-ai-ctl: the provider is one of %s\n" % ", ".join(PROVIDERS))
+            return 2
+        if sys.stdin.isatty():
+            key = getpass.getpass("Key for %s (not shown): " % rest[0])
+        else:
+            key = sys.stdin.readline().rstrip("\n")
+        req = {"v": 1, "op": "keyset", "provider": rest[0], "key": key}
+    if req is None:
+        return usage()
+    try:
+        reply = talk(path, req)
+    except (OSError, ValueError) as e:
+        sys.stderr.write("sd-ai-ctl: the AI helper could not be reached (%s)\n" % e.__class__.__name__)
+        return 2
+    if reply.get("t") == "err":
+        print("error: %s: %s" % (reply.get("code"), reply.get("msg")))
+        return 1
+    if cmd == "show":
+        show(reply, rest == ["--json"])
+    elif cmd == "key":
+        print("The key for %s is set." % rest[0])
+    elif cmd == "key-clear":
+        print("The key for %s is cleared." % rest[0])
+    else:
+        print("ok")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

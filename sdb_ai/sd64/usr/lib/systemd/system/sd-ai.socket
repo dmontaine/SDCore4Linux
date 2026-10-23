@@ -1,0 +1,17 @@
+[Unit]
+Description=SD Core AI helper (one process per request)
+
+[Socket]
+# S.69 step 2 (23 Oct 26).  Every connection is handed to sd-ai@.service, which runs as the OS user sdai and reads the caller's uid from the connection
+# (SO_PEERCRED): the helper, not this unit, decides who may use the AI (the Linux group sdaiusers) and who may change its settings (sdsys).  The socket is
+# reachable by the members of sdusers only.
+ListenStream=/run/sd-ai/sock
+SocketUser=root
+SocketGroup=sdusers
+SocketMode=0660
+DirectoryMode=0755
+Accept=true
+MaxConnections=16
+
+[Install]
+WantedBy=sockets.target

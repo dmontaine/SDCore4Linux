@@ -361,7 +361,7 @@ def run_checks(raw):
            for w, g_, b in (("FILES-ON", "sdfiles", "true"), ("FILES-OFF", "sdfiles", "false"), ("FILES-WRITE-ON", "sdfileswrite", "true"), ("FILES-WRITE-OFF", "sdfileswrite", "false"),
                             ("FILES-ADMIN-ON", "sdfilesadmin", "true"), ("FILES-ADMIN-OFF", "sdfilesadmin", "false")))
        and "modify.account <account> files-on | files-off | files-write-on | files-write-off | files-admin-on | files-admin-off" in mo
-       and "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, suspended or unsuspended" in mo and sf != "", "")
+       and "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, suspended or unsuspended" in mo and sf != "", "")      # 23 Oct 26: ai-on, ai-off (S.69 step 2)
     cgf = routine_body(mo, "change.files.group")
     rfg = routine_body(mo, "read.files.groups")          # 21 Oct 26, S.73 item 3
     rrm = routine_body(mo, "report.removals")
@@ -408,7 +408,7 @@ def run_checks(raw):
        "other account is refused as for FILES-ON, the join is sd-elevate addgroup <user> sdfileswrite AFTER the sdfiles join, and the state line 11522 is read off /etc/group",
        re.search(r"\$define\s+CA\$FILESWRITE\s+39\b", hdr) is not None and len(re.findall(r"\$define\s+\S+\s+39\b", hdr)) == 1
        and re.search(r"case upcase\(token\) = 'FILES-WRITE-ON'\s*\n\s*settings<CA\$FILESWRITE> = 1\s*\n", cr) is not None and len(re.findall(r"(?<!if )settings<CA\$FILESWRITE>\s*=", cr)) == 1
-       and "{files-on} {files-write-on} {files-admin-on} {no.query}" in cr
+       and "{files-on} {files-write-on} {files-admin-on} {ai-on} {no.query}" in cr      # 23 Oct 26: {ai-on} (S.69 step 2)
        and "files.write.want = (settings<CA$FILESWRITE> = 1)" in ca2
        and re.search(r"if files\.write\.want then\s*\n\s*if not\(files\.want\) then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 11523:@vm:acc\.name[^\n]*\n\s*goto exit\.create\s*\n\s*end", ca2) is not None
        # 21 Oct 26 (S.73 item 3): the look-up of a group and its join are the two internal subroutines check.files.group and join.files.group, called once per group, sdfiles then sdfileswrite then sdfilesadmin;
@@ -417,7 +417,7 @@ def run_checks(raw):
                    "if files.admin.want then", "err = 11526:@vm:acc.name", "files.grp.name = 'sdfilesadmin'", "gosub check.files.group",
                    "if not(create_user(acc.uname)) then", "files.grp.name = 'sdfiles'", "gosub join.files.group", "if files.write.want then", "files.grp.name = 'sdfileswrite'", "gosub join.files.group",
                    "if files.admin.want then", "files.grp.name = 'sdfilesadmin'", "gosub join.files.group")
-       and ca2.count("gosub check.files.group") == 3 and ca2.count("gosub join.files.group") == 3
+       and ca2.count("gosub check.files.group") == 4 and ca2.count("gosub join.files.group") == 4      # 23 Oct 26: the fourth of each is sdaiusers (S.69 step 2; test-ai-units.py holds its rows)
        and re.search(r"if files\.admin\.want then\s*\n\s*if not\(files\.want\) or not\(files\.write\.want\) then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 11526:@vm:acc\.name[^\n]*\n\s*goto exit\.create\s*\n\s*end", ca2) is not None
        and re.search(r"^check\.files\.group:\s*\n\s*files\.bad = @false\s*\n\s*files\.found = is_group\(files\.grp\.name\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat # 0 then\s*\n"
                      r"\s*@system\.return\.code = -ER\$FAILED\s*\n\s*err = 10081:@vm:acc\.uname:@vm:files\.stat[^\n]*\n\s*files\.bad = @true\s*\n\s*end else\s*\n\s*if not\(files\.found\) then\s*\n"
@@ -427,7 +427,7 @@ def run_checks(raw):
        and re.search(r"\$define\s+CA\$FILESADMIN\s+40\b", hdr) is not None and len(re.findall(r"\$define\s+\S+\s+40\b", hdr)) == 1
        and re.search(r"case upcase\(token\) = 'FILES-ADMIN-ON'\s*\n\s*settings<CA\$FILESADMIN> = 1\s*\n", cr) is not None and len(re.findall(r"(?<!if )settings<CA\$FILESADMIN>\s*=", cr)) == 1
        and "files.admin.want = (settings<CA$FILESADMIN> = 1)" in ca2 and "sysmsg(11525, acc.name, if is_grp_member(acc.uname, 'sdfilesadmin') then 'yes' else 'no')" in ca2
-       and ca2.count("if files.want or files.write.want or files.admin.want then") == 2
+       and ca2.count("if files.want or files.write.want or files.admin.want or ai.want then") == 2      # 23 Oct 26: ai.want joins the refusal for a group or other account
        and "sysmsg(11522, acc.name, if is_grp_member(acc.uname, 'sdfileswrite') then 'yes' else 'no')" in ca2, "")
     ck("F13 the manifest: route.files.write: 1|0 for a USER account from membership of sdfileswrite, right after route.files and before os.sh; RESTORE.ACCOUNT reads it (and clears it for each "
        "section), hands it on as CA$FILESWRITE only when route.files is 1 too, so a manifest without the key, or with the write group and no files route, restores as NOT in the group",
@@ -443,11 +443,11 @@ def run_checks(raw):
     ck("F14 the installer makes sdfileswrite with the other route groups (the one loop, groupadd --system, only when missing, so an upgrade install creates it empty and adds nobody); "
        "deletesdcore removes it with them only on a full DELETE and says it kept it otherwise; sd-elevate whitelists it by exact name for addgroup, delgroup and groupadd, never deletes it, "
        "and has no prefix pattern for it",
-       re.search(r'for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do\s*\n\s*if ! getent group "\$sd_route_group" &>/dev/null; then\s*\n(?:[^\n]*\n){0,2}?\s*sudo groupadd --system "\$sd_route_group"', inst) is not None
+       re.search(r'for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do\s*\n\s*if ! getent group "\$sd_route_group" &>/dev/null; then\s*\n(?:[^\n]*\n){0,2}?\s*sudo groupadd --system "\$sd_route_group"', inst) is not None
        and inst.count("for sd_route_group in") == 1 and "usermod" not in inst[inst.find("for sd_route_group in"): inst.find("for sd_route_group in") + 400].replace("sudo usermod -a -G sdusers root", "")
-       and re.search(r'if \[ "\$keep_accts" = "DELETE" \]; then.*?for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do.*?sudo groupdel "\$sd_route_group".*?\n\s*else\s*\n[^\n]*sdssh, sdapi, sdfiles, sdfileswrite and sdfilesadmin were kept', dele, re.S) is not None
-       and re.search(r"case \$group in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\|sdfileswrite\|sdfilesadmin\) : ;;", se) is not None
-       and re.search(r"case \$1 in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\|sdfileswrite\|sdfilesadmin\)\s*\n\s*die", se) is not None and "sdfilesadmin*" not in se and "sdfileswrite*" not in se and "sdfiles*" not in se, "")
+       and re.search(r'if \[ "\$keep_accts" = "DELETE" \]; then.*?for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do.*?sudo groupdel "\$sd_route_group".*?\n\s*else\s*\n[^\n]*sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin and sdaiusers were kept', dele, re.S) is not None
+       and re.search(r"case \$group in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\|sdfileswrite\|sdfilesadmin\|sdaiusers\) : ;;", se) is not None
+       and re.search(r"case \$1 in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\|sdfileswrite\|sdfilesadmin\|sdaiusers\)\s*\n\s*die", se) is not None and "sdfilesadmin*" not in se and "sdfileswrite*" not in se and "sdfiles*" not in se, "")
     m21, m22, m23 = (raw["msg:%d" % n].strip("\n") for n in (11521, 11522, 11523))
     stray = []                                    # any other program of gpl.bp that writes one of the three numbers
     for fname in sorted(os.listdir(GPL)):

@@ -1320,6 +1320,14 @@ void op_kernel() {
       audit_message(s);
       break;
 
+    /* 23 Oct 26 dm - S.69 step 2: the in-SD AI helper (op_ai.c), a transport that only a $internal program may use. */
+    case K_AI_START:
+    case K_AI_POLL:
+    case K_AI_CANCEL:
+    case K_AI_STATUS:
+      k_ai(action, descr, &result);
+      break;
+
     default:
       k_error("Illegal KERNEL() action key (%d)", action);
   }

@@ -977,7 +977,11 @@ fi
 #   the sdfiles route (configure, index, create and delete a file, the file's counter).  Empty
 #   on a fresh install; an upgrade install that lacks it creates it empty here, and nobody is
 #   added by the installer: the "open every gate" answer leaves files-admin-on out (owner, 20 Oct).
-for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do
+# 23 Oct 26 dm - S.69 step 2 (owner: "an API gate for each user account"): sdaiusers is the SIXTH, the right to use the AI provider's API through
+#   the in-SD helper (sd-ai).  Not a route into SD but a use of the machine's one model and key, so it is enforced where the call is made, by the helper
+#   from the caller's uid.  Empty on a fresh install; an upgrade install that lacks it creates it empty here, and nobody is added by the installer
+#   (the "open every gate" answer leaves ai-on out: it spends the administrator's money).
+for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do
   if ! getent group "$sd_route_group" &>/dev/null; then
     echo "Creating group: $sd_route_group."
     sudo groupadd --system "$sd_route_group"
@@ -1103,6 +1107,31 @@ sudo install -o root -g root -m 0755 gplbld/sd-elevate /usr/local/sbin/sd-elevat
 #            another route.  The SDSYS session runs it unprivileged to unpack.
 echo "Installing the account archive tool: /usr/local/sbin/sd-accarchive."
 sudo install -o root -g root -m 0755 gplbld/sd-accarchive /usr/local/sbin/sd-accarchive
+
+# 23 Oct 26  S.69 step 2 (the AI helper; owner's decisions of 23 Oct, plan .claude/plan-ai-step2.md).  Root-owned and NOT under /usr/local/sdsys, for the sd-elevate
+#            reason: sd-ai runs as the user sdai and holds the provider keys, so a copy that sdsys (or any account) could rewrite would be those keys by another route;
+#            the shipped provider table is root-owned for the same reason (whoever could change a URL there could send the key anywhere).  The settings and the keys are in
+#            /var/lib/sd-ai, sdai's own, and are KEPT by an upgrade (the remover deletes them only with the accounts).  The two units are installed HERE and not with the
+#            others further down: that copy runs only when sd.service is not yet installed, so an upgrade would never get them.  Nothing is selected, no model or key is set
+#            and no account is in sdaiusers after this: the AI is off until the administrator has done all three (set.ai, modify.account ... ai-on).
+# AI-BEGIN
+echo "Installing the AI helper: /usr/local/lib/sd-ai."
+sudo install -d -o root -g root -m 0755 /usr/local/lib/sd-ai
+sudo install -o root -g root -m 0755 gplbld/sd-ai /usr/local/lib/sd-ai/sd-ai
+sudo install -o root -g root -m 0755 gplbld/sd-ai-ctl /usr/local/lib/sd-ai/sd-ai-ctl
+sudo install -o root -g root -m 0644 gplbld/ai-providers /usr/local/lib/sd-ai/ai-providers
+if getent passwd sdai &>/dev/null; then
+  sudo install -d -o sdai -g sdai -m 0750 /var/lib/sd-ai
+  sudo install -d -o sdai -g sdai -m 0700 /var/lib/sd-ai/keys /var/lib/sd-ai/state
+else
+  echo "WARNING: the user sdai does not exist, so the AI helper has nowhere to keep its settings and keys."
+fi
+if [ -d /usr/lib/systemd/system ]; then
+  sudo install -o root -g root -m 0644 usr/lib/systemd/system/sd-ai.socket /usr/lib/systemd/system/sd-ai.socket
+  sudo install -o root -g root -m 0644 'usr/lib/systemd/system/sd-ai@.service' '/usr/lib/systemd/system/sd-ai@.service'
+  sudo systemctl daemon-reload || true
+fi
+# AI-END
 
 # 10 Sep 26  PRE_RELEASE 13's ssh-boundary helper is installed alongside it, and
 #            for the same root-owned reason.  The uninstaller calls it with
@@ -2091,6 +2120,12 @@ sudo systemctl start sd.service
 sudo systemctl start sdclient.socket
 sudo systemctl enable sd.service
 sudo systemctl enable sdclient.socket
+# 23 Oct 26 dm - S.69 step 2: the AI helper's socket.  A listening socket costs nothing (a process is started only for a connection, and only sdusers can connect), and the
+#   administrator's settings page needs it; restart, not start, so that an upgrade's changed unit is the one that listens.
+if [ -f /usr/lib/systemd/system/sd-ai.socket ]; then
+    sudo systemctl enable sd-ai.socket || true
+    sudo systemctl restart sd-ai.socket || true
+fi
 #
 sleep 1
 sd_install_stop

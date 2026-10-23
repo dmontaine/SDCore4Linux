@@ -1,0 +1,40 @@
+# ai-providers - the AI providers SD Core ships connection details for (S.69 step 2, owner's decision of 23 Oct 2026).
+#
+# Read by sd-ai (the helper).  The installer puts it at /usr/local/lib/sd-ai/ai-providers, root-owned and not writable by sdsys or any SD account, with the
+# helper: whoever could change a URL here could send the key anywhere.  The AI choice page shows these details through the helper's status.
+# What a person supplies is the MODEL and the KEY: neither is here.  The fourth choice, Custom, is not here either: its details are the administrator's own,
+# kept in the helper's settings (set.ai custom ...).
+#
+#   name      what the page shows
+#   url       the whole URL the request is posted to: https only, no query string
+#   format    the wire format: anthropic (the Messages API) or openai (chat completions)
+#   auth      how the key is sent: x-api-key (a header of that name) or bearer (Authorization: Bearer ...)
+#   version   the anthropic-version header (the anthropic format only)
+#   maxparam  the name of the reply-size field in the request body
+#
+# Checked 23 Oct 2026 against the providers' documentation: Anthropic (POST /v1/messages, x-api-key, anthropic-version 2023-06-01) and
+# DeepSeek (https://api.deepseek.com, /chat/completions, Authorization: Bearer, OpenAI-compatible).  OpenAI's own reference could not be
+# read; its details are from its long-standing chat completions API and max_completion_tokens (third-party reports say max_tokens is
+# deprecated there) and have NOT been tried against a real key.  A change at a provider is a change to this file.
+
+[anthropic]
+name=Anthropic
+url=https://api.anthropic.com/v1/messages
+format=anthropic
+auth=x-api-key
+version=2023-06-01
+maxparam=max_tokens
+
+[openai]
+name=OpenAI
+url=https://api.openai.com/v1/chat/completions
+format=openai
+auth=bearer
+maxparam=max_completion_tokens
+
+[deepseek]
+name=DeepSeek
+url=https://api.deepseek.com/chat/completions
+format=openai
+auth=bearer
+maxparam=max_tokens

@@ -1,0 +1,212 @@
+* SETAI
+* SET.AI verb: which AI provider every account uses, its model and key, the custom connection, the certificate authority file and the limits (S.69 step 2,
+* plan .claude/plan-ai-step2.md; the owner's decisions of 23 Oct 2026).
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 23 Oct 26 dm  New (S.69 step 2; the owner: "an ai choice page ... a checkbox for the currently selected provider ... the same model needs to be used by all accounts").
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   SET.AI                                   says what is set
+*   SET.AI PROVIDER name | none              the provider every account uses: anthropic, openai, deepseek or custom; none turns the AI off
+*   SET.AI MODEL provider name | -           the model for a provider (- clears it)
+*   SET.AI KEY provider                      asks for the key at the terminal, not shown, and keeps it for the helper only
+*   SET.AI KEY provider CLEAR                removes it
+*   SET.AI CUSTOM name url format auth version | - maxparam     the fourth choice, where everything is the administrator's (format anthropic | openai, auth bearer | x-api-key)
+*   SET.AI CUSTOM CLEAR                      forgets the custom connection (not while it is the selected provider)
+*   SET.AI CA path | -                       the file of certificate authorities for a private CA (- is the system store)
+*   SET.AI LIMIT name number                 requests-hour tokens-day timeout bytes-request bytes-reply max-tokens
+*
+*   The administrator's verb (the AI choice page, tool.ai, runs it).  It changes nothing itself: the settings live in the AI helper's own directory, and the helper
+*   (sd-ai) makes the change, after asking who is calling by the uid it reads from the connection - this verb runs the helper's client, sd-ai-ctl, as the administrator.
+*   THE KEY NEVER PASSES THROUGH SD: SET.AI KEY hands the terminal to sd-ai-ctl, which reads the key itself without echo.  One provider and one model serve every account;
+*   whether an ACCOUNT may use it is the account's own gate (modify.account name ai-on).  Nothing is selected, no model or key is set and no account has the gate as delivered,
+*   so the AI is off until the administrator has done all of that.  A URL for custom is https only, with no query string.  Every change is audited in lower case, with
+*   no key in it.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program set.ai
+$catalog $setai
+
+$include int$keys.h
+$include keys.h
+$include err.h
+
+   @system.return.code = -ER$ARGS
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001) ;* Command requires administrator privileges
+   end
+
+   okc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:/@+,-'
+*  The helper's client lives with the helper, root-owned and outside the SD system directory (so that no SD account can replace the program that holds the key).  The
+*  administrator's own environment may name another, for the tests only (SD_AI_CTL); the product never sets it.
+   ctl = env('SD_AI_CTL')
+   if ctl = '' then ctl = '/usr/local/lib/sd-ai/sd-ai-ctl'
+   if trim(convert(okc, space(len(okc)), ctl)) # '' then stop sysmsg(11607)       ;* the program's own path has a character a command line may not carry
+
+   words = trim(@sentence)
+   n.words = dcount(words, ' ')
+   for i = 2 to n.words
+      w = field(words, ' ', i)
+      if trim(convert(okc, space(len(okc)), w)) # '' then stop sysmsg(11622, w[1, 40])    ;* %1 has a character that is not allowed here
+   next i
+   sub = downcase(field(words, ' ', 2))
+   providers = ' anthropic openai deepseek custom '
+
+   begin case
+      case n.words = 1
+         qargs = "'show'"
+         gosub run.ctl
+         for i = 1 to dcount(out, @fm)
+            display out<i>
+         next i
+         @system.return.code = 0
+
+      case sub = 'provider' and n.words = 3
+         prov = downcase(field(words, ' ', 3))
+         if prov # 'none' and index(providers, ' ' : prov : ' ', 1) = 0 then stop sysmsg(11610, prov[1, 40])      ;* %1 is not one of anthropic, openai, deepseek and custom
+         qargs = "'provider' '" : prov : "'"
+         gosub run.ctl
+         gosub need.ok
+         void kernel(K$AUDIT, 'set.ai provider=' : prov)
+         if prov = 'none' then display sysmsg(11612) else display sysmsg(11611, prov)       ;* The AI is now off ... / The AI provider for every account is now %1
+         @system.return.code = 0
+
+      case sub = 'model' and n.words = 4
+         prov = downcase(field(words, ' ', 3))
+         model = field(words, ' ', 4)
+         if index(providers, ' ' : prov : ' ', 1) = 0 then stop sysmsg(11610, prov[1, 40])
+         qargs = "'model' '" : prov : "' '" : model : "'"
+         gosub run.ctl
+         gosub need.ok
+         if model = '-' then
+            void kernel(K$AUDIT, 'set.ai model provider=' : prov : ' cleared')
+            display sysmsg(11614, prov)                                                   ;* The model for %1 is cleared
+         end else
+            void kernel(K$AUDIT, 'set.ai model provider=' : prov : ' model=' : model)
+            display sysmsg(11613, prov, model)                                            ;* The model for %1 is now %2
+         end
+         @system.return.code = 0
+
+      case sub = 'key' and n.words = 4 and downcase(field(words, ' ', 4)) = 'clear'
+         prov = downcase(field(words, ' ', 3))
+         if index(providers, ' ' : prov : ' ', 1) = 0 then stop sysmsg(11610, prov[1, 40])
+         qargs = "'key-clear' '" : prov : "'"
+         gosub run.ctl
+         gosub need.ok
+         void kernel(K$AUDIT, 'set.ai key cleared provider=' : prov)
+         display sysmsg(11616, prov)                                                      ;* The key for %1 is cleared
+         @system.return.code = 0
+
+      case sub = 'key' and n.words = 3
+         prov = downcase(field(words, ' ', 3))
+         if index(providers, ' ' : prov : ' ', 1) = 0 then stop sysmsg(11610, prov[1, 40])
+*        The terminal is handed to the helper's client and nothing is captured: the key is typed there, never read by SD.  What happened is then read back, not assumed.
+         os.execute "'" : ctl : "' 'key' '" : prov : "' 2>&1"
+         qargs = "'show'"
+         gosub run.ctl
+         gosub check.key
+         if not(key.found) then
+            @system.return.code = -ER$FAILED
+            stop sysmsg(11608, 'nokey', 'the key was not set')                             ;* The AI helper refused: %1 (%2)
+         end
+         void kernel(K$AUDIT, 'set.ai key set provider=' : prov)
+         display sysmsg(11615, prov)                                                      ;* The key for %1 is set
+         @system.return.code = 0
+
+      case sub = 'custom' and n.words = 3 and downcase(field(words, ' ', 3)) = 'clear'
+         qargs = "'custom-clear'"
+         gosub run.ctl
+         gosub need.ok
+         void kernel(K$AUDIT, 'set.ai custom cleared')
+         display sysmsg(11618)                                                            ;* The custom connection is cleared
+         @system.return.code = 0
+
+      case sub = 'custom' and n.words = 8
+         cname = field(words, ' ', 3)
+         curl = field(words, ' ', 4)
+         qargs = "'custom'"
+         for i = 3 to 8
+            qargs := " '" : field(words, ' ', i) : "'"
+         next i
+         gosub run.ctl
+         gosub need.ok
+         chost = field(curl, '/', 3)
+*        The audit line names the host and never the whole URL: nothing a person might put in a URL is written to the trail
+         void kernel(K$AUDIT, 'set.ai custom name=' : cname : ' host=' : chost)
+         display sysmsg(11617, cname, chost)                                              ;* The custom connection is now %1, at %2
+         @system.return.code = 0
+
+      case sub = 'ca' and n.words = 3
+         cpath = field(words, ' ', 3)
+         qargs = "'ca' '" : cpath : "'"
+         gosub run.ctl
+         gosub need.ok
+         void kernel(K$AUDIT, 'set.ai ca file=' : cpath)
+         if cpath = '-' then display sysmsg(11620) else display sysmsg(11619, cpath)      ;* The ca-file is now the system store ... / The ca-file is now %1
+         @system.return.code = 0
+
+      case sub = 'limit' and n.words = 4
+         lname = downcase(field(words, ' ', 3))
+         lvalue = field(words, ' ', 4)
+         qargs = "'limit' '" : lname : "' '" : lvalue : "'"
+         gosub run.ctl
+         gosub need.ok
+         void kernel(K$AUDIT, 'set.ai limit name=' : lname : ' value=' : lvalue)
+         display sysmsg(11621, lname, lvalue)                                             ;* The limit %1 is now %2
+         @system.return.code = 0
+
+      case 1
+         display sysmsg(11609)                                                            ;* set.ai {provider NAME | ... }
+   end case
+   stop
+
+* The helper's client, run as the administrator with its words already quoted; out holds what it printed (its errors too).  A client that is not there or a helper that
+* cannot be reached ends the verb with 11607, and a refusal with 11608 and the helper's own code and words.
+run.ctl:
+   out = ''
+   os.execute "'" : ctl : "' " : qargs : " 2>&1" capturing out
+   if trim(out) = '' or index(out, 'could not be reached', 1) or index(out, 'not found', 1) or index(out, 'No such file', 1) or index(out, 'Permission denied', 1) then
+      @system.return.code = -ER$FAILED
+      stop sysmsg(11607)                                                                  ;* The AI helper could not be reached ...
+   end
+   return
+
+* After a setting: the client says ok (or, for a key, its own sentence), or error: code: words.
+need.ok:
+   first = trim(out<1>)
+   if first[1, 7] = 'error: ' then
+      rest = first[8, 999]
+      code = field(rest, ':', 1)
+      words2 = trim(rest[index(rest, ':', 1) + 1, 999])
+      @system.return.code = -ER$FAILED
+      stop sysmsg(11608, code, words2[1, 70])                                             ;* The AI helper refused: %1 (%2)
+   end
+   if first # 'ok' and first[1, 8] # 'The key ' then                                        ;* key-clear prints its own sentence
+      @system.return.code = -ER$FAILED
+      stop sysmsg(11608, 'badreply', first[1, 70])
+   end
+   return
+
+* Whether the show listing (in out) says a key is set for the provider: its block is the line that names it and the line after it
+check.key:
+   key.found = 0
+   for i = 1 to dcount(out, @fm)
+      ln = trim(out<i>)
+      if (ln[1, 3] = '[x]' or ln[1, 3] = '[ ]') and index(ln, ' ' : prov : ' ', 1) then
+         if index(out<i + 1>, 'key: set', 1) then key.found = 1
+      end
+   next i
+   return
+
+end
+
+* END-CODE

@@ -1,0 +1,670 @@
+#!/usr/bin/env python3
+#
+# sd-ai - the in-SD model helper of SD Core for Linux (S.69 step 2, owner's decisions of 23 Oct 2026; plan .claude/plan-ai-step2.md).
+#
+# One short-lived process per request, started by systemd for each connection to the socket /run/sd-ai/sock (sd-ai.socket, Accept=true,
+# SocketGroup=sdusers, SocketMode=0660) as the OS user sdai.  fd 0 is the connection: ONE JSON line in, JSON lines out.  Nothing else in SD
+# connects outward; nothing else reads the keys.  Standard library only.
+#
+#   sd-ai [--state DIR] [--providers FILE]        (the unit gives neither; the defaults below are the installed places)
+#
+# REQUEST (one line, UTF-8 JSON):  {"v":1,"op":"ask","system":"...","prompt":"...","maxtokens":1024}      or  {"v":1,"op":"status"}
+# REPLY, one line:  {"t":"ok","text":"...","in":N,"out":N,"provider":"anthropic","truncated":false,"replaced":N}
+#                   {"t":"err","code":"nogate|noadmin|disabled|nomodel|nokey|toobig|limit|net|timeout|refused|busy|declined|badreply|badreq|badconf","msg":"..."}
+#                   {"t":"status", ...}      (status: provider, model, key set, gate; the connection details only for sdsys and root)
+# THE SETTINGS are changed through the same socket, by sdsys and root ONLY (the caller's uid from SO_PEERCRED, nothing the caller wrote):
+#   {"v":1,"op":"set","what":"provider","value":"openai"}  {"what":"model","provider":"openai","value":"..."}  {"what":"custom","name":..,"url":..,"format":..,"auth":..,
+#   "version":..,"maxparam":..}  {"what":"custom-clear"}  {"what":"ca","value":"/path"}  {"what":"limit","name":"tokens-day","value":"100000"}
+#   {"v":1,"op":"keyset","provider":"openai","key":"..."}   {"v":1,"op":"keyclear","provider":"openai"}
+# Every result is checked whole BEFORE it is written (one provider selected means its details are complete), the file is replaced atomically, and a key
+# is never echoed or logged.  The administrator's own client is gplbld/sd-ai-ctl, which reads a key from the terminal and so keeps it out of SD.
+#
+# WHAT IT DECIDES, IN THIS ORDER (a caller learns nothing about the settings until the gate has let them through):
+#   1 THE GATE: the caller's uid from SO_PEERCRED (not from anything the caller wrote) must belong to the Linux group sdaiusers.  A
+#     connection that is not a socket, an unknown uid, an unreadable group file or no such group all REFUSE: fail closed.
+#   2 `disabled` when no provider is selected (the delivered state: provider= is empty in ai.conf); `nomodel`; `nokey`.
+#   3 `toobig` (the request), `limit` (requests per hour and tokens per day, per uid, in a flock-protected file).
+#   4 ONE HTTPS call to the URL of the selected provider: certificate verification mandatory (the system store, or the ca-file setting for a
+#     private CA), host name checked, TLS 1.2 or later, NO insecure mode and no flag that gives one, no redirect followed, the key sent only to
+#     that URL.  A reply is cut to ASCII plus newline and tab (a terminal escape sequence, an SD mark byte or a non-English letter never reaches
+#     SD): typographic quotes and dashes become their plain forms, anything else becomes ?, and the number replaced is reported.
+# NOTHING IS WRITTEN TO THE AUDIT TRAIL HERE: SD writes `ai request ...` BEFORE it asks, so a crash still leaves the record.  The one line this
+# program writes, to stderr (the journal), has the uid, the provider, the status and the sizes - never the text, never the key.
+#
+# START-HISTORY:
+# 23 Oct 26 dm  The settings (set, keyset, keyclear) are made here, by sdsys and root, instead of by sd-elevate verbs as the plan first said: the file and the keys are
+#               sdai's own, the one check is the peer's uid, and the same validators serve both the reading and the writing.
+# 23 Oct 26 dm  New.  Group A of plan-ai-step2: non-streaming (the framing is line-based so a streamed reply can follow), two wire formats
+#               (anthropic, openai), the three shipped providers and the owner's fourth, Custom.
+# END-HISTORY
+
+import fcntl
+import grp
+import http.client
+import json
+import os
+import pwd
+import re
+import signal
+import socket
+import ssl
+import stat
+import struct
+import sys
+import time
+import urllib.parse
+
+VERSION = 1
+GATE_GROUP = "sdaiusers"          # the right to use the provider's API: a Linux group, as sdapi and sdfiles are
+ADMIN_USER = "sdsys"              # may read the connection details through `status`
+DEFAULT_STATE = "/var/lib/sd-ai"
+DEFAULT_PROVIDERS = "/usr/local/lib/sd-ai/ai-providers"        # root-owned, with this program: sdsys cannot change where a key is sent
+NAMED = ("anthropic", "openai", "deepseek")
+PROVIDERS = NAMED + ("custom",)
+FORMATS = ("anthropic", "openai")
+AUTHS = ("bearer", "x-api-key")
+MAXPARAMS = ("max_tokens", "max_completion_tokens")
+LIMITS = {"requests-hour": 20, "tokens-day": 100000, "timeout": 30, "bytes-request": 65536, "bytes-reply": 65536, "max-tokens": 1024}
+CONNECT_TIMEOUT = 5
+RAW_CAP = 4 * 1024 * 1024           # the most of a provider's answer that is read at all
+MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,99}$")
+# no query string and no % escape: nothing a person might put in a URL (an API key in ?key=, which some services take) is stored in ai.conf or shown by status
+URL_RE = re.compile(r"^https://([A-Za-z0-9][A-Za-z0-9.-]{0,252})(:[0-9]{1,5})?(/[A-Za-z0-9._~/+,:-]{0,500})?$")
+VERSION_RE = re.compile(r"^[A-Za-z0-9._-]{1,40}$")
+NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._-]{0,39}$")
+# what a model's typographic characters become; anything else outside ASCII becomes ?
+PLAIN = {0x2018: "'", 0x2019: "'", 0x201A: "'", 0x201C: '"', 0x201D: '"', 0x201E: '"', 0x2013: "-", 0x2014: "-", 0x2212: "-", 0x2026: "...",
+         0x00A0: " ", 0x2009: " ", 0x202F: " ", 0x2022: "*", 0x00B7: "*"}
+
+
+class Refuse(Exception):
+    """A typed refusal: code and message go back to the caller as the err reply."""
+
+    def __init__(self, code, msg=""):
+        Exception.__init__(self, code)
+        self.code = code
+        self.msg = msg
+
+
+# ---------------------------------------------------------------------------------------------------- settings
+
+def parse_kv(path):
+    """key=value lines (blank lines and # comments allowed); a line with no = is a damaged file, not something to skip."""
+    out = {}
+    try:
+        with open(path, encoding="ascii") as f:
+            for n, line in enumerate(f, 1):
+                line = line.rstrip("\n")
+                if not line.strip() or line.lstrip().startswith("#"):
+                    continue
+                if "=" not in line:
+                    raise Refuse("badconf", "%s line %d has no =" % (os.path.basename(path), n))
+                k, v = line.split("=", 1)
+                out[k.strip()] = v.strip()
+    except FileNotFoundError:
+        return out
+    except (OSError, UnicodeDecodeError) as e:
+        raise Refuse("badconf", "cannot read %s: %s" % (os.path.basename(path), e.__class__.__name__))
+    return out
+
+
+def read_providers(path):
+    """The shipped table: [name] sections of key=value lines, only the three named providers, every value checked."""
+    table = {}
+    cur = None
+    try:
+        with open(path, encoding="ascii") as f:
+            for n, line in enumerate(f, 1):
+                line = line.rstrip("\n")
+                if not line.strip() or line.lstrip().startswith("#"):
+                    continue
+                m = re.match(r"^\[([a-z]+)\]$", line.strip())
+                if m:
+                    cur = m.group(1)
+                    if cur not in NAMED or cur in table:
+                        raise Refuse("badconf", "providers file: section %s is not a shipped provider or is repeated" % cur)
+                    table[cur] = {}
+                elif cur is None or "=" not in line:
+                    raise Refuse("badconf", "providers file line %d" % n)
+                else:
+                    k, v = line.split("=", 1)
+                    table[cur][k.strip()] = v.strip()
+    except FileNotFoundError:
+        raise Refuse("badconf", "the providers file is missing")
+    except (OSError, UnicodeDecodeError):
+        raise Refuse("badconf", "cannot read the providers file")
+    for name, p in table.items():
+        check_connection(p, "providers file [%s]" % name)
+    if set(table) != set(NAMED):
+        raise Refuse("badconf", "providers file does not describe exactly %s" % ", ".join(NAMED))
+    return table
+
+
+def check_connection(p, what):
+    """The connection details of one provider are well formed: an https URL, a known format, auth style and token parameter."""
+    if not URL_RE.match(p.get("url", "")):
+        raise Refuse("badconf", "%s: url must be https://host[:port]/path with plain characters" % what)
+    host = URL_RE.match(p["url"]).group(1)
+    port = URL_RE.match(p["url"]).group(2)
+    if host.endswith("-") or ".." in host or (port and not 1 <= int(port[1:]) <= 65535):
+        raise Refuse("badconf", "%s: bad host or port" % what)
+    if p.get("format") not in FORMATS:
+        raise Refuse("badconf", "%s: format must be one of %s" % (what, ", ".join(FORMATS)))
+    if p.get("auth") not in AUTHS:
+        raise Refuse("badconf", "%s: auth must be one of %s" % (what, ", ".join(AUTHS)))
+    if p.get("maxparam") not in MAXPARAMS:
+        raise Refuse("badconf", "%s: maxparam must be one of %s" % (what, ", ".join(MAXPARAMS)))
+    if p.get("version", "") and not VERSION_RE.match(p["version"]):
+        raise Refuse("badconf", "%s: version has characters a header value may not have" % what)
+    if not NAME_RE.match(p.get("name", "x")):
+        raise Refuse("badconf", "%s: name" % what)
+
+
+def plain_path(v):
+    """An absolute path of plain characters with no .. part (the ca-file setting)."""
+    return bool(re.match(r"^/[A-Za-z0-9._/+-]{1,200}$", v)) and ".." not in v.split("/")
+
+
+def int_setting(conf, name):
+    try:
+        v = int(conf.get("limit." + name, LIMITS[name]))
+    except ValueError:
+        raise Refuse("badconf", "limit.%s is not a number" % name)
+    if v < 1 or v > (300 if name == "timeout" else 10 ** 9):
+        raise Refuse("badconf", "limit.%s out of range" % name)
+    return v
+
+
+def selected(conf, table):
+    """(provider name, its connection details, its model), or None when AI is off (no provider selected)."""
+    name = conf.get("provider", "")
+    if name == "":
+        return None
+    if name not in PROVIDERS:
+        raise Refuse("badconf", "provider is not one of %s" % ", ".join(PROVIDERS))
+    if name == "custom":
+        p = {k[len("custom."):]: v for k, v in conf.items() if k.startswith("custom.")}
+        check_connection(p, "the custom provider")
+        p.setdefault("name", "Custom")
+    else:
+        p = dict(table[name])
+    return name, p, conf.get("model." + name, "")
+
+
+# ---------------------------------------------------------------------------------------------------- the caller
+
+def peer_uid(fd):
+    """The uid of the process on the other end of the connection, or None when fd is not a Unix socket."""
+    dup = os.dup(fd)
+    try:
+        s = socket.socket(fileno=dup)
+    except OSError:
+        os.close(dup)
+        return None
+    try:
+        pid, uid, gid = struct.unpack("3i", s.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i")))
+        return uid
+    except OSError:
+        return None
+    finally:
+        s.close()
+
+
+def in_group(uid, group):
+    """True only when the group exists and the uid's account is in it; every doubt is False."""
+    try:
+        pw = pwd.getpwuid(uid)
+        gid = grp.getgrnam(group).gr_gid
+        return gid in os.getgrouplist(pw.pw_name, pw.pw_gid)
+    except (KeyError, OSError):
+        return False
+
+
+def is_admin(uid):
+    if uid == 0:
+        return True
+    try:
+        return pwd.getpwnam(ADMIN_USER).pw_uid == uid
+    except KeyError:
+        return False
+
+
+# ---------------------------------------------------------------------------------------------------- key, limits
+
+def read_key(state, name):
+    """The key of a provider: a file of sdai's own, mode 0600 (a file anyone else can read is refused: the helper does not repair it)."""
+    path = os.path.join(state, "keys", name)
+    try:
+        st = os.lstat(path)                       # lstat: a link is not followed
+        if st.st_mode & 0o077 or not stat.S_ISREG(st.st_mode):
+            raise Refuse("nokey", "the key file is not private")
+        with open(path, encoding="ascii") as f:
+            key = f.read().strip()
+    except FileNotFoundError:
+        raise Refuse("nokey", "no key has been set for this provider")
+    except (OSError, UnicodeDecodeError):
+        raise Refuse("nokey", "the key file cannot be read")
+    if not re.match(r"^[\x21-\x7e]{8,512}$", key):
+        raise Refuse("nokey", "the key file does not hold a key")
+    return key
+
+
+def counters(state, uid, now, limits, add_tokens=None, count=False):
+    """The per-uid counters under an exclusive lock.  count=True first checks the limits and, if they hold, records the request; add_tokens
+    adds a finished request's tokens.  Requests are kept as the times of the last hour, tokens as the total of the UTC day."""
+    d = os.path.join(state, "state")
+    path = os.path.join(d, "u%d" % uid)
+    try:
+        fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+    except OSError:
+        raise Refuse("limit", "the counters cannot be kept, so no request is made")
+    with os.fdopen(fd, "r+") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            data = json.loads(f.read() or "{}")
+            reqs = [float(t) for t in data.get("requests", []) if now - float(t) < 3600]
+            day = str(data.get("day", ""))
+            tokens = int(data.get("tokens", 0))
+        except (ValueError, TypeError):
+            reqs, day, tokens = [], "", 0
+        today = time.strftime("%Y-%m-%d", time.gmtime(now))
+        if day != today:
+            day, tokens = today, 0
+        if count:
+            if len(reqs) >= limits["requests-hour"]:
+                raise Refuse("limit", "the hourly limit of %d requests is used up" % limits["requests-hour"])
+            if tokens >= limits["tokens-day"]:
+                raise Refuse("limit", "the daily limit of %d tokens is used up" % limits["tokens-day"])
+            reqs.append(now)
+        if add_tokens:
+            tokens += int(add_tokens)
+        f.seek(0)
+        f.truncate()
+        f.write(json.dumps({"requests": reqs, "day": day, "tokens": tokens}))
+        return len(reqs), tokens
+
+
+# ---------------------------------------------------------------------------------------------------- reply hygiene
+
+def hygiene(text):
+    """ASCII, newline and tab only.  Returns (text, number of characters replaced by ?)."""
+    out = []
+    replaced = 0
+    for ch in text:
+        o = ord(ch)
+        if ch in "\n\t" or 0x20 <= o < 0x7F:
+            out.append(ch)
+        elif ch == "\r":
+            continue
+        elif o in PLAIN:
+            out.append(PLAIN[o])
+        else:
+            out.append("?")
+            replaced += 1
+    return "".join(out), replaced
+
+
+# ---------------------------------------------------------------------------------------------------- the provider call
+
+def build_request(name, p, key, model, system, prompt, maxtokens):
+    """(path, headers, body bytes) for the provider's wire format."""
+    url = urllib.parse.urlsplit(p["url"])
+    path = url.path or "/"
+    if url.query:
+        path += "?" + url.query
+    headers = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "sd-ai/1"}
+    if p["auth"] == "bearer":
+        headers["Authorization"] = "Bearer " + key
+    else:
+        headers["x-api-key"] = key
+    if p["format"] == "anthropic":
+        headers["anthropic-version"] = p.get("version") or "2023-06-01"
+        body = {"model": model, p["maxparam"]: maxtokens, "messages": [{"role": "user", "content": prompt}]}
+        if system:
+            blk = {"type": "text", "text": system}
+            if len(system) >= 4096:
+                blk["cache_control"] = {"type": "ephemeral"}      # a long fixed system text (the guide) is cached by the provider
+            body["system"] = [blk]
+    else:
+        msgs = []
+        if system:
+            msgs.append({"role": "system", "content": system})
+        msgs.append({"role": "user", "content": prompt})
+        body = {"model": model, p["maxparam"]: maxtokens, "messages": msgs}
+    return path, headers, json.dumps(body).encode("utf-8")
+
+
+def parse_reply(fmt, raw):
+    """(text, tokens in, tokens out, truncated) from a provider's JSON; Refuse for an error object, a refusal or a shape it does not know."""
+    try:
+        j = json.loads(raw.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        raise Refuse("badreply", "the provider's answer is not JSON")
+    if not isinstance(j, dict):
+        raise Refuse("badreply", "the provider's answer is not an object")
+    if j.get("type") == "error" or ("error" in j and fmt == "openai"):
+        raise Refuse("refused", "the provider returned an error")
+    try:
+        if fmt == "anthropic":
+            if j.get("stop_reason") == "refusal":
+                raise Refuse("declined", "the model declined the request")
+            text = "".join(b.get("text", "") for b in j["content"] if isinstance(b, dict) and b.get("type") == "text")
+            u = j.get("usage", {})
+            tin = int(u.get("input_tokens", 0)) + int(u.get("cache_creation_input_tokens", 0) or 0) + int(u.get("cache_read_input_tokens", 0) or 0)
+            tout = int(u.get("output_tokens", 0))
+            trunc = j.get("stop_reason") == "max_tokens"
+        else:
+            ch = j["choices"][0]
+            m = ch["message"]
+            if m.get("refusal") or ch.get("finish_reason") == "content_filter":
+                raise Refuse("declined", "the model declined the request")
+            text = m.get("content") or ""
+            u = j.get("usage", {})
+            tin = int(u.get("prompt_tokens", 0))
+            tout = int(u.get("completion_tokens", 0))
+            trunc = ch.get("finish_reason") == "length"
+        if not isinstance(text, str):
+            raise Refuse("badreply", "the reply text is not text")
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError):
+        raise Refuse("badreply", "the provider's answer has a shape this helper does not know")
+    return text, tin, tout, trunc
+
+
+def https_post(p, path, headers, body, ca_file, timeout):
+    """One POST.  Returns (status, headers, raw).  The context verifies the certificate and the host name; there is no way to turn that off."""
+    ctx = ssl.create_default_context(cafile=ca_file or None)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.check_hostname = True
+    ctx.verify_mode = ssl.CERT_REQUIRED
+    u = urllib.parse.urlsplit(p["url"])
+    conn = http.client.HTTPSConnection(u.hostname, u.port or 443, timeout=CONNECT_TIMEOUT, context=ctx)
+    try:
+        conn.connect()
+        conn.sock.settimeout(timeout)
+        conn.request("POST", path, body=body, headers=headers)
+        r = conn.getresponse()
+        raw = r.read(RAW_CAP + 1)
+        return r.status, dict(r.getheaders()), raw
+    finally:
+        conn.close()
+
+
+def ask(state, conf, name, p, model, key, system, prompt, maxtokens, limits):
+    """The call, with one bounded retry on 429 and 5xx.  Returns (text, tin, tout, truncated)."""
+    path, headers, body = build_request(name, p, key, model, system, prompt, maxtokens)
+    ca = conf.get("ca-file", "") or None
+    if ca and not plain_path(ca):
+        raise Refuse("badconf", "ca-file is not a plain absolute path")
+    deadline = time.time() + limits["timeout"]
+    for attempt in (1, 2):
+        left = deadline - time.time()
+        if left <= 0:
+            raise Refuse("timeout", "no answer in %d seconds" % limits["timeout"])
+        try:
+            status, rh, raw = https_post(p, path, headers, body, ca, left)
+        except ssl.SSLCertVerificationError:
+            raise Refuse("net", "the provider's certificate was not accepted")
+        except ssl.SSLError:
+            raise Refuse("net", "the TLS connection failed")
+        except socket.timeout:
+            raise Refuse("timeout", "no answer in %d seconds" % limits["timeout"])
+        except (OSError, http.client.HTTPException):
+            raise Refuse("net", "the provider could not be reached")
+        if len(raw) > RAW_CAP:
+            raise Refuse("badreply", "the provider's answer is far too large")
+        if status in (429, 500, 502, 503, 504) and attempt == 1:
+            try:
+                wait = min(5.0, max(0.5, float(rh.get("Retry-After", "1"))))
+            except ValueError:
+                wait = 1.0
+            if time.time() + wait < deadline:
+                time.sleep(wait)
+                continue
+        if 300 <= status < 400:
+            raise Refuse("refused", "the provider answered with a redirect, which is not followed")
+        if status in (401, 403):
+            raise Refuse("refused", "the provider did not accept the key")
+        if status == 429 or status >= 500:
+            raise Refuse("busy", "the provider is busy or failing (HTTP %d)" % status)
+        if status != 200:
+            raise Refuse("refused", "the provider refused the request (HTTP %d)" % status)
+        return parse_reply(p["format"], raw)
+    raise Refuse("busy", "the provider is busy")
+
+
+# ---------------------------------------------------------------------------------------------------- one request
+
+def status_reply(state, conf, table, uid):
+    """What anyone allowed to ask may be told (provider, model, whether a key is set, the gate) and, for sdsys and root, the connection details."""
+    sel = None
+    try:
+        sel = selected(conf, table)
+    except Refuse as e:
+        return {"t": "err", "code": e.code, "msg": e.msg}
+    out = {"t": "status", "provider": sel[0] if sel else "", "model": sel[2] if sel else "", "gate": in_group(uid, GATE_GROUP) if uid is not None else False}
+    out["key"] = bool(sel) and os.path.isfile(os.path.join(state, "keys", sel[0]))
+    if uid is not None and is_admin(uid):
+        det = {}
+        for n in PROVIDERS:
+            if n == "custom":
+                p = {k[len("custom."):]: v for k, v in conf.items() if k.startswith("custom.")}
+            else:
+                p = dict(table[n])
+            det[n] = {"name": p.get("name", n.title()), "url": p.get("url", ""), "format": p.get("format", ""), "auth": p.get("auth", ""),
+                      "version": p.get("version", ""), "maxparam": p.get("maxparam", ""), "model": conf.get("model." + n, ""),
+                      "key": os.path.isfile(os.path.join(state, "keys", n))}
+        out["providers"] = det
+        out["ca-file"] = conf.get("ca-file", "")
+        out["limits"] = {k: int_setting(conf, k) for k in LIMITS}
+    return out
+
+
+# ---------------------------------------------------------------------------------------------------- the settings (administrator only)
+
+def write_conf(state, conf):
+    """ai.conf from a dict, whole and atomic (a temporary file in the same directory, then rename), mode 0640.  Empty values are left out, except
+    provider= (empty is AI off, said so on purpose).  The caller holds the lock and has already checked the result."""
+    path = os.path.join(state, "ai.conf")
+    lines = ["# ai.conf - the settings of the AI helper, written by sd-ai for the administrator (set.ai.*, the AI choice page).  Not for hand editing."]
+    for k in sorted(conf):
+        if conf[k] != "" or k == "provider":
+            lines.append("%s=%s" % (k, conf[k]))
+    tmp = path + ".new"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o640)
+    with os.fdopen(fd, "w", encoding="ascii") as f:
+        f.write("\n".join(lines) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+
+def write_key(state, name, key):
+    """The key of one provider, a private file of sdai's, replaced whole.  Never echoed, never logged."""
+    d = os.path.join(state, "keys")
+    tmp = os.path.join(d, "." + name + ".new")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="ascii") as f:
+        f.write(key + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, os.path.join(d, name))
+
+
+def admin_op(state, providers_path, req):
+    """set, keyset and keyclear: what the AI choice page and set.ai.* do.  Only sdsys and root get here.  Every value is checked as the helper checks
+    it at the time of use, and the whole result is checked BEFORE it is written, so a request can never leave a file the helper then refuses to read."""
+    table = read_providers(providers_path)
+    lock = os.open(os.path.join(state, "conf.lock"), os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        conf = parse_kv(os.path.join(state, "ai.conf"))
+        op = req["op"]
+        if op in ("keyset", "keyclear"):
+            name = req.get("provider")
+            if name not in PROVIDERS:
+                raise Refuse("badreq", "provider must be one of %s" % ", ".join(PROVIDERS))
+            if op == "keyclear":
+                try:
+                    os.remove(os.path.join(state, "keys", name))
+                except FileNotFoundError:
+                    pass
+                return {"t": "ok", "key": "clear"}
+            key = req.get("key")
+            if not isinstance(key, str) or not re.match(r"^[\x21-\x7e]{8,512}$", key):
+                raise Refuse("badreq", "a key is 8 to 512 printable characters with no space")
+            write_key(state, name, key)
+            return {"t": "ok", "key": "set"}
+        what = req.get("what")
+        new = dict(conf)
+        if what == "provider":
+            v = req.get("value")
+            if not isinstance(v, str) or (v != "" and v not in PROVIDERS):
+                raise Refuse("badreq", "provider must be one of %s, or empty to turn the AI off" % ", ".join(PROVIDERS))
+            new["provider"] = v
+        elif what == "model":
+            name, v = req.get("provider"), req.get("value")
+            if name not in PROVIDERS or not isinstance(v, str) or (v != "" and not MODEL_RE.match(v)):
+                raise Refuse("badreq", "a provider and a model name of letters, digits and . _ : / @ + - (empty clears it)")
+            new["model." + name] = v
+        elif what == "custom":
+            p = {k: req.get(k, "") for k in ("name", "url", "format", "auth", "version", "maxparam")}
+            if not all(isinstance(v, str) for v in p.values()):
+                raise Refuse("badreq", "the custom connection is text")
+            check_connection(p, "the custom provider")
+            for k, v in p.items():
+                new["custom." + k] = v
+        elif what == "custom-clear":
+            if conf.get("provider") == "custom":
+                raise Refuse("badreq", "custom is the selected provider: select another first")
+            for k in [k for k in new if k.startswith("custom.")]:
+                del new[k]
+        elif what == "ca":
+            v = req.get("value")
+            if not isinstance(v, str) or (v != "" and (not plain_path(v) or not os.path.isfile(v) or not os.access(v, os.R_OK))):
+                raise Refuse("badreq", "ca-file is empty (the system store) or a plain absolute path of a file this helper can read")
+            new["ca-file"] = v
+        elif what == "limit":
+            name, v = req.get("name"), req.get("value")
+            if name not in LIMITS or not isinstance(v, str) or not re.match(r"^[0-9]{1,10}$", v):
+                raise Refuse("badreq", "a limit is one of %s and a whole number" % ", ".join(LIMITS))
+            new["limit." + name] = v
+        else:
+            raise Refuse("badreq", "what is one of provider, model, custom, custom-clear, ca, limit")
+        selected(new, table)                                   # the whole result must be one the helper will read: custom complete before it is selected
+        for k in LIMITS:
+            int_setting(new, k)
+        write_conf(state, new)
+        return {"t": "ok"}
+    finally:
+        os.close(lock)
+
+
+def handle(line, fd, state, providers_path):
+    """One request line to one reply dict.  fd is the connection (for the caller's uid)."""
+    try:
+        req = json.loads(line.decode("utf-8"))
+        if not isinstance(req, dict) or req.get("v") != VERSION or req.get("op") not in ("ask", "status", "set", "keyset", "keyclear"):
+            raise ValueError
+    except (ValueError, UnicodeDecodeError):
+        return {"t": "err", "code": "badreq", "msg": "not a request this helper understands"}, "-"
+    uid = peer_uid(fd)
+    if req["op"] in ("set", "keyset", "keyclear"):
+        if uid is None or not is_admin(uid):
+            return {"t": "err", "code": "noadmin", "msg": "only the administrator may change the AI settings"}, "-"
+        try:
+            return admin_op(state, providers_path, req), "-"
+        except Refuse as e:
+            return {"t": "err", "code": e.code, "msg": e.msg}, "-"
+    if uid is None or not in_group(uid, GATE_GROUP):
+        if req["op"] == "ask" or uid is None:
+            return {"t": "err", "code": "nogate", "msg": "this account may not use the AI"}, "-"
+    try:
+        conf = parse_kv(os.path.join(state, "ai.conf"))
+        table = read_providers(providers_path)
+        if req["op"] == "status":
+            return status_reply(state, conf, table, uid), "-"
+        limits = {k: int_setting(conf, k) for k in LIMITS}
+        sel = selected(conf, table)
+        if sel is None:
+            raise Refuse("disabled", "no AI provider is selected")
+        name, p, model = sel
+        if not model:
+            raise Refuse("nomodel", "no model has been chosen for %s" % p.get("name", name))
+        if not MODEL_RE.match(model):
+            raise Refuse("badconf", "the model name has characters a model name may not have")
+        key = read_key(state, name)
+        prompt = req.get("prompt")
+        system = req.get("system", "")
+        if not isinstance(prompt, str) or not prompt.strip() or not isinstance(system, str):
+            raise Refuse("badreq", "a prompt is required")
+        if len(prompt.encode("utf-8")) + len(system.encode("utf-8")) > limits["bytes-request"]:
+            raise Refuse("toobig", "the request is over %d bytes" % limits["bytes-request"])
+        try:
+            maxtokens = int(req.get("maxtokens", limits["max-tokens"]))
+        except (TypeError, ValueError):
+            raise Refuse("badreq", "maxtokens is not a number")
+        maxtokens = max(1, min(maxtokens, limits["max-tokens"]))
+        counters(state, uid, time.time(), limits, count=True)
+        text, tin, tout, trunc = ask(state, conf, name, p, model, key, system, prompt, maxtokens, limits)
+        counters(state, uid, time.time(), limits, add_tokens=tin + tout)
+        text, replaced = hygiene(text)
+        if len(text.encode("ascii")) > limits["bytes-reply"]:
+            raise Refuse("toobig", "the reply is over %d bytes" % limits["bytes-reply"])
+        return {"t": "ok", "text": text, "in": tin, "out": tout, "provider": name, "truncated": trunc, "replaced": replaced}, name
+    except Refuse as e:
+        return {"t": "err", "code": e.code, "msg": e.msg}, "-"
+
+
+def serve(fd_in, fd_out, state, providers_path, log):
+    """Read one line from fd_in, answer on fd_out.  A watchdog ends the process if a call runs far past its own deadline."""
+    limit = LIMITS["bytes-request"] * 2 + 65536
+    buf = b""
+    while b"\n" not in buf and len(buf) <= limit:
+        chunk = os.read(fd_in, 65536)
+        if not chunk:
+            break
+        buf += chunk
+    if b"\n" not in buf:
+        if len(buf) > limit:
+            reply, prov = {"t": "err", "code": "toobig", "msg": "the request is far too large"}, "-"
+        else:
+            reply, prov = {"t": "err", "code": "badreq", "msg": "no request line"}, "-"
+    else:
+        signal.signal(signal.SIGALRM, lambda *a: (_ for _ in ()).throw(Refuse("timeout", "no answer in time")))
+        signal.alarm(CONNECT_TIMEOUT + 300 + 5)          # limit.timeout is at most 300: past this the process is stuck and ends
+        try:
+            reply, prov = handle(buf.split(b"\n", 1)[0], fd_in, state, providers_path)
+        except Refuse as e:
+            reply, prov = {"t": "err", "code": e.code, "msg": e.msg}, "-"
+        except Exception as e:       # nothing is allowed to escape as a traceback with request text in it
+            reply, prov = {"t": "err", "code": "badreply", "msg": "internal error: %s" % e.__class__.__name__}, "-"
+        finally:
+            signal.alarm(0)
+    data = (json.dumps(reply, ensure_ascii=True) + "\n").encode("ascii")
+    view = 0
+    while view < len(data):
+        view += os.write(fd_out, data[view:])
+    uid = peer_uid(fd_in)
+    log("sd-ai: uid=%s provider=%s status=%s in=%s out=%s\n" % (uid, prov, reply.get("code", reply.get("t")), reply.get("in", "-"), reply.get("out", "-")))
+    return reply
+
+
+def main(argv):
+    state, providers = DEFAULT_STATE, DEFAULT_PROVIDERS
+    i = 1
+    while i < len(argv):
+        if argv[i] == "--state" and i + 1 < len(argv):
+            state = argv[i + 1]
+            i += 2
+        elif argv[i] == "--providers" and i + 1 < len(argv):
+            providers = argv[i + 1]
+            i += 2
+        else:
+            sys.stderr.write("usage: sd-ai [--state DIR] [--providers FILE]\n")
+            return 2
+    serve(0, 1, state, providers, sys.stderr.write)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

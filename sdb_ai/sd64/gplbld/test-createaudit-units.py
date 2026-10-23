@@ -27,6 +27,7 @@ CA = os.path.join(HERE, os.pardir, "sdsys", "gpl.bp", "createa")
 PAIRS = [("CA$ROUTE.SSH", "ssh"), ("CA$ROUTE.API", "api"), ("CA$OS.SH", "sh-on"), ("CA$OS.EXECUTE", "os-on"), ("CA$VOC.EDIT", "voc-on"),
          ("CA$BP.EDIT", "bp-on"), ("CA$DICT.EDIT", "dict-on"), ("CA$NET", "net-on"), ("CA$FILES", "files-on"),
          ("CA$FILESWRITE", "files-write-on"), ("CA$FILESADMIN", "files-admin-on"),   # 21 Oct 26, S.73 item 3
+         ("CA$AI", "ai-on"),   # 23 Oct 26, S.69 step 2
          ("CA$SHARED.READ.OFF", "shared-read-off"), ("CA$SHARED.WRITE", "shared-write-on")]
 AUDIT = "void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates)"
 
@@ -80,6 +81,7 @@ MUTANTS = [
      "void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates)\n   call !create_account(acc.type, acc.name, settings, err)"),
     ("files-write-on is not named", "   if settings<CA$FILESWRITE> = 1 then gates<-1> = 'files-write-on'\n", ""),
     ("files-admin-on is not named", "   if settings<CA$FILESADMIN> = 1 then gates<-1> = 'files-admin-on'\n", ""),
+    ("ai-on is not named", "   if settings<CA$AI> = 1 then gates<-1> = 'ai-on'\n", ""),
     ("sh and os are swapped", "settings<CA$OS.SH> = 1 then gates<-1> = 'sh-on'", "settings<CA$OS.EXECUTE> = 1 then gates<-1> = 'sh-on'"),
     ("voc-on is named net-on", "settings<CA$VOC.EDIT> = 1 then gates<-1> = 'voc-on'", "settings<CA$VOC.EDIT> = 1 then gates<-1> = 'net-on'"),
     ("an empty list is not none", "if gates = '' then gates = 'none' else", "if gates = '' then gates = '' else"),

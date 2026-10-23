@@ -1,0 +1,31 @@
+[Unit]
+Description=SD Core AI helper for one request
+
+[Service]
+# S.69 step 2 (23 Oct 26).  One short-lived process per connection, as the OS user sdai, which owns nothing but /var/lib/sd-ai (the provider keys and
+# the settings).  The program is root-owned and outside /usr/local/sdsys so that no SD account, sdsys included, can replace what holds the key.  It makes
+# the one outward HTTPS call and nothing else; the unit says so again in terms the kernel enforces.
+User=sdai
+Group=sdai
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+ExecStart=/usr/local/lib/sd-ai/sd-ai
+RuntimeMaxSec=330
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/sd-ai
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+LockPersonality=yes
+MemoryDenyWriteExecute=yes

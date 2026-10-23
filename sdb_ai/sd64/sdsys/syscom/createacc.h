@@ -73,4 +73,7 @@ $define CA$FILESWRITE      39    ;* 1 = start in the group sdfileswrite (with CA
 * Linux only (21 Oct 26, S.73 item 3): 1 = also join the Linux group sdfilesadmin, so a files-only login may administer files on this server.  Needs CA$FILES and CA$FILESWRITE.
 $define CA$FILESADMIN      40    ;* 1 = start in the group sdfilesadmin (with CA$FILES and CA$FILESWRITE; S.73 item 3)
 
+* Linux only (23 Oct 26, S.69 step 2): 1 = also join the Linux group sdaiusers, the right to use the AI provider's API through the helper sd-ai.  Stands alone.
+$define CA$AI              41    ;* 1 = start in the group sdaiusers (S.69 step 2)
+
 * END-CODE

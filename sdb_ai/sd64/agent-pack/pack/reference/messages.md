@@ -6066,6 +6066,267 @@ Back from SED: %1 %2 is as it was
 
 cited by: `ide`
 
+### msg:11606
+> kind=message tier=reference since=- src=sdsys/messages/11606:1#d9625a28
+
+```
+Account %1 has ai %2
+```
+
+cited by: `create_account`, `modifya`
+
+### msg:11607
+> kind=message tier=reference since=- src=sdsys/messages/11607:1#f3374397
+
+```
+The AI helper could not be reached: it is not running, or it is not installed
+```
+
+cited by: `ai`, `setai`, `tool_ai`
+
+### msg:11608
+> kind=message tier=reference since=- src=sdsys/messages/11608:1#53bb63db
+
+```
+The AI helper refused: %1 (%2)
+```
+
+cited by: `setai`
+
+### msg:11609
+> kind=message tier=reference since=- src=sdsys/messages/11609:1#3790b7aa
+
+```
+set.ai {provider NAME | model PROVIDER NAME | key PROVIDER | custom NAME URL FORMAT AUTH VERSION MAXPARAM | ca PATH | limit NAME NUMBER}; set.ai alone says what is set
+```
+
+cited by: `setai`
+
+### msg:11610
+> kind=message tier=reference since=- src=sdsys/messages/11610:1#9fdc2caf
+
+```
+%1 is not one of anthropic, openai, deepseek and custom
+```
+
+cited by: `setai`
+
+### msg:11611
+> kind=message tier=reference since=- src=sdsys/messages/11611:1#3787cc8c
+
+```
+The AI provider for every account is now %1
+```
+
+cited by: `setai`
+
+### msg:11612
+> kind=message tier=reference since=- src=sdsys/messages/11612:1#6ccb165b
+
+```
+The AI is now off for every account: no provider is selected
+```
+
+cited by: `setai`
+
+### msg:11613
+> kind=message tier=reference since=- src=sdsys/messages/11613:1#6c457bdc
+
+```
+The model for %1 is now %2
+```
+
+cited by: `setai`
+
+### msg:11614
+> kind=message tier=reference since=- src=sdsys/messages/11614:1#ff7db8ab
+
+```
+The model for %1 is cleared
+```
+
+cited by: `setai`
+
+### msg:11615
+> kind=message tier=reference since=- src=sdsys/messages/11615:1#dce90c12
+
+```
+The key for %1 is set
+```
+
+cited by: `setai`
+
+### msg:11616
+> kind=message tier=reference since=- src=sdsys/messages/11616:1#fbbec801
+
+```
+The key for %1 is cleared
+```
+
+cited by: `setai`
+
+### msg:11617
+> kind=message tier=reference since=- src=sdsys/messages/11617:1#fd9d72b5
+
+```
+The custom connection is now %1, at %2
+```
+
+cited by: `setai`
+
+### msg:11618
+> kind=message tier=reference since=- src=sdsys/messages/11618:1#32ab1a01
+
+```
+The custom connection is cleared
+```
+
+cited by: `setai`
+
+### msg:11619
+> kind=message tier=reference since=- src=sdsys/messages/11619:1#911ece57
+
+```
+The ca-file is now %1
+```
+
+cited by: `setai`
+
+### msg:11620
+> kind=message tier=reference since=- src=sdsys/messages/11620:1#4c1c6efc
+
+```
+The ca-file is now the system store of certificate authorities
+```
+
+cited by: `setai`
+
+### msg:11621
+> kind=message tier=reference since=- src=sdsys/messages/11621:1#c08d87b4
+
+```
+The limit %1 is now %2
+```
+
+cited by: `setai`
+
+### msg:11622
+> kind=message tier=reference since=- src=sdsys/messages/11622:1#a51f2631
+
+```
+%1 has a character that is not allowed here: use letters, digits and . _ : / @ + , -
+```
+
+cited by: `setai`
+
+### msg:11623
+> kind=message tier=reference since=- src=sdsys/messages/11623:1#00fc7b30
+
+```
+ai text: asks the AI the administrator has chosen; you see what will be sent and say yes first. Put the text in quotes if it ends with ?
+```
+
+cited by: `ai`
+
+### msg:11624
+> kind=message tier=reference since=- src=sdsys/messages/11624:1#c30bea17
+
+```
+The AI is off: the administrator has not chosen a provider (tool.ai or set.ai)
+```
+
+cited by: `ai`
+
+### msg:11625
+> kind=message tier=reference since=- src=sdsys/messages/11625:1#0853f7ae
+
+```
+This account may not use the AI: the administrator can allow it with modify.account %1 ai-on
+```
+
+cited by: `ai`
+
+### msg:11626
+> kind=message tier=reference since=- src=sdsys/messages/11626:1#62b7e7e6
+
+```
+The AI is not set up for %1: the administrator has not set its %2 (tool.ai or set.ai)
+```
+
+cited by: `ai`
+
+### msg:11627
+> kind=message tier=reference since=- src=sdsys/messages/11627:1#74d419a5
+
+```
+The AI did not answer: %1 (%2)
+```
+
+cited by: `ai`
+
+### msg:11628
+> kind=message tier=reference since=- src=sdsys/messages/11628:1#8456c22a
+
+```
+This will be sent to %1 (model %2), %3 bytes; the provider sees all of it:
+```
+
+cited by: `ai`
+
+### msg:11629
+> kind=message tier=reference since=- src=sdsys/messages/11629:1#e995047f
+
+```
+Send it? (y/N)
+```
+
+cited by: `ai`
+
+### msg:11630
+> kind=message tier=reference since=- src=sdsys/messages/11630:1#f6305b7b
+
+```
+Nothing was sent.
+```
+
+cited by: `ai`
+
+### msg:11631
+> kind=message tier=reference since=- src=sdsys/messages/11631:1#193f538d
+
+```
+Waiting for the answer ...
+```
+
+cited by: `ai`
+
+### msg:11632
+> kind=message tier=reference since=- src=sdsys/messages/11632:1#e74dab69
+
+```
+The answer was cut off at the length limit.
+```
+
+cited by: `ai`
+
+### msg:11633
+> kind=message tier=reference since=- src=sdsys/messages/11633:1#ae818345
+
+```
+%1 characters of the answer were replaced with ?: only plain text is shown.
+```
+
+cited by: `ai`
+
+### msg:11634
+> kind=message tier=reference since=- src=sdsys/messages/11634:1#64da2396
+
+```
+Tokens used: %1 in, %2 out (%3)
+```
+
+cited by: `ai`
+
 ### msg:11700
 > kind=message tier=reference since=- src=sdsys/messages/11700:1#1e363371
 
@@ -6325,7 +6586,7 @@ cited by: `tk_open`, `tool_home`
 there is nothing to run
 ```
 
-cited by: `tk_run`
+cited by: `tk_run`, `tk_runx`
 
 ### msg:11805
 > kind=message tier=reference since=- src=sdsys/messages/11805:1#769214f4
@@ -6334,7 +6595,7 @@ cited by: `tk_run`
 %1 is not one of the commands this tool may run
 ```
 
-cited by: `tk_run`
+cited by: `tk_run`, `tk_runx`
 
 ### msg:11806
 > kind=message tier=reference since=- src=sdsys/messages/11806:1#94aef6cc
@@ -6343,7 +6604,7 @@ cited by: `tk_run`
 %1 has a character that a command word may not have: use a-z, 0-9, dot, dash or underscore
 ```
 
-cited by: `tk_run`
+cited by: `tk_run`, `tk_runx`
 
 ### msg:11807
 > kind=message tier=reference since=- src=sdsys/messages/11807:1#c5e7c01d
@@ -6352,7 +6613,7 @@ cited by: `tk_run`
 the command is too long to run from this tool
 ```
 
-cited by: `tk_run`
+cited by: `tk_run`, `tk_runx`
 
 ### msg:11808
 > kind=message tier=reference since=- src=sdsys/messages/11808:1#f758d39b
@@ -6843,7 +7104,7 @@ cited by: `tool_home`
 Press Enter to return to the home screen
 ```
 
-cited by: `tool_home`
+cited by: `tool_ai`, `tool_home`
 
 ### msg:11866
 > kind=message tier=reference since=- src=sdsys/messages/11866:1#40549194
@@ -8422,7 +8683,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `docsinst` and 16 more
+cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `docsinst` and 17 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

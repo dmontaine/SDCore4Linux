@@ -50,6 +50,7 @@ $include tk.h
    rows<-1> = "files|Files route|files-on|files-off|group||sdfiles||next login|off|F|log in over the files-only SDNet route and read the files of its account on this server|a login by the other routes it has|1|built"
    rows<-1> = "files-write|Files write|files-write-on|files-write-off|group||sdfileswrite||next login|off|FW|change files over the files-only route: write, delete, lock and clear|read files over that route|1|built"
    rows<-1> = "files-admin|Files admin|files-admin-on|files-admin-off|group||sdfilesadmin||next login|off|FA|administer files over the files-only route: configure, analyse, index, create, delete and the file's counter|change records in files that already exist, if files-write is on|1|built"
+   rows<-1> = "ai|AI|ai-on|ai-off|group||sdaiusers||at the next request|off|AI|use the ai verb and the programs of the screen library that ask the AI the administrator chose; the text they send leaves this machine for that provider|everything else inside SD|1|built"
    rows<-1> = "sockets|Raw sockets||||||||off||open raw network connections from programs|use the SD socket verbs that every account has|1|planned"
 
    if id = 'list' then

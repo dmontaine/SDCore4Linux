@@ -210,6 +210,9 @@ fi
 sudo "${sdsysdir}/bin/sd" -stop 2>/dev/null || true
 sudo systemctl stop sd.service sdclient.socket 2>/dev/null || true
 sudo systemctl disable sd.service sdclient.socket 2>/dev/null || true
+# 23 Oct 26 dm - S.69 step 2: and the AI helper's socket (the units are removed with the others below).
+sudo systemctl stop sd-ai.socket 2>/dev/null || true
+sudo systemctl disable sd-ai.socket 2>/dev/null || true
 # --------------------
 
 # 11 Sep 26 dm - PORT_ADOPTION 13.  THE AUDIT TRAIL IS APPEND-ONLY (chattr +a),
@@ -387,6 +390,10 @@ echo "Removed /usr/local/sbin/sd-elevate."
 #            Backups already written are the administrator's files and stay.
 sudo rm -f /usr/local/sbin/sd-accarchive
 echo "Removed /usr/local/sbin/sd-accarchive."
+# 23 Oct 26 dm - S.69 step 2: the AI helper, its client and the provider table (root-owned, with the program).  Its settings and keys are /var/lib/sd-ai, which is
+#   removed only with the accounts, further down.
+sudo rm -rf /usr/local/lib/sd-ai
+echo "Removed /usr/local/lib/sd-ai."
 # 12 Sep 26  PORT_ADOPTION 19.  The reconciler goes with the other helpers.
 #            It removes account directories under --sweep, so leaving a
 #            root-owned copy behind after an uninstall would leave a tool
@@ -430,7 +437,8 @@ if [ "$keep_accts" = "DELETE" ]; then
     #   goes with sdssh and sdapi, for their reason.
     # 18 Oct 26 dm - S.65 write group: and sdfileswrite, the right to change files over it.
     # 21 Oct 26 dm - S.73 item 3: and sdfilesadmin, the right to administer them.
-    for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do
+    # 23 Oct 26 dm - S.69 step 2: and sdaiusers, the right to use the AI provider's API.
+    for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do
         if getent group "$sd_route_group" &>/dev/null; then
             sudo groupdel "$sd_route_group" || true
             echo "Removed group $sd_route_group (the accounts went with it)."
@@ -445,9 +453,14 @@ if [ "$keep_accts" = "DELETE" ]; then
         sudo groupdel sdai || true
         echo "Removed group sdai."
     fi
+    # 23 Oct 26 dm - S.69 step 2: and the helper's settings and provider keys.  Kept with the accounts otherwise: a key is typed once and must survive an upgrade.
+    if [ -d /var/lib/sd-ai ]; then
+        sudo rm -rf /var/lib/sd-ai
+        echo "Removed /var/lib/sd-ai (the AI settings and keys)."
+    fi
 else
-    echo "sd ACCOUNTS were saved, so the route groups sdssh, sdapi, sdfiles, sdfileswrite and sdfilesadmin were kept."
-    echo "The user sdai was kept with them."
+    echo "sd ACCOUNTS were saved, so the route groups sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin and sdaiusers were kept."
+    echo "The user sdai was kept with them, and /var/lib/sd-ai (the AI settings and keys)."
 fi
 # --------------------
 
@@ -466,7 +479,9 @@ fi
 # sudo rm /usr/lib/systemd/system/sdclient@.service
 sudo rm -f "${systemd_dir}/sd.service" \
            "${systemd_dir}/sdclient.socket" \
-           "${systemd_dir}/sdclient@.service"
+           "${systemd_dir}/sdclient@.service" \
+           "${systemd_dir}/sd-ai.socket" \
+           "${systemd_dir}/sd-ai@.service"
 # --------------------
 echo "Removed systemd service files."
 

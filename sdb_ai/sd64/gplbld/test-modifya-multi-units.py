@@ -52,6 +52,17 @@ def between(text, a, b):
     return text[i:j] if j >= 0 else text[i:]
 
 
+def in_order(text, *parts):
+    """True when every part occurs in text, each after the one before; a part that is missing is False (a mutant may have taken it out)."""
+    pos = -1
+    for p in parts:
+        i = text.find(p, pos + 1)
+        if i < 0:
+            return False
+        pos = i
+    return True
+
+
 def checks(src, msgs):
     c = strip(src)
     rows = []
@@ -96,6 +107,14 @@ def checks(src, msgs):
         if w.startswith("START-"):
             gate = "START"                                                                        # 22 Oct 26: start-menu, start-terminal and start-default are one setting (slot ST)
         by_slot.setdefault(s, set()).add(gate if s != "R" else "R")
+    set_ai = between(c, "\nset.ai:\n", "\nos.set:\n")
+    ck("M13 AI-ON and AI-OFF (23 Oct 26, S.69 step 2): do.action sets ai.want true or false and calls set.ai; set.ai refuses a group account first, reads the group three-valued, answers 'already' before it "
+       "looks for the Linux group (10024), changes the group through change.files.group (which reads it back) and prints 11606 from that read back, after the audit line",
+       re.search(r"case action = 'AI-ON'\s*\n\s*ai\.want = @true\s*\n\s*gosub set\.ai\s*\n\s*return", do_action) is not None
+       and re.search(r"case action = 'AI-OFF'\s*\n\s*ai\.want = @false\s*\n\s*gosub set\.ai\s*\n\s*return", do_action) is not None
+       and set_ai != "" and in_order(set_ai, "if group.name[1,4] # 'sdu_' then", "has.ai = is_grp_member(files.user, 'sdaiusers')", "if has.ai = ai.want then", "ai.found = is_group('sdaiusers')",
+                                    "cg.group = 'sdaiusers'", "gosub change.files.group", "kernel(K$AUDIT, 'modify.account ' : downcase(action)", "sysmsg(11606, acc.name, if cg.now then 'yes' else 'no')")
+       and "os.execute" not in set_ai, "")
     ck("M2b ...and two different gates never share a slot (a shared slot would call sh-on with os-on a conflict)",
        all(len(v) == 1 for v in by_slot.values()), "%s" % {k: sorted(v) for k, v in by_slot.items() if len(v) > 1})
     ck("M3 the order of execution (the word list): the routes first, files-on before files-write-on before files-admin-on, the suspension last",
@@ -205,10 +224,17 @@ MUTANTS = [
     ("the usage forgets a word", "voc-on | voc-off | bp-on | bp-off | dict-on | dict-off", "voc-on | voc-off | bp-on | dict-on | dict-off"),
     ("sh-on and os-on share a slot", "'R,R,R,R,SH,SH,OS,OS,", "'R,R,R,R,SH,SH,SH,SH,"),
     ("files-write-on runs before files-on", "FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON", "FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ON,FILES-OFF,FILES-ADMIN-ON"),
-    ("files-admin-on runs before files-write-on (21 Oct 26, S.73 item 3)", "FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,START-MENU", "FILES-ADMIN-ON,FILES-ADMIN-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,START-MENU"),
+    ("files-admin-on runs before files-write-on (21 Oct 26, S.73 item 3)", "FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,AI-ON", "FILES-ADMIN-ON,FILES-ADMIN-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,AI-ON"),
     ("the suspension runs first", "PINS-OFF,SUSPENDED,UNSUSPENDED'", "PINS-OFF,UNSUSPENDED,SUSPENDED'"),
-    ("the start and pins words run after the suspension (22 Oct 26, S.75)", "FILES-ADMIN-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED,UNSUSPENDED'", "FILES-ADMIN-OFF,SUSPENDED,UNSUSPENDED,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF'"),
-    ("the pins words share the start slot (22 Oct 26, S.75)", "FA,FA,ST,ST,ST,PN,PN,S,S')", "FA,FA,ST,ST,ST,ST,ST,S,S')"),
+    ("the start and pins words run after the suspension (22 Oct 26, S.75)", "AI-ON,AI-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED,UNSUSPENDED'", "AI-ON,AI-OFF,SUSPENDED,UNSUSPENDED,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF'"),
+    ("the pins words share the start slot (22 Oct 26, S.75)", "FA,FA,AI,AI,ST,ST,ST,PN,PN,S,S')", "FA,FA,AI,AI,ST,ST,ST,ST,ST,S,S')"),
+    # 23 Oct 26, S.69 step 2: the AI words
+    ("ai-on is missing from the word list (23 Oct 26, S.69 step 2)", ",FILES-ADMIN-OFF,AI-ON,AI-OFF,START-MENU", ",FILES-ADMIN-OFF,AI-OFF,START-MENU"),
+    ("the ai words share the files-admin slot (23 Oct 26, S.69 step 2)", "FA,FA,AI,AI,ST", "FA,FA,FA,FA,ST"),
+    ("the usage forgets the ai words (23 Oct 26, S.69 step 2)", "   crt '                 modify.account <account> ai-on | ai-off'\n", ""),
+    ("set.ai says yes without reading the group back (23 Oct 26, S.69 step 2)", "crt sysmsg(11606, acc.name, if cg.now then 'yes' else 'no')", "crt sysmsg(11606, acc.name, if ai.want then 'yes' else 'no')"),
+    ("set.ai does not refuse a group account (23 Oct 26, S.69 step 2)", "set.ai:\n   if group.name[1,4] # 'sdu_' then", "set.ai:\n   if @false then"),
+    ("set.ai changes the group without sd-elevate's reading back (23 Oct 26, S.69 step 2)", "   cg.group = 'sdaiusers'\n   cg.want = ai.want\n   gosub change.files.group\n", "   cg.group = 'sdaiusers'\n   cg.want = ai.want\n   cg.now = ai.want\n"),
     ("a case of do.action ends in stop", "         gosub os.set\n         return\n      case action = 'SH-OFF'", "         gosub os.set\n         stop\n      case action = 'SH-OFF'"),
     ("the account is not read again before each action", "      read acc.rec from acc.f, acc.name else null\n", ""),
     ("the code is not cleared before each action", "      @system.return.code = 0\n      gosub do.action\n", "      gosub do.action\n"),

@@ -257,6 +257,7 @@ void txn_rollback_to(int depth);                 /* txn.c: roll back the transac
 char * k_var_name(DESCRIPTOR * descr);
 void log_message(char * msg);
 void audit_message(char * msg);
+void k_ai(int action, DESCRIPTOR * descr, DESCRIPTOR * result);   /* op_ai.c: KERNEL(K$AI.START / POLL / CANCEL / STATUS), the in-SD AI helper's transport (S.69 step 2) */
 void audit_rotate(void);
 int log_printf(char * str, ...);
 void log_permissions_error(FILE_VAR * fvar);

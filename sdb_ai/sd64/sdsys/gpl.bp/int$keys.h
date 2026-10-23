@@ -228,7 +228,11 @@
       $define K$PROFILER        116   ;* n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
       $define K$PROFILER.USER   117     ;* user * 4096 + 2048 + n start it in another process, user * 4096 alone stop it and have it write F<user> to $ipc; administrator only
       $define K$MASTERS         150     ;* the master files (voc_master, dict_master, master_state): op:@fm:argument, the answer's first field is the status (0 done, 1 not set up, 2 not the administrator, 3 bad argument, 4 no such account, 5 error); only 'ready' and 'note' are open to every $internal program (19 Oct 26, S.67)
-      $define K$LOCK.TRACE      115     ;* 1 start lock tracing (administrator: makes the locktrace file), 0 stop, -1 ask; the state, -1 if refused (16 Oct 26)
+      $define K$AI.START        160     ;* the in-SD AI helper (op_ai.c; S.69 step 2): system:@fm:maxtokens:@fm:prompt, answered 'OK' or 'ERR':@fm:why; the kernel writes the audit line itself
+      $define K$AI.POLL         161     ;* 'W' waiting, 'D':@fm:the helper's reply (JSON), or 'E':@fm:why
+      $define K$AI.CANCEL       162     ;* give the request up
+      $define K$AI.STATUS       163     ;* the helper's status line, 'D':@fm:json, or 'E':@fm:why (waits at most two seconds)
+      $define K$LOCK.TRACE      115    ;* 1 start lock tracing (administrator: makes the locktrace file), 0 stop, -1 ask; the state, -1 if refused (16 Oct 26)
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?

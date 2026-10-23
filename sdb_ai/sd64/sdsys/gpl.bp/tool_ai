@@ -1,0 +1,730 @@
+* TOOL_AI
+* The administrator's AI choice page (S.69 step 2, plan .claude/plan-ai-step2.md and plan-fullscreen-toolkit.md A2b; owner, 23 Oct 2026: "an ai choice page. The connection
+* information for each ai should be filled in except for the key and the model which the user needs to provide. There should be a checkbox for the currently selected
+* provider. ... a fourth option for a user selected model where the user has to fill everything in. The same model needs to be used by all accounts. There needs to be an
+* API gate for each user account").  An administrator app.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 23 Oct 26 dm  New.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   TOOL.AI
+*
+*   For the administrator only (it is refused, before anything is read, for anyone else; it is in SDSYS's VOC only).  A full-screen page, in the toolkit's frame (140 columns by 43
+*   lines at least), with two boxes:
+*
+*     Provider   Anthropic, OpenAI, DeepSeek and Custom, one to a row, with a check box on the provider every account uses (none marked: the AI is off), its address, its model and
+*                whether its key is set.  The three named providers come with their connection details; the model and the key are the administrator's.  Custom is the fourth choice,
+*                where the administrator fills in everything.  The row under the cursor is described in full below.
+*     Accounts   The accounts that belong to a person, with the state of each one's ai gate (modify.account NAME ai-on | ai-off): only an account whose gate is on can send
+*                anything to the provider.
+*
+*   Keys: Up and Down move, Tab changes box, Enter selects or deselects the provider (Provider) or turns the gate on or off (Accounts), M the model, K the key, X clears the key,
+*   C fills in Custom, D removes it, A the file of certificate authorities, L a limit, F5 reads the machine again, F1 or ? or a click on a [?] explains the box, Ctrl-Q leaves.
+*
+*   THE PAGE WRITES NOTHING ITSELF AND KNOWS NO KEY.  What it shows it reads from the AI helper (KERNEL(K$AI.STATUS): the connection details, the models, whether a key is set,
+*   the limits - never a key) and from the register (the gates, through $tk_gates).  Every change is a SET.AI or MODIFY.ACCOUNT sentence shown with its effect in a box answered
+*   Run or Cancel (Cancel is what Enter chooses) and run by $tk_runx / $tk_run; selecting a provider, turning an account's gate on, a certificate file and Custom ask for a
+*   name to be typed, as turning on any switch that reaches beyond SD does.  THE KEY IS NOT TYPED HERE: the page gives the terminal to SET.AI KEY, whose prompt is the AI
+*   helper's own and shows nothing, then takes the screen again.  Nothing is turned on by opening the page.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $tool_ai
+$catalog $tool_ai
+
+$include keys.h
+$include int$keys.h
+$include err.h
+$include sl.h
+$include tk.h
+
+   prompt ''
+
+   allow.set = 'set.ai'                                        ;* the commands this page may run: SET.AI (through $tk_runx, which lets a word hold what SET.AI itself allows)
+   allow.acc = 'modify.account'                                ;* and MODIFY.ACCOUNT NAME ai-on | ai-off (through $tk_run)
+   okc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:/@+,-'          ;* the characters SET.AI allows in a word
+
+   call $tk_open('tool.ai', 'admin', ctx, err)
+   if err # '' then
+      display err
+      stop
+   end
+   void kernel(K$AUDIT, 'tool start app=tool.ai')
+
+   keys = ''
+   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
+   call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)
+   call $tk_keys('add', keys, 'tab', 'box', 'pane', '', 1)
+   call $tk_keys('add', keys, 'm', 'model', 'model', 'Provider', 1)
+   call $tk_keys('add', keys, 'k', 'key', 'key', 'Provider', 1)
+   call $tk_keys('add', keys, 'x', 'clear key', 'clearkey', 'Provider', 1)
+   call $tk_keys('add', keys, 'c', 'custom', 'custom', 'Provider', 1)
+   call $tk_keys('add', keys, 'd', 'drop custom', 'dropcustom', 'Provider', 1)
+   call $tk_keys('add', keys, 'a', 'ca file', 'ca', 'Provider', 1)
+   call $tk_keys('add', keys, 'l', 'limit', 'limit', 'Provider', 1)
+   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
+   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+
+   provs = 'anthropic' : @fm : 'openai' : @fm : 'deepseek' : @fm : 'custom'
+   lnames = 'requests-hour' : @fm : 'tokens-day' : @fm : 'timeout' : @fm : 'bytes-request' : @fm : 'bytes-reply' : @fm : 'max-tokens'
+   pnames = 'Provider' : @fm : 'Accounts'
+
+   VISA = 6                                                    ;* account rows on the screen
+   pane = 1
+   pi = 1                                                      ;* the provider row under the cursor
+   ci = 1                                                      ;* the account row under the cursor
+   ta = 0                                                      ;* the account rows scrolled off the top
+   gen = 0
+   msg = 'Enter selects the provider with the check box; M sets its model and K its key'
+   done = 0
+
+   gosub read.all
+   gosub draw.all
+
+   loop
+      call $tk_frame(ctx, keys, pnames<pane>, msg)
+      call $sl_curat(0, ctx<TK.C.YSTAT>)
+      nm = ''
+      screen key returning nm
+      begin case
+         case nm = ''
+            if status() = ER$EOF then exit
+         case nm = 'guardquit'
+            exit
+         case nm = 'resize'
+            gen += 1
+            ctx<TK.C.GEN> = gen
+            gosub draw.all
+         case nm = 'mouse'
+            gosub on.mouse
+         case 1
+            gosub on.key
+      end case
+      if done then exit
+   repeat
+
+   call $tk_close(ctx)
+   stop
+
+* ------------------------------------------------------------------------------------------------- what the machine says
+
+* The helper's status line (never a key), and the accounts with the state of their ai gate
+read.all:
+   helper.ok = 0
+   hj = ''
+   reply = kernel(K$AI.STATUS, 0)
+   if reply<1> = 'D' then
+      hj = jparse(reply<2>)
+      if not(status()) and hj{'t'} = 'status' then helper.ok = 1
+   end
+   sel = ''
+   pnm = '' ; purl = '' ; pfmt = '' ; paut = '' ; pver = '' ; pmax = '' ; pmod = '' ; pkey = ''
+   ca = ''
+   lim = ''
+   if helper.ok then
+      sel = hj{'provider'}
+      for i = 1 to 4
+         p = provs<i>
+         pnm<i> = hj{'providers/' : p : '/name'}
+         purl<i> = hj{'providers/' : p : '/url'}
+         pfmt<i> = hj{'providers/' : p : '/format'}
+         paut<i> = hj{'providers/' : p : '/auth'}
+         pver<i> = hj{'providers/' : p : '/version'}
+         pmax<i> = hj{'providers/' : p : '/maxparam'}
+         pmod<i> = hj{'providers/' : p : '/model'}
+         pkey<i> = (if hj{'providers/' : p : '/key'} then 1 else 0)
+      next i
+      ca = hj{'ca-file'}
+      for i = 1 to dcount(lnames, @fm)
+         lim<i> = hj{'limits/' : lnames<i>}
+      next i
+   end
+   gosub read.accounts
+   return
+
+* The accounts that belong to a person (a USER account), by name, each with its ai gate read from the system as $tk_gates reads every gate
+read.accounts:
+   an = 0
+   anm = '' ; auser = '' ; ast = '' ; asusp = ''
+   openpath @sdsys:@ds:'accounts' to acc.f then
+      select acc.f to 9
+      names = ''
+      loop
+         readnext id from 9 else exit
+         locate id in names<1> by 'AL' setting lp else
+            ins id before names<lp>
+         end
+      repeat
+      close acc.f
+      for i = 1 to dcount(names, @fm)
+         call $tk_gates(names<i>, g, ainfo, gerr)
+         if gerr = '' and ainfo<1> = 'USER' then
+            an += 1
+            anm<an> = names<i>
+            auser<an> = ainfo<3>
+            asusp<an> = ainfo<2>
+            ast<an> = ''
+            for k = 1 to dcount(g, @fm)
+               if g<k, 1> = 'ai' then ast<an> = g<k, 2>
+            next k
+         end
+      next i
+   end
+   if ci > an then ci = an
+   if ci < 1 then ci = 1
+   return
+
+* ------------------------------------------------------------------------------------------------- drawing
+
+draw.all:
+   cw = ctx<TK.C.W>
+   chh = ctx<TK.C.H> - 5
+   screen clear at 0,1 size cw,chh
+   screen box at 1,1 size 138,9 title 'AI provider - one for every account'
+   screen box at 1,10 size 138,13 title 'The row under the cursor'
+   screen box at 1,23 size 138,10 title 'Accounts that may use the AI'
+   screen box at 1,33 size 138,6 title 'What this means'
+   gosub draw.providers
+   gosub draw.detail
+   gosub draw.accounts
+   gosub draw.effect
+   return
+
+draw.providers:
+   screen text '    ' : fmt('Provider', '14L') : fmt('Address', '56L') : fmt('Model', '28L') : 'Key' at 3,2 attr 'header' width 134
+   for r = 1 to 4
+      s = ''
+      if helper.ok then
+         nm.s = pnm<r>
+         if nm.s = '' then nm.s = 'Custom'
+         url.s = purl<r>
+         if url.s = '' then url.s = '(not filled in)'
+         if len(url.s) > 54 then url.s = url.s[1, 52] : '..'
+         mod.s = pmod<r>
+         if mod.s = '' then mod.s = '(not set)'
+         s = '[' : (if provs<r> = sel then 'x' else ' ') : '] ' : fmt(nm.s, '14L') : fmt(url.s, '56L') : fmt(mod.s[1, 26], '28L') : (if pkey<r> then 'set' else 'not set')
+      end
+      screen text s at 3,2 + r attr (if r = pi then (if pane = 1 then 'highlight' else 'bold') else 'normal') width 134
+   next r
+   if not(helper.ok) then
+      s = 'The AI helper is not running, or it is not installed: nothing here can be read or changed.'
+   end else
+      if sel = '' then
+         s = 'The AI is OFF: no provider is selected.  Check a provider, give it a model and a key, and switch on the ai gate of an account.'
+      end else
+         lpid = sel
+         gosub locate.prov
+         k = lpr
+         s = 'In use: ' : pnm<k> : ', model ' : (if pmod<k> = '' then '(not set)' else pmod<k>) : ', key ' : (if pkey<k> then 'set' else 'not set')
+         if pmod<k> = '' or not(pkey<k>) then s := '.  It cannot be used until both are set'
+      end
+   end
+   screen text s at 3,8 attr 'bold' width 134
+   call $tk_help('mark', 134, 2, 0, 0)
+   return
+
+* The row under the cursor, in full
+draw.detail:
+   lines = ''
+   r = pi
+   if not(helper.ok) then
+      lines<-1> = 'No answer from the AI helper (the program sd-ai, started by systemd on the socket /run/sd-ai/sock).'
+   end else
+      nm.s = pnm<r>
+      if nm.s = '' then nm.s = 'Custom'
+      if purl<r> = '' then
+         lines<-1> = fmt('Name', '19L') : nm.s
+         lines<-1> = fmt('Address', '19L') : '(not filled in)'
+         lines<-1> = ''
+         lines<-1> = "Custom is yours to fill in.  Press C and give the name, the https address, the request layout, the authentication, the version header and the name of the field that limits an answer's length."
+         lines<-1> = ''
+      end else
+         lines<-1> = fmt('Name', '19L') : nm.s
+         lines<-1> = fmt('Address', '19L') : purl<r>
+         lines<-1> = fmt('Request layout', '19L') : pfmt<r> : (if pfmt<r> = 'anthropic' then '  (the Messages API)' else '  (chat completions)')
+         lines<-1> = fmt('Authentication', '19L') : (if paut<r> = 'bearer' then 'Authorization: Bearer <key>' else 'x-api-key: <key>')
+         lines<-1> = fmt('Version header', '19L') : (if pver<r> = '' then '(none)' else pver<r>)
+         lines<-1> = fmt('Answer limit field', '19L') : pmax<r>
+      end
+      lines<-1> = fmt('Model', '19L') : (if pmod<r> = '' then '(not set - press M)' else pmod<r>)
+      lines<-1> = fmt('Key', '19L') : (if pkey<r> then 'set (kept for the AI helper only; this page never shows it)' else 'not set - press K')
+      lines<-1> = ''
+      lines<-1> = 'Certificate authorities: ' : (if ca = '' then 'the system store' else ca)
+      s = ''
+      for i = 1 to dcount(lnames, @fm)
+         s := lnames<i> : ' ' : lim<i> : (if i < dcount(lnames, @fm) then ', ' else '')
+      next i
+      lines<-1> = 'Limits: ' : s
+   end
+   gosub wrap.lines
+   for r = 1 to 11
+      screen text fmt(lines<r>, '134L') at 3,10 + r width 134
+   next r
+   return
+
+draw.accounts:
+   screen text fmt('Account', '24L') : fmt('Linux user', '24L') : 'AI gate' at 3,24 attr 'header' width 134
+   if ci <= ta then ta = ci - 1
+   if ci > ta + VISA then ta = ci - VISA
+   if ta < 0 then ta = 0
+   for r = 1 to VISA
+      k = ta + r
+      s = ''
+      if k <= an then
+         s = fmt(anm<k>, '24L') : fmt(auser<k>, '24L') : (if ast<k> = 1 then 'ON ' else 'off') : (if asusp<k> then '   (suspended)' else '')
+      end
+      screen text s at 3,24 + r attr (if k = ci and k <= an then (if pane = 2 then 'highlight' else 'bold') else 'normal') width 134
+   next r
+   if an = 0 then
+      s = 'There is no account that belongs to a person.'
+   end else
+      n.on = 0
+      for k = 1 to an
+         if ast<k> = 1 then n.on += 1
+      next k
+      s = an : ' account' : (if an = 1 then '' else 's') : ' of persons; ' : n.on : ' may use the AI.  Up and Down move; Enter turns the gate of the account under the cursor on or off.'
+   end
+   screen text s at 3,31 attr 'bold' width 134
+   call $tk_help('mark', 134, 24, 0, 0)
+   return
+
+* In plain sentences
+draw.effect:
+   lines = ''
+   lines<-1> = 'One provider and one model serve every account.  The AI is off as delivered: it needs a provider, a model, a key and an account whose ai gate is on.'
+   lines<-1> = "The key is typed at the AI helper's own prompt and kept for the helper only; it does not pass through SD and this page never shows it.  What an account sends leaves this machine for the provider checked above, over https with the certificate checked."
+   if pane = 1 then
+      p = provs<pi>
+      if p = sel then
+         lines<-1> = 'Selected: ' : (if pnm<pi> = '' then 'Custom' else pnm<pi>) : ' is the provider in use.  Enter stops using it, which turns the AI off for every account.'
+      end else
+         lines<-1> = 'Selected: ' : (if pnm<pi> = '' then 'Custom' else pnm<pi>) : ' is not in use.  Enter makes it the provider every account uses (you type its name to confirm).'
+      end
+   end else
+      if an > 0 then
+         lines<-1> = 'Selected: ' : anm<ci> : (if ast<ci> = 1 then ' may use the AI.  Enter turns that off (at their next request).' else ' may not use the AI.  Enter turns it on (you type the name to confirm; at their next request).')
+      end
+   end
+   gosub wrap.lines
+   for r = 1 to 4
+      screen text fmt(lines<r>, '134L') at 3,33 + r width 134
+   next r
+   return
+
+* A SCREEN TEXT longer than its width is cut, not wrapped
+wrap.lines:
+   wrapped = ''
+   for wi = 1 to dcount(lines, @fm)
+      if lines<wi> = '' then
+         wrapped<-1> = ''
+      end else
+         call $tk_wrap(lines<wi>, 134, pieces)
+         wrapped<-1> = pieces
+      end
+   next wi
+   lines = wrapped
+   return
+
+* The row of the provider whose id is in lpid (1 when it is none of the four)
+locate.prov:
+   lpr = 1
+   for lp2 = 1 to 4
+      if provs<lp2> = lpid then lpr = lp2
+   next lp2
+   return
+
+* ------------------------------------------------------------------------------------------------- keys and mouse
+
+on.key:
+   msg = ''
+   if len(nm) = 1 and nm >= 'A' and nm <= 'Z' then nm = downcase(nm)
+   begin case
+      case nm = 'up'
+         if pane = 1 and pi > 1 then
+            pi -= 1
+            gosub redraw
+         end
+         if pane = 2 and ci > 1 then
+            ci -= 1
+            gosub redraw
+         end
+      case nm = 'down'
+         if pane = 1 and pi < 4 then
+            pi += 1
+            gosub redraw
+         end
+         if pane = 2 and ci < an then
+            ci += 1
+            gosub redraw
+         end
+      case nm = 'tab' or nm = 'right' or nm = 'btab' or nm = 'left'
+         pane = (if pane = 1 then 2 else 1)
+         gosub redraw
+      case nm = 'enter' or nm = ' '
+         if pane = 1 then gosub select.provider else gosub toggle.gate
+      case nm = 'f1' or nm = '?'
+         gosub help.here
+      case nm = 'f5'
+         gosub read.all
+         gosub draw.all
+         msg = 'read the machine again'
+      case nm = 'ctrl-q'
+         done = 1
+      case nm = 'm' or nm = 'k' or nm = 'x' or nm = 'c' or nm = 'd' or nm = 'a' or nm = 'l'
+         if pane # 1 then
+            msg = 'Move to the Provider box (Tab) for that key'
+         end else
+            if not(helper.ok) then
+               msg = sysmsg(11607)                                ;* The AI helper could not be reached
+            end else
+               begin case
+                  case nm = 'm'
+                     gosub do.model
+                  case nm = 'k'
+                     gosub do.key
+                  case nm = 'x'
+                     gosub do.clearkey
+                  case nm = 'c'
+                     gosub do.custom
+                  case nm = 'd'
+                     gosub do.dropcustom
+                  case nm = 'a'
+                     gosub do.ca
+                  case nm = 'l'
+                     gosub do.limit
+               end case
+            end
+         end
+   end case
+   return
+
+redraw:
+   gosub draw.providers
+   gosub draw.detail
+   gosub draw.accounts
+   gosub draw.effect
+   return
+
+on.mouse:
+   screen mouse returning mev else mev = ''
+   if mev = '' then return
+   call $tk_help('hit', mev, 134, 2, hit.prov)
+   call $tk_help('hit', mev, 134, 24, hit.acc)
+   if hit.prov or hit.acc then
+      pane = (if hit.prov then 1 else 2)
+      gosub redraw
+      gosub help.here
+      return
+   end
+   if mev<1> = 'press' and mev<2> = 1 then
+      mx = mev<3>
+      my = mev<4>
+      begin case
+         case mx >= 2 and mx <= 137 and my >= 3 and my <= 6
+            pi = my - 2
+            pane = 1
+            gosub redraw
+         case mx >= 2 and mx <= 137 and my >= 25 and my <= 24 + VISA
+            if ta + my - 24 <= an then ci = ta + my - 24
+            pane = 2
+            gosub redraw
+      end case
+   end
+   return
+
+help.here:
+   call $tk_help('box', (if pane = 1 then 'tool.ai.providers' else 'tool.ai.accounts'), hm, 0, 0)
+   if hm # '' then msg = hm
+   return
+
+* ------------------------------------------------------------------------------------------------- changing something: the command, its effect, Run or Cancel, then the machine's answer
+
+* Whether vw is a word SET.AI would take: 1 to vmax characters, all of okc
+valid.word:
+   vw.ok = (len(vw) >= 1 and len(vw) <= vmax)
+   if vw.ok then
+      if trim(convert(okc, space(len(okc)), vw)) # '' then vw.ok = 0
+   end
+   return
+
+* The sentence in sent, its effect in el, the name to be typed in typed (null for Run / Cancel); use.x is 1 for SET.AI (the wider word set), 0 for MODIFY.ACCOUNT
+confirm.and.run:
+   call $tk_confirm(sent, el, typed, res, cmsg)
+   if res = 'run' then
+      if use.x then
+         call $tk_runx(allow.set, sent, out, st, err)
+      end else
+         call $tk_run(allow.acc, sent, out, st, err)
+      end
+      if err # '' then
+         msg = err
+      end else
+         said = trim(change(out, @fm, ' '))
+         msg = (if said # '' then said[1, 130] else 'ran, status ' : st)
+      end
+      gosub read.all
+      gosub draw.all
+   end else
+      msg = cmsg
+   end
+   return
+
+* Enter on a provider: check it (the one every account uses), or uncheck the one in use (the AI is then off)
+select.provider:
+   if not(helper.ok) then
+      msg = sysmsg(11607)
+      return
+   end
+   p = provs<pi>
+   nm.s = pnm<pi>
+   if nm.s = '' then nm.s = 'Custom'
+   el = ''
+   if p = sel then
+      sent = 'set.ai provider none'
+      typed = ''
+      el<-1> = 'The AI will be off for every account: no provider will be selected.'
+      el<-1> = 'The model, the key and the ai gate of each account stay as they are.'
+   end else
+      sent = 'set.ai provider ' : p
+      typed = p
+      el<-1> = 'From now on every account whose ai gate is on will use ' : nm.s : '.'
+      host = field(purl<pi>, '/', 3)
+      if host # '' then el<-1> = 'The text they send leaves this machine for ' : host : ' over https.'
+      if pmod<pi> = '' then el<-1> = 'No model is set for it yet, so it cannot be used until you press M.'
+      if not(pkey<pi>) then el<-1> = 'No key is set for it yet, so it cannot be used until you press K.'
+      if p = 'custom' and purl<pi> = '' then el<-1> = 'Custom is not filled in yet: press C first (the helper refuses it until then).'
+   end
+   el<-1> = 'It takes effect at once.'
+   use.x = 1
+   gosub confirm.and.run
+   return
+
+* Enter on an account: its ai gate, on or off
+toggle.gate:
+   if an = 0 then return
+   an.name = anm<ci>
+   on.now = (ast<ci> = 1)
+   sent = 'modify.account ' : an.name : ' ' : (if on.now then 'ai-off' else 'ai-on')
+   el = ''
+   typed = ''
+   if on.now then
+      el<-1> = an.name : ' will no longer be able to send anything to the AI.  Nothing else about the account changes.'
+   end else
+      typed = an.name
+      lpid = sel
+      gosub locate.prov
+      k = lpr
+      if sel # '' then
+         el<-1> = an.name : ' will be able to send text to ' : (if pnm<k> = '' then 'Custom' else pnm<k>) : ' with the ai verb and the programs that ask the AI.  The text leaves this machine.'
+      end else
+         el<-1> = an.name : ' will be able to use the AI as soon as you choose a provider.  What it sends leaves this machine for that provider.'
+      end
+   end
+   el<-1> = "It takes effect at the person's next request to the AI: the helper looks at the group each time."
+   use.x = 0
+   gosub confirm.and.run
+   return
+
+* M: the model for the provider under the cursor (a dash clears it)
+do.model:
+   p = provs<pi>
+   nm.s = pnm<pi>
+   if nm.s = '' then nm.s = 'Custom'
+   cur = pmod<pi>
+   screen ask 'Model name for ' : nm.s : ' (a dash clears it)' width 60 value cur title 'AI model' returning mv else return
+   mv = trim(mv)
+   vw = mv
+   vmax = 80
+   gosub valid.word
+   if not(vw.ok) then
+      msg = 'A model name has 1 to 80 letters, digits and . _ : / @ + , - and nothing else'
+      return
+   end
+   sent = 'set.ai model ' : p : ' ' : mv
+   typed = ''
+   el = ''
+   if mv = '-' then
+      el<-1> = 'The model for ' : nm.s : ' will be cleared.  The AI cannot be used with it until a model is set.'
+   end else
+      el<-1> = 'Every account that uses ' : nm.s : ' will ask model ' : mv : ' from now on.'
+      el<-1> = 'The provider charges for that model; the limits shown on this page cap what accounts can send.'
+   end
+   use.x = 1
+   gosub confirm.and.run
+   return
+
+* K: the key.  The terminal is given to SET.AI KEY, whose prompt is the helper's own and shows nothing; nothing typed there reaches SD, this page or the audit trail
+do.key:
+   p = provs<pi>
+   if index(' anthropic openai deepseek custom ', ' ' : p : ' ', 1) = 0 then return
+   nm.s = pnm<pi>
+   if nm.s = '' then nm.s = 'Custom'
+   sent = 'set.ai key ' : p
+   el = ''
+   el<-1> = "The terminal is given to the AI helper's own prompt.  Type the key (nothing is shown) and press Enter.  Then you come back to this page."
+   el<-1> = 'The key is kept for the helper only.  It does not pass through SD, this page or the audit trail.'
+   host = field(purl<pi>, '/', 3)
+   if host # '' then
+      el<-1> = 'It is sent only to ' : host : ' over https, with the certificate checked.'
+   end else
+      el<-1> = nm.s : ' has no address yet: the key is kept, but nothing can use it until the address is filled in (press C).'
+   end
+   call $tk_confirm(sent, el, '', res, cmsg)
+   if res # 'run' then
+      msg = cmsg
+      return
+   end
+   call $tk_close(ctx)
+   execute sent
+   crt
+   crt sysmsg(11865) :                                         ;* Press Enter to return
+   input junk
+   gosub reopen
+   return
+
+* Take the screen again after the terminal was given away; the window may have changed
+reopen:
+   call $tk_open('tool.ai', 'admin', ctx, err)
+   if err # '' then
+      display err
+      done = 1
+      return
+   end
+   gen += 1
+   ctx<TK.C.GEN> = gen
+   gosub read.all
+   gosub draw.all
+   msg = 'back from the key prompt: the key shows as set when it was accepted'
+   return
+
+* X: remove the key of the provider under the cursor
+do.clearkey:
+   p = provs<pi>
+   nm.s = pnm<pi>
+   if nm.s = '' then nm.s = 'Custom'
+   if not(pkey<pi>) then
+      msg = 'No key is set for ' : nm.s
+      return
+   end
+   sent = 'set.ai key ' : p : ' clear'
+   typed = ''
+   el = ''
+   el<-1> = 'The key for ' : nm.s : ' will be removed from the AI helper.  The AI cannot be used with it until a key is set again (press K).'
+   use.x = 1
+   gosub confirm.and.run
+   return
+
+* C: the Custom row, every field the administrator's
+do.custom:
+   if provs<pi> # 'custom' then
+      msg = 'C fills in the Custom row: move the cursor to it first'
+      return
+   end
+   v1 = (if purl<4> = '' then '' else pnm<4>)
+   v2 = purl<4>
+   v3 = pfmt<4>
+   v4 = paut<4>
+   v5 = pver<4>
+   v6 = pmax<4>
+   screen ask 'Name (letters, digits and . _ : / @ + , - only)' width 40 value v1 title 'Custom AI connection  1 of 6' returning v1 else return
+   screen ask 'Address: https only, no query string' width 100 value v2 title 'Custom AI connection  2 of 6' returning v2 else return
+   screen ask 'Request layout: anthropic or openai' width 12 value v3 title 'Custom AI connection  3 of 6' returning v3 else return
+   screen ask 'Authentication: bearer or x-api-key' width 12 value v4 title 'Custom AI connection  4 of 6' returning v4 else return
+   screen ask 'Version header (empty or a dash for none)' width 24 value v5 title 'Custom AI connection  5 of 6' returning v5 else return
+   screen ask 'Field that limits the length of an answer (max_tokens or max_completion_tokens)' width 30 value v6 title 'Custom AI connection  6 of 6' returning v6 else return
+   v1 = trim(v1) ; v2 = trim(v2) ; v3 = downcase(trim(v3)) ; v4 = downcase(trim(v4)) ; v5 = trim(v5) ; v6 = trim(v6)
+   if v5 = '' then v5 = '-'
+   bad = ''
+   vmax = 40 ; vw = v1 ; gosub valid.word ; if not(vw.ok) then bad = 'the name'
+   vmax = 300 ; vw = v2 ; gosub valid.word ; if not(vw.ok) or v2[1, 8] # 'https://' then bad = 'the address (https://, no query string)'
+   if v3 # 'anthropic' and v3 # 'openai' then bad = 'the request layout (anthropic or openai)'
+   if v4 # 'bearer' and v4 # 'x-api-key' then bad = 'the authentication (bearer or x-api-key)'
+   vmax = 40 ; vw = v5 ; gosub valid.word ; if not(vw.ok) then bad = 'the version header'
+   vmax = 60 ; vw = v6 ; gosub valid.word ; if not(vw.ok) then bad = 'the answer length field'
+   if bad # '' then
+      msg = 'Not accepted: ' : bad : '.  Nothing was changed'
+      gosub draw.all
+      return
+   end
+   sent = 'set.ai custom ' : v1 : ' ' : v2 : ' ' : v3 : ' ' : v4 : ' ' : v5 : ' ' : v6
+   typed = 'custom'
+   el = ''
+   el<-1> = 'Custom will go to ' : field(v2, '/', 3) : ' over https, with the certificate checked, and the key is sent only to that address.'
+   el<-1> = 'The helper checks the address again.  It is not used until you check Custom, set a model and a key.'
+   use.x = 1
+   gosub confirm.and.run
+   return
+
+* D: forget the Custom connection
+do.dropcustom:
+   if provs<pi> # 'custom' then
+      msg = 'D removes the Custom row: move the cursor to it first'
+      return
+   end
+   sent = 'set.ai custom clear'
+   typed = ''
+   el = ''
+   el<-1> = 'The Custom connection is removed.  The helper refuses this while Custom is the provider in use.'
+   use.x = 1
+   gosub confirm.and.run
+   return
+
+* A: the file of certificate authorities the helper trusts (instead of the system store); a dash is the system store
+do.ca:
+   screen ask 'File of certificate authorities for a private CA (a dash is the system store)' width 100 value ca title 'Certificate authorities' returning cv else return
+   cv = trim(cv)
+   vw = cv
+   vmax = 300
+   gosub valid.word
+   if not(vw.ok) then
+      msg = 'A file name here has letters, digits and . _ : / @ + , - and nothing else'
+      return
+   end
+   sent = 'set.ai ca ' : cv
+   el = ''
+   if cv = '-' then
+      typed = ''
+      el<-1> = 'The helper will trust the system store of certificate authorities only (the delivered state).'
+   end else
+      typed = 'ca'
+      el<-1> = 'The helper will trust ONLY the authorities in ' : cv : ', not the system store.'
+      el<-1> = 'Whoever holds a key of one of those authorities can read what accounts send and the AI key.  Use a file you trust.'
+   end
+   use.x = 1
+   gosub confirm.and.run
+   return
+
+* L: one limit
+do.limit:
+   screen ask 'Limit (requests-hour, tokens-day, timeout, bytes-request, bytes-reply or max-tokens)' width 16 title 'AI limit' returning ln else return
+   ln = downcase(trim(ln))
+   locate ln in lnames<1> setting lk else
+      msg = ln : ' is not one of the six limits'
+      return
+   end
+   screen ask 'New value for ' : ln : ' (it is ' : lim<lk> : ' now; a whole number)' width 10 title 'AI limit' returning lv else return
+   lv = trim(lv)
+   if lv = '' or len(lv) > 9 or trim(convert('0123456789', space(10), lv)) # '' then
+      msg = 'A limit is a whole number of up to 9 digits'
+      return
+   end
+   sent = 'set.ai limit ' : ln : ' ' : lv
+   typed = ''
+   el = ''
+   el<-1> = 'The limit ' : ln : ' will be ' : lv : ' (it is ' : lim<lk> : ' now).  The helper checks the range.'
+   el<-1> = 'requests-hour and tokens-day count what each account sends; the other four cap one request.'
+   use.x = 1
+   gosub confirm.and.run
+   return
+
+end
+
+* END-CODE

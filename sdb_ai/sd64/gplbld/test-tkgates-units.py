@@ -104,7 +104,7 @@ def checks(raw):
     add("G10", "a gate that is on by delivery is exactly shared-read (keys.h: blank means yes for field 13 and for no other gate)",
         {r[0] for r in rows if r[9] == "on"} == {"shared-read"} and re.search(r"FIELD 13 IS THE ONE GATE WHOSE BLANK MEANS YES", raw["keys"]) is not None, [r[0] for r in rows if r[9] == "on"])
     add("G11", "a gate that reaches beyond SD is marked as one wherever the operating system, the network or another server is reached: sh os sd net ssh api files files-write files-admin sockets",
-        {r[0] for r in rows if r[13] == "1"} == {"sh", "os", "sd", "net", "ssh", "api", "files", "files-write", "files-admin", "sockets"}, sorted(r[0] for r in rows if r[13] == "1"))
+        {r[0] for r in rows if r[13] == "1"} == {"sh", "os", "sd", "net", "ssh", "api", "files", "files-write", "files-admin", "ai", "sockets"}, sorted(r[0] for r in rows if r[13] == "1"))
     add("G12", "no sentence is empty, holds an escape or ends in a full stop (the screens add their own punctuation), and none starts with a capital (they continue 'on allows ...')",
         all(r[11] and r[12] and not r[11].endswith(".") and not r[12].endswith(".") and r[11][0].islower() and r[12][0].islower() for r in rows), "")
     pairs = re.findall(r"case id = '([a-z-]+)'\s*\n\s*raw = rec<(ACC\$[A-Z.]+)>", raw["gates"])

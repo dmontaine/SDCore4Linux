@@ -65,12 +65,12 @@ The dictionary item types (field 1 starts with the letter). Each type is the chu
 | `10` | width | column width |
 
 ### core:gates
-> kind=core.digest tier=core since=- src=sdsys/gpl.bp/createa:258#7ecd66a8
+> kind=core.digest tier=core since=- src=sdsys/gpl.bp/createa:261#e199fce4
 
 A new user account starts with every gate OFF. Only SDSYS, the one administrator, turns one on, with these words (`create.account`, then `modify.account <account> <word>`). Each word is the chunk `sys:word:<word>`. This is what `create.account` prints:
 
 ```
-Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {no.query}
+Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {no.query}
                 create.account group <group name> {no.query}
                 create.account other <account name> <pathname> {no.query}
   A new user account starts with no ssh, no API, no shell (sh), no os.execute, and no right to change

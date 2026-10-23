@@ -26,7 +26,7 @@ SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
 NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "sl_color", "sl_selector", "sl_accel", "tool_keys"]
 # the programs of the gate pages and the throw-away test app: checked when the tree has them (Core), skipped when it has not (Solo's carry 13 leaves them for the gate page, 22 Oct 26)
-OPTIONAL = ["tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "tk_wrap", "tool_tktest"]
+OPTIONAL = ["tk_gate_info", "tk_run", "tk_runx", "tk_gates", "tk_explain", "tk_confirm", "tk_wrap", "tool_tktest"]
 
 
 def strip_bas(src):
@@ -124,8 +124,15 @@ def checks(raw):
         rn.count("execute ") == 1 and "execute sentence" not in rn and "status = @system.return.code" in rn and "K$AUDIT" not in rn and not re.search(r"\b(crt|display|print|screen)\b", rn), "")
     optadd("tk_run", "T18", "$tk_run allows exactly a-z, 0-9, dot, dash and underscore in a word, and the first word is compared whole against the tool's list, in lower case as typed",
         "good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'" in rn and "field(allow, ' ', i) = verb and verb # ''" in rn, "")
+    rx = sq.get("tk_runx", "")
+    optadd("tk_runx", "T18b", "$tk_runx (23 Oct 26, tool.ai) is $tk_run for a verb that checks its own words: the same ORDER (an empty sentence, a too long one, a first word outside the tool's list and a bad character are each "
+           "refused and return BEFORE the one EXECUTE of the checked sentence), the same trap and return code, no audit line and no screen text, and a word may hold a-z, A-Z, 0-9 and . _ : / @ + , - and nothing more",
+        ordered(rx, "sysmsg(11804)", "sysmsg(11807)", "if not(ok.verb) then err = sysmsg(11805, verb)", "if index(good, w[j, 1], 1) = 0 then err = sysmsg(11806, w)", "execute s trapping aborts capturing out")
+        and all(re.search(r"err = sysmsg\(%d[^)]*\) return" % m, rx) for m in (11804, 11805, 11806, 11807)) and rx.count("execute ") == 1 and "execute sentence" not in rx
+        and "status = @system.return.code" in rx and "K$AUDIT" not in rx and not re.search(r"\b(crt|display|print|screen)\b", rx)
+        and "good = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._:/@+,-'" in rx and "field(allow, ' ', i) = verb and verb # ''" in rx, "")
     gi = sq.get("tk_gate_info", "")
-    gi_code = re.sub(r'rows<-1> = "[^"]*"', "rows<-1> = ROW", gi)          # the rows are prose: the words of a sentence are not statements
+    gi_code =re.sub(r'rows<-1> = "[^"]*"', "rows<-1> = ROW", gi)          # the rows are prose: the words of a sentence are not statements
     optadd("tk_gate_info", "T19", "$tk_gate_info answers a list and one gate at a time from its rows, writes nothing and changes no state",
         "id = 'list' then" in gi and "convert('|', @fm, rows<i>)" in gi and gi_code.count("rows<-1> = ROW") >= 10
         and not re.search(r"\b(crt|display|print|screen|write|writev|kernel|execute)\b", gi_code), "")
@@ -368,6 +375,13 @@ MUT = [
     ("tk_run", "a refused sentence does not return", "err = sysmsg(11805, verb)\n      return", "err = sysmsg(11805, verb)"),
     ("tk_run", "an extra character is allowed (the semicolon)", "0123456789._-'", "0123456789._-;'"),
     ("tk_run", "the first word is matched as a prefix", "field(allow, ' ', i) = verb and verb # ''", "field(allow, ' ', i)[1, len(verb)] = verb"),
+    # 23 Oct 26: $tk_runx, the wider word set of tool.ai
+    ("tk_runx", "the tool's list is not asked", "if not(ok.verb) then", "if 0 then"),
+    ("tk_runx", "the characters of a word are not checked", "if index(good, w[j, 1], 1) = 0 then", "if 0 then"),
+    ("tk_runx", "the raw sentence is run, not the checked one", "execute s trapping aborts capturing out", "execute sentence trapping aborts capturing out"),
+    ("tk_runx", "a semicolon is allowed in a word", "0123456789._:/@+,-'", "0123456789._:/@+,-;'"),
+    ("tk_runx", "a space is allowed in a word", "0123456789._:/@+,-'", "0123456789._:/@+,- '"),
+    ("tk_runx", "a refused sentence does not return", "err = sysmsg(11806, w)\n            return", "err = sysmsg(11806, w)"),
     ("tk_gates", "the administrator is not asked", "if not(kernel(K$ADMINISTRATOR, -1)) then", "if 0 then"),
     ("tk_gates", "the administrator refusal does not return", "err = sysmsg(11800, 'tk_gates')\n      return", "err = sysmsg(11800, 'tk_gates')"),
     ("tk_gates", "the name is not checked", "if index(good, name[j, 1], 1) = 0 then", "if 0 then"),

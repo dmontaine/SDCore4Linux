@@ -90,7 +90,9 @@ NOT_SDFILES = ["sdfilesx", "sdfiles2", "sdfiles-x", "sdfile", "xsdfiles",
                # 18 Oct 26, S.65 write group: lookalikes of sdfileswrite
                "sdfileswrit", "sdfileswritex", "sdfileswrite2", "sdfileswrite-x", "xsdfileswrite",
                # 21 Oct 26, S.73 item 3: lookalikes of sdfilesadmin
-               "sdfilesadmi", "sdfilesadminx", "sdfilesadmin2", "sdfilesadmin-x", "xsdfilesadmin"]
+               "sdfilesadmi", "sdfilesadminx", "sdfilesadmin2", "sdfilesadmin-x", "xsdfilesadmin",
+               # 23 Oct 26, S.69 step 2: lookalikes of sdaiusers
+               "sdaiuser", "sdaiusersx", "sdaiusers2", "sdaiusers-x", "xsdaiusers"]
 
 
 def group_rows(helper=None):
@@ -115,6 +117,8 @@ def group_rows(helper=None):
     ask("groupadd sdfileswrite is on the whitelist", ["groupadd", "sdfileswrite"], _accepted)
     # 21 Oct 26, S.73 item 3: sdfilesadmin, the right to administer files over the files-only route, is the fifth route group.
     ask("groupadd sdfilesadmin is on the whitelist", ["groupadd", "sdfilesadmin"], _accepted)
+    # 23 Oct 26, S.69 step 2: sdaiusers, the right to use the AI provider's API, is the sixth.
+    ask("groupadd sdaiusers is on the whitelist", ["groupadd", "sdaiusers"], _accepted)
     if who:
         ask("addgroup <me> sdfiles is on the whitelist", ["addgroup", who, "sdfiles"], _accepted)
         ask("delgroup <me> sdfiles is on the whitelist", ["delgroup", who, "sdfiles"], _accepted)
@@ -122,7 +126,9 @@ def group_rows(helper=None):
         ask("delgroup <me> sdfileswrite is on the whitelist", ["delgroup", who, "sdfileswrite"], _accepted)
         ask("addgroup <me> sdfilesadmin is on the whitelist", ["addgroup", who, "sdfilesadmin"], _accepted)
         ask("delgroup <me> sdfilesadmin is on the whitelist", ["delgroup", who, "sdfilesadmin"], _accepted)
-    for grp in ("sdfiles", "sdfileswrite", "sdfilesadmin", "sdusers", "sdssh", "sdapi"):
+        ask("addgroup <me> sdaiusers is on the whitelist", ["addgroup", who, "sdaiusers"], _accepted)
+        ask("delgroup <me> sdaiusers is on the whitelist", ["delgroup", who, "sdaiusers"], _accepted)
+    for grp in ("sdfiles", "sdfileswrite", "sdfilesadmin", "sdaiusers", "sdusers", "sdssh", "sdapi"):
         ask(f"groupdel {grp} is never deleted", ["groupdel", grp], _undeletable)
     for bad in NOT_SDFILES:
         ask(f"groupadd {bad} is not an SD group", ["groupadd", bad], _name_refused)
@@ -136,26 +142,30 @@ def group_rows(helper=None):
 
 # Each mutant is (name, old text, new text) applied to the helper's source; the
 # old text must occur exactly once, or the selftest refuses.
-_WL = "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin) : ;;"
-_UD = "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin)\n        die"
+_WL = "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers) : ;;"
+_UD = "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers)\n        die"
 GROUP_MUTANTS = [
-    ("sdfiles dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfileswrite|sdfilesadmin) : ;;"),
-    ("sdfiles matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles*|sdfileswrite|sdfilesadmin) : ;;"),
+    ("sdfiles dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfileswrite|sdfilesadmin|sdaiusers) : ;;"),
+    ("sdfiles matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles*|sdfileswrite|sdfilesadmin|sdaiusers) : ;;"),
     ("whitelist widened to sd*", _WL, "sdusers|sdssh|sdapi|sd*) : ;;"),
     ("whitelist refuses nothing",
      "*) die \"'$group' is not an SD group", "*) : ;; # \"'$group' is not an SD group"),
-    ("sdfiles made deletable", _UD, "      sdusers|sdssh|sdapi|sdfileswrite|sdfilesadmin)\n        die"),
-    ("sdapi made deletable", _UD, "      sdusers|sdssh|sdfiles|sdfileswrite|sdfilesadmin)\n        die"),
-    ("sdssh made deletable", _UD, "      sdusers|sdapi|sdfiles|sdfileswrite|sdfilesadmin)\n        die"),
-    ("sdusers made deletable", _UD, "      sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin)\n        die"),
+    ("sdfiles made deletable", _UD, "      sdusers|sdssh|sdapi|sdfileswrite|sdfilesadmin|sdaiusers)\n        die"),
+    ("sdapi made deletable", _UD, "      sdusers|sdssh|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers)\n        die"),
+    ("sdssh made deletable", _UD, "      sdusers|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers)\n        die"),
+    ("sdusers made deletable", _UD, "      sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers)\n        die"),
     # 18 Oct 26, S.65 write group
-    ("sdfileswrite dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfilesadmin) : ;;"),
-    ("sdfileswrite matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite*|sdfilesadmin) : ;;"),
-    ("sdfileswrite made deletable", _UD, "      sdusers|sdssh|sdapi|sdfiles|sdfilesadmin)\n        die"),
+    ("sdfileswrite dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfilesadmin|sdaiusers) : ;;"),
+    ("sdfileswrite matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite*|sdfilesadmin|sdaiusers) : ;;"),
+    ("sdfileswrite made deletable", _UD, "      sdusers|sdssh|sdapi|sdfiles|sdfilesadmin|sdaiusers)\n        die"),
     # 21 Oct 26, S.73 item 3: the fifth route group
-    ("sdfilesadmin dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite) : ;;"),
-    ("sdfilesadmin matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin*) : ;;"),
-    ("sdfilesadmin made deletable", _UD, "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite)\n        die"),
+    ("sdfilesadmin dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdaiusers) : ;;"),
+    ("sdfilesadmin matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin*|sdaiusers) : ;;"),
+    ("sdfilesadmin made deletable", _UD, "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdaiusers)\n        die"),
+    # 23 Oct 26, S.69 step 2: the sixth, the right to use the AI provider's API
+    ("sdaiusers dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin) : ;;"),
+    ("sdaiusers matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers*) : ;;"),
+    ("sdaiusers made deletable", _UD, "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin)\n        die"),
 ]
 
 

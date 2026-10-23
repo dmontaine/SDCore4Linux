@@ -1,6 +1,35 @@
 Next release - in progress
 --------------------------
 
+23 Oct 26  AN ACCOUNT CAN ASK AN AI A QUESTION WITH THE AI VERB, ONCE THE ADMINISTRATOR HAS CHOSEN A PROVIDER ON THE NEW AI CHOICE PAGE, GIVEN IT A MODEL AND A
+           KEY, AND ALLOWED THE ACCOUNT. NOTHING IS ON AS DELIVERED: NO PROVIDER, NO MODEL, NO KEY AND NO ACCOUNT.
+
+             What        AI text (a new verb, in every account) shows the person what will be sent - the provider, the model, the size, one fixed sentence
+                        and their text - and sends it only when they answer y or yes; anything else, including an input that has ended, sends nothing.
+                        The answer is printed as plain text. Text that ends with a question mark goes in quotes, because TCL does not run a command that
+                        ends with one. TOOL.AI (SDSYS only) is the AI choice page: Anthropic, OpenAI, DeepSeek and Custom in a table with a check box on the
+                        provider every account uses (none checked is off), each with its address filled in and the model and the key for the administrator
+                        to supply; Custom is the fourth choice, where the administrator fills in everything; below it the accounts that belong to a person,
+                        each with the state of its ai gate. SET.AI (SDSYS only) does the same from the prompt. The one provider and one model serve every
+                        account. MODIFY.ACCOUNT name AI-ON / AI-OFF, and AI-ON on CREATE.ACCOUNT, are the gate of each account: membership of the new
+                        Linux group sdaiusers. The requests go through a small helper, sd-ai, which the installer puts in /usr/local/lib/sd-ai and which
+                        systemd starts for each request as the new operating system user sdai. It is the only part of SD that connects outward and the
+                        only part that can read a key. The key is typed at the helper's own prompt, which shows nothing; it does not pass through SD, the
+                        page or the audit trail, and is kept in /var/lib/sd-ai for the helper only. The helper asks the operating system who is calling,
+                        so the gate holds for a program that talks to its socket directly. The kernel writes the audit line (ai request account=...
+                        program=... bytes.out=...) before it connects. Limits, SDSYS-settable: 20 requests an hour and 100000 tokens a day for each Linux
+                        user, 30 seconds, 65536 bytes each way and 1024 tokens an answer.
+             Why it      An account holder can ask for an explanation or a draft without leaving SD, and the administrator decides which provider, which
+             matters     model and which accounts, in one place, with the key kept out of SD's reach.
+             Does not    NOTHING IS ON AS DELIVERED, and the installer's "open every gate" answer leaves ai-on out because every request is paid for by whoever
+                        holds the key. What leaves the machine is the text the person typed after they have seen it; the helper uses https only, always
+                        checks the certificate and the host name, follows no redirect and sends the key only to the provider's address. Custom lets the
+                        administrator name any https address and a private certificate file, which is a deliberate widening: leave it unfilled to allow
+                        the three named providers only. The answer is plain ASCII, never run. NOT BUILT: an AI line on the home screen, in the IDE, SED or
+                        CED, applying a suggestion, a key for each user, and any other provider's request layout. NOT SHOWN: a run against a real
+                        provider (the OpenAI layout in particular follows its documentation), and the installer, the real systemd socket and the helper
+                        as the user sdai on a real install.
+
 23 Oct 26  MENU BRINGS UP THE FULL-SCREEN MENU, EVERY SETTING ON THE ADMINISTRATOR'S PAGES HAS A [?] THAT EXPLAINS IT, AND PDF SHOWS A DOCUMENT IN A
            PDF READER THE ADMINISTRATOR HAS ALLOWED - EVEN FOR AN ACCOUNT THAT MAY NOT RUN PROGRAMS. NO READER IS ALLOWED AS DELIVERED.
 

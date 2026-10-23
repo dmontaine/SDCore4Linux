@@ -19,6 +19,9 @@
 * 
 *
 * START-HISTORY:
+* 23 Oct 26 dm S.69 step 2 (owner: "an API gate for each user account"): AI-ON / AI-OFF put the account's person in or out of the Linux group sdaiusers, the right to use the AI
+*           provider's API through the helper sd-ai (the helper reads the membership from the caller's uid).  set.ai is the one routine, 11606 the line it prints, and it uses the
+*           same group changer as set.files (change.files.group).  Off for a new account; it stands alone (no other group is needed).
 * 22 Oct 26 dm S.75 (the home screen): START-MENU / START-TERMINAL / START-DEFAULT, where a session of the account starts (field 16, ACC$START); blank follows the system default.  start.set
 *           is the one routine, 11868 the line it prints, 11869 "already".  Any account type; effective at the next sign-on or LOGTO into the account.
 * 21 Oct 26 dm S.73 item 3 (QMNet tiers C and D): FILES-ADMIN-ON / FILES-ADMIN-OFF put the account's person in or out of the Linux group sdfilesadmin, the right to ADMINISTER files over
@@ -146,6 +149,12 @@
 * MODIFY.ACCOUNT account FILES-WRITE-OFF
 * MODIFY.ACCOUNT account FILES-ADMIN-ON
 * MODIFY.ACCOUNT account FILES-ADMIN-OFF
+* MODIFY.ACCOUNT account AI-ON
+* MODIFY.ACCOUNT account AI-OFF
+*
+* 23 Oct 26 dm - S.69 step 2.  AI-ON / AI-OFF add or remove the account's person from the Linux group sdaiusers.  A person in it may use the AI provider the administrator chose
+*   (set.ai, the same provider and model for every account) through the helper sd-ai; a person outside it is refused by the helper (nogate).  Off for a new account.  The line
+*   printed is "Account %1 has ai yes|no", read back from /etc/group.  It takes effect at the person's next request: the helper reads the group each time.
 *
 * 21 Oct 26 dm - S.73 item 3.  FILES-ADMIN-ON / FILES-ADMIN-OFF add or remove the account's person from the Linux group sdfilesadmin.  A files-only login in sdfiles, sdfileswrite
 *   AND sdfilesadmin may also administer the files of the account it enters on this server (configure, analyse, index, create, delete, the file's counter); without sdfilesadmin it
@@ -436,6 +445,16 @@ do.action:
          files.want = @false
          gosub set.files
          return
+* 23 Oct 26 dm - S.69 step 2 (owner: "an API gate for each user account ... API access can be turned on or off depending on the user"): AI-ON / AI-OFF, membership of the Linux
+*   group sdaiusers, the right to use the AI provider's API through the helper sd-ai.  It stands alone (no other group is needed) and is OFF for a new account.
+      case action = 'AI-ON'
+         ai.want = @true
+         gosub set.ai
+         return
+      case action = 'AI-OFF'
+         ai.want = @false
+         gosub set.ai
+         return
       case action = 'SSH'
          want.ssh = @true  ; want.api = @false ; gosub set.route
          return
@@ -544,7 +563,7 @@ add.delete.arm:
          crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, voc-on, voc-off, bp-on, bp-off, dict-on, dict-off, net-on, net-off,'
          crt '   shared-read-on, shared-read-off, shared-write-on, shared-write-off,'
          crt '   start-menu, start-terminal, start-default, pins-on, pins-off,'
-         crt '   files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, suspended or unsuspended'
+         crt '   files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, suspended or unsuspended'
       end
 
    end else
@@ -568,6 +587,7 @@ show.usage:
    crt '                 modify.account <account> net-on | net-off'
    crt '                 modify.account <account> shared-read-on | shared-read-off | shared-write-on | shared-write-off'
    crt '                 modify.account <account> files-on | files-off | files-write-on | files-write-off | files-admin-on | files-admin-off'
+   crt '                 modify.account <account> ai-on | ai-off'
    crt '                 modify.account <account> start-menu | start-terminal | start-default'
    crt '                 modify.account <account> pins-on | pins-off'
    crt '                 modify.account <account> suspended | unsuspended'
@@ -593,8 +613,8 @@ show.usage:
 *   The conflict test compares DIFFERENT words only: the same word twice is one action (want.at is set once).
 
 validate.actions:
-   word.arr = convert(',', @fm, 'SSH,API,BOTH,NONE,SH-ON,SH-OFF,OS-ON,OS-OFF,SD-ON,SD-OFF,VOC-ON,VOC-OFF,BP-ON,BP-OFF,DICT-ON,DICT-OFF,NET-ON,NET-OFF,SHARED-READ-ON,SHARED-READ-OFF,SHARED-WRITE-ON,SHARED-WRITE-OFF,FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED,UNSUSPENDED')
-   slot.arr = convert(',', @fm, 'R,R,R,R,SH,SH,OS,OS,SD,SD,VOC,VOC,BP,BP,DICT,DICT,NET,NET,SR,SR,SW,SW,F,F,FW,FW,FA,FA,ST,ST,ST,PN,PN,S,S')
+   word.arr = convert(',', @fm, 'SSH,API,BOTH,NONE,SH-ON,SH-OFF,OS-ON,OS-OFF,SD-ON,SD-OFF,VOC-ON,VOC-OFF,BP-ON,BP-OFF,DICT-ON,DICT-OFF,NET-ON,NET-OFF,SHARED-READ-ON,SHARED-READ-OFF,SHARED-WRITE-ON,SHARED-WRITE-OFF,FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,AI-ON,AI-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED,UNSUSPENDED')
+   slot.arr = convert(',', @fm, 'R,R,R,R,SH,SH,OS,OS,SD,SD,VOC,VOC,BP,BP,DICT,DICT,NET,NET,SR,SR,SW,SW,F,F,FW,FW,FA,FA,AI,AI,ST,ST,ST,PN,PN,S,S')
    n.words = dcount(actions, @fm)
    pos.of = ''
    want.at = ''
@@ -1156,6 +1176,84 @@ change.files.group:
       files.stat = status()
       if files.stat = 0 and cg.now # cg.want then files.stat = 2
    end
+   return
+
+*****************************************************************************
+* SET.AI  -  MODIFY.ACCOUNT <account> AI-ON | AI-OFF
+*
+* 23 Oct 26 dm - S.69 step 2 (owner, 23 Oct: "an API gate for each user account, so that API access can be turned on or off depending on the user").  Membership of the Linux
+*   group sdaiusers IS the gate, as sdapi and sdfiles are: nothing is written to the register, and the helper sd-ai reads the membership from the caller's uid at every request,
+*   so the gate does not depend on SD's BASIC.  ai.want is set by the caller.  The group stands alone (no other group is needed) and is empty for a new account.
+*
+* AS SET.FILES, THE LOOKUP IS THREE-VALUED: !is_grp_member answers @false for "not a member" and for "could not tell", and tells them apart only by status().  An unreadable /etc/group
+*   changes NOTHING and says so (10081 with the status).  The same refusals: a group (sdg_) or other account has no Linux user (10087, 10081); AI-ON for a person who is not in sdusers
+*   (a login would refuse them first, so the group is not added to look like access); AI-ON when the Linux group sdaiusers does not exist on this machine (an install from before
+*   this release has not made it yet: 10024 names it).  The state line (11606) is read back from /etc/group after the change, and a read back that does not show the wanted
+*   state is a failure (10081), never a success.  change.files.group is the one place a group is changed (it is not specific to files).
+
+set.ai:
+   if group.name[1,4] # 'sdu_' then
+      @system.return.code = -ER$FAILED
+      if group.name[1,4] = 'sdg_' then
+         crt sysmsg(10087, acc.name)  ;* %1 is a group account and has no remote access; reach it with logto
+      end else
+         crt sysmsg(10081, acc.name, 2)  ;* Unable to change remote access for %1, status: %2
+      end
+      return
+   end
+   files.user = group.name[5,999]
+   if not(valid_os_name(files.user)) then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, 2)
+      return
+   end
+
+   has.ai = is_grp_member(files.user, 'sdaiusers')
+   files.stat = status()
+   if files.stat = 0 and ai.want then
+      in.sdusers = is_grp_member(files.user, 'sdusers')
+      files.stat = status()
+      if files.stat = 0 and not(in.sdusers) then files.stat = 2
+   end
+   if files.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, files.stat)
+      return
+   end
+
+   if has.ai = ai.want then
+      @system.return.code = 0
+      crt sysmsg(10080, acc.name)  ;* %1 already had that access; nothing changed
+      return
+   end
+
+   if ai.want then
+      ai.found = is_group('sdaiusers')
+      files.stat = status()
+      if files.stat # 0 then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(10081, acc.name, files.stat)
+         return
+      end
+      if not(ai.found) then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(10024, 'sdaiusers')  ;* %1 is not a valid Linux Group
+         return
+      end
+   end
+
+   cg.group = 'sdaiusers'
+   cg.want = ai.want
+   gosub change.files.group
+   if files.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, files.stat)
+      return
+   end
+
+   @system.return.code = 0
+   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)
+   crt sysmsg(11606, acc.name, if cg.now then 'yes' else 'no')  ;* Account %1 has ai %2
    return
 
 *****************************************************************************
