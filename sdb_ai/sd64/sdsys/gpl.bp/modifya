@@ -19,6 +19,8 @@
 * 
 *
 * START-HISTORY:
+* 22 Oct 26 dm S.75 (the home screen): START-MENU / START-TERMINAL / START-DEFAULT, where a session of the account starts (field 16, ACC$START); blank follows the system default.  start.set
+*           is the one routine, 11868 the line it prints, 11869 "already".  Any account type; effective at the next sign-on or LOGTO into the account.
 * 21 Oct 26 dm S.73 item 3 (QMNet tiers C and D): FILES-ADMIN-ON / FILES-ADMIN-OFF put the account's person in or out of the Linux group sdfilesadmin, the right to ADMINISTER files over
 *           the files-only route (configure, index, create and delete a file, the file's counter).  Needs sdfiles and sdfileswrite first (11526); FILES-OFF and FILES-WRITE-OFF take it
 *           away first, top down, and files-admin-on conflicts with them in one command (11791); the line printed is 11525.  set.files reads the three groups in read.files.groups (it
@@ -284,6 +286,19 @@ deffun valid_os_name(name) calling '!valid_os_name'
 *   why a second word could not be done; the case lines are unchanged and each now ends in return).  action holds the word, in capitals.
 do.action:
    begin case
+* 22 Oct 26 dm - S.75: where the account starts, a word for each state; start.set writes field 16 (blank follows the system default).
+      case action = 'START-MENU'
+         start.want = 'menu'
+         gosub start.set
+         return
+      case action = 'START-TERMINAL'
+         start.want = 'terminal'
+         gosub start.set
+         return
+      case action = 'START-DEFAULT'
+         start.want = ''
+         gosub start.set
+         return
       case action = 'SUSPENDED'
          gosub set.suspended
          return
@@ -519,6 +534,7 @@ add.delete.arm:
          crt 'modify.account Action Must Be add, delete, ssh, api, both, none,'
          crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, voc-on, voc-off, bp-on, bp-off, dict-on, dict-off, net-on, net-off,'
          crt '   shared-read-on, shared-read-off, shared-write-on, shared-write-off,'
+         crt '   start-menu, start-terminal, start-default,'
          crt '   files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, suspended or unsuspended'
       end
 
@@ -543,6 +559,7 @@ show.usage:
    crt '                 modify.account <account> net-on | net-off'
    crt '                 modify.account <account> shared-read-on | shared-read-off | shared-write-on | shared-write-off'
    crt '                 modify.account <account> files-on | files-off | files-write-on | files-write-off | files-admin-on | files-admin-off'
+   crt '                 modify.account <account> start-menu | start-terminal | start-default'
    crt '                 modify.account <account> suspended | unsuspended'
    crt '  Any of the actions except add and delete may be given together in one command, for example'
    crt '                 modify.account <account> sh-on os-on voc-on bp-on'
@@ -566,8 +583,8 @@ show.usage:
 *   The conflict test compares DIFFERENT words only: the same word twice is one action (want.at is set once).
 
 validate.actions:
-   word.arr = convert(',', @fm, 'SSH,API,BOTH,NONE,SH-ON,SH-OFF,OS-ON,OS-OFF,SD-ON,SD-OFF,VOC-ON,VOC-OFF,BP-ON,BP-OFF,DICT-ON,DICT-OFF,NET-ON,NET-OFF,SHARED-READ-ON,SHARED-READ-OFF,SHARED-WRITE-ON,SHARED-WRITE-OFF,FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,SUSPENDED,UNSUSPENDED')
-   slot.arr = convert(',', @fm, 'R,R,R,R,SH,SH,OS,OS,SD,SD,VOC,VOC,BP,BP,DICT,DICT,NET,NET,SR,SR,SW,SW,F,F,FW,FW,FA,FA,S,S')
+   word.arr = convert(',', @fm, 'SSH,API,BOTH,NONE,SH-ON,SH-OFF,OS-ON,OS-OFF,SD-ON,SD-OFF,VOC-ON,VOC-OFF,BP-ON,BP-OFF,DICT-ON,DICT-OFF,NET-ON,NET-OFF,SHARED-READ-ON,SHARED-READ-OFF,SHARED-WRITE-ON,SHARED-WRITE-OFF,FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,START-MENU,START-TERMINAL,START-DEFAULT,SUSPENDED,UNSUSPENDED')
+   slot.arr = convert(',', @fm, 'R,R,R,R,SH,SH,OS,OS,SD,SD,VOC,VOC,BP,BP,DICT,DICT,NET,NET,SR,SR,SW,SW,F,F,FW,FW,FA,FA,ST,ST,ST,S,S')
    n.words = dcount(actions, @fm)
    pos.of = ''
    want.at = ''
@@ -659,6 +676,34 @@ run.actions:
    end else
       @system.return.code = -ER$FAILED
    end
+   return
+
+*****************************************************************************
+* START.SET  -  MODIFY.ACCOUNT <account> START-MENU | START-TERMINAL | START-DEFAULT
+*
+* 22 Oct 26 dm - S.75 (the home screen; owner: "terminal or menu determined by admin for each account (another gate) - default menu").  Field 16 of the register
+*   record (ACC$START): menu, terminal, or blank for "follow the system default" (SET.START.DEFAULT).  Any account type may have it, as SD-ON may.  It takes effect
+*   at the next sign-on, and at the next LOGTO into the account.  start.want carries the state; the state it already has is "already" (11869) and changes nothing.
+
+start.set:
+   start.was = downcase(trim(acc.rec<ACC$START>))
+   if start.was = start.want then
+      crt sysmsg(11869, acc.name)  ;* %1 already starts that way; nothing changed
+      return
+   end
+   readu acc.new from acc.f, acc.name else acc.new = acc.rec
+   acc.new<ACC$START> = start.want
+   acc.written = @true
+   write acc.new to acc.f, acc.name on error acc.written = @false
+   if not(acc.written) then
+      release acc.f, acc.name
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10114, acc.name)  ;* Unable to change the state of %1; its state in the register is unchanged
+      return
+   end
+   @system.return.code = 0
+   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)
+   crt sysmsg(11868, acc.name, if start.want = '' then 'system default' else start.want)  ;* Account %1 starts at: %2
    return
 
 *****************************************************************************

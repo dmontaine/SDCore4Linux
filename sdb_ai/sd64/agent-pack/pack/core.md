@@ -115,6 +115,7 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`ed`** {**`dict`**} *file* {*id* … | **`creating.seqkey`**}
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
 - **`generate`** {**`dict`**} *file* *record* …
+- **`home`**  —  the home screen: tiles for the account's tools, a terminal, switch account and sign out
 - **`list`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 - **`list.index`** *file* {*field* …}
 - **`logto`** *account* {**`reset`** {**`all`**}}
@@ -126,7 +127,6 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`search`** {**`dict`**} *file* {*selection*}
 - **`select`** {**`dict`**} *file* {*selection*} {*list.no*}
 - **`selectindex`** {**`dict`**} *file* *index* {*value*} {**`to`** *n*}
-- **`set.trigger`** *file* *name* {*modes*}
 - **`sort`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 
 ### core:voc-types

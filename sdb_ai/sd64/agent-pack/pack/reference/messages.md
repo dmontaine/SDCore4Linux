@@ -6271,7 +6271,7 @@ cited by: `tk_open`
 administrator
 ```
 
-cited by: `tk_open`
+cited by: `tk_open`, `tool_home`
 
 ### msg:11804
 > kind=message tier=reference since=- src=sdsys/messages/11804:1#58a916a2
@@ -6619,6 +6619,105 @@ cited by: `convertdata`
 ```
 
 cited by: `importdata`
+
+### msg:11863
+> kind=message tier=reference since=- src=sdsys/messages/11863:1#4c7fbc57
+
+```
+home needs a terminal
+```
+
+cited by: `tool_home`
+
+### msg:11864
+> kind=message tier=reference since=- src=sdsys/messages/11864:1#561b5657
+
+```
+Terminal - type exit to return to the home screen
+```
+
+cited by: `tool_home`
+
+### msg:11865
+> kind=message tier=reference since=- src=sdsys/messages/11865:1#3abaa22f
+
+```
+Press Enter to return to the home screen
+```
+
+cited by: `tool_home`
+
+### msg:11866
+> kind=message tier=reference since=- src=sdsys/messages/11866:1#40549194
+
+```
+Sign out of SD?
+```
+
+cited by: `tool_home`
+
+### msg:11867
+> kind=message tier=reference since=- src=sdsys/messages/11867:1#773a5260
+
+```
+Could not switch to %1
+```
+
+cited by: `tool_home`
+
+### msg:11868
+> kind=message tier=reference since=- src=sdsys/messages/11868:1#abf0a474
+
+```
+Account %1 starts at: %2
+```
+
+cited by: `modifya`
+
+### msg:11869
+> kind=message tier=reference since=- src=sdsys/messages/11869:1#e7a7a60b
+
+```
+%1 already starts that way; nothing changed
+```
+
+cited by: `modifya`
+
+### msg:11870
+> kind=message tier=reference since=- src=sdsys/messages/11870:1#f9935a86
+
+```
+set.start.default {menu | terminal}
+```
+
+cited by: `setstart`
+
+### msg:11871
+> kind=message tier=reference since=- src=sdsys/messages/11871:1#02e59fc6
+
+```
+Accounts with no start setting of their own start at: %1
+```
+
+cited by: `setstart`
+
+### msg:11872
+> kind=message tier=reference since=- src=sdsys/messages/11872:1#98d8543e
+
+```
+The system default start could not be written
+```
+
+cited by: `setstart`
+
+### msg:11873
+> kind=message tier=reference since=- src=sdsys/messages/11873:1#862d2fe7
+
+```
+The system default start is already %1; nothing changed
+```
+
+cited by: `setstart`
 
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
@@ -7917,7 +8016,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `inhibit` and 11 more
+cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `inhibit` and 12 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

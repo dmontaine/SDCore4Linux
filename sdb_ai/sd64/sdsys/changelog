@@ -1,6 +1,40 @@
 Next release - in progress
 --------------------------
 
+22 Oct 26  THE HOME SCREEN: EVERY ACCOUNT NOW STARTS IN A SCREEN OF TILES UNLESS ITS ADMINISTRATOR SAYS OTHERWISE. AFTER AN UPGRADE, SET
+           THE DEFAULT TO TERMINAL FIRST IF YOU WANT THE OLD START.
+
+             What        A session on a terminal now opens in the home screen: a start screen of tiles under the person's name and the date,
+                        with the standard tools of every account (Editor, which runs sed; IDE; Record editor, which runs ced), a Terminal
+                        tile, a Keys tile (tool.keys), Switch account and Sign out. The administrator's page and an account holder's page are
+                        built from one table and differ in what is in it. The page is a scrolling panel: it is laid out at its full
+                        height and the rows that fit are drawn, with a scroll bar in the last column, so the number of tiles can pass the
+                        height of the screen. The arrow keys move to the nearest tile, Tab and Back-tab go in reading order, Home and End
+                        to the first and last, Page Up and Page Down by group, a letter to the next tile that begins with it, Enter or the
+                        space bar starts the tile, F5 builds the page again, F10 opens the menu bar, Ctrl-Q signs out; a click starts a tile
+                        and the wheel scrolls. The window must be 140 columns by 43 lines, as for the other full-screen tools; a smaller
+                        one is told so and gets the ordinary prompt. A tile starts a command exactly as the person would have typed it, so
+                        it adds no access; a command that takes the screen (sed, ide, ced, tool.keys) gives it back and the home screen is
+                        drawn again with the same tile selected, scrolled as it was; a command that only prints waits for Enter first.
+                        The Terminal tile leaves the screen for the ordinary command prompt, with all of its features, and says so; the new
+                        verb EXIT then comes back to the home screen. At a prompt that never came from the home screen EXIT does what QUIT
+                        does. Switch account lists the accounts the person may enter (the rule LOGTO uses: the administrator any, anyone
+                        else the account's group; never a suspended account or SDSYS) and shows the home screen of the one chosen. HOME
+                        typed at the prompt opens the screen in any account.
+                        Where a session starts is set by the administrator for each account: MODIFY.ACCOUNT name START-MENU, START-TERMINAL
+                        or START-DEFAULT (an account that follows the default). The default is set with SET.START.DEFAULT MENU or TERMINAL,
+                        and is menu as delivered; with no word the verb says what it is now. A LOGTO typed at the prompt starts the
+                        account entered in the way that account's setting says. The scroll bars of the blue and classic themes are now
+                        dark grey (bold black), not black: the thumb looked like a hole to the black text area beside it.
+             Why it      Every account now has a front end that lists its tools and leads to the rest, and the administrator decides, account
+             matters     by account, whether people start there or at the prompt.
+             Does not    EVERY EXISTING ACCOUNT HAS NO SETTING OF ITS OWN, so after an upgrade each follows the default and STARTS IN THE
+                        HOME SCREEN, not at the prompt. To keep the old start for all of them, run SET.START.DEFAULT TERMINAL (as SDSYS);
+                        to keep it for some, MODIFY.ACCOUNT name START-TERMINAL. Starting in the menu confines nobody: the Terminal tile is
+                        always there. A session on a pipe, a phantom and the API server are never given the screen, so scripts and
+                        scheduled jobs are unchanged. The assigned and pinned tiles of an account, sub-menus and the menu builder are not
+                        built yet, and CREATE.ACCOUNT does not take the start words yet (use MODIFY.ACCOUNT after it).
+
 22 Oct 26  THE ACCELERATOR LETTER IS SEEN: A LETTER MARKED WITH & IS DRAWN UNDERLINED ON A SCREEN.
 
              What        The letter marked with & in the text of a SCREEN CHECK, SLIDER, SELECTOR, BUTTON or LABEL (&Shell) is now drawn

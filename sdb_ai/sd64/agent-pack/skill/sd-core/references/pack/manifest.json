@@ -1,5 +1,5 @@
 {
- "chunk_count": 4060,
+ "chunk_count": 4077,
  "development": "the changelog's 'Next release - in progress' section is part of this tree",
  "gaps": {
   "basic_names_without_a_docs_syntax_line": [
@@ -66,7 +66,7 @@
   },
   "core.digest": {
    "chunks": 5,
-   "sha256": "59e982f8018198dd0f2721039d7e91a08cd685dc697fa380f7010d0092f9383c"
+   "sha256": "811f377be9ffe61b337811bb730318d77af1afa1f11547e12f34ffc665aa92a2"
   },
   "core.start": {
    "chunks": 1,
@@ -109,12 +109,12 @@
    "sha256": "5e200a973dfeb0207facf726f0611adbd74e875ad41ef119066ed0c3719f2925"
   },
   "message": {
-   "chunks": 2576,
-   "sha256": "e2b6697a0011f5d79cf7622878b6e972b1eb7c222eda1a2db8a8a56a1487e2f5"
+   "chunks": 2587,
+   "sha256": "547c231ee1491e5a57e01063dbf78225cb9b64dabb68fd3cc2ffe8cf12907cb8"
   },
   "sys.keys": {
    "chunks": 41,
-   "sha256": "2675d5d30b7a082aac344b5cb05d06e3035ba4a7552e4d41500d5d7933cc4539"
+   "sha256": "aef7156a2c03a978cc8fb6bc5ef74a56e6f811df2dac5b2a790d50cefd64b1fc"
   },
   "sys.param": {
    "chunks": 63,
@@ -126,19 +126,19 @@
   },
   "sys.syntax": {
    "chunks": 1,
-   "sha256": "119a7f3440fd6f811756dde4b782cf41b9a218f1647ea80dc274c0671e755d14"
+   "sha256": "3c3081155e7c63ccc39612a0d018c0644c9bed6790dd651cb8ab1fa164de400b"
   },
   "sys.word": {
-   "chunks": 32,
-   "sha256": "194c6d4c7353e6ce2b7e1347ddb19dc7263d13e2dac22ef42ec59f345cb42979"
+   "chunks": 35,
+   "sha256": "5f1d3aa844dbe08cb3942153ccb99e9e9bea9c999ee536cb0b255d074c6cba5d"
   },
   "tcl.keyword": {
    "chunks": 269,
    "sha256": "d22c36f2ab6445ab18999f3d68264a9aa8eebdf0ab5dcc21908897dad34ea967"
   },
   "tcl.verb": {
-   "chunks": 195,
-   "sha256": "21da98e3667fc992034a46f62942e573f12b865c11be7ac5346df82fc0e482f3"
+   "chunks": 198,
+   "sha256": "c20e6950f6bb174548ce5b2f75e68b9cf3affab97666b1e43a7088f0b4bb1b6a"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -150,7 +150,7 @@
   },
   "voc.layer": {
    "chunks": 2,
-   "sha256": "f4cf264387eedf1933cb873ca5b2769f413e9c00c5fe24776178271204f620c4"
+   "sha256": "30a817e420004b188b7369d3addf3573b6aaa2295acadacc512404f3255bed7e"
   },
   "voc.type": {
    "chunks": 9,
@@ -166,8 +166,8 @@
  "parts": {
   "core.md": {
    "chunks": 6,
-   "sha256": "424d77485ff8b1c69d09225ec58c90edaf667afa8f85ca0f9da2f52166d3a264",
-   "words": 1477
+   "sha256": "05b127a6a2f451f25b77513c1f80bc021a7eceb9e1746ccb7af0b8df1e6f0182",
+   "words": 1490
   },
   "examples/dictionary-items.md": {
    "chunks": 78,
@@ -180,7 +180,7 @@
    "words": 1348
   },
   "index.json": {
-   "sha256": "d571a53e98b1ab7158378b55cb0e3269039c53e79eab188715d966290c4050e6"
+   "sha256": "fd24fdd4a0639c35b00a5675fe17e7cb2c757cde811dafe26b37b762b836a47e"
   },
   "reference/basic-functions.md": {
    "chunks": 293,
@@ -203,19 +203,19 @@
    "words": 6152
   },
   "reference/messages.md": {
-   "chunks": 2576,
-   "sha256": "581ca405e88d2625655a9f78a4d2570253314bb2fe14ff6ed31ad471f2b46172",
-   "words": 31424
+   "chunks": 2587,
+   "sha256": "aca82b9137240e00cef674021e75490185d98ab3c95d7b79dfd6e0cebc59a080",
+   "words": 31555
   },
   "reference/system-keys.md": {
    "chunks": 41,
-   "sha256": "c1f6e7a682936bf684b791829e923b118155408a8c82063457c3f65275256b92",
-   "words": 9920
+   "sha256": "3f97eb3aa63f8a274cda14bd4355071280ab8d59a3c7faf984c69a40123a4772",
+   "words": 9933
   },
   "reference/system.md": {
-   "chunks": 97,
-   "sha256": "4056fc68e40cbfd2e51b090539f7d349d27e5a545173815057ee9e7a64de00d7",
-   "words": 2600
+   "chunks": 100,
+   "sha256": "1a99ba6c995418e488f06f1045b3232364cd40052814f7a4f84f99ccb57cdbaa",
+   "words": 2661
   },
   "reference/tcl-keywords.md": {
    "chunks": 269,
@@ -223,14 +223,14 @@
    "words": 12513
   },
   "reference/tcl-verbs.md": {
-   "chunks": 199,
-   "sha256": "abb284ae3362949024b399c162eae54e34453fd625ce698f50bc414ea0c9a853",
-   "words": 7959
+   "chunks": 202,
+   "sha256": "b8e08630c29f324c6e18e3ee4828f55097c589aa3ade89bcd7df55d78725484c",
+   "words": 8143
   },
   "reference/voc.md": {
    "chunks": 12,
-   "sha256": "ebf9b6f70c5ce2c90c6c6b0d530bcf46f2d32cef5dcd6821a6e2745781b51d7a",
-   "words": 1845
+   "sha256": "75aa68299470a5b14c43e8a7ed0f49334397d625c8cfa9dd43bc81d30726ccc3",
+   "words": 1846
   }
  },
  "product": "SD Core for Linux",

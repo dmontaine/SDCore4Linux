@@ -30,7 +30,7 @@ FILES = {
     "gates": os.path.join(SDSYS, "gpl.bp", "tk_gates"),
 }
 FIELDS = ["id", "title", "on", "off", "kind", "field", "group", "key", "when", "default", "slot", "allows", "still", "beyond", "status"]
-NOT_GATE_WORDS = {"BOTH", "SUSPENDED", "UNSUSPENDED"}      # words of modify.account that are not one gate's on or off word
+NOT_GATE_WORDS = {"BOTH", "SUSPENDED", "UNSUSPENDED", "START-MENU", "START-TERMINAL", "START-DEFAULT"}      # words of modify.account that are not one gate's on or off word (22 Oct 26: the three START words are one three-state setting, ACC$START; tool.gates will show it as a column of its own, plan 13.5)
 
 
 def load():
@@ -84,7 +84,7 @@ def checks(raw):
     add("G5", "every on and off word of the table is a word modify.account validates, and it has the slot the row says (two words of one slot refuse each other, 11791)",
         all(r[2].upper() in slot_of and r[3].upper() in slot_of and slot_of[r[2].upper()] == r[10] and slot_of[r[3].upper()] == r[10] for r in built),
         [r[0] for r in built if not (r[2].upper() in slot_of and r[3].upper() in slot_of and slot_of.get(r[2].upper()) == r[10] and slot_of.get(r[3].upper()) == r[10])])
-    add("G6", "the other way round: every word modify.account validates is a gate's on or off word, or one of the three that are not (both, suspended, unsuspended)",
+    add("G6", "the other way round: every word modify.account validates is a gate's on or off word, or one of the six that are not (both, suspended, unsuspended and the three start words)",
         bool(words) and set(words) - mine - NOT_GATE_WORDS == set(), sorted(set(words) - mine - NOT_GATE_WORDS))
     order = [w for w in words if w in mine]
     tbl = [r[2].upper() for r in built]

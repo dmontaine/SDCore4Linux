@@ -425,6 +425,13 @@
       *   SHARED-READ-OFF and SHARED-WRITE-ON.
       $define ACC$SHARED.READ  13    ;* may open the files of the shared account by name (yes/no; BLANK = yes)
       $define ACC$SHARED.WRITE 14    ;* may write records in the files of the shared account (yes/no; blank = no)
+      * 22 Oct 26 dm - FIELD 16: where a session of the account starts (S.75, plan section 13.5; owner, 22 Oct: "terminal or menu determined by admin
+      *   for each account (another gate) - default menu"; "default for new accounts can be set by admin and then overridden for specific
+      *   accounts").  The word menu (the home screen) or terminal (the command prompt); BLANK MEANS FOLLOW THE SYSTEM DEFAULT, the one word in the
+      *   file start.default in the sdsys directory ("menu" when the file is absent), so a change of the default moves every account that has no
+      *   word of its own.  Not a wall: the home screen has a Terminal tile.  SDSYS sets it (MODIFY.ACCOUNT START-MENU / START-TERMINAL /
+      *   START-DEFAULT); !HOME_ENTRY reads it at sign-on and at LOGTO.  Any account type may have it.
+      $define ACC$START        16    ;* menu, terminal, or blank = the system default
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *

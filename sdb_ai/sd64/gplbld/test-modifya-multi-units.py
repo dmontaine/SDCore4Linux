@@ -93,6 +93,8 @@ def checks(src, msgs):
     by_slot = {}
     for w, s in zip(words, slots):
         gate = "SUSPEND" if w in ("SUSPENDED", "UNSUSPENDED") else re.sub(r"-(ON|OFF)$", "", w)   # the two suspension words are one gate
+        if w.startswith("START-"):
+            gate = "START"                                                                        # 22 Oct 26: start-menu, start-terminal and start-default are one setting (slot ST)
         by_slot.setdefault(s, set()).add(gate if s != "R" else "R")
     ck("M2b ...and two different gates never share a slot (a shared slot would call sh-on with os-on a conflict)",
        all(len(v) == 1 for v in by_slot.values()), "%s" % {k: sorted(v) for k, v in by_slot.items() if len(v) > 1})
@@ -124,7 +126,7 @@ def checks(src, msgs):
        val != "" and not re.search(r"\bgosub\b|\bwrite\b|\breadu\b|os\.execute|K\$AUDIT", re.sub(r"'[^']*'", "''", val)))
     ck("M5d ...the conflict test compares DIFFERENT words only (the same word twice is one action)", "if actions<i> # actions<j> then" in val)
 
-    run = between(c, "\nrun.actions:\n", "\nset.suspended:\n")
+    run = between(c, "\nrun.actions:\n", "\nstart.set:\n")      # 22 Oct 26: start.set (S.75) sits between run.actions and set.suspended
     ck("M6 run.actions builds its list from word.arr (the fixed order), re-reads the account and clears the code before each action",
        "if want.at<p> then run.list<-1> = word.arr<p>" in run and 0 < run.find("read acc.rec from acc.f, acc.name else null")
        < run.find("@system.return.code = 0") < run.find("gosub do.action"))
@@ -203,8 +205,9 @@ MUTANTS = [
     ("the usage forgets a word", "voc-on | voc-off | bp-on | bp-off | dict-on | dict-off", "voc-on | voc-off | bp-on | dict-on | dict-off"),
     ("sh-on and os-on share a slot", "'R,R,R,R,SH,SH,OS,OS,", "'R,R,R,R,SH,SH,SH,SH,"),
     ("files-write-on runs before files-on", "FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON", "FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ON,FILES-OFF,FILES-ADMIN-ON"),
-    ("files-admin-on runs before files-write-on (21 Oct 26, S.73 item 3)", "FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,SUSPENDED", "FILES-ADMIN-ON,FILES-ADMIN-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,SUSPENDED"),
-    ("the suspension runs first", "FILES-ADMIN-OFF,SUSPENDED,UNSUSPENDED'", "FILES-ADMIN-OFF,UNSUSPENDED,SUSPENDED'"),
+    ("files-admin-on runs before files-write-on (21 Oct 26, S.73 item 3)", "FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,START-MENU", "FILES-ADMIN-ON,FILES-ADMIN-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,START-MENU"),
+    ("the suspension runs first", "START-DEFAULT,SUSPENDED,UNSUSPENDED'", "START-DEFAULT,UNSUSPENDED,SUSPENDED'"),
+    ("the start words run after the suspension (22 Oct 26, S.75)", "FILES-ADMIN-OFF,START-MENU,START-TERMINAL,START-DEFAULT,SUSPENDED,UNSUSPENDED'", "FILES-ADMIN-OFF,SUSPENDED,UNSUSPENDED,START-MENU,START-TERMINAL,START-DEFAULT'"),
     ("a case of do.action ends in stop", "         gosub os.set\n         return\n      case action = 'SH-OFF'", "         gosub os.set\n         stop\n      case action = 'SH-OFF'"),
     ("the account is not read again before each action", "      read acc.rec from acc.f, acc.name else null\n", ""),
     ("the code is not cleared before each action", "      @system.return.code = 0\n      gosub do.action\n", "      gosub do.action\n"),

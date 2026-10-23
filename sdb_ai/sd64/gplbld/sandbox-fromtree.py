@@ -190,6 +190,10 @@ def main():
             os.makedirs(os.path.join(sysd, d), exist_ok=True)
         with open(os.path.join(sysd, "accounts", "sdsys"), "w") as f:
             f.write("%s\n\nsdsys\n" % sysd)
+        # 22 Oct 26 (S.75): a session on a terminal starts in the home screen unless the system default says terminal (the delivered default is menu).  Every pty suite types
+        # commands at the prompt, so a sandbox starts at the terminal; sandbox-home.py changes it for its own rows.
+        with open(os.path.join(sysd, "start.default"), "w") as f:
+            f.write("terminal\n")
         for d in ("user_accounts", "group_accounts"):
             os.makedirs(os.path.join(root, d), exist_ok=True)
         with open(conf, "w") as f:

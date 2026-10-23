@@ -291,6 +291,17 @@ sdsys/gpl.bp/_keycode        : @core tk-base tk-keys eofkeys input
 sdsys/gpl.bp/_bindkey        : @core tk-base tk-keys
 sdsys/newvoc/tool.keys       : tk-keys
 sdsys/voc_template/tool.keys : tk-keys
+# S.75 H1 and H2 (22 Oct 26): the home screen, where an account starts (!home_entry, called by cproc), EXIT and SET.START.DEFAULT
+sdsys/gpl.bp/tool_home       : home
+sdsys/gpl.bp/home_entry      : home
+sdsys/gpl.bp/exit            : home
+sdsys/gpl.bp/setstart        : home
+sdsys/newvoc/home            : home
+sdsys/newvoc/exit            : home
+sdsys/voc_template/home      : home
+sdsys/voc_template/exit      : home
+sdsys/voc_template/set.start.default : home
+sdsys/gpl.bp/sl_theme        : screen sed-menu syntax viewport ide ced dbgui tk-base tk-keys home
 sdsys/gpl.bp/*.h             : @compiler @core
 sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base tk-keys
 # S.75 (22 Oct 26): the pick window is used by the toolkit only (tktest); no other screen suite draws it.
@@ -379,7 +390,7 @@ sdsys/gpl.bp/login_inhibit   : inhibit-q8
 sdsys/gpl.bp/login           : @system sdaccts editgates net shared winsize
 sdsys/gpl.bp/term            : @core winsize
 sdsys/gpl.bp/classmain       : classinit
-sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile shared
+sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile shared home
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29 apispin fileadmin netindex
 sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient
@@ -391,7 +402,7 @@ sdsys/gpl.bp/phantom         : q5 q4 listu-a5
 sdsys/gpl.bp/set*            : gates sys-b2 conf-b1 stmt-q3
 sdsys/gpl.bp/py_*            : gates
 sdsys/gpl.bp/acc*            : gates @system editgates net shared
-sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared filesgrp
+sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared filesgrp home
 # 19 Oct 26 (K4a): the program that filesgrp runs reads these two lookups; it makes its own copies, but a change to the originals is a change to what it copies.
 sdsys/gpl.bp/is_grp_member   : filesgrp net gates
 sdsys/gpl.bp/is_group        : filesgrp net gates
@@ -422,7 +433,7 @@ sdsys/gpl.bp/*               : @core
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE REST OF WHAT SHIPS.
-sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient ospath editgates net shared csvb jsonx xmlx
+sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient ospath editgates net shared csvb jsonx xmlx home
 sdsys/syscom/createacc.h     : editgates net shared @system
 sdsys/syscom/parser.h        : @query @core jsonx
 sdsys/syscom/sdclient.*      : qmclient
@@ -469,6 +480,9 @@ sdsys/messages/1151*         : netfile shared
 sdsys/messages/1185[0-2]     : csvq
 sdsys/messages/1185[3-9]     : xmlx
 sdsys/messages/1186[0-2]     : xmlx
+# 22 Oct 26 (S.75 H1, H2): 11863-11867 are the home screen's lines, 11868-11869 are MODIFY.ACCOUNT's start words, 11870-11873 SET.START.DEFAULT's
+sdsys/messages/1186[3-9]     : home
+sdsys/messages/1187[0-3]     : home
 sdsys/messages/1156[0-9]     : masters
 sdsys/messages/1157[0-9]     : masters
 sdsys/messages/1158[0-9]     : masters
