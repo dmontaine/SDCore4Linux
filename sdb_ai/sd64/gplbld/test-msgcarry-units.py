@@ -47,6 +47,15 @@ ALLOWED = {
     ("sed", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the screen library, SED and the IDE, carry 13, 22 Oct 26)",
     ("setnetlogin", "11460"): "the way to give the NET gate: Core modify.account NAME net-on, Solo set.net.access on (PAL-33, Solo SDNet client)",
     ("setserver", "11439"): "the way to give the NET gate: Core modify.account NAME net-on, Solo set.net.access on (PAL-33, Solo SDNet client)",
+    # 23 Oct 26, Solo carry 14: Solo has no shared account, so context.help and pdf/ are in the SD system directory ("the install directory") and the messages say so
+    ("docsinst", "11720"): "the pdf directory of the install directory (Solo) against of the shared account (Core): Solo has no shared account (carry 14, 23 Oct 26)",
+    ("docsinst", "11722"): "into the pdf directory (Solo) against into the shared account (Core): Solo has no shared account (carry 14, 23 Oct 26)",
+    ("docsinst", "11724"): "there is no pdf directory in the install directory (Solo) against the shared account has none (Core): Solo has no shared account (carry 14, 23 Oct 26)",
+    ("loadhelp", "11838"): "the file context.help, with no 'in the shared account' (Solo has none; carry 14, 23 Oct 26)",
+    ("loadhelp", "11839"): "'Context help:' in Solo, 'Context help in the shared account:' in Core (carry 14, 23 Oct 26)",
+    ("tk_help", "11831"): "the file context.help has no record (Solo) against 'of the shared account' (Core): Solo has no shared account (carry 14, 23 Oct 26)",
+    ("tk_help", "11832"): "there is no file context.help (Solo) against the shared account has no file (Core): Solo has no shared account (carry 14, 23 Oct 26)",
+    ("pdf", "11888"): "there is no pdf directory in the install directory (Solo) against the shared account has none (Core): Solo has no shared account (carry 14, 23 Oct 26)",
 }
 passed = failed = 0
 
