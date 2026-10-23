@@ -178,7 +178,7 @@ def runtime_rows(box, made):
     for m in re.finditer(r"^(\w+) st=(-?\d+) err=\[(.*)\] ran=(\d)\s*$", out, re.M):
         got[m.group(1)] = (int(m.group(2)), m.group(3), int(m.group(4)))
     line = lambda pat: re.search(pat, out, re.M)
-    row("$tk_gate_info 'list' returns the 15 ids, the first ssh and the last the planned sockets", line(r"^GL 15 ssh sockets\s*$") is not None, out[-300:])
+    row("$tk_gate_info 'list' returns the 16 ids, the first ssh and the last the planned sockets", line(r"^GL 16 ssh sockets\s*$") is not None, out[-300:])
     row("a gate by id returns its words, kernel key, conflict slot and status: sh = sh-on sh-off K$SH SH built", line(r"^GSH sh-on sh-off K\$SH SH built\s*$") is not None, "")
     row("an id that is not in the table returns nothing", line(r"^GNO \[\]\s*$") is not None, "")
     row("a planned gate shows as planned and has no word to run", line(r"^GSK planned \[\]\s*$") is not None, "")
@@ -214,8 +214,8 @@ def runtime_rows(box, made):
 
 # TK-0.3.  $tk_gates reads the sandbox's own register (sys/accounts) in an internal session.  The fixtures are records this suite writes and deletes (zztk*); the
 # fields are the register's (keys.h): 1 path, 3 Linux group, 5 suspension, 7 sh, 8 os, 9 sd, 10 voc, 11 bp, 12 dict, 13 shared.read, 14 shared.write, 15 net.
-IDS = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "net", "shared-read", "shared-write", "files", "files-write", "files-admin", "sockets"]
-ROUTE_GROUP = {"ssh": "sdssh", "api": "sdapi", "files": "sdfiles", "files-write": "sdfileswrite", "files-admin": "sdfilesadmin"}
+IDS = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "net", "shared-read", "shared-write", "files", "files-write", "files-admin", "ai", "sockets"]
+ROUTE_GROUP = {"ssh": "sdssh", "api": "sdapi", "files": "sdfiles", "files-write": "sdfileswrite", "files-admin": "sdfilesadmin", "ai": "sdaiusers"}
 REG = {"sh": 7, "os": 8, "sd": 9, "voc": 10, "bp": 11, "dict": 12, "shared-read": 13, "shared-write": 14, "net": 15}
 #            name        group            suspension   values of fields 7 to 15 (sh os sd voc bp dict shared.read shared.write net)
 FIXTURES = [("zztkon", "sdu_zztkon", "", "yes,yes,yes,yes,yes,yes,yes,yes,yes"),
@@ -292,7 +292,7 @@ def gates_rows(box, made):
     for tag, nm, typ, susp in (("on", "zztkon", "USER", "0"), ("off", "zztkoff", "USER", "0"), ("blank", "zztkblank", "USER", "0"), ("mix", "zztkmix", "USER", "1")):
         e = dict(reg_expect(v[nm]), sockets="", **{i: "0" for i in ROUTE_GROUP})
         g = got.get(tag)
-        row("%s (%s): type USER, suspension %s, and all 15 gates in the table's order with the states the fields give: %s" % (tag, nm, susp, " ".join("%s=%s" % (i, e[i]) for i in IDS)),
+        row("%s (%s): type USER, suspension %s, and all 16 gates in the table's order with the states the fields give: %s" % (tag, nm, susp, " ".join("%s=%s" % (i, e[i]) for i in IDS)),
             g is not None and g[0] == "" and g[1] == typ and g[2] == susp and g[3] == nm and states(tag) == e and list(states(tag)) == IDS, repr(g))
     row("blank means ON for shared-read only: the blank record has shared-read=1 and every other register gate 0", states("blank").get("shared-read") == "1" and all(states("blank").get(i) == "0" for i in REG if i != "shared-read"), repr(states("blank")))
     row("the word is read as upper case with spaces trimmed: ' yes ' and 'YES' are on, 'maybe' and an empty field are off, 'No' turns shared-read off", states("mix").get("bp") == "1" and states("mix").get("voc") == "1"
@@ -304,10 +304,10 @@ def gates_rows(box, made):
     row("an account whose group is neither (OTHER): the same, route gates 'na'", "oth" in got and got["oth"][1] == "OTHER" and states("oth") == e, repr(got.get("oth")))
     e = dict(reg_expect(v["zztkreal"]), sockets="", **expect_routes)
     members = [i for i, x in expect_routes.items() if x == "1"]
-    row("the sandbox's own Linux user (%s): the route gates equal that user's membership in /etc/group (%s)" % (user, ("in " + ", ".join(ROUTE_GROUP[i] for i in members)) if members else "in none of the five groups"),
+    row("the sandbox's own Linux user (%s): the route gates equal that user's membership in /etc/group (%s)" % (user, ("in " + ", ".join(ROUTE_GROUP[i] for i in members)) if members else "in none of the six groups"),
         "real" in got and got["real"][1] == "USER" and got["real"][3] == user and states("real") == e, repr(got.get("real")))
     if not members:
-        skip("a route gate that is ON", "this user is in none of sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin on this machine: only the off side is seen here (the on side is the VM witness)")
+        skip("a route gate that is ON", "this user is in none of sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin, sdaiusers on this machine: only the off side is seen here (the on side is the VM witness)")
     for tag, nm in (("none", "zznone"), ("empty", ""), ("quote", "a'b"), ("semi", "zztkon;x")):
         g = got.get(tag)
         row("%s: %r is refused with 11808 and nothing is returned" % (tag, nm), g is not None and "is not a registered account" in g[0] and g[1] == "" and g[4] == {}, repr(g))

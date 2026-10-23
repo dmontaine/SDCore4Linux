@@ -140,8 +140,8 @@ def checks(s):
     slots = re.search(r"slot\.arr = convert\(',', @fm, '([^']*)'\)", md)
     w = words.group(1).split(",") if words else []
     sl = slots.group(1).split(",") if slots else []
-    ck("H14 modify.account: START-MENU, START-TERMINAL and START-DEFAULT are in the word list between the files words and the suspension, and share the slot ST",
-       "FILES-ADMIN-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED" in ",".join(w) and len(w) == len(sl)
+    ck("H14 modify.account: START-MENU, START-TERMINAL and START-DEFAULT are in the word list between the ai words (23 Oct 26, S.69 step 2) and the pins, and share the slot ST",
+       "FILES-ADMIN-OFF,AI-ON,AI-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED" in ",".join(w) and len(w) == len(sl)
        and [sl[w.index(x)] for x in ("START-MENU", "START-TERMINAL", "START-DEFAULT")] == ["ST", "ST", "ST"] and [sl[w.index(x)] for x in ("PINS-ON", "PINS-OFF")] == ["PN", "PN"])
     ck("H14b ...do.action has the three cases and start.set writes only field 16, says 11868, audits, and says 11869 when nothing changes",
        all(re.search(r"case action = '%s'\n\s+start\.want = %s\n\s+gosub start\.set\n\s+return" % (a, v), md) for a, v in (("START-MENU", "'menu'"), ("START-TERMINAL", "'terminal'"), ("START-DEFAULT", "''")))

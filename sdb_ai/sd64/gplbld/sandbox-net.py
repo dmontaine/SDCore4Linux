@@ -2302,8 +2302,8 @@ def files_section_body():
 
     # CREATE.ACCOUNT: only the refusals that come before anything is made
     out = g.adm(["CREATE.ACCOUNT"])
-    row("CREATE.ACCOUNT's syntax line names {files-on} {files-write-on} {files-admin-on} and its text says what the words are",
-        g.has(out, r"\{net-on\} \{files-on\} \{files-write-on\} \{files-admin-on\} \{no\.query\}") and g.has(out, r"files-only login \(files-on; it cannot change files here without files-write-on\)"), repr(out[-9:]))
+    row("CREATE.ACCOUNT's syntax line names {files-on} {files-write-on} {files-admin-on} {ai-on} and its text says what the words are",
+        g.has(out, r"\{net-on\} \{files-on\} \{files-write-on\} \{files-admin-on\} \{ai-on\} \{no\.query\}") and g.has(out, r"files-only login \(files-on; it cannot change files here without files-write-on\)"), repr(out[-9:]))
     out = g.adm(["create.account group zznfilgx files-on"])
     row("create.account group ... files-on: refused (10087), and no account, no register record and no directory was made",
         has_line(out, msg(10087, "zznfilgx")) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilgx")), repr(out[-3:]))
@@ -2355,8 +2355,8 @@ def files_section_body():
     # the manifest
     out = g.adm(["RUN gpl.bp zznfinfo"], internal=True)
     pick = lambda a: [x for x in out if x.startswith("FI %s " % a)]
-    row("zznfilu (a user in no group): its manifest lists route.api: 0 then route.files: 0 then route.files.write: 0 then route.files.admin: 0 then os.sh, and has no bare `files:` key (that key is the backup's file count)",
-        g.has(pick("zznfilu"), r"\|route\.api: 0\|route\.files: 0\|route\.files\.write: 0\|route\.files\.admin: 0\|os\.sh: ") and not g.has(pick("zznfilu"), r"(^|\|| )files: "), repr(pick("zznfilu")[:2]))
+    row("zznfilu (a user in no group): its manifest lists route.api: 0 then route.files: 0 then route.files.write: 0 then route.files.admin: 0 then route.ai: 0 then os.sh, and has no bare `files:` key (that key is the backup's file count)",
+        g.has(pick("zznfilu"), r"\|route\.api: 0\|route\.files: 0\|route\.files\.write: 0\|route\.files\.admin: 0\|route\.ai: 0\|os\.sh: ") and not g.has(pick("zznfilu"), r"(^|\|| )files: "), repr(pick("zznfilu")[:2]))
     row("zznfilg (a GROUP account): type GROUP and no route.files key and no route.files.write key (only a user account has one)",
         g.has(pick("zznfilg"), r"type: GROUP") and not g.has(pick("zznfilg"), r"route\.files"), repr(pick("zznfilg")[:2]))
 

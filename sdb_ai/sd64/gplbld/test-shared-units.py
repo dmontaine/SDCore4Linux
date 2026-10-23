@@ -510,7 +510,7 @@ def checks(srcs):
        re.search(r"gid\s*=\s*group_name\s*\n\s*if acc\.name = 'shared' then gid = 'sdusers'", ca2) is not None and "acc.rec<ACC$GROUP> = group_name" in ca2, "")
     ck("G7 createa: the syntax line puts {shared-read-off} {shared-write-on} between {dict-on} and {net-on} (so the {net-on} {files-on} {no.query} tail still matches), and ONLY those two words are "
        "taken (SHARED-READ-OFF sets CA$SHARED.READ.OFF, SHARED-WRITE-ON sets CA$SHARED.WRITE): the other two restate the default",
-       "{dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {no.query}" in cr
+       "{dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {no.query}" in cr
        and re.search(r"case upcase\(token\) = 'SHARED-READ-OFF'\s*\n\s*settings<CA\$SHARED\.READ\.OFF> = 1\s*\n\s*case upcase\(token\) = 'SHARED-WRITE-ON'\s*\n\s*settings<CA\$SHARED\.WRITE> = 1", cr) is not None
        and "SHARED-READ-ON" not in cr and "SHARED-WRITE-OFF" not in cr, "")
     cases_ok = all(re.search(r"case action = '%s'\s*\n\s*os\.field = %s ; os\.want = @%s\s*\n\s*gosub os\.set\s*\n\s*return" % (w, f, b), mo)

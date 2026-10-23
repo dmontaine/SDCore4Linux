@@ -46,6 +46,7 @@ def read(path):
 
 def load():
     src = {n: read(os.path.join(GPL, n)) for n in PROGS}
+    src["tool_ai"] = read(os.path.join(GPL, "tool_ai"))     # 23 Oct 26, S.69 step 2: the AI page asks for tool.ai.providers and tool.ai.accounts
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
     for name in sorted(os.listdir(HELP)):
         src["ht." + name] = read(os.path.join(HELP, name))
@@ -140,7 +141,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers)\.[a-z-]+)'", tm + "\n" + tv))
+    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"])))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 13 and not (asked - set(hts)), repr(sorted(asked - set(hts))))

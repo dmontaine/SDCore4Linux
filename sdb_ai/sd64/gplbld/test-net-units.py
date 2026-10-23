@@ -1103,7 +1103,7 @@ def checks_2c(srcs, c, ck):
     ck("W16 MODIFY.ACCOUNT: FILES-ON and FILES-OFF are words (files.want true / false, set.files, stop), in the syntax lines and in the list of words; sdapi and sdssh are not "
        "touched by set.files",
        all(re.search(r"case action = '%s'\s*\n\s*files\.grp = 'sdfiles'\s*\n\s*files\.want = @%s\s*\n\s*gosub set\.files\s*\n\s*return" % (w, b), mo) for w, b in (("FILES-ON", "true"), ("FILES-OFF", "false")))
-       and "modify.account <account> files-on | files-off" in mo and "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, suspended or unsuspended" in mo
+       and "modify.account <account> files-on | files-off" in mo and "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, suspended or unsuspended" in mo
        and sf != "" and "sdapi" not in sf and "sdssh" not in sf, "")
     ck("W17 set.files refuses what has no Linux user BEFORE it runs anything: a group account (10087) and any other account that is not sdu_ (10081, status 2), then the "
        "name is checked with valid_os_name; the Linux user is the one the account's group names (the manifest reads the same)",
@@ -1147,7 +1147,7 @@ def checks_2c(srcs, c, ck):
                      mo, re.M) is not None, "")
     ck("W21 CREATEA: the word FILES-ON sets CA$FILES = 1 (and nothing sets it to anything else), the syntax line names {files-on} and the text says what it is",
        re.search(r"case upcase\(token\) = 'FILES-ON'\s*\n\s*settings<CA\$FILES> = 1\s*\n", cr) is not None and len(re.findall(r"(?<!if )settings<CA\$FILES>\s*=", cr)) == 1
-       and "{net-on} {files-on} {files-write-on} {files-admin-on} {no.query}" in cr and "files-only login (files-on" in cr, "")
+       and "{net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {no.query}" in cr and "files-only login (files-on" in cr, "")
     ck("W21b createacc.h defines CA$FILES as 36 right after CA$NET 35 (the compiler warns 'not assigned a value' and reads 0 errors without it: test-includes-units.py), "
        "and no register field is added - the membership of the group IS the state",
        re.search(r"\$define\s+CA\$FILES\s+36\b", c["createacc.h"]) is not None and re.search(r"\$define\s+CA\$NET\s+35\b", c["createacc.h"]) is not None
@@ -1163,8 +1163,8 @@ def checks_2c(srcs, c, ck):
        and re.search(r"^check\.files\.group:\s*\n\s*files\.bad = @false\s*\n\s*files\.found = is_group\(files\.grp\.name\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat # 0 then\s*\n"
                      r"\s*@system\.return\.code = -ER\$FAILED\s*\n\s*err = 10081:@vm:acc\.uname:@vm:files\.stat[^\n]*\n\s*files\.bad = @true\s*\n\s*end else\s*\n"
                      r"\s*if not\(files\.found\) then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n\s*err = 10024:@vm:files\.grp\.name", ca2, re.M) is not None
-       and re.search(r"case acc\.type = 'GROUP'.*?if files\.want or files\.write\.want or files\.admin\.want then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 10087:@vm:acc\.name\s*\n\s*goto exit\.create.*?case acc\.type = 'OTHER'.*?"
-                     r"if files\.want or files\.write\.want or files\.admin\.want then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 10081:@vm:acc\.name:@vm:2\s*\n\s*goto exit\.create", ca2.replace('"', "'"), re.S) is not None, "")
+       and re.search(r"case acc\.type = 'GROUP'.*?if files\.want or files\.write\.want or files\.admin\.want or ai\.want then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 10087:@vm:acc\.name\s*\n\s*goto exit\.create.*?case acc\.type = 'OTHER'.*?"
+                     r"if files\.want or files\.write\.want or files\.admin\.want or ai\.want then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 10081:@vm:acc\.name:@vm:2\s*\n\s*goto exit\.create", ca2.replace('"', "'"), re.S) is not None, "")
     ck("W23 ...the join is sd-elevate addgroup <user> sdfiles, only when asked, AFTER the sdssh and sdapi joins; a failed join is 10081 with its status and the account stops; "
        "and a user account is told its state (11482), read off /etc/group, right after the NET line",
        # 21 Oct 26 (S.73 item 3): the join is the internal subroutine join.files.group (sd-elevate addgroup <user> <group>, 10081 with its status), called for sdfiles after the sdssh and sdapi joins
@@ -1187,20 +1187,20 @@ def checks_2c(srcs, c, ck):
     # ---- W26-W28. the group: installer, deletesdcore, sd-elevate ----------------------------------------------------------------------------
     ck("W26 the installer makes sdfiles (and, 18 Oct 26, sdfileswrite; 21 Oct 26, sdfilesadmin) beside sdssh and sdapi: one loop `for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin`, groupadd --system, only when the group is missing",
        inst.count("for sd_route_group in") == 1
-       and re.search(r'for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do\s*\n\s*if ! getent group "\$sd_route_group" &>/dev/null; then\s*\n(?:[^\n]*\n){0,2}?\s*sudo groupadd --system "\$sd_route_group"', inst) is not None, "")
-    li = dele.find("for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do")
+       and re.search(r'for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do\s*\n\s*if ! getent group "\$sd_route_group" &>/dev/null; then\s*\n(?:[^\n]*\n){0,2}?\s*sudo groupadd --system "\$sd_route_group"', inst) is not None, "")
+    li = dele.find("for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do")
     br = dele.rfind('if [ "$keep_accts" = "DELETE" ]; then', 0, li) if li >= 0 else -1
     el = dele.find("\nelse\n", li) if li >= 0 else -1
     fi_ = dele.find("\nfi", el) if el >= 0 else -1
     ck("W27 deletesdcore removes it with the others ONLY on a full DELETE (the loop and its groupdel inside the DELETE branch, no end of branch between them) and says it kept it "
        "when the accounts are kept (in the else branch)",
        dele.count("for sd_route_group in") == 1 and 0 <= br < li < el and "\nfi" not in dele[br:li] and 'sudo groupdel "$sd_route_group"' in dele[li:el]
-       and "route groups sdssh, sdapi, sdfiles, sdfileswrite and sdfilesadmin were kept" in dele[el:el + 200] and fi_ > el and "groupdel" not in dele[el:fi_], "")
+       and "route groups sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin and sdaiusers were kept" in dele[el:el + 200] and fi_ > el and "groupdel" not in dele[el:fi_], "")
     ck("W28 sd-elevate whitelists sdfiles by its exact name for addgroup, delgroup and groupadd (require_sd_group), says so in its refusal text, and never deletes it with groupdel "
        "(it is one of the system groups)",
-       re.search(r"case \$group in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\|sdfileswrite\|sdfilesadmin\) : ;;\s*\n\s*sdu_\?\*\|sdg_\?\*\) : ;;", se) is not None
-       and "(want sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin, sdu_*, or sdg_*)" in se
-       and re.search(r"case \$1 in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\|sdfileswrite\|sdfilesadmin\)\s*\n\s*die \"'\$1' is one of SD's system groups and is never deleted here\"", se) is not None
+       re.search(r"case \$group in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\|sdfileswrite\|sdfilesadmin\|sdaiusers\) : ;;\s*\n\s*sdu_\?\*\|sdg_\?\*\) : ;;", se) is not None
+       and "(want sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin, sdaiusers, sdu_*, or sdg_*)" in se
+       and re.search(r"case \$1 in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\|sdfileswrite\|sdfilesadmin\|sdaiusers\)\s*\n\s*die \"'\$1' is one of SD's system groups and is never deleted here\"", se) is not None
        and "sdfiles*" not in se, "")
 
 
@@ -3652,7 +3652,7 @@ mut("modifya: the word FILES-OFF is not a word", MOD, "case action = 'FILES-OFF'
 mut("modifya: FILES-ON asks for off", MOD, "files.grp = 'sdfiles'\n         files.want = @true\n         gosub set.files", "files.grp = 'sdfiles'\n         files.want = @false\n         gosub set.files")
 mut("modifya: FILES-OFF asks for on", MOD, "files.grp = 'sdfiles'\n         files.want = @false\n         gosub set.files", "files.grp = 'sdfiles'\n         files.want = @true\n         gosub set.files")
 mut("modifya: the syntax lines do not name the words", MOD, drop_line(r"modify\.account <account> files-on \| files-off"))
-mut("modifya: the list of words does not name them", MOD, "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, suspended or unsuspended", "suspended or unsuspended")
+mut("modifya: the list of words does not name them", MOD, "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, suspended or unsuspended", "suspended or unsuspended")
 mut("modifya: set.files lets a group account through", MOD, "   if group.name[1,4] # 'sdu_' then\n      @system.return.code = -ER$FAILED\n      if group.name[1,4] = 'sdg_' then",
     "   if 0 then\n      @system.return.code = -ER$FAILED\n      if group.name[1,4] = 'sdg_' then")
 mut("modifya: a group account is told 10081 and not 10087", MOD, "crt sysmsg(10087, acc.name)  ;* %1 is a group account and has no remote access; reach it with logto\n      end else\n         crt sysmsg(10081, acc.name, 2)",
@@ -3715,15 +3715,15 @@ mut("restorea: it is not cleared for each section", "restorea", " ; m.route.file
 mut("restorea: the file count is lost", "restorea", "case sec.keys<s.idx,kp> = 'files'       ; m.files = kv", "case sec.keys<s.idx,kp> = 'filez'       ; m.files = kv")
 mut("backupa: the file count is renamed route.files", "bp:backupa", "m<-1> = 'files: ':files", "m<-1> = 'route.files: ':files")
 # the group
-mut("the installer does not make sdfiles", "installsdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do", "for sd_route_group in sdssh sdapi sdfileswrite sdfilesadmin; do")
+mut("the installer does not make sdfiles", "installsdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do", "for sd_route_group in sdssh sdapi sdfileswrite sdfilesadmin sdaiusers; do")
 mut("the installer makes sdfiles a login group", "installsdcore.sh", "sudo groupadd --system \"$sd_route_group\"", "sudo groupadd \"$sd_route_group\"")
-mut("deletesdcore does not remove sdfiles", "deletesdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do", "for sd_route_group in sdssh sdapi sdfileswrite sdfilesadmin; do")
-mut("deletesdcore says it kept two groups", "deletesdcore.sh", "route groups sdssh, sdapi, sdfiles, sdfileswrite and sdfilesadmin were kept", "route groups sdssh and sdapi were kept")
+mut("deletesdcore does not remove sdfiles", "deletesdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin sdaiusers; do", "for sd_route_group in sdssh sdapi sdfileswrite sdfilesadmin sdaiusers; do")
+mut("deletesdcore says it kept two groups", "deletesdcore.sh", "route groups sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin and sdaiusers were kept", "route groups sdssh and sdapi were kept")
 mut("deletesdcore removes sdfiles when the accounts are kept", "deletesdcore.sh", "else\n    echo \"sd ACCOUNTS were saved", "else\n    sudo groupdel sdfiles\n    echo \"sd ACCOUNTS were saved")
-mut("sd-elevate does not whitelist sdfiles", "sd-elevate", "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin) : ;;", "sdusers|sdssh|sdapi|sdfileswrite|sdfilesadmin) : ;;")
-mut("sd-elevate whitelists sdfiles* (a prefix)", "sd-elevate", "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin) : ;;", "sdusers|sdssh|sdapi|sdfiles*|sdfileswrite|sdfilesadmin) : ;;")
-mut("sd-elevate lets groupdel delete sdfiles", "sd-elevate", "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin)\n        die", "      sdusers|sdssh|sdapi|sdfileswrite|sdfilesadmin)\n        die")
-mut("sd-elevate's refusal does not name sdfiles", "sd-elevate", "(want sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin, sdu_*, or sdg_*)", "(want sdusers, sdssh, sdapi, sdfileswrite, sdfilesadmin, sdu_*, or sdg_*)")
+mut("sd-elevate does not whitelist sdfiles", "sd-elevate", "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers) : ;;", "sdusers|sdssh|sdapi|sdfileswrite|sdfilesadmin|sdaiusers) : ;;")
+mut("sd-elevate whitelists sdfiles* (a prefix)", "sd-elevate", "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers) : ;;", "sdusers|sdssh|sdapi|sdfiles*|sdfileswrite|sdfilesadmin|sdaiusers) : ;;")
+mut("sd-elevate lets groupdel delete sdfiles", "sd-elevate", "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin|sdaiusers)\n        die", "      sdusers|sdssh|sdapi|sdfileswrite|sdfilesadmin|sdaiusers)\n        die")
+mut("sd-elevate's refusal does not name sdfiles", "sd-elevate", "(want sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin, sdaiusers, sdu_*, or sdg_*)", "(want sdusers, sdssh, sdapi, sdfileswrite, sdfilesadmin, sdaiusers, sdu_*, or sdg_*)")
 # the messages
 mut("message 11480 is missing", "msg:11480", lambda t: None)
 mut("message 11480 says another thing", "msg:11480", lambda t: t.replace("files only", "files and more", 1))
