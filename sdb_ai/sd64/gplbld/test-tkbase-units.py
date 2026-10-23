@@ -24,8 +24,9 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
-NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "sl_color", "sl_selector", "sl_accel", "tool_tktest", "tool_keys"]
-PROGRAMS = [n for n in NAMES if n != "tk.h"]
+NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "sl_color", "sl_selector", "sl_accel", "tool_keys"]
+# the programs of the gate pages and the throw-away test app: checked when the tree has them (Core), skipped when it has not (Solo's carry 13 leaves them for the gate page, 22 Oct 26)
+OPTIONAL = ["tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "tool_tktest"]
 
 
 def strip_bas(src):
@@ -55,15 +56,21 @@ def ordered(text, *needles):
 
 
 def checks(raw):
-    code = {n: strip_bas(raw[n]) for n in NAMES}
-    sq = {n: squeeze(code[n]) for n in NAMES}
+    names = NAMES + [n for n in OPTIONAL if n in raw]
+    progs = [n for n in names if n != "tk.h"]
+    code = {n: strip_bas(raw[n]) for n in names}
+    sq = {n: squeeze(code[n]) for n in names}
     out = []
 
     def add(i, what, ok, detail=""):
         out.append((i, what, bool(ok), detail))
 
-    add("T0", "NULL CASE: every file of the base was found and none is trivially short (a check on nothing would pass)", all(len(raw[n]) > 300 for n in NAMES),
-        ", ".join("%s %d" % (n, len(raw[n])) for n in NAMES))
+    def optadd(need, i, what, ok, detail=""):
+        if need in raw:
+            add(i, what, ok, detail)
+
+    add("T0", "NULL CASE: every file of the base was found and none is trivially short (a check on nothing would pass)", all(len(raw[n]) > 300 for n in names),
+        ", ".join("%s %d" % (n, len(raw[n])) for n in names))
     h = raw["tk.h"]
     add("T1", "tk.h fixes the minimum at 140 by 43 and names the chrome rows", re.search(r"\$define TK\.MINW\s+140\b", h) is not None and re.search(r"\$define TK\.MINH\s+43\b", h) is not None
         and "TK.C.YSTAT" in h and "TK.C.YBORD" in h and "TK.C.YKEYS" in h, "")
@@ -94,51 +101,51 @@ def checks(raw):
     ky = sq["tk_keys"]
     add("T11", "the key table has an add, a name and an action operation, and an action is looked up by key AND pane",
         all(("op = '%s'" % o) in ky for o in ("add", "name", "action")) and "TK.K.ACT" in ky and "pane" in ky, "")
-    anycode = "\n".join(code[n] for n in PROGRAMS)
+    anycode = "\n".join(code[n] for n in progs)
     add("T12", "no program writes a raw escape sequence or a cursor code: the library's styles and line characters only",
         "char(27)" not in anycode.lower() and "@(-" not in anycode and "\\x1b" not in anycode and "crt @(" not in anycode, "")
-    app = sq["tool_tktest"]
-    add("T13", "the test app's key loop treats the end of input as the end of the app (status() = ER$EOF is tested, never taken for an empty key) and leaves on the cursor lock's own way out",
+    app = sq.get("tool_tktest", "")
+    optadd("tool_tktest", "T13", "the test app's key loop treats the end of input as the end of the app (status() = ER$EOF is tested, never taken for an empty key) and leaves on the cursor lock's own way out",
         "ER$EOF" in app and "guardquit" in app and "call $tk_close(" in app, "")
     add("T14", "every program is internal and catalogued under its own name, and they are all different",
-        all(re.search(r"^\$internal\b", raw[n], re.M) for n in PROGRAMS) and len({re.search(r"^\$catalog (\S+)", raw[n], re.M).group(1) for n in PROGRAMS if re.search(r"^\$catalog (\S+)", raw[n], re.M)}) == len(PROGRAMS)
-        and all(re.search(r"^\$catalog \$%s\b" % n, raw[n], re.M) for n in PROGRAMS), "")
+        all(re.search(r"^\$internal\b", raw[n], re.M) for n in progs) and len({re.search(r"^\$catalog (\S+)", raw[n], re.M).group(1) for n in progs if re.search(r"^\$catalog (\S+)", raw[n], re.M)}) == len(progs)
+        and all(re.search(r"^\$catalog \$%s\b" % n, raw[n], re.M) for n in progs), "")
     cited = set()
-    for n in PROGRAMS:
+    for n in progs:
         cited |= set(int(x) for x in re.findall(r"sysmsg\((\d+)", code[n]))
     have = {int(f) for f in os.listdir(os.path.join(SDSYS, "messages")) if f.isdigit()}
     add("T15", "the messages the base cites (%s) are all in the toolkit's block 11800 to 11849 and all exist" % sorted(cited), bool(cited) and all(11800 <= m <= 11849 and m in have for m in cited), sorted(m for m in cited if m not in have))
-    rn = sq["tk_run"]
-    add("T16", "ORDER in $tk_run: an empty sentence, a too long one, a first word outside the tool's list and a bad character are each refused (and return) BEFORE the one EXECUTE",
+    rn = sq.get("tk_run", "")
+    optadd("tk_run", "T16", "ORDER in $tk_run: an empty sentence, a too long one, a first word outside the tool's list and a bad character are each refused (and return) BEFORE the one EXECUTE",
         ordered(rn, "sysmsg(11804)", "sysmsg(11807)", "if not(ok.verb) then err = sysmsg(11805, verb)", "if index(good, w[j, 1], 1) = 0 then err = sysmsg(11806, w)",
                 "execute s trapping aborts capturing out")
         and all(re.search(r"err = sysmsg\(%d[^)]*\) return" % m, rn) for m in (11804, 11805, 11806, 11807)), "")
-    add("T17", "$tk_run runs only the sentence it checked (s), traps aborts, hands back the return code, and writes no audit line and no screen text",
+    optadd("tk_run", "T17", "$tk_run runs only the sentence it checked (s), traps aborts, hands back the return code, and writes no audit line and no screen text",
         rn.count("execute ") == 1 and "execute sentence" not in rn and "status = @system.return.code" in rn and "K$AUDIT" not in rn and not re.search(r"\b(crt|display|print|screen)\b", rn), "")
-    add("T18", "$tk_run allows exactly a-z, 0-9, dot, dash and underscore in a word, and the first word is compared whole against the tool's list, in lower case as typed",
+    optadd("tk_run", "T18", "$tk_run allows exactly a-z, 0-9, dot, dash and underscore in a word, and the first word is compared whole against the tool's list, in lower case as typed",
         "good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'" in rn and "field(allow, ' ', i) = verb and verb # ''" in rn, "")
-    gi = sq["tk_gate_info"]
+    gi = sq.get("tk_gate_info", "")
     gi_code = re.sub(r'rows<-1> = "[^"]*"', "rows<-1> = ROW", gi)          # the rows are prose: the words of a sentence are not statements
-    add("T19", "$tk_gate_info answers a list and one gate at a time from its rows, writes nothing and changes no state",
+    optadd("tk_gate_info", "T19", "$tk_gate_info answers a list and one gate at a time from its rows, writes nothing and changes no state",
         "id = 'list' then" in gi and "convert('|', @fm, rows<i>)" in gi and gi_code.count("rows<-1> = ROW") >= 10
         and not re.search(r"\b(crt|display|print|screen|write|writev|kernel|execute)\b", gi_code), "")
-    tg = sq["tk_gates"]
-    add("T20", "ORDER in $tk_gates: the administrator is asked of the kernel (and refused with 11800) BEFORE the name is looked at, before the register is opened and before it is read; each refusal returns",
+    tg = sq.get("tk_gates", "")
+    optadd("tk_gates", "T20", "ORDER in $tk_gates: the administrator is asked of the kernel (and refused with 11800) BEFORE the name is looked at, before the register is opened and before it is read; each refusal returns",
         ordered(tg, "if not(kernel(K$ADMINISTRATOR, -1)) then err = sysmsg(11800, 'tk_gates') return", "sysmsg(11808, name) return", "if index(good, name[j, 1], 1) = 0 then err = sysmsg(11808, name) return",
                 "openpath @sdsys:@ds:'accounts' to acc.f else err = sysmsg(11809) return", "read rec from acc.f, name else", "call $tk_gate_info('list', ids)"), "")
-    add("T21", "$tk_gates only READS the register (no write, delete, lock or command), closes it on both paths, and puts nothing on the screen",
+    optadd("tk_gates", "T21", "$tk_gates only READS the register (no write, delete, lock or command), closes it on both paths, and puts nothing on the screen",
         not re.search(r"\b(write|writev|writeu|writet|delete|readu|execute|crt|display|print|screen|os\.execute)\b", re.sub(r"'[^']*'", "''", tg)) and tg.count("close acc.f") == 2, "")
-    add("T22", "$tk_gates: a gate with its default on (shared-read) is on unless the field says no, every other register gate only if it says yes, and a route gate on an account with no person is 'na' (never a membership test of nobody)",
+    optadd("tk_gates", "T22", "$tk_gates: a gate with its default on (shared-read) is on unless the field says no, every other register gate only if it says yes, and a route gate on an account with no person is 'na' (never a membership test of nobody)",
         "if gi<TK.G.DEFAULT> = 'on' then state = (if raw # 'NO' then 1 else 0) end else state = (if raw = 'YES' then 1 else 0) end" in tg
         and "if atype = 'USER' then state = (if is_grp_member(user, gi<TK.G.GROUP>) then 1 else 0) end else state = 'na' end" in tg, "")
-    cf = sq["tk_confirm"]
-    add("T23", "ORDER in $tk_confirm: the answer starts as 'cancel' and a session with no terminal returns at once; the box starts on Cancel (default 2); anything but Run returns BEFORE the name is asked for; a name that is not the one asked for, or an Esc at the name, never reaches 'run'; 'run' is set last",
+    cf = sq.get("tk_confirm", "")
+    optadd("tk_confirm", "T23", "ORDER in $tk_confirm: the answer starts as 'cancel' and a session with no terminal returns at once; the box starts on Cancel (default 2); anything but Run returns BEFORE the name is asked for; a name that is not the one asked for, or an Esc at the name, never reaches 'run'; 'run' is set last",
         ordered(cf, "res = 'cancel'", "if system(25) then return", "default 2 returning b else b = 0", "if b # 1 then return", "returning ans then got = 1 else got = 0", "if not(got) then return",
                 "if trim(ans) # typed then res = 'wrong'", "res = 'run'") and cf.count("res = 'run'") == 1, "")
-    add("T24", "$tk_confirm shows the sentence wrapped at spaces but whole (a hard cut only when a word is longer than the line), draws the lines the caller gave, and runs, reads and writes nothing",
+    optadd("tk_confirm", "T24", "$tk_confirm shows the sentence wrapped at spaces but whole (a hard cut only when a word is longer than the line), draws the lines the caller gave, and runs, reads and writes nothing",
         "wrapw" in cf and "rest = trimf(rest[cut + 1, 99999])" in cf and "loop while rest # '' do" in cf and "body<-1> = ' ' : piece" in cf and "body := @fm : lines" in cf and not re.search(r"\b(execute|write|writev|readu|delete|kernel|os\.execute|crt|display)\b", cf), "")
-    ex = sq["tk_explain"]
-    add("T25", "$tk_explain: a planned gate or one not in the table gives nothing; turning ON a gate delivered off carries the core-direction line (11817), turning OFF one delivered on carries 11818, a gate that reaches beyond SD carries 11819, and the typed name is asked only for turning ON a gate that reaches beyond SD",
+    ex = sq.get("tk_explain", "")
+    optadd("tk_explain", "T25", "$tk_explain: a planned gate or one not in the table gives nothing; turning ON a gate delivered off carries the core-direction line (11817), turning OFF one delivered on carries 11818, a gate that reaches beyond SD carries 11819, and the typed name is asked only for turning ON a gate that reaches beyond SD",
         ordered(ex, "if gi = '' then return", "if gi<TK.G.STATUS> # 'built' then return", "sysmsg(11820,")
         and "if on and gi<TK.G.DEFAULT> = 'off' then lines<-1> = sysmsg(11817)" in ex and "if not(on) and gi<TK.G.DEFAULT> = 'on' then lines<-1> = sysmsg(11818)" in ex
         and "if gi<TK.G.BEYOND> = 1 then lines<-1> = sysmsg(11819)" in ex and "if on and gi<TK.G.BEYOND> = 1 then typed = 1" in ex and ex.count("typed = 1") == 1
@@ -314,9 +321,11 @@ EXTRA = ["sl_form", "sl_key", "_keycode", "_bindkey", "keycode.h", "screen_label
 
 def load():
     raw = {}
-    for n in NAMES + EXTRA:
+    for n in NAMES + OPTIONAL + EXTRA:
         p = os.path.join(BP, n)
         if not os.path.isfile(p):
+            if n in OPTIONAL:
+                continue                  # this tree has no gate pages (Solo)
             raise FileNotFoundError(p)
         with open(p, encoding="latin-1") as f:
             raw[n] = f.read()
@@ -510,8 +519,11 @@ def selftest():
     if bad:
         print("selftest: the real files already fail %d check(s)" % len(bad))
         return 1
-    killed, missed = 0, []
+    killed, missed, skipped = 0, [], 0
     for fname, what, old, new in MUT:
+        if fname not in raw:
+            skipped += 1                  # a mutant of a program this tree has not (Solo has no gate pages)
+            continue
         if raw[fname].count(old) != 1:
             print("  [CANNOT] %s: the text to change is found %d times in %s, not once" % (what, raw[fname].count(old), fname))
             return 2
@@ -524,7 +536,7 @@ def selftest():
         else:
             missed.append(what)
             print("  [MISSED] %s" % what)
-    print("selftest: %d mutants, %d killed, %d missed" % (len(MUT), killed, len(missed)))
+    print("selftest: %d mutants, %d killed, %d missed%s" % (len(MUT) - skipped, killed, len(missed), (", %d skipped (their program is not in this tree)" % skipped) if skipped else ""))
     return 0 if not missed else 1
 
 
