@@ -92,9 +92,7 @@ $define PANEL.TOP  5       ;* the first row of the scrolling panel (rows 1 to 3 
    call $tk_keys('add', keys, 'f10', 'menu', 'menu', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'sign out', 'signout', '', 1)
 
-   gosub make.menus
-
-   X.COL = 3 : @fm : 25 : @fm : 49 : @fm : 71 : @fm : 95 : @fm : 117      ;* the x of the six tile columns (a group of two stands at columns 1-2, 3-4 or 5-6)
+   X.COL =3 : @fm : 25 : @fm : 49 : @fm : 71 : @fm : 95 : @fm : 117      ;* the x of the six tile columns (a group of two stands at columns 1-2, 3-4 or 5-6)
    gen = 0
    top = 0
    fi = 1
@@ -139,6 +137,15 @@ $define PANEL.TOP  5       ;* the first row of the scrolling panel (rows 1 to 3 
 
 finish:
    begin case
+      case terminal.off and outcome # 'signout'
+         * the Terminal tile is off for this account: the screen is not left for the prompt, whatever ended it (the cursor lock, the end of the input, a window too small
+         * to take the screen again); the person is signed out
+         if outcome = 'closed' then
+            sleep 2                                       ;* the message that said why is on the screen; let it be read
+         end else
+            call $tk_close(ctx)
+         end
+         execute 'quit'
       case outcome = 'closed'
          null                                             ;* the screen was given back already (it could not be taken again)
       case outcome = 'terminal'
@@ -167,17 +174,45 @@ geometry:
 * The tiles of this page.  The table is built for the audience (13.2): the administrator gets the administrator's, everyone else the holder's, and what a person may
 * not use is not in memory.  Later apps add their rows here, in the commit that builds them.
 build.page:
+   * the tiles the administrator has turned off for this account (SET.TILE): left out of the page, their menu entries cannot be chosen
+   call !home_off(@who, off.list)
+   off.set = ' ' : off.list : ' '
+   terminal.off = (index(off.set, ' terminal ', 1) > 0)
    tl = ''
    gr = ''
    pal.tools = (if is.admin then 'plum' else 'green')
    gname = (if is.admin then 'Tools' else 'My tools')
-   g = 1
-   gr<g> = gname : @vm : 1 : @vm : 6
+   bnd = 0                                                ;* the groups stand one band under another; a group that is not there takes no band
+   g = 0
+   if is.admin then
+      * the administrator's own group: the page that manages what every account's home screen shows (it is in SDSYS's VOC only; an account holder's page has no such tile)
+      bnd += 1
+      g += 1
+      gr<g> = 'System' : @vm : bnd : @vm : 6
+      id = 'menus' ; grp = g ; label = 'Menu management' ; glyph = '[=]' ; sub = 'tiles and start' ; act = 'cmd:tool.menus' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   end
+   bnd += 1
+   g += 1
+   gr<g> = gname : @vm : bnd : @vm : 6
    id = 'editor' ; grp = g ; label = 'Editor' ; glyph = '[=]' ; sub = 'edit a record' ; act = 'cmd:sed' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'ide' ; grp = g ; label = 'IDE' ; glyph = '</>' ; sub = 'programs and files' ; act = 'cmd:ide' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'ced' ; grp = g ; label = 'Record editor' ; glyph = '[ ]' ; sub = 'fields of a record' ; act = 'cmd:ced' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
-   g = 2
-   gr<g> = 'Everyone' : @vm : 2 : @vm : 6
+   * the person's own programs (MY.MENU), when the administrator has allowed it (the administrator always may): a group of their own after the standard tools, with a tile that
+   * opens the list for changing.  They are only tiles that run what the person could type at their prompt.
+   call !home_pins(@who, pins.on, pins.items)
+   if pins.on then
+      bnd += 1
+      g += 1
+      gr<g> = 'My programs' : @vm : bnd : @vm : 6
+      id = 'mymenu' ; grp = g ; label = 'Add a program' ; glyph = '+  ' ; sub = 'change this list' ; act = 'cmd:my.menu' ; pal = 'teal' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      for pn = 1 to dcount(pins.items, @fm)
+         id = 'pin' : pn ; grp = g ; label = pins.items<pn, 1> ; glyph = pins.items<pn, 2> ; sub = pins.items<pn, 3>[1, 19] ; act = 'cmd:' : pins.items<pn, 3>
+         pal = 'teal' ; size = 'n' ; pause = pins.items<pn, 4> ; why = '' ; gosub add.tile
+      next pn
+   end
+   bnd += 1
+   g += 1
+   gr<g> = 'Everyone' : @vm : bnd : @vm : 6
    id = 'terminal' ; grp = g ; label = 'Terminal' ; glyph = '>_ ' ; sub = 'type exit to come back' ; act = 'terminal' ; pal = 'gray' ; size = 'w' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'keys' ; grp = g ; label = 'Keys' ; glyph = '^K ' ; sub = 'test your keyboard' ; act = 'cmd:tool.keys' ; pal = 'gray' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    * the header: two small tiles at the right, on screen rows 1 to 3
@@ -186,17 +221,22 @@ build.page:
    hx = 117 ; hy = 1
    id = 'signout' ; grp = 0 ; label = 'Sign out' ; glyph = '-> ' ; sub = '' ; act = 'signout' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header
    gosub alloc.styles
+   gosub make.menus
    return
 
 add.tile:
+   added = 0
+   if index(off.set, ' ' : id : ' ', 1) then return        ;* turned off by the administrator: not on the page at all
    t = id : @vm : grp : @vm : label : @vm : glyph : @vm : sub : @vm : act : @vm : pal : @vm : size : @vm : pause : @vm : why
    tl<-1> = t
    nt = dcount(tl, @fm)
+   added = 1
    return
 
 * A header tile: its place is fixed on the screen (hx, hy), and it does not scroll
 add.header:
    gosub add.tile
+   if not(added) then return
    tl<nt, HT.X> = hx
    tl<nt, HT.Y> = hy
    tl<nt, HT.W> = 21
@@ -266,7 +306,11 @@ layout:
       c0 = 0
       bandend = ys
       for k = 1 to ng
-         if gr<k, HG.BAND> = b then
+         gn.tiles = 0                                     ;* a group whose tiles are all off has no heading either
+         for i = 1 to nt
+            if tl<i, HT.GROUP> = k then gn.tiles += 1
+         next i
+         if gr<k, HG.BAND> = b and gn.tiles > 0 then
             gcols = gr<k, HG.COLS>
             gr<k, HG.Y> = ys
             gr<k, HG.X> = X.COL<c0 + 1>
@@ -361,9 +405,12 @@ draw.clock:
 
 draw.panel:
    for k = 1 to ng
-      sy = py0 + gr<k, HG.Y> - top
-      if sy >= py0 and sy <= py1 then
-         screen text fmt(gr<k, HG.NAME>, '40L') at gr<k, HG.X>,sy attr 'header' width 40
+      gy = gr<k, HG.Y>
+      if gy # '' then
+         sy = py0 + gy - top
+         if sy >= py0 and sy <= py1 then
+            screen text fmt(gr<k, HG.NAME>, '40L') at gr<k, HG.X>,sy attr 'header' width 40
+         end
       end
    next k
    for i = 1 to nt
@@ -769,13 +816,16 @@ make.menus:
    menus = ''
    m = '&File|&Sign out~^Q~signout'
    gosub add.menu
-   m = '&Go|&Terminal~~terminal|S&witch account~~switch'
+   tflag = (if terminal.off then 'D' else '')                ;* D: the entry cannot be chosen (a tile that is off has no menu entry either)
+   sflag = (if index(off.set, ' switch ', 1) then 'D' else '')
+   kflag = (if index(off.set, ' keys ', 1) then 'D' else '')
+   m = '&Go|&Terminal~~terminal~' : tflag : '|S&witch account~~switch~' : sflag
    gosub add.menu
    m = '&View|&Refresh~F5~refresh'
    gosub add.menu
    m = '&AI|AI is off~~ai~D'
    gosub add.menu
-   m = '&Help|&Keys~~keys'
+   m = '&Help|&Keys~~keys~' : kflag
    gosub add.menu
    return
 

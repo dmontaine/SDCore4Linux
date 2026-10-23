@@ -1,6 +1,32 @@
 Next release - in progress
 --------------------------
 
+22 Oct 26  THE ADMINISTRATOR CHOOSES THE HOME SCREEN'S TILES FOR EACH ACCOUNT, AND MAY LET AN ACCOUNT ADD ITS OWN PROGRAMS TO IT. BOTH ARE
+           OFF AS DELIVERED: EVERY TILE IS ON, AND NOBODY MAY ADD PROGRAMS UNTIL THE ADMINISTRATOR SAYS SO.
+
+             What        A new full-screen page, TOOL.MENUS ("Menu management", SDSYS only, and a tile on the administrator's own home
+                        screen), lists every account with where it starts, whether it may add programs of its own and which tiles are off,
+                        and for the account selected shows the standard tiles with [x] on and [ ] off, with a box that says in plain words
+                        what the settings mean. It changes nothing itself: each change is the command it will run (SET.TILE,
+                        MODIFY.ACCOUNT, SET.START.DEFAULT) shown with its effect for the administrator to run or cancel (Cancel is what
+                        Enter chooses), and the line under the page is that verb's own answer. SET.TILE account tile ON | OFF does the same
+                        from the prompt; SET.TILE alone says what is off. The tile ids are editor, ide, ced, terminal, keys, switch and
+                        signout; sign out cannot be turned off. A tile that is off is not on that account's page and its menu entry cannot
+                        be chosen; a group left with no tile has no heading. It is kept per account (field 17 of the register record) and
+                        is audited. MODIFY.ACCOUNT name PINS-ON | PINS-OFF lets an account add its own programs: the account's home
+                        screen then has a group "My programs" with a tile "Add a program" and a tile for each program added, and the new verb
+                        MY.MENU adds, changes, removes and reorders them (a label, the command the person would type, an optional glyph,
+                        and whether to wait for Enter). The list is the record HOME of the file &menus& in the person's own account.
+             Why it      An administrator can now keep an account to what it needs, and a person who writes programs can put them on the
+             matters     screen without being able to change what everyone else sees.
+             Does not    A program a person adds runs the command exactly as typed, so it adds no access: the gates apply as at the prompt, and
+                        the person manages only their own list, never the standard tiles. THE TERMINAL TILE OFF IS A WALL ONLY FOR THE
+                        PROMPT THE HOME SCREEN GIVES: with it off, an account that starts in the home screen is signed out when the screen
+                        ends instead of being left at the prompt (an account that starts at the prompt keeps it), but the editor, IDE and
+                        record editor tiles run the account's own programs, so an account to be kept to the screen needs those off too; a
+                        shell needs SH-ON, which is off as delivered. There is no setting that turns a tile off for every account at once,
+                        no tile assigned by the administrator to an account, and CREATE.ACCOUNT does not take the new words yet.
+
 22 Oct 26  THE HOME SCREEN: EVERY ACCOUNT NOW STARTS IN A SCREEN OF TILES UNLESS ITS ADMINISTRATOR SAYS OTHERWISE. AFTER AN UPGRADE, SET
            THE DEFAULT TO TERMINAL FIRST IF YOU WANT THE OLD START.
 
@@ -30,10 +56,11 @@ Next release - in progress
              matters     by account, whether people start there or at the prompt.
              Does not    EVERY EXISTING ACCOUNT HAS NO SETTING OF ITS OWN, so after an upgrade each follows the default and STARTS IN THE
                         HOME SCREEN, not at the prompt. To keep the old start for all of them, run SET.START.DEFAULT TERMINAL (as SDSYS);
-                        to keep it for some, MODIFY.ACCOUNT name START-TERMINAL. Starting in the menu confines nobody: the Terminal tile is
-                        always there. A session on a pipe, a phantom and the API server are never given the screen, so scripts and
-                        scheduled jobs are unchanged. The assigned and pinned tiles of an account, sub-menus and the menu builder are not
-                        built yet, and CREATE.ACCOUNT does not take the start words yet (use MODIFY.ACCOUNT after it).
+                        to keep it for some, MODIFY.ACCOUNT name START-TERMINAL. Starting in the menu confines nobody unless the
+                        administrator turns the Terminal tile off for the account (SET.TILE, the entry above). A session on a pipe, a
+                        phantom and the API server are never given the screen, so scripts and scheduled jobs are unchanged. Tiles the
+                        administrator assigns to an account, sub-menus and a general menu builder are not built yet, and
+                        CREATE.ACCOUNT does not take the start words yet (use MODIFY.ACCOUNT after it).
 
 22 Oct 26  THE ACCELERATOR LETTER IS SEEN: A LETTER MARKED WITH & IS DRAWN UNDERLINED ON A SCREEN.
 

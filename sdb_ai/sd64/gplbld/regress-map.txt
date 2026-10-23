@@ -296,6 +296,15 @@ sdsys/gpl.bp/tool_home       : home
 sdsys/gpl.bp/home_entry      : home
 sdsys/gpl.bp/exit            : home
 sdsys/gpl.bp/setstart        : home
+sdsys/gpl.bp/home_off        : home menus
+sdsys/gpl.bp/settile         : menus
+sdsys/voc_template/set.tile  : menus
+sdsys/gpl.bp/tool_menus      : menus
+sdsys/voc_template/tool.menus : menus
+sdsys/gpl.bp/home_pins       : home menus
+sdsys/gpl.bp/mymenu          : menus
+sdsys/newvoc/my.menu         : menus
+sdsys/voc_template/my.menu   : menus
 sdsys/newvoc/home            : home
 sdsys/newvoc/exit            : home
 sdsys/voc_template/home      : home
@@ -483,6 +492,9 @@ sdsys/messages/1186[0-2]     : xmlx
 # 22 Oct 26 (S.75 H1, H2): 11863-11867 are the home screen's lines, 11868-11869 are MODIFY.ACCOUNT's start words, 11870-11873 SET.START.DEFAULT's
 sdsys/messages/1186[3-9]     : home
 sdsys/messages/1187[0-3]     : home
+sdsys/messages/1187[4-9]     : menus
+sdsys/messages/1188[0-9]     : menus home
+sdsys/messages/1189[0-9]     : menus home
 sdsys/messages/1156[0-9]     : masters
 sdsys/messages/1157[0-9]     : masters
 sdsys/messages/1158[0-9]     : masters

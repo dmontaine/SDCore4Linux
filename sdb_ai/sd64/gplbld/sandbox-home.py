@@ -41,7 +41,7 @@ say, row, bail, TOOL = tkb.say, tkb.row, tkb.bail, tkb.TOOL
 E = "\x1b"
 # the keys of terminfo's linux entry: every account's LOGIN paragraph (newvoc/login) says TERM LINUX, and it runs before the home screen starts, whatever TERM the terminal had
 KEYS = {"up": E + "[A", "down": E + "[B", "right": E + "[C", "left": E + "[D", "home": E + "[1~", "end": E + "[4~", "pgup": E + "[5~", "pgdn": E + "[6~", "tab": "\t",
-        "btab": E + "[Z", "f5": E + "[[E", "f10": E + "[21~", "enter": "\r", "esc": E, "ctrl-q": "\x11", "bs": "\x7f"}
+        "btab": E + "[Z", "f2": E + "[[B", "f3": E + "[[C", "f4": E + "[[D", "f5": E + "[[E", "f6": E + "[17~", "f10": E + "[21~", "enter": "\r", "esc": E, "ctrl-q": "\x11", "bs": "\x7f"}
 # a cell inside each tile, on the row of its label, found by the layout of the first screen (13.10): the Tools group at the top, Everyone under it, the header tiles
 TILE = {"Editor": (10, 5), "IDE": (10, 27), "Record editor": (10, 51), "Terminal": (17, 5), "Keys": (17, 51), "Switch account": (2, 100), "Sign out": (2, 122)}
 BOX = SYS = None
@@ -138,6 +138,15 @@ def file_word():
         return None
 
 
+def tiles_file():
+    """The words in the system's tiles.off (empty string when the file is empty), or None when it is absent."""
+    try:
+        with open(os.path.join(SYS, "tiles.off")) as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+
 def set_default(word):
     """The system default as the sandbox's own start: 'terminal', 'menu' (written through the verb) or None (the file absent: the delivered state)."""
     if word is None:
@@ -148,7 +157,8 @@ def set_default(word):
     return out
 
 
-def main():
+def setup(name):
+    """Build (with --build), start and prepare the sandbox and make the fixture accounts; the first row proves an ordinary session is ordinary.  The caller wraps it in try / finally teardown()."""
     global BOX, SYS, THEBOX
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
@@ -167,28 +177,44 @@ def main():
         bail("%s holds no built sandbox" % BOX)
     subprocess.run([sys.executable, TOOL, BOX, "start"], capture_output=True, text=True, errors="replace", timeout=120)
     g.BOX, g.SYS, g.SD = BOX, SYS, os.path.join(SYS, "bin", "sd")
+    g.prepare()
+    for a in ("zzhd", "zzhm", "zzht", "zzhs", "zzhv"):
+        g.FIXTURES[a] = ("no", "no")
+        g.build_account(a)
+    reg("zzhd", "")
+    reg("zzhm", "menu")
+    reg("zzht", "terminal")
+    reg("zzhv", "menu")
+    # zzhv has no LOGIN paragraph, so its terminal stays what the pty says (TERM=vt100 below: no colour); the others say TERM LINUX
+    g.put(os.path.join(SYS, "bp", "zzdel"), "\n".join(["$internal", "   openpath '%s/voc' to v else crt 'ZZDEL no voc' ; stop" % os.path.join(BOX, "user_accounts", "zzhv"),
+                                                      "   delete v, 'login'", "   crt 'ZZDEL done'", "end", ""]))
+    o = adm("BASIC bp zzdel", "RUN bp zzdel")
+    if not has(o, r"^ZZDEL done$"):
+        bail("the LOGIN paragraph of zzhv was not removed:\n" + "\n".join(o[-5:]))
+    g.reg_write("zzhs", [os.path.join(BOX, "user_accounts", "zzhs"), "", g.GROUP, "", "SUSPENDED", "", "no", "no", "no", "yes", "yes", "yes", "", "", "", "menu"])
+    flags = g.flags(g.plain("zzhd", ["zzkf"]))
+    say("    (the fixture session: %r)" % (flags,))
+    if flags is None or flags[0] != "0":
+        bail("the first ordinary session is not shown to be one (admin=%r), so no row below can be believed" % (flags,))
+    row("SETUP: an ordinary session in a fixture account is not an administrator (admin=0), and the sandbox starts at the terminal (start.default says terminal)",
+        flags[0] == "0" and file_word() == "terminal", repr(flags))
+
+
+def teardown():
+    if SYS and os.path.isdir(SYS):
+        set_default("terminal")
+    if BOX:
+        subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
+
+
+def summary(name):
+    say("\n%s: %d passed, %d failed" % (name, tkb.passed, tkb.failed))
+    sys.exit(0 if tkb.failed == 0 and tkb.passed > 0 else 1)
+
+
+def main():
     try:
-        g.prepare()
-        for a in ("zzhd", "zzhm", "zzht", "zzhs", "zzhv"):
-            g.FIXTURES[a] = ("no", "no")
-            g.build_account(a)
-        reg("zzhd", "")
-        reg("zzhm", "menu")
-        reg("zzht", "terminal")
-        reg("zzhv", "menu")
-        # zzhv has no LOGIN paragraph, so its terminal stays what the pty says (TERM=vt100 below: no colour); the others say TERM LINUX
-        g.put(os.path.join(SYS, "bp", "zzdel"), "\n".join(["$internal", "   openpath '%s/voc' to v else crt 'ZZDEL no voc' ; stop" % os.path.join(BOX, "user_accounts", "zzhv"),
-                                                          "   delete v, 'login'", "   crt 'ZZDEL done'", "end", ""]))
-        o = adm("BASIC bp zzdel", "RUN bp zzdel")
-        if not has(o, r"^ZZDEL done$"):
-            bail("the LOGIN paragraph of zzhv was not removed:\n" + "\n".join(o[-5:]))
-        g.reg_write("zzhs", [os.path.join(BOX, "user_accounts", "zzhs"), "", g.GROUP, "", "SUSPENDED", "", "no", "no", "no", "yes", "yes", "yes", "", "", "", "menu"])
-        flags = g.flags(g.plain("zzhd", ["zzkf"]))
-        say("    (the fixture session: %r)" % (flags,))
-        if flags is None or flags[0] != "0":
-            bail("the first ordinary session is not shown to be one (admin=%r), so no row below can be believed" % (flags,))
-        row("SETUP: an ordinary session in a fixture account is not an administrator (admin=0), and the sandbox starts at the terminal (start.default says terminal)",
-            flags[0] == "0" and file_word() == "terminal", repr(flags))
+        setup("sandbox-home.py")
 
         say("\n--- where a session starts: the system default, the account's own word, a piped session")
         set_default(None)
@@ -495,12 +521,8 @@ def main():
             "Switch account" in T and "Filler" in T and "Press Enter to return" not in T and any("r" in h.style(r, c)[2] for r in range(6, 38) for c in (5, 27, 51, 73, 97, 119)), T[-300:])
         h.end()
     finally:
-        if os.path.isdir(SYS):
-            set_default("terminal")
-        subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
-
-    say("\nsandbox-home: %d passed, %d failed" % (tkb.passed, tkb.failed))
-    sys.exit(0 if tkb.failed == 0 and tkb.passed > 0 else 1)
+        teardown()
+    summary("sandbox-home")
 
 
 if __name__ == "__main__":

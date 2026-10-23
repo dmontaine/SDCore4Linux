@@ -487,7 +487,7 @@ The sections of `sdsys/changelog`, newest first (the first is the tree you are r
 - and 7 older sections, back to upstream's first
 
 ### sys:syntax:accounts
-> kind=sys.syntax tier=reference since=- src=sdsys/gpl.bp/createa:258#7ecd66a8 src2=sdsys/gpl.bp/modifya:553#50a59752
+> kind=sys.syntax tier=reference since=- src=sdsys/gpl.bp/createa:258#7ecd66a8 src2=sdsys/gpl.bp/modifya:562#50a59752
 
 What `create.account` prints when typed with no arguments:
 
@@ -515,6 +515,7 @@ Command Syntax:  modify.account <account> add | delete <username>
                  modify.account <account> shared-read-on | shared-read-off | shared-write-on | shared-write-off
                  modify.account <account> files-on | files-off | files-write-on | files-write-off | files-admin-on | files-admin-off
                  modify.account <account> start-menu | start-terminal | start-default
+                 modify.account <account> pins-on | pins-off
                  modify.account <account> suspended | unsuspended
   Any of the actions except add and delete may be given together in one command, for example
                  modify.account <account> sh-on os-on voc-on bp-on
@@ -522,7 +523,7 @@ Command Syntax:  modify.account <account> add | delete <username>
 ```
 
 ### sys:word:add
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `add`
 
@@ -530,7 +531,7 @@ Account word `add`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 526
 
 ### sys:word:api
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:157#b49c2c50
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:157#b49c2c50
 
 Account word `api`
 
@@ -539,7 +540,7 @@ Account word `api`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 111
 
 ### sys:word:both
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8
 
 Account word `both`
 
@@ -547,7 +548,7 @@ Account word `both`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 111
 
 ### sys:word:bp-off
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `bp-off`
 
@@ -556,7 +557,7 @@ Account word `bp-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 260
 
 ### sys:word:bp-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:160#a83fc9a7
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:160#a83fc9a7
 
 Account word `bp-on`
 
@@ -566,7 +567,7 @@ Account word `bp-on`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 115
 
 ### sys:word:delete
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `delete`
 
@@ -574,7 +575,7 @@ Account word `delete`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 282
 
 ### sys:word:dict-off
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `dict-off`
 
@@ -583,7 +584,7 @@ Account word `dict-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 260
 
 ### sys:word:dict-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:160#a83fc9a7
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:160#a83fc9a7
 
 Account word `dict-on`
 
@@ -593,7 +594,7 @@ Account word `dict-on`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 115
 
 ### sys:word:files-admin-off
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `files-admin-off`
 
@@ -602,7 +603,7 @@ Account word `files-admin-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 686
 
 ### sys:word:files-admin-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8
 
 Account word `files-admin-on`
 
@@ -611,7 +612,7 @@ Account word `files-admin-on`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 555
 
 ### sys:word:files-off
-> kind=sys.word tier=reference since=next src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=next src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `files-off`
 
@@ -620,7 +621,7 @@ Account word `files-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 544
 
 ### sys:word:files-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:167#f241fb4b
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:167#f241fb4b
 
 Account word `files-on`
 
@@ -630,7 +631,7 @@ Account word `files-on`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 112
 
 ### sys:word:files-write-off
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `files-write-off`
 
@@ -639,7 +640,7 @@ Account word `files-write-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 651
 
 ### sys:word:files-write-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8
 
 Account word `files-write-on`
 
@@ -648,7 +649,7 @@ Account word `files-write-on`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 554
 
 ### sys:word:net-off
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `net-off`
 
@@ -657,7 +658,7 @@ Account word `net-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 427
 
 ### sys:word:net-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:166#8ddf95b9
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:166#8ddf95b9
 
 Account word `net-on`
 
@@ -667,7 +668,7 @@ Account word `net-on`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 116
 
 ### sys:word:none
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8
 
 Account word `none`
 
@@ -675,7 +676,7 @@ Account word `none`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 111
 
 ### sys:word:os-off
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `os-off`
 
@@ -684,7 +685,7 @@ Account word `os-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 204
 
 ### sys:word:os-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:159#02b8e6fb
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:159#02b8e6fb
 
 Account word `os-on`
 
@@ -693,8 +694,26 @@ Account word `os-on`
 - what it is (createa's description): OS.EXECUTE, and OPENSEQ / OPENPATH on a path outside the account's own directory
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 113
 
+### sys:word:pins-off
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
+
+Account word `pins-off`
+
+- typed by the administrator (SDSYS) only: `modify.account <account> pins-off`
+- turns the `pins-` gate OFF for the account
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1051
+
+### sys:word:pins-on
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
+
+Account word `pins-on`
+
+- typed by the administrator (SDSYS) only: `modify.account <account> pins-on`
+- turns the `pins` gate ON for the account; the delivered default is OFF (high security is delivered, the administrator loosens it)
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1007
+
 ### sys:word:sd-off
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `sd-off`
 
@@ -703,7 +722,7 @@ Account word `sd-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 237
 
 ### sys:word:sd-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `sd-on`
 
@@ -712,7 +731,7 @@ Account word `sd-on`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 231
 
 ### sys:word:sh-off
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `sh-off`
 
@@ -721,7 +740,7 @@ Account word `sh-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 203
 
 ### sys:word:sh-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:158#3932ba77
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:158#3932ba77
 
 Account word `sh-on`
 
@@ -731,7 +750,7 @@ Account word `sh-on`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 113
 
 ### sys:word:shared-read-off
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:162#a68f591c
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:162#a68f591c
 
 Account word `shared-read-off`
 
@@ -741,7 +760,7 @@ Account word `shared-read-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 22
 
 ### sys:word:shared-read-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `shared-read-on`
 
@@ -750,7 +769,7 @@ Account word `shared-read-on`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 120
 
 ### sys:word:shared-write-off
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `shared-write-off`
 
@@ -759,7 +778,7 @@ Account word `shared-write-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 121
 
 ### sys:word:shared-write-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:162#a68f591c
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:162#a68f591c
 
 Account word `shared-write-on`
 
@@ -769,7 +788,7 @@ Account word `shared-write-on`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 119
 
 ### sys:word:ssh
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:157#b49c2c50
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:157#b49c2c50
 
 Account word `ssh`
 
@@ -778,47 +797,47 @@ Account word `ssh`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 111
 
 ### sys:word:start-default
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `start-default`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> start-default`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 968
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 969
 
 ### sys:word:start-menu
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `start-menu`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> start-menu`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 968
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 969
 
 ### sys:word:start-terminal
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `start-terminal`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> start-terminal`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 968
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 969
 
 ### sys:word:suspended
-> kind=sys.word tier=reference since=L1.1-0 src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=L1.1-0 src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `suspended`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> suspended`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 1006
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1057
 
 ### sys:word:unsuspended
-> kind=sys.word tier=reference since=L1.1-0 src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=L1.1-0 src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `unsuspended`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> unsuspended`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 1006
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1057
 
 ### sys:word:voc-off
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
 
 Account word `voc-off`
 
@@ -827,7 +846,7 @@ Account word `voc-off`
 - docs: `Administrator/markdown/01-accounts-and-security.md` line 260
 
 ### sys:word:voc-on
-> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:534#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:160#a83fc9a7
+> kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965 src2=sdsys/gpl.bp/createa:258#7ecd66a8 src3=sdsys/gpl.bp/createa:160#a83fc9a7
 
 Account word `voc-on`
 

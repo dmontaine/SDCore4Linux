@@ -402,7 +402,7 @@ def checks(srcs):
        all(re.search(r"case action = '%s'\s*\n\s*os\.field = ACC\$NET ; os\.want = @%s\s*\n\s*gosub os\.set\s*\n\s*return" % (w, b), mo)
            for w, b in (("NET-ON", "true"), ("NET-OFF", "false"))), "")
     ck("M2 ...os.set lets the words through on a group account (as SD-ON), and says only the NET state with 11411 (the other lines unchanged)",
-       re.search(r"if group\.name\[1,4\] # 'sdu_' and .*os\.field # ACC\$NET then", mo) is not None
+       re.search(r"if group\.name\[1,4\] # 'sdu_' and .*os\.field # ACC\$NET( and os\.field # ACC\$PINS)? then", mo) is not None
        and re.search(r"if os\.field = ACC\$NET then\s*\n\s*crt sysmsg\(11411, acc\.name, if upcase\(trim\(acc\.new<ACC\$NET>\)\) = 'YES' then 'yes' else 'no'\)"
                      r"\s*\n\s*end else\s*\n\s*crt sysmsg\(10102,", mo) is not None, "")
     ck("M3 ...the syntax lines and the list of words name net-on and net-off",

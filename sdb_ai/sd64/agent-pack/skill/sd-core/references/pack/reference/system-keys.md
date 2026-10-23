@@ -667,6 +667,8 @@ Constants beginning `ACC$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `ACC$SHARED.READ` = 13 - may open the files of the shared account by name (yes/no; BLANK = yes)
 - `ACC$SHARED.WRITE` = 14 - may write records in the files of the shared account (yes/no; blank = no)
 - `ACC$START` = 16 - menu, terminal, or blank = the system default
+- `ACC$TILES.OFF` = 17 - tile ids that are off for this account, separated by spaces
+- `ACC$PINS` = 18 - may add its own programs to the home screen (yes/no; blank = no)
 
 ### sys:keys:csv$
 > kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:330#ea4c0227
@@ -683,7 +685,7 @@ Constants beginning `CSV$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `CSV$QUOTE3` = 128 - CSVBUILD: enclose every field (CSV.MODE 3)
 
 ### sys:keys:fc$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:656#f7761cf5
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:666#f7761cf5
 
 Constants beginning `FC$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -909,7 +911,7 @@ Constants beginning `LPTR$` in `sdsys/syscom/keys.h` (an ordinary program may in
 - `LPTR$HIGH.PRINT.UNIT` = 255 - Highest available print unit number
 
 ### sys:keys:ml$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:647#b3260586
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:657#b3260586
 
 Constants beginning `ML$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -936,7 +938,7 @@ Constants beginning `OI$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `OI$CLASS` = 1 - Class name
 
 ### sys:keys:os$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:612#de908335
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:622#de908335
 
 Constants beginning `OS$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1059,7 +1061,7 @@ Constants beginning `SL$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `SL$COUNT` = 3 - Fetch number of entries in select list
 
 ### sys:keys:srt$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:638#c4cbc5d3
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:648#c4cbc5d3
 
 Constants beginning `SRT$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1074,7 +1076,7 @@ Constants beginning `SRT$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `SRT$DATA` = 128 - SORT(): sort has an associated data element
 
 ### sys:keys:sys$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:503#6bc3f689
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:513#6bc3f689
 
 Constants beginning `SYS$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1193,7 +1195,7 @@ Constants beginning `SYS$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `SYS$CASING` = 1086 - Is case sensitivity of string comparisons on in this program?
 
 ### sys:keys:vt$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:669#4692cf70
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:679#4692cf70
 
 Constants beginning `VT$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 

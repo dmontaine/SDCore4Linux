@@ -68,6 +68,14 @@ $include int$keys.h
    if vrec = '' then return
 
    execute 'home'
+
+* An account whose Terminal tile the administrator has turned off is not given the prompt that the screen was the way out of: whatever ended the screen (a window too
+*   small, an error, the cursor lock), the person is signed out.  The prompt is the account's own choice only when it STARTS there (START-TERMINAL), and then we are not here.
+   call !home_off(@who, off)
+   if index(' ' : off : ' ', ' terminal ', 1) then
+      sleep 2
+      execute 'quit'
+   end
    return
 end
 

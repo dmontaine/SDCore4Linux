@@ -6719,6 +6719,110 @@ The system default start is already %1; nothing changed
 
 cited by: `setstart`
 
+### msg:11874
+> kind=message tier=reference since=- src=sdsys/messages/11874:1#1dfe847d
+
+```
+set.tile account tile {on | off}; set.tile alone lists what is off
+```
+
+cited by: `settile`
+
+### msg:11875
+> kind=message tier=reference since=- src=sdsys/messages/11875:1#3e8491eb
+
+```
+Tile %1 is now off for %2
+```
+
+### msg:11876
+> kind=message tier=reference since=- src=sdsys/messages/11876:1#2e484553
+
+```
+Tile %1 is now on for %2
+```
+
+### msg:11877
+> kind=message tier=reference since=- src=sdsys/messages/11877:1#b9b6da18
+
+```
+Tile %1 was already %2 for %3; nothing changed
+```
+
+cited by: `settile`
+
+### msg:11878
+> kind=message tier=reference since=- src=sdsys/messages/11878:1#50a869f6
+
+```
+Sign out cannot be turned off: a person must always be able to leave
+```
+
+cited by: `settile`
+
+### msg:11880
+> kind=message tier=reference since=- src=sdsys/messages/11880:1#dfba4a90
+
+```
+Tiles off for %1: %2
+```
+
+cited by: `settile`
+
+### msg:11881
+> kind=message tier=reference since=- src=sdsys/messages/11881:1#6e6f324e
+
+```
+%1 is not a tile name: lower case letters, digits, dots and hyphens, 32 at most
+```
+
+cited by: `settile`
+
+### msg:11882
+> kind=message tier=reference since=- src=sdsys/messages/11882:1#3d05f790
+
+```
+Every tile is on
+```
+
+cited by: `settile`
+
+### msg:11883
+> kind=message tier=reference since=- src=sdsys/messages/11883:1#c6f94e41
+
+```
+%1 is not a standard tile; it applies only to a tile of that name in a page record
+```
+
+cited by: `settile`
+
+### msg:11884
+> kind=message tier=reference since=- src=sdsys/messages/11884:1#e9834d1f
+
+```
+The tile list could not be written
+```
+
+cited by: `settile`
+
+### msg:11885
+> kind=message tier=reference since=- src=sdsys/messages/11885:1#013fc51a
+
+```
+Account %1 may add its own programs to the home screen: %2
+```
+
+cited by: `modifya`
+
+### msg:11886
+> kind=message tier=reference since=- src=sdsys/messages/11886:1#d16100f1
+
+```
+The administrator has not allowed this account to add its own programs to the home screen
+```
+
+cited by: `mymenu`
+
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
 
@@ -8016,7 +8120,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `inhibit` and 12 more
+cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `inhibit` and 13 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -8466,7 +8570,7 @@ cited by: `setacc`, `setfile`
 Account name is invalid
 ```
 
-cited by: `modifya`
+cited by: `modifya`, `settile`
 
 ### msg:2203
 > kind=message tier=reference since=- src=sdsys/messages/2203:1#816984c8
@@ -14248,7 +14352,7 @@ Account already exists
 Account name is invalid
 ```
 
-cited by: `modifya`
+cited by: `modifya`, `settile`
 
 ### msg:6004
 > kind=message tier=reference since=- src=sdsys/messages/6004:1#34da8e01
