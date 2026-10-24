@@ -185,8 +185,10 @@ def checks(s):
     ck("P18 the wrapping loop is $tk_wrap and nowhere else: $tk_confirm, tool.menus and tool.viewers call it and none has the loop (a SCREEN TEXT longer than its width is cut, not wrapped)",
        "rest[cut, 1] # ' '" in tw and "call $tk_wrap(sentence, wrapw, pieces)" in tc and "call $tk_wrap(lines<wi>, 63, pieces)" in tm and "call $tk_wrap(lines<wi>, 134, pieces)" in tv
        and "rest[cut" not in tc and "rest[cut" not in tm and "rest[cut" not in tv and "wl[wp" not in tm)
+    ck("P18b $tk_confirm wraps the lines of the explanation like the sentence, an empty line stays empty, and does not append them raw (the box CUTS a long line at its edge: the tail of the ai gate's 150-character sentence never showed, 24 Oct 26)",
+       "call $tk_wrap(lines<li>, wrapw, pieces)" in tc and "for li = 1 to dcount(lines, @fm)" in tc and "if lines<li> = '' then" in tc and "body := @fm : lines" not in tc)
 
-    every = th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tma
+    every =th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tma
     want = {"$tk_help": 5, "$tk_wrap": 3, "!viewlist": 4, "$tk_run": 5, "$tk_confirm": 5}
     wrong = {k: [n for n in arg_counts(every, k) if n != v] for k, v in want.items()}
     seen = {k: len(arg_counts(every, k)) for k in want}
@@ -232,6 +234,8 @@ MUTANTS = [
     ("tool.menus asks for a tile's help with the wrong index", "tool_menus", "hk = 'tool.menus.tile.' : tids<si - 2>", "hk = 'tool.menus.tile.' : tids<si>"),
     ("tool.menus has its own wrapping loop again", "tool_menus", "call $tk_wrap(lines<wi>, 63, pieces)", "rest[cut"),
     ("$tk_confirm has its own wrapping loop again", "tk_confirm", "call $tk_wrap(sentence, wrapw, pieces)", "rest[cut"),
+    ("$tk_confirm appends the explanation lines unwrapped again", "tk_confirm", "            call $tk_wrap(lines<li>, wrapw, pieces)\n            for p = 1 to dcount(pieces, @fm)\n               body<-1> = pieces<p>\n            next p", "            body<-1> = lines<li>"),
+    ("$tk_confirm wraps the explanation at a width the box cuts", "tk_confirm", "call $tk_wrap(lines<li>, wrapw, pieces)", "call $tk_wrap(lines<li>, 200, pieces)"),
     ("$tk_wrap cuts a word at the wrong place", "tk_wrap", "rest[cut, 1] # ' '", "rest[cut, 1] # 'x'"),
     ("tool.viewers can run another command", "tool_viewers", "allow = 'set.viewer'", "allow = 'set.viewer sh'"),
     ("tool.viewers loses a [?]", "tool_viewers", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),

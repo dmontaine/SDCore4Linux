@@ -433,6 +433,14 @@ def section_run_on(p):
     new = fg.audit_new(a1) or ""
     arow("G6", "Run: the register field is no again and the audit trail has the verb's line", field(ME, 7) == "no" and p.cell(ME, "sh") == "off" and re.search(r"modify\.account sh-off account=%s$" % re.escape(ME), new, re.M) is not None,
          repr((field(ME, 7), new[-200:])))
+    say("\n--- G6c: a long explanation line is not cut (24 Oct 26: the confirm box cut a line at its edge)")
+    p.to(ME, "ai")
+    p.key("enter")
+    p.typed("r", idle=1.5)
+    T = re.sub(r"[|\s]+", " ", p.text())
+    arow("G6c", "the box for the ai gate, whose sentence about what ON allows is 150 characters, shows that sentence to its last words and not cut at the edge of the box", "leaves this machine for that provider" in T, T[-700:])
+    p.key("esc", idle=1.2)
+    p.typed("u", idle=0.8)
 
 
 def section_several(p):

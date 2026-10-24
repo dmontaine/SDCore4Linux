@@ -388,16 +388,6 @@ row.lock:
    end
    return
 
-* The confirm box CUTS a line of the explanation at its edge (seen 24 Oct 26 in tool.masters), so each line is wrapped to 120 before it goes in
-wrap.el:
-   wrapped = ''
-   for wi = 1 to dcount(el, @fm)
-      call $tk_wrap(el<wi>, 120, pieces)
-      wrapped<-1> = pieces
-   next wi
-   el = wrapped
-   return
-
 * A long line is wrapped, not cut
 wrap.lines:
    wrapped = ''
@@ -550,7 +540,6 @@ do.logout:
    el<-1> = 'If its process is already gone, the entry is cleared instead and the locks it held are released.'
    el<-1> = 'Type the number ' : uid : ' to be sure it is this session you mean.'
    typed = uid
-   gosub wrap.el
    call $tk_confirm(sent, el, typed, res, cmsg)
    if res = 'run' then
       call $tk_run(allow, sent, out, stat, err)
@@ -623,7 +612,6 @@ do.unlock:
    end else
       el<-1> = 'The holder is signed on and is not told.  Its next write to the record goes ahead without the lock.'
    end
-   gosub wrap.el
    call $tk_confirm(sent, el, notyped, res, cmsg)
    if res = 'run' then
       call $tk_run(allow, sent, out, stat, err)
@@ -653,7 +641,6 @@ do.inhibit:
       el = ''
       el<-1> = 'New sessions may sign in again.  Logins were inhibited by ' : inh<3> : ' (user ' : inh<1> : ').'
    end
-   gosub wrap.el
    call $tk_confirm(sent, el, notyped, res, cmsg)
    if res = 'run' then
       call $tk_run(allow, sent, out, stat, err)

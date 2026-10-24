@@ -21,10 +21,10 @@ Next release - in progress
              Does not    Edit a master record or an account record, ask the kernel to sync or set anything up itself, or clear the
                          stale and resync flags except through S (Y does not, and says so). Y is refused for an account that is not
                          registered and before the files are set up. An ordinary account has no such page.
-             Also        The confirm box cut a long explanation line at its edge, so the tail of a sentence never showed. tool.masters
-                         and tool.sessions now wrap their lines before they go in the box (the end of the inhibit.login on
-                         explanation in tool.sessions had been cut). The same box is used by tool.gates and tool.ai; they were not
-                         changed here.
+             Also        The Run / Cancel box cut a long explanation line at its edge, so the tail of a sentence never showed: the
+                         end of what the ai gate allows in tool.gates ("... leaves this machine for that provider"), and of the
+                         inhibit.login on explanation in tool.sessions. The box now wraps every line of its explanation the way it
+                         already wrapped the command, so every page that uses it shows whole sentences.
 
 24 Oct 26  THE ADMINISTRATOR HAS A SESSIONS AND LOCKS PAGE: TOOL.SESSIONS SHOWS WHO IS SIGNED ON AND WHAT IS LOCKED, AND LOGS A SESSION OUT, RELEASES A LOCK OR STOPS NEW
            LOGINS THROUGH THE VERBS THAT ALREADY DO IT.

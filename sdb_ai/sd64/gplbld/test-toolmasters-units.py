@@ -137,10 +137,6 @@ def checks(raw):
     ck("MA14", "the layout fits the 140 by 43 frame: three boxes (rows 1-8, 9-23, 24-39), 11 account rows at y 11-21 with the count at 22, 5 difference lines at y 25-29, 7 lines of explanation at y 31-37 and the hint at 38",
        "screen box at 1,1 size 138,8" in dl and "screen box at 1,9 size 138,15" in dl and "screen box at 1,24 size 138,16" in dl and "VA = 11" in pg and "VD = 5" in pg
        and "at 3,10 + r attr rat" in dsl and "at 3,22 attr" in dsl and "for r = 1 to 13" in drw and "at 3,30 + r width 134" in drw and "at 3,38 attr" in drw and "for r = 1 to 7" in drw)
-    we = block(pg, "wrap.el")
-    ck("MA16", "the explanation lines are wrapped to 120 before they go into the confirm box, which CUTS a line at its edge: wrap.el is called directly before the one $tk_confirm call and wraps every line of el with $tk_wrap",
-       re.search(r"gosub wrap\.el\s*\n\s*call \$tk_confirm\(sent, el, notyped, res, cmsg\)", pg) is not None and pg.count("call $tk_confirm(") == 1
-       and "call $tk_wrap(el<wi>, 120, pieces)" in we and "for wi = 1 to dcount(el, @fm)" in we and "el = wrapped" in we)
     mm = {int(k): v for k, v in re.findall(r"\((\d+), '([^']*)'\)", raw["msgs"])}
     arity = {}
     for m in re.finditer(r"sysmsg\((\d+)((?:, [^()]+?)*)\)", pg):
@@ -197,8 +193,6 @@ MUTANTS = [
     ("the help key names a record that does not exist", "MA13", sub("page", "call $tk_help('box', 'tool.masters.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'", "call $tk_help('box', 'tool.masters.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'")),
     ("the help record names no page", "MA13", sub("help", "19-the-master-files", "")),
     ("the accounts box overruns the explanation", "MA14", sub("page", "screen box at 1,9 size 138,15 title 'Accounts'", "screen box at 1,9 size 138,16 title 'Accounts'")),
-    ("the box is given its lines unwrapped", "MA16", sub("page", "confirm.and.run:\n   gosub wrap.el\n", "confirm.and.run:\n")),
-    ("wrap.el wraps at a width the box cuts", "MA16", sub("page", "call $tk_wrap(el<wi>, 120, pieces)", "call $tk_wrap(el<wi>, 200, pieces)")),
     ("a message is given too few arguments", "MA15", sub("page", "sysmsg(11571, pend.bytes, pend.lines)", "sysmsg(11571, pend.bytes)")),
 ]
 

@@ -396,16 +396,6 @@ kind.words:
    end case
    return
 
-* The confirm box CUTS a line of the explanation at its edge (seen 24 Oct 26: 'master copies of accounts .'), so each line is wrapped to 120 before it goes in
-wrap.el:
-   wrapped = ''
-   for wi = 1 to dcount(el, @fm)
-      call $tk_wrap(el<wi>, 120, pieces)
-      wrapped<-1> = pieces
-   next wi
-   el = wrapped
-   return
-
 * A long line is wrapped, not cut
 wrap.lines:
    wrapped = ''
@@ -497,7 +487,6 @@ on.mouse:
 
 * Show sent and el in the box; run the command when Run was chosen; read again and say what the check finds now
 confirm.and.run:
-   gosub wrap.el
    call $tk_confirm(sent, el, notyped, res, cmsg)
    if res = 'run' then
       call $tk_run(allow, sent, out, stat, err)
