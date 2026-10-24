@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  THE IDE HAS AN AI MENU AND AN AI ROW WHEN THE AI IS ON FOR THE ACCOUNT: ASK ABOUT THE RECORD, HAVE AN ERROR OR A SELECTION EXPLAINED, AND ACCEPT OR REJECT THE
+           CHANGES THE AI PROPOSES, SHOWN AS A DIFF. NOTHING IS CHANGED UNTIL YOU ACCEPT AND NOTHING IS SAVED BY THE AI.
+
+             What        The IDE gets an AI menu (Explain the error, Explain the selection, Ask about this record) and an `AI>` row under the editor and the messages table.
+                        Enter shows everything that will be sent - the provider and model, the fixed instruction, the record's lines (the whole record up to 24,000 bytes,
+                        else the lines round the cursor, and it says so), the line they start at and your request - with Send and Cancel, and Cancel is the default. The
+                        answer is words and, when you asked for a change, edits: each is shown as a diff (the change number, its line, the old lines with - and the new with +).
+                        Accept puts them into the editor as ONE undo step; Reject, the default, leaves the editor as it was. Nothing is written to the disk: saving, compiling and
+                        running stay yours. A set of edits is taken whole or not at all: an old text that is not in the record, is in it twice, or overlaps another, more than 8
+                        edits, or a change of more than 30 lines is ignored and said so; if you changed the record while the AI answered, its change no longer fits and nothing is
+                        applied. A command in the answer is ignored (the IDE has nowhere to run one). The audit line is the kernel's (program tk_ai).
+             Why it      A compile error or a piece of code can be explained, and a small change tried, without leaving the editor, with every byte that leaves the machine shown
+             matters     first and every change visible before it is made.
+             Does not    SED, CED and the debugger do not have an AI line yet. The AI cannot save, compile or run anything, and a person with the AI off sees no change.
+                        NOT SHOWN: a run against a real provider; the model may well propose nothing useful.
+
 23 Oct 26  THE HOME SCREEN HAS AN AI LINE WHEN THE AI IS ON FOR THE ACCOUNT: TYPE WHAT YOU WANT, SEE EXACTLY WHAT WILL BE SENT, AND ACCEPT A TILE OR RUN A COMMAND THE AI
            PROPOSES. WITHOUT THE AI THERE IS NO SUCH ROW AND NOTHING CHANGES.
 

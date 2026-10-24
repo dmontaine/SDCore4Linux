@@ -17,8 +17,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.abspath(os.path.join(HERE, os.pardir))
 GPL = os.path.join(SD64, "sdsys", "gpl.bp")
 MSG = os.path.join(SD64, "sdsys", "messages")
-FILES = {"tk_ai": os.path.join(GPL, "tk_ai"), "tool_home": os.path.join(GPL, "tool_home"), "tk.h": os.path.join(GPL, "tk.h")}
+FILES = {"tk_ai": os.path.join(GPL, "tk_ai"), "tool_home": os.path.join(GPL, "tool_home"), "tk.h": os.path.join(GPL, "tk.h"),
+         "ide": os.path.join(GPL, "ide"), "sl_form": os.path.join(GPL, "sl_form")}
 MSGS = list(range(11635, 11653))
+MSGS2 = list(range(11653, 11670))              # AI line stage 2 (the IDE): edits as diffs
 
 
 def read(p):
@@ -48,7 +50,7 @@ def ordered(t, *needles):
 
 def load():
     s = {k: read(p) for k, p in FILES.items()}
-    s["msgs"] = {n: (read(os.path.join(MSG, str(n))) if os.path.exists(os.path.join(MSG, str(n))) else None) for n in MSGS}
+    s["msgs"] = {n: (read(os.path.join(MSG, str(n))) if os.path.exists(os.path.join(MSG, str(n))) else None) for n in MSGS + MSGS2}
     return s
 
 
@@ -99,6 +101,35 @@ def checks(s):
     ck("M2 the fixed instruction (11635) asks for ONE JSON object with say, action, arg and command, plain ASCII, and offers an action only for a request the list covers",
        all(w in (s["msgs"][11635] or "") for w in ('"say"', '"action"', '"arg"', '"command"', "ONE JSON object", "Plain ASCII only")), "")
     ck("T1 tk.h defines TK.C.AI (11)", re.search(r"\$define TK\.C\.AI\s+11\b", s["tk.h"]) is not None, "")
+
+    # AI line stage 2 (24 Oct 2026): proposals as edits, and the IDE
+    edits = ai[ai.find("read.edits:"):ai.find("map1:")]
+    ide = strip_bas(s["ide"])
+    apply_ = ide[ide.find("ai.apply:"):ide.find("get.context:")]
+    ck("E1 edits are all or none: a set with one edit that does not fit gives the note 11660 and returns BEFORE the diff is built and before pk is set to 'edit'",
+       ordered(edits, "if bad.why # '' then", "note.p = sysmsg(11660, bad.why)", "return", "diff.lines = ''", "pk = 'edit'"), "")
+    ck("E2 an old text must be in the text shown exactly once and be what the model was shown there (not found, found twice, differs from the original)",
+       ordered(edits, "ep = index(tbm, eo, 1)", "bad.why = 'old text not found'", "index(tbm, eo, 2) > 0", "bad.why = 'old text found more than once'", "tb.raw[ep, len(eo)] # eo"), "")
+    ck("E3 at most 8 edits, no empty old text, no new text over 4000 bytes, no two edits that overlap, and a diff of more than 30 lines is not offered (11659)",
+       all(w in edits for w in ("for ei = 1 to 8", "'more than 8 edits'", "bad.why = 'an empty old text'", "len(en) > 4000", "epos<i> + elen<i> > epos<i + 1>", "bad.why = 'two edits overlap'", "if dl > 30 then", "sysmsg(11659, dl)")), "")
+    ck("E4 a change to a text is never accepted by Enter alone: the popup of an edit has Accept and Reject and Reject is the default", re.search(r"case pk = 'edit'.*?btn = '&Accept,&Reject'\s*\n\s*dflt = 2", ask, re.S) is not None, "")
+    ck("E5 the diff shows EVERY edit in full: each old line with -, each new line with +, the change number and the line it is at (11658)",
+       ordered(edits, "sysmsg(11658, k, ed.n, line.no)", "'- ' : field(eo, nl, j)", "'+ ' : field(en, nl, j)"), "")
+    ck("E6 an app that has nowhere to run a command says so ('nocmd') and a command is then ignored; an action is looked for first, edits second, a command last",
+       "no.cmd" in ai and ordered(prop, "if found then", "if pk = '' and tbm # '' then gosub read.edits", "if pk = '' and not(no.cmd) then"), "")
+    ck("E7 the accepted edits are returned only for an edit proposal, with the model's own words: pk, the edit list, the argument, the words", "(if pk = 'action' then pid else (if pk = 'edit' then ed.list else pcmd))" in ask, "")
+    ck("I1 the IDE applies the edits only if the buffer still holds, at every place, exactly what the model was shown; otherwise it says 11666, changes nothing and returns",
+       ordered(apply_, "ai.now[ai.off + ai.p, ai.l] # ai.win[ai.p, ai.l]", "if not(ai.fits) then", "msg = sysmsg(11666)", "return", "mw{'value'} = "), "")
+    ck("I2 the change is ONE undo step: the old text and cursor go on the memo's undo stack before the new value is set, and redo is forgotten",
+       ordered(apply_, "mw{'undo'} = ai.snap", "mw{'redo'} = ''", "mw{'value'} = "), "")
+    ck("I3 the IDE writes nothing to the disk for the AI: no write, no save in the routine that applies the edits", not re.search(r"\b(write|writev|save|do\.save|delete)\b", apply_), "")
+    ck("I4 the AI is asked through $tk_ai only, only when a record is open, and the IDE gives the text, the line it starts at, the selection and 'nocmd'",
+       ide.count("call $tk_ai('ask'") == 1 and ordered(ide, "ai.go:", "if nbuf = 0 then", "msg = sysmsg(11662)", "call $tk_ai('ask'") and "ai.sel : @fm : 'nocmd'" in ide, "")
+    ck("I5 the AI entry, the AI menu and the shorter table exist only when the AI is usable (ai.on, from $tk_ai usable)", "call $tk_ai('usable', '', ai.on, ai.pm)" in ide and "ai.rows = (if ai.on then 1 else 0)" in ide
+       and "if j = 11230 and ai.on then" in ide and ordered(ide, "if ai.on then", "screen label f, 'ailab'", "screen entry f, 'ai'"), "")
+    ck("I6 a request typed in the AI entry goes through the same route as the menu (ai.go), and only on Enter (the entry activates)", "case focus.id = 'ai'" in ide and "gosub ai.go" in ide and "aw{'activate'} = 1" in ide, "")
+    ck("I7 sl_form lets an entry activate on Enter only when the app asked for it (the flag), so no other form's entry changes", "(aw{'type'} = 'entry' and aw{'activate'} + 0)" in strip_bas(s["sl_form"]), "")
+    ck("M3 messages 11653 to 11669 exist, each one line", all(s["msgs"][n] is not None and len(s["msgs"][n].rstrip("\n").split("\n")) == 1 for n in MSGS2), repr([n for n in MSGS2 if s["msgs"][n] is None]))
     return rows
 
 
@@ -113,7 +144,17 @@ MUTANTS = [
     ("Sign out is offered", "tool_home", "if ta[1, 4] = 'cmd:' or ta = 'terminal' then", "if ta[1, 4] = 'cmd:' or ta = 'terminal' or ta = 'signout' then", "H1"),
     ("the page's lines are fields", "tool_home", "ctxt := @vm : 'The person is '", "ctxt := @fm : 'The person is '", "H2"),
     ("the line is drawn without the AI", "tk_ai", "   if not(hj{'key'}) then return", "   null", "A13"),
+    # AI line stage 2 (24 Oct 2026): the first of these is marker 10 for --from=10
+    ("an old text found twice is accepted", "tk_ai", "               case index(tbm, eo, 2) > 0\n", "               case @false\n", "E2"),
+    ("a bad edit is only skipped, not the whole set", "tk_ai", "      note.p = sysmsg(11660, bad.why)\n      return\n", "      note.p = sysmsg(11660, bad.why)\n", "E1"),
+    ("Enter accepts an edit", "tk_ai", "         dflt = 2                                         ;* a change to a text is never accepted by Enter alone", "         dflt = 1", "E4"),
+    ("the IDE applies without the fit test", "ide", "if ai.now[ai.off + ai.p, ai.l] # ai.win[ai.p, ai.l] then ai.fits = 0", "null", "I1"),
+    ("the IDE's change is not an undo step", "ide", "   mw{'undo'} = ai.snap : @fm : mw{'undo'}\n", "", "I2"),
+    ("the IDE saves after applying", "ide", "   msg = sysmsg(11661, ai.n)\n", "   msg = sysmsg(11661, ai.n)\n   write ai.new on fv, bi<cb>\n", "I3"),
+    ("the IDE does not say nocmd", "ide", "ai.sel : @fm : 'nocmd'", "ai.sel", "I4"),
+    ("every entry activates", "sl_form", "(aw{'type'} = 'entry' and aw{'activate'} + 0)", "aw{'type'} = 'entry'", "I7"),
 ]
+M_STAGE2 = 10
 
 
 def run(over=None):

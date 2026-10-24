@@ -24,13 +24,26 @@
 *   mouse   (ctx, mev -> out)  out 'focus' when a press of the left button lands on the line.
 *   text    (ctx -> out)       the line's text.
 *   clear   (ctx)              empties the line.
+*   usable  (-> a, b)          for an app that has no line of its own on the toolkit's frame (the IDE puts an entry in its own form): a is 1 when the AI is usable for this account
+*                              (the same four tests as init), and b is the provider and the model, as two fields.
 *   ask     (ctx, actx -> res) THE WHOLE SEQUENCE for the request in the line: the preview (everything that will leave the machine, Send or Cancel, Cancel is the
 *                              default), the sending, the wait (Esc gives it up), the answer, the proposal and Accept / Reject.  Nothing is sent unless Send is chosen.
+*                              An app without the line passes the request in actx<6>, and ctx needs only TK.C.W.
 *
 *   actx is what the app tells the model, one dynamic array: <1> the app's name; <2> the kind (a word for the prompt); <3> text about the page, its lines separated by VALUE marks (the app
 *   decides; no data values); <4> the actions the app offers, VALUES of 'id:what it does'; <5> 1 when every action only NAVIGATES (opens a tool the person could open anyway), in which
 *   case Enter alone accepts the proposal (the owner's answer of 23 Oct), else 0 and Enter alone rejects.  res is: <1> 'none', 'action' or 'command'; <2> the action's id or the command;
 *   <3> the action's argument (letters, digits and . _ : / space - only); <4> what the AI said; <5> a line for the app's status bar (a failure, or that it was given up).
+*
+*   FOR AN APP THAT WORKS ON TEXT (the IDE; stage 2, 23 Oct 26) actx has more: <6> the request, when the app has no line to take it from; <7> the screen row on which the wait is written; <8> THE TEXT
+*   being worked on, its lines joined with a line feed (at most 24000 bytes: the app cuts it); <9> the number of its first line; <10> the SELECTED text, lines joined with a line feed;
+*   <11> 'nocmd' when the app has nowhere to run a command, which makes the library ignore one.  The text is sent as it is, a byte that is not plain ASCII shown to the model as ?
+*   (one for one, so a position in what it saw is a position in the original).  The model may then answer with "edits": a list of {"old", "new"}.  Each old must be in the text EXACTLY ONCE,
+*   in whole lines or not, the edits must not overlap, there are at most 8 and the original must really hold what the model was shown at that place.  A set that does not meet that is ignored
+*   whole and said so (11660).  A set that is accepted is SHOWN as a diff in full - the line numbers, the old lines with -, the new lines with + - and a diff of more than 30 lines is not
+*   offered (11659), so that nobody accepts what they could not read.  The default button is Reject.  res is then <1> 'edit', <2> the edits, as values of  position SM length SM new text
+*   (positions in the text of actx<8>, in the order they appear), <4> what the AI said.  THE LIBRARY CHANGES NOTHING: the app applies an accepted set to its own buffer, through its own
+*   undo, and saves nothing.
 *
 *   WHAT THE MODEL CAN CAUSE.  It returns text.  The text is read as ONE JSON object: say (shown), action (used only if it is exactly one of the ids the app offered), arg (cleaned) and
 *   command (printable ASCII, 200 characters, shown for the person to run or reject; this routine never runs it).  Anything else is ignored and said so.  The app performs an accepted
@@ -50,7 +63,7 @@ $include err.h
 $include sl.h
 $include tk.h
 
-   common /tkai/ ai.on, ai.w, ai.focus, ai.prov, ai.model
+   common /tkai/ ai.on, ai.w, ai.focus, ai.prov, ai.model, ai.line
 
    if unassigned(ai.on) then
       ai.on = 0
@@ -58,11 +71,18 @@ $include tk.h
       ai.focus = 0
       ai.prov = ''
       ai.model = ''
+      ai.line = 0
    end
 
    begin case
+      case op = 'usable'
+         gosub read.status
+         ai.line = 0                                      ;* this app draws no line of the library's (a line left by an earlier app of the session is not this app's)
+         a = ai.on
+         b = ai.prov : @fm : ai.model
       case op = 'init'
          gosub read.status
+         ai.line = ai.on
          ai.focus = 0
          ctx<TK.C.AI> = (if ai.on then 1 else '')
          ai.w = collection()
@@ -176,11 +196,27 @@ on.key:
 run.ask:
    lw = ctx<TK.C.W>
    y = ctx<TK.C.YSTAT> - 1
-   raw = ai.w{'value'}
+   if a<7> # '' then y = a<7> + 0
+   if a<6> # '' then
+      raw = a<6>                                          ;* an app without the line passes the request
+   end else
+      raw = ai.w{'value'}
+   end
    gosub clean
    req = trim(clean.out)
    if req = '' then return
    app = a<1>
+   no.cmd = (a<11> = 'nocmd')
+   * the text being worked on, as the model will see it: a byte that is not plain ASCII (the line feed excepted) becomes ?, ONE FOR ONE, so a position in it is a position in the original
+   tb.raw = a<8>[1, 24000]
+   tb.first = a<9> + 0
+   if tb.first < 1 then tb.first = 1
+   raw = tb.raw
+   gosub map1
+   tbm = map.out
+   raw = a<10>[1, 24000]
+   gosub map1
+   selm = map.out
    acts = ''
    for i = 1 to dcount(a<4>, @vm)
       raw = a<4, i>                                       ;* the app's own words, cleaned all the same: a label may be text a person typed
@@ -192,6 +228,7 @@ run.ask:
 
    * what will leave the machine: the fixed instruction, the list of the page's actions, what the page tells about itself, and the request
    sysx = sysmsg(11635, app)
+   if tbm # '' then sysx := ' ' : sysmsg(11653)             ;* the model may answer with edits, only when there is a text to edit
    nl = char(10)
    alist = ''
    for i = 1 to n.acts
@@ -200,7 +237,10 @@ run.ask:
    raw = change(a<3>, @vm, nl)
    gosub clean
    ptext = clean.out
-   prompt = 'Actions this page offers (id: what it does):' : alist : nl : nl : 'What this page tells you about itself:' : nl : ptext : nl : nl : 'Request: ' : req
+   prompt = 'Actions this page offers (id: what it does):' : alist : nl : nl : 'What this page tells you about itself:' : nl : ptext
+   if tbm # '' then prompt := nl : nl : 'The text being worked on (it starts at line ' : tb.first : '):' : nl : tbm
+   if selm # '' then prompt := nl : nl : 'The selected text:' : nl : selm
+   prompt := nl : nl : 'Request: ' : req
    size = len(sysx) + len(prompt)
 
    * the preview: everything, then Send or Cancel; Cancel is what Enter chooses
@@ -225,6 +265,22 @@ run.ask:
       if p <= 8 then body<-1> = '  ' : field(ptext, nl, p)[1, wrapw - 2]
    next p
    if n.shown > 8 then body<-1> = '  ' : sysmsg(11644, n.shown - 8)
+   if tbm # '' then
+      n.tb = dcount(tbm, nl)
+      body<-1> = sysmsg(11668, n.tb, len(tbm), tb.first)
+      for p = 1 to n.tb
+         if p <= 6 then body<-1> = '  ' : field(tbm, nl, p)[1, wrapw - 2]
+      next p
+      if n.tb > 6 then body<-1> = '  ' : sysmsg(11644, n.tb - 6)
+   end
+   if selm # '' then
+      n.sel = dcount(selm, nl)
+      body<-1> = sysmsg(11669, len(selm))
+      for p = 1 to n.sel
+         if p <= 6 then body<-1> = '  ' : field(selm, nl, p)[1, wrapw - 2]
+      next p
+      if n.sel > 6 then body<-1> = '  ' : sysmsg(11644, n.sel - 6)
+   end
    body<-1> = sysmsg(11643, len(req))
    call $tk_wrap(req, wrapw, pieces)
    for p = 1 to dcount(pieces, @fm)
@@ -259,11 +315,11 @@ run.ask:
       if gave.up then
          void kernel(K$AI.CANCEL, 0)
          b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : sysmsg(11646)
-         gosub paint
+         if ai.line then gosub paint
          return
       end
    repeat
-   gosub paint
+   if ai.line then gosub paint
 
    * the answer: the helper's line, then the model's text as ONE JSON object
    if rp<1> # 'D' then
@@ -312,6 +368,12 @@ run.ask:
       body<-1> = note.p
    end
    begin case
+      case pk = 'edit'
+         body<-1> = ''
+         body<-1> = sysmsg(11665)
+         body<-1> = diff.lines
+         btn = '&Accept,&Reject'
+         dflt = 2                                         ;* a change to a text is never accepted by Enter alone
       case pk = 'action'
          body<-1> = ''
          body<-1> = sysmsg(11647, plabel : (if parg # '' then ' (' : parg : ')' else ''))
@@ -331,7 +393,7 @@ run.ask:
    body<-1> = sysmsg(11634, tok.in, tok.out, ai.prov)
    screen msgbox body title sysmsg(11639) buttons btn default dflt returning bn else bn = 0
    if pk # '' and bn = 1 then
-      b = pk : @fm : (if pk = 'action' then pid else pcmd) : @fm : parg : @fm : say : @fm : ''
+      b = pk : @fm : (if pk = 'action' then pid else (if pk = 'edit' then ed.list else pcmd)) : @fm : parg : @fm : say : @fm : ''
    end else
       b = 'none' : @fm : '' : @fm : '' : @fm : say : @fm : ''
    end
@@ -384,7 +446,8 @@ read.proposal:
          note.p = sysmsg(11649, act[1, 40])
       end
    end
-   if pk = '' then
+   if pk = '' and tbm # '' then gosub read.edits
+   if pk = '' and not(no.cmd) then
       raw = obj{'command'}
       gosub clean
       c = trim(clean.out)
@@ -397,6 +460,128 @@ read.proposal:
          end
       end
    end
+   return
+
+* "edits": a list of {"old", "new"} against the text the model was shown (tbm; tb.raw is the original).  All or none: a set with a single edit that does not fit is ignored whole and
+* said so.  What is shown to the person is a diff of EVERY edit in full, and a diff of more than 30 lines is not offered.
+read.edits:
+   if jtype(obj{'edits'}) # 'array' then return
+   epos = '' ; elen = '' ; enew = '' ; ed.n = 0 ; bad.why = ''
+   if jtype(obj{'edits/9'}) = 'collection' then bad.why = 'more than 8 edits'      ;* (a collection is never compared with a string; jtype() says 'collection' for an object)
+   for ei = 1 to 8
+      if bad.why # '' then exit
+      if jtype(obj{'edits/' : ei}) # 'collection' then exit
+      raw = obj{'edits/' : ei : '/old'}
+      gosub clean.nl
+      eo = clean.out
+      raw = obj{'edits/' : ei : '/new'}
+      gosub clean.nl
+      en = clean.out
+      begin case
+         case eo = ''
+            bad.why = 'an empty old text'
+         case len(en) > 4000
+            bad.why = 'a new text over 4000 bytes'
+         case 1
+            ep = index(tbm, eo, 1)
+            begin case
+               case ep = 0
+                  bad.why = 'old text not found'
+               case index(tbm, eo, 2) > 0
+                  bad.why = 'old text found more than once'
+               case tb.raw[ep, len(eo)] # eo
+                  bad.why = 'the text there is not what the model was shown'
+               case 1
+                  ed.n += 1
+                  epos<ed.n> = ep
+                  elen<ed.n> = len(eo)
+                  enew<ed.n> = en
+            end case
+      end case
+   next ei
+   if bad.why = '' and ed.n = 0 then return                  ;* "edits": [] - nothing is proposed, nothing is wrong
+   * ascending by position, and no two edits overlap
+   if bad.why = '' then
+      for i = 1 to ed.n - 1
+         for j = i + 1 to ed.n
+            if epos<j> < epos<i> then
+               t = epos<i> ; epos<i> = epos<j> ; epos<j> = t
+               t = elen<i> ; elen<i> = elen<j> ; elen<j> = t
+               t = enew<i> ; enew<i> = enew<j> ; enew<j> = t
+            end
+         next j
+      next i
+      for i = 1 to ed.n - 1
+         if epos<i> + elen<i> > epos<i + 1> then bad.why = 'two edits overlap'
+      next i
+   end
+   if bad.why # '' then
+      note.p = sysmsg(11660, bad.why)
+      return
+   end
+   * the diff, in full
+   diff.lines = ''
+   ed.list = ''
+   dl = 0
+   for k = 1 to ed.n
+      ep = epos<k>
+      line.no = tb.first
+      if ep > 1 then line.no = tb.first + count(tb.raw[1, ep - 1], nl)
+      diff.lines<-1> = sysmsg(11658, k, ed.n, line.no)
+      eo = tb.raw[ep, elen<k>]
+      for j = 1 to dcount(eo, nl)
+         diff.lines<-1> = '- ' : field(eo, nl, j)[1, wrapw - 6]
+         dl += 1
+      next j
+      en = enew<k>
+      if en # '' then
+         for j = 1 to dcount(en, nl)
+            diff.lines<-1> = '+ ' : field(en, nl, j)[1, wrapw - 6]
+            dl += 1
+         next j
+      end
+      ed.list<1, -1> = ep : @sm : elen<k> : @sm : en
+   next k
+   if dl > 30 then
+      note.p = sysmsg(11659, dl)
+      return
+   end
+   pk = 'edit'
+   return
+
+* The text as the model is shown it, ONE BYTE FOR ONE: plain ASCII and the line feed as they are, a tab as a blank, anything else as ?
+map1:
+   map.out = ''
+   for ci = 1 to len(raw)
+      ch = raw[ci, 1]
+      sq = seq(ch)
+      begin case
+         case sq >= 32 and sq <= 126
+            map.out := ch
+         case sq = 10
+            map.out := ch
+         case sq = 9
+            map.out := ' '
+         case 1
+            map.out := '?'
+      end case
+   next ci
+   return
+
+* The model's text for an edit: plain ASCII and the line feed; a tab or a return becomes a blank; anything else is dropped
+clean.nl:
+   clean.out = ''
+   for ci = 1 to len(raw)
+      sq = seq(raw[ci, 1])
+      begin case
+         case sq >= 32 and sq <= 126
+            clean.out := raw[ci, 1]
+         case sq = 10
+            clean.out := raw[ci, 1]
+         case sq = 9 or sq = 13
+            clean.out := ' '
+      end case
+   next ci
    return
 
 * Plain ASCII only: a control character, a mark or a byte above 126 is dropped (a line feed, a return or a tab becomes a space)

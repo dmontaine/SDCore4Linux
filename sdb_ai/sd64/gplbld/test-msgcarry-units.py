@@ -59,6 +59,7 @@ ALLOWED = {
     # 23 Oct 26, carry 15 (S.69 step 2): Solo's AI gate is a setting of the helper, set.ai gate on | off, where Core's is a Linux group per account (modify.account NAME ai-on)
     ("ai", "11625"): "the way to turn the AI on: Core modify.account NAME ai-on, Solo set.ai gate on (carry 15, 23 Oct 26)",
     ("setai", "11609"): "the usage line: Solo's set.ai has the word gate on|off (carry 15, 23 Oct 26)",
+    ("tk_ai", "11625"): "the way to turn the AI on: Core modify.account NAME ai-on, Solo set.ai gate on (carry 16, 23 Oct 26)",
 }
 passed = failed = 0
 

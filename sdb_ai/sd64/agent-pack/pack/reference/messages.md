@@ -6343,7 +6343,7 @@ cited by: `tk_ai`
 AI>
 ```
 
-cited by: `tk_ai`
+cited by: `ide`, `tk_ai`
 
 ### msg:11637
 > kind=message tier=reference since=- src=sdsys/messages/11637:1#78c91c62
@@ -6486,6 +6486,159 @@ cited by: `tk_ai`
 ```
 The AI line is not available: %1
 ```
+
+### msg:11653
+> kind=message tier=reference since=- src=sdsys/messages/11653:1#634c14f6
+
+```
+You may also propose changes to the text shown below as "edits": a list of {"old": text copied EXACTLY from the text shown that occurs in it exactly once, "new": what replaces it}. Use whole lines, at most 8 edits, and give no edits unless the request asks for a change.
+```
+
+cited by: `tk_ai`
+
+### msg:11654
+> kind=message tier=reference since=- src=sdsys/messages/11654:1#6f065d2c
+
+```
+&AI|&Explain the error~~ai.error|Explain the &selection~~ai.sel|&Ask about this record~~ai.ask
+```
+
+cited by: `ide`
+
+### msg:11655
+> kind=message tier=reference since=- src=sdsys/messages/11655:1#2c9c29df
+
+```
+Ask the AI about this record (nothing is sent until you have seen it)
+```
+
+cited by: `ide`
+
+### msg:11656
+> kind=message tier=reference since=- src=sdsys/messages/11656:1#10902567
+
+```
+Explain this compile message and say how to fix it. The message: %1
+```
+
+cited by: `ide`
+
+### msg:11657
+> kind=message tier=reference since=- src=sdsys/messages/11657:1#59e55c0d
+
+```
+Explain the selected text: what it does, and anything wrong with it.
+```
+
+cited by: `ide`
+
+### msg:11658
+> kind=message tier=reference since=- src=sdsys/messages/11658:1#f4d8dead
+
+```
+Change %1 of %2, at line %3:
+```
+
+cited by: `tk_ai`
+
+### msg:11659
+> kind=message tier=reference since=- src=sdsys/messages/11659:1#e90deb76
+
+```
+The proposed change is too long to show here in full (%1 lines), so it was not offered: ask for a smaller change
+```
+
+cited by: `tk_ai`
+
+### msg:11660
+> kind=message tier=reference since=- src=sdsys/messages/11660:1#3028bd86
+
+```
+The AI proposed a change that does not fit the text (%1): it was ignored
+```
+
+cited by: `tk_ai`
+
+### msg:11661
+> kind=message tier=reference since=- src=sdsys/messages/11661:1#97c30e5d
+
+```
+The AI's change is in the editor (%1 edits): Ctrl-Z takes it back as one step, and nothing is saved until you save
+```
+
+cited by: `ide`
+
+### msg:11662
+> kind=message tier=reference since=- src=sdsys/messages/11662:1#70311a39
+
+```
+No record is open: open one first
+```
+
+cited by: `ide`
+
+### msg:11663
+> kind=message tier=reference since=- src=sdsys/messages/11663:1#d9341856
+
+```
+No message is selected in the table: compile first, or move to a message
+```
+
+cited by: `ide`
+
+### msg:11664
+> kind=message tier=reference since=- src=sdsys/messages/11664:1#58aacf2c
+
+```
+Nothing is selected: press Ctrl-G where the text starts, move to where it ends, then ask
+```
+
+cited by: `ide`
+
+### msg:11665
+> kind=message tier=reference since=- src=sdsys/messages/11665:1#435e7c1b
+
+```
+The AI proposes this change. The editor is changed only if you choose Accept, and nothing is saved:
+```
+
+cited by: `tk_ai`
+
+### msg:11666
+> kind=message tier=reference since=- src=sdsys/messages/11666:1#5734e8dc
+
+```
+The text changed while the AI was answering, so its change no longer fits: nothing was applied
+```
+
+cited by: `ide`
+
+### msg:11667
+> kind=message tier=reference since=- src=sdsys/messages/11667:1#a2451611
+
+```
+The text sent is the record from line %1 on, as far as it fits (%2 lines); the AI cannot see the rest
+```
+
+cited by: `ide`
+
+### msg:11668
+> kind=message tier=reference since=- src=sdsys/messages/11668:1#209376ed
+
+```
+The text being worked on: %1 lines, %2 bytes, from line %3
+```
+
+cited by: `tk_ai`
+
+### msg:11669
+> kind=message tier=reference since=- src=sdsys/messages/11669:1#ccdb789a
+
+```
+The selected text: %1 bytes
+```
+
+cited by: `tk_ai`
 
 ### msg:11700
 > kind=message tier=reference since=- src=sdsys/messages/11700:1#1e363371

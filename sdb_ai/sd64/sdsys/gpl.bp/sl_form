@@ -585,7 +585,7 @@ default.action:
       afi = f{'focus'} + 0
       if afi >= 1 and afi <= nw and f{'activate'} + 0 then
          aw = f{'widgets', afi}
-         if aw{'type'} = 'tree' or aw{'type'} = 'table' then
+         if aw{'type'} = 'tree' or aw{'type'} = 'table' or (aw{'type'} = 'entry' and aw{'activate'} + 0) then          ;* 23 Oct 26: an entry the program flagged (aw{'activate'} = 1) too: the IDE's AI line
             ret = 'activate' : @fm : aw{'id'} : @fm : aw{'value'}
             return
          end

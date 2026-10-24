@@ -28,6 +28,11 @@
 * 19 Oct 26 dm  The pane that has the focus is named first on the status line (messages 11237-11240), and the editor highlights the character at
 *               its cursor while it has the focus (the memo's softcur), for a keyboard user whose terminal shows little else of where the focus is.
 * 19 Oct 26 dm  A [*] / [-] indicator in the top right corner of each pane that can have the focus (the owner's request): [*] on the one that has it.
+* 23 Oct 26 dm  The AI line (AI line stage 2; $tk_ai): when the AI is usable for the account the form has an AI entry in its last row under the editor (the last stop of the
+*               Tab ring; the messages table is one row shorter) and the menu bar an AI menu: Explain the error (the table's row), Explain the selection (the editor's mark
+*               to its cursor) and Ask about this record.  Nothing is sent before the preview is answered Send.  An answer may propose edits of the record, shown as a diff in
+*               full; Accept changes the EDITOR'S BUFFER as one undo step (Ctrl-Z) and nothing else - saving is the person's own act, through the same save path as ever.
+*               Without the AI nothing in the IDE changes.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -59,6 +64,7 @@ $include keyin.h
 $include syscom keys.h
 $include int$keys.h
 $include sl.h
+$include tk.h
 
    deffun edit_msg(kind) calling '!edit_msg'      ;* 18 Oct 26 dm, S.66
 
@@ -102,6 +108,9 @@ $include sl.h
       stop
    end
 
+   * 23 Oct 26: whether the AI is usable for this account (the gate, a provider, a model and a key): without it the IDE has no AI entry, no AI menu and the same layout as ever
+   call $tk_ai('usable', '', ai.on, ai.pm)
+
    call $sl_scr('get', scr)
    w = scr<SL.S.W> + 0
    h = scr<SL.S.H> + 0
@@ -115,6 +124,11 @@ $include sl.h
    * The menus: one message each, entries separated by | and the parts of an entry by ~
    menus = ''
    for j = 11225 to 11230
+      if j = 11230 and ai.on then
+         m = change(sysmsg(11654), '|', @vm)             ;* the AI menu, before Help
+         m = change(m, '~', @sm)
+         menus<-1> = m
+      end
       m = change(sysmsg(j), '|', @vm)
       m = change(m, '~', @sm)
       menus<-1> = m
@@ -140,6 +154,9 @@ $include sl.h
    out.file = ''
    focus.id = 'tree'
    msg = ''
+   ai.sel = ''                       ;* the AI: the selected text and a sentence about it, for the request being made
+   ai.note = ''
+   ai.req = ''
    sv.ok = @true
    have.form = @false
    done = @false
@@ -306,6 +323,8 @@ size.layout:
    ew = iw - tw
    mh = ih - 1 - eh
    err.y = 2 + mh
+   ai.rows = (if ai.on then 1 else 0)          ;* the AI entry takes the last row of the form under the editor and the table: the table is one row shorter
+   ai.y = ih
    return
 
 * The form and everything on it, from the state
@@ -370,7 +389,15 @@ new.form:
    * A bar of its own above the table: the table is drawn like the editor (the text style), and with nothing
    * between them the messages read as the end of the editor
    screen label f, 'errbar', sysmsg(11231) at ex,err.y width ew attr 'window'
-   screen table f, 'err', cols, err.rows at ex,err.y + 1 size ew,eh - 1
+   screen table f, 'err', cols, err.rows at ex,err.y + 1 size ew,eh - 1 - ai.rows
+   if ai.on then
+      * 23 Oct 26: the AI line, the last stop of the Tab ring: a label and an entry in the form's last row, Return in it is an event of its own (aw{'activate'})
+      screen label f, 'ailab', sysmsg(11636) at ex,ai.y width 4 attr 'window'
+      screen entry f, 'ai' at ex + 4,ai.y width ew - 4 maxlen 300
+      call $sl_form('find', f, '', 'ai', an)
+      aw = f{'widgets', an}
+      aw{'activate'} = 1
+   end
    * Return in the tree and in the table is an event of its own (activate), not the press of a default button
    f{'activate'} = 1
    f{'bgclick'} = 1                     ;* a left click on no widget (the menu bar) comes back as the key mouse: the bar is the IDE's, not a widget
@@ -720,6 +747,8 @@ status.line:
          pn = sysmsg(11239)
       case focus.id = 'err'
          pn = sysmsg(11240)
+      case focus.id = 'ai'
+         pn = 'AI'
       case 1
          pn = ''
    end case
@@ -873,6 +902,18 @@ run.cmd:
          gosub do.replace
       case cmd = 'new'
          gosub do.new
+      case cmd = 'ai.error'
+         gosub ai.error
+      case cmd = 'ai.sel'
+         gosub ai.selection
+      case cmd = 'ai.ask'
+         if nbuf = 0 then
+            msg = sysmsg(11662)
+         end else
+            ft.id = 'ai'                  ;* the entry has the focus: the person types the request there
+            gosub focus.to
+            msg = sysmsg(11655)
+         end
       case cmd = 'theme'
          theme.n += 1
          if theme.n > dcount(themes, @fm) then theme.n = 1
@@ -932,6 +973,11 @@ do.act:
             k2 = rn + 0
             gosub act.error
          end
+      case focus.id = 'ai'
+         * Return in the AI entry: the request is what was typed; the whole record is the text, the page says where the cursor is
+         ai.req = edata
+         ai.kind = 'ask'
+         gosub ai.go
       case 1
          null
    end case
@@ -1258,6 +1304,184 @@ relayout:
 
 * ======================================================================
 * Records: a new one, and a search
+
+* ======================================================================
+* The AI (23 Oct 26, AI line stage 2).  $tk_ai does the asking: the preview of everything that will be sent (Send or Cancel, Cancel the default), the wait, the answer and, if the
+* answer proposes edits, the diff in full with Accept and Reject (Reject the default).  This program supplies what it may be told and applies what is accepted to ITS OWN BUFFER, as
+* one undo step; it saves nothing (Save is the person's act, through save.current and the kernel's edit gates as ever).
+
+* Explain the compile message the table has selected (the table must hold a compile, not a search)
+ai.error:
+   if nbuf = 0 then
+      msg = sysmsg(11662)
+      return
+   end
+   if err.rows = '' or out.kind # 'errors' then
+      msg = sysmsg(11663)
+      return
+   end
+   screen get f, 'err' returning ai.rn
+   ai.k = ai.rn + 0
+   if ai.k < 1 or ai.k > dcount(err.rows, @fm) then
+      msg = sysmsg(11663)
+      return
+   end
+   ai.req = sysmsg(11656, err.rows<ai.k, 2>)
+   ai.kind = 'error'
+   ai.note = 'The compile message: ' : err.rows<ai.k, 2> : (if err.lines<ai.k> + 0 > 0 then ' (line ' : err.lines<ai.k> : ')' else '')
+   gosub ai.go
+   return
+
+* Explain the text from the editor's mark to its cursor
+ai.selection:
+   if nbuf = 0 then
+      msg = sysmsg(11662)
+      return
+   end
+   call $sl_form('find', f, '', 'ed', en)
+   mw = f{'widgets', en}
+   ai.my = mw{'my'} + 0
+   ai.mx = mw{'mx'} + 0
+   if ai.my < 1 or ai.mx < 1 then
+      msg = sysmsg(11664)
+      return
+   end
+   ai.cy = mw{'cy'} + 0
+   ai.cx = mw{'cx'} + 0
+   * the earlier end first
+   if ai.my < ai.cy or (ai.my = ai.cy and ai.mx <= ai.cx) then
+      ai.y1 = ai.my ; ai.x1 = ai.mx ; ai.y2 = ai.cy ; ai.x2 = ai.cx
+   end else
+      ai.y1 = ai.cy ; ai.x1 = ai.cx ; ai.y2 = ai.my ; ai.x2 = ai.mx
+   end
+   ai.lines = mw{'value'}
+   ai.sel = ''
+   for ai.q = ai.y1 to ai.y2
+      ai.ln = ai.lines<ai.q>
+      begin case
+         case ai.y1 = ai.y2
+            ai.part = ai.ln[ai.x1, ai.x2 - ai.x1]
+         case ai.q = ai.y1
+            ai.part = ai.ln[ai.x1, 99999]
+         case ai.q = ai.y2
+            ai.part = ai.ln[1, ai.x2 - 1]
+         case 1
+            ai.part = ai.ln
+      end case
+      ai.sel := (if ai.q = ai.y1 then '' else char(10)) : ai.part
+   next ai.q
+   if ai.sel = '' then
+      msg = sysmsg(11664)
+      return
+   end
+   ai.req = sysmsg(11657)
+   ai.kind = 'selection'
+   ai.note = 'The selection runs from line ' : ai.y1 : ' to line ' : ai.y2
+   gosub ai.go
+   return
+
+* In: ai.req (the request), ai.kind, ai.note (a sentence about what is selected, or null), ai.sel (the selected text, or null).  The record in the editor, as far as it fits, is the text
+ai.go:
+   if nbuf = 0 then
+      msg = sysmsg(11662)
+      return
+   end
+   if trim(ai.req) = '' then return
+   call $sl_form('find', f, '', 'ed', en)
+   mw = f{'widgets', en}
+   ai.lines = mw{'value'}
+   ai.cy = mw{'cy'} + 0
+   ai.total = dcount(ai.lines, @fm)
+   * the window: the whole record when it fits in 24000 bytes, else lines round the cursor
+   ai.first = 1
+   ai.last = ai.total
+   if len(ai.lines) > 24000 then
+      ai.first = ai.cy - 150
+      if ai.first < 1 then ai.first = 1
+      ai.last = ai.first
+      ai.size = 0
+      loop
+      while ai.last <= ai.total and ai.size + len(ai.lines<ai.last>) + 1 <= 24000
+         ai.size += len(ai.lines<ai.last>) + 1
+         ai.last += 1
+      repeat
+      ai.last -= 1
+      if ai.last < ai.first then ai.last = ai.first
+   end
+   ai.off = 0                                              ;* the number of characters before the window in the whole text (a line feed after each line)
+   for ai.q = 1 to ai.first - 1
+      ai.off += len(ai.lines<ai.q>) + 1
+   next ai.q
+   ai.win = ''
+   for ai.q = ai.first to ai.last
+      ai.win := (if ai.q = ai.first then '' else char(10)) : ai.lines<ai.q>
+   next ai.q
+   ai.win = convert(@vm : @sm : @tm, '???', ai.win)       ;* a mark in a line is shown to the model (and offered to nobody) as ?, one for one
+   ai.win = ai.win[1, 24000]
+   page = 'This is the IDE of SD Core, an editor for SD BASIC programs and other records.'
+   page<1, -1> = 'File ' : bn<cb> : ', record ' : bi<cb> : '.'
+   page<1, -1> = 'The cursor is on line ' : ai.cy : ' of ' : ai.total : '.'
+   if ai.note # '' then page<1, -1> = ai.note
+   if ai.first > 1 or ai.last < ai.total then msg = sysmsg(11667, ai.first, ai.last - ai.first + 1)
+   actx = 'IDE' : @fm : 'ide' : @fm : page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : lh - 1 : @fm : ai.win : @fm : ai.first : @fm : ai.sel : @fm : 'nocmd'
+   ai.ctx = ''
+   ai.ctx<TK.C.W> = lw
+   res = ''
+   call $tk_ai('ask', ai.ctx, actx, res)
+   last.status = char(1)                                   ;* the wait wrote on the status row, and the preview over the form: both are drawn again
+   if res<5> # '' then msg = res<5>
+   if res<1> = 'edit' then gosub ai.apply
+   if focus.id = 'ai' then
+      screen set f, 'ai' value ''
+   end
+   ai.sel = ''
+   ai.note = ''
+   gosub redraw
+   return
+
+* The accepted edits (res<2>: position SM length SM new text, as values, positions in the window) go into the editor's buffer, as ONE undo step.  The buffer must still hold, at each
+* place, exactly what the model was shown; if the person changed it while the AI was answering, nothing is applied.  Nothing is written to the disk.
+ai.apply:
+   call $sl_form('find', f, '', 'ed', en)
+   mw = f{'widgets', en}
+   ai.now = change(mw{'value'}, @fm, char(10))
+   ai.n = dcount(res<2>, @vm)
+   ai.fits = (ai.n > 0)
+   for ai.k = 1 to ai.n
+      ai.p = res<2, ai.k, 1> + 0
+      ai.l = res<2, ai.k, 2> + 0
+      if ai.now[ai.off + ai.p, ai.l] # ai.win[ai.p, ai.l] then ai.fits = 0
+   next ai.k
+   if not(ai.fits) then
+      msg = sysmsg(11666)
+      return
+   end
+   ai.new = ai.now
+   for ai.k = ai.n to 1 step -1
+      ai.p = res<2, ai.k, 1> + 0
+      ai.l = res<2, ai.k, 2> + 0
+      ai.new = ai.new[1, ai.off + ai.p - 1] : res<2, ai.k, 3> : ai.new[ai.off + ai.p + ai.l, 99999999]
+   next ai.k
+   ai.p1 = res<2, 1, 1> + 0
+   ai.line1 = 1
+   if ai.off + ai.p1 > 1 then ai.line1 = count(ai.now[1, ai.off + ai.p1 - 1], char(10)) + 1
+   * the memo's own undo stack: the old text and cursor go on the front, as its snap.make has them, and redo is forgotten
+   ai.snap = mw{'cy'} : @tm : mw{'cx'} : @tm : convert(@fm, @vm, mw{'value'})
+   mw{'undo'} = ai.snap : @fm : mw{'undo'}
+   mw{'redo'} = ''
+   mw{'value'} = change(ai.new, char(10), @fm)
+   mw{'lastop'} = ''
+   mw{'cy'} = ai.line1
+   mw{'cx'} = 1
+   mw{'want'} = 1
+   mw{'left'} = 1
+   mw{'mx'} = 0
+   mw{'my'} = 0
+   ai.tp = ai.line1 - int(mh / 2)
+   if ai.tp < 1 then ai.tp = 1
+   mw{'top'} = ai.tp
+   msg = sysmsg(11661, ai.n)
+   return
 
 * Out: ctx.file, the file the tree or the editor is on
 get.context:
