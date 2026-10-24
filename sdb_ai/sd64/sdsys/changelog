@@ -4,7 +4,7 @@ Next release - in progress
 24 Oct 26  THE ADMINISTRATOR HAS A GATE MATRIX: TOOL.GATES SHOWS EVERY ACCOUNT AGAINST EVERY PER-ACCOUNT GATE AND CHANGES THEM
            THROUGH MODIFY.ACCOUNT, NEVER BY ITSELF.
 
-             What        tool.gates (SDSYS's VOC only; a full-screen page, 140 by 43 or more) has one row for each
+             What        tool.gates (the administrator's gate matrix; a full-screen page, 140 by 43 or more) has one row for each
                          registered account but SDSYS and one column for each gate - ssh, api, sh, os, sd, voc, bp, dict,
                          net, shared-read, shared-write, files, files-write, files-admin, ai and (planned) sockets - each cell
                          ON, off, a dash where the gate does not apply to a group or other account, or plan. A box says what
@@ -18,7 +18,12 @@ Next release - in progress
                          setting in the verb, so the page sends the one word that gives the pair you queued (ssh, api, both
                          or none); files-write needs files and files-admin needs files-write, and a queue that breaks that is
                          refused before the box opens. Other boxes list the accounts that have a gate on that reaches beyond
-                         SD and the live sessions of the account under the cursor.
+                         SD and the live sessions of the account under the cursor. In any other account the same verb is
+                         the account holder's page, read only: every gate, ON or off for this session, how it is delivered,
+                         whether it reaches beyond SD, when a change reaches the person, and for the row under the cursor
+                         what ON lets you do, what you can still do with it off and the modify.account word the
+                         administrator would use. It asks the system what the session may do and changes nothing; the edit
+                         gates (voc, bp, dict) are read once at sign-on, so a change shows after the next sign-on.
              Why it      Which account can reach the operating system, the network or other servers was a question for
              matters     several commands; now it is one screen, and a change is the verb's own change with the verb's own
                          audit line, not a second way to write the register.

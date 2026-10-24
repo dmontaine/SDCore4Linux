@@ -385,9 +385,9 @@ def checks(srcs):
             n = len(re.findall(r"kernel\(K\$NET,", text))
             if n:
                 sites[name[3:]] = n
-    ck("B5 no program but LOGIN (1), CPROC (4: three of the gate's own, and since slice 3e kernel(K$NET, -2) in para.reset.environment), the API server (1), set.netlogin (1) and the remote file handler "
-       "netfile (1) mentions K$NET - the last two only ASK: K$NET, -1 (see U2, NF6)",
-       sites == {"login": 1, "cproc": 4, "apisrvr": 1, "setnetlogin": 1, "netfile": 1}, repr(sites))
+    ck("B5 no program but LOGIN (1), CPROC (4: three of the gate's own, and since slice 3e kernel(K$NET, -2) in para.reset.environment), the API server (1), set.netlogin (1), the remote file handler "
+       "netfile (1) and the account holder's gate page tool_mygates (1, 24 Oct 26) mentions K$NET - the last three only ASK: K$NET, -1 (see U2, NF6)",
+       sites == {"login": 1, "cproc": 4, "apisrvr": 1, "setnetlogin": 1, "netfile": 1, "tool_mygates": 1}, repr(sites))
     bad = [n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$NET,\s*(?!-1\))(\d+|@true|1\b)", t)]
     ck("B6 nothing turns the gate on by a literal (K$NET with a number other than -1, or @true)", not bad, repr(bad))
     ups = {n[3:]: t for n, t in c.items() if n.startswith("bp:upgrade_")}

@@ -232,7 +232,7 @@ clause of `execute` and `os.execute` — take the output
 `clearinput`
 
 - a statement of SD BASIC
-- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 245
+- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 277
 
 ### basic:stmt:clearselect
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:418#1272c3b8 src2=docs:tools/syntax-shapes.txt:36#34590a58
@@ -989,7 +989,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `logmsg` *text*
 
 - a statement of SD BASIC
-- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 438
+- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 470
 
 ### basic:stmt:loop
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:437#ae1c50d9 src2=docs:tools/syntax-shapes.txt:136#13c6f6f2

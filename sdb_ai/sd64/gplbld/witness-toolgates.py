@@ -164,8 +164,8 @@ def main():
     row("the user's register record has sh, os, sd, voc, bp, dict, net all not yes (the delivered state)", all(reg0[i - 1].strip().lower() != "yes" for i in (7, 8, 9, 10, 11, 12, 15)), repr(reg0[:16]))
 
     # ---- an ordinary session has no tool.gates
-    out = sh("printf '\\nTERM 200,9999\\ntool.gates\\nOFF\\n' | timeout 60 %s 2>&1 | sed -e 's/\\x1b\\[[0-9;?]*[A-Za-z]//g'" % SD)
-    row("an ordinary session (this user, not an administrator) has no tool.gates: it is not in the VOC", re.search(r"not in your VOC", out) is not None, out[-300:])
+    out = sh("printf '\\nTERM 200,60\\ntool.gates\\nOFF\\n' | timeout 60 %s 2>&1 | sed -e 's/\\x1b\\[[0-9;?]*[A-Za-z]//g'" % SD)      # 60 rows, not 9999: the page draws the whole window
+    row("an ordinary session (this user, not an administrator) does not get the matrix: its verb is the holder's page (or, on an install older than 24 Oct, absent)", "Gates by account" not in out, out[-300:])
 
     # ---- the page as SDSYS
     # SDSYS's session starts at the home screen on a real install; the page is reached from the prompt, so the start default is set to terminal for this run and put back

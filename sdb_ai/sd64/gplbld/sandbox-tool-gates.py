@@ -314,8 +314,13 @@ def restore_home_fixtures():
 
 def section_open():
     say("\n--- opening the page")
-    out = g.plain("zzhd", ["tool.gates"])
-    arow("G0", "an ordinary account cannot reach it: tool.gates is in SDSYS's VOC only", has(out, r"not in your VOC"), repr(out[:3]))
+    h0 = H(account="zzhd")                    # a pseudo-terminal: a piped run at TERM 200,9999 would have the page draw 9,994 rows
+    h0.typed("tool.gates\r", idle=3.5)
+    T0 = h0.text()
+    arow("G0", "an ordinary account cannot reach the MATRIX: its verb tool.gates is the holder's read-only page (sandbox-tool-mygates.py's), and SDSYS's VOC alone has the matrix",
+         "Gates by account" not in T0 and "What this account may do" in T0, T0[:300])
+    h0.key("ctrl-q", idle=1.2)
+    h0.end()
     hold_home_fixtures()
     snap = snapshot()
     a0 = fg.audit_off()

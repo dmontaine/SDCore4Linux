@@ -479,7 +479,7 @@ def checks(srcs):
     lits = sorted(n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$SHARED\.(READ|WRITE),\s*(1\b|@true)", t))
     askers = sorted(n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$SHARED\.(READ|WRITE),\s*-1\)", t))
     ck("G2 only LOGIN, CPROC and the API server SET the shared gates; _voc_ref, !shared_ref and list.shared (and CPROC, which holds them) only ASK; and nothing turns a gate on by a literal",
-       setters == ["apisrvr", "cproc", "login"] and not lits and set(askers) >= {"_voc_ref", "shared_ref", "listshared", "cproc"} and set(askers) <= {"_voc_ref", "shared_ref", "listshared", "cproc"},
+       setters == ["apisrvr", "cproc", "login"] and not lits and set(askers) >= {"_voc_ref", "shared_ref", "listshared", "cproc", "tool_mygates"} and set(askers) <= {"_voc_ref", "shared_ref", "listshared", "cproc", "tool_mygates"},      # tool_mygates (24 Oct 26): the account holder's gate page only asks
        repr(setters) + repr(lits) + repr(askers))
     ai = B("acc_os_info")
     mo = B("modifya")

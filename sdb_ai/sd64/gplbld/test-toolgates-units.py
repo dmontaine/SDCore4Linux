@@ -23,6 +23,7 @@ FILES = {
     "page": os.path.join(GPL, "tool_gates"),
     "info": os.path.join(GPL, "tk_gate_info"),
     "voc": os.path.join(SDSYS, "voc_template", "tool.gates"),
+    "newvoc": os.path.join(SDSYS, "newvoc", "tool.gates"),
     "help": os.path.join(SDSYS, "helptext", "tool.gates.matrix"),
 }
 
@@ -60,8 +61,9 @@ def checks(raw):
 
     ck("TG0", "NULL CASE: the page, the gate table and the VOC entry were found and are not empty (a check on nothing would pass)", len(pg) > 9000 and len(info_rows) >= 12 and raw["voc"].strip() != "" and len(raw["help"]) > 200,
        "%d %d" % (len(pg), len(info_rows)))
-    ck("TG1", "the page is an internal program catalogued as $tool_gates, SDSYS's VOC has it as a verb for that program, and the shared VOC (newvoc) does not", re.search(r"^\$internal\s*\nprogram \$tool_gates\s*\n\$catalog \$tool_gates\b", pg, re.M) is not None
-       and raw["voc"].split("\n")[:3] == ["V", "CA", "$tool_gates"] and not os.path.exists(os.path.join(SDSYS, "newvoc", "tool.gates")), repr(raw["voc"][:30]))
+    ck("TG1", "the page is an internal program catalogued as $tool_gates, SDSYS's VOC has it as a verb for that program, and the shared VOC (newvoc) does not: its verb of that name runs the account holder's page, $tool_mygates (24 Oct 26)",
+       re.search(r"^\$internal\s*\nprogram \$tool_gates\s*\n\$catalog \$tool_gates\b", pg, re.M) is not None and raw["voc"].split("\n")[:3] == ["V", "CA", "$tool_gates"]
+       and "$tool_gates" not in raw["newvoc"].split("\n") and "$tool_mygates" in raw["newvoc"].split("\n"), repr((raw["voc"][:30], raw["newvoc"][:80])))
     i_open = pg.find("call $tk_open('tool.gates', 'admin', ctx, err)")
     i_read = pg.find("openpath @sdsys:@ds:'accounts'")
     i_audit = pg.find("kernel(K$AUDIT, 'tool start app=tool.gates')")
@@ -125,6 +127,7 @@ def sub(key, old, new):
 
 MUTANTS = [
     ("the page is opened for anyone", "TG2", sub("page", "call $tk_open('tool.gates', 'admin', ctx, err)", "call $tk_open('tool.gates', '', ctx, err)")),
+    ("every account's verb runs the administrator's matrix", "TG1", sub("newvoc", "$tool_mygates", "$tool_gates")),
     ("the page reads before it opens the base", "TG2", sub("page", "   call $tk_open('tool.gates', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n", "   openpath @sdsys:@ds:'accounts' to acc.f0 then close acc.f0\n   call $tk_open('tool.gates', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n")),
     ("a second audit line", "TG2", sub("page", "   keys = ''\n", "   void kernel(K$AUDIT, 'tool x')\n   keys = ''\n")),
     ("the page may run another command", "TG3", sub("page", "allow = 'modify.account'", "allow = 'modify.account sh'")),

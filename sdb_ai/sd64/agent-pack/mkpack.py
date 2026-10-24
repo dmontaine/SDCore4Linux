@@ -364,6 +364,15 @@ def tcl_chunks(ctx, voc, since):
         shape, shape_ln = shapes[name]
         mode, target, extra_opt = dispatch_of(e)
         srcs = [ctx.src(e["rel"], 1), ctx.src("docs:tools/tcl-syntax-shapes.txt", shape_ln)]
+        # 24 Oct 26: a verb in BOTH layers whose two records dispatch differently (tool.gates: the matrix in SDSYS's VOC, the account holder's page in newvoc).  The dispatch line
+        # is SDSYS's - gplbld/sandbox-pack-examples.py compares it with the running SD's VOC - and the ordinary account's is a line of its own.
+        alt_dispatch = None
+        if "newvoc" in e.get("by_layer", {}) and "voc_template" in e.get("by_layer", {}):
+            m2, t2, x2 = dispatch_of(dict(e, rec=voc_record(ctx, e["by_layer"]["voc_template"])))
+            if (m2, t2) != (mode, target):
+                alt_dispatch = (mode, target)
+                mode, target, extra_opt = m2, t2, x2
+                srcs.append(ctx.src(e["by_layer"]["voc_template"], 1))
         who = "every account (in `newvoc`)" if "newvoc" in e["layers"] else "SDSYS only (in `voc_template`, not in `newvoc`)"
         lines = ["%s" % shape, ""]
         desc = fld(e["rec"], 1) if fld(e["rec"], 1)[:1].upper() == "V" else fld(e["rec"], 3)
@@ -376,6 +385,8 @@ def tcl_chunks(ctx, voc, since):
             if prog:
                 lines.append("- program `%s`" % prog[0])
                 srcs.append(ctx.src(prog[0], prog[1]))
+        if alt_dispatch:
+            lines.append("- in an ordinary account's VOC (`newvoc`) this verb is `%s %s`, not SDSYS's program: it is not the same page" % alt_dispatch)
         lines.append("- available to: %s" % who)
         lines.append("- VOC description: %s" % clean(desc))
         dp = doc_pointer(ctx, name, docfiles)

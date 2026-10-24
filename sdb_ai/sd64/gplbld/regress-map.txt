@@ -283,12 +283,12 @@ sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
 sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
-sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates
-sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates
+sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates
+sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates
 sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates
 # 23 Oct 26 (S.69 step 2): the AI choice page, tool.ai - its own routine for set.ai's words, the gate table (the ai gate is a row of it) and the gate reader
 sdsys/gpl.bp/tk_runx         : tk-base tool-ai
-sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates
+sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
 sdsys/gpl.bp/tk_gates        : tk-base tk-keys tool-ai tool-gates
 sdsys/gpl.bp/tk_*            : tk-base tk-keys
 sdsys/gpl.bp/tool_tktest     : tk-base
@@ -336,7 +336,7 @@ sdsys/gpl.bp/setviewer       : docs
 sdsys/gpl.bp/docsinst        : docs
 sdsys/gpl.bp/tool_viewers    : docs home
 sdsys/helptext/tool.ai.*     : docs tool-ai
-sdsys/helptext/tool.gates.*  : docs tool-gates
+sdsys/helptext/tool.gates.*  : docs tool-gates tool-mygates
 sdsys/helptext/*             : docs menus
 sdsys/newvoc/pdf             : docs
 sdsys/voc_template/pdf       : docs
@@ -367,6 +367,10 @@ sdsys/voc_template/tool.ai   : tool-ai
 gplbld/sandbox-tool-gates.py : @self
 sdsys/gpl.bp/tool_gates      : tool-gates
 sdsys/voc_template/tool.gates : tool-gates
+# 24 Oct 26 (S.75 A2, the account holder's half): the same verb in every account's VOC runs the read-only page; it asks the system for the group of the person's login name
+gplbld/sandbox-tool-mygates.py : @self
+sdsys/gpl.bp/tool_mygates    : tool-mygates docs
+sdsys/newvoc/tool.gates      : tool-mygates docs
 gplsrc/op_ai.c               : ai-verb aigate
 sdsys/gpl.bp/ai              : ai-verb
 sdsys/voc_template/ai        : ai-verb
@@ -484,7 +488,7 @@ sdsys/gpl.bp/py_*            : gates
 sdsys/gpl.bp/acc*            : gates @system editgates net shared
 sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared filesgrp home aigate tool-gates
 # 19 Oct 26 (K4a): the program that filesgrp runs reads these two lookups; it makes its own copies, but a change to the originals is a change to what it copies.
-sdsys/gpl.bp/is_grp_member   : filesgrp net gates
+sdsys/gpl.bp/is_grp_member   : filesgrp net gates tool-mygates
 sdsys/gpl.bp/is_group        : filesgrp net gates
 sdsys/gpl.bp/oswrite         : gates
 sdsys/gpl.bp/osread          : gates

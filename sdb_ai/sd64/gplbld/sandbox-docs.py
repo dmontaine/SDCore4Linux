@@ -541,8 +541,6 @@ def main():
 
         # ----------------------------------------------------------------------------------------------- tool.gates (24 Oct 26, S.75 A2): only its help is the docs suite's; the page is sandbox-tool-gates.py's
         say("\n--- tool.gates: the gate matrix's help")
-        out = g.plain("zzhd", ["tool.gates"])
-        row("an ordinary account cannot reach it: tool.gates is in SDSYS's VOC only", has(out, r"not in your VOC"), repr(out[:3]))
         h = open_page("tool.gates")
         T = h.text()
         if "Gates by account" not in T:
@@ -557,6 +555,25 @@ def main():
         h.key("f1", idle=1.4)
         T = re.sub(r"[|\s]+", " ", h.text())
         row("F1 shows the same record", "The gate matrix" in T and all(w in T for w in words), T[-700:])
+        h.key("esc", idle=0.8)
+        h.key("ctrl-q", idle=1.5)
+        h.end()
+        # the same verb in an ORDINARY account is the holder's read-only page (sandbox-tool-mygates.py's); its help is this suite's
+        h = H("zzhd")
+        h.typed("tool.gates\r", idle=3.5)
+        T = h.text()
+        if "What this account may do" not in T:
+            dump(h)
+            bail("tool.gates never drew the holder's page in an ordinary account, so no row below can be believed")
+        row("in an ordinary account tool.gates is the holder's page (not the matrix), with a [?] at the end of its first box", "Gates by account" not in T and h.line(2)[134:137] == "[?]", repr(h.line(2)[130:139]))
+        h.click(135, 2, idle=1.4)
+        T = re.sub(r"[|\s]+", " ", h.text())
+        words2 = ("What this account may do", "nothing", "gate", "sign", "administrator")
+        row("a click on the [?] shows the record of tool.gates.mine: its title and words of its two paragraphs", all(w in T for w in words2) and "Help is not installed" not in T, T[-700:])
+        h.key("esc", idle=0.8)
+        h.key("f1", idle=1.4)
+        T = re.sub(r"[|\s]+", " ", h.text())
+        row("F1 shows the same record", all(w in T for w in words2) and "Help is not installed" not in T, T[-700:])
         h.key("esc", idle=0.8)
         h.key("ctrl-q", idle=1.5)
         h.end()
