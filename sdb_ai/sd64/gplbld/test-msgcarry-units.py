@@ -60,6 +60,10 @@ ALLOWED = {
     ("ai", "11625"): "the way to turn the AI on: Core modify.account NAME ai-on, Solo set.ai gate on (carry 15, 23 Oct 26)",
     ("setai", "11609"): "the usage line: Solo's set.ai has the word gate on|off (carry 15, 23 Oct 26)",
     ("tk_ai", "11625"): "the way to turn the AI on: Core modify.account NAME ai-on, Solo set.ai gate on (carry 16, 23 Oct 26)",
+    # 24 Oct 26, Solo carry 18: the OS-path programs held since carry 2 until Solo had an OS switch
+    ("oscopya", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the OS-path programs, carry 18, 24 Oct 26)",
+    ("seldir", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the OS-path programs, carry 18, 24 Oct 26)",
+    ("setmode", "11314"): "the way to give OS access: Core modify.account os-on, Solo set.os.access os on (PAL-32; carried to Solo with the OS-path programs, carry 18, 24 Oct 26)",
 }
 passed = failed = 0
 
