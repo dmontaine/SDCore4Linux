@@ -493,7 +493,7 @@ def main():
     os.makedirs(os.path.join(outside, "subdir"))
     put(os.path.join(outside, "secret.txt"), "SECRET-OUTSIDE-12345\n")
     put(os.path.join(outside, "subdir", "x.txt"), "x\n")
-    # The fixtures are in their original state here (section I, which switches every account on, comes last).
+    # The fixtures are in their original state here (section I, which fills every blank gate field with yes, comes last).
     for name in ("zzoff", "zzsh", "zzon", "zzos"):
         d = os.path.join(BOX, "user_accounts", name)
         osx = FIXTURES[name][1].lower() == "yes"
@@ -1177,43 +1177,69 @@ def main():
             has(out, r"^INFO %s .*\|os\.sh: %s\|os\.execute: %s(\||\s)" % (name, s, o)), "out=%r" % ([l for l in out if name in l][:2],))
 
     # --- I. the upgrade ---------------------------------------------------------------------------------------
-    say("\n--- I. upgrade_gates: the accounts that exist keep their shell and OS.EXECUTE, once ----------------------------")
+    say("\n--- I. upgrade_gates: a BLANK field becomes yes, once; an explicit no is never undone ---------------------------")
     marker = os.path.join(SYS, "$gates.done")
     if os.path.exists(marker):
         os.remove(marker)
     reg_write("zzu_blank", ["/x", "", "sdu_zzu_blank"])
     reg_write("zzu_no", ["/x", "", "sdu_zzu_no", "", "", "", "no", "no"])
     reg_write("zzu_half", ["/x", "", "sdu_zzu_half", "", "", "", "yes", ""])
+    reg_write("zzu_halfno", ["/x", "", "sdu_zzu_halfno", "", "", "", "no", ""])
     reg_write("zzu_both", ["/x", "", "sdu_zzu_both", "", "", "", "yes", "yes"])
     reg_write("zzu_grp", ["/x", "", "sdg_zzu_grp"])
-    # expected from the register as it stands now: every sdu_ record that lacks either 'yes' is changed
-    need = both = 0
-    for n in sorted(os.listdir(os.path.join(SYS, "accounts"))):
-        r = reg_read(n)
-        if len(r) > 2 and r[2].startswith("sdu_"):
-            if (r[6] if len(r) > 6 else "").strip().upper() == "YES" and (r[7] if len(r) > 7 else "").strip().upper() == "YES":
-                both += 1
-            else:
-                need += 1
+
+    def blank_split():
+        # expected from the register as it stands now: every sdu_ record with a BLANK sh or os field is changed
+        need = both = 0
+        for n in sorted(os.listdir(os.path.join(SYS, "accounts"))):
+            r = reg_read(n)
+            if len(r) > 2 and r[2].startswith("sdu_"):
+                if (r[6] if len(r) > 6 else "").strip() != "" and (r[7] if len(r) > 7 else "").strip() != "":
+                    both += 1
+                else:
+                    need += 1
+        return need, both
+
+    need, both = blank_split()
     sdsys_before = reg_read("sdsys")
     grp_before = reg_read("zzu_grp")
+    others_before = {n: tuple(reg_read(n)[6:8]) for n in ("zzu_no", "zzu_both")}
     out = adm(["RUN gpl.bp upgrade_gates"], internal=True)
-    row("I: the first run reports the count it should (%d switched on, %d already had both) and COMPLETE" % (need, both),
-        has(out, r"^OS-access gates: switched on for %d existing account\(s\); %d already had both; 0 failed$" % (need, both))
-        and has(out, "^COMPLETE$"), "out=%r" % (out[-4:],))
-    row("I: a blank record, a record of explicit no/no, and a half-set one all end yes / yes",
-        all(tuple(reg_read(n)[6:8]) == ("yes", "yes") for n in ("zzu_blank", "zzu_no", "zzu_half")),
-        "%r" % ({n: reg_read(n)[6:8] for n in ("zzu_blank", "zzu_no", "zzu_half")},))
+    row("I: the first run reports the count it should (%d switched on, %d already had both set) and COMPLETE" % (need, both),
+        has(out, r"^OS-access gates: switched on for %d existing account\(s\); %d already had both set \(a no is left as it is\); 0 failed$"
+            % (need, both)) and has(out, "^COMPLETE$"), "out=%r" % (out[-4:],))
+    row("I: a blank record and a half-set one (yes / blank) end yes / yes",
+        all(tuple(reg_read(n)[6:8]) == ("yes", "yes") for n in ("zzu_blank", "zzu_half")),
+        "%r" % ({n: reg_read(n)[6:8] for n in ("zzu_blank", "zzu_half")},))
+    row("I: an explicit no / no is NOT turned on (the defect of 24 Oct: a reinstall that kept the accounts switched it to yes / yes)",
+        tuple(reg_read("zzu_no")[6:8]) == ("no", "no"), "%r" % (reg_read("zzu_no")[6:8],))
+    row("I: no / blank keeps its no and fills only the blank (no / yes); yes / yes is untouched",
+        tuple(reg_read("zzu_halfno")[6:8]) == ("no", "yes") and tuple(reg_read("zzu_both")[6:8]) == others_before["zzu_both"],
+        "halfno=%r both=%r" % (reg_read("zzu_halfno")[6:8], reg_read("zzu_both")[6:8]))
     row("I: a GROUP account and SDSYS are not touched", reg_read("zzu_grp") == grp_before and reg_read("sdsys") == sdsys_before,
         "grp=%r sdsys=%r" % (reg_read("zzu_grp"), reg_read("sdsys")))
     row("I: the marker sdsys/$gates.done exists", os.path.exists(marker))
-    mod("zzu_no", "SH-OFF")
+    mod("zzu_blank", "SH-OFF")
+    mod("zzu_no", "OS-ON")
     out = adm(["RUN gpl.bp upgrade_gates"], internal=True)
     row("I: a second run changes nothing and says so, and still ends COMPLETE",
         has(out, "set for the existing accounts by an earlier install; nothing changed") and has(out, "^COMPLETE$"),
         "out=%r" % (out[-3:],))
-    row("I: an administrator's later sh-off is NOT undone by the second run", tuple(reg_read("zzu_no")[6:8]) == ("no", "yes"),
-        "%r" % (reg_read("zzu_no")[6:8],))
+    row("I: an administrator's later sh-off / os-on are NOT undone by the second run",
+        tuple(reg_read("zzu_blank")[6:8]) == ("no", "yes") and tuple(reg_read("zzu_no")[6:8]) == ("no", "yes"),
+        "blank=%r no=%r" % (reg_read("zzu_blank")[6:8], reg_read("zzu_no")[6:8]))
+    # the keep-accounts cycle deletes the sdsys directory, marker included: the walk then runs again over the kept register
+    os.remove(marker)
+    snap = {n: reg_read(n) for n in os.listdir(os.path.join(SYS, "accounts"))}
+    need2, both2 = blank_split()
+    out = adm(["RUN gpl.bp upgrade_gates"], internal=True)
+    row("I: with the marker lost (a keep-accounts reinstall) the walk finds nothing blank, switches on 0 and says so",
+        need2 == 0 and has(out, r"^OS-access gates: switched on for 0 existing account\(s\); %d already had both set" % both2)
+        and has(out, "^COMPLETE$"), "need=%d out=%r" % (need2, out[-3:]))
+    row("I: ... and EVERY register record is byte for byte what it was (no no was turned into a yes)",
+        all(reg_read(n) == snap[n] for n in snap) and set(os.listdir(os.path.join(SYS, "accounts"))) == set(snap),
+        "changed=%r" % ([n for n in snap if reg_read(n) != snap[n]][:5],))
+    row("I: ... and the marker is written again", os.path.exists(marker))
 
     say("\n--- summary " + "-" * 100)
     say("sandbox-gates: %d passed, %d failed" % (passed, failed))

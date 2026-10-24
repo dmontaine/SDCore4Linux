@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  AN UPGRADE THAT KEEPS THE ACCOUNTS NO LONGER SWITCHES THE SHELL AND OS.EXECUTE BACK ON FOR AN ACCOUNT THAT HAD THEM OFF.
+
+             What        The installer's upgrade step for the two OS-access gates (upgrade_gates) now fills only a setting that is
+                         BLANK. A blank means an account made before the gates existed, which keeps the shell and OS.EXECUTE it has
+                         always had; every account made since holds an explicit yes or no, and a no is left exactly as it is,
+                         whether it is the delivered default or an administrator's sh-off or os-off. The install prints how many
+                         accounts it switched on and how many already had both set.
+             Why it      The step was meant to run once, with a marker that stopped it undoing sh-off. A delete that keeps the
+             matters     accounts removes the sdsys directory, marker included, so the reinstall that followed ran the step again
+                         and changed a no to a yes for every user account (found on a test install: an account whose shell and
+                         OS.EXECUTE were off came back with OS.EXECUTE on). The gates are delivered off and only the administrator
+                         loosens them; an upgrade must not do it. The marker stays, as a second guard.
+             Does not    Take an access away from an account that has it: a yes is never changed. Touch ssh or the API, a group or
+                         other account, or SDSYS. Undo the damage on a system where the step has already run in that way: such an
+                         account still has the setting it was given, and the administrator turns it off with modify.account name
+                         sh-off or os-off (tool.gates shows every account against both).
+
 24 Oct 26  THE ADMINISTRATOR HAS A GATE MATRIX: TOOL.GATES SHOWS EVERY ACCOUNT AGAINST EVERY PER-ACCOUNT GATE AND CHANGES THEM
            THROUGH MODIFY.ACCOUNT, NEVER BY ITSELF.
 

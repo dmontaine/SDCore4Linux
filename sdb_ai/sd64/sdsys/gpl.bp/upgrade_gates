@@ -7,15 +7,24 @@
 * lock every one of them out of `sh`, `!`, nano, micro, OS.EXECUTE and Python on the morning after.  The
 * owner's rule for this (13 Oct): "existing accounts leave on to preserve their existing situation".
 *
-* So this sets ACC$SH and ACC$OS.EXEC to 'yes' ONCE for every USER account in the register (an sdu_ group:
-* the only kind with a Linux user of its own).  ssh and the API are not touched - those accounts are
-* members of sdssh / sdapi already and the route words (S.29) keep their meaning.  GROUP and OTHER accounts
-* have no shell to permit and are left blank.  SDSYS needs nothing: the administrator passes the gate.
+* So this sets ACC$SH and ACC$OS.EXEC to 'yes' where the field is BLANK, for every USER account in the
+* register (an sdu_ group: the only kind with a Linux user of its own).  ssh and the API are not touched -
+* those accounts are members of sdssh / sdapi already and the route words (S.29) keep their meaning.  GROUP
+* and OTHER accounts have no shell to permit and are left blank.  SDSYS needs nothing: the administrator
+* passes the gate.
+*
+* ONLY A BLANK IS FILLED (24 Oct 26).  Every writer since S.63 - CREATE.ACCOUNT, ATTACH, MODIFY.ACCOUNT -
+* writes 'yes' or 'no' explicitly, so a blank field marks an account made before the gates existed, and an
+* explicit 'no' is an administrator's decision (or the delivered default) that this walk must never undo.
+* The first version set 'yes' on every record that did not already hold BOTH, which turned the gates back
+* on for an account whose sh and os were 'no': a keep-accounts delete and reinstall removes the marker
+* below (it lives in the sdsys directory, which is deleted), and the next install ran the walk again.
 *
 * ONCE MEANS ONCE.  An administrator who later runs MODIFY.ACCOUNT jack SH-OFF must not find the next
-* install turning it back on, so the walk leaves a marker, sdsys/$gates.done, and does nothing when the
-* marker is there.  The marker is written only after every account was written, so a run that stopped
-* half way is repeated whole (setting 'yes' on a record that already says 'yes' changes nothing).
+* install turning it back on.  That is now guaranteed by the blank test, not by the marker: the walk
+* leaves a marker, sdsys/$gates.done, and does nothing when the marker is there, but a lost marker costs
+* nothing.  The marker is written only after every account was written, so a run that stopped half way is
+* repeated whole (a field that now says 'yes' or 'no' is not blank, so the repeat changes nothing).
 *
 * RUN gpl.bp upgrade_gates           set the gates for the existing accounts, once
 *
@@ -25,6 +34,8 @@
 *
 * START-HISTORY:
 * 13 Oct 26 dm  New.
+* 24 Oct 26 dm  Fills a BLANK field only.  An explicit 'no' (a delivered default or SH-OFF / OS-OFF) was
+*               overwritten when a keep-accounts reinstall had lost the marker.
 * END-HISTORY
 *
 * START-CODE
@@ -58,12 +69,12 @@ $include int$keys.h
          continue
       end
       if rec<ACC$GROUP>[1, 4] = 'sdu_' then
-         if upcase(trim(rec<ACC$SH>)) = 'YES' and upcase(trim(rec<ACC$OS.EXEC>)) = 'YES' then
+         if trim(rec<ACC$SH>) # '' and trim(rec<ACC$OS.EXEC>) # '' then
             kept += 1
             release acc.f, reg.name
          end else
-            rec<ACC$SH> = 'yes'
-            rec<ACC$OS.EXEC> = 'yes'
+            if trim(rec<ACC$SH>) = '' then rec<ACC$SH> = 'yes'
+            if trim(rec<ACC$OS.EXEC>) = '' then rec<ACC$OS.EXEC> = 'yes'
             written = @true
             write rec to acc.f, reg.name on error written = @false
             if written then
@@ -79,7 +90,7 @@ $include int$keys.h
       end
    repeat
 
-   crt 'OS-access gates: switched on for ' : changed : ' existing account(s); ' : kept : ' already had both; ' : failed : ' failed'
+   crt 'OS-access gates: switched on for ' : changed : ' existing account(s); ' : kept : ' already had both set (a no is left as it is); ' : failed : ' failed'
 
    if failed # 0 then
       crt 'The gates were NOT all set, so the marker is not written and the next install repeats this.'

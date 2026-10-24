@@ -338,8 +338,13 @@ def checks(srcs, messages_dir):
     fl = at(ug, "if failed # 0 then")
     ck("B16 upgrade_gates: the marker is tested BEFORE the walk and written AFTER it, and only when nothing failed",
        0 < mk < wk < fl < wm, "marker test %s, walk %s, failed test %s, marker write %s" % (mk, wk, fl, wm))
-    ck("B17 it touches USER accounts only (an sdu_ group) and sets both fields to yes",
-       "rec<ACC$GROUP>[1, 4] = 'sdu_'" in ug and "rec<ACC$SH> = 'yes'" in ug and "rec<ACC$OS.EXEC> = 'yes'" in ug)
+    ck("B17 it touches USER accounts only (an sdu_ group) and sets a field to yes ONLY where that field is blank - an explicit no is never overwritten",
+       "rec<ACC$GROUP>[1, 4] = 'sdu_'" in ug
+       and "if trim(rec<ACC$SH>) = '' then rec<ACC$SH> = 'yes'" in ug
+       and "if trim(rec<ACC$OS.EXEC>) = '' then rec<ACC$OS.EXEC> = 'yes'" in ug
+       and not re.search(r"^\s*rec<ACC\$(SH|OS\.EXEC)> = 'yes'", ug, re.M))
+    ck("B17b the walk counts a record as already done when NEITHER field is blank (a no counts), not when both say yes",
+       "if trim(rec<ACC$SH>) # '' and trim(rec<ACC$OS.EXEC>) # '' then" in ug and "= 'YES'" not in ug)
 
     # the $internal programs that act for the user on an OS path: the kernel exempts them, so each asks K$PATH.OK itself
     sdr = c["seldir"]
@@ -550,6 +555,9 @@ MUTANTS = [
     ("upgrade_gates tests its marker after the walk", swap("upgrade_gates", "   if ospath(marker, OS$EXISTS) then", "   select acc.f to 12")),
     ("upgrade_gates writes the marker even when a record failed", sub("upgrade_gates", "   if failed # 0 then", "   if @false then")),
     ("upgrade_gates touches group accounts", sub("upgrade_gates", "if rec<ACC$GROUP>[1, 4] = 'sdu_' then", "if @true then")),
+    ("upgrade_gates overwrites an explicit no in sh (24 Oct: a keep-accounts reinstall turned the gates back on)", sub("upgrade_gates", "if trim(rec<ACC$SH>) = '' then rec<ACC$SH> = 'yes'", "rec<ACC$SH> = 'yes'")),
+    ("upgrade_gates overwrites an explicit no in os.execute", sub("upgrade_gates", "if trim(rec<ACC$OS.EXEC>) = '' then rec<ACC$OS.EXEC> = 'yes'", "rec<ACC$OS.EXEC> = 'yes'")),
+    ("upgrade_gates counts only yes / yes as done, so a no / no is written", sub("upgrade_gates", "if trim(rec<ACC$SH>) # '' and trim(rec<ACC$OS.EXEC>) # '' then", "if upcase(trim(rec<ACC$SH>)) = 'YES' and upcase(trim(rec<ACC$OS.EXEC>)) = 'YES' then")),
     ("DIR() no longer asks", sub("op_dio4.c", "if (!os_path_open_ok(pathname)) {", "if (0) {")),
     ("DELETESEQ of a pathname no longer asks", sub("op_seqio.c", "if (!os_path_open_ok(file_name)) {\n      process.status = ER_PERM;\n      goto exit_op_delseq;", "if (0) {\n      process.status = ER_PERM;\n      goto exit_op_delseq;")),
     ("a print unit's pathname is no longer asked", sub("to_file.c", "if (!os_path_ok_for_account(fn)) {", "if (0) {")),
