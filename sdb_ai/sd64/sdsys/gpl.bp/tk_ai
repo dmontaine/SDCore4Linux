@@ -117,7 +117,112 @@ $include tk.h
       case op = 'ask'
          b = 'none'
          if ai.on then gosub run.ask
+      case op = 'select'
+         gosub make.select
+      case op = 'window'
+         gosub make.window
+      case op = 'splice'
+         gosub splice.edits
    end case
+   return
+
+* ------------------------------------------------------------------------------------------------- the text window and the accepted edits (shared by every editor)
+
+* In: ctx = the lines of the text, joined with field marks; a = the mark's line, the mark's column, the cursor's line and the cursor's column, as values.  Out: b = the text between the
+* mark and the cursor (the earlier end first; the character under the later end is not in it), its lines joined with a line feed <1>, and the number of its first line <2> and of its last <3>;
+* null when there is no mark or nothing between.
+make.select:
+   t.my = a<1, 1> + 0
+   t.mx = a<1, 2> + 0
+   t.cy = a<1, 3> + 0
+   t.cx = a<1, 4> + 0
+   b = ''
+   if t.my < 1 or t.mx < 1 then return
+   if t.my < t.cy or (t.my = t.cy and t.mx <= t.cx) then
+      t.y1 = t.my ; t.x1 = t.mx ; t.y2 = t.cy ; t.x2 = t.cx
+   end else
+      t.y1 = t.cy ; t.x1 = t.cx ; t.y2 = t.my ; t.x2 = t.mx
+   end
+   t.sel = ''
+   for t.q = t.y1 to t.y2
+      t.ln = ctx<t.q>
+      begin case
+         case t.y1 = t.y2
+            t.part = t.ln[t.x1, t.x2 - t.x1]
+         case t.q = t.y1
+            t.part = t.ln[t.x1, 99999]
+         case t.q = t.y2
+            t.part = t.ln[1, t.x2 - 1]
+         case 1
+            t.part = t.ln
+      end case
+      t.sel := (if t.q = t.y1 then '' else char(10)) : t.part
+   next t.q
+   if t.sel = '' then return
+   b = t.sel : @fm : t.y1 : @fm : t.y2
+   return
+
+* In: ctx = the lines of the text, joined with field marks; a = the cursor's line.  Out: b = the first line of the window <1>, the last <2>, the number of characters before the window in
+* the whole text (a line feed after each line) <3> and the window's text, its lines joined with a line feed and a mark in a line shown as ? <4>.  The whole text when it is under 24000
+* bytes, else the lines round the cursor.
+make.window:
+   w.lines = ctx
+   w.cy = a + 0
+   w.total = dcount(w.lines, @fm)
+   w.first = 1
+   w.last = w.total
+   if len(w.lines) > 24000 then
+      w.first = w.cy - 150
+      if w.first < 1 then w.first = 1
+      w.last = w.first
+      w.size = 0
+      loop
+      while w.last <= w.total and w.size + len(w.lines<w.last>) + 1 <= 24000
+         w.size += len(w.lines<w.last>) + 1
+         w.last += 1
+      repeat
+      w.last -= 1
+      if w.last < w.first then w.last = w.first
+   end
+   w.off = 0
+   for w.q = 1 to w.first - 1
+      w.off += len(w.lines<w.q>) + 1
+   next w.q
+   w.win = ''
+   for w.q = w.first to w.last
+      w.win := (if w.q = w.first then '' else char(10)) : w.lines<w.q>
+   next w.q
+   w.win = convert(@vm : @sm : @tm, '???', w.win)
+   b = w.first : @fm : w.last : @fm : w.off : @fm : w.win[1, 24000]
+   return
+
+* In: ctx = the text now, its lines joined with a line feed; a = the window as make.window gave it (<1> to <4>) and <5> the accepted edits, as res<2> of 'ask' has them (values of
+* position SM length SM new text, positions in the window).  Out: b = the new text <1>, the number of the first line changed <2> and the number of edits <3>; null when the text no longer
+* holds, at every place, exactly what the model was shown (the person changed it while the AI answered): then nothing is to be applied.  The caller puts b<1> in its buffer.
+splice.edits:
+   s.now = ctx
+   s.off = a<3> + 0
+   s.win = a<4>
+   s.ed = a<5>
+   s.n = dcount(s.ed, @vm)
+   s.fits = (s.n > 0)
+   for s.k = 1 to s.n
+      s.p = s.ed<1, s.k, 1> + 0
+      s.l = s.ed<1, s.k, 2> + 0
+      if s.now[s.off + s.p, s.l] # s.win[s.p, s.l] then s.fits = 0
+   next s.k
+   b = ''
+   if not(s.fits) then return
+   s.new = s.now
+   for s.k = s.n to 1 step -1
+      s.p = s.ed<1, s.k, 1> + 0
+      s.l = s.ed<1, s.k, 2> + 0
+      s.new = s.new[1, s.off + s.p - 1] : s.ed<1, s.k, 3> : s.new[s.off + s.p + s.l, 99999999]
+   next s.k
+   s.p1 = s.ed<1, 1, 1> + 0
+   s.line1 = 1
+   if s.off + s.p1 > 1 then s.line1 = count(s.now[1, s.off + s.p1 - 1], char(10)) + 1
+   b = s.new : @fm : s.line1 : @fm : s.n
    return
 
 * ------------------------------------------------------------------------------------------------- whether the AI is usable, and the line

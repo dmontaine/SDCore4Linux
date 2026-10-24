@@ -97,7 +97,9 @@ $define MAX.DATA.AREA.LINES   15
                    mouse.on,                    ;* Enable mouse string
                    mouse.off,                   ;* Disable mouse string
 
-                   debugger.uid                 ;* Other side for phantom debugger
+                   debugger.uid,                ;* Other side for phantom debugger
+
+                   ai.ok                        ;* 24 Oct 26: the AI command is available (the AI is usable for the account and the display is full screen); set once, in initialise
 
 * Event codes (additive)
 

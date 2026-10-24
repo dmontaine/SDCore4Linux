@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  SED, CED AND THE DEBUGGER CAN BE ASKED ABOUT WHAT YOU ARE LOOKING AT WHEN THE AI IS ON FOR THE ACCOUNT, WITH THE SAME PREVIEW OF EVERYTHING THAT IS SENT. WITHOUT THE AI
+           NOTHING IN THEM CHANGES.
+
+             What        SED: two Tools items, Ask the AI... and Explain the selection (also the commands AI and AI.SELECTION); the selection is the text from the mark to the cursor.
+                        CED: F2 opens a menu - explain the selected element, ask about the record, undo the AI's last change; the AI sees the record as indented JSON. The debugger:
+                        the command AI (or AI and a question) in the full-screen display; the AI is told the program and line, the call stack and the source round the stop.
+                        Everywhere Enter shows what will be sent (provider, model, instruction, the text and your question) with Send and Cancel, and Cancel is the default. In SED and
+                        CED an answer may propose changes: each is a diff, Accept puts them in the buffer (SED: one Undo step; CED: the record is marked changed and the menu undoes them),
+                        Reject is the default, and nothing is saved - Save and the edit gates are yours as ever. A set of changes is taken whole or not at all (old text missing or twice,
+                        overlapping, more than 8, more than 30 lines are ignored and said so); CED also refuses a result that is not a JSON object or array. A command in an answer is ignored.
+                        The IDE shares the new library routines with SED and CED (no change for it).
+             Why it      The same help as in the IDE where you edit configuration, data and programs, with every byte that leaves the machine shown first and every change visible before it
+             matters     is made.
+             Does not    The AI never saves, compiles or runs anything, and the debugger's answer is words only. Not built: an AI line in the debugger's line mode, SED's split window
+                        (the AI sees the buffer you are in), and an AI that stores a paragraph or a dictionary item itself. NOT SHOWN: a run against a real provider.
+
 24 Oct 26  THE IDE HAS AN AI MENU AND AN AI ROW WHEN THE AI IS ON FOR THE ACCOUNT: ASK ABOUT THE RECORD, HAVE AN ERROR OR A SELECTION EXPLAINED, AND ACCEPT OR REJECT THE
            CHANGES THE AI PROPOSES, SHOWN AS A DIFF. NOTHING IS CHANGED UNTIL YOU ACCEPT AND NOTHING IS SAVED BY THE AI.
 

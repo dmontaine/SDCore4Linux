@@ -62,6 +62,9 @@ JSON_REPLIES = {
     "edit_cmd": '{"say": "Run it.", "action": "none", "arg": "", "command": "who.am.i"}',
     "edit_empty": '{"say": "Nothing to change.", "action": "none", "arg": "", "command": "", "edits": []}',
     "edit_delete": '{"say": "Removed it.", "action": "none", "arg": "", "command": "", "edits": [{"old": "x = 1\\n", "new": ""}]}',
+    # CED's edits (AI line stage 3): the record is {"name":"widget","size":3,"tags":["a","b"]} and CED shows it as indented JSON, one element to a line
+    "ced_ok": '{"say": "I raised the size.", "action": "none", "arg": "", "command": "", "edits": [{"old": "\\"size\\": 3", "new": "\\"size\\": 4"}]}',
+    "ced_bad": '{"say": "A broken change.", "action": "none", "arg": "", "command": "", "edits": [{"old": "\\"size\\": 3", "new": "\\"size\\": ["}]}',
 }
 
 

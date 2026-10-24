@@ -40,6 +40,8 @@
 *               and the common tells the IDE whether the record was opened for editing (2) or SED stopped on a message first (1).
 * 19 Oct 26 dm  The input has ended (status ER$EOF from keyin, a pipe): wait.key leaves through leave.sed. It took the null key for "no key yet"
 *               and asked again for ever, at full CPU (sandbox-eofkeys.py).
+* 24 Oct 26 dm  AI line stage 3: Tools > Ask the AI... and Explain the selection (commands AI and AI.SELECTION), only when the AI is usable for the account ($tk_ai).  The
+*               preview shows everything that is sent; edits the AI proposes are shown as a diff and, if accepted, go into the buffer as one undo step; nothing is saved.
 * END-HISTORY
 *
 *
@@ -94,6 +96,8 @@
 * by the repeat command.
 *
 * Commands:
+*    AI            Ask the AI about the record (the request may follow the word; when the AI is usable for the account)
+*    AI.SELECTION  Ask the AI to explain the text from the mark to the cursor
 *    BASIC         Compile program with error tracking
 *    BWORD         Basic program "word" search mode
 *    CASE_OFF      Case insensitive searches
@@ -377,6 +381,7 @@ $include sl.h
    for mz = 1 to 6
       bar.w<19 + mz> = bar.titles<mz>
    next mz
+   call $tk_ai('usable', '', ai.ok, ai.pm)    ;* 24 Oct 26: the Tools menu has the AI items only when the AI is usable for this account
    gosub read.window ; win.changed = @false          ;* (the same as the layout, or SED would have been refused)
    gosub set.scr.size
    call $sl_menu('init', bar.w, scr, '', mz)
@@ -6794,6 +6799,119 @@ uj.restore:
    return
 
 *****************************************************************************
+* THE AI (AI line stage 3, 24 Oct 26).  Tools > Ask the AI... (command AI, with the request after it if typed) and Tools > Explain the selection (AI.SELECTION), offered only when the
+* AI is usable for the account ($tk_ai 'usable').  Nothing is sent until the person has seen EVERYTHING that will be sent and chosen Send ($tk_ai 'ask': the preview, the wait, the
+* answer).  An answer may propose edits, shown as a diff; Accept puts them in the buffer, and Undo takes them all back as ONE step: the main loop and run.menu capture the state before
+* a command (uj.capture, as for FORMAT), so there is nothing to push here.  Nothing is saved: Save is the person's act, through save.record and the edit gates as ever.  A command in the
+* answer is ignored (nocmd).  In: ai.kind 'ask' or 'sel', ai.pre (a request typed after the command, or null).
+
+ai.run:
+   if not(ai.ok) then
+      message = sysmsg(11670)
+      gosub error
+      return
+   end
+   gosub save.current
+   gosub assemble.record
+   ai.lines = rec
+   rec = ''
+   ai.cy = line
+   ai.total = dcount(ai.lines, @fm)
+   ai.sel = ''
+   ai.note = ''
+   if ai.kind = 'sel' then
+      ai.selr = ''
+      if mark.line > 0 then
+         call $tk_ai('select', ai.lines, mark.line : @vm : mark.col : @vm : line : @vm : col, ai.selr)
+      end
+      ai.sel = ai.selr<1>
+      if ai.sel = '' then
+         message = sysmsg(11671)
+         gosub error
+         return
+      end
+      ai.req = sysmsg(11657)
+      ai.note = 'The selection runs from line ' : ai.selr<2> : ' to line ' : ai.selr<3>
+   end else
+      ai.req = trim(ai.pre)
+      if ai.req = '' then
+         prefix = sysmsg(11636) : ' '
+         s = ''
+         gosub get.string
+         if aborted then return
+         ai.req = trim(s)
+      end
+      if ai.req = '' then return
+   end
+   call $tk_ai('window', ai.lines, ai.cy, ai.wspec)
+   ai.first = ai.wspec<1>
+   ai.last = ai.wspec<2>
+   ai.page = 'This is SED, a full-screen text editor.'
+   ai.page<1, -1> = 'File ' : file.name : ', record ' : record.name : '.'
+   ai.page<1, -1> = 'The cursor is on line ' : ai.cy : ' of ' : ai.total : '.'
+   if ai.note # '' then ai.page<1, -1> = ai.note
+   if ai.first > 1 or ai.last < ai.total then ai.page<1, -1> = sysmsg(11667, ai.first, ai.last - ai.first + 1)
+   ai.actx = 'SED' : @fm : 'sed' : @fm : ai.page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : status.line + 1 : @fm : ai.wspec<4> : @fm : ai.first : @fm : ai.sel : @fm : 'nocmd'
+   ai.ctx = ''
+   ai.ctx<1> = screen.width                                 ;* TK.C.W
+   ai.res = ''
+   gosub mouse.disarm
+   call $tk_ai('ask', ai.ctx, ai.actx, ai.res)
+   mat image = sw.space ; mat simage = ''                    ;* the library put plain blanks back where its boxes were
+   gosub refresh.all
+   if ai.res<1> = 'edit' then
+      gosub ai.apply
+   end else
+      if ai.res<5> # '' then
+         message = ai.res<5>
+         gosub ai.say
+      end
+   end
+   return
+
+* The accepted edits (ai.res<2>) go into the buffer.  The buffer must still hold, at each place, exactly what the model was shown ($tk_ai 'splice' checks).
+ai.apply:
+   if read.only then
+      gosub read.only.buffer
+      return
+   end
+   gosub save.current
+   gosub assemble.record
+   ai.now = change(rec, @fm, char(10))
+   rec = ''
+   ai.wspec<5> = ai.res<2>
+   call $tk_ai('splice', ai.now, ai.wspec, ai.sp)
+   if ai.sp = '' then
+      message = sysmsg(11666)
+      gosub error
+      return
+   end
+   rec = change(ai.sp<1>, char(10), @fm)
+   gosub rebuild.chunks                                      ;* (the mark is lost with it)
+   rec = ''
+   line = ai.sp<2>
+   if line > lines + 1 then line = lines + 1
+   if line < 1 then line = 1
+   col = 1
+   top.line = line - int(displayed.lines / 2)
+   if top.line < 1 then top.line = 1
+   gosub get.current
+   record.updated = @true
+   syn.chk.n = 1 ; syn.top.for = 0
+   gosub refresh.all
+   message = sysmsg(11661, ai.sp<3>)
+   gosub ai.say
+   return
+
+* A line for the person on the message row, and the next key is theirs (error, without the bell)
+ai.say:
+   gosub update.screen
+   gosub file.msg
+   gosub wait.input
+   refresh.file = @true
+   return
+
+*****************************************************************************
 * THE MOUSE (13 Oct 26).  The terminal is asked for press, release and wheel reports (xterm modes 1000 and 1006) only while SED
 * is waiting for a key at its main loop (mouse.arm / mouse.disarm), so that a prompt, a question or a program SED runs never meets
 * one; the menu, which reads its own, is armed around its run.  A terminal that does not know the modes ignores the request.
@@ -7128,6 +7246,11 @@ build.menu.defs:
    ml = '-' ; mc = 'x:' ; gosub add.item
    ml = 'Run ex&tension...' ; ma = F.RUN ; gosub add.item
    ml = 'Comma&nd...' ; ma = F.COMMAND ; gosub add.item
+   if ai.ok then
+      ml = '-' ; mc = 'x:' ; gosub add.item
+      ml = 'Ask the &AI...' ; mc = 'c:AI' ; gosub add.item
+      ml = 'Ex&plain the selection' ; mc = 'c:AI.SELECTION' ; gosub add.item
+   end
    ml = '-' ; mc = 'x:' ; gosub add.item
    ml = 'Start &macro' ; ma = F.START.MACRO ; gosub add.item
    ml = 'End mac&ro' ; ma = F.END.MACRO ; gosub add.item
@@ -7291,6 +7414,14 @@ ext.command:
                   gosub refresh.all
                end
          end case
+
+      case c = 'AI' or c = 'AI.SELECTION'
+         ai.kind = (if c = 'AI' then 'ask' else 'sel')
+         ai.pre = ''
+         for ai.q = 2 to dcount(s, @fm)
+            ai.pre := (if ai.q > 2 then ' ' else '') : s<ai.q>
+         next ai.q
+         gosub ai.run
 
       case c = "BWORD"
          search.mode = BWORD.SEARCH

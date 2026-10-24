@@ -189,7 +189,9 @@ def admin(*cmds):
     return "\n".join(gt.adm(list(cmds), internal=True))
 
 
-def setup_ai(mutant):
+def setup_ai(mutant, progs=("sl_form", "tk_ai", "ide"), mutants=None):
+    """progs: the system programs copied from the tree and compiled; mutants: the table to look the mutant up in (sandbox-ai-apps.py has its own)."""
+    mutants = mutants if mutants is not None else MUTANTS
     b = box()
     shutil.rmtree(os.path.join(b, "ai"), ignore_errors=True)
     for sub in ("state/keys", "state/state", "pki"):
@@ -204,17 +206,16 @@ def setup_ai(mutant):
         text = text.replace(old, new)
     put(providers, text)
     STATE.update(fm=fm, pki=pki, providers=providers, ca=os.path.join(pki, "ca.crt"))
-    progs = ("sl_form", "tk_ai", "ide")
     for n in progs:                      # the programs of the tree (a sandbox used for an earlier mutant starts from the tree's again)
         shutil.copyfile(os.path.join(TREE, "sdsys", "gpl.bp", n), os.path.join(sysd(), "gpl.bp", n))
     if mutant is not None:
-        prog, old, new, _k = MUTANTS[mutant]
+        prog, old, new, _k = mutants[mutant]
         path = os.path.join(sysd(), "gpl.bp", prog)
         src = open(path, encoding="utf-8", errors="replace").read()
         if src.count(old) != 1:
             ids.bail("mutant %s: the text to change is found %d times, not once" % (mutant, src.count(old)))
         put(path, src.replace(old, new))
-        say("sandbox-ai-ide: MUTANT %s: %s changed; the rows that must fail, and nothing else: %s" % (mutant, prog, ", ".join(MUTANTS[mutant][3])))
+        say("sandbox-ai-ide: MUTANT %s: %s changed; the rows that must fail, and nothing else: %s" % (mutant, prog, ", ".join(mutants[mutant][3])))
     for n in progs:
         compile_prog(n)
     start_runner()

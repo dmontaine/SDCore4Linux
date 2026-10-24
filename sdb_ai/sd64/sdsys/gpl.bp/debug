@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 24 Oct 26 dm  AI line stage 3: the command AI (or AI and a question) in the full-screen display when the AI is usable for the account; the model is told where the program has
+*               stopped, the call stack and the source round the stop; it answers in words, nothing is changed ($tk_ai).
 * 18 Oct 26 dm  Terminal 140 by 42 (plan-terminal-140x42.md, phase 3).  The full-screen display is laid out for at least 140 by 42
 *               (lay.w, lay.h; a bigger window is used whole).  On a window smaller than that at the first stop the debugger says
 *               so (message 11602, $sl_need) and uses line mode for the session instead.  A window made smaller while the
@@ -291,6 +293,9 @@ found.program:
                         var.name = last.display
                         gosub display.variable
                   end case
+
+               case action = 'AI' and ai.ok
+                  gosub ai.run
 
                case action = "ABORT" or action = "Q" or action = "QUIT"
                   gosub abort.debug
@@ -839,6 +844,10 @@ initialise:
       end
    end
 
+   * 24 Oct 26: the AI command (AI, or AI and a question) only in the full-screen display, and only when the AI is usable for the account
+   ai.ok = 0
+   if full.screen then call $tk_ai('usable', '', ai.ok, ai.pm)
+
    if full.screen then
       * Set up initial display and save screen image: the title bar, the source area, the data area and the
       * command line, in the library's styles
@@ -1291,6 +1300,50 @@ display.source:
       display fmt(src.line, line.no.fmt) : ": " : s<1>
    end
 
+   return
+
+* ======================================================================
+* AI  (AI line stage 3, 24 Oct 26)  -  AI, or AI and a question, at the debugger's prompt, in the full-screen display when the AI is usable for the account.  The model is told where the
+* program has stopped, the call stack and the source lines round the stop.  Nothing is sent until the person has seen EVERYTHING that is sent and chosen Send ($tk_ai 'ask'); the answer is
+* words only (there is no text here to edit and a command is ignored); nothing in the program or the debugger is changed.
+
+ai.run:
+   ai.req = trim(command[3, 99999])
+   if ai.req = '' then ai.req = sysmsg(11681)
+   ai.page = 'This is the debugger of SD Core. The program is stopped.'
+   ai.page<1, -1> = 'Program ' : program.name(src.idx) : ', line ' : src.line : '.'
+   ai.st = system(1002)
+   ai.stk = ''
+   for ai.i = 2 to dcount(ai.st, @fm)
+      ai.ss = ai.st<ai.i>
+      ai.nm = ai.ss<1, 1>
+      if ai.nm = '$cproc' then ai.nm = 'Command processor'
+      ai.stk := (if ai.stk = '' then '' else '; ') : ai.nm
+      for ai.j = 2 to dcount(ai.ss, @vm)
+         if ai.ss<1, ai.j, 2> then ai.stk := ' @ ' : ai.ss<1, ai.j, 2>
+      next ai.j
+   next ai.i
+   if ai.stk # '' then ai.page<1, -1> = 'The call stack, the innermost first: ' : ai.stk[1, 600]
+   ai.page<1, -1> = 'The source around the stop (line number, then the text; > marks the line about to run):'
+   ai.first = src.line - 25
+   if ai.first < 1 then ai.first = 1
+   ai.last = src.line + 25
+   if ai.last > lines(src.idx) then ai.last = lines(src.idx)
+   for ai.q = ai.first to ai.last
+      n = ai.q
+      gosub get.source.line
+      ai.page<1, -1> = (if ai.q = src.line then '>' else ' ') : fmt(ai.q, '6R') : ' ' : s<1>[1, 120]
+   next ai.q
+   ai.actx = 'debugger' : @fm : 'debugger' : @fm : ai.page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : command.line : @fm : '' : @fm : 1 : @fm : '' : @fm : 'nocmd'
+   ai.ctx = ''
+   ai.ctx<1> = lay.w                                       ;* TK.C.W
+   ai.res = ''
+   call $tk_ai('ask', ai.ctx, ai.actx, ai.res)
+   gosub relayout                                          ;* the library put plain blanks back where its boxes were: the whole display is drawn again
+   if ai.res<5> # '' then
+      message = ai.res<5>
+      gosub emit.msg
+   end
    return
 
 * ======================================================================

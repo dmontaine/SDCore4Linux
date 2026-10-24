@@ -1348,35 +1348,16 @@ ai.selection:
    end
    ai.cy = mw{'cy'} + 0
    ai.cx = mw{'cx'} + 0
-   * the earlier end first
-   if ai.my < ai.cy or (ai.my = ai.cy and ai.mx <= ai.cx) then
-      ai.y1 = ai.my ; ai.x1 = ai.mx ; ai.y2 = ai.cy ; ai.x2 = ai.cx
-   end else
-      ai.y1 = ai.cy ; ai.x1 = ai.cx ; ai.y2 = ai.my ; ai.x2 = ai.mx
-   end
    ai.lines = mw{'value'}
-   ai.sel = ''
-   for ai.q = ai.y1 to ai.y2
-      ai.ln = ai.lines<ai.q>
-      begin case
-         case ai.y1 = ai.y2
-            ai.part = ai.ln[ai.x1, ai.x2 - ai.x1]
-         case ai.q = ai.y1
-            ai.part = ai.ln[ai.x1, 99999]
-         case ai.q = ai.y2
-            ai.part = ai.ln[1, ai.x2 - 1]
-         case 1
-            ai.part = ai.ln
-      end case
-      ai.sel := (if ai.q = ai.y1 then '' else char(10)) : ai.part
-   next ai.q
+   call $tk_ai('select', ai.lines, ai.my : @vm : ai.mx : @vm : ai.cy : @vm : ai.cx, ai.selr)     ;* the text between the mark and the cursor (the library's, shared with SED)
+   ai.sel = ai.selr<1>
    if ai.sel = '' then
       msg = sysmsg(11664)
       return
    end
    ai.req = sysmsg(11657)
    ai.kind = 'selection'
-   ai.note = 'The selection runs from line ' : ai.y1 : ' to line ' : ai.y2
+   ai.note = 'The selection runs from line ' : ai.selr<2> : ' to line ' : ai.selr<3>
    gosub ai.go
    return
 
@@ -1392,33 +1373,12 @@ ai.go:
    ai.lines = mw{'value'}
    ai.cy = mw{'cy'} + 0
    ai.total = dcount(ai.lines, @fm)
-   * the window: the whole record when it fits in 24000 bytes, else lines round the cursor
-   ai.first = 1
-   ai.last = ai.total
-   if len(ai.lines) > 24000 then
-      ai.first = ai.cy - 150
-      if ai.first < 1 then ai.first = 1
-      ai.last = ai.first
-      ai.size = 0
-      loop
-      while ai.last <= ai.total and ai.size + len(ai.lines<ai.last>) + 1 <= 24000
-         ai.size += len(ai.lines<ai.last>) + 1
-         ai.last += 1
-      repeat
-      ai.last -= 1
-      if ai.last < ai.first then ai.last = ai.first
-   end
-   ai.off = 0                                              ;* the number of characters before the window in the whole text (a line feed after each line)
-   for ai.q = 1 to ai.first - 1
-      ai.off += len(ai.lines<ai.q>) + 1
-   next ai.q
-   ai.win = ''
-   for ai.q = ai.first to ai.last
-      ai.win := (if ai.q = ai.first then '' else char(10)) : ai.lines<ai.q>
-   next ai.q
-   ai.win = convert(@vm : @sm : @tm, '???', ai.win)       ;* a mark in a line is shown to the model (and offered to nobody) as ?, one for one
-   ai.win = ai.win[1, 24000]
-   page = 'This is the IDE of SD Core, an editor for SD BASIC programs and other records.'
+   * the window: the whole record when it fits in 24000 bytes, else lines round the cursor (the library's, shared with the other editors)
+   call $tk_ai('window', ai.lines, ai.cy, ai.wspec)
+   ai.first = ai.wspec<1>
+   ai.last = ai.wspec<2>
+   ai.win = ai.wspec<4>
+   page ='This is the IDE of SD Core, an editor for SD BASIC programs and other records.'
    page<1, -1> = 'File ' : bn<cb> : ', record ' : bi<cb> : '.'
    page<1, -1> = 'The cursor is on line ' : ai.cy : ' of ' : ai.total : '.'
    if ai.note # '' then page<1, -1> = ai.note
@@ -1445,26 +1405,15 @@ ai.apply:
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    ai.now = change(mw{'value'}, @fm, char(10))
-   ai.n = dcount(res<2>, @vm)
-   ai.fits = (ai.n > 0)
-   for ai.k = 1 to ai.n
-      ai.p = res<2, ai.k, 1> + 0
-      ai.l = res<2, ai.k, 2> + 0
-      if ai.now[ai.off + ai.p, ai.l] # ai.win[ai.p, ai.l] then ai.fits = 0
-   next ai.k
-   if not(ai.fits) then
+   ai.wspec<5> = res<2>
+   call $tk_ai('splice', ai.now, ai.wspec, ai.sp)          ;* the library checks that the buffer still holds, at each place, what the model was shown
+   if ai.sp = '' then
       msg = sysmsg(11666)
       return
    end
-   ai.new = ai.now
-   for ai.k = ai.n to 1 step -1
-      ai.p = res<2, ai.k, 1> + 0
-      ai.l = res<2, ai.k, 2> + 0
-      ai.new = ai.new[1, ai.off + ai.p - 1] : res<2, ai.k, 3> : ai.new[ai.off + ai.p + ai.l, 99999999]
-   next ai.k
-   ai.p1 = res<2, 1, 1> + 0
-   ai.line1 = 1
-   if ai.off + ai.p1 > 1 then ai.line1 = count(ai.now[1, ai.off + ai.p1 - 1], char(10)) + 1
+   ai.new = ai.sp<1>
+   ai.line1 = ai.sp<2>
+   ai.n = ai.sp<3>
    * the memo's own undo stack: the old text and cursor go on the front, as its snap.make has them, and redo is forgotten
    ai.snap = mw{'cy'} : @tm : mw{'cx'} : @tm : convert(@fm, @vm, mw{'value'})
    mw{'undo'} = ai.snap : @fm : mw{'undo'}

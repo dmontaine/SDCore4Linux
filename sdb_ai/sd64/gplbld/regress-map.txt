@@ -302,12 +302,17 @@ sdsys/voc_template/tool.keys : tk-keys
 # S.75 H1 and H2 (22 Oct 26): the home screen, where an account starts (!home_entry, called by cproc), EXIT and SET.START.DEFAULT
 sdsys/gpl.bp/tool_home       : home ai-line
 # AI line stage 1 (23 Oct 26): the toolkit's AI line ($tk_ai) on the home screen, its messages and the fake model's JSON replies
-sdsys/gpl.bp/tk_ai           : ai-line home ai-ide
+sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps
 gplbld/sandbox-ai-line.py    : @self
 # AI line stage 2 (23 Oct 26): the AI line in the IDE, edits as diffs ($tk_ai edits, the IDE's AI entry and menu, sl_form's activating entry)
 gplbld/sandbox-ai-ide.py     : @self
 sdsys/messages/1165[3-9]     : ai-ide
 sdsys/messages/1166[0-9]     : ai-ide
+# AI line stage 3 (24 Oct 26): SED, CED and the debugger
+gplbld/sandbox-ai-apps.py    : @self
+sdsys/messages/1167[0-9]     : ai-apps
+sdsys/messages/1168[01]      : ai-apps
+sdsys/messages/11136         : ced ai-apps
 sdsys/messages/1163[5-9]     : ai-line
 sdsys/messages/1164[0-9]     : ai-line
 sdsys/messages/1165[0-2]     : ai-line
@@ -350,7 +355,7 @@ sdsys/voc_template/set.start.default : home
 gplbld/sd-ai                 : aigate ai-verb ai-line
 gplbld/sd-ai-ctl             : aigate
 gplbld/ai-runner.py          : aigate ai-verb ai-line
-gplbld/fakemodel.py          : aigate ai-verb ai-line ai-ide
+gplbld/fakemodel.py          : aigate ai-verb ai-line ai-ide ai-apps
 gplbld/ai-providers          : aigate ai-verb ai-line
 gplbld/sandbox-aigate.py     : @self ai-verb
 gplbld/sandbox-ai-verb.py    : @self
@@ -378,9 +383,9 @@ sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedra
 sdsys/gpl.bp/sl_pickwin      : tk-base
 sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide
 sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide
-sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys
+sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps
 sdsys/gpl.bp/ide             : ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide
-sdsys/gpl.bp/ced*            : ced editgates shared ide-small
+sdsys/gpl.bp/ced*            : ced editgates shared ide-small ai-apps
 # 19 Oct 26: ed selects eofkeys too (ED's command prompt, record-name prompt, list of ids and the LOAD / UNLOAD line-number prompts end when piped input ends)
 sdsys/gpl.bp/ed              : @editors edext editgates eofkeys masters
 sdsys/gpl.bp/edit            : @editors editgates
@@ -395,7 +400,7 @@ sdsys/gpl.bp/restorea        : editgates net shared masters @system
 sdsys/gpl.bp/seqkey          : edseqkey fcontrol
 sdsys/gpl.bp/settrig         : file-a8 dirtrig
 sdsys/gpl.bp/listtrg         : file-a8 dirtrig
-sdsys/gpl.bp/debug           : @debugger ide-small
+sdsys/gpl.bp/debug           : @debugger ide-small ai-apps
 sdsys/gpl.bp/debug.h         : @debugger ide-small
 sdsys/gpl.bp/pdbg            : @debugger sysexc
 sdsys/gpl.bp/pdebug          : @debugger

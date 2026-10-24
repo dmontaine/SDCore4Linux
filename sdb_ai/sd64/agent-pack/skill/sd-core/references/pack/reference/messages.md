@@ -2414,10 +2414,10 @@ Value
 cited by: `ced_edit`
 
 ### msg:11136
-> kind=message tier=reference since=- src=sdsys/messages/11136:1#08c4956b
+> kind=message tier=reference since=- src=sdsys/messages/11136:1#c6cd9815
 
 ```
-Collection editor\n\nCursor up/down   Select the previous/next element\nPage up/down     Previous/next page\nReturn           Dive into a collection or array; change a value\nEsc              Back to the parent element\nF3               Rename the selected element\nF4               Change its data type\nF5 or Ctrl-C     Copy the selected element\nF6 or Ctrl-X     Cut the selected element\nF7 or Ctrl-V     Paste what was copied or cut\nIns or Ctrl-I    Insert a new element\nDel              Delete the selected element\nCtrl-S           Save changes and carry on\nQ                Quit from the top level\nCtrl-Q           Quit from any level\nF1 or ?          This screen
+Collection editor\n\nCursor up/down   Select the previous/next element\nPage up/down     Previous/next page\nReturn           Dive into a collection or array; change a value\nEsc              Back to the parent element\nF2               The AI menu (only when the AI is on for your account)\nF3               Rename the selected element\nF4               Change its data type\nF5 or Ctrl-C     Copy the selected element\nF6 or Ctrl-X     Cut the selected element\nF7 or Ctrl-V     Paste what was copied or cut\nIns or Ctrl-I    Insert a new element\nDel              Delete the selected element\nCtrl-S           Save changes and carry on\nQ                Quit from the top level\nCtrl-Q           Quit from any level\nF1 or ?          This screen
 ```
 
 cited by: `ced_edit`
@@ -6343,7 +6343,7 @@ cited by: `tk_ai`
 AI>
 ```
 
-cited by: `ide`, `tk_ai`
+cited by: `ced_edit`, `ide`, `sed`, `tk_ai`
 
 ### msg:11637
 > kind=message tier=reference since=- src=sdsys/messages/11637:1#78c91c62
@@ -6530,7 +6530,7 @@ cited by: `ide`
 Explain the selected text: what it does, and anything wrong with it.
 ```
 
-cited by: `ide`
+cited by: `ide`, `sed`
 
 ### msg:11658
 > kind=message tier=reference since=- src=sdsys/messages/11658:1#f4d8dead
@@ -6566,7 +6566,7 @@ cited by: `tk_ai`
 The AI's change is in the editor (%1 edits): Ctrl-Z takes it back as one step, and nothing is saved until you save
 ```
 
-cited by: `ide`
+cited by: `ide`, `sed`
 
 ### msg:11662
 > kind=message tier=reference since=- src=sdsys/messages/11662:1#70311a39
@@ -6611,7 +6611,7 @@ cited by: `tk_ai`
 The text changed while the AI was answering, so its change no longer fits: nothing was applied
 ```
 
-cited by: `ide`
+cited by: `ced_edit`, `ide`, `sed`
 
 ### msg:11667
 > kind=message tier=reference since=- src=sdsys/messages/11667:1#a2451611
@@ -6620,7 +6620,7 @@ cited by: `ide`
 The text sent is the record from line %1 on, as far as it fits (%2 lines); the AI cannot see the rest
 ```
 
-cited by: `ide`
+cited by: `ced_edit`, `ide`, `sed`
 
 ### msg:11668
 > kind=message tier=reference since=- src=sdsys/messages/11668:1#209376ed
@@ -6639,6 +6639,114 @@ The selected text: %1 bytes
 ```
 
 cited by: `tk_ai`
+
+### msg:11670
+> kind=message tier=reference since=- src=sdsys/messages/11670:1#79275020
+
+```
+The AI is not available here: it is off for this account, or no provider, model and key have been set
+```
+
+cited by: `sed`
+
+### msg:11671
+> kind=message tier=reference since=- src=sdsys/messages/11671:1#473b6fec
+
+```
+Nothing is selected: set the mark (Esc .) where the text starts, move to where it ends, then ask
+```
+
+cited by: `sed`
+
+### msg:11672
+> kind=message tier=reference since=- src=sdsys/messages/11672:1#5f20f247
+
+```
+&Explain the selected element
+```
+
+cited by: `ced_edit`
+
+### msg:11673
+> kind=message tier=reference since=- src=sdsys/messages/11673:1#1d554ac0
+
+```
+&Ask the AI about this record
+```
+
+cited by: `ced_edit`
+
+### msg:11674
+> kind=message tier=reference since=- src=sdsys/messages/11674:1#c617de90
+
+```
+&Undo the AI's last change
+```
+
+cited by: `ced_edit`
+
+### msg:11675
+> kind=message tier=reference since=- src=sdsys/messages/11675:1#f5298bb2
+
+```
+Nothing to explain: the container is empty
+```
+
+cited by: `ced_edit`
+
+### msg:11676
+> kind=message tier=reference since=- src=sdsys/messages/11676:1#d2fc89c8
+
+```
+The AI's change is in the record (%1 edits): choose Undo the AI's last change on F2 to take it back; nothing is saved until you save
+```
+
+cited by: `ced_edit`
+
+### msg:11677
+> kind=message tier=reference since=- src=sdsys/messages/11677:1#01ca2000
+
+```
+The AI's change would not leave valid JSON, so it was ignored
+```
+
+cited by: `ced_edit`
+
+### msg:11678
+> kind=message tier=reference since=- src=sdsys/messages/11678:1#74e3065c
+
+```
+Explain this part of the record: what it is for, and anything that looks wrong. The part is %1
+```
+
+cited by: `ced_edit`
+
+### msg:11679
+> kind=message tier=reference since=- src=sdsys/messages/11679:1#dd642d31
+
+```
+Nothing to undo: the AI has not changed this record
+```
+
+cited by: `ced_edit`
+
+### msg:11680
+> kind=message tier=reference since=- src=sdsys/messages/11680:1#ca4d84df
+
+```
+The AI's last change is taken back
+```
+
+cited by: `ced_edit`
+
+### msg:11681
+> kind=message tier=reference since=- src=sdsys/messages/11681:1#ac36e5ce
+
+```
+Explain where this program has stopped, what the lines round the stop do, and what to look at next.
+```
+
+cited by: `debug`
 
 ### msg:11700
 > kind=message tier=reference since=- src=sdsys/messages/11700:1#1e363371

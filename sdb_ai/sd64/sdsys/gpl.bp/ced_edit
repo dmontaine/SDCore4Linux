@@ -13,6 +13,8 @@
 * 18 Oct 26 dm  S.66: the refusal text comes from !edit_msg, which also knows the shared account's two refusals (11513, 11514).
 * 17 Oct 26 dm  S.64: save.record asks the kernel (K$EDIT.OK) before it writes into a VOC, a dictionary or a program file, and says why in
 *               the message line when the session has not the gate.
+* 24 Oct 26 dm  AI line stage 3: F2, when the AI is usable for the account, opens a menu (explain the selected element, ask about the record, undo the AI's last change).  The model
+*               sees the record as indented JSON; edits it proposes are shown as a diff and, if accepted and valid JSON, replace c (marked changed; nothing is saved).
 * 12 Oct 26 dm  New.  Written from the openQM pages for CED and !CED(); the keys are theirs, the
 *               layout and the messages are SD's own.
 * 13 Oct 26 dm  On the screen library (owner: "use the TUI on ced and debugger"): the element list is a
@@ -95,6 +97,8 @@ $include sl.h
       return
    end
    call $sl_guardmode('CED', LAYW, LAYH)   ;* the cursor lock: the keys are not the editor's while its cursor is off the screen
+   call $tk_ai('usable', '', ai.ok, ai.pm)  ;* 24 Oct 26: F2 is the AI's key, only when the AI is usable for the account
+   ai.undo = ''                             ;* the record as it was before the AI's last change (one level)
 
    gosub read.layout
    gosub size.screen
@@ -362,6 +366,8 @@ handle.key:
          gosub go.up
       case c.key = 'f1' or c.key = '?'
          gosub show.help
+      case c.key = 'f2' and ai.ok
+         gosub ai.menu
       case c.key = 'f3'
          gosub rename.element
       case c.key = 'f4'
@@ -891,6 +897,191 @@ save.record:
       message.text = sysmsg(11152)
    end else
       message.text = sysmsg(11153, save.status)
+   end
+   return
+
+* ======================================================================
+* THE AI (AI line stage 3, 24 Oct 26).  F2, when the AI is usable for the account, opens a menu: explain the selected element, ask about the record, undo the AI's last change.
+* Nothing is sent until the person has seen EVERYTHING that is sent and chosen Send ($tk_ai 'ask').  The text the model sees is the record as indented JSON, one element to a line;
+* edits it proposes are edits of that text, shown as a diff, and an accepted set must make valid JSON again, else it is ignored.  Accept changes c (and marks it changed) and nothing
+* is saved: Ctrl-S, the quit question and the edit gates are as ever.  A command in the answer is ignored.
+
+ai.menu:
+   items = sysmsg(11672) : @vm : sysmsg(11673) : @vm : sysmsg(11674)
+   code = 0
+   screen menu items returning code else code = 0
+   begin case
+      case code = 1
+         gosub ai.explain
+      case code = 2
+         gosub ai.ask
+      case code = 3
+         gosub ai.undo.run
+   end case
+   return
+
+ai.explain:
+   if count = 0 then
+      message.text = sysmsg(11675)
+      return
+   end
+   i = sel
+   gosub element.info
+   if not(addr.ok) then
+      message.text = sysmsg(11156)
+      return
+   end
+   ai.where = '/' : change(path, @fm, '/') : (if path = '' then '' else '/') : nm
+   if et = 'collection' or et = 'array' then
+      pj.in = jbuild(cur{nm})
+      gosub pretty
+      ai.sel = pj.out
+   end else
+      x = cur{nm}
+      ai.sel = (if et = 'boolean' then (if x then 'true' else 'false') else (if et = 'null' then 'null' else x))
+   end
+   ai.req = sysmsg(11678, ai.where)
+   ai.note = 'The selected element is ' : ai.where : ' (' : et : ').'
+   gosub ai.go
+   return
+
+ai.ask:
+   pl.label = sysmsg(11636)
+   pl.text = ''
+   gosub prompt.line
+   if pl.key = 'esc' or trim(pl.text) = '' then return
+   ai.req = trim(pl.text)
+   ai.sel = ''
+   ai.note = ''
+   gosub ai.go
+   return
+
+* The record as indented text (pj.in compact JSON in, pj.out out): a line feed and two blanks a level after { [ and a comma, before } ], a blank after a colon.  Strings are left alone.
+pretty:
+   pj.out = ''
+   pj.ind = 0
+   pj.str = 0
+   pj.esc = 0
+   pj.skip = 0
+   pj.n = len(pj.in)
+   for pj.i = 1 to pj.n
+      if pj.skip then
+         pj.skip = 0
+      end else
+         pj.ch = pj.in[pj.i, 1]
+         pj.nx = pj.in[pj.i + 1, 1]
+         begin case
+            case pj.str
+               pj.out := pj.ch
+               begin case
+                  case pj.esc
+                     pj.esc = 0
+                  case pj.ch = '\'
+                     pj.esc = 1
+                  case pj.ch = '"'
+                     pj.str = 0
+               end case
+            case pj.ch = '"'
+               pj.str = 1
+               pj.out := pj.ch
+            case (pj.ch = '{' and pj.nx = '}') or (pj.ch = '[' and pj.nx = ']')
+               pj.out := pj.ch : pj.nx                            ;* an empty container stays on its line
+               pj.skip = 1
+            case pj.ch = '{' or pj.ch = '['
+               pj.ind += 1
+               pj.out := pj.ch : char(10) : space(pj.ind * 2)
+            case pj.ch = '}' or pj.ch = ']'
+               pj.ind -= 1
+               pj.out := char(10) : space(pj.ind * 2) : pj.ch
+            case pj.ch = ','
+               pj.out := ',' : char(10) : space(pj.ind * 2)
+            case pj.ch = ':'
+               pj.out := ': '
+            case 1
+               pj.out := pj.ch
+         end case
+      end
+   next pj.i
+   return
+
+* In: ai.req, ai.note, ai.sel (the selected element's text, or null).  The text is the whole record; the model is told which element is selected in ai.note.
+ai.go:
+   pj.in = jbuild(c)
+   gosub pretty
+   ai.text = pj.out
+   ai.lines = change(ai.text, char(10), @fm)
+   ai.total = dcount(ai.lines, @fm)
+   call $tk_ai('window', ai.lines, 1, ai.wspec)
+   ai.first = ai.wspec<1>
+   ai.last = ai.wspec<2>
+   ai.page = 'This is CED, the collection editor: the record is JSON, shown here as indented text.'
+   ai.page<1, -1> = 'File ' : title : '.'
+   ai.page<1, -1> = 'The cursor is on the container /' : change(path, @fm, '/') : '.'
+   if ai.note # '' then ai.page<1, -1> = ai.note
+   if ai.first > 1 or ai.last < ai.total then ai.page<1, -1> = sysmsg(11667, ai.first, ai.last - ai.first + 1)
+   ai.actx = 'CED' : @fm : 'ced' : @fm : ai.page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : msg.row : @fm : ai.wspec<4> : @fm : ai.first : @fm : ai.sel : @fm : 'nocmd'
+   ai.ctx = ''
+   ai.ctx<1> = w                                           ;* TK.C.W
+   ai.res = ''
+   call $tk_ai('ask', ai.ctx, ai.actx, ai.res)
+   if ai.res<1> = 'edit' then
+      gosub ai.apply
+   end else
+      if ai.res<5> # '' then message.text = ai.res<5>
+   end
+   return
+
+* The accepted edits go into c if the record is still, at each place, what the model was shown and the result is JSON.  One level of undo is kept.
+ai.apply:
+   pj.in = jbuild(c)
+   gosub pretty
+   ai.wspec<5> = ai.res<2>
+   call $tk_ai('splice', pj.out, ai.wspec, ai.sp)
+   if ai.sp = '' then
+      message.text = sysmsg(11666)
+      return
+   end
+   ai.y = jparse(ai.sp<1>)
+   ai.bad = (status() # 0)
+   if not(ai.bad) then
+      ai.k = jtype(ai.y)
+      if ai.k # 'collection' and ai.k # 'array' then ai.bad = @true
+   end
+   if ai.bad then
+      message.text = sysmsg(11677)
+      return
+   end
+   ai.undo = jbuild(c)
+   c = ai.y
+   dirty = @true
+   path = ''                                               ;* the container the person was in may not be there any more: back to the top
+   hist.sel = ''
+   hist.top = ''
+   sel = 1
+   top = 1
+   gosub resolve
+   gosub build.list
+   message.text = sysmsg(11676, ai.sp<3>)
+   return
+
+ai.undo.run:
+   if ai.undo = '' then
+      message.text = sysmsg(11679)
+      return
+   end
+   ai.y = jparse(ai.undo)
+   if status() = 0 then
+      c = ai.y
+      ai.undo = ''
+      dirty = (jbuild(c) # saved.text)
+      path = ''
+      hist.sel = ''
+      hist.top = ''
+      sel = 1
+      top = 1
+      gosub resolve
+      gosub build.list
+      message.text = sysmsg(11680)
    end
    return
 
