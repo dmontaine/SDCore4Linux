@@ -24,7 +24,7 @@ ME = subprocess.run(["id", "-un"], capture_output=True, text=True).stdout.strip(
 passed = failed = 0
 TITLES = ["Remote terminal", "API server", "Shell", "OS.EXECUTE", "Other accounts", "Save VOC", "Save programs", "Save dictionaries", "Remote files", "Read shared", "Write shared",
           "Files route", "Files write", "Files admin", "AI", "Raw sockets"]
-F5 = "\x1b[15~"
+F5 = "\x1b[[E"      # SD's own terminfo entry for xterm reads F5 as this (sandbox-home.py's key table); \x1b[15~ is ignored, which showed ssh off after a refresh (24 Oct, probed on the VM)
 
 
 def row(name, ok, detail=""):
