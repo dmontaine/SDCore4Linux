@@ -283,9 +283,10 @@ sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
 sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
-sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates
-sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates
-sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates
+sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions
+sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions
+sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions
+sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions
 # 23 Oct 26 (S.69 step 2): the AI choice page, tool.ai - its own routine for set.ai's words, the gate table (the ai gate is a row of it) and the gate reader
 sdsys/gpl.bp/tk_runx         : tk-base tool-ai
 sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
@@ -371,6 +372,11 @@ sdsys/voc_template/tool.gates : tool-gates
 gplbld/sandbox-tool-mygates.py : @self
 sdsys/gpl.bp/tool_mygates    : tool-mygates docs
 sdsys/newvoc/tool.gates      : tool-mygates docs
+# 24 Oct 26 (S.75 A4): the sessions and locks page runs the real logout, unlock and inhibit.login against live sessions; the programs behind those verbs and the lock listing select it
+gplbld/sandbox-tool-sessions.py : @self
+sdsys/gpl.bp/tool_sessions   : tool-sessions
+sdsys/voc_template/tool.sessions : tool-sessions
+sdsys/helptext/tool.sessions.* : docs tool-sessions
 gplsrc/op_ai.c               : ai-verb aigate
 sdsys/gpl.bp/ai              : ai-verb
 sdsys/voc_template/ai        : ai-verb
@@ -441,6 +447,9 @@ sdsys/gpl.bp/_dellist        : @lists
 sdsys/gpl.bp/_savelst        : @lists
 sdsys/gpl.bp/keyring_*       : crypt
 sdsys/gpl.bp/encryptkey      : crypt
+# 24 Oct 26 (S.75 A4): the lock listing and unlock are what the sessions page fronts; these two sit before *list* so that the page's suite is selected
+sdsys/gpl.bp/listrdu         : tool-sessions listu-a5 lock-b6
+sdsys/gpl.bp/unlock          : tool-sessions lock-b6
 sdsys/gpl.bp/*list*          : @lists
 sdsys/gpl.bp/*lst*           : @lists
 sdsys/gpl.bp/selec*          : @lists
@@ -463,18 +472,18 @@ sdsys/gpl.bp/upgrade_masters : masters
 sdsys/gpl.bp/upgrade_*       : upgradenocase nocase gates editgates
 sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16 cll stacked lockown
 sdsys/gpl.bp/_option         : option-a4 option-q17 mode-q16
-sdsys/gpl.bp/listu           : listu-a5
-sdsys/gpl.bp/_listu          : listu-a5
+sdsys/gpl.bp/listu           : listu-a5 tool-sessions
+sdsys/gpl.bp/_listu          : listu-a5 tool-sessions
 sdsys/gpl.bp/pstat           : listu-a5
 sdsys/gpl.bp/hsm             : listu-a5
 sdsys/gpl.bp/profiler        : prof
 sdsys/gpl.bp/locktracer      : q5
-sdsys/gpl.bp/inhibit         : inhibit-q8
-sdsys/gpl.bp/login_inhibit   : inhibit-q8
+sdsys/gpl.bp/inhibit         : inhibit-q8 tool-sessions
+sdsys/gpl.bp/login_inhibit   : inhibit-q8 tool-sessions
 sdsys/gpl.bp/login           : @system sdaccts editgates net shared winsize
 sdsys/gpl.bp/term            : @core winsize
 sdsys/gpl.bp/classmain       : classinit
-sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile shared home
+sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile shared home tool-sessions
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29 apispin fileadmin netindex
 sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient

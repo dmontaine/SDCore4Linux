@@ -558,6 +558,25 @@ def main():
         h.key("esc", idle=0.8)
         h.key("ctrl-q", idle=1.5)
         h.end()
+        # ----------------------------------------------------------------------------------------------- tool.sessions (24 Oct 26, S.75 A4): only its help is the docs suite's; the page is sandbox-tool-sessions.py's
+        say("\n--- tool.sessions: the sessions and locks page's help")
+        h = open_page("tool.sessions")
+        T = h.text()
+        if "The row under the cursor" not in T:
+            dump(h)
+            bail("tool.sessions never drew its page, so no row below can be believed")
+        row("a [?] at the end of the first box", h.line(2)[134:137] == "[?]", repr(h.line(2)[130:139]))
+        h.click(135, 2, idle=1.4)
+        T = re.sub(r"[|\s]+", " ", h.text())
+        words = ("logout", "unlock", "inhibit.login", "Cancel", "audit")         # single words: the box wraps its text
+        row("a click on the [?] shows the record of tool.sessions.page: its title and words of its three paragraphs", "Sessions and locks" in T and all(w in T for w in words) and "Help is not installed" not in T, T[-700:])
+        h.key("esc", idle=0.8)
+        h.key("f1", idle=1.4)
+        T = re.sub(r"[|\s]+", " ", h.text())
+        row("F1 shows the same record", "Sessions and locks" in T and all(w in T for w in words), T[-700:])
+        h.key("esc", idle=0.8)
+        h.key("ctrl-q", idle=1.5)
+        h.end()
         # the same verb in an ORDINARY account is the holder's read-only page (sandbox-tool-mygates.py's); its help is this suite's
         h = H("zzhd")
         h.typed("tool.gates\r", idle=3.5)

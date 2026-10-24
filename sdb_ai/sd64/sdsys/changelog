@@ -1,6 +1,30 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  THE ADMINISTRATOR HAS A SESSIONS AND LOCKS PAGE: TOOL.SESSIONS SHOWS WHO IS SIGNED ON AND WHAT IS LOCKED, AND LOGS A SESSION OUT, RELEASES A LOCK OR STOPS NEW
+           LOGINS THROUGH THE VERBS THAT ALREADY DO IT.
+
+             What        tool.sessions (SDSYS's VOC only; a full-screen page, 140 by 43 or more) lists every session - user number,
+                         process, when it signed on, its kind (user, phantom, API or SDNet), the login user, the account, where it
+                         came from, and whether it is yours or a logout is pending - and below it every lock: the user, the file,
+                         the type (a whole-file lock, read-and-update, read, or a session WAITING for a lock), the record id, since
+                         when, and whether a session with that user number is still signed on. Both lists are read again every
+                         three seconds without a key and on F5, and the cursor stays on the same user or lock, not the same row. A
+                         box explains the row under the cursor and shows the exact command its key would run. L logs the selected
+                         session out (the user number is typed again to confirm), U releases the selected lock, I stops or allows
+                         new sessions; each shows its command and what it does in a box answered Run or Cancel (Cancel is what Enter
+                         chooses) and runs the real logout, unlock or inhibit.login verb. The page offers L for any session but the
+                         one it runs in, and for a session whose process is gone L is the cure: the entry is cleared and every lock it
+                         held is released (the kernel does this before it signals anything). U refuses a waiting row, and a record id
+                         that has a character the page will not put in a command or is a word unlock reads as a keyword.
+             Why it      Ending a session and releasing a lock were three verbs and a listing to read by eye, with the user number
+             matters     copied between them. Logout and unlock write no audit line of their own, so ending someone's session or
+                         freeing their lock left no trace; the page writes one line for every command it ran (tool run
+                         app=tool.sessions command=... status=...), as well as the line that says it was started.
+             Does not    Change anything by itself, run any other command, or send a message to a user (not built). An ordinary
+                         account has no such page. The logout and unlock verbs still write no audit line when typed at the prompt:
+                         that is not changed here.
+
 24 Oct 26  AN UPGRADE THAT KEEPS THE ACCOUNTS NO LONGER SWITCHES THE SHELL AND OS.EXECUTE BACK ON FOR AN ACCOUNT THAT HAD THEM OFF.
 
              What        The installer's upgrade step for the two OS-access gates (upgrade_gates) now fills only a setting that is
