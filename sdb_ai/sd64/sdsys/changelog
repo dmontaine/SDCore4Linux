@@ -1,6 +1,34 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  THE ADMINISTRATOR HAS A GATE MATRIX: TOOL.GATES SHOWS EVERY ACCOUNT AGAINST EVERY PER-ACCOUNT GATE AND CHANGES THEM
+           THROUGH MODIFY.ACCOUNT, NEVER BY ITSELF.
+
+             What        tool.gates (SDSYS's VOC only; a full-screen page, 140 by 43 or more) has one row for each
+                         registered account but SDSYS and one column for each gate - ssh, api, sh, os, sd, voc, bp, dict,
+                         net, shared-read, shared-write, files, files-write, files-admin, ai and (planned) sockets - each cell
+                         ON, off, a dash where the gate does not apply to a group or other account, or plan. A box says what
+                         the gate under the cursor is: its words, what ON allows, what OFF still allows, when a change reaches
+                         the person, whether it reaches beyond SD and what it is as delivered. Enter queues the opposite
+                         state for a cell (a star), R runs the queued changes of that account as ONE modify.account command
+                         shown with its effect and answered Run or Cancel, U drops them, T queues OFF for every gate that is
+                         off as delivered and on now, F chooses which accounts are shown, F5 reads the machine again. Turning
+                         ON a gate that is off as delivered says so and says that leaving it off is the tighter choice;
+                         turning ON one that reaches beyond SD asks for the account's name to be typed. ssh and api are one
+                         setting in the verb, so the page sends the one word that gives the pair you queued (ssh, api, both
+                         or none); files-write needs files and files-admin needs files-write, and a queue that breaks that is
+                         refused before the box opens. Other boxes list the accounts that have a gate on that reaches beyond
+                         SD and the live sessions of the account under the cursor.
+             Why it      Which account can reach the operating system, the network or other servers was a question for
+             matters     several commands; now it is one screen, and a change is the verb's own change with the verb's own
+                         audit line, not a second way to write the register.
+             Does not    Queue everything ON (there is no such key, and the installer's single question stays its own), turn
+                         a gate on for a running session (a change reaches the person at the next sign-on, account entry,
+                         login or request), or change sh or os for a group or other account (the verb refuses it in both
+                         directions and the page says so). The home screen's settings (pins-on, the start words) are not
+                         gates and stay on tool.menus. The route gates (ssh, api, files, ai) change Linux
+                         groups through sd-elevate, which a sandbox replaces with a stand-in: NOT SHOWN on a real install.
+
 24 Oct 26  SED, CED AND THE DEBUGGER CAN BE ASKED ABOUT WHAT YOU ARE LOOKING AT WHEN THE AI IS ON FOR THE ACCOUNT, WITH THE SAME PREVIEW OF EVERYTHING THAT IS SENT. WITHOUT THE AI
            NOTHING IN THEM CHANGES.
 

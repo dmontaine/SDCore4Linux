@@ -12,9 +12,9 @@ Every ordinary account's VOC is `newvoc` in full (`create.account` copies it; `u
 ### voc:layer:voc_template
 > kind=voc.layer tier=reference since=- src=sdsys/voc_template/!:1#c9ee5681
 
-520 records in `sdsys/voc_template`, by the type letter of field 1: F 15, K 273, PA 5, PH 2, Q 2, R 10, S 2, V 210, X 1.
+521 records in `sdsys/voc_template`, by the type letter of field 1: F 15, K 273, PA 5, PH 2, Q 2, R 10, S 2, V 211, X 1.
 
-SDSYS's own VOC is `voc_template` in full: a superset of `newvoc`. The records only SDSYS has (48): `$hold`, `accounts`, `backup.account`, `bp`, `bp.out`, `check.masters`, `clean.account`, `clear.locks`, `config`, `create.account`, `delete.account`, `delete.server`, `docs.install`, `first.compile`, `gpl.bp`, `gpl.bp.out`, `inhibit.login`, `list.locks`, `list.master.pending`, `list.readu`, `list.servers`, `list.shared`, `listu`, `load.help`, `lock`, `lock.tracer`, `messages`, `modify.account`, `qfile`, `remote.api`, `remote.ssh`, `restore.account`, `second.compile`, `set.ai`, `set.backup.directory`, `set.date`, `set.server`, `set.start.default`, `set.tile`, `set.viewer`, `settings.report`, `sync.masters`, `third.compile`, `tool.ai`, `tool.menus`, `tool.viewers`, `unlock`, `update.accounts`.
+SDSYS's own VOC is `voc_template` in full: a superset of `newvoc`. The records only SDSYS has (49): `$hold`, `accounts`, `backup.account`, `bp`, `bp.out`, `check.masters`, `clean.account`, `clear.locks`, `config`, `create.account`, `delete.account`, `delete.server`, `docs.install`, `first.compile`, `gpl.bp`, `gpl.bp.out`, `inhibit.login`, `list.locks`, `list.master.pending`, `list.readu`, `list.servers`, `list.shared`, `listu`, `load.help`, `lock`, `lock.tracer`, `messages`, `modify.account`, `qfile`, `remote.api`, `remote.ssh`, `restore.account`, `second.compile`, `set.ai`, `set.backup.directory`, `set.date`, `set.server`, `set.start.default`, `set.tile`, `set.viewer`, `settings.report`, `sync.masters`, `third.compile`, `tool.ai`, `tool.gates`, `tool.menus`, `tool.viewers`, `unlock`, `update.accounts`.
 
 ### voc:type:F
 > kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:83#98baf5a6

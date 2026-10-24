@@ -28952,6 +28952,13 @@
 "tier": "reference",
 "words": 55
 },
+"tcl:tool.gates": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 49
+},
 "tcl:tool.keys": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -29433,7 +29440,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 94
+"words": 95
 },
 "voc:type:F": {
 "kind": "voc.type",

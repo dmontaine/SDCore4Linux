@@ -721,7 +721,7 @@ Account word `pins-off`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> pins-off`
 - turns the `pins-` gate OFF for the account
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 1069
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 968
 
 ### sys:word:pins-on
 > kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:562#ffefe965
@@ -730,7 +730,7 @@ Account word `pins-on`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> pins-on`
 - turns the `pins` gate ON for the account; the delivered default is OFF (high security is delivered, the administrator loosens it)
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 1019
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 968
 
 ### sys:word:sd-off
 > kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:562#ffefe965
@@ -822,7 +822,7 @@ Account word `ssh`
 Account word `start-default`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> start-default`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 981
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1044
 
 ### sys:word:start-menu
 > kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:562#ffefe965
@@ -830,7 +830,7 @@ Account word `start-default`
 Account word `start-menu`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> start-menu`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 981
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1044
 
 ### sys:word:start-terminal
 > kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:562#ffefe965
@@ -838,7 +838,7 @@ Account word `start-menu`
 Account word `start-terminal`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> start-terminal`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 981
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1044
 
 ### sys:word:suspended
 > kind=sys.word tier=reference since=L1.1-0 src=sdsys/gpl.bp/modifya:562#ffefe965
@@ -846,7 +846,7 @@ Account word `start-terminal`
 Account word `suspended`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> suspended`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 1075
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1138
 
 ### sys:word:unsuspended
 > kind=sys.word tier=reference since=L1.1-0 src=sdsys/gpl.bp/modifya:562#ffefe965
@@ -854,7 +854,7 @@ Account word `suspended`
 Account word `unsuspended`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> unsuspended`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 1075
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1138
 
 ### sys:word:voc-off
 > kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:562#ffefe965

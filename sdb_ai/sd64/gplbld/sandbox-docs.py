@@ -539,6 +539,28 @@ def main():
         h.key("ctrl-q", idle=1.5)
         h.end()
 
+        # ----------------------------------------------------------------------------------------------- tool.gates (24 Oct 26, S.75 A2): only its help is the docs suite's; the page is sandbox-tool-gates.py's
+        say("\n--- tool.gates: the gate matrix's help")
+        out = g.plain("zzhd", ["tool.gates"])
+        row("an ordinary account cannot reach it: tool.gates is in SDSYS's VOC only", has(out, r"not in your VOC"), repr(out[:3]))
+        h = open_page("tool.gates")
+        T = h.text()
+        if "Gates by account" not in T:
+            dump(h)
+            bail("tool.gates never drew its page, so no row below can be believed")
+        row("a [?] at the end of the matrix box", h.line(2)[134:137] == "[?]", repr(h.line(2)[130:139]))
+        h.click(135, 2, idle=1.4)
+        T = re.sub(r"[|\s]+", " ", h.text())                     # the box wraps its text and draws its border between the lines
+        words = ("queues", "everything", "modify.account", "Cancel", "files-write")          # single words: the box wraps its text, and a phrase cut at a line end has the rest of that screen row between its halves
+        row("a click on the [?] shows the record of tool.gates.matrix: its title and words of its three paragraphs", "The gate matrix" in T and all(w in T for w in words), T[-700:])
+        h.key("esc", idle=0.8)
+        h.key("f1", idle=1.4)
+        T = re.sub(r"[|\s]+", " ", h.text())
+        row("F1 shows the same record", "The gate matrix" in T and all(w in T for w in words), T[-700:])
+        h.key("esc", idle=0.8)
+        h.key("ctrl-q", idle=1.5)
+        h.end()
+
         # -------------------------------------------------------------------------------------- menu, and the tiles
         say("\n--- menu and the home screen's tiles")
         h = H("zzhd")
