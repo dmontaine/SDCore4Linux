@@ -561,7 +561,7 @@ def section_s7(p):
     p.focus("Sessions")
     p.key("i", 1.5)
     T = norm(p.text())
-    arow("S7a", "I shows inhibit.login on and what it does", "inhibit.login on" in T and "No new session can sign in" in T, T[-500:])
+    arow("S7a", "I shows inhibit.login on and what it does, to the end of the second sentence (the box cuts a line at its edge: found in tool.masters, 24 Oct)", "inhibit.login on" in T and "No new session can sign in" in T and "switch it off" in T, T[-500:])
     p.key("esc", 1.2)
     arow("S7b", "Esc runs nothing: no login.inhibit file", not os.path.exists(f) and "nothing was run" in st(p.h) and "tool run" not in (audit_new(a0) or ""), repr((os.path.exists(f), st(p.h))))
     p.typed("i", idle=1.3)

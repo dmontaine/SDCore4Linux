@@ -5754,7 +5754,7 @@ cited by: `masters`
 The master files have not been set up on this system. Run sync.masters to set them up
 ```
 
-cited by: `masters`
+cited by: `masters`, `tool_masters`
 
 ### msg:11565
 > kind=message tier=reference since=- src=sdsys/messages/11565:1#65fa1b6c
@@ -5790,7 +5790,7 @@ cited by: `masters`
 Every master copy matches its account
 ```
 
-cited by: `masters`
+cited by: `masters`, `tool_masters`
 
 ### msg:11569
 > kind=message tier=reference since=- src=sdsys/messages/11569:1#c6688665
@@ -5799,7 +5799,7 @@ cited by: `masters`
 Checked %1 account(s): %2 difference(s)
 ```
 
-cited by: `masters`
+cited by: `masters`, `tool_masters`
 
 ### msg:11570
 > kind=message tier=reference since=- src=sdsys/messages/11570:1#6782850d
@@ -5817,7 +5817,7 @@ cited by: `masters`
 The journal holds %1 byte(s) and %2 line(s) that have not been applied
 ```
 
-cited by: `masters`
+cited by: `masters`, `tool_masters`
 
 ### msg:11572
 > kind=message tier=reference since=- src=sdsys/messages/11572:1#8cd65443
@@ -5826,7 +5826,7 @@ cited by: `masters`
 Stale: %1 journal write(s) have failed since SD started, so a master copy may be out of date. Run sync.masters with no account
 ```
 
-cited by: `masters`
+cited by: `masters`, `tool_masters`
 
 ### msg:11573
 > kind=message tier=reference since=- src=sdsys/messages/11573:1#f03be926
@@ -5835,7 +5835,7 @@ cited by: `masters`
 Resync needed: the journal reached its size limit and %1 line(s) were dropped. Run sync.masters with no account
 ```
 
-cited by: `masters`
+cited by: `masters`, `tool_masters`
 
 ### msg:11574
 > kind=message tier=reference since=- src=sdsys/messages/11574:1#6f5d64ca
@@ -5844,7 +5844,7 @@ cited by: `masters`
 Nothing is waiting in the journal
 ```
 
-cited by: `masters`
+cited by: `masters`, `tool_masters`
 
 ### msg:11575
 > kind=message tier=reference since=- src=sdsys/messages/11575:1#7a6d50e9
@@ -5996,7 +5996,7 @@ cited by: `masters`
 The last save of a master record in this session was refused: %1
 ```
 
-cited by: `masters`
+cited by: `masters`, `tool_masters`
 
 ### msg:11595
 > kind=message tier=reference since=- src=sdsys/messages/11595:1#796a5ab9

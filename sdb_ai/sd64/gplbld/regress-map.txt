@@ -91,7 +91,7 @@ gplbld/*                     : @core
 # and edit_guard (the remote branch) select the netfile suite too, as netfiles.c, op_dio3.c, op_lock.c, op_dio2.c, sd.h and descr.h already do.
 gplsrc/netfiles.c            : netfile
 # S.67 stage 1 (19 Oct 26): the master files.  masters.c is theirs; the DH layer's write, delete, clear and create, OSPATH and OSRENAME, open_file and K_MASTERS call it.
-gplsrc/masters.c             : masters @files
+gplsrc/masters.c             : masters tool-masters @files
 gplsrc/op_dio4.c             : @lists fixes-b12 netfile
 gplsrc/op_dio3.c             : @files @seq prof lockown editgates netfile shared masters
 gplsrc/op_dio2.c             : @files fixes-b12 sys-b2 netfile shared masters
@@ -283,10 +283,10 @@ sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
 sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
-sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions
-sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions
-sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions
-sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions
+sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters
+sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters
+sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-masters
+sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-masters
 # 23 Oct 26 (S.69 step 2): the AI choice page, tool.ai - its own routine for set.ai's words, the gate table (the ai gate is a row of it) and the gate reader
 sdsys/gpl.bp/tk_runx         : tk-base tool-ai
 sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
@@ -377,6 +377,11 @@ gplbld/sandbox-tool-sessions.py : @self
 sdsys/gpl.bp/tool_sessions   : tool-sessions
 sdsys/voc_template/tool.sessions : tool-sessions
 sdsys/helptext/tool.sessions.* : docs tool-sessions
+# 24 Oct 26 (S.75 A7): the master files page runs the real sync.masters and reads the kernel's master-file operations; the verbs' program and the set-up select it too
+gplbld/sandbox-tool-masters.py : @self
+sdsys/gpl.bp/tool_masters    : tool-masters
+sdsys/voc_template/tool.masters : tool-masters
+sdsys/helptext/tool.masters.* : docs tool-masters
 gplsrc/op_ai.c               : ai-verb aigate
 sdsys/gpl.bp/ai              : ai-verb
 sdsys/voc_template/ai        : ai-verb
@@ -519,8 +524,8 @@ sdsys/gpl.bp/edit_msg        : shared editgates
 sdsys/gpl.bp/listshared      : shared
 sdsys/gpl.bp/delacc          : shared gates masters @system
 sdsys/gpl.bp/create_account  : masters gates editgates shared @core
-sdsys/gpl.bp/masters         : masters
-sdsys/gpl.bp/masters_setup   : masters
+sdsys/gpl.bp/masters         : masters tool-masters
+sdsys/gpl.bp/masters_setup   : masters tool-masters
 sdsys/gpl.bp/spview          : shared editgates @core
 sdsys/gpl.bp/*               : @core
 

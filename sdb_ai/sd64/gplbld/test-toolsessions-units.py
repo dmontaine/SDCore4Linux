@@ -141,6 +141,10 @@ def checks(raw):
     ck("SS16", "every command the page ran is audited, once, after $tk_run answered without an error: audit.run writes 'tool run app=tool.sessions command=' + the sentence + the status, and it is called in the else branch of each run, before the status line is made",
        "void kernel(K$AUDIT, 'tool run app=tool.sessions command=' : sent : ' status=' : stat)" in ar and pg.count("gosub audit.run") == 3
        and len(re.findall(r"if err # '' then\s*\n\s*msg = err\s*\n\s*end else\s*\n\s*gosub audit\.run\s*\n\s*gosub first\.line", pg)) == 3)
+    we = block(pg, "wrap.el")
+    ck("SS17", "the explanation lines are wrapped to 120 before they go into the confirm box, which CUTS a line at its edge: wrap.el is called directly before each of the three $tk_confirm calls, and wraps every line of el with $tk_wrap",
+       len(re.findall(r"gosub wrap\.el\s*\n\s*call \$tk_confirm\(sent, el, (?:typed|notyped), res, cmsg\)", pg)) == 3 and pg.count("call $tk_confirm(") == 3
+       and "call $tk_wrap(el<wi>, 120, pieces)" in we and "for wi = 1 to dcount(el, @fm)" in we and "el = wrapped" in we)
     return rows
 
 
@@ -200,6 +204,8 @@ MUTANTS = [
     ("a lock row is drawn on the border", "SS13", sub("page", "   screen text s at 3,28 attr 'bold' width 134", "   screen text s at 3,29 attr 'bold' width 134")),
     ("API before SDNet", "SS14", sub("page", "      case bitand(flg, USR$SDNET)\n         kind = 'sdnet'\n      case bitand(flg, USR$SDVBSRVR)\n         kind = 'api'", "      case bitand(flg, USR$SDVBSRVR)\n         kind = 'api'\n      case bitand(flg, USR$SDNET)\n         kind = 'sdnet'")),
     ("every holder is signed on", "SS15", sub("page", "   holder = 'no session'\n", "   holder = 'signed on'\n")),
+    ("the inhibit box is given its lines unwrapped", "SS17", sub("page", "   gosub wrap.el\n   call $tk_confirm(sent, el, notyped, res, cmsg)\n   if res = 'run' then\n      call $tk_run(allow, sent, out, stat, err)\n      if err # '' then\n         msg = err\n      end else\n         gosub audit.run\n         gosub first.line\n         msg = (if said # '' then said[1, 130] else 'done')", "   call $tk_confirm(sent, el, notyped, res, cmsg)\n   if res = 'run' then\n      call $tk_run(allow, sent, out, stat, err)\n      if err # '' then\n         msg = err\n      end else\n         gosub audit.run\n         gosub first.line\n         msg = (if said # '' then said[1, 130] else 'done')")),
+    ("wrap.el wraps at a width the box cuts", "SS17", sub("page", "call $tk_wrap(el<wi>, 120, pieces)", "call $tk_wrap(el<wi>, 200, pieces)")),
     ("a command is run without an audit line (unlock)", "SS16", sub("page", "         gosub audit.run\n         gosub first.line\n         msg = (if said # '' then said[1, 130] else 'released')", "         gosub first.line\n         msg = (if said # '' then said[1, 130] else 'released')")),
     ("the audit line is written even when the command did not run", "SS16", sub("page", "      call $tk_run(allow, sent, out, stat, err)\n      if err # '' then\n         msg = err\n      end else\n         gosub audit.run\n         gosub first.line\n         msg = (if said # '' then said[1, 130] else 'done')", "      call $tk_run(allow, sent, out, stat, err)\n      gosub audit.run\n      if err # '' then\n         msg = err\n      end else\n         gosub first.line\n         msg = (if said # '' then said[1, 130] else 'done')")),
     ("the audit line names the wrong thing", "SS16", sub("page", "'tool run app=tool.sessions command=' : sent : ' status=' : stat", "'tool run app=tool.sessions command=' : uid : ' status=' : stat")),

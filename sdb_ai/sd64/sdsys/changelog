@@ -1,6 +1,31 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  THE ADMINISTRATOR HAS A MASTER FILES PAGE: TOOL.MASTERS SHOWS WHETHER THEY ARE SET UP, WHAT THE JOURNAL HOLDS AND EVERY ACCOUNT AGAINST ITS MASTER COPY, AND RUNS
+           SYNC.MASTERS BEHIND TWO KEYS.
+
+             What        tool.masters (SDSYS's VOC only; a full-screen page, 140 by 43 or more) says whether the master files are set
+                         up (or prints the verb's sentence that they are not), what the journal holds, whether the stale or resync
+                         flag is up, how many accounts were compared and how many differences there were, and why the last save of a
+                         master record in this session was refused. Under that it lists every registered account as in sync or with
+                         its number of differences, and any account that has master copies but is not registered (not registered: n
+                         to remove). A box lists the differences of the account under the cursor and explains each kind in plain
+                         words (missing, differs, extra, nonwritable, norights, toolong, unreadable). S runs sync.masters for every
+                         account, Y runs sync.masters for the account under the cursor, P shows the journal lines not yet applied;
+                         each S and Y shows its command and what it does in a box answered Run or Cancel (Cancel is what Enter
+                         chooses). Like check.masters it applies the journal before it compares, and it reads when it opens, after
+                         a sync and on F5, not on a timer, because a check reads every master file.
+             Why it      Setting the files up, seeing which account has drifted and why, and syncing one account or all were three
+             matters     verbs and a long listing read by eye. For every account the number the page shows is the number
+                         check.masters prints (the page's test compares the two against a real set-up).
+             Does not    Edit a master record or an account record, ask the kernel to sync or set anything up itself, or clear the
+                         stale and resync flags except through S (Y does not, and says so). Y is refused for an account that is not
+                         registered and before the files are set up. An ordinary account has no such page.
+             Also        The confirm box cut a long explanation line at its edge, so the tail of a sentence never showed. tool.masters
+                         and tool.sessions now wrap their lines before they go in the box (the end of the inhibit.login on
+                         explanation in tool.sessions had been cut). The same box is used by tool.gates and tool.ai; they were not
+                         changed here.
+
 24 Oct 26  THE ADMINISTRATOR HAS A SESSIONS AND LOCKS PAGE: TOOL.SESSIONS SHOWS WHO IS SIGNED ON AND WHAT IS LOCKED, AND LOGS A SESSION OUT, RELEASES A LOCK OR STOPS NEW
            LOGINS THROUGH THE VERBS THAT ALREADY DO IT.
 

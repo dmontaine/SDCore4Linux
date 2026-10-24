@@ -50,6 +50,7 @@ def load():
     src["tool_gates"] = read(os.path.join(GPL, "tool_gates"))     # 24 Oct 26, S.75 A2: the gate matrix asks for tool.gates.matrix
     src["tool_mygates"] = read(os.path.join(GPL, "tool_mygates"))     # 24 Oct 26, S.75 A2: the holder's page asks for tool.gates.mine
     src["tool_sessions"] = read(os.path.join(GPL, "tool_sessions"))   # 24 Oct 26, S.75 A4: the sessions and locks page asks for tool.sessions.page
+    src["tool_masters"] = read(os.path.join(GPL, "tool_masters"))     # 24 Oct 26, S.75 A7: the master files page asks for tool.masters.page
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
     for name in sorted(os.listdir(HELP)):
         src["ht." + name] = read(os.path.join(HELP, name))
@@ -144,7 +145,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"])))
+    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|masters)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_masters"])))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 13 and not (asked - set(hts)), repr(sorted(asked - set(hts))))
@@ -175,12 +176,17 @@ def checks(s):
        "call $tk_help('mark', 134, 2, 0, 0)" in tsn and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.sessions.page', hm, 0, 0)" in tsn and "call $tk_help('hit', mev, 134, 2, hit.m)" in tsn
        and "allow = 'logout unlock inhibit.login'" in tsn and tsn.count("allow = ") == 1 and "tool.sessions.page" in hts and "call $tk_wrap(lines<wi>, 134, pieces)" in tsn and "rest[cut" not in tsn)
 
+    tma = strip(s["tool_masters"])
+    ck("P17e tool.masters: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only sync.masters, and it wraps with $tk_wrap",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tma and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.masters.page', hm, 0, 0)" in tma and "call $tk_help('hit', mev, 134, 2, hit.m)" in tma
+       and "allow = 'sync.masters'" in tma and tma.count("allow = ") == 1 and "tool.masters.page" in hts and "call $tk_wrap(lines<wi>, 134, pieces)" in tma and "rest[cut" not in tma)
+
     # one wrapping loop
     ck("P18 the wrapping loop is $tk_wrap and nowhere else: $tk_confirm, tool.menus and tool.viewers call it and none has the loop (a SCREEN TEXT longer than its width is cut, not wrapped)",
        "rest[cut, 1] # ' '" in tw and "call $tk_wrap(sentence, wrapw, pieces)" in tc and "call $tk_wrap(lines<wi>, 63, pieces)" in tm and "call $tk_wrap(lines<wi>, 134, pieces)" in tv
        and "rest[cut" not in tc and "rest[cut" not in tm and "rest[cut" not in tv and "wl[wp" not in tm)
 
-    every = th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn
+    every = th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tma
     want = {"$tk_help": 5, "$tk_wrap": 3, "!viewlist": 4, "$tk_run": 5, "$tk_confirm": 5}
     wrong = {k: [n for n in arg_counts(every, k) if n != v] for k, v in want.items()}
     seen = {k: len(arg_counts(every, k)) for k in want}
@@ -230,6 +236,9 @@ MUTANTS = [
     ("tool.viewers can run another command", "tool_viewers", "allow = 'set.viewer'", "allow = 'set.viewer sh'"),
     ("tool.viewers loses a [?]", "tool_viewers", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.gates loses its [?]", "tool_gates", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.masters loses its [?]", "tool_masters", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.masters calls $tk_help with too few arguments", "tool_masters", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.masters.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.masters.page', hm)"),
+    ("tool.masters can run another command", "tool_masters", "allow = 'sync.masters'", "allow = 'sync.masters sh'"),
     ("tool.sessions loses its [?]", "tool_sessions", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.sessions calls $tk_help with too few arguments", "tool_sessions", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.sessions.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.sessions.page', hm)"),
     ("tool.sessions can run another command", "tool_sessions", "allow = 'logout unlock inhibit.login'", "allow = 'logout unlock inhibit.login sh'"),

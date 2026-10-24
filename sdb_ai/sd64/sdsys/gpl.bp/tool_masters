@@ -1,0 +1,573 @@
+* TOOL_MASTERS
+* The master files on one screen: whether they are set up, what the journal holds, every account against its master copy, and SYNC.MASTERS behind two keys (S.75, plan .claude/plan-fullscreen-toolkit.md
+* section 5, A7; S.67 is the master files themselves).
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 24 Oct 26 dm  New.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   TOOL.MASTERS      (SDSYS's VOC only; the audience is the administrator, asked of the kernel before anything is read)
+*
+*   A full-screen page, in the toolkit's frame (140 columns by 43 lines at least).  The top box says whether the master files are set up, what the journal holds, whether the stale or
+*   resync flag is set, how many accounts were compared and how many differences there were, and why the last save of a master record in this session was refused.  The list is every
+*   registered account with its state - in sync, or the number of differences - and every account that has master copies but is not registered.  A box under it lists the differences of
+*   the account under the cursor, one line each (missing, differs, extra, nonwritable, norights, toolong, unreadable), and explains the state in plain words.
+*
+*   WHAT IT READS.  The kernel's master-file operations (kernel(K$MASTERS, ...): ready, check, pending, accounts, peek, refusal), the same ones CHECK.MASTERS and LIST.MASTER.PENDING use; each
+*   asks for the administrator again.  Like CHECK.MASTERS, the check first applies the journal ('drain': lines already written to it are moved into the master copies, which is what the system
+*   does whenever a master file is opened) and then compares; it changes nothing else, and the page never asks the kernel to sync, set up or note.  It reads again when the page opens, on F5 and after a
+*   sync, NOT on a timer: a check reads every master file.
+*
+*   WHAT IT CAN RUN.  Two keys, one verb: S runs SYNC.MASTERS (sets the files up if they are not, applies the journal, makes the master copy of EVERY registered account match the accounts,
+*   removes the copies of accounts that are not registered, and is the only thing that clears the stale and resync flags) and Y runs SYNC.MASTERS name for the account under the cursor (it
+*   does not clear the flags).  Each shows its command and what it does in a box answered Run or Cancel (Cancel is what Enter chooses) and runs through $tk_run, which allows only SYNC.MASTERS.
+*   The verb asks for the administrator itself and writes its own audit line.  The page edits no master record and no account record.
+*
+*   Keys: Up, Down, PgUp, PgDn, Home, End move; S syncs every account; Y syncs the account under the cursor; P shows the journal lines not yet applied (and back); F5 checks again; F1 or ? or a
+*   click on the [?] explains the page; Ctrl-Q leaves.  A click on a row puts the cursor there.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $tool_masters
+$catalog $tool_masters
+
+$include keys.h
+$include int$keys.h
+$include err.h
+$include sl.h
+$include tk.h
+
+   prompt ''
+
+   allow = 'sync.masters'                                       ;* the one command this page may run
+   notyped = ''                                                 ;* the confirm box asks for no name to be typed
+
+   call $tk_open('tool.masters', 'admin', ctx, err)
+   if err # '' then
+      display err
+      stop
+   end
+   void kernel(K$AUDIT, 'tool start app=tool.masters')
+
+   keys = ''
+   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
+   call $tk_keys('add', keys, 's', 'sync all', 'syncall', '', 1)
+   call $tk_keys('add', keys, 'y', 'sync one', 'syncone', '', 1)
+   call $tk_keys('add', keys, 'p', 'journal', 'journal', '', 1)
+   call $tk_keys('add', keys, 'f5', 'check', 'refresh', '', 1)
+   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+
+   VA = 11                                                      ;* account rows on the screen
+   VD = 5                                                       ;* difference rows on the screen
+   ha = fmt('Account', '26L') : fmt('State', '32L') : 'First difference'
+
+   ready = 0 ; na = 0 ; nd = 0 ; ncheck = 0
+   anm = '' ; acnt = '' ; aorph = '' ; afirst = ''
+   drows = '' ; truncated = 0 ; jlines = ''
+   pend.bytes = 0 ; pend.lines = 0 ; stale.n = 0 ; drop.n = 0 ; pflags = 0 ; refusal = ''
+   ci = 1 ; ta = 0
+   view = 1                                                     ;* 1 the differences of the account under the cursor, 2 the journal lines not yet applied
+   gen = 0
+   done = 0
+   msg = 'S syncs every account, Y the account under the cursor, P shows the journal, F5 checks again'
+
+   gosub read.all
+   gosub draw.all
+
+   loop
+      call $tk_frame(ctx, keys, 'Masters', msg)
+      call $sl_curat(0, ctx<TK.C.YSTAT>)
+      nm = ''
+      screen key returning nm
+      begin case
+         case nm = ''
+            if status() = ER$EOF then exit
+         case nm = 'guardquit'
+            exit
+         case nm = 'resize'
+            gen += 1
+            ctx<TK.C.GEN> = gen
+            gosub draw.all
+         case nm = 'mouse'
+            gosub on.mouse
+         case 1
+            gosub on.key
+      end case
+      if done then exit
+   repeat
+
+   call $tk_close(ctx)
+   stop
+
+* ------------------------------------------------------------------------------------------------- what the kernel says
+
+* Ask again: set up or not, the check (which applies the journal), what the journal holds now, the registered accounts; put the cursor back on the account it was on
+read.all:
+   sel.a = ''
+   if na > 0 and ci >= 1 and ci <= na then sel.a = anm<ci>
+   anm = '' ; acnt = '' ; aorph = '' ; afirst = '' ; drows = '' ; truncated = 0 ; jlines = ''
+   nd = 0 ; ncheck = 0 ; pend.bytes = 0 ; pend.lines = 0 ; stale.n = 0 ; drop.n = 0 ; pflags = 0
+   ans = kernel(K$MASTERS, 'ready')
+   ready = (ans<2> = 1)
+   ans = kernel(K$MASTERS, 'refusal')
+   refusal = ans<2>
+   if ready then
+      ans = kernel(K$MASTERS, 'accounts')
+      if ans<1> = 0 then
+         del ans<1>
+         anm = ans
+      end
+      na = dcount(anm, @fm)
+      for i = 1 to na
+         acnt<i> = 0
+         aorph<i> = 0
+         afirst<i> = ''
+      next i
+      void kernel(K$MASTERS, 'drain')                           ;* CHECK.MASTERS applies the journal first, so a line written a moment ago is not shown as a difference
+      ans = kernel(K$MASTERS, 'check')
+      if ans<1> = 0 then
+         ncheck = ans<2>
+         nd = ans<3>
+         for i = 7 to dcount(ans, @fm)
+            if ans<i> = 'truncated' then
+               truncated = 1
+            end else
+               rw = ans<i>
+               drows<-1> = rw
+               gosub count.row
+            end
+         next i
+      end
+      gosub read.pending
+   end
+   na = dcount(anm, @fm)
+   if sel.a # '' then
+      for i = 1 to na
+         if anm<i> = sel.a then
+            ci = i
+            exit
+         end
+      next i
+   end
+   if ci > na then ci = na
+   if ci < 1 then ci = 1
+   return
+
+* What the journal holds now and the two flags (LIST.MASTER.PENDING's questions); it applies nothing
+read.pending:
+   pend.bytes = 0 ; pend.lines = 0 ; stale.n = 0 ; drop.n = 0 ; pflags = 0
+   ans = kernel(K$MASTERS, 'pending')
+   if ans<1> = 0 then
+      pend.bytes = ans<2> - ans<3>
+      pend.lines = ans<4>
+      pflags = ans<5>
+      stale.n = ans<6>
+      drop.n = ans<8>
+   end
+   return
+
+* rw is a row of the check (kind, account, what): count it for its account, and add an account that is not registered (its copies are all that is left of it) to the list
+count.row:
+   r.acct = rw<1, 2>
+   pos = 0
+   for j = 1 to dcount(anm, @fm)
+      if anm<j> = r.acct then
+         pos = j
+         exit
+      end
+   next j
+   if pos = 0 then
+      anm<-1> = r.acct
+      pos = dcount(anm, @fm)
+      acnt<pos> = 0
+      aorph<pos> = 1
+      afirst<pos> = ''
+   end
+   acnt<pos> = acnt<pos> + 1
+   if afirst<pos> = '' then afirst<pos> = rw<1, 1>
+   return
+
+* ------------------------------------------------------------------------------------------------- drawing
+
+draw.all:
+   cw2 = ctx<TK.C.W>
+   chh = ctx<TK.C.H> - 5
+   screen clear at 0,1 size cw2,chh
+   screen box at 1,1 size 138,8 title 'Master files'
+   screen box at 1,9 size 138,15 title 'Accounts'
+   ttl = 'The account under the cursor'
+   if view = 2 then ttl = 'The journal: lines not yet applied'
+   screen box at 1,24 size 138,16 title ttl
+   gosub draw.status
+   gosub draw.list
+   gosub draw.row
+   return
+
+draw.status:
+   if ready then
+      s = 'The master files are set up.'
+   end else
+      s = sysmsg(11564)
+   end
+   screen text s at 3,2 attr 'bold' width 134
+   s = ''
+   if ready then
+      if pend.lines = 0 then
+         s = sysmsg(11574)
+      end else
+         s = sysmsg(11571, pend.bytes, pend.lines)
+      end
+   end
+   screen text s at 3,3 width 134
+   s = ''
+   if ready then
+      if bitand(pflags, 1) then s = sysmsg(11572, stale.n)
+      if bitand(pflags, 2) then s := (if s = '' then '' else '  ') : sysmsg(11573, drop.n)
+      if s = '' then s = 'Neither the stale flag nor the resync flag is set.'
+   end
+   screen text s at 3,4 width 134
+   s = ''
+   if ready then
+      if nd = 0 then
+         s = sysmsg(11568) : '  ' : sysmsg(11569, ncheck, nd)
+      end else
+         s = sysmsg(11569, ncheck, nd) : (if truncated then '  (the list below is cut short)' else '')
+      end
+   end
+   screen text s at 3,5 width 134
+   if refusal # '' then
+      s = sysmsg(11594, refusal)
+   end else
+      s = 'No save of a master record was refused in this session.'
+   end
+   screen text s at 3,6 width 134
+   call $tk_help('mark', 134, 2, 0, 0)
+   return
+
+draw.list:
+   screen text ha at 3,10 attr 'header' width 134
+   if ci <= ta then ta = ci - 1
+   if ci > ta + VA then ta = ci - VA
+   if ta < 0 then ta = 0
+   for r = 1 to VA
+      kk = ta + r
+      s = ''
+      if kk <= na then
+         i = kk
+         gosub account.line
+         s = aline
+      end
+      rat = 'normal'
+      if kk = ci and kk <= na then rat = 'highlight'
+      screen text s at 3,10 + r attr rat width 134
+   next r
+   if not(ready) then
+      s = 'Nothing to compare yet.'
+   end else
+      s = na : ' account' : (if na = 1 then '' else 's') : ' listed.'
+   end
+   screen text s at 3,22 attr 'bold' width 134
+   return
+
+* One account as a line of text; i is its place in anm
+account.line:
+   begin case
+      case aorph<i> = 1
+         st.t = 'not registered: ' : acnt<i> : ' to remove'
+      case acnt<i> = 0
+         st.t = 'in sync'
+      case 1
+         st.t = acnt<i> : ' difference' : (if acnt<i> = 1 then '' else 's')
+   end case
+   aline = fmt(anm<i>, '26L') : fmt(st.t, '32L') : afirst<i>
+   return
+
+* The differences of the account under the cursor (or the journal), and the plain words
+draw.row:
+   for r = 1 to 13
+      screen text '' at 3,24 + r width 134
+   next r
+   lines = ''
+   if view = 2 then
+      gosub row.journal
+   end else
+      gosub row.diffs
+   end
+   for r = 1 to dcount(lines, @fm)
+      if r <= VD then screen text lines<r> at 3,24 + r width 134
+   next r
+   lines = ''
+   gosub row.words
+   gosub wrap.lines
+   for r = 1 to 7
+      screen text lines<r> at 3,30 + r width 134
+   next r
+   screen text 'S syncs every account.  Y syncs the account under the cursor.  P shows the journal.  F5 checks again.' at 3,38 attr 'bold' width 134
+   return
+
+* One line for each difference of the account under the cursor
+row.diffs:
+   if not(ready) or na = 0 or ci < 1 or ci > na then return
+   shown = 0
+   more = 0
+   for i = 1 to dcount(drows, @fm)
+      if drows<i, 2> = anm<ci> then
+         if shown < VD then
+            lines<-1> = fmt(drows<i, 1>, '13L') : drows<i, 3>
+            shown += 1
+         end else
+            more += 1
+         end
+      end
+   next i
+   if more > 0 then lines<VD> = '... and ' : more : ' more'
+   return
+
+* The first lines of the journal that have not been applied
+row.journal:
+   if not(ready) then return
+   ans = kernel(K$MASTERS, 'peek' : @fm : VD)
+   if ans<1> # 0 then return
+   del ans<1>
+   lines = ans
+   if lines = '' then lines = sysmsg(11574)
+   return
+
+* In plain sentences, for the account under the cursor (or for the state of the system when it is not set up)
+row.words:
+   if not(ready) then
+      lines<-1> = 'S sets the master files up and makes the master copy of every registered account.  Nothing happens until you answer Run.'
+      return
+   end
+   if na = 0 or ci < 1 or ci > na then
+      lines<-1> = 'There is no account to show.'
+      return
+   end
+   nme = anm<ci>
+   begin case
+      case aorph<ci> = 1
+         lines<-1> = nme : ' is not a registered account, but master copies of it remain.  S removes them.  Y cannot: sync.masters with a name asks for a registered account.'
+      case acnt<ci> = 0
+         lines<-1> = 'Every master copy of ' : nme : ' matches its account.  Y would only make sure of it.'
+      case 1
+         lines<-1> = nme : ' has ' : acnt<ci> : ' difference' : (if acnt<ci> = 1 then '' else 's') : '.  Y runs sync.masters ' : nme : ', which makes its master copies match the account.  It applies the journal first and does not clear the stale and resync flags.'
+         kinds = ''
+         for i = 1 to dcount(drows, @fm)
+            if drows<i, 2> = nme then
+               known = 0
+               for j = 1 to dcount(kinds, @fm)
+                  if kinds<j> = drows<i, 1> then known = 1
+               next j
+               if not(known) then kinds<-1> = drows<i, 1>
+            end
+         next i
+         for i = 1 to dcount(kinds, @fm)
+            gosub kind.words
+            lines<-1> = kinds<i> : ': ' : kw
+         next i
+   end case
+   return
+
+kind.words:
+   begin case
+      case kinds<i> = 'missing'
+         kw = 'the account has a record the master copy lacks.'
+      case kinds<i> = 'differs'
+         kw = "the master copy of a record is not the account's."
+      case kinds<i> = 'extra'
+         kw = 'the master copy has a record the account no longer has.'
+      case kinds<i> = 'nonwritable'
+         kw = "the account's VOC or dictionary directory or files lack group write permission, so a master edit cannot be delivered (the installer's upgrade puts the mode right)."
+      case kinds<i> = 'norights'
+         kw = 'the mode lets the group write but this session cannot.'
+      case kinds<i> = 'toolong'
+         kw = 'a record key is too long for MAXIDLEN to mirror.'
+      case kinds<i> = 'unreadable'
+         kw = 'a file could not be read.'
+      case 1
+         kw = 'see the master files page of the administrator guide.'
+   end case
+   return
+
+* The confirm box CUTS a line of the explanation at its edge (seen 24 Oct 26: 'master copies of accounts .'), so each line is wrapped to 120 before it goes in
+wrap.el:
+   wrapped = ''
+   for wi = 1 to dcount(el, @fm)
+      call $tk_wrap(el<wi>, 120, pieces)
+      wrapped<-1> = pieces
+   next wi
+   el = wrapped
+   return
+
+* A long line is wrapped, not cut
+wrap.lines:
+   wrapped = ''
+   for wi = 1 to dcount(lines, @fm)
+      if lines<wi> = '' then
+         wrapped<-1> = ''
+      end else
+         call $tk_wrap(lines<wi>, 134, pieces)
+         wrapped<-1> = pieces
+      end
+   next wi
+   lines = wrapped
+   return
+
+* ------------------------------------------------------------------------------------------------- keys and mouse
+
+on.key:
+   msg = ''
+   if len(nm) = 1 and nm >= 'A' and nm <= 'Z' then nm = downcase(nm)
+   begin case
+      case nm = 'up'
+         if ci > 1 then ci -= 1
+         gosub redraw
+      case nm = 'down'
+         if ci < na then ci += 1
+         gosub redraw
+      case nm = 'pgup'
+         ci -= VA
+         if ci < 1 then ci = 1
+         gosub redraw
+      case nm = 'pgdn'
+         ci += VA
+         if ci > na then ci = na
+         gosub redraw
+      case nm = 'home'
+         ci = 1
+         gosub redraw
+      case nm = 'end'
+         if na > 0 then ci = na
+         gosub redraw
+      case nm = 's'
+         gosub do.syncall
+      case nm = 'y'
+         gosub do.syncone
+      case nm = 'p'
+         view = (if view = 1 then 2 else 1)
+         if ready then gosub read.pending                         ;* the journal changes while the page waits: ask again, apply nothing
+         gosub draw.all
+         msg = (if view = 2 then 'the journal lines not yet applied; P goes back to the account' else 'the account under the cursor')
+      case nm = 'f1' or nm = '?'
+         call $tk_help('box', 'tool.masters.page', hm, 0, 0)
+         if hm # '' then msg = hm
+      case nm = 'f5'
+         gosub read.all
+         gosub draw.all
+         msg = 'checked again'
+      case nm = 'ctrl-q'
+         done = 1
+   end case
+   return
+
+redraw:
+   gosub draw.list
+   gosub draw.row
+   return
+
+on.mouse:
+   screen mouse returning mev else mev = ''
+   if mev = '' then return
+   call $tk_help('hit', mev, 134, 2, hit.m)
+   if hit.m then
+      call $tk_help('box', 'tool.masters.page', hm, 0, 0)
+      if hm # '' then msg = hm
+      return
+   end
+   if mev<1> = 'press' and mev<2> = 1 then
+      mx = mev<3>
+      my = mev<4>
+      if mx >= 3 and mx <= 136 and my >= 11 and my <= 10 + VA then
+         if ta + my - 10 <= na then
+            ci = ta + my - 10
+            gosub redraw
+         end
+      end
+   end
+   return
+
+* ------------------------------------------------------------------------------------------------- the one command the page can run
+
+* Show sent and el in the box; run the command when Run was chosen; read again and say what the check finds now
+confirm.and.run:
+   gosub wrap.el
+   call $tk_confirm(sent, el, notyped, res, cmsg)
+   if res = 'run' then
+      call $tk_run(allow, sent, out, stat, err)
+      gosub read.all
+      gosub draw.all
+      if err # '' then
+         msg = err
+      end else
+         msg = sent : ' ran (status ' : stat : '): '
+         begin case
+            case not(ready)
+               msg := 'the master files are still not set up'
+            case nd = 0
+               msg := 'every master copy matches its account'
+            case 1
+               msg := nd : ' difference' : (if nd = 1 then '' else 's') : ' remain'
+         end case
+      end
+   end else
+      msg = cmsg
+   end
+   return
+
+do.syncall:
+   sent = 'sync.masters'
+   el = ''
+   if ready then
+      el<-1> = 'The journal is applied, then the master copy of EVERY registered account is made to match the account, and the master copies of accounts that are not registered are removed.'
+      el<-1> = "This is the only thing that clears the stale and resync flags, because a lost journal line could have been anyone's."
+   end else
+      el<-1> = 'The master files (the journal, voc_master, dict_master and master_state) are set up in the SDSYS account, then the master copy of every registered account is made.'
+   end
+   el<-1> = 'It changes the master copies only; no account record is changed.  On a big system it takes a while.'
+   gosub confirm.and.run
+   return
+
+do.syncone:
+   if not(ready) then
+      msg = 'the master files are not set up: S sets them up'
+      return
+   end
+   if na = 0 or ci < 1 or ci > na then
+      msg = 'there is no account'
+      return
+   end
+   if aorph<ci> = 1 then
+      msg = anm<ci> : ' is not a registered account: S removes its master copies'
+      return
+   end
+   word = anm<ci>
+   gosub plain.word
+   if not(plain) then
+      msg = 'this account name has characters this page will not put in a command; use sync.masters at the prompt'
+      return
+   end
+   sent = 'sync.masters ' : anm<ci>
+   el = ''
+   el<-1> = 'The journal is applied, then the master copy of ' : anm<ci> : ' is made to match the account.  The stale and resync flags are NOT cleared by this; only S clears them.'
+   el<-1> = 'It changes the master copies of that one account only; no account record is changed.'
+   gosub confirm.and.run
+   return
+
+* Is word a safe single word for $tk_run (a-z, 0-9, dot, dash, underscore)?  plain is 1 or 0
+plain.word:
+   plain = (word # '')
+   for pi = 1 to len(word)
+      if index('abcdefghijklmnopqrstuvwxyz0123456789.-_', word[pi, 1], 1) = 0 then plain = 0
+   next pi
+   return
+
+end
+
+* END-CODE
