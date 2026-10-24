@@ -6082,7 +6082,7 @@ cited by: `create_account`, `modifya`
 The AI helper could not be reached: it is not running, or it is not installed
 ```
 
-cited by: `ai`, `setai`, `tool_ai`
+cited by: `ai`, `setai`, `tk_ai`, `tool_ai`
 
 ### msg:11608
 > kind=message tier=reference since=- src=sdsys/messages/11608:1#53bb63db
@@ -6235,7 +6235,7 @@ cited by: `ai`
 The AI is off: the administrator has not chosen a provider (tool.ai or set.ai)
 ```
 
-cited by: `ai`
+cited by: `ai`, `tk_ai`
 
 ### msg:11625
 > kind=message tier=reference since=- src=sdsys/messages/11625:1#0853f7ae
@@ -6244,7 +6244,7 @@ cited by: `ai`
 This account may not use the AI: the administrator can allow it with modify.account %1 ai-on
 ```
 
-cited by: `ai`
+cited by: `ai`, `tk_ai`
 
 ### msg:11626
 > kind=message tier=reference since=- src=sdsys/messages/11626:1#62b7e7e6
@@ -6253,7 +6253,7 @@ cited by: `ai`
 The AI is not set up for %1: the administrator has not set its %2 (tool.ai or set.ai)
 ```
 
-cited by: `ai`
+cited by: `ai`, `tk_ai`
 
 ### msg:11627
 > kind=message tier=reference since=- src=sdsys/messages/11627:1#74d419a5
@@ -6262,7 +6262,7 @@ cited by: `ai`
 The AI did not answer: %1 (%2)
 ```
 
-cited by: `ai`
+cited by: `ai`, `tk_ai`
 
 ### msg:11628
 > kind=message tier=reference since=- src=sdsys/messages/11628:1#8456c22a
@@ -6271,7 +6271,7 @@ cited by: `ai`
 This will be sent to %1 (model %2), %3 bytes; the provider sees all of it:
 ```
 
-cited by: `ai`
+cited by: `ai`, `tk_ai`
 
 ### msg:11629
 > kind=message tier=reference since=- src=sdsys/messages/11629:1#e995047f
@@ -6289,7 +6289,7 @@ cited by: `ai`
 Nothing was sent.
 ```
 
-cited by: `ai`
+cited by: `ai`, `tk_ai`
 
 ### msg:11631
 > kind=message tier=reference since=- src=sdsys/messages/11631:1#193f538d
@@ -6325,7 +6325,167 @@ cited by: `ai`
 Tokens used: %1 in, %2 out (%3)
 ```
 
-cited by: `ai`
+cited by: `ai`, `tk_ai`
+
+### msg:11635
+> kind=message tier=reference since=- src=sdsys/messages/11635:1#16cae5b1
+
+```
+You help a person who is using %1, a full-screen application of SD Core, a multivalue database. Answer with ONE JSON object and nothing else: {"say": a short plain sentence for the person, "action": one id from the list below or "none", "arg": a short text for the action or "", "command": one SD TCL command line or ""}. Give an action only when the request asks for something the list offers; give a command only when no action fits and the request is about running something. Plain ASCII only.
+```
+
+cited by: `tk_ai`
+
+### msg:11636
+> kind=message tier=reference since=- src=sdsys/messages/11636:1#5507de1d
+
+```
+AI>
+```
+
+cited by: `tk_ai`
+
+### msg:11637
+> kind=message tier=reference since=- src=sdsys/messages/11637:1#78c91c62
+
+```
+Ask the AI: press Tab until the cursor is here, type a request and press Enter
+```
+
+cited by: `tk_ai`
+
+### msg:11638
+> kind=message tier=reference since=- src=sdsys/messages/11638:1#399ece07
+
+```
+Type a request. Enter shows what will be sent; nothing is sent until you choose Send. Esc comes back
+```
+
+cited by: `tool_home`
+
+### msg:11639
+> kind=message tier=reference since=- src=sdsys/messages/11639:1#0cd22701
+
+```
+Ask the AI
+```
+
+cited by: `tk_ai`
+
+### msg:11640
+> kind=message tier=reference since=- src=sdsys/messages/11640:1#d9509e1e
+
+```
+The fixed instruction: %1 bytes
+```
+
+cited by: `tk_ai`
+
+### msg:11641
+> kind=message tier=reference since=- src=sdsys/messages/11641:1#2dccd545
+
+```
+What this page can do, as a list: %1 actions, %2 bytes
+```
+
+cited by: `tk_ai`
+
+### msg:11642
+> kind=message tier=reference since=- src=sdsys/messages/11642:1#390e2fba
+
+```
+What the page tells it about itself: %1 bytes
+```
+
+cited by: `tk_ai`
+
+### msg:11643
+> kind=message tier=reference since=- src=sdsys/messages/11643:1#5f51f259
+
+```
+Your request: %1 bytes
+```
+
+cited by: `tk_ai`
+
+### msg:11644
+> kind=message tier=reference since=- src=sdsys/messages/11644:1#1bb3246c
+
+```
+... %1 more lines are sent too
+```
+
+cited by: `tk_ai`
+
+### msg:11645
+> kind=message tier=reference since=- src=sdsys/messages/11645:1#1fc115d2
+
+```
+Waiting for the answer from the AI ...  Esc gives it up
+```
+
+cited by: `tk_ai`
+
+### msg:11646
+> kind=message tier=reference since=- src=sdsys/messages/11646:1#3193d6f0
+
+```
+The request to the AI was given up
+```
+
+cited by: `tk_ai`
+
+### msg:11647
+> kind=message tier=reference since=- src=sdsys/messages/11647:1#2f3cec48
+
+```
+The AI proposes: %1
+```
+
+cited by: `tk_ai`
+
+### msg:11648
+> kind=message tier=reference since=- src=sdsys/messages/11648:1#94978f3f
+
+```
+The AI proposes this command. Nothing runs unless you choose Run:
+```
+
+cited by: `tk_ai`
+
+### msg:11649
+> kind=message tier=reference since=- src=sdsys/messages/11649:1#cc65561a
+
+```
+The AI named an action that this page does not have (%1): it was ignored
+```
+
+cited by: `tk_ai`
+
+### msg:11650
+> kind=message tier=reference since=- src=sdsys/messages/11650:1#9723fef3
+
+```
+The AI gave a command that cannot be shown safely: it was ignored
+```
+
+cited by: `tk_ai`
+
+### msg:11651
+> kind=message tier=reference since=- src=sdsys/messages/11651:1#12f2a45f
+
+```
+The AI did not answer in the form that was asked for; its words follow, and nothing is proposed:
+```
+
+cited by: `tk_ai`
+
+### msg:11652
+> kind=message tier=reference since=- src=sdsys/messages/11652:1#31bfb643
+
+```
+The AI line is not available: %1
+```
 
 ### msg:11700
 > kind=message tier=reference since=- src=sdsys/messages/11700:1#1e363371

@@ -28,6 +28,7 @@ $define TK.C.YSTAT     7       ;* the row of the status line
 $define TK.C.YBORD     8       ;* the row of the border
 $define TK.C.YKEYS     9       ;* the row of the function keys
 $define TK.C.GEN       10      ;* a number the app raises to have $tk_frame write all of the frame again (after the screen was cleared or repainted under it)
+$define TK.C.AI        11      ;* 1 when the AI line is drawn on row YSTAT - 1 (set by $tk_ai 'init'; the AI is on for this account and the helper has a provider, model and key), else null
 *
 * THE GATE TABLE ($tk_gate_info, plan section 2.4) returns one gate as a dynamic array, a field to a value:
 $define TK.G.ID        1       ;* the gate's id, the column name of the gate screen: sh, os, sd, voc ...

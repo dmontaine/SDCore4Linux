@@ -1,0 +1,417 @@
+* TK_AI
+* The full-screen toolkit, shared base: the AI line, the preview, the wait and the answer (S.69, plan .claude/plan-fullscreen-toolkit.md 2.9 and
+* .claude/ai-integration-evaluation.md 5B; the owner's D4a answer of 20 Oct 2026: "a one line ai entry field at the bottom of each form with the response in a
+* popup window", and of 23 Oct: the AI line turns a request into one of the page's own actions).
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 23 Oct 26 dm  New (AI line stage 1: the library routine and the home screen).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   call $tk_ai(op, ctx, a, b)
+*
+*   init    (ctx)              asks the helper (KERNEL K$AI.STATUS) whether the AI is usable for this account: the gate is on and a provider, a model and a key are
+*                              set.  Sets ctx<TK.C.AI> to 1 when it is and makes the line; else the line is NOT DRAWN AT ALL (the owner, 20 Oct: an account without the AI
+*                              sees no AI bar).  The app calls it after $tk_open and again when the account changes.
+*   draw    (ctx, focused)     draws the line on row YSTAT - 1: the label, then the entry; empty and not focused it shows a dim hint.
+*   key     (ctx, nm -> out)   a key for the line while it has the focus: Esc gives the focus back (out 'leave'); Tab, Shift-Tab, Up and Down also give it back and come back
+*                              as out 'tab' 'btab' 'up' 'down' for the app to move its own focus; Enter on a non-empty line is out 'ask'; any other key edits the line (the
+*                              library's entry widget: left, right, home, end, delete, ctrl-u ...).
+*   focus   (ctx, on)          gives the line the focus (1) or takes it away (0) and draws it.
+*   mouse   (ctx, mev -> out)  out 'focus' when a press of the left button lands on the line.
+*   text    (ctx -> out)       the line's text.
+*   clear   (ctx)              empties the line.
+*   ask     (ctx, actx -> res) THE WHOLE SEQUENCE for the request in the line: the preview (everything that will leave the machine, Send or Cancel, Cancel is the
+*                              default), the sending, the wait (Esc gives it up), the answer, the proposal and Accept / Reject.  Nothing is sent unless Send is chosen.
+*
+*   actx is what the app tells the model, one dynamic array: <1> the app's name; <2> the kind (a word for the prompt); <3> text about the page, its lines separated by VALUE marks (the app
+*   decides; no data values); <4> the actions the app offers, VALUES of 'id:what it does'; <5> 1 when every action only NAVIGATES (opens a tool the person could open anyway), in which
+*   case Enter alone accepts the proposal (the owner's answer of 23 Oct), else 0 and Enter alone rejects.  res is: <1> 'none', 'action' or 'command'; <2> the action's id or the command;
+*   <3> the action's argument (letters, digits and . _ : / space - only); <4> what the AI said; <5> a line for the app's status bar (a failure, or that it was given up).
+*
+*   WHAT THE MODEL CAN CAUSE.  It returns text.  The text is read as ONE JSON object: say (shown), action (used only if it is exactly one of the ids the app offered), arg (cleaned) and
+*   command (printable ASCII, 200 characters, shown for the person to run or reject; this routine never runs it).  Anything else is ignored and said so.  The app performs an accepted
+*   action itself, through its own code, so its own gates decide.  The audit line is the kernel's, written before the request goes (K$AI.START): program tk_ai.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine tk_ai(op, ctx, a, b)
+$catalog $tk_ai
+
+$include keys.h
+$include int$keys.h
+$include err.h
+$include sl.h
+$include tk.h
+
+   common /tkai/ ai.on, ai.w, ai.focus, ai.prov, ai.model
+
+   if unassigned(ai.on) then
+      ai.on = 0
+      ai.w = ''
+      ai.focus = 0
+      ai.prov = ''
+      ai.model = ''
+   end
+
+   begin case
+      case op = 'init'
+         gosub read.status
+         ai.focus = 0
+         ctx<TK.C.AI> = (if ai.on then 1 else '')
+         ai.w = collection()
+         if ai.on then gosub make.widget
+      case op = 'draw'
+         ai.focus = (a = 1)
+         if ai.on then gosub paint
+      case op = 'focus'
+         ai.focus = (a = 1)
+         if ai.on then gosub paint
+      case op = 'key'
+         b = ''
+         if ai.on then
+            nm = a
+            gosub on.key
+         end
+      case op = 'mouse'
+         b = ''
+         if ai.on then
+            if a<1> = 'press' and a<2> = 1 and a<4> = ctx<TK.C.YSTAT> - 1 then b = 'focus'
+         end
+      case op = 'text'
+         a = ''
+         if ai.on then a = ai.w{'value'}
+      case op = 'clear'
+         if ai.on then
+            ai.w{'value'} = ''
+            ai.w{'pos'} = 1
+            ai.w{'pan'} = 1
+            gosub paint
+         end
+      case op = 'ask'
+         b = 'none'
+         if ai.on then gosub run.ask
+   end case
+   return
+
+* ------------------------------------------------------------------------------------------------- whether the AI is usable, and the line
+
+* The helper's status line: usable only when the gate is on for this account and a provider, a model and a key are set.  Any doubt is "not usable": the line is not drawn.
+read.status:
+   ai.on = 0
+   ai.prov = ''
+   ai.model = ''
+   if system(25) then return
+   rp = kernel(K$AI.STATUS, 0)
+   if rp<1> # 'D' then return
+   hj = jparse(rp<2>)
+   if status() then return
+   if hj{'t'} # 'status' then return
+   if not(hj{'gate'}) then return
+   if hj{'provider'} = '' or hj{'model'} = '' then return
+   if not(hj{'key'}) then return
+   ai.prov = hj{'provider'}
+   ai.model = hj{'model'}
+   ai.on = 1
+   return
+
+make.widget:
+   lw = ctx<TK.C.W>
+   ai.label = sysmsg(11636) : ' '
+   ai.w{'ax'} = 3 + len(ai.label)
+   ai.w{'ay'} = ctx<TK.C.YSTAT> - 1
+   ai.w{'w'} = lw - 3 - len(ai.label) - 3
+   ai.w{'maxlen'} = 300
+   ai.w{'value'} = ''
+   call $sl_entry('init', ai.w, '', '', r)
+   return
+
+paint:
+   lw = ctx<TK.C.W>
+   y = ctx<TK.C.YSTAT> - 1
+   keep.cur = ''
+   call $sl_curat('get', keep.cur)
+   ai.label = sysmsg(11636) : ' '
+   screen text '' at 0,y width lw
+   screen text ai.label at 3,y attr (if ai.focus then 'bold' else 'disabled')
+   if ai.w{'value'} = '' and not(ai.focus) then
+      screen text sysmsg(11637)[1, lw - 3 - len(ai.label) - 3] at ai.w{'ax'},y attr 'disabled'
+   end else
+      ai.w{'focused'} = (if ai.focus then 1 else 0)
+      call $sl_scr('get', scr)
+      call $sl_entry('draw', ai.w, scr, '', r)
+      call $sl_scr('put', scr)
+   end
+   if not(ai.focus) then call $sl_curat('back', keep.cur)
+   return
+
+on.key:
+   begin case
+      case nm = 'esc'
+         ai.focus = 0
+         gosub paint
+         b = 'leave'
+      case nm = 'tab' or nm = 'btab' or nm = 'up' or nm = 'down'
+         ai.focus = 0
+         gosub paint
+         b = nm
+      case nm = 'enter'
+         if trim(ai.w{'value'}) # '' then b = 'ask'
+      case 1
+         ai.w{'focused'} = 1
+         call $sl_scr('get', scr)
+         call $sl_entry('key', ai.w, scr, nm, r)
+         call $sl_scr('put', scr)
+   end case
+   return
+
+* ------------------------------------------------------------------------------------------------- the whole sequence
+
+run.ask:
+   lw = ctx<TK.C.W>
+   y = ctx<TK.C.YSTAT> - 1
+   raw = ai.w{'value'}
+   gosub clean
+   req = trim(clean.out)
+   if req = '' then return
+   app = a<1>
+   acts = ''
+   for i = 1 to dcount(a<4>, @vm)
+      raw = a<4, i>                                       ;* the app's own words, cleaned all the same: a label may be text a person typed
+      gosub clean
+      acts<1, i> = trim(clean.out)[1, 120]
+   next i
+   nav = a<5>
+   n.acts = dcount(acts, @vm)
+
+   * what will leave the machine: the fixed instruction, the list of the page's actions, what the page tells about itself, and the request
+   sysx = sysmsg(11635, app)
+   nl = char(10)
+   alist = ''
+   for i = 1 to n.acts
+      alist := nl : '  ' : acts<1, i>
+   next i
+   raw = change(a<3>, @vm, nl)
+   gosub clean
+   ptext = clean.out
+   prompt = 'Actions this page offers (id: what it does):' : alist : nl : nl : 'What this page tells you about itself:' : nl : ptext : nl : nl : 'Request: ' : req
+   size = len(sysx) + len(prompt)
+
+   * the preview: everything, then Send or Cancel; Cancel is what Enter chooses
+   call $sl_scr('get', scr)
+   wrapw = scr<SL.S.W> - 16
+   if wrapw > 100 then wrapw = 100
+   if wrapw < 20 then wrapw = 20
+   body = sysmsg(11628, ai.prov, ai.model, size)
+   body<-1> = ''
+   body<-1> = sysmsg(11640, len(sysx))
+   call $tk_wrap(sysx, wrapw, pieces)
+   for p = 1 to dcount(pieces, @fm)
+      body<-1> = '  ' : pieces<p>
+   next p
+   body<-1> = sysmsg(11641, n.acts, len(alist))
+   for i = 1 to n.acts
+      body<-1> = '  ' : acts<1, i>[1, wrapw - 2]
+   next i
+   body<-1> = sysmsg(11642, len(ptext))
+   n.shown = dcount(ptext, nl)
+   for p = 1 to n.shown
+      if p <= 8 then body<-1> = '  ' : field(ptext, nl, p)[1, wrapw - 2]
+   next p
+   if n.shown > 8 then body<-1> = '  ' : sysmsg(11644, n.shown - 8)
+   body<-1> = sysmsg(11643, len(req))
+   call $tk_wrap(req, wrapw, pieces)
+   for p = 1 to dcount(pieces, @fm)
+      body<-1> = '  ' : pieces<p>
+   next p
+   screen msgbox body title sysmsg(11639) buttons '&Send,&Cancel' default 2 returning bn else bn = 0
+   if bn # 1 then
+      b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : sysmsg(11630)
+      return
+   end
+
+   * the request goes: the kernel writes the audit line first, then connects
+   rq = kernel(K$AI.START, sysx : @fm : 600 : @fm : prompt)
+   if rq<1> # 'OK' then
+      note = (if rq<2> = 'nohelper' then sysmsg(11607) else sysmsg(11627, rq<2>, ''))
+      b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : note
+      return
+   end
+
+   * the wait: Esc gives it up, so does an input that has ended or the cursor lock's own way out
+   loop
+      rp = kernel(K$AI.POLL, 0)
+      if rp<1> # 'W' then exit
+      screen text sysmsg(11645) at 3,y attr 'bold' width lw - 6
+      nm = ''
+      screen key timeout 1 returning nm
+      gave.up = 0
+      if nm = 'esc' or nm = 'guardquit' then gave.up = 1
+      if nm = '' then
+         if status() = ER$EOF then gave.up = 1
+      end
+      if gave.up then
+         void kernel(K$AI.CANCEL, 0)
+         b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : sysmsg(11646)
+         gosub paint
+         return
+      end
+   repeat
+   gosub paint
+
+   * the answer: the helper's line, then the model's text as ONE JSON object
+   if rp<1> # 'D' then
+      b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : sysmsg(11627, rp<2>, '')
+      return
+   end
+   hj = jparse(rp<2>)
+   if status() then
+      b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : sysmsg(11627, 'badreply', '')
+      return
+   end
+   if hj{'t'} # 'ok' then
+      code = hj{'code'}
+      begin case
+         case code = 'disabled'
+            note = sysmsg(11624)
+         case code = 'nogate'
+            note = sysmsg(11625, @who)
+         case code = 'nomodel'
+            note = sysmsg(11626, ai.prov, 'model')
+         case code = 'nokey'
+            note = sysmsg(11626, ai.prov, 'key')
+         case 1
+            raw = hj{'msg'}
+            gosub clean
+            note = sysmsg(11627, code, clean.out[1, 100])
+      end case
+      b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : note
+      return
+   end
+   raw = hj{'text'}
+   gosub clean
+   atext = clean.out
+   tok.in = hj{'in'}
+   tok.out = hj{'out'}
+   gosub read.proposal
+
+   * the popup: what the AI said, the proposal if there is one, and Accept / Reject
+   call $tk_wrap(say, wrapw, pieces)
+   body = ''
+   for p = 1 to dcount(pieces, @fm)
+      body<-1> = pieces<p>
+   next p
+   if note.p # '' then
+      body<-1> = ''
+      body<-1> = note.p
+   end
+   begin case
+      case pk = 'action'
+         body<-1> = ''
+         body<-1> = sysmsg(11647, plabel : (if parg # '' then ' (' : parg : ')' else ''))
+         btn = '&Accept,&Reject'
+         dflt = (if nav then 1 else 2)
+      case pk = 'command'
+         body<-1> = ''
+         body<-1> = sysmsg(11648)
+         body<-1> = '  ' : pcmd
+         btn = '&Run,&Cancel'                              ;* (not Reject: its letter would be Run's)
+         dflt = 2
+      case 1
+         btn = '&Close'
+         dflt = 1
+   end case
+   body<-1> = ''
+   body<-1> = sysmsg(11634, tok.in, tok.out, ai.prov)
+   screen msgbox body title sysmsg(11639) buttons btn default dflt returning bn else bn = 0
+   if pk # '' and bn = 1 then
+      b = pk : @fm : (if pk = 'action' then pid else pcmd) : @fm : parg : @fm : say : @fm : ''
+   end else
+      b = 'none' : @fm : '' : @fm : '' : @fm : say : @fm : ''
+   end
+   return
+
+* The model's text to a proposal.  The text is read as ONE JSON object (a first { to the last }, so a code fence round it does no harm); if it is not, it is shown as it is and nothing is
+* proposed.  An action is used only if it is exactly one of the ids the app offered; its argument and a command are cleaned; the command is shown, never run here.
+read.proposal:
+   pk = '' ; pid = '' ; plabel = '' ; parg = '' ; pcmd = '' ; note.p = '' ; say = ''
+   f1 = index(atext, '{', 1)
+   l1 = 0
+   for ci = len(atext) to 1 step -1
+      if atext[ci, 1] = '}' then
+         l1 = ci
+         exit
+      end
+   next ci
+   obj.ok = 0                                              ;* (a collection cannot be compared with a string: the flag says whether obj holds one)
+   if f1 > 0 and l1 > f1 then
+      obj = jparse(atext[f1, l1 - f1 + 1])
+      if not(status()) then obj.ok = 1
+   end
+   if not(obj.ok) then
+      say = atext[1, 600]
+      note.p = sysmsg(11651)
+      return
+   end
+   raw = obj{'say'}
+   gosub clean
+   say = clean.out[1, 600]
+   if say = '' then say = ' '
+   act = trim(obj{'action'})
+   if act # '' and downcase(act) # 'none' then
+      found = 0
+      for i = 1 to n.acts
+         if field(acts<1, i>, ':', 1) = act then
+            found = i
+            exit
+         end
+      next i
+      if found then
+         pk = 'action'
+         pid = act
+         plabel = trim(acts<1, found>[index(acts<1, found>, ':', 1) + 1, 999])
+         raw = obj{'arg'}
+         gosub clean
+         parg = trim(clean.out)[1, 100]
+         if trim(convert('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._:/- ', space(65), parg)) # '' then parg = ''
+      end else
+         note.p = sysmsg(11649, act[1, 40])
+      end
+   end
+   if pk = '' then
+      raw = obj{'command'}
+      gosub clean
+      c = trim(clean.out)
+      if c # '' then
+         if len(c) > 200 or c # raw then
+            note.p = sysmsg(11650)
+         end else
+            pk = 'command'
+            pcmd = c
+         end
+      end
+   end
+   return
+
+* Plain ASCII only: a control character, a mark or a byte above 126 is dropped (a line feed, a return or a tab becomes a space)
+clean:
+   clean.out = ''
+   for ci = 1 to len(raw)
+      sq = seq(raw[ci, 1])
+      if sq >= 32 and sq <= 126 then
+         clean.out := raw[ci, 1]
+      end else
+         if sq = 10 or sq = 13 or sq = 9 then clean.out := ' '
+      end
+   next ci
+   return
+
+end
+
+* END-CODE

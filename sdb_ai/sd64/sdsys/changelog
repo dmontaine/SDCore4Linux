@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+23 Oct 26  THE HOME SCREEN HAS AN AI LINE WHEN THE AI IS ON FOR THE ACCOUNT: TYPE WHAT YOU WANT, SEE EXACTLY WHAT WILL BE SENT, AND ACCEPT A TILE OR RUN A COMMAND THE AI
+           PROPOSES. WITHOUT THE AI THERE IS NO SUCH ROW AND NOTHING CHANGES.
+
+             What        A row above the status line, `AI>`, reached by Tab from the last tile (Back-tab from the first) or a click. Enter shows everything that will leave the
+                        machine - the provider and model, one fixed instruction, the list of this page's tiles, what the page says about itself and your request - with Send and
+                        Cancel, and Cancel is the default, so Enter alone sends nothing. While the AI answers, Esc gives the request up. The answer is a popup: what the AI said and,
+                        at most, ONE proposal: a tile of this page (Accept starts it as a click would; Enter alone accepts, since a tile only opens a tool) or a command (shown on a line
+                        of its own; Run runs it as the Terminal tile would; Enter alone cancels). It is never offered Sign out or Switch account; an action the page does not have, a
+                        command with a control character or over 200 characters, and an answer that is not one JSON object are ignored and said so. The audit line is the kernel's,
+                        as for the ai verb (program tk_ai).
+             Why it      You can say what you want in words and get to the right tool, with nothing happening that you did not see first and choose.
+             matters
+             Does not    It is the first of the AI lines: the editors (SED, the IDE, CED), the debugger and the administrator's other pages do not have one yet, and the AI cannot
+                        change a record. Accepting a tile or running a command uses your own rights: the gates of your account apply as if you had typed it. NOT SHOWN: a run
+                        against a real provider; the model may well propose nothing useful.
+
 23 Oct 26  AN ACCOUNT CAN ASK AN AI A QUESTION WITH THE AI VERB, ONCE THE ADMINISTRATOR HAS CHOSEN A PROVIDER ON THE NEW AI CHOICE PAGE, GIVEN IT A MODEL AND A
            KEY, AND ALLOWED THE ACCOUNT. NOTHING IS ON AS DELIVERED: NO PROVIDER, NO MODEL, NO KEY AND NO ACCOUNT.
 

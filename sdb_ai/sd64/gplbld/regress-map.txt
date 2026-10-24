@@ -281,7 +281,7 @@ sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared wi
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
-sdsys/gpl.bp/tk.h            : tk-base tk-keys
+sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
 sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai
 sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai
@@ -300,7 +300,13 @@ sdsys/gpl.bp/_bindkey        : @core tk-base tk-keys
 sdsys/newvoc/tool.keys       : tk-keys
 sdsys/voc_template/tool.keys : tk-keys
 # S.75 H1 and H2 (22 Oct 26): the home screen, where an account starts (!home_entry, called by cproc), EXIT and SET.START.DEFAULT
-sdsys/gpl.bp/tool_home       : home
+sdsys/gpl.bp/tool_home       : home ai-line
+# AI line stage 1 (23 Oct 26): the toolkit's AI line ($tk_ai) on the home screen, its messages and the fake model's JSON replies
+sdsys/gpl.bp/tk_ai           : ai-line home
+gplbld/sandbox-ai-line.py    : @self
+sdsys/messages/1163[5-9]     : ai-line
+sdsys/messages/1164[0-9]     : ai-line
+sdsys/messages/1165[0-2]     : ai-line
 sdsys/gpl.bp/home_entry      : home
 sdsys/gpl.bp/exit            : home
 sdsys/gpl.bp/setstart        : home
@@ -337,11 +343,11 @@ sdsys/voc_template/exit      : home
 sdsys/voc_template/set.start.default : home
 # S.69 step 2 (23 Oct 26): the AI helper (a program, its client, its provider table), its fake provider and test runner, the set.ai verb and the ai-on / ai-off words.  test-aihelper.py
 # and test-ai-units.py are free checks (regress.sh --changed always adds them); the units are read by the installer's text checks and need no sandbox.
-gplbld/sd-ai                 : aigate ai-verb
+gplbld/sd-ai                 : aigate ai-verb ai-line
 gplbld/sd-ai-ctl             : aigate
-gplbld/ai-runner.py          : aigate ai-verb
-gplbld/fakemodel.py          : aigate ai-verb
-gplbld/ai-providers          : aigate ai-verb
+gplbld/ai-runner.py          : aigate ai-verb ai-line
+gplbld/fakemodel.py          : aigate ai-verb ai-line
+gplbld/ai-providers          : aigate ai-verb ai-line
 gplbld/sandbox-aigate.py     : @self ai-verb
 gplbld/sandbox-ai-verb.py    : @self
 gplbld/sandbox-tool-ai.py    : @self

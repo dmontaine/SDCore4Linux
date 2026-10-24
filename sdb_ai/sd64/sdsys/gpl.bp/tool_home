@@ -5,6 +5,8 @@
 *
 * START-HISTORY:
 * 22 Oct 26 dm  New (S.75, H1; the owner: "the display design is approved as drawn. Start home H0, then H1 and H2").
+* 23 Oct 26 dm  The AI line (AI line stage 1; $tk_ai): when the AI is on for the account it takes the hint row, is the last stop of the Tab ring, and turns a request into one of
+*               the page's tiles or a command to run.  Without the AI there is no change at all.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -23,6 +25,11 @@
 *   the arrow keys move to the nearest tile, Tab and Back-tab go in reading order, Home and End to the first and last, Page Up and Page Down by group, a letter
 *   to the next tile that begins with it, Enter or the space bar starts the tile, F5 builds the page again, F10 opens the menu bar, Ctrl-Q signs out.  A click
 *   starts a tile, the wheel scrolls three rows.  The end of the input ends the program.
+*
+*   THE AI LINE (only when the AI is on for the account: the gate, a provider, a model and a key; else there is no row and nothing below applies).  It takes the row that holds the
+*   hint, after the last tile in the Tab ring (Tab from the last tile, Back-tab from the first), or a click.  Enter on a request shows everything that will be sent and sends nothing
+*   until Send; the answer comes in a popup and may propose ONE of this page's tiles (Accept starts it as a click would; Enter alone accepts a tile that only opens a tool) or ONE
+*   command (shown; it runs only on Run, as the Terminal would run it).  Sign out and Switch account are never offered.  The model sees the tile names, nothing of the account's data.
 *
 *   THE NAMED COMMON /TKHOME/: hflag is set when the person left by the Terminal tile (the EXIT verb then comes back to this screen); hlogto is set only
 *   while this program runs a LOGTO, so that the sign-on hook (!home_entry) does not start a second screen inside it.
@@ -103,6 +110,9 @@ $define PANEL.TOP  5       ;* the first row of the scrolling panel (rows 1 to 3 
    keep.id = ''
    keep.top = 0
 
+   aif = 0                                                ;* 1 while the AI line has the focus
+   call $tk_ai('init', ctx, '', '')
+
    gosub geometry
    gosub build.page
    gosub layout
@@ -111,7 +121,11 @@ $define PANEL.TOP  5       ;* the first row of the scrolling panel (rows 1 to 3 
 
    loop
       call $tk_frame(ctx, keys, 'Home', msg)
-      call $sl_curat(0, ctx<TK.C.YSTAT>)                  ;* the cursor waits at the start of the status line: in a window made smaller it is off the screen, and the library's cursor lock takes the keyboard
+      if aif then
+         call $tk_ai('draw', ctx, 1, '')                     ;* the cursor is in the AI line while it has the focus
+      end else
+         call $sl_curat(0, ctx<TK.C.YSTAT>)                  ;* the cursor waits at the start of the status line: in a window made smaller it is off the screen, and the library's cursor lock takes the keyboard
+      end
       nm = ''
       screen key timeout 30 returning nm
       begin case
@@ -370,8 +384,12 @@ draw.all:
    gosub draw.header
    gosub draw.panel
    screen menubar menus row 0 draw else null
-   screen text '' at 0,lh - 4 width lw
-   screen text 'arrows move  -  Enter starts  -  type to find  -  PgDn next group' at 3,lh - 4 attr 'disabled'
+   if ctx<TK.C.AI> then
+      call $tk_ai('draw', ctx, aif, '')
+   end else
+      screen text '' at 0,lh - 4 width lw
+      screen text 'arrows move  -  Enter starts  -  type to find  -  PgDn next group' at 3,lh - 4 attr 'disabled'
+   end
    return
 
 draw.header:
@@ -431,6 +449,7 @@ draw.tile:
    ty = tl<di, HT.Y>
    if tl<di, HT.FIXED> = 0 then ty = py0 + ty - top
    focused = (di = fi)
+   if aif then focused = 0                               ;* the AI line has the focus: no tile does
    p = tl<di, HT.PAL>
    locate p in pnames<1> setting pk else pk = 1
    begin case
@@ -630,16 +649,28 @@ jump.letter:
 
 on.key:
    msg = ''
+   if aif then
+      gosub ai.key
+      return
+   end
    begin case
       case nm = 'up' or nm = 'down' or nm = 'left' or nm = 'right'
          dir = nm
          gosub move.focus
       case nm = 'tab'
          dir = 1
-         gosub next.tile
+         if ctx<TK.C.AI> and fi = nt then
+            gosub ai.focus.on                              ;* the AI line is the last stop of the ring
+         end else
+            gosub next.tile
+         end
       case nm = 'btab'
          dir = -1
-         gosub next.tile
+         if ctx<TK.C.AI> and fi = 1 then
+            gosub ai.focus.on
+         end else
+            gosub next.tile
+         end
       case nm = 'home'
          gosub find.first
          j = fb
@@ -688,6 +719,8 @@ on.mouse:
             screen clear at 0,py0 size lw,ph
             gosub draw.panel
          end
+      case kind = 'press' and mev<2> = 1 and ctx<TK.C.AI> and my = lh - 4
+         gosub ai.focus.on                                 ;* a click on the AI line gives it the focus
       case kind = 'press' and mev<2> = 1
          if my = 0 then
             screen menubar menus click mx returning mc then
@@ -708,6 +741,84 @@ on.mouse:
                end
             next j
          end
+   end case
+   return
+
+* ------------------------------------------------------------------------------------------------- the AI line
+
+ai.focus.on:
+   aif = 1
+   di = fi
+   gosub draw.tile                                       ;* the tile that had the focus is drawn without it
+   call $tk_ai('focus', ctx, 1, '')
+   msg = sysmsg(11638)
+   return
+
+* The tile that had the focus before the AI line took it has it again
+ai.tile.back:
+   di = fi
+   gosub draw.tile
+   return
+
+* A key while the AI line has the focus: the line edits it; Esc, Tab, Back-tab, Up and Down give the focus back, and Enter on a request asks
+ai.key:
+   call $tk_ai('key', ctx, nm, out)
+   begin case
+      case out = 'leave'
+         aif = 0
+         msg = ''
+         gosub ai.tile.back
+      case out = 'tab'
+         aif = 0
+         j = 1                                            ;* round the ring: the first tile
+         gosub set.focus
+      case out = 'btab' or out = 'up'
+         aif = 0
+         j = nt                                           ;* back to the last tile
+         gosub set.focus
+      case out = 'down'
+         aif = 0
+         gosub ai.tile.back
+      case out = 'ask'
+         gosub ask.ai
+   end case
+   return
+
+* The request in the line goes to $tk_ai with what this page can do: the tiles that start a tool (never Sign out or Switch account).  The answer is a tile to start or a command
+* to run, each only after the person has chosen Accept or Run; both are done exactly as a click on a tile or the Terminal tile's prompt would do them.
+ask.ai:
+   acts = ''
+   for i = 1 to nt
+      ta = tl<i, HT.ACT>
+      if ta[1, 4] = 'cmd:' or ta = 'terminal' then
+         acts<1, -1> = tl<i, HT.ID> : ':' : tl<i, HT.LABEL> : ' - ' : (if tl<i, HT.SUB> = '' then 'starts ' : ta else tl<i, HT.SUB>)
+      end
+   next i
+   ctxt = 'This is the home screen of the SD database system, a page of tiles.' : @vm : 'Each action starts the tool of that tile, exactly as the person could by choosing the tile.'
+   ctxt := @vm : 'The person is ' : (if is.admin then 'the administrator.' else 'an account holder.')     ;* the lines of the page's text are VALUES (a field mark would move the fields after it)
+   actx = 'home' : @fm : 'home' : @fm : ctxt : @fm : acts : @fm : 1
+   call $tk_ai('ask', ctx, actx, res)
+   call $tk_ai('clear', ctx, '', '')
+   aif = 0
+   msg = res<5>
+   begin case
+      case res<1> = 'action'
+         found = 0
+         for i = 1 to nt
+            if tl<i, HT.ID> = res<2> then found = i
+         next i
+         if found then
+            j = found
+            gosub set.focus
+            gosub start.tile
+         end
+      case res<1> = 'command'
+         sentence = res<2>
+         pause = 1
+         keep.id = tl<fi, HT.ID>
+         keep.top = top
+         gosub run.command
+         keep.id = ''
    end case
    return
 
@@ -762,6 +873,8 @@ reopen:
    gen += 1
    ctx<TK.C.GEN> = gen
    lastmin = ''
+   aif = 0
+   call $tk_ai('init', ctx, '', '')                       ;* the account may be another, and the window another size
    gosub geometry
    gosub build.page
    gosub layout
@@ -782,6 +895,8 @@ reopen:
 
 * F5: the page again for what the session is now
 rebuild:
+   aif = 0
+   call $tk_ai('init', ctx, '', '')                       ;* F5 also reads whether the AI is on now
    gosub build.page
    gosub layout
    gosub first.focus
@@ -806,6 +921,8 @@ relayout:
    gen += 1
    ctx<TK.C.GEN> = gen
    lastmin = ''
+   aif = 0
+   call $tk_ai('init', ctx, '', '')                       ;* the rows moved: the line is made again (its text is lost, a resize is rare)
    gosub geometry
    gosub layout
    gosub draw.all
