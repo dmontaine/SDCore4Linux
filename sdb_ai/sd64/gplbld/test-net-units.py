@@ -3131,7 +3131,7 @@ mut("MODIFY.ACCOUNT loses NET-OFF", "modifya", "case action = 'NET-OFF'", "case 
 mut("MODIFY.ACCOUNT loses NET-ON", "modifya", "case action = 'NET-ON'", "case action = 'NET-ONX'")
 mut("NET-ON switches off", "modifya", rx(r"(case action = 'NET-ON'\s*\n\s*os\.field = ACC\$NET ; os\.want = )@true", r"\1@false"))
 mut("NET-ON works on the wrong field", "modifya", rx(r"(case action = 'NET-ON'\s*\n\s*os\.field = )ACC\$NET", r"\1ACC$SD.ACCOUNTS"))
-mut("a group account is refused NET-ON", "modifya", " and os.field # ACC$NET then", " then")
+mut("a group account is refused NET-ON", "modifya", " and os.field # ACC$NET and os.field # ACC$PINS then", " and os.field # ACC$PINS then")      # 24 Oct 26: ACC$PINS joined the list after NET (the home screen), so the text this mutant cut ended differently
 mut("NET-ON prints the SH line", "modifya", "if os.field = ACC$NET then", "if os.field = ACC$SD.ACCOUNTS then")
 mut("the NET line names the wrong state", "modifya", "if upcase(trim(acc.new<ACC$NET>)) = 'YES' then 'yes' else 'no')   ;* Account %1 has NET %2", "if upcase(trim(acc.rec<ACC$NET>)) = 'YES' then 'yes' else 'no')   ;* Account %1 has NET %2")
 mut("MODIFY.ACCOUNT's syntax lines forget the words", "modifya", "modify.account <account> net-on | net-off", "modify.account <account> net")
@@ -3694,9 +3694,11 @@ mut("create_account: an unreadable /etc/group is not looked at", CAC, "if files.
 mut("create_account: the group is looked for AFTER the Linux user is made",
     CAC, lambda t: (lambda m: t.replace(m.group(1), "", 1).replace("      if not(is_grp_member(acc.uname,'sdusers')) then", m.group(1) + "      if not(is_grp_member(acc.uname,'sdusers')) then", 1))(
         re.search(r"(\* 17 Oct 26 dm - S\.65 slice 2c: the group sdfiles is looked for.*?\n     end\n)", t, re.S)))
-mut("create_account: a GROUP account is not refused", CAC, "if files.want or files.write.want or files.admin.want then\n       @system.return.code = -ER$ARGS\n       err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access\n       goto exit.create",
-    "if 0 then\n       @system.return.code = -ER$ARGS\n       err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access\n       goto exit.create")
-mut("create_account: an OTHER account is not refused", CAC, "if files.want or files.write.want or files.admin.want then\n       @system.return.code = -ER$ARGS\n       err = 10081:@vm:acc.name:@vm:2", "if 0 then\n       @system.return.code = -ER$ARGS\n       err = 10081:@vm:acc.name:@vm:2")
+# 24 Oct 26: the two tests gained "or ai.want" and a trailing comment on 23 Oct (S.69 step 2); the mutants cut the whole first line of each, as before
+mut("create_account: a GROUP account is not refused", CAC, "if files.want or files.write.want or files.admin.want or ai.want then      ;* 23 Oct 26, S.69 step 2: and no AI gate to give, for the same reason\n",
+    "if 0 then\n")
+mut("create_account: an OTHER account is not refused", CAC, "if files.want or files.write.want or files.admin.want or ai.want then      ;* 23 Oct 26, S.69 step 2: nor an AI gate\n",
+    "if 0 then\n")
 mut("create_account: the join goes to sdapi", CAC, "sd-elevate addgroup \":acc.uname:\" \":files.grp.name", "sd-elevate addgroup \":acc.uname:\" sdapi\"")
 mut("create_account: the join is not asked for", CAC, "      if files.want then\n         files.grp.name = 'sdfiles'\n         gosub join.files.group", "      if @true then\n         files.grp.name = 'sdfiles'\n         gosub join.files.group")
 mut("create_account: a failed join is not reported", CAC, "   route.stat = OS.ERROR()\n   if route.stat # 0 then\n      @system.return.code = -ER$FAILED\n      err = 10081:@vm:acc.uname:@vm:route.stat", "   route.stat = OS.ERROR()\n   if 0 then\n      @system.return.code = -ER$FAILED\n      err = 10081:@vm:acc.uname:@vm:route.stat")
