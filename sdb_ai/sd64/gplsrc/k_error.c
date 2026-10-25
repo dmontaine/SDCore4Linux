@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F4, option C1: audit_message() hands the record to the audit daemon over a Unix datagram socket (audit_to_daemon()) and appends to the file itself
+ *               (audit_append_file(), the old code) only when the daemon does not take it.
  * 24 Oct 26 dm  W.11 F4, option B: audit_message() also sends each record to the system journal (syslog, LOG_AUTHPRIV), whose daemon stamps the sender's real uid and pid.
  * 24 Oct 26 dm  W.11 F9: the errlog and the audit trail are under sd_sysdir() (the configuration file's), not the segment's copy.
  * 17 Oct 26 dm  S.65 slice 3c: log_permissions_error() does not read the file table for a NET_FILE
@@ -74,6 +76,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <linux/fs.h>
 
 extern jmp_buf k_exit;
@@ -910,14 +914,81 @@ Private void audit_pathname(char* path, int len) {
     *path = '\0';
 }
 
+/* ----------------------------------------------------------------------
+   audit_append_file()  -  Append one record to the audit file ourselves   (what audit_message() always did, now only the fallback)  */
+
+Private void audit_append_file(const char* buff, int bytes) {
+  int fd;
+  char path[MAX_PATHNAME_LEN + 1];
+
+  StartExclusive(ERRLOG_SEM, 67);
+
+  audit_pathname(path, sizeof(path));
+
+  if ((*path != '\0') && (bytes > 0)) {
+    fd = open(path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC);
+    if (fd >= 0) {
+      if (write(fd, buff, bytes) != bytes) {
+        /* silent - see the banner */
+      }
+      close(fd);
+    }
+  }
+
+  EndExclusive(ERRLOG_SEM);
+}
+
+/* ----------------------------------------------------------------------
+   audit_to_daemon()  -  Hand one record to the audit daemon.  True only when it was accepted.
+
+   One datagram: AUDIT_MAGIC, the SD user number this process claims (digits, or ?), a space, the text - and nothing else.  The daemon takes the user and the pid from
+   the kernel (SCM_CREDENTIALS on the datagram), so a process cannot say it is someone else.  MSG_DONTWAIT: a full queue must not stall a session; a few short retries.  */
+
+Private bool audit_to_daemon(const char* msg) {
+  char dg[AUDIT_DGRAM_MAX];
+  struct sockaddr_un sa;
+  struct timespec pause = {0, 2000000}; /* 2 ms */
+  char who[16];
+  int s;
+  int len;
+  int tries;
+  ssize_t n = -1;
+
+  if (strlen(SD_AUDIT_SOCK) >= sizeof(sa.sun_path))
+    return FALSE;
+
+  if ((my_uptr != NULL) && (my_uptr->uid > 0))
+    snprintf(who, sizeof(who), "%d", (int)(my_uptr->uid));
+  else
+    strcpy(who, "?");
+
+  len = snprintf(dg, sizeof(dg), "%s%s %s", AUDIT_MAGIC, who, msg);
+  if (len < 0)
+    return FALSE;
+  if (len >= (int)sizeof(dg))
+    len = (int)sizeof(dg) - 1;
+
+  if ((s = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
+    return FALSE;
+  memset(&sa, 0, sizeof(sa));
+  sa.sun_family = AF_UNIX;
+  strcpy(sa.sun_path, SD_AUDIT_SOCK);
+  for (tries = 0; tries < 4; tries++) {
+    n = sendto(s, dg, len, MSG_DONTWAIT, (struct sockaddr*)&sa, sizeof(sa));
+    if ((n >= 0) || ((errno != EAGAIN) && (errno != ENOBUFS) && (errno != EINTR)))
+      break;
+    nanosleep(&pause, NULL);
+  }
+  close(s);
+  return n == len;
+}
+
 void audit_message(char* msg) {
   time_t timenow;
   struct tm* ltime;
   int bytes;
-  int fd;
   char* p;
   const char* sudo_user = NULL;
-  char path[MAX_PATHNAME_LEN + 1];
   char buff[AUDIT_BUFF_SIZE];
 
   if (sysseg == NULL)
@@ -961,27 +1032,17 @@ void audit_message(char* msg) {
     buff[bytes - 1] = '\n';
   }
 
-  StartExclusive(ERRLOG_SEM, 67);
-
-  audit_pathname(path, sizeof(path));
-
-  if ((*path != '\0') && (bytes > 0)) {
-    fd = open(path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC);
-    if (fd >= 0) {
-      if (write(fd, buff, bytes) != bytes) {
-        /* silent - see the banner */
-      }
-      close(fd);
-    }
-  }
-
-  EndExclusive(ERRLOG_SEM);
+  /* 24 Oct 26 dm - W.11 F4, option C.  The root daemon (sdlnxd) writes the record when it is listening: it stamps the user and the pid from the kernel's credentials of
+     this process.  Only when it is not (never started, stopped, crashed) does this process append to the file itself, which works where the caller owns the file (the
+     administrator, root, a single-user machine, a sandbox) and is refused on a multi-user install, where the journal copy below is then the only one. */
+  if (!audit_to_daemon(msg))
+    audit_append_file(buff, bytes);
 
   if (bytes > 0) {
     /* 24 Oct 26 dm - W.11 F4, option B (security-model evaluation).  The same record goes to the system journal.  The file's lines say who did it in words the writer chose -
        any member of sdusers can append a line of their own - but the journal's daemon records the uid and pid of the process that sent the message, and the sender cannot choose
        those (_UID and _PID in `journalctl -t sd_Log -o verbose`).  A line in the file with no journal entry from that uid and pid is suspect.  AUTHPRIV so that the usual
-       rsyslog rules also keep it in a root-only text log.  After EndExclusive: a syslog socket that stalls must not hold the semaphore every session's logging waits on.  The
+       rsyslog rules also keep it in a root-only text log.  Outside any semaphore: a syslog socket that stalls must not hold the one every session's logging waits on.  The
        record is the argument, never the format.  Made whether or not the file could be written: when it could not, this is the only copy. */
     buff[bytes - 1] = '\0';
     syslog(LOG_AUTHPRIV | LOG_NOTICE, "sd-audit %s", buff);

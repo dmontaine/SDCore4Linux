@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  THE AUDIT TRAIL HAS A WRITER THAT IS NOT THE USER: A LINE CAN NO LONGER NAME SOMEONE ELSE (SECURITY-MODEL EVALUATION, FINDING F4, FIRST STAGE).
+
+             What        sdlnxd, the root daemon, now writes the audit file. A session sends each record to it over a Unix datagram socket
+                         (/run/sd/audit.sock, mode 0660, group sdusers, in a directory only root can write), and the daemon puts the time, the user and the
+                         pid on the line from the credentials the kernel attaches to the datagram: the sender cannot choose them. sudo= is the user the kernel
+                         logged in, which survives su and sudo. The sender's text goes after the stamped fields and is cut at 1900 bytes, its control
+                         characters become ? and one record is one line. The audit file is mode 0600 now (it was 0620): the group cannot read it, write it
+                         or open it. If the daemon is not running a session appends to the file itself, which only sdsys and root can do; for everyone else
+                         the record is then in the journal only (see the entry below).
+             Why it      With the group able to write the file, a person with a shell who was in sdusers could add a line that claimed any user, uid or pid.
+             Does not    Check the SD user number (uid=), which the sender gives and the daemon cannot verify; limit how fast one user can send; rotate the
+                         file while SD runs (it is rotated when SD starts); restart the daemon if it dies; or reach an existing system until the installer
+                         is run on it again. Nothing has run on a real install yet.
+
 24 Oct 26  EVERY AUDIT RECORD IS ALSO SENT TO THE SYSTEM JOURNAL, WHICH SAYS WHO REALLY SENT IT (SECURITY-MODEL EVALUATION, FINDING F4).
 
              What        audit_message() now sends each record to syslog as well (facility authpriv, level notice, identifier sd_Log, the text prefixed

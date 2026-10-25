@@ -21,6 +21,7 @@
 #   A3  nothing is writable by the group or others on any of the three (read from `stat -c %A`)
 #   A4  static: no chmod of an account root to anything but 755 in installsdcore.sh, and deletesdcore.sh does not chmod /home/sd at all
 #   A5  static (W.11 F4, 24 Oct 26): errlog is chmod'ed exactly once, to 664 (every session appends to it; nothing runs it)
+#   A6  static (W.11 F4 option C1, 24 Oct 26): the audit trail loop chmods the file exactly once, to 600 (the root daemon writes it; the group has no access)
 # ANCHORED ON THE DISK, not on the block's output: the mode a directory has afterwards.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -63,6 +64,9 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant errlog-666          "s|^sudo chmod 664 \"\$sdsysdir/errlog\"|sudo chmod 666 \"\$sdsysdir/errlog\"|"
   mutant errlog-chmod-gone   "/^sudo chmod 664 \"\$sdsysdir\/errlog\"/d"
   mutant errlog-chmod-twice  "\$a sudo chmod 664 \"\$sdsysdir/errlog\""
+  mutant audit-620           "s|^    sudo chmod 600 \"\$f\"|    sudo chmod 620 \"\$f\"|"
+  mutant audit-666           "s|^    sudo chmod 600 \"\$f\"|    sudo chmod 666 \"\$f\"|"
+  mutant audit-chmod-gone    "/^    sudo chmod 600 \"\$f\"/d"
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$missed" -eq 0 ]
   exit $?
@@ -135,6 +139,11 @@ row "A4b deletesdcore.sh does not chmod /home/sd" "$([ -z "$bad" ] && echo 0 || 
 el=$(grep -n -E '^[^#]*chmod[^#]*errlog' "$INST" || true)
 n=$(printf '%s' "$el" | grep -c . || true)
 row "A5 installsdcore.sh chmods errlog exactly once, to 664 (group write for the sessions, no execute bits)" "$([ "$n" = 1 ] && printf '%s' "$el" | grep -q -E 'chmod 664 "\$sdsysdir/errlog"' && echo 0 || echo 1)" "lines: $el"
+
+# A6 (24 Oct 26, W.11 F4 option C1): the audit trail is 0600 - the group has no access, the root daemon writes it
+ad=$(awk '/^for f in "\$sdsysdir"\/audit "\$sdsysdir"\/audit\.\*; do$/{f=1} f{print} f&&/^done$/{exit}' "$INST")
+nch=$(printf '%s\n' "$ad" | grep -c -E '^\s*sudo chmod [0-7]+ "\$f"$' || true)
+row "A6 the audit trail loop chmods the file exactly once, to 600 (not 620: the group no longer writes it)" "$([ "$nch" = 1 ] && printf '%s\n' "$ad" | grep -q -E '^\s*sudo chmod 600 "\$f"$' && ! grep -q -E 'chmod 620' <<<"$ad" && echo 0 || echo 1)" "block: $(printf '%s' "$ad" | grep -E 'chmod' | tr '\n' ' ')"
 
 echo "test-install-acctroot: $pass passed, $fail failed"
 [ "$pass" -eq 0 ] && { echo "test-install-acctroot: NOTHING RAN"; exit 2; }

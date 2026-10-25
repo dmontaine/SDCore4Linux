@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F4, option C1 (the owner: "b then c"): this daemon is the audit trail's writer.  It listens on a Unix datagram socket (SD_AUDIT_SOCK), takes the user and
+ *               the pid of each record from the kernel's credentials on the datagram and appends the line to the audit file; the main loop waits in poll() instead of sleep().
  * 24 Oct 26 dm  W.11 F1 (security-model evaluation): this daemon runs as root, so it no longer takes the system directory from the shared
  *               segment, which any process that can attach may change.  The directory is found from the daemon's own executable
  *               (own_sysdir()), "sd -cleanup" is started with execl and no shell, and the error log is opened under the same directory.
@@ -33,12 +35,22 @@
  * START-CODE
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE /* struct ucred and SCM_CREDENTIALS (the audit socket) */
+#endif
 #define Public
 #define init(a) = a
 #include "sd.h"
 
 #include <time.h>
 #include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <grp.h>
+#include <poll.h>
+#include <pwd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <signal.h>
@@ -85,6 +97,262 @@ void check_lost_users(void);
 
 void signal_handler(int signum);
 
+void log_message(char* msg);
+
+/* ======================================================================
+   The audit trail's writer.  W.11 F4, option C1 (24 Oct 26, the owner: "b then c").
+
+   Sessions run as the user, so for as long as they appended to the audit file themselves the file had to be writable by the group, and a member of the group could add
+   a line that claimed any user, uid or pid.  Now a session sends the record here (k_error.c audit_to_daemon()) and this daemon, which is root, appends it: the user
+   and the pid on the line come from the credentials the KERNEL attaches to the datagram (SO_PASSCRED / SCM_CREDENTIALS), never from the text.  The text is the sender's
+   and goes after the stamped fields.  The one field still taken from the sender is the SD user number (uid=), which this daemon cannot check.
+
+   Everything here is input from any SD user, in a process that runs as root: the buffers are fixed, a datagram is read whole or dropped, the format string is
+   never the sender's, the path comes from the daemon's own executable (own_sysdir(), F1), and a bad datagram is dropped and counted - it never ends the loop.            */
+
+#define AUDIT_MSG_MAX 1900      /* bytes of text kept */
+
+static int audit_sock = -1;
+static bool audit_sock_made = FALSE;
+static unsigned long audit_dropped = 0;       /* datagrams refused: no credentials, not ours, too long, nothing in it */
+static unsigned long audit_unwritten = 0;     /* records accepted but not appended (the file would not open or write) */
+
+/* the user name for a uid, safe to put on a line; a tiny cache so that a burst does not ask NSS for every record */
+static void audit_user_name(uid_t uid, char* out, size_t outsz) {
+  static struct { uid_t uid; time_t at; char name[64]; } cache[8];
+  static int next = 0;
+  time_t now = time(NULL);
+  struct passwd* pw;
+  char* p;
+  int i;
+
+  for (i = 0; i < 8; i++) {
+    if ((cache[i].at != 0) && (cache[i].uid == uid) && (now - cache[i].at < 60)) {
+      snprintf(out, outsz, "%s", cache[i].name);
+      return;
+    }
+  }
+  pw = getpwuid(uid);
+  if (pw != NULL)
+    snprintf(out, outsz, "%.60s", pw->pw_name);
+  else
+    snprintf(out, outsz, "%u", (unsigned)uid);
+  for (p = out; *p != '\0'; p++) {
+    if (!(isalnum((unsigned char)*p) || (*p == '.') || (*p == '_') || (*p == '-')))
+      *p = '?';
+  }
+  cache[next].uid = uid;
+  cache[next].at = now;
+  snprintf(cache[next].name, sizeof(cache[next].name), "%s", out);
+  next = (next + 1) % 8;
+}
+
+/* /proc/<pid>/loginuid is the user who logged in, and survives su and sudo; the kernel sets it, the process cannot.  "" when it is the same as the uid, unset, or unreadable
+   (the process may be gone by now). */
+static void audit_login_name(pid_t pid, uid_t uid, char* out, size_t outsz) {
+  char path[48];
+  char text[24];
+  FILE* fp;
+  unsigned long v;
+  char* end;
+
+  out[0] = '\0';
+  snprintf(path, sizeof(path), "/proc/%d/loginuid", (int)pid);
+  if ((fp = fopen(path, "r")) == NULL)
+    return;
+  if (fgets(text, sizeof(text), fp) == NULL) {
+    fclose(fp);
+    return;
+  }
+  fclose(fp);
+  v = strtoul(text, &end, 10);
+  if ((end == text) || (v == 4294967295UL) || ((uid_t)v == uid))
+    return;
+  audit_user_name((uid_t)v, out, outsz);
+}
+
+static void audit_write_record(const struct ucred* cred, char* buf, ssize_t n) {
+  size_t magic = strlen(AUDIT_MAGIC);
+  char who[16];
+  char* p;
+  char* msg;
+  char user[64];
+  char login[64];
+  char line[AUDIT_MSG_MAX + 512];
+  char path[PATH_MAX + 16];
+  time_t timenow;
+  struct tm lt;
+  int len;
+  int fd;
+  int i;
+
+  buf[n] = '\0';
+  if ((n < (ssize_t)(magic + 3)) || (strncmp(buf, AUDIT_MAGIC, magic) != 0)) {
+    audit_dropped++;
+    return;
+  }
+  p = buf + magic;
+  if ((p[0] == '?') && (p[1] == ' ')) {
+    strcpy(who, "?");
+    msg = p + 2;
+  } else {
+    for (i = 0; (i < 9) && isdigit((unsigned char)p[i]); i++)
+      who[i] = p[i];
+    if ((i == 0) || (p[i] != ' ')) {
+      audit_dropped++;
+      return;
+    }
+    who[i] = '\0';
+    msg = p + i + 1;
+  }
+  if (*msg == '\0') {
+    audit_dropped++;
+    return;
+  }
+  for (p = msg; *p != '\0'; p++) {
+    if (((unsigned char)*p < 32) || ((unsigned char)*p == 127) || ((unsigned char)*p >= 248))
+      *p = '?';
+  }
+  if (strlen(msg) > AUDIT_MSG_MAX)
+    msg[AUDIT_MSG_MAX] = '\0';
+
+  audit_user_name(cred->uid, user, sizeof(user));
+  audit_login_name(cred->pid, cred->uid, login, sizeof(login));
+  timenow = time(NULL);
+  localtime_r(&timenow, &lt);
+
+  len = snprintf(line, sizeof(line), "%04d-%02d-%02d %02d:%02d:%02d user=%s%s%s uid=%s pid=%d %s\n",
+                 lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour, lt.tm_min, lt.tm_sec, user,
+                 (login[0] != '\0') ? " sudo=" : "", login, who, (int)cred->pid, msg);
+  if ((len <= 0) || (len >= (int)sizeof(line))) {
+    audit_dropped++;
+    return;
+  }
+  if (snprintf(path, sizeof(path), "%s%caudit", own_sysdir_path, DS) >= (int)sizeof(path)) {
+    audit_unwritten++;
+    return;
+  }
+  fd = open(path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC);
+  if ((fd < 0) || (write(fd, line, len) != len))
+    audit_unwritten++;
+  if (fd >= 0)
+    close(fd);
+}
+
+static void audit_receive_one(void) {
+  char buf[AUDIT_DGRAM_MAX + 1];
+  struct iovec iov;
+  union { struct cmsghdr h; char b[CMSG_SPACE(sizeof(struct ucred))]; } ctl;
+  struct msghdr mh;
+  struct cmsghdr* c;
+  struct ucred cred;
+  bool have_cred = FALSE;
+  ssize_t n;
+
+  memset(&mh, 0, sizeof(mh));
+  memset(&ctl, 0, sizeof(ctl));
+  iov.iov_base = buf;
+  iov.iov_len = sizeof(buf);
+  mh.msg_iov = &iov;
+  mh.msg_iovlen = 1;
+  mh.msg_control = ctl.b;
+  mh.msg_controllen = sizeof(ctl.b);
+  n = recvmsg(audit_sock, &mh, MSG_DONTWAIT | MSG_CMSG_CLOEXEC);
+  if (n < 0)
+    return;
+  if ((mh.msg_flags & (MSG_TRUNC | MSG_CTRUNC)) || (n > AUDIT_DGRAM_MAX)) {
+    audit_dropped++;
+    return;
+  }
+  for (c = CMSG_FIRSTHDR(&mh); c != NULL; c = CMSG_NXTHDR(&mh, c)) {
+    if ((c->cmsg_level == SOL_SOCKET) && (c->cmsg_type == SCM_CREDENTIALS) && (c->cmsg_len >= CMSG_LEN(sizeof(struct ucred)))) {
+      memcpy(&cred, CMSG_DATA(c), sizeof(cred));
+      have_cred = TRUE;
+    }
+  }
+  if (!have_cred) {
+    audit_dropped++;
+    return;
+  }
+  audit_write_record(&cred, buf, n);
+}
+
+/* Make the socket.  False (and a line in errlog) when it cannot be made: the daemon goes on with its other work, and the sessions fall back to the file. */
+static bool audit_socket_open(void) {
+  struct sockaddr_un sa;
+  struct stat st;
+  struct group* gr;
+  char dir[sizeof(sa.sun_path)];
+  char* slash;
+  mode_t old;
+  int on = 1;
+
+  if (strlen(SD_AUDIT_SOCK) >= sizeof(sa.sun_path))
+    return FALSE;
+  strcpy(dir, SD_AUDIT_SOCK);
+  if (((slash = strrchr(dir, '/')) == NULL) || (slash == dir))
+    return FALSE;
+  *slash = '\0';
+  if ((mkdir(dir, 0755) != 0) && (errno != EEXIST)) {
+    log_message("audit socket: cannot make its directory");
+    return FALSE;
+  }
+  /* the directory is what keeps another user from making this name: ours, and as root not open to the group or others */
+  if ((lstat(dir, &st) != 0) || !S_ISDIR(st.st_mode) || (st.st_uid != geteuid()) || ((geteuid() == 0) && (st.st_mode & (S_IWGRP | S_IWOTH)))) {
+    log_message("audit socket: its directory is not ours or can be written by others");
+    return FALSE;
+  }
+  if ((audit_sock = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
+    return FALSE;
+  if (setsockopt(audit_sock, SOL_SOCKET, SO_PASSCRED, &on, sizeof(on)) != 0) {
+    close(audit_sock);
+    audit_sock = -1;
+    return FALSE;
+  }
+  memset(&sa, 0, sizeof(sa));
+  sa.sun_family = AF_UNIX;
+  strcpy(sa.sun_path, SD_AUDIT_SOCK);
+  (void)unlink(SD_AUDIT_SOCK); /* a left-over from a daemon that was killed */
+  old = umask(0177);           /* root only until the group and the mode are set */
+  if (bind(audit_sock, (struct sockaddr*)&sa, sizeof(sa)) != 0) {
+    umask(old);
+    log_message("audit socket: cannot bind it");
+    close(audit_sock);
+    audit_sock = -1;
+    return FALSE;
+  }
+  umask(old);
+  if ((gr = getgrnam("sdusers")) != NULL)
+    (void)chown(SD_AUDIT_SOCK, (uid_t)-1, gr->gr_gid);
+  (void)chmod(SD_AUDIT_SOCK, 0660);
+  audit_sock_made = TRUE;
+  return TRUE;
+}
+
+/* Take records for up to this many seconds (the loop's tick), then return so that the rest of the daemon's work is done on time. */
+static void audit_serve(int seconds) {
+  struct timespec t0, now;
+  struct pollfd pfd;
+  long left_ms;
+
+  clock_gettime(CLOCK_MONOTONIC, &t0);
+  for (;;) {
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    left_ms = (long)seconds * 1000L - ((now.tv_sec - t0.tv_sec) * 1000L + (now.tv_nsec - t0.tv_nsec) / 1000000L);
+    if (terminate || (left_ms <= 0))
+      return;
+    if (audit_sock < 0) {
+      (void)poll(NULL, 0, (int)left_ms);
+      continue;
+    }
+    pfd.fd = audit_sock;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    if ((poll(&pfd, 1, (int)left_ms) > 0) && (pfd.revents & POLLIN))
+      audit_receive_one();
+  }
+}
+
 /* ====================================================================== */
 
 #define TICK_SECONDS 10
@@ -126,6 +394,9 @@ int main() {
 
   sysseg->sdlnxd_pid = getpid();
 
+  /* W.11 F4, option C1: the audit trail's writer.  Without the socket the sessions append to the file themselves, as before. */
+  (void)audit_socket_open();
+
   /* ========================= Main loop ========================= */
 
   /* 16 Oct 26 dm - QM4 gaps, CLEANUP.  The scan for lost processes runs every CLEANUP seconds (30 to 3600, 300 unless sd.conf
@@ -144,10 +415,24 @@ int main() {
       check_lost_users();
     }
 
-    sleep(TICK_SECONDS);
+    audit_serve(TICK_SECONDS); /* takes audit records until the tick is up (it was sleep(TICK_SECONDS)) */
+
+    if ((audit_dropped != 0) || (audit_unwritten != 0)) {
+      char note[120];
+
+      snprintf(note, sizeof(note), "audit: %lu datagram(s) refused, %lu record(s) not written, since the last note", audit_dropped, audit_unwritten);
+      audit_dropped = 0;
+      audit_unwritten = 0;
+      log_message(note);
+    }
   }
 
   /* Tidy up on our way out */
+
+  if (audit_sock >= 0)
+    close(audit_sock);
+  if (audit_sock_made)
+    (void)unlink(SD_AUDIT_SOCK);
 
   shmdt((void*)sysseg); /* Dettach shared memory */
 

@@ -49,7 +49,7 @@
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE TEST FILES THEMSELVES.
 gplbld/sandbox-fromtree.py   : @core @pty
-gplbld/sandbox-txnfail.py    : @core
+gplbld/sandbox-txnfail.py    : @core auditwriter
 gplbld/sandbox-english.py    : @core
 # S.65 slice 3a (17 Oct 26): the fake API server is used by the net suite and by the netfile suite.
 # 19 Oct 26 (K1): sandbox-req29 imports its REAL_ON_ERROR table, which it holds to what a real `sd -Q` answers.
@@ -82,7 +82,9 @@ gplbld/sandbox-gcatmode.py   : @self
 gplbld/sandbox-shmmode.py    : @self
 gplbld/sandbox-segtrust.py   : @self
 # 24 Oct 26 (W.11 F9): sandbox-segtrust loads sandbox-gates (its fixture accounts, ZZKF, prepare()), so a change to that one runs this one too.
-gplbld/sandbox-gates.py      : @self segtrust auditjournal
+gplbld/sandbox-gates.py      : @self segtrust auditjournal auditwriter
+# 24 Oct 26 (W.11 F4, C1): sandbox-auditwriter loads sandbox-auditjournal (its journal reader), so a change to that one runs this one too.
+gplbld/sandbox-auditjournal.py : @self auditwriter
 gplbld/*.py                  : none
 gplbld/*.sh                  : none
 gplbld/*.md                  : none
@@ -156,7 +158,8 @@ gplsrc/op_sys.c              : sys-b2 sys-q18 conf-b1 gates csvb
 gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
 gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12 netfile segtrust
 gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
-gplsrc/sdlnxd.c              : q5 shmmode
+gplsrc/sdlnxd.c              : q5 shmmode auditwriter
+gplsrc/sddefs.h              : @core auditwriter auditjournal
 gplsrc/sdsem.c               : shmmode @core
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode segtrust @core
 gplsrc/profiler.c            : prof
@@ -166,7 +169,7 @@ gplsrc/kernel.c              : @core csvb q5 listu-a5 inhibit-q8 stdfil cll prof
 # every non-administrator session that runs a program meets
 gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust
 sdsys/messages/11930         : gcatmode
-gplsrc/k_error.c             : sysexc try @core netfile masters segtrust auditjournal
+gplsrc/k_error.c             : sysexc try @core netfile masters segtrust auditjournal auditwriter
 gplsrc/messages.c            : sysexc @core segtrust
 gplsrc/sd.h                  : sysexc try editgates @core netfile shared masters
 gplsrc/k_funcs.c             : @core cll

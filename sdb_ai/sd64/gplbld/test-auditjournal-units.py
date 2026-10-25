@@ -49,17 +49,18 @@ def run():
     row("J1 k_error.c includes <syslog.h>", "#include <syslog.h>" in k)
     am = func(k, "void audit_message(char* msg)")
     row("J0 audit_message() is found", bool(am))
-    calls = re.findall(r"\bsyslog\s*\(([^;]*)\);", am)
-    row("J2 audit_message() makes exactly one syslog() call: LOG_AUTHPRIV | LOG_NOTICE, the format \"sd-audit %s\", the record as an argument",
-        len(calls) == 1 and re.fullmatch(r'\s*LOG_AUTHPRIV\s*\|\s*LOG_NOTICE\s*,\s*"sd-audit %s"\s*,\s*buff\s*', calls[0]) is not None, "calls: %r" % (calls,))
-    i_end, i_sys = am.find("EndExclusive(ERRLOG_SEM);"), am.find("syslog(")
-    row("J3 the syslog() call comes after EndExclusive(ERRLOG_SEM), not while the semaphore is held", 0 <= i_end < i_sys, "EndExclusive at %d, syslog at %d" % (i_end, i_sys))
-    tail = am[i_end:] if i_end >= 0 else ""
-    row("J4 and it is made whether or not the file was written: guarded only by 'bytes > 0', outside the open/write branch",
-        re.search(r"EndExclusive\(ERRLOG_SEM\);\s*if \(bytes > 0\) \{\s*buff\[bytes - 1\] = '\\0';\s*syslog\(", tail) is not None, tail[:200])
+    calls = re.findall(r"\bsyslog\s*\(([^;]*)\);", k)
+    row("J2 k_error.c makes exactly one syslog() call, in audit_message(): LOG_AUTHPRIV | LOG_NOTICE, the format \"sd-audit %s\", the record as an argument",
+        len(calls) == 1 and "syslog(" in am and re.fullmatch(r'\s*LOG_AUTHPRIV\s*\|\s*LOG_NOTICE\s*,\s*"sd-audit %s"\s*,\s*buff\s*', calls[0]) is not None, "calls: %r" % (calls,))
+    i_app, i_sys = am.find("audit_append_file(buff, bytes);"), am.find("syslog(")
+    row("J3 audit_message() holds no semaphore of its own (the file append, which takes ERRLOG_SEM, is a function it calls), and the syslog() call comes after that call",
+        "StartExclusive" not in am and 0 <= i_app < i_sys, "StartExclusive in audit_message: %s, append at %d, syslog at %d" % ("StartExclusive" in am, i_app, i_sys))
+    tail = am[i_app:] if i_app >= 0 else ""
+    row("J4 and the copy is made whether or not the file was written: guarded only by 'bytes > 0', outside the daemon and file branch",
+        re.search(r"audit_append_file\(buff, bytes\);\s*if \(bytes > 0\) \{\s*buff\[bytes - 1\] = '\\0';\s*syslog\(", tail) is not None, tail[:200])
     row("J5 the trailing newline is removed before the record goes to the journal", "buff[bytes - 1] = '\\0';" in tail)
-    i_write, i_nul = am.find("write(fd, buff, bytes)"), am.find("buff[bytes - 1] = '\\0';")
-    row("J5b and the file got the record WITH its newline first (the file write precedes the cut)", 0 <= i_write < i_nul, "write at %d, cut at %d" % (i_write, i_nul))
+    i_nul = am.find("buff[bytes - 1] = '\\0';")
+    row("J5b and the file got the record WITH its newline first (the append precedes the cut)", 0 <= i_app < i_nul, "append at %d, cut at %d" % (i_app, i_nul))
     print("test-auditjournal-units: %d passed, %d failed" % (passed, failed))
     return 0 if failed == 0 else 1
 
@@ -69,9 +70,11 @@ MUTANTS = [
     ("wrong-facility", "syslog(LOG_AUTHPRIV | LOG_NOTICE,", "syslog(LOG_LOCAL1 | LOG_NOTICE,"),
     ("record-as-format", 'syslog(LOG_AUTHPRIV | LOG_NOTICE, "sd-audit %s", buff);', "syslog(LOG_AUTHPRIV | LOG_NOTICE, buff);"),
     ("no-prefix", '"sd-audit %s"', '"%s"'),
-    ("inside-the-semaphore", "  EndExclusive(ERRLOG_SEM);\n\n  if (bytes > 0) {", "  if (bytes > 0) {"),
+    ("inside-the-semaphore", '    syslog(LOG_AUTHPRIV | LOG_NOTICE, "sd-audit %s", buff);',
+     '    StartExclusive(ERRLOG_SEM, 67);\n    syslog(LOG_AUTHPRIV | LOG_NOTICE, "sd-audit %s", buff);\n    EndExclusive(ERRLOG_SEM);'),
     ("only-when-file-written", "      if (write(fd, buff, bytes) != bytes) {\n        /* silent - see the banner */\n      }\n      close(fd);",
      "      if (write(fd, buff, bytes) == bytes) {\n        syslog(LOG_AUTHPRIV | LOG_NOTICE, \"sd-audit %s\", buff);\n      }\n      close(fd);"),
+    ("only-when-the-daemon-did-not-take-it", "  if (bytes > 0) {\n    /* 24 Oct 26 dm - W.11 F4, option B", "  if ((bytes > 0) && !sent_to_daemon) {\n    /* 24 Oct 26 dm - W.11 F4, option B"),
     ("newline-kept", "    buff[bytes - 1] = '\\0';\n", ""),
     ("include-gone", "#include <syslog.h>\n", ""),
 ]

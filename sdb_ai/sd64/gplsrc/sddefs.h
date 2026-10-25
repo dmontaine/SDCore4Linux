@@ -98,6 +98,13 @@
 #define SD_SHM_KEY 0x53434C01
 #define SD_SEM_KEY 0x53434C02
 
+/* 24 Oct 26 dm - W.11 F4, option C (the audit trail's root writer).  The Unix datagram socket sdlnxd listens on, in a directory only root can make files in.  A session
+ * sends one datagram per audit record: AUDIT_MAGIC, the SD user number it claims (digits, or ?), a space, the text.  The daemon stamps the user and pid from the
+ * kernel's credentials of the sender, never from the text.  Fixed at compile time and NOT an environment variable: a variable the user can set would let a user send
+ * their own session's records somewhere they are not kept.  The sandbox tools change the path in their own copy of the tree (as they do the keys above). */
+#define SD_AUDIT_SOCK "/run/sd/audit.sock"
+#define AUDIT_MAGIC "SDAUDIT1 "
+#define AUDIT_DGRAM_MAX 2048
 #define RelinquishTimeslice sched_yield()
 
 /* WINFS denotes use of the Windows file system interface (PDA only so far) */

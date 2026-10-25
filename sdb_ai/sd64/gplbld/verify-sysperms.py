@@ -89,18 +89,12 @@ EXPECT_WRITABLE = {
             "installsdcore.sh:621 sets it 775"),
     "errlog": (False,
                "sessions append errors to it; installsdcore.sh sets it 664 (775 until 24 Oct 26, W.11 F4: nothing runs it)"),
-    # ***THE SWEEP IN SECTION 1 FOUND THIS ONE AND THAT IS THE SWEEP WORKING.***
-    # The first run flagged `audit` as an unexpected writable.  It is writable
-    # on purpose: 0620 is sdsys:sdusers with the GROUP holding write and NOT
-    # read, and a session runs as the Unix user rather than as sdsys, so group
-    # write is exactly how an audit record gets appended at all.  Required,
-    # therefore: if it stops being group-writable the trail stops recording and
-    # nothing else would say so.  The invariant that matters for this file -
-    # that the group cannot READ it - is section 6.
-    AUDIT: (True,
-                 "queue 13's trail: 0620 sdsys:sdusers, group write and NOT "
-                 "read.  Sessions run as the Unix user, so group write is how "
-                 "a record is appended; section 6 checks it cannot be read"),
+    # 24 Oct 26 (W.11 F4, option C1): `audit` IS NO LONGER IN THIS TABLE.  Until then it
+    # was REQUIRED to be group-writable (0620): a session runs as the Unix user, so
+    # group write was how a record got appended at all, and it was also how a member of
+    # sdusers could add a line of his own.  Now a session hands the record to the root
+    # daemon (sdlnxd) and the file is 0600, so a group-writable audit trail is exactly
+    # what this sweep must flag as unexpected.  Section 6 checks the file itself.
     # 14 Sep 2026 - queue 25.  Required for the same reason as the audit trail:
     # a session dumps as its own Unix user, so if the group loses write the
     # dump fails and only "Cannot open dump file" says so.  Section 8 checks
@@ -180,6 +174,16 @@ def file_readable(path):
         with open(path, "rb") as f:
             f.read(1)
         return True, "read 1 byte"
+    except OSError as e:
+        return False, "%s" % e.strerror
+
+
+def file_appendable(path):
+    """Can this user open the file for append?  Opened and closed at once, nothing is written (24 Oct 26)."""
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_APPEND)
+        os.close(fd)
+        return True, "opened for append (and closed, nothing written)"
     except OSError as e:
         return False, "%s" % e.strerror
 
@@ -381,25 +385,26 @@ def main():
              V.says(s.text, r"(?i)^\s*\d+\s+sdsys\s*$"))
 
     # ------------------------------------------------- 6. the audit trail
-    run.heading("6. the audit trail is write-only to the group (queue 13)")
-    run.say("  Mode 0620 sdsys:sdusers: the group may append, and must NOT")
-    run.say("  read.  An ordinary user being able to read it would expose")
-    run.say("  every sign-on, LOGTO and privilege change on the system.")
+    run.heading("6. the audit trail is closed to the group (queue 13; the root writer, 24 Oct 26)")
+    run.say("  Mode 0600 sdsys:sdusers: the group may neither read nor write it.")
+    run.say("  A session hands each record to the root daemon, which stamps the")
+    run.say("  user and pid from the kernel.  An ordinary user being able to")
+    run.say("  read it would expose every sign-on, LOGTO and privilege change;")
+    run.say("  being able to open it for append would let him add a line that")
+    run.say("  claims any user.")
     audit = os.path.join(a.sdsys, AUDIT)
     if os.path.exists(audit):
         run.say("      %-10s %s" % (AUDIT, describe(audit)))
         ok, detail = file_readable(audit)
         run.say("      read attempt: %s" % detail)
         run.note("A1 an ordinary SD user cannot READ the audit trail", False, ok)
-        # ***AND THE LIMIT IS STATED RATHER THAN PAPERED OVER.***  The append
-        # side is deliberately NOT exercised: 0620 lets the group append by
-        # design (a known limit, recorded in queue 13 and the port's), and
-        # writing a line of this file's own into a live audit trail to prove it
-        # would corrupt the evidence the trail exists to hold.  chattr +a
-        # cannot be read either - lsattr is refused to a non-owner.
-        run.say("      NOT exercised: the append side.  0620 permits it by")
-        run.say("      design (queue 13's known limit), and writing into a live")
-        run.say("      audit trail to prove it would corrupt the evidence.")
+        ok, detail = file_appendable(audit)
+        run.say("      append-open attempt: %s" % detail)
+        run.note("A2 an ordinary SD user cannot even OPEN the audit trail for append", False, ok)
+        # The open is made and closed with NOTHING written: opening a file for
+        # append changes nothing in it, so the live trail is not touched.  The
+        # chattr +a flag cannot be read either - lsattr is refused to a non-owner.
+        run.say("      NOT exercised: the flag itself (lsattr is refused to a non-owner).")
     else:
         run.note("A1 the audit trail exists to measure", True, False)
 

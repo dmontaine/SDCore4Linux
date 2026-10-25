@@ -1581,7 +1581,7 @@ echo "Process dumps: $(sudo stat -c '%U:%G %a' "$sdsysdir/dumps") $sdsysdir/dump
 # 11 Sep 26 dm - PORT_ADOPTION 13.  THE AUDIT TRAIL, $sdsysdir/audit.
 # Every SD user must be able to ADD a record, and must not be able to read,
 # truncate, rewrite, rename or delete one - sessions run as the user, since sd
-# is not setuid.  So group sdusers gets write and no read (0620), and the
+# is not setuid.  So group sdusers got write and no read (0620), and the
 # append-only attribute is what turns "write" into "append": the kernel then
 # refuses every open that does not append, and every truncate, rename and
 # unlink, to everyone until root lifts it.  Without the attribute a writable
@@ -1589,6 +1589,11 @@ echo "Process dumps: $(sudo stat -c '%U:%G %a' "$sdsysdir/dumps") $sdsysdir/dump
 # that and rejected it.  A trail deletesdcore.sh saved is put back first, so a
 # keep-accounts reinstall keeps its history.  AFTER the chown -R and chmod -R
 # above, which would otherwise reset the mode.
+# 24 Oct 26 dm - W.11 F4, option C1: 0600, NOT 0620.  A session no longer appends to the file itself: it hands the record to the root daemon (sdlnxd) over a
+#            Unix socket and the daemon appends it with the user and pid the kernel reports, so no member of sdusers can add a line that claims another
+#            user.  The group has no access at all.  If the daemon is not running a session falls back to appending itself, which now works only for the
+#            file's owner (sdsys) and root; for everyone else that record is in the journal only (option B).  sdsys reads the file as its owner; others use sudo.
+#            test-install-acctroot.sh holds this line to 600.
 for f in /home/sd/audit /home/sd/audit.*; do
     if [ -f "$f" ]; then
         sudo mv "$f" "$sdsysdir/"
@@ -1599,11 +1604,11 @@ sudo touch "$sdsysdir/audit"
 for f in "$sdsysdir"/audit "$sdsysdir"/audit.*; do
     [ -f "$f" ] || continue
     sudo chown sdsys:sdusers "$f"
-    sudo chmod 620 "$f"
+    sudo chmod 600 "$f"
     if sudo chattr +a "$f" 2>/dev/null && sudo lsattr "$f" | cut -d' ' -f1 | grep -q a; then
         echo "Audit trail $(basename "$f") is append-only."
     else
-        echo "WARNING: could not make $f append-only (chattr +a); SD users can write it and so could empty it."
+        echo "WARNING: could not make $f append-only (chattr +a); it is mode 600, so only sdsys and root can write it, but they could also empty it."
     fi
 done
 #

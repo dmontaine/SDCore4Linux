@@ -149,6 +149,9 @@ def replace_once(path, old, new, label):
 SANDBOX_PATCHES = [
     ("gplsrc/sddefs.h", "#define SD_SHM_KEY 0x53434C01", "#define SD_SHM_KEY 0x%08X" % SHM_BOX, "sandbox shm key"),
     ("gplsrc/sddefs.h", "#define SD_SEM_KEY 0x53434C02", "#define SD_SEM_KEY 0x%08X" % SEM_BOX, "sandbox sem key"),
+    # 24 Oct 26 (W.11 F4, option C1): the audit daemon's socket.  A sandbox build must NOT carry the live path: on a machine whose own sdlnxd is running, a sandbox
+    # session would hand its audit records to the live trail.  A directory of its own per keyset, so the daemon's checks of its directory hold (it is ours).
+    ("gplsrc/sddefs.h", '#define SD_AUDIT_SOCK "/run/sd/audit.sock"', '#define SD_AUDIT_SOCK "/tmp/sdbox-audit-%d/audit.sock"' % KEYSET, "sandbox audit socket"),
     ("gplsrc/sd.c",
      '  if (geteuid() != 0) {\n    fprintf(stderr, "Command requires administrator privileges\\n");\n    exit(1);\n  }\n',
      '  fprintf(stderr, "sd: SANDBOX BUILD - check_admin stubbed\\n");\n',

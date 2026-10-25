@@ -32,7 +32,7 @@ to the first '='), which is also SD's: a capital in  Account=  fails (decided 9 
 typed (an account name, a reason) and keeps its case.  A record with no key=value at all has only its
 first token checked (a typed argument may follow it, as in Solo's  deny.verbs add WHO - now who).
 
-THE FILE IS sdsys:sdusers 0620 - an ordinary user cannot read it, so this is run with sudo, and
+THE FILE IS sdsys:sdusers 0600 (0620 until 24 Oct 26) - an ordinary user cannot read it, so this is run with sudo, and
 prints what it was given: the path, its size, how many lines it read, how many it could not parse.
 It refuses the null case out loud: a missing, unreadable or empty file, a file with no parsable
 record, or a scope (--since) that leaves no record to judge, is exit 2 and not a pass.
@@ -171,7 +171,7 @@ def measure(path, since=None, judge_all=False):
         with open(path, 'rb') as fh:
             text = fh.read().decode('utf-8', 'replace')
     except OSError as e:
-        print('verify-auditwords: NOTHING MEASURED - cannot read the file (%s). It is sdsys:sdusers 0620: run with sudo.' % e)
+        print('verify-auditwords: NOTHING MEASURED - cannot read the file (%s). It is sdsys:sdusers 0600: run with sudo.' % e)
         return 2
     if judge_all:
         scope = None
