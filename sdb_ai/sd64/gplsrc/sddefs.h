@@ -105,6 +105,14 @@
 #define SD_AUDIT_SOCK "/run/sd/audit.sock"
 #define AUDIT_MAGIC "SDAUDIT1 "
 #define AUDIT_DGRAM_MAX 2048
+
+/* 24 Oct 26 dm - W.11 F4, option C2.  The daemon bounds what any ONE uid may add to the trail: more than AUDIT_RATE_MAX records in AUDIT_RATE_WINDOW seconds are dropped
+ * (the journal copy every session sends is not) and the end of the window writes one line saying how many.  And the file is rotated by size as the daemon writes,
+ * with the same function "sd -start" uses (audit_rot.c).  Compile-time like the socket path: the limits are not the user's to move.  The sandbox tools leave them alone. */
+#define AUDIT_RATE_MAX 600
+#define AUDIT_RATE_WINDOW 60
+#define AUDIT_ROTATE_BYTES 1048576L /* 1MB, then rename and start a new one */
+int audit_rotate_file(const char* path, long limit);
 #define RelinquishTimeslice sched_yield()
 
 /* WINFS denotes use of the Windows file system interface (PDA only so far) */

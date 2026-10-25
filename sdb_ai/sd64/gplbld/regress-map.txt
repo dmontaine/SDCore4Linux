@@ -160,6 +160,8 @@ gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12
 gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
 gplsrc/sdlnxd.c              : q5 shmmode auditwriter
 gplsrc/sddefs.h              : @core auditwriter auditjournal
+# 24 Oct 26 (W.11 F4, C2): the rotation shared by "sd -start" (k_error.c) and the audit daemon; compiled into sd through gpl.src and into sdlnxd by the Makefile
+gplsrc/audit_rot.c           : @core auditwriter
 gplsrc/sdsem.c               : shmmode @core
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode segtrust @core
 gplsrc/profiler.c            : prof

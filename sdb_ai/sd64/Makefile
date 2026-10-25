@@ -131,9 +131,9 @@ sdidx: sdidx.o
 	@echo Linking $@
 	@$(COMP) $(C_FLAGS) -lc $(GPLOBJ)sdidx.o -o $(GPLBIN)sdidx
 
-sdlnxd: sdlnxd.o sdsem.o
+sdlnxd: sdlnxd.o sdsem.o audit_rot.o
 	@echo Linking $@
-	@$(COMP) $(C_FLAGS) -lc $(GPLOBJ)sdlnxd.o $(GPLOBJ)sdsem.o -o $(GPLBIN)sdlnxd
+	@$(COMP) $(C_FLAGS) -lc $(GPLOBJ)sdlnxd.o $(GPLOBJ)sdsem.o $(GPLOBJ)audit_rot.o -o $(GPLBIN)sdlnxd
 
 terminfo:
 	@echo Compiling terminfo library

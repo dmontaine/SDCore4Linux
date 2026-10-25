@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  THE AUDIT DAEMON LIMITS WHAT ONE USER CAN ADD AND ROTATES THE TRAIL BY SIZE (SECURITY-MODEL EVALUATION, FINDING F4, SECOND STAGE).
+
+             What        sdlnxd takes at most 600 audit records from one operating-system user in any 60 seconds (counted from the user the kernel reports, not
+                         from the record's text) and drops the rest. When that user's 60 seconds are over it writes one line to the trail, "audit rate limit
+                         dropped=N taken=600 limit=600 window=60", with that user's name; if the daemon is stopped inside the window it writes the line then.
+                         The error log says how many records the bound dropped. The daemon also rotates the trail itself when it reaches 1 MB: it renames it to
+                         audit.<date>-<time> and starts a new file with the old file's owner, mode and append-only flag, with no restart of SD. "sd -start"
+                         now uses the same code, which moved out of the kernel into audit_rot.c.
+             Why it      Any SD user with a shell could send records as fast as the socket takes them and fill the disk; and a machine that never restarted SD
+                         never rotated the trail.
+             Does not    Limit the journal copy (a dropped record still has one; journald has its own limit), make the figures a setting (they are fixed when SD
+                         is built), restart the daemon if it dies, or reach an existing system until the installer is run on it again.
+
 24 Oct 26  THE AUDIT TRAIL HAS A WRITER THAT IS NOT THE USER: A LINE CAN NO LONGER NAME SOMEONE ELSE (SECURITY-MODEL EVALUATION, FINDING F4, FIRST STAGE).
 
              What        sdlnxd, the root daemon, now writes the audit file. A session sends each record to it over a Unix datagram socket

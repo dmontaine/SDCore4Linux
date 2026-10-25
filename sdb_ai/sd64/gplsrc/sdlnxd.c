@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F4, option C2 (the owner: "Start C2"): the daemon bounds what one uid may add to the trail (AUDIT_RATE_MAX in AUDIT_RATE_WINDOW seconds, then ONE line
+ *               saying how many were dropped) and rotates the file by size as it writes, with audit_rotate_file() (audit_rot.c), the code "sd -start" uses.
  * 24 Oct 26 dm  W.11 F4, option C1 (the owner: "b then c"): this daemon is the audit trail's writer.  It listens on a Unix datagram socket (SD_AUDIT_SOCK), takes the user and
  *               the pid of each record from the kernel's credentials on the datagram and appends the line to the audit file; the main loop waits in poll() instead of sleep().
  * 24 Oct 26 dm  W.11 F1 (security-model evaluation): this daemon runs as root, so it no longer takes the system directory from the shared
@@ -111,11 +113,26 @@ void log_message(char* msg);
    never the sender's, the path comes from the daemon's own executable (own_sysdir(), F1), and a bad datagram is dropped and counted - it never ends the loop.            */
 
 #define AUDIT_MSG_MAX 1900      /* bytes of text kept */
+#define AUDIT_RATE_SLOTS 128    /* uids whose current window is remembered */
 
 static int audit_sock = -1;
 static bool audit_sock_made = FALSE;
 static unsigned long audit_dropped = 0;       /* datagrams refused: no credentials, not ours, too long, nothing in it */
 static unsigned long audit_unwritten = 0;     /* records accepted but not appended (the file would not open or write) */
+static unsigned long audit_limited = 0;       /* records dropped by the per-uid rate bound (C2) */
+static unsigned long audit_rotate_failed = 0; /* rotations that were due and could not be done (C2) */
+static time_t audit_rotate_after = 0;         /* after a failed rotation, no new attempt before this audit_clock() second */
+
+/* C2: what one uid has added in its current window.  The table is the daemon's own memory; nothing in it comes from the text of a datagram. */
+typedef struct {
+  uid_t uid;
+  pid_t pid;            /* the last sender's: the line that reports a flood names it */
+  time_t start;         /* audit_clock() when this window began; 0 = the slot is free */
+  unsigned long count;  /* records taken in this window */
+  unsigned long dropped;
+} AUDIT_RATE;
+
+static AUDIT_RATE audit_rate[AUDIT_RATE_SLOTS];
 
 /* the user name for a uid, safe to put on a line; a tiny cache so that a burst does not ask NSS for every record */
 static void audit_user_name(uid_t uid, char* out, size_t outsz) {
@@ -171,6 +188,144 @@ static void audit_login_name(pid_t pid, uid_t uid, char* out, size_t outsz) {
   audit_user_name((uid_t)v, out, outsz);
 }
 
+/* Seconds on the monotonic clock, plus one so that 0 can mean "none".  The wall clock can be set back; a rate window must not be. */
+static time_t audit_clock(void) {
+  struct timespec t;
+
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return t.tv_sec + 1;
+}
+
+/* One line of the trail: the time, the daemon's stamp (user, login user, the claimed SD user number, pid), then the text as an ARGUMENT - never as the format.
+   0 when it does not fit. */
+static int audit_format_line(char* line, size_t linesz, const char* user, const char* login, const char* who, int pid, const char* msg) {
+  time_t timenow = time(NULL);
+  struct tm lt;
+  int len;
+
+  localtime_r(&timenow, &lt);
+  len = snprintf(line, linesz, "%04d-%02d-%02d %02d:%02d:%02d user=%s%s%s uid=%s pid=%d %s\n",
+                 lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour, lt.tm_min, lt.tm_sec, user,
+                 (login[0] != '\0') ? " sudo=" : "", login, who, pid, msg);
+  if ((len <= 0) || (len >= (int)linesz))
+    return 0;
+  return len;
+}
+
+/* Append one finished line to the trail.  C2: the file is rotated first when it has reached AUDIT_ROTATE_BYTES, under the error log's semaphore (a session that is
+   appending itself, because it could not reach this daemon, holds it), by the code "sd -start" uses.  A rotation that fails is counted and not tried again for a minute:
+   the trail stays whole and keeps growing, as it does there. */
+static void audit_emit_line(const char* line, int len) {
+  char path[PATH_MAX + 16];
+  struct stat st;
+  time_t now;
+  int fd;
+
+  if (snprintf(path, sizeof(path), "%s%caudit", own_sysdir_path, DS) >= (int)sizeof(path)) {
+    audit_unwritten++;
+    return;
+  }
+  now = audit_clock();
+  if ((now >= audit_rotate_after) && (lstat(path, &st) == 0) && S_ISREG(st.st_mode) && (st.st_size >= AUDIT_ROTATE_BYTES)) {
+    StartExclusive(ERRLOG_SEM, 70);
+    if (audit_rotate_file(path, AUDIT_ROTATE_BYTES) < 0) {
+      audit_rotate_failed++;
+      audit_rotate_after = now + 60;
+    }
+    EndExclusive(ERRLOG_SEM);
+  }
+  fd = open(path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC);
+  if ((fd < 0) || (write(fd, line, len) != len))
+    audit_unwritten++;
+  if (fd >= 0)
+    close(fd);
+}
+
+/* C2: ONE line, in the trail's own shape, saying that a uid sent more than the bound allows in a window.  The user is the credentials' (audit_user_name), the pid the last
+   sender's, and the text is numbers and constants only. */
+static void audit_rate_note(const AUDIT_RATE* s) {
+  char user[64];
+  char msg[96];
+  char line[256];
+  int len;
+
+  audit_user_name(s->uid, user, sizeof(user));
+  snprintf(msg, sizeof(msg), "audit rate limit dropped=%lu taken=%lu limit=%d window=%d", s->dropped, s->count, AUDIT_RATE_MAX, AUDIT_RATE_WINDOW);
+  len = audit_format_line(line, sizeof(line), user, "", "?", (int)s->pid, msg);
+  if (len > 0)
+    audit_emit_line(line, len);
+  else
+    audit_unwritten++;
+}
+
+/* The window of this slot is over, or the slot is wanted for another uid: write its line if it dropped anything. */
+static void audit_rate_close(AUDIT_RATE* s) {
+  if (s->dropped > 0)
+    audit_rate_note(s);
+  s->dropped = 0;
+}
+
+/* C2: may this uid add a record now?  At most AUDIT_RATE_MAX in a window of AUDIT_RATE_WINDOW seconds, counted per uid from the credentials; the rest are dropped here and
+   counted.  The journal copy that every session sends is not limited by this, so a dropped record still has one. */
+static bool audit_rate_take(uid_t uid, pid_t pid) {
+  time_t now = audit_clock();
+  AUDIT_RATE* s = NULL;
+  AUDIT_RATE* oldest = &audit_rate[0];
+  int i;
+
+  for (i = 0; i < AUDIT_RATE_SLOTS; i++) {
+    if ((audit_rate[i].start != 0) && (audit_rate[i].uid == uid)) {
+      s = &audit_rate[i];
+      break;
+    }
+  }
+  if (s == NULL) {
+    for (i = 0; i < AUDIT_RATE_SLOTS; i++) {
+      if (audit_rate[i].start == 0) {
+        s = &audit_rate[i];
+        break;
+      }
+      if (audit_rate[i].start < oldest->start)
+        oldest = &audit_rate[i];
+    }
+    if (s == NULL) { /* the table is full: the oldest window goes, with its line */
+      audit_rate_close(oldest);
+      s = oldest;
+    }
+    memset(s, 0, sizeof(*s));
+    s->uid = uid;
+    s->start = now;
+  } else if (now - s->start >= AUDIT_RATE_WINDOW) {
+    audit_rate_close(s);
+    s->start = now;
+    s->count = 0;
+  }
+  s->pid = pid;
+  if (s->count >= AUDIT_RATE_MAX) {
+    s->dropped++;
+    audit_limited++;
+    return FALSE;
+  }
+  s->count++;
+  return TRUE;
+}
+
+/* Every tick, and once more on the way out: the lines for the windows that are over (for all of them on the way out), and the slots they free. */
+static void audit_rate_sweep(bool all) {
+  time_t now = audit_clock();
+  int i;
+
+  for (i = 0; i < AUDIT_RATE_SLOTS; i++) {
+    if (audit_rate[i].start == 0)
+      continue;
+    if (all || (now - audit_rate[i].start >= AUDIT_RATE_WINDOW)) {
+      audit_rate_close(&audit_rate[i]);
+      if (now - audit_rate[i].start >= AUDIT_RATE_WINDOW)
+        audit_rate[i].start = 0;
+    }
+  }
+}
+
 static void audit_write_record(const struct ucred* cred, char* buf, ssize_t n) {
   size_t magic = strlen(AUDIT_MAGIC);
   char who[16];
@@ -179,11 +334,7 @@ static void audit_write_record(const struct ucred* cred, char* buf, ssize_t n) {
   char user[64];
   char login[64];
   char line[AUDIT_MSG_MAX + 512];
-  char path[PATH_MAX + 16];
-  time_t timenow;
-  struct tm lt;
   int len;
-  int fd;
   int i;
 
   buf[n] = '\0';
@@ -216,27 +367,19 @@ static void audit_write_record(const struct ucred* cred, char* buf, ssize_t n) {
   if (strlen(msg) > AUDIT_MSG_MAX)
     msg[AUDIT_MSG_MAX] = '\0';
 
+  /* C2: a well-formed record from a uid that has used up its window is dropped here (and counted), before anything is looked up or formatted for it */
+  if (!audit_rate_take(cred->uid, cred->pid))
+    return;
+
   audit_user_name(cred->uid, user, sizeof(user));
   audit_login_name(cred->pid, cred->uid, login, sizeof(login));
-  timenow = time(NULL);
-  localtime_r(&timenow, &lt);
 
-  len = snprintf(line, sizeof(line), "%04d-%02d-%02d %02d:%02d:%02d user=%s%s%s uid=%s pid=%d %s\n",
-                 lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour, lt.tm_min, lt.tm_sec, user,
-                 (login[0] != '\0') ? " sudo=" : "", login, who, (int)cred->pid, msg);
-  if ((len <= 0) || (len >= (int)sizeof(line))) {
+  len = audit_format_line(line, sizeof(line), user, login, who, (int)cred->pid, msg);
+  if (len == 0) {
     audit_dropped++;
     return;
   }
-  if (snprintf(path, sizeof(path), "%s%caudit", own_sysdir_path, DS) >= (int)sizeof(path)) {
-    audit_unwritten++;
-    return;
-  }
-  fd = open(path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC);
-  if ((fd < 0) || (write(fd, line, len) != len))
-    audit_unwritten++;
-  if (fd >= 0)
-    close(fd);
+  audit_emit_line(line, len);
 }
 
 static void audit_receive_one(void) {
@@ -416,18 +559,24 @@ int main() {
     }
 
     audit_serve(TICK_SECONDS); /* takes audit records until the tick is up (it was sleep(TICK_SECONDS)) */
+    audit_rate_sweep(FALSE);   /* C2: the line for each rate window that is over */
 
-    if ((audit_dropped != 0) || (audit_unwritten != 0)) {
-      char note[120];
+    if ((audit_dropped != 0) || (audit_unwritten != 0) || (audit_limited != 0) || (audit_rotate_failed != 0)) {
+      char note[200];
 
-      snprintf(note, sizeof(note), "audit: %lu datagram(s) refused, %lu record(s) not written, since the last note", audit_dropped, audit_unwritten);
+      snprintf(note, sizeof(note), "audit: %lu datagram(s) refused, %lu record(s) not written, %lu over the rate bound, %lu rotation(s) failed, since the last note",
+               audit_dropped, audit_unwritten, audit_limited, audit_rotate_failed);
       audit_dropped = 0;
       audit_unwritten = 0;
+      audit_limited = 0;
+      audit_rotate_failed = 0;
       log_message(note);
     }
   }
 
   /* Tidy up on our way out */
+
+  audit_rate_sweep(TRUE); /* C2: a window that dropped records has its line even if it is not over */
 
   if (audit_sock >= 0)
     close(audit_sock);
