@@ -88,7 +88,7 @@ EXPECT_WRITABLE = {
             "the print spool: gplsrc/to_file.c:169 writes <sysdir>/prt/p<n>; "
             "installsdcore.sh:621 sets it 775"),
     "errlog": (False,
-               "sessions append errors to it; installsdcore.sh:620 sets it 775"),
+               "sessions append errors to it; installsdcore.sh sets it 664 (775 until 24 Oct 26, W.11 F4: nothing runs it)"),
     # ***THE SWEEP IN SECTION 1 FOUND THIS ONE AND THAT IS THE SWEEP WORKING.***
     # The first run flagged `audit` as an unexpected writable.  It is writable
     # on purpose: 0620 is sdsys:sdusers with the GROUP holding write and NOT

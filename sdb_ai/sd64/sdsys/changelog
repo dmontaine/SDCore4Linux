@@ -1,6 +1,25 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  EVERY AUDIT RECORD IS ALSO SENT TO THE SYSTEM JOURNAL, WHICH SAYS WHO REALLY SENT IT (SECURITY-MODEL EVALUATION, FINDING F4).
+
+             What        audit_message() now sends each record to syslog as well (facility authpriv, level notice, identifier sd_Log, the text prefixed
+                         "sd-audit "), after it has written the audit file and without holding the lock that logging waits on. It does this even when the
+                         file could not be written. `journalctl -t sd_Log -o verbose` shows the record with _UID and _PID.
+             Why it      The audit file is append-only, but a person with a shell who is in sdusers can add a line of their own, and a line can claim any user,
+                         uid or pid. The journal's daemon records the uid and pid of the process that sent a message from the socket itself, and the sender
+                         cannot choose them. A line in the file that has no journal copy from that uid and pid is suspect.
+             Does not    Make the file itself trustworthy (that needs a writer that is not the user), keep the journal across a reboot (that is the machine's
+                         journald setting: /var/log/journal must exist), or let anyone read it without being root or in adm or systemd-journal.
+
+24 Oct 26  THE ERROR LOG LOSES ITS EXECUTE BITS: MODE 664, NOT 775 (SECURITY-MODEL EVALUATION, FINDING F4, THE PART THAT WAS WRONG).
+
+             What        The installer now leaves errlog mode 664, owner sdsys, group sdusers. It left 775.
+             Why it      Every session appends to the error log, so the group keeps write; nothing runs it, so it has no use for execute bits.
+             Does not    Touch the audit trail. That file is already mode 0620 and append-only (chattr +a, which the installer sets and checks): the group
+                         can add a record and cannot read, empty, rewrite, rename or delete it. What stays true: a person with a shell who is in sdusers
+                         can still add a line of their own to it, so a line shows what was written, not that SD wrote it.
+
 24 Oct 26  THE API'S LOCAL SOCKET IS FOR SD USERS ONLY: MODE 0660, GROUP sdusers, NOT 0666 (SECURITY-MODEL EVALUATION, FINDING F5).
 
              What        The unit sdclient.socket now says SocketMode=0660 beside SocketGroup=sdusers, so /tmp/sdsys/sdclient.socket can be connected to

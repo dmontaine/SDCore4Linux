@@ -82,7 +82,7 @@ gplbld/sandbox-gcatmode.py   : @self
 gplbld/sandbox-shmmode.py    : @self
 gplbld/sandbox-segtrust.py   : @self
 # 24 Oct 26 (W.11 F9): sandbox-segtrust loads sandbox-gates (its fixture accounts, ZZKF, prepare()), so a change to that one runs this one too.
-gplbld/sandbox-gates.py      : @self segtrust
+gplbld/sandbox-gates.py      : @self segtrust auditjournal
 gplbld/*.py                  : none
 gplbld/*.sh                  : none
 gplbld/*.md                  : none
@@ -166,7 +166,7 @@ gplsrc/kernel.c              : @core csvb q5 listu-a5 inhibit-q8 stdfil cll prof
 # every non-administrator session that runs a program meets
 gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust
 sdsys/messages/11930         : gcatmode
-gplsrc/k_error.c             : sysexc try @core netfile masters segtrust
+gplsrc/k_error.c             : sysexc try @core netfile masters segtrust auditjournal
 gplsrc/messages.c            : sysexc @core segtrust
 gplsrc/sd.h                  : sysexc try editgates @core netfile shared masters
 gplsrc/k_funcs.c             : @core cll

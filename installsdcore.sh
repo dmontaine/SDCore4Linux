@@ -1298,7 +1298,9 @@ sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"
 sudo cp sd.conf /etc/sd.conf
 sudo chmod 644 /etc/sd.conf
 sudo chmod -R 755 "$sdsysdir"
-sudo chmod 775 "$sdsysdir/errlog"
+# 24 Oct 26 dm - W.11 F4 (security-model evaluation): errlog is 664, not 775.  Every session appends to it, so the group keeps write; nothing runs it, so the
+#            execute bits go.  (The audit trail is a different file: 0620 and append-only, see the AUDIT TRAIL block below.)
+sudo chmod 664 "$sdsysdir/errlog"
 sudo chmod -R 775 "$sdsysdir/prt"
 # 20 Oct 26 dm - the AI guide and pack are text, not programs: 644 for the files (the chmod -R 755 above made them 755), directories stay
 #            755.  Nobody in sdusers can write them, and that is the point: an agent is told to trust this text, so a file any SD

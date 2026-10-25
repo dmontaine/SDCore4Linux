@@ -20,6 +20,7 @@
 #   A2  an upgrade: the three exist at 775 (what the install of 19 Oct left): they end 755
 #   A3  nothing is writable by the group or others on any of the three (read from `stat -c %A`)
 #   A4  static: no chmod of an account root to anything but 755 in installsdcore.sh, and deletesdcore.sh does not chmod /home/sd at all
+#   A5  static (W.11 F4, 24 Oct 26): errlog is chmod'ed exactly once, to 664 (every session appends to it; nothing runs it)
 # ANCHORED ON THE DISK, not on the block's output: the mode a directory has afterwards.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -58,6 +59,10 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant begin-marker-gone   "s|^# ACCTROOT-BEGIN|# acctroot-begin|"
   mutant end-marker-gone     "s|^# ACCTROOT-END|# acctroot-end|"
   mutant stray-chmod-later   "\$a sudo chmod 775 \"\$ACCT_PATH\"/user_accounts"
+  mutant errlog-775          "s|^sudo chmod 664 \"\$sdsysdir/errlog\"|sudo chmod 775 \"\$sdsysdir/errlog\"|"
+  mutant errlog-666          "s|^sudo chmod 664 \"\$sdsysdir/errlog\"|sudo chmod 666 \"\$sdsysdir/errlog\"|"
+  mutant errlog-chmod-gone   "/^sudo chmod 664 \"\$sdsysdir\/errlog\"/d"
+  mutant errlog-chmod-twice  "\$a sudo chmod 664 \"\$sdsysdir/errlog\""
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$missed" -eq 0 ]
   exit $?
@@ -126,6 +131,10 @@ bad=$(grep -n -E 'chmod[^#]*(ACCT_PATH|acct_path|/home/sd)' "$INST" | grep -v -E
 row "A4 installsdcore.sh chmods an account root only to 755" "$([ -z "$bad" ] && echo 0 || echo 1)" "$bad"
 bad=$(grep -n -E 'chmod[^#]*(acct_path|/home/sd)' "$DELETER" || true)
 row "A4b deletesdcore.sh does not chmod /home/sd" "$([ -z "$bad" ] && echo 0 || echo 1)" "$bad"
+# A5 (24 Oct 26, W.11 F4): errlog is 664 - every session appends to it, nothing runs it
+el=$(grep -n -E '^[^#]*chmod[^#]*errlog' "$INST" || true)
+n=$(printf '%s' "$el" | grep -c . || true)
+row "A5 installsdcore.sh chmods errlog exactly once, to 664 (group write for the sessions, no execute bits)" "$([ "$n" = 1 ] && printf '%s' "$el" | grep -q -E 'chmod 664 "\$sdsysdir/errlog"' && echo 0 || echo 1)" "lines: $el"
 
 echo "test-install-acctroot: $pass passed, $fail failed"
 [ "$pass" -eq 0 ] && { echo "test-install-acctroot: NOTHING RAN"; exit 2; }

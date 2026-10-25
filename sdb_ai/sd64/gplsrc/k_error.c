@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F4, option B: audit_message() also sends each record to the system journal (syslog, LOG_AUTHPRIV), whose daemon stamps the sender's real uid and pid.
  * 24 Oct 26 dm  W.11 F9: the errlog and the audit trail are under sd_sysdir() (the configuration file's), not the segment's copy.
  * 17 Oct 26 dm  S.65 slice 3c: log_permissions_error() does not read the file table for a NET_FILE
  * 17 Oct 26 dm  k_error(): an error with a row in sys_exc_table is thrown as a SYS.* exception when a TRY handler can
@@ -67,6 +68,7 @@
 
 #include <setjmp.h>
 #include <stdarg.h>
+#include <syslog.h>
 #include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -974,6 +976,16 @@ void audit_message(char* msg) {
   }
 
   EndExclusive(ERRLOG_SEM);
+
+  if (bytes > 0) {
+    /* 24 Oct 26 dm - W.11 F4, option B (security-model evaluation).  The same record goes to the system journal.  The file's lines say who did it in words the writer chose -
+       any member of sdusers can append a line of their own - but the journal's daemon records the uid and pid of the process that sent the message, and the sender cannot choose
+       those (_UID and _PID in `journalctl -t sd_Log -o verbose`).  A line in the file with no journal entry from that uid and pid is suspect.  AUTHPRIV so that the usual
+       rsyslog rules also keep it in a root-only text log.  After EndExclusive: a syslog socket that stalls must not hold the semaphore every session's logging waits on.  The
+       record is the argument, never the format.  Made whether or not the file could be written: when it could not, this is the only copy. */
+    buff[bytes - 1] = '\0';
+    syslog(LOG_AUTHPRIV | LOG_NOTICE, "sd-audit %s", buff);
+  }
 }
 
 /* ======================================================================
