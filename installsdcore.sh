@@ -1354,6 +1354,7 @@ if [ -e "$ACCT_PATH" ] && [ ! -d "$ACCT_PATH" ]; then
    printf "%b\n" "$NC"
    exit 1
 fi
+# ACCTROOT-BEGIN
 sudo mkdir -p "$ACCT_PATH"/user_accounts "$ACCT_PATH"/group_accounts
 #
 # Modified by Composer AI - 2026/06/10.
@@ -1361,12 +1362,18 @@ sudo mkdir -p "$ACCT_PATH"/user_accounts "$ACCT_PATH"/group_accounts
 # rev 0.9.3 always set ownership (these could get messed up if sdsys and sdusers group gets deleted during deletesd.sh script
 # rev 0.9.3 always set ownership (these could get messed up if sdsys and sdusers group gets deleted during deletesdcore.sh script
 # --------------------
+# 24 Oct 26 dm - W.11 F3 (security-model evaluation): 755, not 775.  With the group allowed to write here, any SD user (every one is in sdusers)
+#            could rename another account's directory and put one of their own under the same name, and the account's owner would then sign on to a
+#            VOC the other person wrote.  Nothing needs the group's write: the account directories are made by SD's own sdsys session (owner
+#            sdsys), and sd-elevate (root) does the rest; useradd -m makes the Linux home under /home, not here.  This runs on an upgrade too, so
+#            an existing install is tightened by installing again.  test-install-acctroot.sh holds this block to it.
 sudo chown sdsys:sdusers "$ACCT_PATH"
-sudo chmod 775 "$ACCT_PATH"
+sudo chmod 755 "$ACCT_PATH"
 sudo chown sdsys:sdusers "$ACCT_PATH"/group_accounts
-sudo chmod 775 "$ACCT_PATH"/group_accounts
+sudo chmod 755 "$ACCT_PATH"/group_accounts
 sudo chown sdsys:sdusers "$ACCT_PATH"/user_accounts
-sudo chmod 775 "$ACCT_PATH"/user_accounts
+sudo chmod 755 "$ACCT_PATH"/user_accounts
+# ACCTROOT-END
 #
 # Modified by Composer AI - 2026/06/10.
 # sudo ln -s $sdsysdir/bin/sd /usr/local/bin/sd

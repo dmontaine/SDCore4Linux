@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  THE DIRECTORIES THAT HOLD THE ACCOUNTS ARE NO LONGER OPEN FOR THE GROUP TO WRITE: ONE SD USER CAN NO LONGER SWAP ANOTHER'S ACCOUNT DIRECTORY (SECURITY-MODEL
+           EVALUATION, FINDING F3).
+
+             What        The installer now leaves /home/sd, /home/sd/user_accounts and /home/sd/group_accounts mode 755, owner sdsys, group sdusers. It
+                         left them 775. It does this on an upgrade too, so installing again tightens an existing system.
+             Why it      With the group allowed to write there, any SD user (every one is in sdusers) could rename another account's directory and make
+                         one of their own under the same name; the account's owner then signed on to a VOC the other person had written. Nothing needs
+                         the group's write: SD makes an account directory in the sdsys session (sdsys owns the parent), and the helper that runs as
+                         root does the rest.
+             Does not    Change an existing system until the installer is run on it again. Touch the account directories themselves, which keep their
+                         own owner, group and setgid bit.
+
 24 Oct 26  WHAT A SESSION DECIDES ON IS NO LONGER READ FROM SD'S SHARED MEMORY: AN SD USER WITH A SHELL CAN NO LONGER CHANGE THE SYSTEM DIRECTORY, THE
            P-CODE, THE SETTINGS OR A SESSION'S PRIVILEGES BY WRITING TO IT (SECURITY-MODEL EVALUATION, FINDING F9).
 
