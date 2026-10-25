@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY):
+ * 25 Oct 26 dm  update_internal_node(): removing the LAST child of an internal node that has others left no longer takes the node out of its parent too (the parent was told "no key",
+ *               which it reads as "remove this child", so a live subtree went missing from every lookup; found by the Kimi / DeepSeek audit and measured with a 120,000 key index: sandbox-akdeep.py).
+ *               The parent is now given the node's new maximum key.  A node left with one child is still replaced by it, and when that child is a terminal node its two neighbours are
+ *               pointed at its new node number (relink_term_neighbours()); they kept the number that was given back.
  * 24 Oct 26 dm  W.11 F9: the administrator test is MY_ADMIN() (the process's own word), not the user table entry.
  * 21 Oct 26 dm  S.73 item 3, D1 (the owner's "index query statements need no new gate"): INDICES (both forms), SELECTINDEX (both), SETLEFT, SETRIGHT, SELECTLEFT and SELECTRIGHT work on a NET_FILE:
  *               net_index_query() (netfiles.c) asks the server through the handler and these turn the answer into the list, the key variable and STATUS() a local file gives.  INDICES is the
@@ -124,7 +128,19 @@ Private int32_t get_ak_node(DH_FILE *dh_file, int16_t subfile);
 
 Private bool free_ak_node(DH_FILE *dh_file, int16_t subfile, int32_t node_num);
 
-Private int16_t compare(char *s1, int16_t s1_len, char *s2, int16_t s2_len, bool right_justified, bool nocase);
+/* 25 Oct 26  How the keys of an index are compared.  AKJ_RIGHT is the comparator every right justified index had until this date (an empty or sign-only key is 0,
+   a number must fit an int32, a decimal is text, and a number against text is compared as text, which is not transitive); an index made now has AK_V2 and AKJ_TOTAL. */
+#define AKJ_LEFT 0
+#define AKJ_RIGHT 1
+#define AKJ_TOTAL 2
+#define ak_justify(flags) (((flags) & AK_RIGHT) ? (((flags) & AK_V2) ? AKJ_TOTAL : AKJ_RIGHT) : AKJ_LEFT)
+#define AKC_NULL 0
+#define AKC_NUMBER 1
+#define AKC_TEXT 2
+
+Private int ak_key_class(const char *s, int16_t len, double *value);
+
+Private int16_t compare(char *s1, int16_t s1_len, char *s2, int16_t s2_len, int justify, bool nocase);
 
 Private bool update_internal_node(DH_FILE *dh_file,
                                   int16_t subfile,
@@ -138,6 +154,8 @@ Private bool update_internal_node(DH_FILE *dh_file,
                                   char *id3,
                                   int16_t id3_len,
                                   int32_t offset3);
+
+Private bool relink_term_neighbours(DH_FILE *dh_file, int16_t subfile, DH_TERM_NODE *term, int32_t new_home);
 
 Private STRING_CHUNK *ak_read_record(DH_FILE *dh_file, int16_t subfile, DH_RECORD *rec_ptr);
 
@@ -2010,7 +2028,14 @@ Private int16_t create_ak(char *data_path,          /* Data file path name */
   /* Create an empty AK subfile */
 
   memset((char *)&ak_header, 0, DH_AK_HEADER_SIZE);
-  ak_header.magic = DH_INDEX;
+  /* 25 Oct 26  A right justified index is made in the total order (AK_V2) and with a magic number that an older SD refuses; a left justified one is unchanged. */
+  if (flags & AK_RIGHT) {
+    ak_header.magic = DH_INDEX2;
+    flags |= AK_V2;
+  } else {
+    ak_header.magic = DH_INDEX;
+    flags &= ~AK_V2;
+  }
   ak_header.flags = flags;
   ak_header.fno = fno;
   strcpy((char *)ak_header.ak_name, ak_name);
@@ -2257,7 +2282,7 @@ Private bool ak_write(DH_FILE *dh_file, /* File descriptor */
   int16_t header_lock = 0; /* File header group lock table index */
   int32_t node_num;
   int16_t flags;    /* AK flags from ak.data matrix */
-  bool rj;          /* Right justified? */
+  int rj;           /* How keys are compared: AKJ_LEFT, AKJ_RIGHT or AKJ_TOTAL */
   bool nocase;      /* Case insensitive? */
   int16_t child_ct; /* Child node count */
   int16_t ci;       /* Child index for node scan */
@@ -2301,7 +2326,7 @@ Private bool ak_write(DH_FILE *dh_file, /* File descriptor */
   fptr = FPtr(dh_file->file_id);
   subfile = AK_BASE_SUBFILE + akno;
   flags = (int16_t)(AKData(dh_file, akno, AKD_FLGS)->data.value);
-  rj = (flags & AK_RIGHT) != 0;
+  rj = ak_justify(flags);
   nocase = (flags & AK_NOCASE) != 0;
   fptr->stats.ak_writes++;
   NoteStat(ak_writes);
@@ -3134,7 +3159,7 @@ Private void ak_delete(DH_FILE *dh_file, /* File descriptor */
   int32_t node_num;
   int32_t sibling_node_num;
   int16_t flags;      /* AK flags from ak.data matrix */
-  bool rj;            /* Right justified? */
+  int rj;             /* How keys are compared: AKJ_LEFT, AKJ_RIGHT or AKJ_TOTAL */
   bool nocase;        /* Case insensitive? */
   int16_t child_ct;   /* Child node count */
   int16_t ci;         /* Child index for node scan */
@@ -3161,7 +3186,7 @@ Private void ak_delete(DH_FILE *dh_file, /* File descriptor */
   fptr = FPtr(dh_file->file_id);
   subfile = AK_BASE_SUBFILE + akno;
   flags = (int16_t)AKData(dh_file, akno, AKD_FLGS)->data.value;
-  rj = (flags & AK_RIGHT) != 0;
+  rj = ak_justify(flags);
   nocase = (flags & AK_NOCASE) != 0;
   fptr->stats.ak_deletes++;
   NoteStat(ak_deletes);
@@ -3400,7 +3425,7 @@ Private STRING_CHUNK *ak_read(DH_FILE *dh_file, /* File descriptor */
   int32_t node_num;
   int32_t big_node_num;   /* 0556 */
   int16_t flags;          /* AK flags from ak.data matrix */
-  bool rj;                /* Right justified? */
+  int rj;                 /* How keys are compared: AKJ_LEFT, AKJ_RIGHT or AKJ_TOTAL */
   bool nocase;            /* Case insensitive? */
   int16_t child_ct;       /* Child node count */
   int16_t ci;             /* Child index for node scan */
@@ -3427,7 +3452,7 @@ Private STRING_CHUNK *ak_read(DH_FILE *dh_file, /* File descriptor */
   fptr = FPtr(dh_file->file_id);
   subfile = AK_BASE_SUBFILE + akno;
   flags = (int16_t)(AKData(dh_file, akno, AKD_FLGS)->data.value);
-  rj = (flags & AK_RIGHT) != 0;
+  rj = ak_justify(flags);
   nocase = (flags & AK_NOCASE) != 0;
   ak_upd = fptr->ak_upd;
   fptr->stats.ak_reads++;
@@ -3603,19 +3628,79 @@ exit_ak_read:
 }
 
 /* ======================================================================
+   ak_key_class()  -  What kind of key is this, for the total order of an AK_V2 index
+
+   25 Oct 26  AKC_NULL: no characters at all.  AKC_NUMBER: optional spaces, an optional sign, digits with at most one decimal point, optional spaces, and between
+   one and 15 digits in all (so that two different numbers are two different doubles); *value is set.  AKC_TEXT: anything else, an all-space key included.
+   The old comparator took an empty or sign-only key for the number 0, a number of more than 9 digits for text, and any decimal for text.                       */
+
+Private int ak_key_class(const char *s, int16_t len, double *value) {
+  char buf[24];
+  int16_t i = 0;
+  int16_t n = 0;
+  int16_t digits = 0;
+  bool dot = FALSE;
+
+  if (len == 0)
+    return AKC_NULL;
+
+  while ((i < len) && (s[i] == ' '))
+    i++;
+  if ((i < len) && ((s[i] == '+') || (s[i] == '-')))
+    buf[n++] = s[i++];
+  for (; i < len; i++) {
+    if (IsDigit(s[i])) {
+      if (++digits > 15)
+        return AKC_TEXT;
+      buf[n++] = s[i];
+    } else if ((s[i] == '.') && !dot) {
+      dot = TRUE;
+      buf[n++] = '.';
+    } else {
+      break;
+    }
+  }
+  while ((i < len) && (s[i] == ' '))
+    i++;
+  if ((i != len) || (digits == 0))
+    return AKC_TEXT;
+
+  buf[n] = '\0';
+  *value = strtod(buf, NULL);
+  return AKC_NUMBER;
+}
+
+/* ======================================================================
    Compare strings
    Returns -1   s2 < s1
             0   Strings are equal
             1   s1 > s2                                                   */
 
-Private int16_t compare(char *s1, int16_t s1_len, char *s2, int16_t s2_len, bool right_justified, bool nocase) {
+Private int16_t compare(char *s1, int16_t s1_len, char *s2, int16_t s2_len, int justify, bool nocase) {
   int16_t n;
   int16_t d = 0;
   int32_t value1;
   int32_t value2;
+  int class1;
+  int class2;
+  double x1;
+  double x2;
 
-  if (right_justified) {
-    if (strnint(s1, s1_len, &value1) && strnint(s2, s2_len, &value2)) {
+  if (justify == AKJ_TOTAL) {
+    /* 25 Oct 26  The total order of an AK_V2 index: the empty key, then numbers by value, then text.  Within a class the order is complete, so the whole is. */
+    class1 = ak_key_class(s1, s1_len, &x1);
+    class2 = ak_key_class(s2, s2_len, &x2);
+    if (class1 != class2)
+      return (class1 < class2) ? -1 : 1;
+    if (class1 == AKC_NULL)
+      return 0;
+    if (class1 == AKC_NUMBER)
+      return (x1 < x2) ? -1 : ((x1 > x2) ? 1 : 0);
+    /* two texts: right justified, below */
+  }
+
+  if (justify != AKJ_LEFT) {
+    if ((justify == AKJ_RIGHT) && strnint(s1, s1_len, &value1) && strnint(s2, s2_len, &value2)) {
       if (value1 > value2)
         d = 1;
       else if (value1 == value2)
@@ -3680,6 +3765,52 @@ exit_compare:
 }
 
 /* ======================================================================
+   relink_term_neighbours()  -  Point the two neighbours of a terminal node at its new node number
+
+   25 Oct 26  update_internal_node() copies the only child of an internal node over the internal node and gives the child's node number back.  When the child is a
+   terminal node it keeps its own left and right links, but the terminal nodes on either side still held the number that was given back, so the chain of terminal
+   nodes (SELECTINDEX, the index scans) led into the free list.  `term` is the node as it will be written under new_home.                                          */
+
+Private bool relink_term_neighbours(DH_FILE *dh_file, int16_t subfile, DH_TERM_NODE *term, int32_t new_home) {
+  bool status = FALSE;
+  DH_TERM_NODE *nb = NULL;
+  int32_t nb_num;
+
+  if ((term->left == 0) && (term->right == 0))
+    return TRUE;
+
+  nb = (DH_TERM_NODE *)k_alloc(57, DH_AK_NODE_SIZE);
+  if (nb == NULL) {
+    dh_err = DHE_NO_MEM;
+    return FALSE;
+  }
+
+  if (term->left != 0) {
+    nb_num = GetAKFwdLink(dh_file, term->left);
+    if (!dh_read_group(dh_file, subfile, nb_num, (char *)nb, DH_AK_NODE_SIZE))
+      goto exit_relink_term_neighbours;
+    nb->right = SetAKFwdLink(dh_file, new_home);
+    if (!dh_write_group(dh_file, subfile, nb_num, (char *)nb, DH_AK_NODE_SIZE))
+      goto exit_relink_term_neighbours;
+  }
+
+  if (term->right != 0) {
+    nb_num = GetAKFwdLink(dh_file, term->right);
+    if (!dh_read_group(dh_file, subfile, nb_num, (char *)nb, DH_AK_NODE_SIZE))
+      goto exit_relink_term_neighbours;
+    nb->left = SetAKFwdLink(dh_file, new_home);
+    if (!dh_write_group(dh_file, subfile, nb_num, (char *)nb, DH_AK_NODE_SIZE))
+      goto exit_relink_term_neighbours;
+  }
+
+  status = TRUE;
+
+exit_relink_term_neighbours:
+  k_free(nb);
+  return status;
+}
+
+/* ======================================================================
    update_internal_node()  -  Replace an internal key child pointer       */
 
 Private bool update_internal_node(DH_FILE *dh_file,  /* DH file affected and... */
@@ -3721,6 +3852,7 @@ Private bool update_internal_node(DH_FILE *dh_file,  /* DH file affected and... 
   /* -------------------- */
   char *pkey;       /* Parent key */
   int16_t pkey_len; /* Parent key length */
+  char max_key[256]; /* The node's new maximum key when its last child is removed (keys are at most 255 bytes) */
   bool update_parent;
   int32_t node_num;
   int16_t i;
@@ -3984,6 +4116,20 @@ Private bool update_internal_node(DH_FILE *dh_file,  /* DH file affected and... 
 
   node_ptr->node.int_node.child_count += num_child - 1;
 
+  /* 25 Oct 26  A child was removed and it was this node's LAST: the node's maximum key is now the key of its new last child.  pkey was NULL for a removal, and
+     the call to the parent below reads a NULL key as "remove this node", so every deletion of a rightmost child took a node that still had children out of its
+     parent (and so out of every lookup by key).  Taken here, before the single-child case below overwrites the buffer.  A node with no child left (it cannot
+     happen: a node with one child is replaced by it) keeps the NULL and is removed from its parent as before.                                                    */
+  if ((num_child == 0) && update_parent && (node_ptr->node.int_node.child_count > 0)) {
+    n = node_ptr->node.int_node.child_count - 1;
+    p = node_ptr->node.int_node.keys;
+    for (j = 0; j < n; j++)
+      p += node_ptr->node.int_node.key_len[j];
+    pkey_len = node_ptr->node.int_node.key_len[n];
+    memcpy(max_key, p, pkey_len);
+    pkey = max_key;
+  }
+
   /* Check if we can compress the tree */
 
   /* !!!! Could also do something to merge adjacent internal nodes */
@@ -3994,6 +4140,11 @@ Private bool update_internal_node(DH_FILE *dh_file,  /* DH file affected and... 
 
     node_num = GetAKFwdLink(dh_file, node_ptr->node.int_node.child[0]);
     if (!dh_read_group(dh_file, subfile, node_num, node_ptr->node.buff, DH_AK_NODE_SIZE)) {
+      goto exit_update_internal_node;
+    }
+
+    /* 25 Oct 26  A terminal node moves to this node's number: its neighbours must be told (see relink_term_neighbours()). */
+    if ((node_ptr->node.term_node.node_type == AK_TERM_NODE) && !relink_term_neighbours(dh_file, subfile, &(node_ptr->node.term_node), node_ptr->node_num)) {
       goto exit_update_internal_node;
     }
 

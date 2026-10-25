@@ -1,6 +1,49 @@
 Next release - in progress
 --------------------------
 
+25 Oct 26  NEW HASHED FILES ARE MADE WITH 4 KB GROUPS, NOT 2 KB: FAR FEWER OF THEIR GROUPS OVERFLOW (MEASURED; FOUND BY AN OUTSIDE REVIEW OF THE HASH CODE).
+
+             What        GRPSIZE, the group size of a file made without one, is 4 (KB) in the sd.conf that is shipped; it was 2, and the built-in value used when
+                         sd.conf does not say was 1, and is 4 as well. Measured on 200,000 records of about 130 bytes with the default split and merge loads
+                         (80 and 50): groups that had overflowed were 4.8% (numeric ids) to 11.3% (text ids with a prefix) at 2 KB, 0.1% to 1.7% at 4 KB, and
+                         12% to 24% at 1 KB. A write took 5% less than at 2 KB, a read 5% more, a rewrite the same, and the file was 1% smaller. 8 KB groups
+                         overflow almost never but a read took 15% to 18% more than at 4 KB, which is why 4 and not 8. A record is "large" (kept in blocks of
+                         its own) above 80% of the group, so records up to 3.2 KB are now ordinary records.
+             Why it      An overflowed group costs a second read for every record that is in the overflow block, and a split has to chain them.
+             matters
+             Does not    Change a file that exists (its size is in its header; CONFIGURE.FILE changes it), or a system that is already installed (it keeps its
+                         sd.conf and so keeps GRPSIZE=2 until you change it), or the split and merge loads. The header of a file and each of its groups is one
+                         group long, so a file with only a few records takes more disk than before (two more file system blocks or so); CONFIGURE.FILE
+                         GROUP.SIZE 2 makes one smaller.
+
+25 Oct 26  A SORT THAT USES WORK FILES NOW GIVES THE ORDER THE SAME SORT GIVES IN MEMORY (FOUND BY AN OUTSIDE REVIEW OF THE SORT CODE, THEN MEASURED).
+
+             What        When a sort was too big for SORTMEM and was written to several work files, more than SORTMRG could merge at once, each merged file
+                         went to the END of the queue and the next pass took it for the newest run. Keys that compare as equal then came out in an order that
+                         depended on SORTMEM and SORTMRG (9 of the 22 cases of the sort test gave one order in memory and another on disk), and a sort with
+                         SRT$UNIQUE could keep a duplicate that was not the first to arrive. A merged file now takes the place of the files it replaces, so
+                         the queue stays in the order the records arrived in. The sort in memory is unchanged: equal keys come out newest first and the
+                         first duplicate is the one kept. A new test with 20,000 different keys among 60,000 UNIQUE records checks the spilled sort.
+             Why it      The same SORT, SSELECT or LIST ... BY gave different orders for the same data at different SORTMEM settings, and a UNIQUE sort of a
+             matters     large list could return the data of a later record than the first.
+             Does not    Change the order of different keys, or anything about a sort that stays in memory, or make the order of equal keys something to
+                         rely on for a right justified key that mixes numbers and text (there it depends on how the sort was cut into runs).
+
+25 Oct 26  DELETING RECORDS NO LONGER MAKES A LARGE INDEX LOSE KEYS (FOUND BY AN OUTSIDE REVIEW OF THE INDEX CODE, THEN MEASURED).
+
+             What        In an index large enough to have three levels (some tens of thousands of different values), removing the last value of the
+                         right-most block of a branch took the whole branch out of the index along with it. The records were still in the file, but a
+                         lookup of their values found nothing, and the values of records that had been deleted afterwards could no longer be taken
+                         out. With 60,000 values, deleting the highest 1,500 records left a lookup failing for 2,212 of 5,454 sampled values, and
+                         deleting 25,000 from the middle left the index listing 18,500 values for a file that held 33,500. Related: when a branch was
+                         left with one block, that block was moved over the branch without telling the blocks on either side, so scanning the index
+                         could list a value that was gone or stop short. Both are fixed, and a new test deletes from the top, the middle, the bottom
+                         and almost everything of a 60,000 value index and compares the index with the file after each.
+             Why it      A query that uses an index (WITH field = value, SELECTINDEX) answered from an index that no longer matched the file, and
+             matters     nothing said so.
+             Does not    Repair an index that was damaged before this release. Run BUILD.INDEX on it (REBUILD.ALL.INDICES for an account): the data was
+                         never touched, only the index. It does not change the format of an index, so an index that is sound stays as it is.
+
 25 Oct 26  THE AUDIT DAEMON IS STARTED AGAIN IF IT DIES: sdlnxd HAS ITS OWN SYSTEMD UNIT (SECURITY-MODEL EVALUATION, FINDING F4, THIRD STAGE).
 
              What        sdlnxd now runs as sd-lnxd.service, which systemd starts again two seconds after the daemon fails (kill -9, a crash, the out-of-memory

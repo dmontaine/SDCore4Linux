@@ -12,6 +12,9 @@
 # 20 Oct 26 dm  New.  gplsrc/op_sort.c collects the nodes of a run in arrival order and sorts them once instead of walking an
 #               unbalanced tree node by node.  100,000 equal keys took 168 s, 100,000 ordered keys 169 s, SELECT file BY a field
 #               of five values 94 s (measured on the tree before the change; the report is sorthash-phase1-report.md).
+# 25 Oct 26 dm  The disk rows of every case but c10 are held to the IN-MEMORY golden value (SPILL_EQ below): gplsrc/op_sort.c merge_sort_files() keeps the queue
+#               of runs in the order they arrived, so a sort that spills gives the order the same sort gives in memory.  Before, 9 of the 22 disk golden values
+#               (c01 c05 c08 c12 c15 c16 c17 t01 t03) differed from the memory ones: equal keys came out in an order that depended on SORTMEM and SORTMRG.
 # END-HISTORY
 #
 # WHAT IT HOLDS THE NEW SORT TO.  GOLDEN is the MD5 of the whole output of each case (the data items in the order the sort gave
@@ -66,6 +69,9 @@ CASES = {
     "c15": (20000, "next", "if mod(r,7) = 0 then keys(1) = '' else keys(1) = 'K':mod(r,50)", [8], None),
     "c16": (20000, "data", "if mod(r,7) = 0 then keys(1) = '' else keys(1) = mod(r,300)", [9], None),
     "c17": (20000, "data", "keys(1) = 'V':mod(r,50)", [10], None),
+    # 25 Oct 26: UNIQUE with MANY distinct keys, so that the spilled runs are more than SORTMRG and the same key is in several of them (c14 has 300 keys: its
+    # whole sort is one run of about 9 kb and never spills).  Which record of a key survives is its data item, the arrival number: the FIRST.
+    "c18": (60000, "data", "keys(1) = " + PAD7 % "mod(r,20000)", [12], None),
     "t01": (60000, "data", "keys(1) = 'SAME'", [8], 3000),
     "t02": (60000, "data", "keys(1) = " + PAD7 % "i", [8], 3000),
     "t03": (60000, "data", "keys(1) = 'V':mod(r,5)", [8], 1000),
@@ -75,6 +81,13 @@ CASES = {
 # The "mem" lines are written out so that the rows do not depend on what the sandbox's sd.conf held before (a sandbox that an
 # earlier measurement left at SORTMEM=256 spilled these sorts, and the first recording of the golden values was taken so).
 CONFIGS = [("mem", ["SORTMEM=4096", "SORTMRG=4"]), ("disk", ["SORTMEM=64", "SORTMRG=3"])]
+
+# 25 Oct 26: the cases whose output must be the SAME whether the sort stays in memory or spills.  Until this date the merge put each merged run at the end
+# of the queue, where the next pass took it for the newest, so equal keys came out in an order that depended on SORTMEM and SORTMRG (c01, c05, c08, c12,
+# c15 to c17, t01 and t03 differed between the two configurations in GOLDEN below, as recorded from HEAD 680747d) and a UNIQUE sort could keep a
+# later record than the first.  Every case but c10 (a right justified level that mixes numbers and text: the comparison is not transitive, so the order
+# there depends on how the runs were cut) now has to give, spilled, exactly its in-memory output.
+SPILL_EQ = [t for t in sorted(CASES) if t != "c10"]
 
 # Recorded 20 Oct 26 from a sandbox built from HEAD 680747d (the tree before the change): config -> tag -> "N=.. MD=.. MK=..".
 GOLDEN = {
@@ -96,6 +109,7 @@ GOLDEN = {
         'c15': 'N=20000 MD=99beb1110daf7929f6177b69645b63ad MK=ead7d1353621f3ba444c3855196f8c6f',
         'c16': 'N=20000 MD=3a937970f8c0c6e92eb41b880c48c5a4 MK=d41d8cd98f00b204e9800998ecf8427e',
         'c17': 'N=20000 MD=c28ace93834e03007a4dce6c70de3270 MK=d41d8cd98f00b204e9800998ecf8427e',
+        'c18': 'N=18956 MD=b5ad67ec356955915de6d89ec1639c29 MK=d41d8cd98f00b204e9800998ecf8427e',   # 25 Oct 26, recorded in memory (the in-memory sort is unchanged)
         't01': 'N=60000 MD=36069c6d76dbdb2d11a70215ca9bf2fc MK=d41d8cd98f00b204e9800998ecf8427e',
         't02': 'N=60000 MD=1414d2a41e1c3883bf76c9eeab279ad7 MK=d41d8cd98f00b204e9800998ecf8427e',
         't03': 'N=60000 MD=7c2caa12e73a6c0c66cedbdc213e8567 MK=d41d8cd98f00b204e9800998ecf8427e',
@@ -291,6 +305,8 @@ def main():
         for tag in tags:
             g = got[label][tag]
             want = GOLDEN.get(label, {}).get(tag)
+            if label == "disk" and tag in SPILL_EQ:
+                want = GOLDEN["mem"].get(tag)   # 25 Oct 26: a sort that spills gives the order the same sort in memory gives
             have = None if g is None else "N=%s MD=%s MK=%s" % (g["n"], g["md"], g["mk"])
             row("MATCH %-4s %s (%s)" % (label, tag, CASES[tag][2].split("\n")[0].strip()[:48]), want is not None and have == want,
                 "got %s wanted %s" % (have, want))

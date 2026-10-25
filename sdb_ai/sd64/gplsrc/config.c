@@ -127,7 +127,7 @@ struct CONFIG* read_config(char* errmsg) {
   pcfg.gdi = 0;                   /* GDI:      Default GDI spool API? */
  /* 20240219 mab create-account based on type (user / group / other) */   
   strncpy(pcfg.grpdir,"/home/sd/group_accounts",MAX_PATHNAME_LEN+1);  /* GRPDIR: group accounts parent dir */
-  pcfg.grpsize = 1;               /* GRPSIZE:  Default group size */
+  pcfg.grpsize = 4;               /* GRPSIZE:  Default group size (1 until 25 Oct 26; the shipped sd.conf said 2, now 4) */
   pcfg.intprec = 11;              /* INTPREC:  Precision for INT() etc. 13 until 1.2-0 (openQM 2.6-9, item 6) */
   pcfg.invcase = FALSE;           /* INVCASE:  Initial state of terminal input case inversion (item 399) */
   pcfg.lptrhigh = 66;             /* LPTRHIGH: Default printer lines */

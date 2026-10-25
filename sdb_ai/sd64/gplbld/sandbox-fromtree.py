@@ -197,7 +197,7 @@ def main():
         for d in ("user_accounts", "group_accounts"):
             os.makedirs(os.path.join(root, d), exist_ok=True)
         with open(conf, "w") as f:
-            f.write("[sd]\nSDSYS=%s\nGRPSIZE=2\nNUMUSERS=20\nSORTMEM=4096\nERRLOG=50\nUSRDIR=%s\nGRPDIR=%s\nDUMPDIR=%s\n"
+            f.write("[sd]\nSDSYS=%s\nGRPSIZE=4\nNUMUSERS=20\nSORTMEM=4096\nERRLOG=50\nUSRDIR=%s\nGRPDIR=%s\nDUMPDIR=%s\n"
                     % (sysd, os.path.join(root, "user_accounts"), os.path.join(root, "group_accounts"),
                        os.path.join(sysd, "dumps")))
 

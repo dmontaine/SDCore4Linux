@@ -519,6 +519,7 @@ build.index:
       ak.nocase = (ak.info<1,8> # 0 and ak.info<1,8> # '')
 
       dim key.data(2) ; mat key.data = BT.DATA
+      right.index = (ak.info<5> = 'R' or ak.info<DICT.A.JUSTIFY> = 'R')   ;* 25 Oct 26: see write.group (INDICES gives the justification as <5> for D, I and C items, <9> for A and S)
       if ak.info<6> = 'R' then key.data(1) += BT.RIGHT.ALIGNED
       if ak.info<1,6> = 'R' then key.data(2) += BT.RIGHT.ALIGNED
 
@@ -621,7 +622,7 @@ build.index:
       loop
       until status()
          if compare(key.data(1), last.key) then    ;* Change of key
-            akwrite ids to data.f, akno, last.key else null
+            gosub write.group
             ids = id
             last.key = key.data(1)
          end else                                  ;* Same key
@@ -631,7 +632,7 @@ build.index:
       repeat
 
       if ids # '' then  ;* Write final record
-         akwrite ids to data.f, akno, last.key else null
+         gosub write.group
       end
 
       sortclear
@@ -644,6 +645,23 @@ build.index:
    close data.f
    void ospath("", os$flush.cache)
 
+   return
+
+* ======================================================================
+
+write.group:
+   * 25 Oct 26 dm - the keys above are grouped by the BASIC compare, which is not the index's: a right justified index treats 1, 01 and +1 as ONE key, and a
+   * second AKWRITE of a key the index already holds REPLACES its list, so the earlier group was lost (built from the file, 1 / 01 / 001 answered one record;
+   * written one at a time they answered all three).  So a right justified group is added to what the index already holds under that key, the way _ak does.
+   if right.index then
+      akread old.ids from data.f, akno, last.key then
+         for k = 1 to dcount(ids, @fm)
+            locate ids<k> in old.ids<1> by sort setting pos else ins ids<k> before old.ids<pos>
+         next k
+         ids = old.ids
+      end
+   end
+   akwrite ids to data.f, akno, last.key else null
    return
 
 * ======================================================================

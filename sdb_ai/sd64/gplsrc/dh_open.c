@@ -322,10 +322,16 @@ DH_FILE* dh_open(char path[]) {
           goto exit_dh_open;
         }
 
-        if (ak_header.magic != DH_INDEX) {
+        if ((ak_header.magic != DH_INDEX) && (ak_header.magic != DH_INDEX2)) {
           dh_err = DHE_AK_HDR_FAULT;
           goto exit_dh_open;
         }
+
+        /* 25 Oct 26  The magic number decides how the keys are ordered, not the flag: DH_INDEX2 is the total order (AK_V2), DH_INDEX the old comparator. */
+        if (ak_header.magic == DH_INDEX2)
+          ak_header.flags |= AK_V2;
+        else
+          ak_header.flags &= ~AK_V2;
 
         /* Cross-check the index subfile with the primary data subfile */
 
