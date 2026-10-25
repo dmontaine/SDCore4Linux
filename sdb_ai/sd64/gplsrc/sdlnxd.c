@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 25 Oct 26 dm  The audit socket's directory is set to 0755 by the daemon itself, whatever the umask it was started under (the real-install witness found it 0750).
  * 24 Oct 26 dm  W.11 F4, option C2 (the owner: "Start C2"): the daemon bounds what one uid may add to the trail (AUDIT_RATE_MAX in AUDIT_RATE_WINDOW seconds, then ONE line
  *               saying how many were dropped) and rotates the file by size as it writes, with audit_rotate_file() (audit_rot.c), the code "sd -start" uses.
  * 24 Oct 26 dm  W.11 F4, option C1 (the owner: "b then c"): this daemon is the audit trail's writer.  It listens on a Unix datagram socket (SD_AUDIT_SOCK), takes the user and
@@ -445,6 +446,11 @@ static bool audit_socket_open(void) {
     log_message("audit socket: its directory is not ours or can be written by others");
     return FALSE;
   }
+  /* 25 Oct 26, the real-install witness: mkdir(dir, 0755) is cut by the umask of whoever started the daemon, and the installer's "sudo sd -start" under a user umask of 007
+     made this directory 0750 - which no member of sdusers can search, so no ordinary user's record reached the daemon and the trail got only sdsys's and root's.  The
+     directory is ours and not writable by others (checked above), so its mode is the daemon's decision, and /run keeps it from an install to the next boot.  Not only as
+     root: a sandbox runs this as its user, which is how the sandbox suite sees it. */
+  (void)chmod(dir, 0755);
   if ((audit_sock = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
     return FALSE;
   if (setsockopt(audit_sock, SOL_SOCKET, SO_PASSCRED, &on, sizeof(on)) != 0) {

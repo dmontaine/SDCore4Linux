@@ -116,6 +116,10 @@ def run():
     mn = func(s, "int main()")
     row("S12 main() waits in audit_serve(TICK_SECONDS) and no sleep() is left in it", "audit_serve(TICK_SECONDS);" in mn and "sleep(" not in mn, "")
     row("S13 on the way out the daemon closes the socket and unlinks it only if it made it", "unlink(SD_AUDIT_SOCK)" in mn and "audit_sock_made" in mn, "")
+    i_chk, i_chmod, i_sock = so.find("is not ours or can be written by others"), so.find("chmod(dir, 0755);"), so.find("socket(AF_UNIX, SOCK_DGRAM")
+    row("S15 the daemon sets its directory to 0755 ITSELF, after the check that the directory is ours and before the socket is made, whoever started it and under any umask "
+        "(mkdir(dir, 0755) is cut by the umask: the real install made it 0750 and no member of sdusers could search it)",
+        0 <= i_chk < i_chmod < i_sock and "(void)chmod(dir, 0755);" in so and not re.search(r"if \(geteuid\(\) == 0\)\s*\(void\)chmod\(dir", so), "positions %d %d %d" % (i_chk, i_chmod, i_sock))
     rt = func(s, "static bool audit_rate_take(uid_t uid, pid_t pid)")
     rn = func(s, "static void audit_rate_note(const AUDIT_RATE* s)")
     rcl = func(s, "static void audit_rate_close(AUDIT_RATE* s)")
@@ -244,6 +248,13 @@ MUTANTS += [
     ("kernel-keeps-its-own-rotation", "k_error.c", "(void)audit_rotate_file(path, AUDIT_ROTATE_BYTES);", "(void)0;"),
     ("daemon-not-linked", "Makefile", "$(GPLOBJ)audit_rot.o -o $(GPLBIN)sdlnxd", "-o $(GPLBIN)sdlnxd"),
     ("kernel-not-linked", "gpl.src", "analyse\naudit_rot\n", "analyse\n"),
+]
+M_RUN = len(MUTANTS)   # the first mutant of the /run/sd mode (25 Oct 26, real-install witness): "--selftest --from=%d" runs these alone
+MUTANTS += [
+    ("dir-mode-left-to-umask", "sdlnxd.c", "(void)chmod(dir, 0755);", "(void)0;"),
+    ("dir-mode-0750", "sdlnxd.c", "(void)chmod(dir, 0755);", "(void)chmod(dir, 0750);"),
+    ("dir-mode-0777", "sdlnxd.c", "(void)chmod(dir, 0755);", "(void)chmod(dir, 0777);"),
+    ("dir-mode-only-as-root", "sdlnxd.c", "  (void)chmod(dir, 0755);", "  if (geteuid() == 0)\n    (void)chmod(dir, 0755);"),
 ]
 
 

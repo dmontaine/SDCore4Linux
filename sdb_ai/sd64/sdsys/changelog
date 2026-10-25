@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+25 Oct 26  THE INSTALLER STOPPED AT ITS OWN CATALOGUE STEP, AND THE AUDIT SOCKET'S DIRECTORY COULD BE CLOSED TO USERS (FOUND BY THE FIRST INSTALL OF THE SECURITY FIXES ON A REAL MACHINE).
+
+             What        (1) CATALOG now writes a global object with umask 022, so the object is mode 644 and never writable by the group; it used to be 0664, and
+                         since the global-catalogue check of 24 Oct the kernel refuses to load an object the group sdusers can write, so the installer's own bootstrap
+                         stopped with "Bootstrap pass 3 failed" and an administrator cataloguing globally would have made a program that would not load. (2) The audit
+                         daemon sets the mode of its socket directory (/run/sd) to 0755 itself; made by "sudo sd -start" under a user umask of 007 it was 0750, no
+                         member of sdusers could reach the socket, and only sdsys's and root's records reached the audit file (the others were in the journal only).
+             Why it      Both were invisible to the test sandboxes, whose group is the user's own and whose daemon starts under the user's own umask. Neither is in
+                         a release: the global-catalogue check and the audit daemon are new in this cycle.
+             Does not    Repair a /run/sd made 0750 before the daemon is restarted with this build (stop and start SD), or change an object already in gcat (the
+                         installer's own sweep of gcat still sets 755).
+
 24 Oct 26  THE AUDIT DAEMON LIMITS WHAT ONE USER CAN ADD AND ROTATES THE TRAIL BY SIZE (SECURITY-MODEL EVALUATION, FINDING F4, SECOND STAGE).
 
              What        sdlnxd takes at most 600 audit records from one operating-system user in any 60 seconds (counted from the user the kernel reports, not

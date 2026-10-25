@@ -10,6 +10,8 @@
 # group; a machine without it cannot run the group rows, and says so).
 #
 # START-HISTORY:
+# 25 Oct 26 dm  Two rows for an object made by CATALOG itself: not group- or other-writable under CPROC's umask 002, and the umask put back.  The real-install witness
+#               found Dev could not be installed (gpl.bp/catalog wrote the object 0664).
 # 24 Oct 26 dm  New.  object.c gcat_object_writable(), message 11930.
 # END-HISTORY
 #
@@ -18,6 +20,7 @@
 # is empty or already carries the refusal).  The modes are set on the sandbox's own gcat file with chmod and chgrp, and put back at the end.
 
 import grp
+import importlib.util
 import os
 import re
 import subprocess
@@ -25,6 +28,15 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
+sys.path.insert(0, HERE)
+
+
+def _load(name, fname):
+    spec = importlib.util.spec_from_file_location(name, os.path.join(HERE, fname))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 passed = failed = 0
 CMD = "LIST.TERM.TYPES"
@@ -137,6 +149,27 @@ def main():
         setmode(cproc, 0o755, mygid)
         out = sess(box, "WHO")
         row("$cproc 0755: the session starts again", REFUSAL not in out and re.search(r"\bWHO\b", out) is not None and len(out.strip()) > 10, out[-300:])
+
+        # 25 Oct 26, the real-install witness: CPROC sets umask 002 for every session, so CATALOG made a global object 0664 - and, on an install, group sdusers - and the check
+        # above refused to load it in the middle of the installer's own bootstrap (Dev could not be installed).  A sandbox's group is the user's own, which is why nothing
+        # here saw it; the MODE BITS are visible all the same, with no group needed.
+        say("\n--- an object made by CATALOG itself (the case the installer's bootstrap is in) -------------------------------")
+        g = _load("sandbox_gates_for_gcatmode", "sandbox-gates.py")
+        g.BOX, g.SYS, g.SD = box, sysd, os.path.join(sysd, "bin", "sd")
+        g.put(os.path.join(sysd, "bp", "zzgcatm"), "program zzgcatm\n   crt 'ZZGCATM ran'\nend\n")
+        g.put(os.path.join(sysd, "bp", "zzgcatu"), "program zzgcatu\n   crt 'ZZUMASK ':fmt(oconv(umask(-1), 'MO'), \"3'0'R\")\nend\n")
+        out = g.adm(["BASIC bp zzgcatu", "BASIC bp zzgcatm", "CATALOG bp zzgcatm GLOBAL", "RUN bp zzgcatu"])
+        made = os.path.join(sysd, "gcat", "zzgcatm")
+        compiled = sum(1 for ln in out if re.match(r"^Compiled 1 program\(s\) with no errors", ln))
+        said = any("added to global catalogue" in ln for ln in out)
+        row("CONTROL: both programs compiled, the second was catalogued globally (the verb said so) and its object is in gcat", compiled == 2 and said and os.path.isfile(made),
+            "compiled %d, said so: %s, object there: %s, output tail %r" % (compiled, said, os.path.isfile(made), out[-5:]))
+        if compiled != 2 or not said or not os.path.isfile(made):
+            bail("the test program was not catalogued: the rows below would measure nothing")
+        mode = os.stat(made).st_mode & 0o7777
+        row("a global object made by CATALOG is not writable by group or others, whatever the session's umask (mode %o)" % mode, mode & 0o022 == 0, "mode %o" % mode)
+        um = [ln for ln in out if re.match(r"^ZZUMASK \d+$", ln)]
+        row("and the session's umask is back at 002 afterwards (a RUN in the same session answers it)", um == ["ZZUMASK 002"], "answered %r" % um)
     finally:
         for p, (m, g) in saved.items():
             try:

@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 25 Oct 26 dm  W.11 F2, real-install witness: a global object is written with umask 022 (644) and the umask put back; under CPROC's umask 002 it was 0664, group
+*               sdusers on an install, and the kernel refused to load it - the installer's own bootstrap stopped there.
 * 17 Oct 26 dm  S.64: cataloguing needs bp.edit (SDSYS passes); message 11408.
 * 12 Oct 26 dm  openQM 241: the longest call name is the lower of 128 and MAXIDLEN (63 unless the
 *               administrator raised it), as op_jumps.c valid_call_name() has it.
@@ -461,7 +463,12 @@ catalogue.program:
          recordlocku gcat.f, call.name
          mark.mapping gcat.f, off
          deleteu gcat.f, call.name   ;* 14 Sep 26 stage 3a: NTFS keeps an overwritten file's old case
+         * 25 Oct 26 W.11 F2, found by the real-install witness: CPROC sets umask 002 for every session, so the object was made 0664 and, with the group sdusers it gets below,
+         * the kernel refuses to load it (message 11930) - the installer's own bootstrap stopped there, and so would an administrator cataloguing globally.  A global object
+         * is made with umask 022 (644), then the umask is put back.
+         old.umask = umask(18)       ;* 18 = 022 octal
          write object.code to gcat.f, call.name
+         if umask(old.umask) then null
          *
          * rev 0.9.0 set file ownership
          set.owner.path =  @sdsys:@ds:'gcat':@ds:call.name 

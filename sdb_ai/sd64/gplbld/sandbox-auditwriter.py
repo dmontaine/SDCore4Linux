@@ -9,6 +9,7 @@
 # 2 it could not run (the daemon did not start, the socket never appeared, the audited event never reached the file).
 #
 # START-HISTORY:
+# 25 Oct 26 dm  W0c to W0e: the daemon's directory is 0755 whatever the umask it was started under (real-install witness; sdlnxd.c audit_socket_open()).
 # 24 Oct 26 dm  C2 (the owner: "Start C2"): W8 the per-uid rate bound, W9 rotation by size in the daemon, W10 rotation at "sd -start" (the kernel's half of the shared
 #               audit_rotate_file()).  New in this sitting: the limits are read from sddefs.h, so the rows follow the constants.
 # 24 Oct 26 dm  New.  sdlnxd.c, k_error.c audit_to_daemon().  Plan: .claude/design-audit-trail-writer-24oct.md, option C.
@@ -17,7 +18,8 @@
 # WHAT IT DOES.  The sandbox kills its own sdlnxd right after -start (so its periodic clean-up cannot interfere), and a build of the tree carries a socket path of its own
 # (sandbox-txnfail.py SANDBOX_PATCHES: /tmp/sdbox-audit-<keyset>/audit.sock, never the live /run/sd).  This suite starts the sandbox's daemon ITSELF, as the sandbox
 # user, and then:
-#   W0 the socket exists, is a socket, mode 0660, in a directory of ours at 0755
+#   W0 the socket exists, is a socket, mode 0660, in a directory of ours at 0755 - also when the daemon is started under umask 027 (fresh directory) and over a directory
+#      left at 0750 (W0c to W0e: the real install made it 0750 and no ordinary user could reach the socket)
 #   W1 a real audited event from an `sd -internal` session becomes exactly one line in the shape the readers take (verify-auditwords.py's RECORD)
 #   W2 a datagram made by THIS process that claims "user=root pid=1" in its text and another SD user number: the line says the real user, THIS process's pid, the claimed
 #      number, and the claim stays in the text after the stamped fields
@@ -252,7 +254,19 @@ def run_rows():
         open(trail(), "ab").close()
 
     say("\n--- W0. the daemon and its socket ------------------------------------------------------------------------------")
-    up = start_daemon()
+    # 25 Oct 26, the real-install witness: the installer's "sudo sd -start" ran under a user umask of 007, mkdir(dir, 0755) became 0750 and no member of sdusers could
+    # search the directory.  The daemon is started here under umask 027 with no directory, then again over a directory left at 0750.
+    try:
+        os.rmdir(SOCK_DIR)
+    except FileNotFoundError:
+        pass
+    except OSError as e:
+        bail("%s is left over from another run and is not empty: %s" % (SOCK_DIR, e))
+    old_umask = os.umask(0o027)
+    try:
+        up = start_daemon()
+    finally:
+        os.umask(old_umask)
     if not up:
         tail = ""
         for f in sorted(os.listdir(BOX)):
@@ -264,6 +278,19 @@ def run_rows():
     row("W0a: the socket is a socket, mode 0660, and ours", stat.S_ISSOCK(st.st_mode) and stat.S_IMODE(st.st_mode) == 0o660 and st.st_uid == UID,
         "mode %o, owner %d" % (stat.S_IMODE(st.st_mode), st.st_uid))
     row("W0b: its directory is ours and not open to the group or others", stat.S_ISDIR(ds.st_mode) and ds.st_uid == UID and not (ds.st_mode & 0o022), "mode %o" % stat.S_IMODE(ds.st_mode))
+    row("W0c: started under umask 027 with no directory, the daemon still made it 0755 (it sets the mode itself; searchable by the group sdusers and by others)",
+        stat.S_IMODE(ds.st_mode) == 0o755, "mode %o" % stat.S_IMODE(ds.st_mode))
+    stop_daemon(signal.SIGTERM)
+    os.chmod(SOCK_DIR, 0o750)
+    row("W0d: (null case) the directory is left at 0750, as an earlier start under that umask would leave it", stat.S_IMODE(os.stat(SOCK_DIR).st_mode) == 0o750, "mode %o" % stat.S_IMODE(os.stat(SOCK_DIR).st_mode))
+    old_umask = os.umask(0o027)
+    try:
+        up = start_daemon()
+    finally:
+        os.umask(old_umask)
+    if not up:
+        bail("the daemon did not start over a directory at 0750")
+    row("W0e: and a start over it puts it right: 0755 again", stat.S_IMODE(os.stat(SOCK_DIR).st_mode) == 0o755, "mode %o" % stat.S_IMODE(os.stat(SOCK_DIR).st_mode))
 
     say("\n--- W1. a real event from a session ------------------------------------------------------------------------")
     off = size()
