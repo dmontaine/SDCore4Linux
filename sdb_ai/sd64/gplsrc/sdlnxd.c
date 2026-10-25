@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F1 (security-model evaluation): this daemon runs as root, so it no longer takes the system directory from the shared
+ *               segment, which any process that can attach may change.  The directory is found from the daemon's own executable
+ *               (own_sysdir()), "sd -cleanup" is started with execl and no shell, and the error log is opened under the same directory.
  * 16 Oct 26 dm  The scan for lost processes runs every CLEANUP seconds (sd.conf, 30 to 3600, default 300) - QM4 gaps.
  * 10 Sep 26 dm  Parity audit: a semaphore failure prints its reason before
  *               exit(2) (UPSTREAM_FIXES 3, the Windows port's proposal).
@@ -40,10 +43,43 @@
 #include <sys/shm.h>
 #include <signal.h>
 #include <sched.h>
+#include <limits.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 
 int shmid; /* Shared memory id */
 
 bool terminate = FALSE;
+
+/* W.11 F1: the system directory, taken from this program's own path (<sysdir>/bin/sdlnxd), NOT from the shared segment. */
+static char own_sysdir_path[PATH_MAX + 1];
+
+static bool own_sysdir(void) {
+  char exe[PATH_MAX + 1];
+  char* slash;
+  ssize_t n;
+  struct stat st;
+  char sdpath[PATH_MAX + 16];
+
+  if ((n = readlink("/proc/self/exe", exe, PATH_MAX)) <= 0)
+    return FALSE;
+  exe[n] = '\0';
+  if ((slash = strrchr(exe, '/')) == NULL)
+    return FALSE;
+  *slash = '\0'; /* .../bin */
+  if (((slash = strrchr(exe, '/')) == NULL) || (strcmp(slash, "/bin") != 0))
+    return FALSE;
+  *slash = '\0'; /* the system directory */
+  if (exe[0] == '\0')
+    return FALSE;
+  if (snprintf(sdpath, sizeof(sdpath), "%s/bin/sd", exe) >= (int)sizeof(sdpath))
+    return FALSE;
+  if ((stat(sdpath, &st) != 0) || !S_ISREG(st.st_mode) || (access(sdpath, X_OK) != 0))
+    return FALSE;
+  strcpy(own_sysdir_path, exe);
+  return TRUE;
+}
 
 void check_lost_users(void);
 
@@ -59,6 +95,11 @@ int main() {
   int interval;     /* CLEANUP */
 
   process.user_no = -2; /* Mark as sdlnxd for semaphore table */
+
+  if (!own_sysdir()) {
+    fprintf(stderr, "sdlnxd: cannot find the system directory from its own path (it must run as <sysdir>/bin/sdlnxd)\n");
+    exit(3);
+  }
 
   signal(SIGTERM, signal_handler);
 
@@ -166,13 +207,20 @@ void check_lost_users() {
             sysseg->sysdir);
       }
     system(cmd); */
-    if (snprintf(cmd, sizeof(cmd), "'%s/bin/sd' -cleanup", sysseg->sysdir) >= (int)sizeof(cmd)) {
+    /* 24 Oct 26 dm - W.11 F1: the program is <own sysdir>/bin/sd, started with execl (no shell), never a path read from the segment. */
+    if (snprintf(cmd, sizeof(cmd), "%s/bin/sd", own_sysdir_path) >= (int)sizeof(cmd)) {
         printf(
             "Overflowed path/filename buffer. Cleanup not run for:\n%s/bin/sd "
             "-cleanup",
-            sysseg->sysdir);
+            own_sysdir_path);
       } else {
-        system(cmd);
+        pid_t child = fork();
+        if (child == 0) {
+          execl(cmd, "sd", "-cleanup", (char*)NULL);
+          _exit(127);
+        } else if (child > 0) {
+          waitpid(child, NULL, 0);
+        }
       }
     /* -------------------- */
   }
@@ -208,8 +256,11 @@ void log_message(char* msg) {
   if (sysseg->errlog) {
     StartExclusive(ERRLOG_SEM, 71);
 
-    sprintf(buff, "%s%cerrlog", sysseg->sysdir, DS);
-    errlog = open(buff, O_RDWR | O_CREAT | O_BINARY, 0777);
+    /* W.11 F1: not the segment's copy; snprintf, because this runs as root and the path can be up to PATH_MAX long */
+    if (snprintf(buff, BUFF_SIZE, "%s%cerrlog", own_sysdir_path, DS) >= BUFF_SIZE)
+      errlog = -1;
+    else
+      errlog = open(buff, O_RDWR | O_CREAT | O_BINARY, 0777);
 
     /* Modified by Composer AI - 2026/06/10.
        If the open() failed, "bytes" was used uninitialized and write()/

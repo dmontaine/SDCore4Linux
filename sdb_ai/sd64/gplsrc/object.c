@@ -29,6 +29,10 @@
  *               catalogue or for the administrator (load_object()).  Before, the bit was trusted from ANY object file, so
  *               a user who could write one to a directory file with a <name>.out VOC entry, or to a runfile, set the bit
  *               in the header and ran the program with every kernel gate (S.63, S.64) skipped.
+ * 24 Oct 26 dm  W.11 F2 (security-model evaluation): an object of the global catalogue is refused when it is writable by others, or
+ *               by the group sdusers (gcat_object_writable()).  The trust above, "only SDSYS can write the global catalogue", is
+ *               kept by file modes, and a fresh install left gcat/$cproc 0664 sdusers (the final CPROC compile came after the
+ *               chmod sweep), so any SD user with a shell could change the code every session loads, the administrator's too.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -42,6 +46,8 @@
 #include "header.h"
 #include "config.h"
 #include <time.h>
+#include <grp.h>
+#include <sys/types.h>
 
 Private int32_t object_total = 0;  /* Total bytes loaded */
 Private int16_t object_items = 0; /* Number of objects loaded */
@@ -99,6 +105,38 @@ u_int32_t SwapLong(u_int32_t value) {
 
 Private bool discard(void);
 Private void hsm_log(OBJECT* obj);
+
+/* ======================================================================
+   gcat_object_writable()  -  Is this open global catalogue object one that
+   someone other than SDSYS could have changed?  W.11 F2.
+
+   True when the file is writable by others, or by the group sdusers (every SD
+   user is in it).  The group of a private sandbox is the user's own, so its
+   objects (made with umask 002) pass; on an install the group is sdusers and
+   the installer leaves the object 0755.  If there is no group sdusers only the
+   rule for others applies.  The group is looked up once.                  */
+
+Private bool gcat_object_writable(OSFILE fd) {
+  static gid_t sdusers_gid = (gid_t)-1;
+  static bool looked_up = FALSE;
+  struct stat st;
+  struct group* gr;
+
+  if (fstat(fd, &st) != 0)
+    return TRUE; /* cannot tell: fail closed */
+
+  if (!looked_up) {
+    looked_up = TRUE;
+    if ((gr = getgrnam("sdusers")) != NULL)
+      sdusers_gid = gr->gr_gid;
+  }
+
+  if (st.st_mode & S_IWOTH)
+    return TRUE;
+  if ((st.st_mode & S_IWGRP) && (sdusers_gid != (gid_t)-1) && (st.st_gid == sdusers_gid))
+    return TRUE;
+  return FALSE;
+}
 
 /* ======================================================================
    load_object  -  Load an object item                                    */
@@ -225,6 +263,13 @@ void* load_object(char* name, bool abort_on_error) {
     return NULL;
 
 found:
+  /* W.11 F2: a global catalogue object that others or the group sdusers can write is not trusted (see gcat_object_writable()). */
+  if ((flags & OBJ_GLOBAL) && gcat_object_writable(obj_fu)) {
+    CloseFile(obj_fu);
+    /* Always an error, never a NULL return: the callers that ask for no abort report a NULL as "Unable to load", which hides the reason. */
+    k_error(sysmsg(11930), name);
+  }
+
   /* Object found  - read header */
 
   if (Read(obj_fu, (char*)(&obj_header), OBJECT_HEADER_SIZE) < 0) {

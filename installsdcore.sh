@@ -2137,6 +2137,17 @@ echo "account register: $(sudo stat -c '%U:%G %a' "$sdsysdir/accounts")"
 #            production CPROC refuses a root session outright - the one way
 #            into administration is a real LOGIN as sdsys (night ruling, 18
 #            Sep: sudo and su from another user are refused with it, 10195).
+# 24 Oct 26 dm  W.11 F2 (security-model evaluation).  THE GLOBAL CATALOGUE IS TRUSTED BY WHERE IT LIVES, so no file in it may be writable by
+#            anyone but SDSYS.  The "chmod -R 755" sweep of gcat runs long before this compile, and the compile writes gcat/$cproc afresh: a
+#            fresh install left it 0664 group sdusers, and every SD user is in that group.  fix_gcat_modes runs straight after the compile (the
+#            very next sd run loads it, and the kernel now refuses a global object that others or the group sdusers can write) and again after
+#            the last start and stop of SD.  test-gcatmode-units.py runs the function and reads the order.
+# GCAT-MODE-BEGIN
+fix_gcat_modes() {
+    sudo find "$sdsysdir/gcat" -type f -perm /022 -exec chmod go-w {} +
+    sudo chown -R sdsys:sdusers "$sdsysdir/gcat"
+}
+# GCAT-MODE-END
 echo "Compiling CPROC without IS_INSTALL defined."
 sudo bash -c 'echo "*comment out * $define IS_INSTALL" > /usr/local/sdsys/gpl.bp/define_install.h'
 if ! sudo bin/sd -internal BASIC gpl.bp cproc; then
@@ -2145,6 +2156,7 @@ if ! sudo bin/sd -internal BASIC gpl.bp cproc; then
     printf "%b\n" "$NC"
     exit 1
 fi
+fix_gcat_modes
 #
 echo
 echo Stopping sd
@@ -2174,6 +2186,7 @@ sleep 1
 sd_install_start || true
 sleep 1
 sd_install_stop
+fix_gcat_modes
 #
 echo
 echo Compiling terminfo database

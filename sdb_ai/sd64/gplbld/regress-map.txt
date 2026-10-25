@@ -78,6 +78,8 @@ gplbld/FILES_DICTS/*         : dictfold misc-a9 upgradenocase nocase fixes-b12
 gplbld/pcode_bld.py          : @core
 gplbld/bbcmp.py              : @core
 gplbld/COMP_PCODE            : @core
+gplbld/sandbox-gcatmode.py   : @self
+gplbld/sandbox-shmmode.py    : @self
 gplbld/*.py                  : none
 gplbld/*.sh                  : none
 gplbld/*.md                  : none
@@ -151,14 +153,16 @@ gplsrc/op_sys.c              : sys-b2 sys-q18 conf-b1 gates csvb
 gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
 gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12 netfile
 gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
-gplsrc/sdlnxd.c              : q5
-gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters @core
+gplsrc/sdlnxd.c              : q5 shmmode
+gplsrc/sdsem.c               : shmmode @core
+gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof netfile masters
 gplsrc/kernel.c              : @core csvb q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates apispin
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
-gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc
+gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode
+sdsys/messages/11930         : gcatmode
 gplsrc/k_error.c             : sysexc try @core netfile masters
 gplsrc/messages.c            : sysexc @core
 gplsrc/sd.h                  : sysexc try editgates @core netfile shared masters

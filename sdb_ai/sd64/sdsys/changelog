@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  TWO WAYS FOR A LOCAL USER TO REACH WHAT EVERY SESSION TRUSTS ARE CLOSED: THE GLOBAL CATALOGUE IS CHECKED WHEN IT IS LOADED, AND SD'S SHARED MEMORY IS NOT
+           OPEN TO EVERY USER OF THE MACHINE (SECURITY-MODEL EVALUATION, FINDINGS F1 AND F2).
+
+             What        1. The kernel refuses to load a global catalogue object that others can write, or that the group sdusers can write (every SD
+                         user is in that group). The refusal is an error that names the object: "<name> in the global catalogue can be written by
+                         other users, so it was not loaded (chmod go-w it)" (message 11930). The installer left the command processor, gcat/$cproc,
+                         mode 0664 group sdusers on a fresh install, because it recompiles it after the permission sweep; it now clears group and other
+                         write from everything in gcat straight after that compile and once more at the end, so an install gives 0755 and the check
+                         never meets a file it refuses. 2. The shared memory segment and the semaphores are created mode 0660 and given to the group
+                         sdusers; they were 0666, open to every user of the machine. 3. The daemon sdlnxd, which runs as root, no longer takes the
+                         system directory from the shared segment. It finds it from its own path (<sysdir>/bin/sdlnxd), starts "sd -cleanup" with execl
+                         and no shell, and opens the error log under that directory.
+             Why it      The global catalogue is trusted by where it lives (an object there may run as $internal), so a file in it that a user can write
+                         is a way to change the code every session loads, the administrator's included. And a shared segment that every local user could
+                         change is state that SD processes, one of them root, rely on.
+             Does not    Stop an SD user who has a shell from changing the segment: the segment is shared by every SD process, so members of sdusers can
+                         still attach it; it is closed to everyone else. The kernel check is by group sdusers and by others, so the objects of a private
+                         sandbox (made with the user's own group) still load. An existing install is not changed until it is installed again (or the
+                         files are fixed by hand with chmod go-w); its running segment keeps its old mode until SD is stopped and started. A global
+                         catalogue object that a person made group-writable on purpose now stops the program that loads it: the message says what to do.
+
 24 Oct 26  A RELEASE PACKAGE CARRIES THE CHANGES DOCUMENT, AND THE INSTALLER COPIES IT INTO THE SHARED ACCOUNT, WHERE THE PDF VERB LISTS IT.
 
              What        The document that lists what was added, changed and removed in the release is delivered beside installsdcore.sh as

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F1: the shared segment is made 0660 and given to the group sdusers (create_shared_segment()), not 0666.
  * 13 Sep 26 dm  The startup command runs in the sdsys account, its lower-case
  *               name (plan M: account names are lower case).
  * 11 Sep 26 dm  start_sd() rotates the audit trail, as the port's does
@@ -37,6 +38,7 @@
 
 #include <signal.h>
 #include <time.h>
+#include <grp.h>
 /* 20240126 mab add syslog */
 #include <syslog.h>
 
@@ -313,10 +315,22 @@ Private bool create_shared_segment(int32_t bytes,
                                    struct CONFIG* cfg,
                                    char* errmsg) {
   int shmid;
+  struct shmid_ds shm_ds;
+  struct group* sd_gr;
 
-  if ((shmid = shmget(SD_SHM_KEY, bytes, IPC_CREAT | 0666)) == -1) {
+  /* 24 Oct 26 dm - W.11 F1 (security-model evaluation): 0660 and the group sdusers, not 0666.  With 0666 every local user could attach and
+     change the tables every SD process, the root daemon included, trusts.  A machine with no group sdusers keeps the creator's group
+     (more restrictive, never wider). */
+  if ((shmid = shmget(SD_SHM_KEY, bytes, IPC_CREAT | 0660)) == -1) {
     sprintf(errmsg, "Error %d creating shared segment.", errno);
     return FALSE;
+  }
+
+  if (shmctl(shmid, IPC_STAT, &shm_ds) == 0) {
+    if ((sd_gr = getgrnam("sdusers")) != NULL)
+      shm_ds.shm_perm.gid = sd_gr->gr_gid;
+    shm_ds.shm_perm.mode = (shm_ds.shm_perm.mode & ~0777) | 0660;
+    (void)shmctl(shmid, IPC_SET, &shm_ds);
   }
 
   if ((sysseg = (SYSSEG*)shmat(shmid, NULL, 0)) == (void*)(-1)) {

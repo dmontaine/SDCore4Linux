@@ -7807,6 +7807,13 @@ cited by: `setviewer`
 
 cited by: `setviewer`
 
+### msg:11930
+> kind=message tier=reference since=- src=sdsys/messages/11930:1#bfc9f698
+
+```
+%s in the global catalogue can be written by other users, so it was not loaded (chmod go-w it)
+```
+
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
 

@@ -21,6 +21,7 @@
  * rev 0.9.0 Jan 25 d-chou add IPC_NOWAIT and RelinquishTimeslice (sched_yield) to LockSemaphore
  * 14 Sep 26 dm  SEM_UNDO on lock and unlock, and release_owned_semaphores()
  *               for the fatal-signal path (W.0, owner's ruling of 14 Sep 26).
+ * 24 Oct 26 dm  W.11 F1: the semaphores are made 0660 and given to the group sdusers, not 0666.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -33,6 +34,7 @@
 #include "sd.h"
 #include <sys/sem.h>
 #include <sched.h>
+#include <grp.h>
 
 /* ======================================================================
    get_semaphores()  -  Get inter-process semaphores                      */
@@ -75,12 +77,26 @@ bool get_semaphores(bool create, char* errmsg) {
 
   /* Create new semaphores */
 
+  /* 24 Oct 26 dm - W.11 F1: 0660 and the group sdusers, not 0666 (see create_shared_segment() in sysseg.c). */
   if ((semid = semget(SD_SEM_KEY, NUM_SEMAPHORES,
-                      IPC_CREAT | IPC_EXCL | 0666)) != -1) {
+                      IPC_CREAT | IPC_EXCL | 0660)) != -1) {
     /* Initialise the semaphores */
 
     for (i = 0; i < NUM_SEMAPHORES; i++)
       semctl(semid, i, SETVAL, seminit);
+
+    {
+      struct semid_ds sem_ds;
+      struct group* sd_gr;
+
+      seminit.buf = &sem_ds;
+      if (semctl(semid, 0, IPC_STAT, seminit) == 0) {
+        if ((sd_gr = getgrnam("sdusers")) != NULL)
+          sem_ds.sem_perm.gid = sd_gr->gr_gid;
+        sem_ds.sem_perm.mode = (sem_ds.sem_perm.mode & ~0777) | 0660;
+        (void)semctl(semid, 0, IPC_SET, seminit);
+      }
+    }
   } else {
     sprintf(errmsg, "Error %d allocating semaphores", errno);
     return FALSE;
