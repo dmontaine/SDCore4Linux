@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: the administrator test is MY_ADMIN() (the process's own word), not the user table entry.
  * 19 Oct 26 dm  S.67 stage 1: open_file() calls masters_open_hook() on the resolved pathname, so that the administrator opening voc_master,
  *           dict_master or master_state finds the journal applied (masters.c).
  * 18 Oct 26 dm  S.66: the shared account.  get_voc_file_reference() is a wrapper over get_voc_file_reference_ex(..., allow_shared), which gives
@@ -108,7 +109,7 @@ Private void remove_temp_file(const char* path);
    18 Oct 26 S.66: making ANYTHING inside the shared account (a file, a directory, the account's own directory) is a structure change and
    SDSYS's alone: tested BEFORE the $internal exemption, which does not apply (EDIT_SHARED_STRUCT, message 11514). */
 Private int create_edit_refusal(const char* path) {
-  if (!(my_uptr->flags & USR_ADMIN) && path_resolved_in_shared(path))
+  if (!MY_ADMIN() && path_resolved_in_shared(path))
     return EDIT_SHARED_STRUCT;
   if (process.program.flags & HDR_INTERNAL)
     return EDIT_NONE;

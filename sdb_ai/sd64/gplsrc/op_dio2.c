@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: SYSDIR answers sd_sysdir() (the configuration file's); the administrator tests are MY_ADMIN().
  * 19 Oct 26 dm  S.67 stage 1: OSPATH OS_DELETE and OSRENAME call masters_note_name() for the paths they remove, move and make (a VOC or dictionary
  *               file is journalled for the master files).
  * 18 Oct 26 dm  S.66: OSPATH keys OS_DELETE, OS_MKDIR and OS_MKPATH, and OSRENAME (either name), do nothing and answer false (STATUS() ER_PERM)
@@ -825,7 +826,7 @@ void op_sysdir() {
      |================================|=============================|
 */
 
-  k_put_c_string((char*)(sysseg->sysdir), e_stack);
+  k_put_c_string((char*)sd_sysdir(), e_stack);
   e_stack++;
 }
 
@@ -941,7 +942,7 @@ void op_ospath() {
 
   /* 18 Oct 26 S.66: deleting or making a file or directory inside the shared account is a structure change, SDSYS's alone; a $internal
      program is not exempt.  Nothing is done; the answer is false (0) and STATUS() ER_PERM.  OS_CHOWN is not asked. */
-  if (((key == OS_DELETE) || (key == OS_MKDIR) || (key == OS_MKPATH)) && !(my_uptr->flags & USR_ADMIN) && path_resolved_in_shared(path)) {
+  if (((key == OS_DELETE) || (key == OS_MKDIR) || (key == OS_MKPATH)) && !MY_ADMIN() && path_resolved_in_shared(path)) {
     process.status = ER_PERM;
     status = 0;
     goto set_status;
@@ -1243,7 +1244,7 @@ void op_osrename() {
 
   /* 18 Oct 26 S.66: renaming into, out of or within the shared account changes its structure: SDSYS's alone, a $internal program included.
      Nothing is done; the answer is 0 (ER_PERM).  */
-  if (!(my_uptr->flags & USR_ADMIN) && (path_resolved_in_shared(old_path) || path_resolved_in_shared(new_path))) {
+  if (!MY_ADMIN() && (path_resolved_in_shared(old_path) || path_resolved_in_shared(new_path))) {
     process.status = ER_PERM;
     goto exit_osrename;
   }

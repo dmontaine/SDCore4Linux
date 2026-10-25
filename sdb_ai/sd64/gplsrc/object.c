@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: the global catalogue directory is sd_sysdir() (the configuration file's), not the segment's copy; the administrator test is MY_ADMIN().
  * 31 Dec 23 SD launch - prior history suppressed
  * 29 Sep 26 dm  load_object(): the copy into program_name is bounded,
  *               keeping the tail of an over-long runfile path (SD Core
@@ -245,7 +246,7 @@ void* load_object(char* name, bool abort_on_error) {
       goto found;
   }
   /* converted to snprintf() -gwb 22Feb20 */
-  if (snprintf(obj_path, MAX_PATHNAME_LEN + 1, "%s%cgcat%c%s", sysseg->sysdir, 
+  if (snprintf(obj_path, MAX_PATHNAME_LEN + 1, "%s%cgcat%c%s", sd_sysdir(),
             DS, DS, mapped_name) >= (MAX_PATHNAME_LEN + 1)) {
      /* TODO: this should be sent to the system log. */          
      k_error("Overflowed directory/pathname length in load_object()!");
@@ -329,7 +330,7 @@ found:
      they like.  The bit is a flag in the object's own header, so for any other object it is the bit that was set by whoever wrote
      the file: a local or private catalogue entry, a runfile, a trigger.  It is cleared in this process's copy, before anything runs;
      the cache search above returns that copy.  The compiler itself only sets the bit in an internal-mode compile.               */
-  if ((obj->code.flags & HDR_INTERNAL) && !(flags & OBJ_GLOBAL) && !(my_uptr->flags & USR_ADMIN))
+  if ((obj->code.flags & HDR_INTERNAL) && !(flags & OBJ_GLOBAL) && !MY_ADMIN())
     obj->code.flags &= ~HDR_INTERNAL;
 
   obj->code.ext_hdr.prog.refs = 0;

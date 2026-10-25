@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: SIGNAL's administrator test is MY_ADMIN() (the process's own word), not the user table entry.
  * 19 Oct 26 dm  S.67 stage 1: x_ospath() key 5 (delete) calls masters_note_name() for the path it removed (journalled for the master files).
  * 18 Oct 26 dm  XF_SDSALT, XF_SDKEY, XF_SDRANDKEY: encryption layer 2, for any program (sd_encrypt_sodium.c).  The first XFUN
  *               functions that take no arguments (bcomp's in.xfun skips get.args for a row that writes none).
@@ -392,7 +393,7 @@ Private int32_t x_signal(int32_t uid) {
   uptr = UserPtr(uid);
   if ((uptr == NULL) || (uptr->uid != uid))
     return 0;
-  if (!(my_uptr->flags & USR_ADMIN) && (strcmp((char*)(uptr->username), (char*)(my_uptr->username)) != 0))
+  if (!MY_ADMIN() && (strcmp((char*)(uptr->username), (char*)(my_uptr->username)) != 0))
     return 0;
   __atomic_fetch_or(&uptr->flags, (int16_t)USR_SIGNAL, __ATOMIC_SEQ_CST);
   return 1;

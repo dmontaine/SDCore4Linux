@@ -351,9 +351,9 @@ def checks(srcs):
     i = kn.find("case K_NET:")
     body = kn[i:kn.find("case K_EDIT_OK:", i)] if i >= 0 else ""      # the whole K_NET case (it holds the -2 branch before the set branch since slice 3e)
     ck("C1 K_NET sets the gate only from a $internal program (n >= 0, then HDR_INTERNAL, then the bit), -1 only asks",
-       kn.count("case K_NET:") == 1 and "GetInt(descr)" in body and ordered(body, "n >= 0", "HDR_INTERNAL", "n > 0", "gates |= UG_NET"), "")
+       kn.count("case K_NET:") == 1 and "GetInt(descr)" in body and ordered(body, "n >= 0", "HDR_INTERNAL", "SET_MY_GATE(UG_NET, n > 0)"), "")
     ck("C2 ...clears with UG_NET, answers the UG_NET bit as 1 or 0, and touches no other gate",
-       "gates &= (u_int16_t)~UG_NET" in body and "result.data.value = (my_uptr->gates & UG_NET) != 0" in body
+       "SET_MY_GATE(UG_NET, n > 0)" in body and "result.data.value = MY_GATE(UG_NET)" in body
        and "UG_VOC_EDIT" not in body and "UG_BP_EDIT" not in body and "UG_DICT_EDIT" not in body, "")
 
     # ---- B. the BASIC side: where the gate is loaded --------------------------------------------------------------------------
@@ -1873,7 +1873,7 @@ def checks_3c(srcs, c, ck):
     gate = fn("netfiles.c", "net_gate_ok")
     ck("NK3a THE GATE: the administrator (USR_ADMIN in the session's flags) or an account holding the NET gate (UG_NET in its gates), asked of the session and of nothing else; an $internal program is NOT "
        "exempt (HDR_INTERNAL is in netfiles.c once, in net_gate()'s S.64 edit test of slice 3e, and not in the NET gate, the open or the handler call); the refusal is message 11460 with the account, audited as 'netfile refused server=<name> reason=gate' with the server name made safe",
-       re.search(r"return\s*\(\(my_uptr->flags & USR_ADMIN\) != 0\)\s*\|\|\s*\(\(my_uptr->gates & UG_NET\) != 0\);", gate) is not None
+       re.search(r"return\s*MY_ADMIN\(\)\s*\|\|\s*MY_GATE\(UG_NET\);", gate) is not None
        and "HDR_INTERNAL" not in gate + nw + fn("netfiles.c", "net_call_core") and nf.count("HDR_INTERNAL") == 1 and "HDR_INTERNAL" in fn("netfiles.c", "net_gate")     # slice 3e: net_gate's edit test only
        and ordered(nw, "net_set_message(MSG_NO_GATE, account(), safe", "\"netfile refused server=%s reason=gate\"") and "#define MSG_NO_GATE 11460" in nf
        and re.search(r"safe\[i\]\s*=\s*\(\(\(server\[i\] >= 'a'\) && \(server\[i\] <= 'z'\)\) \|\| \(\(server\[i\] >= '0'\) && \(server\[i\] <= '9'\)\)\) \? server\[i\] : '\?';", nw) is not None, "")
@@ -2296,10 +2296,10 @@ def checks_3e(srcs, c, ck):
        "scope that ended), restores process.status and leaves - in that order, the call AFTER the bit is changed and inside the HDR_INTERNAL block; the -1 ask form and a caller that is not $internal never call "
        "it (net_close_all appears once in the case); nothing uses `descr` after the call, because the handler is BASIC and moves the e-stack",
        blk != "" and blk.count("net_close_all()") == 1
-       and ordered(blk0, "if (n >= 0) {", "if (process.program.flags & HDR_INTERNAL) {", "my_uptr->gates |= UG_NET;", "my_uptr->gates &= (u_int16_t)~UG_NET;",
-                   "result.data.value = (my_uptr->gates & UG_NET) != 0;", "n = process.status;", "net_close_all();", "process.status = n;", "break;")
+       and ordered(blk0, "if (n >= 0) {", "if (process.program.flags & HDR_INTERNAL) {", "SET_MY_GATE(UG_NET, n > 0);",
+                   "result.data.value = MY_GATE(UG_NET);", "n = process.status;", "net_close_all();", "process.status = n;", "break;")
        and re.search(r"net_close_all\(\);\s*process\.status = n;\s*break;\s*\}\s*\}\s*result\.data\.value = ", blk) is not None      # the set branch LEAVES the case (a fall-through gives the same answer, so only the text can tell)
-       and re.search(r"result\.data\.value = \(my_uptr->gates & UG_NET\) != 0;\s*break;\s*$", blk) is not None      # the ask form ends the case (slice 3e put a -2 branch before it)
+       and re.search(r"result\.data\.value = MY_GATE\(UG_NET\);\s*break;\s*$", blk) is not None      # the ask form ends the case (slice 3e put a -2 branch before it)
        and inside(blk, "if (process.program.flags & HDR_INTERNAL) {", "net_close_all()") and "descr" not in after, "")
 
 
@@ -2473,7 +2473,7 @@ def checks_s2(srcs, c, ck):
        ng != "" and ordered(ng, "process.op_flags = op_flags & P_ON_ERROR;", "!fvar->access.net.write || (fvar->flags & FV_RDONLY)", "net_refuse_with(fvar, what, MSG_READ_ONLY, -ER_NETWORK)",
                             "kind == NETG_PEEK", "return 0;",
                             "process.txn_id != 0", "net_refuse_with(fvar, what, MSG_TXN, -ER_TXN)",
-                            "(kind == NETG_WRITE) || (kind == NETG_DELETE) || (kind == NETG_CLEAR) || (kind == NETG_ADMIN)", "fvar->access.net.edit_kind", "!(process.program.flags & HDR_INTERNAL)", "!(my_uptr->flags & USR_ADMIN)",
+                            "(kind == NETG_WRITE) || (kind == NETG_DELETE) || (kind == NETG_CLEAR) || (kind == NETG_ADMIN)", "fvar->access.net.edit_kind", "!(process.program.flags & HDR_INTERNAL)", "!MY_ADMIN()",
                             "!edit_permitted(ek)", "net_set_message(11404 + ek", "net_raise(-ER_PERM, op_flags & P_ON_ERROR)", "return 0;")
        and "P_SEQKEY" not in ng and "MSG_UNAVAILABLE" not in ng
        and not re.search(r"(?<![\w.])txn_id", ng.replace("process.txn_id", "")) and ng.count("process.op_flags = entry;") == 5
@@ -2634,14 +2634,14 @@ def checks_s2(srcs, c, ck):
        "file variable's access.net.edit_kind and K_EDIT_OK is the administrator, or kind EDIT_NONE, or edit_permitted(kind); any OTHER file variable is refused (0) - a gate that fails open is decoration; a "
        "string argument behaves as before. K_NET -2 from a $internal program saves process.status, sends the queued closes (net_flush_closes) and gives the status back, and answers the gate as -1 does; "
        "from any other program -2 is -1 (the ask form); net_flush_closes is called nowhere else",
-       ke != "" and ordered(ke, "if (descr->type == FILE_REF) {", "descr->data.fvar", "edit_fvar->type == NET_FILE", "access.net.edit_kind", "USR_ADMIN", "EDIT_NONE", "edit_permitted(",
+       ke != "" and ordered(ke, "if (descr->type == FILE_REF) {", "descr->data.fvar", "edit_fvar->type == NET_FILE", "access.net.edit_kind", "MY_ADMIN()", "EDIT_NONE", "edit_permitted(",
                             "break;", "edit_ok_for_path(edit_name)", "edit_kind_of_path(edit_name)")
        and re.search(r"else\s+result\.data\.value = [\w>.\-]*kind[\w]*;", ke) is not None            # K_EDIT_KIND answers the kind
-       and re.search(r"if \(action == K_EDIT_OK\) \{\s*if \(my_uptr->flags & USR_ADMIN\)\s*result\.data\.value = 1;\s*else if \(edit_fvar->type == NET_FILE\)\s*"
+       and re.search(r"if \(action == K_EDIT_OK\) \{\s*if \(MY_ADMIN\(\)\)\s*result\.data\.value = 1;\s*else if \(edit_fvar->type == NET_FILE\)\s*"
                      r"result\.data\.value = \(\(edit_fkind == EDIT_NONE\) \|\| edit_permitted\(edit_fkind\)\) \? 1 : 0;\s*\} else\s*result\.data\.value = edit_fkind;\s*break;", ke) is not None   # the whole file-variable arm, as one shape
-       and kj != "" and ordered(kj, "(n == -2)", "process.program.flags & HDR_INTERNAL", "n = process.status;", "net_flush_closes();", "process.status = n;", "result.data.value = (my_uptr->gates & UG_NET) != 0;", "break;")
+       and kj != "" and ordered(kj, "(n == -2)", "process.program.flags & HDR_INTERNAL", "n = process.status;", "net_flush_closes();", "process.status = n;", "result.data.value = MY_GATE(UG_NET);", "break;")
        and re.search(r"if \(\(n == -2\) && \(process\.program\.flags & HDR_INTERNAL\)\) \{\s*n = process\.status;\s*net_flush_closes\(\);\s*process\.status = n;\s*"
-                     r"result\.data\.value = \(my_uptr->gates & UG_NET\) != 0;\s*break;\s*\}", kj) is not None      # the -2 branch as one shape: only a $internal program, and the answer is the gate
+                     r"result\.data\.value = MY_GATE\(UG_NET\);\s*break;\s*\}", kj) is not None      # the -2 branch as one shape: only a $internal program, and the answer is the gate
        and kn_.count("net_flush_closes()") == 1 and sum(t.count("net_flush_closes(") for k, t in c.items() if (k.endswith(".c") or k.startswith("c:")) and k not in ("netfiles.c", "op_kernel.c")) == 0, "")
     ck("S2x CPROC and edit_guard (spec 3.9): para.reset.environment calls kernel(K$NET, -2) as the very next line after the OS path cache flush (so a lock does not outlive its file variable at the "
        "prompt) and nowhere else; edit_guard, in the branch where the file has no pathname and BEFORE the administrator test, asks for a file on another server (fileinfo FL$NETFILE) and then K$EDIT.OK and "
@@ -3097,11 +3097,11 @@ mut("UG_NET shares 0x0004 with the dict gate", "sysseg.h", rx(r"(#define\s+UG_NE
 mut("CA$NET is 34", "createacc.h", rx(r"(\$define\s+CA\$NET\s+)35", r"\g<1>34"))
 mut("CA$NET is 36", "createacc.h", rx(r"(\$define\s+CA\$NET\s+)35", r"\g<1>36"))
 # ---- C
-mut("K_NET can be set by a user program", "op_kernel.c", rx(r"if \(process\.program\.flags & HDR_INTERNAL\) \{(\s*)if \(n > 0\)(\s*)my_uptr->gates \|= UG_NET;", r"if (1) {\1if (n > 0)\2my_uptr->gates |= UG_NET;"))
-mut("K_NET switches on the wrong bit", "op_kernel.c", "my_uptr->gates |= UG_NET;", "my_uptr->gates |= UG_BP_EDIT;")
-mut("K_NET switches off the wrong bit", "op_kernel.c", "my_uptr->gates &= (u_int16_t)~UG_NET;", "my_uptr->gates &= (u_int16_t)~UG_DICT_EDIT;")
-mut("K_NET always answers 1", "op_kernel.c", "      }\n      result.data.value = (my_uptr->gates & UG_NET) != 0;", "      }\n      result.data.value = 1;")
-mut("K_NET always answers 1 when it sets the gate", "op_kernel.c", "          result.data.value = (my_uptr->gates & UG_NET) != 0;\n          n = process.status;", "          result.data.value = 1;\n          n = process.status;")
+mut("K_NET can be set by a user program", "op_kernel.c", rx(r"if \(process\.program\.flags & HDR_INTERNAL\) \{(\s*)SET_MY_GATE\(UG_NET, n > 0\);", r"if (1) {\1SET_MY_GATE(UG_NET, n > 0);"))
+mut("K_NET switches on the wrong bit", "op_kernel.c", "SET_MY_GATE(UG_NET, n > 0);", "SET_MY_GATE(UG_BP_EDIT, n > 0);")
+mut("K_NET never switches the gate off", "op_kernel.c", "SET_MY_GATE(UG_NET, n > 0);", "SET_MY_GATE(UG_NET, 1);")
+mut("K_NET always answers 1", "op_kernel.c", "      }\n      result.data.value = MY_GATE(UG_NET);", "      }\n      result.data.value = 1;")
+mut("K_NET always answers 1 when it sets the gate", "op_kernel.c", "          result.data.value = MY_GATE(UG_NET);\n          n = process.status;", "          result.data.value = 1;\n          n = process.status;")
 # ---- B
 mut("LOGIN forgets the NET gate", "login", drop_line(r"void kernel\(K\$NET,"))
 mut("LOGIN turns the gate on for a blank field", "login", "upcase(trim(acc.rec<ACC$NET>)) = 'YES')", "upcase(trim(acc.rec<ACC$NET>)) # 'NO')")
@@ -3942,8 +3942,8 @@ mut("a netfiles function is defined twice", NFC, lambda t: t + "\nconst char* ne
 mut("the gate is not asked", NFC, "  if (!net_gate_ok()) {", "  if (0) {")
 mut("the queue is flushed before the gate", NFC, "  /* THE GATE, before anything is loaded or called.  An $internal program is not exempt. */\n  if (!net_gate_ok()) {",
     "  net_flush_pending();\n  if (!net_gate_ok()) {")
-mut("the gate exempts an $internal program", NFC, "return ((my_uptr->flags & USR_ADMIN) != 0) ||", "return (process.program.flags & HDR_INTERNAL) || ((my_uptr->flags & USR_ADMIN) != 0) ||")
-mut("the gate is the administrator's alone", NFC, " || ((my_uptr->gates & UG_NET) != 0);", ";")
+mut("the gate exempts an $internal program", NFC, "return MY_ADMIN() ||", "return (process.program.flags & HDR_INTERNAL) || MY_ADMIN() ||")
+mut("the gate is the administrator's alone", NFC, " || MY_GATE(UG_NET);", ";")
 mut("the gate refusal is not audited", NFC, "    audit_message(audit);\n    return -ER_PERM;", "    return -ER_PERM;")
 mut("the gate refusal falls through", NFC, "    audit_message(audit);\n    return -ER_PERM;", "    audit_message(audit);")
 mut("the gate audit line is in capitals", NFC, "\"netfile refused server=%s reason=gate\"", "\"NETFILE REFUSED server=%s reason=gate\"")
@@ -4214,13 +4214,13 @@ mut("net_close_all drops the cache only when something was opened", NFC, "  net_
 mut("a second place drops the cache", NFC, lambda t: t + "\nvoid zz_drop(void) {\n  net_cache_drop(0);\n}\n")
 # K_NET
 mut("K_NET never closes the remote files", "op_kernel.c", "          net_close_all();\n", "")
-mut("K_NET's ask form closes the remote files", "op_kernel.c", "      result.data.value = (my_uptr->gates & UG_NET) != 0;\n      break;\n\n    /* K_EDIT_OK / K_EDIT_KIND", "      net_close_all();\n      result.data.value = (my_uptr->gates & UG_NET) != 0;\n      break;\n\n    /* K_EDIT_OK / K_EDIT_KIND")
+mut("K_NET's ask form closes the remote files", "op_kernel.c", "      result.data.value = MY_GATE(UG_NET);\n      break;\n\n    /* K_EDIT_OK / K_EDIT_KIND", "      net_close_all();\n      result.data.value = MY_GATE(UG_NET);\n      break;\n\n    /* K_EDIT_OK / K_EDIT_KIND")
 mut("K_NET closes the remote files for a caller that is not $internal", "op_kernel.c", rx(r"          net_close_all\(\);\n          process\.status = n;\n          break;\n        \}\n", "          process.status = n;\n          break;\n        }\n        net_close_all();\n"))
-mut("K_NET closes the remote files before it changes the gate", "op_kernel.c", lambda t: t.replace("          net_close_all();\n", "", 1).replace("          if (n > 0)\n            my_uptr->gates |= UG_NET;", "          net_close_all();\n          if (n > 0)\n            my_uptr->gates |= UG_NET;", 1))
+mut("K_NET closes the remote files before it changes the gate", "op_kernel.c", lambda t: t.replace("          net_close_all();\n", "", 1).replace("          SET_MY_GATE(UG_NET, n > 0);", "          net_close_all();\n          SET_MY_GATE(UG_NET, n > 0);", 1))
 mut("K_NET does not save the caller's STATUS()", "op_kernel.c", "          n = process.status; /* the handler is BASIC and leaves its own STATUS() behind; the caller's is given back */\n", "")
 mut("K_NET does not give the caller's STATUS() back", "op_kernel.c", rx(r"          process\.status = n;\n          break;", "          break;"))
 mut("K_NET uses descr after the handler ran", "op_kernel.c", "          process.status = n;\n          break;", "          process.status = n;\n          result.data.value = descr->data.value;\n          break;")
-mut("K_NET computes the answer after the handler ran", "op_kernel.c", lambda t: t.replace("          result.data.value = (my_uptr->gates & UG_NET) != 0;\n          n = process.status;", "          n = process.status;", 1).replace("          net_close_all();\n          process.status = n;\n", "          net_close_all();\n          process.status = n;\n          result.data.value = (my_uptr->gates & UG_NET) != 0;\n", 1))
+mut("K_NET computes the answer after the handler ran", "op_kernel.c", lambda t: t.replace("          result.data.value = MY_GATE(UG_NET);\n          n = process.status;", "          n = process.status;", 1).replace("          net_close_all();\n          process.status = n;\n", "          net_close_all();\n          process.status = n;\n          result.data.value = MY_GATE(UG_NET);\n", 1))
 mut("K_NET falls through after the close", "op_kernel.c", rx(r"          process\.status = n;\n          break;\n        \}\n", "          process.status = n;\n        }\n"))
 
 # ---- 18 Oct 26, slice 3e: writes and locks (S2a to S2z and the checks rewritten for it) --------------------------------------------------------------
@@ -4339,7 +4339,7 @@ mut("net_gate does not refuse a transaction", NFC, edit_func("net_gate", r"if \(
 mut("net_gate does not ask the edit gate", NFC, edit_func("net_gate", r"if \(\(kind == NETG_WRITE\) \|\| \(kind == NETG_DELETE\) \|\| \(kind == NETG_CLEAR\) \|\| \(kind == NETG_ADMIN\)\) \{", "if (0) {"))
 mut("net_gate asks the edit gate for a lock", NFC, edit_func("net_gate", r"\(kind == NETG_ADMIN\)\) \{", "(kind == NETG_ADMIN) || (kind == NETG_LOCK)) {"))
 mut("net_gate does not exempt an $internal caller", NFC, edit_func("net_gate", r" && !\(process\.program\.flags & HDR_INTERNAL\)", ""))
-mut("net_gate does not exempt the administrator", NFC, edit_func("net_gate", r" && !\(my_uptr->flags & USR_ADMIN\)", ""))
+mut("net_gate does not exempt the administrator", NFC, edit_func("net_gate", r" && !MY_ADMIN\(\)", ""))
 mut("net_gate refuses the edit gate with another status", NFC, edit_func("net_gate", r"net_raise\(-ER_PERM,", "net_raise(-ER_NETWORK,"))
 mut("net_gate names the dictionary message for every kind", NFC, edit_func("net_gate", r"11404 \+ ek", "11406"))
 mut("net_gate raises the edit refusal even with ON ERROR", NFC, edit_func("net_gate", r"net_raise\(-ER_PERM, op_flags & P_ON_ERROR\)", "net_raise(-ER_PERM, 0)"))
@@ -4466,11 +4466,11 @@ mut("edit_kind_of_net_name takes dict without the space", SH, edit_func("edit_ki
 mut("K_EDIT_OK of a file variable is open", KRN, "            result.data.value = ((edit_fkind == EDIT_NONE) || edit_permitted(edit_fkind)) ? 1 : 0;", "            result.data.value = 1;")
 mut("K_EDIT_OK of another file variable is open", KRN, "          else if (edit_fvar->type == NET_FILE)\n            result.data.value = ((edit_fkind", "          else\n            result.data.value = ((edit_fkind")
 mut("K_EDIT_KIND of a file variable answers 0", KRN, "        } else\n          result.data.value = edit_fkind;", "        } else\n          result.data.value = 0;")
-mut("K_EDIT_OK does not exempt the administrator", KRN, "          if (my_uptr->flags & USR_ADMIN)\n            result.data.value = 1;\n          else if (edit_fvar->type == NET_FILE)", "          if (edit_fvar->type == NET_FILE)")
+mut("K_EDIT_OK does not exempt the administrator", KRN, "          if (MY_ADMIN())\n            result.data.value = 1;\n          else if (edit_fvar->type == NET_FILE)", "          if (edit_fvar->type == NET_FILE)")
 mut("K_NET -2 is open to any program", KRN, "if ((n == -2) && (process.program.flags & HDR_INTERNAL)) {", "if (n == -2) {")
 mut("K_NET -2 never flushes", KRN, "        net_flush_closes();\n", "")
 mut("K_NET -2 loses the caller's STATUS()", KRN, "        n = process.status;\n        net_flush_closes();\n        process.status = n;\n", "        net_flush_closes();\n")
-mut("K_NET -2 answers 0", KRN, "        process.status = n;\n        result.data.value = (my_uptr->gates & UG_NET) != 0;\n        break;", "        process.status = n;\n        result.data.value = 0;\n        break;")
+mut("K_NET -2 answers 0", KRN, "        process.status = n;\n        result.data.value = MY_GATE(UG_NET);\n        break;", "        process.status = n;\n        result.data.value = 0;\n        break;")
 mut("CPROC forgets the flush", CPR, drop_line(r"void kernel\(K\$NET, -2\)"))
 mut("CPROC flushes before the OS path cache", CPR, rx(r"(   i = ospath\(\"\", os\$flush\.cache\)\n)(   void kernel\(K\$NET, -2\)[^\n]*\n)", r"\2\1"))
 mut("CPROC flushes twice", CPR, lambda t: t + "\n   void kernel(K$NET, -2)\n")
@@ -4824,7 +4824,8 @@ def main():
             return 2
         missed = 0
         start = int(next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--from=")), "0"))          # --from=N: only the mutants from the Nth on (M3E_START is slice 3e's first, M_S72 is S.72's first: print either to find N)
-        for label, name, old, new in M[start:]:
+        match = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--match=")), "")      # --match=TEXT: only the mutants whose label holds TEXT (24 Oct 26: the W.11 F9 re-aim touched about a dozen of the 1,500)
+        for label, name, old, new in [m for m in M[start:] if match in m[0]]:
             try:
                 rows = checks(mutate(srcs, name, old, new))
             except KeyError as e:

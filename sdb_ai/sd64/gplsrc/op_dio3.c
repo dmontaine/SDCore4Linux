@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: the administrator test is MY_ADMIN() (the process's own word), not the user table entry.
  * 19 Oct 26 dm  S.67 (verifier F3): the read of a DYNAMIC file tells masters_note_read(), so that a save of a master record is judged against the record the
  *               session read.
  * 19 Oct 26 dm  S.67 stage 2: WRITE and DELETE of a record of voc_master or dict_master INSIDE A TRANSACTION are refused before they reach the
@@ -153,7 +154,7 @@ Private int edit_refusal(FILE_VAR *fvar) {
     return EDIT_NONE;
   if (process.program.flags & HDR_INTERNAL)
     return EDIT_NONE;
-  if (my_uptr->flags & USR_ADMIN)
+  if (MY_ADMIN())
     return EDIT_NONE;
 
   /* The file table is shared memory; the name cannot change while this session holds the file open.  18 Oct 26 S.66: the order of
@@ -176,7 +177,7 @@ Private int edit_refusal(FILE_VAR *fvar) {
 int shared_structure_refusal(FILE_VAR *fvar) {
   if ((fvar == NULL) || ((fvar->type != DYNAMIC_FILE) && (fvar->type != DIRECTORY_FILE)))
     return EDIT_NONE;
-  if (my_uptr->flags & USR_ADMIN)
+  if (MY_ADMIN())
     return EDIT_NONE;
   if (path_in_shared((const char *)FPtr(fvar->file_id)->pathname))
     return EDIT_SHARED_STRUCT;

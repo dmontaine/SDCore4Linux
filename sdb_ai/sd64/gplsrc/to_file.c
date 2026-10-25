@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: print files are made under sd_sysdir() (the configuration file's), not the segment's copy.
  * 20 Oct 26 dm  start_file(): the OS-access refusal (11180) names the account; the message was printed with "%1" in it (sysmsg_arg1()).
  * 17 Oct 26 dm  S.64 part 2: start_file() asks about what is above the print file's own name only: a print file called x.dic or
  *               voc in an ordinary directory is a plain file, not a dictionary (edit_os_path_refusal include_leaf FALSE).
@@ -205,7 +206,7 @@ Private void start_file(PRINT_UNIT* pu) {
       pu->file.jobno = (sysseg->prtjob)++;
       EndExclusive(SHORT_CODE);
       /* convert to snprintf() -gwb 22Feb20 */
-      if (snprintf(fn, MAX_PATHNAME_LEN + 1, "%s/prt/p%d", sysseg->sysdir,
+      if (snprintf(fn, MAX_PATHNAME_LEN + 1, "%s/prt/p%d", sd_sysdir(),
                    pu->file.jobno) >= (MAX_PATHNAME_LEN + 1)) {
          /* TODO this should be logged to a file with more info */
          k_error("Overflowed path/filename buffer in start_file()!");

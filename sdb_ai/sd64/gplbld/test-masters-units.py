@@ -327,7 +327,7 @@ def checks(srcs):
     # ---- D. the drain -----------------------------------------------------------------------------------------------------------------
     oh = func_body(m, "void masters_open_hook(const char *canon)")
     ck("D1 masters_open_hook does nothing unless the session is the administrator and the path is one of the three master files, and it cannot recurse (busy)",
-       ordered(oh, "busy ||", "USR_ADMIN", "mst_is_master_path(canon)", "busy = TRUE;", "mst_drain(&cx, -1, &dr)", "busy = FALSE;"), "")
+       ordered(oh, "busy ||", "MY_ADMIN()", "mst_is_master_path(canon)", "busy = TRUE;", "mst_drain(&cx, -1, &dr)", "busy = FALSE;"), "")
     mw = func_body(m, "Private int mst_master_which(const char *canon)")
     ck("D2 the three master paths are voc_master, dict_master and master_state under the SYSTEM directory as the OS resolves it (not a name that a VOC entry could give another file); "
        "mst_is_master_path is 'which is not 0'",
@@ -391,7 +391,7 @@ def checks(srcs):
     ck("K1 masters_request: 'ready' and 'note' are answered BEFORE the administrator test; every other op comes after 'if (!admin)' returns MSA_REFUSED, and 'init' (which makes files) is after it too",
        ordered(rq, 'strcmp(op, "ready") == 0', 'strcmp(op, "note") == 0', "if (!admin) {", "mst_status(&out, MSA_REFUSED);", 'strcmp(op, "init") == 0', "mst_is_set_up()")
        and ordered(rq, "if (!admin) {", 'strcmp(op, "pending") == 0', 'strcmp(op, "drain") == 0', 'strcmp(op, "sync") == 0', 'strcmp(op, "drop") == 0', 'strcmp(op, "check") == 0'), "")
-    ck("K2 ...admin is the user table's administrator flag", "bool admin = (my_uptr != NULL) && ((my_uptr->flags & USR_ADMIN) != 0);" in rq, "")
+    ck("K2 ...admin is the process's own administrator word (MY_ADMIN(): not the user table entry, which any SD user with a shell can write)", "bool admin = (my_uptr != NULL) && MY_ADMIN();" in rq, "")
     ck("K3 ...the ops are exactly: ready note refusal init pending peek drain sync syncall syncbegin syncend drop check accounts (refusal is stage 2's, syncall the verifier's F7)",
        sorted(re.findall(r'strcmp\(op, "(\w+)"\) == 0', rq)) == sorted(["ready", "note", "refusal", "init", "pending", "peek", "drain", "sync", "syncall", "syncbegin", "syncend", "drop", "check", "accounts"]),
        repr(sorted(re.findall(r'strcmp\(op, "(\w+)"\) == 0', rq))))
@@ -554,19 +554,19 @@ def checks(srcs):
     ck("S11 masters_before_delete refuses EVERY delete of a master record (message 11588), whoever asks, except while the stage 1 code is deleting; masters_txn_refusal refuses a write or delete inside a "
        "transaction (11589) the same way; neither takes a lock or writes",
        ordered(bd, "DHF_MST_NOMASTER", "mst_master_kind(dh) == 0", "mst_inside > 0", "return mst_refuse(MSG_DELETE") and ordered(bt, "DHF_MST_NOMASTER", "mst_master_kind(dh) == 0", "mst_inside > 0", "return mst_refuse(MSG_TXN")
-       and re.search(r"\b(dh_write|dh_delete|lock_record|audit_message|mst_put)\s*\(", bd + bt) is None and "USR_ADMIN" not in bd + bt, "")
+       and re.search(r"\b(dh_write|dh_delete|lock_record|audit_message|mst_put)\s*\(", bd + bt) is None and "MY_ADMIN()" not in bd + bt, "")
 
     # ---- S12-S15 the delivery -----------------------------------------------------------------------------------------------------------------
     dv = func_body(m, "Private int mst_deliver(int which, char *id, int id_len, STRING_CHUNK *data)")
     ck("S12 mst_deliver does its steps in the order D7 gives: the administrator, the key, the registered account (a COPY of its table entry), the account's file, the permission test, the keys, the "
        "try-lock, the account's record against the record the session READ (verifier F3; master_state only for a key it did not read), the write with the comparison armed (F4), master_state, the "
        "unlock, the audit line",
-       ordered(dv, "USR_ADMIN", "memchr(id, '*'", "mst_valid_account_name(acct)", "mst_acc_by_name(acct, &acc)", "mst_acct_file(&cx, which", "mst_write_check(path, gname", "mst_keys(which, a->name",
+       ordered(dv, "MY_ADMIN()", "memchr(id, '*'", "mst_valid_account_name(acct)", "mst_acc_by_name(acct, &acc)", "mst_acct_file(&cx, which", "mst_write_check(path, gname", "mst_keys(which, a->name",
                "check_lock(&fv", "lock_record(&fv", "dh_read(adh", "mst_read_find(which", "mst_state_get(&cx, skey", "masters_cas_on = 1;", "dh_write(adh", "masters_cas_on = 0;",
                "mst_checksum(data, ncks)", "mst_put(cx.st, skey", "mst_read_put(which", "unlock_record(&fv", "audit_message(line)"), "")
     ck("S12a ...the administrator test is the first thing it does and the answer is a refusal (MSG_NOTADMIN) for anyone else",
-       re.search(r"mst_shown\(keytxt, sizeof\(keytxt\), id, id_len\);\s*/\*[^*]*\*/\s*if \(\(my_uptr == NULL\) \|\| !\(my_uptr->flags & USR_ADMIN\)\)\s*return mst_refuse\(MSG_NOTADMIN", dv) is not None
-       or re.search(r"if \(\(my_uptr == NULL\) \|\| !\(my_uptr->flags & USR_ADMIN\)\)\s*return mst_refuse\(MSG_NOTADMIN", dv) is not None, "")
+       re.search(r"mst_shown\(keytxt, sizeof\(keytxt\), id, id_len\);\s*/\*[^*]*\*/\s*if \(\(my_uptr == NULL\) \|\| !MY_ADMIN\(\)\)\s*return mst_refuse\(MSG_NOTADMIN", dv) is not None
+       or re.search(r"if \(\(my_uptr == NULL\) \|\| !MY_ADMIN\(\)\)\s*return mst_refuse\(MSG_NOTADMIN", dv) is not None, "")
     ck("S12c ...the permission test is made TWICE and the second is the preflight: after the account's file is opened and before the keys and the lock, a refusal goes to the reasons (goto refuse_rights)",
        dv.count("mst_write_check(") == 2 and ordered(dv, "mst_acct_file(&cx, which", "goto refuse_rights;", "why = mst_write_check(path, gname, sizeof(gname));", "if (why != MST_W_OK) {", "goto refuse_rights;", "mst_keys(which, a->name"), "")
     ck("S12b ...the key is cut at the FIRST asterisk (account), and for a dictionary at the next one (file) - the rest is the record id, which may hold asterisks - and the file name must pass the rule "
@@ -849,7 +849,7 @@ MUTANTS = [
     ("the journal is created by a session", "c:masters.c", "fd = open(path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC);\n  if (fd < 0) {\n    if ((errno != ENOENT)", "fd = open(path, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0620);\n  if (fd < 0) {\n    if ((errno != ENOENT)"),
     ("a lost journal is silent", "c:masters.c", "    if ((errno != ENOENT) || mst_masters_present())\n      mst_flag(MST_F_STALE);", "    if (errno != ENOENT)\n      mst_flag(MST_F_STALE);"),
     ("a journal that is not there is always a failure", "c:masters.c", "    if ((errno != ENOENT) || mst_masters_present())\n      mst_flag(MST_F_STALE);", "    mst_flag(MST_F_STALE);"),
-    ("the master files are looked for in the wrong place", "c:masters.c", 'snprintf(p, sizeof(p), "%s%c%s%c%%0", (const char *)sysseg->sysdir, DS, MST_VOC_MASTER, DS)', 'snprintf(p, sizeof(p), "%s%c%s%c%%0", (const char *)sysseg->sysdir, DS, MST_STATE, DS)'),
+    ("the master files are looked for in the wrong place", "c:masters.c", 'snprintf(p, sizeof(p), "%s%c%s%c%%0", sd_sysdir(), DS, MST_VOC_MASTER, DS)', 'snprintf(p, sizeof(p), "%s%c%s%c%%0", sd_sysdir(), DS, MST_STATE, DS)'),
     ("a failed append is silent", "c:masters.c", "        (void)ftruncate(fd, st.st_size);\n      mst_flag(MST_F_STALE);\n    }", "        (void)ftruncate(fd, st.st_size);\n    }"),
     ("the size limit is not tested", "c:masters.c", "  if (have_size && (st.st_size >= MST_JOURNAL_CAP)) {\n    mst_flag(MST_F_RESYNC);\n  } else {", "  if (0) {\n    mst_flag(MST_F_RESYNC);\n  } else {"),
     ("the size limit sets the wrong flag", "c:masters.c", "    mst_flag(MST_F_RESYNC);\n  } else {\n    ssize_t w", "    mst_flag(MST_F_STALE);\n  } else {\n    ssize_t w"),
@@ -870,7 +870,7 @@ MUTANTS = [
     ("setup makes the files under the session's umask", "bp:masters_setup", "   um = umask(63)\n", "   um = 0\n"),
     ("setup leaves the umask changed after a failed create", "bp:masters_setup", "            close sv\n            if umask(um) then null\n            report = 2 : @fm : 'cannot make ' : nm : @fm : made", "            close sv\n            report = 2 : @fm : 'cannot make ' : nm : @fm : made"),
     # ---- the drain ----
-    ("any session drains on opening a master", "c:masters.c", "if (busy || (my_uptr == NULL) || !(my_uptr->flags & USR_ADMIN) || (canon == NULL) || !mst_is_master_path(canon))", "if (busy || (canon == NULL) || !mst_is_master_path(canon))"),
+    ("any session drains on opening a master", "c:masters.c", "if (busy || (my_uptr == NULL) || !MY_ADMIN() || (canon == NULL) || !mst_is_master_path(canon))", "if (busy || (canon == NULL) || !mst_is_master_path(canon))"),
     ("the drain can recurse", "c:masters.c", "  if (busy || (my_uptr", "  if ((my_uptr"),
     ("the drain does not lock the journal", "c:masters.c", "  if (flock(fd, LOCK_EX) != 0) {\n    close(fd);\n    return MSA_ERR;\n  }\n  if (fstat(fd, &st) != 0) {", "  if (fstat(fd, &st) != 0) {"),
     ("the journal is truncated without the semaphore", "c:masters.c", "    StartExclusive(ERRLOG_SEM, 74);\n", ""),
@@ -903,7 +903,7 @@ MUTANTS = [
     # ---- the ops ----
     ("an ordinary session may init", "c:masters.c", "  if (!admin) {\n    mst_status(&out, MSA_REFUSED);\n    mst_answer(result, &out);\n    return;\n  }\n", ""),
     ("the administrator test comes after the first op", "c:masters.c", "  if (strcmp(op, \"ready\") == 0) {", "  if (strcmp(op, \"drain\") == 0) {\n    mst_status(&out, MSA_OK);\n    mst_answer(result, &out);\n    return;\n  }\n  if (strcmp(op, \"ready\") == 0) {"),
-    ("admin is anyone", "c:masters.c", "bool admin = (my_uptr != NULL) && ((my_uptr->flags & USR_ADMIN) != 0);", "bool admin = (my_uptr != NULL);"),
+    ("admin is anyone", "c:masters.c", "bool admin = (my_uptr != NULL) && MY_ADMIN();", "bool admin = (my_uptr != NULL);"),
     ("note does more than note", "c:masters.c", "    masters_note_name(arg, 'n');\n    mst_status(&out, MSA_OK);", "    masters_note_name(arg, 'n');\n    (void)mst_init(&out);\n    mst_status(&out, MSA_OK);"),
     ("a new op", "c:masters.c", '  } else if (strcmp(op, "accounts") == 0) {', '  } else if (strcmp(op, "wipe") == 0) {\n    mst_status(&out, MSA_OK);\n  } else if (strcmp(op, "accounts") == 0) {'),
     ("check repairs", "c:masters.c", '      mst_row(ck, "differs", acct, what, file, id, id_len);', '      { dh_write(mdh, mkey, (int16_t)mk, rec); mst_row(ck, "differs", acct, what, file, id, id_len); }'),
@@ -915,7 +915,7 @@ MUTANTS = [
     ("an unregistered account is not refused by sync", "c:masters.c", "    if (!mst_acc_by_name(arg, &acc)) {\n      mst_status(&out, MSA_NOACC);\n    } else {", "    if (0) {\n      mst_status(&out, MSA_NOACC);\n    } else {"),
     ("an unreadable register makes every copy an orphan (drop)", "c:masters.c", "  if (acc_n == 0)\n    return 0; /* a register that could not be read is not a register with no accounts in it: every copy would be called an orphan */\n", ""),
     ("an unreadable register makes every copy an orphan (check)", "c:masters.c", "  if (acc_n == 0)\n    return; /* as in mst_drop_orphans: an unreadable register is not an empty one */\n", ""),
-    ("an account the table lacks is an orphan", "c:masters.c", '  return (snprintf(p, sizeof(p), "%s%caccounts%c%s", (const char *)sysseg->sysdir, DS, DS, name) < (int)sizeof(p)) && (stat(p, &sb) == 0);', "  return FALSE;"),
+    ("an account the table lacks is an orphan", "c:masters.c", '  return (snprintf(p, sizeof(p), "%s%caccounts%c%s", sd_sysdir(), DS, DS, name) < (int)sizeof(p)) && (stat(p, &sb) == 0);', "  return FALSE;"),
     # ---- the BASIC ----
     ("the verb program does not test for the administrator", "bp:masters", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001) ;* Command requires administrator privileges\n   end\n", ""),
     ("the verb program tests after the kernel", "bp:masters", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001) ;* Command requires administrator privileges\n   end\n\n   words = trim(@sentence)",
@@ -990,10 +990,10 @@ MUTANTS = [
     ("the classification is not remembered", "c:masters.c", "  dh->flags |= DHF_MST_NOMASTER;\n  return 0;", "  return 0;"),
     ("the stage 1 writes are taken for saves", "c:masters.c", "  if (((kind = mst_master_kind(dh)) == 0) || (mst_inside > 0))\n    return 0;\n  return mst_deliver", "  if ((kind = mst_master_kind(dh)) == 0)\n    return 0;\n  return mst_deliver"),
     ("a delete is let through", "c:masters.c", "  return mst_refuse(MSG_DELETE, keytxt, NULL, NULL);\n}", "  return 0;\n}"),
-    ("the administrator's delete is let through", "c:masters.c", "  mst_shown(keytxt, sizeof(keytxt), id, id_len, MST_SHOWN_MAX);\n  return mst_refuse(MSG_DELETE", "  if ((my_uptr != NULL) && (my_uptr->flags & USR_ADMIN))\n    return 0;\n  mst_shown(keytxt, sizeof(keytxt), id, id_len, MST_SHOWN_MAX);\n  return mst_refuse(MSG_DELETE"),
+    ("the administrator's delete is let through", "c:masters.c", "  mst_shown(keytxt, sizeof(keytxt), id, id_len, MST_SHOWN_MAX);\n  return mst_refuse(MSG_DELETE", "  if ((my_uptr != NULL) && MY_ADMIN())\n    return 0;\n  mst_shown(keytxt, sizeof(keytxt), id, id_len, MST_SHOWN_MAX);\n  return mst_refuse(MSG_DELETE"),
     ("a transaction is let through", "c:masters.c", "  return mst_refuse(MSG_TXN, keytxt, NULL, NULL);", "  return 0;"),
     # ---- the delivery ----
-    ("anyone's save is delivered", "c:masters.c", "  if ((my_uptr == NULL) || !(my_uptr->flags & USR_ADMIN))\n    return mst_refuse(MSG_NOTADMIN, keytxt, NULL, NULL);\n", ""),
+    ("anyone's save is delivered", "c:masters.c", "  if ((my_uptr == NULL) || !MY_ADMIN())\n    return mst_refuse(MSG_NOTADMIN, keytxt, NULL, NULL);\n", ""),
     ("an unregistered account is accepted", "c:masters.c", "  if (!mst_acc_by_name(acct, &acc))\n    return mst_refuse(MSG_NOACCOUNT, keytxt, acct, NULL);", "  (void)mst_acc_by_name(acct, &acc);"),
     ("the second asterisk is looked for from the first", "c:masters.c", "p2 = memchr(p1 + 1, '*'", "p2 = memchr(p1, '*'"),
     ("a dictionary name is not checked", "c:masters.c", "    if (!mst_file_ok(file))\n      return mst_refuse(MSG_BADKEY, keytxt, NULL, NULL);\n", ""),

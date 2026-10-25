@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: the process's own privilege words (my_priv_flags, my_priv_gates) are zeroed where the user table entry's flags and gates are.
  * 17 Oct 26 dm  kill_process() releases the class objects held in named common before the e-stack is freed: their destroy code (S.65
  *               $netfile's sdclient objects) ran on freed memory and the process died with a double free.
  * 17 Oct 26 dm  S.64: a process taking its user entry starts with the edit gates off (the user table's gates word).
@@ -167,6 +168,8 @@ retry_login:
     my_uptr->pid = GetCurrentProcessId();
     strcpy((char*)(my_uptr->ip_addr), ip_addr);
     my_uptr->events = 0;
+    my_priv_flags = 0; /* 24 Oct 26 W.11 F9: the privileges this process holds, which nothing in the segment can grant (sysseg.h) */
+    my_priv_gates = 0;
     my_uptr->flags = 0;
     my_uptr->gates = 0; /* 17 Oct 26 S.64: the edit gates start off; LOGIN or the API server loads them */
     memset((void*)&(my_uptr->ustats), 0, sizeof(struct FILESTATS)); /* FSTAT.USER */

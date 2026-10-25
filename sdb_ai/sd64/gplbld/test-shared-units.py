@@ -249,7 +249,7 @@ def checks(srcs):
     rg = func_body(sh, "bool shared_root_get(char *out)")
     ck("K1 shared_root_get: the root is line 1 of <sysdir>/accounts/shared, absolute, resolved with realpath(), trailing slashes stripped, a root of length 1 or less refused, "
        "and the cache is set (have = TRUE) only AFTER all of that",
-       "accounts%cshared" in rg and "sysseg->sysdir" in rg and "body[0] != '/'" in rg and ordered(rg, "realpath(line1, resolved)", "resolved[n - 1] == '/'", "if (n <= 1)", "have = TRUE;")
+       "accounts%cshared" in rg and "sd_sysdir()" in rg and "body[0] != '/'" in rg and ordered(rg, "realpath(line1, resolved)", "resolved[n - 1] == '/'", "if (n <= 1)", "have = TRUE;")
        and rg.count("have = TRUE;") == 1, "")
     ck("K1b ...a HIT is kept for the life of the process and a MISS is retried no more than once a minute (a session started before the installer made the account must "
        "begin enforcing when it appears); the time of the try is taken BEFORE the file is opened; and the SUSPENDED word is never looked at (suspension must not unprotect the files)",
@@ -267,14 +267,14 @@ def checks(srcs):
        ordered(pr, "!shared_root_get(root)", "return FALSE;", "name[0] == '\\0'", "return FALSE;", "!resolve_name(cwd, name, resolved)", "return TRUE;", "return path_in_shared(resolved);"), "")
     sw = func_body(sh, "bool shared_write_ok(void)")
     ck("K3 shared_write_ok is the administrator or the UG_SHARED_WRITE bit and nothing else",
-       "USR_ADMIN" in sw and "UG_SHARED_WRITE" in sw and "UG_SHARED_READ" not in sw and "UG_NET" not in sw, "")
+       "MY_ADMIN()" in sw and "UG_SHARED_WRITE" in sw and "UG_SHARED_READ" not in sw and "UG_NET" not in sw, "")
     fc = func_body(sh, "int edit_refusal_for_canon(const char *canon)")
     fnm = func_body(sh, "int edit_refusal_for_name(const char *name)")
     ck("K4 edit_refusal_for_canon: the administrator passes FIRST, then a file inside shared without shared.write is EDIT_SHARED_WRITE, THEN the S.64 kind (so a shared dictionary needs "
        "shared.write AND dict.edit, and the refusal names the first that is missing)",
-       ordered(fc, "USR_ADMIN", "return EDIT_NONE;", "path_in_shared(canon)", "!shared_write_ok()", "return EDIT_SHARED_WRITE;", "edit_kind_of_path(canon)", "!edit_permitted(kind)", "return kind;", "return EDIT_NONE;"), "")
+       ordered(fc, "MY_ADMIN()", "return EDIT_NONE;", "path_in_shared(canon)", "!shared_write_ok()", "return EDIT_SHARED_WRITE;", "edit_kind_of_path(canon)", "!edit_permitted(kind)", "return kind;", "return EDIT_NONE;"), "")
     ck("K4b ...edit_refusal_for_name is the same in the same order for a string from BASIC (resolved first), and edit_ok_for_path is edit_refusal_for_name(path) == EDIT_NONE",
-       ordered(fnm, "USR_ADMIN", "return EDIT_NONE;", "path_resolved_in_shared(name)", "!shared_write_ok()", "return EDIT_SHARED_WRITE;", "edit_kind_of_path(name)", "!edit_permitted(kind)", "return kind;", "return EDIT_NONE;")
+       ordered(fnm, "MY_ADMIN()", "return EDIT_NONE;", "path_resolved_in_shared(name)", "!shared_write_ok()", "return EDIT_SHARED_WRITE;", "edit_kind_of_path(name)", "!edit_permitted(kind)", "return kind;", "return EDIT_NONE;")
        and re.search(r"bool edit_ok_for_path\(const char \*path\) \{\s*return edit_refusal_for_name\(path\) == EDIT_NONE;\s*\}", sh) is not None, "")
     em = func_body(sh, "int edit_refused_message(int kind)")
     ck("K4c edit_refused_message: kinds 1 to 3 are 11404 + kind, EDIT_SHARED_WRITE is 11513, EDIT_SHARED_STRUCT is 11514, anything else 11405",
@@ -298,7 +298,7 @@ def checks(srcs):
     ck("K7 K_SHARED_READ and K_SHARED_WRITE set only from a $internal program (n >= 0, then HDR_INTERNAL, then the bit), -1 only asks; each touches its OWN bit, answers it as 1 or 0, and "
        "closes no connection (net_close_all is not called: the shared gates have nothing to do with NET)",
        kn.count("case K_SHARED_READ:") == 1 and kn.count("case K_SHARED_WRITE:") == 1 and "GetInt(descr)" in sk
-       and ordered(sk, "n >= 0", "HDR_INTERNAL", "n > 0", "gates |= shared_bit", "gates &= (u_int16_t)~shared_bit", "(my_uptr->gates & shared_bit) != 0")
+       and ordered(sk, "n >= 0", "HDR_INTERNAL", "SET_MY_GATE(shared_bit, n > 0)", "MY_GATE(shared_bit)")
        and "shared_bit = (action == K_SHARED_READ) ? UG_SHARED_READ : UG_SHARED_WRITE" in sk
        and "UG_NET" not in sk and "UG_VOC_EDIT" not in sk and "UG_BP_EDIT" not in sk and "UG_DICT_EDIT" not in sk and "net_close_all" not in sk, "")
     ck("K7b ...they sit AFTER the K_EDIT_OS_OK block and BEFORE K_PATH_OK, so the text between K_NET and K_EDIT_OK that test-net-units cuts out does not change",
@@ -312,17 +312,17 @@ def checks(srcs):
     ke = kn[at(kn, "case K_EDIT_OK:"):at(kn, "case K_EDIT_OS_OK:")]
     ck("K7e K_EDIT_OK keeps its administrator shortcut and asks edit_ok_for_path; K_EDIT_KIND of a string answers the REFUSING kind (edit_refusal_for_name) and, when nothing refuses, the raw kind "
        "(edit_kind_of_path) as before",
-       ordered(ke, "USR_ADMIN", "edit_ok_for_path(edit_name)") and ordered(ke, "result.data.value = edit_refusal_for_name(edit_name);", "== EDIT_NONE", "result.data.value = edit_kind_of_path(edit_name);"), "")
+       ordered(ke, "MY_ADMIN()", "edit_ok_for_path(edit_name)") and ordered(ke, "result.data.value = edit_refusal_for_name(edit_name);", "== EDIT_NONE", "result.data.value = edit_kind_of_path(edit_name);"), "")
     d3 = C("op_dio3.c")
     er = func_body(d3, "Private int edit_refusal(FILE_VAR *fvar)")
     ck("K8 edit_refusal (the record rule): a file with no pathname, a $internal program and the administrator return EDIT_NONE BEFORE edit_refusal_for_canon is asked of the file table's pathname; "
        "EDIT_REFUSED_MSG is edit_refused_message",
-       ordered(er, "DYNAMIC_FILE", "return EDIT_NONE;", "HDR_INTERNAL", "return EDIT_NONE;", "USR_ADMIN", "return EDIT_NONE;", "edit_refusal_for_canon(path)")
+       ordered(er, "DYNAMIC_FILE", "return EDIT_NONE;", "HDR_INTERNAL", "return EDIT_NONE;", "MY_ADMIN()", "return EDIT_NONE;", "edit_refusal_for_canon(path)")
        and "#define EDIT_REFUSED_MSG(kind) edit_refused_message(kind)" in d3 and "FPtr(fvar->file_id)->pathname" in er, "")
     ss = func_body(d3, "int shared_structure_refusal(FILE_VAR *fvar)")
     ck("K9 shared_structure_refusal: NONE for no file variable, a file of another type and the administrator; EDIT_SHARED_STRUCT for a pathname inside shared; and HDR_INTERNAL is NOT an exemption "
        "(no sanctioned internal path changes the structure of a shared file for a non-administrator)",
-       ordered(ss, "fvar == NULL", "DYNAMIC_FILE", "DIRECTORY_FILE", "return EDIT_NONE;", "USR_ADMIN", "return EDIT_NONE;", "path_in_shared(", "return EDIT_SHARED_STRUCT;", "return EDIT_NONE;")
+       ordered(ss, "fvar == NULL", "DYNAMIC_FILE", "DIRECTORY_FILE", "return EDIT_NONE;", "MY_ADMIN()", "return EDIT_NONE;", "path_in_shared(", "return EDIT_SHARED_STRUCT;", "return EDIT_NONE;")
        and "HDR_INTERNAL" not in ss and "process.program" not in ss, "")
     cl = func_body(d3, "void op_clrfile()")
     ck("K10 op_clrfile asks shared_structure_refusal right after the NET_FILE block and BEFORE the transaction test, the read-only test, the S.64 block and the file lock; message 11514 via "
@@ -339,8 +339,8 @@ def checks(srcs):
        ordered(akc, "net_refuse(fvar", SREF, "fvar->type != DYNAMIC_FILE", "ak_clear(") and ordered(ake, "net_refuse(fvar", SREF, "fvar->type == DYNAMIC_FILE && akno < MAX_INDICES"), "")
     cra, dka = func_body(dk, "void op_createak()"), func_body(dk, "void op_deleteak()")
     ck("K11c op_createak and op_deleteak are given PATHNAMES, so they ask path_resolved_in_shared (the data path and the index path; the file's path) before create_ak / delete_ak; the administrator passes",
-       ordered(cra, "USR_ADMIN", "path_resolved_in_shared(data_path)", "path_resolved_in_shared(ak_path)", "edit_refused_message(EDIT_SHARED_STRUCT)", "create_ak(")
-       and ordered(dka, "USR_ADMIN", "path_resolved_in_shared(pathname)", "edit_refused_message(EDIT_SHARED_STRUCT)", "delete_ak(")
+       ordered(cra, "MY_ADMIN()", "path_resolved_in_shared(data_path)", "path_resolved_in_shared(ak_path)", "edit_refused_message(EDIT_SHARED_STRUCT)", "create_ak(")
+       and ordered(dka, "MY_ADMIN()", "path_resolved_in_shared(pathname)", "edit_refused_message(EDIT_SHARED_STRUCT)", "delete_ak(")
        and "shared_structure_refusal" not in cra and "shared_structure_refusal" not in dka, "")
     ck("K11d op_akwrite, op_akdelete, op_akmap, op_akread and op_akrelease are NOT asked: _ak runs them on every write to an indexed file, so refusing them would break index maintenance for a "
        "legitimate shared.write user",
@@ -360,13 +360,13 @@ def checks(srcs):
     osn = func_body(d2, "void op_osrename()")
     ck("K13 OSPATH: OS_DELETE, OS_MKDIR and OS_MKPATH (not OS_CHOWN) are answered 0 with ER_PERM for a non-administrator naming a path inside shared, BEFORE the switch that does them; "
        "OSRENAME refuses a rename with either name inside shared before it looks at the old path",
-       re.search(r"\(\(key == OS_DELETE\) \|\| \(key == OS_MKDIR\) \|\| \(key == OS_MKPATH\)\) && !\(my_uptr->flags & USR_ADMIN\) && path_resolved_in_shared\(path\)", osp) is not None
+       re.search(r"\(\(key == OS_DELETE\) \|\| \(key == OS_MKDIR\) \|\| \(key == OS_MKPATH\)\) && !MY_ADMIN\(\) && path_resolved_in_shared\(path\)", osp) is not None
        and ordered(osp, "path_resolved_in_shared(path)", "process.status = ER_PERM;", "status = 0;", "switch (key) {") and "OS_CHOWN" not in between(osp, "path_resolved_in_shared(path)", "switch (key) {")
-       and ordered(osn, "USR_ADMIN", "path_resolved_in_shared(old_path)", "path_resolved_in_shared(new_path)", "ER_PERM", "access(old_path, 0)", "rename(old_path, new_path)"), "")
+       and ordered(osn, "MY_ADMIN()", "path_resolved_in_shared(old_path)", "path_resolved_in_shared(new_path)", "ER_PERM", "access(old_path, 0)", "rename(old_path, new_path)"), "")
     cer = func_body(d1, "Private int create_edit_refusal(const char* path)")
     ck("K14 create_edit_refusal: making anything inside shared is EDIT_SHARED_STRUCT for a non-administrator, tested BEFORE the $internal exemption (createf is $internal); op_create_dh and "
        "op_create_t1 print edit_refused_message(kind), not 11404 + kind",
-       ordered(cer, "USR_ADMIN", "path_resolved_in_shared(path)", "return EDIT_SHARED_STRUCT;", "HDR_INTERNAL", "return EDIT_NONE;", "edit_os_path_refusal(path, FALSE)")
+       ordered(cer, "MY_ADMIN()", "path_resolved_in_shared(path)", "return EDIT_SHARED_STRUCT;", "HDR_INTERNAL", "return EDIT_NONE;", "edit_os_path_refusal(path, FALSE)")
        and d1.count("k_error(sysmsg(edit_refused_message(edit_kind)))") == 2 and "11404 + edit_kind" not in d1, "")
     ck("K15 get_voc_file_reference is a wrapper that passes FALSE, get_voc_file_reference_ex pushes the fifth INTEGER and calls k_recurse(pcode_voc_ref, 5), and ONLY open_file's map_name call "
        "passes TRUE (OPENSEQ, DELETESEQ and CALL \"file prog\" never follow shared)",
@@ -634,14 +634,14 @@ MUTANTS = [
     ("a relative line 1 is accepted", "c:op_sh.c", "if ((body[0] != '/') || (n > PATH_MAX))", "if (n > PATH_MAX)"),
     ("the boundary after the root is not tested", "c:op_sh.c", "((canon[len] == '\\0') || (canon[len] == '/'))", "1"),
     ("an unresolvable name is taken as outside shared", "c:op_sh.c", "!resolve_name(cwd, name, resolved))\n    return TRUE;", "!resolve_name(cwd, name, resolved))\n    return FALSE;"),
-    ("shared.write is the read bit", "c:op_sh.c", "((my_uptr->gates & UG_SHARED_WRITE) != 0)", "((my_uptr->gates & UG_SHARED_READ) != 0)"),
+    ("shared.write is the read bit", "c:op_sh.c", "MY_GATE(UG_SHARED_WRITE)", "MY_GATE(UG_SHARED_READ)"),
     ("the S.64 kind is asked before shared.write (canon)", "c:op_sh.c",
      "  if (path_in_shared(canon) && !shared_write_ok())\n    return EDIT_SHARED_WRITE;\n  kind = edit_kind_of_path(canon);\n  if ((kind != EDIT_NONE) && !edit_permitted(kind))\n    return kind;\n  return EDIT_NONE;",
      "  kind = edit_kind_of_path(canon);\n  if ((kind != EDIT_NONE) && !edit_permitted(kind))\n    return kind;\n  if (path_in_shared(canon) && !shared_write_ok())\n    return EDIT_SHARED_WRITE;\n  return EDIT_NONE;"),
     ("the S.64 kind is asked before shared.write (name)", "c:op_sh.c",
      "  if (path_resolved_in_shared(name) && !shared_write_ok())\n    return EDIT_SHARED_WRITE;\n  kind = edit_kind_of_path(name);\n  if ((kind != EDIT_NONE) && !edit_permitted(kind))\n    return kind;\n  return EDIT_NONE;",
      "  kind = edit_kind_of_path(name);\n  if ((kind != EDIT_NONE) && !edit_permitted(kind))\n    return kind;\n  if (path_resolved_in_shared(name) && !shared_write_ok())\n    return EDIT_SHARED_WRITE;\n  return EDIT_NONE;"),
-    ("the administrator is asked after the shared test (canon)", "c:op_sh.c", "  if (my_uptr->flags & USR_ADMIN)\n    return EDIT_NONE;\n  if (path_in_shared(canon)", "  if (path_in_shared(canon)"),
+    ("the administrator is asked after the shared test (canon)", "c:op_sh.c", "  if (MY_ADMIN())\n    return EDIT_NONE;\n  if (path_in_shared(canon)", "  if (path_in_shared(canon)"),
     ("edit_ok_for_path forgets shared", "c:op_sh.c", "return edit_refusal_for_name(path) == EDIT_NONE;", "return edit_kind_of_path(path) == EDIT_NONE || edit_permitted(edit_kind_of_path(path));"),
     ("11513 says the program message", "c:op_sh.c", "    case EDIT_SHARED_WRITE:\n      return 11513;", "    case EDIT_SHARED_WRITE:\n      return 11405;"),
     ("shared_ref_ok accepts the root itself", "c:op_sh.c", " || (resolved[root_len + 1] == '\\0'))", ")"),
@@ -653,17 +653,17 @@ MUTANTS = [
     ("shared_once is case blind no longer", "c:op_sh.c", "strcasecmp(seen[i], key) == 0", "strcmp(seen[i], key) == 0"),
     ("shared_once answers FALSE when full", "c:op_sh.c", "  if (count >= 64)\n    return TRUE;", "  if (count >= 64)\n    return FALSE;"),
     # ---- the kernel keys ----
-    ("K_SHARED sets from a user program", "c:op_kernel.c", "        if (process.program.flags & HDR_INTERNAL) {\n          if (n > 0)\n            my_uptr->gates |= shared_bit;", "        if (1) {\n          if (n > 0)\n            my_uptr->gates |= shared_bit;"),
-    ("K_SHARED_READ also sets the NET bit", "c:op_kernel.c", "my_uptr->gates |= shared_bit;", "my_uptr->gates |= shared_bit | UG_NET;"),
-    ("K_SHARED closes the NET connections", "c:op_kernel.c", "      result.data.value = (my_uptr->gates & shared_bit) != 0;", "      net_close_all();\n      result.data.value = (my_uptr->gates & shared_bit) != 0;"),
+    ("K_SHARED sets from a user program", "c:op_kernel.c", "        if (process.program.flags & HDR_INTERNAL)\n          SET_MY_GATE(shared_bit, n > 0);", "        if (1)\n          SET_MY_GATE(shared_bit, n > 0);"),
+    ("K_SHARED_READ also sets the NET bit", "c:op_kernel.c", "SET_MY_GATE(shared_bit, n > 0);", "SET_MY_GATE(shared_bit | UG_NET, n > 0);"),
+    ("K_SHARED closes the NET connections", "c:op_kernel.c", "      result.data.value = MY_GATE(shared_bit);", "      net_close_all();\n      result.data.value = MY_GATE(shared_bit);"),
     ("a K_SHARED case between K_NET and K_EDIT_OK", "c:op_kernel.c", "    case K_EDIT_OK:\n    case K_EDIT_KIND: {", "    case K_SHARED_ONCE: break;\n    case K_EDIT_OK:\n    case K_EDIT_KIND: {"),
     ("K_EDIT_KIND answers the raw kind after a refusal", "c:op_kernel.c", "        result.data.value = edit_refusal_for_name(edit_name);\n        if (result.data.value == EDIT_NONE)\n          result.data.value = edit_kind_of_path(edit_name);", "        result.data.value = edit_kind_of_path(edit_name);"),
     ("K_SHARED_REF always accepts", "c:op_kernel.c", "shared_ref_ok(shared_buf, atoi(shared_fno), shared_cat) ? 1 : 0", "1"),
     ("K_SHARED_ONCE always answers 1", "c:op_kernel.c", "result.data.value = shared_once(shared_name) ? 1 : 0;", "result.data.value = 1;"),
     # ---- the record rule and the structure sites ----
-    ("edit_refusal forgets that a $internal program passes", "c:op_dio3.c", "  if (process.program.flags & HDR_INTERNAL)\n    return EDIT_NONE;\n  if (my_uptr->flags & USR_ADMIN)\n    return EDIT_NONE;\n\n  /* The file table is shared memory", "  if (my_uptr->flags & USR_ADMIN)\n    return EDIT_NONE;\n\n  /* The file table is shared memory"),
+    ("edit_refusal forgets that a $internal program passes", "c:op_dio3.c", "  if (process.program.flags & HDR_INTERNAL)\n    return EDIT_NONE;\n  if (MY_ADMIN())\n    return EDIT_NONE;\n\n  /* The file table is shared memory", "  if (MY_ADMIN())\n    return EDIT_NONE;\n\n  /* The file table is shared memory"),
     ("edit_refusal forgets shared (asks only the S.64 kind)", "c:op_dio3.c", "kind = edit_refusal_for_canon(path);", "kind = edit_kind_of_path(path);"),
-    ("shared_structure_refusal exempts a $internal program", "c:op_dio3.c", "  if (my_uptr->flags & USR_ADMIN)\n    return EDIT_NONE;\n  if (path_in_shared((const char *)FPtr(fvar->file_id)->pathname))", "  if ((my_uptr->flags & USR_ADMIN) || (process.program.flags & HDR_INTERNAL))\n    return EDIT_NONE;\n  if (path_in_shared((const char *)FPtr(fvar->file_id)->pathname))"),
+    ("shared_structure_refusal exempts a $internal program", "c:op_dio3.c", "  if (MY_ADMIN())\n    return EDIT_NONE;\n  if (path_in_shared((const char *)FPtr(fvar->file_id)->pathname))", "  if (MY_ADMIN() || (process.program.flags & HDR_INTERNAL))\n    return EDIT_NONE;\n  if (path_in_shared((const char *)FPtr(fvar->file_id)->pathname))"),
     ("shared_structure_refusal never refuses", "c:op_dio3.c", "    return EDIT_SHARED_STRUCT;\n  return EDIT_NONE;\n}\n\n/* ======================================================================\n   refuse_net_file()", "    return EDIT_NONE;\n  return EDIT_NONE;\n}\n\n/* ======================================================================\n   refuse_net_file()"),
     ("CLEARFILE of a shared file is not asked", "c:op_dio3.c", "  if (shared_structure_refusal(fvar) != EDIT_NONE) {\n    if (!(op_flags & P_ON_ERROR))\n      k_error(sysmsg(EDIT_REFUSED_MSG(EDIT_SHARED_STRUCT)));", "  if (0) {\n    if (!(op_flags & P_ON_ERROR))\n      k_error(sysmsg(EDIT_REFUSED_MSG(EDIT_SHARED_STRUCT)));"),
     ("CLEARFILE of a shared file says the program message", "c:op_dio3.c", "k_error(sysmsg(EDIT_REFUSED_MSG(EDIT_SHARED_STRUCT)));\n    process.status = -ER_PERM;", "k_error(sysmsg(EDIT_REFUSED_MSG(EDIT_PROG)));\n    process.status = -ER_PERM;"),
@@ -671,9 +671,9 @@ MUTANTS = [
     ("CLEAR.AK is not asked", "c:dh_ak.c", "  if (shared_structure_refusal(fvar) != EDIT_NONE)\n    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));\n  if (fvar->type != DYNAMIC_FILE)", "  if (fvar->type != DYNAMIC_FILE)"),
     ("AKENABLE is not asked", "c:dh_ak.c", "  if (shared_structure_refusal(fvar) != EDIT_NONE)\n    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));\n\n  if (fvar->type == DYNAMIC_FILE && akno < MAX_INDICES) {", "  if (fvar->type == DYNAMIC_FILE && akno < MAX_INDICES) {"),
     ("CREATE.AK forgets the index path", "c:dh_ak.c", "(path_resolved_in_shared(data_path) || path_resolved_in_shared(ak_path))", "(path_resolved_in_shared(data_path))"),
-    ("CREATE.AK asks after it has made the index", "c:dh_ak.c", "  if (!(my_uptr->flags & USR_ADMIN) && (path_resolved_in_shared(data_path) || path_resolved_in_shared(ak_path)))\n    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));\n\n  if (create_ak(data_path, ak_path, ak_name, fno, flags, dict_rec, collation_map_name, collation_map) == 0) {", "  if (create_ak(data_path, ak_path, ak_name, fno, flags, dict_rec, collation_map_name, collation_map) == 0) {"),
-    ("DELETE.AK is not asked", "c:dh_ak.c", "  if (!(my_uptr->flags & USR_ADMIN) && path_resolved_in_shared(pathname))\n    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));\n\n  if (!delete_ak(pathname, akno)) {", "  if (!delete_ak(pathname, akno)) {"),
-    ("AKWRITE is refused too (index maintenance would break)", "c:dh_ak.c", "void op_akwrite() {", "void op_akwrite() {\n  if (!(my_uptr->flags & USR_ADMIN) && path_resolved_in_shared(\"x\"))\n    return;"),
+    ("CREATE.AK asks after it has made the index", "c:dh_ak.c", "  if (!MY_ADMIN() && (path_resolved_in_shared(data_path) || path_resolved_in_shared(ak_path)))\n    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));\n\n  if (create_ak(data_path, ak_path, ak_name, fno, flags, dict_rec, collation_map_name, collation_map) == 0) {", "  if (create_ak(data_path, ak_path, ak_name, fno, flags, dict_rec, collation_map_name, collation_map) == 0) {"),
+    ("DELETE.AK is not asked", "c:dh_ak.c", "  if (!MY_ADMIN() && path_resolved_in_shared(pathname))\n    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));\n\n  if (!delete_ak(pathname, akno)) {", "  if (!delete_ak(pathname, akno)) {"),
+    ("AKWRITE is refused too (index maintenance would break)", "c:dh_ak.c", "void op_akwrite() {", "void op_akwrite() {\n  if (!MY_ADMIN() && path_resolved_in_shared(\"x\"))\n    return;"),
     ("AKDELETE is refused too", "c:dh_ak.c", "void op_akdelete() {", "void op_akdelete() {\n  if (shared_structure_refusal(NULL) != EDIT_NONE)\n    return;"),
     ("FCONTROL FC_SET_MODE is not asked", "c:dh_misc.c", "    case FC_NO_RESIZE:\n    case FC_SET_MODE:\n      if (shared_structure_refusal(fvar)", "    case FC_NO_RESIZE:\n      if (shared_structure_refusal(fvar)"),
     ("FCONTROL asks the sequential key too", "c:dh_misc.c", "    case FC_SET_JNL_FNO:\n    case FC_KILL_JNL:\n    case FC_SET_AKPATH:", "    case FC_SET_SEQ_KEY:\n    case FC_SET_JNL_FNO:\n    case FC_KILL_JNL:\n    case FC_SET_AKPATH:"),
@@ -683,7 +683,7 @@ MUTANTS = [
     ("OSPATH makes a path in shared", "c:op_dio2.c", "((key == OS_DELETE) || (key == OS_MKDIR) || (key == OS_MKPATH))", "((key == OS_DELETE) || (key == OS_MKDIR))"),
     ("OSPATH refuses OS_CHOWN too", "c:op_dio2.c", "((key == OS_DELETE) || (key == OS_MKDIR) || (key == OS_MKPATH))", "((key == OS_DELETE) || (key == OS_MKDIR) || (key == OS_MKPATH) || (key == OS_CHOWN))"),
     ("OSRENAME forgets the new name", "c:op_dio2.c", "(path_resolved_in_shared(old_path) || path_resolved_in_shared(new_path))", "(path_resolved_in_shared(old_path))"),
-    ("create_edit_refusal exempts a $internal program first", "c:op_dio1.c", "  if (!(my_uptr->flags & USR_ADMIN) && path_resolved_in_shared(path))\n    return EDIT_SHARED_STRUCT;\n  if (process.program.flags & HDR_INTERNAL)\n    return EDIT_NONE;", "  if (process.program.flags & HDR_INTERNAL)\n    return EDIT_NONE;\n  if (!(my_uptr->flags & USR_ADMIN) && path_resolved_in_shared(path))\n    return EDIT_SHARED_STRUCT;"),
+    ("create_edit_refusal exempts a $internal program first", "c:op_dio1.c", "  if (!MY_ADMIN() && path_resolved_in_shared(path))\n    return EDIT_SHARED_STRUCT;\n  if (process.program.flags & HDR_INTERNAL)\n    return EDIT_NONE;", "  if (process.program.flags & HDR_INTERNAL)\n    return EDIT_NONE;\n  if (!MY_ADMIN() && path_resolved_in_shared(path))\n    return EDIT_SHARED_STRUCT;"),
     ("CREATE.FILE prints the old sum", "c:op_dio1.c", "k_error(sysmsg(edit_refused_message(edit_kind))); /* 11405", "k_error(sysmsg(11404 + edit_kind)); /* 11405"),
     ("the wrapper follows shared", "c:op_dio1.c", "return get_voc_file_reference_ex(voc_name, get_dict_name, path, vflags, FALSE);", "return get_voc_file_reference_ex(voc_name, get_dict_name, path, vflags, TRUE);"),
     ("open_file never follows shared", "c:op_dio1.c", "get_voc_file_reference_ex(voc_name, open_dict, mapped_name, vflags, TRUE)", "get_voc_file_reference_ex(voc_name, open_dict, mapped_name, vflags, FALSE)"),

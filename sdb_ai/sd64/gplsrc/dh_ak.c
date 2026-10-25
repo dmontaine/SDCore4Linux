@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY):
+ * 24 Oct 26 dm  W.11 F9: the administrator test is MY_ADMIN() (the process's own word), not the user table entry.
  * 21 Oct 26 dm  S.73 item 3, D1 (the owner's "index query statements need no new gate"): INDICES (both forms), SELECTINDEX (both), SETLEFT, SETRIGHT, SELECTLEFT and SELECTRIGHT work on a NET_FILE:
  *               net_index_query() (netfiles.c) asks the server through the handler and these turn the answer into the list, the key variable and STATUS() a local file gives.  INDICES is the
  *               real list of the server's indices now, no longer the null string, so the query processor USES a remote file's indices (it asks INDICES of every file).  AKREAD, AKWRITE,
@@ -718,7 +719,7 @@ void op_createak() {
   /* 18 Oct 26 S.66: an index of a file in the shared account is part of its STRUCTURE, SDSYS's alone ($internal is not exempt).  This op is
      given PATHNAMES, not a file variable: the file's and the index directory's.  Before anything is made.  (akwrite and akdelete, which
      maintain an index on every WRITE, are not asked.) */
-  if (!(my_uptr->flags & USR_ADMIN) && (path_resolved_in_shared(data_path) || path_resolved_in_shared(ak_path)))
+  if (!MY_ADMIN() && (path_resolved_in_shared(data_path) || path_resolved_in_shared(ak_path)))
     k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));
 
   if (create_ak(data_path, ak_path, ak_name, fno, flags, dict_rec, collation_map_name, collation_map) == 0) {
@@ -778,7 +779,7 @@ void op_deleteak() {
   }
 
   /* 18 Oct 26 S.66: as op_createak(): the file's pathname is inside the shared account, so the index is part of its structure (SDSYS's alone) */
-  if (!(my_uptr->flags & USR_ADMIN) && path_resolved_in_shared(pathname))
+  if (!MY_ADMIN() && path_resolved_in_shared(pathname))
     k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));
 
   if (!delete_ak(pathname, akno)) {

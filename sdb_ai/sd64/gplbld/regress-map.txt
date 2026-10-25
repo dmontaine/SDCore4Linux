@@ -80,6 +80,9 @@ gplbld/bbcmp.py              : @core
 gplbld/COMP_PCODE            : @core
 gplbld/sandbox-gcatmode.py   : @self
 gplbld/sandbox-shmmode.py    : @self
+gplbld/sandbox-segtrust.py   : @self
+# 24 Oct 26 (W.11 F9): sandbox-segtrust loads sandbox-gates (its fixture accounts, ZZKF, prepare()), so a change to that one runs this one too.
+gplbld/sandbox-gates.py      : @self segtrust
 gplbld/*.py                  : none
 gplbld/*.sh                  : none
 gplbld/*.md                  : none
@@ -151,20 +154,20 @@ gplsrc/debug*.h              : @debugger
 gplsrc/pdump.c               : @debugger listu-a5 netfile
 gplsrc/op_sys.c              : sys-b2 sys-q18 conf-b1 gates csvb
 gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
-gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12 netfile
+gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12 netfile segtrust
 gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
 gplsrc/sdlnxd.c              : q5 shmmode
 gplsrc/sdsem.c               : shmmode @core
-gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode @core
+gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode segtrust @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof netfile masters
-gplsrc/kernel.c              : @core csvb q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates apispin
+gplsrc/kernel.c              : @core csvb q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates apispin segtrust
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
-gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode
+gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust
 sdsys/messages/11930         : gcatmode
-gplsrc/k_error.c             : sysexc try @core netfile masters
-gplsrc/messages.c            : sysexc @core
+gplsrc/k_error.c             : sysexc try @core netfile masters segtrust
+gplsrc/messages.c            : sysexc @core segtrust
 gplsrc/sd.h                  : sysexc try editgates @core netfile shared masters
 gplsrc/k_funcs.c             : @core cll
 gplsrc/options.h             : option-a4 option-q17 mode-q16 conf-b1
@@ -179,7 +182,7 @@ gplsrc/sdclient.c            : qmclient
 gplsrc/sd_encrypt_sodium.c   : qmclient crypt
 gplsrc/sd_keyring.c          : crypt
 gplsrc/op_exec.c             : @core cmd-a9 execlist stacklist chained forcereload stdfil prof csvb
-gplsrc/op_sh.c               : gates sdaccts editgates netfile shared
+gplsrc/op_sh.c               : gates sdaccts editgates netfile shared segtrust
 gplsrc/to_file.c             : editgates gates @core
 gplsrc/op_sdext.c            : gates crypt
 gplsrc/op_sdpyobj.c          : gates
@@ -190,12 +193,12 @@ gplsrc/descr.h               : restricted classas nameindex @core netfile
 gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callfile callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared masters
+gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared masters segtrust
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
 gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net shared masters csvb jsonx xmlx
-gplsrc/sd.c                  : @core fixes-b12
+gplsrc/sd.c                  : @core fixes-b12 segtrust
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
 gplsrc/*.c                   : @core

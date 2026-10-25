@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: the lock trace and deadlock files are under sd_sysdir() (the configuration file's), not the segment's copy.
  * 20 Oct 26 dm  S.72b: op_reclckd() of a NET_FILE is refused for a read mode one (message 11501, nothing sent) inside net_recordlocked; the server refuses request 34 to a login without sdfileswrite.
  * 20 Oct 26 dm  S.72 (QMNet parity, tiers A and B): op_filelock() and op_flunlock() act on a write mode NET_FILE (net_filelock_step, net_fileunlock; a read mode one is still refused with
  *               11501), op_reclckd() asks the server for any NET_FILE (net_recordlocked) and op_getlocks() gives a NET_FILE the local view - the counters and no lock line (NO_LOCAL_FILE)
@@ -121,7 +122,7 @@ Private void lock_trace(int code, int16_t file_id, const char* id, int16_t id_le
 
   if ((sysseg == NULL) || !sysseg->lock_trace)
     return;
-  if (snprintf(path, sizeof(path), "%s%clocktrace", sysseg->sysdir, DS) >= (int)sizeof(path))
+  if (snprintf(path, sizeof(path), "%s%clocktrace", sd_sysdir(), DS) >= (int)sizeof(path))
     return;
 
   lock_trace_text(file_text, sizeof(file_text), (char*)(FPtr(file_id)->pathname), strlen((char*)(FPtr(file_id)->pathname)));
@@ -1407,7 +1408,7 @@ Private void deadlock_save() {
   ssize_t w;
 
   if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%cdeadlock.%d",
-               (pcfg.dumpdir[0] != '\0') ? pcfg.dumpdir : (sysseg->sysdir), DS,
+               (pcfg.dumpdir[0] != '\0') ? pcfg.dumpdir : sd_sysdir(), DS,
                process.user_no) >= (MAX_PATHNAME_LEN + 1))
     return;
 

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: the errlog and the audit trail are under sd_sysdir() (the configuration file's), not the segment's copy.
  * 17 Oct 26 dm  S.65 slice 3c: log_permissions_error() does not read the file table for a NET_FILE
  * 17 Oct 26 dm  k_error(): an error with a row in sys_exc_table is thrown as a SYS.* exception when a TRY handler can
  *               catch it (QM4 Fixes 354); with none it aborts as before.
@@ -788,7 +789,7 @@ void log_message(char* msg) {
   if (sysseg->errlog) {
     StartExclusive(ERRLOG_SEM, 66);
 
-    sprintf(buff, "%s%cerrlog", sysseg->sysdir, DS);
+    snprintf(buff, sizeof(buff), "%s%cerrlog", sd_sysdir(), DS);
     errlog = dio_open(buff, DIO_OVERWRITE);
 
     if (ValidFileHandle(errlog)) {
@@ -903,7 +904,7 @@ void log_message(char* msg) {
                                        below this; the stamp adds ~90.      */
 
 Private void audit_pathname(char* path, int len) {
-  if (snprintf(path, len, "%s%caudit", sysseg->sysdir, DS) >= len)
+  if (snprintf(path, len, "%s%caudit", sd_sysdir(), DS) >= len)
     *path = '\0';
 }
 

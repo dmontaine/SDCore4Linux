@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: the message directory is sd_sysdir() (the configuration file's), not the segment's copy.
  * 20 Oct 26 dm  sysmsg_arg1(): a message written for BASIC (%1) can be raised from C (message 11180 printed "%1 has no OS access" literally).
  * 17 Oct 26 dm  sysmsg_number_of(): k_error() learns which message it was given (QM4 Fixes 354, SYS.* exceptions).
  * 31 Dec 23 SD launch - prior history suppressed
@@ -193,7 +194,7 @@ char* sysmsg(int msg_no) {
     }
     /* -------------------- */
     /* converted to snprintf() -gwb 22Feb20 */
-    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%cmessages", sysseg->sysdir,
+    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%cmessages", sd_sysdir(),
                DS) >= (MAX_PATHNAME_LEN + 1)) {
       /* TODO: this should be sent to the system log. */
       k_error("Overflowed directory/filename path length in sysmsg()!");
@@ -221,7 +222,7 @@ char* sysmsg(int msg_no) {
   {
     n = sprintf(id, "%d", msg_no);
     /* converted to snprintf() -gwb 22Feb20 */
-    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%cmessages%c%s", sysseg->sysdir,
+    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%cmessages%c%s", sd_sysdir(),
             DS, DS, id) >= (MAX_PATHNAME_LEN + 1)) {
       /* TODO: this should be sent to the system log. */
       k_error("Overflowed directory/filename path length in sysmsg()!");

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: the master files and the register are under sd_sysdir() (the configuration file's); the administrator test is MY_ADMIN().
  * 19 Oct 26 dm  The independent verifier's findings on stages 1 and 2, fixed.  F1 the master files and their dictionaries are 0700 and 0600 (the group they were
  *               given was never set, and the group of an SDSYS session is sdusers); F2 mst_deliver copies the account out of the table it was found in (the table
  *               is read again inside the write, which freed what the audit line then read); F3 a save is judged against the record the session READ
@@ -345,7 +346,7 @@ Private void mst_flag(u_int16_t bit) {
 Private bool mst_sysfile(const char *name, char *out, size_t outsz) {
   if (sysseg == NULL)
     return FALSE;
-  return snprintf(out, outsz, "%s%c%s", sysseg->sysdir, DS, name) < (int)outsz;
+  return snprintf(out, outsz, "%s%c%s", sd_sysdir(), DS, name) < (int)outsz;
 }
 
 /* the system directory as the OS resolves it, once */
@@ -358,7 +359,7 @@ Private const char *mst_sysdir_real(void) {
 
     if (sysseg == NULL)
       return NULL;
-    snprintf(dir, sizeof(dir), "%s", (const char *)sysseg->sysdir);
+    snprintf(dir, sizeof(dir), "%s", sd_sysdir());
     if (realpath(dir, real) == NULL)
       return NULL;
     have = TRUE;
@@ -674,7 +675,7 @@ Private bool mst_masters_present(void) {
   char p[MAX_PATHNAME_LEN + 16];
   struct stat sb;
 
-  if ((sysseg == NULL) || (snprintf(p, sizeof(p), "%s%c%s%c%%0", (const char *)sysseg->sysdir, DS, MST_VOC_MASTER, DS) >= (int)sizeof(p)))
+  if ((sysseg == NULL) || (snprintf(p, sizeof(p), "%s%c%s%c%%0", sd_sysdir(), DS, MST_VOC_MASTER, DS) >= (int)sizeof(p)))
     return FALSE;
   return stat(p, &sb) == 0;
 }
@@ -1733,7 +1734,7 @@ Private bool mst_in_register(const char *name) {
     return TRUE;
   if (!mst_valid_account_name(name) || (sysseg == NULL))
     return FALSE;
-  return (snprintf(p, sizeof(p), "%s%caccounts%c%s", (const char *)sysseg->sysdir, DS, DS, name) < (int)sizeof(p)) && (stat(p, &sb) == 0);
+  return (snprintf(p, sizeof(p), "%s%caccounts%c%s", sd_sysdir(), DS, DS, name) < (int)sizeof(p)) && (stat(p, &sb) == 0);
 }
 
 /* master keys (and state keys) of accounts that are not in the register at all */
@@ -2474,7 +2475,7 @@ void masters_open_hook(const char *canon) {
   MST_CTX cx;
   MST_DRAIN dr;
 
-  if (busy || (my_uptr == NULL) || !(my_uptr->flags & USR_ADMIN) || (canon == NULL) || !mst_is_master_path(canon))
+  if (busy || (my_uptr == NULL) || !MY_ADMIN() || (canon == NULL) || !mst_is_master_path(canon))
     return;
   busy = TRUE;
   if (mst_ctx_open(&cx)) {
@@ -2719,7 +2720,7 @@ void masters_request(const char *req, DESCRIPTOR *result) {
   const char *fm;
   MST_BUF out = {NULL, 0, 0, FALSE};
   MST_CTX cx;
-  bool admin = (my_uptr != NULL) && ((my_uptr->flags & USR_ADMIN) != 0);
+  bool admin = (my_uptr != NULL) && MY_ADMIN();
 
   fm = strchr(req, MST_FM);
   if (fm != NULL) {
@@ -3152,7 +3153,7 @@ Private int mst_deliver(int which, char *id, int id_len, STRING_CHUNK *data) {
   mst_shown(keytxt, sizeof(keytxt), id, id_len, MST_SHOWN_MAX);
 
   /* 1 the administrator, signed on at a terminal, and nobody else */
-  if ((my_uptr == NULL) || !(my_uptr->flags & USR_ADMIN))
+  if ((my_uptr == NULL) || !MY_ADMIN())
     return mst_refuse(MSG_NOTADMIN, keytxt, NULL, NULL);
 
   /* 2 the key: account*id, or account*file*id with the first one or two asterisks the separators (an id may hold more) */

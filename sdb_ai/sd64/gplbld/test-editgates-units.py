@@ -176,11 +176,11 @@ def checks(srcs, messages_dir):
        "lstat(name, &sb)" in lc and "!S_ISREG(sb.st_mode)" in lc and "return FALSE" in lc, "")
     perm = func_body(sh, "bool edit_permitted(int kind)")
     ck("C2 edit_permitted lets the administrator through BEFORE it looks at any gate",
-       0 <= at(perm, "USR_ADMIN") < at(perm, "UG_VOC_EDIT"), "")
+       0 <= at(perm, "MY_ADMIN()") < at(perm, "UG_VOC_EDIT"), "")
     ck("C3 edit_permitted reads each kind's own bit", "UG_VOC_EDIT" in perm and "UG_BP_EDIT" in perm and "UG_DICT_EDIT" in perm, "")
     osr = func_body(sh, "int edit_os_path_refusal(const char *name, bool include_leaf)")
     ck("C4 edit_os_path_refusal passes the administrator, refuses a path it cannot resolve, and leaves an OS.EXECUTE account alone outside its own directory",
-       "USR_ADMIN" in osr and "return EDIT_VOC" in osr and "USR_OS_EXEC" in osr, "")
+       "MY_ADMIN()" in osr and "return EDIT_VOC" in osr and "USR_OS_EXEC" in osr, "")
     ck("C4b ...takes include_leaf: the final name is classified only when include_leaf (or something follows it), bare components by edit_kind_of_name",
        "include_leaf || (*more != '\\0')" in osr and "edit_kind_of_name(comp)" in osr and "edit_kind_of_path(comp)" not in osr, "")
     ck("C4c ...the private catalogue is a program file by place: catalogue_position before the component loop, below it always, the directory itself "
@@ -190,7 +190,7 @@ def checks(srcs, messages_dir):
     d3 = c["op_dio3.c"]
     ref = func_body(d3, "Private int edit_refusal(FILE_VAR *fvar)")
     ck("C5 edit_refusal: a $internal program and the administrator pass BEFORE the path is read",
-       0 <= at(ref, "HDR_INTERNAL") < at(ref, "->pathname") and 0 <= at(ref, "USR_ADMIN") < at(ref, "->pathname"), "")
+       0 <= at(ref, "HDR_INTERNAL") < at(ref, "->pathname") and 0 <= at(ref, "MY_ADMIN()") < at(ref, "->pathname"), "")
     wr = func_body(d3, "void op_write()")
     # 21 Oct 26 (S.73 item 3): the NET arm (a remote file) handles P_SEQKEY first and is behind refuse_net_file, whose net_gate asks the edit gate by the REMOTE file's name; the local
     # CREATING.SEQKEY id is still taken after edit_refusal(fvar), the next P_SEQKEY after it
@@ -209,12 +209,12 @@ def checks(srcs, messages_dir):
     kn = c["op_kernel.c"]
     setter = kn[at(kn, "case K_VOC_EDIT:"):at(kn, "case K_NET:")]      # 18 Oct 26 (S.66): to the next case, not to K_EDIT_OK - the NET and shared cases have HDR_INTERNAL tests of their own
     ck("C11 the three gate keys are set only from a $internal program",
-       re.search(r"if \(n >= 0\) \{\s*if \(process\.program\.flags & HDR_INTERNAL\) \{\s*if \(n > 0\)\s*my_uptr->gates \|= edit_bit;", setter) is not None, "")
+       re.search(r"if \(n >= 0\) \{\s*if \(process\.program\.flags & HDR_INTERNAL\)\s*SET_MY_GATE\(edit_bit, n > 0\);", setter) is not None, "")
     okh = kn[at(kn, "case K_EDIT_OK:"):at(kn, "case K_EDIT_OS_OK:")]
     ck("C12 K_EDIT_OK passes the administrator, refuses an empty pathname (it starts with no name and the answer starts at 0) and asks edit_ok_for_path",
-       "USR_ADMIN" in okh and re.search(r"edit_name\[0\] = '\\0';\s*result\.data\.value = 0;", okh) is not None and "edit_ok_for_path(edit_name)" in okh, "")
+       "MY_ADMIN()" in okh and re.search(r"edit_name\[0\] = '\\0';\s*result\.data\.value = 0;", okh) is not None and "edit_ok_for_path(edit_name)" in okh, "")
     osk = kn[at(kn, "case K_EDIT_OS_OK:"):at(kn, "case K_PATH_OK:")]
-    ck("C13 K_EDIT_OS_OK passes the administrator and otherwise asks edit_os_path_refusal on the argument", "USR_ADMIN" in osk
+    ck("C13 K_EDIT_OS_OK passes the administrator and otherwise asks edit_os_path_refusal on the argument", "MY_ADMIN()" in osk
        and "edit_os_path_refusal(edit_os_name, edit_leaf_counts(edit_os_name))" in osk, "")
     sq = c["op_seqio.c"]
     ops = func_body(sq, "void op_delseq()")
@@ -268,7 +268,7 @@ def checks(srcs, messages_dir):
     ob = func_body(c["object.c"], "void* load_object(char* name, bool abort_on_error) {")
     ck("C22 load_object clears HDR_INTERNAL from an object that is not from the global catalogue unless the session is the administrator, in this process's "
        "copy, after the header is read and converted and before the object is returned or runs (the owner's .out ruling: a user cannot set the bit by patching a file)",
-       re.search(r"if \(\(obj->code\.flags & HDR_INTERNAL\) && !\(flags & OBJ_GLOBAL\) && !\(my_uptr->flags & USR_ADMIN\)\)\s*obj->code\.flags &= ~HDR_INTERNAL;", ob) is not None
+       re.search(r"if \(\(obj->code\.flags & HDR_INTERNAL\) && !\(flags & OBJ_GLOBAL\) && !MY_ADMIN\(\)\)\s*obj->code\.flags &= ~HDR_INTERNAL;", ob) is not None
        and 0 <= at(ob, "convert_object_header(") < at(ob, "obj->code.flags &= ~HDR_INTERNAL") < ob.rfind("return (void*)(&(obj->code));"), "")
 
     # ---- B. the BASIC side -------------------------------------------------------------------------------------------------
@@ -488,14 +488,14 @@ def mutate(srcs, name, old, new, count=1):
 
 
 MUTANTS = [
-    ("edit_refusal forgets that a $internal program passes", "op_dio3.c", "  if (process.program.flags & HDR_INTERNAL)\n    return EDIT_NONE;\n  if (my_uptr->flags & USR_ADMIN)\n    return EDIT_NONE;\n\n  /* The file table is shared memory", "  if (my_uptr->flags & USR_ADMIN)\n    return EDIT_NONE;\n\n  /* The file table is shared memory"),
+    ("edit_refusal forgets that a $internal program passes", "op_dio3.c", "  if (process.program.flags & HDR_INTERNAL)\n    return EDIT_NONE;\n  if (MY_ADMIN())\n    return EDIT_NONE;\n\n  /* The file table is shared memory", "  if (MY_ADMIN())\n    return EDIT_NONE;\n\n  /* The file table is shared memory"),
     ("op_write does not ask before the SEQKEY id is taken", "op_dio3.c", "a CREATING.SEQKEY id included. */\n    int edit_kind = edit_refusal(fvar);", "a CREATING.SEQKEY id included. */\n    int edit_kind = EDIT_NONE;"),
     ("op_writev asks nothing before the recursive pcode", "op_dio3.c", "    edit_kind = edit_refusal(wv_fvar->data.fvar);", "    edit_kind = EDIT_NONE;"),
     ("op_clrfile asks after the lock", "op_dio3.c", "    int edit_kind = edit_refusal(fvar); /* 17 Oct 26 S.64: the edit gates */\n\n    if (edit_kind != EDIT_NONE) {\n      if (!(op_flags & P_ON_ERROR))\n        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));\n      /* ON ERROR", "    int edit_kind = EDIT_NONE; /* 17 Oct 26 S.64: the edit gates */\n\n    if (edit_kind != EDIT_NONE) {\n      if (!(op_flags & P_ON_ERROR))\n        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));\n      /* ON ERROR"),
-    ("edit_permitted looks at the gate before the administrator", "op_sh.c", "bool edit_permitted(int kind) {\n  if (my_uptr->flags & USR_ADMIN)\n    return TRUE;\n  switch (kind) {\n    case EDIT_VOC:\n      return (my_uptr->gates & UG_VOC_EDIT) != 0;", "bool edit_permitted(int kind) {\n  switch (kind) {\n    case EDIT_VOC:\n      return (my_uptr->gates & UG_VOC_EDIT) != 0;"),
+    ("edit_permitted looks at the gate before the administrator", "op_sh.c", "bool edit_permitted(int kind) {\n  if (MY_ADMIN())\n    return TRUE;\n  switch (kind) {\n    case EDIT_VOC:\n      return MY_GATE(UG_VOC_EDIT);", "bool edit_permitted(int kind) {\n  switch (kind) {\n    case EDIT_VOC:\n      return MY_GATE(UG_VOC_EDIT);"),
     ("a bp.out file is no longer a program file", "op_sh.c", '  if ((n == 6) && (strncasecmp(last, "bp.out", 6) == 0))\n    return EDIT_PROG;\n', ""),
     ("K_EDIT_OK answers 1 for an empty pathname", "op_kernel.c", "edit_name[0] = '\\0';\n      result.data.value = 0;\n", "edit_name[0] = '\\0';\n      result.data.value = 1;\n"),
-    ("the gate keys can be set from a user program", "op_kernel.c", "      if (n >= 0) {\n        if (process.program.flags & HDR_INTERNAL) {\n          if (n > 0)\n            my_uptr->gates |= edit_bit;", "      if (n >= 0) {\n        if (1) {\n          if (n > 0)\n            my_uptr->gates |= edit_bit;"),
+    ("the gate keys can be set from a user program", "op_kernel.c", "      if (n >= 0) {\n        if (process.program.flags & HDR_INTERNAL)\n          SET_MY_GATE(edit_bit, n > 0);", "      if (n >= 0) {\n        if (1)\n          SET_MY_GATE(edit_bit, n > 0);"),
     ("OPENSEQ no longer makes a blocked file read only", "op_seqio.c", "      if ((op_flags & P_READONLY) || access(fullpathname, 2) || edit_blocked) {", "      if ((op_flags & P_READONLY) || access(fullpathname, 2)) {"),
     ("DELETESEQ asks after the file is looked at", "op_seqio.c", "  if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name, FALSE) != EDIT_NONE)) {\n    process.status = ER_PERM;\n    goto exit_op_delseq;\n  }\n\n  /* Check file exists */\n\n  if (stat(file_name, &stat_buf) != 0) {\n    process.status = ER_FNF;\n    goto exit_op_delseq;\n  }", "  /* Check file exists */\n\n  if (stat(file_name, &stat_buf) != 0) {\n    process.status = ER_FNF;\n    goto exit_op_delseq;\n  }\n\n  if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name, FALSE) != EDIT_NONE)) {\n    process.status = ER_PERM;\n    goto exit_op_delseq;\n  }"),
     ("a print file is not looked at", "to_file.c", "    if (edit_os_path_refusal(fn, FALSE) != EDIT_NONE) {", "    if (0) {"),
@@ -526,8 +526,8 @@ MUTANTS = [
     ("OSPATH delete counts a plain file called x.bp", "op_xfun.c", "(key == 5) ? edit_leaf_counts(path) : TRUE", "TRUE"),
     ("the socket trace log is not asked", "op_skt.c", "(edit_os_path_refusal(trace_path, FALSE) != EDIT_NONE)", "(0)"),
     ("the socket trace log is asked of a $internal program too", "op_skt.c", "if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(trace_path, FALSE)", "if ((edit_os_path_refusal(trace_path, FALSE)"),
-    ("an object of a local catalogue keeps its own internal bit", "object.c", "!(flags & OBJ_GLOBAL) && !(my_uptr->flags & USR_ADMIN))", "0 && !(my_uptr->flags & USR_ADMIN))"),
-    ("the administrator loses the internal bit too", "object.c", "&& !(my_uptr->flags & USR_ADMIN))\n    obj->code.flags", ")\n    obj->code.flags"),
+    ("an object of a local catalogue keeps its own internal bit", "object.c", "!(flags & OBJ_GLOBAL) && !MY_ADMIN())", "0 && !MY_ADMIN())"),
+    ("the administrator loses the internal bit too", "object.c", "&& !MY_ADMIN())\n    obj->code.flags", ")\n    obj->code.flags"),
     ("CREATE.FILE DYNAMIC is not asked", "op_dio1.c", "edit_kind = create_edit_refusal(path_name);", "edit_kind = EDIT_NONE;"),
     ("CREATE.FILE DIRECTORY is not asked", "op_dio1.c", "? create_edit_refusal(path_name) : EDIT_NONE", "? EDIT_NONE : EDIT_NONE"),
     ("create_edit_refusal asks a $internal program (createf would be refused)", "op_dio1.c", "  if (process.program.flags & HDR_INTERNAL)\n    return EDIT_NONE;\n  return edit_os_path_refusal(path, FALSE);", "  return edit_os_path_refusal(path, FALSE);"),

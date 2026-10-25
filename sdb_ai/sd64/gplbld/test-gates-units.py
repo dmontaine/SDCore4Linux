@@ -159,7 +159,7 @@ def checks(srcs, messages_dir):
        'strcmp(p + 1, "..") == 0' in pia and "root_len == 1" in pia)
     ck("C7 os_path_ok_for_account: the gate opens everything, otherwise containment, then (16 Oct 26) the SD.ACCOUNTS gate",
        re.search(r"if \(os_gate_open\(\)\)\s*return TRUE;\s*if \(path_inside_dir\(NULL, name\)\)\s*return TRUE;\s*"
-                 r"return \(my_uptr->flags & USR_SD_ACCOUNTS\) && path_in_enterable_account\(name\);", sh))
+                 r"return MY_PRIV\(USR_SD_ACCOUNTS\) && path_in_enterable_account\(name\);", sh))
     pea = at(sh, "Private bool path_in_enterable_account(")
     pea_end = at(sh, "bool os_path_ok_for_account(", pea)
     pea_body = sh[pea:pea_end] if pea > 0 and pea_end > pea else ""
@@ -197,7 +197,7 @@ def checks(srcs, messages_dir):
         s0 = at(kn, "case %s:" % case)
         blk = kn[s0:at(kn, "case K_", s0 + 8)]               # this case's own block, not the next one's
         ck("C13 kernel(%s) changes the flag only for an $internal caller, and reports it" % case,
-           "HDR_INTERNAL" in blk and ("|= %s" % flag) in blk and ("&= ~%s" % flag) in blk and "result.data.value" in blk)
+           "HDR_INTERNAL" in blk and ("SET_MY_PRIV(%s," % flag) in blk and ("MY_PRIV(%s)" % flag) in blk and "result.data.value" in blk)
     kp = kn[at(kn, "case K_PATH_OK:"):][:420]
     ck("C14 kernel(K_PATH_OK) answers os_path_ok_for_account (the account's question, not the caller's)",
        "os_path_ok_for_account(path_ok_name)" in kp and "os_path_open_ok" not in kp)
@@ -515,7 +515,7 @@ def _gate_only_raw_print_path(srcs):
 MUTANTS = [
     ("sh(): the refusal is removed", sub("op_sh.c", "if (!os_permitted())\n    k_error(sysmsg(10054), process.username);", "if (0)\n    k_error(sysmsg(10054), process.username);")),
     ("os_permitted() always true", sub("op_sh.c", "  return os_gate_open();\n}\n\n/* 13 Oct 26 (second sitting): the test is", "  return TRUE;\n}\n\n/* 13 Oct 26 (second sitting): the test is")),
-    ("os_gate_open() asks the program instead of the account", sub("op_sh.c", "return (my_uptr->flags & (USR_ADMIN | USR_OS_EXEC)) != 0;", "return (process.program.flags & HDR_INTERNAL) != 0;")),
+    ("os_gate_open() asks the program instead of the account", sub("op_sh.c", "return MY_PRIV(USR_ADMIN | USR_OS_EXEC);", "return (process.program.flags & HDR_INTERNAL) != 0;")),
     ("containment compares prefixes without a component boundary", sub("op_sh.c", "(resolved[root_len] == '\\0') || (resolved[root_len] == '/')", "1")),
     ("containment no longer resolves symbolic links", sub("op_sh.c", "if (realpath(work, resolved) != NULL)", "if (strcpy(resolved, work))")),
     ("an unresolvable .. tail is allowed", sub("op_sh.c", "if ((strcmp(p + 1, \"..\") == 0) || (strcmp(p + 1, \".\") == 0))\n      return FALSE;", "")),
@@ -523,7 +523,7 @@ MUTANTS = [
     ("OPENSEQ hook moved below the port test", lambda srcs: _move_seq_hook(srcs)),
     ("OPENPATH hook removed", sub("op_dio1.c", "if (!map_name && !os_path_open_ok(pathname)) {", "if (0) {")),
     ("OPENPATH hook asks before the name is resolved", swap("op_dio1.c", "  fullpath(pathname, mapped_name);\n", "  if (!map_name && !os_path_open_ok(pathname)) {\n    process.status = ER_PERM;\n    goto exit_op_open;\n  }\n")),
-    ("kernel(K_SH) lets any caller set the flag", sub("op_kernel.c", "case K_SH:\n      GetInt(descr);\n      n = descr->data.value;\n      if (n >= 0) {\n        if (process.program.flags & HDR_INTERNAL) {", "case K_SH:\n      GetInt(descr);\n      n = descr->data.value;\n      if (n >= 0) {\n        if (1) {")),
+    ("kernel(K_SH) lets any caller set the flag", sub("op_kernel.c", "case K_SH:\n      GetInt(descr);\n      n = descr->data.value;\n      if (n >= 0) {\n        if (process.program.flags & HDR_INTERNAL)\n", "case K_SH:\n      GetInt(descr);\n      n = descr->data.value;\n      if (n >= 0) {\n        if (1)\n")),
     ("kernel(K_PATH_OK) answers the caller's question", sub("op_kernel.c", "os_path_ok_for_account(path_ok_name)", "os_path_open_ok(path_ok_name)")),
     ("the Python gate asks the program", sub("op_sdext.c", "!os_gate_open()) {", "!(process.program.flags & HDR_INTERNAL)) {")),
     ("the Python gate is gone", sub("op_sdext.c", "!os_gate_open()) {", "0) {")),

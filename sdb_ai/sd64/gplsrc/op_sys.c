@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 24 Oct 26 dm  W.11 F9: the administrator answer is MY_ADMIN() (the process's own word), not the user table entry.
  * 18 Oct 26 dm  SYSTEM(1057): the parent's user NUMBER was tested against max_users, the count of user table cells; user numbers run
  *               to hi_user_no (USERPOOL, 1023 by default), so a phantom whose parent had number 694 on 20 cells was told "no parent".
  *               Found by the Windows agent's first verify-carry run.
@@ -821,7 +822,7 @@ void op_system() {
       break;
     /* njs 13Feb23 */  
     case 1050: /* admin flag user */
-      descr->data.value = (my_uptr->flags & USR_ADMIN) != 0;
+      descr->data.value = MY_ADMIN();
       break;  
 
     case 9010: /* SD */
