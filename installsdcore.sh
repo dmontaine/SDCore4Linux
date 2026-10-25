@@ -494,6 +494,10 @@ fi
 tgroup=sdusers
 tuser=$USER
 cwd=$(pwd)
+# 24 Oct 26 dm  WHERE THE INSTALLER LIVES, for the files that travel beside it in a release package (the changes document, CHANGES-DOC block below).
+#            Empty when the script was not run from a file (curl | bash), so nothing is looked for in whatever directory the shell is in.
+installer_dir=""
+if [ -f "${BASH_SOURCE[0]:-}" ]; then installer_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || installer_dir=""; fi
 sdsysdir="/usr/local/sdsys"
 # 02 Oct 26  THE API PORT IS 4247, FIXED (owner, 2 Oct 2026: "make ports 4247 and
 #            4249 -- do not allow adjustable ports").  4243 is OpenQM's and
@@ -1936,6 +1940,43 @@ else
     echo "The shared account is not there, so its help text and documentation directory were not set up."
 fi
 # SHARED-CONTENT-END
+
+# 24 Oct 26 dm  THE CHANGES DOCUMENT TRAVELS WITH THE INSTALLER AND IS COPIED INTO THE SHARED ACCOUNT (owner, 24 Oct 2026: "included with the installer as an
+#            additional document and upon installation also copied into the 'shared' directory").  A release package holds, beside this script, the
+#            document in three forms named sd-core-for-linux-<version>-changes.pdf / .html / .md (lower case, so that the pdf verb will list and open the
+#            pdf).  Each regular file of that name is put in the shared account's pdf directory, owner sdsys, group sdusers, mode 644: no SD user can add
+#            or change one, every account can read it, and "pdf" lists the PDF.  A file that is a link, or whose name is not plain lower case, is left.
+#            Nothing is needed for the install to go on: no files (a clone from GitHub has none), no shared account, a failed copy each print a note.
+#            test-install-changesdoc.sh runs this block.
+# CHANGES-DOC-BEGIN
+changes_copied=0
+changes_seen=0
+if [ -n "$installer_dir" ] && sudo test -f "$shared_reg" && sudo test -d "${shared_dir}/pdf"; then
+    for changes_f in "$installer_dir"/sd-core-for-linux-*-changes.pdf "$installer_dir"/sd-core-for-linux-*-changes.html "$installer_dir"/sd-core-for-linux-*-changes.md; do
+        [ -f "$changes_f" ] && [ ! -L "$changes_f" ] || continue
+        changes_b=$(basename "$changes_f")
+        # the pdf verb opens only a name of a-z 0-9 dot dash underscore, not starting with a dot, up to 80 characters
+        [[ "$changes_b" =~ ^[a-z0-9][a-z0-9._-]{0,79}$ ]] || continue
+        changes_seen=$((changes_seen+1))
+        if sudo install -o sdsys -g sdusers -m 644 "$changes_f" "${shared_dir}/pdf/${changes_b}"; then
+            changes_copied=$((changes_copied+1))
+        else
+            printf "%b\n" "$RED"
+            echo "WARNING: ${changes_b} was not copied into the shared account's pdf directory."
+            printf "%b\n" "$NC"
+        fi
+    done
+    if [ "$changes_copied" -gt 0 ]; then
+        echo "Copied the changes document (${changes_copied} files) into the shared account:  ${shared_dir}/pdf   (pdf lists it)"
+    elif [ "$changes_seen" -gt 0 ]; then
+        echo "The changes document could not be copied into the shared account (see the warnings above)."
+    else
+        echo "No changes document beside the installer, so none was copied into the shared account."
+    fi
+else
+    echo "No changes document was copied (not run from a release package, or no shared account)."
+fi
+# CHANGES-DOC-END
 
 # 11 Sep 26  AN UPGRADE BRINGS EVERY ACCOUNT'S VOC FORWARD (PORT_ADOPTION 16,
 #            port PRE_RELEASE_FIXES 70).  Replacing NEWVOC and VOC_TEMPLATE on

@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  A RELEASE PACKAGE CARRIES THE CHANGES DOCUMENT, AND THE INSTALLER COPIES IT INTO THE SHARED ACCOUNT, WHERE THE PDF VERB LISTS IT.
+
+             What        The document that lists what was added, changed and removed in the release is delivered beside installsdcore.sh as
+                         sd-core-for-linux-<version>-changes.pdf, .html and .md. The installer copies each of the three into the pdf directory of
+                         the shared account (owner sdsys, group sdusers, mode 644), after it has made that directory. A file is taken only if it is
+                         a regular file, not a link, with a name of lower case letters, digits and . _ - (the shape the pdf verb opens). The install
+                         says how many files it copied, or that there were none.
+             Why it      Every account can then read what changed: pdf lists the PDF and opens it in the reader the administrator has allowed, and
+             matters     the HTML and Markdown copies are in the same directory. No SD user can add or change a document there.
+             Does not    Fetch the document: an installer downloaded alone, or run through curl, finds no files beside it and goes on. It does not
+                         remove an older release's document, and it needs the shared account (a system without one copies nothing). The
+                         release package that holds the three files is made by hand today; nothing here builds it.
+
 24 Oct 26  THE ADMINISTRATOR HAS A MASTER FILES PAGE: TOOL.MASTERS SHOWS WHETHER THEY ARE SET UP, WHAT THE JOURNAL HOLDS AND EVERY ACCOUNT AGAINST ITS MASTER COPY, AND RUNS
            SYNC.MASTERS BEHIND TWO KEYS.
 
