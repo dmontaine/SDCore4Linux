@@ -1,0 +1,31 @@
+# sd-lnxd.service - the SD daemon (sdlnxd): the audit trail's writer and the clean-up of lost sessions, run and RESTARTED by systemd.
+#
+# 25 Oct 26  Until now "sd -start" forked sdlnxd inside the oneshot sd.service, so the daemon sat in that unit's cgroup with nothing watching it: if it died, the
+#            audit records of ordinary users went to the journal only (the trail is 0600 and the daemon is its only writer), and sessions that were lost were never
+#            cleared down, until someone restarted all of SD.  Now sd.service runs "sd -start -nodaemon" (no fork of the daemon) and wants this unit, which runs the
+#            daemon in the foreground and starts it again two seconds after it fails.
+#
+#            Restart=on-failure and NOT always: "sd -stop" ends the daemon with SIGTERM, which it answers by exiting 0, and a unit that restarted it would bring it back
+#            right after every stop.  A kill -9, a crash or an out-of-memory kill is a failure and is restarted.  A start that fails again and again (the segment is not
+#            there yet, say) stops after five tries in a minute; "systemctl reset-failed sd-lnxd" and "systemctl start sd-lnxd" take it from there.
+#
+#            It follows sd.service: it starts after it (the segment sd -start makes must exist) and stops with it (BindsTo=).  UMask=0022 is the mask the daemon makes
+#            its directory and files under; it also sets the mode of /run/sd itself.  Run by hand, "sd -stop" leaves this unit "inactive", and "systemctl start sd-lnxd"
+#            or "systemctl restart sd" brings the daemon back.  A second daemon is not possible: sdlnxd ends if the segment names a live one.
+#            There is no [Install] section: sd.service wants this unit, so enabling sd.service is all there is to do.
+#
+#            ***WOULD FALSIFY:*** a journal showing the daemon killed with -9 and not running again within ten seconds; or "systemctl stop sd" leaving the daemon running.
+
+[Unit]
+Description=SD daemon (audit trail writer and clean-up of lost sessions)
+After=sd.service
+BindsTo=sd.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sdsys/bin/sdlnxd
+Restart=on-failure
+RestartSec=2
+UMask=0022

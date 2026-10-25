@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 25 Oct 26 dm  Option A of the daemon's restart: start_sd(with_daemon).  The fork of sdlnxd is start_lnxd(), which "sd -start -nodaemon" leaves out because
+ *               sd-lnxd.service starts (and restarts) it.  A child whose exec fails now ends (_exit(1)) instead of returning to the caller.
  * 24 Oct 26 dm  W.11 F9: a session takes pcfg and the system directory from the configuration file (session_trust()), not from the segment's template
  *               and sysdir; start_sd() asks sd_sysdir().  The segment still holds both, for display.
  * 24 Oct 26 dm  W.11 F1: the shared segment is made 0660 and given to the group sdusers (create_shared_segment()), not 0666.
@@ -408,30 +410,18 @@ void unbind_sysseg() {
 }
 
 /* ======================================================================
-   start_sd()                                                             */
+   start_lnxd()  -  Start the sdlnxd daemon as a child of this process
 
-bool start_sd() {
-  char errmsg[80 + 1];
+   25 Oct 26 dm - taken out of start_sd() so that "sd -start -nodaemon" can leave it out: under systemd the daemon is its own unit (sd-lnxd.service), which
+   restarts it if it dies, and a second one forked here would be a second daemon.  The code is what start_sd() had, with one change: a child whose exec fails ENDS.
+   It used to fall out of the if and return TRUE, so "sd -start" printed its success line twice and the child went on as if it were the caller.
+   False only when fork() failed.                                                */
+
+Private bool start_lnxd(void) {
   int cpid;
   int i;
   char path[MAX_PATHNAME_LEN + 1];
 
-  if (!bind_sysseg(TRUE, errmsg)) {
-    fprintf(stderr, "%s\n", errmsg);
-    return FALSE;
-  }
-
-  /* 11 Sep 26 dm - PORT_ADOPTION 13, as the port's start_sd().  Here because
-     this is the one moment that is both root (the service runs sd -start) and
-     has no session running: only root can lift the trail's append-only
-     attribute to rename it, and rotating while somebody appends is the other
-     thing to avoid.  After bind_sysseg(), which makes sysseg->sysdir readable. */
-
-  audit_rotate();
-
-  /* Start sdlnxd dameon */
-
-  sysseg->sdlnxd_pid = -1; /* Stays -ve if fails to start */
   cpid = fork();
 
   /* 10 Sep 26 dm - Parity audit: A FAILED fork() USED TO LOOK LIKE SUCCESS, the
@@ -455,17 +445,48 @@ bool start_sd() {
     if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sdlnxd", sd_sysdir()) >=
         (MAX_PATHNAME_LEN + 1)) {
       fprintf(stderr, "Overflowed file/pathname length in start_sd()!\n");
-      return FALSE;
-    } else
-      execl(path, path, NULL);
-  } else /* Parent process */
-      // {
-      // Moved to sdlnxd:   sysseg->sdlnxd_pid = cpid;   /* -ve if failed to start */
-      // }
+      _exit(1);
+    }
+    execl(path, path, NULL);
+    _exit(1); /* the exec failed: this child must not go on as if it were sd */
+  }
 
-      /* Run startup command, if defined */
+  /* Moved to sdlnxd:   sysseg->sdlnxd_pid = cpid;   -ve if it failed to start */
+  return TRUE;
+}
 
-      if (sysseg->startup[0] != '\0') {
+/* ======================================================================
+   start_sd()  -  with_daemon FALSE is "sd -start -nodaemon": everything but
+   the fork of sdlnxd, which the service unit sd-lnxd.service does instead.  */
+
+bool start_sd(bool with_daemon) {
+  char errmsg[80 + 1];
+  int cpid;
+  int i;
+  char path[MAX_PATHNAME_LEN + 1];
+
+  if (!bind_sysseg(TRUE, errmsg)) {
+    fprintf(stderr, "%s\n", errmsg);
+    return FALSE;
+  }
+
+  /* 11 Sep 26 dm - PORT_ADOPTION 13, as the port's start_sd().  Here because
+     this is the one moment that is both root (the service runs sd -start) and
+     has no session running: only root can lift the trail's append-only
+     attribute to rename it, and rotating while somebody appends is the other
+     thing to avoid.  After bind_sysseg(), which makes sysseg->sysdir readable. */
+
+  audit_rotate();
+
+  /* Start sdlnxd dameon */
+
+  sysseg->sdlnxd_pid = -1; /* Stays -ve if fails to start */
+  if (with_daemon && !start_lnxd())
+    return FALSE;
+
+  /* Run startup command, if defined */
+
+  if (sysseg->startup[0] != '\0') {
     cpid = fork();
     if (cpid == 0) { /* Child process */
       for (i = 3; i < 1024; i++)
@@ -475,13 +496,14 @@ bool start_sd() {
       if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sd", sd_sysdir()) >=
           (MAX_PATHNAME_LEN + 1)) {
         fprintf(stderr, "Overflowed file/pathname length in start_sd()!\n");
-        return FALSE;
+        _exit(1);
       } else {
         /* 12 Oct 26 dm - openQM item 91: @TTY in a process started by STARTUP is "startup".  Login
            (kernel.c) sees this variable, uses it once and removes it, so nothing the startup process
            runs inherits it; a phantom it starts is "phantom" as before. */
         setenv("SD_STARTUP", "1", 1);
         execl(path, path, "-asdsys", sysseg->startup, NULL);
+        _exit(1);
       }
     }
   }

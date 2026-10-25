@@ -163,7 +163,7 @@ gplsrc/sddefs.h              : @core auditwriter auditjournal
 # 24 Oct 26 (W.11 F4, C2): the rotation shared by "sd -start" (k_error.c) and the audit daemon; compiled into sd through gpl.src and into sdlnxd by the Makefile
 gplsrc/audit_rot.c           : @core auditwriter
 gplsrc/sdsem.c               : shmmode @core
-gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode segtrust @core
+gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode segtrust auditwriter @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof netfile masters
 gplsrc/kernel.c              : @core csvb q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates apispin segtrust
@@ -203,7 +203,7 @@ gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
 gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net shared masters csvb jsonx xmlx
-gplsrc/sd.c                  : @core fixes-b12 segtrust
+gplsrc/sd.c                  : @core fixes-b12 segtrust auditwriter
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
 gplsrc/*.c                   : @core
@@ -403,6 +403,10 @@ sdsys/messages/1163[0-4]     : ai-verb
 gplbld/test-aihelper.py      : none
 gplbld/test-ai-units.py      : none
 usr/lib/systemd/system/sd-ai* : none
+# 25 Oct 26 (option A of the daemon's restart): systemd cannot run in a sandbox; test-lnxdunit-units.py and test-install-lnxdunit.sh read these two units as text (free checks
+# regress.sh --changed always adds), and the VM witness (witness-w11.py section C1R) runs them
+usr/lib/systemd/system/sd.service : none
+usr/lib/systemd/system/sd-lnxd.service : none
 sdsys/gpl.bp/setai           : aigate
 sdsys/voc_template/set.ai    : aigate
 sdsys/messages/1160[6-9]     : aigate

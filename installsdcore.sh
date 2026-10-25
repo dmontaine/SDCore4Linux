@@ -1397,11 +1397,26 @@ if [ -d  "$SYSTEMDPATH" ]; then
         sudo chown root:root "$SYSTEMDPATH/sd.service"
         sudo chown root:root "$SYSTEMDPATH/sdclient.socket"
         sudo chown root:root "$SYSTEMDPATH/sdclient@.service"
+        sudo chown root:root "$SYSTEMDPATH/sd-lnxd.service"
         sudo chmod 644 "$SYSTEMDPATH/sd.service"
         sudo chmod 644 "$SYSTEMDPATH/sdclient.socket"
         sudo chmod 644 "$SYSTEMDPATH/sdclient@.service"
+        sudo chmod 644 "$SYSTEMDPATH/sd-lnxd.service"
     fi
 fi
+#
+# LNXDUNIT-BEGIN
+# 25 Oct 26 dm - the audit daemon is its own unit, sd-lnxd.service, which systemd restarts if it dies (option A of the daemon's restart).  The copy above happens only
+#            when there is no sd.service yet, so a sd.service left from an earlier install would go on running "sd -start" (which forks the daemon, with nothing to
+#            watch it) and have no sd-lnxd.service.  When the installed sd.service does not mention sd-lnxd.service, this release's two files are put in place.  An
+#            install that has the new unit already (the copy above, or a second run) is left alone.  test-install-lnxdunit.sh runs this block.
+if [ -f "$SYSTEMDPATH/sd.service" ] && ! grep -q 'sd-lnxd\.service' "$SYSTEMDPATH/sd.service"; then
+    echo "Installing the audit daemon's service unit (sd-lnxd.service) and the sd.service that wants it."
+    sudo install -o root -g root -m 0644 usr/lib/systemd/system/sd.service "$SYSTEMDPATH/sd.service"
+    sudo install -o root -g root -m 0644 usr/lib/systemd/system/sd-lnxd.service "$SYSTEMDPATH/sd-lnxd.service"
+    sudo systemctl daemon-reload || true
+fi
+# LNXDUNIT-END
 #
 # SOCKETMODE-BEGIN
 # 24 Oct 26 dm - W.11 F5 (security-model evaluation).  The units above are copied only on a first install, so an install made before this release keeps a

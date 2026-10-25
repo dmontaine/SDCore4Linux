@@ -150,6 +150,33 @@ def quiet(off, seconds=1.2):
     return not lines_since(off)
 
 
+def lnxd_pids():
+    """the processes of THIS sandbox that run its sdlnxd (by their executable)"""
+    mine = os.path.join(SYS, "bin", "sdlnxd")
+    out = []
+    for p in os.listdir("/proc"):
+        if p.isdigit():
+            try:
+                if os.readlink("/proc/%s/exe" % p) == mine:
+                    out.append(int(p))
+            except OSError:
+                pass
+    return sorted(out)
+
+
+def wait_pids(want_some, seconds=6):
+    end = time.time() + seconds
+    while time.time() < end:
+        if bool(lnxd_pids()) == want_some:
+            break
+        time.sleep(0.2)
+    return lnxd_pids()
+
+
+def sd_stop_all():
+    subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
+
+
 def probe(token):
     out = g.adm(["RUN gpl.bp zzaud token=" + token], internal=True)
     return g.has(out, r"^ZZAUD sent$")
@@ -548,6 +575,68 @@ def run_rows():
     n_left = sum(1 for x in open(trail(), errors="replace").read().split("\n") if "zzplant" in x)
     row("W11b: the rotation was refused and the trail is whole: every planted line is still in it and no other rotated file appeared", n_left == planted3 and not rotated_names(before),
         "%d planted lines of %d; new rotated names %r" % (n_left, planted3, rotated_names(before)))
+
+    say("\n--- W12. 'sd -start -nodaemon' (what sd.service runs) leaves the daemon out; a plain 'sd -start' still forks it -----------")
+    # 25 Oct 26, option A of the daemon's restart: the daemon is sd-lnxd.service's to run and restart, so the start that sd.service does must not fork a second one.
+    env = dict(os.environ)
+    env["SD_CONFIG"] = os.path.join(BOX, "sd.conf")
+    sd_stop_all()
+    row("W12a: (null case) with SD stopped no sdlnxd of this sandbox is running", wait_pids(False) == [], "pids %r" % lnxd_pids())
+    def sd_start(args):
+        """sd -start into a FILE: the daemon a plain start forks keeps the standard output it was given, and a pipe would be held open by it until the timeout"""
+        outf = os.path.join(BOX, "w12-start-%d.out" % time.time_ns())
+        with open(outf, "w") as fh:
+            rc = subprocess.run([SD] + args, stdout=fh, stderr=subprocess.STDOUT, env=env, timeout=60).returncode
+        return rc, open(outf, errors="replace").read()
+
+    rc_nd, out_nd = sd_start(["-start", "-nodaemon"])
+    time.sleep(2)
+    p_nd = lnxd_pids()
+    row("W12b: 'sd -start -nodaemon' starts SD (exit 0, says it did, says the daemon was left out) and NO sdlnxd is running afterwards",
+        rc_nd == 0 and "without the daemon sdlnxd" in out_nd and p_nd == [], "exit %d, stdout %r, daemons %r" % (rc_nd, out_nd.strip(), p_nd))
+    seg_up = any(ln.split() and ln.split()[0] == str(0x53434C91 + 0x20 * KEYSET) for ln in open("/proc/sysvipc/shm").read().splitlines()[1:])
+    row("W12c: and SD IS started: its shared segment is there", seg_up, "key 0x%X" % (0x53434C91 + 0x20 * KEYSET))
+    up = start_daemon()
+    row("W12d: the daemon run on its own, as the unit runs it, registers with that segment and serves the socket", up and len(lnxd_pids()) == 1, "up=%s daemons %r" % (up, lnxd_pids()))
+    stop_daemon(signal.SIGTERM)
+    sd_stop_all()
+    rc_pl, out_pl = sd_start(["-start"])
+    p_plain = wait_pids(True)
+    row("W12e: (control) a plain 'sd -start' still forks the daemon: one sdlnxd of this sandbox is running", rc_pl == 0 and len(p_plain) == 1, "exit %d, daemons %r, stdout %r" % (rc_pl, p_plain, out_pl.strip()))
+
+    say("\n--- W13. there is one daemon at a time: a second one ends, with status 0, and the first goes on serving ------------------")
+    first = lnxd_pids()
+    second = subprocess.Popen([os.path.join(SYS, "bin", "sdlnxd")], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=SYS)
+    try:
+        rc2 = second.wait(timeout=8)
+    except subprocess.TimeoutExpired:
+        rc2 = None
+        second.kill()
+        second.wait()
+    still = lnxd_pids()
+    row("W13a: a second sdlnxd started by hand ENDS at once with status 0 (so the service does not count it a failure and start it again)", rc2 == 0, "second daemon's status %r" % rc2)
+    row("W13b: the first daemon is still the only one running, with the same pid", first != [] and still == first, "before %r, after %r" % (first, still))
+    off = size()
+    tokq = "tok" + secrets.token_hex(5)
+    try:
+        send(("SDAUDIT1 6 zzwriter " + tokq).encode())
+        sent_q = None
+    except OSError as e:
+        sent_q = str(e)      # the old code let the second daemon unlink the first one's socket
+    ls = wait_lines(off, 1) if sent_q is None else []
+    row("W13c: and it still takes records (the second one did not take its socket)", sent_q is None and len(ls) == 1 and tokq in ls[0], "send: %s; lines: %r" % (sent_q, ls))
+    try:
+        el = open(os.path.join(SYS, "errlog"), errors="replace").read()
+    except OSError:
+        el = ""
+    row("W13d: the error log says which daemon the second one found", re.search(r"sdlnxd: pid %d is already the daemon" % first[0], el) is not None if first else False,
+        "errlog tail %r" % el[-200:])
+    for p in lnxd_pids():
+        try:
+            os.kill(p, signal.SIGTERM)
+        except OSError:
+            pass
+    sd_stop_all()
 
 
 if __name__ == "__main__":

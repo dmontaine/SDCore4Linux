@@ -668,7 +668,7 @@ void ts_unstack(void);
 /* SYSSEG.C */
 bool attach_shared_memory(void);
 void unbind_sysseg(void);
-bool start_sd(void);
+bool start_sd(bool with_daemon); /* 25 Oct 26: FALSE leaves sdlnxd to its service unit (sd -start -nodaemon) */
 bool stop_sd(void);
 
 

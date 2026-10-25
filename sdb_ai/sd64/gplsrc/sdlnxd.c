@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 25 Oct 26 dm  Option A of the daemon's restart: sd-lnxd.service runs this program and restarts it if it dies (Restart=on-failure), so a daemon that finds another one
+ *               already named in the segment (and running this same executable) ends with status 0 - there is one daemon at a time.
  * 25 Oct 26 dm  The audit socket's directory is set to 0755 by the daemon itself, whatever the umask it was started under (the real-install witness found it 0750).
  * 24 Oct 26 dm  W.11 F4, option C2 (the owner: "Start C2"): the daemon bounds what one uid may add to the trail (AUDIT_RATE_MAX in AUDIT_RATE_WINDOW seconds, then ONE line
  *               saying how many were dropped) and rotates the file by size as it writes, with audit_rotate_file() (audit_rot.c), the code "sd -start" uses.
@@ -506,6 +508,28 @@ static void audit_serve(int seconds) {
 
 #define TICK_SECONDS 10
 
+/* Does the segment name another live process that is running this program?  The pid alone is not enough: a daemon that died leaves its pid in the segment, and the number
+   may be reused by anything, so the other process's executable must be this one's. */
+static bool another_daemon_runs(void) {
+  char link[48];
+  char other[PATH_MAX + 1];
+  char mine[PATH_MAX + 1];
+  ssize_t n_other;
+  ssize_t n_mine;
+  pid_t pid = (pid_t)sysseg->sdlnxd_pid;
+
+  if ((pid <= 0) || (pid == getpid()))
+    return FALSE;
+  if ((kill(pid, 0) != 0) && (errno != EPERM))
+    return FALSE;
+  snprintf(link, sizeof(link), "/proc/%d/exe", (int)pid);
+  n_other = readlink(link, other, sizeof(other) - 1);
+  n_mine = readlink("/proc/self/exe", mine, sizeof(mine) - 1);
+  if ((n_other <= 0) || (n_mine <= 0) || (n_other != n_mine))
+    return FALSE;
+  return memcmp(other, mine, (size_t)n_mine) == 0;
+}
+
 int main() {
   char errmsg[80];
   int elapsed = 0;  /* seconds since the last scan for lost processes */
@@ -537,6 +561,18 @@ int main() {
   if (!get_semaphores(FALSE, errmsg)) {
     fprintf(stderr, "sdlnxd: %s\n", errmsg);
     exit(2);
+  }
+
+  /* 25 Oct 26 dm - one daemon at a time.  The daemon can now be started two ways (forked by a plain "sd -start", or run by sd-lnxd.service), and a second one would
+     take the audit socket from the first and scan for lost users twice.  If the segment names a live process that runs this very program, this one ends - with status
+     0, so that the service does not count it as a failure and start it again. */
+  if (another_daemon_runs()) {
+    char note[100];
+
+    snprintf(note, sizeof(note), "sdlnxd: pid %d is already the daemon; this one (pid %d) ends", (int)sysseg->sdlnxd_pid, (int)getpid());
+    log_message(note);
+    shmdt((void*)sysseg);
+    return 0;
   }
 
   /* Set process id into shared memory */

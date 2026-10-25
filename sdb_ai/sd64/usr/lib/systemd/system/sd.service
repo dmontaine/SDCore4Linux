@@ -1,5 +1,8 @@
 [Unit]
 Description=SD service start
+# 25 Oct 26  The daemon sdlnxd is its own unit now (sd-lnxd.service), which this one wants: it is started after this unit's ExecStart has made the shared segment, stopped
+#            with it, and started again if it dies.  See that unit for why.
+Wants=sd-lnxd.service
 
 [Service]
 # 13 Sep 26  PRE_RELEASE 29.  WAS Type=forking, WHICH LEFT SD STOPPED - measured
@@ -11,8 +14,8 @@ Description=SD service start
 #            started" and "has been shut down" a second apart in the journal.
 #            sd writes no PID file, so there is nothing to point PIDFile at.
 #            ONESHOT DOES NOT GUESS: the unit is up when "sd -start" exits 0 and
-#            stays up (RemainAfterExit) until it is stopped.  sdlnxd stays in the
-#            unit's cgroup, so a stop still ends it after ExecStop.
+#            stays up (RemainAfterExit) until it is stopped.  (Until 25 Oct 26
+#            sdlnxd stayed in this unit's cgroup; it has a unit of its own now.)
 #            ***WOULD FALSIFY:*** a journal still showing "sd -stop" within a
 #            second of "sd -start" with no stop requested.
 Type=oneshot
@@ -40,7 +43,8 @@ RemainAfterExit=yes
 #            the sweep treats as "gone".  --allow-remote-nss overrides it for an
 #            administrator who knows the directory is up.
 ExecStartPre=-/usr/local/sbin/sd-reconcile-accounts --sweep
-ExecStart=/usr/local/sdsys/bin/sd -start
+# 25 Oct 26  -nodaemon: "sd -start" does not fork sdlnxd; sd-lnxd.service runs it.
+ExecStart=/usr/local/sdsys/bin/sd -start -nodaemon
 # This should be here but currently seems to crash things ...
 ExecStop=/usr/local/sdsys/bin/sd -stop
 

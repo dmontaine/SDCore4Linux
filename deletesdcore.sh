@@ -208,6 +208,9 @@ fi
 # cd /usr/lib/systemd/system
 # stop services (was here, after rm)
 sudo "${sdsysdir}/bin/sd" -stop 2>/dev/null || true
+# 25 Oct 26 dm - the audit daemon's own unit (sd-lnxd.service) first, so that it is not restarted while SD is being taken down.  It has no [Install] section
+#   (sd.service wants it), so there is nothing to disable.
+sudo systemctl stop sd-lnxd.service 2>/dev/null || true
 sudo systemctl stop sd.service sdclient.socket 2>/dev/null || true
 sudo systemctl disable sd.service sdclient.socket 2>/dev/null || true
 # 23 Oct 26 dm - S.69 step 2: and the AI helper's socket (the units are removed with the others below).
@@ -478,6 +481,7 @@ fi
 # sudo rm /usr/lib/systemd/system/sdclient.socket
 # sudo rm /usr/lib/systemd/system/sdclient@.service
 sudo rm -f "${systemd_dir}/sd.service" \
+           "${systemd_dir}/sd-lnxd.service" \
            "${systemd_dir}/sdclient.socket" \
            "${systemd_dir}/sdclient@.service" \
            "${systemd_dir}/sd-ai.socket" \

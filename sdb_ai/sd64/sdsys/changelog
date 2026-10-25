@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+25 Oct 26  THE AUDIT DAEMON IS STARTED AGAIN IF IT DIES: sdlnxd HAS ITS OWN SYSTEMD UNIT (SECURITY-MODEL EVALUATION, FINDING F4, THIRD STAGE).
+
+             What        sdlnxd now runs as sd-lnxd.service, which systemd starts again two seconds after the daemon fails (kill -9, a crash, the out-of-memory
+                         killer). sd.service starts SD with "sd -start -nodaemon", which does not fork a daemon of its own, and wants the new unit; stopping
+                         sd.service stops the daemon with it. A stop is not a failure: "sd -stop" ends the daemon with SIGTERM and it exits 0, so it is not started
+                         again (Restart=on-failure, not always). A daemon that fails five times in a minute is given up on ("systemctl reset-failed sd-lnxd" then
+                         "systemctl start sd-lnxd"). Only one daemon runs: a second sdlnxd ends at once with status 0 and says so in the error log. A plain
+                         "sd -start" and "sd -restart" still fork a daemon of their own, which nothing watches; use "systemctl restart sd.service".
+             Why it      A dead daemon meant that ordinary users' audit records reached the journal only (the trail is 0600 and the daemon is its only writer) and
+                         that lost sessions were never cleared down, until someone restarted all of SD, which signals every session.
+             Does not    Restart the daemon on a machine that has no systemd, change an installation until SD is deleted (accounts and configuration can be kept)
+                         and installed again, or shorten the few seconds in which records go to the journal only.
+
 25 Oct 26  THE INSTALLER STOPPED AT ITS OWN CATALOGUE STEP, AND THE AUDIT SOCKET'S DIRECTORY COULD BE CLOSED TO USERS (FOUND BY THE FIRST INSTALL OF THE SECURITY FIXES ON A REAL MACHINE).
 
              What        (1) CATALOG now writes a global object with umask 022, so the object is mode 644 and never writable by the group; it used to be 0664, and

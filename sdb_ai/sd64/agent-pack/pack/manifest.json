@@ -46,7 +46,7 @@
   },
   "basic.internal": {
    "chunks": 37,
-   "sha256": "5c79cc707f441b1dc6390405090ca3813bc84f84dfa3854e199f203e3224d2cb"
+   "sha256": "c24b3ef779aa56a158971c6f2b184c6ccd78fc47bfe14860d9d5464833c18755"
   },
   "basic.mode": {
    "chunks": 44,
@@ -184,7 +184,7 @@
   },
   "reference/basic-functions.md": {
    "chunks": 293,
-   "sha256": "d8d351383ac61519aa76f179eba46dd6e823ff50a3bf1e9ea6c1c7bdfbb86b15",
+   "sha256": "fc4a2854e296b89985f09ce0ffb4ecb6e59722100534342d5dfee754553fc760",
    "words": 4667
   },
   "reference/basic-modes.md": {
