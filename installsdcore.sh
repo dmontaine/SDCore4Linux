@@ -1401,6 +1401,22 @@ if [ -d  "$SYSTEMDPATH" ]; then
     fi
 fi
 #
+# SOCKETMODE-BEGIN
+# 24 Oct 26 dm - W.11 F5 (security-model evaluation).  The units above are copied only on a first install, so an install made before this release keeps a
+#            sdclient.socket with SocketGroup=sdusers and NO SocketMode=; systemd then makes the Unix socket 0666 and the group restricts nothing.  The
+#            first stage of an API connection runs as root, so anybody on the machine could reach it.  Add SocketMode=0660 when the unit has no
+#            SocketMode= line; a value that is already there (an administrator's choice, or this release's own unit) is left alone.
+#            test-install-socketmode.sh runs this block.
+if [ -f "$SYSTEMDPATH/sdclient.socket" ] && ! grep -q '^SocketMode=' "$SYSTEMDPATH/sdclient.socket"; then
+    echo "Restricting the API Unix socket to the group sdusers (SocketMode=0660)."
+    if grep -q '^SocketGroup=' "$SYSTEMDPATH/sdclient.socket"; then
+        sudo sed -i 's#^SocketGroup=\(.*\)$#SocketGroup=\1\nSocketMode=0660#' "$SYSTEMDPATH/sdclient.socket"
+    else
+        sudo sed -i 's#^\[Socket\]$#[Socket]\nSocketMode=0660#' "$SYSTEMDPATH/sdclient.socket"
+    fi
+fi
+# SOCKETMODE-END
+#
 # Remote-access prompts (owner, 10 Sep 2026, approach B) - API listener bind.
 # The shipped sdclient.socket listens on the Unix socket plus 127.0.0.1:4247
 # (local only).  If API access was requested, rebind the TCP listener to all

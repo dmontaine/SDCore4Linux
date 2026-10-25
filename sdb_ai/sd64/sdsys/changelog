@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+24 Oct 26  THE API'S LOCAL SOCKET IS FOR SD USERS ONLY: MODE 0660, GROUP sdusers, NOT 0666 (SECURITY-MODEL EVALUATION, FINDING F5).
+
+             What        The unit sdclient.socket now says SocketMode=0660 beside SocketGroup=sdusers, so /tmp/sdsys/sdclient.socket can be connected to
+                         by members of sdusers (and root) and by nobody else. The installer adds the line to an existing unit that has none (the units are
+                         copied only on a first install) and leaves any SocketMode= that is already there, so an administrator can widen it with a drop-in.
+             Why it      With no SocketMode= systemd makes a Unix socket 0666, so the group in the unit restricted nothing. The first stage of an API
+                         connection runs as root and parses what the client sends before anybody has logged in, so it should not be open to every user of
+                         the machine.
+             Does not    Change the TCP listener (127.0.0.1:4247, or every address if the installer was told so), move the pre-login work out of root, or
+                         confine the service with systemd options; those are separate pieces of work. A person just added to sdusers must log out and
+                         in before the socket lets them through.
+
 24 Oct 26  THE DIRECTORIES THAT HOLD THE ACCOUNTS ARE NO LONGER OPEN FOR THE GROUP TO WRITE: ONE SD USER CAN NO LONGER SWAP ANOTHER'S ACCOUNT DIRECTORY (SECURITY-MODEL
            EVALUATION, FINDING F3).
 

@@ -3,6 +3,11 @@ Description=String Database (SD)  Per-Connection client Server
 
 [Socket]
 SocketGroup=sdusers
+# 24 Oct 26 dm - W.11 F5 (security-model evaluation): 0660.  With no SocketMode= systemd makes a Unix socket 0666, so SocketGroup=sdusers above
+# restricted nothing and any local user could reach the first stage of an API connection, which runs as root.  Now only SD users (and root) can
+# connect.  An administrator who wants it wider writes SocketMode= in a drop-in (systemctl edit sdclient.socket); the installer never overwrites a
+# value that is already there.
+SocketMode=0660
 ListenStream=/tmp/sdsys/sdclient.socket
 # PRE_RELEASE API listener (owner, 10 Sep 2026): localhost by default (the port's
 # "LOCAL" state). installsdcore.sh rewrites this to 0.0.0.0:4247 if the installer's
