@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  AN INSTALL THAT KEEPS THE ACCOUNTS NO LONGER TAKES THE SDSYS USER OUT OF THE GROUP OF EVERY GROUP ACCOUNT.
+
+             What        The installer set the sdsys user's groups with usermod -g sdusers -G sdusers sdsys, and -G without -a REPLACES the whole list of supplementary groups. On an install
+                         that kept the accounts (the sdsys user is kept with them) that took sdsys out of sdg_shared and out of the group of every other group account, and out of any
+                         account group the question about the sdsys user, asked at the start of the install, had been told to keep. The command now appends (-a), so the groups the sdsys
+                         user is in are left as they were; the question's answer still decides the groups of the user accounts, as before, and a group account's group is not touched. A fresh
+                         install is unchanged. Found on a real install: sdg_shared held only root after a kept-accounts install, root and sdsys before it and after a fresh one.
+             Why it      The shared account is registered with the group sdg_shared so that only root and SDSYS may sign on to it; after an upgrade SDSYS could no longer do so, and the
+                         same went for every group account the administrator had made.
+             Does not    Put the sdsys user back into the group of a group account an earlier upgrade took it out of: sudo gpasswd -a sdsys sdg_shared (and sdg_<name> for the others).
+
 26 Oct 26  RESTORING THE SHARED ACCOUNT NO LONGER TAKES IT AWAY FROM EVERYONE BUT SDSYS.
 
              What        The shared account is registered with the group sdg_shared (who may sign on to it), but its directory belongs to sdsys and the group sdusers, which is what every SD

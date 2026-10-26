@@ -1074,7 +1074,10 @@ else
   fi
 fi
 echo "Setting user: sdsys primary group to sdusers."
-sudo usermod -g sdusers -G sdusers sdsys
+# 26 Oct 26 dm - -a: APPEND.  "-G sdusers" alone REPLACES the whole supplementary list, so every install that kept the accounts took the existing sdsys user out of the
+#   group of every kept group account (sdg_shared held only root afterwards: measured on the VM) and out of every sdu_ group the question asked above had just been told to
+#   keep; sdsys_groups_ruling, further down, is what decides the sdu_ groups, and a group account's group is left as it was.
+sudo usermod -g sdusers -a -G sdusers sdsys
 # 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: sdsys is ENTERED BY LOGIN.
 # Its password is set at the end of this install (a hidden prompt, like the
 # SD password below), and the account needs a working shell and a home to
