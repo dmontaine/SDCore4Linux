@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 26 Oct 26 dm UPDATE.ACCOUNTS (modes 2 and 4) updates the SDSYS account's own VOC from VOC_TEMPLATE, not NEWVOC: tool.gates is the administrator's page in
+*           one and the holder's page in the other, and the installer's UPDATE.ACCOUNTS ALL had written the holder's over the administrator's.
 * 18 Oct 26 dm The size a session with no tty takes is DEFAULT.WIDTH by DEFAULT.DEPTH, now 140 by 42 (int$keys.h), and the
 *           terminfo entries say the same; a real terminal still decides its own size.
 * 18 Oct 26 dm S.66: the shared-account gates (K$SHARED.READ, K$SHARED.WRITE) are loaded at sign-on, account-scoped like NET; read is on unless the record says no.
@@ -221,6 +223,11 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    if mode = 2 or mode = 3 or mode = 4 then  ;* Just doing a VOC upgrade or install
       if mode = 2 or mode = 4 then           ;* VOC update (4 = UPDATE.ACCOUNTS ALL)
          update.voc.f = voc
+* 26 Oct 26 dm - THE SDSYS ACCOUNT'S OWN VOC IS UPDATED FROM VOC_TEMPLATE, NOT FROM NEWVOC.  The install builds it from the whole of
+*   VOC_TEMPLATE (bbproc) and NEWVOC is a smaller set for the other accounts; where the two hold the same id with different content
+*   (tool.gates: the matrix for the administrator, the holder's read-only page for everyone else) UPDATE.ACCOUNTS ALL, which the
+*   installer runs on every install, wrote the holder's page over the administrator's.  Found on a real install by witness-toolgates.py.
+         update.sdsys.voc = (@who = 'sdsys' and kernel(K$ADMINISTRATOR,-1))
          gosub update.voc
          close update.voc.f
       end
@@ -266,6 +273,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
                            display sysmsg(5004, s) ;* Updating xx
 * 18 Sep 26 dm - TEARDOWN (S.25).  One VOC layer: every account is NEWVOC, so
 *   the walk no longer resolves a tier first.
+                           update.sdsys.voc = 0             ;* the walk passes over the SDSYS account (its path is in voc.paths); every account here is NEWVOC's
                            gosub update.voc
                            close update.voc.f
                            voc.paths<-1> = acc.path
@@ -794,7 +802,9 @@ update.voc:
    overridden.count = 0
    overridden.ids = ''
 
-   openpath @sdsys:@ds:"newvoc" to sdsys.file else
+   upd.source = "newvoc"
+   if update.sdsys.voc then upd.source = "voc_template"      ;* 26 Oct 26 - see the mode 2 / 4 test above
+   openpath @sdsys:@ds:upd.source to sdsys.file else
       display sysmsg(2210) ;* Cannot open SDSYS NEWVOC
       goto abort.login
    end

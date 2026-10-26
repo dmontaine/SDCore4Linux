@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  UPDATE.ACCOUNTS NO LONGER REPLACES THE ADMINISTRATOR'S tool.gates WITH THE ACCOUNT HOLDER'S PAGE.
+
+             What        The SDSYS account's own VOC is built at install from the whole of VOC_TEMPLATE, and every other account's VOC is NEWVOC, a smaller set. tool.gates is in both with
+                         different content: the matrix of every account's gates for the administrator, and for an account holder the read-only page of what that account may do.
+                         UPDATE.ACCOUNTS, and UPDATE.ACCOUNTS ALL which the installer runs on every install and an administrator runs after an upgrade, copied NEWVOC over the SDSYS
+                         account's own VOC too, so SDSYS found the holder's page where the matrix should be. Updating the SDSYS account's own VOC now reads VOC_TEMPLATE; every
+                         other account is updated from NEWVOC as before. Found on a real install by witness-toolgates.py, whose first row asks for the matrix as SDSYS.
+             Why it      Without it the administrator could not open the page that changes an account's gates (the matrix) after any install or update, only read the holder's view.
+             matters
+             Does not    Repair an install made before this change: run UPDATE.ACCOUNTS ALL in the SDSYS account after the upgrade (the installer does), or copy the record
+                         tool.gates from VOC_TEMPLATE into the SDSYS VOC by hand. No other record is affected: the other ids the two sets share differ only in a description or a trailing empty field.
+
 26 Oct 26  THE ROOT HELPER NO LONGER TAKES WHAT NO CALLER SENDS: A USER ACCOUNT'S FILES, THE PASSWORD OF A LOGIN SD DID NOT MAKE, AN OLD PASSWORD'S REPLACEMENT, AND A GROUP FOR SOMEBODY ELSE'S ACCOUNT (W.11 F12).
 
              What        The sdsys login may run /usr/local/sbin/sd-elevate with any arguments, so each verb of the helper was a wall only as far as its own checks went, and
@@ -23,8 +35,11 @@ Next release - in progress
              Does not    Make the sdsys login harmless: it can still write the global catalogue, make a new SD user and set its first password, put a person in any account's
                          group (modify.account add is exactly that), have a restore replace an account with a tree it staged itself, and turn any file or directory it owns into one
                          owned by root and the group sdusers. The group-account verbs now look for a directory named group_accounts literally, so a GRPDIR set to another name is
-                         refused by them. create.account, modify.account, delete.account and the installer send the same calls as before, which is read from the programs and held
-                         by the unit checks; witness-f12.py is what shows it on a real install and has not been run.
+                         refused by them. create.account, modify.account, delete.account and the installer send the same calls as before: read from the programs, held by the unit checks, and
+                         shown on a Debian 13 install on 26 Oct 26 (witness-f12.py, 83 rows: a user and a group account made, changed and deleted through SD, an OTHER account
+                         with a path outside the accounts root, the retry and the unwind of a refused password, every refusal as sdsys through sudo, and the helper started from a
+                         directory holding a module planted by sdsys; the python of that machine has grp built in, so that last row cannot fail there). Not shown: a restore
+                         through restore.account (witness-backup.sh).
 
 26 Oct 26  THE FILES ROOT RUNS ARE NOW ROOT'S, AND SO IS THE DIRECTORY THEY ARE IN (W.11 F11).
 
@@ -43,7 +58,9 @@ Next release - in progress
                          verbs F12 narrows). A system installed before this change keeps its old owners until SD is deleted and installed again. During the minutes of an
                          install, before this step, bin is still the sdsys user's. Putting a file of your own into bin now needs sudo chattr -i /usr/local/sdsys/bin first, and
                          catalog ... pcode and a recursive compile (SD's own developers' tools) need root. On a file system that cannot keep the attribute the files are root's but bin
-                         can still be renamed. What happens on a real machine has not been measured yet (witness-f11.py is written and has not been run).
+                         can still be renamed. Measured on a Debian 13 install on 26 Oct 26 (witness-f11.py, 34 rows): the owners and the attribute, the sdsys login unable to write, make or rename
+                         anything in bin or to rename bin itself, SD and the audit daemon starting from it, systemd restarting a killed daemon, and SDSYS still compiling,
+                         cataloguing and running update.accounts all; not measured: a reboot, a file system without the attribute, and a root catalog ... pcode.
 
 26 Oct 26  TWO PEOPLE CAN NOW BE AT THE HOME SCREEN AT THE SAME TIME: A SESSION THAT STARTED AT IT NO LONGER KEEPS THE NEXT ONE WAITING AT SIGN-ON.
 

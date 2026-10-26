@@ -190,6 +190,8 @@ yesno_file()  { [ -e "$1" ] && echo yes || echo no; }
 # counts them (directories exclude the account directory itself).
 counts() {
     local d="$ACCOUNTS_ROOT/$1" f b n
+    # 26 Oct 26: the shared account (S.66) is a GROUP account, so its directory is under group_accounts; an ALL backup lists it and the count on the disk must look there
+    [ -d "$d" ] || d="/home/sd/group_accounts/$1"
     f=$(find "$d" -type f | wc -l)
     b=$(find "$d" -type f -printf '%s\n' | awk '{s += $1} END {print s + 0}')
     n=$(find "$d" -mindepth 1 -type d | wc -l)
