@@ -93,7 +93,7 @@ def checks(s):
     cmds = re.findall(r"act = '(cmd:[^']*|terminal|switch|signout)' ; pal", th)       # the rows of the table (the case lines of start.tile also say act = ...)
     ADMIN_TILES = {"menus": "tool.menus", "viewers": "tool.viewers", "audit": "tool.audit", "config": "tool.config", "backups": "tool.backups", "masters": "tool.masters",
                    "accounts": "tool.accounts", "sessions": "tool.sessions", "gates": "tool.gates", "remote": "tool.remote", "ai": "tool.ai"}
-    DEV_TILES = {"files": "tool.files", "voc": "tool.voc"}             # the development apps (DV), for every account; each adds its tile in the commit that builds it (plan 13.2)
+    DEV_TILES = {"files": "tool.files", "voc": "tool.voc", "dict": "tool.dict", "query": "tool.query", "bulk": "tool.bulk", "catalog": "tool.catalog", "test": "tool.test"}            # the development apps (DV), for every account; each adds its tile in the commit that builds it (plan 13.2)
     ck("H4 tool_home: every tile of the table has a fixed action (cmd:sed, ide, ced, tool.keys, my.menu, the development apps and the eleven administrator pages), terminal, switch or signout; the ONLY other action is a person's own program (H25)",
        sorted(cmds) == sorted(["cmd:sed", "cmd:ide", "cmd:ced", "terminal", "cmd:tool.keys", "switch", "signout", "cmd:my.menu"] + ["cmd:" + v for v in ADMIN_TILES.values()] + ["cmd:" + v for v in DEV_TILES.values()]), repr(cmds))
     ck("H4b ...execute is given only a sentence from that table, 'quit', or the logto of an account picked from the register list",

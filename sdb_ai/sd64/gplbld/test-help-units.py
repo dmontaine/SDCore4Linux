@@ -58,6 +58,8 @@ def load():
     src["tool_remote"] = read(os.path.join(GPL, "tool_remote"))       # 25 Oct 26, S.75 A9: the remote access page asks for tool.remote.page
     src["tool_files"] = read(os.path.join(GPL, "tool_files"))         # 26 Oct 26, S.75 DV1: the files page asks for tool.files.page
     src["tool_voc"] = read(os.path.join(GPL, "tool_voc"))             # 26 Oct 26, S.75 DV3: the VOC page asks for tool.voc.page
+    for app in ("dict", "query", "bulk", "catalog", "test"):
+        src["tool_" + app] = read(os.path.join(GPL, "tool_" + app))   # 26 Oct 26, S.75 DV2, DV4-DV7: each page asks for its tool.<app>.page
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
     for name in sorted(os.listdir(HELP)):
         src["ht." + name] = read(os.path.join(HELP, name))
@@ -152,7 +154,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|masters|audit|config|backups|accounts|remote|files|voc)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_masters"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"]) + "\n" + strip(s["tool_files"]) + "\n" + strip(s["tool_voc"])))
+    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|masters|audit|config|backups|accounts|remote|files|voc|dict|query|bulk|catalog|test)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_masters"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"]) + "\n" + strip(s["tool_files"]) + "\n" + strip(s["tool_voc"]) + "".join("\n" + strip(s["tool_" + a]) for a in ("dict", "query", "bulk", "catalog", "test"))))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 13 and not (asked - set(hts)), repr(sorted(asked - set(hts))))
@@ -225,6 +227,23 @@ def checks(s):
        and "   allow = 'delete'" in tvc and tvc.count("allow = ") == 1 and "tool.voc.page" in hts and tvc.count("call $tk_confirm(sent, lines, vid, res, cmsg)") == 1
        and "call $tk_run(allow, sent, out, stat, rerr)" in tvc and tvc.count("execute sent") == 1 and "sent = 'sed voc ' : vid" in tvc, "")
 
+    tdi, tqy, tbl, tcg, tts = (strip(s["tool_" + a]) for a in ("dict", "query", "bulk", "catalog", "test"))
+    ck("P17m tool.dict: a [?], F1 and ? and a click show its help (tool.dict.page); it runs delete, compile.dict, make.index, build.index and delete.index through $tk_run, hands the terminal to sed and list.index only, and has the one execute statement of that hand-over",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tdi and tdi.count("call $tk_help('box', 'tool.dict.page', hm, 0, 0)") == 2 and "call $tk_help('hit', mev, 134, 2, hit.m)" in tdi and "tool.dict.page" in hts
+       and "   allow = 'delete compile.dict make.index build.index delete.index'" in tdi and "show.allow = 'sed list.index'" in tdi and tdi.count("allow = ") == 2 and tdi.count("execute sent") == 1 and "call $tk_run(allow, sent, out, stat, rerr)" in tdi, "")
+    ck("P17n tool.query: a [?] in each of its three views, F1 and ? and a click show its help (tool.query.page); it does not use $tk_run (a query value needs the double quote $tk_run refuses) and has exactly two execute statements, the query after check.sentence and the make of its own file",
+       tqy.count("call $tk_help('mark', hx, hy, 0, 0)") == 3 and tqy.count("call $tk_help('box', 'tool.query.page', hm, 0, 0)") == 2 and "call $tk_help('hit', mev, hx, hy, hit.m)" in tqy and "tool.query.page" in hts
+       and "$tk_run" not in tqy and tqy.count("execute run.s trapping aborts capturing out") == 1 and tqy.count("execute qsent trapping aborts capturing mk") == 1 and len(re.findall(r"^\s*execute\b", tqy, re.M)) == 2, "")
+    ck("P17o tool.bulk: a [?], F1 and ? and a click show its help (tool.bulk.page); it does not use $tk_run and has exactly two execute statements, the select of its own words and the make of its undo file",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tbl and tbl.count("call $tk_help('box', 'tool.bulk.page', hm, 0, 0)") == 2 and "call $tk_help('hit', mev, 134, 2, hit.m)" in tbl and "tool.bulk.page" in hts
+       and "$tk_run" not in tbl and len(re.findall(r"^\s*execute\b", tbl, re.M)) == 2 and "execute ssent trapping aborts capturing sout rtnlist slv" in tbl and "execute MKUNDO trapping aborts capturing mkout" in tbl, "")
+    ck("P17p tool.catalog: a [?], F1 and ? and a click show its help (tool.catalog.page); it runs only basic, catalog, decatalog and delete.catalog through $tk_run and has no execute statement",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tcg and tcg.count("call $tk_help('box', 'tool.catalog.page', hm, 0, 0)") == 2 and "call $tk_help('hit', mev, 134, 2, hit.m)" in tcg and "tool.catalog.page" in hts
+       and "   allow = 'basic catalog decatalog delete.catalog'" in tcg and tcg.count("allow = ") == 1 and "call $tk_run(allow, sent, out, stat, rerr)" in tcg and not re.search(r"^\s*execute\b", tcg, re.M), "")
+    ck("P17q tool.test: a [?], F1 and ? and a click show its help (tool.test.page); it runs only run and basic through $tk_run and has no execute statement",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tts and tts.count("call $tk_help('box', 'tool.test.page', hm, 0, 0)") == 3 and "call $tk_help('hit', mev, 134, 2, hit.m)" in tts and "tool.test.page" in hts
+       and "   allow = 'run basic'" in tts and tts.count("allow = ") == 1 and tts.count("call $tk_run(allow, sent, out, stat, rerr)") == 2 and not re.search(r"^\s*execute\b", tts, re.M), "")
+
     # one wrapping loop
     ck("P18 the wrapping loop is $tk_wrap and nowhere else: $tk_confirm, tool.menus and tool.viewers call it and none has the loop (a SCREEN TEXT longer than its width is cut, not wrapped)",
        "rest[cut, 1] # ' '" in tw and "call $tk_wrap(sentence, wrapw, pieces)" in tc and "call $tk_wrap(lines<wi>, 63, pieces)" in tm and "call $tk_wrap(lines<wi>, 134, pieces)" in tv
@@ -232,8 +251,8 @@ def checks(s):
     ck("P18b $tk_confirm wraps the lines of the explanation like the sentence, an empty line stays empty, and does not append them raw (the box CUTS a long line at its edge: the tail of the ai gate's 150-character sentence never showed, 24 Oct 26)",
        "call $tk_wrap(lines<li>, wrapw, pieces)" in tc and "for li = 1 to dcount(lines, @fm)" in tc and "if lines<li> = '' then" in tc and "body := @fm : lines" not in tc)
 
-    every =th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tma + "\n" + tau + "\n" + tcf + "\n" + tbk + "\n" + tac + "\n" + trm
-    want = {"$tk_help": 5, "$tk_wrap": 3, "!viewlist": 4, "$tk_run": 5, "$tk_confirm": 5}
+    every =th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tma + "\n" + tau + "\n" + tcf + "\n" + tbk + "\n" + tac + "\n" + trm + "\n" + tfl + "\n" + tvc + "\n" + tdi + "\n" + tqy + "\n" + tbl + "\n" + tcg + "\n" + tts
+    want ={"$tk_help": 5, "$tk_wrap": 3, "!viewlist": 4, "$tk_run": 5, "$tk_confirm": 5}
     wrong = {k: [n for n in arg_counts(every, k) if n != v] for k, v in want.items()}
     seen = {k: len(arg_counts(every, k)) for k in want}
     ck("P20 every call of $tk_help (5 arguments), $tk_wrap (3), !viewlist (4), $tk_run (5) and $tk_confirm (5) has the number of arguments the subroutine takes (the null case: each is called at least once)",
@@ -302,6 +321,14 @@ MUTANTS = [
     ("tool.files loses its [?]", "tool_files", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.files can run another command", "tool_files", "   allow = 'create.file clear.file delete.file'", "   allow = 'create.file clear.file delete.file sh'"),
     ("tool.files can hand the terminal to another command", "tool_files", "show.allow = 'analyse.file list.index list.triggers'", "show.allow = 'analyse.file list.index list.triggers sh'"),
+    ("tool.dict loses its [?]", "tool_dict", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.dict can run another command", "tool_dict", "   allow = 'delete compile.dict make.index build.index delete.index'", "   allow = 'delete compile.dict make.index build.index delete.index sh'"),
+    ("tool.dict can hand the terminal to another command", "tool_dict", "show.allow = 'sed list.index'", "show.allow = 'sed list.index sh'"),
+    ("tool.bulk loses its [?]", "tool_bulk", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.catalog can run another command", "tool_catalog", "   allow = 'basic catalog decatalog delete.catalog'", "   allow = 'basic catalog decatalog delete.catalog sh'"),
+    ("tool.catalog loses its [?]", "tool_catalog", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.test can run another command", "tool_test", "   allow = 'run basic'", "   allow = 'run basic sh'"),
+    ("tool.test loses its [?]", "tool_test", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.voc loses its [?]", "tool_voc", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.voc can run another command", "tool_voc", "   allow = 'delete'", "   allow = 'delete sh'"),
     ("tool.voc deletes without asking for the id", "tool_voc", "   call $tk_confirm(sent, lines, vid, res, cmsg)", "   call $tk_confirm(sent, lines, '', res, cmsg)"),

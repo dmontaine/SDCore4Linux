@@ -2399,7 +2399,7 @@
 "part": "reference/basic-modes.md",
 "since": "-",
 "tier": "reference",
-"words": 21
+"words": 26
 },
 "basic:option:chain.keep.common": {
 "kind": "basic.option",
@@ -3512,7 +3512,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 12
+"words": 17
 },
 "basic:stmt:inherit": {
 "kind": "basic.statement",
@@ -11961,7 +11961,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 18
+"words": 19
 },
 "msg:11866": {
 "kind": "message",
@@ -28980,12 +28980,33 @@
 "tier": "reference",
 "words": 66
 },
+"tcl:tool.bulk": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 106
+},
+"tcl:tool.catalog": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 95
+},
 "tcl:tool.config": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
 "words": 78
+},
+"tcl:tool.dict": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 120
 },
 "tcl:tool.files": {
 "kind": "tcl.verb",
@@ -29022,6 +29043,13 @@
 "tier": "reference",
 "words": 52
 },
+"tcl:tool.query": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 114
+},
 "tcl:tool.remote": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -29035,6 +29063,13 @@
 "since": "next",
 "tier": "reference",
 "words": 64
+},
+"tcl:tool.test": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 129
 },
 "tcl:tool.viewers": {
 "kind": "tcl.verb",

@@ -44,7 +44,7 @@ E = "\x1b"
 KEYS = {"up": E + "[A", "down": E + "[B", "right": E + "[C", "left": E + "[D", "home": E + "[1~", "end": E + "[4~", "pgup": E + "[5~", "pgdn": E + "[6~", "tab": "\t",
         "btab": E + "[Z", "f2": E + "[[B", "f3": E + "[[C", "f4": E + "[[D", "f5": E + "[[E", "f6": E + "[17~", "f10": E + "[21~", "enter": "\r", "esc": E, "ctrl-q": "\x11", "bs": "\x7f"}
 # a cell inside each tile, on the row of its label, found by the layout of the first screen (13.10): the Tools group at the top, Everyone under it, the header tiles
-TILE = {"Editor": (10, 5), "IDE": (10, 27), "Record editor": (10, 51), "Terminal": (17, 5), "Keys": (17, 51), "Files": (24, 5), "Vocabulary": (24, 27), "Switch account": (2, 100), "Sign out": (2, 122)}
+TILE = {"Editor": (10, 5), "IDE": (10, 27), "Record editor": (10, 51), "Terminal": (17, 5), "Keys": (17, 51), "Files": (24, 5), "Vocabulary": (24, 27), "Dictionary": (24, 51), "Queries": (24, 73), "Bulk update": (24, 97), "Programs": (24, 119), "Tests": (30, 5), "Switch account": (2, 100), "Sign out": (2, 122)}
 BOX = SYS = None
 THEBOX = None
 
@@ -296,7 +296,7 @@ def main():
         row("row 0: the menu bar File Go View AI Help at the left, 'home  don@zzhm' at the right", h.line(0).startswith(" File  Go  View  AI  Help") and h.line(0).endswith("home  don@zzhm"), repr(h.line(0)))
         row("the focus starts on the first tile of the page (Editor): one tile in reverse video", h.focus() == ["Editor"], repr(h.focus()))
         # Vocabulary (24,27) is the only tile in IDE's columns below it, so Down from IDE goes to it (a tile that shares columns comes before one that does not: Terminal is narrower than two columns)
-        seq = [("right", "IDE"), ("right", "Record editor"), ("left", "IDE"), ("down", "Vocabulary"), ("up", "IDE"), ("left", "Editor"), ("down", "Terminal"), ("right", "Keys"), ("left", "Terminal"), ("up", "Editor"), ("down", "Terminal"), ("home", "Editor"), ("end", "Vocabulary"),
+        seq = [("right", "IDE"), ("right", "Record editor"), ("left", "IDE"), ("down", "Vocabulary"), ("up", "IDE"), ("left", "Editor"), ("down", "Terminal"), ("right", "Keys"), ("left", "Terminal"), ("up", "Editor"), ("down", "Terminal"), ("home", "Editor"), ("end", "Tests"),
                ("home", "Editor"), ("tab", "IDE"), ("btab", "Editor"), ("btab", "Sign out"), ("tab", "Editor")]
         bad = []
         for k, want in seq:
@@ -552,7 +552,7 @@ def main():
         bar2 = "".join(h.line(r)[139:140] for r in range(5, 39))
         term_focus = [r for r in range(6, 38) if h.line(r)[5:13].strip() == "Terminal" and "r" in h.style(r, 5)[2]]        # the page is scrolled, so the fixed cells of TILE do not apply
         row("Page Down from the last of the first group goes to the first tile of the next (Terminal): the panel scrolls to its heading 'Everyone' and the thumb is near the bottom of the bar",
-            len(term_focus) == 1 and "Everyone" in T and bar2.rfind("#") > len(bar2) - 8, repr((term_focus, bar2)))
+            len(term_focus) == 1 and "Everyone" in T and bar2.rfind("#") > len(bar2) - 14, repr((term_focus, bar2)))       # the Develop group is two rows tall now, so the thumb is in the lower part of the bar, not at its foot
         h.key("home")
         for _ in range(5):
             h.key("down", idle=0.3)

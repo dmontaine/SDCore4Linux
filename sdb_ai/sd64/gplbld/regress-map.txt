@@ -295,10 +295,10 @@ sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
 sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
-sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc
-sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc
-sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-masters tool-backups tool-accounts tool-remote tool-files tool-voc
-sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-masters tool-accounts tool-remote tool-files tool-voc
+sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
+sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
+sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-masters tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
+sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-masters tool-accounts tool-remote tool-files tool-voc tool-dict tool-catalog tool-test
 # 23 Oct 26 (S.69 step 2): the AI choice page, tool.ai - its own routine for set.ai's words, the gate table (the ai gate is a row of it) and the gate reader
 sdsys/gpl.bp/tk_runx         : tk-base tool-ai tool-backups tool-accounts
 sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
@@ -430,6 +430,37 @@ sdsys/gpl.bp/tool_voc        : tool-voc
 sdsys/newvoc/tool.voc        : tool-voc
 sdsys/voc_template/tool.voc  : tool-voc
 sdsys/helptext/tool.voc.*    : docs tool-voc
+# 26 Oct 26 (S.75 DV2, DV4-DV7): the dictionary, query, bulk update, catalogue and test pages, built by a workflow in private clones and integrated here; each is a verb for every account (newvoc and voc_template)
+gplbld/sandbox-tool-dict.py  : @self
+gplbld/test-tooldict-units.py : none
+sdsys/gpl.bp/tool_dict       : tool-dict
+sdsys/newvoc/tool.dict       : tool-dict
+sdsys/voc_template/tool.dict : tool-dict
+sdsys/helptext/tool.dict.*   : docs tool-dict
+gplbld/sandbox-tool-query.py : @self
+gplbld/test-toolquery-units.py : none
+sdsys/gpl.bp/tool_query      : tool-query
+sdsys/newvoc/tool.query      : tool-query
+sdsys/voc_template/tool.query : tool-query
+sdsys/helptext/tool.query.*  : docs tool-query
+gplbld/sandbox-tool-bulk.py  : @self
+gplbld/test-toolbulk-units.py : none
+sdsys/gpl.bp/tool_bulk       : tool-bulk
+sdsys/newvoc/tool.bulk       : tool-bulk
+sdsys/voc_template/tool.bulk : tool-bulk
+sdsys/helptext/tool.bulk.*   : docs tool-bulk
+gplbld/sandbox-tool-catalog.py : @self
+gplbld/test-toolcatalog-units.py : none
+sdsys/gpl.bp/tool_catalog    : tool-catalog
+sdsys/newvoc/tool.catalog    : tool-catalog
+sdsys/voc_template/tool.catalog : tool-catalog
+sdsys/helptext/tool.catalog.* : docs tool-catalog
+gplbld/sandbox-tool-test.py  : @self
+gplbld/test-tooltest-units.py : none
+sdsys/gpl.bp/tool_test       : tool-test
+sdsys/newvoc/tool.test       : tool-test
+sdsys/voc_template/tool.test : tool-test
+sdsys/helptext/tool.test.*   : docs tool-test
 # 25 Oct 26 (S.75 A9): the remote access page runs the real remote.api / remote.ssh reports, delete.server, and reads the servers with !netdefs; set.server and a door's change are the verbs'
 gplbld/sandbox-tool-remote.py : @self
 sdsys/gpl.bp/tool_remote     : tool-remote
@@ -571,13 +602,13 @@ sdsys/gpl.bp/osdelete        : gates
 sdsys/gpl.bp/_ioscopy        : gates oq2 editgates masters
 sdsys/gpl.bp/_oscopy         : gates oq2 editgates masters
 sdsys/gpl.bp/oscopya         : gates oq2
-sdsys/gpl.bp/catalog         : callcase bcomp-a1 misc-a9 fixes-b12 editgates
-sdsys/gpl.bp/delcat          : callcase misc-a9 fixes-b12 editgates
+sdsys/gpl.bp/catalog         : callcase bcomp-a1 misc-a9 fixes-b12 editgates tool-catalog
+sdsys/gpl.bp/delcat          : callcase misc-a9 fixes-b12 editgates tool-catalog
 sdsys/gpl.bp/setfile         : fixes-b12
 sdsys/gpl.bp/configf         : fixes-b12 nocase upgradenocase
 sdsys/gpl.bp/dirinfo         : fixes-b12
-sdsys/gpl.bp/decat           : callcase misc-a9 editgates
-sdsys/gpl.bp/basic           : bcomp-a1 callcase misc-a9 lang-a15 mode-q16 editgates shared @core
+sdsys/gpl.bp/decat           : callcase misc-a9 editgates tool-catalog
+sdsys/gpl.bp/basic           : bcomp-a1 callcase misc-a9 lang-a15 mode-q16 editgates shared @core tool-catalog tool-test
 sdsys/gpl.bp/stdfil*         : stdfil
 # S.66 (18 Oct 26): the shared account.  The three new programs, the verb that lists it, DELETE.ACCOUNT's refusal and SP.VIEW's edit-gate message.
 sdsys/gpl.bp/shared_ref      : shared @core

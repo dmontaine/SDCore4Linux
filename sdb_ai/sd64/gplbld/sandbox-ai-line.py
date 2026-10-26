@@ -245,7 +245,7 @@ def sec_ring():
     arow("L4b", "what is typed is in the line", "abc" in line_row(h), repr(line_row(h)[:60]))
     h.key("esc", idle=0.8)
     arow("L4c", "Esc gives the focus back to the tile it came from side of the ring (the first tile again, the typed text is kept in the line)", h.focus() != [] and "abc" in line_row(h), repr((h.focus(), line_row(h)[:60])))
-    for _ in range(12):
+    for _ in range(40):                                          # the ring grows with every development tile; the loop ends at Sign out
         h.key("tab", idle=0.3)
         if "Sign out" in h.focus():
             break

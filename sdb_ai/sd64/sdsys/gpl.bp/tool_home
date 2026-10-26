@@ -10,7 +10,7 @@
 * 25 Oct 26 dm  The administrator's page has a tile for every administrator page (plan 13.2: a new app adds its row in the commit that builds it): System gains Audit trail and
 *               Configuration; People and access (Accounts, Sessions and locks, Gates) and Data, network and AI (Backups, Master files, Remote servers, AI) are new groups, all three
 *               side by side in one band so that Tools and Everyone stay on the first screen.  Tiles may carry a live line (accounts, sessions, master files) read when the page is
-*               built and every 30 seconds.  The development apps have a group Develop under Everyone (Files, Vocabulary).
+*               built and every 30 seconds.  The development apps have a group Develop under Everyone (Files, Vocabulary, Dictionary, Queries, Bulk update, Programs, Tests).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -23,7 +23,7 @@
 *
 *     System     (the administrator only) Menu management, Bypass programs, Audit trail, Configuration
 *     People and access, Data network and AI     (the administrator only) Accounts, Sessions and locks, Gates; Backups, Master files, Remote servers, AI.  Each tile starts the page's verb.
-*     Develop    the development apps, for every account: Files (tool.files), Vocabulary (tool.voc)
+*     Develop    the development apps, for every account: Files (tool.files), Vocabulary (tool.voc), Dictionary (tool.dict), Queries (tool.query), Bulk update (tool.bulk), Programs (tool.catalog), Tests (tool.test)
 *     Tools      the standard tools of every account: Editor (sed), IDE (ide), Record editor (ced)
 *     Everyone   Terminal (leaves the screen for the ordinary prompt; EXIT comes back), Keys (tool.keys)
 *     Header     who is signed on and when, Switch account (a pick list of the accounts this person may enter, then the screen of that account) and Sign out
@@ -260,6 +260,11 @@ build.page:
    gr<g> = 'Develop' : @vm : bnd : @vm : 6
    id = 'files' ; grp = g ; label = 'Files' ; glyph = '[F]' ; sub = 'files and indices' ; act = 'cmd:tool.files' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'voc' ; grp = g ; label = 'Vocabulary' ; glyph = '[V]' ; sub = 'verbs and pointers' ; act = 'cmd:tool.voc' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   id = 'dict' ; grp = g ; label = 'Dictionary' ; glyph = '[D]' ; sub = 'items and indices' ; act = 'cmd:tool.dict' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   id = 'query' ; grp = g ; label = 'Queries' ; glyph = '[Q]' ; sub = 'build a report' ; act = 'cmd:tool.query' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   id = 'bulk' ; grp = g ; label = 'Bulk update' ; glyph = '[B]' ; sub = 'change many records' ; act = 'cmd:tool.bulk' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   id = 'catalog' ; grp = g ; label = 'Programs' ; glyph = '[P]' ; sub = 'compile, catalogue' ; act = 'cmd:tool.catalog' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   id = 'test' ; grp = g ; label = 'Tests' ; glyph = '[T]' ; sub = 'run and judge tests' ; act = 'cmd:tool.test' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    * the header: two small tiles at the right, on screen rows 1 to 3
    hx = 95 ; hy = 1
    id = 'switch' ; grp = 0 ; label = 'Switch account' ; glyph = '<> ' ; sub = '' ; act = 'switch' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header

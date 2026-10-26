@@ -1,6 +1,107 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  THE DICTIONARY OF A FILE CAN BE SEEN AND CHANGED ON ONE SCREEN: tool.dict, FOR EVERY ACCOUNT (S.75, DV2).
+
+             What        tool.dict (in every account's vocabulary; a window of 140 by 43 or more) shows the dictionary of one file of the account - with a file named
+                         after the verb (tool.dict customers) at once, or after a list of the account's files from which Enter opens one. Each item is listed with its
+                         type (data, A, S, I, C, text and the others), the field it shows or "computed", its heading, format, conversion, single or multivalued,
+                         association and expression, and the item under the cursor is described in words: which field it shows, how wide and how justified it prints,
+                         what its conversion does and whether an I-type has been compiled. N makes a data, A-type or computed item: it asks the id and the fields that
+                         type needs one at a time, refuses a wrong answer with the reason, shows the whole record in a box and, after Run, writes it - the one thing the
+                         page writes itself; before it does, the page asks the system whether this account may change the dictionary, as SED does, and shows the
+                         system's own refusal when it may not (the dict-edit gate decides, as ever). E edits the item in SED, D deletes it with the delete verb after a
+                         box that wants its id typed, and C compiles an A, S, I or C item with compile.dict. T tries the item on a record of the file and shows the value
+                         the query processor would compute for it, and the same value as a query prints it; the page writes nothing (an item that calls a subroutine of the account runs it, as a query would). I (or Tab) shows the file's indices - built
+                         or not - and N makes one on an item picked from a list (make.index: it defines the index and builds it), B builds one again, D deletes one after
+                         its name is typed and L lists it in full. The home screen has a tile for it in the group Develop.
+             Why it      Looking at a dictionary meant dict and list dict, and making an item meant ED and remembering which field holds what; an index that was defined
+             matters     and never built looked like a working index and found nothing.
+             Does not    Change the dict-edit gate (without it N, E and D are refused with the system's words and the record is left as it was; compiling an item and
+                         making, building and deleting indices were never held back by it), give an id or index name with a capital, a dollar or an at sign to a command (the
+                         page says which verb to type), keep any file open while it waits (a build needs the file to itself), copy items from one file to another, edit the
+                         master dictionary, or change the dictionaries of the shared account except as the shared account's own rules allow.
+
+26 Oct 26  A QUERY CAN BE BUILT, RUN AND SAVED ON ONE SCREEN: tool.query, FOR EVERY ACCOUNT (S.75, DV4).
+
+             What        tool.query (in every account's vocabulary; a window of 140 by 43 or more) builds a LIST, SORT, COUNT or SUM sentence on one of the
+                         account's files in five boxes - the file, the columns (Space marks one, B breaks on it, T totals it), up to six conditions joined
+                         by and / or, up to four sort levels, and the options (a heading and a footing, leave out the record id or the detail lines,
+                         no.page, only the first n records) - and shows the sentence all the time. R runs it and shows what it printed in a box of its own
+                         (2,000 lines are kept and the box says how many there were); E edits the sentence as text; S saves the query in the file &queries&
+                         of the account (made, after a box that shows the command, when the first query is saved); L lists the saved queries, loads one, and
+                         X deletes one with its name typed. tool.query zq opens the file zq directly. A value is quoted by one routine that refuses a control
+                         character, a quote of either kind, a backslash, a backquote and a semicolon. EVERY sentence - the one the boxes make, one edited by
+                         hand, one that a saved query holds - is checked again just before it runs: it must start with list, sort, count or sum, name the chosen
+                         file, and hold only words from a fixed list, numbers, the items of that file's dictionary and values in double quotes. A word that
+                         sends the output elsewhere or writes (to, saving, lptr, csv, as, file ...) is refused even when it is the name of a dictionary item.
+                         A saved query is checked again part by part when it is loaded; what does not fit is dropped and counted.
+             Why it      A report meant knowing the query language and the dictionary by heart. The sentence is now built from the file's own dictionary,
+                         shown before it runs, and run without leaving the page.
+             Does not    Need a gate (it only reads, and writes only the one file &queries&), print or write a report to a file or a select list (lptr, to,
+                         saving, csv and as are refused), ask run-time prompts, save a query as a VOC paragraph, put a quote in a heading (the page-number
+                         codes are typed at the prompt), or stop a query on a big file once it has started (the first-n option is the trial).
+
+26 Oct 26  MANY RECORDS OF ONE DATA FILE CAN BE CHANGED IN ONE GO, WITH A DRY RUN FIRST AND AN UNDO AFTER: tool.bulk, FOR EVERY ACCOUNT (S.75, DV5).
+
+             What        tool.bulk (in every account's vocabulary; a window of 140 by 43 or more) changes the records of ONE dynamic data file of the account the
+                         session is in. F chooses the file. The records are chosen by up to four conditions (an item of the file's dictionary, an operator and a value;
+                         all of them or any of them), by one saved list chosen by name, or all of them, and the page counts what the choice takes. Up to ten operations
+                         are applied to each of those records, in order: set to a constant, set to null, append, prepend, replace text, add a number, upper case,
+                         lower case, copy from another attribute - each on an attribute number or on a D item of the dictionary. R makes a DRY RUN, which writes
+                         nothing: it says how many records were selected, would change, would stay as they are and could not be worked out, with before and after of
+                         the first twenty that would change. A applies it, and is on the function-key row only after a dry run of exactly the settings on the
+                         screen; it asks for the file's name typed, then takes each record under a lock, skips one that another session holds locked or one that is no
+                         longer as the dry run read it, keeps the record as it was in the file &bulk.undo& of the account (made through a box the first time; the last
+                         run only) and stops at the first write error. U puts the last run back, record by record, and only where the record is still what the run
+                         wrote. One line goes to the audit trail for a run, bulk update file=<file> records=<n>, and one for an undo, bulk undo file=<file> records=<n>,
+                         with no data. The undo file is used only if it is a dynamic file called &bulk.undo& in the account's own directory that the system lets the
+                         session change; a VOC name pointed at a program file, a dictionary or a file elsewhere is refused and nothing is applied.
+             Why it      Changing one attribute of a few thousand records took a program or a long series of commands, with no way to see the result first and no way
+             matters     to take it back.
+             Does not    Update a directory file, a sequential file, a file on another server, the VOC, a dictionary or a program file (they are refused up front and the
+                         system is asked too: an account without the matching edit gate meets the system's own refusal), put into the select a value that is not a letter,
+                         a digit, a space or one of . , : + - _ / @ ( ) % * (it is refused, so a value cannot carry a quote or a command), evaluate expressions, change the
+                         edit gates, add numbers with more than 4 decimals (the record is left alone and counted), or keep a select list you had active (the page uses
+                         the default one, list 0).
+
+26 Oct 26  THE PROGRAMS OF AN ACCOUNT CAN BE SEEN, COMPILED AND CATALOGUED ON ONE SCREEN: tool.catalog, FOR EVERY ACCOUNT (S.75, DV6).
+
+             What        tool.catalog (in every account's vocabulary; a window of 140 by 43 or more) lists the records of the account's program files (bp, any file
+                         ending .bp, any file with a .out file beside it) - what each is (program, subroutine, function, class, or an include or screen record), when it
+                         was compiled, how big the compiled program is, whether it is current or STALE (the source was changed after it was compiled) and where it is
+                         catalogued: private, local, or global (shown, never changed). A private copy from an earlier compile is marked older. Entries in the private or
+                         local catalogue that no program accounts for are listed too. The box under the list describes the row under the cursor with the paths and times.
+                         B compiles it and shows the compiler's lines, C catalogues it privately, L locally, X takes a local entry out and deletes the compiled program it
+                         points at, D takes a private or local entry out; each runs the ordinary verb (basic, catalog, decatalog, delete.catalog) after a box that shows
+                         the exact command (Cancel is what Enter chooses; X and D, and a catalog that would also take an entry of the same name out of another catalogue,
+                         want the name typed). BASIC and CATALOG are run with NO.QUERY because a question they would ask could not be shown on the screen; the box says
+                         what that does. The home screen has a tile for it in the Develop group.
+             Why it      Finding out which programs were compiled, which were changed since, and which name runs which copy meant MAP, FIND.PROGRAM, directory listings and
+             matters     file dates read side by side.
+             Does not    Change the bp-edit gate (the verbs need it, and their refusal is what is shown), offer or change a GLOBAL catalogue entry (that stays the
+                         administrator's own command), give a name with a capital, a dollar or a leading dot, dash or underscore to a command (the page says which verb to
+                         type), write an audit line of its own (the verbs write theirs), or list programs of the shared account.
+
+26 Oct 26  THE TESTS OF AN ACCOUNT CAN BE RUN AND JUDGED ON ONE SCREEN: tool.test, FOR EVERY ACCOUNT (S.75, DV7).
+
+             What        tool.test (in every account's vocabulary; a window of 140 by 43 or more) lists the tests of the account - the programs whose record id
+                         starts with test. in its program files (bp, a file whose name ends .bp, or one with a .out file beside it) - and runs them. A test prints
+                         what it checks, and its last non-empty line says how it went, N passed, 0 failed (the line SD's own test suites end with; a name and a colon
+                         may come first). R runs the test under the cursor, A every test shown, one after another (Esc stops after the one that is running), F the
+                         ones that failed, again; A and F first show a box with the number of tests and the first commands, and Cancel is what Enter chooses. A test is a pass when the line says nothing failed and something passed, a fail when something failed or the run
+                         aborted (the page shows the abort message, because the system throws away what an aborted program printed), and has no verdict when there is
+                         no such line, no output at all, or 0 passed and 0 failed. For each test the page shows the numbers, the seconds it took, when it finished and
+                         how many lines it printed; Enter shows what it printed, scrolling (a very long output is kept by its first 360 and last 39 lines, and the
+                         verdict is judged on all of it). B compiles a test that has no object code, with basic, after a box that shows the command. A test that asks
+                         for input is given empty answers instead of waiting, and the result says how many it used; a test that does not end is stopped with Ctrl-C
+                         and then Q. The home screen's Develop group has a tile for it.
+             Why it      Finding the test programs, running each by hand and reading the last line of each took a command per test; the page runs them all and shows
+             matters     which ones need attention.
+             Does not    Give a test a time limit (BASIC has none; Ctrl-C then Q is the way out), keep results beyond the session, run a test whose name has a capital,
+                         an ampersand or a dollar (the page says what to type), change any gate (running a test needs none; compiling needs bp-edit and the compiler's
+                         own refusal is what is shown), or list the tests of the shared account.
+
 26 Oct 26  THE FILES AND THE VOCABULARY OF AN ACCOUNT CAN BE SEEN AND MANAGED ON ONE SCREEN EACH: tool.files AND tool.voc, FOR EVERY ACCOUNT (S.75, DV1 AND DV3); THE ADMINISTRATOR'S HOME SCREEN HAS A TILE FOR EVERY ADMINISTRATOR PAGE.
 
              What        tool.files (in every account's vocabulary; a window of 140 by 43 or more) lists the account's files - what kind each is, about how many
