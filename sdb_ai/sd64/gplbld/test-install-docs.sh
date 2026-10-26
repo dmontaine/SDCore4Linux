@@ -20,7 +20,7 @@
 #   C  the content: with the shared account registered, the pdf directory is made, owned sdsys:sdusers, mode 755; load.help is run once with input from /dev/null and cannot stop
 #      the install, and its result is judged on the file context.help; set.viewer runs only after a y, with input from /dev/null, and the success line is printed only when the
 #      list holds a pdf line afterwards (sd exits 0 when it refuses); with no shared account none of it runs.
-#   S  static: the question comes after the gates question and before the colour reset; the content block comes after the shared account is made and before the VOC walk.
+#   S  static: the question comes after the API question (the gates question it used to follow was dropped on 26 Oct 26) and before the colour reset; the content block comes after the shared account is made and before the VOC walk.
 #
 # NOT MEASURED HERE, and said so: that the real load.help, run by `sudo bin/sd -internal` while the install's own cproc is in place, enters the shared account and fills the file
 # (sandbox-docs.py runs it on a private SD; a real install witnesses the rest); that chown sdsys:sdusers works on the real machine.
@@ -208,14 +208,14 @@ row "C12 no shared account: nothing is run or made (no sd call, no pdf directory
 
 # ---- S. static --------------------------------------------------------------------------------------------------------
 echo "--- S: the places"
-ln_gates=$(grep -n '^# GATES-ASK-END' "$INST" | head -1 | cut -d: -f1)
+ln_gates=$(grep -n '^read -r -p "Allow API access from other computers?' "$INST" | head -1 | cut -d: -f1)       # 26 Oct 26: the gates question is gone; the reader question follows the API question
 ln_ask=$(grep -n '^# VIEWER-ASK-BEGIN' "$INST" | head -1 | cut -d: -f1)
 ln_askend=$(grep -n '^# VIEWER-ASK-END' "$INST" | head -1 | cut -d: -f1)
 ln_nc=$(awk -v s="$ln_askend" 'NR>s && /^printf "%b\\n" "\$NC"$/ {print NR; exit}' "$INST")
 ln_cr=$(grep -n '^# SHARED-CREATE-END' "$INST" | head -1 | cut -d: -f1)
 ln_ct=$(grep -n '^# SHARED-CONTENT-BEGIN' "$INST" | head -1 | cut -d: -f1)
 ln_walk=$(grep -n "AN UPGRADE BRINGS EVERY ACCOUNT'S VOC FORWARD" "$INST" | head -1 | cut -d: -f1)
-row "S1 the reader question comes after the gates question and before the colour reset that ends the questions" "$(ok "$([ "${ln_gates:-0}" -gt 0 ] && [ "$ln_gates" -lt "${ln_ask:-0}" ] && [ "${ln_ask:-0}" -lt "${ln_nc:-0}" ] && echo yes)")" "gates $ln_gates, ask $ln_ask, reset ${ln_nc:-none}"
+row "S1 the reader question comes after the API question and before the colour reset that ends the questions" "$(ok "$([ "${ln_gates:-0}" -gt 0 ] && [ "$ln_gates" -lt "${ln_ask:-0}" ] && [ "${ln_ask:-0}" -lt "${ln_nc:-0}" ] && echo yes)")" "API question $ln_gates, ask $ln_ask, reset ${ln_nc:-none}"
 row "S2 the content block comes after the shared account is made and before the walk that brings every account's VOC forward" "$(ok "$([ "${ln_cr:-0}" -gt 0 ] && [ "$ln_cr" -lt "${ln_ct:-0}" ] && [ "${ln_ct:-0}" -lt "${ln_walk:-0}" ] && echo yes)")" "create-end $ln_cr, content $ln_ct, walk ${ln_walk:-none}"
 
 echo

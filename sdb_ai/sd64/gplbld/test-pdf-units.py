@@ -170,7 +170,7 @@ def checks(s):
     cont = between(ins, "# SHARED-CONTENT-BEGIN", "# SHARED-CONTENT-END")
     ck("D17 the installer asks about a reader up front: No unless y or yes, only when a known reader is installed and the list has no pdf line yet, and allows nothing itself",
        "allow_viewer=n" in ask and "if ! grep -qs '^pdf ' \"${sdsysdir}/viewers\"; then" in ask and "case $yn_viewer in [yY]|[yY][eE][sS] ) allow_viewer=y;; esac" in ask and "set.viewer" not in ask
-       and ins.find("# GATES-ASK-END") < ins.find("# VIEWER-ASK-BEGIN") < ins.find("printf \"%b\\n\" \"$NC\"", ins.find("# VIEWER-ASK-END")), repr(len(ask)))
+       and 0 < ins.find('read -r -p "Allow API access from other computers?') < ins.find("# VIEWER-ASK-BEGIN") < ins.find("printf \"%b\\n\" \"$NC\"", ins.find("# VIEWER-ASK-END")), repr(len(ask)))
     ck("D18 ...and then, in the content block (after the shared account is made): the pdf directory is owner sdsys, group sdusers, mode 755; load.help runs with input from /dev/null and cannot stop the install; set.viewer runs only after a y; the result is judged on the list",
        ins.find("# SHARED-CREATE-END") < ins.find("# SHARED-CONTENT-BEGIN") < ins.find("# 11 Sep 26  AN UPGRADE BRINGS EVERY ACCOUNT'S VOC FORWARD")
        and 'sudo mkdir -p "${shared_dir}/pdf"' in cont and 'sudo chown sdsys:sdusers "${shared_dir}/pdf"' in cont and 'sudo chmod 755 "${shared_dir}/pdf"' in cont

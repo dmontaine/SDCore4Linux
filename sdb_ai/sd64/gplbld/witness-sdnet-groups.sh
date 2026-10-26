@@ -22,7 +22,7 @@
 #         sudo bash THIS arrange-upgrade
 #         bash /home/don/Projects/SDCore4Linux/installsdcore-dev.sh        (as you always do, no sudo, keeping the accounts; capture it with `script`, NOT tee: an installer
 #                                                                           piped through tee leaves its password prompt visible)
-#         sudo bash THIS after-upgrade --install-log FILE [--gates-for YOU]   (--gates-for YOU if you answered y to "open every access gate for your account")
+#         sudo bash THIS after-upgrade --install-log FILE [--gates-for YOU]   (--gates-for YOU if you gave your own account the write group by hand; the installer no longer asks to open the gates, 26 Oct 26)
 #   (vii) a DELETE cycle, read from the group file afterwards, for the branch that removes the accounts and for the branch that keeps them (two cycles, two installs):
 #         sudo bash THIS before-delete
 #         bash /home/don/Projects/SDCore4Linux/deletesdcore.sh               (answer DELETE to remove the accounts, or the keep word to keep them)
