@@ -25,6 +25,7 @@
 *
 *
 * START-HISTORY:
+* 26 Oct 26 dm  _sdsysn joins the bootstrap list: LOGIN calls !sdsysn when SDSYS signs on (S.76), and SECOND.COMPILE signs on as SDSYS.
 * 15 Oct 26 dm  login_inhibit joins the bootstrap list: LOGIN calls it (QM4 gaps Q-8, INHIBIT.LOGIN).
 * 07 Oct 26 dm  batch.jobs.dic is created with the other dictionaries (the Windows port's
 *               batch.jobs dictionary, 22 Aug; PAL-1 audit).
@@ -259,6 +260,9 @@ src.list<-1> = 'is_grp_member'
 src.list<-1> = 'acc_hold'
 * 15 Oct 26 dm - INHIBIT.LOGIN: LOGIN calls !login_inhibit on every entry, for the same reason as !acc_hold.
 src.list<-1> = 'login_inhibit'
+* 26 Oct 26 dm - S.76: LOGIN calls !sdsysn when a session of SDSYS signs on, and every pass after this one is such a session: without it the pass died
+*   "Unable to load '!SDSYSN' object code in $LOGIN" (the sandbox bootstrap's second pass, 26 Oct 2026).
+src.list<-1> = '_sdsysn'
 src.list<-1> = 'term'
 
 src.cnt = dcount(src.list,@FM) 

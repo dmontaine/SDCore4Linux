@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  SDSYS CAN BE SIGNED ON IN MORE THAN ONE PLACE, AND THE ADMINISTRATOR CAN NOW SEE IT: AN AUDIT LINE, A MARK ON THE SESSIONS PAGE AND A COUNT ON THE HOME SCREEN (S.76).
+
+             What        Nothing ever stopped a second terminal window, or a second local login of the sdsys user, from starting sd, and it still does not: a stuck
+                         session can be ended with logout from another one, and a limit of one would lock the administrator out until sd -cleanup. What changed is that
+                         the second session is no longer silent. When a session of SDSYS signs on while another session of SDSYS is on a terminal, the audit trail gets
+                         one more line after the usual login one, sdsys second session others=<n>. tool.sessions puts sdsys x<n> in the State column of each such row,
+                         says SDSYS in <n> places in its counts line and says so in the box under the list for the row under the cursor. The home screen's Sessions and
+                         locks tile says <m> signed, <n> sdsys instead of <m> signed on. What counts is a session of the account sdsys that is on a terminal: a phantom,
+                         an API or SDNet process, a session being logged out, and a session with no terminal (a piped sd 'command', sd -internal, a script) are not
+                         counted and write no line. One routine, !SDSYSN, is the single definition of such a session for the three.
+             Why it      With a single administrator account, a second session of it at the machine was something nobody could see without listing the sessions by hand,
+             matters     and the audit trail did not say that it had begun.
+             Does not    Limit SDSYS to one session, refuse or end the second one, or count a session over the API or ssh (SDSYS has neither).
+
 26 Oct 26  THE DICTIONARY OF A FILE CAN BE SEEN AND CHANGED ON ONE SCREEN: tool.dict, FOR EVERY ACCOUNT (S.75, DV2).
 
              What        tool.dict (in every account's vocabulary; a window of 140 by 43 or more) shows the dictionary of one file of the account - with a file named

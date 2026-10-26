@@ -501,6 +501,8 @@ live.sessions:
    call !listu(ludata)
    n = dcount(ludata, @fm)
    txt = n : ' signed on'
+   call !sdsysn(sdn, sdids, sdmine, sdtty)                      ;* S.76: SDSYS on a terminal in more than one place is said on the tile (the tile is 19 characters wide)
+   if sdn > 1 then txt = n : ' signed, ' : sdn : ' sdsys'
    return
 
 live.masters:

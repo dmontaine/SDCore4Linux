@@ -95,7 +95,11 @@ MUTANTS = {
     "no-typed-number": ("   typed = uid\n", "   typed = ''\n", ["S4"], "S4"),
     "cursor-by-row": ("      for i = 1 to ns\n         if udata<i, 1> = sel.u then", "      for i = 1 to 0\n         if udata<i, 1> = sel.u then", ["S5"], "S5"),
     "unlock-unsafe-id": ("         word = uid2\n         gosub plain.word\n         if plain then", "         word = uid2\n         plain = 1\n         if plain then", ["S6"], "S6"),
+    # S.76: a mark on every row of SDSYS, whatever the count (page); a second-session line for the first session too (login, the sandbox's own copy)
+    "sdsys-mark-always": ("if nsd > 1 and index(@fm : sduids : @fm, @fm : v<1, 1> : @fm, 1) > 0 then stt", "if index(@fm : sduids : @fm, @fm : v<1, 1> : @fm, 1) > 0 then stt", ["S11"], "S11"),
+    "audit-no-tty-check": ("if sd.tty and sd.n - sd.mine > 0 then", "if sd.n - sd.mine > 0 then", ["S11"], "S11"),
 }
+MUTPROG = {"audit-no-tty-check": "login"}                        # the program a mutant changes: tool_sessions unless it is named here
 
 
 def arow(rid, name, ok, detail=""):
@@ -249,14 +253,15 @@ def setup_sessions():
 
 def mutate(name):
     old, new, _kills, _last = MUTANTS[name]
-    path = os.path.join(sh.SYS, "gpl.bp", "tool_sessions")
+    prog = MUTPROG.get(name, "tool_sessions")
+    path = os.path.join(sh.SYS, "gpl.bp", prog)                  # the sandbox's own copy (login's carries the sandbox patches: never the tree's)
     src = open(path, encoding="utf-8", errors="replace").read()
     if src.count(old) != 1:
         bail("mutant %s: the text to change is found %d times, not once" % (name, src.count(old)))
     g.put(path, src.replace(old, new))
-    out = g.adm(["BASIC gpl.bp tool_sessions"], internal=True)
+    out = g.adm(["BASIC gpl.bp " + prog], internal=True)
     if not has(out, r"^Compiled 1 program\(s\) with no errors"):
-        bail("the mutant page did not compile:\n" + "\n".join(out[-8:]))
+        bail("the mutant %s did not compile:\n%s" % (prog, "\n".join(out[-8:])))
 
 
 class Page:
@@ -609,6 +614,50 @@ def section_s8(p):
     p.quit()
 
 
+def wait_screen(p, pred, secs=25.0):
+    """the page reads the sessions every 3 seconds: pump its pseudo-terminal until the screen satisfies pred (PtySession._pump returns at the first byte, so this is a deadline loop)"""
+    end = time.time() + secs
+    while time.time() < end:
+        p.h.s._pump(0.5)
+        if pred():
+            return True
+    return pred()
+
+
+def section_s11(p):
+    say("\n--- S11: SDSYS in two places (S.76, the owner's decision of 26 Oct 2026: allowed, and visible)")
+    a0 = audit_off()
+    p.key("f5", idle=3.0)
+    S = p.sessions()
+    arow("S11a", "the page's own session is the only one of SDSYS on a terminal (the holders are pipe sessions with no terminal): no row says 'sdsys x' and the counts line does not say 'SDSYS in'",
+         all("sdsys x" not in r["state"] for r in S.values()) and "SDSYS in" not in p.line(14) and len(S) >= 3, repr((p.line(14)[:110], {u: r["state"] for u, r in S.items()})))
+    h2 = H(admin=True)                                            # a second terminal session of SDSYS (the harness plays SDSYS with the sandbox user)
+    try:
+        ok = wait_screen(p, lambda: sum(1 for r in p.sessions().values() if "sdsys x2" in r["state"]) == 2 and "SDSYS in 2 places" in p.line(14))
+        S = p.sessions()
+        flagged = sorted(u for u, r in S.items() if "sdsys x2" in r["state"])
+        arow("S11b", "a second terminal session of SDSYS signs on: within seconds exactly two rows say 'sdsys x2' (the page's own says 'you sdsys x2'), both in the account sdsys, no other row does, and the counts line says 'SDSYS in 2 places'",
+             ok and len(flagged) == 2 and any("you" in S[u]["state"] for u in flagged) and all(S[u]["acct"] == "sdsys" for u in flagged), repr((p.line(14)[:120], {u: (r["acct"], r["state"]) for u, r in S.items()})))
+        new = audit_new(a0) or ""
+        lines = re.findall(r"sdsys second session others=(\d+)", new)
+        arow("S11c", "the audit trail has exactly one line 'sdsys second session others=1' since the page was opened, and it came with the second sign-on (the first session, the holders and the page's own wrote none)",
+             lines == ["1"], repr((lines, new[-300:])))
+        g.adm(["LISTU"])                                          # an administrator session on a pipe: it has no terminal, so it is not a second person at the machine
+        new2 = audit_new(a0) or ""
+        arow("S11c2", "an administrator session on a pipe signs on while two terminal sessions of SDSYS are there: no further 'sdsys second session' line",
+             re.findall(r"sdsys second session others=(\d+)", new2) == ["1"], repr((re.findall(r"sdsys second session others=(\d+)", new2), new2[-300:])))
+        other = [u for u in flagged if "you" not in S[u]["state"]]
+        if other:
+            p.to_session(other[0])
+            wait_screen(p, lambda: "One of 2 sessions of SDSYS" in norm(p.text()), 6.0)
+            arow("S11d", "with the cursor on the other row the box under the list says it is one of 2 sessions of SDSYS on a terminal and names the audit line", "One of 2 sessions of SDSYS on a terminal" in norm(p.text()) and "sdsys second session" in norm(p.text()), norm(p.text())[-500:])
+    finally:
+        h2.end()
+    gone = wait_screen(p, lambda: all("sdsys x" not in r["state"] for r in p.sessions().values()) and "SDSYS in" not in p.line(14))
+    arow("S11e", "the second session ends: the marks and the counts line go within seconds", gone, repr((p.line(14)[:110], {u: r["state"] for u, r in p.sessions().items()})))
+    p.key("home", idle=0.6)
+
+
 def section_s9():
     say("\n--- S9: a small window, and an input that ends")
     h = H(admin=True, cols=100, rows=30)
@@ -660,7 +709,7 @@ def main():
     order = ["S3", "S4", "S5", "S6", "S7", "S8", "S9"]
 
     def run(s):
-        return mutant is None or order.index(s) <= order.index(last)
+        return mutant is None or (last in order and order.index(s) <= order.index(last))        # an S11 mutant runs S1 and S11 only
 
     try:
         sh.setup("sandbox-tool-sessions.py")
@@ -672,6 +721,8 @@ def main():
             section_s0()
         a, b, ua, ub = start_holders()
         p = section_s1(a, b, ua, ub)
+        if mutant is None or last == "S11":
+            section_s11(p)
         if mutant is None:
             section_s2(p, ua, ub)
         if run("S3"):

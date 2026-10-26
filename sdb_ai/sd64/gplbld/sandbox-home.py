@@ -341,8 +341,8 @@ def main():
             ("%d accounts" % nacc) in T and "1 signed on" in T and "not set up" in T and "create and manage" not in T and "who is on" not in T and "shared copies" not in T, repr(re.findall(r"\d+ accounts|\d+ signed on|not set up|nothing pending", T)))
         h2 = H(admin=True)
         h.key("f5", idle=2.0)
-        row("a second administrator session signs on and F5 reads the lines again: Sessions and locks now says 2 signed on",
-            h.home() and "2 signed on" in h.text(), repr(re.findall(r"\d+ signed on", h.text())))
+        row("a second administrator session signs on and F5 reads the lines again: Sessions and locks now says 2 signed, 2 sdsys (S.76: SDSYS on a terminal in two places is said on the tile; with one it says 1 signed on)",
+            h.home() and "2 signed, 2 sdsys" in h.text() and "2 signed on" not in h.text(), repr(re.findall(r"\d+ signed[^ ]* ?(?:on|\d+ sdsys)", h.text())))
         h2.end()
         # The lines are read again each time the key wait runs out (30 seconds without a key).  PtySession._pump(wait) returns as soon as the FIRST byte is ready, not after `wait`
         # seconds (the page's clock redraw at a tick ends it at once), so the wait is a deadline: up to 100 seconds, which holds three readings, until the tile says 1 signed on.
@@ -352,7 +352,7 @@ def main():
             h.s._pump(0.5)
         seen.append(re.findall(r"\d+ signed on", h.text()))
         row("the key wait runs out (30 seconds) and the lines are read without a key: the second session has gone, the tile says 1 signed on again, and the page is still whole",
-            h.home() and "1 signed on" in h.text() and "2 signed on" not in h.text(),
+            h.home() and "1 signed on" in h.text() and "2 signed on" not in h.text() and "signed, " not in h.text(),
             repr((seen, "second session exited=%s killed=%s" % (h2.s.exited, getattr(h2.s, "killed", None)), [l for l in adm("LISTU") if "sdsys" in l])))
         h.end()
         h = H(admin=True)
