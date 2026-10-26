@@ -1056,7 +1056,8 @@ AUDD0=$(wl_audit_offset)
 OUTD=$(wl_sd_user "$CUSER" "run zzwnad WITH the administration group" "RUN bp zzwnad")
 D_ID=$(printf '%s\n' "$OUTD" | sed -n 's/^D1 .* id=\[\([0-9][0-9]*\)\].*$/\1/p' | head -1)
 OUTV=$(wl_sd_user "$CUSER" "the verbs WITH the administration group" "ANALYSE.FILE zzrw" "CREATE.INDEX zzrc name" "BUILD.INDEX zzrc name" "CREATE.FILE zzwnew SERVER $SRV" "COUNT zzwnew" "DELETE.FILE zzwnew NO.QUERY")
-IDX=$(wl_sd_user "$REMOTE" "LIST.INDEX zzcust" "LIST.INDEX zzcust")
+# 26 Oct 26 (first VM run): LIST.INDEX takes the file AND the index name; without the name it asks "Index name:" and reads the next line (OFF) as the answer.  CREATE.INDEX zzrc name made it.
+IDX=$(wl_sd_user "$REMOTE" "LIST.INDEX zzcust name" "LIST.INDEX zzcust name")
 SEQ=$(wl_sd_user "$REMOTE" "CT zzwgf ${D_ID:-0}" "CT zzwgf ${D_ID:-0}")
 GONE=$(wl_sd_user "$REMOTE" "COUNT zzwnew after the delete" "COUNT zzwnew")
 sleep 2; AUDD=$(wl_audit_since "$AUDD0")
@@ -1078,7 +1079,10 @@ for v in "analyse.file file=zzwgf" "create.index file=zzcust" "build.index file=
 done
 expect_has "D3 audit: the client's own line for the verb" "$AUDD" "netfile admin server=$SRV file=zzwgf op=analyse.file"
 expect_lacks "D3 audit: NO api refused line in phase D3" "$AUDD" "api refused"
-[ "$(count_re "$AUDD" "api login route=sdfiles write=on admin=on user=$REMOTE")" -ge 3 ] && pass "D3 audit: the logins say write=on admin=on" || fail "D3 audit: fewer than three 'api login route=sdfiles write=on admin=on' lines"
+# 26 Oct 26 (first VM run): TWO logins, not three - the program zzwnad is one connection and the whole run of verbs (ANALYSE.FILE, CREATE.INDEX, BUILD.INDEX, CREATE.FILE, DELETE.FILE) is one more; the five
+# 'api admin request=70' rows above are what show that each verb was served, these two say that BOTH connections were admitted with admin=on and not admin=off.
+[ "$(count_re "$AUDD" "api login route=sdfiles write=on admin=on user=$REMOTE")" -ge 2 ] && [ "$(count_re "$AUDD" "api login route=sdfiles write=on admin=off user=$REMOTE")" -eq 0 ] \
+  && pass "D3 audit: both connections' logins say write=on admin=on (and none says admin=off)" || fail "D3 audit: fewer than two 'api login route=sdfiles write=on admin=on' lines, or a login that says admin=off"
 
 # D4. files-admin-off: only the administration group goes, and the requests are refused again
 OUT=$(wl_sd_admin "files-admin-off" "MODIFY.ACCOUNT $REMOTE FILES-ADMIN-OFF")
