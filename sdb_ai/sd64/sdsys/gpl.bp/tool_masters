@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 26 Oct 26 dm  F6: the kernel's check ends with an "off" row, the number of accounts whose master edits are switched off (the sdsys user is not in their group); it is not a difference and is
+*               shown on a line of its own in the top box (11981).  nonwritable and norights are worded for an account whose edits are on.
 * 24 Oct 26 dm  New.
 * END-HISTORY
 *
@@ -68,7 +70,7 @@ $include tk.h
    VD = 5                                                       ;* difference rows on the screen
    ha = fmt('Account', '26L') : fmt('State', '32L') : 'First difference'
 
-   ready = 0 ; na = 0 ; nd = 0 ; ncheck = 0
+   ready = 0 ; na = 0 ; nd = 0 ; ncheck = 0 ; noff = 0
    anm = '' ; acnt = '' ; aorph = '' ; afirst = ''
    drows = '' ; truncated = 0 ; jlines = ''
    pend.bytes = 0 ; pend.lines = 0 ; stale.n = 0 ; drop.n = 0 ; pflags = 0 ; refusal = ''
@@ -113,7 +115,7 @@ read.all:
    sel.a = ''
    if na > 0 and ci >= 1 and ci <= na then sel.a = anm<ci>
    anm = '' ; acnt = '' ; aorph = '' ; afirst = '' ; drows = '' ; truncated = 0 ; jlines = ''
-   nd = 0 ; ncheck = 0 ; pend.bytes = 0 ; pend.lines = 0 ; stale.n = 0 ; drop.n = 0 ; pflags = 0
+   nd = 0 ; ncheck = 0 ; noff = 0 ; pend.bytes = 0 ; pend.lines = 0 ; stale.n = 0 ; drop.n = 0 ; pflags = 0
    ans = kernel(K$MASTERS, 'ready')
    ready = (ans<2> = 1)
    ans = kernel(K$MASTERS, 'refusal')
@@ -140,8 +142,12 @@ read.all:
                truncated = 1
             end else
                rw = ans<i>
-               drows<-1> = rw
-               gosub count.row
+               if rw<1, 1> = 'off' then
+                  noff = rw<1, 2>                               ;* F6: how many accounts have master edits switched off; not a difference, not a row of an account
+               end else
+                  drows<-1> = rw
+                  gosub count.row
+               end
             end
          next i
       end
@@ -248,6 +254,9 @@ draw.status:
       s = 'No save of a master record was refused in this session.'
    end
    screen text s at 3,6 width 134
+   s = ''
+   if ready and noff > 0 then s = sysmsg(11981, noff)         ;* F6: the accounts whose master edits are switched off
+   screen text s at 3,7 width 134
    call $tk_help('mark', 134, 2, 0, 0)
    return
 
@@ -384,9 +393,9 @@ kind.words:
       case kinds<i> = 'extra'
          kw = 'the master copy has a record the account no longer has.'
       case kinds<i> = 'nonwritable'
-         kw = "the account's VOC or dictionary directory or files lack group write permission, so a master edit cannot be delivered (the installer's upgrade puts the mode right)."
+         kw = "the account's VOC or dictionary directory or files lack group write permission, so a master edit cannot be delivered (modify.account " : nme : " sdsys-on puts the mode right)."
       case kinds<i> = 'norights'
-         kw = 'the mode lets the group write but this session cannot.'
+         kw = 'the mode lets the group write but this session cannot (see the reason on the row: mode, stale-session means sign on again as SDSYS, no-write).'
       case kinds<i> = 'toolong'
          kw = 'a record key is too long for MAXIDLEN to mirror.'
       case kinds<i> = 'unreadable'

@@ -13,6 +13,8 @@
 * 18 Oct 26 dm S.66: CA$SHARED.READ.OFF (37) and CA$SHARED.WRITE (38), Linux only, the shared-account gates.  Windows ignores
 *              the Linux block (31-40) and defines neither; the mail to the Windows agent is deferred (sequential order of 11 Oct).
 * 18 Oct 26 dm S.65 write group: CA$FILESWRITE (39), Linux only, membership of the group sdfileswrite (needs CA$FILES).  Same block, same deferral.
+* 26 Oct 26 dm S.75, home: CA$START (42) and CA$PINS (43), Linux only, where the new account starts and whether it may add programs of its own to its home screen.  The Linux block
+*              ran past 40 on 23 Oct (CA$AI, 41) and is 31-50 here.  Same deferral: mail the Windows agent when the Linux side is stable.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -26,7 +28,7 @@
 *       1-8    shared
 *       9-20   reserved for future shared settings
 *       21-30  SD Core for Windows only
-*       31-40  SD Core for Linux only
+*       31-50  SD Core for Linux only
 *
 * END-DESCRIPTION
 *
@@ -75,5 +77,11 @@ $define CA$FILESADMIN      40    ;* 1 = start in the group sdfilesadmin (with CA
 
 * Linux only (23 Oct 26, S.69 step 2): 1 = also join the Linux group sdaiusers, the right to use the AI provider's API through the helper sd-ai.  Stands alone.
 $define CA$AI              41    ;* 1 = start in the group sdaiusers (S.69 step 2)
+
+* Linux only (26 Oct 26, S.75, the home screen).  CA$START is a request only when it is exactly menu or terminal (lower case): the new account's ACC$START is that word; anything else
+* is refused before anything is made.  Blank leaves the account following the system default (SET.START.DEFAULT).  CA$PINS is a request only when exactly 1 (off unless named): the
+* new account's ACC$PINS is 'yes', the person may add programs of their own to their home screen (MY.MENU); blank or 0 leaves it off.
+$define CA$START           42    ;* menu / terminal; blank = follow the system default
+$define CA$PINS            43    ;* 1 = the new account starts with ACC$PINS 'yes'
 
 * END-CODE

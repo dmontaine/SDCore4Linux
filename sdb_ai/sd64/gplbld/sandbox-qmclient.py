@@ -1254,7 +1254,7 @@ def main():
                 if af:
                     lib.SDClose(af)
                 row("S5: ... in append mode the open is answered but the WRITE fails (nothing written, a non-zero status), and the file is as "
-                    "it was", wr != 1 and wst != 0 and open("/etc/hostname", "rb").read() == before_h, "open %r, write %r, status %r" % (af, wr, wst))
+                    "it was", wst != 0 and open("/etc/hostname", "rb").read() == before_h, "open %r, status %r, file as it was %r (26 Oct 26: SDWriteSeq is a VOID function, so the old test of its 'return value' %r read whatever was left in a register and went red on an unrelated build; the status and the disk are the evidence)" % (af, wst, open("/etc/hostname", "rb").read() == before_h, wr))
             # no refusal for a missing directory: OPENSEQ makes it, as it does for any program that holds the gate
             ndf = lib.SDOpenSeq((nodir + "/x").encode(), b"", 512)
             if ndf > 10000:

@@ -166,7 +166,7 @@ gplsrc/sdsem.c               : shmmode @core
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode segtrust auditwriter @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof netfile masters
-gplsrc/kernel.c              : @core csvb q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates apispin segtrust
+gplsrc/kernel.c              : @core csvb q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates apispin segtrust ipc
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
 gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust
@@ -198,11 +198,11 @@ gplsrc/descr.h               : restricted classas nameindex @core netfile
 gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callfile callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared masters segtrust
+gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared masters segtrust ipc
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
-gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net shared masters csvb jsonx xmlx
+gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net shared masters csvb jsonx xmlx ipc
 gplsrc/sd.c                  : @core fixes-b12 segtrust auditwriter
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
@@ -289,20 +289,22 @@ sdsys/gpl.bp/bcomp ~ *              : @compiler
 sdsys/gpl.bp/bcomp.h         : @compiler
 sdsys/gpl.bp/tokens.h        : @compiler
 sdsys/gpl.bp/opcodes.h       : @compiler
-sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared winsize masters
+sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared winsize masters ipc
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
-sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line
+sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
 sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
 sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
-sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-masters tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
+sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-masters tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test tk-faults
 sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-masters tool-accounts tool-remote tool-files tool-voc tool-dict tool-catalog tool-test
 # 23 Oct 26 (S.69 step 2): the AI choice page, tool.ai - its own routine for set.ai's words, the gate table (the ai gate is a row of it) and the gate reader
 sdsys/gpl.bp/tk_runx         : tk-base tool-ai tool-backups tool-accounts
 sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
 sdsys/gpl.bp/tk_gates        : tk-base tk-keys tool-ai tool-gates tool-accounts
+# 26 Oct 26 (task faults): the window cap is in $tk_open, the sixth argument of $tk_confirm and message 11865 are the faults suite's
+sdsys/gpl.bp/tk_open         : tk-base tk-keys tk-faults
 sdsys/gpl.bp/tk_*            : tk-base tk-keys
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
@@ -313,7 +315,7 @@ sdsys/gpl.bp/_bindkey        : @core tk-base tk-keys
 sdsys/newvoc/tool.keys       : tk-keys
 sdsys/voc_template/tool.keys : tk-keys
 # S.75 H1 and H2 (22 Oct 26): the home screen, where an account starts (!home_entry, called by cproc), EXIT and SET.START.DEFAULT
-sdsys/gpl.bp/tool_home       : home ai-line
+sdsys/gpl.bp/tool_home       : home home2 ai-line
 # AI line stage 1 (23 Oct 26): the toolkit's AI line ($tk_ai) on the home screen, its messages and the fake model's JSON replies
 sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps
 gplbld/sandbox-ai-line.py    : @self
@@ -330,12 +332,17 @@ sdsys/messages/1163[5-9]     : ai-line
 sdsys/messages/1164[0-9]     : ai-line
 sdsys/messages/1165[0-2]     : ai-line
 sdsys/gpl.bp/home_entry      : home
+# 26 Oct 26 (task home): the Recent group's routine, the sub-menus and create.account's start and pins words are the home2 suite's (sandbox-home2.py)
+gplbld/sandbox-home2.py      : @self
+gplbld/sandbox-ipc.py        : @self
+gplbld/sandbox-tk-faults.py  : @self
+sdsys/gpl.bp/home_recent     : home2 home
 sdsys/gpl.bp/exit            : home
 sdsys/gpl.bp/setstart        : home
 sdsys/gpl.bp/home_off        : home menus
-sdsys/gpl.bp/settile         : menus
+sdsys/gpl.bp/settile         : menus home2
 sdsys/voc_template/set.tile  : menus
-sdsys/gpl.bp/tool_menus      : menus docs
+sdsys/gpl.bp/tool_menus      : menus docs home2
 sdsys/voc_template/tool.menus : menus
 sdsys/gpl.bp/home_pins       : home menus
 sdsys/gpl.bp/mymenu          : menus
@@ -405,6 +412,12 @@ gplbld/sandbox-tool-config.py : @self
 sdsys/gpl.bp/tool_config     : tool-config
 sdsys/config.table           : tool-config
 sdsys/voc_template/tool.config : tool-config
+# 26 Oct 26 (S.75 A6, the write half): the verb set.config and its VOC entry; sd-elevate's conf-set is held by test-confset-elevate-units.py and the suite's shim
+sdsys/gpl.bp/setconfig       : tool-config
+sdsys/voc_template/set.config : tool-config
+gplbld/test-confset-elevate-units.py : none
+gplbld/test-ipc-units.py     : none
+gplbld/test-tkfaults-units.py : none
 sdsys/helptext/tool.config.* : docs tool-config
 # 25 Oct 26 (S.75 A8): the backups page runs the real backup, restore and set-directory verbs and reads archives' manifests
 gplbld/sandbox-tool-backups.py : @self
@@ -433,13 +446,13 @@ sdsys/helptext/tool.voc.*    : docs tool-voc
 # 26 Oct 26 (S.75 DV2, DV4-DV7): the dictionary, query, bulk update, catalogue and test pages, built by a workflow in private clones and integrated here; each is a verb for every account (newvoc and voc_template)
 gplbld/sandbox-tool-dict.py  : @self
 gplbld/test-tooldict-units.py : none
-sdsys/gpl.bp/tool_dict       : tool-dict
+sdsys/gpl.bp/tool_dict       : tool-dict tk-faults
 sdsys/newvoc/tool.dict       : tool-dict
 sdsys/voc_template/tool.dict : tool-dict
 sdsys/helptext/tool.dict.*   : docs tool-dict
 gplbld/sandbox-tool-query.py : @self
 gplbld/test-toolquery-units.py : none
-sdsys/gpl.bp/tool_query      : tool-query
+sdsys/gpl.bp/tool_query      : tool-query tk-faults
 sdsys/newvoc/tool.query      : tool-query
 sdsys/voc_template/tool.query : tool-query
 sdsys/helptext/tool.query.*  : docs tool-query
@@ -583,19 +596,23 @@ sdsys/gpl.bp/_sdsysn         : tool-sessions home
 gplbld/test-sdsysvis-units.py : none
 sdsys/gpl.bp/term            : @core winsize
 sdsys/gpl.bp/classmain       : classinit
-sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile shared home tool-sessions
+sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile shared home tool-sessions ipc
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29 apispin fileadmin netindex
 sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient tool-remote
 sdsys/gpl.bp/remotessh       : gates tool-remote
 sdsys/gpl.bp/cred_*          : gates qmclient
+# 26 Oct 26 (F6 and the home work): create.account no longer puts the sdsys user into the account's group, and takes the start and pins words
+sdsys/gpl.bp/create_account  : masters gates editgates shared tool-accounts home2 @core
+sdsys/gpl.bp/createa         : masters gates editgates shared tool-accounts home2 @system
 sdsys/gpl.bp/create*         : @files gates @system editgates net shared
 sdsys/gpl.bp/config*         : @files conf-b1 sys-b2 q5
-sdsys/gpl.bp/phantom         : q5 q4 listu-a5
+sdsys/gpl.bp/phantom         : q5 q4 listu-a5 ipc
+sdsys/gpl.bp/ipc_seal        : ipc
 sdsys/gpl.bp/set*            : gates sys-b2 conf-b1 stmt-q3
 sdsys/gpl.bp/py_*            : gates
 sdsys/gpl.bp/acc*            : gates @system editgates net shared
-sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared filesgrp home aigate tool-gates tool-accounts
+sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared filesgrp home aigate tool-gates tool-accounts masters
 # 19 Oct 26 (K4a): the program that filesgrp runs reads these two lookups; it makes its own copies, but a change to the originals is a change to what it copies.
 sdsys/gpl.bp/is_grp_member   : filesgrp net gates tool-mygates
 sdsys/gpl.bp/is_group        : filesgrp net gates
@@ -618,7 +635,6 @@ sdsys/gpl.bp/shared_ref      : shared @core
 sdsys/gpl.bp/edit_msg        : shared editgates
 sdsys/gpl.bp/listshared      : shared
 sdsys/gpl.bp/delacc          : shared gates masters tool-accounts @system
-sdsys/gpl.bp/create_account  : masters gates editgates shared tool-accounts @core
 sdsys/gpl.bp/masters         : masters tool-masters
 sdsys/gpl.bp/masters_setup   : masters tool-masters
 sdsys/gpl.bp/spview          : shared editgates @core
@@ -627,7 +643,7 @@ sdsys/gpl.bp/*               : @core
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE REST OF WHAT SHIPS.
 sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient ospath editgates net shared csvb jsonx xmlx home
-sdsys/syscom/createacc.h     : editgates net shared @system
+sdsys/syscom/createacc.h     : editgates net shared @system home2
 sdsys/syscom/parser.h        : @query @core jsonx
 sdsys/syscom/sdclient.*      : qmclient
 sdsys/syscom/sdclilib*       : qmclient
@@ -675,7 +691,7 @@ sdsys/messages/1185[0-2]     : csvq
 sdsys/messages/1185[3-9]     : xmlx
 sdsys/messages/1186[0-2]     : xmlx
 # 22 Oct 26 (S.75 H1, H2): 11863-11867 are the home screen's lines, 11868-11869 are MODIFY.ACCOUNT's start words, 11870-11873 SET.START.DEFAULT's
-sdsys/messages/1186[3-9]     : home
+sdsys/messages/1186[3-9]     : home tk-faults
 sdsys/messages/1187[0-3]     : home
 sdsys/messages/1187[4-9]     : menus
 sdsys/messages/1188[0-6]     : menus home
@@ -688,6 +704,14 @@ sdsys/messages/1157[0-9]     : masters
 sdsys/messages/1158[0-9]     : masters
 sdsys/messages/1159[0-6]     : masters
 sdsys/messages/118[0-4][0-9] : tk-base       # the toolkit's block 11800-11849 (S.75)
+# 26 Oct 26: 11931-11937 are set.config's (A6), 11946-11947 the phantom seal's (F10), 11951-11955 the toolkit faults batch's, 11956-11962 the home work's, 11976-11982 are F6's
+sdsys/messages/1193[1-7]     : tool-config
+sdsys/messages/1194[67]      : ipc
+sdsys/messages/1195[1-5]     : tk-faults
+sdsys/messages/1195[6-9]     : home2 menus
+sdsys/messages/1196[0-2]     : home2 menus
+sdsys/messages/1197[6-9]     : masters gates tool-accounts
+sdsys/messages/1198[0-2]     : masters tool-masters gates
 sdsys/messages/*             : none
 sdsys/changelog              : none
 sdsys/licence*               : none

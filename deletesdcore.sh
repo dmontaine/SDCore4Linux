@@ -293,6 +293,9 @@ fi
 
 #remove config file
 sudo rm -f /etc/sd.conf
+# 26 Oct 26 dm - S.75 A6: set.config (sd-elevate conf-set) keeps the file as it was before its last change as /etc/sd.conf.bak; it goes with the file, whether the
+# configuration was saved to /home/sd (the saved sd.conf is the current one, the .bak is only the generation before it) or deleted.
+sudo rm -f /etc/sd.conf.bak
 echo "Config file removed."
 
 # 15 Sep 26 dm - S.19: the API's TLS server identity, kept beside sd.conf

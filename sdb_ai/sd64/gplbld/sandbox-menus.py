@@ -135,8 +135,8 @@ def main():
         row("the accounts, in order, without SDSYS: zzhd zzhm zzhs zzht zzhv (zzhs is marked suspended), each with where it starts (own word, or 'default (terminal)')",
             all(re.search(p, h.line(r)) for p, r in ((r"zzhd\s+OTHER\s+default \(terminal\)", 3), (r"zzhm\s+OTHER\s+menu", 4), (r"zzhs\s+OTHER \(s\)\s+menu", 5), (r"zzht\s+OTHER\s+terminal", 6), (r"zzhv\s+OTHER\s+menu", 7)))
             and "sdsys" not in T.replace("administrator", ""), repr([h.line(r)[:60] for r in range(2, 9)]))
-        row("the first account is selected (reverse video on its row) and the Menu box is for it: 'Starts in' and the seven tiles, all on ([x])",
-            "r" in h.style(3, 5)[2] and "Starts in" in h.line(2)[72:] and len(re.findall(r"\[x\] [A-Z]", T)) == 7, repr((h.style(3, 5), h.line(2)[72:100], len(re.findall(r"\[x\] [A-Z]", T)))))
+        row("the first account is selected (reverse video on its row) and the Menu box is for it: 'Starts in' and the fifteen standard ids (the seven tiles of the account, the seven development tiles and the Recent group), all on ([x])",
+            "r" in h.style(3, 5)[2] and "Starts in" in h.line(2)[72:] and len(re.findall(r"\[x\] [A-Z]", T)) == 15, repr((h.style(3, 5), h.line(2)[72:100], len(re.findall(r"\[x\] [A-Z]", T)))))
         h.key("down")
         row("Down selects the next account (zzhm): its row is in reverse video and zzhd's is not", "r" in h.style(4, 5)[2] and "r" not in h.style(3, 5)[2], repr((h.style(3, 5), h.style(4, 5))))
         h.key("up")
@@ -159,7 +159,7 @@ def main():
             f17 == "ide" and "Tile ide is now off for zzhd" in h.line(40), repr((f17, h.line(40))))
         T = h.text()
         row("the page is read from the register again: zzhd's row lists 'ide' under Tiles off and the IDE row of the Menu box is [ ]",
-            re.search(r"zzhd\s+OTHER\s+default \(terminal\)\s+no\s+ide", h.line(3)) is not None and re.search(r"\[ \] IDE", T) is not None and len(re.findall(r"\[x\] [A-Z]", T)) == 6, repr((h.line(3)[:80], len(re.findall(r"\[x\] [A-Z]", T)))))
+            re.search(r"zzhd\s+OTHER\s+default \(terminal\)\s+no\s+ide", h.line(3)) is not None and re.search(r"\[ \] IDE", T) is not None and len(re.findall(r"\[x\] [A-Z]", T)) == 14, repr((h.line(3)[:80], len(re.findall(r"\[x\] [A-Z]", T)))))
         h.key("down")
         h.key("down")
         h.key("enter", idle=1.0)
@@ -222,6 +222,35 @@ def main():
             re.search(r"zzht\s+OTHER\s+terminal", h.line(6)) is not None and re.search(r"zzhv\s+OTHER\s+menu", h.line(7)) is not None, repr((h.line(6)[:50], h.line(7)[:50])))
         h.key("f5", idle=1.0)
         row("F5 reads the register again", "read the register again" in h.line(40), repr(h.line(40)))
+        # 26 Oct 26 (S.75, home): the seven development tiles and the Recent group have rows of their own
+        h.key("tab", idle=0.5)
+        h.key("tab", idle=0.5)
+        T = h.text()
+        row("the Menu box has a row for each standard id - Files, Vocabulary, Dictionary, Queries, Bulk update, Programs, Tests and the Recent group after the seven it had: 17 rows, the last on row 18 with its [?]; the explanation starts under the box (row 22) and the key hints are one line under the system default (row 37)",
+            all(re.search(p, T) for p in (r"\[x\] Files\s+files", r"\[x\] Vocabulary\s+voc", r"\[x\] Dictionary\s+dict", r"\[x\] Queries\s+query", r"\[x\] Bulk update\s+bulk", r"\[x\] Programs\s+catalog", r"\[x\] Tests\s+test", r"\[x\] Recent group\s+recent"))
+            and h.line(18)[134:137] == "[?]" and "Recent group" in h.line(18) and "What this means" in h.line(22) and "Help" in h.line(36) and "Arrows move" in h.line(37), repr((h.line(18)[72:140], h.line(22)[:30], h.line(36)[:30])))
+        for _ in range(9):
+            h.key("down", idle=0.3)
+        h.key("enter", idle=1.0)
+        T = h.text()
+        row("Enter on the Files row shows the command and its effect: 'set.tile zzhd files off', and the Files tile left off zzhd's home screen", "set.tile zzhd files off" in T and "The Files tile will be left off zzhd's home screen" in T, T[-500:])
+        h.key("esc", idle=0.8)
+        for _ in range(7):
+            h.key("down", idle=0.3)
+        h.key("enter", idle=1.0)
+        T = h.text()
+        row("Enter on the Recent group row (the last) shows 'set.tile zzhd recent off' and says the group will not be on the home screen and the person cannot turn it on", "set.tile zzhd recent off" in T and "The Recent group will not be on zzhd's home screen" in T and "cannot turn it on" in T, T[-500:])
+        h.typed("r", idle=2.0)
+        r = g.reg_read("zzhd")
+        f17 = r[16] if len(r) > 16 else ""
+        row("Run: field 17 is 'ide terminal recent', the answer is 'Tile recent is now off for zzhd' (recent is standard: no note), and the row reads [ ] Recent group",
+            f17 == "ide terminal recent" and "Tile recent is now off for zzhd" in h.line(40) and re.search(r"\[ \] Recent group", h.text()) is not None and "not a standard tile" not in h.text(), repr((f17, h.line(40))))
+        h.key("enter", idle=1.0)
+        T = h.text()
+        row("Enter again offers to turn it on: 'set.tile zzhd recent on' and says the person may turn it on in the View menu", "set.tile zzhd recent on" in T and "View menu" in T, T[-400:])
+        h.typed("r", idle=2.0)
+        r = g.reg_read("zzhd")
+        row("Run: field 17 is 'ide terminal' again", (r[16] if len(r) > 16 else "") == "ide terminal" and re.search(r"\[x\] Recent group", h.text()) is not None, repr(h.line(40)))
         h.key("ctrl-q", idle=1.5)
         row("Ctrl-Q leaves the page and the prompt is there (the administrator's session)", h.prompt() and "What this means" not in h.text(), h.text()[-200:])
         h.end()
@@ -281,7 +310,7 @@ def main():
         h.typed("o", idle=0.5)
         h.key("enter", idle=2.0)
         T = h.text()
-        row("Enter on Orders runs who.am.i exactly as typed at the prompt (Account : zzhm), then asks for Enter (the item says wait)", re.search(r"Account\s*:\s*zzhm", T) is not None and "Press Enter to return to the home screen" in T, T[-300:])
+        row("Enter on Orders runs who.am.i exactly as typed at the prompt (Account : zzhm), then asks for Enter (the item says wait)", re.search(r"Account\s*:\s*zzhm", T) is not None and re.search(r"Press Enter to return\s*$", T, re.M) is not None, T[-300:])
         h.typed("\r", idle=2.0)
         row("...and the home screen comes back with the tile still selected", h.home() and "Orders" in h.text(), h.text()[:200])
         h.end()

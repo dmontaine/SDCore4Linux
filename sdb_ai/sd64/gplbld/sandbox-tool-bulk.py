@@ -482,7 +482,7 @@ class Page:
     def boxtext(self):
         """the words inside the confirm box on the screen, one line (the page behind the box is left out); the whole screen when there is no box"""
         rows = [self.line(n) for n in range(43)]
-        top = next((n for n, l in enumerate(rows) if "Run this command?" in l), None)
+        top = next((n for n, l in enumerate(rows) if re.search(r"Run this command\?|Update these records\?|Put these records back\?", l)), None)      # 26 Oct 26 (faults): the update's and the undo's boxes are titled by what they do
         if top is None:
             return norm(self.text())
         s0, s1 = rows[top].index("+"), rows[top].rindex("+")
@@ -1005,7 +1005,7 @@ def section_b11():
         p.until(lambda t: "Dry run of cust" in t)
         p.typed("a", idle=2.0)
         T = norm(p.text())
-        if "Run this command" in T:                                   # only a page that did not refuse (a mutant) has a box: answer it, so that the evidence is the disk
+        if re.search(r"Run this command|Update these records|Put these records back", T):                                   # only a page that did not refuse (a mutant) has a box: answer it, so that the evidence is the disk
             p.typed("r", idle=1.5)
             p.typed("cust\r", idle=1.0)
             p.until(lambda t: "Applied to cust" in t or "cannot be written" in t, 25)
@@ -1019,7 +1019,7 @@ def section_b11():
     cust = dump_file(A3, "cust")
     T = press_a()
     arow("B11a", "A with &bulk.undo& pointing at bp: the page refuses (bp is not a dynamic file of this account), says nothing was applied, and shows no box",
-         ("is not a dynamic file of this account" in T or "does not stand in this account's own directory" in T) and "nothing was applied" in T and "Run this command" not in T, T[-500:])
+         ("is not a dynamic file of this account" in T or "does not stand in this account's own directory" in T) and "nothing was applied" in T and not re.search(r"Run this command|Update these records|Put these records back", T), T[-500:])
     after = sorted(os.listdir(bpdir))
     arow("B11b", "...and bp is as it was - the same programs, no record 'last' written into it, nothing cleared - and no record of cust changed",
          after == before and "last" not in after and dump_file(A3, "cust") == cust, repr((sorted(set(after) ^ set(before)), cust == dump_file(A3, "cust"))))
@@ -1031,7 +1031,7 @@ def section_b11():
         bail("the pointer &bulk.undo& -> the dictionary of cust was not planted in %s:\n%s" % (A3, "\n".join(out[-6:])))
     T = press_a()
     arow("B11c", "A with &bulk.undo& pointing at the dictionary of cust (a dynamic file, dict-edit OFF): the page refuses - the name does not stand in this account's own directory - says nothing was applied, and shows no box",
-         "does not stand in this account's own directory" in T and "nothing was applied" in T and "Run this command" not in T, T[-500:])
+         "does not stand in this account's own directory" in T and "nothing was applied" in T and not re.search(r"Run this command|Update these records|Put these records back", T), T[-500:])
     arow("B11d", "...and the dictionary of cust is exactly as it was (no record 'last', nothing cleared) and no record of cust changed",
          dump_file(A3, "cust", "dict") == ddict and "last" not in (dump_file(A3, "cust", "dict") or {}) and dump_file(A3, "cust") == cust, repr((ddict == dump_file(A3, "cust", "dict"), cust == dump_file(A3, "cust"))))
     g.plain(A3, ["DELETE VOC &bulk.undo&"])
@@ -1043,7 +1043,7 @@ def section_b11():
 MUTANTS = {
     "stale-dry-run-accepted": ([("   gosub drop.dry\n   gosub draw.all\n   return\n\n* X in the Operations list", "   gosub draw.all\n   return\n\n* X in the Operations list"),
                                 ("   if not(dr.valid) or dr.fp # fp then\n", "   if 0 then\n")], ["B4a", "B4d", "B4d2"], "B4d2", "b4"),       # B4a too: with no dry run at all the gate is gone
-    "apply-asks-no-name": ([("call $tk_confirm(sent, lines, bf, res, cmsg)", "call $tk_confirm(sent, lines, '', res, cmsg)")], ["B5d"], "B5d", "b4"),
+    "apply-asks-no-name": ([("call $tk_confirm(sent, lines, bf, res, cmsg, sysmsg(11954))", "call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11954))")], ["B5d"], "B5d", "b4"),      # 26 Oct 26: the sixth argument (the box title) since the faults batch
     "dry-run-writes": ([("                  dr.md5 := md5(rec)\n", "                  dr.md5 := md5(rec)\n                  write newrec on fv, id\n")], ["B4c"], "B4c", "b4"),
     "no-undo-records": ([("               write id : @fm : md5(newrec) : @fm : rec on uf, n.written on error\n", "               n.err += 0\n               write 'x' on uf, 'never' on error\n")], ["B5h"], "B5h", "b4"),
     "undo-ignores-changed-since": ([("         case md5(cur) # uemd\n", "         case 0\n")], ["B6b", "B6c"], "B6c", "b4"),

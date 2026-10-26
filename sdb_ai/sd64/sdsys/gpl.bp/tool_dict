@@ -6,6 +6,7 @@
 *
 * START-HISTORY:
 * 25 Oct 26 dm  New.
+* 26 Oct 26 dm  faults: the record write's box says "Write this record?" (a sixth argument of $tk_confirm); the choice of keeping the page's own K$EDIT.OK question as the wall is written at write.item.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -1309,7 +1310,11 @@ test.answer:
          cw = askv
          gosub check.word
          vok = okname
-         etxt = 'a-z, 0-9, dot, dash, underscore only, and not an SD keyword'
+         etxt = 'a-z, 0-9, dot, dash, underscore only, starting with a letter or a digit, and not an SD keyword'
+*        26 Oct 26 (review, low): '.', '..' and an id that starts with a dash or a dot are read as options or directories by some verbs: a new id starts with a letter or a digit
+         if vok then
+            if index('abcdefghijklmnopqrstuvwxyz0123456789', askv[1, 1], 1) = 0 then vok = 0
+         end
          if vok then
             for xq = 1 to ni
                if upcase(iids<xq>) = upcase(askv) then vok = 0
@@ -1544,7 +1549,8 @@ show.new:
    lines<-1> = 'Nothing else changes: the records of ' : fn : ' are not touched.'
    gosub dict.access
    if dref # '' then lines<-1> = dref : '  The write is expected to be refused.'
-   call $tk_confirm(sent, lines, '', res, cmsg)
+*  26 Oct 26: the box is about a record the page writes, not a command: its title says so (11952)
+   call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))
    if res # 'run' then
       msg = cmsg
       return
@@ -1560,6 +1566,12 @@ show.new:
 
 * THE ONLY WRITE OF THE PAGE.  In: fn, nid, nrec.  Out: msg.  The page is $internal, so the kernel does not refuse a write to a dictionary on its own account: it asks, as SED and the IDE do, whether this
 * session may change the dictionary (dict-edit; the shared account's rule is in the answer too) and gives the kernel's own reason when it may not.  The dictionary is closed again at once.
+* 26 Oct 26 (task faults, the review's "not applied" item): THIS CHECK STAYS THE WALL, it is not replaced by a catalogued helper that is not $internal.  The reason is the pattern: the question put here is the one
+* every $internal editor puts (!edit_guard's header names ED, SED, the IDE and the rest), a helper that is not $internal would be a new program and a new word in every VOC that any session could call, to be kept in
+* step with this page, and the question is asked of the file that was opened, before anything is read or written, with the administrator and the shared account's rule inside the kernel's answer.
+* (An earlier version of this comment said a refused write ends a program that is not $internal because there is no ON ERROR for it; the review found that false - a WRITE, DELETE and CLEARFILE take their
+* ON ERROR clause there - and that is not the reason.)  sandbox-tk-faults.py (section G) drives the page in
+* an account with dict-edit off and reads the disk (nothing written), in an account with it on (the record is there), and its mutant dict-no-gate takes the question out and is caught by the first.
 write.item:
    open 'DICT', fn to dv else
       msg = fn : ' has no dictionary now'

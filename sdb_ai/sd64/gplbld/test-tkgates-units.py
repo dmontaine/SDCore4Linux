@@ -30,7 +30,7 @@ FILES = {
     "gates": os.path.join(SDSYS, "gpl.bp", "tk_gates"),
 }
 FIELDS = ["id", "title", "on", "off", "kind", "field", "group", "key", "when", "default", "slot", "allows", "still", "beyond", "status"]
-NOT_GATE_WORDS = {"BOTH", "SUSPENDED", "UNSUSPENDED", "START-MENU", "START-TERMINAL", "START-DEFAULT", "PINS-ON", "PINS-OFF"}      # words of modify.account that are not one gate's on or off word (22 Oct 26: the three START words are one three-state setting, ACC$START, and PINS-ON / PINS-OFF the permission to add one's own programs to the home screen, ACC$PINS; both are managed on the menu management page, tool.menus, not on tool.gates)
+NOT_GATE_WORDS = {"BOTH", "SUSPENDED", "UNSUSPENDED", "START-MENU", "START-TERMINAL", "START-DEFAULT", "PINS-ON", "PINS-OFF", "SDSYS-ON", "SDSYS-OFF"}      # 26 Oct 26 (F6): SDSYS-ON / SDSYS-OFF are the sdsys user's membership of the account's group, state in /etc/group, no register field and no row of the gate matrix; words of modify.account that are not one gate's on or off word (22 Oct 26: the three START words are one three-state setting, ACC$START, and PINS-ON / PINS-OFF the permission to add one's own programs to the home screen, ACC$PINS; both are managed on the menu management page, tool.menus, not on tool.gates)
 
 
 def load():

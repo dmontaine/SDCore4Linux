@@ -17,6 +17,11 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 26 Oct 26 dm  F6 (alternative C, owner): the sdsys user is in NO user account's group as delivered, and `modify.account <name> sdsys-on` puts it there (sdsys-off takes it out).  A save of a
+ *               master record into an account whose group does not list sdsys is refused with message 11976 (MST_W_OFF; it was MST_W_NOTMEMBER and message 11587), CHECK.MASTERS reports
+ *               nonwritable and norights only for accounts where the sdsys user IS in the group and counts the others once ("off", after the rows, not a difference), and masters_fix_modes
+ *               forces group write on a new VOC or dictionary only where the group lists sdsys.  Where there is no sdsys user on the machine (a sandbox on a machine without an install) nothing
+ *               is off and nothing changes; files this process owns, and files the sdsys user owns, are written as their owner and need no group.
  * 24 Oct 26 dm  W.11 F9: the master files and the register are under sd_sysdir() (the configuration file's); the administrator test is MY_ADMIN().
  * 19 Oct 26 dm  The independent verifier's findings on stages 1 and 2, fixed.  F1 the master files and their dictionaries are 0700 and 0600 (the group they were
  *               given was never set, and the group of an SDSYS session is sdusers); F2 mst_deliver copies the account out of the table it was found in (the table
@@ -72,7 +77,7 @@
  *  voc_master or dict_master (one flag test once the file's name has been looked at).  For those two it is the whole of D7:
  *    1 only the administrator; 2 the key (account*id, account*file*id) names a registered account and, for a dictionary, a dictionary it has;
  *    3 the account's files can be written by THIS process (access(), and why not if they cannot: the mode, a session that began before SDSYS
- *      joined the group, a group SDSYS is not in); 4 the account's record is locked by a try-lock that returns at once (lock_record with no_wait),
+ *      joined the group, a group SDSYS is not in: master edits switched off, F6); 4 the account's record is locked by a try-lock that returns at once (lock_record with no_wait),
  *      unless this process holds it already; 5 the record as it is now has the checksum of the record THIS SESSION READ (masters_note_read keeps the
  *      last 128) - the account has not changed it since - else REFUSED and nothing is lost; a key the session did not read may create a record and
  *      may not overwrite one; 6 the account's file is written HERE, by this process (so it needs the group), through dh_write like any other
@@ -136,6 +141,7 @@ bool fullpath(char *path, char *name);
 #define MST_CHECK_ROWS 2000                   /* the most difference rows CHECK returns */
 #define MST_FILE_MAX 200                      /* the longest dictionary name the journal carries */
 #define MST_SYSTEM_ACCOUNT "sdsys"            /* the administrator's own account: its files belong to the user that runs SDSYS's sessions */
+#define MST_SDSYS_USER "sdsys"                /* the operating-system user that runs SDSYS's sessions (F6: whether it is in an account's group is what switches master edits on) */
 
 /* the answers of K_MASTERS: the first field */
 #define MSA_OK 0
@@ -1795,6 +1801,8 @@ Private long mst_drop_orphans(MST_CTX *cx) {
 typedef struct {
   MST_BUF rows;
   long nrows, ndiff;
+  long noff;     /* F6: the accounts whose master edits are switched off (the sdsys user is not in their group), counted once each, and not a difference */
+  bool acct_off; /* the account being checked is one of them */
 } MST_CHECK;
 
 Private void mst_row(MST_CHECK *ck, const char *type, const char *acct, const char *what, const char *file, const char *id, int id_len) {
@@ -1820,7 +1828,8 @@ Private void mst_row(MST_CHECK *ck, const char *type, const char *acct, const ch
 }
 
 /* Is this hashed file - its directory and its two subfiles - writable by its GROUP?  Stage 2 writes a master edit into an account's file as a member of
-   the account's group (sdsys joins every account's group, D7), so the mode must say the group may: the directory rwx (775, setgid) and %0 and %1 rw (664). */
+   the account's group (the sdsys user is in the group of an account whose master edits are switched on, F6), so the mode must say the group may: the directory
+   rwx (775, setgid) and %0 and %1 rw (664). */
 Private bool mst_group_writable(const char *dirpath) {
   char p[MAX_PATHNAME_LEN + 8];
   struct stat sb;
@@ -1845,14 +1854,15 @@ Private bool mst_group_writable(const char *dirpath) {
      MST_W_MODE       the mode itself does not let this process write: the group has no write bit, or this process is the owner and the owner has none
      MST_W_STALE      the group may write, this process is not in the group, but the group's member list in /etc/group names this user: the session
                       began before the user was added, and a session's groups are fixed when it starts (D7: sign on again)
-     MST_W_NOTMEMBER  the group may write and the user is not in it at all
+     MST_W_OFF        the group may write and the user is not in it at all: master edits to the account are switched off (F6, the delivered setting;
+                      `modify.account <name> sdsys-on` switches them on).  It was MST_W_NOTMEMBER.
      MST_W_NOWRITE    the mode and the groups look right and it still cannot (a mount, an ACL, the directory's search bit)
    It needs write on %0 and %1 and search on the directory; GNAME gets the file's group.                                                  */
 
 #define MST_W_OK 0
 #define MST_W_MODE 1
 #define MST_W_STALE 2
-#define MST_W_NOTMEMBER 3
+#define MST_W_OFF 3
 #define MST_W_NOWRITE 4
 
 Private bool mst_gid_in_groups(gid_t gid) {
@@ -1894,14 +1904,48 @@ Private bool mst_user_listed(gid_t gid) {
   return FALSE;
 }
 
+/* F6: is the sdsys user in the group GID - its own primary group, or a name in the group's member list?  TRUE when there is no sdsys user on the machine: nothing can then
+   be said of the group, and the code behaves as it did before F6 (a sandbox on a machine with no install). */
+Private bool mst_sdsys_in_group(gid_t gid) {
+  struct passwd *pw = getpwnam(MST_SDSYS_USER);
+  struct group *gr;
+  char **m;
+
+  if (pw == NULL)
+    return TRUE;
+  if (pw->pw_gid == gid)
+    return TRUE;
+  if ((gr = getgrgid(gid)) == NULL)
+    return FALSE;
+  for (m = gr->gr_mem; (m != NULL) && (*m != NULL); m++) {
+    if (strcmp(*m, MST_SDSYS_USER) == 0)
+      return TRUE;
+  }
+  return FALSE;
+}
+
+/* F6: are master edits into the files described by SB switched off?  They are when the files belong to somebody else and the sdsys user is not in their group.  Files this
+   process owns, and files the sdsys user owns (a group account, the shared account), are written as their owner and need no group: for them nothing is off. */
+Private bool mst_sdsys_off(const struct stat *sb) {
+  struct passwd *pw;
+
+  if (sb->st_uid == geteuid())
+    return FALSE;
+  if (((pw = getpwnam(MST_SDSYS_USER)) != NULL) && (sb->st_uid == pw->pw_uid))
+    return FALSE;
+  return !mst_sdsys_in_group(sb->st_gid);
+}
+
 Private int mst_write_why(const struct stat *sb) {
   if (sb->st_uid == geteuid())
     return (sb->st_mode & S_IWUSR) ? MST_W_NOWRITE : MST_W_MODE; /* the owner's class applies to the owner, whatever the group bits say */
+  if (mst_sdsys_off(sb))
+    return MST_W_OFF; /* F6: switched off says so first, whatever the mode: sdsys-on puts the user in the group and the modes right */
   if (!(sb->st_mode & S_IWGRP))
     return MST_W_MODE;
   if (mst_gid_in_groups(sb->st_gid))
     return MST_W_NOWRITE;
-  return mst_user_listed(sb->st_gid) ? MST_W_STALE : MST_W_NOTMEMBER;
+  return mst_user_listed(sb->st_gid) ? MST_W_STALE : MST_W_OFF;
 }
 
 Private int mst_write_check(const char *dirpath, char *gname, size_t gsz) {
@@ -1934,7 +1978,7 @@ Private const char *mst_why_word(int why) {
       return "mode";
     case MST_W_STALE:
       return "stale-session";
-    case MST_W_NOTMEMBER:
+    case MST_W_OFF:
       return "not-a-member";
     default:
       return "no-write";
@@ -1952,6 +1996,7 @@ Private void mst_check_file(MST_CTX *cx, MST_CHECK *ck, int kind, const char *ac
   char actual[256];
   int mk;
   char path[MAX_PATHNAME_LEN + 8];
+  struct stat sbp;
   const char *what = (kind == MST_VOC) ? "voc" : "dict";
 
   if ((adh == NULL) && !cx->last_absent) { /* there, and cannot be opened: nothing can be said about its records */
@@ -1969,8 +2014,12 @@ Private void mst_check_file(MST_CTX *cx, MST_CHECK *ck, int kind, const char *ac
     else
       snprintf(path, sizeof(path), "%s/%s.dic", root, file);
     /* The group-bit test is for a file SDSYS writes as a MEMBER of the account's group.  The SDSYS account's own files (the master files' dictionaries among them,
-       0700 since verifier F1) are the sdsys user's own, written as their owner: for them only the real test below is asked. */
-    if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && !mst_group_writable(path)) {
+       0700 since verifier F1) are the sdsys user's own, written as their owner: for them only the real test below is asked.
+       F6: an account whose group does not list the sdsys user has master edits switched off (the delivered setting).  There is nothing to say of its modes or of this session's
+       rights: it is marked, and counted once when the walk of the account is over (mst_check_account). */
+    if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && (stat(path, &sbp) == 0) && mst_sdsys_off(&sbp)) {
+      ck->acct_off = TRUE;
+    } else if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && !mst_group_writable(path)) {
       mst_row(ck, "nonwritable", acct, what, file, NULL, 0);
     } else {
       /* the mode is right: can THIS session write it?  (an account made after this session began; a group SDSYS is not in) */
@@ -2033,6 +2082,7 @@ Private void mst_check_account(MST_CTX *cx, MST_CHECK *ck, const MST_ACC *a) {
   size_t p;
   bool dcomplete;
 
+  ck->acct_off = FALSE;
   snprintf(prefix, sizeof(prefix), "%s*", a->name);
   if (!mst_keys_of(cx, MST_IX_VOC, prefix, &vkeys) || !mst_keys_of(cx, MST_IX_DICT, prefix, &dkeys)) {
     mst_row(ck, "unreadable", a->name, "master", NULL, NULL, 0);
@@ -2069,6 +2119,8 @@ Private void mst_check_account(MST_CTX *cx, MST_CHECK *ck, const MST_ACC *a) {
     if (!known)
       mst_row(ck, "extra", a->name, "dict", NULL, (const char *)dkeys.d + p + 1 + strlen(prefix), (int)(dkeys.d[p] - strlen(prefix)));
   }
+  if (ck->acct_off) /* F6: counted once for the account, however many of its files said so */
+    ck->noff++;
   mst_names_free(dn, dnn);
   mst_ids_free(&vkeys);
   mst_ids_free(&dkeys);
@@ -2922,6 +2974,15 @@ void masters_request(const char *req, DESCRIPTOR *result) {
       mst_buf_add(&out, (const char *)&(char){MST_FM}, 1);
       mst_buf_str(&out, "truncated");
     }
+    if (ck.noff > 0) { /* F6: the accounts whose master edits are off, after the rows: "off", then the number.  Not a difference, so not in ndiff */
+      char nb[24];
+
+      mst_buf_add(&out, (const char *)&(char){MST_FM}, 1);
+      mst_buf_str(&out, "off");
+      mst_buf_add(&out, (const char *)&(char){MST_VM}, 1);
+      snprintf(nb, sizeof(nb), "%ld", ck.noff);
+      mst_buf_str(&out, nb);
+    }
     mst_buf_free(&ck.rows);
   } else if (strcmp(op, "accounts") == 0) {
     int i;
@@ -2943,8 +3004,8 @@ void masters_request(const char *req, DESCRIPTOR *result) {
 /* The reason for the last refusal, as a sentence: set by mst_refuse(), read by op_write and op_delete (masters_refusal_text) */
 Private char mst_refusal_buf[1400];
 
-/* Messages 11580 to 11592, 11595 and 11596 are written for C: printf's %s where the arguments go, three at most (test-masters-units.py holds them to that, and to
-   the room k_error gives a message: 231 characters once the arguments are in). */
+/* Messages 11580 to 11592, 11595, 11596 and 11976 are written for C: printf's %s where the arguments go, three at most (test-masters-units.py holds them to that, and to
+   the room k_error gives a message: 231 characters once the arguments are in).  11579, 11587 and 11593 are retired (F6) and left unused. */
 #define MSG_BADKEY 11580
 #define MSG_NOACCOUNT 11581
 #define MSG_NOFILE 11582
@@ -2952,7 +3013,7 @@ Private char mst_refusal_buf[1400];
 #define MSG_LOCKED 11584
 #define MSG_MODE 11585
 #define MSG_STALE 11586
-#define MSG_NOTMEMBER 11587
+#define MSG_OFF 11976
 #define MSG_DELETE 11588
 #define MSG_TXN 11589
 #define MSG_NOTADMIN 11590
@@ -3324,8 +3385,8 @@ refuse_rights:
   switch (why) {
     case MST_W_STALE:
       return mst_refuse(MSG_STALE, keytxt, gname, NULL);
-    case MST_W_NOTMEMBER:
-      return mst_refuse(MSG_NOTMEMBER, keytxt, gname, gname);
+    case MST_W_OFF: /* F6: master edits to this account are switched off; the message names the verb that switches them on */
+      return mst_refuse(MSG_OFF, keytxt, a->name, a->name);
     default:
       return mst_refuse(MSG_MODE, keytxt, whattxt, NULL);
   }
@@ -3376,7 +3437,10 @@ int masters_txn_refusal(DH_FILE *dh, char *id, int id_len) {
    group may write the VOC and the dictionaries, which it could already delete and make again; if the group may not (a directory of 755), nothing is
    added, and in particular nothing is added for a group that the account directory does not give write to.  Done on descriptors opened with O_NOFOLLOW
    and fchmod, so a link put in the place of the new directory by somebody else cannot aim the chmod at another file; only what this process made
-   (owner = the effective user) and what has the account directory's group is changed.  A refusal changes nothing and is not an error. */
+   (owner = the effective user) and what has the account directory's group is changed.  A refusal changes nothing and is not an error.
+   F6 (C2): and only where the sdsys user is in the account directory's group.  Where master edits to the account are switched off, group write on a new
+   VOC or dictionary would serve nobody (the group is the account's own) and is not forced; `modify.account <name> sdsys-on` puts the user in the group and
+   repairs the modes of what is there. */
 void masters_fix_modes(const char *path) {
   char full[PATH_MAX + 1];
   const MST_ACC *a;
@@ -3398,6 +3462,8 @@ void masters_fix_modes(const char *path) {
   if (!((strcmp(rel, "voc") == 0) || ((n > 4) && (strcasecmp(base + n - 4, ".dic") == 0))))
     return;
   if ((stat(a->root, &ra) != 0) || !(ra.st_mode & S_IWGRP))
+    return;
+  if (!mst_sdsys_in_group(ra.st_gid)) /* F6 (C2): group write is forced only where the sdsys user is in the group, that is where master edits are switched on */
     return;
   if ((dfd = open(full, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)) < 0)
     return;

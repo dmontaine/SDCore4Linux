@@ -350,6 +350,13 @@
                        those the PHANTOMS parameter keeps and not be in use, or phantom() returns 0.  0 cancels.  phantom() clears
                        it, made or not.  Returns 1. */
 #define K_PHANTOM_USER       114
+/* 26 Oct 26 dm - W.11 F10 (the start-up records of a phantom are written to $ipc, a file every SD user's process may write).
+     K_PHANTOM_NONCE   'S' followed by 16 to 64 characters of the base64 alphabet: the secret the next phantom() of this process is to
+                       give the new process (in its environment, SD_PHANTOM_NONCE, which only the same operating-system user can read).
+                       Returns 1, or 0 and nothing staged if the text is not of that shape.  phantom() clears it, made or not.
+                       'G' answers the secret THIS process was started with, or the null string when it was not started by a phantom()
+                       that gave one (the environment variable is removed when the process starts, so nothing it runs inherits it). */
+#define K_PHANTOM_NONCE      144
 /* 16 Oct 26 dm - QM4 gaps (LOCK.TRACER).
      K_LOCK_TRACE      1 starts lock tracing, 0 stops it, -1 only asks.  Starting (administrator only) makes an empty file
                        locktrace in the system directory, mode 0620; every lock taken or let go after that is added to it by

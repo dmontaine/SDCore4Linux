@@ -361,7 +361,7 @@ def run_checks(raw):
            for w, g_, b in (("FILES-ON", "sdfiles", "true"), ("FILES-OFF", "sdfiles", "false"), ("FILES-WRITE-ON", "sdfileswrite", "true"), ("FILES-WRITE-OFF", "sdfileswrite", "false"),
                             ("FILES-ADMIN-ON", "sdfilesadmin", "true"), ("FILES-ADMIN-OFF", "sdfilesadmin", "false")))
        and "modify.account <account> files-on | files-off | files-write-on | files-write-off | files-admin-on | files-admin-off" in mo
-       and "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, suspended or unsuspended" in mo and sf != "", "")      # 23 Oct 26: ai-on, ai-off (S.69 step 2)
+       and "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, sdsys-on, sdsys-off, suspended or unsuspended" in mo and sf != "", "")      # 23 Oct 26: ai-on, ai-off (S.69 step 2); 26 Oct 26: sdsys-on, sdsys-off (F6)
     cgf = routine_body(mo, "change.files.group")
     rfg = routine_body(mo, "read.files.groups")          # 21 Oct 26, S.73 item 3
     rrm = routine_body(mo, "report.removals")
@@ -408,7 +408,7 @@ def run_checks(raw):
        "other account is refused as for FILES-ON, the join is sd-elevate addgroup <user> sdfileswrite AFTER the sdfiles join, and the state line 11522 is read off /etc/group",
        re.search(r"\$define\s+CA\$FILESWRITE\s+39\b", hdr) is not None and len(re.findall(r"\$define\s+\S+\s+39\b", hdr)) == 1
        and re.search(r"case upcase\(token\) = 'FILES-WRITE-ON'\s*\n\s*settings<CA\$FILESWRITE> = 1\s*\n", cr) is not None and len(re.findall(r"(?<!if )settings<CA\$FILESWRITE>\s*=", cr)) == 1
-       and "{files-on} {files-write-on} {files-admin-on} {ai-on} {no.query}" in cr      # 23 Oct 26: {ai-on} (S.69 step 2)
+       and "{files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {no.query}" in cr      # 23 Oct 26: {ai-on} (S.69 step 2); 26 Oct 26: the home screen's words (S.75)
        and "files.write.want = (settings<CA$FILESWRITE> = 1)" in ca2
        and re.search(r"if files\.write\.want then\s*\n\s*if not\(files\.want\) then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 11523:@vm:acc\.name[^\n]*\n\s*goto exit\.create\s*\n\s*end", ca2) is not None
        # 21 Oct 26 (S.73 item 3): the look-up of a group and its join are the two internal subroutines check.files.group and join.files.group, called once per group, sdfiles then sdfileswrite then sdfilesadmin;

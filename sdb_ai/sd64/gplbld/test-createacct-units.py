@@ -29,12 +29,15 @@ text exactly once: an injection that changed nothing is not a test.
 """
 
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys"))
 CA = os.path.join(SDSYS, "gpl.bp", "create_account")
+HEADER = os.path.join(SDSYS, "syscom", "createacc.h")
 MESSAGES = os.path.join(SDSYS, "messages")
+START_CHECK = "if start.want # '' and start.want # 'menu' and start.want # 'terminal' then"
 
 SSHD_TEST = "access.ssh and not(ospath('/usr/sbin/sshd', OS$EXISTS))"
 API_EXEC = 'OS.EXECUTE "systemctl is-active --quiet sdclient.socket 2>/dev/null"'
@@ -154,6 +157,30 @@ def check(src, messages):
         ok = text is not None and text.strip() != "" and (("%1" in text) == needs_arg)
         row("M%s message %s exists%s" % (n, n, " and names the account (%1)" if needs_arg else " with no argument"),
             ok, "missing or wrong shape" if not ok else "")
+
+    # D - the start word and the pins word (26 Oct 26, S.75, home)
+    chk = first(L, START_CHECK)
+    after = {"the shared account's marker is consumed": first(L, "void ospath(shared.marker, OS$DELETE)"), "the ATTACH marker is consumed": first(L, "void ospath(attach.marker, OS$DELETE)"),
+             "the Linux user is made": first(L, "if not(create_user(acc.uname)) then"), "the password is asked": first(L, PW_FAIL), "the first sudo": first(L, 'OS.EXECUTE "sudo'),
+             "the directory is made": first(L, "create.file pathname directory on error")}
+    early = [k for k, v in after.items() if v is None or chk is None or not chk < v]
+    row("D1 a start word that is neither menu nor terminal is refused (2018, with the word) BEFORE the shared account's marker, the ATTACH marker, the Linux user, the password, any sudo and the directory",
+        chk is not None and not early and first(L, "err = 2018:@vm:start.want", chk) is not None and first(L, "err = 2018:@vm:start.want", chk) < chk + 4 and first(L, "return", chk) is not None and first(L, "return", chk) < chk + 5
+        and first(L, "start.want = trim(settings<CA$START>)") is not None and first(L, "start.want = trim(settings<CA$START>)") < chk,
+        "check at %s; not before: %s" % (chk, early))
+    wr = first(L, "write acc.rec to acc.f, acc.name")
+    sa = first(L, "if start.want # '' then acc.rec<ACC$START> = start.want")
+    pa = first(L, "if pins.want then acc.rec<ACC$PINS> = 'yes'")
+    row("D2 the register record gets ACC$START only when a word was given and ACC$PINS 'yes' only for a pins request, both before the record is written, for every type of account (outside the USER-only arm)",
+        None not in (wr, sa, pa) and sa < wr and pa < wr and first(L, "settings<CA$SUSPENDED> = 1") is not None and first(L, "settings<CA$SUSPENDED> = 1") < sa, "write=%s start=%s pins=%s" % (wr, sa, pa))
+    row("D3 a pins request is exactly 1 (as the gates), and the two settings are said after the record is written with the messages MODIFY.ACCOUNT says them with (11868, 11885)",
+        first(L, "pins.want = (settings<CA$PINS> = 1)") is not None and wr is not None and first(L, "crt sysmsg(11868, acc.name, start.want)", wr) is not None
+        and first(L, "crt sysmsg(11885, acc.name, 'yes')", wr) is not None, "")
+    with open(HEADER, encoding="utf-8", errors="replace") as f:
+        hdr = f.read()
+    nums = re.findall(r"\$define\s+(CA\$[A-Z.]+)\s+(\d+)", hdr)
+    row("D4 createacc.h defines CA$START as 42 and CA$PINS as 43, in the Linux block, and no setting number is used twice",
+        ("CA$START", "42") in nums and ("CA$PINS", "43") in nums and len({n for _, n in nums}) == len(nums), repr(nums[-4:]))
     return rows
 
 
@@ -193,6 +220,15 @@ MUTANTS = [
     ("10130 renamed", E10130, "err = 10131:@vm:acc.uname"),
     ("return code lost", "          " + RC + "\n          if is_user", "          if is_user"),
     ("ATTACH gate loses USER", ATTACH_GATE, "kernel(K$INTERNAL, -1) and ospath(attach.marker, OS$EXISTS)"),
+    ("the start word is not checked", START_CHECK, "if @false then"),
+    ("any start word is let through", "start.want # '' and start.want # 'menu' and start.want # 'terminal' then", "start.want # '' and start.want # 'menu' then"),
+    ("the start word is checked after the Linux user is made", START_CHECK + "\n      @system.return.code = -ER$ARGS\n      err = 2018:@vm:start.want ;* Unexpected token (xx)\n      return\n   end\n",
+     "start.want = start.want\n"),
+    ("a pins request need not be exactly 1", "pins.want = (settings<CA$PINS> = 1)", "pins.want = (settings<CA$PINS> # '')"),
+    ("the start word is written for every account", "if start.want # '' then acc.rec<ACC$START> = start.want", "acc.rec<ACC$START> = start.want"),
+    ("pins are written for every account", "if pins.want then acc.rec<ACC$PINS> = 'yes'", "acc.rec<ACC$PINS> = 'yes'"),
+    ("the start state is not said", "if start.want # '' then crt sysmsg(11868, acc.name, start.want)", "null"),
+    ("the pins state is not said", "if pins.want then crt sysmsg(11885, acc.name, 'yes')", "null"),
 ]
 
 

@@ -19,6 +19,10 @@
 * 
 *
 * START-HISTORY:
+* 26 Oct 26 dm F6 (S.67 stage 2, alternative C; core direction: high security is delivered and the administrator loosens it later): SDSYS-ON / SDSYS-OFF put the sdsys operating-system user in or out of
+*           the Linux group of a USER account (sd-elevate sdsys-join / sdsys-leave; sdsys-on also runs group-write, which is repeatable and repairs the modes), which is what switches master
+*           edits and SDSYS's writing inside the account on and off.  The state is the membership, as the route words' is: no register field.  set.sdsys is the one routine; 11977 / 11978 are
+*           the lines it prints, 11979 the refusal for a group or other account, 11980 a step that failed.  The two words conflict only with each other (slot SY).
 * 23 Oct 26 dm S.69 step 2 (owner: "an API gate for each user account"): AI-ON / AI-OFF put the account's person in or out of the Linux group sdaiusers, the right to use the AI
 *           provider's API through the helper sd-ai (the helper reads the membership from the caller's uid).  set.ai is the one routine, 11606 the line it prints, and it uses the
 *           same group changer as set.files (change.files.group).  Off for a new account; it stands alone (no other group is needed).
@@ -455,6 +459,15 @@ do.action:
          ai.want = @false
          gosub set.ai
          return
+* 26 Oct 26 dm - F6: SDSYS-ON / SDSYS-OFF, membership of the account's Linux group by the sdsys user (OFF for a new account); set.sdsys does both.
+      case action = 'SDSYS-ON'
+         sdsys.want = @true
+         gosub set.sdsys
+         return
+      case action = 'SDSYS-OFF'
+         sdsys.want = @false
+         gosub set.sdsys
+         return
       case action = 'SSH'
          want.ssh = @true  ; want.api = @false ; gosub set.route
          return
@@ -563,7 +576,7 @@ add.delete.arm:
          crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, voc-on, voc-off, bp-on, bp-off, dict-on, dict-off, net-on, net-off,'
          crt '   shared-read-on, shared-read-off, shared-write-on, shared-write-off,'
          crt '   start-menu, start-terminal, start-default, pins-on, pins-off,'
-         crt '   files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, suspended or unsuspended'
+         crt '   files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, sdsys-on, sdsys-off, suspended or unsuspended'
       end
 
    end else
@@ -588,6 +601,7 @@ show.usage:
    crt '                 modify.account <account> shared-read-on | shared-read-off | shared-write-on | shared-write-off'
    crt '                 modify.account <account> files-on | files-off | files-write-on | files-write-off | files-admin-on | files-admin-off'
    crt '                 modify.account <account> ai-on | ai-off'
+   crt '                 modify.account <account> sdsys-on | sdsys-off'
    crt '                 modify.account <account> start-menu | start-terminal | start-default'
    crt '                 modify.account <account> pins-on | pins-off'
    crt '                 modify.account <account> suspended | unsuspended'
@@ -613,8 +627,8 @@ show.usage:
 *   The conflict test compares DIFFERENT words only: the same word twice is one action (want.at is set once).
 
 validate.actions:
-   word.arr = convert(',', @fm, 'SSH,API,BOTH,NONE,SH-ON,SH-OFF,OS-ON,OS-OFF,SD-ON,SD-OFF,VOC-ON,VOC-OFF,BP-ON,BP-OFF,DICT-ON,DICT-OFF,NET-ON,NET-OFF,SHARED-READ-ON,SHARED-READ-OFF,SHARED-WRITE-ON,SHARED-WRITE-OFF,FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,AI-ON,AI-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED,UNSUSPENDED')
-   slot.arr = convert(',', @fm, 'R,R,R,R,SH,SH,OS,OS,SD,SD,VOC,VOC,BP,BP,DICT,DICT,NET,NET,SR,SR,SW,SW,F,F,FW,FW,FA,FA,AI,AI,ST,ST,ST,PN,PN,S,S')
+   word.arr = convert(',', @fm, 'SSH,API,BOTH,NONE,SH-ON,SH-OFF,OS-ON,OS-OFF,SD-ON,SD-OFF,VOC-ON,VOC-OFF,BP-ON,BP-OFF,DICT-ON,DICT-OFF,NET-ON,NET-OFF,SHARED-READ-ON,SHARED-READ-OFF,SHARED-WRITE-ON,SHARED-WRITE-OFF,FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,AI-ON,AI-OFF,SDSYS-ON,SDSYS-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED,UNSUSPENDED')
+   slot.arr = convert(',', @fm, 'R,R,R,R,SH,SH,OS,OS,SD,SD,VOC,VOC,BP,BP,DICT,DICT,NET,NET,SR,SR,SW,SW,F,F,FW,FW,FA,FA,AI,AI,SY,SY,ST,ST,ST,PN,PN,S,S')
    n.words = dcount(actions, @fm)
    pos.of = ''
    want.at = ''
@@ -1254,6 +1268,93 @@ set.ai:
    @system.return.code = 0
    void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)
    crt sysmsg(11606, acc.name, if cg.now then 'yes' else 'no')  ;* Account %1 has ai %2
+   return
+
+*****************************************************************************
+* SET.SDSYS  -  MODIFY.ACCOUNT <account> SDSYS-ON | SDSYS-OFF
+*
+* 26 Oct 26 dm - F6 (S.67 stage 2, alternative C; the core direction: high security is delivered and the administrator loosens it later).  The sdsys operating-system user is in NO user
+*   account's group as delivered.  SDSYS-ON puts it in the account's group (sd-elevate sdsys-join) and then makes the account's VOC and dictionaries group-writable (sd-elevate group-write);
+*   SDSYS-OFF takes it out (sd-elevate sdsys-leave).  sdsys.want is set by the caller.  The state is the Linux group membership, as the route words' is (sdssh, sdapi): nothing is written
+*   to the register.  ***IT IS WRITE ACCESS TO EVERYTHING THE ACCOUNT'S GROUP MAY WRITE, NOT ONLY THE VOC***: master edits into the VOC and the dictionaries, and SDSYS writing inside the
+*   account at all (logto and an editor, an interactive update.accounts).  It is NOT a wall against a stolen sdsys login, which can switch it on again and has other ways in; it makes the
+*   grant a deliberate, reversible act of the administrator instead of a silent default.  A running session of SDSYS keeps the groups it started with: sign on again.
+*
+* SDSYS-ON is repeatable on purpose: for an account already switched on it runs group-write again, which repairs a mode (a dictionary made later under a stricter UMASK) and changes
+*   nothing else.  SDSYS-OFF for an account that is already off says so (10080) and changes nothing.  A group (sdg_) or other account has no group of its own for the sdsys user (it owns the
+*   files of a group account): refused, 11979.  AS SET.FILES, THE LOOKUP IS THREE-VALUED (!is_grp_member answers @false for "not a member" and for "could not tell", and tells them apart
+*   only by status()), and the state line is read back from /etc/group after the change: a read back that does not show the wanted state is a failure (11980), never a success.
+
+set.sdsys:
+   sdsys.stat = 0 ; sdsys.step = '' ; sdsys.path = '' ; sdsys.now = @false ; has.sdsys = @false ; sdsys.joined = @false
+   if group.name[1,4] # 'sdu_' then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(11979, acc.name)  ;* %1 is not a user account: sdsys-on and sdsys-off are for user accounts, and nothing was changed
+      return
+   end
+   sdsys.group = group.name
+   if not(valid_os_name(sdsys.group)) then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, 2)  ;* Unable to change remote access for %1, status: %2
+      return
+   end
+
+   has.sdsys = is_grp_member('sdsys', sdsys.group)
+   sdsys.stat = status()
+   if sdsys.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, sdsys.stat)
+      return
+   end
+   if not(sdsys.want) and not(has.sdsys) then
+      @system.return.code = 0
+      crt sysmsg(10080, acc.name)  ;* %1 already had that access; nothing changed
+      return
+   end
+
+   if sdsys.want then
+      if not(has.sdsys) then
+         sdsys.step = 'putting the sdsys user into its group'
+         os.execute "sudo /usr/local/sbin/sd-elevate sdsys-join " : sdsys.group
+         sdsys.stat = OS.ERROR()
+         if sdsys.stat = 0 then sdsys.joined = @true
+      end
+      if sdsys.stat = 0 then gosub sdsys.group.write
+   end else
+      sdsys.step = 'taking the sdsys user out of its group'
+      os.execute "sudo /usr/local/sbin/sd-elevate sdsys-leave " : sdsys.group
+      sdsys.stat = OS.ERROR()
+   end
+   if sdsys.stat = 0 then
+      sdsys.now = is_grp_member('sdsys', sdsys.group)
+      sdsys.stat = status()
+      sdsys.step = 'reading back the group of the account'
+      if sdsys.stat = 0 and sdsys.now # sdsys.want then sdsys.stat = 2
+   end
+   if sdsys.stat # 0 then
+      @system.return.code = -ER$FAILED
+*     26 Oct 26 (review of F6): a later step failed after sdsys-join had succeeded, so the sdsys user IS in the group now; say so in the audit trail (sdsys-on again repairs it)
+      if sdsys.joined then void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' incomplete account=' : acc.name)
+      crt sysmsg(11980, acc.name, sdsys.step, sdsys.stat)  ;* Account %1: %2 failed, status %3
+      return
+   end
+
+   @system.return.code = 0
+   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)
+   if sdsys.want then crt sysmsg(11977, acc.name) else crt sysmsg(11978, acc.name)
+   return
+
+* sd-elevate group-write on the account's own directory: the VOC and the dictionaries get group write where their group is the account's own.  A path with a quote in it is not
+*   handed to the shell (the helper would refuse any path that is not an account directory anyway).
+sdsys.group.write:
+   sdsys.step = 'giving the account group write on its VOC and dictionaries'
+   sdsys.path = acc.rec<ACC$PATH>
+   if sdsys.path[1,1] # '/' or index(sdsys.path, "'", 1) then
+      sdsys.stat = 2
+      return
+   end
+   os.execute "sudo /usr/local/sbin/sd-elevate group-write '" : sdsys.path : "'"
+   sdsys.stat = OS.ERROR()
    return
 
 *****************************************************************************

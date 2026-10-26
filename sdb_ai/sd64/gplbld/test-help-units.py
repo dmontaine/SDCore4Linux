@@ -161,10 +161,11 @@ def checks(s):
     ck("P14 ...and every shipped record is asked for by a page (so text does not rot)", not (set(hts) - asked), repr(sorted(set(hts) - asked)))
 
     # the pages
-    ck("P15 tool.menus: a [?] on each of the nine rows of the Menu box (inside the row loop), one at the system default and one at the Accounts list",
-       "call $tk_help('mark', 134, 1 + r, 0, 0)" in tm and "call $tk_help('mark', 66, 32, 0, 0)" in tm and "call $tk_help('mark', 66, 2, 0, 0)" in tm and "width 59\n      call $tk_help('mark'" in tm)
+    ck("P15 tool.menus: a [?] on each row of the Menu box (inside the row loop, which runs over nmenu rows: where the account starts, its own programs and a row for each standard tile - 17 since 26 Oct 26), one at the system default and one at the Accounts list",
+       "call $tk_help('mark', 134, 1 + r, 0, 0)" in tm and "call $tk_help('mark', 66, 32, 0, 0)" in tm and "call $tk_help('mark', 66, 2, 0, 0)" in tm and "width 59\n      call $tk_help('mark'" in tm
+       and "nmenu = 2 + dcount(tids, @fm)" in tm and "   for r = 1 to nmenu\n      begin case" in tm and "if pane = 2 and si < nmenu then" in tm)
     ck("P16 ...F1 and ? show the help of the selected row (the key by pane and row), and a left press on a [?] selects its row, then shows it; the loop variable of the click is not the drawing routines'",
-       "case nm = 'f1' or nm = '?'" in tm and "call $tk_help('box', hk, hm, 0, 0)" in tm and "call $tk_help('hit', mev, 134, 1 + hr, hit.now)" in tm and "for hr = 1 to 9" in tm
+       "case nm = 'f1' or nm = '?'" in tm and "call $tk_help('box', hk, hm, 0, 0)" in tm and "call $tk_help('hit', mev, 134, 1 + hr, hit.now)" in tm and "for hr = 1 to nmenu" in tm
        and "call $tk_help('hit', mev, 66, 32, hit.default)" in tm and "call $tk_help('hit', mev, 66, 2, hit.accounts)" in tm and "hk = 'tool.menus.tile.' : tids<si - 2>" in tm)
     ck("P17 tool.viewers: a [?] on each box, F1 and ? and a click show their help, and the page runs only set.viewer",
        "call $tk_help('mark', 66, 2, 0, 0)" in tv and "call $tk_help('mark', 134, 2, 0, 0)" in tv and "case nm = 'f1' or nm = '?'" in tv and "call $tk_help('hit', mev, 66, 2, hit.allowed)" in tv
@@ -196,9 +197,10 @@ def checks(s):
        and "allow = " not in tau and "$tk_run" not in tau and "tool.audit.page" in hts and "call $tk_wrap(cline, 134, pieces)" in tau and "rest[cut" not in tau)
 
     tcf = strip(s["tool_config"])
-    ck("P17g tool.config: a [?] at the end of the first box, F1 and ? and a click show its help, it runs no command (no allow list, no $tk_run), and it wraps with $tk_wrap",
+    ck("P17g tool.config: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only set.config (one allow list, since 26 Oct 26, S.75 A6) through $tk_run behind the confirm box, and it wraps with $tk_wrap",
        "call $tk_help('mark', 134, 2, 0, 0)" in tcf and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.config.page', hm, 0, 0)" in tcf and "call $tk_help('hit', mev, 134, 2, hit.m)" in tcf
-       and "allow = " not in tcf and "$tk_run" not in tcf and "tool.config.page" in hts and "call $tk_wrap(ptext<i>, 134, pieces)" in tcf and "rest[cut" not in tcf)
+       and "allow = 'set.config'" in tcf and tcf.count("allow = ") == 1 and "call $tk_run(allow, sent, out, stat, err)" in tcf and "call $tk_confirm(sent, el, typed, res, cmsg)" in tcf
+       and "tool.config.page" in hts and "call $tk_wrap(ptext<i>, 134, pieces)" in tcf and "rest[cut" not in tcf)
 
     tbk = strip(s["tool_backups"])
     ck("P17h tool.backups: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only backup.account, restore.account and set.backup.directory (through $tk_runx), and the box is $tk_confirm's",
@@ -252,10 +254,10 @@ def checks(s):
        "call $tk_wrap(lines<li>, wrapw, pieces)" in tc and "for li = 1 to dcount(lines, @fm)" in tc and "if lines<li> = '' then" in tc and "body := @fm : lines" not in tc)
 
     every =th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tma + "\n" + tau + "\n" + tcf + "\n" + tbk + "\n" + tac + "\n" + trm + "\n" + tfl + "\n" + tvc + "\n" + tdi + "\n" + tqy + "\n" + tbl + "\n" + tcg + "\n" + tts
-    want ={"$tk_help": 5, "$tk_wrap": 3, "!viewlist": 4, "$tk_run": 5, "$tk_confirm": 5}
-    wrong = {k: [n for n in arg_counts(every, k) if n != v] for k, v in want.items()}
+    want ={"$tk_help": (5,), "$tk_wrap": (3,), "!viewlist": (4,), "$tk_run": (5,), "$tk_confirm": (5, 6)}       # $tk_confirm is VAR.ARGS since 26 Oct 26 (faults): a sixth argument, the title, may be left out
+    wrong = {k: [n for n in arg_counts(every, k) if n not in v] for k, v in want.items()}
     seen = {k: len(arg_counts(every, k)) for k in want}
-    ck("P20 every call of $tk_help (5 arguments), $tk_wrap (3), !viewlist (4), $tk_run (5) and $tk_confirm (5) has the number of arguments the subroutine takes (the null case: each is called at least once)",
+    ck("P20 every call of $tk_help (5 arguments), $tk_wrap (3), !viewlist (4), $tk_run (5) and $tk_confirm (5, or 6 with a title) has the number of arguments the subroutine takes (the null case: each is called at least once)",
        not any(wrong.values()) and seen["$tk_help"] >= 12 and seen["$tk_wrap"] >= 3 and seen["!viewlist"] >= 3 and seen["$tk_run"] >= 2 and seen["$tk_confirm"] >= 2, repr((wrong, seen)))
 
     m = s["msgs"]
@@ -293,7 +295,8 @@ MUTANTS = [
     ("tool.viewers calls $tk_wrap with too many arguments", "tool_viewers", "call $tk_wrap(lines<wi>, 134, pieces)", "call $tk_wrap(lines<wi>, 134, pieces, 0)"),
     ("tool.menus loses F1", "tool_menus", "      case nm = 'f1' or nm = '?'\n         gosub help.here\n", ""),
     ("tool.menus loses the click", "tool_menus", "call $tk_help('hit', mev, 134, 1 + hr, hit.now)", "hit.now = 0"),
-    ("tool.menus uses the drawing loop variable for the click", "tool_menus", "for hr = 1 to 9", "for r = 1 to 9"),
+    ("tool.menus uses the drawing loop variable for the click", "tool_menus", "for hr = 1 to nmenu", "for r = 1 to nmenu"),
+    ("tool.menus draws a [?] for only nine rows (26 Oct 26: the Menu box has a row for each standard tile)", "tool_menus", "   for r = 1 to nmenu\n      begin case", "   for r = 1 to 9\n      begin case"),
     ("tool.menus asks for a tile's help with the wrong index", "tool_menus", "hk = 'tool.menus.tile.' : tids<si - 2>", "hk = 'tool.menus.tile.' : tids<si>"),
     ("tool.menus has its own wrapping loop again", "tool_menus", "call $tk_wrap(lines<wi>, 63, pieces)", "rest[cut"),
     ("$tk_confirm has its own wrapping loop again", "tk_confirm", "call $tk_wrap(sentence, wrapw, pieces)", "rest[cut"),
@@ -311,7 +314,7 @@ MUTANTS = [
     ("tool.audit gains a command to run", "tool_audit", "   keys = ''\n", "   allow = 'sync.masters'\n   keys = ''\n"),
     ("tool.config loses its [?]", "tool_config", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.config calls $tk_help with too few arguments", "tool_config", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.config.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.config.page', hm)"),
-    ("tool.config gains a command to run", "tool_config", "   keys = ''\n", "   allow = 'sync.masters'\n   keys = ''\n"),
+    ("tool.config can run another command", "tool_config", "allow = 'set.config'", "allow = 'set.config sh'"),
     ("tool.backups loses its [?]", "tool_backups", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.backups calls $tk_help with too few arguments", "tool_backups", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.backups.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.backups.page', hm)"),
     ("tool.backups can run another command", "tool_backups", "allow = 'backup.account restore.account set.backup.directory'", "allow = 'backup.account restore.account set.backup.directory sh'"),

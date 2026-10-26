@@ -340,7 +340,7 @@ def goto(h, it):
 def boxtext(h):
     """the words inside the confirm box on the screen, one line (the page behind the box shows through at its sides and is left out); the whole screen when there is no box"""
     rows = [h.line(n) for n in range(43)]
-    top = next((n for n, l in enumerate(rows) if "Run this command?" in l), None)
+    top = next((n for n, l in enumerate(rows) if re.search(r"Run this command\?|Write this record\?", l)), None)      # 26 Oct 26 (faults): N's box is titled by what it does
     if top is None:
         return re.sub(r"[|\s]+", " ", h.text())
     s0, s1 = rows[top].index("+"), rows[top].rindex("+")

@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 26 Oct 26 dm S.75, home: START-MENU / START-TERMINAL (where the account starts) and PINS-ON (the person may add programs of their own to their home screen), the words MODIFY.ACCOUNT takes
+*           that differ from the delivered state; CA$START and CA$PINS in createacc.h; two start words are refused (11791) before anything is made; the audit gates= list names pins-on and a
+*           start= tail is written when a start word was given.
 * 23 Oct 26 dm S.69 step 2: AI-ON (joins the Linux group sdaiusers, the right to use the AI provider's API, on its own); CA$AI in createacc.h; the audit gates= list names it.
 * 21 Oct 26 dm S.73 item 3: FILES-ADMIN-ON (joins sdfilesadmin as well, with FILES-ON and FILES-WRITE-ON); CA$FILESADMIN in createacc.h; the audit gates= list names it.
 * 19 Oct 26 dm The audit line carries gates=, the words of the sentence that grant or withdraw an access (owner: "create-account should record what
@@ -148,7 +151,7 @@
 *
 * START-DESCRIPTION:
 *
-* CREATE.ACCOUNT USER  <name> {SSH | API | BOTH | NONE} {SH-ON} {OS-ON} {VOC-ON} {BP-ON} {DICT-ON} {SHARED-READ-OFF} {SHARED-WRITE-ON} {NET-ON} {FILES-ON} {NO.QUERY}
+* CREATE.ACCOUNT USER  <name> {SSH | API | BOTH | NONE} {SH-ON} {OS-ON} {VOC-ON} {BP-ON} {DICT-ON} {SHARED-READ-OFF} {SHARED-WRITE-ON} {NET-ON} {FILES-ON} {START-MENU | START-TERMINAL} {PINS-ON} {NO.QUERY}
 * CREATE.ACCOUNT GROUP <name> {NO.QUERY}
 * CREATE.ACCOUNT OTHER <name> <pathname> {NO.QUERY}
 *
@@ -173,6 +176,10 @@
 *                 ADMINISTER files on this server (configure, index, create, delete, the file's counter).  Off unless typed.
 *     AI-ON       (23 Oct 26, S.69 step 2) the person joins the Linux group sdaiusers: the right to use the AI provider's API through the helper sd-ai (one provider and
 *                 model for every account, chosen by SDSYS with set.ai).  Stands alone; off unless typed; a user account only (10087, 10081).
+*     START-MENU, START-TERMINAL   (26 Oct 26, S.75) where the new account starts: in the home screen, or at the command prompt.  Not typed, the account follows the system default
+*                 (SET.START.DEFAULT; delivered as menu).  Both in one command are refused (11791) before anything is made.  Any account type may have one (10087 does not apply).
+*     PINS-ON     (26 Oct 26, S.75) the person may add programs of their own to their home screen (MY.MENU).  Off unless typed.  Any account type may have it.
+*                 MODIFY.ACCOUNT's START-DEFAULT and PINS-OFF restate what an account has when neither is typed here, so they are not accepted here (as SHARED-READ-ON is not).
 *   SH-ON and OS-ON are two independent switches, so "SH-ON OS-ON" gives both and neither cancels the
 *   other.  A GROUP or OTHER account has no Linux user of its own, so it is refused all four (10087,
 *   10105).  MODIFY.ACCOUNT changes any of them later, either way.  ATTACH is install-only and says only
@@ -258,14 +265,16 @@ $include createacc.h
      gosub more.args
 
    case 1
-    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {no.query}'
-    crt '                create.account group <group name> {no.query}'
-    crt '                create.account other <account name> <pathname> {no.query}'
+    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {no.query}'
+    crt '                create.account group <group name> {start-menu | start-terminal} {pins-on} {no.query}'
+    crt '                create.account other <account name> <pathname> {start-menu | start-terminal} {pins-on} {no.query}'
     crt '  A new user account starts with no ssh, no API, no shell (sh), no os.execute, and no right to change'
     crt '  the VOC (voc-on), a program file (bp-on) or a dictionary (dict-on), no files on other SD servers (net-on),'
     crt '  and no files-only login (files-on; it cannot change files here without files-write-on); it can open and read the files of the shared account by name unless'
     crt '  shared-read-off is typed, and cannot write them unless shared-write-on is typed;'
     crt '  the words above give them, and modify.account changes any of them afterwards, either way.'
+    crt '  It starts where the system default says (set.start.default) unless start-menu or start-terminal is typed,'
+    crt '  and cannot add programs of its own to its home screen unless pins-on is typed.'
     @system.return.code = -ER$ARGS
     stop
    end case
@@ -301,8 +310,13 @@ $include createacc.h
    if settings<CA$AI> = 1 then gates<-1> = 'ai-on'
    if settings<CA$SHARED.READ.OFF> = 1 then gates<-1> = 'shared-read-off'
    if settings<CA$SHARED.WRITE> = 1 then gates<-1> = 'shared-write-on'
+   if settings<CA$PINS> = 1 then gates<-1> = 'pins-on'
    if gates = '' then gates = 'none' else gates = convert(@fm, ',', gates)
-   void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates)
+* 26 Oct 26 dm - S.75, home: where the account was told to start is a tail of its own, only when a start word was typed (start=menu or start=terminal); an account that follows the system default
+*   has the line it always had.
+   start.audit = ''
+   if settings<CA$START> # '' then start.audit = ' start=' : downcase(settings<CA$START>)
+   void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates : start.audit)
 
    return
 
@@ -376,6 +390,17 @@ more.args:
 *   account as it refuses FILES-ON, and looks for the group before anything is made.
          case upcase(token) = 'AI-ON'
             settings<CA$AI> = 1
+
+* 26 Oct 26 dm - S.75, home: START-MENU and START-TERMINAL name where the new account starts; they are one setting, so the second of two different ones is refused with 11791 (the words
+*   MODIFY.ACCOUNT refuses the same pair with) before anything is made.  PINS-ON lets the person add programs of their own to their home screen; off unless typed.  START-DEFAULT and
+*   PINS-OFF restate the state an account has when neither is typed and are not accepted (as SHARED-READ-ON is not).  Matched on the token text.
+         case upcase(token) = 'START-MENU' or upcase(token) = 'START-TERMINAL'
+            if settings<CA$START> # '' and settings<CA$START> # downcase(token[7, 99]) then
+               stop sysmsg(11791, 'start-' : settings<CA$START>, downcase(token))
+            end
+            settings<CA$START> = downcase(token[7, 99])
+         case upcase(token) = 'PINS-ON'
+            settings<CA$PINS> = 1
 
 * 11 Sep 26 dm - ATTACH (renamed from ADOPT 19 Sep).  ***THE TESTS ARE IN THE
 *   CASE CONDITION, AND THAT IS THE POINT***: with either gate shut the word

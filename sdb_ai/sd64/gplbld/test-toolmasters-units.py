@@ -45,7 +45,7 @@ def load():
             raw[k] = ""
     raw["newvoc_has"] = "1" if os.path.exists(NEWVOC) else ""
     msgs = {}
-    for n in (11564, 11568, 11569, 11571, 11572, 11573, 11574, 11594):
+    for n in (11564, 11568, 11569, 11571, 11572, 11573, 11574, 11594, 11981):      # 26 Oct 26, F6: 11981, how many accounts have master edits switched off
         try:
             with open(os.path.join(MSGDIR, str(n)), encoding="latin-1") as f:
                 msgs[n] = f.read()
@@ -142,7 +142,16 @@ def checks(raw):
     for m in re.finditer(r"sysmsg\((\d+)((?:, [^()]+?)*)\)", pg):
         arity[int(m.group(1))] = max(arity.get(int(m.group(1)), 0), len([a for a in m.group(2).split(",") if a.strip()]))
     ok_msgs = bool(arity) and all(mm.get(n, "") != "" and max([int(x) for x in re.findall(r"%(\d)", mm[n])] or [0]) <= a for n, a in arity.items())
-    ck("MA15", "every message the page prints exists and the page gives it as many arguments as it has %%n places: %s" % (" ".join(str(n) for n in sorted(arity)),), ok_msgs and set(arity) == {11564, 11568, 11569, 11571, 11572, 11573, 11574, 11594}, repr(arity))
+    ck("MA15", "every message the page prints exists and the page gives it as many arguments as it has %%n places: %s" % (" ".join(str(n) for n in sorted(arity)),), ok_msgs and set(arity) == {11564, 11568, 11569, 11571, 11572, 11573, 11574, 11594, 11981}, repr(arity))
+    # ---- 26 Oct 26, F6 (alternative C): the kernel's check ends with an "off" row, the number of accounts whose master edits are switched off.  It is not a difference: the page keeps it out of the
+    # ---- rows, out of the list of accounts and out of every count, and says it in the top box (11981).  nonwritable and norights are worded for an account that is ON, and name the verb.
+    ra_ = block(pg, "read.all")
+    ds_ = block(pg, "draw.status")
+    ck("MA16", "the 'off' row of the check is taken out BEFORE a row is counted for an account (it would be an account called by a number), is kept in noff, which read.all clears; the top box prints 11981 for it, "
+       "only when the files are set up and it is above 0; the kernel appends that row and counts the account once (the kernel source says so); nonwritable names modify.account ... sdsys-on",
+       0 < ra_.find("noff = 0") and 0 < ra_.find("if rw<1, 1> = 'off' then") < ra_.find("noff = rw<1, 2>") < ra_.find("gosub count.row")
+       and "if ready and noff > 0 then s = sysmsg(11981, noff)" in ds_ and ds_.find("sysmsg(11569") < ds_.find("sysmsg(11981, noff)") and 'mst_buf_str(&out, "off");' in raw["masters_c"]
+       and "modify.account " in kw and " sdsys-on puts the mode right" in kw)
     return rows
 
 
@@ -195,6 +204,14 @@ MUTANTS = [
     ("the accounts box overruns the explanation", "MA14", sub("page", "screen box at 1,9 size 138,15 title 'Accounts'", "screen box at 1,9 size 138,16 title 'Accounts'")),
     ("a message is given too few arguments", "MA15", sub("page", "sysmsg(11571, pend.bytes, pend.lines)", "sysmsg(11571, pend.bytes)")),
 ]
+M_F6C = len(MUTANTS)          # 26 Oct 26, F6 (alternative C): the first of its mutants, for `--selftest --from=N`
+MUTANTS += [
+    ("the off row is counted as an account", "MA16", sub("page", "               if rw<1, 1> = 'off' then\n", "               if @false then\n")),
+    ("the top box never says how many accounts are off", "MA16", sub("page", "   if ready and noff > 0 then s = sysmsg(11981, noff)", "   if ready and noff > 0 then s = ''")),
+    ("the count is not cleared when the page reads again", "MA16", sub("page", "   nd = 0 ; ncheck = 0 ; noff = 0 ; pend.bytes = 0", "   nd = 0 ; ncheck = 0 ; pend.bytes = 0")),
+    ("nonwritable names the retired verb", "MA16", sub("page", " sdsys-on puts the mode right)", " sd-elevate group-write puts the mode right)")),
+    ("the off count is given too few arguments", "MA15", sub("page", "sysmsg(11981, noff)", "sysmsg(11981)")),
+]
 
 
 def report(rows):
@@ -211,7 +228,13 @@ def selftest(raw):
         print("selftest: the unchanged tree fails %s, so a mutant's own failure cannot be told from the tree's; run the plain check first" % base)
         return 1
     holes = 0
-    for name, want, mut in MUTANTS:
+    start = 0
+    for a_ in sys.argv[1:]:
+        if a_.startswith("--from="):
+            start = int(a_.split("=", 1)[1])
+    for k_, (name, want, mut) in enumerate(MUTANTS):
+        if k_ < start:
+            continue
         try:
             m = mut(raw)
         except KeyError as exc:

@@ -1,0 +1,114 @@
+* SETCONFIG
+* SET.CONFIG verb: change one tuning parameter of sd.conf, through the root helper (S.75 A6, the write half of tool.config).
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 26 Oct 26 dm  New (S.75 A6; the owner: "do a6", 26 Oct 2026, after being warned once that writing sd.conf from SD is a new root-level write path and a wider permission than the delivered
+*               system has).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   SET.CONFIG parameter value       changes one parameter of /etc/sd.conf, for example  set.config cleanup 600
+*
+*   The administrator's verb.  It changes ONLY the tuning parameters that the root helper lists (sd-elevate conf-set: CLEANUP DHCACHE GRPSIZE LGNWAIT LPTRHIGH LPTRWIDE MAXCALL MAXRLOCK NETREPLY
+*   NETWAIT NUMLOCKS RECCACHE SORTMRG USPLIT), and only to a whole number inside the range SD itself enforces for it.  Every other parameter (the doors and their settings, every path and
+*   command, the logs, dumps and diagnostics, the sizes config.c does not check, TLS and the credentials) is changed by hand, as before; tool.config shows which are which and why.
+*
+*   WHAT THIS PROGRAM CHECKS, and nothing more than the helper then checks again: the caller is the administrator; there are exactly two words after the verb; the first is a name of
+*   letters and digits, the second a whole number of digits; both are checked BEFORE anything is run, so that no other character can reach the command line.  The name is made capital
+*   letters, as sd.conf spells it (the verb is typed in lower case: set.config cleanup 600).  The helper does the rest and its words are shown: a name it does not list is refused with its
+*   own sentence (known, or not known), a value outside the range is refused naming the range.  SUCCESS IS THE HELPER'S OWN LINE "<NAME> is now <value> in " and not its exit status alone.
+*
+*   The helper writes a temporary file beside sd.conf, renames it over the file and keeps the file as it was as sd.conf.bak (one generation).  A parameter that says session in tool.config
+*   reaches the sessions started after the change; one that says restart takes effect when SD is next stopped and started.
+*
+*   ONE AUDIT LINE for each time the helper is asked:  set.config key=<name> value=<number> status=ok  or  status=refused.  Nothing here could be a secret.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program set.config
+$catalog $setconfig
+
+$include int$keys.h
+$include keys.h
+$include err.h
+$include accos.h
+
+   prompt ''
+   @system.return.code = -ER$ARGS
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001) ;* Command requires administrator privileges
+   end
+
+   words = trim(@sentence)
+   if dcount(words, ' ') # 3 then stop sysmsg(11931)             ;* set.config parameter value
+
+   pname = upcase(field(words, ' ', 2))
+   pval = field(words, ' ', 3)
+
+*  Only letters and digits reach the command line: the name up to 12, the value up to 7 digits
+   good = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+   ok = (len(pname) >= 1 and len(pname) <= 12)
+   for i = 1 to len(pname)
+      if index(good, pname[i, 1], 1) = 0 then ok = @false
+   next i
+   if not(ok) then stop sysmsg(11932)                            ;* The parameter name has only letters and digits
+   ok = (len(pval) >= 1 and len(pval) <= 7)
+   for i = 1 to len(pval)
+      if index('0123456789', pval[i, 1], 1) = 0 then ok = @false
+   next i
+   if not(ok) then stop sysmsg(11933)                            ;* The value is a whole number written with digits only
+
+*  The one root step.  The helper refuses a name it does not list and a value outside the range, and writes the file.
+   out = ''
+   os.execute ACCOS$ELEVATE : " conf-set '" : pname : "' '" : pval : "' 2>&1" capturing out
+   stat = os.error()
+
+*  Success is the helper's own line, 'sd-elevate: NAME is now N in <file>; takes effect: session|restart', and nothing else
+   anchor = 'sd-elevate: ' : pname : ' is now ' : pval : ' in '
+   done = @false
+   effect = ''
+   lastl = ''
+   why = ''
+   for i = 1 to dcount(out, @fm)
+      ln = trim(out<i>)
+      if ln # '' then lastl = ln
+      if ln[1, len(anchor)] = anchor then
+         done = @true
+         e = index(ln, 'takes effect: ', 1)
+         if e > 0 then effect = trim(ln[e + 14, 20])
+      end
+      p = index(ln, 'REFUSED - ', 1)
+      if p > 0 then why = trim(ln[p + 10, 400])
+   next i
+
+   if stat # 0 or not(done) then
+      if why = '' then why = lastl
+      if why = '' then why = 'the helper gave no answer (status ' : stat : ')'
+      st = 'refused'
+      gosub write.audit
+      @system.return.code = -ER$FAILED
+      stop sysmsg(11934, why)                                    ;* sd.conf was not changed: %1
+   end
+
+   st = 'ok'
+   gosub write.audit
+   @system.return.code = 0
+   display sysmsg(11935, pname, pval)                            ;* %1 is now %2 in sd.conf
+   if effect = 'restart' then display sysmsg(11936)              ;* It takes effect when SD is next stopped and started
+   if effect = 'session' then display sysmsg(11937)              ;* Sessions started from now on use it
+   stop
+
+write.audit:
+   void kernel(K$AUDIT, 'set.config key=' : downcase(pname) : ' value=' : pval : ' status=' : st)
+   return
+
+end
+
+* END-CODE

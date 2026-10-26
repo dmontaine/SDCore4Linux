@@ -3,6 +3,14 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 26 Oct 26 dm S.75 A6 (the write half of tool.config; the owner chose it, warned once that it is a new root-level write of /etc/sd.conf): conf-set KEY VALUE changes one
+#               tuning parameter of /etc/sd.conf - a name on a whitelist of 14, a whole number inside the range config.c itself enforces, a temp file renamed over the file with
+#               its owner and mode, the file as it was kept as sd.conf.bak.  Everything else in sd.conf (the doors, the paths, the commands, the audit and log settings, every
+#               parameter config.c does not range-check) is NOT writable here.
+# 26 Oct 26 dm F6 (S.67 stage 2, alternative C): sdsys-leave, the one verb that takes the sdsys user OUT of a group (only sdu_<user>, same rules as
+#               sdsys-join, the user written in the helper), so that sdsys is in no user account's group as delivered and the administrator turns it on
+#               per account (modify.account <name> sdsys-on).  sdsys-join, sdsys-leave and group-write now leave a line in the system log (logger -t
+#               sd-elevate); they left none before.
 # 23 Oct 26 dm S.69 step 2: sdaiusers, the right to use the AI provider's API through the helper sd-ai, joins the same two places (require_sd_group,
 #               groupdel's undeletable set).  (The ai-* verbs that write the helper's settings and key are the next entries of this history.)
 # 21 Oct 26 dm S.73 item 3: sdfilesadmin, the right to administer files over the files-only route, joins the same two places as sdfileswrite
@@ -167,9 +175,15 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
                                   (makes it for sdsys, mode 0700, only below /media, /run/media,
                                   /mnt, /var/backups, /srv, /opt, /home/sdsys or a place listed
                                   in /etc/sd-backup-roots)
+  sd-elevate [--dry-run] conf-set <PARAMETER> <whole number>
+                                  (changes one tuning parameter of /etc/sd.conf, such as CLEANUP 600: only the parameters on
+                                  the helper's list, only inside the range SD itself enforces; the old file is kept as sd.conf.bak)
   sd-elevate [--dry-run] sdsys-join <sdu_ group>
                                   (puts the user sdsys, and no other user, into the group of an SD
                                   user's account, so that a master edit can be written into it)
+  sd-elevate [--dry-run] sdsys-leave <sdu_ group>
+                                  (takes the user sdsys, and no other user, out of the group of an SD
+                                  user's account; a group that does not list sdsys is left as it is)
   sd-elevate [--dry-run] group-write <account directory>
                                   (gives the account's own group write on its VOC and dictionaries,
                                   only where that group already owns them)
@@ -715,8 +729,11 @@ require_account_dir() {
 # already let it take or remove any account directory.  What they do not give it
 # is READING a file it is not allowed to read, and backup-pack is shaped so that
 # it still cannot: the zip goes to the caller, but only of account trees, and
-# sdsys is a member of every account's group by construction (createa's
-# groupadd), so an account file is one it was entitled to see.
+# sdsys was a member of every account's group by construction (createa's
+# groupadd), so an account file was one it was entitled to see.  26 Oct 26 (F6):
+# that is no longer so as delivered (the membership is switched on per account,
+# modify.account sdsys-on); backup-pack's reading of an account tree is then
+# decided by the tree's modes alone, as for any other group member that is not in the group.
 
 SD_ACCARCHIVE=${SD_ACCARCHIVE:-/usr/local/sbin/sd-accarchive}
 
@@ -1191,10 +1208,164 @@ conf_set_backupdir() {   # conf_set_backupdir FILE PATH - one BACKUPDIR= line, l
 }
 # END bakdir_functions
 
+# ------------------------------------------------------ the parameters of sd.conf (S.75 A6, the write half of tool.config)
+#
+# 26 Oct 26 dm - conf-set KEY VALUE (the owner chose to build it - "do a6", 26 Oct 2026 - after being warned once that it is a new root-level write of /etc/sd.conf, a wider
+# permission than the delivered system has; the tighter alternative was to stay view-only and show the line to add by hand).  It is built as tightly as the work allows:
+#
+#   THE LIST.  14 parameters, the TUNING ones: CLEANUP DHCACHE GRPSIZE LGNWAIT LPTRHIGH LPTRWIDE MAXCALL MAXRLOCK NETREPLY NETWAIT NUMLOCKS RECCACHE SORTMRG USPLIT.  Each is a parameter
+#   config.c itself range-checks (rangecheck() in read_config), so the range here is the range SD enforces at start-up and the helper cannot accept what SD would refuse.  The other
+#   49 parameters of the parser are known here by name (confset_fixed) only so that a refusal can say "known, not changed here" instead of "unknown": they are the doors (NETFILES,
+#   SDCLIENT, PORTMAP, FILERULE), every path and command (DUMPDIR, GRPDIR, USRDIR, SDSYS, SH, SH1, SORTWORK, SPOOLER, STARTUP, TEMPDIR, TERMINFO, BACKUPDIR, JNLDIR), the log, dump and
+#   diagnostic settings (DEBUG, DEADLOCK, ERRLOG, PDUMP), the security throttle PWDELAY, the sizing and combining parameters config.c does not range-check or checks against each other
+#   (CMDSTACK, FDS, FIXUSERS, MAXIDLEN, NUMFILES, NUMUSERS, OBJECTS, OBJMEM, PHANTOMS, SORTMEM, USERPOOL), the ones that change what existing programs compute or how files are
+#   written (FLTDIFF, FSYNC, INTPREC, INVCASE, MUSTLOCK, SAFEDIR, YEARBASE, SCREENTHEME) and the ones nothing acts on (APILOGIN, CODEPAGE, CREATUSR, EXCLREM, GDI, JNLMODE, RINGWAIT, TXCHAR).
+#   sdsys/config.table has the same split in its 'write' column with one reason per parameter; gplbld/test-confset-elevate-units.py holds this list to config.c and to that table.
+#   ***AN UNRECOGNISED NAME IN sd.conf STOPS SD AND EVERY NEW SESSION FROM STARTING (config.c)***: that is why the name is checked against a list and never against a pattern.
+#   THE VALUE is a whole number of up to 7 digits, no sign, no leading zero, inside the range - so no byte of it can be a second line, a quote or a comment.
+#   THE WRITE.  The line is added or replaced inside an [sd] section (config.c reads lines only there: one appended after another section's header would be ignored without a word);
+#   a second KEY= line in an [sd] section is dropped (config.c keeps the last, so a stale one would win over the new); every other line is kept as it was; the new file is made beside
+#   the old, given its owner and mode, the old one is copied to sd.conf.bak (ONE generation: the file as it was before this change), and the new file is renamed over sd.conf.  Nothing
+#   is written when the file already says that; the file is read back.
+#   THE CALLER.  Only sdsys is given this helper by sudoers (sdsys ALL=(root) NOPASSWD: sd-elevate; %sdusers get four exact argument lists, none of them conf-set).  As the other verbs do
+#   not ask who the caller is, that is where they stop; conf-set also refuses a caller sudo says is somebody else, so that a widened sudoers line does not widen this.
+#
+# gplbld/test-confset-elevate-units.py cuts the functions between the markers out of this file and runs them on scratch files, as test-bakdir-elevate-units.py does for the backup
+# directory; keep the lines, and keep the code between them free of anything but die().
+
+# BEGIN confset_functions
+CS_WRITABLE="CLEANUP DHCACHE GRPSIZE LGNWAIT LPTRHIGH LPTRWIDE MAXCALL MAXRLOCK NETREPLY NETWAIT NUMLOCKS RECCACHE SORTMRG USPLIT"
+
+confset_fixed() {   # confset_fixed KEY - true when KEY is a parameter config.c takes that conf-set does not change
+  case $1 in
+    APILOGIN|BACKUPDIR|CMDSTACK|CODEPAGE|CREATUSR|DEADLOCK|DEBUG|DUMPDIR|ERRLOG|EXCLREM|FDS|FILERULE|FIXUSERS|FLTDIFF|FSYNC|GDI|GRPDIR|INTPREC|INVCASE|JNLDIR|JNLMODE) return 0 ;;
+    MAXIDLEN|MUSTLOCK|NETFILES|NUMFILES|NUMUSERS|OBJECTS|OBJMEM|PDUMP|PHANTOMS|PORTMAP|PWDELAY|RINGWAIT|SAFEDIR|SCREENTHEME|SDCLIENT|SDSYS|SH|SH1|SORTMEM|SORTWORK|SPOOLER) return 0 ;;
+    STARTUP|TEMPDIR|TERMINFO|TXCHAR|USERPOOL|USRDIR|YEARBASE) return 0 ;;
+  esac
+  return 1
+}
+
+confset_limits() {   # confset_limits KEY - sets CS_MIN, CS_MAX (config.c's rangecheck) and CS_EFFECT for a parameter conf-set may change; false for any other name
+  case $1 in
+    CLEANUP)  CS_MIN=30; CS_MAX=3600;    CS_EFFECT=restart ;;
+    DHCACHE)  CS_MIN=0;  CS_MAX=1024;    CS_EFFECT=session ;;
+    GRPSIZE)  CS_MIN=1;  CS_MAX=8;       CS_EFFECT=session ;;
+    LGNWAIT)  CS_MIN=0;  CS_MAX=32767;   CS_EFFECT=restart ;;
+    LPTRHIGH) CS_MIN=10; CS_MAX=32767;   CS_EFFECT=session ;;
+    LPTRWIDE) CS_MIN=10; CS_MAX=1000;    CS_EFFECT=session ;;
+    MAXCALL)  CS_MIN=10; CS_MAX=1000000; CS_EFFECT=session ;;
+    MAXRLOCK) CS_MIN=0;  CS_MAX=100000;  CS_EFFECT=session ;;
+    NETREPLY) CS_MIN=1;  CS_MAX=3600;    CS_EFFECT=session ;;
+    NETWAIT)  CS_MIN=1;  CS_MAX=3600;    CS_EFFECT=session ;;
+    NUMLOCKS) CS_MIN=1;  CS_MAX=32767;   CS_EFFECT=restart ;;
+    RECCACHE) CS_MIN=0;  CS_MAX=32;      CS_EFFECT=session ;;
+    SORTMRG)  CS_MIN=2;  CS_MAX=10;      CS_EFFECT=session ;;
+    USPLIT)   CS_MIN=0;  CS_MAX=1;       CS_EFFECT=restart ;;
+    *) return 1 ;;
+  esac
+  return 0
+}
+
+confset_caller() {   # confset_caller - dies unless sudo says the caller is sdsys; a run by root with no sudo (SUDO_USER unset) is not asked
+  [[ -z ${SUDO_USER:-} || ${SUDO_USER:-} == sdsys ]] || die "conf-set is the administrator's (the user sdsys); sudo says it was asked for by another user"
+}
+
+confset_check() {   # confset_check KEY VALUE - dies unless conf-set may write VALUE as KEY's value; sets CS_MIN, CS_MAX and CS_EFFECT.  The offending text is not echoed until it has passed
+  local k=$1 v=$2
+  local LC_ALL=C
+  [[ -n $k ]] || die "no parameter name was given"
+  [[ $k =~ ^[A-Z][A-Z0-9]*$ ]] || die "the parameter name holds a character that is not a capital letter or a digit: sd.conf spells a parameter in capitals (CLEANUP, not cleanup) and SD does not start when it meets a name it does not know"
+  [[ ${#k} -le 12 ]] || die "the parameter name is longer than any parameter SD has"
+  if ! confset_limits "$k"; then
+    if confset_fixed "$k"; then
+      die "$k is a parameter SD knows, and conf-set does not change it (a door, a path or a command, a log or security setting, a size config.c does not check, or one nothing acts on): tool.config says why, and the line to add by hand"
+    fi
+    die "$k is not a parameter SD knows, so nothing was written (a name SD does not know in sd.conf stops SD from starting)"
+  fi
+  [[ -n $v ]] || die "no value was given for $k"
+  [[ $v =~ ^[0-9]+$ ]] || die "the value must be a whole number written with digits only: no sign, point, space, quote or line break"
+  [[ ${#v} -le 7 ]] || die "the value has more than 7 digits"
+  [[ $v == 0 || $v != 0* ]] || die "the value must not start with a zero"
+  (( 10#$v >= CS_MIN && 10#$v <= CS_MAX )) || die "$v is outside the range $CS_MIN to $CS_MAX that SD accepts for $k"
+}
+
+# confset_scan FILE KEY - reads FILE as config.c does: a line beginning # and an empty line are skipped, a line beginning [ names the section (up to the first ], 32 characters, capitals), and
+# a KEY= line counts only inside an [sd] section.  Sets CS_L (the lines), CS_N (how many), CS_FIRST (the index of the first KEY= line in an [sd] section, -1 when there is none), CS_DROPS
+# (" i j " for the later ones), CS_COUNT (how many there are) and CS_AFTER (the index to add a line after: the last line that sets anything in the last [sd] section, or its header; -1 when no
+# [sd] section exists).
+confset_scan() {
+  local f=$1 k=$2 i line name insd=0
+  local LC_ALL=C
+  mapfile -t CS_L < "$f"
+  CS_N=${#CS_L[@]}
+  CS_FIRST=-1; CS_AFTER=-1; CS_COUNT=0; CS_DROPS=" "
+  for (( i = 0; i < CS_N; i++ )); do
+    line=${CS_L[i]}
+    [[ -n $line && ${line:0:1} != '#' ]] || continue
+    if [[ ${line:0:1} == '[' ]]; then
+      name=${line:1}
+      name=${name%%]*}
+      name=${name:0:32}
+      name=${name^^}
+      if [[ $name == SD ]]; then insd=1; CS_AFTER=$i; else insd=0; fi
+      continue
+    fi
+    (( insd )) || continue
+    CS_AFTER=$i
+    if [[ $line == "$k="* ]]; then
+      CS_COUNT=$(( CS_COUNT + 1 ))
+      if (( CS_FIRST < 0 )); then CS_FIRST=$i; else CS_DROPS="$CS_DROPS$i "; fi
+    fi
+  done
+}
+
+conf_set() {   # conf_set FILE KEY VALUE - after confset_check: FILE's KEY= line in its [sd] section becomes KEY=VALUE (or is added), every other line is kept, the old FILE stays as FILE.bak; sets CS_CHANGED
+  local f=$1 k=$2 v=$3 bak=$1.bak tmp i
+  local -a out
+  [[ -f $f && ! -L $f ]] || die "$f is not a regular file"
+  if [[ -e $bak || -L $bak ]]; then
+    [[ -f $bak && ! -L $bak ]] || die "$bak is not a regular file"
+  fi
+  tr -d '\000' < "$f" | cmp -s -- - "$f" || die "$f holds a NUL byte, so it is not rewritten"
+  confset_scan "$f" "$k"
+  (( CS_AFTER >= 0 )) || die "$f has no [sd] section, so there is nowhere to put $k"
+  out=()
+  for (( i = 0; i < CS_N; i++ )); do
+    if (( i == CS_FIRST )); then
+      out+=("$k=$v")
+    elif [[ $CS_DROPS == *" $i "* ]]; then
+      :
+    else
+      out+=("${CS_L[i]}")
+    fi
+    if (( CS_FIRST < 0 && i == CS_AFTER )); then out+=("$k=$v"); fi
+  done
+  tmp=$(mktemp "$f.XXXXXX") || die "cannot create a temp file beside $f"
+  printf '%s\n' "${out[@]}" > "$tmp" || { rm -f -- "$tmp"; die "writing $f failed"; }
+  CS_CHANGED=0
+  if cmp -s -- "$tmp" "$f"; then
+    rm -f -- "$tmp"
+    return 0
+  fi
+  chown --reference="$f" -- "$tmp" && chmod --reference="$f" -- "$tmp" \
+    && cp -p -- "$f" "$bak" \
+    && mv -f -- "$tmp" "$f" \
+    || { rm -f -- "$tmp"; die "writing $f failed"; }
+  confset_scan "$f" "$k"
+  [[ $CS_COUNT -eq 1 && $CS_N -eq ${#out[@]} && ${CS_L[CS_FIRST]} == "$k=$v" ]] || die "$f does not read back as written (the file as it was is $bak)"
+  for (( i = 0; i < CS_N; i++ )); do
+    [[ ${CS_L[i]} == "${out[i]}" ]] || die "$f does not read back as written (the file as it was is $bak)"
+  done
+  CS_CHANGED=1
+}
+# END confset_functions
+
 # ------------------------------------------- the sdsys user in the account groups (S.67 stage 2, D7)
 #
 # 19 Oct 26 dm - THE OWNER'S DECISION OF 17 OCT 2026 (D7), TAKEN WITH THE WIDER OF TWO OPTIONS AND WARNED: SDSYS WRITES A MASTER EDIT INTO THE ACCOUNT'S
 # OWN VOC OR DICTIONARY, so the sdsys OPERATING-SYSTEM USER is a member of every account's group and those files are group-writable.
+# 26 Oct 26 (F6, the owner's "do f6"): THAT IS NO LONGER THE DELIVERED STATE.  The sdsys user is in no user account's group as delivered; modify.account <name> sdsys-on
+# puts it in one account's group (sdsys-join + group-write below) and sdsys-off takes it out (sdsys-leave).  What follows describes what the membership is, when it is on.
 # ***THAT GIVES THE sdsys OS USER WRITE ACCESS TO EVERY ACCOUNT'S VOC AND DICTIONARIES (and, through the group, to what else the group may write)***: a
 # compromised sdsys is a code-execution route into every account (a VOC entry or an I-type is code that runs in the account).  The tighter option was an
 # outbox the account applies itself; the owner chose not to.  What follows is the narrowest way of carrying out the choice, and nothing wider:
@@ -1202,6 +1373,10 @@ conf_set_backupdir() {   # conf_set_backupdir FILE PATH - one BACKUPDIR= line, l
 #   sdsys-join GROUP     puts the user sdsys - ONLY sdsys, whatever else is typed - into GROUP, which must be sdu_<user> for an SD user that exists
 #                        (require_sd_user: not root, not sdsys, not a system account) and must itself exist.  Not sdusers, not a route group, not an
 #                        sdg_ group (a group account's group is made with sdsys in it already), not any group that is not an account's own.
+#   sdsys-leave GROUP    26 Oct 26, F6: the same checks as sdsys-join (require_account_group), and takes the user sdsys - ONLY sdsys - OUT of GROUP with
+#                        `gpasswd -d sdsys GROUP`, the tool delgroup uses.  It removes that one membership and no other: never `usermod -G`, which would
+#                        replace the user's whole group list.  A group that does not list sdsys is left alone ("sdsys is not in GROUP", exit 0), so the
+#                        installer's one-time walk and `modify.account <name> sdsys-off` can be repeated.  A running session keeps the groups it started with.
 #   group-write DIR      for ONE account directory (the same canonical-path rules as rmtree-account), gives the account's own group write on its VOC
 #                        and on its dictionaries (the directories named voc and *.dic below it): g+rwxs on each directory, g+rw on the files directly in
 #                        it.  Only where the object's group IS the account's own group (sdu_<name> in user_accounts, sdg_<name> in group_accounts -
@@ -1210,6 +1385,7 @@ conf_set_backupdir() {   # conf_set_backupdir FILE PATH - one BACKUPDIR= line, l
 #                        cannot make root change the mode of a file elsewhere, and it does not leave the account directory's filesystem.
 #
 # SD_GROUP_FIXTURE and SD_GW_GROUP_FIXTURE are for --dry-run only (a free test needs a group the machine does not have); a real run ignores them.
+# sdsys-leave asks the machine's own group entry who is in the group (getent), on a dry run too: a free test puts a getent of its own first on PATH.
 
 group_exists() {   # group_exists NAME - /etc/group, or on a dry run SD_GROUP_FIXTURE (a comma list) when it is set
   if [[ $DRY -eq 1 && -n ${SD_GROUP_FIXTURE:-} ]]; then
@@ -1226,6 +1402,12 @@ require_account_group() {   # require_account_group GROUP - dies unless GROUP is
   user=${group#sdu_}
   require_sd_user "$user"
   group_exists "$group" || die "group '$group' does not exist"
+}
+
+group_lists_sdsys() {   # group_lists_sdsys GROUP - true when the member list of GROUP (field 4 of its group entry) holds the user sdsys as a whole name
+  local members
+  members=$(getent group "$1" 2>/dev/null | cut -d: -f4)
+  [[ ",$members," == *",sdsys,"* ]]
 }
 
 # BEGIN gw_worker
@@ -1624,6 +1806,21 @@ case $verb in
     require_account_group "$1"
     [[ $DRY -eq 1 ]] || id -u sdsys >/dev/null 2>&1 || die "the user sdsys does not exist"
     cmd=(usermod -aG "$1" -- sdsys)
+    LOG_LINE="sdsys-join: the user sdsys is now in $1"
+    ;;
+
+  # 26 Oct 26 dm - F6.  The other half of sdsys-join, with the same checks and the same rule that the user is written here.  gpasswd -d takes out the one
+  # membership; a group that does not list sdsys is not an error (the walk and `sdsys-off` are repeatable) and is not touched.
+  sdsys-leave)
+    [[ $# -eq 1 ]] || usage
+    require_account_group "$1"
+    if ! group_lists_sdsys "$1"; then
+      printf '%s: sdsys is not in %s\n' "$PROG" "$1"
+      exit 0
+    fi
+    [[ $DRY -eq 1 ]] || id -u sdsys >/dev/null 2>&1 || die "the user sdsys does not exist"
+    cmd=(gpasswd -d sdsys "$1")
+    LOG_LINE="sdsys-leave: the user sdsys is no longer in $1"
     ;;
 
   # The work is the python3 text GW_PY; the account is checked here first.  The result line is the one witness-masters.sh anchors on.
@@ -1632,8 +1829,9 @@ case $verb in
     require_group_write_target "$1"
     printf '%s: group-write %s (group %s, gid %s; owners uid %s)\n' "$PROG" "$ACCT_REAL" "$GW_GROUP" "$GW_GID" "$GW_OWNERS"
     need_root
-    python3 -c "$GW_PY" "$ACCT_REAL" "$GW_GID" "$GW_OWNERS" "$DRY"
-    exit $?
+    python3 -c "$GW_PY" "$ACCT_REAL" "$GW_GID" "$GW_OWNERS" "$DRY" || exit $?
+    [[ $DRY -eq 1 ]] || logger -t sd-elevate "group-write: the VOC and dictionaries of $ACCT_REAL are group-writable for $GW_GROUP" 2>/dev/null || true
+    exit 0
     ;;
 
   # The success line is the one !acc_os_bakdir anchors on: nothing else prints "BACKUPDIR is now".
@@ -1646,6 +1844,23 @@ case $verb in
     conf_set_backupdir "$SD_CONF" "$1"
     logger -t sd-elevate "bakdir-set: the backup directory is now $1" 2>/dev/null || true
     printf '%s: BACKUPDIR is now %s in %s\n' "$PROG" "$1" "$SD_CONF"
+    exit 0
+    ;;
+
+  # 26 Oct 26 dm - S.75 A6.  See "the parameters of sd.conf" above.  The success line is the one SET.CONFIG anchors on: nothing else prints " is now <value> in " (the dry run stops
+  # before it, and every refusal is a die).  The file is /etc/sd.conf and nothing a caller passes moves it.
+  conf-set)
+    [[ $# -eq 2 ]] || die "conf-set takes exactly two arguments, a parameter's name and its value (set.config PARAMETER VALUE)"
+    confset_check "$1" "$2"
+    printf '%s: set %s=%s in %s\n' "$PROG" "$1" "$2" "$SD_CONF"
+    [[ $DRY -eq 1 ]] && exit 0
+    need_root
+    confset_caller
+    conf_set "$SD_CONF" "$1" "$2"
+    cs_note=''
+    [[ $CS_CHANGED -eq 1 ]] || cs_note=' (it already was; nothing was written)'
+    logger -t sd-elevate "conf-set: $1 is now $2 in $SD_CONF$cs_note" 2>/dev/null || true
+    printf '%s: %s is now %s in %s%s; takes effect: %s\n' "$PROG" "$1" "$2" "$SD_CONF" "$cs_note" "$CS_EFFECT"
     exit 0
     ;;
 
@@ -1676,5 +1891,7 @@ for m in "${extra[@]:-}"; do
   [[ -n $m ]] || continue
   gpasswd -a "$m" "${cmd[-1]}" || exit $?
 done
+
+[[ -z ${LOG_LINE:-} ]] || logger -t sd-elevate "$LOG_LINE" 2>/dev/null || true
 
 exit 0

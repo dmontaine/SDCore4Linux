@@ -65,19 +65,21 @@ The dictionary item types (field 1 starts with the letter). Each type is the chu
 | `10` | width | column width |
 
 ### core:gates
-> kind=core.digest tier=core since=- src=sdsys/gpl.bp/createa:261#e199fce4
+> kind=core.digest tier=core since=- src=sdsys/gpl.bp/createa:268#a42e8092
 
 A new user account starts with every gate OFF. Only SDSYS, the one administrator, turns one on, with these words (`create.account`, then `modify.account <account> <word>`). Each word is the chunk `sys:word:<word>`. This is what `create.account` prints:
 
 ```
-Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {no.query}
-                create.account group <group name> {no.query}
-                create.account other <account name> <pathname> {no.query}
+Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {no.query}
+                create.account group <group name> {start-menu | start-terminal} {pins-on} {no.query}
+                create.account other <account name> <pathname> {start-menu | start-terminal} {pins-on} {no.query}
   A new user account starts with no ssh, no API, no shell (sh), no os.execute, and no right to change
   the VOC (voc-on), a program file (bp-on) or a dictionary (dict-on), no files on other SD servers (net-on),
   and no files-only login (files-on; it cannot change files here without files-write-on); it can open and read the files of the shared account by name unless
   shared-read-off is typed, and cannot write them unless shared-write-on is typed;
   the words above give them, and modify.account changes any of them afterwards, either way.
+  It starts where the system default says (set.start.default) unless start-menu or start-terminal is typed,
+  and cannot add programs of its own to its home screen unless pins-on is typed.
 ```
 
 ### core:start
@@ -103,6 +105,7 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`build.index`** *file* *field* … | **`all`**
 - **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
 - **`catalogue`** — the same verb as **`catalog`**
+- **`cd`** *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`cd data`** *file* {*i-type* …}  ·  **`cd local`**  ·  **`cd all`**
 - **`copy.listp`** {{**`dict`**} *file*} {*name* … | **`*`**} {**`(`***options*}
 - **`copyp`** {**`dict`**} *file* *id* … {**`(options`**}
 - **`count`** {**`dict`**} *file* {*selection*}
@@ -114,7 +117,6 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`display`** *text*
 - **`ed`** {**`dict`**} *file* {*id* … | **`creating.seqkey`**}
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
-- **`generate`** {**`dict`**} *file* *record* …
 - **`home`**  —  the home screen: tiles for the account's tools, a terminal, switch account and sign out
 - **`list`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 - **`list.index`** *file* {*field* …}

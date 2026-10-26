@@ -5,6 +5,8 @@ Written 09 Sep 26 for PRE_RELEASE 14.
 
 19 Oct 26 dm INTEGRATION of the S.67 rows below with 981a36a's record-file rows (record_rows, RECORD_MUTANTS): one run() that takes `env` and `dry`, and
 one `--selftest` loop over the three families (group, record-file, sdsys-join) with _kill_mutants; a null guard on the record-file rows in the plain run too.
+26 Oct 26 dm F6 (S.67 stage 2, alternative C): rows for `sdsys-leave` (leave_rows; who is in the group is read from a getent of the test's own put first on PATH),
+the log lines of sdsys-join, sdsys-leave and group-write (log_rows, read off the helper's text), their mutants in `--selftest`, and `--selftest --only=FAMILY`.
 19 Oct 26 dm S.67 stage 2 (D7): rows for `sdsys-join` (sdsys_rows), the one verb that puts the sdsys user into a group - only sdu_<user>, only for
 an existing SD user, only an existing group - with their own mutants in `--selftest` (SDSYS_MUTANTS).
 17 Oct 26 dm S.65 slice 2c: rows for the route group sdfiles (group_rows) and
@@ -369,6 +371,192 @@ SDSYS_MUTANTS = [
 ]
 
 
+# ---- 26 Oct 26, F6 (S.67 stage 2, alternative C): sdsys-leave.  THE OTHER HALF OF sdsys-join: it takes the sdsys user OUT of an account's group, so that sdsys
+# ---- is in no user account's group as delivered and `modify.account <name> sdsys-on` is a deliberate act.  Who is in the group is asked of getent (field 4
+# ---- of the group entry), on a dry run too, so a getent of this test's own is put first on PATH: it answers `getent group NAME` for the names in
+# ---- STUB_GROUPS with the members in STUB_MEMBERS and passes every other question to the real one.  The REFUSE rows give sdsys as a member, so that
+# ---- "sdsys is not in the group" can never be what refuses them (that answer is exit 0), and a rule removed shows as a gpasswd line.
+def _getent_stub(td):
+    path = os.path.join(td, "getent")
+    real = shutil.which("getent") or "/usr/bin/getent"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("#!/bin/bash\n"
+                'if [[ $1 == group && ",${STUB_GROUPS:-}," == *",$2,"* ]]; then echo "$2:x:54321:${STUB_MEMBERS:-}"; exit 0; fi\n'
+                'exec %s "$@"\n' % real)
+    os.chmod(path, 0o755)
+
+
+def leave_rows(helper=None):
+    """Returns (rows, skipped).  A row is (label, ok, detail)."""
+    import getpass
+    rows = []
+    skipped = []
+
+    def ask(label, argv, check, env=None, dry=True):
+        code, out = run(argv, helper, env=env, dry=dry)
+        first = out.strip().splitlines()[0] if out.strip() else "(no output)"
+        rows.append((label, check(code, out), f"exit {code}: {first}"))
+
+    who = getpass.getuser()
+    code, out = run(["passwd", who], helper)
+    if code != 0 or os.geteuid() == 0:
+        skipped.append(f"sdsys-leave: '{who}' is not an SD user here, or this is root ({out.strip().splitlines()[0] if out.strip() else 'no output'})")
+        return rows, skipped
+    mine = "sdu_" + who
+    td = tempfile.mkdtemp(prefix="sdelev-leave-")
+    try:
+        _getent_stub(td)
+        names = ["sdusers", "sdssh", "sdapi", "sdfiles", "sdfileswrite", "sdfilesadmin", "sdg_probe", "sudo", "wheel", "docker", "lxd", "adm", "root", "sdu_",
+                 "sdu_root", "sdu_sdsys", "sdu_daemon", "sdu_zzprobenouser", "sdu_-rf", mine]
+        path = td + os.pathsep + os.environ.get("PATH", "")
+
+        def env(members, groups=None, **more):
+            e = {"PATH": path, "STUB_GROUPS": ",".join(names if groups is None else groups), "STUB_MEMBERS": members}
+            e.update(more)
+            return e
+
+        def leaves(c, o):
+            return c == 0 and o.strip().splitlines()[-1].endswith(" -d sdsys %s" % mine) and " -G " not in o and "usermod" not in o
+
+        def stays(c, o):
+            return c == 0 and ("sdsys is not in %s" % mine) in o and "gpasswd" not in o
+
+        # ---- ALLOW: the control, and the membership read as a whole name from field 4
+        ask(f"sdsys-leave {mine} is accepted when the group lists sdsys: gpasswd -d sdsys GROUP", ["sdsys-leave", mine], leaves, env("root,sdsys," + who))
+        ask("...a group whose only member is sdsys", ["sdsys-leave", mine], leaves, env("sdsys"))
+        ask("...sdsys the first member", ["sdsys-leave", mine], leaves, env("sdsys,root"))
+        ask("...sdsys the last member", ["sdsys-leave", mine], leaves, env("root," + who + ",sdsys"))
+        ask("...whoever asked: SUDO_USER and USER set to somebody else change nothing (the user is written in the helper, not taken from the environment)",
+            ["sdsys-leave", mine], lambda c, o: leaves(c, o) and "attacker" not in o, env("root,sdsys", SUDO_USER="attacker", USER="attacker", LOGNAME="attacker"))
+        ask("a group that does not list sdsys is left alone: exit 0, 'sdsys is not in GROUP', no gpasswd", ["sdsys-leave", mine], stays, env("root," + who))
+        ask("...a group with no members at all", ["sdsys-leave", mine], stays, env(""))
+        ask("...a member called sdsys2 is not sdsys (a whole name, not a prefix)", ["sdsys-leave", mine], stays, env("sdsys2,root"))
+        ask("...a member called xsdsys is not sdsys (a whole name, not a suffix)", ["sdsys-leave", mine], stays, env("root,xsdsys"))
+        # ---- REFUSE: groups that are not an account's own.  sdsys is a member of each, so only the rule can refuse.
+        listed = "root,sdsys"
+        for g in ("sdusers", "sdssh", "sdapi", "sdfiles", "sdfileswrite", "sdfilesadmin"):
+            ask(f"sdsys-leave {g} is refused: SD's own groups are not account groups", ["sdsys-leave", g],
+                lambda c, o: _reason(c, o, "is not an account group"), env(listed))
+        ask("sdsys-leave sdg_probe is refused: a group account's group is not this verb's", ["sdsys-leave", "sdg_probe"],
+            lambda c, o: _reason(c, o, "is not an account group"), env(listed))
+        for g in ("sudo", "wheel", "docker", "lxd", "adm", "root"):
+            ask(f"sdsys-leave {g} is refused: not one of SD's groups", ["sdsys-leave", g], lambda c, o: _reason(c, o, "is not an account group"), env(listed))
+        ask("sdsys-leave sdu_ (no user) is refused", ["sdsys-leave", "sdu_"], lambda c, o: _reason(c, o, "is not an account group"), env(listed))
+        ask("sdsys-leave sdu_root is refused: root is never a target", ["sdsys-leave", "sdu_root"], lambda c, o: _reason(c, o, "root is never a target"), env(listed))
+        ask("sdsys-leave sdu_sdsys is refused: sdsys is SD's own administrator account", ["sdsys-leave", "sdu_sdsys"],
+            lambda c, o: _reason(c, o, "sdsys is SD's own administrator account"), env(listed))
+        ask("sdsys-leave sdu_daemon is refused: a system account (below UID_MIN) or no such user", ["sdsys-leave", "sdu_daemon"],
+            lambda c, o: _reason(c, o, "below UID_MIN") or _reason(c, o, "does not exist"), env(listed))
+        ask("sdsys-leave sdu_zzprobenouser is refused: there is no such user", ["sdsys-leave", "sdu_zzprobenouser"],
+            lambda c, o: _reason(c, o, "does not exist"), env(listed))
+        ask("sdsys-leave sdu_-rf is refused: a leading dash in the user part would read as an option", ["sdsys-leave", "sdu_-rf"],
+            lambda c, o: _reason(c, o, "is not a valid name"), env(listed))
+        ask("sdsys-leave -rf is refused: a leading dash", ["sdsys-leave", "-rf"], lambda c, o: _reason(c, o, "is not a valid name"), env(listed))
+        ask("sdsys-leave SDU_%s is refused: upper case is not a valid name" % who.upper(), ["sdsys-leave", "SDU_" + who.upper()],
+            lambda c, o: _reason(c, o, "is not a valid name"), env(listed))
+        ask("sdsys-leave with no group is refused", ["sdsys-leave"], lambda c, o: _reason(c, o, "privileged helper"), env(listed))
+        ask("sdsys-leave takes one group: a second argument is refused (the user is never an argument)", ["sdsys-leave", mine, "don"],
+            lambda c, o: _reason(c, o, "privileged helper"), env(listed))
+        ask("sdsys-leave takes one group: sdsys cannot be named a second time as 'the user'", ["sdsys-leave", "sdsys", mine],
+            lambda c, o: _reason(c, o, "privileged helper"), env(listed))
+        # ---- the group must exist (asked before the membership), and the group fixture is for a dry run only
+        # these three need a group that is NOT on this machine (sdu_<you> may be a real group here), found rather than assumed
+        nogrp = _no_group_user()
+        if nogrp is None:
+            skipped.append("sdsys-leave: every ordinary user on this machine has an sdu_ group, so the 'group does not exist' rows are left out")
+        else:
+            ng = "sdu_" + nogrp
+            ask(f"sdsys-leave {ng} is refused when the group is not there ('sdsys is not in' is not the answer: the group is asked for first)", ["sdsys-leave", ng],
+                lambda c, o: _reason(c, o, "does not exist") and "sdsys is not in" not in o, env("root,sdsys", groups=[]))
+            ask("a group fixture is honoured on a dry run: the group exists, and lists nobody", ["sdsys-leave", ng],
+                lambda c, o: c == 0 and ("sdsys is not in %s" % ng) in o and "gpasswd" not in o, env("", groups=[], SD_GROUP_FIXTURE=ng))
+            ask("...and IGNORED when the run is not a dry run (the group is still not there; the helper refuses before it asks for root)", ["sdsys-leave", ng],
+                lambda c, o: _reason(c, o, "does not exist"), env("root,sdsys", groups=[], SD_GROUP_FIXTURE=ng), dry=False)
+        # ---- a run that is not a dry run, as an ordinary user, goes as far as the command and then refuses to be anyone but root: nothing is changed
+        try:
+            import pwd
+            pwd.getpwnam("sdsys")
+            have_sdsys = True
+        except KeyError:
+            have_sdsys = False
+        ask("a real run by an ordinary user prints the command and is refused for want of root (the membership was seen, nothing is changed)",
+            ["sdsys-leave", mine],
+            lambda c, o: c != 0 and (("gpasswd -d sdsys %s" % mine in o and "must run as root" in o) if have_sdsys else "the user sdsys does not exist" in o),
+            env("root,sdsys"), dry=False)
+        ask("...and a real run for a group that does not list sdsys changes nothing and asks for no root", ["sdsys-leave", mine], stays, env("root"), dry=False)
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
+    return rows, skipped
+
+
+_LEAVE_BRANCH = "    require_account_group \"$1\"\n    if ! group_lists_sdsys \"$1\"; then\n"
+LEAVE_MUTANTS = [
+    ("leave: the user is taken from the caller", "cmd=(gpasswd -d sdsys \"$1\")", "cmd=(gpasswd -d \"${SUDO_USER:-sdsys}\" \"$1\")"),
+    ("leave: usermod -G replaces the whole group list", "cmd=(gpasswd -d sdsys \"$1\")", "cmd=(usermod -G \"\" -- sdsys)"),
+    ("leave: the account-group rule is skipped", _LEAVE_BRANCH, "    if ! group_lists_sdsys \"$1\"; then\n"),
+    ("leave: sdusers and the route groups accepted (require_sd_group)", _LEAVE_BRANCH, "    require_sd_group \"$1\"\n    if ! group_lists_sdsys \"$1\"; then\n"),
+    ("leave: sdu_root and a leading dash accepted (a pattern test only)", _LEAVE_BRANCH,
+     "    [[ $1 == sdu_?* ]] || die \"'$1' is not an account group\"\n    if ! group_lists_sdsys \"$1\"; then\n"),
+    ("leave: a group that does not list sdsys is still changed", "    if ! group_lists_sdsys \"$1\"; then\n", "    if false; then\n"),
+    ("leave: sdsys matched anywhere in the member list", "[[ \",$members,\" == *\",sdsys,\"* ]]", "[[ \"$members\" == *sdsys* ]]"),
+    ("leave: the member list is read from the wrong field", "cut -d: -f4)\n  [[ \",$members,\"", "cut -d: -f1)\n  [[ \",$members,\""),
+    ("leave: the group need not exist", "  group_exists \"$group\" || die \"group '$group' does not exist\"\n", ""),
+    ("leave: a second argument is accepted", "sdsys-leave)\n    [[ $# -eq 1 ]] || usage", "sdsys-leave)\n    [[ $# -ge 1 ]] || usage"),
+    ("leave: the group fixture is honoured on a real run too", "if [[ $DRY -eq 1 && -n ${SD_GROUP_FIXTURE:-} ]]; then\n    [[ \",$SD_GROUP_FIXTURE,\"",
+     "if [[ -n ${SD_GROUP_FIXTURE:-} ]]; then\n    [[ \",$SD_GROUP_FIXTURE,\""),
+]
+
+
+# ---- 26 Oct 26, F6: the log lines.  sdsys-join, sdsys-leave and group-write left no trace of their own (the helper's sudo line says only that it ran);
+# ---- each now writes one line with `logger -t sd-elevate` AFTER the change was made, never on a dry run and never for a group that was already right,
+# ---- and a missing logger cannot fail the change.  A root run cannot be made here, so the rows read the helper's text: where the line is, what it
+# ---- says, what precedes it.
+def log_rows(helper=None):
+    """Returns (rows, skipped).  A row is (label, ok, detail)."""
+    import re
+    src = open(helper or HELPER, encoding="utf-8").read()
+    rows = []
+
+    def branch(verb):
+        m = re.search(r"\n  %s\)\n(.*?)\n    ;;\n" % re.escape(verb), src, re.S)
+        return m.group(1) if m else ""
+    join, leave, gw = branch("sdsys-join"), branch("sdsys-leave"), branch("group-write")
+    run_at = src.find('"${cmd[@]}" || exit $?')
+    tail_log = 'logger -t sd-elevate "$LOG_LINE" 2>/dev/null || true'
+    rows.append(("LG0 the three branches are found (a test that did nothing must fail)", bool(join and leave and gw and run_at > 0), f"{len(join)} {len(leave)} {len(gw)} {run_at}"))
+    rows.append(("LG1 sdsys-join sets its log line, and it begins 'sdsys-join:'", 'LOG_LINE="sdsys-join: ' in join, join[-120:]))
+    rows.append(("LG2 sdsys-leave sets its log line, and it begins 'sdsys-leave:'", 'LOG_LINE="sdsys-leave: ' in leave, leave[-120:]))
+    rows.append(("LG3 the log line names the group and no caller: SUDO_USER is not in either branch or in the tail's line",
+                 "SUDO_USER" not in join + leave and "SUDO_USER" not in tail_log and "$1" in join and "$1" in leave, ""))
+    k = leave.find("LOG_LINE=")
+    rows.append(("LG4 sdsys-leave answers 'sdsys is not in GROUP' and exits 0 BEFORE it sets a log line: nothing is logged when nothing changed",
+                 0 < leave.find("sdsys is not in") < leave.find("exit 0") < k, leave[:200]))
+    first = src.find('logger -t sd-elevate "$LOG_LINE"')
+    rows.append(("LG5 the tail writes the line AFTER the command ran (the first LOG_LINE logger comes after the command, and ends the run before exit 0)",
+                 run_at > 0 and first > run_at and src.count('logger -t sd-elevate "$LOG_LINE"') == 1 and src.rstrip().endswith("exit 0") and first < src.rfind("\nexit 0"), ""))
+    rows.append(("LG6 a missing or failing logger cannot fail the change: the tail's line ends 2>/dev/null || true", tail_log in src, ""))
+    p = gw.find('python3 -c "$GW_PY"')
+    g = gw.find('logger -t sd-elevate "group-write: ')
+    rows.append(("LG7 group-write writes its line after the worker ran, and only when the worker succeeded (|| exit $? before the logger)",
+                 0 < p < g and 'python3 -c "$GW_PY" "$ACCT_REAL" "$GW_GID" "$GW_OWNERS" "$DRY" || exit $?\n' in gw, gw[-200:]))
+    rows.append(("LG8 group-write does not write the line on a dry run, and a failing logger cannot fail it",
+                 "[[ $DRY -eq 1 ]] || logger -t sd-elevate \"group-write: " in gw and gw.rstrip().endswith("exit 0") and "2>/dev/null || true" in gw[g:], gw[-200:]))
+    return rows, []
+
+
+LOG_MUTANTS = [
+    ("log: the tail writes the line before the command", '"${cmd[@]}" || exit $?',
+     '[[ -z ${LOG_LINE:-} ]] || logger -t sd-elevate "$LOG_LINE" 2>/dev/null || true\n"${cmd[@]}" || exit $?'),
+    ("log: a failing logger fails the change", 'logger -t sd-elevate "$LOG_LINE" 2>/dev/null || true', 'logger -t sd-elevate "$LOG_LINE"'),
+    ("log: sdsys-join logs under the wrong name", 'LOG_LINE="sdsys-join: ', 'LOG_LINE="sdsys-leave: '),
+    ("log: sdsys-leave logs the caller", 'LOG_LINE="sdsys-leave: the user sdsys is no longer in $1"', 'LOG_LINE="sdsys-leave: the user sdsys is no longer in $1 (by $SUDO_USER)"'),
+    ("log: group-write logs on a dry run too", '[[ $DRY -eq 1 ]] || logger -t sd-elevate "group-write: ', 'logger -t sd-elevate "group-write: '),
+    ("log: group-write logs a failed run", 'python3 -c "$GW_PY" "$ACCT_REAL" "$GW_GID" "$GW_OWNERS" "$DRY" || exit $?\n',
+     'python3 -c "$GW_PY" "$ACCT_REAL" "$GW_GID" "$GW_OWNERS" "$DRY"\n'),
+    ("log: group-write's line is lost", '[[ $DRY -eq 1 ]] || logger -t sd-elevate "group-write: the VOC', '[[ $DRY -eq 1 ]] || : "group-write: the VOC'),
+]
+
+
 def selftest():
     """The group rows must pass on the real helper and fail on every mutant."""
     if not os.path.exists(HELPER):
@@ -379,12 +567,17 @@ def selftest():
     total = 0
     # 19 Oct 26: three families of rows, each with the mutants that must break it: the route groups (S.65), the record files of a group
     # account (981a36a) and sdsys-join (S.67 stage 2).  The control comes first for each: the real helper must pass every row.
+    # 26 Oct 26, F6: sdsys-leave and the log lines are two more.  `--only=FAMILY` (group, record-file, sdsys-join, sdsys-leave, log) runs one family, so a
+    # sitting that changes one does not pay for the others.
+    only = [a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only=")]
     for family, rows_fn, mutants in (("group", group_rows, GROUP_MUTANTS), ("record-file", record_rows, RECORD_MUTANTS),
-                                     ("sdsys-join", sdsys_rows, SDSYS_MUTANTS)):
+                                     ("sdsys-join", sdsys_rows, SDSYS_MUTANTS), ("sdsys-leave", leave_rows, LEAVE_MUTANTS), ("log", log_rows, LOG_MUTANTS)):
+        if only and family not in only:
+            continue
         rows, skipped = rows_fn()
         for s in skipped:
             print(f"  SKIPPED {s}")
-        if len(rows) < 10:
+        if len(rows) < (8 if family == "log" else 10):
             print(f"REFUSING - only {len(rows)} {family} rows ran", file=sys.stderr)
             return 2
         bad = [r for r in rows if not r[1]]
@@ -717,6 +910,27 @@ def main():
     if not srows:
         failed += 1
         failures.append((["sdsys-join"], "rows", "none ran", "the sdsys-join rows did not run: a test that did nothing must fail"))
+
+    # ---- 26 Oct 26, F6: sdsys-leave (leave_rows) and the log lines (log_rows).  The rows that expect the verb to go through are the controls.
+    for family, rows_fn in (("sdsys-leave", leave_rows), ("log", log_rows)):
+        lrows, lskipped = rows_fn()
+        for s in lskipped:
+            print(f"  SKIPPED {s}")
+        for label, ok, detail in lrows:
+            print(f"  [{'PASS' if ok else 'FAIL'}] {family.upper():11} {label:52} | {detail}")
+            if ok:
+                passed += 1
+                if family == "sdsys-leave" and (" is accepted" in label or label.startswith("...") and "refused" not in label
+                                                or label.startswith("a group that does not list") or "honoured on a dry run" in label):
+                    n_allow += 1
+                else:
+                    n_refuse += 1
+            else:
+                failed += 1
+                failures.append(([label], f"{family} rule", "broken", detail))
+        if not lrows:
+            failed += 1
+            failures.append(([family], "rows", "none ran", f"the {family} rows did not run: a test that did nothing must fail"))
 
     # ---- 14 Sep 26: WHAT THE REMOTE VERBS WOULD DO, read off the dry run.  An
     # ---- exit code of 0 says the word was accepted, not that ON opens the

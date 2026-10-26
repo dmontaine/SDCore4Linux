@@ -64,6 +64,10 @@ ALLOWED = {
     ("oscopya", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the OS-path programs, carry 18, 24 Oct 26)",
     ("seldir", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the OS-path programs, carry 18, 24 Oct 26)",
     ("setmode", "11314"): "the way to give OS access: Core modify.account os-on, Solo set.os.access os on (PAL-32; carried to Solo with the OS-path programs, carry 18, 24 Oct 26)",
+    # 26 Oct 26, task faults: Core's 11865 reads "Press Enter to return" (the pages come back to THEIR page; only the home screen comes back to the home screen); Solo's reads
+    # "... to the home screen" until the correction is carried (sequential order: Core first, Solo when the owner says).  The two entries go when the carry makes the texts the same.
+    ("tool_ai", "11865"): "Core 'Press Enter to return' (26 Oct 26, the page is what Enter returns to), Solo 'Press Enter to return to the home screen' until the carry",
+    ("tool_home", "11865"): "Core 'Press Enter to return' (26 Oct 26, the page is what Enter returns to), Solo 'Press Enter to return to the home screen' until the carry",
 }
 passed = failed = 0
 

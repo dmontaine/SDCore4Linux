@@ -28,8 +28,10 @@ PAIRS = [("CA$ROUTE.SSH", "ssh"), ("CA$ROUTE.API", "api"), ("CA$OS.SH", "sh-on")
          ("CA$BP.EDIT", "bp-on"), ("CA$DICT.EDIT", "dict-on"), ("CA$NET", "net-on"), ("CA$FILES", "files-on"),
          ("CA$FILESWRITE", "files-write-on"), ("CA$FILESADMIN", "files-admin-on"),   # 21 Oct 26, S.73 item 3
          ("CA$AI", "ai-on"),   # 23 Oct 26, S.69 step 2
-         ("CA$SHARED.READ.OFF", "shared-read-off"), ("CA$SHARED.WRITE", "shared-write-on")]
-AUDIT = "void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates)"
+         ("CA$SHARED.READ.OFF", "shared-read-off"), ("CA$SHARED.WRITE", "shared-write-on"),
+         ("CA$PINS", "pins-on")]   # 26 Oct 26, S.75: the person may add programs of their own to their home screen
+AUDIT = "void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates : start.audit)"
+START_WORDS = {"START-MENU", "START-TERMINAL"}       # 26 Oct 26, S.75: where the account starts, not an access: they have a tail of their own (start=), not a place in gates=
 
 
 def strip(src):
@@ -56,9 +58,15 @@ def checks(src):
     more = c[c.find("\nmore.args:\n"):]
     parser_words = set(re.findall(r"upcase\(token\) = '([A-Z-]+)'", more))
     named = {w.upper() for _, w in PAIRS}
-    grants = parser_words - {"NONE", "BOTH", "ATTACH"}
-    ck("A5 every access word more.args accepts is named by the builder (both is ssh and api; none is nothing; attach grants nothing)",
-       parser_words and grants <= named and named <= grants | {"SSH", "API"}, "parser-only %s, audit-only %s" % (sorted(grants - named), sorted(named - grants)))
+    grants = parser_words - {"NONE", "BOTH", "ATTACH"} - START_WORDS
+    ck("A5 every access word more.args accepts is named by the builder (both is ssh and api; none is nothing; attach grants nothing; the two start words are where the account starts, A6)",
+       parser_words and grants <= named and named <= grants | {"SSH", "API"} and START_WORDS <= parser_words, "parser-only %s, audit-only %s" % (sorted(grants - named), sorted(named - grants)))
+    ck("A6 where the account was told to start is a tail of its own, start=menu or start=terminal, written only when a start word was typed (an account that follows the system default has the line it always had), built before the one audit line from the lower-case setting",
+       "   start.audit = ''\n   if settings<CA$START> # '' then start.audit = ' start=' : downcase(settings<CA$START>)\n" in c and 0 <= c.find("start.audit = ''") < c.find("start.audit = ' start='") < a and c.count("start.audit") == 3,
+       "start.audit seen %d times" % c.count("start.audit"))
+    ck("A7 the two start words share the one setting and refuse each other (11791) BEFORE !create_account is called: the second different one stops the verb; PINS-ON sets CA$PINS to 1; START-DEFAULT and PINS-OFF, which restate the delivered state, are not words of this verb",
+       0 <= c.find("case upcase(token) = 'START-MENU' or upcase(token) = 'START-TERMINAL'") < c.find("stop sysmsg(11791, 'start-' : settings<CA$START>, downcase(token))") < c.find("settings<CA$START> = downcase(token[7, 99])") < c.find("case upcase(token) = 'PINS-ON'\n            settings<CA$PINS> = 1")
+       and 0 <= c.find("gosub more.args") < cr and "if settings<CA$START> # '' and settings<CA$START> # downcase(token[7, 99]) then" in c and "START-DEFAULT" not in more and "PINS-OFF" not in more, "")
     return rows
 
 
@@ -76,9 +84,14 @@ def report(rows):
 
 
 MUTANTS = [
-    ("the audit line loses gates=", " : ' gates=' : gates)", ")"),
+    ("the audit line loses gates=", " : ' gates=' : gates : start.audit)", " : start.audit)"),
     ("the audit line is written before create_account", "call !create_account(acc.type, acc.name, settings, err)",
-     "void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates)\n   call !create_account(acc.type, acc.name, settings, err)"),
+     "void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates : start.audit)\n   call !create_account(acc.type, acc.name, settings, err)"),
+    ("pins-on is not named", "   if settings<CA$PINS> = 1 then gates<-1> = 'pins-on'\n", ""),
+    ("the start tail is not written", "   if settings<CA$START> # '' then start.audit = ' start=' : downcase(settings<CA$START>)\n", ""),
+    ("the start tail is written for every account", "   if settings<CA$START> # '' then start.audit = ' start=' : downcase(settings<CA$START>)\n", "   start.audit = ' start=' : downcase(settings<CA$START>)\n"),
+    ("the two start words no longer refuse each other", "            if settings<CA$START> # '' and settings<CA$START> # downcase(token[7, 99]) then\n", "            if @false then\n"),
+    ("start-default is taken as well", "         case upcase(token) = 'PINS-ON'\n", "         case upcase(token) = 'START-DEFAULT'\n            settings<CA$START> = ''\n         case upcase(token) = 'PINS-ON'\n"),
     ("files-write-on is not named", "   if settings<CA$FILESWRITE> = 1 then gates<-1> = 'files-write-on'\n", ""),
     ("files-admin-on is not named", "   if settings<CA$FILESADMIN> = 1 then gates<-1> = 'files-admin-on'\n", ""),
     ("ai-on is not named", "   if settings<CA$AI> = 1 then gates<-1> = 'ai-on'\n", ""),

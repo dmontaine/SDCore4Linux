@@ -83,7 +83,7 @@ MUTANTS = {
     "load-unchecked": ("   gosub validate.panes\n   gosub gen.sentence\n   * a sentence that was edited",
                        "   gosub gen.sentence\n   * a sentence that was edited",
                        ["Q9b", "Q9c", "Q9d", "Q9g2"], ["q9"]),
-    "delete-no-typed-name": ("   call $tk_confirm(dsent, lines, lname, res, cmsg)", "   call $tk_confirm(dsent, lines, '', res, cmsg)", ["Q12b", "Q12c"], ["q12"]),
+    "delete-no-typed-name": ("   call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "   call $tk_confirm(dsent, lines, '', res, cmsg, sysmsg(11953))", ["Q12b", "Q12c"], ["q12"]),      # 26 Oct 26: the sixth argument (the box title) since the faults batch
 }
 
 
@@ -399,7 +399,7 @@ def same_as_verb(h, account, sent, minimum=2, scroll=False):
 def boxtext(h):
     """the words inside the confirm box on the screen, one line, its wrapped lines joined; the whole screen when there is no box"""
     rows = [h.line(n) for n in range(43)]
-    top = next((n for n, l in enumerate(rows) if "Run this command?" in l), None)
+    top = next((n for n, l in enumerate(rows) if re.search(r"Run this command\?|Write this record\?|Delete this record\?", l)), None)      # 26 Oct 26 (faults): save and delete are titled by what they do
     if top is None:
         return re.sub(r"[|\s]+", " ", h.text())
     s0, s1 = rows[top].index("+"), rows[top].rindex("+")
@@ -825,7 +825,7 @@ def section_q9():
     arow("Q9g2", "...and nothing was dropped: the status line says only loaded evil5", st(h).strip().endswith("loaded evil5") and "did not pass" not in st(h), repr(st(h)))
     tp(h, "s", 1.0)
     tp(h, "extra\r", 1.5)
-    arow("Q9h", "S with 100 saved queries already: refused before any box, with the reason", "holds 100 at most" in st(h) and "Run this command" not in h.text() and count_q(A1) == "100", repr((st(h), count_q(A1))))
+    arow("Q9h", "S with 100 saved queries already: refused before any box, with the reason", "holds 100 at most" in st(h) and not re.search(r"Run this command|Write this record", h.text()) and count_q(A1) == "100", repr((st(h), count_q(A1))))
     h.key("ctrl-q", idle=1.2)
     h.end()
 

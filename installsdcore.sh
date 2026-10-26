@@ -361,90 +361,65 @@ repair_group_account_files() {   # repair_group_account_files ACCOUNTS_ROOT
     fi
 }
 
-# 19 Oct 26  S.67 stage 2 (owner, 17 Oct 2026, D7, WARNED).  ***THE sdsys OPERATING-SYSTEM USER IS PUT IN THE GROUP OF EVERY ACCOUNT, AND EVERY ACCOUNT'S
-#            VOC AND DICTIONARIES MADE WRITABLE BY THAT GROUP, SO THAT SDSYS CAN WRITE A MASTER EDIT INTO AN ACCOUNT'S OWN FILES.  THAT GIVES THE sdsys USER
-#            WRITE ACCESS TO THOSE FILES IN EVERY ACCOUNT: a compromised sdsys is a route into every account.***  The tighter option was an outbox the account
-#            applies itself; he chose this one.  A new account gets the membership from CREATE.ACCOUNT; this is the walk for the accounts that are already
-#            there (a kept install brings forward accounts whose groups lost sdsys when the old sdsys user was removed).  Two sd-elevate verbs, each
-#            confined: sdsys-join puts ONLY sdsys into an existing sdu_<user> group, and group-write gives an account's own group (sdu_<name> in
-#            user_accounts, sdg_<name> in group_accounts, never sdusers) write on the VOC and dictionaries of THAT account.  The shared account (group
-#            sdusers) and an account outside /home/sd are left as they are.  Nothing here stops the install: a failure is reported with the command that
-#            repairs it, and running this installer again repeats the walk.  It prints what it did.  test-install-sdsysgroups.sh runs this.
-join_sdsys_groups() {   # join_sdsys_groups REGISTER_DIR
-    local reg_dir="$1" rec path group members dir_group out rc
-    local n_join=0 n_have=0 n_fail=0 n_fix=0 n_ok=0 n_left=0 n_fixfail=0 failed=""
-    echo "  The sdsys user is put in the group of every account, and the VOC and dictionaries of each account are made writable by that group,"
-    echo "  so that SDSYS can write a master edit into an account's own files.  This gives the sdsys user write access to those files in every account, and to anything else in an account that its group may write."
-    for rec in $(sudo find "$reg_dir" -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | LC_ALL=C sort || true); do
-        case "$rec" in
-            ''|.*|%*|*[!a-z0-9._-]*) continue ;;
-        esac
-        path=$(sudo sed -n '1p' "$reg_dir/$rec" 2>/dev/null || true)
-        group=$(sudo sed -n '3p' "$reg_dir/$rec" 2>/dev/null || true)
-        # 1 the membership: a user account's group sdu_<user>; a group account's group was made with sdsys in it
-        case "$group" in
-            sdu_?*)
-                members=$(getent group "$group" 2>/dev/null | cut -d: -f4 || true)
-                case ",${members}," in
-                    *",sdsys,"*) n_have=$((n_have+1)) ;;
-                    *)
-                        rc=0
-                        out=$(sudo /usr/local/sbin/sd-elevate sdsys-join "$group" 2>&1) || rc=$?
-                        if [ "$rc" -eq 0 ]; then
-                            n_join=$((n_join+1))
-                            echo "  sdsys is now in the group ${group} (account ${rec})"
-                        else
-                            n_fail=$((n_fail+1))
-                            failed="${failed} ${group}"
-                            echo "  sdsys could not be put in ${group} (account ${rec}): $(printf '%s\n' "$out" | tail -n 1)"
-                        fi
-                        ;;
-                esac
-                ;;
-        esac
-        # 2 the modes: only an account directory directly in user_accounts or group_accounts, and only when its group is the account's own
-        case "$group" in
-            sdu_?*|sdg_?*)
-                case "$path" in
-                    /home/sd/user_accounts/*|/home/sd/group_accounts/*)
-                        dir_group=$(sudo stat -c '%G' "$path" 2>/dev/null || true)
-                        if [ "$dir_group" = "$group" ]; then
-                            rc=0
-                            out=$(sudo /usr/local/sbin/sd-elevate group-write "$path" 2>&1) || rc=$?
-                            if [ "$rc" -ne 0 ]; then
-                                n_fixfail=$((n_fixfail+1))
-                                echo "  the VOC and dictionaries of ${rec} could not be made group-writable: $(printf '%s\n' "$out" | tail -n 1)"
-                            else
-                                # judged on the success line sd-elevate prints and nothing else: exit 0 without it is not "made right"
-                                case "$out" in
-                                    *'group-write: 0 directories and 0 file(s) changed'*) n_ok=$((n_ok+1)) ;;
-                                    *'group-write: '*' file(s) changed, '*)
-                                        n_fix=$((n_fix+1))
-                                        echo "  ${rec}: $(printf '%s\n' "$out" | tail -n 1 | sed -e 's/^sd-elevate: //')"
-                                        ;;
-                                    *)
-                                        n_fixfail=$((n_fixfail+1))
-                                        echo "  the VOC and dictionaries of ${rec}: sd-elevate group-write did not say what it did"
-                                        ;;
-                                esac
-                            fi
-                        else
-                            n_left=$((n_left+1))
-                        fi
-                        ;;
-                esac
-                ;;
-        esac
-    done
-    echo "  sdsys put in the group of ${n_join} account(s); it was in ${n_have} already.  Modes made right for ${n_fix} account(s); ${n_ok} were right already; ${n_left} left as they are (their directory's group is not the account's own, as the shared account's)."
-    if [ "$n_fail" -gt 0 ] || [ "$n_fixfail" -gt 0 ]; then
-        printf "%b\n" "$RED"
-        echo "WARNING: SDSYS cannot yet write master edits into every account: ${n_fail} group(s) without sdsys, ${n_fixfail} account(s) whose modes were not changed."
-        echo "  Run this installer again, or for each group:  sudo /usr/local/sbin/sd-elevate sdsys-join <group>"
-        echo "  and for each account:  sudo /usr/local/sbin/sd-elevate group-write /home/sd/user_accounts/<account>"
-        echo "  check.masters (as SDSYS) lists what is still not writable.  Groups: ${failed:-none}"
-        printf "%b\n" "$NC"
+# 26 Oct 26  F6 (S.67 stage 2, alternative C; the core direction: high security is delivered and the administrator loosens it later).  This is what became of the walk
+#            of 19 Oct (join_sdsys_groups), which put the sdsys user in the group of EVERY user account and made each account's VOC and dictionaries writable by that
+#            group, so that SDSYS could write a master edit into an account's own files.  That is write access to those files in every account, and to anything
+#            else in an account that its group may write, for the sdsys user.  The owner chose it on 17 Oct (D7, warned); this release makes it a deliberate act
+#            instead of a default: the sdsys user is in no user account's group as delivered, and the administrator switches it on for one account at a time
+#            (modify.account <account> sdsys-on) and off again (sdsys-off).  ***IT IS NOT A WALL AGAINST A STOLEN sdsys LOGIN, WHICH HAS OTHER WAYS INTO AN ACCOUNT'S
+#            CODE (root runs files that sdsys owns; the sudo grant of sd-elevate); it takes away the silent route and makes the grant visible.***
+#            WHAT THIS DOES, ONCE.  The accounts that are already there may have the sdsys user in their groups, from the walk it replaces.  If the marker
+#            $groups.ruled is absent, the question above (SDSYSGROUPS-ASK, up front with the others) asked whether to keep it there; sdsys_groups_ruling acts on the
+#            answer: y changes nothing, anything else (the default, and the answer when no input can be read) takes the sdsys user out of those groups with
+#            sd-elevate sdsys-leave, one verb confined to sdu_<user> groups and to the user sdsys.  The marker is then written, so that the administrator's later
+#            sdsys-on or sdsys-off stands: with the marker present this does nothing at all.  A fresh install, and an upgrade that finds the sdsys user in no
+#            group, write the marker without asking.  The marker is /home/sd/$groups.ruled, outside the sdsys directory on purpose: deletesdcore.sh removes the sdsys
+#            directory on every cycle, and a marker there would be lost by a delete that keeps the accounts, so the next install would ask again (or, with no
+#            terminal, take the sdsys user out of a group the administrator had put it in).  /home/sd is kept with the accounts and removed with them.
+#            Nothing here stops the install: a group the helper could not leave is reported with the command that repairs it, and the marker is NOT written then,
+#            so running this installer again asks and tries again.  It prints what it did.  test-install-sdsysgroups.sh runs the question and this.
+sdsys_groups_ruling() {   # sdsys_groups_ruling MARKER KEEP   (KEEP: y when the question was answered y; anything else takes the sdsys user out)
+    local marker="$1" keep="${2:-n}" listed group out rc n_all=0 n_left=0 n_fail=0 failed=""
+    if [ -e "$marker" ]; then
+        echo "  The place of the sdsys user in the account groups was ruled on at an earlier install ($marker); nothing is changed."
+        return 0
     fi
+    listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./ && ("," $4 ",") ~ /,sdsys,/ { print $1 }' | LC_ALL=C sort || true)
+    if [ -z "$listed" ]; then
+        echo "  The sdsys user is in no user account's group, as delivered.  modify.account <account> sdsys-on puts it in one."
+    elif [ "$keep" = y ]; then
+        echo "  The sdsys user stays in the group of $(printf '%s\n' "$listed" | wc -l) account(s), as you answered.  modify.account <account> sdsys-off takes it out of one."
+    else
+        for group in $listed; do
+            n_all=$((n_all+1))
+            rc=0
+            out=$(sudo /usr/local/sbin/sd-elevate sdsys-leave "$group" 2>&1) || rc=$?
+            # judged on what sd-elevate prints and nothing else: exit 0 without the command or the "not in" line is not "taken out"
+            case "$rc:$out" in
+                0:*"gpasswd -d sdsys ${group}"*|0:*"sdsys is not in ${group}"*)
+                    n_left=$((n_left+1))
+                    echo "  the sdsys user is no longer in the group ${group}"
+                    ;;
+                *)
+                    n_fail=$((n_fail+1))
+                    failed="${failed} ${group}"
+                    echo "  the sdsys user could not be taken out of ${group}: $(printf '%s\n' "$out" | tail -n 1)"
+                    ;;
+            esac
+        done
+        echo "  The sdsys user was taken out of the group of ${n_left} of ${n_all} account(s)."
+        if [ "$n_fail" -gt 0 ]; then
+            printf "%b\n" "$RED"
+            echo "WARNING: the sdsys user is still in the group of ${n_fail} account(s): ${failed# }"
+            echo "  Run this installer again, or for each group:  sudo /usr/local/sbin/sd-elevate sdsys-leave <group>"
+            printf "%b\n" "$NC"
+            return 0
+        fi
+    fi
+    sudo touch "$marker"
+    sudo chown sdsys:sdusers "$marker"
+    sudo chmod 644 "$marker"
+    echo "  Recorded in $marker: the administrator's later modify.account <account> sdsys-on or sdsys-off stands."
 }
 # --------------------
 
@@ -680,6 +655,30 @@ if [ -n "$allow_viewer_name" ]; then
     case $yn_viewer in [yY]|[yY][eE][sS] ) allow_viewer=y;; esac
 fi
 # VIEWER-ASK-END
+# 26 Oct 26  THE QUESTION ABOUT THE SDSYS USER IN THE GROUP OF THE EXISTING ACCOUNTS (F6, S.67 stage 2, alternative C; owner: high security is delivered and the
+#            administrator loosens it later).  Releases before this one put the sdsys user in the group of every user account.  From this release it is in none as
+#            delivered, and `modify.account <account> sdsys-on` is the administrator's act that puts it in one.  An install that finds it in the group of
+#            kept accounts asks ONCE whether to keep it there.  The answer is NO unless y or yes is typed, and it is also NO when nothing can be read from the
+#            input (no terminal, a closed input): the tight answer is the default.  It is asked only while the marker $groups.ruled (in /home/sd, which a kept
+#            install keeps and a delete of the accounts removes) is absent and some sdu_ group lists sdsys; sdsys_groups_ruling, further down, acts on the answer
+#            and writes the marker, so that a later sdsys-on or sdsys-off by the administrator stands.  test-install-sdsysgroups.sh runs this block.
+# SDSYSGROUPS-ASK-BEGIN
+sdsys_keep=n
+sdsys_listed=""
+if [ ! -e "/home/sd/\$groups.ruled" ]; then
+    sdsys_listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./ && ("," $4 ",") ~ /,sdsys,/ { print $1 }' | LC_ALL=C sort || true)
+fi
+if [ -n "$sdsys_listed" ]; then
+    sdsys_n=$(printf '%s\n' "$sdsys_listed" | wc -l)
+    echo
+    echo "The sdsys user is in the group of ${sdsys_n} user account(s): an earlier release put it there, and it can write everything those groups may write in those accounts."
+    echo "As delivered now, the sdsys user is in no user account's group, and SDSYS puts it in one with modify.account <account> sdsys-on and takes it out with sdsys-off."
+    echo "This is asked once. Answer n to take it out of those groups now."
+    sdsys_ans=n
+    read -r -p "Keep the sdsys user in the group of ${sdsys_n} account(s) (it can then write their files)? (y/N) " sdsys_ans || { echo; echo "No answer could be read: N."; sdsys_ans=n; }
+    case $sdsys_ans in [yY]|[yY][eE][sS] ) sdsys_keep=y;; esac
+fi
+# SDSYSGROUPS-ASK-END
 printf "%b\n" "$NC"
 # --------------------
 #
@@ -2136,13 +2135,13 @@ if [ "$accounts_kept" = yes ]; then
     repair_group_account_files "$ACCT_PATH"
 fi
 
-# 19 Oct 26 dm - S.67 stage 2 (owner, 17 Oct 2026, D7).  SDSYS JOINS EVERY ACCOUNT'S GROUP, and each account's VOC and dictionaries are made writable by
-#            it, every install, kept accounts or not (a fresh install has the installing user's account and shared; a kept install has all the rest, whose
-#            groups lost the old sdsys user when it was removed).  join_sdsys_groups (above) says what it did, and warns without stopping the install.  It
-#            runs before the master files are filled so that the first CHECK.MASTERS finds the modes right.
+# 26 Oct 26 dm - F6 (S.67 stage 2, alternative C).  THE sdsys USER IS IN NO USER ACCOUNT'S GROUP AS DELIVERED.  The walk of 19 Oct 26 that put it in every account's
+#            group (join_sdsys_groups) is gone.  sdsys_groups_ruling (above) acts, once, on the answer to the question asked up front about the accounts that have it
+#            in their groups already, and records the ruling in the marker /home/sd/$groups.ruled.  It says what it did, and warns without stopping the install.  It
+#            runs before the master files are filled so that the first CHECK.MASTERS counts the accounts whose master edits are off.
 echo
-echo "Putting the sdsys user in the group of every account, and making each account's VOC and dictionaries writable by that group."
-join_sdsys_groups "$sdsysdir/accounts"
+echo "Ruling on the sdsys user's place in the groups of the user accounts."
+sdsys_groups_ruling "$ACCT_PATH/\$groups.ruled" "$sdsys_keep"
 
 # 19 Oct 26 dm - S.67 stage 1 (owner, 17 Oct 2026).  THE MASTER FILES ARE SET UP AND FILLED, every install, kept accounts or not.  voc_master and
 #            dict_master (in the SDSYS account) hold a copy of every account's VOC records and dictionary records, master_state their checksums, and

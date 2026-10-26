@@ -239,12 +239,17 @@ all_on_words=$(grep -o "case action = '[A-Z.-]*'" "$MODIFYA" | sed "s/case actio
             | grep -v '^SHARED-READ-ON$' | tr 'A-Z' 'a-z' | sort | tr '\n' ' ' | sed 's/ $//')
 # 21 Oct 26, S.73 item 3 (owner, 20 Oct 2026, D4): files-admin-on is LEFT OUT of the "open every gate" answer on purpose - the right to administer files
 # on this server is turned on by hand (core direction 1, a looser default declined); S2b holds it out and S2 holds the rest to the function's list.
-mod_words=$(printf '%s\n' $all_on_words | grep -v '^files-admin-on$' | tr '\n' ' ' | sed 's/ $//')
+# 26 Oct 26, F6 (alternative C): sdsys-on is left out too, and for the same reason - the sdsys user's write access to an account is given by hand (S2c holds it out).
+# 26 Oct 26: ai-on (S.69 step 2, 23 Oct: the AI gate is OFF by default and wants the helper and a provider key first) and pins-on (22 Oct: not a gate, the permission
+# to add one's own programs to the home screen) were never in the installer's list; this row was red from 23 Oct until they were named here as left out on purpose.
+mod_words=$(printf '%s\n' $all_on_words | grep -v -E '^(files-admin-on|sdsys-on|ai-on|pins-on)$' | tr '\n' ' ' | sed 's/ $//')
 mine=$(printf '%s\n' $inst_words | sort | tr '\n' ' ' | sed 's/ $//')
 row "S2 the list is every word modify.account accepts to turn something on (shared-read-on is on by default; files-admin-on is left out on purpose, S2b): a gate added later fails here" \
     "$(ok "$([ -n "$mod_words" ] && [ "$mod_words" = "$mine" ] && echo yes)")" "modifya: $mod_words / installer: $mine"
 row "S2b files-admin-on is a word modify.account accepts and the installer's list does NOT hold it (the right to administer files is given by hand: owner, 20 Oct 2026)" \
     "$(ok "$(case " $all_on_words " in *" files-admin-on "*) case " $mine " in *" files-admin-on "*) ;; *) echo yes;; esac;; esac)")" "modifya on-words: $all_on_words / installer: $mine"
+row "S2c (F6) sdsys-on is a word modify.account accepts and the installer's list does NOT hold it (the sdsys user's write access to an account is given by hand: core direction 1)" \
+    "$(ok "$(case " $all_on_words " in *" sdsys-on "*) case " $mine " in *" sdsys-on "*) ;; *) echo yes;; esac;; esac)")" "modifya on-words: $all_on_words / installer: $mine"
 row "S3 files-on comes before files-write-on" \
     "$(ok "$(case " $inst_words " in *" files-on files-write-on "*) echo yes;; esac)")" "list: $inst_words"
 declare -A ACCOF=( [sh-on]='ACC$SH' [os-on]='ACC$OS.EXEC' [sd-on]='ACC$SD.ACCOUNTS' [voc-on]='ACC$VOC.EDIT' [bp-on]='ACC$BP.EDIT' [dict-on]='ACC$DICT.EDIT' [shared-write-on]='ACC$SHARED.WRITE' [net-on]='ACC$NET' )

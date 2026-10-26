@@ -116,7 +116,7 @@ def checks(raw):
        inorder(wi, "read old from dv, nid then", "nothing written", "write nrec on dv, nid on error", "close dv\n   msg = 'wrote the item '"), "")
     sn = block(pg, "show.new")
     ck("TD7", "NEW writes only after the box: the whole record is listed in the box with the command line saying what will be done, the box is answered by $tk_confirm and the page returns unless it answered Run, and write.item is called nowhere else",
-       inorder(sn, "call $tk_confirm(sent, lines, '', res, cmsg)", "if res # 'run' then\n      msg = cmsg\n      return\n   end", "gosub write.item") and pg.count("gosub write.item") == 1
+       inorder(sn, "call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))", "if res # 'run' then\n      msg = cmsg\n      return\n   end", "gosub write.item") and pg.count("gosub write.item") == 1
        and "sent = 'write the item ' : nid : ' in the dictionary of ' : fn" in sn and "gosub dict.access" in sn, "")
     ck("TD8", "the box for NEW says when the write will be refused, from the kernel's own answer for the dictionary that is open (not from a guess): dict.access asks K$EDIT.OK of the path of the open file and keeps the kernel's reason",
        inorder(block(pg, "dict.access"), "open 'DICT', fn to dv2 then", "dpath = fileinfo(dv2, FL$PATH)", "close dv2", "if not(kernel(K$EDIT.OK, dpath)) then dref = edit_msg(kernel(K$EDIT.KIND, dpath))")
@@ -238,8 +238,8 @@ MUTANTS = [
     ("the refusal is not the kernel's reason", "TD5", sub("page", "      msg = edit_msg(kernel(K$EDIT.KIND, dpath))\n      close dv\n      return", "      msg = 'refused'\n      close dv\n      return")),
     ("the write has no on error clause", "TD4", sub("page", "   write nrec on dv, nid on error\n      msg = 'the write of ' : nid : ' failed (status ' : status() : ')'\n      close dv\n      return\n   end\n", "   write nrec on dv, nid\n")),
     ("an existing record is overwritten without a word", "TD6", sub("page", "   read old from dv, nid then\n      msg = nid : ' is already an item (of type ' : upcase(old[1, 1]) : '): nothing written'\n      close dv\n      return\n   end else\n      null\n   end\n", "")),
-    ("NEW writes whatever the box answered", "TD7", sub("page", "   call $tk_confirm(sent, lines, '', res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub write.item", "   call $tk_confirm(sent, lines, '', res, cmsg)\n   gosub write.item")),
-    ("NEW has no box", "TD7", sub("page", "   call $tk_confirm(sent, lines, '', res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub write.item", "   gosub write.item")),
+    ("NEW writes whatever the box answered", "TD7", sub("page", "   call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub write.item", "   call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))\n   gosub write.item")),
+    ("NEW has no box", "TD7", sub("page", "   call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub write.item", "   gosub write.item")),
     ("the box for NEW does not say that the write will be refused", "TD8", sub("page", "'  The write is expected to be refused.'", "'  ok'")),
     ("the dictionary's answer is not asked of the open file's path", "TD8", sub("page", "if not(kernel(K$EDIT.OK, dpath)) then dref = edit_msg(kernel(K$EDIT.KIND, dpath))", "if not(kernel(K$DICT.EDIT, -1)) then dref = edit_msg(2)")),
     ("DELETE does not ask for the id", "TD9", sub("page", "call $tk_confirm(sent, lines, iid, res, cmsg)", "call $tk_confirm(sent, lines, '', res, cmsg)")),

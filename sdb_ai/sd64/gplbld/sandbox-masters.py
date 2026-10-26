@@ -13,6 +13,11 @@
 # keyset): stop it afterwards with sandbox-fromtree.py <dir> stop.  gplbld/mutate-masters.py runs this suite against mutants of the kernel built in a sandbox's own copy.
 #
 # START-HISTORY:
+# 26 Oct 26 dm  F6 (alternative C): the sdsys user is in no user account's group as delivered, and the kernel forces group write on a new VOC or dictionary only where the sdsys user IS in the
+#               account directory's group (C2).  M30c asks it where the sdsys user exists but is not in the group (nothing forced); M31 to M32 are asked once zmone's directory is given a group the
+#               sdsys user is in (its own primary group, when the sandbox user is a member of it; setgid, as a real account's directory is), or as they were on a machine with NO sdsys user.  What
+#               this suite cannot show, because it has one operating-system user: that a save into another user's account is REFUSED when the sdsys user is not in its group (message 11976), and the
+#               "off" count of CHECK.MASTERS - files this process owns are never off.  Those are witness-masters.sh's (sections 3 to 5).
 # 19 Oct 26 dm  The independent verifier's findings on stages 1 and 2 (S.67), each reproduced RED on the unchanged build first (25 of 268 rows failed on the kernel of
 #               01a109c, with this file): the modes of the master files (A4a to A4d, L4; A4d is the repair of a system made by the earlier build), what a save is judged against
 #               (N1, N1d, N2), the freed table of accounts (N3), the unlistable account (N4), the linked dictionary (N5), the capital in a dictionary key (N6), the guards nothing
@@ -1842,6 +1847,35 @@ def deliver_section():
     # ---- the modes SD gives what it makes
     # Every session starts with umask 002 (cproc sets it at sign-on), so a user who has not touched it makes 664 files and 775 directories already; the rule
     # is for the user who has (the UMASK verb), and a session of an API or a phantom.  The UMASK command is the first line of each session below.
+    # 26 Oct 26, F6 (alternative C, C2): group write is forced on a new VOC or dictionary only where the sdsys user is in the account directory's group.  A fixture account's group is
+    # the sandbox user's own, which does not list the sdsys user: on a machine that HAS an sdsys user (an install, a developer's box) nothing is forced there (M30c), and M31 to M32
+    # are asked after the directory is given a group the sdsys user is in (its own primary group, when the sandbox user is a member: chgrp needs nothing more); on a machine with
+    # NO sdsys user the code is as it was before F6 and they are asked as they were.
+    try:
+        import grp
+        import pwd
+        sd_pw = pwd.getpwnam("sdsys")
+    except KeyError:
+        sd_pw = None
+    zo = acct_path("zmone")
+    c2_asked = True
+    if sd_pw is not None:
+        zg = os.stat(zo).st_gid
+        zlists = zg == sd_pw.pw_gid or "sdsys" in grp.getgrgid(zg).gr_mem
+        if zlists:
+            say("  SKIPPED M30c: zmone's directory is already in a group the sdsys user is in (gid %d)" % zg)
+        else:
+            g.plain("zmone", ["UMASK 022", "CREATE.FILE zmfm0 DYNAMIC"])
+            row("M30c (F6, C2) the sdsys user exists on this machine and is not in the group of zmone's directory (gid %d): a dictionary made under UMASK 022 is NOT given group write - 755 / 644 as the umask made it" % zg,
+                mode_of(os.path.join(zo, "zmfm0.dic")) == 0o755 and mode_of(os.path.join(zo, "zmfm0.dic", "%0")) == 0o644,
+                repr([oct(mode_of(os.path.join(zo, "zmfm0.dic") + s) or 0) for s in ("", "/%0")]))
+            g.plain("zmone", ["DELETE.FILE zmfm0 NO.QUERY", "Y"])      # it was made 755 on purpose; CHECK.MASTERS would (rightly) list it below
+        if sd_pw.pw_gid in os.getgroups() or sd_pw.pw_gid == os.getgid():
+            os.chown(zo, -1, sd_pw.pw_gid)                              # the sandbox user may give its directory any group it is in
+            os.chmod(zo, 0o2775)                                        # ... and setgid, as a real account's directory is, so that what is made in it has that group
+        else:
+            c2_asked = False
+            say("  SKIPPED M31, M31a, M32: the sdsys user's group (gid %d) is not one the sandbox user is in, so no fixture directory can be given a group the sdsys user is in" % sd_pw.pw_gid)
     g.plain("zmone", ["UMASK 022", "CREATE.FILE zmfm1 DYNAMIC"])
     g.plain("zmone", ["UMASK 027", "CREATE.FILE zmfm3 DYNAMIC"])
     os.chmod(acct_path("zmtwo"), 0o755)
@@ -1851,15 +1885,19 @@ def deliver_section():
         os.chmod(acct_path("zmtwo"), 0o775)
     zo = acct_path("zmone")
     row("M30b: (control) the UMASK verb takes effect in the session: the data file made under UMASK 022 is 755 / 644 and the one under UMASK 027 is 750 / 640",
-        mode_of(os.path.join(zo, "zmfm1")) == 0o755 and mode_of(os.path.join(zo, "zmfm1", "%0")) == 0o644 and mode_of(os.path.join(zo, "zmfm3")) == 0o750 and mode_of(os.path.join(zo, "zmfm3", "%0")) == 0o640,
+        # (F6: zmone's directory may be setgid above, as a real account's is, and then a directory made in it has the bit too: the rows read the permission bits, which the umask decides)
+        (mode_of(os.path.join(zo, "zmfm1")) & 0o777) == 0o755 and mode_of(os.path.join(zo, "zmfm1", "%0")) == 0o644 and (mode_of(os.path.join(zo, "zmfm3")) & 0o777) == 0o750 and mode_of(os.path.join(zo, "zmfm3", "%0")) == 0o640,
         repr([oct(mode_of(os.path.join(zo, n) + s) or 0) for n in ("zmfm1", "zmfm3") for s in ("", "/%0")]))
-    row("M31: a dictionary made by an ordinary session under UMASK 022 in an account whose directory the group can write is group-writable: the directory 2775 (setgid), %0 and %1 664",
-        mode_of(os.path.join(zo, "zmfm1.dic")) == 0o2775 and mode_of(os.path.join(zo, "zmfm1.dic", "%0")) == 0o664 and mode_of(os.path.join(zo, "zmfm1.dic", "%1")) == 0o664,
-        repr([oct(mode_of(os.path.join(zo, "zmfm1.dic") + s) or 0) for s in ("", "/%0", "/%1")]))
-    row("M31a: the data file next to it is NOT touched: it keeps what the umask gave it (755, 644)", mode_of(os.path.join(zo, "zmfm1")) == 0o755 and mode_of(os.path.join(zo, "zmfm1", "%0")) == 0o644,
-        repr([oct(mode_of(os.path.join(zo, "zmfm1") + s) or 0) for s in ("", "/%0")]))
-    row("M32: under umask 027 only the GROUP bits are added: the other bits stay clear (dictionary directory 2770, subfiles 660)",
-        mode_of(os.path.join(zo, "zmfm3.dic")) == 0o2770 and mode_of(os.path.join(zo, "zmfm3.dic", "%0")) == 0o660, repr([oct(mode_of(os.path.join(zo, "zmfm3.dic") + s) or 0) for s in ("", "/%0")]))
+    if c2_asked:   # F6: asked once the directory is in a group the sdsys user is in (or there is no sdsys user on this machine)
+        row("M31: a dictionary made by an ordinary session under UMASK 022 in an account whose directory the group can write, and whose group the sdsys user is in, is group-writable: the directory 2775 (setgid), %0 and %1 664",
+            mode_of(os.path.join(zo, "zmfm1.dic")) == 0o2775 and mode_of(os.path.join(zo, "zmfm1.dic", "%0")) == 0o664 and mode_of(os.path.join(zo, "zmfm1.dic", "%1")) == 0o664,
+            repr([oct(mode_of(os.path.join(zo, "zmfm1.dic") + s) or 0) for s in ("", "/%0", "/%1")]))
+        row("M31a: the data file next to it is NOT touched: it keeps what the umask gave it (755, 644; the directory may carry the setgid bit it inherits)", (mode_of(os.path.join(zo, "zmfm1")) & 0o777) == 0o755 and mode_of(os.path.join(zo, "zmfm1", "%0")) == 0o644,
+            repr([oct(mode_of(os.path.join(zo, "zmfm1") + s) or 0) for s in ("", "/%0")]))
+        row("M32: under umask 027 only the GROUP bits are added: the other bits stay clear (dictionary directory 2770, subfiles 660)",
+            mode_of(os.path.join(zo, "zmfm3.dic")) == 0o2770 and mode_of(os.path.join(zo, "zmfm3.dic", "%0")) == 0o660, repr([oct(mode_of(os.path.join(zo, "zmfm3.dic") + s) or 0) for s in ("", "/%0")]))
+    else:
+        g.plain("zmone", ["DELETE.FILE zmfm1 NO.QUERY", "Y", "DELETE.FILE zmfm3 NO.QUERY", "Y"])      # their dictionaries were made 755 / 750 on purpose; CHECK.MASTERS would (rightly) list them below
     zt2 = acct_path("zmtwo")
     row("M33: where the account's directory is NOT group-writable (755) nothing is added: its new dictionary is 755 / 644 as the umask made it",
         mode_of(os.path.join(zt2, "zmfm2.dic")) == 0o755 and mode_of(os.path.join(zt2, "zmfm2.dic", "%0")) == 0o644, repr([oct(mode_of(os.path.join(zt2, "zmfm2.dic") + s) or 0) for s in ("", "/%0")]))

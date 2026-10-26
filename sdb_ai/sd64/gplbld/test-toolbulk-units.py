@@ -154,7 +154,7 @@ def checks(raw):
        and not any(("gosub " + x) in dd for x in ("apply.run", "undo.file", "do.apply", "do.undo")) and "readu" not in dd and "readu" not in block(pg, "run.select"), "")
     ck("TB11", "APPLY is offered only after a dry run of EXACTLY the same settings: it needs the settings complete, makes the fingerprint of what is on the screen, refuses unless a dry run stands AND its fingerprint equals it, refuses a run that found nothing, "
        "re-judges the file, makes sure the undo file exists, shows the box with the FILE'S NAME TYPED and performs the run only when the box answered Run - and the run is performed from there only, once",
-       order(da, "gosub need.ready", "gosub make.fp", "if not(dr.valid) or dr.fp # fp then", "if dr.chg < 1 then", "gosub reopen.file", "gosub undo.file", "call $tk_confirm(sent, lines, bf, res, cmsg)", "if res # 'run' then", "gosub apply.run")
+       order(da, "gosub need.ready", "gosub make.fp", "if not(dr.valid) or dr.fp # fp then", "if dr.chg < 1 then", "gosub reopen.file", "gosub undo.file", "call $tk_confirm(sent, lines, bf, res, cmsg, sysmsg(11954))", "if res # 'run' then", "gosub apply.run")
        and "      msg = cmsg\n      return\n   end\n   gosub apply.run" in da and len(re.findall(r"gosub apply\.run\b", code)) == 1, "")
     ck("TB12", "inside the run, for each record and IN THIS ORDER: READU with a LOCKED clause (a record another session holds is skipped and counted), a check that the record is still what the dry run read (digest), the operations, the old record to the undo file, WRITEU, RELEASE; "
        "the undo file is cleared and its header written BEFORE the first record, the first error stops the run, and every readu has a locked clause",
@@ -166,7 +166,7 @@ def checks(raw):
        and "void kernel(K$AUDIT, 'bulk undo file=' : uf.name : ' records=' : u.back)" in du and du.find("next un.i") < du.find("kernel(K$AUDIT,") and "'bulk update file='" == "'bulk update file='".lower(), "")
     ck("TB14", "UNDO puts a record back only if it is still exactly what the run wrote: the header and the file are judged first, the box asks for the file's name typed, a record put back by an earlier U is passed over BEFORE any lock, a locked one is skipped, "
        "the digest is compared BEFORE the write, and the header says undone only when nothing was left locked or failed",
-       order(du, "gosub read.undo.info", "if not(un.have) then", "if un.state = 'undone' then", "gosub check.file", "call $tk_confirm(sent, lines, uf.name, res, cmsg)", "if res # 'run' then", "if uemd = 'restored' then", "readu cur from fv, uid locked",
+       order(du, "gosub read.undo.info", "if not(un.have) then", "if un.state = 'undone' then", "gosub check.file", "call $tk_confirm(sent, lines, uf.name, res, cmsg, sysmsg(11955))", "if res # 'run' then", "if uemd = 'restored' then", "readu cur from fv, uid locked",
              "case ('S' : md5(cur)) # ('S' : uemd)", "writeu ur on fv, uid on error", "@fm : 'restored' : @fm : ur on uf, un.i", "if u.lock = 0 and u.err = 0 then", "uh<6> = 'undone'"), "")
     ck("TB15", "the undo file is &bulk.undo& of the person's own account; it is made by the one constant command create.file &bulk.undo&, shown in a box first, and only when the box answered Run; create.file is run nowhere else",
        "UNDOF = '&bulk.undo&'" in pg and "MKUNDO = 'create.file &bulk.undo&'" in pg and order(uf, "sent = MKUNDO", "call $tk_confirm(sent, lines, '', res, cmsg)", "if res # 'run' then", "return", "execute MKUNDO trapping aborts capturing mkout")
@@ -276,8 +276,8 @@ MUTANTS = [
     ("the dry run takes a lock", "TB10", sub("page", "         read rec from fv, id then\n            gosub apply.ops\n            begin case\n               case cant\n                  n.cant", "         readu rec from fv, id locked null then\n            gosub apply.ops\n            begin case\n               case cant\n                  n.cant")),
     ("apply does not need a dry run", "TB11", sub("page", "   if not(dr.valid) or dr.fp # fp then", "   if 0 then")),
     ("a stale dry run is accepted", "TB11", sub("page", "   if not(dr.valid) or dr.fp # fp then", "   if not(dr.valid) then")),
-    ("apply does not ask for the file's name", "TB11", sub("page", "call $tk_confirm(sent, lines, bf, res, cmsg)", "call $tk_confirm(sent, lines, '', res, cmsg)")),
-    ("apply runs whatever the box answered", "TB11", sub("page", "   call $tk_confirm(sent, lines, bf, res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub apply.run", "   call $tk_confirm(sent, lines, bf, res, cmsg)\n   gosub apply.run")),
+    ("apply does not ask for the file's name", "TB11", sub("page", "call $tk_confirm(sent, lines, bf, res, cmsg, sysmsg(11954))", "call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11954))")),
+    ("apply runs whatever the box answered", "TB11", sub("page", "   call $tk_confirm(sent, lines, bf, res, cmsg, sysmsg(11954))\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub apply.run", "   call $tk_confirm(sent, lines, bf, res, cmsg, sysmsg(11954))\n   gosub apply.run")),
     ("apply is performed a second time", "TB11", sub("page", "   gosub read.undo.info\n   gosub draw.all\n   return\n\n* The run itself", "   gosub apply.run\n   gosub read.undo.info\n   gosub draw.all\n   return\n\n* The run itself")),
     ("a locked record is waited for", "TB12", sub("page", "      readu rec from fv, id locked\n         lk = 1\n      end then\n         got = 1\n      end else\n         got = 0\n      end\n      begin case\n         case lk\n            n.lock += 1",
                                                   "      read rec from fv, id then got = 1 else got = 0\n      begin case\n         case lk\n            n.lock += 1")),
@@ -289,7 +289,7 @@ MUTANTS = [
     ("a second audit line", "TB13", sub("page", "   dr.line = 'No dry run yet.", "   void kernel(K$AUDIT, 'bulk start')\n   dr.line = 'No dry run yet.")),
     ("the audit line comes before the run", "TB13", sub("page", "   close fv\n   hdr = 'bulk-undo' : @fm : bf : @fm : date() : @fm : time() : @fm : n.written", "   close fv\n   void kernel(K$AUDIT, 'bulk update file=' : bf : ' records=' : n.written)\n   hdr = 'bulk-undo' : @fm : bf : @fm : date() : @fm : time() : @fm : n.written")),
     ("the audit line is in capitals", "TB13", sub("page", "'bulk update file='", "'BULK UPDATE FILE='")),
-    ("undo asks for no name", "TB14", sub("page", "call $tk_confirm(sent, lines, uf.name, res, cmsg)", "call $tk_confirm(sent, lines, '', res, cmsg)")),
+    ("undo asks for no name", "TB14", sub("page", "call $tk_confirm(sent, lines, uf.name, res, cmsg, sysmsg(11955))", "call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11955))")),
     ("undo puts back a record that has changed since", "TB14", sub("page", "         case ('S' : md5(cur)) # ('S' : uemd)\n", "         case 0\n")),
     ("undo is marked done when a record was locked", "TB14", sub("page", "   if u.lock = 0 and u.err = 0 then", "   if 1 then")),
     ("undo does not skip a record put back already", "TB14", sub("page", "      if uemd = 'restored' then\n         u.done += 1", "      if 0 then\n         u.done += 1")),

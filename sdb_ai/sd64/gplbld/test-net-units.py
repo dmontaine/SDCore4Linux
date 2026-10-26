@@ -1103,7 +1103,7 @@ def checks_2c(srcs, c, ck):
     ck("W16 MODIFY.ACCOUNT: FILES-ON and FILES-OFF are words (files.want true / false, set.files, stop), in the syntax lines and in the list of words; sdapi and sdssh are not "
        "touched by set.files",
        all(re.search(r"case action = '%s'\s*\n\s*files\.grp = 'sdfiles'\s*\n\s*files\.want = @%s\s*\n\s*gosub set\.files\s*\n\s*return" % (w, b), mo) for w, b in (("FILES-ON", "true"), ("FILES-OFF", "false")))
-       and "modify.account <account> files-on | files-off" in mo and "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, suspended or unsuspended" in mo
+       and "modify.account <account> files-on | files-off" in mo and "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, sdsys-on, sdsys-off, suspended or unsuspended" in mo
        and sf != "" and "sdapi" not in sf and "sdssh" not in sf, "")
     ck("W17 set.files refuses what has no Linux user BEFORE it runs anything: a group account (10087) and any other account that is not sdu_ (10081, status 2), then the "
        "name is checked with valid_os_name; the Linux user is the one the account's group names (the manifest reads the same)",
@@ -1147,7 +1147,7 @@ def checks_2c(srcs, c, ck):
                      mo, re.M) is not None, "")
     ck("W21 CREATEA: the word FILES-ON sets CA$FILES = 1 (and nothing sets it to anything else), the syntax line names {files-on} and the text says what it is",
        re.search(r"case upcase\(token\) = 'FILES-ON'\s*\n\s*settings<CA\$FILES> = 1\s*\n", cr) is not None and len(re.findall(r"(?<!if )settings<CA\$FILES>\s*=", cr)) == 1
-       and "{net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {no.query}" in cr and "files-only login (files-on" in cr, "")
+       and "{net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {no.query}" in cr and "files-only login (files-on" in cr, "")
     ck("W21b createacc.h defines CA$FILES as 36 right after CA$NET 35 (the compiler warns 'not assigned a value' and reads 0 errors without it: test-includes-units.py), "
        "and no register field is added - the membership of the group IS the state",
        re.search(r"\$define\s+CA\$FILES\s+36\b", c["createacc.h"]) is not None and re.search(r"\$define\s+CA\$NET\s+35\b", c["createacc.h"]) is not None
@@ -3652,7 +3652,7 @@ mut("modifya: the word FILES-OFF is not a word", MOD, "case action = 'FILES-OFF'
 mut("modifya: FILES-ON asks for off", MOD, "files.grp = 'sdfiles'\n         files.want = @true\n         gosub set.files", "files.grp = 'sdfiles'\n         files.want = @false\n         gosub set.files")
 mut("modifya: FILES-OFF asks for on", MOD, "files.grp = 'sdfiles'\n         files.want = @false\n         gosub set.files", "files.grp = 'sdfiles'\n         files.want = @true\n         gosub set.files")
 mut("modifya: the syntax lines do not name the words", MOD, drop_line(r"modify\.account <account> files-on \| files-off"))
-mut("modifya: the list of words does not name them", MOD, "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, suspended or unsuspended", "suspended or unsuspended")
+mut("modifya: the list of words does not name them", MOD, "files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, sdsys-on, sdsys-off, suspended or unsuspended", "suspended or unsuspended")
 mut("modifya: set.files lets a group account through", MOD, "   if group.name[1,4] # 'sdu_' then\n      @system.return.code = -ER$FAILED\n      if group.name[1,4] = 'sdg_' then",
     "   if 0 then\n      @system.return.code = -ER$FAILED\n      if group.name[1,4] = 'sdg_' then")
 mut("modifya: a group account is told 10081 and not 10087", MOD, "crt sysmsg(10087, acc.name)  ;* %1 is a group account and has no remote access; reach it with logto\n      end else\n         crt sysmsg(10081, acc.name, 2)",

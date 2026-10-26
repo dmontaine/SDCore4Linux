@@ -1,0 +1,1 @@
+Master edits are switched off for %1 account(s): the sdsys user is not in their group. To switch one on: modify.account <account> sdsys-on

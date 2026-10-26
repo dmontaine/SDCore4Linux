@@ -5887,8 +5887,6 @@ cited by: `masters`
 Master edits cannot be written into account %1 until the sdsys user is in the group %2. From the sdsys login run  sudo /usr/local/sbin/sd-elevate sdsys-join %2  then sign on again
 ```
 
-cited by: `create_account`
-
 ### msg:11580
 > kind=message tier=reference since=- src=sdsys/messages/11580:1#4654a061
 
@@ -5986,8 +5984,6 @@ Master record %s not saved: %s could not be read. Nothing was changed
 ```
 The files listed as nonwritable or norights cannot be written by SDSYS, so a master edit to them is refused: nonwritable is a mode (the installer's upgrade, sd-elevate group-write, puts it right); norights says why this session cannot (mode, stale-session: sign on again, not-a-member: sd-elevate sdsys-join)
 ```
-
-cited by: `masters`
 
 ### msg:11594
 > kind=message tier=reference since=- src=sdsys/messages/11594:1#356bc298
@@ -6944,7 +6940,7 @@ cited by: `modifya`
 %1 and %2 set the same access to different states, and nothing was changed: give one of them
 ```
 
-cited by: `modifya`
+cited by: `createa`, `modifya`
 
 ### msg:11793
 > kind=message tier=reference since=- src=sdsys/messages/11793:1#51d7eea7
@@ -7519,10 +7515,10 @@ Terminal - type exit to return to the home screen
 cited by: `tool_home`
 
 ### msg:11865
-> kind=message tier=reference since=- src=sdsys/messages/11865:1#3abaa22f
+> kind=message tier=reference since=- src=sdsys/messages/11865:1#54640170
 
 ```
-Press Enter to return to the home screen
+Press Enter to return
 ```
 
 cited by: `tool_accounts`, `tool_ai`, `tool_dict`, `tool_files`, `tool_home`, `tool_remote`, `tool_voc`
@@ -7552,7 +7548,7 @@ cited by: `tool_home`
 Account %1 starts at: %2
 ```
 
-cited by: `modifya`
+cited by: `create_account`, `modifya`
 
 ### msg:11869
 > kind=message tier=reference since=- src=sdsys/messages/11869:1#e7a7a60b
@@ -7692,7 +7688,7 @@ cited by: `settile`
 Account %1 may add its own programs to the home screen: %2
 ```
 
-cited by: `modifya`
+cited by: `create_account`, `modifya`
 
 ### msg:11886
 > kind=message tier=reference since=- src=sdsys/messages/11886:1#d16100f1
@@ -7813,6 +7809,250 @@ cited by: `setviewer`
 ```
 %s in the global catalogue can be written by other users, so it was not loaded (chmod go-w it)
 ```
+
+### msg:11931
+> kind=message tier=reference since=- src=sdsys/messages/11931:1#60187304
+
+```
+set.config parameter value (for example set.config cleanup 600); tool.config shows which parameters can be changed and the range of each
+```
+
+cited by: `setconfig`
+
+### msg:11932
+> kind=message tier=reference since=- src=sdsys/messages/11932:1#09bbf981
+
+```
+The parameter name has only letters and digits, up to 12 of them (for example cleanup)
+```
+
+cited by: `setconfig`
+
+### msg:11933
+> kind=message tier=reference since=- src=sdsys/messages/11933:1#45af3bfa
+
+```
+The value is a whole number written with digits only, up to 7 of them (for example 600)
+```
+
+cited by: `setconfig`
+
+### msg:11934
+> kind=message tier=reference since=- src=sdsys/messages/11934:1#507297c3
+
+```
+sd.conf was not changed: %1
+```
+
+cited by: `setconfig`
+
+### msg:11935
+> kind=message tier=reference since=- src=sdsys/messages/11935:1#cb511b7b
+
+```
+%1 is now %2 in sd.conf
+```
+
+cited by: `setconfig`
+
+### msg:11936
+> kind=message tier=reference since=- src=sdsys/messages/11936:1#08b30e71
+
+```
+It takes effect when SD is next stopped and started (sd -stop, then sd -start); sessions started before then keep the old value
+```
+
+cited by: `setconfig`
+
+### msg:11937
+> kind=message tier=reference since=- src=sdsys/messages/11937:1#1b696b0a
+
+```
+Sessions started from now on use it; sessions that are already running keep the old value
+```
+
+cited by: `setconfig`
+
+### msg:11946
+> kind=message tier=reference since=- src=sdsys/messages/11946:1#ce2f5d0f
+
+```
+Failed to create phantom process: no secret could be made to seal its start-up records
+```
+
+cited by: `phantom`
+
+### msg:11947
+> kind=message tier=reference since=- src=sdsys/messages/11947:1#72eb1251
+
+```
+Phantom %1 : start-up records missing or not from the process that started it, nothing was run.
+```
+
+cited by: `cproc`
+
+### msg:11951
+> kind=message tier=reference since=- src=sdsys/messages/11951:1#ebdd4fee
+
+```
+%1 needs a window of at most %2 columns by %3 lines; this one is %4
+```
+
+cited by: `tk_open`
+
+### msg:11952
+> kind=message tier=reference since=- src=sdsys/messages/11952:1#89ef105e
+
+```
+Write this record?
+```
+
+cited by: `tool_dict`, `tool_query`
+
+### msg:11953
+> kind=message tier=reference since=- src=sdsys/messages/11953:1#f9187972
+
+```
+Delete this record?
+```
+
+cited by: `tool_query`
+
+### msg:11954
+> kind=message tier=reference since=- src=sdsys/messages/11954:1#1b0ac05d
+
+```
+Update these records?
+```
+
+cited by: `tool_bulk`
+
+### msg:11955
+> kind=message tier=reference since=- src=sdsys/messages/11955:1#0ed7dba2
+
+```
+Put these records back?
+```
+
+cited by: `tool_bulk`
+
+### msg:11956
+> kind=message tier=reference since=- src=sdsys/messages/11956:1#5260a592
+
+```
+%1 is already open above this page, so it cannot be opened inside itself
+```
+
+cited by: `tool_home`
+
+### msg:11957
+> kind=message tier=reference since=- src=sdsys/messages/11957:1#44932aaf
+
+```
+Pages can be opened %1 deep at most; Esc goes back one
+```
+
+cited by: `tool_home`
+
+### msg:11958
+> kind=message tier=reference since=- src=sdsys/messages/11958:1#05fb0e8b
+
+```
+The Recent group is on: the tiles you start are listed first on this page
+```
+
+### msg:11959
+> kind=message tier=reference since=- src=sdsys/messages/11959:1#d03d5483
+
+```
+The Recent group is off, and the list it kept has been forgotten
+```
+
+### msg:11960
+> kind=message tier=reference since=- src=sdsys/messages/11960:1#60cbb8f3
+
+```
+The Recent group could not be turned on: the file &menus& in your account could not be made or written
+```
+
+### msg:11961
+> kind=message tier=reference since=- src=sdsys/messages/11961:1#b76aeb94
+
+```
+The administrator has turned the Recent group off for this account
+```
+
+cited by: `tool_home`
+
+### msg:11962
+> kind=message tier=reference since=- src=sdsys/messages/11962:1#03d635fa
+
+```
+The Back tile cannot be turned off: a person must always be able to leave a sub-menu
+```
+
+cited by: `settile`
+
+### msg:11976
+> kind=message tier=reference since=- src=sdsys/messages/11976:1#58f52a14
+
+```
+Master record %s not saved: sdsys is not in the group of %s. Nothing was changed. Use modify.account %s sdsys-on
+```
+
+### msg:11977
+> kind=message tier=reference since=- src=sdsys/messages/11977:1#5dd5f305
+
+```
+Account %1: master edits are on. The sdsys user is in the group of the account and can write everything that group may write. Sign on again as SDSYS; a session already running does not have it
+```
+
+cited by: `modifya`
+
+### msg:11978
+> kind=message tier=reference since=- src=sdsys/messages/11978:1#0fb12834
+
+```
+Account %1: master edits are off. The sdsys user is no longer in the group of the account. A session of SDSYS that is already running keeps its groups until it ends
+```
+
+cited by: `modifya`
+
+### msg:11979
+> kind=message tier=reference since=- src=sdsys/messages/11979:1#4d8af7c4
+
+```
+%1 is not a user account. sdsys-on and sdsys-off are for user accounts; the sdsys user owns the files of a group account. Nothing was changed
+```
+
+cited by: `modifya`
+
+### msg:11980
+> kind=message tier=reference since=- src=sdsys/messages/11980:1#9da760b6
+
+```
+Account %1: %2 failed, status %3
+```
+
+cited by: `modifya`
+
+### msg:11981
+> kind=message tier=reference since=- src=sdsys/messages/11981:1#a9be8c05
+
+```
+Master edits are switched off for %1 account(s): the sdsys user is not in their group. To switch one on: modify.account <account> sdsys-on
+```
+
+cited by: `masters`, `tool_masters`
+
+### msg:11982
+> kind=message tier=reference since=- src=sdsys/messages/11982:1#d89c16bb
+
+```
+The files listed as nonwritable or norights are in accounts whose master edits are on, and a master edit into them is refused: nonwritable is a mode (modify.account <account> sdsys-on puts it right); norights says why this session cannot (mode, stale-session: sign on again as SDSYS, no-write)
+```
+
+cited by: `masters`
 
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
@@ -9111,7 +9351,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 18 more
+cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 19 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

@@ -17,12 +17,15 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 26 Oct 26 dm  F6 (alternative C): the sdsys user is in no user account's group as delivered.  CHECK.MASTERS lists nonwritable and norights only for accounts whose master edits are on,
+*               and says once how many are off (11981; the kernel's answer ends with an "off" row, which is not a difference); the hint is 11982 (it was 11593, which sent the reader to
+*               sd-elevate sdsys-join; the verb is modify.account <name> sdsys-on).
 * 19 Oct 26 dm  S.67, the verifier's finding F7: SYNC.MASTERS with no account makes ONE kernel call for every account (kernel(K$MASTERS, 'syncall')), where it made one
 *               for each and each read the whole of every master file: with 200 accounts that was about three times as long as with 100, not twice.
 * 19 Oct 26 dm  S.67 stage 2: CHECK.MASTERS and LIST.MASTER.PENDING end with the reason the last save of a master record in this session was refused, if one
 *               was (kernel(K$MASTERS, 'refusal'), message 11594): an editor shows only "write error 8910".
 * 19 Oct 26 dm  S.67 stage 2: CHECK.MASTERS lists the files a master edit could not be written into - nonwritable (the group has no write permission) and
-*               norights (the mode is right and this session still cannot: mode, stale-session, not-a-member, no-write) - and says what each means (11593).
+*               norights (the mode is right and this session still cannot: mode, stale-session, not-a-member, no-write) - and says what each means (11593; replaced by 11982 on 26 Oct 26, F6, see above).
 * 19 Oct 26 dm  New, S.67 stage 1 (owner, 17 Oct 2026: voc_master and dict_master in the SDSYS account).  ACCOUNT TO MASTER only.
 * END-HISTORY
 *
@@ -45,7 +48,9 @@
 *                          from the account's, a record the master lacks (missing) or has too many of (extra), a VOC or dictionary whose directory or
 *                          files lack group permission (nonwritable: a master edit is written into them as a member of the account's group), one the
 *                          mode lets the group write but THIS session cannot (norights, with the reason), a key too long for MAXIDLEN to mirror
-*                          (toolong), a file that could not be read (unreadable).  The stale and resync flags are reported too.
+*                          (toolong), a file that could not be read (unreadable).  The stale and resync flags are reported too.  nonwritable and norights
+*                          are said only of accounts whose master edits are ON (the sdsys user is in the account's group); the accounts where they are OFF,
+*                          the delivered setting, are counted once, in a line of their own (F6).
 *   LIST.MASTER.PENDING    The journal lines not yet applied (it applies none), and the flags.
 *
 * Master to account (stage 2): a master record that SDSYS SAVES is written into the account's own file by the kernel at once, or refused with its reason
@@ -81,6 +86,7 @@ $include err.h
    fields = ''
    s0 = 0
    hint = 0
+   noff = 0
 
    if not(kernel(K$ADMINISTRATOR, -1)) then
       stop sysmsg(2001) ;* Command requires administrator privileges
@@ -209,15 +215,20 @@ do.check:
    end case
    fields = dcount(ans, @fm)
    hint = 0
+   noff = 0
    for i = 7 to fields
-      if ans<i> = 'truncated' then
-         display '...'
-      end else
-         display sysmsg(11570, ans<i, 1>, ans<i, 2>, ans<i, 3>)
-         if ans<i, 1> = 'nonwritable' or ans<i, 1> = 'norights' then hint = 1
-      end
+      begin case
+         case ans<i> = 'truncated'
+            display '...'
+         case ans<i, 1> = 'off'          ;* F6: the kernel's count of the accounts whose master edits are off; not a difference
+            noff = ans<i, 2>
+         case 1
+            display sysmsg(11570, ans<i, 1>, ans<i, 2>, ans<i, 3>)
+            if ans<i, 1> = 'nonwritable' or ans<i, 1> = 'norights' then hint = 1
+      end case
    next i
-   if hint then display sysmsg(11593)         ;* S.67 stage 2: a master edit cannot be written into what is listed above
+   if hint then display sysmsg(11982)         ;* S.67 stage 2: a master edit cannot be written into what is listed above (F6: 11982 replaces 11593)
+   if noff > 0 then display sysmsg(11981, noff)   ;* F6: how many accounts have master edits switched off
    if bitand(ans<4>, 1) then display sysmsg(11572, ans<5>)
    if bitand(ans<4>, 2) then display sysmsg(11573, ans<6>)
    if ans<3> = 0 then display sysmsg(11568)

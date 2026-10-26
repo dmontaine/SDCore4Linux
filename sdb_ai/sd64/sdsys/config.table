@@ -1,7 +1,7 @@
 #
-# config.table - what each parameter of sd.conf is, for TOOL.CONFIG (S.75 A6).  One line to a parameter, eight fields separated by a vertical bar:
+# config.table - what each parameter of sd.conf is, for TOOL.CONFIG (S.75 A6).  One line to a parameter, ten fields separated by a vertical bar:
 #
-#   key | kind | default | min | max | effect | status | text
+#   key | kind | default | min | max | effect | status | text | write | why
 #
 #   key      the name as sd.conf spells it (gplsrc/config.c read_config() is the list; test-toolconfig-units.py holds this table to it)
 #   kind     int, bits (flag bits added together), flag (0 or 1), text, path, float, pair (base,range) or triple (port,user,range)
@@ -12,69 +12,74 @@
 #   status  live (something acts on it), inert (accepted and stored, nothing acts on it), retired (accepted and ignored so that an old file still starts), file (read from
 #            sd.conf by a program each time it is used, not by the kernel)
 #   text     one sentence, plain, no vertical bar
+#   write    yes: the page and the verb set.config may change it, through the root helper (sd-elevate conf-set); no: they may not, and the page shows the line to add by hand.
+#            ONLY A PARAMETER THAT CONFIG.C RANGE-CHECKS CAN BE yes, and the range above is then the range the helper enforces (test-confset-elevate-units.py holds the helper, this
+#            column and config.c to one another).  A door, a path or a command, a log or a security setting, a size config.c does not check, a parameter whose meaning depends on
+#            others, one that changes what existing programs compute, and one nothing acts on are all no.
+#   why      for a no, one sentence of at most 100 characters, plain, no vertical bar: why this page does not change it; blank for a yes
 #
 # A line beginning with # is a comment.  Alphabetical by key.
 #
-APILOGIN|flag|1|||restart|retired|Retired on 14 September 2026: the API always logs in by SCRAM now. The line is still accepted and ignored so that an sd.conf written earlier still starts SD.
-BACKUPDIR|path||||now|file|The directory set.backup.directory saves. The kernel ignores it; the backup and restore programs read sd.conf each time they run, so a change needs no restart.
-CLEANUP|int|300|30|3600|restart|live|Seconds between the checks that look for sessions that ended without signing off (a killed terminal, a lost connection) and clear them from the user table.
-CMDSTACK|int|99|||restart|live|How many commands each session keeps on its command stack.
-CODEPAGE|int|0|||session|inert|Stored and readable, and nothing acts on it.
-CREATUSR|flag|1|||session|retired|SD has accounts rather than accounts and users, so create.account always makes the operating system account; the value is read and discarded.
-DEADLOCK|int|0|0|2|restart|live|0 does nothing special; 1 makes SD trap a deadlock between sessions; 2 does that and also writes a file deadlock.n with the locks involved.
-DEBUG|bits|0|||restart|live|Flag bits that turn on debugging features of the kernel. Leave at 0 unless asked to change it.
-DHCACHE|int|10|0|1024|session|live|How many closed dynamic files SD keeps open for the next use, so that opening them again is quick.
-DUMPDIR|path||||session|live|The directory where a process dump is written. The shipped file names the dumps directory of the system account.
-ERRLOG|int|0|||restart|live|The size of the error log in kilobytes; a value below 10 is raised to 10 and the oldest entries are discarded when it is full. 0 keeps no limit.
-EXCLREM|flag|0|||session|inert|Stored and readable, and nothing reads it. It described leaving remote files out of an account save.
-FDS|int|32767|||restart|live|A limit on the file descriptors SD uses; when it is not set there is no limit of SD's own.
-FILERULE|bits|0|||session|live|Which special forms of file name in a VOC entry are honoured: 1 account:file, 2 system:account:file (opens nothing on this port), 4 path: followed by a pathname.
-FIXUSERS|pair||||restart|live|base,range: user numbers kept for sessions that ask for one number, such as a service that must always be the same user.
-FLTDIFF|float|0.0000000000291|||session|live|Two floating point numbers closer together than this compare equal.
-FSYNC|bits|0|||session|live|Flag bits that say when SD forces data to disk with fsync: a higher value is safer and slower.
-GDI|flag|0|||session|inert|Selects the Windows printing interface; nothing on this port acts on it.
-GRPDIR|path|/home/sd/group_accounts|||session|live|The directory create.account puts a group account in.
-GRPSIZE|int|4|1|8|session|live|The group size, in kilobytes, of a hashed file made without one. 4 since 25 October 2026; an installed system keeps the value its sd.conf has until you change it.
-INTPREC|int|11|0|14|session|live|How many digits of precision integer arithmetic and the INT function keep.
-INVCASE|flag|0|||session|live|1 starts every session with the terminal's input case inverted.
-JNLDIR|path||||restart|inert|The journal directory. SD has no journalling, so nothing reads it.
-JNLMODE|int|0|||restart|inert|The journalling mode. SD has no journalling, so nothing reads it.
-LGNWAIT|int|0|0|32767|restart|live|Seconds a sign-on waits for a free user number when the user limit is reached; 0 refuses at once.
-LPTRHIGH|int|66|10|32767|session|live|The default page depth of the printer, in lines.
-LPTRWIDE|int|80|10|1000|session|live|The default page width of the printer, in characters.
-MAXCALL|int|10000|10|1000000|session|live|The deepest nesting of subroutine calls one program may reach.
-MAXIDLEN|int|63|63|255|restart|live|The longest record id. 63 is also the lowest value allowed.
-MAXRLOCK|int|0|0|100000|session|live|How many record locks one process may hold; 0 sets no limit.
-MUSTLOCK|flag|0|||session|live|1 makes a write or delete fail unless the record is locked first.
-NETFILES|bits|0|||restart|live|Bit 2 gates one old API request (number 29); SDNet does not read it. Leave it at 0.
-NETREPLY|int|30|1|3600|session|live|Seconds to wait for each reply from another SD server once connected; a slower server is treated as lost.
-NETWAIT|int|5|1|3600|session|live|Seconds to wait for a connection to another SD server, for the TCP connect and again for the TLS handshake. 0 is refused.
-NUMFILES|int|80|||restart|live|How many files may be open across all sessions.
-NUMLOCKS|int|100|1|32767|restart|live|How many record locks may be held across all sessions.
-NUMUSERS|int|1|||restart|live|How many sessions may run at once; it sizes the user table in shared memory. The shipped file says 20.
-OBJECTS|int|0|||session|live|How many compiled programs one session keeps in memory at once; 0 sets no limit.
-OBJMEM|int|0|||session|live|How much memory, in kilobytes, those programs may take; 0 sets no limit.
-PDUMP|bits|0|||restart|live|Flag bits that say when a process dump is written.
-PHANTOMS|pair||||restart|live|base,range: user numbers kept for phantoms started with phantom user n. Nobody else is given one.
-PORTMAP|triple||||restart|live|base_port,base_user,range: gives a connection a fixed user number derived from the port it arrived on.
-PWDELAY|int|3|0|3600|session|live|Seconds a failed network sign-on is made to wait before the refusal is sent.
-RECCACHE|int|0|0|32|session|live|How many records each file keeps cached for the next read.
-RINGWAIT|flag|1|||session|inert|Stored and readable, and nothing acts on it.
-SAFEDIR|flag|0|||session|live|1 updates directory files by writing a new file and renaming it, rather than in place.
-SCREENTHEME|text||||session|live|The colour theme a program using the SCREEN statement gets when it does not choose one: mono, classic or blue. Not readable with the CONFIG function.
-SDCLIENT|bits|0|||session|live|Restricts what an API session may do. Any non-zero value stops files being opened, and 2 also refuses subroutines not compiled as callable.
-SDSYS|path||||restart|live|The system account's directory. SD does not start if the global catalogue is not found beneath it. Not readable with the CONFIG function.
-SH|text||||session|live|The command a bare sh starts as an interactive shell; when it is not set SD uses /bin/bash -i.
-SH1|text||||session|live|The command sh followed by a command line uses; when it is not set SD uses /bin/bash -c.
-SORTMEM|int|4096|||session|live|Kilobytes of data above which a sort works on disk instead of in memory.
-SORTMRG|int|4|2|10|session|live|How many work files a disk sort merges at once.
-SORTWORK|path||||session|live|The directory for the work files of a sort that does not fit in memory; when it is not set SD uses the system account's directory.
-SPOOLER|text||||session|live|The spooler print jobs are handed to by default.
-STARTUP|text||||restart|live|A command SD runs when it starts.
-TEMPDIR|path||||session|live|The directory for temporary files; when it is not set SD uses the system default.
-TERMINFO|path||||session|live|An extra directory of terminfo definitions. The shipped definitions are found without it.
-TXCHAR|flag|1|||session|inert|Stored and not readable: nothing acts on it on this port.
-USERPOOL|int|1023|0|16383|restart|live|The highest user number handed out; user numbers rotate through 1 to this value.
-USPLIT|flag|0|0|1|restart|live|1 gives interactive sessions the lowest free user numbers and every other process (a phantom, an API session) the highest.
-USRDIR|path|/home/sd/user_accounts|||session|live|The directory create.account puts a user account in.
-YEARBASE|int|1930|||session|live|The base year of a two-digit year: with 1930 the two-digit years run from 1930 to 2029.
+APILOGIN|flag|1|||restart|retired|Retired on 14 September 2026: the API always logs in by SCRAM now. The line is still accepted and ignored so that an sd.conf written earlier still starts SD.|no|Retired: nothing reads it, so there is nothing to tune.
+BACKUPDIR|path||||now|file|The directory set.backup.directory saves. The kernel ignores it; the backup and restore programs read sd.conf each time they run, so a change needs no restart.|no|A directory: set.backup.directory saves it, with its own checks of the path.
+CLEANUP|int|300|30|3600|restart|live|Seconds between the checks that look for sessions that ended without signing off (a killed terminal, a lost connection) and clear them from the user table.|yes|
+CMDSTACK|int|99|||restart|live|How many commands each session keeps on its command stack.|no|Sizes a table in shared memory and config.c checks no range: a mistake shows only at the next start.
+CODEPAGE|int|0|||session|inert|Stored and readable, and nothing acts on it.|no|Inert: nothing acts on it.
+CREATUSR|flag|1|||session|retired|SD has accounts rather than accounts and users, so create.account always makes the operating system account; the value is read and discarded.|no|Retired: the value is read and thrown away.
+DEADLOCK|int|0|0|2|restart|live|0 does nothing special; 1 makes SD trap a deadlock between sessions; 2 does that and also writes a file deadlock.n with the locks involved.|no|A diagnostic: 2 makes SD write a file of the locks involved; set it by hand while you hunt one.
+DEBUG|bits|0|||restart|live|Flag bits that turn on debugging features of the kernel. Leave at 0 unless asked to change it.|no|Debugging flags of the kernel: they change what SD writes and exposes.
+DHCACHE|int|10|0|1024|session|live|How many closed dynamic files SD keeps open for the next use, so that opening them again is quick.|yes|
+DUMPDIR|path||||session|live|The directory where a process dump is written. The shipped file names the dumps directory of the system account.|no|A directory: process dumps are written there and can hold what a session had in memory.
+ERRLOG|int|0|||restart|live|The size of the error log in kilobytes; a value below 10 is raised to 10 and the oldest entries are discarded when it is full. 0 keeps no limit.|no|Sizes the error log; config.c checks no range, and a small size discards its oldest entries sooner.
+EXCLREM|flag|0|||session|inert|Stored and readable, and nothing reads it. It described leaving remote files out of an account save.|no|Inert: nothing acts on it.
+FDS|int|32767|||restart|live|A limit on the file descriptors SD uses; when it is not set there is no limit of SD's own.|no|Limits the file descriptors SD uses; config.c checks no range: a mistake shows at the next start.
+FILERULE|bits|0|||session|live|Which special forms of file name in a VOC entry are honoured: 1 account:file, 2 system:account:file (opens nothing on this port), 4 path: followed by a pathname.|no|Decides which special file names a VOC entry may use, path: included; that is an access decision.
+FIXUSERS|pair||||restart|live|base,range: user numbers kept for sessions that ask for one number, such as a service that must always be the same user.|no|Must agree with USERPOOL, PORTMAP and PHANTOMS: a wrong combination stops SD from starting.
+FLTDIFF|float|0.0000000000291|||session|live|Two floating point numbers closer together than this compare equal.|no|Changes how every program compares floating point numbers.
+FSYNC|bits|0|||session|live|Flag bits that say when SD forces data to disk with fsync: a higher value is safer and slower.|no|Trades the safety of data against speed; flag bits that config.c does not check.
+GDI|flag|0|||session|inert|Selects the Windows printing interface; nothing on this port acts on it.|no|Inert: nothing acts on it.
+GRPDIR|path|/home/sd/group_accounts|||session|live|The directory create.account puts a group account in.|no|A directory: group accounts are made there.
+GRPSIZE|int|4|1|8|session|live|The group size, in kilobytes, of a hashed file made without one. 4 since 25 October 2026; an installed system keeps the value its sd.conf has until you change it.|yes|
+INTPREC|int|11|0|14|session|live|How many digits of precision integer arithmetic and the INT function keep.|no|Changes the results of arithmetic in programs that already exist.
+INVCASE|flag|0|||session|live|1 starts every session with the terminal's input case inverted.|no|Changes how every new session reads upper and lower case typed at the terminal.
+JNLDIR|path||||restart|inert|The journal directory. SD has no journalling, so nothing reads it.|no|Inert: SD has no journalling.
+JNLMODE|int|0|||restart|inert|The journalling mode. SD has no journalling, so nothing reads it.|no|Inert: SD has no journalling.
+LGNWAIT|int|0|0|32767|restart|live|Seconds a sign-on waits for a free user number when the user limit is reached; 0 refuses at once.|yes|
+LPTRHIGH|int|66|10|32767|session|live|The default page depth of the printer, in lines.|yes|
+LPTRWIDE|int|80|10|1000|session|live|The default page width of the printer, in characters.|yes|
+MAXCALL|int|10000|10|1000000|session|live|The deepest nesting of subroutine calls one program may reach.|yes|
+MAXIDLEN|int|63|63|255|restart|live|The longest record id. 63 is also the lowest value allowed.|no|Structural: the longest record id of the whole system, which reaches every file and program.
+MAXRLOCK|int|0|0|100000|session|live|How many record locks one process may hold; 0 sets no limit.|yes|
+MUSTLOCK|flag|0|||session|live|1 makes a write or delete fail unless the record is locked first.|no|Makes a write fail unless the record is locked first, which can stop programs that exist.
+NETFILES|bits|0|||restart|live|Bit 2 gates one old API request (number 29); SDNet does not read it. Leave it at 0.|no|A door: bit 2 gates API request 29, a remote open of an account.
+NETREPLY|int|30|1|3600|session|live|Seconds to wait for each reply from another SD server once connected; a slower server is treated as lost.|yes|
+NETWAIT|int|5|1|3600|session|live|Seconds to wait for a connection to another SD server, for the TCP connect and again for the TLS handshake. 0 is refused.|yes|
+NUMFILES|int|80|||restart|live|How many files may be open across all sessions.|no|Sizes the open file table in shared memory; config.c checks no range.
+NUMLOCKS|int|100|1|32767|restart|live|How many record locks may be held across all sessions.|yes|
+NUMUSERS|int|1|||restart|live|How many sessions may run at once; it sizes the user table in shared memory. The shipped file says 20.|no|Sizes the user table, which bounds who can sign on; config.c checks no range.
+OBJECTS|int|0|||session|live|How many compiled programs one session keeps in memory at once; 0 sets no limit.|no|Limits the programs a session keeps in memory; config.c checks no range.
+OBJMEM|int|0|||session|live|How much memory, in kilobytes, those programs may take; 0 sets no limit.|no|Limits the memory those programs may take; config.c checks no range.
+PDUMP|bits|0|||restart|live|Flag bits that say when a process dump is written.|no|Flag bits that say when a process dump is written; a dump can hold what a session had in memory.
+PHANTOMS|pair||||restart|live|base,range: user numbers kept for phantoms started with phantom user n. Nobody else is given one.|no|Must agree with USERPOOL, FIXUSERS and PORTMAP: a wrong combination stops SD from starting.
+PORTMAP|triple||||restart|live|base_port,base_user,range: gives a connection a fixed user number derived from the port it arrived on.|no|A door: gives a connection a user number from its port; must agree with USERPOOL and FIXUSERS.
+PWDELAY|int|3|0|3600|session|live|Seconds a failed network sign-on is made to wait before the refusal is sent.|no|A security throttle: the pause after a failed network sign-on; 0 removes it.
+RECCACHE|int|0|0|32|session|live|How many records each file keeps cached for the next read.|yes|
+RINGWAIT|flag|1|||session|inert|Stored and readable, and nothing acts on it.|no|Inert: nothing acts on it.
+SAFEDIR|flag|0|||session|live|1 updates directory files by writing a new file and renaming it, rather than in place.|no|Changes how SD replaces the files of a directory file, by writing a new one and renaming it.
+SCREENTHEME|text||||session|live|The colour theme a program using the SCREEN statement gets when it does not choose one: mono, classic or blue. Not readable with the CONFIG function.|no|Text that SD acts on; config.c checks no value.
+SDCLIENT|bits|0|||session|live|Restricts what an API session may do. Any non-zero value stops files being opened, and 2 also refuses subroutines not compiled as callable.|no|A door: restricts what an API session may do, and a lower value loosens it.
+SDSYS|path||||restart|live|The system account's directory. SD does not start if the global catalogue is not found beneath it. Not readable with the CONFIG function.|no|The system directory: SD cannot start, or finds another system, if it is wrong.
+SH|text||||session|live|The command a bare sh starts as an interactive shell; when it is not set SD uses /bin/bash -i.|no|A command SD runs as an interactive shell.
+SH1|text||||session|live|The command sh followed by a command line uses; when it is not set SD uses /bin/bash -c.|no|A command SD runs for a shell command line.
+SORTMEM|int|4096|||session|live|Kilobytes of data above which a sort works on disk instead of in memory.|no|A size in kilobytes that config.c does not check, so a mistake shows only when a sort runs.
+SORTMRG|int|4|2|10|session|live|How many work files a disk sort merges at once.|yes|
+SORTWORK|path||||session|live|The directory for the work files of a sort that does not fit in memory; when it is not set SD uses the system account's directory.|no|A directory: the work files of a large sort are written there.
+SPOOLER|text||||session|live|The spooler print jobs are handed to by default.|no|Text that names the spooler print jobs are handed to.
+STARTUP|text||||restart|live|A command SD runs when it starts.|no|A command SD runs when it starts.
+TEMPDIR|path||||session|live|The directory for temporary files; when it is not set SD uses the system default.|no|A directory: temporary files are written there.
+TERMINFO|path||||session|live|An extra directory of terminfo definitions. The shipped definitions are found without it.|no|A directory: terminal definitions are read from there.
+TXCHAR|flag|1|||session|inert|Stored and not readable: nothing acts on it on this port.|no|Inert: nothing acts on it.
+USERPOOL|int|1023|0|16383|restart|live|The highest user number handed out; user numbers rotate through 1 to this value.|no|The highest user number: PORTMAP, FIXUSERS and PHANTOMS are checked against it; a mistake stops SD.
+USPLIT|flag|0|0|1|restart|live|1 gives interactive sessions the lowest free user numbers and every other process (a phantom, an API session) the highest.|yes|
+USRDIR|path|/home/sd/user_accounts|||session|live|The directory create.account puts a user account in.|no|A directory: user accounts are made there.
+YEARBASE|int|1930|||session|live|The base year of a two-digit year: with 1930 the two-digit years run from 1930 to 2029.|no|Changes how every program reads a two-digit year; config.c checks no range.

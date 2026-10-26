@@ -6,6 +6,7 @@
 *
 * START-HISTORY:
 * 26 Oct 26 dm  New.
+* 26 Oct 26 dm  faults: the boxes of the update and of the undo are titled "Update these records?" and "Put these records back?" ($tk_confirm's sixth argument); the file pick list shows a VOC id through a control-character filter.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -295,6 +296,13 @@ file.info:
 do.file:
    fl.names = ''
    fl.text = ''
+   fctl = ''                                                    ;* 26 Oct 26 (review, low): a VOC id is shown with every control character, DEL and byte above ASCII as a dot (the id itself is refused by check.name)
+   for fk0 = 1 to 31
+      fctl := char(fk0)
+   next fk0
+   for fk0 = 127 to 255
+      fctl := char(fk0)
+   next fk0
    open 'VOC' to vocf then
       sselect vocf to 9
       readlist vids from 9 else vids = ''
@@ -308,7 +316,7 @@ do.file:
                gosub check.file
                ftxt = (if cok then cinfo else '-  ' : cwhy)
                fl.names<-1> = cf
-               fl.text<-1> = fmt(cf[1, 30], '30L') : '  ' : ftxt[1, 100]
+               fl.text<-1> = fmt(convert(fctl, str('.', len(fctl)), cf)[1, 30], '30L') : '  ' : ftxt[1, 100]
             end
          end
       next vi
@@ -1180,7 +1188,8 @@ do.apply:
    lines<-1> = dr.chg : ' of the ' : n.sel : ' selected records would change (the dry run you just made).  Each is read again under a lock first: a record another session has locked, or one that is no longer exactly as the dry run read it, is left alone and counted.'
    lines<-1> = 'The records as they are now are kept in ' : UNDOF : ' (a run before this one is replaced there), so that U can put them back.  One line goes to the audit trail: the file and how many records were written, no data.'
    sent = 'bulk update ' : bf : ': ' : nopr : (if nopr = 1 then ' operation on ' else ' operations on ') : dr.chg : (if dr.chg = 1 then ' record' else ' records')
-   call $tk_confirm(sent, lines, bf, res, cmsg)
+*  26 Oct 26: a bulk update writes records, it is no command: "Update these records?" (11954)
+   call $tk_confirm(sent, lines, bf, res, cmsg, sysmsg(11954))
    if res # 'run' then
       msg = cmsg
       return
@@ -1360,7 +1369,8 @@ do.undo:
    lines<-1> = 'Puts back the records of ' : uf.name : ' that the last bulk update changed (' : n.rest : ' still to put back), to what they were before it.'
    lines<-1> = 'A record is put back only if it is still exactly what that run wrote; one that has changed since, or has gone, or is locked by another session, is left alone and counted.'
    sent = 'bulk undo ' : uf.name : ': ' : n.rest : (if n.rest = 1 then ' record' else ' records')
-   call $tk_confirm(sent, lines, uf.name, res, cmsg)
+*  26 Oct 26: "Put these records back?" (11955)
+   call $tk_confirm(sent, lines, uf.name, res, cmsg, sysmsg(11955))
    if res # 'run' then
       close uf
       msg = cmsg

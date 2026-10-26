@@ -1,0 +1,1 @@
+The files listed as nonwritable or norights are in accounts whose master edits are on, and a master edit into them is refused: nonwritable is a mode (modify.account <account> sdsys-on puts it right); norights says why this session cannot (mode, stale-session: sign on again as SDSYS, no-write)

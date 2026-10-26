@@ -38,6 +38,7 @@ MSGDIR = os.path.join(SDSYS, "messages")
 
 MSG_FIRST, MSG_LAST = 11560, 11578           # stage 1
 MSG2_FIRST, MSG2_LAST = 11579, 11596         # stage 2 (master to account); 11595 and 11596 are the verifier fixes' (no lock could be taken; not read first)
+F6_FIRST, F6_LAST = 11976, 11982             # 26 Oct 26, F6: 11976 the refusal (C), 11977 to 11980 modify.account's, 11981 and 11982 check.masters'.  11579, 11587 and 11593 are RETIRED and left unused
 BP_NAMED = ("masters", "masters_setup", "upgrade_masters", "create_account", "delacc", "restorea", "_oscopy", "_ioscopy")
 C_NAMED = ("masters.c", "dh_write.c", "dh_del.c", "dh_clear.c", "dh_creat.c", "op_dio1.c", "op_dio2.c", "op_dio3.c", "op_xfun.c", "op_kernel.c",
            "txn.c", "keys.h", "sysseg.h", "sd.h", "dh.h")
@@ -175,7 +176,7 @@ def load():
         get("voc:" + v, os.path.join(SDSYS, "voc_template", v))
     srcs["newvoc.list"] = "\n".join(sorted(os.listdir(os.path.join(SDSYS, "newvoc"))))
     srcs["voc_template.list"] = "\n".join(sorted(os.listdir(os.path.join(SDSYS, "voc_template"))))
-    for n in range(MSG_FIRST, MSG2_LAST + 1):
+    for n in list(range(MSG_FIRST, MSG2_LAST + 1)) + list(range(F6_FIRST, F6_LAST + 1)):
         p = os.path.join(MSGDIR, str(n))
         srcs["msg:%d" % n] = open(p, encoding="utf-8", errors="replace").read() if os.path.exists(p) else None
     for t in ("sandbox-masters.py", "test-masters-units.py", "witness-masters.sh", "test-install-sdsysgroups.sh"):
@@ -235,8 +236,8 @@ def checks(srcs):
     cited = set()
     for name in ("masters", "masters_setup", "upgrade_masters"):
         cited |= set(int(x) for x in re.findall(r"sysmsg\((\d+)", B(name)))
-    ck("N9 every message the verb program cites exists and lies in 11560 to 11594 (stage 2 added 11593, the CHECK.MASTERS hint, and 11594, the last refusal), and its substitution never takes more than 4 arguments (the compiler's SYSMSG limit)",
-       all(MSG_FIRST <= n <= MSG2_LAST or n == 2001 for n in cited) and all(srcs.get("msg:%d" % n) is not None for n in cited if n != 2001)
+    ck("N9 every message the verb program cites exists and lies in 11560 to 11594 (stage 2 added 11593, the CHECK.MASTERS hint, and 11594, the last refusal; F6 retired 11593 and added 11981 and 11982), and its substitution never takes more than 4 arguments (the compiler's SYSMSG limit)",
+       all(MSG_FIRST <= n <= MSG2_LAST or n == 2001 or F6_FIRST <= n <= F6_LAST for n in cited) and all(srcs.get("msg:%d" % n) is not None for n in cited if n != 2001)
        and max(sysmsg_arg_counts(B("masters")) + [0]) <= 4 and len(sysmsg_arg_counts(B("masters"))) >= 15, repr((sorted(cited), sysmsg_arg_counts(B("masters")))))
     big = [n for n, t in texts.items() if t is not None and max([int(x) for x in re.findall(r"%(\d)", t)] + [0]) > 4]
     ck("N10 no message of the block has a %5 or higher", not big, repr(big))
@@ -492,7 +493,9 @@ def checks(srcs):
     ck("S2 dh.h: DHF_MST_NOMASTER 0x20000000, DHF_MST_VM 0x40000000, DHF_MST_DM 0x80000000 - one bit each in the INTERNAL half of the word, none shared with another flag",
        bits2 == [0x20000000, 0x40000000, 0x80000000] and len(set(dh.values())) == len(dh.values()), repr(bits2))
     t2 = {n: srcs.get("msg:%d" % n) for n in range(MSG2_FIRST, MSG2_LAST + 1)}
-    cexp = {11580: 1, 11581: 2, 11582: 2, 11583: 2, 11584: 2, 11585: 2, 11586: 2, 11587: 3, 11588: 1, 11589: 1, 11590: 1, 11591: 2, 11592: 2, 11595: 1, 11596: 1}   # the %s places each C message has
+    t2.update({n: srcs.get("msg:%d" % n) for n in range(F6_FIRST, F6_LAST + 1)})      # 26 Oct 26, F6: 11976 to 11982 join the table
+    # the %s places each C message has.  F6: 11587 (not a member) is retired and left unused; 11976 (switched off) takes its place and is the fourteenth
+    cexp = {11580: 1, 11581: 2, 11582: 2, 11583: 2, 11584: 2, 11585: 2, 11586: 2, 11976: 3, 11588: 1, 11589: 1, 11590: 1, 11591: 2, 11592: 2, 11595: 1, 11596: 1}
     c_ok = all(t2.get(n) is not None and t2[n].count("\n") == 1 and t2[n].count("%s") == k and not re.findall(r"%[^s]", t2[n]) for n, k in cexp.items())
     # THE ROOM A MESSAGE HAS (verifier, low): k_error puts it after a 10-character prefix in a buffer of MAX_ERROR_LINES * MAX_EMSG_LEN + 1, so 231 characters, ARGUMENTS INCLUDED.
     # The part a reader needs most is "Nothing was changed", and a sentence cut short loses it.  The worst argument each %s can be given: the key as shown (MST_SHOWN_MAX, 60), an
@@ -504,20 +507,29 @@ def checks(srcs):
         acct_ = int(re.search(r"#define\s+MAX_ACCOUNT_NAME_LEN\s+(\d+)", sd_).group(1))
     except (AttributeError, ValueError):
         room, shown, acct_ = 0, 0, 0
-    worst_args = {11580: (shown,), 11581: (shown, acct_), 11582: (shown, 24), 11583: (shown, acct_), 11584: (shown, 6), 11585: (shown, 60), 11586: (shown, acct_ + 4), 11587: (shown, acct_ + 4, acct_ + 4),
+    worst_args = {11580: (shown,), 11581: (shown, acct_), 11582: (shown, 24), 11583: (shown, acct_), 11584: (shown, 6), 11585: (shown, 60), 11586: (shown, acct_ + 4), 11976: (shown, acct_, acct_),
                   11588: (shown,), 11589: (shown,), 11590: (shown,), 11591: (shown, 24), 11592: (shown, 24), 11595: (shown,), 11596: (shown,)}
     worst = {n: len(t2[n].rstrip("\n").replace("%s", "")) + sum(worst_args[n]) for n in cexp if t2.get(n)}
     short = room == 231 and shown == 60 and all(worst[n] <= room for n in worst)
-    ck("S3 messages 11579 to 11596 exist, each one line.  11580 to 11592, 11595 and 11596 are written for C (printf's %s, exactly the places masters.c passes, no other conversion, none with %1) and "
-       "FIT k_error's room (231 characters) with the longest argument each place can be given (the key is cut at 60); 11579 (%1 %2), 11593 (none) and 11594 (%1) are BASIC and have no %s; "
-       "and every refusal that leaves the account as it was says so (\"Nothing was changed\") - the saves not delivered, in the sentence",
-       all(t2.get(n) is not None for n in range(MSG2_FIRST, MSG2_LAST + 1)) and c_ok and short and "%s" not in (t2.get(11579) or "") and "%2" in (t2.get(11579) or "") and "%s" not in (t2.get(11593) or "")
-       and "%" not in (t2.get(11593) or "") and "%1" in (t2.get(11594) or "") and "%s" not in (t2.get(11594) or "")
-       and all("Nothing was changed" in (t2.get(n) or "") for n in (11580, 11581, 11582, 11583, 11584, 11585, 11586, 11587, 11589, 11592, 11595, 11596)),
+    ck("S3 messages 11579 to 11596 exist, each one line (F6: 11579, 11587 and 11593 are retired and left in place, UNUSED).  11580 to 11592 but 11587, 11595, 11596 and 11976 are written for C (printf's %s, "
+       "exactly the places masters.c passes, no other conversion, none with %1) and FIT k_error's room (231 characters) with the longest argument each place can be given (the key is cut at 60); "
+       "11594 (%1) is BASIC and has no %s; and every refusal that leaves the account as it was says so (\"Nothing was changed\") - the saves not delivered, in the sentence",
+       all(t2.get(n) is not None for n in range(MSG2_FIRST, MSG2_LAST + 1)) and c_ok and short
+       and "%1" in (t2.get(11594) or "") and "%s" not in (t2.get(11594) or "")
+       and all("Nothing was changed" in (t2.get(n) or "") for n in (11580, 11581, 11582, 11583, 11584, 11585, 11586, 11976, 11589, 11592, 11595, 11596)),
        repr(([n for n in cexp if t2.get(n) is None or t2[n].count("%s") != cexp[n]], {n: w for n, w in worst.items() if w > room}, room, shown)))
-    ck("S3a ...in lower case wherever a command word is written: sync.masters, check.masters, sd-elevate, sdsys-join, voc_master; no verb in capitals",
-       all(re.search(r"\b[A-Z]{3,}\.[A-Z]{3,}\b", t) is None for t in t2.values() if t) and "sd-elevate sdsys-join" in " ".join(t for t in t2.values() if t)
+    ck("S3a ...in lower case wherever a command word is written: sync.masters, check.masters, modify.account, sdsys-on, voc_master; no verb in capitals",
+       all(re.search(r"\b[A-Z]{3,}\.[A-Z]{3,}\b", t) is None for t in t2.values() if t) and "modify.account %s sdsys-on" in (t2.get(11976) or "")
        and "sync.masters" in (t2.get(11583) or "") + (t2.get(11588) or ""), "")
+    ck("S3b F6: 11977 to 11982 are written for BASIC (%1 and the like, never a %s) and are one line each: 11977 and 11978 say master edits are on or off, 11979 says it is not a user account, "
+       "11980 has the account, the step and the status, 11981 the number of accounts that are off and the verb that switches one on, 11982 the hint and that same verb; and the three RETIRED messages "
+       "(11579, 11587, 11593) are cited by no code - not by masters.c, create_account, masters or tool_masters",
+       all(t2.get(n) and t2[n].count("\n") == 1 and "%s" not in t2[n] for n in range(11977, 11983))
+       and "%1" in t2[11977] and "master edits are on" in t2[11977] and "master edits are off" in t2[11978] and "%1" in t2[11978] and "is not a user account" in t2[11979] and "%1" in t2[11979]
+       and all(x in t2[11980] for x in ("%1", "%2", "%3")) and "%1" in t2[11981] and "sdsys-on" in t2[11981] and "%" not in t2[11982] and "sdsys-on" in t2[11982]
+       and all(re.search(r"\b%d\b" % n, c["c:masters.c"]) is None for n in (11579, 11587, 11593))
+       and all(("sysmsg(%d" % n) not in c["bp:" + p] for n in (11579, 11587, 11593) for p in ("create_account", "masters", "tool_masters", "modifya")),
+       repr({n: (t2.get(n) or "MISSING")[:40] for n in range(11977, 11983)}))
     msgnum = {mm.group(1): int(mm.group(2)) for mm in re.finditer(r"#define (MSG_\w+) (\d+)", m)}
     calls = re.findall(r"mst_refuse\((MSG_\w+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)", m) + re.findall(r"mst_deliver_stop\(&cx, &fv, took, rid, rid_len, (MSG_\w+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)", m)
     ck("S4 every mst_refuse call passes at least as many real arguments (not NULL) as its message has %s places, never more than three, and every message of 11580-11592, 11595 and 11596 is used by one",
@@ -643,21 +655,48 @@ def checks(srcs):
     wy = func_body(m, "Private int mst_write_why(const struct stat *sb)")
     gw = func_body(m, "Private bool mst_group_writable(const char *dirpath)")
     ck("S17 mst_write_check asks the operating system (access): search on the account file's directory, write on %0 and on %1, BEFORE any lock or write; the reason is read off the mode and the group "
-       "lists - the owner's class first, then the group bit, then the groups this process was STARTED with (getgroups), then /etc/group's list for the user (stale session) - and the four words are "
-       "mode, stale-session, not-a-member, no-write",
+       "lists - the owner's class first, then (F6) whether master edits to the account are switched off, then the group bit, then the groups this process was STARTED with (getgroups), then /etc/group's "
+       "list for the user (stale session) - and the four words are mode, stale-session, not-a-member (F6: MST_W_OFF), no-write",
        ordered(wc, 'snprintf(p, sizeof(p), "%s", dirpath)', 'snprintf(p, sizeof(p), "%s/%%%d", dirpath, i - 1)', "access(p, (i == 0) ? X_OK : W_OK)", "mst_write_why(&sb)")
-       and ordered(wy, "sb->st_uid == geteuid()", "S_IWUSR", "MST_W_MODE", "sb->st_mode & S_IWGRP", "mst_gid_in_groups(sb->st_gid)", "mst_user_listed(sb->st_gid)", "MST_W_STALE", "MST_W_NOTMEMBER")
+       and ordered(wy, "sb->st_uid == geteuid()", "S_IWUSR", "MST_W_MODE", "mst_sdsys_off(sb)", "MST_W_OFF", "sb->st_mode & S_IWGRP", "mst_gid_in_groups(sb->st_gid)", "mst_user_listed(sb->st_gid)", "MST_W_STALE", "MST_W_OFF")
        and all(w in m for w in ('"mode"', '"stale-session"', '"not-a-member"', '"no-write"')) and "NGROUPS_MAX" not in m.replace("limits.h", "") and "getgroups(0, NULL)" in m, "")
-    ck("S17a ...a refusal for each reason says it in the words of its message: stale (11586), not a member (11587), anything else the mode (11585); the permission test comes BEFORE the lock",
+    ck("S17a ...a refusal for each reason says it in the words of its message: stale (11586), switched off (11976, F6; it was not a member, 11587, which is retired), anything else the mode (11585); the permission test comes BEFORE the lock",
        ordered(dv, "mst_write_check(path, gname", "check_lock(&fv") and re.search(r"case MST_W_STALE:\s*return mst_refuse\(MSG_STALE", dv) is not None
-       and re.search(r"case MST_W_NOTMEMBER:\s*return mst_refuse\(MSG_NOTMEMBER, keytxt, gname, gname\)", dv) is not None and re.search(r"default:\s*return mst_refuse\(MSG_MODE", dv) is not None, "")
+       and re.search(r"case MST_W_OFF:\s*return mst_refuse\(MSG_OFF, keytxt, a->name, a->name\)", dv) is not None and re.search(r"default:\s*return mst_refuse\(MSG_MODE", dv) is not None
+       and "MST_W_NOTMEMBER" not in m and "MSG_NOTMEMBER" not in m, "")
     ck("S17b ...CHECK.MASTERS: a VOC or dictionary whose DIRECTORY lacks group write and search, or whose %0 or %1 lacks group write, is nonwritable; one whose modes are right and which this session cannot write is "
-       "norights, with the reason as the last word - and the two are never both said of one file",
+       "norights, with the reason as the last word - and the two are never both said of one file; (F6) only where master edits are ON: a file whose account is off (the sdsys user is not in its group) "
+       "says neither, it marks the account, which mst_check_account counts once",
        re.search(r"\(sb\.st_mode & \(S_IWGRP \| S_IXGRP\)\) != \(S_IWGRP \| S_IXGRP\)", gw) is not None and re.search(r"if \(!\(sb\.st_mode & S_IWGRP\)\)", gw) is not None
-       and re.search(r'if \(strcasecmp\(acct, MST_SYSTEM_ACCOUNT\) != 0 && !mst_group_writable\(path\)\) \{\s*mst_row\(ck, "nonwritable", acct, what, file, NULL, 0\);\s*\} else \{[^}]*mst_write_check\(path, gname, sizeof\(gname\)\)[^}]*"norights"', m) is not None
+       and re.search(r'if \(strcasecmp\(acct, MST_SYSTEM_ACCOUNT\) != 0 && \(stat\(path, &sbp\) == 0\) && mst_sdsys_off\(&sbp\)\) \{\s*ck->acct_off = TRUE;\s*\} else if \(strcasecmp\(acct, MST_SYSTEM_ACCOUNT\) != 0 && !mst_group_writable\(path\)\) \{\s*mst_row\(ck, "nonwritable", acct, what, file, NULL, 0\);\s*\} else \{[^}]*mst_write_check\(path, gname, sizeof\(gname\)\)[^}]*"norights"', m) is not None
        and '#define MST_SYSTEM_ACCOUNT "sdsys"' in m, "")
-    ck("S17c ...and the BASIC prints the hint (11593) when a nonwritable or norights row is among the rows, once, and the verb program still stops nothing: the hint is a display",
-       ordered(B("masters"), "if ans<i, 1> = 'nonwritable' or ans<i, 1> = 'norights' then hint = 1", "if hint then display sysmsg(11593)") and B("masters").count("sysmsg(11593)") == 1, "")
+    ck("S17c ...and the BASIC prints the hint (11982, F6; it was 11593) when a nonwritable or norights row is among the rows, once, and the verb program still stops nothing: the hint is a display",
+       ordered(B("masters"), "if ans<i, 1> = 'nonwritable' or ans<i, 1> = 'norights' then hint = 1", "if hint then display sysmsg(11982)") and B("masters").count("sysmsg(11982)") == 1 and "sysmsg(11593)" not in B("masters"), "")
+    # ---- S17d to S17h F6, alternative C: the sdsys user in no user account's group as delivered
+    sg_ = func_body(m, "Private bool mst_sdsys_in_group(gid_t gid)")
+    so_ = func_body(m, "Private bool mst_sdsys_off(const struct stat *sb)")
+    cacc = func_body(m, "Private void mst_check_account(MST_CTX *cx, MST_CHECK *ck, const MST_ACC *a)")
+    ck("S17d (F6) mst_sdsys_in_group: with NO sdsys user on the machine the answer is TRUE (the code behaves as before F6: a sandbox on a machine without an install), its primary group counts, and "
+       "otherwise the group's member list (getgrgid, gr_mem) is searched for the WHOLE name sdsys (strcmp, not a prefix); a group that cannot be found does not list it",
+       sg_ != "" and ordered(sg_, "getpwnam(MST_SDSYS_USER)", "pw == NULL", "return TRUE;", "pw->pw_gid == gid", "return TRUE;", "getgrgid(gid)", "return FALSE;", "gr->gr_mem", "strcmp(*m, MST_SDSYS_USER) == 0", "return TRUE;", "return FALSE;")
+       and '#define MST_SDSYS_USER "sdsys"' in m and "strncmp" not in sg_ and "strstr" not in sg_, "")
+    ck("S17e (F6) mst_sdsys_off: files this process owns, and files the sdsys user owns, are NEVER off (they are written as their owner and need no group) - both tests come before the group test - "
+       "and otherwise it is off when the sdsys user is not in the file's group",
+       so_ != "" and ordered(so_, "sb->st_uid == geteuid()", "return FALSE;", "getpwnam(MST_SDSYS_USER)", "sb->st_uid == pw->pw_uid", "return FALSE;", "return !mst_sdsys_in_group(sb->st_gid);"), "")
+    ck("S17f (F6) mst_check_account clears the flag first and counts the account ONCE at the end, however many of its files said it was off; the 'check' op appends one row 'off' and the number after "
+       "the rows and after 'truncated', only when there is one, and does not go through mst_row (an account that is off is not a difference)",
+       cacc != "" and ordered(cacc, "ck->acct_off = FALSE;", "mst_keys_of(cx, MST_IX_VOC", "if (ck->acct_off)", "ck->noff++;", "mst_names_free(dn, dnn);")
+       and cacc.count("ck->noff++") == 1 and ordered(rq, '"truncated"', "if (ck.noff > 0) {", 'mst_buf_str(&out, "off");', 'snprintf(nb, sizeof(nb), "%ld", ck.noff);', "mst_buf_free(&ck.rows);")
+       and "ck.ndiff" not in between(rq, "if (ck.noff > 0) {", "mst_buf_free(&ck.rows);") and "mst_row(" not in between(rq, "if (ck.noff > 0) {", "mst_buf_free(&ck.rows);"), "")
+    fm_ = func_body(m, "void masters_fix_modes(const char *path)")
+    ck("S17g (F6, C2) masters_fix_modes forces group write only where the sdsys user is in the account directory's group: the test comes after the account directory's own group-write test and before "
+       "the directory is opened, and returns without changing anything",
+       ordered(fm_, "ra.st_mode & S_IWGRP", "!mst_sdsys_in_group(ra.st_gid)", "return;", "O_DIRECTORY | O_NOFOLLOW", "fchmod(dfd"), "")
+    ck("S17h (F6) the verbs and pages that show the check handle the 'off' row BEFORE they treat a row as a difference: CHECK.MASTERS keeps its number and prints 11981 when it is above 0, "
+       "TOOL.MASTERS keeps it out of the list of accounts and prints 11981 in the top box",
+       ordered(B("masters"), "noff = 0", "case ans<i, 1> = 'off'", "noff = ans<i, 2>", "display sysmsg(11570", "if noff > 0 then display sysmsg(11981, noff)")
+       and ordered(B("tool_masters"), "if rw<1, 1> = 'off' then", "noff = rw<1, 2>", "gosub count.row") and "sysmsg(11981, noff)" in B("tool_masters")
+       and "modify.account" in B("tool_masters") and "sdsys-on" in B("tool_masters"), "")
 
     # ---- S18 the modes of what SD makes --------------------------------------------------------------------------------------------------------
     fm = func_body(m, "void masters_fix_modes(const char *path)")
@@ -672,31 +711,44 @@ def checks(srcs):
 
     # ---- S19 the BASIC and the installer -------------------------------------------------------------------------------------------------------
     ca2 = B("create_account")
-    ck("S19 create_account puts the sdsys user in a user account's group through sd-elevate's sdsys-join, only when it is not a member already (is_grp_member), only in the USER branch after create.group and before "
-       "the account is made, and a failure is said (11012, 11579) without stopping the account (no goto exit.create in join.sdsys)",
-       ordered(ca2, 'group_name = "sdu_":downcase(acc.uname)', "gosub create.group", "gosub join.sdsys", 'case acc.type = "GROUP"', "gosub make.account")
-       and ca2.count("gosub join.sdsys") == 1 and ca2.count("sd-elevate sdsys-join") == 1 and 'os.execute "sudo /usr/local/sbin/sd-elevate sdsys-join ":group_name' in ca2
-       and ordered(between(ca2, "join.sdsys:", "end\n   return\n"), "is_grp_member('sdsys', group_name)", "os.execute", "sysmsg(11011", "sysmsg(11012", "sysmsg(11579")
-       and "goto exit.create" not in between(ca2, "join.sdsys:", "end\n   return\n"), "")
+    ck("S19 (F6) create_account does NOT put the sdsys user in a user account's group: the USER account's group is made with root and the user only (groupadd ... root,<user>), the GROUP account's with root,sdsys "
+       "(sdsys owns the files of a group account); join.sdsys, its call, sd-elevate sdsys-join and the messages 11012-on-failure and 11579 are gone from it (11011 and 11012 are still the files groups' lines)",
+       ordered(ca2, 'group_name = "sdu_":downcase(acc.uname)', "gosub create.group", 'case acc.type = "GROUP"', "gosub make.account")
+       and 'groupadd ": group_name :" root,":acc.uname' in ca2 and 'groupadd ": group_name :" root,sdsys"' in ca2 and ca2.count("root,sdsys") == 1 and "root,sdsys," not in ca2
+       and "join.sdsys" not in ca2 and "sdsys-join" not in ca2 and "sysmsg(11579" not in ca2 and "sysmsg(11587" not in ca2 and "sysmsg(11593" not in ca2
+       and "sd-elevate sdsys" not in ca2, "")
     ins2 = c["sh:installsdcore.sh"]
-    jf = re.search(r"^join_sdsys_groups\(\) \{.*?^\}", c["sh:installsdcore.sh"], re.M | re.S)
+    jf = re.search(r"^sdsys_groups_ruling\(\) \{.*?^\}", c["sh:installsdcore.sh"], re.M | re.S)
     jf = jf.group(0) if jf else ""
-    ck("S20 the installer's join_sdsys_groups: sdsys-join only for a group named sdu_<something> (the case arm), and only when /etc/group does not already list sdsys; group-write only for a path directly under "
-       "/home/sd/user_accounts or /home/sd/group_accounts, a group sdu_ or sdg_, and only when the directory's group IS the register's group; judged on sd-elevate's own success line; never exits; "
-       "called once, with the register, before upgrade_masters",
-       len(jf) > 1500 and "sd-elevate sdsys-join \"$group\"" in jf and jf.count("sdsys-join") == 2 and ordered(jf, "sdu_?*)", "getent group", "sdsys-join \"$group\"")
-       and ordered(jf, "sdu_?*|sdg_?*)", "/home/sd/user_accounts/*|/home/sd/group_accounts/*)", 'dir_group=$(sudo stat -c', '[ "$dir_group" = "$group" ]', "sd-elevate group-write \"$path\"")
-       and "group-write: 0 directories and 0 file(s) changed" in jf and re.search(r"\b(exit|return 1)\b", jf) is None and ins2.count("join_sdsys_groups \"$sdsysdir/accounts\"") == 1
-       and ordered(ins2, "-internal RUN gpl.bp upgrade_editgates", 'join_sdsys_groups "$sdsysdir/accounts"', "-internal RUN gpl.bp upgrade_masters"), "")
+    raw_ins = srcs["sh:installsdcore.sh"]                       # the markers are comment lines, which `ins2` has lost
+    qa = re.search(r"^# SDSYSGROUPS-ASK-BEGIN$(.*?)^# SDSYSGROUPS-ASK-END$", raw_ins, re.M | re.S)
+    qa = strip_sh(qa.group(1)) if qa else ""
+    call = 'sdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"'
+    ck("S20 (F6) the installer's ruling, sdsys_groups_ruling: ONE verb, sdsys-leave, only for a group named sdu_<something> that /etc/group lists sdsys in (a whole name), only when the marker is absent and the "
+       "answer was not y; judged on sd-elevate's own words; the marker is written (touch, chown sdsys:sdusers, chmod 644) only after the groups are right (a refusal returns before it); never exits; no sdsys-join and "
+       "no group-write; called once, with the marker in /home/sd (ACCT_PATH, not the sdsys directory, which deletesdcore.sh removes) and the answer of the question, after upgrade_editgates and before upgrade_masters",
+       len(jf) > 1500 and jf.count('sudo /usr/local/sbin/sd-elevate sdsys-leave "$group"') == 1 and "sdsys-join" not in jf and "group-write" not in jf
+       and ordered(jf, 'if [ -e "$marker" ]; then', "return 0", "getent group", '$1 ~ /^sdu_./', '/,sdsys,/', 'elif [ "$keep" = y ]; then', 'sdsys-leave "$group"', 'gpasswd -d sdsys ${group}', "if [ \"$n_fail\" -gt 0 ]; then",
+               "return 0", 'sudo touch "$marker"', 'sudo chown sdsys:sdusers "$marker"', 'sudo chmod 644 "$marker"')
+       and re.search(r"\b(exit|return 1)\b", jf) is None and ins2.count(call) == 1 and "sdsysdir/\\$groups.ruled" not in ins2
+       and ordered(ins2, "-internal RUN gpl.bp upgrade_editgates", call, "-internal RUN gpl.bp upgrade_masters"), "")
+    ck("S20a (F6) the question: asked once, UP FRONT with the others (before the first sudo), only while the marker /home/sd/$groups.ruled is absent and some sdu_ group lists sdsys; the answer is NO unless y or yes is "
+       "typed, and NO when no answer can be read; it reads the answer, it runs nothing and calls no helper",
+       qa != "" and ordered(qa, "sdsys_keep=n", 'if [ ! -e "/home/sd/\\$groups.ruled" ]; then', "getent group", '$1 ~ /^sdu_./', '/,sdsys,/', 'if [ -n "$sdsys_listed" ]; then', "read -r -p", "|| {", 'sdsys_ans=n', 'case $sdsys_ans in [yY]|[yY][eE][sS] ) sdsys_keep=y;; esac')
+       and "sudo" not in qa and "sd-elevate" not in qa and ordered(raw_ins, "# SDSYSGROUPS-ASK-BEGIN", "# SDSYSGROUPS-ASK-END", "if ! sudo -v; then"), "")
     se = c["sh:sd-elevate"]
-    ck("S21 sd-elevate has the two verbs: sdsys-join builds usermod -aG GROUP -- sdsys (the user written in the helper, never an argument; -aG appends) after require_account_group; group-write runs the worker "
-       "on one validated account directory and exits with its status; their rules are measured by test-sd-elevate.py and test-accelevate-units.py",
-       ordered(between(se, "sdsys-join)", ";;"), "[[ $# -eq 1 ]] || usage", 'require_account_group "$1"', 'cmd=(usermod -aG "$1" -- sdsys)') and "SUDO_USER" not in between(se, "sdsys-join)", ";;")
-       and ordered(between(se, "group-write)", ";;"), "[[ $# -eq 1 ]] || usage", 'require_group_write_target "$1"', "need_root", 'python3 -c "$GW_PY"', "exit $?"), "")
+    ck("S21 sd-elevate has the three verbs: sdsys-join builds usermod -aG GROUP -- sdsys (the user written in the helper, never an argument; -aG appends) after require_account_group; sdsys-leave (F6) the other way, "
+       "gpasswd -d sdsys GROUP, after the same rule, and a group that does not list sdsys is answered 'sdsys is not in' with exit 0 before any command is built; group-write runs the worker on one validated "
+       "account directory and exits with its status; the three leave a line in the system log after the change (logger -t sd-elevate); their rules are measured by test-sd-elevate.py and test-accelevate-units.py",
+       ordered(between(se, "sdsys-join)", ";;"), "[[ $# -eq 1 ]] || usage", 'require_account_group "$1"', 'cmd=(usermod -aG "$1" -- sdsys)', "LOG_LINE=") and "SUDO_USER" not in between(se, "sdsys-join)", ";;")
+       and ordered(between(se, "sdsys-leave)", ";;"), "[[ $# -eq 1 ]] || usage", 'require_account_group "$1"', 'group_lists_sdsys "$1"', "sdsys is not in", "exit 0", 'cmd=(gpasswd -d sdsys "$1")', "LOG_LINE=")
+       and "SUDO_USER" not in between(se, "sdsys-leave)", ";;")
+       and ordered(between(se, "group-write)", ";;"), "[[ $# -eq 1 ]] || usage", 'require_group_write_target "$1"', "need_root", 'python3 -c "$GW_PY"', "|| exit $?", "logger -t sd-elevate", "exit 0")
+       and ordered(se, '"${cmd[@]}" || exit $?', 'logger -t sd-elevate "$LOG_LINE"'), "")
     ck("S22 wiring: the map has rules for messages 11579-11599, sd-elevate and the two new tests (or the coarse rules take them), and the new installer test is a free check that names the function",
        re.search(r"^sdsys/messages/1157\[0-9\]\s*:.*\bmasters\b", mp_, re.M) is not None and re.search(r"^sdsys/messages/1158\[0-9\]\s*:.*\bmasters\b", mp_, re.M) is not None
        and re.search(r"^sdsys/messages/1159\[0-6\]\s*:.*\bmasters\b", mp_, re.M) is not None and re.search(r"^gplbld/sd-elevate\s*:\s*none\b", mp_, re.M) is not None
-       and "join_sdsys_groups" in (srcs.get("file:test-install-sdsysgroups.sh") or ""), "")
+       and "sdsys_groups_ruling" in (srcs.get("file:test-install-sdsysgroups.sh") or ""), "")
     ck("S23 the op 'refusal' is the administrator's (it comes after the 'if (!admin)' refusal) and answers the stage 2 buffer and nothing else; ED asks it at both its write-error sites, only for status 8910, and "
        "displays the second field; CHECK.MASTERS and LIST.MASTER.PENDING each end with it (message 11594)",
        ordered(rq, "if (!admin) {", 'strcmp(op, "refusal") == 0', "masters_refusal_text()", 'strcmp(op, "init") == 0')
@@ -907,7 +959,6 @@ MUTANTS = [
     ("note does more than note", "c:masters.c", "    masters_note_name(arg, 'n');\n    mst_status(&out, MSA_OK);", "    masters_note_name(arg, 'n');\n    (void)mst_init(&out);\n    mst_status(&out, MSA_OK);"),
     ("a new op", "c:masters.c", '  } else if (strcmp(op, "accounts") == 0) {', '  } else if (strcmp(op, "wipe") == 0) {\n    mst_status(&out, MSA_OK);\n  } else if (strcmp(op, "accounts") == 0) {'),
     ("check repairs", "c:masters.c", '      mst_row(ck, "differs", acct, what, file, id, id_len);', '      { dh_write(mdh, mkey, (int16_t)mk, rec); mst_row(ck, "differs", acct, what, file, id, id_len); }'),
-    ("check forgets the unwritable files", "c:masters.c", "    if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && !mst_group_writable(path)) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    } else {", "    if (0) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    } else {"),
     ("check asks the group bits of the SDSYS account's own files too", "c:masters.c", "if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && !mst_group_writable(path)) {", "if (!mst_group_writable(path)) {"),
     ("the group write test looks at the owner bit", "c:masters.c", "if (!(sb.st_mode & S_IWGRP))", "if (!(sb.st_mode & S_IWUSR))"),
     ("syncbegin leaves the flags up", "c:masters.c", "    __sync_fetch_and_and(&sysseg->masters_flags, (u_int16_t)~(MST_F_STALE | MST_F_RESYNC));\n", ""),
@@ -961,10 +1012,8 @@ MUTANTS = [
     ("DHF_MST_NOMASTER shares a bit with DHF_MST_DICT", "c:dh.h", "#define DHF_MST_NOMASTER 0x20000000", "#define DHF_MST_NOMASTER 0x10000000"),
     ("DHF_MST_DM is a header bit", "c:dh.h", "#define DHF_MST_DM       0x80000000", "#define DHF_MST_DM       0x00000004"),
     ("a message loses a %s", "msg:11583", "the record in %s has changed", "the record in the account has changed"),
-    ("a message takes the BASIC form", "msg:11587", "sd-elevate sdsys-join %s)", "sd-elevate sdsys-join %3)"),
     ("a message is too long for k_error", "msg:11585", "(see check.masters). Nothing was changed", "(see check.masters). Nothing was changed, and what follows is a very long extension of this message so that it can no longer fit in the buffer k_error has, which is 231 characters less the 10 of the offset and the name of the program, so the last words, the ones that say what to do, are cut"),
     ("a message names a verb in capitals", "msg:11588", "then run sync.masters", "then run SYNC.MASTERS"),
-    ("the BASIC message takes a %s", "msg:11579", "account %1 until", "account %s until"),
     ("a refusal passes too few arguments", "c:masters.c", "MSG_CHANGED, keytxt, a->name, NULL);", "MSG_CHANGED, keytxt, NULL, NULL);"),
     ("the lock refusal does not say who", "c:masters.c", "return mst_refuse(MSG_LOCKED, keytxt, num, NULL);", "return mst_refuse(MSG_LOCKED, keytxt, NULL, NULL);"),
     ("a lock table that is full is called a lock held by a user", "c:masters.c", "      return mst_refuse(MSG_NOLOCK, keytxt, NULL, NULL);", "      return mst_refuse(MSG_LOCKED, keytxt, num, NULL);"),
@@ -1015,21 +1064,15 @@ MUTANTS = [
     ("the delivery raises the stage 1 mark", "c:masters.c", "  wok = dh_write(adh, (char *)rid, (int16_t)rid_len, data);", "  mst_inside++;\n  wok = dh_write(adh, (char *)rid, (int16_t)rid_len, data);"),
     ("the keys are built from the account name as typed", "c:masters.c", "mst_keys(which, a->name, file, rid, rid_len, mkey, skey)", "mst_keys(which, acct, file, rid, rid_len, mkey, skey)"),
     ("a stale session is called a mode problem", "c:masters.c", "    case MST_W_STALE:\n      return mst_refuse(MSG_STALE, keytxt, gname, NULL);", "    case MST_W_STALE:\n      return mst_refuse(MSG_MODE, keytxt, whattxt, NULL);"),
-    ("a non-member is not told the group twice", "c:masters.c", "return mst_refuse(MSG_NOTMEMBER, keytxt, gname, gname);", "return mst_refuse(MSG_NOTMEMBER, keytxt, gname, NULL);"),
     ("the stage 1 write marks are gone", "c:masters.c", "  mst_inside++;\n  ok = dh_write(dh, key, klen, rec);\n  mst_inside--;", "  ok = dh_write(dh, key, klen, rec);"),
     ("a stage 1 delete bypasses the mark", "c:masters.c", "      (void)mst_mdelete(dh, (char *)gone.d + p + 1, gone.d[p]);", "      (void)dh_delete(dh, (char *)gone.d + p + 1, gone.d[p]);"),
     ("the mark is raised across a stretch of code", "c:masters.c", "  mst_inside++;\n  ok = dh_delete(dh, key, klen);\n  mst_inside--;\n  return ok;", "  mst_inside++;\n  ok = dh_delete(dh, key, klen);\n  return ok;"),
     # ---- can this session write the file ----
     ("the preflight only asks for existence", "c:masters.c", "access(p, (i == 0) ? X_OK : W_OK)", "access(p, F_OK)"),
-    ("the owner's class is read after the group bit", "c:masters.c", "  if (sb->st_uid == geteuid())\n    return (sb->st_mode & S_IWUSR) ? MST_W_NOWRITE : MST_W_MODE; /* the owner's class applies to the owner, whatever the group bits say */\n  if (!(sb->st_mode & S_IWGRP))\n    return MST_W_MODE;",
-     "  if (!(sb->st_mode & S_IWGRP))\n    return MST_W_MODE;\n  if (sb->st_uid == geteuid())\n    return (sb->st_mode & S_IWUSR) ? MST_W_NOWRITE : MST_W_MODE;"),
-    ("stale and not-a-member are swapped", "c:masters.c", "return mst_user_listed(sb->st_gid) ? MST_W_STALE : MST_W_NOTMEMBER;", "return mst_user_listed(sb->st_gid) ? MST_W_NOTMEMBER : MST_W_STALE;"),
     ("the process's groups are not read", "c:masters.c", "  if (mst_gid_in_groups(sb->st_gid))\n    return MST_W_NOWRITE;", "  if (1)\n    return MST_W_NOWRITE;"),
     ("the group list is a big array on the stack", "c:masters.c", "getgroups(0, NULL)", "getgroups(NGROUPS_MAX, NULL)"),
     ("check never says norights", "c:masters.c", '        mst_row(ck, "norights", acct, what, file, w, (int)strlen(w));\n', ""),
-    ("check says both", "c:masters.c", "    if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && !mst_group_writable(path)) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    } else {", "    if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && !mst_group_writable(path)) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    }\n    {"),
     ("the directory's modes are not looked at", "c:masters.c", "  if ((stat(dirpath, &sb) != 0) || ((sb.st_mode & (S_IWGRP | S_IXGRP)) != (S_IWGRP | S_IXGRP)))\n    return FALSE;\n", ""),
-    ("the hint is never shown", "bp:masters", "   if hint then display sysmsg(11593)", "   if 0 then display sysmsg(11593)"),
     # ---- the modes of what SD makes ----
     ("the other bits are added too", "c:masters.c", "(ds.st_mode & 07777) | S_IRWXG | S_ISGID", "(ds.st_mode & 07777) | S_IRWXG | S_ISGID | S_IRWXO"),
     ("the mode is set by name", "c:masters.c", "  (void)fchmod(dfd, (mode_t)((ds.st_mode & 07777) | S_IRWXG | S_ISGID));", "  chmod(full, 0775);\n  (void)fchmod(dfd, (mode_t)((ds.st_mode & 07777) | S_IRWXG | S_ISGID));"),
@@ -1040,21 +1083,10 @@ MUTANTS = [
     ("a file of another group is changed", "c:masters.c", " && (fs.st_gid == ra.st_gid)", ""),
     ("any path with voc in it is the VOC", "c:masters.c", 'if (!((strcmp(rel, "voc") == 0) ||', 'if (!((strstr(rel, "voc") != NULL) ||'),
     # ---- the BASIC, the installer and the helper ----
-    ("create_account never joins sdsys", "bp:create_account", "      gosub join.sdsys\n\n   case acc.type = \"GROUP\"", "\n   case acc.type = \"GROUP\""),
-    ("create_account joins even a member", "bp:create_account", "   if is_grp_member('sdsys', group_name) then return\n", ""),
-    ("create_account stops the account when the join fails", "bp:create_account", "      crt sysmsg(11579, acc.name, group_name) ;* master edits cannot be written into account %1 until the sdsys user is in group %2\n", "      crt sysmsg(11579, acc.name, group_name) ;* master edits cannot be written into account %1 until the sdsys user is in group %2\n      goto exit.create\n"),
-    ("create_account joins a group account too", "bp:create_account", "      group_name = downcase(\"sdg_\" : acc.name)\n      gosub create.group\n      if err # '' then goto exit.create\n", "      group_name = downcase(\"sdg_\" : acc.name)\n      gosub create.group\n      if err # '' then goto exit.create\n      gosub join.sdsys\n"),
-    ("the installer's walk joins any group", "sh:installsdcore.sh", "            sdu_?*)\n                members=", "            *)\n                members="),
-    ("the installer's walk changes modes of any group", "sh:installsdcore.sh", "            sdu_?*|sdg_?*)\n                case \"$path\" in", "            *)\n                case \"$path\" in"),
-    ("the installer's walk skips the directory-group test", "sh:installsdcore.sh", '                        if [ "$dir_group" = "$group" ]; then', "                        if true; then"),
-    ("the installer's walk does not judge the success line", "sh:installsdcore.sh", "                                    *'group-write: 0 directories and 0 file(s) changed'*) n_ok=$((n_ok+1)) ;;\n", ""),
-    ("the installer's walk can stop the install", "sh:installsdcore.sh", '    echo "  The sdsys user is put in the group of every account, and the VOC', '    exit 1; echo "  The sdsys user is put in the group of every account, and the VOC'),
-    ("the installer's walk is called twice", "sh:installsdcore.sh", 'join_sdsys_groups "$sdsysdir/accounts"\n\n# 19 Oct 26 dm - S.67 stage 1', 'join_sdsys_groups "$sdsysdir/accounts"\njoin_sdsys_groups "$sdsysdir/accounts"\n\n# 19 Oct 26 dm - S.67 stage 1'),
     ("sdsys-join replaces the groups", "sh:sd-elevate", 'cmd=(usermod -aG "$1" -- sdsys)', 'cmd=(usermod -G "$1" -- sdsys)'),
     ("sdsys-join takes the user from sudo", "sh:sd-elevate", 'cmd=(usermod -aG "$1" -- sdsys)', 'cmd=(usermod -aG "$1" -- "${SUDO_USER:-sdsys}")'),
     ("sdsys-join skips the group rule", "sh:sd-elevate", '    require_account_group "$1"\n    [[ $DRY -eq 1 ]] || id -u sdsys', '    [[ $DRY -eq 1 ]] || id -u sdsys'),
     ("group-write needs no root", "sh:sd-elevate", '    need_root\n    python3 -c "$GW_PY"', '    python3 -c "$GW_PY"'),
-    ("group-write forgets the worker's status", "sh:sd-elevate", '"$GW_OWNERS" "$DRY"\n    exit $?', '"$GW_OWNERS" "$DRY"\n    exit 0'),
     ("group-write skips the account rule", "sh:sd-elevate", '    require_group_write_target "$1"\n    printf', '    printf'),
     ("an ordinary session may ask why a save was refused", "c:masters.c", "  if (!admin) {\n    mst_status(&out, MSA_REFUSED);\n    mst_answer(result, &out);\n    return;\n  }\n",
      "  if (strcmp(op, \"refusal\") == 0) {\n    mst_status(&out, MSA_OK);\n    mst_fld_s(&out, masters_refusal_text());\n    mst_answer(result, &out);\n    return;\n  }\n  if (!admin) {\n    mst_status(&out, MSA_REFUSED);\n    mst_answer(result, &out);\n    return;\n  }\n"),
@@ -1156,6 +1188,89 @@ MUTANTS = [
     ("the map forgets the lock for the master files", "txt:regress-map.txt", "gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1 cll @files netfile masters", "gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1 cll @files netfile"),
     ("the map forgets the new messages", "txt:regress-map.txt", "sdsys/messages/1159[0-6]     : masters\n", "sdsys/messages/1159[0-4]     : masters\n"),
 ]
+
+# ================== 26 Oct 26, F6 (alternative C): THE sdsys USER IN NO USER ACCOUNT'S GROUP AS DELIVERED ==================
+# M_F6C is the number of the first of these, for `--selftest --from=N`: a sitting that changes only this runs only these.  (The mutants of the same names that the join and the
+# walk of 19 Oct had - create_account's join, the installer's join_sdsys_groups, MSG_NOTMEMBER - were taken out of the list above and rewritten here.)
+M_F6C = len(MUTANTS)
+MUTANTS += [
+    # ---- masters.c: the check
+    ("alt C: the check forgets the unwritable files", "c:masters.c", "    } else if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && !mst_group_writable(path)) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    } else {",
+     "    } else if (0) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    } else {"),
+    ("alt C: the check says nonwritable and then norights too", "c:masters.c", "    } else if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && !mst_group_writable(path)) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    } else {",
+     "    } else if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && !mst_group_writable(path)) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    }\n    {"),
+    ("alt C: the check asks the group bits of the SDSYS account's own files too", "c:masters.c", "} else if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && !mst_group_writable(path)) {", "} else if (!mst_group_writable(path)) {"),
+    ("alt C: an account that is off is a difference", "c:masters.c", "      ck->acct_off = TRUE;\n    } else if", "      ck->acct_off = TRUE;\n      mst_row(ck, \"off\", acct, what, file, NULL, 0);\n    } else if"),
+    ("alt C: the account is counted for each file", "c:masters.c", "      ck->acct_off = TRUE;\n    } else if", "      ck->acct_off = TRUE;\n      ck->noff++;\n    } else if"),
+    ("alt C: the off flag is never cleared for the next account", "c:masters.c", "  ck->acct_off = FALSE;\n  snprintf(prefix", "  snprintf(prefix"),
+    ("alt C: the off count is never added", "c:masters.c", "  if (ck->acct_off) /* F6: counted once for the account, however many of its files said so */\n    ck->noff++;\n", ""),
+    ("alt C: the check answer carries no off row", "c:masters.c", "    if (ck.noff > 0) { /* F6: the accounts whose master edits are off, after the rows: \"off\", then the number.  Not a difference, so not in ndiff */", "    if (0) {"),
+    ("alt C: the off row is built as a difference", "c:masters.c", "      mst_buf_str(&out, \"off\");", "      mst_row(&ck, \"off\", \"\", \"\", NULL, NULL, 0);"),
+    # ---- masters.c: who is off
+    ("alt C: files this process owns can be off", "c:masters.c", "  if (sb->st_uid == geteuid())\n    return FALSE;\n  if (((pw = getpwnam(MST_SDSYS_USER)) != NULL) && (sb->st_uid == pw->pw_uid))",
+     "  if (((pw = getpwnam(MST_SDSYS_USER)) != NULL) && (sb->st_uid == pw->pw_uid))"),
+    ("alt C: files the sdsys user owns can be off", "c:masters.c", "  if (((pw = getpwnam(MST_SDSYS_USER)) != NULL) && (sb->st_uid == pw->pw_uid))\n    return FALSE;\n", ""),
+    ("alt C: a machine with no sdsys user is all off", "c:masters.c", "  if (pw == NULL)\n    return TRUE;\n  if (pw->pw_gid == gid)", "  if (pw == NULL)\n    return FALSE;\n  if (pw->pw_gid == gid)"),
+    ("alt C: the sdsys user's primary group does not count", "c:masters.c", "  if (pw == NULL)\n    return TRUE;\n  if (pw->pw_gid == gid)\n    return TRUE;\n", "  if (pw == NULL)\n    return TRUE;\n"),
+    ("alt C: a prefix of sdsys counts", "c:masters.c", "    if (strcmp(*m, MST_SDSYS_USER) == 0)", "    if (strncmp(*m, MST_SDSYS_USER, 3) == 0)"),
+    # ---- masters.c: the refusal
+    ("alt C: the off test comes after the mode test", "c:masters.c", "  if (mst_sdsys_off(sb))\n    return MST_W_OFF; /* F6: switched off says so first, whatever the mode: sdsys-on puts the user in the group and the modes right */\n  if (!(sb->st_mode & S_IWGRP))\n    return MST_W_MODE;\n",
+     "  if (!(sb->st_mode & S_IWGRP))\n    return MST_W_MODE;\n  if (mst_sdsys_off(sb))\n    return MST_W_OFF;\n"),
+    ("alt C: stale and switched off are swapped", "c:masters.c", "return mst_user_listed(sb->st_gid) ? MST_W_STALE : MST_W_OFF;", "return mst_user_listed(sb->st_gid) ? MST_W_OFF : MST_W_STALE;"),
+    ("alt C: the switched-off refusal is not told the account twice", "c:masters.c", "return mst_refuse(MSG_OFF, keytxt, a->name, a->name);", "return mst_refuse(MSG_OFF, keytxt, a->name, NULL);"),
+    ("alt C: a switched-off refusal says the mode", "c:masters.c", "    case MST_W_OFF: /* F6: master edits to this account are switched off; the message names the verb that switches them on */\n      return mst_refuse(MSG_OFF, keytxt, a->name, a->name);",
+     "    case MST_W_OFF:\n      return mst_refuse(MSG_MODE, keytxt, whattxt, NULL);"),
+    ("alt C: the retired message 11587 is used again", "c:masters.c", "#define MSG_OFF 11976", "#define MSG_OFF 11587"),
+    # ---- masters.c: C2
+    ("alt C: C2 is gone, group write is forced wherever the account directory allows it", "c:masters.c",
+     "  if (!mst_sdsys_in_group(ra.st_gid)) /* F6 (C2): group write is forced only where the sdsys user is in the group, that is where master edits are switched on */\n    return;\n", ""),
+    ("alt C: C2 asks the wrong group", "c:masters.c", "!mst_sdsys_in_group(ra.st_gid)", "!mst_sdsys_in_group(getegid())"),
+    # ---- the BASIC
+    ("alt C: the hint is never shown", "bp:masters", "   if hint then display sysmsg(11982)", "   if 0 then display sysmsg(11982)"),
+    ("alt C: the hint is the retired message", "bp:masters", "   if hint then display sysmsg(11982)", "   if hint then display sysmsg(11593)"),
+    ("alt C: CHECK.MASTERS never says how many accounts are off", "bp:masters", "   if noff > 0 then display sysmsg(11981, noff)   ;* F6: how many accounts have master edits switched off\n", ""),
+    ("alt C: CHECK.MASTERS shows the off row as a difference", "bp:masters", "         case ans<i, 1> = 'off'          ;* F6: the kernel's count of the accounts whose master edits are off; not a difference\n            noff = ans<i, 2>\n", ""),
+    ("alt C: TOOL.MASTERS lists the off row as an account", "bp:tool_masters", "               if rw<1, 1> = 'off' then\n", "               if @false then\n"),
+    ("alt C: TOOL.MASTERS never shows the count", "bp:tool_masters", "   if ready and noff > 0 then s = sysmsg(11981, noff)", "   if ready and noff > 0 then s = ''"),
+    ("alt C: create_account puts the sdsys user in a user account's group again", "bp:create_account", 'groupadd ": group_name :" root,":acc.uname', 'groupadd ": group_name :" root,sdsys,":acc.uname'),
+    ("alt C: create_account makes a group account's group without sdsys", "bp:create_account", 'groupadd ": group_name :" root,sdsys"', 'groupadd ": group_name :" root"'),
+    ("alt C: create_account joins the sdsys user to the group it has made", "bp:create_account", "*   switched off; modify.account <name> sdsys-on is the administrator's act that switches them on.\n",
+     "*   switched off; modify.account <name> sdsys-on is the administrator's act that switches them on.\n      os.execute \"sudo /usr/local/sbin/sd-elevate sdsys-join \":group_name\n"),
+    # ---- the installer: the question
+    ("alt C: the question counts group accounts too", "sh:installsdcore.sh", "    sdsys_listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./", "    sdsys_listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sd[ug]_./"),
+    ("alt C: the question reads the wrong marker", "sh:installsdcore.sh", 'if [ ! -e "/home/sd/\\$groups.ruled" ]; then', 'if [ ! -e "/home/sd/\\$groups.done" ]; then'),
+    ("alt C: the question defaults to keep", "sh:installsdcore.sh", 'sdsys_keep=n\nsdsys_listed=""', 'sdsys_keep=y\nsdsys_listed=""'),
+    ("alt C: no answer is yes", "sh:installsdcore.sh", '"No answer could be read: N."; sdsys_ans=n; }', '"No answer could be read: N."; sdsys_ans=y; }'),
+    ("alt C: any answer keeps", "sh:installsdcore.sh", 'case $sdsys_ans in [yY]|[yY][eE][sS] ) sdsys_keep=y;; esac', 'sdsys_keep=y'),
+    ("alt C: the question runs a command as root", "sh:installsdcore.sh", 'sdsys_listed=""\nif [ ! -e', 'sdsys_listed=""\nsudo true\nif [ ! -e'),
+    # ---- the installer: the act and the call
+    ("alt C: the ruling takes the sdsys user out of the group of group accounts too", "sh:installsdcore.sh", "    listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./", "    listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sd[ug]_./"),
+    ("alt C: the ruling matches a prefix of sdsys", "sh:installsdcore.sh", "    listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./ && (\",\" $4 \",\") ~ /,sdsys,/", "    listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./ && (\",\" $4 \",\") ~ /sdsys/"),
+    ("alt C: the ruling ignores the answer", "sh:installsdcore.sh", '    elif [ "$keep" = y ]; then', '    elif false; then'),
+    ("alt C: the ruling ignores the marker", "sh:installsdcore.sh", '    if [ -e "$marker" ]; then', '    if false; then'),
+    ("alt C: the marker is written after a refusal", "sh:installsdcore.sh", 'sdsys-leave <group>"\n            printf "%b\\n" "$NC"\n            return 0\n', 'sdsys-leave <group>"\n            printf "%b\\n" "$NC"\n'),
+    ("alt C: the marker is not handed to sdsys", "sh:installsdcore.sh", '    sudo chown sdsys:sdusers "$marker"\n', ""),
+    ("alt C: the marker is open to everybody", "sh:installsdcore.sh", '    sudo chmod 644 "$marker"', '    sudo chmod 666 "$marker"'),
+    ("alt C: the ruling can stop the install", "sh:installsdcore.sh", '        echo "  The sdsys user was taken out of the group of ', '        exit 1; echo "  The sdsys user was taken out of the group of '),
+    ("alt C: the ruling is called twice", "sh:installsdcore.sh", 'sdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"\n', 'sdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"\nsdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"\n'),
+    ("alt C: the ruling's marker is in the sdsys directory", "sh:installsdcore.sh", 'sdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled"', 'sdsys_groups_ruling "$sdsysdir/\\$groups.ruled"'),
+    ("alt C: the ruling is never called", "sh:installsdcore.sh", 'sdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"\n', "true\n"),
+    # ---- sd-elevate
+    ("alt C: sdsys-leave replaces the groups", "sh:sd-elevate", 'cmd=(gpasswd -d sdsys "$1")', 'cmd=(usermod -G "" -- sdsys)'),
+    ("alt C: sdsys-leave takes the user from sudo", "sh:sd-elevate", 'cmd=(gpasswd -d sdsys "$1")', 'cmd=(gpasswd -d "${SUDO_USER:-sdsys}" "$1")'),
+    ("alt C: sdsys-leave skips the group rule", "sh:sd-elevate", '    require_account_group "$1"\n    if ! group_lists_sdsys "$1"; then', '    if ! group_lists_sdsys "$1"; then'),
+    ("alt C: sdsys-leave changes a group that does not list sdsys", "sh:sd-elevate", '    if ! group_lists_sdsys "$1"; then', '    if false; then'),
+    ("alt C: sdsys-join leaves no line in the log", "sh:sd-elevate", '    LOG_LINE="sdsys-join: the user sdsys is now in $1"\n', ""),
+    ("alt C: group-write forgets the worker's status", "sh:sd-elevate", '"$GW_OWNERS" "$DRY" || exit $?\n', '"$GW_OWNERS" "$DRY"\n'),
+    # ---- the messages
+    ("alt C: 11976 takes the BASIC form", "msg:11976", "modify.account %s sdsys-on", "modify.account %3 sdsys-on"),
+    ("alt C: 11976 is too long for k_error", "msg:11976", "Use modify.account %s sdsys-on", "Use modify.account %s sdsys-on, then sign on again as SDSYS and repeat the edit once the group lists the user"),
+    ("alt C: 11976 no longer says that nothing was changed", "msg:11976", " Nothing was changed.", ""),
+    ("alt C: 11976 names the retired verb", "msg:11976", "modify.account %s sdsys-on", "sd-elevate sdsys-join %s"),
+    ("alt C: the BASIC message takes a %s", "msg:11981", "for %1 account(s)", "for %s account(s)"),
+    ("alt C: 11982 names the retired verb", "msg:11982", "modify.account <account> sdsys-on puts it right", "sd-elevate sdsys-join puts it right"),
+    ("alt C: 11977 forgets to say master edits are on", "msg:11977", "master edits are on", "it is done"),
+]
 def _installer_after_chown(srcs):
     """The installer's upgrade_masters block moved to just after the line that hands the register to sdsys."""
     t = srcs["sh:installsdcore.sh"]
@@ -1189,7 +1304,16 @@ def main():
             return 2
         missed = 0
         n = 0
-        for label, name, old, new in MUTANTS:
+        # 26 Oct 26, F6: `--selftest --from=N` runs the mutants from number N on (M_F6C is the first of alternative C's); without it, all of them
+        start = 0
+        for a_ in sys.argv[1:]:
+            if a_.startswith("--from="):
+                start = int(a_.split("=", 1)[1])
+        if start:
+            print("  (from mutant %d: M_F6C is %d, of %d)" % (start, M_F6C, len(MUTANTS)))
+        for k_, (label, name, old, new) in enumerate(MUTANTS):
+            if k_ < start:
+                continue
             n += 1
             try:
                 if label in LAMBDA_MUTANTS:

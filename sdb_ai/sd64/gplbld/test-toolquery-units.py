@@ -168,11 +168,11 @@ def checks(raw):
        wr == ["write wrec to qf, qname on error writeok = @false"] and dl == ["delete qf, lname on error delok = @false"] and set(opens) <= allowed and "'&queries&'" in opens
        and all(re.search(r"^\s*open\s+'&queries&'\s+to\s+qf\b", l) for l in pg.split("\n") if re.search(r"\bto qf\b", l) and l.strip().startswith("open"))
        and ordered(sav, "gosub check.name", "if not(okname) or len(fn) > 40 then", "qname = fn", "call $tk_confirm(qsent, lines, '', res, cmsg)", "if res # 'run' then", "execute qsent trapping aborts capturing mk",
-                   "if naq >= MAXSAVED then", "call $tk_confirm(wsent, lines, qname, res, cmsg)", "call $tk_confirm(wsent, lines, '', res, cmsg)",
+                   "if naq >= MAXSAVED then", "call $tk_confirm(wsent, lines, qname, res, cmsg, sysmsg(11952))", "call $tk_confirm(wsent, lines, '', res, cmsg, sysmsg(11952))",
                    "if res # 'run' then\n      msg = cmsg\n      close qf\n      return\n   end\n   gosub pack.record", "write wrec to qf, qname") and "fn = downcase(trim(nn))" in sav, repr((wr, dl, sorted(set(opens)))))
     dsel = block(pg, "delete.selected")
     ck("TQ14", "X: a saved query is deleted only after a box that asks its name typed, and the only record deleted is the one named in the list",
-       ordered(dsel, "lname = sv.ids<svc>", "call $tk_confirm(dsent, lines, lname, res, cmsg)", "if res # 'run' then\n      msg = cmsg\n      return\n   end", "open '&queries&' to qf then", "delete qf, lname on error delok = @false"), "")
+       ordered(dsel, "lname = sv.ids<svc>", "call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "if res # 'run' then\n      msg = cmsg\n      return\n   end", "open '&queries&' to qf then", "delete qf, lname on error delok = @false"), "")
     ls = block(pg, "load.selected")
     ck("TQ15", "a loaded record is DATA: it must say it is a query, name a file the page lists (checked again as a name), its kind is one of three words, it goes into the boxes only through validate.panes BEFORE the sentence is built, "
        "and a sentence it holds is kept only when check.sentence accepts it",
@@ -272,13 +272,13 @@ MUTANTS = [
     ("marking a column does not write the sentence again", "TQ12", sub("page", "      cols<-1> = mcol\n   end\n   gosub changed\n   return", "      cols<-1> = mcol\n   end\n   return")),
     ("a second record is written", "TQ13", sub("page", "   wrec<19> = sent\n   return", "   wrec<19> = sent\n   write wrec to qf, 'zz'\n   return")),
     ("the save writes without waiting for the box", "TQ13", sub("page", "   if res # 'run' then\n      msg = cmsg\n      close qf\n      return\n   end\n   gosub pack.record", "   gosub pack.record")),
-    ("a record is replaced without its name typed", "TQ13", sub("page", "call $tk_confirm(wsent, lines, qname, res, cmsg)", "call $tk_confirm(wsent, lines, '', res, cmsg)")),
+    ("a record is replaced without its name typed", "TQ13", sub("page", "call $tk_confirm(wsent, lines, qname, res, cmsg, sysmsg(11952))", "call $tk_confirm(wsent, lines, '', res, cmsg, sysmsg(11952))")),
     ("the cap of saved queries is not looked at", "TQ13", sub("page", "      if naq >= MAXSAVED then", "      if naq >= 999999 then")),
     ("a name is not checked", "TQ13", sub("page", "   if not(okname) or len(fn) > 40 then", "   if len(fn) > 40 then")),
     ("another file is opened", "TQ13", sub("page", "set.pane:\n   begin case", "set.pane:\n   open 'bp' to xbp then close xbp\n   begin case")),
     ("the file the page creates is made without its box", "TQ13", sub("page", "      call $tk_confirm(qsent, lines, '', res, cmsg)\n      if res # 'run' then\n         msg = cmsg\n         return\n      end\n", "")),
-    ("a saved query is deleted without its name typed", "TQ14", sub("page", "call $tk_confirm(dsent, lines, lname, res, cmsg)", "call $tk_confirm(dsent, lines, '', res, cmsg)")),
-    ("a saved query is deleted without the box", "TQ14", sub("page", "   call $tk_confirm(dsent, lines, lname, res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   delok", "   delok")),
+    ("a saved query is deleted without its name typed", "TQ14", sub("page", "call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "call $tk_confirm(dsent, lines, '', res, cmsg, sysmsg(11953))")),
+    ("a saved query is deleted without the box", "TQ14", sub("page", "   call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   delok", "   delok")),
     ("a loaded record skips the checks", "TQ15", sub("page", "   gosub validate.panes\n   gosub gen.sentence\n   * a sentence that was edited", "   gosub gen.sentence\n   * a sentence that was edited")),
     ("a loaded record may name any file", "TQ15", sub("page", "   if not(known) then", "   if known = 7 then")),
     ("a loaded sentence is taken unchecked", "TQ15", sub("page", "      chk.s = lrec<19>\n      gosub check.sentence\n      if chk.err = '' then\n         sent = chk.out", "      chk.s = lrec<19>\n      chk.err = ''\n      if chk.err = '' then\n         sent = chk.s")),

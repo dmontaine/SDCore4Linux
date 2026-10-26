@@ -6,6 +6,7 @@
 *
 * START-HISTORY:
 * 25 Oct 26 dm  New.
+* 26 Oct 26 dm  faults: the boxes that save and delete a saved query are titled "Write this record?" and "Delete this record?" ($tk_confirm's sixth argument), not "Run this command?".
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -28,7 +29,8 @@
 *   query held; a word that sends the output somewhere else or writes (TO, SAVING, ON.TO, LPTR, FILE, AS, CSV, DELIMITER, XML, JSON, STYLE ...) is refused even when it is also the name
 *   of a dictionary item.  A saved query is data: when it is loaded every part is checked against the file's dictionary, the operator table and q.value, and what does not pass is dropped.
 *
-*   NO GATE IS NEEDED and none is asked for: the sentence only reads.  The shared account is not in the account's VOC as a file, so its files are not offered.  A dictionary can hold a phrase
+*   NO GATE IS NEEDED and none is asked for: the sentence only reads, and the page itself writes only the one file &QUERIES& (a dictionary item that calls a program of the account runs it, as the same query would
+*   at the prompt; the save, the delete and the creation of &QUERIES& leave no audit line of their own).  The shared account is not in the account's VOC as a file, so its files are not offered.  A dictionary can hold a phrase
 *   (PH) or a defaults record ($QUERY.DEFAULTS) whose words the query processor adds to a sentence; the page does not list a phrase and cannot see the defaults, which are the account's own.
 *
 * END-DESCRIPTION
@@ -344,6 +346,7 @@ check.name:
    for q = 1 to len(fn)
       if index(good, fn[q, 1], 1) = 0 then okname = @false
    next q
+   if fn = '.' or fn = '..' then okname = @false                 ;* 26 Oct 26 (review, low): the two names of a directory are no name of a file or of a saved query
    return
 
 * ------------------------------------------------------------------------------------------------- the quoting and the checking: the whole of the page's injection safety
@@ -706,7 +709,7 @@ draw.sorts:
       gosub row.attr
       screen text fmt(s, '44L') at 2,21 + dr attr ra width 44
    next dr
-   screen text 'Enter picks the item.  Space turns it over.' at 3,27 width 42
+   screen text 'Enter picks the item.  Space toggles it.' at 3,27 width 42
    screen text 'D clears the level.  A count or a sum' at 3,28 width 42
    screen text 'is not sorted.' at 3,29 width 42
    return
@@ -735,7 +738,7 @@ draw.options:
       gosub row.attr
       screen text fmt(s, '90L') at 48,20 + dr attr ra width 90
    next dr
-   screen text 'Enter or Space changes the row under the cursor.  Break and total are set per column (B and T in the Columns box).' at 49,28 width 88
+   screen text 'Enter or Space changes the row.  Break and total are set in the Columns box (B, T).' at 49,28 width 88
    screen text 'A heading and a footing are plain text: no quote, backslash, backquote or semicolon.' at 49,29 width 88
    return
 
@@ -752,7 +755,7 @@ draw.sentence:
       s = (if sent = '' then '' else 'Written from the boxes above.  Every sentence is checked again before it runs.')
    end
    screen text fmt(s, '134L') at 3,37 width 134
-   screen text fmt('R runs it, and the output is shown in a box of its own (2000 lines are kept).   E edits it as text.   S saves the query.   L loads or deletes a saved one.', '134L') at 3,38 attr 'disabled' width 134
+   screen text fmt('R runs it and shows the output in a box (2000 lines are kept).   E edits it as text.   S saves the query.   L loads or deletes one.', '134L') at 3,38 attr 'disabled' width 134
    return
 
 draw.results:
@@ -1345,6 +1348,7 @@ do.run:
    out = ''
    execute run.s trapping aborts capturing out
    out = change(change(change(out, char(13) : char(10), @fm), char(10), @fm), char(13), '')
+   if out[len(out), 1] = @fm then out = out[1, len(out) - 1]      ;* 26 Oct 26 (review, low): the last line ends with its own line break, which made an empty line after it and one line too many in the count
    rl.n = dcount(out, @fm)
    if out = '' then rl.n = 0
    rl.cnt = rl.n
@@ -1683,10 +1687,11 @@ do.save:
    wsent = 'write ' : qname : ' to &queries&'
    if exists then
       lines = 'Replaces the saved query ' : qname : ' (on the file ' : old.file : ') with the one on the screen.  This is not a command: the page writes that one record of your file &queries& itself, and nothing else.'
-      call $tk_confirm(wsent, lines, qname, res, cmsg)
+*     26 Oct 26: the box is about a record, not a command: "Write this record?" (11952)
+      call $tk_confirm(wsent, lines, qname, res, cmsg, sysmsg(11952))
    end else
       lines = 'Saves the query on the screen as the record ' : qname : ' of your file &queries&.  This is not a command: the page writes that one record itself, and nothing else.'
-      call $tk_confirm(wsent, lines, '', res, cmsg)
+      call $tk_confirm(wsent, lines, '', res, cmsg, sysmsg(11952))
    end
    if res # 'run' then
       msg = cmsg
@@ -1732,7 +1737,8 @@ delete.selected:
    lname = sv.ids<svc>
    dsent = 'delete ' : lname : ' from &queries&'
    lines = 'Deletes the saved query ' : lname : ' from your file &queries&.  This is not a command: the page deletes that one record itself.  The query on the screen is not touched.'
-   call $tk_confirm(dsent, lines, lname, res, cmsg)
+*  26 Oct 26: "Delete this record?" (11953)
+   call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))
    if res # 'run' then
       msg = cmsg
       return

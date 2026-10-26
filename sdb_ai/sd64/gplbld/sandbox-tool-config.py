@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 #
-# sandbox-tool-config.py - the configuration page, TOOL.CONFIG, driven on a PSEUDO-TERMINAL on a private SD (S.75, administrator app A6, the view half; plan
+# sandbox-tool-config.py - the configuration page, TOOL.CONFIG, driven on a PSEUDO-TERMINAL on a private SD (S.75, administrator app A6: the view half and, since 26 Oct 26, the write half; plan
 # .claude/plan-fullscreen-toolkit.md section 5).  No install, no sudo.
 #
 #   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-config.py <dir> [--build] [--mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row
 # failed, 2 it could not run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of the page and exit 0 means the rows that had to fail failed and no others (MUTANTS).
+#
+# THE WRITE HALF (rows C8 to C13) AND WHAT A SANDBOX CANNOT SHOW.  set.config asks the root helper (sd-elevate conf-set) through sudo.  A sandbox is not root and has no sudo grant, so
+# the sandbox's own copy of accos.h points the helper at a SHIM of this suite: it runs the REAL sd-elevate with --dry-run first (every check of the name and the value is the real one) and
+# then the REAL conf_set function, cut out of the real sd-elevate, on the sandbox's own sd.conf.  So these rows hold the page, the verb, the real checks and the real rewrite.  ***THEY DO NOT
+# HOLD*** that /etc/sd.conf is changed by root (its owner, its mode, the rename in /etc), the sudoers line, need_root, the SUDO_USER check, or the .bak next to /etc/sd.conf: the VM witness's
+# rows.  Every outcome is read from the disk (sd.conf, sd.conf.bak, the audit file, the shim's call log) or from a separate administrator session (CONFIG()), never from what the page said.
 #
 # WHAT RUNS.  The administrator's session opens TOOL.CONFIG on a 140 by 43 terminal.  The sandbox's own sd.conf (SD_CONFIG) is edited by this suite, and put back at the end whatever happens.
 #
@@ -26,7 +32,18 @@
 #   C5   B shows the backup directory (none, one that is there, one that is not); R shows the operating system report without the [sd.conf] section and scrolls
 #   C6   the page changed nothing: sd.conf is byte for byte what the suite wrote, and the audit trail holds the page's one start line and no other line of its own
 #   C7   the mouse, F1, a small window, an input that ends
-# NOT HELD: a real install's /etc/sd.conf (owner root, mode 644), the help text itself (sandbox-docs.py).
+#   C8   the Change column (e or by hand) is the table's for every row, and the foot box says E changes it here with the range, or why it is not changed here
+#   C9   E on a parameter that is not changed here (a door, the system directory, the throttle, a name SD does not know) shows the reason and the line to add by hand and writes nothing: the file,
+#        the helper's call log and the audit trail are as they were
+#   C10  E on a writable parameter: the value is checked on the page (nothing typed, Esc, letters, a leading zero, below the minimum, above the maximum, too many digits) and none of them
+#        reaches a box, the helper, the file or the audit trail
+#   C11  the flow: the box shows the exact command and when it takes effect; Esc runs nothing; Run on a restart parameter (CLEANUP: the line is added inside [sd], the .bak is the file as it was,
+#        the helper got exactly conf-set CLEANUP 600, one audit line, the page shows the file's new value and that SD keeps running with the old one) and on a session parameter (GRPSIZE: the line
+#        is replaced where it was, a NEW session really sees 6, this one keeps 4); the same value again changes nothing and leaves the .bak alone
+#   C12  the real verb: the helper's own refusals (a door, an unknown name, out of range) reach the person in the helper's words and write a refused audit line; a wrong number of words, a bad
+#        character in the name or the value never reach the helper; an ordinary account has no verb and one given a VOC entry is refused as not the administrator
+#   C13  every line of sd.conf the suite did not ask to change is as it was, and the audit lines of the verb are lower case with key, value and status and nothing else
+# NOT HELD: a real install's /etc/sd.conf (owner root, mode 644) and root's write of it (see above), the help text itself (sandbox-docs.py).
 import getpass
 import hashlib
 import importlib.util
@@ -56,6 +73,7 @@ sh.KEYS["f1"] = "\x1b[[A"
 ME = getpass.getuser()
 FAILED_IDS = []
 MUTANT = None
+AUDIT_START = 0                       # the number of lines the audit file had when this run began (a rerun on the same sandbox must not count an earlier run's)
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 ACC = "zzhd"
 WRITER = """   open 'voc' to v else
@@ -70,12 +88,47 @@ WRITER = """   open 'voc' to v else
 end
 """
 
+WRITER2 = """   open 'voc' to v else
+      crt 'ZZSW no voc'
+      stop
+   end
+   write 'V':@fm:'CA':@fm:'$setconfig' to v, 'ztset' on error
+      crt 'ZZSW refused ':status()
+      stop
+   end
+   crt 'ZZSW written'
+end
+"""
+
+# the stand-in for `sudo /usr/local/sbin/sd-elevate` in the sandbox's copy of accos.h.  The REAL sd-elevate runs first as a --dry-run (so every refusal is the real one), then, for conf-set,
+# the REAL conf_set function cut out of the real sd-elevate, on the sandbox's own sd.conf.  It is not root, and it does not pretend the root-only steps (need_root, the caller check).
+SHIM = r'''#!/bin/bash
+REAL=%(real)s
+CONF=%(conf)s
+LOG=%(log)s
+printf '%%s\n' "$*" >> "$LOG"
+if ! out=$(bash "$REAL" --dry-run "$@" 2>&1); then printf '%%s\n' "$out"; exit 2; fi
+[ "${1:-}" = conf-set ] || { echo "sd-elevate (sandbox): checked, pretended: $*"; exit 0; }
+set -uo pipefail
+eval "$(sed -n '/^# BEGIN confset_functions/,/^# END confset_functions/p' "$REAL")"
+die() { printf 'sd-elevate: REFUSED - %%s\n' "$1" >&2; exit 2; }
+confset_check "$2" "$3"
+conf_set "$CONF" "$2" "$3" || exit 3
+note=''
+[ "$CS_CHANGED" = 1 ] || note=' (it already was; nothing was written)'
+printf 'sd-elevate: %%s is now %%s in %%s%%s; takes effect: %%s\n' "$2" "$3" "$CONF" "$note" "$CS_EFFECT"
+'''
+
 MUTANTS = {
     # name: (old text of the sandbox's tool_config, new text, the row ids that must fail and no others, the last section run)
     "bits-not-added": ("      fv<p> = bitor(old.v + 0, cval + 0)\n", "      fv<p> = cval\n", ["C3"], "C3"),
     "diff-ignored": ("   cmp.diff = (a # b)\n", "   cmp.diff = 0\n   a = b\n", ["C2"], "C2"),
     "unknown-not-listed": ("         unknown<-1> = fk<j>\n", "", ["C4"], "C4"),
+    # the write half: these two run only the write sections (C8 to C13), and stop at the section named
+    "fixed-edited": ("   if pwrite<i> = 'yes' then\n      gosub change.param", "   if pwrite<i> # 'zz' then\n      gosub change.param", ["C9a", "C9b", "C9c"], "C9"),
+    "box-skipped": ("   call $tk_confirm(sent, el, typed, res, cmsg)\n   if res # 'run' then", "   res = 'run' ; cmsg = ''\n   if res # 'run' then", ["C11a", "C11b"], "C11"),
 }
+WRITE_MUTANTS = ("fixed-edited", "box-skipped")
 
 # ------------------------------------------------------------------------------------------------------------------------------- the table and the file, read by Python
 
@@ -86,7 +139,7 @@ def table():
         if ln.strip() == "" or ln.startswith("#"):
             continue
         f = ln.split("|")
-        rows.append({"key": f[0], "kind": f[1], "default": f[2], "min": f[3], "max": f[4], "effect": f[5], "status": f[6], "text": f[7]})
+        rows.append({"key": f[0], "kind": f[1], "default": f[2], "min": f[3], "max": f[4], "effect": f[5], "status": f[6], "text": f[7], "write": f[8], "why": f[9]})
     return rows
 
 
@@ -181,6 +234,40 @@ def norm(t):
     return re.sub(r"[|\s]+", " ", t)
 
 
+def sq(t):
+    """26 Oct 26: the text with every blank and box border taken out.  A box wraps at its width and cuts a word longer than that (a sandbox directory under /tmp/sdregress.<run>/ is longer than
+    the short /tmp/sx0 it was written with), so a path inside a box is compared this way: the characters and their order, not where the lines broke."""
+    return re.sub(r"[|\s]+", "", t)
+
+
+def box_text(p):
+    """26 Oct 26: the text of the dialog box on the screen and nothing else.  norm(p.text()) reads the screen row by row across its whole width, so the parameter names of the list to the left of
+    the box land INSIDE a sentence the box wraps onto a second row (a sandbox directory under /tmp/sdregress.<run>/ is long enough for the path to wrap; /tmp/sx0 was not).  The box is found from
+    the row with its buttons ( [ Close ] or [ Run ] ): on the confirm box that row is the bottom border (+-- [ Run ] [ Cancel ] --+), on the information box it is a row between two side borders
+    (|  [ Close ]  |).  The border characters either side of the buttons give the columns; every row above it up to the top border is cut to those columns.  '' when there is no box."""
+    L = p.h.lines()
+    for r in range(len(L) - 1, -1, -1):
+        ln = L[r]
+        b = max(ln.find("[ Close ]"), ln.find("[ Run ]"))
+        if b < 0:
+            continue
+        e = ln.find("]", b)
+        c0 = max(ln.rfind("+", 0, b), ln.rfind("|", 0, b))
+        ends = [x for x in (ln.find("+", e), ln.find("|", e)) if x >= 0]
+        if c0 < 0 or not ends:
+            continue
+        c1 = min(ends)
+        rows = [ln[c0 + 1:c1]]
+        for q in range(r - 1, -1, -1):
+            if len(L[q]) <= c1 or L[q][c0] not in "|+":
+                break
+            rows.insert(0, L[q][c0 + 1:c1])
+            if L[q][c0] == "+":
+                break
+        return norm(" ".join(rows))
+    return ""
+
+
 def st(h):
     return h.line(40)
 
@@ -192,12 +279,46 @@ def audit_lines():
         return []
 
 
+def helper_log():
+    return os.path.join(sh.BOX, "elevate-calls.log")
+
+
+def helper_calls():
+    """What the shim was asked, one line per call: the helper's own arguments (conf-set CLEANUP 600)."""
+    try:
+        return [ln for ln in open(helper_log(), encoding="latin-1").read().split("\n") if ln != ""]
+    except OSError:
+        return []
+
+
+def patch_elevate():
+    """The sandbox's own accos.h names the shim instead of `sudo /usr/local/sbin/sd-elevate`; setconfig is compiled after it (the define is read at compile time)."""
+    shim = os.path.join(sh.BOX, "elevate-shim")
+    with open(helper_log(), "w"):
+        pass
+    with open(shim, "w") as f:
+        f.write(SHIM % {"real": os.path.join(HERE, "sd-elevate"), "conf": conf_path(), "log": helper_log()})
+    os.chmod(shim, 0o755)
+    ah = os.path.join(sh.SYS, "syscom", "accos.h")
+    txt = open(ah, encoding="latin-1").read()
+    new = "'bash %s'" % shim
+    if new not in txt:
+        old = "'sudo /usr/local/sbin/sd-elevate'"
+        if txt.count(old) != 1:
+            bail("the sandbox's accos.h does not hold the one helper command this suite points at the shim (%d matches)" % txt.count(old))
+        g.put(ah, txt.replace(old, new))
+
+
 def setup_pages():
-    for prog in ("tool_config",):
+    patch_elevate()
+    for prog in ("tool_config", "setconfig"):
         shutil.copyfile(os.path.join(TREE, "sdsys", "gpl.bp", prog), os.path.join(sh.SYS, "gpl.bp", prog))
         out = g.adm(["BASIC gpl.bp " + prog], internal=True)
         if not has(out, r"^Compiled 1 program\(s\) with no errors"):
             bail("%s did not compile in the sandbox:\n%s" % (prog, "\n".join(out[-8:])))
+    for n in (11931, 11935):                       # the messages are read from the sandbox's own message files, which a fresh build copies
+        if not os.path.exists(os.path.join(sh.SYS, "messages", str(n))):
+            bail("the sandbox has no message %d: it was built before this change; build a fresh one with --build" % n)
     shutil.copyfile(os.path.join(TREE, "sdsys", "config.table"), os.path.join(sh.SYS, "config.table"))
     with open(os.path.join(sh.SYS, "audit"), "ab"):                 # a session appends to the audit file and never makes it: without one the page's audit line goes nowhere
         pass
@@ -206,6 +327,7 @@ def setup_pages():
     if not has(out, r"^Compiled 1 program\(s\) with no errors"):
         bail("the probe did not compile:\n" + "\n".join(out[-8:]))
     g.put(os.path.join(g.BOX, "user_accounts", ACC, "bp", "zzcw"), WRITER)
+    g.put(os.path.join(g.BOX, "user_accounts", ACC, "bp", "zzsw"), WRITER2)
 
 
 def mutate(name):
@@ -248,7 +370,8 @@ class Page:
             t = self.line(y)[3:137]
             name = t[2:14].strip()
             if name:
-                out[name] = {"mark": t[0:2].strip(), "force": t[14:37].strip(), "file": t[37:60].strip(), "default": t[60:80].strip(), "effect": t[80:93].strip(), "status": t[93:].strip().rstrip("|").strip()}
+                out[name] = {"mark": t[0:2].strip(), "force": t[14:37].strip(), "file": t[37:60].strip(), "default": t[60:80].strip(), "effect": t[80:93].strip(), "status": t[93:102].strip(),
+                             "change": t[102:].strip().rstrip("|").strip()}
         return out
 
     def collect(self):
@@ -303,8 +426,8 @@ def check_rows(seen, rows, forced, filev, kinds):
         want_force, want_file, want_def = expected_cols(r, forced, filev, kinds)
         s = seen[k]
         mark = "*" if differs(filev.get(k), forced.get(k), k) else ""
-        got = (s["force"], s["file"], s["default"], s["effect"], s["status"], s["mark"])
-        want = (want_force, want_file, want_def, r["effect"], r["status"], mark)
+        got = (s["force"], s["file"], s["default"], s["effect"], s["status"], s["mark"], s["change"])
+        want = (want_force, want_file, want_def, r["effect"], r["status"], mark, "e" if r["write"] == "yes" else "by hand")
         if got != want:
             bad.append((k, got, want))
     return not bad and len(seen) >= len(rows), "%d rows seen, %d wanted; first differences %s" % (len(seen), len(rows), bad[:3])
@@ -448,7 +571,7 @@ def section_c5(p, rows, kinds, orig):
 def section_c6(p, orig, wrote_hash):
     say("\n--- C6: the page changed nothing")
     arow("C6a", "sd.conf is byte for byte what the suite last wrote: the page never touched it", hashlib.sha256(read_conf().encode("latin-1")).hexdigest() == wrote_hash, "")
-    own = [ln for ln in audit_lines() if " tool " in ln and "app=tool.config" in ln]
+    own = [ln for ln in audit_lines()[AUDIT_START:] if " tool " in ln and "app=tool.config" in ln]       # the audit file outlives a run: only this run's lines are judged
     arow("C6b", "the audit trail holds one line of the page's own for each time it was opened, and nothing else (no 'tool run', no 'tool export')", len(own) == 1 and all(ln.endswith("tool start app=tool.config") for ln in own), repr(own[-3:]))
 
 
@@ -495,11 +618,299 @@ def section_c7(p):
     arow("C7e", "a page whose input ends ends by itself within 20 seconds; the output shows it did start (the null case)", ended and "The parameter under the cursor" in drawn, "took %.1f s, drawn: %r" % (time.time() - t0, drawn[-200:]))
 
 
+# ------------------------------------------------------------------------------------------------------------------------------- the write half (C8 to C13)
+
+def sha():
+    return hashlib.sha256(read_conf().encode("latin-1")).hexdigest()
+
+
+def bak_path():
+    return conf_path() + ".bak"
+
+
+def read_bak():
+    """The .bak's text, None when there is none (a row must go red then, not stop the suite)."""
+    try:
+        return open(bak_path(), encoding="latin-1").read()
+    except OSError:
+        return None
+
+
+def verb_audit(a0):
+    """The audit lines set.config wrote since the file had a0 lines."""
+    return [ln for ln in audit_lines()[a0:] if " set.config " in ln or ln.endswith("set.config")]
+
+
+def box_open(p):
+    T = norm(p.text())
+    return "Cancel" in T and "Run" in T and "this will run" in T
+
+
+def ask_open(p):
+    return "New value for" in norm(p.text())
+
+
+def goto(p, names, key):
+    """The cursor on the row of KEY: Home, then Page Down (17 rows) and Down by arithmetic on the order of the rows; True when the foot box names it."""
+    idx = names.index(key)
+    p.key("home", 0.5)
+    for _ in range(idx // 17):
+        p.key("pgdn", 0.5)
+    for _ in range(idx % 17):
+        p.key("down", 0.3)
+    return p.line(28)[3:3 + len(key) + 1].startswith(key + " ")
+
+
+def add_after_last_setting(text, line):
+    """Where conf_set puts a line the file lacks: after the last line of the [sd] section that sets something (the sandbox's file has the one section)."""
+    ls = text.split("\n")
+    last = max(i for i, l in enumerate(ls) if l != "" and not l.startswith("#") and not l.startswith("["))
+    return "\n".join(ls[:last + 1] + [line] + ls[last + 1:])
+
+
+def fresh(orig):
+    """Every write section begins from the file as the suite found it, no .bak and an empty call log."""
+    write_conf(orig)
+    if os.path.exists(bak_path()):
+        os.remove(bak_path())
+    with open(helper_log(), "w"):
+        pass
+
+
+def section_c8(p, by, names):
+    say("\n--- C8: which rows the page can change")
+    r = by["CLEANUP"]
+    ok = goto(p, names, "CLEANUP")
+    d = p.detail()
+    arow("C8a", "CLEANUP (writable): the foot box gives its own range (range %s to %s, which the table's first rows must not have slid onto), says E changes it here with that range, and does not say it is not changed from this page" % (r["min"], r["max"]),
+         ok and ("range %s to %s" % (r["min"], r["max"])) in d and ("E changes it here: a whole number from %s to %s" % (r["min"], r["max"])) in d and "Not changed from this page" not in d, d[:700])
+    ok = goto(p, names, "APILOGIN")
+    d = p.detail()
+    arow("C8c", "APILOGIN (the table's first row, no range): the foot box shows no range - the minimum and maximum columns are read by index, so a blank at the top does not move the later ranges up onto it", ok and " range " not in d and "Not changed from this page" in d, d[:300])
+    r = by["NETFILES"]
+    ok = goto(p, names, "NETFILES")
+    d = p.detail()
+    arow("C8b", "NETFILES (a door): the foot box says Not changed from this page with the table's reason word for word, and does not offer E", ok and ("Not changed from this page: " + r["why"]) in d and "E changes it here" not in d, d[:300])
+
+
+def section_c9(p, by, names, orig):
+    say("\n--- C9: E on a parameter that is not changed here")
+    path = conf_path()
+    for key in ("NETFILES", "SDSYS", "PWDELAY"):
+        why = by[key]["why"]
+        h0, c0, a0 = sha(), len(helper_calls()), len(audit_lines())
+        ok = goto(p, names, key)
+        p.key("e", 1.5)
+        T = box_text(p)
+        arow("C9a", "E on %s opens a box that says it is not changed from this page, gives the table's reason word for word, and the line %s=<value> to add to the [sd] section of the file SD reads" % (key, key),
+             ok and (key + " is not changed from this page.") in T and why in T and sq(key + "=<value> in the [sd] section of " + path) in sq(T) and "Close" in T and not ask_open(p), T[max(0, T.find(key + " is not changed") - 80):][:1100])      # 26 Oct 26: the detail is the box, not the foot of the page
+        p.key("enter", 1.2)
+        arow("C9b", "closing it leaves nothing open and says nothing was written; sd.conf, the helper's call log, the .bak and the audit trail are as they were (%s)" % key,
+             (key + " is not changed from this page; nothing was written") in st(p) and not box_open(p) and not ask_open(p) and sha() == h0 and helper_calls()[c0:] == [] and not os.path.exists(bak_path()) and not verb_audit(a0),
+             st(p).strip()[:100])
+    write_conf(orig.rstrip("\n") + "\nZZBAD=1\n")
+    p.key("f5", 1.8)
+    h0, c0 = sha(), len(helper_calls())
+    ok = goto(p, names + ["ZZBAD"], "ZZBAD")
+    p.key("e", 1.5)
+    T = box_text(p)
+    arow("C9c", "E on a name SD does not know says so, that SD will not start while the file holds it, and to take the line out of the file by hand; it offers no line to add",
+         ok and "ZZBAD is not changed from this page." in T and "SD does not know this name" in T and sq("Take the line out of " + conf_path() + " by hand") in sq(T) and "ZZBAD=<value>" not in T, T[-600:])
+    p.key("enter", 1.2)
+    arow("C9d", "and it writes nothing: the file is as the suite wrote it and the helper was not asked", sha() == h0 and helper_calls()[c0:] == [], "")
+    write_conf(orig)
+    p.key("f5", 1.8)
+
+
+def section_c10(p, by, names, orig, forced):
+    say("\n--- C10: a writable parameter: the value is checked on the page")
+    r = by["CLEANUP"]
+    h0, c0, a0 = sha(), len(helper_calls()), len(audit_lines())
+    ok = goto(p, names, "CLEANUP")
+    p.key("e", 1.5)
+    T = norm(p.text())
+    arow("C10a", "E on CLEANUP asks for the new value: the question gives the range %s to %s and says what SD runs with (%s) and that sd.conf says nothing" % (r["min"], r["max"], forced.get("CLEANUP")),
+         ok and ask_open(p) and ("a whole number from %s to %s" % (r["min"], r["max"])) in T and ("SD runs with %s" % forced.get("CLEANUP")) in T and "sd.conf says (nothing)" in T, T[-500:])
+    p.key("esc", 1.2)
+    arow("C10b", "Esc in the question cancels it: the status line says CLEANUP is unchanged and no question or box is left", "cancelled; CLEANUP is unchanged" in st(p) and not ask_open(p) and not box_open(p), st(p).strip()[:100])
+    range_msg = "CLEANUP takes a whole number from %s to %s, digits only; nothing was changed" % (r["min"], r["max"])
+    empty_msg = "nothing was typed; CLEANUP is unchanged"
+    bad = []
+    for label, typed, want in (("nothing", "", empty_msg), ("spaces only", "   ", empty_msg), ("letters", "abc", range_msg), ("digits and a letter", "60x", range_msg), ("a leading zero", "0600", range_msg),
+                               ("below the minimum", "29", range_msg), ("above the maximum", "3601", range_msg), ("eight digits", "12345678", range_msg), ("a minus sign", "-60", range_msg),
+                               ("a decimal point", "60.5", range_msg)):
+        p.key("e", 1.2)
+        p.h.typed(typed + "\r", idle=1.3)
+        s, bx, ak = st(p), box_open(p), ask_open(p)
+        if want not in s or bx or ak:
+            bad.append((label, s.strip()[:100], "box" if bx else "", "ask" if ak else ""))
+        if bx or ak:
+            p.key("esc", 1.0)
+    arow("C10c", "each of nothing, spaces, letters, digits and a letter, a leading zero, 29, 3601, eight digits, a minus sign and a decimal point is refused on the page in words (the range, or 'nothing was typed') and none reaches a box", not bad, repr(bad[:3]))
+    arow("C10d", "none of them reached the helper: its call log is as it was, and so are sd.conf, the .bak and the audit trail", helper_calls()[c0:] == [] and sha() == h0 and not os.path.exists(bak_path()) and not verb_audit(a0),
+         repr((helper_calls()[c0:], verb_audit(a0))))
+
+
+def section_c11(p, by, names, orig, forced, mutant):
+    say("\n--- C11: the flow")
+    path = conf_path()
+    h0, c0, a0 = sha(), len(helper_calls()), len(audit_lines())
+    ok = goto(p, names, "CLEANUP")
+    p.key("e", 1.3)
+    p.h.typed("600\r", idle=1.8)
+    T = box_text(p)
+    arow("C11a", "typing 600 for CLEANUP shows the box: the exact command 'set.config cleanup 600', that it takes effect when SD is next stopped and started (sd -stop, then sd -start), where the old file is kept, "
+         "and that this session reads another file than the one the helper changes",
+         ok and box_open(p) and "set.config cleanup 600" in T and "sd -stop, then sd -start" in T and "/etc/sd.conf.bak" in T and sq("This session reads " + path + ", but the root helper changes /etc/sd.conf only.") in sq(T), T[max(0, T.find("this will run") - 150):][:1100])      # 26 Oct 26: the detail is the box, not the foot of the page
+    p.key("esc", 1.5)
+    arow("C11b", "Esc (Cancel, which is what Enter chooses) runs nothing: sd.conf, the helper's call log, the .bak and the audit trail are as they were, and the status line says nothing was run",
+         sha() == h0 and helper_calls()[c0:] == [] and not os.path.exists(bak_path()) and not verb_audit(a0) and "nothing was run" in st(p), repr((st(p).strip()[:60], helper_calls()[c0:])))
+    if mutant == "box-skipped":
+        return
+    # ---- CLEANUP: a restart parameter the file lacks
+    p.key("e", 1.3)
+    p.h.typed("600\r", idle=1.8)
+    p.h.typed("r", idle=5.0)
+    s_run = st(p).strip()                          # the status line is cleared by the next key: read it now
+    after = read_conf()
+    arow("C11c", "Run (CLEANUP 600): the file is the original with CLEANUP=600 added inside [sd] after its last setting and nothing else changed", after == add_after_last_setting(orig, "CLEANUP=600"), repr(after[-160:]))
+    bak = read_bak()
+    arow("C11d", "the file as it was is kept as sd.conf.bak, byte for byte, with the mode the file has", bak == orig and os.path.exists(bak_path()) and os.stat(bak_path()).st_mode == os.stat(conf_path()).st_mode, repr(bak)[:120])
+    calls = helper_calls()[c0:]
+    mine = verb_audit(a0)
+    arow("C11e", "the helper was asked exactly once, with the name in capitals and the digits as typed: 'conf-set CLEANUP 600'; and exactly ONE audit line was written, 'set.config key=cleanup value=600 status=ok'",
+         calls == ["conf-set CLEANUP 600"] and len(mine) == 1 and mine[0].endswith("set.config key=cleanup value=600 status=ok"), repr((calls, mine)))
+    goto(p, names, "CLEANUP")
+    row_ = p.visible().get("CLEANUP", {})
+    top = p.top()
+    run_c = forced.get("CLEANUP")
+    arow("C11f", "the page read the file and SD again: the status line says CLEANUP in sd.conf went from (nothing) to 600 and SD runs with %s until it is restarted; the row shows 600 in the file, %s running and a *; "
+         "the top counts one difference that needs a restart" % (run_c, run_c),
+         ("CLEANUP in sd.conf: (nothing) -> 600; SD is running with %s until it is restarted" % run_c) in s_run and row_.get("file") == "600" and row_.get("force") == run_c and row_.get("mark") == "*"
+         and "Differ from what SD is running with: 1" in top and "Need a restart: 1" in top, repr((s_run[:120], row_, top[:200])))
+    now = run_probe()
+    arow("C11g", "THE CLAIM IS TRUE: a new session still runs with CLEANUP %s, because CLEANUP sizes the system (the restart words are not decoration)" % run_c, now.get("CLEANUP") == run_c and run_c not in (None, "600"), repr(now.get("CLEANUP")))
+    # ---- GRPSIZE: a session parameter the file has
+    before = read_conf()
+    if "GRPSIZE=4\n" not in before:
+        bail("the sandbox's sd.conf has no GRPSIZE=4 line, so the replace-in-place rows cannot be run")
+    bak0 = read_bak()
+    c1, a1 = len(helper_calls()), len(audit_lines())
+    goto(p, names, "GRPSIZE")
+    p.key("e", 1.3)
+    p.h.typed("6\r", idle=1.8)
+    T = norm(p.text())
+    box_ok = box_open(p) and "set.config grpsize 6" in T and "Sessions started after this read the new value" in T
+    p.h.typed("r", idle=5.0)
+    s_run2 = st(p).strip()
+    after2 = read_conf()
+    arow("C11h", "GRPSIZE 6: the box says sessions started after this read the new value; after Run the GRPSIZE line is replaced WHERE IT WAS (same place, one line) and every other line is as before",
+         box_ok and after2 == before.replace("GRPSIZE=4\n", "GRPSIZE=6\n", 1) and after2 != before, repr((box_ok, after2[-200:])))
+    bak2 = read_bak()
+    arow("C11i", "the .bak is now the file as it was before THIS change (it holds CLEANUP=600 and GRPSIZE=4): one generation, not an archive", bak2 == before and bak2 != bak0, repr(bak2)[:120])
+    goto(p, names, "GRPSIZE")
+    run_g = forced.get("GRPSIZE")
+    now = run_probe()
+    arow("C11j", "THE CLAIM IS TRUE: a NEW session runs with GRPSIZE 6; this page's own session still runs with %s, and the status line says so" % run_g,
+         now.get("GRPSIZE") == "6" and run_g == "4" and p.visible().get("GRPSIZE", {}).get("force") == "4"
+         and ("GRPSIZE in sd.conf: 4 -> 6; SD is running with 4 (sessions started now use 6)") in s_run2, repr((now.get("GRPSIZE"), run_g, s_run2[:120])))
+    calls = helper_calls()[c1:]
+    mine = verb_audit(a1)
+    arow("C11k", "that was one call to the helper ('conf-set GRPSIZE 6') and one audit line ('set.config key=grpsize value=6 status=ok')", calls == ["conf-set GRPSIZE 6"] and len(mine) == 1 and mine[0].endswith("set.config key=grpsize value=6 status=ok"), repr((calls, mine)))
+    # ---- the same value again
+    h3, bak3, c2, a2 = sha(), read_bak(), len(helper_calls()), len(audit_lines())
+    goto(p, names, "GRPSIZE")
+    p.key("e", 1.3)
+    p.h.typed("6\r", idle=1.8)
+    p.h.typed("r", idle=4.0)
+    calls = helper_calls()[c2:]
+    arow("C11l", "the same value again: the helper is asked and finds nothing to change, so sd.conf and sd.conf.bak are byte for byte as before (the .bak is not overwritten by an identical file), "
+         "and one more audit line says ok", sha() == h3 and bak3 is not None and read_bak() == bak3 and calls == ["conf-set GRPSIZE 6"] and len(verb_audit(a2)) == 1, repr((calls, verb_audit(a2))))
+
+
+def section_c12(orig):
+    say("\n--- C12: the real verb")
+    h0, c0, a0 = sha(), len(helper_calls()), len(audit_lines())
+    cases = [("a door", "set.config netfiles 1", "SD knows, and conf-set does not change it", "conf-set NETFILES 1", "netfiles", "1"),
+             ("the security throttle", "set.config pwdelay 0", "SD knows, and conf-set does not change it", "conf-set PWDELAY 0", "pwdelay", "0"),
+             ("a name SD does not know", "set.config zznew 1", "is not a parameter SD knows", "conf-set ZZNEW 1", "zznew", "1"),
+             ("below the minimum", "set.config cleanup 29", "outside the range 30 to 3600", "conf-set CLEANUP 29", "cleanup", "29"),
+             ("above the maximum", "set.config grpsize 9", "outside the range 1 to 8", "conf-set GRPSIZE 9", "grpsize", "9")]
+    bad = []
+    for label, cmd, frag, call, key, val in cases:
+        out = norm(" ".join(g.adm([cmd])))
+        if "sd.conf was not changed:" not in out or frag not in out or " is now " in out:
+            bad.append((label, out[:200]))
+    arow("C12a", "the helper's own refusals reach the person after 'sd.conf was not changed:' (a door, the throttle, an unknown name, below the minimum, above the maximum)", not bad, repr(bad[:2]))
+    calls = helper_calls()[c0:]
+    mine = verb_audit(a0)
+    arow("C12b", "each reached the helper once (the call log holds the five, the name in capitals), each wrote ONE refused audit line, and sd.conf is as it was",
+         calls == [c[3] for c in cases] and len(mine) == 5 and all(m.endswith("status=refused") for m in mine) and [m.split("set.config ", 1)[1] for m in mine] == ["key=%s value=%s status=refused" % (c[4], c[5]) for c in cases] and sha() == h0,
+         repr((calls, mine[-2:])))
+    c1, a1 = len(helper_calls()), len(audit_lines())
+    usage, c_name, c_val = "set.config parameter value", "The parameter name has only letters and digits", "The value is a whole number written with digits only"
+    cases2 = [("no words", "set.config", usage), ("one word", "set.config cleanup", usage), ("three words", "set.config cleanup 600 7", usage), ("a dash in the name", "set.config clean-up 5", c_name),
+              ("a name of 14 letters", "set.config cleanupcleanup 5", c_name), ("a letter in the value", "set.config cleanup 6x", c_val), ("a decimal point in the value", "set.config cleanup 6.5", c_val),
+              ("a value of eight digits", "set.config cleanup 12345678", c_val)]
+    bad = []
+    for label, cmd, frag in cases2:
+        out = norm(" ".join(g.adm([cmd])))
+        if frag not in out or "sd.conf was not changed" in out:
+            bad.append((label, out[:160]))
+    arow("C12c", "a wrong number of words, a dash or 14 letters in the name, a letter or a point or eight digits in the value are answered by the verb itself (the usage line, or which of the two words is wrong)", not bad, repr(bad[:2]))
+    arow("C12d", "and none of them reached the helper or the audit trail: no call, no audit line, sd.conf unchanged", helper_calls()[c1:] == [] and not verb_audit(a1) and sha() == h0, repr((helper_calls()[c1:], verb_audit(a1))))
+    c2, a2 = len(helper_calls()), len(audit_lines())
+    out = norm(" ".join(g.plain(ACC, ["set.config cleanup 600"])))
+    out2 = g.plain(ACC, ["BASIC bp zzsw", "RUN bp zzsw"])
+    wrote = has(out2, r"^ZZSW written$")
+    out3 = norm(" ".join(g.plain(ACC, ["ztset cleanup 600"])))
+    arow("C12e", "an ordinary account has no set.config (the session answers, and nothing was changed), and a VOC entry it made for the program gets message 2001, 'Command requires administrator privileges'",
+         out != "" and " is now " not in out and wrote and "Command requires administrator privileges" in out3 and " is now " not in out3, repr((out[:100], wrote, out3[:100])))
+    arow("C12f", "and neither reached the helper, the audit trail or the file", helper_calls()[c2:] == [] and not verb_audit(a2) and sha() == h0, repr((helper_calls()[c2:], verb_audit(a2))))
+
+
+def section_c13(orig, audit_base):
+    say("\n--- C13: nothing else changed; the audit words")
+    final = read_conf()
+    want = add_after_last_setting(orig, "CLEANUP=600").replace("GRPSIZE=4\n", "GRPSIZE=6\n", 1)
+    arow("C13a", "every line of sd.conf the suite did not ask to change is as it was, in the same order: the file is the original with GRPSIZE=6 and CLEANUP=600 and nothing else", final == want, repr(final[-200:]))
+    lines = [ln.split("set.config ", 1)[1] for ln in verb_audit(audit_base)]
+    ok_lines = [x for x in lines if x.endswith("status=ok")]
+    ref_lines = [x for x in lines if x.endswith("status=refused")]
+    shape = all(re.fullmatch(r"key=[a-z0-9]+ value=[0-9]+ status=(ok|refused)", x) for x in lines)
+    arow("C13b", "the audit trail holds 8 lines of the verb (3 ok: CLEANUP, GRPSIZE, GRPSIZE again; 5 refused), each exactly 'key=<name> value=<number> status=ok|refused' in lower case, and the words and the name are lower case", len(lines) == 8 and len(ok_lines) == 3 and len(ref_lines) == 5 and shape
+         and all(x == x.lower() for x in lines), repr(lines))
+
+
+def write_sections(rows, orig, forced, mutant):
+    by = {r["key"]: r for r in rows}
+    names = [r["key"] for r in rows]
+    fresh(orig)
+    audit_base = len(audit_lines())                # the audit file outlives a run: only the lines of THIS run are counted
+    pw = Page()
+    if "The parameter under the cursor" not in pw.text():
+        dump(pw.h)
+        bail("tool.config never drew its page for the write rows")
+    section_c8(pw, by, names)
+    section_c9(pw, by, names, orig)
+    if mutant == "fixed-edited":
+        pw.quit()
+        return
+    section_c10(pw, by, names, orig, forced)
+    section_c11(pw, by, names, orig, forced, mutant)
+    if mutant == "box-skipped":
+        pw.end()
+        return
+    pw.quit()
+    section_c12(orig)
+    section_c13(orig, audit_base)
+
+
 def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
     if mutant is not None and mutant not in MUTANTS:
         bail("usage: sandbox-tool-config.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
-    global MUTANT
+    global MUTANT, AUDIT_START
     MUTANT = mutant
     last = MUTANTS[mutant][3] if mutant else "C7"
     order = ["C1", "C2", "C3", "C4", "C5", "C6", "C7"]
@@ -513,44 +924,54 @@ def main():
         sh.setup("sandbox-tool-config.py")
         orig = read_conf()
         setup_pages()
+        AUDIT_START = len(audit_lines())
         if mutant is not None:
             mutate(mutant)
             say("sandbox-tool-config: MUTANT %s: the rows that must fail, and nothing else: %s" % (mutant, ", ".join(MUTANTS[mutant][2])))
         rows = table()
         kinds = {r["key"]: r["kind"] for r in rows}
-        if mutant is None:
-            section_c0()
-        p, forced = section_c1(rows, kinds)
-        if run("C2"):
-            section_c2(p, rows, kinds, forced)
-        if run("C3"):
-            section_c3(p, rows, kinds, forced, orig)
-        if run("C4"):
-            section_c4(p, rows, kinds, forced, orig)
-        if mutant is None:
-            section_c5(p, rows, kinds, orig)
-            write_conf(orig + "\n# the suite's last line\n")
-            wrote = hashlib.sha256(read_conf().encode("latin-1")).hexdigest()
-            p.key("f5", 1.5)
-            p.key("b", 1.0)
-            p.key("p", 1.0)
-            p.key("d", 0.8)
-            p.key("d", 0.8)
-            section_c6(p, orig, wrote)
-            section_c7(p)
+        if mutant in WRITE_MUTANTS:
+            write_sections(rows, orig, run_probe(), mutant)
         else:
-            p.quit()
+            if mutant is None:
+                section_c0()
+            p, forced = section_c1(rows, kinds)
+            if run("C2"):
+                section_c2(p, rows, kinds, forced)
+            if run("C3"):
+                section_c3(p, rows, kinds, forced, orig)
+            if run("C4"):
+                section_c4(p, rows, kinds, forced, orig)
+            if mutant is None:
+                section_c5(p, rows, kinds, orig)
+                write_conf(orig + "\n# the suite's last line\n")
+                wrote = hashlib.sha256(read_conf().encode("latin-1")).hexdigest()
+                p.key("f5", 1.5)
+                p.key("b", 1.0)
+                p.key("p", 1.0)
+                p.key("d", 0.8)
+                p.key("d", 0.8)
+                section_c6(p, orig, wrote)
+                section_c7(p)
+                write_sections(rows, orig, forced, None)
+            else:
+                p.quit()
     finally:
         if orig is not None:
             try:
                 write_conf(orig)
+                if os.path.exists(bak_path()):
+                    os.remove(bak_path())
             except OSError:
                 pass
         sh.teardown()
     say("\nsandbox-tool-config: %d passed, %d failed" % (sh.tkb.passed, sh.tkb.failed))
     if mutant is not None:
         want = sorted(set(MUTANTS[mutant][2]))
-        got = sorted({re.match(r"C\d+", i).group(0) for i in FAILED_IDS if re.match(r"C\d+", i)})
+        if mutant in WRITE_MUTANTS:
+            got = sorted(set(FAILED_IDS))               # a write mutant is judged by the row ids themselves
+        else:
+            got = sorted({re.match(r"C\d+", i).group(0) for i in FAILED_IDS if re.match(r"C\d+", i)})
         ok = want == got
         say("sandbox-tool-config: MUTANT %s: the rows that failed are %s; they had to be exactly %s -> %s" % (mutant, got, want, "KILLED BY ITS OWN ROWS" if ok else "NOT AS EXPECTED"))
         return 0 if ok else 1

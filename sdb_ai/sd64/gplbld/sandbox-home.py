@@ -559,7 +559,7 @@ def main():
         row("moving down through the rows keeps the focused tile in view (it never leaves the panel)", any("r" in h.style(r, c)[2] for r in range(6, 38) for c in (5, 27, 51, 73, 97, 119)), "")
         h.key("enter", idle=1.8)
         row("a tile that prints (pause) shows its output (WHO.AM.I: the Account line) and asks for Enter (11865); the home screen is not there yet",
-            re.search(r"Account\s*:\s*zzhm", h.text()) is not None and "Press Enter to return to the home screen" in h.text() and not h.home(), h.text()[-300:])
+            re.search(r"Account\s*:\s*zzhm", h.text()) is not None and re.search(r"Press Enter to return\s*$", h.text(), re.M) is not None and not h.home(), h.text()[-300:])
         h.typed("\r", idle=1.8)
         T = h.text()
         row("...Enter brings the screen back as it was left: the header and a filler tile are there, the question is gone, and the filler tile is still the one selected (the page keeps its scroll, so the heading 'My tools' may be off the top)",

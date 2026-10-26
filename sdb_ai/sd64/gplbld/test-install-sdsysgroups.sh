@@ -1,38 +1,37 @@
 #!/bin/bash
 #
-# test-install-sdsysgroups.sh - the installer's walk that puts the sdsys user in the group of every account and makes each account's VOC and
-# dictionaries writable by that group (S.67 stage 2, D7; owner 17 Oct 2026, warned).  The function is join_sdsys_groups.
+# test-install-sdsysgroups.sh - the installer's ruling on the sdsys user's place in the groups of the user accounts (F6, S.67 stage 2, alternative C; 26 Oct 26).
+# The question is the block between SDSYSGROUPS-ASK-BEGIN and SDSYSGROUPS-ASK-END; the act is the function sdsys_groups_ruling.  (Before 26 Oct this file held
+# the walk join_sdsys_groups, which put the sdsys user in EVERY user account's group; the owner's D7 of 17 Oct, replaced because the core direction is that high
+# security is delivered and the administrator loosens it later.  Its rows are gone with it.)
 #
 #   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysgroups.sh
 #   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysgroups.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-sdsysgroups.sh        (what --selftest uses)
 #
-# FREE CHECK: no sudo (it is a function here), no install, no sd-elevate (a stub script), no groups made or changed, no root.  Everything
-# happens in a scratch directory.  Exit 0 every row passed, 1 a row failed, 2 it could not run (a refusal to pass on nothing: a missing piece,
-# a scenario in which the stub was never called, is exit 2).
+# FREE CHECK: no sudo (it is a function here), no install, no sd-elevate (a stub script), no groups made or changed, no root.  Everything happens in a scratch
+# directory.  Exit 0 every row passed, 1 a row failed, 2 it could not run (a refusal to pass on nothing: a missing piece, a scenario in which the stub was never
+# called, is exit 2).
 #
-# WHAT IT RUNS.  The function join_sdsys_groups is cut out of the installer; every "/home/sd/" in it is rewritten to the scratch directory and
-# "/usr/local/sbin/sd-elevate" to the stub; it runs under the installer's OWN "set -euo pipefail" AND ITS IFS (IFS=$'\n\t' - the first real
-# install of the gates question failed because a list was one word under that IFS and the test had run under `set` alone), with `sudo` a
-# function that runs its arguments, `getent` a function that reads a fixture /etc/group, and `stat -c %G` answering from a file beside the
-# directory (a real directory's group cannot be sdu_alice here).  The stub sd-elevate logs every call and does what the scenario says: join,
-# refuse, make a change, find nothing to change, exit 0 and say nothing.
+# WHAT IT RUNS.  The block and the function are cut out of the installer; every "/home/sd/" in them is rewritten to the scratch directory and
+# "/usr/local/sbin/sd-elevate" to the stub; they run under the installer's OWN "set -euo pipefail" AND ITS IFS (IFS=$'\n\t' - the first real install of the gates
+# question failed because a list was one word under that IFS and the test had run under `set` alone), with `sudo` a function that runs its arguments, `chown` a
+# function that logs (the scratch machine has no sdsys user) and `getent` a function that reads a fixture /etc/group.  The stub sd-elevate logs every call and
+# does what the scenario says: take the sdsys user out of the group, refuse, say it was not in it, exit 0 and say nothing.
 #
-# THE SCENARIO (the register is a directory of records, line 1 the path, line 3 the group, as the real one):
-#   alice  user account, sdu_alice without sdsys            -> joined, modes changed
-#   bob    user account, sdu_bob WITH sdsys                 -> not joined again, modes already right
-#   carol  user account, the join is refused                -> counted, named in the WARNING; her modes are still made right
-#   dave   user account, group-write is refused             -> WARNING
-#   fred   user account, group-write exits 0 and prints no success line -> NOT "made right" (judged on the success line, not the exit status)
-#   team   group account sdg_team, directory group sdg_team -> modes only, NO join (a group account's group is made with sdsys in it)
-#   shared group account, register group sdg_shared, the directory's group sdusers -> neither (the S.66 account is left as it is)
-#   other  user account whose path is outside /home/sd      -> joined, modes NOT asked for (a path outside the accounts root)
-#   sdsys  the administrator's own record                   -> nothing
-#   "bad name", UPPER, %0, .hidden                          -> skipped by name
+# THE SCENARIO (the groups are the fixture /etc/group; the question counts the user-account groups that list sdsys):
+#   sdu_alice  lists sdsys          -> asked about, taken out
+#   sdu_bob    does not             -> never touched
+#   sdu_carol  lists sdsys, the helper refuses it   -> counted, named in the WARNING, the walk goes on, the marker is NOT written
+#   sdu_dave   lists sdsys among others (root,dave,sdsys)  -> taken out
+#   sdu_eve    lists "sdsys2"       -> not sdsys: untouched (a whole name, not a prefix)
+#   sdu_fred   lists "xsdsys"       -> not sdsys: untouched
+#   sdg_team   a group account's group, lists sdsys   -> NEVER touched (sdsys owns the files of a group account)
+#   sdusers    lists sdsys          -> never touched (not an account's group)
 #
-# NOT MEASURED HERE, and said so: that sd-elevate really adds sdsys to a group or changes a mode (test-sd-elevate.py, test-accelevate-units.py
-# measure its rules; the real change is witness-masters.sh's); that the register directory at the point of the install holds what the
-# scenario holds; that sudo works.
+# NOT MEASURED HERE, and said so: that sd-elevate really takes a user out of a group (test-sd-elevate.py measures its rules; the real change is witness-masters.sh's);
+# that the marker is where a kept install keeps it, which is the position of /home/sd in a delete that keeps the accounts (the VM); that sudo works; that the
+# prompt is shown on a terminal (bash prints a read prompt only when the input is a terminal, so the rows read the answer, not the prompt).
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 THIS="$HERE/$(basename "$0")"
@@ -42,7 +41,7 @@ if [ "${1:-}" = "--selftest" ]; then
   REAL="$(cd "$HERE/../../.." && pwd)/installsdcore.sh"
   T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
   caught=0; missed=0; total=0
-  mutant() {   # name, sed expression (applied to the whole installer; the expressions name lines of the function or of its call)
+  mutant() {   # name, sed expression (applied to the whole installer; the expressions name lines of the block, the function or the call)
     local name="$1" expr="$2" f="$T/$1.sh" rc
     total=$((total+1))
     sed -e "$expr" "$REAL" > "$f"
@@ -54,27 +53,38 @@ if [ "${1:-}" = "--selftest" ]; then
   echo "selftest: the real installer first (must pass), then mutants (each must not)"
   INSTALLER="$REAL" bash "$THIS" > "$T/real.out" 2>&1 || { echo "  [FAIL] the real installer does not pass:"; tail -12 "$T/real.out"; exit 1; }
   echo "  [ok] the real installer passes"
-  mutant joins-group-accounts-too   '/^join_sdsys_groups() {/,/^}/ s/^            sdu_?\*)$/            sdu_?*|sdg_?*)/'
-  mutant joins-again-when-member    '/^join_sdsys_groups() {/,/^}/ s/\*",sdsys,"\*) n_have/*",nobody,"*) n_have/'
-  mutant modes-of-shared-too        '/^join_sdsys_groups() {/,/^}/ s/\[ "\$dir_group" = "\$group" \]/true/'
-  mutant modes-outside-the-root     '/^join_sdsys_groups() {/,/^}/ s#/home/sd/user_accounts/\*|/home/sd/group_accounts/\*)#*)#'
-  mutant silent-success-counts      "/^join_sdsys_groups() {/,/^}/ s/\*'group-write: '\*' file(s) changed, '\*)/*)/"
-  mutant join-failure-aborts        '/^join_sdsys_groups() {/,/^}/ s/sdsys-join "\$group" 2>&1) || rc=\$?/sdsys-join "$group" 2>\&1)/'
-  mutant modes-failure-aborts       '/^join_sdsys_groups() {/,/^}/ s/group-write "\$path" 2>&1) || rc=\$?/group-write "$path" 2>\&1)/'
-  mutant warning-never              '/^join_sdsys_groups() {/,/^}/ s/if \[ "\$n_fail" -gt 0 \] || \[ "\$n_fixfail" -gt 0 \]; then/if false; then/'
-  mutant names-not-filtered         "/^join_sdsys_groups() {/,/^}/ s/^            ''|\\.\\*|%\\*|\\*\\[!a-z0-9\\._-\\]\\*) continue ;;\$/            ''|.*) continue ;;/"
-  mutant group-from-the-wrong-line  "/^join_sdsys_groups() {/,/^}/ s/sed -n '3p'/sed -n '2p'/"
-  mutant path-from-the-wrong-line   "/^join_sdsys_groups() {/,/^}/ s/sed -n '1p'/sed -n '2p'/"
-  mutant modes-of-the-wrong-path    '/^join_sdsys_groups() {/,/^}/ s#sd-elevate group-write "\$path"#sd-elevate group-write "$reg_dir/$rec"#'
-  mutant join-of-the-wrong-group    '/^join_sdsys_groups() {/,/^}/ s#sd-elevate sdsys-join "\$group"#sd-elevate sdsys-join "$rec"#'
-  mutant directory-group-by-owner   "/^join_sdsys_groups() {/,/^}/ s/stat -c '%G'/stat -c '%U'/"
-  mutant names-with-paths           "/^join_sdsys_groups() {/,/^}/ s/-printf '%f\\\\n'/-printf '%p\\\\n'/"
-  mutant function-exits             '/^join_sdsys_groups() {/,/^}/ s/^    echo "  sdsys put in the group of /    exit 1; echo "  sdsys put in the group of /'
-  mutant no-notice                  '/^join_sdsys_groups() {/,/^}/{/write access to those files in every account/d}'
-  mutant any-group-name-joins       '/^join_sdsys_groups() {/,/^}/ s/^            sdu_?\*)$/            *)/'
-  mutant function-never-called      's/^join_sdsys_groups "\$sdsysdir\/accounts"$/true/'
-  mutant called-with-the-wrong-dir  's/^join_sdsys_groups "\$sdsysdir\/accounts"$/join_sdsys_groups "\/home\/sd\/accounts"/'
-  mutant called-after-the-masters   '/^join_sdsys_groups "\$sdsysdir\/accounts"$/d;/^echo "account register: /a join_sdsys_groups "$sdsysdir/accounts"'
+  A='/^# SDSYSGROUPS-ASK-BEGIN$/,/^# SDSYSGROUPS-ASK-END$/'
+  F='/^sdsys_groups_ruling() {/,/^}/'
+  # ---- the question
+  mutant asks-with-the-marker-present  "$A s#^if \[ ! -e \"/home/sd/\\\\\$groups.ruled\" \]; then#if true; then#"
+  mutant default-is-keep               "$A s/^sdsys_keep=n\$/sdsys_keep=y/"
+  mutant no-answer-is-keep             "$A s/echo \"No answer could be read: N.\"; sdsys_ans=n;/echo \"No answer could be read.\"; sdsys_ans=y;/"
+  mutant any-answer-keeps              "$A s/case \$sdsys_ans in \[yY\]|\[yY\]\[eE\]\[sS\] ) sdsys_keep=y;; esac/sdsys_keep=y/"
+  mutant question-counts-group-accounts "$A s/\\^sdu_\\./^sd[ug]_./"
+  mutant question-counts-a-prefix      "$A s#/,sdsys,/#/sdsys/#"
+  mutant question-reads-the-wrong-field "$A s/(\",\" \$4 \",\")/(\",\" \$3 \",\")/"
+  mutant question-never-asks           "$A s/^if \[ -n \"\$sdsys_listed\" \]; then\$/if false; then/"
+  mutant question-reads-no-input       "$A s/^    read -r -p .*\$/    sdsys_ans=n/"
+  # ---- the act
+  mutant keep-is-ignored               "$F s/^    elif \[ \"\$keep\" = y \]; then\$/    elif false; then/"
+  mutant leaves-with-the-marker        "$F s/^    if \[ -e \"\$marker\" \]; then\$/    if false; then/"
+  mutant counts-group-accounts         "$F s/\\^sdu_\\./^sd[ug]_./"
+  mutant counts-a-prefix               "$F s#/,sdsys,/#/sdsys/#"
+  mutant exit-status-only              "$F s#0:\\*\"gpasswd -d sdsys \\\${group}\"\\*|0:\\*\"sdsys is not in \\\${group}\"\\*)#0:*)#"
+  mutant failure-aborts                "$F s/sdsys-leave \"\\\$group\" 2>&1) || rc=\\\$?/sdsys-leave \"\$group\" 2>\\&1)/"
+  mutant wrong-verb                    "$F s#sd-elevate sdsys-leave \"\\\$group\"#sd-elevate sdsys-join \"\$group\"#"
+  mutant warning-never                 "$F s/^        if \[ \"\\\$n_fail\" -gt 0 \]; then\$/        if false; then/"
+  mutant marker-after-a-failure        "$F { /^            return 0\$/d; }"
+  mutant marker-never-written          "$F { /^    sudo touch \"\\\$marker\"\$/d; }"
+  mutant marker-not-handed-to-sdsys    "$F { /^    sudo chown sdsys:sdusers \"\\\$marker\"\$/d; }"
+  mutant marker-mode-open              "$F s/^    sudo chmod 644 \"\\\$marker\"\$/    sudo chmod 666 \"\$marker\"/"
+  mutant function-exits                "$F s/^        echo \"  The sdsys user was taken out of the group of /        exit 1; echo \"  The sdsys user was taken out of the group of /"
+  # ---- the call
+  mutant function-never-called         's/^sdsys_groups_ruling "\$ACCT_PATH\/\\$groups.ruled" "\$sdsys_keep"$/true/'
+  mutant marker-in-the-sdsys-directory 's/^sdsys_groups_ruling "\$ACCT_PATH\/\\$groups.ruled"/sdsys_groups_ruling "$sdsysdir\/\\$groups.ruled"/'
+  mutant called-with-the-wrong-answer  's/^sdsys_groups_ruling "\$ACCT_PATH\/\\$groups.ruled" "\$sdsys_keep"$/sdsys_groups_ruling "$ACCT_PATH\/\\$groups.ruled" y/'
+  mutant called-after-the-masters      '/^sdsys_groups_ruling "\$ACCT_PATH\/\\$groups.ruled" "\$sdsys_keep"$/d;/^echo "account register: /a sdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"'
+  mutant the-old-walk-is-back          's/^echo "Ruling on the sdsys user.s place in the groups of the user accounts."$/echo "x"; sudo \/usr\/local\/sbin\/sd-elevate sdsys-join sdu_x/'
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$caught" -eq "$total" ] && [ "$missed" -eq 0 ]
   exit $?
@@ -82,16 +92,21 @@ fi
 
 OPTS=$(grep -m1 -E '^set -' "$INST")
 IFSL=$(grep -m1 -E '^IFS=' "$INST")
-FUNC=$(awk '/^join_sdsys_groups\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$INST")
+ASK=$(awk '/^# SDSYSGROUPS-ASK-BEGIN$/{f=1;next} /^# SDSYSGROUPS-ASK-END$/{f=0} f{print}' "$INST")
+FUNC=$(awk '/^sdsys_groups_ruling\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$INST")
 echo "installer : $INST"
 echo "options   : ${OPTS:-<none found>}   ${IFSL:-<no IFS line>}"
 [ -z "$OPTS" ] && { echo "test-install-sdsysgroups: CANNOT RUN - no set line in the installer"; exit 2; }
 [ -z "$IFSL" ] && { echo "test-install-sdsysgroups: CANNOT RUN - no IFS line in the installer"; exit 2; }
-[ -z "$FUNC" ] && { echo "test-install-sdsysgroups: CANNOT RUN - no function join_sdsys_groups in the installer (nothing to check)"; exit 2; }
-echo "function  : $(printf '%s\n' "$FUNC" | wc -l) lines"
+[ -z "$ASK" ] && { echo "test-install-sdsysgroups: CANNOT RUN - no SDSYSGROUPS-ASK block in the installer (nothing to check)"; exit 2; }
+[ -z "$FUNC" ] && { echo "test-install-sdsysgroups: CANNOT RUN - no function sdsys_groups_ruling in the installer (nothing to check)"; exit 2; }
+echo "block     : $(printf '%s\n' "$ASK" | wc -l) lines     function  : $(printf '%s\n' "$FUNC" | wc -l) lines"
 
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
-FUNC_T=$(printf '%s\n' "$FUNC" | sed -e "s#/home/sd/#$T/home/sd/#g" -e "s#/usr/local/sbin/sd-elevate#$T/bin/sd-elevate#g")
+rewrite() { sed -e "s#/home/sd/#$T/home/sd/#g" -e "s#/usr/local/sbin/sd-elevate#$T/bin/sd-elevate#g"; }
+ASK_T=$(printf '%s\n' "$ASK" | rewrite)
+FUNC_T=$(printf '%s\n' "$FUNC" | rewrite)
+printf '%s\n' "$ASK_T" | grep -q -F "$T/home/sd/" || { echo "test-install-sdsysgroups: CANNOT RUN - the question does not look at the marker in /home/sd"; exit 2; }
 printf '%s\n' "$FUNC_T" | grep -q -F "$T/bin/sd-elevate" || { echo "test-install-sdsysgroups: CANNOT RUN - the function does not call sd-elevate"; exit 2; }
 
 pass=0; fail=0
@@ -108,153 +123,181 @@ cat > "$T/bin/sd-elevate" <<'STUB'
 echo "$*" >> "$T/calls.log"
 verb=${1:-}; shift
 case $verb in
-  sdsys-join)
+  sdsys-leave)
     grp=${1:-}
-    if grep -qxF "$grp" "$T/stub-join-fail" 2>/dev/null; then echo "sd-elevate: REFUSED - stub: no for $grp" >&2; exit 2; fi
-    sed -i -e "s/^\($grp:[^:]*:[^:]*:\)\(.*\)\$/\1\2,sdsys/" "$T/etc/group"
-    echo "sd-elevate: usermod -aG $grp -- sdsys"; exit 0 ;;
-  group-write)
-    p=${1:-}
-    if grep -qxF "$p" "$T/stub-gw-fail" 2>/dev/null; then echo "sd-elevate: REFUSED - stub: no for $p" >&2; exit 2; fi
-    if grep -qxF "$p" "$T/stub-gw-silent" 2>/dev/null; then echo "sd-elevate: group-write $p (group x, gid 1; owners uid 1)"; exit 0; fi
-    if grep -qxF "$p" "$T/stub-gw-clean" 2>/dev/null; then echo "sd-elevate: group-write: 0 directories and 0 file(s) changed, 5 already right, 0 skipped"; exit 0; fi
-    echo "sd-elevate: group-write: 2 directories and 4 file(s) changed, 0 already right, 1 skipped"; exit 0 ;;
+    if grep -qxF "$grp" "$T/stub-leave-fail" 2>/dev/null; then echo "sd-elevate: REFUSED - stub: no for $grp" >&2; exit 2; fi
+    if grep -qxF "$grp" "$T/stub-leave-silent" 2>/dev/null; then echo "sd-elevate: stub did something"; exit 0; fi
+    if grep -qxF "$grp" "$T/stub-leave-notin" 2>/dev/null; then echo "sd-elevate: sdsys is not in $grp"; exit 0; fi
+    sed -i -e "/^$grp:/ { s/,sdsys\$//; s/:sdsys,/:/; s/,sdsys,/,/; s/:sdsys\$/:/ }" "$T/etc/group"
+    echo "sd-elevate: gpasswd -d sdsys $grp"; exit 0 ;;
 esac
 exit 3
 STUB
 chmod +x "$T/bin/sd-elevate"
 
 # ---- the fixture ---------------------------------------------------------------------------------------------------------
-UA="$T/home/sd/user_accounts"; GA="$T/home/sd/group_accounts"
-reg() {   # reg NAME PATH GROUP [DIRGROUP]  - a register record (line 1 path, line 2 blank, line 3 group) and the directory
-  mkdir -p "$T/reg"
-  printf '%s\n\n%s\n' "$2" "$3" > "$T/reg/$1"
-  if [ -n "${4:-}" ]; then mkdir -p "$2"; printf '%s\n' "$4" > "$2.group"; fi
-}
-build() {   # build SCENARIO: full | small | empty
-  rm -rf "$T/reg" "$T/home" "$T/etc" "$T/calls.log" "$T"/stub-*
-  mkdir -p "$UA" "$GA" "$T/etc" "$T/reg"
-  : > "$T/calls.log"
+MARKER="$T/home/sd/\$groups.ruled"
+build() {   # build SCENARIO: kept | quiet | fresh
+  rm -rf "$T/home" "$T/etc" "$T/calls.log" "$T/chown.log" "$T"/stub-*
+  mkdir -p "$T/home/sd" "$T/etc"
+  : > "$T/calls.log"; : > "$T/chown.log"
   case "$1" in
-    empty) ;;
-    small)
-      reg alice "$UA/alice" sdu_alice sdu_alice
-      reg bob "$UA/bob" sdu_bob sdu_bob
-      reg team "$GA/team" sdg_team sdg_team
-      printf 'sdu_alice:x:2001:alice\nsdu_bob:x:2002:bob,sdsys\nsdg_team:x:2003:sdsys,root\n' > "$T/etc/group"
-      printf '%s\n' "$UA/bob" > "$T/stub-gw-clean"
+    empty)
+      : > "$T/etc/group"
       ;;
-    full)
-      reg alice "$UA/alice" sdu_alice sdu_alice
-      reg bob "$UA/bob" sdu_bob sdu_bob
-      reg carol "$UA/carol" sdu_carol sdu_carol
-      reg dave "$UA/dave" sdu_dave sdu_dave
-      reg fred "$UA/fred" sdu_fred sdu_fred
-      reg team "$GA/team" sdg_team sdg_team
-      reg shared "$GA/shared" sdg_shared sdusers
-      reg other "$T/srv/other" sdu_other sdu_other
-      reg sdsys "$T/usr/local/sdsys" ""
-      reg "bad name" "$UA/badname" sdu_badname sdu_badname
-      reg UPPER "$UA/upper" sdu_upper sdu_upper
-      reg "%0" "$UA/pct" sdu_pct sdu_pct
-      reg .hidden "$UA/hidden" sdu_hidden sdu_hidden
-      printf 'sdu_alice:x:2001:alice\nsdu_bob:x:2002:bob,sdsys\nsdu_carol:x:2003:carol\nsdu_dave:x:2004:dave\nsdu_fred:x:2005:fred\nsdg_team:x:2006:sdsys,root\nsdg_shared:x:2007:sdsys,root\nsdu_other:x:2008:other\nsdu_badname:x:2009:x\nsdu_upper:x:2010:x\nsdu_pct:x:2011:x\nsdu_hidden:x:2012:x\n' > "$T/etc/group"
-      printf '%s\n' "sdu_carol" > "$T/stub-join-fail"
-      printf '%s\n' "$UA/dave" > "$T/stub-gw-fail"
-      printf '%s\n' "$UA/fred" > "$T/stub-gw-silent"
-      printf '%s\n' "$UA/bob" > "$T/stub-gw-clean"
+    kept)
+      printf 'sdusers:x:100:root,sdsys,alice,bob\nsdu_alice:x:2001:alice,sdsys\nsdu_bob:x:2002:bob\nsdu_carol:x:2003:carol,sdsys\nsdu_dave:x:2004:root,dave,sdsys\nsdu_eve:x:2005:eve,sdsys2\nsdu_fred:x:2006:xsdsys\nsdg_team:x:2007:sdsys,root\n' > "$T/etc/group"
+      printf '%s\n' "sdu_carol" > "$T/stub-leave-fail"
+      ;;
+    kept-clean)
+      printf 'sdusers:x:100:root,sdsys,alice,bob\nsdu_alice:x:2001:alice,sdsys\nsdu_bob:x:2002:bob\nsdu_carol:x:2003:carol,sdsys\nsdu_dave:x:2004:root,dave,sdsys\nsdu_eve:x:2005:eve,sdsys2\nsdu_fred:x:2006:xsdsys\nsdg_team:x:2007:sdsys,root\n' > "$T/etc/group"
+      ;;
+    quiet|fresh)
+      printf 'sdusers:x:100:root,sdsys,alice,bob\nsdu_alice:x:2001:alice\nsdu_bob:x:2002:bob\nsdu_eve:x:2005:eve,sdsys2\nsdu_fred:x:2006:xsdsys\nsdg_team:x:2007:sdsys,root\n' > "$T/etc/group"
       ;;
   esac
 }
-run_fn() {   # run_fn  - prints the function's output, then  AFTER rc=<n>  (the line after the call: reached only if the function did not stop the shell)
-  OPTS="$OPTS" IFSL="$IFSL" FUNC_T="$FUNC_T" T="$T" bash -c '
+HARNESS='
       eval "$OPTS"
       eval "$IFSL"
       RED=; NC=
       sudo() { "$@"; }
-      getent() { if [ "$1" = group ]; then grep -m1 "^$2:" "$T/etc/group" || return 2; else return 2; fi; }
-      stat() { if [ "${1:-}" = -c ] && [ "${2:-}" = "%G" ] && [ -f "${3:-}.group" ]; then cat "$3.group"; else command stat "$@"; fi; }
-      export T
+      getent() { if [ "$1" = group ]; then if [ -n "${2:-}" ]; then grep -m1 "^$2:" "$T/etc/group" || return 2; else cat "$T/etc/group"; fi; else return 2; fi; }
+      chown() { { printf "chown"; printf " %s" "$@"; echo; } >> "$T/chown.log"; }     # not "$*": under the installer'"'"'s IFS that joins with a newline
+      export T'
+run_ask() {   # run_ask  (stdin = the answer)  - prints the block's output, then  KEEP=<y|n> LISTED=<names>
+  OPTS="$OPTS" IFSL="$IFSL" ASK_T="$ASK_T" T="$T" bash -c "$HARNESS"'
+      eval "$ASK_T"
+      echo "KEEP=$sdsys_keep LISTED=$(printf "%s" "$sdsys_listed" | tr "\n" " ")"' 2>&1
+}
+run_fn() {   # run_fn KEEP  - prints the function's output, then  AFTER rc=<n>  (the line after the call: reached only if the function did not stop the shell)
+  OPTS="$OPTS" IFSL="$IFSL" FUNC_T="$FUNC_T" T="$T" KEEP="$1" MARKER="$MARKER" bash -c "$HARNESS"'
       eval "$FUNC_T"
-      join_sdsys_groups "$T/reg"
+      sdsys_groups_ruling "$MARKER" "$KEEP"
       echo "AFTER rc=$?"' 2>&1
 }
 calls() { cat "$T/calls.log"; }
 has_call() { calls | grep -q -x -F -- "$1" && echo yes; }
+members() { grep "^$1:" "$T/etc/group" | cut -d: -f4; }
+marker_mode() { stat -c %a "$MARKER" 2>/dev/null; }
 
-# ---- the full scenario ----------------------------------------------------------------------------------------------------------
-build full
-OUT=$(run_fn)
-echo "--- the full scenario, output:"; printf '%s\n' "$OUT" | sed -e 's/^/      /'
-echo "--- its calls:"; calls | sed -e 's/^/      /'
-[ "$(calls | wc -l)" -ge 8 ] || { echo "test-install-sdsysgroups: CANNOT RUN - the stub was called $(calls | wc -l) times; the function did not do the walk"; exit 2; }
-
-echo "--- A: who is put in a group"
-for g in sdu_alice sdu_dave sdu_fred sdu_other; do
-  row "A1 sdsys-join $g was asked for (the group lacks sdsys)" "$(ok "$(has_call "sdsys-join $g")")" "calls: $(calls | tr '\n' ';')"
+# ---- A: the question ----------------------------------------------------------------------------------------------------------
+echo "--- A: the question (up front)"
+build kept
+OUTN=$(printf 'n\n' | run_ask)
+echo "--- answered n, output:"; printf '%s\n' "$OUTN" | sed -e 's/^/      /'
+row "A1 the groups that list sdsys are counted from /etc/group as WHOLE names, user-account groups only: alice carol dave (not eve's sdsys2, fred's xsdsys, the group account team, sdusers) - 3 account(s)" \
+    "$(ok "$(printf '%s' "$OUTN" | grep -q 'group of 3 user account(s)' && printf '%s' "$OUTN" | grep -q 'LISTED=sdu_alice sdu_carol sdu_dave$' && echo yes)")" "$OUTN"
+row "A2 it says what the membership gives, what is delivered now, that it is asked once, and what n does" \
+    "$(ok "$(printf '%s' "$OUTN" | grep -q 'can write everything those groups may write' && printf '%s' "$OUTN" | grep -q 'in no user account.s group' && printf '%s' "$OUTN" | grep -q 'modify.account <account> sdsys-on' && printf '%s' "$OUTN" | grep -q 'asked once' && printf '%s' "$OUTN" | grep -q 'Answer n to take it out' && echo yes)")" "$OUTN"
+row "A3 the answer n is NO: keep stays n" "$(ok "$(printf '%s' "$OUTN" | grep -q '^KEEP=n ' && echo yes)")" "$OUTN"
+for a in y Y yes YES Yes; do
+  row "A4 the answer '$a' is yes: keep=y (the answer was READ: a y that was not consumed would leave n)" "$(ok "$(printf '%s\n' "$a" | run_ask | grep -q '^KEEP=y ' && echo yes)")" "$(printf '%s\n' "$a" | run_ask)"
 done
-row "A2 sdsys-join sdu_carol was asked for and its refusal did not stop the walk (her modes were asked for after it)" \
-    "$(ok "$(has_call 'sdsys-join sdu_carol' | grep -q yes && has_call "group-write $UA/carol" | grep -q yes && echo yes)")" "calls: $(calls | tr '\n' ';')"
-row "A3 sdu_bob already lists sdsys: NOT asked for again" "$(ok "$([ -z "$(has_call 'sdsys-join sdu_bob')" ] && echo yes)")" "calls: $(calls | tr '\n' ';')"
-row "A4 a group account's group (sdg_team, sdg_shared) is NEVER joined: sdsys is in it from the day it was made" \
-    "$(ok "$([ -z "$(calls | grep -E 'sdsys-join sdg_')" ] && echo yes)")" "calls: $(calls | tr '\n' ';')"
-row "A5 only sdu_ groups are ever asked for, and only by the verb sdsys-join: every sdsys-join call is  sdsys-join sdu_<name>  and the groups are exactly alice carol dave fred other" \
-    "$(ok "$([ "$(calls | grep '^sdsys-join' | sort | tr '\n' ' ')" = "sdsys-join sdu_alice sdsys-join sdu_carol sdsys-join sdu_dave sdsys-join sdu_fred sdsys-join sdu_other " ] && echo yes)")" "calls: $(calls | grep '^sdsys-join' | sort | tr '\n' ';')"
-echo "--- B: whose modes are asked for"
-for a in alice bob carol dave fred; do
-  row "B1 group-write was asked for $a's directory (its group is the register's group)" "$(ok "$(has_call "group-write $UA/$a")")" "calls: $(calls | tr '\n' ';')"
+for a in "" N no maybe yy ' y' "yes please" 1; do
+  row "A5 the answer '$a' is NO" "$(ok "$(printf '%s\n' "$a" | run_ask | grep -q '^KEEP=n ' && echo yes)")" "$(printf '%s\n' "$a" | run_ask)"
 done
-row "B2 group-write was asked for the group account team (directory group sdg_team = register group)" "$(ok "$(has_call "group-write $GA/team")")" "calls: $(calls | tr '\n' ';')"
-row "B3 NOT for shared (register sdg_shared, directory group sdusers: S.66's account is left as it is)" "$(ok "$([ -z "$(has_call "group-write $GA/shared")" ] && echo yes)")" "calls: $(calls | tr '\n' ';')"
-row "B4 NOT for an account whose path is outside /home/sd (other), nor sdsys's own record" \
-    "$(ok "$([ -z "$(calls | grep -E "group-write ($T/srv|$T/usr)")" ] && echo yes)")" "calls: $(calls | tr '\n' ';')"
-row "B5 only group-write calls with a directory directly under user_accounts or group_accounts, and exactly alice bob carol dave fred team" \
-    "$(ok "$([ "$(calls | grep '^group-write' | sort | tr '\n' ' ')" = "group-write $GA/team group-write $UA/alice group-write $UA/bob group-write $UA/carol group-write $UA/dave group-write $UA/fred " ] && echo yes)")" "calls: $(calls | grep '^group-write' | sort | tr '\n' ';')"
-echo "--- C: names the walk skips"
-row "C1 'bad name', UPPER, %0 and .hidden are skipped by name: no call mentions badname, upper, pct or hidden" \
-    "$(ok "$([ -z "$(calls | grep -E 'badname|upper|pct|hidden')" ] && echo yes)")" "calls: $(calls | tr '\n' ';')"
-echo "--- D: what it says"
-row "D1 it says plainly what the membership gives: write access to those files in every account" "$(ok "$(printf '%s' "$OUT" | grep -q 'write access to those files in every account' && echo yes)")" "$OUT"
-row "D2 it says each join that was made (alice) and each that was not (carol)" \
-    "$(ok "$(printf '%s' "$OUT" | grep -q 'sdsys is now in the group sdu_alice' && printf '%s' "$OUT" | grep -q 'sdsys could not be put in sdu_carol' && echo yes)")" "$OUT"
-row "D3 the summary counts: put in the group of 4 (alice dave fred other), in it already 1 (bob); modes made right for 3 (alice carol team), right already 1 (bob), left as they are 1 (shared)" \
-    "$(ok "$(printf '%s' "$OUT" | grep -q 'sdsys put in the group of 4 account(s); it was in 1 already.  Modes made right for 3 account(s); 1 were right already; 1 left as they are' && echo yes)")" "$OUT"
-row "D4 a refused group-write (dave) is named" "$(ok "$(printf '%s' "$OUT" | grep -q 'the VOC and dictionaries of dave could not be made group-writable' && echo yes)")" "$OUT"
-row "D5 a group-write that exits 0 and does NOT print its success line (fred) is not 'made right': it is named, and the summary does not count it" \
-    "$(ok "$(printf '%s' "$OUT" | grep -q 'fred: sd-elevate group-write did not say what it did' && echo yes)")" "$OUT"
-row "D6 the WARNING appears with the counts (1 group without sdsys, 2 accounts whose modes were not changed) and the commands that repair it" \
-    "$(ok "$(printf '%s' "$OUT" | grep -q 'WARNING: SDSYS cannot yet write master edits into every account: 1 group(s) without sdsys, 2 account(s) whose modes were not changed' && printf '%s' "$OUT" | grep -q 'sd-elevate sdsys-join <group>' && printf '%s' "$OUT" | grep -q 'sd-elevate group-write .*/home/sd/user_accounts/<account>' && echo yes)")" "$OUT"
-row "D7 the shell was NOT stopped by any of it: the line after the call ran, with status 0 (a failure is reported and the install goes on)" "$(ok "$(printf '%s' "$OUT" | grep -q '^AFTER rc=0$' && echo yes)")" "$OUT"
-
-# ---- the all-good scenario -------------------------------------------------------------------------------------------------------
-build small
-OUT2=$(run_fn)
-echo "--- the small scenario (nothing wrong), output:"; printf '%s\n' "$OUT2" | sed -e 's/^/      /'
-[ "$(calls | wc -l)" -ge 3 ] || { echo "test-install-sdsysgroups: CANNOT RUN - the small scenario made $(calls | wc -l) calls"; exit 2; }
-echo "--- E: when nothing is wrong"
-row "E1 no WARNING, and the summary counts one join (alice), one already (bob), modes made right for 2 (alice, team), one already right (bob)" \
-    "$(ok "$(! printf '%s' "$OUT2" | grep -q WARNING && printf '%s' "$OUT2" | grep -q 'sdsys put in the group of 1 account(s); it was in 1 already.  Modes made right for 2 account(s); 1 were right already; 0 left as they are' && echo yes)")" "$OUT2"
-row "E2 the calls are exactly: join alice; modes of alice, bob and team" \
-    "$(ok "$([ "$(calls | sort | tr '\n' ' ')" = "group-write $GA/team group-write $UA/alice group-write $UA/bob sdsys-join sdu_alice " ] && echo yes)")" "calls: $(calls | sort | tr '\n' ';')"
-row "E3 the shell went on (AFTER rc=0)" "$(ok "$(printf '%s' "$OUT2" | grep -q '^AFTER rc=0$' && echo yes)")" "$OUT2"
-
-# ---- the register is empty -------------------------------------------------------------------------------------------------------
+OUTE=$(run_ask < /dev/null)
+row "A6 NO INPUT AT ALL (a closed or empty input, no terminal): the answer is N, said in a line, and the shell goes on (the block printed its result)" \
+    "$(ok "$(printf '%s' "$OUTE" | grep -q 'No answer could be read: N.' && printf '%s' "$OUTE" | grep -q '^KEEP=n ' && echo yes)")" "$OUTE"
+row "A7 the same through a pipe that ends with no line (printf '' |)" "$(ok "$(printf '' | run_ask | grep -q '^KEEP=n ' && echo yes)")" "$(printf '' | run_ask)"
+: > "$MARKER"
+OUTM=$(printf 'y\n' | run_ask)
+row "A8 with the marker present nothing is asked and nothing is counted: the y that is fed is not read (KEEP stays n) and the question is not printed" \
+    "$(ok "$(printf '%s' "$OUTM" | grep -q '^KEEP=n LISTED=$' && ! printf '%s' "$OUTM" | grep -q 'user account(s)' && echo yes)")" "$OUTM"
+build quiet
+OUTQ=$(printf 'y\n' | run_ask)
+row "A9 when no user-account group lists sdsys (alice, bob, eve's sdsys2, fred's xsdsys, the group account, sdusers) nothing is asked: the y is not read, KEEP stays n" \
+    "$(ok "$(printf '%s' "$OUTQ" | grep -q '^KEEP=n LISTED=$' && ! printf '%s' "$OUTQ" | grep -q 'user account(s)' && echo yes)")" "$OUTQ"
 build empty
-OUT3=$(run_fn)
-row "F1 an empty register: no call, no WARNING, the shell goes on - and the summary says 0 and 0" \
-    "$(ok "$([ ! -s "$T/calls.log" ] && ! printf '%s' "$OUT3" | grep -q WARNING && printf '%s' "$OUT3" | grep -q 'put in the group of 0 account(s); it was in 0 already' && printf '%s' "$OUT3" | grep -q '^AFTER rc=0$' && echo yes)")" "$OUT3"
+OUTZ=$(printf 'y\n' | run_ask)
+row "A10 an empty /etc/group: nothing is asked, the block does not stop the shell" "$(ok "$(printf '%s' "$OUTZ" | grep -q '^KEEP=n LISTED=$' && echo yes)")" "$OUTZ"
+
+# ---- B: the act, the owner said no (or nothing) -------------------------------------------------------------------------------
+echo "--- B: the act, answer n (a helper refusal on carol)"
+build kept
+OUT=$(run_fn n)
+echo "--- output:"; printf '%s\n' "$OUT" | sed -e 's/^/      /'
+echo "--- its calls:"; calls | sed -e 's/^/      /'
+[ "$(calls | wc -l)" -ge 3 ] || { echo "test-install-sdsysgroups: CANNOT RUN - the stub was called $(calls | wc -l) times; the function did not do the walk"; exit 2; }
+for g in sdu_alice sdu_carol sdu_dave; do
+  row "B1 sdsys-leave $g was asked for (the group lists sdsys)" "$(ok "$(has_call "sdsys-leave $g")")" "calls: $(calls | tr '\n' ';')"
+done
+row "B2 nothing else was asked for: not bob (lacks sdsys), not eve's sdsys2 nor fred's xsdsys, not the group account team, not sdusers - the calls are exactly alice carol dave, verb sdsys-leave" \
+    "$(ok "$([ "$(calls | sort | tr '\n' ' ')" = "sdsys-leave sdu_alice sdsys-leave sdu_carol sdsys-leave sdu_dave " ] && echo yes)")" "calls: $(calls | sort | tr '\n' ';')"
+row "B3 the groups were changed as the stub does: alice and dave no longer list sdsys, dave still lists root and dave, bob's, eve's, fred's, team's and sdusers' lists are as they were" \
+    "$(ok "$([ "$(members sdu_alice)" = alice ] && [ "$(members sdu_dave)" = root,dave ] && [ "$(members sdu_bob)" = bob ] && [ "$(members sdu_eve)" = eve,sdsys2 ] && [ "$(members sdu_fred)" = xsdsys ] && [ "$(members sdg_team)" = sdsys,root ] && [ "$(members sdusers)" = root,sdsys,alice,bob ] && [ "$(members sdu_carol)" = carol,sdsys ] && echo yes)")" "$(cat "$T/etc/group" | tr '\n' ';')"
+row "B4 each one is said: alice and dave 'no longer in the group', carol 'could not be taken out' with the helper's last line" \
+    "$(ok "$(printf '%s' "$OUT" | grep -q 'the sdsys user is no longer in the group sdu_alice' && printf '%s' "$OUT" | grep -q 'the sdsys user is no longer in the group sdu_dave' && printf '%s' "$OUT" | grep -q 'the sdsys user could not be taken out of sdu_carol: sd-elevate: REFUSED - stub: no for sdu_carol' && echo yes)")" "$OUT"
+row "B5 the summary counts 2 of 3, and the WARNING names carol and the command that repairs it" \
+    "$(ok "$(printf '%s' "$OUT" | grep -q 'taken out of the group of 2 of 3 account(s)' && printf '%s' "$OUT" | grep -q 'WARNING: the sdsys user is still in the group of 1 account(s): sdu_carol' && printf '%s' "$OUT" | grep -q 'sd-elevate sdsys-leave <group>' && echo yes)")" "$OUT"
+row "B6 a refused group does NOT write the marker (running the installer again asks and tries again)" "$(ok "$([ ! -e "$MARKER" ] && [ ! -s "$T/chown.log" ] && echo yes)")" "marker: $(ls "$T/home/sd" | tr '\n' ' ') chown: $(cat "$T/chown.log")"
+row "B7 the shell was NOT stopped by the refusal: the line after the call ran, with status 0" "$(ok "$(printf '%s' "$OUT" | grep -q '^AFTER rc=0$' && echo yes)")" "$OUT"
+
+echo "--- C: the act, answer n, nothing refused"
+build kept-clean
+OUTC=$(run_fn n)
+row "C1 all three are taken out (alice carol dave) and no WARNING" \
+    "$(ok "$(printf '%s' "$OUTC" | grep -q 'taken out of the group of 3 of 3 account(s)' && ! printf '%s' "$OUTC" | grep -q WARNING && [ "$(calls | wc -l)" = 3 ] && echo yes)")" "$OUTC"
+row "C2 the marker is written: a file in /home/sd called \$groups.ruled, handed to sdsys:sdusers (chown asked for exactly that), mode 644" \
+    "$(ok "$([ -e "$MARKER" ] && [ "$(marker_mode)" = 644 ] && [ "$(cat "$T/chown.log")" = "chown sdsys:sdusers $MARKER" ] && echo yes)")" "mode=$(marker_mode) chown: $(cat "$T/chown.log")"
+row "C3 it says where the ruling was recorded" "$(ok "$(printf '%s' "$OUTC" | grep -q 'Recorded in .*groups.ruled' && echo yes)")" "$OUTC"
+OUTC2=$(run_fn n);
+row "C4 RUN AGAIN with the marker there it does nothing: no further call (still 3), the groups are as they were, and it says it was ruled on earlier" \
+    "$(ok "$([ "$(calls | wc -l)" = 3 ] && printf '%s' "$OUTC2" | grep -q 'ruled on at an earlier install' && printf '%s' "$OUTC2" | grep -q '^AFTER rc=0$' && echo yes)")" "$OUTC2"
+# an administrator turns it on for dave afterwards; the next install must not take it out again
+sed -i -e 's/^sdu_dave:x:2004:root,dave$/sdu_dave:x:2004:root,dave,sdsys/' "$T/etc/group"
+OUTC3=$(run_fn n)
+row "C5 THE POINT OF THE MARKER: sdsys-on for dave after the ruling (the group lists sdsys again), then an install with the answer n and no tty: still no call, dave still lists sdsys" \
+    "$(ok "$([ "$(calls | wc -l)" = 3 ] && [ "$(members sdu_dave)" = root,dave,sdsys ] && echo yes)")" "calls: $(calls | tr '\n' ';') members: $(members sdu_dave)"
+
+echo "--- D: the act, answer y"
+build kept
+OUTY=$(run_fn y)
+row "D1 the answer y changes NOTHING: no call, every group as it was, the marker written, and it says the sdsys user stays in 3 account(s)" \
+    "$(ok "$([ ! -s "$T/calls.log" ] && [ "$(members sdu_alice)" = alice,sdsys ] && [ "$(members sdu_dave)" = root,dave,sdsys ] && [ -e "$MARKER" ] && printf '%s' "$OUTY" | grep -q 'stays in the group of 3 account(s), as you answered' && printf '%s' "$OUTY" | grep -q '^AFTER rc=0$' && echo yes)")" "$OUTY"
+row "D2 the marker is written in that case too (so the next install does not ask again), owner sdsys:sdusers, mode 644" \
+    "$(ok "$([ "$(marker_mode)" = 644 ] && [ "$(cat "$T/chown.log")" = "chown sdsys:sdusers $MARKER" ] && echo yes)")" "mode=$(marker_mode) chown: $(cat "$T/chown.log")"
+
+echo "--- E: a fresh install, and one that finds the sdsys user in no group"
+build fresh
+OUTF=$(run_fn n)
+row "E1 nothing lists sdsys: no call to the helper, the marker is written (a LATER sdsys-on stands), no WARNING, and it says the sdsys user is in no user account's group" \
+    "$(ok "$([ ! -s "$T/calls.log" ] && [ -e "$MARKER" ] && ! printf '%s' "$OUTF" | grep -q WARNING && printf '%s' "$OUTF" | grep -q 'in no user account.s group, as delivered' && printf '%s' "$OUTF" | grep -q '^AFTER rc=0$' && echo yes)")" "$OUTF"
+row "E2 the groups are as they were (the group account team and sdusers still list sdsys)" "$(ok "$([ "$(members sdg_team)" = sdsys,root ] && [ "$(members sdusers)" = root,sdsys,alice,bob ] && echo yes)")" "$(cat "$T/etc/group" | tr '\n' ';')"
+build empty
+OUTZ2=$(run_fn n)
+row "E3 an empty /etc/group: the marker is written and nothing else happens" "$(ok "$([ -e "$MARKER" ] && [ ! -s "$T/calls.log" ] && printf '%s' "$OUTZ2" | grep -q '^AFTER rc=0$' && echo yes)")" "$OUTZ2"
+
+echo "--- F: what the helper may answer"
+build kept-clean
+printf '%s\n' "sdu_alice" > "$T/stub-leave-silent"
+printf '%s\n' "sdu_dave" > "$T/stub-leave-notin"
+OUTS=$(run_fn n)
+row "F1 exit 0 WITHOUT the command line or the 'not in' line (alice) is NOT 'taken out': named in the WARNING, no marker" \
+    "$(ok "$(printf '%s' "$OUTS" | grep -q 'could not be taken out of sdu_alice' && printf '%s' "$OUTS" | grep -q 'WARNING: the sdsys user is still in the group of 1 account(s): sdu_alice' && [ ! -e "$MARKER" ] && echo yes)")" "$OUTS"
+row "F2 'sdsys is not in GROUP' (dave, changed by somebody else in between) counts as taken out" "$(ok "$(printf '%s' "$OUTS" | grep -q 'the sdsys user is no longer in the group sdu_dave' && echo yes)")" "$OUTS"
 
 # ---- static ----------------------------------------------------------------------------------------------------------------------
 echo "--- S: static"
-CALLS_IN_FN=$(printf '%s\n' "$FUNC" | grep -c 'sd-elevate')
-row "S1 the function calls sd-elevate with two verbs only (sdsys-join and group-write) and by its full path" \
-    "$(ok "$(printf '%s\n' "$FUNC" | grep -o 'sbin/sd-elevate [a-z-]*' | sort -u | tr '\n' ' ' | grep -q -x -F 'sbin/sd-elevate group-write sbin/sd-elevate sdsys-join ' && echo yes)")" "$(printf '%s\n' "$FUNC" | grep -o 'sbin/sd-elevate [a-z-]*' | sort -u | tr '\n' ' ')"
-row "S2 the function never exits the install (no exit, no return 1)" "$(ok "$(printf '%s\n' "$FUNC" | grep -E '(^|[^a-z_])(exit|return 1)([^a-z_]|$)' | grep -v '^ *#' | grep -q . || echo yes)")" ""
-LINE_CALL=$(grep -n -x 'join_sdsys_groups "\$sdsysdir/accounts"' "$INST" | cut -d: -f1)
+row "S1 the function calls sd-elevate with ONE verb, sdsys-leave, and by its full path; the question calls nothing" \
+    "$(ok "$(printf '%s\n' "$FUNC" | grep -o 'sbin/sd-elevate [a-z-]*' | sort -u | tr '\n' ' ' | grep -q -x -F 'sbin/sd-elevate sdsys-leave ' && ! printf '%s\n' "$ASK" | grep -q 'sd-elevate' && echo yes)")" "$(printf '%s\n' "$FUNC" | grep -o 'sbin/sd-elevate [a-z-]*' | sort -u | tr '\n' ' ')"
+row "S2 neither the block nor the function names the old verbs: no sdsys-join, no group-write" \
+    "$(ok "$(! printf '%s\n%s\n' "$ASK" "$FUNC" | grep -v '^ *#' | grep -q -E 'sdsys-join|group-write' && echo yes)")" ""
+row "S3 the function never exits the install (no exit, no return 1)" "$(ok "$(printf '%s\n' "$FUNC" | grep -E '(^|[^a-z_])(exit|return 1)([^a-z_]|$)' | grep -v '^ *#' | grep -q . || echo yes)")" ""
+CALLS_N=$(grep -c -x 'sdsys_groups_ruling "\$ACCT_PATH/\\\$groups.ruled" "\$sdsys_keep"' "$INST")
+LINE_CALL=$(grep -n -x 'sdsys_groups_ruling "\$ACCT_PATH/\\\$groups.ruled" "\$sdsys_keep"' "$INST" | cut -d: -f1)
 LINE_EDIT=$(grep -n 'RUN gpl.bp upgrade_editgates' "$INST" | head -1 | cut -d: -f1)
 LINE_MASTERS=$(grep -n 'RUN gpl.bp upgrade_masters' "$INST" | head -1 | cut -d: -f1)
-row "S3 the walk is called once, with the live register, after the edit gates are kept and BEFORE the master files are filled" \
-    "$(ok "$([ "$(grep -c -x 'join_sdsys_groups "\$sdsysdir/accounts"' "$INST")" = 1 ] && [ -n "$LINE_CALL" ] && [ -n "$LINE_EDIT" ] && [ -n "$LINE_MASTERS" ] && [ "$LINE_EDIT" -lt "$LINE_CALL" ] && [ "$LINE_CALL" -lt "$LINE_MASTERS" ] && echo yes)")" "edit=$LINE_EDIT call=$LINE_CALL masters=$LINE_MASTERS"
+LINE_ASK=$(grep -n -x '# SDSYSGROUPS-ASK-BEGIN' "$INST" | cut -d: -f1)
+LINE_CREDS=$(grep -n -x 'if ! sudo -v; then' "$INST" | head -1 | cut -d: -f1)
+LINE_NOTE=$(grep -n -x 'echo "Ruling on the sdsys user.s place in the groups of the user accounts."' "$INST" | cut -d: -f1)
+row "S4 the ruling is called once, with the marker in /home/sd (ACCT_PATH) and the answer of the question, after the edit gates are kept and BEFORE the master files are filled" \
+    "$(ok "$([ "$CALLS_N" = 1 ] && [ -n "$LINE_CALL" ] && [ -n "$LINE_EDIT" ] && [ -n "$LINE_MASTERS" ] && [ "$LINE_EDIT" -lt "$LINE_CALL" ] && [ "$LINE_CALL" -lt "$LINE_MASTERS" ] && [ -n "$LINE_NOTE" ] && [ "$LINE_NOTE" -lt "$LINE_CALL" ] && echo yes)")" "calls=$CALLS_N edit=$LINE_EDIT call=$LINE_CALL masters=$LINE_MASTERS"
+row "S5 the question is asked UP FRONT, with the others and before the first sudo, so that the rest of the install runs unattended" \
+    "$(ok "$([ -n "$LINE_ASK" ] && [ -n "$LINE_CREDS" ] && [ "$LINE_ASK" -lt "$LINE_CREDS" ] && echo yes)")" "ask=$LINE_ASK sudo -v=$LINE_CREDS"
+row "S6 the marker is the same file in the question and in the call, and it is NOT in the sdsys directory (deletesdcore.sh removes that directory on every cycle, which would lose the ruling)" \
+    "$(ok "$(printf '%s\n' "$ASK" | grep -q -F '/home/sd/\$groups.ruled' && grep -q -F '"$ACCT_PATH/\$groups.ruled"' "$INST" && ! grep -v '^ *#' "$INST" | grep -q -F 'sdsysdir/\$groups.ruled' && echo yes)")" ""
 
 echo
 echo "test-install-sdsysgroups: $pass passed, $fail failed"
