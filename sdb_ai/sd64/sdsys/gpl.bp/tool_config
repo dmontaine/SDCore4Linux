@@ -6,6 +6,7 @@
 *
 * START-HISTORY:
 * 25 Oct 26 dm  New.
+* 25 Oct 26 dm  A file path too long for the top line loses its front ('...'), no longer the counts after it.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -322,7 +323,12 @@ draw.top:
       if file.err # '' then
          s = file.err
       end else
-         s = 'File: ' : conf.path : '   Parameters in it: ' : nin : '   Differ from what SD is running with: ' : ndiff : '   Need a restart: ' : nrestart
+         cnt.txt = '   Parameters in it: ' : nin : '   Differ from what SD is running with: ' : ndiff : '   Need a restart: ' : nrestart
+*        the counts are what the administrator acts on: a long path loses its front, never the counts
+         fpath = conf.path
+         room = 128 - 6 - len(cnt.txt)
+         if len(fpath) > room then fpath = '...' : fpath[len(fpath) - room + 4, room - 3]
+         s = 'File: ' : fpath : cnt.txt
       end
    end
    screen text s[1, 128] at 3,2 attr 'bold' width 128

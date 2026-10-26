@@ -128,17 +128,28 @@ def parse_sc(out):
     return groups
 
 
+SEEN = []   # what read_ak_header looked at last: (path, first four bytes in hex), for the detail of a row that finds nothing
+
+
 def read_ak_header(box, tag):
     """(magic, flags) of the first index subfile of fixture `tag`, read from the disk; None when it cannot be found"""
-    acct = os.path.join(box, "user_accounts")
-    for path in sorted(glob.glob(os.path.join(acct, fname(tag), "*")) + glob.glob(os.path.join(acct, fname(tag) + "*"))):
-        if os.path.isfile(path):
-            with open(path, "rb") as fh:
-                head = fh.read(4)
-            if len(head) == 4:
-                magic, flags = struct.unpack("<HH", head)
-                if magic in (MAGIC_OLD, MAGIC_NEW):
-                    return path, magic, flags
+    del SEEN[:]
+    # the session's own account is where CREATE.FILE puts the fixture: SDSYS's directory (sys) as the administrator, user_accounts otherwise.
+    # File names are lower case on disk whatever case CREATE.FILE was given.
+    for d in ("sys", "user_accounts"):
+        acct = os.path.join(box, d)
+        low = fname(tag).lower()
+        for path in sorted(glob.glob(os.path.join(acct, low, "*")) + glob.glob(os.path.join(acct, low + "*"))):
+            if os.path.isfile(path):
+                with open(path, "rb") as fh:
+                    head = fh.read(4)
+                SEEN.append((path[len(box) + 1:], head.hex()))
+                if len(head) == 4:
+                    magic, flags = struct.unpack("<HH", head)
+                    if magic in (MAGIC_OLD, MAGIC_NEW):
+                        return path, magic, flags
+    if not SEEN:
+        SEEN.append(("no file named for the fixture under sys or user_accounts; sys holds", sorted(f for f in os.listdir(os.path.join(box, "sys")) if f.startswith("zz"))[:12]))
     return None
 
 
@@ -242,7 +253,7 @@ def main():
         row("M3: BUILT and WRITTEN are the same (no id lost by the build)", built is not None and written is not None and [i for _, i in built] == [i for _, i in written])
         hdr = read_ak_header(box, "M2")
         row("M4: the index subfile on disk has the new magic number 209E and the AK_V2 flag", hdr is not None and hdr[1] == MAGIC_NEW and (hdr[2] & AK_V2) != 0,
-            "header %r" % (hdr,))
+            "header %r, files seen %r" % (hdr, SEEN))
 
         say("\n--- numbers only: the query through the index equals the query on the records -------------------------------------")
         sess(box, "RUN bp zzaow_n1", "CREATE.INDEX %s AMT" % fname("N1"), "BUILD.INDEX %s AMT" % fname("N1"))
@@ -276,7 +287,7 @@ def main():
         sess(box, "RUN bp zzaow_l1", "CREATE.INDEX %s AMT" % fname("L1"), "BUILD.INDEX %s AMT" % fname("L1"))
         h = read_ak_header(box, "L1")
         if h is None:
-            row("L0: the new empty index of the legacy fixture can be found on disk", False)
+            row("L0: the new empty index of the legacy fixture can be found on disk", False, "files seen %r" % (SEEN,))
         else:
             path, mg, fl = h
             patch_ak_header(path, MAGIC_OLD, AK_V2)
@@ -299,7 +310,7 @@ def main():
         g = parse_sc(sess(box, "RUN bp zzaos_a1"))
         say("    left justified: %r" % g)
         keys = [k for k, _ in g or []]
-        row("L5: a LEFT justified index keeps the old magic 209C and sorts by bytes", h is not None and h[1] == MAGIC_OLD and keys == ["", "10", "9", "B", "a", "b"], "header %r keys %r" % (h, keys))
+        row("L5: a LEFT justified index keeps the old magic 209C and sorts by bytes", h is not None and h[1] == MAGIC_OLD and keys == ["", "10", "9", "B", "a", "b"], "header %r keys %r, files seen %r" % (h, keys, SEEN))
     finally:
         say("\n--- cleanup -------------------------------------------------------------------------------------")
         sess(box, *["DELETE.FILE %s" % f for f in files])

@@ -94,6 +94,16 @@ def conf_path():
     return os.path.join(sh.BOX, "sd.conf")
 
 
+def shows_path(top):
+    """The top line shows the file whole, or - when the path is too long for the line, as under regress.sh's long scratch
+    directory - as '...' and the end of it.  Anything else (another file, a cut that is not the end) is not a pass."""
+    m = re.search(r"File: (\S+)", top)
+    if not m:
+        return False
+    shown, path = m.group(1), conf_path()
+    return shown == path or (shown.startswith("...") and len(shown) > 3 and path.endswith(shown[3:]))
+
+
 def read_conf():
     return open(conf_path(), encoding="latin-1").read()
 
@@ -328,8 +338,8 @@ def section_c1(rows, kinds):
     arow("C1b", "opening the page wrote one audit line, 'tool start app=tool.config', and no other 'tool' line", len(mine) == 1 and mine[0].endswith("tool start app=tool.config"), repr(mine))
     filev = file_values(read_conf(), kinds)
     top = p.top()
-    arow("C1c", "the top box names the file as SD_CONFIG gives it, how many parameters it sets (%d), and says none differs and no restart is needed" % len(filev),
-         ("File: " + conf_path()) in top and ("Parameters in it: %d" % len(filev)) in top and "Differ from what SD is running with: 0" in top and "Need a restart: 0" in top and "Names in the file that SD does not know: none" in top, top[:300])
+    arow("C1c", "the top box names the file as SD_CONFIG gives it (a path too long for the line shows as '...' and its end, never at the cost of the counts), how many parameters it sets (%d), and says none differs and no restart is needed" % len(filev),
+         shows_path(top) and ("Parameters in it: %d" % len(filev)) in top and "Differ from what SD is running with: 0" in top and "Need a restart: 0" in top and "Names in the file that SD does not know: none" in top, top[:300])
     seen = p.collect()
     ok, detail = check_rows(seen, rows, forced, filev, kinds)
     arow("C1d", "every parameter of the table has a row: the running value, the file's value, the default, when it takes effect and the status are the probe's, the Python reader's and the table's, and no row is marked *", ok and not any(s["mark"] for s in seen.values()), detail)
