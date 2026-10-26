@@ -24,6 +24,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -43,7 +44,7 @@ E = "\x1b"
 KEYS = {"up": E + "[A", "down": E + "[B", "right": E + "[C", "left": E + "[D", "home": E + "[1~", "end": E + "[4~", "pgup": E + "[5~", "pgdn": E + "[6~", "tab": "\t",
         "btab": E + "[Z", "f2": E + "[[B", "f3": E + "[[C", "f4": E + "[[D", "f5": E + "[[E", "f6": E + "[17~", "f10": E + "[21~", "enter": "\r", "esc": E, "ctrl-q": "\x11", "bs": "\x7f"}
 # a cell inside each tile, on the row of its label, found by the layout of the first screen (13.10): the Tools group at the top, Everyone under it, the header tiles
-TILE = {"Editor": (10, 5), "IDE": (10, 27), "Record editor": (10, 51), "Terminal": (17, 5), "Keys": (17, 51), "Switch account": (2, 100), "Sign out": (2, 122)}
+TILE = {"Editor": (10, 5), "IDE": (10, 27), "Record editor": (10, 51), "Terminal": (17, 5), "Keys": (17, 51), "Files": (24, 5), "Vocabulary": (24, 27), "Switch account": (2, 100), "Sign out": (2, 122)}
 BOX = SYS = None
 THEBOX = None
 
@@ -294,7 +295,8 @@ def main():
             "arrows move" in h.line(39) and h.line(40).startswith("[Home]") and set(h.line(41)) == {"-"} and h.line(42) == "Enter start  F5 refresh  F10 menu  ^Q sign out", repr((h.line(39)[:30], h.line(40), h.line(42))))
         row("row 0: the menu bar File Go View AI Help at the left, 'home  don@zzhm' at the right", h.line(0).startswith(" File  Go  View  AI  Help") and h.line(0).endswith("home  don@zzhm"), repr(h.line(0)))
         row("the focus starts on the first tile of the page (Editor): one tile in reverse video", h.focus() == ["Editor"], repr(h.focus()))
-        seq = [("right", "IDE"), ("right", "Record editor"), ("left", "IDE"), ("down", "Terminal"), ("right", "Keys"), ("left", "Terminal"), ("up", "Editor"), ("down", "Terminal"), ("home", "Editor"), ("end", "Keys"),
+        # Vocabulary (24,27) is the only tile in IDE's columns below it, so Down from IDE goes to it (a tile that shares columns comes before one that does not: Terminal is narrower than two columns)
+        seq = [("right", "IDE"), ("right", "Record editor"), ("left", "IDE"), ("down", "Vocabulary"), ("up", "IDE"), ("left", "Editor"), ("down", "Terminal"), ("right", "Keys"), ("left", "Terminal"), ("up", "Editor"), ("down", "Terminal"), ("home", "Editor"), ("end", "Vocabulary"),
                ("home", "Editor"), ("tab", "IDE"), ("btab", "Editor"), ("btab", "Sign out"), ("tab", "Editor")]
         bad = []
         for k, want in seq:
@@ -331,6 +333,36 @@ def main():
         T = h.text()
         row("the administrator is given the home screen too (the system default is menu): group 'Tools' (not 'My tools'), the identity 'administrator', the right end of row 0 'home  administrator'",
             h.home() and "Tools" in T and "My tools" not in T and h.line(2).strip().startswith("administrator") and h.line(0).endswith("home  administrator"), repr((h.line(0)[-24:], h.line(2)[:30])))
+        adm_labels = ["Menu management", "Bypass programs", "Audit trail", "Configuration", "Backups", "Master files", "Accounts", "Sessions and locks", "Gates", "Remote servers", "AI"]
+        row("the administrator's first screen has a tile for each of the eleven administrator pages, in the groups System, People and access and Data, network and AI, and Tools and Everyone are on it too (no scrolling)",
+            all(l in T for l in adm_labels) and all(t in T for t in ("System", "People and access", "Data, network and AI", "Tools", "Everyone", "My programs", "Editor", "Terminal")), repr([l for l in adm_labels if l not in T]))
+        nacc = len([a for a in os.listdir(os.path.join(SYS, "accounts")) if a != "sdsys"])
+        row("the live lines: Accounts says how many accounts there are (%d on the disk, SDSYS not counted), Sessions and locks how many are signed on (the one session), Master files that nothing is set up; each in place of the tile's static line" % nacc,
+            ("%d accounts" % nacc) in T and "1 signed on" in T and "not set up" in T and "create and manage" not in T and "who is on" not in T and "shared copies" not in T, repr(re.findall(r"\d+ accounts|\d+ signed on|not set up|nothing pending", T)))
+        h2 = H(admin=True)
+        h.key("f5", idle=2.0)
+        row("a second administrator session signs on and F5 reads the lines again: Sessions and locks now says 2 signed on",
+            h.home() and "2 signed on" in h.text(), repr(re.findall(r"\d+ signed on", h.text())))
+        h2.end()
+        # The lines are read again each time the key wait runs out (30 seconds without a key).  PtySession._pump(wait) returns as soon as the FIRST byte is ready, not after `wait`
+        # seconds (the page's clock redraw at a tick ends it at once), so the wait is a deadline: up to 100 seconds, which holds three readings, until the tile says 1 signed on.
+        seen = []
+        t_end = time.time() + 100.0
+        while time.time() < t_end and "1 signed on" not in h.text():
+            h.s._pump(0.5)
+        seen.append(re.findall(r"\d+ signed on", h.text()))
+        row("the key wait runs out (30 seconds) and the lines are read without a key: the second session has gone, the tile says 1 signed on again, and the page is still whole",
+            h.home() and "1 signed on" in h.text() and "2 signed on" not in h.text(),
+            repr((seen, "second session exited=%s killed=%s" % (h2.s.exited, getattr(h2.s, "killed", None)), [l for l in adm("LISTU") if "sdsys" in l])))
+        h.end()
+        h = H(admin=True)
+        h.typed("s", idle=0.4)
+        h.key("enter", idle=2.5)
+        T = h.text()
+        row("a tile starts its page: S moves to Sessions and locks, Enter opens tool.sessions (its boxes 'Locks' and 'The row under the cursor', not the home screen)",
+            "The row under the cursor" in T and "Locks" in T and not h.home(), T[:200])
+        h.typed("\x11", idle=1.5)
+        row("...Ctrl-Q ends the page and the home screen is drawn again", h.home(), h.text()[:200])
         h.end()
 
         say("\n--- no colour: a vt100")
@@ -366,10 +398,23 @@ def main():
         row("IDE (Enter): the IDE takes the terminal (its menu bar is on the screen) and not the home screen", "File" in h.line(0) and "Go" in h.line(0) and "Switch account" not in T, repr(h.line(0)[:60]))
         h.typed("\x11", idle=1.2)
         row("Ctrl-Q ends the IDE and the home screen is drawn again, with the IDE tile still the one selected (not the first tile)", h.home() and h.focus() == ["IDE"], repr((h.home(), h.focus())))
-        h.key("end")
+        h.typed("k", idle=0.4)                                  # a letter goes to the next tile whose label begins with it (End is the last tile, which is a Develop tile now)
         h.key("enter", idle=1.8)
-        row("Keys (Enter): tool.keys is on the screen", "Last keys" in h.text(), h.text()[:200])
+        row("Keys (K, Enter): tool.keys is on the screen", "Last keys" in h.text(), h.text()[:200])
         h.typed("\x11", idle=1.2)
+        row("...Ctrl-Q ends it and the home screen is drawn again", h.home(), h.text()[-200:])
+        row("the page has a group 'Develop' under Everyone with the tile Files (the development tools of every account)", "Develop" in h.text() and "Files" in h.text() and h.text().find("Develop") > h.text().find("Everyone"), h.text()[-600:])
+        h.typed("f", idle=0.4)
+        h.key("enter", idle=2.5)
+        T = h.text()
+        row("Files (F, Enter): tool.files is on the screen (its box 'The file under the cursor'), not the home screen", "The file under the cursor" in T and not h.home(), T[:200])
+        h.typed("\x11", idle=1.5)
+        row("...Ctrl-Q ends it and the home screen is drawn again", h.home(), h.text()[-200:])
+        h.typed("v", idle=0.4)
+        h.key("enter", idle=2.5)
+        T = h.text()
+        row("Vocabulary (V, Enter): tool.voc is on the screen (its box 'The entry under the cursor'), not the home screen", "The entry under the cursor" in T and not h.home(), T[:200])
+        h.typed("\x11", idle=1.5)
         row("...Ctrl-Q ends it and the home screen is drawn again", h.home(), h.text()[-200:])
         h.end()
 

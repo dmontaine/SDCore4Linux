@@ -1,5 +1,5 @@
 {
- "chunk_count": 4224,
+ "chunk_count": 4226,
  "development": "the changelog's 'Next release - in progress' section is part of this tree",
  "gaps": {
   "basic_names_without_a_docs_syntax_line": [
@@ -110,7 +110,7 @@
   },
   "message": {
    "chunks": 2710,
-   "sha256": "15b1db23c60e225ac1a02118f74b727acbdc223baf5cbe9965685783b34b31cc"
+   "sha256": "065210dbc13a07f98689c3152fedced019ee0a97c965f8db9d6665497188f8b8"
   },
   "sys.keys": {
    "chunks": 41,
@@ -137,8 +137,8 @@
    "sha256": "de692e3476206a4f814824cbf01bdcedf465a645a0655c05745c653fca6fe72f"
   },
   "tcl.verb": {
-   "chunks": 218,
-   "sha256": "d17466a1af3d0ae2a655bbe84aeb4f106ee188cbfa76e6e9efd1a9e57db60209"
+   "chunks": 220,
+   "sha256": "c20d636b9b48bf020c0bc4f37a54e79b6dd76a607807bbc2371fc3724dfe6dcc"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -150,7 +150,7 @@
   },
   "voc.layer": {
    "chunks": 2,
-   "sha256": "1993cb5a381614c0e9dcddd37e6e203e80f67c9a78d639b615ff9aeb92cafb6e"
+   "sha256": "af1443c20c92924344cd5dc70ede4f9b54eb2dccdcacd886a9180db6440f626a"
   },
   "voc.type": {
    "chunks": 9,
@@ -180,7 +180,7 @@
    "words": 1348
   },
   "index.json": {
-   "sha256": "021969d10fd2385517802684a8480683dad11c16c71a4c4fc7e22389a110c822"
+   "sha256": "81316ed427b342ccd3ed71f20fb1afc8ca5b25266603fb9b1aa7b62b1ed69c8c"
   },
   "reference/basic-functions.md": {
    "chunks": 293,
@@ -204,8 +204,8 @@
   },
   "reference/messages.md": {
    "chunks": 2710,
-   "sha256": "4f27a640e1b559a454b493d2d0513c172eed2a860c081543b18d7b95d2974c66",
-   "words": 33709
+   "sha256": "b68c4a32d8dffe45c4ab1eca9fc58f19826fd659ee95d5b42bee91d12ff50b57",
+   "words": 33711
   },
   "reference/system-keys.md": {
    "chunks": 41,
@@ -223,13 +223,13 @@
    "words": 12513
   },
   "reference/tcl-verbs.md": {
-   "chunks": 222,
-   "sha256": "3307dea9b5ef9c4993fd77f7c955cffada50cc2c69545e9530f5d191476eb6b3",
-   "words": 9480
+   "chunks": 224,
+   "sha256": "679eda90c21a189cf4cfa3afc6d1f312dd3407f3272f5e956009729a9c42c9d9",
+   "words": 9680
   },
   "reference/voc.md": {
    "chunks": 12,
-   "sha256": "d0426355a44324f6ab3f969ddda772d8bbf2d7c0c4cc25d14c5efada7bc30aa2",
+   "sha256": "5e545196d743ea6f128be953690b6cedf6e194385c965d876943939cd2d7bb04",
    "words": 1861
   }
  },

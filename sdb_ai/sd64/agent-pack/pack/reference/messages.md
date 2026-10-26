@@ -7525,7 +7525,7 @@ cited by: `tool_home`
 Press Enter to return to the home screen
 ```
 
-cited by: `tool_accounts`, `tool_ai`, `tool_home`, `tool_remote`
+cited by: `tool_accounts`, `tool_ai`, `tool_files`, `tool_home`, `tool_remote`, `tool_voc`
 
 ### msg:11866
 > kind=message tier=reference since=- src=sdsys/messages/11866:1#40549194

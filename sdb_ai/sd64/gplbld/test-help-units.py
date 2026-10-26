@@ -56,6 +56,8 @@ def load():
     src["tool_backups"] = read(os.path.join(GPL, "tool_backups"))     # 25 Oct 26, S.75 A8: the backups page asks for tool.backups.page
     src["tool_accounts"] = read(os.path.join(GPL, "tool_accounts"))   # 25 Oct 26, S.75 A3: the accounts page asks for tool.accounts.page
     src["tool_remote"] = read(os.path.join(GPL, "tool_remote"))       # 25 Oct 26, S.75 A9: the remote access page asks for tool.remote.page
+    src["tool_files"] = read(os.path.join(GPL, "tool_files"))         # 26 Oct 26, S.75 DV1: the files page asks for tool.files.page
+    src["tool_voc"] = read(os.path.join(GPL, "tool_voc"))             # 26 Oct 26, S.75 DV3: the VOC page asks for tool.voc.page
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
     for name in sorted(os.listdir(HELP)):
         src["ht." + name] = read(os.path.join(HELP, name))
@@ -150,7 +152,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|masters|audit|config|backups|accounts|remote)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_masters"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"])))
+    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|masters|audit|config|backups|accounts|remote|files|voc)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_masters"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"]) + "\n" + strip(s["tool_files"]) + "\n" + strip(s["tool_voc"])))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 13 and not (asked - set(hts)), repr(sorted(asked - set(hts))))
@@ -210,6 +212,18 @@ def checks(s):
     ck("P17j tool.remote: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only remote.api, remote.ssh and delete.server through the routine (set.server is the verb's on the terminal), and wraps with $tk_wrap",
        "call $tk_help('mark', 134, 2, 0, 0)" in trm and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.remote.page', hm, 0, 0)" in trm and "call $tk_help('hit', mev, 134, 2, hit.m)" in trm
        and "allow = 'remote.api remote.ssh delete.server'" in trm and trm.count("allow = ") == 1 and "tool.remote.page" in hts and "call $tk_confirm(sent, el, typed, res, cmsg)" in trm and "call $tk_wrap(lines<i>, 134, pieces)" in trm and "rest[cut" not in trm)
+
+    tfl = strip(s["tool_files"])
+    ck("P17k tool.files: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only create.file, clear.file and delete.file through $tk_run and hands the terminal to analyse.file, list.index and list.triggers only, and Clear and Delete ask for the file's name typed",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tfl and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.files.page', hm, 0, 0)" in tfl and "call $tk_help('hit', mev, 134, 2, hit.m)" in tfl
+       and "   allow = 'create.file clear.file delete.file'" in tfl and "show.allow = 'analyse.file list.index list.triggers'" in tfl and tfl.count("allow = ") == 2 and "tool.files.page" in hts
+       and tfl.count("call $tk_confirm(sent, lines, fn, res, cmsg)") == 2 and "call $tk_confirm(sent, lines, '', res, cmsg)" in tfl and "call $tk_run(allow, sent, out, stat, rerr)" in tfl)
+
+    tvc = strip(s["tool_voc"])
+    ck("P17l tool.voc: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only delete through $tk_run after a box that asks the entry's id typed, and hands the terminal to nothing but sed voc <id> of an id that passed the character check",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tvc and "call $tk_help('box', 'tool.voc.page', hm, 0, 0)" in tvc and "call $tk_help('hit', mev, 134, 2, hit.m)" in tvc
+       and "   allow = 'delete'" in tvc and tvc.count("allow = ") == 1 and "tool.voc.page" in hts and tvc.count("call $tk_confirm(sent, lines, vid, res, cmsg)") == 1
+       and "call $tk_run(allow, sent, out, stat, rerr)" in tvc and tvc.count("execute sent") == 1 and "sent = 'sed voc ' : vid" in tvc, "")
 
     # one wrapping loop
     ck("P18 the wrapping loop is $tk_wrap and nowhere else: $tk_confirm, tool.menus and tool.viewers call it and none has the loop (a SCREEN TEXT longer than its width is cut, not wrapped)",
@@ -285,6 +299,14 @@ MUTANTS = [
     ("tool.accounts loses its [?]", "tool_accounts", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.accounts calls $tk_help with too few arguments", "tool_accounts", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.accounts.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.accounts.page', hm)"),
     ("tool.accounts can run another command", "tool_accounts", "allow = 'modify.account create.account'", "allow = 'modify.account create.account sh'"),
+    ("tool.files loses its [?]", "tool_files", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.files can run another command", "tool_files", "   allow = 'create.file clear.file delete.file'", "   allow = 'create.file clear.file delete.file sh'"),
+    ("tool.files can hand the terminal to another command", "tool_files", "show.allow = 'analyse.file list.index list.triggers'", "show.allow = 'analyse.file list.index list.triggers sh'"),
+    ("tool.voc loses its [?]", "tool_voc", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.voc can run another command", "tool_voc", "   allow = 'delete'", "   allow = 'delete sh'"),
+    ("tool.voc deletes without asking for the id", "tool_voc", "   call $tk_confirm(sent, lines, vid, res, cmsg)", "   call $tk_confirm(sent, lines, '', res, cmsg)"),
+    ("tool.files deletes without asking for the name", "tool_files", "   sent = 'delete.file ' : fn : ' no.query'\n   lines = 'Deletes the file ' : fn : ', its dictionary and its VOC entry.  Nothing can bring them back; a backup can.'\n   call $tk_confirm(sent, lines, fn, res, cmsg)",
+     "   sent = 'delete.file ' : fn : ' no.query'\n   lines = 'Deletes the file ' : fn : ', its dictionary and its VOC entry.  Nothing can bring them back; a backup can.'\n   call $tk_confirm(sent, lines, '', res, cmsg)"),
     ("tool.remote loses its [?]", "tool_remote", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.remote calls $tk_help with too few arguments", "tool_remote", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.remote.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.remote.page', hm)"),
     ("tool.remote can run another command", "tool_remote", "allow = 'remote.api remote.ssh delete.server'", "allow = 'remote.api remote.ssh delete.server sh'"),

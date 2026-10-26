@@ -11961,7 +11961,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 16
+"words": 18
 },
 "msg:11866": {
 "kind": "message",
@@ -28987,6 +28987,13 @@
 "tier": "reference",
 "words": 78
 },
+"tcl:tool.files": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 98
+},
 "tcl:tool.gates": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -29035,6 +29042,13 @@
 "since": "-",
 "tier": "reference",
 "words": 47
+},
+"tcl:tool.voc": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 102
 },
 "tcl:top.margin": {
 "kind": "tcl.keyword",

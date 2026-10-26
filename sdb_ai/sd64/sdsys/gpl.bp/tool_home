@@ -7,6 +7,10 @@
 * 22 Oct 26 dm  New (S.75, H1; the owner: "the display design is approved as drawn. Start home H0, then H1 and H2").
 * 23 Oct 26 dm  The AI line (AI line stage 1; $tk_ai): when the AI is on for the account it takes the hint row, is the last stop of the Tab ring, and turns a request into one of
 *               the page's tiles or a command to run.  Without the AI there is no change at all.
+* 25 Oct 26 dm  The administrator's page has a tile for every administrator page (plan 13.2: a new app adds its row in the commit that builds it): System gains Audit trail and
+*               Configuration; People and access (Accounts, Sessions and locks, Gates) and Data, network and AI (Backups, Master files, Remote servers, AI) are new groups, all three
+*               side by side in one band so that Tools and Everyone stay on the first screen.  Tiles may carry a live line (accounts, sessions, master files) read when the page is
+*               built and every 30 seconds.  The development apps have a group Develop under Everyone (Files, Vocabulary).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -17,6 +21,9 @@
 *   holder's page are built from one table and differ in what is in it; every tile starts a command exactly as the person would type it, so a tile adds no
 *   access (the gates apply as at the terminal).
 *
+*     System     (the administrator only) Menu management, Bypass programs, Audit trail, Configuration
+*     People and access, Data network and AI     (the administrator only) Accounts, Sessions and locks, Gates; Backups, Master files, Remote servers, AI.  Each tile starts the page's verb.
+*     Develop    the development apps, for every account: Files (tool.files), Vocabulary (tool.voc)
 *     Tools      the standard tools of every account: Editor (sed), IDE (ide), Record editor (ced)
 *     Everyone   Terminal (leaves the screen for the ordinary prompt; EXIT comes back), Keys (tool.keys)
 *     Header     who is signed on and when, Switch account (a pick list of the accounts this person may enter, then the screen of that account) and Sign out
@@ -65,6 +72,7 @@ $define HT.Y       12
 $define HT.W       13
 $define HT.H       14
 $define HT.FIXED   15      ;* 1 for a header tile (not scrolled)
+$define HT.LIVE    16      ;* null, or the live line shown in place of the sub line (read again when the page opens, on F5 and every 30 seconds)
 
 $define HG.NAME    1       ;* a group is a field of gr, its values
 $define HG.BAND    2       ;* the band it stands in: groups of one band stand side by side
@@ -132,6 +140,7 @@ $define PANEL.TOP  5       ;* the first row of the scrolling panel (rows 1 to 3 
          case nm = ''
             if status() = ER$EOF then exit
             gosub draw.clock
+            gosub live.draw
          case nm = 'guardquit'
             exit                                          ;* the cursor lock's own way out
          case nm = 'resize'
@@ -202,9 +211,24 @@ build.page:
       * the administrator's own group: the page that manages what every account's home screen shows (it is in SDSYS's VOC only; an account holder's page has no such tile)
       bnd += 1
       g += 1
-      gr<g> = 'System' : @vm : bnd : @vm : 6
+      gr<g> = 'System' : @vm : bnd : @vm : 2                 ;* the administrator's three groups stand side by side in one band, two tiles wide each, so that the page needs no scrolling
       id = 'menus' ; grp = g ; label = 'Menu management' ; glyph = '[=]' ; sub = 'tiles and start' ; act = 'cmd:tool.menus' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       id = 'viewers' ; grp = g ; label = 'Bypass programs' ; glyph = '[!]' ; sub = 'readers for pdf' ; act = 'cmd:tool.viewers' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      id = 'audit' ; grp = g ; label = 'Audit trail' ; glyph = '[*]' ; sub = 'who did what' ; act = 'cmd:tool.audit' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      id = 'config' ; grp = g ; label = 'Configuration' ; glyph = '[%]' ; sub = 'sd.conf and SD' ; act = 'cmd:tool.config' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      * who may do what, and who is on: the people and access group
+      g += 1
+      gr<g> = 'People and access' : @vm : bnd : @vm : 2
+      id = 'accounts' ; grp = g ; label = 'Accounts' ; glyph = '(@)' ; sub = 'create and manage' ; act = 'cmd:tool.accounts' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      id = 'sessions' ; grp = g ; label = 'Sessions and locks' ; glyph = '[~]' ; sub = 'who is on' ; act = 'cmd:tool.sessions' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      id = 'gates' ; grp = g ; label = 'Gates' ; glyph = '[#]' ; sub = 'what accounts may do' ; act = 'cmd:tool.gates' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      * the data copies, the doors to other machines, and the AI
+      g += 1
+      gr<g> = 'Data, network and AI' : @vm : bnd : @vm : 2
+      id = 'backups' ; grp = g ; label = 'Backups' ; glyph = '[<]' ; sub = 'save and restore' ; act = 'cmd:tool.backups' ; pal = 'blue' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      id = 'masters' ; grp = g ; label = 'Master files' ; glyph = '[M]' ; sub = 'shared copies' ; act = 'cmd:tool.masters' ; pal = 'blue' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      id = 'remote' ; grp = g ; label = 'Remote servers' ; glyph = '[>]' ; sub = 'doors and files' ; act = 'cmd:tool.remote' ; pal = 'blue' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      id = 'ai' ; grp = g ; label = 'AI' ; glyph = '(*)' ; sub = 'model and key' ; act = 'cmd:tool.ai' ; pal = 'violet' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    end
    bnd += 1
    g += 1
@@ -230,11 +254,18 @@ build.page:
    gr<g> = 'Everyone' : @vm : bnd : @vm : 6
    id = 'terminal' ; grp = g ; label = 'Terminal' ; glyph = '>_ ' ; sub = 'type exit to come back' ; act = 'terminal' ; pal = 'gray' ; size = 'w' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'keys' ; grp = g ; label = 'Keys' ; glyph = '^K ' ; sub = 'test your keyboard' ; act = 'cmd:tool.keys' ; pal = 'gray' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   * the development tools, for every account in the account the person is in (plan 13.2: each app adds its tile in the commit that builds it); the last group, so that the others stay where they were
+   bnd += 1
+   g += 1
+   gr<g> = 'Develop' : @vm : bnd : @vm : 6
+   id = 'files' ; grp = g ; label = 'Files' ; glyph = '[F]' ; sub = 'files and indices' ; act = 'cmd:tool.files' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   id = 'voc' ; grp = g ; label = 'Vocabulary' ; glyph = '[V]' ; sub = 'verbs and pointers' ; act = 'cmd:tool.voc' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    * the header: two small tiles at the right, on screen rows 1 to 3
    hx = 95 ; hy = 1
    id = 'switch' ; grp = 0 ; label = 'Switch account' ; glyph = '<> ' ; sub = '' ; act = 'switch' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header
    hx = 117 ; hy = 1
    id = 'signout' ; grp = 0 ; label = 'Sign out' ; glyph = '-> ' ; sub = '' ; act = 'signout' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header
+   gosub live.read
    gosub alloc.styles
    gosub make.menus
    return
@@ -422,6 +453,74 @@ draw.clock:
    end
    return
 
+* ------------------------------------------------------------------------------------------------- live lines
+
+* A tile may carry one short live line in place of its sub line (plan 13.1).  Only the administrator's page has any: how many accounts there are, how many sessions are
+* signed on, what the master files' journal holds.  Each is a question the page could ask on its own screen and each only reads.  They are read when the page is built
+* (the first time and on F5) and when the key wait runs out (30 seconds); live.chg holds the tiles whose line is not the one it was.
+live.read:
+   live.chg = ''
+   if not(is.admin) then return
+   for i = 1 to nt
+      lid = tl<i, HT.ID>
+      txt = ''
+      begin case
+         case lid = 'accounts'
+            gosub live.accounts
+         case lid = 'sessions'
+            gosub live.sessions
+         case lid = 'masters'
+            gosub live.masters
+      end case
+      if txt # tl<i, HT.LIVE> then
+         tl<i, HT.LIVE> = txt
+         live.chg<-1> = i
+      end
+   next i
+   return
+
+live.accounts:
+   n = 0
+   openpath @sdsys : @ds : 'accounts' to lf then
+      select lf to 9
+      loop
+         readnext lacc from 9 else exit
+         if lacc # 'sdsys' then n += 1
+      repeat
+      close lf
+      txt = n : (if n = 1 then ' account' else ' accounts')
+   end
+   return
+
+live.sessions:
+   call !listu(ludata)
+   n = dcount(ludata, @fm)
+   txt = n : ' signed on'
+   return
+
+live.masters:
+   ans = kernel(K$MASTERS, 'ready')
+   if ans<2> # 1 then
+      txt = 'not set up'
+   end else
+      ans = kernel(K$MASTERS, 'pending')
+      if ans<1> = 0 and ans<4> > 0 then
+         txt = ans<4> : (if ans<4> = 1 then ' line pending' else ' lines pending')
+      end else
+         txt = 'nothing pending'
+      end
+   end
+   return
+
+* The key wait ran out: read the lines again and draw only the tiles whose line changed
+live.draw:
+   gosub live.read
+   for k = 1 to dcount(live.chg, @fm)
+      di = live.chg<k>
+      gosub draw.tile
+   next k
+   return
+
 draw.panel:
    for k = 1 to ng
       gy = gr<k, HG.Y>
@@ -478,7 +577,7 @@ draw.tile:
                case r = 3
                   s = '  ' : tl<di, HT.LABEL>
                case r = 4
-                  s = '  ' : (if tl<di, HT.WHY> # '' then tl<di, HT.WHY> else tl<di, HT.SUB>)
+                  s = '  ' : (if tl<di, HT.WHY> # '' then tl<di, HT.WHY> else (if tl<di, HT.LIVE> # '' then tl<di, HT.LIVE> else tl<di, HT.SUB>))
                case 1
                   s = ''
             end case
@@ -501,7 +600,7 @@ draw.tile:
                case r = 2
                   s = vc : fmt('  ' : tl<di, HT.LABEL>, (tw - 2) : 'L') : vc
                case 1
-                  s = vc : fmt('  ' : (if tl<di, HT.WHY> # '' then tl<di, HT.WHY> else tl<di, HT.SUB>), (tw - 2) : 'L') : vc
+                  s = vc : fmt('  ' : (if tl<di, HT.WHY> # '' then tl<di, HT.WHY> else (if tl<di, HT.LIVE> # '' then tl<di, HT.LIVE> else tl<di, HT.SUB>)), (tw - 2) : 'L') : vc
             end case
          end
          screen text s at tx,sy attr sty width tw

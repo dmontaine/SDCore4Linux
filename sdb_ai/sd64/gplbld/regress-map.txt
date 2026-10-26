@@ -295,10 +295,10 @@ sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
 sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
-sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote
-sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote
-sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-masters tool-backups tool-accounts tool-remote
-sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-masters tool-accounts tool-remote
+sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc
+sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc
+sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-masters tool-backups tool-accounts tool-remote tool-files tool-voc
+sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-masters tool-accounts tool-remote tool-files tool-voc
 # 23 Oct 26 (S.69 step 2): the AI choice page, tool.ai - its own routine for set.ai's words, the gate table (the ai gate is a row of it) and the gate reader
 sdsys/gpl.bp/tk_runx         : tk-base tool-ai tool-backups tool-accounts
 sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
@@ -416,6 +416,20 @@ gplbld/sandbox-tool-accounts.py : @self
 sdsys/gpl.bp/tool_accounts   : tool-accounts
 sdsys/voc_template/tool.accounts : tool-accounts
 sdsys/helptext/tool.accounts.* : docs tool-accounts
+# 26 Oct 26 (S.75 DV1): the files page, the first development app (a verb for every account: newvoc and voc_template both have it); it runs the real create.file, clear.file, delete.file, analyse.file, list.index and list.triggers
+gplbld/sandbox-tool-files.py : @self
+gplbld/test-toolfiles-units.py : none
+sdsys/gpl.bp/tool_files      : tool-files
+sdsys/newvoc/tool.files      : tool-files
+sdsys/voc_template/tool.files : tool-files
+sdsys/helptext/tool.files.*  : docs tool-files
+# 26 Oct 26 (S.75 DV3): the VOC page, a verb for every account; it runs the real delete (on the VOC) and hands the terminal to sed voc <id>
+gplbld/sandbox-tool-voc.py   : @self
+gplbld/test-toolvoc-units.py : none
+sdsys/gpl.bp/tool_voc        : tool-voc
+sdsys/newvoc/tool.voc        : tool-voc
+sdsys/voc_template/tool.voc  : tool-voc
+sdsys/helptext/tool.voc.*    : docs tool-voc
 # 25 Oct 26 (S.75 A9): the remote access page runs the real remote.api / remote.ssh reports, delete.server, and reads the servers with !netdefs; set.server and a door's change are the verbs'
 gplbld/sandbox-tool-remote.py : @self
 sdsys/gpl.bp/tool_remote     : tool-remote

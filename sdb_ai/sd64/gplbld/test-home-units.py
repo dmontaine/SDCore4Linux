@@ -57,6 +57,7 @@ def load():
     src["sandbox-fromtree.py"] = read(os.path.join(HERE, "sandbox-fromtree.py"))
     src["files"] = {p: os.path.exists(os.path.join(SDSYS, p)) for p in (
         "newvoc/home", "newvoc/exit", "voc_template/home", "voc_template/exit", "voc_template/set.start.default", "newvoc/set.start.default", "voc_template/set.tile", "newvoc/set.tile", "newvoc/my.menu", "voc_template/my.menu", "voc_template/tool.menus", "newvoc/tool.menus")}
+    src["tool.verbs"] = sorted(n for n in os.listdir(os.path.join(SDSYS, "voc_template")) if n.startswith("tool."))     # every administrator page has a verb of this form
     src["menu.n"] = read(os.path.join(SDSYS, "newvoc", "menu")) if os.path.exists(os.path.join(SDSYS, "newvoc", "menu")) else ""
     src["menu.t"] = read(os.path.join(SDSYS, "voc_template", "menu")) if os.path.exists(os.path.join(SDSYS, "voc_template", "menu")) else ""
     src["msgs"] = {n: read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None for n in MSGS}
@@ -90,8 +91,11 @@ def checks(s):
     ck("H3b ...it is a user app (audience null: the page differs, nobody is refused) and the administrator's page is the kernel's answer, not a name",
        "call $tk_open('home', '', ctx, err)" in th and "is.admin = kernel(K$ADMINISTRATOR, -1)" in th and "if is.admin then ctx<TK.C.AUD> = sysmsg(11803)" in th)
     cmds = re.findall(r"act = '(cmd:[^']*|terminal|switch|signout)' ; pal", th)       # the rows of the table (the case lines of start.tile also say act = ...)
-    ck("H4 tool_home: every tile of the table has a fixed action (cmd:sed, ide, ced, tool.keys, tool.menus, my.menu), terminal, switch or signout; the ONLY other action is a person's own program (H25)",
-       sorted(cmds) == sorted(["cmd:sed", "cmd:ide", "cmd:ced", "terminal", "cmd:tool.keys", "switch", "signout", "cmd:tool.menus", "cmd:tool.viewers", "cmd:my.menu"]), repr(cmds))
+    ADMIN_TILES = {"menus": "tool.menus", "viewers": "tool.viewers", "audit": "tool.audit", "config": "tool.config", "backups": "tool.backups", "masters": "tool.masters",
+                   "accounts": "tool.accounts", "sessions": "tool.sessions", "gates": "tool.gates", "remote": "tool.remote", "ai": "tool.ai"}
+    DEV_TILES = {"files": "tool.files", "voc": "tool.voc"}             # the development apps (DV), for every account; each adds its tile in the commit that builds it (plan 13.2)
+    ck("H4 tool_home: every tile of the table has a fixed action (cmd:sed, ide, ced, tool.keys, my.menu, the development apps and the eleven administrator pages), terminal, switch or signout; the ONLY other action is a person's own program (H25)",
+       sorted(cmds) == sorted(["cmd:sed", "cmd:ide", "cmd:ced", "terminal", "cmd:tool.keys", "switch", "signout", "cmd:my.menu"] + ["cmd:" + v for v in ADMIN_TILES.values()] + ["cmd:" + v for v in DEV_TILES.values()]), repr(cmds))
     ck("H4b ...execute is given only a sentence from that table, 'quit', or the logto of an account picked from the register list",
        sorted(re.findall(r"execute ([^\n]+)", th)) == sorted(["sentence", "'quit'", "'quit'", "'logto ' : acct"]), repr(re.findall(r"execute ([^\n]+)", th)))     # 'quit' twice: sign out, and the confined account
     fin = between(th, "\nfinish:\n", "\nreturn")
@@ -186,10 +190,19 @@ def checks(s):
        "tiles.off" not in st_ and "'all'" not in st_ and "readu acc.rec from acc.f, who else" in st_ and "acc.rec<ACC$TILES.OFF> = new.list" in st_ and "write acc.rec to acc.f, who on error ok = @false" in st_
        and "sysmsg(11877, tile, state, who)" in st_ and "K$AUDIT, 'set.tile '" in st_ and "sysmsg(11883, tile)" in st_ and "standard = 'editor ide ced terminal keys switch signout'" in st_)
     ck("H23c ...and the standard ids it knows are the ids of the table of tool_home (every id in the table is standard, every standard id is in the table)",
-       sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)) - {"menus", "viewers", "mymenu"}) == sorted("editor ide ced terminal keys switch signout".split()), repr(sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)))))
-    ck("H23d ...and the two tiles that are not standard, Menu management ('menus') and Bypass programs ('viewers'), are built for the administrator only (inside `if is.admin then`), and run tool.menus and tool.viewers",
-       re.search(r"if is\.admin then\n\s+bnd \+= 1\n\s+g \+= 1\n\s+gr<g> = 'System'[^\n]*\n\s+id = 'menus' ; grp = g ;[^\n]*act = 'cmd:tool\.menus'[^\n]*\n\s+id = 'viewers' ; grp = g ;[^\n]*act = 'cmd:tool\.viewers'[^\n]*\n\s+end\n", th) is not None
-       and th.count("id = 'menus'") == 1 and th.count("id = 'viewers'") == 1)
+       sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)) - {"mymenu"} - set(ADMIN_TILES) - set(DEV_TILES)) == sorted("editor ide ced terminal keys switch signout".split()), repr(sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)))))
+    adm = between(th, "   if is.admin then\n      bnd += 1", "\n   end\n")                # the first `end` at the block's own indent closes it
+    ck("H23d ...and the eleven tiles that are not standard (the administrator's pages) are built for the administrator only (inside `if is.admin then`, in the groups System, People and access and Data, network and AI), each exactly once and running its page's verb",
+       adm.startswith("   if is.admin then") and all(adm.count("id = '%s' ;" % i) == 1 and th.count("id = '%s' ;" % i) == 1 and re.search(r"id = '%s' ; grp = g ;[^\n]*act = 'cmd:%s'" % (i, re.escape(v)), adm) is not None for i, v in ADMIN_TILES.items())
+       and all("gr<g> = '%s'" % n in adm for n in ("System", "People and access", "Data, network and AI")), repr(adm[:200]))
+    ck("H23e ...and their three groups stand side by side in ONE band, two tile columns each (four tiles in System, three in People and access, four in Data, network and AI: two tile rows), so that the administrator's first screen (this band of two tile rows, Tools, My programs, Everyone) shows Tools and Everyone at 140 by 43 without scrolling",
+       re.findall(r"gr<g> = '([^']+)' : @vm : bnd : @vm : (\d)", adm) == [("System", "2"), ("People and access", "2"), ("Data, network and AI", "2")] and adm.count("bnd += 1") == 1, repr(re.findall(r"gr<g> = '([^']+)' : @vm : bnd : @vm : (\d)", adm)))
+    ck("H28 every administrator page has a tile (plan 13.2: a new app adds its row in the commit that builds it): each verb of voc_template named tool.* (all of SDSYS's) is the action of a tile, and no tile runs a tool.* verb that has no VOC entry",
+       sorted(s["tool.verbs"]) == sorted(set(v for v in ADMIN_TILES.values()) | set(DEV_TILES.values()) | {"tool.keys"}) and all(("act = 'cmd:%s'" % v) in th for v in s["tool.verbs"]), repr(s["tool.verbs"]))
+    dev = between(th, "gr<g> = 'Develop'", "\n   hx = 95")
+    ck("H28b ...the development apps' tiles are in the group Develop, the LAST group (so that the groups before it, and what the keys and the sandbox rows find in them, stay where they were), built for everyone (outside `if is.admin then`), each exactly once and running its app's verb",
+       "gr<g> = 'Develop' : @vm : bnd : @vm : 6" in th and th.find("gr<g> = 'Develop'") > th.find("gr<g> = 'Everyone'") > th.find("if is.admin then")
+       and all(dev.count("id = '%s' ;" % i) == 1 and re.search(r"id = '%s' ; grp = g ;[^\n]*act = 'cmd:%s'" % (i, re.escape(v)), dev) is not None for i, v in DEV_TILES.items()) and "hx = 95" in th, repr(dev[:160]))
     hp = strip(s["home_pins"])
     mm = strip(s["mymenu"])
     tm = strip(s["tool_menus"])
@@ -211,6 +224,16 @@ def checks(s):
     ck("H27 the menu management page offers the permission: a row for it in the Menu pane that runs MODIFY.ACCOUNT account PINS-ON / PINS-OFF, and the page may run only modify.account, set.tile and set.start.default",
        "sent = 'modify.account ' : acct : ' pins-' : want" in tm and "want = (if apins<ai> then 'off' else 'on')" in tm and "gosub change.pins" in tm
        and "allow = 'modify.account set.tile set.start.default'" in tm)
+    live = between(th, "\nlive.read:\n", "\ndraw.panel:")
+    ck("H29 live lines (plan 13.1): only the administrator's page has any (the guard comes before the first tile is looked at), and each line is a question that only reads - the kernel's master-file 'ready' and 'pending', the session list and the register's names; nothing is written, executed or audited",
+       0 < live.find("if not(is.admin) then return") < live.find("for i = 1 to nt")
+       and re.findall(r"kernel\(([^)]*)\)", live) == ["K$MASTERS, 'ready'", "K$MASTERS, 'pending'"]
+       and "call !listu(ludata)" in live and "openpath @sdsys : @ds : 'accounts' to lf then" in live
+       and not re.search(r"\b(write|writev|delete|execute|void)\b", live), repr(re.findall(r"kernel\(([^)]*)\)", live)))
+    ck("H29b ...they are read when the page is built (the first time and on F5, before the styles) and again whenever the 30 seconds' key wait runs out, which draws only the tiles whose line changed; a tile shows its live line where the sub line was, unless it is dimmed",
+       0 < th.find("gosub live.read\n   gosub alloc.styles") and "gosub draw.clock\n            gosub live.draw" in th
+       and "di = live.chg<k>\n      gosub draw.tile" in th and th.count("tl<di, HT.LIVE> # '' then tl<di, HT.LIVE> else tl<di, HT.SUB>") == 2
+       and th.count("tl<di, HT.WHY> # '' then tl<di, HT.WHY> else (if tl<di, HT.LIVE>") == 2)
     return rows
 
 
@@ -250,7 +273,7 @@ MUTANTS = [
     ("a tile draws outside the panel", "tool_home", "      if sy >= lo and sy <= hi then", "      if @true then"),
     ("the scroll bar is not drawn", "tool_home", "   if ch > ph then\n      call $sl_scrollbar", "   if @false then\n      call $sl_scrollbar"),
     ("a piped session is let in", "tool_home", "   if @tty[1, 5] # '/dev/' then\n      display sysmsg(11863)", "   if @false then\n      display sysmsg(11863)"),
-    ("modify.account loses a start word", "modifya", "FILES-ADMIN-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED", "FILES-ADMIN-OFF,START-MENU,START-TERMINAL,PINS-ON,PINS-OFF,SUSPENDED"),
+    ("modify.account loses a start word", "modifya", "AI-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED", "AI-OFF,START-MENU,START-TERMINAL,PINS-ON,PINS-OFF,SUSPENDED"),
     ("modify.account loses a pins word", "modifya", "START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED", "START-DEFAULT,PINS-ON,SUSPENDED"),
     ("pins-on writes another field", "modifya", "os.field = ACC$PINS ; os.want = @true", "os.field = ACC$NET ; os.want = @true"),
     ("home_pins does not ask the gate", "home_pins", "   if not(on) then return\n", ""),
@@ -265,6 +288,17 @@ MUTANTS = [
     ("the register field moves", "keys.h", "$define ACC$START        16 ", "$define ACC$START        15 "),
     ("the scroll bar goes black again in blue", "sl_theme", "'scroll=black,cyan,bold'", "'scroll=black,cyan,'"),
     ("the Bypass programs tile is built for everyone", "tool_home", "gosub add.tile\n      id = 'viewers' ;", "gosub add.tile\n   end\n   if @true then\n      id = 'viewers' ;"),
+    ("the Accounts tile is built for everyone", "tool_home", "      id = 'accounts' ; grp = g ;", "   end\n   if @true then\n      id = 'accounts' ; grp = g ;"),
+    ("the Audit trail tile runs another page", "tool_home", "act = 'cmd:tool.audit'", "act = 'cmd:tool.config'"),
+    ("the Remote servers tile is gone", "tool_home", "      id = 'remote' ; grp = g ;", "      id = 'remoteX' ; grp = g ;"),
+    ("the administrator's People and access group is given a band of its own", "tool_home", "      * who may do what, and who is on: the people and access group\n      g += 1", "      * who may do what, and who is on: the people and access group\n      bnd += 1\n      g += 1"),
+    ("the Files tile runs another app", "tool_home", "act = 'cmd:tool.files'", "act = 'cmd:tool.keys'"),
+    ("the Develop group moves to a band of its own before Everyone", "tool_home", "   gr<g> = 'Everyone' : @vm : bnd : @vm : 6", "   gr<g> = 'Develop' : @vm : bnd : @vm : 6"),
+    ("the Gates tile is moved out of its group name", "tool_home", "gr<g> = 'People and access'", "gr<g> = 'People'"),
+    ("a live line is read for an account holder too", "tool_home", "live.chg = ''\n   if not(is.admin) then return", "live.chg = ''"),
+    ("a live line drains the master files' journal", "tool_home", "ans = kernel(K$MASTERS, 'pending')", "ans = kernel(K$MASTERS, 'drain')"),
+    ("the key wait no longer reads the live lines again", "tool_home", "gosub draw.clock\n            gosub live.draw", "gosub draw.clock"),
+    ("the live line is written over the dimmed reason", "tool_home", "s = '  ' : (if tl<di, HT.WHY> # '' then tl<di, HT.WHY> else (if tl<di, HT.LIVE> # '' then tl<di, HT.LIVE> else tl<di, HT.SUB>))", "s = '  ' : (if tl<di, HT.LIVE> # '' then tl<di, HT.LIVE> else tl<di, HT.SUB>)"),
     ("MENU runs another program for every account", "menu.n", "$tool_home", "$exit"),
     ("MENU is missing from SDSYS's VOC", "menu.t", "$tool_home", ""),
     ("the sandbox no longer starts at the terminal", "sandbox-fromtree.py", "f.write(\"terminal\\n\")", "f.write(\"menu\\n\")"),

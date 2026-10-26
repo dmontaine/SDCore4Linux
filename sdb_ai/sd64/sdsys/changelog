@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  THE FILES AND THE VOCABULARY OF AN ACCOUNT CAN BE SEEN AND MANAGED ON ONE SCREEN EACH: tool.files AND tool.voc, FOR EVERY ACCOUNT (S.75, DV1 AND DV3); THE ADMINISTRATOR'S HOME SCREEN HAS A TILE FOR EVERY ADMINISTRATOR PAGE.
+
+             What        tool.files (in every account's vocabulary; a window of 140 by 43 or more) lists the account's files - what kind each is, about how many
+                         records it holds, its modulus and size, how many indices it has, whether it has a trigger, whether its record ids ignore case, whether it has
+                         a dictionary and whether another session has it open - and describes the one under the cursor: where it is, how full its groups are, its
+                         indices and trigger. N makes a file, C clears it and D deletes it, each by running the ordinary verb after a box that shows the exact
+                         command (Cancel is what Enter chooses; Clear and Delete want the file's name typed). A analyses it, I lists its indices and T its triggers
+                         by handing the terminal to the verb, which prints its report; Enter brings the page back at the same file. / filters the names.
+                         tool.voc (also in every account's vocabulary) lists the account's VOC the same way - each entry's type, what it points at, whether a pointer
+                         works and whether it is the same as, changed from or added to the vocabulary SD ships - and shows the entry under the cursor field by field;
+                         E edits the entry in SED and D deletes it with the delete verb after a box that asks the id typed. The home screen has a tile for each of
+                         them, in a group called Develop. The administrator's home screen now has a tile for each of the
+                         eleven administrator pages (accounts, sessions, gates, audit trail, configuration, backups, master files, remote servers, AI, menu management
+                         and bypass programs), in three groups beside each other, and a short live line on three of them: how many accounts there are, how many
+                         sessions are signed on, what the master files' journal holds. The live lines are read when the screen opens, on F5 and every 30 seconds.
+             Why it      Making, clearing and deleting a file, and seeing which files have indices or triggers, took several commands and listings; and the home screen
+             matters     did not yet lead to the administrator pages.
+             Does not    Change the edit gates (making a new file is not held back by them; clearing or deleting a program file still wants bp-edit and a dictionary
+                         on its own dict-edit, and the verb's own refusal is what is shown), give a file name with a capital, an ampersand or a dollar to a command (the
+                         page says which verb to type), change the VOC itself (SED and delete do, under the voc-edit gate), or change the shared account's files.
+
 25 Oct 26  EVERYTHING THAT REACHES SD FROM OUTSIDE CAN BE SEEN AND CONTROLLED ON ONE SCREEN: tool.remote, FOR THE ADMINISTRATOR (S.75, A9).
 
              What        tool.remote (SDSYS's VOC only; a window of 140 by 43 or more) has five views, chosen with the keys 1 to 5. The doors: what REMOTE.API and
