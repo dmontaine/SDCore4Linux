@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 26 Oct 26 dm The shared account is restored to sdsys:sdusers (the group of its directory), not to its register group sdg_shared.
 * 01 Oct 26 dm Written for S.50 (per-OS helper; signature agreed with SD Core
 *              for Windows by mail, 2026-10-01T1030).
 * END-HISTORY
@@ -60,6 +61,11 @@ $include accos.h
          err = 11020:@vm:acc.name:@vm:target.path ;* an OTHER account is not restored here
          return
    end case
+
+* 26 Oct 26 dm - THE SHARED ACCOUNT'S DIRECTORY IS IN sdusers, NOT IN ITS REGISTER GROUP.  Its register group sdg_shared only says who may sign on to it; every SD user's
+*   process reads its files through the kernel as a member of sdusers, which is what create.account and the installer gave the directory.  Putting the register group
+*   on it after a restore left the shared account unreadable to everyone but SDSYS.  The helper (restore_place) accepts sdusers for this one account and no other.
+   if acc.name = 'shared' and owner = 'sdsys' then grp = 'sdusers'
 
    if index(owner:grp:staged.path:target.path, "'", 1) then
       err = 11013:@vm:staged.path:' ':target.path

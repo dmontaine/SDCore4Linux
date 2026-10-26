@@ -422,6 +422,7 @@ def cases(root, me):
     mine, team = os.path.join(ua, me), os.path.join(ga, "team")
     st_me = os.path.join(root, ".sdrestore.7", "accounts", me)
     st_team = os.path.join(root, ".sdrestore.7", "accounts", "team")
+    shared, st_shared = os.path.join(ga, "shared"), os.path.join(root, ".sdrestore.7", "accounts", "shared")
     link = os.path.join(root, "linked")
     return [
         # ------------------------------------------------------------ ALLOW
@@ -433,6 +434,8 @@ def cases(root, me):
          "a user account back to <user>:sdu_<user>"),
         (ALLOW, ["restore-place", "sdsys", "sdg_team", st_team, team], "restored " + team,
          "a group account back to sdsys:sdg_<name>"),
+        (ALLOW, ["restore-place", "sdsys", "sdusers", st_shared, shared], "restored " + shared,
+         "26 Oct 26: the shared account back to sdsys:sdusers, the group of its directory (VM: a restore had given it sdg_shared)"),
         (ALLOW, ["akpath-set", os.path.join(mine, "data"), os.path.join(mine, "idx")], "sdidx -p",
          "an index path inside the file's own account"),
         # An ordinary user cannot see into /etc/sd-tls, so only root may call the file absent: this
@@ -513,6 +516,10 @@ def cases(root, me):
         # nothing else links to, and an index path that is a directory.  The ALLOW row above (data/%0 is a plain file with one link, idx a directory) is the control.
         (REFUSE, ["restore-place", "sdsys", "sdg_other", st_team, team], "belongs to the group sdg_team",
          "F12: a group account given another group account's group (restorea sends the account's own sdg_<name>)"),
+        (REFUSE, ["restore-place", "sdsys", "sdg_shared", st_shared, shared], "belongs to the group sdusers, not 'sdg_shared'",
+         "26 Oct 26: the shared account is not given its register group"),
+        (REFUSE, ["restore-place", "sdsys", "sdusers", st_team, team], "belongs to the group sdg_team, not 'sdusers'",
+         "26 Oct 26: sdusers is the shared account's group and no other group account's"),
         (REFUSE, ["akpath-set", os.path.join(mine, "nopr"), os.path.join(mine, "idx")], "is not a plain file, so the data path is not a hashed file",
          "F12: a directory with no %0 in it is not a hashed file"),
         (REFUSE, ["akpath-set", mine, os.path.join(mine, "idx")], "is not a plain file, so the data path is not a hashed file",
@@ -531,6 +538,7 @@ def cases(root, me):
 def build_fixture(root, me):
     for d in ("user_accounts/%s/bp" % me, "user_accounts/%s/data" % me, "user_accounts/%s/idx" % me,
               "group_accounts/team/idx", ".sdrestore.7/accounts/%s" % me, ".sdrestore.7/accounts/team",
+              "group_accounts/shared", ".sdrestore.7/accounts/shared",         # 26 Oct 26: the shared account's restore
               "elsewhere/%s" % me,
               "user_accounts/%s/nopr" % me, "user_accounts/%s/lnk0" % me, "user_accounts/%s/hl0" % me):       # 26 Oct 26, F12: the akpath-set shapes
         os.makedirs(os.path.join(root, d))
@@ -641,7 +649,9 @@ F12_MUTANTS = [
     ("F12 akpath: a %0 with a second hard link is taken", '  [[ $(stat -c %h -- "$data/%0") == 1 ]] || die', '  true || die'),
     ("F12 akpath: the data path need not be a directory", '  [[ -d $data && ! -L $data ]] || die', '  true || die'),
     ("F12 akpath: the index path need not be a directory", '  [[ -d $index && ! -L $index ]] || die', '  true || die'),
-    ("F12 restore-place: another group account's group is taken", '    [[ $group == "sdg_$tname" ]] || die', '    true || die'),
+    ("F12 restore-place: another group account's group is taken", '    [[ $group == "$want" ]] || die', '    true || die'),
+    ("F12 restore-place: the shared account is held to sdg_shared", '    if [[ $tname == shared ]]; then want=sdusers; else want=sdg_$tname; fi', '    want=sdg_$tname'),
+    ("F12 restore-place: every group account may take sdusers", '    [[ $group == "$want" ]] || die', '    [[ $group == "$want" || $group == sdusers ]] || die'),
 ]
 
 

@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  RESTORING THE SHARED ACCOUNT NO LONGER TAKES IT AWAY FROM EVERYONE BUT SDSYS.
+
+             What        The shared account is registered with the group sdg_shared (who may sign on to it), but its directory belongs to sdsys and the group sdusers, which is what every SD
+                         user's own process reads it through. RESTORE.ACCOUNT gave a restored account the group in its register record, so after RESTORE.ACCOUNT LATEST ALL, or a restore of
+                         shared by name, the shared account's directory and files were sdsys:sdg_shared and no ordinary user could read the documentation or anything else in it. A
+                         restore now puts the shared account back as sdsys:sdusers; every other group account still goes back as sdsys:sdg_<name> and a user account as <user>:sdu_<user>.
+                         The root helper's restore-place accepts sdusers for the account called shared and for no other. Found on a real install: a run of witness-accounts.sh after a
+                         run of witness-backup.sh failed three rows about the shared account, and a fresh install passed all 84.
+             Why it      Restoring all accounts is what the backup page tells an administrator to do after a disaster, and it silently broke the one account every user reads.
+             matters
+             Does not    Repair a shared account that a restore has already changed: give it back with sudo chgrp -R sdusers on the account's directory, or restore it again after the
+                         upgrade.
+
 26 Oct 26  UPDATE.ACCOUNTS NO LONGER REPLACES THE ADMINISTRATOR'S tool.gates WITH THE ACCOUNT HOLDER'S PAGE.
 
              What        The SDSYS account's own VOC is built at install from the whole of VOC_TEMPLATE, and every other account's VOC is NEWVOC, a smaller set. tool.gates is in both with

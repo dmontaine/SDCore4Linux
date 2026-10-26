@@ -965,7 +965,7 @@ require_hashed_dir() {   # require_hashed_dir DATA_PATH INDEX_PATH
 }
 
 restore_place() {
-  local owner=$1 group=$2 staged=$3 target=$4 root sreal treal sname tname kind old n
+  local owner=$1 group=$2 staged=$3 target=$4 root sreal treal sname tname kind old n want
   [[ -n $owner && -n $group && -n $staged && -n $target ]] || usage
   root=$(realpath -e -- "$SD_ACCT_ROOT" 2>/dev/null) || die "accounts root '$SD_ACCT_ROOT' does not exist"
 
@@ -999,9 +999,12 @@ restore_place() {
     [[ $group == "sdu_$owner" ]] || die "'$owner' owns its own files through sdu_$owner, not '$group'"
   else
     [[ $owner == sdsys ]] || die "a group account's owner is sdsys, not '$owner'"
-    [[ $group == sdg_?* ]] || die "a group account's group is sdg_<name>, not '$group'"
-    # 26 Oct 26 dm - F12.  restorea passes the register's group for the account, which create.account made as sdg_<the account's own name>; another account's group is not one it sends.
-    [[ $group == "sdg_$tname" ]] || die "group account '$tname' belongs to the group sdg_$tname, not '$group'"
+    [[ $group == sdg_?* || $group == sdusers ]] || die "a group account's group is sdg_<name>, not '$group'"
+    # 26 Oct 26 dm - F12.  restorea passes the group of the account's directory, which create.account made as sdg_<the account's own name>; another account's group is not one it sends.
+    # 26 Oct 26 dm - THE SHARED ACCOUNT'S DIRECTORY IS IN sdusers (every SD user's process reads it through the kernel; its register group sdg_shared is only who may sign on), as
+    #   require_group_account_files already says; a restore used to give it sdg_shared, and no ordinary user could read the shared account after RESTORE.ACCOUNT.  Found on the VM.
+    if [[ $tname == shared ]]; then want=sdusers; else want=sdg_$tname; fi
+    [[ $group == "$want" ]] || die "group account '$tname' belongs to the group $want, not '$group'"
   fi
   getent group "$group" >/dev/null 2>&1 || [[ $DRY -eq 1 ]] || die "group '$group' does not exist"
 

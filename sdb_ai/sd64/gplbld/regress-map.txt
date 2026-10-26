@@ -522,6 +522,8 @@ sdsys/gpl.bp/cname           : editgates @files shared
 sdsys/gpl.bp/restorea        : editgates net shared masters tool-backups @system
 sdsys/gpl.bp/backupa         : tool-backups @core
 sdsys/gpl.bp/acc_archive     : tool-backups @core
+# 26 Oct 26: acc_os_place calls the root helper (no sandbox can run it); its group choice for the shared account is held by test-restoreshared-units.py, and the compile by the suites below
+sdsys/gpl.bp/acc_os_place    : tool-backups shared
 sdsys/gpl.bp/acc_hold        : tool-backups @core
 sdsys/gpl.bp/acc_os_bakdir   : tool-backups tool-config @core
 sdsys/gpl.bp/seqkey          : edseqkey fcontrol
