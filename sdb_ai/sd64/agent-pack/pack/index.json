@@ -11961,7 +11961,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 14
+"words": 16
 },
 "msg:11866": {
 "kind": "message",
@@ -28952,12 +28952,40 @@
 "tier": "reference",
 "words": 78
 },
+"tcl:tool.accounts": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 87
+},
 "tcl:tool.ai": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
 "words": 55
+},
+"tcl:tool.audit": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 79
+},
+"tcl:tool.backups": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 66
+},
+"tcl:tool.config": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 78
 },
 "tcl:tool.gates": {
 "kind": "tcl.verb",
@@ -28986,6 +29014,13 @@
 "since": "-",
 "tier": "reference",
 "words": 52
+},
+"tcl:tool.remote": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 87
 },
 "tcl:tool.sessions": {
 "kind": "tcl.verb",
@@ -29461,7 +29496,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 96
+"words": 101
 },
 "voc:type:F": {
 "kind": "voc.type",

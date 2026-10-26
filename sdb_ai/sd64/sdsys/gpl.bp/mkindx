@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 25 Oct 26 dm  Right justified index total order (the audit evaluation's item 2): write.group adds a group of ids to what the index already holds under an equal key (1, 01 and
+*               001 are one key), keeping the ids in 'AR' order as _ak does.  Its first version said "by sort", a name this routine never assigns: the compiler warns of that and the
+*               warning stopped every sandbox bootstrap ("SORT is not assigned a value").
 * 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
 *               dictionary read folds case, as typed then lower then upper.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -656,7 +659,7 @@ write.group:
    if right.index then
       akread old.ids from data.f, akno, last.key then
          for k = 1 to dcount(ids, @fm)
-            locate ids<k> in old.ids<1> by sort setting pos else ins ids<k> before old.ids<pos>
+            locate ids<k> in old.ids<1> by 'AR' setting pos else ins ids<k> before old.ids<pos>
          next k
          ids = old.ids
       end

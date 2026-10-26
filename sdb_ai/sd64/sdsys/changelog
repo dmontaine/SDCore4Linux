@@ -1,6 +1,75 @@
 Next release - in progress
 --------------------------
 
+25 Oct 26  EVERYTHING THAT REACHES SD FROM OUTSIDE CAN BE SEEN AND CONTROLLED ON ONE SCREEN: tool.remote, FOR THE ADMINISTRATOR (S.75, A9).
+
+             What        tool.remote (SDSYS's VOC only; a window of 140 by 43 or more) has five views, chosen with the keys 1 to 5. The doors: what REMOTE.API and
+                         REMOTE.SSH report with no keyword, which is the machine's own answer; A changes the API (on, local or off) and S changes ssh (on or
+                         off), each after a box, and turning one ON wants the word OPEN typed. The routes: every user account with the doors it has and how it
+                         can be reached (the switches stay TOOL.GATES's). The servers: the SDNet servers, with X to delete one (DELETE.SERVER, after a box) and
+                         N to define one: the fields are asked and checked here the way SET.SERVER checks them, and the terminal is given to the verb, whose
+                         connect step shows the key the server presents and asks whether to trust it. Who is connected now, by the door they came through. And
+                         this machine's TLS identity, never the private key.
+             Why it      Opening the API to other computers, opening ssh, listing which accounts may come in by which door and which servers this one trusts
+             matters     were five verbs and a listing read by eye.
+             Does not    Open a door where the machine cannot (a sandbox, or a firewall that gates nothing: the verb refuses and the page shows its words),
+                         change an account's doors (TOOL.GATES), run SET.SERVER with NO.QUERY, or show enrolled client machines (that is not built).
+
+25 Oct 26  THE ACCOUNTS CAN BE SEEN AND MANAGED ON ONE SCREEN: tool.accounts, FOR THE ADMINISTRATOR (S.75, A3).
+
+             What        tool.accounts lists every account but SDSYS with its kind, whether it is suspended, the gates that are ON for it and how many sessions
+                         are signed on in it; the box at the foot shows the account under the cursor. S suspends the account or lifts the suspension, A and R
+                         add a Linux user to the group of a group account or take one away, C creates an account and X deletes one. Each shows its command and
+                         what it does in a box answered Run or Cancel (Cancel is what Enter chooses); creating a user account and deleting an account give the
+                         TERMINAL to the verb, because CREATE.ACCOUNT asks for the new person's password at a prompt that shows nothing and DELETE.ACCOUNT asks
+                         for its own confirmation, and deleting wants the account's name typed first.
+             Why it      Seeing which accounts exist, who is suspended and what each may reach took several listings.
+             matters
+             Does not    Change a gate (TOOL.GATES), list or change SDSYS, run DELETE.ACCOUNT without the name typed, or pass a password through the page.
+
+25 Oct 26  BACKUPS AND RESTORES CAN BE DONE ON ONE SCREEN: tool.backups, FOR THE ADMINISTRATOR (S.75, A8).
+
+             What        tool.backups shows the saved backup directory, the SD-*.zip archives in it newest first (when, how large, how many accounts, which
+                         product), the manifest of the archive under the cursor read without unpacking it, and whether anyone else is signed on. B backs every
+                         account up, A the accounts you name, R restores the archive under the cursor and D saves the directory, each through a box that shows
+                         the command; a restore wants the word RESTORE typed and is refused by the page when an account of the archive is not registered here
+                         (a new user account asks for a password, which a page cannot type). While another session is signed on the page shows no box: the
+                         verbs would refuse.
+             Why it      A backup and a restore both need every other session out, and finding which archive held which accounts meant opening each one.
+             matters
+             Does not    Make a backup or place an account where the root helper cannot (the verb says why and the page shows its words), or restore an archive
+                         that would have to make an account.
+
+25 Oct 26  THE CONFIGURATION CAN BE READ ON ONE SCREEN: tool.config, FOR THE ADMINISTRATOR (S.75, A6, THE VIEW HALF).
+
+             What        tool.config lists the 63 parameters of sd.conf with the value this SD is running with (CONFIG), the value the file says now, the
+                         default, when a change takes effect (session: a session reads sd.conf itself when it starts; restart: it takes effect when SD is next
+                         started) and whether anything acts on it, marks a row where the file and the running SD disagree, and names a line SD does not know
+                         (SD will not start, and no new session will, while the file holds it). It also shows the saved backup directory and the operating
+                         system part of the settings report. The table of parameters is held to config.c by a free check, so a parameter added to the parser
+                         without a line in the table turns it red.
+             Why it      Finding what a setting is, whether the file and the running system agree, and whether an edit needs a restart meant reading
+                         sd.conf, the guide and the CONFIG verb side by side.
+             Does not    Write sd.conf: that would be a new way to write a file only root owns and needs your word; edit the file by hand and restart SD where
+                         the page says restart.
+
+25 Oct 26  THE AUDIT TRAIL CAN BE READ ON ONE SCREEN: tool.audit, FOR THE ADMINISTRATOR (S.75, A5).
+
+             What        tool.audit (SDSYS's VOC only; a window of 140 by 43 or more) shows the audit file, the newest line at the bottom, one line of the
+                         file to a row (time, user, event words, then the key=value pairs), and the whole line under the cursor cut into its parts. It
+                         reads the file backwards from its end in blocks of 64 KB, so a trail of any size opens at once on the newest 200 lines that pass
+                         the filter and loads 200 more when you go above them. F asks for a filter (from and to a time, event words, account, user or sudo
+                         user, a text; not case sensitive; Esc leaves them as they were), C clears them, D goes to the first line at or after a time,
+                         O shows the next audit file (the rotated ones, audit.yyyymmdd-hhmmss), L follows the file as it grows, and X saves the lines
+                         shown to a record of the $HOLD file of your account (and writes an audit line saying how many). A last line that the audit
+                         daemon is still writing is left out until it is whole. The reader behind it, $audit_read, asks for the administrator itself, opens
+                         only audit or a rotated audit file of the system directory, and only for reading.
+             Why it      The trail was a text file only root and sdsys could read, and finding the lines of one account or one day meant a pager and grep.
+             matters
+             Does not    Show an account holder their own lines (the trail names every account and address, and a view of one account's lines needs the
+                         kernel to filter it), edit or delete a line, prune the rotated files, or read a file that only root can read. Documented in the
+                         Administrator guide, The Audit Trail (21).
+
 25 Oct 26  NEW HASHED FILES ARE MADE WITH 4 KB GROUPS, NOT 2 KB: FAR FEWER OF THEIR GROUPS OVERFLOW (MEASURED; FOUND BY AN OUTSIDE REVIEW OF THE HASH CODE).
 
              What        GRPSIZE, the group size of a file made without one, is 4 (KB) in the sd.conf that is shipped; it was 2, and the built-in value used when

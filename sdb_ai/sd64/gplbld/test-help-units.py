@@ -51,6 +51,11 @@ def load():
     src["tool_mygates"] = read(os.path.join(GPL, "tool_mygates"))     # 24 Oct 26, S.75 A2: the holder's page asks for tool.gates.mine
     src["tool_sessions"] = read(os.path.join(GPL, "tool_sessions"))   # 24 Oct 26, S.75 A4: the sessions and locks page asks for tool.sessions.page
     src["tool_masters"] = read(os.path.join(GPL, "tool_masters"))     # 24 Oct 26, S.75 A7: the master files page asks for tool.masters.page
+    src["tool_audit"] = read(os.path.join(GPL, "tool_audit"))         # 25 Oct 26, S.75 A5: the audit trail page asks for tool.audit.page
+    src["tool_config"] = read(os.path.join(GPL, "tool_config"))       # 25 Oct 26, S.75 A6: the configuration page asks for tool.config.page
+    src["tool_backups"] = read(os.path.join(GPL, "tool_backups"))     # 25 Oct 26, S.75 A8: the backups page asks for tool.backups.page
+    src["tool_accounts"] = read(os.path.join(GPL, "tool_accounts"))   # 25 Oct 26, S.75 A3: the accounts page asks for tool.accounts.page
+    src["tool_remote"] = read(os.path.join(GPL, "tool_remote"))       # 25 Oct 26, S.75 A9: the remote access page asks for tool.remote.page
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
     for name in sorted(os.listdir(HELP)):
         src["ht." + name] = read(os.path.join(HELP, name))
@@ -145,7 +150,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|masters)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_masters"])))
+    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|masters|audit|config|backups|accounts|remote)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_masters"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"])))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 13 and not (asked - set(hts)), repr(sorted(asked - set(hts))))
@@ -181,6 +186,31 @@ def checks(s):
        "call $tk_help('mark', 134, 2, 0, 0)" in tma and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.masters.page', hm, 0, 0)" in tma and "call $tk_help('hit', mev, 134, 2, hit.m)" in tma
        and "allow = 'sync.masters'" in tma and tma.count("allow = ") == 1 and "tool.masters.page" in hts and "call $tk_wrap(lines<wi>, 134, pieces)" in tma and "rest[cut" not in tma)
 
+    tau = strip(s["tool_audit"])
+    ck("P17f tool.audit: a [?] at the end of the first box, F1 and ? and a click show its help, it runs no command (no allow list, no $tk_run), and it wraps with $tk_wrap",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tau and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.audit.page', hm, 0, 0)" in tau and "call $tk_help('hit', mev, 134, 2, hit.m)" in tau
+       and "allow = " not in tau and "$tk_run" not in tau and "tool.audit.page" in hts and "call $tk_wrap(cline, 134, pieces)" in tau and "rest[cut" not in tau)
+
+    tcf = strip(s["tool_config"])
+    ck("P17g tool.config: a [?] at the end of the first box, F1 and ? and a click show its help, it runs no command (no allow list, no $tk_run), and it wraps with $tk_wrap",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tcf and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.config.page', hm, 0, 0)" in tcf and "call $tk_help('hit', mev, 134, 2, hit.m)" in tcf
+       and "allow = " not in tcf and "$tk_run" not in tcf and "tool.config.page" in hts and "call $tk_wrap(ptext<i>, 134, pieces)" in tcf and "rest[cut" not in tcf)
+
+    tbk = strip(s["tool_backups"])
+    ck("P17h tool.backups: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only backup.account, restore.account and set.backup.directory (through $tk_runx), and the box is $tk_confirm's",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tbk and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.backups.page', hm, 0, 0)" in tbk and "call $tk_help('hit', mev, 134, 2, hit.m)" in tbk
+       and "allow = 'backup.account restore.account set.backup.directory'" in tbk and tbk.count("allow = ") == 1 and "tool.backups.page" in hts and "call $tk_confirm(sent, el, typed, res, cmsg)" in tbk and "call $tk_runx(allow, sent, out, stat, err)" in tbk)
+
+    tac = strip(s["tool_accounts"])
+    ck("P17i tool.accounts: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only modify.account and create.account through the routines (the terminal-hand-over verbs are the box's), and wraps with $tk_wrap",
+       "call $tk_help('mark', 134, 2, 0, 0)" in tac and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.accounts.page', hm, 0, 0)" in tac and "call $tk_help('hit', mev, 134, 2, hit.m)" in tac
+       and "allow = 'modify.account create.account'" in tac and tac.count("allow = ") == 1 and "tool.accounts.page" in hts and "call $tk_confirm(sent, el, typed, res, cmsg)" in tac and "call $tk_wrap(ln.s, 134, pieces)" in tac and "rest[cut" not in tac)
+
+    trm = strip(s["tool_remote"])
+    ck("P17j tool.remote: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only remote.api, remote.ssh and delete.server through the routine (set.server is the verb's on the terminal), and wraps with $tk_wrap",
+       "call $tk_help('mark', 134, 2, 0, 0)" in trm and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.remote.page', hm, 0, 0)" in trm and "call $tk_help('hit', mev, 134, 2, hit.m)" in trm
+       and "allow = 'remote.api remote.ssh delete.server'" in trm and trm.count("allow = ") == 1 and "tool.remote.page" in hts and "call $tk_confirm(sent, el, typed, res, cmsg)" in trm and "call $tk_wrap(lines<i>, 134, pieces)" in trm and "rest[cut" not in trm)
+
     # one wrapping loop
     ck("P18 the wrapping loop is $tk_wrap and nowhere else: $tk_confirm, tool.menus and tool.viewers call it and none has the loop (a SCREEN TEXT longer than its width is cut, not wrapped)",
        "rest[cut, 1] # ' '" in tw and "call $tk_wrap(sentence, wrapw, pieces)" in tc and "call $tk_wrap(lines<wi>, 63, pieces)" in tm and "call $tk_wrap(lines<wi>, 134, pieces)" in tv
@@ -188,7 +218,7 @@ def checks(s):
     ck("P18b $tk_confirm wraps the lines of the explanation like the sentence, an empty line stays empty, and does not append them raw (the box CUTS a long line at its edge: the tail of the ai gate's 150-character sentence never showed, 24 Oct 26)",
        "call $tk_wrap(lines<li>, wrapw, pieces)" in tc and "for li = 1 to dcount(lines, @fm)" in tc and "if lines<li> = '' then" in tc and "body := @fm : lines" not in tc)
 
-    every =th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tma
+    every =th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tma + "\n" + tau + "\n" + tcf + "\n" + tbk + "\n" + tac + "\n" + trm
     want = {"$tk_help": 5, "$tk_wrap": 3, "!viewlist": 4, "$tk_run": 5, "$tk_confirm": 5}
     wrong = {k: [n for n in arg_counts(every, k) if n != v] for k, v in want.items()}
     seen = {k: len(arg_counts(every, k)) for k in want}
@@ -243,6 +273,21 @@ MUTANTS = [
     ("tool.masters loses its [?]", "tool_masters", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.masters calls $tk_help with too few arguments", "tool_masters", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.masters.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.masters.page', hm)"),
     ("tool.masters can run another command", "tool_masters", "allow = 'sync.masters'", "allow = 'sync.masters sh'"),
+    ("tool.audit loses its [?]", "tool_audit", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.audit calls $tk_help with too few arguments", "tool_audit", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.audit.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.audit.page', hm)"),
+    ("tool.audit gains a command to run", "tool_audit", "   keys = ''\n", "   allow = 'sync.masters'\n   keys = ''\n"),
+    ("tool.config loses its [?]", "tool_config", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.config calls $tk_help with too few arguments", "tool_config", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.config.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.config.page', hm)"),
+    ("tool.config gains a command to run", "tool_config", "   keys = ''\n", "   allow = 'sync.masters'\n   keys = ''\n"),
+    ("tool.backups loses its [?]", "tool_backups", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.backups calls $tk_help with too few arguments", "tool_backups", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.backups.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.backups.page', hm)"),
+    ("tool.backups can run another command", "tool_backups", "allow = 'backup.account restore.account set.backup.directory'", "allow = 'backup.account restore.account set.backup.directory sh'"),
+    ("tool.accounts loses its [?]", "tool_accounts", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.accounts calls $tk_help with too few arguments", "tool_accounts", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.accounts.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.accounts.page', hm)"),
+    ("tool.accounts can run another command", "tool_accounts", "allow = 'modify.account create.account'", "allow = 'modify.account create.account sh'"),
+    ("tool.remote loses its [?]", "tool_remote", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
+    ("tool.remote calls $tk_help with too few arguments", "tool_remote", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.remote.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.remote.page', hm)"),
+    ("tool.remote can run another command", "tool_remote", "allow = 'remote.api remote.ssh delete.server'", "allow = 'remote.api remote.ssh delete.server sh'"),
     ("tool.sessions loses its [?]", "tool_sessions", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.sessions calls $tk_help with too few arguments", "tool_sessions", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.sessions.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.sessions.page', hm)"),
     ("tool.sessions can run another command", "tool_sessions", "allow = 'logout unlock inhibit.login'", "allow = 'logout unlock inhibit.login sh'"),

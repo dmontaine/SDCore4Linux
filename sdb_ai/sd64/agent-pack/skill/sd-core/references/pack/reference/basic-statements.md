@@ -920,7 +920,7 @@ clause of `find`, `findstr` and `locate`
 (no syntax line yet in the docs' syntax-shapes.txt)
 
 - a statement of SD BASIC
-- docs: `User/markdown/05a-sd-basic-array-operations.md` line 275
+- docs: `User/markdown/05a-sd-basic-array-operations.md` line 280
 
 ### basic:stmt:keyboard.input
 > kind=basic.restricted tier=reference since=- src=sdsys/gpl.bp/bcomp:498#ed1cebda src2=docs:tools/syntax-shapes.txt:123#cab05e90

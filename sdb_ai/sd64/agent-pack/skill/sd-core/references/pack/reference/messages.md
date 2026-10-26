@@ -7525,7 +7525,7 @@ cited by: `tool_home`
 Press Enter to return to the home screen
 ```
 
-cited by: `tool_ai`, `tool_home`
+cited by: `tool_accounts`, `tool_ai`, `tool_home`, `tool_remote`
 
 ### msg:11866
 > kind=message tier=reference since=- src=sdsys/messages/11866:1#40549194
@@ -9111,7 +9111,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `docsinst` and 17 more
+cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 18 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

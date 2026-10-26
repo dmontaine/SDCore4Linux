@@ -155,9 +155,9 @@ gplsrc/op_debug.c            : @debugger
 gplsrc/debug*.h              : @debugger
 gplsrc/pdump.c               : @debugger listu-a5 netfile
 gplsrc/op_sys.c              : sys-b2 sys-q18 conf-b1 gates csvb
-gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
-gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12 netfile segtrust
-gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
+gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5 netfile tool-config
+gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12 netfile segtrust tool-config
+gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5 netfile tool-config
 gplsrc/sdlnxd.c              : q5 shmmode auditwriter
 gplsrc/sddefs.h              : @core auditwriter auditjournal
 # 24 Oct 26 (W.11 F4, C2): the rotation shared by "sd -start" (k_error.c) and the audit daemon; compiled into sd through gpl.src and into sdlnxd by the Makefile
@@ -231,10 +231,10 @@ sdsys/gpl.bp/setnetlogin     : net netfile
 sdsys/gpl.bp/netfile         : netfile
 sdsys/gpl.bp/netfile.h       : netfile
 sdsys/gpl.bp/deletenetlogin  : net
-sdsys/gpl.bp/setserver       : net
+sdsys/gpl.bp/setserver       : net tool-remote
 sdsys/gpl.bp/apifilesok      : net qmclient fileadmin netindex
-sdsys/gpl.bp/deleteserver    : net
-sdsys/gpl.bp/listservers     : net
+sdsys/gpl.bp/deleteserver    : net tool-remote
+sdsys/gpl.bp/listservers     : net tool-remote
 sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted stdfil dbgequ
 sdsys/gpl.bp/bcomp ~ emit.equate.table : dbgequ
 sdsys/gpl.bp/bcomp ~ process.include : incsearch
@@ -295,14 +295,14 @@ sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
 sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
-sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters
-sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters
-sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-masters
-sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-masters
+sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote
+sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote
+sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-masters tool-backups tool-accounts tool-remote
+sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-masters tool-accounts tool-remote
 # 23 Oct 26 (S.69 step 2): the AI choice page, tool.ai - its own routine for set.ai's words, the gate table (the ai gate is a row of it) and the gate reader
-sdsys/gpl.bp/tk_runx         : tk-base tool-ai
+sdsys/gpl.bp/tk_runx         : tk-base tool-ai tool-backups tool-accounts
 sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
-sdsys/gpl.bp/tk_gates        : tk-base tk-keys tool-ai tool-gates
+sdsys/gpl.bp/tk_gates        : tk-base tk-keys tool-ai tool-gates tool-accounts
 sdsys/gpl.bp/tk_*            : tk-base tk-keys
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
@@ -394,6 +394,33 @@ gplbld/sandbox-tool-masters.py : @self
 sdsys/gpl.bp/tool_masters    : tool-masters
 sdsys/voc_template/tool.masters : tool-masters
 sdsys/helptext/tool.masters.* : docs tool-masters
+# 25 Oct 26 (S.75 A5): the audit trail page and its reader (a fixture audit file, the lines read back from the disk)
+gplbld/sandbox-tool-audit.py : @self
+sdsys/gpl.bp/tool_audit      : tool-audit
+sdsys/gpl.bp/audit_read      : tool-audit
+sdsys/voc_template/tool.audit : tool-audit
+sdsys/helptext/tool.audit.*  : docs tool-audit
+# 25 Oct 26 (S.75 A6): the configuration page and the table of parameters it shows (held to config.c by test-toolconfig-units.py; the suite edits a sandbox's own sd.conf)
+gplbld/sandbox-tool-config.py : @self
+sdsys/gpl.bp/tool_config     : tool-config
+sdsys/config.table           : tool-config
+sdsys/voc_template/tool.config : tool-config
+sdsys/helptext/tool.config.* : docs tool-config
+# 25 Oct 26 (S.75 A8): the backups page runs the real backup, restore and set-directory verbs and reads archives' manifests
+gplbld/sandbox-tool-backups.py : @self
+sdsys/gpl.bp/tool_backups    : tool-backups
+sdsys/voc_template/tool.backups : tool-backups
+sdsys/helptext/tool.backups.* : docs tool-backups
+# 25 Oct 26 (S.75 A3): the accounts page runs the real modify.account for suspend and reads the register, the groups and the sessions; create and delete are handed the terminal
+gplbld/sandbox-tool-accounts.py : @self
+sdsys/gpl.bp/tool_accounts   : tool-accounts
+sdsys/voc_template/tool.accounts : tool-accounts
+sdsys/helptext/tool.accounts.* : docs tool-accounts
+# 25 Oct 26 (S.75 A9): the remote access page runs the real remote.api / remote.ssh reports, delete.server, and reads the servers with !netdefs; set.server and a door's change are the verbs'
+gplbld/sandbox-tool-remote.py : @self
+sdsys/gpl.bp/tool_remote     : tool-remote
+sdsys/voc_template/tool.remote : tool-remote
+sdsys/helptext/tool.remote.* : docs tool-remote
 gplsrc/op_ai.c               : ai-verb aigate
 sdsys/gpl.bp/ai              : ai-verb
 sdsys/voc_template/ai        : ai-verb
@@ -432,7 +459,11 @@ sdsys/gpl.bp/deletef         : editgates @files shared
 sdsys/gpl.bp/copy            : editgates @files
 sdsys/gpl.bp/copyp           : editgates @files
 sdsys/gpl.bp/cname           : editgates @files shared
-sdsys/gpl.bp/restorea        : editgates net shared masters @system
+sdsys/gpl.bp/restorea        : editgates net shared masters tool-backups @system
+sdsys/gpl.bp/backupa         : tool-backups @core
+sdsys/gpl.bp/acc_archive     : tool-backups @core
+sdsys/gpl.bp/acc_hold        : tool-backups @core
+sdsys/gpl.bp/acc_os_bakdir   : tool-backups tool-config @core
 sdsys/gpl.bp/seqkey          : edseqkey fcontrol
 sdsys/gpl.bp/settrig         : file-a8 dirtrig
 sdsys/gpl.bp/listtrg         : file-a8 dirtrig
@@ -493,8 +524,8 @@ sdsys/gpl.bp/upgrade_masters : masters
 sdsys/gpl.bp/upgrade_*       : upgradenocase nocase gates editgates
 sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16 cll stacked lockown
 sdsys/gpl.bp/_option         : option-a4 option-q17 mode-q16
-sdsys/gpl.bp/listu           : listu-a5 tool-sessions
-sdsys/gpl.bp/_listu          : listu-a5 tool-sessions
+sdsys/gpl.bp/listu           : listu-a5 tool-sessions tool-accounts
+sdsys/gpl.bp/_listu          : listu-a5 tool-sessions tool-accounts
 sdsys/gpl.bp/pstat           : listu-a5
 sdsys/gpl.bp/hsm             : listu-a5
 sdsys/gpl.bp/profiler        : prof
@@ -507,8 +538,8 @@ sdsys/gpl.bp/classmain       : classinit
 sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile shared home tool-sessions
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29 apispin fileadmin netindex
 sdsys/gpl.bp/sdclient        : qmclient netfile net
-sdsys/gpl.bp/remoteapi       : gates qmclient
-sdsys/gpl.bp/remotessh       : gates
+sdsys/gpl.bp/remoteapi       : gates qmclient tool-remote
+sdsys/gpl.bp/remotessh       : gates tool-remote
 sdsys/gpl.bp/cred_*          : gates qmclient
 sdsys/gpl.bp/create*         : @files gates @system editgates net shared
 sdsys/gpl.bp/config*         : @files conf-b1 sys-b2 q5
@@ -516,7 +547,7 @@ sdsys/gpl.bp/phantom         : q5 q4 listu-a5
 sdsys/gpl.bp/set*            : gates sys-b2 conf-b1 stmt-q3
 sdsys/gpl.bp/py_*            : gates
 sdsys/gpl.bp/acc*            : gates @system editgates net shared
-sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared filesgrp home aigate tool-gates
+sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared filesgrp home aigate tool-gates tool-accounts
 # 19 Oct 26 (K4a): the program that filesgrp runs reads these two lookups; it makes its own copies, but a change to the originals is a change to what it copies.
 sdsys/gpl.bp/is_grp_member   : filesgrp net gates tool-mygates
 sdsys/gpl.bp/is_group        : filesgrp net gates
@@ -538,8 +569,8 @@ sdsys/gpl.bp/stdfil*         : stdfil
 sdsys/gpl.bp/shared_ref      : shared @core
 sdsys/gpl.bp/edit_msg        : shared editgates
 sdsys/gpl.bp/listshared      : shared
-sdsys/gpl.bp/delacc          : shared gates masters @system
-sdsys/gpl.bp/create_account  : masters gates editgates shared @core
+sdsys/gpl.bp/delacc          : shared gates masters tool-accounts @system
+sdsys/gpl.bp/create_account  : masters gates editgates shared tool-accounts @core
 sdsys/gpl.bp/masters         : masters tool-masters
 sdsys/gpl.bp/masters_setup   : masters tool-masters
 sdsys/gpl.bp/spview          : shared editgates @core

@@ -1,0 +1,5 @@
+The configuration
+07-sd-admin-configuration
+The page shows every parameter of sd.conf that SD knows. For each one: the value this SD is running with (what the CONFIG function reports), the value the file says now, the default, when a change takes effect and whether anything acts on the parameter. A row marked * is one where the file and the running SD disagree, and the box at the foot says who will see the file's value. A name in the file that SD does not know is listed as unknown: SD will not start, and no new session will, while the file holds it.
+session means that a session reads sd.conf itself when it starts, so an edit reaches the sessions started after it and not the ones already running. restart means the parameter sizes or starts the system and takes effect when SD is next started. D shows only the rows where the file and SD disagree, S only the parameters the file sets. B shows the saved backup directory and R the operating system part of the settings report. F5 reads everything again.
+The page only looks. It runs no command and changes no file, sd.conf included: edit that file by hand and restart SD where a parameter says restart.

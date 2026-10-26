@@ -1,0 +1,569 @@
+* TOOL_CONFIG
+* The configuration on one screen: every parameter of sd.conf with the value SD is running with, the value the file now says, the default, what the parameter does and when a change reaches
+* anyone; the backup directory; and the operating system's part of the settings report (S.75, plan .claude/plan-fullscreen-toolkit.md section 5, A6, the view half).
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 25 Oct 26 dm  New.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   TOOL.CONFIG      (SDSYS's VOC only; the audience is the administrator, asked of the kernel before anything is read)
+*
+*   A full-screen page, in the toolkit's frame (140 columns by 43 lines at least), THAT ONLY LOOKS.  It changes nothing: it runs no command, writes no file and never touches sd.conf.
+*   Writing sd.conf from SD would be a new way to write a file only root owns, and is not built (plan section 5, A6: it needs the owner's word).
+*
+*   Three views.  P, the parameters: one row for each parameter SD knows (the table sdsys/config.table, which test-toolconfig-units.py holds to the parser in config.c), with the value
+*   the CONFIG function reports (what this SD is running with), the value sd.conf says now (the file read again, a parameter written twice counted the way SD counts it), the default, when
+*   a change takes effect (session: a session reads sd.conf itself when it starts, so the sessions started after an edit see it; restart: it sizes or starts the system) and whether anything
+*   acts on it.  A row marked * is one where the file and the running SD disagree; the box at the foot says who will see the file's value.  A name in the file that SD does not know
+*   is listed as unknown and said to stop SD and every new session from starting, which it does.  B, the backup directory: the saved directory and whether it is there.  R, the
+*   operating system's part of settings.report (the ssh and API doors, the groups, the services, the sudoers file), read when the view is opened and on F5.
+*
+*   Keys: P, B, R change the view; Up, Down, PgUp, PgDn, Home, End move; D shows only the rows where the file and SD disagree; S only the parameters the file sets; F5 reads the file and
+*   the report again; F1 or ? or a click on the [?] explains the page; Ctrl-Q leaves.  A click on a row puts the cursor there.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $tool_config
+$catalog $tool_config
+
+$include keys.h
+$include int$keys.h
+$include err.h
+$include sl.h
+$include tk.h
+
+   prompt ''
+
+   call $tk_open('tool.config', 'admin', ctx, err)
+   if err # '' then
+      display err
+      stop
+   end
+   void kernel(K$AUDIT, 'tool start app=tool.config')
+
+   keys = ''
+   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
+   call $tk_keys('add', keys, 'p', 'parameters', 'parameters', '', 1)
+   call $tk_keys('add', keys, 'b', 'backups', 'backups', '', 1)
+   call $tk_keys('add', keys, 'r', 'report', 'report', '', 1)
+   call $tk_keys('add', keys, 'd', 'differ', 'differ', 'Parameters', 1)
+   call $tk_keys('add', keys, 's', 'set', 'setonly', 'Parameters', 1)
+   call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
+   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   panes = 'Parameters' : @fm : 'Backup directory' : @fm : 'Report'
+
+   VP = 17                                                      ;* rows on the screen
+   hp = '  ' : fmt('Parameter', '12L') : fmt('In force', '23L') : fmt('In sd.conf', '23L') : fmt('Default', '20L') : fmt('Takes effect', '13L') : 'Status'
+
+   view = 1                                                     ;* 1 the parameters, 2 the backup directory, 3 the report
+   pshow = '' ; nshow = 0                                       ;* the table rows shown, after the two filters
+   ci = 1 ; ta = 0
+   only.diff = 0 ; only.set = 0
+   repl = '' ; rtop = 1
+   conf.path = ''
+   gen = 0
+   done = 0
+   msg = 'P parameters, B backup directory, R report; D shows where the file and SD disagree, S what the file sets'
+
+   gosub read.all
+   gosub draw.all
+
+   loop
+      call $tk_frame(ctx, keys, panes<view>, msg)
+      call $sl_curat(0, ctx<TK.C.YSTAT>)
+      nm = ''
+      screen key returning nm
+      begin case
+         case nm = ''
+            if status() = ER$EOF then exit
+         case nm = 'guardquit'
+            exit
+         case nm = 'resize'
+            gen += 1
+            ctx<TK.C.GEN> = gen
+            gosub draw.all
+         case nm = 'mouse'
+            gosub on.mouse
+         case 1
+            gosub on.key
+      end case
+      if done then exit
+   repeat
+
+   call $tk_close(ctx)
+   stop
+
+* ------------------------------------------------------------------------------------------------- what the machine says
+
+* Read the table, the file and SD's own values again, and put the cursor back on the parameter it was on
+read.all:
+   sel.k = ''
+   if nshow > 0 and ci >= 1 and ci <= nshow then
+      idx = pshow<ci>
+      sel.k = pk<idx>
+   end
+   gosub read.table
+   gosub read.file
+   gosub merge.rows
+   gosub filter.rows
+   if sel.k # '' then
+      for i = 1 to nshow
+         idx = pshow<i>
+         if pk<idx> = sel.k then
+            ci = i
+            exit
+         end
+      next i
+   end
+   if ci > nshow then ci = nshow
+   if ci < 1 then ci = 1
+   return
+
+* The table of parameters (sdsys/config.table): key, kind, default, min, max, effect, status, text; a line beginning # is a comment
+read.table:
+   tk = '' ; tkind = '' ; tdef = '' ; tmin = '' ; tmax = '' ; teff = '' ; tstat = '' ; ttext = ''
+   table.err = ''
+   openseq @sdsys : @ds : 'config.table' readonly to tf then
+      loop
+         readseq ln from tf else exit
+         if ln = '' or ln[1, 1] = '#' then continue
+         tk<-1> = field(ln, '|', 1)
+         tkind<-1> = field(ln, '|', 2)
+         tdef<-1> = field(ln, '|', 3)
+         tmin<-1> = field(ln, '|', 4)
+         tmax<-1> = field(ln, '|', 5)
+         teff<-1> = field(ln, '|', 6)
+         tstat<-1> = field(ln, '|', 7)
+         ttext<-1> = field(ln, '|', 8)
+      repeat
+      closeseq tf
+   end else
+      table.err = 'the table of parameters (config.table in the system directory) cannot be read'
+   end
+   return
+
+* sd.conf as SD reads it: the file of SD_CONFIG, else /etc/sd.conf; lines of the [sd] section; a line KEY=value, the key in upper case, a line beginning # ignored
+read.file:
+   fk = '' ; fv = ''
+   conf.path = env('SD_CONFIG')
+   if conf.path = '' then conf.path = '/etc/sd.conf'
+   file.err = ''
+   section = ''
+   openseq conf.path readonly to cf then
+      loop
+         readseq ln from cf else exit
+         if ln = '' or ln[1, 1] = '#' then continue
+         if ln[1, 1] = '[' then
+            e = index(ln, ']', 1)
+            section = upcase(ln[2, (if e > 0 then e - 2 else len(ln))])
+            continue
+         end
+         if section # 'SD' then continue
+         e = index(ln, '=', 1)
+         if e = 0 then continue
+         ckey = upcase(ln[1, e - 1])
+         cval = ln[e + 1, len(ln)]
+         gosub file.add
+      repeat
+      closeseq cf
+   end else
+      file.err = conf.path : ' cannot be read'
+   end
+   return
+
+* ckey and cval are one line of the file: a flag parameter that SD adds up (bits) is added up here; the others keep the last
+file.add:
+   p = 0
+   for i = 1 to dcount(fk, @fm)
+      if fk<i> = ckey then p = i
+   next i
+   if p = 0 then
+      fk<-1> = ckey
+      fv<-1> = cval
+      return
+   end
+   kk = 0
+   for i = 1 to dcount(tk, @fm)
+      if tk<i> = ckey and tkind<i> = 'bits' then kk = 1
+   next i
+   old.v = fv<p>
+   if kk and num(old.v) and num(cval) then
+      fv<p> = bitor(old.v + 0, cval + 0)
+   end else
+      fv<p> = cval
+   end
+   return
+
+* One row for each parameter of the table, then one for each name in the file that the table does not have; the values SD runs with, and whether the row disagrees with the file
+merge.rows:
+   pk = '' ; pforce = '' ; pfile = '' ; pdef = '' ; peff = '' ; pstat = '' ; ptext = '' ; prange = '' ; pdiff = '' ; pinfile = '' ; pkind = ''
+   ndiff = 0 ; nrestart = 0 ; nin = dcount(fk, @fm) ; unknown = ''
+   nt = dcount(tk, @fm)
+   for i = 1 to nt
+      pk<i> = tk<i>
+      pkind<i> = tkind<i>
+      pdef<i> = tdef<i>
+      peff<i> = teff<i>
+      pstat<i> = tstat<i>
+      ptext<i> = ttext<i>
+      prange<i> = (if tmin<i> = '' and tmax<i> = '' then '' else tmin<i> : ' to ' : tmax<i>)
+      pforce<i> = config(tk<i>)
+      if status() # 0 then pforce<i> = '(not readable)'
+      p = 0
+      for j = 1 to nin
+         if fk<j> = tk<i> then p = j
+      next j
+      pinfile<i> = (p > 0)
+      pfile<i> = (if p > 0 then fv<p> else '')
+      pdiff<i> = 0
+      if p > 0 and pforce<i> # '(not readable)' and tk<i> # 'DEBUG' then
+         gosub compare.values
+         if cmp.diff then
+            pdiff<i> = 1
+            ndiff += 1
+            if teff<i> = 'restart' then nrestart += 1
+         end
+      end
+   next i
+   for j = 1 to nin
+      known = 0
+      for i = 1 to nt
+         if tk<i> = fk<j> then known = 1
+      next i
+      if not(known) then
+         n = dcount(pk, @fm) + 1
+         pk<n> = fk<j>
+         pkind<n> = '' ; pdef<n> = '' ; peff<n> = '' ; pstat<n> = 'unknown' ; prange<n> = ''
+         ptext<n> = 'SD does not know this name. SD will not start, and no new session will, while the file holds it: correct its spelling or take the line out.'
+         pforce<n> = '' ; pfile<n> = fv<j> ; pinfile<n> = 1 ; pdiff<n> = 1
+         unknown<-1> = fk<j>
+      end
+   next j
+   nrows = dcount(pk, @fm)
+   return
+
+* The value in the file and the value SD runs with, for the parameter i: cmp.diff is 1 when they are different.  A number is compared as a number, a pair or a path as text.
+compare.values:
+   a = trim(pfile<i>)
+   b = trim(pforce<i>)
+   cmp.diff = (a # b)
+   if cmp.diff and num(a) and num(b) then
+      cmp.diff = (abs((a + 0) - (b + 0)) > 0.000000000000001)
+   end
+   return
+
+* The rows shown: all, or only the rows where the file and SD disagree, or only the parameters the file sets
+filter.rows:
+   pshow = ''
+   nshow = 0
+   for i = 1 to nrows
+      keep = 1
+      if only.diff and not(pdiff<i>) then keep = 0
+      if only.set and not(pinfile<i>) then keep = 0
+      if keep then
+         nshow += 1
+         pshow<nshow> = i
+      end
+   next i
+   return
+
+* ------------------------------------------------------------------------------------------------- the other two views
+
+read.backup:
+   bdir = '' ; bderr = ''
+   call !acc_os_bakdir('GET', bdir, bderr)
+   return
+
+read.report:
+   repl = '' ; rtop = 1
+   call !settings_os(os.lines, rerr)
+   if rerr # '' then
+      repl = 'the report could not be made'
+      return
+   end
+   skip = 0
+   for i = 1 to dcount(os.lines, @fm)
+      l = os.lines<i>
+      if l[1, 1] = '[' then skip = (l[1, 9] = '[sd.conf]')
+      if not(skip) then repl<-1> = l
+   next i
+   return
+
+* ------------------------------------------------------------------------------------------------- drawing
+
+draw.all:
+   cw2 = ctx<TK.C.W>
+   chh = ctx<TK.C.H> - 5
+   screen clear at 0,1 size cw2,chh
+   screen box at 1,1 size 138,6 title 'Configuration'
+   ttl = 'Parameters'
+   if view = 2 then ttl = 'Backup directory'
+   if view = 3 then ttl = 'Report'
+   screen box at 1,7 size 138,20 title ttl
+   ttl = 'The parameter under the cursor'
+   if view = 2 then ttl = 'About the backup directory'
+   if view = 3 then ttl = 'About the report'
+   screen box at 1,27 size 138,13 title ttl
+   gosub draw.top
+   gosub redraw
+   return
+
+draw.top:
+   if table.err # '' then
+      s = table.err
+   end else
+      if file.err # '' then
+         s = file.err
+      end else
+         s = 'File: ' : conf.path : '   Parameters in it: ' : nin : '   Differ from what SD is running with: ' : ndiff : '   Need a restart: ' : nrestart
+      end
+   end
+   screen text s[1, 128] at 3,2 attr 'bold' width 128
+   if unknown = '' then
+      s = 'Names in the file that SD does not know: none'
+   end else
+      s = 'NAMES IN THE FILE THAT SD DOES NOT KNOW (SD will not start with them): ' : convert(@fm, ' ', unknown)
+   end
+   screen text s[1, 134] at 3,3 width 134
+   screen text 'session: a change reaches the sessions started after it.  restart: it takes effect when SD is next started.   * marks a row where the file and SD disagree.' at 3,4 width 134
+   screen text 'P parameters   B backup directory   R report   D only where they disagree   S only what the file sets   F5 reads again' at 3,5 width 134
+   call $tk_help('mark', 134, 2, 0, 0)
+   return
+
+redraw:
+   begin case
+      case view = 1
+         gosub draw.params
+         gosub draw.param.detail
+      case view = 2
+         gosub draw.backup
+      case 1
+         gosub draw.report
+   end case
+   return
+
+draw.params:
+   screen text hp at 3,8 attr 'header' width 134
+   if ci <= ta then ta = ci - 1
+   if ci > ta + VP then ta = ci - VP
+   if ta < 0 then ta = 0
+   for r = 1 to VP
+      kk = ta + r
+      s = ''
+      if kk <= nshow then
+         i = pshow<kk>
+         fv.s = pfile<i>
+         if not(pinfile<i>) then fv.s = '-'
+         fo.s = pforce<i>
+         if fo.s = '' then fo.s = '(empty)'
+         if pstat<i> = 'unknown' then fo.s = '-'
+         df.s = pdef<i>
+         if df.s = '' then df.s = '(none)'
+         s = (if pdiff<i> then '* ' else '  ') : fmt(pk<i>[1, 11], '12L') : fmt(fo.s[1, 22], '23L') : fmt(fv.s[1, 22], '23L') : fmt(df.s[1, 19], '20L') : fmt(peff<i>[1, 12], '13L') : pstat<i>
+      end
+      rat = 'normal'
+      if kk = ci and kk <= nshow then rat = 'highlight'
+      screen text s[1, 134] at 3,8 + r attr rat width 134
+   next r
+   return
+
+* The parameter under the cursor: its facts, when a change reaches whom, and the sentence
+draw.param.detail:
+   for r = 1 to 11
+      screen text '' at 3,27 + r width 134
+   next r
+   if nshow = 0 or ci < 1 or ci > nshow then
+      screen text 'There is no parameter to show.' at 3,28 width 134
+      return
+   end
+   i = pshow<ci>
+   lines = ''
+   s = pk<i> : '   ' : pkind<i> : (if prange<i> = '' then '' else '   range ' : prange<i>) : '   takes effect: ' : peff<i> : '   status: ' : pstat<i>
+   lines<-1> = s
+   fo.s = pforce<i>
+   if fo.s = '' then fo.s = '(empty)'
+   s = 'SD is running with: ' : fo.s : '     sd.conf says: ' : (if pinfile<i> then pfile<i> else '(nothing)') : '     default: ' : (if pdef<i> = '' then '(none)' else pdef<i>)
+   lines<-1> = s
+   lines<-1> = ''
+   call $tk_wrap(ptext<i>, 134, pieces)
+   lines<-1> = pieces
+   if pdiff<i> and pstat<i> # 'unknown' then
+      lines<-1> = ''
+      if peff<i> = 'restart' then
+         lines<-1> = 'The file and SD disagree. This parameter takes effect only when SD is next started: until then SD keeps running with ' : fo.s : '.'
+      end else
+         lines<-1> = 'The file and this session disagree. Sessions started now read the file; this one, and any that were already running, keep ' : fo.s : '.'
+      end
+   end
+   if pstat<i> = 'inert' then lines<-1> = 'Nothing in SD acts on this parameter; it is accepted so that a file written for another system starts.'
+   for r = 1 to dcount(lines, @fm)
+      if r <= 11 then
+         lr = lines<r>
+         screen text lr[1, 134] at 3,27 + r width 134
+      end
+   next r
+   return
+
+draw.backup:
+   screen text '' at 3,8 width 134
+   for r = 1 to 17
+      screen text '' at 3,8 + r width 134
+   next r
+   if bderr # '' then
+      screen text 'The saved backup directory could not be read.' at 3,9 width 134
+   end else
+      if bdir = '' then
+         screen text 'No backup directory has been saved. BACKUP.ACCOUNT then needs a directory typed with it, or one saved with SET.BACKUP.DIRECTORY.' at 3,9 width 134
+      end else
+         screen text 'The saved backup directory (BACKUPDIR in ' : conf.path : '):' at 3,9 width 134
+         screen text bdir[1, 130] at 5,10 attr 'bold' width 130
+         if ospath(bdir, OS$EXISTS) then
+            screen text 'It exists.' at 5,12 width 130
+         end else
+            screen text 'It does not exist now. BACKUP.ACCOUNT makes it, or says why it cannot, when it next runs.' at 5,12 width 130
+         end
+      end
+   end
+   for r = 1 to 11
+      screen text '' at 3,27 + r width 134
+   next r
+   screen text 'The directory is saved with SET.BACKUP.DIRECTORY, which proves it writable and writes the one line of sd.conf (BACKUPDIR) through the root helper.' at 3,28 width 134
+   screen text 'This page only shows it. NETFILES and SDCLIENT, which decide what an API login may reach, are on the parameters view.' at 3,29 width 134
+   return
+
+draw.report:
+   screen text 'The operating system part of SETTINGS.REPORT (the [sd.conf] section is the parameters view)' at 3,8 attr 'header' width 134
+   n = dcount(repl, @fm)
+   for r = 1 to 17
+      kk = rtop + r - 1
+      s = ''
+      if kk <= n then
+         s = repl<kk>
+      end
+      screen text s[1, 134] at 3,8 + r width 134
+   next r
+   for r = 1 to 11
+      screen text '' at 3,27 + r width 134
+   next r
+   screen text 'Lines ' : rtop : ' to ' : (if rtop + 16 > n then n else rtop + 16) : ' of ' : n : '.  Up, Down, PgUp, PgDn, Home and End scroll.  F5 makes the report again.' at 3,28 width 134
+   screen text 'It is what SETTINGS.REPORT prints for the system. It holds no key, no password hash and nothing from the credential files.' at 3,29 width 134
+   return
+
+* ------------------------------------------------------------------------------------------------- keys and mouse
+
+on.key:
+   msg = ''
+   if len(nm) = 1 and nm >= 'A' and nm <= 'Z' then nm = downcase(nm)
+   begin case
+      case nm = 'up'
+         gosub step.up
+      case nm = 'down'
+         gosub step.down
+      case nm = 'pgup'
+         for q = 1 to VP
+            gosub step.up
+         next q
+      case nm = 'pgdn'
+         for q = 1 to VP
+            gosub step.down
+         next q
+      case nm = 'home'
+         ci = 1
+         rtop = 1
+         gosub redraw
+      case nm = 'end'
+         ci = nshow
+         if ci < 1 then ci = 1
+         rtop = dcount(repl, @fm) - 16
+         if rtop < 1 then rtop = 1
+         gosub redraw
+      case nm = 'p'
+         view = 1
+         gosub draw.all
+      case nm = 'b'
+         view = 2
+         gosub read.backup
+         gosub draw.all
+      case nm = 'r'
+         view = 3
+         gosub read.report
+         gosub draw.all
+      case nm = 'd'
+         only.diff = (if only.diff then 0 else 1)
+         gosub filter.rows
+         ci = 1 ; ta = 0
+         view = 1
+         gosub draw.all
+         msg = (if only.diff then 'only the rows where the file and SD disagree' else 'all the rows')
+      case nm = 's'
+         only.set = (if only.set then 0 else 1)
+         gosub filter.rows
+         ci = 1 ; ta = 0
+         view = 1
+         gosub draw.all
+         msg = (if only.set then 'only the parameters the file sets' else 'all the rows')
+      case nm = 'f5'
+         gosub read.all
+         if view = 2 then gosub read.backup
+         if view = 3 then gosub read.report
+         gosub draw.all
+         msg = 'read again'
+      case nm = 'f1' or nm = '?'
+         call $tk_help('box', 'tool.config.page', hm, 0, 0)
+         if hm # '' then msg = hm
+      case nm = 'ctrl-q'
+         done = 1
+   end case
+   return
+
+step.up:
+   if view = 1 then
+      if ci > 1 then ci -= 1
+   end
+   if view = 3 then
+      if rtop > 1 then rtop -= 1
+   end
+   gosub redraw
+   return
+
+step.down:
+   if view = 1 then
+      if ci < nshow then ci += 1
+   end
+   if view = 3 then
+      if rtop + 16 < dcount(repl, @fm) then rtop += 1
+   end
+   gosub redraw
+   return
+
+on.mouse:
+   screen mouse returning mev else mev = ''
+   if mev = '' then return
+   call $tk_help('hit', mev, 134, 2, hit.m)
+   if hit.m then
+      call $tk_help('box', 'tool.config.page', hm, 0, 0)
+      if hm # '' then msg = hm
+      return
+   end
+   if view = 1 and mev<1> = 'press' and mev<2> = 1 then
+      mx = mev<3>
+      my = mev<4>
+      if mx >= 3 and mx <= 136 and my >= 9 and my <= 8 + VP then
+         if ta + my - 8 <= nshow then
+            ci = ta + my - 8
+            gosub redraw
+         end
+      end
+   end
+   return
+
+end
+
+* END-CODE
