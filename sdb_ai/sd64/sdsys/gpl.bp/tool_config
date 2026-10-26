@@ -164,6 +164,7 @@ read.table:
       repeat
       closeseq tf
    end else
+      if not(unassigned(tf)) then closeseq tf       ;* 26 Oct 26 - an OPENSEQ that took ELSE keeps the name locked until the variable is closed (see home_entry)
       table.err = 'the table of parameters (config.table in the system directory) cannot be read'
    end
    return
@@ -193,6 +194,7 @@ read.file:
       repeat
       closeseq cf
    end else
+      if not(unassigned(cf)) then closeseq cf       ;* 26 Oct 26 - as above
       file.err = conf.path : ' cannot be read'
    end
    return

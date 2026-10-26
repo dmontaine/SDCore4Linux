@@ -488,6 +488,7 @@ meta.entry:
             oi = ospath(mop, OS$INFO)
             mosz = oi<6>
          end else
+            if not(unassigned(sf)) then closeseq sf       ;* 26 Oct 26 - an OPENSEQ that took ELSE keeps the name locked until the variable is closed (see home_entry)
             mreason = 'the object it points at is not there'
          end
       end

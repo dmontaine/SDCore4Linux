@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  SED, THE CONFIGURATION PAGE AND THE CATALOGUE PAGE NO LONGER KEEP A FILE NAME LOCKED AFTER FAILING TO OPEN A FILE THAT IS NOT THERE.
+
+             What        An OPENSEQ of a file that is not there takes its ELSE branch but leaves the name locked until the program closes the file variable (the same fault the home screen
+                         had, fixed earlier today). The programs that stay open for as long as a person uses them did not close it: SED, when asked to open a path that does not exist
+                         (and again for the retry with the name in upper case), the configuration page, when sd.conf or its table of parameters cannot be read, and the catalogue page, when
+                         a pointer leads to an object that is not there. The lock lasted until the editor or the page was closed and, as measured with the home screen (not repeated for these
+                         three), a second session that tried to open the same name in the meantime waited for it. Each now closes the variable in the ELSE branch.
+             Why it      An administrator opening a path that does not exist yet in SED could keep another session that touched the same name waiting for no visible reason.
+             Does not    Reach the API server, where the failed OPENSEQ of a client request leaves the same lock until that slot of the server's table is used again (not changed: it keeps
+                         its files in an array, and whether the guard SD BASIC needs here can be written for an array element is not known); or the short programs whose variable goes with
+                         them when they end.
+
 26 Oct 26  AN INSTALL THAT KEEPS THE ACCOUNTS NO LONGER TAKES THE SDSYS USER OUT OF THE GROUP OF EVERY GROUP ACCOUNT.
 
              What        The installer set the sdsys user's groups with usermod -g sdusers -G sdusers sdsys, and -G without -a REPLACES the whole list of supplementary groups. On an install
