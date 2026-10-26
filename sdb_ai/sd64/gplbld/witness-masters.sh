@@ -48,6 +48,7 @@
 # which is a failure.  Password answers are never echoed into the log.
 set -u
 
+RUN_START="$(date '+%Y-%m-%d %H:%M:%S')"       # the journal rows below are judged from here on
 SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
 SD=/usr/local/sdsys/bin/sd
 SDSYS=/usr/local/sdsys
@@ -111,7 +112,8 @@ members_of()  { getent group "$1" | cut -d: -f4; }
 has_member()  { case ",$(members_of "$1")," in *",$2,"*) echo yes ;; *) echo no ;; esac; }
 modes_of()    { stat -c '%U:%G %a' -- "$1" 2>/dev/null || echo "(absent)"; }
 sha_of()      { cat /etc/group /etc/gshadow 2>/dev/null | sha256sum | cut -d' ' -f1; }
-sd_log()      { journalctl -t sd-elevate --no-pager -o cat -n 400 2>/dev/null || grep -h 'sd-elevate' /var/log/syslog /var/log/messages 2>/dev/null | tail -n 400; }   # what the helper wrote with logger -t sd-elevate
+# 26 Oct 26, the second real run: the journal keeps the lines of the FIRST run (same throwaway names), so a count of "the line is there once" read 2; only this run's lines are looked at
+sd_log()      { journalctl -t sd-elevate --no-pager -o cat --since "${RUN_START:-1970-01-01 00:00:00}" -n 400 2>/dev/null || grep -h 'sd-elevate' /var/log/syslog /var/log/messages 2>/dev/null | tail -n 400; }   # what the helper wrote with logger -t sd-elevate
 
 # one piped sd session, AS sdsys (S.26: only a real sdsys LOGIN administers, so the root-only loginuid bridge); narration to fd 2, sd's output to fd 1
 run_sd() {
