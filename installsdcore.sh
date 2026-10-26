@@ -87,6 +87,11 @@
 #   OS.EXECUTE, SD.ACCOUNTS, the three edit gates, SDNet, writing the shared
 #   account's files and the files-only login, through MODIFY.ACCOUNT, and the
 #   install says which ones the register and the Linux groups really hold.
+#
+#   26 Oct 2026 dm - W.11 F11: near the end of the install the files root runs
+#   (bin/sd, bin/sdlnxd, bin/sdidx, bin/pcode) are made root's, with the
+#   directory bin and everything in it, and bin is made immutable where the file
+#   system keeps the attribute (the ROOTBIN block).
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -2239,6 +2244,74 @@ echo Terminfo compilation complete
 sudo cp "${inst_folder}/sd64/terminfo.src" "$sdsysdir"
 echo
 
+# 26 Oct 26 dm - W.11 F11 (security-model evaluation).  THE FILES ROOT RUNS ARE ROOT'S, NOT THE sdsys USER'S.  sd.service runs bin/sd (-start and -stop) as root,
+#            sd-lnxd.service runs bin/sdlnxd as root, sdclient@.service runs bin/sd -n -q with no User=, sd-elevate's akpath-set runs bin/sdidx as root, and every session
+#            (the root first stage of an API connection too) reads bin/pcode.  The "chown -R sdsys:sdusers" far above made all of them the sdsys user's, so whoever held
+#            that login could replace one and have root run it at the next start - the reason sd-elevate itself lives outside this tree.  Here the whole of bin becomes
+#            root:root with no group or other write, and bin itself is made IMMUTABLE (chattr +i): the sdsys user owns $sdsysdir, and the owner of a directory may rename any
+#            entry in it whoever owns the entry, so without the attribute it could move bin away and make a bin of its own.  WHERE IT IS: after the last thing that writes
+#            under bin (SECOND.COMPILE rewrites bin/pcode and makes bin/pcode.old as a root session, mode 664, and an immutable directory takes no new entry) and before
+#            the passwords, which a person can abandon.  Nothing is written under bin after it; deletesdcore.sh lifts the attribute first.  A bin that holds anything but
+#            plain files (a link, say) is NOT sealed and the block says so; a file system that will not keep the attribute is said so, and the files are still root's.
+#            test-install-rootbin.sh runs this block; test-rootbin-units.py holds rootbin_files to what the units, the helper and the kernel really run.
+# ROOTBIN-BEGIN
+rootbin="$sdsysdir/bin"
+rootbin_files=(sd sdlnxd sdidx pcode)
+rootbin_imm=no
+rootbin_sealed=0
+rootbin_bad=""
+rootbin_miss=""
+if [ -L "$rootbin" ] || [ ! -d "$rootbin" ]; then
+    rootbin_odd="$rootbin is not a plain directory"
+else
+    rootbin_odd=$(sudo find "$rootbin" -mindepth 1 \! -type f 2>/dev/null | head -5 || true)
+fi
+if [ -n "$rootbin_odd" ]; then
+    printf "%b\n" "$RED"
+    echo "WARNING: the root-run files were NOT sealed.  This was found, and everything was left exactly as it is:"
+    printf '  %s\n' "$rootbin_odd"
+    echo "  Look at it, take out what does not belong there, then run:"
+    echo "      sudo chown -R root:root $rootbin; sudo chmod -R go-w $rootbin; sudo chattr +i $rootbin"
+    printf "%b\n" "$NC"
+else
+    sudo chattr -i "$rootbin" 2>/dev/null || true
+    sudo chown -R root:root "$rootbin"
+    sudo chmod -R go-w "$rootbin"
+    if sudo chattr +i "$rootbin" 2>/dev/null; then
+        rootbin_flags=$(sudo lsattr -d "$rootbin" 2>/dev/null | cut -d' ' -f1 || true)
+        case "$rootbin_flags" in *i*) rootbin_imm=yes ;; esac
+    fi
+    for f in "${rootbin_files[@]}"; do
+        [ -f "$rootbin/$f" ] || rootbin_miss="${rootbin_miss} ${f}"
+    done
+    rootbin_bad=$(sudo stat -c '%U:%G %A %n' "$rootbin" "$rootbin"/* 2>/dev/null | awk '$1 != "root:root" || substr($2, 6, 1) == "w" || substr($2, 9, 1) == "w"' | head -5 || true)
+    echo "root-run files: bin $(sudo stat -c '%U:%G %a' "$rootbin" 2>/dev/null || echo missing)"
+    for f in "${rootbin_files[@]}"; do
+        echo "  bin/${f} $(sudo stat -c '%U:%G %a' "$rootbin/$f" 2>/dev/null || echo missing)"
+    done
+    if [ -z "$rootbin_bad" ] && [ -z "$rootbin_miss" ] && [ "$rootbin_imm" = yes ]; then
+        echo "Root-run files are root's: $rootbin and every file in it belong to root, nothing there is writable by sdsys or the group sdusers, and the directory is immutable."
+        rootbin_sealed=1
+    else
+        printf "%b\n" "$RED"
+        echo "WARNING: the root-run files were NOT all sealed."
+        if [ -n "$rootbin_miss" ]; then
+            echo "  Missing from $rootbin:$rootbin_miss"
+        fi
+        if [ -n "$rootbin_bad" ]; then
+            echo "  Not root's, or still writable by the group or others:"
+            printf '  %s\n' "$rootbin_bad"
+        fi
+        if [ "$rootbin_imm" != yes ]; then
+            echo "  $rootbin could not be made immutable (chattr +i); this file system may not keep the attribute.  Without it the sdsys user, who owns"
+            echo "  $sdsysdir, can rename bin away and put a bin of its own in its place, and root would then run what is in that one."
+        fi
+        printf "%b\n" "$NC"
+    fi
+fi
+# ROOTBIN-END
+echo
+
 # 09 Sep 26  The download is always removed.  There is no longer a saved-copy
 #            branch, and no local-repository case to exempt.
 # 09 Sep 26  ***sudo, AND THIS IS THE BUG THAT MADE THE FIRST GITHUB INSTALL
@@ -2642,6 +2715,13 @@ if [ "${ssh_boundary_ok:-0}" -eq 1 ]; then
     echo "login; /etc/ssh/sshd_config was backed up to"
     echo "/etc/ssh/sshd_config.before-sd."
     echo
+fi
+# 26 Oct 26  The ROOTBIN block fails open (the install is no worse than before), so its warning, which scrolls away behind the password steps, is repeated here.
+if [ "${rootbin_sealed:-0}" -ne 1 ]; then
+    printf "%b" "$RED"
+    echo "WARNING: the files root runs ($sdsysdir/bin) were NOT sealed; see the warning printed before the passwords."
+    echo "Until they are, whoever holds the sdsys login can change a program that root runs."
+    printf "%b\n" "$NC"
 fi
 # 22 Sep 2026 - both messages below used to claim a ufw rule unconditionally.
 #   ufw is Debian/Ubuntu's firewall front-end; on the three restored branches

@@ -72,7 +72,9 @@ gplbld/witness-*             : none
 # S.67 stage 2 (19 Oct 26): sd-elevate runs as root through sudo and no sandbox suite can reach it (a sandbox has no sudo); its checks are the free tests
 # test-sd-elevate.py, test-accelevate-units.py and test-bakdir-elevate-units.py, which regress.sh --changed always adds.  Before this rule it fell under
 # gplbld/* and chose the ten @core suites for a change they cannot see.
-gplbld/sd-elevate            : none
+# 26 Oct 26 (F12 review): the sandbox suites that call the REAL helper's dry run through the shim of sandbox-filesgrp.py (a fake getent for the groups only an install makes) are the
+# ones a change of the helper's environment handling (SD_PATH_PREPEND, trust_fixtures) can break without a free check seeing it.
+gplbld/sd-elevate            : filesgrp aigate tool-ai tool-gates
 gplbld/FILES_DICTS/voc.dic^* : dictfold listf-mult misc-a9 qproc-a3 nocase
 gplbld/FILES_DICTS/*         : dictfold misc-a9 upgradenocase nocase fixes-b12
 gplbld/pcode_bld.py          : @core

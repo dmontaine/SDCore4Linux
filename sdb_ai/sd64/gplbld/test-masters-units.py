@@ -743,11 +743,11 @@ def checks(srcs):
        ordered(between(se, "sdsys-join)", ";;"), "[[ $# -eq 1 ]] || usage", 'require_account_group "$1"', 'cmd=(usermod -aG "$1" -- sdsys)', "LOG_LINE=") and "SUDO_USER" not in between(se, "sdsys-join)", ";;")
        and ordered(between(se, "sdsys-leave)", ";;"), "[[ $# -eq 1 ]] || usage", 'require_account_group "$1"', 'group_lists_sdsys "$1"', "sdsys is not in", "exit 0", 'cmd=(gpasswd -d sdsys "$1")', "LOG_LINE=")
        and "SUDO_USER" not in between(se, "sdsys-leave)", ";;")
-       and ordered(between(se, "group-write)", ";;"), "[[ $# -eq 1 ]] || usage", 'require_group_write_target "$1"', "need_root", 'python3 -c "$GW_PY"', "|| exit $?", "logger -t sd-elevate", "exit 0")
+       and ordered(between(se, "group-write)", ";;"), "[[ $# -eq 1 ]] || usage", 'require_group_write_target "$1"', "need_root", 'python3 -I -c "$GW_PY"', "|| exit $?", "logger -t sd-elevate", "exit 0")
        and ordered(se, '"${cmd[@]}" || exit $?', 'logger -t sd-elevate "$LOG_LINE"'), "")
     ck("S22 wiring: the map has rules for messages 11579-11599, sd-elevate and the two new tests (or the coarse rules take them), and the new installer test is a free check that names the function",
        re.search(r"^sdsys/messages/1157\[0-9\]\s*:.*\bmasters\b", mp_, re.M) is not None and re.search(r"^sdsys/messages/1158\[0-9\]\s*:.*\bmasters\b", mp_, re.M) is not None
-       and re.search(r"^sdsys/messages/1159\[0-6\]\s*:.*\bmasters\b", mp_, re.M) is not None and re.search(r"^gplbld/sd-elevate\s*:\s*none\b", mp_, re.M) is not None
+       and re.search(r"^sdsys/messages/1159\[0-6\]\s*:.*\bmasters\b", mp_, re.M) is not None and re.search(r"^gplbld/sd-elevate\s*:\s*\S", mp_, re.M) is not None
        and "sdsys_groups_ruling" in (srcs.get("file:test-install-sdsysgroups.sh") or ""), "")
     ck("S23 the op 'refusal' is the administrator's (it comes after the 'if (!admin)' refusal) and answers the stage 2 buffer and nothing else; ED asks it at both its write-error sites, only for status 8910, and "
        "displays the second field; CHECK.MASTERS and LIST.MASTER.PENDING each end with it (message 11594)",
@@ -1086,7 +1086,7 @@ MUTANTS = [
     ("sdsys-join replaces the groups", "sh:sd-elevate", 'cmd=(usermod -aG "$1" -- sdsys)', 'cmd=(usermod -G "$1" -- sdsys)'),
     ("sdsys-join takes the user from sudo", "sh:sd-elevate", 'cmd=(usermod -aG "$1" -- sdsys)', 'cmd=(usermod -aG "$1" -- "${SUDO_USER:-sdsys}")'),
     ("sdsys-join skips the group rule", "sh:sd-elevate", '    require_account_group "$1"\n    [[ $DRY -eq 1 ]] || id -u sdsys', '    [[ $DRY -eq 1 ]] || id -u sdsys'),
-    ("group-write needs no root", "sh:sd-elevate", '    need_root\n    python3 -c "$GW_PY"', '    python3 -c "$GW_PY"'),
+    ("group-write needs no root", "sh:sd-elevate", '    need_root\n    python3 -I -c "$GW_PY"', '    python3 -I -c "$GW_PY"'),
     ("group-write skips the account rule", "sh:sd-elevate", '    require_group_write_target "$1"\n    printf', '    printf'),
     ("an ordinary session may ask why a save was refused", "c:masters.c", "  if (!admin) {\n    mst_status(&out, MSA_REFUSED);\n    mst_answer(result, &out);\n    return;\n  }\n",
      "  if (strcmp(op, \"refusal\") == 0) {\n    mst_status(&out, MSA_OK);\n    mst_fld_s(&out, masters_refusal_text());\n    mst_answer(result, &out);\n    return;\n  }\n  if (!admin) {\n    mst_status(&out, MSA_REFUSED);\n    mst_answer(result, &out);\n    return;\n  }\n"),

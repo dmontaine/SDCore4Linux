@@ -87,7 +87,8 @@ with open(os.path.join(BOX, "grp", "calls.log"), "a") as f:
     f.write(" ".join(args) + "\n")
 # the real sd-elevate asks `getent group <g>` for addgroup and delgroup even in a dry run, so it needs the Linux groups sdfiles and sdfileswrite that only an install makes; the dry run
 # is given a getent of this suite's first on its PATH, which answers `getent group` from the SCRATCH group file (and sends every other getent to the real one)
-env = dict(os.environ, PATH=os.path.join(BOX, "grp", "fakebin") + os.pathsep + os.environ.get("PATH", ""))
+# 26 Oct 26 (F12e): the helper fixes its own PATH, so the fake getent goes in SD_PATH_PREPEND, which a dry run reads; PATH is kept for the older helper
+env = dict(os.environ, PATH=os.path.join(BOX, "grp", "fakebin") + os.pathsep + os.environ.get("PATH", ""), SD_PATH_PREPEND=os.path.join(BOX, "grp", "fakebin"))
 rc = subprocess.run(["bash", %(elevate)r, "--dry-run"] + args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env).returncode
 if rc != 0:
     sys.exit(2)

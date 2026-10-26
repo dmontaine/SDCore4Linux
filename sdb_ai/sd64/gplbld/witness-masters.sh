@@ -36,9 +36,10 @@
 #      the real sd-elevate on the throwaway groups only, takes the sdsys user out with the answer n, leaves it with y, writes its marker, and with the marker
 #      present does nothing, so a later SDSYS-ON stands; SDSYS-OFF takes it out again; a group account is refused (11979).  5.3: what is NOT lost when an
 #      account is off (CREATE.ACCOUNT, SYNC.MASTERS, CHECK.MASTERS, LOGTO and a read, DELETE.ACCOUNT) and the one thing that is (a write by SDSYS inside the account).
-#   5.4 The honest rows (the owner is to be told they pass): as the sdsys login the files root runs are the sdsys user's own (R-A), and sd-elevate would still
-#      accept `sdsys-join` and a `chown-account sdsys sdusers` on the throwaway account (R-C, dry runs).  They PASS when the weaknesses are there: switching a
-#      membership off removes the silent route into an account, it does not make a stolen sdsys login unable to reach it.
+#   5.4 The honest rows (the owner is to be told they pass): sd-elevate would still accept `sdsys-join` (R-C1, a dry run); since F12 (26 Oct 26) it REFUSES a
+#      `chown-account sdsys sdusers` on the throwaway USER account's VOC file (R-C2, a dry run: the sdsys shape is for a group account's files only).  R-C1 PASSES when the
+#      weakness is there: switching a membership off removes the silent route into an account, it does not make a stolen sdsys login unable to reach it.  R-A (the files root
+#      runs belonging to the sdsys user) was a third such row until W.11 F11 (26 Oct 26): bin and its files are root's now, so R-A1 asserts that; witness-f11.py holds the rest.
 #
 # NOT COVERED: the installer run as a whole (witness-release-run.sh and a real install are); SDSYS on a machine with a second administrator (there is
 # none by design); the API server.  The throwaway names are zwmv, zwm1 and zwm2: the script refuses to run if any exists, and removes what it made.
@@ -531,14 +532,15 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     fi
 
     # ---- 5.4 the honest rows.  They PASS when the weaknesses of design section 0 are there; they are not claims about SD, they are measurements the owner was promised.
-    ck "R-A1 the files root runs are the sdsys user's own: bin/sd and bin/sdlnxd belong to sdsys (a stolen sdsys login can replace them; root runs them at the next start)" "sdsys sdsys" "$(stat -c %U "$SDSYS/bin/sd") $(stat -c %U "$SDSYS/bin/sdlnxd")"
+    ck "R-A1 (W.11 F11) the files root runs are root's: bin/sd and bin/sdlnxd belong to root, so a stolen sdsys login cannot replace them (it did, until 26 Oct 26)" "root root" "$(stat -c %U "$SDSYS/bin/sd") $(stat -c %U "$SDSYS/bin/sdlnxd")"
     ck "R-A2 ...and neither unit that starts them names a User= (they run as root)" "0" "$(systemctl cat sd.service sd-lnxd.service 2>/dev/null | grep -c '^User=')"
     ck "R-A2a ...(both units were really read: at least two ExecStart= lines came back, so the 0 above is not an empty read)" "yes" "$([ "$(systemctl cat sd.service sd-lnxd.service 2>/dev/null | grep -c '^ExecStart=')" -ge 2 ] && echo yes || echo no)"
     OUT=$(as_sdsys_elevate --dry-run sdsys-join "sdu_$A1")
     ck_says "R-C1 the sdsys login may still run sd-elevate sdsys-join for an account (a dry run): the switch is not a wall" "usermod -aG sdu_$A1 -- sdsys" "$OUT"
     OUT=$(as_sdsys_elevate --dry-run chown-account sdsys sdusers "$A/voc/%0")
-    ck_says "R-C2 ...and chown-account sdsys sdusers on a throwaway account's VOC file (a dry run) is accepted too" "chown -- sdsys:sdusers" "$OUT"
-    ck_says "R-C2' ...exit 0" "EXIT=0" "$OUT"
+    ck_says "R-C2 ...but chown-account sdsys sdusers on a throwaway USER account's VOC file (a dry run) is REFUSED since F12: the sdsys shape is for a group account's files" "is not in a group account" "$OUT"
+    ck_silent "R-C2' ...and no chown command was printed" "chown -- sdsys:sdusers" "$OUT"
+    ck_silent "R-C2'' ...and the exit status is not 0" "EXIT=0" "$OUT"
 elif [ "$COMMIT" -eq 1 ]; then
     for r in 5a 5b 5c 5d 5e 5f 5g 5h 5i 5j 5k 5l 5m 5n 5o 5p 5q 5r 5s 5t 5u 5.3a 5.3b 5.3c 5.3d 5.3e 5.3f R-A1 R-A2 R-C1 R-C2; do not_reached "$r (no account from section 3)"; done
 else

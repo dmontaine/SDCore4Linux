@@ -36,6 +36,11 @@ group the directory must have, and what it would change (gw_cases).  (2) THE WOR
 `read -r -d '' GW_PY` and GW_PY_END) is cut out and run as the person running this on scratch trees they own, so that the modes it leaves can be
 read from the disk (gw_worker_suite) - a dry run cannot say that a link is not followed or that a file of another group is left alone.  THE ONE THING
 NEITHER HALF CAN SHOW is root changing files that belong to ANOTHER user, and the device check (it needs a mount): witness-masters.sh does.
+
+26 Oct 26, F12 (the security review, route R-C): akpath-set takes a hashed file's directory (a plain %0 with one link; the fixture has the shapes it must refuse: no %0, a %0 that is a
+symlink, a %0 with a second link, a plain file where a directory is wanted) and restore-place gives a group account only sdg_<its own name>; F12_MUTANTS, and `--selftest --from=N` runs the
+mutants from index N on (the line it prints says where the F12 ones start).  What restore-place still takes - a tree SDSYS staged itself, because sd-accarchive extract runs without
+root - is NOT narrowed and has no row here: a wall there needs an archive that root has vouched for, which is a redesign of the restore.
 """
 
 import getpass
@@ -504,15 +509,39 @@ def cases(root, me):
          "indices pointed into another account"),
         (REFUSE, ["akpath-set", "/etc/passwd", os.path.join(mine, "idx")], "outside the accounts root",
          "a data path outside the accounts root"),
+        # 26 Oct 26, F12: akpath-set runs sdidx as root, which opens <data path>/%0 for writing - so the argument is what a restored hashed file is: a directory holding a plain %0 that
+        # nothing else links to, and an index path that is a directory.  The ALLOW row above (data/%0 is a plain file with one link, idx a directory) is the control.
+        (REFUSE, ["restore-place", "sdsys", "sdg_other", st_team, team], "belongs to the group sdg_team",
+         "F12: a group account given another group account's group (restorea sends the account's own sdg_<name>)"),
+        (REFUSE, ["akpath-set", os.path.join(mine, "nopr"), os.path.join(mine, "idx")], "is not a plain file, so the data path is not a hashed file",
+         "F12: a directory with no %0 in it is not a hashed file"),
+        (REFUSE, ["akpath-set", mine, os.path.join(mine, "idx")], "is not a plain file, so the data path is not a hashed file",
+         "F12: the account directory itself holds no %0"),
+        (REFUSE, ["akpath-set", os.path.join(mine, "lnk0"), os.path.join(mine, "idx")], "is not a plain file, so the data path is not a hashed file",
+         "F12: a %0 that is a symbolic link (to a plain file in the account) would be followed by root's open"),
+        (REFUSE, ["akpath-set", os.path.join(mine, "hl0"), os.path.join(mine, "idx")], "has more than one hard link",
+         "F12: a %0 with a second hard link"),
+        (REFUSE, ["akpath-set", os.path.join(mine, "afile"), os.path.join(mine, "idx")], "is not a directory",
+         "F12: the data path is a plain file"),
+        (REFUSE, ["akpath-set", os.path.join(mine, "data"), os.path.join(mine, "idxfile")], "is not a directory",
+         "F12: the index path is a plain file"),
     ]
 
 
 def build_fixture(root, me):
     for d in ("user_accounts/%s/bp" % me, "user_accounts/%s/data" % me, "user_accounts/%s/idx" % me,
               "group_accounts/team/idx", ".sdrestore.7/accounts/%s" % me, ".sdrestore.7/accounts/team",
-              "elsewhere/%s" % me):
+              "elsewhere/%s" % me,
+              "user_accounts/%s/nopr" % me, "user_accounts/%s/lnk0" % me, "user_accounts/%s/hl0" % me):       # 26 Oct 26, F12: the akpath-set shapes
         os.makedirs(os.path.join(root, d))
     os.symlink(os.path.join(root, "user_accounts", me), os.path.join(root, "linked"))
+    # 26 Oct 26, F12: akpath-set's data paths.  data/%0 (made by build_gw_fixture below) is the plain file with one link; lnk0/%0 is a symlink to it, hl0/%0 has a second link
+    # (through hlsrc), afile and idxfile are plain files where a directory is wanted, nopr is a directory with no %0.
+    mine_dir = os.path.join(root, "user_accounts", me)
+    os.symlink(os.path.join(mine_dir, "data", "%0"), os.path.join(mine_dir, "lnk0", "%0"))
+    for name in ("hlsrc", "afile", "idxfile"):
+        open(os.path.join(mine_dir, name), "w").close()
+    os.link(os.path.join(mine_dir, "hlsrc"), os.path.join(mine_dir, "hl0", "%0"))
     # 17 Oct 26 (S.65 slice 2b): the roots netcred-dir is pointed at.  net-new is NOT made (a dry run must leave it so; main() checks).
     for d, mode in (("net-open", 0o755), ("net-open7", 0o755), ("net-wide", 0o775), ("net-linkdir", 0o755), ("net-filedir", 0o755),
                     ("net-foreign", 0o755), ("net-dirtarget", 0o755)):
@@ -604,6 +633,18 @@ MUTANTS = [
 ]
 
 
+# 26 Oct 26, F12: the mutants of akpath-set's argument checks and of restore-place's exact group (the rows are in cases(), marked F12).
+F12_MUTANTS = [
+    ("F12 akpath: the hashed-file check is not called", '    require_hashed_dir "$1" "$2"\n', ''),
+    ("F12 akpath: a directory with no %0 is taken", '  [[ -f $data/%0 && ! -L $data/%0 ]] || die', '  true || die'),
+    ("F12 akpath: a %0 that is a link is followed", '  [[ -f $data/%0 && ! -L $data/%0 ]] || die', '  [[ -f $data/%0 ]] || die'),
+    ("F12 akpath: a %0 with a second hard link is taken", '  [[ $(stat -c %h -- "$data/%0") == 1 ]] || die', '  true || die'),
+    ("F12 akpath: the data path need not be a directory", '  [[ -d $data && ! -L $data ]] || die', '  true || die'),
+    ("F12 akpath: the index path need not be a directory", '  [[ -d $index && ! -L $index ]] || die', '  true || die'),
+    ("F12 restore-place: another group account's group is taken", '    [[ $group == "sdg_$tname" ]] || die', '    true || die'),
+]
+
+
 def main():
     me = getpass.getuser()
     say("test-accelevate-units: %s, as %s" % (HELPER, me))
@@ -640,7 +681,12 @@ def main():
             return 0
         src = open(HELPER).read()
         red = 0
-        ALL_MUTANTS = MUTANTS + GW_BASH_MUTANTS + GW_WORKER_MUTANTS
+        ALL_MUTANTS = MUTANTS + GW_BASH_MUTANTS + GW_WORKER_MUTANTS + F12_MUTANTS
+        # 26 Oct 26, F12: `--from=N` runs the mutants from index N on (the F12 ones start at len(MUTANTS + GW_BASH_MUTANTS + GW_WORKER_MUTANTS)); the line below says where
+        say("selftest: %d mutants; the F12 ones start at --from=%d" % (len(ALL_MUTANTS), len(MUTANTS + GW_BASH_MUTANTS + GW_WORKER_MUTANTS)))
+        start = [int(a.split("=", 1)[1]) for a in sys.argv[1:] if a.startswith("--from=")]
+        if start:
+            ALL_MUTANTS = ALL_MUTANTS[start[0]:]
         for label, old, new in ALL_MUTANTS:
             if src.count(old) != 1:
                 say("CANNOT RUN - mutant '%s': expected one match, found %d" % (label, src.count(old)))

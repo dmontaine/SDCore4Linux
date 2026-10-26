@@ -3,6 +3,17 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 26 Oct 26 dm F12b, F12c, F12e (the same review, the coordinator's second order): chown-account root sdusers (the OTHER account's shape) takes only a directory or a plain file that the sdsys
+#               user owns, and on a real run chowns through the file it has opened without following a link and found to be sdsys's (FC_PY) - /etc/shadow, /etc/passwd, /etc/sudoers.d/* and
+#               /etc/ssh/* are root's and are refused, wherever the OTHER account's path is; setpw sets only a FIRST password (the user's shadow entry holds none: empty, *, !, !! or !*), never
+#               a reset; PATH is fixed at the top, and SD_ACCT_ROOT, SD_ACCARCHIVE and the test-only SD_PATH_PREPEND are read only on a dry run or from a process that is not root
+#               (trust_fixtures), so a root run through sudo trusts nothing in the caller's environment.
+# 26 Oct 26 dm F12 (the security review of 24-26 Oct 26, route R-C: sdsys may run this helper with any arguments, so each verb is a wall only as far as its own checks go, and some took more than
+#               any caller sends).  chown-account's sdsys shape takes only the files of a GROUP account, in that account's own group (sdg_<name>; sdusers for shared) - a user account's directory,
+#               voc and %0 are refused; setpw, passwd and userdel act only on a user with the "SD account" stamp (require_sd_stamp: the test userdel-home always made, now one function);
+#               groupadd of sdu_<user> is made only for an SD user that exists and holds only root and that user (the sdsys user joins it through sdsys-join and nothing else); restore-place
+#               gives a group account only sdg_<its own name>; akpath-set takes a hashed file's directory (a plain %0 in it, no second link) and an index path that is a directory.  addgroup is NOT
+#               narrowed: modify.account add puts a person in the group of another person's account, which is the documented grant.  restore-place still moves a tree sdsys staged.
 # 26 Oct 26 dm S.75 A6 (the write half of tool.config; the owner chose it, warned once that it is a new root-level write of /etc/sd.conf): conf-set KEY VALUE changes one
 #               tuning parameter of /etc/sd.conf - a name on a whitelist of 14, a whole number inside the range config.c itself enforces, a temp file renamed over the file with
 #               its owner and mode, the file as it was kept as sd.conf.bak.  Everything else in sd.conf (the doors, the paths, the commands, the audit and log settings, every
@@ -107,6 +118,9 @@
 #             here.
 #   paths   - setgid only under the SD accounts root, and the path is resolved
 #             with realpath first so a symlink cannot point out of it.
+#   stamp   - 26 Oct 26 (F12): setpw, passwd and userdel (like userdel-home) act only on a user whose
+#             comment is "SD account", which useradd gives every user SD makes; the login of anyone
+#             else, the machine's own administrator included, is out of reach.
 #
 # INSTRUMENT RULE.  It prints the command it actually resolved, not the one it
 # was asked for, and a refusal says which rule refused and why.  --dry-run
@@ -118,10 +132,18 @@
 
 set -uo pipefail
 
+# 26 Oct 26 dm - F12e.  THE HELPER RUNS AS ROOT AND CALLS getent, id, stat, realpath, python3, useradd and the rest BY NAME, so the caller's PATH must not decide which ones.  sudo resets PATH to its
+# secure_path on Debian, Ubuntu and Fedora, but that is the distribution's setting and not ours (Arch's sudoers has none); this line makes it ours.  A free test that needs stand-in commands
+# in front of these puts them in SD_PATH_PREPEND, which is read only where trust_fixtures says (main, below).
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
 PROG=${0##*/}
 
 # The SD accounts root.  installsdcore.sh uses /home/sd; kept in one place here.
-SD_ACCT_ROOT=${SD_ACCT_ROOT:-/home/sd}
+# 26 Oct 26 dm - F12e: the environment's SD_ACCT_ROOT is a TEST knob, read only where trust_fixtures says (a dry run, or a process that is not root); a root run through sudo uses /home/sd.
+SD_ACCT_ROOT_REAL=/home/sd
+SD_ACCT_ROOT=${SD_ACCT_ROOT:-$SD_ACCT_ROOT_REAL}
 
 # Below this, an account is a system account and out of reach.  Read from
 # /etc/login.defs when it is there rather than assumed, because distributions
@@ -142,17 +164,17 @@ usage() {
 sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
 
   sd-elevate [--dry-run] useradd  <user>
-  sd-elevate [--dry-run] userdel  <user>
+  sd-elevate [--dry-run] userdel  <user>       (SD-created user only: the "SD account" stamp)
   sd-elevate [--dry-run] userdel-home <user>   (SD-created user; also its home)
-  sd-elevate [--dry-run] passwd   <user>
-  sd-elevate [--dry-run] groupadd <group> [member[,member...]]
+  sd-elevate [--dry-run] passwd   <user>       (SD-created user only)
+  sd-elevate [--dry-run] groupadd <group> [member[,member...]]   (sdu_<user>: for an SD user that exists, holding root and that user)
   sd-elevate [--dry-run] groupdel <group>
   sd-elevate [--dry-run] addgroup <user> <group>
   sd-elevate [--dry-run] delgroup <user> <group>
   sd-elevate [--dry-run] setgid   <path>
-  sd-elevate [--dry-run] chown-account <user> <group> <path>
+  sd-elevate [--dry-run] chown-account <user> <group> <path>   (sdsys: only the files of a group account, in its own group)
   sd-elevate [--dry-run] rmtree-account <account directory>
-  sd-elevate [--dry-run] setpw    <user>   (the Linux password, one line on stdin)
+  sd-elevate [--dry-run] setpw    <user>   (the Linux password of an SD-created user, one line on stdin)
   sd-elevate --dry-run   pw-check          (SD's password rule, one line on stdin)
   sd-elevate [--dry-run] remote-api on | local | off | show
   sd-elevate [--dry-run] remote-ssh on | off | show
@@ -164,7 +186,7 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] backup-pack <name>=<account directory> ...
                                   (the manifest on stdin, the zip on stdout)
   sd-elevate [--dry-run] restore-place <owner> <group> <staged dir> <account dir>
-  sd-elevate [--dry-run] akpath-set <data path> <index path>   (both in one account)
+  sd-elevate [--dry-run] akpath-set <data path> <index path>   (both in one account: a hashed file's directory and a directory)
   sd-elevate [--dry-run] tls-show               (the API certificate's fields, never the key;
                                                  "certificate: not yet generated" when there is none)
   sd-elevate [--dry-run] tls-key                (the SHA-256 of the API certificate's public key, the value a
@@ -217,7 +239,8 @@ EOF
 # allowing incoming by default, a rule for port 22 would gate nothing, and ON
 # and OFF refuse with exit 3 rather than report a change that changes nothing.
 
-SD_SOCKET_UNIT=${SD_SOCKET_UNIT:-/usr/lib/systemd/system/sdclient.socket}
+SD_SOCKET_UNIT_REAL=/usr/lib/systemd/system/sdclient.socket
+SD_SOCKET_UNIT=${SD_SOCKET_UNIT:-$SD_SOCKET_UNIT_REAL}      # 26 Oct 26 dm - F12 review: a test knob like SD_ACCT_ROOT (remote-api reads its ListenStream as root); reset in main unless trust_fixtures
 SD_SOCKET_DROPIN_DIR=/etc/systemd/system/sdclient.socket.d
 SD_SOCKET_DROPIN=$SD_SOCKET_DROPIN_DIR/sd-remote-api.conf
 
@@ -249,6 +272,14 @@ tls_absent_exit() {   # one plain line and a clean exit when there is no certifi
     printf 'certificate: not yet generated\n'
     exit 0
   fi
+}
+
+# 26 Oct 26 dm - F12e.  MAY THE ENVIRONMENT'S TEST KNOBS BE READ?  SD_ACCT_ROOT, SD_ACCARCHIVE and SD_PATH_PREPEND name another accounts root, another archiver (python3 runs it) and commands to put
+# in front of the real ones: they exist so that a free test can drive the helper on scratch files as an ordinary user.  Read from a root process they would make the helper trust the caller of
+# sudo, which is the one thing it exists not to do (sudo's env_reset drops them today; that is sudo's rule, not ours).  So: a dry run (it acts on nothing), or a process that is not root (it
+# cannot act: every verb that changes something dies at need_root).  A real run as root reads none of them.  $1 is DRY, $2 the effective uid, passed in so that a test can lift this function.
+trust_fixtures() {   # trust_fixtures DRY EUID
+  [[ $1 -eq 1 || $2 -ne 0 ]]
 }
 
 need_root() {
@@ -519,6 +550,33 @@ require_sd_user() {
   [[ $uid -ge $min ]] || die "'$user' has uid $uid, below UID_MIN $min - a system account"
 }
 
+# 26 Oct 26 dm - F12.  THE "SD account" STAMP, IN ONE PLACE.  useradd (below) gives every user SD makes the comment "SD account", and DELETE.ACCOUNT's own test (GPL.BP/IS_SD_USER) reads
+# exactly that back.  userdel-home has asked for it since 10 Sep; setpw, passwd and userdel ask now (26 Oct), because without it the helper would set the password of, or delete, ANY local user
+# above UID_MIN - the machine's own administrator, a login that was there before SD - for whoever can run it.  $2 ends the refusal ("so ..."): each verb says what it would have done.  Call
+# after require_sd_user.  The callers: create.account (setpw for the user it has just made; userdel and userdel-home to take that user away again when no password is set) and delete.account
+# (userdel and userdel-home only after it has read the same stamp itself); nobody calls passwd.
+require_sd_stamp() {   # require_sd_stamp USER CONSEQUENCE
+  local user=$1 consequence=$2 ent gecos
+  ent=$(getent passwd "$user") || die "user '$user' does not exist"
+  gecos=$(printf '%s\n' "$ent" | cut -d: -f5)
+  [[ $gecos == "SD account" ]] || die "'$user' was not created by SD (no \"SD account\" stamp), so $consequence"
+}
+
+# 26 Oct 26 dm - F12c.  setpw SETS A FIRST PASSWORD AND NEVER RESETS ONE.  Its one caller (create.account, through set_passwd) sets the password of the user it has just made, whose shadow entry
+# holds none: useradd leaves "!" (Debian, Ubuntu) or "!!" (Fedora); "*", "!*" and an empty field are the other spellings of "no password".  A user with a hash - an SD user whose login works, over ssh
+# or at the console - is refused in the helper's words, so a stolen sdsys login cannot reset it.  (A retry after a failed set_passwd is still a first password: the failed attempt changed nothing.)
+# The entry is read with `getent shadow`, which only root can read: a real run is root; a dry run by an ordinary user cannot read it and is REFUSED too, rather than passed as if it had been
+# judged (a test gives it a getent that answers).  Call after require_sd_stamp.
+require_pw_unset() {   # require_pw_unset USER
+  local user=$1 ent hash
+  ent=$(getent shadow "$user" 2>/dev/null) || die "cannot read the shadow entry of '$user' (setpw reads it as root; a dry run needs a getent that can)"
+  hash=$(printf '%s\n' "$ent" | cut -d: -f2)
+  case $hash in
+    ''|'*'|'!'|'!!'|'!*') : ;;
+    *) die "'$user' already has a Linux password, so setpw does not set another: it sets the first password of a user SD has just made, and never resets one" ;;
+  esac
+}
+
 # 10 Sep 26 - userdel -r deletes a user's home directory and mail spool, so the
 # helper re-checks here what DELETE.ACCOUNT REMOVE.HOME checked in BASIC, rather
 # than trusting the caller: the user carries SD's "SD account" GECOS stamp (SD
@@ -526,11 +584,10 @@ require_sd_user() {
 # A home that is /, a shared directory, a system path, or one somebody re-pointed
 # elsewhere is never removed here.  Call after require_sd_user.
 require_sd_home() {
-  local user=$1 ent gecos home base
+  local user=$1 ent home base
+  require_sd_stamp "$user" "its home is never removed here"
   ent=$(getent passwd "$user") || die "user '$user' does not exist"
-  gecos=$(printf '%s\n' "$ent" | cut -d: -f5)
   home=$(printf '%s\n' "$ent" | cut -d: -f6)
-  [[ $gecos == "SD account" ]] || die "'$user' was not created by SD (no \"SD account\" stamp), so its home is never removed here"
   base=$(useradd -D 2>/dev/null | sed -n 's/^HOME=//p')
   [[ -n $base ]] || die "could not read useradd's HOME base"
   [[ $base == /* && $base != / ]] || die "useradd's HOME base '$base' is not an absolute directory below /"
@@ -576,6 +633,25 @@ require_sd_group() {
   esac
 }
 
+# 26 Oct 26 dm - F12.  THE GROUP OF AN SD USER'S ACCOUNT IS MADE FOR THAT USER.  create.account makes sdu_<user> for a Linux user that exists by then (one it has just made, or one it attaches),
+# with root and that user in it: `groupadd sdu_<user> root,<user>`.  Nothing else is a call it makes, so nothing else is taken: the user must be an SD user that exists (require_sd_user: not
+# root, not sdsys, not a system account), and the members named, if any, are root and that user - not the sdsys user, who joins an account's group through sdsys-join and nothing else, and
+# not another person (a person is put in the group of another's account with addgroup, which modify.account add calls, and that one is deliberately not narrowed).  Called for a name
+# that begins sdu_ (require_sd_group has seen the name and that something follows).  MEMBERS is the comma list as typed, or empty.
+require_own_account_group() {   # require_own_account_group GROUP MEMBERS
+  local group=$1 members=$2 m
+  local user=${group#sdu_}
+  local -a list=()
+  require_sd_user "$user"
+  if [[ -n $members ]]; then
+    IFS=',' read -r -a list <<<"$members"
+    for m in "${list[@]}"; do
+      [[ -z $m || $m == root || $m == "$user" ]] \
+        || die "'$m' cannot be a member of $group when it is made: the group of an SD user's account holds root and that user, and the sdsys user joins it only through sdsys-join"
+    done
+  fi
+}
+
 # Absolute, existing and inside the accounts root.  realpath first, so a symlink
 # planted inside the tree cannot aim the chmod or the chown outside it.  Sets
 # real (the canonical path) and root in the caller, which declares them local.
@@ -618,6 +694,103 @@ require_sd_chown_path() {
   [[ $(stat -c %h -- "$real") == 1 ]] || die "path '$real' has more than one hard link"
 }
 
+# 26 Oct 26 dm - F12.  THE SDSYS SHAPE IS FOR THE FILES OF A GROUP ACCOUNT AND NOTHING ELSE.  Its callers are createa's set.owner for an account of type GROUP - the account directory, voc, the
+#   dictionaries and their %0 / %1, which sdsys owns, in the group sdg_<name> (the shared account's group is sdusers) - and the installer's repair_group_account_files, which gives four record
+#   files of each group account the group its directory has.  A USER account's directory, voc and record files belong to the person and to sdu_<person>; the shape took those too (a dry run of
+#   `chown-account sdsys sdu_victim <root>/user_accounts/victim/voc` was accepted, 26 Oct 26: route R-C of the review), and it took any SD group for any account.  Call after
+#   require_sd_chown_path, which has already seen that PATH is a directory or a lone %0 / %1 in the accounts root; this adds which account it is in and which group that account has.
+require_group_account_files() {   # require_group_account_files GROUP PATH
+  local group=$1 path=$2 real root rel name want
+  resolve_in_accounts_root "$path"
+  rel=${real#"$root"/}
+  [[ $rel == group_accounts/?* ]] \
+    || die "path '$real' is not in a group account ($root/group_accounts/<name>): chown-account sdsys is for the files of a group account, and never for a user account's"
+  name=${rel#group_accounts/}
+  name=${name%%/*}
+  require_name "group account" "$name"
+  if [[ $name == shared ]]; then want=sdusers; else want=sdg_$name; fi
+  [[ $group == "$want" ]] || die "group account '$name' belongs to the group $want, not '$group'"
+}
+
+# 26 Oct 26 dm - F12b.  WHICH UID IS "THE SDSYS USER": the sdsys user's own (id -u sdsys); on a --dry-run only, SD_SDSYS_UID_FIXTURE (a free test has no such user, and its scratch files are its
+# own).  Sets SDSYS_UID.  A real run ignores the fixture, as every fixture here is ignored by a real run.
+sdsys_uid() {
+  SDSYS_UID=
+  if [[ $DRY -eq 1 && -n ${SD_SDSYS_UID_FIXTURE:-} ]]; then
+    [[ $SD_SDSYS_UID_FIXTURE =~ ^[0-9]+$ ]] || die "SD_SDSYS_UID_FIXTURE is not a number"
+    SDSYS_UID=$SD_SDSYS_UID_FIXTURE
+  else
+    SDSYS_UID=$(id -u sdsys 2>/dev/null) || die "the user sdsys does not exist, so nothing can be shown to be its"
+  fi
+  [[ $SDSYS_UID =~ ^[0-9]+$ ]] || die "could not read a uid for sdsys"
+}
+
+# 26 Oct 26 dm - F12b.  require_sdsys_owned REAL - dies unless REAL (already canonical) is a directory or a plain file whose owner is the sdsys user.  This is the rule of chown-account root sdusers:
+# what create.account has just made for an OTHER account belongs to sdsys, and nothing of root's does.  The check on the path is the helper's own words and the dry run's; the real run asks
+# again of the file it has opened (FC_PY below), which is the one that cannot be swapped for a link between the two.
+require_sdsys_owned() {
+  local real=$1 have
+  sdsys_uid
+  [[ -d $real || -f $real ]] || die "path '$real' is neither a directory nor a plain file"
+  have=$(stat -c %u -- "$real" 2>/dev/null) || die "cannot read '$real'"
+  [[ $have == "$SDSYS_UID" ]] \
+    || die "path '$real' belongs to uid $have, not to the user sdsys (uid $SDSYS_UID): chown-account root sdusers takes only what sdsys has just made"
+}
+
+# BEGIN fc_worker
+# The real run of chown-account root sdusers, as python3 text so that it can be run on a scratch tree by gplbld/test-sd-elevate.py.  Arguments: the path, the uid that must own it (the sdsys user's),
+# the group's name, and the uid it is given (0).  It opens the path with O_NOFOLLOW (a link at the end is refused), asks the OPEN FILE who owns it and what it is, checks that the path still names
+# that file (a link planted in a directory above it would show here), and chowns through the descriptor.  RUN WITH THE ISOLATED FLAG (26 Oct 26, review): sudo keeps the caller's current directory,
+# and python's -c option puts it first on sys.path, so a grp.py planted there by sdsys would run as root wherever grp is not built into python; the isolated flag leaves the directory and the environment out.
+read -r -d '' FC_PY <<'FC_PY_END' || true
+import grp
+import os
+import stat
+import sys
+
+path = sys.argv[1]
+owner = int(sys.argv[2])
+group = sys.argv[3]
+new_uid = int(sys.argv[4])
+PROG = "sd-elevate"
+
+
+def refuse(s):
+    sys.stderr.write("%s: REFUSED - %s\n" % (PROG, s))
+    sys.exit(2)
+
+
+try:
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY)
+except OSError as e:
+    refuse("cannot open %s without following a link: %s" % (path, e.strerror))
+try:
+    st = os.fstat(fd)
+    if not (stat.S_ISDIR(st.st_mode) or stat.S_ISREG(st.st_mode)):
+        refuse("%s is neither a directory nor a plain file" % path)
+    if st.st_uid != owner:
+        refuse("%s belongs to uid %d, not to the user sdsys (uid %d)" % (path, st.st_uid, owner))
+    try:
+        here = os.readlink("/proc/self/fd/%d" % fd)
+    except OSError as e:
+        refuse("cannot tell where the open file is (is /proc mounted?): %s" % e.strerror)
+    if here != path:
+        refuse("%s is not where it was when it was checked (the open file is %s)" % (path, here))
+    try:
+        gid = grp.getgrnam(group).gr_gid
+    except KeyError:
+        refuse("the group %s does not exist" % group)
+    try:
+        os.fchown(fd, new_uid, gid)
+    except OSError as e:
+        sys.stderr.write("%s: FAILED - the change of owner of %s failed: %s\n" % (PROG, path, e.strerror))
+        sys.exit(1)
+    print("%s: chowned %s to %d:%s through the open file" % (PROG, path, new_uid, group))
+finally:
+    os.close(fd)
+FC_PY_END
+# END fc_worker
+
 # 18 Sep 26 dm - CHOWN-ACCOUNT, FOR CREATE.ACCOUNT'S OWN STEP (the A4 finding of
 # the first fresh cycle's witness run).  createa's set.owner computed
 # "<user><VM><group><VM><path>" and chowned it with the OS$CHOWN intrinsic,
@@ -630,16 +803,25 @@ require_sd_chown_path() {
 #
 #   <user>  sdu_<user>    the account's own directory      (createa:365-366)
 #   sdsys   <sdg_ group>  a GROUP account's directory, and (19 Oct 26) the
-#                         record files %0 and %1 of a directory file in it
+#                         record files %0 and %1 of a directory file in it;
+#                         26 Oct 26 (F12): only inside group_accounts/<name>, and
+#                         the group is sdg_<name> (sdusers for shared)
 #   root    sdusers       an OTHER account's attached path
 #
 # A PERSON IS CONFINED TO ITS OWN ACCOUNT DIRECTORY and to its own sdu_ group,
 # so a chown can never move one account's files into another account's tree, nor
 # put them in sdusers - the group every account belongs to, which is the
 # confinement the teardown exists to give.  sdsys and root name no such thing,
-# so their paths must sit inside the accounts root; the root:sdusers shape is
-# the ONE unrestricted case, and it grants nothing - it takes ownership to root
-# and cannot hand a caller anything it did not already have.
+# so the sdsys shape's paths must sit inside the accounts root.
+# 26 Oct 26 (F12b): THE root:sdusers SHAPE WAS "THE ONE UNRESTRICTED CASE, AND IT GRANTS
+# NOTHING".  IT GRANTED THE GROUP sdusers - every SD user - ON ANY PATH THAT EXISTS:
+# a dry run of `chown-account root sdusers /etc/shadow` was accepted, and a real one
+# turns root:shadow 0640 into root:sdusers 0640.  Its one caller is create.account
+# for an OTHER account, whose path the administrator names (anywhere: create.account
+# other <name> <path>) and which create.file has just made as the sdsys user, with
+# everything in it.  So the path stays free and the owner is the rule: a directory or
+# a plain file that the sdsys user owns (require_sdsys_owned), which nothing of
+# root's is, and a real run chowns through the file it has opened (FC_PY).
 require_account_owner() {
   local user=$1 group=$2 path=$3 real uroot
   [[ -n $user && -n $group && -n $path ]] || die "chown-account needs <user> <group> <path>"
@@ -649,9 +831,15 @@ require_account_owner() {
   case $user in
     root)
       [[ $group == sdusers ]] || die "an OTHER account's owner is root:sdusers, not root:$group"
+      require_sdsys_owned "$real"
+      FC_PATH=$real
+      FC_GROUP=$group
+      FC_OWNER=$SDSYS_UID
+      FC_NOTE="(opened without following a link, found to belong to uid $SDSYS_UID - the sdsys user - and chowned through the open file)"
       ;;
     sdsys)
       require_sd_chown_path "$path"
+      require_group_account_files "$group" "$path"
       ;;
     *)
       require_sd_user "$user"
@@ -735,7 +923,8 @@ require_account_dir() {
 # modify.account sdsys-on); backup-pack's reading of an account tree is then
 # decided by the tree's modes alone, as for any other group member that is not in the group.
 
-SD_ACCARCHIVE=${SD_ACCARCHIVE:-/usr/local/sbin/sd-accarchive}
+SD_ACCARCHIVE_REAL=/usr/local/sbin/sd-accarchive
+SD_ACCARCHIVE=${SD_ACCARCHIVE:-$SD_ACCARCHIVE_REAL}      # 26 Oct 26 dm - F12e: a test knob like SD_ACCT_ROOT (python3 runs it as root); reset to the real one in main unless trust_fixtures
 
 # The canonical account directory, by the same rules rmtree-account uses,
 # without building the removal.  Sets ACCT_REAL and ACCT_NAME.
@@ -761,6 +950,18 @@ account_of_path() {
     || die "'$real' is not inside $root/user_accounts or $root/group_accounts"
   require_name "account directory" "$name"
   ACCT_REAL=$root/$kind/$name
+}
+
+# 26 Oct 26 dm - F12.  akpath-set RUNS sdidx AS ROOT, and sdidx opens <data path>/%0 for writing (it checks the magic number of the primary subfile and rewrites its header, and nothing else).  So
+# the argument has to be what a restored hashed file is: a directory holding a plain %0 that nothing else links to (a link planted at %0 would be followed by root's open), and the new index
+# path a directory (sdidx stats it too).  account_of_path has already seen that both are canonical paths of ONE account.  The only caller is restorea, through acc_os_akpath, with the data
+# path of a hashed file it has just placed (a VOC pointer's path, mapped into the account) and the relocated index directory inside the account.
+require_hashed_dir() {   # require_hashed_dir DATA_PATH INDEX_PATH
+  local data=$1 index=$2
+  [[ -d $data && ! -L $data ]] || die "the data path '$data' is not a directory (a hashed file is a directory that holds %0)"
+  [[ -f $data/%0 && ! -L $data/%0 ]] || die "'$data/%0' is not a plain file, so the data path is not a hashed file"
+  [[ $(stat -c %h -- "$data/%0") == 1 ]] || die "'$data/%0' has more than one hard link"
+  [[ -d $index && ! -L $index ]] || die "the index path '$index' is not a directory"
 }
 
 restore_place() {
@@ -799,6 +1000,8 @@ restore_place() {
   else
     [[ $owner == sdsys ]] || die "a group account's owner is sdsys, not '$owner'"
     [[ $group == sdg_?* ]] || die "a group account's group is sdg_<name>, not '$group'"
+    # 26 Oct 26 dm - F12.  restorea passes the register's group for the account, which create.account made as sdg_<the account's own name>; another account's group is not one it sends.
+    [[ $group == "sdg_$tname" ]] || die "group account '$tname' belongs to the group sdg_$tname, not '$group'"
   fi
   getent group "$group" >/dev/null 2>&1 || [[ $DRY -eq 1 ]] || die "group '$group' does not exist"
 
@@ -884,6 +1087,8 @@ pw_complex() {
 set_pw() {
   local user=$1 pw extra
   require_sd_user "$user"
+  require_sd_stamp "$user" "its Linux password is never set here"
+  require_pw_unset "$user"
   IFS= read -r pw || die "setpw wants the password on stdin"
   IFS= read -r extra && die "setpw wants exactly one line on stdin; there were more"
   pw_complex "$pw" || die "the password does not meet SD's rule (10920): 8+ characters with a lower-case letter, an upper-case letter, a digit and a symbol"
@@ -1521,6 +1726,15 @@ require_group_write_target() {   # require_group_write_target DIR - dies unless 
 DRY=0
 if [[ ${1:-} == --dry-run ]]; then DRY=1; shift; fi
 
+# 26 Oct 26 dm - F12e: the environment's test knobs, for a dry run or a process that is not root; a root run uses the real accounts root and the real archiver and the PATH fixed at the top.
+if trust_fixtures "$DRY" "${EUID:-$(id -u)}"; then
+  [[ -z ${SD_PATH_PREPEND:-} ]] || PATH=$SD_PATH_PREPEND:$PATH
+else
+  SD_ACCT_ROOT=$SD_ACCT_ROOT_REAL
+  SD_ACCARCHIVE=$SD_ACCARCHIVE_REAL
+  SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL
+fi
+
 verb=${1:-}
 [[ -n $verb ]] || usage
 shift || true
@@ -1529,6 +1743,10 @@ shift || true
 # bottom.  One exit path means the dry run and the real run cannot drift.
 declare -a cmd=()
 declare -a extra=()
+FC_PATH=      # F12b: set by chown-account root sdusers; the real run then chowns through FC_PY (the path, the owner it must have, the group) instead of running cmd
+FC_GROUP=
+FC_OWNER=
+FC_NOTE=
 
 case $verb in
   useradd)
@@ -1544,6 +1762,7 @@ case $verb in
   userdel)
     [[ $# -eq 1 ]] || usage
     require_sd_user "$1"
+    require_sd_stamp "$1" "it is never deleted here"
     cmd=(userdel -- "$1")
     ;;
 
@@ -1558,6 +1777,7 @@ case $verb in
   passwd)
     [[ $# -eq 1 ]] || usage
     require_sd_user "$1"
+    require_sd_stamp "$1" "its password is never changed here"
     cmd=(passwd -- "$1")
     ;;
 
@@ -1565,6 +1785,7 @@ case $verb in
     [[ $# -eq 1 || $# -eq 2 ]] || usage
     require_sd_group "$1"
     ! getent group "$1" >/dev/null 2>&1 || die "group '$1' already exists"
+    [[ $1 != sdu_* ]] || require_own_account_group "$1" "${2:-}"
     cmd=(groupadd -- "$1")
     # Members are added with gpasswd rather than groupadd --users: --users is
     # recent shadow-utils and is absent on distributions this installer serves.
@@ -1764,6 +1985,7 @@ case $verb in
     data_acct=$ACCT_REAL
     account_of_path "$2"
     [[ $ACCT_REAL == "$data_acct" ]] || die "the index path is in $ACCT_REAL, not in the file's own account $data_acct"
+    require_hashed_dir "$1" "$2"
     # sdidx -p used to print nothing on success and ignore write_primary_header()'s
     # result (sdidx.c case 'P'); since 18 Oct 26 it checks that write and says what
     # -q says.  The change is still accepted only when -q then names the new path
@@ -1829,7 +2051,7 @@ case $verb in
     require_group_write_target "$1"
     printf '%s: group-write %s (group %s, gid %s; owners uid %s)\n' "$PROG" "$ACCT_REAL" "$GW_GROUP" "$GW_GID" "$GW_OWNERS"
     need_root
-    python3 -c "$GW_PY" "$ACCT_REAL" "$GW_GID" "$GW_OWNERS" "$DRY" || exit $?
+    python3 -I -c "$GW_PY" "$ACCT_REAL" "$GW_GID" "$GW_OWNERS" "$DRY" || exit $?
     [[ $DRY -eq 1 ]] || logger -t sd-elevate "group-write: the VOC and dictionaries of $ACCT_REAL are group-writable for $GW_GROUP" 2>/dev/null || true
     exit 0
     ;;
@@ -1873,6 +2095,7 @@ esac
 
 # Instrument rule: say what was RESOLVED, not what was asked for.
 printf '%s: %s\n' "$PROG" "${cmd[*]}"
+[[ -z $FC_PATH ]] || printf '%s: %s\n' "$PROG" "$FC_NOTE"
 for m in "${extra[@]:-}"; do
   [[ -n $m ]] && printf '%s: gpasswd -a %s %s\n' "$PROG" "$m" "${cmd[-1]}"
 done
@@ -1885,7 +2108,11 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   die "must run as root (it is invoked through sudo); use --dry-run to validate"
 fi
 
-"${cmd[@]}" || exit $?
+if [[ -n $FC_PATH ]]; then
+  python3 -I -c "$FC_PY" "$FC_PATH" "$FC_OWNER" "$FC_GROUP" 0 || exit $?
+else
+  "${cmd[@]}" || exit $?
+fi
 
 for m in "${extra[@]:-}"; do
   [[ -n $m ]] || continue

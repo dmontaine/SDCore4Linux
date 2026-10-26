@@ -8,6 +8,10 @@
 #   rev 2.0  Mar 15 2026 mab - echo -e to printf
 #   - prior history suppressed
 #
+#   26 Oct 2026 dm - W.11 F11: the immutable attribute the installer puts on
+#   bin (so that the sdsys user cannot replace the directory root runs
+#   sd, sdlnxd and sdidx from) is lifted before the system directory is removed.
+#
 #   18 Oct 2026 dm - S.66: the group sdg_shared (the shared account's group)
 #   is removed on a full DELETE and kept when the accounts are kept.
 #
@@ -267,6 +271,11 @@ if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/newvoc.mods" ]; then
     sudo cp -a "$sdsysdir/newvoc.mods" "$acct_path/"
     echo "Saved the local VOC modifications file (newvoc.mods)"
 fi
+
+# 26 Oct 26 dm - W.11 F11.  The installer makes bin immutable (chattr +i) so that the sdsys user, who owns the system directory, cannot rename it away and put a bin of
+# its own in its place; "rm -fr" cannot empty or remove an immutable directory, so the attribute comes off first, as the audit trail's does above.  A bin from before
+# this change, or on a file system without attributes, has no such attribute: the command finds nothing to lift and is no harm.
+sudo chattr -i "$sdsysdir/bin" 2>/dev/null || true
 
 # remove the /usr/sdsys directory
 sudo rm -fr "$sdsysdir"

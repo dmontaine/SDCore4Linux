@@ -1,6 +1,50 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  THE ROOT HELPER NO LONGER TAKES WHAT NO CALLER SENDS: A USER ACCOUNT'S FILES, THE PASSWORD OF A LOGIN SD DID NOT MAKE, AN OLD PASSWORD'S REPLACEMENT, AND A GROUP FOR SOMEBODY ELSE'S ACCOUNT (W.11 F12).
+
+             What        The sdsys login may run /usr/local/sbin/sd-elevate with any arguments, so each verb of the helper was a wall only as far as its own checks went, and
+                         several went further than anything SD sends. Now: chown-account's sdsys shape, which create.account uses for a group account's files and the installer
+                         uses to repair them, takes only paths inside group_accounts/<name> and only that account's own group (sdg_<name>; sdusers for the shared account) - it no
+                         longer gives sdsys a user account's directory, voc or record files; chown-account root sdusers, which create.account uses for an OTHER account's path,
+                         takes only a directory or plain file that the sdsys user owns (it used to take /etc/shadow), and a real run chowns through the file it opened, without
+                         following a link; setpw, passwd and userdel act only on a Linux user that carries the comment SD account, which useradd gives every user SD makes
+                         (userdel-home always asked for it), so the helper can no longer set the password of, or delete, the machine's own administrator or any other login that was
+                         there before SD; setpw sets a FIRST password only, and a user that already has one is refused; groupadd makes an sdu_<user> group only for an SD user that
+                         exists and puts in it only root and that user (the sdsys user joins an account's group through sdsys-join and nothing else); restore-place puts a group
+                         account back only in its own group, sdg_<name>; and akpath-set, which runs sdidx as root, takes a hashed file's directory (a plain %0 with no second link
+                         in it) and an existing directory, both in one account. The helper also fixes its own PATH, runs the python it uses in isolated mode (a file of that name
+                         left in the caller's current directory is not imported), and reads its test settings SD_ACCT_ROOT, SD_ACCARCHIVE, SD_SOCKET_UNIT and SD_PATH_PREPEND only
+                         on a --dry-run or from a process that is not root. The refusals say why in the helper's own words ("is not in a group account", "was not created by SD",
+                         "already has a Linux password", "cannot be a member", "is not a plain file"); the administrator page "The installed scripts" lists what each verb accepts now.
+             Why it      A stolen or misused sdsys login could use the helper to own another account's VOC, to give the group sdusers a root-owned file such as /etc/shadow, to
+             matters     set the password of the person who administers the machine, or to make a group for somebody else's account with sdsys in it. Each was found by a dry
+                         run of the helper on 26 Oct 2026, and SD itself never asks for any of them.
+             Does not    Make the sdsys login harmless: it can still write the global catalogue, make a new SD user and set its first password, put a person in any account's
+                         group (modify.account add is exactly that), have a restore replace an account with a tree it staged itself, and turn any file or directory it owns into one
+                         owned by root and the group sdusers. The group-account verbs now look for a directory named group_accounts literally, so a GRPDIR set to another name is
+                         refused by them. create.account, modify.account, delete.account and the installer send the same calls as before, which is read from the programs and held
+                         by the unit checks; witness-f12.py is what shows it on a real install and has not been run.
+
+26 Oct 26  THE FILES ROOT RUNS ARE NOW ROOT'S, AND SO IS THE DIRECTORY THEY ARE IN (W.11 F11).
+
+             What        The system service runs bin/sd as root, the audit daemon service runs bin/sdlnxd as root, every API connection starts bin/sd -n -q as root, the helper
+                         sd-elevate runs bin/sdidx as root, and every session (that first stage too) reads bin/pcode. The installer used to hand the whole system directory to the
+                         sdsys user, so whoever held the sdsys login could change one of those files and have root run it at the next start (or, as the code reads, append its own
+                         p-code through catalog ... pcode to the library every session runs). Near its end the installer now makes bin and everything in it owned by root with no
+                         group or other write, and makes the directory bin immutable (chattr +i): the sdsys user owns /usr/local/sdsys, and the owner of a directory may rename any
+                         entry in it whoever owns the entry, so without the attribute it could move bin away and put a bin of its own in its place. The installer prints what it
+                         set, and a WARNING that names the fault when a link is in bin (nothing is changed then), when a root-run file is missing, or when the file system does not
+                         keep the attribute; the same warning is repeated in the closing summary, which comes after the password steps. deletesdcore.sh lifts the attribute before it
+                         removes the directory.
+             Why it      A stolen sdsys login could arrange for root to run its own code at the next start of SD, at a restart of the daemon or on the next API connection.
+             matters
+             Does not    Close the other two routes from the sdsys login to code that others run: it can still write the global catalogue, and it can still run sd-elevate (whose
+                         verbs F12 narrows). A system installed before this change keeps its old owners until SD is deleted and installed again. During the minutes of an
+                         install, before this step, bin is still the sdsys user's. Putting a file of your own into bin now needs sudo chattr -i /usr/local/sdsys/bin first, and
+                         catalog ... pcode and a recursive compile (SD's own developers' tools) need root. On a file system that cannot keep the attribute the files are root's but bin
+                         can still be renamed. What happens on a real machine has not been measured yet (witness-f11.py is written and has not been run).
+
 26 Oct 26  TWO PEOPLE CAN NOW BE AT THE HOME SCREEN AT THE SAME TIME: A SESSION THAT STARTED AT IT NO LONGER KEEPS THE NEXT ONE WAITING AT SIGN-ON.
 
              What        The home screen reads where an account starts from the account's register record and, when that says nothing, from a file named start.default in the
@@ -32,8 +76,8 @@ Next release - in progress
                          did; the record goes with the accounts when they are deleted, and a group the installer could not leave is a warning and no record.
              Why it      An install used to undo any withdrawal of the membership, and the membership was a silent way for the sdsys login to write the code of every account. Now it
              matters     is a decision the administrator takes, account by account, that leaves a record and can be reversed.
-             Does not    Make the sdsys login unable to reach an account's code: it can still arrange for root to run files the sdsys user owns, write the global catalogue, and
-                         run sd-elevate with any arguments, and a session of SDSYS that is already running keeps its groups until it ends. It does not change group accounts or the
+             Does not    Make the sdsys login unable to reach an account's code: it can still write the global catalogue and run sd-elevate (since F11 the files
+                         root runs are root's, and F12 narrowed sd-elevate's verbs: see their entries), and a session of SDSYS that is already running keeps its groups until it ends. It does not change group accounts or the
                          shared account, and it does not switch the access on for the installing user's account, even when the installer is told to open every access gate. That
                          SDSYS also loses general write inside an account (logto and an editor, an interactive update.accounts) is read from the modes and has not been measured on a
                          real install.
