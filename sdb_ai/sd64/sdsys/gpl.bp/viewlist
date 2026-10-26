@@ -99,6 +99,9 @@ read.all:
          pth<n> = trim(line[sp + 1, 999])
       repeat
       closeseq lf
+   end else
+*     26 Oct 26: an absent file takes ELSE with the name still locked; close the variable (see home_entry)
+      if not(unassigned(lf)) then closeseq lf
    end
    return
 

@@ -33,6 +33,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TREE = os.path.dirname(HERE)
@@ -639,6 +640,27 @@ def a_nofile():
       "could not be turned on" in st and rc == "nofile" and kept, repr((st, rc, kept)))
 
 
+def a_two():
+    """26 Oct 26 (found on the VM, witness S76-b2): THE DELIVERED STATE HAS NO start.default FILE, and !home_entry's OPENSEQ of it took ELSE with the name still locked, so a session that
+    started at the home screen kept an update lock on start.default for its whole life and the next session waited at sign-on.  Two administrator sessions one after the other, no file:
+    the second must reach its home screen, and LIST.READU must show no lock on start.default."""
+    sh.set_default(None)
+    h1 = H(admin=True)
+    up1 = h1.home()
+    h2 = H(admin=True, settle=3.0)
+    t_end = time.time() + 30
+    while time.time() < t_end and not h2.home():
+        h2.s._pump(0.5)
+    up2 = h2.home()
+    out = adm("LIST.READU")
+    leak = [ln.strip() for ln in out if "start.default" in ln]
+    h2.end()
+    h1.end()
+    sh.set_default("menu")
+    R("A_TWO", "two sessions of the administrator start at the home screen one after the other with NO start.default file: the second reaches its home screen (it is not left waiting at sign-on) and LIST.READU shows no lock on start.default",
+      up1 and up2 and not leak, repr((up1, up2, leak)))
+
+
 def a_adminrec():
     """26 Oct 26 (review of the home work): the Recent group for the ADMINISTRATOR, whose top page is three groups side by side in one band: with the group on and one tile started the
     page grows by the Recent band and must stay whole - the heading on row 6, the started tile first, the page still the top page - and turning the group off puts it back."""
@@ -675,9 +697,11 @@ MUTANTS = {
     "back-forgets-focus": ("c_sub", [("tool_home", "   want.id = e<1, 2>\n", "   want.id = ''\n")], ["C_FOCUS", "C_BS", "C_UNWIND"]),
     "switch-keeps-level": ("c_sub", [("tool_home", SWITCH_RESET, "")], ["C_SWITCH"]),
     "create-start-unchecked": ("b_create", [("create_account", "   if start.want # '' and start.want # 'menu' and start.want # 'terminal' then\n", "   if @false then\n")], ["B_BOGUS"]),
+    # 26 Oct 26: the lock the home entry's OPENSEQ of an absent start.default used to keep for the life of the session
+    "home-entry-keeps-the-lock": ("a_two", [("home_entry", "         if not(unassigned(df)) then closeseq df\n", "         null\n")], ["A_TWO"]),
 }
-SECTIONS = {"c_sub": c_sub, "d_ids": d_ids, "b_create": b_create, "a_basic": a_basic, "a_validate": a_validate, "a_off": a_off, "a_admin": a_admin, "a_pins": a_pins, "a_nofile": a_nofile, "a_adminrec": a_adminrec}
-PROGRAMS = ("tool_home", "home_recent", "create_account")
+SECTIONS = {"c_sub": c_sub, "d_ids": d_ids, "b_create": b_create, "a_basic": a_basic, "a_validate": a_validate, "a_off": a_off, "a_admin": a_admin, "a_pins": a_pins, "a_nofile": a_nofile, "a_adminrec": a_adminrec, "a_two": a_two}
+PROGRAMS = ("tool_home", "home_recent", "create_account", "home_entry")
 
 
 def mutate(name):
@@ -731,7 +755,7 @@ def main():
             b_create()
         if "A" in want:
             say("\n--- A  the Recent group")
-            for fn in (a_basic, a_validate, a_off, a_admin, a_pins, a_nofile, a_adminrec):
+            for fn in (a_basic, a_validate, a_off, a_admin, a_pins, a_nofile, a_adminrec, a_two):
                 fn()
     except BaseException as e:
         if isinstance(e, SystemExit) and e.code in (0, 1):

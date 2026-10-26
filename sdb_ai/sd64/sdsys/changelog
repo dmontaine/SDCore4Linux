@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  TWO PEOPLE CAN NOW BE AT THE HOME SCREEN AT THE SAME TIME: A SESSION THAT STARTED AT IT NO LONGER KEEPS THE NEXT ONE WAITING AT SIGN-ON.
+
+             What        The home screen reads where an account starts from the account's register record and, when that says nothing, from a file named start.default in the
+                         system directory. That file does not exist in the delivered system. SD's OPENSEQ of a file that is not there takes the ELSE branch but leaves the name
+                         locked until the file variable is closed (that is how a program makes a file), and the program that reads the setting never closed the variable. So the
+                         first session to start at the home screen kept an update lock on start.default for as long as it lived, and the next session, of any account that took
+                         its start from the system default, waited at sign-on, showing the licence banner and nothing else, until the first one signed off. The home entry now
+                         closes the variable when the file is not there. The same shape was in set.start.default, the menu management page, the list of PDF viewers and OSREAD,
+                         whose read of a file that was not there left a lock on its name for the rest of the session; each now closes it. Found on a real install, by the witness
+                         for the SDSYS second session, on 26 Oct 2026; a sandbox with two sessions did not see it because it only looked at the first session's screen.
+             Why it      With more than one person using the system, an account without a start setting of its own could not sign on while someone else was at the home screen.
+             matters
+             Does not    Change OPENSEQ: a program of your own that opens a file that may not be there, takes ELSE and does not close the file variable still keeps the lock on
+                         its name until it does (closeseq it in the ELSE branch).
+
 26 Oct 26  THE SDSYS USER IS IN NO USER ACCOUNT'S GROUP AS DELIVERED, AND THE ADMINISTRATOR SWITCHES IT ON ONE ACCOUNT AT A TIME: modify.account <name> sdsys-on AND sdsys-off (F6, S.67 stage 2).
 
              What        create.account used to make every user account's Linux group with the sdsys user in it, and the installer put the sdsys user back in the group of every

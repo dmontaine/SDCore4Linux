@@ -467,8 +467,8 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
         ck_says "5i the act took the sdsys user out of the group of $A1" "the sdsys user is no longer in the group sdu_$A1" "$OUT"
         OTHERS_OK=yes
         [ "$(has_member sdusers sdsys)" = yes ] || OTHERS_OK=no
-        if [ -d /home/sd/group_accounts/shared ] && [ "$(has_member sdg_shared sdsys)" != yes ]; then OTHERS_OK=no; fi
-        ck "5j ...really: /etc/group no longer lists sdsys in sdu_$A1 (nor in sdu_$A2 where it was switched on); sdusers and the shared account's group still do" "no no yes" "$(has_member "sdu_$A1" sdsys) $(has_member "sdu_$A2" sdsys) $OTHERS_OK"
+        # 26 Oct 26, the first real run: the shared account's group sdg_shared lists only root - the sdsys user owns the shared account's files, it is not in the group (the draft assumed it was)
+        ck "5j ...really: /etc/group no longer lists sdsys in sdu_$A1 (nor in sdu_$A2 where it was switched on); sdusers still does" "no no yes" "$(has_member "sdu_$A1" sdsys) $(has_member "sdu_$A2" sdsys) $OTHERS_OK"
         ck "5k the scratch marker was written: sdsys:sdusers 644; the REAL marker in /home/sd is as it was (this run did not touch it)" "sdsys:sdusers 644 $REAL_MARKER_BEFORE" "$(stat -c '%U:%G %a' "$RULING_MARKER" 2>/dev/null) $(yesno_path "/home/sd/\$groups.ruled")"
         # the administrator switches it on afterwards; the next install, with the marker there, must leave it alone
         OUT=$(run_sd "MODIFY.ACCOUNT $A1 SDSYS-ON (after the ruling)" "MODIFY.ACCOUNT $A1 SDSYS-ON")
@@ -506,7 +506,12 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     # 5.3: the account is OFF now.  Everything an administrator does that does not write INTO the account still works.
     OUT=$(run_sd "SYNC.MASTERS $A1 (the account is off)" "SYNC.MASTERS $A1")
     OUT3=$(run_sd "CHECK.MASTERS $A1 (the account is off)" "CHECK.MASTERS $A1")
-    ck_says "5.3a SYNC.MASTERS and CHECK.MASTERS of an account that is off work: the copies match" "Every master copy matches its account" "$OUT3"
+    # 26 Oct 26, the first real run: the dictionary zzoffd of 3d6 was made under UMASK 077 and stays mode 600, so SDSYS cannot READ it while the account is off - CHECK.MASTERS says so (unreadable)
+    # and counts one difference.  That is the honest answer for an account that is off, not "every copy matches" (the first draft's expectation, which forgot the fixture).
+    ck_says "5.3a SYNC.MASTERS and CHECK.MASTERS of an account that is off run to the end" "Checked 1 account(s)" "$OUT3"
+    ck_says "5.3a2 ...and its one difference is the dictionary made under UMASK 077 in 3d6, which the sdsys user cannot read while the account is off" "unreadable: $A1 dict zzoffd" "$OUT3"
+    ck_silent "5.3a3 ...and no 'nonwritable' line is made of an account that is off" "nonwritable" "$OUT3"
+    ck_silent "5.3a4 ...and no 'norights' line either" "norights" "$OUT3"
     ck_says "5.3b ...and the off account is counted, not listed as a difference" "Master edits are switched off for" "$OUT3"
     OUT=$(run_sd "LOGTO $A1, then a READ in the account, then a WRITE (CREATE.FILE zzcollat)" "LOGTO $A1" "CT VOC LOGTO" "CREATE.FILE zzcollat DYNAMIC")
     ck_silent "5.3c LOGTO into an account that is off and a read of its VOC raise no 'not a member' or 'not authorized' complaint (first real run decides the wording)" "not authorized" "$OUT"

@@ -223,6 +223,19 @@ def checks(s):
        and all("gr<g> = '%s'" % n in adm for n in ("System", "People and access", "Data, network and AI")), repr(adm[:200]))
     ck("H23e ...and their three groups stand side by side in ONE band, two tile columns each (four tiles in System, three in People and access, four in Data, network and AI: two tile rows), so that the administrator's first screen (this band of two tile rows, Tools, My programs, Everyone) shows Tools and Everyone at 140 by 43 without scrolling",
        re.findall(r"gr<g> = '([^']+)' : @vm : bnd : @vm : (\d)", adm) == [("System", "2"), ("People and access", "2"), ("Data, network and AI", "2")] and adm.count("bnd += 1") == 1, repr(re.findall(r"gr<g> = '([^']+)' : @vm : bnd : @vm : (\d)", adm)))
+    # H28a (26 Oct 26, found on the VM by witness-batch26.py S76-b2): OPENSEQ of an ABSENT file takes ELSE and still holds a lock on the name until the file variable is closed.  The delivered
+    # state has no start.default, so every session that started at the home screen kept an update lock on it for its whole life and the next session waited at sign-on.  Each program that
+    # opens a possibly absent file READONLY closes the variable in its ELSE branch.
+    leaks = []
+    for prog_, var_ in (("home_entry", "df"), ("setstart", "df"), ("tool_menus", "df"), ("viewlist", "lf"), ("osread", "f")):
+        try:
+            txt_ = s[prog_] if prog_ in s else open(os.path.join(GPL, prog_), encoding="latin-1").read()      # the mutated text when the self-test mutates this program
+        except (OSError, TypeError):
+            txt_ = ""
+        if not re.search(r"openseq[^\n]* readonly to %s then[\s\S]{0,700}?else[^\n]*\n(?:\s*\*[^\n]*\n)*\s*if not\(unassigned\(%s\)\) then closeseq %s" % (var_, var_, var_), txt_):
+            leaks.append(prog_)
+    ck("H28a every program that opens a possibly absent file READONLY (!home_entry, SET.START.DEFAULT, the menu management page, !viewlist, OSREAD) closes the file variable in its ELSE branch, so that an absent start.default does not leave an update lock on it for the life of the session",
+       not leaks, repr(leaks))
     ck("H28 every administrator page has a tile (plan 13.2: a new app adds its row in the commit that builds it): each verb of voc_template named tool.* (all of SDSYS's) is the action of a tile, and no tile runs a tool.* verb that has no VOC entry",
        sorted(s["tool.verbs"]) == sorted(set(v for v in ADMIN_TILES.values()) | set(DEV_TILES.values()) | {"tool.keys"}) and all(("act = 'cmd:%s'" % v) in th for v in s["tool.verbs"]), repr(s["tool.verbs"]))
     dev = between(th, "gr<g> = 'Develop'", "\n   hx = 95")
@@ -370,6 +383,7 @@ MUTANTS = [
     ("a tile draws outside the panel", "tool_home", "      if sy >= lo and sy <= hi then", "      if @true then"),
     ("the scroll bar is not drawn", "tool_home", "   if ch > ph then\n      call $sl_scrollbar", "   if @false then\n      call $sl_scrollbar"),
     ("a piped session is let in", "tool_home", "   if @tty[1, 5] # '/dev/' then\n      display sysmsg(11863)", "   if @false then\n      display sysmsg(11863)"),
+    ("the home entry keeps the lock of an absent start.default", "home_entry", "         if not(unassigned(df)) then closeseq df\n", "         null\n"),
     ("set.tile lets the Back tile be turned off", "settile", "if tile = 'back' and state = 'off' then stop sysmsg(11962)", "if @false then stop sysmsg(11962)"),
     ("modify.account loses a start word", "modifya", "AI-OFF,SDSYS-ON,SDSYS-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED", "AI-OFF,SDSYS-ON,SDSYS-OFF,START-MENU,START-TERMINAL,PINS-ON,PINS-OFF,SUSPENDED"),
     ("modify.account loses a pins word", "modifya", "START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED", "START-DEFAULT,PINS-ON,SUSPENDED"),
