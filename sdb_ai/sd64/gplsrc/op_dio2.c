@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 5: the five CASE_INSENSITIVE_FILE_SYSTEM blocks (op_ospath, op_osrename: upper-casing a path on a case-blind file system) are gone; a Linux build never compiled them.
  * 24 Oct 26 dm  W.11 F9: SYSDIR answers sd_sysdir() (the configuration file's); the administrator tests are MY_ADMIN().
  * 19 Oct 26 dm  S.67 stage 1: OSPATH OS_DELETE and OSRENAME call masters_note_name() for the paths they remove, move and make (a VOC or dictionary
  *               file is journalled for the master files).
@@ -936,10 +937,6 @@ void op_ospath() {
       goto set_status;
   }  
 
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-  UpperCaseString(path);
-#endif
-
   /* 18 Oct 26 S.66: deleting or making a file or directory inside the shared account is a structure change, SDSYS's alone; a $internal
      program is not exempt.  Nothing is done; the answer is false (0) and STATUS() ER_PERM.  OS_CHOWN is not asked. */
   if (((key == OS_DELETE) || (key == OS_MKDIR) || (key == OS_MKPATH)) && !MY_ADMIN() && path_resolved_in_shared(path)) {
@@ -1018,9 +1015,6 @@ void op_ospath() {
 
     case OS_CWD:
       (void)getcwd(name, MAX_PATHNAME_LEN);
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-      UpperCaseString(name);
-#endif
       k_put_c_string(name, e_stack);
       e_stack++;
       goto exit_op_pathinfo;
@@ -1098,9 +1092,6 @@ void op_ospath() {
             continue;
 
           strcpy(name + 1, dp->d_name);
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-          UpperCaseString(name + 1);
-#endif
           if (stat_buff.st_mode & S_IFDIR) {
             name[0] = 'D';
             if (head != NULL)
@@ -1226,9 +1217,6 @@ void op_osrename() {
     process.status = ER_INVAPATH;
     goto exit_osrename;
   }
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-  UpperCaseString(new_path);
-#endif
 
   /* Get old pathname */
 
@@ -1238,9 +1226,6 @@ void op_osrename() {
     process.status = ER_INVAPATH;
     goto exit_osrename;
   }
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-  UpperCaseString(old_path);
-#endif
 
   /* 18 Oct 26 S.66: renaming into, out of or within the shared account changes its structure: SDSYS's alone, a $internal program included.
      Nothing is done; the answer is 0 (ER_PERM).  */

@@ -11,6 +11,7 @@
 # suite ends; remove its directory afterwards (each run leaves ~14,000 files).
 #
 # START-HISTORY:
+# 27 Oct 26 dm  S.87 batch 5: the two terminfo.src count rows follow the removal of the old Prime and other terminals (30 entries say cols#140; three 132-column entries are left).
 # 18 Oct 26 dm  New, with the 140 by 42 default (plan-terminal-140x42.md, phase 1 and phase 6).
 # END-HISTORY
 #
@@ -297,8 +298,9 @@ def main():
         row("control: ms-vt100 keeps the 25 lines it names", ti is not None and ti[1] == "25", repr(ti))
         with open(os.path.join(SD64, "terminfo.src")) as fh:
             src = fh.read()
-        row("terminfo.src: no entry says cols#120 any more", "cols#120" not in src and src.count("cols#140") > 30, "%d x cols#120, %d x cols#140" % (src.count("cols#120"), src.count("cols#140")))
-        row("terminfo.src: lines#36 is left only on the five 132-column entries", len(re.findall(r"lines#36", src)) == len(re.findall(r"cols#132,[^\n]*lines#36", src)) == 5,
+        row("terminfo.src: no entry says cols#120 any more", "cols#120" not in src and src.count("cols#140") >= 30, "%d x cols#120, %d x cols#140" % (src.count("cols#120"), src.count("cols#140")))
+        # five until 27 Oct 26 (S.87 batch 5), when two of them (pt100w, pt250w, old Prime terminals) were removed
+        row("terminfo.src: lines#36 is left only on the three 132-column entries", len(re.findall(r"lines#36", src)) == len(re.findall(r"cols#132,[^\n]*lines#36", src)) == 3,
             "%d x lines#36" % len(re.findall(r"lines#36", src)))
 
         say("\n--- the source says the same -----------------------------------------------------------------------")

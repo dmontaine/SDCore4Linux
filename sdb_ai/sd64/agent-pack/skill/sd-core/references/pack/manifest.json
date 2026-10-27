@@ -61,7 +61,7 @@
   },
   "basic.statement": {
    "chunks": 213,
-   "sha256": "e7ab32603fed52c86b7942c70c2c27520f8582f43549fff17134e97f8e8a0b5b"
+   "sha256": "9a6e0ad46df4dd91d25f02987ffa1d7f77de13a5d4f771192a8768f425825687"
   },
   "core.digest": {
    "chunks": 5,
@@ -193,7 +193,7 @@
   },
   "reference/basic-statements.md": {
    "chunks": 280,
-   "sha256": "3c903bd904ab25c8b67e4229a2805f066ee95edd48af63c21c734bfd5443e82b",
+   "sha256": "cb7a14e5eea7de9014de4ee985edd1aa9c9f4319f414b3964e1731903ba47037",
    "words": 5943
   },
   "reference/dictionaries.md": {

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 5: the comment about a name containing ';' no longer being a network file reference is gone with the code it described (_voc_ref no longer builds such a name).
  * 24 Oct 26 dm  W.11 F9: the administrator test is MY_ADMIN() (the process's own word), not the user table entry.
  * 19 Oct 26 dm  S.67 stage 1: open_file() calls masters_open_hook() on the resolved pathname, so that the administrator opening voc_master,
  *           dict_master or master_state finds the journal applied (masters.c).
@@ -823,10 +824,6 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
       /* process.status will have been set by recursive code */
       goto exit_op_open;
     }
-
-    /* SDNet removed (plan G4): a name containing ';' is no longer a network
-       file reference. It falls through to fullpath() and fails like any other
-       bad pathname. */
 
     /* 17 Oct 26 S.65 slice 3c: an N pointer in the VOC (_voc_ref) is a file on another SD server.  It comes back as the encoded path
        char(1) 'N' char(1) server char(1) file, which no real path holds.  Only an OPEN by name looks for it (map_name): OPENPATH and

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 5: the -l option (apply a new licence: it set a flag nothing read) is gone; "sd -l" is an unrecognised option like any other.
  * 26 Oct 26 dm  clean_stop() ends with sd_tls_relay_finish(): an API server waits for its TLS relay to deliver the last reply before it exits (sd_tlssrv.c).
  * 25 Oct 26 dm  "sd -start -nodaemon": start SD without forking sdlnxd, which its own service unit (sd-lnxd.service) starts and restarts.  start_sd() takes the choice.
  * 24 Oct 26 dm  W.11 F9: load_pcode() searches a copy of bin/pcode that this process read itself (read_pcode_image()), not the one in the shared segment.
@@ -43,7 +44,6 @@
  *         -I            Bootstrap Install
  *         -K n          Kill user n
  *         -K ALL        Kill all users
- *         -L            Apply new licence
  *         -M            Dump shared memory
  *         -N            Network connection (SDClient or direct telnet)
  *         -Pn           Execute phantom command (command in $IPC)
@@ -420,10 +420,6 @@ Private bool comlin(int argc, char *argv[]) {
           fprintf(stderr, "User number, login name or ALL required\n");
           exit(1);
 
-        case 'L': /* Apply new licence */
-          command_options |= CMD_APPLY_LICENCE;
-          break;
-
         case 'M': /* Dump memory */
           dump_sysseg(FALSE);
           exit(0);
@@ -604,7 +600,6 @@ help:
           "elsewhere\n");
   fprintf(stderr, "      -k n        Kill (logout) user n\n");
   fprintf(stderr, "      -k all      Kill (logout) all users n\n");
-  fprintf(stderr, "      -l          Apply new licence\n");
   fprintf(stderr, "      -u          List current users\n");
   fprintf(stderr, "      -status     Show version, start time and process counts\n");
   fprintf(stderr, "      -quiet      Suppress all displays on entry\n");

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 5: the CASE_INSENSITIVE_FILE_SYSTEM block of op_fcontrol() (upper-casing an alternate key path) is gone.
  * 18 Oct 26 dm  S.66: op_settrig() and the actions of op_fcontrol() / pub_fcontrol() that change a setting of the file (journalling, akpath,
  *               non-transactional, split/merge, no-resize, set mode; FC$SYNC, FC$CRLF and FC$MINMOD with a qualifier other than -1) refuse a file in
  *               the shared account with message 11514 for anyone but the administrator, a $internal program included (shared_structure_refusal).
@@ -247,9 +248,6 @@ void op_fcontrol() {
       }
 
       k_get_c_string(descr, header.akpath, MAX_PATHNAME_LEN);
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-      UpperCaseString(header.akpath);
-#endif
 
       if (header.akpath[0] == '\0')
         dh_file->akpath = NULL;

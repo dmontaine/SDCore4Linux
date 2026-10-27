@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 5: the CASE_INSENSITIVE_FILE_SYSTEM block of the file table entry of a directory file (DHF_NOCASE set on a case-blind file system) is gone.
  * 07 Oct 26 dm  PAL-1 stage 3a: the trigger name is lowered when the file is
  *           opened, and that copy is loaded (the Windows port's 14 Sep 26).
  * 31 Dec 23 SD launch - prior history suppressed
@@ -539,9 +540,6 @@ int16_t get_file_entry(char* filename,
     {
 //     fptr->params.modulus = 0;
 //     fptr->flags = 0;
-#ifdef CASE_INSENSITIVE_FILE_SYSTEM
-      fptr->flags |= DHF_NOCASE;
-#endif
     } else {
       fptr->params.modulus = header->params.modulus;
       fptr->params.min_modulus = header->params.min_modulus;

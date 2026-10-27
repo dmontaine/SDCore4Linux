@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  THE sd -l OPTION, THIRTY-ONE TERMINAL NAMES OF OLD HARDWARE AND THE system:account:file FILE NAME ARE REMOVED, AND SOME CODE THAT NEVER RAN.
+
+             What        The fifth batch of the removal the owner asked for: things that belonged to systems or hardware SD does not have. Removed: the sd -l option ("apply new licence": SD has no licence;
+                         it set a flag nothing read, and sd -l is an unrecognised option now like any other); the terminal definitions of Data General (dg210, dg-ansi, dg-generic, dg6053-old,
+                         dg100), MDC Prism (prism2, prism4, prism5, prism7, prism8, prism9, prism12, prism14 and p4 p5 p7 p8 p9 p12 p14), Prime (pt100, pt200, wren, fenix, their 132-column forms
+                         pt100w pt200w wrenw fenixw, pt250 and pt250w) and the Televideo 910 (tvi910), 31 names, of the 82 list.term.types showed, which now shows 51 (ansi, vt100 and xterm replace
+                         them; a terminal type SD has no definition for is treated as it always was); the file name system:account:file (bit 2 of FILERULE, which named a file on another system and
+                         opened nothing here) and a Q-pointer whose fourth field names another system, which is refused (status 3003) as it was and is NOT opened as a local file. Also gone, with no
+                         effect on anyone: the compiler's unused Pick style STOP / ABORT argument routine, and eight blocks of the kernel for file systems that ignore case, which a Linux build never
+                         compiled.
+             Why it      Each served a product or a machine SD is not. The smaller system is easier to keep right.
+             Does not    Change any terminal type that stays, any FILERULE bit but 2, or what a file name with one colon (account:file) or path: does. A TERM setting that names a removed type
+                         gets the default definition, so a session still runs; set TERM to ansi, vt100 or xterm.
+
 27 Oct 26  THIRTEEN SECOND SPELLINGS OF QUERY KEYWORDS, AND DICTIONARY FIELD NUMBERS 9998 AND 9999, ARE REMOVED.
 
              What        The fourth batch of the removal the owner asked for: the query processor. Removed keywords: col.spcs (write col.spaces), display.name (col.hdg), evaluate (eval),
