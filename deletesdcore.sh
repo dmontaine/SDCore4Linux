@@ -272,6 +272,14 @@ if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/newvoc.mods" ]; then
     echo "Saved the local VOC modifications file (newvoc.mods)"
 fi
 
+# 27 Oct 26 dm - S.87 (the VOC deletion list): the copies of the VOC records an update removed, which RESTORE.VOC puts back, are kept across a keep cycle like
+# newvoc.mods; DELETE removes them with the accounts they came from.
+if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/voc_removed.saved" ]; then
+    sudo rm -fr "$acct_path/voc_removed.saved"
+    sudo cp -a "$sdsysdir/voc_removed.saved" "$acct_path/"
+    echo "Saved the copies of removed VOC records (voc_removed.saved)"
+fi
+
 # 26 Oct 26 dm - W.11 F11.  The installer makes bin immutable (chattr +i) so that the sdsys user, who owns the system directory, cannot rename it away and put a bin of
 # its own in its place; "rm -fr" cannot empty or remove an immutable directory, so the attribute comes off first, as the audit trail's does above.  A bin from before
 # this change, or on a file system without attributes, has no such attribute: the command finds nothing to lift and is no harm.

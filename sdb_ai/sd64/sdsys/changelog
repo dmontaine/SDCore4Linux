@@ -1,6 +1,25 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  THE VOC UPDATE NOW REMOVES THE VOC RECORDS THAT SD NO LONGER SHIPS: A DELETION LIST, WITH A SAVED COPY, AN AUDIT LINE AND list.voc.removed AND restore.voc.
+
+             What        The VOC update (update.accounts all, which the installer runs on every upgrade that keeps the accounts) only ever added and changed records, so a record SD stopped
+                         shipping stayed in every account that had it for ever. SD now ships a deletion list, sdsys/voc_removed, one small record for each VOC record a release has withdrawn
+                         (its type, for a keyword its number, the release, and what to write instead); the first list holds the 13 records the removals of this release took out (col.spcs,
+                         display.name, evaluate, calculate, intersection, difference, margin, stats, supp, only and the comparison spellings => =< ><). After the usual copy the update works down
+                         the list in each account and removes a listed record, but ONLY when it is the record SD shipped: an account's own paragraph called margin is kept and the update says so.
+                         A record marked [locked] is kept too, except a verb, which is removed all the same (as a locked verb is overwritten by the update today) and reported. A copy of each
+                         record goes to sdsys/voc_removed.saved first (account, record, date, time, who ran it, the record), and if the copy cannot be saved the record is not removed. The
+                         update reports what it removed and kept by name, writes one audit line for the account (voc update account=sales removed=3 differs=0 locked=0 ids=...), and the step
+                         runs before newvoc.mods so the file you keep your own changes in has the last word. A VOC the session may not write ends that account's update, as for any refused write.
+                         Two new administrator verbs, in SDSYS's VOC only: list.voc.removed {account} prints the list, and with an account what the next update would do there (changes
+                         nothing); restore.voc account id | all puts back the newest saved copy of a record, never over a record the account holds, and audits it. The saved copies are kept across a
+                         delete and an install that keeps the accounts.
+             Why it      A removal that reaches new accounts only leaves the old ones with a verb or keyword whose program no longer understands it. Making the update take the record out, but only
+                         the record SD shipped, only after keeping a copy and only where the administrator can see and reverse it, fits the delivered-tight, administrator-loosens rule.
+             Does not    Delete any record that is not on the list, any record that differs from the shipped one, or (a locked verb apart) any [locked] record; remove anything a person types
+                         at an ordinary session; or keep two saved copies of one record made in the same second (the later replaces the earlier).
+
 27 Oct 26  THE sd -l OPTION, THIRTY-ONE TERMINAL NAMES OF OLD HARDWARE AND THE system:account:file FILE NAME ARE REMOVED, AND SOME CODE THAT NEVER RAN.
 
              What        The fifth batch of the removal the owner asked for: things that belonged to systems or hardware SD does not have. Removed: the sd -l option ("apply new licence": SD has no licence;
@@ -24,13 +43,11 @@ Next release - in progress
                          than 25" and list every record, so it stays until the owner decides.)
                          A dictionary item of type d, a or s whose field location was 9998 (the item count, @ni) or 9999 (the length of the record in bytes) now reads field 9998 or 9999 like any
                          other number: use an I-type with @ni or len(@record). The query processor, the I-type and A-correlative compilers, the run-time I-type and the dictionary page lost the
-                         two special cases. A new account no longer has the VOC records of the removed keywords. AN ACCOUNT THAT ALREADY HAS THEM KEEPS THEM, because the VOC update adds and
-                         changes records and never deletes one, so the old spelling still works there (except id.only before the file name and the field numbers, which are handled in
-                         the program and are refused everywhere); delete voc name removes one by hand.
+                         two special cases. A new account no longer has the VOC records of the removed keywords. An account that already has them loses them at its next VOC update, through the
+                         deletion list described in the entry above (a copy is saved first, and a record of the same name that is not the one SD shipped is kept).
              Why it      Each was a second name for something SD already says one way, kept so that sentences written for another product still run. One word for each thing is easier to learn,
                          to document and to test.
-             Does not    Remove any other keyword, change a sentence that uses only the surviving spellings, or take the old records out of accounts that exist (a deletion list for the VOC update is
-                         a separate decision).
+             Does not    Remove any other keyword or change a sentence that uses only the surviving spellings.
 
 27 Oct 26  TWENTY-SEVEN SECOND SPELLINGS AND FORMS OF BASIC STATEMENTS, CLAUSES, FUNCTIONS AND CONVERSIONS ARE REMOVED.
 

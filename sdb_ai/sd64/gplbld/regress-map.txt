@@ -173,6 +173,9 @@ gplsrc/kernel.c              : @core csvb q5 listu-a5 inhibit-q8 stdfil cll prof
 # every non-administrator session that runs a program meets
 gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust
 sdsys/messages/11930         : gcatmode
+# 27 Oct 26 (S.87): the VOC deletion list's messages, 11900-11918
+sdsys/messages/1190?         : vocremoved
+sdsys/messages/1191?         : vocremoved
 gplsrc/k_error.c             : sysexc try @core netfile masters segtrust auditjournal auditwriter
 gplsrc/messages.c            : sysexc @core segtrust
 gplsrc/sd.h                  : sysexc try editgates @core netfile shared masters
@@ -600,7 +603,15 @@ sdsys/gpl.bp/profiler        : prof
 sdsys/gpl.bp/locktracer      : q5
 sdsys/gpl.bp/inhibit         : inhibit-q8 tool-sessions
 sdsys/gpl.bp/login_inhibit   : inhibit-q8 tool-sessions
-sdsys/gpl.bp/login           : @system sdaccts editgates net shared winsize tool-sessions
+sdsys/gpl.bp/login           : @system sdaccts editgates net shared winsize tool-sessions vocremoved
+# 27 Oct 26 (S.87): the VOC deletion list - the three programs, the shipped list, the saved copies' directory and the two verbs' VOC records
+sdsys/gpl.bp/vocrmchk        : vocremoved
+sdsys/gpl.bp/lstvocrm        : vocremoved
+sdsys/gpl.bp/rstvoc          : vocremoved
+sdsys/voc_removed/*          : vocremoved
+sdsys/voc_removed.saved/*    : vocremoved
+sdsys/voc_template/list.voc.removed : vocremoved
+sdsys/voc_template/restore.voc : vocremoved
 # 26 Oct 26 (S.76): the routine that counts the sessions of SDSYS on a terminal is used by login, the sessions page and the home screen's signed-on line
 sdsys/gpl.bp/_sdsysn         : tool-sessions home
 gplbld/test-sdsysvis-units.py : none

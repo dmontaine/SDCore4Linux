@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 27 Oct 26 dm S.87: the VOC deletion list.  update.voc ends with remove.listed.voc, which removes from the account's VOC the records listed in sdsys/voc_removed that
+*           are still the records SD shipped (!vocrmchk), saves a copy of each to sdsys/voc_removed.saved first, reports the ones it kept and audits.  Messages 11900-11904.
 * 26 Oct 26 dm UPDATE.ACCOUNTS (modes 2 and 4) updates the SDSYS account's own VOC from VOC_TEMPLATE, not NEWVOC: tool.gates is the administrator's page in
 *           one and the holder's page in the other, and the installer's UPDATE.ACCOUNTS ALL had written the holder's over the administrator's.
 * 18 Oct 26 dm The size a session with no tty takes is DEFAULT.WIDTH by DEFAULT.DEPTH, now 140 by 42 (int$keys.h), and the
@@ -228,6 +230,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   (tool.gates: the matrix for the administrator, the holder's read-only page for everyone else) UPDATE.ACCOUNTS ALL, which the
 *   installer runs on every install, wrote the holder's page over the administrator's.  Found on a real install by witness-toolgates.py.
          update.sdsys.voc = (@who = 'sdsys' and kernel(K$ADMINISTRATOR,-1))
+         upd.account = downcase(@who)               ;* 27 Oct 26 - the name the deletion list's saved copies and audit line carry
          gosub update.voc
          if upd.denied then display sysmsg(11983, @path : @ds : 'voc')
          close update.voc.f
@@ -276,6 +279,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 * 18 Sep 26 dm - TEARDOWN (S.25).  One VOC layer: every account is NEWVOC, so
 *   the walk no longer resolves a tier first.
                            update.sdsys.voc = 0             ;* the walk passes over the SDSYS account (its path is in voc.paths); every account here is NEWVOC's
+                           upd.account = downcase(acc.name)   ;* 27 Oct 26 - see above
                            gosub update.voc
                            close update.voc.f
                            voc.paths<-1> = acc.path
@@ -953,6 +957,13 @@ accept.without.query:
 
    if upd.denied then return      ;* 26 Oct 26 - the account could not be written: nothing more is tried in it (newvoc.mods included)
 
+* 27 Oct 26 dm - S.87: THE VOC DELETION LIST.  The loop above adds and changes records and never deletes one, so a record SD stops shipping stayed in every
+*   account that had it.  sdsys/voc_removed lists them; the step below removes a listed record from THIS account's VOC, but only when it is the record SD
+*   shipped (!vocrmchk), after saving a copy to sdsys/voc_removed.saved (RESTORE.VOC puts it back), and audits it.  It runs BEFORE newvoc.mods, so a site's
+*   own file still has the last word.
+   gosub remove.listed.voc
+   if upd.denied then return
+
 * 12 Oct 26 dm - openQM 501.  An optional SDSYS file, newvoc.mods, holds the administrator's changes to the standard
 *   VOC (a verb withdrawn, a Q-pointer to a shared file, a paragraph for every account).  Each record in it is written to
 *   this account's VOC after the standard records, so it has the last word; an account record marked [locked] keeps
@@ -970,6 +981,79 @@ accept.without.query:
          end
       repeat
       close mods.f
+   end
+
+   return
+
+*****************************************************************************
+* REMOVE.LISTED.VOC  -  the VOC deletion list (S.87), one account: update.voc.f is its open VOC, upd.account its register name
+
+remove.listed.voc:
+   rm.ids.removed = ''
+   rm.ids.overruled = ''
+   rm.ids.differs = ''
+   rm.ids.locked = ''
+   openpath @sdsys:@ds:'voc_removed' to rm.f else return        ;* no list shipped with this tree: nothing to remove
+   openpath @sdsys:@ds:'voc_removed.saved' to rm.sv then rm.can.save = @true else rm.can.save = @false
+   if upd.account = '' then upd.account = '?'
+
+   select rm.f to 11                                            ;* the add / change loop above has finished with list 11 and newvoc.mods below takes it again
+   loop
+      readnext rm.id from 11 else exit
+      read rm.sig from rm.f, rm.id else continue
+
+      old.rec = ''
+      readu old.rec from update.voc.f, rm.id else old.rec = ''
+      call !vocrmchk(rm.sig, old.rec, rm.verdict)
+
+      begin case
+         case rm.verdict = 'absent'
+            release update.voc.f, rm.id
+
+         case rm.verdict = 'differs'                            ;* a person's own record of that name
+            rm.ids.differs<-1> = rm.id
+            release update.voc.f, rm.id
+
+         case rm.verdict = 'locked'
+            rm.ids.locked<-1> = rm.id
+            release update.voc.f, rm.id
+
+         case 1                                                 ;* delete, or overruled (a locked verb)
+            rm.saved.ok = @false
+            if rm.can.save then
+               rm.saved.ok = @true
+               rm.key = upd.account : '*' : rm.id : '*' : date() : '-' : fmt(int(time()), '5"0"R')
+               rm.copy = upd.account : @fm : rm.id : @fm : date() : @fm : int(time()) : @fm : @logname : @fm : old.rec
+               write rm.copy to rm.sv, rm.key on error rm.saved.ok = @false
+            end
+            if rm.saved.ok then
+               rm.deleted = @true
+               delete update.voc.f, rm.id on error rm.deleted = @false
+               if rm.deleted then
+                  rm.ids.removed<-1> = rm.id
+                  if rm.verdict = 'overruled' then rm.ids.overruled<-1> = rm.id
+               end else
+                  upd.denied = 1                                ;* the session may not write this VOC: the update of the account ends, as for a refused write
+                  release update.voc.f, rm.id
+                  exit
+               end
+            end else
+               display sysmsg(11904, rm.id)                     ;* no copy, no deletion
+               release update.voc.f, rm.id
+            end
+      end case
+   repeat
+
+   close rm.f
+   if rm.can.save then close rm.sv
+
+   if rm.ids.removed # '' then display sysmsg(11900, dcount(rm.ids.removed, @fm), convert(@fm, ' ', rm.ids.removed))
+   if rm.ids.overruled # '' then display sysmsg(11903, dcount(rm.ids.overruled, @fm), convert(@fm, ' ', rm.ids.overruled))
+   if rm.ids.differs # '' then display sysmsg(11901, dcount(rm.ids.differs, @fm), convert(@fm, ' ', rm.ids.differs))
+   if rm.ids.locked # '' then display sysmsg(11902, dcount(rm.ids.locked, @fm), convert(@fm, ' ', rm.ids.locked))
+
+   if rm.ids.removed # '' or rm.ids.differs # '' or rm.ids.locked # '' then
+      void kernel(K$AUDIT, 'voc update account=' : upd.account : ' removed=' : dcount(rm.ids.removed, @fm) : ' differs=' : dcount(rm.ids.differs, @fm) : ' locked=' : dcount(rm.ids.locked, @fm) : ' ids=' : convert(@fm, ',', rm.ids.removed))
    end
 
    return

@@ -7803,6 +7803,167 @@ cited by: `setviewer`
 
 cited by: `setviewer`
 
+### msg:11900
+> kind=message tier=reference since=- src=sdsys/messages/11900:1#5568a11f
+
+```
+%1 VOC record(s) removed, because SD no longer ships them: %2
+```
+
+cited by: `login`
+
+### msg:11901
+> kind=message tier=reference since=- src=sdsys/messages/11901:1#3bad830d
+
+```
+%1 VOC record(s) kept although SD no longer ships the name, because the record is not the one SD shipped: %2
+```
+
+cited by: `login`
+
+### msg:11902
+> kind=message tier=reference since=- src=sdsys/messages/11902:1#c7404a13
+
+```
+%1 VOC record(s) kept although SD no longer ships them, because they are marked [locked]: %2
+```
+
+cited by: `login`
+
+### msg:11903
+> kind=message tier=reference since=- src=sdsys/messages/11903:1#2eba16c8
+
+```
+%1 locked verb(s) were removed all the same, as a verb is not kept by [locked]: %2
+```
+
+cited by: `login`
+
+### msg:11904
+> kind=message tier=reference since=- src=sdsys/messages/11904:1#99edb69e
+
+```
+A copy of VOC record %1 could not be saved, so the record was left where it is.
+```
+
+cited by: `login`
+
+### msg:11905
+> kind=message tier=reference since=- src=sdsys/messages/11905:1#d19feaf0
+
+```
+%1 VOC record(s) that SD no longer ships:
+```
+
+cited by: `lstvocrm`
+
+### msg:11906
+> kind=message tier=reference since=- src=sdsys/messages/11906:1#3e7770e5
+
+```
+Name                          Went in   Use instead
+```
+
+cited by: `lstvocrm`
+
+### msg:11907
+> kind=message tier=reference since=- src=sdsys/messages/11907:1#16ca7689
+
+```
+absent
+```
+
+### msg:11908
+> kind=message tier=reference since=- src=sdsys/messages/11908:1#36e946f4
+
+```
+would be removed
+```
+
+### msg:11909
+> kind=message tier=reference since=- src=sdsys/messages/11909:1#04fd3a46
+
+```
+kept: not the shipped record
+```
+
+### msg:11910
+> kind=message tier=reference since=- src=sdsys/messages/11910:1#0ef157bb
+
+```
+kept: locked
+```
+
+### msg:11911
+> kind=message tier=reference since=- src=sdsys/messages/11911:1#269a6602
+
+```
+would be removed (a locked verb)
+```
+
+### msg:11912
+> kind=message tier=reference since=- src=sdsys/messages/11912:1#1e9886ac
+
+```
+Account %1 is not registered.
+```
+
+cited by: `lstvocrm`, `rstvoc`
+
+### msg:11913
+> kind=message tier=reference since=- src=sdsys/messages/11913:1#b00b4384
+
+```
+The VOC of account %1 cannot be opened from this session.
+```
+
+cited by: `lstvocrm`, `rstvoc`
+
+### msg:11914
+> kind=message tier=reference since=- src=sdsys/messages/11914:1#601550ba
+
+```
+Format: restore.voc account id | restore.voc account all
+```
+
+cited by: `rstvoc`
+
+### msg:11915
+> kind=message tier=reference since=- src=sdsys/messages/11915:1#b532f023
+
+```
+Put back %1 in the VOC of %2.
+```
+
+cited by: `rstvoc`
+
+### msg:11916
+> kind=message tier=reference since=- src=sdsys/messages/11916:1#cadc947b
+
+```
+No saved copy of %1 for account %2.
+```
+
+cited by: `rstvoc`
+
+### msg:11917
+> kind=message tier=reference since=- src=sdsys/messages/11917:1#577cce4c
+
+```
+The VOC of account %1 cannot be written from this session: %2 left as it is.
+```
+
+cited by: `rstvoc`
+
+### msg:11918
+> kind=message tier=reference since=- src=sdsys/messages/11918:1#04d8d0dd
+
+```
+The VOC of %2 already holds a record %1: it was not overwritten.
+```
+
+cited by: `rstvoc`
+
 ### msg:11930
 > kind=message tier=reference since=- src=sdsys/messages/11930:1#bfc9f698
 
@@ -9441,7 +9602,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 19 more
+cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 21 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -9564,7 +9725,7 @@ cited by: `findfile`
 Unexpected token (%1)
 ```
 
-cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 60 more
+cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 62 more
 
 ### msg:2019
 > kind=message tier=reference since=- src=sdsys/messages/2019:1#a22e9c3b
@@ -9873,7 +10034,7 @@ cited by: `cname`, `savestk`
 Cannot open accounts register
 ```
 
-cited by: `login`, `set_acc_password`, `setacc`, `setfile`, `upgrade_nocase`
+cited by: `login`, `lstvocrm`, `rstvoc`, `set_acc_password`, `setacc`, `setfile`, `upgrade_nocase`
 
 ### msg:2201
 > kind=message tier=reference since=- src=sdsys/messages/2201:1#704ebe48

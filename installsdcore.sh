@@ -1475,6 +1475,16 @@ if [ -d "/home/sd/newvoc.mods" ]; then
     echo "Restored the local VOC modifications file (newvoc.mods)"
 fi
 #
+# 27 Oct 26 dm - S.87 (the VOC deletion list): put back the copies of the VOC records earlier updates removed (deletesdcore.sh saved them), so RESTORE.VOC still
+# reaches them after an upgrade.  The shipped directory is replaced; it holds only a README until an update has saved something.
+if [ -d "/home/sd/voc_removed.saved" ]; then
+    sudo rm -fr "$sdsysdir/voc_removed.saved"
+    sudo mv "/home/sd/voc_removed.saved" "$sdsysdir/"
+    sudo chown -R sdsys:sdusers "$sdsysdir/voc_removed.saved"
+    sudo chmod -R 755 "$sdsysdir/voc_removed.saved"
+    echo "Restored the copies of removed VOC records (voc_removed.saved)"
+fi
+#
 # 13 Sep 26  PRE_RELEASE 30.  THE SDSYS REGISTER RECORD'S MODE IS SET HERE, AFTER
 #            BOTH THINGS THAT USED TO UNDO IT: the recursive "chmod -R 755" on
 #            sdsys (the old "chmod 654" sat four lines before it, and the record
@@ -1971,6 +1981,9 @@ if [ "$accounts_kept" = yes ]; then
     echo "Bringing every registered account's VOC up to this release."
     echo "(If it asks about a record type change, answer for each account.)"
     sudo bin/sd UPDATE.ACCOUNTS ALL
+    # 27 Oct 26 dm - S.87: the walk runs as root, and the copies it saved of the VOC records it removed (voc_removed.saved) are root's; the sdsys user, who runs
+    # RESTORE.VOC and the next update, owns them.
+    sudo chown -R sdsys:sdusers "$sdsysdir/voc_removed.saved"
 
 # 07 Oct 26 dm - PAL-1 D2 (the Windows port's RELEASE_1.1 5 D2, its RefreshNocase).
 #            THE KEPT ACCOUNTS' FILES ARE MADE CASE INSENSITIVE.  The kernel now
