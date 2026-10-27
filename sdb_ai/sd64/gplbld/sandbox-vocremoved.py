@@ -56,6 +56,19 @@ PLANTS = {
     "only": ["PA", "display kept"],
 }
 REMOVED = ["margin", "stats", "col.spcs", "><", "zzgone2", "zzgone"]
+# the TCL verbs of the second batch (27 Oct 26), planted into one more account after the first walk: removed (the shipped record) and kept (a person's own record of the name)
+PLANTS_E = {
+    "cs": ["Verb to clear the screen", "IN", "2"],
+    "cleardata": ["V", "IN", "19"],
+    "analyse.file": ["Verb to analyse file content", "CA", "$analyse"],
+    "rename": ["Verb to change a file or record name", "CA", "$cname"],
+    "sp.open": ["Verb to set keep open flag on printer", "CA", "$spopen"],
+    "sp.close": ["Verb to clear keep open flag on printer", "CA", "$spopen"],
+    "delete.catalogue": ["V", "IN", "77"],           # a person's own verb of the name (another dispatch): kept
+    "clearinput": ["V", "IN", "99"],                 # likewise
+}
+E_REMOVED = ["cs", "cleardata", "analyse.file", "rename", "sp.open", "sp.close"]
+E_KEPT = ["delete.catalogue", "clearinput"]
 SCRATCH_LIST = {"zzgone": "V\nCA\n\n1.2-0\ntest entry\n", "zzgone2": "V\nCA\n\n1.2-0\ntest entry\n"}
 ALL_IDS = list(PLANTS) + ["evaluate"]          # evaluate is on the list and in no fixture VOC: absent throughout
 
@@ -95,11 +108,12 @@ def bas(s):
     return "'" + s + "'"
 
 
-def plant(name, ids):
+def plant(name, ids, table=None):
     """Write the planted records into the account's VOC (an administrator program), and say so."""
+    table = PLANTS if table is None else table
     lines = ["$internal", "   openpath %s to v else" % bas(acct_path(name) + "/voc"), "      crt 'PL open failed'", "      stop", "   end"]
     for i in ids:
-        lines.append("   write %s to v, %s" % (":@fm:".join(bas(f) for f in PLANTS[i]), bas(i)))
+        lines.append("   write %s to v, %s" % (":@fm:".join(bas(f) for f in table[i]), bas(i)))
     lines += ["   crt 'PL done'", "end", ""]
     g.put(os.path.join(SYS, "bp", "zzvrp"), "\n".join(lines))
     out = g.adm(["BASIC bp zzvrp", "RUN bp zzvrp"], internal=True)
@@ -321,6 +335,32 @@ def main():
     dd2 = readback("zzvrd")
     row("D4: once it can be written again the next walk updates it like the others (the same records gone, the same kept)",
         {i: dd2[i] for i in PLANTS} == {i: post[i] for i in PLANTS}, repr(dd2))
+
+    # --- E. the TCL verbs of the second batch, and the hyphen form -----------------------------------------------------------
+    say("\n--- E. verb records of the second batch (a type V record with an internal or a catalogued dispatch), one more walk, and a typed hyphen ---")
+    g.FIXTURES["zzvre"] = ("no", "no")
+    g.build_account("zzvre")
+    ids_e = list(PLANTS_E)
+    plant("zzvre", ids_e, PLANTS_E)
+    pe = readback("zzvre", ids_e)
+    row("E0: before the walk every planted verb record is on the disk, in its planted form",
+        all(pe[i][0] == "present" and pe[i][1] == PLANTS_E[i][0] and pe[i][2] == PLANTS_E[i][1] for i in ids_e), repr(pe))
+    a0 = audit_off()
+    walk_e = g.adm(["UPDATE.ACCOUNTS ALL"])
+    ae = readback("zzvre", ids_e)
+    row("E1: the shipped records are gone (cs, cleardata, analyse.file, rename, sp.open, sp.close)", all(ae[i][0] == "absent" for i in E_REMOVED), repr({i: ae[i][0] for i in E_REMOVED}))
+    row("E2: a person's own verb of the same name stays (delete.catalogue with another dispatch, clearinput with another number)",
+        all(ae[i][0] == "present" and ae[i][1] == "V" and ae[i][2] == "IN" for i in E_KEPT), repr({i: ae[i] for i in E_KEPT}))
+    row("E3: the walk says what it removed and kept, by name",
+        g.has(segment(walk_e, "zzvre"), r"6 VOC record\(s\) removed, because SD no longer ships them: .*sp\.close") and
+        g.has(segment(walk_e, "zzvre"), r"2 VOC record\(s\) kept although SD no longer ships the name, because the record is not the one SD shipped: .*clearinput"), "\n".join(segment(walk_e, "zzvre")))
+    row("E4: and audits it: removed=6 differs=2", [ln for ln in audit_lines(a0) if "voc update account=zzvre removed=6 differs=2 locked=0" in ln] != [], repr([ln for ln in audit_lines(a0) if "zzvre" in ln]))
+    out = g.plain("zzvre", ["CLEAR-SELECT"])
+    row("E5: a verb typed with a hyphen for a dot is no longer found: CLEAR-SELECT is not in the VOC", g.has(out, r"CLEAR-SELECT is not in your VOC"), "\n".join(out))
+    out = g.plain("zzvre", ["CLEAR.SELECT"])
+    row("E6: ... while the dotted verb, the control, runs", not g.has(out, r"is not in your VOC"), "\n".join(out))
+    out = g.plain("zzvre", ["ANALYZE.FILE VOC"])
+    row("E7: analyze.file, the surviving spelling, runs", not g.has(out, r"is not in your VOC") and g.has(out, r"Minimum modulus"), "\n".join(out[:6]))
 
     # --- R. putting a record back ----------------------------------------------------------------------------------------
     say("\n--- R. RESTORE.VOC --------------------------------------------------------------------------------------------------")

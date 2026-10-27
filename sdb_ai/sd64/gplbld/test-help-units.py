@@ -218,9 +218,9 @@ def checks(s):
        and "allow = 'remote.api remote.ssh delete.server'" in trm and trm.count("allow = ") == 1 and "tool.remote.page" in hts and "call $tk_confirm(sent, el, typed, res, cmsg)" in trm and "call $tk_wrap(lines<i>, 134, pieces)" in trm and "rest[cut" not in trm)
 
     tfl = strip(s["tool_files"])
-    ck("P17k tool.files: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only create.file, clear.file and delete.file through $tk_run and hands the terminal to analyse.file, list.index and list.triggers only, and Clear and Delete ask for the file's name typed",
+    ck("P17k tool.files: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only create.file, clear.file and delete.file through $tk_run and hands the terminal to analyze.file, list.index and list.triggers only, and Clear and Delete ask for the file's name typed",
        "call $tk_help('mark', 134, 2, 0, 0)" in tfl and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.files.page', hm, 0, 0)" in tfl and "call $tk_help('hit', mev, 134, 2, hit.m)" in tfl
-       and "   allow = 'create.file clear.file delete.file'" in tfl and "show.allow = 'analyse.file list.index list.triggers'" in tfl and tfl.count("allow = ") == 2 and "tool.files.page" in hts
+       and "   allow = 'create.file clear.file delete.file'" in tfl and "show.allow = 'analyze.file list.index list.triggers'" in tfl and tfl.count("allow = ") == 2 and "tool.files.page" in hts
        and tfl.count("call $tk_confirm(sent, lines, fn, res, cmsg)") == 2 and "call $tk_confirm(sent, lines, '', res, cmsg)" in tfl and "call $tk_run(allow, sent, out, stat, rerr)" in tfl)
 
     tvc = strip(s["tool_voc"])
@@ -323,7 +323,7 @@ MUTANTS = [
     ("tool.accounts can run another command", "tool_accounts", "allow = 'modify.account create.account'", "allow = 'modify.account create.account sh'"),
     ("tool.files loses its [?]", "tool_files", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.files can run another command", "tool_files", "   allow = 'create.file clear.file delete.file'", "   allow = 'create.file clear.file delete.file sh'"),
-    ("tool.files can hand the terminal to another command", "tool_files", "show.allow = 'analyse.file list.index list.triggers'", "show.allow = 'analyse.file list.index list.triggers sh'"),
+    ("tool.files can hand the terminal to another command", "tool_files", "show.allow = 'analyze.file list.index list.triggers'", "show.allow = 'analyze.file list.index list.triggers sh'"),
     ("tool.dict loses its [?]", "tool_dict", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.dict can run another command", "tool_dict", "   allow = 'delete compile.dict make.index build.index delete.index'", "   allow = 'delete compile.dict make.index build.index delete.index sh'"),
     ("tool.dict can hand the terminal to another command", "tool_dict", "show.allow = 'sed list.index'", "show.allow = 'sed list.index sh'"),

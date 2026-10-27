@@ -174,10 +174,10 @@ def main():
     if got != ["3"]:
         q3.bail("the fixture file zzh does not hold its three records: %r" % (out[-6:],))
     register(q3.GROUP)
-    base = ordinary("ANALYSE.FILE zzh")
+    base = ordinary("ANALYZE.FILE zzh")
     minmod0 = analyse_field(base, "Minimum modulus")
     if minmod0 is None:
-        q3.bail("an ordinary session's ANALYSE.FILE zzh does not show a minimum modulus, so no row below could be read from the disk:\n" + "\n".join(base[-12:]))
+        q3.bail("an ordinary session's ANALYZE.FILE zzh does not show a minimum modulus, so no row below could be read from the disk:\n" + "\n".join(base[-12:]))
     say("  [done] the fixture holds zzh; an ordinary session reads its minimum modulus as %r" % minmod0)
 
     try:
@@ -227,9 +227,9 @@ def main():
 
         # ---- V. the verbs ---------------------------------------------------------------------------------------------------------------------------------------------------------------
         say("\n--- V. the verbs of request 70 on a hashed file, each read back from the disk by an ordinary session ----------------------------------------")
-        before = analyse_field(ordinary("ANALYSE.FILE zzh"), "Minimum modulus")
+        before = analyse_field(ordinary("ANALYZE.FILE zzh"), "Minimum modulus")
         v2 = fileadmin(A, 2, fA, "MINIMUM.MODULUS 7")
-        after = analyse_field(ordinary("ANALYSE.FILE zzh"), "Minimum modulus")
+        after = analyse_field(ordinary("ANALYZE.FILE zzh"), "Minimum modulus")
         r("V1 configure.file MINIMUM.MODULUS 7 (operation 2) on zzh: OK, and an ordinary session reads the minimum modulus as 7 from the disk (it was %r)" % before,
           v2 is not None and v2[0] == 0 and after == "7" and before != "7", repr((v2, before, after)))
         rb = A.req(6, struct.pack("<h", fA) + b"r1", shown="read (request 6) fno %r id r1" % fA)
@@ -297,19 +297,19 @@ def main():
         # ---- R. refused before anything runs ----------------------------------------------------------------------------------------------------------------------------------------------
         say("\n--- R. what is refused before anything runs: the disk and the audit trail are as they were ----------------------------------------------------")
         off_r = audit_off()
-        before = analyse_field(ordinary("ANALYSE.FILE zzh"), "Minimum modulus")
+        before = analyse_field(ordinary("ANALYZE.FILE zzh"), "Minimum modulus")
         bad = [("PATHNAME x", "PATHNAME"), ("MINIMUM.MODULUS 9 PATHNAME", "PATHNAME"), ("LPTR", "LPTR"), ("FORCE", "FORCE"), ("NO.QUERY", "NO.QUERY"), ("a;b", "a;b"), ("a'b", "a'b"),
                ("a/b", "a/b"), ("a  b", "(two blanks)"), ("x" * 201, "x" * 20 + "..."), ("DIRECTORY x", "DIRECTORY")]
         results = [(w, shown, fileadmin(A, 2, fA, w)) for w, shown in bad]
         r("R1 operation 2 with a word the grammar does not take - %s - each is refused with message 11530 naming the word, and none ran" % ", ".join(repr(w[:12]) for w, s in bad),
           all(rr is not None and rr[0] == 1 and text(rr) == msg(11530).replace("%1", s) for w, s, rr in results), repr([(w[:12], text(rr)) for w, s, rr in results if text(rr) != msg(11530).replace("%1", s)]))
-        r("R2 ...and the disk is as it was (the minimum modulus is still %r) ..." % before, analyse_field(ordinary("ANALYSE.FILE zzh"), "Minimum modulus") == before, repr(before))
+        r("R2 ...and the disk is as it was (the minimum modulus is still %r) ..." % before, analyse_field(ordinary("ANALYZE.FILE zzh"), "Minimum modulus") == before, repr(before))
         ops = [fileadmin(A, n, fA, "") for n in (0, 7, 10, 99)]
         r("R3 an operation that is not one (0, 7, 10, 99) is refused with message 11531 naming it", all(refused_with(rr, 11531, n) for rr, n in zip(ops, (0, 7, 10, 99))), repr(ops))
         nf_ = fileadmin(A, 2, 99, "MINIMUM.MODULUS 5")
         r("R4 a file number that is not open (99) is an error (ERROR, the 5268 text) and changes nothing", nf_ is not None and nf_[0] == 3 and A.errtext() == msg(5268), repr(nf_))
         dr = fileadmin(A, 8, 0, "zzdirx DIRECTORY")
-        isdir = analyse_field(ordinary("ANALYSE.FILE zzdirx"), "Type")
+        isdir = analyse_field(ordinary("ANALYZE.FILE zzdirx"), "Type")
         r("R5 DIRECTORY as the LAST word makes a directory file (it is the one place the word is taken): OK, and an ordinary session's ANALYSE.FILE reads its type as Directory", dr is not None and dr[0] == 0 and isdir == "Directory", repr((dr, isdir)))
         d_del = A.open4("zzdirx")
         if d_del[0] is not None:

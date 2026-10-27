@@ -17,7 +17,7 @@
 #
 #   F1      the page draws for an ordinary account, for its audience; the list holds the fixture files in name order with the right kind, records, indices
 #   F2      the file under the cursor in words (path, records, indices); the filter; the gates line for an account with the edit gates on and one with them off
-#   F3      the reports: A (analyse.file), I (list.index: the index AMT), T (list.triggers) - the terminal is handed to the verb (they print through the print unit, which
+#   F3      the reports: A (analyze.file), I (list.index: the index AMT), T (list.triggers) - the terminal is handed to the verb (they print through the print unit, which
 #           EXECUTE ... CAPTURING does not catch), "Press Enter" waits, Enter brings the page back with the cursor where it was
 #   F4      N makes a file: Cancel is the default (nothing made), Run makes it (the directory is on the disk, the row is in the list), a name with a capital is refused
 #   F5      C clears: the wrong name typed clears nothing; the right name empties the file (a separate session counts 0) and the row says so
@@ -68,7 +68,7 @@ MUTANTS = {
     # name: (old text of the sandbox's tool_files, new text, the row ids that must fail and no others)
     "clear-no-typed-name": ("call $tk_confirm(sent, lines, fn, res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent\n   gosub read.all\n   gosub draw.all\n   return\n\ndo.delete:",
                             "call $tk_confirm(sent, lines, '', res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent\n   gosub read.all\n   gosub draw.all\n   return\n\ndo.delete:", ["F5"]),
-    "analyse-clears": ("         sent = 'analyse.file ' : shown<ci>", "         sent = 'clear.file ' : shown<ci>", ["F3"]),
+    "analyse-clears": ("         sent = 'analyze.file ' : shown<ci>", "         sent = 'clear.file ' : shown<ci>", ["F3"]),
 }
 
 
@@ -256,10 +256,10 @@ def section_reports():
     h.typed("a", idle=1.0)
     until(h, lambda t: "Press Enter" in t)
     T = h.text()
-    arow("F3d", "A on zzfa hands the terminal to analyse.file: the page's boxes are gone, the verb waits for Enter, and the file still holds its 5 records after", "Press Enter" in T and "The file under the cursor" not in T and count_records(A1, "zzfa") == "5", T[-600:])
+    arow("F3d", "A on zzfa hands the terminal to analyze.file: the page's boxes are gone, the verb waits for Enter, and the file still holds its 5 records after", "Press Enter" in T and "The file under the cursor" not in T and count_records(A1, "zzfa") == "5", T[-600:])
     h.key("enter", idle=1.5)
     until(h, lambda t: "The file under the cursor" in t)
-    arow("F3e", "...Enter brings the page back, from analyse.file zzfa", "back from analyse.file zzfa" in st(h), repr(st(h)))
+    arow("F3e", "...Enter brings the page back, from analyze.file zzfa", "back from analyze.file zzfa" in st(h), repr(st(h)))
     h.key("ctrl-q", idle=1.2)
     h.end()
 

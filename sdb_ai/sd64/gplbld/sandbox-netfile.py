@@ -3605,7 +3605,7 @@ KFI_KEYS = (5, 1013, 1015, 1019, 1021, 1039, 1100)      # 3 (type), 1035 (collec
 KM += [km("fikey%d" % k, "x = fileinfo(f, %d)" % k, None, str(k), None, num=11502) for k in KFI_KEYS]
 
 # the verbs on the VOC name: (the command, its extra lines, a message number the verb is known to refuse with or None)
-KVERBS = [("LIST.ITEM zznet1 c1", [], None), ("CT zznet1 c1", [], None), ("CONFIGURE.FILE zznet1 MINIMUM.MODULUS 7", [], None), ("ANALYSE.FILE zznet1", [], None),
+KVERBS = [("LIST.ITEM zznet1 c1", [], None), ("CT zznet1 c1", [], None), ("CONFIGURE.FILE zznet1 MINIMUM.MODULUS 7", [], None), ("ANALYZE.FILE zznet1", [], None),
           ("CLEAR.FILE zznet1", [], 1431), ("DELETE.FILE zznet1 NO.QUERY", [], None), ("DELETE zznet1 c1", [], None),      # S.73 item 3: DELETE.FILE of a pointer goes to the server (asks, then deletes there); on this READ definition it stops here, after the open, with message 11501
           ("COPY FROM zznet1 TO zznetempty c1", [], None), ("ED zznet1 zznewrec", ["I hello", "FI", "Q", "Y"], None)]
 
@@ -5564,7 +5564,7 @@ def kw_admin(A):
 
     # 4. the verbs
     wreset(A)
-    cmds = ["ANALYSE.FILE zznw1", "CONFIGURE.FILE zznw1 minimum.modulus 7", "CREATE.INDEX zznw1 city", "BUILD.INDEX zznw1 city", "DELETE.INDEX zznw1 city", "DISABLE.INDEX zznw1 city"]
+    cmds = ["ANALYZE.FILE zznw1","CONFIGURE.FILE zznw1 minimum.modulus 7", "CREATE.INDEX zznw1 city", "BUILD.INDEX zznw1 city", "DELETE.INDEX zznw1 city", "DISABLE.INDEX zznw1 city"]
     r = kw_drive("zznhon", ["EXEC|" + c for c in cmds], (A,), cfg=ADM)
     shown = [x for x in r.out if re.match(r"^(analyse|configure|create|build|delete|disable)\.(file|index) hwork done$", x)]
     row("THE SIX VERBS on a remote file each run on the SERVER for the login and print what the server's verb printed: ANALYSE.FILE, CONFIGURE.FILE, CREATE.INDEX, BUILD.INDEX, DELETE.INDEX, DISABLE.INDEX",
@@ -5613,7 +5613,7 @@ def kw_admin(A):
 
     # 6. refusals: no administration group; a read-mode server; the pointer is not made when the server says no
     # (typed at the prompt, not through the driver: a verb that stops with an error ends the program that EXECUTEs it)
-    r = kw_run("zznhon", ["CREATE.FILE zznbad SERVER nfw", "ANALYSE.FILE zznw1"], (A,), cfg={"admin_group": False})
+    r = kw_run("zznhon", ["CREATE.FILE zznbad SERVER nfw", "ANALYZE.FILE zznw1"], (A,), cfg={"admin_group": False})
     r2 = kw_drive("zznhon", ["OPEN|2|zznbad"], (A,), cfg={"admin_group": False})
     refused70 = [x for s in r.d[0]["sessions"] for x in s.refused]          # CREATE.FILE may use a connection of its own, so the refusals are counted over every session
     row("WITHOUT THE ADMINISTRATION GROUP CREATE.FILE ... SERVER is refused by the server (message 11524 in the client's words), nothing is created there, and ANALYSE.FILE is refused the same way; "
@@ -5621,7 +5621,7 @@ def kw_admin(A):
         not r.hung and any(msg(11500, "nfw", "create.file", msg(11524, 70)) in x for x in r.out) and any(msg(11500, "nfw", "analyse.file", msg(11524, 70)) in x for x in r.out)
         and sum(1 for x in r2.kw if x.startswith("KW OPEN zznbad") and " else " in x) == 1 and A.store.file("zznbad") is None and refused70 == [70, 70] and r.idle,
         kw_why(r2) + repr((refused70, [x for x in r.out if "answered" in x], len(r.d[0]["sessions"]))))
-    r = kw_run("zznhon", ["ANALYSE.FILE zznwr", "CREATE.INDEX zznwr city", "DELETE.FILE zznwr NO.QUERY", "CREATE.FILE zznbadr SERVER nfa"], (A,), cfg=ADM)
+    r = kw_run("zznhon", ["ANALYZE.FILE zznwr", "CREATE.INDEX zznwr city", "DELETE.FILE zznwr NO.QUERY", "CREATE.FILE zznbadr SERVER nfa"], (A,), cfg=ADM)
     row("CONTROL, a READ-mode server: the verbs are refused here (message 11501: 'The file on server nfa is read only', naming the verb), CREATE.FILE ... SERVER too, nothing is sent but the open and the close; "
         "the fake never saw a request 70",
         not r.hung and sum(1 for x in r.out if "is read only" in x) == 4 and not any(t == 70 for t in r.d[0]["types"]) and A.store.file("zznbadr") is None and r.idle,

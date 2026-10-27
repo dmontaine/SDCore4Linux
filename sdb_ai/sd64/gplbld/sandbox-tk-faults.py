@@ -439,11 +439,11 @@ def section_m():
     h.typed("a", idle=1.0)
     td.until(h, lambda t: "Press Enter" in t)
     T = h.text()
-    arow("M1", "tool.files A hands the terminal to analyse.file and asks 'Press Enter to return' - the words of message 11865, naming no screen",
+    arow("M1", "tool.files A hands the terminal to analyze.file and asks 'Press Enter to return' - the words of message 11865, naming no screen",
          re.search(r"^Press Enter to return\s*$", T, re.M) is not None and "home screen" not in T and "The file under the cursor" not in T, T[-300:])
     h.key("enter", idle=1.5)
     td.until(h, lambda t: "The file under the cursor" in t)
-    arow("M2", "...Enter brings back THE PAGE (tool.files), with the status line saying it is back from analyse.file cust", "The file under the cursor" in h.text() and "back from analyse.file cust" in td.st(h), repr(td.st(h)))
+    arow("M2", "...Enter brings back THE PAGE (tool.files), with the status line saying it is back from analyze.file cust", "The file under the cursor" in h.text() and "back from analyze.file cust" in td.st(h), repr(td.st(h)))
     h.key("ctrl-q", idle=1.2)
     h.end()
 

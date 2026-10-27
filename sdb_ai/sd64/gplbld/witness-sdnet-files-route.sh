@@ -1029,7 +1029,7 @@ wl_in_group "$REMOTE" sdfilesadmin && fail "D0 $REMOTE is in sdfilesadmin before
 # audits each refusal with admin=off.  Nothing is changed on the server.
 AUDD0=$(wl_audit_offset)
 OUTD=$(wl_sd_user "$CUSER" "run zzwnad WITHOUT the administration group" "RUN bp zzwnad")
-OUTV=$(wl_sd_user "$CUSER" "ANALYSE.FILE and CREATE.FILE ... SERVER WITHOUT the administration group" "ANALYSE.FILE zzrw" "CREATE.FILE zzwnew SERVER $SRV")
+OUTV=$(wl_sd_user "$CUSER" "ANALYSE.FILE and CREATE.FILE ... SERVER WITHOUT the administration group" "ANALYZE.FILE zzrw" "CREATE.FILE zzwnew SERVER $SRV")
 NF1=$(wl_sd_user "$REMOTE" "COUNT zzwnew (must not be there)" "COUNT zzwnew")
 sleep 2; AUDD=$(wl_audit_since "$AUDD0")
 say "  audit lines added by phase D1:"; printf '%s\n' "$AUDD" | grep -a -E 'api|netfile' | cut -c1-200 | sed -e 's/^/      | /'
@@ -1055,7 +1055,7 @@ expect_re "D2 manifest while administration is on: route.files: 1 route.files.wr
 AUDD0=$(wl_audit_offset)
 OUTD=$(wl_sd_user "$CUSER" "run zzwnad WITH the administration group" "RUN bp zzwnad")
 D_ID=$(printf '%s\n' "$OUTD" | sed -n 's/^D1 .* id=\[\([0-9][0-9]*\)\].*$/\1/p' | head -1)
-OUTV=$(wl_sd_user "$CUSER" "the verbs WITH the administration group" "ANALYSE.FILE zzrw" "CREATE.INDEX zzrc name" "BUILD.INDEX zzrc name" "CREATE.FILE zzwnew SERVER $SRV" "COUNT zzwnew" "DELETE.FILE zzwnew NO.QUERY")
+OUTV=$(wl_sd_user "$CUSER" "the verbs WITH the administration group" "ANALYZE.FILE zzrw" "CREATE.INDEX zzrc name" "BUILD.INDEX zzrc name" "CREATE.FILE zzwnew SERVER $SRV" "COUNT zzwnew" "DELETE.FILE zzwnew NO.QUERY")
 # 26 Oct 26 (first VM run): LIST.INDEX takes the file AND the index name; without the name it asks "Index name:" and reads the next line (OFF) as the answer.  CREATE.INDEX zzrc name made it.
 IDX=$(wl_sd_user "$REMOTE" "LIST.INDEX zzcust name" "LIST.INDEX zzcust name")
 SEQ=$(wl_sd_user "$REMOTE" "CT zzwgf ${D_ID:-0}" "CT zzwgf ${D_ID:-0}")

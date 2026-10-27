@@ -84,7 +84,7 @@ def checks(raw):
        0 <= op < pg.find("open 'VOC'") and op < pg.find("kernel(K$") and "'admin'" not in pg and "K$ADMINISTRATOR" not in pg and "if err # '' then\n      display err\n      stop" in pg, op)
     sw = block(pg, "do.show")
     ck("TF3", "the commands it can run are two lists declared once at the top: three verbs that change something (allow), run ONLY through $tk_run, and the three reporting verbs (show.allow), the only thing the one execute statement runs, inside do.show and after the list was tested",
-       re.findall(r"\bshow\.allow = '([^']*)'", pg) == ["analyse.file list.index list.triggers"] and re.findall(r"(?<![.\w])allow = '([^']*)'", pg) == ["create.file clear.file delete.file"]
+       re.findall(r"\bshow\.allow = '([^']*)'", pg) == ["analyze.file list.index list.triggers"] and re.findall(r"(?<![.\w])allow = '([^']*)'", pg) == ["create.file clear.file delete.file"]
        and len(re.findall(r"^\s*execute\b", code, re.M)) == 1 and len(re.findall(r"^\s*execute\b", sw, re.M)) == 1
        and 0 <= sw.find("if index(' ' : show.allow : ' ', ' ' : field(sent, ' ', 1) : ' ', 1) = 0 then") < sw.find("execute sent") and "execute sent capturing" not in pg
        and pg.count("call $tk_run(allow, sent, out, stat, rerr)") == 1 and "$tk_runx" not in pg, repr(re.findall(r"\ballow = '([^']*)'", pg)))
@@ -100,9 +100,9 @@ def checks(raw):
     ck("TF6", "NEW asks no typed name (it destroys nothing) but is still behind the box, after the name was checked; the command is create.file with the name, and directory only when that was chosen",
        "call $tk_confirm(sent, lines, '', res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent" in ne and ne.find("gosub check.name") < ne.find("call $tk_confirm")
        and "sent = 'create.file ' : fn : (if b = 2 then ' directory' else '')" in ne and "if b # 1 and b # 2 then" in ne, "")
-    ck("TF7", "the commands are built from the file's name and nothing else: clear.file NAME, delete.file NAME no.query, analyse.file NAME, list.index NAME, list.triggers NAME - the name from the list (shown<ci>), never from text the page read from a file",
+    ck("TF7", "the commands are built from the file's name and nothing else: clear.file NAME, delete.file NAME no.query, analyze.file NAME, list.index NAME, list.triggers NAME - the name from the list (shown<ci>), never from text the page read from a file",
        "sent = 'clear.file ' : fn" in cl and "sent = 'delete.file ' : fn : ' no.query'" in de and "fn = shown<ci>" in cl and "fn = shown<ci>" in de
-       and all(("sent = '%s ' : shown<ci>" % v) in pg for v in ("analyse.file", "list.triggers")) and "sent = 'list.index ' : shown<ci> : ' all'" in pg, "")
+       and all(("sent = '%s ' : shown<ci>" % v) in pg for v in ("analyze.file", "list.triggers")) and "sent = 'list.index ' : shown<ci> : ' all'" in pg, "")
     nm = block(pg, "check.name")
     ck("TF8", "a name goes into a command only when it is made of the characters $tk_run lets through (the same list, at most 63 long), checked in every route that sends one, and the refusal says which verb to type instead",
        "good = '%s'" % SAFE in nm and "okname = (len(fn) > 0 and len(fn) <= 63)" in nm and "okname = @false" in nm and ("good = '%s'" % SAFE) in raw["run"]
@@ -152,7 +152,7 @@ MUTANTS = [
     ("an ordinary account has no verb", "TF1", setkey("newvoc", "")),
     ("SDSYS's verb runs another program", "TF1", sub("voc", "$tool_files", "$tool_keys")),
     ("the page may run another command", "TF3", sub("page", "allow = 'create.file clear.file delete.file'", "allow = 'create.file clear.file delete.file sh'")),
-    ("the page may hand the terminal to another command", "TF3", sub("page", "show.allow = 'analyse.file list.index list.triggers'", "show.allow = 'analyse.file list.index list.triggers sh'")),
+    ("the page may hand the terminal to another command", "TF3", sub("page", "show.allow = 'analyze.file list.index list.triggers'", "show.allow = 'analyze.file list.index list.triggers sh'")),
     ("the page hands the terminal to a command without testing the list", "TF3", sub("page", "   if index(' ' : show.allow : ' ', ' ' : field(sent, ' ', 1) : ' ', 1) = 0 then\n      msg = 'the page does not run ' : field(sent, ' ', 1)\n      return\n   end\n", "")),
     ("the page runs a second execute statement", "TF4", sub("page", "   ttl = 'Files in ' : @who\n", "   ttl = 'Files in ' : @who\n   execute 'sh'\n")),
     ("the page runs a command itself", "TF3", sub("page", "   call $tk_run(allow, sent, out, stat, rerr)\n   if rerr # '' then\n      msg = rerr\n      return\n   end\n   gosub first.line", "   execute sent capturing out\n   gosub first.line")),

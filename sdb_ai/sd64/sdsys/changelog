@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  ELEVEN SECOND NAMES OF TCL VERBS, AND THE HYPHEN FORM OF A VERB NAME, ARE REMOVED.
+
+             What        The sixth batch of the removal the owner asked for, and the first to use the VOC deletion list (the entry below). Removed verbs: analyse.file (write analyze.file;
+                         the American spelling stays), delete.catalogue (write delete.catalog), cs (write clr), rename (write cname), cleardata, clearinput, clearprompts and clearselect (write
+                         clear.data, clear.input, clear.prompts and clear.select), and sp.open and sp.close (write printer keep.open and printer close). A verb typed with a hyphen where
+                         the name has a dot (clear-select) is no longer found: the command processor stops after the as-typed, lower-case and upper-case attempts. The BASIC statements
+                         cleardata, clearinput and clearselect are NOT affected. The full-screen files page and the API server's "analyse" request now run analyze.file; the request's name in
+                         the audit line (op=analyse.file) and on the wire is unchanged. Each removed record is on the deletion list, so the next VOC update takes it out of existing accounts,
+                         after saving a copy, unless the account's record of that name is not the one SD shipped.
+             Why it      Each was a second name for something SD already says one way (the owner: US spelling stays, dotted names are the names). One name for each thing is easier to learn,
+                         document and test, and a hyphen that quietly worked hid a mistyped verb.
+             Does not    Change cname's comma form (cname old, new, which the survey also listed, is left until it is decided on its own), the BASIC statements of the same names, or any
+                         account's own record of one of these names that differs from the shipped one.
+
 27 Oct 26  THE VOC UPDATE NOW REMOVES THE VOC RECORDS THAT SD NO LONGER SHIPS: A DELETION LIST, WITH A SAVED COPY, AN AUDIT LINE AND list.voc.removed AND restore.voc.
 
              What        The VOC update (update.accounts all, which the installer runs on every upgrade that keeps the accounts) only ever added and changed records, so a record SD stopped

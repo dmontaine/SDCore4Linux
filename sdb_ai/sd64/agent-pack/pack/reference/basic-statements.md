@@ -232,7 +232,7 @@ clause of `execute` and `os.execute` — take the output
 `clearinput`
 
 - a statement of SD BASIC
-- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 278
+- docs: `User/markdown/19-sd-tcl-command-processor.md` line 117
 
 ### basic:stmt:clearselect
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:420#1272c3b8 src2=docs:tools/syntax-shapes.txt:36#34590a58
@@ -722,7 +722,7 @@ clause of `read`, `readnext`, `matbuild`, `matparse`, `remove`, `readcsv`
 `go` *label* — synonym of `goto`
 
 - a statement of SD BASIC
-- docs: `User/markdown/19-sd-tcl-command-processor.md` line 153
+- docs: `User/markdown/19-sd-tcl-command-processor.md` line 134
 
 ### basic:stmt:gosub
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:432#a3eeceac src2=docs:tools/syntax-shapes.txt:104#6ff00407

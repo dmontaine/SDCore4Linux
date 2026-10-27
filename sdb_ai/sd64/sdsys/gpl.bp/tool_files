@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 27 Oct 26 dm  S.87: A runs ANALYZE.FILE (the US spelling; the British verb record is gone).
 * 26 Oct 26 dm  New.
 * 26 Oct 26 dm  A, I and T hand the terminal to the verb (the report is printed, not captured: the first version waited for ever on LIST.INDEX's page prompt).
 * END-HISTORY
@@ -18,7 +19,7 @@
 *   has, whether it has a trigger, whether its record ids ignore case and whether it has a dictionary.  The file under the cursor is described in full under the list: where it is, its
 *   groups (in KB) and how full they are, its size, its indices and trigger, who else has it open.
 *
-*   WHAT IT CAN DO.  N makes a file (CREATE.FILE), C clears it (CLEAR.FILE), D deletes it (DELETE.FILE), A runs ANALYSE.FILE on it, I lists its indices (LIST.INDEX), T lists its triggers
+*   WHAT IT CAN DO.  N makes a file (CREATE.FILE), C clears it (CLEAR.FILE), D deletes it (DELETE.FILE), A runs ANALYZE.FILE on it, I lists its indices (LIST.INDEX), T lists its triggers
 *   (LIST.TRIGGERS).  Every one of them is the verb the person could type.  Make, Clear and Delete run through $tk_run after a box that shows the exact command and says what it does; Clear
 *   and Delete ask the file's name to be typed.  The three reports are printed by their verbs straight to the terminal (EXECUTE ... CAPTURING does not catch the print unit), so the terminal is
 *   handed to the verb, Enter brings the page back.  The page changes nothing itself: the verb's own checks are the wall, so a gate that is off is met as the verb's own refusal, shown as it is.  Which gates matter: making
@@ -46,7 +47,7 @@ $include tk.h
    prompt ''
 
    allow = 'create.file clear.file delete.file'                 ;* the commands this page may run, through $tk_run, after a box
-   show.allow = 'analyse.file list.index list.triggers'         ;* the three reporting verbs it hands the terminal to (their report is printed, not captured)
+   show.allow = 'analyze.file list.index list.triggers'        ;* the three reporting verbs it hands the terminal to (their report is printed, not captured)
 
    call $tk_open('tool.files', '', ctx, err)
    if err # '' then
@@ -368,7 +369,7 @@ on.key:
       case nm = 'd'
          gosub do.delete
       case nm = 'a'
-         sent = 'analyse.file ' : shown<ci>
+         sent = 'analyze.file ' : shown<ci>
          gosub do.show
       case nm = 'i'
          sent = 'list.index ' : shown<ci> : ' all'                  ;* without a field name the verb stops to ask for one

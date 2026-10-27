@@ -25844,13 +25844,6 @@
 "tier": "reference",
 "words": 62
 },
-"tcl:analyse.file": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "next",
-"tier": "reference",
-"words": 36
-},
 "tcl:analyse.index": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -25863,7 +25856,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 38
+"words": 36
 },
 "tcl:and": {
 "kind": "tcl.keyword",
@@ -26194,34 +26187,6 @@
 "tier": "reference",
 "words": 33
 },
-"tcl:cleardata": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 35
-},
-"tcl:clearinput": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 35
-},
-"tcl:clearprompts": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 35
-},
-"tcl:clearselect": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 35
-},
 "tcl:close": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -26453,13 +26418,6 @@
 "tier": "reference",
 "words": 56
 },
-"tcl:cs": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 39
-},
 "tcl:csv": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -26571,13 +26529,6 @@
 "since": "L1.1-0",
 "tier": "reference",
 "words": 37
-},
-"tcl:delete.catalogue": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 38
 },
 "tcl:delete.common": {
 "kind": "tcl.verb",
@@ -28224,13 +28175,6 @@
 "tier": "reference",
 "words": 41
 },
-"tcl:rename": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 41
-},
 "tcl:repeating": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -28629,20 +28573,6 @@
 "since": "0.6.4",
 "tier": "reference",
 "words": 40
-},
-"tcl:sp.close": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 35
-},
-"tcl:sp.open": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 35
 },
 "tcl:sp.view": {
 "kind": "tcl.verb",
@@ -29454,7 +29384,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 372
+"words": 379
 },
 "voc:type:X": {
 "kind": "voc.type",

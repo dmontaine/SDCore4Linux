@@ -448,7 +448,7 @@ def main():
         if first:
             s = sd("save a list", ["SELECT VOC SAMPLE 2", "SAVE.LIST %s" % LIST])
             run.note(prefix + "a SAVE.LIST saved 2", True, V.says(s.text, SAVED))
-        s = sd("get the list", ["GET.LIST %s" % LIST, "CLEARSELECT"])
+        s = sd("get the list", ["GET.LIST %s" % LIST, "CLEAR.SELECT"])
         run.note(prefix + "b GET.LIST got 2", True, V.says(s.text, GOT))
         run.note(prefix + "c no runtime fault", False, V.says(s.text, FAULT))
 

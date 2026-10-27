@@ -286,7 +286,7 @@ def main():
         compile_all(box, ["zzb12an"])
         out = sess(box, "RUN bp zzb12an")
         row("setup: both files were made", "DONE360" in out, out[-300:])
-        out = sess(box, "ANALYSE.FILE zzb12an STATISTICS", "S")          # S: no more pauses between the pages of the report
+        out = sess(box, "ANALYZE.FILE zzb12an STATISTICS", "S")          # S: no more pauses between the pages of the report
         def hist(text):
             counts = dict((m.group(1), int(m.group(2))) for m in re.finditer(r"(?m)^(over 100%|up to \d+%)\s+(\d+)\| >*\s*$", text))
             mod = re.search(r"(?m)^Current modulus\s*:\s*(\d+)", text)
@@ -297,7 +297,7 @@ def main():
         row("360: its counts add up to the modulus of the file (%s)" % mod, mod is not None and sum(counts.values()) == mod, repr(counts))
         row("360: a file held to 3 groups (NO.RESIZE) with 150000 bytes in it has all three over 100%: each has overflow blocks",
             mod == 3 and counts.get("over 100%") == 3, repr(counts))
-        out = sess(box, "ANALYSE.FILE zzb12an2 STATISTICS", "S")
+        out = sess(box, "ANALYZE.FILE zzb12an2 STATISTICS", "S")
         counts, mod = hist(out)
         row("CONTROL: a file of seven groups holding one record has all seven in the first bar, up to 10%",
             mod == 7 and counts.get("up to 10%") == 7 and sum(counts.values()) == 7, repr((mod, counts)))
