@@ -1242,7 +1242,7 @@ clause of `input` — do not invert the case of typed letters
 clause of `input` — type over what is already there
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `User/markdown/27a-sd-tcl-sed.md` line 204
+- docs: `User/markdown/27a-sd-tcl-sed.md` line 220
 
 ### basic:stmt:overwrite
 > kind=basic.clause tier=reference since=L1.1-0 src=sdsys/gpl.bp/bcomp:12183#58a91974 src2=docs:tools/syntax-shapes.txt:161#83abfd0b

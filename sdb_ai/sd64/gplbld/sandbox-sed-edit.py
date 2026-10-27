@@ -13,6 +13,7 @@
 #               the bar, the wheel; MOUSE ON / OFF and NO.MOUSE in &sed.options&).
 # 18 Oct 26 dm  SED is 140 by 42 (terminal 140x42, phase 2): the window here is 140 by 42, the split window's lower half starts
 #               a few rows lower (the click on its third row is at y = 24, 1-based).
+# 26 Oct 26 dm  S.82: part "opts" (--only=opts) - SCROLL1 (sheet 463), NO.CASE.EXPLORE (376), SPLIT.UP / SPLIT.DOWN (578) and VIEW (138).
 # END-HISTORY
 #
 # HOW IT DRIVES SED.  On a PSEUDO-TERMINAL (ptydrive.py), as sandbox-sed-menu.py does, and reads the screen from the emulator
@@ -368,10 +369,129 @@ def part_mouse(box):
     sess(box, "RUN bp zzseopt0")
 
 
+PAGE_DOWN = (F10, RIGHT, RIGHT, "d")                  # Search menu, "Page down"
+WINDOW = (F10, RIGHT, RIGHT, RIGHT, RIGHT)            # the Window menu: s split, u unsplit, p move split up, d move split down
+SEARCH = (F10, RIGHT, RIGHT)                          # the Search menu: v View lines...
+COMMAND = (F10, RIGHT, RIGHT, RIGHT, RIGHT, RIGHT, "n")   # the Tools menu, "Command..."
+
+
+def part_opts(box):
+    """26 Oct 26, S.82: the openQM sheet items 463 SCROLL1, 376 NO.CASE.EXPLORE, 578 SPLIT.UP / SPLIT.DOWN and 138 VIEW."""
+    say("\n--- SED: SCROLL1, NO.CASE.EXPLORE, the split point and VIEW (S.82) -------------------------------------------------")
+    out = sess(box, "RUN bp zzsefix2")
+    row("setup: the second fixture (a record of 120 lines, record ids of mixed case) was written", "FIXTURE2 DONE" in out, out[-300:])
+
+    # ---- SCROLL1 (463): a page is one line less, so one line of the old page stays ----------------------------------------------
+    def pages(optprog):
+        if optprog:
+            o = sess(box, "RUN bp " + optprog)
+            row("setup: the option record %s was written" % optprog, "OPT DONE" in o, o[-200:])
+        e = Term(box, "SED %s r3" % F)
+        l0 = at(e)
+        e.keys(*PAGE_DOWN)
+        l1 = at(e)
+        e.keys(*PAGE_DOWN)
+        l2 = at(e)
+        quit_asking(e)
+        sess(box, "RUN bp zzseopt0")
+        return l0, l1, l2
+
+    l0, l1, l2 = pages(None)
+    h = (l1[0] - l0[0]) if l0 and l1 else 0
+    row("SCROLL1 control: without the option a page down moves the cursor a whole page, and the next one the same again",
+        bool(l0 and l1 and l2) and l0[0] == 1 and h > 10 and l2[0] - l1[0] == h, "lines %r %r %r" % (l0, l1, l2))
+    s0, s1, s2 = pages("zzseopts1")
+    row("SCROLL1: with the option a page is one line less (%d), twice, so one line of the old page stays" % (h - 1),
+        bool(s0 and s1 and s2) and s0[0] == 1 and s1[0] - s0[0] == h - 1 and s2[0] - s1[0] == h - 1, "lines %r %r %r, whole page %d" % (s0, s1, s2, h))
+
+    # ---- NO.CASE.EXPLORE (376): the explore list ignores case ----------------------------------------------------------------------
+    ids = ("Mango", "Zebra", "apple", "banana", "r1", "r2", "r3")
+
+    def explore(optprog):
+        if optprog:
+            o = sess(box, "RUN bp " + optprog)
+            row("setup: the option record %s was written" % optprog, "OPT DONE" in o, o[-200:])
+        e = Term(box, "SED %s" % F)                       # no record: SED asks "Record name?", and "?" there is the explore list (sed, 1.2-32)
+        e.keys("?", RET, idle=1.5)
+        order = []
+        shown = [l.strip() for l in e.lines() if l.strip()]
+        for l in e.lines():
+            m = re.search(r"\b(%s)\b" % "|".join(ids), l)
+            if m:
+                order.append(m.group(1))
+        quit_asking(e)
+        sess(box, "RUN bp zzseopt0")
+        return order, shown[:10]
+
+    (o0, sh0) = explore(None)
+    row("NO.CASE.EXPLORE control: without the option the explore list is in the select list's order (capitals first) and holds all seven records",
+        o0 == ["Mango", "Zebra", "apple", "banana", "r1", "r2", "r3"], "order %r; the screen began %r" % (o0, sh0))
+    (o1, sh1) = explore("zzseopts2")
+    row("NO.CASE.EXPLORE: with the option the same list is in order whatever the case, all seven records still there",
+        o1 == ["apple", "banana", "Mango", "r1", "r2", "r3", "Zebra"], "order %r; the screen began %r" % (o1, sh1))
+
+    # ---- VIEW (138): a new read-only buffer of the lines that hold a text --------------------------------------------------------------
+    e = Term(box, "SED %s r1" % F)
+    e.keys(*SEARCH, "v", idle=0.9)
+    row("VIEW: the Search menu item asks for the text", said(e, "View lines containing"), "\n".join(e.lines()[-3:]))
+    L = e.keys("ha", RET, idle=1.0)
+    text = "\n".join(L)
+    row("VIEW: a new buffer holds exactly the lines that contain the text (alpha and charlie, not bravo, delta or echo)",
+        "alpha one" in text and "charlie one" in text and not any(w in text for w in ("bravo one", "delta one", "echo one")), text[:400])
+    row("VIEW: it is named for what it is and has two lines", "--View-- ha" in text and nlines(e) == 2, "lines %r; %r" % (nlines(e), [l for l in L if "View" in l][:2]))
+    L = e.keys(F10, RIGHT, RIGHT, RIGHT, "p", idle=1.0)
+    text = "\n".join(L)
+    row("VIEW: the buffer before it is whole again (all five lines)", all(w in text for w in ("alpha one", "bravo one", "charlie one", "delta one", "echo one")), text[:300])
+    e.keys(*SEARCH, "v", idle=0.9)
+    e.keys("zzzz", RET, idle=1.0)
+    row("VIEW: a text that no line holds is said so, and nothing is made", said(e, "No line holds that text"), "\n".join(e.lines()[-3:]))
+    quit_asking(e)
+    row("VIEW: control - the record on disk is as written", rec(box, "r1") == RECORD, repr(rec(box, "r1")))
+
+    # ---- SPLIT.UP / SPLIT.DOWN (578): the split point moves -----------------------------------------------------------------------------
+    alpha = lambda L: [i for i, l in enumerate(L) if "alpha one two" in l]            # noqa: E731 - the rows that show the first line
+    e = Term(box, "SED %s r1" % F)
+    one = alpha(e.lines())
+    row("SPLIT control: an unsplit window shows the first line once", len(one) == 1, repr(one))
+    e.keys(*WINDOW, "p", idle=0.9)
+    row("SPLIT: a move of the split point with no split does nothing", alpha(e.lines()) == one, repr(alpha(e.lines())))
+    e.keys(ESC, idle=0.9)                    # the item is dim when the window is not split, so the menu is still open: close it, or the next F10 would only close it
+    e.keys(*WINDOW, "s", idle=1.0)
+    two = alpha(e.lines())
+    row("SPLIT control: the split window shows the first line twice (the lower window starts at the second)", len(two) == 2,
+        "%r; the screen began %r" % (two, [l.strip() for l in e.lines() if l.strip()][:6]))
+    r0 = two[1] if len(two) == 2 else 0
+    e.keys(*WINDOW, "d", idle=0.9)
+    r1 = alpha(e.lines())
+    row("SPLIT: Move split down moves the lower window down one row", len(r1) == 2 and r1[1] == r0 + 1, "%r, was %d" % (r1, r0))
+    e.keys(*WINDOW, "p", idle=0.9)
+    e.keys(*WINDOW, "p", idle=0.9)
+    r2 = alpha(e.lines())
+    row("SPLIT: Move split up, twice, moves it up two rows (one above where it began)", len(r2) == 2 and r2[1] == r0 - 1, "%r, began at %d" % (r2, r0))
+    e.keys(*COMMAND, "SPLIT.DOWN 4", RET, idle=1.0)
+    r3 = alpha(e.lines())
+    row("SPLIT: SPLIT.DOWN 4 moves it four rows", len(r3) == 2 and r3[1] == r0 + 3, "%r, expected %d" % (r3, r0 + 3))
+    e.keys(*COMMAND, "SPLIT.DOWN 999", RET, idle=1.0)
+    rmax = alpha(e.lines())
+    e.keys(*WINDOW, "d", idle=0.9)
+    rmax2 = alpha(e.lines())
+    row("SPLIT: SPLIT.DOWN 999 stops where the lower window still has room, and one more row down changes nothing",
+        len(rmax) == 2 and rmax[1] > r0 + 3 and rmax2 == rmax, "%r then %r" % (rmax, rmax2))
+    e.keys(*COMMAND, "SPLIT.UP 999", RET, idle=1.0)
+    rmin = alpha(e.lines())
+    e.keys(*WINDOW, "p", idle=0.9)
+    rmin2 = alpha(e.lines())
+    row("SPLIT: SPLIT.UP 999 stops where the upper window still has room, and one more row up changes nothing",
+        len(rmin) == 2 and rmin[1] < r0 and rmin2 == rmin, "%r then %r" % (rmin, rmin2))
+    e.keys(*COMMAND, "SPLIT.UP x", RET, idle=1.0)
+    row("SPLIT: a point that is not a number is said so", said(e, "take a number of lines"), "\n".join(e.lines()[-3:]))
+    quit_asking(e)
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
-        bail("usage: sandbox-sed-edit.py <dir> [--build]")
+        bail("usage: sandbox-sed-edit.py <dir> [--build] [--only=undo|mouse|opts]")
     box = os.path.abspath(args[0])
     sysd = os.path.join(box, "sys")
     say("sandbox-sed-edit: sandbox %s" % box)
@@ -415,7 +535,28 @@ end
    crt 'OPT GONE'
 end
 """
-    progs = {"zzsefix": fixture, "zzseprobe": probe, "zzseopt": opt, "zzseopt0": opt0}
+    fixture2 = """   open '%(f)s' to f else stop 'no file'
+   r3 = ''
+   for n = 1 to 120
+      r3<n> = 'line ' : n
+   next n
+   write r3 on f, 'r3'
+   write 'x' on f, 'Mango'
+   write 'x' on f, 'apple'
+   write 'x' on f, 'Zebra'
+   write 'x' on f, 'banana'
+   crt 'FIXTURE2 DONE'
+end
+""" % {"f": F}
+    opts1 = """   write 'X' : @fm : 'SCROLL1' on @voc, '&sed.options&'
+   crt 'OPT DONE'
+end
+"""
+    opts2 = """   write 'X' : @fm : 'NO.CASE.EXPLORE' on @voc, '&sed.options&'
+   crt 'OPT DONE'
+end
+"""
+    progs = {"zzsefix": fixture, "zzseprobe": probe, "zzseopt": opt, "zzseopt0": opt0, "zzsefix2": fixture2, "zzseopts1": opts1, "zzseopts2": opts2}
     for nm, body in progs.items():
         with open(os.path.join(sysd, "bp", nm), "w") as fh:
             fh.write(body)
@@ -427,10 +568,13 @@ end
         if "FIXTURE DONE" not in out:
             bail("the fixture was not made:\n" + out[-800:])
         row("setup: control - the record is as written", rec(box, "r1") == RECORD, repr(rec(box, "r1")))
-        if "--only=mouse" not in sys.argv:
+        only = [a[7:] for a in sys.argv if a.startswith("--only=")]       # --only=undo, --only=mouse or --only=opts; none: all three
+        if not only or "undo" in only:
             part_undo(box)
-        if "--only=undo" not in sys.argv:
+        if not only or "mouse" in only:
             part_mouse(box)
+        if not only or "opts" in only:
+            part_opts(box)
     finally:
         say("\n--- cleanup ---------------------------------------------------------------------------------------")
         sess(box, "RUN bp zzseopt0", "DELETE.FILE %s" % F)

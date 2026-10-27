@@ -42,6 +42,8 @@
 *               and asked again for ever, at full CPU (sandbox-eofkeys.py).
 * 24 Oct 26 dm  AI line stage 3: Tools > Ask the AI... and Explain the selection (commands AI and AI.SELECTION), only when the AI is usable for the account ($tk_ai).  The
 *               preview shows everything that is sent; edits the AI proposes are shown as a diff and, if accepted, go into the buffer as one undo step; nothing is saved.
+* 26 Oct 26 dm  S.82, openQM sheet items 463 and 376: the options SCROLL1 (page up and page down move one line less than a page, so one line of the old page stays on the screen)
+*               and NO.CASE.EXPLORE (the record explore list is in case insensitive order, through SORT() with SRT$NOCASE) in &sed.options&.
 * END-HISTORY
 *
 *
@@ -547,6 +549,8 @@ $include sl.h
    macro = ""                   ;* No macro active
    overlay = @false             ;* Not overlay mode
    indent = @false              ;* Not indent mode
+   scroll1 = @false             ;* Page up and down move a whole page (&sed.options& SCROLL1: one line less)
+   explore.nocase = @false      ;* The explore list is in the query processor's order (&sed.options& NO.CASE.EXPLORE: ignoring case)
    search.string = ""           ;* Strings for search, replace and...
    replacement.string = ""      ;* ...query replace functions
    if dict.flag # '' then import.file.name = 'DICT ' : file.name
@@ -610,12 +614,18 @@ $include sl.h
                   case token = 'LNUM'
                      lnum.all = @true
 
+                  case token = 'NO.CASE.EXPLORE'
+                     explore.nocase = @true
+
                   case token = 'NO.INVERT'
                      no.invert = @true
                      keyin.case.conversion = @false
 
                   case token = 'OVERLAY'
                      overlay = @true
+
+                  case token = 'SCROLL1'
+                     scroll1 = @true
 
                   case token = 'SYNTAX'
                      syn.want = @true
@@ -1534,6 +1544,8 @@ a.bottom:
 a.page.up:
    gosub save.current
    n = live.height * rpt
+   if scroll1 then n -= rpt   ;* SCROLL1: a page is one line less, so one line of the old page stays
+   if n < 1 then n = 1
    line -= n ; if line < 1 then line = 1
    top.line -= n ; if top.line < 1 then top.line = 1
    gosub get.current
@@ -1545,7 +1557,9 @@ a.page.up:
 a.page.down:
    gosub save.current
    n = live.height * rpt
-   line += n 
+   if scroll1 then n -= rpt   ;* SCROLL1: a page is one line less, so one line of the old page stays
+   if n < 1 then n = 1
+   line += n
    if line > lines then
       line = if read.only then lines else lines + 1
    end
@@ -1882,6 +1896,31 @@ set.one.window:
    live.height = live.btm - live.top + 1
    scroll.increment = int(live.height / 2)
    other.live = @false
+   return
+
+* -----------------------------------------------------------------------------
+* Move the split point of a split window by sp.n lines (minus: up).  Both windows keep at least two lines and the cursor stays in the live one (26 Oct 26, sheet 578)
+
+move.split.point:
+   sp.new = split.line + sp.n
+   if sp.new < 3 then sp.new = 3
+   if sp.new > last.data.line - 1 then sp.new = last.data.line - 1
+   if sp.new # split.line then
+      split.line = sp.new
+      if split.window = 1 then       ;* Upper window is live
+         live.btm = split.line - 2
+         other.top = split.line
+      end else                       ;* Lower window is live
+         live.top = split.line
+         other.btm = split.line - 2
+      end
+      live.height = live.btm - live.top + 1
+      scroll.increment = int(live.height / 2)
+      if line < top.line then top.line = line
+      if line - top.line >= live.height then top.line = line - live.height + 1
+      gosub clear.screen
+      gosub refresh.all
+   end
    return
 
 * *****************************************************************************
@@ -6323,6 +6362,14 @@ build.explore.list:
    end
 
    readlist rec from 1 then
+      if explore.nocase then   ;* NO.CASE.EXPLORE: the ids in order whatever their case (26 Oct 26, sheet 376)
+         ex.srt = sort(1, SRT$NOCASE)
+         for ex.i = 1 to dcount(rec, @fm)
+            sortadd ex.srt, rec<ex.i>
+         next ex.i
+         rec = sortdata(ex.srt)
+         sortclear ex.srt
+      end
    end else rec = '--- ' : sysmsg(6958) : ' ---'
 
    return
@@ -6377,6 +6424,58 @@ dive:
    gosub save.buffer      ;* Just to force...
    gosub get.buffer       ;* ...update of variables and screen
 
+   return
+
+*****************************************************************************
+* VIEW  -  a new read-only buffer of the lines of the current one that hold vw.text (26 Oct 26, openQM sheet item 138).  The case of the text matters unless the search
+* mode is CASE_OFF.  The new buffer is not a record of any file: nothing can be saved from it, and the original is as it was.
+
+view.lines:
+   gosub save.current
+   gosub assemble.record                  ;* rec = every line of this buffer
+   vw.out = ''
+   vw.up = upcase(vw.text)
+   vw.lines = dcount(rec, @fm)
+   for vw.i = 1 to vw.lines
+      vw.l = rec<vw.i>
+      if search.mode = CASE.INSENSITIVE then vw.hit = index(upcase(vw.l), vw.up, 1) else vw.hit = index(vw.l, vw.text, 1)
+      if vw.hit then vw.out<-1> = vw.l
+   next vw.i
+   rec = ''
+   if vw.out = '' then
+      message = sysmsg(11987) ;* No line holds that text
+      gosub error
+      return
+   end
+   if no.of.buffers = MAX.BUFFERS then
+      message = sysmsg(6673) ;* No buffers available
+      gosub error
+      return
+   end
+
+   gosub save.buffer
+   old.buffer = current.buffer
+   no.of.buffers += 1
+   current.buffer = no.of.buffers
+   buffer(current.buffer) = ''
+   file(current.buffer) = file(old.buffer)
+   record.name = '--View-- ' : vw.text
+   rec = vw.out
+   new.record = @false
+   line.updated = @false
+   record.updated = @false
+   mark.line = 0 ; mark.col = 0
+   syn.chk.n = 1 ; syn.top.for = 0
+   read.only = @true
+   record.locked = @false
+   buffer.type = BUFF.TYPE.DATA
+   buffer.comment = ''
+   buffer.tag = next.buffer.tag
+   next.buffer.tag += 1
+   lines = dcount(rec, @fm)
+   gosub split.into.chunks
+   gosub save.buffer
+   gosub get.buffer
    return
 
 *****************************************************************************
@@ -7204,6 +7303,7 @@ build.menu.defs:
    ml = '&Replace...' ; ma = F.REPLACE ; gosub add.item
    ml = '&Query replace...' ; ma = F.QREPLACE ; gosub add.item
    ml = '&Goto line...' ; ma = F.GOTO.LINE ; gosub add.item
+   ml = '&View lines...' ; mc = 'c:VIEW' ; gosub add.item
    ml = '-' ; mc = 'x:' ; gosub add.item
    ml = '&Top' ; ma = F.TOP ; gosub add.item
    ml = 'Botto&m' ; ma = F.BOTTOM ; gosub add.item
@@ -7228,6 +7328,8 @@ build.menu.defs:
    ml = '&Split window' ; ma = F.SPLIT ; gosub add.item
    ml = '&Unsplit window' ; ma = F.UNSPLIT ; gosub add.item
    ml = '&Toggle window' ; ma = F.TOGGLE.WINDOW ; gosub add.item
+   mf = (if split.window then '' else 'D') ; ml = 'Move split u&p' ; mc = 'c:SPLIT.UP' ; gosub add.item
+   mf = (if split.window then '' else 'D') ; ml = 'Move split &down' ; mc = 'c:SPLIT.DOWN' ; gosub add.item
    ml = '-' ; mc = 'x:' ; gosub add.item
    ml = '&Refresh screen' ; ma = F.REFRESH ; gosub add.item
 
@@ -7669,6 +7771,30 @@ ext.command:
                gosub clear.screen
                gosub refresh.all
          end case
+
+      case c = 'SPLIT.UP' or c = 'SPLIT.DOWN'
+         * Move the split point of a split window by the number of lines given (one without a number): SPLIT.UP gives the upper window fewer lines (26 Oct 26, sheet 578)
+         if split.window then
+            sp.n = trim(s<2>)
+            if sp.n = '' then sp.n = 1
+            if sp.n matches '1-3N' and sp.n > 0 then
+               if c = 'SPLIT.UP' then sp.n = 0 - sp.n
+               gosub move.split.point
+            end else
+               message = sysmsg(11985) ;* split.up and split.down take a number of lines
+               gosub error
+            end
+         end
+
+      case c = 'VIEW'
+         * VIEW {text}: a new read-only buffer of the lines of this one that hold the text; the prompt asks for it when it is left out (26 Oct 26, sheet 138)
+         vw.text = trim(convert(@fm, ' ', field(s, @fm, 2, 9999)))
+         if vw.text = '' then
+            prefix = sysmsg(11986) ;* View lines containing:
+            gosub get.string
+            if aborted then vw.text = '' else vw.text = trim(s)
+         end
+         if len(vw.text) then gosub view.lines
 
       case c = 'SPOOL'
          gosub save.current

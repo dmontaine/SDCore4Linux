@@ -8072,6 +8072,33 @@ cited by: `login`
 
 cited by: `login`
 
+### msg:11985
+> kind=message tier=reference since=- src=sdsys/messages/11985:1#99993e56
+
+```
+split.up and split.down take a number of lines
+```
+
+cited by: `sed`
+
+### msg:11986
+> kind=message tier=reference since=- src=sdsys/messages/11986:1#6deeaca4
+
+```
+View lines containing:
+```
+
+cited by: `sed`
+
+### msg:11987
+> kind=message tier=reference since=- src=sdsys/messages/11987:1#b700615f
+
+```
+No line holds that text
+```
+
+cited by: `sed`
+
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
 

@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  SED GAINS TWO OPTIONS, A WAY TO MOVE THE SPLIT POINT, AND A VIEW OF THE LINES THAT HOLD A TEXT.
+
+             What        Four items of the openQM feature list that SED lacked. (1) The option SCROLL1 in &sed.options&: page up and page down move one line less than a page, so one line of the
+                         old page stays on the screen. (2) The option NO.CASE.EXPLORE: the list of records (? at the record prompt) is in order whatever the case of the ids; without it the list
+                         is as the select list gives it, capitals first. (3) Window > Move split up and Move split down, and the commands split.up and split.down with a number of rows (one
+                         without a number): the line between the two windows moves; both windows keep at least two rows, a number that would take it further stops there, and the cursor stays in
+                         the live window. (4) Search > View lines, or the command view followed by the text (the prompt asks for it when it is left out): a new buffer that holds only the lines of
+                         this one that contain the text, in the case given unless the search mode is case_off. It is read-only, it is not a record of any file (nothing can be saved from it), it is
+                         named --View-- and the text, and the buffer you came from is as it was. A text that no line holds is said so and no buffer is made.
+             Why it      A long record and a long list of records were harder to follow than they need be, and a split window could not be resized.
+             Does not    Give split.up, split.down or view a key of their own (they are in the menus and on the command line: a new key-bound function would have renumbered the ones that
+                         are not bound), change the list of files, or take commands from the data queue, which the sheet also lists and which waits for a decision on its form.
+
 26 Oct 26  A REFUSED API LOGIN NO LONGER SOMETIMES ENDS WITH NO ANSWER AT ALL.
 
              What        Every API connection goes through a small TLS relay process that sd starts, and sdclient@.service has systemd's default KillMode, so the moment the per-connection sd
