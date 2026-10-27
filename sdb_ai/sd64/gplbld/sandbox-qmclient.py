@@ -1098,6 +1098,28 @@ def main():
             "can be opened once the first has closed it", first > 10000 and second == 0 and third > 10000,
             "first %d, second %d (status %d), third %d" % (first, second, sec_status, third))
 
+        # 26 Oct 26 (S.83): an open of an item that is NOT THERE.  The suspicion was that apisrvr's failed OPENSEQ keeps the name locked; two runs showed that A is GIVEN a file number
+        #   (default and read-only mode alike), and op_seqio.c explains it: the ELSE clause is taken with STATUS() = 0, the file variable is allocated and the record locked, and vb.openseq
+        #   (os.st = 0) treats that as an open file, which the client's close releases.  Not a defect.  This row holds the semantics: A gets a number, B's open with 2 (give up) is
+        #   refused while A holds the name (status 3011), and once A has closed it B makes the item.
+        sa = lib.SDGetSession()
+        held_a = lib.SDOpenSeq(b"zzdir", b"absent16", 16)
+        lib.SDConnectLocal(b"zzaa")
+        sb = lib.SDGetSession()
+        while_open = lib.SDOpenSeq(b"zzdir", b"absent16", 512 + 2)
+        while_status = lib.SDStatus()
+        lib.SDSetSession(sa)
+        lib.SDClose(held_a)
+        lib.SDSetSession(sb)
+        after_close = lib.SDOpenSeq(b"zzdir", b"absent16", 512 + 2)
+        if after_close > 10000:
+            lib.SDClose(after_close)
+        lib.SDDisconnect()
+        lib.SDSetSession(sa)
+        row("P9b: an item that is not there: the open is given a file number (read-only), the name is held by that open - another session's open with 2 (give up) is refused, "
+            "status locked - and once it is closed the other session can make the item", held_a > 10000 and while_open == 0 and after_close > 10000,
+            "A: %d; B while A holds it: %d (status %d); B after A closed it: %d" % (held_a, while_open, while_status, after_close))
+
         # ------------------------------------------------------------------------------------------------------ Q
         say("\n--- Q. WRITE ... CREATING.SEQKEY, FILEINFO(1031), CONFIGURE.FILE NEXT, SDWriteSeqKey and SDWriteuSeqKey ------------------")
         r1 = q3.plain("zzaa", ["RUN bp zzsk"])

@@ -31,9 +31,9 @@ Next release - in progress
                          a pointer leads to an object that is not there. The lock lasted until the editor or the page was closed and, as measured with the home screen (not repeated for these
                          three), a second session that tried to open the same name in the meantime waited for it. Each now closes the variable in the ELSE branch.
              Why it      An administrator opening a path that does not exist yet in SED could keep another session that touched the same name waiting for no visible reason.
-             Does not    Reach the API server, where the failed OPENSEQ of a client request leaves the same lock until that slot of the server's table is used again (not changed: it keeps
-                         its files in an array, and whether the guard SD BASIC needs here can be written for an array element is not known); or the short programs whose variable goes with
-                         them when they end.
+             Does not    Change the API server, which does not have this fault (measured 26 Oct): a client's open of a file or item that is not there is given a file number, as the kernel
+                         reports it (the ELSE case with a status of 0), and the name is held by that open until the client closes it, as for any open file; a real failure of the open
+                         releases its lock in the kernel. Nor the short programs whose variable goes with them when they end.
 
 26 Oct 26  AN INSTALL THAT KEEPS THE ACCOUNTS NO LONGER TAKES THE SDSYS USER OUT OF THE GROUP OF EVERY GROUP ACCOUNT.
 
