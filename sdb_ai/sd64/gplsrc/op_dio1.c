@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 9: $MODE OPEN.FAIL.ZERO.FVAR is gone; the file variable of a failed open stays as the open left it (unassigned).
  * 27 Oct 26 dm  S.87 batch 5: the comment about a name containing ';' no longer being a network file reference is gone with the code it described (_voc_ref no longer builds such a name).
  * 24 Oct 26 dm  W.11 F9: the administrator test is MY_ADMIN() (the process's own word), not the user table entry.
  * 19 Oct 26 dm  S.67 stage 1: open_file() calls masters_open_hook() on the resolved pathname, so that the administrator opening voc_master,
@@ -1111,14 +1112,6 @@ exit_op_open:
   {
     if (fvar != NULL)
       dio_close(fvar);
-
-    /* 14 Oct 26 dm - $MODE OPEN.FAIL.ZERO.FVAR (openQM item 514): the file variable of a failed open is the
-       integer 0 rather than unassigned */
-    if (op_flags & P_OPEN_ZERO) {
-      k_release(fvar_descr);
-      InitDescr(fvar_descr, INTEGER);
-      fvar_descr->data.value = 0;
-    }
   }
 
   /* Set status code on stack */

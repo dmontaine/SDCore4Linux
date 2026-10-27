@@ -2079,13 +2079,6 @@
 "tier": "reference",
 "words": 54
 },
-"basic:mode:execute.clearlist": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "next",
-"tier": "reference",
-"words": 48
-},
 "basic:mode:explicit": {
 "kind": "basic.mode",
 "part": "reference/basic-modes.md",
@@ -2128,13 +2121,6 @@
 "tier": "reference",
 "words": 51
 },
-"basic:mode:open.fail.zero.fvar": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "next",
-"tier": "reference",
-"words": 50
-},
 "basic:mode:optional.final.end": {
 "kind": "basic.mode",
 "part": "reference/basic-modes.md",
@@ -2176,13 +2162,6 @@
 "since": "-",
 "tier": "reference",
 "words": 25
-},
-"basic:mode:pick.readnext": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "next",
-"tier": "reference",
-"words": 49
 },
 "basic:mode:pick.select": {
 "kind": "basic.mode",

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 9: $MODE PICK.READNEXT is gone; READNEXT stores the id and a READNEXT that takes its ELSE sets the target to the null string, as without the mode.
  * 27 Oct 26 dm  S.87 batch 5: the CASE_INSENSITIVE_FILE_SYSTEM block of op_dir() (upper-casing the names of a directory) is gone, as the select's went with select.keep.case.
  * 17 Oct 26 dm  S.65 slice 3c: op_select() and op_selectv() refuse a NET_FILE (net_refuse) before the target list is touched
  * 16 Oct 26 dm  dir_select() closes the oldest cached file and tries again when opendir() fails at the open-file limit (QM4 Fixes 279).
@@ -578,24 +579,11 @@ Private void readnext(int16_t mode)
     }
   }
 
-  /* 14 Oct 26 dm - $MODE PICK.READNEXT (openQM item 418): a list variable that has no more items takes the ELSE
-     clause and the id variable is left as it was */
-  if ((op_flags & P_PICK_RDNX) && status) {
-    k_pop(2); /* The (empty) string and the address of the target */
-    goto exit_readnext;
-  }
-
   op_stor(); /* Store the id string */
 
   goto exit_readnext;
 
 exit_readnext_null:
-
-  /* 14 Oct 26 dm - $MODE PICK.READNEXT (openQM item 418): the id variable is left as it was */
-  if (op_flags & P_PICK_RDNX) {
-    k_pop(1);
-    goto exit_readnext;
-  }
 
   /* Set target as null string */
 

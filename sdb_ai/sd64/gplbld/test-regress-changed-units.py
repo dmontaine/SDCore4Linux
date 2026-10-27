@@ -108,7 +108,7 @@ def part_a():
     sel, un, _ = pick([p + "gplbld/sandbox-selectv-mode.py"])
     row("a changed suite file selects that suite and only it", sel == ["selectv-mode"] and not un, repr(sel))
     sel, un, _ = pick([p + "gplsrc/op_dio4.c"])
-    row("the select-list kernel file selects the select-list suites", {"sselectv", "pickrn", "list-q2", "selectv-mode"} <= set(sel), repr(sel))
+    row("the select-list kernel file selects the select-list suites", {"sselectv", "list-q2", "selectv-mode"} <= set(sel), repr(sel))
     sel, un, _ = pick([p + "sdsys/gpl.bp/ftype"])
     row("LISTF's type program selects the LISTF suite", "listf-mult" in sel, repr(sel))
     sel, un, _ = pick([p + "gplbld/FILES_DICTS/voc.dic^trigger"])

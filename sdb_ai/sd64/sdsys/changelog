@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  THREE MORE $MODE WORDS ARE REMOVED: execute.clearlist, open.fail.zero.fvar AND pick.readnext.
+
+             What        The ninth batch. A program that names one of them in $mode, or in the MODE line of a $basic.options record, is refused with "Unrecognised mode name". Without the mode:
+                         an execute leaves the default select list alone (clearselect 0 clears it), the file variable of a failed open or openpath is left unassigned, and a readnext that
+                         takes its else sets the id variable to the null string. The compiler's code for them, the kernel's flag handling (open, readnext, execute) and the three suites
+                         that tested only these modes are gone; the mode bits stay reserved. A program already compiled with one of them runs as the kernel now does (the three flags are
+                         ignored) until it is compiled again.
+             Why it      Each existed so that SD would behave as another product does. One behaviour is easier to learn and test.
+             Does not    Touch write.delete.then.else, which shares the compiler's flag patching with other statements and is left for its own change.
+
 27 Oct 26  FOUR MORE OPTION WORDS ARE REMOVED: no.sel.list.query, catalogue.local, inherit.mfile.path AND correlative.nocase.
 
              What        The eighth batch of the removal. Each now does what it did with the option off. no.sel.list.query: ed, ct, delete, setmode, deletef, copy and cd ask "Use active select

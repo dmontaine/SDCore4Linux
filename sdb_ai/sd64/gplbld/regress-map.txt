@@ -28,17 +28,17 @@
 # the debugger
 @debugger    = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase
 # select lists and everything that makes or reads one
-@lists       = sselectv pickrn execlist stacklist list-q2 list-a7 selectv-mode verbs-q8 mode-q16 q4
+@lists       = sselectv stacklist list-q2 list-a7 selectv-mode verbs-q8 mode-q16 q4
 # files: directory and hashed file i/o, indices, triggers, the record id rules, transactions
-@files       = collfile file-b8 file-a8 fcontrol edseqkey sdfixseq akcase akdeep akorder idx-nocase nocase upgradenocase flushdh wdthenelse trans-b43 openzero stdfil lock-b6 coll fix-b10 sync crlf dirtrig tools
+@files       = collfile file-b8 file-a8 fcontrol edseqkey sdfixseq akcase akdeep akorder idx-nocase nocase upgradenocase flushdh wdthenelse trans-b43 stdfil lock-b6 coll fix-b10 sync crlf dirtrig tools
 # sequential files and CSV
 @seq         = csv-b5 csvq csvb file-b8 gates qmclient oq2 fcontrol audit-b9 crlf
 # strings, conversions, functions, dates, locate and sort
 @functions   = func-b4 func-q1 conv-b3 stmt-q3 stmt-b5 mode-q16 locate-b5 epoch numexp trans-b43 oq2 audit-b9 audit-b9b
 # the compiler and what it compiles: statements, modes, classes, TRY, INPUT forms
-@compiler    = bcomp-a1 lang-a15 lang-b45 stmt-b5 stmt-q3 func-b4 func-q1 mode-q16 stdfil partial wdthenelse numexp classas openzero pickrn execlist selectv-mode sselectv try forcereload input inputif inputraw inputfill inputtrap epoch txnstatus misc-a9 cmd-a9 guide
+@compiler    = bcomp-a1 lang-a15 lang-b45 stmt-b5 stmt-q3 func-b4 func-q1 mode-q16 stdfil partial wdthenelse numexp classas selectv-mode sselectv try forcereload input inputif inputraw inputfill inputtrap epoch txnstatus misc-a9 cmd-a9 guide
 # what a change to the select-list statements in the compiler needs
-@lists-compile = sselectv pickrn selectv-mode execlist stacklist list-q2 mode-q16
+@lists-compile = sselectv selectv-mode stacklist list-q2 mode-q16
 # the query processor and dictionaries
 @query       = qproc-a3 qproc-q20 xml csvq qdefaults qproc-when vert-fmt vlist-a3 dict-a2 dictfold misc-a9 listf-mult coll
 # accounts, logins, gates, configuration, sessions, the API
@@ -65,6 +65,9 @@ gplbld/sandbox-footpause.py  : none
 gplbld/sandbox-mlmask.py     : none
 gplbld/sandbox-pgheading.py  : none
 gplbld/sandbox-mfilepath.py  : none
+gplbld/sandbox-execlist.py   : none
+gplbld/sandbox-pickrn.py     : none
+gplbld/sandbox-openzero.py   : none
 gplbld/sandbox-*.py          : @self
 gplbld/test-*.py             : none
 gplbld/regress.sh            : none
@@ -197,7 +200,7 @@ gplsrc/sdclient.h            : qmclient
 gplsrc/sdclient.c            : qmclient
 gplsrc/sd_encrypt_sodium.c   : qmclient crypt
 gplsrc/sd_keyring.c          : crypt
-gplsrc/op_exec.c             : @core cmd-a9 execlist stacklist forcereload stdfil prof csvb
+gplsrc/op_exec.c             : @core cmd-a9 stacklist forcereload stdfil prof csvb
 gplsrc/op_sh.c               : gates sdaccts editgates netfile shared segtrust
 gplsrc/to_file.c             : editgates gates @core
 gplsrc/op_sdext.c            : gates crypt
@@ -292,8 +295,8 @@ sdsys/gpl.bp/bcomp ~ st.write*      : wdthenelse lockown
 sdsys/gpl.bp/bcomp ~ st.delete*     : wdthenelse lockown
 sdsys/gpl.bp/bcomp ~ st.matwrite*   : wdthenelse lockown
 sdsys/gpl.bp/bcomp ~ back.end       : wdthenelse lockown
-sdsys/gpl.bp/bcomp ~ st.open*       : openzero stdfil sync
-sdsys/gpl.bp/bcomp ~ st.execute*    : execlist stacklist cmd-a9
+sdsys/gpl.bp/bcomp ~ st.open*       : stdfil sync
+sdsys/gpl.bp/bcomp ~ st.execute*    : stacklist cmd-a9
 sdsys/gpl.bp/bcomp ~ st.screen*     : screen viewport
 sdsys/gpl.bp/bcomp ~ in.*           : func-b4 func-q1 epoch conv-b3 numexp
 sdsys/gpl.bp/bcomp ~ *              : @compiler
@@ -623,7 +626,7 @@ sdsys/gpl.bp/_sdsysn         : tool-sessions home
 gplbld/test-sdsysvis-units.py : none
 sdsys/gpl.bp/term            : @core winsize
 sdsys/gpl.bp/classmain       : classinit
-sdsys/gpl.bp/cproc           : @system @core cmd-a9 execlist forcereload stacked gates sdaccts resetall classinit net netfile shared home tool-sessions ipc
+sdsys/gpl.bp/cproc           : @system @core cmd-a9 forcereload stacked gates sdaccts resetall classinit net netfile shared home tool-sessions ipc
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29 apispin fileadmin netindex
 sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient tool-remote
