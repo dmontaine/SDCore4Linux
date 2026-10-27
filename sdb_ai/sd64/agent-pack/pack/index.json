@@ -497,13 +497,6 @@
 "tier": "reference",
 "words": 13
 },
-"basic:func:ereplace": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 18
-},
 "basic:func:events": {
 "kind": "basic.internal",
 "part": "reference/basic-functions.md",
@@ -1624,13 +1617,6 @@
 "tier": "reference",
 "words": 13
 },
-"basic:func:sentence": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 18
-},
 "basic:func:seq": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
@@ -1848,13 +1834,6 @@
 "tier": "reference",
 "words": 12
 },
-"basic:func:swapmarks": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 19
-},
 "basic:func:sysmsg": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
@@ -1882,13 +1861,6 @@
 "since": "-",
 "tier": "reference",
 "words": 15
-},
-"basic:func:terminfo.ex": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 19
 },
 "basic:func:testlock": {
 "kind": "basic.internal",
@@ -2070,7 +2042,7 @@
 "part": "reference/basic-modes.md",
 "since": "-",
 "tier": "reference",
-"words": 49
+"words": 48
 },
 "basic:mode:compatible.append": {
 "kind": "basic.mode",
@@ -2183,13 +2155,6 @@
 "since": "-",
 "tier": "reference",
 "words": 55
-},
-"basic:mode:pick.enter": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
 },
 "basic:mode:pick.jump.range": {
 "kind": "basic.mode",
@@ -2814,13 +2779,6 @@
 "tier": "reference",
 "words": 13
 },
-"basic:stmt:com": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 14
-},
 "basic:stmt:commit": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
@@ -3017,13 +2975,6 @@
 "tier": "reference",
 "words": 16
 },
-"basic:stmt:dimension": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 20
-},
 "basic:stmt:disinherit": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
@@ -3066,13 +3017,6 @@
 "tier": "reference",
 "words": 19
 },
-"basic:stmt:ecs": {
-"kind": "basic.clause",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 27
-},
 "basic:stmt:edit": {
 "kind": "basic.clause",
 "part": "reference/basic-statements.md",
@@ -3093,13 +3037,6 @@
 "since": "-",
 "tier": "reference",
 "words": 24
-},
-"basic:stmt:enter": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 16
 },
 "basic:stmt:equ": {
 "kind": "basic.statement",
@@ -3298,13 +3235,6 @@
 "words": 17
 },
 "basic:stmt:in": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 17
-},
-"basic:stmt:include": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
 "since": "-",
@@ -3708,7 +3638,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 27
+"words": 32
 },
 "basic:stmt:pause": {
 "kind": "basic.statement",
@@ -3723,13 +3653,6 @@
 "since": "-",
 "tier": "reference",
 "words": 12
-},
-"basic:stmt:perform": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 13
 },
 "basic:stmt:phantom": {
 "kind": "basic.statement",
@@ -3765,13 +3688,6 @@
 "since": "-",
 "tier": "reference",
 "words": 26
-},
-"basic:stmt:printerr": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 8
 },
 "basic:stmt:private": {
 "kind": "basic.statement",
@@ -3948,13 +3864,6 @@
 "tier": "reference",
 "words": 15
 },
-"basic:stmt:redimension": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 22
-},
 "basic:stmt:release": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
@@ -3975,13 +3884,6 @@
 "since": "-",
 "tier": "reference",
 "words": 13
-},
-"basic:stmt:remark": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 17
 },
 "basic:stmt:remove": {
 "kind": "basic.statement",
@@ -4073,13 +3975,6 @@
 "since": "-",
 "tier": "reference",
 "words": 19
-},
-"basic:stmt:rqm": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 13
 },
 "basic:stmt:rtnlist": {
 "kind": "basic.clause",
@@ -4389,13 +4284,6 @@
 "tier": "reference",
 "words": 13
 },
-"basic:stmt:sub": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 18
-},
 "basic:stmt:subroutine": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
@@ -4409,13 +4297,6 @@
 "since": "-",
 "tier": "reference",
 "words": 28
-},
-"basic:stmt:tclread": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 8
 },
 "basic:stmt:then": {
 "kind": "basic.clause",
@@ -4753,20 +4634,6 @@
 "tier": "reference",
 "words": 61
 },
-"dict:conv:MCD": {
-"kind": "dict.conv.code",
-"part": "reference/dictionaries.md",
-"since": "-",
-"tier": "reference",
-"words": 18
-},
-"dict:conv:MCX": {
-"kind": "dict.conv.code",
-"part": "reference/dictionaries.md",
-"since": "-",
-"tier": "reference",
-"words": 18
-},
 "dict:conv:MD": {
 "kind": "dict.conv.code",
 "part": "reference/dictionaries.md",
@@ -4786,7 +4653,7 @@
 "part": "reference/dictionaries.md",
 "since": "-",
 "tier": "reference",
-"words": 18
+"words": 16
 },
 "dict:conv:MR": {
 "kind": "dict.conv.code",
@@ -4807,7 +4674,7 @@
 "part": "reference/dictionaries.md",
 "since": "-",
 "tier": "reference",
-"words": 69
+"words": 72
 },
 "dict:conv:P": {
 "kind": "dict.conv.code",

@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  TWENTY-SEVEN SECOND SPELLINGS AND FORMS OF BASIC STATEMENTS, CLAUSES, FUNCTIONS AND CONVERSIONS ARE REMOVED.
+
+             What        The third batch of the removal the owner asked for: the words and forms of SD BASIC that gave a second way to write something SD already writes one way. Removed
+                         statements: $insert (write $include), include without the dollar sign (write $include), com (common), dimension and redimension (dim and redim), enter and the mode
+                         pick.enter that switched it on (call, or chain to hand control on for good), perform (execute), printerr (inputerr), remark (rem), rqm (sleep), sub (subroutine, also
+                         after local, private and public) and tclread (read @sentence). Removed clause forms: execute ... setting (returning), execute ... passlist with no variable (the clause
+                         did nothing; name the variable that holds the list, or leave it out), input ... for and input ... timeout (waiting), opentemp ... ecs (a word that was read and ignored; it is a name like any other now, so the compiler
+                         warns that it is never assigned a value and the program stops when it reaches the line) and the bracketed Pick form locate(expr, array, f, v; position; order) (locate expr in array<f, v> setting position). Removed functions and variables: ereplace()
+                         (change(), which takes -1 for every occurrence), sentence() (@sentence), swapmarks() (it returned its argument), terminfo.ex() (terminfo()) and @system.set
+                         (@system.return.code). Removed conversions: mcd, mcdx, mcx and mcxd, second spellings of mx; the conversion now fails with STATUS 2, as any other invalid code does.
+                         The compiler refuses each of the others with its usual error (a second spelling of a clause is read as the start of a new statement, or as a value that is never
+                         assigned, and that is refused or warned about at once). The opcodes of enter and ereplace, the function number of swapmarks and the mode bit of pick.enter stay
+                         reserved, so nothing else changes its number; a program already compiled with enter or ereplace stops with an illegal opcode if it is run again unchanged.
+             Why it      Each was a second name, or a second form, kept so that source written for another product compiles. One way to write each thing is easier to learn, to document and to
+                         test. SD's own programs used two of them (printerr in the full-screen input, sub twice in the compiler) and now use the surviving word, and the debugger no longer
+                         takes a line that starts with remark for a comment.
+             Does not    Remove the words that remain on the owner's list (the next batches), change a program that uses only the surviving spellings, or change what input ... waiting,
+                         execute ... returning, execute ... passlist variable, locate ... setting, inputerr, rem, sleep, call, common, dim, redim, mx or terminfo() do. A source that uses one of the
+                         removed words stops compiling and has to be edited.
+
 27 Oct 26  SEVEN $mode NAMES THAT EXISTED TO IMITATE OTHER PRODUCTS ARE REMOVED.
 
              What        The second batch of the removal the owner asked for: the compile modes. Removed: prclose.default.0 (printer close with no unit closed only unit 0), unassigned.common (the

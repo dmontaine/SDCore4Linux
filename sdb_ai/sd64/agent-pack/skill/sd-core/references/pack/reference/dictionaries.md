@@ -201,16 +201,6 @@ MCL       MCU       MCC       MCT
 | `MCT` | title case — the first letter of every word: `hello there world` becomes `Hello There World` |
 
 
-### dict:conv:MCD
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:132#b7e9f3e8
-
-Conversion code `MCD` is described with the codes of **Radix conversion — MX, MO, MCD, MCX**: see dict:conv:MX.
-
-### dict:conv:MCX
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:132#b7e9f3e8
-
-Conversion code `MCX` is described with the codes of **Radix conversion — MX, MO, MCD, MCX**: see dict:conv:MX.
-
 ### dict:conv:MD
 > kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:95#c32f0bc3
 
@@ -246,9 +236,9 @@ scaled number — `MD20` with scale factor `0` treats `123456` as
 Conversion code `ML` is described with the codes of **Masked decimal — MD, ML, MR**: see dict:conv:MD.
 
 ### dict:conv:MO
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:132#b7e9f3e8
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:132#3b0420c7
 
-Conversion code `MO` is described with the codes of **Radix conversion — MX, MO, MCD, MCX**: see dict:conv:MX.
+Conversion code `MO` is described with the codes of **Radix conversion — MX, MO**: see dict:conv:MX.
 
 ### dict:conv:MR
 > kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:95#c32f0bc3
@@ -279,21 +269,21 @@ formats it.
 
 
 ### dict:conv:MX
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:132#b7e9f3e8
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:132#3b0420c7
 
-**Radix conversion — MX, MO, MCD, MCX**
+**Radix conversion — MX, MO**
 
 
 ```
-MX        MO        MCD       MCX
+MX        MO
 ```
 
 | Code | What it does |
 |---|---|
 | `MX` | decimal to hexadecimal |
 | `MO` | decimal to octal |
-| `MCD` | hexadecimal to decimal |
-| `MCX` | decimal to hexadecimal (same as MX) |
+
+(`MCD`, `MCDX`, `MCX` and `MCXD`, which were second spellings of `MX`, were removed in 1.2-0: they are an invalid conversion code now, STATUS 2.)
 
 `MX0C` converts a hexadecimal string to characters. `MB0C` and `MO0C`
 do the same for binary and octal.

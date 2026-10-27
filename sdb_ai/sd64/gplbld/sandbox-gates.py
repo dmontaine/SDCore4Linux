@@ -11,6 +11,7 @@
 # (shared memory keys 0x53434c91/92): stop it afterwards with sandbox-fromtree.py <dir> stop.
 #
 # START-HISTORY:
+# 27 Oct 26 dm  S.87 batch 3: the OPENTEMP rows no longer write ECS (a word that was read and ignored; it is refused now).
 # 13 Oct 26 dm  Written for S.63 (owner, 13 Oct 2026: the tiers were to go and the per-account gates to stay, off by
 #               default, switched by SDSYS).
 # END-HISTORY
@@ -688,7 +689,7 @@ def main():
             "   end else",
             "      crt 'T existing REFUSED ':status()",
             "   end",
-            "   opentemp 'zztmpnt' ecs non.transactional to f5 then",
+            "   opentemp 'zztmpnt' non.transactional to f5 then",
             "      crt 'T options OPENED'",
             "      close f5",
             "   end else",
@@ -719,7 +720,7 @@ def main():
             "leftover=%r" % leftover)
         row("D4: %s OPENTEMP of an existing name is refused, in every account (it would be deleted at close)" % name,
             has(out, r"^T existing REFUSED ") and not has(out, r"^T existing OPENED$"), "output=%r" % (out,))
-        row("D4: %s OPENTEMP of a name inside its own directory works, and takes ECS and NON.TRANSACTIONAL" % name,
+        row("D4: %s OPENTEMP of a name inside its own directory works, and takes NON.TRANSACTIONAL" % name,
             has(out, r"^T inside OPENED$") and has(out, r"^T options OPENED$"), "output=%r" % (out,))
         if osx:
             row("D4: %s (OS.EXECUTE yes) OPENTEMP in the temp directory works: a record written and read back, then closed" % name,

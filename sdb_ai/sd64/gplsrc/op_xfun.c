@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 3: XF_SWAPMARKS (28), which returned its argument, is gone; the number stays reserved.
  * 24 Oct 26 dm  W.11 F9: SIGNAL's administrator test is MY_ADMIN() (the process's own word), not the user table entry.
  * 19 Oct 26 dm  S.67 stage 1: x_ospath() key 5 (delete) calls masters_note_name() for the path it removed (journalled for the master files).
  * 18 Oct 26 dm  XF_SDSALT, XF_SDKEY, XF_SDRANDKEY: encryption layer 2, for any program (sd_encrypt_sodium.c).  The first XFUN
@@ -105,7 +106,7 @@
 #define XF_SIGNAL 25  /* SIGNAL(user.no), QM4 gaps Q-5 */
 #define XF_DIGEST 26  /* DIGEST(string, is.file, mode), QM4 gaps Q-13 */
 #define XF_SELSOCKET 27 /* SELECT.SOCKET(socket matrix, timeout): the compiler loads the matrix itself (in.select.socket), QM4 gaps Q-5 */
-#define XF_SWAPMARKS 28 /* SWAPMARKS(string): the string as it is - SD has no ECS mode, where the marks would be exchanged; sheet 238 */
+/* 28 was SWAPMARKS(string), which returned its argument (SD has no ECS mode); removed on 27 Oct 26 (S.87 batch 3), the number stays reserved */
 #define XF_FCONTROL 29  /* FCONTROL(fvar, action, qualifier): the public one, openQM's numbers; pub_fcontrol() in dh_misc.c */
 #define XF_GET 30       /* GET var {, length} {SETTING count} FROM dev {UNTIL term} {RETURNING last} {WAITING timeout}: op_get_device() in op_seqio.c (QM4 Fixes item 583) */
 #define XF_OSPATH 31    /* OSPATH(path, key {, qualifier}) for any program, openQM's key numbers and behind the OS-access gate (QM4 Fixes item 233) */
@@ -294,10 +295,6 @@ void op_xfun() {
       break;
     case XF_SELSOCKET:
       x_select_socket();
-      break;
-    case XF_SWAPMARKS:
-      /* openQM's SWAPMARKS exchanges the mark characters with accented letters on an ECS system and, since release 3.0-2,
-         returns the data unchanged on any other.  SD has no ECS mode, so the argument is the result */
       break;
     case XF_FCONTROL:
       pub_fcontrol();
