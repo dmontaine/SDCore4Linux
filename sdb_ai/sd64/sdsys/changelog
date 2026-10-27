@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  SEVEN $mode NAMES THAT EXISTED TO IMITATE OTHER PRODUCTS ARE REMOVED.
+
+             What        The second batch of the removal the owner asked for: the compile modes. Removed: prclose.default.0 (printer close with no unit closed only unit 0), unassigned.common (the
+                         variables of a common block started unassigned), no.case.invert (input ignored the terminal's case inversion in every input), optional.then.else (a read needed no then or
+                         else), implied.stop (a program that ran off its final end stopped the run instead of returning), exception.save.stack (every catch saved the call stack) and
+                         conditional.statements (a name that did nothing: the file statements have always been allowed as the condition of while and until). The compiler now refuses each with
+                         "Unrecognised mode name", as it refuses any name it does not know, and does what it did with the mode off. The bit each mode used stays reserved, so no other mode
+                         changes. A program that was compiled with one of the first six keeps what it was compiled with until it is compiled again.
+             Why it      Each of these made one program read the same source differently from every other, for the sake of another product. One way to write a program is easier to learn and to
+                         test.
+             Does not    Remove any other mode (the next steps), change a program that never named one of the seven, or change the clauses that do the same thing one statement at a time
+                         (nocaseinvert on input, saving.stack on catch, printer close on, the then and else clauses). A source that names one of the seven stops compiling with the message above and has to
+                         be edited.
+
 27 Oct 26  TWENTY-TWO OPTION WORDS THAT EXISTED TO IMITATE OTHER PRODUCTS ARE REMOVED, AND SO IS THE option pick SHORTCUT.
 
              What        The owner asked for the features that exist only to make SD behave like another MultiValue product to go. The first batch is the OPTION words. Removed: pick (the shortcut

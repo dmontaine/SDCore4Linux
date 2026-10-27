@@ -2086,13 +2086,6 @@
 "tier": "reference",
 "words": 25
 },
-"basic:mode:conditional.statements": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 55
-},
 "basic:mode:count.overlap": {
 "kind": "basic.mode",
 "part": "reference/basic-modes.md",
@@ -2113,13 +2106,6 @@
 "since": "-",
 "tier": "reference",
 "words": 54
-},
-"basic:mode:exception.save.stack": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 47
 },
 "basic:mode:execute.clearlist": {
 "kind": "basic.mode",
@@ -2149,26 +2135,12 @@
 "tier": "reference",
 "words": 25
 },
-"basic:mode:implied.stop": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
 "basic:mode:index.overlap": {
 "kind": "basic.mode",
 "part": "reference/basic-modes.md",
 "since": "-",
 "tier": "reference",
 "words": 45
-},
-"basic:mode:no.case.invert": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
 },
 "basic:mode:no.echo.data": {
 "kind": "basic.mode",
@@ -2197,13 +2169,6 @@
 "since": "-",
 "tier": "reference",
 "words": 25
-},
-"basic:mode:optional.then.else": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 35
 },
 "basic:mode:partial.expressions": {
 "kind": "basic.mode",
@@ -2275,13 +2240,6 @@
 "tier": "reference",
 "words": 25
 },
-"basic:mode:prclose.default.0": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
 "basic:mode:selectv": {
 "kind": "basic.mode",
 "part": "reference/basic-modes.md",
@@ -2337,13 +2295,6 @@
 "since": "-",
 "tier": "reference",
 "words": 53
-},
-"basic:mode:unassigned.common": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
 },
 "basic:mode:uv.locate": {
 "kind": "basic.mode",
