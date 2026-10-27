@@ -174,10 +174,11 @@ probe_run() {
   aud=$(wl_audit_since "$aud0")
   say "  audit lines added by the $tag probe:"; printf '%s\n' "$aud" | grep -a -E 'api' | cut -c1-200 | sed -e 's/^/      | /'
   expect_has "$tag NULL CASE: the probe connected, opened the file and finished" "$pout" "P DONE"
-  expect_has "$tag the login is a files-only login with write=$w" "$aud" "api login route=sdfiles write=$w user=$ACC"
+  # 26 Oct 26 (first VM run of this script on the current build): every audit line of a files-only login has carried admin=on|off since S.73 item 3; this account has no administration group, so admin=off
+  expect_has "$tag the login is a files-only login with write=$w" "$aud" "api login route=sdfiles write=$w admin=off user=$ACC"
   for n in 20 21 54 61 3; do
     expect_has "$tag request $n: the person sees the 11480 text" "$pout" "$(wl_msg 11480 $n)"
-    expect_has "$tag request $n: the server audit says api refused request=$n route=sdfiles write=$w user=$ACC" "$aud" "api refused request=$n route=sdfiles write=$w user=$ACC"
+    expect_has "$tag request $n: the server audit says api refused request=$n route=sdfiles write=$w user=$ACC" "$aud" "api refused request=$n route=sdfiles write=$w admin=off user=$ACC"
   done
   # 22 and 23: the first run on the VM (19 Oct) wanted a refusal and got none.  The client library sends SDRespond and SDEndCommand only while a command is executing and
   # a files-only login cannot be (21 is refused), so the calls return at once and nothing reaches the server.  What is checked here is what is true: no refusal text, no

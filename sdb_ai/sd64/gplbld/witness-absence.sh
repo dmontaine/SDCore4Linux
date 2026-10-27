@@ -270,7 +270,7 @@ if [ "$COMMIT" -eq 1 ]; then
   for w in STANDARD PROGRAMMER ADMINISTRATOR UNSUSPEND; do
     OUT=$(run_sd "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
     ck_says "M3a $w is refused (not a MODIFY.ACCOUNT action)" \
-            "Action Must Be add, delete, ssh, api, both, none," "$OUT"
+            "is not a modify.account action, and nothing was changed" "$OUT"       # 26 Oct 26: the message is lower case now (PAL-24) and no longer lists the words
   done
   OUT=$(run_sd "MODIFY.ACCOUNT $ACC SUSPENDED, then UNSUSPENDED (the flag, W.7)" \
              "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
@@ -321,7 +321,7 @@ elif [ "$COMMIT" -eq 1 ]; then
 
   OUT=$(run_sd "MODIFY.ACCOUNT $ACC SH-ON" "MODIFY.ACCOUNT $ACC SH-ON")
   ck_says "M4b SH-ON is accepted and says where both gates stand (10102)" "Account $ACC has SH yes, OS.EXECUTE no" "$OUT"
-  ck_absent "M4b2 and it was not refused as an unknown action" "Action Must Be" "$OUT"
+  ck_absent "M4b2 and it was not refused as an unknown action" "is not a modify.account action" "$OUT"       # 26 Oct 26: the old text "Action Must Be" no longer exists, so that check could never fail
   ck "M4b3 the register agrees: SH yes, OS.EXECUTE no" "yes no" "$(reg_gates)"
 
   OUT=$(sh_as_account)
