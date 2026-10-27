@@ -140,13 +140,7 @@ def main():
             % (len(records), exempt))
     run.note("S1 no quoted $SAVEDLISTS / $HOLD VOC-id literal left in installed"
              " GPL.BP code", [], hits)
-    for d in ("newvoc", "voc_template"):
-        # edit.list since the command rename; a missing file fails S2, so
-        # reading the old spelling would report the rename as a regression.
-        p = os.path.join(V.SDSYS, d, "edit.list")
-        txt = open(p, errors="replace").read() if os.path.exists(p) else ""
-        run.note("S2 %s/EDIT.LIST edits $savedlists" % d, True,
-                 "ED $savedlists" in txt)
+    # (S2, the EDIT.LIST record, went with the verb on 27 Oct 26: S.87 batch 10)
     tdir = os.listdir(os.path.join(V.SDSYS, "voc_template"))
     run.note("S2b voc_template ships $hold and not $HOLD", (True, False),
              ("$hold" in tdir, "$HOLD" in tdir))

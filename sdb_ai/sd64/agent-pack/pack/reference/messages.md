@@ -11818,7 +11818,7 @@ cited by: `acomp`, `bcomp`, `icomp`
 ELSE not found where expected in conditional expression
 ```
 
-cited by: `acomp`, `bcomp`
+cited by: `acomp`, `bcomp`, `icomp`
 
 ### msg:2952
 > kind=message tier=reference since=- src=sdsys/messages/2952:1#b460f472

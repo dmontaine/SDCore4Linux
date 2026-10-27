@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  FIVE VOC RECORDS AND THREE LOOSE FORMS OF A DICTIONARY EXPRESSION ARE REMOVED: caption, nopage, col.hdr.space, edit.list, listdict.
+
+             What        Tenth batch, through the VOC deletion list. caption and nopage were second names of grand.total and no.page; col.hdr.space (a blank line under the column headings,
+                         added earlier in this release) is gone, and a heading that ends in a blank line does the same; edit.list is gone (write ed $savedlists name); listdict, a paragraph
+                         over list dict, is gone (write list dict file). In an I-type or correlative: an IF with no THEN or no ELSE is refused again (messages 2950 and 2951), a name such as
+                         CUST-NO is read as CUST minus NO even when an item of that name exists (rename the item or write the subtraction), and a format string straight after a value needs
+                         its operator (write FMT or the x 'code' form with the operator). The next VOC update removes the five records from existing accounts (saved first; an account's own
+                         record of one of these names is kept). A dictionary item that already uses one of the three forms stops compiling the next time it is compiled.
+             Why it      Each was a second way to say something SD already says one way.
+             Does not    Change any shipped dictionary item (none used them), or break an I-type that is already compiled.
+
 27 Oct 26  THREE MORE $MODE WORDS ARE REMOVED: execute.clearlist, open.fail.zero.fvar AND pick.readnext.
 
              What        The ninth batch. A program that names one of them in $mode, or in the MODE line of a $basic.options record, is refused with "Unrecognised mode name". Without the mode:

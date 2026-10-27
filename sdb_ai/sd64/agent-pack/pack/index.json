@@ -15076,7 +15076,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 14
+"words": 15
 },
 "msg:2952": {
 "kind": "message",
@@ -25830,13 +25830,6 @@
 "tier": "reference",
 "words": 53
 },
-"tcl:caption": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 55
-},
 "tcl:case": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -25990,13 +25983,6 @@
 "since": "-",
 "tier": "reference",
 "words": 39
-},
-"tcl:col.hdr.space": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 40
 },
 "tcl:col.hdr.sup": {
 "kind": "tcl.keyword",
@@ -26745,7 +26731,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "0.9.0",
 "tier": "reference",
-"words": 55
+"words": 63
 },
 "tcl:greater": {
 "kind": "tcl.keyword",
@@ -27501,7 +27487,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 58
+"words": 66
 },
 "tcl:no.query": {
 "kind": "tcl.keyword",
@@ -27551,13 +27537,6 @@
 "since": "-",
 "tier": "reference",
 "words": 33
-},
-"tcl:nopage": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 58
 },
 "tcl:not": {
 "kind": "tcl.keyword",
@@ -28882,13 +28861,6 @@
 "tier": "examples",
 "words": 52
 },
-"voc:entry:edit.list": {
-"kind": "voc.entry",
-"part": "examples/voc-entries.md",
-"since": "-",
-"tier": "examples",
-"words": 52
-},
 "voc:entry:first.compile": {
 "kind": "voc.entry",
 "part": "examples/voc-entries.md",
@@ -28909,13 +28881,6 @@
 "since": "0.6.4",
 "tier": "examples",
 "words": 18
-},
-"voc:entry:listdict": {
-"kind": "voc.entry",
-"part": "examples/voc-entries.md",
-"since": "-",
-"tier": "examples",
-"words": 25
 },
 "voc:entry:listf": {
 "kind": "voc.entry",

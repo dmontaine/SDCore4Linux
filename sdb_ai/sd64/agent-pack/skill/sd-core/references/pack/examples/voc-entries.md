@@ -115,25 +115,6 @@ F
 @SDSYS/dict.dic
 ```
 
-### voc:entry:edit.list
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/edit.list:1#4f357ef8 src2=sdsys/voc_template/edit.list:1#02aa629c
-
-VOC record `edit.list` (type S). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Sentence to edit select lists
-ED $savedlists
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-S
-ED $savedlists
-```
-
 ### voc:entry:first.compile
 > kind=voc.entry tier=examples since=0.6.1 src=sdsys/voc_template/first.compile:1#39a0f31b
 
@@ -162,16 +143,6 @@ VOC record `sdsys/voc_template/gpl.bp.out` (type F), the same in `voc_template`:
 ```
 File - Compiled GPL BASIC object
 gpl.bp.out
-```
-
-### voc:entry:listdict
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/listdict:1#39a0f31b src2=sdsys/voc_template/listdict:1#39a0f31b
-
-VOC record `sdsys/newvoc/listdict` (type PA), the same in `newvoc` and `voc_template`:
-
-```
-PA
-list dict <<C2>> with type = "A" "D" "I" "S" <<C3>>
 ```
 
 ### voc:entry:listf

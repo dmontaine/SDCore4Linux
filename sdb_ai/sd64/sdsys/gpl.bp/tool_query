@@ -55,7 +55,7 @@ $include tk.h
 
    verbs = 'list sort count sum'                                 ;* the first word of a sentence the page will run
    redirect = 'to saving on.to lptr file as csv delimiter xml json json.lines elements with.dtd dtd.only with.schema schema.only appending no.query style overlay reporting from using strings display crt pathname'
-   keepwords = 'with and or by by.dsnd break.on total id.sup det.sup heading footing no.page nopage sample sampled col.hdg col.sup col.hdr.sup hdr.sup count.sup dbl.spc vert vertically average avg max min median mode range enum enumerate percent pct break.sup grand.total caption rpt fmt col.spaces'
+   keepwords = 'with and or by by.dsnd break.on total id.sup det.sup heading footing no.page sample sampled col.hdg col.sup col.hdr.sup hdr.sup count.sup dbl.spc vert vertically average avg max min median mode range enum enumerate percent pct break.sup grand.total rpt fmt col.spaces'
    opwords = '= # < > <= >= eq ne lt le gt ge not like unlike matches matching not.matching before after'
    qwords = verbs : ' ' : redirect : ' ' : keepwords : ' ' : opwords       ;* a dictionary item with one of these names is never put in a sentence
    ops = '=' : @fm : '#' : @fm : '<' : @fm : '>' : @fm : '<=' : @fm : '>=' : @fm : 'like' : @fm : 'unlike'
