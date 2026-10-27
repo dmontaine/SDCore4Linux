@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 4: field locations 9998 and 9999 are no longer skipped (they are ordinary numbers now); only location 0 is.
 * 17 Oct 26 dm  S.64 part 2 (the edit gates): GENERATE writes into two files the user names, the dictionary (the $INCLUDE control
 *               record it makes when there is none) and the target file of that record (bp by default; the include records), and
 *               it is $internal, so the kernel's own test lets both through.  Each now asks edit_guard, the dictionary before the
@@ -166,7 +167,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
             begin case
                case type = 'D'
                   fno = dict.rec<DICT.LOC>
-                  if num(fno) and fno # 0 and fno # 9998 and fno # 9999 then
+                  if num(fno) and fno # 0 then
                      if fno > hi.fno then hi.fno = fno
                      locate fno in loc<1> by 'AR' setting idx then
                         if not(duplicates.allowed) then continue
@@ -186,7 +187,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
 
                case (type = 'A' or type = 'S') and dict.rec<DICT.A.CORRELATIVE> = ''
                   fno = dict.rec<DICT.A.LOC>
-                  if num(fno) and fno # 0 and fno # 9998 and fno # 9999 then
+                  if num(fno) and fno # 0 then
                      if fno > hi.fno then hi.fno = fno
                      locate fno in loc<1> by 'AR' setting idx then
                         if not(duplicates.allowed) then continue

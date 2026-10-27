@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 4: the describe page no longer says a location of 9998 or 9999 shows the item count or the record length.
 * 25 Oct 26 dm  New.
 * 26 Oct 26 dm  faults: the record write's box says "Write this record?" (a sixth argument of $tk_confirm); the choice of keeping the page's own K$EDIT.OK question as the wall is written at write.item.
 * END-HISTORY
@@ -589,10 +590,6 @@ describe.item:
             begin case
                case loc = 0
                   lines<-1> = 'Shows the record id.'
-               case loc = 9998
-                  lines<-1> = 'Shows the number of values in the record (@NI).'
-               case loc = 9999
-                  lines<-1> = 'Shows the length of the record in bytes (@NB).'
                case 1
                   lines<-1> = 'Shows field ' : loc : ' of each record.'
             end case

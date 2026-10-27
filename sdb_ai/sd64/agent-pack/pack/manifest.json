@@ -1,5 +1,5 @@
 {
- "chunk_count": 4202,
+ "chunk_count": 4189,
  "development": "the changelog's 'Next release - in progress' section is part of this tree",
  "gaps": {
   "basic_names_without_a_docs_syntax_line": [
@@ -101,7 +101,7 @@
   },
   "dict.type": {
    "chunks": 9,
-   "sha256": "30cadfd7ba5d9ccff9179faa3bd58600be32b4b5b6882e70394d4bcf9ff43256"
+   "sha256": "17ece5b7ab3ce3b7562da6425baae4ae89b63df61120e2820eba17e90d74a19c"
   },
   "dict.types": {
    "chunks": 1,
@@ -132,8 +132,8 @@
    "sha256": "8edbd2abe7a1d77d717b30b652ce2b04293179326b474768ba8cc91a95fbc5d1"
   },
   "tcl.keyword": {
-   "chunks": 269,
-   "sha256": "de692e3476206a4f814824cbf01bdcedf465a645a0655c05745c653fca6fe72f"
+   "chunks": 256,
+   "sha256": "fa23210cc4396c430142bf4c2caf97f139ce8d01c5aba7d1cd601da26ce86335"
   },
   "tcl.verb": {
    "chunks": 226,
@@ -149,7 +149,7 @@
   },
   "voc.layer": {
    "chunks": 2,
-   "sha256": "e09b4d5ebf5c35b54d0389a0505d40e1cb19f8913bd5fcc9fdaf280b08d95cc0"
+   "sha256": "eef87a8793f2bd3da3633e8ca931fb1f821640c7dbb12695d397c5722a205829"
   },
   "voc.type": {
    "chunks": 9,
@@ -179,7 +179,7 @@
    "words": 1348
   },
   "index.json": {
-   "sha256": "66238b0802d7be7e09e256f27b13bfccdd6446d16e7a5e4b6488d6de310e60bd"
+   "sha256": "c5d2491532ac1b351444a870f882367f687343b305921c1a7ac633a1413df244"
   },
   "reference/basic-functions.md": {
    "chunks": 289,
@@ -198,8 +198,8 @@
   },
   "reference/dictionaries.md": {
    "chunks": 53,
-   "sha256": "5a112aa65a58a45408a9eabe04304e0909b60a1d813c4ff9c7b5f7273a07196e",
-   "words": 6117
+   "sha256": "fd3a5187e62c607000f27494fa163f5bc20691973e9d0693a7c123bada593efa",
+   "words": 6130
   },
   "reference/messages.md": {
    "chunks": 2726,
@@ -217,9 +217,9 @@
    "words": 3063
   },
   "reference/tcl-keywords.md": {
-   "chunks": 269,
-   "sha256": "e26161bc438b7a2e3ea205c8c4eb391d92dfc7854bd9d485865921134d535562",
-   "words": 12513
+   "chunks": 256,
+   "sha256": "cb5995ec7559c40c7cb972e1cb267f85babe7a76e2fa91a1174fa99143116d4f",
+   "words": 11942
   },
   "reference/tcl-verbs.md": {
    "chunks": 230,
@@ -228,7 +228,7 @@
   },
   "reference/voc.md": {
    "chunks": 12,
-   "sha256": "d412080a94a617cb66dd35c34531b801af730fb4dc50cdc6786d36210b79dc1a",
+   "sha256": "8262debfc8f4a9274872eafec8a7a8df34a60744d5662e36745fd267ac8e4299",
    "words": 1862
   }
  },

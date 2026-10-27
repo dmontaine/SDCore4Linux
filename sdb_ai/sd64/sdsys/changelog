@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  THIRTEEN SECOND SPELLINGS OF QUERY KEYWORDS, AND DICTIONARY FIELD NUMBERS 9998 AND 9999, ARE REMOVED.
+
+             What        The fourth batch of the removal the owner asked for: the query processor. Removed keywords: col.spcs (write col.spaces), display.name (col.hdg), evaluate (eval),
+                         calculate (calc), intersection and difference (intersect and diff, in merge.list and list.inter / list.diff too), margin (left.margin), stats (statistics), supp (hdr.sup),
+                         only (id.only) and the mirrored comparison spellings => =< and >< (write >= <= and <>). The word id.only (and only) is no longer accepted BEFORE the file name; write it
+                         after, as in "list customers id.only". (The noise word than is NOT removed: it was on the list, but without it "less than 25" would mean "less than the word than or less
+                         than 25" and list every record, so it stays until the owner decides.)
+                         A dictionary item of type d, a or s whose field location was 9998 (the item count, @ni) or 9999 (the length of the record in bytes) now reads field 9998 or 9999 like any
+                         other number: use an I-type with @ni or len(@record). The query processor, the I-type and A-correlative compilers, the run-time I-type and the dictionary page lost the
+                         two special cases. A new account no longer has the VOC records of the removed keywords. AN ACCOUNT THAT ALREADY HAS THEM KEEPS THEM, because the VOC update adds and
+                         changes records and never deletes one, so the old spelling still works there (except id.only before the file name and the field numbers, which are handled in
+                         the program and are refused everywhere); delete voc name removes one by hand.
+             Why it      Each was a second name for something SD already says one way, kept so that sentences written for another product still run. One word for each thing is easier to learn,
+                         to document and to test.
+             Does not    Remove any other keyword, change a sentence that uses only the surviving spellings, or take the old records out of accounts that exist (a deletion list for the VOC update is
+                         a separate decision).
+
 27 Oct 26  TWENTY-SEVEN SECOND SPELLINGS AND FORMS OF BASIC STATEMENTS, CLAUSES, FUNCTIONS AND CONVERSIONS ARE REMOVED.
 
              What        The third batch of the removal the owner asked for: the words and forms of SD BASIC that gave a second way to write something SD already writes one way. Removed

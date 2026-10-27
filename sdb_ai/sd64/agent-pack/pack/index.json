@@ -5402,7 +5402,7 @@
 "part": "reference/dictionaries.md",
 "since": "-",
 "tier": "reference",
-"words": 517
+"words": 530
 },
 "dict:type:E": {
 "kind": "dict.type",
@@ -25599,20 +25599,6 @@
 "tier": "reference",
 "words": 36
 },
-"tcl:%e%g": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 40
-},
-"tcl:%e%l": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 40
-},
 "tcl:%g": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -25626,13 +25612,6 @@
 "since": "-",
 "tier": "reference",
 "words": 40
-},
-"tcl:%g%l": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 37
 },
 "tcl:%l": {
 "kind": "tcl.keyword",
@@ -25954,14 +25933,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 55
-},
-"tcl:calculate": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 55
+"words": 53
 },
 "tcl:caption": {
 "kind": "tcl.keyword",
@@ -26143,7 +26115,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 56
+"words": 54
 },
 "tcl:col.hdg.id": {
 "kind": "tcl.keyword",
@@ -26172,13 +26144,6 @@
 "since": "-",
 "tier": "reference",
 "words": 53
-},
-"tcl:col.spcs": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
 },
 "tcl:col.sup": {
 "kind": "tcl.keyword",
@@ -26563,14 +26528,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 58
-},
-"tcl:difference": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 58
+"words": 54
 },
 "tcl:directory": {
 "kind": "tcl.keyword",
@@ -26599,13 +26557,6 @@
 "since": "-",
 "tier": "reference",
 "words": 36
-},
-"tcl:display.name": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 56
 },
 "tcl:docs.install": {
 "kind": "tcl.verb",
@@ -26720,13 +26671,6 @@
 "words": 36
 },
 "tcl:eval": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
-},
-"tcl:evaluate": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
 "since": "-",
@@ -27123,14 +27067,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 55
-},
-"tcl:intersection": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 55
+"words": 54
 },
 "tcl:invert": {
 "kind": "tcl.keyword",
@@ -27467,13 +27404,6 @@
 "since": "-",
 "tier": "reference",
 "words": 36
-},
-"tcl:margin": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 38
 },
 "tcl:mark": {
 "kind": "tcl.keyword",
@@ -27831,13 +27761,6 @@
 "since": "-",
 "tier": "reference",
 "words": 53
-},
-"tcl:only": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 39
 },
 "tcl:option": {
 "kind": "tcl.verb",
@@ -28644,13 +28567,6 @@
 "tier": "reference",
 "words": 52
 },
-"tcl:stats": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 35
-},
 "tcl:status": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -28685,13 +28601,6 @@
 "since": "-",
 "tier": "reference",
 "words": 35
-},
-"tcl:supp": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
 },
 "tcl:symbol.set": {
 "kind": "tcl.keyword",
@@ -28908,7 +28817,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 55
+"words": 54
 },
 "tcl:unique": {
 "kind": "tcl.keyword",

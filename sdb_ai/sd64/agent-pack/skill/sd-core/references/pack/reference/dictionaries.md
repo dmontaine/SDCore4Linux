@@ -741,7 +741,7 @@ that reads `V`, `K`, `F` and so on rather than the raw field 1.
 
 
 ### dict:type:A
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:47#650f42c7 src2=docs:User/markdown/33-sd-dicts-structure.md:201#56612f74
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:47#650f42c7 src2=docs:User/markdown/33-sd-dicts-structure.md:203#56612f74
 
 Dictionary record type `A` - A-type: Pick-style data definition, with a different field layout
 
@@ -774,7 +774,7 @@ a conversion code, as before.
 
 
 ### dict:type:C
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:46#209299bc src2=docs:User/markdown/33-sd-dicts-structure.md:193#61f238d0
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:46#209299bc src2=docs:User/markdown/33-sd-dicts-structure.md:195#61f238d0
 
 Dictionary record type `C` - calculated: like I but compiled with the BASIC compiler and returning via `@ANS`
 
@@ -826,14 +826,16 @@ query.
 
 **Pseudo-fields**
 
-Field 2 is not always a literal field number. Three values have special
+Field 2 is not always a literal field number. One value has a special
 meaning:
 
 | Location | What it reads |
 |---|---|
 | `0` | the record id (`@ID`) |
-| `9998` | `@NI` — the number of items in a multivalued field set |
-| `9999` | the record length in bytes (`@NB`) |
+
+(`9998`, which read the item count, and `9999`, which read the length of the
+record in bytes, were removed in 1.2-0: they are ordinary field numbers now. Use
+an I-type with `@ni` or `len(@record)` for those two.)
 
 A dictionary record with location `0` is how the record id appears in a
 query. The `@ID` record in `voc.dic` has location `0` and display name
@@ -887,7 +889,7 @@ Field 1 of the dictionary record starts with `E`.
 `E` is laid out like `D`, but field 2 is the path of an element of a data collection record instead of a field number: see dict:type:D and the collection files page.
 
 ### dict:type:I
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:45#3b9dad7c src2=docs:User/markdown/33-sd-dicts-structure.md:138#9cfd06ce
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:45#3b9dad7c src2=docs:User/markdown/33-sd-dicts-structure.md:140#9cfd06ce
 
 Dictionary record type `I` - indirect: an expression that returns a value — a virtual field
 
@@ -951,7 +953,7 @@ I-type record and is empty in a D-type record.
 
 
 ### dict:type:L
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:49#bf8273ae src2=docs:User/markdown/33-sd-dicts-structure.md:237#21a15621
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:49#bf8273ae src2=docs:User/markdown/33-sd-dicts-structure.md:239#21a15621
 
 Dictionary record type `L` - link: names another file and how to find the record in it, so that a query or an I-type can use its fields as `link%item`
 
@@ -1025,7 +1027,7 @@ message that names the link or the item.
 
 
 ### dict:type:PH
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:50#d160d751 src2=docs:User/markdown/33-sd-dicts-structure.md:225#42bb257f
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:50#d160d751 src2=docs:User/markdown/33-sd-dicts-structure.md:227#42bb257f
 
 Dictionary record type `PH` - phrase: a stored fragment substituted into a query command line
 
@@ -1055,7 +1057,7 @@ Field 1 of the dictionary record starts with `S`.
 `S` is laid out exactly like `A`: see dict:type:A.
 
 ### dict:type:X
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:51#7317ef26 src2=docs:User/markdown/33-sd-dicts-structure.md:302#f1c700c1
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:51#7317ef26 src2=docs:User/markdown/33-sd-dicts-structure.md:304#f1c700c1
 
 Dictionary record type `X` - text: miscellaneous data — not a field definition
 
