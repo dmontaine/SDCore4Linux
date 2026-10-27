@@ -1,0 +1,1 @@
+%1: this session cannot write the VOC of that account (the sdsys user is not in its group), so it was left as it was. modify.account <name> sdsys-on lets sdsys do it; the installer's upgrade updates every account.

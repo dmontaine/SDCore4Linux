@@ -8054,6 +8054,24 @@ The files listed as nonwritable or norights are in accounts whose master edits a
 
 cited by: `masters`
 
+### msg:11983
+> kind=message tier=reference since=- src=sdsys/messages/11983:1#ea3ef0ab
+
+```
+%1: this session cannot write the VOC of that account (the sdsys user is not in its group), so it was left as it was. modify.account <name> sdsys-on lets sdsys do it; the installer's upgrade updates every account.
+```
+
+cited by: `login`
+
+### msg:11984
+> kind=message tier=reference since=- src=sdsys/messages/11984:1#ae39ccce
+
+```
+%1 account(s) were left as they were: this session cannot write their VOC.
+```
+
+cited by: `login`
+
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
 

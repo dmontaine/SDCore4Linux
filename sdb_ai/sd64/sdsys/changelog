@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  UPDATE.ACCOUNTS ALL, RUN BY SDSYS, NO LONGER STOPS WITH A DISK-FULL ERROR AT THE FIRST USER ACCOUNT IT MAY NOT WRITE.
+
+             What        The sdsys user is in no user account's group as delivered (modify.account <name> sdsys-on puts it there), so SDSYS cannot write the VOC of a user account that has not
+                         switched it on. update.accounts all, run by SDSYS, stopped at the first such account with "Error 3018 ... writing record (Possible full disk?) at line 906 of $login", and the
+                         accounts after it and the count were lost. Now an account whose VOC cannot be written is left exactly as it was: the command says "<path>: this session cannot write the VOC
+                         of that account (the sdsys user is not in its group), so it was left as it was. modify.account <name> sdsys-on lets sdsys do it; the installer's upgrade updates every
+                         account", goes on to the next account, and ends with the count of accounts updated (as before) and, if any, "n account(s) were left as they were". newvoc.mods is not
+                         tried in an account that could not be written. Found on a real install by witness-release-run.sh (V10).
+             Why it      The error looked like a full disk and hid which accounts had been updated.
+             Does not    Make SDSYS able to write those accounts: that is sdsys-on, or the installer's upgrade, which runs as root and is unchanged (its walk updates every account).
+
 26 Oct 26  SED, THE CONFIGURATION PAGE AND THE CATALOGUE PAGE NO LONGER KEEP A FILE NAME LOCKED AFTER FAILING TO OPEN A FILE THAT IS NOT THERE.
 
              What        An OPENSEQ of a file that is not there takes its ELSE branch but leaves the name locked until the program closes the file variable (the same fault the home screen

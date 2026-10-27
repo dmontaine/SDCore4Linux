@@ -229,6 +229,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   installer runs on every install, wrote the holder's page over the administrator's.  Found on a real install by witness-toolgates.py.
          update.sdsys.voc = (@who = 'sdsys' and kernel(K$ADMINISTRATOR,-1))
          gosub update.voc
+         if upd.denied then display sysmsg(11983, @path : @ds : 'voc')
          close update.voc.f
       end
 
@@ -259,6 +260,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
          if yn = 'Y' then
             acc.updated = 0
+            acc.denied = 0
             voc.paths = @path
             openpath @sdsys:@ds:'accounts' to acc.f then
                select acc.f to 12
@@ -277,13 +279,19 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
                            gosub update.voc
                            close update.voc.f
                            voc.paths<-1> = acc.path
-                           acc.updated += 1
+                           if upd.denied then
+                              display sysmsg(11983, s)
+                              acc.denied += 1
+                           end else
+                              acc.updated += 1
+                           end
                         end
                      end
                   end
                repeat
                close acc.f
                display sysmsg(10171, acc.updated) ;* xx account(s) had their VOC updated
+               if acc.denied then display sysmsg(11984, acc.denied) ;* xx account(s) were left as they were
             end else
                display sysmsg(2200) ;* Cannot open accounts register
             end
@@ -789,6 +797,7 @@ batch.permitted:
 
 update.voc:
    yn = ''
+   upd.denied = 0                 ;* 26 Oct 26 - set when a write is refused (the session may not write this account's VOC); the callers say so and go on to the next account
 
 * 11 Sep 26 Windows port - [locked] RECORDS (port PRE_RELEASE_FIXES 70, the
 *   owner's design of 2 Sep 2026).  A site marks a VOC record it has customised
@@ -902,8 +911,19 @@ accept.without.query:
 *   still derived that way.
 
          if compare(old.rec, rec) then
-            write rec to update.voc.f, id
-            display '.' :
+* 26 Oct 26 dm - A REFUSED WRITE ENDS THIS ACCOUNT'S UPDATE, NOT THE COMMAND.  Since F6 the sdsys user is in no user account's group as delivered, so an UPDATE.ACCOUNTS ALL run by SDSYS cannot write
+*   the VOC of a user account that has not switched sdsys on (modify.account <name> sdsys-on): the first write stopped the whole command with "Error 3018 ... (Possible full disk?)" and the other
+*   accounts and the count were lost (found on a real install by witness-release-run.sh V10).  Now the account is left as it was, the caller says why (11983), the walk goes on and the count
+*   (10171) and the number left alone (11984) are printed.  The installer's upgrade walk runs as root and is not affected.
+            upd.wrote = @true
+            write rec to update.voc.f, id on error upd.wrote = @false
+            if upd.wrote then
+               display '.' :
+            end else
+               upd.denied = 1
+               release update.voc.f, id
+               exit
+            end
          end else
             release update.voc.f, id
          end
@@ -930,6 +950,8 @@ accept.without.query:
    end
 
    close sdsys.file
+
+   if upd.denied then return      ;* 26 Oct 26 - the account could not be written: nothing more is tried in it (newvoc.mods included)
 
 * 12 Oct 26 dm - openQM 501.  An optional SDSYS file, newvoc.mods, holds the administrator's changes to the standard
 *   VOC (a verb withdrawn, a Q-pointer to a shared file, a paragraph for every account).  Each record in it is written to
