@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 26 Oct 26 dm  clean_stop() ends with sd_tls_relay_finish(): an API server waits for its TLS relay to deliver the last reply before it exits (sd_tlssrv.c).
  * 25 Oct 26 dm  "sd -start -nodaemon": start SD without forking sdlnxd, which its own service unit (sd-lnxd.service) starts and restarts.  start_sd() takes the choice.
  * 24 Oct 26 dm  W.11 F9: load_pcode() searches a copy of bin/pcode that this process read itself (read_pcode_image()), not the one in the shared segment.
  * 31 Dec 23 SD launch - prior history suppressed
@@ -96,6 +97,7 @@
 #include "options.h"
 #include "locks.h"
 #include "keys.h"
+#include "sd_tls.h"
 
 #define BUILD_TARGET "64 Bit"
 
@@ -283,6 +285,7 @@ void clean_stop(void) {
   dh_shutdown();
   unbind_sysseg();
   shut_console();
+  sd_tls_relay_finish();               /* last: the relay delivers sd's final reply before sd exits */
 }
 
 /* ======================================================================

@@ -12,6 +12,9 @@
  * GNU General Public License for more details.
  *
  * START-HISTORY:
+ * 26 Oct 26 dm sd waits for the relay when it ends (sd_tls_relay_finish): sdclient@.service has the default KillMode, so systemd killed the relay the
+ *              moment sd exited, and a reply sd had just written (a refused SCRAM login) reached the client as a close with no close_notify -
+ *              9 of 60 refusals on the Debian 13 VM, 0 of 60 with KillMode=process.
  * 15 Sep 26 dm The certificate's name is built here instead of being borrowed
  *              from the certificate: OpenSSL 4 returns X509_get_subject_name()
  *              const, and the first build against real libssl-dev headers
@@ -59,6 +62,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <syslog.h>
 #include <unistd.h>
 
@@ -70,6 +74,8 @@
 #include <openssl/x509.h>
 
 #define RELAY_BUFFER 16384
+#define RELAY_DRAIN_MS 2000      /* how long sd waits for the relay to deliver the last reply when it ends */
+#define RELAY_POLL_MS 10
 #define RELAY_EXIT_IDENTITY 2
 #define RELAY_EXIT_PRIVILEGE 3
 #define RELAY_EXIT_HANDSHAKE 4
@@ -77,6 +83,7 @@
 
 static unsigned char server_binding[SD_TLS_BINDING_BYTES];
 static bool have_binding = false;
+static pid_t relay_pid = 0;                  /* the relay sd_tls_relay_start() forked; 0 when there is none */
 
 static bool write_all(int fd, const void* buf, size_t len) {
   const char* p = buf;
@@ -490,6 +497,7 @@ int sd_tls_relay_start(const char* identity_dir, int timeout_ms,
   /* sd: its connection becomes the socketpair.  Closing its copies of the
      network descriptor matters - when the relay ends, the client must see
      the connection close, not a socket sd still holds open. */
+  relay_pid = pid;
   close(sp[1]);
   if (dup2(sp[0], 0) < 0 || dup2(sp[0], 1) < 0) {
     snprintf(errmsg, errlen, "dup2: %s", strerror(errno));
@@ -532,6 +540,46 @@ int sd_tls_relay_start(const char* identity_dir, int timeout_ms,
 
 const unsigned char* sd_tls_server_binding(void) {
   return have_binding ? server_binding : NULL;
+}
+
+/* ======================================================================
+   sd_tls_relay_finish()  -  let the relay deliver sd's last reply          */
+
+/* sd's last reply (a refused login, the answer to a QUIT) is written to the
+   socketpair just before sd ends.  The relay is sd's child, in the same
+   systemd cgroup, and sdclient@.service has the default KillMode: the moment
+   sd exits, systemd sends the relay SIGTERM, and if it has not yet read that
+   reply the client sees the connection close with no close_notify and no
+   reply.  So sd does not end first.  shutdown() rather than close(): a child
+   of sd that inherited descriptor 0 (a SH command still running) would keep
+   a closed descriptor's socket open and the relay would never see the end.
+   The relay forwards what is queued, reads the end of file, says
+   close_notify and exits; the wait is bounded for a client that has stopped
+   reading, and then the relay is killed as systemd would have killed it.
+   The SIGCHLD handler of the kernel may reap the relay first: ECHILD means
+   it is gone.                                                            */
+
+void sd_tls_relay_finish(void) {
+  pid_t pid = relay_pid;
+  int waited_ms = 0;
+  int status;
+
+  if (pid <= 0)
+    return;
+  relay_pid = 0;
+  (void)shutdown(0, SHUT_WR);        /* descriptors 0 and 1 are the one socket */
+  for (;;) {
+    pid_t r = waitpid(pid, &status, WNOHANG);
+
+    if (r == pid || (r < 0 && errno != EINTR))
+      return;
+    if (waited_ms >= RELAY_DRAIN_MS)
+      break;
+    (void)poll(NULL, 0, RELAY_POLL_MS);
+    waited_ms += RELAY_POLL_MS;
+  }
+  (void)kill(pid, SIGKILL);
+  (void)waitpid(pid, &status, 0);
 }
 
 /* END-CODE */

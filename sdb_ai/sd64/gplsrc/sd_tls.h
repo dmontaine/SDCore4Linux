@@ -86,5 +86,8 @@ void sd_tls_client_end(SD_TLS_CLIENT* c);
 int sd_tls_relay_start(const char* identity_dir, int timeout_ms,
                        char* errmsg, size_t errlen);
 const unsigned char* sd_tls_server_binding(void);      /* NULL: no TLS */
+/* 26 Oct 26: called when sd ends (clean_stop).  Tells the relay there is no more to come, waits a short, bounded time for it to deliver what
+   sd already wrote and to say close_notify, and reaps it.  Does nothing when no relay was started. */
+void sd_tls_relay_finish(void);
 
 #endif

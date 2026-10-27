@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  A REFUSED API LOGIN NO LONGER SOMETIMES ENDS WITH NO ANSWER AT ALL.
+
+             What        Every API connection goes through a small TLS relay process that sd starts, and sdclient@.service has systemd's default KillMode, so the moment the per-connection sd
+                         ended, systemd sent the relay SIGTERM as well. When sd ended right after writing its last reply and the relay had not yet passed it on, the client saw the connection
+                         close with no reply and no TLS close_notify (OpenSSL 3 reports "unexpected eof"). It showed where sd ends the session by itself: a refused SCRAM login (requests 47 and
+                         48), where a client printed "TLS read failed" instead of the server's reason. On the test machine 9 of 60 refusals sent four at a time lost their reply. Now sd, when
+                         it ends, shuts its end of the pipe to the relay, waits up to two seconds for the relay to deliver what is queued, say close_notify and exit, and only then exits itself;
+                         a relay whose client has stopped reading is killed after the two seconds.
+             Why it      A client could not tell a refused login from a broken connection, so an ordinary refusal looked like a fault.
+             Does not    Change who is refused or what is audited (the server decided and audited the refusal before the reply either way), or change the unit file.
+
 26 Oct 26  UPDATE.ACCOUNTS ALL, RUN BY SDSYS, NO LONGER STOPS WITH A DISK-FULL ERROR AT THE FIRST USER ACCOUNT IT MAY NOT WRITE.
 
              What        The sdsys user is in no user account's group as delivered (modify.account <name> sdsys-on puts it there), so SDSYS cannot write the VOC of a user account that has not
