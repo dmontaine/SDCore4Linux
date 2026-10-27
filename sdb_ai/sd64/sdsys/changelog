@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  FOUR MORE OPTION WORDS ARE REMOVED: no.sel.list.query, catalogue.local, inherit.mfile.path AND correlative.nocase.
+
+             What        The eighth batch of the removal. Each now does what it did with the option off. no.sel.list.query: ed, ct, delete, setmode, deletef, copy and cd ask "Use active select
+                         list?" unless no.query is given. catalogue.local: catalog and delete.catalog with no word work on the private catalogue; say local for the local one (the files
+                         page no longer mentions the option). inherit.mfile.path: a new multifile subfile goes in the directory named for the file unless pathname says otherwise.
+                         correlative.nocase: a correlative or I-type is case blind only through its own A;NOCASE; flag or an I-type's $mode nocase.strings. The option numbers stay reserved.
+             Why it      Each had a second, per-command or per-item way that stays. One way is easier to learn, document and test.
+             Does not    Change any session that never turned one of them on.
+
 27 Oct 26  ELEVEN OPTION WORDS ARE REMOVED: THE WAY SD BEHAVES WITH THEM OFF IS NOW THE ONLY WAY.
 
              What        The seventh batch of the removal the owner asked for. Removed OPTION words: run.no.page and paginate.on.heading (a run, a debug and a catalogued program started by

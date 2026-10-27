@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 8: OPTION CATALOGUE.LOCAL is gone, so the page no longer tells of it (the footer note and two refusals).
 * 25 Oct 26 dm  New.
 * END-HISTORY
 *
@@ -628,7 +629,6 @@ gate.state:
 draw.foot:
    gosub gate.state
    s = 'Your gate:  bp-edit ' : (if gon then (if gadm then 'on (administrator)' else 'on') else 'off')
-   if option(OPT.CATALOGUE.LOCAL) then s := '   option catalogue.local is on'
    s := '   ' : nprog : (if nprog = 1 then ' program' else ' programs') : ' in ' : npf : (if npf = 1 then ' file' else ' files') : ', ' : ncomp : ' compiled; ' : npriv : ' private and ' : nlocal : ' local catalogue '
    s := (if npriv + nlocal = 1 then 'entry' else 'entries')
    if filt # '' then s := ', ' : ns : ' shown with "' : filt : '"'
@@ -978,10 +978,6 @@ do.cat:
    want = 'catalog'
    gosub pick.program
    if not(okp) then return
-   if cmode = '' and option(OPT.CATALOGUE.LOCAL) then
-      msg = 'option catalogue.local is on in this session, so catalog with no word works on the local catalogue: press L, or end the option'
-      return
-   end
    if meta<1, 3> = '' then
       msg = pname : ' is not compiled yet: B compiles it, and then it can be catalogued'
       return
@@ -1093,10 +1089,6 @@ do.delcat:
    end case
    if which # 1 and which # 2 then
       msg = 'nothing removed'
-      return
-   end
-   if which = 1 and option(OPT.CATALOGUE.LOCAL) then
-      msg = 'option catalogue.local is on in this session, so delete.catalog with no word works on the local catalogue: end the option to take a private entry out'
       return
    end
    cname = (if which = 1 then rname<mk> else rloc<mk, 1>)

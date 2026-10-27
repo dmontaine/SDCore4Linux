@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 15 Oct 26 dm  Written for QM4 gaps bundle Q-8 (SET.MODE).
 * END-HISTORY
 *
@@ -133,7 +134,7 @@ $include int$keys.h
 
       case selectinfo(0, sl$active)
          readnext id then
-            if not(no.query) and not(option(OPT.NO.SEL.LIST.QUERY)) then
+            if not(no.query) then
                loop
                   display sysmsg(2050, id) :  ;* Use active select list (First item 'xx')?
                   prompt ""

@@ -32,7 +32,7 @@
 #   C8      names the page does not give to a command ($odd), an option word of the verbs (local) and an include record are refused with the reason and no box opens
 #   C9      B on a stale program makes it current
 #   C10     an account with the edit gates off: the gate line says off, the box warns, and the verbs' own refusal is the status line; nothing is made, removed or compiled
-#   C11     option catalogue.local on in the session: C and a private D are refused with the reason and nothing changes
+#   C11     (retired 27 Oct 26 with OPTION CATALOGUE.LOCAL)
 #   C12     the filter and Esc, the second program file (util.bp), F1 and the [?], and a window under 140 by 43
 import importlib.util
 import os
@@ -745,26 +745,6 @@ def section_off():
     h.end()
 
 
-def section_option():
-    say("\n--- C11: option catalogue.local")
-    h = H(account=A1)
-    SCREEN[0] = h
-    h.typed("option catalogue.local\r", idle=1.2)
-    h.typed("tool.catalog\r", idle=3.5)
-    L = h.line(19)[3:138]
-    arow("C11", "the summary says option catalogue.local is on", "option catalogue.local is on" in L, repr(L))
-    filt(h, "zzsub")
-    h.typed("c", idle=1.5)
-    arow("C11a", "C is refused with the reason before any box, and nothing is catalogued (no record in the cat file, no VOC entry)",
-         "option catalogue.local is on" in st(h) and "Run this command?" not in h.text() and not has_cat(A1, "zzsub") and vocq(A1, ["zzsub"]).get("zzsub") is None, st(h))
-    h.key("esc", idle=1.0)
-    filt(h, "zznew")
-    h.typed("d", idle=1.5)
-    arow("C11b", "D on a private entry is refused with the reason and the entry is still a record of the cat file", "option catalogue.local is on" in st(h) and has_cat(A1, "zznew"), st(h))
-    h.key("ctrl-q", idle=1.2)
-    h.end()
-
-
 def section_other():
     say("\n--- C12: the filter, the second program file, help and a small window")
     h = page(A1)
@@ -807,7 +787,7 @@ def section_other():
 
 
 SECTIONS = [("list", section_list), ("basic", section_basic), ("cat", section_cat), ("catothers", section_catothers), ("del", section_del), ("decat", section_decat),
-            ("dup", section_dup), ("names", section_names), ("stale", section_stale), ("off", section_off), ("option", section_option), ("other", section_other)]
+            ("dup", section_dup), ("names", section_names), ("stale", section_stale), ("off", section_off), ("other", section_other)]
 
 
 def run_sections(names):

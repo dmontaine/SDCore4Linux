@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 17 Oct 26 dm  S.64 part 2 (the edit gates): CD DATA file opens an ordinary file and rewrites the records it names as if they were
 *               dictionary items (the record is cut at its object code and written back), so the DATA form asks edit_guard for
 *               the file it opened, before a record is read.  The DICT form, CD LOCAL and CD ALL compile I-types into dictionaries,
@@ -206,7 +207,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
 
             case selectinfo(0, SL$ACTIVE)  ;* List 0 is active
                readnext itype.name then
-                  if not(no.query) and not(option(OPT.NO.SEL.LIST.QUERY)) then
+                  if not(no.query) then
                      loop
                         display sysmsg(2050, itype.name) :  ;* Use active select list (First item 'xx')?
                         prompt ""

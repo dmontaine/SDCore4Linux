@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 17 Oct 26 dm  S.64: the data part of a program file (or anything named like a dictionary) and a dictionary deleted on its own
 *               (DELETE.FILE DICT name) are deleted only by a session that has the gate (K$EDIT.OK, edit.check.path).
 * 14 Sep 26 dm  6133 gains a cancel answer, C, which Enter takes (W.3, the
@@ -145,7 +146,7 @@ $define max.name.len 12
       end
 
       readnext file.name then
-         if not(no.query) and not(option(OPT.NO.SEL.LIST.QUERY)) then
+         if not(no.query) then
 * 12 Sep 26 dm - ENTER IS N HERE TOO, AND THE ARGUMENT AGAINST IT TURNED OUT TO
 *   REST ON A MISREADING.  This prompt was left for the owner on 11 Sep because
 *   2050 is shared by six verbs and PORT_ADOPTION recorded that "DELETE, CD,

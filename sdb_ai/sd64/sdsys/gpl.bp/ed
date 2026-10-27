@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 19 Oct 26 dm  S.67 stage 2: a write that failed with status 8910 (SDSYS's save of a record of voc_master or dict_master was refused) says why, in the
 *               kernel's own sentence (kernel(K$MASTERS, 'refusal')), after the generic "Write error 8910"; the editor stays open with the text, as for any write error.
 * 19 Oct 26 dm  The end of the input leaves ED.  INPUT gives '' with STATUS() = ER$EOF when the input is a pipe that has ended, and the
@@ -276,7 +277,7 @@ $define COMMAND.STACK.DEPTH 99
       readlist id.list then      ;* Edit using SELECT list
          edit.from.list = @true
          record.name = remove(id.list, more.ids)
-            if not(no.query) and not(option(OPT.NO.SEL.LIST.QUERY)) then
+            if not(no.query) then
                loop
                   display sysmsg(2050, record.name) :  ;* Use active select list (First item 'xx')?
                   prompt ""

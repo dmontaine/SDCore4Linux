@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 8: OPTION CORRELATIVE.NOCASE is gone; a correlative is case blind only through its own A;NOCASE; flag or an I-type's $mode nocase.strings.
  * 26 Oct 26 dm  W.11 F10: a phantom takes the secret PHANTOM gave it out of its environment as it starts (phantom_nonce_import, op_kernel.c).
  * 24 Oct 26 dm  W.11 F9: the process's own privilege words (my_priv_flags, my_priv_gates) are zeroed where the user table entry's flags and gates are.
  * 17 Oct 26 dm  kill_process() releases the class objects held in named common before the e-stack is freed: their destroy code (S.65
@@ -1106,11 +1107,6 @@ void k_call(char* name, int num_args, u_char* code_ptr, int16_t stack_adj) {
   /* Set flags */
 
   process.program.flags |= hdr->flags;
-
-  /* 15 Oct 26 QM4 gaps Q-17, OPTION CORRELATIVE.NOCASE: a correlative or I-type that is started now is case blind, whenever it was
-    compiled.                                                                                                                  */
-  if ((hdr->flags & HDR_ITYPE) && Option(OptCorrelativeNoCase))
-    process.program.flags |= HDR_NOCASE;
 }
 
 /* ======================================================================

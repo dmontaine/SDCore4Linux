@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 8: OPTION CATALOGUE.LOCAL is gone; CATALOG with no word catalogues privately, and LOCAL says local.
 * 25 Oct 26 dm  W.11 F2, real-install witness: a global object is written with umask 022 (644) and the umask put back; under CPROC's umask 002 it was 0664, group
 *               sdusers on an install, and the kernel refused to load it - the installer's own bootstrap stopped there.
 * 17 Oct 26 dm  S.64: cataloguing needs bp.edit (SDSYS passes); message 11408.
@@ -250,9 +251,6 @@ $define CAT_PCODE  3
 * read gives the better message; this one is what actually holds.
 * 09 Sep 26 dm - PRE_RELEASE 18 commit 2.  The flag, not the uid.  See the
 * KW$GLOBAL case above.
-   * 12 Oct 26 dm - openQM 288: with OPTION CATALOGUE.LOCAL a name with no mode and no global prefix is local
-   if mode = 0 and option(OPT.CATALOGUE.LOCAL) then mode = CAT_LOCAL
-
    if mode = CAT_GLOBAL and not(kernel(K$ADMINISTRATOR,-1)) then
       stop sysmsg(2001)  ;* Command requires administrator privileges
    end

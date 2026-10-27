@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 17 Oct 26 dm  S.64: deleting records of a VOC, a dictionary or a program file asks edit_guard, once, before any record is read.
 * 06 Oct 26 dm  Enter at the "Delete all records" prompt (3220) means N, and the
 *               prompt shows (y/<n>).  Found by the parity audit: the same loop
@@ -131,7 +132,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
 
       case selectinfo(0, sl$active)       ;* Delete using SELECT list
          readnext record.name then
-            if not(no.query) and not(option(OPT.NO.SEL.LIST.QUERY)) then
+            if not(no.query) then
                loop
                   display sysmsg(2050, record.name) :  ;* Use active select list (First item 'xx')?
                   prompt ""

@@ -2289,13 +2289,6 @@
 "tier": "reference",
 "words": 22
 },
-"basic:option:catalogue.local": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 26
-},
 "basic:option:chain.keep.common": {
 "kind": "basic.option",
 "part": "reference/basic-modes.md",
@@ -2316,13 +2309,6 @@
 "since": "next",
 "tier": "reference",
 "words": 34
-},
-"basic:option:correlative.nocase": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "next",
-"tier": "reference",
-"words": 28
 },
 "basic:option:correlative.reuse": {
 "kind": "basic.option",
@@ -2380,13 +2366,6 @@
 "tier": "reference",
 "words": 22
 },
-"basic:option:inherit.mfile.path": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 31
-},
 "basic:option:inherit.ownership": {
 "kind": "basic.option",
 "part": "reference/basic-modes.md",
@@ -2400,13 +2379,6 @@
 "since": "next",
 "tier": "reference",
 "words": 31
-},
-"basic:option:no.sel.list.query": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 19
 },
 "basic:option:no.user.aborts": {
 "kind": "basic.option",
@@ -6895,13 +6867,6 @@
 "tier": "reference",
 "words": 11
 },
-"msg:11075": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 10
-},
 "msg:11076": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -8050,13 +8015,6 @@
 "tier": "reference",
 "words": 9
 },
-"msg:11255": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 15
-},
 "msg:11256": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -8205,13 +8163,6 @@
 "words": 10
 },
 "msg:11277": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
-"msg:11278": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
@@ -15994,13 +15945,6 @@
 "since": "-",
 "tier": "reference",
 "words": 7
-},
-"msg:3121": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 8
 },
 "msg:3122": {
 "kind": "message",

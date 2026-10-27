@@ -874,7 +874,7 @@ clause of `find`, `findstr` and `locate`
 (no syntax line yet in the docs' syntax-shapes.txt)
 
 - a statement of SD BASIC
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 428
+- docs: `User/markdown/01-sd-basic-program-structure.md` line 426
 
 ### basic:stmt:key
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:478#8a57949e
@@ -2081,7 +2081,7 @@ clause of `loop`: `loop` … `until` *condition* … `repeat`
 `varset` *var*, *value*
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 449
+- docs: `User/markdown/01-sd-basic-program-structure.md` line 447
 
 ### basic:stmt:void
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:467#aac0767c src2=docs:tools/syntax-shapes.txt:266#90e71409

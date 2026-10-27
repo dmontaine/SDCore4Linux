@@ -133,9 +133,8 @@ def checks(raw):
     ck("TC10", "the one gate it shows is ASKED of the kernel with -1 (bp-edit), in the summary and in the warning of each box; nothing is tried to learn it; the only kernel keys the page uses are that and the path question",
        "gon = (gadm or kernel(K$BP.EDIT, -1))" in block(pg, "gate.state") and "gosub gate.state" in block(pg, "draw.foot") and "gosub gate.state" in block(pg, "gate.line") and "if not(gon) then" in block(pg, "gate.line")
        and "(if gadm then 'on (administrator)' else 'on')" in block(pg, "draw.foot") and sorted(set(re.findall(r"K\$[A-Z.]+", pg))) == ["K$ADMINISTRATOR", "K$BP.EDIT", "K$PATH.OK"], "")
-    ck("TC11", "OPTION CATALOGUE.LOCAL makes a verb with no word work on the local catalogue: C and a private D are refused (before the command is built) while it is on, and the summary says it is on",
-       0 <= ca.find("if cmode = '' and option(OPT.CATALOGUE.LOCAL) then") < ca.find("sent = ") and 0 <= dl.find("if which = 1 and option(OPT.CATALOGUE.LOCAL) then") < dl.find("sent = ")
-       and "option(OPT.CATALOGUE.LOCAL)" in block(pg, "draw.foot"), "")
+    ck("TC11", "OPTION CATALOGUE.LOCAL is gone (27 Oct 26, S.87): the page reads no option and names none, so C and a private D never depend on one",
+       "OPT.CATALOGUE.LOCAL" not in pg and "catalogue.local" not in pg.lower() and "option(" not in code, "")
     glines = [l.strip() for l in code.split("\n") if re.search(r"\bgcf\b", l)]
     plines = [l.strip() for l in code.split("\n") if re.search(r"\bpcf\b", l)]
     ck("TC12", "the global catalogue is only READ (opened, its names selected, closed) and the private one only read: no line that uses either file variable writes, deletes or clears it",
@@ -235,8 +234,7 @@ MUTANTS = [
     ("a local entry's pointer is opened without asking", "TC9", sub("page", "if mop = '' or not(kernel(K$PATH.OK, mop)) then", "if mop = '' then")),
     ("the gate is not asked of the kernel", "TC10", sub("page", "gon = (gadm or kernel(K$BP.EDIT, -1))", "gon = 1")),
     ("the administrator is told the gate is off", "TC10", sub("page", "gon = (gadm or kernel(K$BP.EDIT, -1))", "gon = kernel(K$BP.EDIT, -1)")),
-    ("C does not notice OPTION CATALOGUE.LOCAL", "TC11", sub("page", "if cmode = '' and option(OPT.CATALOGUE.LOCAL) then", "if cmode = '' and 0 then")),
-    ("D does not notice OPTION CATALOGUE.LOCAL", "TC11", sub("page", "if which = 1 and option(OPT.CATALOGUE.LOCAL) then", "if which = 1 and 0 then")),
+    ("the page reads OPTION CATALOGUE.LOCAL again", "TC11", sub("page", "   want = 'catalog'\n   gosub pick.program\n", "   want = 'catalog'\n   if option(OPT.CATALOGUE.LOCAL) then return\n   gosub pick.program\n")),
     ("the global catalogue is written", "TC12", sub("page", "      mark.mapping gcf, off\n      gcok = 1\n", "      mark.mapping gcf, off\n      write 'x' on gcf, 'y'\n      gcok = 1\n")),
     ("a file is read without a limit", "TC13", sub("page", "   if scnt > MAXREC then\n", "   if scnt > MAXREC * 1000 then\n")),
     ("every file is a program file", "TC13", sub("page", "isp = (tl = 'bp')", "isp = 1")),

@@ -1827,13 +1827,6 @@ Directory file name required after in
 
 cited by: `como`
 
-### msg:11075
-> kind=message tier=reference since=- src=sdsys/messages/11075:1#5ce960dc
-
-```
-CATALOG and DELETE.CATALOG default to the local catalogue
-```
-
 ### msg:11076
 > kind=message tier=reference since=- src=sdsys/messages/11076:1#ac3e147a
 
@@ -3222,13 +3215,6 @@ A program compiled or catalogued also resets every subroutine link variable, so 
 Accept exponent form numbers such as 123.45E-2
 ```
 
-### msg:11255
-> kind=message tier=reference since=- src=sdsys/messages/11255:1#2d839e41
-
-```
-CREATE.FILE puts a new multifile subfile in the directory of the default subfile
-```
-
 ### msg:11256
 > kind=message tier=reference since=- src=sdsys/messages/11256:1#52d1175d
 
@@ -3423,13 +3409,6 @@ SD has no pools of phantom processes
 ```
 
 cited by: `listphan`
-
-### msg:11278
-> kind=message tier=reference since=- src=sdsys/messages/11278:1#11bda8cb
-
-```
-String operations in correlatives and I-types are not case sensitive
-```
 
 ### msg:11279
 > kind=message tier=reference since=- src=sdsys/messages/11279:1#2a5d2d54
@@ -12886,13 +12865,6 @@ Show call stack at a fatal error
 
 ```
 Suppress program details on abort
-```
-
-### msg:3121
-> kind=message tier=reference since=- src=sdsys/messages/3121:1#e0b338b3
-
-```
-Don't query use of select list
 ```
 
 ### msg:3122
