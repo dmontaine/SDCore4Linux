@@ -6,6 +6,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 26 Oct 26 dm  F12, Go / Edit as fields (the one-editor plan, stage 1): the record goes to CED in its data mode ($cedit, ftype 2) as an array of fields, values and
+*               subvalues, and comes back as the record's text in the tab when CED's Ctrl-S kept it (do.fields).  The IDE does the saving: CED is given no file.
 * 18 Oct 26 dm  Part B of the 140x42 plan: Ctrl-E, and File / Edit in SED, hand the record to SED and take it back when SED saves it (do.sed;
 *               the editor's passkeys leave Ctrl-E to the IDE, so End is the key for the end of a row here).  Also the owner's three reports:
 *               the cursor is put back after the status line (and the line is written only when it changes), a record or a tab is drawn
@@ -801,6 +803,8 @@ do.key:
          cmd = 'replace'                 ;* SED's replace
       case edata = 'f11'
          cmd = 'find'                    ;* in the records of the file
+      case edata = 'f12'
+         cmd = 'fields'                  ;* the record as fields, values and subvalues, in CED
       case edata = 'guardquit'
          done = @true                    ;* the user left from the cursor lock ($sl_guardmode): nothing is saved
       case edata = 'mouse'
@@ -881,6 +885,8 @@ run.cmd:
          gosub close.current
       case cmd = 'sed'
          gosub do.sed
+      case cmd = 'fields'
+         gosub do.fields
       case cmd = 'quit'
          gosub do.quit
       case cmd = 'goto'
@@ -1293,6 +1299,42 @@ do.sed:
    out.kind = ''
    if sd.used then gosub retake.quiet else gosub retake.screen
    if disk # sd.was then msg = sysmsg(11604, sd.file, sd.id) else msg = sysmsg(11605, sd.file, sd.id)
+   return
+
+* F12, Go / Edit as fields: the record in the tab goes to CED's data mode as an array of fields (each a string or a list of values, each of those a string or a
+* list of subvalues: $recarr), so that nobody types a value or a subvalue mark.  CED is given no file and no record id, so it writes nothing and takes no lock; its
+* Ctrl-S keeps the changes in the array.  What comes back replaces the text of the tab (the tab is then changed, as after any edit) and the IDE's own save
+* writes it, with the S.64 gate and the overwrite question as for any other change.  Nothing is saved here, and if CED did not keep anything the tab is untouched.
+do.fields:
+   if nbuf = 0 then
+      msg = sysmsg(11218)
+      return
+   end
+   gosub stash.current
+   fd.u = bu<cb>
+   fd.file = bn<cb>
+   fd.id = bi<cb>
+   k = 't' : fd.u
+   fd.was = bx{k}
+   call $recarr('to', fd.was, fd.arr, fd.ok)
+   gosub leave.screen
+   fd.res = ''
+   call $cedit(fd.arr, '', '', 2, fd.file : ' ' : fd.id, fd.res)
+   fd.new = fd.was
+   if fd.res<1> then
+      call $recarr('from', fd.arr, fd.text, fd.ok)
+      if fd.ok then fd.new = fd.text
+   end
+   if fd.new # fd.was then
+      k = 't' : fd.u
+      bx{k} = fd.new
+      k = 'c' : fd.u
+      bx{k} = ''
+      msg = sysmsg(11989, fd.file, fd.id)
+   end else
+      msg = sysmsg(11990, fd.file, fd.id)
+   end
+   gosub retake.quiet
    return
 
 * The window changed size: the form is made again at the new size from the state

@@ -2989,10 +2989,10 @@ The IDE\n\nTab, Shift-Tab   Next / previous pane\nReturn           Open the file
 cited by: `ide`
 
 ### msg:11215
-> kind=message tier=reference since=- src=sdsys/messages/11215:1#cccc2a02
+> kind=message tier=reference since=- src=sdsys/messages/11215:1#fbdc08fe
 
 ```
-F4               Next error or result\nF5               Run          F7  Compile\nF8               Compile and catalogue\nF9               Compile and debug\nCtrl-L           Go to a line\nF11              Find in the records of the file\nCtrl-E           Edit the record in SED (its save returns here)\n
+F4               Next error or result\nF5               Run          F7  Compile\nF8               Compile and catalogue\nF9               Compile and debug\nCtrl-L           Go to a line\nF11              Find in the records of the file\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\n
 ```
 
 cited by: `ide`
@@ -3084,10 +3084,10 @@ cited by: `ide`
 ```
 
 ### msg:11226
-> kind=message tier=reference since=- src=sdsys/messages/11226:1#ed0fbbf0
+> kind=message tier=reference since=- src=sdsys/messages/11226:1#194ab716
 
 ```
-&Go|Go to &line~^L~goto|&Next error~F4~nexterr|Next &tab~F6~nexttab|&Files and records~F3~tree|&Edit in SED~^E~sed
+&Go|Go to &line~^L~goto|&Next error~F4~nexterr|Next &tab~F6~nexttab|&Files and records~F3~tree|&Edit in SED~^E~sed|Edit as f&ields~F12~fields
 ```
 
 ### msg:11227
@@ -8098,6 +8098,33 @@ No line holds that text
 ```
 
 cited by: `sed`
+
+### msg:11988
+> kind=message tier=reference since=- src=sdsys/messages/11988:1#49c7d49a
+
+```
+A record holds only text, and lists of values and subvalues: this is not one
+```
+
+cited by: `ced_edit`
+
+### msg:11989
+> kind=message tier=reference since=- src=sdsys/messages/11989:1#c157911a
+
+```
+Back from the fields: %1 %2 is changed, save it to keep it
+```
+
+cited by: `ide`
+
+### msg:11990
+> kind=message tier=reference since=- src=sdsys/messages/11990:1#eceb30d6
+
+```
+Back from the fields: %1 %2 is as it was
+```
+
+cited by: `ide`
 
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce

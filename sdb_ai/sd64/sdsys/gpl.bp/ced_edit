@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 26 Oct 26 dm  Data mode (ftype 2, the one-editor plan, stage 1): c is a record as $recarr makes it, an array of fields; only text and lists of values and subvalues can be made;
+*               Ctrl-S makes the record text with $recarr, and writes it when id is not null.  Used by the IDE's "Edit as fields" (F12).
 * 18 Oct 26 dm  Terminal 140 by 42 (plan-terminal-140x42.md, phase 3).  The editor is laid out for at least 140 by 42 and refuses a
 *               smaller window at the start with the library's one message ($sl_need, 11197; the result tells a caller with more
 *               records to stop).  A window made smaller after the start shows the upper left corner of the layout (read.layout:
@@ -32,7 +34,12 @@
 *     id      the record id; null for a plain variable, when Ctrl-S and a saving quit keep the
 *             changes in c and write nothing
 *     ftype   0 if the file is a data collection file (the collection is written), 1 if it is
-*             an ordinary file (the JSON text is written)
+*             an ordinary file (the JSON text is written), 2 for the DATA MODE: c is a record as
+*             $recarr makes it (an array of fields, each a string or an array of values, each of
+*             those a string or an array of subvalues) and the record text is written; the types
+*             on offer are string and array only, an array never below the second level, and
+*             Ctrl-S refuses what $recarr cannot make a record of (message 11988).  With a null
+*             id nothing is written and the changes are kept in c: that is how the IDE uses it
 *     title   what the top line says the editor is editing
 *     result  returned: <1> 1 if the record was saved (or c was kept), <2> 1 if the user asked
 *             to leave the editor altogether (Ctrl-Q) so a caller with more records stops
@@ -71,6 +78,7 @@ $include sl.h
    result = ''
    kind = jtype(c)
    if kind # 'collection' and kind # 'array' then return
+   if ftype = 2 and kind # 'array' then return          ;* a record is an array of fields
 
    * A window smaller than the layout is refused (the library's one check and message); the caller with more records stops
    call $sl_need('CED', LAYW, LAYH, need.msg, '')
@@ -660,6 +668,13 @@ paste.element:
    end else
       v = clip
    end
+   if ftype = 2 then
+      gosub data.fits
+      if not(fits) then
+         message.text = sysmsg(11988)
+         return
+      end
+   end
    if ctype = 'array' then
       pl.text = if count = 0 then 1 else sel
       gosub new.position
@@ -709,6 +724,8 @@ change.type:
    x = cur{nm}
    ct.allowed = ''
    begin case
+      case ftype = 2
+         gosub data.types
       case et = 'string'
          if x # '' and num(x) then ct.allowed<-1> = 'number'
          if upcase(x) = 'TRUE' or upcase(x) = 'FALSE' then ct.allowed<-1> = 'boolean'
@@ -745,9 +762,50 @@ change.type:
    gosub build.list
    return
 
+* data.types  -  The data mode (ftype 2): what the element may become.  In: et, x, n.path.  Out: ct.allowed.  A string becomes a list of one value
+*                where a list may be (the first two levels), a list becomes a string when it holds no more than one string.
+
+data.types:
+   begin case
+      case et = 'string'
+         if n.path < 2 then ct.allowed<-1> = 'array'
+      case et = 'array'
+         if inmat(x) = 0 then
+            ct.allowed<-1> = 'string'
+         end else
+            if inmat(x) = 1 then
+               if jtype(x{1}) = 'string' then ct.allowed<-1> = 'string'
+            end
+         end
+   end case
+   return
+
+* data.fits  -  Could v be an element of cur in a record?  In: v, n.path.  Out: fits.  v is put inside as many arrays as cur is deep and given to
+*               $recarr, which is the one that decides what a record is.
+
+data.fits:
+   if jtype(v) = 'string' then fit.w = v else fit.w = jparse(jbuild(v))
+   for fit.j = 0 to n.path
+      fit.a = mat()
+      fit.a{1} = fit.w
+      fit.w = fit.a
+   next fit.j
+   call $recarr('from', fit.w, fit.t, fits)
+   return
+
 * apply.type  -  Make the element nm of cur the type ct.pick; x is its value, et its type now
 
 apply.type:
+   if ftype = 2 then
+      if ct.pick = 'array' then
+         v = mat()
+         v{1} = x
+      end else
+         if inmat(x) = 0 then v = '' else v = x{1}
+      end
+      cur{nm} = v
+      return
+   end
    begin case
       case ct.pick = 'string'
          begin case
@@ -807,7 +865,12 @@ insert.element:
       gosub new.name
       if not(ok) then return
    end
-   ct.allowed = 'string' : @fm : 'number' : @fm : 'boolean' : @fm : 'null' : @fm : 'collection' : @fm : 'array'
+   if ftype = 2 then
+      ct.allowed = 'string'
+      if n.path < 2 then ct.allowed<-1> = 'array'
+   end else
+      ct.allowed = 'string' : @fm : 'number' : @fm : 'boolean' : @fm : 'null' : @fm : 'collection' : @fm : 'array'
+   end
    gosub choose.type
    if ct.pick = '' then return
    begin case
@@ -864,6 +927,15 @@ insert.element:
 save.record:
    save.ok = @true
    save.status = 0
+*  26 Oct 26 dm - the data mode: the record text comes from $recarr, which refuses an array that is not a record's (nothing is written or kept then)
+   if ftype = 2 then
+      call $recarr('from', c, rec.text, rec.ok)
+      if not(rec.ok) then
+         message.text = sysmsg(11988)
+         save.ok = @false
+         return
+      end
+   end
 *  17 Oct 26 dm - S.64: CED is $internal, so the kernel's own test of a WRITE to a VOC, a dictionary or a program file lets it through;
 *  it asks for itself, by the pathname of the open file.  The reason is the message (a DISPLAY would write over the screen).
 *  Only for a record of a file: !CED() on a VARIABLE has no id and no file (fileinfo is null, which the kernel refuses by design).
@@ -883,7 +955,7 @@ save.record:
             save.status = status()
          end
       end else
-         text = jbuild(c)
+         if ftype = 2 then text = rec.text else text = jbuild(c)
          writeu text on fv, id on error
             save.ok = @false
             save.status = status()

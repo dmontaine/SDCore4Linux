@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  THE IDE CAN SHOW A RECORD AS FIELDS, VALUES AND SUBVALUES, SO THAT NOBODY TYPES A MARK.
+
+             What        F12 in the IDE (or Go > Edit as fields) hands the record in the open tab to CED, which now has a data mode: the record is a tree - a list of its fields, each field a
+                         text or a list of its values, each value a text or a list of its subvalues - and the value and subvalue marks are put back from the shape of the tree when you
+                         leave. Return dives into a list or changes a text, Ins and Del add and remove, F4 turns a text into a list of one value and back; only text and lists exist in this
+                         mode, and a list is never allowed below the second level (a subvalue is always a text), so a paste that would make one is refused. Ctrl-S in CED keeps the changes and
+                         Ctrl-Q brings you back to the IDE, whose tab then holds the new text and is marked changed (Back from the fields: bp prog is changed, save it to keep it). If you
+                         press Ctrl-S and then change more and answer No, you get what Ctrl-S kept; leaving without keeping anything leaves the tab as it was. A new program, $recarr, does
+                         the conversion between a record and the tree, in both directions, and refuses anything that is not a record's shape (a number, a boolean, a null, a collection, a
+                         list below a subvalue) instead of guessing.
+             Why it      A record with value and subvalue marks could only be edited with the marks drawn as odd characters and typed by hand, which nobody could do.
+             Does not    Save anything itself: CED is given no file and no record id, writes nothing and takes no lock, and the IDE's own save (F2) writes the record with its edit gate and
+                         the overwrite question. SED, ED and the other editors are unchanged, and the IDE's own editor still shows a mark as the character it is.
+
 26 Oct 26  SED GAINS TWO OPTIONS, A WAY TO MOVE THE SPLIT POINT, AND A VIEW OF THE LINES THAT HOLD A TEXT.
 
              What        Four items of the openQM feature list that SED lacked. (1) The option SCROLL1 in &sed.options&: page up and page down move one line less than a page, so one line of the

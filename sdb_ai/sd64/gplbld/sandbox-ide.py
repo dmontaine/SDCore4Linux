@@ -539,7 +539,8 @@ end
         row("a record whose lines all fit has the bar, with no thumb on it (nothing to scroll sideways)", len(bars) == 1 and "#" not in L[bars[0]],
             "\n".join(l[:60] for l in L[28:36]))
         m = len(e.s.raw)
-        e.keys("\x1b[24~")                                # F12: neither the editor's nor the IDE's, so nothing changes and nothing is drawn
+        e.keys("\x1e")                                    # Ctrl-^ (the library names it ctrl-?): neither the editor's nor the IDE's, so nothing changes and nothing is drawn
+        #                                                   (26 Oct 26: this was F12 until the IDE took F12 for Edit as fields)
         e.quiet()
         n, _ = cells_written(bytes(e.s.raw[m:]))
         row("a key that neither the editor nor the IDE uses draws nothing (%d cells; the editor drew all its rows again for it)" % n, n < 300, repr(n))
