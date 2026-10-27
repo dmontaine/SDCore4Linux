@@ -2282,13 +2282,6 @@
 "tier": "reference",
 "words": 20
 },
-"basic:option:assoc.all": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "next",
-"tier": "reference",
-"words": 29
-},
 "basic:option:backslash.not.quote": {
 "kind": "basic.option",
 "part": "reference/basic-modes.md",
@@ -2309,13 +2302,6 @@
 "since": "-",
 "tier": "reference",
 "words": 25
-},
-"basic:option:chained.select": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "next",
-"tier": "reference",
-"words": 31
 },
 "basic:option:clear.select": {
 "kind": "basic.option",
@@ -2344,13 +2330,6 @@
 "since": "next",
 "tier": "reference",
 "words": 35
-},
-"basic:option:default.mv": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 22
 },
 "basic:option:dir.dtm": {
 "kind": "basic.option",
@@ -2415,13 +2394,6 @@
 "tier": "reference",
 "words": 31
 },
-"basic:option:keep.old.object": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "next",
-"tier": "reference",
-"words": 29
-},
 "basic:option:no.phantom.notify": {
 "kind": "basic.option",
 "part": "reference/basic-modes.md",
@@ -2457,56 +2429,7 @@
 "tier": "reference",
 "words": 25
 },
-"basic:option:paginate.on.heading": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 31
-},
-"basic:option:pick.ml.conv.mask": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "next",
-"tier": "reference",
-"words": 34
-},
-"basic:option:query.footer.pause": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 33
-},
-"basic:option:query.merge.print": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 35
-},
 "basic:option:query.sort.no.case": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 18
-},
-"basic:option:query.str.comp.all": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 24
-},
-"basic:option:query.string.comp": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 22
-},
-"basic:option:run.no.page": {
 "kind": "basic.option",
 "part": "reference/basic-modes.md",
 "since": "-",
@@ -6727,20 +6650,6 @@
 "tier": "reference",
 "words": 7
 },
-"msg:11040": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
-},
-"msg:11041": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 13
-},
 "msg:11042": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -6749,13 +6658,6 @@
 "words": 7
 },
 "msg:11043": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
-},
-"msg:11044": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
@@ -8078,20 +7980,6 @@
 "tier": "reference",
 "words": 7
 },
-"msg:11235": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 18
-},
-"msg:11236": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 15
-},
 "msg:11237": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -8148,13 +8036,6 @@
 "tier": "reference",
 "words": 9
 },
-"msg:11251": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 15
-},
 "msg:11252": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -8168,13 +8049,6 @@
 "since": "-",
 "tier": "reference",
 "words": 9
-},
-"msg:11254": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 17
 },
 "msg:11255": {
 "kind": "message",
@@ -8274,13 +8148,6 @@
 "tier": "reference",
 "words": 16
 },
-"msg:11268": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 13
-},
 "msg:11269": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -8301,13 +8168,6 @@
 "since": "-",
 "tier": "reference",
 "words": 12
-},
-"msg:11271": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 13
 },
 "msg:11272": {
 "kind": "message",
@@ -8665,13 +8525,6 @@
 "since": "-",
 "tier": "reference",
 "words": 6
-},
-"msg:11320": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 19
 },
 "msg:11321": {
 "kind": "message",
@@ -16127,13 +15980,6 @@
 "since": "-",
 "tier": "reference",
 "words": 9
-},
-"msg:3112": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 7
 },
 "msg:3113": {
 "kind": "message",

@@ -336,7 +336,7 @@ clause of `execute` and `os.execute` — take the output
 `create.file` *name* {`directory`} {`on error` …}
 
 - a statement of SD BASIC
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 425
+- docs: `User/markdown/01-sd-basic-program-structure.md` line 420
 
 ### basic:stmt:creating
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:12036#58a91974 src2=docs:tools/syntax-shapes.txt:299#17000a0a
@@ -374,7 +374,7 @@ clause of `enter` — run at the current command level
 `data` *expr*, …
 
 - a statement of SD BASIC
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 416
+- docs: `User/markdown/05a-sd-basic-array-operations.md` line 280
 
 ### basic:stmt:debug
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:423#724c0dca src2=docs:tools/syntax-shapes.txt:55#b2e48f42
@@ -874,7 +874,7 @@ clause of `find`, `findstr` and `locate`
 (no syntax line yet in the docs' syntax-shapes.txt)
 
 - a statement of SD BASIC
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 435
+- docs: `User/markdown/01-sd-basic-program-structure.md` line 428
 
 ### basic:stmt:key
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:478#8a57949e
@@ -1171,7 +1171,7 @@ clause of `input` — do not invert the case of typed letters
 `os.execute` *command* {`capturing` *var*}
 
 - a statement of SD BASIC
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 424
+- docs: `User/markdown/01-sd-basic-program-structure.md` line 419
 
 ### basic:stmt:osdelete
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:475#561a5e43
@@ -1290,7 +1290,7 @@ clause of `execute` — hand the active select list to the command
 `printer on`   ·   `printer off`   ·   `printer close`   ·   `printer file on` *unit* *file*, *record*
 
 - a statement of SD BASIC
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 422
+- docs: `User/markdown/12-sd-basic-terminal-input-and-output.md` line 25
 
 ### basic:stmt:private
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:487#bbfa5415 src2=docs:tools/syntax-shapes.txt:172#465763eb
@@ -1676,7 +1676,7 @@ clause of `execute` — take the list the command left
 `selectindex` *index* {, *value*} `from` *file.var* {`to` *list.no*}
 
 - a statement of SD BASIC
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 416
+- docs: `User/markdown/08-sd-basic-select-lists.md` line 53
 
 ### basic:stmt:selectindexv
 > kind=basic.statement tier=reference since=next src=sdsys/gpl.bp/bcomp:477#f8eb30b2
@@ -2081,7 +2081,7 @@ clause of `loop`: `loop` … `until` *condition* … `repeat`
 `varset` *var*, *value*
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 456
+- docs: `User/markdown/01-sd-basic-program-structure.md` line 449
 
 ### basic:stmt:void
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:467#aac0767c src2=docs:tools/syntax-shapes.txt:266#90e71409

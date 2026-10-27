@@ -928,7 +928,7 @@ do.basic:
    if not(okp) then return
    sent = 'basic ' : pfile : ' ' : pname : ' no.query'
    lines = ''
-   lines<-1> = 'Compiles ' : pname : ' of the file ' : pfile : ' and writes the result to ' : pfile : ".out.  The compiled program that is there is removed first and is not put back if the compile fails (unless option keep.old.object is on).  The compiler's lines are shown afterwards."
+   lines<-1> = 'Compiles ' : pname : ' of the file ' : pfile : ' and writes the result to ' : pfile : ".out.  The compiled program that is there is removed first and is not put back if the compile fails.  The compiler's lines are shown afterwards."
    lines<-1> = 'no.query keeps the compiler from asking a question the page cannot show: a source with a $catalog line is catalogued by its compile, and an entry of the same name in another catalogue is then replaced without asking.'
    gosub gate.line
    call $tk_confirm(sent, lines, '', res, cmsg)

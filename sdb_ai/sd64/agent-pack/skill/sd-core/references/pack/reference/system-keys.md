@@ -321,7 +321,7 @@ Constants beginning `EVT$` in `sdsys/gpl.bp/int$keys.h` (internal programs only 
 - `EVT$MESSAGE` = 0x0400 - Send immediate message
 
 ### sys:ikeys:fci$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:487#7a0ef939
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:477#7a0ef939
 
 Constants beginning `FCI$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -540,7 +540,7 @@ Constants beginning `LGN$` in `sdsys/gpl.bp/int$keys.h` (internal programs only 
 - `LGN$BANNED.ACCOUNTS` = 10 - Banned accounts
 
 ### sys:ikeys:mki$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:480#688308c0
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:470#688308c0
 
 Constants beginning `MKI$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 

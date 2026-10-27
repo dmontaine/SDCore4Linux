@@ -1524,20 +1524,6 @@ cited by: `qproc`
 Non-numeric where numeric required|in %s
 ```
 
-### msg:11040
-> kind=message tier=reference since=- src=sdsys/messages/11040:1#6f8e1a06
-
-```
-Query processor EQ and NE always compare as strings
-```
-
-### msg:11041
-> kind=message tier=reference since=- src=sdsys/messages/11041:1#65542fa7
-
-```
-Query processor compares right aligned data as strings in every relation
-```
-
 ### msg:11042
 > kind=message tier=reference since=- src=sdsys/messages/11042:1#916a6cd3
 
@@ -1550,13 +1536,6 @@ Query processor sorts ignore case
 
 ```
 Command line treats a backslash as an ordinary character
-```
-
-### msg:11044
-> kind=message tier=reference since=- src=sdsys/messages/11044:1#b6aae4a1
-
-```
-Query processor treats a blank single/multivalue flag as multivalued
 ```
 
 ### msg:11045
@@ -3161,20 +3140,6 @@ cited by: `ide`
 
 cited by: `ide`
 
-### msg:11235
-> kind=message tier=reference since=- src=sdsys/messages/11235:1#6ca769bf
-
-```
-ML and MR conversions take a format mask in round brackets, not negatives in round brackets
-```
-
-### msg:11236
-> kind=message tier=reference since=- src=sdsys/messages/11236:1#fd6976a1
-
-```
-A select that finds records executes the first command in the data queue
-```
-
 ### msg:11237
 > kind=message tier=reference since=- src=sdsys/messages/11237:1#6ce6c512
 
@@ -3243,13 +3208,6 @@ cited by: `qproc`
 Subroutine %s is not in the catalogue
 ```
 
-### msg:11251
-> kind=message tier=reference since=- src=sdsys/messages/11251:1#6ea0a8ed
-
-```
-A heading or footing set while RUN.NO.PAGE is in effect enables screen pagination
-```
-
 ### msg:11252
 > kind=message tier=reference since=- src=sdsys/messages/11252:1#1e34b6c4
 
@@ -3262,13 +3220,6 @@ A program compiled or catalogued also resets every subroutine link variable, so 
 
 ```
 Accept exponent form numbers such as 123.45E-2
-```
-
-### msg:11254
-> kind=message tier=reference since=- src=sdsys/messages/11254:1#f1b834fa
-
-```
-Pause for RETURN at the end of a query report that has a page footer
 ```
 
 ### msg:11255
@@ -3398,13 +3349,6 @@ A directory file keeps .gitignore and .gitattributes under their own names
 Writing a record to a directory file updates the directory's date and time modified
 ```
 
-### msg:11268
-> kind=message tier=reference since=- src=sdsys/messages/11268:1#f3e0d244
-
-```
-A compilation that fails leaves the previous object code in place
-```
-
 ### msg:11269
 > kind=message tier=reference since=- src=sdsys/messages/11269:1#ffac97e2
 
@@ -3424,13 +3368,6 @@ Invalid object code %s
 
 ```
 Show the operating system command that is used to print
-```
-
-### msg:11271
-> kind=message tier=reference since=- src=sdsys/messages/11271:1#73fba66e
-
-```
-The query processor treats all fields as being in one association
 ```
 
 ### msg:11272
@@ -3872,13 +3809,6 @@ cited by: `disablei`
 
 ```
 Argument matrix too small
-```
-
-### msg:11320
-> kind=message tier=reference since=- src=sdsys/messages/11320:1#5f51c6f7
-
-```
-A query to printer 0 leaves an already active printer on at the end of the report
 ```
 
 ### msg:11321
@@ -12942,13 +12872,6 @@ Treat non-numeric where numeric needed as a warning
 
 ```
 Suppress all user options for an abort
-```
-
-### msg:3112
-> kind=message tier=reference since=- src=sdsys/messages/3112:1#e3b0cb13
-
-```
-Start programs with pagination disabled
 ```
 
 ### msg:3113

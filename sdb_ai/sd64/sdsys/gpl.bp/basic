@@ -18,6 +18,7 @@
 * 
 *
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 7: OPTION KEEP.OLD.OBJECT is gone; a failed compilation leaves no object code, as it did with the option off.
 * 18 Oct 26 dm  S.66: the object file, once open, is asked of !edit_guard, so a source in the shared account cannot be compiled into a shared
 *               .out directory by a session without shared.write.
 * 17 Oct 26 dm  S.64: compiling needs bp.edit (SDSYS passes); message 11408.
@@ -347,12 +348,7 @@ compile:
 
    * Remove any existing object and listing records
 
-   * 15 Oct 26 (openQM KEEP.OLD.OBJECT): with the option on, the object code that is there is kept in hand and put back if this
-   * compilation fails
-
    recordlocku out.f, record.name
-   old.object = ''
-   if option(OPT.KEEP.OLD.OBJECT) then read old.object from out.f, record.name else old.object = ''
    delete out.f, record.name
 
    listing.record.name = record.name : LISTING.SUFFIX
@@ -377,11 +373,6 @@ compile:
          * the CATALOGUE entry of $BASIC.OPTIONS (it is then in catalogue.mode)
          if no.query and not(index(upcase(catalogue.mode), 'NO.QUERY', 1)) then cat.cmd := ' NO.QUERY'
          execute cat.cmd
-      end
-   end else
-      if old.object # '' then
-         recordlocku out.f, record.name
-         write old.object to out.f, record.name
       end
    end
 

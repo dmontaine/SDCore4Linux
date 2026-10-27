@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  ELEVEN OPTION WORDS ARE REMOVED: THE WAY SD BEHAVES WITH THEM OFF IS NOW THE ONLY WAY.
+
+             What        The seventh batch of the removal the owner asked for. Removed OPTION words: run.no.page and paginate.on.heading (a run, a debug and a catalogued program started by
+                         name are paginated as usual; run ... no.page still turns it off), pick.ml.conv.mask (a left bracket in an ML or MR conversion is the round-bracket negative style),
+                         chained.select (a select does not run the first line of the data queue), default.mv (a dictionary item with a blank S/M flag is single valued), query.string.comp and
+                         query.str.comp.all (= and ne compare as BASIC compares), assoc.all (the dictionary's associations are used), query.footer.pause (a report waits for nothing after its page
+                         footer), query.merge.print (a report sent to printer 0 closes a printer that was already on) and keep.old.object (a failed compilation leaves no object code). Each now does
+                         what it did when the option was off, so nothing that ran with the options off changes; the code for the other behaviour is gone, and so are the descriptions of the words
+                         in option's list. The option numbers stay reserved. A program or login paragraph that says option <one of these words> now gets the answer for an unknown option.
+             Why it      Each existed so that SD could behave as another product does. One behaviour is easier to learn, document and test.
+             Does not    Change any other option, or any session that never turned one of these on.
+
 27 Oct 26  ELEVEN SECOND NAMES OF TCL VERBS, AND THE HYPHEN FORM OF A VERB NAME, ARE REMOVED.
 
              What        The sixth batch of the removal the owner asked for, and the first to use the VOC deletion list (the entry below). Removed verbs: analyse.file (write analyze.file;

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 7: OPTION RUN.NO.PAGE and PAGINATE.ON.HEADING are gone; hf_paginate() keeps the RUN ... NO.PAGE test only.
  * 20 Oct 26 dm  S.71: op_readpkt() and process_client_input() refuse a declared packet length they cannot accept (apipkt.h) and stop
  *               when read_socket() says the connection has gone, instead of reading 1.6 GB of nothing
  * 18 Oct 26 dm  tio_init(): the display starts at DEFAULT_WIDTH by DEFAULT_DEPTH + 1 (140 by 43, was 120 by 37), from tio.h
@@ -667,16 +668,13 @@ void op_expandhf() {
    op_footing()  -  FOOTING opcode                                        */
 
 /* hf_paginate()  -  set or clear pagination after a heading / footing change.
-   On the display unit, with RUN.NO.PAGE and without PAGINATE.ON.HEADING, a
-   heading or footing does not turn pagination on; and RUN ... NO.PAGE
-   (PU_HF_NO_PAGE) stops it whatever the options.                        */
+   On the display unit RUN ... NO.PAGE (PU_HF_NO_PAGE) stops a heading or footing
+   from turning pagination on.                                           */
 
 Private void hf_paginate(PRINT_UNIT *pu) {
   if ((pu->heading != NULL) || (pu->footing != NULL)) {
     if (pu == &tio.dsp) {
       if (pu->flags & PU_HF_NO_PAGE)
-        return;
-      if (Option(OptRunNoPage) && !Option(OptPaginateOnHeading))
         return;
     }
     pu->flags |= PU_PAGINATE;
