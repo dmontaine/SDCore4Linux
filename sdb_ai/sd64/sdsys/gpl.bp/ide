@@ -6,6 +6,11 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 26 Oct 26 dm  The language of a record is $sl_syntax's 'detect', as SED asks it (the file name, then the record id, then the first line, then the languages a site added in
+*               &sed.syntax&); it was the record id's suffix alone.  And the TOKEN FORM (owner: "change them to @VM @SVM @TM for editing and then back again when saved"): a record that
+*               holds value, subvalue or text marks is shown in the editor with @vm, @sm and @tm between colons ($recarr 'totext') and read back when it is kept ('fromtext'). The tab
+*               holds the REAL record all the time (bx t); only the editor's text is converted, at tab.display and stash.current, and only for a tab whose record had marks when it
+*               was read (bx m), so a program that mentions @vm is never changed. A record that holds the TEXT of a token is shown as it is, with a message.
 * 26 Oct 26 dm  F12, Go / Edit as fields (the one-editor plan, stage 1): the record goes to CED in its data mode ($cedit, ftype 2) as an array of fields, values and
 *               subvalues, and comes back as the record's text in the tab when CED's Ctrl-S kept it (do.fields).  The IDE does the saving: CED is given no file.
 * 18 Oct 26 dm  Part B of the 140x42 plan: Ctrl-E, and File / Edit in SED, hand the record to SED and take it back when SED saves it (do.sed;
@@ -368,10 +373,14 @@ new.form:
    if nbuf > 0 then
       u = bu<cb>
       k = 't' : u
-      ed.text = bx{k}
+      tb.u = u
+      tb.raw = bx{k}
+      gosub tab.display
+      ed.text = tb.disp
       ed.ro = 0
       sy.file = bn<cb>
       sy.id = bi<cb>
+      sy.first = field(tb.raw, @fm, 1)
       gosub syntax.for
       ed.syn = syn
    end
@@ -483,27 +492,44 @@ tab.labels:
    if tab.n < 1 then tab.n = 1
    return
 
-* In: sy.file, sy.id.  Out: syn, the language the editor colours the record as ('' for none)
+* In: sy.file, sy.id, sy.first (the first line of the record).  Out: syn, the language the editor colours the record as ('' for none).  $sl_syntax decides, as it does for SED:
+* the file name first, then the record id, then the first line (a script that begins #!/bin/sh), then the languages a site added.
 syntax.for:
    syn = ''
-   r = downcase(sy.id)
-   n = dcount(r, '.')
-   suffix = ''
-   if n > 1 then suffix = field(r, '.', n)
-   begin case
-      case suffix = 'json'
-         syn = 'json'
-      case suffix = 'c' or suffix = 'h'
-         syn = 'c'
-      case suffix = 'py'
-         syn = 'python'
-      case suffix = 'md'
-         syn = 'markdown'
-      case suffix = 'sh'
-         syn = 'sh'
-      case index(downcase(sy.file), 'bp', 1)
-         syn = 'sd.basic'
-   end case
+   call $sl_syntax('detect', sy.file, sy.id, sy.first, '', syn)
+   return
+
+* ======================================================================
+* The token form of a record (26 Oct 26).  The tab's record is always the real one; only the editor's text is converted.
+
+* In: tb.u (the tab's uid), tb.raw (its record).  Out: tb.disp, the text the editor shows.  A tab in token mode (bx m) shows the record with @vm / @sm / @tm; if the record
+* cannot be shown so any more (a replace made a field that holds the text of a token) the tab goes back to showing it as it is, and says so.
+tab.display:
+   tb.disp = tb.raw
+   k = 'm' : tb.u
+   if bx{k} then
+      call $recarr('totext', tb.raw, tb.disp, tb.ok)
+      if not(tb.ok) then
+         bx{k} = 0
+         msg = sysmsg(11992, tb.disp)
+         tb.disp = tb.raw
+      end
+   end
+   return
+
+* In: tm.u (the tab's uid), tm.raw (its record, as it is on disk).  Sets bx m: 1 when the record holds marks and can be shown in the token form, else 0.
+set.token.mode:
+   k = 'm' : tm.u
+   bx{k} = 0
+   if index(tm.raw, @vm, 1) or index(tm.raw, @sm, 1) or index(tm.raw, @tm, 1) then
+      call $recarr('totext', tm.raw, tm.disp, tm.ok)
+      if tm.ok then
+         bx{k} = 1
+         msg = sysmsg(11991)
+      end else
+         msg = sysmsg(11992, tm.disp)
+      end
+   end
    return
 
 * ======================================================================
@@ -516,6 +542,11 @@ stash.current:
       mw = f{'widgets', en}
       screen get f, 'ed' returning txt
       u = bu<cb>
+      k = 'm' : u
+      if bx{k} then
+         call $recarr('fromtext', txt, tb.raw, tb.ok)         ;* the editor shows tokens: the tab keeps the record
+         txt = tb.raw
+      end
       k = 't' : u
       bx{k} = txt
       k = 'c' : u
@@ -535,9 +566,13 @@ load.current:
    if nbuf > 0 then
       u = bu<cb>
       k = 't' : u
-      mw{'value'} = bx{k}
+      tb.u = u
+      tb.raw = bx{k}
+      gosub tab.display
+      mw{'value'} = tb.disp
       sy.file = bn<cb>
       sy.id = bi<cb>
+      sy.first = field(tb.raw, @fm, 1)
       gosub syntax.for
       ro = 0
    end else
@@ -667,6 +702,9 @@ open.record:
    bx{k} = rec
    k = 'c' : uid
    bx{k} = ''
+   tm.u = uid
+   tm.raw = rec
+   gosub set.token.mode
    cb = nbuf
    gosub load.current
    return
@@ -1294,6 +1332,9 @@ do.sed:
    bx{k} = disk
    k = 't' : sd.u
    bx{k} = disk
+   tm.u = sd.u
+   tm.raw = disk
+   gosub set.token.mode
    err.rows = ''
    err.lines = ''
    out.kind = ''
@@ -1330,6 +1371,9 @@ do.fields:
       bx{k} = fd.new
       k = 'c' : fd.u
       bx{k} = ''
+      tm.u = fd.u
+      tm.raw = fd.new
+      gosub set.token.mode
       msg = sysmsg(11989, fd.file, fd.id)
    end else
       msg = sysmsg(11990, fd.file, fd.id)

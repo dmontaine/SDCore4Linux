@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+26 Oct 26  THE IDE SHOWS THE MARKS OF A RECORD AS @vm, @sm AND @tm, AND CHOOSES THE LANGUAGE OF A RECORD AS SED DOES.
+
+             What        (1) A record that holds value marks, subvalue marks or text marks is shown in the IDE's editor with each mark written as a token between colons - the field Don, Henry, June
+                         with value marks between is Don:@vm:Henry:@vm:June - and read back when the record is kept, so nobody types a mark: type :@vm:Jules at the end of that line, press F2 and
+                         the record on disk holds a fourth value. @vm is a value mark, @sm a subvalue mark and @tm a text mark; a mark at the start or end has no text beside it (@vm:Henry,
+                         Don:@vm); reading accepts upper case. A token is the word on its own at the start of the line or after a colon and at the end of the line or before one, so x@vm is
+                         text. The tab keeps the real record all the time and only the editor's text is converted, and only for a tab whose record had marks when it was read, so a program
+                         that mentions @vm is never changed. A record with a field that holds the TEXT of a token - a field that is just @vm - cannot be shown so (it would be read back as a
+                         mark): it is shown as it is, with the status line saying which field. The conversion is $recarr's new 'totext' and 'fromtext'; 'totext' reads back what it made and
+                         refuses anything that does not come back exactly. (2) The IDE picks the colouring language as SED does: the file name, then the record id, then the first line (a
+                         script with no suffix that begins #!/bin/sh is shell), then the languages a site added in &sed.syntax&; it used the suffix of the record id alone.
+             Why it      A record with marks was drawn with the marks as odd characters that could not be typed, and a script with no suffix was never coloured.
+             Does not    Convert the item mark, change find in the records of a file or replace (both work on the real record, so neither matches a token), or touch SED, ED and CED.
+
 26 Oct 26  THE IDE CAN SHOW A RECORD AS FIELDS, VALUES AND SUBVALUES, SO THAT NOBODY TYPES A MARK.
 
              What        F12 in the IDE (or Go > Edit as fields) hands the record in the open tab to CED, which now has a data mode: the record is a tree - a list of its fields, each field a

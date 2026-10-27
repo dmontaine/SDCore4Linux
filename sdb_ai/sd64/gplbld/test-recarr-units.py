@@ -29,7 +29,7 @@ def read(path):
 
 def load():
     d = {n: read(os.path.join(BP, n)) for n in ("recarr", "ced_edit", "ide")}
-    for n in ("11226", "11215", "11988", "11989", "11990"):
+    for n in ("11226", "11215", "11988", "11989", "11990", "11991", "11992"):
         d["m" + n] = read(os.path.join(MSG, n))
     return d
 
@@ -89,6 +89,21 @@ def checks(p):
     row("R4 from.array refuses (ok = 0) a top that is not an array, a field that is neither string nor array, a value that is neither and a subvalue that is not a string - four places - and clears b",
         sum(1 for l in fr if re.search(r"\bok = 0\b", l)) >= 4 and first(fr, r"if not\(ok\) then b = ''") is not None, "ok = 0 x %d" % sum(1 for l in fr if "ok = 0" in l))
 
+    # ---- R5-R8: the token form (26 Oct 26) ------------------------------------------------------------------------------------------------------------------------
+    row("R5 the ops 'totext' and 'fromtext' are dispatched",
+        re.search(r"case op = 'totext'\s*\n\s*gosub to\.text", r) is not None and re.search(r"case op = 'fromtext'\s*\n\s*gosub from\.text", r) is not None)
+    tt = code(section(r, "to.text"))
+    row("R6 to.text reads every line back BEFORE it accepts it, and refuses (ok = 0, b = the field's number) a field that does not come back as it was",
+        ordered(tt, [r"gosub field\.to\.text", r"gosub field\.from\.text", r"if r\.line # f\.t then", r"^b = f\.i$", r"^ok = 0$", r"^return$", r"t\.all := t\.line", r"^b = t\.all$"]), "\n".join(tt))
+    ft = code(section(r, "field.to.text"))
+    row("R7 field.to.text writes the tokens in lower case (@vm @sm @tm), joins the pieces by a colon and leaves an empty text out",
+        all(first(ft, pat) is not None for pat in (r"tok = '@vm'", r"tok = '@sm'", r"tok = '@tm'", r"t\.line := ':'", r"if seg # '' then", r"if rest # '' then")), "\n".join(ft[:14]))
+    ff = code(section(r, "field.from.text"))
+    row("R8 field.from.text reads any case (downcase), needs the token at the start of the line or after a colon AND at the end or before a colon, and takes the colon after a token as its separator",
+        ordered(ff, [r"lc = downcase\(ln\)", r"pre\.ok = \(q = p\)", r"pre\.ok = \(lc\[q - 1, 1\] = ':'\)", r"post\.ok = \(q \+ 3 > n\.l\)", r"post\.ok = \(lc\[q \+ 3, 1\] = ':'\)",
+                  r"if pre\.ok and post\.ok then", r"if lc\[p, 1\] = ':' then p \+= 1"]),
+        "\n".join(ff))
+
     # ---- C: CED's data mode ----------------------------------------------------------------------------------------------------------------------------------------
     c = p["ced_edit"]
     row("C1 CED: an editor called with ftype 2 on something that is not an array returns at once (a record is an array of fields)",
@@ -140,6 +155,30 @@ def checks(p):
     row("I7 do.fields changes the tab only when what came back differs (11989), else says it is as it was (11990)",
         ordered(df, [r"if fd\.new # fd\.was then", r"bx\{k\} = fd\.new", r"sysmsg\(11989,", r"end else", r"sysmsg\(11990,"]))
 
+    # ---- I8-I12: the token form and the language in the IDE (26 Oct 26) ----------------------------------------------------------------------------------------------
+    sf = code(section(i, "syntax.for"))
+    row("I8 syntax.for asks $sl_syntax 'detect' with the file, the record id and the first line, as SED does - no suffix rule of its own",
+        first(sf, r"call \$sl_syntax\('detect', sy\.file, sy\.id, sy\.first, '', syn\)") is not None and first(sf, r"suffix") is None, "\n".join(sf))
+    sc = code(section(i, "stash.current"))
+    row("I9 stash.current turns the editor's tokens back into marks only for a tab in token mode (bx m), and BEFORE the text is put in the tab's record",
+        ordered(sc, [r"k = 'm' : u", r"if bx\{k\} then", r"call \$recarr\('fromtext', txt, tb\.raw, tb\.ok\)", r"txt = tb\.raw", r"k = 't' : u", r"bx\{k\} = txt"]), "\n".join(sc))
+    td = code(section(i, "tab.display"))
+    k0 = first(td, r"if not\(tb\.ok\) then")
+    row("I10 tab.display shows tokens only for a tab in token mode and falls back to the record as it is (with message 11992) when 'totext' refuses",
+        ordered(td, [r"k = 'm' : tb\.u", r"if bx\{k\} then", r"call \$recarr\('totext', tb\.raw, tb\.disp, tb\.ok\)", r"if not\(tb\.ok\) then"])
+        and k0 is not None and ordered(td[k0:], [r"bx\{k\} = 0", r"msg = sysmsg\(11992, tb\.disp\)", r"tb\.disp = tb\.raw"]), "\n".join(td))
+    sm = code(section(i, "set.token.mode"))
+    row("I11 set.token.mode: a tab is in token mode (bx m = 1) only when the record holds a mark AND 'totext' accepts it; a record it refuses says why (11992)",
+        ordered(sm, [r"bx\{k\} = 0", r"index\(tm\.raw, @vm, 1\) or index\(tm\.raw, @sm, 1\) or index\(tm\.raw, @tm, 1\)", r"call \$recarr\('totext', tm\.raw, tm\.disp, tm\.ok\)", r"if tm\.ok then", r"bx\{k\} = 1", r"msg = sysmsg\(11991\)", r"msg = sysmsg\(11992, tm\.disp\)"]), "\n".join(sm))
+    orc = code(section(i, "open.record"))
+    dsd = code(section(i, "do.sed"))
+    dfl = code(section(i, "do.fields"))
+    nf = code(section(i, "new.form"))
+    lc_ = code(section(i, "load.current"))
+    row("I12 the mode is set wherever the real record comes from (open.record, the return from SED, the return from CED) and the editor's text is made by tab.display (new.form, load.current)",
+        ordered(orc, [r"bx\{k\} = rec", r"gosub set\.token\.mode", r"gosub load\.current"]) and ordered(dsd, [r"bx\{k\} = disk", r"gosub set\.token\.mode"]) and ordered(dfl, [r"bx\{k\} = fd\.new", r"gosub set\.token\.mode", r"msg = sysmsg\(11989"])
+        and ordered(nf, [r"gosub tab\.display", r"ed\.text = tb\.disp"]) and ordered(lc_, [r"gosub tab\.display", r"mw\{'value'\} = tb\.disp"]))
+
     # ---- M: the menu, the help, the messages ----------------------------------------------------------------------------------------------------------------------
     m = p["m11226"].strip("\n")
     entries = m.split("|")[1:]
@@ -147,7 +186,9 @@ def checks(p):
     mn = [re.search(r"&(.)", lab).group(1).lower() for lab in labels if re.search(r"&(.)", lab)]
     row("M1 the Go menu has the entry 'Edit as fields~F12~fields' last, after the SED entry", len(entries) >= 2 and entries[-1].endswith("~F12~fields") and entries[-2].endswith("~sed"), repr(entries[-2:]))
     row("M2 every entry of the Go menu has a mnemonic and no two share one", len(mn) == len(entries) and len(set(mn)) == len(mn), repr(mn))
-    row("M3 the IDE's help names F12", "F12" in p["m11215"] and "fields" in p["m11215"])
+    row("M3 the IDE's help names F12 and the tokens", "F12" in p["m11215"] and "fields" in p["m11215"] and ":@vm: :@sm: :@tm:" in p["m11215"])
+    row("M5 messages 11991 and 11992 are there: 11991 names the three tokens in lower case, 11992 takes the field number (%1)",
+        "@vm, @sm and @tm" in p["m11991"] and "%1" in p["m11992"] and "field" in p["m11992"], repr((p["m11991"], p["m11992"])))
     row("M4 messages 11988, 11989 and 11990 are there; 11989 and 11990 take the file and the record id (%1 %2)",
         p["m11988"].startswith("A record holds only text") and "%1 %2" in p["m11989"] and "%1 %2" in p["m11990"])
     return rows
@@ -199,6 +240,17 @@ def selftest():
     mutant("do.fields writes the record itself", "ide", "if fd.ok then fd.new = fd.text", "if fd.ok then fd.new = fd.text ; write fd.new on fv, fd.id", "I6")
     mutant("do.fields does not take the screen again", "ide", "   gosub retake.quiet\n   return\n\n* The window changed size", "   return\n\n* The window changed size", "I4")
     mutant("F12 runs SED", "ide", "cmd = 'fields'                  ;* the record as fields", "cmd = 'sed'                  ;* the record as fields", "I1")
+    # 26 Oct 26: the token form's mutants
+    mutant("totext does not read back what it made", "recarr", "if r.line # f.t then", "if r.line # r.line then", "R6")
+    mutant("a token is read in lower case only", "recarr", "lc = downcase(ln)", "lc = ln", "R8")
+    mutant("a token need not end the line or be followed by a colon", "recarr", "if pre.ok and post.ok then", "if pre.ok then", "R8")
+    mutant("the colon after a token is kept as text", "recarr", "if lc[p, 1] = ':' then p += 1", "if lc[p, 1] = '!' then p += 1", "R8")
+    mutant("an empty text is written between two tokens", "recarr", "      if seg # '' then\n         if need.sep", "      if 1 then\n         if need.sep", "R7")
+    mutant("the IDE's language is the suffix again", "ide", "call $sl_syntax('detect', sy.file, sy.id, sy.first, '', syn)", "syn = '' ; suffix = 'c'", "I8")
+    mutant("every tab is converted on the way back", "ide", "      if bx{k} then\n         call $recarr('fromtext'", "      if 1 then\n         call $recarr('fromtext'", "I9")
+    mutant("a record that totext refuses is put in token mode", "ide", "      if tm.ok then\n         bx{k} = 1", "      if 1 then\n         bx{k} = 1", "I11")
+    mutant("open.record leaves the mode unset", "ide", "   tm.u = uid\n   tm.raw = rec\n   gosub set.token.mode\n", "", "I12")
+    mutant("11992 has no field number", "m11992", "field %1 holds", "a field holds", "M5")
     mutant("the menu entry is gone", "m11226", "|Edit as f&ields~F12~fields", "", "M1")
     mutant("the menu entry takes SED's mnemonic", "m11226", "Edit as f&ields~F12~fields", "&Edit as fields~F12~fields", "M2")
     print("selftest: %d of %d mutants caught, %d missed" % (caught, caught + missed, missed))

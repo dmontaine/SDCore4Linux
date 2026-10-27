@@ -122,6 +122,7 @@ PROG = r"""$internal
    crt 'STRUCT[N=':n.struct:' BAD=':bad.struct:' FIRST=':convert(marks, shown, first.struct):']'
    crt 'CTRL[N=':ntot:' CAUGHT=':lossy.caught:']'
    gosub cases
+   gosub token.tests
    gosub refusals
    crt 'END'
    stop
@@ -290,6 +291,113 @@ struct.one:
    end
    return
 
+* The token form (26 Oct 26): a PROPERTY test over records made of the fragments that can be mistaken for a token, and hand-written cases.
+gen.trecord:
+   r = ''
+   nf = rnd(4)
+   for fi = 1 to nf
+      if fi > 1 then r := @fm
+      ni = rnd(6)
+      for ii = 1 to ni
+         tc = rnd(10)
+         begin case
+            case tc < 5
+               fx = rnd(nfrag) + 1
+               r := frag<fx>
+               if rnd(2) then
+                  fx = rnd(nfrag) + 1
+                  r := frag<fx>
+               end
+            case tc < 7
+               r := @vm
+            case tc = 7
+               r := @sm
+            case 1
+               r := @tm
+         end case
+      next ii
+   next fi
+   return
+
+token.tests:
+   frag = 'a' : @fm : 'b' : @fm : ':' : @fm : '@' : @fm : '@vm' : @fm : '@sm' : @fm : '@VM' : @fm : 'vm' : @fm : ' ' : @fm : 'x@' : @fm : ':@vm:' : @fm : '10:30' : @fm : '@tm' : @fm : '@v'
+   nfrag = dcount(frag, @fm)
+   t.ok = 0 ; t.ref = 0 ; t.bad = 0 ; t.unsound = 0 ; t.false.ref = 0 ; n.et = 0 ; bad.et = 0 ; t.first = ''
+   for t = 1 to ntot
+      gosub gen.trecord
+      call $recarr('totext', r, tx, tk)
+      if tk then
+         t.ok += 1
+         call $recarr('fromtext', tx, back, k9)
+         if back # r then
+            t.bad += 1
+            if t.first = '' then t.first = r
+         end
+         * typing a token: a value mark and the text Z added to the end of the first line is the same record as adding that value to the first field
+         if dcount(r, @fm) >= 1 then
+            line1 = tx<1>
+            if line1 = '' then ad = '@vm:Z' else ad = ':@vm:Z'
+            nd = tx
+            nd<1> = line1 : ad
+            ex = r
+            ex<1> = r<1> : @vm : 'Z'
+            call $recarr('fromtext', nd, back2, k9)
+            n.et += 1
+            if back2 # ex then
+               bad.et += 1
+               if t.first = '' then t.first = r : '  WANT ' : ex : '  GOT ' : back2
+            end
+         end
+      end else
+         t.ref += 1
+         fno = tx + 0
+         if fno < 1 or fno > dcount(r, @fm) then
+            t.unsound += 1
+         end else
+            if index(r<fno>, '@', 1) = 0 then t.unsound += 1
+         end
+      end
+      if index(r, '@', 1) = 0 and not(tk) then t.false.ref += 1
+   next t
+   crt 'TOKRT[N=':ntot:' OK=':t.ok:' REF=':t.ref:' BAD=':t.bad:' FIRST=':convert(marks, shown, t.first):']'
+   crt 'TOKSOUND[UNSOUND=':t.unsound:' FALSEREF=':t.false.ref:']'
+   crt 'TOKEDIT[N=':n.et:' BAD=':bad.et:']'
+   call $recarr('totext', 'Don' : @vm : 'Henry' : @vm : 'June', tx, tk)
+   crt 'CASE12[':tx:' ':tk:']'
+   call $recarr('totext', @vm, tx, tk)
+   crt 'CASE13[':tx:' ':tk:']'
+   call $recarr('totext', @vm : 'Henry', tx, tk)
+   call $recarr('totext', 'Don' : @vm, tx2, tk)
+   crt 'CASE14[':tx:' ':tx2:']'
+   call $recarr('totext', 'a' : @vm : @vm : 'b', tx, tk)
+   crt 'CASE15[':tx:' ':tk:']'
+   call $recarr('totext', 'a' : @sm : 'b' : @tm : 'c', tx, tk)
+   crt 'CASE16[':tx:' ':tk:']'
+   call $recarr('totext', '10:30' : @vm : 'x', tx, tk)
+   crt 'CASE17[':tx:' ':tk:']'
+   call $recarr('totext', 'a' : @fm : 'b' : @vm : 'c', tx, tk)
+   crt 'CASE18[':convert(@fm, '^', tx):' ':tk:']'
+   call $recarr('fromtext', 'Don:@VM:Henry:@SM:x', rr, tk)
+   crt 'CASE19[':convert(@vm : @sm, '|~', rr):']'
+   rr0 = 'x@vm' : @vm : 'y'
+   call $recarr('totext', rr0, tx, tk)
+   call $recarr('fromtext', tx, rr, k9)
+   crt 'CASE20[':tx:' ':tk:' ':(rr = rr0):']'
+   call $recarr('totext', '@vm', tx, tk1)
+   x1 = tx
+   call $recarr('totext', 'a' : @fm : '@sm', tx, tk2)
+   x2 = tx
+   call $recarr('totext', '@vm:x', tx, tk3)
+   crt 'CASE21[':tk1:' ':x1:' ':tk2:' ':x2:' ':tk3:' ':tx:']'
+   rr0 = 'a:' : @vm : 'b'
+   call $recarr('totext', rr0, tx, tk)
+   call $recarr('fromtext', tx, rr, k9)
+   crt 'CASE22[':tx:' ':tk:' ':(rr = rr0):']'
+   call $recarr('fromtext', 'a:@vmx:b', rr, k9)
+   call $recarr('fromtext', '@vm:', rr2, k9)
+   crt 'CASE23[':rr:' ':convert(@vm, '|', rr2):']'
+   return
+
 * Hand-written records and the array each must make
 cases:
    call $recarr('to', '', a, k1)
@@ -384,16 +492,27 @@ FIELDS_FIX = """   open 'bp' to f else stop 'no bp'
    write 'one':@fm:'two':@vm:'three' on f, 'zzrf%(r)sb'
    write 'p':@fm:'q':@vm:'r':@sm:'s':@fm:'t' on f, 'zzrf%(r)sc'
    write 'x':@fm:'y':@vm:'z' on f, 'zzrf%(r)sd'
+   write 'Don':@vm:'Henry':@vm:'June':@fm:'x':@sm:'y':@tm:'z' on f, 'zzrf%(r)se'
+   write '@vm':@fm:'b':@vm:'c' on f, 'zzrf%(r)sf'
    crt 'FIXTURE DONE'
 end
 """
 FIELDS_PROBE = """   open 'bp' to f else stop 'no bp'
-   ids = 'a':@fm:'b':@fm:'c':@fm:'d'
-   for i = 1 to 4
+   ids = 'a':@fm:'b':@fm:'c':@fm:'d':@fm:'e':@fm:'f'
+   for i = 1 to 6
       read r from f, 'zzrf%(r)s' : ids<i> else r = '<absent>'
-      crt 'REC':i:'[':convert(@fm:@vm:@sm, '^|~', r):']'
+      crt 'REC':i:'[':convert(@fm:@vm:@sm:@tm, '^|~#', r):']'
    next i
    crt 'END'
+end
+"""
+# a data file that is not bp (so that the file name decides nothing), made in an ORDINARY session so that the IDE's account has it: two scripts, one with a first line #!/bin/sh and one without
+FIELDS_FIX2 = """   execute 'DELETE.FILE zzrfd%(r)s' capturing j0
+   execute 'CREATE.FILE zzrfd%(r)s' capturing j1
+   open 'zzrfd%(r)s' to d else stop 'no data file'
+   write '#!/bin/sh':@fm:'# a comment':@fm:'hello world' on d, 'script'
+   write 'first line':@fm:'# a comment':@fm:'hello world' on d, 'plain'
+   crt 'FIXTURE2 DONE'
 end
 """
 
@@ -401,13 +520,14 @@ end
 def fields_part(box, sysd, made):
     """The IDE hands a record to CED's data mode (F12) as fields, values and subvalues, and takes it back; the IDE saves."""
     say("\n--- the IDE hands a record to CED as fields (F12), CED edits it as a tree, the IDE takes it back and saves it ------------")
-    ra, rb, rc, rd = ("zzrf%s%s" % (RUN, c) for c in "abcd")
+    ra, rb, rc, rd, re_, rf_ = ("zzrf%s%s" % (RUN, c) for c in "abcdef")
+    dfile = "zzrfd" + RUN
     fix, probe = "zzrffix" + RUN, "zzrfprobe" + RUN
-    for nm, body in ((fix, FIELDS_FIX), (probe, FIELDS_PROBE)):
+    for nm, body in ((fix, FIELDS_FIX), (probe, FIELDS_PROBE), (fix + "b", FIELDS_FIX2)):
         with open(os.path.join(sysd, "bp", nm), "w") as fh:
             fh.write(body % {"r": RUN})
         made.append(nm)
-    made.extend([ra, rb, rc, rd])
+    made.extend([ra, rb, rc, rd, re_, rf_])
     out = session(box, "BASIC bp %s" % fix, "BASIC bp %s" % probe, "RUN bp %s" % fix)
     row("setup: the fixture and the probe compile and the four multivalue records were written",
         len(re.findall(r"(?m)^Compiled 1 program\(s\) with no errors", out)) == 2 and "FIXTURE DONE" in out, out[-400:])
@@ -416,11 +536,13 @@ def fields_part(box, sysd, made):
 
     def disk():
         o = session(box, "RUN bp %s" % probe)
-        return [tag(o, "REC%d" % i) for i in (1, 2, 3, 4)]
+        return [tag(o, "REC%d" % i) for i in (1, 2, 3, 4, 5, 6)]
 
     d0 = disk()
-    row("control: the probe reads the four records as written (marks shown as ^ | ~)",
-        d0 == ["Acme^red|dark~green|blue^x", "one^two|three", "p^q|r~s^t", "x^y|z"], repr(d0))
+    row("control: the probe reads the six records as written (marks shown as ^ | ~ #)",
+        d0 == ["Acme^red|dark~green|blue^x", "one^two|three", "p^q|r~s^t", "x^y|z", "Don|Henry|June^x~y#z", "@vm^b|c"], repr(d0))
+    o2 = sb.sess(box, "BASIC bp %s" % (fix + "b"), "RUN bp %s" % (fix + "b"))
+    row("setup: the second fixture (an ordinary session) made the data file %s with its two scripts" % dfile, "FIXTURE2 DONE" in o2, o2[-300:])
 
     e = sb.Ide(box)
     e.keys(F12)
@@ -532,6 +654,62 @@ def fields_part(box, sysd, made):
         "is changed, save it to keep it" in st and d[3] == "x^Y1|z", "%r %r" % (st, d[3]))
     e.end()
 
+    # ---- E: a record that holds marks is shown in the token form, and typing a token writes a mark --------------------------------------------------------------------
+    say("\n--- the token form in the IDE: marks shown as :@vm: :@sm: :@tm:, read back when the record is saved ---------------------------------------------------")
+    e = sb.Ide(box, "IDE bp %s" % re_)
+    e.quiet()
+    t = "\n".join(e.lines())
+    st = e.status()
+    row("a record that holds marks opens in the token form: the editor shows Don:@vm:Henry:@vm:June and x:@sm:y:@tm:z",
+        "Don:@vm:Henry:@vm:June" in t and "x:@sm:y:@tm:z" in t, t[:900])
+    row("... and no mark character (251, 252 or 253) is drawn", not any(ch in t for ch in "\xfb\xfc\xfd"), repr([ch for ch in t if ch in "\xfb\xfc\xfd"]))
+    row("... the status line says that marks are shown as @vm, @sm and @tm", "Marks are shown as @vm, @sm and @tm" in st, st)
+    row("... and the tab is not marked changed: what was read converts back to the record exactly", re.search(r"bp %s \*" % re_, st) is None, st)
+    e.keys(sb.END, ":@vm:Jules")
+    e.quiet()
+    st = e.status()
+    d = disk()
+    row("typing :@vm:Jules at the end of line 1 marks the tab changed, and the disk is as it was", re.search(r"bp %s \*" % re_, st) is not None and d[4] == d0[4], "%r %r" % (st, d[4]))
+    e.keys(sb.F2)
+    st = e.status()
+    d = disk()
+    row("F2 saves it as marks: Don|Henry|June|Jules^x~y#z - the value mark written from the typed token, the rest of the record exactly as it was",
+        ("Saved bp %s" % re_) in st and d[4] == "Don|Henry|June|Jules^x~y#z", "%r %r" % (st, d[4]))
+    e.end()
+
+    # ---- F: a field that holds the TEXT of a token is not converted ---------------------------------------------------------------------------------------------------
+    e = sb.Ide(box, "IDE bp %s" % rf_)
+    e.quiet()
+    st = e.status()
+    row("a record whose field 1 is the text @vm is shown as it is: the status line says field 1 holds the text of a mark token, and the tab is not marked changed",
+        "Marks are shown as characters: field 1 holds the text of a mark token" in st and re.search(r"bp %s \*" % rf_, st) is None, st)
+    row("... and the record on disk is untouched", disk()[5] == d0[5], repr(disk()[5]))
+    e.end()
+
+    # ---- G: the language of a record is $sl_syntax's, as SED's: the first line decides when the name does not -------------------------------------------------------------
+    say("\n--- the language of a record: the first line of a script with no suffix, in a file that is not bp -------------------------------------------------------------")
+
+    def comment_and_text(ident):
+        ide = sb.Ide(box, "IDE %s %s" % (dfile, ident))
+        ide.quiet()
+        L = ide.lines()
+        rc = next((i for i, l in enumerate(L) if "# a comment" in l), None)
+        rh = next((i for i, l in enumerate(L) if "hello world" in l), None)
+        if rc is None or rh is None:
+            ide.end()
+            return None, "the lines are not on the screen:\n" + "\n".join(l[:60] for l in L[:12])
+        sc = ide.s.screen.style(rc, L[rc].index("# a comment") + 4)
+        sh = ide.s.screen.style(rh, L[rh].index("hello world") + 2)
+        ide.end()
+        return (sc, sh), ""
+
+    got, why = comment_and_text("script")
+    row("a script with the first line #!/bin/sh and no suffix, in a file that is not bp, is coloured as shell: its comment is drawn in another style than its plain text",
+        got is not None and got[0] != got[1], why or repr(got))
+    got, why = comment_and_text("plain")
+    row("CONTROL: the same lines without the #! line are not coloured: the comment and the plain text have the same style", got is not None and got[0] == got[1], why or repr(got))
+    sb.sess(box, "DELETE.FILE %s" % dfile)
+
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -577,13 +755,25 @@ def main():
 
         want = {"CASE1": "EMPTY 0 1", "CASE2": "ONE 1 string x", "CASE3": "TWO 2 string string", "CASE4": "VALUES 1 array 2 a b",
                 "CASE5": "SUBONLY array 1 array 2 a b", "CASE6": "MIXED 2 string array 3 b d", "CASE7": "LONEVM 2 [] []", "CASE8": "TRAILFM 2 []",
-                "CASE9": "FROMEMPTY [] 1", "CASE10": "NUMTEXT string string string", "CASE11": "NUMBACK 12^1.50^-3 1"}
+                "CASE9": "FROMEMPTY [] 1", "CASE10": "NUMTEXT string string string", "CASE11": "NUMBACK 12^1.50^-3 1",
+                "CASE12": "Don:@vm:Henry:@vm:June 1", "CASE13": "@vm 1", "CASE14": "@vm:Henry Don:@vm", "CASE15": "a:@vm:@vm:b 1", "CASE16": "a:@sm:b:@tm:c 1",
+                "CASE17": "10:30:@vm:x 1", "CASE18": "a^b:@vm:c 1", "CASE19": "Don|Henry~x", "CASE20": "x@vm:@vm:y 1 1", "CASE21": "0 1 0 2 0 1",
+                "CASE22": "a::@vm:b 1 1", "CASE23": "a:@vmx:b |"}
         for k, w in want.items():
             got = tag(out, k)
             row("%s: %s" % (k, w), got == w, "got %r" % (got,))
         rf = counts(tag(out, "REFUSE"))
         row("REFUSE: a number, a boolean, a null, a collection, a mixed list, a fourth level and a top-level collection are each refused and make no text",
             rf.get("N") == "7" and rf.get("OK") == "7", repr(tag(out, "REFUSE")))
+        tr, ts, te = (counts(tag(out, n)) for n in ("TOKRT", "TOKSOUND", "TOKEDIT"))
+        row("TOKRT: 3,000 random records made of the fragments that can be mistaken for a token: every one 'totext' accepts is read back as the same record (%s accepted, %s refused)"
+            % (tr.get("OK"), tr.get("REF")), tr.get("N") == "3000" and tr.get("BAD") == "0", repr(tag(out, "TOKRT")))
+        row("TOKRT (the instrument sees both kinds): at least 200 records were accepted and at least 200 refused, so neither the round trip nor the refusal ran against nothing",
+            int(tr.get("OK", "0")) >= 200 and int(tr.get("REF", "0")) >= 200, repr(tag(out, "TOKRT")))
+        row("TOKSOUND: every refusal names a field that exists and that holds an '@' (UNSOUND=%s), and no record without an '@' is ever refused (FALSEREF=%s)"
+            % (ts.get("UNSOUND"), ts.get("FALSEREF")), ts.get("UNSOUND") == "0" and ts.get("FALSEREF") == "0", repr(tag(out, "TOKSOUND")))
+        row("TOKEDIT: typing a token - a value mark and a text added to the end of the first line - is the same record as adding that value to the first field, over at least 200 records",
+            te.get("BAD") == "0" and int(te.get("N", "0")) >= 200, repr(tag(out, "TOKEDIT")))
         fields_part(box, sysd, made)
     finally:
         for nm in made:

@@ -2989,10 +2989,10 @@ The IDE\n\nTab, Shift-Tab   Next / previous pane\nReturn           Open the file
 cited by: `ide`
 
 ### msg:11215
-> kind=message tier=reference since=- src=sdsys/messages/11215:1#fbdc08fe
+> kind=message tier=reference since=- src=sdsys/messages/11215:1#8a3a0d0f
 
 ```
-F4               Next error or result\nF5               Run          F7  Compile\nF8               Compile and catalogue\nF9               Compile and debug\nCtrl-L           Go to a line\nF11              Find in the records of the file\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\n
+F4               Next error or result\nF5               Run          F7  Compile\nF8               Compile and catalogue\nF9               Compile and debug\nCtrl-L           Go to a line\nF11              Find in the records of the file\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks\n
 ```
 
 cited by: `ide`
@@ -8122,6 +8122,24 @@ cited by: `ide`
 
 ```
 Back from the fields: %1 %2 is as it was
+```
+
+cited by: `ide`
+
+### msg:11991
+> kind=message tier=reference since=- src=sdsys/messages/11991:1#26917259
+
+```
+Marks are shown as @vm, @sm and @tm; typed so, they are read back as marks
+```
+
+cited by: `ide`
+
+### msg:11992
+> kind=message tier=reference since=- src=sdsys/messages/11992:1#6124334a
+
+```
+Marks are shown as characters: field %1 holds the text of a mark token
 ```
 
 cited by: `ide`
