@@ -207,7 +207,7 @@ def main():
     real = VB.intrinsics(VB.BCOMP)
     ck("24 the real BCOMP yields a plausible table", len(real) > 100, True)
     ck("25 ... containing names the probe exercises",
-       set(["ABS", "SOUNDEX", "CHANGE", "SWAP", "ASSIGNED", "UNASSIGNED"])
+       set(["ABS", "SOUNDEX", "CHANGE", "ASSIGNED", "UNASSIGNED"])
        <= real, True)
 
     for p in made:

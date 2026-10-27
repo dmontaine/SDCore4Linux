@@ -434,20 +434,6 @@
 "tier": "reference",
 "words": 12
 },
-"basic:func:dquote": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
-"basic:func:dquotes": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 7
-},
 "basic:func:dtx": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
@@ -1391,7 +1377,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 7
+"words": 12
 },
 "basic:func:raise": {
 "kind": "basic.function",
@@ -1820,13 +1806,6 @@
 "tier": "reference",
 "words": 12
 },
-"basic:func:swap": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 18
-},
 "basic:func:swapcase": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
@@ -1989,13 +1968,6 @@
 "words": 15
 },
 "basic:func:xbuild": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 16
-},
-"basic:func:xlate": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
 "since": "-",

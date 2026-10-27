@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  FOUR SECOND NAMES OF BASIC FUNCTIONS ARE REMOVED: dquote, dquotes, swap AND xlate.
+
+             What        The eleventh batch. dquote() and dquotes() were the same functions as quote() and quotes(); swap() was change(); xlate() was trans(). A program that calls one stops
+                         compiling with "Unrecognised function" the next time it is compiled; write the first name. SD's own use (three lines of setptr) and the tests were changed.
+                         Programs already compiled keep running (the compiler wrote the same code for both names).
+             Why it      One name for each function is easier to learn, document and test.
+             Does not    Change quote, quotes, change or trans.
+
 27 Oct 26  FIVE VOC RECORDS AND THREE LOOSE FORMS OF A DICTIONARY EXPRESSION ARE REMOVED: caption, nopage, col.hdr.space, edit.list, listdict.
 
              What        Tenth batch, through the VOC deletion list. caption and nopage were second names of grand.total and no.page; col.hdr.space (a blank line under the column headings,

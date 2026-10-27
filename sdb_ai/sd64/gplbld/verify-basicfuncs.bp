@@ -209,7 +209,6 @@ program zzbf
    n = 'CROP.trailing' ; g = crop('a':@vm:'b':@vm) ; w = 'a':@vm:'b' ; gosub check
    n = 'CROP.internal' ; g = crop('a':@vm:@vm:'b') ; w = 'a':@vm:@vm:'b' ; gosub check
    n = 'QUOTE' ; g = quote('ab')         ; w = '"ab"'   ; gosub check
-   n = 'DQUOTE' ; g = dquote('ab')       ; w = '"ab"'   ; gosub check
    n = 'SQUOTE' ; g = squote('ab')       ; w = "'ab'"   ; gosub check
    n = 'FOLD' ; g = fold('aaa bbb', 3)   ; w = 'aaa':@fm:'bbb' ; gosub check
    n = 'SOUNDEX' ; g = soundex('Robert') ; w = 'R163'   ; gosub check
@@ -232,7 +231,6 @@ program zzbf
    n = 'CHANGE.count' ; g = change('abcabc', 'b', 'Z', 1) ; w = 'aZcabc' ; gosub check
    n = 'CHANGE.first' ; g = change('abcabc', 'b', 'Z', 1, 2) ; w = 'abcaZc' ; gosub check
    n = 'CHANGE.absent' ; g = change('abc', 'z', 'Z') ; w = 'abc' ; gosub check
-   n = 'SWAP' ; g = swap('abcabc', 'b', 'Z') ; w = 'aZcaZc' ; gosub check
 * CSVDQ SPLITS a CSV line into a dynamic array, it does not add quotes.
    n = 'CSVDQ' ; g = csvdq('a,b')        ; w = 'a':@fm:'b' ; gosub check
    n = 'CSVDQ.quoted' ; g = csvdq('"a,b",c') ; w = 'a,b':@fm:'c' ; gosub check
