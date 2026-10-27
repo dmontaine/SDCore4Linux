@@ -1027,7 +1027,6 @@ void op_readv() {
                 process_events();
               process.op_flags = op_flags;
               pc = op_pc;
-              lock_beep();
               Sleep(250);
               return;
           }
@@ -1814,7 +1813,6 @@ Private void read_record(bool matread) {
           process.op_flags = op_flags;
           if (my_uptr->events)
             process_events();
-          lock_beep();
           Sleep(250);
           return;
       }

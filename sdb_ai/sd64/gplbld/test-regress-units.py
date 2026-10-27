@@ -325,6 +325,15 @@ def cases(label, script_text):
         row(label + "...the copy holds a file git has not been told about, the ignored header, and the documents at the top",
             bool(m) and m.groups()[1:] == ("True", "True", "True", "True", "True"), repr(where))
         row(label + "...and the copy is gone when the run ends", leftovers() == [] and "snapshot " in out, "%r  %s" % (leftovers(), out[-200:]))
+        # 27 Oct 26: a file git tracks and the work tree no longer has (the first batch of the emulation removal deleted 22 message files) stopped the copy with rsync's error 23
+        doomed = os.path.join(sd64, "gplbld", "doomed.txt")
+        with open(doomed, "w") as f:
+            f.write("tracked, then deleted\n")
+        subprocess.run(["git", "add", "gplbld/doomed.txt"], cwd=sd64, check=True)
+        os.remove(doomed)
+        rc, out = run(repo, ["--snapshot", "--only", "where", "--logs", logs], tree=sd64)
+        row(label + "--snapshot: a tracked file the work tree no longer has (a deleted file) does not stop the copy, and the run passes",
+            rc == 0 and verdict(out, "where") == "PASS", "rc %d  %s" % (rc, out[-300:]))
         makefile = os.path.join(sd64, "Makefile")
         with open(makefile, "w") as f:
             f.write("all:\n\tfalse\n")

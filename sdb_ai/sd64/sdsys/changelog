@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  TWENTY-TWO OPTION WORDS THAT EXISTED TO IMITATE OTHER PRODUCTS ARE REMOVED, AND SO IS THE option pick SHORTCUT.
+
+             What        The owner asked for the features that exist only to make SD behave like another MultiValue product to go. The first batch is the OPTION words. Removed: pick (the shortcut
+                         that switched nine words on together), assoc.unassoc.mv, pick.breakpoint, pick.breakpoint.u, pick.explode, pick.grand.total, pick.implied.eq, pick.null, pick.wildcard,
+                         qualified.display, with.implies.or, query.no.case, query.priority.and, ampm.upcase, crdb.upcase, no.date.wrapping, space.mct, lock.beep, ed.no.query.fd,
+                         create.file.upcase, select.keep.case, debug.rebind.keys and proc.a. OPTION now refuses each of them with the usual "Option name not recognised". Everything they switched on
+                         is gone with them and SD does what it did with them off: a query is read in SD's own way (with city = "Reno", brackets and or for the order of tests, the like operator
+                         for wildcards, no.case after an operator or query.sort.no.case for case), a time or an amount is written am, pm, cr, db in lower case, a date such as 31 February rolls into
+                         the next month, a wait for a lock is silent, the fd command of ed asks before it deletes, and create.file names a file in lower case. The other 39 option words keep
+                         their numbers: the gaps are reserved, so nothing that is stored or passed on (the options a phantom is given) changes.
+             Why it      Each of these made one program or session read the same command differently from every other, for the sake of another product. One way to do each thing is easier to learn
+                         and to test.
+             Does not    Remove the 39 other option words, any compile mode, or any command word (those are separate steps), or change a program that never used one of the 22. A program or login
+                         paragraph that does use one stops with "Option name not recognised" and has to be edited. An account that has run these options keeps its files as they are.
+
 26 Oct 26  THE IDE SHOWS THE MARKS OF A RECORD AS @vm, @sm AND @tm, AND CHOOSES THE LANGUAGE OF A RECORD AS SED DOES.
 
              What        (1) A record that holds value marks, subvalue marks or text marks is shown in the IDE's editor with each mark written as a token between colons - the field Don, Henry, June

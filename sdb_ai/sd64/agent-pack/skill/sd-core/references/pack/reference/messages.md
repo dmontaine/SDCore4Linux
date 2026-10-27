@@ -12755,34 +12755,6 @@ Treat unassigned variable as a warning
 Allow DEBUGGING keyword to the query processor
 ```
 
-### msg:3102
-> kind=message tier=reference since=- src=sdsys/messages/3102:1#04bcd904
-
-```
-Allow use of Pick style wildcards in queries
-```
-
-### msg:3103
-> kind=message tier=reference since=- src=sdsys/messages/3103:1#ac6ae932
-
-```
-Allow Pick style qualified display clauses
-```
-
-### msg:3104
-> kind=message tier=reference since=- src=sdsys/messages/3104:1#f403e037
-
-```
-Pick syntax for BREAK.ON and BREAK.SUP
-```
-
-### msg:3105
-> kind=message tier=reference since=- src=sdsys/messages/3105:1#31fd4e6b
-
-```
-Multiple WITH clauses imply OR relationship
-```
-
 ### msg:3106
 > kind=message tier=reference since=- src=sdsys/messages/3106:1#2f6cd2fc
 
@@ -12802,20 +12774,6 @@ Treat divide by zero as a warning
 
 ```
 Treat non-numeric where numeric needed as a warning
-```
-
-### msg:3109
-> kind=message tier=reference since=- src=sdsys/messages/3109:1#3b4b1501
-
-```
-Treat all unassociated fields as associated together
-```
-
-### msg:3110
-> kind=message tier=reference since=- src=sdsys/messages/3110:1#f420e122
-
-```
-Handle U breakpoint option in Pick manner
 ```
 
 ### msg:3111
@@ -12839,53 +12797,11 @@ Start programs with pagination disabled
 Show call stack at a fatal error
 ```
 
-### msg:3114
-> kind=message tier=reference since=- src=sdsys/messages/3114:1#dc15ce3b
-
-```
-Use CR/DB in place of cr/db in output conversions
-```
-
-### msg:3115
-> kind=message tier=reference since=- src=sdsys/messages/3115:1#a969641b
-
-```
-Use AM/PM in place of am/pm in time conversions
-```
-
-### msg:3116
-> kind=message tier=reference since=- src=sdsys/messages/3116:1#0d09686d
-
-```
-Return null for null data in ML, MR and FMT()
-```
-
-### msg:3117
-> kind=message tier=reference since=- src=sdsys/messages/3117:1#f784e2a5
-
-```
-GRAND.TOTAL text on same line as values
-```
-
 ### msg:3118
 > kind=message tier=reference since=- src=sdsys/messages/3118:1#b322665c
 
 ```
 Suppress program details on abort
-```
-
-### msg:3119
-> kind=message tier=reference since=- src=sdsys/messages/3119:1#112fd145
-
-```
-Reserved: has no effect (it rebound AccuTerm keys on entry to the debugger)
-```
-
-### msg:3120
-> kind=message tier=reference since=- src=sdsys/messages/3120:1#b0c3e3b6
-
-```
-Don't ask for confirmation on FD command in ED
 ```
 
 ### msg:3121
@@ -12902,81 +12818,11 @@ Don't query use of select list
 Do not delete unnamed common on CHAIN
 ```
 
-### msg:3123
-> kind=message tier=reference since=- src=sdsys/messages/3123:1#f6216940
-
-```
-Preserve case in directory file select
-```
-
-### msg:3124
-> kind=message tier=reference since=- src=sdsys/messages/3124:1#682917e5
-
-```
-Keep operating system file name case in CREATE.FILE
-```
-
-### msg:3125
-> kind=message tier=reference since=- src=sdsys/messages/3125:1#5530579b
-
-```
-Pick style processing of single value item in BY.EXP
-```
-
 ### msg:3126
 > kind=message tier=reference since=- src=sdsys/messages/3126:1#3dc06f8e
 
 ```
 Phantom inherits option settings
-```
-
-### msg:3127
-> kind=message tier=reference since=- src=sdsys/messages/3127:1#f0697499
-
-```
-Case insensitive query processor selection operators
-```
-
-### msg:3128
-> kind=message tier=reference since=- src=sdsys/messages/3128:1#6bdfba9b
-
-```
-Beep once per second when waiting for a lock
-```
-
-### msg:3129
-> kind=message tier=reference since=- src=sdsys/messages/3129:1#a2c0cbbe
-
-```
-Implied EQ between field and literal in query
-```
-
-### msg:3130
-> kind=message tier=reference since=- src=sdsys/messages/3130:1#0079cd0e
-
-```
-AND has priority over OR operator in query processor
-```
-
-### msg:3131
-> kind=message tier=reference since=- src=sdsys/messages/3131:1#1fce96db
-
-```
-Don't roll overlarge day number into next month
-```
-
-### msg:3132
-> kind=message tier=reference since=- src=sdsys/messages/3132:1#fc2381f6
-
-```
-Proc A(n,m) command ignores field mark
-```
-
-### msg:3133
-> kind=message tier=reference since=- src=sdsys/messages/3133:1#219fbe0f
-
-```
-MCT conversion uppercases after space
 ```
 
 ### msg:3200

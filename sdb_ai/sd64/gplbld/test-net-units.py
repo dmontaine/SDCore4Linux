@@ -2500,11 +2500,11 @@ def checks_s2(srcs, c, ck):
     nlr = fn("netfiles.c", "net_lock_result")      # S.72: the tail of net_lock_step, shared with net_filelock_step
     ck("S2l net_lock_step: the lock is asked once in the no-wait form with only the ON ERROR bit set (process.op_flags is 0 again straight after the request) and the answer goes to net_lock_result (S.72: the tail "
        "of net_lock_step, moved out so that the record lock and the file lock cannot wait differently); net_lock_result: held answers NET_LOCK_HELD; an error is returned as it is; a busy record with a LOCKED clause answers "
-       "NET_LOCK_LOCKED with the holder in process.status; a busy record without one sets the opcode up to run again (pc = retry_pc, process.op_flags = op_flags), processes events, beeps and sleeps 250 ms and "
+       "NET_LOCK_LOCKED with the holder in process.status; a busy record without one sets the opcode up to run again (pc = retry_pc, process.op_flags = op_flags), processes events, sleeps 250 ms (27 Oct 26: it no longer beeps, lock.beep is gone) and "
        "answers NET_LOCK_WAIT; the handler is never asked to wait (net_lock sends NF_LOCK with the kind letter u or l)",
        nl != "" and nlr != "" and ordered(nl, "process.op_flags = op_flags & P_ON_ERROR;", "net_lock(fvar, id, id_len, update)", "process.op_flags = 0;", "return net_lock_result(st, op_flags, retry_pc);")
        and ordered(nlr, "return NET_LOCK_HELD;", "if (st != ER_LCK)", "return st;",
-                   "holder = process.status;", "if (op_flags & P_LOCKED)", "return NET_LOCK_LOCKED;", "pc = retry_pc;", "process.op_flags = op_flags;", "process_events();", "lock_beep();", "Sleep(250);",
+                   "holder = process.status;", "if (op_flags & P_LOCKED)", "return NET_LOCK_LOCKED;", "pc = retry_pc;", "process.op_flags = op_flags;", "process_events();", "Sleep(250);",
                    "return NET_LOCK_WAIT;")
        and nf.count("pc = retry_pc;") == 1 and "pc = retry_pc;" in nlr and 'update ? "u" : "l"' in fn("netfiles.c", "net_lock") and "NF_LOCK" in fn("netfiles.c", "net_lock"), "")
     rel, rela, flc = fn("netfiles.c", "net_release"), fn("netfiles.c", "net_release_all"), fn("netfiles.c", "net_flush_closes")

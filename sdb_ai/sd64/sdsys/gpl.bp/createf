@@ -154,22 +154,20 @@ $define default.split.load 80
 *   followed by CREATE.FILE mydata used to make two.  So the name is first
 *   resolved the way every lookup folds it (as typed, lower, upper): an entry
 *   that already exists keeps its id, and only a name with no entry at all
-*   becomes lower case.  The CREATE.FILE.CASE option still means "exactly as
-*   typed", which is the administrator's deliberate way back.
-   if not(option(OPT.CREATE.FILE.CASE)) then
-      read voc.rec from voc.f, file.name else
-         read voc.rec from voc.f, downcase(file.name) then
-            file.name = downcase(file.name)
+*   becomes lower case.  (27 Oct 26: the CREATE.FILE.CASE option, the way back to
+*   "exactly as typed", is gone - owner's emulation survey, A-039.)
+   read voc.rec from voc.f, file.name else
+      read voc.rec from voc.f, downcase(file.name) then
+         file.name = downcase(file.name)
+      end else
+         read voc.rec from voc.f, upcase(file.name) then
+            file.name = upcase(file.name)
          end else
-            read voc.rec from voc.f, upcase(file.name) then
-               file.name = upcase(file.name)
-            end else
-               file.name = downcase(file.name)
-            end
+            file.name = downcase(file.name)
          end
       end
-      component = downcase(component)
    end
+   component = downcase(component)
 
    * Check for file type keyword. We default to DYNAMIC
 
@@ -412,11 +410,7 @@ $define default.split.load 80
 
                * Transform invalid o/s names
 
-               if option(OPT.CREATE.FILE.CASE) then
-                  os.name = ospath(file.name, OS$MAPPED.NAME)
-               end else
-                  os.name = ospath(downcase(file.name), OS$MAPPED.NAME)   ;* 13 Sep 26 D4
-               end
+               os.name = ospath(downcase(file.name), OS$MAPPED.NAME)   ;* 13 Sep 26 D4
                new.path = old.path : @ds : os.name
 
                subfiles = dir(old.path)
@@ -486,11 +480,7 @@ $define default.split.load 80
 
    * Form operating system file name from VOC record name
 
-   if option(OPT.CREATE.FILE.CASE) then
-      os.name = ospath(file.name, OS$MAPPED.NAME)
-   end else
-      os.name = ospath(downcase(file.name), OS$MAPPED.NAME)   ;* 13 Sep 26 D4
-   end
+   os.name = ospath(downcase(file.name), OS$MAPPED.NAME)   ;* 13 Sep 26 D4
 
    * Check if operating system components already exist
 
@@ -498,7 +488,7 @@ $define default.split.load 80
 *   ".DIC" on a lower-case name is a mixed name.  Decided by the option, not by
 *   testing os.name, because OS$MAPPED.NAME escapes a restricted character with
 *   an UPPER-case letter (%E), and that must not flip the suffix.
-   if option(OPT.CREATE.FILE.CASE) then dict.suffix = '.DIC' else dict.suffix = '.dic'
+   dict.suffix = '.dic'
 
    if create.dict and not(using.dict) then
       dict.path = dir.name.with.delimiter : os.name : dict.suffix
@@ -536,11 +526,7 @@ $define default.split.load 80
             if dir.name.with.delimiter[1] # @ds then dir.name.with.delimiter := @ds
          end
 
-         if option(OPT.CREATE.FILE.CASE) then
-            os.name = ospath(component, OS$MAPPED.NAME)
-         end else
-            os.name = ospath(downcase(component), OS$MAPPED.NAME)   ;* 13 Sep 26 D4
-         end
+         os.name = ospath(downcase(component), OS$MAPPED.NAME)   ;* 13 Sep 26 D4
       end
 
       data.path = dir.name.with.delimiter : os.name

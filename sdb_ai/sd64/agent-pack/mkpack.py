@@ -762,8 +762,8 @@ def mode_chunks(ctx, since, mentions):
         srcs = [ctx.src(opt_rel, i)]
         body = ["`option %s` {on | off | display}" % name.lower(), ""]
         if flag:
-            body.append("- belongs to the option group `%s` (`option %s on|off` sets the whole group)" % ({"P": "pick", "W": "sdbasic.warnings"}.get(flag, flag.lower()),
-                                                                                                  {"P": "pick", "W": "sdbasic.warnings"}.get(flag, flag.lower())))
+            body.append("- belongs to the option group `%s` (`option %s on|off` sets the whole group)" % ({"W": "sdbasic.warnings"}.get(flag, flag.lower()),
+                                                                                                  {"W": "sdbasic.warnings"}.get(flag, flag.lower())))
         mrel = "sdsys/messages/" + msg
         if ctx.exists(mrel):
             body.append("- what it does (message %s): %s" % (msg, clean(" ".join(ctx.lines(mrel)))))
@@ -772,7 +772,7 @@ def mode_chunks(ctx, since, mentions):
         if m2:
             body.append("- docs: `%s` line %d" % (m2[0][5:], m2[1]))
         out.append(Chunk("basic:option:" + name.lower(), "basic.option", "reference", since.of(name), srcs, "\n".join(body), "basic-modes"))
-    if nopt < 40:
+    if nopt < 30:                                    # 27 Oct 26: 39 option words since the 22 that imitated other products were removed (blank rows are not counted); 61 before
         raise SystemExit("mkpack: only %d OPTION names found in gpl.bp/option - refusing" % nopt)
     return out
 

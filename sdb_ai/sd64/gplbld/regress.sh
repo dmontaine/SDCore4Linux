@@ -24,7 +24,7 @@
 # WHY A SNAPSHOT.  Each suite builds its sandbox from the tree it lives in, so editing a kernel source while the run
 # is going voids the suites still to come.  --snapshot makes a copy of the tree, builds it, runs the suites in the
 # copy and removes it afterwards, so the live tree is free to edit.  By hand, the same is:
-#   git ls-files -z --cached --others --exclude-standard sdb_ai | rsync -a --from0 --files-from=- ./ COPY/
+#   git ls-files -z --cached --others --exclude-standard sdb_ai | (the names that exist) | rsync -a --from0 --files-from=- ./ COPY/
 #   cp sdb_ai/sd64/gplsrc/sdext_python_inc.h COPY/sdb_ai/sd64/gplsrc/      (git ignores it; the build needs it)
 #   cp installsdcore.sh deletesdcore.sh PROJECT_STATUS.md PRE_RELEASE_FIXES.md PORT_ADOPTION.md COPY/   (the --free checks read them)
 #   (cd COPY/sdb_ai/sd64 && make)                                           (SERIAL: make -j races sdtic and terminfo)
@@ -312,7 +312,10 @@ if [ $SNAPSHOT -eq 1 ]; then
   fi
   SNAP="$RUN/snap"
   mkdir -p "$SNAP"
-  (cd "$REPO" && git ls-files -z --cached --others --exclude-standard sdb_ai | rsync -a --from0 --files-from=- ./ "$SNAP"/) \
+  # 27 Oct 26: --cached also lists a tracked file the work tree no longer has (a deleted file), and rsync refuses it: only files that exist are copied
+  (cd "$REPO" && git ls-files -z --cached --others --exclude-standard sdb_ai \
+     | while IFS= read -r -d '' f; do [ -e "$f" ] && printf '%s\0' "$f"; done \
+     | rsync -a --from0 --files-from=- ./ "$SNAP"/) \
     || { echo "regress: CANNOT RUN - the copy of the tree failed" >&2; rm -rf "$SNAP"; exit 2; }
   if [ -f "$TREE/gplsrc/sdext_python_inc.h" ]; then
     mkdir -p "$SNAP/sdb_ai/sd64/gplsrc"
