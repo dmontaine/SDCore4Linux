@@ -689,10 +689,10 @@ Error %d redirecting stderr
 ```
 
 ### msg:10149
-> kind=message tier=reference since=- src=sdsys/messages/10149:1#e1dd77ea
+> kind=message tier=reference since=- src=sdsys/messages/10149:1#9f7e64fd
 
 ```
-SD has no built-in help system.\n\nTo see the commands this account has, type:  listv\n\nWhat each release of SD changed, and why, is in %1
+SD has no built-in help system.\n\nTo see the commands this account has, type:  list voc with type = "V"\n\nWhat each release of SD changed, and why, is in %1
 ```
 
 cited by: `cproc`
@@ -3807,10 +3807,10 @@ The dictionary item %1 cannot be compiled
 cited by: `apisrvr`
 
 ### msg:11342
-> kind=message tier=reference since=- src=sdsys/messages/11342:1#8662cd1a
+> kind=message tier=reference since=- src=sdsys/messages/11342:1#a67c6030
 
 ```
-%1 is not a dictionary item that defines data (types D, A, S, C and I do)
+%1 is not a dictionary item that defines data (types D, A, S and I do)
 ```
 
 cited by: `apisrvr`
@@ -10023,10 +10023,10 @@ Compilation error in %1
 cited by: `acomp`, `bcomp`, `icomp`, `mkindx`
 
 ### msg:2613
-> kind=message tier=reference since=- src=sdsys/messages/2613:1#aec90fbb
+> kind=message tier=reference since=- src=sdsys/messages/2613:1#58f5ece1
 
 ```
-%1 is not a A, C, D, I or S-type dictionary item
+%1 is not a A, D, I or S-type dictionary item
 ```
 
 cited by: `mkindx`
@@ -11986,15 +11986,6 @@ cited by: `basic`
 
 ```
 Statement/function not allowed in a recursive program
-```
-
-cited by: `bcomp`
-
-### msg:2994
-> kind=message tier=reference since=- src=sdsys/messages/2994:1#182faca4
-
-```
-Statement/function not allowed in a C-type record
 ```
 
 cited by: `bcomp`
@@ -15753,15 +15744,6 @@ DATA part of file already exists
 
 cited by: `createf`
 
-### msg:6103
-> kind=message tier=reference since=- src=sdsys/messages/6103:1#20134126
-
-```
-%1 already exists but not as a multifile
-```
-
-cited by: `createf`
-
 ### msg:6104
 > kind=message tier=reference since=- src=sdsys/messages/6104:1#f3b31bea
 
@@ -15931,15 +15913,6 @@ Created DICT part as %1
 
 cited by: `createf`
 
-### msg:6124
-> kind=message tier=reference since=- src=sdsys/messages/6124:1#be4172e0
-
-```
-Unable to create directory %1
-```
-
-cited by: `createf`
-
 ### msg:6125
 > kind=message tier=reference since=- src=sdsys/messages/6125:1#76b1dc7a
 
@@ -16010,24 +15983,6 @@ Cannot delete system file %1
 
 cited by: `deletef`
 
-### msg:6133
-> kind=message tier=reference since=- src=sdsys/messages/6133:1#75ada6bc
-
-```
-Delete all data components of multifile - Y all, N dictionary only, C cancel (y/n/<c>)? 
-```
-
-cited by: `deletef`
-
-### msg:6134
-> kind=message tier=reference since=- src=sdsys/messages/6134:1#e4a2110a
-
-```
-Multifile component not found
-```
-
-cited by: `deletef`
-
 ### msg:6135
 > kind=message tier=reference since=- src=sdsys/messages/6135:1#186a9921
 
@@ -16042,15 +15997,6 @@ cited by: `deletef`
 
 ```
 DATA portion '%1' deleted
-```
-
-cited by: `deletef`
-
-### msg:6137
-> kind=message tier=reference since=- src=sdsys/messages/6137:1#916f7b1a
-
-```
-Multifile directory '%1' deleted'
 ```
 
 cited by: `deletef`
@@ -16141,15 +16087,6 @@ cited by: `deletef`
 
 ```
 %1 not valid when renaming a file
-```
-
-cited by: `cname`
-
-### msg:6148
-> kind=message tier=reference since=- src=sdsys/messages/6148:1#af42c698
-
-```
-Renaming of multifiles is not supported at this release
 ```
 
 cited by: `cname`
@@ -16270,15 +16207,6 @@ Cannot read old record '%1'
 ```
 
 cited by: `cname`
-
-### msg:6162
-> kind=message tier=reference since=- src=sdsys/messages/6162:1#79dd3fc3
-
-```
-Converting to multifile named "%1,%1"
-```
-
-cited by: `createf`
 
 ### msg:6163
 > kind=message tier=reference since=- src=sdsys/messages/6163:1#9ee54c9c
@@ -16568,15 +16496,6 @@ cited by: `copy`
 
 cited by: `copy`
 
-### msg:6195
-> kind=message tier=reference since=- src=sdsys/messages/6195:1#e98ae1a8
-
-```
-Convert to multifile named "%1,%1" (y/<n>)? 
-```
-
-cited by: `createf`
-
 ### msg:6196
 > kind=message tier=reference since=- src=sdsys/messages/6196:1#33bbbe53
 
@@ -16584,16 +16503,7 @@ cited by: `createf`
 Unable to create %1
 ```
 
-cited by: `createf`, `mkindx`
-
-### msg:6197
-> kind=message tier=reference since=- src=sdsys/messages/6197:1#4ecbe699
-
-```
-Error %1.%2 moving %3
-```
-
-cited by: `createf`
+cited by: `mkindx`
 
 ### msg:6198
 > kind=message tier=reference since=- src=sdsys/messages/6198:1#33e17aa6
@@ -16619,15 +16529,6 @@ cited by: `deletef`
 ```
 Cannot rename operating system items for files with relocated indices
 ```
-
-### msg:6201
-> kind=message tier=reference since=- src=sdsys/messages/6201:1#96540717
-
-```
-Subfile %1 would be created from the existing data element
-```
-
-cited by: `createf`
 
 ### msg:6202
 > kind=message tier=reference since=- src=sdsys/messages/6202:1#6d1dca02

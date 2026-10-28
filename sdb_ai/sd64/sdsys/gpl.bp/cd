@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
 * 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 17 Oct 26 dm  S.64 part 2 (the edit gates): CD DATA file opens an ordinary file and rewrites the records it names as if they were
@@ -37,18 +38,18 @@
 *
 *   Defaults to DICT portion of file.
 *
-*   If I-type name is omitted, all A, C, I and S-types are compiled unless the
+*   If I-type name is omitted, all A, I and S-types are compiled unless the
 *   default select list is active, in which case it is used.
 *
 * CD LOCAL
 *
-*   Compiles all dictionary A, C, I and S-types in the account.  All F-type
+*   Compiles all dictionary A, I and S-types in the account.  All F-type
 *   VOC items where the dictionary pathname does not include a directory
 *   separator are processed.
 *
 * CD ALL
 *
-*   Compiles all dictionary A,C,I and S-types visible from the account.
+*   Compiles all dictionary A, I and S-types visible from the account.
 *
 *
 * @SYSTEM.RETURN.CODE
@@ -90,7 +91,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
 
    * Get file name
 
-   call @parser(PARSER$MFILE, token.type, file.name, keyword)
+   call @parser(PARSER$GET.TOKEN, token.type, file.name, keyword)
    if token.type = PARSER$END then stop sysmsg(2102) ;* File name required
 
    begin case
@@ -143,7 +144,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
          file.to.open = file.name
          begin case
          case upcase(field(file.to.open, ' ', 1)) = 'DATA'
-            call @parser(PARSER$MFILE, token.type, file.name, keyword)
+            call @parser(PARSER$GET.TOKEN, token.type, file.name, keyword)
             if token.type = PARSER$END then stop sysmsg(2102) ;* File name required
             file.to.open = file.name
             data.form = @true

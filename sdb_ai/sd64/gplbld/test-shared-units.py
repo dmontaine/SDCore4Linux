@@ -56,7 +56,7 @@ C_NAMED = ("keys.h", "sysseg.h", "sd.h", "op_sh.c", "op_kernel.c", "op_dio1.c", 
            "op_jumps.c", "kernel.c")
 EDIT_MSG_SITES = (("edit_guard", "display edit_msg(kind)"), ("ide", "msg = edit_msg(edit.kind)"), ("ced_edit", "message.text = edit_msg(edit.kind)"),
                   ("spview", "prompt.text = edit_msg(edit.kind)"), ("sed", "message = edit_msg(edit.kind)"), ("cname", "stop edit_msg(ek.kind)"),
-                  ("createf", "stop edit_msg(ek.kind)"), ("deletef", "stop edit_msg(ef.kind)"), ("apisrvr", "error.msg = edit_msg(ed.kind)"))
+                  ("createf", "stop edit_msg(kernel(K$EDIT.KIND, vp))"), ("deletef", "stop edit_msg(ef.kind)"), ("apisrvr", "error.msg = edit_msg(ed.kind)"))
 
 
 def strip_c(src):
@@ -378,10 +378,10 @@ def checks(srcs):
 
     # ---- L. the BASIC lookup ------------------------------------------------------------------------------------------------------
     vr = B("_voc_ref")
-    fb = "if allow.shared and component = '' and not(vr.admin) then"
+    fb = "if allow.shared and not(vr.admin) then"
     fbb = between(vr, fb, "parse.as.q.pointer:")
     ck("L1 _voc_ref has a fifth argument, deffun shared_ref calling !shared_ref, and the fallback is in the else of the account's own first VOC read: AFTER the three folds "
-       "(the account's own entry always wins; the PATH: / Account:File forms are gone, S.87), guarded by allow.shared, no component, not the administrator and the session's K$SHARED.READ, BEFORE the final ER$NVR; "
+       "(the account's own entry always wins; the PATH: / Account:File forms are gone, S.87), guarded by allow.shared, not the administrator and the session's K$SHARED.READ, BEFORE the final ER$NVR; "
        "on an answer it sets pathname and vflags and returns status 0",
        "subroutine voc_ref(filename, is.dict, pathname, vflags, allow.shared)" in vr and "deffun shared_ref(name, fno, quiet) calling '!shared_ref'" in vr
        and ordered(vr, "read voc.rec from voc,voc.id else", "read voc.rec from voc,downcase(voc.id) then", "read voc.rec from voc,upcase(voc.id) then", fb)
@@ -402,10 +402,11 @@ def checks(srcs):
        and re.search(r"read stock\.rec from stock\.f, lname then\s*close stock\.f\s*return ''\s*end", sr_) is not None
        and "letters = 'abcdefghijklmnopqrstuvwxyz'" in sr_ and "digits = '0123456789'" in sr_, "")
     ck("L2c ...step 6 to 8: the register record of the account called shared must exist, must not be SUSPENDED, and its path must be absolute (no token expansion); then its VOC is opened, read with the "
-       "same three folds as _voc_ref, and the entry must be an F (upcase of the first character) that is not a multifile",
+       "same three folds as _voc_ref, and the entry must be an F (upcase of the first character); field 4 is not looked at (multifiles are gone, 28 Oct 26)",
        ordered(sr_, "openpath @sdsys:@ds:'accounts' to acc.f else return ''", "read acc.rec from acc.f, 'shared' else", "upcase(trim(acc.rec<ACC$SUSPENDED>)) = 'SUSPENDED' then return ''",
                "spath[1,1] # @ds then return ''", "openpath spath:@ds:'voc' to svoc else return ''", "read rec from svoc, name then", "read rec from svoc, lname then",
-               "read rec from svoc, upcase(name) then", "if not(found) then return ''", "if upcase(rec[1,1]) # 'F' then return ''", "if rec<4> # '' then return ''"), "")
+               "read rec from svoc, upcase(name) then", "if not(found) then return ''", "if upcase(rec[1,1]) # 'F' then return ''")
+       and "rec<4>" not in sr_, "")
     ck("L2d ...step 9 to 11: the pathname is field fno of the entry, an empty one refuses, one that begins with @ refuses (no token expansion), a relative one is taken from the shared directory; "
        "THEN the kernel's acceptance (K$SHARED.REF with the catalogue's name); only THEN the audit, once for each name, for a lookup and not for list.shared; the answer is the path and "
        "the VOC flags in capitals",
@@ -690,9 +691,8 @@ MUTANTS = [
     ("the fifth argument is not pushed", "c:op_dio1.c", "  (e_stack++)->data.value = allow_shared;", "  (e_stack++)->data.value = 0;"),
     ("OPENSEQ follows shared", "c:op_seqio.c", "get_voc_file_reference(file_name, FALSE, file_name, vflags)", "get_voc_file_reference_ex(file_name, FALSE, file_name, vflags, TRUE)"),
     # ---- the BASIC lookup ----
-    ("_voc_ref follows shared for every caller", "bp:_voc_ref", "if allow.shared and component = '' and not(vr.admin) then", "if component = '' and not(vr.admin) then"),
-    ("_voc_ref follows shared for the administrator", "bp:_voc_ref", "if allow.shared and component = '' and not(vr.admin) then", "if allow.shared and component = '' then"),
-    ("_voc_ref follows shared for name,component", "bp:_voc_ref", "if allow.shared and component = '' and not(vr.admin) then", "if allow.shared and not(vr.admin) then"),
+    ("_voc_ref follows shared for every caller", "bp:_voc_ref", "if allow.shared and not(vr.admin) then", "if not(vr.admin) then"),
+    ("_voc_ref follows shared for the administrator", "bp:_voc_ref", "if allow.shared and not(vr.admin) then", "if allow.shared then"),
     ("_voc_ref does not ask the session's gate", "bp:_voc_ref", "         if kernel(K$SHARED.READ, -1) then\n            shared.ans", "         if @true then\n            shared.ans"),
     ("_voc_ref takes the vflags nowhere", "bp:_voc_ref", "               vflags = shared.ans<2>\n", ""),
     ("_voc_ref has no fifth argument", "bp:_voc_ref", "subroutine voc_ref(filename, is.dict, pathname, vflags, allow.shared)", "subroutine voc_ref(filename, is.dict, pathname, vflags)"),
@@ -707,7 +707,7 @@ MUTANTS = [
     ("shared_ref ignores a suspended account", "bp:shared_ref", "   if upcase(trim(acc.rec<ACC$SUSPENDED>)) = 'SUSPENDED' then return ''\n", ""),
     ("shared_ref accepts a relative path for the account", "bp:shared_ref", "   if spath[1,1] # @ds then return ''\n", ""),
     ("shared_ref accepts any VOC type", "bp:shared_ref", "   if upcase(rec[1,1]) # 'F' then return ''\n", ""),
-    ("shared_ref accepts a multifile", "bp:shared_ref", "   if rec<4> # '' then return ''           ;* a multifile\n", ""),
+    ("shared_ref refuses an F entry with a value in field 4 again", "bp:shared_ref", "   if upcase(rec[1,1]) # 'F' then return ''\n", "   if upcase(rec[1,1]) # 'F' then return ''\n   if rec<4> # '' then return ''\n"),
     ("shared_ref expands tokens", "bp:shared_ref", "   if p[1,1] = '@' then return ''          ;* no token expansion\n", ""),
     ("shared_ref forgets the kernel's acceptance", "bp:shared_ref", "   if not(kernel(K$SHARED.REF, p : @fm : fno : @fm : catname)) then return ''\n", ""),
     ("shared_ref audits every open", "bp:shared_ref", "      if kernel(K$SHARED.ONCE, lname) then", "      if @true then"),

@@ -9,7 +9,7 @@
 #           than the session (2)
 #     Q.22  logtoaccess: the administrator keeps its access across LOGTOs (2b)
 #     S.10  RUN folds the program name (3b)
-#     W.2   Enter at 2050 means N; W.3  6133 cancels on Enter or C (5b)
+#     W.2   Enter at 2050 means N (5b; W.3, 6133, went with multifiles)
 #     S.4   struck (the tier version of the OS.EXECUTE gate; the per-account
 #           gate, S.63, is witness-absence.sh M4 and sandbox-gates.py)
 #     S.3   struck (one VOC layer: NEWVOC as shipped for every account)
@@ -723,13 +723,11 @@ fi
 # DELETE.FILE, so this runs while zzrel1 is still ADMINISTRATOR.
 #   2050 via SSELECT VOC SAMPLE 1 + CT VOC (CT only displays): Enter must
 #        display nothing and let WHO run; the Y control must display it.
-#   6133 via a two-component multifile: Enter and C must delete nothing and
-#        leave both components and the dictionary on disk; the N control
-#        must still delete the dictionary only (N then Y, in case 6140 asks).
-head2 "5b. W.2 / W.3 - Enter at 2050 means N; 6133 cancels on Enter or C"
-MF=zzpromptm
+#   (6133, the multifile cancel prompt, and its legs M0 to M3 went with multifiles,
+#   28 Oct 26, S.87.)
+head2 "5b. W.2 - Enter at 2050 means N"
 if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
-    for r in "P1 2050 prompt" "P2 Enter showed nothing" "P3 WHO ran" "P4 Y control" "M0 multifile built" "M1 Enter cancels" "M2 C cancels" "M3 N control"; do not_reached "$r"; done
+    for r in "P1 2050 prompt" "P2 Enter showed nothing" "P3 WHO ran" "P4 Y control"; do not_reached "$r"; done
 else
     OUT=$(run_sd "$ACC" "2050 answered with ENTER, then WHO" "SSELECT VOC SAMPLE 1" "CT VOC" "" "WHO")
     if [ "$COMMIT" -eq 1 ]; then
@@ -753,44 +751,6 @@ else
             ck "P4 control: Y displays 'VOC $ID7'" yes yes
         else
             ck "P4 control: Y displays 'VOC $ID7'" yes no
-        fi
-    fi
-
-    OUT=$(run_sd "$ACC" "make the multifile $MF (components c1, c2)" \
-          "CREATE.FILE $MF,c1" "CREATE.FILE $MF,c2" "CT VOC $MF")
-    MF_OK=0
-    if [ "$COMMIT" -eq 1 ]; then
-        say "  on disk: $(ls -d "$ADIR/$MF"/* "$ADIR/$MF.dic" 2>&1 | tr '\n' ' ')"
-        [ -d "$ADIR/$MF/c1" ] && [ -d "$ADIR/$MF/c2" ] && [ -e "$ADIR/$MF.dic" ] && MF_OK=1
-        ck "M0 $MF has components c1, c2 and a dictionary on disk" 1 "$MF_OK"
-    fi
-    for ANS in "" "C"; do
-        LABEL=$([ -z "$ANS" ] && echo ENTER || echo C)
-        if [ "$COMMIT" -eq 1 ] && [ "$MF_OK" -ne 1 ]; then
-            not_reached "M $LABEL cancels"; continue
-        fi
-        OUT=$(run_sd "$ACC" "DELETE.FILE $MF answered with $LABEL, then WHO" "DELETE.FILE $MF" "$ANS" "WHO")
-        if [ "$COMMIT" -eq 1 ]; then
-            ck_says  "M.$LABEL.1 6133 reached, showing (y/n/<c>)" "C cancel (y/n/<c>)?" "$OUT"
-            ck_absent "M.$LABEL.2 no DATA portion deleted" "DATA portion '" "$OUT"
-            ck_absent "M.$LABEL.3 no DICT portion deleted" "DICT portion '" "$OUT"
-            ck "M.$LABEL.4 c1, c2 and the dictionary survive on disk" 1 \
-               "$( [ -d "$ADIR/$MF/c1" ] && [ -d "$ADIR/$MF/c2" ] && [ -e "$ADIR/$MF.dic" ] && echo 1 || echo 0)"
-            if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
-                ck "M.$LABEL.5 the session went on to WHO" yes yes
-            else
-                ck "M.$LABEL.5 the session went on to WHO" yes no
-            fi
-        fi
-    done
-    if [ "$COMMIT" -eq 1 ] && [ "$MF_OK" -ne 1 ]; then
-        not_reached "M3 N control"
-    else
-        OUT=$(run_sd "$ACC" "control: DELETE.FILE $MF answered N (then Y, if 6140 asks)" "DELETE.FILE $MF" "N" "Y")
-        if [ "$COMMIT" -eq 1 ]; then
-            ck_says "M3.a control: N deleted the dictionary" "DICT portion '" "$OUT"
-            ck "M3.b control: the dictionary is gone and c1 remains" 1 \
-               "$( [ ! -e "$ADIR/$MF.dic" ] && [ -d "$ADIR/$MF/c1" ] && echo 1 || echo 0)"
         fi
     fi
 fi
@@ -879,20 +839,20 @@ A2DIR="$ACCOUNTS_ROOT/$ACC2"
 # A plain account must lack the admin verbs, which exist only in SDSYS's VOC
 # (built from the whole of VOC_TEMPLATE at install); UPDATE.ACCOUNTS refuses a
 # stray word and ALL updates every account without asking (THIS TOUCHES REAL
-# ACCOUNTS' VOCs, exactly as every install does); a new account's LISTF has
-# descriptions; DELETE.ACCOUNT of the SD-created user asks ONE question naming
+# ACCOUNTS' VOCs, exactly as every install does); a new account's file
+# list (LIST VOC WITH TYPE = "F" DESC; the LISTF sentence went with sd.voclib, 28 Oct 26) has descriptions; DELETE.ACCOUNT of the SD-created user asks ONE question naming
 # the user and home, then removes both.  zzrel3 is created by SD (its useradd
 # stamps GECOS "SD account"), exactly the branch the old run could only reach
 # by hand.
 head2 "12. S.5 - the parity audit's witness list"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
-    for r in "V1-3 a plain account lacks" "V4-6 sdsys has" "V7 listf" "V8 10173" "V9 10170" "V10 10171" "D1 SD created" "D2 one question" "D3 home named" "D4 user gone" "D5 home gone" "D6 register gone"; do not_reached "$r"; done
+    for r in "V1-3 a plain account lacks" "V4-6 sdsys has" "V7 list voc" "V8 10173" "V9 10170" "V10 10171" "D1 SD created" "D2 one question" "D3 home named" "D4 user gone" "D5 home gone" "D6 register gone"; do not_reached "$r"; done
 else
-    OUT=$(run_sd "$ACC" "plain account: CT VOC sh, create.account, config; LISTF" "CT VOC sh" "CT VOC create.account" "CT VOC config" "LISTF")
+    OUT=$(run_sd "$ACC" "plain account: CT VOC sh, create.account, config; list voc" "CT VOC sh" "CT VOC create.account" "CT VOC config" "LIST VOC WITH TYPE = \"F\" DESC")
     if [ "$COMMIT" -eq 1 ]; then
         ck_line "V1a a plain account HAS sh (S.27: SH for every account)" "VOC sh" "$OUT"
         for v in create.account config; do ck_says "V1 a plain account lacks $v" "Record '$v' not found" "$OUT"; done
-        ck_says "V7 a new account's LISTF shows descriptions" "File for BASIC programs" "$OUT"
+        ck_says "V7 a new account's list voc shows descriptions" "File for BASIC programs" "$OUT"
     fi
     OUT=$(run_sd sdsys "sdsys: CT VOC sh, create.account, config" "CT VOC sh" "CT VOC create.account" "CT VOC config")
     if [ "$COMMIT" -eq 1 ]; then

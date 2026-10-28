@@ -126,9 +126,9 @@ def checks(raw):
        "sent = 'delete dict ' : fn : ' ' : iid" in de and "iid = iids<ishown<ci>>" in de and de.count("gosub check.word") == 2 and de.find("gosub check.word") < de.find("sent = ")
        and "call $tk_confirm(sent, lines, iid, res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent" in de, "")
     co = block(pg, "do.compile")
-    ck("TD10", "COMPILE is the COMPILE.DICT verb on an A, S, I or C item only (any other type is refused with the reason before a box), built from names that passed the name check, behind the box, and nothing is sent unless it answered Run",
-       "if index(' A S I C ', ' ' : ma<1, 1> : ' ', 1) = 0 then" in co and "sent = 'compile.dict ' : fn : ' ' : iid" in co and co.count("gosub check.word") == 2
-       and inorder(co, "if index(' A S I C '", "gosub check.word", "sent = ", "call $tk_confirm(sent, lines, '', res, cmsg)", "if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent"), "")
+    ck("TD10", "COMPILE is the COMPILE.DICT verb on an A, S or I item only (a C item is refused by the verb itself, message 11993; any other type is refused with the reason before a box), built from names that passed the name check, behind the box, and nothing is sent unless it answered Run",
+       "if index(' A S I ', ' ' : ma<1, 1> : ' ', 1) = 0 then" in co and "sent = 'compile.dict ' : fn : ' ' : iid" in co and co.count("gosub check.word") == 2
+       and inorder(co, "if index(' A S I '","gosub check.word", "sent = ", "call $tk_confirm(sent, lines, '', res, cmsg)", "if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent"), "")
     ed = block(pg, "do.edit")
     ck("TD11", "EDIT hands the terminal to SED on the item (sed dict FILE ITEM) with names that passed the name check; SED asks no box of its own and makes the kernel's dictionary check when it saves, so there is no write in the page for it",
        "sent = 'sed dict ' : fn : ' ' : iid" in ed and ed.count("gosub check.word") == 2 and "gosub hand.over" in ed and ed.find("gosub check.word") < ed.find("sent = ") < ed.find("gosub hand.over"), "")
@@ -183,8 +183,8 @@ def checks(raw):
        not re.search(r"^[ \t]*(write|writev|delete|execute|readu|clearfile)(?![.\w])", nostr(dt), re.M) and "call $tk_run" not in dt
        and inorder(dt, "needs.obj = ", "if needs.obj and (rec<DICT.SYS.INFO> = '' or rec<DICT.ITYPE.OBJECT> = '') then", "screen ask 'Id of a record of '", "read drec from df, rid then", "@id = rid", "@record = drec", "try\n      val = itype(rec)", "catch sys", "failed = @exception.data")
        and "close df" in dt and "close dv" in dt, "")
-    ck("TD25", "TRY shows the value of a D, A, S, I or C item only (the other types hold no value), and the value as a query prints it - conversion, then format - only for a format the page can read, each inside a TRY",
-       "if index(' D A S I C ', ' ' : ty : ' ', 1) = 0 then" in dt and "fmt.ok = (fs # '' and fw # '' and fj # '' and index('LRCU', fj, 1) > 0)" in dt and inorder(dt, "if cv # '' then shown.v = oconv(one, cv)", "if fmt.ok then shown.v = fmt(shown.v, fs)", "catch sys"), "")
+    ck("TD25", "TRY shows the value of a D, A, S or I item only (the other types hold no value), and the value as a query prints it - conversion, then format - only for a format the page can read, each inside a TRY",
+       "if index(' D A S I ', ' ' : ty : ' ', 1) = 0 then" in dt and "fmt.ok = (fs # '' and fw # '' and fj # '' and index('LRCU', fj, 1) > 0)" in dt and inorder(dt, "if cv # '' then shown.v = oconv(one, cv)", "if fmt.ok then shown.v = fmt(shown.v, fs)", "catch sys"), "")
     ck("TD26", "a name that is not the page's to give is never given: no id, file name or index name reaches a command except through the routines above, and the commands are built in one place each (sent = ... appears once per verb)",
        all(pg.count(s) == 1 for s in ("sent = 'sed dict '", "sent = 'delete dict '", "sent = 'compile.dict '", "sent = 'create.index '", "sent = 'delete.index '", "sent = 'list.index '"))
        and pg.count("sent = 'build.index '") == 2, "")      # B, and the build that follows a good create.index in N
@@ -249,7 +249,7 @@ MUTANTS = [
                                                   "do.delete:\n   if nis < 1 then return\n   iid = iids<ishown<ci>>\n")),
     ("DELETE takes the id from the neighbour", "TD9", sub("page", "do.delete:\n   if nis < 1 then return\n   iid = iids<ishown<ci>>", "do.delete:\n   if nis < 1 then return\n   iid = iids<ishown<ci + 1>>")),
     ("DELETE is the plain delete verb", "TD9", sub("page", "sent = 'delete dict ' : fn : ' ' : iid", "sent = 'delete ' : fn : ' ' : iid")),
-    ("COMPILE is offered for every type", "TD10", sub("page", "   if index(' A S I C ', ' ' : ma<1, 1> : ' ', 1) = 0 then\n      msg = 'only A, S, I and C items are compiled; ' : iid : ' is of type ' : ma<1, 1>\n      return\n   end\n", "")),
+    ("COMPILE is offered for every type", "TD10", sub("page", "   if index(' A S I ', ' ' : ma<1, 1> : ' ', 1) = 0 then\n      msg = 'only A, S and I items are compiled; ' : iid : ' is of type ' : ma<1, 1>\n      return\n   end\n", "")),
     ("COMPILE runs whatever the box answered", "TD10", sub("page", "   call $tk_confirm(sent, lines, '', res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent\n   gosub read.items\n   gosub draw.all\n   return\n\n* In: fn.  Out: dpath", "   call $tk_confirm(sent, lines, '', res, cmsg)\n   gosub run.sent\n   gosub read.items\n   gosub draw.all\n   return\n\n* In: fn.  Out: dpath")),
     ("COMPILE is the cd verb", "TD10", sub("page", "sent = 'compile.dict ' : fn : ' ' : iid", "sent = 'cd data ' : fn : ' ' : iid")),
     ("EDIT opens the item without checking the name", "TD11", sub("page", "do.edit:\n   if nis < 1 then return\n   iid = iids<ishown<ci>>\n   cw = iid\n   gosub check.word\n   if not(okname) then\n      msg = 'this id is not given to a command by the page (a character it does not pass, or an SD keyword): type  sed dict ' : fn : ' ' : iid : '  at the prompt'\n      return\n   end\n",
@@ -296,7 +296,7 @@ MUTANTS = [
     ("TRY evaluates outside a TRY", "TD24", sub("page", "   try\n      val = itype(rec)\n   catch sys\n      failed = @exception.data\n   end\n", "   val = itype(rec)\n")),
     ("TRY does not ask whether the item was compiled", "TD24", sub("page", "   if needs.obj and (rec<DICT.SYS.INFO> = '' or rec<DICT.ITYPE.OBJECT> = '') then", "   if 0 then")),
     ("TRY locks the record", "TD24", sub("page", "      read drec from df, rid then got.rec = 1 else got.rec = 0", "      readu drec from df, rid then got.rec = 1 else got.rec = 0")),
-    ("TRY shows every type", "TD25", sub("page", "   if index(' D A S I C ', ' ' : ty : ' ', 1) = 0 then\n      msg = 'only D, A, S, I and C items give a value for a record; '", "   if 0 then\n      msg = 'only D, A, S, I and C items give a value for a record; '")),
+    ("TRY shows every type", "TD25", sub("page", "   if index(' D A S I ', ' ' : ty : ' ', 1) = 0 then\n      msg = 'only D, A, S and I items give a value for a record; '", "   if 0 then\n      msg = 'only D, A, S and I items give a value for a record; '")),
     ("a command is built in two places", "TD26", sub("page", "   cw = fn\n   gosub check.word\n   if not(okname) then\n      msg = 'this file name is not given to a command by the page (a character it does not pass, or an SD keyword): type  build.index '", "   sent = 'build.index ' : fn\n   cw = fn\n   gosub check.word\n   if not(okname) then\n      msg = 'this file name is not given to a command by the page (a character it does not pass, or an SD keyword): type  build.index '")),
     ("the cursor does not go back to its item", "TD27", sub("page", "   if nis > 0 and ci >= 1 and ci <= nis then sel.i = iids<ishown<ci>>\n", "")),
     ("text from a dictionary is drawn as it is", "TD28", sub("page", "   ct = convert(ctl.set, ctl.rep, ct)\n", "")),

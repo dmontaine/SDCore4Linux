@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 27 Oct 26 dm  S.87 batch 4: field locations 9998 and 9999 are no longer skipped (they are ordinary numbers now); only location 0 is.
 * 17 Oct 26 dm  S.64 part 2 (the edit gates): GENERATE writes into two files the user names, the dictionary (the $INCLUDE control
@@ -80,7 +81,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
 
    * Get file name
 
-   call @parser(PARSER$MFILE, token.type, dict.name, keyword)
+   call @parser(PARSER$GET.TOKEN, token.type, dict.name, keyword)
    if token.type = PARSER$END then stop sysmsg(2102) ;* File name required
 
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword)

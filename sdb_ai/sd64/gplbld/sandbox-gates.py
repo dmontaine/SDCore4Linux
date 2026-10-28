@@ -903,7 +903,7 @@ def main():
     vp_prog = "\n".join([
         "   crt 'V begin'",
         "   names = 'outptr':@fm:'qok':@fm:'qnolog':@fm:'qsusp':@fm:'qraw':@fm:'newptr':@fm:'sd.accounts':@fm:'syscom'"
-        ":@fm:'sd.voclib':@fm:'$map':@fm:'bp'",
+        ":@fm:'$map':@fm:'bp'",
         "   for i = 1 to dcount(names, @fm)",
         "      nm = names<i>",
         "      open nm to f then",
@@ -942,7 +942,7 @@ def main():
                 got[m.group(1)] = m.group(2)
         return got
 
-    stock = ("syscom", "sd.voclib", "$map", "bp")
+    stock = ("syscom", "$map", "bp")
     refused = "REFUSED 3035"
     states = {}
     for name in ("zzoff", "zzsh", "zzon", "zzos"):
@@ -960,7 +960,7 @@ def main():
             continue
         got = vp_states(out)
         states[name] = got
-        row("D3: %s (os %s) STOCK pointers still open: syscom, sd.voclib, $map and its own bp" % (name, FIXTURES[name][1]),
+        row("D3: %s (os %s) STOCK pointers still open: syscom, $map and its own bp" % (name, FIXTURES[name][1]),
             all(got.get(k) == "OPENED" for k in stock), "%r" % ({k: got.get(k) for k in stock},))
         row("D3: %s may follow a Q-pointer into an account it could LOGTO (zzon, same group): opened, and it reads zzon's record"
             % name, got.get("qok") == "OPENED" and got.get("qok-read") == "hello-from-zzon", "qok=%r read=%r" % (got.get("qok"), got.get("qok-read")))

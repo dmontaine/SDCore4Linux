@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 19 Oct 26 dm  S.67 stage 2: a write that failed with status 8910 (SDSYS's save of a record of voc_master or dict_master was refused) says why, in the
 *               kernel's own sentence (kernel(K$MASTERS, 'refusal')), after the generic "Write error 8910"; the editor stays open with the text, as for any write error.
@@ -194,7 +195,7 @@ $define COMMAND.STACK.DEPTH 99
 
    * Get name of input file
 
-   call @parser(PARSER$MFILE, token.type, file.name, keyword)
+   call @parser(PARSER$GET.TOKEN, token.type, file.name, keyword)
 
    if token.type = PARSER$END then
       display sysmsg(6501) :  ;* File name?
@@ -210,7 +211,7 @@ $define COMMAND.STACK.DEPTH 99
    end else
       if keyword = KW$DICT then
          dict.flag = "DICT"
-         call @parser(PARSER$MFILE, token.type, file.name, keyword)
+         call @parser(PARSER$GET.TOKEN, token.type, file.name, keyword)
       end
    end
 

@@ -1,6 +1,46 @@
 Next release - in progress
 --------------------------
 
+28 Oct 26  THE TEN LIST SENTENCES, MULTIFILES AND THE C DICTIONARY ITEM TYPE ARE REMOVED.
+
+             What        The ten ready-made LIST sentences are gone: LISTF, LISTFL, LISTFR, LISTK, LISTPA, LISTPH, LISTQ, LISTR, LISTS and LISTV, together with
+                         SD.VOCLIB, the system file that held them and the VOC pointer to it. Each one only ran a LIST of the VOC for one record type, so the query
+                         processor does the same job directly: list voc with type = "F" for files (add and is.remote = "" for local files, and is.remote for remote
+                         ones), "K" for keywords, "PA" for paragraphs, "PH" for phrases, "Q" for Q-pointers, "R" for remote items, "S" for sentences and "V" for
+                         verbs; name ftype, desc, data.name and dict.name after voc to see the file type and pathnames the old file lists showed. Removing them
+                         leaves one way to ask the question and no hidden file for an account to reach. Existing accounts lose the ten records and the sd.voclib
+                         pointer the next time their VOC is updated (every install does this), through the VOC deletion list, which keeps a copy of each record it
+                         removes (restore.voc brings one back) and leaves alone any record of the same name that a person made for themselves. The message F1 shows
+                         at an empty prompt now tells you to type list voc with type = "V" instead of listv. It does NOT remove the LIST verb, the VOC dictionary
+                         items (type, ftype, desc, data.name, dict.name, is.remote) or the list.files verb, and an R-type record you make yourself still works.
+
+                         MULTIFILES: A file made of several named data parts that shared one dictionary - create.file name,part, the MULTIFILE word of create.file,
+                         opening it as name,part, delete.file name,part, and the list of part names in field 4 of a file's VOC record - is gone. It was an
+                         inheritance from other MultiValue systems and gave a second way to do what an ordinary file per part with a shared dictionary does (create
+                         each part as an ordinary file with create.file part using dict name). What changed for you: a comma after a file name in create.file,
+                         delete.file and the other file verbs is no longer part of the name; the verb stops with "Unexpected token (,)" (cname keeps its old,new
+                         form). A name with a comma inside quotes is just a name, and a name with a comma is looked up whole, so OPEN "a,b" finds only a VOC record
+                         that is itself called a,b. create.file on a name that already has a data part now says the data part exists and does not convert it or add a
+                         part; delete.file no longer asks "Delete all data components of multifile" and no longer removes an emptied multifile directory; cname no
+                         longer says renaming multifiles is not supported (6148). A VOC record that still has a value in field 4 is simply read as an ordinary file
+                         pointer and field 4 is ignored; nothing is converted or deleted, and a file whose field 2 holds several paths is opened and deleted by its
+                         first path only. The parser key PARSER$MFILE (key 5) and error codes 3031 and 3032 are retired, and messages 6103, 6124, 6133, 6134, 6137,
+                         6148, 6162, 6195, 6197 and 6201 are deleted. It does not touch ordinary files, their dictionaries, Q-pointers, the shared account's files or
+                         the way the parts of a hashed file are stored; it does not delete any file or VOC record on an existing system, and it does not remove
+                         LISTF's Mult line (that goes with the list sentences).
+
+                         THE C ITEM TYPE: The C dictionary item type is gone completely. A C item was a calculated field written as a full BASIC program that
+                         returned its value in @ANS. Another system had it; SD never needed it, because an I-type covers a computed field and can call a catalogued
+                         subroutine with SUBR() when an expression is not enough. COMPILE.DICT already refused a C item with message 11993 and made no object code.
+                         Now the rest of the machinery is removed as well. The BASIC compiler no longer has a "compile for a C item" mode and its message
+                         "Statement/function not allowed in a C-type record" is withdrawn. The kernel no longer has a C-type header flag, so ITYPE() will not run a C
+                         record and no longer picks up @ANS. A process dump no longer prints a "C-type" line. The dictionary page (tool.dict), the programmer's API
+                         call that evaluates a dictionary item, and the message that lists the item types no longer name C. Nothing else changes. A, S, D and I items
+                         work as before. A dictionary that still holds a C item keeps it as a record, but it gives no value and compile.dict says message 11993;
+                         write it as an I-type. The Documentation says so on the dictionary pages. This does not remove the A or S types or the I-type SUBR() call.
+             Why it      Each was a second way to do what SD does one way: a query for a list of VOC records, an ordinary file per part with a shared dictionary, an I-type.
+             Does not    Touch crt and display, the A and S item types, the UniVerse TRANSACTION forms or CONVERT.
+
 28 Oct 26  THIRTY-THREE MORE SECOND WAYS AND SWITCHES ARE REMOVED: SEVEN OPTIONS, TWO MODES, THE WORD FORMS OF QUERY OPERATORS, THE ! VERB, CLOSESEQ, EQU AND OTHERS.
 
              What        OPTION words gone (the behaviour is the former default): NUMERIC.EXPONENT (123.45E-2 is not numeric), SUPPRESS.ABORT.MSG (ABORT always says where it ran),
@@ -15,10 +55,10 @@ Next release - in progress
                          stay, and _ names a recursive pcode program). SETPTR print mode 5 (the terminal's auxiliary port) and the VERSION keyword of CREATE.FILE and CONFIGURE.FILE
                          are gone. The terminal definitions addsviewpoint, viewpoint, adds4000, viewpoint60, vp60, vp, vpa2, vt52, hpgeneric, hp, ibm-pc, ibm5051, 5051, glasstty and
                          kermit are gone. A VOC record of type M (menu) is gone: the home screen is the menu system. The sd.conf parameter FILERULE is gone with the Account:File and
-                         PATH:pathname forms of file name, so a name in no VOC record is not found. A C dictionary item is no longer compiled (message 11993): write an I-type.
+                         PATH:pathname forms of file name, so a name in no VOC record is not found. A C dictionary item is refused (message 11993; see the entry above): write an I-type.
                          The messages 3118, 5060, 6117, 7162, 11076, 11252, 11253, 11269, 11367 and 11370 are gone with them, and 11274 no longer names the mode.
              Why it      Each was a second way to do what SD already did one way, or a switch for behaviour SD's default does not have.
-             Does not    Touch crt and display, the UniVerse TRANSACTION forms, CONVERT, multifiles or the ten list* sentences, which stay for now. The OPTION and $MODE verbs stay with the
+             Does not    Touch crt and display, the UniVerse TRANSACTION forms or CONVERT, which stay for now. The OPTION and $MODE verbs stay with the
                          words that remain.
 
 28 Oct 26  THE PICK STYLE MATRIX IS REMOVED FROM THE RUN-TIME SYSTEM, WITH THE LAST UNREACHABLE LEFTOVERS OF THE EARLIER REMOVALS.

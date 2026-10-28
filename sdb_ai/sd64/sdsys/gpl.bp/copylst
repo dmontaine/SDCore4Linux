@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 17 Oct 26 dm  S.64 part 2: copying INTO a VOC, a dictionary or a program file, and moving lists OUT of one (DELETING), ask edit_guard.
 * 13 Sep 26 dm  A saved-list file it has to create is $svlists on disk (plan M3 D3).
 * 12 Sep 26 dm  The saved-list VOC id is $savedlists (plan M3, first rename).
@@ -89,7 +90,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64 part 2
    * Get source file if present
 
    if keyword = KW$FROM then
-      call @parser(PARSER$MFILE, token.type, src.file.name, keyword)
+      call @parser(PARSER$GET.TOKEN, token.type, src.file.name, keyword)
       if token.type = PARSER$END then
          stop sysmsg(3242) ;* Source list file name not found where expected
       end
@@ -100,7 +101,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64 part 2
    * Get target file if present
 
    if keyword = KW$TO then
-      call @parser(PARSER$MFILE, token.type, tgt.file.name, keyword)
+      call @parser(PARSER$GET.TOKEN, token.type, tgt.file.name, keyword)
       if token.type = PARSER$END then
          stop sysmsg(3243) ;* Target list file name not found where expected
       end

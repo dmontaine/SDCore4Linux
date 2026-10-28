@@ -829,7 +829,7 @@ def x_pointer_program(acc, out, sib):
         ("zzprel", "../../zzoutside", ""),        # a relative path that climbs out of the account (acc/../../zzoutside is the same directory)
         ("zzplnk", "zzlink", ""),                 # a name inside the account that is a symbolic link to the outside directory
         ("zzpsib", sib, ""),                      # the directory next to the account whose name begins with the account's own name
-        ("zzpsys", "@SDSYS/newvoc", ""),          # a system file: the stock VOC's own pointers lead there (newvoc, syscom, sd.voclib)
+        ("zzpsys", "@SDSYS/newvoc", ""),          # a system file: the stock VOC's own pointers lead there (newvoc, syscom)
         ("zzpdic", "zzsec", out),                 # the data half is the account's own file, the DICTIONARY half is outside
         ("zzpin", "zzsec", ""),                   # the control: a file of the account, by a relative path
         ("zzpinab", acc + "/zzsec", ""),          # the control: the same file by an absolute path inside the account

@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone.  A program file named in RUN is always name.out (the file,part form of the name is not split), and F4 of a file's VOC record is ignored.
+* 28 Oct 26 dm  S.87 C-020: message 10149 (F1) names list voc with type = "V" instead of LISTV, whose sentence is gone with sd.voclib.
 * 28 Oct 26 dm  S.87: OPTION STACKED.ACCOUNT is gone, with revert.account and the stk.* variables that held the starting account: an EXECUTEd LOGTO stays in the account it went to.
 * 28 Oct 26 dm  S.87: OPTION NO.PHANTOM.NOTIFY is gone: a phantom always tells its parent when it ends.
 * 28 Oct 26 dm  S.87: the VOC record type M (menu) and process.menu are gone; the home screen is the menu system.
@@ -169,7 +171,7 @@
 *     F  File
 *        F2 = data portion pathname
 *        F3 = dictionary portion pathname
-*        F4 = multifile element names
+*        F4 = (was multifile element names; ignored, 28 Oct 26)
 *        F5 = ACCSVE remote file flag (D, E or I)
 *
 *     K  Keyword
@@ -2370,7 +2372,7 @@ int.run.common:
 
    * Get first name (file or record)
 
-   call @parser(PARSER$MFILE, token.type, run.record.name, keyword)
+   call @parser(PARSER$GET.TOKEN, token.type, run.record.name, keyword)
    if token.type = PARSER$END then
       @system.return.code = -ER$ARGS
       display sysmsg(5071) ;* Record name required
@@ -2402,11 +2404,7 @@ int.run.common:
       end case
    repeat
 
-   if index(run.file.name, ',', 1) then     ;* Multifile
-      run.file.name.out = run.file.name[',', 1, 1] : '.OUT,' : run.file.name[',', 2, 999]
-   end else                                 ;* Simple file
-      run.file.name.out = run.file.name : '.OUT'
-   end
+   run.file.name.out = run.file.name : '.OUT'
    open run.file.name.out to run.file else
       open downcase(run.file.name.out) to run.file then
          run.file.name.out = downcase(run.file.name.out)

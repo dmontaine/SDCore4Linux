@@ -69,10 +69,12 @@ ALLOWED = {
     ("tool_ai", "11865"): "Core 'Press Enter to return' (26 Oct 26, the page is what Enter returns to), Solo 'Press Enter to return to the home screen' until the carry",
     ("tool_home", "11865"): "Core 'Press Enter to return' (26 Oct 26, the page is what Enter returns to), Solo 'Press Enter to return to the home screen' until the carry",
     # 26 Oct 26, the one-editor plan stage 1: the IDE's help in Core names F12 (Edit as fields: CED's data mode); Solo's IDE has no F12 until the owner says to carry it (Core only)
+    ("cproc", "10149"): "F1 at an empty prompt: Core names list voc with type = \"V\" (28 Oct 26, S.87 C-020: the listv sentence is gone with sd.voclib); Solo still says listv until the carry",
     ("bcomp", "2935"): "Core's ON expression GOSUB or GOTO says so without GO (27 Oct 26, S.87 batch 13); Solo keeps GO until the carry",
     ("bcomp", "11394"):"Core's list of constant @-variables lost @AM and @SVM (27 Oct 26, S.87 batch 13); Solo keeps them until the carry",
     ("login", "11900"):"Core's VOC update reports the records its deletion list removed (27 Oct 26, S.87); Solo's 11900 is another message until the carry",
     ("ide", "11215"): "Core's help names F12, Edit as fields (26 Oct 26, one-editor plan stage 1); Solo's does not until the carry",
+    ("mkindx", "2613"): "Core's list of dictionary item types lost C (28 Oct 26, S.87 D-019: the C item type is gone); Solo keeps the old text until the carry",
     ("bcomp", "11274"):"Core reads 'Default argument values need the VAR.ARGS option' (28 Oct 26, S.87: the DEFAULT.UNASS.ARGS mode word was removed); Solo keeps the old text until the carry",
 }
 passed = failed = 0

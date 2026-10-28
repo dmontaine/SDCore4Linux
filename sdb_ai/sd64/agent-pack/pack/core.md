@@ -30,7 +30,6 @@ The dictionary item types (field 1 starts with the letter). Each type is the chu
 | `D` | direct | references a field number in the data record |
 | `E` | element | like `D`, but field 2 is the **path** of an element of a **data collection** record instead of a field number — see SD TCL - Data Collection Files |
 | `I` | indirect | an expression that returns a value — a virtual field |
-| `C` | calculated | like I but compiled with the BASIC compiler and returning via `@ANS` |
 | `A` | A-type | Pick-style data definition, with a different field layout |
 | `S` | S-type | identical to `A` in SD — kept for compatibility |
 | `L` | link | names another file and how to find the record in it, so that a query or an I-type can use its fields as `link%item` |

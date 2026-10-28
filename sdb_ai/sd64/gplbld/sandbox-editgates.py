@@ -14,7 +14,7 @@
 #               DELETE.FILE ask; BASIC, CATALOG, DELETE.CATALOG and DECATALOG need bp.edit; LOGIN and the API server load the gates at sign-on.
 # 17 Oct 26 dm  S.64 part 2: section "routes" (--sections=routes), 5 accounts - the verbs FIXDIR, FORMAT, MAP FILE, SET.TRIGGER, COPY.LIST,
 #               DELETE.LIST, GET.LIST, SAVE.LIST, SORT.LIST, REFORMAT, the delimited LIST reports, PAGESEQ, CD DATA, GENERATE, COMO,
-#               the .S and .D stack commands and CREATE.FILE on an existing pointer; !WRITELIST in an account with no $savedlists; and the
+#               the .S and .D stack commands and (until 28 Oct 26, when multifiles went) CREATE.FILE on an existing pointer; !WRITELIST in an account with no $savedlists; and the
 #               C routes from an ordinary program (OSPATH 5 / 13 / 14, the socket trace log, CREATE.FILE and OPENTEMP inside a guarded
 #               file, the private catalogue, a record called sample.bp).  Not driven: SP.VIEW, PHANTOM LOG, apisrvr.
 # END-HISTORY
@@ -901,8 +901,6 @@ def routes_section():
             t6 = "\n".join(sess(n, ["COMO ON zzcomoa IN bp", "COMO OFF"]))
             sess(n, ["COMO ON zzcomoc", "COMO OFF"])
             t7 = "\n".join(sess(n, ["WHO", ".S zzvrec 1", "Y", ".S zzsent1 1", ".S zzsent2 1", ".D zzsent1", "Y"]))
-            t8 = "\n".join(sess(n, ["CREATE.FILE zzmf.bp,zzpart DIRECTORY NO.QUERY", "CREATE.FILE zzdicf,zzpart DYNAMIC NO.QUERY",
-                                    "CREATE.FILE zzd3,zzpart DYNAMIC NO.QUERY"]))
             wl = sess(n, ["RUN bp zzwl"])
             ck = {}
             for ln in sess(n, ["RUN bp zzchk2"]):
@@ -950,12 +948,6 @@ def routes_section():
             row("%s: CONTROL COMO ON zzcomoc (the $COMO directory) works for everybody" % tag, find_name(path, "zzcomoc"), "")
             row("%s: GENERATE zzd4 writes the include record into bp exactly when bp.edit is on" % tag,
                 find_name(os.path.join(path, "bp"), "zzd4.h") == bp, "")
-            row("%s: CREATE.FILE zzmf.bp,zzpart (a program file) is converted to a multifile exactly when bp.edit is on" % tag,
-                os.path.isdir(os.path.join(path, "zzmf.bp", "zzmf.bp")) == bp, "")
-            row("%s: CREATE.FILE zzdicf,zzpart (a pointer to a name ending .dic) is converted exactly when dict.edit is on" % tag,
-                os.path.isdir(os.path.join(path, "zzdicf.dic", "zzdicf")) == dic, "")
-            row("%s: CONTROL CREATE.FILE zzd3,zzpart (an ordinary file) is converted for everybody" % tag,
-                os.path.isdir(os.path.join(path, "zzd3", "zzd3")), "")
             row("%s: CONTROL !WRITELIST in an account with no $savedlists makes it and saves the list, whatever voc.edit says" % tag,
                 g.has(wl, r"^WL before 0$") and g.has(wl, r"^WL back a\|b$") and g.has(wl, r"^WL after 1$"), repr(wl[-5:]))
 
@@ -971,8 +963,6 @@ def routes_section():
             row("%s: GENERATE says 11406 for the dictionary exactly when dict.edit is off" % tag, seen(t5, "dict") == (not dic), "")
             row("%s: COMO ON ... IN bp says 11407 exactly when bp.edit is off" % tag, seen(t6, "bp") == (not bp), "")
             row("%s: .S of an existing VOC record and .D say 11405 exactly when voc.edit is off" % tag, seen(t7, "voc") == (not voc), "")
-            row("%s: CREATE.FILE on an existing program file / dictionary pointer says 11407 / 11406 exactly when the gate is off" % tag,
-                seen(t8, "bp") == (not bp) and seen(t8, "dict") == (not dic), "")
 
             # ---- the C routes, from an ordinary program ------------------------------------------------------------------------
             row("%s: zzprobe2 ran to its last line" % tag, g.has(pout, r"^P2 end$"), repr(pout[-4:]))

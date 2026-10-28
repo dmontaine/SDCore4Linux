@@ -26,7 +26,7 @@
 #        exact fields, read from the disk)
 #   D4   N in the account with dict-edit OFF: the box says the write will be refused, Run is met by the kernel's own words and NO record appears  [mutant no-edit-check]
 #   D5   T tries an item on a record: D, A, I, multivalued, a conversion and format; a missing record, an item not compiled, an item that holds no value
-#   D6   C compiles an I item: only A S I C; Cancel is the default; Run puts the object code in the record (disk), and T then works; compiling is not held back by dict-edit
+#   D6   C compiles an I item: only A S I; Cancel is the default; Run puts the object code in the record (disk), and T then works; compiling is not held back by dict-edit
 #   D7   E hands the terminal to SED on the item and the page comes back; a change saved by SED is on the disk (dict-edit ON) and is refused and not on the disk (OFF)
 #   D8   D deletes: Cancel is the default; the wrong id typed deletes nothing; the right id deletes (disk); with dict-edit OFF the verb's own refusal and the item stays  [mutant delete-no-typed-name]
 #   D9   an id with a capital, a file with a dollar in its name: listed and described, and E, D and C are refused with the verb to type; the file is untouched
@@ -666,7 +666,7 @@ def section_try():
     h.key("esc", idle=1.0)
     goto(h, "note")
     h.typed("t", idle=1.5)
-    arow("D5h", "an item that holds no value (text X) is refused with its type", "only D, A, S, I and C items give a value for a record; note is of type X" in st(h), repr(st(h)))
+    arow("D5h", "an item that holds no value (text X) is refused with its type", "only D, A, S and I items give a value for a record; note is of type X" in st(h), repr(st(h)))
     h.key("esc", idle=1.0)
     goto(h, "UpCase")
     h.typed("t", idle=1.2)
@@ -684,7 +684,7 @@ def section_compile():
     h = page(A1, "cust")
     goto(h, "amt")
     h.typed("c", idle=1.5)
-    arow("D6", "C on a D item is refused with its type before any box", "only A, S, I and C items are compiled; amt is of type D" in st(h) and "Run this command?" not in h.text(), repr(st(h)))
+    arow("D6", "C on a D item is refused with its type before any box", "only A, S and I items are compiled; amt is of type D" in st(h) and "Run this command?" not in h.text(), repr(st(h)))
     h.key("esc", idle=1.0)
     goto(h, "uncomp")
     h.typed("c", idle=1.5)

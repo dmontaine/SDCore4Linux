@@ -25,6 +25,7 @@
 *
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: the call of $BCOMP no longer passes the is.ctype argument (the C dictionary item type is gone).
 * 26 Oct 26 dm  _sdsysn joins the bootstrap list: LOGIN calls !sdsysn when SDSYS signs on (S.76), and SECOND.COMPILE signs on as SDSYS.
 * 15 Oct 26 dm  login_inhibit joins the bootstrap list: LOGIN calls it (QM4 gaps Q-8, INHIBIT.LOGIN).
 * 07 Oct 26 dm  batch.jobs.dic is created with the other dictionaries (the Windows port's
@@ -281,7 +282,7 @@ for pi = 1 to src.cnt
         listing.record.name = prg.name:'.LIS'
        
        
-        call $bcomp(source.file.name, src.f, prg.name, @false, prog.source,output.file.name, listing.record.name,compiler.flags, 1,catalogue.name, catalogue.mode,object.code, errors) 
+        call $bcomp(source.file.name, src.f, prg.name, prog.source,output.file.name, listing.record.name,compiler.flags, 1,catalogue.name, catalogue.mode,object.code, errors) 
         
         if errors = 0 then
            write object.code to out.f, prg.name

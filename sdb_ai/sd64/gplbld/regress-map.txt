@@ -40,7 +40,7 @@
 # what a change to the select-list statements in the compiler needs
 @lists-compile = sselectv stacklist list-q2 mode-q16
 # the query processor and dictionaries
-@query = qproc-a3 qproc-q20 xml csvq qdefaults qproc-when vert-fmt vlist-a3 dict-a2 dictfold misc-a9 listf-mult coll
+@query = qproc-a3 qproc-q20 xml csvq qdefaults qproc-when vert-fmt vlist-a3 dict-a2 dictfold misc-a9 coll
 # accounts, logins, gates, configuration, sessions, the API
 @system = gates conf-b1 inhibit-q8 listu-a5 proc-a5 sys-b2 sys-q18 option-a4 option-q17 qmclient lock-b6 q5
 # ED and the commands around it
@@ -89,7 +89,7 @@ gplbld/witness-*             : none
 # 26 Oct 26 (F12 review): the sandbox suites that call the REAL helper's dry run through the shim of sandbox-filesgrp.py (a fake getent for the groups only an install makes) are the
 # ones a change of the helper's environment handling (SD_PATH_PREPEND, trust_fixtures) can break without a free check seeing it.
 gplbld/sd-elevate            : filesgrp aigate tool-ai tool-gates
-gplbld/FILES_DICTS/voc.dic^* : dictfold listf-mult misc-a9 qproc-a3 nocase
+gplbld/FILES_DICTS/voc.dic^* : dictfold misc-a9 qproc-a3 nocase
 gplbld/FILES_DICTS/*         : dictfold misc-a9 upgradenocase nocase fixes-b12
 gplbld/pcode_bld.py          : @core
 gplbld/bbcmp.py              : @core
@@ -554,8 +554,8 @@ sdsys/gpl.bp/debug           : @debugger ide-small ai-apps
 sdsys/gpl.bp/debug.h         : @debugger ide-small
 sdsys/gpl.bp/pdbg            : @debugger sysexc
 sdsys/gpl.bp/pdebug          : @debugger
-sdsys/gpl.bp/ftype           : listf-mult dictfold
-sdsys/gpl.bp/listfl          : listf-mult listu-a5
+sdsys/gpl.bp/ftype           : dictfold
+sdsys/gpl.bp/listfl          : listu-a5
 sdsys/gpl.bp/listcom         : misc-a9
 sdsys/gpl.bp/delcom          : misc-a9
 sdsys/gpl.bp/qproc           : @query ltype editgates jsonx
@@ -679,8 +679,6 @@ sdsys/syscom/parser.h        : @query @core jsonx
 sdsys/syscom/sdclient.*      : qmclient
 sdsys/syscom/sdclilib*       : qmclient
 sdsys/syscom/*               : @compiler @core
-sdsys/sd.voclib/listf*       : listf-mult
-sdsys/sd.voclib/*            : @core dictfold
 # 20 Oct 26: the verbs of the CSV / JSON / XML task, and the JSON / JSON.LINES query keywords (qproc, jsonx).
 sdsys/newvoc/import.*        : xmlx
 sdsys/newvoc/convert.data    : xmlx

@@ -706,7 +706,7 @@ that reads `V`, `K`, `F` and so on rather than the raw field 1.
 
 
 ### dict:type:A
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:47#650f42c7 src2=docs:User/markdown/33-sd-dicts-structure.md:203#56612f74
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:46#650f42c7 src2=docs:User/markdown/33-sd-dicts-structure.md:204#56612f74
 
 Dictionary record type `A` - A-type: Pick-style data definition, with a different field layout
 
@@ -738,25 +738,8 @@ without the `a;` in front; anything else that does not begin `a` or `f` is
 a conversion code, as before.
 
 
-### dict:type:C
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:46#209299bc src2=docs:User/markdown/33-sd-dicts-structure.md:195#61f238d0
-
-Dictionary record type `C` - calculated: like I but compiled with the BASIC compiler and returning via `@ANS`
-
-Field 1 of the dictionary record starts with `C`.
-
-**The C record — a calculated field**
-
-
-A C-type is like an I-type but is compiled with the full BASIC compiler
-rather than the I-type expression compiler. The expression in field 2 is
-a complete BASIC program that returns its result in `@ANS`. C-types are
-rare in stock dictionaries — I-types cover most computed fields — but
-they exist for compatibility with applications that use them.
-
-
 ### dict:type:D
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:43#b24c4128 src2=docs:User/markdown/33-sd-dicts-structure.md:60#66330705
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:43#b24c4128 src2=docs:User/markdown/33-sd-dicts-structure.md:59#66330705
 
 Dictionary record type `D` - direct: references a field number in the data record
 
@@ -854,7 +837,7 @@ Field 1 of the dictionary record starts with `E`.
 `E` is laid out like `D`, but field 2 is the path of an element of a data collection record instead of a field number: see dict:type:D and the collection files page.
 
 ### dict:type:I
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:45#3b9dad7c src2=docs:User/markdown/33-sd-dicts-structure.md:140#9cfd06ce
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:45#3b9dad7c src2=docs:User/markdown/33-sd-dicts-structure.md:139#9cfd06ce
 
 Dictionary record type `I` - indirect: an expression that returns a value — a virtual field
 
@@ -918,7 +901,7 @@ I-type record and is empty in a D-type record.
 
 
 ### dict:type:L
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:49#bf8273ae src2=docs:User/markdown/33-sd-dicts-structure.md:239#21a15621
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:48#bf8273ae src2=docs:User/markdown/33-sd-dicts-structure.md:240#21a15621
 
 Dictionary record type `L` - link: names another file and how to find the record in it, so that a query or an I-type can use its fields as `link%item`
 
@@ -963,7 +946,7 @@ as the same expression written with `TRANS()`:
 TRANS("TITLES", FIELD(@ID, "-", 1), TITLE, "X")
 ```
 
-The item may be a D, I, C, A, S or E item of the other file. It takes the column
+The item may be a D, I, A, S or E item of the other file. It takes the column
 heading, format, conversion and association that item has, unless the I-type or the
 query says otherwise. A query treats the result as multivalued, because the id
 expression may give several ids.
@@ -992,7 +975,7 @@ message that names the link or the item.
 
 
 ### dict:type:PH
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:50#d160d751 src2=docs:User/markdown/33-sd-dicts-structure.md:227#42bb257f
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:49#d160d751 src2=docs:User/markdown/33-sd-dicts-structure.md:228#42bb257f
 
 Dictionary record type `PH` - phrase: a stored fragment substituted into a query command line
 
@@ -1013,7 +996,7 @@ phrase is scoped to the file whose dictionary holds it.
 
 
 ### dict:type:S
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:48#0c933cee
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:47#0c933cee
 
 Dictionary record type `S` - S-type: identical to `A` in SD — kept for compatibility
 
@@ -1022,7 +1005,7 @@ Field 1 of the dictionary record starts with `S`.
 `S` is laid out exactly like `A`: see dict:type:A.
 
 ### dict:type:X
-> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:51#7317ef26 src2=docs:User/markdown/33-sd-dicts-structure.md:304#f1c700c1
+> kind=dict.type tier=reference since=- src=docs:User/markdown/33-sd-dicts-structure.md:50#7317ef26 src2=docs:User/markdown/33-sd-dicts-structure.md:305#f1c700c1
 
 Dictionary record type `X` - text: miscellaneous data — not a field definition
 
@@ -1051,7 +1034,6 @@ type `D` and the rest is a comment.
 | `D` | direct | references a field number in the data record |
 | `E` | element | like `D`, but field 2 is the **path** of an element of a **data collection** record instead of a field number — see SD TCL - Data Collection Files |
 | `I` | indirect | an expression that returns a value — a virtual field |
-| `C` | calculated | like I but compiled with the BASIC compiler and returning via `@ANS` |
 | `A` | A-type | Pick-style data definition, with a different field layout |
 | `S` | S-type | identical to `A` in SD — kept for compatibility |
 | `L` | link | names another file and how to find the record in it, so that a query or an I-type can use its fields as `link%item` |

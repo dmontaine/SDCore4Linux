@@ -418,10 +418,9 @@ def checks(srcs, messages_dir):
        and re.search(r"readvu voc\.rec from voc, arg1, 0 then\s*\n\s*gosub voc\.edit\.ask\s*\n\s*if not\(voc\.edit\.ok\) then\s*\n\s*release voc, arg1\s*\n\s*goto exit\.stack\.command\s*\n\s*end\s*\n\s*loop\s*\n\s*display sysmsg\(5045", cpc) is not None
        and re.search(r"del command\.stack<n>\s*\n\s*end else\s*\n\s*gosub voc\.edit\.ask\s*\n\s*if not\(voc\.edit\.ok\) then goto exit\.stack\.command\s*\n\s*at\.command = trimf\(trimb\(at\.command\)\)\s*\n\s*readu voc\.rec", cpc) is not None, "")
     cf = c["createf"]
-    ck("G22 CREATE.FILE on an EXISTING pointer asks (edit.check.existing: every data path of the record, the dictionary path not) BEFORE the Convert question",
-       cf.count("gosub edit.check.existing") == 1 and 0 <= at(cf, "gosub edit.check.existing") < at(cf, "display sysmsg(6195, file.name, file.name)")
-       and re.search(r"edit\.check\.existing:\s*\n\s*for ek = 1 to dcount\(voc\.rec<2>, @vm\)", cf) is not None
-       and "kernel(K$EDIT.OK, ek.path)" in cf and "stop edit_msg(ek.kind)" in cf and "voc.rec<3>" not in cf[at(cf, "edit.check.existing:"):], "")
+    ck("G22 CREATE.FILE on an EXISTING pointer changes none of its data paths (28 Oct 26, multifiles gone: no conversion, so no edit.check.existing, no Convert question, nothing written to field 4)",
+       "edit.check.existing" not in cf and "sysmsg(6195" not in cf
+       and "voc.rec<4" not in cf and "voc.rec<2,-1>" not in cf, "")
     wl, mk = c["writelist"], c["_mksavedlists"]
     ck("G23 !WRITELIST makes the $savedlists pointer through !MKSAVEDLISTS (so a session without voc.edit can still save a list) and no longer writes it itself",
        "call !mksavedlists(mk.err)" in wl and "write 'F'" not in wl and "'$svlists'" not in wl, "")
@@ -551,7 +550,6 @@ MUTANTS = [
     (".S asks of a record that does not exist yet too", "cproc", "readvu voc.rec from voc, arg1, 0 then\n", "readvu voc.rec from voc, arg1, 0 else\n"),
     (".S and .D never get the answer", "cproc", "voc.edit.ok = kernel(K$EDIT.OK, fileinfo(voc, FL$PATH))", "voc.edit.ok = 1"),
     (".S leaves the VOC record locked on a refusal", "cproc", "release voc, arg1\n               goto exit.stack.command", "goto exit.stack.command"),
-    ("CREATE.FILE on an existing pointer is not asked", "createf", "gosub edit.check.existing", "null"),
     ("!WRITELIST writes the pointer itself again", "writelist", "call !mksavedlists(mk.err)", "write 'F':@fm:'$svlists' to @voc, '$savedlists'"),
     ("!MKSAVEDLISTS replaces an entry that is there", "_mksavedlists", "read s from @voc, '$savedlists' then\n      release @voc, '$savedlists'\n      return\n   end\n", ""),
     ("the API server writes without asking", "apisrvr", "gosub check.edit   ;* 17 Oct 26 dm, S.64 part 2: this program is $internal", "null   ;* 17 Oct 26 dm, S.64 part 2: this program is $internal"),

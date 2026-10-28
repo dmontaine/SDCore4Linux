@@ -148,13 +148,13 @@ def main():
     # THE COMMAND IDS (the port's 1a88360).  Which ids keep upper case, and why:
     # F/Q file pointers (file names, a later category), T tier lists (data),
     # X, and $ % @ records.  Everything else in NEWVOC / VOC_TEMPLATE /
-    # SD.VOCLIB must be lower case.
+    # (SD.VOCLIB was a third directory here until it was retired, 28 Oct 26.)
     def vtype(p):
         l1 = open(p, errors="replace").readline()
         t = l1[:1].upper()
         return l1[:2].upper() if t == "P" else t
     upper_cmds, counted = [], 0
-    for d in ("newvoc", "voc_template", "sd.voclib"):
+    for d in ("newvoc", "voc_template"):
         dp = os.path.join(V.SDSYS, d)
         for n in sorted(os.listdir(dp)):
             p = os.path.join(dp, n)
@@ -166,7 +166,7 @@ def main():
                     upper_cmds.append("%s/%s" % (d, n))
     run.say("  command-type records examined: %d" % counted)
     run.note("S6 command records were found (not the null case)", True, counted > 700)
-    run.note("S7 no command id in NEWVOC/VOC_TEMPLATE/SD.VOCLIB has an upper-case"
+    run.note("S7 no command id in NEWVOC/VOC_TEMPLATE has an upper-case"
              " letter", [], upper_cmds[:10])
     # 18 Sep 26 - S8'S SUBJECT IS GONE WITH S.25 (the owner's teardown):
     # sdsys/tier.policy and its two lists (omit.standard, add.administrator)
@@ -191,9 +191,9 @@ def main():
     # THE F/Q FILE-POINTER IDS (the port's 0394af4).  Ids only: fields 2 and 3
     # are paths on disk and are NOT renamed by this category.
     PTRS = {"newvoc": ["voc", "newvoc", "syscom", "dict.dict",
-                       "sd.accounts", "sd.voclib"],
+                       "sd.accounts"],
             "voc_template": ["voc", "newvoc", "syscom", "dict.dict",
-                             "sd.accounts", "sd.voclib", "accounts",
+                             "sd.accounts", "accounts",
                              "messages", "qfile"]}
     wrong = []
     for d, ids in PTRS.items():
@@ -234,7 +234,7 @@ def main():
     # ext4 both spellings could exist side by side, so "lower present" alone is
     # not the rename: the upper spelling must be ABSENT too.  $HOLD, $HOLD.DIC
     # and VOC are the SDSYS account's own (D3); GPL.BP and friends are D2.
-    D1 = ["newvoc", "voc_template", "messages", "syscom", "sd.voclib",
+    D1 = ["newvoc", "voc_template", "messages", "syscom",
           "accounts", "$ipc", "$map", "$map.dic", "voc.dic", "accounts.dic",
           "dict.dic", "dir_dict", "batch.jobs.dic"]   # batch.jobs.dic added 7 Oct 26
     top = set(os.listdir(V.SDSYS))

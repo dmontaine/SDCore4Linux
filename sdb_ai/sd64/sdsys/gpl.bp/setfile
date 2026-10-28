@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 16 Oct 26 dm  QM4 Fixes 32: the target may be a Q-pointer (a chain).
 * 13 Sep 26 dm  Account names are lower case (plan M, owner); the Q-pointer it
 *               writes names the account in lower case.
@@ -93,7 +94,7 @@ $include int$keys.h
 
    * File name
 
-   call @parser(PARSER$MFILE, token.type, filename, keyword)
+   call @parser(PARSER$GET.TOKEN, token.type, filename, keyword)
    prompting = (token.type = PARSER$END)
 
    loop

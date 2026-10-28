@@ -18,6 +18,7 @@
 *
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone; the cross-reference scan looks at the first value of field 2 of an F record and not at every value.
 * 19 Oct 26 dm  S.67 stage 1: after the register delete the account's master copies are dropped (kernel(K$MASTERS, 'drop')).
 * 18 Oct 26 dm  S.66: DELETE.ACCOUNT shared is refused (11517), after the SDSYS test and before anything else is read or asked.
 * 06 Oct 26 dm  PAL-15 (parity audit J-3): an account deleted is audited.
@@ -242,13 +243,10 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
                         type = upcase(xvoc.rec[1,1])
                         begin case
                            case type = 'F'
-                              num.components = dcount(xvoc.rec<2>, @vm)
-                              for comp = 1 to num.components
-                                 fpath = ospath(xvoc.rec<2,comp>, OS$FULLPATH)
-                                 if field(fpath, @ds, 1, dcount(fpath, @ds) - 1) = pathname then
-                                    gosub report.xref
-                                 end
-                              next comp
+                              fpath = ospath(xvoc.rec<2,1>, OS$FULLPATH)
+                              if field(fpath, @ds, 1, dcount(fpath, @ds) - 1) = pathname then
+                                 gosub report.xref
+                              end
 
                               fpath = ospath(xvoc.rec<3>, OS$FULLPATH)
                               if field(fpath, @ds, 1, dcount(fpath, @ds) - 1) = pathname then

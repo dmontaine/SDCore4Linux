@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: the page no longer names C among the types it compiles, tries or indexes (the messages now say A, S and I; D, A, S and I; A, S or I).
 * 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
 * 27 Oct 26 dm  S.87 batch 12: the dead FL$TYPE.SH branch of the file kind is gone with the constant.
 * 27 Oct 26 dm  S.87 batch 4: the describe page no longer says a location of 9998 or 9999 shows the item count or the record length.
@@ -18,14 +19,14 @@
 *
 *   A full-screen page, in the toolkit's frame (140 columns by 43 lines at least), for the dictionary of one data file of the account the session is in.  With a file named after the verb the page
 *   opens that file's dictionary; with none it first lists the files the account's VOC points at (the VOC entries of type F) and Enter opens the dictionary of the one under the cursor.
-*   THE ITEMS PANE lists every item of the dictionary: its id, its type (D data, A, S, I, C, E, L, PH, X; any other is shown as its first character), where its value comes from (the field
+*   THE ITEMS PANE lists every item of the dictionary: its id, its type (D data, A, S, I, E, L, PH, X; any other is shown as its first character), where its value comes from (the field
 *   number, or "computed"), its heading, format, conversion, whether it is single or multivalued, its association, and the expression of an I-type.  The box under the list describes the item
 *   under the cursor in plain words.  THE INDICES PANE (I or Tab) lists the alternate key indices of the file: the item each is on, whether it is built, nulls, case, sort.
 *
 *   WHAT IT CAN DO.  N makes an item (a D, A or I record): the page asks the id, the type and the fields that type needs, one at a time, each checked, shows the whole record in a box, and after Run
 *   WRITES IT ITSELF with an ordinary record write to the dictionary - this is the ONLY place the page writes.  The page is $internal, so the kernel's own refusal of a write to a dictionary does
 *   not apply to it: it asks the kernel for itself (K$EDIT.OK, the question SED and the IDE ask) before the write and shows the kernel's own refusal (!edit_msg) when the answer is no.  E hands the
-*   terminal to SED on the item (sed dict file item); SED makes the same check when it saves.  D deletes the item with the DELETE verb, after its id is typed.  C compiles an A, S, I or C item with
+*   terminal to SED on the item (sed dict file item); SED makes the same check when it saves.  D deletes the item with the DELETE verb, after its id is typed.  C compiles an A, S or I item with
 *   COMPILE.DICT.  T tries the item on a record of the data file: the value ITYPE() gives for that record, which is what the query processor computes, and the same value converted and formatted as
 *   a query would print it.  In the indices pane N makes an index (CREATE.INDEX defines it, then BUILD.INDEX builds it, because an index that is not built finds nothing), B builds it again (BUILD.INDEX),
 *   D deletes it (DELETE.INDEX, after its name is typed) and L lists it in full (LIST.INDEX: it prints to the terminal, which is handed to the verb).  Every verb is the one the person could type,
@@ -284,7 +285,7 @@ apply.filter.i:
    next q
    return
 
-* In: rec (an item).  Out: ty (D data, E, I, C, A, S, L, PH, X or any other first character), wh (where the value comes from), hd (heading), ft2 (format), cv (conversion), sm (S or M),
+* In: rec (an item).  Out: ty (D data, E, I, A, S, L, PH, X or any other first character), wh (where the value comes from), hd (heading), ft2 (format), cv (conversion), sm (S or M),
 * asoc (association), ex (expression, correlative or text).  Every one is cleaned for the screen.  The fields of an A or S item are in the Pick layout (dictdict.h).
 classify.item:
    ty = upcase(rec<DICT.TYPE>)
@@ -1078,13 +1079,13 @@ do.delete:
    gosub draw.all
    return
 
-* C: COMPILE.DICT file item, after a box.  Only the types the verb compiles (A, S, I, C)
+* C: COMPILE.DICT file item, after a box.  Only the types the verb compiles (A, S, I)
 do.compile:
    if nis < 1 then return
    iid = iids<ishown<ci>>
    ma = imeta<ishown<ci>>
-   if index(' A S I C ', ' ' : ma<1, 1> : ' ', 1) = 0 then
-      msg = 'only A, S, I and C items are compiled; ' : iid : ' is of type ' : ma<1, 1>
+   if index(' A S I ', ' ' : ma<1, 1> : ' ', 1) = 0 then
+      msg = 'only A, S and I items are compiled; ' : iid : ' is of type ' : ma<1, 1>
       return
    end
    cw = iid
@@ -1142,8 +1143,8 @@ do.test:
       return
    end
    gosub classify.item
-   if index(' D A S I C ', ' ' : ty : ' ', 1) = 0 then
-      msg = 'only D, A, S, I and C items give a value for a record; ' : iid : ' is of type ' : ty
+   if index(' D A S I ', ' ' : ty : ' ', 1) = 0 then
+      msg = 'only D, A, S and I items give a value for a record; ' : iid : ' is of type ' : ty
       return
    end
    needs.obj = (ty = 'I' or ((ty = 'A' or ty = 'S') and rec<DICT.A.CORRELATIVE> # ''))
@@ -1602,7 +1603,7 @@ do.newindex:
    cdef = 1
    for q = 1 to ni
       ma = imeta<q>
-      if index(' D A S I C ', ' ' : ma<1, 1> : ' ', 1) > 0 then
+      if index(' D A S I ', ' ' : ma<1, 1> : ' ', 1) > 0 then
          cw = iids<q>
          gosub check.word
          if okname then
@@ -1612,7 +1613,7 @@ do.newindex:
       end
    next q
    if cand = '' then
-      msg = 'the dictionary has no data, A, S, I or C item with an id the page can give to a command: type create.index ' : fn : ' and the item at the prompt, then build.index'
+      msg = 'the dictionary has no data, A, S or I item with an id the page can give to a command: type create.index ' : fn : ' and the item at the prompt, then build.index'
       return
    end
    pk = ''

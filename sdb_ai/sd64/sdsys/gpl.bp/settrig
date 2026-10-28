@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 17 Oct 26 dm  S.64 part 2: setting or removing a trigger is a change to the file (it makes the %header% record, and the trigger then runs
 *               on every later write by anybody), so SET.TRIGGER asks edit_guard (voc.edit, dict.edit, bp.edit) once, for the file it
 *               opened, before the trigger name is checked and before the file is made exclusive.  Showing the trigger (no second
@@ -69,10 +70,10 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
    * Get and process file name
 
    dict.flag = ''
-   call @parser(PARSER$MFILE, token.type, filename, keyword)
+   call @parser(PARSER$GET.TOKEN, token.type, filename, keyword)
    if keyword = KW$DICT then
       dict.flag = 'DICT'
-      call @parser(PARSER$MFILE, token.type, filename, keyword)
+      call @parser(PARSER$GET.TOKEN, token.type, filename, keyword)
    end
    if token.type = PARSER$END then stop sysmsg(2102)  ;* File name required
 

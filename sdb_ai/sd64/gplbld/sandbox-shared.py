@@ -743,8 +743,8 @@ def lookup_section():
         ("O", "szabs", "own1", "NO", "an F entry whose path is in ANOTHER account"),
         ("O", "szn", "r1", "NO", "an N entry"),
         ("O", "szv", "r1", "NO", "a V entry"),
-        ("O", "szmulti", "r1", "NO", "a multifile entry"),
-        ("O", "szd,compone", "r1", "NO", "name,component"),
+        ("O", "szmulti", "r1", "OK alpha", "an F entry with a value in field 4 (the old multifile component list, now ignored): an ordinary F entry"),
+        ("O", "szd,compone", "r1", "NO", "a name with a comma (name,component is no longer a form: the whole name is looked up, and no entry has it)"),
         ("O", "szvoc", "r1", "NO", "an entry that names shared's own VOC"),
         ("O", "szvocdic", "r1", "NO", "an entry whose data part is shared's voc.dic"),
         ("O", "szdictdata", "r1", "NO", "an entry whose data part is a dictionary (szd.dic)"),
@@ -803,10 +803,10 @@ def lookup_section():
     say("  -- LIST.SHARED")
     out = g.plain("zsblank", ["LIST.SHARED"])
     shown = [ln for ln in out if re.match(r"^[a-z0-9._$-]+$", ln)]
-    expect = {"szd", "szown", "szmix", "szdir", "utils", "utils.out", "szw", "szc", "szc2", "szcw", "szidx"}
+    expect = {"szd", "szown", "szmix", "szdir", "utils", "utils.out", "szw", "szc", "szc2", "szcw", "szidx", "szmulti"}
     row("A: LIST.SHARED (zsblank) shows the names that can be opened, one to a line, and the count line (11519) at the end",
         expect <= set(shown) and has_rx(out, "^" + msg_rx(11519).replace(r".*", r"\d+") + "$"), repr(out[-14:]))
-    refused = {"szq", "szabs", "szn", "szv", "szmulti", "szvoc", "szvocdic", "szdictdata", "szbp", "szbpout", "szwork", "szcat", "szpriv", "syscom", "$savedlists", "$hold", "_under"}
+    refused = {"szq", "szabs", "szn", "szv", "szvoc", "szvocdic", "szdictdata", "szbp", "szbpout", "szwork", "szcat", "szpriv", "syscom", "$savedlists", "$hold", "_under"}
     row("A: ...and none of the refused entries is listed", not (refused & set(shown)), repr(sorted(refused & set(shown))))
     out = g.plain("zsno", ["LIST.SHARED"])
     row("A: LIST.SHARED in zsno says shared.read is off for it (11520) and lists nothing", has_text(out, msg(11520, "zsno")) and not has_text(out, "szd"), repr(out[-4:]))

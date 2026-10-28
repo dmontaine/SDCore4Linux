@@ -27,6 +27,7 @@
  *    concatenate, process ...); no code or value changed.  SYSCOM ERR.H and
  *    ERRTEXT.H are regenerated from this file by ERRGEN.
  * 07 Oct 26 dm PAL-1 D2 (the Windows port's RELEASE_1.1 5, 72d4a533): ER_TWIN 3042.
+ * 28 Oct 26 dm  S.87: ER_CNF 3031 and ER_MFC 3032 (multifiles) are retired, the numbers stay claimed.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -148,8 +149,8 @@
 #define ER_SQSEEK      3028    /* Seek to invalid offset in sequential file */
 #define ER_SQREL       3029    /* Invalid seek relto in sequential file */
 #define ER_EOF         3030    /* End of file */
-#define ER_CNF         3031    /* Multifile component not found */
-#define ER_MFC         3032    /* Multifile reference with no component name */
+/* 3031 and 3032 are RETIRED - do not recycle.  They were ER_CNF (multifile component not found) and ER_MFC (multifile reference
+   with no component name).  Multifiles were removed on 28 Oct 26 (S.87); the numbers stay claimed. */
 #define ER_PNF         3033    /* Port not found (os.error) */
 #define ER_BAD_DICT    3034    /* Bad dictionary entry */
 #define ER_PERM        3035    /* Permissions error (os.errno) */

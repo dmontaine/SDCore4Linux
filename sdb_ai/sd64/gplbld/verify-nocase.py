@@ -135,7 +135,7 @@ def _selftest():
             fails.append("%s: got %r want %r" % (name, got, want))
 
     # real upper-case names -> flagged
-    for n in ("ACCOUNTS", "$ACC", "$RELEASE", "INT$KEYS.H", "A%E", "SD.VOCLIB"):
+    for n in ("ACCOUNTS", "$ACC", "$RELEASE", "INT$KEYS.H", "A%E", "SD.ACCOUNTS"):
         ck(n, needs_lowercasing(n), True)
     # escaped restricted-char / leading-char records -> NOT names
     for n in ("%E", "%E%G", "%G%L", "%P", "%T", "%D", "%t", "%d"):
