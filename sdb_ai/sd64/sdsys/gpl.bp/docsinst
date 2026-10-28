@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 23 Oct 26 dm  New (S.75; the owner: "in the shared account directory should be the documentation PDF's").
 * END-HISTORY
 *
@@ -80,7 +81,7 @@ copy.one:
    magic = ''
    openseq src : @ds : nm readonly to pf then
       readseq magic from pf else magic = ''
-      closeseq pf
+      close pf
    end
    if magic[1, 5] # '%PDF-' then
       display sysmsg(11723, nm, 'it does not start with %PDF-')

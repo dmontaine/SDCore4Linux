@@ -257,7 +257,7 @@ PROGS["zzjx3"] = (
     "   writeseq '{bad' to f else stop 'bad'\n"
     "   c = jparse('{\"id\":3}')\n"
     "   writejson c to f else stop 'w4'\n"
-    "   weofseq f ; closeseq f\n"
+    "   weofseq f ; close f\n"
     "   openseq 'zzjx3.jsonl' to f else stop 'noopen'\n"
     "   readjson a from f else stop 'r1'\n" +
     T("RA", "a{'id'} : ' ' : convert(lf, '~', a{'s'})") +
@@ -269,13 +269,13 @@ PROGS["zzjx3"] = (
     "   readjson g from f else stop 'r5'\n" +
     T("RG", "g{'id'}") +
     "   readjson h from f then crt 'RH then' else crt 'RH else ' : status()\n"
-    "   closeseq f\n"
+    "   close f\n"
     "   x = jparse('[1]')\n"
     "   openseq 'zzjx3b.jsonl' to f then null else create f else stop 'nocreate'\n"
     "   weofseq f\n"
     "   fv = 5\n"
     "   writejson fv to f then crt 'WS then' else crt 'WS else ' : status()\n"
-    "   closeseq f\n"
+    "   close f\n"
     "   crt 'REND'\n"
     "end\n")
 

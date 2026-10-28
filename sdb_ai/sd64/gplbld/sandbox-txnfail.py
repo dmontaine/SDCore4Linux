@@ -187,18 +187,18 @@ PROBES = {
 path = @path:'/zza6.dat'
 openseq path to c then null else null
 writeblk 'ABCDE' to c else crt 'CONTROL writeblk failed'
-closeseq c
+close c
 openseq path to c else crt 'CONTROL reopen failed'
 readblk x from c, 2 else null
 weofseq c on error
    crt 'CONTROL ON ERROR status=':status()
 end
 crt 'CONTROL weofseq status=':status()
-closeseq c
+close c
 d = '?'
 openseq path to c then
    readblk d from c, 100 else d = ''
-   closeseq c
+   close c
 end else null
 crt 'CONTROL content=':d
 openseq '/dev/null' to n else crt 'DEVICE openseq ELSE status=':status()
@@ -209,25 +209,25 @@ weofseq n on error
 end
 crt 'DEVICE weofseq returned without error, status=':status()
 done:
-closeseq n
+close n
 ropath = @path:'/zza6ro.dat'
 openseq ropath overwrite to o on error
    crt 'OVERWRITE ON ERROR status=':status()
    goto done2
 end then
    crt 'OVERWRITE opened without error, status=':status()
-   closeseq o
+   close o
 end else
    crt 'OVERWRITE ELSE status=':status()
 end
 done2:
 openseq path overwrite to c then
-   closeseq c
+   close c
 end else crt 'CONTROL overwrite ELSE status=':status()
 d = '?'
 openseq path to c then
    readblk d from c, 100 else d = ''
-   closeseq c
+   close c
 end else null
 crt 'CONTROL after overwrite len=':len(d)
 crt 'ZZA6 END'

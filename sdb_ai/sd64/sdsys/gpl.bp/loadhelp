@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 23 Oct 26 dm  New (S.75; the owner: "Context help should be stored in the shared account as the file context.help, keyed using whatever id system you wish").
 * END-HISTORY
 *
@@ -115,7 +116,7 @@ load.one:
          nf += 1
          rec<nf> = trimb(ln)
       repeat
-      closeseq sf
+      close sf
    end
    if not(got) then
       display sysmsg(11840, name, 'cannot be read')

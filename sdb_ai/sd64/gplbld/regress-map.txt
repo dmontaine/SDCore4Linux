@@ -34,9 +34,9 @@
 # sequential files and CSV
 @seq = csv-b5 csvq csvb file-b8 gates qmclient oq2 fcontrol audit-b9 crlf
 # strings, conversions, functions, dates, locate and sort
-@functions = func-b4 func-q1 conv-b3 stmt-q3 stmt-b5 mode-q16 locate-b5 epoch numexp trans-b43 oq2 audit-b9 audit-b9b
+@functions = func-b4 func-q1 conv-b3 stmt-q3 stmt-b5 mode-q16 locate-b5 epoch trans-b43 oq2 audit-b9 audit-b9b
 # the compiler and what it compiles: statements, modes, classes, TRY, INPUT forms
-@compiler = bcomp-a1 lang-a15 lang-b45 stmt-b5 stmt-q3 func-b4 func-q1 mode-q16 partial numexp classas sselectv try forcereload input inputif inputraw inputfill inputtrap epoch txnstatus misc-a9 cmd-a9 guide
+@compiler = bcomp-a1 lang-a15 lang-b45 stmt-b5 stmt-q3 func-b4 func-q1 mode-q16 partial classas sselectv try input inputif inputraw inputfill inputtrap epoch txnstatus misc-a9 cmd-a9 guide
 # what a change to the select-list statements in the compiler needs
 @lists-compile = sselectv stacklist list-q2 mode-q16
 # the query processor and dictionaries
@@ -118,7 +118,7 @@ gplsrc/masters.c             : masters tool-masters @files
 gplsrc/op_dio4.c             : @lists fixes-b12 netfile
 gplsrc/op_dio3.c             : @files @seq prof lockown editgates netfile shared masters
 gplsrc/op_dio2.c             : @files fixes-b12 sys-b2 netfile shared masters
-gplsrc/op_dio1.c             : @files cll prof lockown netfile shared masters
+gplsrc/op_dio1.c             : @files  prof lockown netfile shared masters
 gplsrc/dh_ak.c               : @files netfile shared
 gplsrc/dh_misc.c             : @files netfile shared
 gplsrc/analyse.c             : fixes-b12 misc-a9 netfile
@@ -154,7 +154,7 @@ gplsrc/op_btree.c            : @functions
 gplsrc/op_arith.c            : @functions
 gplsrc/op_logic.c            : @functions lang-b45 partial
 gplsrc/op_misc.c             : @functions epoch txnstatus
-gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1 cll @files netfile masters
+gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1  @files netfile masters
 gplsrc/locks.h               : lock-b6 listu-a5 conf-b1
 # S.71 (20 Oct 26): the API server's input path (keyin, read_socket, keyready in linuxio.c; the two packet readers in op_tio.c; the length test in apipkt.h)
 # is run by the apispin suite: a real `sd -n -q` behind the real TLS relay, and a `sd -Q -C` over pipes, with a client that goes away.
@@ -182,7 +182,7 @@ gplsrc/sdsem.c               : shmmode @core
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode segtrust auditwriter @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof netfile masters
-gplsrc/kernel.c : @core csvb q5 listu-a5 inhibit-q8 cll prof resetall stacked classinit sysexc try editgates apispin segtrust ipc
+gplsrc/kernel.c : @core csvb q5 listu-a5 inhibit-q8  prof resetall  classinit sysexc try editgates apispin segtrust ipc
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
 gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust
@@ -193,7 +193,7 @@ sdsys/messages/1191?         : vocremoved
 gplsrc/k_error.c             : sysexc try @core netfile masters segtrust auditjournal auditwriter
 gplsrc/messages.c            : sysexc @core segtrust
 gplsrc/sd.h                  : sysexc try editgates @core netfile shared masters
-gplsrc/k_funcs.c             : @core cll
+gplsrc/k_funcs.c             : @core
 gplsrc/options.h             : option-a4 option-q17 mode-q16 conf-b1
 gplsrc/clopts.c              : conf-b1 sys-q18
 gplsrc/sd_tls*.c             : qmclient apispin netfile net
@@ -205,7 +205,7 @@ gplsrc/sdclient.h            : qmclient
 gplsrc/sdclient.c            : qmclient
 gplsrc/sd_encrypt_sodium.c   : qmclient crypt
 gplsrc/sd_keyring.c          : crypt
-gplsrc/op_exec.c : @core cmd-a9 stacklist forcereload prof csvb
+gplsrc/op_exec.c : @core cmd-a9 stacklist  prof csvb
 gplsrc/op_sh.c               : gates sdaccts editgates netfile shared segtrust
 gplsrc/to_file.c             : editgates gates @core
 gplsrc/op_sdext.c            : gates crypt
@@ -301,7 +301,7 @@ sdsys/gpl.bp/bcomp ~ back.end : lockown
 sdsys/gpl.bp/bcomp ~ st.open* : sync
 sdsys/gpl.bp/bcomp ~ st.execute*    : stacklist cmd-a9
 sdsys/gpl.bp/bcomp ~ st.screen*     : screen viewport
-sdsys/gpl.bp/bcomp ~ in.*           : func-b4 func-q1 epoch conv-b3 numexp
+sdsys/gpl.bp/bcomp ~ in.*           : func-b4 func-q1 epoch conv-b3
 sdsys/gpl.bp/bcomp ~ *              : @compiler
 sdsys/gpl.bp/bcomp.h         : @compiler
 sdsys/gpl.bp/tokens.h        : @compiler
@@ -604,7 +604,7 @@ sdsys/gpl.bp/_multisort      : @lists @functions
 sdsys/gpl.bp/write_install_dicts : dictfold nocase upgradenocase
 sdsys/gpl.bp/upgrade_masters : masters
 sdsys/gpl.bp/upgrade_*       : upgradenocase nocase gates editgates
-sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16 cll stacked lockown
+sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16   lockown
 sdsys/gpl.bp/_option         : option-a4 option-q17 mode-q16
 sdsys/gpl.bp/listu           : listu-a5 tool-sessions tool-accounts
 sdsys/gpl.bp/_listu          : listu-a5 tool-sessions tool-accounts
@@ -628,7 +628,7 @@ sdsys/gpl.bp/_sdsysn         : tool-sessions home
 gplbld/test-sdsysvis-units.py : none
 sdsys/gpl.bp/term            : @core winsize
 sdsys/gpl.bp/classmain       : classinit
-sdsys/gpl.bp/cproc           : @system @core cmd-a9 forcereload stacked gates sdaccts resetall classinit net netfile shared home tool-sessions ipc
+sdsys/gpl.bp/cproc           : @system @core cmd-a9   gates sdaccts resetall classinit net netfile shared home tool-sessions ipc
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29 apispin fileadmin netindex
 sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient tool-remote

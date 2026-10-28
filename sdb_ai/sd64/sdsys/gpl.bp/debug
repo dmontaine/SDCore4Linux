@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 24 Oct 26 dm  AI line stage 3: the command AI (or AI and a question) in the full-screen display when the AI is usable for the account; the model is told where the program has
 *               stopped, the call stack and the source round the stop; it answers in words, nothing is changed ($tk_ai).
 * 18 Oct 26 dm  Terminal 140 by 42 (plan-terminal-140x42.md, phase 3).  The full-screen display is laid out for at least 140 by 42
@@ -1749,7 +1750,7 @@ display.data.common:
          end else
             message = sysmsg(1435, status(), os.error())   ;* Write error %1 (os.error %2)
          end
-         closeseq dump.f
+         close dump.f
       end
 
       if message # '' then gosub emit.err.msg

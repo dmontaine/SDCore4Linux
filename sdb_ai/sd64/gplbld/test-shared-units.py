@@ -380,11 +380,12 @@ def checks(srcs):
     vr = B("_voc_ref")
     fb = "if allow.shared and component = '' and not(vr.admin) then"
     fbb = between(vr, fb, "parse.as.q.pointer:")
-    ck("L1 _voc_ref has a fifth argument, deffun shared_ref calling !shared_ref, and the fallback is in the else of the account's own first VOC read: AFTER the three folds and the PATH: / "
-       "Account:File forms (the account's own entry always wins), guarded by allow.shared, no component, not the administrator and the session's K$SHARED.READ, BEFORE the final ER$NVR; "
+    ck("L1 _voc_ref has a fifth argument, deffun shared_ref calling !shared_ref, and the fallback is in the else of the account's own first VOC read: AFTER the three folds "
+       "(the account's own entry always wins; the PATH: / Account:File forms are gone, S.87), guarded by allow.shared, no component, not the administrator and the session's K$SHARED.READ, BEFORE the final ER$NVR; "
        "on an answer it sets pathname and vflags and returns status 0",
        "subroutine voc_ref(filename, is.dict, pathname, vflags, allow.shared)" in vr and "deffun shared_ref(name, fno, quiet) calling '!shared_ref'" in vr
-       and ordered(vr, "read voc.rec from voc,voc.id else", "read voc.rec from voc,downcase(voc.id) then", "read voc.rec from voc,upcase(voc.id) then", "upcase(x1) = 'PATH'", fb)
+       and ordered(vr, "read voc.rec from voc,voc.id else", "read voc.rec from voc,downcase(voc.id) then", "read voc.rec from voc,upcase(voc.id) then", fb)
+       and "upcase(x1) = 'PATH'" not in vr and "FILERULE" not in vr
        and ordered(vr[at(vr, fb):], "if kernel(K$SHARED.READ, -1) then", "shared.ans = shared_ref(voc.id, fno, @false)", "pathname = shared.ans<1>", "vflags = shared.ans<2>", "set.status 0", "return",
                    "set.status ER$NVR", "parse.as.q.pointer:")
        and "set.status ER$NVR" in fbb and vr.count("shared_ref(") == 2 and "check.f.path" not in fbb and "qroot" not in fbb, "")
@@ -469,17 +470,15 @@ def checks(srcs):
        re.search(r"void kernel\(K\$SHARED\.READ,\s*\(acc\.record<ACC\$PATH> # ''\) and \(" + rd % r"acc\.record" + r"\)\)", cp) is not None
        and re.search(r"void kernel\(K\$SHARED\.WRITE,\s*\(acc\.record<ACC\$PATH> # ''\) and \(upcase\(trim\(acc\.record<ACC\$SHARED\.WRITE>\)\) = 'YES'\)\)", cp) is not None
        and ordered(cp, "void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')", "void kernel(K$SHARED.READ,  (acc.record<ACC$PATH>", "void kernel(K$SHARED.WRITE, (acc.record<ACC$PATH>", "'logto account='"), "")
-    ck("G1e ...CPROC clears acc.record BEFORE it reads the register (a failed openpath would otherwise leave the previous LOGTO's record in the variable and the gates would be read from it), holds the "
-       "gates beside stk.net, and revert.account gives them back BEFORE the SD.ACCOUNTS line (so stk.net stays next to the revert audit line)",
+    ck("G1e ...CPROC clears acc.record BEFORE it reads the register (a failed openpath would otherwise leave the previous LOGTO's record in the variable and the gates would be read from it), and "
+       "holds nothing of the starting account: OPTION STACKED.ACCOUNT is gone (S.87), so no stk.shared.* variable and no revert.account, and an EXECUTEd LOGTO stays in the account it went to",
        ordered(cp, "acc.record = ''", "openpath @sdsys:@ds:'accounts' to acc.f then", "read acc.record from acc.f, downcase(new.account) then")
-       and re.search(r"stk\.net = kernel\(K\$NET, -1\)\s*\n\s*stk\.shared\.read = kernel\(K\$SHARED\.READ, -1\)\s*\n\s*stk\.shared\.write = kernel\(K\$SHARED\.WRITE, -1\)", cp) is not None
-       and ordered(cp, "revert.account:", "void kernel(K$SHARED.READ,  stk.shared.read)", "void kernel(K$SHARED.WRITE, stk.shared.write)", "void kernel(K$SD.ACCOUNTS, stk.sd.accounts)", "void kernel(K$NET, stk.net)",
-                   "'logto revert account='"), "")
+       and "stk.shared" not in cp and "revert.account" not in cp and "stk.net" not in cp, "")
     setters = sorted(n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$SHARED\.(READ|WRITE),\s*(?!-1\))\S", t))
     lits = sorted(n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$SHARED\.(READ|WRITE),\s*(1\b|@true)", t))
     askers = sorted(n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$SHARED\.(READ|WRITE),\s*-1\)", t))
-    ck("G2 only LOGIN, CPROC and the API server SET the shared gates; _voc_ref, !shared_ref and list.shared (and CPROC, which holds them) only ASK; and nothing turns a gate on by a literal",
-       setters == ["apisrvr", "cproc", "login"] and not lits and set(askers) >= {"_voc_ref", "shared_ref", "listshared", "cproc", "tool_mygates"} and set(askers) <= {"_voc_ref", "shared_ref", "listshared", "cproc", "tool_mygates"},      # tool_mygates (24 Oct 26): the account holder's gate page only asks
+    ck("G2 only LOGIN, CPROC and the API server SET the shared gates; _voc_ref, !shared_ref and list.shared only ASK (CPROC no longer holds them: S.87); and nothing turns a gate on by a literal",
+       setters == ["apisrvr", "cproc", "login"] and not lits and set(askers) == {"_voc_ref", "shared_ref", "listshared", "tool_mygates"},      # tool_mygates (24 Oct 26): the account holder's gate page only asks
        repr(setters) + repr(lits) + repr(askers))
     ai = B("acc_os_info")
     mo = B("modifya")
@@ -738,8 +737,8 @@ MUTANTS = [
     ("sdsys's block sets the gates after the NET line", "bp:apisrvr", "   api.shared.read.grant = @true    ;* 18 Oct 26, S.66: an API session of sdsys follows shared and can write its records (it has no administrator flag, so no structure change)\n   api.shared.write.grant = @true\n   api.net.grant = @true", "   api.net.grant = @true\n   api.shared.read.grant = @true\n   api.shared.write.grant = @true\n"),
     ("LOGTO loads read without the PATH guard (a path-attached account reads)", "bp:cproc", "void kernel(K$SHARED.READ,  (acc.record<ACC$PATH> # '') and (", "void kernel(K$SHARED.READ,  (@true) and ("),
     ("LOGTO does not clear the record first", "bp:cproc", "   acc.record = ''\n   openpath @sdsys:@ds:'accounts' to acc.f then", "   openpath @sdsys:@ds:'accounts' to acc.f then"),
-    ("LOGTO does not hold the gates", "bp:cproc", "         stk.shared.read = kernel(K$SHARED.READ, -1)    ;* 18 Oct 26, S.66: the shared-account gates are account-scoped too\n         stk.shared.write = kernel(K$SHARED.WRITE, -1)\n", ""),
-    ("revert.account restores the gates after the NET line", "bp:cproc", "   void kernel(K$SHARED.READ,  stk.shared.read)    ;* 18 Oct 26, S.66: before the SD.ACCOUNTS line, so stk.net stays next to the revert audit line\n   void kernel(K$SHARED.WRITE, stk.shared.write)\n   void kernel(K$SD.ACCOUNTS, stk.sd.accounts)\n   void kernel(K$NET, stk.net)", "   void kernel(K$SD.ACCOUNTS, stk.sd.accounts)\n   void kernel(K$NET, stk.net)\n   void kernel(K$SHARED.READ,  stk.shared.read)\n   void kernel(K$SHARED.WRITE, stk.shared.write)"),
+    ("LOGTO holds the shared gates again (the stacked-account hold, S.87)", "bp:cproc", "   acc.record = ''\n   openpath @sdsys:@ds:'accounts' to acc.f then", "   acc.record = ''\n   stk.shared.read = kernel(K$SHARED.READ, -1)\n   openpath @sdsys:@ds:'accounts' to acc.f then"),
+    ("LOGTO has a revert.account label again", "bp:cproc", "   acc.record = ''\n   openpath @sdsys:@ds:'accounts' to acc.f then", "   acc.record = ''\nrevert.account:\n   openpath @sdsys:@ds:'accounts' to acc.f then"),
     ("the manifest says read is 1 only for yes", "bp:acc_os_info", "upcase(trim(acc.rec<ACC$SHARED.READ>)) # 'NO' then 1 else 0", "upcase(trim(acc.rec<ACC$SHARED.READ>)) = 'YES' then 1 else 0"),
     ("the manifest drops shared.write", "bp:acc_os_info", "         info<-1> = 'shared.write: ':(if upcase(trim(acc.rec<ACC$SHARED.WRITE>)) = 'YES' then 1 else 0)\n", ""),
     ("restorea withdraws read from a manifest that has no key", "bp:restorea", "(if m.shared.read = '0' then 1 else '')", "(if m.shared.read = '1' then '' else 1)"),

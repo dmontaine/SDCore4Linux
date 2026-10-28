@@ -175,7 +175,7 @@ if conn then
       readseq b from sq else b = "-"
       readseq c from sq else c = "-"
       readseq d from sq then d = "extra" else d = "-"
-      closeseq sq
+      close sq
       v = a : "/" : b : "/" : c : "/" : d
    end else
       v = "NOOPEN"
@@ -196,7 +196,7 @@ if conn then
    openseq "zzwdir", "lines" to sq then
       readseq a from sq else a = "-"
       readseq b from sq then b = "extra" else b = "-"
-      closeseq sq
+      close sq
       v = a : "/" : b
    end else
       v = "NOOPEN"

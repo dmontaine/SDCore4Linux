@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 17 Oct 26 dm S.65 slice 2a: the [api] section also shows the hash of the certificate's public key (sd-elevate tls-key).
 * 01 Oct 26 dm Written for S.50 (per-OS helper; signature and the split of the
 *              report agreed with SD Core for Windows by mail, 2026-10-01T1210:
@@ -53,7 +54,7 @@ $include accos.h
          readseq line from f else exit
          sec<-1> = line
       repeat
-      closeseq f
+      close f
    end else
       sec<-1> = conf:': cannot be read (status ':status():')'
    end

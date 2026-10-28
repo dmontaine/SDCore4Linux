@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 12 Oct 26 dm  New.
 * 18 Oct 26 dm  The key guardquit (the user left from the cursor lock, $sl_guardmode) closes the prompt as Esc does; the cursor is
 *               placed through $sl_curat.
@@ -38,8 +39,8 @@ $catalog $sl_prompt
 
 $include sl.h
 
-   equ P.UNDER to 13       ;* the row under the prompt
-   equ P.SHOWN to 15       ;* 1 while the line is on the screen
+   equate P.UNDER to 13       ;* the row under the prompt
+   equate P.SHOWN to 15       ;* 1 while the line is on the screen
 
    row = w<SL.W.Y> + 0
    sw = scr<SL.S.W> + 0

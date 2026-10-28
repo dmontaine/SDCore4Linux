@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 27 Oct 26 dm  S.87 batch 8: OPTION CATALOGUE.LOCAL is gone, so the page no longer tells of it (the footer note and two refusals).
 * 25 Oct 26 dm  New.
 * END-HISTORY
@@ -479,7 +480,7 @@ meta.entry:
          openseq mop readonly to sf then
             blk = ''
             readblk blk from sf, 256 else blk = ''
-            closeseq sf
+            close sf
             pin = blk
             gosub parse.obj
             mkind = pkind ; mct = pct ; mflags = pflags ; margs = pargs
@@ -489,7 +490,7 @@ meta.entry:
             oi = ospath(mop, OS$INFO)
             mosz = oi<6>
          end else
-            if not(unassigned(sf)) then closeseq sf       ;* 26 Oct 26 - an OPENSEQ that took ELSE keeps the name locked until the variable is closed (see home_entry)
+            if not(unassigned(sf)) then close sf       ;* 26 Oct 26 - an OPENSEQ that took ELSE keeps the name locked until the variable is closed (see home_entry)
             mreason = 'the object it points at is not there'
          end
       end

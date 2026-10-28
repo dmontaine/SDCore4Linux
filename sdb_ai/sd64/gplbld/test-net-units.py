@@ -365,10 +365,9 @@ def checks(srcs):
     m = re.search(r"void kernel\(K\$NET,\s*upcase\(trim\(acc\.record<ACC\$NET>\)\) = 'YES'\)", cp)
     ck("B2 CPROC's logto loads K$NET from the NEW account's record (acc.record), off unless 'yes', after the SD.ACCOUNTS load and before the audit line",
        m is not None and 0 <= at(cp, "void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<") < m.start() < at(cp, "'logto account='"), "")
-    ck("B3 CPROC holds it in stk.net with the other account-scoped gates and gives it back in revert.account, before the revert audit line",
-       re.search(r"stk\.sd\.accounts = kernel\(K\$SD\.ACCOUNTS, -1\)\s*\n\s*stk\.net = kernel\(K\$NET, -1\)", cp) is not None
-       and ordered(cp, "revert.account:", "void kernel(K$SD.ACCOUNTS, stk.sd.accounts)", "void kernel(K$NET, stk.net)", "'logto revert account='")
-       and len(re.findall(r"kernel\(K\$NET,", cp)) == 4, "")      # slice 3e: the fourth is kernel(K$NET, -2) in para.reset.environment (S2 checks it)
+    ck("B3 CPROC keeps no copy of the gate: OPTION STACKED.ACCOUNT and its revert.account went (S.87, 28 Oct 26), so there is no stk.net, no stk.* variable and no revert.account, and the gate is loaded at LOGTO from the account record only (B2); CPROC makes exactly two K$NET calls, that load and kernel(K$NET, -2) in para.reset.environment (S2 checks it)",
+       not re.search(r"^(?!\*).*?(?:\bstk\.(?:net|sd|path|sh|shared)|revert\.account)", cp, re.M)      # the history lines (they start with *) still name them
+       and len(re.findall(r"kernel\(K\$NET,", cp)) == 2, "")
     ck("B4 the API server starts api.net.grant false at every entry, reads it from ACC$NET with the other grants, and loads K$NET with SD.ACCOUNTS",
        re.search(r"api\.net\.grant = @false", ap) is not None
        and re.search(r"api\.net\.grant = \(upcase\(trim\(acc\.rec<ACC\$NET>\)\) = 'YES'\)", ap) is not None
@@ -385,9 +384,9 @@ def checks(srcs):
             n = len(re.findall(r"kernel\(K\$NET,", text))
             if n:
                 sites[name[3:]] = n
-    ck("B5 no program but LOGIN (1), CPROC (4: three of the gate's own, and since slice 3e kernel(K$NET, -2) in para.reset.environment), the API server (1), set.netlogin (1), the remote file handler "
+    ck("B5 no program but LOGIN (1), CPROC (2: the load at LOGTO, and since slice 3e kernel(K$NET, -2) in para.reset.environment; the stacked-account copies went 28 Oct 26), the API server (1), set.netlogin (1), the remote file handler "
        "netfile (1) and the account holder's gate page tool_mygates (1, 24 Oct 26) mentions K$NET - the last three only ASK: K$NET, -1 (see U2, NF6)",
-       sites == {"login": 1, "cproc": 4, "apisrvr": 1, "setnetlogin": 1, "netfile": 1, "tool_mygates": 1}, repr(sites))
+       sites == {"login": 1, "cproc": 2, "apisrvr": 1, "setnetlogin": 1, "netfile": 1, "tool_mygates": 1}, repr(sites))
     bad = [n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$NET,\s*(?!-1\))(\d+|@true|1\b)", t)]
     ck("B6 nothing turns the gate on by a literal (K$NET with a number other than -1, or @true)", not bad, repr(bad))
     ups = {n[3:]: t for n, t in c.items() if n.startswith("bp:upgrade_")}
@@ -779,14 +778,14 @@ def checks_2b(srcs, c, ck):
     ck("R5 READ in order: the pin argument must be 64 lower case hex digits (11459) before the disk is touched; no file is 11453; an untrusted one 11454; the line is read "
        "and the file closed; a mark byte or the wrong layout (v1 and 8 fields) is 11456; every value has its shape (check.record) BEFORE the stored pin is compared with "
        "the definition's (11455, and record stays null); the record is handed back last",
-       ordered(rd, "record = ''", "gosub check.pin", "err = 11459", "ospath(path, OS$EXISTS)", "err = 11453", "SD_FILE_PRIVATE", "openseq path to f", "readseq line from f", "closeseq f",
+       ordered(rd, "record = ''", "gosub check.pin", "err = 11459", "ospath(path, OS$EXISTS)", "err = 11453", "SD_FILE_PRIVATE", "openseq path to f", "readseq line from f", "close f",
                "convert(marks, '', line)", "err = 11456", "dcount(line, @fm) # 8 or line<1> # 'v1'", "err = 11456", "gosub check.record", "err = 11456",
                "if one<6> # pin then", "err = 11455", "record = one") and rd.count("record = one") == 1 and rd.count("gosub check.record") == 1, "")
     ck("R6 WRITE in order: the pin argument first (11459), the pin ARGUMENT is what is stored (attribute 6 of the record is overwritten), every value checked (11456) before "
        "the first byte is written; umask 077 (63) while the copy is made and put back straight after, before anything is written; the copy is tested; the rename is last, "
        "only when there is no error; a failed write deletes the copy",
        ordered(wr, "gosub check.pin", "err = 11459", "one = record", "one<6> = pin", "gosub check.record", "err = 11456", "line = 'v1'", "void umask(NETCRED.UMASK)",
-               "openseq tmp to tmp.f", "void umask(old.umask)", "writeseq line to tmp.f", "closeseq tmp.f", "SD_FILE_PRIVATE", "if err = '' then\n            if not(osrename(tmp, path))")
+               "openseq tmp to tmp.f", "void umask(old.umask)", "writeseq line to tmp.f", "close tmp.f", "SD_FILE_PRIVATE", "if err = '' then\n            if not(osrename(tmp, path))")
        and re.search(r"if err # '' then void ospath\(tmp, OS\$DELETE\)", wr) is not None and re.search(r"\$define NETCRED\.UMASK\s+63\b", nc) is not None
        and "old.umask = umask(-1)" in wr, "")
     ck("R6b ...an old copy left behind is removed first (and a failure to remove it is 11457), and a failure to create the copy is 11457",
@@ -3107,9 +3106,8 @@ mut("LOGIN loads the gate from the wrong field", "login", "upcase(trim(acc.rec<A
 mut("CPROC's logto forgets the NET gate", "cproc", drop_line(r"void kernel\(K\$NET, upcase\(trim\(acc\.record"))
 mut("CPROC's logto loads it from the old account's record", "cproc", "void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')", "void kernel(K$NET, upcase(trim(acc.rec<ACC$NET>)) = 'YES')")
 mut("CPROC's logto loads the gate after the audit line", "cproc", rx(r"(   void kernel\(K\$NET, upcase\(trim\(acc\.record<ACC\$NET>\)\) = 'YES'\)\n(?:\*[^\n]*\n)*(?:   void kernel\(K\$SHARED\.[A-Z]+,[^\n]*\n)*)(\n   void kernel\(K\$AUDIT, 'logto account=' : new\.account\)[^\n]*\n)", r"\2\1"))
-mut("CPROC never holds the gate", "cproc", drop_line(r"stk\.net = kernel"))
-mut("CPROC does not give the gate back", "cproc", drop_line(r"void kernel\(K\$NET, stk\.net\)"))
-mut("CPROC gives the gate back after the revert audit line", "cproc", rx(r"(   void kernel\(K\$NET, stk\.net\)[^\n]*\n)(   void kernel\(K\$AUDIT, 'logto revert account=' : who\)\n)", r"\2\1"))
+mut("CPROC holds a copy of the gate again", "cproc", "   void kernel(K$NET, -2)   ;*", "   stk.net = kernel(K$NET, -1)\n   void kernel(K$NET, -2)   ;*")
+mut("CPROC has a revert.account label again", "cproc", "   void kernel(K$NET, -2)   ;*", "revert.account:\n   void kernel(K$NET, -2)   ;*")
 mut("the API server forgets api.net.grant at every entry", "apisrvr", drop_line(r"^api\.net\.grant = @false"))
 mut("the API server starts with the gate on", "apisrvr", rx(r"api\.net\.grant = @false", "api.net.grant = @true"))
 mut("the API server does not read the register field", "apisrvr", drop_line(r"api\.net\.grant = \(upcase"))
@@ -3212,7 +3210,7 @@ mut("!netdefs accepts a control character", "netdefs", "c < 32 or c > 126", "c >
 mut("!netdefs accepts a definition of 7 fields", "netdefs", "ok = (dcount(one, @vm) = NETDEFS.FIELDS)", "ok = (dcount(one, @vm) >= 7)")
 mut("!netdefs writes the file in place", "netdefs", "tmp = path : '.new'", "tmp = path")
 mut("!netdefs renames before it has written", "netdefs", rx(r"(         if not\(osrename\(tmp, path\)\) then)", r"         void osrename(tmp, path)\n\1"))
-mut("!netdefs writes two ways", "netdefs", lambda t: t.replace("         closeseq tmp.f\n", "         writeseq 'x' to tmp.f else null\n         closeseq tmp.f\n", 1))
+mut("!netdefs writes two ways", "netdefs", lambda t: t.replace("         close tmp.f\n", "         writeseq 'x' to tmp.f else null\n         close tmp.f\n", 1))
 mut("!netdefs leaves the copy after a failed write", "netdefs", rx(r"if err # '' then\n\s*void ospath\(tmp, OS\$DELETE\)\n", "if err # '' then\n"))
 mut("!netdefs never sets the umask", "netdefs", "         void umask(18)\n", "")
 mut("!netdefs sets the umask after the copy is made", "netdefs", rx(r"(         void umask\(18\)\n)(         openseq tmp to tmp\.f then\n.*?\n         end\n)", r"\2\1", re.S))
@@ -3394,14 +3392,14 @@ mut("the directory is not tested", NCR, "if not(dir.there) or SDEXT(cred.dir : @
 mut("a missing directory is allowed", NCR, "if not(dir.there) or SDEXT(cred.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1' then", "if dir.there and SDEXT(cred.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1' then")
 mut("READ opens a file it has not tested", NCR, after("case act = 'READ'", NC_TRUST_READ, ""))
 mut("READ tests the file after it opens it", NCR,
-    lambda t: after("case act = 'READ'", NC_TRUST_READ, "")(t).replace("         closeseq f\n", "         closeseq f\n" + NC_TRUST_READ, 1))
+    lambda t: after("case act = 'READ'", NC_TRUST_READ, "")(t).replace("         close f\n", "         close f\n" + NC_TRUST_READ, 1))
 mut("DELETE removes a file it has not tested", NCR, after("case act = 'DELETE'", NC_TRUST_READ, ""))
 mut("EXISTS says 1 without the test", NCR, after("case act = 'EXISTS'", "SDEXT(path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) = '1'", "1"))
 mut("WRITE renames a copy it has not tested", NCR, "if SDEXT(tmp : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1' then", "if 0 then")
 mut("WRITE tests the copy before it is written", NCR,
     lambda t: t.replace("if SDEXT(tmp : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1' then", "if 0 then", 1).replace("         writeseq line to tmp.f else\n", "         if SDEXT(tmp : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1' then err = 11454\n         writeseq line to tmp.f else\n", 1))
 mut("a file that fails the test is reported as damaged", NCR, after("case act = 'READ'", "err = 11454:@vm:server:@vm:path", "err = 11456:@vm:server:@vm:path"))
-mut("a file is opened a third time", NCR, lambda t: t.replace("         closeseq f\n", "         closeseq f\n         openseq path to f else null\n", 1))
+mut("a file is opened a third time", NCR, lambda t: t.replace("         close f\n", "         close f\n         openseq path to f else null\n", 1))
 mut("the copy is renamed twice", NCR, lambda t: t.replace("         if err # '' then void ospath(tmp, OS$DELETE)\n", "         void osrename(tmp, path)\n         if err # '' then void ospath(tmp, OS$DELETE)\n", 1))
 # R: the file never holds the password
 mut("the line holds a password", NCR, "line = 'v1'", "line = 'v1' : pw")
@@ -3423,7 +3421,7 @@ mut("WRITE sets no umask", NCR, "         void umask(NETCRED.UMASK)\n", "")
 mut("the umask is 022", NCR, "$define NETCRED.UMASK 63", "$define NETCRED.UMASK 18")
 mut("the umask is not put back", NCR, "         void umask(old.umask)\n", "")
 mut("the umask is put back after the write", NCR,
-    lambda t: t.replace("         void umask(old.umask)\n", "", 1).replace("         closeseq tmp.f\n", "         closeseq tmp.f\n         void umask(old.umask)\n", 1))
+    lambda t: t.replace("         void umask(old.umask)\n", "", 1).replace("         close tmp.f\n", "         close tmp.f\n         void umask(old.umask)\n", 1))
 mut("WRITE renames whatever the error", NCR, "         if err = '' then\n            if not(osrename(tmp, path)) then", "         if @true then\n            if not(osrename(tmp, path)) then")
 mut("a failed write leaves the copy", NCR, "if err # '' then void ospath(tmp, OS$DELETE)", "if err # '' then null")
 mut("an old copy is not removed first", NCR, "if ospath(tmp, OS$EXISTS) then", "if 0 then")

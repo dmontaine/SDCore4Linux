@@ -145,7 +145,7 @@ P7 = """   t0 = system(1081)
    readseq line from f else line = 'EOF'
    t3 = system(1081)
    crt 'P7 MIDDLE seek+read=':(t3 - t2):' ms line=[':line[1, 70]:']'
-   closeseq f
+   close f
 end
 """
 

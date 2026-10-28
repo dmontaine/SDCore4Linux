@@ -18,6 +18,7 @@
 * 
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * rev 0.9.0 Jan 25 mab initial commit
 * 11 Sep 26 dm  Header: what STATUS() actually holds (passwd's exit code).
 * 19 Sep 26 dm  SD asks for the password itself and applies its rule
@@ -227,7 +228,7 @@ openseq pdir : '/p' to pw.f else
    return pass_set
 end
 writeseq pw1 to pw.f else null
-closeseq pw.f
+close pw.f
 pw1 = ''
 OS.EXECUTE "sudo /usr/local/sbin/sd-elevate setpw '" : username : "' < '" : pdir : "/p'"
 * --------------------

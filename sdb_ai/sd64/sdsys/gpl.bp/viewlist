@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 23 Oct 26 dm  New (S.75; the owner: "an admin screen to setup which programs are allowed to bypass the os.execute restriction globally").
 * END-HISTORY
 *
@@ -98,10 +99,10 @@ read.all:
          pur<n> = downcase(line[1, sp - 1])
          pth<n> = trim(line[sp + 1, 999])
       repeat
-      closeseq lf
+      close lf
    end else
 *     26 Oct 26: an absent file takes ELSE with the name still locked; close the variable (see home_entry)
-      if not(unassigned(lf)) then closeseq lf
+      if not(unassigned(lf)) then close lf
    end
    return
 
@@ -113,7 +114,7 @@ write.all:
       for i = 1 to nk
          writeseq keep.pur<i> : ' ' : keep.pth<i> to lf else c = 0
       next i
-      closeseq lf
+      close lf
    end
    if c then os.execute "chmod 0644 '" : lfile : "'" capturing mo
    return

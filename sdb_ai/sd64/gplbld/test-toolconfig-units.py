@@ -332,8 +332,8 @@ def checks(raw):
     d_no = dict(re.findall(r"^\| `([A-Z0-9]+)` \| ([^|]+) \|$", sect, re.M))
     t_can = [(r[0], r[3], r[4], r[5]) for r in trs if len(r) > 8 and r[8] == "yes"]
     t_no = {r[0]: r[9] for r in trs if len(r) > 8 and r[8] == "no"}
-    ck("CF26", "THE GUIDE'S TWO TABLES ARE THE TABLE: the 14 parameters with their range and effect, and the other 37 with the same sentence the page shows; the guide also names set.config, the .bak, the audit line and the E key",
-       d_can == t_can and len(t_can) == 14 and {k: v.strip() for k, v in d_no.items()} == {k: v.strip() for k, v in t_no.items()} and len(t_no) == 37
+    ck("CF26", "THE GUIDE'S TWO TABLES ARE THE TABLE: the 14 parameters with their range and effect, and the other 36 with the same sentence the page shows; the guide also names set.config, the .bak, the audit line and the E key",
+       d_can == t_can and len(t_can) == 14 and {k: v.strip() for k, v in d_no.items()} == {k: v.strip() for k, v in t_no.items()} and len(t_no) == 36
        and all(s in doc for s in ("set.config cleanup 600", "/etc/sd.conf.bak", "set.config key=cleanup value=600 status=ok", "the `E` key of `tool.config`", "`Change`")), "can %s, no %d of %d" % (d_can[:2], len(d_no), len(t_no)))
     hp = raw["help"]
     ck("CF27", "THE HELP RECORD says what E does (it names set.config, the .bak, the fourteen parameters and the by-hand line) and no longer says the page only looks",

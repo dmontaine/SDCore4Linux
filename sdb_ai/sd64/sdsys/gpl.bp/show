@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): @SHOW
 *               and the field names fold case, as typed then lower then upper.
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
@@ -44,12 +45,12 @@ program show
 $include parser.h 
 $include dictdict.h
 
-   equ FILEINFO.KEY         to  1
-   equ PROMPT.CHAR          to ':'
+   equate FILEINFO.KEY         to  1
+   equate PROMPT.CHAR          to ':'
 
-   equ ITYPE.NAME to "__SHOW"
-   equ MAX.ITEMS to 10
-   equ MIN.WIDTH to 45
+   equate ITYPE.NAME to "__SHOW"
+   equate MAX.ITEMS to 10
+   equate MIN.WIDTH to 45
 
    prompt.string = ''
 

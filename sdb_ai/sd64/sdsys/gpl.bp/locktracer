@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 16 Oct 26 dm  Written for the QM4 gap LOCK.TRACER.
 * END-HISTORY
 *
@@ -134,7 +135,7 @@ $include err.h
       print on lptr day : ' ' : oconv(mvtime(e), 'MTS') : ' ' : fmt(u, '5R') : ' ' : fmt(code, '7L') : ' ' : fmt(prog, '20L') : ' ' : fmt(ln, '6R') : ' ' : fmt(file, '30L') : ' ' : rid
       shown += 1
    repeat
-   closeseq f
+   close f
 
    if shown = 0 then
       if user # 0 then print on lptr sysmsg(11365, user) else print on lptr sysmsg(11366)   ;* no locks were logged for user %1 / No locks have been logged

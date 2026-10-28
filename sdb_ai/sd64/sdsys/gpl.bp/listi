@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
 * 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
 *               dictionary read folds case, as typed then lower then upper.
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
@@ -228,7 +229,7 @@ not.all.keyword:
 
       type = ak.data[1, 1]
       begin case
-         case type = 'I' or type = 'C'
+         case type = 'I'
             * Single/multi value
 
             line[33, 1] = ak.data<DICT.S.M>

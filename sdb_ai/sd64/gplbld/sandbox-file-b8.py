@@ -234,7 +234,7 @@ def main():
         seq["zzb8s3"] = dev
     for nm, path in seq.items():
         progs[nm] = ("$include keys.h\n   openseq '%s' to f then\n      crt 'OS[ok][':fileinfo(f, FL$SEQTYPE):']'\n"
-                     "      closeseq f\n   end else crt 'OS[':status():']'\nend\n" % path)
+                     "      close f\n   end else crt 'OS[':status():']'\nend\n" % path)
 
     try:
         tool(box, "start", timeout=180)

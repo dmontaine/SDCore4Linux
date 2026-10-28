@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 25 Oct 26 dm  New.
 * END-HISTORY
 *
@@ -170,7 +171,7 @@ open.audit:
    return
 
 close.audit:
-   if opened then closeseq f
+   if opened then close f
    opened = 0
    return
 

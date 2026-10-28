@@ -97,14 +97,14 @@ PROGS["zzcbc"] = PRE + (
     "   csv.mode 2\n"
     "   writecsv 'x', 7, 'a;b', '', '1,5' to f else stop 'c3'\n"
     "   csv.mode 1\n"
-    "   weofseq f ; closeseq f\n"
+    "   weofseq f ; close f\n"
     "   openseq 'zzcbc.txt' to f else stop 'noopen'\n"
     "   readcsv from f to a1, a2, a3, a4 else stop 'r1'\n" +
     T("C1", "a1 : '|' : a2 : '|' : a3 : '|' : a4") +
     "   readseq skip from f else stop 'r2'\n"
     "   readcsv from f to b1, b2, b3, b4, b5 else stop 'r3'\n" +
     T("C2", "b1 : '|' : b2 : '|' : b3 : '|' : b4 : '|' : b5") +
-    "   closeseq f\n"
+    "   close f\n"
     "   crt 'CP:'\n"
     "   printcsv 'a', 'b,c', 'x\"y'\n"
     "   x = csvdq('p,\"q,r\",s')\n" +
@@ -135,7 +135,7 @@ PROGS["zzcbw"] = PRE + (
     "   dim m(3)\n"
     "   m(1) = 'a,b' ; m(2) = 'c' ; m(3) = \"d'e\"\n"
     "   matwritecsv m to f delimiter '|' quote \"'\" else stop 'w12'\n"
-    "   weofseq f ; closeseq f\n"
+    "   weofseq f ; close f\n"
     "   crt 'WEND'\n"
     "end\n")
 
@@ -154,21 +154,21 @@ PROGS["zzcbr"] = PRE + (
     "   readcsv from f to g1, g2 else stop 'r6'\n" +
     T("R6", "g1 : '|' : g2") +
     "   readcsv from f to h1 else crt 'EOF1'\n"
-    "   closeseq f\n"
+    "   close f\n"
     "   openseq 'zzcbr2.txt' to f else stop 'noopen2'\n"
     "   readcsv from f to a1, a2 else stop 'q1'\n" +
     T("Q1", "a1 : '|' : a2") +
     "   readcsv from f to a1, a2 else stop 'q2'\n" +
     T("Q2", "a1 : '|' : a2") +
     "   readcsv from f to a1, a2 else crt 'EOF2'\n"
-    "   closeseq f\n"
+    "   close f\n"
     "   openseq 'zzcbr3.txt' to f else stop 'noopen3'\n"
     "   dim m(3)\n"
     "   matreadcsv m from f delimiter ';' else stop 'm1'\n" +
     T("M1", "m(1) : '|' : m(2) : '|' : m(3)") +
     "   matreadcsv m from f quote \"'\" else stop 'm2'\n" +
     T("M2", "m(1) : '|' : m(2) : '|' : m(3)") +
-    "   closeseq f\n"
+    "   close f\n"
     "   crt 'REND'\n"
     "end\n")
 

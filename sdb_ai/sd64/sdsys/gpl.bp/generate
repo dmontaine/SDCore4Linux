@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 27 Oct 26 dm  S.87 batch 4: field locations 9998 and 9999 are no longer skipped (they are ordinary numbers now); only location 0 is.
 * 17 Oct 26 dm  S.64 part 2 (the edit gates): GENERATE writes into two files the user names, the dictionary (the $INCLUDE control
 *               record it makes when there is none) and the target file of that record (bp by default; the include records), and
@@ -286,7 +287,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
                end
             next i
 
-            closeseq include.file
+            close include.file
          end
 
          if matrix.mode then
@@ -350,7 +351,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
                end
             next i
 
-            closeseq include.file
+            close include.file
          end
 
       end

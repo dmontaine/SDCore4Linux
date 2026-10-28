@@ -17,7 +17,7 @@ Every ordinary account's VOC is `newvoc` in full (`create.account` copies it; `u
 SDSYS's own VOC is `voc_template` in full: a superset of `newvoc`. The records only SDSYS has (58): `$hold`, `accounts`, `backup.account`, `bp`, `bp.out`, `check.masters`, `clean.account`, `clear.locks`, `config`, `create.account`, `delete.account`, `delete.server`, `docs.install`, `first.compile`, `gpl.bp`, `gpl.bp.out`, `inhibit.login`, `list.locks`, `list.master.pending`, `list.readu`, `list.servers`, `list.shared`, `list.voc.removed`, `listu`, `load.help`, `lock`, `lock.tracer`, `messages`, `modify.account`, `qfile`, `remote.api`, `remote.ssh`, `restore.account`, `restore.voc`, `second.compile`, `set.ai`, `set.backup.directory`, `set.config`, `set.date`, `set.server`, `set.start.default`, `set.tile`, `set.viewer`, `settings.report`, `sync.masters`, `third.compile`, `tool.accounts`, `tool.ai`, `tool.audit`, `tool.backups`, `tool.config`, `tool.masters`, `tool.menus`, `tool.remote`, `tool.sessions`, `tool.viewers`, `unlock`, `update.accounts`.
 
 ### voc:type:F
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:83#98baf5a6
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:81#98baf5a6
 
 **The F record — a file**
 
@@ -75,7 +75,7 @@ name rather than by path.
 
 
 ### voc:type:K
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:258#4f0b8cdd
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:259#4f0b8cdd
 
 **The K record — a keyword**
 
@@ -88,8 +88,7 @@ name rather than by path.
 This is `#`, the comment keyword. Field 2 is the keyword number the query
 processor uses. Keywords are not commands in their own right; they are
 the words the query processor — `LIST`, `SELECT`, `SORT` and the rest —
-recognises inside a command line. `all` is `K` with number 5; `after` is
-`K` with a number; `and` is `K`.
+recognises inside a command line. `all` is `K` with number 5; `and` is `K`.
 
 **A K record can also be a command.** When its fields 3 onwards are another
 VOC record (a `V` record, say), typing the K record's name runs that record as
@@ -114,7 +113,7 @@ supplier` parse.
 
 
 ### voc:type:PA
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:226#9486a7c4
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:224#9486a7c4
 
 **The PA record — a paragraph**
 
@@ -141,17 +140,20 @@ text as typed-ahead input.
 002  GRAND.TOTAL "'L'"
 ```
 
-This is `no.grand.total`. A phrase is a stored fragment that is
+A phrase is a stored fragment that is
 substituted into a command line wherever its name appears. `PH` is
 treated as `S` for most purposes — the difference is that a phrase is
 designed to be used inside another command rather than typed on its own.
+The record above is a phrase a site might add: named `gt.l`, say, it
+expands to `grand.total "'L'"` wherever `gt.l` appears in a query.
 
-`without` is also `PH`, holding `WITH NO` — so `list stock without qty`
-expands to `list stock with no qty`.
+**No phrase ships in the VOC.** The two that did, `no.grand.total` and
+`without`, were removed in 1.2-0; write `grand.total "'L'"` and `with no`
+in the command instead.
 
 
 ### voc:type:PH
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:243#7acc327c
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:241#7acc327c
 
 **The PH record — a phrase**
 
@@ -161,17 +163,20 @@ expands to `list stock with no qty`.
 002  GRAND.TOTAL "'L'"
 ```
 
-This is `no.grand.total`. A phrase is a stored fragment that is
+A phrase is a stored fragment that is
 substituted into a command line wherever its name appears. `PH` is
 treated as `S` for most purposes — the difference is that a phrase is
 designed to be used inside another command rather than typed on its own.
+The record above is a phrase a site might add: named `gt.l`, say, it
+expands to `grand.total "'L'"` wherever `gt.l` appears in a query.
 
-`without` is also `PH`, holding `WITH NO` — so `list stock without qty`
-expands to `list stock with no qty`.
+**No phrase ships in the VOC.** The two that did, `no.grand.total` and
+`without`, were removed in 1.2-0; write `grand.total "'L'"` and `with no`
+in the command instead.
 
 
 ### voc:type:Q
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:187#b10fccd2
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:185#b10fccd2
 
 **The Q record — an indirect pointer**
 
@@ -189,7 +194,7 @@ followed with the same account test, so a chain cannot reach where its links alo
 
 
 ### voc:type:R
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:200#7919279b
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:198#7919279b
 
 **The R record — a remote record reference**
 
@@ -209,7 +214,7 @@ R-records pointing into `SD.VOCLIB`.
 
 
 ### voc:type:S
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:215#e478fff6
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:213#e478fff6
 
 **The S record — a sentence**
 
@@ -225,7 +230,7 @@ command with its first arguments filled in.
 
 
 ### voc:type:V
-> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:136#770e48c1
+> kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:134#770e48c1
 
 **The V record — a verb**
 
@@ -244,7 +249,7 @@ target, and the remaining fields carry options.
 |---|---|---|
 | `CA` | *catalogue name* | a catalogued program — 95 of the shipped verbs |
 | `IN` | *number* | internal verb *n*, handled by the command processor itself — 43 verbs |
-| `OS` | *text* | an operating-system command — `sh` and `!`, and nothing else |
+| `OS` | *text* | an operating-system command — `sh`, and nothing else |
 | `CS` | *path* | a locally catalogued function |
 
 Those four rows account for all but four of SDSYS's 144 `V` records. The
@@ -322,7 +327,6 @@ load-bearing and the remaining thirty are not.**
 | `K` | keyword | a query-processor keyword; four of these are also verbs |
 | `S` | sentence | one stored command line |
 | `PA` | paragraph | several stored command lines, with flow control |
-| `M` | menu | dispatched, but no menu ships |
 | `Q` | Q-pointer | an indirect pointer to a file in another account |
 | `F` | file | a file — local, or pointing into `@SDSYS` |
 | `R` | remote | a pointer to a record in another file, re-read and re-parsed |

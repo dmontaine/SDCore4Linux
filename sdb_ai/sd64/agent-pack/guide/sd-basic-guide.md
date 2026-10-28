@@ -166,11 +166,11 @@ crt dcount(a, @fm)
 crt change(a, @fm, '|')
 crt '[':a<9>:']'             ;* reading past the end is not an error
 crt dcount('', @fm)          ;* an empty string has no fields, not one
-a = delete(a, 1)
+del a<1>
 crt change(a, @fm, '|')
-a = insert(a, 1; 'first')
+ins 'first' before a<1>
 crt change(a, @fm, '|')
-crt change(extract(a, 3), @fm, '|')
+crt change(a<3>, @fm, '|')
 ```
 
 ```output
@@ -190,7 +190,7 @@ z
 list = 'apple':@fm:'cherry':@fm:'pear'
 locate 'cherry' in list<1> setting pos then crt 'found at ':pos else crt 'no'
 locate 'banana' in list<1> by 'al' setting pos then crt 'found' else crt 'insert at ':pos
-list = insert(list, pos; 'banana')
+ins 'banana' before list<pos>
 crt change(list, @fm, ',')
 ```
 
@@ -571,13 +571,13 @@ end
 writeseq 'line one' to sf else stop 'w1'
 writeseq 'line two' to sf else stop 'w2'
 weofseq sf
-closeseq sf
+close sf
 openseq 'gzseq.txt' to sf else stop 'cannot reopen'
 loop
    readseq ln from sf else exit
    crt ln
 repeat
-closeseq sf
+close sf
 ```
 
 ```output
@@ -1402,7 +1402,7 @@ program csort
    sorted = ''
    for each w in 'pear apple fig cherry' delimiter ' '
       locate w in sorted<1> by 'al' setting p else null
-      sorted = insert(sorted, p; w)
+      ins w before sorted<p>
    next w
    crt change(sorted, @fm, ' ')
 end

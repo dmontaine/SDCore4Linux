@@ -730,7 +730,7 @@ def mode_chunks(ctx, since, mentions):
         if m:
             cur = max(cur, int(m.group(1)))
             pos.append((m.group(2), i, int(m.group(1))))
-    if len(pos) < 8:                                 # 27 Oct 26: 11 modes since S.87 batch 17 (30+ before the modes of other products went)
+    if len(pos) < 6:                                 # 27 Oct 26: 11 modes since S.87 batch 17 (30+ before the modes of other products went)
         raise SystemExit("mkpack: only %d $MODE names found in bcomp - refusing" % len(pos))
     # what each bit is for: the comment on bcomp's  $define M.NAME bit  /  $define M2.NAME bit  lines (keyed by the bit)
     why = {}
@@ -772,7 +772,7 @@ def mode_chunks(ctx, since, mentions):
         if m2:
             body.append("- docs: `%s` line %d" % (m2[0][5:], m2[1]))
         out.append(Chunk("basic:option:" + name.lower(), "basic.option", "reference", since.of(name), srcs, "\n".join(body), "basic-modes"))
-    if nopt < 12:                                    # 27 Oct 26: 15 option words since 6 more were removed (batch 16; 28 after batch 7; the 22 that imitated other products went before; blank rows are not counted); 61 at the start
+    if nopt < 6:                                    # 27 Oct 26: 15 option words since 6 more were removed (batch 16; 28 after batch 7; the 22 that imitated other products went before; blank rows are not counted); 61 at the start
         raise SystemExit("mkpack: only %d OPTION names found in gpl.bp/option - refusing" % nopt)
     return out
 

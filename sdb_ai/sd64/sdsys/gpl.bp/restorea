@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 23 Oct 26 dm S.69 step 2: the manifest key route.ai (acc_os_info) is read and handed to !create_account (CA$AI); a manifest that has none restores as not in sdaiusers.
 * 18 Oct 26 dm gcat.restore reads the global catalogue with the call name in LOWER case (it was upcase()d, so the lookup missed every entry, 13017 never fired
 *              and a different program already there was overwritten); the messages name the program in lower case.  Text check: test-restoregcat-units.py.
@@ -667,7 +668,7 @@ write.marker:
    d = date()
    writeseq oconv(d, 'D4Y'):'-':fmt(oconv(d, 'DM'), '2"0"R'):'-':fmt(oconv(d, 'DD'), '2"0"R'):' ':oconv(time(), 'MTS') to mk.f else null
    writeseq zip.path to mk.f else null
-   closeseq mk.f
+   close mk.f
    display sysmsg(13035, acc.name, restart) ;* restart SD to put it in place: %2
    one.ok = @true
    return

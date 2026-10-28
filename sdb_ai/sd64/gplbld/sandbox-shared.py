@@ -183,14 +183,14 @@ ZSOPEN = """\
          case kind = 'S'
             openseq nm, id to f then
                crt 'SO S ':nm:' OK'
-               closeseq f
+               close f
             end else crt 'SO S ':nm:' NO'
          case kind = 'X'
             deleteseq nm, id else ok = 0
             crt 'SO X ':nm:' ':(if ok then 'OK' else 'NO')
       end case
    repeat
-   closeseq a
+   close a
    crt 'SO end'
 end
 """
@@ -233,7 +233,7 @@ ZSWRITE = """\
       if ok = -1 then w = 'NOOPEN'
       crt 'SW ':kind:' ':nm:' ':id:' ':w:' P=':p
    repeat
-   closeseq a
+   close a
    crt 'SW end'
 end
 """
@@ -243,7 +243,7 @@ ZSONE = """\
 * zsone - one change without ON ERROR (sandbox-shared.py)
    openseq 'zs.args' to a else crt 'ONE noargs' ; stop
    readseq line from a else crt 'ONE empty' ; stop
-   closeseq a
+   close a
    kind = field(line, '|', 1) ; nm = field(line, '|', 2) ; id = field(line, '|', 3)
    crt 'ONE start ':kind
    begin case
@@ -357,7 +357,7 @@ $include int$keys.h
       end case
       crt 'IN ':kind:' ':tgt:' ':(if ok then 'OK' else 'REFUSED')
    repeat
-   closeseq a
+   close a
    crt 'IN end'
 end
 """
@@ -1087,7 +1087,7 @@ def logto_section():
     # that long predates S.66), not entered with the gates off.  The row now says what happens: the refusal, and the session still in zsall with zsall's own gates.
     row("L: zsall (os.execute yes) LOGTO the PATH of zsnoreg, a directory with a VOC and NO register record: refused, and the session stays in zsall with its own gates (1,1)",
         r is not None and has_text(out, "User not allowed in requested account") and (r[1], r[2]) == (1, 1) and r[3].endswith("/zsall"), repr(out[-4:]))
-    # the way back: OPTION STACKED.ACCOUNT puts the account and the gates back when an EXECUTEd command ends
+    # 28 Oct 26, S.87: OPTION STACKED.ACCOUNT is gone; the control that remains says an EXECUTEd LOGTO stays where it went
     progs = {}
     for acct, other in (("zsno", "zsblank"), ("zsblank", "zsno")):
         prog = "zsst%s%s" % (acct[2:], RUN)
@@ -1106,10 +1106,6 @@ def logto_section():
         path, rw = result(out)
         row("L: CONTROL, no option: after EXECUTE 'LOGTO %s' the session STAYS in %s with %s's gates %s" % (other, other, other, WANT[other]),
             path is not None and path.endswith("/" + other) and rw == WANT[other], repr((path, rw)))
-        out = g.plain(acct, ["OPTION STACKED.ACCOUNT", "RUN bp " + progs[acct]])
-        path, rw = result(out)
-        row("L: OPTION STACKED.ACCOUNT: after EXECUTE 'LOGTO %s' the session is back in %s with its OWN gates %s" % (other, acct, WANT[acct]),
-            path is not None and path.endswith("/" + acct) and rw == WANT[acct], repr((path, rw)))
     for acct in progs:
         for d in ("bp", "bp.out"):
             p = os.path.join(acct_path(acct), d, progs[acct])

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 28 Oct 26 dm  S.87: OPTION FORCE.RELOAD is gone: stale_objects(), object_is_stale(), refresh_subr_object() and OBJ_STALE are removed.
  * 28 Oct 26 dm  S.87: * is no longer a global prefix character.
  * 24 Oct 26 dm  W.11 F9: the global catalogue directory is sd_sysdir() (the configuration file's), not the segment's copy; the administrator test is MY_ADMIN().
  * 31 Dec 23 SD launch - prior history suppressed
@@ -66,7 +67,6 @@ struct OBJECT {
   u_int16_t flags;
 #define OBJ_INVALID 0x0001 /* Invalidated object */
 #define OBJ_GLOBAL 0x0002  /* Loaded from global catalogue */
-#define OBJ_STALE 0x0004   /* FORCE.RELOAD: superseded, in use through a link */
   u_int16_t pad;
   u_int32_t io[4]; /* HSM: opens, reads, writes, deletes (HSM_OPEN...); keeps the header 8 byte aligned */
   struct OBJECT_HEADER code; /* Object code */
@@ -158,7 +158,7 @@ void* load_object(char* name, bool abort_on_error) {
   /* Search object chain to see if already loaded */
 
   for (obj = object_head; obj != NULL; obj = obj->next) {
-    if ((!(obj->flags & (OBJ_INVALID | OBJ_STALE))) &&
+    if ((!(obj->flags & OBJ_INVALID)) &&
         (strcmp(name, obj->code.ext_hdr.prog.program_name) == 0)) {
       /* Move item to head of lru chain */
 
@@ -488,59 +488,6 @@ void unload_all() {
       k_free(obj);
     }
   }
-}
-
-/* ======================================================================
-   stale_objects()  -  FORCE.RELOAD: supersede every cached object         */
-
-void stale_objects() {
-  /* Called with the unload event, before unload_all(), when the process
-     has the FORCE.RELOAD option set. An object nobody refers to is freed
-     by unload_all(). One that is referred to (a running program or a
-     subroutine link variable) is marked, so a search by name no longer
-     finds it and a CALL through a link variable loads the current
-     version. It stays in the cache until its last reference goes.      */
-
-  OBJECT* obj;
-
-  for (obj = object_head; obj != NULL; obj = obj->next) {
-    if (obj->code.ext_hdr.prog.refs > 0)
-      obj->flags |= OBJ_STALE;
-  }
-}
-
-/* ======================================================================
-   object_is_stale()  -  Has FORCE.RELOAD superseded this object?         */
-
-bool object_is_stale(void* obj_hdr) {
-  return (((OBJECT*)(((char*)obj_hdr) - OBJHDRSIZE))->flags & OBJ_STALE) != 0;
-}
-
-/* ======================================================================
-   refresh_subr_object()  -  Current object for a stale link variable     */
-
-void* refresh_subr_object(void* obj_hdr) {
-  /* Returns the object the link should now name, with its reference
-     count taken and the old object's given up. If the program can no
-     longer be loaded the old object stays in use.                        */
-
-  char name[MAX_PROGRAM_NAME_LEN + 1];
-  OBJECT_HEADER* new_hdr;
-
-  if (!object_is_stale(obj_hdr))
-    return obj_hdr;
-
-  strncpy(name, ((OBJECT_HEADER*)obj_hdr)->ext_hdr.prog.program_name,
-          MAX_PROGRAM_NAME_LEN);
-  name[MAX_PROGRAM_NAME_LEN] = '\0';
-
-  new_hdr = (OBJECT_HEADER*)load_object(name, FALSE);
-  if (new_hdr == NULL || new_hdr == (OBJECT_HEADER*)obj_hdr)
-    return obj_hdr;
-
-  new_hdr->ext_hdr.prog.refs++;
-  ((OBJECT_HEADER*)obj_hdr)->ext_hdr.prog.refs--;
-  return (void*)new_hdr;
 }
 
 /* ======================================================================

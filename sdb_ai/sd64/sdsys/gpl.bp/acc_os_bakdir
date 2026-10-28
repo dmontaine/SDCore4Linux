@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 02 Oct 26 dm Written for S.53 (per-OS helper; signature agreed with SD Core
 *              for Windows by mail, 2026-10-02T2000 and T2030).  LINUX ONLY - the
 *              Windows port has its own file of this name.
@@ -72,7 +73,7 @@ $include accos.h
                t = trim(line)
                if t[1,10] = 'BACKUPDIR=' then d = trim(t[11,999])   ;* the last one wins
             repeat
-            closeseq f
+            close f
          end else
             err = 11026:@vm:conf:' cannot be read (status ':status():')'
             return
@@ -123,7 +124,7 @@ $include accos.h
             end
          end
          writeseq 'probe' to pf else null
-         closeseq pf
+         close pf
          out = ''
          os.execute "rm -f '":probe:"' 2>&1" capturing out
 

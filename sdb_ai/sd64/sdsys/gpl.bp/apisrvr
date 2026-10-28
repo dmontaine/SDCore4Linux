@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
+* 28 Oct 26 dm  S.87: REPLACE() is gone: the checksum test uses a copy of the record with the SYS.INFO value cleared.
 * 27 Oct 26 dm S.87: request 70 operation 1 runs analyze.file (the VOC record analyse.file is gone); the operation's name in the audit line and on the wire is unchanged.
 * 21 Oct 26 dm S.73 item 3, D1 (the index QUERY requests of a remote file): vb.selectright had no RETURN and ran on into vb.mark.mapping (see there); found by measuring request 45 on a real server.  vb.selectleft and vb.selectright now ask check.list (a list number outside 0 to 10 was a runtime error whose reply named a line of this program; now message 5269, as request 26).
 * 21 Oct 26 dm S.73 item 3 (QMNet tiers C and D), the gate: a files-only login may ADMINISTER files only if the user is ALSO in the Linux group sdfilesadmin (and in sdfileswrite).  vb.scram.final
@@ -908,7 +911,7 @@ vb.close:
       if fno > SEQ.BASE then            ;* a sequential file (sheet 441)
          gosub check.seq
          if err then return
-         closeseq seqfiles(si)
+         close seqfiles(si)
          seq.state(si) = 0
          return
       end
@@ -2588,9 +2591,10 @@ end
 
 * Compile what is calculated and not yet compiled, the way the query processor decides it is (qproc: no object code, or the
 * checksum no longer matches the record)
-if ev.type = 'I' or ev.type = 'C' or ((ev.type = 'A' or ev.type = 'S') and ev.rec<DICT.A.CORRELATIVE> # '') then
+if ev.type = 'I' or ((ev.type = 'A' or ev.type = 'S') and ev.rec<DICT.A.CORRELATIVE> # '') then
+   sys.chk.rec = ev.rec ; sys.chk.rec<DICT.SYS.INFO,1> = ''   ;* 28 Oct 26 S.87: REPLACE() is gone
    if len(ev.rec<DICT.ITYPE.OBJECT>) = 0 ~
-   or checksum(replace(ev.rec, DICT.SYS.INFO, 1;'')) # ev.rec<DICT.SYS.INFO,1> then
+   or checksum(sys.chk.rec) # ev.rec<DICT.SYS.INFO,1> then
       call $dcomp(files(fno), ev.name, ev.rec, ev.z, ev.z, ev.z, ev.z, ev.z, 1)
       if ev.rec<DICT.ITYPE.OBJECT> = '' then
          server.error = SV$ERROR

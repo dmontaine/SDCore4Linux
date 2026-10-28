@@ -232,7 +232,7 @@ def checks(s):
             txt_ = s[prog_] if prog_ in s else open(os.path.join(GPL, prog_), encoding="latin-1").read()      # the mutated text when the self-test mutates this program
         except (OSError, TypeError):
             txt_ = ""
-        if not re.search(r"openseq[^\n]* readonly to %s then[\s\S]{0,700}?else[^\n]*\n(?:\s*\*[^\n]*\n)*\s*if not\(unassigned\(%s\)\) then closeseq %s" % (var_, var_, var_), txt_):
+        if not re.search(r"openseq[^\n]* readonly to %s then[\s\S]{0,700}?else[^\n]*\n(?:\s*\*[^\n]*\n)*\s*if not\(unassigned\(%s\)\) then close %s" % (var_, var_, var_), txt_):
             leaks.append(prog_)
     ck("H28a every program that opens a possibly absent file READONLY (!home_entry, SET.START.DEFAULT, the menu management page, !viewlist, OSREAD) closes the file variable in its ELSE branch, so that an absent start.default does not leave an update lock on it for the life of the session",
        not leaks, repr(leaks))
@@ -383,7 +383,7 @@ MUTANTS = [
     ("a tile draws outside the panel", "tool_home", "      if sy >= lo and sy <= hi then", "      if @true then"),
     ("the scroll bar is not drawn", "tool_home", "   if ch > ph then\n      call $sl_scrollbar", "   if @false then\n      call $sl_scrollbar"),
     ("a piped session is let in", "tool_home", "   if @tty[1, 5] # '/dev/' then\n      display sysmsg(11863)", "   if @false then\n      display sysmsg(11863)"),
-    ("the home entry keeps the lock of an absent start.default", "home_entry", "         if not(unassigned(df)) then closeseq df\n", "         null\n"),
+    ("the home entry keeps the lock of an absent start.default", "home_entry", "         if not(unassigned(df)) then close df\n", "         null\n"),
     ("set.tile lets the Back tile be turned off", "settile", "if tile = 'back' and state = 'off' then stop sysmsg(11962)", "if @false then stop sysmsg(11962)"),
     ("modify.account loses a start word", "modifya", "AI-OFF,SDSYS-ON,SDSYS-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED", "AI-OFF,SDSYS-ON,SDSYS-OFF,START-MENU,START-TERMINAL,PINS-ON,PINS-OFF,SUSPENDED"),
     ("modify.account loses a pins word", "modifya", "START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED", "START-DEFAULT,PINS-ON,SUSPENDED"),

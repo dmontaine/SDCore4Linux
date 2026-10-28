@@ -123,12 +123,12 @@ def setup_programs():
     global ARGS
     ARGS = os.path.join(sh.BOX, "rwarg.txt")
     g.put(os.path.join(sh.SYS, "bp", "zzrc"), "\n".join([
-        "$internal", "   openseq '%s' readonly to d else crt 'RC noarg' ; stop" % ARGS, "   readseq path from d else crt 'RC noarg' ; stop", "   readseq rname from d else crt 'RC noarg' ; stop", "   closeseq d",
+        "$internal", "   openseq '%s' readonly to d else crt 'RC noarg' ; stop" % ARGS, "   readseq path from d else crt 'RC noarg' ; stop", "   readseq rname from d else crt 'RC noarg' ; stop", "   close d",
         "   if path = '' then crt 'RC nofile' ; stop", "   openpath path to f else crt 'RC nofile' ; stop",
         "   read r from f, rname then", "      crt 'RC rec=' : change(r, @fm, '/')", "   end else", "      crt 'RC norec'", "   end", "end", ""]))
     g.put(os.path.join(sh.SYS, "bp", "zzrw"), "\n".join([
         "$internal", "   openseq '%s' readonly to d else crt 'RW noarg' ; stop" % ARGS, "   readseq path from d else crt 'RW noarg' ; stop", "   readseq rname from d else crt 'RW noarg' ; stop",
-        "   rec = ''", "   loop", "      readseq line from d else exit", "      rec<-1> = change(change(line, '~', @vm), '_', ' ')", "   repeat", "   closeseq d",
+        "   rec = ''", "   loop", "      readseq line from d else exit", "      rec<-1> = change(change(line, '~', @vm), '_', ' ')", "   repeat", "   close d",
         "   openpath path to f else crt 'RW nofile' ; stop", "   write rec to f, rname", "   crt 'RW done'", "end", ""]))
     out = adm("BASIC bp zzrc zzrw")
     if not has(out, r"Compiled 2 program\(s\) with no errors"):
@@ -698,7 +698,7 @@ MUTANTS = {
     "switch-keeps-level": ("c_sub", [("tool_home", SWITCH_RESET, "")], ["C_SWITCH"]),
     "create-start-unchecked": ("b_create", [("create_account", "   if start.want # '' and start.want # 'menu' and start.want # 'terminal' then\n", "   if @false then\n")], ["B_BOGUS"]),
     # 26 Oct 26: the lock the home entry's OPENSEQ of an absent start.default used to keep for the life of the session
-    "home-entry-keeps-the-lock": ("a_two", [("home_entry", "         if not(unassigned(df)) then closeseq df\n", "         null\n")], ["A_TWO"]),
+    "home-entry-keeps-the-lock": ("a_two", [("home_entry", "         if not(unassigned(df)) then close df\n", "         null\n")], ["A_TWO"]),
 }
 SECTIONS = {"c_sub": c_sub, "d_ids": d_ids, "b_create": b_create, "a_basic": a_basic, "a_validate": a_validate, "a_off": a_off, "a_admin": a_admin, "a_pins": a_pins, "a_nofile": a_nofile, "a_adminrec": a_adminrec, "a_two": a_two}
 PROGRAMS = ("tool_home", "home_recent", "create_account", "home_entry")

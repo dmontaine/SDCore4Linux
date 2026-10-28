@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
 * 27 Oct 26 dm  S.87 batch 12: the dead FL$TYPE.SH branch of the file kind is gone with the constant.
 * 27 Oct 26 dm  S.87 batch 4: the describe page no longer says a location of 9998 or 9999 shows the item count or the record length.
 * 25 Oct 26 dm  New.
@@ -292,7 +293,7 @@ classify.item:
    begin case
       case ty = 'D' or ty = 'E'
          wh = rec<DICT.LOC> ; cv = rec<DICT.CONV> ; hd = rec<DICT.DISPLAY.NAME> ; ft2 = rec<DICT.FORMAT> ; sm = rec<DICT.S.M> ; asoc = rec<DICT.ASSOC>
-      case ty = 'I' or ty = 'C'
+      case ty = 'I'
          wh = 'computed' ; ex = rec<DICT.ITYPE.SOURCE> ; cv = rec<DICT.CONV> ; hd = rec<DICT.DISPLAY.NAME> ; ft2 = rec<DICT.FORMAT> ; sm = rec<DICT.S.M> ; asoc = rec<DICT.ASSOC>
       case ty = 'A' or ty = 'S'
          wh = rec<DICT.A.LOC> ; hd = rec<DICT.A.DISPLAY.NAME> ; asoc = rec<DICT.A.ASSOC> ; cv = rec<DICT.A.CONV> ; ex = rec<DICT.A.CORRELATIVE>
@@ -593,7 +594,7 @@ describe.item:
                   lines<-1> = 'Shows field ' : loc : ' of each record.'
             end case
          end
-      case ty = 'I' or ty = 'C'
+      case ty = 'I'
          lines<-1> = 'Computes its value for each record from the expression:'
          ct = ex
          call $tk_wrap(ct, 128, pieces)
@@ -616,7 +617,7 @@ describe.item:
       case 1
          lines<-1> = 'SD reads this item as nothing a query can use.'
    end case
-   if ty = 'D' or ty = 'A' or ty = 'S' or ty = 'I' or ty = 'C' or ty = 'E' then
+   if ty = 'D' or ty = 'A' or ty = 'S' or ty = 'I' or ty = 'E' then
       if ty = 'A' or ty = 'S' then
          if ex # '' then lines<-1> = 'The correlative "' : ex : '" changes the value before it is shown (C compiles it).'
       end
@@ -681,8 +682,6 @@ type.words:
          tyw = 'an S-type field, the Pick layout (S)'
       case ty = 'I'
          tyw = 'a computed field (I-type)'
-      case ty = 'C'
-         tyw = 'a calculated field (C-type)'
       case ty = 'E'
          tyw = 'an element of a data collection (E)'
       case ty = 'L'
@@ -1147,7 +1146,7 @@ do.test:
       msg = 'only D, A, S, I and C items give a value for a record; ' : iid : ' is of type ' : ty
       return
    end
-   needs.obj = (ty = 'I' or ty = 'C' or ((ty = 'A' or ty = 'S') and rec<DICT.A.CORRELATIVE> # ''))
+   needs.obj = (ty = 'I' or ((ty = 'A' or ty = 'S') and rec<DICT.A.CORRELATIVE> # ''))
    if needs.obj and (rec<DICT.SYS.INFO> = '' or rec<DICT.ITYPE.OBJECT> = '') then
       msg = iid : ' has not been compiled yet: C compiles it, then T can try it'
       return
@@ -1215,7 +1214,7 @@ do.test:
    fw = '' ; fj = ''
    if fs # '' then gosub describe.format
    fmt.ok = (fs # '' and fw # '' and fj # '' and index('LRCU', fj, 1) > 0)
-   if nv > 0 and (ty = 'D' or ty = 'I' or ty = 'C') and (cv # '' or fmt.ok) then
+   if nv > 0 and (ty = 'D' or ty = 'I') and (cv # '' or fmt.ok) then
       body<-1> = ''
       body<-1> = 'As a query prints it' : (if cv # '' then ' (converted with ' : cv : ')' else '') : (if fmt.ok then ' (format ' : fs : ')' else '') : ', between bars:'
       for vq = 1 to nv

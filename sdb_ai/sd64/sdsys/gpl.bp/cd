@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
 * 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 17 Oct 26 dm  S.64 part 2 (the edit gates): CD DATA file opens an ordinary file and rewrites the records it names as if they were
 *               dictionary items (the record is cut at its object code and written back), so the DATA form asks edit_guard for
@@ -252,7 +253,7 @@ compile.all:
       read itype.rec from dict.f,itype.name then
          type = upcase(itype.rec[1,1])
          begin case
-            case type = 'C' or type = 'I'
+            case type = 'I'
                if display.file.name # '' then
                   display
                   display display.file.name
@@ -305,9 +306,6 @@ compile:
          if itype.rec<DICT.A.CORRELATIVE> = '' then goto no.source
          
       case type = 'I'
-         if trimf(trimb(itype.rec<DICT.ITYPE.SOURCE>)) = '' then goto no.source
-
-      case type = 'C'
          if trimf(trimb(itype.rec<DICT.ITYPE.SOURCE>)) = '' then goto no.source
 
       case 1

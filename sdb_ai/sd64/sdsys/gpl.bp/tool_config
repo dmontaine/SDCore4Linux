@@ -6,6 +6,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 25 Oct 26 dm  New.
 * 25 Oct 26 dm  A file path too long for the top line loses its front ('...'), no longer the counts after it.
 * 26 Oct 26 dm  A6, the write half (the owner: "do a6"): E on a parameter asks for a new value, checks it against the table, shows the exact set.config command and when it takes effect in the
@@ -163,9 +164,9 @@ read.table:
          twrite<nl> = field(ln, '|', 9)
          twhy<nl> = field(ln, '|', 10)
       repeat
-      closeseq tf
+      close tf
    end else
-      if not(unassigned(tf)) then closeseq tf       ;* 26 Oct 26 - an OPENSEQ that took ELSE keeps the name locked until the variable is closed (see home_entry)
+      if not(unassigned(tf)) then close tf       ;* 26 Oct 26 - an OPENSEQ that took ELSE keeps the name locked until the variable is closed (see home_entry)
       table.err = 'the table of parameters (config.table in the system directory) cannot be read'
    end
    return
@@ -193,9 +194,9 @@ read.file:
          cval = ln[e + 1, len(ln)]
          gosub file.add
       repeat
-      closeseq cf
+      close cf
    end else
-      if not(unassigned(cf)) then closeseq cf       ;* 26 Oct 26 - as above
+      if not(unassigned(cf)) then close cf       ;* 26 Oct 26 - as above
       file.err = conf.path : ' cannot be read'
    end
    return

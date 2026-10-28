@@ -260,8 +260,8 @@ def checks(srcs, messages_dir):
        0 < ld < aud and "upcase(trim(acc.record<ACC$SH>)) = 'YES'" in cp and "upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'" in cp,
        "load %s, audit %s" % (line_of(cp, ld), line_of(cp, aud)))
     sdl = at(cp, "void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')")
-    ck("B1a ... and K$SD.ACCOUNTS (16 Oct 26) from field 9, 'YES' only, before the audit line; a revert puts the previous one back",
-       0 < sdl < aud and "void kernel(K$SD.ACCOUNTS, stk.sd.accounts)" in cp)
+    ck("B1a ... and K$SD.ACCOUNTS (16 Oct 26) from field 9, 'YES' only, before the audit line (28 Oct 26: STACKED.ACCOUNT and its revert are gone, so nothing puts a previous value back)",
+       0 < sdl < aud and "stk.sd.accounts" not in cp and "revert.account" not in cp)
     oc = at(cp, "os.command.text = trimf(voc.rec<3>")
     gate_ = at(cp, "if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$SH, -1)) then", oc)
     meta = at(cp, "if not(valid_shell_cmd(os.command.text)) then", oc)
@@ -411,9 +411,8 @@ def checks(srcs, messages_dir):
        and "kernel(K$PATH.OK, pathname)" in fcp and "kernel(K$PATH.IN, qroot : @fm : pathname)" in fcp
        and "upcase(stock.rec[1,1]) = 'F' and stock.rec<fno> = f.raw" in fcp,
        "check %s, return %s" % (f_chk, f_ret))
-    pf = vr[at(vr, "case upcase(x1) = 'PATH'"):at(vr, "case n = 2")]
-    ck("B27 the PATH: form (FILERULE) is held to the OS gate too, and an absolute Q-pointer target is remembered as qroot",
-       "if not(vr.free) and not(kernel(K$PATH.OK, pathname)) then" in pf and "set.status ER$PERM" in pf
+    ck("B27 the PATH: form (FILERULE) is gone (28 Oct 26, S.87), and an absolute Q-pointer target is remembered as qroot",
+       "case upcase(x1) = 'PATH'" not in vr and "config('FILERULE')" not in vr
        and "if qpath[1,1] = @ds then qroot = qpath" in vr)
     spt = c["setptr"]
     sp0 = at(spt, "ospath(file.name, OS$PATHNAME)")
@@ -582,7 +581,6 @@ MUTANTS = [
     ("an F-pointer to a path outside the account is followed again", sub("_voc_ref", "            if not(vr.free) then\n               gosub check.f.path", "            if @false then\n               gosub check.f.path")),
     ("an F-pointer is checked by id only (the path is not compared with the stock one)", sub("_voc_ref", "upcase(stock.rec[1,1]) = 'F' and stock.rec<fno> = f.raw", "upcase(stock.rec[1,1]) = 'F'")),
     ("the directory of an account a Q-pointer led into is not trusted", sub("_voc_ref", "path.ok = kernel(K$PATH.IN, qroot : @fm : pathname)", "path.ok = @false")),
-    ("the PATH: form is not asked", sub("_voc_ref", "if not(vr.free) and not(kernel(K$PATH.OK, pathname)) then", "if @false then")),
     ("the administrator is held to the Q-pointer rule", sub("_voc_ref", "vr.admin = kernel(K$ADMINISTRATOR, -1)", "vr.admin = @false")),
     ("kernel(K_PATH_IN) asks the gate (a caller can no longer use it for geometry)", sub("op_kernel.c", "os_path_inside(path_in_buf, path_in_sep + 1) ? 1 : 0", "os_path_ok_for_account(path_in_sep + 1) ? 1 : 0")),
     ("the installer stops running upgrade_gates", sub("installsdcore.sh", "-internal RUN gpl.bp upgrade_gates", "-internal RUN gpl.bp upgrade_nothing")),

@@ -224,7 +224,7 @@ ZMW = """\
       if ok = -1 then w = 'NOOPEN'
       crt 'ZW ':kind:' ':nm:' ':id:' ':w
    repeat
-   closeseq a
+   close a
    crt 'ZW end'
 end
 """
@@ -234,7 +234,7 @@ ZMTX = """\
 * zmtx - a VOC write inside a transaction and the size of the journal around it (sandbox-masters.py)
    openseq 'zm.args' to a else crt 'ZX noargs' ; stop
    readseq line from a else crt 'ZX empty' ; stop
-   closeseq a
+   close a
    mode = field(line, '|', 1) ; id = field(line, '|', 2)
    open 'voc' to f else crt 'ZX noopen' ; stop
    call !zmjsize(n0)
@@ -256,7 +256,7 @@ ZMLOOP = """\
 * zmloop - N record writes to the VOC (or to a data file), timed (sandbox-masters.py).  Line: prefix|n|voc or data
    openseq 'zm.args' to a else crt 'ZL noargs' ; stop
    readseq line from a else crt 'ZL empty' ; stop
-   closeseq a
+   close a
    pre = field(line, '|', 1) ; n = field(line, '|', 2) ; target = field(line, '|', 3)
    if target = 'data' then
       open 'zmdata' to f else crt 'ZL noopen' ; stop
@@ -278,7 +278,7 @@ ZMCHURN = """\
 * zmchurn - K x R distinct dictionary records, each written once (sandbox-masters.py)
    openseq 'zm.args' to a else crt 'ZH noargs' ; stop
    readseq line from a else crt 'ZH empty' ; stop
-   closeseq a
+   close a
    pre = field(line, '|', 1) ; keys = field(line, '|', 2) ; rounds = field(line, '|', 3)
    open 'DICT', 'zmrace' to f else crt 'ZH noopen' ; stop
    for r = 1 to rounds
@@ -300,7 +300,7 @@ $include keys.h
 $include int$keys.h
    openseq 'zm.args' to a else crt 'ZR noargs' ; stop
    readseq line from a else crt 'ZR empty' ; stop
-   closeseq a
+   close a
    secs = field(line, '|', 1) + 0
    t0 = system(1081)
    n = 0 ; lines = 0
@@ -328,7 +328,7 @@ $catalog !zmjsize
          readseq line from j else exit
          n += len(line) + 1
       repeat
-      closeseq j
+      close j
    end
 return
 end
@@ -381,7 +381,7 @@ $include int$keys.h
          case 1 ; crt 'ZT unknown ':cmd
       end case
    repeat
-   closeseq a
+   close a
    crt 'ZT end'
    stop
 
@@ -583,7 +583,7 @@ $include int$keys.h
       ans = kernel(K$MASTERS, req)
       crt 'ZK ':op:' ':arg:' -> ':convert(@vm, '~', convert(@fm, '|', ans))
    repeat
-   closeseq a
+   close a
    crt 'ZK end'
 end
 """
@@ -684,7 +684,7 @@ ZMSAVE = """\
       crt 'ZS ':op:' ':kind:' ':key:' ':(if ok then 'OK' else 'REFUSED status=':st)
       close f
    repeat
-   closeseq a
+   close a
    crt 'ZS end'
 end
 """
@@ -694,7 +694,7 @@ ZMHOLD = """\
 * zmhold - takes an update lock on a VOC record and holds it (sandbox-masters.py)
    openseq 'zm.args' to a else crt 'ZH noargs' ; stop
    readseq id from a else crt 'ZH empty' ; stop
-   closeseq a
+   close a
    open 'voc' to f else crt 'ZH noopen' ; stop
    readu x from f, id else null
    crt 'ZH held ':id

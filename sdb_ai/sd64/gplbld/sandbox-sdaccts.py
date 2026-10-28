@@ -100,7 +100,7 @@ def main():
             "      nm = names<i>",
             "      openseq nm to f then",
             "         readseq l from f then crt 'R ':nm:' OK ':l else crt 'R ':nm:' OK empty'",
-            "         closeseq f",
+            "         close f",
             "      end else crt 'R ':nm:' DENIED'",
             "   next i",
             "end", ""]))

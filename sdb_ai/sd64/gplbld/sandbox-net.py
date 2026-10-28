@@ -420,7 +420,7 @@ def logto_section():
     out = g.plain("zznoff", ["ZZNK", "LOGTO zzncase", "ZZNK", "LOGTO zzntrue", "ZZNK"])
     row("zznoff, then zzncase (Yes), then zzntrue (true): 0, 1, 0", nk_all(out) == ["0", "1", "0"], repr(out[:9]))
 
-    # the way back: OPTION STACKED.ACCOUNT puts the account (and, since S.65, the gate) back when an EXECUTEd command ends
+    # 28 Oct 26, S.87: OPTION STACKED.ACCOUNT is gone; the control that remains says an EXECUTEd LOGTO stays where it went
     progs = {}
     for acct, other in (("zznoff", "zznon"), ("zznon", "zznoff")):
         prog = "zznst%s%s" % (acct[3:], RUN)
@@ -440,10 +440,6 @@ def logto_section():
         path, n = result(out)
         row("CONTROL, no option: after EXECUTE 'LOGTO %s' the session STAYS in %s with %s's gate (%s)" % (other, other, other, ACCOUNTS[other][1]),
             path is not None and path.endswith("/" + other) and n == str(WANT_NET[other]), repr((path, n)))
-        out = g.plain(acct, ["OPTION STACKED.ACCOUNT", "RUN bp " + progs[acct]])
-        path, n = result(out)
-        row("OPTION STACKED.ACCOUNT: after EXECUTE 'LOGTO %s' the session is back in %s with its OWN gate (net=%s)" % (other, acct, want_net_back),
-            path is not None and path.endswith("/" + acct) and n == want_net_back, repr((path, n)))
     for acct in progs:
         for d in ("bp", "bp.out"):
             p = os.path.join(acct_path(acct), d, progs[acct])

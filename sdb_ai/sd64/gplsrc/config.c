@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 28 Oct 26 dm  S.87: FILERULE is gone, with the Account:File and PATH:pathname forms of file name; the installer strips the line from a restored sd.conf.
  * 24 Oct 26 dm  W.11 F9: sd_sysdir() and sd_sysdir_trust(), the system directory a process trusts, from this file and not from the shared segment.
  * 19 Oct 26 dm  NETWAIT and NETREPLY are held in 32 bit fields (config.h): 65541 in sd.conf wrapped to 5 in the 16 bit field BEFORE rangecheck, so SD started with a 5 second wait instead of
  *               refusing the value.  (PWDELAY and DHCACHE are 16 bit fields read the same way and wrap the same way; they are not changed here.)
@@ -114,7 +115,6 @@ struct CONFIG* read_config(char* errmsg) {
 
   pcfg.dhcache = 10;      /* DHCACHE:  Closed dynamic files kept open: the fixed 10 until 1.2-0 (openQM item 90) */
   pcfg.dumpdir[0] = '\0'; /* DUMPDIR:  Directory for process dump files */
-  pcfg.filerule = 0;      /* FILERULE: File name rules (special forms) */
   pcfg.fltdiff = 0.0000000000291; /* FLTDIFF: Wide zero for float eq test */
   pcfg.fsync = 0;                 /* FSYNC:    Controls when to do fsync() */
  /* 20240219 mab create-account based on type (user / group / other) */   
@@ -203,8 +203,6 @@ struct CONFIG* read_config(char* errmsg) {
         cfg->errlog = n * 1024;
       else if (sscanf(rec, "FDS=%d", &n) == 1)
         cfg->fds_limit = n;
-      else if (sscanf(rec, "FILERULE=%d", &n) == 1)
-        pcfg.filerule |= n;
       else if (sscanf(rec, "FLTDIFF=%lf", &flt) == 1)
         pcfg.fltdiff = flt;
       else if (sscanf(rec, "FSYNC=%d", &n) == 1)

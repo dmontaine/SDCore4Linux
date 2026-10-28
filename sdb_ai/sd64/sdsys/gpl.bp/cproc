@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: OPTION STACKED.ACCOUNT is gone, with revert.account and the stk.* variables that held the starting account: an EXECUTEd LOGTO stays in the account it went to.
+* 28 Oct 26 dm  S.87: OPTION NO.PHANTOM.NOTIFY is gone: a phantom always tells its parent when it ends.
 * 28 Oct 26 dm  S.87: the VOC record type M (menu) and process.menu are gone; the home screen is the menu system.
 * 28 Oct 26 dm  S.87: the verb ! is gone (sh is the shell verb), so the rewrite of !command to ! command is gone too.
 * 28 Oct 26 dm  S.87: the option flags are no longer in the phantom's start-up record or in the seal (OPTION INHERIT went on 27 Oct 26 and the field was always null).
@@ -775,25 +777,12 @@ $endif
       if len(xeq.command) then
          * 0190 Reverted to pre-1.4-4 technique of building a paragraph.
 
-         * 16 Oct 26 dm - OPTION STACKED.ACCOUNT (QM4 gap 248): the account this level started in, for revert.account.  What
-         *   is held is only what LOGTO changes: the working directory, the name, the VOC and the two OS-access switches.
-         stk.path = ospath("", os$cwd)
-         stk.account.path = account.path
-         stk.who = who
-         stk.sh = kernel(K$SH, -1)
-         stk.os.exec = kernel(K$OS.EXEC, -1)
-         stk.sd.accounts = kernel(K$SD.ACCOUNTS, -1)
-         stk.net = kernel(K$NET, -1)   ;* 17 Oct 26, S.65 slice 1: the NET gate is account-scoped, so it is held and given back with the rest (does nothing yet)
-         stk.shared.read = kernel(K$SHARED.READ, -1)    ;* 18 Oct 26, S.66: the shared-account gates are account-scoped too
-         stk.shared.write = kernel(K$SHARED.WRITE, -1)
-
          pa.name = ""
          pa.rec = "PA" : @fm : xeq.command
          xeq.command = ""
          unwinding = 0
          gosub execute.paragraph
          printer close on -3     ;* Close all printers at this or higher level
-         if option(OPT.STACKED.ACCOUNT) and ospath("", os$cwd) # stk.path then gosub revert.account
       end
 
       if kernel(K$FLAGS, HDR.IS.CPROC) then  ;* 0409 Not from a PROC
@@ -839,8 +828,7 @@ $endif
 
 terminate.phantom:
       n = kernel(K$PPID, 0)
-      * NO.PHANTOM.NOTIFY (15 Oct 26, openQM): a phantom that has set the option does not send the message
-      if n and fileinfo(ipc.f, FL$OPEN) and not(option(OPT.NO.PHANTOM.NOTIFY)) then
+      if n and fileinfo(ipc.f, FL$OPEN) then
          * Send message to parent process
 
          x = 'M':n
@@ -3055,43 +3043,6 @@ logto.unwind:
 *   by a program (the command processor is not the bottom one) and for the one the home screen runs itself.
    if @tty[1, 5] = '/dev/' then call !home_entry('logto')
 
-   return
-
-*****************************************************************************
-* REVERT.ACCOUNT  -  Go back to the account an EXECUTE began in  (16 Oct 26 dm, QM4 gap 248)
-*
-* OPTION STACKED.ACCOUNT: a command run with EXECUTE that did a LOGTO leaves the process in the account it began in.  This is
-* LOGTO's own change undone, from what was held when the level started, and it asks for nothing LOGTO asked for: the process
-* was in that account already, so it is no new entry (no membership test, no ON.LOGTO, no LOGIN), and the two OS-access
-* switches go back to what that account's entry had set, so the account the command visited keeps nothing it granted.
-
-revert.account:
-   if not(ospath(stk.path, OS$CD)) then
-      display sysmsg(5162) ;* Fatal error : Cannot return to previous account
-      return to abort.cproc
-   end
-   openpath "voc" to new.voc else
-      display sysmsg(5163) ;* Directory is not a SD account
-      display sysmsg(5162) ;* Fatal error : Cannot return to previous account
-      return to abort.cproc
-   end
-   if kernel(K$ADMINISTRATOR, -1) then
-      call !EUID_SET('sdsys', rstat)
-   end
-   i = ospath("", os$flush.cache)
-   account.path = stk.account.path
-   who = stk.who
-   void kernel(K$SET.ACCOUNT, who)
-   voc = new.voc ; new.voc = 0
-   void kernel(K$SH,      stk.sh)
-   void kernel(K$OS.EXEC, stk.os.exec)
-   void kernel(K$SHARED.READ,  stk.shared.read)    ;* 18 Oct 26, S.66: before the SD.ACCOUNTS line, so stk.net stays next to the revert audit line
-   void kernel(K$SHARED.WRITE, stk.shared.write)
-   void kernel(K$SD.ACCOUNTS, stk.sd.accounts)
-   void kernel(K$NET, stk.net)   ;* 17 Oct 26, S.65 slice 1
-   void kernel(K$AUDIT, 'logto revert account=' : who)
-   i = kernel(K$INVALIDATE.OBJECT, 0)
-   gosub find.private.catalogue
    return
 
 *****************************************************************************

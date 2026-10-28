@@ -33,6 +33,7 @@
 * holds what it should; the installer matches on that word and nothing else.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 13 Oct 26 dm  New.
 * 24 Oct 26 dm  Fills a BLANK field only.  An explicit 'no' (a delivered default or SH-OFF / OS-OFF) was
 *               overwritten when a keep-accounts reinstall had lost the marker.
@@ -107,7 +108,7 @@ $include int$keys.h
       end
    end
    writeseq 'S.63: the OS-access gates were set for the existing accounts' to marker.f else null
-   closeseq marker.f
+   close marker.f
 
    crt 'COMPLETE'
    stop

@@ -142,7 +142,6 @@ The VOC record types (field 1, character 1, is the type). Each type is the chunk
 | `K` | keyword | a query-processor keyword; four of these are also verbs |
 | `S` | sentence | one stored command line |
 | `PA` | paragraph | several stored command lines, with flow control |
-| `M` | menu | dispatched, but no menu ships |
 | `Q` | Q-pointer | an indirect pointer to a file in another account |
 | `F` | file | a file — local, or pointing into `@SDSYS` |
 | `R` | remote | a pointer to a record in another file, re-read and re-parsed |

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 27 Oct 26 dm  S.87 batch 7: OPTION QUERY.MERGE.PRINT and QUERY.FOOTER.PAUSE are gone; a report to printer 0 closes the printer, and no pause follows a page footer, as with the options off.
 * 15 Oct 26 dm  OPTION QUERY.MERGE.PRINT: a report to printer 0 does not close a printer that was already active (openQM ref 57).
 * 14 Oct 26 dm  OPTION QUERY.FOOTER.PAUSE: pause at the end of a report with a footer.
@@ -1003,7 +1004,7 @@ map.keys:
 
 delete.scroll.data:
    if fileinfo(qd.image.f, FL$OPEN) then
-      closeseq qd.image.f
+      close qd.image.f
       void ospath(qd.scrollpath, OS$DELETE)
    end
 

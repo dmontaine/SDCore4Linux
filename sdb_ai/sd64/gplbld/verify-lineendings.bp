@@ -56,7 +56,7 @@ $include syscom keys.h
             end
          repeat
          crt fn : '.LINES=' : ln
-         closeseq f
+         close f
       end else
          crt fn : '.OPENFAIL=1'
       end
@@ -96,7 +96,7 @@ $include syscom keys.h
          end
       repeat
       crt 'f6.ROWS=' : ln
-      closeseq f
+      close f
    end else
       crt 'f6.OPENFAIL=1'
    end

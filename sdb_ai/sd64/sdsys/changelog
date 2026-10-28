@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+28 Oct 26  THIRTY-THREE MORE SECOND WAYS AND SWITCHES ARE REMOVED: SEVEN OPTIONS, TWO MODES, THE WORD FORMS OF QUERY OPERATORS, THE ! VERB, CLOSESEQ, EQU AND OTHERS.
+
+             What        OPTION words gone (the behaviour is the former default): NUMERIC.EXPONENT (123.45E-2 is not numeric), SUPPRESS.ABORT.MSG (ABORT always says where it ran),
+                         DIR.SEL.OMIT.HIDDEN (a select of a directory file includes names that begin with a dot), NO.PHANTOM.NOTIFY (a phantom always tells its parent), FORCE.RELOAD,
+                         STACKED.ACCOUNT (an EXECUTEd LOGTO stays in the account it went to) and COMMAND.LEVEL.LOCKS (a file variable that goes closes its file and its locks).
+                         $MODE TIME.MS (write SYSTEM(1020) / 1000) and $MODE DEFAULT.UNASS.ARGS (a default argument value needs VAR.ARGS) are gone.
+                         BASIC: CLOSESEQ is CLOSE and EQU is EQUATE; the function forms EXTRACT(), REPLACE(), INSERT(), DELETE() and SUBR() are gone (write a<f,v>, a<f,v> = x,
+                         INS, DEL and CALL or DEFFUN); PROCREAD, PROCWRITE and @PIB, @SIB, @POB, @SOB are gone with PROC.
+                         TCL and queries: the ! verb (write sh), the words equal, greater, less, before, after, matches, matching, not.matching and spoken (write eq, gt, lt, like, unlike,
+                         said), colour (write color), without (write with no), no.grand.total (write grand.total "'L'"), and fourteen keywords nothing read (verify, verify.sup,
+                         exclusive, creating, inquiring, portrait, odd, even, mark, space, no.label, no.object, static, encrypt). The global catalog prefixes * and - are gone (! and $
+                         stay, and _ names a recursive pcode program). SETPTR print mode 5 (the terminal's auxiliary port) and the VERSION keyword of CREATE.FILE and CONFIGURE.FILE
+                         are gone. The terminal definitions addsviewpoint, viewpoint, adds4000, viewpoint60, vp60, vp, vpa2, vt52, hpgeneric, hp, ibm-pc, ibm5051, 5051, glasstty and
+                         kermit are gone. A VOC record of type M (menu) is gone: the home screen is the menu system. The sd.conf parameter FILERULE is gone with the Account:File and
+                         PATH:pathname forms of file name, so a name in no VOC record is not found. A C dictionary item is no longer compiled (message 11993): write an I-type.
+                         The messages 3118, 5060, 6117, 7162, 11076, 11252, 11253, 11269, 11367 and 11370 are gone with them, and 11274 no longer names the mode.
+             Why it      Each was a second way to do what SD already did one way, or a switch for behaviour SD's default does not have.
+             Does not    Touch crt and display, the UniVerse TRANSACTION forms, CONVERT, multifiles or the ten list* sentences, which stay for now. The OPTION and $MODE verbs stay with the
+                         words that remain.
+
 28 Oct 26  THE PICK STYLE MATRIX IS REMOVED FROM THE RUN-TIME SYSTEM, WITH THE LAST UNREACHABLE LEFTOVERS OF THE EARLIER REMOVALS.
 
              What        Since $MODE PICK.MATRIX went, nothing could make a matrix whose elements start at 1 with no element 0, but the run-time system still carried the PMATRIX descriptor

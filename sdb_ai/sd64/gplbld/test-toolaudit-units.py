@@ -193,7 +193,7 @@ MUTANTS = [
     ("the reader opens before it asks", "AU3", sub("rd", "   out = ''\n   err = ''\n   opened = 0\n", "   out = ''\n   err = ''\n   opened = 0\n   openpath @sdsys to sysf0 else null\n")),
     ("the reader refuses with another message", "AU3", sub("rd", "      err = sysmsg(2001)\n", "      err = 'no'\n")),
     ("the reader opens the file for writing", "AU4", sub("rd", "openseq path readonly to f then", "openseq path to f then")),
-    ("the reader writes a line", "AU4", sub("rd", "close.audit:\n   if opened then closeseq f", "close.audit:\n   if opened then writeseq 'x' to f else null\n   if opened then closeseq f")),
+    ("the reader writes a line", "AU4", sub("rd", "close.audit:\n   if opened then close f", "close.audit:\n   if opened then writeseq 'x' to f else null\n   if opened then close f")),
     ("any name is an audit file", "AU5", sub("rd", "   if len(cn) # 21 or cn[1, 6] # 'audit.' then return\n", "   if cn[1, 6] # 'audit.' then return\n")),
     ("a name with a slash passes", "AU5", sub("rd", "      if ci = 9 then\n         if cc # '-' then return\n", "      if ci = 9 then\n         if cc # '-' and cc # '/' then return\n")),
     ("the path is built before the name is checked", "AU5", sub("rd", "   cn = which\n   if cn = '' then cn = 'audit'\n   gosub chk.name\n", "   cn = which\n   if cn = '' then cn = 'audit'\n   path = @sdsys : @ds : cn\n   gosub chk.name\n")),

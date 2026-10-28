@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 15 Oct 26 dm  Written for QM4 gaps bundle Q-4 (OSWRITE).  The compiler (bcomp, st.oswrite) calls it for OSWRITE data TO path.
 * END-HISTORY
 *
@@ -47,7 +48,7 @@ $catalog !oswrite
    end
    weofseq f
    writeblk data to f else return
-   closeseq f
+   close f
    return
 end
 

@@ -1806,13 +1806,6 @@ Directory file name required after in
 
 cited by: `como`
 
-### msg:11076
-> kind=message tier=reference since=- src=sdsys/messages/11076:1#ac3e147a
-
-```
-Selecting a directory file omits names that begin with a dot
-```
-
 ### msg:11077
 > kind=message tier=reference since=- src=sdsys/messages/11077:1#28cbce9a
 
@@ -3152,20 +3145,6 @@ cited by: `qproc`
 Subroutine %s is not in the catalogue
 ```
 
-### msg:11252
-> kind=message tier=reference since=- src=sdsys/messages/11252:1#1e34b6c4
-
-```
-A program compiled or catalogued also resets every subroutine link variable, so the next CALL loads the current object code
-```
-
-### msg:11253
-> kind=message tier=reference since=- src=sdsys/messages/11253:1#567bef5b
-
-```
-Accept exponent form numbers such as 123.45E-2
-```
-
 ### msg:11256
 > kind=message tier=reference since=- src=sdsys/messages/11256:1#52d1175d
 
@@ -3286,13 +3265,6 @@ A directory file keeps .gitignore and .gitattributes under their own names
 Writing a record to a directory file updates the directory's date and time modified
 ```
 
-### msg:11269
-> kind=message tier=reference since=- src=sdsys/messages/11269:1#ffac97e2
-
-```
-A phantom does not send a message to its parent when it ends
-```
-
 ### msg:1127
 > kind=message tier=reference since=- src=sdsys/messages/1127:1#15630500
 
@@ -3326,10 +3298,10 @@ A default argument value must be a number, a string without both kinds of quote,
 cited by: `bcomp`
 
 ### msg:11274
-> kind=message tier=reference since=- src=sdsys/messages/11274:1#7860aa82
+> kind=message tier=reference since=- src=sdsys/messages/11274:1#a70c4870
 
 ```
-Default argument values need the VAR.ARGS option or $MODE DEFAULT.UNASS.ARGS
+Default argument values need the VAR.ARGS option
 ```
 
 cited by: `bcomp`
@@ -4062,13 +4034,6 @@ no locks have been logged
 
 cited by: `locktracer`
 
-### msg:11367
-> kind=message tier=reference since=- src=sdsys/messages/11367:1#009892bb
-
-```
-A file variable that goes keeps its locks until the program returns to the command processor
-```
-
 ### msg:11368
 > kind=message tier=reference since=- src=sdsys/messages/11368:1#30e1f172
 
@@ -4092,13 +4057,6 @@ cited by: `qproc`
 
 ```
 String number too long|in %s
-```
-
-### msg:11370
-> kind=message tier=reference since=- src=sdsys/messages/11370:1#7c074916
-
-```
-An EXECUTE that changes account returns to the account it began in
 ```
 
 ### msg:11371
@@ -8050,6 +8008,15 @@ Marks are shown as characters: field %1 holds the text of a mark token
 
 cited by: `ide`
 
+### msg:11993
+> kind=message tier=reference since=- src=sdsys/messages/11993:1#4810cb0a
+
+```
+C-type dictionary item %1 is not compiled: write it as an I-type
+```
+
+cited by: `dcomp`
+
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
 
@@ -10850,7 +10817,7 @@ cited by: `bcomp`
 Expected comma or semicolon
 ```
 
-cited by: `bcomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2862
 > kind=message tier=reference since=- src=sdsys/messages/2862:1#13f2f9d3
@@ -12664,13 +12631,6 @@ Suppress all user options for an abort
 
 ```
 Show call stack at a fatal error
-```
-
-### msg:3118
-> kind=message tier=reference since=- src=sdsys/messages/3118:1#b322665c
-
-```
-Suppress program details on abort
 ```
 
 ### msg:3200

@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 01 Oct 26 dm Written for S.50.  One of the per-OS helpers whose name and
 *              signature are agreed with SD Core for Windows (mail 2026-10-01T1030);
 *              this body is Linux's.  The shared verbs call only the helpers.
@@ -117,7 +118,7 @@ create.archive:
          readseq line from log.f else exit
          log.lines<-1> = line
       repeat
-      closeseq log.f
+      close log.f
    end
    void ospath(log.path, OS$DELETE)
 
