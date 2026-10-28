@@ -298,7 +298,8 @@ def main():
         row("control: ms-vt100 keeps the 25 lines it names", ti is not None and ti[1] == "25", repr(ti))
         with open(os.path.join(SD64, "terminfo.src")) as fh:
             src = fh.read()
-        row("terminfo.src: no entry says cols#120 any more", "cols#120" not in src and src.count("cols#140") >= 30, "%d x cols#120, %d x cols#140" % (src.count("cols#120"), src.count("cols#140")))
+        # 44 entries said cols#140 when the default moved; 30 after S.87 batch 5 and 21 after batch 18 (28 Oct 26) removed nine more old terminals
+        row("terminfo.src: no entry says cols#120 any more", "cols#120" not in src and src.count("cols#140") >= 21, "%d x cols#120, %d x cols#140" % (src.count("cols#120"), src.count("cols#140")))
         # five until 27 Oct 26 (S.87 batch 5), when two of them (pt100w, pt250w, old Prime terminals) were removed
         row("terminfo.src: lines#36 is left only on the three 132-column entries", len(re.findall(r"lines#36", src)) == len(re.findall(r"cols#132,[^\n]*lines#36", src)) == 3,
             "%d x lines#36" % len(re.findall(r"lines#36", src)))

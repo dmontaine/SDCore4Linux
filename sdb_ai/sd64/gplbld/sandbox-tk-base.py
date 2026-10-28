@@ -472,8 +472,14 @@ def table_rows(box, made):
     t = Term(box, "tktest table 6000")
     t_start = time.time() - t0
     big = tdata(6000)
+    # Term() returns when SD has written nothing for a second, and SD is silent while it builds the 6,000 rows: poll until the status line is there (or SLOW passes)
+    # instead of reading a screen that has not been drawn yet.  The time to the first draw is printed.
     st = tstate(t)
-    say("    [measured] start with 6,000 rows: %.1f s" % t_start)
+    while st is None and time.time() - t0 < SLOW:
+        t.s.settle(0.25)
+        st = tstate(t)
+    t_start = time.time() - t0
+    say("    [measured] start with 6,000 rows, until the status line was there: %.1f s" % t_start)
     row("6,000 rows: the first screenful is drawn and the status says 6000 shown", st is not None and st["shown"] == 6000 and tscreen(t, 19) == [trline(r, " ") for r in big[:19]], repr((st, tscreen(t, 3))))
 
     def timed(name, send, cond):

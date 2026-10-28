@@ -9,6 +9,7 @@
 # empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 28 Oct 26 dm  S.87: leg 4 - LIST.TERM.TYPES says 36 now (15 more terminals removed: the ADDS viewpoints, vt52, hp, ibm-pc, glasstty, kermit).
 # 27 Oct 26 dm  S.87 batch 5: leg 4 - LIST.TERM.TYPES says 51 now, and none of the 31 removed terminal names is on it.
 # 11 Oct 26 dm  Written for the small items of 1.2-0 bundles A-9 to A-14.
 # 15 Oct 26 dm  Leg 5: LIST.COMMON DETAIL (item 362).
@@ -158,7 +159,7 @@ def main():
         row("THE ROW: the list names xterm and dec-vt100", re.search(r"(?m)\bxterm\b", out) is not None
             and re.search(r"\bdec-vt100\b", out) is not None, "no xterm or dec-vt100")
         m = re.search(r"(?m)^(\d+) terminal type\(s\)", out)
-        row("and says how many: 51 (it was 82 until 27 Oct 26, when 31 names of old hardware were removed)", m is not None and int(m.group(1)) == 51,
+        row("and says how many: 36 (it was 82 until 27 Oct 26, when 31 names of old hardware were removed, and 51 until 28 Oct 26, when 15 more went)", m is not None and int(m.group(1)) == 36,
             "count line: %r" % (m.group(1) if m else None))
         gone = ("dg210 dg-ansi dg-generic dg6053-old dg100 prism2 prism4 p4 prism5 p5 prism7 p7 prism8 p8 prism9 p9 prism12 p12 prism14 p14 "
                 "pt100 pt200 wren fenix pt100w pt200w wrenw fenixw pt250 pt250w tvi910").split()
@@ -166,6 +167,9 @@ def main():
         row("CONTROL: ansi, xterm and dec-vt100 (which replace them) are listed", {"ansi", "xterm", "dec-vt100"} <= words, "listed words: %d" % len(words))
         row("THE ROW: none of the 31 removed Data General, MDC Prism, Prime and Televideo 910 names is listed (S.87 batch 5)", not (set(gone) & words),
             "still listed: %r" % sorted(set(gone) & words))
+        gone2 = ("addsviewpoint viewpoint adds4000 viewpoint60 vp60 vp vpa2 vt52 hpgeneric hp ibm-pc ibm5051 5051 glasstty kermit").split()
+        row("THE ROW: none of the 15 terminals removed on 28 Oct 26 (ADDS viewpoints, vt52, hp, ibm-pc, glasstty, kermit) is listed", not (set(gone2) & words),
+            "still listed: %r" % sorted(set(gone2) & words))
 
         say("\n--- leg 5: LIST.COMMON DETAIL (item 362) -----------------------------------------")
         prog("zza9ca", "   common /zzcoma/ a\n   a = 1\nend\n")

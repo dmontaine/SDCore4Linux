@@ -779,7 +779,7 @@ The administrator switches each of the following on **per account**, and **as de
 | gate | what it governs | the word (SDSYS only) |
 |---|---|---|
 | ssh, api | the two remote doors into an account | `ssh`, `api`, `both`, `none` |
-| sh | the `sh` verb and `!` | `sh-on`, `sh-off` |
+| sh | the `sh` verb | `sh-on`, `sh-off` |
 | os | `os.execute`, and `openseq` / `openpath` / `dir()` on a path outside the account | `os-on`, `os-off` |
 | sd | opening files in the accounts the user could `logto` | `sd-on`, `sd-off` |
 | voc, bp, dict | saving a change to a VOC; to a program file, **and compiling and cataloguing**; to a dictionary | `voc-on`, `bp-on`, `dict-on` (each with `-off`) |
@@ -791,13 +791,11 @@ Each word is a chunk in the pack, `sys:word:<word>`, with the file it came from.
 
 ```tcl run as=gdoff
 sh echo hi
-! echo hi
 create.account user someone no.query
 logto sdsys
 ```
 
 ```output
-<user> is not permitted to use the operating system shell
 <user> is not permitted to use the operating system shell
 create.account is not in your VOC
 The SDSYS account is entered only by running SD as the sdsys OS user

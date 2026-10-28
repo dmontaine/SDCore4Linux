@@ -10,6 +10,7 @@
 #   531  the U format in a query processor report wraps like L and T                                        (already true)
 #   32   SET.FILE may point at a Q-pointer (a chain), and the chain opens
 #   217  CATALOG with a hyphen prefix is global, callable, and DELETE.CATALOG removes it
+#        (28 Oct 26, S.87: the hyphen prefix is removed; the rows pin the refusal and use "!" as the control)
 #   172  CONFIGURE.FILE ... REPORTING shows progress
 #   33   sdfix -Z clears the dead space at the end of each group and leaves every record readable
 #   181  DIR_DICT: DAYS, DTM and OWNER items for a directory file
@@ -174,6 +175,7 @@ PROGS = {
     # 217: a subroutine to be catalogued under a hyphen name
     "zzb12sub": "subroutine zzb12sub(a)\n   a = 'HYPHEN-SAID-HI'\n   return\nend\n",
     "zzb12cs": "   nm = '-zzb12sub'\n   x = ''\n   call @nm(x)\n   crt 'CALLED[':x:']'\n   crt 'DONE217'\nend\n",
+    "zzb12cs2": "   nm = '!zzb12sub'\n   x = ''\n   call @nm(x)\n   crt 'CALLED[':x:']'\n   crt 'DONE217'\nend\n",
     # 360: a file held to three groups with 1500 records of 100 bytes (all of its groups overflow), and one with room to spare
     "zzb12an": ("   execute 'DELETE.FILE zzb12an' capturing j\n   execute 'CREATE.FILE zzb12an DYNAMIC MINIMUM.MODULUS 3' capturing j\n"
                 "   execute 'CONFIGURE.FILE zzb12an NO.RESIZE' capturing j\n   open 'zzb12an' to f else stop 'no f'\n"
@@ -277,13 +279,21 @@ def main():
 
         # ------------------------------------------------------------------------------------------------ 217
         say("\n--- 217 a hyphen as a global catalogue prefix -----------------------------------------------------------")
-        compile_all(box, ["zzb12sub", "zzb12cs"])
+        compile_all(box, ["zzb12sub", "zzb12cs", "zzb12cs2"])
+        # 28 Oct 26, S.87: the hyphen (and star) prefixes were removed, only ! $ _ remain.  The hyphen name is now refused
+        # and the "!" prefix, the same global catalogue, is the working control.
         out = sess(box, "CATALOG bp -zzb12sub", "RUN bp zzb12cs")
         gcat = os.path.join(sysd, "gcat", "-zzb12sub")
-        row("217: CATALOG bp -zzb12sub catalogues the program globally under the hyphen name (an entry in gcat)", os.path.exists(gcat), out[-500:])
-        row("217: ... and a program calls it by that name", tagged(out, "CALLED") == "HYPHEN-SAID-HI" and "DONE217" in out, out[-400:])
-        out = sess(box, "DELETE.CATALOG -zzb12sub")
-        row("217: DELETE.CATALOG -zzb12sub removes it", not os.path.exists(gcat), out[-300:])
+        row("217: CATALOG bp -zzb12sub is refused as an illegal call name (the hyphen prefix is gone)",
+            re.search(r"(?m)^Illegal call name \(-zzb12sub\)", out) is not None, out[-500:])
+        row("217: ... and nothing is entered in gcat under the hyphen name", not os.path.exists(gcat), out[-300:])
+        row("217: ... and a program calling the hyphen name cannot load it", "Unable to load '-zzb12sub'" in out and "DONE217" not in out, out[-400:])
+        gcat = os.path.join(sysd, "gcat", "!zzb12sub")
+        out = sess(box, "CATALOG bp !zzb12sub", "RUN bp zzb12cs2")
+        row("CONTROL: CATALOG bp !zzb12sub catalogues globally (an entry in gcat) and a program calls it by that name",
+            os.path.exists(gcat) and tagged(out, "CALLED") == "HYPHEN-SAID-HI" and "DONE217" in out, out[-500:])
+        out = sess(box, "DELETE.CATALOG !zzb12sub")
+        row("CONTROL: DELETE.CATALOG !zzb12sub removes it", not os.path.exists(gcat), out[-300:])
         out = sess(box, "CATALOG bp zzb12sub")
         row("CONTROL: a name with no prefix is catalogued privately, not globally",
             not os.path.exists(os.path.join(sysd, "gcat", "zzb12sub")), out[-300:])

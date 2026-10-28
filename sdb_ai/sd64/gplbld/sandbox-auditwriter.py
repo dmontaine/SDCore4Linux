@@ -471,7 +471,9 @@ def run_rows():
         fm = found[0][0]
         row("W8f: that line names this user (the credentials'), uid=?, a numeric pid, and the daemon is still running", fm.group(2) == USER and fm.group(4) == "?" and fm.group(5).isdigit()
             and DAEMON is not None and DAEMON.poll() is None, "line: %s" % fm.group(0))
-    row("W8g: the window was over before the line came (it is not written early)", waited >= window, "%.1f s" % waited)
+    # the daemon counts whole seconds of the monotonic clock (audit_clock(): tv_sec + 1), so a window that began at 12.9 s is dated 12 and is over
+    # at 72.0 s, 59.1 s of real time later: the line can come up to one second short of the window and still be on time (28 Oct 26, a flake at 60.0 s printed from 59.96)
+    row("W8g: the window was over before the line came (it is not written early; whole-second clock, one second of slack)", waited > window - 1, "%.2f s" % waited)
     errlog = os.path.join(SYS, "errlog")
     try:
         over = sum(int(x) for x in re.findall(r"(\d+) over the rate bound", open(errlog, errors="replace").read()))
