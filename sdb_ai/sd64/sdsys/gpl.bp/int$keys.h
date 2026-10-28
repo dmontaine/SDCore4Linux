@@ -18,6 +18,7 @@
   	  * 
   	  * 
 	  * START-HISTORY:
+	  * 27 Oct 26 dm S.87 batch 13: $define for OS$OPEN, as # no longer starts a directive.
 	  * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 	  * 29 Sep 26 dm  K$SET.LANGUAGE (38) retired: SD is English only.
 	  * 17 Oct 26 dm S.65 slice 1: K$NET (127), the per-account NET gate.
@@ -260,7 +261,7 @@
       $define OS$FLUSH.CACHE     8       ;* Flush DH file cache
       $define OS$CD              9       ;* Change working directory
       $define OS$MAPPED.NAME    10       ;* Map a directory file name
-      #define OS$OPEN           11       ;* Check if file is open by pathanme
+      $define OS$OPEN          11       ;* Check if file is open by pathanme
       $define OS$DIR            12       ;* Return content of directory
       $define OS$MKDIR          13       ;* Create a directory
       $define OS$MKPATH         14       ;* Create a directory path

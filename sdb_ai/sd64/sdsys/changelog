@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  THE STATEMENTS GO AND GO TO ARE REMOVED, AND # NO LONGER STARTS A COMPILER DIRECTIVE.
+
+             What        Write GOTO label for GO label and GO TO label, and ON expression GOTO for ON expression GO TO. Write $IFDEF, $IFNDEF, $ELSE, $ENDIF, $DEFINE and $INCLUDE for the
+                         forms that began with #. The compiler's message for a bad ON now says "Expected GOSUB or GOTO". Three lines of SD's own source were changed, and a block of code in
+                         the query processor that could never run was deleted.
+             Why it      One spelling each; the # form was never documented.
+             Does not    Change GOSUB or GOTO, or a program that never used the other spellings.
+
 27 Oct 26  FIVE SECOND NAMES OF @ VARIABLES ARE REMOVED: @AM, @SVM, @USER, @USER.NO AND @FILENAME.
 
              What        Thirteenth batch, on the owner's word. Write @FM for @AM, @SM for @SVM, @LOGNAME for @USER, @USERNO for @USER.NO and @FILE.NAME for @FILENAME. Each was a second

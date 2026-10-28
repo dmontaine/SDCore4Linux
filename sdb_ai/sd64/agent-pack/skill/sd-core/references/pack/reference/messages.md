@@ -11656,10 +11656,10 @@ Expected comma or USING
 cited by: `bcomp`
 
 ### msg:2935
-> kind=message tier=reference since=- src=sdsys/messages/2935:1#bcf7a867
+> kind=message tier=reference since=- src=sdsys/messages/2935:1#be738b7d
 
 ```
-Expected GOSUB, GOTO or GO
+Expected GOSUB or GOTO
 ```
 
 cited by: `bcomp`

@@ -3003,13 +3003,6 @@
 "tier": "reference",
 "words": 19
 },
-"basic:stmt:go": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 17
-},
 "basic:stmt:gosub": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
@@ -14894,7 +14887,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 10
+"words": 9
 },
 "msg:2936": {
 "kind": "message",
@@ -24470,7 +24463,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 159
+"words": 171
 },
 "sys:ikeys:p$": {
 "kind": "sys.keys",
