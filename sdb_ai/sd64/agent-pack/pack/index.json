@@ -4240,7 +4240,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 273
+"words": 270
 },
 "core:voc-types": {
 "kind": "core.digest",
@@ -25647,13 +25647,6 @@
 "since": "-",
 "tier": "reference",
 "words": 40
-},
-"tcl:catalogue": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "L1.1-3",
-"tier": "reference",
-"words": 37
 },
 "tcl:cd": {
 "kind": "tcl.verb",

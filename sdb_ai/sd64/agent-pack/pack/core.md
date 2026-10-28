@@ -103,7 +103,6 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`basic`** {*file*} *record* {*record* …}
 - **`build.index`** *file* *field* … | **`all`**
 - **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
-- **`catalogue`** — the same verb as **`catalog`**
 - **`cd`** *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`cd data`** *file* {*i-type* …}  ·  **`cd local`**  ·  **`cd all`**
 - **`copy.listp`** {{**`dict`**} *file*} {*name* … | **`*`**} {**`(`***options*}
 - **`copyp`** {**`dict`**} *file* *id* … {**`(options`**}
@@ -129,6 +128,7 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`search`** {**`dict`**} *file* {*selection*}
 - **`select`** {**`dict`**} *file* {*selection*} {*list.no*}
 - **`selectindex`** {**`dict`**} *file* *index* {*value*} {**`to`** *n*}
+- **`set.trigger`** *file* *name* {*modes*}
 - **`sort`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 
 ### core:voc-types

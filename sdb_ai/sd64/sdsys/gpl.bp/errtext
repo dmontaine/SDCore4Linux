@@ -29,7 +29,7 @@
 * START-CODE
 
 subroutine errtext(expansion, errno)
-$catalogue !errtext
+$catalog !errtext
 * Linux port, plan D6: ERRGEN empties SYSCOM/ERR.H before it regenerates, and
 * reads ./gplsrc/err.h - a path that only exists in the dev tree - so a compile
 * of ERRTEXT on an installed system would wipe every error definition.  ERRTEXT.H

@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  THE BRITISH SPELLINGS $catalogue, THE $BASIC.OPTIONS WORDS catalogue AND no.catalogue, AND THE VERB catalogue ARE REMOVED.
+
+             What        Write $catalog in a program, catalog and no.catalog in a $basic.options record, and the verb catalog. The VOC record catalogue is taken out of an existing account by the
+                         next login's update (it is on the VOC deletion list). Twenty of SD's own programs and the BASIC command (which builds the catalog command after a good
+                         compile) were changed to the American spelling.
+             Why it      One spelling each; the American one was already the one in use almost everywhere.
+             Does not    Change $catalog, the catalog verb or delete.catalog, or the word "catalogue" in a message or a page.
+
 27 Oct 26  THE STATEMENTS ROOT, KEY( AND BSCAN, AND THE PICK STYLE CALL "file name", ARE REMOVED.
 
              What        All four were added in this release and never shipped. To walk an alternate key index write SELECTINDEX, SELECTLEFT and SELECTRIGHT (with SETLEFT and SETRIGHT to
