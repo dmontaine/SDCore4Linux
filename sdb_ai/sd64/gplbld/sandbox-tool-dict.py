@@ -30,7 +30,7 @@
 #   D7   E hands the terminal to SED on the item and the page comes back; a change saved by SED is on the disk (dict-edit ON) and is refused and not on the disk (OFF)
 #   D8   D deletes: Cancel is the default; the wrong id typed deletes nothing; the right id deletes (disk); with dict-edit OFF the verb's own refusal and the item stays  [mutant delete-no-typed-name]
 #   D9   an id with a capital, a file with a dollar in its name: listed and described, and E, D and C are refused with the verb to type; the file is untouched
-#   D10  the indices: the pane lists them with built / not built; N picks an item and MAKE.INDEX defines and builds it (Cancel is the default; one that has an index is refused); B builds one;
+#   D10  the indices: the pane lists them with built / not built; N picks an item and CREATE.INDEX defines it and BUILD.INDEX builds it (Cancel is the default; one that has an index is refused); B builds one;
 #        D deletes one after its name is typed and leaves the others; L hands the terminal to LIST.INDEX; an index made in capitals is built and deleted by its lower-case name  [mutant delete-index-all]
 #   D11  F1 and the [?] reach the help box; Tab and I and Esc move between the panes; F goes back to the files; F5 reads again; a window under 140 by 43 gets no page
 import importlib.util
@@ -191,7 +191,7 @@ def build_acct(a, dict_final):
     q.reg_write(a, reg_record(a, True))
     q.put(os.path.join(acct_dir(a), "bp", "zzdfix"), fixture_program(a))
     q.put(os.path.join(acct_dir(a), "bp", "zzdrd"), READER)
-    out = q.plain(a, ["CREATE.FILE cust", "CREATE.FILE ixf", "BASIC bp zzdfix zzdrd", "RUN bp zzdfix", "COMPILE.DICT cust dbl", "CREATE.INDEX ixf f1", "MAKE.INDEX ixf UPNAME"])
+    out = q.plain(a, ["CREATE.FILE cust", "CREATE.FILE ixf", "BASIC bp zzdfix zzdrd", "RUN bp zzdfix", "COMPILE.DICT cust dbl", "CREATE.INDEX ixf f1", "CREATE.INDEX ixf UPNAME", "BUILD.INDEX ixf UPNAME"])
     if not has(out, r"^ZZDF done$"):
         bail("the fixture files of %s were not made:\n%s" % (a, "\n".join(out[-14:])))
     if not has(out, r"Added index for UPNAME") or not has(out, r"Added index for f1"):
@@ -875,7 +875,7 @@ def section_indices():
     h.key("down", idle=0.5)
     h.key("enter", idle=1.5)
     bt = boxtext(h)
-    arow("D10d", "N then Down and Enter picks f2 and shows the exact command (make.index ixf f2) in a box that says an index that is not built finds nothing", "make.index ixf f2" in bt and "An index that is not built finds nothing." in bt and "Run" in h.text(), bt[:500])
+    arow("D10d", "N then Down and Enter picks f2 and shows the exact command (create.index ixf f2) in a box that says build.index follows and that an index that is not built finds nothing", "create.index ixf f2" in bt and "build.index ixf f2" in bt and "An index that is not built finds nothing." in bt and "Run" in h.text(), bt[:500])
     h.key("enter", idle=1.5)
     arow("D10e", "Enter is Cancel: no index is made (a separate session's list.index has the same two)", idx_state(A1, "ixf") == {"f1": "N", "upname": "Y"} and "f2" not in xtable(h)[1], repr((idx_state(A1, "ixf"), xtable(h)[1])))
     h.typed("n", idle=1.5)
@@ -885,8 +885,8 @@ def section_indices():
     until(h, lambda t: "Populating index" in st(h) or "Cannot" in st(h))
     state = idx_state(A1, "ixf")
     tb, order = xtable(h)
-    arow("D10f", "Run: make.index ran - a separate session's list.index has f2 BUILT (Y) and the others as they were, the pane lists it as built with the verb's words on the status line",
-         state == {"f1": "N", "upname": "Y", "f2": "Y"} and tb.get("f2", ("",))[0] == "yes" and "Added index for f2" in st(h) and "Populating index" in st(h), repr((state, tb.get("f2"), st(h))))
+    arow("D10f", "Run: create.index and then build.index ran - a separate session's list.index has f2 BUILT (Y) and the others as they were, the pane lists it as built with the last verb's words on the status line",
+         state == {"f1": "N", "upname": "Y", "f2": "Y"} and tb.get("f2", ("",))[0] == "yes" and "Populating index" in st(h), repr((state, tb.get("f2"), st(h))))
     # B on f1
     h.key("home", idle=0.6)
     h.typed("b", idle=1.5)
@@ -952,7 +952,7 @@ def section_indices():
     arow("D10o", "Esc in the indices pane goes back to the items pane", st(h).startswith("[Items]") and "Dictionary of ixf" in h.text(), repr(st(h)))
     h.key("ctrl-q", idle=1.2)
     h.end()
-    # the indices are not held back by dict-edit: in the account with it OFF make.index still builds one
+    # the indices are not held back by dict-edit: in the account with it OFF create.index and build.index still make one
     h = page(A2, "ixf")
     h.typed("i", idle=1.5)
     before = idx_state(A2, "ixf")
@@ -963,7 +963,7 @@ def section_indices():
     h.typed("r", idle=3.0)
     until(h, lambda t: "Populating index" in st(h) or "Cannot" in st(h))
     after = idx_state(A2, "ixf")
-    arow("D10p", "with dict-edit OFF the indices are not held back: N, Down, Enter, Run builds f2 (make.index ixf f2; a separate session's list.index has it, Y)", "make.index ixf f2" in bt and before == {"f1": "N", "upname": "Y"} and after.get("f2") == "Y", repr((bt[:200], before, after, st(h))))
+    arow("D10p", "with dict-edit OFF the indices are not held back: N, Down, Enter, Run builds f2 (create.index ixf f2, then build.index; a separate session's list.index has it, Y)", "create.index ixf f2" in bt and before == {"f1": "N", "upname": "Y"} and after.get("f2") == "Y", repr((bt[:200], before, after, st(h))))
     h.key("home", idle=0.6)
     h.typed("b", idle=1.5)
     h.typed("r", idle=3.0)

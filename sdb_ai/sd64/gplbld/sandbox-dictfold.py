@@ -144,7 +144,7 @@ def main():
             len(h) == 2 and h[0] == "F1...", " | ".join(h))
 
         say("\n--- leg 2: CD of an I-type whose expression names F1 and F3 in upper case --------------------")
-        out = sess(box, "CD %s xtype" % F)
+        out = sess(box, "COMPILE.DICT %s xtype" % F)
         compiled = re.search(r"(?m)^Compiling xtype\s*$", out) is not None
         row("leg 2: CD reached the compiler ('Compiling xtype')", compiled, "no Compiling line: nothing below is measured")
         row("leg 2: the expression's F1 and F3 resolved to f1 and f3 (no error)",

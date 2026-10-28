@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  SIX TCL VERBS ARE REMOVED: cd, md, list.union, list.inter, list.diff AND make.index.
+
+             What        Write compile.dict for cd (the same program under its long name), voc for md (a Q-pointer to the VOC), merge.list 1 union 2 to 3 (or intersect, diff) for the three
+                         saved-list verbs after get.list has picked the lists up, and create.index followed by build.index for make.index. The tool.dict page now runs both index verbs after
+                         the one box it has always shown; the paragraph third.compile and SD's own compile calls say compile.dict. The VOC records of the six are taken out of an account by its
+                         next login's update (the VOC deletion list), and the program lstmrg, which only the list verbs used, is gone.
+             Why it      Each was a second name or a combined form of a verb that stays.
+             Does not    Change compile.dict, merge.list, create.index or build.index.
+
 27 Oct 26  THE WORDS NO.CASE AND CASE ARE REMOVED FROM CREATE.FILE.
 
              What        Every file SD makes already treats record ids as case insensitive, so NO.CASE changed nothing and CASE was refused (message 10176) except in internal mode, where it was

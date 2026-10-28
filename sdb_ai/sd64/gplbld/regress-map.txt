@@ -594,7 +594,6 @@ sdsys/gpl.bp/nselect         : @lists
 sdsys/gpl.bp/seldir          : @lists gates
 sdsys/gpl.bp/movel*          : @lists
 sdsys/gpl.bp/mrglist         : @lists fixes-b12
-sdsys/gpl.bp/lstmrg          : @lists fixes-b12
 sdsys/gpl.bp/mergekeys       : @lists fixes-b12
 sdsys/gpl.bp/analyse         : fixes-b12 misc-a9
 gplsrc/analyse.c             : fixes-b12 misc-a9

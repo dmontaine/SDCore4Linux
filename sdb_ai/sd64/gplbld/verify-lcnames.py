@@ -190,9 +190,9 @@ def main():
 
     # THE F/Q FILE-POINTER IDS (the port's 0394af4).  Ids only: fields 2 and 3
     # are paths on disk and are NOT renamed by this category.
-    PTRS = {"newvoc": ["voc", "newvoc", "syscom", "dict.dict", "md",
+    PTRS = {"newvoc": ["voc", "newvoc", "syscom", "dict.dict",
                        "sd.accounts", "sd.voclib"],
-            "voc_template": ["voc", "newvoc", "syscom", "dict.dict", "md",
+            "voc_template": ["voc", "newvoc", "syscom", "dict.dict",
                              "sd.accounts", "sd.voclib", "accounts",
                              "messages", "qfile"]}
     wrong = []
@@ -204,9 +204,9 @@ def main():
     run.note("S10 the F/Q pointer ids are shipped lower case, and not upper", [], wrong)
     qt = []
     for d in PTRS:
-        for i, tgt in (("md", "voc"), ("sd.accounts", "accounts")):
+        for i, tgt in (("sd.accounts", "accounts"),):
             # A MISSING RECORD IS A FAILED ROW, NOT A TRACEBACK - watched
-            # crashing here on the pre-rename install, where md is MD.
+            # crashing here on the pre-rename install, where the record was upper case.
             p = os.path.join(V.SDSYS, d, i)
             if not os.path.exists(p):
                 qt.append("%s/%s absent" % (d, i))
@@ -217,7 +217,7 @@ def main():
     run.note("S11 the Q pointers name their targets lower case", [], qt)
     tc = readtxt(os.path.join(V.SDSYS, "voc_template", "third.compile"))
     run.note("S12 third.compile's CD targets are lower case", True,
-             all(("CD %s" % t) in tc for t in ("accounts", "dict.dict", "voc")))
+             all(("compile.dict %s" % t) in tc for t in ("accounts", "dict.dict", "voc")))
     # ***THE TWO THAT MUST STAY UPPER.*** A future sweep lowering either is a
     # defect: DELETEF's guard upcases only its left side, and SETFILE's default
     # covers accounts from before the rename through exact-then-downcase.

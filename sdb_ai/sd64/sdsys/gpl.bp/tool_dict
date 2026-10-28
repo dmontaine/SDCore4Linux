@@ -26,7 +26,7 @@
 *   not apply to it: it asks the kernel for itself (K$EDIT.OK, the question SED and the IDE ask) before the write and shows the kernel's own refusal (!edit_msg) when the answer is no.  E hands the
 *   terminal to SED on the item (sed dict file item); SED makes the same check when it saves.  D deletes the item with the DELETE verb, after its id is typed.  C compiles an A, S, I or C item with
 *   COMPILE.DICT.  T tries the item on a record of the data file: the value ITYPE() gives for that record, which is what the query processor computes, and the same value converted and formatted as
-*   a query would print it.  In the indices pane N makes an index (MAKE.INDEX: it defines the index and builds it, because an index that is not built finds nothing), B builds it again (BUILD.INDEX),
+*   a query would print it.  In the indices pane N makes an index (CREATE.INDEX defines it, then BUILD.INDEX builds it, because an index that is not built finds nothing), B builds it again (BUILD.INDEX),
 *   D deletes it (DELETE.INDEX, after its name is typed) and L lists it in full (LIST.INDEX: it prints to the terminal, which is handed to the verb).  Every verb is the one the person could type,
 *   run through $tk_run after a box that shows the exact command and what it does; Cancel is the default.  An id or an index name with a character the page does not give to a command (a capital, a
 *   dollar, an at sign) is listed and described, and the verb for it is typed at the prompt.
@@ -56,7 +56,7 @@ $include dictdict.h
 
    deffun edit_msg(kind) calling '!edit_msg'
 
-   allow = 'delete compile.dict make.index build.index delete.index'   ;* the commands this page may run, through $tk_run, after a box
+   allow = 'delete compile.dict create.index build.index delete.index'   ;* the commands this page may run, through $tk_run, after a box
    show.allow = 'sed list.index'                                       ;* the two it hands the terminal to (SED is a screen; LIST.INDEX prints through the print unit)
 
    fa = downcase(field(trim(@sentence), ' ', 2))                       ;* the file named after the verb, if any
@@ -774,7 +774,7 @@ describe.index:
    end case
    lines<-1> = 'Records with an empty value are ' : (if ma<1, 3> = 'yes' then 'indexed.' else 'left out.') : '  Case: ' : (if ma<1, 6> = 'any' then 'differences of case do not matter.' else 'exact.') : '  Keys are ordered as ' : (if ma<1, 5> = 'R' then 'right-justified values (numbers by value).' else 'left-justified text.')
    lines<-1> = ''
-   lines<-1> = 'N makes an index of an item (make.index defines it and builds it).  B builds this one again.  D deletes it.  L lists it in full.'
+   lines<-1> = 'N makes an index of an item (create.index defines it, then build.index builds it).  B builds this one again.  D deletes it.  L lists it in full.'
    lines<-1> = 'Build and delete need the file to themselves: if another session has it open, the verb says so and nothing changes.'
    return
 
@@ -1597,7 +1597,7 @@ write.item:
 
 * ------------------------------------------------------------------------------------------------- the indices
 
-* N: an index on an item of the dictionary, picked from the list; MAKE.INDEX defines it and builds it
+* N: an index on an item of the dictionary, picked from the list; CREATE.INDEX defines it and, when that worked, BUILD.INDEX builds it (one box, the second command in its text)
 do.newindex:
    cand = ''
    cdef = 1
@@ -1613,7 +1613,7 @@ do.newindex:
       end
    next q
    if cand = '' then
-      msg = 'the dictionary has no data, A, S, I or C item with an id the page can give to a command: type make.index ' : fn : ' and the item at the prompt'
+      msg = 'the dictionary has no data, A, S, I or C item with an id the page can give to a command: type create.index ' : fn : ' and the item at the prompt, then build.index'
       return
    end
    pk = ''
@@ -1636,12 +1636,12 @@ do.newindex:
    cw = fn
    gosub check.word
    if not(okname) then
-      msg = 'this file name is not given to a command by the page (a character it does not pass, or an SD keyword): type  make.index ' : fn : ' ' : iid : '  at the prompt'
+      msg = 'this file name is not given to a command by the page (a character it does not pass, or an SD keyword): type  create.index ' : fn : ' ' : iid : '  and build.index ' : fn : ' ' : iid : '  at the prompt'
       return
    end
-   sent = 'make.index ' : fn : ' ' : iid
+   sent = 'create.index ' : fn : ' ' : iid
    lines = ''
-   lines<-1> = 'Defines an index on ' : iid : ' and builds it from the records now (create.index and build.index in one command).  An index that is not built finds nothing.'
+   lines<-1> = 'Defines an index on ' : iid : ', then runs  build.index ' : fn : ' ' : iid : '  to build it from the records now.  An index that is not built finds nothing.'
    lines<-1> = 'The build needs the file to itself: if another session has it open the verb says so, the index stays defined and B builds it later.'
    call $tk_confirm(sent, lines, '', res, cmsg)
    if res # 'run' then
@@ -1649,6 +1649,10 @@ do.newindex:
       return
    end
    gosub run.sent
+   if rerr = '' and stat = 0 then
+      sent = 'build.index ' : fn : ' ' : iid
+      gosub run.sent
+   end
    gosub read.indices
    for q = 1 to nx
       if upcase(xnames<q>) = upcase(iid) then cx = q

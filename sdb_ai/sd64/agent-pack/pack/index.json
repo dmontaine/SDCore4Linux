@@ -4240,7 +4240,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 270
+"words": 268
 },
 "core:voc-types": {
 "kind": "core.digest",
@@ -15937,7 +15937,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 16
+"words": 15
 },
 "msg:3249": {
 "kind": "message",
@@ -16035,35 +16035,35 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 11
+"words": 8
 },
 "msg:3263": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 11
+"words": 8
 },
 "msg:3264": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 11
+"words": 8
 },
 "msg:3265": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 11
+"words": 8
 },
 "msg:3266": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 14
+"words": 13
 },
 "msg:3267": {
 "kind": "message",
@@ -25648,13 +25648,6 @@
 "tier": "reference",
 "words": 40
 },
-"tcl:cd": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 48
-},
 "tcl:ced": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -25849,7 +25842,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 37
+"words": 48
 },
 "tcl:config": {
 "kind": "tcl.verb",
@@ -26817,13 +26810,6 @@
 "tier": "reference",
 "words": 34
 },
-"tcl:list.diff": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 39
-},
 "tcl:list.files": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -26837,13 +26823,6 @@
 "since": "-",
 "tier": "reference",
 "words": 35
-},
-"tcl:list.inter": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 39
 },
 "tcl:list.item": {
 "kind": "tcl.verb",
@@ -26914,13 +26893,6 @@
 "since": "next",
 "tier": "reference",
 "words": 41
-},
-"tcl:list.union": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 39
 },
 "tcl:list.vars": {
 "kind": "tcl.verb",
@@ -27033,13 +27005,6 @@
 "since": "-",
 "tier": "reference",
 "words": 51
-},
-"tcl:make.index": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 40
 },
 "tcl:map": {
 "kind": "tcl.verb",
@@ -28756,13 +28721,6 @@
 "tier": "examples",
 "words": 19
 },
-"voc:entry:md": {
-"kind": "voc.entry",
-"part": "examples/voc-entries.md",
-"since": "-",
-"tier": "examples",
-"words": 49
-},
 "voc:entry:messages": {
 "kind": "voc.entry",
 "part": "examples/voc-entries.md",
@@ -28894,7 +28852,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 104
+"words": 80
 },
 "voc:type:R": {
 "kind": "voc.type",

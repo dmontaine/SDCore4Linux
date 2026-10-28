@@ -230,9 +230,9 @@ def checks(s):
        and "call $tk_run(allow, sent, out, stat, rerr)" in tvc and tvc.count("execute sent") == 1 and "sent = 'sed voc ' : vid" in tvc, "")
 
     tdi, tqy, tbl, tcg, tts = (strip(s["tool_" + a]) for a in ("dict", "query", "bulk", "catalog", "test"))
-    ck("P17m tool.dict: a [?], F1 and ? and a click show its help (tool.dict.page); it runs delete, compile.dict, make.index, build.index and delete.index through $tk_run, hands the terminal to sed and list.index only, and has the one execute statement of that hand-over",
+    ck("P17m tool.dict: a [?], F1 and ? and a click show its help (tool.dict.page); it runs delete, compile.dict, create.index, build.index and delete.index through $tk_run, hands the terminal to sed and list.index only, and has the one execute statement of that hand-over",
        "call $tk_help('mark', 134, 2, 0, 0)" in tdi and tdi.count("call $tk_help('box', 'tool.dict.page', hm, 0, 0)") == 2 and "call $tk_help('hit', mev, 134, 2, hit.m)" in tdi and "tool.dict.page" in hts
-       and "   allow = 'delete compile.dict make.index build.index delete.index'" in tdi and "show.allow = 'sed list.index'" in tdi and tdi.count("allow = ") == 2 and tdi.count("execute sent") == 1 and "call $tk_run(allow, sent, out, stat, rerr)" in tdi, "")
+       and "   allow = 'delete compile.dict create.index build.index delete.index'" in tdi and "show.allow = 'sed list.index'" in tdi and tdi.count("allow = ") == 2 and tdi.count("execute sent") == 1 and "call $tk_run(allow, sent, out, stat, rerr)" in tdi, "")
     ck("P17n tool.query: a [?] in each of its three views, F1 and ? and a click show its help (tool.query.page); it does not use $tk_run (a query value needs the double quote $tk_run refuses) and has exactly two execute statements, the query after check.sentence and the make of its own file",
        tqy.count("call $tk_help('mark', hx, hy, 0, 0)") == 3 and tqy.count("call $tk_help('box', 'tool.query.page', hm, 0, 0)") == 2 and "call $tk_help('hit', mev, hx, hy, hit.m)" in tqy and "tool.query.page" in hts
        and "$tk_run" not in tqy and tqy.count("execute run.s trapping aborts capturing out") == 1 and tqy.count("execute qsent trapping aborts capturing mk") == 1 and len(re.findall(r"^\s*execute\b", tqy, re.M)) == 2, "")
@@ -325,7 +325,7 @@ MUTANTS = [
     ("tool.files can run another command", "tool_files", "   allow = 'create.file clear.file delete.file'", "   allow = 'create.file clear.file delete.file sh'"),
     ("tool.files can hand the terminal to another command", "tool_files", "show.allow = 'analyze.file list.index list.triggers'", "show.allow = 'analyze.file list.index list.triggers sh'"),
     ("tool.dict loses its [?]", "tool_dict", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
-    ("tool.dict can run another command", "tool_dict", "   allow = 'delete compile.dict make.index build.index delete.index'", "   allow = 'delete compile.dict make.index build.index delete.index sh'"),
+    ("tool.dict can run another command", "tool_dict", "   allow = 'delete compile.dict create.index build.index delete.index'", "   allow = 'delete compile.dict create.index build.index delete.index sh'"),
     ("tool.dict can hand the terminal to another command", "tool_dict", "show.allow = 'sed list.index'", "show.allow = 'sed list.index sh'"),
     ("tool.bulk loses its [?]", "tool_bulk", "   call $tk_help('mark', 134, 2, 0, 0)\n", ""),
     ("tool.catalog can run another command", "tool_catalog", "   allow = 'basic catalog decatalog delete.catalog'", "   allow = 'basic catalog decatalog delete.catalog sh'"),

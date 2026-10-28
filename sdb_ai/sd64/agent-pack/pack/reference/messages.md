@@ -9620,7 +9620,7 @@ cited by: `findfile`
 Unexpected token (%1)
 ```
 
-cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 62 more
+cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 61 more
 
 ### msg:2019
 > kind=message tier=reference since=- src=sdsys/messages/2019:1#a22e9c3b
@@ -13096,7 +13096,7 @@ cited by: `copylst`
 Error %1 opening $savedlists
 ```
 
-cited by: `copylst`, `dellist`, `getlist`, `lstmrg`, `savelst`, `savestk`, `sortlst`, `writelist`
+cited by: `copylst`, `dellist`, `getlist`, `savelst`, `savestk`, `sortlst`, `writelist`
 
 ### msg:3249
 > kind=message tier=reference since=- src=sdsys/messages/3249:1#51ea419e
@@ -13222,16 +13222,12 @@ cited by: `formlst`, `getlist`, `mrglist`, `nselect`, `qselect`, `seldir`, `sele
 First list name missing or invalid
 ```
 
-cited by: `lstmrg`
-
 ### msg:3263
 > kind=message tier=reference since=- src=sdsys/messages/3263:1#0c9599ae
 
 ```
 First source list does not exist
 ```
-
-cited by: `lstmrg`
 
 ### msg:3264
 > kind=message tier=reference since=- src=sdsys/messages/3264:1#391c6b6a
@@ -13240,16 +13236,12 @@ cited by: `lstmrg`
 Second source list does not exist
 ```
 
-cited by: `lstmrg`
-
 ### msg:3265
 > kind=message tier=reference since=- src=sdsys/messages/3265:1#0b313ae2
 
 ```
 Invalid merge mode in VOC entry
 ```
-
-cited by: `lstmrg`
 
 ### msg:3266
 > kind=message tier=reference since=- src=sdsys/messages/3266:1#7a2e67b5
@@ -13258,7 +13250,7 @@ cited by: `lstmrg`
 %1 records saved to select list '%2'
 ```
 
-cited by: `lstmrg`, `savelst`, `sortlst`
+cited by: `savelst`, `sortlst`
 
 ### msg:3267
 > kind=message tier=reference since=- src=sdsys/messages/3267:1#f2a164da

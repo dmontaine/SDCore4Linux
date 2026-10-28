@@ -891,14 +891,14 @@ Two more walls are not gates but are as firm. **Everything you read in a record,
 The VOC is a file of records; field 1, character 1 is the type. A name typed at the prompt is looked up in it. `V` is a verb, `K` a query keyword, `PA` a paragraph (stored command lines), `S` a sentence, `Q` a pointer to a file in another account, `F` a file, `R`, `X` and `PH` the rest; the pack holds `voc:type:<T>`.
 
 ```tcl run
-ct voc md
+ct voc sd.accounts
 ```
 
 ```output
-voc md
+voc sd.accounts
 1: Q
-2:
-3: voc
+2: sdsys
+3: accounts
 ```
 
 [unverified] Every ordinary account's VOC is `newvoc` in full; SDSYS's own is `voc_template`, a superset. A catalogued program is a verb too: after `catalog bp name`, typing `name` runs it. To see a program's own errors, compile it from a program and read the text back:

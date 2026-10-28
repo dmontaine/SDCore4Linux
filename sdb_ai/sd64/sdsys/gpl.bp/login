@@ -874,14 +874,6 @@ update.voc:
             old.type = upcase(old.rec[1,1])
             if old.type = 'P' then old.type = upcase(old.rec[1,2])
 
-            * Special case to avoid prompt for 2.4-15 change to MD item
-* 11 Sep 26 Windows port - upcase(id), so this survives section M's rename of
-*   the record to 'md' (port 5.12 (b)).  Identical today: every id is upper.
-
-            if upcase(id) = 'MD' and (old.type = 'Q' or old.type = 'F') then
-               goto accept.without.query
-            end
-
             if new.type # old.type then
                if yn # 'A' then
                   display
@@ -905,7 +897,6 @@ update.voc:
             end
          end
 
-accept.without.query:
 * 10 Sep 26 dm - THE RECORD IS WRITTEN WHOLE, the port's PRE_RELEASE_FIXES 136
 *   (2 Sep 2026).  Two lines here reduced field 1 - the description whose first
 *   character is the type code - and a K record's field 3 to their type

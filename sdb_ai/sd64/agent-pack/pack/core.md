@@ -103,7 +103,8 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`basic`** {*file*} *record* {*record* …}
 - **`build.index`** *file* *field* … | **`all`**
 - **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
-- **`cd`** *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`cd data`** *file* {*i-type* …}  ·  **`cd local`**  ·  **`cd all`**
+- **`clear.file`** {**`data`** | **`dict`**} *file*
+- **`compile.dict`** *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`compile.dict data`** *file* {*i-type* …}  ·  **`compile.dict local`**  ·  **`compile.dict all`**
 - **`copy.listp`** {{**`dict`**} *file*} {*name* … | **`*`**} {**`(`***options*}
 - **`copyp`** {**`dict`**} *file* *id* … {**`(options`**}
 - **`count`** {**`dict`**} *file* {*selection*}
@@ -120,7 +121,6 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`list`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 - **`list.index`** *file* {*field* …}
 - **`logto`** *account* {**`reset`** {**`all`**}}
-- **`make.index`** *file* *field* … {**`no.nulls`**} {**`pathname`** *path*}
 - **`off`**
 - **`run`** {*file*} *record* {*arguments*}
 - **`save.list`** *list* {**`from`** *list.no*}

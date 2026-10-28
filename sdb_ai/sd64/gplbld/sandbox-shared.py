@@ -26,7 +26,7 @@
 # when SDTEST_ADMIN=1).  Register fields 13 and 14 are shared.read and shared.write; field 12 is dict.edit; the record of zsblank stops at
 # field 12, so BOTH shared fields are absent there - the case that must mean "read ON, write OFF".
 #   zsblank  absent / absent    zsempty  empty / empty    zsyes  yes / no    zsno  no / no    zscase  No / Yes    zsjunk  maybe / true
-#   zswr  yes / yes with dict.edit NO    zswrd  yes / yes with dict.edit yes    zsstock  as zsblank but its VOC has no md
+#   zswr  yes / yes with dict.edit NO    zswrd  yes / yes with dict.edit yes    zsstock  as zsblank but its VOC has no syscom
 #   zsall  every gate on (sh, os.execute, dict.edit, shared.read, shared.write)    zsnoreg  a directory with a VOC and NO register record
 #
 # THE INSTRUMENTS.  zsopen opens names, zswrite writes, deletes and reads back, zsone makes ONE change without ON ERROR so that the message
@@ -406,7 +406,7 @@ def shared_fixer():
         "   write 'F':@fm:'cat':@fm:'szdir.dic' to v, 'szcat'",
         "   write 'X':@fm:'privcat' to v, '$private.catalogue'",
         "   write 'F':@fm:'privcat':@fm:'szdir.dic' to v, 'szpriv'",
-        "   write 'F':@fm:'szd':@fm:'szd.dic' to v, 'md'",
+        "   write 'F':@fm:'szd':@fm:'szd.dic' to v, 'syscom'",
         "   write 'F':@fm:'szd':@fm:'szd.dic' to v, '$savedlists'",
         "   write 'F':@fm:'szd':@fm:'szd.dic' to v, '$hold'",
         "   write 'F':@fm:'szd':@fm:'szd.dic' to v, '_under'",
@@ -484,7 +484,7 @@ def acct_fixer():
         "         if nm = 'zsmine' then write 'mine1' to d, 'm1' else write 'account-copy' to d, 'own1'",
         "         close d",
         "      next nm",
-        "      if a = 'zsstock' then delete v, 'md'",
+        "      if a = 'zsstock' then delete v, 'syscom'",
         "      close v",
         "   next a",
         "   crt 'SHFIX done'",
@@ -773,10 +773,10 @@ def lookup_section():
         else:
             ok = got is not None and got[0] == "OK" and (got[1] or "").startswith(want[3:])
         row("A: zsblank, %s %s (%s) -> %s" % (kind, nm, why, want), ok, "got %r; output %r" % (got, out[:2]))
-    say("  -- the stock names (zsstock: its VOC has no md; shared's VOC has an md entry)")
-    out = run_prog("zsstock", "zsopen", ["O|md|r1", "O|szd|r1"])
+    say("  -- the stock names (zsstock: its VOC has no syscom; shared's VOC has a syscom entry)")
+    out = run_prog("zsstock", "zsopen", ["O|syscom|r1", "O|szd|r1"])
     d = so(out)
-    row("A: zsstock, OPEN 'md' (a name in the stock VOC) is NOT looked up in shared, though shared's VOC has an entry md", d.get(("O", "md")) == ("NO", None), repr(out[-3:]))
+    row("A: zsstock, OPEN 'syscom' (a name in the stock VOC) is NOT looked up in shared, though shared's VOC has an entry syscom", d.get(("O", "syscom")) == ("NO", None), repr(out[-3:]))
     row("A: ...the control: the same entry reached under a name that is not stock (szd) opens", d.get(("O", "szd")) is not None and d[("O", "szd")][0] == "OK", repr(out[-3:]))
 
     say("  -- the administrator does not follow shared; a suspended or missing shared account gives nothing")
@@ -806,7 +806,7 @@ def lookup_section():
     expect = {"szd", "szown", "szmix", "szdir", "utils", "utils.out", "szw", "szc", "szc2", "szcw", "szidx"}
     row("A: LIST.SHARED (zsblank) shows the names that can be opened, one to a line, and the count line (11519) at the end",
         expect <= set(shown) and has_rx(out, "^" + msg_rx(11519).replace(r".*", r"\d+") + "$"), repr(out[-14:]))
-    refused = {"szq", "szabs", "szn", "szv", "szmulti", "szvoc", "szvocdic", "szdictdata", "szbp", "szbpout", "szwork", "szcat", "szpriv", "md", "$savedlists", "$hold", "_under"}
+    refused = {"szq", "szabs", "szn", "szv", "szmulti", "szvoc", "szvocdic", "szdictdata", "szbp", "szbpout", "szwork", "szcat", "szpriv", "syscom", "$savedlists", "$hold", "_under"}
     row("A: ...and none of the refused entries is listed", not (refused & set(shown)), repr(sorted(refused & set(shown))))
     out = g.plain("zsno", ["LIST.SHARED"])
     row("A: LIST.SHARED in zsno says shared.read is off for it (11520) and lists nothing", has_text(out, msg(11520, "zsno")) and not has_text(out, "szd"), repr(out[-4:]))

@@ -894,7 +894,7 @@ def routes_section():
                 "CONVERT.DATA zzcvin.csv ../zzcvo3.json NO.QUERY", "CONVERT.DATA ../zzcvout.csv zzcvo4.json NO.QUERY"]))
             t3b = "\n".join(sess(n, ["LIST zzd 'zzdr' PAGESEQ bp zzseq"]))
             t3c = "\n".join(sess(n, ["LIST zzd 'zzdr' PAGESEQ voc zzseq"]))
-            t4 = "\n".join(sess(n, ["CD DATA bp zzcdrec", "CD DATA zzd zzcdrec2"]))
+            t4 = "\n".join(sess(n, ["COMPILE.DICT DATA bp zzcdrec", "COMPILE.DICT DATA zzd zzcdrec2"]))
             # GENERATE zzd asks two questions only when it gets that far; GENERATE zzd4 has its $INCLUDE already, and the same two
             # answers follow it so that a question it did ask would not wait for ever
             t5 = "\n".join(sess(n, ["GENERATE zzd", "D", "zz", "GENERATE zzd4", "D", "zz"]))

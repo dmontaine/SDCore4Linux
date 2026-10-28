@@ -99,7 +99,7 @@ def checks(raw):
        and "if err # '' then\n      display err\n      stop" in pg, op)
     hv = block(pg, "hand.over")
     ck("TD3", "the commands it can run are two lists declared once at the top: five verbs run ONLY through $tk_run (allow), and the two it hands the terminal to (show.allow: SED and LIST.INDEX), the only thing the one execute statement runs, inside hand.over and after the list was tested",
-       re.findall(r"(?<![.\w])allow = '([^']*)'", pg) == ["delete compile.dict make.index build.index delete.index"] and re.findall(r"\bshow\.allow = '([^']*)'", pg) == ["sed list.index"]
+       re.findall(r"(?<![.\w])allow = '([^']*)'", pg) == ["delete compile.dict create.index build.index delete.index"] and re.findall(r"\bshow\.allow = '([^']*)'", pg) == ["sed list.index"]
        and len(re.findall(r"^\s*execute\b", code, re.M)) == 1 and len(re.findall(r"^\s*execute\b", hv, re.M)) == 1
        and 0 <= hv.find("if index(' ' : show.allow : ' ', ' ' : field(sent, ' ', 1) : ' ', 1) = 0 then") < hv.find("execute sent") and "execute sent capturing" not in pg
        and pg.count("call $tk_run(allow, sent, out, stat, rerr)") == 1 and "$tk_runx" not in pg, repr(re.findall(r"\ballow = '([^']*)'", pg)))
@@ -139,8 +139,8 @@ def checks(raw):
     bu = block(pg, "do.build")
     di = block(pg, "do.delindex")
     li = block(pg, "do.listindex")
-    ck("TD13", "the index verbs: MAKE.INDEX FILE ITEM (the item picked from the list of the dictionary's own items whose id passed the name check; one that already has an index is refused), BUILD.INDEX FILE INDEX, DELETE.INDEX FILE INDEX (behind the box with the NAME TYPED), and LIST.INDEX FILE INDEX DETAIL handed over; every name passed the name check",
-       "sent = 'make.index ' : fn : ' ' : iid" in nx and "screen pick cand.v title 'Index which item?'" in nx and "if okname then\n            cand<-1> = iids<q>" in nx and "already has an index" in nx
+    ck("TD13", "the index verbs: CREATE.INDEX FILE ITEM, then BUILD.INDEX FILE ITEM when that worked (the item picked from the list of the dictionary's own items whose id passed the name check; one that already has an index is refused), BUILD.INDEX FILE INDEX, DELETE.INDEX FILE INDEX (behind the box with the NAME TYPED), and LIST.INDEX FILE INDEX DETAIL handed over; every name passed the name check",
+       "sent = 'create.index ' : fn : ' ' : iid" in nx and "screen pick cand.v title 'Index which item?'" in nx and "if okname then\n            cand<-1> = iids<q>" in nx and "already has an index" in nx
        and "sent = 'build.index ' : fn : ' ' : xn" in bu and bu.count("gosub check.word") == 2 and "sent = 'delete.index ' : fn : ' ' : xn" in di and di.count("gosub check.word") == 2
        and "call $tk_confirm(sent, lines, xn, res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent" in di
        and "sent = 'list.index ' : fn : ' ' : xn : ' detail'" in li and li.count("gosub check.word") == 2 and "gosub hand.over" in li
@@ -186,7 +186,8 @@ def checks(raw):
     ck("TD25", "TRY shows the value of a D, A, S, I or C item only (the other types hold no value), and the value as a query prints it - conversion, then format - only for a format the page can read, each inside a TRY",
        "if index(' D A S I C ', ' ' : ty : ' ', 1) = 0 then" in dt and "fmt.ok = (fs # '' and fw # '' and fj # '' and index('LRCU', fj, 1) > 0)" in dt and inorder(dt, "if cv # '' then shown.v = oconv(one, cv)", "if fmt.ok then shown.v = fmt(shown.v, fs)", "catch sys"), "")
     ck("TD26", "a name that is not the page's to give is never given: no id, file name or index name reaches a command except through the routines above, and the commands are built in one place each (sent = ... appears once per verb)",
-       all(pg.count(s) == 1 for s in ("sent = 'sed dict '", "sent = 'delete dict '", "sent = 'compile.dict '", "sent = 'make.index '", "sent = 'build.index '", "sent = 'delete.index '", "sent = 'list.index '")), "")
+       all(pg.count(s) == 1 for s in ("sent = 'sed dict '", "sent = 'delete dict '", "sent = 'compile.dict '", "sent = 'create.index '", "sent = 'delete.index '", "sent = 'list.index '"))
+       and pg.count("sent = 'build.index '") == 2, "")      # B, and the build that follows a good create.index in N
     ck("TD27", "the cursor of each pane goes back to what it was on after the data is read again (the file, the item, the index are found by name), and the cursor is kept inside the list",
        "sel.f = fnames<fshown<cf>>" in block(pg, "read.files") and "sel.i = iids<ishown<ci>>" in block(pg, "read.items") and "sel.x = xnames<cx>" in block(pg, "read.indices")
        and all("if %s > %s then %s = %s" % (a, b, a, b) in block(pg, lb) for lb, a, b in (("read.files", "cf", "nfs"), ("read.items", "ci", "nis"), ("read.indices", "cx", "nx"))), "")
@@ -224,7 +225,7 @@ MUTANTS = [
     ("the page reads the VOC before it opens the base", "TD2", sub("page", "   call $tk_open('tool.dict', '', ctx, err)\n", "   open 'VOC' to vocx then close vocx\n   call $tk_open('tool.dict', '', ctx, err)\n")),
     ("an ordinary account has no verb", "TD1", setkey("newvoc", "")),
     ("SDSYS's verb runs another program", "TD1", sub("voc", "$tool_dict", "$tool_keys")),
-    ("the page may run another command", "TD3", sub("page", "allow = 'delete compile.dict make.index build.index delete.index'", "allow = 'delete compile.dict make.index build.index delete.index sh'")),
+    ("the page may run another command", "TD3", sub("page", "allow = 'delete compile.dict create.index build.index delete.index'", "allow = 'delete compile.dict create.index build.index delete.index sh'")),
     ("the page may hand the terminal to another command", "TD3", sub("page", "show.allow = 'sed list.index'", "show.allow = 'sed list.index sh'")),
     ("the page hands the terminal over without testing the list", "TD3", sub("page", "   if index(' ' : show.allow : ' ', ' ' : field(sent, ' ', 1) : ' ', 1) = 0 then\n      msg = 'the page does not run ' : field(sent, ' ', 1)\n      return\n   end\n", "")),
     ("the page runs a second execute statement", "TD4", sub("page", "   ttl = 'Files of ' : @who\n", "   ttl = 'Files of ' : @who\n   execute 'sh'\n")),
@@ -258,7 +259,7 @@ MUTANTS = [
     ("a report does not wait for Enter", "TD12", sub("page", "   input junk\n", "")),
     ("the page is not opened again after a report", "TD12", sub("page", "   call $tk_open('tool.dict', '', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n   gen += 1\n   ctx<TK.C.GEN> = gen\n", "   gen += 1\n")),
     ("the cursor does not go back to the item after a screen", "TD12", sub("page", "         if iids<ishown<q>> = keep then ci = q\n", "         if iids<ishown<q>> = keep then ci = 1\n")),
-    ("MAKE.INDEX takes the item from the filter", "TD13", sub("page", "sent = 'make.index ' : fn : ' ' : iid", "sent = 'make.index ' : fn : ' ' : filti")),
+    ("MAKE.INDEX takes the item from the filter", "TD13", sub("page", "sent = 'create.index ' : fn : ' ' : iid", "sent = 'create.index ' : fn : ' ' : filti")),
     ("an item that is no data is offered for an index", "TD13", sub("page", "         if okname then\n            cand<-1> = iids<q>", "         if 1 then\n            cand<-1> = iids<q>")),
     ("BUILD.INDEX runs whatever the box answered", "TD13", sub("page", "   call $tk_confirm(sent, lines, '', res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent\n   gosub read.indices\n   gosub draw.all\n   return\n\n* D: DELETE.INDEX", "   call $tk_confirm(sent, lines, '', res, cmsg)\n   gosub run.sent\n   gosub read.indices\n   gosub draw.all\n   return\n\n* D: DELETE.INDEX")),
     ("DELETE.INDEX gives the name as it is stored", "TD13", sub("page", "do.delindex:\n   if nx < 1 then return\n   xn = downcase(xnames<cx>)", "do.delindex:\n   if nx < 1 then return\n   xn = xnames<cx>")),

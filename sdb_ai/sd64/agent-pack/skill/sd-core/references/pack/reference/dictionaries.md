@@ -1015,7 +1015,7 @@ At most ten links may follow one another.
 
 **What to know.** A link is worked out when an I-type is compiled, not each time it
 is used: the compiled I-type has the `TRANS()` in it. **After a link is changed, the
-I-types that use it must be compiled again** (`cd`, on page 24, does it). A query that
+I-types that use it must be compiled again** (`compile.dict`, on page 24, does it). A query that
 names a link directly is compiled each time it is run and is not affected. A link's
 expressions cannot be compound (no semicolons), the item name after the percent sign
 must be a name as it would be written in an I-type (a name with a hyphen in it is not),

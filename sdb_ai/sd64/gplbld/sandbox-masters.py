@@ -1064,7 +1064,7 @@ def hook_section():
     one("B7: WRITE to a dictionary record: one line per record, keyed by the file that holds the dictionary", off,
         [("d", "w", "zmone", "zmf1", "F1"), ("d", "w", "zmone", "zmf1", "IT1")])
     off = jsize()
-    g.plain("zmone", ["CD zmf1 IT1"])
+    g.plain("zmone", ["COMPILE.DICT zmf1 IT1"])
     got = evs(jtail(off))
     row("B8: CD compiling an I-type writes the object into the dictionary: a write line for IT1", ("d", "w", "zmone", "zmf1", "IT1") in got and not any(e[0] == "?" for e in got), repr(got))
     # a drain in the middle of the section: the dictionary is still there, so its records are in the master (B14 deletes the file)

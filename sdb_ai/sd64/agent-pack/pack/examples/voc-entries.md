@@ -366,27 +366,6 @@ TERM LINUX
 PTERM CASE NOINVERT
 ```
 
-### voc:entry:md
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/md:1#86af101e src2=sdsys/voc_template/md:1#c3156e00
-
-VOC record `md` (type Q). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-Q - Vocabulary synonym
-
-voc
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-Q
-
-voc
-```
-
 ### voc:entry:messages
 > kind=voc.entry tier=examples since=- src=sdsys/voc_template/messages:1#c600fbd2
 
@@ -506,10 +485,10 @@ VOC record `sdsys/voc_template/third.compile` (type PA), the same in `voc_templa
 
 ```
 PA
-CD $map
-CD accounts
-CD dict.dict
-CD voc
+compile.dict $map
+compile.dict accounts
+compile.dict dict.dict
+compile.dict voc
 ```
 
 ### voc:entry:voc
