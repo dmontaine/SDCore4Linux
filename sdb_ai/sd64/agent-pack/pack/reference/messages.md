@@ -865,7 +865,7 @@ Two ids that differ only by case would be the same record; there is no
 kind of file in which they are two. Leave the keyword off.
 ```
 
-cited by: `configf`, `createf`
+cited by: `configf`
 
 ### msg:10177
 > kind=message tier=reference since=- src=sdsys/messages/10177:1#f75030c6

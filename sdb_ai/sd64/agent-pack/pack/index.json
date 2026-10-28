@@ -5885,7 +5885,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 46
+"words": 45
 },
 "msg:10177": {
 "kind": "message",
@@ -27233,7 +27233,7 @@
 "tcl:no.case": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 64
 },

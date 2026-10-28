@@ -18,14 +18,15 @@
 #   A. a fresh file is NOCASE            - CREATE.FILE, then COPY the same record in as jack and as JACK:
 #                                          ONE record, stored jack.  A2 reads the flag itself on the
 #                                          data part, the dictionary part and the account's VOC.
-#   B. CASE is refused for a normal user - 10176, printed a line at a time (no raw field marks), no file.
+#   B. CASE and NO.CASE are not words of CREATE.FILE any more (27 Oct 26): no file is made, no raw field mark.
 #   C. an OLD case-sensitive file with a twin is refused by CONFIGURE.FILE - the fixture is built only
 #      by sd -internal (the one way to make a CASE file): jack and JACK, 2 records; CONFIGURE.FILE NO.CASE
 #      answers 10177 naming both and leaves the file case sensitive with BOTH records.
 #   D. the control - a single-spelling case-sensitive file converts, keeps its record, and is NOCASE.
 #   E. the kernel's own guard, under the verbs: a BASIC create.file statement asking for KEEPCASE (4)
 #      from an ordinary session still makes a NOCASE file, because the opcode honours it in internal
-#      mode only.  Rows A-D cannot see this: CREATE.FILE refuses CASE before it reaches the kernel.
+#      mode only.  Rows A-D cannot see this: they go through the verb, which always asks for NOCASE.
+#      (The fixtures of C and D are made by a create.file statement with flags 4 in an internal session.)
 #
 # THE INSTRUMENT.  It prints the commands it sent and what came back.  The flag is READ (fileinfo
 # FL$NOCASE in a probe program), not inferred from a count, and every row that expects a fixture checks the
@@ -174,6 +175,23 @@ def main():
         "   create.file '%s' dynamic flags 4 on error crt 'KEEPCASE create failed' ; stop" % E,
         "   crt 'KEEPCASE statement made %s'" % E,
         "end"])
+    # The fixture builder, run in an internal session (27 Oct 26: CREATE.FILE ... CASE is gone, so the statement with
+    # flags 4 is the one way): C holds jack and JACK, K holds jack only; each has a dictionary part and a VOC record.
+    write(os.path.join(sysd, "bp", P + "c"), [
+        "   nm = '%s':@fm:'%s'" % (C, K),
+        "   for i = 1 to 2",
+        "      create.file nm<i> dynamic flags 4 on error crt 'FIX create failed ':nm<i> ; stop",
+        "      create.file nm<i>:'.dic' dynamic flags 4 on error crt 'FIX create failed dict ':nm<i> ; stop",
+        "   next i",
+        "   openpath '%s' to f else crt 'FIX no %s' ; stop" % (C, C),
+        "   write 'x' to f, 'jack' ; write 'y' to f, 'JACK'",
+        "   openpath '%s' to f else crt 'FIX no %s' ; stop" % (K, K),
+        "   write 'x' to f, 'jack'",
+        "   open 'VOC' to v else crt 'FIX no voc' ; stop",
+        "   write 'F':@fm:'%s':@fm:'%s.dic' to v, '%s'" % (C, C, C),
+        "   write 'F':@fm:'%s':@fm:'%s.dic' to v, '%s'" % (K, K, K),
+        "   crt 'FIX done'",
+        "end"])
 
     def cleanup(probes=False):
         sess(box, *["DELETE.FILE %s FORCE" % n for n in (N, C, K, X, E)])
@@ -190,7 +208,7 @@ def main():
                         os.remove(p)
                         say("    swept %s/%s" % (d, n + suffix))
         if probes:
-            for rec in (P, P + "k"):
+            for rec in (P, P + "k", P + "c"):
                 for d in ("bp", "bp.out"):
                     p = os.path.join(sysd, d, rec)
                     if os.path.exists(p):
@@ -199,10 +217,10 @@ def main():
     try:
         say("\n--- sweep leftovers, compile the probes ---------------------------------------")
         cleanup()
-        out = sess(box, "BASIC bp %s" % P, "BASIC bp %sk" % P)
+        out = sess(box, "BASIC bp %s" % P, "BASIC bp %sk" % P, "BASIC bp %sc" % P)
         clean = len(re.findall(r"(?m)^Compiled 1 program\(s\) with no errors", out))
-        row("setup: both probe programs compiled with no errors", clean == 2, "clean compiles: %d of 2" % clean)
-        if clean != 2:
+        row("setup: the three probe programs compiled with no errors", clean == 3, "clean compiles: %d of 3" % clean)
+        if clean != 3:
             bail("the probes did not compile - nothing below would read a flag")
 
         # --- A. a fresh file is NOCASE ----------------------------------------------------
@@ -224,19 +242,18 @@ def main():
         m = re.search(r"(?m)^NC voc data=(\S+)", out)
         row("A2: the account's VOC reads NOCASE (flag 1)", bool(m) and m.group(1) == "1", "voc flag %s" % (m.group(1) if m else "not printed"))
 
-        # --- B. CASE is refused outside internal mode --------------------------------------
-        say("\n--- B. CREATE.FILE ... CASE is refused for a normal session ------------------")
+        # --- B. CASE and NO.CASE are no longer words of CREATE.FILE ------------------------
+        say("\n--- B. CREATE.FILE ... CASE and ... NO.CASE are refused, and make no file ---")
         out = sess(box, "CREATE.FILE %s CASE" % X)
-        row("B: CREATE.FILE ... CASE answers 10176", "Record ids are case insensitive in every file, so case is not accepted." in out,
-            "no 10176 text")
-        row("B: the refusal carries no raw field mark (printed a line at a time)", "�" not in out and "\xfe" not in out,
-            "a field mark reached the screen")
-        row("B: and no file was created", not on_disk(box, X), "file %s exists" % X)
+        row("B: CREATE.FILE ... CASE makes no file", not on_disk(box, X), "file %s exists" % X)
+        row("B: and the refusal carries no raw field mark", "�" not in out and "\xfe" not in out, "a field mark reached the screen")
+        out = sess(box, "CREATE.FILE %s NO.CASE" % X)
+        row("B: CREATE.FILE ... NO.CASE makes no file either (every file is case insensitive, and the word is gone)",
+            not on_disk(box, X), "file %s exists" % X)
 
         # --- C. an OLD case-sensitive file with a twin ------------------------------------
         say("\n--- C. a case-sensitive file holding jack and JACK: CONFIGURE.FILE refuses -------")
-        out = isess(box, "CREATE.FILE %s CASE" % C,
-                    "COPY FROM VOC TO %s who,jack OVERWRITING" % C, "COPY FROM VOC TO %s who,JACK OVERWRITING" % C, "COUNT " + C)
+        out = isess(box, "RUN bp %sc" % P, "COUNT " + C)
         row("C-setup: sd -internal built a case-sensitive file", on_disk(box, C), "no file %s" % C)
         row("C-setup: it holds both jack and JACK (2 records)", counted(out) == 2, "COUNT said %d" % counted(out))
         out = sess(box, "RUN bp " + P)
@@ -256,7 +273,7 @@ def main():
 
         # --- D. control: a single-spelling case-sensitive file converts ---------------------
         say("\n--- D. control: a case-sensitive file with only jack converts to NOCASE --------")
-        out = isess(box, "CREATE.FILE %s CASE" % K, "COPY FROM VOC TO %s who,jack OVERWRITING" % K, "COUNT " + K)
+        out = sess(box, "COUNT " + K)
         row("D-setup: the single-record CASE file exists with 1 record", on_disk(box, K) and counted(out) == 1,
             "exists=%s count=%d" % (on_disk(box, K), counted(out)))
         out = sess(box, "RUN bp " + P)

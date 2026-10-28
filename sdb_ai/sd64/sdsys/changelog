@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  THE WORDS NO.CASE AND CASE ARE REMOVED FROM CREATE.FILE.
+
+             What        Every file SD makes already treats record ids as case insensitive, so NO.CASE changed nothing and CASE was refused (message 10176) except in internal mode, where it was
+                         used only to build old-style test files. Both are now unknown words to CREATE.FILE, and a create on a remote server no longer sends NO.CASE. CONFIGURE.FILE ...
+                         NO.CASE, which converts an old case-sensitive file, stays.
+             Why it      A word that names the only kind of file there is only invites the question what the other kind is.
+             Does not    Change how any file treats record ids, or the create.file statement of BASIC.
+
 27 Oct 26  THE BRITISH SPELLINGS $catalogue, THE $BASIC.OPTIONS WORDS catalogue AND no.catalogue, AND THE VERB catalogue ARE REMOVED.
 
              What        Write $catalog in a program, catalog and no.catalog in a $basic.options record, and the verb catalog. The VOC record catalogue is taken out of an existing account by the
