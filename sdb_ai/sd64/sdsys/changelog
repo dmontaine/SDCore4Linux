@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  FIVE SECOND NAMES OF @ VARIABLES ARE REMOVED: @AM, @SVM, @USER, @USER.NO AND @FILENAME.
+
+             What        Thirteenth batch, on the owner's word. Write @FM for @AM, @SM for @SVM, @LOGNAME for @USER, @USERNO for @USER.NO and @FILE.NAME for @FILENAME. Each was a second
+                         spelling of a variable that stays and compiled to the same code. SD's own programs and the three directory-file dictionary items (days, owner, dtm) were changed.
+                         A dictionary item of your own that says @FILENAME stops compiling until you write @FILE.NAME.
+             Why it      One name for one thing.
+             Does not    Change a program that never used them.
+
 27 Oct 26  THREE MORE OPTION WORDS, THE STATEMENT inputclear AND THE CONSTANT FL$TYPE.SH ARE REMOVED.
 
              What        Twelfth batch, on the owner's word. The options chain.keep.common, backslash.not.quote and correlative.reuse are gone: CHAIN always discards the unnamed common, a backslash

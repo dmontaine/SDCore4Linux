@@ -155,7 +155,7 @@ crt unassigned(q)
 
 ## A4. Dynamic arrays and marks
 
-A record is one string cut by marks: `@fm` (field mark) cuts fields, `@vm` values inside a field, `@svm` subvalues. `a<2>` is field 2, `a<2,1>` value 1 of field 2, `a<2,1,3>` subvalue 3. The marks are ordinary characters and they are counted.
+A record is one string cut by marks: `@fm` (field mark) cuts fields, `@vm` values inside a field, `@sm` subvalues. `a<2>` is field 2, `a<2,1>` value 1 of field 2, `a<2,1,3>` subvalue 3. The marks are ordinary characters and they are counted.
 
 ```basic frag run
 a = 'x':@fm:'y':@fm:'z'
@@ -1417,11 +1417,11 @@ apple cherry fig pear
 
 ```basic run id=cmv
 program cmv
-   r = 'Acme' : @fm : 'a' : @vm : 'b' : @svm : 'c' : @vm : 'd'
+   r = 'Acme' : @fm : 'a' : @vm : 'b' : @sm : 'c' : @vm : 'd'
    crt dcount(r<2>, @vm) : ' values in field 2'
    crt 'value 2, subvalue 2: ' : r<2,2,2>
    r<2,-1> = 'e'
-   crt change(change(r<2>, @vm, '|'), @svm, '/')
+   crt change(change(r<2>, @vm, '|'), @sm, '/')
 end
 ```
 

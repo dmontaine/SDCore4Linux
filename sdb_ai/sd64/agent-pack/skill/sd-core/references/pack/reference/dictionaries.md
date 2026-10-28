@@ -679,7 +679,7 @@ An I-type expression is a single SD BASIC expression. It can use:
   is the whole record as a dynamic array.
 - **Pseudo-variables**: `@ID` (the record id), `@NI` (number of values
   in the longest multivalued field), `@NB` (record length), `@FILE.NAME`,
-  `@USER.NO`, `@PATH`.
+  `@USERNO`, `@PATH`.
 - **BASIC functions**: `LEN()`, `FIELD()`, `INDEX()`, `COUNT()`,
   `SUM()`, `OCONV()`, `ICONV()`, `DATE()`, `TIME()`, `RAISE()`,
   `DOWNCASE()`, `UPCASE()`, `TRIM()`, `STR()`, `SPACE()`, `SEQ()`,
@@ -925,7 +925,7 @@ use:
 | `@NI` | the number of values in the longest multivalued field |
 | `@NB` | the record length in bytes |
 | `@FILE.NAME` | the name of the file being queried |
-| `@USER.NO` | the user number of the session |
+| `@USERNO` | the user number of the session |
 | `@PATH` | the account path |
 
 It can call `SUBR()` to invoke a catalogued subroutine, use `TRANS()` to

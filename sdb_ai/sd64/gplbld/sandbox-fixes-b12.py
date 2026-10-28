@@ -157,7 +157,7 @@ PROGS = {
     "zzb12loop": "   crt 'LOOPING'\n   for i = 1 to 100000\n      sleep 1\n   next i\n   crt 'LOOPDONE'\nend\n",
     # 280: the phantom is started while SD is suspended (the harness suspends it between READY and the call)
     "zzb12ph": ("   crt 'READY'\n   sleep 5\n   execute 'PHANTOM NO.MSG SLEEP 3' capturing j\n   sleep 9\n"
-                "   execute 'LISTU' capturing out\n   crt 'LPN[':dcount(out, @am):']'\n   crt 'LPT[':change(out, @am, '|'):']'\n"
+                "   execute 'LISTU' capturing out\n   crt 'LPN[':dcount(out, @fm):']'\n   crt 'LPT[':change(out, @fm, '|'):']'\n"
                 "   crt 'DONE280'\nend\n"),
     # 279: fifty DH files kept open, then a SELECT of a directory file
     "zzb12fd": ("   dim fv(50)\n   for i = 1 to 50\n      nm = 'zzb12f':i\n      execute 'DELETE.FILE ':nm capturing j\n      execute 'CREATE.FILE ':nm capturing j\n"
@@ -186,9 +186,9 @@ PROGS = {
                 "   open '$savedlists' to f else stop 'no $savedlists'\n"
                 "   a = 'b':@fm:'a/b':@fm:'c*':@fm:'b':@fm:'d':@fm:'x y'\n   b = 'a/b':@fm:'e':@fm:'a/b':@fm:'d':@fm:'b':@fm:\"q'q\"\n"
                 "   write a on f, 'zzb12la'\n   write b on f, 'zzb12lb'\n"
-                "   execute 'LIST.UNION zzb12la zzb12lb zzb12lu COUNT.SUP' capturing j\n   read r from f, 'zzb12lu' else r = 'none'\n   crt 'UNION[':change(r, @am, '|'):']'\n"
-                "   execute 'LIST.INTER zzb12la zzb12lb zzb12li COUNT.SUP' capturing j\n   read r from f, 'zzb12li' else r = 'none'\n   crt 'INTER[':change(r, @am, '|'):']'\n"
-                "   execute 'LIST.DIFF zzb12la zzb12lb zzb12ld COUNT.SUP' capturing j\n   read r from f, 'zzb12ld' else r = 'none'\n   crt 'DIFF[':change(r, @am, '|'):']'\n"
+                "   execute 'LIST.UNION zzb12la zzb12lb zzb12lu COUNT.SUP' capturing j\n   read r from f, 'zzb12lu' else r = 'none'\n   crt 'UNION[':change(r, @fm, '|'):']'\n"
+                "   execute 'LIST.INTER zzb12la zzb12lb zzb12li COUNT.SUP' capturing j\n   read r from f, 'zzb12li' else r = 'none'\n   crt 'INTER[':change(r, @fm, '|'):']'\n"
+                "   execute 'LIST.DIFF zzb12la zzb12lb zzb12ld COUNT.SUP' capturing j\n   read r from f, 'zzb12ld' else r = 'none'\n   crt 'DIFF[':change(r, @fm, '|'):']'\n"
                 "   crt 'DONE414'\nend\n"),
     "zzb12mb": ("   open '$savedlists' to f else stop 'no $savedlists'\n   big1 = '' ; big2 = ''\n"
                 "   for i = 1 to 15000\n      big1<i> = 'id':i\n      big2<i> = 'id':(i + 7500)\n   next i\n"
@@ -196,7 +196,7 @@ PROGS = {
                 "   t0 = time()\n   execute 'LIST.UNION zzb12b1 zzb12b2 zzb12bu COUNT.SUP' capturing j\n   t1 = time()\n"
                 "   execute 'LIST.INTER zzb12b1 zzb12b2 zzb12bi COUNT.SUP' capturing j\n   execute 'LIST.DIFF zzb12b1 zzb12b2 zzb12bd COUNT.SUP' capturing j\n   t2 = time()\n"
                 "   read u from f, 'zzb12bu' else u = ''\n   read n from f, 'zzb12bi' else n = ''\n   read d from f, 'zzb12bd' else d = ''\n"
-                "   crt 'BIG[':dcount(u, @am):' ':dcount(n, @am):' ':dcount(d, @am):']'\n   crt 'SECS[':int(t2 - t0):']'\n   crt 'DONE414B'\nend\n"),
+                "   crt 'BIG[':dcount(u, @fm):' ':dcount(n, @fm):' ':dcount(d, @fm):']'\n   crt 'SECS[':int(t2 - t0):']'\n   crt 'DONE414B'\nend\n"),
     # 172: a conversion of 2500 records with REPORTING and without
     "zzb12cf": ("   execute 'DELETE.FILE zzb12cv' capturing j\n   execute 'CREATE.FILE zzb12cv DYNAMIC' capturing j\n   open 'zzb12cv' to f else stop 'no f'\n"
                 "   for i = 1 to 2500\n      write 'rec':i on f, 'k':i\n   next i\n   close f\n   crt 'FILLED'\nend\n"),
@@ -337,7 +337,7 @@ def main():
                              "   for each id in 'days,dtm,owner' delimiter ','\n      read r from dd, id then crt 'ITEM ':id:'[':r<2>:']' else crt 'ITEM ':id:'[missing]'\n   next id\n   crt 'DONE181A'\nend\n"))
         out = sess(box, "BASIC bp zzb12dr", "RUN bp zzb12dr")
         row("181: the dir_dict dictionary holds the three items, each calling !dirinfo",
-            all(re.search(r'(?m)^ITEM %s\[SUBR\("!dirinfo","%s",@FILENAME,@ID\)\]\s*$' % (k, k), out) for k in ("days", "dtm", "owner")), out[-600:])
+            all(re.search(r'(?m)^ITEM %s\[SUBR\("!dirinfo","%s",@FILE\.NAME,@ID\)\]\s*$' % (k, k), out) for k in ("days", "dtm", "owner")), out[-600:])
         put(box, "zzb12ddr", ('   deffun dirinfo(a, b, c) calling "!dirinfo"\n'
                               '   execute "DELETE.FILE zzb12dd" capturing j\n   execute "CREATE.FILE zzb12dd DIRECTORY" capturing j\n'
                               '   open "zzb12dd" to f else stop "nofile"\n   write "hello" on f, "note.txt"\n'

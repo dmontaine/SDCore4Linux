@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 27 Oct 26 dm S.87 batch 13: @userno for the removed @user.no.
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -54,7 +55,7 @@ $include int$keys.h
    if keyword = KW$FILELOCK then   ;* Releasing file lock
       call @parser(PARSER$MFILE, token.type, token, keyword)
       gosub open.file
-      release.lock file.id, @user.no
+      release.lock file.id, @userno
    end else                        ;* Releasing record lock(s)
       gosub open.file
 
@@ -62,7 +63,7 @@ $include int$keys.h
       if token.type = PARSER$END then stop sysmsg(1434) ;* Record id required
 
       loop
-         release.lock file.id, @user.no, token
+         release.lock file.id, @userno, token
          call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
       until token.type = PARSER$END
       repeat

@@ -69,7 +69,8 @@ ALLOWED = {
     ("tool_ai", "11865"): "Core 'Press Enter to return' (26 Oct 26, the page is what Enter returns to), Solo 'Press Enter to return to the home screen' until the carry",
     ("tool_home", "11865"): "Core 'Press Enter to return' (26 Oct 26, the page is what Enter returns to), Solo 'Press Enter to return to the home screen' until the carry",
     # 26 Oct 26, the one-editor plan stage 1: the IDE's help in Core names F12 (Edit as fields: CED's data mode); Solo's IDE has no F12 until the owner says to carry it (Core only)
-    ("login", "11900"): "Core's VOC update reports the records its deletion list removed (27 Oct 26, S.87); Solo's 11900 is another message until the carry",
+    ("bcomp", "11394"): "Core's list of constant @-variables lost @AM and @SVM (27 Oct 26, S.87 batch 13); Solo keeps them until the carry",
+    ("login", "11900"):"Core's VOC update reports the records its deletion list removed (27 Oct 26, S.87); Solo's 11900 is another message until the carry",
     ("ide", "11215"): "Core's help names F12, Edit as fields (26 Oct 26, one-editor plan stage 1); Solo's does not until the carry",
 }
 passed = failed = 0

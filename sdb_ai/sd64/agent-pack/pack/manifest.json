@@ -89,11 +89,11 @@
   },
   "dict.item": {
    "chunks": 78,
-   "sha256": "7dbec510c68f607baab580c9e42ff6f492caa3901048ea3902730dba777732a5"
+   "sha256": "6a140832bc9a1b93a3c42c6123d53b390b0c18b84d973199349f214811c95832"
   },
   "dict.itype": {
    "chunks": 6,
-   "sha256": "84c342a7914113daeb667608c2770add7344b64253ea7c3c7dc3abfd4e0c5036"
+   "sha256": "6a57661874b15c9ca519f06f10271270461cee80533ea0861e5bfe57d1558e0b"
   },
   "dict.overview": {
    "chunks": 3,
@@ -101,7 +101,7 @@
   },
   "dict.type": {
    "chunks": 9,
-   "sha256": "17ece5b7ab3ce3b7562da6425baae4ae89b63df61120e2820eba17e90d74a19c"
+   "sha256": "68d30941f0a947d1acc10b7a12310a40f32977d795e34f7949a48f3cc1b6e747"
   },
   "dict.types": {
    "chunks": 1,
@@ -109,7 +109,7 @@
   },
   "message": {
    "chunks": 2727,
-   "sha256": "cfb1128625ddb7e2ccdc79878924be2b2dc5a9028f2a1f9c968e31726f55ccf8"
+   "sha256": "b9987b71668806a5ce6cba5f446cd63fdc09e886d6a530b91ad499107425e6cb"
   },
   "sys.keys": {
    "chunks": 41,
@@ -170,7 +170,7 @@
   },
   "examples/dictionary-items.md": {
    "chunks": 78,
-   "sha256": "ad369545ab2311d6d552fdd4cc357a42f2749aed9acecdfdec3cabf6b3019727",
+   "sha256": "03292fe85a3f334df6b4f2c7d163303db7ba967830da9a88a23972de417dcd20",
    "words": 1744
   },
   "examples/voc-entries.md": {
@@ -179,7 +179,7 @@
    "words": 1271
   },
   "index.json": {
-   "sha256": "f2dc7c876f5daf0b198bab4f46a9559ceb8300f679c6308957b03863046863de"
+   "sha256": "6a90874632913e3f0b208b15abab35d612a87647346cf4f24ce224148077ce2f"
   },
   "reference/basic-functions.md": {
    "chunks": 285,
@@ -198,13 +198,13 @@
   },
   "reference/dictionaries.md": {
    "chunks": 53,
-   "sha256": "fd3a5187e62c607000f27494fa163f5bc20691973e9d0693a7c123bada593efa",
+   "sha256": "7d60584726eb8b7ccd5c99ec90cdf988e70c0480d2caef1979a3117407d6744a",
    "words": 6130
   },
   "reference/messages.md": {
    "chunks": 2727,
-   "sha256": "2821e3dc32ed8695cb23f53623374e31f523bd0e4d9db8761e0051045182365d",
-   "words": 34331
+   "sha256": "af908436dcfded74c9cec0c97a97908b6b54e69eb044a73441f8ba62dad8c635",
+   "words": 34329
   },
   "reference/system-keys.md": {
    "chunks": 41,

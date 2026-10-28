@@ -145,7 +145,7 @@ do.work:
       case mode = 16
          req = 'REQ R ':id
       case mode = 1
-         req = 'REQ W ':id:' ':convert(@fm:@vm:@svm, '~~~', data)
+         req = 'REQ W ':id:' ':convert(@fm:@vm:@sm, '~~~', data)
       case 1
          return
    end case

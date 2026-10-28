@@ -4460,10 +4460,10 @@ At most 32 initialisation values may be given for an inherited class
 cited by: `bcomp`
 
 ### msg:11394
-> kind=message tier=reference since=- src=sdsys/messages/11394:1#b5d22315
+> kind=message tier=reference since=- src=sdsys/messages/11394:1#5699d3ae
 
 ```
-An initialisation value must be a numeric or string constant, CHAR() of a numeric constant, or a constant @-variable (@FM, @VM, @SM, @TM, @IM, @AM, @SVM, @TRUE, @FALSE)
+An initialisation value must be a numeric or string constant, CHAR() of a numeric constant, or a constant @-variable (@FM, @VM, @SM, @TM, @IM, @TRUE, @FALSE)
 ```
 
 cited by: `bcomp`

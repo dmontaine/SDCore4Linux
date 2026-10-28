@@ -877,7 +877,7 @@ Item `days` of the shipped dictionary `dir_dict` (type I), in `gplbld/FILES_DICT
 
 ```
 I Days since the record was modified
-SUBR("!dirinfo","days",@FILENAME,@ID)
+SUBR("!dirinfo","days",@FILE.NAME,@ID)
 
 Days
 6R
@@ -891,7 +891,7 @@ Item `dtm` of the shipped dictionary `dir_dict` (type I), in `gplbld/FILES_DICTS
 
 ```
 I Date and time of the last modification of the record
-SUBR("!dirinfo","dtm",@FILENAME,@ID)
+SUBR("!dirinfo","dtm",@FILE.NAME,@ID)
 
 Modified
 20L
@@ -905,7 +905,7 @@ Item `owner` of the shipped dictionary `dir_dict` (type I), in `gplbld/FILES_DIC
 
 ```
 I User name that owns the record
-SUBR("!dirinfo","owner",@FILENAME,@ID)
+SUBR("!dirinfo","owner",@FILE.NAME,@ID)
 
 Owner
 12L
