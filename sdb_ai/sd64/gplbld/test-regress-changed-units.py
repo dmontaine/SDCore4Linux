@@ -119,6 +119,14 @@ def part_a():
     row("a file no rule matches is unmapped, not skipped", un == [p + "zzz/unknown.bin"] and sel == [], "%r %r" % (sel, un))
     sel, un, _ = pick([p + "gplbld/sandbox-notasuite.py"])
     row("a sandbox-*.py that is not in ALL_SUITES is refused (register it)", un == [p + "gplbld/sandbox-notasuite.py"], "%r %r" % (sel, un))
+    # S.88 phase 0 (28 Oct 26, plan T1): the shared base of the full-screen toolkit selects the PAGES that call it, not only the base's own suites
+    for kf in ("tk_frame", "tk_open", "tk.h", "sl_key", "sl_put", "sl.h", "screen_set"):
+        sel, un, _ = pick([p + "sdsys/gpl.bp/" + kf])
+        row("%s selects the toolkit pages (tool-files, tool-dict) and the home screen (home), not only the base's suites" % kf,
+            {"tool-files", "tool-dict", "home"} <= set(sel) and not un, repr(sel))
+    for kf in ("sdsys/gpl.bp/sl_key", "sdsys/gpl.bp/_keycode", "sdsys/newvoc/login", "sdsys/syscom/keyin.h"):
+        sel, un, _ = pick([p + kf])
+        row("%s selects the key suite (realkeys)" % kf, "realkeys" in sel and not un, repr(sel))
     for kf in ("gplsrc/op_dio3.c", "sdsys/gpl.bp/ed", "gplsrc/op_lock.c", "gplsrc/txn.c", "gplsrc/k_error.c"):
         sel, un, _ = pick([p + kf])
         row("%s selects the master files' suite (S.67: its transaction refusal, its 8910 text, the read note, the lock the save takes, the audit line - tested by that suite alone)" % kf,

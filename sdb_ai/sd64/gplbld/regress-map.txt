@@ -45,9 +45,13 @@
 @system = gates conf-b1 inhibit-q8 listu-a5 proc-a5 sys-b2 sys-q18 option-a4 option-q17 qmclient lock-b6 q5
 # ED and the commands around it
 @editors = cmd-a9 collfile edbug edseqkey option-a4
+# the full-screen toolkit's pages and the home screen (S.88 phase 0, 28 Oct 26: a change of the shared base - tk_*, tk.h, tk_open, sl_*, sl.h, screen_*, sl_key - was verified
+# without one page running, so a green targeted run proved nothing about them; plan T1)
+@pages = home home2 tk-faults tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE TEST FILES THEMSELVES.
+gplbld/tuirows.py            : realkeys tk-resize ide-fresh termsafe
 gplbld/sandbox-fromtree.py   : @core @pty
 gplbld/sandbox-txnfail.py    : @core auditwriter
 gplbld/sandbox-english.py    : @core
@@ -310,7 +314,7 @@ sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared wi
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
-sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults
+sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults @pages tk-resize
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
 sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
 sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
@@ -321,13 +325,17 @@ sdsys/gpl.bp/tk_runx         : tk-base tool-ai tool-backups tool-accounts
 sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
 sdsys/gpl.bp/tk_gates        : tk-base tk-keys tool-ai tool-gates tool-accounts
 # 26 Oct 26 (task faults): the window cap is in $tk_open, the sixth argument of $tk_confirm and message 11865 are the faults suite's
-sdsys/gpl.bp/tk_open         : tk-base tk-keys tk-faults
-sdsys/gpl.bp/tk_*            : tk-base tk-keys
+sdsys/gpl.bp/tk_open         : tk-base tk-keys tk-faults @pages tk-resize termsafe
+sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
 sdsys/gpl.bp/tool_keys       : tk-keys
-sdsys/gpl.bp/sl_key          : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys
-sdsys/gpl.bp/_keycode        : @core tk-base tk-keys eofkeys input
+sdsys/gpl.bp/sl_key          : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys @pages realkeys
+sdsys/gpl.bp/_keycode        : @core tk-base tk-keys eofkeys input realkeys screen ide
+sdsys/syscom/keyin.h         : @core tk-base tk-keys eofkeys input realkeys screen ide
+# S.88 phase 1 (28 Oct 26): the account's login paragraph no longer forces TERM LINUX, so the terminal type of every suite that signs on is the environment's
+sdsys/newvoc/login           : realkeys @pty home tk-keys
+sdsys/voc_template/login     : realkeys @pty home tk-keys
 sdsys/gpl.bp/_bindkey        : @core tk-base tk-keys
 sdsys/newvoc/tool.keys       : tk-keys
 sdsys/voc_template/tool.keys : tk-keys
@@ -515,14 +523,15 @@ sdsys/messages/1160[6-9]     : aigate
 sdsys/messages/1161*         : aigate
 sdsys/messages/1162[0-2]     : aigate
 sdsys/gpl.bp/sl_theme       : screen sed-menu syntax viewport ide ced dbgui tk-base tk-keys home
+# 28 Oct 26 (S.88 phase 0): sl.h stood AFTER the *.h rule below, so it never matched and a change of the screen library's header ran the compiler suites; first match wins
+sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages
 sdsys/gpl.bp/*.h             : @compiler @core
-sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base tk-keys
+sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base tk-keys @pages termsafe
 # S.75 (22 Oct 26): the pick window is used by the toolkit only (tktest); no other screen suite draws it.
 sdsys/gpl.bp/sl_pickwin      : tk-base
-sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide
-sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide
+sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps
-sdsys/gpl.bp/ide             : ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr
+sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr
 sdsys/gpl.bp/ced*            : ced editgates shared ide-small ai-apps recarr
 # One-editor plan, stage 1 (26 Oct 26): $recarr, a record as a nested array and back; CED's data mode; the IDE's F12 (messages 11988-11990)
 sdsys/gpl.bp/recarr          : recarr
