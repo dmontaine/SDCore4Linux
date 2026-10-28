@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 13: digest(x, 0, 'MD5') for the removed md5(x) (the same 32 lower case hex characters).
 * 26 Oct 26 dm  New.
 * 26 Oct 26 dm  faults: the boxes of the update and of the undo are titled "Update these records?" and "Put these records back?" ($tk_confirm's sixth argument); the file pick list shows a VOC id through a control-character filter.
 * END-HISTORY
@@ -1031,7 +1032,7 @@ do.dry:
                      dr.md5 := @fm
                   end
                   dr.ids := id
-                  dr.md5 := md5(rec)
+                  dr.md5 := digest(rec, 0, 'MD5')
                   if n.chg <= NPREV then
                      gosub diff.line
                      dr.pv<-1> = pvl
@@ -1247,7 +1248,7 @@ apply.run:
          case not(got)
             n.moved += 1                                        ;* the record is gone
             release fv, id
-         case ('S' : md5(rec)) # ('S' : emd)
+         case ('S' : digest(rec, 0, 'MD5')) # ('S' : emd)
             n.moved += 1                                        ;* no longer what the dry run read: skipped and counted
             release fv, id
          case 1
@@ -1257,7 +1258,7 @@ apply.run:
                release fv, id
             end else
                n.written += 1
-               write id : @fm : md5(newrec) : @fm : rec on uf, n.written on error
+               write id : @fm : digest(newrec, 0, 'MD5') : @fm : rec on uf, n.written on error
                   n.err += 1
                   n.written -= 1
                   halt.why = 'the undo file could not be written (status ' : status() : ')'
@@ -1407,7 +1408,7 @@ do.undo:
          case not(got)
             u.gone += 1
             release fv, uid
-         case ('S' : md5(cur)) # ('S' : uemd)
+         case ('S' : digest(cur, 0, 'MD5')) # ('S' : uemd)
             u.since += 1
             release fv, uid
          case 1

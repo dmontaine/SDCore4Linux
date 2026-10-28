@@ -48,7 +48,7 @@ made = []
 # tag -> (N, retrieval, key code, modes, time limit ms or None)
 #   modes: BT flags of SORTINIT, one per key: 1 right justified, 2 descending, 4 unique, 8 data (first key)
 #   key code: BASIC that sets keys(1).. from i (1..N), n, r and r2 (two Park-Miller streams)
-PAD7 = "'K':right(str('0',7):%s,7)"
+PAD7 = "'K':(str('0',7):%s)[7]"
 CASES = {
     "c01": (20000, "data", "keys(1) = " + PAD7 % "mod(r,10000000)", [8], None),
     "c02": (20000, "data", "keys(1) = " + PAD7 % "i", [8], None),
@@ -219,7 +219,7 @@ def program(tag, spec):
               "      all := d:@fm; cnt += 1"]
         L += ["      allk := keys(%d):@fm" % (j + 1) for j in range(nk)]
         L += ["   repeat"]
-    L += ["   sortclear", "   crt '%s[=N=':cnt:' MD=':md5(all):' MK=':md5(allk):' T=':tadd:']'" % tag.upper(), "end"]
+    L += ["   sortclear", "   crt '%s[=N=':cnt:' MD=':digest(all, 0, 'MD5'):' MK=':digest(allk, 0, 'MD5'):' T=':tadd:']'" % tag.upper(), "end"]
     return "\n".join(L) + "\n"
 
 

@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  THIRTEEN BASIC FUNCTIONS ARE REMOVED: ADDS, SUBS, MULS, DIVS, IS.ALNUM, IS.ALPHA, IS.DIGIT, IS.GRAPH, IS.MARK, IS.SPACE, LEFT, RIGHT AND MD5.
+
+             What        All of them were added in this release and never shipped. For ADDS, SUBS, MULS and DIVS write the operators + - * / on the two arrays (they work element by element).
+                         For IS.ALPHA and the others test the character with ALPHA(), NUM() or MATCHES. For LEFT(s, n) write s[1, n] and for RIGHT(s, n) write s[n]. For MD5(s) write
+                         DIGEST(s, 0, 'MD5'), which gives the same 32 lower case hexadecimal characters. SD's own bulk-change page and some test programs were changed to match; IS.NULL stays.
+             Why it      Each did what a surviving form already does.
+             Does not    Change DIGEST() or the other modes it offers.
+
 27 Oct 26  THE STATEMENTS GO AND GO TO ARE REMOVED, AND # NO LONGER STARTS A COMPILER DIRECTIVE.
 
              What        Write GOTO label for GO label and GO TO label, and ON expression GOTO for ON expression GO TO. Write $IFDEF, $IFNDEF, $ELSE, $ENDIF, $DEFINE and $INCLUDE for the

@@ -103,7 +103,7 @@ FILL = """$internal
    pad = str('x', 80)
    written = 0 ; failed = 0 ; ids = ''
    for i = 1 to 20000
-      id = 'R':right('0000':i, 5)
+      id = 'R':('0000':i)[5]
       rec = id:@fm:pad:@fm:i
       ok = 1
       write rec on f, id on error ok = 0

@@ -83,7 +83,7 @@ PROG_LOAD = """   open '%(f)s' to f else stop 'no file'
    open 'DICT %(f)s' to d else stop 'no dict'
    write 'D':@fm:'1':@fm:'':@fm:'Val':@fm:'9L':@fm:'S' on d, 'VAL'
    for i = 1 to %(n)d
-      write 'v':right('000000':i, 7) on f, 'r':i
+      write 'v':('000000':i)[7] on f, 'r':i
    next i
    crt 'LOADED[':%(n)d:']'
 end
@@ -128,7 +128,7 @@ PROG_CHECK = """   open '%(f)s' to f else stop 'no file'
    tested = 0
    for i = 11 to %(n)d step 11
       read rec from f, 'r':i then want = 'r':i else want = ''
-      selectindex 'VAL', 'v':right('000000':i, 7) from f to 5
+      selectindex 'VAL', 'v':('000000':i)[7] from f to 5
       readlist l2 from 5 else l2 = ''
       tested += 1
       if l2 # want then
@@ -150,7 +150,7 @@ def prog_changes(ops):
         if kind == "del":
             out += "      delete f, 'r':i\n"
         else:
-            out += "      write 'v':right('000000':i, 7) on f, 'r':i\n"
+            out += "      write 'v':('000000':i)[7] on f, 'r':i\n"
         out += "      nd += 1\n   next i\n"
     out += "   crt 'DONE[':nd:']'\nend\n"
     return out

@@ -191,7 +191,7 @@ PLANT = "\n".join([
     "   for i = 1 to 95",
     "      r = 'query1':@fm:'zq':@fm:'list':@fm:'name'",
     "      r<19> = 'list zq name'",
-    "      write r on f, 'fill':right('0':i, 2)",
+    "      write r on f, 'fill':('0':i)[2]",
     "   next i",
     "   crt 'ZZPL done'", "end", ""])
 

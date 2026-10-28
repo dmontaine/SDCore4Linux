@@ -138,7 +138,7 @@ b
 3
 ```
 
-There is no `chr`, `ltrim`, `rtrim`, `mid` or `strlen`; use `char`, `trim(s, ' ', 'L')` and `'T'`, `s[start, length]` and `len`. `left()` and `right()` exist **[1.2-0]**. The table in B6 lists what SD lacks and what to write instead.
+There is no `chr`, `ltrim`, `rtrim`, `mid` or `strlen`; use `char`, `trim(s, ' ', 'L')` and `'T'`, `s[start, length]` and `len`. There is no `left()` or `right()`: write `s[1, n]` and `s[n]` (the last n characters). The table in B6 lists what SD lacks and what to write instead.
 
 **`common` variables start as `0`, not unassigned.** `unassigned(q)` is false for them, so a lazy-initialisation test never runs; test the value.
 
@@ -1060,6 +1060,8 @@ chr | y = chr(65) | char(65)
 ltrim | y = ltrim(' a') | trim(s, ' ', 'L')
 rtrim | y = rtrim('a ') | trim(s, ' ', 'T')
 mid | y = mid('abc', 2, 1) | s[2, 1]
+left | y = left('abc', 2) | s[1, 2]
+right | y = right('abc', 2) | s[2]
 substr | y = substr('abc', 2, 1) | s[2, 1]
 instr | y = instr('abc', 'b') | index(s, 'b', 1)
 strlen | y = strlen('abc') | len(s)
@@ -1068,8 +1070,8 @@ ucase | y = ucase('abc') | upcase(s)
 cint | y = cint(1.5) | int(x)
 cdbl | y = cdbl(1.5) | the value is already a number
 isnull | y = isnull('') | x = '' (is.null() tests the SQL null of a collection, not the empty string)
-isdigit | y = isdigit('1') | x matches '0N' for a whole string (is.digit(x) tests the FIRST character only)
-isalpha | y = isalpha('a') | alpha(x) for a whole string (is.alpha(x) tests the first character only)
+isdigit | y = isdigit('1') | x matches '0N' for a whole string
+isalpha | y = isalpha('a') | alpha(x) for a whole string
 log10 | y = log10(100) | ln(x) / ln(10)
 pow | y = pow(2, 3) | 2 ^ 3 (or 2 ** 3)
 power | y = power(2, 3) | 2 ^ 3
@@ -1081,7 +1083,7 @@ random | y = random(10) | rnd(10)
 seed | seed 5 | randomize 5
 unique | y = unique('b') | build a list with locate
 sumsq | y = sumsq('1') | a loop
-isalnum | y = isalnum('a') | is.alnum(x) tests the first character only; test a whole string by looping
+isalnum | y = isalnum('a') | test the characters in a loop (alpha() and num() exist)
 encrypt | y = encrypt('a', 1) | sdencrypt() and sddecrypt()
 decrypt | y = decrypt('a', 1) | sdencrypt() and sddecrypt()
 connect.port | y = connect.port(1) | nothing: it was removed
@@ -1101,15 +1103,15 @@ callc | callc x | the embedded Python or a shell program (both gated)
 iterate | iterate | continue
 ```
 
-An unknown name does not always fail. **`char(`, `left(` and `right(` exist now** and an agent trained on older notes may think otherwise; trust the compiler, not a list in your head. The way to find out is to compile one line.
+An unknown name does not always fail. **`char(` exists now** and an agent trained on older notes may think otherwise; trust the compiler, not a list in your head. The way to find out is to compile one line.
 
 The replacements, run:
 
 ```basic frag run
-crt left('abcdef', 2) : ' ' : right('abcdef', 2) : ' ' : trim('  a ', ' ', 'L') : '|'
+crt 'abcdef'[1, 2] : ' ' : 'abcdef'[2] : ' ' : trim('  a ', ' ', 'L') : '|'
 crt 2 ^ 3 : ' ' : int(2.5 + 0.5) : ' ' : ln(100) / ln(10)
 crt len(env('HOME')) > 0
-crt is.digit('12a') : is.digit('a12') : is.alpha('abc') : is.null('')
+crt alpha('abc') : alpha('a1') : is.null('')
 crt ('123' matches '0N') : ('12a' matches '0N')
 nap 10
 randomize 5
@@ -1120,7 +1122,7 @@ crt rnd(1)
 ab ef a |
 8 3 2
 1
-1010
+100
 10
 0
 ```

@@ -35,13 +35,6 @@
 "tier": "reference",
 "words": 12
 },
-"basic:func:adds": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 8
-},
 "basic:func:akmap": {
 "kind": "basic.internal",
 "part": "reference/basic-functions.md",
@@ -420,13 +413,6 @@
 "tier": "reference",
 "words": 13
 },
-"basic:func:divs": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 8
-},
 "basic:func:downcase": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
@@ -756,54 +742,12 @@
 "tier": "reference",
 "words": 12
 },
-"basic:func:is.alnum": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 14
-},
-"basic:func:is.alpha": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 14
-},
-"basic:func:is.digit": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 14
-},
-"basic:func:is.graph": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 14
-},
-"basic:func:is.mark": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 14
-},
 "basic:func:is.null": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
 "words": 19
-},
-"basic:func:is.space": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 14
 },
 "basic:func:is.subr": {
 "kind": "basic.internal",
@@ -944,13 +888,6 @@
 "since": "-",
 "tier": "reference",
 "words": 21
-},
-"basic:func:left": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 20
 },
 "basic:func:len": {
 "kind": "basic.function",
@@ -1099,13 +1036,6 @@
 "tier": "reference",
 "words": 12
 },
-"basic:func:md5": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
 "basic:func:min": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
@@ -1133,13 +1063,6 @@
 "since": "-",
 "tier": "reference",
 "words": 13
-},
-"basic:func:muls": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 8
 },
 "basic:func:mvdate": {
 "kind": "basic.function",
@@ -1463,13 +1386,6 @@
 "tier": "reference",
 "words": 19
 },
-"basic:func:right": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 20
-},
 "basic:func:rmvd": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
@@ -1770,13 +1686,6 @@
 "since": "-",
 "tier": "reference",
 "words": 15
-},
-"basic:func:subs": {
-"kind": "basic.function",
-"part": "reference/basic-functions.md",
-"since": "-",
-"tier": "reference",
-"words": 8
 },
 "basic:func:substitute": {
 "kind": "basic.function",

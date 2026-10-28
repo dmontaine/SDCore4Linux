@@ -1044,10 +1044,10 @@ MUTANTS = {
     "stale-dry-run-accepted": ([("   gosub drop.dry\n   gosub draw.all\n   return\n\n* X in the Operations list", "   gosub draw.all\n   return\n\n* X in the Operations list"),
                                 ("   if not(dr.valid) or dr.fp # fp then\n", "   if 0 then\n")], ["B4a", "B4d", "B4d2"], "B4d2", "b4"),       # B4a too: with no dry run at all the gate is gone
     "apply-asks-no-name": ([("call $tk_confirm(sent, lines, bf, res, cmsg, sysmsg(11954))", "call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11954))")], ["B5d"], "B5d", "b4"),      # 26 Oct 26: the sixth argument (the box title) since the faults batch
-    "dry-run-writes": ([("                  dr.md5 := md5(rec)\n", "                  dr.md5 := md5(rec)\n                  write newrec on fv, id\n")], ["B4c"], "B4c", "b4"),
-    "no-undo-records": ([("               write id : @fm : md5(newrec) : @fm : rec on uf, n.written on error\n", "               n.err += 0\n               write 'x' on uf, 'never' on error\n")], ["B5h"], "B5h", "b4"),
-    "undo-ignores-changed-since": ([("         case md5(cur) # uemd\n", "         case 0\n")], ["B6b", "B6c"], "B6c", "b4"),
-    "apply-ignores-moved": ([("         case md5(rec) # emd\n", "         case 0\n")], ["B9a", "B9b"], "B9b", "b9"),
+    "dry-run-writes": ([("                  dr.md5 := digest(rec, 0, 'MD5')\n", "                  dr.md5 := digest(rec, 0, 'MD5')\n                  write newrec on fv, id\n")], ["B4c"], "B4c", "b4"),
+    "no-undo-records": ([("               write id : @fm : digest(newrec, 0, 'MD5') : @fm : rec on uf, n.written on error\n", "               n.err += 0\n               write 'x' on uf, 'never' on error\n")], ["B5h"], "B5h", "b4"),
+    "undo-ignores-changed-since": ([("         case digest(cur, 0, 'MD5') # uemd\n", "         case 0\n")], ["B6b", "B6c"], "B6c", "b4"),
+    "apply-ignores-moved": ([("         case digest(rec, 0, 'MD5') # emd\n", "         case 0\n")], ["B9a", "B9b"], "B9b", "b9"),
     "lock-counted-as-moved": ([("n.lock += 1", "n.moved += 1")], ["B8b"], "B8c", "b8"),
     "audit-counts-todo": ([("void kernel(K$AUDIT, 'bulk update file=' : bf : ' records=' : n.written)", "void kernel(K$AUDIT, 'bulk update file=' : bf : ' records=' : n.todo)")], ["B8c"], "B8c", "b8"),
     "kernel-words-dropped": ([("      case not(ceo)\n", "      case 0\n")], ["B1h", "B1h2", "B1h3"], "B1h3", "b1"),
