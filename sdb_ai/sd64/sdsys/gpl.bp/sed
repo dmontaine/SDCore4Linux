@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 D33 (owner, 20 Oct 26): in the default key layout Ctrl-W closes the buffer (F.DELETE.BUFFER, as in Edit and Geany, and as in the IDE and the toolkit) and Save as (F.WRITE.RECORD)
+*               is reached from the File menu only; Ctrl-PageDown and Ctrl-PageUp (ESC [ 6 ; 5 ~ and ESC [ 5 ; 5 ~) are the next and previous buffer in the place of Esc N and Esc P; F5 compiles
+*               and runs (F.COMPRUN, ESC [ 15 ~, and ESC [ [ E on the Linux console).  The menus name those keys (fmt.key knows the two modified sequences and the F5 forms).  The EMACS layout is as it was.
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 27 Oct 26 dm S.87 batch 14: case inversion is gone from SD; SED no longer turns it off or converts typed keys, and the NO.INVERT option word is no longer known.
@@ -5076,7 +5079,8 @@ leave.sed:
 * rather have at least the common actions like save and quit be what users expect them to be"): Ctrl-S
 * saves, Ctrl-Q quits, Ctrl-C / Ctrl-X / Ctrl-V copy, cut and paste the region between the mark (Esc . ;
 * Ctrl-Space sends a null, which keyin() does not deliver, so it cannot be the mark key) and the cursor, Ctrl-F / Ctrl-B search forward / backward, Ctrl-R replaces, Ctrl-L goes to a line, Ctrl-O
-* opens a record, Ctrl-W writes (saves as).  The line-editing keys the shell and readline use stay
+* opens a record, Ctrl-W closes the buffer (28 Oct 26, D33: it wrote - saved as - until then, and Save as is now in the File menu only),
+* Ctrl-PageDown / Ctrl-PageUp switch buffers (they were Esc N / Esc P) and F5 compiles and runs.  The line-editing keys the shell and readline use stay
 * (Ctrl-A, Ctrl-E, Ctrl-N, Ctrl-P, Ctrl-D, Ctrl-H, Ctrl-K); Ctrl-X is no longer a prefix, so the old
 * Ctrl-X sequences are gone and those actions are reached through the menu (F10, or Esc on its own), which
 * shows the keys.  An action with no key is a blank line below: keep the lines in step with the F.* table.
@@ -5125,17 +5129,17 @@ set.default.bindings:
    key.rec<-1> = '@[B':@VM:'@[[1;5D'      ;* F.BACK.WORD
    key.rec<-1> = '@[@H'             ;* F.DEL.BACK.WORD
    key.rec<-1> = '@[ '              ;* F.CLOSE.SPACES
-   key.rec<-1> = '@[N'              ;* F.NEXT.BUFFER
-   key.rec<-1> = '@[P'              ;* F.PREV.BUFFER
+   key.rec<-1> = '@[[6;5~':@VM:'@[[6;3~'          ;* F.NEXT.BUFFER (Ctrl-PageDown; Alt-PageDown too, for a terminal that keeps the Ctrl keys for its own tabs: GNOME Terminal does)
+   key.rec<-1> = '@[[5;5~':@VM:'@[[5;3~'          ;* F.PREV.BUFFER (Ctrl-PageUp; Alt-PageUp too)
    key.rec<-1> = ''                 ;* F.GOTO.BUFFER
-   key.rec<-1> = ''                 ;* F.DELETE.BUFFER
+   key.rec<-1> = '@W'               ;* F.DELETE.BUFFER
    key.rec<-1> = ''                 ;* F.UP.TO.PARENT
    key.rec<-1> = '@U'               ;* F.REPEAT
    key.rec<-1> = ''                 ;* F.REFRESH
    key.rec<-1> = '@[Q'              ;* F.QUOTE.CHAR
    key.rec<-1> = ''                 ;* F.LIST.BUFFERS
    key.rec<-1> = '@O'               ;* F.FIND.RECORD
-   key.rec<-1> = '@W'               ;* F.WRITE.RECORD
+   key.rec<-1> = ''                 ;* F.WRITE.RECORD (the File menu only since 28 Oct 26)
    key.rec<-1> = ''                 ;* F.START.MACRO
    key.rec<-1> = ''                 ;* F.END.MACRO
    key.rec<-1> = '@[='              ;* F.EXPAND.CHAR
@@ -5151,7 +5155,7 @@ set.default.bindings:
    key.rec<-1> = ''                 ;* F.SPLIT.WINDOW
    key.rec<-1> = ''                 ;* F.TOGGLE.WINDOW
    key.rec<-1> = ''                 ;* F.DIVE
-   key.rec<-1> = ''                 ;* F.COMPRUN
+   key.rec<-1> = '@[[15~':@VM:'@[[[E'   ;* F.COMPRUN (F5: xterm and the rest; the Linux console)
    key.rec<-1> = '@Z'               ;* F.UNDO
    key.rec<-1> = '@Y'               ;* F.REDO
 
@@ -7205,8 +7209,8 @@ add.item:
    if ma then
       for kv = 1 to dcount(s<ma>, @vm)
          ks = s<ma, kv>
-         if ks[1, 2] # char(27) : '[' and ks[1, 2] # char(27) : 'O' then
-            gosub fmt.key
+         gosub fmt.key
+         if ks.named then          ;* (a function key sequence the terminal sends is shown only when fmt.key knows its name)
             sc = ks.out
             exit
          end
@@ -7220,8 +7224,17 @@ add.item:
    return
 
 fmt.key:
-   * ks = the characters of a key binding, ks.out = how to write it down
+   * ks = the characters of a key binding, ks.out = how to write it down, ks.named = false for an ESC [ or ESC O sequence that
+   * has no name here (the raw cursor and function key sequences, which a menu does not show).  28 Oct 26 (D33): the sequences
+   * of Ctrl-PageDown, Ctrl-PageUp and F5 are named.
    ks.out = ''
+   ks.named = @true
+   begin case
+      case ks = char(27) : '[6;5~' ; ks.out = 'Ctrl-PgDn' ; return
+      case ks = char(27) : '[5;5~' ; ks.out = 'Ctrl-PgUp' ; return
+      case ks = char(27) : '[15~' or ks = char(27) : '[[E' ; ks.out = 'F5' ; return
+      case ks[1, 2] = char(27) : '[' or ks[1, 2] = char(27) : 'O' ; ks.named = @false ; return
+   end case
    for kz = 1 to len(ks)
       kc = seq(ks[kz, 1])
       begin case

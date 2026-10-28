@@ -35,7 +35,7 @@ BP_PROGRAMS = ("login", "cproc", "apisrvr", "modifya", "createa", "create_accoun
                "clearfl", "delete", "copy", "cname", "ed", "edit", "deletef", "sed", "ide", "ced_edit", "basic", "catalog", "delcat",
                "decat", "_oscopy", "_ioscopy",
                # S.64 part 2: the $internal verbs that write, delete or clear a record of a file the user names
-               "fixdir", "format", "mapcat", "spview", "settrig", "copylst", "dellist", "getlist", "savelst", "sortlst", "qproc", "cd",
+               "fixdir", "format", "mapcat", "spview", "settrig", "ide_name", "copylst", "dellist", "getlist", "savelst", "sortlst", "qproc", "cd",
                "generate", "como", "createf", "writelist", "_mksavedlists")
 FILES = {n: os.path.join(GPLSRC, n) for n in C_FILES}
 FILES.update({n: os.path.join(GPL, n) for n in BP_PROGRAMS})
@@ -336,8 +336,12 @@ def checks(srcs, messages_dir):
     ck("G6 SED leaves its -EXT extension record out of a file the session may not change",
        sd.count("kernel(K$EDIT.OK, fileinfo(file(current.buffer), FL$PATH))") >= 2, "")
     ide = c["ide"]
-    ck("G7 IDE asks before it saves, saves as and makes a new record (msg, not DISPLAY)",
-       ide.count("gosub edit.check") >= 3 and "msg = edit_msg(edit.kind)" in ide and "$include syscom keys.h" in ide, "")
+    ck("G7 IDE asks before it saves and before it writes a copy (edit.check; the reason goes to msg and to a box, not DISPLAY)",
+       ide.count("gosub edit.check") >= 2 and "msg = edit_msg(edit.kind)" in ide and "$include syscom keys.h" in ide, "")
+    inm = c["ide_name"]
+    ck("G7b the IDE's name form (new record, first save, save as, write a copy) asks the kernel by the pathname of the OPEN file and says the reason in the form",
+       "kernel(K$EDIT.OK, ep)" in inm and "edit_msg(kernel(K$EDIT.KIND, ep))" in inm and "fileinfo(fv, FL$PATH)" in inm and "$include syscom keys.h" in inm
+       and "$include int$keys.h" in inm and "$internal" in inm, "")
     ce = c["ced_edit"]
     ck("G8 CED asks before it writes a record, and includes the header that defines FL$PATH",
        "kernel(K$EDIT.OK, edit.p)" in ce and "$include syscom keys.h" in ce, "")
@@ -510,7 +514,8 @@ MUTANTS = [
     ("COPY forgets the source of a move", "copy", "   if deleting then\n      if not(edit_guard(src.file)) then", "   if 0 then\n      if not(edit_guard(src.file)) then"),
     ("CNAME forgets the new name", "cname", "      if ek = 1 then ek.path = rec<2> else ek.path = new.file.name", "      if ek = 1 then ek.path = rec<2> else ek.path = ''"),
     ("SED saves without asking", "sed", "   edit.f = file(current.buffer)\n   gosub check.edit.file\n   if not(edit.ok) then return\n\n   * Process source control actions if required", "   * Process source control actions if required"),
-    ("IDE's save-as forgets to ask", "ide", "   gosub edit.check                  ;* 17 Oct 26 dm - S.64\n   if not(edit.ok) then return\n   exists = @false\n   read x from fv, wa.id then exists = @true", "   exists = @false\n   read x from fv, wa.id then exists = @true"),
+    ("IDE's write-a-copy forgets to ask at the write", "ide", "   gosub edit.check                  ;* asked again at the write, as save.one does: the form's answer is not the gate\n   if not(edit.ok) then\n      rf.text = msg\n      gosub refuse.box\n      return\n   end\n   write wa.text on fv, wa.id on error", "   write wa.text on fv, wa.id on error"),
+    ("IDE's name form forgets to ask", "ide_name", "            if kernel(K$EDIT.OK, ep) then", "            if 1 then"),
     ("CED saves without asking", "ced_edit", "   if not(kernel(K$EDIT.OK, edit.p)) then", "   if 0 then"),
     ("CED asks about a variable too (no id, no file)", "ced_edit", "   if id # '' then\n      edit.p = fileinfo(fv, FL$PATH)", "   if 1 then\n      edit.p = fileinfo(fv, FL$PATH)"),
     ("BASIC compiles for anybody", "basic", "   if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$BP.EDIT, -1)) then", "   if 0 then"),

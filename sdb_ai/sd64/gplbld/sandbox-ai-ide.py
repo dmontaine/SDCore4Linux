@@ -53,7 +53,7 @@ gt = _load("sandbox_gates_for_aiide", "sandbox-gates.py")     # the administrato
 import fakemodel  # noqa: E402
 
 say = ids.say
-TAB, RET, ESC, F7, F10 = ids.TAB, ids.RET, ids.ESC, ids.F7, ids.F10
+TAB, RET, ESC, F8, F10 = ids.TAB, ids.RET, ids.ESC, ids.F8, ids.F10      # F8 is the IDE's compile since S.88 Phase 4 (F7 is debug)
 CTRL_G, CTRL_Z = "\x07", "\x1a"
 DOWN = "\x1bOB"
 RIGHT = "\x1bOC"
@@ -489,7 +489,7 @@ def sec_explain():
     say("\n--- Explain the error and Explain the selection")
     fm = STATE["fm"]
     e = ide(ERR_REC)
-    e.keys(F7)
+    e.keys(F8)
     time.sleep(1.5)
     n0 = len(fm.log)
     e.keys(F10, AI_MENU, RET)                   # AI > Explain the error (the first entry)

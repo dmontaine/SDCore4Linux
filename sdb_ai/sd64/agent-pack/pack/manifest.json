@@ -1,5 +1,5 @@
 {
- "chunk_count": 3959,
+ "chunk_count": 3974,
  "development": "the changelog's 'Next release - in progress' section is part of this tree",
  "gaps": {
   "basic_names_without_a_docs_syntax_line": [
@@ -33,7 +33,7 @@
  "kinds": {
   "basic.clause": {
    "chunks": 32,
-   "sha256": "8ff2d90fc00ad78f3ef6c482d71d996a285de58fb7cf2d9d334a2e594f237227"
+   "sha256": "7b2c4e8a785bed999f2bb63554e7311234d3181e1360de44b8fdd68733da06ee"
   },
   "basic.function": {
    "chunks": 230,
@@ -104,8 +104,8 @@
    "sha256": "6cda6406db186e111e5929ab4f068512a9b02f74dc6a245cc375a27b1d72e99b"
   },
   "message": {
-   "chunks": 2680,
-   "sha256": "e0360c4b393dd75e019cb75a528d03320366e78a331a59185900519561eb9a55"
+   "chunks": 2695,
+   "sha256": "eb9ce95d6e8e42313b59b690b40ce1a9798b68d701b410e039afaa72a4f8f48e"
   },
   "sys.keys": {
    "chunks": 41,
@@ -175,7 +175,7 @@
    "words": 569
   },
   "index.json": {
-   "sha256": "1ffe179a044d802038ad15d3f18be4fa4107f8c1cd89b90589b76e42d570734e"
+   "sha256": "ff4e1b5cb1e2018f392cdd7422fc389af35e57a9cdb08cc6c9b96089a5a72bd5"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
@@ -189,7 +189,7 @@
   },
   "reference/basic-statements.md": {
    "chunks": 269,
-   "sha256": "446af3dff075f1915bbbf4e90db47699187785a925d0eef1dfe2f35153739c1d",
+   "sha256": "14fa33705cc38db8829c9e2cc88f8fb1f7fd5044c830b4989b47b722c35cda49",
    "words": 5749
   },
   "reference/dictionaries.md": {
@@ -198,9 +198,9 @@
    "words": 5960
   },
   "reference/messages.md": {
-   "chunks": 2680,
-   "sha256": "37fbb4a950600396b9987804a147988f0718a54aadf5266c33527a1697c2649e",
-   "words": 33715
+   "chunks": 2695,
+   "sha256": "3b038ac0a6a70216b59ba9e1891fdef5015f2aaf75a7836864720a41c0b93775",
+   "words": 33965
   },
   "reference/system-keys.md": {
    "chunks": 41,

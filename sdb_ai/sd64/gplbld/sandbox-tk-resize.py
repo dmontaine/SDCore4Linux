@@ -58,6 +58,7 @@ R = Rows("tk-resize")
 
 E = "\x1b"
 DOWN, ESC, F10, F2, CTRL_Q, CTRL_Z = E + "OB", E, E + "[21~", E + "OQ", "\x11", "\x1a"
+CTRL_S = "\x13"                      # the IDE's only save key since S.88 Phase 4 (F2 was its extra save key; the owner's D28)
 BOX = SYS = UA = None
 TEXT = "show me the files"
 PAGES = (("files", "tool.files", 3), ("config", "tool.config", 3), ("query", "tool.query", 3), ("home", "home", None))
@@ -406,7 +407,7 @@ def sec_ide_undo():
     w.send(CTRL_Z, 0.8)
     w.pump(1.0)
     undone = "QQQ" not in w.text()
-    w.send(F2, 1.0)
+    w.send(CTRL_S, 1.0)
     w.pump(1.0)
     disk0 = disk_first_line("zzru0")
     c = R.row("R6c IDE (no resize): the record opens, QQQ typed shows on the screen, Ctrl-Z takes it away, the disk never held it",
@@ -418,7 +419,7 @@ def sec_ide_undo():
     w.pump(1.5)
     w.resize(180, 55, 2.0)
     kept = "QQQ" in w.text()
-    w.send(F2, 1.0)
+    w.send(CTRL_S, 1.0)
     w.pump(1.0)
     disk2 = disk_first_line("zzru2")
     c2 = R.row("R6c2 IDE: typed QQQ, resize 180x55, F2 (no undo): the text is still in the editor and the disk holds QQQ (the save path works after a resize)", kept and "QQQ" in disk2,
@@ -433,7 +434,7 @@ def sec_ide_undo():
     w.send(CTRL_Z, 0.8)
     w.pump(1.0)
     gone = "QQQ" not in w.text()
-    w.send(F2, 1.0)
+    w.send(CTRL_S, 1.0)
     w.pump(1.0)
     disk1 = disk_first_line("zzru1")
     row("R6", "IDE: typed QQQ, resize 180x55, Ctrl-Z restores the text from before the typing (undo kept): QQQ is gone from the screen and from the saved record",

@@ -1,6 +1,42 @@
 Next release - in progress
 --------------------------
 
+28 Oct 26  THE IDE OPENS READY TO TYPE, NAMES A NEW RECORD ON ONE FORM, AND A REFUSED SAVE NO LONGER ENDS IT.
+
+             What        Started with no record, the IDE opened empty and read-only: the letters you typed were jumps in the file tree, and File / New record
+                         asked only for a record id and made an empty record at once, in whichever file the tree happened to be on (on a first start, the account
+                         directory). Now:
+                         - A bare IDE opens "Untitled 1", an editable buffer with the cursor in it, coloured as a program. IDE file record still opens that record.
+                         - The first save of an untitled buffer, File / New record (Ctrl-N), Save as and Write a copy (Ctrl-W) ask for the file and the record id on
+                           ONE form. The file is filled in (the file of the record you are in, else the tree's file, else bp). If the account may not change that
+                           file (bp.edit and the other edit gates) or a record of that name exists, the form says why and stays open for you to correct it.
+                         - New record writes nothing until you save it; abandoning it with Discard leaves nothing behind. Save as now moves the editor to the new
+                           record (the old behaviour is Write a copy). Compile, Catalogue, Run and Edit as fields on an untitled buffer name and save it first.
+                         - A save takes the record's lock, looks at it again, and writes. If the file refuses the write (a trigger, a full disk) the IDE says so and
+                           keeps your text; it used to stop and lose every unsaved tab. A refusal by the account's edit gate is shown whole in a box, not cut off
+                           on the status line. Saving a record that has not changed says "No changes to save".
+                         - Catalogue says "Catalogued" only if CATALOG said it added the program; otherwise the reason is shown in a box.
+                         - The up and down arrows stay in the editor at its first and last line; they no longer move the cursor out to the message table.
+                         - The tree no longer lists SD's own entries ($acc, $hold, $map, $release), and the name form refuses a file whose name starts with a $.
+                         THE KEYS NOW FOLLOW THE MODERN EDITORS YOU CHOSE (micro, Microsoft Edit and Geany):
+                         - IDE: Ctrl-S is the only save key (F2 was the debugger's "abort" too). F5 runs, F8 compiles, F9 builds (compiles and catalogues) and F7
+                           debugs, where F7 compiled, F8 catalogued and F9 debugged. Ctrl-N is New record, Ctrl-O opens a record (a file and name form), Ctrl-W
+                           closes the record (it used to write a copy; Save as and Write a copy are in the File menu), Ctrl-PageDown and Ctrl-PageUp move between
+                           record tabs, and so do Alt-PageDown and Alt-PageUp for a terminal that keeps the Ctrl keys for its own tabs (GNOME Terminal does).
+                           F6 and Shift-F6 move the focus to the next and previous pane. Find in the records of a file is in the Search menu; F11 is the terminal's
+                           full-screen key. Files and records (the tree) is in the Go menu or a few F6 presses away; F3 is now find next, below.
+                         - Every text area (the IDE, user programs using SCREEN MEMO): Ctrl-A selects all (Home is the start of the row), Ctrl-O is no longer a copy
+                           key (Ctrl-C copies), F3 finds the next match and Shift-F3 the previous one (Ctrl-N no longer finds), Ctrl-D duplicates the line and Ctrl-K
+                           cuts the whole line into the clipboard. Del still joins lines. A program that used Ctrl-A, Ctrl-O, Ctrl-N, Ctrl-D or Ctrl-K in a text
+                           area for the old meaning has a new meaning now, and a form that handles the F3 key itself no longer sees it while a text area has
+                           the focus (the area finds the next match); use another key for it.
+                         - SED: Ctrl-W closes the buffer instead of writing the record under another name (a changed buffer still asks "Delete modified buffer?";
+                           the only buffer cannot be closed; Save as is in the File menu with no key). Ctrl-PageDown / Ctrl-PageUp (and Alt-PageDown / Alt-PageUp)
+                           switch buffers where Esc N and Esc P did, and F5 compiles and runs. The old Emacs layout (EMACS in field 3 of &sed.options&) and any
+                           key set of your own in &sed.bindings& keep their keys.
+                         It does NOT make Ctrl-PageUp or Ctrl-PageDown reach a terminal that keeps them for itself; use the Alt forms or the Go menu. It does not
+                         add Alt+letter menus yet, the scope choice inside the Ctrl-F question for finding in all the records, or Shift+arrow selection.
+
 28 Oct 26  THE KEYS OF A GRAPHICAL TERMINAL NOW WORK IN THE FULL-SCREEN PROGRAMS, AND A PASTE CAN NO LONGER RUN ANYTHING.
 
              What        Every account was signed on as terminal type LINUX, whatever terminal the person really had. On a graphical terminal (GNOME Terminal, Konsole,

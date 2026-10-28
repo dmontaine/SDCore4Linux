@@ -20,6 +20,8 @@
 # 18 Oct 26 dm  Phase 3 checked: the message box puts the cursor on its button while a guarded program has it up (a box below the rows
 #               the window shows is locked, not typed into blind), the menu and the box close on the lock's way out, and the mutant
 #               "nomap" was aimed at a program the IDE's question does not use (it survived); it is $screen_ask now.
+# 28 Oct 26 dm  S.88 Phase 4: the File menu has seven entries (New, Open, Save, Save as, Write a copy, Close, Quit), so Close record is five Downs
+#               from New record and Quit six; no other key of these rows changed meaning (Ctrl-S, Ctrl-Q, Ctrl-L, F10 and the Downs are as before).
 # END-HISTORY
 #
 # HOW IT DRIVES THEM.  On a PSEUDO-TERMINAL (ptydrive.py), the window size set BEFORE SD starts (it asks the tty when it starts) and
@@ -467,11 +469,11 @@ def part_d():
     say("\n--- D: a menu open, and a message box open (Save them?), while the window is made smaller ---------------------------")
     e = Term(BOX, "IDE %s r1" % F)
     e.keys(F10)
-    L = e.keys(DOWN * 4)
-    row("setup: F10 opens the File menu and four Downs select its last item, Quit (menu rows 1 to 5)", any(l.lstrip().startswith("Quit") for l in L[1:7]), text(L, 8))
+    L = e.keys(DOWN * 6)
+    row("setup: F10 opens the File menu and six Downs select its last item, Quit (the seventh entry since S.88 Phase 4; menu rows 1 to 9)", any(l.lstrip().startswith("Quit") for l in L[1:11]), text(L, 11))
     e.resize(140, 4)
     L = e.lines()
-    row("140x4 with the menu open: the selected item is on row 5, which this window does not show: locked", warn_shown(L, 140, 4, "IDE"), text(L, 5))
+    row("140x4 with the menu open: the selected item is below the window's last row (3), which this window does not show: locked", warn_shown(L, 140, 4, "IDE"), text(L, 5))
     L = e.keys("xyz", RET, idle=0.6)
     row("...keys are ignored (a Return would have chosen Quit and left the IDE)", warn_shown(L, 140, 4, "IDE"), text(L, 5))
     e.keys(CTRL("q"))
@@ -482,7 +484,7 @@ def part_d():
     e = Term(BOX, "IDE %s r1" % F)
     e.keys("Z")
     e.keys(F10)
-    L = e.keys(DOWN * 3, RET, idle=0.8)
+    L = e.keys(DOWN * 5, RET, idle=0.8)                 # Close record is the sixth entry (New, Open, Save, Save as, Write a copy, Close, Quit; S.88 Phase 4)
     row("setup: Close record on a changed record asks 'Save them?' in a box over the editor (its buttons are on row 19)",
         any("[ Save ]" in l for l in L[17:22]), text(L[15:24], 9))
     e.resize(140, 10)
@@ -498,7 +500,7 @@ def part_d():
     e = Term(BOX, "IDE %s r1" % F)
     e.keys("Z")
     e.keys(F10)
-    e.keys(DOWN * 3, RET, idle=0.8)
+    e.keys(DOWN * 5, RET, idle=0.8)                     # Close record, the sixth entry
     e.resize(140, 24)
     L = e.lines()
     row("control: the same box in a window of 24 lines (its button is on row 19, shown): no warning, the box is up",

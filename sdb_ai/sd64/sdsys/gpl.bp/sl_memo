@@ -10,6 +10,9 @@
 * 18 Oct 26 dm  passkeys: key names the area leaves to the program.
 * 18 Oct 26 dm  hbar: an optional horizontal scroll bar in the last row of the area ($sl_hscrollbar), clicks on it, and one row less of text.
 * 19 Oct 26 dm  softcur: an optional highlighted character at the cursor while the area has the focus (the IDE).
+* 28 Oct 26 dm  The owner's key decisions of 20 Oct (D31, S.88 Phase 4): ctrl-a selects all (home keeps the start of the row), ctrl-o is no longer a copy alias, f3 finds the next (ctrl-n did; it is New in
+*               the programs that have one), ctrl-d duplicates the line (del joins lines) and ctrl-k cuts the whole line into the clipboard.  A change to a widget user programs also use.
+* 28 Oct 26 dm  stay (S.88 Phase 4, I3): an optional flag; Up on the first row and Down on the last stay in the area instead of moving the focus to the widget before or after.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -28,7 +31,8 @@
 *   when the text wraps; a click on its arrows scrolls 8 columns and on its track a page; set by the program, not by SCREEN MEMO), and
 *   passkeys (key names, as values, that the area leaves alone and answers 'unhandled': the program uses them itself), and
 *   softcur (1: while the area has the focus the character under the cursor is drawn in the highlight style, as well as the terminal's
-*   own cursor being put there; not in a readonly area; set by the program, not by SCREEN MEMO)
+*   own cursor being put there; not in a readonly area; set by the program, not by SCREEN MEMO), and
+*   stay (1: Up on the first row and Down on the last do nothing instead of answering 'unhandled', so the form does not move the focus; set by the program)
 *
 *     init    w and h from what was given (at least 3 by 1); a linefeed in the text is taken as the end of a
 *             line; the cursor goes to the start; no selection and nothing to undo
@@ -37,18 +41,18 @@
 *             the text does not move when it is needed)
 *     focus   key = 1 gives it the focus (draws, with the cursor in the text), key = 0 takes it away
 *     key     left, right (past the end of a line to the next, and back), up, down (a row at a time: with wrap
-*             a line is several rows), home / ctrl-a and end / ctrl-e (the row's ends), ctrl-p and ctrl-u
+*             a line is several rows), home and end / ctrl-e (the row's ends), ctrl-p and ctrl-u
 *             (a word back and on; ctrl-b and ctrl-f were these until 14 Oct 26, and are SED's find keys now), pgup and pgdn (scroll a page less one row and the cursor keeps its row on
-*             the screen) move; a printable character, Return (splits the line), bs, del / ctrl-d (join lines
-*             at the ends) and ctrl-k (cuts to the end of the line) edit.
+*             the screen) move; a printable character, Return (splits the line), bs, del (joins lines at the ends),
+*             ctrl-d (duplicates the line) and ctrl-k (cuts the whole line into the clipboard) edit.
 *
-*             The selection runs from the mark to the cursor.  ctrl-g sets the mark where the cursor is (and
-*             takes it away again); ctrl-x cuts the selection, ctrl-c or ctrl-o copies it, ctrl-v puts what was
+*             The selection runs from the mark to the cursor.  ctrl-a selects all; ctrl-g sets the mark where the cursor is (and
+*             takes it away again); ctrl-x cuts the selection, ctrl-c copies it, ctrl-v puts what was
 *             cut or copied in at the cursor (the clipboard is the library's, so it passes from one text area
 *             to another); typing, Return, bs and del on a selection replace or delete it.  ctrl-z undoes and
 *             ctrl-y does again (a run of typed characters, or of bs or del, is one step; there are 100 steps).
 *             ctrl-f (or ctrl-t) asks for text on the bottom row of the area and finds it, ctrl-b asks and finds
-*             it backwards from the cursor, ctrl-n finds the next one forwards (and a Return on the question,
+*             it backwards from the cursor, f3 finds the next one forwards (and a Return on the question,
 *             which starts with the last text, repeats a find); the
 *             search ignores case, goes on past the end of the text to its start, and selects what it found
 *             (a bell if there is none).  A viewer can select, copy and find, and nothing else.
@@ -575,7 +579,8 @@ handle.key:
             gosub to.row
             vert = @true
          end else
-            ret = 'unhandled' : @fm : key
+            * 28 Oct 26 dm (S.88 Phase 4, I3): an area with w{'stay'} keeps the arrow at its first or last row; the form does not move the focus to the next widget
+            if not(w{'stay'}) then ret = 'unhandled' : @fm : key
          end
       case key = 'down'
          gosub row.of
@@ -584,7 +589,7 @@ handle.key:
             gosub to.row
             vert = @true
          end else
-            ret = 'unhandled' : @fm : key
+            if not(w{'stay'}) then ret = 'unhandled' : @fm : key
          end
       case key = 'left'
          if cx > 1 then
@@ -604,7 +609,13 @@ handle.key:
                cx = 1
             end
          end
-      case key = 'home' or key = 'ctrl-a'
+      case key = 'ctrl-a'
+         * 28 Oct 26 dm (the owner's D31, 20 Oct): Ctrl-A selects all, as in every editor he named; Home is the start of the row
+         my = 1 ; mx = 1
+         cy = n
+         cx = len(lines<n>) + 1
+         want = cx
+      case key = 'home'
          gosub row.of
          rr = dr
          gosub row.text
@@ -674,7 +685,7 @@ handle.key:
          end else
             my = cy ; mx = cx
          end
-      case key = 'ctrl-c' or key = 'ctrl-o'
+      case key = 'ctrl-c'                       ;* 28 Oct 26 (D31): Ctrl-O is no longer a copy alias; it opens a record in the programs that have one
          if has.sel then
             gosub sel.text
             clip.text = st
@@ -687,8 +698,10 @@ handle.key:
       case key = 'ctrl-b'                       ;* SED's find backward (14 Oct 26)
          fdir = -1
          gosub find.prompt
-      case key = 'ctrl-n'
+      case key = 'f3'                           ;* 28 Oct 26 (D31): find next is F3 (and Return in the find question); Ctrl-N is New in the programs that have one
          gosub find.next
+      case key = 'shift-f3'                     ;* 28 Oct 26 (Opus's review): and Shift-F3 the one before
+         gosub find.prev
       case ro
          ret = 'unhandled' : @fm : key
       case key = 'enter'
@@ -727,7 +740,15 @@ handle.key:
          end
          want = cx
          my = 0 ; mx = 0
-      case key = 'del' or key = 'ctrl-d'
+      case key = 'ctrl-d'
+         * 28 Oct 26 (D31): Ctrl-D duplicates the line (micro and Geany); it joined or deleted before, which is Del
+         kind = 'dup'
+         gosub snap.push
+         ins lines<cy> before lines<cy + 1>
+         cy += 1
+         want = cx
+         my = 0 ; mx = 0
+      case key = 'del'
          kind = 'del'
          if has.sel then k0 = ''
          gosub snap.push
@@ -747,10 +768,19 @@ handle.key:
          want = cx
          my = 0 ; mx = 0
       case key = 'ctrl-k'
-         kind = 'kill'
+         * 28 Oct 26 (D31): Ctrl-K cuts the whole line into the clipboard (micro and Geany); it cut to the end of the row before.  A paste at the start of a line puts it back above it.
+         kind = 'cutline'
          gosub snap.push
-         ln = lines<cy>
-         lines<cy> = ln[1, cx - 1]
+         clip.text = lines<cy> : @fm
+         clip.has = 1
+         if n > 1 then
+            del lines<cy>
+            if cy > n - 1 then cy = n - 1
+         end else
+            lines<cy> = ''
+         end
+         cx = 1
+         want = 1
          my = 0 ; mx = 0
       case key = 'ctrl-x'
          if has.sel then

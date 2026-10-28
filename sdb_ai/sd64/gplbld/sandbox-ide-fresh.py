@@ -29,6 +29,12 @@
 #   D1   a pre-write trigger that refuses: Ctrl-S must not end the IDE; the buffer stays changed and the record is unchanged
 #   D2   a hang-up with a changed buffer: the session ends in under 3 s, the record is as it was, and with the recovery gate off (as delivered) no copy is made
 #   P2   home's Editor tile does not stop at "File name?" and the Record editor tile shows something that stays; the IDE tile opens the IDE (control)
+#   L    (28 Oct 26, Phase 4, plan 4.9) the whole loop from a bare start in an ordinary account with the edit gates on: type a program with an error, F8 (compile) names it in the
+#        name form and shows the error and its line, fix it, Ctrl-S, F8 clean, F9 (build) catalogues, and the program runs from the account's command line by its name; and in
+#        an account whose bp edit gate is off the same flow stops at the save with the reason in the form (rows L1-L8)
+#   K    (28 Oct 26, Phase 4, the owner's keys of 20 Oct, D28 / D31 / D32 / D33) F2 does not save (Ctrl-S is the only save key, with its control); Ctrl-W closes the record
+#        (asks Save / Discard / Cancel when changed, closes at once when not, and no longer asks for the name of a copy); Write a copy is a File menu entry (rows K1-K9)
+#   T    the tree no longer lists the $ entries ($acc, $hold, $map, $release), with a control that it lists the files (row T1)
 #
 # THE RECOVERY COPY (D2, plan 2.9) DOES NOT EXIST YET, so there is no red row for "the text can be got back": with its gate off, as delivered, nothing is kept and the row
 # says so.  When the copy is built (Phase 2) the gate-on row is written beside it.  ROWS THAT PIN A FLOW (I1 N3, I4, I8) MAY NEED THEIR KEYS REWRITTEN when Phase 4 lands,
@@ -66,8 +72,11 @@ E = "\x1b"
 X_UP, X_DOWN = E + "OA", E + "OB"
 L_DOWN = E + "[B"
 F10, F12 = E + "[21~", E + "[24~"
+F8, F9 = E + "[19~", E + "[20~"          # compile, build (compile and catalogue): the owner's keys of 20 Oct, S.88 Phase 4 (F7 is debug now)
+X_F2 = E + "OQ"                          # F2 in terminfo's xterm: it saved before Phase 4 and does nothing now (Ctrl-S is the only save key)
 RET, TAB, ESC = "\r", "\t", E
-CTRL_Q, CTRL_S, CTRL_N = "\x11", "\x13", "\x0e"
+CTRL_Q, CTRL_S, CTRL_N, CTRL_W = "\x11", "\x13", "\x0e", "\x17"
+DOWN_SAVEAS, DOWN_COPY = 3, 4            # File menu: New record, Open record, Save, Save as, Write a copy, Close record, Quit - Down this many times from New record
 A1, A2 = "zzfl1", "zzfl2"
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 RUN = "%05d" % (os.getpid() % 100000)
@@ -403,7 +412,7 @@ def section_saveas():
     s = admin("I4", "IDE bp %s" % r5)
     s.type("NEW", wait=1.0, show="'NEW'")
     s.type(F10, wait=1.0, show="F10")
-    s.type(X_DOWN + X_DOWN, wait=0.8, show="Down Down (to Save as)")
+    s.type(X_DOWN * DOWN_SAVEAS, wait=0.8, show="Down x%d (to Save as: New record, Open record, Save, Save as)" % DOWN_SAVEAS)
     s.type(RET, wait=1.5, show="RET (Save as)")
     asked = "Name of the new record" in s.text()
     s.type(c5, wait=0.6, show=repr(c5))
@@ -587,9 +596,160 @@ def section_home():
     s.end()
 
 
+# ---- L: the whole loop inside the IDE (plan 4.9) ---------------------------------------------------------------------------------------------------------------
+def section_loop():
+    say("\n--- L: edit, compile, see the errors, fix, save and catalogue, from a bare start (plan 4.9) ---------------------------------------")
+    rid1 = rid("lp")
+    g.FIXTURES[A1] = ("no", "no")
+    g.build_account(A1)             # the edit gates are on (the fixture default); the account has bp and cat directories
+    fl = g.flags(g.plain(A1, ["zzkf"]))
+    say("    (zzfl1 pipe session flags admin, sh, osx, user: %r)" % (fl,))
+    if fl is None or fl[0] != "0":
+        bail("zzfl1 is not shown to be an ordinary account (flags %r)" % (fl,))
+    os.makedirs(os.path.join(acct_dir(A1), "bp"), exist_ok=True)
+    rec = os.path.join(acct_dir(A1), "bp", rid1)
+    s = ordinary("L1", A1, "IDE")
+    ok_ide = s.in_ide()
+    s.type('crt "LOOPOK"' + RET + "x = = 1" + RET + "end", wait=1.5, show="the program: three lines, line 2 wrong")
+    typed = 'x = = 1' in s.editor()
+    s.type(F8, wait=2.0, show="F8 (compile) on the untitled buffer")
+    asked = "Name of the new record" in s.text()
+    s.show("the first-save form", rows=range(8, 30))
+    R.row("L1 control: a bare IDE took the program into its Untitled buffer, and F8 on it asked for the file and the record in the name form",
+          ok_ide and typed and asked, "ok_ide=%r typed=%r asked=%r" % (ok_ide, typed, asked))
+    s.type(rid1 + RET, wait=4.0, show=repr(rid1) + " RET")
+    s.show("after the name: the compile", rows=[0, 1, 2, 3, 4, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42])
+    st = s.status()
+    R.row("L2 the record was written by the first save, in bp (the form's default file), and the compile shows its error with the line: '1 error(s) in bp %s' and the cursor on line 2" % rid1,
+          readf(rec) is not None and re.search(r"1 error\(s\) in bp %s" % rid1, st) is not None and "Line 2," in st, "disk=%s status=%r" % (disk(rec), st[:120]))
+    s.type("\x1b[3~" * 7 + "x = 1", wait=1.2, show="Delete x7, then 'x = 1' (the fix, at the error's line)")
+    s.type(CTRL_S, wait=2.0, show="Ctrl-S")
+    saved = readf(rec)
+    R.row("L3 the fix is saved to the same record with Ctrl-S (no second question)", saved is not None and "x = 1" in saved and "x = = 1" not in saved and "Name of the new record" not in s.text(),
+          "disk=%s status=%r" % (disk(rec), s.status()[:100]))
+    s.type(F8, wait=3.0, show="F8 (compile)")
+    R.row("L4 a clean compile (F8) says so and names the record", ("Compiled bp %s with no errors" % rid1) in s.status(), s.status()[:120])
+    s.type(F9, wait=3.0, show="F9 (build: compile and catalogue)")
+    R.row("L5 F9 catalogues and says so only after CATALOG said it did: 'Catalogued bp %s'" % rid1, ("Catalogued bp %s" % rid1) in s.status(), s.status()[:120])
+    s.type(CTRL_Q, wait=1.5, show="Ctrl-Q")
+    s.end()
+    out = g.plain(A1, [rid1])
+    R.row("L6 the program runs from the command line of the account by its name (it printed LOOPOK)", any("LOOPOK" in ln for ln in out), repr(out[-4:]))
+
+    say("\n--- L: the same flow in an account whose bp edit gate is off: it stops at the save, with the reason in the form -------------------")
+    rid2 = rid("lq")
+    rec2 = os.path.join(acct_dir(A2), "bp", rid2)
+    s = ordinary("L7", A2, "IDE")
+    s.type('crt "NO"', wait=1.0, show="a program")
+    s.type(CTRL_S, wait=2.0, show="Ctrl-S on the untitled buffer")
+    s.type(rid2 + RET, wait=2.0, show=repr(rid2) + " RET")
+    s.show("the form after the refusal", rows=range(8, 30))
+    R.row("L7 the form stays open and says why (bp.edit is named), and nothing was written", "bp.edit" in s.text() and "Name of the new record" in s.text() and readf(rec2) is None and s.in_ide(),
+          "disk=%s in_ide=%r" % (disk(rec2), s.in_ide()))
+    s.type(ESC, wait=1.0, show="Esc (Cancel)")
+    R.row("L8 Esc leaves the form: the IDE goes on with its buffer, which is still marked changed or untitled, and the disk has nothing", s.in_ide() and readf(rec2) is None and "Name of the new record" not in s.text(),
+          "in_ide=%r status=%r" % (s.in_ide(), s.status()[:100]))
+    discard_all(s, L_DOWN)
+    s.end()
+
+
+# ---- K: the keys that changed meaning (the owner's keys of 20 Oct, D28 / D31 / D32 / D33) ---------------------------------------------------------------------------
+def tab_row(s):
+    """the tab row (row 2): the record tabs, each as [id], or the Untitled buffer's label"""
+    return s.row(2)
+
+
+def section_oldkeys():
+    say("\n--- K: F2 no longer saves; Ctrl-W closes the record; Write a copy is a menu entry -------------------------------------------------")
+    r10 = rid("k2")
+    mk(bp(r10), "ten\n")
+    s = admin("K2", "IDE bp %s" % r10)
+    s.type("ZZ", wait=1.2, show="'ZZ'")
+    changed = " *" in s.status() and "ZZten" in s.editor()
+    R.row("K1 control: with the record open 'ZZ' reaches the editor and the record is marked changed (the buffer F2 is pressed in has something to save)",
+          changed, "status=%r editor=%r" % (s.status()[:80], s.editor().strip()[:60]))
+    s.type(X_F2, wait=2.0, show="F2 (it saved before Phase 4)")
+    after_f2 = readf(bp(r10))
+    still = " *" in s.status() and s.in_ide()
+    s.show("after F2", rows=[0, 1, 2, 3, 42])
+    R.row("K2 F2 does not save: the record on disk is as it was and the buffer is still marked changed (Ctrl-S is the only save key)",
+          after_f2 == "ten\n" and still, "disk=%s still_changed=%r status=%r" % (disk(bp(r10)), still, s.status()[:80]))
+    s.type(CTRL_S, wait=2.0, show="Ctrl-S")
+    after_cs = readf(bp(r10))
+    R.row("K3 control: Ctrl-S saves the very same buffer ('ZZten' reaches the disk), so K2 was judged on a buffer that could be saved",
+          after_cs is not None and "ZZten" in after_cs, "disk=%s" % disk(bp(r10)))
+    s.end()
+
+    r11 = rid("k4")
+    mk(bp(r11), "eleven\n")
+    s = admin("K4", "IDE bp %s" % r11)
+    tab_before = ("[%s]" % r11) in tab_row(s)
+    s.type("ZZ", wait=1.2, show="'ZZ'")
+    s.type(CTRL_W, wait=1.5, show="Ctrl-W (close the record; it was Write a copy)")
+    asked = "has changes" in s.text()
+    named = "Name of the new record" in s.text()
+    s.show("after Ctrl-W on a changed record", rows=range(0, 30))
+    R.row("K4 control: before Ctrl-W the record is open in the editor (its tab [%s] is on the tab row)" % r11, tab_before, "tab row=%r" % tab_row(s)[:80])
+    R.row("K5 Ctrl-W on a changed record asks what to do with the changes ('has changes') and does not ask for the name of a copy (it used to be Write a copy)",
+          asked and not named, "asked=%r name_form=%r" % (asked, named))
+    s.type(X_DOWN + RET, wait=1.5, show="Down RET (Discard)")
+    s.show("after Discard", rows=[0, 1, 2, 3, 42])
+    gone = ("[%s]" % r11) not in tab_row(s) and re.search(r"Untitled \d", s.text()) is not None
+    R.row("K6 Discard closes the record: its tab is gone, an Untitled buffer takes its place, the IDE is still up and the record on disk is as it was",
+          gone and s.in_ide() and readf(bp(r11)) == "eleven\n", "tab row=%r in_ide=%r disk=%s" % (tab_row(s)[:80], s.in_ide(), disk(bp(r11))))
+    s.end()
+
+    r12 = rid("k7")
+    mk(bp(r12), "twelve\n")
+    s = admin("K7", "IDE bp %s" % r12)
+    tab_before = ("[%s]" % r12) in tab_row(s)
+    s.type(CTRL_W, wait=1.5, show="Ctrl-W on an unchanged record")
+    s.show("after Ctrl-W", rows=[0, 1, 2, 3, 42])
+    closed = ("[%s]" % r12) not in tab_row(s) and re.search(r"Untitled \d", s.text()) is not None
+    R.row("K7 Ctrl-W on an unchanged record closes it at once: no question, no name form, its tab gone, an Untitled buffer in its place (the tab was there before: %r)" % tab_before,
+          tab_before and closed and "has changes" not in s.text() and "Name of the new record" not in s.text() and s.in_ide() and readf(bp(r12)) == "twelve\n",
+          "tab row=%r in_ide=%r disk=%s" % (tab_row(s)[:80], s.in_ide(), disk(bp(r12))))
+    s.end()
+
+    r13, c13 = rid("k8"), rid("c8")
+    mk(bp(r13), "thirteen\n")
+    s = admin("K8", "IDE bp %s" % r13)
+    s.type("ZZ", wait=1.2, show="'ZZ'")
+    s.type(F10, wait=1.0, show="F10")
+    s.type(X_DOWN * DOWN_COPY, wait=0.8, show="Down x%d (to Write a copy: New record, Open record, Save, Save as, Write a copy)" % DOWN_COPY)
+    s.type(RET, wait=1.5, show="RET (Write a copy)")
+    asked = "Name of the new record" in s.text()
+    s.show("the Write a copy form", rows=range(8, 30))
+    s.type(c13, wait=0.6, show=repr(c13))
+    s.type(RET, wait=2.0, show="RET")
+    cp = readf(bp(c13))
+    orig = readf(bp(r13))
+    R.row("K8 File, Write a copy asked for a name and wrote the copy with the buffer's text ('ZZthirteen'), and the record being edited is as it was on the disk",
+          asked and cp is not None and "ZZthirteen" in cp and orig == "thirteen\n", "asked=%r copy=%s original=%s" % (asked, disk(bp(c13)), disk(bp(r13))))
+    s.type(CTRL_S, wait=2.0, show="Ctrl-S")
+    orig2 = readf(bp(r13))
+    R.row("K9 Write a copy does not switch the editor to the copy (that is Save as): the next Ctrl-S saves the ORIGINAL ('ZZthirteen' in it)",
+          orig2 is not None and "ZZthirteen" in orig2 and ("[%s]" % r13) in tab_row(s), "original=%s tab row=%r" % (disk(bp(r13)), tab_row(s)[:80]))
+    s.end()
+
+
+# ---- T: the tree and the $ entries ------------------------------------------------------------------------------------------------------------------------------------
+def section_tree():
+    say("\n--- T: the tree does not list $acc, $hold, $map, $release -----------------------------------------------------------------------")
+    s = admin("T1", "IDE")
+    left = [l[:28].rstrip() for l in s.lines()[3:40]]
+    shown = [l for l in left if l.strip()]
+    s.show("the tree (left 28 columns)", rows=range(2, 40))
+    dollars = [l for l in shown if "$" in l]
+    R.row("T1 control: the tree is drawn and lists files (at least 3 rows of the left pane are not empty)", s.in_ide() and len(shown) >= 3, "rows=%d first=%r" % (len(shown), shown[:4]))
+    R.row("T1 the tree lists no entry that starts with a dollar sign ($acc, $hold, $map, $release are SD's own, not files of records)", not dollars, "dollar rows=%r" % dollars[:6])
+    s.end()
+
+
 def main():
     try:
         setup_all()
+        section_loop()
         section_bare()
         section_new()
         section_abandon()
@@ -597,6 +757,8 @@ def main():
         section_edge()
         section_saveas()
         section_keys()
+        section_oldkeys()
+        section_tree()
         section_trigger()
         section_hangup()
         section_home()

@@ -230,7 +230,11 @@ def run_ide(box, rec):
     R.row("I: control: typed letters reach the record (status line has the star)", any(" *" in l for l in t.lines()[-3:]), "\n".join(t.lines()[-3:]))
     t.send(E + "OQ", wait=2.0, show="F2 as GNOME Terminal sends it")
     disk = sess(box, "CT bp %s" % rec)
-    R.row("I: F2 saves the record (it did not type a Q)", "helloQ" not in "".join(t.lines()) and "hello" in disk and "Q" not in disk.replace("Saved", ""), disk[-200:], phase=1)
+    # S.88 Phase 4 (the owner's D28): F2 is no longer a save key of the IDE; what this row proves is that F2 arrives as the KEY f2 and not as alt-o and a Q
+    R.row("I: F2 is read as the key f2: it typed no Q, and it saved nothing (the IDE has no F2 key now)", "helloQ" not in "".join(t.lines()) and "hello" not in disk and "Q" not in disk.replace("Saved", ""), disk[-200:], phase=1)
+    t.send("\x13", wait=2.0, show="Ctrl-S (the IDE's save key)")
+    disk = sess(box, "CT bp %s" % rec)
+    R.row("I: Ctrl-S saves the record", "hello" in disk and "Q" not in disk.replace("Saved", ""), disk[-200:], phase=1)
     t.send(E + "[H", wait=1.2, show="Home as GNOME Terminal sends it")
     t.send("X", wait=1.5, show="X")
     L = "\n".join(t.lines())

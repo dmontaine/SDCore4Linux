@@ -546,8 +546,9 @@ def fields_part(box, sysd, made):
 
     e = sb.Ide(box)
     e.keys(F12)
-    row("F12 with no record open says so on the status line (message 11218) and CED is not started",
-        "No record is open" in e.status() and not bottom(e.lines()).startswith("Collection editor"), e.status())
+    row("F12 on the bare IDE's Untitled buffer asks for a file and a record first (the name form), and CED is not started (S.88 Phase 4: there is always a buffer now; it said 'No record is open')",
+        "Name of the new record" in e.text() and not bottom(e.lines()).startswith("Collection editor"), e.status())
+    e.keys("\x1b")
     e.end()
 
     # ---- A: look, dive, the type menu by level, edit a subvalue, Ctrl-S, back to the IDE, the IDE saves ---------------------------------
@@ -595,10 +596,10 @@ def fields_part(box, sysd, made):
         "Back from the fields: bp %s is changed, save it to keep it" % ra in st and re.search(r"bp %s \*" % ra, st) is not None, st)
     d = disk()
     row("... and still nothing is on disk until the IDE saves", d[0] == d0[0], repr(d[0]))
-    e.keys(sb.F2)
+    e.keys(sb.CTRL_S)                                  # the IDE's save key is Ctrl-S only (F2 went, S.88 Phase 4)
     st = e.status()
     d = disk()
-    row("F2 saves it: the status line says so and the record is Acme^red|dark~lime|blue^x - the subvalue mark in place, nobody typed it",
+    row("Ctrl-S in the IDE saves it: the status line says so and the record is Acme^red|dark~lime|blue^x - the subvalue mark in place, nobody typed it",
         ("Saved bp %s" % ra) in st and d[0] == "Acme^red|dark~lime|blue^x", "%r %r" % (st, d[0]))
     e.end()
 
@@ -648,7 +649,7 @@ def fields_part(box, sysd, made):
     e.keys(sb.CTRL_Q, "N")
     e.quiet()
     st = e.status()
-    e.keys(sb.F2)
+    e.keys(sb.CTRL_S)                                  # the IDE's Ctrl-S (the one CED's Ctrl-S above is not)
     d = disk()
     row("leaving with No keeps what Ctrl-S kept: the IDE saves x^Y1|z, not x^Y1|Z2",
         "is changed, save it to keep it" in st and d[3] == "x^Y1|z", "%r %r" % (st, d[3]))
@@ -670,10 +671,10 @@ def fields_part(box, sysd, made):
     st = e.status()
     d = disk()
     row("typing :@vm:Jules at the end of line 1 marks the tab changed, and the disk is as it was", re.search(r"bp %s \*" % re_, st) is not None and d[4] == d0[4], "%r %r" % (st, d[4]))
-    e.keys(sb.F2)
+    e.keys(sb.CTRL_S)
     st = e.status()
     d = disk()
-    row("F2 saves it as marks: Don|Henry|June|Jules^x~y#z - the value mark written from the typed token, the rest of the record exactly as it was",
+    row("Ctrl-S in the IDE saves it as marks: Don|Henry|June|Jules^x~y#z - the value mark written from the typed token, the rest of the record exactly as it was",
         ("Saved bp %s" % re_) in st and d[4] == "Don|Henry|June|Jules^x~y#z", "%r %r" % (st, d[4]))
     e.end()
 

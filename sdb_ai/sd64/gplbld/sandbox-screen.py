@@ -10,6 +10,10 @@
 #
 # START-HISTORY:
 # 12 Oct 26 dm  Written with the spike: SCREEN MSGBOX compiled by bcomp's ST.SCREEN into a call of !screen_msgbox.
+# 28 Oct 26 dm  The memo's keys of the owner's D31 (S.88 Phase 4): Ctrl-A selects all (Home is the row's start), Ctrl-O is not a copy
+#               key (Ctrl-C copies; the programs that copy run with the break key off, memo_program), F3 finds the next (Ctrl-N did),
+#               Ctrl-D duplicates the line, Ctrl-K cuts the whole line.  Rows re-pointed in part_memo, part_memo2 and part_memo3;
+#               part_memo4 and the program zzthmk4 are the new ones (the first version named it zzthmky, which a key-name program already was: the new rows ran the old program).
 # END-HISTORY
 #
 # HOW IT DRIVES THE PROGRAMS.  Every program here is an ordinary USER program, compiled by a plain session (not
@@ -348,7 +352,7 @@ end
             screen set f, 'm' wrap 1
             screen set f, 'ok' visible 0
          end
-         if ev<3> = 'f3' then screen set f, 'm' readonly 1
+         if ev<3> = 'f7' then screen set f, 'm' readonly 1       ;* 28 Oct 26: was f3, which a text area takes for find next now (D31); a form's own key must not be one the area uses
          if ev<3> = 'f4' then
             screen set f, 'ok' visible 1
             exit
@@ -1307,13 +1311,23 @@ PROGS.update({
 
 F3 = "\x1bOR"
 F2_KEY, F3_KEY, F4_KEY = "\x1bOQ", "\x1bOR", "\x1bOS"
+SHIFT_F3_KEY = "\x1b[1;2R"               # Shift-F3 (xterm's modifier form; the key name is shift-f3): find the previous one
 CTRL_G, CTRL_O, CTRL_X, CTRL_V, CTRL_Z, CTRL_Y, CTRL_T, CTRL_N, CTRL_B, CTRL_F, CTRL_P, CTRL_U = (
     "\x07", "\x0f", "\x18", "\x16", "\x1a", "\x19", "\x14", "\x0e", "\x02", "\x06", "\x10", "\x15")
+CTRL_C, CTRL_D = "\x03", "\x04"          # (28 Oct 26: Ctrl-C is the only copy key now, and Ctrl-D duplicates the line)
+
+
+def memo_program(dialogue):
+    """dialogue_program, run with the break key off.  Since 28 Oct 26 (the owner's D31) Ctrl-C is the memo's only copy key, and
+    SD takes the break character (Ctrl-C) as a break before the program sees it unless the break key is off; the memo rows
+    that copy therefore switch it off first (PTERM BREAK OFF is a plain verb, the PTERM() function is internal-only)."""
+    return "   execute 'PTERM BREAK OFF' capturing junk\n   break off\n" + dialogue_program(dialogue)
+
 
 PROGS.update({
     # a wrapped text area (19 cells of text) of five rows over three lines: a long one of words, a short one and a
     # word of 36 letters that has to be broken; a button after it
-    "zzthmwr": dialogue_program("""   text = 'the quick brown fox jumps over the lazy dog':@fm:'short':@fm:str('a', 36)
+    "zzthmwr": memo_program("""   text = 'the quick brown fox jumps over the lazy dog':@fm:'short':@fm:str('a', 36)
    screen form title 'Wrap' at 10,3 size 40,14 returning f
    screen memo f, 'm', text at 2,2 size 20,5 wrap
    screen button f, 'ok', '&OK' at 10,11 default
@@ -1327,7 +1341,7 @@ PROGS.update({
 """),
     # the same text without wrap, to see that the extra keys work there too: a viewer (it selects and copies, and
     # nothing else) in one memo and an editor in the other, the clipboard passing from one to the other
-    "zzthmcb": dialogue_program("""   text = 'one two three':@fm:'four five six'
+    "zzthmcb": memo_program("""   text = 'one two three':@fm:'four five six'
    screen form title 'Clip' at 10,3 size 40,14 returning f
    screen memo f, 'v', text at 2,2 size 20,3 readonly
    screen memo f, 'e', 'x' at 2,6 size 20,3
@@ -1340,6 +1354,20 @@ PROGS.update({
    screen get f, 'v' returning t
    screen get f, 'e' returning u
    res := ' ':convert(@fm, '/', t):'|':convert(@fm, '/', u):'|'
+"""),
+    # 28 Oct 26 (the owner's D31): four short lines in an area of five rows, none of them wrapped or cut, for the keys that changed
+    # (Ctrl-A, Ctrl-O, F3 / Ctrl-N, Ctrl-D, Ctrl-K); 'one' is on the first and the third line, so a find has somewhere to go
+    "zzthmk4": memo_program("""   text = 'one two three':@fm:'four five six':@fm:'one again':@fm:'last'
+   screen form title 'Keys' at 10,3 size 40,14 returning f
+   screen memo f, 'm', text at 2,2 size 20,5
+   screen button f, 'ok', '&OK' at 10,11 default
+   screen run f returning pressed then
+      res = 'PRESSED ':pressed:'|'
+   end else
+      res = 'CANCEL ':pressed:'|'
+   end
+   screen get f, 'm' returning t
+   res := ' ':dcount(t, @fm):'|':convert(@fm, '/', t):'|'
 """),
 })
 
@@ -1935,8 +1963,10 @@ def part_memo(box):
         "AB" == L[r0][c0:c0 + 19].strip() and "first line" == L[r0 + 1][c0:c0 + 19].strip() and t.cursor() == (c0, r0 + 1), "\n".join(l[c0:c0 + 20] for l in L[r0:r0 + 5]))
     L = t.keys(BS)
     row("Backspace at the start of a line joins it to the one before: ABfirst line is back, the cursor between B and f", "ABfirst line" in L[r0] and t.cursor() == (c0 + 2, r0), repr((L[r0][c0:c0 + 20], t.cursor())))
-    L = t.keys(CTRL_K)
-    row("Ctrl-K cuts to the end of the line", L[r0][c0:c0 + 19].strip() == "AB", repr(L[r0][c0:c0 + 20]))
+    # (Ctrl-K cut to the end of the line until 28 Oct 26 and cuts the whole line now - part_memo4 has that; the cut to the end of
+    # the line is a selection now, so that the rows below judge the same text as before)
+    L = t.keys(CTRL_G, END, CTRL_X)
+    row("Ctrl-G, End and Ctrl-X cut from the cursor to the end of the line (28 Oct 26: Ctrl-K cuts the whole line, see part_memo4)", L[r0][c0:c0 + 19].strip() == "AB", repr(L[r0][c0:c0 + 20]))
     L = t.keys(DELK)
     row("Delete at the end of a line joins the next one to it: ABsecond", L[r0][c0:c0 + 19].strip() == "ABsecond", repr(L[r0][c0:c0 + 20]))
     L = t.keys(TAB)
@@ -2007,8 +2037,8 @@ def part_memo2(box):
     sel = t.attrs(r0 + 1)[c0:c0 + 4]
     row("selection: Ctrl-G then three Rights shows 'fox' in reverse (the highlight style), the blank after it not; before the mark it was not",
         sel == "rrrn" and before != "rrr", repr((before, sel)))
-    L = t.keys(CTRL_O)
-    row("Ctrl-O copies and takes the selection off the screen", t.attrs(r0 + 1)[c0:c0 + 3] != "rrr", repr(t.attrs(r0 + 1)[c0:c0 + 3]))
+    L = t.keys(CTRL_C)
+    row("Ctrl-C copies and takes the selection off the screen (28 Oct 26: Ctrl-O is no longer a copy key)", t.attrs(r0 + 1)[c0:c0 + 3] != "rrr", repr(t.attrs(r0 + 1)[c0:c0 + 3]))
     L = t.keys(END, CTRL_V)
     A = area(L)
     row("Ctrl-V puts 'fox' in at the cursor, before the blank that ends the row: the line is 'the quick brown fox jumps over thefox lazy dog' "
@@ -2035,8 +2065,8 @@ def part_memo2(box):
     row("typed on: 'Xabc dog'", area(L)[2] == "Xabc dog", repr(area(L)))
     L = t.keys(CTRL_Z)
     row("one Ctrl-Z takes the whole run of typing back (a run is one step): 'X dog'", area(L)[2] == "X dog", repr(area(L)))
-    L = t.keys(CTRL_N)
-    row("Ctrl-N with nothing more to find rings the bell and leaves the text as it is", area(L)[2] == "X dog", repr(area(L)))
+    L = t.keys(F3_KEY)
+    row("F3 with nothing more to find rings the bell and leaves the text as it is (find next was Ctrl-N until 28 Oct 26)", area(L)[2] == "X dog", repr(area(L)))
     L = t.keys(CTRL_F, BS * 4, "fox", RET)               # the question starts with the last text ('LAZY'): rubbed out
     sel = t.attrs(r0 + 1)[c0:c0 + 4]
     row("find (14 Oct 26): Ctrl-F asks and finds forward, as SED's does - 'fox' on the second row is selected", sel == "rrrn", repr(sel))
@@ -2062,8 +2092,8 @@ def part_memo2(box):
     c0 = p[1] if p else 0
     L = t.keys(CTRL_G, RIGHT, RIGHT, RIGHT)
     row("a viewer selects: 'one' is in reverse", t.attrs(r0)[c0:c0 + 4] == "rrrn", repr(t.attrs(r0)[c0:c0 + 4]))
-    L = t.keys(CTRL_O, "z", CTRL_V, BS)
-    row("...copies; typing, Ctrl-V and Backspace change nothing in a viewer",
+    L = t.keys(CTRL_C, "z", CTRL_V, BS)
+    row("...copies (Ctrl-C); typing, Ctrl-V and Backspace change nothing in a viewer",
         L[r0][c0:c0 + 13] == "one two three" and L[r0 + 1][c0:c0 + 13] == "four five six", repr(L[r0:r0 + 2]))
     L = t.keys(TAB, CTRL_V)
     p2 = at(L, "onex")
@@ -2204,6 +2234,147 @@ def part_menutall(box):
     t.end()
 
 
+def part_memo4(box):
+    """The memo's keys of the owner's decision D31 (28 Oct 26): Ctrl-A selects all, Ctrl-O is not a copy key, F3 finds the next
+    (not Ctrl-N), Ctrl-D duplicates the line (Delete joins), Ctrl-K cuts the whole line into the clipboard.  Every session starts
+    a fresh SD, so the library's clipboard is empty at the start of each.  A row that says 'control' passes on the keys as they
+    were before as well, for the reason it gives."""
+    ORIG = ["one two three", "four five six", "one again", "last"]
+    ALL = "ok| 4|one two three/four five six/one again/last|"
+
+    def begin():
+        t = Term(box, "RUN bp zzthmk4")
+        t.keys()
+        L = t.keys("a")
+        p = at(L, "one two three")
+        return t, (p[0] if p else 0), (p[1] if p else 0), p is not None
+
+    def finish(t, want, what):
+        t.keys(TAB)
+        t.keys(RET)
+        row(what, final(t, "PRESSED") == want, "")
+        t.end()
+
+    def lines_of(t, L, r0, c0, n=4):
+        return [l[c0:c0 + 19].rstrip() for l in L[r0:r0 + n]]
+
+    def rev(t, r, c0, n):
+        return t.attrs(r)[c0:c0 + n]
+
+    say("\n--- the text area: Ctrl-A selects all, Home keeps the row (28 Oct 26) ---------------------------------------")
+    t, r0, c0, shown = begin()
+    L = t.lines()
+    row("control: the four lines show, the cursor is at the start of the first, nothing is in reverse",
+        shown and lines_of(t, L, r0, c0) == ORIG and t.cursor() == (c0, r0) and all("r" not in rev(t, r0 + i, c0, 19) for i in range(4)),
+        repr((lines_of(t, L, r0, c0), t.cursor())))
+    L = t.keys(DOWN, RIGHT, RIGHT, RIGHT, HOME)
+    row("Home goes to the start of the ROW and selects nothing: the cursor is in column 1 of line 2, no cell is in reverse",
+        t.cursor() == (c0, r0 + 1) and all("r" not in rev(t, r0 + i, c0, 19) for i in range(4)), repr((t.cursor(), [rev(t, r0 + i, c0, 19) for i in range(4)])))
+    L = t.keys(CTRL_A)
+    row("Ctrl-A selects the whole text: every character of all four lines is in reverse and the cursor is after the last one",
+        rev(t, r0, c0, 13) == "r" * 13 and rev(t, r0 + 1, c0, 13) == "r" * 13 and rev(t, r0 + 2, c0, 9) == "r" * 9 and rev(t, r0 + 3, c0, 4) == "rrrr"
+        and t.cursor() == (c0 + 4, r0 + 3), repr(([rev(t, r0 + i, c0, 14) for i in range(4)], t.cursor())))
+    L = t.keys(CTRL_X)
+    row("Ctrl-X after Ctrl-A cuts all of it: the area is empty", lines_of(t, L, r0, c0) == ["", "", "", ""], repr(lines_of(t, L, r0, c0)))
+    L = t.keys(CTRL_Z)
+    row("Ctrl-Z brings it all back in one step, the cursor after the last character again",
+        lines_of(t, L, r0, c0) == ORIG and t.cursor() == (c0 + 4, r0 + 3), repr((lines_of(t, L, r0, c0), t.cursor())))
+    L = t.keys(CTRL_V)
+    row("Ctrl-V puts all of it back at the cursor (it was in the clipboard): the text is seven lines now and the last line of the old text is "
+        "joined to the first of the pasted one, 'lastone two three'; the cursor is after the pasted 'last', at the bottom of the area",
+        "lastone two three" in lines_of(t, L, r0, c0, 5) and lines_of(t, L, r0, c0, 5)[4] == "last" and t.cursor() == (c0 + 4, r0 + 4),
+        repr((lines_of(t, L, r0, c0, 5), t.cursor())))
+    L = t.keys(CTRL_Z)
+    # (the area has scrolled after a seven-line paste and stays scrolled after the undo, so what is on screen is not the first four lines; the program's own text, read at the end, is the judge)
+    finish(t, ALL, "Ctrl-Z took the paste back in one step: the program has the text, as it was (four lines)")
+
+    say("\n--- the text area: Ctrl-O is not a copy key (28 Oct 26) --------------------------------------------------")
+    t, r0, c0, shown = begin()
+    L = t.keys(CTRL_G, RIGHT, RIGHT, RIGHT)
+    row("control: Ctrl-G and three Rights select 'one'", shown and rev(t, r0, c0, 4) == "rrrn", repr(rev(t, r0, c0, 4)))
+    L = t.keys(CTRL_O)
+    row("Ctrl-O does not copy: 'one' is still selected (a copy takes the selection off)", rev(t, r0, c0, 4) == "rrrn", repr(rev(t, r0, c0, 4)))
+    L = t.keys(CTRL_V)
+    row("...and nothing was put in the clipboard: Ctrl-V changes nothing", lines_of(t, L, r0, c0) == ORIG, repr(lines_of(t, L, r0, c0)))
+    L = t.keys(CTRL_C)
+    row("control: Ctrl-C copies and takes the selection off", rev(t, r0, c0, 4) != "rrrn" and "r" not in rev(t, r0, c0, 13), repr(rev(t, r0, c0, 13)))
+    L = t.keys(END, CTRL_V)
+    row("control: and Ctrl-V then pastes what Ctrl-C copied: 'one two threeone'", lines_of(t, L, r0, c0)[0] == "one two threeone", repr(lines_of(t, L, r0, c0)))
+    finish(t, "ok| 4|one two threeone/four five six/one again/last|", "the program has the text with the one paste")
+
+    say("\n--- the text area: F3 finds the next one, Ctrl-N does not (28 Oct 26) ----------------------------------------")
+    t, r0, c0, shown = begin()
+    L = t.keys(CTRL_F, "one", RET)
+    row("control: Ctrl-F and Return find 'one' on the first line and select it", shown and rev(t, r0, c0, 4) == "rrrn" and "r" not in rev(t, r0 + 2, c0, 9),
+        repr((rev(t, r0, c0, 4), rev(t, r0 + 2, c0, 9))))
+    L = t.keys(F3_KEY)
+    row("F3 finds the next one: the 'one' on the third line is selected, the first is not",
+        rev(t, r0 + 2, c0, 4) == "rrrn" and "r" not in rev(t, r0, c0, 13), repr((rev(t, r0, c0, 13), rev(t, r0 + 2, c0, 9))))
+    L = t.keys(F3_KEY)
+    row("F3 again goes round the end of the text to the first line", rev(t, r0, c0, 4) == "rrrn" and "r" not in rev(t, r0 + 2, c0, 9),
+        repr((rev(t, r0, c0, 4), rev(t, r0 + 2, c0, 9))))
+    L = t.keys(CTRL_N)
+    row("Ctrl-N is not find next any more: the selection is still the first line's 'one'", rev(t, r0, c0, 4) == "rrrn" and "r" not in rev(t, r0 + 2, c0, 9),
+        repr((rev(t, r0, c0, 4), rev(t, r0 + 2, c0, 9))))
+    L = t.keys(CTRL_F, RET)
+    row("control: Return on the Ctrl-F question, which starts with the last text, still finds the next one: the third line",
+        rev(t, r0 + 2, c0, 4) == "rrrn" and "r" not in rev(t, r0, c0, 13), repr((rev(t, r0, c0, 13), rev(t, r0 + 2, c0, 9))))
+    finish(t, ALL, "the program has the text, unchanged by the finds")
+
+    say("\n--- the text area: Shift-F3 finds the previous one, F3 the next (28 Oct 26) --------------------------------------")
+    t, r0, c0, shown = begin()
+    L = t.keys(CTRL_F, "one", RET)
+    row("control: Ctrl-F and Return find 'one' on the first line and select it", shown and rev(t, r0, c0, 4) == "rrrn" and "r" not in rev(t, r0 + 2, c0, 9),
+        repr((rev(t, r0, c0, 4), rev(t, r0 + 2, c0, 9))))
+    L = t.keys(F3_KEY)
+    row("control: F3 finds the next one: the 'one' on the third line is selected, the first is not",
+        rev(t, r0 + 2, c0, 4) == "rrrn" and "r" not in rev(t, r0, c0, 13), repr((rev(t, r0, c0, 13), rev(t, r0 + 2, c0, 9))))
+    L = t.keys(SHIFT_F3_KEY)
+    row("Shift-F3 finds the previous one: the 'one' on the first line is selected again and the third line's is not",
+        rev(t, r0, c0, 4) == "rrrn" and "r" not in rev(t, r0 + 2, c0, 9), repr((rev(t, r0, c0, 4), rev(t, r0 + 2, c0, 9))))
+    L = t.keys(SHIFT_F3_KEY)
+    row("Shift-F3 again goes back round the start of the text to the last one: the third line's 'one', not the first line's",
+        rev(t, r0 + 2, c0, 4) == "rrrn" and "r" not in rev(t, r0, c0, 13), repr((rev(t, r0, c0, 13), rev(t, r0 + 2, c0, 9))))
+    finish(t, ALL, "the program has the text, unchanged by the finds")
+
+    say("\n--- the text area: Ctrl-D duplicates the line, Delete still joins (28 Oct 26) -----------------------------")
+    t, r0, c0, shown = begin()
+    L = t.keys(DOWN, RIGHT, RIGHT)
+    row("control: the cursor is on the second line, in its third column", shown and t.cursor() == (c0 + 2, r0 + 1), repr(t.cursor()))
+    L = t.keys(CTRL_D)
+    row("Ctrl-D duplicates the line: 'four five six' twice, the other lines where they were, the cursor on the copy in the same column",
+        lines_of(t, L, r0, c0, 5) == ["one two three", "four five six", "four five six", "one again", "last"] and t.cursor() == (c0 + 2, r0 + 2),
+        repr((lines_of(t, L, r0, c0, 5), t.cursor())))
+    L = t.keys(CTRL_D)
+    L = t.keys(CTRL_Z)
+    row("each Ctrl-D is a step of its own: two of them and one Ctrl-Z leave one copy",
+        lines_of(t, L, r0, c0, 5) == ["one two three", "four five six", "four five six", "one again", "last"], repr(lines_of(t, L, r0, c0, 5)))
+    L = t.keys(CTRL_Z)
+    row("...and a second Ctrl-Z leaves the original, the cursor where it was",
+        lines_of(t, L, r0, c0) == ORIG and t.cursor() == (c0 + 2, r0 + 1), repr((lines_of(t, L, r0, c0), t.cursor())))
+    L = t.keys(END, DELK)
+    row("control: Delete at the end of a line still joins the next line to it (the joined line is cut at the area's 19 cells)",
+        lines_of(t, L, r0, c0, 3) == ["one two three", "four five sixone ag", "last"], repr(lines_of(t, L, r0, c0, 3)))
+    finish(t, "ok| 3|one two three/four five sixone again/last|", "the program has the text with the join")
+
+    say("\n--- the text area: Ctrl-K cuts the whole line, Ctrl-V puts it back above a line (28 Oct 26) ------------------")
+    t, r0, c0, shown = begin()
+    L = t.keys(DOWN, RIGHT, RIGHT)
+    row("control: the cursor is on the second line, in its third column", shown and t.cursor() == (c0 + 2, r0 + 1), repr(t.cursor()))
+    L = t.keys(CTRL_K)
+    row("Ctrl-K cuts the WHOLE line (not the end of it): 'four five six' is gone, the cursor is in column 1 of the line that took its place",
+        lines_of(t, L, r0, c0, 3) == ["one two three", "one again", "last"] and t.cursor() == (c0, r0 + 1),
+        repr((lines_of(t, L, r0, c0, 4), t.cursor())))
+    L = t.keys(CTRL_Z)
+    row("control: Ctrl-Z brings the line back, in one step, the cursor where it was",
+        lines_of(t, L, r0, c0) == ORIG and t.cursor() == (c0 + 2, r0 + 1), repr((lines_of(t, L, r0, c0), t.cursor())))
+    L = t.keys(CTRL_K, DOWN, CTRL_V)
+    row("Ctrl-K again, Down to 'last' and Ctrl-V: the cut line is put back ABOVE 'last', at its column 1, and the cursor is on 'last' in column 1",
+        lines_of(t, L, r0, c0) == ["one two three", "one again", "four five six", "last"] and t.cursor() == (c0, r0 + 3),
+        repr((lines_of(t, L, r0, c0), t.cursor())))
+    finish(t, "ok| 4|one two three/one again/four five six/last|", "the program has the text with the line moved")
+
+
 def part_memo3(box):
     say("\n--- the text area: syntax colour and line numbers (13 Oct 26) -------------------------------------------")
     t = Term(box, "RUN bp zzthsyn")
@@ -2230,7 +2401,7 @@ def part_memo3(box):
     L = t.keys("q")
     row("typing goes in at the cursor and the colours follow the text: q* a comment is no comment now, the * is plain",
         L[r0][c0:c0 + 12] == "q* a comment" and t.style(r0, c0 + 1) == (None, None, ""), repr((L[r0][c0:c0 + 12], t.style(r0, c0 + 1))))
-    L = t.keys(CTRL_A, DELK)
+    L = t.keys(HOME, DELK)                  # (Home: Ctrl-A selected all from 28 Oct 26 and Delete would have cleared the text)
     row("deleting the q gives the comment back its colour, in one go", L[r0][c0:c0 + 11] == "* a comment" and t.style(r0, c0) == cm, repr((L[r0][c0:c0 + 11], t.style(r0, c0))))
     # a click on the text: through the numbers
     click(t, c0 + 4, r0)
@@ -2385,7 +2556,7 @@ def part_set(box):
     row("SET WRAP 1 wraps the memo while it is on the screen: 'the quick brown', 'fox jumps over the', 'lazy dog'",
         A == ["the quick brown", "fox jumps over the", "lazy dog"], repr(A))
     row("SET VISIBLE 0 hides the button: no OK on the form", not any("[ OK ]" in l for l in L), "\n".join(L[r0 - 1:r0 + 8]))
-    L = t.keys(F3_KEY, "x", "y")
+    L = t.keys("\x1b[18~", "x", "y")                 # F7: the program's own key for SET READONLY (it was F3 until the text area took F3 for find next)
     A = [L[r0 + i][c0:c0 + 19].rstrip() for i in range(3)]
     row("SET READONLY 1 makes it a viewer: typing changes nothing", A == ["the quick brown", "fox jumps over the", "lazy dog"], repr(A))
     t.keys(F4_KEY)
@@ -2757,6 +2928,7 @@ def main():
         if "memo" in parts:
             part_memo(box)
             part_memo2(box)
+            part_memo4(box)
             part_memo3(box)
         if "themes" in parts:
             part_themes(box)

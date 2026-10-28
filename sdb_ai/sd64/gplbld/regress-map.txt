@@ -532,6 +532,14 @@ sdsys/gpl.bp/sl_pickwin      : tk-base
 sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps
 sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr
+# S.88 Phase 4 (28 Oct 26): the IDE's one name form, and its messages 11963-11975 (11214 and 11225 changed too)
+sdsys/gpl.bp/ide_name        : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr
+sdsys/messages/1196[3-9]     : ide-fresh ide
+sdsys/messages/1197[0-5]     : ide-fresh ide
+sdsys/messages/11214         : ide ide-small ide-sed
+sdsys/messages/11225         : ide ide-small ide-sed ide-fresh idedraw
+# the IDE's key map and the memo's editing keys, held as text (28 Oct 26, S.88 Phase 4); a free check, so it needs no sandbox suite
+gplbld/test-idekeys-units.py : none
 sdsys/gpl.bp/ced*            : ced editgates shared ide-small ai-apps recarr
 # One-editor plan, stage 1 (26 Oct 26): $recarr, a record as a nested array and back; CED's data mode; the IDE's F12 (messages 11988-11990)
 sdsys/gpl.bp/recarr          : recarr

@@ -74,6 +74,8 @@ ALLOWED = {
     ("bcomp", "11394"):"Core's list of constant @-variables lost @AM and @SVM (27 Oct 26, S.87 batch 13); Solo keeps them until the carry",
     ("login", "11900"):"Core's VOC update reports the records its deletion list removed (27 Oct 26, S.87); Solo's 11900 is another message until the carry",
     ("ide", "11215"): "Core's help names F12, Edit as fields (26 Oct 26, one-editor plan stage 1); Solo's does not until the carry",
+    ("ide", "11214"): "Core's help names Ctrl-N, New record, and the untitled buffer's first save (28 Oct 26, S.88 Phase 4); Solo's does not until the carry",
+    ("ide", "11216"): "Core's help names F3, F10, Ctrl-A, Ctrl-D and Ctrl-K by the owner's keys of 20 Oct (28 Oct 26, S.88 Phase 4); Solo's does not until the carry",
     ("mkindx", "2613"): "Core's list of dictionary item types lost C (28 Oct 26, S.87 D-019: the C item type is gone); Solo keeps the old text until the carry",
     ("bcomp", "11274"):"Core reads 'Default argument values need the VAR.ARGS option' (28 Oct 26, S.87: the DEFAULT.UNASS.ARGS mode word was removed); Solo keeps the old text until the carry",
 }

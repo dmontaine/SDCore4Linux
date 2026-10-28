@@ -11,6 +11,8 @@
 #
 # START-HISTORY:
 # 18 Oct 26 dm  New (plan-terminal-140x42.md, Part B).
+# 28 Oct 26 dm  F3 is the editor's find next, not the tree: the tree is reached with ID.GOTO_TREE (Shift-F6 twice); the Go menu has Previous pane,
+#               so Edit in SED is its eighth entry.
 # END-HISTORY
 #
 # HOW IT DRIVES THEM.  The IDE and SED run on ONE pseudo-terminal at 140 by 42 (ptydrive.py, the screen read from termscreen.py), the keys
@@ -43,7 +45,7 @@ spec.loader.exec_module(ID)
 
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 RUN = ID.RUN
-F7, F10, DOWN, RIGHT, RET, ESC, END = ID.F7, ID.F10, ID.DOWN, ID.RIGHT, ID.RET, ID.ESC, ID.END
+F8, F10, DOWN, RIGHT, RET, ESC, END = ID.F8, ID.F10, ID.DOWN, ID.RIGHT, ID.RET, ID.ESC, ID.END   # F8 is compile since S.88 Phase 4 (F7 is debug)
 CTRL = lambda ch: chr(ord(ch.upper()) - 64)         # noqa: E731
 CTRL_E, CTRL_Q, CTRL_S = CTRL("e"), CTRL("q"), CTRL("s")
 
@@ -166,7 +168,7 @@ end
         say("\n--- Ctrl-E: the record goes to SED; SED's save returns to the IDE with the new text ---------------------------")
         e = IdeK(box, "IDE bp %s" % P)
         scr = e.s.screen
-        L = e.keys(F7)
+        L = e.keys(F8)
         row("control: the IDE shows the record and its compile errors (the table has the error before the hand-over)",
             in_ide(L) and "1 error(s)" in e.status() and not table_empty(L), e.status() + " | " + " ".join(l[30:80] for l in L[35:38]))
         L = e.keys(CTRL_E)
@@ -234,7 +236,7 @@ end
         e = IdeK(box, "IDE bp %s" % P)
         L = e.keys(F10, RIGHT)
         row("the Go menu lists Edit in SED with its key, ^E", any("Edit in SED" in l and "^E" in l for l in L[1:12]), "\n".join(l[:60] for l in L[:10]))
-        L = e.keys(DOWN * 4, RET, idle=0.8)
+        L = e.keys(DOWN * 7, RET, idle=0.8)                 # the eighth entry of Go: Go to line, Next error, Next tab, Previous tab, Files and records, Next pane, Previous pane, Edit in SED
         L = wait(e)
         row("choosing it opens SED on the record", in_sed(L), L[-1][:80])
         L = leave_sed(e)
@@ -251,7 +253,7 @@ end
 
         say("\n--- a record id with a blank in it goes to SED whole (the verifier's F1, 19 Oct 26) ----------------------------------")
         e = IdeK(box)
-        e.keys("b", RET)
+        e.keys(*ID.GOTO_TREE, "b", RET)                   # Shift-F6 twice to the tree (F3 is find next): the focus starts in the Untitled editor since S.88 Phase 4
         L = e.keys("z", RET)
         row("control: the record %r is open in the IDE, opened from the tree (its tab, its first line)" % SP,
             ("[%s]" % SP) in L[2] and "blank one" in "\n".join(L[3:6]), L[2][:90] + " | " + L[3][28:70])

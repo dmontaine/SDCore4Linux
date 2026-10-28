@@ -373,7 +373,7 @@ def reg_fields(name):
     return (g.reg_read(name) + [""] * 12)[:12]
 
 
-F2, CTRL_Q, CTRL_S, DOWN, HOME, RET = "\x1bOQ", "\x11", "\x13", "\x1bOB", "\x1b[1~", "\r"
+CTRL_Q, CTRL_S, DOWN, HOME, RET = "\x11", "\x13", "\x1bOB", "\x1b[1~", "\r"
 
 
 def pty_edit(account, cmd, keys, leave):
@@ -413,9 +413,11 @@ def editors_section():
     for n in ("zzoff", "zzall"):
         build(n)
         voc, bp, dic = WANT[n]
-        # IDE: a program record and a VOC record (F2 saves)
-        t1 = pty_edit(n, "IDE bp zzold", [HOME, "ZZ", F2], [CTRL_Q, DOWN, RET])
-        t2 = pty_edit(n, "IDE voc zzvrec2", [HOME, "ZZ", F2], [CTRL_Q, DOWN, RET])
+        # IDE: a program record and a VOC record (Ctrl-S saves; F2 went in S.88 Phase 4).  A refusal is shown in a box that stays until a key is pressed
+        # (since Phase 4), so the leaving keys begin with Return: it closes that box, and where there is none (the save worked) it is a newline in the editor,
+        # which only makes the Ctrl-Q question appear, and Discard answers it; the record on disk is what the row reads
+        t1 = pty_edit(n, "IDE bp zzold", [HOME, "ZZ", CTRL_S], [RET, CTRL_Q, DOWN, RET])
+        t2 = pty_edit(n, "IDE voc zzvrec2", [HOME, "ZZ", CTRL_S], [RET, CTRL_Q, DOWN, RET])
         # SED: a program record, a VOC record and a dictionary record (Ctrl-S saves)
         t3 = pty_edit(n, "SED bp zzold2", ["ZZ", CTRL_S], [CTRL_Q, "y"])
         t4 = pty_edit(n, "SED voc zzvrec3", ["ZZ", CTRL_S], [CTRL_Q, "y"])

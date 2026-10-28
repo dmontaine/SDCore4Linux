@@ -25,7 +25,8 @@
 # the emulator.  "Writes" are the CELLS of text the IDE sent to the terminal for one action, counted from the bytes themselves (a cursor
 # position, then the printable text after it), never from what the IDE said.  The numbers under "red" are what the tree before this change
 # wrote for the same actions, measured 19 Oct 26 with the same harness: a file chosen 3078 cells, a record chosen 6635 (a screen is 5880),
-# F3 4326, DOWN in the tree 1026, a second record 5616, F6 3564.
+# F3 4326, DOWN in the tree 1026, a second record 5616, F6 3564.  (28 Oct 26: F3 is the editor's find next; the tree is reached by Shift-F6 twice from
+# the editor, and the row that measured F3 measures the second Shift-F6, tabs to tree, against the same limit.)
 
 import importlib.util
 import os
@@ -44,6 +45,7 @@ TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 RUN = "%05d" % (os.getpid() % 100000)
 passed = failed = 0
 CSI = re.compile(r"\x1b\[([0-9;?]*)([A-Za-z])")
+CTRL_PGDN = "\x1b[6;5~"                                   # the next record tab (Ctrl-PageUp, "\x1b[5;5~", is the previous)
 
 
 def say(s=""):
@@ -182,14 +184,16 @@ end
         row("F10 after those clicks opens the first menu, not the one last clicked", sb.has(L, "New record", "Close record") and "Go to line" not in "\n".join(L), e.text()[:300])
         L = e.keys(sb.ESC)
         row("the editor is still there after the menus", ("bp %s" % A) in e.status(), e.status())
-        L = e.keys(sb.click(2, 0), sb.DOWN, sb.RET)       # File, down to Save, Return: a record with no change is saved as it is
-        row("a menu opened by a click is used with the keys as any other (Down, Return chose Save; the menu is gone)", "New record" not in "\n".join(L), e.text()[:300])
+        L = e.keys(sb.click(2, 0), sb.DOWN * 2, sb.RET)   # File, down to Save (New record, Open record, Save), Return: a record with no change is saved as it is
+        row("a menu opened by a click is used with the keys as any other (Down, Down, Return chose Save; the menu is gone)", "New record" not in "\n".join(L), e.text()[:300])
         e.end()
 
         # ---- (1) what choosing writes ---------------------------------------------------------------------------------------
         say("\n--- (1) what a choice writes to the terminal ---------------------------------------------------------------")
         e = sb.Ide(box)
         scr = e.s.screen
+        e.keys(*sb.GOTO_TREE)                             # the focus starts in the Untitled editor now (S.88 Phase 4): to the tree first (F3 is find next)
+        e.quiet()
         m = len(e.s.raw)
         L = e.keys("b", sb.RET)                           # a FILE chosen: its records are listed under it
         runs = written(bytes(e.s.raw[m:]))
@@ -203,11 +207,13 @@ end
         row("...the tree gets %d cells in %d rows (the highlight moves: red 3 times the whole tree)" % (tree_cells(runs), tree_rows(runs)),
             tree_cells(runs) < 200 and tree_rows(runs) <= 4, repr((tree_cells(runs), tree_rows(runs))))
         row("the record is open and its text shows", sb.has(L[2:8], "crt", "one"), "\n".join(l[:70] for l in L[2:8]))
+        L = e.keys(sb.SHIFT_F6)                           # editor -> tabs (F3 reached the tree in one key; the ring takes two, so the second is measured)
         m = len(e.s.raw)
-        L = e.keys(sb.F3)
+        L = e.keys(sb.SHIFT_F6)                           # tabs -> tree
         runs = written(bytes(e.s.raw[m:]))
-        # (the tree's row, the editor's row that held the highlighted cursor, and the status line, whose first word is the pane: about 275)
-        row("F3, the focus back to the tree, writes %d cells (red 4326): under 400" % cells(runs), cells(runs) < 400, repr(cells(runs)))
+        # (the tree's row, the tab strip's mark, and the status line, whose first word is the pane: about 275)
+        row("Shift-F6, the focus on to the tree (the key before it came from the editor), writes %d cells (red 4326 with F3): under 400" % cells(runs), cells(runs) < 400, repr(cells(runs)))
+        row("...and the status line says [Files]", e.status().startswith("[Files]"), e.status())
         m = len(e.s.raw)
         L = e.keys(sb.DOWN)
         runs = written(bytes(e.s.raw[m:]))
@@ -218,10 +224,20 @@ end
         runs = written(bytes(e.s.raw[m:]))
         row("a second record writes %d cells (red 5616): under 2000" % cells(runs), cells(runs) < 2000, repr(cells(runs)))
         m = len(e.s.raw)
-        L = e.keys(sb.F6)
+        L = e.keys(CTRL_PGDN)                             # F6 is the next PANE since S.88 Phase 4; the tabs are Ctrl-PageDown / Ctrl-PageUp
         runs = written(bytes(e.s.raw[m:]))
-        row("F6, to the other tab, writes %d cells (red 3564): under 2000, none in the tree (%d)" % (cells(runs), tree_cells(runs)),
+        row("Ctrl-PageDown, to the other tab, writes %d cells (red 3564 with F6, the key it was): under 2000, none in the tree (%d)" % (cells(runs), tree_cells(runs)),
             cells(runs) < 2000 and tree_cells(runs) < 60, repr((cells(runs), tree_cells(runs))))
+        m = len(e.s.raw)
+        e.quiet()
+        pane0 = e.status().split("]")[0]
+        m = len(e.s.raw)
+        L = e.keys(sb.F6)
+        e.quiet()
+        runs = written(bytes(e.s.raw[m:]))
+        pane1 = e.status().split("]")[0]
+        row("F6, the next pane, moves the focus (the status line names another pane: %r then %r) and writes %d cells: under 400, as a Tab does" % (pane0, pane1, cells(runs)),
+            pane1 != pane0 and cells(runs) < 400, repr((pane0, pane1, cells(runs))))
         m = len(e.s.raw)
         e.quiet()
         row("an idle IDE writes next to nothing (%d bytes in 2 seconds)" % (len(e.s.raw) - m), len(e.s.raw) - m < 400, repr(len(e.s.raw) - m))
@@ -231,7 +247,7 @@ end
         say("\n--- (3) Tab, and the pane named on the status line -----------------------------------------------------------")
         e = sb.Ide(box)
         st = e.status()
-        row("the status line names the pane that has the focus at the start: [Files]", st.startswith("[Files]"), st)
+        row("the status line names the pane that has the focus at the start: [Editor] (the Untitled buffer; it was [Files] before S.88 Phase 4)", st.startswith("[Editor]"), st)
         seen = []
         for _ in range(4):
             e.keys(sb.TAB)
@@ -242,9 +258,14 @@ end
         e.end()
         e = sb.Ide(box, "IDE bp %s" % A)
         row("a record opened from the command line starts in the editor: the status line says [Editor] and the record", e.status().startswith("[Editor]") and A in e.status(), e.status())
+        e.keys(*sb.GOTO_TREE)
+        e.quiet()
+        row("Shift-F6 twice moves the focus to the tree and the line says [Files]", e.status().startswith("[Files]") and A in e.status(), e.status())
+        e.end()
+        e = sb.Ide(box, "IDE bp %s" % A)
         e.keys(sb.F3)
         e.quiet()
-        row("F3 moves the focus to the tree and the line says [Files]", e.status().startswith("[Files]") and A in e.status(), e.status())
+        row("F3 does NOT move the focus to the tree: the line still says [Editor] (F3 is find next)", e.status().startswith("[Editor]") and A in e.status(), e.status())
         e.end()
 
         # ---- (3b) a [*] / [-] indicator in the top right corner of each pane -------------------------------------------------------
@@ -254,8 +275,8 @@ end
         e = sb.Ide(box)
         ps = panes_state(e.lines())
         row("at the start there is an indicator in each of the four panes: %s" % ps, sorted(ps) == ["ed", "err", "tabs", "tree"] and "??" not in ps.values(), repr(ps))
-        row("...[*] on the files (they have the focus) and [-] on the other three",
-            ps.get("tree") == "[*]" and [ps.get(k) for k in ("tabs", "ed", "err")] == ["[-]"] * 3, repr(ps))
+        row("...[*] on the editor (it has the focus at the start) and [-] on the other three",
+            ps.get("ed") == "[*]" and [ps.get(k) for k in ("tree", "tabs", "err")] == ["[-]"] * 3, repr(ps))
         order = []
         for _ in range(4):
             e.keys(sb.TAB)
@@ -263,13 +284,13 @@ end
             ps = panes_state(e.lines())
             on = [k for k, v in ps.items() if v == "[*]"]
             order.append(on[0] if len(on) == 1 and len(ps) == 4 else "BAD:" + repr(ps))
-        row("Tab moves the [*] round the panes, one at a time: %s" % order, order == ["tabs", "ed", "err", "tree"], repr(order))
+        row("Tab moves the [*] round the panes, one at a time: %s" % order, order == ["err", "tree", "tabs", "ed"], repr(order))
         e.keys(sb.F10)
         e.keys(sb.RIGHT)
         e.keys(sb.ESC)
         e.quiet()
         ps = panes_state(e.lines())
-        row("after a menu has been opened and closed over the bar the four are as they were", sorted(ps) == ["ed", "err", "tabs", "tree"] and ps.get("tree") == "[*]", repr(ps))
+        row("after a menu has been opened and closed over the bar the four are as they were (four Tabs went round to the editor again)", sorted(ps) == ["ed", "err", "tabs", "tree"] and ps.get("ed") == "[*]", repr(ps))
         m = len(e.s.raw)
         e.keys(sb.TAB)
         e.quiet()
@@ -279,10 +300,14 @@ end
         e = sb.Ide(box, "IDE bp %s" % A)
         ps = panes_state(e.lines())
         row("a record opened from the command line: [*] on the editor, [-] on the rest", ps.get("ed") == "[*]" and [ps.get(k) for k in ("tree", "tabs", "err")] == ["[-]"] * 3, repr(ps))
-        e.keys(sb.F3)
+        e.keys(*sb.GOTO_TREE)
         e.quiet()
         ps = panes_state(e.lines())
-        row("F3: the [*] goes to the files and leaves the editor", ps.get("tree") == "[*]" and ps.get("ed") == "[-]", repr(ps))
+        row("Shift-F6 twice: the [*] goes to the files and leaves the editor", ps.get("tree") == "[*]" and ps.get("ed") == "[-]", repr(ps))
+        e.keys(sb.SHIFT_F6)
+        e.quiet()
+        ps = panes_state(e.lines())
+        row("Shift-F6 once more: round the start of the ring to the messages ([*] on err)", ps.get("err") == "[*]" and ps.get("tree") == "[-]", repr(ps))
         e.end()
         e = sb.Ide(box, "IDE bp %s" % A)
         e.s.resize(200, 60, idle=3.0)
@@ -311,7 +336,7 @@ end
         row("Down moves it a row", scr.r == r0 + 1 and cursor_cell() == here, repr((scr.r, scr.c, cursor_cell())))
         L = e.keys("Z")
         row("a typed character is drawn and the highlight is on the place after it", "Z" in L[scr.r] and cursor_cell() == here, L[scr.r][:60])
-        L = e.keys(sb.F3)
+        L = e.keys(*sb.GOTO_TREE)
         e.quiet()
         nh = sum(1 for cc in range(28, 138) for rr in range(3, 30) if scr.style(rr, cc) == here)        # (row 2 is the tab strip, which has its own look)
         row("with the focus on the tree the editor has no highlighted cursor (%d cells in the style)" % nh, nh == 0, repr(nh))
@@ -324,7 +349,7 @@ end
         e.end()
 
         e = sb.Ide(box, "IDE bp %s" % A)
-        L = e.keys(sb.F3)                                 # a keyboard-only user chooses another record in the tree
+        L = e.keys(*sb.GOTO_TREE)                         # a keyboard-only user chooses another record in the tree (the focus is in the editor)
         L = e.keys(sb.DOWN)
         L = e.keys(sb.RET)
         scr = e.s.screen

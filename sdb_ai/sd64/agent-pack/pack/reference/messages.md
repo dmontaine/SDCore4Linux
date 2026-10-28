@@ -2769,7 +2769,7 @@ cited by: `ide`
 Cannot open the file %1
 ```
 
-cited by: `ide`
+cited by: `ide`, `ide_name`
 
 ### msg:11201
 > kind=message tier=reference since=- src=sdsys/messages/11201:1#aa715e2b
@@ -2778,7 +2778,7 @@ cited by: `ide`
 Cannot read record %1 in file %2
 ```
 
-cited by: `ide`
+cited by: `ide`, `ide_name`
 
 ### msg:11202
 > kind=message tier=reference since=- src=sdsys/messages/11202:1#8c0f6040
@@ -2841,7 +2841,7 @@ cited by: `ide`
 Name of the new record:
 ```
 
-cited by: `ide`
+cited by: `ide_name`
 
 ### msg:11209
 > kind=message tier=reference since=- src=sdsys/messages/11209:1#baba61b4
@@ -2896,28 +2896,28 @@ Line %1, column %2
 cited by: `ide`
 
 ### msg:11214
-> kind=message tier=reference since=- src=sdsys/messages/11214:1#7d136ffe
+> kind=message tier=reference since=- src=sdsys/messages/11214:1#42f0bb16
 
 ```
-The IDE\n\nTab, Shift-Tab   Next / previous pane\nReturn           Open the file or record; go to the error\nSpace, Right     Open or close a tree node\nF2 or Ctrl-S     Save the record\nCtrl-W           Write the text to another record\n
+The IDE\n\nTab, Shift-Tab   Next / previous pane\nF6, Shift-F6     Next / previous pane\nReturn           Open the file or record; go to the error\nSpace, Right     Open or close a tree node\nCtrl-S           Save the record (an untitled one asks for its file and name)\nCtrl-N           New record\nCtrl-O           Open a record by file and name\nCtrl-W           Close the record\nCtrl-PgDn, PgUp  Next / previous record tab (Alt-PgDn, PgUp too: a terminal may keep the Ctrl keys for its own tabs)\n
 ```
 
 cited by: `ide`
 
 ### msg:11215
-> kind=message tier=reference since=- src=sdsys/messages/11215:1#8a3a0d0f
+> kind=message tier=reference since=- src=sdsys/messages/11215:1#735ac6e4
 
 ```
-F4               Next error or result\nF5               Run          F7  Compile\nF8               Compile and catalogue\nF9               Compile and debug\nCtrl-L           Go to a line\nF11              Find in the records of the file\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks\n
+F4               Next error or result\nF5               Run\nF7               Debug\nF8               Compile\nF9               Build: compile and catalogue\nCtrl-L           Go to a line\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks\nMenus            Save as, Write a copy and Find in the records of the file are in the File and Search menus\n
 ```
 
 cited by: `ide`
 
 ### msg:11216
-> kind=message tier=reference since=- src=sdsys/messages/11216:1#170a40ee
+> kind=message tier=reference since=- src=sdsys/messages/11216:1#2ddb0954
 
 ```
-Ctrl-F, Ctrl-B   Find forward, backward   Ctrl-R  Replace\nF6               Next record tab\nF3               Go to the tree\nF10 or Esc      The menus\nCtrl-Q           Quit\nF1               This screen\nCtrl-P, Ctrl-U   A word back, on
+Ctrl-F, Ctrl-B   Find forward, backward   F3, Shift-F3  The next, the previous (Return in the question finds the next)   Ctrl-R  Replace\nEsc, F10        The menus (Files and records is in the Go menu)\nCtrl-Q           Quit\nF1               This screen\nCtrl-A           Select all   Ctrl-D  Duplicate the line   Ctrl-K  Cut the line\nCtrl-P, Ctrl-U   A word back, on
 ```
 
 cited by: `ide`
@@ -2929,7 +2929,7 @@ cited by: `ide`
 Record %1 already exists in %2
 ```
 
-cited by: `ide`
+cited by: `ide`, `ide_name`
 
 ### msg:11218
 > kind=message tier=reference since=- src=sdsys/messages/11218:1#d5cde776
@@ -2993,31 +2993,31 @@ Press Return to go back to the IDE
 cited by: `ide`
 
 ### msg:11225
-> kind=message tier=reference since=- src=sdsys/messages/11225:1#27278247
+> kind=message tier=reference since=- src=sdsys/messages/11225:1#2b14bf00
 
 ```
-&File|&New record~~new|&Save~F2~save|Save &as~^W~writeas|&Close record~~close|&Quit~^Q~quit
+&File|&New record~^N~new|&Open record~^O~open|&Save~^S~save|Save &as~~saveas|Write a &copy~~writeas|&Close record~^W~close|&Quit~^Q~quit
 ```
 
 ### msg:11226
-> kind=message tier=reference since=- src=sdsys/messages/11226:1#194ab716
+> kind=message tier=reference since=- src=sdsys/messages/11226:1#ab26469e
 
 ```
-&Go|Go to &line~^L~goto|&Next error~F4~nexterr|Next &tab~F6~nexttab|&Files and records~F3~tree|&Edit in SED~^E~sed|Edit as f&ields~F12~fields
+&Go|Go to &line~^L~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Edit in SED~^E~sed|Edit as f&ields~F12~fields
 ```
 
 ### msg:11227
-> kind=message tier=reference since=- src=sdsys/messages/11227:1#a97fcac3
+> kind=message tier=reference since=- src=sdsys/messages/11227:1#6e69098e
 
 ```
-&Search|&Find in the records~F11~find|&Replace in the record~^R~replace
+&Search|&Find in the records~~find|&Replace in the record~^R~replace
 ```
 
 ### msg:11228
-> kind=message tier=reference since=- src=sdsys/messages/11228:1#91222fca
+> kind=message tier=reference since=- src=sdsys/messages/11228:1#bd60f6f0
 
 ```
-&Build|&Compile~F7~compile|Compile and &catalogue~F8~catalog|&Run~F5~run|&Debug~F9~debug
+&Build|&Compile~F8~compile|Compile and &catalogue~F9~catalog|&Run~F5~run|&Debug~F7~debug
 ```
 
 ### msg:11229
@@ -6447,6 +6447,24 @@ Explain where this program has stopped, what the lines round the stop do, and wh
 
 cited by: `debug`
 
+### msg:11682
+> kind=message tier=reference since=- src=sdsys/messages/11682:1#bd51b45e
+
+```
+Open a record
+```
+
+cited by: `ide_name`
+
+### msg:11683
+> kind=message tier=reference since=- src=sdsys/messages/11683:1#4053fef0
+
+```
+%1 is not a file of records: names that start with a dollar sign belong to SD itself
+```
+
+cited by: `ide_name`
+
 ### msg:11700
 > kind=message tier=reference since=- src=sdsys/messages/11700:1#1e363371
 
@@ -7856,6 +7874,123 @@ The Back tile cannot be turned off: a person must always be able to leave a sub-
 ```
 
 cited by: `settile`
+
+### msg:11963
+> kind=message tier=reference since=- src=sdsys/messages/11963:1#499563a8
+
+```
+Untitled %1
+```
+
+cited by: `ide`
+
+### msg:11964
+> kind=message tier=reference since=- src=sdsys/messages/11964:1#c6e29531
+
+```
+New record
+```
+
+cited by: `ide_name`
+
+### msg:11965
+> kind=message tier=reference since=- src=sdsys/messages/11965:1#55d4305e
+
+```
+Save the record
+```
+
+cited by: `ide_name`
+
+### msg:11966
+> kind=message tier=reference since=- src=sdsys/messages/11966:1#f313a0b1
+
+```
+Save as
+```
+
+cited by: `ide_name`
+
+### msg:11967
+> kind=message tier=reference since=- src=sdsys/messages/11967:1#b0cca821
+
+```
+Write a copy
+```
+
+cited by: `ide_name`
+
+### msg:11968
+> kind=message tier=reference since=- src=sdsys/messages/11968:1#5266132a
+
+```
+File:
+```
+
+cited by: `ide_name`
+
+### msg:11969
+> kind=message tier=reference since=- src=sdsys/messages/11969:1#331b7eaf
+
+```
+Enter  OK     Tab  next field     Esc  Cancel
+```
+
+cited by: `ide_name`
+
+### msg:11970
+> kind=message tier=reference since=- src=sdsys/messages/11970:1#e8826885
+
+```
+Type a name for the record
+```
+
+cited by: `ide_name`
+
+### msg:11971
+> kind=message tier=reference since=- src=sdsys/messages/11971:1#13c3a7ac
+
+```
+No changes to save
+```
+
+cited by: `ide`
+
+### msg:11972
+> kind=message tier=reference since=- src=sdsys/messages/11972:1#d955a311
+
+```
+%1 %2 was not saved: the write was refused (error %3).  The text is still in the editor.
+```
+
+cited by: `ide`
+
+### msg:11973
+> kind=message tier=reference since=- src=sdsys/messages/11973:1#3deaa42a
+
+```
+%1 %2 is being changed by another session.  Try again in a moment.
+```
+
+cited by: `ide`
+
+### msg:11974
+> kind=message tier=reference since=- src=sdsys/messages/11974:1#804bc10f
+
+```
+%1 %2 was not catalogued: %3
+```
+
+cited by: `ide`
+
+### msg:11975
+> kind=message tier=reference since=- src=sdsys/messages/11975:1#4eec16e0
+
+```
+Type the name of a file
+```
+
+cited by: `ide_name`
 
 ### msg:11976
 > kind=message tier=reference since=- src=sdsys/messages/11976:1#58f52a14

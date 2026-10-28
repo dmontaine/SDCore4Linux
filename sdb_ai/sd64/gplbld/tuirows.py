@@ -9,9 +9,9 @@
 #
 # WHY IT EXISTS.  The plan (~/Documents/Audits/TUI/Opus_TUI_Plan.txt, section 6) builds the test net first and fixes in phases.  A row for a fault
 # that a later phase fixes must be RED on the tree before its fix (the instrument rule), yet a suite that is red on purpose would fail every
-# targeted regression that selects it.  So a failing row whose phase is above CURRENT_PHASE is counted PENDING, not failed, and the verdict line
+# targeted regression that selects it.  So a failing row whose phase has not landed (is not in LANDED) is counted PENDING, not failed, and the verdict line
 # says so; `--strict` (or SDTUI_STRICT=1) counts every row at its face value, which is how the red run is made and shown.  A row with no phase,
-# or a phase that has landed, always counts.  Each phase's commit raises CURRENT_PHASE by one, in this file, so that its rows are then
+# or a phase that has landed, always counts.  Each phase's commit adds its number to LANDED, in this file, so that its rows are then
 # held to the pass.
 #
 # START-HISTORY:
@@ -20,7 +20,9 @@
 import os
 import sys
 
-CURRENT_PHASE = 1          # the last phase of the plan whose change has landed (S.88): Phase 1 (the input layer) landed 28 Oct 26; the next sets it to 2, and so on
+# The phases of the plan whose change has landed (S.88).  Phase 1 (the input layer) landed 28 Oct 26; Phase 4 (the IDE: untitled buffer, name form, save under a lock) landed 28 Oct 26
+# BEFORE phases 2 and 3 on the owner's word, so this is a set and not "the last phase": a failing row of phase 2 or 3 is still pending.  A phase's commit adds its number here.
+LANDED = (1, 4)
 
 STRICT = ("--strict" in sys.argv) or os.environ.get("SDTUI_STRICT") == "1"
 
@@ -36,7 +38,7 @@ class Rows:
         if ok:
             self.passed += 1
             print("  [PASS] " + name)
-        elif phase is not None and phase > CURRENT_PHASE and not STRICT:
+        elif phase is not None and phase not in LANDED and not STRICT:
             self.pending += 1
             print("  [PEND phase %d] %s%s" % (phase, name, ("   <- " + detail) if detail else ""))
         else:

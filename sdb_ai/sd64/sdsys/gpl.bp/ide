@@ -6,6 +6,15 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 Phase 4 (the plan in ~/Documents/Audits/TUI/Opus_TUI_Plan.txt, 4.1-4.4, 4.6, 4.9).  A bare IDE opens "Untitled 1", an editable buffer with the focus in the editor, and the
+*               first save of an untitled buffer asks for the file and the record in ONE form ($ide_name), which says why it refuses (the account's gate, a record that exists) and stays open.
+*               New record writes nothing until Save.  Save as switches the tab to the new record (Write a copy keeps the old behaviour, Ctrl-W).  A save takes the record's lock, reads it
+*               again, compares, writes ON ERROR and gives the lock back on every path: a refusing trigger or a full disk is said on the screen and no longer aborts the IDE and every tab
+*               with it.  A refusal of the account's edit gate is shown in a box, whole.  Ctrl-S on an unchanged record says so.  The arrows stay in the editor at its first and last line.
+*               Catalogue checks that the program is in the catalogue before it says so.
+*               THE OWNER'S KEYS OF 20 OCT (D28, D31, D32, D33): Ctrl-S is the only save key (F2 went), F5 run, F7 debug, F8 compile, F9 build (compile and catalogue), F6 the next pane, Ctrl-PageDown /
+*               Ctrl-PageUp the tabs, Ctrl-N new, Ctrl-O open (a file and record form), Ctrl-W close; F11 (find in the records), Save as and Write a copy are menu entries.  The tree no longer lists the
+*               $ entries and the name form refuses a file that starts with a dollar sign.  Write a copy takes the lock and looks at the record again.
 * 26 Oct 26 dm  The language of a record is $sl_syntax's 'detect', as SED asks it (the file name, then the record id, then the first line, then the languages a site added in
 *               &sed.syntax&); it was the record id's suffix alone.  And the TOKEN FORM (owner: "change them to @VM @SVM @TM for editing and then back again when saved"): a record that
 *               holds value, subvalue or text marks is shown in the editor with @vm, @sm and @tm between colons ($recarr 'totext') and read back when it is kept ('fromtext'). The tab
@@ -167,12 +176,19 @@ $include tk.h
    sv.ok = @true
    have.form = @false
    done = @false
+   untitled = 0                      ;* the number of the last untitled buffer made
 
    gosub build.files
    if fn0 # '' then
       lf.name = fn0
       gosub load.file
       cur.code = 'F:' : fn0
+   end
+
+   * 28 Oct 26 (S.88 Phase 4): with no record named the IDE opens an editable "Untitled 1", the focus in the editor; with only a file named the tree keeps the focus
+   if id0 = '' then
+      gosub add.untitled
+      if fn0 = '' then focus.id = 'ed'
    end
 
    gosub new.form
@@ -271,7 +287,8 @@ build.files:
          read r from vocf, ids<i> then
             * the first field is F, or a description that starts "File" (a file's description is kept there)
             t1 = upcase(r<1>)
-            if t1 = 'F' or t1[1, 5] = 'FILE ' then fl<-1> = ids<i>
+            * the $ entries ($acc, $hold, $map, $release) are SD's own, not files of records (28 Oct 26, Opus's review): the tree does not list them
+            if (t1 = 'F' or t1[1, 5] = 'FILE ') and ids<i>[1, 1] # '$' then fl<-1> = ids<i>
          end
       next i
    end
@@ -393,7 +410,8 @@ new.form:
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    mw{'hbar'} = 1
-   mw{'passkeys'} = 'ctrl-e'                     ;* Ctrl-E hands the record to SED (the area's own meaning of it, end of row, is End)
+   mw{'passkeys'} = 'ctrl-e'                     ;* Ctrl-E hands the record to SED (the area's own meaning of it, end of row, is End); F3 / Shift-F3 are the area's find next / previous (the owner's D31)
+   mw{'stay'} = 1                                ;* 28 Oct 26 (I3): Up on the first line and Down on the last stay in the editor and do not move the focus to the tabs or the messages
    mw{'softcur'} = 1                             ;* 19 Oct 26: the character under the cursor is highlighted while the editor has the focus
 
    cols = sysmsg(11221) : @sm : '6R' : @vm : sysmsg(11222) : @sm : (ew - 11) : 'L'
@@ -486,6 +504,10 @@ tab.labels:
    labels = ''
    for i = 1 to nbuf
       labels<1, i> = bi<i>
+      if bi<i> = '' then
+         k = 'u' : bu<i>
+         labels<1, i> = sysmsg(11963, bx{k})              ;* an untitled buffer
+      end
    next i
    if nbuf = 0 then labels = sysmsg(11220)
    tab.n = cb
@@ -496,6 +518,7 @@ tab.labels:
 * the file name first, then the record id, then the first line (a script that begins #!/bin/sh), then the languages a site added.
 syntax.for:
    syn = ''
+   if sy.file = '' and sy.id = '' then sy.file = 'bp'          ;* an untitled buffer is coloured as a program until it is named
    call $sl_syntax('detect', sy.file, sy.id, sy.first, '', syn)
    return
 
@@ -691,11 +714,14 @@ open.record:
       return
    end
    gosub stash.current
+   gosub drop.clean.untitled
    nbuf += 1
    uid += 1
    bn<nbuf> = or.file
    bi<nbuf> = or.id
    bu<nbuf> = uid
+   k = 'n' : uid
+   bx{k} = 0
    k = 's' : uid
    bx{k} = rec
    k = 't' : uid
@@ -724,6 +750,8 @@ is.dirty:
    k = 's' : u
    d2 = bx{k}
    dirty = (d1 # d2)
+   k = 'n' : u
+   if bx{k} and d1 # '' then dirty = @true            ;* a record that is not on the disk yet and holds text
    return
 
 * ======================================================================
@@ -767,6 +795,10 @@ status.line:
       call $sl_form('find', f, '', 'ed', en)
       mw = f{'widgets', en}
       t = bn<cb> : ' ' : bi<cb>
+      if bi<cb> = '' then
+         k = 'u' : bu<cb>
+         t = sysmsg(11963, bx{k})
+      end
       if dirty then t := ' *'
       t := '   ' : sysmsg(11213, mw{'cy'}, mw{'cx'})
    end
@@ -811,36 +843,45 @@ do.key:
    begin case
       case edata = 'f1'
          cmd = 'help'
-      case edata = 'f2' or edata = 'ctrl-s'
+      * 28 Oct 26 dm (S.88 Phase 4, the owner's keys of 20 Oct, D28 / D31 / D32 / D33): Ctrl-S is the only save key (F2 went; it is the debugger's abort), the build keys follow Geany
+      *   (F5 run, F8 compile, F9 build = compile and catalogue, F7 debug), F6 is the next pane, the tabs are Ctrl-PageDown / Ctrl-PageUp, Ctrl-N new, Ctrl-O open, Ctrl-W close.
+      *   F11 (find in the records: the terminal's full screen) is a menu entry; Save as and Write a copy are menu entries.
+      case edata = 'ctrl-s'
          cmd = 'save'
-      case edata = 'f3'
-         cmd = 'tree'
       case edata = 'f4'
          cmd = 'nexterr'
       case edata = 'f5'
          cmd = 'run'
       case edata = 'f6'
-         cmd = 'nexttab'
+         cmd = 'nextpane'
+      case edata = 'shift-f6'
+         cmd = 'prevpane'                ;* F3 is find next in the editor (the owner's D31), so the tree is reached by the panes' ring, the Go menu and the mouse
       case edata = 'f7'
-         cmd = 'compile'
-      case edata = 'f8'
-         cmd = 'catalog'
-      case edata = 'f9'
          cmd = 'debug'
+      case edata = 'f8'
+         cmd = 'compile'
+      case edata = 'f9'
+         cmd = 'catalog'
+      case edata = 'ctrl-pgdn' or edata = 'alt-pgdn'
+         cmd = 'nexttab'                 ;* GNOME Terminal keeps Ctrl-PageUp / PageDown for its own tabs: Alt-PageUp / PageDown are the same keys with another modifier (Opus, 28 Oct)
+      case edata = 'ctrl-pgup' or edata = 'alt-pgup'
+         cmd = 'prevtab'
       case edata = 'f10'
          cmd = 'menu'
       case edata = 'ctrl-q'
          cmd = 'quit'
       case edata = 'ctrl-w'
-         cmd = 'writeas'                 ;* SED's write record
+         cmd = 'close'
+      case edata = 'ctrl-n'
+         cmd = 'new'
+      case edata = 'ctrl-o'
+         cmd = 'open'
       case edata = 'ctrl-e'
          cmd = 'sed'                     ;* the record goes to SED and comes back (the editor leaves this key to the IDE: passkeys)
       case edata = 'ctrl-l'
          cmd = 'goto'
       case edata = 'ctrl-r'
          cmd = 'replace'                 ;* SED's replace
-      case edata = 'f11'
-         cmd = 'find'                    ;* in the records of the file
       case edata = 'f12'
          cmd = 'fields'                  ;* the record as fields, values and subvalues, in CED
       case edata = 'guardquit'
@@ -890,6 +931,24 @@ run.cmd:
             if new.cb > nbuf then new.cb = 1
             gosub switch.to
          end
+      case cmd = 'prevtab'
+         if nbuf > 1 then
+            new.cb = cb - 1
+            if new.cb < 1 then new.cb = nbuf
+            gosub switch.to
+         end
+      case cmd = 'nextpane' or cmd = 'prevpane'
+         * F6 and Shift-F6: the focus goes round the panes in the order the status line and the [*] marks name them (Tab does the same inside the form)
+         pane.ring = 'tree' : @fm : 'tabs' : @fm : 'ed' : @fm : 'err'
+         if ai.on then pane.ring<-1> = 'ai'
+         locate focus.id in pane.ring<1> setting pane.at else pane.at = 0
+         if cmd = 'nextpane' then pane.at += 1 else pane.at -= 1
+         if pane.at > dcount(pane.ring, @fm) then pane.at = 1
+         if pane.at < 1 then pane.at = dcount(pane.ring, @fm)
+         ft.id = pane.ring<pane.at>
+         gosub focus.to
+      case cmd = 'open'
+         gosub do.open
       case cmd = 'compile'
          c.opt = ''
          gosub do.compile
@@ -899,7 +958,7 @@ run.cmd:
          if c.ok then
             qp.file = c.file ; qp.id = c.id ; gosub quote.pair
             execute 'catalog ' : qp.f : ' ' : qp.i capturing co
-            msg = sysmsg(11207, c.file, c.id)
+            gosub catalog.verified
          end
       case cmd = 'run'
          c.opt = ''
@@ -942,6 +1001,8 @@ run.cmd:
          gosub do.find
       case cmd = 'writeas'
          gosub do.writeas
+      case cmd = 'saveas'
+         gosub do.saveas
       case cmd = 'replace'
          gosub do.replace
       case cmd = 'new'
@@ -1132,16 +1193,34 @@ edit.check:
    msg = edit_msg(edit.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file, 11513 shared record, 11514 shared structure
    return
 
-* In: sv.i.  Out: sv.ok
+* The text of a refusal, whole, in a box that stays until a key is pressed (the status line is one row and cuts it).  In: rf.text
+refuse.box:
+   rf.w = lw - 16
+   if rf.w > 100 then rf.w = 100
+   call $tk_wrap(rf.text, rf.w, rf.pieces)
+   rf.body = change(rf.pieces, @fm, @vm)
+   screen msgbox rf.body buttons '&OK' default 1 returning rf.b else rf.b = 0
+   last.status = char(1)
+   return
+
+* In: sv.i.  Out: sv.ok.  An untitled buffer first asks for its file and record (ide_name); then the record is locked, read again, compared with what the
+* buffer was read as, and written ON ERROR.  The lock is given back on every path.  28 Oct 26 (S.88 Phase 4, I6, D1): the write used to abort the IDE when the kernel refused it.
 save.one:
    sv.ok = @false
+   if bi<sv.i> = '' then
+      gosub name.untitled
+      if not(sv.named) then return
+   end
    u = bu<sv.i>
    k = 't' : u
    sv.text = bx{k}
    k = 's' : u
    sv.saved = bx{k}
-   if sv.text = sv.saved then
+   k = 'n' : u
+   sv.new = bx{k}
+   if not(sv.new) and sv.text = sv.saved then
       sv.ok = @true
+      msg = sysmsg(11971)
       return
    end
    open bn<sv.i> to fv else
@@ -1149,20 +1228,160 @@ save.one:
       return
    end
    gosub edit.check                  ;* 17 Oct 26 dm - S.64
-   if not(edit.ok) then return
-   read disk from fv, bi<sv.i> then
+   if not(edit.ok) then
+      rf.text = msg
+      gosub refuse.box
+      return
+   end
+   sv.id = bi<sv.i>
+   readu disk from fv, sv.id locked
+      msg = sysmsg(11973, bn<sv.i>, sv.id)
+      return
+   end then
       if disk # sv.saved then
-         screen msgbox sysmsg(11203, bn<sv.i>, bi<sv.i>) buttons 'Overwrite,Cancel' default 2 returning b else b = 0
-         if b # 1 then return
+         screen msgbox sysmsg(11203, bn<sv.i>, sv.id) buttons 'Overwrite,Cancel' default 2 returning b else b = 0
+         if b # 1 then
+            release fv, sv.id
+            return
+         end
       end
    end else
       null
    end
-   write sv.text on fv, bi<sv.i>
+   write sv.text on fv, sv.id on error
+      sv.err = status()
+      release fv, sv.id
+      msg = sysmsg(11972, bn<sv.i>, sv.id, sv.err)
+      return
+   end
+   release fv, sv.id
    k = 's' : u
    bx{k} = sv.text
+   k = 'n' : u
+   bx{k} = 0
    sv.ok = @true
-   msg = sysmsg(11202, bn<sv.i>, bi<sv.i>)
+   msg = sysmsg(11202, bn<sv.i>, sv.id)
+   if sv.new then
+      rt.file = bn<sv.i>
+      gosub refresh.tree.for                   ;* the record is in the file now: the tree lists it
+   end
+   return
+
+* In: sv.i, an untitled buffer.  Out: sv.named.  The form asks for the file and the record; the buffer becomes that record (not yet on the disk: the save that follows writes it)
+name.untitled:
+   sv.named = @false
+   nm.mode = 'save'
+   nm.file = ''
+   gosub default.file
+   nm.file = df
+   nm.id = ''
+   call $ide_name(nm.mode, nm.file, nm.id, nm.res)
+   last.status = char(1)
+   if nm.res # 'ok' then return
+   bn<sv.i> = nm.file
+   bi<sv.i> = nm.id
+   gosub tab.named
+   sv.named = @true
+   return
+
+* The tab sv.i has just been given a file and a record: its tab label, its syntax and the tree follow
+tab.named:
+   if sv.i = cb then
+      gosub load.current
+   end
+   return
+
+* In: rt.file.  If that file's records are listed in the tree they are read again (a record has just been made in it) and the tree is drawn
+refresh.tree.for:
+   rt.keep = i                                  ;* the callers may be in a loop on i (do.quit); tree.nodes uses it
+   lp = 0
+   nl = dcount(lfiles, @fm)
+   if lfiles = '' then nl = 0
+   for q = 1 to nl
+      if lfiles<q> = rt.file then
+         lp = q
+         exit
+      end
+   next q
+   if lp then
+      lf.name = rt.file
+      gosub load.file
+      gosub tree.apply
+      gosub redraw.tree
+   end
+   i = rt.keep
+   return
+
+* A new untitled buffer, in the editor.  The number is the buffer's own: "Untitled 1", "Untitled 2", and it is not used again
+add.untitled:
+   gosub stash.current
+   untitled += 1
+   nbuf += 1
+   uid += 1
+   bn<nbuf> = ''
+   bi<nbuf> = ''
+   bu<nbuf> = uid
+   k = 's' : uid
+   bx{k} = ''
+   k = 't' : uid
+   bx{k} = ''
+   k = 'c' : uid
+   bx{k} = ''
+   k = 'm' : uid
+   bx{k} = 0
+   k = 'n' : uid
+   bx{k} = 1                         ;* not on the disk
+   k = 'u' : uid
+   bx{k} = untitled
+   cb = nbuf
+   return
+
+* In: nm.file, nm.id.  A record that is not on the disk yet, in a tab of its own: nothing is written until it is saved
+add.new.record:
+   gosub stash.current
+   gosub drop.clean.untitled
+   nbuf += 1
+   uid += 1
+   bn<nbuf> = nm.file
+   bi<nbuf> = nm.id
+   bu<nbuf> = uid
+   k = 's' : uid
+   bx{k} = ''
+   k = 't' : uid
+   bx{k} = ''
+   k = 'c' : uid
+   bx{k} = ''
+   k = 'm' : uid
+   bx{k} = 0
+   k = 'n' : uid
+   bx{k} = 1
+   cb = nbuf
+   return
+
+* The tab in the editor, when it is an untitled buffer nobody has typed in, is taken away (a record that is opened or made takes its place)
+drop.clean.untitled:
+   if nbuf > 0 and bi<cb> = '' then
+      u = bu<cb>
+      k = 't' : u
+      if bx{k} = '' then
+         del bn<cb>
+         del bi<cb>
+         del bu<cb>
+         nbuf -= 1
+         cb = nbuf
+      end
+   end
+   return
+
+* Out: df, the file a new record is offered in: the file of the record in the editor, else the file the tree is on, else bp ($acc and the other $ files are not record files)
+default.file:
+   df = ''
+   if nbuf > 0 then df = bn<cb>
+   if df = '' then
+      gosub get.context
+      df = ctx.file
+   end
+   if df = '' or df[1, 1] = '$' then df = 'bp'
    return
 
 close.current:
@@ -1171,7 +1390,8 @@ close.current:
    i = cb
    gosub is.dirty
    if dirty then
-      screen msgbox sysmsg(11204, bn<cb>, bi<cb>) buttons 'Save,Discard,Cancel' default 1 returning b else b = 3
+      gosub buf.label
+      screen msgbox sysmsg(11204, bf.name, bf.id) buttons 'Save,Discard,Cancel' default 1 returning b else b = 3
       begin case
          case b = 1
             sv.i = cb
@@ -1189,19 +1409,33 @@ close.current:
    nbuf -= 1
    if cb > nbuf then cb = nbuf
    if cb < 1 then cb = 1
+   if nbuf = 0 then gosub add.untitled           ;* the editor is never left without a buffer to type in
    gosub load.current
+   return
+
+* In: i.  Out: bf.name, bf.id: what to call buffer i to the person (file and record, or "Untitled n")
+buf.label:
+   bf.name = bn<i>
+   bf.id = bi<i>
+   if bf.id = '' then
+      k = 'u' : bu<i>
+      bf.name = sysmsg(11963, bx{k})
+   end
    return
 
 do.quit:
    gosub stash.current
    abort = @false
-   for i = 1 to nbuf
+   * qi is this loop's own: the routines a save reaches (tab.labels, tree.nodes, refresh.tree.for) all loop on i (review, 28 Oct 26: saving an untitled tab ended this loop early)
+   for qi = 1 to nbuf
+      i = qi
       gosub is.dirty
       if dirty then
-         screen msgbox sysmsg(11204, bn<i>, bi<i>) buttons 'Save,Discard,Cancel' default 1 returning b else b = 3
+         gosub buf.label
+         screen msgbox sysmsg(11204, bf.name, bf.id) buttons 'Save,Discard,Cancel' default 1 returning b else b = 3
          begin case
             case b = 1
-               sv.i = i
+               sv.i = qi
                gosub save.one
                if not(sv.ok) then abort = @true
             case b = 2
@@ -1211,8 +1445,12 @@ do.quit:
          end case
       end
    until abort
-   next i
-   if not(abort) then done = @true
+   next qi
+   if not(abort) then
+      done = @true
+   end else
+      gosub load.current              ;* a buffer that was named by the loop has its new tab label
+   end
    return
 
 * ======================================================================
@@ -1270,6 +1508,33 @@ do.compile:
    end
    return
 
+* In: co, the words CATALOG printed for c.file c.id.  The IDE says "Catalogued" only if CATALOG said the program was added to a catalogue (local, global or private: messages
+* 3029-3031); anything else (the account may not catalogue, a conflicting VOC entry, an object that is missing) is shown, whole, in a box.  28 Oct 26 (S.88 Phase 4, 4.9): it used to say
+* "Catalogued" whatever the verb answered.
+catalog.verified:
+   cv.ok = @false
+   for cv.m = 3029 to 3031
+      if index(upcase(co), upcase(sysmsg(cv.m, c.id)), 1) then cv.ok = @true      ;* CATALOG prints the call name in lower case; the record id may not be
+   next cv.m
+   if cv.ok then
+      msg = sysmsg(11207, c.file, c.id)
+      return
+   end
+   cv.why = ''
+   cv.n = dcount(co, @fm)
+   for cv.j = 1 to cv.n
+      cv.line = trim(convert(char(13) : char(10), '  ', co<cv.j>))
+      if cv.line # '' then
+         cv.why = cv.line
+         exit
+      end
+   next cv.j
+   if cv.why = '' then cv.why = '(no answer)'
+   rf.text = sysmsg(11974, c.file, c.id, cv.why)
+   msg = rf.text
+   gosub refuse.box
+   return
+
 * The terminal goes back to the program being run, and comes back to the IDE after it
 leave.screen:
    screen close
@@ -1302,6 +1567,11 @@ do.sed:
    if nbuf = 0 then
       msg = sysmsg(11218)
       return
+   end
+   k = 'n' : bu<cb>
+   if bi<cb> = '' or bx{k} then
+      gosub save.current                ;* an untitled buffer, or a new record not yet on the disk, has no record for SED to open: it is named and written first
+      if not(sv.ok) then return
    end
    gosub stash.current
    i = cb
@@ -1350,6 +1620,11 @@ do.fields:
    if nbuf = 0 then
       msg = sysmsg(11218)
       return
+   end
+   k = 'n' : bu<cb>
+   if bi<cb> = '' or bx{k} then
+      gosub save.current                ;* an untitled buffer, or a new record not yet on the disk, is named and written first
+      if not(sv.ok) then return
    end
    gosub stash.current
    fd.u = bu<cb>
@@ -1465,7 +1740,13 @@ ai.go:
    ai.last = ai.wspec<2>
    ai.win = ai.wspec<4>
    page ='This is the IDE of SD Core, an editor for SD BASIC programs and other records.'
-   page<1, -1> = 'File ' : bn<cb> : ', record ' : bi<cb> : '.'
+   if bi<cb> = '' then
+      i = cb
+      gosub buf.label
+      page<1, -1> = 'An untitled buffer, ' : bf.name : ', not yet saved to a record.'
+   end else
+      page<1, -1> = 'File ' : bn<cb> : ', record ' : bi<cb> : '.'
+   end
    page<1, -1> = 'The cursor is on line ' : ai.cy : ' of ' : ai.total : '.'
    if ai.note # '' then page<1, -1> = ai.note
    if ai.first > 1 or ai.last < ai.total then msg = sysmsg(11667, ai.first, ai.last - ai.first + 1)
@@ -1540,39 +1821,86 @@ do.writeas:
    u = bu<cb>
    k = 't' : u
    wa.text = bx{k}
-   wa.file = bn<cb>
-   screen ask sysmsg(11208) returning wa.id else return
-   wa.id = trim(wa.id)
-   if wa.id = '' then return
+   gosub default.file
+   wa.file = df
+   wa.id = ''
+   call $ide_name('copy', wa.file, wa.id, wa.res)       ;* the form has asked the gate and whether the record exists
+   last.status = char(1)
+   if wa.res # 'ok' then return
    open wa.file to fv else
       msg = sysmsg(11200, wa.file)
       return
    end
-   gosub edit.check                  ;* 17 Oct 26 dm - S.64
-   if not(edit.ok) then return
-   exists = @false
-   read x from fv, wa.id then exists = @true
-   if exists then
-      msg = sysmsg(11217, wa.id, wa.file)
+   gosub edit.check                  ;* asked again at the write, as save.one does: the form's answer is not the gate
+   if not(edit.ok) then
+      rf.text = msg
+      gosub refuse.box
       return
    end
-   write wa.text on fv, wa.id
-   lp = 0
-   nl = dcount(lfiles, @fm)
-   if lfiles = '' then nl = 0
-   for q = 1 to nl
-      if lfiles<q> = wa.file then
-         lp = q
-         exit
-      end
-   next q
-   if lp then
-      lf.name = wa.file
-      gosub load.file
-      gosub tree.apply
-      gosub redraw
+   * under the record's lock, and looked at again: a record another session made since the form asked is not overwritten (Opus's review, 28 Oct 26)
+   readu x from fv, wa.id locked
+      msg = sysmsg(11973, wa.file, wa.id)
+      return
+   end then
+      release fv, wa.id
+      msg = sysmsg(11217, wa.id, wa.file)
+      return
+   end else
+      null
    end
+   write wa.text on fv, wa.id on error
+      wa.err = status()
+      release fv, wa.id
+      msg = sysmsg(11972, wa.file, wa.id, wa.err)
+      return
+   end
+   release fv, wa.id
+   rt.file = wa.file
+   gosub refresh.tree.for
    msg = sysmsg(11202, wa.file, wa.id)
+   return
+
+* Ctrl-O, File / Open record: the form asks for a file and a record that exists (the picker of the plan's 5.11 C will take its place), and the record opens in a tab
+do.open:
+   gosub default.file
+   op.file = df
+   op.id = ''
+   call $ide_name('open', op.file, op.id, op.res)
+   last.status = char(1)
+   if op.res # 'ok' then return
+   or.file = op.file
+   or.id = op.id
+   cur.code = 'R:' : or.file : ':' : or.id
+   gosub open.record
+   if nbuf > 0 then
+      ft.id = 'ed'
+      gosub focus.to
+   end
+   return
+
+* Save as: the form names the file and the record, the tab becomes that record, and it is saved.  The record the tab had is as it was on the disk.
+do.saveas:
+   if nbuf = 0 then
+      msg = sysmsg(11218)
+      return
+   end
+   gosub stash.current
+   gosub default.file
+   sa.file = df
+   sa.id = ''
+   call $ide_name('saveas', sa.file, sa.id, sa.res)
+   last.status = char(1)
+   if sa.res # 'ok' then return
+   u = bu<cb>
+   bn<cb> = sa.file
+   bi<cb> = sa.id
+   k = 's' : u
+   bx{k} = ''
+   k = 'n' : u
+   bx{k} = 1                                            ;* the record is not on the disk until the save below has written it
+   sv.i = cb
+   gosub tab.named
+   gosub save.one
    return
 
 * Ctrl-R, as SED's: a text is replaced by another all through the record in the editor (what undo remembered is lost:
@@ -1599,51 +1927,20 @@ do.replace:
    msg = sysmsg(11234, rp.n)
    return
 
+* New record (File menu, Ctrl-N): the form names the file and the record (it has asked the account's gate and whether the record exists), and a buffer for it
+* opens in a tab of its own.  Nothing is written until it is saved (28 Oct 26, S.88 Phase 4, I1, N3).
 do.new:
-   gosub get.context
-   if ctx.file = '' then
-      msg = sysmsg(11212)
-      return
-   end
-   screen ask sysmsg(11208) returning nm else return
-   nm = trim(nm)
-   if nm = '' then return
-   open ctx.file to fv else
-      msg = sysmsg(11200, ctx.file)
-      return
-   end
-   gosub edit.check                  ;* 17 Oct 26 dm - S.64
-   if not(edit.ok) then return
-   exists = @false
-   read x from fv, nm then exists = @true
-   if exists then
-      msg = sysmsg(11217, nm, ctx.file)
-      return
-   end
-   write '' on fv, nm
-   lp = 0
-   nl = dcount(lfiles, @fm)
-   if lfiles = '' then nl = 0
-   for q = 1 to nl
-      if lfiles<q> = ctx.file then
-         lp = q
-         exit
-      end
-   next q
-   if lp then
-      lf.name = ctx.file
-      gosub load.file
-   end
-   cur.code = 'R:' : ctx.file : ':' : nm
-   or.file = ctx.file
-   or.id = nm
-   gosub open.record
-   gosub tree.apply
-   gosub redraw.tree
-   if nbuf > 0 then
-      ft.id = 'ed'
-      gosub focus.to
-   end
+   gosub default.file
+   nm.file = df
+   nm.id = ''
+   call $ide_name('new', nm.file, nm.id, nm.res)
+   last.status = char(1)
+   if nm.res # 'ok' then return
+   gosub add.new.record
+   gosub load.current
+   ft.id = 'ed'
+   gosub focus.to
+   gosub redraw.tabs
    return
 
 do.find:
