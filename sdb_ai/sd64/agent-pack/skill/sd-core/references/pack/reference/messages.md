@@ -4280,13 +4280,6 @@ Non-printing characters are shown as ^nnn
 Non-printing characters are shown as ?
 ```
 
-### msg:1139
-> kind=message tier=reference since=- src=sdsys/messages/1139:1#9e6ecac6
-
-```
-Pick style matrices must have at least one element
-```
-
 ### msg:11390
 > kind=message tier=reference since=- src=sdsys/messages/11390:1#5b5eaaa4
 
@@ -11856,15 +11849,6 @@ cited by: `bcomp`
 ```
 Cannot open pcode file
 ```
-
-### msg:2973
-> kind=message tier=reference since=- src=sdsys/messages/2973:1#c709fe6b
-
-```
-Cannot redimension a Pick style common matrix
-```
-
-cited by: `bcomp`
 
 ### msg:2974
 > kind=message tier=reference since=- src=sdsys/messages/2974:1#367e92c9

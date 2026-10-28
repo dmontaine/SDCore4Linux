@@ -8,6 +8,7 @@
 # or absent); without it <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 27 Oct 26 dm  S.87 batch 17: $MODE AUTOLOCK is gone.  The program that says it must be refused, the controls stay, and OPTION INHERIT.OWNERSHIP is as it was.
 # 16 Oct 26 dm  New.  bcomp: $MODE AUTOLOCK sets P_AUTOLOCK on a WRITE, MATWRITE or DELETE; op_dio3.c takes the update lock
 #               when the record is not locked.  op_dio1.c inherit_ownership_of(): OPTION INHERIT.OWNERSHIP.
 # END-HISTORY
@@ -101,23 +102,19 @@ def main():
             "   crt 'LOCKS ':(if index(upcase(out), 'K1', 1) or index(upcase(out), 'K2', 1) then 'HELD' else 'NONE')\n"
             "end\n") % f
     put("zzal_off", body)
-    put("zzal_on", "$mode autolock\n" + body)
+    put("zzal_on", "$mode autolock\n" + body)    # 27 Oct 26: AUTOLOCK is gone; this program must NOT compile
     put("zzal_seed", "   open '%s' to f else crt 'NOFILE' ; stop\n   write 'two' to f, 'k2'\n   delete f, 'k1'\n   crt 'SEEDED'\nend\n" % f)
     try:
         say("\n--- $MODE AUTOLOCK -----------------------------------------------------------------------------------")
         out = sess(box, "DELETE.FILE %s" % f, "CREATE.FILE %s" % f, "BASIC bp zzal_off", "BASIC bp zzal_on", "BASIC bp zzal_seed", quiet=True)
-        row("setup: the three programs compiled", out.count("Compiled 1 program(s) with no errors") == 3, out[-400:])
+        row("setup: the two programs without the mode compiled, and the one with $MODE AUTOLOCK was refused (the mode is gone: 'Unrecognised mode name')",
+            out.count("Compiled 1 program(s) with no errors") == 2 and "Unrecognised mode name" in out, out[-400:])
         o = sess(box, "RUN bp zzal_seed", "RUN bp zzal_off")
         row("CONTROL, no mode: a WRITE in a transaction with no lock held is refused",
             re.search(r"(?m)^WRITE-REFUSED\s*$", o) is not None, o[-400:])
         row("CONTROL, no mode: a DELETE with no lock held is refused and the record is still there",
             re.search(r"(?m)^DELETE-REFUSED\s*$", o) is not None and re.search(r"(?m)^K2-STILL-THERE\s*$", o) is not None, o[-400:])
-        o = sess(box, "RUN bp zzal_seed", "RUN bp zzal_on")
-        row("$MODE AUTOLOCK: the WRITE locks the record itself and is made (K1=one)",
-            re.search(r"(?m)^K1=one\s*$", o) is not None and "WRITE-REFUSED" not in o, o[-400:])
-        row("$MODE AUTOLOCK: the DELETE is made as well (k2 is gone)",
-            re.search(r"(?m)^K2-GONE\s*$", o) is not None and "DELETE-REFUSED" not in o, o[-400:])
-        row("...and nothing is left locked after the commit", re.search(r"(?m)^LOCKS NONE\s*$", o) is not None, o[-400:])
+        row("CONTROL, no mode: nothing is left locked", re.search(r"(?m)^LOCKS NONE\s*$", o) is not None, o[-400:])
 
         say("\n--- OPTION INHERIT.OWNERSHIP -------------------------------------------------------------------------")
         acct = sysd      # the sandbox session's working directory is its account

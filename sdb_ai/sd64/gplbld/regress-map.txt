@@ -22,29 +22,29 @@
 # GROUPS.
 # @core: six to ten suites that between them exercise the compiler, the kernel's common paths, files, queries and the gates.
 # Any kernel or BASIC source with no rule of its own selects these.
-@core        = oq2 coll gates q4 func-q1 stmt-q3 mode-q16 bcomp-a1 nocase list-q2
+@core = oq2 coll gates q4 func-q1 stmt-q3 mode-q16 bcomp-a1 nocase list-q2
 # the pseudo-terminal suites (a terminal, keys, the screen library)
-@pty         = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport sed-small ide-small ide-sed winsize eofkeys idedraw recarr
+@pty = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport sed-small ide-small ide-sed winsize eofkeys idedraw recarr
 # the debugger
-@debugger    = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase
+@debugger = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase
 # select lists and everything that makes or reads one
-@lists       = sselectv stacklist list-q2 list-a7 selectv-mode verbs-q8 mode-q16 q4
+@lists = sselectv stacklist list-q2 list-a7 verbs-q8 mode-q16 q4
 # files: directory and hashed file i/o, indices, triggers, the record id rules, transactions
-@files       = collfile file-b8 file-a8 fcontrol edseqkey sdfixseq akcase akdeep akorder idx-nocase nocase upgradenocase flushdh wdthenelse trans-b43 stdfil lock-b6 coll fix-b10 sync crlf dirtrig tools
+@files = collfile file-b8 file-a8 fcontrol edseqkey sdfixseq akcase akdeep akorder idx-nocase nocase upgradenocase flushdh trans-b43 lock-b6 coll fix-b10 sync crlf dirtrig tools
 # sequential files and CSV
-@seq         = csv-b5 csvq csvb file-b8 gates qmclient oq2 fcontrol audit-b9 crlf
+@seq = csv-b5 csvq csvb file-b8 gates qmclient oq2 fcontrol audit-b9 crlf
 # strings, conversions, functions, dates, locate and sort
-@functions   = func-b4 func-q1 conv-b3 stmt-q3 stmt-b5 mode-q16 locate-b5 epoch numexp trans-b43 oq2 audit-b9 audit-b9b
+@functions = func-b4 func-q1 conv-b3 stmt-q3 stmt-b5 mode-q16 locate-b5 epoch numexp trans-b43 oq2 audit-b9 audit-b9b
 # the compiler and what it compiles: statements, modes, classes, TRY, INPUT forms
-@compiler    = bcomp-a1 lang-a15 lang-b45 stmt-b5 stmt-q3 func-b4 func-q1 mode-q16 stdfil partial wdthenelse numexp classas selectv-mode sselectv try forcereload input inputif inputraw inputfill inputtrap epoch txnstatus misc-a9 cmd-a9 guide
+@compiler = bcomp-a1 lang-a15 lang-b45 stmt-b5 stmt-q3 func-b4 func-q1 mode-q16 partial numexp classas sselectv try forcereload input inputif inputraw inputfill inputtrap epoch txnstatus misc-a9 cmd-a9 guide
 # what a change to the select-list statements in the compiler needs
-@lists-compile = sselectv selectv-mode stacklist list-q2 mode-q16
+@lists-compile = sselectv stacklist list-q2 mode-q16
 # the query processor and dictionaries
-@query       = qproc-a3 qproc-q20 xml csvq qdefaults qproc-when vert-fmt vlist-a3 dict-a2 dictfold misc-a9 listf-mult coll
+@query = qproc-a3 qproc-q20 xml csvq qdefaults qproc-when vert-fmt vlist-a3 dict-a2 dictfold misc-a9 listf-mult coll
 # accounts, logins, gates, configuration, sessions, the API
-@system      = gates conf-b1 inhibit-q8 listu-a5 proc-a5 sys-b2 sys-q18 option-a4 option-q17 qmclient lock-b6 q5
+@system = gates conf-b1 inhibit-q8 listu-a5 proc-a5 sys-b2 sys-q18 option-a4 option-q17 qmclient lock-b6 q5
 # ED and the commands around it
-@editors     = cmd-a9 collfile edbug edseqkey option-a4
+@editors = cmd-a9 collfile edbug edseqkey option-a4
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE TEST FILES THEMSELVES.
@@ -60,6 +60,9 @@ gplbld/sandbox-req29.py      : @self fileadmin netindex
 # 21 Oct 26 (S.73 item 3 D1): sandbox-netindex loads sandbox-fileadmin (its test device and fixtures), so a change to that one runs this one too.
 gplbld/sandbox-fileadmin.py  : @self netindex
 # 27 Oct 26 (S.87 batch 7): four suites that tested only a removed option word are deleted; the deletion needs no suite
+gplbld/sandbox-stdfil.py : none
+gplbld/sandbox-selectv-mode.py : none
+gplbld/sandbox-wdthenelse.py : none
 gplbld/sandbox-chained.py    : none
 gplbld/sandbox-footpause.py  : none
 gplbld/sandbox-mlmask.py     : none
@@ -124,7 +127,7 @@ gplsrc/dh_*.c                : @files masters
 gplsrc/dh_*.h                : @files
 gplsrc/dh.h                  : @files masters
 gplsrc/reccache.c            : @files
-gplsrc/txn.c                 : trans-b43 txnstatus wdthenelse coll collfile sysexc masters @core
+gplsrc/txn.c : trans-b43 txnstatus coll collfile sysexc masters @core
 gplsrc/sdfix.c               : sdfixseq akcase fixes-b12 tools
 gplsrc/sdidx.c               : akcase idx-nocase tools
 gplsrc/sdconv.c              : nocase upgradenocase
@@ -179,7 +182,7 @@ gplsrc/sdsem.c               : shmmode @core
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode segtrust auditwriter @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof netfile masters
-gplsrc/kernel.c              : @core csvb q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates apispin segtrust ipc
+gplsrc/kernel.c : @core csvb q5 listu-a5 inhibit-q8 cll prof resetall stacked classinit sysexc try editgates apispin segtrust ipc
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
 gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust
@@ -202,7 +205,7 @@ gplsrc/sdclient.h            : qmclient
 gplsrc/sdclient.c            : qmclient
 gplsrc/sd_encrypt_sodium.c   : qmclient crypt
 gplsrc/sd_keyring.c          : crypt
-gplsrc/op_exec.c             : @core cmd-a9 stacklist forcereload stdfil prof csvb
+gplsrc/op_exec.c : @core cmd-a9 stacklist forcereload prof csvb
 gplsrc/op_sh.c               : gates sdaccts editgates netfile shared segtrust
 gplsrc/to_file.c             : editgates gates @core
 gplsrc/op_sdext.c            : gates crypt
@@ -251,7 +254,7 @@ sdsys/gpl.bp/setserver       : net tool-remote
 sdsys/gpl.bp/apifilesok      : net qmclient fileadmin netindex
 sdsys/gpl.bp/deleteserver    : net tool-remote
 sdsys/gpl.bp/listservers     : net tool-remote
-sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted stdfil dbgequ
+sdsys/gpl.bp/bcomp : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted dbgequ
 sdsys/gpl.bp/bcomp ~ emit.equate.table : dbgequ
 sdsys/gpl.bp/bcomp ~ process.include : incsearch
 # 20 Oct 26 (the CSV / JSON / XML task): the CSV statements and clauses, the JSON statements and the new intrinsics.  They come before st.write*, st.select* and in.*,
@@ -264,7 +267,7 @@ sdsys/gpl.bp/bcomp ~ in.json         : coll jsonx
 sdsys/gpl.bp/bcomp ~ in.xfun         : func-b4 func-q1 csvb jsonx xmlx
 sdsys/gpl.bp/bcomp ~ xfun.table.load : func-b4 func-q1 csvb jsonx xmlx
 sdsys/gpl.bp/bcomp ~ is.statement    : bcomp-a1 jsonx
-sdsys/gpl.bp/bcomp ~ set.*   : stdfil dbgequ mode-q16
+sdsys/gpl.bp/bcomp ~ set.* : dbgequ mode-q16
 sdsys/gpl.bp/bcomp ~ st.restricted  : restricted classas classinit
 sdsys/gpl.bp/bcomp ~ st.public*     : restricted classas classinit
 sdsys/gpl.bp/bcomp ~ st.private*    : restricted classas classinit
@@ -281,8 +284,7 @@ sdsys/gpl.bp/bcomp ~ st.sselect*    : @lists-compile
 sdsys/gpl.bp/bcomp ~ st.readnext    : @lists-compile
 sdsys/gpl.bp/bcomp ~ st.formlist*   : @lists-compile
 sdsys/gpl.bp/bcomp ~ sellist.*      : @lists-compile
-sdsys/gpl.bp/bcomp ~ stdfil.*       : stdfil
-sdsys/gpl.bp/bcomp ~ hidden.var.load : stdfil stmt-b5 selectv-mode
+sdsys/gpl.bp/bcomp ~ hidden.var.load : stmt-b5
 sdsys/gpl.bp/bcomp ~ st.for*        : stmt-b5 lang-b45
 sdsys/gpl.bp/bcomp ~ st.loop        : stmt-b5 lang-b45
 sdsys/gpl.bp/bcomp ~ st.call        : callcase
@@ -292,11 +294,11 @@ sdsys/gpl.bp/bcomp ~ st.throw*      : try
 sdsys/gpl.bp/bcomp ~ st.class*      : classas
 sdsys/gpl.bp/bcomp ~ st.begin       : dbgcase
 sdsys/gpl.bp/bcomp ~ generate.debug : dbgcase dbgcoll dbgequ
-sdsys/gpl.bp/bcomp ~ st.write*      : wdthenelse lockown
-sdsys/gpl.bp/bcomp ~ st.delete*     : wdthenelse lockown
-sdsys/gpl.bp/bcomp ~ st.matwrite*   : wdthenelse lockown
-sdsys/gpl.bp/bcomp ~ back.end       : wdthenelse lockown
-sdsys/gpl.bp/bcomp ~ st.open*       : stdfil sync
+sdsys/gpl.bp/bcomp ~ st.write* : lockown
+sdsys/gpl.bp/bcomp ~ st.delete* : lockown
+sdsys/gpl.bp/bcomp ~ st.matwrite* : lockown
+sdsys/gpl.bp/bcomp ~ back.end : lockown
+sdsys/gpl.bp/bcomp ~ st.open* : sync
 sdsys/gpl.bp/bcomp ~ st.execute*    : stacklist cmd-a9
 sdsys/gpl.bp/bcomp ~ st.screen*     : screen viewport
 sdsys/gpl.bp/bcomp ~ in.*           : func-b4 func-q1 epoch conv-b3 numexp
@@ -659,7 +661,6 @@ sdsys/gpl.bp/configf         : fixes-b12 nocase upgradenocase
 sdsys/gpl.bp/dirinfo         : fixes-b12
 sdsys/gpl.bp/decat           : callcase misc-a9 editgates tool-catalog
 sdsys/gpl.bp/basic           : bcomp-a1 callcase misc-a9 lang-a15 mode-q16 editgates shared @core tool-catalog tool-test
-sdsys/gpl.bp/stdfil*         : stdfil
 # S.66 (18 Oct 26): the shared account.  The three new programs, the verb that lists it, DELETE.ACCOUNT's refusal and SP.VIEW's edit-gate message.
 sdsys/gpl.bp/shared_ref      : shared @core
 sdsys/gpl.bp/edit_msg        : shared editgates

@@ -1904,48 +1904,6 @@
 "tier": "reference",
 "words": 12
 },
-"basic:mode:autolock": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 58
-},
-"basic:mode:case.sensitive": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
-"basic:mode:change.no.overlap": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 48
-},
-"basic:mode:compatible.append": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 30
-},
-"basic:mode:composite.readnext": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
-"basic:mode:count.overlap": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 45
-},
 "basic:mode:debug.equates": {
 "kind": "basic.mode",
 "part": "reference/basic-modes.md",
@@ -1967,27 +1925,6 @@
 "tier": "reference",
 "words": 54
 },
-"basic:mode:for.store.before.test": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
-"basic:mode:heading.no.eject": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
-"basic:mode:index.overlap": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 45
-},
 "basic:mode:no.echo.data": {
 "kind": "basic.mode",
 "part": "reference/basic-modes.md",
@@ -2002,13 +1939,6 @@
 "tier": "reference",
 "words": 51
 },
-"basic:mode:optional.final.end": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
 "basic:mode:partial.expressions": {
 "kind": "basic.mode",
 "part": "reference/basic-modes.md",
@@ -2016,84 +1946,7 @@
 "tier": "reference",
 "words": 49
 },
-"basic:mode:pick.convert": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 55
-},
-"basic:mode:pick.jump.range": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
-"basic:mode:pick.matrix": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
-"basic:mode:pick.read": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
-"basic:mode:pick.select": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 50
-},
-"basic:mode:pick.substr": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
-"basic:mode:pick.substr.assign": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
-"basic:mode:selectv": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 30
-},
-"basic:mode:stdfil": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 47
-},
-"basic:mode:stdfil.shared": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "next",
-"tier": "reference",
-"words": 53
-},
 "basic:mode:strict.equate": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
-"basic:mode:string.locate": {
 "kind": "basic.mode",
 "part": "reference/basic-modes.md",
 "since": "-",
@@ -2127,13 +1980,6 @@
 "since": "-",
 "tier": "reference",
 "words": 25
-},
-"basic:mode:write.delete.then.else": {
-"kind": "basic.mode",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 54
 },
 "basic:option:$query.debug": {
 "kind": "basic.option",
@@ -3127,7 +2973,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 14
 },
 "basic:stmt:modify": {
 "kind": "basic.restricted",
@@ -4996,7 +4842,7 @@
 "part": "reference/dictionaries.md",
 "since": "-",
 "tier": "reference",
-"words": 260
+"words": 191
 },
 "dict:itype:i-type-and-conversion": {
 "kind": "dict.itype",
@@ -8616,13 +8462,6 @@
 "since": "-",
 "tier": "reference",
 "words": 8
-},
-"msg:1139": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
 },
 "msg:11390": {
 "kind": "message",
@@ -14867,13 +14706,6 @@
 "since": "-",
 "tier": "reference",
 "words": 6
-},
-"msg:2973": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 12
 },
 "msg:2974": {
 "kind": "message",

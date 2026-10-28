@@ -2548,11 +2548,9 @@ def checks_s2(srcs, c, ck):
                     "-ER_IID", "net_pre_change_lock(", "net_write(fvar, id, id_len, src_descr->data.str.saddr, keep_lock)", "goto exit_op_write;")
        and ordered(oc_, "refuse_net_file(fvar, op_flags, \"CLEARFILE\", NETG_CLEAR)", "if (fvar->type == NET_FILE) {", "net_clear(fvar)", "k_dismiss();", "InitDescr(e_stack, INTEGER);", "return;"), repr(ok_))
     npc = fn("op_dio3.c", "net_pre_change_lock")
-    ck("S2p MUSTLOCK and $MODE AUTOLOCK are honoured for a remote WRITE and DELETE (spec 5.3, decision 11): net_pre_change_lock takes the update lock with net_lock_step when AUTOLOCK is on (LOCKED taken off: "
-       "it waits by re-running the opcode, NETL_WAIT, and the caller returns AT ONCE) and, under MUSTLOCK, asks the server (net_check_lock) whether this session holds it and answers -ER_NOLOCK when it does "
-       "not; both op_write and op_delete call it BEFORE the request and return on NETL_WAIT without touching the stack",
-       npc != "" and ordered(npc, "if (op_flags & P_AUTOLOCK) {", "net_lock_step(fvar, id, id_len, TRUE, op_flags & ~P_LOCKED, retry_pc)", "case NET_LOCK_HELD:", "return NETL_GO;", "case NET_LOCK_WAIT:",
-                             "return NETL_WAIT;", "default:", "return NETL_FAIL;", "if (pcfg.must_lock) {", "net_check_lock(fvar, id, id_len)", "-ER_NOLOCK", "return NETL_FAIL;", "return NETL_GO;")
+    ck("S2p MUSTLOCK is honoured for a remote WRITE and DELETE (spec 5.3, decision 11; $MODE AUTOLOCK, which took the lock itself, went on 27 Oct 26): net_pre_change_lock asks the server (net_check_lock) whether this "
+       "session holds the lock under MUSTLOCK and answers -ER_NOLOCK when it does not; both op_write and op_delete call it BEFORE the request",
+       npc != "" and "P_AUTOLOCK" not in npc and ordered(npc, "if (pcfg.must_lock) {", "net_check_lock(fvar, id, id_len)", "-ER_NOLOCK", "return NETL_FAIL;", "return NETL_GO;")
        and all(ordered(b, "net_pre_change_lock(", "case NETL_WAIT:", "return;", "case NETL_FAIL:", "net_write(" if b is ow else "net_delete(") for b in (ow, od))
        and "check_lock(" not in npc.replace("net_check_lock(", "") and "lock_record(" not in npc, "")
     bad_pc = []
@@ -2587,7 +2585,7 @@ def checks_s2(srcs, c, ck):
        "wait and does not overwrite the holder in STATUS() when the record is busy",
        lock_blk != "" and ordered(lock_blk, "net_lock_step(fvar, id, id_len, (op_flags & P_ULOCK) != 0, op_flags, retry_pc)", "net_reload_read_operands(", "case NET_LOCK_HELD:", "case NET_LOCK_WAIT:",
                                   "return;", "case NET_LOCK_LOCKED:", "status = ER_LCK;", "goto exit_op_read;", "default:", "goto exit_op_read;") and "lock_record(" not in lock_blk
-       and ordered(rr, "refuse_net_file(fvar, op_flags,", "NETG_LOCK", "if (!(op_flags & P_PICKREAD)) {", "net_lock_step(")
+       and ordered(rr, "refuse_net_file(fvar, op_flags,", "NETG_LOCK", "k_release(str_descr);", "net_lock_step(")
        and ordered(orv, "if ((op_flags & P_REC_LOCKS) && refuse_net_file(", "NETG_LOCK", "net_st = 0;", "if (op_flags & P_REC_LOCKS) {", "net_st = net_lock_step(fvar, id, id_len, (op_flags & P_ULOCK) != 0, op_flags, retry_pc)",
                     "case NET_LOCK_WAIT:", "return;", "case NET_LOCK_LOCKED:", "net_st = ER_LCK;", "if (net_st == 0) {", "net_st = net_readv(fvar, id, id_len, field_no, &net_str)", "if (net_st != ER_LCK)",
                     "process.status = net_st;"), "")
@@ -4424,11 +4422,7 @@ mut("op_delete: the NET arm comes before the empty-id test", D3, edit_func("op_d
 mut("op_clrfile: the NET arm reads the file table", D3, edit_func("op_clrfile", r"    net_st = net_clear\(fvar\);", "    net_st = net_clear(fvar);\n    (void)FPtr(fvar->file_id);"))
 mut("op_clrfile: the status of the call is lost", D3, edit_func("op_clrfile", r"    process\.status = net_st;\n", ""))
 mut("net_pre_change_lock: MUSTLOCK is not honoured", D3, edit_func("net_pre_change_lock", r"  if \(pcfg\.must_lock\) \{", "  if (0) {"))
-mut("net_pre_change_lock: AUTOLOCK does not wait", D3, edit_func("net_pre_change_lock", r"      case NET_LOCK_WAIT:\n        return NETL_WAIT;", "      case NET_LOCK_WAIT:\n        return NETL_GO;"))
-mut("net_pre_change_lock: AUTOLOCK takes a shared lock", D3, edit_func("net_pre_change_lock", r"net_lock_step\(fvar, id, id_len, TRUE,", "net_lock_step(fvar, id, id_len, FALSE,"))
-mut("net_pre_change_lock: AUTOLOCK keeps the LOCKED clause", D3, edit_func("net_pre_change_lock", r"op_flags & ~P_LOCKED", "op_flags"))
 mut("net_pre_change_lock: a missing lock is another status", D3, edit_func("net_pre_change_lock", r"process\.status = -ER_NOLOCK;\n      return NETL_FAIL;\n    \}\n    if \(st < 0\)", "process.status = -ER_PERM;\n      return NETL_FAIL;\n    }\n    if (st < 0)"))
-mut("op_write does not wait for an AUTOLOCK", D3, edit_func("op_write", r"      case NETL_WAIT:\n        return;", "      case NETL_WAIT:\n        break;"))
 mut("read_record: a NET_FILE locks locally", D3, edit_func("read_record", r"\(op_flags & P_REC_LOCKS\) && \(fvar->type == NET_FILE\)\) \{\n", "(op_flags & P_REC_LOCKS) && (fvar->type == 99)) {\n"))
 mut("read_record: a busy remote lock is not waited for", D3, edit_func("read_record", r"        case NET_LOCK_WAIT:\n          return;", "        case NET_LOCK_WAIT:\n          break;"))
 mut("read_record: the operands are not found again", D3, edit_func("read_record", r"      net_reload_read_operands\(&rid_descr, &fvar_descr, &tgt_descr\);\n      if \(!matread\)\n        str_descr = tgt_descr;\n", ""))

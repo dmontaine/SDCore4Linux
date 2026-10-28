@@ -730,7 +730,7 @@ def mode_chunks(ctx, since, mentions):
         if m:
             cur = max(cur, int(m.group(1)))
             pos.append((m.group(2), i, int(m.group(1))))
-    if len(pos) < 30:
+    if len(pos) < 8:                                 # 27 Oct 26: 11 modes since S.87 batch 17 (30+ before the modes of other products went)
         raise SystemExit("mkpack: only %d $MODE names found in bcomp - refusing" % len(pos))
     # what each bit is for: the comment on bcomp's  $define M.NAME bit  /  $define M2.NAME bit  lines (keyed by the bit)
     why = {}

@@ -69,7 +69,7 @@
 #               a write-mode file: what each does on the fake, STATUS() afterwards, with and without ON ERROR / THEN / ELSE / LOCKED, the busy record that is waited for by
 #               polling (the fake sees only lock requests, no read), a transaction (1010 and 11510), the S.64 edit gate by the remote file's NAME (voc, dict, bp) for an
 #               account without the gate, one with it, the administrator and an $internal program, edit_guard, the cache (a write-mode handle is never cached), a lost
-#               connection, MUSTLOCK and AUTOLOCK, the lock that outlives its file variable until the next prompt, FILEINFO, and the statements that stay refused (11511).  EVERY
+#               connection, MUSTLOCK, the lock that outlives its file variable until the next prompt, FILEINFO, and the statements that stay refused (11511).  EVERY
 #               EXISTING ROW THAT EXPECTED THE REFUSAL OF AN IN-SCOPE STATEMENT (readonly, the refusal matrix KM, KALLOWED) STANDS AS THE MODE=READ CONTROL: the definitions
 #               nfa and nfb are mode read, the new nfw and nfwb are mode write.  ***NOT YET RUN*** - written without a sandbox to run it on; the first run is the first evidence for
 #               the suite, the handler, the kernel and the fake's write requests together; read a red row as a wrong expectation here as well as a fault there.
@@ -4449,27 +4449,7 @@ $catalog $zznkwm
    crt 'KW m end'
 end
 """
-# AUTOLOCK: $MODE AUTOLOCK makes a WRITE and a DELETE take the update lock themselves (compile time; an ordinary program)
-KWAL_TEXT = """$mode autolock
-   crt 'KW al begin'
-   open 'zznw1' to f else crt 'KW al openfail st=':status() ; stop
-   write 'by-autolock' to f, 'w1' on error crt 'KW al write error st=':status()
-   crt 'KW al write st=':status()
-   delete f, 'w2' on error crt 'KW al delete error st=':status()
-   crt 'KW al delete st=':status()
-   crt 'KW al end'
-end
-"""
-KWAL2_TEXT = """$mode autolock
-   crt 'KW al2 begin'
-   open 'zznw1' to f else crt 'KW al2 openfail st=':status() ; stop
-   crt 'KW al2 time ':time()
-   write 'after-wait' to f, 'w3' on error crt 'KW al2 write error st=':status()
-   crt 'KW al2 write st=':status()
-   crt 'KW al2 time ':time()
-   crt 'KW al2 end'
-end
-"""
+# (27 Oct 26, S.87 batch 17: $MODE AUTOLOCK is gone, and with it KWAL_TEXT and KWAL2_TEXT and their rows)
 # the lock that outlives its file variable until the next prompt, and the program that keeps the session alive after it
 KWL1_TEXT = """   crt 'KW l1 begin'
    open 'zznw1' to f else crt 'KW l1 openfail st=':status() ; stop
@@ -4637,7 +4617,7 @@ def kw_prep():
     gates_on = [path, "", g.GROUP, "", "", "", "no", "no", "", "yes", "yes", "yes", "", "", "yes"]
     g.reg_write(HNED, gates_on)                                    # while the programs are compiled: they need bp.edit
     drv = kw_driver()
-    plan = {"zznhon": {KWDRV: drv, "zznkwal": KWAL_TEXT, "zznkwal2": KWAL2_TEXT, "zznkwl1": KWL1_TEXT, "zznkwl2": KWL2_TEXT, "zznkwf1": KWF1_TEXT, "zznkwf2": KWF2_TEXT, "zznkwc": KWC_TEXT},
+    plan = {"zznhon": {KWDRV: drv, "zznkwl1": KWL1_TEXT, "zznkwl2": KWL2_TEXT, "zznkwf1": KWF1_TEXT, "zznkwf2": KWF2_TEXT, "zznkwc": KWC_TEXT},
             HNED: {KWDRV: drv}, KOFF: {KWDRV: drv}}
     KW["abort"] = {}
     for i, (tag, ptr, middle, pre, dict_open, accts, _m) in enumerate(KWA, 1):
@@ -4661,7 +4641,7 @@ def kw_prep():
         warn += [ln for ln in out if re.search(r"warning|not assigned", ln, re.I)]
         if miss:
             missing[acct] = (miss, [ln for ln in out if any(n in ln for n in miss) or re.search(r"error", ln, re.I)][:10])
-    row("SETUP: the %d programs of the write section (the driver in three accounts, %d that must stop, %d refusals that remain, AUTOLOCK, the lock lifetime) compile in ORDINARY sessions "
+    row("SETUP: the %d programs of the write section (the driver in three accounts, %d that must stop, %d refusals that remain, the lock lifetime) compile in ORDINARY sessions "
         "with no error and no warning" % (total, len(KWA), len(KW["still"])), not missing and not warn, repr((missing, warn[:4])))
 
     # the internal programs, the pointers (written by the administrator) and the admin's program
@@ -4975,21 +4955,6 @@ def kw_busy(A):
             % (what, "the record is read" if reads else "the lock is held"), kw_sane(r) and want_line in r.kw and len(times) == 2 and 2 <= (times[1] - times[0]) % 86400 <= 30, kw_why(r) + " times=%r" % times)
         row("...THE FAKE SAW %d LOCK requests (one every 250 ms or so), NO request of type 7 to 10 (the server's own locking reads, which wait on the server) and exactly %d READ, after the lock was taken: %s"
             % (n30, reads, sorted(set(types))), n30 >= 5 and not {7, 8, 9, 10} & set(types) and types.count(6) == reads, repr(types))
-
-    # AUTOLOCK: $MODE AUTOLOCK makes a WRITE and a DELETE take the lock themselves
-    r = kw_run("zznhon", ["RUN bp zznkwal"], (A,))
-    seg = kw_segments(r.out).get("al", [])
-    wire = [ACCT_REQ, W_OPEN(HW), W_LOCK(1, "w1", True), W_WRITE(1, "w1", "by-autolock"), W_LOCK(1, "w2", True), W_DEL(1, "w2")]
-    row("$MODE AUTOLOCK: a WRITE and a DELETE of a remote record take the update lock first (30, flags 3) and then write (16) or delete (18) - the lock is let go by the plain WRITE and DELETE; "
-        "STATUS() 0 for both", not r.hung and "KW al write st=0" in seg and "KW al delete st=0" in seg and "KW al end" in seg and kn_wire(r.d[0])[:len(wire)] == wire and r.idle,
-        repr((seg, kn_wire(r.d[0])[:8])))
-    row("...the file: w1 written, w2 gone", r.stores[0][HW].get("w1") == "by-autolock" and "w2" not in r.stores[0][HW], repr(r.stores[0][HW]))
-    A.store.hold(HW, "w3", 8, "update")
-    r = kw_run("zznhon", ["RUN bp zznkwal2"], (A,), holders=((A, 8, 3.0),))
-    seg = kw_segments(r.out).get("al2", [])
-    tms = [int(m.group(1)) for m in (re.match(r"^KW al2 time (\d+)$", x) for x in seg) if m]
-    row("...AUTOLOCK on a record another user holds: the WRITE waits for the lock (polling) and is then made", not r.hung and "KW al2 write st=0" in seg and len(tms) == 2 and 2 <= (tms[1] - tms[0]) % 86400 <= 30
-        and r.stores[0][HW].get("w3") == "after-wait" and r.d[0]["types"].count(30) >= 5 and r.d[0]["types"].count(16) == 1, repr((seg, r.d[0]["types"])))
 
     # MUSTLOCK on the CLIENT (pconfig, an internal program): a write without the lock is refused as it would be for a local file
     r = kw_run("zznhon", ["ZZNKWM"], (A,))

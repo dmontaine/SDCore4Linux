@@ -641,7 +641,7 @@ Boston
 
 ## A12. The compiler's modes and options **[1.2-0]**
 
-`$mode name` changes how one program is compiled and every mode is off unless asked for. The pack has one chunk per mode (`basic:mode:<name>`) and per `option` (`basic:option:<name>`). The ones that change what an expression means are the ones to know: `partial.expressions` (above), `pick.convert` (the argument order of `convert()`), `explicit` (every variable must be in a `dim`), and `selectv` (a bare `select` builds a variable).
+`$mode name` changes how one program is compiled and every mode is off unless asked for. The pack has one chunk per mode (`basic:mode:<name>`) and per `option` (`basic:option:<name>`). The ones that change what an expression means are the ones to know: `partial.expressions` (above), `explicit` (every variable must be in a `dim`) and `uv.locate` (a `locate` that works as UniVerse's does).
 
 ```basic fail
 $mode explicit

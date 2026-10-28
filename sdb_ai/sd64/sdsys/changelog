@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  TWENTY-TWO $MODE WORDS ARE REMOVED: THE COMPILER MODES THAT MADE SD BEHAVE LIKE ANOTHER PRODUCT.
+
+             What        string.locate, composite.readnext, pick.read, selectv, pick.select, stdfil, stdfil.shared, write.delete.then.else, autolock, pick.substr, pick.substr.assign,
+                         compatible.append, pick.convert, count.overlap, index.overlap, change.no.overlap, case.sensitive, for.store.before.test, pick.jump.range, optional.final.end,
+                         pick.matrix and heading.no.eject are no longer modes: $MODE with one of them stops the compile with "Unrecognised mode name", and an I-type with one of the four
+                         it could use (the three overlap modes and compatible.append) gets the I-type's own "not a mode an I-type can use". Every program does what it did with the mode off.
+                         The opcodes only they emitted are reserved (LOCATES, FORLOOPS, FOR1S, RDNXPOS, DIMLCLP, PICKREAD, ONGOTOP, ONGOSUBP, PSUBSTRA, PSUBSTRB, COMPREP, COMPINS,
+                         COMPINSRT, COMPREPLC, ROLL3, STROVL) and their kernel code is gone with the file-variable default, the @STDFIL save at EXECUTE, and the flags P_PICKREAD, P_THEN_ELSE,
+                         P_AUTOLOCK, P_DEF_SELLIST and P_PICK_SEL. SP.VIEW and the shipped programs use none of them. selectv file TO var is still a statement. A program
+                         compiled with one of the modes before this change stops with "Illegal opcode" when it reaches a statement the mode changed: recompile it (and delete the $MODE).
+             Why it      Each was an opt-in to another product's behaviour; the default was already SD's own.
+             Does not    Change a program that never named one of them, the remaining modes (uv.locate, trap.unused, trap.unused.main, no.echo.data, strict.equate, time.ms,
+                         partial.expressions, explicit, default.unass.args, non.durable.txn, debug.equates), or the PMATRIX descriptor type in the run-time system, which stays but can no
+                         longer be reached.
+
 27 Oct 26  SIX OPTION WORDS AND THE KEEP.SELECT STATEMENT ARE REMOVED: THE THREE WARNING OPTIONS, INHERIT, QUERY.SORT.NO.CASE AND CLEAR.SELECT.
 
              What        An unassigned variable, a divide by zero and a non-numeric value where a number is needed always stop the program with a run-time error; OPTION UNASS.WARNING,

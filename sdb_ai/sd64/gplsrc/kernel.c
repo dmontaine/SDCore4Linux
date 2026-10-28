@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 17: k_return() no longer gives back a caller's @STDFIL ($MODE STDFIL.SHARED is gone).
  * 27 Oct 26 dm  S.87 batch 8: OPTION CORRELATIVE.NOCASE is gone; a correlative is case blind only through its own A;NOCASE; flag or an I-type's $mode nocase.strings.
  * 26 Oct 26 dm  W.11 F10: a phantom takes the secret PHANTOM gave it out of its environment as it starts (phantom_nonce_import, op_kernel.c).
  * 24 Oct 26 dm  W.11 F9: the process's own privilege words (my_priv_flags, my_priv_gates) are zeroed where the user table entry's flags and gates are.
@@ -307,9 +308,7 @@ Private void init_program() {
   process.program.itrap_n = 0;
   process.program.itrap_stub = 0;
   process.program.itrap_hit = 0;
-  process.program.str_ovl = 0; /* the overlap modes belong to the program that set them: the caller's copy keeps its own (Q-16) */
   process.program.has_stacked = FALSE; /* the caller's copy, saved before this call, keeps the stacked list (openQM 61) */
-  process.program.has_stdfil = FALSE;  /* ...and the @STDFIL of STDFIL.SHARED (16 Oct 26) */
   process.program.gosub_depth = 0;
   process.program.break_handler = NULL;
 }
@@ -845,8 +844,6 @@ void k_return() {
 
   if (old_flags & IS_EXECUTE) {
     tio.prompt_char = process.program.saved_prompt_char;
-    if (process.program.has_stdfil)
-      stdfil_shared_restore(); /* the command's @STDFIL goes, the caller's comes back (QM4 gap 225) */
   }
 
   if (old_flags & HDR_IS_DEBUGGER) {

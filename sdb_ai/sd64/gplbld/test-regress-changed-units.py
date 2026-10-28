@@ -105,10 +105,10 @@ def part_a():
         return rc.select(files, groups, rules, suites, subrules, lab)
 
     p = "sdb_ai/sd64/"
-    sel, un, _ = pick([p + "gplbld/sandbox-selectv-mode.py"])
-    row("a changed suite file selects that suite and only it", sel == ["selectv-mode"] and not un, repr(sel))
+    sel, un, _ = pick([p + "gplbld/sandbox-sselectv.py"])
+    row("a changed suite file selects that suite and only it", sel == ["sselectv"] and not un, repr(sel))
     sel, un, _ = pick([p + "gplsrc/op_dio4.c"])
-    row("the select-list kernel file selects the select-list suites", {"sselectv", "list-q2", "selectv-mode"} <= set(sel), repr(sel))
+    row("the select-list kernel file selects the select-list suites", {"sselectv", "list-q2"} <= set(sel), repr(sel))
     sel, un, _ = pick([p + "sdsys/gpl.bp/ftype"])
     row("LISTF's type program selects the LISTF suite", "listf-mult" in sel, repr(sel))
     sel, un, _ = pick([p + "gplbld/FILES_DICTS/voc.dic^trigger"])
@@ -125,16 +125,16 @@ def part_a():
             "masters" in sel and not un, repr(sel))
     bc = p + "sdsys/gpl.bp/bcomp"
     sel, _, _ = pick([bc], ["st.input.common"])
-    row("bcomp, a hunk under st.input.common: the INPUT suites, not the select-list ones", "inputtrap" in sel and "selectv-mode" not in sel, repr(sel))
+    row("bcomp, a hunk under st.input.common: the INPUT suites, not the select-list ones", "inputtrap" in sel and "sselectv" not in sel, repr(sel))
     sel, _, _ = pick([bc], ["st.select.common", "st.readnext"])
     row("bcomp, hunks under st.select.common and st.readnext: the select-list suites, not the INPUT ones",
-        "selectv-mode" in sel and "inputtrap" not in sel and "classas" not in sel, repr(sel))
+        "sselectv" in sel and "inputtrap" not in sel and "classas" not in sel, repr(sel))
     sel, _, _ = pick([bc], [])
-    row("bcomp, hunks in comments only: the small compiler check and nothing more", sorted(sel) == sorted(["bcomp-a1", "stmt-q3", "func-q1", "mode-q16", "restricted", "stdfil", "dbgequ"]), repr(sel))
+    row("bcomp, hunks in comments only: the small compiler check and nothing more", sorted(sel) == sorted(["bcomp-a1", "stmt-q3", "func-q1", "mode-q16", "restricted", "dbgequ"]), repr(sel))
     sel, _, _ = pick([bc], ["some.label.nobody.named"])
     row("bcomp, a hunk under a label no sub-rule names: the whole compiler group", {"classas", "inputtrap", "lang-a15", "try"} <= set(sel), repr(sel))
     sel, _, _ = pick([bc], None)
-    row("bcomp, hunks unknown: every sub-rule applies", {"inputtrap", "screen", "try", "selectv-mode"} <= set(sel), repr(sel))
+    row("bcomp, hunks unknown: every sub-rule applies", {"inputtrap", "screen", "try", "sselectv"} <= set(sel), repr(sel))
 
 
 # ---------------------------------------------------------------------------------------------------------------------------

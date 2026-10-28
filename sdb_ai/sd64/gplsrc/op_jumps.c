@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 17: op_ongosubp and op_ongotop ($MODE PICK.JUMP.RANGE) are gone, and computed_jump() has no pick_style: an index out of range uses the nearest label.
  * 27 Oct 26 dm  S.87 batch 13: pick_style_runfile() (the Pick style CALL "file name") is gone; a call name with a space in it is an illegal call name.
  * 27 Oct 26 dm  S.87 batch 3: op_enter() (the Pick ENTER statement) is gone; its opcode is an op_illegal row in opcodes.h.
  * 24 Oct 26 dm  W.11 F9: op_chkcat() looks in the global catalogue under sd_sysdir() (the configuration file's), not the segment's copy.
@@ -55,9 +56,7 @@
  * op_jpz()       JPZ       Jump if positive or zero
  * op_jze()       JZE       Jump if zero
  * op_ongosub()   ONGOSUB   Computed local subroutine call
- * op_ongosubp()  ONGOSUBP  Computed local subroutine call (Pick style)
  * op_ongoto()    ONGOTO    Computed jump
- * op_ongotop()   ONGOTOP   Computed jump (Pick style)
  * op_return()    RETURN    Return from GOSUB or CALL
  * op_returnto()  RETURNTO  Jump to label if from GOSUB, return if from CALL
  * op_run()       RUN
@@ -91,7 +90,7 @@ void k_error(char msg[], ...) __attribute__((noreturn));
 
 extern time_t clock_time;
 
-Private void computed_jump(bool save_link, bool pick_style);
+Private void computed_jump(bool save_link);
 
 /* ======================================================================
    refresh_link()  -  FORCE.RELOAD: replace a superseded object in a link
@@ -720,28 +719,14 @@ void op_loadobj() {
    op_ongosub()  -  Computed gosub                                        */
 
 void op_ongosub() {
-  computed_jump(TRUE, FALSE);
-}
-
-/* ======================================================================
-   op_ongosubp()  -  Computed gosub (Pick style)                          */
-
-void op_ongosubp() {
-  computed_jump(TRUE, TRUE);
+  computed_jump(TRUE);
 }
 
 /* ======================================================================
    op_ongoto()  -  Computed goto                                          */
 
 void op_ongoto() {
-  computed_jump(FALSE, FALSE);
-}
-
-/* ======================================================================
-   op_ongotop()  -  Computed goto (Pick style)                            */
-
-void op_ongotop() {
-  computed_jump(FALSE, TRUE);
+  computed_jump(FALSE);
 }
 
 /* ======================================================================
@@ -872,10 +857,7 @@ void op_run() {
 /* ======================================================================
    computed_jump()  -  Common path for op_ongoto() and op_ongosub()       */
 
-Private void computed_jump(
-    bool save_link,
-    bool pick_style) /* Affects action of out of range index value */
-{
+Private void computed_jump(bool save_link) {
   DESCRIPTOR* descr;
   int16_t num_labels;
   int32_t n;
@@ -891,17 +873,10 @@ Private void computed_jump(
   n = descr->data.value;
   k_dismiss();
 
-  if (pick_style) {
-    if ((n < 1) || (n > num_labels)) {
-      pc += num_labels * 3;
-      return;
-    }
-  } else {
-    if (n < 1)
-      n = 1;
-    else if (n > num_labels)
-      n = num_labels;
-  }
+  if (n < 1)
+    n = 1;
+  else if (n > num_labels)
+    n = num_labels;
 
   if (save_link) {
     if (process.program.gosub_depth == MAX_GOSUB_DEPTH)
