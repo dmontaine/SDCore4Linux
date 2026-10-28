@@ -72,8 +72,7 @@ INTERNAL = {
     # RUN gpl.bp zzstart <mode> <the PHANTOM command>: the verb itself, from a session that is not a phantom
     "zzstart": ("$internal\n$include int$keys.h\n   mode = field(@sentence, ' ', 4)\n   ph = field(@sentence, ' ', 5, 99999)\n"
                 "   if mode = 'data' then\n      data 'alpha'\n      data 'beta'\n   end\n"
-                "   if mode = 'opt' then execute 'OPTION INHERIT' capturing j\n"
-                "   if mode = 'opt' or mode = 'optonly' then execute 'OPTION INHERIT.OWNERSHIP' capturing j\n"
+                "   if mode = 'optonly' then execute 'OPTION INHERIT.OWNERSHIP' capturing j\n"
                 "   execute ph capturing j\n   crt 'UID[':@system.return.code:']'\n"
                 "   crt 'PARENT[':len(env('SD_PHANTOM_NONCE')):'][':len(kernel(K$PHANTOM.NONCE, 'G')):']'\nend\n"),
     # RUN gpl.bp zzfake <variant>: does what the PHANTOM verb does, writing the records itself.  'ok' is exactly what PHANTOM writes; the others have one thing wrong
@@ -283,12 +282,10 @@ def rows_legit(only=None):
             time.sleep(0.5)
         row("A3", "PHANTOM LOG: the phantom ran and its COMO log is a file of the directory file zzlogdir (%s)" % found, got == "ran" and len(found) == 1, repr(out[-4:]))
     if want("A4"):
-        u, out = start("opt", "PHANTOM NO.MSG RUN gpl.bp zzopt A4a")
-        got = wait_rec("O%s.A4a" % u) if u else None
-        row("A4a", "OPTION INHERIT in the parent: the phantom has the option the parent set (INHERIT.OWNERSHIP)", got == "1", repr((got, out[-4:])))
+        # 27 Oct 26, S.87 batch 16: OPTION INHERIT is gone, so A4a ("the phantom has the option the parent set") is gone; A4b stays as the rule itself.
         u, out = start("optonly", "PHANTOM NO.MSG RUN gpl.bp zzopt A4b")
         got = wait_rec("O%s.A4b" % u) if u else None
-        row("A4b", "CONTROL: without OPTION INHERIT the parent's option does not reach the phantom", got == "0", repr((got, out[-4:])))
+        row("A4b", "a phantom starts with every option off: the parent's INHERIT.OWNERSHIP does not reach it", got == "0", repr((got, out[-4:])))
     if want("A5"):
         u, out = start("plain", "PHANTOM NO.MSG RUN gpl.bp zzenv A5")
         got = wait_rec("E%s.A5" % u) if u else None

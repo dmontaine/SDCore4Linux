@@ -18,6 +18,7 @@
 * 
 *  
 * START-HISTORY:
+* 27 Oct 26 dm S.87 batch 16: OPTION QUERY.SORT.NO.CASE is gone; a sort key is compared as it is (SP.VIEW sorts case-blind by itself).
 * 27 Oct 26 dm S.87 batch 15: BREAK.ON "LU" - L is no longer ignored when U is also given (the two controls are independent); the query words avg, enum, vert, percent, pct, %, header, footer, first, # and & are gone (their VOC records; the long forms were always the ones this program reads).
 * 27 Oct 26 dm S.87 batch 13: the dead block under #ifdef NEVER (column heading control codes) is deleted, as # no longer starts a directive.
 * 27 Oct 26 dm  S.87 batch 7: OPTION QUERY.STRING.COMP, QUERY.STR.COMP.ALL, DEFAULT.MV and ASSOC.ALL are gone; EQ / NE compare as BASIC does, a blank S/M flag is single valued and the dictionary's associations are used, as with the options off.
@@ -1916,15 +1917,6 @@ by.literal:
                continue
 
             next i
-
-            * If the QUERY.SORT.NO.CASE option is set, translate all sort keys
-            * to uppercase
-
-            if option(OPT.QUERY.SORT.NO.CASE) then
-               for i = 1 to no.of.sort.items
-                  by.item(i) = upcase(by.item(i))
-               next i
-            end
 
             * If there is a SAVING clause, extract the data to be saved
 

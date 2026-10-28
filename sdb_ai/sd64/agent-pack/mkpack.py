@@ -772,7 +772,7 @@ def mode_chunks(ctx, since, mentions):
         if m2:
             body.append("- docs: `%s` line %d" % (m2[0][5:], m2[1]))
         out.append(Chunk("basic:option:" + name.lower(), "basic.option", "reference", since.of(name), srcs, "\n".join(body), "basic-modes"))
-    if nopt < 20:                                    # 27 Oct 26: 28 option words since 11 more were removed (batch 7; the 22 that imitated other products went before; blank rows are not counted); 61 at the start
+    if nopt < 12:                                    # 27 Oct 26: 15 option words since 6 more were removed (batch 16; 28 after batch 7; the 22 that imitated other products went before; blank rows are not counted); 61 at the start
         raise SystemExit("mkpack: only %d OPTION names found in gpl.bp/option - refusing" % nopt)
     return out
 

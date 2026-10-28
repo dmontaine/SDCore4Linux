@@ -263,7 +263,6 @@ sdsys/gpl.bp/bcomp ~ in.csvdq        : csv-b5 csvb func-b4
 sdsys/gpl.bp/bcomp ~ in.json         : coll jsonx
 sdsys/gpl.bp/bcomp ~ in.xfun         : func-b4 func-q1 csvb jsonx xmlx
 sdsys/gpl.bp/bcomp ~ xfun.table.load : func-b4 func-q1 csvb jsonx xmlx
-sdsys/gpl.bp/bcomp ~ st.keepselect   : jsonx csvb @lists-compile
 sdsys/gpl.bp/bcomp ~ is.statement    : bcomp-a1 jsonx
 sdsys/gpl.bp/bcomp ~ set.*   : stdfil dbgequ mode-q16
 sdsys/gpl.bp/bcomp ~ st.restricted  : restricted classas classinit
@@ -589,7 +588,7 @@ sdsys/gpl.bp/*lst*           : @lists
 sdsys/gpl.bp/selec*          : @lists
 sdsys/gpl.bp/selidxv         : @lists
 sdsys/gpl.bp/sellrv          : @lists
-sdsys/gpl.bp/keepsel         : @lists
+sdsys/gpl.bp/keepsel         : none
 sdsys/gpl.bp/nselect         : @lists
 sdsys/gpl.bp/seldir          : @lists gates
 sdsys/gpl.bp/movel*          : @lists

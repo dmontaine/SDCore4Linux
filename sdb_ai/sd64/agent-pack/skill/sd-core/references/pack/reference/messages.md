@@ -1524,20 +1524,6 @@ cited by: `qproc`
 Non-numeric where numeric required|in %s
 ```
 
-### msg:11042
-> kind=message tier=reference since=- src=sdsys/messages/11042:1#916a6cd3
-
-```
-Query processor sorts ignore case
-```
-
-### msg:11045
-> kind=message tier=reference since=- src=sdsys/messages/11045:1#d8b10646
-
-```
-Clear select list 0 after a command that did not create it
-```
-
 ### msg:11046
 > kind=message tier=reference since=- src=sdsys/messages/11046:1#0f6466b3
 
@@ -1949,13 +1935,6 @@ cited by: `setptr`
 Unhandled exception %s
 ```
 
-### msg:1109
-> kind=message tier=reference since=- src=sdsys/messages/1109:1#f4afdabc
-
-```
-!Zero used for unassigned variable|%s
-```
-
 ### msg:11090
 > kind=message tier=reference since=- src=sdsys/messages/11090:1#baa2d151
 
@@ -2035,13 +2014,6 @@ Exception name is longer than 63 characters
 ```
 
 cited by: `bcomp`
-
-### msg:1110
-> kind=message tier=reference since=- src=sdsys/messages/1110:1#6fa9557a
-
-```
-!Null used for unassigned variable|%s
-```
 
 ### msg:11100
 > kind=message tier=reference since=- src=sdsys/messages/11100:1#ec391d37
@@ -2133,13 +2105,6 @@ Mark translation: Off
 
 cited by: `pterm`
 
-### msg:1111
-> kind=message tier=reference since=- src=sdsys/messages/1111:1#a4ea3a1c
-
-```
-!Zero returned from divide by zero|, variable %s
-```
-
 ### msg:11110
 > kind=message tier=reference since=- src=sdsys/messages/11110:1#ed39130e
 
@@ -2229,13 +2194,6 @@ As characters: %1
 ```
 
 cited by: `pterm`
-
-### msg:1112
-> kind=message tier=reference since=- src=sdsys/messages/1112:1#ce8f8c04
-
-```
-!Non-numeric where numeric required zero used|in %s
-```
 
 ### msg:11120
 > kind=message tier=reference since=- src=sdsys/messages/11120:1#64452957
@@ -12703,13 +12661,6 @@ No records specified
 
 cited by: `unlock`
 
-### msg:3100
-> kind=message tier=reference since=- src=sdsys/messages/3100:1#bb9a931e
-
-```
-Treat unassigned variable as a warning
-```
-
 ### msg:3101
 > kind=message tier=reference since=- src=sdsys/messages/3101:1#8e2d2919
 
@@ -12722,20 +12673,6 @@ Allow DEBUGGING keyword to the query processor
 
 ```
 Create memory dump on fatal error
-```
-
-### msg:3107
-> kind=message tier=reference since=- src=sdsys/messages/3107:1#b432316f
-
-```
-Treat divide by zero as a warning
-```
-
-### msg:3108
-> kind=message tier=reference since=- src=sdsys/messages/3108:1#7650bc45
-
-```
-Treat non-numeric where numeric needed as a warning
 ```
 
 ### msg:3111
@@ -12759,13 +12696,6 @@ Show call stack at a fatal error
 Suppress program details on abort
 ```
 
-### msg:3126
-> kind=message tier=reference since=- src=sdsys/messages/3126:1#3dc06f8e
-
-```
-Phantom inherits option settings
-```
-
 ### msg:3200
 > kind=message tier=reference since=- src=sdsys/messages/3200:1#a47860e8
 
@@ -12780,15 +12710,6 @@ cited by: `option`
 
 ```
 Option name not recognised
-```
-
-cited by: `option`
-
-### msg:3202
-> kind=message tier=reference since=- src=sdsys/messages/3202:1#75105e3c
-
-```
-This option cannot take a qualfying keyword
 ```
 
 cited by: `option`

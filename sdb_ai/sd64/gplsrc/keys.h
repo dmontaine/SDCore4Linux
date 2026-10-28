@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 16: K_KEEP_SELECT (107) is gone; the number stays reserved.
  * 19 Oct 26 dm  S.67: K_MASTERS (150), the master files (stage 1), and its op "refusal", the reason the last save of a master record was refused (stage 2).
  * 18 Oct 26 dm  S.66: K_SHARED_READ, K_SHARED_WRITE, K_SHARED_REF and K_SHARED_ONCE (128-131), the shared account's gates and lookup test.
  * 17 Oct 26 dm  S.65 slice 2b: SD_FILE_PRIVATE (111), the SDEXT private-file test.
@@ -312,10 +313,7 @@
 /* 15 Oct 26 dm - QM4 gaps Q-8.
      K_PID_ALIVE       1 if the process with this id exists (a process of another user counts), 0 if it does not. */
 #define K_PID_ALIVE          106
-/* 15 Oct 26 dm - QM4 gaps Q-16, KEEP.SELECT.
-     K_KEEP_SELECT     the KEEP.SELECT flag of the command now running: 1 sets it, 0 clears it, -1 only asks.  The previous value
-                       comes back.  CPROC clears it as each outermost command starts and tests it when the command has finished. */
-#define K_KEEP_SELECT        107
+/* 107 was K_KEEP_SELECT (the KEEP.SELECT statement, removed 27 Oct 26, S.87 batch 16): the number stays reserved. */
 /* 15 Oct 26 dm - QM4 gaps Q-8, COMMAND.LOGGING (the per-process form).
      K_CMDLOG          1 starts logging this process's commands, 0 stops, -1 only asks.  The pathname of the log comes back
                        when logging is on after the call, a null string when it is off or could not be started (the file

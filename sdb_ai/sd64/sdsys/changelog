@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  SIX OPTION WORDS AND THE KEEP.SELECT STATEMENT ARE REMOVED: THE THREE WARNING OPTIONS, INHERIT, QUERY.SORT.NO.CASE AND CLEAR.SELECT.
+
+             What        An unassigned variable, a divide by zero and a non-numeric value where a number is needed always stop the program with a run-time error; OPTION UNASS.WARNING,
+                         DIV.ZERO.WARNING, NON.NUMERIC.WARNING and the shortcut SDBASIC.WARNINGS, which turned each into a warning that read the value as zero or null, are gone. A phantom
+                         starts with every option off (OPTION INHERIT passed the parent's on). A sort in the query processor is by case, as it always was by default (OPTION QUERY.SORT.NO.CASE
+                         is gone; SP.VIEW file BY field NO.CASE still ignores case, by sorting its list itself). A select list left active is left for the next command (OPTION CLEAR.SELECT
+                         cleared it at the end of a command, and the KEEP.SELECT statement was its exemption: both are gone; CLEARSELECT 0 clears the list). OPTION now names fourteen words.
+                         The messages 1109 to 1112 (the warnings) and 3100, 3107, 3108, 3126, 3202, 11042 and 11045 are gone with them, and so are the kernel key 107 and the program keepsel.
+             Why it      Each was an opt-in to behaviour SD's default does not have, written for programs from another product.
+             Does not    Change what a program does that never used one of them, or any other option. An existing program that says KEEP.SELECT stops compiling: delete the line.
+
 27 Oct 26  ELEVEN SD.CONF SETTINGS THAT DID NOTHING OR WERE NEVER NEEDED ARE REMOVED, WITH sd -<n> AND THE GDI AND RAW WORDS OF SETPTR.
 
              What        APILOGIN, CODEPAGE, CREATUSR, EXCLREM, FIXUSERS, GDI, JNLDIR, JNLMODE, PORTMAP, RINGWAIT and TXCHAR are no longer parameters. A line naming one in

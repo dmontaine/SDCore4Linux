@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 16: k_unassigned_zero/_null, k_div_zero_warning and k_non_numeric_warning (messages 1109 to 1112) are gone with OPTION UNASS.WARNING,
+ *               DIV.ZERO.WARNING and NON.NUMERIC.WARNING: an unassigned variable, a divide by zero and a non-numeric value are always errors.
  * 24 Oct 26 dm  W.11 F4, option C2: audit_rotate() calls audit_rotate_file() (audit_rot.c), which the audit daemon also uses to rotate by size; AUDIT_ROTATE_BYTES is in sddefs.h.
  * 24 Oct 26 dm  W.11 F4, option C1: audit_message() hands the record to the audit daemon over a Unix datagram socket (audit_to_daemon()) and appends to the file itself
  *               (audit_append_file(), the old code) only when the daemon does not take it.
@@ -291,13 +293,9 @@ DescrError(1100, k_index_error) DescrError(1101, k_dh_error)
         DescrError(1104, k_non_numeric_error) DescrError(1105, k_unassigned)
             DescrError(1106, k_null_id) DescrError(1107, k_illegal_id)
                 DescrError(1108, k_div_zero_error)
-                    DescrError(1109, k_unassigned_zero)
-                        DescrError(1110, k_unassigned_null)
-                            DescrError(1111, k_div_zero_warning)
-                                DescrError(1112, k_non_numeric_warning)
-                                    DescrError(1113, k_data_type)
-                                        DescrError(1137, k_strnum_len)
-                                            DescrError(1138, k_not_socket)
+                    DescrError(1113, k_data_type)
+                        DescrError(1137, k_strnum_len)
+                            DescrError(1138, k_not_socket)
 
                                                 Private
     void k_descr_error(int16_t msg_no, DESCRIPTOR* descr) {
