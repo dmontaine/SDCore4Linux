@@ -24444,13 +24444,6 @@
 "tier": "reference",
 "words": 68
 },
-"sys:param:apilogin": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
 "sys:param:backupdir": {
 "kind": "sys.param",
 "part": "reference/system.md",
@@ -24466,20 +24459,6 @@
 "words": 25
 },
 "sys:param:cmdstack": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
-"sys:param:codepage": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
-"sys:param:creatusr": {
 "kind": "sys.param",
 "part": "reference/system.md",
 "since": "-",
@@ -24521,13 +24500,6 @@
 "tier": "reference",
 "words": 18
 },
-"sys:param:exclrem": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
 "sys:param:fds": {
 "kind": "sys.param",
 "part": "reference/system.md",
@@ -24542,13 +24514,6 @@
 "tier": "reference",
 "words": 12
 },
-"sys:param:fixusers": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
 "sys:param:fltdiff": {
 "kind": "sys.param",
 "part": "reference/system.md",
@@ -24557,13 +24522,6 @@
 "words": 12
 },
 "sys:param:fsync": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
-"sys:param:gdi": {
 "kind": "sys.param",
 "part": "reference/system.md",
 "since": "-",
@@ -24590,20 +24548,6 @@
 "since": "-",
 "tier": "reference",
 "words": 25
-},
-"sys:param:jnldir": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
-"sys:param:jnlmode": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
 },
 "sys:param:lgnwait": {
 "kind": "sys.param",
@@ -24724,13 +24668,6 @@
 "tier": "reference",
 "words": 12
 },
-"sys:param:portmap": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
 "sys:param:pwdelay": {
 "kind": "sys.param",
 "part": "reference/system.md",
@@ -24744,13 +24681,6 @@
 "since": "-",
 "tier": "reference",
 "words": 25
-},
-"sys:param:ringwait": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
 },
 "sys:param:safedir": {
 "kind": "sys.param",
@@ -24837,13 +24767,6 @@
 "words": 12
 },
 "sys:param:terminfo": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
-"sys:param:txchar": {
 "kind": "sys.param",
 "part": "reference/system.md",
 "since": "-",
@@ -26299,13 +26222,6 @@
 "tier": "reference",
 "words": 40
 },
-"tcl:gdi": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
-},
 "tcl:ge": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -27418,13 +27334,6 @@
 "since": "-",
 "tier": "reference",
 "words": 74
-},
-"tcl:raw": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
 },
 "tcl:read": {
 "kind": "tcl.keyword",

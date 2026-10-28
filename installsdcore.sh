@@ -1476,7 +1476,7 @@ fi
 # while a parameter existed must remove its line.  Only a line that BEGINS with the exact name and an equals sign is
 # removed (a comment, or another name that merely starts the same way, is left alone).  The list is the parameters
 # config.c no longer reads; gplbld/test-install-retiredconf.sh holds it to config.c.
-retired_conf_keys="INVCASE"
+retired_conf_keys="INVCASE CODEPAGE EXCLREM RINGWAIT TXCHAR APILOGIN CREATUSR JNLDIR JNLMODE GDI FIXUSERS PORTMAP"
 for retired_key in $retired_conf_keys; do
     if grep -q "^${retired_key}=" /etc/sd.conf; then
         sudo sed -i "/^${retired_key}=/d" /etc/sd.conf

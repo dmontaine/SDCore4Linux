@@ -233,16 +233,9 @@ bool bind_sysseg(bool create, char* errmsg) {
   sysseg->deadlock = cfg->deadlock;                   /* DEADLOCK */
   sysseg->errlog = cfg->errlog;                       /* ERRLOG */
   sysseg->fds_limit = cfg->fds_limit;                 /* FDS */
-  sysseg->fixusers_base = cfg->fixusers_base;         /* FIXUSERS */
-  sysseg->fixusers_range = cfg->fixusers_range;       /* FIXUSERS */
-  sysseg->jnlmode = cfg->jnlmode;                     /* JNLMODE */
-  strcpy((char*)(sysseg->jnldir), cfg->jnldir);       /* JNLDIR */
   sysseg->maxidlen = cfg->maxidlen;                   /* MAXIDLEN */
   sysseg->netfiles = cfg->netfiles;                   /* NETFILES */
   sysseg->pdump = cfg->pdump;                         /* PDUMP */
-  sysseg->portmap_base_port = cfg->portmap_base_port; /* PORTMAP */
-  sysseg->portmap_base_user = cfg->portmap_base_user; /* PORTMAP */
-  sysseg->portmap_range = cfg->portmap_range;         /* PORTMAP */
   strcpy((char*)(sysseg->sysdir), cfg->sysdir);       /* SDSYS */
   strcpy((char*)(sysseg->startup), cfg->startup);     /* STARTUP */
   sysseg->userpool = cfg->userpool;                   /* USERPOOL */

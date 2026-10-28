@@ -320,12 +320,7 @@ Private bool comlin(int argc, char *argv[]) {
   int TxPipe;
 
   for (arg = 1; (arg < argc) && (argv[arg][0] == '-'); arg++) {
-    if (IsDigit(*(argv[arg] + 1))) {
-      /* Modified by Composer AI - 2026/06/10. atoi -> strtol (no overflow UB). */
-      /* forced_user_no = atoi(argv[arg] + 1); */
-      forced_user_no = (int)strtol(argv[arg] + 1, NULL, 10);
-      /* -------------------- */
-    } else if (!stricmp(argv[arg], "-CLEANUP")) {
+    if (!stricmp(argv[arg], "-CLEANUP")) {
       cleanup();
       exit(0);
     } else if (!stricmp(argv[arg], "-INTERNAL")) {

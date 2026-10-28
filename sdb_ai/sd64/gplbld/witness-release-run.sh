@@ -2504,6 +2504,8 @@ fi
 #      getpeereid() went with login_user); libsodium must be listed, or the
 #      ldd read nothing and the absences mean nothing.
 #   R2 CONFIG reports no APILOGIN line, against CMDSTACK which it must.
+#   (27 Oct 26, S.87: R3 is turned round.  APILOGIN is no longer accepted - a line naming it stops SD - and the installer's
+#   RETIRED-CONF block removes it from a restored sd.conf, so R3 now FAILS when the line is still there after an install.)
 #   R3 THE TRAP: an unrecognised sd.conf key is FATAL (config.c), and a keep
 #      cycle restores an sd.conf written while APILOGIN=1 shipped.  If the
 #      live /etc/sd.conf still carries it, sd.service being active is the
@@ -2557,7 +2559,9 @@ if [ "$COMMIT" -eq 1 ]; then
     say "      | /etc/sd.conf: ${CONFLINE:-(no APILOGIN line)}"
     say "      | sd.service  : $SDACTIVE"
     if printf '%s' "$CONFLINE" | grep -q 'APILOGIN='; then
-        ck "R3 sd.service is active with APILOGIN in /etc/sd.conf (the retired key is accepted)" active "$SDACTIVE"
+        # 27 Oct 26, S.87: APILOGIN is no longer accepted (config.c refuses it) and the installer's RETIRED-CONF block removes the
+        # line from a restored sd.conf, so a line still here means the block did not run and SD should not be active.
+        ck "R3 /etc/sd.conf still carries APILOGIN after the install (the installer removes it; SD refuses to start with it)" absent present
     else
         say "  /etc/sd.conf has no APILOGIN line, so this was a cycle that did NOT keep the"
         say "  configuration.  R3 needs one that did - answer Y to \"keep your existing"

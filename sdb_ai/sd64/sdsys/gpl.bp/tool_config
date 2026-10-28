@@ -13,6 +13,7 @@
 *               The table gained its 'write' and 'why' fields and the page a Change column.
 * 26 Oct 26 dm  read.table assigns every column by line number: an append with <-1> to a still-empty array adds nothing, so the minimum and maximum columns (blank for the table's first rows) slid
 *               up and the foot box showed another parameter's range on the first rows (found by the write half's own check of the range E validates against).
+* 27 Oct 26 dm  S.87 batch 15: no parameter is inert or retired any more (the eleven that were are gone from sd.conf), so the 'inert' sentence at the foot is gone; the other parameters number 37.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -22,7 +23,7 @@
 *   A full-screen page, in the toolkit's frame (140 columns by 43 lines at least).  Everything it does by itself is LOOKING; its one way of changing anything is the command set.config,
 *   which it runs only after the person has typed a value, the page has checked the value against the table's range, and the confirm box has shown the exact sentence and answered Run.
 *   set.config calls the root helper (sd-elevate conf-set), which changes one of 14 tuning parameters and refuses everything else; the page never writes a file and never runs anything else.
-*   The other 49 parameters are not changed from here (the doors, paths and commands, logs and diagnostics, sizes config.c does not check, ...): E shows the reason, from the table, and the
+*   The other 37 parameters are not changed from here (the doors, paths and commands, logs and diagnostics, sizes config.c does not check, ...): E shows the reason, from the table, and the
 *   line to add by hand.
 *
 *   Three views.  P, the parameters: one row for each parameter SD knows (the table sdsys/config.table, which test-toolconfig-units.py holds to the parser in config.c), with the value
@@ -443,7 +444,6 @@ draw.param.detail:
          lines<-1> = 'The file and this session disagree. Sessions started now read the file; this one, and any that were already running, keep ' : fo.s : '.'
       end
    end
-   if pstat<i> = 'inert' then lines<-1> = 'Nothing in SD acts on this parameter; it is accepted so that a file written for another system starts.'
    for r = 1 to dcount(lines, @fm)
       if r <= 11 then
          lr = lines<r>

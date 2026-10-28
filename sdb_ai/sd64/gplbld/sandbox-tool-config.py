@@ -452,7 +452,7 @@ def section_c1(rows, kinds):
     a0 = len(audit_lines())
     forced = run_probe()
     arow("C1a", "the probe (CONFIG() of every key of the table, in a separate administrator session) answered for them all, and it can read what the page says it cannot not (the null case: the instrument measured)",
-         len(forced) == len(rows) and sorted(k for k, v in forced.items() if v is None) == ["APILOGIN", "BACKUPDIR", "SCREENTHEME", "SDSYS", "TXCHAR"], repr(sorted(k for k, v in forced.items() if v is None)))
+         len(forced) == len(rows) and sorted(k for k, v in forced.items() if v is None) == ["BACKUPDIR", "SCREENTHEME", "SDSYS"], repr(sorted(k for k, v in forced.items() if v is None)))
     p = Page()
     if "The parameter under the cursor" not in p.text():
         dump(p.h)
@@ -466,7 +466,7 @@ def section_c1(rows, kinds):
     seen = p.collect()
     ok, detail = check_rows(seen, rows, forced, filev, kinds)
     arow("C1d", "every parameter of the table has a row: the running value, the file's value, the default, when it takes effect and the status are the probe's, the Python reader's and the table's, and no row is marked *", ok and not any(s["mark"] for s in seen.values()), detail)
-    arow("C1e", "the rows come in alphabetical order, the first APILOGIN and the last YEARBASE", list(seen)[0] == "APILOGIN" and list(seen)[-1] == "YEARBASE" and list(seen) == sorted(seen), repr(list(seen)[:3]))
+    arow("C1e", "the rows come in alphabetical order, the first BACKUPDIR and the last YEARBASE", list(seen)[0] == "BACKUPDIR" and list(seen)[-1] == "YEARBASE" and list(seen) == sorted(seen), repr(list(seen)[:3]))
     return p, forced
 
 
@@ -684,9 +684,9 @@ def section_c8(p, by, names):
     d = p.detail()
     arow("C8a", "CLEANUP (writable): the foot box gives its own range (range %s to %s, which the table's first rows must not have slid onto), says E changes it here with that range, and does not say it is not changed from this page" % (r["min"], r["max"]),
          ok and ("range %s to %s" % (r["min"], r["max"])) in d and ("E changes it here: a whole number from %s to %s" % (r["min"], r["max"])) in d and "Not changed from this page" not in d, d[:700])
-    ok = goto(p, names, "APILOGIN")
+    ok = goto(p, names, "BACKUPDIR")
     d = p.detail()
-    arow("C8c", "APILOGIN (the table's first row, no range): the foot box shows no range - the minimum and maximum columns are read by index, so a blank at the top does not move the later ranges up onto it", ok and " range " not in d and "Not changed from this page" in d, d[:300])
+    arow("C8c", "BACKUPDIR (the table's first row, no range): the foot box shows no range - the minimum and maximum columns are read by index, so a blank at the top does not move the later ranges up onto it", ok and " range " not in d and "Not changed from this page" in d, d[:300])
     r = by["NETFILES"]
     ok = goto(p, names, "NETFILES")
     d = p.detail()

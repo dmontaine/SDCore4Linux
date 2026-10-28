@@ -46,11 +46,11 @@ FILES = {
 NEWVOC = os.path.join(SDSYS, "newvoc", "tool.config")
 KINDS = {"int", "bits", "flag", "text", "path", "float", "pair", "triple"}
 EFFECTS = {"session", "restart", "now"}
-STATUSES = {"live", "inert", "retired", "file"}
+STATUSES = {"live", "file"}   # 27 Oct 26, S.87: 'inert' and 'retired' went with the eleven parameters that had them
 # the C field that holds a shared parameter's default, and the key it is
 CFG_DEFAULTS = {"cmdstack": "CMDSTACK", "numfiles": "NUMFILES", "numlocks": "NUMLOCKS", "maxidlen": "MAXIDLEN", "lgnwait": "LGNWAIT", "usplit": "USPLIT", "cleanup": "CLEANUP", "max_users": "NUMUSERS"}
 KB_KEYS = {"SORTMEM", "OBJMEM"}                    # config.c keeps bytes, the table (and CONFIG) say kilobytes
-IGNORED_IN_C = {"APILOGIN", "BACKUPDIR"}           # read_config() accepts them and stores nothing
+IGNORED_IN_C = {"BACKUPDIR"}                       # read_config() accepts it and stores nothing
 # the 14 tuning parameters the table marks write=yes (26 Oct 26); test-confset-elevate-units.py holds the helper's list to the same names
 WRITABLE = ["CLEANUP", "DHCACHE", "GRPSIZE", "LGNWAIT", "LPTRHIGH", "LPTRWIDE", "MAXCALL", "MAXRLOCK", "NETREPLY", "NETWAIT", "NUMLOCKS", "RECCACHE", "SORTMRG", "USPLIT"]
 
@@ -219,7 +219,7 @@ def checks(raw):
     for r in trs:
         if r[0] in dfl and not same_default(r[2], dfl[r[0]]):
             bad.append((r[0], r[2], dfl[r[0]]))
-    ck("CF5", "THE DEFAULTS ARE THE PARSER'S: every default read_config() sets that can be read off the source (%d of them) is the table's, SORTMEM and OBJMEM in kilobytes" % len(dfl), len(dfl) >= 35 and not bad, repr(bad[:4]))
+    ck("CF5", "THE DEFAULTS ARE THE PARSER'S: every default read_config() sets that can be read off the source (%d of them) is the table's, SORTMEM and OBJMEM in kilobytes" % len(dfl), len(dfl) >= 30 and not bad, repr(bad[:4]))
     bad = []
     for r in trs:
         d = dest.get(r[0])
@@ -227,16 +227,16 @@ def checks(raw):
             bad.append((r[0], "shared, the table says " + r[5]))
         if d == "pcfg" and r[5] != "session":
             bad.append((r[0], "the session's own, the table says " + r[5]))
-    ck("CF6", "THE EFFECT IS THE PARSER'S: a parameter that read_config() puts in the shared segment says restart and one it keeps for the session says session (APILOGIN and BACKUPDIR, which are accepted and stored nowhere, are exempt)", not bad and sum(1 for d in dest.values() if d == "cfg") >= 20, repr(bad[:4]))
+    ck("CF6", "THE EFFECT IS THE PARSER'S: a parameter that read_config() puts in the shared segment says restart and one it keeps for the session says session (BACKUPDIR, which is accepted and stored nowhere, is exempt)", not bad and sum(1 for d in dest.values() if d == "cfg") >= 15, repr(bad[:4]))   # 20 before the 27 Oct 26 removals (S.87)
     unreadable = sorted(k for k in keys if k not in readable or len(k) > 8)
-    ck("CF7", "the parameters CONFIG() cannot read are exactly APILOGIN, BACKUPDIR, SCREENTHEME, SDSYS and TXCHAR (a name over eight characters, or one the function has no branch for); the guide says the same and the table says so for the two the page cannot show",
-       unreadable == ["APILOGIN", "BACKUPDIR", "SCREENTHEME", "SDSYS", "TXCHAR"] and "`SCREENTHEME`, `SDSYS`, `APILOGIN`, `BACKUPDIR` and `TXCHAR` cannot be read" in raw["doc"]
+    ck("CF7", "the parameters CONFIG() cannot read are exactly BACKUPDIR, SCREENTHEME and SDSYS (a name over eight characters, or one the function has no branch for); the guide says the same and the table says so for the two the page cannot show",
+       unreadable == ["BACKUPDIR", "SCREENTHEME", "SDSYS"] and "`SCREENTHEME`, `SDSYS` and `BACKUPDIR` cannot be read" in raw["doc"]
        and all("Not readable" in r[7] for r in trs if r[0] in ("SCREENTHEME", "SDSYS")), repr(unreadable))
-    inert = sorted(r[0] for r in trs if r[6] == "inert")
-    retired = sorted(r[0] for r in trs if r[6] == "retired")
-    ck("CF8", "the guide's status table names the same inert parameters (%s) and retired ones (%s) as the table" % (" ".join(inert), " ".join(retired)),
-       sorted(re.findall(r"`([A-Z][A-Z0-9]+)`", raw["doc"].split("| `inert` |")[-1].split("\n")[0])) == inert and sorted(re.findall(r"`([A-Z][A-Z0-9]+)`", raw["doc"].split("| `retired` |")[-1].split("\n")[0])) == retired,
-       repr((inert, retired)))
+    used_status = sorted({r[6] for r in trs})
+    doc_status = sorted(re.findall(r"^\| `([a-z]+)` \|", raw["doc"].split("| Status | Meaning |")[-1].split("\n\n")[0], re.M))
+    ck("CF8", "the guide's status table has a row for each status the table uses (%s) and for `unknown`, and none for the two that went with the eleven removed parameters (`inert`, `retired`)" % " ".join(used_status),
+       doc_status == sorted(used_status + ["unknown"]) and "inert" not in doc_status and "retired" not in doc_status,
+       repr((used_status, doc_status)))
     i_open = pg.find("call $tk_open('tool.config', 'admin', ctx, err)")
     i_audit = pg.find("kernel(K$AUDIT, 'tool start app=tool.config')")
     i_first = min([x for x in (pg.find("openseq"), pg.find("config("), pg.find("call !")) if x >= 0] or [10 ** 9])
@@ -332,8 +332,8 @@ def checks(raw):
     d_no = dict(re.findall(r"^\| `([A-Z0-9]+)` \| ([^|]+) \|$", sect, re.M))
     t_can = [(r[0], r[3], r[4], r[5]) for r in trs if len(r) > 8 and r[8] == "yes"]
     t_no = {r[0]: r[9] for r in trs if len(r) > 8 and r[8] == "no"}
-    ck("CF26", "THE GUIDE'S TWO TABLES ARE THE TABLE: the 14 parameters with their range and effect, and the other 48 with the same sentence the page shows; the guide also names set.config, the .bak, the audit line and the E key",
-       d_can == t_can and len(t_can) == 14 and {k: v.strip() for k, v in d_no.items()} == {k: v.strip() for k, v in t_no.items()} and len(t_no) == 48
+    ck("CF26", "THE GUIDE'S TWO TABLES ARE THE TABLE: the 14 parameters with their range and effect, and the other 37 with the same sentence the page shows; the guide also names set.config, the .bak, the audit line and the E key",
+       d_can == t_can and len(t_can) == 14 and {k: v.strip() for k, v in d_no.items()} == {k: v.strip() for k, v in t_no.items()} and len(t_no) == 37
        and all(s in doc for s in ("set.config cleanup 600", "/etc/sd.conf.bak", "set.config key=cleanup value=600 status=ok", "the `E` key of `tool.config`", "`Change`")), "can %s, no %d of %d" % (d_can[:2], len(d_no), len(t_no)))
     hp = raw["help"]
     ck("CF27", "THE HELP RECORD says what E does (it names set.config, the .bak, the fourteen parameters and the by-hand line) and no longer says the page only looks",
@@ -361,7 +361,7 @@ def setkey(key, val):
 
 MUTANTS = [
     ("the table loses a parameter", "CF2", sub("table", "\nYEARBASE|", "\nYEARBASEX|")),
-    ("the table gains a name the parser does not take", "CF2", sub("table", "\nAPILOGIN|", "\nAPILOGIN|flag|1|||restart|retired|x.\nZZNEW|int|0|||session|live|x.\nAPILOGINX|")),
+    ("the table gains a name the parser does not take", "CF2", sub("table", "\nBACKUPDIR|", "\nZZNEW|int|0|||session|live|x.\nBACKUPDIR|")),
     ("the table is not in order", "CF2", sub("table", "\nCLEANUP|", "\nZZCLEANUP|")),
     ("a kind that is not one", "CF3", sub("table", "CLEANUP|int|300", "CLEANUP|integer|300")),
     ("a vertical bar in a text", "CF3", sub("table", "the checks that look for sessions", "the checks | that look for sessions")),
@@ -372,9 +372,10 @@ MUTANTS = [
     ("SORTMEM is given in bytes", "CF5", sub("table", "SORTMEM|int|4096|", "SORTMEM|int|4194304|")),
     ("a shared parameter says session", "CF6", sub("table", "NUMFILES|int|80|||restart|", "NUMFILES|int|80|||session|")),
     ("a session parameter says restart", "CF6", sub("table", "MAXCALL|int|10000|10|1000000|session|", "MAXCALL|int|10000|10|1000000|restart|")),
-    ("the guide names another unreadable parameter", "CF7", sub("doc", "`SCREENTHEME`, `SDSYS`, `APILOGIN`, `BACKUPDIR` and `TXCHAR` cannot be read", "`SCREENTHEME`, `SDSYS`, `APILOGIN` and `BACKUPDIR` cannot be read")),
+    ("the guide names another unreadable parameter", "CF7", sub("doc", "`SCREENTHEME`, `SDSYS` and `BACKUPDIR` cannot be read", "`SCREENTHEME` and `SDSYS` cannot be read")),
     ("the table forgets to say a parameter is unreadable", "CF7", sub("table", "Not readable with the CONFIG function.", "")),
-    ("a parameter is inert in the table and live in the guide", "CF8", sub("table", "GDI|flag|0|||session|inert|", "GDI|flag|0|||session|live|")),
+    ("a parameter is marked inert again", "CF3", sub("table", "CLEANUP|int|300|30|3600|restart|live|", "CLEANUP|int|300|30|3600|restart|inert|")),
+    ("the guide's status table keeps a row for a status nothing has", "CF8", sub("doc", "| `file` |", "| `inert` | nothing acts on it |\n| `file` |")),
     ("the page is opened for anyone", "CF9", sub("page", "call $tk_open('tool.config', 'admin', ctx, err)", "call $tk_open('tool.config', '', ctx, err)")),
     ("the page reads before it opens the base", "CF9", sub("page", "   call $tk_open('tool.config', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n", "   x0 = config('GRPSIZE')\n   call $tk_open('tool.config', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n")),
     ("the page runs a command", "CF10", sub("page", "   void kernel(K$AUDIT, 'tool start app=tool.config')\n", "   void kernel(K$AUDIT, 'tool start app=tool.config')\n   execute 'who' capturing xx\n")),
@@ -418,8 +419,8 @@ MUTANTS = [
     ("the page forgets to read the table's write column", "CF20", sub("page", "         twrite<nl> = field(ln, '|', 9)\n", "")),
     ("a door becomes writable in the table", "CF20", sub("table", "|no|A door: bit 2 gates API request 29, a remote open of an account.", "|yes|")),
     ("a writable parameter becomes fixed in the table", "CF20", sub("table", "restart|live|How many record locks may be held across all sessions.|yes|", "restart|live|How many record locks may be held across all sessions.|no|Sizes a table.")),
-    ("a reason is missing", "CF3", sub("table", "|no|Inert: nothing acts on it.\nCREATUSR", "|no|\nCREATUSR")),
-    ("a reason runs past 100 characters", "CF3", sub("table", "|no|Retired: nothing reads it, so there is nothing to tune.", "|no|Retired: nothing reads it, so there is nothing to tune. " + "x" * 60)),
+    ("a reason is missing", "CF3", sub("table", "|no|A directory: set.backup.directory saves it, with its own checks of the path.\nCLEANUP", "|no|\nCLEANUP")),
+    ("a reason runs past 100 characters", "CF3", sub("table", "|no|A diagnostic: 2 makes SD write a file of the locks involved; set it by hand while you hunt one.", "|no|A diagnostic: 2 makes SD write a file of the locks involved; set it by hand while you hunt one. " + "x" * 60)),
     ("a writable parameter carries a reason", "CF3", sub("table", "and clear them from the user table.|yes|\n", "and clear them from the user table.|yes|a reason\n")),
     ("the verb does not ask for the administrator", "CF25", sub("verb", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001) ;* Command requires administrator privileges\n   end\n", "")),
     ("the verb does not check the characters of the name", "CF25", sub("verb", "      if index(good, pname[i, 1], 1) = 0 then ok = @false\n", "")),
@@ -431,7 +432,7 @@ MUTANTS = [
     ("a refusal writes no audit line", "CF25b", sub("verb", "      st = 'refused'\n      gosub write.audit\n", "      st = 'refused'\n")),
     ("the verb is in every account's VOC", "CF25b", setkey("newvoc_verb_has", "1")),
     ("a message of the verb is missing", "CF25b", lambda raw: dict(raw, msgs={n: t for n, t in raw["msgs"].items() if n != 11934})),
-    ("the guide's reason differs from the table's", "CF26", sub("doc", "| Inert: nothing acts on it. |", "| Inert. |")),
+    ("the guide's reason differs from the table's", "CF26", sub("doc", "| A diagnostic: 2 makes SD write a file of the locks involved; set it by hand while you hunt one. |", "| A diagnostic. |")),
     ("the guide's range differs from the table's", "CF26", sub("doc", "| `CLEANUP` | 30 to 3600 | restart |", "| `CLEANUP` | 30 to 36000 | restart |")),
     ("the guide forgets a parameter's row", "CF26", sub("doc", "| `YEARBASE` | Changes how every program reads a two-digit year; config.c checks no range. |\n", "")),
     ("the help still says the page only looks", "CF27", sub("help", "Only 14 tuning parameters", "The page only looks. Only 14 tuning parameters")),

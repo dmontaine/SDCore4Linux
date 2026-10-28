@@ -1423,11 +1423,11 @@ conf_set_backupdir() {   # conf_set_backupdir FILE PATH - one BACKUPDIR= line, l
 #
 #   THE LIST.  14 parameters, the TUNING ones: CLEANUP DHCACHE GRPSIZE LGNWAIT LPTRHIGH LPTRWIDE MAXCALL MAXRLOCK NETREPLY NETWAIT NUMLOCKS RECCACHE SORTMRG USPLIT.  Each is a parameter
 #   config.c itself range-checks (rangecheck() in read_config), so the range here is the range SD enforces at start-up and the helper cannot accept what SD would refuse.  The other
-#   49 parameters of the parser are known here by name (confset_fixed) only so that a refusal can say "known, not changed here" instead of "unknown": they are the doors (NETFILES,
-#   SDCLIENT, PORTMAP, FILERULE), every path and command (DUMPDIR, GRPDIR, USRDIR, SDSYS, SH, SH1, SORTWORK, SPOOLER, STARTUP, TEMPDIR, TERMINFO, BACKUPDIR, JNLDIR), the log, dump and
+#   38 parameters of the parser are known here by name (confset_fixed) only so that a refusal can say "known, not changed here" instead of "unknown": they are the doors (NETFILES,
+#   SDCLIENT, FILERULE), every path and command (DUMPDIR, GRPDIR, USRDIR, SDSYS, SH, SH1, SORTWORK, SPOOLER, STARTUP, TEMPDIR, TERMINFO, BACKUPDIR), the log, dump and
 #   diagnostic settings (DEBUG, DEADLOCK, ERRLOG, PDUMP), the security throttle PWDELAY, the sizing and combining parameters config.c does not range-check or checks against each other
-#   (CMDSTACK, FDS, FIXUSERS, MAXIDLEN, NUMFILES, NUMUSERS, OBJECTS, OBJMEM, PHANTOMS, SORTMEM, USERPOOL), the ones that change what existing programs compute or how files are
-#   written (FLTDIFF, FSYNC, INTPREC, MUSTLOCK, SAFEDIR, YEARBASE, SCREENTHEME) and the ones nothing acts on (APILOGIN, CODEPAGE, CREATUSR, EXCLREM, GDI, JNLMODE, RINGWAIT, TXCHAR).
+#   (CMDSTACK, FDS, MAXIDLEN, NUMFILES, NUMUSERS, OBJECTS, OBJMEM, PHANTOMS, SORTMEM, USERPOOL) and the ones that change what existing programs compute or how files are
+#   written (FLTDIFF, FSYNC, INTPREC, MUSTLOCK, SAFEDIR, YEARBASE, SCREENTHEME).  (27 Oct 26, S.87: APILOGIN, CODEPAGE, CREATUSR, EXCLREM, FIXUSERS, GDI, JNLDIR, JNLMODE, PORTMAP, RINGWAIT and TXCHAR were removed from the parser.)
 #   sdsys/config.table has the same split in its 'write' column with one reason per parameter; gplbld/test-confset-elevate-units.py holds this list to config.c and to that table.
 #   ***AN UNRECOGNISED NAME IN sd.conf STOPS SD AND EVERY NEW SESSION FROM STARTING (config.c)***: that is why the name is checked against a list and never against a pattern.
 #   THE VALUE is a whole number of up to 7 digits, no sign, no leading zero, inside the range - so no byte of it can be a second line, a quote or a comment.
@@ -1446,9 +1446,9 @@ CS_WRITABLE="CLEANUP DHCACHE GRPSIZE LGNWAIT LPTRHIGH LPTRWIDE MAXCALL MAXRLOCK 
 
 confset_fixed() {   # confset_fixed KEY - true when KEY is a parameter config.c takes that conf-set does not change
   case $1 in
-    APILOGIN|BACKUPDIR|CMDSTACK|CODEPAGE|CREATUSR|DEADLOCK|DEBUG|DUMPDIR|ERRLOG|EXCLREM|FDS|FILERULE|FIXUSERS|FLTDIFF|FSYNC|GDI|GRPDIR|INTPREC|JNLDIR|JNLMODE) return 0 ;;
-    MAXIDLEN|MUSTLOCK|NETFILES|NUMFILES|NUMUSERS|OBJECTS|OBJMEM|PDUMP|PHANTOMS|PORTMAP|PWDELAY|RINGWAIT|SAFEDIR|SCREENTHEME|SDCLIENT|SDSYS|SH|SH1|SORTMEM|SORTWORK|SPOOLER) return 0 ;;
-    STARTUP|TEMPDIR|TERMINFO|TXCHAR|USERPOOL|USRDIR|YEARBASE) return 0 ;;
+    BACKUPDIR|CMDSTACK|DEADLOCK|DEBUG|DUMPDIR|ERRLOG|FDS|FILERULE|FLTDIFF|FSYNC|GRPDIR|INTPREC|MAXIDLEN|MUSTLOCK|NETFILES) return 0 ;;
+    NUMFILES|NUMUSERS|OBJECTS|OBJMEM|PDUMP|PHANTOMS|PWDELAY|SAFEDIR|SCREENTHEME|SDCLIENT|SDSYS|SH|SH1|SORTMEM|SORTWORK|SPOOLER) return 0 ;;
+    STARTUP|TEMPDIR|TERMINFO|USERPOOL|USRDIR|YEARBASE) return 0 ;;
   esac
   return 1
 }

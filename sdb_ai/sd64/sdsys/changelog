@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  ELEVEN SD.CONF SETTINGS THAT DID NOTHING OR WERE NEVER NEEDED ARE REMOVED, WITH sd -<n> AND THE GDI AND RAW WORDS OF SETPTR.
+
+             What        APILOGIN, CODEPAGE, CREATUSR, EXCLREM, FIXUSERS, GDI, JNLDIR, JNLMODE, PORTMAP, RINGWAIT and TXCHAR are no longer parameters. A line naming one in
+                         sd.conf stops SD from starting, as any unknown name does; the installer removes those lines (and INVCASE's) from a sd.conf it restores when you keep your
+                         configuration, and says which. CONFIG and CONFIG('name') no longer know them. FIXUSERS and PORTMAP reserved user numbers for sessions that asked for one,
+                         and "sd -<n>" started SD with a given number: all three are gone, and PHANTOMS is the one block of kept user numbers. tool.config has no "inert" or "retired"
+                         status left to show. SETPTR always uses its raw mode; the words GDI and RAW are no longer keywords (the VOC records are taken out of an account by its next
+                         login's update).
+             Why it      Each was either read by nothing or served a way of connecting that SD does not have.
+             Does not    Touch PHANTOMS, USERPOOL or USPLIT, or change how user numbers are handed out when none of the removed settings was in use.
+
 27 Oct 26  ELEVEN SECOND SPELLINGS OF QUERY WORDS ARE REMOVED, BREAK.ON "LU" IS NO LONGER SPECIAL, AND A NAME LIKE F4 IS A FIELD ONLY IF THE DICTIONARY SAYS SO.
 
              What        Write average, enumerate, vertically, percentage, heading, footing, sample, NE and AND for avg, enum, vert, percent / pct / %, header, footer, first, # and &. The ten

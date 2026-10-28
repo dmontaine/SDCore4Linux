@@ -23,7 +23,8 @@
  *               returns "" with ER_NOT_FOUND instead of an uninitialised
  *               descriptor (the Windows port's fix; UPSTREAM_FIXES 18).
  * 31 Dec 23 SD launch - prior history suppressed
- * rev 0.9.0 Jan 25 mab add CREATUSR allow create.account to create os user
+ * 27 Oct 26 dm  S.87: CONFIG() and PCONFIG() no longer know CODEPAGE, CREATUSR, EXCLREM, FIXUSERS, GDI, JNLDIR, JNLMODE, PORTMAP or RINGWAIT.
+ * rev 0.9.0 Jan 25 mab add CREATUSR allow create.account to create os user (removed 27 Oct 26)
  * 14 Sep 26 dm  S.18: CONFIG('APILOGIN') removed; the setting is retired, so
  *               it now answers as any unknown name does.
  * END-HISTORY
@@ -117,10 +118,6 @@ void op_config() {
   /* !!CONFIG!! */
   if (!strcmp(param, "CMDSTACK"))
     result.data.value = sysseg->cmdstack;
-  else if (!strcmp(param, "CODEPAGE"))
-    result.data.value = pcfg.codepage;
-  else if (!strcmp(param, "CREATUSR"))
-    result.data.value = pcfg.create_user;  
   else if (!strcmp(param, "DEADLOCK"))
     result.data.value = sysseg->deadlock;
   else if (!strcmp(param, "DEBUG"))
@@ -131,24 +128,15 @@ void op_config() {
     k_put_c_string(pcfg.dumpdir, &result);
   else if (!strcmp(param, "ERRLOG"))
     result.data.value = sysseg->errlog >> 10;
-  else if (!strcmp(param, "EXCLREM"))
-    result.data.value = pcfg.exclrem;
   else if (!strcmp(param, "FDS"))
     result.data.value = sysseg->fds_limit;
   else if (!strcmp(param, "FILERULE"))
     result.data.value = pcfg.filerule;
-  else if (!strcmp(param, "FIXUSERS")) {
-    if (sysseg->fixusers_base) {
-      sprintf(s, "%d,%d", sysseg->fixusers_base, sysseg->fixusers_range);
-    }
-    k_put_c_string(s, &result);
-  } else if (!strcmp(param, "FLTDIFF")) {
+  else if (!strcmp(param, "FLTDIFF")) {
     sprintf(s, "%.14lf", pcfg.fltdiff);
     k_put_c_string(s, &result);
   } else if (!strcmp(param, "FSYNC"))
     result.data.value = pcfg.fsync;
-  else if (!strcmp(param, "GDI"))
-    result.data.value = pcfg.gdi;
   /* 20240219 mab create-account based on type (user / group / other) */      
   else if (!strcmp(param, "GRPDIR"))
     k_put_c_string(pcfg.grpdir, &result);    
@@ -156,10 +144,6 @@ void op_config() {
     result.data.value = pcfg.grpsize;
   else if (!strcmp(param, "INTPREC"))
     result.data.value = pcfg.intprec;
-  else if (!strcmp(param, "JNLMODE"))
-    result.data.value = sysseg->jnlmode;
-  else if (!strcmp(param, "JNLDIR"))
-    k_put_c_string((char*)(sysseg->jnldir), &result);
   else if (!strcmp(param, "LGNWAIT"))
     result.data.value = sysseg->lgnwait;
   else if (!strcmp(param, "LPTRHIGH"))
@@ -192,21 +176,12 @@ void op_config() {
     result.data.value = pcfg.objmem / 1024;
   else if (!strcmp(param, "PDUMP"))
     result.data.value = sysseg->pdump;
-  else if (!strcmp(param, "PORTMAP")) {
-    if (sysseg->portmap_range) {
-      sprintf(s, "%d,%d,%d", sysseg->portmap_base_port,
-              sysseg->portmap_base_user, sysseg->portmap_range);
-    }
-    k_put_c_string(s, &result);
-  } 
   else if (!strcmp(param, "PWDELAY"))
     result.data.value = pcfg.pwdelay;
   else if (!strcmp(param, "SDCLIENT"))
     result.data.value = pcfg.sdclient_mode;
   else if (!strcmp(param, "RECCACHE"))
     result.data.value = pcfg.reccache;
-  else if (!strcmp(param, "RINGWAIT"))
-    result.data.value = pcfg.ringwait;
   else if (!strcmp(param, "SAFEDIR"))
     result.data.value = pcfg.safedir;
   else if (!strcmp(param, "SH"))
@@ -246,7 +221,7 @@ void op_config() {
     if (sysseg->phantoms_range) {
       sprintf(s, "%d,%d", sysseg->phantoms_base, sysseg->phantoms_range);
     }
-    k_put_c_string(s, &result); /* 16 Oct 26: "u,n", null when none are kept, as FIXUSERS */
+    k_put_c_string(s, &result); /* 16 Oct 26: "u,n", null when none are kept */
   }
  /* 20240219 mab create-account based on type (user / group / other) */
   else if (!strcmp(param, "USRDIR"))
@@ -302,11 +277,7 @@ void op_pconfig() {
   process.status = 2;
 
   /* !!CONFIG!! */
-  if (!strcmp(param, "CODEPAGE")) {
-    GetInt(descr);
-    pcfg.codepage = descr->data.value;
-    
-  } else if (!strcmp(param, "DUMPDIR")) {
+  if (!strcmp(param, "DUMPDIR")) {
     k_get_string(descr);
     if ((str = descr->data.str.saddr) == NULL)
       goto exit_op_pconfig;
@@ -318,11 +289,6 @@ void op_pconfig() {
     if ((descr->data.value < 0) || (descr->data.value > MAX_DH_CACHE_SIZE))
       goto exit_op_pconfig;
     pcfg.dhcache = (int16_t)(descr->data.value);
-  } else if (!strcmp(param, "EXCLREM")) {
-    GetInt(descr);
-    if ((descr->data.value < 0) || (descr->data.value > 1))
-      goto exit_op_pconfig;
-    pcfg.exclrem = descr->data.value;
   } else if (!strcmp(param, "FILERULE")) {
     GetInt(descr);
     pcfg.filerule &= descr->data.value; /* Can only unset bits */
@@ -336,11 +302,6 @@ void op_pconfig() {
     if ((descr->data.value < 0) || (descr->data.value > 3))
       goto exit_op_pconfig;
     pcfg.fsync = (int16_t)(descr->data.value);
-  } else if (!strcmp(param, "GDI")) {
-    GetInt(descr);
-    if ((descr->data.value < 0) || (descr->data.value > 1))
-      goto exit_op_pconfig;
-    pcfg.gdi = descr->data.value;
   } else if (!strcmp(param, "GRPSIZE")) {
     GetInt(descr);
     if ((descr->data.value < 1) || (descr->data.value > MAX_GROUP_SIZE))
@@ -412,11 +373,6 @@ void op_pconfig() {
       goto exit_op_pconfig;
     pcfg.reccache = (int16_t)(descr->data.value);
     init_record_cache();
-  } else if (!strcmp(param, "RINGWAIT")) {
-    GetInt(descr);
-    if ((descr->data.value < 0) || (descr->data.value > 1))
-      goto exit_op_pconfig;
-    pcfg.ringwait = descr->data.value;
   } else if (!strcmp(param, "SAFEDIR")) {
     GetInt(descr);
     if ((descr->data.value < 0) || (descr->data.value > 1))

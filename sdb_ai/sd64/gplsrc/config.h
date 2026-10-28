@@ -42,10 +42,6 @@ struct CONFIG {
   u_int16_t debug;                 /* DEBUG:    Controls debug features */
   int errlog;                      /* ERRLOG:   Max errlog size in bytes, 0 if disabled */
   int16_t fds_limit;               /* FDS */
-  int16_t fixusers_base;           /* FIXUSERS: First user number and... */
-  int16_t fixusers_range;          /*          ...Number of users */
-  int16_t jnlmode;                 /* JNLMODE:  Journalling mode */
-  char jnldir[MAX_PATHNAME_LEN+1]; /* JNLDIR:   Journal file directory */
   int16_t lgnwait;                 /* LGNWAIT:  Tenths of a second a login waits for a spare user number */
   int16_t userpool;                /* USERPOOL: Highest user number to allocate; 0 = lowest free number first */
   int16_t usplit;                  /* USPLIT:   1 = interactive users take the lowest free user number, all other processes the highest (15 Oct 26) */
@@ -59,9 +55,6 @@ struct CONFIG {
   int16_t numfiles;                /* NUMFILES: Maximum number of files open */
   int16_t numlocks;                /* NUMLOCKS: Maximum number of record locks */
   int16_t pdump;                   /* PDUMP:    PDUMP mode flags */
-  int16_t portmap_base_port;       /* PORTMAP: First port number ... */
-  int16_t portmap_base_user;       /*          ...First user number... */
-  int16_t portmap_range;           /*          ...Number of ports/users */
   char startup[80+1];              /* STARTUP: Startup command */
  };
 
@@ -73,16 +66,12 @@ struct CONFIG {
 
 #define MAX_SH_CMD_LEN 80
 struct PCFG  {
-/* 14 Sep 26 dm - S.18: api_login (APILOGIN) removed; config.c ignores the key. */
-  unsigned int codepage;                /* CODEPAGE: Set console codepage */
-  bool create_user;                     /* allow create account to create os user */
+/* 27 Oct 26 dm - S.87: CODEPAGE, CREATUSR, EXCLREM, GDI, RINGWAIT, TXCHAR (and APILOGIN, FIXUSERS, JNLDIR, JNLMODE, PORTMAP in the shared part) are gone. */
   int16_t dhcache;                      /* DHCACHE:  Closed dynamic files kept open for quick reopening */
   char dumpdir[MAX_PATHNAME_LEN+1];     /* DUMPDIR:  Directory for process dump files */
-  bool exclrem;                         /* EXCLREM:  Exclude remote files from ACCOUNT.SAVE? */
   int16_t filerule;                     /* FILERULE: Rules for special filename formats */
   double fltdiff;                       /* FLTDIFF : Wide zero for float comparisons */
   int16_t fsync;                        /* FSYNC:    Controls when to do fsync() */
-  bool gdi;                             /* GDI:      Default to GDI print API? */
  /* 20240219 mab create-account based on type (user / group / other) */  
   char grpdir[MAX_PATHNAME_LEN+1];      /* GRPDIR:   Parent Directory for group accounts */
   int16_t grpsize;                      /* GRPSIZE:  Default group size (1-8) */
@@ -99,7 +88,6 @@ struct PCFG  {
   int16_t pwdelay;                      /* PWDELAY:  Seconds paused after a failed network login */
   int16_t sdclient_mode;                /* SDCLIENT: 0 = any, 1 = no open/exec, 2 = restricted call */
   int16_t reccache;                     /* RECCACHE: Record cache size */
-  bool ringwait;                        /* RINGWAIT: Wait if ring buffer full */
   bool safedir;                         /* SAFEDIR:  Use careful update on dir file write */
   char sh[MAX_SH_CMD_LEN+1];            /* SH:       Command to run interactive shell */
   char sh1[MAX_SH_CMD_LEN+1];           /* SH1:      Command to run single shell */
@@ -111,7 +99,6 @@ struct PCFG  {
   char tempdir[MAX_PATHNAME_LEN+1];     /* TEMPDIR */
   char terminfodir[MAX_PATHNAME_LEN+1]; /* TERMINFO */
   char timezone[64+1];                  /* TIMEZONE: the zone the epoch functions use, null = the process's own TZ (15 Oct 26) */
-  bool txchar;                          /* TXCHAR */
 /* 20240219 mab create-account based on type (user / group / other) */  
   char usrdir[MAX_PATHNAME_LEN+1];      /* USRDIR:   Parent Directory for user accounts */
   int16_t yearbase;                     /* YEARBASE: Two digit year start */

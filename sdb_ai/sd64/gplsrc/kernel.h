@@ -68,7 +68,6 @@ Public char ip_addr[MAX_SOCKET_ADDR_STR_LEN] init("");   /* IP address or AF_UNI
 Public char peer_user[MAX_USERNAME_LEN + 1] init("");
 Public int port_no init(0);             /* ...port number for telnet */
 Public char port_name[20 + 1] init(""); /* Port name for serial connection */
-Public int forced_user_no init(0);      /* Login as specific user */
 
 Public bool hsm init(FALSE); /* Hot spot monitor enabled? */
 

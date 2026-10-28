@@ -43,9 +43,9 @@ END = "# END confset_functions"
 WRITABLE = ["CLEANUP", "DHCACHE", "GRPSIZE", "LGNWAIT", "LPTRHIGH", "LPTRWIDE", "MAXCALL", "MAXRLOCK", "NETREPLY", "NETWAIT", "NUMLOCKS", "RECCACHE", "SORTMRG", "USPLIT"]
 # parameters that must NEVER be writable here: the doors and their settings, every path and command, the logs, dumps and diagnostics, the security throttle, and the sizing/combining
 # parameters config.c does not check or checks against each other.  A name moved out of config.c's fixed set into the list turns CS4 red.
-NEVER = ["NETFILES", "SDCLIENT", "PORTMAP", "FILERULE", "FIXUSERS", "PHANTOMS", "USERPOOL", "SDSYS", "DUMPDIR", "GRPDIR", "USRDIR", "SH", "SH1", "STARTUP", "TEMPDIR", "SORTWORK", "SPOOLER",
-         "TERMINFO", "BACKUPDIR", "JNLDIR", "ERRLOG", "DEBUG", "PDUMP", "DEADLOCK", "PWDELAY", "CMDSTACK", "FDS", "NUMFILES", "NUMUSERS", "OBJECTS", "OBJMEM", "SORTMEM", "MAXIDLEN",
-         "APILOGIN", "CREATUSR", "SCREENTHEME"]
+NEVER = ["NETFILES", "SDCLIENT", "FILERULE", "PHANTOMS", "USERPOOL", "SDSYS", "DUMPDIR", "GRPDIR", "USRDIR", "SH", "SH1", "STARTUP", "TEMPDIR", "SORTWORK", "SPOOLER",
+         "TERMINFO", "BACKUPDIR", "ERRLOG", "DEBUG", "PDUMP", "DEADLOCK", "PWDELAY", "CMDSTACK", "FDS", "NUMFILES", "NUMUSERS", "OBJECTS", "OBJMEM", "SORTMEM", "MAXIDLEN",
+         "SCREENTHEME"]   # 27 Oct 26, S.87: PORTMAP, FIXUSERS, JNLDIR, APILOGIN and CREATUSR left the parser
 
 T_FUNC = r'''t() { local out rc; out=$( (confset_check "$2" "$3") 2>&1 ); rc=$?; printf 'CASE\t%s\t%d\t%s\n' "$1" "$rc" "${out//$'\n'/ }"; }'''
 
@@ -171,8 +171,8 @@ class Suite:
                     helper[p[0]] = (int(p[2]), int(p[3]), p[4])
         writable = sorted(k for k, c in cls.items() if c == "W")
         fixed = sorted(k for k, c in cls.items() if c == "F")
-        self.check("CS0", "NULL CASE: the helper's functions were cut, config.c gave more than 40 parameters, the table 62 rows, the classifier answered for all %d names" % (len(keys) + len(decoys)),
-                   len(dest) > 40 and len(trs) == 62 and len(cls) == len(keys) + len(decoys) and r.returncode == 0 and len(writable) > 0, "%d %d %d exit %d %r" % (len(dest), len(trs), len(cls), r.returncode, r.stderr[:100]))
+        self.check("CS0", "NULL CASE: the helper's functions were cut, config.c gave more than 40 parameters, the table 51 rows, the classifier answered for all %d names" % (len(keys) + len(decoys)),
+                   len(dest) > 40 and len(trs) == 51 and len(cls) == len(keys) + len(decoys) and r.returncode == 0 and len(writable) > 0, "%d %d %d exit %d %r" % (len(dest), len(trs), len(cls), r.returncode, r.stderr[:100]))
         self.check("CS1", "THE HELPER KNOWS THE PARSER'S NAMES AND NO OTHERS: writable + fixed are exactly the %d parameters read_config() takes, none is both, and a lookalike (ZZNEW, CLEANUPX, XCLEANUP, SD) is unknown"
                    % len(keys), sorted(writable + fixed) == keys and not (set(writable) & set(fixed)) and all(cls[d] == "U" for d in decoys),
                    "only helper %s, only parser %s, decoys %s" % (sorted(set(writable + fixed) - set(keys)), sorted(set(keys) - set(writable + fixed)), [cls[d] for d in decoys]))
@@ -227,7 +227,7 @@ class Suite:
         add("R9 an unknown name", "ZZNEW", "1", "is not a parameter SD knows")
         add("R9b a name that only starts like one", "CLEANUPX", "40", "is not a parameter SD knows")
         add("R9c a name that begins with a digit", "9CLEANUP", "40", "capital letter or a digit")
-        for k in ("NETFILES", "SDCLIENT", "SDSYS", "PORTMAP", "DUMPDIR", "SH", "STARTUP", "ERRLOG", "PWDELAY", "USERPOOL", "BACKUPDIR", "APILOGIN"):
+        for k in ("NETFILES", "SDCLIENT", "SDSYS", "DUMPDIR", "SH", "STARTUP", "ERRLOG", "PWDELAY", "USERPOOL", "BACKUPDIR"):
             add("R10 the fixed name %s" % k, k, "1", "SD knows, and conf-set does not change it")
         add("R11 no value", "CLEANUP", "", "no value was given")
         add("R12 a newline in the value (a second line for sd.conf)", "CLEANUP", "600\nSDSYS=/etc", "digits only")
@@ -277,7 +277,7 @@ class Suite:
             present = {f for f in families if f in msg}
             if present != {fam}:
                 mixed.append((i, sorted(present)))
-        self.check("CS5", "EVERY REFUSAL IS A REFUSAL (%d cases: no name, case change, space, newline, quote, dollar, long, unknown, 12 fixed names, no value, newline/space/quote/sign/point/hex/words/comment/substitution in the value, leading zero, 8 digits, below the minimum and above the maximum of every writable parameter), exit 2 with its wording, and every boundary is accepted"
+        self.check("CS5", "EVERY REFUSAL IS A REFUSAL (%d cases: no name, case change, space, newline, quote, dollar, long, unknown, 10 fixed names, no value, newline/space/quote/sign/point/hex/words/comment/substitution in the value, leading zero, 8 digits, below the minimum and above the maximum of every writable parameter), exit 2 with its wording, and every boundary is accepted"
                    % len(cases), len(got) == len(cases) and not bad and r.returncode == 0, "%d of %d answered; first differences %s" % (len(got), len(cases), bad[:3]))
         self.check("CS5b", "EACH REFUSAL HAS ITS OWN WORDING: %d different sentences are used and no refusal carries another rule's sentence (the person is told which rule refused)" % len(families),
                    used == set(families) and not mixed, "used %d, mixed %s" % (len(used), mixed[:3]))
@@ -529,8 +529,8 @@ def mutants_of(code, script):
     c("the list gains NETFILES, a door", "    NUMLOCKS) CS_MIN=1;  CS_MAX=32767;   CS_EFFECT=restart ;;\n", "    NUMLOCKS) CS_MIN=1;  CS_MAX=32767;   CS_EFFECT=restart ;;\n    NETFILES) CS_MIN=0;  CS_MAX=3;       CS_EFFECT=restart ;;\n", "CS1b")
     c("the list gains SDCLIENT, a door", "    SORTMRG)  CS_MIN=2;  CS_MAX=10;      CS_EFFECT=session ;;\n", "    SORTMRG)  CS_MIN=2;  CS_MAX=10;      CS_EFFECT=session ;;\n    SDCLIENT) CS_MIN=0;  CS_MAX=3;       CS_EFFECT=session ;;\n", "CS4")
     c("the list gains PWDELAY, the security throttle (with config.c's own range)", "    NETWAIT)  CS_MIN=1;  CS_MAX=3600;    CS_EFFECT=session ;;\n", "    NETWAIT)  CS_MIN=1;  CS_MAX=3600;    CS_EFFECT=session ;;\n    PWDELAY)  CS_MIN=0;  CS_MAX=3600;    CS_EFFECT=session ;;\n", "CS4")
-    c("the security throttle PWDELAY is forgotten (it would read as unknown)", "|PDUMP|PHANTOMS|PORTMAP|PWDELAY|RINGWAIT|", "|PDUMP|PHANTOMS|PORTMAP|RINGWAIT|", "CS1")
-    c("a fixed name is forgotten (it would read as unknown)", "|GDI|GRPDIR|INTPREC|", "|GDI|INTPREC|", "CS1")
+    c("the security throttle PWDELAY is forgotten (it would read as unknown)", "|PDUMP|PHANTOMS|PWDELAY|SAFEDIR|", "|PDUMP|PHANTOMS|SAFEDIR|", "CS1")
+    c("a fixed name is forgotten (it would read as unknown)", "|FSYNC|GRPDIR|INTPREC|", "|FSYNC|INTPREC|", "CS1")
     c("a writable name loses its limits", "    DHCACHE)  CS_MIN=0;  CS_MAX=1024;    CS_EFFECT=session ;;\n", "", "CS1")
     c("CS_WRITABLE drifts from the limits", 'CS_WRITABLE="CLEANUP DHCACHE ', 'CS_WRITABLE="CLEANUP ', "CS1b")
     c("a range moves up", "CLEANUP)  CS_MIN=30; CS_MAX=3600; ", "CLEANUP)  CS_MIN=30; CS_MAX=36000;", "CS2")
