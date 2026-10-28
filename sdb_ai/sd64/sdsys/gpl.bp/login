@@ -162,6 +162,10 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
             * This user has come in from a command prompt of some sort.
             s = env('TERM')
             if s = '' then s = 'vt100'
+* 28 Oct 26 dm - S.88 PHASE 1: A SESSION WITH NO TERMINAL KEEPS WHAT IT HAD.  The account's login paragraph used to make every session linux, a pipe, a cron job and a
+*   test harness among them, and their output (the queued-up escape sequences of the type) is parsed by scripts that were written against linux.  The type now comes from the
+*   terminal's TERM only where there is a terminal to ask (K$WINSIZE, as below, is null with no tty); without one it is linux, as before.
+            if kernel(K$WINSIZE, '') = '' then s = 'linux'
       end
 
 * 11 Sep 26 Windows port - A TERM WITH NO SHIPPED TERMINFO ENTRY FALLS BACK
@@ -186,7 +190,14 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   so the two defaults agree (the port's is 'windows').
       s = downcase(s)
       if (kernel(K$TERM.TYPE, s) # s) and (s # 'linux') then
-         s = 'linux'
+* 28 Oct 26 dm - S.88 PHASE 1, K1: A TERM THAT SD HAS NO ENTRY FOR FALLS BACK TO THE FAMILY IT BELONGS TO, NOT ALWAYS TO linux.  xterm-256color, vte*, gnome*, konsole*, tmux*, screen*,
+*   alacritty, kitty, foot, rxvt* and st* are all xterm-family terminals: they send ESC O P for F1 and ESC [ A for Up, which the shipped xterm entry (and the keys _keycode binds for every
+*   type) accept, and the linux console entry does not (F1 is ESC [ [ A there).  Falling back to linux, and then the account's paragraph typing TERM LINUX, made F1-F4 type letters on the
+*   owner's GNOME Terminal.  The console (TERM=linux) has its own entry and is not touched; anything unknown still falls back to linux, as before.
+         s2 = 'linux'
+         if s[1, 5] = 'xterm' or s[1, 3] = 'vte' or s[1, 5] = 'gnome' or s[1, 7] = 'konsole' or s[1, 4] = 'tmux' or s[1, 6] = 'screen' then s2 = 'xterm'
+         if s[1, 9] = 'alacritty' or s[1, 5] = 'kitty' or s[1, 4] = 'foot' or s[1, 4] = 'rxvt' or s = 'st' or s[1, 3] = 'st-' then s2 = 'xterm'
+         s = s2
          void kernel(K$TERM.TYPE, s)
       end
 

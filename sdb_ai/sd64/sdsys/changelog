@@ -1,6 +1,29 @@
 Next release - in progress
 --------------------------
 
+28 Oct 26  THE KEYS OF A GRAPHICAL TERMINAL NOW WORK IN THE FULL-SCREEN PROGRAMS, AND A PASTE CAN NO LONGER RUN ANYTHING.
+
+             What        Every account was signed on as terminal type LINUX, whatever terminal the person really had. On a graphical terminal (GNOME Terminal, Konsole,
+                         xterm and the like) that meant F1 to F4 were read as Alt-O and then a letter, so F1 typed a P into the program and F2, which saves, typed a Q
+                         and saved nothing; F5 typed a ~; Home and End did nothing; and Ctrl+Right typed the characters 5C. Typing TERM XTERM by hand was no
+                         remedy, because then the arrow keys and Home did nothing. Now:
+                         - SD takes the terminal type from your terminal: xterm, xterm-256color, the VTE and Konsole terminals, tmux, screen, alacritty, kitty, foot,
+                           rxvt and st are signed on as xterm; the Linux console stays linux; anything SD has no entry for still falls back to linux. The account
+                           login paragraph no longer says TERM LINUX (existing accounts lose that line the next time their VOC is updated). You can still type TERM.
+                         - Whatever the type, SD understands the keys of both kinds of terminal in both cursor-key modes: the arrows, Home, End, Insert, Delete,
+                           Page Up, Page Down, Shift-Tab and F1 to F12.
+                         - A whole control sequence is read as one key. Ctrl+arrow, Shift+arrow, Ctrl+Home, Ctrl+Page Up and the like are the keys ctrl-left,
+                           shift-up, ctrl-home, ctrl-pgup ...; a sequence SD has no name for is ignored and no longer types its tail into your text.
+                         - In the screen programs (the IDE, CED, SED's dialogs, the toolkit pages, your own SCREEN programs) a byte of 128 or more is never a command.
+                           Pasted curly quotes used to open help, run or compile the program, and one such byte closed the IDE and lost the unsaved text. They are
+                           now dropped (SD is English only; nothing is inserted in their place).
+                         - A cut-short or malformed mouse report is ignored; it used to be read as the end of the input, which closed the IDE and lost the text. A
+                           sideways wheel is ignored.
+                         - Paste is one event. The screen library asks the terminal for its bracketed paste, so pasted text arrives as one piece, never as keys: a
+                           pasted escape sequence or control character runs nothing. A text area takes it in as one undo step, an entry takes its first line.
+                         It does NOT send the terminal's keypad-mode switch, so the numeric keypad keeps sending its digits. It does not change the Linux console, the
+                         command line's own key handling (a byte of 128 or more typed at the prompt is still taken as typed), or SED's own key table.
+
 28 Oct 26  THE TEN LIST SENTENCES, MULTIFILES AND THE C DICTIONARY ITEM TYPE ARE REMOVED.
 
              What        The ten ready-made LIST sentences are gone: LISTF, LISTFL, LISTFR, LISTK, LISTPA, LISTPH, LISTQ, LISTR, LISTS and LISTV, together with

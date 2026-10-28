@@ -454,6 +454,7 @@ snap.restore:
 * Put the clipboard in at the cursor
 paste:
    t = clip.text
+paste.t:
    ln = lines<cy>
    nt = dcount(t, @fm)
    if nt <= 1 then
@@ -766,6 +767,17 @@ handle.key:
             gosub snap.push
             if has.sel then gosub del.sel
             gosub paste
+            my = 0 ; mx = 0
+         end
+      case key = 'paste'
+         * 28 Oct 26 (S.88 phase 1): the terminal's bracketed paste, one step of undo; $sl_key made the text safe (printable ASCII, line ends as field marks)
+         call $sl_mouse('paste.get', pt)
+         if pt # '' then
+            kind = 'paste'
+            gosub snap.push
+            if has.sel then gosub del.sel
+            t = pt
+            gosub paste.t
             my = 0 ; mx = 0
          end
       case key = 'ctrl-z'

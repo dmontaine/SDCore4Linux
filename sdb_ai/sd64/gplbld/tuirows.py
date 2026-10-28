@@ -20,7 +20,7 @@
 import os
 import sys
 
-CURRENT_PHASE = 0          # the last phase of the plan whose change has landed (S.88): Phase 1 sets it to 1, and so on
+CURRENT_PHASE = 1          # the last phase of the plan whose change has landed (S.88): Phase 1 (the input layer) landed 28 Oct 26; the next sets it to 2, and so on
 
 STRICT = ("--strict" in sys.argv) or os.environ.get("SDTUI_STRICT") == "1"
 

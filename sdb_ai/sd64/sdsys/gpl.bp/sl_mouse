@@ -30,9 +30,16 @@ $internal
 subroutine sl_mouse(op, a)
 $catalog $sl_mouse
 
-   common /slmse/ ms.event
+   common /slmse/ ms.event, ms.paste
 
    begin case
+      case op = 'paste.set'                    ;* 28 Oct 26 (S.88 phase 1): the text of the bracketed paste $sl_key has just reported as the key 'paste'
+         ms.paste = 'P' : a                   ;* (a block starts as 0, so the text carries a marker: a one-character paste of 0 is not "nothing")
+      case op = 'paste.get'
+         a = ''
+         if not(unassigned(ms.paste)) then
+            if len(ms.paste) > 1 and ms.paste[1, 1] = 'P' then a = ms.paste[2, 99999]
+         end
       case op = 'set'
          ms.event = a
       case op = 'get'
@@ -42,8 +49,10 @@ $catalog $sl_mouse
          end
       case op = 'on'
          a = char(27) : '[?1000h' : char(27) : '[?1002h' : char(27) : '[?1006h'
+         a := char(27) : '[?2004h'            ;* 28 Oct 26 (S.88 phase 1): bracketed paste, on and off with the mouse (SCREEN OPEN ... NOMOUSE leaves a paste as keys, which phase 1 made harmless)
       case op = 'off'
-         a = char(27) : '[?1006l' : char(27) : '[?1002l' : char(27) : '[?1000l'
+         a = char(27) : '[?2004l'
+         a := char(27) : '[?1006l' : char(27) : '[?1002l' : char(27) : '[?1000l'
    end case
 
    return

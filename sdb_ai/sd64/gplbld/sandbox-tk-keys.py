@@ -207,7 +207,9 @@ def main():
         press(t, XTERM["end"])
         after = newest(t)
         say("    [measured] vt100, the End sequence of xterm (Esc [ 4 ~): newest line before %r, after %r" % (before, after))
-        row("the End sequence of xterm sent to a vt100 is NOT named end (the terminal type does not know it)", after is None or after[1] != "end", repr(after))
+        # 28 Oct 26 (S.88 phase 1): this row said the OPPOSITE ("is NOT named end: the type does not know it").  _keycode now binds the keys of every terminal in both modes before
+        # the type's own, so a vt100 session understands an xterm's End; what the type does not name is only what no terminal sends (a function key nobody binds).
+        row("the End sequence of xterm sent to a vt100 IS named end (every type accepts the usual keys of the others)", after is not None and after[1] == "end", repr(after))
         press(t, "\x12")
         press(t, XTERM["end"])
         row("...and raw mode shows the bytes it sent, '1b 5b 34 7e', which is how to find out", "1b 5b 34 7e" in t.line(14)[2:45], repr(t.line(14)[2:45]))

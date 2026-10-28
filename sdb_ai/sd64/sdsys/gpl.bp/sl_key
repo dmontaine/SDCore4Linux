@@ -79,6 +79,10 @@ $include err.h
 
    remain = timeout                       ;* seconds still to wait, null for ever
    if remain = 0 then remain = ''
+   * 28 Oct 26 (S.88 phase 1): a key that means nothing (an unbound sequence, a byte of 128 or more, a cut-short or malformed mouse report) is IGNORED, and the wait goes on.  It used to come
+   * back as a null name with STATUS() 0, which $sl_form takes for the end of the input and the IDE took for "leave": one split mouse report closed it and lost the unsaved text.
+   loop
+   ign = 0
    loop
    until k # '' do
       alt.was = bindkey('', -7)           ;* an Alt-letter comes back as Esc and the letter, for this read only
@@ -112,12 +116,21 @@ $include err.h
    n = seq(k[1, 1])
 
    begin case
+      case k[1, 2] = char(27) : char(2)
+         name = k[3, 99]                       ;* KEYCODE took a whole control sequence: its modified-key name (ctrl-right, shift-up ...), or none, which is ignored
+         if name = '' then ign = 1
       case len(k) = 2 and k[1,1] = char(27)
          name = 'alt-' : downcase(k[2,1])      ;* an Alt-letter (or Alt-digit or Alt-sign): Alt+S and Alt+s are both alt-s
       case len(k) > 1
          name = k                     ;* A string a binding gave: handed back as it is
       case n = K$MOUSE
          gosub read.mouse
+         if name = '' then ign = 1
+      case n = K$PASTE.START
+         gosub read.paste
+         if name = '' then ign = 1
+      case n = K$PASTE.END
+         ign = 1                               ;* the end of a paste whose start was lost: nothing to do
       case n = K$UP ; name = 'up'
       case n = K$DOWN ; name = 'down'
       case n = K$LEFT ; name = 'left'
@@ -138,6 +151,9 @@ $include err.h
       case n < 32 or n = 127 ; name = 'ctrl-?'
       case 1 ; name = k
    end case
+   if ign then k = ''
+   until not(ign) do
+   repeat
 
    return
 
@@ -190,6 +206,7 @@ read.mouse:
    if bitand(b, 8) then mods := mods : 'a'
    if bitand(b, 16) then mods := mods : 'c'
    base = bitand(b, 3)
+   if bitand(b, 64) and base >= 2 then return          ;* a sideways wheel or swipe (66, 67): no key, it used to be read as the wheel down
    begin case
       case bitand(b, 64)
          kind = 'wheel'
@@ -206,6 +223,48 @@ read.mouse:
    end case
    call $sl_mouse('set', kind : @fm : btn : @fm : (mx - 1) : @fm : (my - 1) : @fm : mods)
    name = 'mouse'
+   return
+
+* KEYCODE gave K$PASTE.START: the terminal's bracketed paste (the library switched it on with ESC [ ? 2004 h): the pasted text follows, then ESC [ 2 0 1 ~.  It is one key, 'paste', and the
+* text is in $sl_mouse('paste.get') - never keys, so a pasted escape sequence or control character runs nothing.  What is kept: printable ASCII, a line end (CR, LF or CRLF) as a field mark,
+* a tab as four spaces; every other control byte and every byte of 128 or more is dropped.  At most 20,000 characters are kept (the rest is read and thrown away).  A paste that stops
+* short of its end mark (a lost connection) is taken as far as it came.
+read.paste:
+   name = ''
+   raw = ''
+   ptxt = ''
+   pend = char(27) : '[201~'
+   pn = 0
+   loop
+      c = keyin(0.5)
+      set.status 0
+   until c = '' do
+      pn += 1
+      if len(raw) < 60000 then raw := c
+      if c = '~' and raw[len(raw) - 5, 6] = pend then
+         raw = raw[1, len(raw) - 6]
+         c = ''
+      end
+      if c = '' then exit
+   repeat
+   crlf = char(13) : char(10)
+   raw = change(raw, crlf, char(10))
+   raw = change(raw, char(13), char(10))
+   for pj = 1 to len(raw)
+      pc = raw[pj, 1]
+      pv = seq(pc)
+      if len(ptxt) < 20000 then
+         begin case
+            case pv = 10 ; ptxt := @fm
+            case pv = 9 ; ptxt := '    '
+            case pv >= 32 and pv < 127 ; ptxt := pc
+         end case
+      end
+   next pj
+   if ptxt # '' then
+      call $sl_mouse('paste.set', ptxt)
+      name = 'paste'
+   end
    return
 end
 

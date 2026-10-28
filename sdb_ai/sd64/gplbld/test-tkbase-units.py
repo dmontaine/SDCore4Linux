@@ -266,7 +266,7 @@ def checks(raw):
         "clears kc.alt and each answers the old state; kc.alt is in the common block",
         "alt.was = bindkey('', -7) k = keycode(1) kst = status() if alt.was then x = bindkey('', -7) else x = bindkey('', -8) set.status kst" in kk
         and ordered(kk, "case len(k) = 2 and k[1,1] = char(27) name = 'alt-' : downcase(k[2,1])", "case len(k) > 1 name = k")
-        and "if kc.alt and len(key.string) = 2 and key.string[1,1] = char(27) then if seq(key.string[2,1]) > 32 and seq(key.string[2,1]) < 127 then return value key.string end display @sys.bell" in kc
+        and "if kc.alt and len(key.string) = 2 and key.string[1,1] = char(27) then if seq(key.string[2,1]) > 32 and seq(key.string[2,1]) < 127 then return value key.string end if not(dropped) then display @sys.bell" in kc
         and "case action = -7 n = kc.alt + 0 kc.alt = @true return value n case action = -8 n = kc.alt + 0 kc.alt = @false return value n" in kb
         and "kc.alt" in raw["keycode.h"], "")
     fm = squeeze(strip_bas(raw["sl_form"]))
