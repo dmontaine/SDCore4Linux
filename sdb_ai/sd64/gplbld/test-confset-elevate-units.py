@@ -171,8 +171,8 @@ class Suite:
                     helper[p[0]] = (int(p[2]), int(p[3]), p[4])
         writable = sorted(k for k, c in cls.items() if c == "W")
         fixed = sorted(k for k, c in cls.items() if c == "F")
-        self.check("CS0", "NULL CASE: the helper's functions were cut, config.c gave more than 40 parameters, the table 63 rows, the classifier answered for all %d names" % (len(keys) + len(decoys)),
-                   len(dest) > 40 and len(trs) == 63 and len(cls) == len(keys) + len(decoys) and r.returncode == 0 and len(writable) > 0, "%d %d %d exit %d %r" % (len(dest), len(trs), len(cls), r.returncode, r.stderr[:100]))
+        self.check("CS0", "NULL CASE: the helper's functions were cut, config.c gave more than 40 parameters, the table 62 rows, the classifier answered for all %d names" % (len(keys) + len(decoys)),
+                   len(dest) > 40 and len(trs) == 62 and len(cls) == len(keys) + len(decoys) and r.returncode == 0 and len(writable) > 0, "%d %d %d exit %d %r" % (len(dest), len(trs), len(cls), r.returncode, r.stderr[:100]))
         self.check("CS1", "THE HELPER KNOWS THE PARSER'S NAMES AND NO OTHERS: writable + fixed are exactly the %d parameters read_config() takes, none is both, and a lookalike (ZZNEW, CLEANUPX, XCLEANUP, SD) is unknown"
                    % len(keys), sorted(writable + fixed) == keys and not (set(writable) & set(fixed)) and all(cls[d] == "U" for d in decoys),
                    "only helper %s, only parser %s, decoys %s" % (sorted(set(writable + fixed) - set(keys)), sorted(set(keys) - set(writable + fixed)), [cls[d] for d in decoys]))

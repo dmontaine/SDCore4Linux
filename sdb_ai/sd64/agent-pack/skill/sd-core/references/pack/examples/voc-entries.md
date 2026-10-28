@@ -363,7 +363,6 @@ VOC record `sdsys/newvoc/login` (type PA), the same in `newvoc` and `voc_templat
 ```
 PA
 TERM LINUX
-PTERM CASE NOINVERT
 ```
 
 ### voc:entry:messages

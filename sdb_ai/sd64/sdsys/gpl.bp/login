@@ -379,11 +379,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
      end
   end
 
-* 13 Sep 26 dm - CASE INVERSION IS NO LONGER TURNED ON HERE.  This line set it,
-*   the VOC login paragraph's PTERM CASE NOINVERT turned it off again, and so an
-*   account without that paragraph typed with every letter flipped (measured on
-*   80bd15c).  Nothing between here and the paragraph prompts for input.  C now
-*   starts with it off too (linuxio.c); PTERM CASE INVERT still turns it on.
+* 13 Sep 26 dm - CASE INVERSION IS NOT TURNED ON HERE (27 Oct 26: case inversion has since been removed altogether).
 
    * Determine account
 * 20240330 mab we no longer support forced accounts from $LOGINS

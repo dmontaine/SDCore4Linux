@@ -1469,6 +1469,21 @@ if [ -f /home/sd/sd.conf ]; then
 else
     echo No sd.conf backup file exists
 fi
+# RETIRED-CONF-BEGIN
+#
+# 27 Oct 26 dm - S.87.  PARAMETERS SD NO LONGER HAS ARE TAKEN OUT OF A RESTORED sd.conf.  config.c refuses an
+# unrecognised parameter and SD then does not start, so a keep-configuration cycle that puts back a file written
+# while a parameter existed must remove its line.  Only a line that BEGINS with the exact name and an equals sign is
+# removed (a comment, or another name that merely starts the same way, is left alone).  The list is the parameters
+# config.c no longer reads; gplbld/test-install-retiredconf.sh holds it to config.c.
+retired_conf_keys="INVCASE"
+for retired_key in $retired_conf_keys; do
+    if grep -q "^${retired_key}=" /etc/sd.conf; then
+        sudo sed -i "/^${retired_key}=/d" /etc/sd.conf
+        echo "Removed the retired parameter ${retired_key} from /etc/sd.conf."
+    fi
+done
+# RETIRED-CONF-END
 #
 # 14 Sep 26 dm - PORT_ADOPTION 25 (the Windows port's PRE_RELEASE 28).  PROCESS
 # DUMPS IN THEIR OWN DIRECTORY.  A dump holds a session's variables and used to

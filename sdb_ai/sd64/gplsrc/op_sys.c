@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 14: SYSTEM(1001), case inversion on?, is no longer a key.
  * 24 Oct 26 dm  W.11 F9: the administrator answer is MY_ADMIN() (the process's own word), not the user table entry.
  * 18 Oct 26 dm  SYSTEM(1057): the parent's user NUMBER was tested against max_users, the count of user table cells; user numbers run
  *               to hi_user_no (USERPOOL, 1023 by default), so a phantom whose parent had number 694 on 20 cells was told "no parent".
@@ -55,7 +56,6 @@
  *    42   Client IP address
  *    91   Windows? (see also 1006)
  *  1000   CAPTURING in effect?
- *  1001   Case inversion on?
  *  1002   Call stack
  *  1003   Return list of open files
  *  1004   Peak number of open files
@@ -296,10 +296,6 @@ void op_system() {
 
     case 1000: /* CAPTURING in effect? */
       descr->data.value = capturing;
-      break;
-
-    case 1001: /* Case inversion on? */
-      descr->data.value = case_inversion;
       break;
 
     case 1002: /* Call stack */

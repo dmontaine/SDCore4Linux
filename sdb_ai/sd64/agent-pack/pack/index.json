@@ -3227,13 +3227,6 @@
 "tier": "reference",
 "words": 17
 },
-"basic:stmt:nocaseinvert": {
-"kind": "basic.clause",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 27
-},
 "basic:stmt:non.transactional": {
 "kind": "basic.clause",
 "part": "reference/basic-statements.md",
@@ -21014,20 +21007,6 @@
 "tier": "reference",
 "words": 10
 },
-"msg:6832": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 8
-},
-"msg:6833": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 8
-},
 "msg:6834": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -21078,13 +21057,6 @@
 "words": 9
 },
 "msg:6841": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 9
-},
-"msg:6842": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
@@ -24253,7 +24225,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 245
+"words": 232
 },
 "sys:ikeys:k$": {
 "kind": "sys.keys",
@@ -24295,7 +24267,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 123
+"words": 116
 },
 "sys:ikeys:scram$": {
 "kind": "sys.keys",
@@ -24456,7 +24428,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 1207
+"words": 1199
 },
 "sys:keys:vt$": {
 "kind": "sys.keys",
@@ -24618,13 +24590,6 @@
 "since": "-",
 "tier": "reference",
 "words": 25
-},
-"sys:param:invcase": {
-"kind": "sys.param",
-"part": "reference/system.md",
-"since": "-",
-"tier": "reference",
-"words": 12
 },
 "sys:param:jnldir": {
 "kind": "sys.param",
@@ -26614,13 +26579,6 @@
 "tier": "reference",
 "words": 54
 },
-"tcl:invert": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
-},
 "tcl:json": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -27195,13 +27153,6 @@
 "tier": "reference",
 "words": 35
 },
-"tcl:noinvert": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
-},
 "tcl:none": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -27508,7 +27459,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 57
+"words": 54
 },
 "tcl:qselect": {
 "kind": "tcl.verb",
@@ -28614,7 +28565,7 @@
 "part": "examples/voc-entries.md",
 "since": "-",
 "tier": "examples",
-"words": 19
+"words": 16
 },
 "voc:entry:messages": {
 "kind": "voc.entry",
@@ -28733,7 +28684,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 171
+"words": 167
 },
 "voc:type:PH": {
 "kind": "voc.type",

@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  TERMINAL CASE INVERSION IS REMOVED: PTERM CASE, INPUT ... NOCASEINVERT, THE INVCASE SETTING, SYSTEM(1001) AND PTERM KEY 2.
+
+             What        SD no longer has a mode in which typed letters change case. PTERM CASE INVERT / NOINVERT and the keywords invert and noinvert are gone, with the case line of PTERM
+                         DISPLAY; the login paragraph no longer says PTERM CASE NOINVERT (update.accounts changes an account's copy); the INPUT clause NOCASEINVERT is no longer known; the sd.conf
+                         parameter INVCASE is no longer read, and the installer removes its line from a restored sd.conf (an unknown line would stop SD from starting); SYSTEM(1001) and the
+                         PTERM() function's key 2 are no longer keys; SED's NO.INVERT option word is no longer known; KEYINC() and KEYINCT() now do exactly what KEYIN() and KEYINT() do; and
+                         field 2 of TTYGET() is always 0. A paragraph of your own that says PTERM CASE NOINVERT will now print a message at sign-on: delete the line.
+             Why it      Inversion was off by default since 13 Sep 2026 and only an upper-case-terminal habit asked for it.
+             Does not    Change what you type: letters arrive as you press them, as they have since the default changed.
+
 27 Oct 26  THE NANO VERB IS REMOVED; micro IS THE ONE EXTERNAL EDITOR.
 
              What        Write micro (or sed, or ed) for nano. The installer no longer places nano's SD BASIC syntax file or adds an include line to /etc/nanorc, and the remover still

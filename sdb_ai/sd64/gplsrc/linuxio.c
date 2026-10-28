@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 27 Oct 26 dm  S.87 batch 14: terminal input case inversion (INVCASE, PTERM CASE) is removed; a session starts as it always did with it off.
  * 18 Oct 26 dm init_console() starts the display at DEFAULT_WIDTH by DEFAULT_DEPTH (140 by 42, was
  *           120 by 36) instead of two literals; a tty still overrides it (read_window_size()).
  * 15 Oct 26 dm do_input(): end of file was tested against a stale errno, so after
@@ -307,12 +308,6 @@ bool start_connection(int unused) {
     }
   }
 
-  /* 13 Sep 26 dm - OFF, not TRUE.  Inversion on by default meant a session was
-     un-inverted only by the VOC login paragraph's PTERM CASE NOINVERT: an
-     account without that paragraph had every typed letter case-flipped, which
-     was measured on install 80bd15c (PTERM DISPLAY "Case inversion: On") and
-     made a lower-case record id arrive upper case. */
-  case_inversion = pcfg.invcase; /* INVCASE, off unless the administrator turns it on (openQM item 399) */
   set_term(TRUE);
 
   /* Set up signal handler */
@@ -388,7 +383,6 @@ bool init_console() {
     }
   }
 
-  case_inversion = pcfg.invcase;   /* 13 Sep 26 dm - off by default; see the socket path.  INVCASE=1 turns it on. */
   set_term(TRUE);
 
   fstat(0, &statbuf);

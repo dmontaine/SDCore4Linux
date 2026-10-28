@@ -19450,24 +19450,6 @@ Break trapping: Off (char ^%1)
 
 cited by: `pterm`
 
-### msg:6832
-> kind=message tier=reference since=- src=sdsys/messages/6832:1#57ffe41d
-
-```
-Case inversion: On
-```
-
-cited by: `pterm`
-
-### msg:6833
-> kind=message tier=reference since=- src=sdsys/messages/6833:1#137b3ae7
-
-```
-Case inversion: Off
-```
-
-cited by: `pterm`
-
 ### msg:6834
 > kind=message tier=reference since=- src=sdsys/messages/6834:1#d3283bc3
 
@@ -19536,15 +19518,6 @@ cited by: `pterm`
 
 ```
 Break recognition is off
-```
-
-cited by: `pterm`
-
-### msg:6842
-> kind=message tier=reference since=- src=sdsys/messages/6842:1#30354332
-
-```
-INVERT or NOINVERT required
 ```
 
 cited by: `pterm`
