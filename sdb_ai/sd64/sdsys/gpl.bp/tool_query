@@ -55,10 +55,10 @@ $include tk.h
 
    verbs = 'list sort count sum'                                 ;* the first word of a sentence the page will run
    redirect = 'to saving on.to lptr file as csv delimiter xml json json.lines elements with.dtd dtd.only with.schema schema.only appending no.query style overlay reporting from using strings display crt pathname'
-   keepwords = 'with and or by by.dsnd break.on total id.sup det.sup heading footing no.page sample sampled col.hdg col.sup col.hdr.sup hdr.sup count.sup dbl.spc vert vertically average avg max min median mode range enum enumerate percent pct break.sup grand.total rpt fmt col.spaces'
-   opwords = '= # < > <= >= eq ne lt le gt ge not like unlike matches matching not.matching before after'
+   keepwords = 'with and or by by.dsnd break.on total id.sup det.sup heading footing no.page sample sampled col.hdg col.sup col.hdr.sup hdr.sup count.sup dbl.spc vertically average max min median mode range enumerate percentage break.sup grand.total rpt fmt col.spaces'
+   opwords = '= < > <= >= eq ne lt le gt ge not like unlike matches matching not.matching before after'
    qwords = verbs : ' ' : redirect : ' ' : keepwords : ' ' : opwords       ;* a dictionary item with one of these names is never put in a sentence
-   ops = '=' : @fm : '#' : @fm : '<' : @fm : '>' : @fm : '<=' : @fm : '>=' : @fm : 'like' : @fm : 'unlike'
+   ops = '=' : @fm : 'ne' : @fm : '<' : @fm : '>' : @fm : '<=' : @fm : '>=' : @fm : 'like' : @fm : 'unlike'
    opdesc = 'equal to' : @fm : 'not equal to' : @fm : 'less than' : @fm : 'greater than' : @fm : 'less than or equal to' : @fm : 'greater than or equal to' : @fm : 'matches the pattern' : @fm : 'does not match the pattern'
    pane.names = 'File' : @fm : 'Columns' : @fm : 'Conditions' : @fm : 'Sort' : @fm : 'Options'
    qsent = 'create.file &queries& dynamic'                       ;* the one command the page runs besides the query itself; $tk_run refuses the ampersands, so it is run here, after its box

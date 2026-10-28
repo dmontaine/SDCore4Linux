@@ -106,7 +106,7 @@ def checks(raw):
        "no word of the redirect list is also a word the page allows; the operators the page offers are the eight of the table",
        verbs == ["list", "sort", "count", "sum"] and redirect is not None and set(need) <= set(redirect) and keepwords is not None and opwords is not None
        and not (set(redirect) & (set(keepwords) | set(opwords) | set(verbs))) and "qwords = verbs : ' ' : redirect : ' ' : keepwords : ' ' : opwords" in pg
-       and "ops = '=' : @fm : '#' : @fm : '<' : @fm : '>' : @fm : '<=' : @fm : '>=' : @fm : 'like' : @fm : 'unlike'" in pg, repr((verbs, redirect)))
+       and "ops = '=' : @fm : 'ne' : @fm : '<' : @fm : '>' : @fm : '<=' : @fm : '>=' : @fm : 'like' : @fm : 'unlike'" in pg, repr((verbs, redirect)))
     ex = [e.strip() for e in re.findall(r"^\s*execute\b[^\n]*", code, re.M)]
     run, sav = block(pg, "do.run"), block(pg, "do.save")
     ck("TQ4", "the page runs exactly two commands, each by one execute statement: the query (in do.run, the sentence check.sentence returned) and `create.file &queries& dynamic` (in do.save, a literal declared once, after its box); "

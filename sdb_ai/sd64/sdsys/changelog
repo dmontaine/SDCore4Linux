@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  ELEVEN SECOND SPELLINGS OF QUERY WORDS ARE REMOVED, BREAK.ON "LU" IS NO LONGER SPECIAL, AND A NAME LIKE F4 IS A FIELD ONLY IF THE DICTIONARY SAYS SO.
+
+             What        Write average, enumerate, vertically, percentage, heading, footing, sample, NE and AND for avg, enum, vert, percent / pct / %, header, footer, first, # and &. The ten
+                         sentences SD ships in sd.voclib (LISTF and the rest) now say HEADING. The break control L is no longer ignored when U is given too: they are independent.
+                         In a dictionary item, a name that is F and a number used to mean that field of the record when no item of that name existed; now it is an error ("Field 'F4' is not
+                         defined") unless the dictionary has a D-type item called F4. SD's own dict.dic and voc.dic already have f1 to f10 and f1 to f5, so nothing of SD's changed. The VOC
+                         records of the eleven words are taken out of an account by its next login's update.
+             Why it      Each short word did what a long word did.
+             Does not    Change IMPORT.CSV's and CONVERT.DATA's HEADER, which is their own word, or the long forms.
+
 27 Oct 26  TERMINAL CASE INVERSION IS REMOVED: PTERM CASE, INPUT ... NOCASEINVERT, THE INVCASE SETTING, SYSTEM(1001) AND PTERM KEY 2.
 
              What        SD no longer has a mode in which typed letters change case. PTERM CASE INVERT / NOINVERT and the keywords invert and noinvert are gone, with the case line of PTERM

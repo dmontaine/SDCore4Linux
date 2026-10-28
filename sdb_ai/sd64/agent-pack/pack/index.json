@@ -5059,7 +5059,7 @@
 "part": "reference/dictionaries.md",
 "since": "-",
 "tier": "reference",
-"words": 198
+"words": 218
 },
 "dict:itype:what-the-expression-cannot-contain": {
 "kind": "dict.itype",
@@ -5108,7 +5108,7 @@
 "part": "reference/dictionaries.md",
 "since": "-",
 "tier": "reference",
-"words": 407
+"words": 417
 },
 "dict:type:L": {
 "kind": "dict.type",
@@ -25186,13 +25186,6 @@
 "tier": "reference",
 "words": 28
 },
-"tcl:#": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 37
-},
 "tcl:%e": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -25235,26 +25228,12 @@
 "tier": "reference",
 "words": 37
 },
-"tcl:%p": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 34
-},
 "tcl:%t": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
 "words": 36
-},
-"tcl:&": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 35
 },
 "tcl:abort": {
 "kind": "tcl.verb",
@@ -25331,7 +25310,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 53
+"words": 51
 },
 "tcl:appending": {
 "kind": "tcl.keyword",
@@ -25380,14 +25359,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 51
-},
-"tcl:avg": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 51
+"words": 49
 },
 "tcl:backup.account": {
 "kind": "tcl.verb",
@@ -26152,19 +26124,12 @@
 "tier": "reference",
 "words": 39
 },
-"tcl:enum": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 55
-},
 "tcl:enumerate": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 55
+"words": 53
 },
 "tcl:eq": {
 "kind": "tcl.keyword",
@@ -26257,13 +26222,6 @@
 "tier": "reference",
 "words": 37
 },
-"tcl:first": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 55
-},
 "tcl:fixdir": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -26277,13 +26235,6 @@
 "since": "-",
 "tier": "reference",
 "words": 74
-},
-"tcl:footer": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
 },
 "tcl:footing": {
 "kind": "tcl.keyword",
@@ -26438,13 +26389,6 @@
 "since": "-",
 "tier": "reference",
 "words": 59
-},
-"tcl:header": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 60
 },
 "tcl:heading": {
 "kind": "tcl.keyword",
@@ -27242,7 +27186,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 53
+"words": 51
 },
 "tcl:oscopy": {
 "kind": "tcl.verb",
@@ -27314,13 +27258,6 @@
 "tier": "reference",
 "words": 32
 },
-"tcl:pct": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 53
-},
 "tcl:pdebug": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -27342,19 +27279,12 @@
 "tier": "reference",
 "words": 35
 },
-"tcl:percent": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 53
-},
 "tcl:percentage": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 34
+"words": 49
 },
 "tcl:phantom": {
 "kind": "tcl.verb",
@@ -27648,7 +27578,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 55
+"words": 52
 },
 "tcl:sampled": {
 "kind": "tcl.keyword",
@@ -28322,19 +28252,12 @@
 "tier": "reference",
 "words": 50
 },
-"tcl:vert": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 61
-},
 "tcl:vertically": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 61
+"words": 59
 },
 "tcl:wait": {
 "kind": "tcl.keyword",
