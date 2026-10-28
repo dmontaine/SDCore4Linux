@@ -26997,7 +26997,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 35
+"words": 42
 },
 "tcl:min": {
 "kind": "tcl.keyword",
@@ -27054,13 +27054,6 @@
 "since": "-",
 "tier": "reference",
 "words": 60
-},
-"tcl:nano": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 35
 },
 "tcl:ne": {
 "kind": "tcl.keyword",

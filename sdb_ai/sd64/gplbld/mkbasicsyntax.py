@@ -98,8 +98,7 @@ YAML = '''filetype: sdbasic
 #
 # Microsoft Edit is not part of this port - it is not in the Linux
 # distributions' repositories - and micro is whatever version the distribution
-# ships.  The NANO verb runs nano here (owner, 10 Sep 2026), whose SD BASIC
-# syntax is gplbld/nanocfg/sdbasic.nanorc, from gplbld/mknanosyntax.py.
+# ships.  micro is the one external editor here (the NANO verb was removed on 27 Oct 2026).
 
 detect:
     filename: "\\\\.sdbasic$"

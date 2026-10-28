@@ -4,7 +4,7 @@
 * The gates return OFF by default: a new account has no SH and no OS.EXECUTE until SDSYS gives them
 * (MODIFY.ACCOUNT SH-ON / OS-ON).  But the accounts that exist when this ships have been running with
 * both since 18 Sep, and a blank in the register reads as denied, so an upgrade that did nothing would
-* lock every one of them out of `sh`, `!`, nano, micro, OS.EXECUTE and Python on the morning after.  The
+* lock every one of them out of `sh`, `!`, micro, OS.EXECUTE and Python on the morning after.  The
 * owner's rule for this (13 Oct): "existing accounts leave on to preserve their existing situation".
 *
 * So this sets ACC$SH and ACC$OS.EXEC to 'yes' where the field is BLANK, for every USER account in the

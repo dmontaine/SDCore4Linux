@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # sandbox-gates.py - S.63, the per-account OS-access gates (SH, OS.EXECUTE, and what they govern: OS paths opened
-#                    with OPENSEQ / OPENPATH, the embedded Python, nano and micro), through ORDINARY sessions on a
+#                    with OPENSEQ / OPENPATH, the embedded Python and micro), through ORDINARY sessions on a
 #                    private SD.  No install, no sudo.
 #
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-gates.py <dir> [--build]

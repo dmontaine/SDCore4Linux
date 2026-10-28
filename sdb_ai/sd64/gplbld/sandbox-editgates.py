@@ -434,15 +434,15 @@ def editors_section():
         # the editors that were not given a save leave the other records alone
         row("%s: the dictionary record SED was NOT asked about (zzf) and the other VOC record (zzvrec3 before SED) are untouched" % n,
             r.get("dict-zzf") == "D|0", repr(r.get("dict-zzf")))
-    # NANO (and MICRO), the verbs that hand a record to an editor outside SD (the program $edit; the EDIT verb is the line editor ED): they
+    # MICRO (the NANO verb was removed on 27 Oct 26), the verb that hands a record to an editor outside SD (the program $edit; the EDIT verb is the line editor ED): they
     # need a terminal and OS.EXECUTE first, so the accounts here hold os-on; the guard is asked before the editor is started, so what is
     # looked for is the refusal (11407) on the screen, and its absence in the account that holds bp.edit (whatever the editor then does
     # there is not the question)
     for n in EDIT_ACCOUNTS:
         build(n)
         allowed = WANT[n][1]
-        t = pty_edit(n, "NANO bp zzold", [], [])
-        row("%s (OS.EXECUTE on): NANO bp zzold %s" % (n, "is not refused (bp.edit on)" if allowed else "is refused before an editor starts (11407)"),
+        t = pty_edit(n, "MICRO bp zzold", [], [])
+        row("%s (OS.EXECUTE on): MICRO bp zzold %s" % (n, "is not refused (bp.edit on)" if allowed else "is refused before an editor starts (11407)"),
             (MESSAGES["bp"] in t) == (not allowed), "screen: %r" % t[-400:])
 
 

@@ -15,6 +15,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 14: the NANO verb is gone; micro is the one external editor (editor.exe is always micro), and nano's syntax file and installer step are gone.
 * 17 Oct 26 dm  S.64: the record's file is asked (edit_guard) before the editor is started, so a person without voc.edit, dict.edit or
 *               bp.edit does not edit a copy and lose it at the save.
 * 22 Sep 26     find.editor's missing-editor message named "sudo apt install",
@@ -121,7 +122,7 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
    response      = ''
 
 * ---------------------------------------------------------------------------
-* The command line:  nano | micro {DICT} file record
+* The command line:  micro {DICT} file record
 * ---------------------------------------------------------------------------
    cmd = convert(' ', @fm, trim(@command, ' ', 'C'))
 
@@ -131,7 +132,8 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
 * The port's owner ruling, 26 Aug 2026: two full-screen editors, "one called
 * with the verb micro and the other with the verb edit".  Both VOC entries are
 * CA $EDIT and this reads field 1 of the command line - the verb as typed.
-* On Linux (owner, 10 Sep 2026) the verbs are NANO and MICRO, each named for
+* (27 Oct 26: NANO has since been removed; MICRO is the only verb that reaches here.)
+* On Linux (owner, 10 Sep 2026) the verbs were NANO and MICRO, each named for
 * the editor it runs.  The port's "edit" was Microsoft Edit's; here EDIT is an
 * alias for ED and never reaches this program.
 *
@@ -141,14 +143,8 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
 * which is the shape of MICRO's own faults.  If the two ever need to behave
 * differently, the table below is where it goes.
 * ---------------------------------------------------------------------------
-   begin case
-      case upcase(trim(cmd<1>, ' ', 'B')) = 'MICRO'
-         editor.exe  = 'micro'
-         editor.name = 'micro'
-      case 1                              ;* NANO, or any other verb aimed here
-         editor.exe  = 'nano'
-         editor.name = 'nano'
-   end case
+   editor.exe  = 'micro'                  ;* the one external editor (the NANO verb was removed 27 Oct 26, S.87)
+   editor.name = 'micro'
 
    if upcase(trim(cmd<2>, ' ', 'B')) = 'DICT' then
       in.file.name   = cmd<3>
@@ -194,11 +190,11 @@ deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
    end
 
 *  ***AND A BP RECORD GETS A ".sdbasic" ON THE END, WHICH IS WHAT MAKES THE
-*  HIGHLIGHTING WORK.***  micro and nano both choose a syntax by matching a
+*  HIGHLIGHTING WORK.***  micro chooses a syntax by matching a
 *  regex against the FILE NAME, and the name they see is this working copy's,
 *  not the record's - a record called MY.REPORT tells them nothing.  The suffix
 *  is the only thing that can carry the language across; microcfg/syntax/
-*  sdbasic.yaml and nanocfg/sdbasic.nanorc detect exactly it.
+*  sdbasic.yaml detects exactly it.
 *
 *  ".editing" IS KEPT IN FRONT OF IT so a working copy left behind by a
 *  session that died is still recognisable as one, whichever kind it is.
@@ -665,8 +661,7 @@ return
 * regenerated file reaches an existing user, and a user's own edits survive
 * until SD's genuinely moves on.  $HOME is left for the shell to expand.
 *
-* nano needs none of this: its syntax file is system-wide and the installer
-* places it.  DELIBERATELY SILENT AND IGNORED - a failure costs colour, not
+* DELIBERATELY SILENT AND IGNORED - a failure costs colour, not
 * correctness, and must never stop somebody editing a record.
 * ---------------------------------------------------------------------------
 place.syntax:

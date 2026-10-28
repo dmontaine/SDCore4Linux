@@ -342,8 +342,9 @@ else
     fi
 fi
 
-# 10 Sep 26 - nano's SD BASIC syntax file, which the installer places outside the
-# SD tree (beside its microcfg copy) because nano reads /usr/share/nano/*.nanorc.
+# 10 Sep 26 - nano's SD BASIC syntax file, which installs before 1.2-0 placed outside the
+# SD tree (beside the microcfg copy) because nano reads /usr/share/nano/*.nanorc.  The NANO
+# verb is gone (27 Oct 26), so no new install makes the file; this removes an old one.
 sudo rm -f /usr/share/nano/sdbasic.nanorc
 echo "Removed /usr/share/nano/sdbasic.nanorc."
 

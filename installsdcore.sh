@@ -1180,48 +1180,6 @@ else
 fi
 # AGENTPACK-END
 #
-# 10 Sep 26 dm - AND nano's, SYSTEM-WIDE.  The NANO verb (GPL.BP/EDIT) runs nano
-# (owner, 10 Sep 2026: Microsoft Edit is not packaged for Linux).  Unlike micro,
-# nano HAS a system-wide syntax directory - Debian's /etc/nanorc includes
-# /usr/share/nano/*.nanorc (measured: nano 9.2, /etc/nanorc:257) - so one copy
-# here serves every user and GPL.BP/EDIT copies nothing for it.  If the directory
-# is missing nano is not installed; say so rather than create a directory
-# nothing would read.  deletesdcore.sh removes the file.
-#
-# 22 Sep 2026 - THE GLOB THAT MAKES THIS ACHIEVE ANYTHING IS DEBIAN'S OWN
-#   PATCH TO NANO'S DEFAULT /etc/nanorc, NOT UPSTREAM NANO BEHAVIOUR
-#   (PROJECT_STATUS, row A2).  Restoring Arch, Fedora and openSUSE support
-#   without checking this would place the file and silently never have nano
-#   read it on any of the three.  Same reachability test verify-editors.py's
-#   active_includes()/include_covers() already use: an UNCOMMENTED
-#   include "..." line, matched by directory for a *.nanorc glob rather than
-#   a substring search that a commented-out line (Debian's own /etc/nanorc
-#   ships three, right below the live one) would also match.  Where it is not
-#   already covered, one exact line is appended to that machine's own
-#   /etc/nanorc - deletesdcore.sh removes it again, by the same exact match.
-if [ -d /usr/share/nano ]; then
-    sudo install -m 644 gplbld/nanocfg/sdbasic.nanorc /usr/share/nano/sdbasic.nanorc
-    nanorc_target="/usr/share/nano/sdbasic.nanorc"
-    nanorc_covered=0
-    if [ -f /etc/nanorc ]; then
-        while IFS= read -r nanorc_inc; do
-            case "$nanorc_inc" in
-                "$nanorc_target"|/usr/share/nano/*.nanorc) nanorc_covered=1 ;;
-            esac
-        done < <(sed -n 's/^[[:space:]]*include[[:space:]]\+"\([^"]*\)".*/\1/p' /etc/nanorc)
-    fi
-    if [ "$nanorc_covered" -eq 1 ]; then
-        echo "Installed nano's SD BASIC syntax: /usr/share/nano/sdbasic.nanorc"
-    else
-        echo "include \"$nanorc_target\"" | sudo tee -a /etc/nanorc >/dev/null
-        echo "Installed nano's SD BASIC syntax: /usr/share/nano/sdbasic.nanorc"
-        echo "  (this distribution's own /etc/nanorc does not glob /usr/share/nano the"
-        echo "  way Debian's does, so one include line was appended to it.)"
-    fi
-else
-    echo "Note: /usr/share/nano not found, so nano's SD BASIC highlighting was not installed (the NANO verb needs nano)."
-fi
-#
 sudo chown -R sdsys:sdusers "$sdsysdir"
 sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"
 
@@ -2022,7 +1980,7 @@ if [ "$accounts_kept" = yes ]; then
 
 # 13 Oct 26 dm - S.63 (owner, 13 Oct 2026).  THE OS-ACCESS GATES RETURN OFF BY DEFAULT, AND THE KEPT
 #            ACCOUNTS KEEP WHAT THEY HAVE.  Since the teardown every account has been able to use SH, "!",
-#            nano, micro, OS.EXECUTE and Python; with the gates back a blank in the register reads as
+#            micro, OS.EXECUTE and Python; with the gates back a blank in the register reads as
 #            denied, so without this step every kept account would lose all of it at once.  upgrade_gates
 #            switches SH and OS.EXECUTE on for each USER account in the register, ONCE (it leaves
 #            sdsys/$gates.done, so a later install does not undo an administrator's SH-OFF), and leaves
@@ -2038,7 +1996,7 @@ if [ "$accounts_kept" = yes ]; then
     if [ "$og_rc" -ne 0 ] || ! printf '%s\n' "$og_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
         printf "%b\n" "$RED"
         echo "WARNING: the existing accounts' shell and OS.EXECUTE access was not all set."
-        echo "  Until it is, an account without it cannot use sh, nano, micro or OS.EXECUTE."
+        echo "  Until it is, an account without it cannot use sh, micro or OS.EXECUTE."
         echo "  Run this installer again to retry, or give an account the access with"
         echo "      modify.account <account> sh-on"
         echo "      modify.account <account> os-on"

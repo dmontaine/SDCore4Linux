@@ -323,7 +323,7 @@ def checks(srcs, messages_dir):
     cpm = ed[at(ed, "check.permitted:"):][:1400]
     tty = at(cpm, "kernel(K$TTY, 0) = ''")
     ox = at(cpm, "kernel(K$OS.EXEC, -1)")
-    ck("B14 nano and micro (EDIT) need OS.EXECUTE: the grant is tested after the terminal test, and a plain 'permitted = @true' "
+    ck("B14 micro (EDIT) needs OS.EXECUTE: the grant is tested after the terminal test, and a plain 'permitted = @true' "
        "no longer ends check.permitted", 0 < tty < ox and not re.search(r"@system|\n\s*permitted = @true\s*\nreturn", cpm.split("kernel(K$OS.EXEC, -1)")[0][-60:]),
        "tty %s, grant %s" % (tty, ox))
 
@@ -550,7 +550,7 @@ MUTANTS = [
     ("MODIFY.ACCOUNT SH-OFF turns the shell on", sub("modifya", "os.field = ACC$SH ; os.want = @false", "os.field = ACC$SH ; os.want = @true")),
     ("MODIFY.ACCOUNT OS-ON changes the shell field", sub("modifya", "os.field = ACC$OS.EXEC ; os.want = @true", "os.field = ACC$SH ; os.want = @true")),
     ("os.set writes without the lock", sub("modifya", "   readu acc.new from acc.f, acc.name else acc.new = acc.rec\n   if os.want", "   acc.new = acc.rec\n   if os.want")),
-    ("nano and micro need no grant", sub("edit", "   if kernel(K$OS.EXEC, -1) then\n      permitted = @true\n      return\n   end\n", "   permitted = @true\n   return\n")),
+    ("micro needs no grant", sub("edit", "   if kernel(K$OS.EXEC, -1) then\n      permitted = @true\n      return\n   end\n", "   permitted = @true\n   return\n")),
     ("the manifest leaves out os.sh", sub("acc_os_info", "info<-1> = 'os.sh: '", "info<-1> = 'zz.sh: '")),
     ("upgrade_gates tests its marker after the walk", swap("upgrade_gates", "   if ospath(marker, OS$EXISTS) then", "   select acc.f to 12")),
     ("upgrade_gates writes the marker even when a record failed", sub("upgrade_gates", "   if failed # 0 then", "   if @false then")),

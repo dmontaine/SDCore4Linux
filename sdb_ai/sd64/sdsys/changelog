@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  THE NANO VERB IS REMOVED; micro IS THE ONE EXTERNAL EDITOR.
+
+             What        Write micro (or sed, or ed) for nano. The installer no longer places nano's SD BASIC syntax file or adds an include line to /etc/nanorc, and the remover still
+                         takes an old one away. The edit program now always runs micro. The documentation page about nano is gone: its parts that described the shared wrapper (the working
+                         copy, the save questions, how to type a mark, the os-on gate) are on the micro page.
+             Why it      Two external editors beside sed, ed and the IDE was one too many, and nano needed an installer step and a file outside the SD tree.
+             Does not    Change micro, ed, sed or the IDE, or what an account needs (os-on) to run an editor outside SD.
+
 27 Oct 26  FOUR MORE TCL VERBS ARE REMOVED: copyp, copy.listp, set.queue AND sp.assign, WITH GETPU(PU$FORM.QUEUE) AND SYSTEM(1066).
 
              What        Write copy and copy.list for the Pick-style copy, and setptr for the settings a form queue held. All of them were added in this release and never shipped. The kernel
