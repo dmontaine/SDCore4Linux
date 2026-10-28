@@ -323,7 +323,7 @@ stopped by the guard at pass 6
 
 ## A6. Subprograms
 
-`subroutine` takes arguments **by reference**: assigning to a parameter changes the caller's variable. Pass an expression (`a + 0`) to force a copy. A subroutine must be catalogued, or called by the file form, before another program can `call` it.
+`subroutine` takes arguments **by reference**: assigning to a parameter changes the caller's variable. Pass an expression (`a + 0`) to force a copy. A subroutine must be catalogued before another program can `call` it.
 
 ```basic id=gsub1 catalog
 subroutine gsub1(a, b)
@@ -340,15 +340,12 @@ crt x : ' ' : y
 z = 1
 call gsub1(z + 0, y)
 crt z
-call "bp gsub1"(x, y)
-crt x
 crt (catalogued('GSUB1') # 0) : (catalogued('nosuchprogram') # 0)
 ```
 
 ```output
 11 ABC
 1
-21
 10
 ```
 

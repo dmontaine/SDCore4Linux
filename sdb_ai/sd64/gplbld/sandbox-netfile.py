@@ -3545,7 +3545,8 @@ end
 end
 """,
     "zznkx3": """   crt 'KR callfile begin'
-   call 'zznet1 zzprog'
+   nm = 'zznet1 zzprog'      ;* 27 Oct 26 (S.87): CALL "file name" is gone, so the name comes from a variable: an illegal call name
+   call @nm
    crt 'KR callfile SURVIVED'
 end
 """,
