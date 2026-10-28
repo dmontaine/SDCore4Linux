@@ -6022,7 +6022,6 @@ STATEMENTS = {
 "INCLUDE":  st_include,
 "INHERIT":  st_inherit,
 "INPUT":  st_input,
-"INPUTCLEAR":  st_clearinput,           
 "INPUTCSV":  st_inputcsv,
 "INPUTERR":  st_printerr,             
 "INPUTFIELD":  st_inputfield,

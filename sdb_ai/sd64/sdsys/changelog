@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  THREE MORE OPTION WORDS, THE STATEMENT inputclear AND THE CONSTANT FL$TYPE.SH ARE REMOVED.
+
+             What        Twelfth batch, on the owner's word. The options chain.keep.common, backslash.not.quote and correlative.reuse are gone: CHAIN always discards the unnamed common, a backslash
+                         always opens a quoted string in a command line, and a shorter array's missing values count as zero in an array operation (an operand can still say reuse()). INPUTCLEAR is
+                         gone: write CLEARINPUT (the same statement, compiled to the same code); SD's own three uses were changed. FL$TYPE.SH, the file-type constant for a static hashed file SD
+                         never had, is gone, with the two branches of the files and dictionary pages that tested for it. The option numbers stay reserved.
+             Why it      Each had a default that stays, and no one turned them on.
+             Does not    Change a program that never used them, or the other spelling clearinput.
+
 27 Oct 26  FOUR SECOND NAMES OF BASIC FUNCTIONS ARE REMOVED: dquote, dquotes, swap AND xlate.
 
              What        The eleventh batch. dquote() and dquotes() were the same functions as quote() and quotes(); swap() was change(); xlate() was trans(). A program that calls one stops

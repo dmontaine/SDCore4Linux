@@ -1531,13 +1531,6 @@ Non-numeric where numeric required|in %s
 Query processor sorts ignore case
 ```
 
-### msg:11043
-> kind=message tier=reference since=- src=sdsys/messages/11043:1#3f3b2a1f
-
-```
-Command line treats a backslash as an ordinary character
-```
-
 ### msg:11045
 > kind=message tier=reference since=- src=sdsys/messages/11045:1#d8b10646
 
@@ -3409,13 +3402,6 @@ SD has no pools of phantom processes
 ```
 
 cited by: `listphan`
-
-### msg:11279
-> kind=message tier=reference since=- src=sdsys/messages/11279:1#2a5d2d54
-
-```
-The operators of correlatives and I-types reuse the last value of a shorter array, as REUSE() does
-```
 
 ### msg:1128
 > kind=message tier=reference since=- src=sdsys/messages/1128:1#10d33c56
@@ -12865,13 +12851,6 @@ Show call stack at a fatal error
 
 ```
 Suppress program details on abort
-```
-
-### msg:3122
-> kind=message tier=reference since=- src=sdsys/messages/3122:1#15967ac0
-
-```
-Do not delete unnamed common on CHAIN
 ```
 
 ### msg:3126

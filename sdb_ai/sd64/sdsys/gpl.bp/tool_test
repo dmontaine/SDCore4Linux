@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 12: CLEARINPUT in place of INPUTCLEAR (two places).
 * 25 Oct 26 dm  New.
 * 26 Oct 26 dm  faults: the first status hint and the hint under the list are shortened to fit (both were cut at the edge of their line, the second one in the middle of the Ctrl-C then Q instruction).
 * END-HISTORY
@@ -796,7 +797,7 @@ do.run:
       case 1
          mrun = ''
          gosub run.test
-         inputclear                                              ;* keys typed while it ran are not the page's
+         clearinput                                              ;* keys typed while it ran are not the page's
    end case
    return
 
@@ -889,7 +890,7 @@ do.many:
    if stopped > 0 then msg := '; stopped with Esc after test ' : stopped
    if skipo > 0 then msg := '; ' : skipo : ' without object code left out'
    if skipn > 0 then msg := '; ' : skipn : ' with a name the page does not run left out'
-   inputclear
+   clearinput
    return
 
 * B: compile the test under the cursor when it has no object code (basic FILE ID, through $tk_run, after a box that shows the command)

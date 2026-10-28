@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 27 Oct 26 dm S.87 batch 12: OPTION CHAIN.KEEP.COMMON is gone; CHAIN always deletes the unnamed common, as it did with the option off.
 * 27 Oct 26 dm S.87 batch 7: OPTION RUN.NO.PAGE and CHAINED.SELECT are gone (a run is paginated as it was with RUN.NO.PAGE off; a select does not chain the data queue).
 * 27 Oct 26 dm S.87: a typed verb is no longer retried with its hyphens changed to dots (clear-select); the VOC records cleardata, clearinput, clearprompts, clearselect and cs are gone.
 * 26 Oct 26 dm W.11 F10: a phantom reads its Xn, Dn and Ln records together (read.phantom.cargo) and runs, stacks or sets nothing from them unless
@@ -2213,11 +2214,9 @@ exit.command:
       xeq.command = ""
 
       if kernel(K$FLAGS, HDR.IS.CPROC) then  ;* 0409 Not from a PROC
-         if not(option(OPT.CHAIN.KEEP.COMMON)) then
-            i = kernel(K$CPROC.LEVEL,0)
-            delete.common '$':i   ;* Delete unnamed common
-            i = kernel(K$CPROC.LEVEL, i - 1)
-         end
+         i = kernel(K$CPROC.LEVEL,0)
+         delete.common '$':i   ;* Delete unnamed common
+         i = kernel(K$CPROC.LEVEL, i - 1)
       end
    repeat
 

@@ -2233,20 +2233,6 @@
 "tier": "reference",
 "words": 20
 },
-"basic:option:backslash.not.quote": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 22
-},
-"basic:option:chain.keep.common": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "-",
-"tier": "reference",
-"words": 25
-},
 "basic:option:clear.select": {
 "kind": "basic.option",
 "part": "reference/basic-modes.md",
@@ -2260,13 +2246,6 @@
 "since": "next",
 "tier": "reference",
 "words": 34
-},
-"basic:option:correlative.reuse": {
-"kind": "basic.option",
-"part": "reference/basic-modes.md",
-"since": "next",
-"tier": "reference",
-"words": 35
 },
 "basic:option:dir.dtm": {
 "kind": "basic.option",
@@ -3100,13 +3079,6 @@
 "since": "-",
 "tier": "reference",
 "words": 26
-},
-"basic:stmt:inputclear": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 12
 },
 "basic:stmt:inputcsv": {
 "kind": "basic.statement",
@@ -6580,13 +6552,6 @@
 "tier": "reference",
 "words": 7
 },
-"msg:11043": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
-},
 "msg:11045": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -8119,13 +8084,6 @@
 "since": "-",
 "tier": "reference",
 "words": 12
-},
-"msg:11279": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 19
 },
 "msg:1128": {
 "kind": "message",
@@ -15896,13 +15854,6 @@
 "since": "-",
 "tier": "reference",
 "words": 7
-},
-"msg:3122": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 9
 },
 "msg:3126": {
 "kind": "message",
@@ -24582,7 +24533,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 609
+"words": 602
 },
 "sys:keys:ik$": {
 "kind": "sys.keys",

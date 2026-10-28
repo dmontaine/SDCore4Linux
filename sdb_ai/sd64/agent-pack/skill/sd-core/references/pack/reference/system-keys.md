@@ -321,7 +321,7 @@ Constants beginning `EVT$` in `sdsys/gpl.bp/int$keys.h` (internal programs only 
 - `EVT$MESSAGE` = 0x0400 - Send immediate message
 
 ### sys:ikeys:fci$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:474#7a0ef939
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:472#7a0ef939
 
 Constants beginning `FCI$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -540,7 +540,7 @@ Constants beginning `LGN$` in `sdsys/gpl.bp/int$keys.h` (internal programs only 
 - `LGN$BANNED.ACCOUNTS` = 10 - Banned accounts
 
 ### sys:ikeys:mki$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:467#688308c0
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:465#688308c0
 
 Constants beginning `MKI$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -715,7 +715,6 @@ Constants beginning `FL$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `FL$VOCNAME` = 1 - Get VOC name by which file was opened
 - `FL$PATH` = 2 - Get pathname of file
 - `FL$TYPE` = 3 - Return file type
-- `FL$TYPE.SH` = 1 - SH file
 - `FL$TYPE.DH` = 3 - DH file
 - `FL$TYPE.DIR` = 4 - Directory file
 - `FL$TYPE.SEQ` = 5 - Sequential file

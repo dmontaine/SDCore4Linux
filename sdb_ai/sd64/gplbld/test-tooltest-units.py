@@ -128,7 +128,7 @@ def checks(raw):
        and "if out = '' then\n      if @abort.message # sentinel then\n         zstate = 'fail'\n         abm = @abort.message" in jd and "      zt = field(out, @fm," in jd, "")
     ck("TT9", "a test that asks for input is answered, not waited for: ANSWERS empty answers are stacked BEFORE the command, the leftovers are counted and then discarded AFTER it, the count is what the box says, and keys typed during a run are discarded",
        "ANSWERS = 50" in pg and before(rt, "for za = 1 to ANSWERS\n      data ''\n   next za", "call $tk_run(", "zleft = len(@data.pending)", "cleardata") and "used = ANSWERS - zleft" in rt
-       and "inputclear" in dr and "inputclear" in dm, "")
+       and "clearinput" in dr and "clearinput" in dm, "")
     ck("TT10", "the break key is on only while a test runs: turned on (the terminal's and the program's) just before the command, turned off again just after, and the nesting count is put back to what it was",
        before(rt, "bc0 = break.count()", "void pterm(PT$BREAK, @true)\n   break on", "call $tk_run(", "break off\n   void pterm(PT$BREAK, @false)", "loop while break.count() < bc0", "loop while break.count() > bc0")
        and "Ctrl-C then Q stops a test that does not end" in rt, "")
@@ -240,7 +240,7 @@ MUTANTS = [
     ("no answers are stacked for a test that asks for input", "TT9", sub("page", "   for za = 1 to ANSWERS\n      data ''\n   next za\n", "")),
     ("the leftover answers are not discarded", "TT9", sub("page", "   cleardata\n", "")),
     ("the answers used are not counted", "TT9", sub("page", "used = ANSWERS - zleft", "used = 0")),
-    ("keys typed during a run are kept", "TT9", sub("page", "         gosub run.test\n         inputclear", "         gosub run.test\n         null")),
+    ("keys typed during a run are kept", "TT9", sub("page", "         gosub run.test\n         clearinput", "         gosub run.test\n         null")),
     ("the break key is not turned on for the run", "TT10", sub("page", "   void pterm(PT$BREAK, @true)\n   break on\n", "")),
     ("the break key is left on after the run", "TT10", sub("page", "   break off\n   void pterm(PT$BREAK, @false)\n   zbn = 0", "   zbn = 0")),
     ("the break count is not put back", "TT10", sub("page", "   loop while break.count() > bc0 and zbn < 10 do\n      break on\n      zbn += 1\n   repeat\n", "")),

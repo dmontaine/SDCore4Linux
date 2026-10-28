@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 12: the dead FL$TYPE.SH branch of the file kind is gone with the constant.
 * 27 Oct 26 dm  S.87: A runs ANALYZE.FILE (the US spelling; the British verb record is gone).
 * 26 Oct 26 dm  New.
 * 26 Oct 26 dm  A, I and T hand the terminal to the verb (the report is printed, not captured: the first version waited for ever on LIST.INDEX's page prompt).
@@ -163,8 +164,6 @@ read.meta:
             kind = 'sequential'
          case ft = FL$TYPE.NET
             kind = 'server'
-         case ft = FL$TYPE.SH
-            kind = 'static'
          case 1
             kind = 'other'
       end case

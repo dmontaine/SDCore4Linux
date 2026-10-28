@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 27 Oct 26 dm  S.87 batch 12: OPTION BACKSLASH.NOT.QUOTE is gone; a backslash always opens a quoted string, as it did with the option off.
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1),
 *               including the keyword read, which had no as-typed attempt.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -78,7 +79,7 @@ rescan:
          c = parser.sentence[1, 1]
 
          begin case
-            case (c = '"') or (c = "'") or (c = "\" and not(option(OPT.BACKSLASH.NOT.QUOTE)))      ;* Quoted string
+            case (c = '"') or (c = "'") or (c = "\")      ;* Quoted string
                j = index(parser.sentence, c, 2)
                if j = 0 then stop sysmsg(2055)  ;* Unpaired string quote
                type = PARSER$STRING
@@ -116,9 +117,7 @@ rescan:
                k = index(parser.sentence, ')', 1) ; if k and k < j then j = k
                k = index(parser.sentence, '"', 1) ; if k and k < j then j = k
                k = index(parser.sentence, "'", 1) ; if k and k < j then j = k
-               if not(option(OPT.BACKSLASH.NOT.QUOTE)) then   ;* 10 Oct 26 dm, openQM ref 165
-                  k = index(parser.sentence, '\', 1) ; if k and k < j then j = k
-               end
+               k = index(parser.sentence, '\', 1) ; if k and k < j then j = k
 
 
                type = PARSER$TOKEN
@@ -232,7 +231,7 @@ rescan:
          c = parser.sentence[1, 1]
 
          begin case
-            case (c = '"') or (c = "'") or (c = "\" and not(option(OPT.BACKSLASH.NOT.QUOTE)))      ;* Quoted string
+            case (c = '"') or (c = "'") or (c = "\")      ;* Quoted string
                j = index(parser.sentence, c, 2)
                if j = 0 then stop sysmsg(2055)  ;* Unpaired string quote
 
