@@ -284,7 +284,7 @@ Constants beginning `SD$` in `sdsys/syscom/err.h` (error codes: STATUS() after a
 - `SD$PyErr.LstExsts` = -12038 - list already exists
 
 ### sys:ikeys:ah$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:420#2bc408de
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:419#2bc408de
 
 Constants beginning `AH$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -292,7 +292,7 @@ Constants beginning `AH$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (
 - `AH$AUTO.DELETE` = 0x0002 - Self-deleting common block
 
 ### sys:ikeys:cred$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:382#c92cfbe8
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:381#c92cfbe8
 
 Constants beginning `CRED$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -304,7 +304,7 @@ Constants beginning `CRED$` in `sdsys/gpl.bp/int$keys.h` (internal programs only
 - `CRED$SERVERKEY` = 6 - HMAC(SaltedPassword,"Server Key"), b64
 
 ### sys:ikeys:evt$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:293#9e4f33b2
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:292#9e4f33b2
 
 Constants beginning `EVT$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -321,7 +321,7 @@ Constants beginning `EVT$` in `sdsys/gpl.bp/int$keys.h` (internal programs only 
 - `EVT$MESSAGE` = 0x0400 - Send immediate message
 
 ### sys:ikeys:fci$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:473#7a0ef939
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:472#7a0ef939
 
 Constants beginning `FCI$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -338,7 +338,7 @@ Constants beginning `FCI$` in `sdsys/gpl.bp/int$keys.h` (internal programs only 
 - `FCI$NET.CREATE` = 11 - ... CREATE.FILE on a server, no file yet: "server<FM>words"; the file variable is any local file (the VOC the verb has open)
 
 ### sys:ikeys:fl$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:320#88f57ef4
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:319#88f57ef4
 
 Constants beginning `FL$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -491,7 +491,6 @@ Constants beginning `K$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`
 - `K$CMDLOG` = 108 - COMMAND.LOGGING: 1 on, 0 off, -1 ask; the log's pathname when it is on, else null (15 Oct 26, Q-8)
 - `K$CMDLOG.WRITE` = 109 - "origin<FM>command": one line in the command log if it is on (15 Oct 26, Q-8)
 - `K$GROUP.PHANTOM` = 110 - Mark the phantom with this user number as grouped with this process: 1 if marked (15 Oct 26, Q-8, PHANTOM GROUP)
-- `K$FORM.QUEUE` = 111 - unit * 1000 + queue: SP.ASSIGN gave form queue 'queue' to print unit 'unit' (15 Oct 26, Q-9)
 - `K$NON.DURABLE.TXN` = 113 - 1: the next COMMIT is non-durable, a nested transaction goes to its parent (15 Oct 26, sheet 442)
 - `K$USER.STATS` = 112 - File activity counts of a user (0: all): uid, 11 counts, when counting began, login name (15 Oct 26, Q-8)
 - `K$PHANTOM.USER` = 114 - The next phantom() is to be this user number (one PHANTOMS keeps, not in use); 0 cancels (16 Oct 26, PHANTOM USER)
@@ -524,7 +523,7 @@ Constants beginning `K$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`
 - `K$EXIT.ABORT` = 3
 
 ### sys:ikeys:lgn$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:357#765ea182
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:356#765ea182
 
 Constants beginning `LGN$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -540,7 +539,7 @@ Constants beginning `LGN$` in `sdsys/gpl.bp/int$keys.h` (internal programs only 
 - `LGN$BANNED.ACCOUNTS` = 10 - Banned accounts
 
 ### sys:ikeys:mki$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:466#688308c0
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:465#688308c0
 
 Constants beginning `MKI$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -550,7 +549,7 @@ Constants beginning `MKI$` in `sdsys/gpl.bp/int$keys.h` (internal programs only 
 - `MKI$NO.CASE` = 8 - NO.CASE (for create mode)
 
 ### sys:ikeys:os$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:253#aad0ea3f
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:252#aad0ea3f
 
 Constants beginning `OS$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -573,7 +572,7 @@ Constants beginning `OS$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (
 - `OS$CHOWN` = 100 - Chown on file / directory
 
 ### sys:ikeys:p$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:307#9d1e6209
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:306#9d1e6209
 
 Constants beginning `P$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -584,7 +583,7 @@ Constants beginning `P$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`
 - `P$PICKREAD` = 32
 
 ### sys:ikeys:pt$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:240#cc748e70
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:239#cc748e70
 
 Constants beginning `PT$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -601,7 +600,7 @@ Constants beginning `PT$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (
 - `PT$CTRL.FILTER` = 11 - Discard control characters in INPUT and INPUT@?
 
 ### sys:ikeys:scram$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:392#9f6a931d
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:391#9f6a931d
 
 Constants beginning `SCRAM$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -612,7 +611,7 @@ Constants beginning `SCRAM$` in `sdsys/gpl.bp/int$keys.h` (internal programs onl
 - `SCRAM$MAX.ITER` = 10000000 - Ceiling on a server's i=
 
 ### sys:ikeys:usr$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:283#c59bfa25
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:282#c59bfa25
 
 Constants beginning `USR$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -626,7 +625,7 @@ Constants beginning `USR$` in `sdsys/gpl.bp/int$keys.h` (internal programs only 
 - `USR$GROUPED` = 0x0800 - (K$USERS only) a phantom grouped with its parent: logged out when the parent ends
 
 ### sys:ikeys:v$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:411#0ebace4f
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:410#0ebace4f
 
 Constants beginning `V$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
@@ -654,7 +653,7 @@ Constants beginning `V$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`
 - `V$JSON.NULL` = 21
 
 ### sys:keys:acc$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:352#1255e51e
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:351#1255e51e
 
 Constants beginning `ACC$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -677,7 +676,7 @@ Constants beginning `ACC$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `ACC$PINS` = 18 - may add its own programs to the home screen (yes/no; blank = no)
 
 ### sys:keys:csv$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:330#ea4c0227
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:329#ea4c0227
 
 Constants beginning `CSV$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -691,7 +690,7 @@ Constants beginning `CSV$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `CSV$QUOTE3` = 128 - CSVBUILD: enclose every field (CSV.MODE 3)
 
 ### sys:keys:fc$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:666#f7761cf5
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:664#f7761cf5
 
 Constants beginning `FC$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -852,7 +851,7 @@ Constants beginning `IT$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `IT$BRIGHT.WHITE` = 15
 
 ### sys:keys:jb$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:320#d5fc125e
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:319#d5fc125e
 
 Constants beginning `JB$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -866,7 +865,7 @@ Constants beginning `JB$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `JB$PRETTY` = 128 - SD's own: one element to a line, indented (used by CT)
 
 ### sys:keys:jp$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:318#002df50b
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:317#002df50b
 
 Constants beginning `JP$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -916,7 +915,7 @@ Constants beginning `LPTR$` in `sdsys/syscom/keys.h` (an ordinary program may in
 - `LPTR$HIGH.PRINT.UNIT` = 255 - Highest available print unit number
 
 ### sys:keys:ml$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:657#b3260586
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:655#b3260586
 
 Constants beginning `ML$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -926,7 +925,7 @@ Constants beginning `ML$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `ML$UNSORTED` = 32 - MERGELIST: the lists are not in order, so put them in order first
 
 ### sys:keys:nls$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:264#436755ae
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:263#436755ae
 
 Constants beginning `NLS$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -935,7 +934,7 @@ Constants beginning `NLS$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `NLS$DECIMAL` = 3
 
 ### sys:keys:oi$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:346#ea938b71
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:345#ea938b71
 
 Constants beginning `OI$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -943,7 +942,7 @@ Constants beginning `OI$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `OI$CLASS` = 1 - Class name
 
 ### sys:keys:os$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:622#de908335
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:620#de908335
 
 Constants beginning `OS$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -957,7 +956,7 @@ Constants beginning `OS$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `OS$IS.DIR` = 17 - Is the path a directory?
 
 ### sys:keys:pp$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:269#58d4e178
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:268#58d4e178
 
 Constants beginning `PP$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1015,7 +1014,6 @@ Constants beginning `PU$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `PU$PRINTER.NAME` = 1017
 - `PU$FILE.NAME` = 1018
 - `PU$SEQNO` = 1019
-- `PU$FORM.QUEUE` = 1020
 - `PU$FORM.FEED` = 1021
 - `PU$ENCODING` = 1022
 - `PU$FONT` = 1023
@@ -1024,7 +1022,7 @@ Constants beginning `PU$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `PU$LINENO` = 2000
 
 ### sys:keys:skt$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:277#02116ea3
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:276#02116ea3
 
 Constants beginning `SKT$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1066,7 +1064,7 @@ Constants beginning `SL$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `SL$COUNT` = 3 - Fetch number of entries in select list
 
 ### sys:keys:srt$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:648#c4cbc5d3
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:646#c4cbc5d3
 
 Constants beginning `SRT$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1081,7 +1079,7 @@ Constants beginning `SRT$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `SRT$DATA` = 128 - SORT(): sort has an associated data element
 
 ### sys:keys:sys$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:513#6bc3f689
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:512#6bc3f689
 
 Constants beginning `SYS$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1178,7 +1176,6 @@ Constants beginning `SYS$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `SYS$CHILDREN` = 1058 - Direct child phantoms' user numbers
 - `SYS$GROUPED.CHILDREN` = 1073 - Those grouped with this process (PHANTOM GROUP): logged out when it ends
 - `SYS$TXN_CACHE` = 1065 - The transaction cache
-- `SYS$FORM.QUEUE` = 1066 - The last form queue SP.ASSIGN gave to a print unit, -1 if none (15 Oct 26)
 - `SYS$PRECISION` = 1070 - The PRECISION setting
 - `SYS$OSREAD.INFO` = 1071 - STATUS array of the file the last OSREAD read (15 Oct 26, _system)
 - `SYS$CALL_DEPTH` = 1076 - Current CALL depth
@@ -1200,7 +1197,7 @@ Constants beginning `SYS$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `SYS$CASING` = 1086 - Is case sensitivity of string comparisons on in this program?
 
 ### sys:keys:vt$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:679#4692cf70
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:677#4692cf70
 
 Constants beginning `VT$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1226,7 +1223,7 @@ Constants beginning `VT$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `VT$SORT` = 20
 
 ### sys:keys:xml$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:340#e2aedf5e
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:339#e2aedf5e
 
 Constants beginning `XML$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 

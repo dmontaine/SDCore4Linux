@@ -32,7 +32,7 @@ ROOT = os.path.dirname(os.path.dirname(SD64))
 C_FILES = ("op_sh.c", "op_dio3.c", "op_seqio.c", "op_kernel.c", "to_file.c", "kernel.c", "keys.h", "sysseg.h", "sd.h",
            "op_xfun.c", "op_skt.c", "op_dio1.c", "object.c")
 BP_PROGRAMS = ("login", "cproc", "apisrvr", "modifya", "createa", "create_account", "acc_os_info", "restorea", "upgrade_editgates", "edit_guard",
-               "clearfl", "delete", "copy", "copyp", "cname", "ed", "edit", "deletef", "sed", "ide", "ced_edit", "basic", "catalog", "delcat",
+               "clearfl", "delete", "copy", "cname", "ed", "edit", "deletef", "sed", "ide", "ced_edit", "basic", "catalog", "delcat",
                "decat", "_oscopy", "_ioscopy",
                # S.64 part 2: the $internal verbs that write, delete or clear a record of a file the user names
                "fixdir", "format", "mapcat", "spview", "settrig", "copylst", "dellist", "getlist", "savelst", "sortlst", "qproc", "cd",
@@ -320,13 +320,12 @@ def checks(srcs, messages_dir):
     ck("G1 !edit_guard is an internal function that asks the kernel by the pathname of the open file and is the administrator's pass",
        "$internal" in eg and "$catalog !edit_guard" in eg and "fileinfo(f, FL$PATH)" in eg and "kernel(K$EDIT.OK, p)" in eg
        and "kernel(K$EDIT.KIND, p)" in eg and "K$ADMINISTRATOR" in eg, "")
-    asks = {"clearfl": 1, "delete": 1, "copy": 2, "copyp": 2, "cname": 1, "ed": 4, "edit": 1}
+    asks = {"clearfl": 1, "delete": 1, "copy": 2, "cname": 1, "ed": 4, "edit": 1}
     for prog, n in asks.items():
         have = len(re.findall(r"\bedit_guard\(", c[prog])) - len(re.findall(r"deffun\s+edit_guard", c[prog]))
         ck("G2 %s asks edit_guard at least %d time(s) and declares it" % (prog, n), have >= n and "deffun edit_guard" in c[prog], "asks=%d" % have)
-    ck("G2b COPY asks about the source when it moves records out (DELETING), COPYP when it moves them (the D flag)",
-       re.search(r"if deleting then\s*\n\s*if not\(edit_guard\(src\.file\)\)", c["copy"]) is not None
-       and re.search(r"if dflag then\s*\n\s*if not\(edit_guard\(f\.file\)\)", c["copyp"]) is not None, "")
+    ck("G2b COPY asks about the source when it moves records out (DELETING)",
+       re.search(r"if deleting then\s*\n\s*if not\(edit_guard\(src\.file\)\)", c["copy"]) is not None, "")
     ck("G3 CNAME of a FILE asks the kernel for the old path and the new name (a rename cannot take a program file out of its name)",
        "kernel(K$EDIT.OK, ek.path)" in c["cname"] and "ek.path = rec<2>" in c["cname"] and "ek.path = new.file.name" in c["cname"], "")
     ck("G4 DELETE.FILE asks for the data part, and for a dictionary deleted on its own, and the ask is a subroutine at the END of the program",

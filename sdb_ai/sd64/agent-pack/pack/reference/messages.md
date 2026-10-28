@@ -3783,8 +3783,6 @@ Argument matrix too small
 Form queue %1 is not defined
 ```
 
-cited by: `setqueue`, `spassign`
-
 ### msg:11322
 > kind=message tier=reference since=- src=sdsys/messages/11322:1#641cf151
 
@@ -3792,104 +3790,12 @@ cited by: `setqueue`, `spassign`
 A form queue number is a whole number from 0 to 999 (%1)
 ```
 
-cited by: `setqueue`, `spassign`
-
-### msg:11323
-> kind=message tier=reference since=- src=sdsys/messages/11323:1#31b0cfb5
-
-```
-SET.QUEUE queue, width, depth, top.margin, bottom.margin, mode {, options}  or  SET.QUEUE queue  or  SET.QUEUE DISPLAY {LPTR {unit}}  or  SET.QUEUE DELETING queue
-```
-
-cited by: `setqueue`
-
-### msg:11324
-> kind=message tier=reference since=- src=sdsys/messages/11324:1#b1f88d44
-
-```
-Mode %1 is not a printing mode: use 1 (printer), 3 (hold file) or 6 (both)
-```
-
-cited by: `setqueue`
-
-### msg:11325
-> kind=message tier=reference since=- src=sdsys/messages/11325:1#db1923b8
-
-```
-No form queues are defined
-```
-
-cited by: `setqueue`
-
-### msg:11326
-> kind=message tier=reference since=- src=sdsys/messages/11326:1#9d6469ff
-
-```
-Deleted form queue %1
-```
-
-cited by: `setqueue`
-
-### msg:11327
-> kind=message tier=reference since=- src=sdsys/messages/11327:1#753242e2
-
-```
-Queue   Width  Depth   Top  Bottom  Mode  Options
-```
-
-cited by: `setqueue`
-
-### msg:11328
-> kind=message tier=reference since=- src=sdsys/messages/11328:1#c68883ac
-
-```
-Print unit %1 is not valid
-```
-
-cited by: `spassign`
-
-### msg:11329
-> kind=message tier=reference since=- src=sdsys/messages/11329:1#8aedd7c1
-
-```
-SP.ASSIGN option %1 is not understood
-```
-
-cited by: `spassign`
-
 ### msg:1133
 > kind=message tier=reference since=- src=sdsys/messages/1133:1#fc19b517
 
 ```
 GOSUBs nested too deeply
 ```
-
-### msg:11330
-> kind=message tier=reference since=- src=sdsys/messages/11330:1#1747d023
-
-```
-The S option of SP.ASSIGN is for use with H: both together keep the output in the hold file and do not print it
-```
-
-cited by: `spassign`
-
-### msg:11331
-> kind=message tier=reference since=- src=sdsys/messages/11331:1#212e43e9
-
-```
-Print unit %1 uses form queue %2
-```
-
-cited by: `spassign`
-
-### msg:11333
-> kind=message tier=reference since=- src=sdsys/messages/11333:1#12e92688
-
-```
-%1 must be a whole number from %2 to %3
-```
-
-cited by: `setqueue`
 
 ### msg:11334
 > kind=message tier=reference since=- src=sdsys/messages/11334:1#30069af8
@@ -9007,7 +8913,7 @@ cited by: `ed`, `sed`
 Error %1 opening %2
 ```
 
-cited by: `como`, `formlst`, `phantom`, `qselect`, `setqueue`
+cited by: `como`, `formlst`, `phantom`, `qselect`
 
 ### msg:1431
 > kind=message tier=reference since=- src=sdsys/messages/1431:1#3e0e3b4a
@@ -9025,7 +8931,7 @@ cited by: `clearfl`, `cname`, `configf`, `copy`, `copylst`, `delete`, `seqkey`
 Error %1 (os.error %2) creating %3
 ```
 
-cited by: `como`, `phantom`, `setqueue`
+cited by: `como`, `phantom`
 
 ### msg:1433
 > kind=message tier=reference since=- src=sdsys/messages/1433:1#5d7c4e5d
@@ -9620,7 +9526,7 @@ cited by: `findfile`
 Unexpected token (%1)
 ```
 
-cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 61 more
+cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `clearfl`, `cmdlog` and 59 more
 
 ### msg:2019
 > kind=message tier=reference since=- src=sdsys/messages/2019:1#a22e9c3b
@@ -9647,7 +9553,7 @@ cited by: `analyseidx`, `deletei`, `disablei`, `listi`, `selecti`, `settrig`
 File %1 not found
 ```
 
-cited by: `catalog`, `cd`, `copylst`, `copyp`, `cproc`, `mkindx`, `release`
+cited by: `catalog`, `cd`, `copylst`, `cproc`, `mkindx`, `release`
 
 ### msg:2022
 > kind=message tier=reference since=- src=sdsys/messages/2022:1#047915a6
@@ -9719,7 +9625,7 @@ cited by: `fstat`
 Unrecognised option (%1)
 ```
 
-cited by: `copyp`, `pterm`
+cited by: `pterm`
 
 ### msg:2030
 > kind=message tier=reference since=- src=sdsys/messages/2030:1#563e059f
@@ -9764,7 +9670,7 @@ cited by: `delete`, `setmode`
 Invalid print unit number
 ```
 
-cited by: `analyseidx`, `copylst`, `filestat`, `fstatuser`, `listi`, `listrdu`, `listtrg`, `listu` and 10 more
+cited by: `analyseidx`, `copylst`, `filestat`, `fstatuser`, `listi`, `listrdu`, `listtrg`, `listu` and 9 more
 
 ### msg:2054
 > kind=message tier=reference since=- src=sdsys/messages/2054:1#f14c4807
@@ -9857,7 +9763,7 @@ Full pathname required
 File name required
 ```
 
-cited by: `analyse`, `analyseidx`, `buildi`, `cd`, `ced`, `clearfl`, `cname`, `configf` and 18 more
+cited by: `analyse`, `analyseidx`, `buildi`, `cd`, `ced`, `clearfl`, `cname`, `configf` and 17 more
 
 ### msg:2105
 > kind=message tier=reference since=- src=sdsys/messages/2105:1#05b315af
@@ -14198,8 +14104,6 @@ Cannot start sd serial port process. Error %1
 To: 
 ```
 
-cited by: `copyp`
-
 ### msg:3521
 > kind=message tier=reference since=- src=sdsys/messages/3521:1#4c6a7e8e
 
@@ -14207,7 +14111,7 @@ cited by: `copyp`
 Record "%1" not found
 ```
 
-cited by: `copyp`, `qproc`
+cited by: `qproc`
 
 ### msg:3522
 > kind=message tier=reference since=- src=sdsys/messages/3522:1#a9b0044f
@@ -14216,16 +14120,12 @@ cited by: `copyp`, `qproc`
 Item %1
 ```
 
-cited by: `copyp`
-
 ### msg:3523
 > kind=message tier=reference since=- src=sdsys/messages/3523:1#f3c14c98
 
 ```
 Item %1 already exists in target file - Not copied
 ```
-
-cited by: `copyp`
 
 ### msg:3524
 > kind=message tier=reference since=- src=sdsys/messages/3524:1#158b5819
@@ -14234,16 +14134,12 @@ cited by: `copyp`
 Copied item %1 from %2 to %3 item %4
 ```
 
-cited by: `copyp`
-
 ### msg:3525
 > kind=message tier=reference since=- src=sdsys/messages/3525:1#944e3fb2
 
 ```
 Moved item %1 from %2 to %3 item %4
 ```
-
-cited by: `copyp`
 
 ### msg:3526
 > kind=message tier=reference since=- src=sdsys/messages/3526:1#644caaf0
@@ -14264,8 +14160,6 @@ options:  (D - Deletes source records after copying
           (S - Suppresses field numbers with P/T
           (T - Output to the terminal
 ```
-
-cited by: `copyp`
 
 ### msg:5000
 > kind=message tier=reference since=- src=sdsys/messages/5000:1#6c085a08
@@ -16564,7 +16458,7 @@ cited by: `cname`
 Error %1 writing record '%2'
 ```
 
-cited by: `cname`, `copy`, `copyp`
+cited by: `cname`, `copy`
 
 ### msg:6165
 > kind=message tier=reference since=- src=sdsys/messages/6165:1#cd591236
@@ -16789,7 +16683,7 @@ cited by: `copy`
 %1 record(s) copied.
 ```
 
-cited by: `copy`, `copyp`
+cited by: `copy`
 
 ### msg:6190
 > kind=message tier=reference since=- src=sdsys/messages/6190:1#86324f59
@@ -16798,7 +16692,7 @@ cited by: `copy`, `copyp`
 %1 record(s) copied and deleted.
 ```
 
-cited by: `copy`, `copyp`
+cited by: `copy`
 
 ### msg:6191
 > kind=message tier=reference since=- src=sdsys/messages/6191:1#f9ae791d

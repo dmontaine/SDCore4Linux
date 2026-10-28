@@ -10,7 +10,7 @@
 # START-HISTORY:
 # 17 Oct 26 dm  New.  Register fields 10 to 12 (ACC$VOC.EDIT, ACC$BP.EDIT, ACC$DICT.EDIT), K_VOC_EDIT 121 to K_EDIT_OS_OK 126, the user
 #               table's gates word; op_dio3.c edit_refusal() before WRITE, WRITEV, DELETE and CLEARFILE; op_seqio.c OPENSEQ read only and
-#               DELETESEQ refused for a path in a guarded file; the BASIC verbs ED, SED, IDE, CED, COPY, COPYP, DELETE, CLEAR.FILE, CNAME,
+#               DELETESEQ refused for a path in a guarded file; the BASIC verbs ED, SED, IDE, CED, COPY, DELETE, CLEAR.FILE, CNAME,
 #               DELETE.FILE ask; BASIC, CATALOG, DELETE.CATALOG and DECATALOG need bp.edit; LOGIN and the API server load the gates at sign-on.
 # 17 Oct 26 dm  S.64 part 2: section "routes" (--sections=routes), 5 accounts - the verbs FIXDIR, FORMAT, MAP FILE, SET.TRIGGER, COPY.LIST,
 #               DELETE.LIST, GET.LIST, SAVE.LIST, SORT.LIST, REFORMAT, the delimited LIST reports, PAGESEQ, CD DATA, GENERATE, COMO,

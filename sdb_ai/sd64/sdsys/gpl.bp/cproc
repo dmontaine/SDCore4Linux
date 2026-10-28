@@ -62,7 +62,7 @@
 *           sdsys login), are printed a line at a time.  Both records are
 *           several lines, and a single DISPLAY put the raw field marks on the
 *           user's screen (seen as a replacement character on the third
-*           cycle's witness run).  copyp's help display is the idiom.
+*           cycle's witness run).  Printing a multi-line message a line at a time is the idiom.
 * 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier model comes
 *           out: the root-entry block no longer drops to sdsys or calls
 *           grant.administrator (deleted).  A root session is refused outright

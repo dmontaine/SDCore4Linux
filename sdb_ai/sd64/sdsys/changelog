@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  FOUR MORE TCL VERBS ARE REMOVED: copyp, copy.listp, set.queue AND sp.assign, WITH GETPU(PU$FORM.QUEUE) AND SYSTEM(1066).
+
+             What        Write copy and copy.list for the Pick-style copy, and setptr for the settings a form queue held. All of them were added in this release and never shipped. The kernel
+                         no longer keeps a form queue for each print unit; GETPU key 1020 and SYSTEM(1066) are no longer keys (they give the usual bad-key answer), and the messages and the
+                         constants PU$FORM.QUEUE, SYS$FORM.QUEUE and K$FORM.QUEUE went with them. The VOC records are taken out of an account by its next login's update.
+             Why it      Each did what copy, copy.list and setptr already do.
+             Does not    Change copy, copy.list, setptr or any other GETPU key.
+
 27 Oct 26  SIX TCL VERBS ARE REMOVED: cd, md, list.union, list.inter, list.diff AND make.index.
 
              What        Write compile.dict for cd (the same program under its long name), voc for md (a Q-pointer to the VOC), merge.list 1 union 2 to 3 (or intersect, diff) for the three
