@@ -3999,13 +3999,6 @@ lock tracing is on
 
 cited by: `locktracer`
 
-### msg:1136
-> kind=message tier=reference since=- src=sdsys/messages/1136:1#79288d8b
-
-```
-Cannot redimension a Pick style matrix
-```
-
 ### msg:11360
 > kind=message tier=reference since=- src=sdsys/messages/11360:1#49e22c87
 
@@ -4278,13 +4271,6 @@ Non-printing characters are shown as ^nnn
 
 ```
 Non-printing characters are shown as ?
-```
-
-### msg:1139
-> kind=message tier=reference since=- src=sdsys/messages/1139:1#9e6ecac6
-
-```
-Pick style matrices must have at least one element
 ```
 
 ### msg:11390
@@ -14579,23 +14565,12 @@ Mode keyword missing or invalid
 
 cited by: `cproc`
 
-### msg:5060
-> kind=message tier=reference since=- src=sdsys/messages/5060:1#ce11e6d9
-
-```
-Access control subroutine '%1' for menu '%2' is not catalogued
-```
-
-cited by: `cproc`
-
 ### msg:5061
 > kind=message tier=reference since=- src=sdsys/messages/5061:1#dc2b7801
 
 ```
 Press return to continue
 ```
-
-cited by: `cproc`
 
 ### msg:5062
 > kind=message tier=reference since=- src=sdsys/messages/5062:1#d4a95ce6
@@ -15944,15 +15919,6 @@ cited by: `createf`
 
 cited by: `createf`
 
-### msg:6117
-> kind=message tier=reference since=- src=sdsys/messages/6117:1#0a8b17f9
-
-```
-Invalid file version
-```
-
-cited by: `configf`, `createf`
-
 ### msg:6118
 > kind=message tier=reference since=- src=sdsys/messages/6118:1#442a0376
 
@@ -15978,7 +15944,7 @@ cited by: `configf`, `createf`
 File size is too large
 ```
 
-cited by: `configf`, `createf`
+cited by: `configf`
 
 ### msg:6121
 > kind=message tier=reference since=- src=sdsys/messages/6121:1#a140581b
@@ -21053,15 +21019,6 @@ cited by: `setptr`
 
 ```
 Mode           : 4 (Stderr)
-```
-
-cited by: `setptr`
-
-### msg:7162
-> kind=message tier=reference since=- src=sdsys/messages/7162:1#cf508aa3
-
-```
-Mode           : 5 (Aux port)
 ```
 
 cited by: `setptr`

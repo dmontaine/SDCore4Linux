@@ -16,11 +16,11 @@
 # WHAT THIS CAN AND CANNOT SAY.  The sandbox has ONE operating-system user.  The records a stranger could write are therefore simulated: a probe
 # (gpl.bp/zzfake) plays PHANTOM, starts a real phantom, and writes the records itself - once as PHANTOM would (the control), then each time with one thing wrong:
 # a command changed after it was sealed, a seal made with a secret the phantom was not given, no seal at all, a DATA record or a log file name the parent never
-# passed, option flags changed, a record for a phantom started with no secret, no Xn record, and one phantom's valid record copied to another.  The phantom's own
+# passed, a record for a phantom started with no secret, no Xn record, and one phantom's valid record copied to another.  The phantom's own
 # answer is read from the DISK (the record its command writes into the file zzout), from the audit trail, and from the message it sends its parent.  That the
 # environment of a process can be read only by the same operating-system user is the operating system's rule and is NOT tested here: it needs a second user (the VM).
 #
-#   A  the legitimate flows are as before: PHANTOM runs its command; DATA, LOG and an inherited option arrive; the secret is not left in the phantom's
+#   A  the legitimate flows are as before: PHANTOM runs its command; DATA and LOG arrive; the secret is not left in the phantom's
 #      environment and is not in the parent's; the profiler's display (it reads $ipc) still works; no refusal was audited
 #   B  the control (a probe that does what PHANTOM does) runs the command; each wrong record does NOT, is refused with its own message and audit line, and the
 #      three records are taken out of $ipc whether or not they passed
@@ -77,11 +77,11 @@ INTERNAL = {
                 "   crt 'PARENT[':len(env('SD_PHANTOM_NONCE')):'][':len(kernel(K$PHANTOM.NONCE, 'G')):']'\nend\n"),
     # RUN gpl.bp zzfake <variant>: does what the PHANTOM verb does, writing the records itself.  'ok' is exactly what PHANTOM writes; the others have one thing wrong
     "zzfake": ("$internal\n$include syscom.h\n$include keys.h\n$include int$keys.h\n$include err.h\n"
-               "deffun ipc_seal(sl.mode, sl.key, sl.seal, sl.opts, sl.cmd, sl.data, sl.log) calling '!ipc_seal'\n"
+               "deffun ipc_seal(sl.mode, sl.key, sl.seal, sl.cmd, sl.data, sl.log) calling '!ipc_seal'\n"
                "   variant = field(@sentence, ' ', 4)\n"
                "   good.cmd = 'RUN bp zzmark ' : variant\n   bad.cmd = 'RUN bp zzmarkx ' : variant\n"
                "   secret = SDEXT('24', @TRUE, SD_RANDBYTES)\n   stranger = SDEXT('24', @TRUE, SD_RANDBYTES)\n"
-               "   stage = @true\n   use.key = secret\n   w.cmd = good.cmd\n   w.opts = ''\n   w.d = ''\n   w.l = ''\n   no.seal = @false\n   skip.x = @false\n"
+               "   stage = @true\n   use.key = secret\n   w.cmd = good.cmd\n   w.d = ''\n   w.l = ''\n   no.seal = @false\n   skip.x = @false\n"
                "   n.exp = 1\n"
                "   begin case\n"
                "      case variant = 'ok'\n         null\n"
@@ -90,27 +90,26 @@ INTERNAL = {
                "      case variant = 'noseal'\n         no.seal = @true\n"
                "      case variant = 'dadd'\n         w.d = 'FORGED1':@fm:'FORGED2'\n"
                "      case variant = 'ladd'\n         w.l = 'zzlogdir'\n"
-               "      case variant = 'optalt'\n         w.opts = str('1', 100)\n"
                "      case variant = 'nox'\n         skip.x = @true\n         w.d = 'FORGED1'\n"
                "      case variant = 'nostage'\n         stage = @false\n"
                "      case variant = 'replay'\n         n.exp = 2\n"
                "      case 1\n         crt 'FAKE bad variant ':variant\n         stop\n"
                "   end case\n"
-               "   seal = ipc_seal('make', use.key, '', '', good.cmd, '', '')\n"
+               "   seal = ipc_seal('make', use.key, '', good.cmd, '', '')\n"
                "   uid2 = 0\n   saw = -1\n"
                "   filelock ipc.f\n"
                "   if stage then void kernel(K$PHANTOM.NONCE, 'S':secret)\n"
                "   uid = phantom()\n"
                "   if uid = 0 then\n      fileunlock ipc.f\n      crt 'FAKE no phantom'\n      stop\n   end\n"
                "   if variant = 'replay' then\n"
-               "      rec1 = seal:@fm:'':@fm:good.cmd\n      write rec1 to ipc.f, 'X':uid\n"
+               "      rec1 = seal:@fm:good.cmd\n      write rec1 to ipc.f, 'X':uid\n"
                "      void kernel(K$PHANTOM.NONCE, 'S':stranger)\n      uid2 = phantom()\n"
                "      if uid2 # 0 then write rec1 to ipc.f, 'X':uid2\n"
                "      saw = len(rec1)\n"
                "   end else\n"
                "      if not(skip.x) then\n"
-               "         if no.seal then\n            write w.opts:@fm:w.cmd to ipc.f, 'X':uid\n"
-               "         end else\n            write seal:@fm:w.opts:@fm:w.cmd to ipc.f, 'X':uid\n         end\n"
+               "         if no.seal then\n            write w.cmd to ipc.f, 'X':uid\n"
+               "         end else\n            write seal:@fm:w.cmd to ipc.f, 'X':uid\n         end\n"
                "         read back from ipc.f, 'X':uid then saw = len(back) else saw = -1\n"
                "      end\n"
                "      if w.d # '' then write w.d to ipc.f, 'D':uid\n"
@@ -310,19 +309,18 @@ def rows_profiler():
 # (name, program, [(old, new)], what to run, the rows that must turn red)
 MUTANTS = [
     ("cproc-never-refuses", "cproc", [("if not(ipc_seal('check',", "if 0 and not(ipc_seal('check',")],
-     {"v": ["cmdalt", "badkey", "dadd", "ladd", "optalt", "nostage", "noseal"], "replay": True},
-     ["cmdalt.a", "badkey.a", "dadd.a", "ladd.a", "optalt.a", "nostage.a", "replay.a", "noseal.b"]),
+     {"v": ["cmdalt", "badkey", "dadd", "ladd", "nostage", "noseal"], "replay": True},
+     ["cmdalt.a", "badkey.a", "dadd.a", "ladd.a", "nostage.a", "replay.a", "noseal.b"]),
     ("seal-constant-key", "ipc_seal", [("mac = SDEXT(nonce : @FM : signed,", "mac = SDEXT('QUJDREVGR0hJSktMTU5PUFFSU1RVVldY' : @FM : signed,")],
      {"v": ["badkey", "cmdalt"], "replay": True}, ["badkey.a", "replay.a"]),
     ("seal-ignores-data", "ipc_seal", [("oconv(dq, 'MX0C')", "''")], {"v": ["dadd"]}, ["dadd.a"]),
-    ("seal-ignores-options", "ipc_seal", [("oconv(opt, 'MX0C')", "''")], {"v": ["optalt"]}, ["optalt.a"]),
     ("seal-ignores-logfile", "ipc_seal", [("oconv(logf, 'MX0C')", "''")], {"v": ["ladd"]}, ["ladd.a"]),
     ("phantom-gives-no-secret", "phantom", [("if kernel(K$PHANTOM.NONCE, 'S':nonce) # 1 then", "if 0 then")], {"legit": ["A1", "A2", "A5"]}, ["A1", "A2", "A5a"]),
     ("no-record-is-accepted", "cproc", [("   if ph.rec = '' then\n      ph.refused = @true\n   end else", "   if ph.rec = '' then\n      null\n   end else")],
      {"v": ["nox"]}, ["nox.b"]),
     ("refusal-runs-the-command", "cproc", [("      phantom.command = ''\n      ph.data = ''\n      ph.log.file = ''\n   end\n\n   return",
                                             "      ph.data = ''\n      ph.log.file = ''\n   end\n\n   return"),
-                                           ("            goto terminate.phantom\n         end\n\n         * The option flags", "         end\n\n         * The option flags")],
+                                           ("start-up records not from the process that started it')\n            goto terminate.phantom\n", "start-up records not from the process that started it')\n")],
      {"v": ["cmdalt", "badkey", "dadd"], "replay": True}, ["cmdalt.a", "badkey.a", "dadd.a", "replay.a"]),
 ]
 
@@ -429,7 +427,7 @@ def main():
         rows_profiler()
         say("\n--- B. records that are not the ones PHANTOM sealed are not acted on ----------------------------------------------------------")
         rows_control()
-        for v in ["cmdalt", "badkey", "noseal", "dadd", "ladd", "optalt", "nostage", "nox"]:
+        for v in ["cmdalt", "badkey", "noseal", "dadd", "ladd", "nostage", "nox"]:
             rows_variant(v, expect_saw=(v != "nox"))
         rows_replay()
         if "--mutants" in sys.argv:

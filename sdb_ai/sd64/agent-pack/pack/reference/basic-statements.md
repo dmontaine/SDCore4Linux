@@ -911,7 +911,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `logmsg` *text*
 
 - a statement of SD BASIC
-- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 469
+- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 466
 
 ### basic:stmt:loop
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:425#ae1c50d9 src2=docs:tools/syntax-shapes.txt:136#13c6f6f2

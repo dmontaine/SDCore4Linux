@@ -4030,7 +4030,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 277
+"words": 272
 },
 "core:voc-types": {
 "kind": "core.digest",
@@ -8232,13 +8232,6 @@
 "tier": "reference",
 "words": 9
 },
-"msg:1136": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 8
-},
 "msg:11360": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -8462,13 +8455,6 @@
 "since": "-",
 "tier": "reference",
 "words": 8
-},
-"msg:1139": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
 },
 "msg:11390": {
 "kind": "message",
@@ -16975,19 +16961,12 @@
 "tier": "reference",
 "words": 10
 },
-"msg:5060": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 15
-},
 "msg:5061": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 9
+"words": 6
 },
 "msg:5062": {
 "kind": "message",
@@ -18116,13 +18095,6 @@
 "tier": "reference",
 "words": 9
 },
-"msg:6117": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 9
-},
 "msg:6118": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -18142,7 +18114,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 11
+"words": 10
 },
 "msg:6121": {
 "kind": "message",
@@ -22099,13 +22071,6 @@
 "tier": "reference",
 "words": 9
 },
-"msg:7162": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 10
-},
 "msg:7163": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -23903,7 +23868,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 25
+"words": 17
 },
 "sys:ikeys:cred$": {
 "kind": "sys.keys",
@@ -24001,7 +23966,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 97
+"words": 93
 },
 "sys:keys:acc$": {
 "kind": "sys.keys",
@@ -24815,13 +24780,6 @@
 "tier": "reference",
 "words": 62
 },
-"tcl:!": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "0.6.3",
-"tier": "reference",
-"words": 28
-},
 "tcl:%e": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -24891,13 +24849,6 @@
 "since": "-",
 "tier": "reference",
 "words": 32
-},
-"tcl:after": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 59
 },
 "tcl:ai": {
 "kind": "tcl.verb",
@@ -25010,13 +24961,6 @@
 "since": "-",
 "tier": "reference",
 "words": 36
-},
-"tcl:before": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 59
 },
 "tcl:bell": {
 "kind": "tcl.verb",
@@ -25312,13 +25256,6 @@
 "tier": "reference",
 "words": 35
 },
-"tcl:colour": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 35
-},
 "tcl:command.logging": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -25437,13 +25374,6 @@
 "since": "-",
 "tier": "reference",
 "words": 38
-},
-"tcl:creating": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 35
 },
 "tcl:crt": {
 "kind": "tcl.keyword",
@@ -25746,13 +25676,6 @@
 "tier": "reference",
 "words": 80
 },
-"tcl:encrypt": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 35
-},
 "tcl:encrypt.key": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -25774,13 +25697,6 @@
 "tier": "reference",
 "words": 36
 },
-"tcl:equal": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
-},
 "tcl:eval": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -25788,26 +25704,12 @@
 "tier": "reference",
 "words": 36
 },
-"tcl:even": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 33
-},
 "tcl:every": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
 "words": 61
-},
-"tcl:exclusive": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "0.9.0",
-"tier": "reference",
-"words": 36
 },
 "tcl:execute.list": {
 "kind": "tcl.verb",
@@ -25984,13 +25886,6 @@
 "tier": "reference",
 "words": 63
 },
-"tcl:greater": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 37
-},
 "tcl:group": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -26131,13 +26026,6 @@
 "tier": "reference",
 "words": 34
 },
-"tcl:inquiring": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 34
-},
 "tcl:internal": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -26214,13 +26102,6 @@
 "since": "-",
 "tier": "reference",
 "words": 38
-},
-"tcl:less": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 37
 },
 "tcl:level": {
 "kind": "tcl.keyword",
@@ -26460,27 +26341,6 @@
 "tier": "reference",
 "words": 36
 },
-"tcl:mark": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 33
-},
-"tcl:matches": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 58
-},
-"tcl:matching": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 37
-},
 "tcl:max": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -26656,13 +26516,6 @@
 "tier": "reference",
 "words": 37
 },
-"tcl:no.label": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
-},
 "tcl:no.match": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -26676,13 +26529,6 @@
 "since": "-",
 "tier": "reference",
 "words": 57
-},
-"tcl:no.object": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
 },
 "tcl:no.page": {
 "kind": "tcl.keyword",
@@ -26747,13 +26593,6 @@
 "tier": "reference",
 "words": 62
 },
-"tcl:not.matching": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 38
-},
 "tcl:noxref": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -26774,13 +26613,6 @@
 "since": "next",
 "tier": "reference",
 "words": 39
-},
-"tcl:odd": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 33
 },
 "tcl:off": {
 "kind": "tcl.verb+keyword",
@@ -26921,13 +26753,6 @@
 "since": "-",
 "tier": "reference",
 "words": 40
-},
-"tcl:portrait": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
 },
 "tcl:post.clear": {
 "kind": "tcl.keyword",
@@ -27489,26 +27314,12 @@
 "tier": "reference",
 "words": 32
 },
-"tcl:space": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 33
-},
 "tcl:split.load": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
 "words": 62
-},
-"tcl:spoken": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
 },
 "tcl:spool": {
 "kind": "tcl.verb",
@@ -27537,13 +27348,6 @@
 "since": "-",
 "tier": "reference",
 "words": 37
-},
-"tcl:static": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 32
 },
 "tcl:statistics": {
 "kind": "tcl.keyword",
@@ -27853,27 +27657,6 @@
 "tier": "reference",
 "words": 36
 },
-"tcl:verify": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 37
-},
-"tcl:verify.sup": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 36
-},
-"tcl:version": {
-"kind": "tcl.keyword",
-"part": "reference/tcl-keywords.md",
-"since": "-",
-"tier": "reference",
-"words": 50
-},
 "tcl:vertically": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -28126,13 +27909,6 @@
 "tier": "examples",
 "words": 23
 },
-"voc:entry:no.grand.total": {
-"kind": "voc.entry",
-"part": "examples/voc-entries.md",
-"since": "-",
-"tier": "examples",
-"words": 54
-},
 "voc:entry:qfile": {
 "kind": "voc.entry",
 "part": "examples/voc-entries.md",
@@ -28189,26 +27965,19 @@
 "tier": "examples",
 "words": 52
 },
-"voc:entry:without": {
-"kind": "voc.entry",
-"part": "examples/voc-entries.md",
-"since": "-",
-"tier": "examples",
-"words": 16
-},
 "voc:layer:newvoc": {
 "kind": "voc.layer",
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 57
+"words": 55
 },
 "voc:layer:voc_template": {
 "kind": "voc.layer",
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 104
+"words": 102
 },
 "voc:type:F": {
 "kind": "voc.type",

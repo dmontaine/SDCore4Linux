@@ -284,11 +284,10 @@ Constants beginning `SD$` in `sdsys/syscom/err.h` (error codes: STATUS() after a
 - `SD$PyErr.LstExsts` = -12038 - list already exists
 
 ### sys:ikeys:ah$
-> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:417#2bc408de
+> kind=sys.keys tier=reference since=- src=sdsys/gpl.bp/int$keys.h:418#0398ee0f
 
 Constants beginning `AH$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`$internal`)):
 
-- `AH$PICK.STYLE` = 0x0001 - Pick style matrix
 - `AH$AUTO.DELETE` = 0x0002 - Self-deleting common block
 
 ### sys:ikeys:cred$
@@ -638,7 +637,6 @@ Constants beginning `V$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`
 - `V$IMAGE` = 9
 - `V$BTREE` = 10
 - `V$SELLIST` = 11
-- `V$PMATRIX` = 12
 - `V$SOCK` = 13
 - `V$LOCALVARS` = 14
 - `V$OBJ` = 15

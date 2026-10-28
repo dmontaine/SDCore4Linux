@@ -2551,10 +2551,10 @@ def checks_s2(srcs, c, ck):
     ck("S2p MUSTLOCK is honoured for a remote WRITE and DELETE (spec 5.3, decision 11; $MODE AUTOLOCK, which took the lock itself, went on 27 Oct 26): net_pre_change_lock asks the server (net_check_lock) whether this "
        "session holds the lock under MUSTLOCK and answers -ER_NOLOCK when it does not; both op_write and op_delete call it BEFORE the request",
        npc != "" and "P_AUTOLOCK" not in npc and ordered(npc, "if (pcfg.must_lock) {", "net_check_lock(fvar, id, id_len)", "-ER_NOLOCK", "return NETL_FAIL;", "return NETL_GO;")
-       and all(ordered(b, "net_pre_change_lock(", "case NETL_WAIT:", "return;", "case NETL_FAIL:", "net_write(" if b is ow else "net_delete(") for b in (ow, od))
+       and all(ordered(b, "net_pre_change_lock(", "== NETL_FAIL", "net_write(" if b is ow else "net_delete(") for b in (ow, od)) and "NETL_WAIT" not in npc
        and "check_lock(" not in npc.replace("net_check_lock(", "") and "lock_record(" not in npc, "")
     bad_pc = []
-    for fname, name in (("op_dio3.c", "read_record"), ("op_dio3.c", "op_readv"), ("op_lock.c", "op_lockrec"), ("op_dio3.c", "op_write"), ("op_dio3.c", "op_delete"),
+    for fname, name in (("op_dio3.c", "read_record"), ("op_dio3.c", "op_readv"), ("op_lock.c", "op_lockrec"),
                         ("op_lock.c", "op_filelock")):      # S.72: FILELOCK waits for a busy file by the same means
         body = fn(fname, name)
         first = min([m.start() for m in re.finditer(r"\bnet_(?:gate|lock_step|filelock_step|write|delete|read|readv|pre_change_lock|release|refuse)\(|\brefuse_net_file\(", body)] or [10 ** 9])
@@ -2572,8 +2572,8 @@ def checks_s2(srcs, c, ck):
     lrb = fn("op_lock.c", "op_lockrec")
     if lrb and lrb.find("pc--") != -1 and (lrb.find("txn_id = (fvar->flags") < 0 or lrb.find("pc--") < lrb.find("txn_id = (fvar->flags")):
         bad_pc.append("op_lockrec: pc-- on the remote path (before the local lock code begins)")
-    ck("S2q U5 the six opcodes that can wait for a remote lock (READU and its kin in read_record, READVU/L in op_readv, RECORDLOCKU/L in op_lockrec, the WRITE and DELETE that AUTOLOCK and, since S.72, FILELOCK in "
-       "op_filelock) take "
+    ck("S2q U5 the four opcodes that can wait for a remote lock (READU and its kin in read_record, READVU/L in op_readv, RECORDLOCKU/L in op_lockrec and, since S.72, FILELOCK in "
+       "op_filelock; the WRITE and DELETE that AUTOLOCK made wait went on 28 Oct 26) take "
        "`u_char *retry_pc = op_pc;` BEFORE their first net_ or refuse_net_file call (the handler's own opcodes overwrite op_pc, and k_return restores pc but not op_pc), name op_pc nowhere else but "
        "the LOCAL lock wait that follows lock_record, "
        "never assign pc themselves (net_lock_step does, through net_lock_result: `pc = retry_pc` appears once, in netfiles.c) and pass retry_pc as the last argument of every net_lock_step and net_filelock_step; "
@@ -4407,14 +4407,11 @@ mut("descr.h: the write flag is a word", "descr.h", rx(r"      u_char write;", "
 mut("refuse_net_file does not ask net_gate", D3, edit_func("refuse_net_file", r"st = net_gate\(fvar, kind, op_flags, what\);", "st = net_refuse(fvar, what);"))
 mut("refuse_net_file loses the kind", D3, edit_func("refuse_net_file", r"net_gate\(fvar, kind, op_flags, what\)", "net_gate(fvar, NETG_WRITE, op_flags, what)"))
 mut("refuse_net_file refuses everything", D3, edit_func("refuse_net_file", r"  if \(st == 0\)\n    return FALSE;\n\n", ""))
-mut("op_write: the NET arm takes the lock locally", D3, edit_func("op_write", r"net_pre_change_lock\(fvar, id, id_len, op_flags, retry_pc\)", "lock_record(fvar, id, id_len, TRUE, 0, FALSE)"))
+mut("op_write: the NET arm takes the lock locally", D3, edit_func("op_write", r"net_pre_change_lock\(fvar, id, id_len, op_flags\)", "lock_record(fvar, id, id_len, TRUE, 0, FALSE)"))
 mut("op_write: an id over NET_ID_MAX is sent", D3, edit_func("op_write", r" \|\| \(id_len > NET_ID_MAX\)", ""))
 mut("op_write: the record is sent flat", D3, edit_func("op_write", r"net_write\(fvar, id, id_len, src_descr->data\.str\.saddr, keep_lock\)", "net_write(fvar, id, id_len, NULL, keep_lock)"))
 mut("op_write: the record is not made a string", D3, edit_func("op_write", r"    k_get_string\(src_descr\);\n\n    if \(!valid_id", "    if (!valid_id"))
 mut("op_write: the status of the call is lost", D3, edit_func("op_write", r"    process\.status = net_st;\n    goto exit_op_write;", "    goto exit_op_write;"))
-mut("op_write: the retry point is not taken", D3, edit_func("op_write", r"u_char \*retry_pc = op_pc;", "u_char *retry_pc = NULL;"))
-mut("op_write: the opcode sets pc itself", D3, edit_func("op_write", r"    process\.op_flags = op_flags & P_ON_ERROR;\n    net_st = net_write", "    pc = retry_pc;\n    process.op_flags = op_flags & P_ON_ERROR;\n    net_st = net_write"))
-mut("op_delete: the retry point is taken from pc", D3, edit_func("op_delete", r"u_char \*retry_pc = op_pc;", "u_char *retry_pc = pc;"))
 mut("op_delete: an id over NET_ID_MAX is sent", D3, edit_func("op_delete", r"    if \(id_len > NET_ID_MAX\) \{\n      process\.status = -ER_IID;\n      goto exit_op_delete;\n    \}\n", ""))
 mut("op_delete: the NET arm checks the local lock", D3, edit_func("op_delete", r"    switch \(net_pre_change_lock", "    (void)check_lock(fvar, id, id_len, 0);\n    switch (net_pre_change_lock"))
 mut("op_delete: a keep_lock DELETE is a plain one", D3, edit_func("op_delete", r"net_delete\(fvar, id, id_len, keep_lock\)", "net_delete(fvar, id, id_len, FALSE)"))

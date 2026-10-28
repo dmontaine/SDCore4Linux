@@ -26,6 +26,7 @@
  * 17 Oct 26 dm TRY / CATCH: exception GROUPS (a handler named a.b catches a.b.c, openQM manual "Exception Groups"), a
  *           transaction begun inside the TRY clause is rolled back when an exception is thrown out of it, and the kernel
  *           can throw the SYS.* exceptions (exc_sys_throw(), called by k_error()) - QM4 Fixes 354.
+ * 28 Oct 26 dm S.87: * and - are no longer global prefixes (the hyphen rule of 16 Oct, QM4 Fixes 217, is gone); the prefixes are $ ! and _.
  * 16 Oct 26 dm op_chkcat(): a name beginning with a hyphen is global, like the other prefixes (QM4 Fixes 217).
  * 14 Sep 26 Windows port - call names are canonical LOWER case: the five
  *           UpperCaseString() calls became LowerCaseString(), and
@@ -333,7 +334,7 @@ void op_chkcat() {
     LowerCaseString(call_name); /* RELEASE_1.1 5 stage 3a: canonical case */
     (void)map_t1_id(call_name, strlen(call_name), mapped_name);
 
-    if (strchr("*$_!-", call_name[0]) == NULL) { /* No prefix (16 Oct 26: the hyphen is one, QM4 Fixes 217) */
+    if (strchr("$_!", call_name[0]) == NULL) { /* No prefix (28 Oct 26, S.87: * and - are no longer prefixes) */
       /* Try local catalogue (mode 1) */
 
       /* Push arguments onto e-stack */
@@ -903,7 +904,7 @@ bool valid_call_name(char* p) {
      and NTFS would otherwise hide it by opening gcat case-blind.  Refusing it
      makes such a site fail loudly as an illegal call name.                   */
   char valid_chars[] = "abcdefghijklmnopqrstuvwxyz0123456789.%$-_";
-  char leading_chars[] = "*$!_";
+  char leading_chars[] = "$!_"; /* 28 Oct 26 dm S.87: no * prefix */
 
   /* !!CALLNAME!! */
 

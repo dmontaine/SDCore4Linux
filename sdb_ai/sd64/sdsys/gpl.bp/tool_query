@@ -6,6 +6,7 @@
 *
 * START-HISTORY:
 * 25 Oct 26 dm  New.
+* 28 Oct 26 dm  S.87: the word spellings matches, matching, not.matching, before and after are gone from the reserved operator words (the VOC records were removed).
 * 26 Oct 26 dm  faults: the boxes that save and delete a saved query are titled "Write this record?" and "Delete this record?" ($tk_confirm's sixth argument), not "Run this command?".
 * END-HISTORY
 *
@@ -56,7 +57,7 @@ $include tk.h
    verbs = 'list sort count sum'                                 ;* the first word of a sentence the page will run
    redirect = 'to saving on.to lptr file as csv delimiter xml json json.lines elements with.dtd dtd.only with.schema schema.only appending no.query style overlay reporting from using strings display crt pathname'
    keepwords = 'with and or by by.dsnd break.on total id.sup det.sup heading footing no.page sample sampled col.hdg col.sup col.hdr.sup hdr.sup count.sup dbl.spc vertically average max min median mode range enumerate percentage break.sup grand.total rpt fmt col.spaces'
-   opwords = '= < > <= >= eq ne lt le gt ge not like unlike matches matching not.matching before after'
+   opwords = '= < > <= >= eq ne lt le gt ge not like unlike'
    qwords = verbs : ' ' : redirect : ' ' : keepwords : ' ' : opwords       ;* a dictionary item with one of these names is never put in a sentence
    ops = '=' : @fm : 'ne' : @fm : '<' : @fm : '>' : @fm : '<=' : @fm : '>=' : @fm : 'like' : @fm : 'unlike'
    opdesc = 'equal to' : @fm : 'not equal to' : @fm : 'less than' : @fm : 'greater than' : @fm : 'less than or equal to' : @fm : 'greater than or equal to' : @fm : 'matches the pattern' : @fm : 'does not match the pattern'

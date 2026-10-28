@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+28 Oct 26  THE PICK STYLE MATRIX IS REMOVED FROM THE RUN-TIME SYSTEM, WITH THE LAST UNREACHABLE LEFTOVERS OF THE EARLIER REMOVALS.
+
+             What        Since $MODE PICK.MATRIX went, nothing could make a matrix whose elements start at 1 with no element 0, but the run-time system still carried the PMATRIX descriptor
+                         type, the opcode that built one (OPCF96 is reserved), the AH_PICK_STYLE flag and the branches that tested them in the kernel, the debugger and the process dump; all of
+                         it is gone, so every matrix is the one kind with an element 0. The messages 1136 and 1139 (a Pick style matrix that cannot be resized, or has no elements) are gone with
+                         it. A write or delete of a record on a remote file no longer has an "AUTOLOCK waits" path, which nothing could take. READNEXT's mode 0 branch, which nothing called, is
+                         gone. The option-flags field of a phantom's start-up record, always empty since OPTION INHERIT went, is out of the record and out of its seal: PHANTOM now seals the
+                         command, the DATA queue and the log file name, and the phantom takes no option from the record.
+             Why it      Dead code in the kernel is code that has to be read, tested and kept safe for nothing, and the seal had a field that could only ever carry a value no one set.
+             Does not    Change what a program does, or any result a program can reach. A phantom started by a PHANTOM of the same build is unaffected; a start-up record written by a program
+                         of the old kind (with the extra empty field) is refused, which cannot happen on one installed system.
+
 27 Oct 26  TWENTY-TWO $MODE WORDS ARE REMOVED: THE COMPILER MODES THAT MADE SD BEHAVE LIKE ANOTHER PRODUCT.
 
              What        string.locate, composite.readnext, pick.read, selectv, pick.select, stdfil, stdfil.shared, write.delete.then.else, autolock, pick.substr, pick.substr.assign,
@@ -13,8 +25,8 @@ Next release - in progress
                          compiled with one of the modes before this change stops with "Illegal opcode" when it reaches a statement the mode changed: recompile it (and delete the $MODE).
              Why it      Each was an opt-in to another product's behaviour; the default was already SD's own.
              Does not    Change a program that never named one of them, the remaining modes (uv.locate, trap.unused, trap.unused.main, no.echo.data, strict.equate, time.ms,
-                         partial.expressions, explicit, default.unass.args, non.durable.txn, debug.equates), or the PMATRIX descriptor type in the run-time system, which stays but can no
-                         longer be reached.
+                         partial.expressions, explicit, default.unass.args, non.durable.txn, debug.equates). (The PMATRIX descriptor type this entry first said stays was removed
+                         on 28 Oct 26: see the entry above.)
 
 27 Oct 26  SIX OPTION WORDS AND THE KEEP.SELECT STATEMENT ARE REMOVED: THE THREE WARNING OPTIONS, INHERIT, QUERY.SORT.NO.CASE AND CLEAR.SELECT.
 

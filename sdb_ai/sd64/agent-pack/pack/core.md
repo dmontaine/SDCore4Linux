@@ -96,17 +96,17 @@ Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on
 7. A statement in this pack that the guide marks `unverified` has no probe behind it. Compile and run a small test before you rely on it.
 
 ### core:tcl-verbs
-> kind=core.digest tier=core since=- src=docs:tools/tcl-syntax-shapes.txt:29#95350d93
+> kind=core.digest tier=core since=- src=docs:tools/tcl-syntax-shapes.txt:26#8b8501a6
 
 The 30 verbs the User pages 19-24 and the tutorial use most (counted in their examples), each as its syntax line; a verb's full chunk is `tcl:<verb>`.
 
+- **`analyze.file`** {**`dict`**} *file* {**`statistics`**} {**`lptr`**}
 - **`basic`** {*file*} *record* {*record* …}
 - **`build.index`** *file* *field* … | **`all`**
 - **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
 - **`clear.file`** {**`data`** | **`dict`**} *file*
 - **`compile.dict`** *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`compile.dict data`** *file* {*i-type* …}  ·  **`compile.dict local`**  ·  **`compile.dict all`**
 - **`configure.file`** {**`dict`**} *voc.name* {*parameters*} | **`default`**  ·  **`configure.file`** *voc.name* **`next`** *n* | **`query`**
-- **`copy from`** {**`dict`**} *src* {**`to`** {**`dict`**} *tgt*} {*id* …} {**`(options`**}
 - **`count`** {**`dict`**} *file* {*selection*}
 - **`create.file`** {**`dict`**} *voc.name* {**`directory`**} {*parameters*} {**`server`** *server* {**`as`** *remote.name*}}
 - **`create.index`** *file* *field* … {**`no.nulls`**} {**`pathname`** *path*}

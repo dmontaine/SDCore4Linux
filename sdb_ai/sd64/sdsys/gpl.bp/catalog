@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.87: * and - are no longer global prefix characters (! $ and _ are).
 * 27 Oct 26 dm  S.87 batch 8: OPTION CATALOGUE.LOCAL is gone; CATALOG with no word catalogues privately, and LOCAL says local.
 * 25 Oct 26 dm  W.11 F2, real-install witness: a global object is written with umask 022 (644) and the umask put back; under CPROC's umask 002 it was 0664, group
 *               sdusers on an install, and the kernel refused to load it - the installer's own bootstrap stopped there.
@@ -106,7 +107,7 @@ $define CAT_PCODE  3
    no.xref = @false              ;* Not seen NOXREF option
    catalogue.all = @false        ;* Not using * tolen
    using.list = @false           ;* Not using a select list
-   prefix.chars = "*!_$-"          ;* 16 Oct 26 dm - QM4 Fixes 217: the hyphen is a global prefix too
+   prefix.chars = "!_$"           ;* 28 Oct 26 dm - S.87: * and - are no longer global prefixes (the _ is kept: it names a recursive pcode program)
    leading.chars = "abcdefghijklmnopqrstuvwxyz0123456789"         ;* 14 Sep 26 stage 3a: call names are lower
    following.chars = "abcdefghijklmnopqrstuvwxyz0123456789.%$-_"
 

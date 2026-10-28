@@ -386,25 +386,6 @@ File - VOC given to a new account
 @SDSYS/voc.dic
 ```
 
-### voc:entry:no.grand.total
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/no.grand.total:1#b0225cc0 src2=sdsys/voc_template/no.grand.total:1#cf8f5eae
-
-VOC record `no.grand.total` (type PH). The layers differ, usually in field 1, where one carries a description and the other only the type.
-
-In `newvoc` (what a new account's VOC is made from):
-
-```
-PHrase to suppress grand total in query
-GRAND.TOTAL "'L'"
-```
-
-In `voc_template` (SDSYS's own VOC):
-
-```
-PH
-GRAND.TOTAL "'L'"
-```
-
 ### voc:entry:qfile
 > kind=voc.entry tier=examples since=- src=sdsys/voc_template/qfile:1#10fe1290
 
@@ -528,14 +509,4 @@ In `voc_template` (SDSYS's own VOC):
 ```
 S
 DISPLAY <<@PATH>>
-```
-
-### voc:entry:without
-> kind=voc.entry tier=examples since=- src=sdsys/newvoc/without:1#cf8f5eae src2=sdsys/voc_template/without:1#cf8f5eae
-
-VOC record `sdsys/newvoc/without` (type PH), the same in `newvoc` and `voc_template`:
-
-```
-PH
-WITH NO
 ```
