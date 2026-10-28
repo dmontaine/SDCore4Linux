@@ -369,12 +369,12 @@ def checks(srcs):
        ordered(cer, "MY_ADMIN()", "path_resolved_in_shared(path)", "return EDIT_SHARED_STRUCT;", "HDR_INTERNAL", "return EDIT_NONE;", "edit_os_path_refusal(path, FALSE)")
        and d1.count("k_error(sysmsg(edit_refused_message(edit_kind)))") == 2 and "11404 + edit_kind" not in d1, "")
     ck("K15 get_voc_file_reference is a wrapper that passes FALSE, get_voc_file_reference_ex pushes the fifth INTEGER and calls k_recurse(pcode_voc_ref, 5), and ONLY open_file's map_name call "
-       "passes TRUE (OPENSEQ, DELETESEQ and CALL \"file prog\" never follow shared)",
+       "passes TRUE (OPENSEQ and DELETESEQ never follow shared; CALL \"file prog\" no longer exists, so op_jumps.c does not look a file up at all)",
        "return get_voc_file_reference_ex(voc_name, get_dict_name, path, vflags, FALSE);" in d1 and "k_recurse(pcode_voc_ref, 5)" in d1 and "(e_stack++)->data.value = allow_shared;" in d1
        and sum(t.count("get_voc_file_reference_ex(") for n, t in c.items() if n.startswith("c:") and n not in ("c:sd.h", "c:op_dio1.c")) == 0
        and d1.count("get_voc_file_reference_ex(") == 3 and d1.count("vflags, TRUE)") == 1 and d1.count("vflags, FALSE)") == 1
        and ordered(func_body(d1, "Private void open_file(bool map_name)"), "if (map_name) {", "get_voc_file_reference_ex(voc_name, open_dict, mapped_name, vflags, TRUE)")
-       and "get_voc_file_reference(" in C("op_seqio.c") and "get_voc_file_reference(" in C("op_jumps.c"), "")
+       and "get_voc_file_reference(" in C("op_seqio.c") and "get_voc_file_reference(" not in C("op_jumps.c"), "")
 
     # ---- L. the BASIC lookup ------------------------------------------------------------------------------------------------------
     vr = B("_voc_ref")

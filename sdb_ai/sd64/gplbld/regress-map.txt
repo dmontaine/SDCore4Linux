@@ -68,6 +68,8 @@ gplbld/sandbox-mfilepath.py  : none
 gplbld/sandbox-execlist.py   : none
 gplbld/sandbox-pickrn.py     : none
 gplbld/sandbox-openzero.py   : none
+# 27 Oct 26 (S.87 batch 13): the Pick style CALL "file name" is gone, and its suite with it
+gplbld/sandbox-callfile.py   : none
 gplbld/sandbox-*.py          : @self
 gplbld/test-*.py             : none
 gplbld/regress.sh            : none
@@ -209,7 +211,7 @@ gplsrc/sdext_*.c             : gates
 gplsrc/op_ccall.c            : @core classas
 gplsrc/objprog.c             : classas restricted nameindex classinit prof @core
 gplsrc/descr.h               : restricted classas nameindex @core netfile
-gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callfile callcase
+gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
 gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared masters segtrust ipc
@@ -284,7 +286,7 @@ sdsys/gpl.bp/bcomp ~ stdfil.*       : stdfil
 sdsys/gpl.bp/bcomp ~ hidden.var.load : stdfil stmt-b5 selectv-mode
 sdsys/gpl.bp/bcomp ~ st.for*        : stmt-b5 lang-b45
 sdsys/gpl.bp/bcomp ~ st.loop        : stmt-b5 lang-b45
-sdsys/gpl.bp/bcomp ~ st.call        : callfile callcase
+sdsys/gpl.bp/bcomp ~ st.call        : callcase
 sdsys/gpl.bp/bcomp ~ st.try*        : try
 sdsys/gpl.bp/bcomp ~ st.catch*      : try
 sdsys/gpl.bp/bcomp ~ st.throw*      : try

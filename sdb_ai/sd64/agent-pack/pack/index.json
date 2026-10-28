@@ -2380,13 +2380,6 @@
 "tier": "reference",
 "words": 33
 },
-"basic:stmt:bscan": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 19
-},
 "basic:stmt:by": {
 "kind": "basic.clause",
 "part": "reference/basic-statements.md",
@@ -3038,13 +3031,6 @@
 "tier": "reference",
 "words": 19
 },
-"basic:stmt:key": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 19
-},
 "basic:stmt:keyboard.input": {
 "kind": "basic.restricted",
 "part": "reference/basic-statements.md",
@@ -3688,13 +3674,6 @@
 "since": "-",
 "tier": "reference",
 "words": 18
-},
-"basic:stmt:root": {
-"kind": "basic.statement",
-"part": "reference/basic-statements.md",
-"since": "-",
-"tier": "reference",
-"words": 19
 },
 "basic:stmt:rtnlist": {
 "kind": "basic.clause",

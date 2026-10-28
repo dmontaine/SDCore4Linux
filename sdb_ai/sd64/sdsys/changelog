@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+27 Oct 26  THE STATEMENTS ROOT, KEY( AND BSCAN, AND THE PICK STYLE CALL "file name", ARE REMOVED.
+
+             What        All four were added in this release and never shipped. To walk an alternate key index write SELECTINDEX, SELECTLEFT and SELECTRIGHT (with SETLEFT and SETRIGHT to
+                         place the scan); to call a program write CALL name and catalogue the program. A program that has a matrix called KEY is no longer a special case: KEY(1) = x is
+                         always an assignment. The catalogued helpers !rootidx, !keyop and !bscan are gone, and a CALL whose name has a space in it is an illegal call name.
+             Why it      Each did what a surviving form does.
+             Does not    Change SELECTINDEX and the other index statements, or CALL name and CALL @variable.
+
 27 Oct 26  THIRTEEN BASIC FUNCTIONS ARE REMOVED: ADDS, SUBS, MULS, DIVS, IS.ALNUM, IS.ALPHA, IS.DIGIT, IS.GRAPH, IS.MARK, IS.SPACE, LEFT, RIGHT AND MD5.
 
              What        All of them were added in this release and never shipped. For ADDS, SUBS, MULS and DIVS write the operators + - * / on the two arrays (they work element by element).
