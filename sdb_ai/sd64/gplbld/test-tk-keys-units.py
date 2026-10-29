@@ -32,7 +32,7 @@ GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 
 EXPECT_PROGRAMS = 24
-EXPECT_ADD_ROWS = 255         # the 232 rows of the tree before 29 Oct 26, the two rows of tool_tktest's pilot (S2), the Esc row of tool_mygates and the Ctrl-O and Esc rows of tool_viewers (30 Oct 26, the F0a pilots of $tk_menubar)
+EXPECT_ADD_ROWS = 255         # after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
 # an action that has two keys on purpose (the second is for a terminal that keeps the first for itself)
@@ -94,6 +94,16 @@ def strip_bas(src):
         cut = cut_comment(line)
         out.append(line if cut < 0 else line[:cut])
     return "\n".join(out)
+
+
+def esc_bar_ok(body):
+    """the bar takes Esc itself ($tk_menubar 'key': the Esc rule) and the page can say when its own state wants Esc first.  A page whose source has an Esc case of its own must pass the
+    bar a BUSY that is not the literal 0 (the Opus review of the fan-out, 30 Oct 26, finding 5: tool_dict's Indices pane and tool_query's panes had an Esc case the bar's row covered)"""
+    if "$tk_menubar('key'" not in body:
+        return False
+    if not re.search(r"\bcase\b[^\n]*'esc'", body):
+        return True
+    return re.search(r"\$tk_menubar\('key',[^\n]*,\s*nm,\s*(?!0\s*,)[\w.]+\s*,\s*\w+\)", body) is not None
 
 
 def cut_comment(line):
@@ -312,7 +322,7 @@ def run_a(raw, rows):
             if not r["key"] or r["on"] == "off":          # a menu-only action has no key; a row switched off needs no handler
                 continue
             hit =(re.search(r"\bact\s*=\s*'%s'" % re.escape(r["act"]), body) is not None
-                   or (r["key"] == "esc" and r["act"] == "menu" and "$tk_menubar('key'" in body)           # the bar takes Esc itself ($tk_menubar 'key': the Esc rule), whatever the page's own case says
+                   or (r["key"] == "esc" and r["act"] == "menu" and esc_bar_ok(body))           # the bar takes Esc itself ($tk_menubar 'key': the Esc rule); a page with an Esc case of its own passes a BUSY
                    or re.search(r"=\s*'%s'" % re.escape(r["key"]), body) is not None
                    or re.search(r"\bcase\b[^\n]*'%s'" % re.escape(r["key"]), body) is not None)
             if not hit:
@@ -665,10 +675,13 @@ mut("tk.h", "$define TK.K.ROW       9", "$define TK.K.ROW       8", "ROW takes W
 M_F0A = len(M)
 mut("tool_mygates", "   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')\n", "   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')\n   call $tk_keys('menu', keys, 'saveas', '&File', 'Save &as', '', '')\n", "a menu action with no key on a bar page", "samehandler")
 mut("tool_mygates", "      if mr<1> # '' then nm = mr<4>\n", "", "the bar's answer is not taken in the loop", "samehandler")
-mut("tool_mygates", "      nm = mr<4>\n      gosub on.key\n", "      nm = mr<2>\n      gosub on.key\n", "a click on the bar is dispatched on the action id, not the name", "samehandler")
+mut("tool_mygates", "      nm = mr<4>\n      if nm # '' then gosub on.key", "      nm = mr<2>\n      if nm # '' then gosub on.key", "a click on the bar is dispatched on the action id, not the name", "samehandler")
 mut("tool_mygates", "      call $tk_menubar('draw', ctx, keys, 'My gates', '', '', mr)", "      call $tk_frame(ctx, keys, 'My gates', msg)\n      call $tk_menubar('draw', ctx, keys, 'My gates', '', '', mr)", "the bar is drawn after the frame", "samehandler")
 mut("tool_mygates", "      if nm # '' then call $tk_menubar('key', ctx, keys, 'My gates', nm, 0, mr)", "      if nm # '' then mr = ''", "the Esc row has no bar to take it", "handler")
-# ---- PART B MUTANTS END ----
+# 30 Oct 26 (the Opus review of the page fan-out, findings 1, 2, 5 and 13) - the first of these is marker M_FANOUT for --from=
+M_FANOUT = len(M)
+mut("tool_query", "call $tk_menubar('key', ctx, keys, cur.pane, nm, busy, mr)", "call $tk_menubar('key', ctx, keys, cur.pane, nm, 0, mr)", "a page with an Esc case of its own gives the bar no busy", "handler")
+mut("tool_dict", "call $tk_menubar('key', ctx, keys, pnames<pi>, nm, busy, mr)", "call $tk_menubar('key', ctx, keys, pnames<pi>, nm, 0, mr)", "tool_dict gives the bar no busy", "handler")# ---- PART B MUTANTS END ----
 
 
 def selftest(frm, s0):

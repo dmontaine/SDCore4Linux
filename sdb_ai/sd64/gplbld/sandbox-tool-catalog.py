@@ -758,8 +758,7 @@ def section_other():
     h.typed("r", idle=1.0)
     until(h, lambda t: has_cat(A1, "zzutil"), 15.0)
     arow("C12c", "...Run: the entry is a record of the cat file and a SEPARATE session that types zzutil runs the program", has_cat(A1, "zzutil") and runs(A1, "zzutil", "ZZUTIL OK"), st(h))
-    h.key("esc", idle=1.0)
-    h.key("esc", idle=1.0)
+    h.key("esc", idle=1.0)                     # clears the filter; a second Esc would open the page's menu bar (S.88 U7), and the next '/' and letters would go to its dropdown
     filt(h, "zznloc")
     before = table(h)[0].get("bp/zznloc", {}).get("cat")
     out = g.plain(A1, ["DELETE.CATALOG zznloc LOCAL"])

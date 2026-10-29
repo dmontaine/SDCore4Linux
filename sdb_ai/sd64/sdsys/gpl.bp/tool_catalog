@@ -77,10 +77,10 @@ $include header.h
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U7: Esc takes the name filter off first, else opens the menu bar
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
    call $tk_keys('menu', keys, 'compile', '&Programs', '&Build (compile)', '', '')
-   call $tk_keys('menu', keys, 'catalog', '&Programs', '&Catalogue', '', '')
-   call $tk_keys('menu', keys, 'local', '&Programs', 'Catalogue &locally', '', '')
-   call $tk_keys('menu', keys, 'decatalog', '&Programs', 'Take out of the catalogue (&X)', '', '')
-   call $tk_keys('menu', keys, 'remove', '&Programs', '&Delete the program', '', '')
+   call $tk_keys('menu', keys, 'catalog', '&Programs', '&Catalog', '', '')
+   call $tk_keys('menu', keys, 'local', '&Programs', 'Catalog &locally', '', '')
+   call $tk_keys('menu', keys, 'decatalog', '&Programs', 'Decatalog: delete the entry and its object file (&X)', '', '')
+   call $tk_keys('menu', keys, 'remove', '&Programs', '&Delete the catalog entry', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter by name', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
@@ -899,7 +899,7 @@ on.mouse:
    call $tk_menubar('click', ctx, keys, 'Programs', mev, '', mr)                  ;* a click on the bar on row 0
    if mr<1> # '' then
       nm = mr<4>
-      gosub on.key
+      if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
       return
    end
    call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)

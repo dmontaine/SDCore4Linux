@@ -186,8 +186,8 @@ $include tk.h
       nm = ''
       screen key returning nm
       mr = ''
-      busy = (if filt # '' then 1 else 0)
-      if nm # '' then call $tk_menubar('key', ctx, keys, cur.pane, nm, busy, mr)       ;* the Esc rule: the file filter is taken off before the bar opens (Results and Saved have their own 'back')
+      busy = (if cur.pane = 'File' and filt # '' then 1 else 0)
+      if nm # '' then call $tk_menubar('key', ctx, keys, cur.pane, nm, busy, mr)       ;* the Esc rule: the file filter (it belongs to the File pane alone, the only pane with an Esc case for it) is taken off before the bar opens (Results and Saved have their own 'back')
       if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
@@ -1186,7 +1186,7 @@ on.mouse:
    call $tk_menubar('click', ctx, keys, cur.pane, mev, '', mr)                    ;* a click on the bar on row 0
    if mr<1> # '' then
       nm = mr<4>
-      gosub on.key
+      if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
       return
    end
    call $tk_help('hit', mev, hx, hy, hit.m)

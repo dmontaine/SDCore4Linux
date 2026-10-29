@@ -1426,7 +1426,7 @@ make.menus:
    bflag = (if cur.menu = '' then 'D' else '')               ;* Back: only on a sub-menu page
    rflag = (if index(off.set, ' recent ', 1) then 'D' else '')
    m = '&Go|&Terminal~~terminal~' : tflag : '|S&witch account~~switch~' : sflag
-   m := '|&Back~Esc~back~' : bflag
+   m := '|&Back~' : (if cur.menu = '' then '' else 'Esc') : '~back~' : bflag     ;* on the top page Esc opens this bar, so the dimmed entry does not show it as its key
    gosub add.menu
    m = '&View|&Refresh~F5~refresh'
    m := '|Recent &group (' : (if rc.on then 'on' else 'off') : ')~~recent~' : rflag

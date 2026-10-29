@@ -142,7 +142,8 @@ def checks(s):
                    "if kb # '' and dcount(kb, @fm) + dcount(body, @fm) <= scr<SL.S.H> - 14 then body = kb : @fm : body", "screen msgbox body"), "")
 
     na = label(mb, "no.answer")
-    ck("M13 when nothing was chosen the answer is 'none' with the name 'none' to dispatch on (<4>), so a page's own case finds nothing to do", ordered(na, "c = 'none' : @fm : @fm : @fm : 'none'", "return"), na[:200])
+    ck("M13 when nothing was chosen the answer is 'none' with NO name to dispatch on (<4> null), so a page's loop takes it as no key and its status message stays", ordered(na, "c = 'none' : @fm : @fm : @fm", "return"), na[:200])
+    ck("M13b the answer for nothing chosen has no fourth field", "'none' : @fm : @fm : @fm : " not in na, na[:200])
 
     mk = label(mb, "make.menus")
     ck("M14 the menus come in the table's order, File (with or without its & mark) first and Help last", ordered(mk, "call $tk_keys('menus', keys, '', menus, pane, '', '')", "if nmenu > 1 then", "tt = change(menus<k, 1>, '&', '')",
@@ -175,7 +176,8 @@ MUTANTS = [
     ("a person who leaves is reported as a choice", "tk_menubar", "   if r # '' then\n      call $tk_keys('keyof', keys, r, pane, kn, '', '')", "   if 1 then\n      call $tk_keys('keyof', keys, r, pane, kn, '', '')", "M7"),
     ("a click on any row opens a menu", "tk_menubar", "a<1> = 'press' and a<2> = 1 and a<4> + 0 = ctx<TK.C.YMENU> + 0", "a<1> = 'press' and a<2> = 1", "M8"),
     ("a click beside the titles opens the first menu", "tk_menubar", "if start > 0 then gosub run.bar else gosub no.answer", "if start > 0 then gosub run.bar else start = 1 ; gosub run.bar", "M8"),
-    ("a left menu answers with no name to dispatch on", "tk_menubar", "   c = 'none' : @fm : @fm : @fm : 'none'", "   c = 'none'", "M13"),
+    ("a left menu answers with no name to dispatch on", "tk_menubar", "   c = 'none' : @fm : @fm : @fm\n", "   c = 'none'\n", "M13"),
+    ("a left menu answers with the name none, which a page's catch-all runs", "tk_menubar", "   c = 'none' : @fm : @fm : @fm\n", "   c = 'none' : @fm : @fm : @fm : 'none'\n", "M13b"),
     ("an action with no key gets no name to dispatch on", "tk_menubar", " : @fm : (if kn = '' then 'act:' : r else kn)", "", "M7"),
     ("the menus are in the table's order only", "tk_menubar", "            case tt = 'File'\n               mn.first<-1> = menus<k>\n", "            case tt = 'File' and 0\n               mn.first<-1> = menus<k>\n", "M14"),
     ("Help is not put last", "tk_menubar", "            case tt = 'Help'\n               mn.last<-1> = menus<k>\n", "            case tt = 'Help' and 0\n               mn.last<-1> = menus<k>\n", "M14"),

@@ -302,8 +302,13 @@ def c_sub():
     h.typed("b", idle=0.8)
     h.key("esc", idle=0.6)
     R("C_MENU_TOP", "on the top page the same entry cannot be chosen (its letter does nothing); Esc closes the menu and the page is whole", is_top(h) and h.alive(), repr(h.line(40)))
+    rows_before = [h.line(i) for i in (1, 2, 3)]
     h.key("esc", idle=0.8)
-    R("C_ESC_TOP", "Esc on the top page does nothing: the page is whole, the session is alive", is_top(h) and h.alive(), repr(h.line(40)))
+    rows_open = [h.line(i) for i in (1, 2, 3)]
+    R("C_ESC_TOP", "Esc on the top page opens the menu bar (S.88 U9, as F10 does): the rows under the bar change (the File menu drops), the session is alive",
+      rows_open != rows_before and h.alive(), repr((rows_before, rows_open)))
+    h.key("esc", idle=0.8)
+    R("C_ESC_TOP2", "...a second Esc closes the bar: the page is the top page again, the session is alive", is_top(h) and h.alive(), repr(h.line(40)))
     norm(h)
     h.key("enter", idle=1.2)
     h.typed("a", idle=0.45)

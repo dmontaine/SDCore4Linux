@@ -491,7 +491,7 @@ on.mouse:
    call $tk_menubar('click', ctx, keys, pnames<pane>, mev, '', mr)                ;* a click on the bar on row 0
    if mr<1> # '' then
       nm = mr<4>
-      gosub on.key
+      if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
       return
    end
    call $tk_help('hit', mev, mk.px, mk.py, hit.prov)

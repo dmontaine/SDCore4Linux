@@ -108,6 +108,7 @@ $include tk.h
          for ti = 1 to nt
             t = titles<ti>
             m = t
+            qent = ''
             seen = @fm
             for i = 1 to n
                if keys<i, TK.K.MENU> = t and keys<i, TK.K.ENTRY> # '' then
@@ -117,10 +118,11 @@ $include tk.h
                      gosub act.state
                      fl = (if ia then '' else 'D')
                      ent = keys<i, TK.K.ENTRY> : @sm : ik : @sm : fa : @sm : fl
-                     m<1, -1> = ent
+                     if fa = 'quit' then qent = ent else m<1, -1> = ent
                   end
                end
             next i
+            if qent # '' then m<1, -1> = qent                    ;* Quit is the last entry of its menu: Esc and Enter must not leave a page, with what it holds, without a word
             if dcount(m, @vm) > 1 then b<-1> = m
          next ti
 

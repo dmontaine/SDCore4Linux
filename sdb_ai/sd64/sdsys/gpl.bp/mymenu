@@ -100,7 +100,7 @@ $include tk.h
             call $tk_menubar('click', ctx, keys, 'My programs', mev, '', mr)         ;* a click on the bar on row 0
             if mr<1> # '' then
                nm = mr<4>
-               gosub on.key
+               if nm # '' then gosub on.key                   ;* a bar left with nothing chosen has no name: the status message stays
             end
          case 1
             gosub on.key
@@ -120,6 +120,11 @@ draw.all:
    screen box at 1,1 size 138,34 title 'My programs'
    screen text fmt('Label', '23L') : fmt('Glyph', '7L') : fmt('Command', '84L') : 'Waits' at 3,2 attr 'header' width 134
    n = dcount(its, @fm)
+   if its = '' then n = 0
+   for ak = 1 to 4                                              ;* an empty list has nothing to change, remove or move: the bar shows those entries off, with the reason
+      aid = field('change,remove,up,down', ',', ak)
+      call $tk_keys('why', keys, aid, (if n = 0 then 'no program in the list yet' else ''), '', '', '')
+   next ak
    if sel < 1 then sel = 1
    if sel > n then sel = n
    if sel - 1 < top then top = sel - 1

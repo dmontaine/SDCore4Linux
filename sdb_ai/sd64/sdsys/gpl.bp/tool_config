@@ -626,9 +626,11 @@ on.key:
          done = 1
       case nm = 'esc'
          if view # 1 or only.diff or only.set then
-            only.diff = 0 ; only.set = 0
-            gosub filter.rows
-            ci = 1 ; ta = 0
+            if only.diff or only.set then
+               only.diff = 0 ; only.set = 0
+               gosub filter.rows
+               ci = 1 ; ta = 0                                ;* the rows changed: the cursor goes to the top; leaving the Backup or Report view alone keeps it where it was
+            end
             view = 1
             gosub draw.all
          end
@@ -662,7 +664,7 @@ on.mouse:
    call $tk_menubar('click', ctx, keys, panes<view>, mev, '', mr)                 ;* a click on the bar on row 0
    if mr<1> # '' then
       nm = mr<4>
-      gosub on.key
+      if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
       return
    end
    call $tk_help('hit', mev, mk.x, mk.y, hit.m)

@@ -70,8 +70,8 @@ $include tk.h
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U1: Esc leaves the journal view first, else opens the menu bar
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
-   call $tk_keys('menu', keys, 'syncall', '&Masters', 'Synchronise &all accounts', '', '')
-   call $tk_keys('menu', keys, 'syncone', '&Masters', 'Synchronise &this account', '', '')
+   call $tk_keys('menu', keys, 'syncall', '&Masters', 'Synchronize &all accounts', '', '')
+   call $tk_keys('menu', keys, 'syncone', '&Masters', 'Synchronize &this account', '', '')
    call $tk_keys('menu', keys, 'journal', '&View', '&Journal', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Check again', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
@@ -540,7 +540,7 @@ on.mouse:
    call $tk_menubar('click', ctx, keys, 'Masters', mev, '', mr)                   ;* a click on the bar on row 0
    if mr<1> # '' then
       nm = mr<4>
-      gosub on.key
+      if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
       return
    end
    call $tk_help('hit', mev, top.x + top.w - 5, top.y + 1, hit.m)

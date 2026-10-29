@@ -90,7 +90,7 @@ $include dictdict.h
    call $tk_keys('add', keys, 'f11', 'filter', 'filter', 'Files' : @sm : 'Items', 1)
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
-   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U8: Esc takes the name filter of the pane off first, else opens the menu bar
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', 'Files' : @sm : 'Items', 1)       ;* S.88 U8: Esc takes the name filter of the pane off first, else opens the menu bar (in Indices it goes back to the items)
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
    call $tk_keys('menu', keys, 'open', '&File', '&Open the file', '', '')
    call $tk_keys('menu', keys, 'new', '&Items', '&New item', '', '')
@@ -154,8 +154,8 @@ $include dictdict.h
       nm = ''
       screen key returning nm
       mr = ''
-      busy = (if (pi = 1 and filtf # '') or (pi = 2 and filti # '') then 1 else 0)
-      if nm # '' then call $tk_menubar('key', ctx, keys, pnames<pi>, nm, busy, mr)       ;* the Esc rule: the pane's name filter is taken off before the bar opens
+      busy = (if (pi = 1 and filtf # '') or (pi = 2 and filti # '') or pi = 3 then 1 else 0)
+      if nm # '' then call $tk_menubar('key', ctx, keys, pnames<pi>, nm, busy, mr)       ;* the Esc rule: the pane's name filter is taken off before the bar opens, and Esc in the Indices pane goes back to the items (key.indices)
       if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
@@ -1008,7 +1008,7 @@ on.mouse:
    call $tk_menubar('click', ctx, keys, pnames<pi>, mev, '', mr)                  ;* a click on the bar on row 0
    if mr<1> # '' then
       nm = mr<4>
-      gosub on.key
+      if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
       return
    end
    call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)

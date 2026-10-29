@@ -75,7 +75,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'new', '&Operations', '&New file', '', '')
    call $tk_keys('menu', keys, 'clear', '&Operations', '&Clear the file', '', '')
    call $tk_keys('menu', keys, 'delete', '&Operations', '&Delete the file', '', '')
-   call $tk_keys('menu', keys, 'analyse', '&Operations', '&Analyse', '', '')
+   call $tk_keys('menu', keys, 'analyse', '&Operations', '&Analyze', '', '')
    call $tk_keys('menu', keys, 'indices', '&Operations', '&Indices', '', '')
    call $tk_keys('menu', keys, 'triggers', '&Operations', '&Triggers', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the names', '', '')
@@ -473,7 +473,7 @@ on.mouse:
    call $tk_menubar('click', ctx, keys, 'Files', mev, '', mr)                     ;* a click on the bar on row 0
    if mr<1> # '' then
       nm = mr<4>
-      gosub on.key
+      if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
       return
    end
    call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)

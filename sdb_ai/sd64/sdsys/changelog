@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE MENU BARS OF THE TOOL PAGES: ESC, QUIT AND THE STATUS LINE BEHAVE.
+
+             What        - Esc in the Indices pane of TOOL.DICT goes back to the items, and in TOOL.QUERY a file filter in the File pane no longer keeps Esc from the other panes:
+                           the page's own Esc comes first and the bar opens only when the page has nothing of its own to close.
+                         - Quit is now the LAST entry of every menu that has one, so Esc then Enter cannot leave a page (and drop a half-made gate set, query or bulk update) without a word.
+                         - Opening the bar and leaving it without a choice no longer wipes the message on the status line.
+                         - TOOL.CONFIG: Esc out of the Backup or Report view keeps the row you were on. MY.MENU shows Change, Remove and the moves dimmed while the list is empty.
+                         - The Programs menu of TOOL.CATALOG names what its entries do (D takes the catalog entry out; X also deletes the object file) and the menus use US spelling
+                           (Catalog, Analyze, Synchronize). On the home screen the dimmed Back entry no longer shows Esc as its key on the top page.
+                         It does NOT change what any page may run: each change still goes through its own command, after the Run or Cancel box.
+
 30 Oct 26  MY PROGRAMS (MY.MENU) HAS A MENU BAR AND NEW KEYS; ESC OPENS THE HOME SCREEN'S MENU BAR.
 
              What        - MY.MENU (the list of programs you added to your home screen) opens a menu bar with Esc or F10. Its keys changed so that they no longer collide with the toolkit's:

@@ -28,8 +28,9 @@
 *
 *   out is a dynamic array, null when the bar did not take the key or the click: <1> 'none' (the bar took it and nothing was chosen: the person left, or clicked beside the titles) or
 *   'act' (an entry was chosen); <2> the action's id; <3> the key the action is bound to for this pane (the page replays it through its own dispatch), null for an action with no key
-*   (a page that offers one handles <2>); <4> THE NAME THE PAGE DISPATCHES ON: the key when the action has one, 'act:' and the action's id when it has none, 'none' when nothing was chosen -
-*   so a page takes a bar answer with  if out<1> # '' then nm = out<4>  and its own case runs as for the key itself ('none' and 'act:...' are names no case has).  An entry that is shown
+*   (a page that offers one handles <2>); <4> THE NAME THE PAGE DISPATCHES ON: the key when the action has one, 'act:' and the action's id when it has none, NULL when nothing was chosen -
+*   so a page takes a bar answer with  if out<1> # '' then nm = out<4>  and its own case runs as for the key itself (a null name is the loop's "no key" case, which leaves the status
+*   message alone; a click handler calls its key handler only for a name, because that handler begins by clearing the message; 'act:...' is a name no case has).  An entry that is shown
 *   disabled can not be chosen, so an action that comes back is one the page's key table would also give for its key.
 *
 *   THE ORDER OF THE MENUS is the table's, except that a menu called File (with or without its & mark) comes first and one called Help last.
@@ -187,7 +188,7 @@ run.bar:
 
 * Nothing was chosen: the bar took the key or the click
 no.answer:
-   c = 'none' : @fm : @fm : @fm : 'none'
+   c = 'none' : @fm : @fm : @fm
    return
 end
 
