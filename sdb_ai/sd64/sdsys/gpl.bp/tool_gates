@@ -5,6 +5,8 @@
 *
 * START-HISTORY:
 * 24 Oct 26 dm  New.
+* 28 Oct 26 dm  S.88 L2: the four boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the matrix shows more accounts and the
+*               two lists under the cell more rows, every box wider, and the sentences about the cell are wrapped at the width of their box.  The resize key makes the layout again.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -57,6 +59,7 @@ $include tk.h
       stop
    end
    void kernel(K$AUDIT, 'tool start app=tool.gates')
+   gosub declare.layout
 
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
@@ -68,9 +71,7 @@ $include tk.h
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
-   VIS = 14                                                      ;* account rows on the screen
-   CW = 6                                                        ;* width of a gate's cell
-   X0 = 29                                                       ;* the column of the first cell (3 + the 26 of name and kind)
+   CW = 6                                                        ;* width of a gate's cell (VIS, the account rows on the screen, and X0, the column of the first cell, come from the layout)
    fnames = 'all accounts' : @fm : 'accounts of persons' : @fm : 'accounts with a gate on that reaches beyond SD'
 
    ci = 1                                                        ;* the row under the cursor, among the rows shown
@@ -115,6 +116,9 @@ $include tk.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', lchg)
+            gosub get.rects
+            gosub keep.in.view
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -244,14 +248,59 @@ queued.elsewhere:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  The four boxes are the panes of the layout service, declared in the sizes of the reference layout (140 by 43, the body 138 by 39): the matrix takes twice the rows
+* the two lists under the cell take (the cell box stays as high as it is), and the two lists share the columns equally.  The page never hands the terminal over, so the declaration is
+* made once, after the open, and the rectangles are fetched again after each 'refresh'.
+* Out: mat (the matrix), cel (the cell), rea (who can reach the operating system), ses (the sessions), each .x .y .w .h; mtw, ctw, rtw, stw (the text width of each box); VIS (the
+* account rows), CL (the lines about the cell), RW (the rows of each of the two lists), X0 (the column of the first cell).
+declare.layout:
+   ld = ''
+   ld<1> = 'matrix' : @vm : 1 : @vm : 1 : @vm : 19 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 2 : @vm : 'stretch' : @vm : 1
+   ld<2> = 'cell' : @vm : 2 : @vm : 1 : @vm : 11 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   ld<3> = 'reach' : @vm : 3 : @vm : 1 : @vm : 9 : @vm : 68 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   ld<4> = 'sessions' : @vm : 3 : @vm : 2 : @vm : 9 : @vm : 69 : @vm : 1 : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, ld, perr)
+   if perr # '' then
+      call $tk_close(ctx)
+      display perr
+      stop
+   end
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'matrix', lrc)
+   mat.x = lrc<1, 1> ; mat.y = lrc<1, 2> ; mat.w = lrc<1, 3> ; mat.h = lrc<1, 4>
+   call $tk_layout('pane', ctx, 'cell', lrc)
+   cel.x = lrc<1, 1> ; cel.y = lrc<1, 2> ; cel.w = lrc<1, 3> ; cel.h = lrc<1, 4>
+   call $tk_layout('pane', ctx, 'reach', lrc)
+   rea.x = lrc<1, 1> ; rea.y = lrc<1, 2> ; rea.w = lrc<1, 3> ; rea.h = lrc<1, 4>
+   call $tk_layout('pane', ctx, 'sessions', lrc)
+   ses.x = lrc<1, 1> ; ses.y = lrc<1, 2> ; ses.w = lrc<1, 3> ; ses.h = lrc<1, 4>
+   mtw = mat.w - 4
+   ctw = cel.w - 4
+   rtw = rea.w - 4
+   stw = ses.w - 4
+   VIS = mat.h - 5                                               ;* the heading, the account rows, the two lines of counts and the border: 14 rows of 19
+   CL = cel.h - 2                                                ;* the lines about the cell: 9 rows of 11
+   RW = rea.h - 2                                                ;* the rows of each list under the cell: 7 of 9 (the last of them holds the "..." of the first list)
+   X0 = mat.x + 28                                               ;* the column of the first cell (2 inside the box + the 26 of name and kind)
+   return
+
+* After a resize the rows scrolled off the top are not more than the accounts shown less the rows that fit
+keep.in.view:
+   if ta > nv - VIS then ta = nv - VIS
+   if ta < 0 then ta = 0
+   return
+
 draw.all:
    cw2 = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
    screen clear at 0,1 size cw2,chh
-   screen box at 1,1 size 138,19 title 'Gates by account'
-   screen box at 1,20 size 138,11 title 'The cell under the cursor'
-   screen box at 1,31 size 68,9 title 'Who can reach the operating system'
-   screen box at 70,31 size 69,9 title 'Sessions of the account under the cursor'
+   screen box at mat.x,mat.y size mat.w,mat.h title 'Gates by account'
+   screen box at cel.x,cel.y size cel.w,cel.h title 'The cell under the cursor'
+   screen box at rea.x,rea.y size rea.w,rea.h title 'Who can reach the operating system'
+   screen box at ses.x,ses.y size ses.w,ses.h title 'Sessions of the account under the cursor'
    gosub draw.matrix
    gosub draw.cell
    gosub draw.who
@@ -263,7 +312,7 @@ draw.matrix:
    for k = 1 to NG
       s := fmt(ghdr<k>, CW : 'L')
    next k
-   screen text s at 3,2 attr 'header' width 134
+   screen text s at mat.x + 2,mat.y + 1 attr 'header' width mtw
    if ci <= ta then ta = ci - 1
    if ci > ta + VIS then ta = ci - VIS
    if ta < 0 then ta = 0
@@ -279,19 +328,19 @@ draw.matrix:
          next k
          if asu<av> then s := ' suspended'
       end
-      screen text s at 3,2 + r attr (if kk = ci and kk <= nv then 'bold' else 'normal') width 134
+      screen text s at mat.x + 2,mat.y + 1 + r attr (if kk = ci and kk <= nv then 'bold' else 'normal') width mtw
    next r
    if nv > 0 and ci <= nv then
       av = view<ci>
       k = gc
       gosub cell.text
       hx = X0 + (gc - 1) * CW
-      hy = 2 + ci - ta
+      hy = mat.y + 1 + ci - ta
       screen text fmt(ct, CW : 'L') at hx,hy attr 'highlight' width CW
    end
-   if nv = 0 then screen text 'No account is shown.  F changes which accounts are shown.' at 3,4 width 134
+   if nv = 0 then screen text 'No account is shown.  F changes which accounts are shown.' at mat.x + 2,mat.y + 3 width mtw
    gosub draw.counts
-   call $tk_help('mark', 134, 2, 0, 0)
+   call $tk_help('mark', mat.x + mat.w - 5, mat.y + 1, 0, 0)
    return
 
 * The text of the cell of account av, gate k: ON, off, a dash or plan, with a * when a change is queued
@@ -318,7 +367,7 @@ draw.counts:
       n.on += beyond.on
    next i
    s = fnames<flt + 1> : ': ' : nv : ' of ' : an : ' account' : (if an = 1 then '' else 's') : '.  ' : n.on : ' with a gate on that reaches beyond SD.'
-   screen text fmt(s, '134L') at 3,17 attr 'bold' width 134
+   screen text fmt(s, mtw : 'L') at mat.x + 2,mat.y + mat.h - 3 attr 'bold' width mtw
    if nv > 0 and ci <= nv then
       av = view<ci>
       gosub final.of
@@ -332,7 +381,7 @@ draw.counts:
    end else
       s = ''
    end
-   screen text fmt(s, '134L') at 3,18 width 134
+   screen text fmt(s, mtw : 'L') at mat.x + 2,mat.y + mat.h - 2 width mtw
    return
 
 * In plain sentences, for the cell under the cursor
@@ -363,8 +412,8 @@ draw.cell:
       lines<-1> = 'There is no account under the cursor.'
    end
    gosub wrap.lines
-   for r = 1 to 9
-      screen text fmt(lines<r>, '134L') at 3,20 + r width 134
+   for r = 1 to CL
+      screen text fmt(lines<r>, ctw : 'L') at cel.x + 2,cel.y + r width ctw
    next r
    return
 
@@ -375,7 +424,7 @@ wrap.lines:
       if lines<wi> = '' then
          wrapped<-1> = ''
       end else
-         call $tk_wrap(lines<wi>, 134, pieces)
+         call $tk_wrap(lines<wi>, ctw, pieces)
          wrapped<-1> = pieces
       end
    next wi
@@ -385,8 +434,8 @@ wrap.lines:
 * Who can reach the operating system: the accounts with a gate on that reaches beyond SD, each with the gates
 draw.who:
    n = 0
-   for r = 1 to 7
-      screen text space(64) at 3,31 + r width 64
+   for r = 1 to RW
+      screen text space(rtw) at rea.x + 2,rea.y + r width rtw
    next r
    for i = 1 to an
       w = ''
@@ -395,16 +444,16 @@ draw.who:
       next k
       if w # '' then
          n += 1
-         if n <= 6 then screen text fmt(fmt(anm<i>, '18L') : w, '64L') at 3,31 + n width 64
-         if n = 7 then screen text fmt('...', '64L') at 3,38 width 64
+         if n < RW then screen text fmt(fmt(anm<i>, '18L') : w, rtw : 'L') at rea.x + 2,rea.y + n width rtw
+         if n = RW then screen text fmt('...', rtw : 'L') at rea.x + 2,rea.y + RW width rtw
       end
    next i
-   if n = 0 then screen text fmt('No account has a gate on that reaches beyond SD.', '64L') at 3,32 width 64
+   if n = 0 then screen text fmt('No account has a gate on that reaches beyond SD.', rtw : 'L') at rea.x + 2,rea.y + 1 width rtw
    return
 
 draw.sessions:
-   for r = 1 to 7
-      screen text space(65) at 72,31 + r width 65
+   for r = 1 to RW
+      screen text space(stw) at ses.x + 2,ses.y + r width stw
    next r
    if nv > 0 and ci <= nv then
       call !listu(udata)
@@ -414,10 +463,10 @@ draw.sessions:
          v = udata<i>
          if v<1, 9> = anm<av> then
             n += 1
-            if n <= 6 then screen text fmt('user ' : v<1, 1> : '  ' : v<1, 6> : '  ' : v<1, 7>, '65L') at 72,31 + n width 65
+            if n < RW then screen text fmt('user ' : v<1, 1> : '  ' : v<1, 6> : '  ' : v<1, 7>, stw : 'L') at ses.x + 2,ses.y + n width stw
          end
       next i
-      if n = 0 then screen text fmt('No session is in ' : anm<av> : ' now.', '65L') at 72,32 width 65
+      if n = 0 then screen text fmt('No session is in ' : anm<av> : ' now.', stw : 'L') at ses.x + 2,ses.y + 1 width stw
    end
    return
 
@@ -483,7 +532,7 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.m)
+   call $tk_help('hit', mev, mat.x + mat.w - 5, mat.y + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.gates.matrix', hm, 0, 0)
       if hm # '' then msg = hm
@@ -492,9 +541,9 @@ on.mouse:
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
-      if my >= 3 and my <= 2 + VIS and mx >= 3 and mx <= 136 then
-         if ta + my - 2 <= nv then
-            ci = ta + my - 2
+      if my >= mat.y + 2 and my <= mat.y + 1 + VIS and mx >= mat.x + 2 and mx <= mat.x + mat.w - 3 then
+         if ta + my - mat.y - 1 <= nv then
+            ci = ta + my - mat.y - 1
             if mx >= X0 and mx < X0 + NG * CW then gc = int((mx - X0) / CW) + 1
             gosub redraw
          end

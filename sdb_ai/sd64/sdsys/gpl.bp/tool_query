@@ -5,6 +5,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 L2: the boxes are panes of the layout service ($tk_layout), declared for the three views (the six boxes of the query; the Results; the Saved queries): at 140 by 43 exactly the
+*               boxes the page has always drawn, in a bigger window the File, Columns and Conditions boxes (and the Results and the Saved queries) take the rows, the Conditions, Options and
+*               Sentence boxes the columns; the sentence and the notes are wrapped to the box they are in.
 * 25 Oct 26 dm  New.
 * 28 Oct 26 dm  S.88 phase 2 (S2): before every write and delete the page asks $tk_ownfile whether &queries& is a file it may write (a VOC entry &queries& that pointed at bp was written and
 *               deleted from, with only voc-edit on), and a delete or a write-over of a record that is not a saved query (field 1 is not query1) is refused.
@@ -68,7 +71,8 @@ $include tk.h
    pane.names = 'File' : @fm : 'Columns' : @fm : 'Conditions' : @fm : 'Sort' : @fm : 'Options'
    qsent = 'create.file &queries& dynamic'                       ;* the one command the page runs besides the query itself; $tk_run refuses the ampersands, so it is run here, after its box
 
-   VISF = 16 ; VISC = 16 ; RVIS = 33 ; SVIS = 32                 ;* rows of files, of columns, of results and of saved queries on the screen
+   VISF = 16 ; VISC = 16 ; RVIS = 33 ; SVIS = 32                 ;* rows of files, of columns, of results and of saved queries on the screen (set from the panes by get.rects)
+   perr = '' ; lay.view = ''
    MAXCOND = 6 ; MAXSORT = 4 ; MAXC = 20 ; MAXSENT = 600 ; MAXVAL = 200 ; MAXLINES = 2000 ; MAXSAVED = 100 ; MAXITEMS = 500
 
    ctl = ''                                                      ;* every character the page will not write to the screen: controls, DEL and all of 128 to 255
@@ -129,7 +133,7 @@ $include tk.h
    gen = 0
    done = 0
    dropped = 0 ; dict.ok = 0
-   hx = 134 ; hy = 2
+   hx = 0 ; hy = 0                                                ;* the [?] button: set by the drawing of each view
    msg = 'Choose a file (Enter), mark its columns (Space), set conditions and sorts, then R runs the query'
 
    gosub read.files
@@ -162,6 +166,9 @@ $include tk.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', chg)
+            gosub get.rects
+            gosub clamp.tops
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -579,7 +586,85 @@ changed:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  Two declarations, one for each kind of view, in the sizes of the reference layout (140 by 43, the body 138 by 39); the layout service holds the one the view needs:
+*   build    band 1: File (28 wide), Columns (44) and Conditions (the rest), 19 rows, all three stretch in height, Conditions in width;
+*            band 2: Sort (46 wide, fixed) and Options (the rest), 11 rows, fixed in height; band 3: The sentence, 9 rows.  A taller window gives every row to band 1.
+*   whole    the Results and the Saved queries boxes: one pane, the whole body.
+* Out: fb.* (File), cb.* (Columns), nb.* (Conditions), sb.* (Sort), ob.* (Options), tb.* (The sentence) or wb.* (whole), each x y w h; VISF VISC RVIS SVIS.
+declare.layout:
+   lay.view = want.view
+   dcl = ''
+   if lay.view = 'build' then
+      dcl<1> = 'files' : @vm : 1 : @vm : 1 : @vm : 19 : @vm : 28 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : '' : @vm : ''
+      dcl<2> = 'columns' : @vm : 1 : @vm : 2 : @vm : 19 : @vm : 44 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : '' : @vm : ''
+      dcl<3> = 'conds' : @vm : 1 : @vm : 3 : @vm : 19 : @vm : 66 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+      dcl<4> = 'sorts' : @vm : 2 : @vm : 1 : @vm : 11 : @vm : 46 : @vm : '' : @vm : '' : @vm : '' : @vm : '' : @vm : ''
+      dcl<5> = 'options' : @vm : 2 : @vm : 2 : @vm : 11 : @vm : 92 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+      dcl<6> = 'sentence' : @vm : 3 : @vm : 1 : @vm : 9 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   end else
+      dcl<1> = 'whole' : @vm : 1 : @vm : 1 : @vm : 39 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   end
+   call $tk_layout('declare', ctx, dcl, perr)
+   gosub get.rects
+   return
+
+get.rects:
+   if lay.view = 'build' then
+      call $tk_layout('pane', ctx, 'files', rc)
+      fb.x = rc<1, 1> ; fb.y = rc<1, 2> ; fb.w = rc<1, 3> ; fb.h = rc<1, 4>
+      call $tk_layout('pane', ctx, 'columns', rc)
+      cb.x = rc<1, 1> ; cb.y = rc<1, 2> ; cb.w = rc<1, 3> ; cb.h = rc<1, 4>
+      call $tk_layout('pane', ctx, 'conds', rc)
+      nb.x = rc<1, 1> ; nb.y = rc<1, 2> ; nb.w = rc<1, 3> ; nb.h = rc<1, 4>
+      call $tk_layout('pane', ctx, 'sorts', rc)
+      sb.x = rc<1, 1> ; sb.y = rc<1, 2> ; sb.w = rc<1, 3> ; sb.h = rc<1, 4>
+      call $tk_layout('pane', ctx, 'options', rc)
+      ob.x = rc<1, 1> ; ob.y = rc<1, 2> ; ob.w = rc<1, 3> ; ob.h = rc<1, 4>
+      call $tk_layout('pane', ctx, 'sentence', rc)
+      tb.x = rc<1, 1> ; tb.y = rc<1, 2> ; tb.w = rc<1, 3> ; tb.h = rc<1, 4>
+      VISF = fb.h - 3                                            ;* the file rows: a row under the border, the summary row and the border: 16 of 19
+      VISC = cb.h - 3                                            ;* the header row and the border: 16 of 19
+   end else
+      call $tk_layout('pane', ctx, 'whole', rc)
+      wb.x = rc<1, 1> ; wb.y = rc<1, 2> ; wb.w = rc<1, 3> ; wb.h = rc<1, 4>
+      RVIS = wb.h - 6                                            ;* the border, the three lines of the sentence, the header row and the border: 33 of 39
+      SVIS = wb.h - 7                                            ;* the header row, a blank row, the three lines at the foot and the borders: 32 of 39
+   end
+   return
+
+* The views are drawn from the panes of their own declaration: the one the layout holds is changed when the view changes between the boxes and the two full-body boxes
+sync.layout:
+   want.view = (if view = 'build' then 'build' else 'whole')
+   if want.view # lay.view then gosub declare.layout
+   return
+
+* After a resize the tops of the lists may lie past the end of what they list now that more rows are shown
+clamp.tops:
+   if ft > nfs - VISF then ft = nfs - VISF
+   if ft < 0 then ft = 0
+   if ct > nd - VISC then ct = nd - VISC
+   if ct < 0 then ct = 0
+   if rtop > rl.cnt - RVIS then rtop = rl.cnt - RVIS
+   if rtop < 0 then rtop = 0
+   if svt > nsv - SVIS then svt = nsv - SVIS
+   if svt < 0 then svt = 0
+   return
+
+* In: nt.par, the paragraphs of a note (one to a field), nt.ref, the same note in the lines it has always been broken into for the reference width; nt.w the width of the box.
+* Out: nt.lines, the lines.  At the reference width (nt.rw) the note keeps its own lines; in a wider box the paragraphs are wrapped to the box
+wrap.note:
+   nt.lines = nt.ref
+   if nt.w > nt.rw then
+      nt.lines = ''
+      for nt.i = 1 to dcount(nt.par, @fm)
+         call $tk_wrap(nt.par<nt.i>, nt.w, nt.pieces)
+         nt.lines<-1> = nt.pieces
+      next nt.i
+   end
+   return
+
 draw.all:
+   gosub sync.layout
    cw2 = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 4
    screen clear at 0,1 size cw2,chh
@@ -594,19 +679,19 @@ draw.all:
    return
 
 draw.build:
-   screen box at 1,1 size 28,19 title (if focus = 1 then '[*] File' else 'File')
-   screen box at 29,1 size 44,19 title (if focus = 2 then '[*] Columns' else 'Columns')
-   screen box at 73,1 size 66,19 title (if focus = 3 then '[*] Conditions' else 'Conditions')
-   screen box at 1,20 size 46,11 title (if focus = 4 then '[*] Sort' else 'Sort')
-   screen box at 47,20 size 92,11 title (if focus = 5 then '[*] Options' else 'Options')
-   screen box at 1,31 size 138,9 title 'The sentence'
+   screen box at fb.x,fb.y size fb.w,fb.h title (if focus = 1 then '[*] File' else 'File')
+   screen box at cb.x,cb.y size cb.w,cb.h title (if focus = 2 then '[*] Columns' else 'Columns')
+   screen box at nb.x,nb.y size nb.w,nb.h title (if focus = 3 then '[*] Conditions' else 'Conditions')
+   screen box at sb.x,sb.y size sb.w,sb.h title (if focus = 4 then '[*] Sort' else 'Sort')
+   screen box at ob.x,ob.y size ob.w,ob.h title (if focus = 5 then '[*] Options' else 'Options')
+   screen box at tb.x,tb.y size tb.w,tb.h title 'The sentence'
    gosub draw.files
    gosub draw.columns
    gosub draw.conds
    gosub draw.sorts
    gosub draw.options
    gosub draw.sentence
-   hx = 134 ; hy = 2
+   hx = nb.x + nb.w - 5 ; hy = nb.y + 1
    call $tk_help('mark', hx, hy, 0, 0)
    return
 
@@ -642,16 +727,16 @@ draw.files:
       ra.cur = (if kk = fc and kk <= nfs then 1 else 0)
       ra.foc = (if focus = 1 then 1 else 0)
       gosub row.attr
-      screen text fmt(s, '26L') at 2,1 + dr attr ra width 26
+      screen text fmt(s, (fb.w - 2) : 'L') at fb.x + 1,fb.y + dr attr ra width fb.w - 2
    next dr
    s = nfl : (if nfl = 1 then ' file' else ' files')
    if filt # '' then s = nfs : ' with "' : convert(ctl, dots, filt)[1, 8] : '"'
    if nfl = 0 then s = 'no file with a dictionary'
-   screen text fmt(s, '26L') at 2,18 attr 'bold' width 26
+   screen text fmt(s, (fb.w - 2) : 'L') at fb.x + 1,fb.y + fb.h - 2 attr 'bold' width fb.w - 2
    return
 
 draw.columns:
-   screen text fmt('Nr', '3L') : fmt('', '2L') : fmt('Item', '22L') : fmt('Type', '5L') : 'Heading' at 30,2 attr 'header' width 42
+   screen text fmt('Nr', '3L') : fmt('', '2L') : fmt('Item', '22L') : fmt('Type', '5L') : 'Heading' at cb.x + 1,cb.y + 1 attr 'header' width cb.w - 2
    if cc <= ct then ct = cc - 1
    if cc > ct + VISC then ct = cc - VISC
    if ct < 0 then ct = 0
@@ -674,35 +759,47 @@ draw.columns:
       ra.cur = (if kk = cc and kk <= nd then 1 else 0)
       ra.foc = (if focus = 2 then 1 else 0)
       gosub row.attr
-      screen text fmt(s, '42L') at 30,2 + dr attr ra width 42
+      screen text fmt(s, (cb.w - 2) : 'L') at cb.x + 1,cb.y + 1 + dr attr ra width cb.w - 2
    next dr
    return
 
 draw.conds:
-   screen text 'Row ' : 'Join ' : fmt('Item', '23L') : fmt('Op', '8L') : 'Value' at 74,2 attr 'header' width 58
+   screen text 'Row ' : 'Join ' : fmt('Item', '23L') : fmt('Op', '8L') : 'Value' at nb.x + 1,nb.y + 1 attr 'header' width nb.w - 8
    for dr = 1 to MAXCOND
       s = ' ' : dr : '  '
       if cnd.item<dr> # '' then
-         s := fmt((if dr > 1 then (if cnd.join<dr> = 'or' then 'or' else 'and') else ''), '5L') : fmt(cnd.item<dr>[1, 22], '23L') : fmt(cnd.op<dr>, '8L') : QDQ : convert(ctl, dots, cnd.val<dr>)[1, 24] : QDQ
+         s := fmt((if dr > 1 then (if cnd.join<dr> = 'or' then 'or' else 'and') else ''), '5L') : fmt(cnd.item<dr>[1, 22], '23L') : fmt(cnd.op<dr>, '8L') : QDQ : convert(ctl, dots, cnd.val<dr>)[1, nb.w - 42] : QDQ
       end
       ra.cur = (if dr = kc then 1 else 0)
       ra.foc = (if focus = 3 then 1 else 0)
       ra.dim = 0
       gosub row.attr
-      screen text fmt(s, '62L') at 74,2 + dr attr ra width 62
+      screen text fmt(s, (nb.w - 4) : 'L') at nb.x + 1,nb.y + 1 + dr attr ra width nb.w - 4
    next dr
-   screen text 'Enter edits the row: the item, the operator, the value.' at 75,10 width 62
-   screen text 'J switches and / or.  D clears the row.' at 75,11 width 62
-   screen text 'A value is plain text, typed as the query processor' at 75,12 width 62
-   screen text 'reads it for the item (see the query documentation).' at 75,13 width 62
-   screen text 'like / unlike take a pattern: 0X any text, 1A a letter,' at 75,14 width 62
-   screen text '3N three digits.  0X on both sides finds text inside.' at 75,15 width 62
-   screen text 'The sentence in the box at the foot is what will run.' at 75,16 width 62
-   screen text 'A value holds no quote, backslash, backquote or ;' at 75,17 width 62
+   nt.par = 'Enter edits the row: the item, the operator, the value.'
+   nt.par<2> = 'J switches and / or.  D clears the row.'
+   nt.par<3> = 'A value is plain text, typed as the query processor reads it for the item (see the query documentation).'
+   nt.par<4> = 'like / unlike take a pattern: 0X any text, 1A a letter, 3N three digits.  0X on both sides finds text inside.'
+   nt.par<5> = 'The sentence in the box at the foot is what will run.'
+   nt.par<6> = 'A value holds no quote, backslash, backquote or ;'
+   nt.ref = 'Enter edits the row: the item, the operator, the value.'
+   nt.ref<2> = 'J switches and / or.  D clears the row.'
+   nt.ref<3> = 'A value is plain text, typed as the query processor'
+   nt.ref<4> = 'reads it for the item (see the query documentation).'
+   nt.ref<5> = 'like / unlike take a pattern: 0X any text, 1A a letter,'
+   nt.ref<6> = '3N three digits.  0X on both sides finds text inside.'
+   nt.ref<7> = 'The sentence in the box at the foot is what will run.'
+   nt.ref<8> = 'A value holds no quote, backslash, backquote or ;'
+   nt.w = nb.w - 4
+   nt.rw = 62
+   gosub wrap.note
+   for dr = 1 to dcount(nt.lines, @fm)
+      if nb.y + 8 + dr <= nb.y + nb.h - 2 then screen text nt.lines<dr> at nb.x + 2,nb.y + 8 + dr width nb.w - 4
+   next dr
    return
 
 draw.sorts:
-   screen text fmt('Level  Order      Item', '44L') at 2,21 attr 'header' width 44
+   screen text fmt('Level  Order      Item', (sb.w - 2) : 'L') at sb.x + 1,sb.y + 1 attr 'header' width sb.w - 2
    for dr = 1 to MAXSORT
       s = fmt(dr, '3R') : '    '
       if srt.item<dr> # '' then
@@ -712,11 +809,11 @@ draw.sorts:
       ra.foc = (if focus = 4 then 1 else 0)
       ra.dim = 0
       gosub row.attr
-      screen text fmt(s, '44L') at 2,21 + dr attr ra width 44
+      screen text fmt(s, (sb.w - 2) : 'L') at sb.x + 1,sb.y + 1 + dr attr ra width sb.w - 2
    next dr
-   screen text 'Enter picks the item.  Space toggles it.' at 3,27 width 42
-   screen text 'D clears the level.  A count or a sum' at 3,28 width 42
-   screen text 'is not sorted.' at 3,29 width 42
+   screen text 'Enter picks the item.  Space toggles it.' at sb.x + 2,sb.y + sb.h - 4 width sb.w - 4
+   screen text 'D clears the level.  A count or a sum' at sb.x + 2,sb.y + sb.h - 3 width sb.w - 4
+   screen text 'is not sorted.' at sb.x + 2,sb.y + sb.h - 2 width sb.w - 4
    return
 
 draw.options:
@@ -741,33 +838,35 @@ draw.options:
       ra.foc = (if focus = 5 then 1 else 0)
       ra.dim = 0
       gosub row.attr
-      screen text fmt(s, '90L') at 48,20 + dr attr ra width 90
+      screen text fmt(s, (ob.w - 2) : 'L') at ob.x + 1,ob.y + dr attr ra width ob.w - 2
    next dr
-   screen text 'Enter or Space changes the row.  Break and total are set in the Columns box (B, T).' at 49,28 width 88
-   screen text 'A heading and a footing are plain text: no quote, backslash, backquote or semicolon.' at 49,29 width 88
+   screen text 'Enter or Space changes the row.  Break and total are set in the Columns box (B, T).' at ob.x + 2,ob.y + ob.h - 3 width ob.w - 4
+   screen text 'A heading and a footing are plain text: no quote, backslash, backquote or semicolon.' at ob.x + 2,ob.y + ob.h - 2 width ob.w - 4
    return
 
 draw.sentence:
+   tw = tb.w - 4
    pieces = ''
-   if sent # '' then call $tk_wrap(sent, 130, pieces)
+   if sent # '' then call $tk_wrap(sent, tw - 4, pieces)
    for dr = 1 to 5
       s = (if sent = '' and dr = 1 then senterr else pieces<dr>)
-      screen text fmt(s[1, 134], '134L') at 3,31 + dr attr (if sent = '' then 'normal' else 'bold') width 134
+      screen text fmt(s[1, tw], tw : 'L') at tb.x + 2,tb.y + dr attr (if sent = '' then 'normal' else 'bold') width tw
    next dr
    if edited then
       s = 'Edited by hand.  A change in any box writes the sentence again from the boxes.'
    end else
       s = (if sent = '' then '' else 'Written from the boxes above.  Every sentence is checked again before it runs.')
    end
-   screen text fmt(s, '134L') at 3,37 width 134
-   screen text fmt('R runs it and shows the output in a box (2000 lines are kept).   E edits it as text.   S saves the query.   L loads or deletes one.', '134L') at 3,38 attr 'disabled' width 134
+   screen text fmt(s, tw : 'L') at tb.x + 2,tb.y + tb.h - 3 width tw
+   screen text fmt('R runs it and shows the output in a box (2000 lines are kept).   E edits it as text.   S saves the query.   L loads or deletes one.', tw : 'L') at tb.x + 2,tb.y + tb.h - 2 attr 'disabled' width tw
    return
 
 draw.results:
-   screen box at 1,1 size 138,39 title 'Results'
-   call $tk_wrap('Ran: ' : rl.sent, 130, pieces)
+   tw = wb.w - 4
+   screen box at wb.x,wb.y size wb.w,wb.h title 'Results'
+   call $tk_wrap('Ran: ' : rl.sent, tw - 4, pieces)
    for dr = 1 to 3
-      screen text fmt(pieces<dr>, '134L') at 3,1 + dr attr 'bold' width 134
+      screen text fmt(pieces<dr>, tw : 'L') at wb.x + 2,wb.y + dr attr 'bold' width tw
    next dr
    info = rl.n : (if rl.n = 1 then ' line' else ' lines')
    if rl.n > rl.cnt then info := ', the first ' : rl.cnt : ' are kept'
@@ -776,20 +875,21 @@ draw.results:
    if rl.cnt > 0 then info := '.  Showing ' : rtop + 1 : ' to ' : lastr
    if rx > 0 then info := ', from column ' : rx + 1
    info := '.  ' : rl.note
-   screen text fmt(info, '128L') at 3,5 attr 'header' width 128
+   screen text fmt(info, (tw - 6) : 'L') at wb.x + 2,wb.y + 4 attr 'header' width tw - 6
    for dr = 1 to RVIS
       kk = rtop + dr
       s = ''
-      if kk <= rl.cnt then s = rl<kk>[rx + 1, 134]
-      screen text fmt(s, '134L') at 3,5 + dr width 134
+      if kk <= rl.cnt then s = rl<kk>[rx + 1, tw]
+      screen text fmt(s, tw : 'L') at wb.x + 2,wb.y + 4 + dr width tw
    next dr
-   hx = 132 ; hy = 5
+   hx = wb.x + wb.w - 7 ; hy = wb.y + 4
    call $tk_help('mark', hx, hy, 0, 0)
    return
 
 draw.saved:
-   screen box at 1,1 size 138,39 title 'Saved queries'
-   screen text fmt('Name', '30L') : fmt('File', '26L') : fmt('Report', '8L') : 'The sentence when it was saved' at 3,2 attr 'header' width 128
+   tw = wb.w - 4
+   screen box at wb.x,wb.y size wb.w,wb.h title 'Saved queries'
+   screen text fmt('Name', '30L') : fmt('File', '26L') : fmt('Report', '8L') : 'The sentence when it was saved' at wb.x + 2,wb.y + 1 attr 'header' width tw - 6
    if svc <= svt then svt = svc - 1
    if svc > svt + SVIS then svt = svc - SVIS
    if svt < 0 then svt = 0
@@ -803,12 +903,12 @@ draw.saved:
       ra.foc = 1
       ra.dim = 0
       gosub row.attr
-      screen text fmt(s, '134L') at 3,2 + dr attr ra width 134
+      screen text fmt(s, tw : 'L') at wb.x + 2,wb.y + 1 + dr attr ra width tw
    next dr
-   screen text fmt(sv.note, '134L') at 3,36 attr 'bold' width 134
-   screen text fmt('Enter loads the query under the cursor.  X deletes it (its name is typed first).  Esc goes back to the boxes.', '134L') at 3,37 width 134
-   screen text fmt('The file is &queries& in your account.  Only this page and the commands you type write to it.', '134L') at 3,38 attr 'disabled' width 134
-   hx = 132 ; hy = 2
+   screen text fmt(sv.note, tw : 'L') at wb.x + 2,wb.y + wb.h - 4 attr 'bold' width tw
+   screen text fmt('Enter loads the query under the cursor.  X deletes it (its name is typed first).  Esc goes back to the boxes.', tw : 'L') at wb.x + 2,wb.y + wb.h - 3 width tw
+   screen text fmt('The file is &queries& in your account.  Only this page and the commands you type write to it.', tw : 'L') at wb.x + 2,wb.y + wb.h - 2 attr 'disabled' width tw
+   hx = wb.x + wb.w - 7 ; hy = wb.y + 1
    call $tk_help('mark', hx, hy, 0, 0)
    return
 
@@ -1063,28 +1163,28 @@ on.mouse:
    mx = mev<3>
    my = mev<4>
    if view = 'saved' then
-      if mx >= 3 and mx <= 136 and my >= 3 and my <= 2 + SVIS then
-         if svt + my - 2 <= nsv then svc = svt + my - 2
+      if mx >= wb.x + 2 and mx <= wb.x + wb.w - 3 and my >= wb.y + 2 and my <= wb.y + 1 + SVIS then
+         if svt + my - (wb.y + 1) <= nsv then svc = svt + my - (wb.y + 1)
       end
       return
    end
    if view # 'build' then return
    begin case
-      case mx >= 1 and mx <= 28 and my >= 1 and my <= 19
+      case mx >= fb.x and mx <= fb.x + fb.w - 1 and my >= fb.y and my <= fb.y + fb.h - 1
          focus = 1
-         if my >= 2 and my <= 17 and ft + my - 1 <= nfs then fc = ft + my - 1
-      case mx >= 29 and mx <= 72 and my >= 1 and my <= 19
+         if my >= fb.y + 1 and my <= fb.y + VISF and ft + my - fb.y <= nfs then fc = ft + my - fb.y
+      case mx >= cb.x and mx <= cb.x + cb.w - 1 and my >= cb.y and my <= cb.y + cb.h - 1
          focus = 2
-         if my >= 3 and my <= 18 and ct + my - 2 <= nd then cc = ct + my - 2
-      case mx >= 73 and mx <= 138 and my >= 1 and my <= 19
+         if my >= cb.y + 2 and my <= cb.y + 1 + VISC and ct + my - (cb.y + 1) <= nd then cc = ct + my - (cb.y + 1)
+      case mx >= nb.x and mx <= nb.x + nb.w - 1 and my >= nb.y and my <= nb.y + nb.h - 1
          focus = 3
-         if my >= 3 and my <= 2 + MAXCOND then kc = my - 2
-      case mx >= 1 and mx <= 46 and my >= 20 and my <= 30
+         if my >= nb.y + 2 and my <= nb.y + 1 + MAXCOND then kc = my - (nb.y + 1)
+      case mx >= sb.x and mx <= sb.x + sb.w - 1 and my >= sb.y and my <= sb.y + sb.h - 1
          focus = 4
-         if my >= 22 and my <= 21 + MAXSORT then sc = my - 21
-      case mx >= 47 and mx <= 138 and my >= 20 and my <= 30
+         if my >= sb.y + 2 and my <= sb.y + 1 + MAXSORT then sc = my - (sb.y + 1)
+      case mx >= ob.x and mx <= ob.x + ob.w - 1 and my >= ob.y and my <= ob.y + ob.h - 1
          focus = 5
-         if my >= 21 and my <= 27 then oc = my - 20
+         if my >= ob.y + 1 and my <= ob.y + 7 then oc = my - ob.y
    end case
    return
 

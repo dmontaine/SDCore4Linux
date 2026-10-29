@@ -47,7 +47,7 @@
 @editors = cmd-a9 collfile edbug edseqkey option-a4
 # the full-screen toolkit's pages and the home screen (S.88 phase 0, 28 Oct 26: a change of the shared base - tk_*, tk.h, tk_open, sl_*, sl.h, screen_*, sl_key - was verified
 # without one page running, so a green targeted run proved nothing about them; plan T1)
-@pages = home home2 tk-faults tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
+@pages = home home2 l2-home l2-files tk-faults tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test l2-cfg l2-admin l2-misc
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE TEST FILES THEMSELVES.
@@ -77,9 +77,23 @@ gplbld/sandbox-pickrn.py     : none
 gplbld/sandbox-openzero.py   : none
 # 27 Oct 26 (S.87 batch 13): the Pick style CALL "file name" is gone, and its suite with it
 gplbld/sandbox-callfile.py   : none
+# S.85 (28 Oct 26): the shared harness of the page suites (sandbox-home.py loads sandbox-tk-base.py, which puts the stub sudo first in PATH and runs the sudo null-case row of every setup)
+gplbld/sandbox-tk-base.py    : @self tk-keys @pages ai-line autologout docs ide-fresh lockids menus termsafe tk-layout tk-resize
+gplbld/sandbox-home.py       : @self @pages ai-line autologout docs ide-fresh lockids menus termsafe tk-layout tk-resize
+gplbld/sudo-stub.sh          : @pages ai-line autologout docs ide-fresh lockids menus termsafe tk-base tk-keys tk-layout tk-resize
 gplbld/sandbox-*.py          : @self
 # S.88 L1 (28 Oct 26): sandbox-tk-layout.py takes its expected rectangles from this free check's model of $tk_layout
-gplbld/test-tklayout-units.py : tk-layout
+gplbld/test-tklayout-units.py : tk-layout l2-files l2-home l2-admin
+# S.88 L2 (28 Oct 26): sandbox-l2-admin.py takes its expected rectangles from test-l2-admin-units.py, which reads each administrator page's declaration and lays it out with the model of $tk_layout
+gplbld/test-l2-admin-units.py : l2-admin
+# S.88 L2 (28 Oct 26): sandbox-l2-files.py reads the five pages' declarations with this free check's functions and takes its old boxes from its table
+gplbld/test-l2-files-units.py : l2-files
+# S.88 L2 (28 Oct 26): sandbox-l2-home.py takes its expected cells from this free check's model of the home screen's grid
+gplbld/test-l2-home-units.py : l2-home
+# S.88 L2 (28 Oct 26): sandbox-l2-cfg.py reads the pages' declarations with this free check's functions and takes its old boxes from its table
+gplbld/test-l2-cfg-units.py  : l2-cfg
+# S.88 L2 (28 Oct 26): sandbox-l2-misc.py reads the five pages' declarations with this free check's functions and takes its old boxes from its table
+gplbld/test-l2-misc-units.py : l2-misc
 gplbld/test-*.py             : none
 gplbld/regress.sh            : none
 gplbld/regress-map.txt       : none
@@ -187,12 +201,12 @@ gplsrc/sddefs.h              : @core auditwriter auditjournal
 gplsrc/audit_rot.c           : @core auditwriter
 gplsrc/sdsem.c               : shmmode @core
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode segtrust auditwriter @core
-gplsrc/profiler.c            : prof
+gplsrc/profiler.c            : prof lockids
 gpl.src                      : @core prof netfile masters
 gplsrc/kernel.c : @core csvb q5 listu-a5 inhibit-q8  prof resetall  classinit sysexc try editgates apispin segtrust ipc lockids q4
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
-gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust
+gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust lockids
 sdsys/messages/11930         : gcatmode
 # 27 Oct 26 (S.87): the VOC deletion list's messages, 11900-11918
 sdsys/messages/1190?         : vocremoved
@@ -215,7 +229,7 @@ gplsrc/sd_keyring.c          : crypt
 gplsrc/op_exec.c : @core cmd-a9 stacklist  prof csvb
 gplsrc/op_sh.c               : gates sdaccts editgates netfile shared segtrust
 gplsrc/to_file.c             : editgates gates @core
-gplsrc/op_sdext.c            : gates crypt
+gplsrc/op_sdext.c            : gates crypt recovery
 gplsrc/op_sdpyobj.c          : gates
 gplsrc/sdext_*.c             : gates
 gplsrc/op_ccall.c            : @core classas
@@ -224,7 +238,7 @@ gplsrc/descr.h               : restricted classas nameindex @core netfile
 gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared masters segtrust ipc
+gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared masters segtrust ipc lockids
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
@@ -342,7 +356,7 @@ sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys
 sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
-sdsys/gpl.bp/tool_keys       : tk-keys
+sdsys/gpl.bp/tool_keys       : tk-keys l2-misc
 sdsys/gpl.bp/sl_key          : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys @pages realkeys tk-layout tk-resize
 sdsys/gpl.bp/_keycode        : @core tk-base tk-keys eofkeys input realkeys screen ide
 sdsys/syscom/keyin.h         : @core tk-base tk-keys eofkeys input realkeys screen ide
@@ -353,7 +367,7 @@ sdsys/gpl.bp/_bindkey        : @core tk-base tk-keys
 sdsys/newvoc/tool.keys       : tk-keys
 sdsys/voc_template/tool.keys : tk-keys
 # S.75 H1 and H2 (22 Oct 26): the home screen, where an account starts (!home_entry, called by cproc), EXIT and SET.START.DEFAULT
-sdsys/gpl.bp/tool_home       : home home2 ai-line
+sdsys/gpl.bp/tool_home       : home home2 ai-line l2-home tk-resize
 # AI line stage 1 (23 Oct 26): the toolkit's AI line ($tk_ai) on the home screen, its messages and the fake model's JSON replies
 sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps
 gplbld/sandbox-ai-line.py    : @self
@@ -380,7 +394,7 @@ sdsys/gpl.bp/setstart        : home
 sdsys/gpl.bp/home_off        : home menus
 sdsys/gpl.bp/settile         : menus home2
 sdsys/voc_template/set.tile  : menus
-sdsys/gpl.bp/tool_menus      : menus docs home2
+sdsys/gpl.bp/tool_menus      : menus docs home2 l2-cfg
 sdsys/voc_template/tool.menus : menus
 sdsys/gpl.bp/home_pins       : home menus
 sdsys/gpl.bp/mymenu          : menus
@@ -392,7 +406,7 @@ sdsys/gpl.bp/pdf             : docs
 sdsys/gpl.bp/viewlist        : docs
 sdsys/gpl.bp/setviewer       : docs
 sdsys/gpl.bp/docsinst        : docs
-sdsys/gpl.bp/tool_viewers    : docs home
+sdsys/gpl.bp/tool_viewers    : docs home l2-misc
 sdsys/helptext/tool.ai.*     : docs tool-ai
 sdsys/helptext/tool.gates.*  : docs tool-gates tool-mygates
 sdsys/helptext/*             : docs menus
@@ -419,35 +433,35 @@ gplbld/ai-providers          : aigate ai-verb ai-line
 gplbld/sandbox-aigate.py     : @self ai-verb
 gplbld/sandbox-ai-verb.py    : @self
 gplbld/sandbox-tool-ai.py    : @self
-sdsys/gpl.bp/tool_ai         : tool-ai
+sdsys/gpl.bp/tool_ai         : tool-ai l2-cfg
 sdsys/voc_template/tool.ai   : tool-ai
 # 24 Oct 26 (S.75 A2): the gate matrix runs the real modify.account against the scratch groups, so a change to the verb selects it
 gplbld/sandbox-tool-gates.py : @self
-sdsys/gpl.bp/tool_gates      : tool-gates
+sdsys/gpl.bp/tool_gates      : tool-gates l2-admin
 sdsys/voc_template/tool.gates : tool-gates
 # 24 Oct 26 (S.75 A2, the account holder's half): the same verb in every account's VOC runs the read-only page; it asks the system for the group of the person's login name
 gplbld/sandbox-tool-mygates.py : @self
-sdsys/gpl.bp/tool_mygates    : tool-mygates docs
+sdsys/gpl.bp/tool_mygates    : tool-mygates docs l2-misc
 sdsys/newvoc/tool.gates      : tool-mygates docs
 # 24 Oct 26 (S.75 A4): the sessions and locks page runs the real logout, unlock and inhibit.login against live sessions; the programs behind those verbs and the lock listing select it
 gplbld/sandbox-tool-sessions.py : @self
-sdsys/gpl.bp/tool_sessions   : tool-sessions
+sdsys/gpl.bp/tool_sessions   : tool-sessions l2-admin
 sdsys/voc_template/tool.sessions : tool-sessions
 sdsys/helptext/tool.sessions.* : docs tool-sessions
 # 24 Oct 26 (S.75 A7): the master files page runs the real sync.masters and reads the kernel's master-file operations; the verbs' program and the set-up select it too
 gplbld/sandbox-tool-masters.py : @self
-sdsys/gpl.bp/tool_masters    : tool-masters
+sdsys/gpl.bp/tool_masters    : tool-masters l2-admin
 sdsys/voc_template/tool.masters : tool-masters
 sdsys/helptext/tool.masters.* : docs tool-masters
 # 25 Oct 26 (S.75 A5): the audit trail page and its reader (a fixture audit file, the lines read back from the disk)
 gplbld/sandbox-tool-audit.py : @self
-sdsys/gpl.bp/tool_audit      : tool-audit
+sdsys/gpl.bp/tool_audit      : tool-audit l2-admin
 sdsys/gpl.bp/audit_read      : tool-audit
 sdsys/voc_template/tool.audit : tool-audit
 sdsys/helptext/tool.audit.*  : docs tool-audit
 # 25 Oct 26 (S.75 A6): the configuration page and the table of parameters it shows (held to config.c by test-toolconfig-units.py; the suite edits a sandbox's own sd.conf)
 gplbld/sandbox-tool-config.py : @self
-sdsys/gpl.bp/tool_config     : tool-config
+sdsys/gpl.bp/tool_config     : tool-config l2-cfg
 sdsys/config.table           : tool-config
 sdsys/voc_template/tool.config : tool-config
 # 26 Oct 26 (S.75 A6, the write half): the verb set.config and its VOC entry; sd-elevate's conf-set is held by test-confset-elevate-units.py and the suite's shim
@@ -459,62 +473,62 @@ gplbld/test-tkfaults-units.py : none
 sdsys/helptext/tool.config.* : docs tool-config
 # 25 Oct 26 (S.75 A8): the backups page runs the real backup, restore and set-directory verbs and reads archives' manifests
 gplbld/sandbox-tool-backups.py : @self
-sdsys/gpl.bp/tool_backups    : tool-backups
+sdsys/gpl.bp/tool_backups    : tool-backups l2-cfg
 sdsys/voc_template/tool.backups : tool-backups
 sdsys/helptext/tool.backups.* : docs tool-backups
 # 25 Oct 26 (S.75 A3): the accounts page runs the real modify.account for suspend and reads the register, the groups and the sessions; create and delete are handed the terminal
 gplbld/sandbox-tool-accounts.py : @self
-sdsys/gpl.bp/tool_accounts   : tool-accounts
+sdsys/gpl.bp/tool_accounts   : tool-accounts l2-admin
 sdsys/voc_template/tool.accounts : tool-accounts
 sdsys/helptext/tool.accounts.* : docs tool-accounts
 # 26 Oct 26 (S.75 DV1): the files page, the first development app (a verb for every account: newvoc and voc_template both have it); it runs the real create.file, clear.file, delete.file, analyse.file, list.index and list.triggers
 gplbld/sandbox-tool-files.py : @self
 gplbld/test-toolfiles-units.py : none
-sdsys/gpl.bp/tool_files      : tool-files
+sdsys/gpl.bp/tool_files      : tool-files l2-files
 sdsys/newvoc/tool.files      : tool-files
 sdsys/voc_template/tool.files : tool-files
 sdsys/helptext/tool.files.*  : docs tool-files
 # 26 Oct 26 (S.75 DV3): the VOC page, a verb for every account; it runs the real delete (on the VOC) and hands the terminal to sed voc <id>
 gplbld/sandbox-tool-voc.py   : @self
 gplbld/test-toolvoc-units.py : none
-sdsys/gpl.bp/tool_voc        : tool-voc
+sdsys/gpl.bp/tool_voc        : tool-voc l2-misc
 sdsys/newvoc/tool.voc        : tool-voc
 sdsys/voc_template/tool.voc  : tool-voc
 sdsys/helptext/tool.voc.*    : docs tool-voc
 # 26 Oct 26 (S.75 DV2, DV4-DV7): the dictionary, query, bulk update, catalogue and test pages, built by a workflow in private clones and integrated here; each is a verb for every account (newvoc and voc_template)
 gplbld/sandbox-tool-dict.py  : @self
 gplbld/test-tooldict-units.py : none
-sdsys/gpl.bp/tool_dict       : tool-dict tk-faults
+sdsys/gpl.bp/tool_dict       : tool-dict tk-faults l2-misc
 sdsys/newvoc/tool.dict       : tool-dict
 sdsys/voc_template/tool.dict : tool-dict
 sdsys/helptext/tool.dict.*   : docs tool-dict
 gplbld/sandbox-tool-query.py : @self
 gplbld/test-toolquery-units.py : none
-sdsys/gpl.bp/tool_query      : tool-query tk-faults
+sdsys/gpl.bp/tool_query      : tool-query tk-faults l2-files
 sdsys/newvoc/tool.query      : tool-query
 sdsys/voc_template/tool.query : tool-query
 sdsys/helptext/tool.query.*  : docs tool-query
 gplbld/sandbox-tool-bulk.py  : @self
 gplbld/test-toolbulk-units.py : none
-sdsys/gpl.bp/tool_bulk       : tool-bulk
+sdsys/gpl.bp/tool_bulk       : tool-bulk l2-files
 sdsys/newvoc/tool.bulk       : tool-bulk
 sdsys/voc_template/tool.bulk : tool-bulk
 sdsys/helptext/tool.bulk.*   : docs tool-bulk
 gplbld/sandbox-tool-catalog.py : @self
 gplbld/test-toolcatalog-units.py : none
-sdsys/gpl.bp/tool_catalog    : tool-catalog
+sdsys/gpl.bp/tool_catalog    : tool-catalog l2-files
 sdsys/newvoc/tool.catalog    : tool-catalog
 sdsys/voc_template/tool.catalog : tool-catalog
 sdsys/helptext/tool.catalog.* : docs tool-catalog
 gplbld/sandbox-tool-test.py  : @self
 gplbld/test-tooltest-units.py : none
-sdsys/gpl.bp/tool_test       : tool-test
+sdsys/gpl.bp/tool_test       : tool-test l2-files
 sdsys/newvoc/tool.test       : tool-test
 sdsys/voc_template/tool.test : tool-test
 sdsys/helptext/tool.test.*   : docs tool-test
 # 25 Oct 26 (S.75 A9): the remote access page runs the real remote.api / remote.ssh reports, delete.server, and reads the servers with !netdefs; set.server and a door's change are the verbs'
 gplbld/sandbox-tool-remote.py : @self
-sdsys/gpl.bp/tool_remote     : tool-remote
+sdsys/gpl.bp/tool_remote     : tool-remote l2-cfg
 sdsys/voc_template/tool.remote : tool-remote
 sdsys/helptext/tool.remote.* : docs tool-remote
 gplsrc/op_ai.c               : ai-verb aigate
@@ -548,8 +562,8 @@ sdsys/gpl.bp/sl_guard        : sed-small ide-small sed-menu dbgui tk-resize auto
 # S.88 phase 2 (28 Oct 26): the memo's undo steps (D3) and the control-character scrub of $sl_put (S1); any sl_ program draws through $sl_put, so escdata, and the memo is every editor's text area
 sdsys/gpl.bp/sl_memo         : memoundo escdata screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe recarr
 sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout
-sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps
-sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds
+sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps gates
+sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds tool-voc tool-dict
 # The editor merge, stage B (28 Oct 26): the IDE's record kinds and locks - messages 11684-11698 (11215 and 11226 changed too), and its suite
 sdsys/messages/1168[4-9]     : ide-kinds ide
 sdsys/messages/1169[0-8]     : ide-kinds ide
@@ -558,6 +572,11 @@ sdsys/messages/11219         : ide-kinds
 sdsys/gpl.bp/edit_recovery   : recovery ide-fresh
 sdsys/messages/1177[0-7]     : recovery
 gplbld/sandbox-recovery.py   : @self
+# 28 Oct 26 (the owner's approved items): the AUTOLOGOUT countdown (11750-11752) and the read-only tab for bytes outside ASCII (11753, 11754, 11761) in the IDE;
+# the recovery store in the person's home is found by SDEXT SD_USER_HOME (op_sdext.c, which the gplsrc rules above take), held as C by test-userhome-units.py
+sdsys/messages/1175[0-2]     : ide
+sdsys/messages/1175[34]      : ide-kinds ide
+sdsys/messages/11761         : ide-kinds ide
 # S.88 Phase 4 (28 Oct 26): the IDE's one name form, and its messages 11963-11975 (11214 and 11225 changed too)
 sdsys/gpl.bp/ide_name        : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr ide-kinds
 sdsys/messages/1196[3-9]     : ide-fresh ide
@@ -653,9 +672,9 @@ sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16   lockown
 sdsys/gpl.bp/_option         : option-a4 option-q17 mode-q16
 sdsys/gpl.bp/listu           : listu-a5 tool-sessions tool-accounts
 sdsys/gpl.bp/_listu          : listu-a5 tool-sessions tool-accounts
-sdsys/gpl.bp/pstat           : listu-a5
-sdsys/gpl.bp/hsm             : listu-a5
-sdsys/gpl.bp/profiler        : prof
+sdsys/gpl.bp/pstat           : listu-a5 lockids q4
+sdsys/gpl.bp/hsm             : listu-a5 lockids
+sdsys/gpl.bp/profiler        : prof lockids ipc
 sdsys/gpl.bp/locktracer      : q5
 sdsys/gpl.bp/inhibit         : inhibit-q8 tool-sessions
 sdsys/gpl.bp/login_inhibit   : inhibit-q8 tool-sessions

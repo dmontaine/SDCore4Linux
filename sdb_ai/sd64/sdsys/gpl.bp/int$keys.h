@@ -25,6 +25,7 @@
 	  * 18 Oct 26 dm DEFAULT.WIDTH 140 and DEFAULT.DEPTH 42 (were 120 and 36); gplsrc/tio.h has the same two.
 	  * 18 Oct 26 dm S.66: K$SHARED.READ (128), K$SHARED.WRITE (129), K$SHARED.REF (130), K$SHARED.ONCE (131).
 	  * 19 Oct 26 dm S.67 stage 1: K$MASTERS (150), the master files.
+	  * 28 Oct 26 dm S.88 phase 2: K$SHOW.SAFE (151), the kernel's one rule for showing another session's text (PSTAT, PROFILER, HSM).
 	  * END-HISTORY
       *
       *  START-DESCRIPTION:
@@ -227,6 +228,7 @@
       $define K$SHARED.ONCE     131     ;* a file name: 1 the first time this process is asked about it, 0 afterwards (the audit of a shared open) (18 Oct 26, S.66)
       $define K$PROFILER        116   ;* n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
       $define K$PROFILER.USER   117     ;* user * 4096 + 2048 + n start it in another process, user * 4096 alone stop it and have it write F<user> to $ipc; administrator only
+      $define K$SHOW.SAFE       151     ;* any text: the same text with every byte of the kernel's one rule (0-31, 127, 128-159, 248-255) as '?', the same length; for printing another session's text (28 Oct 26, S.88 phase 2: PSTAT, PROFILER, HSM)
       $define K$MASTERS         150     ;* the master files (voc_master, dict_master, master_state): op:@fm:argument, the answer's first field is the status (0 done, 1 not set up, 2 not the administrator, 3 bad argument, 4 no such account, 5 error); only 'ready' and 'note' are open to every $internal program (19 Oct 26, S.67)
       $define K$AI.START        160     ;* the in-SD AI helper (op_ai.c; S.69 step 2): system:@fm:maxtokens:@fm:prompt, answered 'OK' or 'ERR':@fm:why; the kernel writes the audit line itself
       $define K$AI.POLL         161     ;* 'W' waiting, 'D':@fm:the helper's reply (JSON), or 'E':@fm:why

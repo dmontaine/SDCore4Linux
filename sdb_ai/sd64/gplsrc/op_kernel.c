@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.88 phase 2: K_SHOW_SAFE (151), another session's text made safe to print by the kernel's one rule (show_ts_safe()), for PSTAT,
+ *               PROFILER DISPLAY and HSM USER n, which print the $IPC records S<n>, F<n> and H<n> that any SD user can write.
  * 27 Oct 26 dm  S.87 batch 16: K_KEEP_SELECT (107) is gone with the KEEP.SELECT statement and OPTION CLEAR.SELECT; the number stays reserved.
  * 26 Oct 26 dm  W.11 F10: K_PHANTOM_NONCE (144), the secret a phantom() hands the new process in its environment (SD_PHANTOM_NONCE) so that the
  *               start-up records PHANTOM leaves in $ipc can be shown to come from the process that started it; phantom_nonce_import() takes
@@ -906,6 +908,20 @@ void op_kernel() {
       masters_req[0] = '\0';
       (void)k_get_c_string(descr, masters_req, (int)sizeof(masters_req) - 1);
       masters_request(masters_req, &result);
+    } break;
+
+    /* 28 Oct 26 dm - S.88 phase 2: K_SHOW_SAFE, the text with every byte of the one rule as '?' (show_ts_safe(), op_lock.c), chunk by chunk,
+       the same length.  No copy of the rule here: the BASIC readers of $IPC (PSTAT, PROFILER, HSM) ask this.                              */
+    case K_SHOW_SAFE: {
+      STRING_CHUNK* safe_chunk;
+
+      k_get_string(descr);
+      InitDescr(&result, STRING);
+      result.data.str.saddr = NULL;
+      ts_init(&(result.data.str.saddr), 128);
+      for (safe_chunk = descr->data.str.saddr; safe_chunk != NULL; safe_chunk = safe_chunk->next)
+        show_ts_safe(safe_chunk->data, (int)(safe_chunk->bytes));
+      (void)ts_terminate();
     } break;
 
     /* May THIS ACCOUNT open this pathname?  An $internal program is exempt from the gate itself (it has to

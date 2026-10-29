@@ -140,23 +140,28 @@ def checks(raw):
        "belongs to that pair",
        "p.stamp = ln[1, 19]" in pl and "rest = ln[21, len(ln)]" in pl and "in.event and eqp = 0 and (p.pid # '' or p.uid # '')" in pl and "case eqp = 0" in pl and "p.pairs<cur> = p.pairs<cur> : ' ' : w" in pl
        and all(("case in.event and w[1, eqp] = '%s=' and p.%s = ''" % (k, k)) in pl for k in ("user", "sudo", "uid", "pid")), pl[:200])
-    ck("AU14", "the page's numbers: 17 list rows, 200 lines read at a time, 3000 kept, new lines read every 3 seconds only in follow mode (a timed tick does nothing otherwise), at most 10 reads of 200 for one F5",
-       re.search(r"^\s*VL = 17\s*$", pg, re.M) is not None and re.search(r"^\s*BLK = 200\s*$", pg, re.M) is not None and re.search(r"^\s*MAXENT = 3000\s*$", pg, re.M) is not None
+    ck("AU14", "the page's numbers: the list rows are the box's less 3 (17 at 140 by 43), 200 lines read at a time, 3000 kept, new lines read every 3 seconds only in follow mode (a timed tick does nothing otherwise), at most 10 reads of 200 for one F5",
+       re.search(r"^\s*VL = lst\.h - 3\b", pg, re.M) is not None and re.search(r"^\s*BLK = 200\s*$", pg, re.M) is not None and re.search(r"^\s*MAXENT = 3000\s*$", pg, re.M) is not None
        and "screen key timeout 3 returning nm" in pg and "if follow then gosub timed.follow" in pg and "for iter = 1 to 10" in block(pg, "read.newer"), "")
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
     ck("AU15", "the key table has exactly: help, filter, clear, goto, file, follow, export, refresh, quit; the dispatch has F, C, D, O, L, X, F1/?, F5 and Ctrl-Q",
        acts == sorted(["help", "filter", "clear", "goto", "file", "follow", "export", "refresh", "quit"])
        and all(("case nm = '%s'" % k) in pg for k in ("f", "c", "d", "o", "l", "x", "f5", "ctrl-q")) and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
     ck("AU16", "the page has a [?] and F1, ? and a click show tool.audit.page, whose record exists with a title, the audit trail page of the administrator guide (which exists) and a body",
-       pg.count("'tool.audit.page'") == 2 and "call $tk_help('mark', 134, 2, 0, 0)" in pg and "call $tk_help('hit', mev, 134, 2, hit.m)" in pg
+       pg.count("'tool.audit.page'") == 2 and "call $tk_help('mark', top.x + top.w - 5, top.y + 1, 0, 0)" in pg and "call $tk_help('hit', mev, top.x + top.w - 5, top.y + 1, hit.m)" in pg
        and raw["help"].split("\n")[0].strip() != "" and raw["help"].split("\n")[1].strip() == "21-the-audit-trail" and raw["help"].split("\n")[2].strip() != "" and raw["docs"].startswith("Title: The Audit Trail"), "")
     dl = block(pg, "draw.all")
     dsl = block(pg, "draw.list")
     dd = block(pg, "draw.detail")
-    ck("AU17", "the layout fits the 140 by 43 frame: three boxes (rows 1-6, 7-26, 27-39), the filter text on rows 2 to 5 with the [?] at row 2 (so its text is 128 wide), the header at row 8 and 17 list rows at y 9-25, "
-       "the line under the cursor in 11 rows at y 28-38",
-       "screen box at 1,1 size 138,6" in dl and "screen box at 1,7 size 138,20" in dl and "screen box at 1,27 size 138,13" in dl and "screen text s at 3,2 attr 'bold' width 128" in block(pg, "draw.filter")
-       and "at 3,8 attr 'header'" in dsl and "at 3,8 + r attr rat" in dsl and "for r = 1 to 11" in dd and "at 3,27 + r width 134" in dd and "for r = 1 to VL" in dsl, "")
+    dc = block(pg, "declare.layout")
+    gr = block(pg, "get.rects")
+    ck("AU17", "the layout is the layout service's (S.88 L2): three panes declared at the 140 by 43 sizes (rows 6, 20 and 13 of 138), their rectangles asked of $tk_layout and drawn as boxes; the filter text on rows 1 to 4 of the top box with the [?] on "
+       "its first row (so its first line is 10 narrower than the box's text), the heading and the list rows in the list box, the line under the cursor in the detail box's rows (less 2); (the numbers at 140 by 43 are test-l2-admin-units.py's)",
+       "ld<1> = 'trail' : @vm : 1 : @vm : 1 : @vm : 6 : @vm : 138" in dc and "ld<2> = 'lines' : @vm : 2 : @vm : 1 : @vm : 20 : @vm : 138" in dc and "ld<3> = 'detail' : @vm : 3 : @vm : 1 : @vm : 13 : @vm : 138" in dc
+       and "call $tk_layout('declare', ctx, ld, perr)" in dc and "VL = lst.h - 3" in gr and "DR = det.h - 2" in gr
+       and "screen box at top.x,top.y size top.w,top.h" in dl and "screen box at lst.x,lst.y size lst.w,lst.h" in dl and "screen box at det.x,det.y size det.w,det.h" in dl
+       and "screen text s at top.x + 2,top.y + 1 attr 'bold' width ttw - 6" in block(pg, "draw.filter")
+       and "at lst.x + 2,lst.y + 1 attr 'header'" in dsl and "at lst.x + 2,lst.y + 1 + r attr rat" in dsl and "for r = 1 to DR" in dd and "at det.x + 2,det.y + r width dtw" in dd and "for r = 1 to VL" in dsl, "")
     cs = block(pg, "chk.stamp")
     ck("AU18", "a time typed for the filters or go-to is digits, '-', ' ' and ':' only and at most 19 characters, and a refused time stops the dialog before anything is changed; Esc at any question returns without applying the filters",
        "if len(v) > 19 then stamp.ok = 0" in cs and "index('0123456789- :', v[si, 1], 1) = 0" in cs and block(pg, "do.filter").count("else return") == 6 and block(pg, "do.filter").count("if not(stamp.ok) then return") == 2
@@ -226,7 +231,8 @@ MUTANTS = [
     ("a key is added to the table", "AU15", sub("page", "   call $tk_keys('add', keys, 'x', 'save', 'export', '', 1)\n", "   call $tk_keys('add', keys, 'x', 'save', 'export', '', 1)\n   call $tk_keys('add', keys, 'k', 'kill', 'kill', '', 1)\n")),
     ("the help key names a record that does not exist", "AU16", sub("page", "call $tk_help('box', 'tool.audit.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'", "call $tk_help('box', 'tool.audit.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'")),
     ("the help record names no page", "AU16", sub("help", "21-the-audit-trail", "")),
-    ("the lines box overruns the detail", "AU17", sub("page", "screen box at 1,7 size 138,20 title 'Lines'", "screen box at 1,7 size 138,21 title 'Lines'")),
+    ("the lines box overruns the detail", "AU17", sub("page", "ld<2> = 'lines' : @vm : 2 : @vm : 1 : @vm : 20", "ld<2> = 'lines' : @vm : 2 : @vm : 1 : @vm : 21")),
+    ("the first filter line runs under the [?]", "AU17", sub("page", "attr 'bold' width ttw - 6", "attr 'bold' width ttw")),
     ("a time with letters is allowed", "AU18", sub("page", "index('0123456789- :', v[si, 1], 1) = 0", "index('0123456789- :abc', v[si, 1], 1) = 0")),
     ("Esc at the third question applies the first two", "AU18", sub("page", "   screen ask 'Event: words of the event, such as login or modify.account (empty for any)' width 40 value cv title 'Audit filter  3 of 6' returning v else return\n",
                                                                     "   screen ask 'Event: words of the event, such as login or modify.account (empty for any)' width 40 value cv title 'Audit filter  3 of 6' returning v else flt = nf\n")),

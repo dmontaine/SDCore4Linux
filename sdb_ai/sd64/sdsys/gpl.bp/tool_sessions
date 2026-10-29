@@ -7,6 +7,8 @@
 * 24 Oct 26 dm  New.
 * 26 Oct 26 dm  S.76 (the owner's decision of 26 Oct 2026): when SDSYS has more than one session on a terminal, each of those rows says "sdsys xN" in the State column, the counts line says
 *               "SDSYS in N places" and the row under the cursor says so.  !SDSYSN is the one definition of such a session.
+* 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the two lists show more rows
+*               and every box is wider, and the sentences about the row are wrapped at the width of their box.  The resize key makes the layout again.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -52,6 +54,7 @@ $include tk.h
       stop
    end
    void kernel(K$AUDIT, 'tool start app=tool.sessions')
+   gosub declare.layout
 
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
@@ -63,9 +66,7 @@ $include tk.h
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    panes = 'Sessions' : @fm : 'Locks'
 
-   VS = 11                                                      ;* session rows on the screen
-   VL = 10                                                      ;* lock rows on the screen
-   hs = fmt('', '2L') : fmt('User', '5R') : '  ' : fmt('Pid', '8R') : '  ' : fmt('Logged in', '12L') : ' ' : fmt('Kind', '8L') : fmt('Login user', '15L') : fmt('Account', '20L') : fmt('Where from', '26L') : 'State'
+   hs =fmt('', '2L') : fmt('User', '5R') : '  ' : fmt('Pid', '8R') : '  ' : fmt('Logged in', '12L') : ' ' : fmt('Kind', '8L') : fmt('Login user', '15L') : fmt('Account', '20L') : fmt('Where from', '26L') : 'State'
    hl = fmt('User', '5R') : '  ' : fmt('File', '5R') : '  ' : fmt('Path', '30L') : ' ' : fmt('Type', '5L') : fmt('Record id', '32L') : fmt('Since', '13L') : 'Holder'
 
    pane = 1                                                     ;* 1 the sessions, 2 the locks
@@ -93,6 +94,9 @@ $include tk.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', lchg)
+            gosub get.rects
+            gosub keep.in.view
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -178,13 +182,55 @@ stamp.of:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  The three boxes are the panes of the layout service, declared in the sizes of the reference layout (140 by 43, the body 138 by 39): the two lists share the rows a
+* bigger window gives, equally, and the box under them stays as high as it is.  The page never hands the terminal over, so the declaration is made once, after the open, and the
+* rectangles are fetched again after each 'refresh'.
+* Out: ssn (the sessions), lck (the locks), rwb (the row under the cursor), each .x .y .w .h; stw, ltw, rtw (the text width of each box); VS and VL (the session and lock rows on
+* the screen) and VR (the lines about the row under the cursor).
+declare.layout:
+   ld = ''
+   ld<1> = 'sessions' : @vm : 1 : @vm : 1 : @vm : 15 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   ld<2> = 'locks' : @vm : 2 : @vm : 1 : @vm : 14 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   ld<3> = 'row' : @vm : 3 : @vm : 1 : @vm : 10 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, ld, perr)
+   if perr # '' then
+      call $tk_close(ctx)
+      display perr
+      stop
+   end
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'sessions', lrc)
+   ssn.x = lrc<1, 1> ; ssn.y = lrc<1, 2> ; ssn.w = lrc<1, 3> ; ssn.h = lrc<1, 4>
+   call $tk_layout('pane', ctx, 'locks', lrc)
+   lck.x = lrc<1, 1> ; lck.y = lrc<1, 2> ; lck.w = lrc<1, 3> ; lck.h = lrc<1, 4>
+   call $tk_layout('pane', ctx, 'row', lrc)
+   rwb.x = lrc<1, 1> ; rwb.y = lrc<1, 2> ; rwb.w = lrc<1, 3> ; rwb.h = lrc<1, 4>
+   stw = ssn.w - 4
+   ltw = lck.w - 4
+   rtw = rwb.w - 4
+   VS = ssn.h - 4                                               ;* the heading, the session rows, the line of counts and the border: 11 rows of 15
+   VL = lck.h - 4                                               ;* the heading, the lock rows, the lock limit and the border: 10 rows of 14
+   VR = rwb.h - 3                                               ;* the lines about the row, the hint and the border: 7 rows of 10
+   return
+
+* After a resize the rows scrolled off the top are not more than the rows listed less the rows that fit
+keep.in.view:
+   if ta1 > ns - VS then ta1 = ns - VS
+   if ta1 < 0 then ta1 = 0
+   if ta2 > nl - VL then ta2 = nl - VL
+   if ta2 < 0 then ta2 = 0
+   return
+
 draw.all:
    cw2 = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
    screen clear at 0,1 size cw2,chh
-   screen box at 1,1 size 138,15 title 'Sessions'
-   screen box at 1,16 size 138,14 title 'Locks'
-   screen box at 1,30 size 138,10 title 'The row under the cursor'
+   screen box at ssn.x,ssn.y size ssn.w,ssn.h title 'Sessions'
+   screen box at lck.x,lck.y size lck.w,lck.h title 'Locks'
+   screen box at rwb.x,rwb.y size rwb.w,rwb.h title 'The row under the cursor'
    gosub draw.lists
    gosub draw.row
    return
@@ -220,7 +266,7 @@ session.line:
    return
 
 draw.sessions:
-   screen text hs at 3,2 attr 'header' width 134
+   screen text hs at ssn.x + 2,ssn.y + 1 attr 'header' width stw
    if cs <= ta1 then ta1 = cs - 1
    if cs > ta1 + VS then ta1 = cs - VS
    if ta1 < 0 then ta1 = 0
@@ -234,7 +280,7 @@ draw.sessions:
       end
       rat = 'normal'
       if kk = cs and kk <= ns then rat = (if pane = 1 then 'highlight' else 'bold')
-      screen text s at 3,2 + r attr rat width 134
+      screen text s at ssn.x + 2,ssn.y + 1 + r attr rat width stw
    next r
    n.usr = 0 ; n.ph = 0 ; n.api = 0
    for i = 1 to ns
@@ -255,12 +301,12 @@ draw.sessions:
    end else
       s := sysmsg(11284, inh<3>, inh<1>)
    end
-   screen text s at 3,14 attr 'bold' width 134
-   call $tk_help('mark', 134, 2, 0, 0)
+   screen text s at ssn.x + 2,ssn.y + ssn.h - 2 attr 'bold' width stw
+   call $tk_help('mark', ssn.x + ssn.w - 5, ssn.y + 1, 0, 0)
    return
 
 draw.locks:
-   screen text hl at 3,17 attr 'header' width 134
+   screen text hl at lck.x + 2,lck.y + 1 attr 'header' width ltw
    if cl <= ta2 then ta2 = cl - 1
    if cl > ta2 + VL then ta2 = cl - VL
    if ta2 < 0 then ta2 = 0
@@ -274,12 +320,12 @@ draw.locks:
       end
       rat = 'normal'
       if kk = cl and kk <= nl then rat = (if pane = 2 then 'highlight' else 'bold')
-      screen text s at 3,17 + r attr rat width 134
+      screen text s at lck.x + 2,lck.y + 1 + r attr rat width ltw
    next r
-   if nl = 0 then screen text 'There are no active file, read or update locks held by any user' at 3,18 width 134
+   if nl = 0 then screen text 'There are no active file, read or update locks held by any user' at lck.x + 2,lck.y + 2 width ltw
    s = ''
    if lhdr # '' then s = sysmsg(6453, lhdr<1, 1>, lhdr<1, 2>, lhdr<1, 3>)
-   screen text s at 3,28 attr 'bold' width 134
+   screen text s at lck.x + 2,lck.y + lck.h - 2 attr 'bold' width ltw
    return
 
 * One lock as a line of text; lk is its place in locks
@@ -313,15 +359,15 @@ draw.row:
       gosub row.lock
    end
    gosub wrap.lines
-   for r = 1 to 7
-      screen text lines<r> at 3,30 + r width 134
+   for r = 1 to VR
+      screen text lines<r> at rwb.x + 2,rwb.y + r width rtw
    next r
    if pane = 1 then
       s = 'L asks the selected session to end.  Tab changes to the locks.'
    end else
       s = 'U releases the selected lock.  Tab changes to the sessions.'
    end
-   screen text s at 3,38 attr 'bold' width 134
+   screen text s at rwb.x + 2,rwb.y + rwb.h - 2 attr 'bold' width rtw
    return
 
 row.session:
@@ -401,7 +447,7 @@ wrap.lines:
       if lines<wi> = '' then
          wrapped<-1> = ''
       end else
-         call $tk_wrap(lines<wi>, 134, pieces)
+         call $tk_wrap(lines<wi>, rtw, pieces)
          wrapped<-1> = pieces
       end
    next wi
@@ -485,7 +531,7 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.m)
+   call $tk_help('hit', mev, ssn.x + ssn.w - 5, ssn.y + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.sessions.page', hm, 0, 0)
       if hm # '' then msg = hm
@@ -494,15 +540,15 @@ on.mouse:
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
-      if mx >= 3 and mx <= 136 then
+      if mx >= ssn.x + 2 and mx <= ssn.x + ssn.w - 3 then
          begin case
-            case my >= 3 and my <= 2 + VS
+            case my >= ssn.y + 2 and my <= ssn.y + 1 + VS
                pane = 1
-               if ta1 + my - 2 <= ns then cs = ta1 + my - 2
+               if ta1 + my - ssn.y - 1 <= ns then cs = ta1 + my - ssn.y - 1
                gosub redraw
-            case my >= 18 and my <= 17 + VL
+            case my >= lck.y + 2 and my <= lck.y + 1 + VL
                pane = 2
-               if ta2 + my - 17 <= nl then cl = ta2 + my - 17
+               if ta2 + my - lck.y - 1 <= nl then cl = ta2 + my - lck.y - 1
                gosub redraw
          end case
       end

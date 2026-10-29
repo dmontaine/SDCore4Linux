@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.88: SD_USER_HOME (112), the SDEXT test of the effective user's home and a directory below it (the recovery store).
+ * 28 Oct 26 dm  S.88 phase 2: K_SHOW_SAFE (151), the kernel's one rule for showing another session's text, for BASIC (PSTAT, PROFILER, HSM).
  * 27 Oct 26 dm  S.87 batch 16: K_KEEP_SELECT (107) is gone; the number stays reserved.
  * 19 Oct 26 dm  S.67: K_MASTERS (150), the master files (stage 1), and its op "refusal", the reason the last save of a master record was refused (stage 2).
  * 18 Oct 26 dm  S.66: K_SHARED_READ, K_SHARED_WRITE, K_SHARED_REF and K_SHARED_ONCE (128-131), the shared account's gates and lookup test.
@@ -426,6 +428,12 @@
    record in this session was refused, field 2 (empty if it was not).  Number 150, apart from the 121-131 block of the gates, because
    another lane was adding keys at 132 and up (merge safety only).  GPL.BP/INT$KEYS.H carries the same number. */
 #define K_MASTERS            150
+/* 28 Oct 26 dm - S.88 phase 2 (the readers of $IPC).  K_SHOW_SAFE: the argument is any text; the answer is that text with every byte of
+   THE ONE RULE (op_lock.c show_unsafe_byte(): 0-31, 127, 128-159, 248-255) made '?', the same length.  It reads and changes nothing else and
+   any program may ask.  It is how a BASIC program that prints another session's text (PSTAT, PROFILER DISPLAY, HSM USER n, which print the
+   $IPC records S<n>, F<n> and H<n>, and $IPC is writable by every SD user) applies the kernel's rule instead of a copy of it.  Number 151,
+   next to K_MASTERS.  GPL.BP/INT$KEYS.H carries the same number.  Linux only. */
+#define K_SHOW_SAFE          151
 
 /* 23 Oct 26 dm - S.69 step 2 (the in-SD AI helper, op_ai.c).  Linux only; Windows defines nothing here.  Only a $internal program may call them (anything else is answered
    ERR, internal).  The argument of K_AI_START is  system <FM> maxtokens <FM> prompt ; the answers are strings, described at the head of op_ai.c.  K_AI_START writes the
@@ -707,6 +715,11 @@
    Args: path, FILE or DIR.  Answers "1" or "0"; every failure is "0".  Mirrored
    in sdsys/syscom/keys.h. */
 #define SD_FILE_PRIVATE 111  /* op_sdext private-file test, 2 args: path, FILE|DIR */
+/* 28 Oct 26 dm - S.88 (the recovery store in the person's home).  The effective user's home from the password database, and a
+   directory below it, trusted only when every step is a real directory of that user's that group and other cannot write.  One
+   argument: the path relative to the home ('' the home).  Answers the absolute path, or '' on every failure.  Mirrored in
+   sdsys/syscom/keys.h.  112 is free on both ports (the Windows block is 130-139). */
+#define SD_USER_HOME    112  /* op_sdext the user's home (+ a trusted directory below it), 1 arg: relative path */
 /* 18 Oct 26 dm - encryption layer 3.  The process-held key ring of the XE conversion (sd_keyring.c).  A number well clear of the
    neighbours, since the parallel S.6x work takes the next free ones; the Windows port takes the same one when it adopts the ring.
    Args: the operation in lower case, then "set": name, base64 key (answers the key id as 8 hex digits); "clear": name or * for all

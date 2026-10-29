@@ -123,14 +123,22 @@ def checks(raw):
     ck("TB12", "the page waits for a key with no timeout (nothing here changes by itself) and reads again only when it opens, on F5 and after a command",
        "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 3, "read.all x%d" % pg.count("gosub read.all"))
     ck("TB13", "the page has a [?] and F1, ? and a click show tool.backups.page, whose record exists with a title, the account maintenance page of the administrator guide (which has a section on tool.backups) and a body",
-       pg.count("'tool.backups.page'") == 2 and "call $tk_help('mark', 134, 2, 0, 0)" in pg and "call $tk_help('hit', mev, 134, 2, hit.m)" in pg and raw["help"].split("\n")[0].strip() != ""
+       pg.count("'tool.backups.page'") == 2 and "call $tk_help('mark', mk.x, mk.y, 0, 0)" in pg and "call $tk_help('hit', mev, mk.x, mk.y, hit.m)" in pg and raw["help"].split("\n")[0].strip() != ""
        and raw["help"].split("\n")[1].strip() == "01a-account-maintenance" and raw["help"].split("\n")[2].strip() != "" and "## Backups and restores on one screen: `tool.backups`" in raw["doc"], "")
     dl = block(pg, "draw.all")
     dsl = block(pg, "draw.list")
     dd = block(pg, "draw.detail")
-    ck("TB14", "the layout fits the 140 by 43 frame: three boxes (rows 1-6, 7-26, 27-39), the top text 128 wide so the [?] is clear, the header at row 8 and 17 rows at y 9-25, the manifest in 11 rows at y 28-38",
-       "screen box at 1,1 size 138,6" in dl and "screen box at 1,7 size 138,20" in dl and "screen box at 1,27 size 138,13" in dl and "attr 'bold' width 128" in block(pg, "draw.top") and re.search(r"^\s*VA = 17\s*$", pg, re.M) is not None
-       and "at 3,8 attr 'header'" in dsl and "at 3,8 + r attr rat" in dsl and "for r = 1 to 11" in dd and "at 3,27 + r width 134" in dd, "")
+    ld = block(pg, "lay.declare")
+    lg = block(pg, "lay.get")
+    ck("TB14", "the layout is the service's (S.88 L2): three panes declared at the 140 by 43 sizes (rows 1-6, 7-26, 27-39: 138 by 6, 138 by 20 stretching, 138 by 13), the boxes drawn at the panes' rectangles, the top text 6 narrower than the box's text so the [?] is clear, "
+             "the header under the list's border, the rows counted from the pane (VA = list height - 3, 17 at 140 by 43; DV = detail height - 2, 11; the 'more accounts' line on the last of them and counted from them), every text as wide as the box's text (tw = width - 4, 134)",
+       "'top' : @vm : 1 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch'" in ld and "'list' : @vm : 2 : @vm : 1 : @vm : 20 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch'" in ld
+       and "'detail' : @vm : 3 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch'" in ld and "call $tk_layout('declare', ctx, d, lay.err)" in ld
+       and "screen box at top.x,top.y size top.w,top.h" in dl and "screen box at lst.x,lst.y size lst.w,lst.h" in dl and "screen box at det.x,det.y size det.w,det.h" in dl
+       and "VA = lst.h - 3" in lg and "DV = det.h - 2" in lg and "tw = lst.w - 4" in lg and "mk.x = top.x + top.w - 5" in lg and "mk.y = top.y + 1" in lg
+       and "attr 'bold' width tw - 6" in block(pg, "draw.top") and "at tx,lst.y + 1 attr 'header'" in dsl and "at tx,lst.y + 1 + r attr rat width tw" in dsl and "for r = 1 to DV" in dd and "at tx,det.y + r width tw" in dd
+       and "if dcount(lines, @fm) > DV then" in dd and "na - (DV - 3)" in dd and "at tx,det.y + DV width tw" in dd
+       and "call $tk_layout('refresh', ctx, '', lay.chg)\n            gosub lay.get" in pg and re.search(r"\b(134|138|136|17)\b", re.sub(r"(?m)^   d<\d> = .*$", "", pg)) is None, "")
     return rows
 
 
@@ -184,7 +192,10 @@ MUTANTS = [
     ("the page reads on a timer", "TB12", sub("page", "      screen key returning nm\n", "      screen key timeout 3 returning nm\n")),
     ("the help key names a record that does not exist", "TB13", sub("page", "call $tk_help('box', 'tool.backups.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'", "call $tk_help('box', 'tool.backups.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'")),
     ("the help record names no page", "TB13", sub("help", "01a-account-maintenance", "")),
-    ("the archives box overruns the manifest", "TB14", sub("page", "screen box at 1,7 size 138,20 title 'Archives'", "screen box at 1,7 size 138,21 title 'Archives'")),
+    ("the archives box overruns the manifest", "TB14", sub("page", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20 :", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 21 :")),
+    ("the page draws a box at a literal place again", "TB14", sub("page", "screen box at lst.x,lst.y size lst.w,lst.h title 'Archives'", "screen box at 1,7 size 138,20 title 'Archives'")),
+    ("the 'more accounts' line counts from a literal again", "TB14", sub("page", "na - (DV - 3)", "na - 8")),
+    ("the resize no longer asks the layout again", "TB14", sub("page", "            call $tk_layout('refresh', ctx, '', lay.chg)\n", "")),
 ]
 
 

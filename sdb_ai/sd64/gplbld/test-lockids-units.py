@@ -35,6 +35,8 @@ OTHER WRITERS OF ANOTHER SESSION'S DATA, looked at 28 Oct 26 and NOT changed her
 (object.c hsm_dump(), record H<n>) and the profiler table (profiler.c prof_dump(), record F<n>, whose qualifiers already take
 0-31 and 248-255 but not 127 and 128-159, and whose program names are raw); and $IPC itself is sdsys:sdusers 775, so any SD
 user can write an S<n> record directly - pstat would have to escape what it prints for the escaping to be complete.
+SINCE 28 Oct 26 (later the same day) all of that is done and held by test-ipcsafe-units.py: hsm_dump() and prof_dump() write by
+the same rule, and pstat, profiler and hsm print every text of the record through kernel(K$SHOW.SAFE, ...) (op_kernel.c).
 """
 
 import os

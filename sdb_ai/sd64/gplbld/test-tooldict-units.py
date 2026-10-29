@@ -98,8 +98,8 @@ def checks(raw):
        0 <= op < pg.find("open 'VOC'") and op < pg.find("kernel(K$") and op < pg.find("open fn2 to fv") and "'admin'" not in pg and "K$ADMINISTRATOR" not in pg
        and "if err # '' then\n      display err\n      stop" in pg, op)
     hv = block(pg, "hand.over")
-    ck("TD3", "the commands it can run are two lists declared once at the top: five verbs run ONLY through $tk_run (allow), and the two it hands the terminal to (show.allow: SED and LIST.INDEX), the only thing the one execute statement runs, inside hand.over and after the list was tested",
-       re.findall(r"(?<![.\w])allow = '([^']*)'", pg) == ["delete compile.dict create.index build.index delete.index"] and re.findall(r"\bshow\.allow = '([^']*)'", pg) == ["sed list.index"]
+    ck("TD3", "the commands it can run are two lists declared once at the top: five verbs run ONLY through $tk_run (allow), and the two it hands the terminal to (show.allow: the IDE and LIST.INDEX), the only thing the one execute statement runs, inside hand.over and after the list was tested",
+       re.findall(r"(?<![.\w])allow = '([^']*)'", pg) == ["delete compile.dict create.index build.index delete.index"] and re.findall(r"\bshow\.allow = '([^']*)'", pg) == ["ide list.index"]
        and len(re.findall(r"^\s*execute\b", code, re.M)) == 1 and len(re.findall(r"^\s*execute\b", hv, re.M)) == 1
        and 0 <= hv.find("if index(' ' : show.allow : ' ', ' ' : field(sent, ' ', 1) : ' ', 1) = 0 then") < hv.find("execute sent") and "execute sent capturing" not in pg
        and pg.count("call $tk_run(allow, sent, out, stat, rerr)") == 1 and "$tk_runx" not in pg, repr(re.findall(r"\ballow = '([^']*)'", pg)))
@@ -130,8 +130,8 @@ def checks(raw):
        "if index(' A S I ', ' ' : ma<1, 1> : ' ', 1) = 0 then" in co and "sent = 'compile.dict ' : fn : ' ' : iid" in co and co.count("gosub check.word") == 2
        and inorder(co, "if index(' A S I '","gosub check.word", "sent = ", "call $tk_confirm(sent, lines, '', res, cmsg)", "if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent"), "")
     ed = block(pg, "do.edit")
-    ck("TD11", "EDIT hands the terminal to SED on the item (sed dict FILE ITEM) with names that passed the name check; SED asks no box of its own and makes the kernel's dictionary check when it saves, so there is no write in the page for it",
-       "sent = 'sed dict ' : fn : ' ' : iid" in ed and ed.count("gosub check.word") == 2 and "gosub hand.over" in ed and ed.find("gosub check.word") < ed.find("sent = ") < ed.find("gosub hand.over"), "")
+    ck("TD11", "EDIT hands the terminal to the IDE on the item (ide dict FILE ITEM; S.88 stage C, it was SED) with names that passed the name check; the IDE asks no box of its own and makes the kernel's dictionary check when it saves, so there is no write in the page for it",
+       "sent = 'ide dict ' : fn : ' ' : iid" in ed and ed.count("gosub check.word") == 2 and "gosub hand.over" in ed and ed.find("gosub check.word") < ed.find("sent = ") < ed.find("gosub hand.over"), "")
     ck("TD12", "a report or a screen is the verb's own, which the page hands over: the base is closed BEFORE the verb runs, the verb is followed by the Press Enter message and a read of the answer, the base is opened again AFTER, the pane is read again and the cursor goes back to the item or index it was on",
        inorder(hv, "call $tk_close(ctx)", "execute sent", "crt sysmsg(11865)", "input junk", "call $tk_open('tool.dict', '', ctx, err)", "gosub reread", "if iids<ishown<q>> = keep then ci = q", "if upcase(xnames<q>) = upcase(keep) then cx = q", "gosub draw.all")
        and "gen += 1" in hv and "ctx<TK.C.GEN> = gen" in hv, "")
@@ -161,9 +161,12 @@ def checks(raw):
        and len(re.findall(r"kernel\(", code)) == len(re.findall(r"kernel\(K\$(DICT\.EDIT, -1|EDIT\.OK, dpath|EDIT\.KIND, dpath)\)", code)), "")
     ck("TD18", "a letter is the same key in either case, and every key the page acts on has a place in the key table (the function-key row shows exactly the keys it uses)",
        "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "enter", "n", "e", "d", "c", "t", "i", "f", "b", "l", "f11", "f5", "ctrl-q")), "")
-    ck("TD19", "the layout fits the 140 by 43 frame: two boxes (rows 1-22 and 23-39), 16 rows of list at y 3-18, the summary and the hint at 19 and 20, 15 rows of detail at y 24-38; nothing is drawn on a border",
-       "screen box at 1,1 size 138,22 title ttl" in pg and "screen box at 1,23 size 138,17 title btl" in pg and "VIS = 16" in pg and "screen text fmt(s, '134L') at 3,19 attr 'bold' width 134" in pg
-       and "for r = 1 to 15" in block(pg, "draw.detail") and "at 3,23 + r width 134" in block(pg, "draw.detail"), "")
+    ck("TD19", "the layout fits the 140 by 43 frame, through the layout service (S.88 L2): the two panes are declared in the reference sizes (the list 138 by 22, the detail 138 by 17), so the boxes are rows 1-22 and 23-39; "
+               "the list has lh - 6 rows (16 at y 3-18), the summary and the hint stand at the foot of the list (lh - 4 and lh - 3: rows 19 and 20), the detail has dh - 2 rows (15 at y 24-38); nothing is drawn on a border",
+       "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :" in pg and "d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 :" in pg
+       and "screen box at lx,ly size lw,lh title ttl" in pg and "screen box at dx,dy size dw,dh title btl" in pg and "VIS = lh - 6" in pg and "VIS = 16 " in pg
+       and "screen text fmt(s, tw : 'L') at lx + 2,ly + lh - 4 attr 'bold' width tw" in pg and "at lx + 2,ly + lh - 3 width tw" in pg
+       and "for r = 1 to dh - 2" in block(pg, "draw.detail") and "at dx + 2,dy + r width tw" in block(pg, "draw.detail"), "")
     ck("TD20", "the page waits on the keyboard only through the base: the key read is screen key, the end of the input ends it, the cursor lock ends it, and the base is closed on the way out",
        "screen key returning nm" in pg and "if status() = ER$EOF then exit" in pg and "case nm = 'guardquit'\n            exit" in pg and pg.find("call $tk_close(ctx)") > pg.find("repeat"), "")
     ck("TD21", "the help record names a page of the documentation, and the page asks for it by that name (the key is the record's name), from the key, the mark and the mouse",
@@ -186,7 +189,7 @@ def checks(raw):
     ck("TD25", "TRY shows the value of a D, A, S or I item only (the other types hold no value), and the value as a query prints it - conversion, then format - only for a format the page can read, each inside a TRY",
        "if index(' D A S I ', ' ' : ty : ' ', 1) = 0 then" in dt and "fmt.ok = (fs # '' and fw # '' and fj # '' and index('LRCU', fj, 1) > 0)" in dt and inorder(dt, "if cv # '' then shown.v = oconv(one, cv)", "if fmt.ok then shown.v = fmt(shown.v, fs)", "catch sys"), "")
     ck("TD26", "a name that is not the page's to give is never given: no id, file name or index name reaches a command except through the routines above, and the commands are built in one place each (sent = ... appears once per verb)",
-       all(pg.count(s) == 1 for s in ("sent = 'sed dict '", "sent = 'delete dict '", "sent = 'compile.dict '", "sent = 'create.index '", "sent = 'delete.index '", "sent = 'list.index '"))
+       all(pg.count(s) == 1 for s in ("sent = 'ide dict '", "sent = 'delete dict '", "sent = 'compile.dict '", "sent = 'create.index '", "sent = 'delete.index '", "sent = 'list.index '"))
        and pg.count("sent = 'build.index '") == 2, "")      # B, and the build that follows a good create.index in N
     ck("TD27", "the cursor of each pane goes back to what it was on after the data is read again (the file, the item, the index are found by name), and the cursor is kept inside the list",
        "sel.f = fnames<fshown<cf>>" in block(pg, "read.files") and "sel.i = iids<ishown<ci>>" in block(pg, "read.items") and "sel.x = xnames<cx>" in block(pg, "read.indices")
@@ -226,7 +229,7 @@ MUTANTS = [
     ("an ordinary account has no verb", "TD1", setkey("newvoc", "")),
     ("SDSYS's verb runs another program", "TD1", sub("voc", "$tool_dict", "$tool_keys")),
     ("the page may run another command", "TD3", sub("page", "allow = 'delete compile.dict create.index build.index delete.index'", "allow = 'delete compile.dict create.index build.index delete.index sh'")),
-    ("the page may hand the terminal to another command", "TD3", sub("page", "show.allow = 'sed list.index'", "show.allow = 'sed list.index sh'")),
+    ("the page may hand the terminal to another command", "TD3", sub("page", "show.allow = 'ide list.index'", "show.allow = 'ide list.index sh'")),
     ("the page hands the terminal over without testing the list", "TD3", sub("page", "   if index(' ' : show.allow : ' ', ' ' : field(sent, ' ', 1) : ' ', 1) = 0 then\n      msg = 'the page does not run ' : field(sent, ' ', 1)\n      return\n   end\n", "")),
     ("the page runs a second execute statement", "TD4", sub("page", "   ttl = 'Files of ' : @who\n", "   ttl = 'Files of ' : @who\n   execute 'sh'\n")),
     ("the page runs a command itself", "TD3", sub("page", "   call $tk_run(allow, sent, out, stat, rerr)\n   if rerr # '' then\n      msg = rerr\n      return\n   end\n   gosub join.out", "   execute sent capturing out\n   gosub join.out")),
@@ -252,12 +255,12 @@ MUTANTS = [
     ("COMPILE is offered for every type", "TD10", sub("page", "   if index(' A S I ', ' ' : ma<1, 1> : ' ', 1) = 0 then\n      msg = 'only A, S and I items are compiled; ' : iid : ' is of type ' : ma<1, 1>\n      return\n   end\n", "")),
     ("COMPILE runs whatever the box answered", "TD10", sub("page", "   call $tk_confirm(sent, lines, '', res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent\n   gosub read.items\n   gosub draw.all\n   return\n\n* In: fn.  Out: dpath", "   call $tk_confirm(sent, lines, '', res, cmsg)\n   gosub run.sent\n   gosub read.items\n   gosub draw.all\n   return\n\n* In: fn.  Out: dpath")),
     ("COMPILE is the cd verb", "TD10", sub("page", "sent = 'compile.dict ' : fn : ' ' : iid", "sent = 'cd data ' : fn : ' ' : iid")),
-    ("EDIT opens the item without checking the name", "TD11", sub("page", "do.edit:\n   if nis < 1 then return\n   iid = iids<ishown<ci>>\n   cw = iid\n   gosub check.word\n   if not(okname) then\n      msg = 'this id is not given to a command by the page (a character it does not pass, or an SD keyword): type  sed dict ' : fn : ' ' : iid : '  at the prompt'\n      return\n   end\n",
+    ("EDIT opens the item without checking the name", "TD11", sub("page", "do.edit:\n   if nis < 1 then return\n   iid = iids<ishown<ci>>\n   cw = iid\n   gosub check.word\n   if not(okname) then\n      msg = 'this id is not given to a command by the page (a character it does not pass, or an SD keyword): type  ide dict ' : fn : ' ' : iid : '  at the prompt'\n      return\n   end\n",
                                                            "do.edit:\n   if nis < 1 then return\n   iid = iids<ishown<ci>>\n")),
-    ("EDIT opens the record of a file, not the dictionary", "TD11", sub("page", "sent = 'sed dict ' : fn : ' ' : iid", "sent = 'sed ' : fn : ' ' : iid")),
+    ("EDIT opens the record of a file, not the dictionary", "TD11", sub("page", "sent = 'ide dict ' : fn : ' ' : iid", "sent = 'ide ' : fn : ' ' : iid")),
     ("a screen is run with the base still open", "TD12", sub("page", "   call $tk_close(ctx)\n   execute sent\n", "   execute sent\n   call $tk_close(ctx)\n")),
     ("a report does not wait for Enter", "TD12", sub("page", "   input junk\n", "")),
-    ("the page is not opened again after a report", "TD12", sub("page", "   call $tk_open('tool.dict', '', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n   gen += 1\n   ctx<TK.C.GEN> = gen\n", "   gen += 1\n")),
+    ("the page is not opened again after a report", "TD12", sub("page", "   call $tk_open('tool.dict', '', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n   gosub declare.layout", "   gosub declare.layout")),
     ("the cursor does not go back to the item after a screen", "TD12", sub("page", "         if iids<ishown<q>> = keep then ci = q\n", "         if iids<ishown<q>> = keep then ci = 1\n")),
     ("MAKE.INDEX takes the item from the filter", "TD13", sub("page", "sent = 'create.index ' : fn : ' ' : iid", "sent = 'create.index ' : fn : ' ' : filti")),
     ("an item that is no data is offered for an index", "TD13", sub("page", "         if okname then\n            cand<-1> = iids<q>", "         if 1 then\n            cand<-1> = iids<q>")),
@@ -278,8 +281,9 @@ MUTANTS = [
     ("the page audits", "TD17", sub("page", "   ttl = 'Files of ' : @who\n", "   ttl = 'Files of ' : @who\n   void kernel(K$AUDIT, 'tool dict')\n")),
     ("a key is missing from the key table", "TD18", sub("page", "   call $tk_keys('add', keys, 'b', 'build', 'build', 'Indices', 1)\n", "")),
     ("a capital N is not a key", "TD18", sub("page", "   if len(nm) = 1 then nm = downcase(nm)                          ;* N and n are one key\n", "")),
-    ("the detail overruns the border", "TD19", sub("page", "for r = 1 to 15", "for r = 1 to 16")),
-    ("the first box overlaps the second", "TD19", sub("page", "screen box at 1,1 size 138,22 title ttl", "screen box at 1,1 size 138,23 title ttl")),
+    ("the detail overruns the border", "TD19", sub("page", "for r = 1 to dh - 2", "for r = 1 to dh - 1")),
+    ("the first box overlaps the second", "TD19", sub("page", "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 :", "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 23 :")),
+    ("the list has a row too many", "TD19", sub("page", "VIS = lh - 6 ", "VIS = lh - 5 ")),
     ("the page waits with no key reader of the library", "TD20", sub("page", "screen key returning nm", "input nm,1")),
     ("the end of the input is not seen", "TD20", sub("page", "            if status() = ER$EOF then exit\n", "")),
     ("the help key names a record that does not exist", "TD21", sub("help", "29c-sd-tcl-the-development-tools", "")),

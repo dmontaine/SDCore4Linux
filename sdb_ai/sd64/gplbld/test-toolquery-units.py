@@ -205,10 +205,16 @@ def checks(raw):
     acts = ["nm = 'f1'", "nm = 'tab'", "nm = 'enter'", "nm = 'space'", "nm = 'b'", "nm = 't'", "nm = 'x'", "nm = 'j'", "nm = 'd'", "nm = '/'", "nm = 'r'", "nm = 'e'", "nm = 's'", "nm = 'l'", "nm = 'f5'", "nm = 'up'", "nm = 'esc'", "nm = 'ctrl-q'"]
     ck("TQ18", "a letter is the same key in either case, a space is the key `space`, and every key the page acts on has a place in the key table (the function-key row shows exactly the keys it uses)",
        "if len(nm) = 1 then nm = downcase(nm)" in pg and "if nm = ' ' then nm = 'space'" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in need_keys) and all(a in pg for a in acts), "")
-    ck("TQ19", "the layout fits the 140 by 43 frame: five boxes and the sentence (rows 1-19, 20-30, 31-39), 16 rows of files at y 2-17 and of columns at y 3-18, six condition rows at y 3-8, four sort rows at y 22-25, seven option rows at y 21-27, five sentence rows at y 32-36; [?] at 134,2",
-       all(s in pg for s in ("screen box at 1,1 size 28,19", "screen box at 29,1 size 44,19", "screen box at 73,1 size 66,19", "screen box at 1,20 size 46,11", "screen box at 47,20 size 92,11", "screen box at 1,31 size 138,9",
-                             "VISF = 16 ; VISC = 16 ; RVIS = 33 ; SVIS = 32", "hx = 134 ; hy = 2", "at 2,1 + dr attr ra width 26", "at 30,2 + dr attr ra width 42", "at 74,2 + dr attr ra width 62", "at 2,21 + dr attr ra width 44",
-                             "at 48,20 + dr attr ra width 90", "for dr = 1 to 5", "at 3,31 + dr attr"))
+    ck("TQ19", "the layout fits the 140 by 43 frame (S.88 L2: the boxes are the layout service's panes, declared for the build view (28, 44 and 66 by 19, 46 and 92 by 11, 138 by 9) and for the whole-body views (138 by 39) "
+               "and drawn from their rectangles; the numbers at 140 by 43 are test-l2-files-units.py's): five boxes and the sentence (rows 1-19, 20-30, 31-39), 16 rows of files at the File box's y + 1 and of columns at the Columns box's "
+               "y + 2, six condition rows, four sort rows, seven option rows, five sentence rows; the [?] at the Conditions box's right end, 5 columns in",
+       all(s in pg for s in ("dcl<1> = 'files' : @vm : 1 : @vm : 1 : @vm : 19 : @vm : 28 :", "dcl<2> = 'columns' : @vm : 1 : @vm : 2 : @vm : 19 : @vm : 44 :", "dcl<3> = 'conds' : @vm : 1 : @vm : 3 : @vm : 19 : @vm : 66 :",
+                             "dcl<4> = 'sorts' : @vm : 2 : @vm : 1 : @vm : 11 : @vm : 46 :", "dcl<5> = 'options' : @vm : 2 : @vm : 2 : @vm : 11 : @vm : 92 :", "dcl<6> = 'sentence' : @vm : 3 : @vm : 1 : @vm : 9 : @vm : 138 :",
+                             "dcl<1> = 'whole' : @vm : 1 : @vm : 1 : @vm : 39 : @vm : 138 :",
+                             "screen box at fb.x,fb.y size fb.w,fb.h", "screen box at cb.x,cb.y size cb.w,cb.h", "screen box at nb.x,nb.y size nb.w,nb.h", "screen box at sb.x,sb.y size sb.w,sb.h",
+                             "screen box at ob.x,ob.y size ob.w,ob.h", "screen box at tb.x,tb.y size tb.w,tb.h", "VISF = fb.h - 3", "VISC = cb.h - 3", "RVIS = wb.h - 6", "SVIS = wb.h - 7",
+                             "hx = nb.x + nb.w - 5 ; hy = nb.y + 1", "at fb.x + 1,fb.y + dr attr ra width fb.w - 2", "at cb.x + 1,cb.y + 1 + dr attr ra width cb.w - 2", "at nb.x + 1,nb.y + 1 + dr attr ra width nb.w - 4",
+                             "at sb.x + 1,sb.y + 1 + dr attr ra width sb.w - 2", "at ob.x + 1,ob.y + dr attr ra width ob.w - 2", "for dr = 1 to 5", "at tb.x + 2,tb.y + dr attr"))
        and "chh = ctx<TK.C.H> - 4" in pg, "")
     ck("TQ20", "the page waits on the keyboard only through the base: the key read is screen key, the end of the input and the cursor lock end it, and the base is closed on the way out",
        "screen key returning nm" in pg and "if status() = ER$EOF then exit" in pg and "case nm = 'guardquit'\n            exit" in pg and pg.find("call $tk_close(ctx)") > pg.find("repeat") and "input " not in code.replace("input.", ""), "")
@@ -276,7 +282,7 @@ MUTANTS = [
     ("the query runs without the check", "TQ5", sub("page", "   chk.s = sent\n   gosub check.sentence\n   if chk.err # '' then\n      msg = 'not run: ' : chk.err\n      return\n   end\n   run.s = chk.out", "   run.s = sent")),
     ("the output is shown as it came", "TQ5", sub("page", "      gosub strip.esc\n      rl<ri> = convert(ctl, dots, ln)[1, 400]", "      crt out<ri>\n      rl<ri> = ln")),
     ("a waiting select list is not noticed", "TQ5", sub("page", "   sel.was = selectinfo(0, SL$ACTIVE)\n", "   sel.was = 0\n")),
-    ("a third command is run", "TQ4", sub("page", "draw.all:\n   cw2 = ctx<TK.C.W>", "draw.all:\n   execute 'sh'\n   cw2 = ctx<TK.C.W>")),
+    ("a third command is run", "TQ4", sub("page", "draw.all:\n   gosub sync.layout\n", "draw.all:\n   execute 'sh'\n   gosub sync.layout\n")),
     ("the file the page makes is another", "TQ4", sub("page", "qsent = 'create.file &queries& dynamic'", "qsent = 'create.file &queries& dynamic sh'")),
     ("a command goes through $tk_run", "TQ4", sub("page", "      execute qsent trapping aborts capturing mk\n", "      call $tk_run('create.file', qsent, mk, mst, mer)\n")),
     ("the boxes' sentence is kept without a check", "TQ8", sub("page", "   gosub check.sentence\n   if chk.err # '' then\n      senterr = 'The boxes made a sentence the page will not run: ' : chk.err\n      return\n   end\n   sent = chk.out", "   sent = chk.s")),
@@ -333,7 +339,8 @@ MUTANTS = [
     ("the page asks for a gate", "TQ2", sub("page", "   prompt ''\n", "   prompt ''\n   if kernel(K$SH, -1) then null\n")),
     ("a key is missing from the key table", "TQ18", sub("page", "   call $tk_keys('add', keys, 'f5', 'read', 'reread', panes, 1)\n", "")),
     ("a capital R is not a key", "TQ18", sub("page", "   if len(nm) = 1 then nm = downcase(nm)", "   if len(nm) = 0 then nm = downcase(nm)")),
-    ("the options box overruns its border", "TQ19", sub("page", "screen box at 47,20 size 92,11", "screen box at 47,20 size 92,12")),
+    ("the options box overruns its border", "TQ19", sub("page", "dcl<5> = 'options' : @vm : 2 : @vm : 2 : @vm : 11 : @vm : 92 :", "dcl<5> = 'options' : @vm : 2 : @vm : 2 : @vm : 12 : @vm : 92 :")),
+    ("the file rows overrun their border", "TQ19", sub("page", "VISF = fb.h - 3", "VISF = fb.h - 2")),
     ("the page waits with no key reader of the library", "TQ20", sub("page", "screen key returning nm", "input nm, 1")),
     ("the end of the input is not seen", "TQ20", sub("page", "            if status() = ER$EOF then exit\n", "")),
     ("the help key names a record that does not exist", "TQ21", sub("help", "29c-sd-tcl-the-development-tools", "")),

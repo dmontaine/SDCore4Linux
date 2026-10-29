@@ -109,9 +109,9 @@ def checks(raw):
         heads[gid] = m.group(1) if m else gid[:5]
     n = len(info_rows)
     ck("TG15", "the layout fits: the first cell is at column 3 + 20 + 6, the cells are 6 wide, every gate of the table has a heading of at most 5 characters and the headings differ, and the cells fit the 134 columns",
-       "X0 = 29" in pg and "CW = 6" in pg and "fmt('Account', '20L') : fmt('Kind', '6L')" in pg and 26 + 6 * n <= 134 and len(set(heads.values())) == len(heads) and all(len(h) <= 5 for h in heads.values()) and len(heads) == n, repr(heads))
+       "X0 = mat.x + 28" in pg and "CW = 6" in pg and "fmt('Account', '20L') : fmt('Kind', '6L')" in pg and 26 + 6 * n <= 134 and len(set(heads.values())) == len(heads) and all(len(h) <= 5 for h in heads.values()) and len(heads) == n, repr(heads))
     ck("TG16", "the filter has three modes and names them; the sessions are read with !listu and shown only for the account under the cursor", "flt = mod(flt + 1, 3)" in pg and pg.count("accounts of persons") == 1 and "call !listu(udata)" in pg and "if v<1, 9> = anm<av> then" in pg)
-    ck("TG17", "the matrix has a [?] and F1, ? and a click show tool.gates.matrix, whose record exists", "call $tk_help('box', 'tool.gates.matrix', hm, 0, 0)" in pg and pg.count("tool.gates.matrix") == 2 and "call $tk_help('mark', 134, 2, 0, 0)" in pg and raw["help"].split("\n")[0].strip() != "")
+    ck("TG17", "the matrix has a [?] and F1, ? and a click show tool.gates.matrix, whose record exists", "call $tk_help('box', 'tool.gates.matrix', hm, 0, 0)" in pg and pg.count("tool.gates.matrix") == 2 and "call $tk_help('mark', mat.x + mat.w - 5, mat.y + 1, 0, 0)" in pg and raw["help"].split("\n")[0].strip() != "")
     return rows
 
 
@@ -154,9 +154,9 @@ MUTANTS = [
     ("the cell shows the queue as the state", "TG14", sub("page", "ct = (if d = 1 then 'ON' else 'off') : (if aq<av, k> # '' then '*' else '')", "ct = (if d = 1 then 'ON' else 'off')")),
     ("two gates have the same heading", "TG15", sub("page", "         hd = 'sh-wr'", "         hd = 'sh-rd'")),
     ("a heading is too long", "TG15", sub("page", "         hd = 'f-adm'", "         hd = 'files-admin'")),
-    ("the cells start in another column", "TG15", sub("page", "X0 = 29", "X0 = 30")),
+    ("the cells start in another column", "TG15", sub("page", "X0 = mat.x + 28", "X0 = mat.x + 29")),
     ("the filter has a fourth mode", "TG16", sub("page", "flt = mod(flt + 1, 3)", "flt = mod(flt + 1, 4)")),
-    ("the matrix has no [?]", "TG17", sub("page", "   call $tk_help('mark', 134, 2, 0, 0)\n", "")),
+    ("the matrix has no [?]", "TG17", sub("page", "   call $tk_help('mark', mat.x + mat.w - 5, mat.y + 1, 0, 0)\n", "")),
 ]
 
 

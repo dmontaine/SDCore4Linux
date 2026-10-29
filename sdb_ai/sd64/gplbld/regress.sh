@@ -164,6 +164,20 @@
 #               change and NOT RUN when added (the owner's rule of 28 Oct).
 # 28 Oct 26 dm  tk-layout added (S.88 L1: the toolkit's layout service $tk_layout, the resize a dialogue read, the cursor lock decided by the window, the frame
 #               cache's epoch; fixture programs of its own, the log and the bytes written as the evidence).  Written with the change and NOT RUN when added.
+# 28 Oct 26 dm  l2-home added (S.88 L2: the home screen on the layout service - the page at 140 by 43 against the page before L2 cell for cell, the tile grid at 180 by 55
+#               and 200 by 60, grown and shrunk, keys and a click on the new rectangles).  Written with the change and NOT RUN when added.
+# 28 Oct 26 dm  l2-admin added (S.88 L2: the gate matrix, the sessions and locks, the master files, the audit trail and the accounts pages on the layout service - each at 140 by 43 against
+#               the boxes and texts the page had before L2, grown to 180 by 55 while it runs and started at 200 by 60, the boxes read off the screen against the free check's model of the
+#               declaration).  Written with the change and NOT RUN when added.
+# 28 Oct 26 dm  l2-cfg added (S.88 L2: the configuration, remote access, backups, AI choice and menu management pages on the layout service - each at 140 by 43 against the boxes and
+#               texts the page had before L2, started at 180 by 55 and resized 140x43 -> 180x55 -> 150x45 -> 140x43 judged on the bytes written after each resize, the wide text,
+#               the keys and a click on the new rectangles).  Written with the change and NOT RUN when added.
+# 28 Oct 26 dm  l2-files added (S.88 L2: the files, programs, tests, bulk update and query pages on the layout service - each at 140 by 43 against the page before L2 cell for cell,
+#               started at 180 by 55 and 200 by 60, resized 140x43 -> 180x55 -> 140x43 judged on the bytes written after each resize, a click on a row the list did not have).
+#               Written with the change and NOT RUN when added.
+# 28 Oct 26 dm  l2-misc added (S.88 L2: the Bypass programs, the holder's gate, keys, VOC and dictionary pages on the layout service - each at 140 by 43 against the boxes and texts the page
+#               had before L2, grown to 180 by 55 while it runs and started at 200 by 60, the boxes read off the screen against the free check's model of the declaration).  Written with
+#               the change and NOT RUN when added.
 # END-HISTORY
 
 set -u
@@ -172,7 +186,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TREE=$(dirname "$HERE")
 
 # The suites, the longest first (measured 14 Oct 26), so that a queue shared by several workers ends together.
-ALL_SUITES="screen ide ced sed-menu sed-edit sed-small ide-small ide-sed winsize syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug partial classas bpv dbgcoll akcase akdeep akorder stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17 mode-q16 func-q1 sys-q18 qproc-q20 list-q2 verbs-q8 inhibit-q8 stmt-q3 q4 qmclient apispin edseqkey sdfixseq fcontrol q5 restricted dbgequ xml csvq csvb jsonx xmlx prof qdefaults qproc-when vert-fmt vlist-a3 incsearch lockown sdaccts fixes-b12 dbgcase sortwide sortord splitfull nameindex terminfo-ext resetall classinit sync getdev itypemode edext ospath crlf dirtrig sysexc ltype editgates net netfile qm4def shared viewport crypt tools req29 eofkeys idedraw guide pack-examples filesgrp witness-programs masters fileadmin netindex tk-base tk-keys home menus docs aigate ai-verb tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test ai-line ai-ide ai-apps gcatmode shmmode segtrust auditjournal auditwriter ipc tk-faults home2 recarr vocremoved realkeys tk-resize ide-fresh termsafe autologout lockids memoundo escdata recovery ide-kinds tk-layout"
+ALL_SUITES="screen ide ced sed-menu sed-edit sed-small ide-small ide-sed winsize syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug partial classas bpv dbgcoll akcase akdeep akorder stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17 mode-q16 func-q1 sys-q18 qproc-q20 list-q2 verbs-q8 inhibit-q8 stmt-q3 q4 qmclient apispin edseqkey sdfixseq fcontrol q5 restricted dbgequ xml csvq csvb jsonx xmlx prof qdefaults qproc-when vert-fmt vlist-a3 incsearch lockown sdaccts fixes-b12 dbgcase sortwide sortord splitfull nameindex terminfo-ext resetall classinit sync getdev itypemode edext ospath crlf dirtrig sysexc ltype editgates net netfile qm4def shared viewport crypt tools req29 eofkeys idedraw guide pack-examples filesgrp witness-programs masters fileadmin netindex tk-base tk-keys home menus docs aigate ai-verb tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test ai-line ai-ide ai-apps gcatmode shmmode segtrust auditjournal auditwriter ipc tk-faults home2 recarr vocremoved realkeys tk-resize ide-fresh termsafe autologout lockids memoundo escdata recovery ide-kinds tk-layout l2-files l2-home l2-cfg l2-admin l2-misc"
 
 ONLY=""
 SKIP=""

@@ -9,6 +9,9 @@
 #
 # START-HISTORY:
 # 22 Oct 26 dm  New (S.75, TK-0.1).  Rows written BEFORE the programs; run red on a tree without them.
+# 28 Oct 26 dm  S.85.  This module is the shared harness of every page suite (sandbox-home.py loads it), so it is the one place that keeps the HOST'S sudo out of a sandbox session: at import it
+#               makes a private directory holding a `sudo` that fails at once (sudo-stub.sh), puts it first in PATH of this process (every session, daemon and helper the suites start copies
+#               os.environ), and sudo_null_case() is the row every setup runs to prove it.  WRITTEN, NOT RUN when added (the owner's rule of 28 Oct).
 # END-HISTORY
 #
 # WHAT IS HELD (plan .claude/plan-fullscreen-toolkit.md 2.1, 2.2, 2.12): at 140 by 43 the foot of the screen is, top to bottom, the status line (row 40, reverse video, the pane in
@@ -20,11 +23,14 @@
 # THE INSTRUMENT.  Each row reads the screen the emulator holds (termscreen.py) after the keys were typed; a row passes on the words it prints when it ran to the end, and the suite stops
 # (exit 2) if the app never drew its frame.  The border is judged with LC_ALL=C, where the library's line character is the plain "-".  NOT HELD HERE: the refusal of a non-administrator
 # for audience `admin` (the sandbox's session is the administrator; the check is a text check in test-tkbase-units.py and a later witness), a UTF-8 border, the mouse.
+import atexit
 import os
 import re
 import resource
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -68,6 +74,90 @@ def skip(name, why):
 def bail(msg):
     say("sandbox-tk-base: CANNOT RUN - " + msg)
     sys.exit(2)
+
+
+# S.85 (28 Oct 26).  THE HOST'S sudo MUST NOT BE REACHABLE FROM A SANDBOX SESSION.  gpl.bp/remoteapi, remotessh, settings_os (through accos.h's ACCOS$ELEVATE), acc_os_bakdir and acc_archive run
+# `sudo /usr/local/sbin/sd-elevate ...` by the helper's absolute path but `sudo` by PATH, so on a host that has a real SD install a page reached the REAL helper and sudo-rs asked the sandbox user
+# for a password: tool-remote and docs could not draw, tool-config and tool-backups failed 4 and 6 rows (26 Oct).  The stub is `sudo-stub.sh` (it prints "command not found" and exits 1, as the
+# 26 Oct runs did), copied as `sudo` into a private directory made per run and put first in PATH ONCE, here, at import: every Popen / subprocess / PtySession of the suites builds its
+# environment from os.environ, and so does the `sd -start` the sandbox tool makes.  sudo_null_case() is the setup row that proves it and stops the suite when it is not so.
+SUDO_STUB_SRC = os.path.join(HERE, "sudo-stub.sh")
+SUDO_DIR_VAR = "SDBOX_SUDO_STUB_DIR"
+SUDO_DIR = None
+SUDO_OWNER = False
+
+
+def _stub_there(d):
+    """True when directory d holds an executable `sudo` that is byte for byte the stub."""
+    p = os.path.join(d, "sudo")
+    try:
+        with open(p, "rb") as a, open(SUDO_STUB_SRC, "rb") as b:
+            return os.access(p, os.X_OK) and a.read() == b.read()
+    except OSError:
+        return False
+
+
+def _remove_sudo_stub():
+    if SUDO_OWNER and SUDO_DIR:
+        for op, arg in ((os.remove, os.path.join(SUDO_DIR, "sudo")), (os.rmdir, SUDO_DIR)):
+            try:
+                op(arg)
+            except OSError:
+                pass
+
+
+def install_sudo_stub():
+    """Make the private directory (or keep the one an enclosing process made) and put it first in PATH.  Idempotent."""
+    global SUDO_DIR, SUDO_OWNER
+    if not os.path.isfile(SUDO_STUB_SRC):
+        bail("%s is missing, so the host's sudo cannot be kept out of the sandbox sessions" % SUDO_STUB_SRC)
+    parts = os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin").split(":")
+    d = os.environ.get(SUDO_DIR_VAR, "")
+    if d and parts[0] == d and _stub_there(d):
+        SUDO_DIR = d
+        return
+    d = tempfile.mkdtemp(prefix="sdbox-nosudo-")
+    shutil.copyfile(SUDO_STUB_SRC, os.path.join(d, "sudo"))
+    os.chmod(os.path.join(d, "sudo"), 0o755)
+    os.environ[SUDO_DIR_VAR] = d
+    os.environ["PATH"] = ":".join([d] + [x for x in parts if x != d])
+    SUDO_DIR, SUDO_OWNER = d, True
+    atexit.register(_remove_sudo_stub)
+
+
+install_sudo_stub()
+
+SUDO_PROBE = """$internal
+   os.execute 'command -v sudo' capturing out
+   crt 'ZZSUDO [' : trim(convert(@fm, ' ', out)) : ']'
+end
+"""
+
+
+def sudo_null_case(box):
+    """THE NULL-CASE ROW of the shared setup (S.85).  It looks at what a session would run when a page says `sudo`, three ways, each printed: this process's PATH, a child shell given the environment
+    the harness gives a session (`command -v sudo`), and an SD session of the sandbox (a $internal program whose os.execute asks the same).  All three must name the stub in the private directory,
+    and calling the stub must fail with 'command not found'.  A suite whose answer is anything else cannot be believed, so it STOPS (exit 2), not fails a row and goes on."""
+    want = os.path.join(SUDO_DIR or "", "sudo")
+    parts = os.environ.get("PATH", "").split(":")
+    env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C", LANG="C")
+    from_shell = subprocess.run(["/bin/sh", "-c", "command -v sudo"], env=env, capture_output=True, text=True).stdout.strip()
+    called = subprocess.run([want, "/usr/local/sbin/sd-elevate", "tls-show"], env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=20)
+    with open(os.path.join(box, "sys", "bp", "zzsudo"), "w", encoding="ascii") as f:
+        f.write(SUDO_PROBE)
+    out = sess(box, "BASIC bp zzsudo", "RUN bp zzsudo")
+    m = re.search(r"^ZZSUDO \[(.*)\]\s*$", out, re.M)
+    from_sd = m.group(1).strip() if m else None
+    behind = shutil.which("sudo", path=":".join(x for x in parts if x != SUDO_DIR))
+    say("    (sudo null case: PATH starts with %r; stub %s; a child shell says %r; an SD session says %r; the host's own sudo, behind the stub, is %r; the stub said %r and exited %d)"
+        % (parts[0] if parts else "", want, from_shell, from_sd, behind, called.stderr.strip(), called.returncode))
+    ok = (bool(SUDO_DIR) and parts[0] == SUDO_DIR and _stub_there(SUDO_DIR) and from_shell == want and from_sd == want
+          and called.returncode == 1 and "command not found" in called.stderr)
+    row("NULL CASE (S.85): the stub sudo is first in PATH - a child shell and an SD session both resolve `sudo` to %s, and it fails with 'command not found', so the host's real sudo (and its helper) cannot be reached"
+        % want, ok, repr((parts[:2], from_shell, from_sd, called.returncode)))
+    if not ok:
+        bail("the stub sudo is not what a sandbox session runs for `sudo` (a child shell says %r, an SD session says %r): a page could reach the host's sudo and the real sd-elevate, and no row of "
+             "this suite can be believed" % (from_shell, from_sd))
 
 
 def sess(box, *cmds):
@@ -1554,6 +1644,7 @@ def main():
         bail("%s holds no built sandbox" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
     made = []
+    sudo_null_case(box)
     try:
         with open(os.path.join(box, "sys", "bp", "zztkvoc"), "w", encoding="latin-1") as f:
             f.write("$internal\n   open 'VOC' to v else crt 'TKVOC no voc' ; stop\n   write 'V':@fm:'CA':@fm:'$tool_tktest' to v, 'tktest'\n   crt 'TKVOC done'\nend\n")

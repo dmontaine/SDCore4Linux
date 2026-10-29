@@ -19,7 +19,7 @@
 #   V3      the entry under the cursor is shown field by field
 #   V4      T chooses a type (verbs, files, pointers, paragraphs and sentences), S a state (differ from the shipped VOC, broken pointers), / filters by a part of the id, Esc clears all
 #   V5      D deletes: Cancel is the default; the wrong id typed deletes nothing; the right id deletes the record (a separate session reads it) and the list no longer has it
-#   V6      E hands the terminal to SED on the entry and the page comes back
+#   V6      E hands the terminal to the IDE on the entry ('ide voc id', S.88 stage C; it was SED - re-pointed 28 Oct 26, NOT RUN) and the page comes back
 #   V7      an account with voc-edit OFF: the box says so, the kernel refuses the delete, the entry is still there
 #   V8      F1 and the [?] reach the help box; a window under 140 by 43 gets no page
 #   (28 Oct 26)
@@ -329,19 +329,19 @@ def section_keyword():
 
 
 def section_edit():
-    say("\n--- V6: E hands the terminal to SED")
+    say("\n--- V6: E hands the terminal to the IDE")
     h = page(A1)
     filt(h, "zzpara")
-    h.typed("e", idle=1.0)
-    until(h, lambda t: "zzpara" in h.line(41) + h.line(40) + h.line(42) or "File" in h.line(0))
+    h.typed("e", idle=2.0)
+    until(h, lambda t: "File" in h.line(0) and "Search" in h.line(0) and "voc zzpara" in t)
     T = h.text()
-    arow("V6a", "E on zzpara hands the screen to SED: SED's menu bar is on row 0 and the record zzpara is the one open", "File" in h.line(0) and "Search" in h.line(0) and "voc zzpara" in h.line(40) + h.line(41) and "display hello" in T and "The entry under the cursor" not in T, T[:300])
+    arow("V6a", "E on zzpara hands the screen to the IDE: the IDE's menu bar is on row 0 and the record zzpara is the one open (its status line and its fields are on the screen)", "File" in h.line(0) and "Search" in h.line(0) and "voc zzpara" in T and "display hello" in T and "The entry under the cursor" not in T, T[:300])
     h.typed("\x11", idle=1.5)
     until(h, lambda t: "Press Enter" in t or "The entry under the cursor" in t, 10)
     h.key("enter", idle=2.0)
     until(h, lambda t: "The entry under the cursor" in t, 10)
     T = h.text()
-    arow("V6", "Ctrl-Q leaves SED, Enter brings the page back, the cursor is on zzpara again and the status line says it came back from SED", "The entry under the cursor" in T and "back from SED" in st(h) and "zzpara" in table(h)[1], repr((st(h), table(h)[1])))
+    arow("V6", "Ctrl-Q leaves the IDE, Enter brings the page back, the cursor is on zzpara again and the status line says it came back from the IDE", "The entry under the cursor" in T and "back from the IDE" in st(h) and "zzpara" in table(h)[1], repr((st(h), table(h)[1])))
     h.key("ctrl-q", idle=1.2)
     h.end()
 

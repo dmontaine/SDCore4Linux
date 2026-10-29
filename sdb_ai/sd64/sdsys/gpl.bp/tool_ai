@@ -7,6 +7,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 L2: the four boxes are panes of the layout service ($tk_layout): drawn exactly as before at 140 by 43, and in a larger window the Accounts box takes the extra rows (it
+*               shows more accounts), every box and text is as wide as the window, and the detail and the explanation wrap at the box's width. The rows, widths, hit tests and the [?]
+*               buttons are counted from the pane rectangles. The layout is declared again after the terminal was given to SET.AI KEY and the screen taken again.
 * 23 Oct 26 dm  New.
 * END-HISTORY
 *
@@ -77,7 +80,7 @@ $include tk.h
    lnames = 'requests-hour' : @fm : 'tokens-day' : @fm : 'timeout' : @fm : 'bytes-request' : @fm : 'bytes-reply' : @fm : 'max-tokens'
    pnames = 'Provider' : @fm : 'Accounts'
 
-   VISA = 6                                                    ;* account rows on the screen
+   gosub lay.declare                                           ;* the panes; VISA (the account rows on the screen), DV and EV (the detail and explanation rows) come from them
    pane = 1
    pi = 1                                                      ;* the provider row under the cursor
    ci = 1                                                      ;* the account row under the cursor
@@ -100,6 +103,8 @@ $include tk.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', lay.chg)
+            gosub lay.get
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -182,16 +187,65 @@ read.accounts:
    if ci < 1 then ci = 1
    return
 
+* ------------------------------------------------------------------------------------------------- the layout (S.88 L2)
+
+* The page's four boxes as panes of $tk_layout: each size is the box drawn at 140 by 43 (the body is 138 by 39), so at that size nothing moves; in a larger window the Accounts box
+* stretches (a table shows more rows) and every pane is as wide as the body.  Declared again after the terminal was given away and the screen taken again.
+lay.declare:
+   d = ''
+   d<1> = 'providers' : @vm : 1 : @vm : 1 : @vm : 9 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   d<2> = 'row' : @vm : 2 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   d<3> = 'accounts' : @vm : 3 : @vm : 1 : @vm : 10 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<4> = 'effect' : @vm : 4 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, d, lay.err)
+   gosub lay.get
+   return
+
+* The rectangles of the four panes, and what is counted from them: tw the width of a text line inside a box (134 at 140 by 43), VISA the account rows, DV the detail rows, EV the
+* explanation rows
+lay.get:
+   lay.id = 'providers'
+   gosub lay.rect
+   pr.x = lay.x ; pr.y = lay.y ; pr.w = lay.w ; pr.h = lay.h
+   lay.id = 'row'
+   gosub lay.rect
+   dt.x = lay.x ; dt.y = lay.y ; dt.w = lay.w ; dt.h = lay.h
+   lay.id = 'accounts'
+   gosub lay.rect
+   ac.x = lay.x ; ac.y = lay.y ; ac.w = lay.w ; ac.h = lay.h
+   lay.id = 'effect'
+   gosub lay.rect
+   ef.x = lay.x ; ef.y = lay.y ; ef.w = lay.w ; ef.h = lay.h
+   body.y = ctx<TK.C.YBODY>
+   tx = pr.x + 2
+   tw = pr.w - 4
+   mk.px = pr.x + pr.w - 5                                      ;* the [?] button of each of the two boxes that have one, at the right end of its first row
+   mk.py = pr.y + 1
+   mk.ax = ac.x + ac.w - 5
+   mk.ay = ac.y + 1
+   VISA = ac.h - 4
+   DV = dt.h - 2
+   EV = ef.h - 2
+   return
+
+lay.rect:
+   call $tk_layout('pane', ctx, lay.id, lay.r)
+   lay.x = lay.r<1, 1>
+   lay.y = lay.r<1, 2>
+   lay.w = lay.r<1, 3>
+   lay.h = lay.r<1, 4>
+   return
+
 * ------------------------------------------------------------------------------------------------- drawing
 
 draw.all:
    cw = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
-   screen clear at 0,1 size cw,chh
-   screen box at 1,1 size 138,9 title 'AI provider - one for every account'
-   screen box at 1,10 size 138,13 title 'The row under the cursor'
-   screen box at 1,23 size 138,10 title 'Accounts that may use the AI'
-   screen box at 1,33 size 138,6 title 'What this means'
+   screen clear at 0,body.y size cw,chh
+   screen box at pr.x,pr.y size pr.w,pr.h title 'AI provider - one for every account'
+   screen box at dt.x,dt.y size dt.w,dt.h title 'The row under the cursor'
+   screen box at ac.x,ac.y size ac.w,ac.h title 'Accounts that may use the AI'
+   screen box at ef.x,ef.y size ef.w,ef.h title 'What this means'
    gosub draw.providers
    gosub draw.detail
    gosub draw.accounts
@@ -199,7 +253,7 @@ draw.all:
    return
 
 draw.providers:
-   screen text '    ' : fmt('Provider', '14L') : fmt('Address', '56L') : fmt('Model', '28L') : 'Key' at 3,2 attr 'header' width 134
+   screen text '    ' : fmt('Provider', '14L') : fmt('Address', '56L') : fmt('Model', '28L') : 'Key' at tx,pr.y + 1 attr 'header' width tw
    for r = 1 to 4
       s = ''
       if helper.ok then
@@ -212,7 +266,7 @@ draw.providers:
          if mod.s = '' then mod.s = '(not set)'
          s = '[' : (if provs<r> = sel then 'x' else ' ') : '] ' : fmt(nm.s, '14L') : fmt(url.s, '56L') : fmt(mod.s[1, 26], '28L') : (if pkey<r> then 'set' else 'not set')
       end
-      screen text s at 3,2 + r attr (if r = pi then (if pane = 1 then 'highlight' else 'bold') else 'normal') width 134
+      screen text s at tx,pr.y + 1 + r attr (if r = pi then (if pane = 1 then 'highlight' else 'bold') else 'normal') width tw
    next r
    if not(helper.ok) then
       s = 'The AI helper is not running, or it is not installed: nothing here can be read or changed.'
@@ -227,8 +281,8 @@ draw.providers:
          if pmod<k> = '' or not(pkey<k>) then s := '.  It cannot be used until both are set'
       end
    end
-   screen text s at 3,8 attr 'bold' width 134
-   call $tk_help('mark', 134, 2, 0, 0)
+   screen text s at tx,pr.y + pr.h - 2 attr 'bold' width tw
+   call $tk_help('mark', mk.px, mk.py, 0, 0)
    return
 
 * The row under the cursor, in full
@@ -265,13 +319,13 @@ draw.detail:
       lines<-1> = 'Limits: ' : s
    end
    gosub wrap.lines
-   for r = 1 to 11
-      screen text fmt(lines<r>, '134L') at 3,10 + r width 134
+   for r = 1 to DV
+      screen text fmt(lines<r>, tw : 'L') at tx,dt.y + r width tw
    next r
    return
 
 draw.accounts:
-   screen text fmt('Account', '24L') : fmt('Linux user', '24L') : 'AI gate' at 3,24 attr 'header' width 134
+   screen text fmt('Account', '24L') : fmt('Linux user', '24L') : 'AI gate' at tx,ac.y + 1 attr 'header' width tw
    if ci <= ta then ta = ci - 1
    if ci > ta + VISA then ta = ci - VISA
    if ta < 0 then ta = 0
@@ -281,7 +335,7 @@ draw.accounts:
       if k <= an then
          s = fmt(anm<k>, '24L') : fmt(auser<k>, '24L') : (if ast<k> = 1 then 'ON ' else 'off') : (if asusp<k> then '   (suspended)' else '')
       end
-      screen text s at 3,24 + r attr (if k = ci and k <= an then (if pane = 2 then 'highlight' else 'bold') else 'normal') width 134
+      screen text s at tx,ac.y + 1 + r attr (if k = ci and k <= an then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
    next r
    if an = 0 then
       s = 'There is no account that belongs to a person.'
@@ -292,8 +346,8 @@ draw.accounts:
       next k
       s = an : ' account' : (if an = 1 then '' else 's') : ' of persons; ' : n.on : ' may use the AI.  Up and Down move; Enter turns the gate of the account under the cursor on or off.'
    end
-   screen text s at 3,31 attr 'bold' width 134
-   call $tk_help('mark', 134, 24, 0, 0)
+   screen text s at tx,ac.y + ac.h - 2 attr 'bold' width tw
+   call $tk_help('mark', mk.ax, mk.ay, 0, 0)
    return
 
 * In plain sentences
@@ -314,8 +368,8 @@ draw.effect:
       end
    end
    gosub wrap.lines
-   for r = 1 to 4
-      screen text fmt(lines<r>, '134L') at 3,33 + r width 134
+   for r = 1 to EV
+      screen text fmt(lines<r>, tw : 'L') at tx,ef.y + r width tw
    next r
    return
 
@@ -326,7 +380,7 @@ wrap.lines:
       if lines<wi> = '' then
          wrapped<-1> = ''
       end else
-         call $tk_wrap(lines<wi>, 134, pieces)
+         call $tk_wrap(lines<wi>, tw, pieces)
          wrapped<-1> = pieces
       end
    next wi
@@ -416,8 +470,8 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.prov)
-   call $tk_help('hit', mev, 134, 24, hit.acc)
+   call $tk_help('hit', mev, mk.px, mk.py, hit.prov)
+   call $tk_help('hit', mev, mk.ax, mk.ay, hit.acc)
    if hit.prov or hit.acc then
       pane = (if hit.prov then 1 else 2)
       gosub redraw
@@ -428,12 +482,12 @@ on.mouse:
       mx = mev<3>
       my = mev<4>
       begin case
-         case mx >= 2 and mx <= 137 and my >= 3 and my <= 6
-            pi = my - 2
+         case mx >= pr.x + 1 and mx <= pr.x + pr.w - 2 and my >= pr.y + 2 and my <= pr.y + 5
+            pi = my - (pr.y + 1)
             pane = 1
             gosub redraw
-         case mx >= 2 and mx <= 137 and my >= 25 and my <= 24 + VISA
-            if ta + my - 24 <= an then ci = ta + my - 24
+         case mx >= ac.x + 1 and mx <= ac.x + ac.w - 2 and my >= ac.y + 2 and my <= ac.y + 1 + VISA
+            if ta + my - (ac.y + 1) <= an then ci = ta + my - (ac.y + 1)
             pane = 2
             gosub redraw
       end case
@@ -598,6 +652,7 @@ reopen:
       done = 1
       return
    end
+   gosub lay.declare                                           ;* the new context holds no panes; the window may be another size
    gen += 1
    ctx<TK.C.GEN> = gen
    gosub read.all

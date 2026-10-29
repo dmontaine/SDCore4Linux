@@ -5,6 +5,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 L2: the two boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the list shows more rows and the
+*               description more lines, both wider; text longer than its box is wrapped when the box is wider than it was.  S.88 stage C: E hands the item to the IDE ('ide dict file item';
+*               the IDE locks the record, asks the account's dict-edit gate and gives the lock back) and LIST.INDEX's hand-over is checked against 'ide list.index', in place of SED.
 * 28 Oct 26 dm  S.87: the page no longer names C among the types it compiles, tries or indexes (the messages now say A, S and I; D, A, S and I; A, S or I).
 * 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
 * 27 Oct 26 dm  S.87 batch 12: the dead FL$TYPE.SH branch of the file kind is gone with the constant.
@@ -25,8 +28,8 @@
 *
 *   WHAT IT CAN DO.  N makes an item (a D, A or I record): the page asks the id, the type and the fields that type needs, one at a time, each checked, shows the whole record in a box, and after Run
 *   WRITES IT ITSELF with an ordinary record write to the dictionary - this is the ONLY place the page writes.  The page is $internal, so the kernel's own refusal of a write to a dictionary does
-*   not apply to it: it asks the kernel for itself (K$EDIT.OK, the question SED and the IDE ask) before the write and shows the kernel's own refusal (!edit_msg) when the answer is no.  E hands the
-*   terminal to SED on the item (sed dict file item); SED makes the same check when it saves.  D deletes the item with the DELETE verb, after its id is typed.  C compiles an A, S or I item with
+*   not apply to it: it asks the kernel for itself (K$EDIT.OK, the question the IDE asks) before the write and shows the kernel's own refusal (!edit_msg) when the answer is no.  E hands the
+*   terminal to the IDE on the item (ide dict file item); the IDE makes the same check when it saves.  D deletes the item with the DELETE verb, after its id is typed.  C compiles an A, S or I item with
 *   COMPILE.DICT.  T tries the item on a record of the data file: the value ITYPE() gives for that record, which is what the query processor computes, and the same value converted and formatted as
 *   a query would print it.  In the indices pane N makes an index (CREATE.INDEX defines it, then BUILD.INDEX builds it, because an index that is not built finds nothing), B builds it again (BUILD.INDEX),
 *   D deletes it (DELETE.INDEX, after its name is typed) and L lists it in full (LIST.INDEX: it prints to the terminal, which is handed to the verb).  Every verb is the one the person could type,
@@ -59,7 +62,7 @@ $include dictdict.h
    deffun edit_msg(kind) calling '!edit_msg'
 
    allow = 'delete compile.dict create.index build.index delete.index'   ;* the commands this page may run, through $tk_run, after a box
-   show.allow = 'sed list.index'                                       ;* the two it hands the terminal to (SED is a screen; LIST.INDEX prints through the print unit)
+   show.allow = 'ide list.index'                                       ;* the two it hands the terminal to (the IDE is a screen; LIST.INDEX prints through the print unit)
 
    fa = downcase(field(trim(@sentence), ' ', 2))                       ;* the file named after the verb, if any
 
@@ -88,8 +91,9 @@ $include dictdict.h
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
-   VIS = 16                                                            ;* rows of a list on the screen
-   MAXV = 3000                                                         ;* items read: a dictionary is some tens; more than this are not listed, and the page says so
+   VIS = 16                                                            ;* rows of a list on the screen (the list pane's height less 6: set by get.rects)
+   rtw = TK.MINW - 2 * TK.XBODY - 4                                    ;* the text width of a pane in the reference layout (140 by 43): 134
+   MAXV = 3000                                                        ;* items read: a dictionary is some tens; more than this are not listed, and the page says so
    hl.f = fmt('File', '30L') : fmt('Kind', '12L') : fmt('Dictionary', '12L') : fmt('Items', '8R') : fmt('Indices', '9R')
    hl.i = fmt('Id', '26L') : fmt('Type', '5L') : fmt('Field', '9L') : fmt('Heading', '22L') : fmt('Format', '8L') : fmt('Conversion', '12L') : fmt('S/M', '4L') : fmt('Association', '12L') : 'Expression, correlative or text'
    hl.x = fmt('Index', '24L') : fmt('Built', '6L') : fmt('Type', '5L') : fmt('Nulls', '6L') : fmt('S/M', '5L') : fmt('Fmt', '5L') : fmt('Case', '6L') : 'Field or expression'
@@ -115,6 +119,8 @@ $include dictdict.h
    done = 0
    msg = ''
 
+   perr = ''
+   gosub declare.layout
    gosub read.files
    if fa # '' then
       gosub open.named
@@ -134,6 +140,8 @@ $include dictdict.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', chg)
+            gosub get.rects
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -407,10 +415,49 @@ enter.file:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  The two boxes are panes of the layout service, declared in the sizes of the reference layout (140 by 43, the body 138 by 39): the list stretches (a bigger window
+* shows more rows of the files, items or indices), the description takes the columns.  The same two panes serve the three views of the page.
+* Out: lx ly lw lh (the list), dx dy dw dh (the description), tw (the text width of both), VIS (the rows of a list).
+declare.layout:
+   d = ''
+   d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, d, perr)
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'list', rc)
+   lx = rc<1, 1> ; ly = rc<1, 2> ; lw = rc<1, 3> ; lh = rc<1, 4>
+   call $tk_layout('pane', ctx, 'detail', rc)
+   dx = rc<1, 1> ; dy = rc<1, 2> ; dw = rc<1, 3> ; dh = rc<1, 4>
+   tw = lw - 4
+   VIS = lh - 6                                                        ;* the header row, the rows, the two summary lines, a blank row and the border: 16 rows of 22
+   return
+
+* In: lines.  Out: dlines, what the description shows.  At the reference width a line longer than the box is cut, as it has always been; in a wider box it is wrapped
+fit.lines:
+   dlines = lines
+   if tw > rtw then
+      dlines = ''
+      nd = 0
+      for q = 1 to dcount(lines, @fm)
+         nd += 1
+         dlines<nd> = ''
+         if lines<q> # '' then
+            call $tk_wrap(lines<q>, tw, wpieces)
+            for pj = 1 to dcount(wpieces, @fm)
+               dlines<nd> = wpieces<pj>
+               nd += 1
+            next pj
+            nd -= 1
+         end
+      next q
+   end
+   return
+
 draw.all:
-   cw2 = ctx<TK.C.W>
-   chh = ctx<TK.C.H> - 5
-   screen clear at 0,1 size cw2,chh
+   screen clear at 0,ctx<TK.C.YBODY> size ctx<TK.C.W>,ctx<TK.C.BODYH>
    begin case
       case pi = 1
          ttl = 'Files of ' : @who
@@ -422,8 +469,8 @@ draw.all:
          ttl = 'Indices of ' : fn
          btl = 'The index under the cursor'
    end case
-   screen box at 1,1 size 138,22 title ttl
-   screen box at 1,23 size 138,17 title btl
+   screen box at lx,ly size lw,lh title ttl
+   screen box at dx,dy size dw,dh title btl
    gosub draw.list
    gosub draw.detail
    return
@@ -455,15 +502,16 @@ draw.list:
    gosub load.cur
    if cp <= tp then tp = cp - 1
    if cp > tp + VIS then tp = cp - VIS
+   if tp > cn - VIS then tp = cn - VIS                                 ;* a taller list fills its rows again
    if tp < 0 then tp = 0
    gosub store.cur
    begin case
       case pi = 1
-         screen text hl.f at 3,2 attr 'header' width 134
+         screen text hl.f at lx + 2,ly + 1 attr 'header' width tw
       case pi = 2
-         screen text hl.i at 3,2 attr 'header' width 134
+         screen text hl.i at lx + 2,ly + 1 attr 'header' width tw
       case 1
-         screen text hl.x at 3,2 attr 'header' width 134
+         screen text hl.x at lx + 2,ly + 1 attr 'header' width tw
    end case
    for r = 1 to VIS
       kk = tp + r
@@ -482,10 +530,10 @@ draw.list:
                s = fmt(xnames<kk>, '24L') : fmt(ma<1, 1>, '6L') : fmt(ma<1, 2>, '5L') : fmt(ma<1, 3>, '6L') : fmt(ma<1, 4>, '5L') : fmt(ma<1, 5>, '5L') : fmt(ma<1, 6>, '6L') : ma<1, 7>
          end case
       end
-      screen text s at 3,2 + r attr (if kk = cp and kk <= cn then 'highlight' else 'normal') width 134
+      screen text s at lx + 2,ly + 1 + r attr (if kk = cp and kk <= cn then 'highlight' else 'normal') width tw
    next r
    gosub draw.foot
-   call $tk_help('mark', 134, 2, 0, 0)
+   call $tk_help('mark', lx + lw - 5, ly + 1, 0, 0)
    return
 
 * The summary under the list, and the dict-edit gate this session holds (asked of the kernel, never tried)
@@ -502,16 +550,19 @@ draw.foot:
          s = nx : (if nx = 1 then ' index' else ' indices')
    end case
    s := '.   Your gate:  dict-edit ' : (if kernel(K$DICT.EDIT, -1) then 'on' else 'off')
-   screen text fmt(s, '134L') at 3,19 attr 'bold' width 134
+   screen text fmt(s, tw : 'L') at lx + 2,ly + lh - 4 attr 'bold' width tw
    begin case
       case pi = 1
          s2 = 'Enter opens the dictionary of the file under the cursor.  A file can also be named after the verb: tool.dict customers'
       case pi = 2
-         s2 = 'N writes a new item itself, only if dict-edit is on.  E, D and C run SED and the verbs, which make their own checks.  T tries an item on a record.'
+         s2 = 'N writes a new item itself, only if dict-edit is on.  E, D and C run the IDE and the verbs, which make their own checks.  T tries an item on a record.'
       case 1
          s2 = 'An index that is not built finds nothing: B builds it.  Build and delete need the file to themselves: another session having it open refuses them.'
    end case
-   screen text fmt(s2, '134L') at 3,20 width 134
+   wpieces = s2
+   if tw > rtw then call $tk_wrap(s2, tw, wpieces)
+   screen text fmt(wpieces<1>, tw : 'L') at lx + 2,ly + lh - 3 width tw
+   if wpieces<2> # '' then screen text fmt(wpieces<2>, tw : 'L') at lx + 2,ly + lh - 2 width tw
    return
 
 draw.detail:
@@ -536,8 +587,9 @@ draw.detail:
             lines<-1> = 'This file has no indices.  N makes one on an item of the dictionary.'
          end
    end case
-   for r = 1 to 15
-      screen text fmt(lines<r>[1, 134], '134L') at 3,23 + r width 134
+   gosub fit.lines
+   for r = 1 to dh - 2
+      screen text fmt(dlines<r>[1, tw], tw : 'L') at dx + 2,dy + r width tw
    next r
    return
 
@@ -598,7 +650,7 @@ describe.item:
       case ty = 'I'
          lines<-1> = 'Computes its value for each record from the expression:'
          ct = ex
-         call $tk_wrap(ct, 128, pieces)
+         call $tk_wrap(ct, tw - 6, pieces)
          for pq = 1 to dcount(pieces, @fm)
             if pq <= 3 then lines<-1> = '    ' : pieces<pq>
          next pq
@@ -665,11 +717,11 @@ describe.item:
          rawl := ' ' : rq : '=' : (if ct = '' then '-' else ct)
       end
    next rq
-   call $tk_wrap(rawl, 128, pieces)
+   call $tk_wrap(rawl, tw - 6, pieces)
    for pq = 1 to dcount(pieces, @fm)
       if pq <= 2 then lines<-1> = pieces<pq>
    next pq
-   lines<-1> = 'E edits it in SED, T tries it on a record, C compiles it, D deletes it.'
+   lines<-1> = 'E edits it in the IDE, T tries it on a record, C compiles it, D deletes it.'
    return
 
 * In: ty.  Out: tyw, the type in words
@@ -929,7 +981,7 @@ to.indices:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.m)
+   call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.dict.page', hm, 0, 0)
       if hm # '' then msg = hm
@@ -938,10 +990,10 @@ on.mouse:
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
-      if mx >= 3 and mx <= 136 and my >= 3 and my <= 2 + VIS then
+      if mx >= lx + 2 and mx <= lx + lw - 3 and my >= ly + 2 and my <= ly + 1 + VIS then
          gosub load.cur
-         if tp + my - 2 <= cn then
-            cp = tp + my - 2
+         if tp + my - ly - 1 <= cn then
+            cp = tp + my - ly - 1
             gosub store.cur
             gosub draw.all
          end
@@ -991,7 +1043,7 @@ run.sent:
    msg = (if said # '' then said else sent : ' ran')
    return
 
-* The terminal goes to a verb that shows a screen (SED) or prints a report (LIST.INDEX) and comes back: the page is taken again afterwards and what it lists is read again.  In: sent, keep (the
+* The terminal goes to a verb that shows a screen (the IDE) or prints a report (LIST.INDEX) and comes back: the page is taken again afterwards and what it lists is read again.  In: sent, keep (the
 * id or index name to put the cursor on again).  Only the two verbs of show.allow can get here.
 hand.over:
    if index(' ' : show.allow : ' ', ' ' : field(sent, ' ', 1) : ' ', 1) = 0 then
@@ -1010,6 +1062,7 @@ hand.over:
       done = 1
       return
    end
+   gosub declare.layout                                                ;* the new context is laid out for the window as it is now (it may have been resized in the command)
    gen += 1
    ctx<TK.C.GEN> = gen
    gosub reread
@@ -1027,23 +1080,23 @@ hand.over:
    msg = 'back from ' : sent
    return
 
-* E: the item in SED.  SED asks for no confirmation of its own; its save is the dictionary write the kernel's dict-edit rule guards, and SED asks the kernel itself
+* E: the item in the IDE (S.88 stage C; it was SED).  The IDE asks for no confirmation of its own; it locks the record while it is open, its save is the dictionary write the kernel's dict-edit rule guards, and the IDE asks the kernel itself
 do.edit:
    if nis < 1 then return
    iid = iids<ishown<ci>>
    cw = iid
    gosub check.word
    if not(okname) then
-      msg = 'this id is not given to a command by the page (a character it does not pass, or an SD keyword): type  sed dict ' : fn : ' ' : iid : '  at the prompt'
+      msg = 'this id is not given to a command by the page (a character it does not pass, or an SD keyword): type  ide dict ' : fn : ' ' : iid : '  at the prompt'
       return
    end
    cw = fn
    gosub check.word
    if not(okname) then
-      msg = 'this file name is not given to a command by the page (a character it does not pass, or an SD keyword): type  sed dict ' : fn : ' ' : iid : '  at the prompt'
+      msg = 'this file name is not given to a command by the page (a character it does not pass, or an SD keyword): type  ide dict ' : fn : ' ' : iid : '  at the prompt'
       return
    end
-   sent = 'sed dict ' : fn : ' ' : iid
+   sent = 'ide dict ' : fn : ' ' : iid
    keep = iid
    gosub hand.over
    return

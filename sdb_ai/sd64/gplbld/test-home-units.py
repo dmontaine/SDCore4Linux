@@ -188,7 +188,7 @@ def checks(s):
        and "off = downcase(trim(convert(',' : char(9), '  ', off)))" in ho and "writeseq" not in ho and "write " not in ho, ho[:300])
     ck("H21 tool_home: the off list is asked for the account the session is in BEFORE any tile is added, a tile that is off is not added (and a header tile that was not added is not placed), a group with no tile has no heading",
        0 < th.find("call !home_off(@who, off.list)") < th.find("id = 'editor'") and "if index(off.set, ' ' : id : ' ', 1) then return" in th
-       and "gosub add.tile\n   if not(added) then return" in th and "if gr<k, HG.BAND> = b and gn.tiles > 0 then" in th and "if gy # '' then" in th)
+       and "gosub add.tile\n   if not(added) then return" in th and "if gr<k, HG.BAND> = b and gtiles<k> > 0 then\n            gcols = gcw<k>" in th and "if gk > 0 then gtiles<gk> = gtiles<gk> + 1" in th and "if gy # '' then" in th)
     ck("H21b ...the menus are made by build.page (so F5 and Switch account see the change), and the Terminal, Switch account and Keys entries carry the D flag when their tile is off",
        "gosub alloc.styles\n   gosub make.menus\n   return" in th and "'&Go|&Terminal~~terminal~' : tflag : '|S&witch account~~switch~' : sflag" in th
        and "'&Help|&Keys~~keys~' : kflag" in th and "tflag = (if terminal.off then 'D' else '')" in th)
@@ -238,10 +238,11 @@ def checks(s):
        not leaks, repr(leaks))
     ck("H28 every administrator page has a tile (plan 13.2: a new app adds its row in the commit that builds it): each verb of voc_template named tool.* (all of SDSYS's) is the action of a tile, and no tile runs a tool.* verb that has no VOC entry",
        sorted(s["tool.verbs"]) == sorted(set(v for v in ADMIN_TILES.values()) | set(DEV_TILES.values()) | {"tool.keys"}) and all(("act = 'cmd:%s'" % v) in th for v in s["tool.verbs"]), repr(s["tool.verbs"]))
-    dev = between(th, "gr<g> = 'Develop'", "\n   hx = 95")
+    dev = between(th, "gr<g> = 'Develop'", "\n   id = 'switch' ;")
     ck("H28b ...the development apps' tiles are in the group Develop, the LAST group (so that the groups before it, and what the keys and the sandbox rows find in them, stay where they were), built for everyone (outside `if is.admin then`), each exactly once and running its app's verb",
        "gr<g> = 'Develop' : @vm : bnd : @vm : 6" in th and th.find("gr<g> = 'Develop'") > th.find("gr<g> = 'Everyone'") > th.find("if is.admin then")
-       and all(dev.count("id = '%s' ;" % i) == 1 and re.search(r"id = '%s' ; grp = g ;[^\n]*act = 'cmd:%s'" % (i, re.escape(v)), dev) is not None for i, v in DEV_TILES.items()) and "hx = 95" in th, repr(dev[:160]))
+       and all(dev.count("id = '%s' ;" % i) == 1 and re.search(r"id = '%s' ; grp = g ;[^\n]*act = 'cmd:%s'" % (i, re.escape(v)), dev) is not None for i, v in DEV_TILES.items())
+       and "\n   id = 'switch' ; grp = 0 ;" in th, repr(dev[:160]))
     hp = strip(s["home_pins"])
     mm = strip(s["mymenu"])
     tm = strip(s["tool_menus"])
@@ -288,9 +289,15 @@ def checks(s):
        ordered(st_tile, "case act[1, 4] = 'cmd:'", "gosub note.recent", "gosub run.command", "case act[1, 5] = 'menu:'\n         gosub open.menu", "case act = 'back'\n         gosub close.menu")
        and "case nm = 'esc' or nm = 'bs'\n         gosub close.menu" in th and "case cmd = 'back'\n         gosub close.menu" in th, st_tile)
     bp_ = between(th, "\nbuild.page:\n", "\nadd.recent:\n")
-    ck("H30d ...the Back tile is built only on a sub-menu page, at the left end of the header (column 3, row 1), as a header tile, after the Switch account and Sign out tiles; and the page is built in this order - the whole table, the Recent group, the level, the live lines, the styles, the menus",
-       ordered(bp_, "act = 'signout' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header", "if cur.menu # '' then", "hx = 3 ; hy = 1", "id = 'back' ; grp = 0", "act = 'back' ; pal = 'gray' ; size = 's'", "gosub add.header",
-                   "gosub add.recent\n   gosub pick.level\n   gosub live.read\n   gosub alloc.styles\n   gosub make.menus\n   return"), bp_)
+    plh = between(th, "\nplace.header:\n", "\nalloc.styles:\n")
+    ck("H30d ...the Back tile is built only on a sub-menu page, at the left end of the header (the first tile column, column 3 at 140 by 43, the header's first row), as a header tile, after the Switch account and Sign out tiles; "
+       "and the page is built in this order - the whole table, the Recent group, the level, the live lines, the styles, the menus.  Since S.88 L2 the header tiles are PLACED by the layout (place.header, the "
+       "first thing layout does): Switch account and Sign out on the last two tile columns (95 and 117 at 140 by 43), Back on the first, on the header's first row, a tile wide",
+       ordered(bp_, "act = 'signout' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header", "if cur.menu # '' then", "id = 'back' ; grp = 0", "act = 'back' ; pal = 'gray' ; size = 's'", "gosub add.header",
+                   "gosub add.recent\n   gosub pick.level\n   gosub live.read\n   gosub alloc.styles\n   gosub make.menus\n   return")
+       and ordered(plh, "if tl<i, HT.FIXED> then", "case tl<i, HT.ID> = 'switch'", "tl<i, HT.X> = xcol<ncol - 1>", "case tl<i, HT.ID> = 'signout'", "tl<i, HT.X> = xcol<ncol>", "case 1", "tl<i, HT.X> = xcol<1>",
+                   "tl<i, HT.Y> = hdy", "tl<i, HT.W> = tw.n")
+       and between(th, "\nlayout:\n", "\nband.cols:\n").startswith("\nlayout:\n   gosub place.header\n"), bp_ + plh)
     pl = between(th, "\npick.level:\n", "\nadd.tile:\n")
     ck("H30e ...pick.level leaves out a folder tile whose menu holds no tile (and goes on until none is left to leave out), keeps the groups of the menu shown and the header tiles, and numbers the groups again; the page it is given is the whole table",
        ordered(pl, "if pa[1, 5] = 'menu:' then", "if gr<pg, HG.MENU> = pa[6, 99] then pn += 1", "if pn = 0 then\n               del tl<pi>", "if dropped = 0 then exit", "if gr<pk, HG.MENU> = cur.menu then", "gmap<pk> = dcount(gr2, @fm)",
@@ -303,9 +310,9 @@ def checks(s):
     mk = between(th, "\nmake.keys:\n", "\nset.title:\n")
     st2 = between(th, "\nset.title:\n", "\nopen.menu:\n")
     ck("H30h ...the key table names Esc only on a sub-menu page; the status line's pane is the path (Home > ...) and the identity stands at column 25 beside the Back tile, column 3 otherwise; the header's left end is cleared before it is drawn",
-       "if cur.menu # '' then call $tk_keys('add', keys, 'esc', 'back', 'back', '', 1)" in mk and ordered(st2, "ttl = 'Home'", "ttl := ' > ' : crumb<ck>", "idx = (if cur.menu # '' then 25 else 3)")
-       and "call $tk_frame(ctx, keys, ttl, msg)" in th and "ttl = 'Home'" in th and "screen clear at 0,1 size 94,3" in between(th, "\ndraw.header:\n", "\ndraw.clock:\n")
-       and "screen text fmt(who.line, '60L') at idx,2 attr 'bold'" in th and "at idx,3 attr 'disabled'" in th, mk + st2)
+       "if cur.menu # '' then call $tk_keys('add', keys, 'esc', 'back', 'back', '', 1)" in mk and ordered(st2, "ttl = 'Home'", "ttl := ' > ' : crumb<ck>", "idx = (if cur.menu # '' then xcol<2> else xcol<1>)")
+       and "call $tk_frame(ctx, keys, ttl, msg)" in th and "ttl = 'Home'" in th and "screen clear at 0,hdy size xcol<ncol - 1> - 1,3" in between(th, "\ndraw.header:\n", "\ndraw.clock:\n")
+       and "screen text fmt(who.line, '60L') at idx,hdy + 1 attr 'bold'" in th and "at idx,hdy + 2 attr 'disabled'" in th, mk + st2)
     ck("H30i ...the AI line is offered no folder tile, no Back tile and no copy (its list is the cmd: tiles and the Terminal, except a recent copy)",
        ordered(between(th, "\nask.ai:\n", "\n   ctxt = "), "if ta[1, 4] = 'cmd:' or ta = 'terminal' then", "if tl<i, HT.ID>[1, 2] # 'r:' then", "acts<1, -1> = "), "")
     ck("H30j ...an empty band takes no room and a page whose first band is 0 (the Recent group) is laid out from it: the layout finds the first band, and moves down only when a group was placed",
@@ -373,7 +380,7 @@ MUTANTS = [
     ("a tile that is off is added", "tool_home", "   if index(off.set, ' ' : id : ' ', 1) then return        ;* turned off by the administrator: not on the page at all\n", ""),
     ("the menus are made once, at the start", "tool_home", "   gosub alloc.styles\n   gosub make.menus\n   return", "   gosub alloc.styles\n   return"),
     ("the Terminal entry stays choosable", "tool_home", "tflag = (if terminal.off then 'D' else '')", "tflag = ''"),
-    ("an empty group still has a heading", "tool_home", "if gr<k, HG.BAND> = b and gn.tiles > 0 then", "if gr<k, HG.BAND> = b then"),
+    ("an empty group still has a heading", "tool_home", "      for k = 1 to ng\n         if gr<k, HG.BAND> = b and gtiles<k> > 0 then", "      for k = 1 to ng\n         if gr<k, HG.BAND> = b then"),
     ("home_off forgets the account's own list", "home_off", "read arec from af, downcase(acct) then off = arec<ACC$TILES.OFF>", "read arec from af, downcase(acct) then null"),
     ("home_off reads another account's list", "home_off", "read arec from af, downcase(acct) then", "read arec from af, 'sdsys' then"),
     ("SET.TILE does not ask for the administrator", "settile", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001) ;* Command requires administrator privileges\n   end\n", ""),
@@ -460,7 +467,11 @@ MUTANTS = [
     ("pick.level keeps a folder whose menu is empty", "tool_home", "            if pn = 0 then\n               del tl<pi>", "            if pn = -1 then\n               del tl<pi>"),
     ("Switch account keeps the sub-menu", "tool_home", "   cur.menu = ''" + " " * 42 + ";* the screen of the new account starts at its top page\n   stk = ''\n   crumb = ''\n", ""),
     ("the status line does not show the path", "tool_home", "      ttl := ' > ' : crumb<ck>\n", "      null\n"),
-    ("the identity does not move right of the Back tile", "tool_home", "   idx = (if cur.menu # '' then 25 else 3)", "   idx = 3"),
+    ("the identity does not move right of the Back tile", "tool_home", "   idx = (if cur.menu # '' then xcol<2> else xcol<1>)", "   idx = xcol<1>"),
+    # ---- 28 Oct 26, S.88 L2: the header tiles placed by the layout (H30d), the header cleared up to the Switch account tile (H30h)
+    ("the Back tile stands where Sign out does", "tool_home", "               tl<i, HT.X> = xcol<1>", "               tl<i, HT.X> = xcol<ncol>"),
+    ("the header tiles are placed once and not after a resize", "tool_home", "layout:\n   gosub place.header\n", "layout:\n"),
+    ("the header is cleared over the Switch account tile", "tool_home", "screen clear at 0,hdy size xcol<ncol - 1> - 1,3", "screen clear at 0,hdy size xcol<ncol - 1> + 5,3"),
     ("the AI is offered the copies of the Recent group", "tool_home", "if tl<i, HT.ID>[1, 2] # 'r:' then", "if @true then"),
     ("an empty band takes a row", "tool_home", "      if c0 > 0 then ys = bandend + 1", "      ys = bandend + 1"),
     ("the Esc key is on the function-key row of the top page", "tool_home", "   if cur.menu # '' then call $tk_keys('add', keys, 'esc', 'back', 'back', '', 1)\n", "   call $tk_keys('add', keys, 'esc', 'back', 'back', '', 1)\n"),

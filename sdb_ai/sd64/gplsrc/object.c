@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 28 Oct 26 dm  S.88 phase 2: hsm_dump() writes each program name by the kernel's one rule (show_ts_safe(), op_lock.c: 0-31, 127, 128-159,
+ *               248-255 as '?'); it went out raw into the $IPC record H<n> that HSM USER n prints, and into kernel(K$HSM, 2).
  * 28 Oct 26 dm  S.87: OPTION FORCE.RELOAD is gone: stale_objects(), object_is_stale(), refresh_subr_object() and OBJ_STALE are removed.
  * 28 Oct 26 dm  S.87: * is no longer a global prefix character.
  * 24 Oct 26 dm  W.11 F9: the global catalogue directory is sd_sysdir() (the configuration file's), not the segment's copy; the administrator test is MY_ADMIN().
@@ -736,7 +738,8 @@ STRING_CHUNK* hsm_dump() {
   for (p = hsm_head; p != NULL; p = p->next) {
     if (str != NULL)
       ts_copy_byte(FIELD_MARK);
-    ts_printf("%s\xfd%d\xfd%lld\xfd%u\xfd%u\xfd%u\xfd%u", p->name, p->calls, p->cp_time / 1000,
+    show_ts_safe(p->name, -1); /* 28 Oct 26 S.88 phase 2: the kernel's one rule; the name went out raw */
+    ts_printf("\xfd%d\xfd%lld\xfd%u\xfd%u\xfd%u\xfd%u", p->calls, p->cp_time / 1000,
               p->io[HSM_OPEN], p->io[HSM_READ], p->io[HSM_WRITE], p->io[HSM_DELETE]);
   }
 

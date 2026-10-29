@@ -11,6 +11,8 @@
 #
 # START-HISTORY:
 # 22 Oct 26 dm  New (S.75, H1 and H2).
+# 28 Oct 26 dm  S.85: setup() runs sandbox-tk-base.py's sudo_null_case() before anything else: every suite built on this setup (the page suites and docs) runs with the stub `sudo` first in PATH,
+#               and stops (exit 2) if a child shell or an SD session finds another.  WRITTEN, NOT RUN when added (the owner's rule of 28 Oct).
 # END-HISTORY
 #
 # WHAT IS HELD.  The sandbox starts at the terminal (sandbox-fromtree.py writes start.default = terminal, because every pty suite types at the prompt); this suite changes that for its
@@ -178,6 +180,7 @@ def setup(name):
         bail("%s holds no built sandbox" % BOX)
     subprocess.run([sys.executable, TOOL, BOX, "start"], capture_output=True, text=True, errors="replace", timeout=120)
     g.BOX, g.SYS, g.SD = BOX, SYS, os.path.join(SYS, "bin", "sd")
+    tkb.sudo_null_case(BOX)       # S.85: the host's sudo is not reachable from any session below (the stub is first in PATH; a suite that cannot show it stops here)
     g.prepare()
     for a in ("zzhd", "zzhm", "zzht", "zzhs", "zzhv"):
         g.FIXTURES[a] = ("no", "no")

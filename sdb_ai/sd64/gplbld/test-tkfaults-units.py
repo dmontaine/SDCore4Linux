@@ -113,18 +113,37 @@ def arg_lists(text, name):
     return out
 
 
-LIT = re.compile(r"screen text (?:fmt\()?(['\"])((?:(?!\1).)*)\1(?:, *'(\d+)L')?\)? *at [^\n]*?width (\d+)")
+LIT = re.compile(r"screen text (?:fmt\()?(['\"])((?:(?!\1).)*)\1(?:, *(?:'\d+L'|\w+ : 'L'))?\)? *at [^\n]*?width (?:(\d+)|(\w+)\.w - (\d+)|(tw)\b)")
+# S.88 L2: the boxes of tool.query are panes of the layout service and the widths are written from their rectangles: the width of a text at the 140 by 43 reference is the pane's
+# declared width less what the text is written inside (`width sb.w - 4`), or the 134 of a whole-body pane (`width tw`)
+REFW = {"fb": 28, "cb": 44, "nb": 66, "sb": 46, "ob": 92, "tb": 138, "wb": 138}
+REFTW = 134
+# the notes tool.query keeps as the lines of the reference width (nt.ref, 62 wide) and tool.test's foot hint (note = "...", the reference text width)
+NOTE = re.compile(r"^\s*(?:nt\.ref(?:<\d+>)?|note) = (['\"])((?:(?!\1).)*)\1\s*$")
 
 
 def too_long(code):
-    """(how many literal `screen text 'text' ... width n` there are, the ones whose text is longer than n)"""
+    """(how many literal `screen text 'text' ... width n` there are, the ones whose text is longer than n); a width written from a pane's rectangle is taken at the reference layout"""
     count, over = 0, []
     for line in code.split("\n"):
         m = LIT.search(line)
         if m:
             count += 1
-            if len(m.group(2)) > int(m.group(4)):
-                over.append((len(m.group(2)), int(m.group(4)), m.group(2)[:40]))
+            if m.group(3):
+                width = int(m.group(3))
+            elif m.group(4):
+                width = REFW[m.group(4)] - int(m.group(5))
+            else:
+                width = REFTW
+            if len(m.group(2)) > width:
+                over.append((len(m.group(2)), width, m.group(2)[:40]))
+            continue
+        m = NOTE.search(line)
+        if m:
+            count += 1
+            width = 62 if "nt.ref" in line else REFTW
+            if len(m.group(2)) > width:
+                over.append((len(m.group(2)), width, m.group(2)[:40]))
     return count, over
 
 
@@ -278,9 +297,10 @@ MUTANTS = [
     ("check.name takes the dots again", "F7", sub("tool_query", "   if fn = '.' or fn = '..' then okname = @false", "")),
     ("the last line break is counted again", "F7", sub("tool_query", "   if out[len(out), 1] = @fm then out = out[1, len(out) - 1]", "")),
     ("the pick list shows a VOC id as it is", "F7", sub("tool_bulk", "fmt(convert(fctl, str('.', len(fctl)), cf)[1, 30], '30L')", "fmt(cf[1, 30], '30L')")),
-    ("a hint of tool.query is longer than its width again", "F8", sub("tool_query", "screen text 'Enter picks the item.  Space toggles it.' at 3,27 width 42", "screen text 'Enter picks the item.  Space turns it over, on and off.' at 3,27 width 42")),
-    ("the foot hint of tool.test is longer than its line again", "F8", sub("tool_test", "Ctrl-C then Q stops one that does not end.\", '134L') at 3,20 width 134",
-                                                                            "Ctrl-C then Q stops a test that does not end: there is no time limit.\", '134L') at 3,20 width 134")),
+    ("a hint of tool.query is longer than its width again", "F8", sub("tool_query", "screen text 'Enter picks the item.  Space toggles it.' at sb.x + 2,sb.y + sb.h - 4 width sb.w - 4", "screen text 'Enter picks the item.  Space turns it over, on and off.' at sb.x + 2,sb.y + sb.h - 4 width sb.w - 4")),
+    ("a note of the Conditions box is longer than its width again", "F8", sub("tool_query", "   nt.ref<4> = 'reads it for the item (see the query documentation).'", "   nt.ref<4> = 'reads it for the item (see the query documentation of the query processor).'")),
+    ("the foot hint of tool.test is longer than its line again", "F8", sub("tool_test", "Ctrl-C then Q stops one that does not end.\"",
+                                                                            "Ctrl-C then Q stops a test that does not end: there is no time limit.  It is a long hint.\"")),
     ("a new item id may start with a dot", "F9", sub("tool_dict", "            if index('abcdefghijklmnopqrstuvwxyz0123456789', askv[1, 1], 1) = 0 then vok = 0\n", "")),
     ("the reason given for a refused id does not mention the first character", "F9", sub("tool_dict", "etxt = 'a-z, 0-9, dot, dash, underscore only, starting with a letter or a digit, and not an SD keyword'", "etxt = 'a-z, 0-9, dot, dash, underscore only, and not an SD keyword'")),
 ]

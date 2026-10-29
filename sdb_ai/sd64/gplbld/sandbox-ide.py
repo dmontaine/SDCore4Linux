@@ -19,6 +19,11 @@
 #               records (no key) and Previous pane (Shift-F6).  New rows: find next / previous in the IDE, Shift-F6, Alt-PageDown / Up, the Go entry.
 # 28 Oct 26 dm  The editor merge, stage B: the Go menu has ten entries, Open the include (no key) before Edit in SED.  Written, NOT run.  The kinds,
 #               the locks and the include itself are sandbox-ide-kinds.py's.
+# 28 Oct 26 dm  Two of the owner's approved items of 28 Oct.  Section TAB: Tab and Shift-Tab indent and outdent in the editor (to the stop, a selection's lines,
+#               one undo step each, blanks on the disk and no tab character), F6 leaves the editor, and Tab still moves through the tree (control).  Section
+#               IDLE: with AUTOLOGOUT 2 the status line counts down the last 60 s, a key in the editor stops it, the wording follows unsaved changes, and the
+#               session is signed out where the countdown ends (about four minutes).  Two rows that pressed Tab IN THE EDITOR to move on press F6 now.
+#               WRITTEN, NOT RUN.
 # END-HISTORY
 #
 # HOW IT DRIVES THE IDE.  On a PSEUDO-TERMINAL (ptydrive.py) at 120 by 36, the screen read from the emulator
@@ -188,8 +193,113 @@ def rec_text(box, rid):
     return out
 
 
-def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+def ed_lines(e, n):
+    """the first n lines of the editor, without the line numbers (the editor starts at column 29 of rows 3 on)"""
+    return [re.sub(r"^\s*\d+ ", "", l[28:]).rstrip() for l in e.lines()[3:3 + n]]
+
+
+# ---- TAB: Tab indents in the editor (28 Oct 26, approved by the owner; WRITTEN, NOT RUN) -------------------------------------------------------------------------
+def section_tab(box, T):
+    say("\n--- TAB: Tab and Shift-Tab indent and outdent in the editor; F6 is the panes' key ---------------------------------------")
+    BTAB, CTRL_G, CTRL_Z = "\x1b[Z", "\x07", "\x1a"
+    e = Ide(box, "IDE bp %s" % T)
+    e.quiet()
+    row("TAB control: the record opens with the focus in the editor, unchanged, its lines abc def ghi", e.status().startswith("[Editor]") and " *" not in e.status()
+        and ed_lines(e, 3) == ["abc", "def", "ghi"], repr(ed_lines(e, 3)) + " | " + e.status())
+    e.keys(TAB)
+    e.quiet()
+    row("TAB1 Tab at the start of a line puts three blanks in (the codebase's width), the cursor at column 4, the record changed; the focus stays in the editor",
+        ed_lines(e, 1) == ["   abc"] and "Line 1, column 4" in e.status() and " *" in e.status() and e.status().startswith("[Editor]"), repr(ed_lines(e, 1)) + " | " + e.status())
+    e.keys(RIGHT, TAB)
+    e.quiet()
+    row("TAB2 Tab after '   a' (column 5) goes to the next stop, column 7: two blanks, not three", ed_lines(e, 1) == ["   a  bc"] and "Line 1, column 7" in e.status(),
+        repr(ed_lines(e, 1)) + " | " + e.status())
+    e.keys(CTRL_Z)
+    e.quiet()
+    row("TAB3 Ctrl-Z takes back exactly the last Tab (one undo step each)", ed_lines(e, 1) == ["   abc"], repr(ed_lines(e, 1)))
+    e.keys(BTAB)
+    e.quiet()
+    row("TAB4 Shift-Tab takes the three blanks out again", ed_lines(e, 1) == ["abc"], repr(ed_lines(e, 1)))
+    e.keys(BTAB)
+    e.quiet()
+    row("TAB4b Shift-Tab on a line with nothing to take out changes nothing", ed_lines(e, 3) == ["abc", "def", "ghi"], repr(ed_lines(e, 3)))
+    e.keys(HOME, CTRL_G, DOWN, DOWN, TAB)
+    e.quiet()
+    row("TAB5 with a selection from line 1 to the start of line 3, Tab indents lines 1 and 2 and leaves line 3 (the selection ends before it)",
+        ed_lines(e, 3) == ["   abc", "   def", "ghi"], repr(ed_lines(e, 3)))
+    e.keys(BTAB)
+    e.quiet()
+    row("TAB6 Shift-Tab with the selection still there takes them out of both lines", ed_lines(e, 3) == ["abc", "def", "ghi"], repr(ed_lines(e, 3)))
+    e.keys(TAB, CTRL_Z)
+    e.quiet()
+    row("TAB7 a Tab on a selection of two lines is ONE undo step: Ctrl-Z gives back both lines", ed_lines(e, 3) == ["abc", "def", "ghi"], repr(ed_lines(e, 3)))
+    e.keys(CTRL_G, CTRL_G)                                  # (no selection)
+    e.keys(TAB, CTRL_S)
+    e.quiet()
+    disk = rec_text(box, T)
+    row("TAB8 saved: the record holds the blanks the editor showed and NO tab character", "   abc" in disk and "\t" not in disk, repr(disk[-200:]))
+    e.keys(F6)
+    e.quiet()
+    row("TAB9 F6 moves the focus out of the editor to the messages", e.status().startswith("[Messages]"), e.status())
+    e.keys(SHIFT_F6, SHIFT_F6, SHIFT_F6)                    # messages, editor, tabs, tree
+    e.quiet()
+    st0 = e.status()
+    e.keys(TAB)
+    e.quiet()
+    row("TAB10 control: in the tree Tab still moves to the next control (the tabs), as in every form", st0.startswith("[Files]") and e.status().startswith("[Tabs]"),
+        st0 + " | " + e.status())
+    e.keys(CTRL_Q)
+    e.quiet()
+    e.end()
+
+
+# ---- IDLE: the AUTOLOGOUT countdown (28 Oct 26, approved by the owner; WRITTEN, NOT RUN; about four minutes) ----------------------------------------------------
+def hold(e, secs):
+    """read the screen for secs seconds of wall time whatever the program writes (settle stops at its own limit or at a quiet moment)"""
+    end = time.time() + secs
+    while time.time() < end and not e.s.exited:
+        e.s.settle(0.3, limit=max(0.05, min(1.0, end - time.time())))
+
+
+def section_idle(box, D):
+    say("\n--- IDLE: the status line counts down the last 60 seconds of AUTOLOGOUT; any key stops it ---------------------------------")
+    e = Ide(box, "AUTOLOGOUT 2")                            # two minutes; then the IDE in the same session
+    e.s.type("IDE bp %s\r" % D, idle=1.2)
+    e.quiet()
+    row("IDLE control: the IDE is up on the record and the status line says nothing about idling", ("bp %s" % D) in e.status() and "Idle" not in e.status(), e.status())
+    hold(e, 62.0)
+    st = e.status()
+    m = re.search(r"Idle: signing out in (\d+) s", st)
+    row("IDLE1 after 62 s with nothing typed the status line counts down (with no change: no word about changes), between 50 and 60 s left",
+        m is not None and 50 <= int(m.group(1)) <= 60 and ";" not in st[m.start():m.end() + 3], st)
+    e.keys("x")
+    e.quiet()
+    row("IDLE2 a key (typed into the editor, which the editor consumes) stops the countdown", "Idle" not in e.status() and " *" in e.status(), e.status())
+    hold(e, 62.0)
+    st = e.status()
+    row("IDLE3 idle again with an unsaved change (the recovery switch is off here): '...; unsaved changes will be lost'",
+        re.search(r"Idle: signing out in \d+ s; unsaved changes will be lost", st) is not None, st)
+    e.keys(RIGHT)
+    e.quiet()
+    row("IDLE4 an arrow key (the editor's, nothing changes in the text) stops it too", "Idle" not in e.status(), e.status())
+    t0 = time.time()
+    last = None
+    while time.time() - t0 < 140 and not e.s.exited:
+        hold(e, 1.0)
+        mm = re.search(r"Idle: signing out in (\d+) s", e.status())
+        if mm:
+            last = (int(mm.group(1)), time.time() - t0)
+        try:
+            gone = e.s._reap(0.1)
+        except Exception:
+            gone = False
+        if gone:
+            e.s.exited = True
+    took = time.time() - t0
+    row("IDLE5 the session is signed out about 120 s after the last key (%.0f s) and the last countdown seen said 5 s or less (%r): the countdown ends where AUTOLOGOUT does"
+        % (took, last), e.s.exited and 112 <= took <= 135 and last is not None and last[0] <= 5, repr((took, last)))
+    if not e.s.exited:
+        e.end()
     if len(args) != 1:
         bail("usage: sandbox-ide.py <dir> [--build]")
     box = os.path.abspath(args[0])
@@ -208,6 +318,7 @@ def main():
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
 
     A, B, C, D, E, G = ("zzi%s%s" % (RUN, c) for c in "abcdeg")   # a program with an error, a good one, a text with words, a spare, a long line, 25,000 lines
+    T = "zzi%st" % RUN                                               # 28 Oct 26: three short lines for the Tab rows
     fixture = """   open 'bp' to f else stop 'no bp'
    s = ''
    for i = 1 to 25000
@@ -220,9 +331,10 @@ def main():
    write 'crt "IDE-RAN-OK"':@fm:'end' on f, '%(b)s'
    write 'alpha':@fm:'the needle is here':@fm:'beta':@fm:'another NEEDLE line':@fm:'gamma' on f, '%(c)s'
    write 'first':@fm:'second':@fm:'third':@fm:'fourth' on f, '%(d)s'
+   write 'abc':@fm:'def':@fm:'ghi' on f, '%(t)s'
    crt 'FIXTURE DONE'
 end
-""" % {"a": A, "b": B, "c": C, "d": D, "e": E, "g": G}
+""" % {"a": A, "b": B, "c": C, "d": D, "e": E, "g": G, "t": T}
     fix = "zzifx" + RUN
     with open(os.path.join(sysd, "bp", fix), "w") as fh:
         fh.write(fixture)
@@ -477,7 +589,7 @@ end
             re.search(r"%s: the needle is here" % C, t) is not None and re.search(r"%s: another NEEDLE line" % C, t) is not None, "\n".join(L[26:34]))
         # (three: the fixture program that wrote the records holds the word too)
         row("the status line counts them", re.search(r"3 line\(s\) found in bp", e.status()) is not None, e.status())
-        L = e.keys(TAB, TAB, TAB, TAB)                      # round the ring to the table
+        L = e.keys(F6, F6, F6, F6)                          # round the ring of panes to the table (28 Oct 26: F6, not Tab, which indents in the editor now)
         L = e.keys(F4)
         row("F4 goes to a result: that record is opened, at the line", ("bp %s" % C) in e.status(), e.status())
 
@@ -637,7 +749,7 @@ end
         e.keys(CTRL_L)
         e.keys("1", RET)
         row("the cursor is moved to line 1", "Line 1," in e.status(), e.status())
-        e.keys(*GOTO_TREE, TAB, TAB, TAB)               # tree, tabs, editor, table
+        e.keys(*GOTO_TREE, TAB, TAB, F6)                # tree, tabs, editor (Tab moves through the tree and the tabs), table (F6: Tab indents in the editor, 28 Oct 26)
         L = e.keys(RET)
         row("Return on a row of the table goes to its line (2)", "Line 2," in e.status(), e.status())
         L = e.keys(*GOTO_TREE)                          # the tree is on bp, the file the IDE was started on (the focus is in the editor again after the jump)
@@ -819,6 +931,9 @@ end
             re.search(r"File\s+Go\s+Search", L[0]) is not None and L[1].startswith("+- IDE") and ("bp %s" % A) in L[41],
             "\n".join(l[:70] for l in (L[0], L[1], L[2], L[40], L[41])))
         e.end()
+
+        section_tab(box, T)
+        section_idle(box, D)
     finally:
         pass
 

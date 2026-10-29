@@ -11,22 +11,28 @@
 # 28 Oct 26 dm  New with the recovery copy.  WRITTEN, NOT RUN (the owner's testing rule of 28 Oct: one complete run after all the full-screen phases).
 # 28 Oct 26 dm  Section R, the TUI phase 2 review's findings: R1 two untitled copies both opened are both kept, R2 a copy the tab does not own is kept, the person told
 #               (11778), and the tab writes its own once that copy is gone, R3 an emptied untitled tab taken away by New record drops its copy.  WRITTEN, NOT RUN.
+# 28 Oct 26 dm  THE STORE MOVED TO THE PERSON'S LINUX HOME (the owner's approval of 28 Oct): the rows read <home>/.local/state/sd/<the run's store>/<account>, the home
+#               from the password database as the kernel takes it; G now shows that an account whose group is not sdu_<user> HAS copies (the swap races are gone),
+#               and nothing in the account directory; C9b an intermediate directory somebody else could write; section O, a copy the first version left in the
+#               account's $recovery: offered once, moved with the switch on, removed either way.  WRITTEN, NOT RUN.
 # END-HISTORY
 #
 # WHAT RUNS.  ORDINARY sessions of fixture accounts (made as sandbox-gates.py makes them; their LOGIN paragraph says TERM LINUX, so the keys are the linux forms) on a
 # PSEUDO-TERMINAL at 140 by 43, each running the IDE on a record of the account's own bp.  A hang-up is the master side closed, as closing a terminal window does
-# (sandbox-ide-fresh.py's hangup_timed).  EVERY OUTCOME IS READ FROM THE DISK: the account directory walked for a file holding the text typed, the $recovery
-# directory's mode and owner by lstat, the record's bytes before and after.  Nothing the IDE says is taken as evidence of a copy.
+# (sandbox-ide-fresh.py's hangup_timed).  EVERY OUTCOME IS READ FROM THE DISK: the store walked for a file holding the text typed, the account directory walked to
+# show it holds none, the store directory's mode and owner by lstat, the record's bytes before and after.  Nothing the IDE says is taken as evidence of a copy.
 #
-# THE ONE CHANGE TO THE SANDBOX'S PROGRAMS.  !edit_recovery writes a copy only in a USER account for its own person: the register group must be sdu_<the Linux
-# user>.  A sandbox cannot make that group (it needs root), and LOGIN refuses an account whose group the user is not in, so the fixture accounts carry the
-# sandbox user's own group.  Section G FIRST runs the SHIPPED rule against such an account with the switch on (no copy may appear: the rule refuses it); then the
-# sandbox's copy of edit_recovery is changed in exactly one line - 'sdu_' : rc.user becomes the fixture group - and recompiled, and the change is printed.
-# What that line decides in a real install (a real sdu_ group) is the VM's to show.
+# THE CHANGES TO THE SANDBOX'S PROGRAMS (printed when they are made).  (1) THE STORE'S NAME.  The copies are in the home of the user the sandbox runs as - the
+# password database's, which is the point of the design, so a test cannot point it anywhere else - and this suite must not mix its copies with that person's real
+# ones.  The sandbox's edit_recovery keeps them in .local/state/sd/zzrc-<run> instead of .local/state/sd/recovery (one constant); the walk from the home down, the
+# trust tests and everything else are the shipped code.  The run's directory is removed at the end, and .local/state/sd too when the run made it and it is empty.
+# (2) THE FIRST VERSION'S RULE, for section O only: an old $recovery is looked at only for a register group sdu_<the Linux user>, which a sandbox cannot make; the
+# one line is pointed at the fixture group.
 #
-#   G    the shipped identity rule: an account whose group is not sdu_<user> gets no copy even with the switch on (and no $recovery directory)
-#   A    the switch OFF (blank field, as delivered): typing, a pause, a hang-up leave no $recovery directory and no file anywhere in the account holding the text
-#   C1   the switch ON: after a pause and a hang-up, $recovery is a real directory of the user's, mode 0700; it holds one copy, mode 0600, with the text; the record is unchanged
+#   G    an account whose group is not sdu_<user> (any kind of account now): with the switch on it HAS a copy, in the store, and nothing in the account holds the text
+#   A    the switch OFF (blank field, as delivered): typing, a pause, a hang-up leave no store directory and no file anywhere in the account or the store holding the text
+#   C1   the switch ON: after a pause and a hang-up, the store's directory for the account is a real directory of the user's, mode 0700; it holds one copy, mode 0600,
+#        with the text; the account directory holds no copy; the record is unchanged
 #   C1b  ...the copy exists while the IDE still runs (the quiet second, which is what saves the text from an abort the program cannot catch)
 #   C2   the record opened again asks first; Enter (Use the copy) puts the text in the editor, changed, the disk unchanged; Ctrl-S writes it and the copy goes
 #   C3   Delete the copy: the copy goes and the editor shows the record as it is on the disk
@@ -34,9 +40,13 @@
 #   C5   Close (Ctrl-W) with Discard: the copy goes and the record is unchanged
 #   C6   an untitled buffer: a copy after a hang-up, offered by the next bare IDE, Open puts its text in a tab
 #   C7   a copy that is not whole (its length does not match) is never offered
-#   C8   $recovery replaced by a LINK to a directory of the user's: nothing is written through it (the target stays empty)
-#   C9   $recovery made group- and world-readable: no copy is written in it
+#   C8   the account's store directory replaced by a LINK to a directory of the user's: nothing is written through it (the target stays empty)
+#   C9   the account's store directory made group- and world-readable: no copy is written in it
+#   C9b  a directory on the way (the run's store) that group can write: no copy is written (SD_USER_HOME refuses the way down)
 #   C10  the switch turned off in the register: a new hang-up leaves no new copy
+#   O1   a copy the FIRST version left in <account>/$recovery, the switch on: offered (Use), then gone from the account and in the store with the date it was kept
+#   O2   ...the switch off: offered once (Cancel), then gone from the account and NOT in the store
+#   O3   an untitled one there is offered by a bare IDE
 #   R1   two untitled copies, both answered Open: both stay on the disk (a second Open wrote the empty startup buffer over the first tab, and a tick deleted its copy)
 #   R2   a copy the tab does not own under the name its first save gave it: kept, the person told (11778); once it is gone the tab writes its own within 10 s
 #   R3   an untitled tab opened from a copy, emptied, then replaced by New record (the switch off, so no tick): its copy goes
@@ -47,6 +57,8 @@
 import hashlib
 import importlib.util
 import os
+import pwd
+import shutil
 import stat
 import sys
 import time
@@ -74,7 +86,13 @@ RET, ESC = "\r", E
 CTRL_S, CTRL_W = "\x13", "\x17"
 RUN = "%05d" % (os.getpid() % 100000)
 ACC_G, ACC_OFF, ACC_ON = "zzrcg", "zzrc0", "zzrc1"
-SHIPPED_RULE = "   if downcase(trim(arec<ACC$GROUP>)) # 'sdu_' : rc.user then return\n"
+SHIPPED_STORE = "   STORE = '.local/state/sd/recovery'"
+RUN_STORE = "zzrc-" + RUN
+SHIPPED_OLD = "      if downcase(trim(arec<ACC$GROUP>)) = 'sdu_' : rc.user then rc.old = apath : '/$recovery'"
+HOME = os.path.realpath(pwd.getpwuid(os.geteuid()).pw_dir)       # the password database's home, as the kernel's SD_USER_HOME takes it (never $HOME)
+SD_STATE = os.path.join(HOME, ".local", "state", "sd")
+SD_STATE_WAS = os.path.isdir(SD_STATE)
+STORE = os.path.join(SD_STATE, RUN_STORE)
 
 
 def rid(tag):
@@ -86,7 +104,24 @@ def acct(a):
 
 
 def rdir(a):
+    """the store's directory for account a (the run's store, in the person's home)"""
+    return os.path.join(STORE, a)
+
+
+def olddir(a):
+    """where the first version kept copies: the account's own $recovery"""
     return os.path.join(acct(a), "$recovery")
+
+
+def stored(a, text):
+    """every file in the store's directory for account a that holds text"""
+    d = rdir(a)
+    out = []
+    for n in sorted(os.listdir(d)) if os.path.isdir(d) and not os.path.islink(d) else []:
+        t = fr.readf(os.path.join(d, n))
+        if t is not None and text in t:
+            out.append(os.path.join(d, n))
+    return out
 
 
 def recbp(a, r):
@@ -161,32 +196,45 @@ def setup():
     R.row("SETUP control: an ordinary fixture session is not an administrator", True, "")
 
 
-def patch_rule():
-    """the sandbox's own edit_recovery, the identity line pointed at the fixture group (the only change), recompiled as the administrator"""
+def patch_programs():
+    """the sandbox's own edit_recovery: the store's name made the run's own, and the first version's rule pointed at the fixture group; recompiled as the administrator"""
     p = os.path.join(sh.SYS, "gpl.bp", "edit_recovery")
     with open(p, encoding="latin-1") as f:
         src = f.read()
-    if src.count(SHIPPED_RULE) != 1:
-        bail("the sandbox's edit_recovery does not hold the identity line once (%d)" % src.count(SHIPPED_RULE))
-    new = "   if downcase(trim(arec<ACC$GROUP>)) # '%s' then return\n" % g.GROUP.lower()
+    if src.count(SHIPPED_STORE) != 1 or src.count(SHIPPED_OLD) != 1:
+        bail("the sandbox's edit_recovery does not hold the store line and the old rule once each (%d, %d)" % (src.count(SHIPPED_STORE), src.count(SHIPPED_OLD)))
+    new_store = "   STORE = '.local/state/sd/%s'" % RUN_STORE
+    new_old = "      if downcase(trim(arec<ACC$GROUP>)) = '%s' then rc.old = apath : '/$recovery'" % g.GROUP.lower()
     with open(p, "w", encoding="latin-1") as f:
-        f.write(src.replace(SHIPPED_RULE, new))
-    say("    PATCH (the one change): %r -> %r in %s" % (SHIPPED_RULE.strip(), new.strip(), p))
+        f.write(src.replace(SHIPPED_STORE, new_store).replace(SHIPPED_OLD, new_old))
+    say("    PATCH (1): %r -> %r\n    PATCH (2): %r -> %r\n    in %s" % (SHIPPED_STORE.strip(), new_store.strip(), SHIPPED_OLD.strip(), new_old.strip(), p))
     out = g.adm(["BASIC gpl.bp edit_recovery"], internal=True)
     if not g.has(out, r"^Compiled 1 program\(s\) with no errors"):
         bail("the patched edit_recovery did not compile:\n" + "\n".join(out[-6:]))
+    say("    (the store of this run: %s; the home is the password database's: %s; .local/state/sd was there before: %r)" % (STORE, HOME, SD_STATE_WAS))
 
 
-# ---- G: the shipped identity rule -------------------------------------------------------------------------------------------------------------------------------
+def clean_store():
+    """the run's store goes; .local/state/sd too when this run made it and nothing else is in it"""
+    if os.path.isdir(STORE) and not os.path.islink(STORE):
+        shutil.rmtree(STORE, ignore_errors=True)
+    if not SD_STATE_WAS and os.path.isdir(SD_STATE) and not os.listdir(SD_STATE):
+        os.rmdir(SD_STATE)
+    say("    (cleaned: %s %s)" % (STORE, "gone" if not os.path.exists(STORE) else "STILL THERE"))
+
+
+# ---- G: an account whose group is not sdu_<user> ----------------------------------------------------------------------------------------------------------------
 def section_rule():
-    say("\n--- G: the shipped rule (the group is not sdu_<user>) ---------------------------------------------------------------")
+    say("\n--- G: an account whose group is not sdu_<user> (any kind of account now) ------------------------------------------------")
     r = rid("g")
     fr.mk(recbp(ACC_G, r), "kept\n")
     s = ide("G", ACC_G, "bp " + r)
     changed = type_pause_hangup(s, "GRULEMARK")
     R.row("G control: the buffer was changed before the hang-up", changed, "", phase=PH)
-    R.row("G1 the switch is on but the account's group is not sdu_<user>: no $recovery directory is made", lmode(rdir(ACC_G)) is None, repr(lmode(rdir(ACC_G))), phase=PH)
-    R.row("G2 ...and no file in the account holds the text", not holders(ACC_G, "GRULEMARK"), repr(holders(ACC_G, "GRULEMARK")), phase=PH)
+    R.row("G1 the switch is on and the account's group is not sdu_<user>: it HAS a copy now, in the store in the person's home (only that user can rename entries there)",
+          len(stored(ACC_G, "GRULEMARK")) == 1, repr(stored(ACC_G, "GRULEMARK")), phase=PH)
+    R.row("G2 ...and no file in the account directory holds the text (BACKUP.ACCOUNT never sees a copy), nor is a $recovery made there",
+          not holders(ACC_G, "GRULEMARK") and lmode(olddir(ACC_G)) is None, repr(holders(ACC_G, "GRULEMARK")), phase=PH)
 
 
 # ---- A: the switch off -------------------------------------------------------------------------------------------------------------------------------------------
@@ -197,8 +245,9 @@ def section_off():
     s = ide("A", ACC_OFF, "bp " + r)
     changed = type_pause_hangup(s, "OFFMARK")
     R.row("A control: the buffer was changed before the hang-up", changed, "", phase=PH)
-    R.row("A1 with the switch off no $recovery directory is made", lmode(rdir(ACC_OFF)) is None, "", phase=PH)
-    R.row("A2 ...no file anywhere in the account holds the text", not holders(ACC_OFF, "OFFMARK"), repr(holders(ACC_OFF, "OFFMARK")), phase=PH)
+    R.row("A1 with the switch off no store directory is made for the account, and no $recovery in it", lmode(rdir(ACC_OFF)) is None and lmode(olddir(ACC_OFF)) is None, "", phase=PH)
+    R.row("A2 ...no file anywhere in the account or the store holds the text", not holders(ACC_OFF, "OFFMARK") and not stored(ACC_OFF, "OFFMARK"),
+          repr(holders(ACC_OFF, "OFFMARK")), phase=PH)
     R.row("A3 ...and the record is as it was", fr.readf(recbp(ACC_OFF, r)) == "kept\n", fr.disk(recbp(ACC_OFF, r)), phase=PH)
 
 
@@ -210,20 +259,22 @@ def section_on():
     fr.mk(recbp(ACC_ON, r1), "kept\n")
     s = ide("C1", ACC_ON, "bp " + r1)
     s.type("ONMARK1", wait=2.5, show="'ONMARK1' then 2.5 s of quiet")
-    live = holders(ACC_ON, "ONMARK1")
+    live = stored(ACC_ON, "ONMARK1")
     R.row("C1b a copy holding the text exists while the IDE still runs (after a second of quiet), so an abort, which no program can catch, does not lose it",
           s.alive() and any(p.startswith(d + os.sep) for p in live), repr(live), phase=PH)
     el, went = s.hangup_timed()
     time.sleep(1.0)
     st = lmode(d)
-    R.row("C1 $recovery is a real directory (not a link), owned by the session's user, mode 0700 (no group or other bits)",
+    R.row("C1a the account directory holds no copy and no $recovery (the store is the person's home, outside every account)",
+          not holders(ACC_ON, "ONMARK1") and lmode(olddir(ACC_ON)) is None, repr(holders(ACC_ON, "ONMARK1")), phase=PH)
+    R.row("C1 the store's directory for the account is a real directory (not a link), owned by the session's user, mode 0700 (no group or other bits)",
           st is not None and stat.S_ISDIR(st.st_mode) and st.st_uid == os.getuid() and (st.st_mode & 0o077) == 0 and (st.st_mode & 0o700) == 0o700,
           "mode %s uid %s" % (oct(st.st_mode) if st else None, st.st_uid if st else None), phase=PH)
     names = sorted(os.listdir(d)) if st is not None and stat.S_ISDIR(st.st_mode) else []
     cp = os.path.join(d, slot("bp", r1))
     cst = lmode(cp)
     txt = fr.readf(cp) or ""
-    say("    $recovery holds %r; the copy %s: %r" % (names, os.path.basename(cp), txt[:160]))
+    say("    the store %s holds %r; the copy %s: %r" % (d, names, os.path.basename(cp), txt[:160]))
     R.row("C1c ...it holds the one copy, named for bp and the record, a regular file of the user's, mode 0600",
           names == [slot("bp", r1)] and cst is not None and stat.S_ISREG(cst.st_mode) and cst.st_uid == os.getuid() and (cst.st_mode & 0o777) == 0o600,
           "names %r mode %s" % (names, oct(cst.st_mode) if cst else None), phase=PH)
@@ -313,7 +364,8 @@ def section_on():
     r10 = rid("c10")
     fr.mk(recbp(ACC_ON, r10), "kept10\n")
     type_pause_hangup(ide("C10", ACC_ON, "bp " + r10), "OFFAGAIN")
-    R.row("C10 RECOVERY-OFF in the register: a new hang-up leaves no new copy", not holders(ACC_ON, "OFFAGAIN"), repr(holders(ACC_ON, "OFFAGAIN")), phase=PH)
+    R.row("C10 RECOVERY-OFF in the register: a new hang-up leaves no new copy (in the store or the account)", not stored(ACC_ON, "OFFAGAIN") and not holders(ACC_ON, "OFFAGAIN"),
+          repr(stored(ACC_ON, "OFFAGAIN")), phase=PH)
     register(ACC_ON, "yes")
 
 
@@ -436,7 +488,7 @@ def section_dir():
     r8 = rid("c8")
     fr.mk(recbp(ACC_ON, r8), "kept8\n")
     type_pause_hangup(ide("C8", ACC_ON, "bp " + r8), "LINKMARK")
-    R.row("C8 $recovery is a LINK to a private directory of the user's: nothing is written through it (the target stays empty) and the link is left as it was",
+    R.row("C8 the account's store directory is a LINK to a private directory of the user's: nothing is written through it (the target stays empty) and the link is left as it was",
           os.listdir(target) == [] and os.path.islink(d) and not holders(ACC_ON, "LINKMARK"), repr(os.listdir(target)), phase=PH)
     os.unlink(d)
     os.rename(keep, d)
@@ -444,21 +496,92 @@ def section_dir():
     r9 = rid("c9")
     fr.mk(recbp(ACC_ON, r9), "kept9\n")
     type_pause_hangup(ide("C9", ACC_ON, "bp " + r9), "OPENMARK")
-    R.row("C9 $recovery readable by group and others (0755): no copy is written in it", not holders(ACC_ON, "OPENMARK"), repr(holders(ACC_ON, "OPENMARK")), phase=PH)
+    R.row("C9 the account's store directory readable by group and others (0755): no copy is written in it", not stored(ACC_ON, "OPENMARK") and not holders(ACC_ON, "OPENMARK"),
+          repr(stored(ACC_ON, "OPENMARK")), phase=PH)
     os.chmod(d, 0o700)
+    # C9b: a directory ON THE WAY that somebody else could write (the run's store, the one above the account's): SD_USER_HOME refuses the way down, so nothing is written
+    os.chmod(STORE, 0o770)
+    r9b = rid("c9b")
+    fr.mk(recbp(ACC_ON, r9b), "kept9b\n")
+    type_pause_hangup(ide("C9b", ACC_ON, "bp " + r9b), "WAYMARK")
+    R.row("C9b a directory on the way from the home that group can write (%s, 0770): no copy is written" % STORE,
+          not stored(ACC_ON, "WAYMARK") and not holders(ACC_ON, "WAYMARK"), "mode %s" % oct(os.lstat(STORE).st_mode), phase=PH)
+    os.chmod(STORE, 0o700)
+
+
+# ---- O: a copy the FIRST version left in the account's $recovery (WRITTEN, NOT RUN) ---------------------------------------------------------------------------
+def plant_old(a, fname, r, body, date="20000", tim="3600"):
+    """a whole, private copy where and as the first version wrote it: <account>/$recovery (0700), the copy 0600"""
+    d = olddir(a)
+    os.makedirs(d, exist_ok=True)
+    os.chmod(d, 0o700)
+    p = os.path.join(d, slot(fname, r))
+    rec = "\xfe".join(["sd-recovery 1", a, fname, r, date, tim, str(len(body)), hashlib.sha256(body.encode("latin-1")).hexdigest(), body])
+    with open(p, "w", encoding="latin-1") as f:
+        f.write(rec)
+    os.chmod(p, 0o600)
+    say("    (planted the first version's copy %s for %s %s)" % (p, fname, r))
+    return p
+
+
+def section_old():
+    say("\n--- O: a copy the first version left in the account ------------------------------------------------------------------")
+    # O1: the switch on: offered, Use; then the copy is in the store (moved, with the date it was kept) and gone from the account
+    r1 = rid("o1")
+    fr.mk(recbp(ACC_ON, r1), "keptO1\n")
+    old1 = plant_old(ACC_ON, "bp", r1, "OLDTEXT1")
+    s = ide("O1", ACC_ON, "bp " + r1)
+    asked = "A recovery copy of bp " + r1 in s.text()
+    s.type(RET, wait=1.5, show="RET (Use the copy)")
+    used = "OLDTEXT1" in s.editor()
+    s.end()
+    moved = os.path.join(rdir(ACC_ON), slot("bp", r1))
+    f = (fr.readf(moved) or "").split("\xfe", 8)
+    R.row("O1 the first version's copy is offered (the question names bp and the record) and Use puts its text in the editor", asked and used, "asked %r used %r" % (asked, used), phase=PH)
+    R.row("O1b ...it is gone from the account's $recovery, and the store holds it, with the date and time it was first kept (20000, 3600) and the same text",
+          lmode(old1) is None and len(f) == 9 and f[4:6] == ["20000", "3600"] and f[8] == "OLDTEXT1", "old %r store %r" % (lmode(old1), f[:6]), phase=PH)
+    # O2: the switch off: offered once (Cancel); then gone from the account and not in the store
+    register(ACC_ON, "no")
+    r2 = rid("o2")
+    fr.mk(recbp(ACC_ON, r2), "keptO2\n")
+    old2 = plant_old(ACC_ON, "bp", r2, "OLDTEXT2")
+    s = ide("O2", ACC_ON, "bp " + r2)
+    asked = "A recovery copy of bp " + r2 in s.text()
+    s.type(L_DOWN + L_DOWN + RET, wait=1.5, show="Down Down RET (Cancel)")
+    s.end()
+    R.row("O2 with the switch off it is still offered, once: after Cancel it is gone from the account and the store does not hold it",
+          asked and lmode(old2) is None and not stored(ACC_ON, "OLDTEXT2"), "asked %r old %r" % (asked, lmode(old2)), phase=PH)
+    s = ide("O2b", ACC_ON, "bp " + r2)
+    R.row("O2b ...and the record opened again asks nothing: it opens as it is on the disk", "A recovery copy of" not in s.text() and "keptO2" in s.editor(), "", phase=PH)
+    s.end()
+    register(ACC_ON, "yes")
+    # O3: an untitled copy there is offered by a bare IDE
+    drop_untitled(rdir(ACC_ON))
+    tok = "untitled.20000.3600.9"
+    old3 = plant_old(ACC_ON, "", tok, "OLDUNTITLED")
+    s = ide("O3", ACC_ON, "")
+    asked = "untitled buffer was kept" in s.text()
+    s.type(RET, wait=1.5, show="RET (Open)")
+    R.row("O3 a bare IDE offers the first version's untitled copy, Open puts its text in a tab, and the account no longer holds it",
+          asked and "OLDUNTITLED" in s.editor() and lmode(old3) is None, "asked %r" % asked, phase=PH)
+    s.end()
 
 
 def main():
     try:
         setup()
+        patch_programs()                  # BEFORE any row: no copy of this run may reach the person's real store
         section_rule()
-        patch_rule()
         section_off()
         section_on()
         section_review()
+        section_old()
         section_dir()
     finally:
-        sh.teardown()
+        try:
+            clean_store()
+        finally:
+            sh.teardown()
     sys.exit(R.finish())
 
 

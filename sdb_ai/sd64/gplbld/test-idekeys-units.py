@@ -21,6 +21,10 @@ have, a help that still names the old key.
 
 28 Oct 26 (the editor merge, stage B): the Go menu has "Open the include" (command word `include`, no key: a terminal sends Ctrl-Enter as Return, and the
 owner's keys of 20 Oct are not rebound) between Previous pane and Edit in SED; IK24 holds that run.cmd runs do.include for it and no key leads to it.
+
+28 Oct 26 (approved by the owner): Tab indents in the IDE's editor.  IK25-IK27 hold the memo's opt-in tabindent (Tab / Shift-Tab are the area's keys only
+with it, never in a viewer), indent.in / indent.out (one undo step, blanks only, to the stop; no step for nothing), and that the IDE alone sets it to 3 and its
+help says so; 12 mutants from M_TAB.  That a Tab typed on a screen indents is sandbox-ide.py section TAB.
 """
 
 import os
@@ -262,7 +266,45 @@ def checks(raw):
        "'$include' as its first word and opens the record through open.record; the help names it",
        inc == [("Open the include", "", "include")] and re.search(r"case cmd = 'include'\s*\n\s*gosub do\.include", rc) is not None
        and "mw{'cy'}" in di and "'$include'" in di and "gosub open.record" in di and "include" not in bound.values() and "Open the include" in allhelp, repr(inc))
+    # ---- 28 Oct 26 (approved by the owner): Tab indents in the IDE's editor, an option of the memo that only the IDE sets ------------------------------------------
+    hk = memo[memo.find("handle.key:"):]
+    i_ro = hk.find("      case ro\n")
+    i_tab = hk.find("      case key = 'tab' and ti > 0\n")
+    i_btab = hk.find("      case key = 'btab' and ti > 0\n")
+    ck("IK25", "the memo's Tab and Shift-Tab are its own keys ONLY with tabindent: ti is w{'tabindent'} + 0, the two cases test ti > 0 and come AFTER the readonly case (a viewer moves "
+       "the focus as before), Tab runs indent.in and Shift-Tab indent.out, and no other case names tab or btab (without the option Tab is 'unhandled', a form's control key)",
+       "ti = w{'tabindent'} + 0" in memo and 0 < i_ro < i_tab < i_btab
+       and re.search(r"case key = 'tab' and ti > 0\s*\n\s*gosub indent\.in\b", hk) is not None and re.search(r"case key = 'btab' and ti > 0\s*\n\s*gosub indent\.out\b", hk) is not None
+       and len(re.findall(r"case key = '(?:tab|btab)'\s*(?:\n|or\b)", hk)) == 0 and len(re.findall(r"'b?tab'", memo)) == 2, "%d %d %d" % (i_ro, i_tab, i_btab))
+    ii = block(memo, "indent.in")
+    io = block(memo, "indent.out")
+    oc = block(memo, "outdent.count")
+    ck("IK26", "indent.in is ONE undo step taken before the change (kind 'indent', snap.push), puts blanks in with space() and never a tab character, to the next stop (ti - mod(cx - 1, ti)) "
+       "or the width before each selected line that holds something; indent.out takes out only blanks, back to the stop before, and makes no step when there is nothing to take out; "
+       "neither kind joins a run of typing in snap.push",
+       ordered(ii, "kind = 'indent'", "gosub snap.push", "if has.sel then", "gosub indent.lines", "space(ti) : lines<in.i>", "end else", "in.n = ti - mod(cx - 1, ti)", "space(in.n)")
+       and "char(9)" not in ii + io + oc and "if lines<in.i> # '' then" in ii
+       and ordered(io, "in.any = @false", "gosub outdent.count", "if not(in.any) then return", "kind = 'outdent'", "gosub snap.push", "lines<in.i> = in.ln[in.r + 1, len(in.ln)]")
+       and ordered(oc, "in.ln[in.l + 1, 1] = ' '", "in.r = mod(in.l, ti)", "if in.r = 0 then in.r = ti", "if in.r > in.l then in.r = in.l")
+       and "if ex = 1 and ey > sy then in.b = ey - 1" in block(memo, "indent.lines")
+       and "if kind = k0 and (kind = 'type' or kind = 'bs' or kind = 'del') then return" in block(memo, "snap.push"), ii[:120])
+    ti_sets = re.findall(r"\{'tabindent'\}\s*=\s*(\S+)", ide)
+    ck("IK27", "the IDE sets the editor's tabindent to 3 (the codebase's width), once, where it sets the other options of the editor; the help says Tab, Shift-Tab indent and outdent "
+       "in the editor and F6, Shift-F6 move between the panes",
+       ti_sets == ["3"] and ordered(block(ide, "new.form"), "mw{'stay'} = 1", "mw{'tabindent'} = 3", "mw{'softcur'} = 1")
+       and re.search(r"Tab, Shift-Tab\s+In the editor: indent, outdent", help_text(raw["m11214"])) is not None
+       and not re.search(r"Tab, Shift-Tab\s+Next / previous pane", help_text(raw["m11214"])), repr(ti_sets))
     return rows
+
+
+def ordered(text, *parts):
+    pos = -1
+    for p in parts:
+        i = text.find(p, pos + 1)
+        if i < 0:
+            return False
+        pos = i
+    return True
 
 
 def sub(key, old, new):
@@ -342,6 +384,23 @@ MUTANTS += [
     ("do.include opens the record without open.record", "IK24", sub("ide", "   cur.code = 'R:' : or.file : ':' : or.id\n   gosub open.record\n   if nbuf > 0 then\n      ft.id = 'ed'\n      gosub focus.to\n      gosub redraw.tabs",
                                                                     "   cur.code = 'R:' : or.file : ':' : or.id\n   null\n   if nbuf > 0 then\n      ft.id = 'ed'\n      gosub focus.to\n      gosub redraw.tabs")),
     ("the help does not name Open the include", "IK24", sub("m11215", "Go, Open the include:", "Go, the include:")),
+]
+# 28 Oct 26: Tab indents in the IDE's editor (the memo's tabindent)
+M_TAB = len(MUTANTS)
+MUTANTS += [
+    ("the memo indents without the option (every form loses Tab)", "IK25", sub("memo", "      case key = 'tab' and ti > 0\n", "      case key = 'tab'\n")),
+    ("a read-only area indents", "IK25", sub("memo", "      case ro\n         ret = 'unhandled' : @fm : key\n      case key = 'tab' and ti > 0\n         gosub indent.in                ;* 28 Oct 26: an area with tabindent (the IDE); without it Tab is 'unhandled' below, as ever\n",
+                                             "      case key = 'tab' and ti > 0\n         gosub indent.in                ;* 28 Oct 26: an area with tabindent (the IDE); without it Tab is 'unhandled' below, as ever\n      case ro\n         ret = 'unhandled' : @fm : key\n")),
+    ("Shift-Tab indents", "IK25", sub("memo", "      case key = 'btab' and ti > 0\n         gosub indent.out", "      case key = 'btab' and ti > 0\n         gosub indent.in")),
+    ("Tab puts a tab character in", "IK26", sub("memo", "      lines<cy> = ln[1, cx - 1] : space(in.n) : ln[cx, len(ln)]", "      lines<cy> = ln[1, cx - 1] : char(9) : ln[cx, len(ln)]")),
+    ("Tab is no undo step", "IK26", sub("memo", "   kind = 'indent'\n   gosub snap.push\n", "   kind = 'indent'\n")),
+    ("Tab goes the whole width whatever the column", "IK26", sub("memo", "      in.n = ti - mod(cx - 1, ti)", "      in.n = ti")),
+    ("an empty selected line gets blanks", "IK26", sub("memo", "         if lines<in.i> # '' then\n            lines<in.i> = space(ti) : lines<in.i>", "         if 1 then\n            lines<in.i> = space(ti) : lines<in.i>")),
+    ("Shift-Tab makes a step that changes nothing", "IK26", sub("memo", "   if not(in.any) then return\n", "")),
+    ("Shift-Tab takes out the whole width, not back to the stop", "IK26", sub("memo", "   in.r = mod(in.l, ti)\n", "   in.r = ti\n")),
+    ("a run of indents is one undo step", "IK26", sub("memo", "(kind = 'type' or kind = 'bs' or kind = 'del')", "(kind = 'type' or kind = 'bs' or kind = 'del' or kind = 'indent')")),
+    ("the IDE does not set the option (Tab moves the focus again)", "IK27", sub("ide", "   mw{'tabindent'} = 3", "   mw{'tabindent'} = 0")),
+    ("the help still says Tab is the next pane", "IK27", sub("m11214", "Tab, Shift-Tab   In the editor: indent, outdent", "Tab, Shift-Tab   Next / previous pane; in the editor: indent, outdent")),
 ]
 
 

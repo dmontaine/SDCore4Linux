@@ -77,11 +77,12 @@ def checks(raw):
        and "Only the administrator can change a gate (modify.account).  Nothing on this page can." in pg)
     ck("MG9", "the edit gates are said to be read ONCE at sign-on, and the row of a gate that is only planned says there is nothing to switch",
        "The edit gates are read ONCE when you sign on" in pg and "is planned and not built yet: there is nothing to switch" in pg and "if gids<k> = 'voc' or gids<k> = 'bp' or gids<k> = 'dict' then" in pg)
-    ck("MG10", "there is a [?], F1 and ? and a click show tool.gates.mine, whose record exists; the page calls $tk_help with its five arguments", pg.count("tool.gates.mine") == 2 and "call $tk_help('mark', 134, 2, 0, 0)" in pg
-       and "call $tk_help('hit', mev, 134, 2, hit.m)" in pg and raw["help"].split("\n")[0].strip() != "" and all(len(re.split(r",(?![^()]*\))", m)) == 5 for m in re.findall(r"call \$tk_help\(([^\n]*)\)", pg)))
+    ck("MG10", "there is a [?], F1 and ? and a click show tool.gates.mine, whose record exists; the page calls $tk_help with its five arguments", pg.count("tool.gates.mine") == 2 and "call $tk_help('mark', g.x + g.w - 5, g.y + 1, 0, 0)" in pg
+       and "call $tk_help('hit', mev, g.x + g.w - 5, g.y + 1, hit.m)" in pg and raw["help"].split("\n")[0].strip() != "" and all(len(re.split(r",(?![^()]*\))", m)) == 5 for m in re.findall(r"call \$tk_help\(([^\n]*)\)", pg)))
     n = len(info_rows)
     ck("MG11", "the page shows all the gates of the table on one screen: VIS (the rows on the screen) is at least the number of gates, the box and the text starts are where the draw routines put them",
-       re.search(r"VIS = (\d+)", pg) is not None and int(re.search(r"VIS = (\d+)", pg).group(1)) >= n and "screen box at 1,1 size 138,21 title 'What this account may do'" in pg and "for r = 1 to VIS" in pg, "%d gates" % n)
+       re.search(r"VIS = (\d+)", pg) is not None and int(re.search(r"VIS = (\d+)", pg).group(1)) >= n and "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 21 : @vm : 138 :" in pg and "VIS = g.h - 5" in pg
+       and "screen box at g.x,g.y size g.w,g.h title 'What this account may do'" in pg and "for r = 1 to VIS" in pg, "%d gates" % n)
     ck("MG12", "the page starts from the system's answers on every F5 (read.all is called again) and not from a copy it kept", "case nm = 'f5'\n         gosub read.all\n         gosub draw.all" in pg and "gst = ''" in pg)
     return rows
 
@@ -112,7 +113,8 @@ MUTANTS = [
     ("the page says it can change a gate", "MG8", sub("page", "Only the administrator can change a gate (modify.account).  Nothing on this page can.", "You can change a gate here.")),
     ("the sign-on sentence is gone", "MG9", sub("page", "The edit gates are read ONCE when you sign on", "The edit gates are read when you ask")),
     ("the help call has too few arguments", "MG10", sub("page", "call $tk_help('box', 'tool.gates.mine', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'", "call $tk_help('box', 'tool.gates.mine', hm)\n         if hm # '' then msg = hm\n      case nm = 'f5'")),
-    ("the page has no [?]", "MG10", sub("page", "   call $tk_help('mark', 134, 2, 0, 0)\n", "")),
+    ("the page has no [?]", "MG10", sub("page", "   call $tk_help('mark', g.x + g.w - 5, g.y + 1, 0, 0)\n", "")),
+    ("the gate pane is declared one row short", "MG11", sub("page", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 21 :", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 20 :")),
     ("too few rows for the table", "MG11", sub("page", "VIS = 16 ", "VIS = 10 ")),
     ("F5 does not ask again", "MG12", sub("page", "case nm = 'f5'\n         gosub read.all\n         gosub draw.all", "case nm = 'f5'\n         gosub draw.all")),
 ]

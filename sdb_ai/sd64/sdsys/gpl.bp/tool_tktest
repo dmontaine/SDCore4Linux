@@ -6,6 +6,9 @@
 *
 * START-HISTORY:
 * 22 Oct 26 dm  New (S.75, TK-0.1).
+* 28 Oct 26 dm  S.88 L2: a resize is $tk_layout 'refresh' and the frame written again (the status line, the border and the key row used to stay on the rows of the window the app was
+*               opened in).  THE PANES ARE NOT DECLARED, on purpose: this app has no boxes - its table (pane T) stands at column 0, which the body (it starts at column 1) cannot give, and its
+*               forms and pick windows stand at the literal places sandbox-tk-base.py measures the library at; a declaration would move what the suite is there to measure.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -72,6 +75,7 @@ $include tk.h
    pane = 'A'
    if field(@sentence, ' ', 2) = 'dialogs' or field(@sentence, ' ', 3) = 'dialogs' then pane = 'D'
    msg = ''
+   tgen = 0                                                ;* the frame's generation: raised on a resize, so that $tk_frame writes all of it again
 
    * pane T: a table (sl_table, G3) of N rows (tktest table N, 12 by default) driven directly, with a filter (F4) and a refresh (F6) that changes the rows
    if field(@sentence, ' ', 2) = 'table' then
@@ -154,6 +158,11 @@ $include tk.h
       screen key returning k
       if k = '' and status() = ER$EOF then exit          ;* the input has ended (a pipe): no key will ever come
       if k = 'guardquit' then exit                       ;* the cursor lock's own way out
+      if k = 'resize' then
+         call $tk_layout('refresh', ctx, '', chg)        ;* the frame from the window as it is now (S.88 L2); the body holds no pane of this app
+         tgen += 1
+         ctx<TK.C.GEN> = tgen
+      end
       call $tk_keys('action', keys, k, pane, act, '', '')
       begin case
          case act = 'quit'

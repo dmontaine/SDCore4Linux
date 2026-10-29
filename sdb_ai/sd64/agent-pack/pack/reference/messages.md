@@ -2896,19 +2896,19 @@ Line %1, column %2
 cited by: `ide`
 
 ### msg:11214
-> kind=message tier=reference since=- src=sdsys/messages/11214:1#42f0bb16
+> kind=message tier=reference since=- src=sdsys/messages/11214:1#ea4a32a8
 
 ```
-The IDE\n\nTab, Shift-Tab   Next / previous pane\nF6, Shift-F6     Next / previous pane\nReturn           Open the file or record; go to the error\nSpace, Right     Open or close a tree node\nCtrl-S           Save the record (an untitled one asks for its file and name)\nCtrl-N           New record\nCtrl-O           Open a record by file and name\nCtrl-W           Close the record\nCtrl-PgDn, PgUp  Next / previous record tab (Alt-PgDn, PgUp too: a terminal may keep the Ctrl keys for its own tabs)\n
+The IDE\n\nTab, Shift-Tab   In the editor: indent, outdent the line or the selected lines (3 blanks, one undo step); elsewhere the next / previous control\nF6, Shift-F6     Next / previous pane\nReturn           Open the file or record; go to the error\nSpace, Right     Open or close a tree node\nCtrl-S           Save the record (an untitled one asks for its file and name)\nCtrl-N           New record\nCtrl-O           Open a record by file and name\nCtrl-W           Close the record\nCtrl-PgDn, PgUp  Next / previous record tab (Alt-PgDn, PgUp too: a terminal may keep the Ctrl keys for its own tabs)\n
 ```
 
 cited by: `ide`
 
 ### msg:11215
-> kind=message tier=reference since=- src=sdsys/messages/11215:1#2222ac72
+> kind=message tier=reference since=- src=sdsys/messages/11215:1#5a7c6650
 
 ```
-F4               Next error or result\nF5               Run\nF7               Debug\nF8               Compile\nF9               Build: compile and catalogue\nCtrl-L           Go to a line\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A dictionary item's, a VOC record's or a data record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks (a program's never)\nLocks            A record open in a tab is locked; one another session has locked opens read-only\nInclude          Go, Open the include: the record a $include line at the cursor names\nMenus            Save as, Write a copy and Find in the records of the file are in the File and Search menus\n
+F4               Next error or result\nF5               Run\nF7               Debug\nF8               Compile\nF9               Build: compile and catalogue\nCtrl-L           Go to a line\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A dictionary item's, a VOC record's or a data record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks (a program's never)\nLocks            A record open in a tab is locked; one another session has locked opens read-only\nNot ASCII        A record holding characters outside ASCII (bytes 128 to 247) opens read-only\nIdle             With autologout set, the status line counts down its last 60 seconds; any key stops it\nInclude          Go, Open the include: the record a $include line at the cursor names\nMenus            Save as, Write a copy and Find in the records of the file are in the File and Search menus\n
 ```
 
 cited by: `ide`
@@ -6807,6 +6807,51 @@ The shared account has no pdf directory (the installer makes it), so there is no
 
 cited by: `docsinst`
 
+### msg:11750
+> kind=message tier=reference since=- src=sdsys/messages/11750:1#e64264f5
+
+```
+Idle: signing out in %1 s; unsaved changes will be lost
+```
+
+cited by: `ide`
+
+### msg:11751
+> kind=message tier=reference since=- src=sdsys/messages/11751:1#d56e451a
+
+```
+Idle: signing out in %1 s; a recovery copy is kept
+```
+
+cited by: `ide`
+
+### msg:11752
+> kind=message tier=reference since=- src=sdsys/messages/11752:1#dbfcdbe5
+
+```
+Idle: signing out in %1 s
+```
+
+cited by: `ide`
+
+### msg:11753
+> kind=message tier=reference since=- src=sdsys/messages/11753:1#585c4a5f
+
+```
+[read-only: characters outside ASCII]
+```
+
+cited by: `ide`
+
+### msg:11754
+> kind=message tier=reference since=- src=sdsys/messages/11754:1#b6976128
+
+```
+%1 %2 holds characters outside ASCII (bytes 128 to 247), so it is read-only in the IDE: it cannot be saved, saved as, written as a copy, changed by Replace or an AI edit, or edited as fields.  The editor shows such a character a byte at a time and could not be trusted to keep it as it is.
+```
+
+cited by: `ide`
+
 ### msg:11755
 > kind=message tier=reference since=- src=sdsys/messages/11755:1#451a91b5
 
@@ -6860,6 +6905,15 @@ cited by: `tk_ownfile`
 ```
 
 cited by: `tool_query`
+
+### msg:11761
+> kind=message tier=reference since=- src=sdsys/messages/11761:1#8c656d20
+
+```
+%1 %2 is open read-only: it holds characters outside ASCII
+```
+
+cited by: `ide`
 
 ### msg:11770
 > kind=message tier=reference since=- src=sdsys/messages/11770:1#dd0831b5

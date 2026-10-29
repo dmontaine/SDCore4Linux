@@ -19,6 +19,10 @@
 *               are given back before the page is taken again); the AI's "only navigates" flag is 0 while a pin or the Terminal tile is offered (S6: Enter alone no longer runs a pinned command the model chose).
 * 28 Oct 26 dm  TUI phase 2 review: a command that aborts waits for a key before the page is drawn again (the abort message was overwritten); with the Terminal tile off for the account the AI
 *               line is told 'nocmd' and a command answer is refused (the AI was a way to a command prompt).
+* 28 Oct 26 dm  S.88 L2: the page is laid out by the layout service ($tk_layout): three panes (the header, the panel of tiles, the hint row) declared at their 140 by 43 sizes,
+*               the tile columns worked out from the panel's width (more columns, and the tiles a little wider, in a wider window; the six of 140 by 43 exactly as they were),
+*               the header tiles on the last two columns, and the resize made by $tk_layout 'refresh' in place of the page's own copy of the frame's rules.  At 140 by 43
+*               every cell is where it was.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -42,6 +46,12 @@
 *   groups have none).  The page has a Back tile at the left of the header (the identity moves right), the status line shows the path (Home > Develop), Esc, Backspace and the Back tile go
 *   back one level and give the focus and the scroll back as they were, 8 levels are the most, and a menu that is already open above is refused (no page can open itself).  A menu with no
 *   tile (all turned off) has no folder tile.  No tile of the delivered page opens a sub-menu yet: a table that wants one declares a folder tile and gives its groups the menu name.
+*
+*   THE LAYOUT (S.88 L2) is the toolkit's layout service: three panes, the header (rows 1 to 4 at 140 by 43), the panel of tiles (rows 5 to 38) and the hint row (39, the AI line's
+*   when the AI is on), declared at their 140 by 43 sizes; a bigger window gives the panel every row and column it has beyond that, and the header and the hint row every column.
+*   The tile columns are worked out from the panel's width: two columns to a pair, one column between the two of a pair and three between pairs, as many as fit, and the columns
+*   left over widen every tile alike (at 140 by 43 six columns of 21, at x 3 25 49 71 95 117).  A band with one group spreads it over every column; the groups of a band of several
+*   share the columns beyond their own in whole pairs.  The header tiles stand on the last two columns, the Back tile on the first.  A resize is $tk_layout 'refresh', then all of it again.
 *
 *   The panel under the header scrolls: the page is laid out at its full height and the rows that fit are drawn, with a scroll bar in the last column.  Keys:
 *   the arrow keys move to the nearest tile, Tab and Back-tab go in reading order, Home and End to the first and last, Page Up and Page Down by group, a letter
@@ -79,10 +89,10 @@ $define HT.GLYPH   4       ;* three cells of ASCII, so that any locale draws it
 $define HT.SUB     5       ;* the line under the label
 $define HT.ACT     6       ;* cmd:<sentence>, terminal, switch or signout
 $define HT.PAL     7       ;* the palette's name
-$define HT.SIZE    8       ;* n normal 21 by 5, w wide 43 by 5, s small 21 by 3
+$define HT.SIZE    8       ;* n normal 21 by 5, w wide 43 by 5, s small 21 by 3 (the widths at 140 by 43: one column, two columns and the gap between them, one column)
 $define HT.PAUSE   9       ;* 1 when the command prints lines: wait for a key before the screen comes back
 $define HT.WHY     10      ;* null, or why the tile is dimmed (a gate that is off)
-$define HT.X       11      ;* the cell of its top left corner: x; y is a row of the panel for a tile in a group and a row of the screen for a header tile
+$define HT.X       11      ;* the cell of its top left corner: x; y is a row of the panel for a tile in a group and a row of the screen for a header tile (both set by the layout)
 $define HT.Y       12
 $define HT.W       13
 $define HT.H       14
@@ -91,12 +101,14 @@ $define HT.LIVE    16      ;* null, or the live line shown in place of the sub l
 
 $define HG.NAME    1       ;* a group is a field of gr, its values
 $define HG.BAND    2       ;* the band it stands in: groups of one band stand side by side
-$define HG.COLS    3       ;* how many tile columns it is wide (2 or 6)
+$define HG.COLS    3       ;* how many tile columns it is wide at 140 by 43 (2 or 6); a wider panel gives it more (band.cols)
 $define HG.Y       4       ;* the panel row of its heading, set by the layout
 $define HG.X       5
 $define HG.MENU    6       ;* null for a group of the top page, else the name of the menu (sub-menu page) it belongs to
 
-$define PANEL.TOP  5       ;* the first row of the scrolling panel (rows 1 to 3 are the header)
+$define HT.TW      21      ;* a tile's width in the narrowest panel (138 columns); a wider panel widens every tile by what is left over after the columns that fit
+$define HT.GAP     1       ;* the columns between the two tiles of a pair of columns
+$define HT.PGAP    3       ;* the columns between two pairs
 $define HM.DEPTH   8       ;* sub-menu pages open at most this many levels deep (MAX.DEPTH is int$keys.h's)
 
    common /tkhome/ hflag, hlogto
@@ -114,6 +126,12 @@ $define HM.DEPTH   8       ;* sub-menu pages open at most this many levels deep 
       display err
       stop
    end
+   gosub declare.panes
+   if perr # '' then
+      call $tk_close(ctx)
+      display perr
+      stop
+   end
 
    is.admin = kernel(K$ADMINISTRATOR, -1)
    if is.admin then ctx<TK.C.AUD> = sysmsg(11803)
@@ -121,11 +139,10 @@ $define HM.DEPTH   8       ;* sub-menu pages open at most this many levels deep 
    cur.menu = ''                                          ;* the sub-menu page being shown (null: the top page); stk holds the pages left behind, crumb their names
    stk = ''
    crumb = ''
-   ttl = 'Home'
-   idx = 3                                                ;* the column of the identity (it moves right of the Back tile in a sub-menu)
+   gosub geometry
+   gosub set.title                                        ;* the path, and the column of the identity (it moves right of the Back tile in a sub-menu)
    gosub make.keys
 
-   X.COL =3 : @fm : 25 : @fm : 49 : @fm : 71 : @fm : 95 : @fm : 117      ;* the x of the six tile columns (a group of two stands at columns 1-2, 3-4 or 5-6)
    gen = 0
    top = 0
    fi = 1
@@ -140,7 +157,6 @@ $define HM.DEPTH   8       ;* sub-menu pages open at most this many levels deep 
    aif = 0                                                ;* 1 while the AI line has the focus
    call $tk_ai('init', ctx, '', '')
 
-   gosub geometry
    gosub build.page
    gosub layout
    gosub first.focus
@@ -204,13 +220,57 @@ finish:
 
 * ------------------------------------------------------------------------------------------------- the geometry and the page
 
-* The layout is the window when it is bigger than the minimum, the minimum when it is smaller (the frame's rule); the panel is the rows between the header and the hint line
+* The page as panes of the layout service ($tk_layout, S.88 L2), each at its size in the 140 by 43 layout (body 138 by 39 at 1,1): the header (rows 1 to 4: the identity, the
+* clock and the header tiles on rows 1 to 3), the panel of tiles (rows 5 to 38) and the hint row (39, YSTAT - 1: the AI line's row when the AI is on).  The panel takes every row
+* and column a bigger window has beyond that; the header and the hint row take every column.  perr returns null, or why the service refused the declaration.
+declare.panes:
+   pd = ''
+   pd<1> = 'header' : @vm : 1 : @vm : 1 : @vm : 4 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   pd<2> = 'panel' : @vm : 2 : @vm : 1 : @vm : 34 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   pd<3> = 'hint' : @vm : 3 : @vm : 1 : @vm : 1 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   perr = ''
+   call $tk_layout('declare', ctx, pd, perr)
+   return
+
+* The rectangles the layout service gives the three panes now (the layout is the window when it is bigger than the floor, the floor when it is smaller), and the tile columns
+* of the panel's width.  lw and lh are the layout's; py0 to py1 are the panel's rows (ph of them); the hint row is hny.
 geometry:
    lw = ctx<TK.C.W>
    lh = ctx<TK.C.H>
-   py0 = PANEL.TOP
-   py1 = lh - 5                                           ;* the hint line is row lh-4, the status line lh-3
-   ph = py1 - py0 + 1
+   call $tk_layout('pane', ctx, 'header', prect)
+   hdx = prect<1, 1>
+   hdy = prect<1, 2>
+   hdw = prect<1, 3>
+   call $tk_layout('pane', ctx, 'panel', prect)
+   pnx = prect<1, 1>
+   py0 = prect<1, 2>
+   pnw = prect<1, 3>
+   ph = prect<1, 4>
+   py1 = py0 + ph - 1
+   call $tk_layout('pane', ctx, 'hint', prect)
+   hnx = prect<1, 1>
+   hny = prect<1, 2>
+   gosub columns
+   return
+
+* The tile columns of a panel pnw wide: the first two columns in from the panel's left edge, two columns to a pair with HT.GAP between them and HT.PGAP between pairs, as many as
+* fit with the last one ending a column short of the panel's right edge (the scroll bar is the column after the panel), and the columns left over shared out to every tile alike
+* (tw.n wide).  At 140 by 43 (panel 138) that is six columns of 21 at x 3 25 49 71 95 117: the page as it was drawn before the service.
+columns:
+   avail = pnw - 3
+   ncol = 1
+   loop
+      nx = ncol + 1
+      need = nx * HT.TW + (nx - 1) * HT.GAP + idiv(nx - 1, 2) * (HT.PGAP - HT.GAP)
+   while need <= avail do
+      ncol = nx
+   repeat
+   used = ncol * HT.TW + (ncol - 1) * HT.GAP + idiv(ncol - 1, 2) * (HT.PGAP - HT.GAP)
+   tw.n = HT.TW + idiv(avail - used, ncol)
+   xcol = ''
+   for k = 1 to ncol
+      xcol<k> = pnx + 2 + (k - 1) * (tw.n + HT.GAP) + idiv(k - 1, 2) * (HT.PGAP - HT.GAP)
+   next k
    return
 
 * The tiles of this page.  The table is built for the audience (13.2): the administrator gets the administrator's, everyone else the holder's, and what a person may
@@ -284,14 +344,11 @@ build.page:
    id = 'bulk' ; grp = g ; label = 'Bulk update' ; glyph = '[B]' ; sub = 'change many records' ; act = 'cmd:tool.bulk' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'catalog' ; grp = g ; label = 'Programs' ; glyph = '[P]' ; sub = 'compile, catalogue' ; act = 'cmd:tool.catalog' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'test' ; grp = g ; label = 'Tests' ; glyph = '[T]' ; sub = 'run and judge tests' ; act = 'cmd:tool.test' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
-   * the header: two small tiles at the right, on screen rows 1 to 3
-   hx = 95 ; hy = 1
+   * the header: two small tiles at the right, on the header's first three rows (place.header puts them on the last two tile columns)
    id = 'switch' ; grp = 0 ; label = 'Switch account' ; glyph = '<> ' ; sub = '' ; act = 'switch' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header
-   hx = 117 ; hy = 1
    id = 'signout' ; grp = 0 ; label = 'Sign out' ; glyph = '-> ' ; sub = '' ; act = 'signout' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header
    if cur.menu # '' then
-      * a sub-menu page: the way back, at the left end of the header, where the identity stood
-      hx = 3 ; hy = 1
+      * a sub-menu page: the way back, at the left end of the header (the first tile column), where the identity stood
       id = 'back' ; grp = 0 ; label = 'Back' ; glyph = '<- ' ; sub = '' ; act = 'back' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header
    end
    gosub add.recent
@@ -390,15 +447,31 @@ add.tile:
    added = 1
    return
 
-* A header tile: its place is fixed on the screen (hx, hy), and it does not scroll
+* A header tile: its place is fixed on the screen (place.header), and it does not scroll
 add.header:
    gosub add.tile
    if not(added) then return
-   tl<nt, HT.X> = hx
-   tl<nt, HT.Y> = hy
-   tl<nt, HT.W> = 21
    tl<nt, HT.H> = 3
    tl<nt, HT.FIXED> = 1
+   return
+
+* The header tiles' places, from the header's rectangle and the tile columns: Switch account and Sign out on the last two columns, Back on the first, all on the header's first
+* row and as wide as a tile.  At 140 by 43: 95, 117 and 3 on row 1, 21 wide.
+place.header:
+   for i = 1 to nt
+      if tl<i, HT.FIXED> then
+         begin case
+            case tl<i, HT.ID> = 'switch'
+               tl<i, HT.X> = xcol<ncol - 1>
+            case tl<i, HT.ID> = 'signout'
+               tl<i, HT.X> = xcol<ncol>
+            case 1
+               tl<i, HT.X> = xcol<1>                      ;* back
+         end case
+         tl<i, HT.Y> = hdy
+         tl<i, HT.W> = tw.n
+      end
+   next i
    return
 
 * A style for each palette in use: the colours and the same reversed and bold for the tile that has the focus.  A terminal with no colour (the library says none) gets
@@ -451,8 +524,9 @@ palette.colours:
    return
 
 * The panel's rows: bands one under another, the groups of a band side by side, the tiles of a group flowing left to right and wrapping.  The panel row 1 is the first
-* heading (row 6 of the screen).  ch is the height of the whole page.
+* heading (the panel's first row, 5 at 140 by 43).  ch is the height of the whole page.  The header tiles are placed first.
 layout:
+   gosub place.header
    nb = 0
    b0 = 1                                                 ;* the first band: 1, or 0 when the Recent group is on the page
    ng = dcount(gr, @fm)
@@ -460,19 +534,25 @@ layout:
       if gr<k, HG.BAND> > nb then nb = gr<k, HG.BAND>
       if gr<k, HG.BAND> < b0 then b0 = gr<k, HG.BAND>
    next k
+   gcw = ''                                               ;* the columns each group is given (band.cols)
+   gtiles = ''                                            ;* the tiles of each group: a group whose tiles are all off has no heading either
+   for k = 1 to ng
+      gtiles<k> = 0
+   next k
+   for i = 1 to nt
+      gk = tl<i, HT.GROUP>
+      if gk > 0 then gtiles<gk> = gtiles<gk> + 1
+   next i
    ys = 1
    for b = b0 to nb
       c0 = 0
       bandend = ys
+      gosub band.cols
       for k = 1 to ng
-         gn.tiles = 0                                     ;* a group whose tiles are all off has no heading either
-         for i = 1 to nt
-            if tl<i, HT.GROUP> = k then gn.tiles += 1
-         next i
-         if gr<k, HG.BAND> = b and gn.tiles > 0 then
-            gcols = gr<k, HG.COLS>
+         if gr<k, HG.BAND> = b and gtiles<k> > 0 then
+            gcols = gcw<k>
             gr<k, HG.Y> = ys
-            gr<k, HG.X> = X.COL<c0 + 1>
+            gr<k, HG.X> = xcol<c0 + 1>
             cc = 0
             ry = ys + 1
             rowh = 0
@@ -485,9 +565,10 @@ layout:
                      ry += rowh + 1
                      rowh = 0
                   end
-                  tl<i, HT.X> = X.COL<c0 + cc + 1>
+                  tl<i, HT.X> = xcol<c0 + cc + 1>
                   tl<i, HT.Y> = ry
-                  tl<i, HT.W> = (if tw = 2 then 43 else 21)
+                  tl<i, HT.W> = tw.n                      ;* a wide tile takes two columns and what is between them
+                  if tw = 2 then tl<i, HT.W> = xcol<c0 + cc + 2> + tw.n - xcol<c0 + cc + 1>
                   tl<i, HT.H> = th
                   tl<i, HT.FIXED> = 0
                   cc += tw
@@ -503,6 +584,43 @@ layout:
    ch = ys
    if top > ch - ph then top = ch - ph
    if top < 0 then top = 0
+   return
+
+* The columns each group of band b is given (gcw<k>): its HG.COLS, and the columns the panel has beyond the band's sum shared among the band's groups by those same numbers -
+* all of them to a band's one group, in whole pairs to the groups of a band of several (so that each still starts on the first column of a pair, after the wider gap), what
+* is left one (pair) at a time from the first.  At 140 by 43 there are six columns and no band needs more: every group has exactly its HG.COLS.
+band.cols:
+   bsum = 0
+   nbg = 0
+   for k = 1 to ng
+      gcw<k> = gr<k, HG.COLS>
+      if gr<k, HG.BAND> = b and gtiles<k> > 0 then
+         bsum += gr<k, HG.COLS>
+         nbg += 1
+      end
+   next k
+   if bsum < 1 then return
+   unit = 1
+   if nbg > 1 then unit = 2
+   bx = idiv(ncol - bsum, unit)
+   if bx < 1 then return
+   given = 0
+   for k = 1 to ng
+      if gr<k, HG.BAND> = b and gtiles<k> > 0 then
+         gadd = idiv(bx * gr<k, HG.COLS>, bsum)
+         gcw<k> = gcw<k> + gadd * unit
+         given += gadd
+      end
+   next k
+   rest = bx - given
+   loop while rest > 0 do
+      for k = 1 to ng
+         if rest > 0 and gr<k, HG.BAND> = b and gtiles<k> > 0 then
+            gcw<k> = gcw<k> + unit
+            rest -= 1
+         end
+      next k
+   repeat
    return
 
 * fb: the first tile of a group (the first tile of the page when only the header has any)
@@ -531,19 +649,19 @@ draw.all:
    if ctx<TK.C.AI> then
       call $tk_ai('draw', ctx, aif, '')
    end else
-      screen text '' at 0,lh - 4 width lw
-      screen text 'arrows move  -  Enter starts  -  type to find  -  PgDn next group' at 3,lh - 4 attr 'disabled'
+      screen text '' at 0,hny width lw
+      screen text 'arrows move  -  Enter starts  -  type to find  -  PgDn next group' at hnx + 2,hny attr 'disabled'
    end
    return
 
 draw.header:
-   screen clear at 0,1 size 94,3                          ;* the left of the header: the identity moves right of the Back tile and left again
+   screen clear at 0,hdy size xcol<ncol - 1> - 1,3        ;* the left of the header, up to the Switch account tile: the identity moves right of the Back tile and left again
    if is.admin then
       who.line = 'administrator'
    end else
       who.line = @logname : ' @ ' : @who
    end
-   screen text fmt(who.line, '60L') at idx,2 attr 'bold'
+   screen text fmt(who.line, '60L') at idx,hdy + 1 attr 'bold'
    gosub draw.clock
    for i = 1 to nt
       if tl<i, HT.FIXED> then
@@ -563,7 +681,7 @@ draw.clock:
       dt = oconv(date(), 'D4DMY[,A3]')
       mo = field(dt, ' ', 2)
       mo = upcase(mo[1, 1]) : downcase(mo[2, 9])
-      screen text fmt(wd : ' ' : field(dt, ' ', 1) : ' ' : mo : ' ' : field(dt, ' ', 3) : '  -  ' : mm, '60L') at idx,3 attr 'disabled'
+      screen text fmt(wd : ' ' : field(dt, ' ', 1) : ' ' : mo : ' ' : field(dt, ' ', 3) : '  -  ' : mm, '60L') at idx,hdy + 2 attr 'disabled'
    end
    return
 
@@ -937,7 +1055,7 @@ on.mouse:
             screen clear at 0,py0 size lw,ph
             gosub draw.panel
          end
-      case kind = 'press' and mev<2> = 1 and ctx<TK.C.AI> and my = lh - 4
+      case kind = 'press' and mev<2> = 1 and ctx<TK.C.AI> and my = hny
          gosub ai.focus.on                                 ;* a click on the AI line gives it the focus
       case kind = 'press' and mev<2> = 1
          if my = 0 then
@@ -1140,6 +1258,14 @@ reopen:
    lastmin = ''
    aif = 0
    call $tk_ai('init', ctx, '', '')                       ;* the account may be another, and the window another size
+   gosub declare.panes
+   if perr # '' then
+      call $tk_close(ctx)
+      display perr
+      outcome = 'closed'
+      done = 1
+      return
+   end
    gosub geometry
    want.id = keep.id
    want.top = keep.top
@@ -1196,7 +1322,7 @@ set.title:
    for ck = 1 to dcount(crumb, @fm)
       ttl := ' > ' : crumb<ck>
    next ck
-   idx = (if cur.menu # '' then 25 else 3)
+   idx = (if cur.menu # '' then xcol<2> else xcol<1>)     ;* 25 or 3 at 140 by 43
    lastmin = ''                                          ;* the clock is written again where the identity now stands
    return
 
@@ -1259,25 +1385,20 @@ toggle.recent:
    msg = sysmsg(rmsg)
    return
 
-* A resize: the screen was repainted under the frame
+* A resize: the layout service makes the frame, the body and the three panes the window's again ($tk_layout 'refresh', which also arms the cursor lock with them), and the page
+* is laid out and drawn again from the new rectangles - the tile columns, the header tiles, the panel, the hint row.  The screen kept the old page's cells where they still fit and
+* the header tiles move with the columns, so the rows above the status line are cleared first; the frame is written again whole (the generation).
 relayout:
-   call $sl_window(w, h)
-   lw = w
-   lh = h
-   if lw < TK.MINW then lw = TK.MINW
-   if lh < TK.MINH then lh = TK.MINH
-   ctx<TK.C.W> = lw
-   ctx<TK.C.H> = lh
-   ctx<TK.C.YSTAT> = lh - 3
-   ctx<TK.C.YBORD> = lh - 2
-   ctx<TK.C.YKEYS> = lh - 1
+   call $tk_layout('refresh', ctx, '', lay.chg)
    gen += 1
    ctx<TK.C.GEN> = gen
    lastmin = ''
    aif = 0
    call $tk_ai('init', ctx, '', '')                       ;* the rows moved: the line is made again (its text is lost, a resize is rare)
    gosub geometry
+   gosub set.title                                        ;* the identity's column is a tile column's
    gosub layout
+   screen clear at 0,hdy size lw,ctx<TK.C.YSTAT> - hdy
    gosub draw.all
    return
 

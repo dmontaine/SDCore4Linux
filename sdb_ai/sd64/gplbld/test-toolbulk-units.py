@@ -191,13 +191,17 @@ def checks(raw):
     ck("TB19", "every key the page acts on has a place in the key table (the function-key row shows exactly the keys it uses), and A is on the row only while a dry run stands and U only while there is a run to put back",
        all(("call $tk_keys('add', keys, '%s'," % k) in bk for k in ("f1", "tab", "f", "m", "j", "l", "n", "e", "x", "r", "a", "u", "f5", "ctrl-q")) and "'apply', 'apply', '', (if dr.valid then 1 else 0))" in bk
        and "'undo', 'undo', '', (if un.have and un.state # 'undone' then 1 else 0))" in bk and "if len(nm) = 1 then nm = downcase(nm)" in pg, "")
-    ck("TB20", "the layout fits the 140 by 43 frame: four boxes (rows 1-4, 5-13, 14-26, 27-39), 4 condition rows at y 8-11, 10 operation rows at y 16-25, 7 preview rows at y 32-38; nothing is drawn on a border",
-       all(s in pg for s in ("screen box at 1,1 size 138,4 title 'File'", "screen box at 1,5 size 138,9 title 'Which records'", "screen box at 1,14 size 138,13 title 'What to do to them'", "screen box at 1,27 size 138,13 title 'Result'", "VP = 7"))
-       and "at 3,7 + yr" in block(pg, "draw.sel") and "at 3,15 + yr" in block(pg, "draw.ops") and "at 3,31 + yr" in block(pg, "draw.result") and "for yr = 1 to VP" in block(pg, "draw.result"), "")
+    ck("TB20", "the layout fits the 140 by 43 frame (S.88 L2: the four boxes are the layout service's panes, declared 4, 9, 13 and 13 rows by 138 and drawn from their rectangles; the numbers at 140 by 43 are "
+               "test-l2-files-units.py's): four boxes (rows 1-4, 5-13, 14-26, 27-39), 4 condition rows at the Which box's y + 3, 10 operation rows at the What box's y + 2, 7 preview rows (the Result box's height less 6) at its y + 5; "
+               "nothing is drawn on a border",
+       all(s in pg for s in ("dcl<1> = 'file' : @vm : 1 : @vm : 1 : @vm : 4 : @vm : 138 :", "dcl<2> = 'which' : @vm : 2 : @vm : 1 : @vm : 9 : @vm : 138 :", "dcl<3> = 'what' : @vm : 3 : @vm : 1 : @vm : 13 : @vm : 138 :",
+                             "dcl<4> = 'result' : @vm : 4 : @vm : 1 : @vm : 13 : @vm : 138 :", "screen box at fx,fy size fw,fh title 'File'", "screen box at sx,sy size sw,sh title 'Which records'",
+                             "screen box at ox,oy size ow,oh title 'What to do to them'", "screen box at rx,ry size rw,rh title 'Result'", "VP = rh - 6"))
+       and "at sx + 2,sy + 2 + yr" in block(pg, "draw.sel") and "at ox + 2,oy + 1 + yr" in block(pg, "draw.ops") and "at rx + 2,ry + 4 + yr" in block(pg, "draw.result") and "for yr = 1 to VP" in block(pg, "draw.result"), "")
     ck("TB21", "the page waits on the keyboard only through the base: the key read is screen key, the end of the input ends it, and the base is closed on the way out",
        "screen key returning nm" in pg and "if status() = ER$EOF then exit" in pg and "case nm = 'guardquit'\n            exit" in pg and pg.find("call $tk_close(ctx)") > pg.find("repeat"), "")
     ck("TB22", "the help record names a page of the documentation, and the page asks for it by that name (the key is the record's name), from F1, ? and a click on [?]",
-       pg.count("call $tk_help('box', 'tool.bulk.page', hm, 0, 0)") == 2 and "call $tk_help('mark', 134, 2, 0, 0)" in pg and "call $tk_help('hit', mev, 134, 2, hit.m)" in pg and re.match(r"^[^\n]{1,60}\n[0-9a-z-]+\n", raw["help"]) is not None, repr(raw["help"][:60]))
+       pg.count("call $tk_help('box', 'tool.bulk.page', hm, 0, 0)") == 2 and "call $tk_help('mark', fx + fw - 5, fy + 1, 0, 0)" in pg and "call $tk_help('hit', mev, fx + fw - 5, fy + 1, hit.m)" in pg and re.match(r"^[^\n]{1,60}\n[0-9a-z-]+\n", raw["help"]) is not None, repr(raw["help"][:60]))
     ck("TB23", "the gates the session holds are ASKED of the kernel (voc-edit, dict-edit, bp-edit, with -1) and shown; nothing is tried to learn them",
        all(("kernel(K$%s, -1)" % k) in block(pg, "draw.file") for k in ("VOC.EDIT", "DICT.EDIT", "BP.EDIT")), "")
     mf = block(pg, "make.fp")
@@ -311,8 +315,8 @@ MUTANTS = [
     ("a control character is not turned into a dot", "TB18", sub("page", "if d2 >= 32 and d2 <= 126 then st2 := c2 else st2 := '.'", "st2 := c2")),
     ("apply is always on the function-key row", "TB19", sub("page", "(if dr.valid then 1 else 0))", "1)")),
     ("a key is missing from the key table", "TB19", sub("page", "   call $tk_keys('add', keys, 'x', 'remove', 'remove', 'Selection' : @sm : 'Operations', 1)\n", "")),
-    ("the preview overruns the border", "TB20", sub("page", "VP = 7", "VP = 8")),
-    ("the first box overlaps the second", "TB20", sub("page", "screen box at 1,1 size 138,4 title 'File'", "screen box at 1,1 size 138,5 title 'File'")),
+    ("the preview overruns the border", "TB20", sub("page", "VP = rh - 6", "VP = rh - 5")),
+    ("the first box overlaps the second", "TB20", sub("page", "dcl<1> = 'file' : @vm : 1 : @vm : 1 : @vm : 4 : @vm : 138 :", "dcl<1> = 'file' : @vm : 1 : @vm : 1 : @vm : 5 : @vm : 138 :")),
     ("the end of the input is not seen", "TB21", sub("page", "            if status() = ER$EOF then exit\n", "")),
     ("the help key names a page that does not exist", "TB22", sub("help", "29c-sd-tcl-the-development-tools", "")),
     ("the help box is not reached from F1", "TB22", sub("page", "         call $tk_help('box', 'tool.bulk.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'", "         msg = 'help'\n      case nm = 'f5'")),

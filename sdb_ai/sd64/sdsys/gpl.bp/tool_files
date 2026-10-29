@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 L2: the two boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the list shows more files and
+*               the description more lines, both wider; text longer than its box is wrapped when the box is wider than it was.
 * 28 Oct 26 dm  S.88 phase 2 (S4): a name the VOC holds as a keyword (all ...) is refused as a target of Make, Clear and Delete and of the reports ($tk_word, check.kw).
 * 27 Oct 26 dm  S.87 batch 12: the dead FL$TYPE.SH branch of the file kind is gone with the constant.
 * 27 Oct 26 dm  S.87: A runs ANALYZE.FILE (the US spelling; the British verb record is gone).
@@ -69,8 +71,11 @@ $include tk.h
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
-   VIS = 16                                                     ;* file rows on the screen
-   hl = fmt('Name', '30L') : fmt('Kind', '11L') : fmt('Records', '10R') : '  ' : fmt('Modulus', '8R') : '  ' : fmt('Bytes', '12R') : '  ' : fmt('Idx', '4R') : '  ' : fmt('Trigger', '9L') : fmt('Case', '6L') : fmt('Dict', '5L') : 'Open'
+   VIS = 16                                                     ;* file rows on the screen (the list pane's height less 6: set by get.rects)
+   rtw = TK.MINW - 2 * TK.XBODY - 4                             ;* the text width of a pane in the reference layout (140 by 43): 134
+   perr = ''
+   gosub declare.layout
+   hl =fmt('Name', '30L') : fmt('Kind', '11L') : fmt('Records', '10R') : '  ' : fmt('Modulus', '8R') : '  ' : fmt('Bytes', '12R') : '  ' : fmt('Idx', '4R') : '  ' : fmt('Trigger', '9L') : fmt('Case', '6L') : fmt('Dict', '5L') : 'Open'
 
    fnames = '' ; fmeta = '' ; nf = 0                            ;* every file, and the rows shown (filter applied)
    shown = '' ; ns = 0
@@ -94,6 +99,10 @@ $include tk.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', chg)
+            gosub get.rects
+            if ta > ns - VIS then ta = ns - VIS
+            if ta < 0 then ta = 0
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -224,19 +233,60 @@ find.meta:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  The two boxes are the panes of the layout service, declared in the sizes of the reference layout (140 by 43, the body 138 by 39): the list stretches (a bigger
+* window shows more files), the description takes what the layout gives it by its own weight of columns and rows.  A new $tk_open (after the terminal was handed to a verb) has no panes,
+* so the declaration is made again.  Out: lx ly lw lh (the list), dx dy dw dh (the description), tw (the text width of both), VIS (the file rows).
+declare.layout:
+   d = ''
+   d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, d, perr)
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'list', rc)
+   lx = rc<1, 1> ; ly = rc<1, 2> ; lw = rc<1, 3> ; lh = rc<1, 4>
+   call $tk_layout('pane', ctx, 'detail', rc)
+   dx = rc<1, 1> ; dy = rc<1, 2> ; dw = rc<1, 3> ; dh = rc<1, 4>
+   tw = lw - 4
+   VIS = lh - 6                                                 ;* the header row, the file rows, the two summary lines, a blank row and the border: 16 rows of 22
+   return
+
+* In: lines.  Out: dlines, what the description shows.  At the reference width a line longer than the box is cut, as it has always been; in a wider box it is wrapped
+fit.lines:
+   dlines = lines
+   if tw > rtw then
+      dlines = ''
+      nd = 0
+      for q = 1 to dcount(lines, @fm)
+         nd += 1
+         dlines<nd> = ''
+         if lines<q> # '' then
+            call $tk_wrap(lines<q>, tw, pieces)
+            for pj = 1 to dcount(pieces, @fm)
+               dlines<nd> = pieces<pj>
+               nd += 1
+            next pj
+            nd -= 1
+         end
+      next q
+   end
+   return
+
 draw.all:
    cw2 = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
    screen clear at 0,1 size cw2,chh
    ttl = 'Files in ' : @who
-   screen box at 1,1 size 138,22 title ttl
-   screen box at 1,23 size 138,17 title 'The file under the cursor'
+   screen box at lx,ly size lw,lh title ttl
+   screen box at dx,dy size dw,dh title 'The file under the cursor'
    gosub draw.list
    gosub draw.detail
    return
 
 draw.list:
-   screen text hl at 3,2 attr 'header' width 134
+   screen text hl at lx + 2,ly + 1 attr 'header' width tw
    if ci <= ta then ta = ci - 1
    if ci > ta + VIS then ta = ci - VIS
    if ta < 0 then ta = 0
@@ -250,10 +300,10 @@ draw.list:
          s := fmt(meta<1, 6>, '9L') : fmt((if meta<1, 7> = 1 then 'any' else (if meta<1, 7> = '' then '' else 'exact')), '6L') : fmt((if meta<1, 8> = 1 then 'yes' else (if meta<1, 8> = '' then '' else 'no')), '5L')
          s := (if meta<1, 10> # '' then 'yes' else '')
       end
-      screen text s at 3,2 + r attr (if kk = ci and kk <= ns then 'highlight' else 'normal') width 134
+      screen text s at lx + 2,ly + 1 + r attr (if kk = ci and kk <= ns then 'highlight' else 'normal') width tw
    next r
    gosub draw.foot
-   call $tk_help('mark', 134, 2, 0, 0)
+   call $tk_help('mark', lx + lw - 5, ly + 1, 0, 0)
    return
 
 * The summary under the list, and the gates this session holds (asked of the kernel, never tried)
@@ -261,8 +311,12 @@ draw.foot:
    s = nf : (if nf = 1 then ' file' else ' files')
    if filt # '' then s := ', ' : ns : ' with "' : filt : '" in the name'
    s := '.   Your gates:  voc-edit ' : (if kernel(K$VOC.EDIT, -1) then 'on' else 'off') : '   dict-edit ' : (if kernel(K$DICT.EDIT, -1) then 'on' else 'off') : '   bp-edit ' : (if kernel(K$BP.EDIT, -1) then 'on' else 'off')
-   screen text fmt(s, '134L') at 3,19 attr 'bold' width 134
-   screen text fmt("The verbs behind the keys make their own checks: clearing or deleting a program file needs bp-edit, a dictionary on its own dict-edit; what refuses is the verb.", '134L') at 3,20 width 134
+   screen text fmt(s, tw : 'L') at lx + 2,ly + lh - 4 attr 'bold' width tw
+   note = "The verbs behind the keys make their own checks: clearing or deleting a program file needs bp-edit, a dictionary on its own dict-edit; what refuses is the verb."
+   pieces = note
+   if tw > rtw then call $tk_wrap(note, tw, pieces)
+   screen text fmt(pieces<1>, tw : 'L') at lx + 2,ly + lh - 3 width tw
+   if pieces<2> # '' then screen text fmt(pieces<2>, tw : 'L') at lx + 2,ly + lh - 2 width tw
    return
 
 * The file under the cursor in plain words
@@ -279,8 +333,9 @@ draw.detail:
          lines<-1> = 'No file name holds "' : filt : '".  Esc shows all of them.'
       end
    end
-   for r = 1 to 15
-      screen text fmt(lines<r>[1, 134], '134L') at 3,23 + r width 134
+   gosub fit.lines
+   for r = 1 to dh - 2
+      screen text fmt(dlines<r>[1, tw], tw : 'L') at dx + 2,dy + r width tw
    next r
    return
 
@@ -398,7 +453,7 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.m)
+   call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.files.page', hm, 0, 0)
       if hm # '' then msg = hm
@@ -407,9 +462,9 @@ on.mouse:
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
-      if mx >= 3 and mx <= 136 and my >= 3 and my <= 2 + VIS then
-         if ta + my - 2 <= ns then
-            ci = ta + my - 2
+      if mx >= lx + 2 and mx <= lx + lw - 3 and my >= ly + 2 and my <= ly + 1 + VIS then
+         if ta + my - (ly + 1) <= ns then
+            ci = ta + my - (ly + 1)
             gosub redraw
          end
       end
@@ -486,6 +541,7 @@ do.show:
       done = 1
       return
    end
+   gosub declare.layout                                          ;* the new context has no panes
    gen += 1
    ctx<TK.C.GEN> = gen
    gosub read.all

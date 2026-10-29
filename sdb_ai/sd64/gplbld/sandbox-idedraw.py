@@ -19,6 +19,8 @@
 #                   names the pane (messages 11237-11240);
 #               (4) "when you select a record to edit, the cursor does not appear in the edit box" - the editor highlights the character at
 #                   its cursor while it has the focus (the memo's softcur), whatever the terminal does with its own cursor.
+# 28 Oct 26 dm  Tab indents in the editor now (the owner's approval of 28 Oct): the three rows that went round the panes FROM the editor press F6, the panes' key;
+#               the row that tabs from the tree back to the editor is unchanged (Tab still moves through the tree and the tabs).  Not run since.
 # END-HISTORY
 #
 # THE INSTRUMENT.  The IDE is driven on a pseudo-terminal at 140 by 42 (sandbox-ide.py's Ide class, which this imports), the screen read from
@@ -250,10 +252,10 @@ end
         row("the status line names the pane that has the focus at the start: [Editor] (the Untitled buffer; it was [Files] before S.88 Phase 4)", st.startswith("[Editor]"), st)
         seen = []
         for _ in range(4):
-            e.keys(sb.TAB)
+            e.keys(sb.F6)                                  # 28 Oct 26: F6, the panes' key (Tab indents in the editor now)
             e.quiet()
             seen.append(e.status().split("]")[0] + "]")
-        row("Tab goes round four panes and the status line names each: %s" % seen,
+        row("F6 goes round four panes and the status line names each: %s" % seen,
             sorted(set(seen)) == sorted(["[Files]", "[Tabs]", "[Editor]", "[Messages]"]), repr(seen))
         e.end()
         e = sb.Ide(box, "IDE bp %s" % A)
@@ -279,12 +281,12 @@ end
             ps.get("ed") == "[*]" and [ps.get(k) for k in ("tree", "tabs", "err")] == ["[-]"] * 3, repr(ps))
         order = []
         for _ in range(4):
-            e.keys(sb.TAB)
+            e.keys(sb.F6)                                  # 28 Oct 26: F6 (Tab indents in the editor now)
             e.quiet()
             ps = panes_state(e.lines())
             on = [k for k, v in ps.items() if v == "[*]"]
             order.append(on[0] if len(on) == 1 and len(ps) == 4 else "BAD:" + repr(ps))
-        row("Tab moves the [*] round the panes, one at a time: %s" % order, order == ["err", "tree", "tabs", "ed"], repr(order))
+        row("F6 moves the [*] round the panes, one at a time: %s" % order, order == ["err", "tree", "tabs", "ed"], repr(order))
         e.keys(sb.F10)
         e.keys(sb.RIGHT)
         e.keys(sb.ESC)
@@ -292,10 +294,10 @@ end
         ps = panes_state(e.lines())
         row("after a menu has been opened and closed over the bar the four are as they were (four Tabs went round to the editor again)", sorted(ps) == ["ed", "err", "tabs", "tree"] and ps.get("ed") == "[*]", repr(ps))
         m = len(e.s.raw)
-        e.keys(sb.TAB)
+        e.keys(sb.F6)
         e.quiet()
         runs = written(bytes(e.s.raw[m:]))
-        row("a Tab writes %d cells: the two indicators that change and the status line, not the form" % cells(runs), cells(runs) < 400, repr(cells(runs)))
+        row("an F6 writes %d cells: the two indicators that change and the status line, not the form" % cells(runs), cells(runs) < 400, repr(cells(runs)))
         e.end()
         e = sb.Ide(box, "IDE bp %s" % A)
         ps = panes_state(e.lines())

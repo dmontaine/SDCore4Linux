@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 L2: the two boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the list shows more programs
+*               and the description more lines, both wider; text longer than its box is wrapped when the box is wider than it was.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 27 Oct 26 dm  S.87 batch 8: OPTION CATALOGUE.LOCAL is gone, so the page no longer tells of it (the footer note and two refusals).
 * 25 Oct 26 dm  New.
@@ -73,7 +75,10 @@ $include header.h
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
-   VIS = 16                                                     ;* program rows on the screen
+   VIS = 16                                                     ;* program rows on the screen (the list pane's height less 6: set by get.rects)
+   rtw = TK.MINW - 2 * TK.XBODY - 4                             ;* the text width of a pane in the reference layout (140 by 43): 134
+   perr = ''
+   gosub declare.layout
    MAXREC = 2000                                                ;* records read from one program file
    hl = fmt('File', '14L') : ' ' : fmt('Program', '30L') : fmt('Kind', '12L') : fmt('Compiled', '18L') : ' ' : fmt('Object', '8R') : '  ' : fmt('State', '8L') : 'Catalogued'
 
@@ -107,6 +112,10 @@ $include header.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', chg)
+            gosub get.rects
+            if ta > ns - VIS then ta = ns - VIS
+            if ta < 0 then ta = 0
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -562,19 +571,60 @@ src.times:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  The two boxes are the panes of the layout service, declared in the sizes of the reference layout (140 by 43, the body 138 by 39): the list stretches (a bigger
+* window shows more programs), the description takes what the layout gives it by its own weight of columns and rows.
+* Out: lx ly lw lh (the list), dx dy dw dh (the description), tw (the text width of both), VIS (the program rows).
+declare.layout:
+   d = ''
+   d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, d, perr)
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'list', rc)
+   lx = rc<1, 1> ; ly = rc<1, 2> ; lw = rc<1, 3> ; lh = rc<1, 4>
+   call $tk_layout('pane', ctx, 'detail', rc)
+   dx = rc<1, 1> ; dy = rc<1, 2> ; dw = rc<1, 3> ; dh = rc<1, 4>
+   tw = lw - 4
+   VIS = lh - 6                                                 ;* the header row, the program rows, the two summary lines, a blank row and the border: 16 rows of 22
+   return
+
+* In: lines.  Out: dlines, what the description shows.  At the reference width a line longer than the box is cut, as it has always been; in a wider box it is wrapped
+fit.lines:
+   dlines = lines
+   if tw > rtw then
+      dlines = ''
+      nd = 0
+      for q = 1 to dcount(lines, @fm)
+         nd += 1
+         dlines<nd> = ''
+         if lines<q> # '' then
+            call $tk_wrap(lines<q>, tw, wpieces)
+            for pj = 1 to dcount(wpieces, @fm)
+               dlines<nd> = wpieces<pj>
+               nd += 1
+            next pj
+            nd -= 1
+         end
+      next q
+   end
+   return
+
 draw.all:
    cw2 = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
    screen clear at 0,1 size cw2,chh
    ttl = 'Programs in ' : @who
-   screen box at 1,1 size 138,22 title ttl
-   screen box at 1,23 size 138,17 title 'The program under the cursor'
+   screen box at lx,ly size lw,lh title ttl
+   screen box at dx,dy size dw,dh title 'The program under the cursor'
    gosub draw.list
    gosub draw.detail
    return
 
 draw.list:
-   screen text hl at 3,2 attr 'header' width 134
+   screen text hl at lx + 2,ly + 1 attr 'header' width tw
    if ci <= ta then ta = ci - 1
    if ci > ta + VIS then ta = ci - VIS
    if ta < 0 then ta = 0
@@ -587,10 +637,10 @@ draw.list:
          gosub row.text
          s = rowtxt
       end
-      screen text s at 3,2 + r attr (if kk = ci and kk <= ns then 'highlight' else 'normal') width 134
+      screen text s at lx + 2,ly + 1 + r attr (if kk = ci and kk <= ns then 'highlight' else 'normal') width tw
    next r
    gosub draw.foot
-   call $tk_help('mark', 134, 2, 0, 0)
+   call $tk_help('mark', lx + lw - 5, ly + 1, 0, 0)
    return
 
 * In: mk, meta.  Out: rowtxt
@@ -633,8 +683,12 @@ draw.foot:
    s := '   ' : nprog : (if nprog = 1 then ' program' else ' programs') : ' in ' : npf : (if npf = 1 then ' file' else ' files') : ', ' : ncomp : ' compiled; ' : npriv : ' private and ' : nlocal : ' local catalogue '
    s := (if npriv + nlocal = 1 then 'entry' else 'entries')
    if filt # '' then s := ', ' : ns : ' shown with "' : filt : '"'
-   screen text fmt(s, '134L') at 3,19 attr 'bold' width 134
-   screen text fmt("basic, catalog, decatalog and delete.catalog need bp-edit; what refuses is the verb.  Global cataloguing is the administrator's own command and is not offered here.", '134L') at 3,20 width 134
+   screen text fmt(s, tw : 'L') at lx + 2,ly + lh - 4 attr 'bold' width tw
+   note = "basic, catalog, decatalog and delete.catalog need bp-edit; what refuses is the verb.  Global cataloguing is the administrator's own command and is not offered here."
+   wpieces = note
+   if tw > rtw then call $tk_wrap(note, tw, wpieces)
+   screen text fmt(wpieces<1>, tw : 'L') at lx + 2,ly + lh - 3 width tw
+   if wpieces<2> # '' then screen text fmt(wpieces<2>, tw : 'L') at lx + 2,ly + lh - 2 width tw
    return
 
 * The row under the cursor in plain words
@@ -652,8 +706,9 @@ draw.detail:
          lines<-1> = 'No program or file name holds "' : filt : '".  Esc shows all of them.'
       end
    end
-   for r = 1 to 15
-      screen text fmt(lines<r>[1, 134], '134L') at 3,23 + r width 134
+   gosub fit.lines
+   for r = 1 to dh - 2
+      screen text fmt(dlines<r>[1, tw], tw : 'L') at dx + 2,dy + r width tw
    next r
    return
 
@@ -825,7 +880,7 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.m)
+   call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.catalog.page', hm, 0, 0)
       if hm # '' then msg = hm
@@ -834,9 +889,9 @@ on.mouse:
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
-      if mx >= 3 and mx <= 136 and my >= 3 and my <= 2 + VIS then
-         if ta + my - 2 <= ns then
-            ci = ta + my - 2
+      if mx >= lx + 2 and mx <= lx + lw - 3 and my >= ly + 2 and my <= ly + 1 + VIS then
+         if ta + my - (ly + 1) <= ns then
+            ci = ta + my - (ly + 1)
             gosub redraw
          end
       end

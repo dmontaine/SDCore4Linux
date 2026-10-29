@@ -14,6 +14,10 @@
 # 28 Oct 26 dm  S.88 phase 2 review: rows LK6-LK9, PSTAT of a SECOND ordinary session (the waiter) that waits for the planted lock after it EXECUTEd a DISPLAY sentence
 #               holding control bytes and set @PSTAT to text holding them: kernel.c dump_status() wrote the command, the waited-for id and @PSTAT raw, and PSTAT printed
 #               them on the administrator's terminal.  The rule is op_lock.c's, now shared (show_unsafe_byte(), sd.h).  NOT RUN (the same rule).
+# 28 Oct 26 dm  The readers of $IPC: rows PL-ctl0 to PL8.  $IPC is writable by every SD user, so the administrator's planter zzpl (playing the stranger: a
+#               sandbox has one OS user) writes S<n> and H<n> under the waiter's number every 50 ms while the waiter is STOPPED (SIGSTOP), and F9999 once;
+#               PSTAT USER n, HSM USER n and PROFILER DISPLAY USER 9999 (answers 1 1 1 Q) are captured as BYTES.  pstat, hsm and profiler print every text
+#               of the record through kernel(K$SHOW.SAFE, ...); hsm_dump() and prof_dump() write by the same rule (test-ipcsafe-units.py).  NOT RUN.
 # END-HISTORY
 #
 # WHAT IT HOLDS.  An ORDINARY session of the fixture account zzhd (a pipe kept open) takes READU locks in its file zzlf on
@@ -34,11 +38,15 @@
 #   LK7   the command line is  zzcmd-?]0;pwncmd?-end  (each control byte one '?', case aside)                                                              [phase 2]
 #   LK8   the record line holds the id as GETLOCKS gives it (LK3's escaped form)                                                                           [phase 2]
 #   LK9   the @PSTAT line is  zzps-?[2jclrps?x<200> tail  - control bytes '?', byte 200 kept, the value mark a space as sheet 492 has it                    [phase 2]
+#   PL-ctl0/1 the planter writes S<n> and H<n> and ends when told to;  PL1-ctl PSTAT read the planted S<n>;  PL1 no raw sequence, no byte 155;  PL2 each
+#         planted text (command, account, program, line, file, id, @PSTAT) with every byte of the rule one '?';  PL3-ctl / PL3 / PL4 the same for HSM USER n
+#         (the name, and ESC c in the calls column);  PL5-ctl / PL5 / PL6 / PL7 the same for PROFILER DISPLAY of F9999 at its three levels;  PL8 F9999 removed
 #   LK10  the waiter gets the lock and ends once the holder has gone
 # NOT HELD HERE: tool.sessions (sandbox-termsafe.py S1-K), the deadlock message 1451 and SYSTEM(1083) (they need two sessions in a deadlock; the free check
 # test-lockids-units.py holds them as text), a lock on a file whose PATH holds control bytes.
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -149,6 +157,65 @@ end
 PSTAT_CMD = b"zzcmd-?]0;pwncmd?-end"
 PSTAT_TEXT = b"zzps-?[2jclrps?x" + bytes([200]) + b" tail"
 
+# 28 Oct 26 (the readers of $IPC): the administrator's planter.  $IPC is writable by every SD user, so a record in it is not the kernel's word; this
+# program plays the stranger (a sandbox has one OS user) and writes S<n> and H<n> every 50 ms until bp/zzplstop appears (60 s at most), or F<n> once,
+# or removes F<n>.  It is $internal for the common block that holds $IPC's file variable (syscom.h ipc.f), as zzgl is for GETLOCKS().
+ZZPL = """$internal
+program zzpl
+$include syscom.h
+   args = trim(@sentence)
+   kind = field(args, ' ', 4)
+   n = field(args, ' ', 5)
+   open 'bp' to bpf else
+      crt 'ZZPL nobp'
+      stop
+   end
+   esc = char(27)
+   srec = '0':@vm:'0':@vm:'0'
+   srec<2> = 'zzplcmd-':esc:']0;pwnplc':char(7):'-end'
+   srec<3> = 'zzplprog-':esc:'[2jclrpp':@sm:'10':@tm:'7':esc:'[2jclrln'
+   srec<4> = '5':@vm:'zzplfile-':esc:']0;pwnplf':char(7):@vm:'zzplid-':esc:'[2jclrpi'
+   srec<5> = 'zzplacct-':esc:']0;pwnpla':char(7)
+   srec<6> = 'zzplps-':esc:'[2jclrpz':char(155)
+   hrec = 'zzplhsm-':esc:'[2jclrph':char(155):@vm:'9':esc:'c':@vm:'2000':@vm:'1':@vm:'2':@vm:'3':@vm:'4'
+   frec = 'PROFILE':@vm:'1023':@vm:'1':@vm:'0'
+   frec<2> = 'zzplev-':esc:']0;pwnpe':char(7):@vm:'zzplq-':esc:'[2jclrpq':@vm:'zzplp-':esc:'[2jclrpr':char(155):@vm:'12':@vm:'3'
+   begin case
+      case kind = 'SH'
+         crt 'ZZPL writing ' : n
+         tries = 0
+         loop
+            write srec to ipc.f, 'S':n
+            write hrec to ipc.f, 'H':n
+            read s from bpf, 'zzplstop' then exit else null
+            tries += 1
+         until tries > 1200
+            nap 50
+         repeat
+         delete ipc.f, 'S':n
+         delete ipc.f, 'H':n
+         delete bpf, 'zzplstop'
+         crt 'ZZPL done'
+      case kind = 'F'
+         write frec to ipc.f, 'F':n
+         crt 'ZZPL planted ' : n
+      case kind = 'X'
+         delete ipc.f, 'F':n
+         crt 'ZZPL removed ' : n
+   end case
+end
+"""
+
+# What the three readers must show of the planted records (each control byte, DEL, C1 byte or mark one '?'), and the raw sequences they must not
+PL_S_SAFE = [b"zzplcmd-?]0;pwnplc?-end", b"zzplacct-?]0;pwnpla?", b"zzplprog-?[2jclrpp", b"7?[2jclrln", b"zzplfile-?]0;pwnplf?", b"zzplid-?[2jclrpi",
+             b"zzplps-?[2jclrpz?"]
+PL_S_RAW = [b"\x1b]0;pwnplc", b"\x1b]0;pwnpla", b"\x1b[2jclrpp", b"\x1b[2jclrln", b"\x1b]0;pwnplf", b"\x1b[2jclrpi", b"\x1b[2jclrpz"]
+PL_H_SAFE = [b"zzplhsm-?[2jclrph?", b"9?c"]
+PL_H_RAW = [b"\x1b[2jclrph", b"\x1bc"]
+PL_F_SAFE = [b"zzplev-?]0;pwnpe?", b"zzplq-?[2jclrpq", b"zzplp-?[2jclrpr?"]
+PL_F_RAW = [b"\x1b]0;pwnpe", b"\x1b[2jclrpq", b"\x1b[2jclrpr"]
+PL_FUSER = "9999"
+
 
 def codes(s):
     s = (s or "").strip().strip(",")
@@ -208,6 +275,112 @@ def adm_raw(cmds):
     body = ("\nTERM 200,9999\n" + "".join(c + "\n" for c in cmds) + "OFF\n").encode()
     p = subprocess.run(argv, input=body, cwd=sh.SYS, env=env, capture_output=True, timeout=300)
     return p.stdout + p.stderr
+
+
+class Planter:
+    """The administrator's session, internal mode (as zzgl runs), in the background: RUN bp zzpl SH n, which writes S<n> and H<n> until told to stop."""
+
+    def __init__(self, user):
+        env = dict(os.environ, SD_CONFIG=os.path.join(sh.BOX, "sd.conf"), SDTEST_ADMIN="1")
+        for k in ("SSH_CONNECTION", "SSH_TTY"):
+            env.pop(k, None)
+        self.out = os.path.join(sh.BOX, "planter-lockids.out")
+        self.fh = open(self.out, "wb")
+        argv = [os.path.join(sh.SYS, "bin", "sd"), "-internal"]
+        self.p = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=self.fh, stderr=subprocess.STDOUT, cwd=sh.SYS, env=env)
+        self.p.stdin.write(("\nTERM 200,9999\nRUN bp zzpl SH %s\nOFF\n" % user).encode())
+        self.p.stdin.flush()
+        say("  [planter] argv=%s cwd=%s SDTEST_ADMIN=1 pid=%d stdin: TERM 200,9999 | RUN bp zzpl SH %s | OFF" % (argv, sh.SYS, self.p.pid, user))
+
+    def raw(self):
+        try:
+            self.fh.flush()
+        except ValueError:
+            pass
+        with open(self.out, "rb") as f:
+            return f.read()
+
+    def stop(self):
+        g.put(os.path.join(sh.SYS, "bp", "zzplstop"), "stop\n")
+        try:
+            self.p.wait(timeout=30)
+            return True
+        except subprocess.TimeoutExpired:
+            self.p.kill()
+            self.p.wait()
+            return False
+        finally:
+            try:
+                self.fh.close()
+            except OSError:
+                pass
+
+
+def plant_rows(waiter, user):
+    """28 Oct 26, the readers of $IPC (PL rows): records planted in $IPC under the waiter's number, read by PSTAT USER n and HSM USER n while the waiter is
+    STOPPED (SIGSTOP: it cannot answer, so the command reads what the planter wrote after its own DELETEU - the planter writes every 50 ms, and a WRITE
+    does not wait for another session's record lock), and F9999 read by PROFILER DISPLAY USER 9999 (no process needed: DISPLAY reads the record at once).
+    The output is BYTES.  Each reader must show the planted texts with every byte of the one rule as '?' and none of the raw sequences."""
+    g.put(os.path.join(sh.SYS, "bp", "zzpl"), ZZPL)
+    out = g.adm(["BASIC bp zzpl"], internal=True)
+    if not any(re.match(r"^Compiled 1 program\(s\) with no errors", ln) for ln in out):
+        bail("zzpl did not compile: " + " | ".join(out[-8:]))
+    planter = Planter(user)
+    stopped = False
+    try:
+        for _ in range(40):
+            if b"ZZPL writing" in planter.raw() or b"ZZPL no" in planter.raw():
+                break
+            time.sleep(0.5)
+        pr = planter.raw()
+        R.row("PL-ctl0 the planter is writing S%s and H%s in $IPC" % (user, user), b"ZZPL writing " + user.encode() in pr, repr(pr[-200:]))
+        if b"ZZPL writing" not in pr:
+            return
+        os.kill(waiter.p.pid, signal.SIGSTOP)
+        stopped = True
+        say("  the waiter (pid %d) is STOPPED: it cannot answer PSTAT or HSM" % waiter.p.pid)
+        ps = adm_raw(["PSTAT USER " + user])
+        say("  PSTAT USER %s wrote %d bytes: %r" % (user, len(ps), ps[-900:]))
+        hs = adm_raw(["HSM USER " + user])
+        say("  HSM USER %s wrote %d bytes: %r" % (user, len(hs), hs[-600:]))
+    finally:
+        if stopped:
+            os.kill(waiter.p.pid, signal.SIGCONT)
+            say("  the waiter is running again")
+        ended = planter.stop()
+        say("  planter output: %r" % planter.raw()[-300:])
+    R.row("PL-ctl1 the planter ended by itself when told to, and removed what it wrote", ended and b"ZZPL done" in planter.raw(), repr(planter.raw()[-200:]))
+    psu = ps.upper()
+    ctl = all(p in psu for p in (b"ZZPLCMD-", b"ZZPLACCT-", b"ZZPLPROG-", b"ZZPLFILE-", b"ZZPLID-", b"ZZPLPS-"))
+    R.row("PL1-ctl PSTAT read the PLANTED S%s: ZZPLCMD-, ZZPLACCT-, ZZPLPROG-, ZZPLFILE-, ZZPLID- and ZZPLPS- are all in its output" % user, ctl, "not all in %d bytes" % len(ps))
+    hits = [b for b in PL_S_RAW if b.upper() in psu] + ([155] if 155 in ps else [])
+    R.row("PL1 PSTAT writes none of the planted record's sequences and no byte 155", ctl and not hits, "raw: %r" % hits, phase=2)
+    miss = [t for t in PL_S_SAFE if t.upper() not in psu]
+    R.row("PL2 PSTAT shows every planted text with each byte of the rule one '?': command, account, program, line, file, record id, @PSTAT",
+          ctl and not miss, "missing %r" % miss, phase=2)
+    hsu = hs.upper()
+    hctl = b"ZZPLHSM-" in hsu
+    R.row("PL3-ctl HSM USER %s read the PLANTED H%s (ZZPLHSM- is in its output)" % (user, user), hctl, "not in %d bytes" % len(hs))
+    hits = [b for b in PL_H_RAW if b in hs] + ([155] if 155 in hs else [])
+    miss = [t for t in PL_H_SAFE if t not in hs]
+    R.row("PL3 HSM writes neither of the planted sequences (ESC [ 2 j in the name, ESC c in the calls column) and no byte 155", hctl and not hits, "raw: %r" % hits, phase=2)
+    R.row("PL4 HSM shows the name and the calls column with each byte of the rule one '?' (%r)" % PL_H_SAFE, hctl and not miss, "missing %r" % miss, phase=2)
+    # The profile: F9999 planted once; DISPLAY walks down three levels (1, 1, 1) to the lines and quits
+    out = g.adm(["RUN bp zzpl F " + PL_FUSER], internal=True)
+    planted = any(("ZZPL planted " + PL_FUSER) in ln for ln in out)
+    R.row("PL5-ctl the planter wrote F%s" % PL_FUSER, planted, " | ".join(out[-6:]))
+    fs = adm_raw(["PROFILER DISPLAY USER " + PL_FUSER, "1", "1", "1", "Q"])
+    say("  PROFILER DISPLAY USER %s (answers 1 1 1 Q) wrote %d bytes: %r" % (PL_FUSER, len(fs), fs[-900:]))
+    fsu = fs.upper()
+    fctl = planted and all(p in fsu for p in (b"ZZPLEV-", b"ZZPLQ-", b"ZZPLP-"))
+    R.row("PL5 PROFILER DISPLAY reached the three levels of the planted profile (ZZPLEV-, ZZPLQ-, ZZPLP-)", fctl, "not all in %d bytes" % len(fs))
+    hits = [b for b in PL_F_RAW if b in fs] + ([155] if 155 in fs else [])
+    miss = [t for t in PL_F_SAFE if t not in fs]
+    R.row("PL6 PROFILER DISPLAY writes none of the planted sequences and no byte 155", fctl and not hits, "raw: %r" % hits, phase=2)
+    R.row("PL7 PROFILER DISPLAY shows the event, the qualifier and the program with each byte of the rule one '?' (%r)" % PL_F_SAFE, fctl and not miss,
+          "missing %r" % miss, phase=2)
+    out = g.adm(["RUN bp zzpl X " + PL_FUSER], internal=True)
+    R.row("PL8 the planter removed F%s" % PL_FUSER, any(("ZZPL removed " + PL_FUSER) in ln for ln in out), " | ".join(out[-6:]))
 
 
 def main():
@@ -296,6 +469,9 @@ def main():
               want.upper() in psu, "not in output", phase=2 if ctl else None)
         R.row("LK9 the @PSTAT line is %r: control bytes '?', byte 200 kept, the value mark a space (sheet 492)" % PSTAT_TEXT,
               PSTAT_TEXT in ps, "not in output", phase=2 if ctl else None)
+
+        # 28 Oct 26: records PLANTED in $IPC under the waiter's number (and F9999), read by PSTAT, HSM and PROFILER DISPLAY
+        plant_rows(waiter, mu.group(1).decode())
     finally:
         if hold is not None:
             g.put(os.path.join(acct_dir(HD), "bp", "zzlkstop2"), "stop\n")

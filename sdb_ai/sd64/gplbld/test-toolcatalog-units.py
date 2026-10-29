@@ -146,9 +146,12 @@ def checks(raw):
        and "fileinfo(fv, FL$TYPE) # FL$TYPE.DIR" in tp and "MAXREC = 2000" in pg and "if scnt > MAXREC then" in tp and "snames = field(snames, @fm, 1, MAXREC)" in tp and "capnote = " in tp, "")
     ck("TC14", "every key the page acts on has a place in the key table, and a letter is the same key in either case",
        "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "b", "c", "l", "x", "d", "f11", "f5", "ctrl-q")), "")
-    ck("TC15", "the layout fits the 140 by 43 frame: two boxes (rows 1-22 and 23-39), 16 rows of programs at y 3-18, the summary and the gate line at 19 and 20, 15 rows of detail at y 24-38",
-       "screen box at 1,1 size 138,22 title ttl" in pg and "screen box at 1,23 size 138,17 title 'The program under the cursor'" in pg and "VIS = 16" in pg
-       and "at 3,19 attr 'bold' width 134" in pg and "at 3,20 width 134" in pg and "for r = 1 to 15" in block(pg, "draw.detail") and "at 3,23 + r width 134" in block(pg, "draw.detail"), "")
+    ck("TC15", "the layout fits the 140 by 43 frame (S.88 L2: the two boxes are the layout service's panes, declared 22 and 17 rows by 138 and drawn from their rectangles; the numbers at 140 by 43 are "
+               "test-l2-files-units.py's): two boxes (rows 1-22 and 23-39), 16 rows of programs (the list's height less 6) at the list's y + 2, the summary and the gate line on its last interior rows, the detail's interior rows",
+       "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :" in pg and "d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 :" in pg
+       and "screen box at lx,ly size lw,lh title ttl" in pg and "screen box at dx,dy size dw,dh title 'The program under the cursor'" in pg and "VIS = lh - 6" in pg
+       and "at lx + 2,ly + lh - 4 attr 'bold' width tw" in pg and "at lx + 2,ly + lh - 3 width tw" in pg
+       and "for r = 1 to dh - 2" in block(pg, "draw.detail") and "at dx + 2,dy + r width tw" in block(pg, "draw.detail"), "")
     ck("TC16", "the page waits on the keyboard only through the base (screen key), the end of the input ends it, and the base and both catalogue files are closed on the way out",
        "screen key returning nm" in pg and "if status() = ER$EOF then exit" in pg and "case nm = 'guardquit'\n            exit" in pg
        and 0 <= pg.find("repeat\n\n   call $tk_close(ctx)\n   gosub close.cats\n   stop"), "")
@@ -239,7 +242,8 @@ MUTANTS = [
     ("a file is read without a limit", "TC13", sub("page", "   if scnt > MAXREC then\n", "   if scnt > MAXREC * 1000 then\n")),
     ("every file is a program file", "TC13", sub("page", "isp = (tl = 'bp')", "isp = 1")),
     ("a key is missing from the key table", "TC14", sub("page", "   call $tk_keys('add', keys, 'x', 'decatalog', 'decatalog', '', 1)\n", "")),
-    ("the detail overruns the border", "TC15", sub("page", "for r = 1 to 15", "for r = 1 to 16")),
+    ("the detail overruns the border", "TC15", sub("page", "for r = 1 to dh - 2", "for r = 1 to dh - 1")),
+    ("the first box overlaps the second", "TC15", sub("page", "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :", "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 23 : @vm : 138 :")),
     ("the end of the input is not seen", "TC16", sub("page", "            if status() = ER$EOF then exit\n", "")),
     ("the help record names no page", "TC17", sub("help", "29c-sd-tcl-the-development-tools", "")),
     ("a refusal opens the report box", "TC18", sub("page", "   if stat < 0 then\n      msg = (if said # '' then said else sent : ' was refused')\n      return\n   end\n   gosub show.report", "   gosub show.report")),

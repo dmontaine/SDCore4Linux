@@ -4,7 +4,7 @@
   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-gates-units.py
   python3 .../test-gates-units.py --selftest
 
-No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 13 Oct 26.
+No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 13 Oct 26.  28 Oct 26: B28 pins SED's PATH: (one open, no upcase retry), two mutants.
 19 Oct 26 (integration): the mutant "CREATE.ACCOUNT OS-ON sets the wrong field" is anchored on the OS-ON case line.  1daee9d's `gates=` audit line
 added a second `settings<CA$OS.EXECUTE> = 1` ahead of the parse, sub() changes the first occurrence only, and so the mutant changed the audit text and
 nothing noticed: 70 of 71 on Dev 2a81059 itself (71 of 71 on both lanes, which lack that commit).
@@ -52,6 +52,7 @@ FILES = {
     "create_account": os.path.join(GPL, "create_account"),
     "modifya": os.path.join(GPL, "modifya"),
     "edit": os.path.join(GPL, "edit"),
+    "sed": os.path.join(GPL, "sed"),
     "seldir": os.path.join(GPL, "seldir"),
     "_oscopy": os.path.join(GPL, "_oscopy"),
     "_ioscopy": os.path.join(GPL, "_ioscopy"),
@@ -420,6 +421,21 @@ def checks(srcs, messages_dir):
     ck("B22 SETPTR ... AS PATHNAME asks K$PATH.OK after it has checked the name is a pathname, and says 11180",
        0 < sp0 < sp1 and "sysmsg(11180, @who)" in spt[sp1:sp1 + 120], "valid %s, ask %s" % (sp0, sp1))
 
+    # SED's PATH: form (28 Oct 26, owner-approved): the name K$PATH.OK was asked about is the name OPENSEQ opens - no retry under
+    # upcase(fpath) - and an open that fails is closed and refused.
+    sed_ = c["sed"]
+    of0 = at(sed_, "\nopen.file:")
+    of1 = at(sed_, "\nfind.file:", of0)
+    ofb = sed_[of0:of1] if 0 < of0 < of1 else ""
+    pk = at(ofb, "kernel(K$PATH.OK, fpath)")
+    os_ = at(ofb, "openseq fpath to fpath.f else")
+    ck("B28 SED's PATH: opens the name K$PATH.OK was asked about and no other: one OPENSEQ, after the question, on fpath as typed, "
+       "no upcase(fpath) retry, and a failed open closes the variable and refuses",
+       0 < pk < os_ and ofb.count("openseq ") == 1 and "upcase(fpath)" not in ofb and "fpath =" in ofb
+       and re.search(r"openseq fpath to fpath\.f else\s+if not\(unassigned\(fpath\.f\)\) then close fpath\.f\s+open\.ok = @false\s+return\s+end",
+                     ofb) is not None,
+       "ask %s, open %s, openseqs %s" % (pk, os_, ofb.count("openseq ")))
+
     # ---- I. the installer ---------------------------------------------------------------------------------------
     ins = c["installsdcore.sh"]
     blk0 = at(ins, 'if [ "$accounts_kept" = yes ]; then')
@@ -568,6 +584,9 @@ MUTANTS = [
     ("!IOSCOPY no longer asks", sub("_ioscopy", "if not(kernel(K$PATH.OK, source)) or not(kernel(K$PATH.OK, target)) then", "if @false then")),
     ("the OSCOPY verb says nothing about -4", sub("oscopya", "case status = -4\n         display sysmsg(11180, @who)", "case status = -4\n         display sysmsg(11061, source, target)")),
     ("SETPTR AS PATHNAME no longer asks", sub("setptr", "if not(kernel(K$PATH.OK, file.name)) then", "if @false then")),
+    ("SED's PATH: retries the open under upcase(fpath)", sub("sed", "            open.ok = @false\n            return\n         end\n\n         * We have found it",
+                                                           "            fpath = upcase(fpath)\n            openseq fpath to fpath.f else\n               open.ok = @false\n               return\n            end\n         end\n\n         * We have found it")),
+    ("SED's PATH: no longer asks K$PATH.OK", sub("sed", "if not(kernel(K$PATH.OK, fpath)) then", "if @false then")),
     ("the API server no longer loads the switches", sub("apisrvr", "void kernel(K$SH,      api.sh.grant)", "void kernel(K$SH,      0)")),
     ("the API server grants everybody OS.EXECUTE", sub("apisrvr", "void kernel(K$OS.EXEC, api.os.grant)", "void kernel(K$OS.EXEC, 1)")),
     ("the API server's switches carry over from the previous call", sub("apisrvr", "api.sh.grant = @false\napi.os.grant = @false\n", "")),

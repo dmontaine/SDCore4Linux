@@ -5,6 +5,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 L2: the two boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the list shows more
+*               entries and the detail more lines, both wider; text longer than its box is wrapped when the box is wider than it was.  S.88 stage C: E hands the entry to the IDE
+*               ('ide voc id'; the IDE locks the record, asks the account's voc-edit gate and gives the lock back) in place of SED.
 * 28 Oct 26 dm  S.88 phase 2 (S4): D refuses an entry the VOC holds as a keyword (type K: all, detail, no.query ...) - DELETE VOC ALL asks "Delete all records in VOC?" into the output the page captures,
 *               and a y would empty the VOC.  The test is $tk_word's, the same one TOOL.FILES and TOOL.DICT make.
 * 26 Oct 26 dm  New.
@@ -18,9 +21,9 @@
 *   paragraph, stored sentence, remote item, text), what it points at in a few words, whether a pointer WORKS (a file or Q-pointer is opened to see) and how it stands against the shipped
 *   VOC: the same as NEWVOC (the file every account's VOC was copied from), changed from it, or one the account added.  The entry under the cursor is shown field by field.
 *
-*   WHAT IT CAN DO.  E edits the entry in SED (the terminal is handed to SED and taken back); the kernel's own rule applies when SED saves it - writing the VOC needs voc-edit, and the page
+*   WHAT IT CAN DO.  E edits the entry in the IDE (the terminal is handed to the IDE, 'ide voc id', and taken back); the kernel's own rule applies when the IDE saves it - writing the VOC needs voc-edit, and the page
 *   says which of the edit gates the session holds.  D deletes an entry (DELETE VOC name) after a box and the name typed; an entry that is a keyword of the VOC (type K: all, detail ...) is refused, because DELETE would read the name as the keyword.  Nothing is written by the page itself: a record is changed by
-*   SED or by a verb, never by this program.
+*   the IDE or by a verb, never by this program.
 *
 *   Keys: Up and Down, PgUp and PgDn, Home and End move; T cycles the type shown (all, verbs, files, pointers, paragraphs and sentences, other); / or F11 filters by a part of the name;
 *   S cycles all, only the entries that differ from the shipped VOC, only broken pointers; E, D as above; F5 reads again; F1 or ? or a click on [?] explains the page; Ctrl-Q leaves.
@@ -59,9 +62,9 @@ $include tk.h
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
-   VIS = 16                                                     ;* entry rows on the screen
+   VIS = 16                                                     ;* entry rows on the screen (the list pane's height less 6: set by get.rects)
    MAXV = 3000                                                  ;* entries read: a VOC is a few hundred; more than this are not listed, and the page says so
-   hl = fmt('Name', '28L') : fmt('Type', '6L') : fmt('Points at', '58L') : fmt('Works', '7L') : 'Against the shipped VOC'
+   rtw = TK.MINW - 2 * TK.XBODY - 4                             ;* the text width of a pane in the reference layout (140 by 43): 134
 
    tnames = 'all' : @fm : 'verbs' : @fm : 'files' : @fm : 'pointers' : @fm : 'paragraphs and sentences' : @fm : 'other'
    snames = 'all' : @fm : 'differ from the shipped VOC' : @fm : 'broken pointers'
@@ -74,8 +77,10 @@ $include tk.h
    shipped.ok = 0
    gen = 0
    done = 0
-   msg = 'Up and Down move; E edits the entry in SED, D deletes it, T and S choose what is listed, / filters by name'
+   msg = 'Up and Down move; E edits the entry in the IDE, D deletes it, T and S choose what is listed, / filters by name'
 
+   perr = ''
+   gosub declare.layout
    gosub read.all
    gosub draw.all
 
@@ -90,6 +95,10 @@ $include tk.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', chg)
+            gosub get.rects
+            if ta > ns - VIS then ta = ns - VIS
+            if ta < 0 then ta = 0
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -241,19 +250,60 @@ find.meta:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  The two boxes are panes of the layout service, declared in the sizes of the reference layout (140 by 43, the body 138 by 39): the list stretches (a bigger window
+* shows more entries), the detail takes the columns.
+* Out: lx ly lw lh (the list), dx dy dw dh (the detail), tw (the text width of both), VIS (the entry rows), hl (the header: the column "Points at" takes the width beyond the reference).
+declare.layout:
+   d = ''
+   d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, d, perr)
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'list', rc)
+   lx = rc<1, 1> ; ly = rc<1, 2> ; lw = rc<1, 3> ; lh = rc<1, 4>
+   call $tk_layout('pane', ctx, 'detail', rc)
+   dx = rc<1, 1> ; dy = rc<1, 2> ; dw = rc<1, 3> ; dh = rc<1, 4>
+   tw = lw - 4
+   VIS = lh - 6                                                 ;* the header row, the entry rows, the two summary lines, a blank row and the border: 16 rows of 22
+   pcol = 58 + tw - rtw                                         ;* the "Points at" column
+   hl = fmt('Name', '28L') : fmt('Type', '6L') : fmt('Points at', pcol : 'L') : fmt('Works', '7L') : 'Against the shipped VOC'
+   return
+
+* In: lines.  Out: dlines, what the detail shows.  At the reference width a line longer than the box is cut, as it has always been; in a wider box it is wrapped
+fit.lines:
+   dlines = lines
+   if tw > rtw then
+      dlines = ''
+      nd = 0
+      for q = 1 to dcount(lines, @fm)
+         nd += 1
+         dlines<nd> = ''
+         if lines<q> # '' then
+            call $tk_wrap(lines<q>, tw, wpieces)
+            for pj = 1 to dcount(wpieces, @fm)
+               dlines<nd> = wpieces<pj>
+               nd += 1
+            next pj
+            nd -= 1
+         end
+      next q
+   end
+   return
+
 draw.all:
-   cw2 = ctx<TK.C.W>
-   chh = ctx<TK.C.H> - 5
-   screen clear at 0,1 size cw2,chh
+   screen clear at 0,ctx<TK.C.YBODY> size ctx<TK.C.W>,ctx<TK.C.BODYH>
    ttl = 'The VOC of ' : @who
-   screen box at 1,1 size 138,22 title ttl
-   screen box at 1,23 size 138,17 title 'The entry under the cursor'
+   screen box at lx,ly size lw,lh title ttl
+   screen box at dx,dy size dw,dh title 'The entry under the cursor'
    gosub draw.list
    gosub draw.detail
    return
 
 draw.list:
-   screen text hl at 3,2 attr 'header' width 134
+   screen text hl at lx + 2,ly + 1 attr 'header' width tw
    if ci <= ta then ta = ci - 1
    if ci > ta + VIS then ta = ci - VIS
    if ta < 0 then ta = 0
@@ -263,22 +313,25 @@ draw.list:
       if kk <= ns then
          vid = shown<kk>
          gosub find.meta
-         s = fmt(vid, '28L') : fmt(meta<1, 1>, '6L') : fmt(meta<1, 2>[1, 56], '58L') : fmt(meta<1, 3>, '7L') : meta<1, 4>
+         s = fmt(vid, '28L') : fmt(meta<1, 1>, '6L') : fmt(meta<1, 2>[1, pcol - 2], pcol : 'L') : fmt(meta<1, 3>, '7L') : meta<1, 4>
       end
-      screen text s at 3,2 + r attr (if kk = ci and kk <= ns then 'highlight' else 'normal') width 134
+      screen text s at lx + 2,ly + 1 + r attr (if kk = ci and kk <= ns then 'highlight' else 'normal') width tw
    next r
    gosub draw.foot
-   call $tk_help('mark', 134, 2, 0, 0)
+   call $tk_help('mark', lx + lw - 5, ly + 1, 0, 0)
    return
 
 draw.foot:
    s = nent : (if nent = 1 then ' entry' else ' entries')
    s := ', ' : ns : ' shown (' : tnames<tsel> : '; ' : snames<ssel> : (if filt # '' then '; "' : filt : '" in the name' else '') : ').'
    if truncated then s := '  Only the first ' : MAXV : ' were read.'
-   screen text fmt(s, '134L') at 3,19 attr 'bold' width 134
+   screen text fmt(s, tw : 'L') at lx + 2,ly + lh - 4 attr 'bold' width tw
    s = 'Your gates:  voc-edit ' : (if kernel(K$VOC.EDIT, -1) then 'on' else 'off') : '   dict-edit ' : (if kernel(K$DICT.EDIT, -1) then 'on' else 'off') : '   bp-edit ' : (if kernel(K$BP.EDIT, -1) then 'on' else 'off')
    if not(shipped.ok) then s := '   The shipped VOC (newvoc) cannot be opened here, so nothing is compared with it.'
-   screen text fmt(s, '134L') at 3,20 width 134
+   wpieces = s
+   if tw > rtw then call $tk_wrap(s, tw, wpieces)
+   screen text fmt(wpieces<1>, tw : 'L') at lx + 2,ly + lh - 3 width tw
+   if wpieces<2> # '' then screen text fmt(wpieces<2>, tw : 'L') at lx + 2,ly + lh - 2 width tw
    return
 
 * The entry under the cursor field by field, then what the type means and what the keys do with it
@@ -297,7 +350,7 @@ draw.detail:
             for q = 1 to nfld
                lines<-1> = fmt(q, '3R') : '  ' : convert(@vm, ' | ', convert(@sm, ' / ', dr<q>))
             next q
-            if dcount(dr, @fm) > 9 then lines<-1> = '     (and ' : dcount(dr, @fm) - 9 : ' more fields; E shows them all in SED)'
+            if dcount(dr, @fm) > 9 then lines<-1> = '     (and ' : dcount(dr, @fm) - 9 : ' more fields; E shows them all in the IDE)'
          end
          close vf2
       end
@@ -315,8 +368,9 @@ draw.detail:
    end else
       lines<-1> = 'No entry is listed.  T, S and / change what is listed; Esc shows every entry.'
    end
-   for r = 1 to 15
-      screen text fmt(lines<r>[1, 134], '134L') at 3,23 + r width 134
+   gosub fit.lines
+   for r = 1 to dh - 2
+      screen text fmt(dlines<r>[1, tw], tw : 'L') at dx + 2,dy + r width tw
    next r
    return
 
@@ -432,7 +486,7 @@ choose.again:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.m)
+   call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.voc.page', hm, 0, 0)
       if hm # '' then msg = hm
@@ -441,9 +495,9 @@ on.mouse:
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
-      if mx >= 3 and mx <= 136 and my >= 3 and my <= 2 + VIS then
-         if ta + my - 2 <= ns then
-            ci = ta + my - 2
+      if mx >= lx + 2 and mx <= lx + lw - 3 and my >= ly + 2 and my <= ly + 1 + VIS then
+         if ta + my - ly - 1 <= ns then
+            ci = ta + my - ly - 1
             gosub redraw
          end
       end
@@ -475,29 +529,30 @@ hand.over:
       done = 1
       return
    end
+   gosub declare.layout                                         ;* the new context is laid out for the window as it is now (it may have been resized in the command)
    gen += 1
    ctx<TK.C.GEN> = gen
    gosub read.all
    gosub draw.all
    return
 
-* E: the entry in SED.  SED asks for no confirmation of its own; its own save is the VOC write the kernel's voc-edit rule guards
+* E: the entry in the IDE (S.88 stage C; it was SED).  The IDE asks for no confirmation of its own; it locks the record while it is open and its own save is the VOC write the kernel's voc-edit rule guards
 do.edit:
    if ns < 1 then return
    vid = shown<ci>
    gosub check.name
    if not(okname) then
-      msg = 'this id has a character the page does not give to a command: type  sed voc ' : vid : '  at the prompt'
+      msg = 'this id has a character the page does not give to a command: type  ide voc ' : vid : '  at the prompt'
       return
    end
-   sent = 'sed voc ' : vid
+   sent = 'ide voc ' : vid
    keep = vid
    gosub hand.over
    for q = 1 to ns
       if shown<q> = keep then ci = q
    next q
    gosub draw.all
-   msg = 'back from SED: the list shows the VOC as it is now'
+   msg = 'back from the IDE: the list shows the VOC as it is now'
    return
 
 * D: DELETE VOC name, after a box and the name typed

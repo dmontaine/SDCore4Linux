@@ -129,14 +129,20 @@ def checks(raw):
     kinds_c = set(re.findall(r'mst_row\(ck, "([a-z]+)"', raw["masters_c"]))
     ck("MA12", "the page explains every kind of difference the kernel reports and no other: %s" % " ".join(sorted(KINDS)), kinds_page == KINDS and kinds_c == KINDS, "page %s, kernel %s" % (sorted(kinds_page), sorted(kinds_c)))
     ck("MA13", "the page has a [?] and F1, ? and a click show tool.masters.page, whose record exists with a title, the master files page of the administrator guide and a body",
-       pg.count("'tool.masters.page'") == 2 and "call $tk_help('mark', 134, 2, 0, 0)" in pg and "call $tk_help('hit', mev, 134, 2, hit.m)" in pg
+       pg.count("'tool.masters.page'") == 2 and "call $tk_help('mark', top.x + top.w - 5, top.y + 1, 0, 0)" in pg and "call $tk_help('hit', mev, top.x + top.w - 5, top.y + 1, hit.m)" in pg
        and raw["help"].split("\n")[0].strip() != "" and raw["help"].split("\n")[1].strip() == "19-the-master-files" and raw["help"].split("\n")[2].strip() != "")
     dl = block(pg, "draw.all")
     dsl = block(pg, "draw.list")
     drw = block(pg, "draw.row")
-    ck("MA14", "the layout fits the 140 by 43 frame: three boxes (rows 1-8, 9-23, 24-39), 11 account rows at y 11-21 with the count at 22, 5 difference lines at y 25-29, 7 lines of explanation at y 31-37 and the hint at 38",
-       "screen box at 1,1 size 138,8" in dl and "screen box at 1,9 size 138,15" in dl and "screen box at 1,24 size 138,16" in dl and "VA = 11" in pg and "VD = 5" in pg
-       and "at 3,10 + r attr rat" in dsl and "at 3,22 attr" in dsl and "for r = 1 to 13" in drw and "at 3,30 + r width 134" in drw and "at 3,38 attr" in drw and "for r = 1 to 7" in drw)
+    dc = block(pg, "declare.layout")
+    gr = block(pg, "get.rects")
+    ck("MA14", "the layout is the layout service's (S.88 L2): three panes declared at the 140 by 43 sizes (rows 8, 15 and 16 of 138), their rectangles asked of $tk_layout and drawn as boxes; the account rows are the box's less 4, "
+       "the count is on its second row from the foot, the difference rows are the detail box's less 11 and 7 lines of explanation follow them, the hint is on the second row from the foot; (the numbers at 140 by 43 are test-l2-admin-units.py's)",
+       "ld<1> = 'master' : @vm : 1 : @vm : 1 : @vm : 8 : @vm : 138" in dc and "ld<2> = 'accounts' : @vm : 2 : @vm : 1 : @vm : 15 : @vm : 138" in dc and "ld<3> = 'detail' : @vm : 3 : @vm : 1 : @vm : 16 : @vm : 138" in dc
+       and "call $tk_layout('declare', ctx, ld, perr)" in dc and "VA = acc.h - 4" in gr and "VD = det.h - 11" in gr and "VW = 7" in gr
+       and "screen box at top.x,top.y size top.w,top.h" in dl and "screen box at acc.x,acc.y size acc.w,acc.h" in dl and "screen box at det.x,det.y size det.w,det.h" in dl
+       and "at acc.x + 2,acc.y + 1 + r attr rat" in dsl and "at acc.x + 2,acc.y + acc.h - 2 attr" in dsl and "for r = 1 to det.h - 3" in drw and "for r = 1 to VW" in drw
+       and "at det.x + 2,det.y + VD + 1 + r width dtw" in drw and "at det.x + 2,det.y + det.h - 2 attr" in drw)
     mm = {int(k): v for k, v in re.findall(r"\((\d+), '([^']*)'\)", raw["msgs"])}
     arity = {}
     for m in re.finditer(r"sysmsg\((\d+)((?:, [^()]+?)*)\)", pg):
@@ -201,7 +207,8 @@ MUTANTS = [
     ("a kind of difference is not explained", "MA12", sub("page", "      case kinds<i> = 'toolong'\n", "      case kinds<i> = 'tooshort'\n")),
     ("the help key names a record that does not exist", "MA13", sub("page", "call $tk_help('box', 'tool.masters.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'", "call $tk_help('box', 'tool.masters.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'")),
     ("the help record names no page", "MA13", sub("help", "19-the-master-files", "")),
-    ("the accounts box overruns the explanation", "MA14", sub("page", "screen box at 1,9 size 138,15 title 'Accounts'", "screen box at 1,9 size 138,16 title 'Accounts'")),
+    ("the accounts box overruns the explanation", "MA14", sub("page", "ld<2> = 'accounts' : @vm : 2 : @vm : 1 : @vm : 15", "ld<2> = 'accounts' : @vm : 2 : @vm : 1 : @vm : 16")),
+    ("the words are drawn over the differences", "MA14", sub("page", "at det.x + 2,det.y + VD + 1 + r width dtw", "at det.x + 2,det.y + VD + r width dtw")),
     ("a message is given too few arguments", "MA15", sub("page", "sysmsg(11571, pend.bytes, pend.lines)", "sysmsg(11571, pend.bytes)")),
 ]
 M_F6C = len(MUTANTS)          # 26 Oct 26, F6 (alternative C): the first of its mutants, for `--selftest --from=N`

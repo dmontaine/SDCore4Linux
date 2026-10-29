@@ -302,7 +302,7 @@ def checks(raw):
         and "c = keyin(1)" in tk and "loop c = keyin(0.05) until c = '' do raw := c repeat" in tk
         and "if @crtwide : ',' : @crthigh # lastsz then screen key timeout 1 returning nm exit end" in tk
         and "call $sl_curat(0, ctx<TK.C.YSTAT>)" in tk
-        and "if nm = 'resize' then gosub redraw.all" in tk and "redraw.all: gen += 1 ctx<TK.C.GEN> = gen gosub draw.all return" in tk
+        and "if nm = 'resize' then call $tk_layout('refresh', ctx, '', chg) gosub get.rects gosub redraw.all" in tk and "redraw.all: gen += 1 ctx<TK.C.GEN> = gen gosub draw.all return" in tk
         and "if i # 8 and i # 9 and i # 10 and i # 13 then gnames := @fm : 'ctrl-' : downcase(char(i + 64))" in tk and "gnames := @fm : 'alt-x' : @fm : 'char' : @fm : 'mouse'" in tk
         and "if len(nm) = 1 then cell = 'char' if nm[1, 4] = 'alt-' then cell = 'alt-x'" in tk
         and "case mev<1> = 'wheel' and mev<2> = 'up' ; mu += 1 case mev<1> = 'wheel' ; mdn += 1" in tk

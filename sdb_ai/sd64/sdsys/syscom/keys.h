@@ -3,6 +3,7 @@
       * Copyright (c) 2004, Ladybridge Systems, All Rights Reserved
       
       $list off
+      * 28 Oct 26 dm  S.88: SD_USER_HOME (112), mirrored from gplsrc/keys.h: the user's home and a trusted directory below it.
       * 28 Oct 26 dm  S.88 2.9 (D2): ACC$RECOVERY (19), whether the editors keep a recovery copy of unsaved text (off as delivered).
       * 18 Oct 26 dm  S.66: ACC$SHARED.READ (13) and ACC$SHARED.WRITE (14), the shared-account gates.
       * 17 Oct 26 dm  S.65 slice 1: ACC$NET (15), the per-account NET gate.
@@ -476,6 +477,10 @@
       * 17 Oct 26 dm - S.65 slice 2b, mirrored from gplsrc/keys.h: is a path a file
       *   or directory only the running user can touch.  Args: path, FILE or DIR.
       $define SD_FILE_PRIVATE 111  ;* op_sdext private-file test, 2 args: path, FILE|DIR
+      * 28 Oct 26 dm - S.88, mirrored from gplsrc/keys.h: the effective user's home (password database, not $HOME) followed by a
+      *   relative path, answered only when every directory on the way is a real one of that user's that group and other cannot write.
+      *   One argument: the relative path ('' the home).  Answers the absolute path, or '' on every failure.
+      $define SD_USER_HOME    112  ;* op_sdext the user's home (+ a trusted directory below it), 1 arg: relative path
       * 18 Oct 26 dm - encryption layer 3, mirrored from gplsrc/keys.h: the key ring of the XE conversion.
       *   Args: 'set', name, base64 key (answers the key id, 8 hex digits) / 'clear', name or * (answers how many) / 'list'.
       $define SD_KEYRING      120  ;* sd_keyring key ring: set, clear, list

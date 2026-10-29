@@ -6,6 +6,9 @@
 *
 * START-HISTORY:
 * 25 Oct 26 dm  New.
+* 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the list shows more lines
+*               (twice the share of the box under it, which shows more of the line and its pairs), every box is wider and a line of the list shows more of its pairs.  The resize key makes the
+*               layout again.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -48,6 +51,7 @@ $include tk.h
       stop
    end
    void kernel(K$AUDIT, 'tool start app=tool.audit')
+   gosub declare.layout
 
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
@@ -60,7 +64,6 @@ $include tk.h
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
-   VL = 17                                                      ;* list rows on the screen
    BLK = 200                                                    ;* lines read at a time
    MAXENT = 3000                                                ;* lines kept
    ha = fmt('Time', '19L') : ' ' : fmt('User', '10L') : ' ' : fmt('Event', '28L') : ' ' : 'Details'
@@ -90,6 +93,9 @@ $include tk.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', lchg)
+            gosub get.rects
+            gosub keep.in.view
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -224,26 +230,65 @@ timed.follow:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  The three boxes are the panes of the layout service, declared in the sizes of the reference layout (140 by 43, the body 138 by 39): the box at the top stays as
+* high as it is, and the rows a bigger window gives are shared by the list (twice) and the box under it (once, which shows more of the line under the cursor).  The page never hands the
+* terminal over, so the declaration is made once, after the open, and the rectangles are fetched again after each 'refresh'.
+* Out: top (the audit trail), lst (the lines), det (the line under the cursor), each .x .y .w .h; ttw, ltw, dtw (the text width of each box); VL (the list rows on the screen) and
+* DR (the rows of the box under it).
+declare.layout:
+   ld = ''
+   ld<1> = 'trail' : @vm : 1 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   ld<2> = 'lines' : @vm : 2 : @vm : 1 : @vm : 20 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 2 : @vm : 'stretch' : @vm : 1
+   ld<3> = 'detail' : @vm : 3 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, ld, perr)
+   if perr # '' then
+      call $tk_close(ctx)
+      display perr
+      stop
+   end
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'trail', lrc)
+   top.x = lrc<1, 1> ; top.y = lrc<1, 2> ; top.w = lrc<1, 3> ; top.h = lrc<1, 4>
+   call $tk_layout('pane', ctx, 'lines', lrc)
+   lst.x = lrc<1, 1> ; lst.y = lrc<1, 2> ; lst.w = lrc<1, 3> ; lst.h = lrc<1, 4>
+   call $tk_layout('pane', ctx, 'detail', lrc)
+   det.x = lrc<1, 1> ; det.y = lrc<1, 2> ; det.w = lrc<1, 3> ; det.h = lrc<1, 4>
+   ttw = top.w - 4
+   ltw = lst.w - 4
+   dtw = det.w - 4
+   VL = lst.h - 3                                               ;* the heading, the list rows and the border: 17 rows of 20
+   DR = det.h - 2                                               ;* the rows of the box under the list: 11 of 13
+   return
+
+* After a resize the rows scrolled off the top are not more than the lines loaded less the rows that fit
+keep.in.view:
+   if ta > nent - VL then ta = nent - VL
+   if ta < 0 then ta = 0
+   return
+
 draw.all:
    cw2 = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
    screen clear at 0,1 size cw2,chh
-   screen box at 1,1 size 138,6 title 'Audit trail'
-   screen box at 1,7 size 138,20 title 'Lines'
-   screen box at 1,27 size 138,13 title 'The line under the cursor'
+   screen box at top.x,top.y size top.w,top.h title 'Audit trail'
+   screen box at lst.x,lst.y size lst.w,lst.h title 'Lines'
+   screen box at det.x,det.y size det.w,det.h title 'The line under the cursor'
    gosub draw.filter
    gosub redraw
    return
 
 draw.filter:
    s = 'File: ' : cur.file : '   (' : fsz : ' bytes)   Lines loaded: ' : nent : '   Older lines: ' : (if moreold then 'more in the file' else 'none') : '   Follow: ' : (if follow then 'on' else 'off')
-   screen text s at 3,2 attr 'bold' width 128
+   screen text s at top.x + 2,top.y + 1 attr 'bold' width ttw - 6
    s = 'From: ' : (if flt<1> = '' then 'any' else flt<1>) : '   To: ' : (if flt<2> = '' then 'any' else flt<2>)
-   screen text s at 3,3 width 134
+   screen text s at top.x + 2,top.y + 2 width ttw
    s = 'Event: ' : (if flt<3> = '' then 'any' else flt<3>) : '   Account: ' : (if flt<4> = '' then 'any' else flt<4>) : '   User: ' : (if flt<5> = '' then 'any' else flt<5>) : '   Text: ' : (if flt<6> = '' then 'any' else flt<6>)
-   screen text s at 3,4 width 134
-   screen text 'F filters   C clears them   D goes to a time   O shows another audit file   L follows   X saves the lines shown   F5 reads again' at 3,5 width 134
-   call $tk_help('mark', 134, 2, 0, 0)
+   screen text s at top.x + 2,top.y + 3 width ttw
+   screen text 'F filters   C clears them   D goes to a time   O shows another audit file   L follows   X saves the lines shown   F5 reads again' at top.x + 2,top.y + 4 width ttw
+   call $tk_help('mark', top.x + top.w - 5, top.y + 1, 0, 0)
    return
 
 redraw:
@@ -252,7 +297,7 @@ redraw:
    return
 
 draw.list:
-   screen text ha at 3,8 attr 'header' width 134
+   screen text ha at lst.x + 2,lst.y + 1 attr 'header' width ltw
    if ci <= ta then ta = ci - 1
    if ci > ta + VL then ta = ci - VL
    if ta < 0 then ta = 0
@@ -266,7 +311,7 @@ draw.list:
       end
       rat = 'normal'
       if kk = ci and kk <= nent then rat = 'highlight'
-      screen text s at 3,8 + r attr rat width 134
+      screen text s at lst.x + 2,lst.y + 1 + r attr rat width ltw
    next r
    return
 
@@ -281,27 +326,27 @@ row.text:
    ruser = pr<2>
    revent = pr<6>
    rtext = fmt(rtime[1, 19], '19L') : ' ' : fmt(ruser[1, 10], '10L') : ' ' : fmt(revent[1, 28], '28L') : ' ' : rpairs
-   rtext = rtext[1, 134]
+   rtext = rtext[1, ltw]
    return
 
 * The whole line under the cursor, wrapped, and its parts
 draw.detail:
-   for r = 1 to 11
-      screen text '' at 3,27 + r width 134
+   for r = 1 to DR
+      screen text '' at det.x + 2,det.y + r width dtw
    next r
    if nent = 0 or ci < 1 or ci > nent then
-      screen text 'There is no line to show.' at 3,28 width 134
+      screen text 'There is no line to show.' at det.x + 2,det.y + 1 width dtw
       return
    end
    lines = ''
    cline = ent<ci, 2>
-   call $tk_wrap(cline, 134, pieces)
+   call $tk_wrap(cline, dtw, pieces)
    for r = 1 to dcount(pieces, @fm)
       if r <= 3 then lines<-1> = pieces<r>
    next r
    if dcount(pieces, @fm) > 3 then
       l3 = lines<3>
-      lines<3> = l3[1, 130] : ' ...'
+      lines<3> = l3[1, dtw - 4] : ' ...'
    end
    call $audit_read('parse', '', '', cline, pr, perr)
    lines<-1> = ''
@@ -309,7 +354,7 @@ draw.detail:
    lines<-1> = s
    lines<-1> = 'Event ' : pr<6>
    np = dcount(pr, @fm) - 6
-   room = 11 - dcount(lines, @fm)
+   room = DR - dcount(lines, @fm)
    for q = 1 to np
       if q <= room then
          ix = 6 + q
@@ -328,9 +373,9 @@ draw.detail:
       end
    next q
    for r = 1 to dcount(lines, @fm)
-      if r <= 11 then
+      if r <= DR then
          lr = lines<r>
-         screen text lr[1, 134] at 3,27 + r width 134
+         screen text lr[1, dtw] at det.x + 2,det.y + r width dtw
       end
    next r
    return
@@ -411,7 +456,7 @@ go.up:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.m)
+   call $tk_help('hit', mev, top.x + top.w - 5, top.y + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.audit.page', hm, 0, 0)
       if hm # '' then msg = hm
@@ -420,9 +465,9 @@ on.mouse:
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
-      if mx >= 3 and mx <= 136 and my >= 9 and my <= 8 + VL then
-         if ta + my - 8 <= nent then
-            ci = ta + my - 8
+      if mx >= lst.x + 2 and mx <= lst.x + lst.w - 3 and my >= lst.y + 2 and my <= lst.y + 1 + VL then
+         if ta + my - lst.y - 1 <= nent then
+            ci = ta + my - lst.y - 1
             gosub redraw
          end
       end

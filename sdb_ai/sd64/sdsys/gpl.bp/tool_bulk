@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 L2: the four boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the Result box takes the
+*               rows and every box is wider; the dry run keeps and shows as many changed records as the Result box has rows (at least the 20 it always did).
 * 28 Oct 26 dm  S.88 phase 2 (S2): check.undo calls $tk_ownfile, the test moved out unchanged so that TOOL.QUERY makes the same one of &queries&.
 * 27 Oct 26 dm  S.87 batch 13: digest(x, 0, 'MD5') for the removed md5(x) (the same 32 lower case hex characters).
 * 26 Oct 26 dm  New.
@@ -68,9 +70,9 @@ $include tk.h
    NOPS = 10                                                    ;* operations
    MAXSEL = 100000                                              ;* the most records one run takes
    MAXLIST = 20000                                              ;* the most ids a saved list may hold here (its duplicates are taken out by a search, which is slow for more)
-   NPREV = 20                                                   ;* changed records the dry run shows
+   NPREV = 20                                                   ;* changed records the dry run shows at least (a taller result box has it show as many as the box has rows)
    MAXTXT = 120                                                 ;* the longest text a person may give
-   VP = 7                                                       ;* preview rows on the screen
+   VP = 7                                                       ;* preview rows on the screen (the result box's height less 6: set by get.rects)
    UNDOF = '&bulk.undo&'                                        ;* where the last run's old records are kept: a file of the person's own account
    MKUNDO = 'create.file &bulk.undo&'                           ;* the one command that makes it, shown in a box first
 
@@ -87,12 +89,15 @@ $include tk.h
 
    panes = 'Selection' : @fm : 'Operations' : @fm : 'Result'
 
+   perr = ''
+   gosub declare.layout
+
    bf = '' ; fileok = 0 ; finfo = ''                            ;* the file chosen, and the one-line story of it
    selmode = 'cond' ; selname = '' ; seljoin = 'and'            ;* how the records are chosen: cond, list or all
    nsc = 0 ; cnd.item = '' ; cnd.op = '' ; cnd.val = ''         ;* the conditions
    nopr = 0 ; opr.kind = '' ; opr.attr = '' ; opr.a1 = '' ; opr.a2 = '' ; opr.name = ''   ;* the operations
    cntline = 'Choose a file first (F).'
-   dr.valid = 0 ; dr.fp = '' ; dr.ids = '' ; dr.md5 = '' ; dr.pv = '' ; npv = 0 ; dr.chg = 0
+   dr.valid = 0 ; dr.fp = '' ; dr.ids = '' ; dr.md5 = '' ; dr.pv = '' ; npv = 0 ; dr.chg = 0 ; pvcap = NPREV
    n.sel = 0 ; n.chg = 0
    dr.line = 'No dry run yet.  R makes one: it writes nothing.' ; ap.line = '' ; un.line = ''
    sel.ids = '' ; sel.n = 0 ; sel.ok = 0 ; sel.big = 0 ; sel.why = ''
@@ -117,6 +122,10 @@ $include tk.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', chg)
+            gosub get.rects
+            if ra > npv - VP + 1 then ra = npv - VP + 1
+            if ra < 1 then ra = 1
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -967,7 +976,7 @@ diff.line:
          pvl := 'a' : fd : ' [' : bef : '] -> [' : sv : ']   '
       end
    next fd
-   pvl = pvl[1, 132]
+   pvl = pvl[1, tw - 2]                                         ;* 132 in the reference layout
    return
 
 * ------------------------------------------------------------------------------------------------- the dry run
@@ -1012,6 +1021,8 @@ do.dry:
    end
    n.sel = 0 ; n.chg = 0 ; n.same = 0 ; n.cant = 0 ; n.gone = 0
    dr.ids = '' ; dr.md5 = '' ; dr.pv = '' ; npv = 0
+   pvcap = NPREV                                                ;* the changed records this dry run keeps for the Result box: 20, or as many as the box has rows
+   if VP > pvcap then pvcap = VP
    cant.id = ''
    lids = sel.ids
    if lids # '' then
@@ -1034,7 +1045,7 @@ do.dry:
                   end
                   dr.ids := id
                   dr.md5 := digest(rec, 0, 'MD5')
-                  if n.chg <= NPREV then
+                  if n.chg <= pvcap then
                      gosub diff.line
                      dr.pv<-1> = pvl
                   end
@@ -1050,7 +1061,7 @@ do.dry:
    end
    close fv
    npv = n.chg
-   if npv > NPREV then npv = NPREV
+   if npv > pvcap then npv = pvcap
    gosub make.fp
    dr.fp = fp
    dr.valid = 1
@@ -1446,14 +1457,40 @@ refresh:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  The four boxes are the panes of the layout service, declared in the sizes of the reference layout (140 by 43, the body 138 by 39): the three that hold a fixed number of
+* rows (the file, the conditions NCOND, the operations NOPS) keep their height, the Result box takes the rows a bigger window has; all four take the width.
+* Out: fx fy fw fh (File), sx sy sw sh (Which records), ox oy ow oh (What to do to them), rx ry rw rh (Result), tw (the text width of all), VP (the preview rows).
+declare.layout:
+   dcl = ''
+   dcl<1> = 'file' : @vm : 1 : @vm : 1 : @vm : 4 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   dcl<2> = 'which' : @vm : 2 : @vm : 1 : @vm : 9 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   dcl<3> = 'what' : @vm : 3 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   dcl<4> = 'result' : @vm : 4 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, dcl, perr)
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'file', rc)
+   fx = rc<1, 1> ; fy = rc<1, 2> ; fw = rc<1, 3> ; fh = rc<1, 4>
+   call $tk_layout('pane', ctx, 'which', rc)
+   sx = rc<1, 1> ; sy = rc<1, 2> ; sw = rc<1, 3> ; sh = rc<1, 4>
+   call $tk_layout('pane', ctx, 'what', rc)
+   ox = rc<1, 1> ; oy = rc<1, 2> ; ow = rc<1, 3> ; oh = rc<1, 4>
+   call $tk_layout('pane', ctx, 'result', rc)
+   rx = rc<1, 1> ; ry = rc<1, 2> ; rw = rc<1, 3> ; rh = rc<1, 4>
+   tw = fw - 4
+   VP = rh - 6                                                  ;* three status lines, the header row, the preview rows and the border: 7 rows of 13
+   return
+
 draw.all:
    cw2 = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
    screen clear at 0,1 size cw2,chh
-   screen box at 1,1 size 138,4 title 'File'
-   screen box at 1,5 size 138,9 title 'Which records'
-   screen box at 1,14 size 138,13 title 'What to do to them'
-   screen box at 1,27 size 138,13 title 'Result'
+   screen box at fx,fy size fw,fh title 'File'
+   screen box at sx,sy size sw,sh title 'Which records'
+   screen box at ox,oy size ow,oh title 'What to do to them'
+   screen box at rx,ry size rw,rh title 'Result'
    gosub draw.file
    gosub draw.sel
    gosub draw.ops
@@ -1466,11 +1503,11 @@ draw.file:
    end else
       s = 'No file chosen.  F chooses one: a dynamic data file of this account.'
    end
-   screen text fmt(s[1, 128], '128L') at 3,2 attr 'bold' width 128
-   call $tk_help('mark', 134, 2, 0, 0)
+   screen text fmt(s[1, tw - 6], (tw - 6) : 'L') at fx + 2,fy + 1 attr 'bold' width tw - 6
+   call $tk_help('mark', fx + fw - 5, fy + 1, 0, 0)
    s = 'Your gates:  voc-edit ' : (if kernel(K$VOC.EDIT, -1) then 'on' else 'off') : '   dict-edit ' : (if kernel(K$DICT.EDIT, -1) then 'on' else 'off') : '   bp-edit ' : (if kernel(K$BP.EDIT, -1) then 'on' else 'off')
    s := '     Only dynamic data files are updated; the system is asked about the file you choose.'
-   screen text fmt(s[1, 134], '134L') at 3,3 width 134
+   screen text fmt(s[1, tw], tw : 'L') at fx + 2,fy + 2 width tw
    return
 
 draw.sel:
@@ -1484,23 +1521,23 @@ draw.sel:
       case 1
          s = 'Records where ' : (if seljoin = 'or' then 'ANY' else 'ALL') : ' of these hold.  N adds a condition (at most 4), E changes it, X removes it, J ALL/ANY, M how records are chosen.'
    end case
-   screen text fmt(s[1, 134], '134L') at 3,6 width 134
+   screen text fmt(s[1, tw], tw : 'L') at sx + 2,sy + 1 width tw
    h1 = '  #  ' : fmt('Item', '28L') : fmt('Is', '30L') : 'Value'
-   screen text fmt(h1, '134L') at 3,7 attr 'header' width 134
+   screen text fmt(h1, tw : 'L') at sx + 2,sy + 2 attr 'header' width tw
    for yr = 1 to NCOND
       s = ''
       if selmode = 'cond' and yr <= nsc then
          locate cnd.op<yr> in cw<1> setting dp then otext = ct<dp> else otext = cnd.op<yr>
          s = fmt(yr, '3R') : '  ' : fmt(cnd.item<yr>[1, 26], '28L') : fmt(otext, '30L') : '"' : cnd.val<yr>[1, 60] : '"'
       end
-      screen text fmt(s, '134L') at 3,7 + yr attr (if pane = 1 and yr = sc and selmode = 'cond' and yr <= nsc then 'highlight' else 'normal') width 134
+      screen text fmt(s, tw : 'L') at sx + 2,sy + 2 + yr attr (if pane = 1 and yr = sc and selmode = 'cond' and yr <= nsc then 'highlight' else 'normal') width tw
    next yr
-   screen text fmt(cntline[1, 134], '134L') at 3,12 attr 'bold' width 134
+   screen text fmt(cntline[1, tw], tw : 'L') at sx + 2,sy + sh - 2 attr 'bold' width tw
    return
 
 draw.ops:
    h2 = '  #  ' : fmt('What', '30L') : fmt('Attribute', '30L') : 'With'
-   screen text fmt(h2, '134L') at 3,15 attr 'header' width 134
+   screen text fmt(h2, tw : 'L') at ox + 2,oy + 1 attr 'header' width tw
    for yr = 1 to NOPS
       s = ''
       if yr <= nopr then
@@ -1520,19 +1557,19 @@ draw.ops:
          end case
          s = fmt(yr, '3R') : '  ' : fmt(otext, '30L') : fmt(at2[1, 28], '30L') : wth[1, 60]
       end
-      screen text fmt(s, '134L') at 3,15 + yr attr (if pane = 2 and yr = oc and yr <= nopr then 'highlight' else 'normal') width 134
+      screen text fmt(s, tw : 'L') at ox + 2,oy + 1 + yr attr (if pane = 2 and yr = oc and yr <= nopr then 'highlight' else 'normal') width tw
    next yr
    return
 
 draw.result:
-   screen text fmt(dr.line[1, 134], '134L') at 3,28 attr 'bold' width 134
-   screen text fmt(ap.line[1, 134], '134L') at 3,29 width 134
-   screen text fmt(un.line[1, 134], '134L') at 3,30 width 134
-   h3 = fmt('Record id', '20L') : '  Before and after, attribute by attribute (the first ' : NPREV : ' records that would change)'
-   screen text fmt(h3, '134L') at 3,31 attr 'header' width 134
+   screen text fmt(dr.line[1, tw], tw : 'L') at rx + 2,ry + 1 attr 'bold' width tw
+   screen text fmt(ap.line[1, tw], tw : 'L') at rx + 2,ry + 2 width tw
+   screen text fmt(un.line[1, tw], tw : 'L') at rx + 2,ry + 3 width tw
+   h3 = fmt('Record id', '20L') : '  Before and after, attribute by attribute (the first ' : pvcap : ' records that would change)'
+   screen text fmt(h3, tw : 'L') at rx + 2,ry + 4 attr 'header' width tw
    for yr = 1 to VP
       s = dr.pv<ra + yr - 1>
-      screen text fmt(s[1, 134], '134L') at 3,31 + yr width 134
+      screen text fmt(s[1, tw], tw : 'L') at rx + 2,ry + 4 + yr width tw
    next yr
    return
 
@@ -1638,7 +1675,7 @@ on.move:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.m)
+   call $tk_help('hit', mev, fx + fw - 5, fy + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.bulk.page', hm, 0, 0)
       if hm # '' then msg = hm
@@ -1647,15 +1684,15 @@ on.mouse:
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
-      if mx >= 3 and mx <= 136 then
-         if my >= 8 and my <= 7 + NCOND and selmode = 'cond' and my - 7 <= nsc then
+      if mx >= fx + 2 and mx <= fx + fw - 3 then
+         if my >= sy + 3 and my <= sy + 2 + NCOND and selmode = 'cond' and my - (sy + 2) <= nsc then
             pane = 1
-            sc = my - 7
+            sc = my - (sy + 2)
             gosub draw.all
          end
-         if my >= 16 and my <= 15 + NOPS and my - 15 <= nopr then
+         if my >= oy + 2 and my <= oy + 1 + NOPS and my - (oy + 1) <= nopr then
             pane = 2
-            oc = my - 15
+            oc = my - (oy + 1)
             gosub draw.all
          end
       end

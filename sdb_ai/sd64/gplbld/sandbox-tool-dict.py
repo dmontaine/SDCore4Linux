@@ -27,7 +27,7 @@
 #   D4   N in the account with dict-edit OFF: the box says the write will be refused, Run is met by the kernel's own words and NO record appears  [mutant no-edit-check]
 #   D5   T tries an item on a record: D, A, I, multivalued, a conversion and format; a missing record, an item not compiled, an item that holds no value
 #   D6   C compiles an I item: only A S I; Cancel is the default; Run puts the object code in the record (disk), and T then works; compiling is not held back by dict-edit
-#   D7   E hands the terminal to SED on the item and the page comes back; a change saved by SED is on the disk (dict-edit ON) and is refused and not on the disk (OFF)
+#   D7   E hands the terminal to the IDE on the item ('ide dict file id', S.88 stage C; it was SED - re-pointed 28 Oct 26, NOT RUN) and the page comes back; a change saved by the IDE is on the disk (dict-edit ON) and is refused and not on the disk (OFF)
 #   D8   D deletes: Cancel is the default; the wrong id typed deletes nothing; the right id deletes (disk); with dict-edit OFF the verb's own refusal and the item stays  [mutant delete-no-typed-name]
 #   D9   an id with a capital, a file with a dollar in its name: listed and described, and E, D and C are refused with the verb to type; the file is untouched
 #   D10  the indices: the pane lists them with built / not built; N picks an item and CREATE.INDEX defines it and BUILD.INDEX builds it (Cancel is the default; one that has an index is refused); B builds one;
@@ -718,49 +718,55 @@ def section_compile():
     h.end()
 
 
-def sed_edit(h, expect_saved):
-    """E on the item under the cursor, a Q typed at the head of the record, Ctrl-S, Ctrl-Q (and y to a question about unsaved changes), Enter to come back"""
-    h.typed("e", idle=1.0)
-    until(h, lambda t: "File" in h.line(0) and "Search" in h.line(0))
+def ide_edit(h, expect_saved):
+    """E on the item under the cursor (the IDE, 'ide dict file id'), a Q typed at the head of the record, Ctrl-S, then - when the save was refused - Enter to dismiss the box that says why,
+    Ctrl-Q (and Discard, DOWN and Enter, to every 'has changes' question), Enter to come back"""
+    h.typed("e", idle=2.0)
+    until(h, lambda t: "File" in h.line(0) and "Search" in h.line(0) and "dict cust" in t)
     h.typed("Q", idle=0.8)
     h.typed("\x13", idle=1.5)
-    SEDSCREEN = h.text()
+    IDESCREEN = h.text()
+    if not expect_saved:
+        h.key("enter", idle=1.0)
     h.typed("\x11", idle=1.5)
-    if re.search(r"without saving", h.text(), re.I):
-        h.typed("y", idle=1.5)
+    n = 0
+    while "has changes" in h.text() and n < 6:
+        h.key("down", idle=0.5)
+        h.key("enter", idle=1.0)
+        n += 1
     until(h, lambda t: "Press Enter" in t or "Dictionary of" in t, 10)
     h.key("enter", idle=2.0)
     until(h, lambda t: "Dictionary of" in t, 10)
-    return SEDSCREEN
+    return IDESCREEN
 
 
 def section_edit():
-    say("\n--- D7: E hands the terminal to SED")
+    say("\n--- D7: E hands the terminal to the IDE")
     h = page(A1, "cust")
     goto(h, "note")
-    h.typed("e", idle=1.0)
-    until(h, lambda t: "File" in h.line(0) and "Search" in h.line(0))
+    h.typed("e", idle=2.0)
+    until(h, lambda t: "File" in h.line(0) and "Search" in h.line(0) and "dict cust note" in t)
     T = h.text()
-    arow("D7", "E on note hands the screen to SED: SED's menu bar is on row 0, the record dict cust note is the one open (its fields X and 'some text' are on the screen) and the page's boxes are gone",
-         "File" in h.line(0) and "Search" in h.line(0) and "DICT cust note" in h.line(40) + h.line(41) and "some text" in T and "The item under the cursor" not in T, T[:300])
+    arow("D7", "E on note hands the screen to the IDE: the IDE's menu bar is on row 0, the record dict cust note is the one open (its fields X and 'some text' are on the screen) and the page's boxes are gone",
+         "File" in h.line(0) and "Search" in h.line(0) and "dict cust note" in T and "some text" in T and "The item under the cursor" not in T, T[:300])
     h.typed("\x11", idle=1.5)
     until(h, lambda t: "Press Enter" in t or "Dictionary of" in t, 10)
     h.key("enter", idle=2.0)
     until(h, lambda t: "Dictionary of" in t, 10)
-    arow("D7b", "Ctrl-Q leaves SED, Enter brings the page back, the cursor is on note again and the status line says it came back from sed dict cust note", "back from sed dict cust note" in st(h) and "note" in itable(h)[1] and "text (X)" in lowtxt(h), repr((st(h), lowtxt(h)[:80])))
+    arow("D7b", "Ctrl-Q leaves the IDE, Enter brings the page back, the cursor is on note again and the status line says it came back from ide dict cust note", "back from ide dict cust note" in st(h) and "note" in itable(h)[1] and "text (X)" in lowtxt(h), repr((st(h), lowtxt(h)[:80])))
     h.key("esc", idle=1.0)
     goto(h, "ed1")
-    sed_edit(h, True)
+    ide_edit(h, True)
     d = item(A1, "cust", "ed1")
     tb, order = itable(h)
-    arow("D7c", "with dict-edit ON SED saves: the record on the DISK is now QX / 'edit me' and the page, back from SED, lists ed1 as an item of type Q", d is not None and d[0] == ["QX", "edit me"] and tb.get("ed1", ("",))[0] == "Q", repr((d, tb.get("ed1"))))
+    arow("D7c", "with dict-edit ON the IDE saves: the record on the DISK is now QX / 'edit me' and the page, back from the IDE, lists ed1 as an item of type Q", d is not None and d[0] == ["QX", "edit me"] and tb.get("ed1", ("",))[0] == "Q", repr((d, tb.get("ed1"))))
     h.key("ctrl-q", idle=1.2)
     h.end()
     h = page(A2, "cust")
     goto(h, "ed1")
-    sed_edit(h, False)
+    ide_edit(h, False)
     d = item(A2, "cust", "ed1")
-    arow("D7d", "with dict-edit OFF SED's save is refused by the kernel: the record on the DISK is as it was (X / 'edit me')", d is not None and d[0] == ["X", "edit me"], repr(d))
+    arow("D7d", "with dict-edit OFF the IDE's save is refused by the kernel: the record on the DISK is as it was (X / 'edit me')", d is not None and d[0] == ["X", "edit me"], repr(d))
     h.key("ctrl-q", idle=1.2)
     h.end()
 
@@ -807,8 +813,8 @@ def section_odd():
     s1 = st(h)
     h.typed("d", idle=1.5)
     s2 = st(h)
-    arow("D9b", "E and D on it say the id is not given to a command by the page (a character it does not pass, or an SD keyword) and show the verb to type; no box and no SED open, and the item is untouched",
-         "is not given to a command by the page" in s1 and "sed dict cust UpCase" in s1 and "is not given to a command by the page" in s2 and "delete dict cust UpCase" in s2 and "Run this command?" not in h.text() and item(A1, "cust", "UpCase") is not None, repr((s1, s2)))
+    arow("D9b", "E and D on it say the id is not given to a command by the page (a character it does not pass, or an SD keyword) and show the verb to type; no box and no IDE open, and the item is untouched",
+         "is not given to a command by the page" in s1 and "ide dict cust UpCase" in s1 and "is not given to a command by the page" in s2 and "delete dict cust UpCase" in s2 and "Run this command?" not in h.text() and item(A1, "cust", "UpCase") is not None, repr((s1, s2)))
     h.key("ctrl-q", idle=1.2)
     h.end()
     # a word the VOC holds as a keyword is never given to a verb as an item id: DELETE DICT cust ALL would ask to delete every item
@@ -831,8 +837,8 @@ def section_odd():
         ks.append(st(h))
         if "Run this command?" in h.text():
             h.key("enter", idle=1.5)                                   # a page that offered the box (a mutant): Cancel
-    arow("D9e", "items called ALL and NO.QUERY (SD keywords) are listed, but E and D on them say the id is not given to a command by the page and show the verb to type; no box, no SED, and both items are still on the disk",
-         before[0] is not None and before[1] is not None and all("is not given to a command by the page" in s for s in ks) and "delete dict cust all" in ks[1] and "sed dict cust no.query" in ks[2]
+    arow("D9e", "items called ALL and NO.QUERY (SD keywords) are listed, but E and D on them say the id is not given to a command by the page and show the verb to type; no box, no IDE, and both items are still on the disk",
+         before[0] is not None and before[1] is not None and all("is not given to a command by the page" in s for s in ks) and "delete dict cust all" in ks[1] and "ide dict cust no.query" in ks[2]
          and item(A1, "cust", "all") is not None and item(A1, "cust", "no.query") is not None, repr(ks))
     h.key("ctrl-q", idle=1.2)
     h.end()
@@ -853,7 +859,7 @@ def section_odd():
     h.typed("d", idle=1.5)
     s2 = st(h)
     arow("D9d", "...and E and D on an item with a plain id (%s) say the FILE name is not given to a command by the page (a character it does not pass, or an SD keyword), with the verb to type" % first,
-         first != "" and "this file name is not given to a command by the page (a character it does not pass, or an SD keyword)" in s1 and "sed dict $map %s" % first in s1 and "this file name is not given to a command by the page" in s2 and "delete dict $map %s" % first in s2
+         first != "" and "this file name is not given to a command by the page (a character it does not pass, or an SD keyword)" in s1 and "ide dict $map %s" % first in s1 and "this file name is not given to a command by the page" in s2 and "delete dict $map %s" % first in s2
          and "Run this command?" not in h.text(), repr((first, s1, s2)))
     h.key("ctrl-q", idle=1.2)
     h.end()

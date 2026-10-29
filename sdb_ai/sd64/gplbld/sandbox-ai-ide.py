@@ -23,6 +23,8 @@
 #          is said and none is offered; the buffer is as it was
 #   I11-I12 Explain the error (the table's row; the message is in the request) and Explain the selection (the mark to the cursor; with no mark the status line says so, nothing is sent)
 #   I13    Esc during the wait gives the request up
+# 28 Oct 26: Tab indents in the IDE's editor now (the owner's approval of 28 Oct), so ask() and focus_entry() walk the ring of panes with F6; the loops that come
+# BACK to the editor still press Tab, which moves through the AI line, the tree and the tabs as before.  Not run since.
 # NOT HELD: the buffer changing while the AI answers (the wait loop is modal, so no key can reach the editor: the fit test in ai.apply is held only as text, by
 # test-ailine-units.py I1; a mutant that took it out was tried on 24 Oct and no row could fail), the end of the input during the wait, the SED hand-over, a record
 # longer than 24000 bytes (the window), a real provider.
@@ -54,6 +56,7 @@ import fakemodel  # noqa: E402
 
 say = ids.say
 TAB, RET, ESC, F8, F10 = ids.TAB, ids.RET, ids.ESC, ids.F8, ids.F10      # F8 is the IDE's compile since S.88 Phase 4 (F7 is debug)
+F6 = ids.F6                                                                 # 28 Oct 26: the next pane; Tab indents in the editor now, so the ring is walked with F6
 CTRL_G, CTRL_Z = "\x07", "\x1a"
 DOWN = "\x1bOB"
 RIGHT = "\x1bOC"
@@ -304,18 +307,18 @@ def wait_popup(e, tmax=15.0):
 
 
 def ask(e, request, go_send=False):
-    """The AI entry has the focus (Tab round the ring from the editor), the request is typed, Enter shows the preview."""
-    e.keys(TAB, TAB)
+    """The AI entry has the focus (F6 round the ring of panes from the editor: the messages, then the AI line), the request is typed, Enter shows the preview."""
+    e.keys(F6, F6)
     e.keys(request)
     e.keys(RET)
 
 
 def focus_entry(e):
-    """The entry is the last stop of the ring: Tab until the status line names it."""
+    """The entry is the last stop of the ring: F6 until the status line names it (28 Oct 26: Tab indents in the editor)."""
     for _ in range(6):
         if "[AI]" in e.status():
             return True
-        e.keys(TAB)
+        e.keys(F6)
     return "[AI]" in e.status()
 
 

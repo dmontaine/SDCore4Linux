@@ -298,6 +298,24 @@ def page_boxes(src):
     return [tuple(int(v) for v in m.groups()) for m in re.finditer(r"screen box at (\d+),(\d+) size (\d+),(\d+)", src)]
 
 
+# 28 Oct 26 (stage L2): a page that has moved onto the layout service no longer holds its boxes as literals.  The boxes it had at 140 by 43 are the ones of the commit that
+# preceded L2 (10380d19, "stages L1 and B"); M2 reads them from there, so it keeps comparing every declaration with what the pages drew before the move.
+PRE_L2 = "10380d19"
+
+
+def pre_l2_source(page, working):
+    """the page's source with its literal boxes: the working copy while it still has them, else the one of the commit before L2 (git show)"""
+    if page_boxes(working):
+        return working
+    import subprocess
+    try:
+        out = subprocess.run(["git", "-C", os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "show",
+                              "%s:sdb_ai/sd64/sdsys/gpl.bp/%s" % (PRE_L2, page)], capture_output=True, timeout=60)
+        return out.stdout.decode("latin-1") if out.returncode == 0 else working
+    except (OSError, subprocess.SubprocessError):
+        return working
+
+
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------- the checks
 def load():
     raw = {}
@@ -393,7 +411,7 @@ def checks(raw):
        (f["W"], f["H"], f["YSTAT"], f["YBORD"], f["YKEYS"], f["XBODY"], f["YBODY"], f["BODYW"], f["BODYH"]) == (140, 43, 40, 41, 42, 1, 1, 138, 39), repr(f))
     bad = []
     for key, (decl, pick) in DECLS.items():
-        src = raw["pages"].get(key.split("#")[0], "")
+        src = pre_l2_source(key.split("#")[0], raw["pages"].get(key.split("#")[0], ""))
         boxes = page_boxes(src)
         want = [boxes[i] for i in pick] if pick is not None else boxes
         v = M.validate(decl)

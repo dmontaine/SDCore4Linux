@@ -122,14 +122,20 @@ def checks(raw):
     ck("AC12", "the page waits for a key with no timeout and reads again only when it opens, on F5 and after a command or a hand-over",
        "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 4, "read.all x%d" % pg.count("gosub read.all"))
     ck("AC13", "the page has a [?] and F1, ? and a click show tool.accounts.page, whose record exists with a title, the accounts and security page of the administrator guide (which has a section on tool.accounts) and a body",
-       pg.count("'tool.accounts.page'") == 2 and "call $tk_help('mark', 134, 2, 0, 0)" in pg and "call $tk_help('hit', mev, 134, 2, hit.m)" in pg and raw["help"].split("\n")[0].strip() != ""
+       pg.count("'tool.accounts.page'") == 2 and "call $tk_help('mark', top.x + top.w - 5, top.y + 1, 0, 0)" in pg and "call $tk_help('hit', mev, top.x + top.w - 5, top.y + 1, hit.m)" in pg and raw["help"].split("\n")[0].strip() != ""
        and raw["help"].split("\n")[1].strip() == "01-accounts-and-security" and raw["help"].split("\n")[2].strip() != "" and "### The accounts on one screen: `tool.accounts`" in raw["doc"], "")
     dl = block(pg, "draw.all")
     dsl = block(pg, "draw.list")
     dd2 = block(pg, "draw.detail")
-    ck("AC14", "the layout fits the 140 by 43 frame: three boxes (rows 1-6, 7-26, 27-39), the top text 128 wide so the [?] is clear, the header at row 8 and 17 rows at y 9-25, the account under the cursor in 11 rows at y 28-38",
-       "screen box at 1,1 size 138,6" in dl and "screen box at 1,7 size 138,20" in dl and "screen box at 1,27 size 138,13" in dl and "attr 'bold' width 128" in block(pg, "draw.top") and re.search(r"^\s*VA = 17\s*$", pg, re.M) is not None
-       and "at 3,8 attr 'header'" in dsl and "at 3,8 + r attr rat" in dsl and "for r = 1 to 11" in dd2 and "at 3,27 + r width 134" in dd2, "")
+    dc = block(pg, "declare.layout")
+    gr = block(pg, "get.rects")
+    ck("AC14", "the layout is the layout service's (S.88 L2): three panes declared at the 140 by 43 sizes (rows 6, 20 and 13 of 138), their rectangles asked of $tk_layout and drawn as boxes, also again after a verb was given the terminal (the new $tk_open has no panes); "
+       "the top text 10 narrower than its box so the [?] is clear, the list rows are the box's less 3 under a heading, the account under the cursor in the detail box's rows (less 2); (the numbers at 140 by 43 are test-l2-admin-units.py's)",
+       "ld<1> = 'counts' : @vm : 1 : @vm : 1 : @vm : 6 : @vm : 138" in dc and "ld<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20 : @vm : 138" in dc and "ld<3> = 'detail' : @vm : 3 : @vm : 1 : @vm : 13 : @vm : 138" in dc
+       and "call $tk_layout('declare', ctx, ld, perr)" in dc and "VA = lst.h - 3" in gr and "DR = det.h - 2" in gr
+       and "screen box at top.x,top.y size top.w,top.h" in dl and "screen box at lst.x,lst.y size lst.w,lst.h" in dl and "screen box at det.x,det.y size det.w,det.h" in dl
+       and "attr 'bold' width ttw - 6" in block(pg, "draw.top") and re.search(r"call \$tk_open\('tool\.accounts', 'admin', ctx, err\)\s*\n\s*if err # '' then\s*\n\s*display err\s*\n\s*done = 1\s*\n\s*return\s*\n\s*end\s*\n\s*gen \+= 1\s*\n\s*ctx<TK\.C\.GEN> = gen\s*\n\s*gosub declare\.layout", pg) is not None
+       and "at lst.x + 2,lst.y + 1 attr 'header'" in dsl and "at lst.x + 2,lst.y + 1 + r attr rat" in dsl and "for r = 1 to DR" in dd2 and "at det.x + 2,det.y + r width dtw" in dd2, "")
     return rows
 
 
@@ -176,12 +182,13 @@ MUTANTS = [
     ("X asks about remove.home for every kind", "AC9", sub("page", "   if akind<ci> = 'USER' then\n      screen ask \"Also remove", "   if 1 then\n      screen ask \"Also remove")),
     ("X skips the name test", "AC9", sub("page", "   word = anm<ci>\n   gosub plain.word\n   if not(plain) then\n      msg = 'this account name has characters this page will not put in a command; use delete.account at the prompt'\n      return\n   end\n", "")),
     ("the page does not take the screen back", "AC10", sub("page", "   call $tk_open('tool.accounts', 'admin', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n   gen += 1", "   gen += 1")),
-    ("the page does not read after a hand-over", "AC10", sub("page", "   ctx<TK.C.GEN> = gen\n   gosub read.all\n   gosub draw.all\n   msg = 'back from '", "   ctx<TK.C.GEN> = gen\n   gosub draw.all\n   msg = 'back from '")),
+    ("the page does not read after a hand-over", "AC10", sub("page", "   gosub declare.layout                                         ;* the new $tk_open has no panes\n   gosub read.all\n   gosub draw.all\n   msg = 'back from '", "   gosub declare.layout                                         ;* the new $tk_open has no panes\n   gosub draw.all\n   msg = 'back from '")),
     ("a key is added to the table", "AC11", sub("page", "   call $tk_keys('add', keys, 'x', 'delete', 'delete', '', 1)\n", "   call $tk_keys('add', keys, 'x', 'delete', 'delete', '', 1)\n   call $tk_keys('add', keys, 'k', 'kill', 'kill', '', 1)\n")),
     ("the page reads on a timer", "AC12", sub("page", "      screen key returning nm\n", "      screen key timeout 3 returning nm\n")),
     ("the help key names a record that does not exist", "AC13", sub("page", "call $tk_help('box', 'tool.accounts.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'", "call $tk_help('box', 'tool.accounts.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'")),
     ("the help record names no page", "AC13", sub("help", "01-accounts-and-security", "")),
-    ("the list box overruns the detail", "AC14", sub("page", "screen box at 1,7 size 138,20 title 'Every account'", "screen box at 1,7 size 138,21 title 'Every account'")),
+    ("the list box overruns the detail", "AC14", sub("page", "ld<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20", "ld<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 21")),
+    ("the layout is not declared again after a verb had the terminal", "AC14", sub("page", "   gosub declare.layout                                         ;* the new $tk_open has no panes\n   gosub read.all", "   gosub read.all")),
 ]
 
 

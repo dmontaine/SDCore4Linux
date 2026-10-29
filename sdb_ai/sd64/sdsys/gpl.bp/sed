@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  Security fix (owner-approved): open.file's PATH: handling asked K$PATH.OK about the name as typed and, when OPENSEQ failed, opened upcase() of it - a check on one name and use of another.  The retry is removed; a path is opened as typed or refused.
 * 28 Oct 26 dm  S.88 phase 2 (D4): the break setting SED takes (PTERM BREAK OFF) is kept by $tk_brk and given back where the terminal is given up (reset.term.state); it was never given back.
 * 28 Oct 26 dm  S.88 D33 (owner, 20 Oct 26): in the default key layout Ctrl-W closes the buffer (F.DELETE.BUFFER, as in Edit and Geany, and as in the IDE and the toolkit) and Save as (F.WRITE.RECORD)
 *               is reached from the File menu only; Ctrl-PageDown and Ctrl-PageUp (ESC [ 6 ; 5 ~ and ESC [ 5 ; 5 ~) are the next and previous buffer in the place of Esc N and Esc P; F5 compiles
@@ -5695,12 +5696,9 @@ open.file:
 
          openseq fpath to fpath.f else
             if not(unassigned(fpath.f)) then close fpath.f       ;* 26 Oct 26 - an OPENSEQ that took ELSE keeps the name locked until the variable is closed (see home_entry)
-            fpath = upcase(fpath)
-            openseq fpath to fpath.f else
-               if not(unassigned(fpath.f)) then close fpath.f
-               open.ok = @false
-               return
-            end
+            * 28 Oct 26 dm - the retry with upcase(fpath) is gone: K$PATH.OK was asked of the name as typed, and the retry opened another name.
+            open.ok = @false
+            return
          end
 
          * We have found it

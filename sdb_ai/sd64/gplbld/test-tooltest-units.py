@@ -147,10 +147,14 @@ def checks(raw):
        "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "r", "a", "f", "b", "enter", "f11", "esc", "f5", "ctrl-q"))
        and "call $tk_keys('add', keys, 'esc', 'tests', 'back', 'Output', 1)" in pg
        and all(("case nm = '%s'" % k) in block(pg, "on.key") for k in ("r", "a", "f", "b", "enter", "f5", "ctrl-q")), "")
-    ck("TT15", "the layout fits the 140 by 43 frame: two boxes (rows 1-22 and 23-39), 16 rows of tests at y 3-18, the summary and the hint at 19 and 20, 15 rows of detail or output at y 24-38; nothing is drawn on a border",
-       "screen box at 1,1 size 138,22 title ttl" in pg and "screen box at 1,23 size 138,17 title 'The test under the cursor'" in pg and "screen box at 1,23 size 138,17 title ottl" in pg and "VIS = 16 ; VISO = 15" in pg
-       and "for r = 1 to 15" in block(pg, "draw.detail") and "at 3,23 + r width 134" in block(pg, "draw.detail") and "for r = 1 to VISO" in block(pg, "draw.output") and "at 3,23 + r width 134" in block(pg, "draw.output")
-       and "at 3,19 attr 'bold' width 134" in pg and "at 3,20 width 134" in pg, "")
+    ck("TT15", "the layout fits the 140 by 43 frame (S.88 L2: the two boxes are the layout service's panes, declared 22 and 17 rows by 138 and drawn from their rectangles; the numbers at 140 by 43 are "
+               "test-l2-files-units.py's): two boxes (rows 1-22 and 23-39), 16 rows of tests (the list's height less 6) at the list's y + 2, the summary and the hint on its last interior rows, the lower box (detail or output) "
+               "on its interior rows with VISO its height less 2; nothing is drawn on a border",
+       "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :" in pg and "d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 :" in pg
+       and "screen box at lx,ly size lw,lh title ttl" in pg and "screen box at dx,dy size dw,dh title 'The test under the cursor'" in pg and "screen box at dx,dy size dw,dh title ottl" in pg
+       and "VIS = lh - 6" in pg and "VISO = dh - 2" in pg
+       and "for r = 1 to dh - 2" in block(pg, "draw.detail") and "at dx + 2,dy + r width tw" in block(pg, "draw.detail") and "for r = 1 to VISO" in block(pg, "draw.output") and "at dx + 2,dy + r width tw" in block(pg, "draw.output")
+       and "at lx + 2,ly + lh - 4 attr 'bold' width tw" in pg and "at lx + 2,ly + lh - 3 width tw" in pg, "")
     ck("TT16", "the page waits on the keyboard only through the base: the key read is screen key (the cursor lock and the end of the input are the library's), the end of the input ends it, the base is closed on the way out, and A looks for Esc between tests (keyready, then screen key) so it can stop after the one that is running",
        "screen key returning nm" in pg and "if status() = ER$EOF then exit" in pg and "case nm = 'guardquit'\n            exit" in pg and pg.find("call $tk_close(ctx)") > pg.find("repeat")
        and before(dm, "gosub run.test", "if keyready() then", "screen key timeout 1 returning zkey", "if zkey = 'esc' then", "stopped = zj"), "")
@@ -258,8 +262,8 @@ MUTANTS = [
     ("a key is missing from the key table", "TT14", sub("page", "   call $tk_keys('add', keys, 'b', 'compile', 'compile', 'Tests', 1)\n", "")),
     ("a capital R is not a key", "TT14", sub("page", "   if len(nm) = 1 then nm = downcase(nm)", "   if len(nm) = 99 then nm = downcase(nm)")),
     ("Esc is a key of every pane", "TT14", sub("page", "'esc', 'tests', 'back', 'Output', 1)", "'esc', 'tests', 'back', '', 1)")),
-    ("the detail overruns the border", "TT15", sub("page", "   for r = 1 to 15\n", "   for r = 1 to 16\n")),
-    ("the first box overlaps the second", "TT15", sub("page", "screen box at 1,1 size 138,22 title ttl", "screen box at 1,1 size 138,23 title ttl")),
+    ("the detail overruns the border", "TT15", sub("page", "   for r = 1 to dh - 2\n", "   for r = 1 to dh - 1\n")),
+    ("the first box overlaps the second", "TT15", sub("page", "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :", "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 23 : @vm : 138 :")),
     ("the end of the input is not seen", "TT16", sub("page", "            if status() = ER$EOF then exit\n", "")),
     ("the page waits with no key reader of the library", "TT16", sub("page", "screen key returning nm", "input nm,1")),
     ("A does not look for Esc", "TT16", sub("page", "         if keyready() then\n            zkey = ''", "         if 0 then\n            zkey = ''")),

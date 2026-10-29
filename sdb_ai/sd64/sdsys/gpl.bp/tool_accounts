@@ -6,6 +6,9 @@
 *
 * START-HISTORY:
 * 25 Oct 26 dm  New.
+* 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the list shows more accounts
+*               (twice the share of the box under it, which shows more of what is known about the account under the cursor) and every box is wider.  The resize key makes the layout again,
+*               and so does the return from a verb that was given the terminal (the new $tk_open has no panes).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -52,6 +55,7 @@ $include tk.h
       stop
    end
    void kernel(K$AUDIT, 'tool start app=tool.accounts')
+   gosub declare.layout
 
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
@@ -63,8 +67,7 @@ $include tk.h
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
-   VA = 17                                                      ;* account rows on the screen
-   ha = '  ' : fmt('Account', '20L') : fmt('Kind', '7L') : fmt('State', '11L') : fmt('Gates that are on', '41L') : fmt('Signed on', '10L') : 'Description'
+   ha ='  ' : fmt('Account', '20L') : fmt('Kind', '7L') : fmt('State', '11L') : fmt('Gates that are on', '41L') : fmt('Signed on', '10L') : 'Description'
 
    an = 0 ; anm = '' ; akind = '' ; asusp = '' ; agates = '' ; asess = '' ; adesc = ''
    nusers = 0 ; ngroups = 0 ; nothers = 0 ; nsusp = 0 ; nsess = 0
@@ -88,6 +91,9 @@ $include tk.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', lchg)
+            gosub get.rects
+            gosub keep.in.view
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -174,24 +180,63 @@ read.all:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  The three boxes are the panes of the layout service, declared in the sizes of the reference layout (140 by 43, the body 138 by 39): the box at the top stays as
+* high as it is, and the rows a bigger window gives are shared by the list (twice) and the box under it (once, which shows more of what is known about the account).  A new $tk_open
+* (after the terminal was handed to a verb) has no panes, so the declaration is made again then.
+* Out: top (the counts), lst (every account), det (the account under the cursor), each .x .y .w .h; ttw, ltw, dtw (the text width of each box); VA (the account rows on the screen) and
+* DR (the rows of the box under the list).
+declare.layout:
+   ld = ''
+   ld<1> = 'counts' : @vm : 1 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   ld<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 2 : @vm : 'stretch' : @vm : 1
+   ld<3> = 'detail' : @vm : 3 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, ld, perr)
+   if perr # '' then
+      call $tk_close(ctx)
+      display perr
+      stop
+   end
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'counts', lrc)
+   top.x = lrc<1, 1> ; top.y = lrc<1, 2> ; top.w = lrc<1, 3> ; top.h = lrc<1, 4>
+   call $tk_layout('pane', ctx, 'list', lrc)
+   lst.x = lrc<1, 1> ; lst.y = lrc<1, 2> ; lst.w = lrc<1, 3> ; lst.h = lrc<1, 4>
+   call $tk_layout('pane', ctx, 'detail', lrc)
+   det.x = lrc<1, 1> ; det.y = lrc<1, 2> ; det.w = lrc<1, 3> ; det.h = lrc<1, 4>
+   ttw = top.w - 4
+   ltw = lst.w - 4
+   dtw = det.w - 4
+   VA = lst.h - 3                                               ;* the heading, the account rows and the border: 17 rows of 20
+   DR = det.h - 2                                               ;* the rows of the box under the list: 11 of 13
+   return
+
+* After a resize the rows scrolled off the top are not more than the accounts listed less the rows that fit
+keep.in.view:
+   if ta > an - VA then ta = an - VA
+   if ta < 0 then ta = 0
+   return
+
 draw.all:
    cw2 = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
    screen clear at 0,1 size cw2,chh
-   screen box at 1,1 size 138,6 title 'Accounts'
-   screen box at 1,7 size 138,20 title 'Every account'
-   screen box at 1,27 size 138,13 title 'The account under the cursor'
+   screen box at top.x,top.y size top.w,top.h title 'Accounts'
+   screen box at lst.x,lst.y size lst.w,lst.h title 'Every account'
+   screen box at det.x,det.y size det.w,det.h title 'The account under the cursor'
    gosub draw.top
    gosub redraw
    return
 
 draw.top:
    s = an : ' account' : (if an = 1 then '' else 's') : ': ' : nusers : ' user, ' : ngroups : ' group, ' : nothers : ' other.   Suspended: ' : nsusp : '.   Sessions signed on now: ' : nsess : '.'
-   screen text s[1, 128] at 3,2 attr 'bold' width 128
-   screen text 'SDSYS, the administrator, is not listed and cannot be changed here. The gate switches are TOOL.GATES; a new account has every gate off.' at 3,3 width 134
-   screen text 'C creates an account.  X deletes one (its name is typed first).  S suspends the account under the cursor or lifts the suspension.' at 3,4 width 134
-   screen text 'A adds a person to a group account and R takes one away.  F5 reads again.' at 3,5 width 134
-   call $tk_help('mark', 134, 2, 0, 0)
+   screen text s[1, ttw - 6] at top.x + 2,top.y + 1 attr 'bold' width ttw - 6
+   screen text 'SDSYS, the administrator, is not listed and cannot be changed here. The gate switches are TOOL.GATES; a new account has every gate off.' at top.x + 2,top.y + 2 width ttw
+   screen text 'C creates an account.  X deletes one (its name is typed first).  S suspends the account under the cursor or lifts the suspension.' at top.x + 2,top.y + 3 width ttw
+   screen text 'A adds a person to a group account and R takes one away.  F5 reads again.' at top.x + 2,top.y + 4 width ttw
+   call $tk_help('mark', top.x + top.w - 5, top.y + 1, 0, 0)
    return
 
 redraw:
@@ -200,7 +245,7 @@ redraw:
    return
 
 draw.list:
-   screen text ha at 3,8 attr 'header' width 134
+   screen text ha at lst.x + 2,lst.y + 1 attr 'header' width ltw
    if ci <= ta then ta = ci - 1
    if ci > ta + VA then ta = ci - VA
    if ta < 0 then ta = 0
@@ -215,17 +260,17 @@ draw.list:
       end
       rat = 'normal'
       if kk = ci and kk <= an then rat = 'highlight'
-      screen text s[1, 134] at 3,8 + r attr rat width 134
+      screen text s[1, ltw] at lst.x + 2,lst.y + 1 + r attr rat width ltw
    next r
    return
 
 * The account under the cursor: what !acc_os_info says of it, the gates that are on, and who is signed on in it
 draw.detail:
-   for r = 1 to 11
-      screen text '' at 3,27 + r width 134
+   for r = 1 to DR
+      screen text '' at det.x + 2,det.y + r width dtw
    next r
    if an = 0 or ci < 1 or ci > an then
-      screen text 'There is no account to show.' at 3,28 width 134
+      screen text 'There is no account to show.' at det.x + 2,det.y + 1 width dtw
       return
    end
    nme = anm<ci>
@@ -241,7 +286,7 @@ draw.detail:
             for k = 1 to dcount(info, @fm)
                ln.s := (if ln.s = '' then '' else '   ') : info<k>
             next k
-            call $tk_wrap(ln.s, 134, pieces)
+            call $tk_wrap(ln.s, dtw, pieces)
             lines<-1> = pieces
          end
       end
@@ -255,9 +300,9 @@ draw.detail:
    next k
    lines<-1> = 'Signed on in it: ' : (if sn = '' then 'nobody' else sn)
    for r = 1 to dcount(lines, @fm)
-      if r <= 11 then
+      if r <= DR then
          lr = lines<r>
-         screen text lr[1, 134] at 3,27 + r width 134
+         screen text lr[1, dtw] at det.x + 2,det.y + r width dtw
       end
    next r
    return
@@ -317,7 +362,7 @@ on.key:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.m)
+   call $tk_help('hit', mev, top.x + top.w - 5, top.y + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.accounts.page', hm, 0, 0)
       if hm # '' then msg = hm
@@ -326,9 +371,9 @@ on.mouse:
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
-      if mx >= 3 and mx <= 136 and my >= 9 and my <= 8 + VA then
-         if ta + my - 8 <= an then
-            ci = ta + my - 8
+      if mx >= lst.x + 2 and mx <= lst.x + lst.w - 3 and my >= lst.y + 2 and my <= lst.y + 1 + VA then
+         if ta + my - lst.y - 1 <= an then
+            ci = ta + my - lst.y - 1
             gosub redraw
          end
       end
@@ -392,6 +437,7 @@ confirm.and.hand.over:
    end
    gen += 1
    ctx<TK.C.GEN> = gen
+   gosub declare.layout                                         ;* the new $tk_open has no panes
    gosub read.all
    gosub draw.all
    msg = 'back from ' : sent[1, 40] : ': the list shows what is registered now'

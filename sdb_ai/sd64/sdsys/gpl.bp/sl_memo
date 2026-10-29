@@ -14,6 +14,9 @@
 *               the programs that have one), ctrl-d duplicates the line (del joins lines) and ctrl-k cuts the whole line into the clipboard.  A change to a widget user programs also use.
 * 28 Oct 26 dm  stay (S.88 Phase 4, I3): an optional flag; Up on the first row and Down on the last stay in the area instead of moving the focus to the widget before or after.
 * 28 Oct 26 dm  S.88 phase 2 (D3): the undo and redo steps are kept as they are, an entry each in the widget (see snap.push), so a record whose lines hold value, subvalue or text marks comes back from an undo unchanged.
+* 28 Oct 26 dm  tabindent (the owner's approval of 28 Oct: Tab indents in the IDE's editor): an optional width; Tab puts blanks in to the next stop, or indents
+*               the selected lines, and Shift-Tab takes them out, each one undo step.  Opt in: an area without it answers Tab 'unhandled' as before, so the
+*               forms of user programs (SCREEN MEMO) keep Tab for moving between their controls.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -33,7 +36,9 @@
 *   passkeys (key names, as values, that the area leaves alone and answers 'unhandled': the program uses them itself), and
 *   softcur (1: while the area has the focus the character under the cursor is drawn in the highlight style, as well as the terminal's
 *   own cursor being put there; not in a readonly area; set by the program, not by SCREEN MEMO), and
-*   stay (1: Up on the first row and Down on the last do nothing instead of answering 'unhandled', so the form does not move the focus; set by the program)
+*   stay (1: Up on the first row and Down on the last do nothing instead of answering 'unhandled', so the form does not move the focus; set by the program), and
+*   tabindent (a width, the IDE's 3: Tab and Shift-Tab indent and outdent - below - instead of answering 'unhandled'; not in a readonly area; set by the program,
+*   not by SCREEN MEMO, so a user program's form keeps Tab for moving between its controls)
 *
 *     init    w and h from what was given (at least 3 by 1); a linefeed in the text is taken as the end of a
 *             line; the cursor goes to the start; no selection and nothing to undo
@@ -57,6 +62,12 @@
 *             which starts with the last text, repeats a find); the
 *             search ignores case, goes on past the end of the text to its start, and selects what it found
 *             (a bell if there is none).  A viewer can select, copy and find, and nothing else.
+*
+*             With tabindent set (28 Oct 26): tab puts blanks in at the cursor to the next stop (a multiple of the width, counted from the
+*             first column), or with a selection puts the width's blanks before each selected line that holds something (a selection that ends
+*             at the start of a line leaves that line out); btab takes out the blanks before the cursor's line, or before each selected line,
+*             back to the stop before (at most the width, never anything but blanks).  Never a tab character; each press is one undo step, and a
+*             btab that has nothing to take out changes nothing and makes no step.  The selection stays.
 *
 *             ret<1> is 'handled'; 'cancel' (Esc); or 'unhandled' with ret<2> the key's name: tab, btab, a
 *             function key, and up on the first row and down on the last, so that a form can go on to the
@@ -89,6 +100,8 @@ $include sl.h
    if mw < 3 then mw = 3
    if mh < 1 then mh = 1
    ro = w{'readonly'} + 0
+   ti = w{'tabindent'} + 0                       ;* 28 Oct 26: the indent width Tab and Shift-Tab use (0: they are not the area's keys)
+   if ti < 0 then ti = 0
    wrap = w{'wrap'} + 0
    * 18 Oct 26: hbar (1) puts a horizontal scroll bar in the last row of the area, and the text has one row less.  Opt in: a program that
    * does not set it (SCREEN MEMO) is drawn as it always was.  There is none when the text wraps (nothing to scroll sideways) or the area is
@@ -794,6 +807,10 @@ handle.key:
          gosub find.prev
       case ro
          ret = 'unhandled' : @fm : key
+      case key = 'tab' and ti > 0
+         gosub indent.in                ;* 28 Oct 26: an area with tabindent (the IDE); without it Tab is 'unhandled' below, as ever
+      case key = 'btab' and ti > 0
+         gosub indent.out
       case key = 'enter'
          kind = 'enter'
          if has.sel then k0 = ''
@@ -931,6 +948,83 @@ handle.key:
    gosub scroll
    gosub store
    gosub paint
+   return
+
+* 28 Oct 26: tabindent.  in.a, in.b = the lines a selection covers (has.sel from sel.range): a selection that ends at the start of a line leaves that line out
+indent.lines:
+   in.a = sy
+   in.b = ey
+   if ex = 1 and ey > sy then in.b = ey - 1
+   return
+
+* Tab: blanks to the next stop at the cursor, or the width's blanks before each selected line that holds something (an empty line is left
+* empty).  The cursor and the mark move with their line's text; one at the start of a line stays there, so the selection still begins there.
+indent.in:
+   kind = 'indent'
+   gosub snap.push
+   if has.sel then
+      gosub indent.lines
+      for in.i = in.a to in.b
+         if lines<in.i> # '' then
+            lines<in.i> = space(ti) : lines<in.i>
+            if in.i = cy and cx > 1 then cx += ti
+            if in.i = my and mx > 1 then mx += ti
+         end
+      next in.i
+   end else
+      in.n = ti - mod(cx - 1, ti)
+      ln = lines<cy>
+      lines<cy> = ln[1, cx - 1] : space(in.n) : ln[cx, len(ln)]
+      cx += in.n
+   end
+   want = cx
+   return
+
+* in.ln (a line) -> in.r, the blanks Shift-Tab takes from its start: back to the stop before, at most the width, never more than are there
+outdent.count:
+   in.l = 0
+   loop
+   while in.l < len(in.ln) and in.ln[in.l + 1, 1] = ' '
+      in.l += 1
+   repeat
+   in.r = mod(in.l, ti)
+   if in.r = 0 then in.r = ti
+   if in.r > in.l then in.r = in.l
+   return
+
+* Shift-Tab: the blanks before the cursor's line, or before each selected line, back to the stop before.  Nothing to take out: no change and no undo step.
+indent.out:
+   if has.sel then
+      gosub indent.lines
+   end else
+      in.a = cy
+      in.b = cy
+   end
+   in.any = @false
+   for in.i = in.a to in.b
+      in.ln = lines<in.i>
+      gosub outdent.count
+      if in.r > 0 then in.any = @true
+   next in.i
+   if not(in.any) then return
+   kind = 'outdent'
+   gosub snap.push
+   for in.i = in.a to in.b
+      in.ln = lines<in.i>
+      gosub outdent.count
+      if in.r > 0 then
+         lines<in.i> = in.ln[in.r + 1, len(in.ln)]
+         if in.i = cy then
+            cx -= in.r
+            if cx < 1 then cx = 1
+         end
+         if in.i = my and has.sel then
+            mx -= in.r
+            if mx < 1 then mx = 1
+         end
+      end
+   next in.i
+   want = cx
    return
 
 paint:

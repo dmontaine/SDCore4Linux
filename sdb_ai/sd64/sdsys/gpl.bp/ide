@@ -6,6 +6,16 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  Four items the owner approved on 28 Oct (Opus's recommendations).  (1) TAB INDENTS in the editor: the memo's tabindent (width 3, the codebase's),
+*               Tab puts blanks in to the next stop or indents the selected lines, Shift-Tab takes them out, one undo step each, never a tab character; F6 and
+*               Shift-F6 move between the panes, and Tab still moves through the controls of the tree, the messages and every form (an option of this
+*               editor only: a user program's SCREEN MEMO keeps today's Tab).  (2) The recovery copies are in the person's Linux home now
+*               (!edit_recovery); nothing here changed but this note.  (3) AN AUTOLOGOUT COUNTDOWN: the IDE counts its own idle time (the waits that end in a
+*               quiet second, and what the editor shows changing, or a wait that lasted longer, for the keys it consumed) and, in the last 60 seconds before
+*               the session's AUTOLOGOUT period (kernel K$AUTOLOGOUT; nothing when it is 0) would end the session, says so on the status line; any key
+*               cancels it.  (4) A RECORD HOLDING BYTES 128 TO 247 OPENS READ-ONLY (bx a<uid>): the editor shows them as they are and cannot be trusted to
+*               keep them, so Save, Save as, Write a copy, Replace, Edit as fields and an AI edit are refused in a box.  Nothing is decoded, encoded or
+*               normalised; the marks 248-255 still go through the token form.
 * 28 Oct 26 dm  The editor merge, stage B (Opus_TUI_Plan.txt section 11): RECORD KINDS AND LOCKS.  Each tab has a kind (bx k: source, dict, voc, data;
 *               collection is refused until stage F; path is reserved for stage E) and a dictionary flag (bx d), and the TOKEN FORM follows the kind:
 *               a dictionary item, a VOC record or a data record shows its marks as :@vm: and so on, a program never does (it followed whether the
@@ -184,10 +194,22 @@ $include dictdict.h
    * 23 Oct 26: whether the AI is usable for this account (the gate, a provider, a model and a key): without it the IDE has no AI entry, no AI menu and the same layout as ever
    call $tk_ai('usable', '', ai.on, ai.pm)
 
-   * 28 Oct 26 (S.88 plan 2.9, D2): whether this session keeps recovery copies (the account's switch, delivered off; a user account and its own person only)
+   * 28 Oct 26 (S.88 plan 2.9, D2): whether this session keeps recovery copies (the account's switch, delivered off; kept in the person's own Linux home)
    call !edit_recovery('on', '', '', '', rc.on)
    rc.warned = 0
    RC.LOOK = 10                            ;* seconds between two looks for a copy a tab does not own (rc.tick)
+
+   * 28 Oct 26: the bytes that make a record read-only here (128 to 247: text in another character set, or UTF-8; 248 to 255 are SD's marks, which the
+   *   token form shows), and the AUTOLOGOUT countdown's own idle count (idle.count)
+   NA.CHARS = ''
+   for na.i = 128 to 247
+      NA.CHARS := char(na.i)
+   next na.i
+   IDL.SLACK = 1250                        ;* ms: a one-second wait that took longer than this had keys in it, which the editor consumed
+   IDL.WARN = 60                           ;* seconds before the sign-out that the status line says so
+   idl.ms = 0                              ;* the time waited with nothing typed, as far as the IDE can tell
+   idl.fp = ''
+   idl.t0 = 0
 
    call $sl_scr('get', scr)
    w = scr<SL.S.W> + 0
@@ -325,10 +347,12 @@ $include dictdict.h
       gosub status.line
       * A second of quiet is an event (timeout), so that the status line follows what is typed: the editor
       * consumes its own keys and nothing else returns to this loop for them
+      idl.t0 = system(1081)                ;* 28 Oct 26: when this wait began, in ms (idle.count)
       screen wait f timeout 1 returning ev then
          et = ev<1>
          eid = ev<2>
          edata = ev<3>
+         if et # 'resize' then idl.ms = 0    ;* 28 Oct 26: every event but a resize is a key or a click, which starts AUTOLOGOUT's period again
          begin case
             case et = 'activate'
                msg = ''
@@ -354,8 +378,10 @@ $include dictdict.h
                gosub rc.tick                    ;* the input ended or the terminal hung up: the changed buffers' copies are brought up to date (D2)
                done = @true
             case ev<1> = 'timeout'
+               gosub idle.count                 ;* 28 Oct 26: the countdown's idle time
                gosub rc.tick                    ;* a second of quiet: the copies follow the buffers (an abort cannot be caught)
             case 1
+               idl.ms = 0               ;* 28 Oct 26: Esc is a key too
                cmd = 'menu'             ;* Esc
                gosub run.cmd
          end case
@@ -564,6 +590,8 @@ new.form:
       ed.text = tb.disp
       k = 'o' : u
       ed.ro = (bx{k} # '')                ;* 28 Oct 26 (stage B): read-only while another session holds the record's lock
+      k = 'a' : u
+      if bx{k} then ed.ro = 1              ;* 28 Oct 26: or while the record holds bytes 128 to 247 (na.mark)
       sy.file = bn<cb>
       sy.id = bi<cb>
       sy.first = field(tb.raw, @fm, 1)
@@ -581,6 +609,7 @@ new.form:
    mw{'hbar'} = 1
    mw{'passkeys'} = 'ctrl-e'                     ;* Ctrl-E hands the record to SED (the area's own meaning of it, end of row, is End); F3 / Shift-F3 are the area's find next / previous (the owner's D31)
    mw{'stay'} = 1                                ;* 28 Oct 26 (I3): Up on the first line and Down on the last stay in the editor and do not move the focus to the tabs or the messages
+   mw{'tabindent'} = 3                           ;* 28 Oct 26 (approved by the owner): Tab and Shift-Tab indent and outdent here, by the codebase's 3; F6 / Shift-F6 move between the panes
    mw{'softcur'} = 1                             ;* 19 Oct 26: the character under the cursor is highlighted while the editor has the focus
 
    cols = sysmsg(11221) : @sm : '6R' : @vm : sysmsg(11222) : @sm : (ew - 11) : 'L'
@@ -802,6 +831,8 @@ load.current:
       gosub syntax.for
       k = 'o' : u
       ro = (bx{k} # '')                  ;* 28 Oct 26 (stage B): another session holds the record's lock: the tab is read-only
+      k = 'a' : u
+      if bx{k} then ro = 1               ;* 28 Oct 26: so is a record that holds bytes 128 to 247 (na.mark)
    end else
       mw{'value'} = ''
       syn = ''
@@ -1000,7 +1031,12 @@ open.record:
    tm.raw = tb.shown
    gosub set.token.mode
    if rc.choice = 'use' then gosub rc.took
+   na.u = uid
+   na.text = rec : @fm : tb.shown
+   gosub na.mark                         ;* 28 Oct 26: bytes 128 to 247 in the record (or in the copy taken) make the tab read-only
    if lk.owner # '' then msg = sysmsg(11689, or.name, or.id, lk.owner)    ;* %1 %2 is open read-only: user %3 holds its lock
+   k = 'a' : uid
+   if bx{k} then msg = sysmsg(11761, or.name, or.id)                     ;* %1 %2 is open read-only: it holds characters outside ASCII
    cb = nbuf
    gosub load.current
    return
@@ -1018,6 +1054,16 @@ tab.state:
    bx{k} = ts.slot
    k = 'o' : uid
    bx{k} = ts.owner
+   k = 'a' : uid
+   bx{k} = 0                         ;* 28 Oct 26: no byte outside ASCII until na.mark says so
+   return
+
+* In: na.u (a tab's uid), na.text (its record, and the text it shows).  28 Oct 26 (the owner's approval): bx a<uid> is 1 when the text holds a byte from 128 to
+*   247 - another character set's letters, or UTF-8, which the editor shows a byte at a time and cannot be trusted to keep.  Such a tab is read-only (load.current,
+*   new.form, ro.check) and nothing is converted: the bytes stay as the disk has them.  The marks (248 to 255) are not counted: the token form shows them.
+na.mark:
+   k = 'a' : na.u
+   bx{k} = (convert(NA.CHARS, '', na.text) # na.text)
    return
 
 * In: tf.dict, tf.file, tf.id.  Out: tf.p, the tab that holds that record (0: none).  A dictionary item and the data record of the same id are two records
@@ -1201,15 +1247,50 @@ relock.all:
    next rl.i
    return
 
-* In: ro.i.  Out: ro.ok, false (and msg says why) when tab ro.i is read-only: another session holds its record's lock, so nothing may change its text
+* In: ro.i.  Out: ro.ok, false (and msg says why) when tab ro.i is read-only: another session holds its record's lock, so nothing may change its text;
+*   ro.why 'lock' for that, and (28 Oct 26) 'ascii' when the record holds bytes 128 to 247 (na.mark)
 ro.check:
    ro.ok = @true
+   ro.why = ''
+   ro.k = 'a' : bu<ro.i>
+   if bx{ro.k} then
+      ro.ok = @false
+      ro.why = 'ascii'
+      i = ro.i
+      gosub buf.label
+      msg = sysmsg(11754, bf.name, bf.id)                         ;* %1 %2 holds characters outside ASCII ... read-only in the IDE ...
+      return
+   end
    ro.k = 'o' : bu<ro.i>
    if bx{ro.k} = '' then return
    ro.ok = @false
+   ro.why = 'lock'
    i = ro.i
    gosub buf.label
    msg = sysmsg(11688, bf.name, bf.id, bx{ro.k})                 ;* %1 %2 is read-only here: user %3 holds its lock ...
+   return
+
+* After ro.check refused: the refusal for bytes outside ASCII is shown in a box, whole (28 Oct 26; the owner's approval); the lock's stays on the status line
+ro.box:
+   if ro.why # 'ascii' then return
+   rf.text = msg
+   gosub refuse.box
+   return
+
+* 28 Oct 26: Save as and Write a copy are refused for a tab whose record holds bytes 128 to 247, in a box (a lock does not stop them: they write another record).
+*   In: cb.  Out: na.ok
+na.check:
+   na.ok = @true
+   if nbuf = 0 then return
+   na.msg = msg
+   ro.i = cb
+   gosub ro.check
+   if ro.why # 'ascii' then
+      msg = na.msg                   ;* a lock's refusal is not this one's
+      return
+   end
+   na.ok = @false
+   gosub ro.box
    return
 
 * In: sq.dict, sq.file.  Out: sq.id, the file's next sequential record id (CREATING.SEQKEY, as SED takes it: $seqkey), or '' with the reason in msg.  The account's
@@ -1357,7 +1438,8 @@ is.dirty:
 
 * ======================================================================
 * The recovery copy (28 Oct 26, S.88 plan 2.9, D2).  Only where the administrator has turned it on for the account (MODIFY.ACCOUNT RECOVERY-ON; delivered off), and
-* only in a user account for its own person: !edit_recovery decides that, makes and checks the owner-only directory, and keeps the copies.  The IDE says WHICH text and
+* only in a store in the person's own Linux home (28 Oct 26: it was the account's $recovery): !edit_recovery decides that, makes and checks the owner-only
+* directories, and keeps the copies.  The IDE says WHICH text and
 * WHEN.  For each tab: bx qk<uid> is the file and record (as two values) of the copy THIS TAB owns ('' none), bx r<uid> the text that copy holds, bx w<uid> the
 * token an untitled buffer's copy is kept under.  A tab owns a copy it wrote or one the person took into it (Use the copy); a copy it does not own is never written
 * over, and the person is asked about it (rc.offer) before any tab for that record is made.  NOTHING HERE WRITES THE RECORD: the person's save does, as ever.
@@ -1555,6 +1637,9 @@ rc.untitled:
                tm.raw = rc.text
                gosub set.token.mode
                gosub rc.took
+               na.u = uid
+               na.text = rc.text
+               gosub na.mark                ;* 28 Oct 26: a copy holding bytes outside ASCII is read-only, as a record is
 *              28 Oct 26 (TUI phase 2 review): the editor is made to hold this tab at once.  It still held the empty startup buffer, so the next Open's add.untitled
 *              (stash.current: the editor's text into the tab in the editor) wrote that empty text over THIS copy's tab, and the next tick deleted the copy from the
 *              disk as a buffer without changes.  The copy stays on the disk; it goes only by the rules of any tab's copy, now that its text is in a tab.
@@ -1601,6 +1686,60 @@ set.indicators:
    return
 
 * ======================================================================
+* The AUTOLOGOUT countdown (28 Oct 26, approved by the owner).  The kernel ends a session whose AUTOLOGOUT period passes with nothing typed (keyin counts
+* the time spent waiting, across the IDE's one-second waits), and an IDE with unsaved changes then loses them.  The IDE counts the same thing ITSELF, from
+* what it sees: an event (a key or a click the form did not keep) starts the count again; a wait that ended in a quiet second adds its length, unless it
+* lasted more than IDL.SLACK (keys came in it, which the editor consumed: the quiet second after the last one is all that counts) or the editor, the AI line
+* or the focus changed (idl.fp).  A key the count cannot see (one that changes nothing, early in a wait) makes it count too much, so the warning can come
+* early, never late; one the kernel would not have signed out for is put right once the period is well past.  Nothing is asked of the kernel but the period.
+
+* After a wait that ended in a quiet second.  In: idl.t0 (when it began).  Out: idl.ms
+idle.count:
+   idl.el = system(1081) - idl.t0
+   idl.now = f{'focus'}
+   if have.form then
+      call $sl_form('find', f, '', 'ed', en)
+      mw = f{'widgets', en}
+      idl.now := '|' : mw{'cx'} : '|' : mw{'cy'} : '|' : mw{'top'} : '|' : mw{'left'} : '|' : mw{'mx'} : '|' : mw{'my'} : '|' : mw{'ukn'} : '|' : len(mw{'value'})
+      if ai.on then
+         screen get f, 'ai' returning idl.ai
+         idl.now := '|' : len(idl.ai) : '|' : idl.ai
+      end
+   end
+   if idl.el > IDL.SLACK or idl.now # idl.fp then
+      idl.ms = 1000
+   end else
+      idl.ms += idl.el
+   end
+   idl.fp = idl.now
+   return
+
+* Out: idl.txt, the countdown for the status line, or '' when the period is off (0) or more than IDL.WARN seconds away
+idle.text:
+   idl.txt = ''
+   idl.al = kernel(K$AUTOLOGOUT, -1) + 0          ;* ms, as the autologout verb reads it; 0 is off
+   if idl.al <= 0 then return
+   if idl.ms > idl.al + 10000 then idl.ms = 0     ;* the session was not signed out: the count missed a key, and starts again
+   idl.left = int((idl.al - idl.ms + 999) / 1000)
+   if idl.left > IDL.WARN then return
+   if idl.left < 1 then idl.left = 1
+   idl.dirty = @false
+   for idl.i = 1 to nbuf
+      i = idl.i
+      gosub is.dirty
+      if dirty then idl.dirty = @true
+   next idl.i
+   begin case
+      case not(idl.dirty)
+         idl.txt = sysmsg(11752, idl.left)        ;* Idle: signing out in %1 s
+      case rc.on
+         idl.txt = sysmsg(11751, idl.left)        ;* ...; a recovery copy is kept
+      case 1
+         idl.txt = sysmsg(11750, idl.left)        ;* ...; unsaved changes will be lost
+   end case
+   return
+
+* ======================================================================
 * The status line, and the bar
 
 status.line:
@@ -1618,9 +1757,13 @@ status.line:
       if dirty then t := ' *'
       k = 'o' : bu<cb>
       if bx{k} # '' then t := '  ' : sysmsg(11687, bx{k})        ;* 28 Oct 26 (stage B): [read-only: user %1 holds its lock]
+      k = 'a' : bu<cb>
+      if bx{k} then t := '  ' : sysmsg(11753)                    ;* 28 Oct 26: [read-only: characters outside ASCII]
       t := '   ' : sysmsg(11213, mw{'cy'}, mw{'cx'})
    end
    if msg # '' then t := '   ' : msg
+   gosub idle.text                                               ;* 28 Oct 26: the AUTOLOGOUT countdown goes first, where it is read
+   if idl.txt # '' then t = idl.txt : (if t = '' then '' else '   ' : t)
    * 18 Oct 26 dm - SCREEN TEXT leaves the cursor after the text, so the cursor stayed at the end of the status row and the editor showed none
    *   (found by the owner: "no cursor when it is first started"; the loop writes this line once a second and on every key).  It is put back
    *   where the widget with the focus had left it.
@@ -2318,6 +2461,9 @@ add.new.record:
       gosub set.token.mode
       gosub rc.took
    end
+   na.u = uid
+   na.text = rc.text
+   gosub na.mark                     ;* 28 Oct 26: a copy taken that holds bytes outside ASCII is read-only, as a record is
    cb = nbuf
    an.made = @true
    return
@@ -2532,6 +2678,8 @@ retake.screen:
 * 28 Oct 26: the setting is read again, as the person has it now ('close' above may have put back the one an earlier aborted app had held, which is the
 *   person's own and not the one this program read at its start), and kept again by $tk_brk before the break key is turned off
 retake.quiet:
+   idl.ms = 0                            ;* 28 Oct 26: the program run here had the keyboard; the countdown starts again
+   idl.fp = ''
    saved.trap = pterm(PT$BREAK, -1)
    call $tk_brk('save', saved.trap)
    void pterm(PT$BREAK, @false)
@@ -2603,6 +2751,9 @@ do.sed:
    tm.u = sd.u
    tm.raw = disk
    gosub set.token.mode
+   na.u = sd.u
+   na.text = disk
+   gosub na.mark                         ;* 28 Oct 26: the record as SED left it may hold bytes outside ASCII
    err.rows = ''
    err.lines = ''
    out.kind = ''
@@ -2621,7 +2772,10 @@ do.fields:
    end
    ro.i = cb
    gosub ro.check                       ;* 28 Oct 26 (stage B): the text of a read-only tab is not changed
-   if not(ro.ok) then return
+   if not(ro.ok) then
+      gosub ro.box                      ;* 28 Oct 26: bytes outside ASCII are refused in a box
+      return
+   end
    k = 'n' : bu<cb>
    if bi<cb> = '' or bx{k} then
       gosub save.current                ;* an untitled buffer, or a new record not yet on the disk, is named and written first
@@ -2774,7 +2928,10 @@ ai.go:
 ai.apply:
    ro.i = cb
    gosub ro.check                       ;* 28 Oct 26 (stage B): the text of a read-only tab is not changed
-   if not(ro.ok) then return
+   if not(ro.ok) then
+      gosub ro.box                      ;* 28 Oct 26: bytes outside ASCII are refused in a box
+      return
+   end
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    ai.now = change(mw{'value'}, @fm, char(10))
@@ -2823,6 +2980,8 @@ do.writeas:
       msg = sysmsg(11218)
       return
    end
+   gosub na.check                       ;* 28 Oct 26: not from a tab whose record holds bytes outside ASCII (a box)
+   if not(na.ok) then return
    gosub stash.current
    u = bu<cb>
    k = 't' : u
@@ -2899,6 +3058,8 @@ do.saveas:
       msg = sysmsg(11218)
       return
    end
+   gosub na.check                       ;* 28 Oct 26: not from a tab whose record holds bytes outside ASCII (a box)
+   if not(na.ok) then return
    gosub stash.current
    gosub default.file
    sa.file = df
@@ -2948,7 +3109,10 @@ do.replace:
    end
    ro.i = cb
    gosub ro.check                       ;* 28 Oct 26 (stage B): the text of a read-only tab is not changed
-   if not(ro.ok) then return
+   if not(ro.ok) then
+      gosub ro.box                      ;* 28 Oct 26: bytes outside ASCII are refused in a box
+      return
+   end
    screen ask sysmsg(11232) returning rp.old else return
    if rp.old = '' then return
    screen ask sysmsg(11233) returning rp.new else return

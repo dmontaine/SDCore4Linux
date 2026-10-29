@@ -7,6 +7,8 @@
 *
 * START-HISTORY:
 * 24 Oct 26 dm  New.
+* 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the gate list shows
+*               more rows and every box is wider (the text is wrapped at the box's width), and a resize is $tk_layout 'refresh' and all of it drawn again.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -54,7 +56,9 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
-   VIS = 16                                                      ;* gate rows on the screen
+   VIS = 16                                                      ;* gate rows on the screen (the gate pane's height less 5: set by get.rects)
+   perr = ''
+   gosub declare.layout
    call $tk_gate_info('list', gids)
    NG = dcount(gids, @fm)
    gti = '' ; gon = '' ; goff = '' ; gwhen = '' ; gdef = '' ; gall = '' ; gstill = '' ; gbey = '' ; gstat = '' ; gkind = '' ; ggrp = ''
@@ -94,6 +98,8 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', chg)
+            gosub get.rects
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -146,22 +152,46 @@ read.all:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  The three boxes are panes of the layout service, declared in the sizes of the reference layout (140 by 43, the body 138 by 39), one band each: the gate list
+* takes the rows a bigger window has beyond the reference, and every box the columns.
+* Out: g.x g.y g.w g.h (the gates), c.x c.y c.w c.h (the row under the cursor), s.x s.y s.w s.h (where this comes from), the text width of each, VIS.
+declare.layout:
+   d = ''
+   d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 21 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<2> = 'cell' : @vm : 2 : @vm : 1 : @vm : 12 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   d<3> = 'note' : @vm : 3 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, d, perr)
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'gates', rc)
+   g.x = rc<1, 1> ; g.y = rc<1, 2> ; g.w = rc<1, 3> ; g.h = rc<1, 4>
+   call $tk_layout('pane', ctx, 'cell', rc)
+   c.x = rc<1, 1> ; c.y = rc<1, 2> ; c.w = rc<1, 3> ; c.h = rc<1, 4>
+   call $tk_layout('pane', ctx, 'note', rc)
+   s.x = rc<1, 1> ; s.y = rc<1, 2> ; s.w = rc<1, 3> ; s.h = rc<1, 4>
+   g.tw = g.w - 4                                                ;* the text width of a box: 134 at the reference
+   c.tw = c.w - 4
+   s.tw = s.w - 4
+   VIS = g.h - 5                                                 ;* the header row, the gate rows, the two summary lines and the border: 16 rows of 21
+   return
+
 draw.all:
-   cw2 = ctx<TK.C.W>
-   chh = ctx<TK.C.H> - 5
-   screen clear at 0,1 size cw2,chh
-   screen box at 1,1 size 138,21 title 'What this account may do'
-   screen box at 1,22 size 138,12 title 'The row under the cursor'
-   screen box at 1,34 size 138,6 title 'Where this comes from'
+   screen clear at 0,ctx<TK.C.YBODY> size ctx<TK.C.W>,ctx<TK.C.BODYH>
+   screen box at g.x,g.y size g.w,g.h title 'What this account may do'
+   screen box at c.x,c.y size c.w,c.h title 'The row under the cursor'
+   screen box at s.x,s.y size s.w,s.h title 'Where this comes from'
    gosub draw.list
    gosub draw.row
    gosub draw.source
    return
 
 draw.list:
-   screen text fmt('Gate', '24L') : fmt('Now', '6L') : fmt('As delivered', '14L') : fmt('Beyond SD', '11L') : 'A change reaches you' at 3,2 attr 'header' width 134
+   screen text fmt('Gate', '24L') : fmt('Now', '6L') : fmt('As delivered', '14L') : fmt('Beyond SD', '11L') : 'A change reaches you' at g.x + 2,g.y + 1 attr 'header' width g.tw
    if ci <= ta then ta = ci - 1
    if ci > ta + VIS then ta = ci - VIS
+   if ta > NG - VIS then ta = NG - VIS                           ;* a taller list fills its rows again
    if ta < 0 then ta = 0
    for r = 1 to VIS
       kk = ta + r
@@ -177,16 +207,16 @@ draw.list:
          end case
          s = fmt(gti<kk>, '24L') : fmt(nowtxt, '6L') : fmt(gdef<kk>, '14L') : fmt((if gbey<kk> = 1 then 'yes' else 'no'), '11L') : gwhen<kk>
       end
-      screen text s at 3,2 + r attr (if kk = ci and kk <= NG then 'highlight' else 'normal') width 134
+      screen text s at g.x + 2,g.y + 1 + r attr (if kk = ci and kk <= NG then 'highlight' else 'normal') width g.tw
    next r
    n.on = 0
    for k = 1 to NG
       if gst<k> = 1 then n.on += 1
    next k
    s = 'Signed on as ' : @logname : ' in the account ' : @who : '.  ' : n.on : ' of ' : NG : ' gates are on for this session.'
-   screen text fmt(s, '134L') at 3,19 attr 'bold' width 134
-   screen text fmt('Only the administrator can change a gate (modify.account).  Nothing on this page can.', '134L') at 3,20 width 134
-   call $tk_help('mark', 134, 2, 0, 0)
+   screen text fmt(s, g.tw : 'L') at g.x + 2,g.y + g.h - 3 attr 'bold' width g.tw
+   screen text fmt('Only the administrator can change a gate (modify.account).  Nothing on this page can.', g.tw : 'L') at g.x + 2,g.y + g.h - 2 width g.tw
+   call $tk_help('mark', g.x + g.w - 5, g.y + 1, 0, 0)
    return
 
 * In plain sentences, for the gate under the cursor
@@ -216,9 +246,10 @@ draw.row:
             end
       end case
    end
+   wtw = c.tw
    gosub wrap.lines
-   for r = 1 to 10
-      screen text fmt(lines<r>, '134L') at 3,22 + r width 134
+   for r = 1 to c.h - 2
+      screen text fmt(lines<r>, c.tw : 'L') at c.x + 2,c.y + r width c.tw
    next r
    return
 
@@ -226,20 +257,21 @@ draw.source:
    lines = ''
    lines<-1> = "Gates are the administrator's: every account starts with them off except the right to read the shared account.  What you are told here is what this session holds right now, asked of the system - nothing is tried to find out."
    lines<-1> = 'sh, os, sd, net and the shared account were loaded when you entered this account; voc, bp and dict when you signed on; the route gates (ssh, api, files, files-write, files-admin, ai) are read from the system each time.'
+   wtw = s.tw
    gosub wrap.lines
-   for r = 1 to 4
-      screen text fmt(lines<r>, '134L') at 3,34 + r width 134
+   for r = 1 to s.h - 2
+      screen text fmt(lines<r>, s.tw : 'L') at s.x + 2,s.y + r width s.tw
    next r
    return
 
-* A SCREEN TEXT longer than its width is cut, not wrapped
+* A SCREEN TEXT longer than its width is cut, not wrapped: wrapped at wtw, the text width of the box
 wrap.lines:
    wrapped = ''
    for wi = 1 to dcount(lines, @fm)
       if lines<wi> = '' then
          wrapped<-1> = ''
       end else
-         call $tk_wrap(lines<wi>, 134, pieces)
+         call $tk_wrap(lines<wi>, wtw, pieces)
          wrapped<-1> = pieces
       end
    next wi
@@ -295,7 +327,7 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.m)
+   call $tk_help('hit', mev, g.x + g.w - 5, g.y + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.gates.mine', hm, 0, 0)
       if hm # '' then msg = hm
@@ -304,9 +336,9 @@ on.mouse:
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
-      if my >= 3 and my <= 2 + VIS and mx >= 3 and mx <= 136 then
-         if ta + my - 2 <= NG then
-            ci = ta + my - 2
+      if my >= g.y + 2 and my <= g.y + 1 + VIS and mx >= g.x + 2 and mx <= g.x + g.w - 3 then
+         if ta + my - g.y - 1 <= NG then
+            ci = ta + my - g.y - 1
             gosub redraw
          end
       end

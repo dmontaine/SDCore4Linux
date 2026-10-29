@@ -10,6 +10,10 @@
 # START-HISTORY:
 # 28 Oct 26 dm  New with stage B.  WRITTEN, NOT RUN (the owner's rule for the full-screen phases: one complete run at the end).  The free check that holds the
 #               same properties as text is test-idekinds-units.py; the token rows of sandbox-recarr.py (E0, E, F) were moved to a data file with it.
+# 28 Oct 26 dm  Section NA (the owner's approval of 28 Oct): a record holding bytes 128 to 247 opens read-only, typing changes nothing, Ctrl-S, Replace, Edit as
+#               fields, Save as and Write a copy are refused in a box before anything is asked, the disk keeps every byte, and a record whose only high bytes
+#               are SD's marks is NOT read-only (control).  The fixture gains r5; S0 does not read it.  WRITTEN, NOT RUN.  The AI edit's refusal is held as
+#               text only (test-idekinds-units.py K32): this suite has no fake provider.
 # END-HISTORY
 #
 # WHAT RUNS.  The IDE on a PSEUDO-TERMINAL at 140 by 42 (sandbox-ide.py's Ide, in the sandbox user's own account, as sandbox-recarr.py drives it), and pipe
@@ -106,6 +110,7 @@ FIX = """   execute 'CREATE.FILE %(df)s' capturing j
    write 'locked one' on d, 'r3'
    write 'tab one' on d, 'r4'
    write 'D':@fm:'1':@fm:'':@fm:'Name':@fm:'20L':@fm:'S' on dd, 'name'
+   write 'caf':char(233):@fm:'na':char(195):char(169):'ve' on d, 'r5'
    open '%(big)s' to b else stop 'KFIX no big file'
    for i = 1 to 5000
       write 'big ':i on b, 'b':i
@@ -157,6 +162,16 @@ HOLD = """   open '%(df)s' to d else stop 'KHOLD no data file'
    crt 'KHOLD done'
 end
 """
+
+
+# 28 Oct 26: r5 as hex bytes (a latin-1 e-acute and a UTF-8 one), and whether a copy was written anywhere
+NAPROBE = """   open '%(df)s' to d else stop 'KNA no data file'
+   read r from d, 'r5' then crt 'KNA r5 ':oconv(r, 'MX0C') else crt 'KNA r5 <absent>'
+   read r from d, 'zzknacopy' then crt 'KNA copy present' else crt 'KNA copy absent'
+   crt 'KNA END'
+end
+"""
+R5_HEX = "636166E9FE6E61C3A97665"           # caf e9 | FM | na c3 a9 ve
 
 
 def put(name, text):
@@ -428,6 +443,63 @@ def section_locks():
         lk is not None and lk.startswith("LOCKED") and gone and lock_of("r4") == "GOT", repr(lock_of("r4")))
 
 
+# ---- NA: a record holding bytes 128 to 247 is read-only (28 Oct 26, approved by the owner; WRITTEN, NOT RUN) ---------------------------------------------------------
+def na_disk():
+    o = sb.sess(BOX, "RUN bp zzknap" + RUN)
+    m = re.search(r"(?m)^KNA r5 (\S+)\s*$", o)
+    c = re.search(r"(?m)^KNA copy (present|absent)\s*$", o)
+    if "KNA END" not in o:
+        say("    (the NA probe did not reach its end: %r)" % o[-300:])
+    return (m.group(1).upper() if m else None), (c.group(1) if c else None)
+
+
+def box_says(e, words):
+    """the refusal box is on the screen with these words; Return closes it"""
+    t = e.text()
+    seen = words in t
+    if seen:
+        e.keys(RET)
+        e.quiet()
+    return seen, t
+
+
+def section_nonascii():
+    say("\n--- NA: a record with characters outside ASCII opens read-only, and every way of changing or copying it is refused in a box ----")
+    F12 = "\x1b[24~"
+    CTRL_R = sb.CTRL_R
+    put("zzknap" + RUN, NAPROBE)
+    o = sb.sess(BOX, "BASIC bp zzknap" + RUN)
+    hx, cp = na_disk()
+    row("NA0 control: the NA probe compiled and r5 holds a latin-1 e-acute (E9), a field mark and a UTF-8 one (C3 A9): %r" % hx,
+        re.search(r"(?m)^Compiled 1 program\(s\) with no errors", o) is not None and hx == R5_HEX and cp == "absent", repr((hx, cp)) + o[-200:])
+    e = sb.Ide(BOX, "IDE %s r5" % DF)
+    e.quiet()
+    st = e.status()
+    row("NA1 it opens read-only: the status line says [read-only: characters outside ASCII]", "[read-only: characters outside ASCII]" in st, st)
+    e.keys("ZZ")
+    e.quiet()
+    row("NA2 typing changes nothing (no ZZ in the editor, the tab not marked changed)", "ZZ" not in editor_text(e) and ("%s r5 *" % DF) not in e.status(),
+        editor_text(e)[:120] + " | " + e.status())
+    refusal = "holds characters outside ASCII"
+    for key, label, name in ((CTRL_S, "Ctrl-S", "NA3"), (CTRL_R, "Ctrl-R (Replace)", "NA4"), (F12, "F12 (Edit as fields)", "NA5"),
+                             ((F10, DOWN * 3, RET), "File, Save as", "NA6"), ((F10, DOWN * 4, RET), "File, Write a copy", "NA7")):
+        e.keys(*(key if isinstance(key, tuple) else (key,)))
+        e.quiet()
+        seen, t = box_says(e, refusal)
+        named = "Name of the" in t or "File:" in t
+        row("%s %s is refused in a box that says why, before anything is asked (no name form, no question)" % (name, label), seen and not named, t[-500:])
+    row("NA8 the disk is as it was, byte for byte (nothing was decoded, encoded or normalised), and no copy was written", na_disk() == (R5_HEX, "absent"), repr(na_disk()))
+    done(e)
+    e = sb.Ide(BOX, "IDE %s r1" % DF)
+    e.quiet()
+    e.keys(END, "Q")
+    e.quiet()
+    row("NA9 control: a record whose only bytes above 127 are SD's marks (r1, a value mark) is NOT read-only: no tag, and typing changes it",
+        "outside ASCII" not in e.status() and " *" in e.status(), e.status())
+    done(e)
+    row("NA10 ...and after leaving both, r5 is still byte for byte what the fixture wrote", na_disk()[0] == R5_HEX, repr(na_disk()))
+
+
 # ---- M: a missing id ----------------------------------------------------------------------------------------------------------------------------------------------------
 def section_missing():
     say("\n--- M: a record that is not there opens as a new one --------------------------------------------------------------------")
@@ -629,6 +701,7 @@ def main():
         section_voc()
         section_big()
         section_locks()
+        section_nonascii()
         section_missing()
         section_tokens()
         section_seqkey()

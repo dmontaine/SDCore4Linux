@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+28 Oct 26  THE TOOLKIT PAGES AND THE HOME SCREEN USE THE WHOLE WINDOW; THE IDE'S TAB INDENTS; RECOVERY COPIES LIVE IN YOUR OWN HOME; STATUS DISPLAYS ESCAPE OTHER SESSIONS' TEXT.
+
+             What        - The gate matrix, the sessions and locks page, the master files page, the audit trail, the accounts page, the configuration, remote access, backups and
+                           AI pages, the menu management page, the bulk, query, catalog, test and files pages, the viewers, the holder's own gates page, the key test, the
+                           dictionary and VOC pages and the HOME screen now use a layout service: in a terminal bigger than 140 by 43 their lists show more rows, their boxes are
+                           wider, their explanations are wrapped at the box width, the home screen's tiles spread over the window, and they follow the window when it is resized.
+                           At 140 by 43 they look exactly as before; 140 by 43 stays the smallest window.
+                         - TOOL.DICT and TOOL.VOC hand a record to the IDE (ide dict FILE ID, ide voc ID) where they used SED, with their own gates and confirmation boxes.
+                         - The IDE: Tab and Shift-Tab indent and outdent the line or the selected lines (3 blanks, one undo step, never a tab character; F6 and Shift-F6 move between
+                           panes); in the last minute before AUTOLOGOUT would sign you out the status line counts down and any key stops it; a record holding characters outside
+                           ASCII (bytes 128-247) opens read-only so that its bytes cannot be damaged, with save, Save as, Write a copy, Replace, Edit as fields and an AI edit refused.
+                         - Recovery copies (still OFF as delivered, per account) are kept in your own Linux home, ~/.local/state/sd/recovery/<account>/, outside every account:
+                           BACKUP.ACCOUNT never contains them. They are kept only when your home and every directory below it are your own and nobody else can write them. Copies left
+                           in an account's $recovery by the first version are offered once and then removed. Turning recovery off does not delete copies that exist.
+                         - PSTAT, the profiler display and the Hot Spot Monitor display, and the profiler and monitor dumps, show another session's text (program names, the
+                           command, the record it waits for) with control characters and reserved marks as ?, by the same rule as the lock list. kernel(K$SHOW.SAFE, text) gives
+                           a program that rule.
+                         - SED's PATH: form opens exactly the file name that was checked against the account's OS gate; it used to retry with the name in upper case.
+                         It does NOT change the minimum window, the IDE's keys beyond Tab, or SED and CED otherwise.
+
 28 Oct 26  THE IDE EDITS DICTIONARY ITEMS AND VOC RECORDS AND LOCKS WHAT IT HAS OPEN; THE FULL-SCREEN PAGES HAVE A LAYOUT SERVICE AND A RESIZE IS NO LONGER LOST IN A DIALOG.
 
              What        - The IDE edits dictionary items and VOC records as well as programs and data. ide dict FILE ID and ide voc ID open one, and the file tree shows each file's

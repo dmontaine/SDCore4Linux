@@ -132,15 +132,24 @@ def checks(raw):
     ck("RM13", "the page waits for a key with no timeout and reads again only when it opens, on F5 and after a command or a hand-over",
        "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 4, "read.all x%d" % pg.count("gosub read.all"))
     ck("RM14", "the page has a [?] and F1, ? and a click show tool.remote.page, whose record exists with a title, the remote access page of the administrator guide (which has a section on tool.remote) and a body",
-       pg.count("'tool.remote.page'") == 2 and "call $tk_help('mark', 134, 2, 0, 0)" in pg and "call $tk_help('hit', mev, 134, 2, hit.m)" in pg and raw["help"].split("\n")[0].strip() != ""
+       pg.count("'tool.remote.page'") == 2 and "call $tk_help('mark', mk.x, mk.y, 0, 0)" in pg and "call $tk_help('hit', mev, mk.x, mk.y, hit.m)" in pg and raw["help"].split("\n")[0].strip() != ""
        and raw["help"].split("\n")[1].strip() == "05-remote-access-and-the-machine" and raw["help"].split("\n")[2].strip() != "" and "## Everything that reaches SD from outside, on one screen: `tool.remote`" in raw["doc"], "")
     dl = block(pg, "draw.all")
     dsl = block(pg, "draw.list")
     dd = block(pg, "draw.detail")
     pwd = block(pg, "plain.word")
-    ck("RM15", "the layout fits the 140 by 43 frame: three boxes (rows 1-6, 7-26, 27-39), the top text 128 wide so the [?] is clear, the header at row 8 and 17 rows at y 9-25, the text of the view in at most 11 rows at y 28-38; plain.word is the routine's own test",
-       "screen box at 1,1 size 138,6" in dl and "screen box at 1,7 size 138,20" in dl and "screen box at 1,27 size 138,13" in dl and "attr 'bold' width 128" in block(pg, "draw.top") and re.search(r"^\s*VR = 17\s*$", pg, re.M) is not None
-       and "at 3,8 attr 'header'" in dsl and "at 3,8 + r attr rat" in dsl and "if n <= 11 then" in dd and "at 3,27 + n width 134" in dd and ("index('%s', word[pi, 1], 1) = 0" % SAFE) in pwd, "")
+    ld = block(pg, "lay.declare")
+    lg = block(pg, "lay.get")
+    ck("RM15", "the layout is the service's (S.88 L2): three panes declared at the 140 by 43 sizes (rows 1-6, 7-26, 27-39: 138 by 6, 138 by 20 stretching, 138 by 13), the boxes drawn at the panes' rectangles, the top text 6 narrower than the box's text so the [?] is clear, "
+             "the header under the list's border, the rows counted from the pane (VR = list height - 3, 17 at 140 by 43; DV = detail height - 2, 11), every text as wide as the box's text (tw = width - 4, 134), the layout declared again after the terminal came back; plain.word is the routine's own test",
+       "'top' : @vm : 1 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch'" in ld and "'list' : @vm : 2 : @vm : 1 : @vm : 20 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch'" in ld
+       and "'detail' : @vm : 3 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch'" in ld and "call $tk_layout('declare', ctx, d, lay.err)" in ld
+       and "screen box at top.x,top.y size top.w,top.h" in dl and "screen box at lst.x,lst.y size lst.w,lst.h" in dl and "screen box at det.x,det.y size det.w,det.h" in dl
+       and "VR = lst.h - 3" in lg and "DV = det.h - 2" in lg and "tw = lst.w - 4" in lg and "mk.x = top.x + top.w - 5" in lg and "mk.y = top.y + 1" in lg
+       and "attr 'bold' width tw - 6" in block(pg, "draw.top") and "at tx,lst.y + 1 attr 'header'" in dsl and "at tx,lst.y + 1 + r attr rat width tw" in dsl and "if n <= DV then" in dd and "at tx,det.y + n width tw" in dd
+       and "call $tk_layout('refresh', ctx, '', lay.chg)\n            gosub lay.get" in pg and "gosub lay.declare" in pg.rpartition("call $tk_open(")[2] and pg.count("call $tk_open(") == 2
+       and re.search(r"\b(134|138|136|17)\b", re.sub(r"(?m)^   d<\d> = .*$", "", pg)) is None
+       and ("index('%s', word[pi, 1], 1) = 0" % SAFE) in pwd, "")
     return rows
 
 
@@ -186,7 +195,7 @@ MUTANTS = [
     ("any pin is accepted", "RM8", sub("page", "   if not(ok) and len(s.pin) = 64 then", "   if not(ok) and len(s.pin) > 0 then")),
     ("the local accounts are not tested", "RM8", sub("page", "         if index(@fm : unames : @fm, @fm : wd : @fm, 1) = 0 then ok = 0\n", "")),
     ("SET.SERVER is run with no.query", "RM9", sub("page", "   sent = 'set.server ' : s.name : ' ' : s.host : ' ' : s.port : ' ' : s.acc : ' ' : s.pin : ' ' : s.mode\n", "   sent = 'set.server ' : s.name : ' ' : s.host : ' ' : s.port : ' ' : s.acc : ' ' : s.pin : ' ' : s.mode : ' no.query'\n")),
-    ("the page does not take the screen back", "RM10", sub("page", "   call $tk_open('tool.remote', 'admin', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n   gen += 1", "   gen += 1")),
+    ("the page does not take the screen back", "RM10", sub("page", "   call $tk_open('tool.remote', 'admin', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n", "")),
     ("a session is of one kind", "RM11", sub("page", "      case bitand(flg, USR$SDNET)\n         kind = 'sdnet'\n", "")),
     ("an other account is listed in the routes", "RM11", sub("page", "if gerr = '' and ainfo<1> = 'USER' then", "if gerr = '' then")),
     ("a key is added to the table", "RM12", sub("page", "   call $tk_keys('add', keys, 'n', 'new', 'new', 'Servers', 1)\n", "   call $tk_keys('add', keys, 'n', 'new', 'new', 'Servers', 1)\n   call $tk_keys('add', keys, 'k', 'kill', 'kill', '', 1)\n")),
@@ -194,7 +203,10 @@ MUTANTS = [
     ("the page reads on a timer", "RM13", sub("page", "      screen key returning nm\n", "      screen key timeout 3 returning nm\n")),
     ("the help key names a record that does not exist", "RM14", sub("page", "call $tk_help('box', 'tool.remote.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'", "call $tk_help('box', 'tool.remote.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'")),
     ("the help record names no page", "RM14", sub("help", "05-remote-access-and-the-machine", "")),
-    ("the list box overruns the detail", "RM15", sub("page", "screen box at 1,7 size 138,20 title t.list", "screen box at 1,7 size 138,21 title t.list")),
+    ("the list box overruns the detail", "RM15", sub("page", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20 :", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 21 :")),
+    ("the page draws a box at a literal place again", "RM15", sub("page", "screen box at lst.x,lst.y size lst.w,lst.h title t.list", "screen box at 1,7 size 138,20 title t.list")),
+    ("the terminal comes back and the panes are not declared again", "RM15", sub("page", "   gosub lay.declare                                           ;* the new context holds no panes; the window may be another size\n", "")),
+    ("the resize no longer asks the layout again", "RM15", sub("page", "            call $tk_layout('refresh', ctx, '', lay.chg)\n", "")),
 ]
 
 

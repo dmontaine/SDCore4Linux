@@ -13,6 +13,11 @@ START-HISTORY:
               goes through $tk_brk at every way in and out.
 28 Oct 26 dm  The editor merge's stage B: open.record reads under the record's lock (lock.take) and gives the lock back on Cancel (lock.free); R8f, R8j and the
               Cancel mutant follow it.
+28 Oct 26 dm  The store moved to the person's Linux home (the owner's approval of 28 Oct): R7b (any account with a register record; the home from SD_USER_HOME,
+              never root; the account's name one directory name), R7d / R7d2 (the directories made and trusted one at a time from the home down), R7h (a moved
+              copy keeps its date), R7i / R7j / R7k (the store, then the first version's directory), R14 (the first version's copies offered once, moved with the
+              switch on), R15 (nothing written in the account); R8b allows the countdown's idle.count before rc.tick; 14 new mutants, 4 replaced.  The C test of
+              the home is test-userhome-units.py.
 END-HISTORY
 
 WHAT IT HOLDS.  The switch is register field 19 (ACC$RECOVERY), OFF AS DELIVERED: blank means no, CREATE.ACCOUNT writes 'no' unless RECOVERY-ON was typed, and there is
@@ -20,8 +25,11 @@ no upgrade walk.  SDSYS turns it on per account (MODIFY.ACCOUNT RECOVERY-ON / RE
 the word and the account).  A USER account only, refused elsewhere with 11771, in MODIFY.ACCOUNT and in CREATE.ACCOUNT before anything is made.  The backup manifest
 carries it (recovery: 1 / 0, USER arm) and RESTORE.ACCOUNT gives it back only for an explicit 1.
 
-!edit_recovery (gpl.bp/edit_recovery) keeps the copies: only for the account's own person (the register group is sdu_ and the process's Linux user; never root, never
-sdsys), only in <account>/$recovery, made under umask 077 and used only when the kernel's SD_FILE_PRIVATE (lstat, owner, no group or other bits) says so; a copy is
+!edit_recovery (gpl.bp/edit_recovery) keeps the copies: since 28 Oct 26 in the person's Linux home, <home>/.local/state/sd/recovery/<account>, the home from the
+password database (SDEXT SD_USER_HOME; never $HOME, never root), every directory from the home down trusted only when it is a real directory of that user's that
+nobody else can write (made under umask 077 when missing), and the account's own one used only when the kernel's SD_FILE_PRIVATE (lstat, owner, no group or other
+bits) says so - any account with a register record, the administrator too (it was a USER account and its own person only, in <account>/$recovery; a copy left there
+is offered once, moved into the store when the switch is on, and removed from the account); a copy is
 written under umask 077, unlinked first when what is at its name is not a private file, removed when the write fails, when it is not private afterwards or when it
 does not read back identical; a copy is offered only when its magic, account, length and SHA-256 hold and it is the record asked for.  It writes no audit line and
 reaches nothing outside the directory (no OPENSEQ, no OS.EXECUTE).
@@ -173,17 +181,29 @@ def checks(src, msgs):
     ck("R7 !edit_recovery is $internal, catalogued as !edit_recovery and holds no audit line, no OPENSEQ, no OS.EXECUTE and no EXECUTE",
        er.lstrip().startswith("$internal") and "\n$catalog !edit_recovery\n" in er and "subroutine edit_recovery(op, rfile, rid, text, res)" in er
        and "K$AUDIT" not in er and not re.search(r"\b(openseq|os\.execute|execute|perform)\b", er, re.I), "")
-    ck("R7b WHO: the account's register group must be sdu_ and the Linux user this process runs as (K$USERNAME), never empty, root or sdsys; rc.on needs rc.mine AND field 19 = yes",
-       ordered(where, "rc.mine = 0", "rc.on = 0", "rc.user = downcase(trim(kernel(K$USERNAME, 0)))", "if rc.user = '' or rc.user = 'root' or rc.user = 'sdsys' then return",
-               "if downcase(trim(arec<ACC$GROUP>)) # 'sdu_' : rc.user then return", "rc.dir = apath : '/$recovery'", "rc.mine = 1",
-               "if upcase(trim(arec<ACC$RECOVERY>)) = 'YES' then rc.on = 1", "return")
-       and where.count("rc.mine = 1") == 1 and where.count("rc.on = 1") == 1, "")
+    ck("R7b WHO (28 Oct 26, the store in the person's home): the account must have a register record; the Linux user this process runs as (K$USERNAME) is never empty "
+       "or root; the account's name is one directory name (letters, digits, . _ -, not starting with .); rc.mine needs the home SD_USER_HOME trusts, and nothing about "
+       "the account's group (any kind of account, the administrator too); rc.on needs rc.mine AND field 19 = yes",
+       ordered(where, "rc.mine = 0", "rc.on = 0", "rc.home = ''", "rc.dir = ''", "rc.old = ''", "rc.user = downcase(trim(kernel(K$USERNAME, 0)))", "if arec = '' then return",
+               "if rc.user = '' or rc.user = 'root' then return", "if rc.acct = '' or rc.acct[1, 1] = '.' then return",
+               "if convert(ACCT.CHARS, '', rc.acct) # '' then return", "rc.home = SDEXT('', @FALSE, SD_USER_HOME)", "if rc.home = '' then return",
+               "rc.rel = STORE : '/' : rc.acct", "rc.dir = rc.home : '/' : rc.rel", "rc.mine = 1", "if upcase(trim(arec<ACC$RECOVERY>)) = 'YES' then rc.on = 1", "return")
+       and "ACCT.CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789._-'" in er and "STORE = '.local/state/sd/recovery'" in er
+       and where.count("rc.mine = 1") == 1 and where.count("rc.on = 1") == 1 and "'sdu_'" not in where[where.find("rc.home = SDEXT"):], "")
     wr = label(er, "do.write")
     ck("R7c WRITE refuses ('off') unless rc.on, and the directory is made and checked private before it is opened",
        ordered(wr, "res = 'off'", "if not(rc.on) then return", "gosub make.dir", "if not(dir.ok) then return", "openpath rc.dir to rf else return", "mark.mapping rf, off"), "")
     md = label(er, "make.dir")
-    ck("R7d ...the directory is made under umask 077 (63), the umask is put back at once, and the private check follows",
-       ordered(md, "rc.um = umask(63)", "void ospath(rc.dir, OS$MKDIR)", "if umask(rc.um) then null", "gosub check.dir"), "")
+    ck("R7d ...the store's directories are made one at a time from the home down, each ONLY when SD_USER_HOME does not already trust it and nothing is there (something there "
+       "that it does not trust stops it), under umask 077 (63) put back at once, and each is asked again before the next; the private check of the account's own follows",
+       ordered(md, "dir.ok = @false", "if rc.home = '' then return", "for md.i = 1 to md.n", "md.path = rc.home : '/' : md.rel",
+               "if SDEXT(md.rel, @FALSE, SD_USER_HOME) # md.path then", "if ospath(md.path, OS$EXISTS) then return", "rc.um = umask(63)", "void ospath(md.path, OS$MKDIR)",
+               "if umask(rc.um) then null", "if SDEXT(md.rel, @FALSE, SD_USER_HOME) # md.path then return", "next md.i", "gosub check.dir"), "")
+    cd = label(er, "check.dir")
+    ck("R7d2 check.dir trusts the store only when SD_USER_HOME answers EXACTLY its path (every directory from the home down a real one of this user's that nobody else can write) "
+       "AND SD_FILE_PRIVATE says it is this user's alone (0700)",
+       ordered(cd, "dir.ok = @false", "if rc.home = '' then return", "if SDEXT(rc.rel, @FALSE, SD_USER_HOME) # rc.dir then return", "gosub private.dir")
+       and label(er, "private.dir").strip().startswith("dir.ok = (SDEXT(rc.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) = '1')"), "")
     ck("R7e ...what is at the copy's name is unlinked unless it is a private file; the copy is written under umask 077 ON ERROR and the umask put back before anything else; a failed write is removed",
        ordered(wr, "gosub check.file", "if not(file.ok) then", "delete rf, rc.slot on error null", "rc.um = umask(63)", "write rec to rf, rc.slot on error rc.written = @false",
                "if umask(rc.um) then null", "if not(rc.written) then", "delete rf, rc.slot on error null", "res = 'write'"), "")
@@ -193,19 +213,44 @@ def checks(src, msgs):
     ck("R7g the private tests are the kernel's lstat-based SD_FILE_PRIVATE, DIR for the directory and FILE for a copy, each compared with the text '1'",
        "dir.ok = (SDEXT(rc.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) = '1')" in er and "file.ok = (SDEXT(rc.path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) = '1')" in er, "")
     ck("R7h a copy carries its own check: the magic, the account, the length and the SHA-256 of the text, all written and all tested before a copy is believed",
-       "rec = MAGIC : @fm : rc.acct : @fm : rfile : @fm : rid : @fm : date() : @fm : int(time()) : @fm : len(text) : @fm : downcase(digest(text, 0, 'SHA256')) : @fm : text" in wr
+       "rec = MAGIC : @fm : rc.acct : @fm : rfile : @fm : rid : @fm : wr.date : @fm : wr.time : @fm : len(text) : @fm : downcase(digest(text, 0, 'SHA256')) : @fm : text" in wr
+       and ordered(wr, "if wr.date = '' then", "wr.date = date()", "wr.time = int(time())", "rec = MAGIC")
        and ordered(label(er, "parse.copy"), "cp.ok = 0", "if rec<1> # MAGIC then return", "if rec<2> # rc.acct then return", "if len(cp.text) # cp.len + 0 then",
                    "if downcase(digest(cp.text, 0, 'SHA256')) # rec<8> then", "cp.ok = 1"), "")
     fd = label(er, "do.find")
-    ck("R7i FIND needs rc.mine, a private directory and a private file BEFORE it reads, and answers only for a whole copy of the very record asked for",
-       ordered(fd, "res = ''", "if not(rc.mine) then return", "gosub check.dir", "if not(dir.ok) then return", "gosub check.file", "if not(file.ok) then return",
-               "read rec from rf, rc.slot", "gosub parse.copy", "if not(cp.ok) then return", "if cp.file # rfile or cp.id # rid then return", "text = cp.text", "res = 1"), "")
+    ck("R7i FIND needs rc.mine, the trusted directory and a private file BEFORE it reads, and answers only for a whole copy of the very record asked for; only when the store "
+       "has none does it look for the first version's (old.find)",
+       ordered(fd, "res = ''", "if not(rc.mine) then return", "gosub check.dir", "if dir.ok then", "gosub check.file", "if file.ok then",
+               "read rec from rf, rc.slot", "gosub parse.copy", "if cp.ok and cp.file = rfile and cp.id = rid then", "text = cp.text", "res = 1", "return", "gosub old.find"), "")
     dr = label(er, "do.drop")
-    ck("R7j DROP and LIST need rc.mine and the private directory; DROP removes only a private file",
-       ordered(dr, "if not(rc.mine) then return", "gosub check.dir", "if not(dir.ok) then return", "gosub check.file", "if not(file.ok) then return", "delete rf, rc.slot")
-       and ordered(label(er, "do.list"), "if not(rc.mine) then return", "gosub check.dir", "if not(dir.ok) then return", "gosub check.file", "if file.ok then"), "")
+    dl = label(er, "do.list")
+    ld = label(er, "list.dir")
+    ck("R7j DROP and LIST need rc.mine and a checked directory (the store's, or the old one under its own test); DROP removes only a private file, in both; LIST takes an id once",
+       ordered(dr, "if not(rc.mine) then return", "gosub check.dir", "if dir.ok then", "gosub check.file", "if file.ok then", "delete rf, rc.slot",
+               "if rc.old # '' then", "rc.dir = rc.old", "gosub private.dir", "if dir.ok then", "gosub check.file", "if file.ok then", "delete rf, rc.slot", "rc.dir = od.dir")
+       and ordered(dl, "if not(rc.mine) then return", "gosub check.dir", "if dir.ok then gosub list.dir", "if rc.old # '' and res < MAXLIST then", "rc.dir = rc.old",
+                   "gosub private.dir", "if dir.ok then gosub list.dir", "rc.dir = ol.dir")
+       and ordered(ld, "gosub check.file", "if file.ok then", "locate cp.id in ls.ids<1> setting ls.pos else", "ls.ids<1, -1> = cp.id"), "")
     ck("R7k the copies are read and written in image mode (MARK.MAPPING OFF) wherever a copy's bytes are read or written",
-       "mark.mapping rf, off" in wr and "mark.mapping rf, off" in fd and "mark.mapping rf, off" in label(er, "do.list"), "")
+       "mark.mapping rf, off" in wr and "mark.mapping rf, off" in fd and "mark.mapping rf, off" in ld and "mark.mapping orf, off" in label(er, "old.find"), "")
+
+    # ---- 28 Oct 26: the store in the person's home, and the first version's copies -----------------------------------------------------------------------------------
+    of = label(er, "old.find")
+    ck("R14 THE FIRST VERSION'S COPIES are looked for only where that version could have made one (a USER account sdu_<user>, not the administrator) and only under its own "
+       "tests; one found is moved into the store only with the switch on (do.write, the date and time it was kept, rc.dir put back to the store FIRST), and removed from the "
+       "account when it was moved or the switch is off (offered once) - kept when a move failed",
+       ordered(where, "if apath[1, 1] = '/' and rc.user # 'sdsys' then", "if downcase(trim(arec<ACC$GROUP>)) = 'sdu_' : rc.user then rc.old = apath : '/$recovery'",
+               "rc.home = SDEXT")
+       and ordered(of, "if rc.old = '' then return", "rc.dir = rc.old", "gosub private.dir", "if not(dir.ok) then", "gosub check.file", "if not(file.ok) then",
+                   "openpath rc.dir to orf", "read rec from orf, of.slot", "gosub parse.copy", "if not(cp.ok) or cp.file # rfile or cp.id # rid then", "rc.dir = of.dir",
+                   "of.moved = @true", "if rc.on then", "wr.date = cp.date", "wr.time = cp.time", "gosub do.write", "of.moved = (res = '')", "if of.moved then delete orf, of.slot",
+                   "text = of.text", "res = of.res")
+       and 0 <= of.find("rc.dir = of.dir\n   of.moved") < of.find("gosub do.write"), "")
+    ck("R15 NOTHING IS WRITTEN IN THE ACCOUNT ANY MORE: '$recovery' is named only where rc.old is set; do.write is reached only from the op and from old.find after rc.dir is the "
+       "store again; the first version's directory is tested by private.dir alone (only check.dir adds SD_USER_HOME's way down), and every gosub private.dir but "
+       "check.dir's follows rc.dir = rc.old",
+       er.count("'/$recovery'") == 1 and er.count("gosub do.write") == 2 and er.count("SD_USER_HOME") == 4
+       and er.count("gosub private.dir") == 4 and len(re.findall(r"rc\.dir = rc\.old\n(?:\s*gosub slot\.name\n)?\s*gosub private\.dir", er)) == 3, "%d %d %d" % (er.count("'/$recovery'"), er.count("gosub do.write"), er.count("SD_USER_HOME")))
 
     ide = strip(src["ide"])
     tick = label(ide, "rc.tick")
@@ -214,7 +259,7 @@ def checks(src, msgs):
     loop_end = between(ide, "case ev<1> = 'end'", "case 1\n")
     ck("R8b rc.tick runs at the end of the input (a hang-up), after a second of quiet, at Ctrl-Q y in the cursor lock and before the screen is handed to a program",
        re.search(r"case ev<1> = 'end'\s*\n\s*gosub rc\.tick\s*\n\s*done = @true", ide) is not None
-       and re.search(r"case ev<1> = 'timeout'\s*\n\s*gosub rc\.tick", loop_end) is not None
+       and re.search(r"case ev<1> = 'timeout'\s*\n(?:\s*gosub idle\.count[^\n]*\n)?\s*gosub rc\.tick", loop_end) is not None
        and re.search(r"case edata = 'guardquit'\s*\n\s*gosub rc\.tick\s*\n\s*done = @true", ide) is not None
        and label(ide, "leave.screen").lstrip().startswith("gosub rc.tick"), "")
     ck("R8c rc.tick: a buffer without changes loses its copy; a changed one is written only when its text differs from the copy it owns, and a copy it does not own is "
@@ -326,11 +371,25 @@ MUTANTS = [
      "* 28 Oct 26 dm - S.88 plan 2.9 (D2): nor a recovery copy: it is kept in the account's directory, where every member can rename entries (11771).\n     if @false then"),
     ("acc_os_info", "the manifest says 1 for a blank field", "(if upcase(trim(acc.rec<ACC$RECOVERY>)) = 'YES' then 1 else 0)", "(if upcase(trim(acc.rec<ACC$RECOVERY>)) # 'NO' then 1 else 0)"),
     ("restorea", "a manifest without the key restores it on", "(if m.recovery = '1' then 1 else '')", "(if m.recovery # '0' then 1 else '')"),
-    ("edit_recovery", "the administrator gets copies", "   if rc.user = '' or rc.user = 'root' or rc.user = 'sdsys' then return\n", "   if rc.user = '' or rc.user = 'root' then return\n"),
-    ("edit_recovery", "a group account gets copies", "   if downcase(trim(arec<ACC$GROUP>)) # 'sdu_' : rc.user then return\n", ""),
+    # 28 Oct 26: the store in the person's home
+    ("edit_recovery", "root gets copies", "   if rc.user = '' or rc.user = 'root' then return", "   if rc.user = '' then return"),
+    ("edit_recovery", "an account name with a slash is a path in the store", "   if convert(ACCT.CHARS, '', rc.acct) # '' then return", "   null"),
+    ("edit_recovery", "the store is $HOME's", "   rc.home = SDEXT('', @FALSE, SD_USER_HOME)", "   rc.home = env('HOME')"),
+    ("edit_recovery", "the store is the account's directory again", "   rc.dir = rc.home : '/' : rc.rel\n", "   rc.dir = apath : '/$recovery'\n"),
+    ("edit_recovery", "a session with no trusted home still has copies", "   if rc.home = '' then return\n   rc.rel = STORE", "   rc.rel = STORE"),
+    ("edit_recovery", "the store is trusted without asking the way down", "   if SDEXT(rc.rel, @FALSE, SD_USER_HOME) # rc.dir then return\n", ""),
+    ("edit_recovery", "a directory that is there and not trusted is used", "         if ospath(md.path, OS$EXISTS) then return             ;* there, and not to be trusted\n", ""),
+    ("edit_recovery", "a made directory is not asked again", "         if SDEXT(md.rel, @FALSE, SD_USER_HOME) # md.path then return\n", ""),
+    ("edit_recovery", "a group account's old $recovery is read", "      if downcase(trim(arec<ACC$GROUP>)) = 'sdu_' : rc.user then rc.old = apath : '/$recovery'",
+     "      rc.old = apath : '/$recovery'"),
+    ("edit_recovery", "an old copy is removed though its move failed", "      of.moved = (res = '')\n", ""),
+    ("edit_recovery", "an old copy is moved with the switch off", "   if rc.on then\n      text = of.text", "   if 1 then\n      text = of.text"),
+    ("edit_recovery", "an old copy is moved into the account", "   rc.dir = of.dir\n   of.moved = @true\n", "   of.moved = @true\n"),
+    ("edit_recovery", "an old copy is read without the file test", "   gosub check.file\n   if not(file.ok) then\n      rc.dir = of.dir\n      return\n   end\n   of.slot", "   of.slot"),
+    ("edit_recovery", "a list holds an id twice", "                  locate cp.id in ls.ids<1> setting ls.pos else", "                  locate cp.id in ls.none<1> setting ls.pos else"),
     ("edit_recovery", "the switch is not asked", "   if upcase(trim(arec<ACC$RECOVERY>)) = 'YES' then rc.on = 1\n", "   rc.on = 1\n"),
     ("edit_recovery", "a write does not need the switch", "   res = 'off'\n   if not(rc.on) then return\n", "   res = 'off'\n"),
-    ("edit_recovery", "the directory is made with the session's umask", "      rc.um = umask(63)\n      void ospath(rc.dir, OS$MKDIR)", "      rc.um = umask(-1)\n      void ospath(rc.dir, OS$MKDIR)"),
+    ("edit_recovery", "the directory is made with the session's umask", "         rc.um = umask(63)\n         void ospath(md.path, OS$MKDIR)", "         rc.um = umask(-1)\n         void ospath(md.path, OS$MKDIR)"),
     ("edit_recovery", "the directory is not checked", "   gosub make.dir\n   if not(dir.ok) then return\n", "   gosub make.dir\n"),
     ("edit_recovery", "the copy is written with the session's umask", "   rc.um = umask(63)\n   rc.written = @true\n", "   rc.um = umask(-1)\n   rc.written = @true\n"),
     ("edit_recovery", "a link at the name is written through", "   if not(file.ok) then\n      delete rf, rc.slot on error null\n   end\n", ""),
@@ -338,9 +397,9 @@ MUTANTS = [
     ("edit_recovery", "a copy that reads back different is kept", "   if chk # rec then", "   if @false then"),
     ("edit_recovery", "the copy is not checked private after the write", "      res = 'mode'\n", "      res = ''\n"),
     ("edit_recovery", "the digest is not tested", "   if downcase(digest(cp.text, 0, 'SHA256')) # rec<8> then", "   if @false then"),
-    ("edit_recovery", "find reads without the file test", "   gosub check.file\n   if not(file.ok) then return\n   openpath rc.dir to rf else return\n   mark.mapping rf, off\n   read rec",
-     "   openpath rc.dir to rf else return\n   mark.mapping rf, off\n   read rec"),
-    ("edit_recovery", "find answers for another record", "   if cp.file # rfile or cp.id # rid then return\n", ""),
+    ("edit_recovery", "find reads without the file test", "      gosub check.file\n      if file.ok then\n         openpath rc.dir to rf then\n            mark.mapping rf, off\n            read rec",
+     "      file.ok = 1\n      if file.ok then\n         openpath rc.dir to rf then\n            mark.mapping rf, off\n            read rec"),
+    ("edit_recovery", "find answers for another record", "            if cp.ok and cp.file = rfile and cp.id = rid then", "            if cp.ok then"),
     ("edit_recovery", "an audit line holds the text", "   close rf\n   res = ''\n   return", "   close rf\n   void kernel(K$AUDIT, 'recovery ' : text)\n   res = ''\n   return"),
     ("ide", "the tick writes with the switch off", "rc.tick:\n   if not(rc.on) then return\n", "rc.tick:\n"),
     ("ide", "the hang-up writes nothing", "            case ev<1> = 'end'\n               gosub rc.tick ", "            case ev<1> = 'end'\n               null "),

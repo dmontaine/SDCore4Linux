@@ -3,10 +3,10 @@
 
     python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolvoc-units.py [--selftest]
 
-WHAT THIS IS, AND WHAT IT IS NOT.  It reads the page's BASIC as text, with comments removed.  ***IT RUNS NOTHING, SO IT CANNOT SAY THAT AN ENTRY IS DELETED OR THAT SED OPENS***: that is
+WHAT THIS IS, AND WHAT IT IS NOT.  It reads the page's BASIC as text, with comments removed.  ***IT RUNS NOTHING, SO IT CANNOT SAY THAT AN ENTRY IS DELETED OR THAT THE IDE OPENS***: that is
 `sandbox-tool-voc.py` (a private SD, ordinary sessions on a pseudo-terminal, the VOC read back by a separate session as the evidence).  What a text check is for: the properties that make the
-page a FRONT END for an account holder - it is a USER app, it opens the base before it reads anything, it WRITES NOTHING ITSELF (an entry is changed by SED or by the DELETE verb, whose
-checks, including the kernel's voc-edit rule, are the wall), the one command it runs through $tk_run is DELETE on the VOC after a box and the id typed, the terminal is handed over only to SED
+page a FRONT END for an account holder - it is a USER app, it opens the base before it reads anything, it WRITES NOTHING ITSELF (an entry is changed by the IDE or by the DELETE verb, whose
+checks, including the kernel's voc-edit rule, are the wall), the one command it runs through $tk_run is DELETE on the VOC after a box and the id typed, the terminal is handed over only to the IDE
 on an id that passed the same character check, and what it classifies is read from the VOC and NEWVOC and nowhere else.
 
 --selftest breaks each invariant in the way an edit plausibly would and requires a check to notice; a mutant that nothing catches is a failure of the self-test.
@@ -103,13 +103,13 @@ def checks(raw):
     ck("TV5", "DELETE asks for the id typed, runs only when the box answers Run, builds the sentence 'delete voc ' + the id after the id passed the character check, and reads the VOC again after",
        "sent = 'delete voc ' : vid" in de and "call $tk_confirm(sent, lines, vid, res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   call $tk_run(allow, sent, out, stat, rerr)" in de
        and de.find("gosub check.name") < de.find("call $tk_confirm") < de.find("call $tk_run") < de.find("gosub read.all"), "")
-    ck("TV6", "EDIT hands the terminal to SED on 'sed voc ' + the id, only after the same character check, and the page is taken again and the VOC read again afterwards",
-       "sent = 'sed voc ' : vid" in ed and ed.find("gosub check.name") < ed.find("gosub hand.over") and "call $tk_close(ctx)" in block(pg, "hand.over") and "call $tk_open('tool.voc', '', ctx, err)" in block(pg, "hand.over")
+    ck("TV6", "EDIT hands the terminal to the IDE on 'ide voc ' + the id (S.88 stage C; it was SED), only after the same character check, and the page is taken again (its layout declared again for the window as it is) and the VOC read again afterwards",
+       "sent = 'ide voc ' : vid" in ed and "gosub declare.layout" in block(pg, "hand.over") and ed.find("gosub check.name") < ed.find("gosub hand.over") and "call $tk_close(ctx)" in block(pg, "hand.over") and "call $tk_open('tool.voc', '', ctx, err)" in block(pg, "hand.over")
        and block(pg, "hand.over").find("execute sent") > block(pg, "hand.over").find("call $tk_close(ctx)") and "gosub read.all" in block(pg, "hand.over"), "")
     nm = block(pg, "check.name")
     ck("TV7", "an id goes into a command only when it is made of the characters $tk_run lets through (the same list, at most 63 long); the refusal says which command to type instead",
        "good = '%s'" % SAFE in nm and "okname = (len(vid) > 0 and len(vid) <= 63)" in nm and "okname = @false" in nm and ("good = '%s'" % SAFE) in raw["run"]
-       and all(b.count("gosub check.name") == 1 and "if not(okname) then" in b for b in (de, ed)) and "type  sed voc " in ed and "type  delete voc " in de, "")
+       and all(b.count("gosub check.name") == 1 and "if not(okname) then" in b for b in (de, ed)) and "type  ide voc " in ed and "type  delete voc " in de, "")
     # 28 Oct 26, S.88 phase 2 (plan 2.3, defect S4): DELETE VOC ALL asks "Delete all records in VOC?" into the output the page captures, so the page refuses a VOC keyword before any box
     wd = strip_bas(raw["word"])
     ck("TV7b", "S4: D asks $tk_word - the routine TOOL.FILES and TOOL.DICT's rule is now in - whether the id is a keyword of the VOC (type K: all, detail, no.query ...) AFTER the character check and BEFORE the sentence is built, the box is shown or anything runs, and a refusal "
@@ -128,9 +128,12 @@ def checks(raw):
        all(("kernel(K$%s, -1)" % k) in block(pg, "draw.foot") for k in ("VOC.EDIT", "DICT.EDIT", "BP.EDIT")) and "voc-edit is off for you: the delete is expected to be refused." in de, "")
     ck("TV11", "a letter is the same key in either case, and every key the page acts on has a place in the key table",
        "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "e", "d", "t", "s", "f11", "f5", "ctrl-q")), "")
-    ck("TV12", "the layout fits the 140 by 43 frame: two boxes (rows 1-22 and 23-39), 16 rows of entries at y 3-18, the summary and the gates line at 19 and 20, 15 rows of detail at y 24-38",
-       "screen box at 1,1 size 138,22 title ttl" in pg and "screen box at 1,23 size 138,17 title 'The entry under the cursor'" in pg and "VIS = 16" in pg
-       and "for r = 1 to 15" in block(pg, "draw.detail") and "at 3,23 + r width 134" in block(pg, "draw.detail"), "")
+    ck("TV12", "the layout fits the 140 by 43 frame, through the layout service (S.88 L2): the two panes are declared in the reference sizes (the list 138 by 22, the detail 138 by 17), so the boxes are rows 1-22 and 23-39; "
+               "the list has lh - 6 rows (16 at y 3-18), the summary and the gates line stand at the foot of the list (lh - 4 and lh - 3: rows 19 and 20), the detail has dh - 2 rows (15 at y 24-38)",
+       "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :" in pg and "d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 :" in pg
+       and "screen box at lx,ly size lw,lh title ttl" in pg and "screen box at dx,dy size dw,dh title 'The entry under the cursor'" in pg and "VIS = lh - 6" in pg and "VIS = 16 " in pg
+       and "at lx + 2,ly + lh - 4 attr 'bold' width tw" in pg and "at lx + 2,ly + lh - 3 width tw" in pg
+       and "for r = 1 to dh - 2" in block(pg, "draw.detail") and "at dx + 2,dy + r width tw" in block(pg, "draw.detail"), "")
     ck("TV13", "the key read is screen key (the cursor lock and the end of the input are the library's), the end of the input ends the page, and the base is closed on the way out",
        "screen key returning nm" in pg and "if status() = ER$EOF then exit" in pg and "case nm = 'guardquit'\n            exit" in pg and pg.find("call $tk_close(ctx)") > pg.find("repeat"), "")
     ck("TV14", "the help record names a page of the documentation, and the page asks for it by that name",
@@ -173,8 +176,9 @@ MUTANTS = [
     ("delete does not ask for the id typed", "TV5", sub("page", "call $tk_confirm(sent, lines, vid, res, cmsg)", "call $tk_confirm(sent, lines, '', res, cmsg)")),
     ("delete runs whatever the box answered", "TV5", sub("page", "   call $tk_confirm(sent, lines, vid, res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   call $tk_run(allow, sent, out, stat, rerr)", "   call $tk_confirm(sent, lines, vid, res, cmsg)\n   call $tk_run(allow, sent, out, stat, rerr)")),
     ("delete takes the id from the neighbour", "TV5", sub("page", "   sent = 'delete voc ' : vid", "   sent = 'delete voc ' : shown<ci + 1>")),
-    ("edit opens another record", "TV6", sub("page", "sent = 'sed voc ' : vid", "sent = 'sed voc ' : filt")),
-    ("edit hands over without checking the id", "TV7", sub("page", "do.edit:\n   if ns < 1 then return\n   vid = shown<ci>\n   gosub check.name\n   if not(okname) then\n      msg = 'this id has a character the page does not give to a command: type  sed voc ' : vid : '  at the prompt'\n      return\n   end\n", "do.edit:\n   if ns < 1 then return\n   vid = shown<ci>\n")),
+    ("the hand-over does not lay the new context out", "TV6", sub("page", "   gosub declare.layout                                         ;* the new context", "   null                                                         ;* the new context")),
+    ("edit opens another record", "TV6", sub("page", "sent = 'ide voc ' : vid", "sent = 'ide voc ' : filt")),
+    ("edit hands over without checking the id", "TV7", sub("page", "do.edit:\n   if ns < 1 then return\n   vid = shown<ci>\n   gosub check.name\n   if not(okname) then\n      msg = 'this id has a character the page does not give to a command: type  ide voc ' : vid : '  at the prompt'\n      return\n   end\n", "do.edit:\n   if ns < 1 then return\n   vid = shown<ci>\n")),
     ("the id list lets a dollar through", "TV7", sub("page", "good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'", "good = 'abcdefghijklmnopqrstuvwxyz0123456789._-$'")),
     ("the hand-over does not give the screen back to the library", "TV6", sub("page", "   call $tk_close(ctx)\n   execute sent", "   execute sent")),
     ("a pointer is not opened to see if it works", "TV8", sub("page", "      case ety = 'Q'\n         esum = 'file ' : r<3> : ' in the account ' : r<2>\n         open vid to tf then", "      case ety = 'Q'\n         esum = 'file ' : r<3> : ' in the account ' : r<2>\n         open 'voc' to tf then")),
@@ -188,8 +192,9 @@ MUTANTS = [
     ("the delete box does not say voc-edit is off", "TV10", sub("page", "   if not(kernel(K$VOC.EDIT, -1)) then lines<-1> = 'voc-edit is off for you: the delete is expected to be refused.'\n", "")),
     ("a capital E is not a key", "TV11", sub("page", "   if len(nm) = 1 then nm = downcase(nm)                         ;* E and e are one key\n", "")),
     ("a key is missing from the key table", "TV11", sub("page", "   call $tk_keys('add', keys, 'e', 'edit', 'edit', '', 1)\n", "")),
-    ("the detail overruns the border", "TV12", sub("page", "for r = 1 to 15", "for r = 1 to 16")),
-    ("the first box overlaps the second", "TV12", sub("page", "screen box at 1,1 size 138,22 title ttl", "screen box at 1,1 size 138,23 title ttl")),
+    ("the detail overruns the border", "TV12", sub("page", "for r = 1 to dh - 2", "for r = 1 to dh - 1")),
+    ("the first box overlaps the second", "TV12", sub("page", "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 :", "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 23 :")),
+    ("the list has a row too many", "TV12", sub("page", "VIS = lh - 6 ", "VIS = lh - 5 ")),
     ("the page waits with no key reader of the library", "TV13", sub("page", "screen key returning nm", "input nm,1")),
     ("the end of the input is not seen", "TV13", sub("page", "            if status() = ER$EOF then exit\n", "")),
     ("the help record names no page", "TV14", sub("help", "29c-sd-tcl-the-development-tools", "")),

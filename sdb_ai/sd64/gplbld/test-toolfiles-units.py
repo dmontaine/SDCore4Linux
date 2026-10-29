@@ -127,9 +127,9 @@ def checks(raw):
        "call $tk_word(fn, kwok, kwwhy)" in kwb and pg.count("$tk_word") == 1 and all(b.count(kw_site) == 1 and b.find("gosub check.name") < b.find("gosub check.kw") for b in (cl, de, ne, sw))
        and cl.find("gosub check.kw") < cl.find("call $tk_confirm") and de.find("gosub check.kw") < de.find("call $tk_confirm") and ne.find("gosub check.kw") < ne.find("call $tk_confirm") and sw.find("gosub check.kw") < sw.find("execute sent")
        and ordered(strip_bas(raw["word"]), "open 'VOC' to kwf then", "read kwr from kwf, name then", "upcase(kwr<1>[1, 1]) = 'K'", "ok = @false", "why = sysmsg(11755, name)"), "")
-    ck("TF9", "a report is the verb's own printout on the terminal, which the page hands over (the verbs print through the print unit, which EXECUTE ... CAPTURING does not catch): the base is closed BEFORE the verb runs, the verb is followed by the Press Enter message and a read of the answer, the base is opened again AFTER, the files are read again and the cursor goes back to the file it was on",
+    ck("TF9", "a report is the verb's own printout on the terminal, which the page hands over (the verbs print through the print unit, which EXECUTE ... CAPTURING does not catch): the base is closed BEFORE the verb runs, the verb is followed by the Press Enter message and a read of the answer, the base is opened again AFTER (S.88 L2: and the panes are declared again, a new context has none), the files are read again and the cursor goes back to the file it was on",
        0 <= sw.find("keep = fn") < sw.find("call $tk_close(ctx)") < sw.find("execute sent") < sw.find("crt sysmsg(11865)") < sw.find("input junk") < sw.find("call $tk_open('tool.files', '', ctx, err)")
-       < sw.find("gosub read.all") < sw.find("if shown<q> = keep then ci = q") < sw.find("gosub draw.all") and "gen += 1" in sw and "ctx<TK.C.GEN> = gen" in sw, "")
+       < sw.find("gosub declare.layout") < sw.find("gosub read.all") < sw.find("if shown<q> = keep then ci = q") < sw.find("gosub draw.all") and "gen += 1" in sw and "ctx<TK.C.GEN> = gen" in sw, "")
     ck("TF10", "the gates the session holds are ASKED of the kernel (voc-edit, dict-edit, bp-edit, with -1) and shown; nothing is tried to learn them",
        all(("kernel(K$%s, -1)" % k) in block(pg, "draw.foot") for k in ("VOC.EDIT", "DICT.EDIT", "BP.EDIT")), "")
     rd = block(pg, "read.all")
@@ -138,9 +138,12 @@ def checks(raw):
        and "if shown<i> = sel.f then" in rd, "")
     ck("TF12", "a letter is the same key in either case, and every key the page acts on has a place in the key table (the function-key row shows exactly the keys it uses)",
        "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "n", "c", "d", "a", "i", "t", "f11", "f5", "ctrl-q")), "")
-    ck("TF13", "the layout fits the 140 by 43 frame: two boxes (rows 1-22 and 23-39), 16 rows of files at y 3-18, the summary and the gates line at 19 and 20, 15 rows of detail at y 24-38; nothing is drawn on a border",
-       "screen box at 1,1 size 138,22 title ttl" in pg and "screen box at 1,23 size 138,17 title 'The file under the cursor'" in pg and "VIS = 16" in pg and "screen text s at 3,19 attr 'bold' width 134" in pg.replace("fmt(s, '134L')", "s")
-       and "for r = 1 to 15" in block(pg, "draw.detail") and "at 3,23 + r width 134" in block(pg, "draw.detail"), "")
+    ck("TF13", "the layout fits the 140 by 43 frame (S.88 L2: the two boxes are the layout service's panes, declared 22 and 17 rows by 138 and drawn from their rectangles; the numbers at 140 by 43 are "
+               "test-l2-files-units.py's): two boxes (rows 1-22 and 23-39), 16 rows of files (the list's height less 6) at the list's y + 2, the summary and the gates line on its last interior rows, the detail's interior rows",
+       "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :" in pg and "d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 :" in pg
+       and "screen box at lx,ly size lw,lh title ttl" in pg and "screen box at dx,dy size dw,dh title 'The file under the cursor'" in pg and "VIS = lh - 6" in pg
+       and "at lx + 2,ly + lh - 4 attr 'bold' width tw" in pg and "at lx + 2,ly + lh - 3 width tw" in pg
+       and "for r = 1 to dh - 2" in block(pg, "draw.detail") and "at dx + 2,dy + r width tw" in block(pg, "draw.detail"), "")
     ck("TF14", "the page asks for no terminal it cannot use and waits on the keyboard only through the base: the key read is screen key (the cursor lock and the end of the input are the library's), the end of the input ends it, and the base is closed on the way out",
        "screen key returning nm" in pg and "if status() = ER$EOF then exit" in pg and "case nm = 'guardquit'\n            exit" in pg and pg.find("call $tk_close(ctx)") > pg.find("repeat"), "")
     ck("TF15", "the help record names a page of the documentation, and the page asks for it by that name (the key is the record's name)",
@@ -202,7 +205,8 @@ MUTANTS = [
     ("a keyword may be the file of a report", "TF8b", sub("page", "      msg = 'this name has a character the page does not give to a command: type ' : field(sent, ' ', 1) : ' at the prompt'\n      return\n   end\n   gosub check.kw\n   if not(kwok) then\n      msg = kwwhy\n      return\n   end\n", "      msg = 'this name has a character the page does not give to a command: type ' : field(sent, ' ', 1) : ' at the prompt'\n      return\n   end\n")),
     ("the keyword test is not the shared routine", "TF8b", sub("page", "   call $tk_word(fn, kwok, kwwhy)\n", "   kwok = 1\n")),
     ("the keyword test takes any type", "TF8b", sub("word", "upcase(kwr<1>[1, 1]) = 'K'", "upcase(kwr<1>[1, 1]) = 'Z'")),
-    ("the page is not opened again after a report", "TF9", sub("page", "   call $tk_open('tool.files', '', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n   gen += 1\n   ctx<TK.C.GEN> = gen\n", "   gen += 1\n")),
+    ("the page is not opened again after a report", "TF9", sub("page", "   call $tk_open('tool.files', '', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n   gosub declare.layout                                          ;* the new context has no panes\n   gen += 1\n   ctx<TK.C.GEN> = gen\n", "   gen += 1\n")),
+    ("the panes are not declared again after a report", "TF9", sub("page", "   gosub declare.layout                                          ;* the new context has no panes\n", "")),
     ("the cursor does not go back to the file after a report", "TF9", sub("page", "      if shown<q> = keep then ci = q\n", "      if shown<q> = keep then ci = 1\n")),
     ("the files are not read again after a report", "TF9", sub("page", "   gosub read.all\n   for q = 1 to ns\n      if shown<q> = keep then ci = q", "   for q = 1 to ns\n      if shown<q> = keep then ci = q")),
     ("a gate is not asked", "TF10", sub("page", "' dict-edit ' : (if kernel(K$DICT.EDIT, -1) then 'on' else 'off')", "' dict-edit on'") if False else sub("page", "kernel(K$DICT.EDIT, -1)", "1")),
@@ -211,8 +215,8 @@ MUTANTS = [
     ("the cursor does not go back to its file", "TF11", sub("page", "   if ns > 0 and ci >= 1 and ci <= ns then sel.f = shown<ci>\n", "")),
     ("a capital N is not a key", "TF12", sub("page", "   if len(nm) = 1 then nm = downcase(nm)                         ;* N and n are one key\n", "")),
     ("a key is missing from the key table", "TF12", sub("page", "   call $tk_keys('add', keys, 't', 'triggers', 'triggers', '', 1)\n", "")),
-    ("the detail overruns the border", "TF13", sub("page", "for r = 1 to 15", "for r = 1 to 16")),
-    ("the first box overlaps the second", "TF13", sub("page", "screen box at 1,1 size 138,22 title ttl", "screen box at 1,1 size 138,23 title ttl")),
+    ("the detail overruns the border", "TF13", sub("page", "for r = 1 to dh - 2", "for r = 1 to dh - 1")),
+    ("the first box overlaps the second", "TF13", sub("page", "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :", "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 23 : @vm : 138 :")),
     ("the page waits with no key reader of the library", "TF14", sub("page", "screen key returning nm", "input nm,1")),
     ("the end of the input is not seen", "TF14", sub("page", "            if status() = ER$EOF then exit\n", "")),
     ("the help key names a record that does not exist", "TF15", sub("page", "call $tk_help('box', 'tool.files.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'", "call $tk_help('box', 'tool.files.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f5'") if False else sub("help", "29c-sd-tcl-the-development-tools", "")),

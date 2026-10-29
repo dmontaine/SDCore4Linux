@@ -18,6 +18,9 @@
  * 
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.88 (the recovery store in the person's home, the owner's approval of 28 Oct): SD_USER_HOME (112) - the home
+ *               directory of the process's effective user from the password database (never $HOME), and a directory below it,
+ *               trusted only when every step is a real directory of that user's that nobody else can write; fails closed.
  * 18 Oct 26 dm  Encryption layer 3: SD_KEYRING (120), set / clear / list on the key ring of the XE conversion (sd_keyring.c); and
  *               the argument buffers are wiped before they are freed, for every key (they carry passphrases and SCRAM secrets).
  * 17 Oct 26 dm  S.65 slice 2b: SD_FILE_PRIVATE (111) - is a path a private file or
@@ -58,6 +61,8 @@
 #include <sodium.h>
 
 #include <errno.h>
+#include <pwd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -94,6 +99,7 @@ Private void sdme_err_rsp(int errnbr);
 Private void scram_reply(char* value);
 Private long scram_arg_long(const char* text);
 Private int file_private_check(const char* path, int want_dir);
+Private int user_home_dir(const char* rel, char* out, size_t out_sz);
 
 /* ======================================================================
    op_sdext()   op code for BASIC function  SDME.EXT   
@@ -419,6 +425,22 @@ void op_sdext() {
       break;
     }
 
+    /* 28 Oct 26 dm - S.88.  SD_USER_HOME: one argument, a path RELATIVE to the home ('' for the home itself).  The answer is the
+       absolute path of that directory when user_home_dir() trusts it, and the null string on every failure (a caller that tests for
+       '' refuses).  More than one argument also sets process.status (SD_EXT_ARG_CNT), as the neighbours do. */
+    case SD_USER_HOME: {
+      char home_out[PATH_MAX + 1];
+
+      home_out[0] = '\0';
+      if (argCnt != 1)
+        process.status = SD_EXT_ARG_CNT;
+      else if (!user_home_dir(SDMEArgArray[0], home_out, sizeof(home_out)))
+        home_out[0] = '\0';
+      k_put_c_string(home_out, e_stack);
+      e_stack++;
+      break;
+    }
+
     /* 18 Oct 26 dm - encryption layer 3.  The key ring of the XE conversion (sd_keyring.c).  The first argument is the operation:
          set    name, base64 key -> the key id, 8 hex digits       (STATUS() and the null string on a bad name or key, or a full ring)
          clear  name or *        -> how many keys went
@@ -636,4 +658,71 @@ Private int file_private_check(const char* path, int want_dir) {
   else
     *slash = '\0';
   return file_private_check(parent, 1);
+}
+
+/* 28 Oct 26 dm - S.88 (the recovery store in the person's home).  The home directory of the process's EFFECTIVE user, from the
+   password database (getpwuid_r(geteuid()); never $HOME, which the person's environment sets), followed by REL, a path relative to
+   it ('' for the home itself).  Answers 1 and the absolute path in OUT when:
+     - the effective user is not root, has a password entry, and its home is an absolute path that realpath() resolves;
+     - the resolved home is a directory owned by the effective user that neither group nor other can write (mode & 022 == 0);
+     - REL is empty, or relative words separated by single slashes with no empty word, no "." and no "..", and EVERY directory
+       from the home down to the last word, taken one at a time, is a real directory (lstat: not a link), owned by the effective
+       user, that neither group nor other can write.
+   So nobody but the person (and root) can rename, replace or add an entry anywhere on the way: the test the editors' recovery copy
+   needs before it trusts a directory to stay what it checked.  It is a check, not a lock, and it makes nothing: the caller makes a
+   missing directory (under umask 077) and asks again.  Answers 0 (OUT empty) on every failure. */
+Private int user_home_dir(const char* rel, char* out, size_t out_sz) {
+  struct passwd pwbuf;
+  struct passwd* pw = NULL;
+  char pwstrings[4096];
+  char home[PATH_MAX];
+  char work[PATH_MAX];
+  struct stat st;
+  uid_t me;
+  size_t len;
+  const char* p;
+  const char* e;
+
+  out[0] = '\0';
+  me = geteuid();
+  if (me == 0)
+    return 0;
+  if ((getpwuid_r(me, &pwbuf, pwstrings, sizeof(pwstrings), &pw) != 0) || (pw == NULL))
+    return 0;
+  if ((pw->pw_dir == NULL) || (pw->pw_dir[0] != '/'))
+    return 0;
+  if (realpath(pw->pw_dir, home) == NULL)
+    return 0;
+  if ((stat(home, &st) != 0) || !S_ISDIR(st.st_mode) || (st.st_uid != me) || ((st.st_mode & 022) != 0))
+    return 0;
+
+  len = strlen(home);
+  if (len + 1 >= sizeof(work))
+    return 0;
+  memcpy(work, home, len + 1);
+
+  if (rel == NULL)
+    rel = "";
+  for (p = rel; *p != '\0'; p = (*e == '/') ? e + 1 : e) {
+    e = strchr(p, '/');
+    if (e == NULL)
+      e = p + strlen(p);
+    if ((e == p) || ((e - p == 1) && (p[0] == '.')) || ((e - p == 2) && (p[0] == '.') && (p[1] == '.')))
+      return 0; /* an empty word (a leading, doubled or trailing slash), "." or ".." */
+    if (len + 1 + (size_t)(e - p) + 1 > sizeof(work))
+      return 0;
+    work[len++] = '/';
+    memcpy(work + len, p, (size_t)(e - p));
+    len += (size_t)(e - p);
+    work[len] = '\0';
+    if ((lstat(work, &st) != 0) || !S_ISDIR(st.st_mode) || (st.st_uid != me) || ((st.st_mode & 022) != 0))
+      return 0;
+    if ((*e == '/') && (e[1] == '\0'))
+      return 0; /* a trailing slash */
+  }
+
+  if (len + 1 > out_sz)
+    return 0;
+  memcpy(out, work, len + 1);
+  return 1;
 }

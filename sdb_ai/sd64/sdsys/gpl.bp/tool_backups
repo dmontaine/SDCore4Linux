@@ -5,6 +5,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): drawn exactly as before at 140 by 43, and in a larger window the archive list takes the extra rows,
+*               every box and text is as wide as the window, and the manifest lists as many accounts as the box has rows. The rows, widths, hit tests and the [?] button are counted from the
+*               pane rectangles; the "... and N more accounts" line stands on the box's last row and counts from the rows the box has (8 accounts fit at 140 by 43).
 * 25 Oct 26 dm  New.
 * END-HISTORY
 *
@@ -64,7 +67,7 @@ $include accbak.h
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
-   VA = 17                                                      ;* archive rows on the screen
+   gosub lay.declare                                            ;* the panes; VA (the archive rows on the screen) and DV (the manifest rows) come from them
    ha = fmt('Made', '21L') : fmt('Size', '12R') : '  ' : fmt('Accounts', '9L') : fmt('Product', '12L') : 'File'
 
    bdir = '' ; bderr = '' ; nark = 0 ; others = '' ; hold.err = ''
@@ -88,6 +91,8 @@ $include accbak.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', lay.chg)
+            gosub lay.get
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -165,15 +170,56 @@ read.archives:
    next i
    return
 
+* ------------------------------------------------------------------------------------------------- the layout (S.88 L2)
+
+* The page's three boxes as panes of $tk_layout: each size is the box drawn at 140 by 43 (the body is 138 by 39), so at that size nothing moves; in a larger window the archive list
+* stretches (a table shows more rows) and every pane is as wide as the body.
+lay.declare:
+   d = ''
+   d<1> = 'top' : @vm : 1 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<3> = 'detail' : @vm : 3 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, d, lay.err)
+   gosub lay.get
+   return
+
+* The rectangles of the three panes, and what is counted from them: tw the width of a text line inside a box (134 at 140 by 43), VA the archive rows, DV the manifest rows
+lay.get:
+   lay.id = 'top'
+   gosub lay.rect
+   top.x = lay.x ; top.y = lay.y ; top.w = lay.w ; top.h = lay.h
+   lay.id = 'list'
+   gosub lay.rect
+   lst.x = lay.x ; lst.y = lay.y ; lst.w = lay.w ; lst.h = lay.h
+   lay.id = 'detail'
+   gosub lay.rect
+   det.x = lay.x ; det.y = lay.y ; det.w = lay.w ; det.h = lay.h
+   body.y = ctx<TK.C.YBODY>
+   tx = lst.x + 2
+   tw = lst.w - 4
+   mk.x = top.x + top.w - 5                                     ;* the [?] button, at the right end of the first row of the top box
+   mk.y = top.y + 1
+   VA = lst.h - 3
+   DV = det.h - 2
+   return
+
+lay.rect:
+   call $tk_layout('pane', ctx, lay.id, lay.r)
+   lay.x = lay.r<1, 1>
+   lay.y = lay.r<1, 2>
+   lay.w = lay.r<1, 3>
+   lay.h = lay.r<1, 4>
+   return
+
 * ------------------------------------------------------------------------------------------------- drawing
 
 draw.all:
    cw2 = ctx<TK.C.W>
    chh = ctx<TK.C.H> - 5
-   screen clear at 0,1 size cw2,chh
-   screen box at 1,1 size 138,6 title 'Backups'
-   screen box at 1,7 size 138,20 title 'Archives'
-   screen box at 1,27 size 138,13 title 'The archive under the cursor'
+   screen clear at 0,body.y size cw2,chh
+   screen box at top.x,top.y size top.w,top.h title 'Backups'
+   screen box at lst.x,lst.y size lst.w,lst.h title 'Archives'
+   screen box at det.x,det.y size det.w,det.h title 'The archive under the cursor'
    gosub draw.top
    gosub redraw
    return
@@ -188,7 +234,7 @@ draw.top:
          s = 'Directory: ' : bdir : '   Archives: ' : nark
       end
    end
-   screen text s[1, 128] at 3,2 attr 'bold' width 128
+   screen text s[1, tw - 6] at tx,top.y + 1 attr 'bold' width tw - 6                  ;* 6 less than the other lines so that the [?] is clear
    no = dcount(others, @fm)
    if hold.err = '' or no = 0 then
       s = 'No other session is signed on: a backup or a restore can start.'
@@ -199,10 +245,10 @@ draw.top:
       next k
       if no > 4 then s := ' ...'
    end
-   screen text s[1, 134] at 3,3 width 134
-   screen text 'A backup and a restore both run only when every other session has logged out, and LOGIN refuses new ones while they run.' at 3,4 width 134
-   screen text 'B backs every account up   A some   R restores the archive under the cursor   D sets the directory   F5 reads again' at 3,5 width 134
-   call $tk_help('mark', 134, 2, 0, 0)
+   screen text s[1, tw] at tx,top.y + 2 width tw
+   screen text 'A backup and a restore both run only when every other session has logged out, and LOGIN refuses new ones while they run.' at tx,top.y + 3 width tw
+   screen text 'B backs every account up   A some   R restores the archive under the cursor   D sets the directory   F5 reads again' at tx,top.y + 4 width tw
+   call $tk_help('mark', mk.x, mk.y, 0, 0)
    return
 
 redraw:
@@ -211,7 +257,7 @@ redraw:
    return
 
 draw.list:
-   screen text ha at 3,8 attr 'header' width 134
+   screen text ha at tx,lst.y + 1 attr 'header' width tw
    if ci <= ta then ta = ci - 1
    if ci > ta + VA then ta = ci - VA
    if ta < 0 then ta = 0
@@ -223,24 +269,24 @@ draw.list:
       end
       rat = 'normal'
       if kk = ci and kk <= nark then rat = 'highlight'
-      screen text s[1, 134] at 3,8 + r attr rat width 134
+      screen text s[1, tw] at tx,lst.y + 1 + r attr rat width tw
    next r
    return
 
 * The manifest of the archive under the cursor, one line each: the facts, then the accounts with their counts
 draw.detail:
-   for r = 1 to 11
-      screen text '' at 3,27 + r width 134
+   for r = 1 to DV
+      screen text '' at tx,det.y + r width tw
    next r
    if nark = 0 or ci < 1 or ci > nark then
       s = (if bdir = '' then 'There is no directory to look in.' else 'The directory holds no archive.')
-      screen text s at 3,28 width 134
+      screen text s at tx,det.y + 1 width tw
       return
    end
    call !acc_archive('MANIFEST', bdir : @ds : anm<ci>, '', mtext, merr)
    if merr # '' then
       s = 'The manifest of this archive cannot be read: ' : merr<1, 1>
-      screen text s at 3,28 width 134
+      screen text s at tx,det.y + 1 width tw
       return
    end
    lines = ''
@@ -277,14 +323,14 @@ draw.detail:
       lines<-1> = fmt(accts<k>[1, 27], '28L') : fmt(ac.f<k>, '10R') : fmt(ac.b<k>, '16R') : fmt(ac.d<k>, '14R')
    next k
    for r = 1 to dcount(lines, @fm)
-      if r <= 11 then
+      if r <= DV then
          lr = lines<r>
-         screen text lr[1, 134] at 3,27 + r width 134
+         screen text lr[1, tw] at tx,det.y + r width tw
       end
    next r
-   if dcount(lines, @fm) > 11 then
-      s = '... and ' : na - 8 : ' more accounts'
-      screen text s at 3,38 width 134
+   if dcount(lines, @fm) > DV then
+      s = '... and ' : na - (DV - 3) : ' more accounts'                ;* three lines (the facts, a blank, the heading) come before the accounts
+      screen text s at tx,det.y + DV width tw
    end
    return
 
@@ -339,7 +385,7 @@ on.key:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 134, 2, hit.m)
+   call $tk_help('hit', mev, mk.x, mk.y, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.backups.page', hm, 0, 0)
       if hm # '' then msg = hm
@@ -348,9 +394,9 @@ on.mouse:
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
-      if mx >= 3 and mx <= 136 and my >= 9 and my <= 8 + VA then
-         if ta + my - 8 <= nark then
-            ci = ta + my - 8
+      if mx >= tx and mx <= tx + tw - 1 and my >= lst.y + 2 and my <= lst.y + 1 + VA then
+         if ta + my - (lst.y + 1) <= nark then
+            ci = ta + my - (lst.y + 1)
             gosub redraw
          end
       end

@@ -6,6 +6,8 @@
 *
 * START-HISTORY:
 * 23 Oct 26 dm  New.
+* 28 Oct 26 dm  S.88 L2: the four boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the two lists show
+*               more rows and are wider, the explanation is wider, and a resize is $tk_layout 'refresh' and all of it drawn again.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -61,7 +63,7 @@ $include tk.h
    cnames = 'evince' : @fm : 'okular' : @fm : 'zathura' : @fm : 'atril' : @fm : 'xreader' : @fm : 'mupdf' : @fm : 'qpdfview' : @fm : 'xpdf' : @fm : 'gv' : @fm : 'xdg-open'
    pnames = 'Allowed' : @fm : 'Found'
 
-   VIS = 10
+   VIS = 10                                                      ;* program rows in a list (the list pane's height less 4: set by get.rects)
    pane = 2
    ai = 1                                                        ;* the row selected in Allowed
    fi = 1                                                        ;* the row selected in Found
@@ -69,6 +71,8 @@ $include tk.h
    msg = 'Tab changes box, Enter allows or stops allowing the program under the cursor'
    done = 0
 
+   perr = ''
+   gosub declare.layout
    gosub read.all
    gosub draw.all
 
@@ -83,6 +87,8 @@ $include tk.h
          case nm = 'guardquit'
             exit
          case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', chg)
+            gosub get.rects
             gen += 1
             ctx<TK.C.GEN> = gen
             gosub draw.all
@@ -132,40 +138,71 @@ read.all:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
+* The layout (S.88 L2).  The four boxes are panes of the layout service, declared in the sizes of the reference layout (140 by 43, the body 138 by 39): the two lists side by side
+* in the first band, the explanation in the second and the help in the third.  A bigger window gives the lists and the explanation the rows and the columns beyond the
+* reference, by weight (the help box and the three rows the page has always left empty at the foot stay as they are).
+* Out: a.x a.y a.w a.h (Allowed), f.x f.y f.w f.h (Found), m.x m.y m.w m.h (What this means), h.x h.y h.w h.h (Help), VIS.
+declare.layout:
+   d = ''
+   d<1> = 'allowed' : @vm : 1 : @vm : 1 : @vm : 14 : @vm : 70 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<2> = 'found' : @vm : 1 : @vm : 2 : @vm : 14 : @vm : 67 : @vm : 1 : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<3> = 'means' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<4> = 'help' : @vm : 3 : @vm : 1 : @vm : 5 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, d, perr)
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'allowed', rc)
+   a.x = rc<1, 1> ; a.y = rc<1, 2> ; a.w = rc<1, 3> ; a.h = rc<1, 4>
+   call $tk_layout('pane', ctx, 'found', rc)
+   f.x = rc<1, 1> ; f.y = rc<1, 2> ; f.w = rc<1, 3> ; f.h = rc<1, 4>
+   call $tk_layout('pane', ctx, 'means', rc)
+   m.x = rc<1, 1> ; m.y = rc<1, 2> ; m.w = rc<1, 3> ; m.h = rc<1, 4>
+   call $tk_layout('pane', ctx, 'help', rc)
+   h.x = rc<1, 1> ; h.y = rc<1, 2> ; h.w = rc<1, 3> ; h.h = rc<1, 4>
+   m.tw = m.w - 4                                                ;* the text width of the explanation and of the help: 134 at the reference
+   h.tw = h.w - 4
+   VIS = a.h - 4                                                 ;* the header row, the program rows, a blank row and the border: 10 rows of 14
+   return
+
 draw.all:
-   cw = ctx<TK.C.W>
-   chh = ctx<TK.C.H> - 5
-   screen clear at 0,1 size cw,chh
-   screen box at 1,1 size 70,14 title 'Allowed for pdf'
-   screen box at 72,1 size 67,14 title 'Found on this machine'
-   screen box at 1,15 size 138,17 title 'What this means'
-   screen box at 1,32 size 138,5 title 'Help'
+   screen clear at 0,ctx<TK.C.YBODY> size ctx<TK.C.W>,ctx<TK.C.BODYH>
+   screen box at a.x,a.y size a.w,a.h title 'Allowed for pdf'
+   screen box at f.x,f.y size f.w,f.h title 'Found on this machine'
+   screen box at m.x,m.y size m.w,m.h title 'What this means'
+   screen box at h.x,h.y size h.w,h.h title 'Help'
    gosub draw.allowed
    gosub draw.found
    gosub draw.effect
    gosub draw.help
    return
 
+* The columns beyond the reference (a.w - 70) go to the program's name, the reason of a failed test is cut where it always was
 draw.allowed:
-   screen text fmt('Program', '40L') : 'Test now' at 3,2 attr 'header' width 62
+   tw = a.w - 8
+   ex = a.w - 70
+   screen text fmt('Program', (40 + ex) : 'L') : 'Test now' at a.x + 2,a.y + 1 attr 'header' width tw
    for r = 1 to VIS
       s = ''
-      if r <= na then s = fmt(paths<r>[1, 38], '40L') : (if awhy<r> = '' then 'passes' else 'FAILS: ' : awhy<r>[1, 20])
-      screen text s at 3,2 + r attr (if r = ai and r <= na then (if pane = 1 then 'highlight' else 'bold') else 'normal') width 62
+      if r <= na then s = fmt(paths<r>[1, 38 + ex], (40 + ex) : 'L') : (if awhy<r> = '' then 'passes' else 'FAILS: ' : awhy<r>[1, 20])
+      screen text s at a.x + 2,a.y + 1 + r attr (if r = ai and r <= na then (if pane = 1 then 'highlight' else 'bold') else 'normal') width tw
    next r
-   if na = 0 then screen text 'None.  pdf says that no viewer has been allowed.' at 3,4 width 62
-   call $tk_help('mark', 66, 2, 0, 0)
+   if na = 0 then screen text 'None.  pdf says that no viewer has been allowed.' at a.x + 2,a.y + 3 width tw
+   call $tk_help('mark', a.x + a.w - 5, a.y + 1, 0, 0)
    return
 
 draw.found:
-   screen text fmt('Reader', '12L') : fmt('Allowed', '9L') : 'Could it be allowed' at 74,2 attr 'header' width 59
+   tw = f.w - 8
+   ex = f.w - 67
+   screen text fmt('Reader', '12L') : fmt('Allowed', '9L') : 'Could it be allowed' at f.x + 2,f.y + 1 attr 'header' width tw
    for r = 1 to VIS
       s = ''
-      if r <= fn then s = fmt(fname<r>, '12L') : fmt((if fon<r> then 'yes' else 'no'), '9L') : (if fwhy<r> = '' then 'yes' else 'no: ' : fwhy<r>[1, 30])
-      screen text s at 74,2 + r attr (if r = fi and r <= fn then (if pane = 2 then 'highlight' else 'bold') else 'normal') width 59
+      if r <= fn then s = fmt(fname<r>, '12L') : fmt((if fon<r> then 'yes' else 'no'), '9L') : (if fwhy<r> = '' then 'yes' else 'no: ' : fwhy<r>[1, 30 + ex])
+      screen text s at f.x + 2,f.y + 1 + r attr (if r = fi and r <= fn then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
    next r
-   if fn = 0 then screen text 'No known PDF reader is in /usr/bin, /usr/local/bin or /bin.' at 74,4 width 59
-   call $tk_help('mark', 134, 2, 0, 0)
+   if fn = 0 then screen text 'No known PDF reader is in /usr/bin, /usr/local/bin or /bin.' at f.x + 2,f.y + 3 width tw
+   call $tk_help('mark', f.x + f.w - 5, f.y + 1, 0, 0)
    return
 
 * In plain sentences, for what is selected
@@ -185,8 +222,8 @@ draw.effect:
       lines<-1> = 'Selected: ' : fpath<fi> : (if fon<fi> then ' is allowed.  Enter stops allowing it.' else (if fwhy<fi> = '' then ' is not allowed.  Enter allows it.' else ' cannot be allowed: ' : fwhy<fi> : '.'))
    end
    gosub wrap.lines
-   for r = 1 to 15
-      screen text lines<r> at 3,16 + r width 134
+   for r = 1 to m.h - 3
+      screen text lines<r> at m.x + 2,m.y + 1 + r width m.tw
    next r
    return
 
@@ -194,16 +231,16 @@ draw.effect:
 wrap.lines:
    wrapped = ''
    for wi = 1 to dcount(lines, @fm)
-      call $tk_wrap(lines<wi>, 134, pieces)
+      call $tk_wrap(lines<wi>, m.tw, pieces)
       wrapped<-1> = pieces
    next wi
    lines = wrapped
    return
 
 draw.help:
-   screen text 'Up and Down move.  Tab changes box.  Enter allows or stops allowing.  F1 or ? explains the box.' at 3,33 width 134
-   screen text 'Each change is shown as its command; you answer Run or Cancel.  Allowing a program asks for its name to be typed.' at 3,34 width 134
-   screen text 'F5 reads the machine again.  Ctrl-Q leaves.' at 3,35 width 134
+   screen text 'Up and Down move.  Tab changes box.  Enter allows or stops allowing.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
+   screen text 'Each change is shown as its command; you answer Run or Cancel.  Allowing a program asks for its name to be typed.' at h.x + 2,h.y + 2 width h.tw
+   screen text 'F5 reads the machine again.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
    return
 
 * ------------------------------------------------------------------------------------------------- keys and mouse
@@ -254,8 +291,8 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
-   call $tk_help('hit', mev, 66, 2, hit.allowed)
-   call $tk_help('hit', mev, 134, 2, hit.found)
+   call $tk_help('hit', mev, a.x + a.w - 5, a.y + 1, hit.allowed)
+   call $tk_help('hit', mev, f.x + f.w - 5, f.y + 1, hit.found)
    if hit.allowed or hit.found then
       pane = (if hit.allowed then 1 else 2)
       gosub redraw
@@ -266,12 +303,12 @@ on.mouse:
       mx = mev<3>
       my = mev<4>
       begin case
-         case mx >= 2 and mx <= 69 and my >= 3 and my <= 2 + VIS
-            if my - 2 <= na then ai = my - 2
+         case mx >= a.x + 1 and mx <= a.x + a.w - 2 and my >= a.y + 2 and my <= a.y + 1 + VIS
+            if my - a.y - 1 <= na then ai = my - a.y - 1
             pane = 1
             gosub redraw
-         case mx >= 73 and mx <= 138 and my >= 3 and my <= 2 + VIS
-            if my - 2 <= fn then fi = my - 2
+         case mx >= f.x + 1 and mx <= f.x + f.w - 2 and my >= f.y + 2 and my <= f.y + 1 + VIS
+            if my - f.y - 1 <= fn then fi = my - f.y - 1
             pane = 2
             gosub redraw
       end case
