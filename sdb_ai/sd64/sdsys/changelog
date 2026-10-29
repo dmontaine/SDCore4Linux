@@ -1,6 +1,12 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  TRYING AN ITEM IN TOOL.DICT: THE RECORD IS PICKED FROM A LIST.
+
+             What        - T used to ask you to type the id of a record of the file. It now opens the file's list of records (type part of an id to narrow it, Return takes one, Esc
+                           leaves), so a record that does not exist cannot be asked for.
+                         It does NOT write or lock anything: the list only reads the file, and the item is tried on the record exactly as before.
+
 30 Oct 26  FIVE MORE QUESTION CHAINS ARE ONE FORM: NEW SERVER, CUSTOM AI CONNECTION, AUDIT FILTERS, REPLACE IN A BULK UPDATE, A PROGRAM IN MY.MENU.
 
              What        - TOOL.REMOTE N (seven answers), TOOL.AI C (six), TOOL.AUDIT F (six), TOOL.BULK's replace operation (two) and MY.MENU's add and change (four) used to ask

@@ -1235,11 +1235,15 @@ do.test:
       msg = iid : ' has not been compiled yet: C compiles it, then T can try it'
       return
    end
-   screen ask 'Id of a record of ' : fn : ' to try ' : iid : ' on' width 60 value lastrec title 'Try an item' returning rid then got = 1 else got = 0
-   if not(got) then
+   * S.88: the record is picked from the file's own list (read only, no lock), not typed; the picker puts the screen back under it
+   rid = ''
+   pnew = ''
+   call $tk_pickrec(ctx, 'record', fn, rid, pres, pnew)
+   if pres # 'ok' then
       msg = 'nothing tried'
       return
    end
+   lastrec = rid
    rid = trim(rid)
    if rid = '' or len(rid) > 200 then
       msg = 'give the id of a record'

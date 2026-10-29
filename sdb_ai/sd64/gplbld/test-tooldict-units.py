@@ -184,7 +184,7 @@ def checks(raw):
     dt = block(pg, "do.test")
     ck("TD24", "TRY reads and runs nothing but the item: no write, no execute, no verb; an item that must be compiled and is not is refused with the reason BEFORE anything is asked; the record is READ (not locked) from the data file, ITYPE() is evaluated inside a TRY so a bad item cannot stop the page, and the files are closed",
        not re.search(r"^[ \t]*(write|writev|delete|execute|readu|clearfile)(?![.\w])", nostr(dt), re.M) and "call $tk_run" not in dt
-       and inorder(dt, "needs.obj = ", "if needs.obj and (rec<DICT.SYS.INFO> = '' or rec<DICT.ITYPE.OBJECT> = '') then", "screen ask 'Id of a record of '", "read drec from df, rid then", "@id = rid", "@record = drec", "try\n      val = itype(rec)", "catch sys", "failed = @exception.data")
+       and inorder(dt, "needs.obj = ", "if needs.obj and (rec<DICT.SYS.INFO> = '' or rec<DICT.ITYPE.OBJECT> = '') then", "call $tk_pickrec(ctx, 'record', fn, rid, pres, pnew)", "read drec from df, rid then", "@id = rid", "@record = drec", "try\n      val = itype(rec)", "catch sys", "failed = @exception.data")
        and "close df" in dt and "close dv" in dt, "")
     ck("TD25", "TRY shows the value of a D, A, S or I item only (the other types hold no value), and the value as a query prints it - conversion, then format - only for a format the page can read, each inside a TRY",
        "if index(' D A S I ', ' ' : ty : ' ', 1) = 0 then" in dt and "fmt.ok = (fs # '' and fw # '' and fj # '' and index('LRCU', fj, 1) > 0)" in dt and inorder(dt, "if cv # '' then shown.v = oconv(one, cv)", "if fmt.ok then shown.v = fmt(shown.v, fs)", "catch sys"), "")
