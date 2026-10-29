@@ -57,7 +57,7 @@ def load():
     src["tool_accounts"] = read(os.path.join(GPL, "tool_accounts"))   # 25 Oct 26, S.75 A3: the accounts page asks for tool.accounts.page
     src["tool_remote"] = read(os.path.join(GPL, "tool_remote"))       # 25 Oct 26, S.75 A9: the remote access page asks for tool.remote.page
     src["tool_files"] = read(os.path.join(GPL, "tool_files"))         # 26 Oct 26, S.75 DV1: the files page asks for tool.files.page
-    src["tool_home"] = read(os.path.join(GPL, "tool_home"))           # 31 Oct 26, S.88 U9: the home screen asks for tool.home.page on F1
+    src["tool_home"] = read(os.path.join(GPL, "tool_home"))           # 29 Oct 26, S.88 U9: the home screen asks for tool.home.page on F1
     src["tool_voc"] = read(os.path.join(GPL, "tool_voc"))           # 26 Oct 26, S.75 DV3: the VOC page asks for tool.voc.page
     for app in ("dict", "query", "bulk", "catalog", "test"):
         src["tool_" + app] = read(os.path.join(GPL, "tool_" + app))   # 26 Oct 26, S.75 DV2, DV4-DV7: each page asks for its tool.<app>.page
