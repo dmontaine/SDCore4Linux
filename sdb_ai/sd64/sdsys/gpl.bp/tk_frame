@@ -8,6 +8,7 @@
 * 22 Oct 26 dm  ctx<TK.C.GEN>: an app that has cleared or repainted the screen under the frame has all of it written again (TK-1, tool.keys).
 * 28 Oct 26 dm  S.88 L1 (F1): the cache is forgotten when the context's epoch is not the one last drawn ($tk_open makes a new one, $tk_close clears
 *               it: a second open of an app drew no border, status line or keys) or when the layout's geometry changed ($tk_layout 'refresh').
+* 30 Oct 26 dm  S.88 F0a: the key table and the pane are kept in common /tkreg/ on every call, so that F1 can list the keys of the pane ($tk_help 'box'); $tk_close clears them.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -40,7 +41,11 @@ $include tk.h
 
    common /tkframe/ last.stat, last.keys, last.bord, last.top, last.gen, last.geo
    common /tkepoch/ ep.next, ep.drawn             ;* the frame cache's epoch ($tk_open counts, $tk_close clears)
+   common /tkreg/ reg.keys, reg.pane, reg.epoch   ;* the key table and the pane of the app that is drawing, for $tk_help's list of keys ($tk_close clears)
 
+   reg.keys = keys
+   reg.pane = pane
+   reg.epoch = ctx<TK.C.EPOCH>
    lw = ctx<TK.C.W>
    ystat = ctx<TK.C.YSTAT>
    ybord = ctx<TK.C.YBORD>

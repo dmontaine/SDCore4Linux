@@ -9,6 +9,7 @@
 * 28 Oct 26 dm  S.88 L1, the layout service ($tk_layout): ctx slots 12 to 26 (the floor, the body, the mode, the frame-cache epoch, the panes), the body's
 *               origin (TK.XBODY, TK.YBODY), the smallest floor an app may declare (TK.LEASTW, TK.LEASTH) and the pane declaration's attributes (TK.P.*).
 *               No slot before 12 moved.
+* 30 Oct 26 dm  S.88 F0a: ctx slot 27 (TK.C.BAR), the menu bar's record of what it drew.  No slot before 27 moved.
 * END-HISTORY
 *
 * THE MINIMUM WINDOW is 140 columns by 43 lines (the owner's ruling of 20 Oct 2026).  The 43rd line is the function-key row, outside the window below its border.
@@ -58,6 +59,8 @@ $define TK.C.PANES     23      ;* the pane declaration given to $tk_layout 'decl
 $define TK.C.RECTS     24      ;* each pane's rectangle, a value to a pane in the order declared: x, y, w, h, shown (subvalues; shown 0 for a collapsed pane)
 $define TK.C.CHANGED   25      ;* 1 when the last 'open', 'refresh' or 'declare' changed the frame, the body or a pane's rectangle, else 0
 $define TK.C.PANEERR   26      ;* null, or why the last 'declare' was refused (the panes it holds are then none)
+*   Slots 27 and up are the menu bar's ($tk_menubar, 30 Oct 2026, S.88 F0a).  No slot before 27 moved.
+$define TK.C.BAR       27      ;* what $tk_menubar last drew on row 0: the width, the generation, the epoch, the pane and the menus; it draws again only when this differs
 *
 * THE BODY'S ORIGIN.  ONE NUMBER EACH: a menu bar of its own on row 0 that pushes every body down a row is TK.YBODY 2 (and the reference body below is a row shorter).
 $define TK.XBODY       1       ;* the body starts in column 1 and ends a column short of the right edge: BODYW = W - 2 * TK.XBODY

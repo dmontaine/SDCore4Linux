@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  F1 IN THE TOOL PAGES LISTS THE KEYS OF THE PANE; THE TOOLKIT HAS A MENU BAR FOR PAGES TO USE.
+
+             What        - The help box that F1 (or the [?] button) opens on a tool page now begins with "Keys in this pane": the keys the pane has, one to a line, made from
+                           the same key table as the function-key row, with the reason after a key that is not available at the moment. The page's own help text follows. If the
+                           two would not fit the screen together the list is left out (the function-key row still shows the keys).
+                         - A new routine, $tk_menubar, builds a page's menu bar from its key table (F10, Alt and a letter, Esc when the page has nothing of its own to close, a
+                           click on the top row) and returns the action chosen and the key it is bound to, so a page runs its own handler for it. It runs nothing itself. No page
+                           uses it yet, so no page shows a bar until its own change says so.
+                         It does NOT change what any key does or any page's own help text.
+
 30 Oct 26  A FORM'S FOCUS NEVER STAYS ON A CONTROL THAT CANNOT HAVE IT.
 
              What        - Before, a program that disabled or hid the control that had the focus (SCREEN SET ... ENABLED 0 or VISIBLE 0), or switched to another tab, left the

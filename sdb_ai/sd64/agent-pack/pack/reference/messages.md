@@ -3260,6 +3260,15 @@ $QUERY.DEFAULTS field 4 ignored: only a width followed by L, R, T or C is allowe
 
 cited by: `qproc`
 
+### msg:11244
+> kind=message tier=reference since=- src=sdsys/messages/11244:1#9fbd530d
+
+```
+Keys in this pane
+```
+
+cited by: `tk_help`
+
 ### msg:11247
 > kind=message tier=reference since=- src=sdsys/messages/11247:1#797fd618
 

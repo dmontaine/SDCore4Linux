@@ -1,0 +1,162 @@
+* TK_MENUBAR
+* The full-screen toolkit, shared base: the menu bar of a page, made from the page's key table (S.88 phase 5, F0a; plan section 2.2 and the owner's decisions of 29 Oct 2026).
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 30 Oct 26 dm  New (S.88 F0a).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   call $tk_menubar(op, ctx, keys, pane, a, b, c)       ALWAYS SEVEN ARGUMENTS: a call with fewer stops with "Argument count mismatch" (pad with '')
+*
+*   The bar is not written anywhere: it is made from the key table ($tk_keys 'menus': an entry per action that has a menu and an entry text, the key it shows derived from the
+*   table, an entry the pane does not use or that has a reason shown disabled), so the bar, the function-key row and the keys cannot disagree.  ***IT RUNS NOTHING.*** Choosing an
+*   entry returns the action's id and the key that action is bound to in this pane; the page does what it does for that key, in its own handler, so its own gates decide.
+*
+*     draw   (ctx, keys, pane)               draws the bar on the menu row (TK.C.YMENU, row 0), blank across the width with the titles on it.  It draws again only when the width, the
+*                                            generation, the epoch, the pane or the menus differ from what it drew last (ctx<TK.C.BAR>), so a page may call it on every pass of its
+*                                            loop.  Row 0 is written whole, which erases the right end that $tk_frame wrote (the app's name and the audience): the bar sets that
+*                                            part of the frame's cache to forgotten, so the next $tk_frame writes it again.  Call this BEFORE $tk_frame.  A page with no menu rows draws nothing.
+*     key    (ctx, keys, pane, nm, busy -> out)   nm = a key name from $sl_key.  F10 opens the first menu; Alt and a letter opens the menu whose marked letter it is; Esc opens the first menu
+*                                            when busy is 0 - busy is 1 while the page has something that Esc closes first (a filter, a sub-view, an output pane): THE ESC RULE, a page closes
+*                                            its own state first, else the bar opens.  Any other key, and any of these in a page with no menu rows, is not the bar's (out null).
+*     click  (ctx, keys, pane, mev -> out)   mev = the event of SCREEN MOUSE.  A left press on the menu row opens the menu under it; one with no title under it is used up (out 'none').
+*                                            Any other event is not the bar's.
+*     open   (ctx, keys, pane, n -> out)     opens menu number n (null: the first), for a page that has its own key for it.
+*
+*   out is a dynamic array, null when the bar did not take the key or the click: <1> 'none' (the bar took it and nothing was chosen: the person left, or clicked beside the titles) or
+*   'act' (an entry was chosen); <2> the action's id; <3> the key the action is bound to for this pane (the page replays it through its own dispatch), null for an action with no key
+*   (a page that offers one handles <2>).  An entry that is shown disabled can not be chosen, so an action that comes back is one the page's key table would also give for its key.
+*
+*   After a run the bar is on the screen again as it was drawn and ctx<TK.C.BAR> says so.  An app that clears or repaints the screen raises ctx<TK.C.GEN>, as it does for $tk_frame.
+*   A session with no terminal gets nothing.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine tk_menubar(op, ctx, keys, pane, a, b, c)
+$catalog $tk_menubar
+
+$include sl.h
+$include tk.h
+
+   common /tkframe/ last.stat, last.keys, last.bord, last.top, last.gen, last.geo      ;* $tk_frame's cache: only last.top is touched, to have the right end of row 0 written again
+
+   c = ''
+   if system(25) then return                           ;* a phantom has no terminal
+   gosub make.menus
+   if nmenu = 0 then return                            ;* a page with no menu rows has no bar and takes nothing
+
+   begin case
+      case op = 'draw'
+         gosub paint.bar
+      case op = 'key'
+         nm = a
+         busy = b
+         start = 0
+         begin case
+            case nm = 'f10'
+               start = 1
+            case nm = 'esc'
+               if not(busy) then start = 1
+            case len(nm) = 5 and nm[1, 4] = 'alt-'
+               gosub find.title
+         end case
+         if start > 0 then gosub run.bar
+      case op = 'click'
+         if a<1> = 'press' and a<2> = 1 and a<4> + 0 = ctx<TK.C.YMENU> + 0 then
+            gosub build.widget
+            call $sl_scr('get', scr)
+            call $sl_menu('init', w, scr, '', r)
+            call $sl_menu('hit', w, scr, a<3> + 0, start)
+            call $sl_scr('put', scr)
+            if start > 0 then gosub run.bar else c = 'none'
+         end
+      case op = 'open'
+         start = a + 0
+         if start < 1 or start > nmenu then start = 1
+         gosub run.bar
+   end case
+   return
+
+* ------------------------------------------------------------------------------------------------- the menus
+
+* The menus for the pane, from the table: menus = the array SCREEN MENUBAR takes (a field a menu), nmenu = how many
+make.menus:
+   menus = ''
+   call $tk_keys('menus', keys, '', menus, pane, '', '')
+   nmenu = dcount(menus, @fm)
+   if menus = '' then nmenu = 0
+   return
+
+* The widget $sl_menu takes: the bar's row and width, and the menus from field 20
+build.widget:
+   w = ''
+   w<SL.W.Y> = ctx<TK.C.YMENU> + 0
+   w<SL.W.W> = ctx<TK.C.W> + 0
+   for k = 1 to nmenu
+      w<19 + k> = menus<k>
+   next k
+   return
+
+* What the bar looks like now, to know whether it needs drawing
+bar.sig:
+   sig = ctx<TK.C.W> : '/' : ctx<TK.C.GEN> : '/' : ctx<TK.C.EPOCH> : '/' : pane : @fm : menus
+   return
+
+* The bar drawn on row 0, if it is not already
+paint.bar:
+   gosub bar.sig
+   if sig = ctx<TK.C.BAR> then return
+   gosub build.widget
+   call $sl_scr('get', scr)
+   call $sl_menu('init', w, scr, '', r)
+   call $sl_menu('draw', w, scr, '', r)
+   call $sl_scr('put', scr)
+   ctx<TK.C.BAR> = sig
+   last.top = ''                                       ;* row 0 was written whole: the app's name and the audience at its right end are written again by the next $tk_frame
+   return
+
+* Alt and a letter: start = the number of the menu whose marked letter it is, 0 if none (a title that begins with > is a submenu, not on the bar)
+find.title:
+   start = 0
+   want = upcase(nm[5, 1])
+   for k = 1 to nmenu
+      t = menus<k, 1>
+      if t[1, 1] # '>' then
+         p = index(t, '&', 1)
+         if p > 0 then mn = t[p + 1, 1] else mn = t[1, 1]
+         if upcase(mn) = want then
+            start = k
+            exit
+         end
+      end
+   next k
+   return
+
+* The menu number start is opened over the pane, one entry is chosen or the person leaves; the bar is drawn again (the run does it); out says which
+run.bar:
+   gosub build.widget
+   call $sl_scr('get', scr)
+   call $sl_menu('init', w, scr, '', r)
+   call $sl_menu('draw', w, scr, '', r)
+   w<SL.W.S1> = start
+   call $sl_menu('run', w, scr, '', r)
+   call $sl_scr('put', scr)
+   gosub bar.sig
+   ctx<TK.C.BAR> = sig
+   last.top = ''
+   if r # '' then
+      call $tk_keys('keyof', keys, r, pane, kn, '', '')
+      c = 'act' : @fm : r : @fm : kn
+   end else
+      c = 'none'
+   end
+   return
+end
+
+* END-CODE
