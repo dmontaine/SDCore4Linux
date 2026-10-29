@@ -32,7 +32,7 @@ GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 
 EXPECT_PROGRAMS = 24
-EXPECT_ADD_ROWS = 255         # after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
+EXPECT_ADD_ROWS = 257         # (256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 31 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
 # an action that has two keys on purpose (the second is for a terminal that keeps the first for itself)
@@ -71,7 +71,6 @@ LEDGER = {
     },
     "helpkey": {
         "mymenu:has no help": "mymenu registers no F1 (Phase 5 converts it)",
-        "tool_home:has no help": "the home screen's help is the Help menu's Keys entry",
         "tool_keys:has no help": "tool.keys is exempt (owner answer 18: it is the page that shows keys)",
     },
     "twokeys": {

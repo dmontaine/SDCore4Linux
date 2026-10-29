@@ -54,6 +54,7 @@ $include tk.h
       stop
    end
    void kernel(K$AUDIT, 'tool start app=tool.sessions')
+   outopen = 0                                                  ;* the output pane (Ctrl-O): closed until asked for
    gosub declare.layout
 
    keys = ''
@@ -63,6 +64,7 @@ $include tk.h
    call $tk_keys('add', keys, 'u', 'unlock', 'unlock', 'Locks', 1)
    call $tk_keys('add', keys, 'i', 'logins', 'inhibit', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
+   call $tk_keys('add', keys, 'ctrl-o', 'output', 'output', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U2: Esc opens the menu bar (this page holds nothing of its own that Esc closes first)
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
@@ -71,6 +73,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'inhibit', '&Sessions', '&Inhibit or allow logins', '', '')
    call $tk_keys('menu', keys, 'switch', '&View', '&Switch list', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'output', '&View', '&Output of the commands (Ctrl-PgUp, Ctrl-PgDn scroll)', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
    panes = 'Sessions' : @fm : 'Locks'
 
@@ -97,7 +100,7 @@ $include tk.h
       nm = ''
       screen key timeout 3 returning nm
       mr = ''
-      if nm # '' then call $tk_menubar('key', ctx, keys, panes<pane>, nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
+      if nm # '' then call $tk_menubar('key', ctx, keys, panes<pane>, nm, outopen, mr)       ;* F10, Alt and a letter, and Esc (the Esc rule: the output pane, when open, is closed first)
       if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
@@ -204,6 +207,15 @@ declare.layout:
    ld<1> = 'sessions' : @vm : 1 : @vm : 1 : @vm : 15 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
    ld<2> = 'locks' : @vm : 2 : @vm : 1 : @vm : 14 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
    ld<3> = 'row' : @vm : 3 : @vm : 1 : @vm : 10 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   if outopen then
+      * the output pane is open: the sessions 2 rows and the locks 4 rows shorter, and the output pane, 6 rows, between the row box and the foot (rows named lo, not ld: the closed layout above is the page's own)
+      lo = ''
+      lo<1> = 'sessions' : @vm : 1 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+      lo<2> = 'locks' : @vm : 2 : @vm : 1 : @vm : 10 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+      lo<3> = 'row' : @vm : 3 : @vm : 1 : @vm : 10 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+      lo<4> = 'output' : @vm : 4 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+      ld = lo
+   end
    call $tk_layout('declare', ctx, ld, perr)
    if perr # '' then
       call $tk_close(ctx)
@@ -211,6 +223,17 @@ declare.layout:
       stop
    end
    gosub get.rects
+   return
+
+* Ctrl-O or View > Output, and Esc while it is open: the pane is shown or put away, the layout is declared again and all of it drawn
+toggle.out:
+   call $tk_out('toggle', ctx, '', '', oc)
+   outopen = oc
+   gosub declare.layout
+   gosub keep.in.view
+   gen += 1
+   ctx<TK.C.GEN> = gen
+   gosub draw.all
    return
 
 get.rects:
@@ -245,6 +268,7 @@ draw.all:
    screen box at rwb.x,rwb.y size rwb.w,rwb.h title 'The row under the cursor'
    gosub draw.lists
    gosub draw.row
+   if outopen then call $tk_out('draw', ctx, 'output', '', oc)   ;* the output pane, in the rectangle the open layout gives it
    return
 
 draw.lists:
@@ -532,6 +556,14 @@ on.key:
          msg = 'asked the system again'
       case nm = 'ctrl-q'
          done = 1
+      case nm = 'ctrl-o'
+         gosub toggle.out
+      case nm = 'esc'
+         if outopen then gosub toggle.out                       ;* the Esc rule: what the page has open is closed first; with nothing open the bar took the key
+      case (nm = 'ctrl-pgup' or nm = 'ctrl-pgdn') and outopen
+         okey = nm[6, 4]
+         call $tk_out('key', ctx, okey, '', oc)                 ;* the output pane scrolls (pgup / pgdn)
+         call $tk_out('draw', ctx, 'output', '', oc)
    end case
    return
 
@@ -616,9 +648,13 @@ do.logout:
       call $tk_run(allow, sent, out, stat, err)
       if err # '' then
          msg = err
+         call $tk_out('add', ctx, 'refuse', sent : '  ' : err, '')           ;* what the command answered stays in the output pane, whether or not it is open
       end else
          gosub audit.run
          gosub first.line
+         otext = said
+         if otext = '' then otext = 'ran'
+         call $tk_out('add', ctx, 'ok', sent : '  ' : otext, '')
          msg = (if said # '' then said[1, 130] else 'asked user ' : uid : ' to end; the list is read again every three seconds')
       end
       gosub read.all
@@ -688,9 +724,13 @@ do.unlock:
       call $tk_run(allow, sent, out, stat, err)
       if err # '' then
          msg = err
+         call $tk_out('add', ctx, 'refuse', sent : '  ' : err, '')           ;* what the command answered stays in the output pane, whether or not it is open
       end else
          gosub audit.run
          gosub first.line
+         otext = said
+         if otext = '' then otext = 'ran'
+         call $tk_out('add', ctx, 'ok', sent : '  ' : otext, '')
          msg = (if said # '' then said[1, 130] else 'released')
       end
       gosub read.all
@@ -717,9 +757,13 @@ do.inhibit:
       call $tk_run(allow, sent, out, stat, err)
       if err # '' then
          msg = err
+         call $tk_out('add', ctx, 'refuse', sent : '  ' : err, '')           ;* what the command answered stays in the output pane, whether or not it is open
       end else
          gosub audit.run
          gosub first.line
+         otext = said
+         if otext = '' then otext = 'ran'
+         call $tk_out('add', ctx, 'ok', sent : '  ' : otext, '')
          msg = (if said # '' then said[1, 130] else 'done')
       end
       gosub read.all

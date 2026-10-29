@@ -1,0 +1,5 @@
+The home screen
+29a-sd-tcl-the-home-screen
+The home screen is a page of tiles; each tile starts one thing: a tool, the Terminal, or a program you added. Arrows, Home and End move between the tiles, a letter jumps to the next tile that begins with it, Page Down and Page Up go to the next and the previous group, and Enter or the space bar starts the tile. A tile that opens a sub-menu has a Back tile; Esc and Backspace go back one page.
+Esc on the top page, or F10, opens the menu bar: File (sign out), Go (the Terminal, switch account, back), View (refresh, the Recent group), AI (ask the AI, when it is on) and Help (the keys). F5 builds the page again. Ctrl-Q signs out after asking.
+The page starts nothing by itself: a tile runs the command its owner gave it, in your account, through your own gates.

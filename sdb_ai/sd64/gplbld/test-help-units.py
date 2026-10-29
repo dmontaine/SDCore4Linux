@@ -57,7 +57,8 @@ def load():
     src["tool_accounts"] = read(os.path.join(GPL, "tool_accounts"))   # 25 Oct 26, S.75 A3: the accounts page asks for tool.accounts.page
     src["tool_remote"] = read(os.path.join(GPL, "tool_remote"))       # 25 Oct 26, S.75 A9: the remote access page asks for tool.remote.page
     src["tool_files"] = read(os.path.join(GPL, "tool_files"))         # 26 Oct 26, S.75 DV1: the files page asks for tool.files.page
-    src["tool_voc"] = read(os.path.join(GPL, "tool_voc"))             # 26 Oct 26, S.75 DV3: the VOC page asks for tool.voc.page
+    src["tool_home"] = read(os.path.join(GPL, "tool_home"))           # 31 Oct 26, S.88 U9: the home screen asks for tool.home.page on F1
+    src["tool_voc"] = read(os.path.join(GPL, "tool_voc"))           # 26 Oct 26, S.75 DV3: the VOC page asks for tool.voc.page
     for app in ("dict", "query", "bulk", "catalog", "test"):
         src["tool_" + app] = read(os.path.join(GPL, "tool_" + app))   # 26 Oct 26, S.75 DV2, DV4-DV7: each page asks for its tool.<app>.page
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
@@ -154,7 +155,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|masters|audit|config|backups|accounts|remote|files|voc|dict|query|bulk|catalog|test)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_masters"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"]) + "\n" + strip(s["tool_files"]) + "\n" + strip(s["tool_voc"]) + "".join("\n" + strip(s["tool_" + a]) for a in ("dict", "query", "bulk", "catalog", "test"))))
+    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|masters|audit|config|backups|accounts|remote|files|voc|dict|query|bulk|catalog|test|home)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_masters"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"]) + "\n" + strip(s["tool_files"]) + "\n" + strip(s["tool_voc"]) + "".join("\n" + strip(s["tool_" + a]) for a in ("dict", "query", "bulk", "catalog", "test", "home"))))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 13 and not (asked - set(hts)), repr(sorted(asked - set(hts))))

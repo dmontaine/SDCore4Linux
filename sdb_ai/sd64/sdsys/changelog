@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+31 Oct 26  THE SESSIONS PAGE HAS AN OUTPUT PANE; THE HOME SCREEN HAS F1 AND AN AI MENU ENTRY THAT FOLLOWS THE AI.
+
+             What        - TOOL.SESSIONS: Ctrl-O (or View > Output) opens a six-row pane that keeps the commands the page ran (logout, unlock, inhibit.login) and what each answered, newest
+                           first; Ctrl-PgUp and Ctrl-PgDn scroll it and Esc puts it away. It is kept in memory for this run of the page only.
+                         - The home screen: F1 shows its help; the AI menu entry reads "Ask the AI" and moves the focus to the AI line when the AI is on, and "AI is off" (dimmed) only when it is off.
+                         It does NOT change what the sessions page may run: each command still goes through its own box and the same three verbs.
+
 30 Oct 26  TRYING AN ITEM IN TOOL.DICT: THE RECORD IS PICKED FROM A LIST.
 
              What        - T used to ask you to type the id of a record of the file. It now opens the file's list of records (type part of an id to narrow it, Return takes one, Esc

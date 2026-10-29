@@ -1038,6 +1038,9 @@ on.key:
          end else
             gosub close.menu                               ;* back one page
          end
+      case nm = 'f1'
+         call $tk_help('box', 'tool.home.page', hm, 0, 0)
+         if hm # '' then msg = hm
       case nm = 'f5'
          gosub rebuild
       case nm = 'f10'
@@ -1324,6 +1327,7 @@ make.keys:
    keys = ''
    call $tk_keys('add', keys, 'enter', 'start', 'start', '', 1)
    if cur.menu # '' then call $tk_keys('add', keys, 'esc', 'back', 'back', '', 1)
+   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'f10', 'menu', 'menu', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'sign out', 'signout', '', 1)
@@ -1431,7 +1435,7 @@ make.menus:
    m = '&View|&Refresh~F5~refresh'
    m := '|Recent &group (' : (if rc.on then 'on' else 'off') : ')~~recent~' : rflag
    gosub add.menu
-   m = '&AI|AI is off~~ai~D'
+   if ctx<TK.C.AI> then m = '&AI|&Ask the AI~~ai' else m = '&AI|AI is off~~ai~D'     ;* the line works when the provider is on (S.88 U9: the entry used to say off whatever the state was)
    gosub add.menu
    m = '&Help|&Keys~~keys~' : kflag
    gosub add.menu
@@ -1464,6 +1468,8 @@ run.cmd:
          gosub rebuild
       case cmd = 'back'
          gosub close.menu
+      case cmd = 'ai'
+         gosub ai.focus.on                                  ;* AI > Ask the AI: the focus goes to the line (the entry cannot be chosen when the line is off)
       case cmd = 'recent'
          gosub toggle.recent
       case cmd = 'keys'
