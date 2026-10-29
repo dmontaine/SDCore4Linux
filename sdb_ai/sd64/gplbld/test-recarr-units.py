@@ -194,6 +194,10 @@ def checks(p):
         ordered(orc, [r"bx\{k\} = rec", r"gosub set\.token\.mode", r"gosub load\.current"]) and ordered(dsd, [r"bx\{k\} = disk", r"gosub set\.token\.mode"]) and ordered(dfl, [r"bx\{k\} = fd\.new", r"gosub set\.token\.mode", r"msg = sysmsg\(11989"])
         and ordered(nf, [r"gosub tab\.display", r"ed\.text = tb\.disp"]) and ordered(lc_, [r"gosub tab\.display", r"mw\{'value'\} = tb\.disp"]))
 
+    row("G1 (g-P2) the record of an ordinary file whose text is a JSON object or array with no value or subvalue mark goes to CED as the tree (data type 0, no file, no id); marks, text that does not parse or a first character other than { or [ keep the multivalue view and say nothing about JSON",
+        ordered(dfl, [r"fd\.json = 0", r"if not\(fd\.coll\) then", r"index\(fd\.was, @vm, 1\) = 0 and index\(fd\.was, @sm, 1\) = 0", r"= '\{' or fd\.jq = '\['", r"jparse\(", r"fd\.jst = status\(\)", r"jtype\(fd\.c\) = 'collection' or jtype\(fd\.c\) = 'array'",
+                      r"if not\(fd\.json\) then call \$recarr\('to'", r"gosub leave\.screen", r"if fd\.coll or fd\.json then", r"call \$cedit\(fd\.c, '', '', 0,"]))
+
     # ---- M: the menu, the help, the messages ----------------------------------------------------------------------------------------------------------------------
     m = p["m11226"].strip("\n")
     entries = m.split("|")[1:]
@@ -254,6 +258,10 @@ def selftest():
     mutant("do.fields gives CED the record's file and id", "ide", "call $cedit(fd.arr, '', '', 2,", "call $cedit(fd.arr, fv, fd.id, 2,", "I")
     mutant("do.fields writes the record itself", "ide", "if fd.ok then fd.new = fd.text", "if fd.ok then fd.new = fd.text ; write fd.new on fv, fd.id", "I6")
     mutant("do.fields does not take the screen again", "ide", "   gosub retake.quiet\n   return\n\n* The window changed size", "   return\n\n* The window changed size", "I4")
+    mutant("a JSON record with marks goes to the tree", "ide", "if index(fd.was, @vm, 1) = 0 and index(fd.was, @sm, 1) = 0 then", "if 1 then", "G1")
+    mutant("any text is tried as JSON", "ide", "if fd.jq = '{' or fd.jq = '[' then", "if 1 then", "G1")
+    mutant("text that parses as a number is a tree", "ide", "jtype(fd.c) = 'collection' or jtype(fd.c) = 'array'", "1", "G1")
+    mutant("the ordinary JSON record is still shown as fields", "ide", "if fd.coll or fd.json then", "if fd.coll then", "G1")
     mutant("F12 runs SED", "ide", "cmd = 'fields'                  ;* the record as fields", "cmd = 'sed'                  ;* the record as fields", "I1")
     # 26 Oct 26: the token form's mutants
     mutant("totext does not read back what it made", "recarr", "if r.line # f.t then", "if r.line # r.line then", "R6")

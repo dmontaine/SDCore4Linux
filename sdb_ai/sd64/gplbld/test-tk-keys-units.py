@@ -50,8 +50,6 @@ LEDGER = {
         "tool_home:f10": "tool_home binds F10 for its menu without Esc first (K8)",
     },
     "mnemonic": {
-        "11225:file:c": "File menu: 'Write a &copy' and '&Close record' are both C, so Close record cannot be reached by its letter (d2a fixes the message)",
-        "11228:build:c": "Build menu: '&Compile' and 'Compile and &catalogue' are both C (d2a fixes the message)",
     },
     "handler": {
         "ide:esc/menu": "the IDE's Esc is handled where the form is read (the menu bar), not in do.key",

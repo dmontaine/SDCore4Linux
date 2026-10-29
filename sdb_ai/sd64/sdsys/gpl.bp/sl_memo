@@ -37,6 +37,8 @@
 *   softcur (1: while the area has the focus the character under the cursor is drawn in the highlight style, as well as the terminal's
 *   own cursor being put there; not in a readonly area; set by the program, not by SCREEN MEMO), and
 *   stay (1: Up on the first row and Down on the last do nothing instead of answering 'unhandled', so the form does not move the focus; set by the program), and
+*   edkeys (1, the IDE's, 29 Oct 26: Ctrl-Home and Ctrl-End go to the start and the end of the text, Ctrl-Left and Ctrl-Right a word back and on, Ctrl-Del deletes the word at the
+*   cursor (or the selection; at the end of a line it joins the next one) as one undo step 'delword'; without it these keys are 'unhandled'; set by the program, not by SCREEN MEMO), and
 *   tabindent (a width, the IDE's 3: Tab and Shift-Tab indent and outdent - below - instead of answering 'unhandled'; not in a readonly area; set by the program,
 *   not by SCREEN MEMO, so a user program's form keeps Tab for moving between its controls)
 *
@@ -102,6 +104,7 @@ $include sl.h
    ro = w{'readonly'} + 0
    ti = w{'tabindent'} + 0                       ;* 28 Oct 26: the indent width Tab and Shift-Tab use (0: they are not the area's keys)
    if ti < 0 then ti = 0
+   ek = w{'edkeys'} + 0                          ;* 29 Oct 26 (S.88 D2): the editor's keys Ctrl-Home, Ctrl-End, Ctrl-Left, Ctrl-Right and Ctrl-Del (an opt-in of the program; 0: they are 'unhandled')
    wrap = w{'wrap'} + 0
    * 18 Oct 26: hbar (1) puts a horizontal scroll bar in the last row of the area, and the text has one row less.  Opt in: a program that
    * does not set it (SCREEN MEMO) is drawn as it always was.  There is none when the text wraps (nothing to scroll sideways) or the area is
@@ -712,6 +715,48 @@ handle.key:
                cx = 1
             end
          end
+      case key = 'ctrl-home' and ek
+         * 29 Oct 26 (S.88 D2): with edkeys the editor's keys: Ctrl-Home is the start of the text, Ctrl-End its end, Ctrl-Left and Ctrl-Right a word back and on
+         cy = 1
+         cx = 1
+      case key = 'ctrl-end' and ek
+         cy = n
+         cx = len(lines<n>) + 1
+      case key = 'ctrl-right' and ek
+         ln = lines<cy>
+         if cx > len(ln) then
+            if cy < n then
+               cy += 1
+               cx = 1
+            end
+         end else
+            loop
+            while cx <= len(ln) and ln[cx, 1] = ' '
+               cx += 1
+            repeat
+            loop
+            while cx <= len(ln) and ln[cx, 1] # ' '
+               cx += 1
+            repeat
+         end
+      case key = 'ctrl-left' and ek
+         if cx = 1 then
+            if cy > 1 then
+               cy -= 1
+               cx = len(lines<cy>) + 1
+            end
+         end else
+            ln = lines<cy>
+            cx -= 1
+            loop
+            while cx > 1 and ln[cx, 1] = ' '
+               cx -= 1
+            repeat
+            loop
+            while cx > 1 and ln[cx - 1, 1] # ' '
+               cx -= 1
+            repeat
+         end
       case key = 'ctrl-a'
          * 28 Oct 26 dm (the owner's D31, 20 Oct): Ctrl-A selects all, as in every editor he named; Home is the start of the row
          my = 1 ; mx = 1
@@ -865,6 +910,34 @@ handle.key:
             ln = lines<cy>
             if cx <= len(ln) then
                lines<cy> = ln[1, cx - 1] : ln[cx + 1, len(ln)]
+            end else
+               if cy < n then
+                  lines<cy> = ln : lines<cy + 1>
+                  del lines<cy + 1>
+               end
+            end
+         end
+         want = cx
+         my = 0 ; mx = 0
+      case key = 'ctrl-del' and ek
+         * 29 Oct 26 (S.88 D2): with edkeys Ctrl-Del deletes the word at the cursor (the blanks before it and the word), or the selection, or at the end of a line joins the next line
+         kind = 'delword'
+         gosub snap.push
+         if has.sel then
+            gosub del.sel
+         end else
+            ln = lines<cy>
+            if cx <= len(ln) then
+               ce = cx
+               loop
+               while ce <= len(ln) and ln[ce, 1] = ' '
+                  ce += 1
+               repeat
+               loop
+               while ce <= len(ln) and ln[ce, 1] # ' '
+                  ce += 1
+               repeat
+               lines<cy> = ln[1, cx - 1] : ln[ce, len(ln)]
             end else
                if cy < n then
                   lines<cy> = ln : lines<cy + 1>

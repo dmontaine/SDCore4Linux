@@ -3124,10 +3124,10 @@ Press Return to go back to the IDE
 cited by: `ide`
 
 ### msg:11225
-> kind=message tier=reference since=- src=sdsys/messages/11225:1#2b14bf00
+> kind=message tier=reference since=- src=sdsys/messages/11225:1#8d1671d5
 
 ```
-&File|&New record~^N~new|&Open record~^O~open|&Save~^S~save|Save &as~~saveas|Write a &copy~~writeas|&Close record~^W~close|&Quit~^Q~quit
+&File|&New record~^N~new|&Open record~^O~open|&Save~^S~save|Save &as~~saveas|Write a co&py~~writeas|&Close record~^W~close|&Quit~^Q~quit
 ```
 
 ### msg:11226
@@ -3145,10 +3145,10 @@ cited by: `ide`
 ```
 
 ### msg:11228
-> kind=message tier=reference since=- src=sdsys/messages/11228:1#8b9ed572
+> kind=message tier=reference since=- src=sdsys/messages/11228:1#441875e5
 
 ```
-&Build|&Compile~F8~compile|Compile and &catalogue~F9~catalog|&Run~F5~run|&Debug~F7~debug|Run a co&mmand~~xeq
+&Build|&Compile~F8~compile|Compile and cat&alog~F9~catalog|&Run~F5~run|&Debug~F7~debug|Run a co&mmand~~xeq
 ```
 
 ### msg:11229

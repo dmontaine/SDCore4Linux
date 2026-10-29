@@ -690,7 +690,8 @@ new.form:
    mw{'hbar'} = 1
    mw{'passkeys'} = 'ctrl-e'                     ;* Ctrl-E hands the record to SED (the area's own meaning of it, end of row, is End); F3 / Shift-F3 are the area's find next / previous (the owner's D31)
    mw{'stay'} = 1                                ;* 28 Oct 26 (I3): Up on the first line and Down on the last stay in the editor and do not move the focus to the tabs or the messages
-   mw{'tabindent'} = 3                           ;* 28 Oct 26 (approved by the owner): Tab and Shift-Tab indent and outdent here, by the codebase's 3; F6 / Shift-F6 move between the panes
+   mw{'edkeys'} = 1                              ;* 29 Oct 26 (S.88 D2): Ctrl-Home / Ctrl-End (start and end of the text), Ctrl-Left / Ctrl-Right (a word) and Ctrl-Del (delete a word)
+   mw{'tabindent'} = 3                          ;* 28 Oct 26 (approved by the owner): Tab and Shift-Tab indent and outdent here, by the codebase's 3; F6 / Shift-F6 move between the panes
    mw{'softcur'} = 1                             ;* 19 Oct 26: the character under the cursor is highlighted while the editor has the focus
 
    cols = sysmsg(11221) : @sm : '6R' : @vm : sysmsg(11222) : @sm : (ew - 11) : 'L'
@@ -3176,6 +3177,19 @@ do.fields:
    fd.was = bx{k}
    k = 'k' : fd.u
    fd.coll = (bx{k} = 'coll')
+   * S.88 g-P2 (decision 16, gap G1): the record of an ORDINARY file whose text is a JSON object or array, with no value or subvalue mark in it, is edited as the tree it is, as a collection
+   *   file's record is; anything else (marks, text that does not parse, a first character that is not { or [) keeps the multivalue view, with no word said about JSON.
+   fd.json = 0
+   if not(fd.coll) then
+      if index(fd.was, @vm, 1) = 0 and index(fd.was, @sm, 1) = 0 then
+         fd.jq = trim(convert(@fm, char(10), fd.was))[1, 1]
+         if fd.jq = '{' or fd.jq = '[' then
+            fd.c = jparse(convert(@fm, char(10), fd.was))
+            fd.jst = status()
+            if fd.jst = 0 then fd.json = (jtype(fd.c) = 'collection' or jtype(fd.c) = 'array')
+         end
+      end
+   end
    if fd.coll then
       * 29 Oct 26 (stage F): a record of a collection file goes to CED as the collection its JSON text parses to (data type 0, no file and no id: CED writes nothing and keeps the
       *   changes in the variable); what comes back is the JSON text of it, in the layout the tab uses.  Text that does not parse is said, not edited.
@@ -3186,12 +3200,12 @@ do.fields:
       if not(cv.ok) then return
       fd.c = cv.y
    end else
-      call $recarr('to', fd.was, fd.arr, fd.ok)
+      if not(fd.json) then call $recarr('to', fd.was, fd.arr, fd.ok)
    end
    gosub leave.screen
    fd.res = ''
    fd.new = fd.was
-   if fd.coll then
+   if fd.coll or fd.json then
       call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)
       if fd.res<1> then
          fd.text = convert(char(10), @fm, jbuild(fd.c, JB$PRETTY))        ;* the text area's form (coll.text)

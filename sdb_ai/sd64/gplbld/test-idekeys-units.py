@@ -324,7 +324,7 @@ MUTANTS = [
     ("F6 goes to the next tab (the old key)", "IK2", sub("ide", "case edata = 'f6'\n         cmd = 'nextpane'", "case edata = 'f6'\n         cmd = 'nexttab'")),
     ("Ctrl-W writes a copy (the old key)", "IK2", sub("ide", "case edata = 'ctrl-w'\n         cmd = 'close'", "case edata = 'ctrl-w'\n         cmd = 'writeas'")),
     ("Ctrl-PageDown is not the tab key", "IK2", sub("ide", "case edata = 'ctrl-pgdn'", "case edata = 'ctrl-pgdnx'")),
-    ("a menu shows F8 for the catalogue entry", "IK4", sub("m11228", "Compile and &catalogue~F9~catalog", "Compile and &catalogue~F8~catalog")),
+    ("a menu shows F8 for the catalogue entry", "IK4", sub("m11228", "Compile and cat&alog~F9~catalog", "Compile and cat&alog~F8~catalog")),
     ("a menu carries a word run.cmd does not know", "IK3", sub("m11225", "&New record~^N~new", "&New record~^N~newer")),
     ("run.cmd has no close", "IK3", sub("ide", "      case cmd = 'close'\n         gosub close.current\n", "      case cmd = 'closed'\n         gosub close.current\n")),
     ("Close record moves in the File menu", "IK5", sub("m11225", "|&Close record~^W~close|&Quit~^Q~quit", "|&Quit~^Q~quit|&Close record~^W~close")),

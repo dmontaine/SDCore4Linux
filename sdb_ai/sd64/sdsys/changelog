@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+29 Oct 26  THE IDE'S EDITOR HAS CTRL-HOME, CTRL-END, CTRL-LEFT, CTRL-RIGHT AND CTRL-DEL; A JSON RECORD OF AN ORDINARY FILE OPENS AS A TREE; TWO MENU LETTERS FIXED.
+
+             What        - IDE: Ctrl-Home and Ctrl-End go to the start and the end of the text, Ctrl-Left and Ctrl-Right a word back and on, and Ctrl-Del deletes the word at the cursor
+                           (the selection if there is one; at the end of a line it joins the next line) as one undo step. They are the IDE's editor only: a program's own SCREEN MEMO
+                           does not get them.
+                         - IDE, F12 (Go > Edit as fields): the record of an ordinary file whose text is a JSON object or array and holds no value or subvalue mark goes to the collection
+                           editor as the tree of the JSON and comes back as JSON text, as a collection file's record does. Any other record is shown as fields, as before.
+                         - IDE menus: "Write a copy" is now reached by P and "Compile and catalog" by A; the letter C was on two entries in the File and Build menus, so Close record and
+                           Compile could not both be reached by their letters.
+                         It does NOT change what the IDE may write: its own save, with the edit gate and the overwrite question, is still the only thing that writes.
+
 29 Oct 26  THE FILTER KEY IS "/", THE TESTS PAGE HAS AN OUTPUT PANE, SDSYS SEES ITS EDIT GATES AS ON.
 
              What        - TOOL.FILES, TOOL.VOC, TOOL.CATALOG, TOOL.DICT and TOOL.TEST list "/" as the key that filters the names (F11 still works: it is the terminal emulator's

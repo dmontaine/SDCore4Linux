@@ -104,7 +104,7 @@ def checks(src):
         return len(new) == len(set(new)) and not (set(new) & set(ms[:old]))
     ck("E1", "the new entries are at the END of their menus, so no existing entry moves (Search keeps Find and Replace first, Build its four, View its Theme), each runs a command run.cmd knows, and the "
        "mnemonics of a menu are all different",
-       m27.startswith("&Search|&Find in the records~~find|&Replace in the record~^R~replace|") and m28.startswith("&Build|&Compile~F8~compile|Compile and &catalogue~F9~catalog|&Run~F5~run|&Debug~F7~debug|")
+       m27.startswith("&Search|&Find in the records~~find|&Replace in the record~^R~replace|") and m28.startswith("&Build|&Compile~F8~compile|Compile and cat&alog~F9~catalog|&Run~F5~run|&Debug~F7~debug|")
        and m29.startswith("&View|&Theme~~theme|") and all(c in cmds_of(m27) + cmds_of(m28) + cmds_of(m29) for c in CMDS)
        and all(("case cmd = '%s'" % c) in L["run.cmd"] for c in CMDS) and mnem_ok(m27) and mnem_ok(m28, 4) and mnem_ok(m29), repr((cmds_of(m27), cmds_of(m28), cmds_of(m29))))
 
