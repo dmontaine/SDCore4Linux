@@ -7,6 +7,7 @@
 * 22 Oct 26 dm  New (S.75; the owner: "if defined by the admin or the system, it should be able to be turned off by the admin", then "disabling tiles should be on a
 *               per account basis, by default they are on").
 * 26 Oct 26 dm  S.75, home: the standard ids gain the seven development tiles (files voc dict query bulk catalog test) and recent, the Recent group of the home screen.
+* 29 Oct 26 dm  S.88 g-P1: the standard id ced is gone with the Record editor tile (fourteen ids).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -15,7 +16,7 @@
 *   SET.TILE account tile on | off    turns the tile off or on for that account (field 17 of its register record)
 *
 *   The administrator's verb.  Tiles are ON as delivered and are turned off one account at a time; there is no setting for every account.  A tile that is off is
-*   not on the account's home screen, and its menu entry cannot be chosen.  The standard tiles are editor, ide, ced, terminal, keys, switch and signout, the seven development
+*   not on the account's home screen, and its menu entry cannot be chosen.  The standard tiles are editor, ide, terminal, keys, switch and signout, the seven development
 *   tiles (files, voc, dict, query, bulk, catalog, test) and RECENT, which is not a tile but the group of the tiles the person started last: off, the group is not on the page
 *   and nothing is read or written for it (the person cannot turn it on in the View menu either).  Any other id is accepted (it applies to a tile of that name in a page record)
 *   and said not to be standard.
@@ -42,7 +43,7 @@ $include err.h
       stop sysmsg(2001) ;* Command requires administrator privileges
    end
 
-   standard = 'editor ide ced terminal keys switch signout files voc dict query bulk catalog test recent'
+   standard = 'editor ide terminal keys switch signout files voc dict query bulk catalog test recent'
 
    words = trim(@sentence)
    n.words = dcount(words, ' ')

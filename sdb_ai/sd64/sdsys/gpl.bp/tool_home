@@ -26,6 +26,7 @@
 *               the tile columns worked out from the panel's width (more columns, and the tiles a little wider, in a wider window; the six of 140 by 43 exactly as they were),
 *               the header tiles on the last two columns, and the resize made by $tk_layout 'refresh' in place of the page's own copy of the frame's rules.  At 140 by 43
 *               every cell is where it was.
+* 29 Oct 26 dm  S.88 g-P1: the Record editor tile (ced) is gone with the verb; the fields of a record are the IDE's F12.  The Tools group keeps Editor and IDE.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -39,7 +40,7 @@
 *     System     (the administrator only) Menu management, Bypass programs, Audit trail, Configuration
 *     People and access, Data network and AI     (the administrator only) Accounts, Sessions and locks, Gates; Backups, Master files, Remote servers, AI.  Each tile starts the page's verb.
 *     Develop    the development apps, for every account: Files (tool.files), Vocabulary (tool.voc), Dictionary (tool.dict), Queries (tool.query), Bulk update (tool.bulk), Programs (tool.catalog), Tests (tool.test)
-*     Tools      the standard tools of every account: Editor (sed), IDE (ide), Record editor (ced)
+*     Tools      the standard tools of every account: Editor (sed), IDE (ide)
 *     Everyone   Terminal (leaves the screen for the ordinary prompt; EXIT comes back), Keys (tool.keys)
 *     Header     who is signed on and when, Switch account (a pick list of the accounts this person may enter, then the screen of that account) and Sign out
 *
@@ -318,7 +319,6 @@ build.page:
    gr<g> = gname : @vm : bnd : @vm : 6
    id = 'editor' ; grp = g ; label = 'Editor' ; glyph = '[=]' ; sub = 'edit a record' ; act = 'cmd:sed' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'ide' ; grp = g ; label = 'IDE' ; glyph = '</>' ; sub = 'programs and files' ; act = 'cmd:ide' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
-   id = 'ced' ; grp = g ; label = 'Record editor' ; glyph = '[ ]' ; sub = 'fields of a record' ; act = 'cmd:ced' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    * the person's own programs (MY.MENU), when the administrator has allowed it (the administrator always may): a group of their own after the standard tools, with a tile that
    * opens the list for changing.  They are only tiles that run what the person could type at their prompt.
    call !home_pins(@who, pins.on, pins.items)

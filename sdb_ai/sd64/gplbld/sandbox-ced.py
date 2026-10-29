@@ -13,6 +13,8 @@
 # 18 Oct 26 dm  The window is 140 by 42 (CED is laid out for it and refuses a smaller one, plan-terminal-140x42.md phase 3): the default
 #               size of Ced(), the width at which the scroll bar is cut off, the page of 37 elements, and the piped session that
 #               ends its input.  The refusal, the shrink and the cursor lock are sandbox-ide-small.py's.
+# 29 Oct 26 dm  S.88 g-P1: the `ced` verb is no longer shipped (gpl.bp/ced is an unshipped test driver), so the run writes the VOC record
+#               itself with cedverb.install() after the sandbox starts; a failure to write it is exit 2.  WRITTEN, NOT RUN.
 # END-HISTORY
 #
 # HOW IT DRIVES THE EDITOR.  On a PSEUDO-TERMINAL (ptydrive.py), not a pipe: SD reads a piped stdin a byte at a time
@@ -35,6 +37,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from ptydrive import PtySession  # noqa: E402
+import cedverb  # noqa: E402
 
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
@@ -252,6 +255,8 @@ def main():
     elif not os.path.isfile(os.path.join(sysd, "bin", "sd")):
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
+    if not cedverb.install(box):
+        bail("the VOC record ced could not be written; every row that types CED would be red for that reason")
 
     fixture = """   execute 'DELETE.FILE %(c)s' capturing j0
    execute 'DELETE.FILE %(o)s' capturing j1

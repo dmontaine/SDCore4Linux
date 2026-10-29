@@ -376,7 +376,7 @@ def sec_proposals():
     h.end()
     # the forms the reply may take
     h, T = reply("fence [[fenced]]")
-    arow("L11", "an object inside a code fence with words round it is read: the Record editor is proposed", "From a fence." in T and msg(11647, "Record editor - fields of a record") in T, T[-700:])
+    arow("L11", "an object inside a code fence with words round it is read: the IDE is proposed (it was the Record editor until S.88 g-P1 took that tile away)", "From a fence." in T and msg(11647, "IDE - programs and files") in T, T[-700:])
     h.key("esc", idle=1.5)
     arow("L11b", "Esc on the popup is Reject: the home screen, nothing started", h.home(), repr(h.text()[:100]))
     h.key("ctrl-q", idle=1.5)

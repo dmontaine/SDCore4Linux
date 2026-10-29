@@ -1505,6 +1505,18 @@ if ! grep -q '^DUMPDIR=' /etc/sd.conf; then
     echo "Added DUMPDIR to /etc/sd.conf (the restored file did not have it)."
 fi
 echo "Process dumps: $(sudo stat -c '%U:%G %a' "$sdsysdir/dumps") $sdsysdir/dumps, $(grep '^DUMPDIR=' /etc/sd.conf)"
+# SCREENTHEME-BEGIN
+#
+# 29 Oct 26 dm - S.88 3.7a (owner's yes, same day).  THE DELIVERED SCREEN THEME IS BLUE.  The shipped sd.conf has
+# SCREENTHEME=blue, and a keep-configuration install restores a file written before the line existed, so the same
+# line is added to a restored file that has none, the way DUMPDIR is above.  ANY SCREENTHEME line is left alone, an
+# explicit SCREENTHEME=mono included: the administrator's choice stands, and a terminal with no colour shows mono
+# whatever the line says.  gplbld/test-install-screentheme.sh runs this block.
+if ! grep -q '^SCREENTHEME=' /etc/sd.conf; then
+    echo "SCREENTHEME=blue" | sudo tee -a /etc/sd.conf >/dev/null
+    echo "Added SCREENTHEME=blue to /etc/sd.conf (the restored file did not have it; set it to mono, classic, dark or light to change the look)."
+fi
+# SCREENTHEME-END
 #
 # 11 Sep 26 dm - PORT_ADOPTION 13.  THE AUDIT TRAIL, $sdsysdir/audit.
 # Every SD user must be able to ADD a record, and must not be able to read,

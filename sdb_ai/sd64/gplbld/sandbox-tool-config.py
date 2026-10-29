@@ -452,7 +452,7 @@ def section_c1(rows, kinds):
     a0 = len(audit_lines())
     forced = run_probe()
     arow("C1a", "the probe (CONFIG() of every key of the table, in a separate administrator session) answered for them all, and it can read what the page says it cannot not (the null case: the instrument measured)",
-         len(forced) == len(rows) and sorted(k for k, v in forced.items() if v is None) == ["BACKUPDIR", "SCREENTHEME", "SDSYS"], repr(sorted(k for k, v in forced.items() if v is None)))
+         len(forced) == len(rows) and sorted(k for k, v in forced.items() if v is None) == ["BACKUPDIR", "SDSYS"], repr(sorted(k for k, v in forced.items() if v is None)))
     p = Page()
     if "The parameter under the cursor" not in p.text():
         dump(p.h)

@@ -102,8 +102,8 @@ def checks(raw):
     add("T10", "the function-key row shows a key only if it is enabled and the focused pane uses it (a null pane list means every pane), in the order of the key table",
         "TK.K.PANES" in fk and "TK.K.ON" in fk and ("pane" in fk) and re.search(r"index\(@sm : .* : @sm, @sm : pane : @sm, 1\)", fk) is not None, "")
     ky = sq["tk_keys"]
-    add("T11", "the key table has an add, a name and an action operation, and an action is looked up by key AND pane",
-        all(("op = '%s'" % o) in ky for o in ("add", "name", "action")) and "TK.K.ACT" in ky and "pane" in ky, "")
+    add("T11", "the key table has an add, a name and an action operation (and, since 29 Oct 26, menu, why, menus, keyof and keylist), and an action is looked up by key AND pane, never by an empty key",
+        all(("op = '%s'" % o) in ky for o in ("add", "name", "action", "menu", "why", "menus", "keyof", "keylist")) and "TK.K.ACT" in ky and "pane" in ky and "if a # '' and keys<i, TK.K.KEY> = a" in ky, "")
     anycode = "\n".join(code[n] for n in progs)
     add("T12", "no program writes a raw escape sequence or a cursor code: the library's styles and line characters only",
         "char(27)" not in anycode.lower() and "@(-" not in anycode and "\\x1b" not in anycode and "crt @(" not in anycode, "")
@@ -117,8 +117,8 @@ def checks(raw):
     for n in progs:
         cited |= set(int(x) for x in re.findall(r"sysmsg\((\d+)", code[n]))
     have = {int(f) for f in os.listdir(os.path.join(SDSYS, "messages")) if f.isdigit()}
-    add("T15", "the messages the base cites (%s) are all in the toolkit's block 11800 to 11849 (or are 11951, the largest window $tk_open allows, 26 Oct 26) and all exist" % sorted(cited),
-        bool(cited) and all((11800 <= m <= 11849 or m == 11951) and m in have for m in cited), sorted(m for m in cited if m not in have))
+    add("T15", "the messages the base cites (%s) are all in the toolkit's block 11800 to 11849 (or are 11951, the largest window $tk_open allows, 26 Oct 26; or 11186 to 11189, the action registry's, 29 Oct 26) and all exist" % sorted(cited),
+        bool(cited) and all((11800 <= m <= 11849 or m == 11951 or 11186 <= m <= 11189) and m in have for m in cited), sorted(m for m in cited if m not in have))
     rn = sq.get("tk_run", "")
     optadd("tk_run", "T16", "ORDER in $tk_run: an empty sentence, a too long one, a first word outside the tool's list and a bad character are each refused (and return) BEFORE the one EXECUTE",
         ordered(rn, "sysmsg(11804)", "sysmsg(11807)", "if not(ok.verb) then err = sysmsg(11805, verb)", "if index(good, w[j, 1], 1) = 0 then err = sysmsg(11806, w)",
@@ -215,9 +215,9 @@ def checks(raw):
     th, sh = squeeze(strip_bas(raw["sl_theme"])), raw["sl.h"]
     codes = re.search(r"\$define SL\.CODES\s+'([^']+)'", sh)
     codes = codes.group(1) if codes else ""
-    add("T35", "the colour slots: SL.CODES has 46 different letters, the last sixteen (ACDEFHIJKLMNOQRS) being the user styles; $sl_theme names them user1 to user16 after the thirty styles it had, "
+    add("T35", "the colour slots: SL.CODES has 51 different letters (29 Oct 26: the five roles UVWXY come before the user styles), the last sixteen (ACDEFHIJKLMNOQRS) being the user styles; $sl_theme names them user1 to user16 after the thirty-five styles it has, "
         "keeps them across a theme change (saved before clear.defs, put back before the sequences are built), empties them at SCREEN CLOSE, and gives out the slot that already holds a pair or the first free one, refusing when none is",
-        len(codes) == 46 and len(set(codes)) == 46 and codes.endswith("ACDEFHIJKLMNOQRS") and "for q = 1 to 16 th.names := @fm : 'user' : q next q" in th
+        len(codes) == 51 and len(set(codes)) == 51 and codes.endswith("UVWXYACDEFHIJKLMNOQRS") and "for q = 1 to 16 th.names := @fm : 'user' : q next q" in th
         and "keepu<s> = th.defs<s>" in th and ordered(th, "keepu = ''", "gosub clear.defs", "if keepu<s> # '' then th.defs<s> = keepu<s>", "gosub build.seqs")
         and "th.defs<s> = ''" in th and ordered(th, "case op = 'reset'", "th.defs<s> = ''", "gosub set.theme")
         and "if th.defs<s, 4> = skey and have = 0 then have = s" in th and "if th.defs<s, 4> = '' and free = 0 then free = s" in th and "case free = 0 ret = 'full'" in th
@@ -370,6 +370,8 @@ MUT = [
     ("tk_frame", "the border is a typed character", "call $sl_line('h', 0, hc)", "hc = '-'"),
     ("tk_fkeys", "a key is shown on every pane", "index(@sm : panes : @sm, @sm : pane : @sm, 1)", "1"),
     ("tk_keys", "an action is looked up by key alone", "op = 'action'", "op = 'actionx'"),
+    ("tk_keys", "an empty key matches a key-less row", "if a # '' and keys<i, TK.K.KEY> = a", "if keys<i, TK.K.KEY> = a"),
+    ("tk_keys", "the registry has no menus operation", "case op = 'menus'", "case op = 'menusx'"),
     ("tool_tktest", "end of input is taken for an empty key", "ER$EOF", "ER$XXX"),
     ("tk_open", "an escape sequence is written", "screen open clear lines", "crt char(27) : '[2J' ; screen open clear lines"),
     ("tk_run", "the tool's list is not asked", "if not(ok.verb) then", "if 0 then"),

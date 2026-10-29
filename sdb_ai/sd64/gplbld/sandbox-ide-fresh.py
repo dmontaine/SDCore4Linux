@@ -28,7 +28,7 @@
 #   N3   a new record named and abandoned (Discard) leaves nothing on disk
 #   D1   a pre-write trigger that refuses: Ctrl-S must not end the IDE; the buffer stays changed and the record is unchanged
 #   D2   a hang-up with a changed buffer: the session ends in under 3 s, the record is as it was, and with the recovery gate off (as delivered) no copy is made
-#   P2   home's Editor tile does not stop at "File name?" and the Record editor tile shows something that stays; the IDE tile opens the IDE (control)
+#   P2   home's Editor tile does not stop at "File name?"; the IDE tile opens the IDE (control).  The Record editor tile's rows (P2r) were removed on 29 Oct 26 with the tile (S.88 g-P1)
 #   L    (28 Oct 26, Phase 4, plan 4.9) the whole loop from a bare start in an ordinary account with the edit gates on: type a program with an error, F8 (compile) names it in the
 #        name form and shows the error and its line, fix it, Ctrl-S, F8 clean, F9 (build) catalogues, and the program runs from the account's command line by its name; and in
 #        an account whose bp edit gate is off the same flow stops at the save with the reason in the form (rows L1-L8)
@@ -576,24 +576,7 @@ def section_home():
             s.type(RET, wait=1.5, show="RET (an empty answer)")
     s.end()
 
-    s, f = tile("P2r", E + "OC")
-    ok_f = f is not None and "Record editor" in f
-    say("    focus before Enter: %r" % (f,))
-    if not ok_f:
-        R.row("P2 control: the Record editor tile has the focus before Enter (the instrument reached the tile)", False, "focus=%r" % (f,))
-    else:
-        R.row("P2 control: the Record editor tile has the focus before Enter (the instrument reached the tile)", True, "")
-        beforel = set(l.rstrip() for l in s.lines()[4:] if l.strip())
-        mark = len(s.p.raw)
-        s.type(RET, wait=3.5, show="RET (start the Record editor tile)")
-        got = bytes(s.p.raw[mark:])
-        s.show("3.5 s after the Record editor tile", rows=range(0, 6))
-        new = [l.rstrip() for l in s.lines()[4:] if l.strip() and l.rstrip() not in beforel]
-        say("    bytes written after Enter: %d; lines on the screen that were not there before: %r" % (len(got), new[:6]))
-        R.row("P2 control: Enter on the Record editor tile did something (the program wrote to the terminal)", len(got) > 100, "%d bytes" % len(got))
-        R.row("P2 the Record editor tile leaves a picker or a message that STAYS on the screen (today a bare ced prints 'File name required' and home redraws over it within the same burst)",
-              len(new) > 0, "nothing new 3.5 s later; row 0-2: %r" % [s.row(i)[:50] for i in range(3)], phase=5)
-    s.end()
+    # 29 Oct 26, S.88 g-P1: the Record editor tile (P2r) is gone with the ced verb; its two rows are removed, not rewritten - there is no tile to start.
 
 
 # ---- L: the whole loop inside the IDE (plan 4.9) ---------------------------------------------------------------------------------------------------------------

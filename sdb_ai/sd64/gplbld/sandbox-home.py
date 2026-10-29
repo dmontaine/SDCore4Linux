@@ -46,7 +46,7 @@ E = "\x1b"
 KEYS = {"up": E + "[A", "down": E + "[B", "right": E + "[C", "left": E + "[D", "home": E + "[1~", "end": E + "[4~", "pgup": E + "[5~", "pgdn": E + "[6~", "tab": "\t",
         "btab": E + "[Z", "f2": E + "[[B", "f3": E + "[[C", "f4": E + "[[D", "f5": E + "[[E", "f6": E + "[17~", "f10": E + "[21~", "enter": "\r", "esc": E, "ctrl-q": "\x11", "bs": "\x7f"}
 # a cell inside each tile, on the row of its label, found by the layout of the first screen (13.10): the Tools group at the top, Everyone under it, the header tiles
-TILE = {"Editor": (10, 5), "IDE": (10, 27), "Record editor": (10, 51), "Terminal": (17, 5), "Keys": (17, 51), "Files": (24, 5), "Vocabulary": (24, 27), "Dictionary": (24, 51), "Queries": (24, 73), "Bulk update": (24, 97), "Programs": (24, 119), "Tests": (30, 5), "Switch account": (2, 100), "Sign out": (2, 122)}
+TILE = {"Editor": (10, 5), "IDE": (10, 27), "Terminal": (17, 5), "Keys": (17, 51), "Files": (24, 5), "Vocabulary": (24, 27), "Dictionary": (24, 51), "Queries": (24, 73), "Bulk update": (24, 97), "Programs": (24, 119), "Tests": (30, 5), "Switch account": (2, 100), "Sign out": (2, 122)}
 BOX = SYS = None
 THEBOX = None
 
@@ -290,8 +290,8 @@ def main():
         if not h.home():
             dump(h)
             bail("the home screen never drew for zzhm, so no row below can be believed")
-        row("the ordinary page: group 'My tools' with Editor, IDE and Record editor; group 'Everyone' with Terminal and Keys; Switch account and Sign out in the header",
-            all(w in T for w in ("My tools", "Editor", "IDE", "Record editor", "Everyone", "Terminal", "Keys", "Switch account", "Sign out")), "")
+        row("the ordinary page: group 'My tools' with Editor and IDE (the Record editor tile is gone, S.88 g-P1); group 'Everyone' with Terminal and Keys; Switch account and Sign out in the header",
+            all(w in T for w in ("My tools", "Editor", "IDE", "Everyone", "Terminal", "Keys", "Switch account", "Sign out")), "")
         row("the identity (row 2) and the date and time (row 3): 'don @ zzhm' and a line like 'Thursday 22 Oct 2026  -  18:52'",
             h.line(2).strip().startswith("don @ zzhm") and re.match(r"^\s+[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2} \d{4}  -  \d\d:\d\d", h.line(3)) is not None, repr((h.line(2)[:40], h.line(3)[:50])))
         row("the foot: the hint line (row 39), the status line [Home] (row 40), the border (row 41), the function keys (row 42: Enter start, F5 refresh, F10 menu, ^Q sign out)",
@@ -299,7 +299,7 @@ def main():
         row("row 0: the menu bar File Go View AI Help at the left, 'home  don@zzhm' at the right", h.line(0).startswith(" File  Go  View  AI  Help") and h.line(0).endswith("home  don@zzhm"), repr(h.line(0)))
         row("the focus starts on the first tile of the page (Editor): one tile in reverse video", h.focus() == ["Editor"], repr(h.focus()))
         # Vocabulary (24,27) is the only tile in IDE's columns below it, so Down from IDE goes to it (a tile that shares columns comes before one that does not: Terminal is narrower than two columns)
-        seq = [("right", "IDE"), ("right", "Record editor"), ("left", "IDE"), ("down", "Vocabulary"), ("up", "IDE"), ("left", "Editor"), ("down", "Terminal"), ("right", "Keys"), ("left", "Terminal"), ("up", "Editor"), ("down", "Terminal"), ("home", "Editor"), ("end", "Tests"),
+        seq = [("right", "IDE"), ("left", "Editor"), ("right", "IDE"), ("down", "Vocabulary"), ("up", "IDE"), ("left", "Editor"), ("down", "Terminal"), ("right", "Keys"), ("left", "Terminal"), ("up", "Editor"), ("down", "Terminal"), ("home", "Editor"), ("end", "Tests"),
                ("home", "Editor"), ("tab", "IDE"), ("btab", "Editor"), ("btab", "Sign out"), ("tab", "Editor")]
         bad = []
         for k, want in seq:
@@ -319,8 +319,8 @@ def main():
         row("...Page Up: Editor", h.focus() == ["Editor"], repr(h.focus()))
         h.typed("k", idle=0.45)
         row("a letter jumps to the next tile whose label begins with it: k - Keys", h.focus() == ["Keys"], repr(h.focus()))
-        h.typed("r", idle=0.45)
-        row("...r - Record editor", h.focus() == ["Record editor"], repr(h.focus()))
+        h.typed("i", idle=0.45)
+        row("...i - IDE (the search goes round past the last tile; before S.88 g-P1 this was r - Record editor, and the F5 row below then showed the focus coming back to Editor)", h.focus() == ["IDE"], repr(h.focus()))
         before = h.text()
         h.key("f5", idle=0.8)
         row("F5 builds the page again: the page is the same and the status line says so", h.home() and "page built again" in h.line(40) and h.focus() == ["Editor"], repr((h.line(40), h.focus())))

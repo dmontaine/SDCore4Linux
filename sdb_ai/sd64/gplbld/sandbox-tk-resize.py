@@ -39,6 +39,7 @@ sys.path.insert(0, HERE)
 from ptydrive import PtySession  # noqa: E402
 from termscreen import Screen  # noqa: E402
 from tuirows import Rows  # noqa: E402
+import cedverb  # noqa: E402  (29 Oct 26, S.88 g-P1: the `ced` verb is no longer shipped; the run writes the VOC record itself)
 
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
@@ -464,6 +465,8 @@ def main():
         BOX, SYS = sh.BOX, sh.SYS
         UA = os.path.join(BOX, "user_accounts")
         say("sandbox-tk-resize: sandbox %s, keyset %s, strict %s" % (BOX, os.environ.get("SDBOX_KEYSET"), "--strict" in sys.argv))
+        if not cedverb.install(BOX):
+            bail("the VOC record ced could not be written; R7's CED row would be red for that reason")
         fixture()
         al.setup_ai(None)
         al.configure()

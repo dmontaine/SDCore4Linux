@@ -450,6 +450,13 @@ the terminal has no `setf`/`setb`, when there is no terminal, or when there is n
 flags` changes one style of the theme in force, `screen close` puts the theme back to mono. Colour goes through SD's own
 `@(-37, n)` / `@(-38, n)` (terminfo `setf`/`setb`, the Pick colour order black blue green cyan red magenta brown
 white): eight colours, bold for bright, because xterm's `setf` is right for 0-7 only.
+- *29 Oct 26 (S.88 3.7a):* `SL.CODES` is 51 letters now. Five ROLE styles - `warning` `success` `readonly` `busy` `focus`, codes `U V W X Y` - sit
+  before the sixteen user styles (so the user styles are still the last sixteen), and `error` (code `f`) has a look in mono. A role has a
+  look in every theme: mono by flags only (no `dim`; six different looks), `classic` and `blue` with both colours, `dark` and `light` with a
+  colour and flags. `$sl_theme('list')` is the one list (blue classic dark light mono) and `$sl_theme('next', name)` the next theme this
+  terminal can show (mono alone on a terminal with no colour). `SCREENTHEME` in `sd.conf` is read by `CONFIG()` now (the name buffer was 8
+  characters, so the 11-character name was never found and the site theme never applied); the shipped `sd.conf` says `blue`, and a
+  program with no line still gets mono.
 - *Found 12 Oct:* the shipped `linux` and `ansi` terminfo entries had `setaf`/`setab` but no `setf`/`setb`, so
   `@(-37)` printed nothing on the entry that every `xterm-256color` session falls back to (login). `terminfo.src`
   now carries xterm's mapping in both. `TERM COLOUR` therefore works there too (a visible change: changelog).
@@ -629,7 +636,7 @@ from a self-scrolling child that is at its limit to the viewport round it; `SCRE
    `@crtwide` for every session, which is why it is yours to say.
 9. **A default theme.** A program that never calls `screen theme` gets `mono`. Should an administrator be able to set
    another default for the site (a setting in `sd.conf` or a VOC record) so that colour terminals get colour without
-   every program asking? Not proposed until you say.
+   every program asking? Not proposed until you say. *(Answered and built: `SCREENTHEME` in `sd.conf`; the shipped file says `blue`, and see the 29 Oct 26 note under Themes.)*
 
 ## Decisions taken 13 Oct 2026 on the open questions
 
@@ -763,3 +770,16 @@ at each key (measure it first: a program of that size in a `screen memo` with `s
 
 **Sequential order.** Core first; Solo and Windows only when the owner says Core is stable. The IDE is not bound by SED's
 120 by 36: it follows the window.
+
+## 29 Oct 26: the pick window's hot keys, the action palette and the record picker (S.88 3.10A; written, NOT compiled or run)
+
+- `$sl_pickwin(items, title, multi, default, ret, status, src, opts, hot, filtout)` - `hot` and `filtout` are optional (`var.args`, as `$sl_guard`); the
+  8-argument calls of `tool_tktest` are unchanged. A key named in `hot` (values) ends the window with status 2 and `ret` the key's name; `filtout` is the filter
+  text when the window closed. A hot key is tested after the mouse and the resize and before every other key.
+- `$sl_palette(menus, title, ret, status, reason)` - the entries of a menu bar's array in one filtered list, named `Menu > Label`. It answers the entry's
+  CODE (status 0), or status 2 with the entry's reason (subvalue 5, else message 11175) for a disabled one. **It is advisory: it runs nothing; the page's own
+  handler runs the code and keeps its own gates, and a disabled entry never answers a code** (owner, 29 Oct, answer 25; `test-slpick-units.py` Q6, Q7).
+- `$sl_picker(mode, file, id, res, newtext)` - the files of the VOC (the IDE's filter), then the records of the file by the paged source; read only. `res`
+  is `ok`, `new` (Ctrl-N: `file`, and the typed text in `newtext`; the caller runs its own new-record path) or `cancel`. Ctrl-N cannot make a record in an
+  EMPTY file, because the pick window returns at once when there is nothing to list.
+- Messages 11171-11175. Suite `tk-widgets` (`sandbox-tk-widgets.py`) is registered; the file is another step's.

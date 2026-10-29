@@ -9,6 +9,8 @@
 * 28 Oct 26 dm  S.88 L2: a resize is $tk_layout 'refresh' and the frame written again (the status line, the border and the key row used to stay on the rows of the window the app was
 *               opened in).  THE PANES ARE NOT DECLARED, on purpose: this app has no boxes - its table (pane T) stands at column 0, which the body (it starts at column 1) cannot give, and its
 *               forms and pick windows stand at the literal places sandbox-tk-base.py measures the library at; a declaration would move what the suite is there to measure.
+* 29 Oct 26 dm  S.88 phase 3.9 (S2): the PILOT of the action registry, only for `tktest menubar`: a menu bar on row 0 made by $tk_keys 'menus' from the key table, Esc opens it in panes A and B,
+*               and Save as is an action with no key and a reason, so the bar lists it disabled and nothing can run it.  A menu answer is put in ACT and goes through the SAME case as a key.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -25,6 +27,9 @@
 *
 *   dialogs starts on pane D, whose keys are F7 (a Run / Cancel box for create.file zztkdlg1 dynamic) and F8 (the same with the name zztkdlg2 to be typed): the
 *   confirm boxes of the base ($tk_explain, $tk_confirm, then $tk_run), exercised by sandbox-tk-base.py with the disk as evidence.
+*
+*   menubar (the registry pilot, S.88 3.9) draws a menu bar on row 0 from the key table: the menu Actions holds Sort (pane A's key), Refresh (pane B's), Save as (no key, and a
+*   reason: it is shown disabled and nothing runs it) and Quit; Esc opens the bar in panes A and B and a chosen entry is handled by the same case as its key.
 *
 *   Two panes, A and B, one key table.  Tab moves the focus; F1 (every pane) says which pane has it; F3 (sort) is pane A's key and F5 (refresh) pane B's; Ctrl-S
 *   (save) is in the table but switched off, so the function-key row never shows it; Ctrl-Q leaves.  The word admin asks for the administrator audience.
@@ -71,6 +76,25 @@ $include tk.h
    call $tk_keys('add', keys, 'ctrl-s', 'save', 'save', '', 0)
    call $tk_keys('add', keys, 'tab', 'next', 'next', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+
+   * the pilot of the action registry (tktest menubar): Esc opens the bar (on no function-key row: ROW is 0), Save as has no key and a reason
+   pilot = (if index(' ' : @sentence : ' ', ' menubar ', 1) then 1 else 0)
+   if pilot then
+      call $tk_keys('add', keys, 'esc', 'menu', 'menu', 'A' : @sm : 'B', 1)
+      nk = dcount(keys, @fm)
+      keys<nk, TK.K.ROW> = 0
+      call $tk_keys('add', keys, '', 'save as', 'saveas', 'A' : @sm : 'B', 1)
+      call $tk_keys('menu', keys, 'sort', '&Actions', '&Sort', '', '')
+      call $tk_keys('menu', keys, 'refresh', '&Actions', '&Refresh', '', '')
+      call $tk_keys('menu', keys, 'saveas', '&Actions', 'Save &as', '', '')
+      call $tk_keys('menu', keys, 'quit', '&Actions', '&Quit', '', '')
+      call $tk_keys('why', keys, 'saveas', sysmsg(11189), '', '', '')
+   end
+   menus = ''
+   barpane = '?'
+   bargen = -1
+   bardirty = 1
+   nsave = 0
 
    pane = 'A'
    if field(@sentence, ' ', 2) = 'dialogs' or field(@sentence, ' ', 3) = 'dialogs' then pane = 'D'
@@ -154,6 +178,7 @@ $include tk.h
    end
 
    loop
+      if pilot and (bardirty or pane # barpane or tgen # bargen) then gosub bar.draw       ;* a resize raises tgen: the bar is made and drawn again
       call $tk_frame(ctx, keys, pane, msg)
       screen key returning k
       if k = '' and status() = ER$EOF then exit          ;* the input has ended (a pipe): no key will ever come
@@ -164,6 +189,14 @@ $include tk.h
          ctx<TK.C.GEN> = tgen
       end
       call $tk_keys('action', keys, k, pane, act, '', '')
+      * a choice from the menu bar is put in ACT, and goes through the same case below as the key of that action would: the registry runs nothing itself
+      if act = 'menu' then
+         act = ''
+         screen menubar menus returning mc then
+            act = mc
+         end else null
+         bardirty = 1
+      end
       begin case
          case act = 'quit'
             exit
@@ -175,6 +208,9 @@ $include tk.h
             msg = 'sorted'
          case act = 'refresh'
             msg = 'refreshed'
+         case act = 'saveas'
+            nsave += 1                                     ;* never reached while the action has its reason: the bar shows it disabled and the table does not return it
+            msg = 'saved as ' : nsave
          case act = 'confirm'
             sent = 'create.file zztkdlg1 dynamic'
             call $tk_explain('sh', 1, el, ty)
@@ -233,6 +269,19 @@ $include tk.h
 
    call $tk_close(ctx)
    stop
+
+* the pilot's menu bar: made from the key table for the pane that has the focus (an entry the pane does not use is shown disabled), drawn on row 0 and the frame written again
+bar.draw:
+   if pane = 'A' or pane = 'B' then
+      call $tk_keys('menus', keys, '', menus, pane, '', '')
+      screen menubar menus row 0 draw else null
+      tgen += 1
+      ctx<TK.C.GEN> = tgen
+   end
+   barpane = pane
+   bargen = tgen
+   bardirty = 0
+   return
 
 * the slider form: it stays on the screen between events; Enter on the button or Esc ends it and the status line says what the values were
 s.run:

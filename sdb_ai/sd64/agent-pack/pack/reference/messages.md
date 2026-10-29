@@ -2660,6 +2660,60 @@ The screen %1 statement does not take %2
 
 cited by: `bcomp`
 
+### msg:11171
+> kind=message tier=reference since=- src=sdsys/messages/11171:1#952db334
+
+```
+Pick a file
+```
+
+cited by: `sl_picker`
+
+### msg:11172
+> kind=message tier=reference since=- src=sdsys/messages/11172:1#cfc8f522
+
+```
+Pick a record in %1 (Ctrl-N: a new one)
+```
+
+cited by: `sl_picker`
+
+### msg:11173
+> kind=message tier=reference since=- src=sdsys/messages/11173:1#c3cd636a
+
+```
+Actions
+```
+
+cited by: `sl_palette`
+
+### msg:11174
+> kind=message tier=reference since=- src=sdsys/messages/11174:1#1fd0e16d
+
+```
+(not now)
+```
+
+cited by: `sl_palette`
+
+### msg:11175
+> kind=message tier=reference since=- src=sdsys/messages/11175:1#bf8b29f0
+
+```
+That action is not available now.
+```
+
+cited by: `sl_palette`
+
+### msg:11179
+> kind=message tier=reference since=- src=sdsys/messages/11179:1#4bed3361
+
+```
+Output
+```
+
+cited by: `sl_out`
+
 ### msg:1118
 > kind=message tier=reference since=- src=sdsys/messages/1118:1#21f0ef46
 
@@ -2677,6 +2731,83 @@ cited by: `movelist`
 ```
 
 cited by: `convertdata`, `ide`, `importdata`, `oscopya`, `qproc`, `sed`, `seldir`, `setptr`
+
+### msg:11181
+> kind=message tier=reference since=- src=sdsys/messages/11181:1#29ff1ce7
+
+```
+nothing to show yet
+```
+
+cited by: `sl_out`
+
+### msg:11182
+> kind=message tier=reference since=- src=sdsys/messages/11182:1#929c06f4
+
+```
+Esc cancels
+```
+
+cited by: `sl_out`
+
+### msg:11183
+> kind=message tier=reference since=- src=sdsys/messages/11183:1#6a43c565
+
+```
+%1 earlier lines dropped
+```
+
+cited by: `sl_out`
+
+### msg:11184
+> kind=message tier=reference since=- src=sdsys/messages/11184:1#7a85f476
+
+```
+ok
+```
+
+cited by: `sl_out`
+
+### msg:11185
+> kind=message tier=reference since=- src=sdsys/messages/11185:1#b4613f86
+
+```
+!!
+```
+
+cited by: `sl_out`
+
+### msg:11186
+> kind=message tier=reference since=- src=sdsys/messages/11186:1#7f56d213
+
+```
+Find an action
+```
+
+### msg:11187
+> kind=message tier=reference since=- src=sdsys/messages/11187:1#9b8066b4
+
+```
+No action matches
+```
+
+### msg:11188
+> kind=message tier=reference since=- src=sdsys/messages/11188:1#c18cf684
+
+```
+not available: %1
+```
+
+cited by: `tk_keys`
+
+### msg:11189
+> kind=message tier=reference since=- src=sdsys/messages/11189:1#a649cde7
+
+```
+not available now
+```
+
+cited by: `tool_tktest`
 
 ### msg:1119
 > kind=message tier=reference since=- src=sdsys/messages/1119:1#0860c7cd

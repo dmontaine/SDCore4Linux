@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 29 Oct 26 dm  S.88 3.7a: comment only - the SCREENTHEME line of the parameter list; CONFIG('SCREENTHEME') can be read now (op_config.c).
  * 28 Oct 26 dm  S.87: FILERULE is gone, with the Account:File and PATH:pathname forms of file name; the installer strips the line from a restored sd.conf.
  * 24 Oct 26 dm  W.11 F9: sd_sysdir() and sd_sysdir_trust(), the system directory a process trusts, from this file and not from the shared segment.
  * 19 Oct 26 dm  NETWAIT and NETREPLY are held in 32 bit fields (config.h): 65541 in sd.conf wrapped to 5 in the 16 bit field BEFORE rangecheck, so SD started with a 5 second wait instead of
@@ -57,7 +58,7 @@
  *  OBJECTS=n     Limit on loaded object code count (0 = no limit)
  *  OBJMEM=n      Limit on locade object size (kb, 0 = no limit)
  *  SDCLIENT=n    SDClient rules (0=all, 1=no call/exec, 2=restricted call)
- *  SCREENTHEME=name  The screen library's default theme: mono, classic or blue (default none = mono)
+ *  SCREENTHEME=name  The screen library's default theme: mono, classic, dark, light or blue (not set = mono; the shipped sd.conf says blue; a terminal with no colour is mono whatever this says)
  *  SDSYS=path    SDSYS directory path
  *  SAFEDIR=1     Use careful update to directory files
  *  SORTMEM=n     Threshold for disk based sort (units of 1kb)

@@ -58,7 +58,10 @@ $define SL.W.D        10
 * The style codes, in the order of $sl_theme's list of names (a new style goes on the end of both)
 * 22 Oct 26: the last sixteen (ACDEFHIJKLMNOQRS) are the USER styles user1 to user16, spare slots that $sl_theme('slot') hands to a control that asks for its own
 * colours (the COLOR clause); a theme leaves them plain and keeps what a control put in them
-$define SL.CODES       'nruxbwhasjkedytgcqovplzfimGPTBACDEFHIJKLMNOQRS'
+* 29 Oct 26: the five ROLE styles warning, success, readonly, busy and focus (codes UVWXY) sit before the sixteen user styles, so the user styles are still the last
+* sixteen and $sl_theme still finds them as len(codes) - 15.  Z is the only letter left.  A program compiled with the old list resets the theme to mono on every
+* drawing call ($sl_sgr tests th.codes against SL.CODES): recompile every program that includes this file after a change here.
+$define SL.CODES       'nruxbwhasjkedytgcqovplzfimGPTBUVWXYACDEFHIJKLMNOQRS'
 
 $define SL.S.W         1
 $define SL.S.H         2

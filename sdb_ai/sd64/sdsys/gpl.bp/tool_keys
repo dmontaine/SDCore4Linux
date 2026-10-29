@@ -8,6 +8,7 @@
 * 28 Oct 26 dm  S.88 L2: the seven boxes are panes of the layout service ($tk_layout), three columns side by side: at 140 by 43 exactly the boxes the page has always drawn, in a bigger
 *               window every column is wider, Last keys, Styles and Help are taller (Last keys holds as many keys as it has rows), and a resize is $tk_layout 'refresh' and all of it
 *               drawn again from the new rectangles (it cleared nothing before: the old boxes stayed where they were).
+* 29 Oct 26 dm  S.88 3.7a: Ctrl-T takes the library's list of themes ($sl_theme 'next': blue classic dark light mono, the ones this terminal can show) in place of its own mono classic blue.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -29,7 +30,7 @@
 *     Box         the border characters the library draws with
 *
 *   Every key is shown BEFORE the program acts on it.  The keys the program uses are Ctrl-L (clear what has been seen), Ctrl-R (names or raw bytes),
-*   Ctrl-T (the next theme: mono, classic, blue) and Ctrl-Q (leave); a key that ends the program can only be tested by leaving.
+*   Ctrl-T (the next theme: blue, classic, dark, light, mono - those this terminal can show) and Ctrl-Q (leave); a key that ends the program can only be tested by leaving.
 *
 *   A key that makes the terminal beep and shows nothing in names mode is one the terminal type does not give a name: press Ctrl-R and press it again to
 *   see its bytes.  An Alt-letter shows as alt-x on a terminal that sends Alt+x as Esc and x.  Make the window smaller to see the cursor lock, and larger
@@ -74,7 +75,6 @@ $include tk.h
    next i
    gnames := @fm : 'alt-x' : @fm : 'char' : @fm : 'mouse'
    gn = dcount(gnames, @fm)
-   themes = 'mono' : @fm : 'classic' : @fm : 'blue'
    snames = 'normal' : @fm : 'reverse' : @fm : 'underline' : @fm : 'both' : @fm : 'bold' : @fm : 'window' : @fm : 'highlight' : @fm : 'bar'
    snames := @fm : 'barsel' : @fm : 'hotkey' : @fm : 'hotkey.bar' : @fm : 'field' : @fm : 'disabled' : @fm : 'desktop' : @fm : 'text' : @fm : 'header'
 
@@ -131,16 +131,15 @@ $include tk.h
                   msg = (if rawmode then 'raw bytes: what the terminal sent' else 'names: what the screen library reports')
                   gosub draw.dynamic
                case act = 'theme'
+                  * 29 Oct 26 (S.88 3.7a): the library's own list and order (blue classic dark light mono), and only the themes this terminal can show
                   call $sl_theme('name', '', '', '', '', thn)
-                  locate thn in themes<1> setting tk then
-                     null
-                  end else
-                     tk = 0
-                  end
-                  tk = tk + 1
-                  if tk > dcount(themes, @fm) then tk = 1
-                  screen theme themes<tk> returning thn else
+                  call $sl_theme('next', thn, '', '', '', thx)
+                  if thx = thn then
                      msg = 'this terminal cannot show colour: no theme but mono'
+                  end else
+                     screen theme thx returning thn else
+                        msg = 'this terminal cannot show colour: no theme but mono'
+                     end
                   end
                   gosub redraw.all
             end case

@@ -259,8 +259,8 @@ def c_sub():
     declare_folders()
     h = H(a)
     T = h.text()
-    R("C1", "the top page: the folder tile Develop is in the group Everyone, the seven tools are NOT on it, and no tile of the page is lost (Editor, IDE, Record editor, Terminal, Keys, Chain)",
-      is_top(h) and "Develop" in h.line(17) and not any(w in T for w in ("Files", "Vocabulary", "Dictionary", "Queries", "Bulk update", "Programs", "Tests")) and all(w in T for w in ("Editor", "IDE", "Record editor", "Terminal", "Keys", "Chain")),
+    R("C1", "the top page: the folder tile Develop is in the group Everyone, the seven tools are NOT on it, and no tile of the page is lost (Editor, IDE, Terminal, Keys, Chain)",
+      is_top(h) and "Develop" in h.line(17) and not any(w in T for w in ("Files", "Vocabulary", "Dictionary", "Queries", "Bulk update", "Programs", "Tests")) and all(w in T for w in ("Editor", "IDE", "Terminal", "Keys", "Chain")),
       repr((h.line(17)[:110], h.line(40))))
     R("C1b", "...and it has no Back tile (the header's left end is the identity)", "Back" not in h.line(2)[:24] and h.line(2).strip().startswith("don @ zzhm"), repr(h.line(2)[:40]))
     h.typed("d", idle=0.45)
@@ -353,8 +353,8 @@ def c_sub():
 
 # ------------------------------------------------------------------------------------------------------------------------------- D  the standard ids
 
-STANDARD = "editor ide ced terminal keys switch signout files voc dict query bulk catalog test recent".split()
-LABELS = ("Editor", "IDE", "Record editor", "Terminal", "Keys", "Switch account", "Files", "Vocabulary", "Dictionary", "Queries", "Bulk update", "Programs", "Tests")
+STANDARD = "editor ide terminal keys switch signout files voc dict query bulk catalog test recent".split()
+LABELS = ("Editor", "IDE", "Terminal", "Keys", "Switch account", "Files", "Vocabulary", "Dictionary", "Queries", "Bulk update", "Programs", "Tests")
 
 
 def d_ids():
@@ -364,7 +364,7 @@ def d_ids():
     out = adm(*(["set.tile %s %s off" % (a, t) for t in offs] + ["set.tile %s zzcustom off" % a]))
     nonstd = [ln for ln in out if "is not a standard tile" in ln]
     R("D1", "SET.TILE takes all fourteen standard ids (the seven development tiles and recent among them) with 'is now off' and no 'not a standard tile' note; an id that is not one still gets the note",
-      len([ln for ln in out if re.search(r"^Tile \S+ is now off for zzhm$", ln)]) == 15 and len(nonstd) == 1 and "zzcustom" in nonstd[0], repr(out[-6:]))
+      len([ln for ln in out if re.search(r"^Tile \S+ is now off for zzhm$", ln)]) == 14 and len(nonstd) == 1 and "zzcustom" in nonstd[0], repr(out[-6:]))
     r = g.reg_read(a)
     f17 = r[16] if len(r) > 16 else ""
     R("D1b", "...and field 17 of the register record holds the fourteen ids", sorted(f17.split()) == sorted(offs + ["zzcustom"]), repr(f17))

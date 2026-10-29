@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+29 Oct 26  THE SCREEN COLOUR THEME WORKS: SCREENTHEME IS READ, THE SHIPPED LOOK IS BLUE, AND THE LIBRARY HAS FIVE MORE STYLES.
+
+             What        - SCREENTHEME in sd.conf (mono, classic, dark, light or blue) was never read: CONFIG() ignored any parameter name over eight characters, and
+                           SCREENTHEME has eleven. It now accepts up to sixteen, so the site theme applies.
+                         - The shipped sd.conf says SCREENTHEME=blue, and the installer adds that line to a restored /etc/sd.conf that has none (a line you already have,
+                           mono included, is left alone). The toolkit pages, CED and any program that opens a screen show blue on a colour terminal; a terminal with no
+                           colour (a vt100, a phantom, a pipe) stays mono whatever the line says. A program on a system with no SCREENTHEME line still gets mono.
+                         - The screen library gains five role styles, warning, success, readonly, busy and focus, with a look in every theme (in mono they use bold,
+                           underline and reverse only), and the error style also gets a mono look (reverse and bold).
+                         - tool.keys' Ctrl-T cycles blue, classic, dark, light and mono, and skips what the terminal cannot show.
+                         It does NOT make the IDE follow SCREENTHEME yet, does not change which programs choose their own theme, and adds no theme choice to the toolkit
+                         pages. Programs that include sl.h must be recompiled (a normal install does this); one left on the old list shows mono.
+
+29 Oct 26  SCREEN SET TELLS A CLAUSE WRITTEN EMPTY FROM ONE LEFT OUT.
+
+             What        - screen set f, id value '' now empties an entry or a memo, text '' empties a label, and items '' empties a list, radio group or table. Before,
+                           these did nothing, so a program could not clear a field. On a check box, slider, radio group or list a written empty value counts as 0.
+                         - A clause left out still changes nothing, and so does a written empty ENABLED, WRAP, READONLY or VISIBLE, so an empty READONLY cannot make a
+                           read-only memo editable.
+                         Programs compiled before this change call SCREEN SET with the old argument count and must be recompiled (a normal install does this).
+
 29 Oct 26  THE IDE GAINS SED'S EDITING COMMANDS: LIST MATCHING LINES, QUERY REPLACE, FIND OPTIONS, CASE OF THE SELECTION, IMPORT AND EXPORT, RUN A COMMAND, A BETTER GO TO.
 
              What        - Search, List matching lines (SED's VIEW) puts the lines of the record that hold a text in the table at the bottom with their numbers; Return on one goes to it.
@@ -29,7 +50,7 @@ Next release - in progress
                            array (a plain value) is refused and its lock given back.
                          - Compile, Run, Debug, Catalog, SED, Save as and Open the include do not apply to such a tab and say so; Write a copy keeps its JSON text in a record of an
                            ordinary file. A text cannot be saved into a collection file under a new name (the name form says so): New record makes a record of it.
-                         It does NOT make Find in the records search collection files, and does not change how CED or the ced command work.
+                         It does NOT make Find in the records search collection files, and does not change how CED works.
 
 28 Oct 26  THE IDE OPENS AND SAVES FILES OF THE OPERATING SYSTEM, UNDER THE SAME GATES YOUR OWN PROGRAMS ARE HELD TO.
 
@@ -1477,7 +1498,7 @@ Next release - in progress
                         what the settings mean. It changes nothing itself: each change is the command it will run (SET.TILE,
                         MODIFY.ACCOUNT, SET.START.DEFAULT) shown with its effect for the administrator to run or cancel (Cancel is what
                         Enter chooses), and the line under the page is that verb's own answer. SET.TILE account tile ON | OFF does the same
-                        from the prompt; SET.TILE alone says what is off. The tile ids are editor, ide, ced, terminal, keys, switch and
+                        from the prompt; SET.TILE alone says what is off. The tile ids are editor, ide, terminal, keys, switch and
                         signout; sign out cannot be turned off. A tile that is off is not on that account's page and its menu entry cannot
                         be chosen; a group left with no tile has no heading. It is kept per account (field 17 of the register record) and
                         is audited. MODIFY.ACCOUNT name PINS-ON | PINS-OFF lets an account add its own programs: the account's home
@@ -1498,7 +1519,7 @@ Next release - in progress
            THE DEFAULT TO TERMINAL FIRST IF YOU WANT THE OLD START.
 
              What        A session on a terminal now opens in the home screen: a start screen of tiles under the person's name and the date,
-                        with the standard tools of every account (Editor, which runs sed; IDE; Record editor, which runs ced), a Terminal
+                        with the standard tools of every account (Editor, which runs sed; IDE), a Terminal
                         tile, a Keys tile (tool.keys), Switch account and Sign out. The administrator's page and an account holder's page are
                         built from one table and differ in what is in it. The page is a scrolling panel: it is laid out at its full
                         height and the rows that fit are drawn, with a scroll bar in the last column, so the number of tiles can pass the
@@ -1507,7 +1528,7 @@ Next release - in progress
                         space bar starts the tile, F5 builds the page again, F10 opens the menu bar, Ctrl-Q signs out; a click starts a tile
                         and the wheel scrolls. The window must be 140 columns by 43 lines, as for the other full-screen tools; a smaller
                         one is told so and gets the ordinary prompt. A tile starts a command exactly as the person would have typed it, so
-                        it adds no access; a command that takes the screen (sed, ide, ced, tool.keys) gives it back and the home screen is
+                        it adds no access; a command that takes the screen (sed, ide, tool.keys) gives it back and the home screen is
                         drawn again with the same tile selected, scrolled as it was; a command that only prints waits for Enter first.
                         The Terminal tile leaves the screen for the ordinary command prompt, with all of its features, and says so; the new
                         verb EXIT then comes back to the home screen. At a prompt that never came from the home screen EXIT does what QUIT
@@ -2892,7 +2913,7 @@ Next release - in progress
                         ending in .bp or .bp.out.  Capitals do not matter.
              What stops  A program's WRITE, WRITEV, DELETE and CLEARFILE of such a file: an error that says which switch is
                         missing, or the ON ERROR status.  The verbs and statements that change a file the person names ask first,
-                        before they lock or change anything, and give the reason: sed, ide and ced show it in their message line,
+                        before they lock or change anything, and give the reason: sed and ide show it in their message line,
                         every other verb prints it and stops.  They are ed, edit, copy and copyp into the file or moving records
                         out of it, delete, clear.file, cname of a record, delete.file of a program file or of a dictionary on its
                         own, fixdir, format, map file, sp.view (its X key), set.trigger when it installs or removes a trigger,
@@ -5624,11 +5645,11 @@ Next release - in progress
            EVAL, so a dictionary item that happens to be called ELEMENT should
            be given another name.
 
-12 Oct 26  THE DATA COLLECTION EDITOR, CED AND !CED() (1.2-0, openQM
-           compatibility).
+12 Oct 26  THE DATA COLLECTION EDITOR AND !CED() (1.2-0, openQM
+           compatibility).  The editor is reached with !CED() and, for the
+           records of a collection file, from the IDE's F12 (Go, Edit as
+           fields); there is no ced command.
 
-             CED {DICT} file {id ...}      edit records of a collection file,
-                                           or JSON text in an ordinary file
              CALL !CED(collection)         edit a collection held in a variable
 
            A full-screen editor for a data collection.  It shows the elements
@@ -5656,14 +5677,9 @@ Next release - in progress
              Ctrl-Q                   leave from any level
              F1 or ?                  list the keys
 
-           Leaving with changes asks "Save changes (Y/N)?".  With several ids
-           Q goes on to the next record and Ctrl-Q stops.  With no ids the
-           active select list is used, and with none the ids are asked for
-           until a null one is entered.  A record that is not there is a new
-           one: the editor asks whether it is a collection or an array.  A
-           record of an ordinary file must hold a JSON object or array, and is
-           written back as JSON text; one that does not is reported and left
-           alone.  The record is locked while it is open.  !CED() changes the
+           Leaving with changes asks "Save changes (Y/N)?".  A new record in
+           a collection file: the editor asks whether it is a collection or an
+           array.  The record is locked while it is open.  !CED() changes the
            variable it is given if the changes are kept (Ctrl-S, or Y when
            leaving) and leaves it as it was if they are not.
 

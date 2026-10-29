@@ -1627,6 +1627,59 @@ def dialogs_rows(box, made):
         skip("the box was open when the input ended", "the pipe did not decode F7 into the key, so the box was never drawn: the row above shows only that nothing ran")
 
 
+# S.88 phase 3.9 (S2), the action registry's PILOT.  `tktest menubar` makes a menu bar on row 0 from the key table ($tk_keys 'menus'): the menu Actions holds Sort (pane A's F3), Refresh
+# (pane B's F5), Save as (no key, and a reason: message 11189) and Quit.  Esc opens the bar in panes A and B.  ***WRITTEN 29 Oct 26, NOT RUN***: the bar's look, the key a dim entry
+# leaves the menu open on and the status line row (40) are read from the other rows of this suite and from sandbox-home.py, not measured.  Rows that cannot be told from the screen alone
+# say so; the evidence of "the same handler" is the status line the F3 key leaves ('sorted') and the one the menu entry leaves, which only one `case act` writes.
+def pilot_rows(box, made):
+    say("\n--- the action registry's pilot (S.88 3.9): tktest menubar, the bar from $tk_keys 'menus', and the same handler for a key and a menu entry")
+    t = Term(box, "tktest menubar")
+    if "F1 help" not in "\n".join(t.lines()):
+        say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
+        bail("tktest menubar never drew its function-key row, so no row below can be believed")
+    row("`tktest menubar`: row 0 starts with the menu title Actions and still ends with the app's name (the frame writes the right end of row 0)", t.line(0).startswith("Actions") and "tktest" in t.line(0)[40:], repr(t.line(0)))
+    row("...and the function-key row is what it was: Esc has ROW 0 and Save as has no key, so neither is on it (control: the pages that annotate nothing are the other suites' rows)", t.line(42) == F_A, repr(t.line(42)))
+    t.key("F3")
+    row("CONTROL, the key: F3 in pane A leaves the status line 'sorted' (the handler's own word)", "sorted" in t.line(40), repr(t.line(40)))
+    t.key("F1")
+    row("...F1 changes it ('help for pane A'), so that the next row cannot read the old text", "help for pane A" in t.line(40), repr(t.line(40)))
+    t.key("ESC")
+    box_text = "\n".join(t.lines())
+    row("Esc opens the bar: the entries Sort, Refresh, Save as and Quit are on the screen, and Sort shows its key F3 (derived from the table, never typed)",
+        all(w in box_text for w in ("Sort", "Refresh", "Save as", "Quit")) and "F3" in box_text, box_text[:400])
+    t.s.type("s", idle=0.8)
+    row("THE SAME HANDLER: the menu entry Sort (mnemonic s) leaves the status line 'sorted', as the key did", "sorted" in t.line(40), repr(t.line(40)))
+    t.key("F1")
+    t.key("ESC")
+    t.s.type("r", idle=0.6)
+    row("Refresh is DISABLED in pane A (its action is pane B's): its mnemonic runs nothing - the status line does not say 'refreshed'", "refreshed" not in t.line(40), repr(t.line(40)))
+    t.key("ESC")
+    t.key("F1")
+    t.key("ESC")
+    t.s.type("a", idle=0.6)
+    row("NULL CASE: Save as has a reason and no key; its mnemonic runs nothing - the status line does not say 'saved as' (the app's counter did not move)", "saved as" not in t.line(40), repr(t.line(40)))
+    t.key("ESC")
+    row("Esc leaves the bar and the focus stays in pane A: the function-key row is F_A", t.line(42) == F_A, repr(t.line(42)))
+    t.key("TAB")
+    row("Tab moves to pane B: the key row follows", t.line(42) == F_B, repr(t.line(42)))
+    t.key("ESC")
+    t.s.type("s", idle=0.6)
+    row("in pane B Sort is the disabled entry: the mnemonic s runs nothing (not 'sorted')", "sorted" not in t.line(40), repr(t.line(40)))
+    t.key("ESC")
+    t.key("ESC")
+    t.s.type("r", idle=0.6)
+    row("in pane B Refresh is enabled and the entry runs the handler of F5: 'refreshed'", "refreshed" in t.line(40), repr(t.line(40)))
+    skip("a resize while the bar is open", "the pseudo-terminal of this suite cannot change its size; sandbox-tk-resize.py has the resize rows")
+    t.end()
+
+    t = Term(box, "tktest")
+    row("CONTROL, no pilot word: `tktest` has no bar on row 0, and Esc does nothing (the status line is not changed)", "Actions" not in t.line(0) and t.line(42) == F_A, repr((t.line(0), t.line(42))))
+    t.key("F3")
+    t.key("ESC")
+    row("...Esc after F3 leaves 'sorted' where it was", "sorted" in t.line(40), repr(t.line(40)))
+    t.end()
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
@@ -1720,6 +1773,7 @@ def main():
         color_rows(box, made)
         selector_rows(box, made)
         accel_rows(box, made)
+        pilot_rows(box, made)
 
         say("\n--- the end of the input ends the app (a pipe; TERM 140,43 typed so that the window is big enough)")
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")

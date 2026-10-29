@@ -314,7 +314,11 @@ ZZPA = """   open 'bp' to bpf else stop 'no bp'
          screen set f, 'l2' text 'NewLbl'
          screen set f, 'li' items ''
          screen set f, 'li2' items 'zz'
+         screen set f, 'm' readonly 1
          screen set f, 'm' value ''
+         screen set f, 'm' readonly ''
+         screen set f, 'e2' visible 1
+         screen set f, 'l2' enabled ''
          screen set f, 't' items ''
          ph = 'after' ; gosub record
          write res on bpf, 'zzr_a'
@@ -335,6 +339,8 @@ record:
       cx = w{'text'} ; gosub codes.of ; res<-1> = ph : '.' : wid : '.text=' : cs
       cx = w{'items'} ; gosub codes.of ; res<-1> = ph : '.' : wid : '.items=' : cs
       cx = w{'rows'} ; gosub codes.of ; res<-1> = ph : '.' : wid : '.rows=' : cs
+      cx = w{'readonly'} ; gosub codes.of ; res<-1> = ph : '.' : wid : '.readonly=' : cs
+      cx = w{'disabled'} ; gosub codes.of ; res<-1> = ph : '.' : wid : '.disabled=' : cs
    next wi
    return
 """ + CODES_SUB + "end\n"
@@ -797,7 +803,12 @@ def section_set():
     for rid, wid, fld, what in (("F2-VAL", "e", "value", "VALUE '' clears an entry"), ("F2-TXT", "l", "text", "TEXT '' clears a label"), ("F2-ITM", "li", "items", "ITEMS '' clears a list"),
                                 ("F2-ROW", "t", "rows", "ITEMS '' clears a table's rows"), ("F2-MEM", "m", "value", "VALUE '' clears a memo")):
         a = dd("after.%s.%s" % (wid, fld))
-        R.row("%s %s (the widget reads back empty)" % (rid, what), got and a == b"", "after %r (before %r)" % (a, dd("before.%s.%s" % (wid, fld))), phase=3 if got else None)
+        R.row("%s %s (the widget reads back empty)" % (rid, what), got and a == b"", "after %r (before %r)" % (a, dd("before.%s.%s" % (wid, fld))))
+    # owner decision 5(b), 29 Oct 26: a written '' on a flag changes nothing, and a clause left out changes nothing
+    ro = dd("after.m.readonly")
+    R.row("F2-RO READONLY 1 then READONLY '' leaves the memo a viewer (readonly reads back 1, not 0)", got and ro == b"1", "after %r" % ro)
+    R.row("F2-ENA ENABLED '' leaves a label enabled (disabled reads back 0 or empty, not 1)", got and dd("after.l2.disabled") in (b"", b"0"), "after %r" % dd("after.l2.disabled"))
+    R.row("F2-OMIT a SET that writes only VISIBLE leaves an entry's value alone (e2 still reads x)", got and dd("after.e2.value") == b"x", "after %r" % dd("after.e2.value"))
 
 
 def section_focus():

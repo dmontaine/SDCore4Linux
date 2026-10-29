@@ -55,6 +55,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from ptydrive import PtySession  # noqa: E402
+import cedverb  # noqa: E402  (29 Oct 26, S.88 g-P1: the `ced` verb is no longer shipped; the run writes the VOC record itself)
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 passed = failed = 0
@@ -427,6 +428,8 @@ def main():
     elif not os.path.isfile(os.path.join(sysd, "bin", "sd")):
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
+    if not cedverb.install(box):
+        bail("the VOC record ced could not be written; the CONTROL row that types ced would be red for that reason")
 
     # `ed` as the tree has it (a mutant run changes it in the sandbox's copy; the next run puts it back before it starts)
     if mutant is None:

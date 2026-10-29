@@ -14,6 +14,7 @@
 *               of the file context.help of the shared account ($tk_help).  The line wrapping is $tk_wrap.
 * 26 Oct 26 dm  S.75, home: the Menu box lists the seven development tiles (Files, Vocabulary, Dictionary, Queries, Bulk update, Programs, Tests) and the Recent group after the seven
 *               it had, so it is 17 rows (the number is nmenu); the Menu box is taller, What this means moves down with it, and the box of key hints is one line under the system default.
+* 29 Oct 26 dm  S.88 g-P1: the Record editor entry (ced) is gone with the verb, so the Menu box is 16 rows (nmenu is counted from tids).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -69,8 +70,8 @@ $include tk.h
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
-   tids = 'editor' : @fm : 'ide' : @fm : 'ced' : @fm : 'terminal' : @fm : 'keys' : @fm : 'switch' : @fm : 'signout' : @fm : 'files' : @fm : 'voc' : @fm : 'dict' : @fm : 'query' : @fm : 'bulk' : @fm : 'catalog' : @fm : 'test' : @fm : 'recent'
-   tlabs = 'Editor' : @fm : 'IDE' : @fm : 'Record editor' : @fm : 'Terminal' : @fm : 'Keys' : @fm : 'Switch account' : @fm : 'Sign out' : @fm : 'Files' : @fm : 'Vocabulary' : @fm : 'Dictionary' : @fm : 'Queries' : @fm : 'Bulk update' : @fm : 'Programs' : @fm : 'Tests' : @fm : 'Recent group'
+   tids = 'editor' : @fm : 'ide' : @fm : 'terminal' : @fm : 'keys' : @fm : 'switch' : @fm : 'signout' : @fm : 'files' : @fm : 'voc' : @fm : 'dict' : @fm : 'query' : @fm : 'bulk' : @fm : 'catalog' : @fm : 'test' : @fm : 'recent'
+   tlabs = 'Editor' : @fm : 'IDE' : @fm : 'Terminal' : @fm : 'Keys' : @fm : 'Switch account' : @fm : 'Sign out' : @fm : 'Files' : @fm : 'Vocabulary' : @fm : 'Dictionary' : @fm : 'Queries' : @fm : 'Bulk update' : @fm : 'Programs' : @fm : 'Tests' : @fm : 'Recent group'
    pnames = 'Accounts' : @fm : 'Menu' : @fm : 'Default'
    nmenu = 2 + dcount(tids, @fm)                                 ;* the rows of the Menu box: where the account starts, its own programs, then a row for each standard tile
 

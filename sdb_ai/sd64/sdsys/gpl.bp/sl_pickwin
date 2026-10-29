@@ -6,11 +6,18 @@
 * START-HISTORY:
 * 22 Oct 26 dm  New (S.75, TK-0.6).
 * 22 Oct 26 dm  The paged source (S.75, TK-0.7): src and opts, the record ids of an open file read a page at a time.
+* 29 Oct 26 dm  S.88 3.10A: the optional arguments hot and filtout (var.args, as $sl_guard): keys that end the window with status 2, and the filter text.
 * END-HISTORY
 *
 * START-DESCRIPTION:
 *
 *   call $sl_pickwin(items, title, multi, default, ret, status, src, opts)
+*   call $sl_pickwin(items, title, multi, default, ret, status, src, opts, hot, filtout)
+*
+*     hot      (optional) key names, as values: a key named here ends the window with status 2 and ret the key's name, before the key is looked at for anything else
+*              (but after a mouse event or a resize).  Null or left out: none.  The caller decides what the key means; the window does nothing with it.
+*     filtout  (optional) set to the filter text as it stood when the window closed, whatever ended it (a caller that ends on Ctrl-N takes what was typed)
+*     status   gains 2: a hot key ended the window.  The other arguments, and the 8-argument form, are as below.
 *
 *     items    one entry to a field; in an entry, value 1 is the name, value 2 a one-line description shown beside it, value 3 the help for the entry
 *              (shown on the help line when the person presses ?; the description is shown when there is none).  Null when src is used.
@@ -45,13 +52,16 @@
 * START-CODE
 
 $internal
-subroutine sl_pickwin(items, title, multi, default, ret, status, src, opts)
+subroutine sl_pickwin(items, title, multi, default, ret, status, src, opts, hot, filtout) var.args
 $catalog $sl_pickwin
 
 $include sl.h
 
    ret = ''
    status = 1
+   filtout = ''
+   hotl = ''
+   if not(unassigned(hot)) then hotl = hot
    if system(25) then return                  ;* a phantom has no terminal: nothing is drawn, nobody is waited for
    fmode = 0
    if opts # '' then fmode = 1
@@ -139,6 +149,9 @@ $include sl.h
             gosub mouse
          case k = 'resize'
             call $sl_resize(scr)                      ;* the terminal's size changed: the window is drawn again with the rest
+         case hotl # '' and index(@vm : hotl : @vm, @vm : k : @vm, 1) > 0
+            ret = k                                   ;* a key the caller asked for: the window ends and the caller decides (status 2)
+            st = 'hot'
          case k = 'esc'
             st = 'cancel'
          case k = 'enter'
@@ -187,13 +200,15 @@ $include sl.h
          gosub scroll
          gosub paint
       end
-   until st = 'done' or st = 'cancel'
+   until st = 'done' or st = 'cancel' or st = 'hot'
    repeat
 
    call $sl_region('restore', scr, bx, by, bw, bh, under)
    call $sl_scr('put', scr)
    if fmode then clearselect 10
    if st = 'done' then status = 0
+   if st = 'hot' then status = 2
+   filtout = filt
 
    return
 

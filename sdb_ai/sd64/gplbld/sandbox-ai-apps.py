@@ -42,6 +42,7 @@ def _load(name, fname):
 
 ai = _load("sandbox_ai_ide_for_apps", "sandbox-ai-ide.py")
 ids, gt = ai.ids, ai.gt
+import cedverb  # noqa: E402  (the `ced` verb is no longer shipped; 29 Oct 26, S.88 g-P1: the run writes the VOC record into the fixture account itself)
 say = ids.say
 TREE = ai.TREE
 RET, ESC, TAB = ids.RET, ids.ESC, ids.TAB
@@ -351,6 +352,8 @@ def main():
         gt.prepare()
         gt.FIXTURES[ai.ACC] = ("no", "no")
         gt.build_account(ai.ACC)
+        if not cedverb.install(b, ai.ACC):
+            ids.bail("the VOC record ced could not be written into the fixture account; the CED rows would be red for that reason")
         flags = gt.flags(gt.plain(ai.ACC, ["zzkf"]))
         if flags is None or flags[0] != "0":
             ids.bail("the first ordinary session is not shown to be one (admin=%r), so no row below can be believed" % (flags,))

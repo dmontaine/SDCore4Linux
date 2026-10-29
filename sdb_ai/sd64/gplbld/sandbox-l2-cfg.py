@@ -349,12 +349,12 @@ def sec_keys():
             ids, rects = expected(page, 180, 55)
             r = rects[ids.index(pid)]
             # config: the table is the list pane, its rows are 2.. below the pane's top; the last visible row is the pane's height - 2 rows down (VP = h - 3, the header on y + 1)
-            # menus: the Menu box has 17 rows from the pane's y + 1; its last standard row is row 17
+            # menus: the Menu box has 16 rows from the pane's y + 1 (17 before S.88 g-P1 took the Record editor row away); its last standard row is row 16
             if page == "tool_config":
                 y = r[1] + 1 + (r[3] - 3)
                 x = r[0] + 7
             else:
-                y = r[1] + 17
+                y = r[1] + 16
                 x = r[0] + 10
             w.click(x, y)
             w.pump(0.6)

@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 29 Oct 26 dm  S.88 3.7a: CONFIG() takes a name of up to 16 characters (op_config()'s buffer and k_get_c_string limit; the setter is not touched).  SCREENTHEME is 11, so it was
+ *               never found and the site theme never applied.  A name over 16 is still "not found"; BACKUPDIR and SDSYS still have no branch.
  * 28 Oct 26 dm  S.87: FILERULE is gone, with the Account:File and PATH:pathname forms of file name; the installer strips the line from a restored sd.conf.
  * 19 Oct 26 dm  NETWAIT and NETREPLY, the two SDNet timeouts (K8d): CONFIG() reads them and PCONFIG sets them for the process, 1 to 3600 seconds.  The fields are 32 bit now (no cast).
  * 15 Oct 26 dm  TIMEZONE, a private parameter: the zone of the epoch functions (QM4 gaps Q-3, SET.TIMEZONE).
@@ -88,7 +90,7 @@ void op_config() {
   */
 
   DESCRIPTOR* descr;
-  char param[8 + 1];
+  char param[16 + 1];   /* 29 Oct 26 dm: 16, was 8 (S.88 3.7a) */
   DESCRIPTOR result;
   char s[40] = "";
 
@@ -109,7 +111,7 @@ void op_config() {
   /* Get parameter name */
 
   descr = e_stack - 1;
-  if (k_get_c_string(descr, param, 8) < 1) {
+  if (k_get_c_string(descr, param, 16) < 1) {
     InitDescr(&result, STRING);
     result.data.str.saddr = NULL;
     process.status = ER_NOT_FOUND;

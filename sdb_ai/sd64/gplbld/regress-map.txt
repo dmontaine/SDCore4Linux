@@ -192,7 +192,7 @@ gplsrc/op_debug.c            : @debugger
 gplsrc/debug*.h              : @debugger
 gplsrc/pdump.c               : @debugger listu-a5 netfile
 gplsrc/op_sys.c              : sys-b2 sys-q18 conf-b1 gates csvb
-gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5 netfile tool-config
+gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5 netfile tool-config themeroles
 gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12 netfile segtrust tool-config
 gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5 netfile tool-config
 gplsrc/sdlnxd.c              : q5 shmmode auditwriter
@@ -356,7 +356,7 @@ sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys
 sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
-sdsys/gpl.bp/tool_keys       : tk-keys l2-misc
+sdsys/gpl.bp/tool_keys       : tk-keys l2-misc themeroles
 sdsys/gpl.bp/sl_key          : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys @pages realkeys tk-layout tk-resize
 sdsys/gpl.bp/_keycode        : @core tk-base tk-keys eofkeys input realkeys screen ide
 sdsys/syscom/keyin.h         : @core tk-base tk-keys eofkeys input realkeys screen ide
@@ -549,14 +549,19 @@ sdsys/voc_template/set.ai    : aigate
 sdsys/messages/1160[6-9]     : aigate
 sdsys/messages/1161*         : aigate
 sdsys/messages/1162[0-2]     : aigate
-sdsys/gpl.bp/sl_theme       : screen sed-menu syntax viewport ide ced dbgui tk-base tk-keys home
+sdsys/gpl.bp/sl_theme       : screen sed-menu syntax viewport ide ced dbgui tk-base tk-keys home themeroles
 # 28 Oct 26 (S.88 phase 0): sl.h stood AFTER the *.h rule below, so it never matched and a change of the screen library's header ran the compiler suites; first match wins
-sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages
+sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages themeroles
 sdsys/gpl.bp/*.h             : @compiler @core
 # S.88 phase 2 (28 Oct 26, S1): SCREEN TEXT draws through $sl_put, whose control-character scrub escdata reads from the raw bytes
 sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base tk-keys @pages termsafe escdata tk-layout
+# S.88 phase 3.10B (29 Oct 26): the output pane widget; it has no caller yet, its suite is tk-widgets (before the coarse sl_* rule below)
+sdsys/gpl.bp/sl_out          : tk-widgets
 # S.75 (22 Oct 26): the pick window is used by the toolkit only (tktest); no other screen suite draws it.
-sdsys/gpl.bp/sl_pickwin      : tk-base
+sdsys/gpl.bp/sl_pickwin      : tk-base tk-widgets
+# S.88 3.10A (29 Oct 26): the action palette and the record picker, both on the pick window; their suite is tk-widgets (written, not run)
+sdsys/gpl.bp/sl_palette      : tk-base tk-widgets
+sdsys/gpl.bp/sl_picker       : tk-base tk-widgets
 # S.88 phase 2 (28 Oct 26): the cursor lock of a window smaller than the layout; used by SED, the debugger and $sl_key's guard mode; its AUTOLOGOUT work-around is gone
 sdsys/gpl.bp/sl_guard        : sed-small ide-small sed-menu dbgui tk-resize autologout tk-layout tk-keys
 # S.88 phase 2 (28 Oct 26): the memo's undo steps (D3) and the control-character scrub of $sl_put (S1); any sl_ program draws through $sl_put, so escdata, and the memo is every editor's text area
@@ -564,6 +569,8 @@ sdsys/gpl.bp/sl_memo         : memoundo escdata screen sed-menu sed-edit syntax 
 sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps gates
 sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds tool-voc tool-dict ide-path ide-edit
+# S.88 d2b (29 Oct 26): FORMAT's quiet mode, used by the IDE's Format command (named COMMON /fmtq/); the free check is test-fmtquiet-units.py
+sdsys/gpl.bp/fmtsub          : ide-edit
 # The editor merge, stage B (28 Oct 26): the IDE's record kinds and locks - messages 11684-11698 (11215 and 11226 changed too), and its suite
 sdsys/messages/1168[4-9]     : ide-kinds ide
 sdsys/messages/1169[0-8]     : ide-kinds ide
@@ -780,6 +787,12 @@ sdsys/messages/1172[0-4]     : docs
 sdsys/messages/11755         : tool-voc tool-files termsafe
 sdsys/messages/1175[6-9]     : tool-query tool-bulk termsafe
 sdsys/messages/11760         : tool-query termsafe
+# S.88 p3.9 (29 Oct 26): 11186 to 11189 the action registry's words (tk_keys 'keylist', the pilot in tool_tktest; the palette that will use the other two is p3.10A's)
+sdsys/messages/1118[6-9]     : tk-base tk-keys
+sdsys/messages/1117[1-5]     : tk-base tk-widgets
+# S.88 phase 3.10B (29 Oct 26): the output pane's messages 11179 and 11181-11185 (11180 is another program's; before the 117* line)
+sdsys/messages/11179         : tk-widgets
+sdsys/messages/1118[1-5]     : tk-widgets
 sdsys/messages/117*          : crypt
 sdsys/messages/11197        : sed-menu sed-small
 sdsys/messages/1160[0-2]     : sed-small ide-small

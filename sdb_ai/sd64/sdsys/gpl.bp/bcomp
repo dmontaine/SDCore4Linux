@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 29 Oct 26 dm  S.88 3.5: SCREEN SET passes a presence mask (SCREEN.DEFS field 4 "P"), so a written VALUE / TEXT / ITEMS '' sets; screen_set takes 12 arguments.
 * 28 Oct 26 dm  S.87: the C dictionary item type is gone from the compiler: the is.ctype argument of $BCOMP (callers: basic, bbproc, gplbld/COMP_PCODE), HDR.CTYPE, err.ctype and message 2994.
 * 28 Oct 26 dm  S.87: the PROC leftovers PROCREAD, PROCWRITE, @PIB, @SIB, @POB and @SOB are gone (opcode 0xCF9A reserved).
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statement names (write CLOSE and EQUATE); every SD program, test and guide example was rewritten.
@@ -496,7 +497,7 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    * or KEYWORD:F (a flag: no value follows, the subroutine is given 1 if it was written).
    * The subroutine is called with the positional values, then the keyword values in the order given
    * here (null for a clause the program left out; a two-value keyword such as AT is two arguments),
-   * then the RETURNING variable, then a status that is 0 when the user finished normally and 1 when
+   * then, when the row has a 4th field "P", ONE presence mask (bit k-1 set if the k-th keyword was written), then the RETURNING variable, then a status that is 0 when the user finished normally and 1 when
    * the dialogue was cancelled (or no terminal).
    * A statement not listed here is a compile error, so a verb is added in both places and in the
    * subroutine's argument list; test-screencmd-units.py checks the three agree.
@@ -519,7 +520,7 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    screen.names<-1> = "BUTTON"  ; screen.defs<-1> = "!screen_button":@vm:3:@vm:"AT:2":@sm:"DEFAULT:F":@sm:"CANCEL:F":@sm:"COLOR:2":@sm:"ACCEL:1"
    screen.names<-1> = "RUN"     ; screen.defs<-1> = "!screen_run":@vm:1
    screen.names<-1> = "GET"     ; screen.defs<-1> = "!screen_get":@vm:2
-   screen.names<-1> = "SET"     ; screen.defs<-1> = "!screen_set":@vm:2:@vm:"VALUE:1":@sm:"TEXT:1":@sm:"ITEMS:1":@sm:"ENABLED:1":@sm:"WRAP:1":@sm:"READONLY:1":@sm:"VISIBLE:1"
+   screen.names<-1> = "SET"     ; screen.defs<-1> = "!screen_set":@vm:2:@vm:"VALUE:1":@sm:"TEXT:1":@sm:"ITEMS:1":@sm:"ENABLED:1":@sm:"WRAP:1":@sm:"READONLY:1":@sm:"VISIBLE:1":@vm:"P"
    screen.names<-1> = "FOCUS"   ; screen.defs<-1> = "!screen_focus":@vm:2
    screen.names<-1> = "VALUES"  ; screen.defs<-1> = "!screen_values":@vm:1
    screen.names<-1> = "WAIT"    ; screen.defs<-1> = "!screen_wait":@vm:1:@vm:"TIMEOUT:1"
@@ -8678,7 +8679,11 @@ st.execute.options:
 * The verb, how many values follow it and the keywords it takes are in SCREEN.NAMES / SCREEN.DEFS
 * (top of this program).  The statement is a CALL of the verb's catalogued subroutine, no opcode:
 *
-*     sub(positional values, keyword values in table order, ret, status)
+*     sub(positional values, keyword values in table order, {presence mask,} ret, status)
+*
+* The presence mask (29 Oct 26, S.88 3.5) is passed only for a row whose 4th field is "P" (SET): the sum of
+* 2^(k-1) over the keywords written, k in TABLE order (VALUE 1, TEXT 2, ITEMS 4, ENABLED 8, WRAP 16,
+* READONLY 32, VISIBLE 64), so the subroutine can tell a written '' from a clause left out.
 *
 * A keyword the program leaves out is passed as the null string, whatever order the keywords are
 * written in: each value is first stored in a hidden variable of its own (__300 up) and the
@@ -8778,6 +8783,20 @@ st.screen:
       next scr.j
    next scr.k
 
+   * The presence mask, for a verb whose row asks for one (a compile-time constant)
+
+   scr.presence = 0
+   if scr.def<1,4> = "P" then
+      scr.presence = 1
+      scr.mask = 0
+      scr.bit = 1
+      for scr.k = 1 to scr.nkw
+         if scr.given<scr.k> then scr.mask += scr.bit
+         scr.bit += scr.bit
+      next scr.k
+      n = scr.mask ; gosub emit.numeric.load
+   end
+
    * The answer, and the status the THEN / ELSE clauses test
 
    if u.look.ahead.token.string = "RETURNING" then
@@ -8795,7 +8814,7 @@ st.screen:
 
    del reserved.names<2>
 
-   scr.argc = scr.npos + scr.nslots + 2
+   scr.argc = scr.npos + scr.nslots + scr.presence + 2
    if scr.argc > greatest.call.arg.count then greatest.call.arg.count = scr.argc
    if print.code then
       s = "CALL     (" : scr.argc : " arguments) SCREEN " : scr.verb

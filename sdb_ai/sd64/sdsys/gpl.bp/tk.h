@@ -108,3 +108,7 @@ $define TK.K.LABEL     2       ;* what the function-key row says it does: help, 
 $define TK.K.ACT       3       ;* the action id the app acts on
 $define TK.K.PANES     4       ;* sub-values: the panes that use the key; null is every pane
 $define TK.K.ON        5       ;* 0 takes the key out of the row (and of the action lookup); null or 1 leaves it in
+$define TK.K.MENU      6       ;* the menu title with its & mark ('&File'); null: the action is in no menu (op 'menu' sets it)
+$define TK.K.ENTRY     7       ;* the entry text with its & mark ('&Save'); the key it shows is DERIVED from the table, never typed
+$define TK.K.WHY       8       ;* why the action is not available now (op 'why' sets it, and ON to 0); null: available
+$define TK.K.ROW       9       ;* 0: bound but not on the function-key row (a second key for one action); null or 1: on the row

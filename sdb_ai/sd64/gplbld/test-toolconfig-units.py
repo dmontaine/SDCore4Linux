@@ -228,10 +228,12 @@ def checks(raw):
         if d == "pcfg" and r[5] != "session":
             bad.append((r[0], "the session's own, the table says " + r[5]))
     ck("CF6", "THE EFFECT IS THE PARSER'S: a parameter that read_config() puts in the shared segment says restart and one it keeps for the session says session (BACKUPDIR, which is accepted and stored nowhere, is exempt)", not bad and sum(1 for d in dest.values() if d == "cfg") >= 15, repr(bad[:4]))   # 20 before the 27 Oct 26 removals (S.87)
-    unreadable = sorted(k for k in keys if k not in readable or len(k) > 8)
-    ck("CF7", "the parameters CONFIG() cannot read are exactly BACKUPDIR, SCREENTHEME and SDSYS (a name over eight characters, or one the function has no branch for); the guide says the same and the table says so for the two the page cannot show",
-       unreadable == ["BACKUPDIR", "SCREENTHEME", "SDSYS"] and "`SCREENTHEME`, `SDSYS` and `BACKUPDIR` cannot be read" in raw["doc"]
-       and all("Not readable" in r[7] for r in trs if r[0] in ("SCREENTHEME", "SDSYS")), repr(unreadable))
+    # 29 Oct 26 (S.88 3.7a): CONFIG() takes a name of up to 16 characters, so SCREENTHEME (11) is readable; BACKUPDIR and SDSYS have no branch
+    unreadable = sorted(k for k in keys if k not in readable or len(k) > 16)
+    ck("CF7", "the parameters CONFIG() cannot read are exactly BACKUPDIR and SDSYS (a name over sixteen characters, or one the function has no branch for), SCREENTHEME being readable since the buffer went from 8 to 16 (the setter's is not touched); the guide says the same and the table says so for SDSYS and no longer for SCREENTHEME",
+       unreadable == ["BACKUPDIR", "SDSYS"] and "`SDSYS` and `BACKUPDIR` cannot be read" in raw["doc"]
+       and "char param[16 + 1];" in raw["opconfig"] and "k_get_c_string(descr, param, 16) < 1" in raw["opconfig"]
+       and all("Not readable" in r[7] for r in trs if r[0] == "SDSYS") and all("Not readable" not in r[7] for r in trs if r[0] == "SCREENTHEME"), repr(unreadable))
     used_status = sorted({r[6] for r in trs})
     doc_status = sorted(re.findall(r"^\| `([a-z]+)` \|", raw["doc"].split("| Status | Meaning |")[-1].split("\n\n")[0], re.M))
     ck("CF8", "the guide's status table has a row for each status the table uses (%s) and for `unknown`, and none for the two that went with the eleven removed parameters (`inert`, `retired`)" % " ".join(used_status),
@@ -379,8 +381,11 @@ MUTANTS = [
     ("SORTMEM is given in bytes", "CF5", sub("table", "SORTMEM|int|4096|", "SORTMEM|int|4194304|")),
     ("a shared parameter says session", "CF6", sub("table", "NUMFILES|int|80|||restart|", "NUMFILES|int|80|||session|")),
     ("a session parameter says restart", "CF6", sub("table", "MAXCALL|int|10000|10|1000000|session|", "MAXCALL|int|10000|10|1000000|restart|")),
-    ("the guide names another unreadable parameter", "CF7", sub("doc", "`SCREENTHEME`, `SDSYS` and `BACKUPDIR` cannot be read", "`SCREENTHEME` and `SDSYS` cannot be read")),
+    ("the guide names another unreadable parameter", "CF7", sub("doc", "`SDSYS` and `BACKUPDIR` cannot be read", "`SDSYS` cannot be read")),
     ("the table forgets to say a parameter is unreadable", "CF7", sub("table", "Not readable with the CONFIG function.", "")),
+    ("the table says SCREENTHEME is not readable again", "CF7", sub("table", "terminal with no colour shows mono whatever this says.", "terminal with no colour shows mono whatever this says. Not readable with the CONFIG function.")),
+    ("CONFIG()'s name buffer is eight again", "CF7", sub("opconfig", "char param[16 + 1];", "char param[8 + 1];")),
+    ("CONFIG()'s name limit is eight again", "CF7", sub("opconfig", "k_get_c_string(descr, param, 16) < 1", "k_get_c_string(descr, param, 8) < 1")),
     ("a parameter is marked inert again", "CF3", sub("table", "CLEANUP|int|300|30|3600|restart|live|", "CLEANUP|int|300|30|3600|restart|inert|")),
     ("the guide's status table keeps a row for a status nothing has", "CF8", sub("doc", "| `file` |", "| `inert` | nothing acts on it |\n| `file` |")),
     ("the page is opened for anyone", "CF9", sub("page", "call $tk_open('tool.config', 'admin', ctx, err)", "call $tk_open('tool.config', '', ctx, err)")),
