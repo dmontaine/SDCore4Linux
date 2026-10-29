@@ -2844,10 +2844,10 @@ Name of the new record:
 cited by: `ide_name`
 
 ### msg:11209
-> kind=message tier=reference since=- src=sdsys/messages/11209:1#baba61b4
+> kind=message tier=reference since=- src=sdsys/messages/11209:1#e56ff05c
 
 ```
-Line number:
+Go to (a line; line,column; or field,value,subvalue in a record shown with :@vm: marks):
 ```
 
 cited by: `ide`
@@ -2914,10 +2914,10 @@ F4               Next error or result\nF5               Run\nF7               De
 cited by: `ide`
 
 ### msg:11216
-> kind=message tier=reference since=- src=sdsys/messages/11216:1#2ddb0954
+> kind=message tier=reference since=- src=sdsys/messages/11216:1#3efd2b93
 
 ```
-Ctrl-F, Ctrl-B   Find forward, backward   F3, Shift-F3  The next, the previous (Return in the question finds the next)   Ctrl-R  Replace\nEsc, F10        The menus (Files and records is in the Go menu)\nCtrl-Q           Quit\nF1               This screen\nCtrl-A           Select all   Ctrl-D  Duplicate the line   Ctrl-K  Cut the line\nCtrl-P, Ctrl-U   A word back, on
+Ctrl-F, Ctrl-B   Find forward, backward   F3, Shift-F3  The next, the previous (Return in the question finds the next)   Ctrl-R  Replace\nEsc, F10        The menus (Files and records is in the Go menu)\nCtrl-Q           Quit\nF1               This screen\nCtrl-A           Select all   Ctrl-D  Duplicate the line   Ctrl-K  Cut the line\nCtrl-P, Ctrl-U   A word back, on\nSearch menu      List matching lines (the lines that hold a text, in the table), Query replace (Yes, No, All, Quit), Find options (C = match case, W = whole words), Upcase and Downcase the selection (Ctrl-G sets the mark), Import a record here, Export the selection to a record\nBuild menu       Run a command: what it prints is in the table\nGo to line       A line; line,column; or field,value,subvalue in a record shown with :@vm: marks\nView menu        Refresh draws the screen again
 ```
 
 cited by: `ide`
@@ -3007,24 +3007,24 @@ cited by: `ide`
 ```
 
 ### msg:11227
-> kind=message tier=reference since=- src=sdsys/messages/11227:1#6e69098e
+> kind=message tier=reference since=- src=sdsys/messages/11227:1#0ebbdba8
 
 ```
-&Search|&Find in the records~~find|&Replace in the record~^R~replace
+&Search|&Find in the records~~find|&Replace in the record~^R~replace|&List matching lines~~view|&Query replace~~qreplace|Find &options~~findopts|&Upcase the selection~~upcase|&Downcase the selection~~downcase|&Import a record here~~import|E&xport the selection~~export
 ```
 
 ### msg:11228
-> kind=message tier=reference since=- src=sdsys/messages/11228:1#bd60f6f0
+> kind=message tier=reference since=- src=sdsys/messages/11228:1#8b9ed572
 
 ```
-&Build|&Compile~F8~compile|Compile and &catalogue~F9~catalog|&Run~F5~run|&Debug~F7~debug
+&Build|&Compile~F8~compile|Compile and &catalogue~F9~catalog|&Run~F5~run|&Debug~F7~debug|Run a co&mmand~~xeq
 ```
 
 ### msg:11229
-> kind=message tier=reference since=- src=sdsys/messages/11229:1#6a4f14eb
+> kind=message tier=reference since=- src=sdsys/messages/11229:1#834bcd4e
 
 ```
-&View|&Theme~~theme
+&View|&Theme~~theme|&Refresh~~refresh
 ```
 
 ### msg:1123
@@ -5440,6 +5440,141 @@ cited by: `tk_layout`
 ```
 
 cited by: `tk_layout`
+
+### msg:11543
+> kind=message tier=reference since=- src=sdsys/messages/11543:1#66bea247
+
+```
+Show the lines that hold:
+```
+
+cited by: `ide`
+
+### msg:11544
+> kind=message tier=reference since=- src=sdsys/messages/11544:1#8078b43a
+
+```
+%1 lines hold "%2": Return on one goes to it
+```
+
+cited by: `ide`
+
+### msg:11545
+> kind=message tier=reference since=- src=sdsys/messages/11545:1#2d29ea91
+
+```
+No line holds "%1"
+```
+
+cited by: `ide`
+
+### msg:11546
+> kind=message tier=reference since=- src=sdsys/messages/11546:1#75cc08d8
+
+```
+Replace "%1" with "%2" at line %3?
+```
+
+cited by: `ide`
+
+### msg:11547
+> kind=message tier=reference since=- src=sdsys/messages/11547:1#d4338e3c
+
+```
+Query replace: %1 changed, %2 left as they were
+```
+
+cited by: `ide`
+
+### msg:11548
+> kind=message tier=reference since=- src=sdsys/messages/11548:1#276c45be
+
+```
+Find options for List, Replace and Query replace: C = match case, W = whole words (blank: neither)
+```
+
+cited by: `ide`
+
+### msg:11549
+> kind=message tier=reference since=- src=sdsys/messages/11549:1#4d490552
+
+```
+Find options: match case %1, whole words %2
+```
+
+cited by: `ide`
+
+### msg:11550
+> kind=message tier=reference since=- src=sdsys/messages/11550:1#0292b105
+
+```
+Lines %1 to %2 of the selection are now in %3 case
+```
+
+cited by: `ide`
+
+### msg:11551
+> kind=message tier=reference since=- src=sdsys/messages/11551:1#dacf2f0b
+
+```
+Nothing is selected: Ctrl-G sets the mark where the cursor is, then move the cursor
+```
+
+cited by: `ide`
+
+### msg:11553
+> kind=message tier=reference since=- src=sdsys/messages/11553:1#bea2d70d
+
+```
+%1 lines of %2 %3 inserted at the cursor
+```
+
+cited by: `ide`
+
+### msg:11554
+> kind=message tier=reference since=- src=sdsys/messages/11554:1#7d5e18bc
+
+```
+Run which command?
+```
+
+cited by: `ide`
+
+### msg:11555
+> kind=message tier=reference since=- src=sdsys/messages/11555:1#649c4b98
+
+```
+%1 lines printed by "%2" are in the table at the bottom
+```
+
+cited by: `ide`
+
+### msg:11556
+> kind=message tier=reference since=- src=sdsys/messages/11556:1#c82babb2
+
+```
+"%1" printed nothing
+```
+
+cited by: `ide`
+
+### msg:11558
+> kind=message tier=reference since=- src=sdsys/messages/11558:1#f5895173
+
+```
+An operating system file cannot be imported yet: open it in a tab of its own
+```
+
+cited by: `ide`
+
+### msg:11559
+> kind=message tier=reference since=- src=sdsys/messages/11559:1#524a521f
+
+```
+%1 %2 holds value marks, subvalue marks, text marks or characters outside ASCII, so it cannot be imported into the text
+```
+
+cited by: `ide`
 
 ### msg:11560
 > kind=message tier=reference since=- src=sdsys/messages/11560:1#e57b2080

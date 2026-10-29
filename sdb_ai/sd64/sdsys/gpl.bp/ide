@@ -323,6 +323,16 @@ $include dictdict.h
    done = @false
    untitled = 0                      ;* the number of the last untitled buffer made
    pa.allow = ''                     ;* 29 Oct 26 (stage F): the kind path.not.for lets through for one command (do.fields asks 'coll')
+   * 29 Oct 26 (stage D): the find options of Search / Find options - match case (on as delivered: how Replace has always compared) and whole words (off) - and the characters a word is made of
+   fo.case = @true
+   fo.word = @false
+   WORDCH = '._$%'
+   for wc.i = 48 to 57
+      WORDCH := char(wc.i)
+   next wc.i
+   for wc.i = 65 to 90
+      WORDCH := char(wc.i) : char(wc.i + 32)
+   next wc.i
 
    * 28 Oct 26 (stage B): a file named with no record and an active select list (SELECT, then IDE file, as SED takes it): its ids are read here, before anything
    *   could use list 0, at most MAXREC of them and without building the rest of a list that is still being made; the list is used up, as SED's is
@@ -2188,16 +2198,7 @@ run.cmd:
       case cmd = 'quit'
          gosub do.quit
       case cmd = 'goto'
-         if nbuf = 0 then
-            msg = sysmsg(11218)
-         end else
-            screen ask sysmsg(11209) returning gl.text then
-               if num(gl.text) and gl.text # '' then
-                  gl.n = gl.text + 0
-                  gosub goto.line
-               end
-            end
-         end
+         gosub do.goto                      ;* 29 Oct 26 (stage D): a line, a line and column, or field, value, subvalue
       case cmd = 'find'
          gosub do.find
       case cmd = 'writeas'
@@ -2206,6 +2207,26 @@ run.cmd:
          gosub do.saveas
       case cmd = 'replace'
          gosub do.replace
+      case cmd = 'view'
+         gosub do.view                    ;* 29 Oct 26 (stage D): the editing commands of the Search, Build and View menus
+      case cmd = 'qreplace'
+         gosub do.qreplace
+      case cmd = 'findopts'
+         gosub do.findopts
+      case cmd = 'upcase'
+         dc.up = 1
+         gosub do.case
+      case cmd = 'downcase'
+         dc.up = 0
+         gosub do.case
+      case cmd = 'import'
+         gosub do.import
+      case cmd = 'export'
+         gosub do.export
+      case cmd = 'xeq'
+         gosub do.xeq
+      case cmd = 'refresh'
+         gosub do.refresh
       case cmd = 'new'
          gosub do.new
       case cmd = 'ai.error'
@@ -3375,6 +3396,12 @@ do.writeas:
       msg = sysmsg(11691, wa.file, wa.id)
       return
    end
+   gosub write.copy
+   return
+
+* In: wa.text, wa.file, wa.id (the form has named a record that was not there, and no tab holds it).  29 Oct 26 (stage D): the write of Write a copy, taken out so that Export the selection
+*   writes the same way: the file is opened, the account's edit gate asked again, the record locked and looked at again, and written ON ERROR.
+write.copy:
    open wa.file to fv else
       msg = sysmsg(11200, wa.file)
       return
@@ -3485,35 +3512,7 @@ do.saveas:
    gosub save.one
    return
 
-* Ctrl-R, as SED's: a text is replaced by another all through the record in the editor (what undo remembered is lost:
-* the text area is given the new text)
-do.replace:
-   if nbuf = 0 then
-      msg = sysmsg(11218)
-      return
-   end
-   ro.i = cb
-   gosub ro.check                       ;* 28 Oct 26 (stage B): the text of a read-only tab is not changed
-   if not(ro.ok) then
-      gosub ro.box                      ;* 28 Oct 26: bytes outside ASCII are refused in a box
-      return
-   end
-   screen ask sysmsg(11232) returning rp.old else return
-   if rp.old = '' then return
-   screen ask sysmsg(11233) returning rp.new else return
-   gosub stash.current
-   u = bu<cb>
-   k = 't' : u
-   rp.text = bx{k}
-   rp.n = count(rp.text, rp.old)
-   if rp.n = 0 then
-      msg = sysmsg(11234, 0)
-      return
-   end
-   bx{k} = change(rp.text, rp.old, rp.new)
-   gosub load.current
-   msg = sysmsg(11234, rp.n)
-   return
+* (Ctrl-R, Replace, is do.replace at the end of this program with the other editing commands of stage D.)
 
 * New record (File menu, Ctrl-N): the form names the file and the record (it has asked the account's gate and whether the record exists), and a buffer for it
 * opens in a tab of its own.  Nothing is written until it is saved (28 Oct 26, S.88 Phase 4, I1, N3).
@@ -3599,6 +3598,475 @@ do.find:
    gosub err.load
    msg = sysmsg(11211, hits, ctx.file)
    if lr.more then msg := '  ' : sysmsg(11219, MAXREC, ctx.file)
+   return
+
+* ======================================================================
+* Editing commands (the editor merge's stage D, 29 Oct 26).  They work on the TEXT AREA'S live text - mw{'value'}, the lines joined by field marks, as the person sees it, the
+* token form too - and each is ONE undo step ($sl_memo 'snap' before the text is set, as an AI edit does).  None of them writes a record: Save is the person's act.
+
+* Out: ed.ok, ed.mw (the text area's widget) and ed.t (its text).  False, and msg says why, when no tab is open.  ed.get also refuses a tab that cannot be changed (ro.check: another
+*   session's lock, bytes 128-247, an operating system file this session may not write); ed.read is for the commands that only look.
+ed.read:
+   ed.ok = @false
+   if nbuf = 0 then
+      msg = sysmsg(11218)
+      return
+   end
+   call $sl_form('find', f, '', 'ed', en)
+   ed.mw = f{'widgets', en}
+   ed.t = ed.mw{'value'}
+   ed.ok = @true
+   return
+
+ed.get:
+   ed.ok = @false
+   if nbuf = 0 then
+      msg = sysmsg(11218)
+      return
+   end
+   ro.i = cb
+   gosub ro.check
+   if not(ro.ok) then
+      gosub ro.box
+      return
+   end
+   gosub ed.read
+   return
+
+* In: ed.mw, ed.new (the whole new text, lines joined by field marks), ed.cy (the line the cursor goes to, at its start; 0 keeps the cursor where it was, kept inside the text).  The old text
+*   and cursor go on the undo steps as ONE step and redo is forgotten ('snap'); the mark is taken away; the editor is drawn.
+ed.set:
+   call $sl_memo('snap', ed.mw, '', '', ed.sr)
+   ed.mw{'value'} = ed.new
+   ed.mw{'lastop'} = ''
+   ed.mw{'mx'} = 0
+   ed.mw{'my'} = 0
+   ed.nl = dcount(ed.new, @fm)
+   if ed.cy > 0 then
+      if ed.cy > ed.nl then ed.cy = ed.nl
+      ed.mw{'cy'} = ed.cy
+      ed.mw{'cx'} = 1
+      ed.mw{'want'} = 1
+      ed.mw{'left'} = 1
+      ed.tp = ed.cy - int(mh / 2)
+      if ed.tp < 1 then ed.tp = 1
+      ed.mw{'top'} = ed.tp
+   end else
+      if ed.mw{'cy'} + 0 > ed.nl then ed.mw{'cy'} = ed.nl
+      if ed.mw{'cy'} + 0 < 1 then ed.mw{'cy'} = 1
+      ed.mw{'cx'} = 1
+      ed.mw{'want'} = 1
+      ed.mw{'left'} = 1
+   end
+   gosub redraw.editor
+   return
+
+* In: fp.line, fp.pat (not null), fp.from (the column to start at).  Out: fp.at, the column of the first match from there (0: none).  Honours fo.case (match case: on as delivered, which is how
+*   Replace has always compared) and fo.word (a match must not touch a word character: a letter, a digit, . _ $ or %).  The text area's own Find (Ctrl-F) ignores case and is not changed.
+find.in.line:
+   fp.at = 0
+   fp.hay = fp.line
+   fp.nee = fp.pat
+   if not(fo.case) then
+      fp.hay = upcase(fp.hay)
+      fp.nee = upcase(fp.nee)
+   end
+   fp.ln = len(fp.nee)
+   fp.p = fp.from
+   loop
+      fp.i = index(fp.hay[fp.p, 99999], fp.nee, 1)
+      if fp.i = 0 then exit
+      fp.s = fp.p + fp.i - 1
+      fp.good = @true
+      if fo.word then
+         if fp.s > 1 then
+            if convert(WORDCH, '', fp.hay[fp.s - 1, 1]) = '' then fp.good = @false
+         end
+         fp.c = fp.hay[fp.s + fp.ln, 1]
+         if fp.c # '' then
+            if convert(WORDCH, '', fp.c) = '' then fp.good = @false
+         end
+      end
+      if fp.good then
+         fp.at = fp.s
+         exit
+      end
+      fp.p = fp.s + 1
+   repeat
+   return
+
+* In: rl.line, rl.old, rl.new.  Out: rl.out (the line with every match replaced) and rl.n (how many)
+replace.line:
+   rl.out = ''
+   rl.from = 1
+   rl.n = 0
+   loop
+      fp.line = rl.line
+      fp.pat = rl.old
+      fp.from = rl.from
+      gosub find.in.line
+      if not(fp.at) then exit
+      rl.out := rl.line[rl.from, fp.at - rl.from] : rl.new
+      rl.from = fp.at + len(rl.old)
+      rl.n += 1
+   repeat
+   rl.out := rl.line[rl.from, 99999]
+   return
+
+* Ctrl-R, as SED's: a text is replaced by another all through the record in the editor, as ONE undo step (29 Oct 26: it was set through load.current, which forgot the undo steps).  The
+* find options (Find options) apply; with the delivered ones (match case, any word) the whole text is changed at once.
+do.replace:
+   gosub ed.get
+   if not(ed.ok) then return
+   screen ask sysmsg(11232) returning rp.old else return
+   if rp.old = '' then return
+   screen ask sysmsg(11233) returning rp.new else return
+   if fo.case and not(fo.word) then
+      rp.n = count(ed.t, rp.old)
+      ed.new = change(ed.t, rp.old, rp.new)
+   end else
+      rp.n = 0
+      ed.new = ''
+      rp.nl = dcount(ed.t, @fm)
+      for rp.j = 1 to rp.nl
+         rl.line = ed.t<rp.j>
+         rl.old = rp.old
+         rl.new = rp.new
+         gosub replace.line
+         ed.new<rp.j> = rl.out
+         rp.n += rl.n
+      next rp.j
+   end
+   if rp.n = 0 then
+      msg = sysmsg(11234, 0)
+      return
+   end
+   ed.cy = 0
+   gosub ed.set
+   msg = sysmsg(11234, rp.n)
+   return
+
+* Search / Query replace: each match is asked about - Yes, No, All (the rest without asking) or Quit - with the line it is in; the answers are collected and the text is set ONCE at the end
+*   (one undo step); a Quit keeps what was answered Yes before it.
+do.qreplace:
+   gosub ed.get
+   if not(ed.ok) then return
+   screen ask sysmsg(11232) returning qr.old else return
+   if qr.old = '' then return
+   screen ask sysmsg(11233) returning qr.new else return
+   ed.new = ed.t
+   qr.nl = dcount(ed.t, @fm)
+   qr.yes = 0
+   qr.no = 0
+   qr.all = @false
+   qr.quit = @false
+   qr.last = 0
+   for qr.j = 1 to qr.nl
+      qr.line = ed.t<qr.j>
+      qr.out = ''
+      qr.from = 1
+      loop
+         fp.line = qr.line
+         fp.pat = qr.old
+         fp.from = qr.from
+         gosub find.in.line
+      until not(fp.at) or qr.quit
+         qr.take = qr.all
+         if not(qr.all) then
+            qr.body = sysmsg(11546, qr.old, qr.new, qr.j) : @vm : qr.line
+            screen msgbox qr.body buttons 'Yes,No,All,Quit' default 1 returning qr.b else qr.b = 4
+            last.status = char(1)
+            begin case
+               case qr.b = 1
+                  qr.take = @true
+               case qr.b = 3
+                  qr.take = @true
+                  qr.all = @true
+               case qr.b = 4
+                  qr.quit = @true
+            end case
+         end
+         if not(qr.quit) then
+            qr.out := qr.line[qr.from, fp.at - qr.from]
+            if qr.take then
+               qr.out := qr.new
+               qr.yes += 1
+               qr.last = qr.j
+            end else
+               qr.out := qr.line[fp.at, len(qr.old)]
+               qr.no += 1
+            end
+            qr.from = fp.at + len(qr.old)
+         end
+      repeat
+      qr.out := qr.line[qr.from, 99999]
+      ed.new<qr.j> = qr.out
+   until qr.quit
+   next qr.j
+   if qr.yes = 0 then
+      msg = sysmsg(11547, 0, qr.no)
+      return
+   end
+   ed.cy = qr.last
+   gosub ed.set
+   msg = sysmsg(11547, qr.yes, qr.no)
+   return
+
+* Search / List matching lines (SED's VIEW): the lines of this record that hold a text go in the table at the bottom, each with its number; Return on one goes to it.  The find options apply.
+do.view:
+   gosub ed.read
+   if not(ed.ok) then return
+   screen ask sysmsg(11543) returning vw.pat else return
+   if vw.pat = '' then return
+   err.rows = ''
+   err.lines = ''
+   vw.n = 0
+   vw.nl = dcount(ed.t, @fm)
+   for vw.j = 1 to vw.nl
+      fp.line = ed.t<vw.j>
+      fp.pat = vw.pat
+      fp.from = 1
+      gosub find.in.line
+      if fp.at then
+         vw.n += 1
+         err.rows<-1> = vw.j : @vm : trimf(trimb(fp.line))
+         err.lines<-1> = vw.j
+      end
+   until vw.n >= MAXHIT
+   next vw.j
+   if vw.n = 0 then
+      msg = sysmsg(11545, vw.pat)
+      return
+   end
+   out.kind = 'view'
+   out.file = ''
+   out.dict = ''
+   gosub err.load
+   msg = sysmsg(11544, vw.n, vw.pat)
+   return
+
+* Search / Find options: C = match case, W = whole words; the answer sets both (a blank answer is neither)
+do.findopts:
+   screen ask sysmsg(11548) returning fo.text else return
+   fo.text = upcase(fo.text)
+   fo.case = (index(fo.text, 'C', 1) > 0)
+   fo.word = (index(fo.text, 'W', 1) > 0)
+   msg = sysmsg(11549, (if fo.case then 'on' else 'off'), (if fo.word then 'on' else 'off'))
+   return
+
+* In: ed.mw.  Out: sr.ok and the selection's range sr.y1 sr.x1 sr.y2 sr.x2 (the earlier end first; the character under the later end is not in it), false when there is no mark or nothing between
+sel.range:
+   sr.ok = @false
+   sr.my = ed.mw{'my'} + 0
+   sr.mx = ed.mw{'mx'} + 0
+   sr.cy = ed.mw{'cy'} + 0
+   sr.cx = ed.mw{'cx'} + 0
+   if sr.my < 1 or sr.mx < 1 then return
+   if sr.my < sr.cy or (sr.my = sr.cy and sr.mx <= sr.cx) then
+      sr.y1 = sr.my ; sr.x1 = sr.mx ; sr.y2 = sr.cy ; sr.x2 = sr.cx
+   end else
+      sr.y1 = sr.cy ; sr.x1 = sr.cx ; sr.y2 = sr.my ; sr.x2 = sr.mx
+   end
+   if sr.y1 = sr.y2 and sr.x1 = sr.x2 then return
+   sr.ok = @true
+   return
+
+* Search / Upcase the selection and Downcase the selection (dc.up: 1 or 0): the characters between the mark (Ctrl-G) and the cursor change case; one undo step
+do.case:
+   gosub ed.get
+   if not(ed.ok) then return
+   gosub sel.range
+   if not(sr.ok) then
+      msg = sysmsg(11551)
+      return
+   end
+   ed.new = ed.t
+   for dc.j = sr.y1 to sr.y2
+      dc.ln = ed.t<dc.j>
+      dc.a = 1
+      dc.z = len(dc.ln)
+      if dc.j = sr.y1 then dc.a = sr.x1
+      if dc.j = sr.y2 then dc.z = sr.x2 - 1
+      dc.part = dc.ln[dc.a, dc.z - dc.a + 1]
+      if dc.up then dc.part = upcase(dc.part) else dc.part = downcase(dc.part)
+      ed.new<dc.j> = dc.ln[1, dc.a - 1] : dc.part : dc.ln[dc.z + 1, 99999]
+   next dc.j
+   ed.cy = 0
+   gosub ed.set
+   msg = sysmsg(11550, sr.y1, sr.y2, (if dc.up then 'upper' else 'lower'))
+   return
+
+* Search / Export the selection: the form names a record that is not there yet (as Write a copy does), and the selection is written to it
+do.export:
+   gosub ed.read
+   if not(ed.ok) then return
+   gosub sel.range
+   if not(sr.ok) then
+      msg = sysmsg(11551)
+      return
+   end
+   xp.res = ''
+   call $tk_ai('select', ed.t, sr.my : @vm : sr.mx : @vm : sr.cy : @vm : sr.cx, xp.res)
+   wa.text = change(xp.res<1>, char(10), @fm)
+   gosub default.file
+   wa.file = df
+   wa.id = ''
+   call $ide_name('copy', wa.file, wa.id, wa.res)
+   last.status = char(1)
+   if wa.res # 'ok' then return
+   tf.dict = ''
+   tf.file = wa.file
+   tf.id = wa.id
+   gosub tab.find
+   if tf.p then
+      msg = sysmsg(11691, wa.file, wa.id)
+      return
+   end
+   gosub write.copy
+   return
+
+* Search / Import a record here: the form names a record that exists, and its lines go in at the cursor (one undo step).  A record that holds value, subvalue or text marks or bytes 128 to 247
+*   is refused (it would put what the editor cannot keep into this text); so is a collection file's and an operating system file's.
+do.import:
+   gosub ed.get
+   if not(ed.ok) then return
+   gosub default.file
+   im.file = df
+   im.id = ''
+   call $ide_name('open', im.file, im.id, im.res)
+   last.status = char(1)
+   if im.res # 'ok' then return
+   if im.file = 'path:' then
+      msg = sysmsg(11558)
+      return
+   end
+   open im.file to fv else
+      msg = sysmsg(11200, im.file)
+      return
+   end
+   if fileinfo(fv, FL$COLLECTION) then
+      msg = sysmsg(11698, im.file)
+      return
+   end
+   read im.x from fv, im.id else
+      msg = sysmsg(11201, im.id, im.file)
+      return
+   end
+   if index(im.x, @vm, 1) or index(im.x, @sm, 1) or index(im.x, @tm, 1) or convert(NA.CHARS, '', im.x) # im.x then
+      msg = sysmsg(11559, im.file, im.id)
+      return
+   end
+   im.cy = ed.mw{'cy'} + 0
+   im.cx = ed.mw{'cx'} + 0
+   if im.cy < 1 then im.cy = 1
+   im.ln = ed.t<im.cy>
+   im.n = dcount(im.x, @fm)
+   if im.x = '' then im.n = 0
+   if im.n = 0 then
+      msg = sysmsg(11553, 0, im.file, im.id)
+      return
+   end
+   if im.cx < 1 then im.cx = 1
+   im.block = im.ln[1, im.cx - 1] : im.x
+   im.block := im.ln[im.cx, 99999]
+   ed.new = ed.t
+   ed.new<im.cy> = im.block
+   ed.cy = im.cy
+   gosub ed.set
+   msg = sysmsg(11553, im.n, im.file, im.id)
+   return
+
+* Build / Run a command (SED's XEQ): a command of the account's TCL is run as the prompt would run it - through the same command processor, so its gates are the prompt's - with its
+*   output captured into the table at the bottom.  The changed texts' copies are kept first (a command may end the session), and the locks the tabs hold are taken again after it (a
+*   bare RELEASE in it lets them go).  A command that asks for input from the keyboard is not for this.
+do.xeq:
+   screen ask sysmsg(11554) returning xq.cmd else return
+   xq.cmd = trimf(trimb(xq.cmd))
+   if xq.cmd = '' then return
+   gosub rc.tick
+   xq.out = ''
+   execute xq.cmd capturing xq.out
+   gosub relock.all
+   last.status = char(1)
+   err.rows = ''
+   err.lines = ''
+   xq.n = 0
+   xq.text = convert(char(13), '', xq.out)
+   xq.nl = dcount(xq.text, @fm)
+   for xq.j = 1 to xq.nl
+      xq.ln = xq.text<xq.j>
+      if trimb(xq.ln) # '' then
+         xq.n += 1
+         err.rows<-1> = xq.n : @vm : xq.ln
+         err.lines<-1> = 0
+      end
+   until xq.n >= MAXHIT
+   next xq.j
+   if xq.n = 0 then
+      msg = sysmsg(11556, xq.cmd)
+      return
+   end
+   out.kind = 'xeq'
+   out.file = ''
+   out.dict = ''
+   gosub err.load
+   msg = sysmsg(11555, xq.n, xq.cmd)
+   return
+
+* View / Refresh: the screen is drawn again from what the IDE holds (a program or the terminal may have written over it)
+do.refresh:
+   screen refresh
+   last.status = char(1)
+   last.foot = ''
+   return
+
+* Go / Go to line, which takes more than a line number (29 Oct 26): N a line, N,C a line and a column, and F,V,S - in a record shown in the token form - a field (line), the V-th value in it
+*   (between :@vm:) and the S-th subvalue of that (between :@sm:).  A number out of range goes to the nearest.
+do.goto:
+   if nbuf = 0 then
+      msg = sysmsg(11218)
+      return
+   end
+   screen ask sysmsg(11209) returning gl.text else return
+   gl.text = trim(gl.text)
+   gl.k = dcount(gl.text, ',')
+   if gl.text = '' or gl.k > 3 then return
+   for gl.i = 1 to gl.k
+      gl.p<gl.i> = trim(field(gl.text, ',', gl.i))
+      if gl.p<gl.i> = '' then return
+      if not(num(gl.p<gl.i>)) then return
+      if gl.p<gl.i> + 0 < 1 then return
+   next gl.i
+   gl.n = gl.p<1> + 0
+   gosub goto.line
+   if gl.k = 1 then return
+   call $sl_form('find', f, '', 'ed', en)
+   mw = f{'widgets', en}
+   gl.ln = mw{'value'}<mw{'cy'} + 0>
+   gl.col = gl.p<2> + 0
+   if gl.k = 3 then
+      gl.from = 1
+      if gl.p<2> + 0 > 1 then
+         gl.q = index(gl.ln, ':@vm:', gl.p<2> + 0 - 1)
+         if gl.q = 0 then gl.q = index(gl.ln, ':@vm:', dcount(gl.ln, ':@vm:') - 1)
+         if gl.q > 0 then gl.from = gl.q + 5
+      end
+      gl.col = gl.from
+      if gl.p<3> + 0 > 1 then
+         gl.seg = gl.ln[gl.from, 99999]
+         gl.e = index(gl.seg, ':@vm:', 1)
+         if gl.e > 0 then gl.seg = gl.seg[1, gl.e - 1]
+         gl.q = index(gl.seg, ':@sm:', gl.p<3> + 0 - 1)
+         if gl.q > 0 then gl.col = gl.from + gl.q + 4
+      end
+   end
+   if gl.col > len(gl.ln) + 1 then gl.col = len(gl.ln) + 1
+   mw{'cx'} = gl.col
+   mw{'want'} = gl.col
+   gl.w = mw{'w'} + 0
+   mw{'left'} = 1
+   if gl.col > gl.w - 6 then mw{'left'} = gl.col - int(gl.w / 2)
+   gosub redraw.editor
    return
 
 * END-CODE

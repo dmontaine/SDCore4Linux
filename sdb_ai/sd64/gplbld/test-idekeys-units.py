@@ -64,9 +64,9 @@ HELP = (
 )
 FILE_MENU = ["new", "open", "save", "saveas", "writeas", "close", "quit"]
 GO_MENU = ["goto", "nexterr", "nexttab", "prevtab", "tree", "nextpane", "prevpane", "include", "sed", "fields"]
-UNKEYED = ["find", "include", "saveas", "tree", "writeas"]
-SEARCH_MENU = ["find", "replace"]
-BUILD_MENU = ["compile", "catalog", "run", "debug"]
+UNKEYED = ["downcase", "export", "find", "findopts", "import", "include", "qreplace", "saveas", "tree", "upcase", "view", "writeas", "xeq"]       # 29 Oct 26 (stage D): the editing commands have no key
+SEARCH_MENU = ["find", "replace", "view", "qreplace", "findopts", "upcase", "downcase", "import", "export"]
+BUILD_MENU = ["compile", "catalog", "run", "debug", "xeq"]
 
 
 def load():
@@ -183,7 +183,7 @@ def checks(raw):
        "and no key in do.key leads to them",
        unkeyed == UNKEYED and not (set(UNKEYED) & set(bound.values())), repr(unkeyed))
     ck("IK5", "the menus list their entries in the settled order: File (New, Open, Save, Save as, Write a copy, Close, Quit), Go (Go to line, Next error, Next tab, Previous tab, Files and records, "
-       "Next pane, Previous pane, Open the include, Edit in SED, Edit as fields), Search (Find in the records, Replace in the record), Build (Compile, Compile and catalogue, Run, Debug)",
+       "Next pane, Previous pane, Open the include, Edit in SED, Edit as fields), Search (Find in the records, Replace in the record, then the stage D commands at the end), Build (Compile, Compile and catalogue, Run, Debug, Run a command)",
        [c for _, _, c in menus[11225]] == FILE_MENU and [c for _, _, c in menus[11226]] == GO_MENU and [c for _, _, c in menus[11227]] == SEARCH_MENU
        and [c for _, _, c in menus[11228]] == BUILD_MENU, repr([[c for _, _, c in menus[n]] for n in menus]))
     miss = []
@@ -202,7 +202,7 @@ def checks(raw):
        and all(w in allhelp for w in ("Shift-F6", "Shift-F3", "Alt-PgDn"))
        and all(("Ctrl-" + c) in allhelp for c in ("S", "N", "O", "W", "L", "E", "R", "Q", "PgDn")), "")
     ck("IK8", "the menu is the help's key table made of the same words: the entry for each of F5, F7, F8, F9 shows that key (the menu was where F7 compile and F8 compile-and-catalogue stood)",
-       [(c, s) for _, s, c in menus[11228]] == [("compile", "F8"), ("catalog", "F9"), ("run", "F5"), ("debug", "F7")], repr(menus[11228]))
+       [(c, s) for _, s, c in menus[11228]] == [("compile", "F8"), ("catalog", "F9"), ("run", "F5"), ("debug", "F7"), ("xeq", "")], repr(menus[11228]))      # (xeq, 29 Oct 26: no key)
     cat = case_block(rc, "case cmd = 'catalog'")
     ck("IK9", "F9 builds: 'catalog' compiles first (no debugging option), runs CATALOG only when the compile was good, and only then asks catalog.verified; 'compile' catalogues nothing",
        re.search(r"c\.opt = ''\s*\n\s*gosub do\.compile\s*\n\s*if c\.ok then\s*\n.*\n\s*execute 'catalog ' : qp\.f : ' ' : qp\.i capturing co\s*\n\s*gosub catalog\.verified", cat) is not None

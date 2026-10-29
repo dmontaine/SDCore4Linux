@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+29 Oct 26  THE IDE GAINS SED'S EDITING COMMANDS: LIST MATCHING LINES, QUERY REPLACE, FIND OPTIONS, CASE OF THE SELECTION, IMPORT AND EXPORT, RUN A COMMAND, A BETTER GO TO.
+
+             What        - Search, List matching lines (SED's VIEW) puts the lines of the record that hold a text in the table at the bottom with their numbers; Return on one goes to it.
+                         - Search, Query replace asks about each match (Yes, No, All, Quit) with its line, and the whole run is one undo step. Replace (Ctrl-R) is one undo step too: one
+                           Ctrl-Z gives the text back, where it used to forget the undo steps.
+                         - Search, Find options: C = match case, W = whole words. They apply to List, Replace and Query replace (as delivered: case matched, any word); the text area's
+                           own Find ignores case and is unchanged.
+                         - Search, Upcase and Downcase the selection change only the characters between the mark (Ctrl-G) and the cursor.
+                         - Search, Import a record here puts a record's lines in at the cursor; Search, Export the selection writes the selected text to a new record. Import refuses a
+                           record that holds marks or characters outside ASCII, a collection file's record and an operating system file.
+                         - Build, Run a command runs a TCL command through the same command processor as the prompt, so with the prompt's gates, and puts what it printed in the table.
+                           The changed texts' recovery copies are kept before it runs and the tabs' locks taken again after it.
+                         - Go to line takes line,column, and field,value,subvalue in a record shown with :@vm: marks. View, Refresh draws the screen again.
+                         It does NOT add keys: the new commands are menu entries only. Delete word, overwrite and auto-indent, the top and bottom keys, tab stops and FORMAT are not in yet.
+
 29 Oct 26  THE IDE EDITS THE RECORDS OF A DATA COLLECTION FILE AS JSON.
 
              What        - A record of a collection file, which the IDE refused, opens as the text of its JSON, one element to a line, in a tab of its own. Ctrl-S parses the

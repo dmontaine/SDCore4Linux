@@ -242,7 +242,7 @@ def checks(src):
        ordered(pnf, "if nbuf = 0 then return", "if bn<cb> # 'path:' then return", "pa.no = @true", "sysmsg(11739, bn<cb>, bi<cb>)")
        and all(first_gosub(LI[n]) == "path.not.for" and "if pa.no then return" in LI[n] for n in ("do.compile", "do.sed", "do.fields", "do.include"))
        and ordered(LI["do.saveas"], "gosub na.check", "gosub path.not.for", "if pa.no then return", "gosub stash.current")
-       and "path.not.for" not in LI["do.writeas"] and ordered(LI["do.writeas"], "gosub na.check", "wa.text = bx{k}", "write wa.text on fv, wa.id on error"), "")
+       and "path.not.for" not in LI["do.writeas"] and ordered(LI["do.writeas"], "gosub na.check", "wa.text = bx{k}", "gosub write.copy"), "")
     ck("P17b", "the forms start from a file of records (default.file and get.context never answer 'path:'), and the AI is told it is an operating system file, not a record",
        "if df = 'path:' then df = ''" in LI["default.file"] and "if ctx.file = 'path:' then ctx.file = ''" in LI["get.context"]
        and ordered(LI["ai.go"], "if bn<cb> = 'path:' then", "It is the operating system file", "end else", "'File ' : bn<cb>"), "")

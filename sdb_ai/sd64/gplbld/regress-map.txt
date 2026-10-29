@@ -563,7 +563,7 @@ sdsys/gpl.bp/sl_guard        : sed-small ide-small sed-menu dbgui tk-resize auto
 sdsys/gpl.bp/sl_memo         : memoundo escdata screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe recarr
 sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps gates
-sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds tool-voc tool-dict ide-path
+sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds tool-voc tool-dict ide-path ide-edit
 # The editor merge, stage B (28 Oct 26): the IDE's record kinds and locks - messages 11684-11698 (11215 and 11226 changed too), and its suite
 sdsys/messages/1168[4-9]     : ide-kinds ide
 sdsys/messages/1169[0-8]     : ide-kinds ide
@@ -585,7 +585,13 @@ sdsys/messages/1172[7-9]     : ide-path
 sdsys/messages/1173[0-9]     : ide-path
 sdsys/messages/1174[0-2]     : ide-path
 sdsys/messages/1174[3-5]     : ide-kinds ide
+# stage D, first slice (29 Oct 26): the editing commands - messages 11543-11559, the Search / Build / View menus (11227-11229), the Go to prompt (11209) and the help (11216)
+sdsys/messages/1154[3-9]     : ide-edit
+sdsys/messages/1155[0-9]     : ide-edit
+sdsys/messages/11209         : ide-edit ide
+sdsys/messages/1122[789]     : ide ide-edit ide-small ide-sed
 gplbld/sandbox-ide-path.py   : @self
+gplbld/sandbox-ide-edit.py   : @self
 sdsys/messages/1196[3-9]     : ide-fresh ide
 sdsys/messages/1197[0-5]     : ide-fresh ide
 sdsys/messages/11214         : ide ide-small ide-sed
@@ -778,7 +784,7 @@ sdsys/messages/117*          : crypt
 sdsys/messages/11197        : sed-menu sed-small
 sdsys/messages/1160[0-2]     : sed-small ide-small
 sdsys/messages/1160[3-5]     : ide-sed
-sdsys/messages/1121[5]       : ide ide-small ide-sed recarr ide-kinds
+sdsys/messages/1121[56]      : ide ide-small ide-sed recarr ide-kinds ide-edit
 sdsys/messages/11226         : ide ide-sed recarr ide-kinds
 sdsys/messages/1123[7-9]     : ide idedraw
 sdsys/messages/11240         : ide idedraw

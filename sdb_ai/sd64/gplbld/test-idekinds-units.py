@@ -111,7 +111,7 @@ def checks(src):
                                      "tab.lock", "relock.all", "ro.check", "open.record", "save.one", "close.current", "retake.quiet", "do.saveas", "do.writeas",
                                      "seq.take", "do.new", "open.select", "do.compile", "do.sed", "do.include", "kind.of", "dict.trim", "load.current", "new.form",
                                      "do.replace", "do.fields", "ai.apply", "edit.check", "name.untitled", "add.new.record", "tab.find", "status.line",
-                                     "tab.state", "na.mark", "na.check", "ro.box", "idle.text", "rc.untitled", "coll.text", "coll.value", "path.not.for")}
+                                     "tab.state", "na.mark", "na.check", "ro.box", "idle.text", "rc.untitled", "coll.text", "coll.value", "path.not.for", "ed.get", "write.copy")}
     head = ide[: ide.find("gosub open.screen")]
     main = ide[: ide.find("apply.theme:")]
     ck("K0", "NULL CASE: the IDE was read and every routine this check reads is there (a check on nothing would pass)",
@@ -244,14 +244,15 @@ def checks(src):
     ck("K20", "a read-only tab: the memo is readonly while bx o is set (load.current, new.form); Replace, Edit as fields and an AI edit refuse it (ro.check), the status line "
        "names the holder (11687)",
        "ro = (bx{k} # '')" in L["load.current"] and "ed.ro = (bx{k} # '')" in L["new.form"]
-       and all(ordered(L[n], "ro.i = cb", "gosub ro.check", "if not(ro.ok) then", "gosub ro.box", "return") for n in ("do.replace", "do.fields", "ai.apply"))
+       and all(ordered(L[n], "ro.i = cb", "gosub ro.check", "if not(ro.ok) then", "gosub ro.box", "return") for n in ("do.fields", "ai.apply", "ed.get"))
+       and "gosub ed.get" in L["do.replace"]                       # (Replace and the other editing commands of stage D ask the same test through ed.get)
        and "sysmsg(11687, bx{k})" in L["status.line"] and "msg = sysmsg(11688, bf.name, bf.id, bx{ro.k})" in L["ro.check"], "")
 
     # ---- the gates, seqkey, compile, SED, include -----------------------------------------------------------------------------------------------------------------------
     ck("K21", "edit.check asks the kernel on the OPEN file's own path (K$EDIT.OK with fileinfo(fv, FL$PATH)); every way to write asks it: save.one, Write a copy, CREATING.SEQKEY "
        "before the id is taken, and a new record named on the command line before its tab",
        ordered(L["edit.check"], "edit.p = fileinfo(fv, FL$PATH)", "if kernel(K$EDIT.OK, edit.p) then return")
-       and ordered(L["do.writeas"], "open wa.file to fv else", "gosub edit.check", "write wa.text on fv")
+       and ordered(L["write.copy"], "open wa.file to fv else", "gosub edit.check", "write wa.text on fv") and "gosub write.copy" in L["do.writeas"]       # (stage D: Write a copy and Export write through write.copy)
        and ordered(L["seq.take"], "open sq.dict, sq.file to fv else", "gosub edit.check", "if not(edit.ok) then", "return", "call $seqkey(fv, @true, sq.id, sq.why)")
        and ordered(L["save.one"], "gosub edit.check", "write"), "")
     ck("K22", "New record: CREATING.SEQKEY (any case) takes the next sequential id through seq.take; in quotes it is a record of that name",
@@ -293,7 +294,7 @@ def checks(src):
        "(convert into a scratch value and compare) and changes no text; tab.state starts every tab at 0",
        ordered(main, "NA.CHARS = ''", "for na.i = 128 to 247", "NA.CHARS := char(na.i)", "next na.i")
        and [x.strip() for x in L["na.mark"].split("\n") if x.strip()] == ["k = 'a' : na.u", "bx{k} = (convert(NA.CHARS, '', na.text) # na.text)", "return"]
-       and ordered(L["tab.state"], "k = 'a' : uid", "bx{k} = 0") and ide.count("NA.CHARS") == 3, repr(L["na.mark"][:200]))
+       and ordered(L["tab.state"], "k = 'a' : uid", "bx{k} = 0") and ide.count("NA.CHARS") == 4 and "convert(NA.CHARS, '', im.x) # im.x" in ide, repr(L["na.mark"][:200]))      # (the fourth is Import's refusal of a record holding such bytes, stage D)
     ck("K31", "the flag is set wherever a tab gets text from outside: open.record (the record AND the copy taken, before load.current, with 11761), SED's record read back (do.sed), "
        "an untitled copy opened and a new record's copy taken; and while it is set the editor is readonly (load.current, new.form) and the status line says so (11753)",
        ordered(L["open.record"], "gosub tab.state", "na.text = rec : @fm : tb.shown", "gosub na.mark", "if bx{k} then msg = sysmsg(11761, or.name, or.id)", "gosub load.current")
@@ -406,7 +407,7 @@ MUTANTS = [
     ("Save as keeps the old record's lock", "K19", sub("ide", "   tu.i = cb\n   gosub tab.unlock\n   u = bu<cb>\n   k = 'o' : u", "   tu.i = cb\n   u = bu<cb>\n   k = 'o' : u")),
     ("Write a copy writes a record open in a tab", "K19", sub("ide", "   if tf.p then\n      msg = sysmsg(11691, wa.file, wa.id)\n      return\n   end\n", "")),
     ("a read-only tab is editable", "K20", sub("ide", "      ro = (bx{k} # '')", "      ro = 0")),
-    ("Replace changes a read-only tab", "K20", sub("ide", "do.replace:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   ro.i = cb\n   gosub ro.check", "do.replace:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   ro.i = cb\n   ro.ok = 1")),
+    ("Replace changes a read-only tab (the shared test of the editing commands is gone)", "K20", sub("ide", "ed.get:\n   ed.ok = @false\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   ro.i = cb\n   gosub ro.check", "ed.get:\n   ed.ok = @false\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   ro.i = cb\n   ro.ok = 1")),
     ("CREATING.SEQKEY skips the gate", "K21", sub("ide", "      msg = sysmsg(11200, sq.name)\n      return\n   end\n   gosub edit.check", "      msg = sysmsg(11200, sq.name)\n      return\n   end\n   edit.ok = 1")),
     ("New record does not take CREATING.SEQKEY", "K22", sub("ide", "   if upcase(nm.id) = 'CREATING.SEQKEY' then\n      sq.dict = ''", "   if 0 then\n      sq.dict = ''")),
     ("New record takes no lock", "K23", sub("ide", "   lk.dict = ''\n   lk.file = nm.file\n   lk.id = nm.id\n   gosub lock.take\n", "   lk.dict = ''\n   lk.file = nm.file\n   lk.id = nm.id\n   lk.slot = 0 ; lk.err = '' ; lk.exists = 0 ; lk.owner = ''\n")),

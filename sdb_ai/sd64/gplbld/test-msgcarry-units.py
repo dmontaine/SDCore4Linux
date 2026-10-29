@@ -73,6 +73,7 @@ ALLOWED = {
     ("bcomp", "2935"): "Core's ON expression GOSUB or GOTO says so without GO (27 Oct 26, S.87 batch 13); Solo keeps GO until the carry",
     ("bcomp", "11394"):"Core's list of constant @-variables lost @AM and @SVM (27 Oct 26, S.87 batch 13); Solo keeps them until the carry",
     ("login", "11900"):"Core's VOC update reports the records its deletion list removed (27 Oct 26, S.87); Solo's 11900 is another message until the carry",
+    ("ide", "11209"): "Core's Go to prompt names line,column and field,value,subvalue (29 Oct 26, stage D); Solo's older IDE says 'Line number:' until the carry",
     ("ide", "11215"): "Core's help names F12, Edit as fields (26 Oct 26, one-editor plan stage 1); Solo's does not until the carry",
     ("ide", "11214"): "Core's help names Ctrl-N, New record, and the untitled buffer's first save (28 Oct 26, S.88 Phase 4); Solo's does not until the carry",
     ("ide", "11216"): "Core's help names F3, F10, Ctrl-A, Ctrl-D and Ctrl-K by the owner's keys of 20 Oct (28 Oct 26, S.88 Phase 4); Solo's does not until the carry",
