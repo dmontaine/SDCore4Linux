@@ -29,7 +29,7 @@ BP = os.environ.get("BPDIR", os.path.normpath(os.path.join(HERE, "..", "sdsys", 
 
 # program -> number of DISPLAY statements (28 Oct 2026, measured).  Each is a sequence of the library's own (cursor, mode, style, clear, mouse) or a bell, or in sl_guard the
 # library's own message line over the top row.
-DISPLAYS = {"sl_cleanup": 2, "sl_desktop": 1, "sl_form": 2, "sl_guard": 3, "sl_memo": 2, "sl_put": 1, "sl_repaint": 1, "sl_scr": 2, "screen_close": 3, "screen_cursor": 2, "screen_open": 1}
+DISPLAYS = {"sl_cleanup": 2, "sl_desktop": 1, "sl_form": 3,"sl_guard": 3, "sl_memo": 2, "sl_put": 1, "sl_repaint": 1, "sl_scr": 2, "screen_close": 3, "screen_cursor": 2, "screen_open": 1}
 
 
 def read(name):

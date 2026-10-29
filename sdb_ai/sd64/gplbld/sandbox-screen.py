@@ -1061,6 +1061,77 @@ def has(out, pattern):
 F2_KEY = "\x1bOQ"
 
 
+# S.88 p3.6 (30 Oct 26): the focus service.  Three entries and a button; F2 disables the focused entry, F3 hides the focused entry, F4 asks for the focus the widget already has, F5
+# asks for a disabled entry (refused), F7 moves the focus to the button.  WRITTEN, NOT RUN (the owner's one complete run); the log holds REF when F5 was refused and a focus event if
+# the program-caused moves made one (they must not: decision 6c was dropped).
+PROGS.update({
+    "zzscfoc": dialogue_program("""   screen form title 'Focus' at 10,3 size 44,12 returning f
+   screen entry  f, 'a' at 8,2 width 12 value 'A'
+   screen entry  f, 'b' at 8,4 width 12 value 'B'
+   screen entry  f, 'c' at 8,6 width 12 value 'C'
+   screen button f, 'ok', '&OK' at 2,9 default
+   log = ''
+   loop
+      screen wait f timeout 8 returning ev else exit
+      begin case
+         case ev<1> = 'key'
+            begin case
+               case ev<3> = 'f2'
+                  screen set f, 'a' enabled 0
+               case ev<3> = 'f3'
+                  screen set f, 'b' visible 0
+               case ev<3> = 'f4'
+                  screen focus f, 'c' else log := 'REFC;'
+               case ev<3> = 'f5'
+                  screen focus f, 'a' else log := 'REF;'
+               case ev<3> = 'f7'
+                  screen focus f, 'ok' else log := 'REFOK;'
+            end case
+         case ev<1> = 'focus'
+            log := 'focus:':ev<2>:'<':ev<3>:';'
+         case ev<1> = 'cancel'
+            exit
+      end case
+   repeat
+   screen hide f
+   res = 'FOCUS ':log:'|'
+"""),
+})
+
+
+def part_focus(box):
+    say("\n--- SCREEN FOCUS and the focus service: a disabled or hidden focused entry gives the focus away; a refused target; the same widget -------")
+    t = Term(box, "RUN bp zzscfoc")
+    L0, A0 = record(t)
+    L = t.keys("a")
+
+    def has(r):
+        return t.attrs(r)[18:30] == "r" * 12
+
+    row("control: the first entry has the focus (reverse over its 12 cells), the second and third do not, and the three show A, B and C",
+        has(5) and not has(7) and not has(9) and L[5][18] == "A" and L[7][18] == "B" and L[9][18] == "C", repr([t.attrs(r)[16:32] for r in (5, 7, 9)]))
+    L = t.keys(F2_KEY)
+    row("F2 disables the focused entry: the focus is on the second entry now (reverse), the first has lost it and still shows its text",
+        has(7) and not has(5) and L[5][18] == "A", repr([t.attrs(r)[16:32] for r in (5, 7, 9)]))
+    L = t.keys("x")
+    row("a letter typed now goes to the second entry (B then x) and not to the disabled one", L[7][18:20] == "Bx" and L[5][18:20].strip() == "A", repr((L[5][16:34], L[7][16:34])))
+    L = t.keys(F3_KEY)
+    row("F3 hides the focused entry: its cells are not drawn and the focus is on the third entry", L[7][18:30].strip() == "" and has(9) and not has(5), repr((L[7][16:34], t.attrs(9)[16:32])))
+    L = t.keys("y")
+    row("a letter typed now goes to the third entry (C then y), not to the hidden one", L[9][18:20] == "Cy" and L[7][18:30].strip() == "", repr((L[7][16:34], L[9][16:34])))
+    L = t.keys(F4_KEY)
+    row("SCREEN FOCUS on the widget that already has the focus is no move: the third entry keeps it, and nothing was refused (ELSE not taken)", has(9), repr(t.attrs(9)[16:32]))
+    L = t.keys("\x1b[15~")                                  # F5
+    row("SCREEN FOCUS on the disabled first entry is refused (ELSE) and the focus stays on the third", has(9) and not has(5), repr((t.attrs(5)[16:32], t.attrs(9)[16:32])))
+    L = t.keys("\x1b[18~")                                  # F7
+    row("SCREEN FOCUS on the button moves the focus for real: the third entry is not reverse any more and the cursor is not in the entries",
+        not has(9) and t.cursor()[1] not in (5, 7, 9), repr((t.attrs(9)[16:32], t.cursor())))
+    L = t.keys(ESC, idle=0.9)
+    L = t.keys("z")
+    row("the program saw no focus event for the moves it caused itself, and F5 was refused: the log is REF;", result(L, "FOCUS") == "REF;|", repr(result(L, "FOCUS")))
+    t.end()
+
+
 def part_events(box):
     say("\n--- SCREEN WAIT: events from a form that stays on the screen; combo box, progress bar, a label with a width ---")
     t = Term(box, "RUN bp zzscwt1")
@@ -2946,6 +3017,7 @@ def main():
             part_forms2(box)
         if "events" in parts:
             part_events(box)
+            part_focus(box)
             part_set(box)
             part_scrollbar(box)
             part_lines(box)

@@ -457,6 +457,16 @@ white): eight colours, bold for bright, because xterm's `setf` is right for 0-7 
   terminal can show (mono alone on a terminal with no colour). `SCREENTHEME` in `sd.conf` is read by `CONFIG()` now (the name buffer was 8
   characters, so the 11-character name was never found and the site theme never applied); the shipped `sd.conf` says `blue`, and a
   program with no line still gets mono.
+- *30 Oct 26 (S.88 p3.6, the focus service):* the form's focus is always on a widget that `can.focus` (takes keys, not disabled, no disabled container,
+  on the page, not hidden) or on none. `fix.focus` repairs it: nothing when it is right; else the next widget that can have it round the ring, else
+  none (`f{'focus'} = 0`, `f{'nofocus'} = 1`, which `park.cursor` reads to hide the cursor). It runs in op `redraw` (the flags first, then one full
+  draw) and in the new op `recheck` (a quiet form: `screen_set` asks after ENABLED, VISIBLE or a tab strip's VALUE; the two widgets are drawn, nothing
+  else). `set.focus` draws the widget that loses the focus only when it is on the page and visible (a hidden one was painted over the page that
+  replaced it). Op `focus` answers `ret` 0 or 1 and on a shown form asks `can.focus`; SCREEN FOCUS on a shown form goes through it (the same widget
+  is no move and draws nothing - the IDE calls it after every action). A key reaching a widget that cannot have the focus is swallowed with a bell
+  (`stale.key`), Tab, Shift-Tab, Up, Down and Esc excepted so that a modal form can still be left (owner decision 6b, 29 Oct 26). NOT built: a
+  `focus` event for a move the program caused (decision 6c: droppable; it would add an event to programs that have none today). Free check
+  `test-focus-units.py`; sandbox rows `sandbox-screen.py` part `events`, function `part_focus` (written, not run).
 - *Found 12 Oct:* the shipped `linux` and `ansi` terminfo entries had `setaf`/`setab` but no `setf`/`setb`, so
   `@(-37)` printed nothing on the entry that every `xterm-256color` session falls back to (login). `terminfo.src`
   now carries xterm's mapping in both. `TERM COLOUR` therefore works there too (a visible change: changelog).

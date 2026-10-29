@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  A FORM'S FOCUS NEVER STAYS ON A CONTROL THAT CANNOT HAVE IT.
+
+             What        - Before, a program that disabled or hid the control that had the focus (SCREEN SET ... ENABLED 0 or VISIBLE 0), or switched to another tab, left the
+                           focus where it was: a disabled button still answered Return, a hidden entry still took typing, and the next Tab drew the hidden control over the page.
+                           Now the focus moves on to the next control that can have it, or to none (the cursor is then hidden), as soon as the form is changed - a quiet form
+                           (the IDE's) is told too, and draws only the two controls the focus moves between.
+                         - SCREEN FOCUS on a form that is on the screen moves the focus for real: both controls are drawn and the cursor goes to the new one. A control that is
+                           hidden, disabled, on another tab or inside a container that is, is refused (the statement takes its ELSE). The control that already has the focus is no move.
+                         - A key that reaches a control that cannot have the focus is not given to it (or to any other control): Tab, Shift-Tab, Up, Down and Esc still work and
+                           any other key rings the bell.
+                         It does NOT report a focus move the program made itself as a focus event, and it changes nothing for a form whose focus is on a control that can have it.
+                         Programs need no recompiling.
+
 29 Oct 26  THE HOME SCREEN'S AI LINE KEEPS WHAT YOU TYPED WHEN THE WINDOW IS RESIZED.
 
              What        - Making the terminal window bigger or smaller used to make the AI line on the home screen again: the request you had typed in it was lost and the

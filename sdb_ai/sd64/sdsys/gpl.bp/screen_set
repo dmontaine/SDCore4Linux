@@ -8,6 +8,7 @@
 * 18 Oct 26 dm  f{'quiet'} = 1 stops the redraw of the whole form after a set (for a program that draws the widget itself).
 * 22 Oct 26 dm  VALUE on a selector is brought into range (1 to the number of words).
 * 29 Oct 26 dm  S.88 3.5: the 10th argument is the compiler's presence mask; a written VALUE / TEXT / ITEMS '' now sets.
+* 30 Oct 26 dm  S.88 p3.6: a quiet form is told to 'recheck' its focus after ENABLED, VISIBLE or a tab strip's VALUE (the form that is not quiet does it in 'redraw').
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -136,6 +137,13 @@ $catalog !screen_set
    if f{'shown'} and not(system(25)) and not(f{'quiet'} + 0) then       ;* the form is on the screen (SCREEN WAIT): show the change
       call $sl_scr('get', scr)
       call $sl_form('redraw', f, scr, '', r)
+      call $sl_scr('put', scr)
+   end
+   * 30 Oct 26 (S.88 p3.6): a quiet form is not drawn here, but a change that can take the focus from its widget (ENABLED, VISIBLE, the tab strip's VALUE) must still
+   *   move it to one that can have it; the form draws the two widgets it moves between and nothing else ('recheck').  The redraw above does the same for a form that is not quiet.
+   if f{'shown'} and not(system(25)) and f{'quiet'} + 0 and (bitand(given, 72) or (wt = 'tabs' and bitand(given, 1))) then
+      call $sl_scr('get', scr)
+      call $sl_form('recheck', f, scr, '', r)
       call $sl_scr('put', scr)
    end
    status = 0
