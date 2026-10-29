@@ -118,8 +118,8 @@ def checks(raw):
        "nm[1, 3] = 'SD-' and nm[len(nm) - 3, 4] = '.zip'" in ra and "st = nm[len(nm) - 18, 15]" in ra and "locate st in stamps<1> by 'DL' setting p else null" in ra and "ospath(bdir : @ds : nm, OS$INFO)" in ra
        and "aacc<nark> = '?' ; aprod<nark> = '?'" in ra and "if merr = '' then" in ra, ra[:200])
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
-    ck("TB11", "the key table has exactly: help, backupall, backupsome, restore, directory, refresh, quit; the dispatch has B, A, R, D, F1/?, F5 and Ctrl-Q",
-       acts == sorted(["help", "backupall", "backupsome", "restore", "directory", "refresh", "quit"]) and all(("case nm = '%s'" % k) in pg for k in ("b", "a", "r", "d", "f5", "ctrl-q")) and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
+    ck("TB11", "the key table has exactly: help, backupall, backupsome, restore, directory, refresh, quit - and the Esc row that opens the menu bar (S.88 U3; it runs nothing); the dispatch has B, A, R, D, F1/?, F5 and Ctrl-Q",
+       acts == sorted(["help", "backupall", "backupsome", "restore", "directory", "refresh", "quit", "menu"]) and all(("case nm = '%s'" % k) in pg for k in ("b", "a", "r", "d", "f5", "ctrl-q")) and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
     ck("TB12", "the page waits for a key with no timeout (nothing here changes by itself) and reads again only when it opens, on F5 and after a command",
        "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 3, "read.all x%d" % pg.count("gosub read.all"))
     ck("TB13", "the page has a [?] and F1, ? and a click show tool.backups.page, whose record exists with a title, the account maintenance page of the administrator guide (which has a section on tool.backups) and a body",
