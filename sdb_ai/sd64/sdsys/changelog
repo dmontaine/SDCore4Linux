@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE FILES, VOCABULARY, PROGRAMS, ACCOUNTS AND AUDIT PAGES HAVE A MENU BAR.
+
+             What        - TOOL.FILES, TOOL.VOC, TOOL.CATALOG, TOOL.ACCOUNTS and TOOL.AUDIT open a menu bar with Esc or F10; Alt and a title's letter opens that menu; an entry does what
+                           its key does. Where a page has a name filter (or the audit filters), Esc takes it off first and opens the bar only when none is on. The key hint is gone from
+                           the first status message of each; F1 lists the keys.
+                         It does NOT change what any of them may run: each change still goes through its own command, after the Run or Cancel box.
+
 30 Oct 26  THE REMOTE ACCESS PAGE (TOOL.REMOTE) AND THE AI CHOICE PAGE (TOOL.AI) HAVE A MENU BAR.
 
              What        - Esc or F10 opens a menu bar; Alt and a title's letter opens that menu; an entry does what its key does. On the remote page Esc goes back to the doors

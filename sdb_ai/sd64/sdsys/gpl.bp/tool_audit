@@ -63,6 +63,16 @@ $include tk.h
    call $tk_keys('add', keys, 'x', 'save', 'export', '', 1)
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U1: Esc clears the filters first, else opens the menu bar
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'filter', '&Audit', '&Filter the lines', '', '')
+   call $tk_keys('menu', keys, 'clear', '&Audit', '&Clear the filters', '', '')
+   call $tk_keys('menu', keys, 'goto', '&Audit', '&Go to a time', '', '')
+   call $tk_keys('menu', keys, 'file', '&Audit', '&Open another audit file', '', '')
+   call $tk_keys('menu', keys, 'follow', '&Audit', 'Fo&llow the file', '', '')
+   call $tk_keys('menu', keys, 'export', '&Audit', 'Sa&ve the lines shown', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
 
    BLK = 200                                                    ;* lines read at a time
    MAXENT = 3000                                                ;* lines kept
@@ -76,16 +86,21 @@ $include tk.h
    ci = 1 ; ta = 0
    gen = 0
    done = 0
-   msg = 'F filters, D goes to a time, O shows another audit file, L follows the file, X saves the lines shown'
+   msg = ''
 
    gosub read.initial
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, 'Audit', '', '', mr)              ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, 'Audit', msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key timeout 3 returning nm
+      mr = ''
+      busy = (if flt # '' then 1 else 0)
+      if nm # '' then call $tk_menubar('key', ctx, keys, 'Audit', nm, busy, mr)       ;* the Esc rule: the filters are cleared before the bar opens
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -413,7 +428,7 @@ on.key:
          gosub redraw
       case nm = 'f'
          gosub do.filter
-      case nm = 'c'
+      case nm = 'c' or (nm = 'esc' and flt # '')
          flt = ''
          gosub read.initial
          gosub draw.filter
@@ -456,6 +471,13 @@ go.up:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, 'Audit', mev, '', mr)                     ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    call $tk_help('hit', mev, top.x + top.w - 5, top.y + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.audit.page', hm, 0, 0)

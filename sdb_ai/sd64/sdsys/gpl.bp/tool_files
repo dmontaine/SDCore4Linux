@@ -70,6 +70,17 @@ $include tk.h
    call $tk_keys('add', keys, 'f11', 'filter', 'filter', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U7: Esc takes the name filter off first, else opens the menu bar
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'new', '&Operations', '&New file', '', '')
+   call $tk_keys('menu', keys, 'clear', '&Operations', '&Clear the file', '', '')
+   call $tk_keys('menu', keys, 'delete', '&Operations', '&Delete the file', '', '')
+   call $tk_keys('menu', keys, 'analyse', '&Operations', '&Analyse', '', '')
+   call $tk_keys('menu', keys, 'indices', '&Operations', '&Indices', '', '')
+   call $tk_keys('menu', keys, 'triggers', '&Operations', '&Triggers', '', '')
+   call $tk_keys('menu', keys, 'filter', '&View', '&Filter the names', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
 
    VIS = 16                                                     ;* file rows on the screen (the list pane's height less 6: set by get.rects)
    rtw = TK.MINW - 2 * TK.XBODY - 4                             ;* the text width of a pane in the reference layout (140 by 43): 134
@@ -83,16 +94,21 @@ $include tk.h
    ci = 1 ; ta = 0
    gen = 0
    done = 0
-   msg = 'Up and Down move; N makes a file, C clears, D deletes, A analyses, I lists the indices, T the triggers'
+   msg = ''
 
    gosub read.all
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, 'Files', '', '', mr)              ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, 'Files', msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key returning nm
+      mr = ''
+      busy = (if filt # '' then 1 else 0)
+      if nm # '' then call $tk_menubar('key', ctx, keys, 'Files', nm, busy, mr)       ;* the Esc rule: a name filter is taken off before the bar opens
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -453,6 +469,13 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, 'Files', mev, '', mr)                     ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.files.page', hm, 0, 0)

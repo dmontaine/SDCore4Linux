@@ -118,7 +118,7 @@ def checks(raw):
        and "done = 1" in ch, ch[:200])
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
     ck("AC11", "the key table has exactly: help, create, suspend, addperson, delperson, delete, refresh, quit; the dispatch has C, S, A, R, X, F1/?, F5 and Ctrl-Q",
-       acts == sorted(["help", "create", "suspend", "addperson", "delperson", "delete", "refresh", "quit"]) and all(("case nm = '%s'" % k) in pg for k in ("c", "s", "a", "r", "x", "f5", "ctrl-q")) and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
+       acts == sorted(["help", "create", "suspend", "addperson", "delperson", "delete", "refresh", "quit", "menu"]) and all(("case nm = '%s'" % k) in pg for k in ("c", "s", "a", "r", "x", "f5", "ctrl-q")) and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
     ck("AC12", "the page waits for a key with no timeout and reads again only when it opens, on F5 and after a command or a hand-over",
        "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 4, "read.all x%d" % pg.count("gosub read.all"))
     ck("AC13", "the page has a [?] and F1, ? and a click show tool.accounts.page, whose record exists with a title, the accounts and security page of the administrator guide (which has a section on tool.accounts) and a body",

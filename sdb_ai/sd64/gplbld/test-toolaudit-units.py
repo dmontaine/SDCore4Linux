@@ -145,7 +145,7 @@ def checks(raw):
        and "screen key timeout 3 returning nm" in pg and "if follow then gosub timed.follow" in pg and "for iter = 1 to 10" in block(pg, "read.newer"), "")
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
     ck("AU15", "the key table has exactly: help, filter, clear, goto, file, follow, export, refresh, quit; the dispatch has F, C, D, O, L, X, F1/?, F5 and Ctrl-Q",
-       acts == sorted(["help", "filter", "clear", "goto", "file", "follow", "export", "refresh", "quit"])
+       acts == sorted(["help", "filter", "clear", "goto", "file", "follow", "export", "refresh", "quit", "menu"])
        and all(("case nm = '%s'" % k) in pg for k in ("f", "c", "d", "o", "l", "x", "f5", "ctrl-q")) and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
     ck("AU16", "the page has a [?] and F1, ? and a click show tool.audit.page, whose record exists with a title, the audit trail page of the administrator guide (which exists) and a body",
        pg.count("'tool.audit.page'") == 2 and "call $tk_help('mark', top.x + top.w - 5, top.y + 1, 0, 0)" in pg and "call $tk_help('hit', mev, top.x + top.w - 5, top.y + 1, hit.m)" in pg
