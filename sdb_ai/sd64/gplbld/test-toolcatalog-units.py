@@ -145,7 +145,7 @@ def checks(raw):
        "isp = (tl = 'bp')" in tp and "tl[len(tl) - 2, 3] = '.bp' then isp = 1" in tp and "read orr from vocf, vn : '.out' then" in tp and "tl[len(tl) - 3, 4] = '.out' then return" in tp
        and "fileinfo(fv, FL$TYPE) # FL$TYPE.DIR" in tp and "MAXREC = 2000" in pg and "if scnt > MAXREC then" in tp and "snames = field(snames, @fm, 1, MAXREC)" in tp and "capnote = " in tp, "")
     ck("TC14", "every key the page acts on has a place in the key table, and a letter is the same key in either case",
-       "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "b", "c", "l", "x", "d", "f11", "f5", "ctrl-q")), "")
+       "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "b", "c", "l", "x", "d", "/", "f5", "ctrl-q")), "")
     ck("TC15", "the layout fits the 140 by 43 frame (S.88 L2: the two boxes are the layout service's panes, declared 22 and 17 rows by 138 and drawn from their rectangles; the numbers at 140 by 43 are "
                "test-l2-files-units.py's): two boxes (rows 1-22 and 23-39), 16 rows of programs (the list's height less 6) at the list's y + 2, the summary and the gate line on its last interior rows, the detail's interior rows",
        "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :" in pg and "d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 :" in pg

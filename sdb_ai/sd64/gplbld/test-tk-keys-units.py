@@ -32,7 +32,7 @@ GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 
 EXPECT_PROGRAMS = 24
-EXPECT_ADD_ROWS = 257         # (256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
+EXPECT_ADD_ROWS = 258         # (256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 258 with tool_test's Ctrl-O row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
 # an action that has two keys on purpose (the second is for a terminal that keeps the first for itself)
@@ -44,11 +44,6 @@ MYMENU_MOVED = ("f2", "f3", "f4", "f6")
 
 LEDGER = {
     "reserved": {
-        "tool_files:f11": "F11 filter: F11 is the terminal emulator's full-screen key (plan 5.2); Phase 5 moves the filter",
-        "tool_voc:f11": "F11 filter (as tool_files)",
-        "tool_dict:f11": "F11 filter (as tool_files)",
-        "tool_catalog:f11": "F11 filter (as tool_files)",
-        "tool_test:f11": "F11 filter (as tool_files)",
         "tool_tktest:f11": "the throw-away test app's pick-a-file key; it goes with the app",
         "tool_tktest:f6": "the throw-away test app's table refresh; it goes with the app",
         "tool_tktest:f10": "the throw-away test app's multi-pick key; it goes with the app",

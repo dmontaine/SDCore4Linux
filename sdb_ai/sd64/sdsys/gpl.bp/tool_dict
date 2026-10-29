@@ -87,7 +87,7 @@ $include dictdict.h
    call $tk_keys('add', keys, 'd', 'delete', 'delindex', 'Indices', 1)
    call $tk_keys('add', keys, 'l', 'list', 'listindex', 'Indices', 1)
    call $tk_keys('add', keys, 'i', 'items', 'items', 'Indices', 1)
-   call $tk_keys('add', keys, 'f11', 'filter', 'filter', 'Files' : @sm : 'Items', 1)
+   call $tk_keys('add', keys, '/', 'filter', 'filter', 'Files' : @sm : 'Items', 1)
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', 'Files' : @sm : 'Items', 1)       ;* S.88 U8: Esc takes the name filter of the pane off first, else opens the menu bar (in Indices it goes back to the items)
@@ -572,7 +572,8 @@ draw.foot:
       case 1
          s = nx : (if nx = 1 then ' index' else ' indices')
    end case
-   s := '.   Your gate:  dict-edit ' : (if kernel(K$DICT.EDIT, -1) then 'on' else 'off')
+   gadm = kernel(K$ADMINISTRATOR, -1)                           ;* the verbs let the administrator through whatever the bit says (P3)
+   s := '.   Your gate:  dict-edit ' : (if gadm then 'on (administrator)' else (if kernel(K$DICT.EDIT, -1) then 'on' else 'off'))
    screen text fmt(s, tw : 'L') at lx + 2,ly + lh - 4 attr 'bold' width tw
    begin case
       case pi = 1

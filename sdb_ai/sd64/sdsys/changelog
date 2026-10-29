@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+29 Oct 26  THE FILTER KEY IS "/", THE TESTS PAGE HAS AN OUTPUT PANE, SDSYS SEES ITS EDIT GATES AS ON.
+
+             What        - TOOL.FILES, TOOL.VOC, TOOL.CATALOG, TOOL.DICT and TOOL.TEST list "/" as the key that filters the names (F11 still works: it is the terminal emulator's
+                           full-screen key on some terminals, so it was not shown any more).
+                         - TOOL.TEST: Ctrl-O (or View > Output of the runs) opens a six-row pane that keeps what each run answered, newest first; Ctrl-PgUp and Ctrl-PgDn scroll it and
+                           Esc puts it away. It is separate from the Output view that scrolls what one test printed (Enter).
+                         - TOOL.FILES, TOOL.VOC and TOOL.DICT show the edit gates of SDSYS as "on (administrator)": the verbs let the administrator through whatever the bits say, so the
+                           footer used to say off for a gate SDSYS did not need.
+                         It does NOT change what any gate allows or refuses, or what a page may run.
+
 29 Oct 26  THE SESSIONS PAGE HAS AN OUTPUT PANE; THE HOME SCREEN HAS F1 AND AN AI MENU ENTRY THAT FOLLOWS THE AI.
 
              What        - TOOL.SESSIONS: Ctrl-O (or View > Output) opens a six-row pane that keeps the commands the page ran (logout, unlock, inhibit.login) and what each answered, newest

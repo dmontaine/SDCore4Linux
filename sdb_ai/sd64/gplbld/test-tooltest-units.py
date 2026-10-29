@@ -144,7 +144,7 @@ def checks(raw):
               "if downcase(zid[1, 5]) = 'test.' then ztests<-1> = zid", "open fn : '.out' to zof then", "locate downcase(zid) in zobj<1> setting zp then")
        and "if t1 = 'F' or t1[1, 5] = 'FILE ' then fids<-1> = ids<i>" in ra, "")
     ck("TT14", "a letter is the same key in either case, every key the page acts on has a place in the key table (the function-key row shows exactly the keys it uses), and Esc is the Output pane's own",
-       "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "r", "a", "f", "b", "enter", "f11", "esc", "f5", "ctrl-q"))
+       "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "r", "a", "f", "b", "enter", "/", "esc", "f5", "ctrl-q"))
        and "call $tk_keys('add', keys, 'esc', 'tests', 'back', 'Output', 1)" in pg
        and all(("case nm = '%s'" % k) in block(pg, "on.key") for k in ("r", "a", "f", "b", "enter", "f5", "ctrl-q")), "")
     ck("TT15", "the layout fits the 140 by 43 frame (S.88 L2: the two boxes are the layout service's panes, declared 22 and 17 rows by 138 and drawn from their rectangles; the numbers at 140 by 43 are "
@@ -172,6 +172,10 @@ def checks(raw):
        and "lines<-1> = '  run ' : tfile<zri2> : ' ' : tid<zri2>" in dm and "$tk_confirm" not in dr, "")
     ck("TT22", "the two texts that came from outside the page are cleaned before they are shown: the compiler's last line (carriage return, tab and every control character, then cut to 120) and the message of an abort (cut to 200), by clean.line",
        "zs = out<zq>\n      gosub clean.line" in dc and "zlast = trim(zs)[1, 120]" in dc and "zs = abm ; gosub clean.line ; abm = zs[1, 200]" in rt, "")
+    ck("TT23", "the output pane of the runs (Ctrl-O): the open layout (rows named lo, made from the page's own d rows; the list 16 rows, the pane 6, the lower box as it was one band lower = 39) is declared only while it is open, the bar is given outopen with the filter as BUSY, Esc closes it first in either pane, Ctrl-PgUp / Ctrl-PgDn scroll it, and each run's answer (or its refusal) is added",
+       "lo<1> = d<1> ; lo<1, 4> = 16" in pg and "lo<2> = d<2> ; lo<2, 1> = 'output' ; lo<2, 2> = 2 ; lo<2, 4> = 6" in pg and "lo<3> = d<2> ; lo<3, 2> = 3" in pg and "      d = lo\n" in pg
+       and "busy = (if filt # '' or outopen then 1 else 0)" in pg and "case nm = 'esc' and outopen\n         gosub toggle.out" in pg and "case (nm = 'ctrl-pgup' or nm = 'ctrl-pgdn') and outopen" in pg
+       and pg.count("call $tk_out('add'") == 2 and "if outopen then call $tk_out('draw', ctx, 'output', '', oc)" in pg and "case nm = 'ctrl-o'\n         gosub toggle.out" in pg)
     return rows
 
 
@@ -204,6 +208,11 @@ def both(*fs):
 
 TK_RUN = "call $tk_run(allow, sent, out, stat, rerr)"
 MUTANTS = [
+    ("the bar is not told the output pane is open", "TT23", sub("page", "busy = (if filt # '' or outopen then 1 else 0)", "busy = (if filt # '' then 1 else 0)")),
+    ("Esc does not close the output pane", "TT23", sub("page", "case nm = 'esc' and outopen\n         gosub toggle.out", "case nm = 'esc' and 0\n         gosub toggle.out")),
+    ("the pane is as tall as the list lost", "TT23", sub("page", "lo<2, 4> = 6", "lo<2, 4> = 7")),
+    ("a run's answer is not kept", "TT23", sub("page", "      call $tk_out('add', ctx, okind, otext, '')", "      otext = otext")),
+    ("the pane is not drawn", "TT23", sub("page", "   if outopen then call $tk_out('draw', ctx, 'output', '', oc)", "   oc = ''")),
     ("A and F run without asking", "TT21", sub("page", "   call $tk_confirm(sent, lines, '', cres, cmsg)\n   if cres # 'run' then\n      msg = cmsg\n      return\n   end\n   m.pass = 0", "   m.pass = 0")),
     ("A and F run whatever the box answered", "TT21", sub("page", "   call $tk_confirm(sent, lines, '', cres, cmsg)\n   if cres # 'run' then\n      msg = cmsg\n      return\n   end\n   m.pass = 0", "   call $tk_confirm(sent, lines, '', cres, cmsg)\n   m.pass = 0")),
     ("R asks too", "TT21", sub("page", "         mrun = ''\n         gosub run.test\n", "         mrun = ''\n         call $tk_confirm(sent, lines, '', cres, cmsg)\n         gosub run.test\n")),

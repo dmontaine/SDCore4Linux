@@ -71,7 +71,7 @@ $include header.h
    call $tk_keys('add', keys, 'l', 'local', 'local', '', 1)
    call $tk_keys('add', keys, 'x', 'decatalog', 'decatalog', '', 1)
    call $tk_keys('add', keys, 'd', 'remove', 'remove', '', 1)
-   call $tk_keys('add', keys, 'f11', 'filter', 'filter', '', 1)
+   call $tk_keys('add', keys, '/', 'filter', 'filter', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U7: Esc takes the name filter off first, else opens the menu bar

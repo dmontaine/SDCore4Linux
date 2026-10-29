@@ -93,7 +93,7 @@ def checks(raw):
        and raw["newvoc"].split("\n")[1:3] == ["CA", "$tool_files"], repr((raw["voc"][:30], raw["newvoc"][:60])))
     op = pg.find("call $tk_open('tool.files', '', ctx, err)")
     ck("TF2", "it is a USER app: the base is opened with no audience (an account holder is never refused for being one) and BEFORE anything is read - the VOC, a file, a gate",
-       0 <= op < pg.find("open 'VOC'") and op < pg.find("kernel(K$") and "'admin'" not in pg and "K$ADMINISTRATOR" not in pg and "if err # '' then\n      display err\n      stop" in pg, op)
+       0 <= op < pg.find("open 'VOC'") and op < pg.find("kernel(K$") and "'admin'" not in pg and pg.count("K$ADMINISTRATOR") == 1 and "if err # '' then\n      display err\n      stop" in pg, op)
     sw = block(pg, "do.show")
     ck("TF3", "the commands it can run are two lists declared once at the top: three verbs that change something (allow), run ONLY through $tk_run, and the three reporting verbs (show.allow), the only thing the one execute statement runs, inside do.show and after the list was tested",
        re.findall(r"\bshow\.allow = '([^']*)'", pg) == ["analyze.file list.index list.triggers"] and re.findall(r"(?<![.\w])allow = '([^']*)'", pg) == ["create.file clear.file delete.file"]
@@ -131,13 +131,13 @@ def checks(raw):
        0 <= sw.find("keep = fn") < sw.find("call $tk_close(ctx)") < sw.find("execute sent") < sw.find("crt sysmsg(11865)") < sw.find("input junk") < sw.find("call $tk_open('tool.files', '', ctx, err)")
        < sw.find("gosub declare.layout") < sw.find("gosub read.all") < sw.find("if shown<q> = keep then ci = q") < sw.find("gosub draw.all") and "gen += 1" in sw and "ctx<TK.C.GEN> = gen" in sw, "")
     ck("TF10", "the gates the session holds are ASKED of the kernel (voc-edit, dict-edit, bp-edit, with -1) and shown; nothing is tried to learn them",
-       all(("kernel(K$%s, -1)" % k) in block(pg, "draw.foot") for k in ("VOC.EDIT", "DICT.EDIT", "BP.EDIT")), "")
+       all(("kernel(K$%s, -1)" % k) in block(pg, "gate.words") for k in ("ADMINISTRATOR", "VOC.EDIT", "DICT.EDIT", "BP.EDIT")) and "gosub gate.words" in block(pg, "draw.foot") and "on (administrator)" in block(pg, "gate.words"), "")
     rd = block(pg, "read.all")
     ck("TF11", "the list is the VOC entries of type F (the first field F, or a description that starts File), read the way the IDE reads them, in name order; the cursor goes back to the file it was on",
        "t1 = upcase(r<1>)" in rd and "if t1 = 'F' or t1[1, 5] = 'FILE ' then fnames<-1> = ids<i>" in rd and "sel.f = shown<ci>" in rd and "locate fnames<i> in shown<1> by 'AL' setting lp else" in block(pg, "apply.filter")
        and "if shown<i> = sel.f then" in rd, "")
     ck("TF12", "a letter is the same key in either case, and every key the page acts on has a place in the key table (the function-key row shows exactly the keys it uses)",
-       "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "n", "c", "d", "a", "i", "t", "f11", "f5", "ctrl-q")), "")
+       "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "n", "c", "d", "a", "i", "t", "/", "f5", "ctrl-q")), "")
     ck("TF13", "the layout fits the 140 by 43 frame (S.88 L2: the two boxes are the layout service's panes, declared 22 and 17 rows by 138 and drawn from their rectangles; the numbers at 140 by 43 are "
                "test-l2-files-units.py's): two boxes (rows 1-22 and 23-39), 16 rows of files (the list's height less 6) at the list's y + 2, the summary and the gates line on its last interior rows, the detail's interior rows",
        "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :" in pg and "d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 :" in pg

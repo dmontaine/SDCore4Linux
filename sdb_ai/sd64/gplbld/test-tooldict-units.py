@@ -95,7 +95,7 @@ def checks(raw):
        and raw["newvoc"].split("\n")[1:3] == ["CA", "$tool_dict"], repr((raw["voc"][:30], raw["newvoc"][:60])))
     op = pg.find("call $tk_open('tool.dict', '', ctx, err)")
     ck("TD2", "it is a USER app: the base is opened with no audience (an account holder is never refused for being one) and BEFORE anything is read - the VOC, a file, a gate, the file named after the verb is only read as text",
-       0 <= op < pg.find("open 'VOC'") and op < pg.find("kernel(K$") and op < pg.find("open fn2 to fv") and "'admin'" not in pg and "K$ADMINISTRATOR" not in pg
+       0 <= op < pg.find("open 'VOC'") and op < pg.find("kernel(K$") and op < pg.find("open fn2 to fv") and "'admin'" not in pg and pg.count("K$ADMINISTRATOR") == 1
        and "if err # '' then\n      display err\n      stop" in pg, op)
     hv = block(pg, "hand.over")
     ck("TD3", "the commands it can run are two lists declared once at the top: five verbs run ONLY through $tk_run (allow), and the two it hands the terminal to (show.allow: the IDE and LIST.INDEX), the only thing the one execute statement runs, inside hand.over and after the list was tested",
@@ -157,10 +157,10 @@ def checks(raw):
        all(set(re.findall(r"\bopen\b[^\n]*?\bto (\w[\w.]*)", block(pg, lb))) <= set(re.findall(r"^\s*close (\w[\w.]*)", block(pg, lb), re.M)) for lb in labels(pg)) and len(re.findall(r"\bopen\b[^\n]*?\bto \w", code)) >= 10
        and len(re.findall(r"\bopen\b[^\n]*?\bto \w", code)) <= len(re.findall(r"^\s*close \w", code, re.M)), "")
     ck("TD17", "the gates the session holds are ASKED of the kernel and shown (dict-edit with -1; the dictionary's own answer K$EDIT.OK of its path); every kernel() call of the page is one of those three questions and nothing is set or audited",
-       "kernel(K$DICT.EDIT, -1)" in block(pg, "draw.foot") and sorted(set(re.findall(r"kernel\((K\$[A-Z.]+)", code))) == ["K$DICT.EDIT", "K$EDIT.KIND", "K$EDIT.OK"] and "K$AUDIT" not in code
-       and len(re.findall(r"kernel\(", code)) == len(re.findall(r"kernel\(K\$(DICT\.EDIT, -1|EDIT\.OK, dpath|EDIT\.KIND, dpath)\)", code)), "")
+       "kernel(K$DICT.EDIT, -1)" in block(pg, "draw.foot") and "on (administrator)" in block(pg, "draw.foot") and sorted(set(re.findall(r"kernel\((K\$[A-Z.]+)", code))) == ["K$ADMINISTRATOR", "K$DICT.EDIT", "K$EDIT.KIND", "K$EDIT.OK"] and "K$AUDIT" not in code
+       and len(re.findall(r"kernel\(", code)) == len(re.findall(r"kernel\(K\$(ADMINISTRATOR, -1|DICT\.EDIT, -1|EDIT\.OK, dpath|EDIT\.KIND, dpath)\)", code)), "")
     ck("TD18", "a letter is the same key in either case, and every key the page acts on has a place in the key table (the function-key row shows exactly the keys it uses)",
-       "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "enter", "n", "e", "d", "c", "t", "i", "f", "b", "l", "f11", "f5", "ctrl-q")), "")
+       "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "enter", "n", "e", "d", "c", "t", "i", "f", "b", "l", "/", "f5", "ctrl-q")), "")
     ck("TD19", "the layout fits the 140 by 43 frame, through the layout service (S.88 L2): the two panes are declared in the reference sizes (the list 138 by 22, the detail 138 by 17), so the boxes are rows 1-22 and 23-39; "
                "the list has lh - 6 rows (16 at y 3-18), the summary and the hint stand at the foot of the list (lh - 4 and lh - 3: rows 19 and 20), the detail has dh - 2 rows (15 at y 24-38); nothing is drawn on a border",
        "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :" in pg and "d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 :" in pg

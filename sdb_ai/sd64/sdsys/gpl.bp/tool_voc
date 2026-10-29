@@ -58,7 +58,7 @@ $include tk.h
    call $tk_keys('add', keys, 'd', 'delete', 'delete', '', 1)
    call $tk_keys('add', keys, 't', 'type', 'type', '', 1)
    call $tk_keys('add', keys, 's', 'state', 'state', '', 1)
-   call $tk_keys('add', keys, 'f11', 'filter', 'filter', '', 1)
+   call $tk_keys('add', keys, '/', 'filter', 'filter', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U7: Esc takes the filter and the type and state choices off first, else opens the menu bar
@@ -335,12 +335,22 @@ draw.list:
    call $tk_help('mark', lx + lw - 5, ly + 1, 0, 0)
    return
 
+* The gates this session holds, asked of the kernel and never tried.  The verbs let the administrator through whatever the bits say, so the raw bit alone would tell SDSYS a gate is off
+* that it does not need (the Opus plan, P3): out gw.voc gw.dict gw.bp, each 'on (administrator)', 'on' or 'off'.
+gate.words:
+   gadm = kernel(K$ADMINISTRATOR, -1)
+   gw.voc = (if gadm then 'on (administrator)' else (if kernel(K$VOC.EDIT, -1) then 'on' else 'off'))
+   gw.dict = (if gadm then 'on (administrator)' else (if kernel(K$DICT.EDIT, -1) then 'on' else 'off'))
+   gw.bp = (if gadm then 'on (administrator)' else (if kernel(K$BP.EDIT, -1) then 'on' else 'off'))
+   return
+
 draw.foot:
    s = nent : (if nent = 1 then ' entry' else ' entries')
    s := ', ' : ns : ' shown (' : tnames<tsel> : '; ' : snames<ssel> : (if filt # '' then '; "' : filt : '" in the name' else '') : ').'
    if truncated then s := '  Only the first ' : MAXV : ' were read.'
    screen text fmt(s, tw : 'L') at lx + 2,ly + lh - 4 attr 'bold' width tw
-   s = 'Your gates:  voc-edit ' : (if kernel(K$VOC.EDIT, -1) then 'on' else 'off') : '   dict-edit ' : (if kernel(K$DICT.EDIT, -1) then 'on' else 'off') : '   bp-edit ' : (if kernel(K$BP.EDIT, -1) then 'on' else 'off')
+   gosub gate.words
+   s = 'Your gates:  voc-edit ' : gw.voc : '   dict-edit ' : gw.dict : '   bp-edit ' : gw.bp
    if not(shipped.ok) then s := '   The shipped VOC (newvoc) cannot be opened here, so nothing is compared with it.'
    wpieces = s
    if tw > rtw then call $tk_wrap(s, tw, wpieces)

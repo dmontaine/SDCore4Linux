@@ -68,6 +68,7 @@ $include tk.h
 
    rtw = TK.MINW - 2 * TK.XBODY - 4                             ;* the text width of a pane in the reference layout (140 by 43): 134
    perr = ''
+   outopen = 0                                                  ;* the output pane of the runs (Ctrl-O): closed until asked for
    gosub declare.layout
 
    keys = ''
@@ -77,9 +78,10 @@ $include tk.h
    call $tk_keys('add', keys, 'f', 'run failed', 'runfailed', 'Tests', 1)
    call $tk_keys('add', keys, 'b', 'compile', 'compile', 'Tests', 1)
    call $tk_keys('add', keys, 'enter', 'output', 'output', 'Tests', 1)
-   call $tk_keys('add', keys, 'f11', 'filter', 'filter', 'Tests', 1)
+   call $tk_keys('add', keys, '/', 'filter', 'filter', 'Tests', 1)
    call $tk_keys('add', keys, 'esc', 'tests', 'back', 'Output', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
+   call $tk_keys('add', keys, 'ctrl-o', 'runs', 'runspane', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', 'Tests', 1)           ;* S.88 U7: in the Tests pane Esc takes the name filter off first, else opens the menu bar (in Output it is 'back')
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
@@ -90,6 +92,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'output', '&Tests', 'Show the &output', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the names', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'runspane', '&View', '&Output of the runs (Ctrl-PgUp, Ctrl-PgDn scroll)', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
 
    dim rz(500)                                                  ;* the result of a test: state, passed, failed, seconds, time, lines, lines left out, abort message, answers used, what the output is, last line, command
@@ -135,7 +138,7 @@ $include tk.h
       nm = ''
       screen key returning nm
       mr = ''
-      busy = (if filt # '' then 1 else 0)
+      busy = (if filt # '' or outopen then 1 else 0)
       if nm # '' then call $tk_menubar('key', ctx, keys, pn, nm, busy, mr)       ;* the Esc rule: a name filter is taken off before the bar opens (in Output Esc is the page's own 'back')
       if mr<1> # '' then nm = mr<4>
       begin case
@@ -315,6 +318,14 @@ declare.layout:
    d = ''
    d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
    d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   if outopen then
+      * the output pane is open (Ctrl-O): the list 6 rows shorter and the output pane, 6 rows, between the list and the lower box (rows named lo, not d: the closed layout above is the page's own)
+      lo = ''
+      lo<1> = d<1> ; lo<1, 4> = 16                              ;* the list: 6 rows shorter (value 4 is the height)
+      lo<2> = d<2> ; lo<2, 1> = 'output' ; lo<2, 2> = 2 ; lo<2, 4> = 6
+      lo<3> = d<2> ; lo<3, 2> = 3                              ;* the lower box as it was, one band lower
+      d = lo
+   end
    call $tk_layout('declare', ctx, d, perr)
    gosub get.rects
    return
@@ -358,6 +369,17 @@ draw.all:
    screen box at lx,ly size lw,lh title ttl
    gosub draw.lower
    gosub draw.list
+   if outopen then call $tk_out('draw', ctx, 'output', '', oc)   ;* the output pane, in the rectangle the open layout gives it
+   return
+
+* Ctrl-O or Tests > Output of the runs, and Esc while it is open: the pane is shown or put away, the layout is declared again and all of it drawn
+toggle.out:
+   call $tk_out('toggle', ctx, '', '', oc)
+   outopen = oc
+   gosub declare.layout                                         ;* draw.list keeps the cursor row in view for the new VIS
+   gen += 1
+   ctx<TK.C.GEN> = gen
+   gosub draw.all
    return
 
 draw.lower:
@@ -555,6 +577,19 @@ draw.output:
 on.key:
    msg = ''
    if len(nm) = 1 then nm = downcase(nm)                         ;* R and r are one key
+   begin case
+      case nm = 'ctrl-o'
+         gosub toggle.out
+         return
+      case nm = 'esc' and outopen
+         gosub toggle.out                                        ;* the Esc rule: what the page has open is closed first, in either pane
+         return
+      case (nm = 'ctrl-pgup' or nm = 'ctrl-pgdn') and outopen
+         okey = nm[6, 4]
+         call $tk_out('key', ctx, okey, '', oc)                  ;* the output pane scrolls (pgup / pgdn)
+         call $tk_out('draw', ctx, 'output', '', oc)
+         return
+   end case
    if pn = 'Output' then
       gosub out.key
       return
@@ -731,6 +766,8 @@ run.test:
    ri = cur.ri
    if rerr # '' then
       msg = mrun : rerr
+      otext = sent : '  ' : rerr
+      call $tk_out('add', ctx, 'refuse', otext, '')
    end else
       used = ANSWERS - zleft
       if used < 0 then used = 0
@@ -745,6 +782,10 @@ run.test:
       gosub clean.line
       rz(rp) = zstate : @fm : np : @fm : nf : @fm : secs : @fm : oconv(t1, 'MTS') : @fm : nl : @fm : cutn : @fm : abm : @fm : used : @fm : 'run' : @fm : zs[1, 200] : @fm : sent
       ran.ok = @true
+      okind = 'ok'
+      if zstate # 'pass' then okind = 'refuse'
+      otext = sent : '  ' : zstate : ', ' : np : ' passed, ' : nf : ' failed, ' : secs : ' s'
+      call $tk_out('add', ctx, okind, otext, '')                 ;* what the run answered stays in the output pane (Ctrl-O), whether or not it is open
       zr = rz(rp)
       lines = ''
       gosub describe.result

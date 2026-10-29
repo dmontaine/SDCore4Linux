@@ -91,7 +91,7 @@ def checks(raw):
        and raw["newvoc"].split("\n")[1:3] == ["CA", "$tool_voc"], repr((raw["voc"][:30], raw["newvoc"][:60])))
     op = pg.find("call $tk_open('tool.voc', '', ctx, err)")
     ck("TV2", "it is a USER app: the base is opened with no audience and BEFORE anything is read - the VOC, NEWVOC, a file, a gate",
-       0 <= op < pg.find("open 'VOC'") and op < pg.find("open 'newvoc'") and op < pg.find("kernel(K$") and "'admin'" not in pg and "K$ADMINISTRATOR" not in pg
+       0 <= op < pg.find("open 'VOC'") and op < pg.find("open 'newvoc'") and op < pg.find("kernel(K$") and "'admin'" not in pg and pg.count("K$ADMINISTRATOR") == 1
        and "if err # '' then\n      display err\n      stop" in pg, op)
     ck("TV3", "the one command it runs through $tk_run is DELETE (declared once at the top); the only other execute is the hand-over of the terminal in hand.over",
        re.findall(r"\ballow = '([^']*)'", pg) == ["delete"] and pg.count("call $tk_run(allow, sent, out, stat, rerr)") == 1 and "$tk_runx" not in pg
@@ -125,9 +125,9 @@ def checks(raw):
        "if ok and ssel = 2 then ok = (emeta<i, 4> = 'changed' or emeta<i, 4> = 'added')" in pg and "if ok and ssel = 3 then ok = (emeta<i, 3> = 'NO')" in pg
        and "locate enames<i> in shown<1> by 'AL' setting lp else" in pg and "sel.e = shown<ci>" in block(pg, "read.all") and "if shown<i> = sel.e then" in block(pg, "read.all"), "")
     ck("TV10", "the gates the session holds are ASKED of the kernel (voc-edit, dict-edit, bp-edit, with -1) and shown; the delete box says when voc-edit is off; nothing is tried to learn them",
-       all(("kernel(K$%s, -1)" % k) in block(pg, "draw.foot") for k in ("VOC.EDIT", "DICT.EDIT", "BP.EDIT")) and "voc-edit is off for you: the delete is expected to be refused." in de, "")
+       all(("kernel(K$%s, -1)" % k) in block(pg, "gate.words") for k in ("ADMINISTRATOR", "VOC.EDIT", "DICT.EDIT", "BP.EDIT")) and "gosub gate.words" in block(pg, "draw.foot") and "on (administrator)" in block(pg, "gate.words") and "voc-edit is off for you: the delete is expected to be refused." in de, "")
     ck("TV11", "a letter is the same key in either case, and every key the page acts on has a place in the key table",
-       "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "e", "d", "t", "s", "f11", "f5", "ctrl-q")), "")
+       "if len(nm) = 1 then nm = downcase(nm)" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in ("f1", "e", "d", "t", "s", "/", "f5", "ctrl-q")), "")
     ck("TV12", "the layout fits the 140 by 43 frame, through the layout service (S.88 L2): the two panes are declared in the reference sizes (the list 138 by 22, the detail 138 by 17), so the boxes are rows 1-22 and 23-39; "
                "the list has lh - 6 rows (16 at y 3-18), the summary and the gates line stand at the foot of the list (lh - 4 and lh - 3: rows 19 and 20), the detail has dh - 2 rows (15 at y 24-38)",
        "d<1> = 'list' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :" in pg and "d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 :" in pg
