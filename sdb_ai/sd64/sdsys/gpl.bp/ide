@@ -322,6 +322,7 @@ $include dictdict.h
    have.form = @false
    done = @false
    untitled = 0                      ;* the number of the last untitled buffer made
+   pa.allow = ''                     ;* 29 Oct 26 (stage F): the kind path.not.for lets through for one command (do.fields asks 'coll')
 
    * 28 Oct 26 (stage B): a file named with no record and an active select list (SELECT, then IDE file, as SED takes it): its ids are read here, before anything
    *   could use list 0, at most MAXREC of them and without building the rest of a list that is still being made; the list is used up, as SED's is
@@ -1091,6 +1092,7 @@ open.record:
    bx{k} = ''
    tb.shown = rec
    if rc.choice = 'use' then tb.shown = rc.text
+   if lk.kind = 'coll' and or.new and rc.choice # 'use' then tb.shown = '{}'      ;* 29 Oct 26 (stage F): a new record of a collection file starts as an empty collection
    k = 't' : uid
    bx{k} = tb.shown
    gosub rc.init.tab
@@ -1224,6 +1226,12 @@ path.refusal:
 path.not.for:
    pa.no = @false
    if nbuf = 0 then return
+   pa.k = 'k' : bu<cb>
+   if bx{pa.k} = 'coll' and pa.allow # 'coll' then
+      pa.no = @true                    ;* 29 Oct 26 (stage F): a record of a collection file is not a program either (Edit as fields is the one command that asks with pa.allow = 'coll')
+      msg = sysmsg(11744, bn<cb>, bi<cb>)
+      return
+   end
    if bn<cb> # 'path:' then return
    pa.no = @true
    msg = sysmsg(11739, bn<cb>, bi<cb>)
@@ -1318,14 +1326,16 @@ lock.take:
       lk.err = sysmsg(11200, lk.name)
       return
    end
-   * a collection file's record is not text, and a plain READ of it would stop the IDE and every tab with it: refused until stage F hands it to CED
-   if fileinfo(fv, FL$COLLECTION) then
-      lk.err = sysmsg(11684, lk.name, lk.id)
-      return
+   * 29 Oct 26 (stage F): a collection file's record is a collection, not text, and a plain READ of it into the editor would stop the IDE and every tab with it: the tab
+   *   shows its JSON (coll.text) and the save parses it back (coll.value, in save.one); kind 'coll'.  A collection file has no dictionary part to ask about.
+   lk.coll = (fileinfo(fv, FL$COLLECTION) + 0 # 0)
+   if lk.coll then
+      lk.kind = 'coll'
+   end else
+      ko.dict = lk.dict
+      gosub kind.of
+      lk.kind = ko.kind
    end
-   ko.dict = lk.dict
-   gosub kind.of
-   lk.kind = ko.kind
    for lk.s = 1 to MAXLOCK
       if tused<lk.s> = '' then exit
    next lk.s
@@ -1352,12 +1362,28 @@ lock.take:
       lk.rec = ''
       lk.got = @true
    end
+   if lk.coll and lk.err = '' and lk.exists then gosub coll.text
    if lk.err # '' then lk.got = @false
    if lk.got then
       lk.slot = lk.s
       tused<lk.s> = 1
    end else
       tfv(lk.s) = 0
+   end
+   return
+
+* 29 Oct 26 (stage F).  In: lk.rec, a record of a collection file as READ gave it (a collection or an array).  Out: lk.rec as the text of its JSON, one element to a line
+*   (JBUILD with JB$PRETTY, the layout CT shows), or lk.err (11684) when it is neither, or has no JSON form (JBUILD gives a null string and STATUS() 1019, never an abort).
+coll.text:
+   lk.ct = jtype(lk.rec)
+   lk.cj = ''
+   if lk.ct = 'collection' or lk.ct = 'array' then lk.cj = jbuild(lk.rec, JB$PRETTY)
+   if lk.cj = '' then
+      lk.err = sysmsg(11684, lk.name, lk.id)
+      lk.rec = ''
+      if lk.got then release tfv(lk.s), lk.id          ;* the READU took the lock: it goes with the refusal (lock.take then closes the tab's variable)
+   end else
+      lk.rec = lk.cj
    end
    return
 
@@ -2442,6 +2468,12 @@ save.one:
       gosub save.path                   ;* 28 Oct 26 (stage E): an operating system file is read again and written in place, not written as a record
       return
    end
+   sv.out = sv.text                     ;* what is written: the text, or (stage F) the collection the text of a collection file's record parses to
+   if sv.kind = 'coll' then
+      gosub coll.value
+      if not(cv.ok) then return
+      sv.out = cv.y
+   end
    * 28 Oct 26 (stage B): a tab that holds its record's lock saves through the file variable the lock was taken through: a READU through another one would move the
    *   lock to it (it is this session's), and the close of that one would then give it away.  The tab keeps the lock after the save (WRITEU).
    if sv.slot then
@@ -2468,6 +2500,7 @@ save.one:
          gosub dict.trim                     ;* the tab holds the item without its compiled code: so is the disk record compared
          disk = dt.rec
       end
+      if sv.kind = 'coll' then disk = jbuild(disk, JB$PRETTY)      ;* 29 Oct 26 (stage F): the record as the tab read it (a plain value there now gives a null string: a change)
       if disk # sv.saved then
          screen msgbox sysmsg(11203, sv.name, sv.id) buttons 'Overwrite,Cancel' default 2 returning b else b = 0
          if b # 1 then
@@ -2479,19 +2512,25 @@ save.one:
       null
    end
    if sv.slot then
-      writeu sv.text on fv, sv.id on error
+      writeu sv.out on fv, sv.id on error
          sv.err = status()
          msg = sysmsg(11972, sv.name, sv.id, sv.err)
          return
       end
    end else
-      write sv.text on fv, sv.id on error
+      write sv.out on fv, sv.id on error
          sv.err = status()
          release fv, sv.id
          msg = sysmsg(11972, sv.name, sv.id, sv.err)
          return
       end
       release fv, sv.id
+   end
+   if sv.kind = 'coll' then
+      * 29 Oct 26 (stage F): the tab keeps the record in the one layout JBUILD gives it, so that the next save compares like with like and the tab is not "changed" because it was typed compact
+      sv.text = jbuild(sv.out, JB$PRETTY)
+      k = 't' : u
+      bx{k} = sv.text
    end
    k = 's' : u
    bx{k} = sv.text
@@ -2505,6 +2544,22 @@ save.one:
       rt.file = bn<sv.i>
       rt.dict = sv.dict
       gosub refresh.tree.for                   ;* the record is in the file now: the tree lists it
+   end
+   if sv.kind = 'coll' and sv.i = cb then gosub load.current       ;* 29 Oct 26 (stage F): the editor shows the layout that was kept
+   return
+
+* In: sv.text, sv.name, sv.id.  Out: cv.ok, cv.y (the collection or array the text is).  JPARSE answers a null string and STATUS() 1020 (INMAT() the character it gave up at) for text that is
+*   not a JSON object or array; that is said in a box (11743) and nothing is written.  (29 Oct 26, stage F.)
+coll.value:
+   cv.y = jparse(sv.text)
+   cv.st = status()
+   cv.at = inmat()
+   cv.ok = (cv.st = 0)
+   if cv.ok then cv.ok = (jtype(cv.y) = 'collection' or jtype(cv.y) = 'array')
+   if not(cv.ok) then
+      rf.text = sysmsg(11743, sv.name, sv.id, cv.at)
+      msg = rf.text
+      gosub refuse.box
    end
    return
 
@@ -2713,6 +2768,7 @@ add.new.record:
    bx{k} = ''
    k = 't' : uid
    bx{k} = rc.text                   ;* '' unless the person took the copy
+   if lk.kind = 'coll' and rc.choice # 'use' then bx{k} = '{}'      ;* 29 Oct 26 (stage F): a new record of a collection file starts as an empty collection
    k = 'c' : uid
    bx{k} = ''
    k = 'm' : uid
@@ -3055,7 +3111,9 @@ do.fields:
       msg = sysmsg(11218)
       return
    end
-   gosub path.not.for                   ;* 28 Oct 26 (stage E): the lines of a file are not fields and values
+   pa.allow = 'coll'                    ;* 29 Oct 26 (stage F): a collection record IS handed to CED (below); an operating system file is not fields and values
+   gosub path.not.for
+   pa.allow = ''
    if pa.no then return
    ro.i = cb
    gosub ro.check                       ;* 28 Oct 26 (stage B): the text of a read-only tab is not changed
@@ -3074,16 +3132,37 @@ do.fields:
    fd.id = bi<cb>
    k = 't' : fd.u
    fd.was = bx{k}
-   call $recarr('to', fd.was, fd.arr, fd.ok)
+   k = 'k' : fd.u
+   fd.coll = (bx{k} = 'coll')
+   if fd.coll then
+      * 29 Oct 26 (stage F): a record of a collection file goes to CED as the collection its JSON text parses to (data type 0, no file and no id: CED writes nothing and keeps the
+      *   changes in the variable); what comes back is the JSON text of it, in the layout the tab uses.  Text that does not parse is said, not edited.
+      sv.text = fd.was
+      sv.name = fd.file
+      sv.id = fd.id
+      gosub coll.value
+      if not(cv.ok) then return
+      fd.c = cv.y
+   end else
+      call $recarr('to', fd.was, fd.arr, fd.ok)
+   end
    gosub leave.screen
    fd.res = ''
-   call $cedit(fd.arr, '', '', 2, fd.file : ' ' : fd.id, fd.res)
    fd.new = fd.was
-   if fd.res<1> then
-      call $recarr('from', fd.arr, fd.text, fd.ok)
-      if fd.ok then fd.new = fd.text
+   if fd.coll then
+      call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)
+      if fd.res<1> then
+         fd.text = jbuild(fd.c, JB$PRETTY)
+         if fd.text # '' then fd.new = fd.text
+      end
+   end else
+      call $cedit(fd.arr, '', '', 2, fd.file : ' ' : fd.id, fd.res)
+      if fd.res<1> then
+         call $recarr('from', fd.arr, fd.text, fd.ok)
+         if fd.ok then fd.new = fd.text
+      end
    end
-   if fd.new # fd.was then
+   if (fd.new : '|') # (fd.was : '|') then
       k = 't' : fd.u
       bx{k} = fd.new
       k = 'c' : fd.u

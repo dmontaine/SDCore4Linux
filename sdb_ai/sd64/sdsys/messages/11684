@@ -1,1 +1,1 @@
-%1 %2 is a record of a collection file: the IDE does not edit collections yet (ced %1 does)
+%1 %2 is not a JSON object or array (it holds a plain value, or something with no JSON form), so the IDE does not open it

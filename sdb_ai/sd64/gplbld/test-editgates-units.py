@@ -342,7 +342,7 @@ def checks(srcs, messages_dir):
     ide_wa = ide[ide.find("\ndo.writeas:"):ide.find("\ndo.open:")]
     ck("G7 IDE asks before it saves and before it writes a copy (edit.check, after the file is open and before the write; the reason goes to msg and to a box, not DISPLAY)",
        ide.count("gosub edit.check") >= 2 and "msg = edit_msg(edit.kind)" in ide and "$include syscom keys.h" in ide
-       and 0 < at(ide_sv, "gosub edit.check") < at(ide_sv, "write sv.text on fv") and at(ide_sv, "open sv.dict, bn<sv.i> to fv") < at(ide_sv, "gosub edit.check")
+       and 0 < at(ide_sv, "gosub edit.check") < at(ide_sv, "write sv.out on fv") and at(ide_sv, "open sv.dict, bn<sv.i> to fv") < at(ide_sv, "gosub edit.check")
        and 0 < at(ide_wa, "open wa.file to fv") < at(ide_wa, "gosub edit.check") < at(ide_wa, "write wa.text on fv"), "")
     inm = c["ide_name"]
     ck("G7b the IDE's name form (new record, first save, save as, write a copy) asks the kernel by the pathname of the OPEN file and says the reason in the form",

@@ -35,7 +35,9 @@
 #   Q    CREATING.SEQKEY: `ide file creating.seqkey` opens the file's next sequential id as a new record, and the save writes it there
 #   SL   an active select list: SELECT then `ide file` opens the listed records in tabs and lists them
 #   I    Go / Open the include: on a $include line it opens the include record in a tab; on another line it says so and opens nothing
-#   C    a collection file's record is refused with a message and the IDE stays up (a plain READ of one would abort it)
+#   C    a collection file's record (stage F, 29 Oct 26; it was refused before): opens as the text of its JSON, an edit is written as a COLLECTION, text that is not JSON is refused with the
+#        record untouched, compile is refused, a missing record opens as a new {} and is written, F12 hands it to CED.  WRITTEN, NOT RUN: the key sequence that edits line 2, CED's header,
+#        and the exact words are guesses from the other suites
 #   G    the gate: in an ordinary account whose dict edit gate is off, `ide dict ...` and Ctrl-S are refused with the dict.edit message and the item is unchanged;
 #        control, the same account's data record saves
 
@@ -65,6 +67,7 @@ ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 RUN = "%05d" % (os.getpid() % 100000)
 F10, RIGHT, DOWN, RET, ESC, END = sb.F10, sb.RIGHT, sb.DOWN, sb.RET, sb.ESC, sb.END
 CTRL_Q, CTRL_S, CTRL_W = sb.CTRL_Q, sb.CTRL_S, sb.CTRL_W
+F8, F12 = sb.F8, "\x1b[24~"            # (stage F rows C4 and C7)
 GO_INCLUDE = 7                       # Down presses from Go to line to Open the include: Go to line, Next error, Next tab, Previous tab, Files and records, Next pane, Previous pane
 passed = failed = 0
 BOX = SYSD = None
@@ -139,6 +142,10 @@ PROBE = """   open '%(df)s' to d else stop 'KPROBE no data file'
    read r from dd, 'name' then crt 'KREC dict.name [':convert(@fm:@vm:@sm, '^|~', r):']' else crt 'KREC dict.name <absent>'
    read r from d, 'name' then crt 'KREC data.name [':r:']' else crt 'KREC data.name <absent>'
    read r from v, '%(voc)s' then crt 'KREC voc [':convert(@fm:@vm:@sm, '^|~', r):']' else crt 'KREC voc <absent>'
+   open '%(col)s' to cf else stop 'KPROBE no collection file'
+   for ci = 1 to 2
+      read c from cf, 'c':ci then crt 'KREC coll.c':ci:' [':jbuild(c):']' else crt 'KREC coll.c':ci:' <absent>'
+   next ci
    crt 'KPROBE END'
 end
 """
@@ -298,7 +305,7 @@ def section_setup():
         bail("the fixture was not made")
     d = disk()
     want = {"r1": "[Don|Henry^x]", "r2": "[plain text]", "r3": "[locked one]", "r4": "[tab one]", NEW1: "<absent>", NEW2: "<absent>", "1": "<absent>",
-            "dict.name": "[D^1^^Name^20L^S]", "data.name": "<absent>", "voc": "[X^a|b]"}
+            "dict.name": "[D^1^^Name^20L^S]", "data.name": "<absent>", "voc": "[X^a|b]", "coll.c1": '[{"a":1}]', "coll.c2": "<absent>"}
     bad = {k: (d.get(k), v) for k, v in want.items() if d.get(k) != v}
     row("S0 control: the probe reads every record as the fixture wrote it", not bad, repr(bad))
     row("S0 control: the lock probe GETS a record nobody holds (so a LOCKED below is a lock, not a broken probe)", lock_of("r1") == "GOT", repr(lock_of("r1")))
@@ -593,11 +600,48 @@ def section_include():
 
 # ---- C: a collection file ---------------------------------------------------------------------------------------------------------------------------------------------------
 def section_collection():
-    say("\n--- C: a collection file's record is refused --------------------------------------------------------------------------------")
+    say("\n--- C: a collection file's record (stage F, 29 Oct 26) ---------------------------------------------------------------------")
     e = sb.Ide(BOX, "IDE %s c1" % COL)
     e.quiet()
-    row("C1 a collection file's record is refused with a message (the IDE does not edit collections yet) and the IDE is still up",
-        "collection file" in e.status() and "IDE: " in "\n".join(e.lines()[:3]), e.status())
+    row("C1 a collection file's record opens as the text of its JSON, one element to a line (it was refused until stage F), in a tab that says its name",
+        '"a"' in editor_text(e) and "[c1]" in tab_row(e) and "IDE: " in "\n".join(e.lines()[:3]), "%r | %r" % (editor_text(e)[:200], tab_row(e)[:80]))
+    e.keys(DOWN, END, "\x7f", "2")                                      # line 2 is  "a": 1  : the 1 becomes 2
+    e.keys(CTRL_S)
+    e.quiet()
+    d = disk()
+    row("C2 an edit of the JSON and Ctrl-S writes the COLLECTION to the file: the record reads back as {\"a\":2} (and the status line says Saved)", d.get("coll.c1") == '[{"a":2}]' and "Saved" in e.status(),
+        "%r | %r" % (d.get("coll.c1"), e.status()[:100]))
+    done(e)
+    e = sb.Ide(BOX, "IDE %s c1" % COL)
+    e.quiet()
+    e.keys("ZZ")                                                        # {  becomes  ZZ{  : not JSON
+    e.keys(CTRL_S)
+    t = e.text()
+    d = disk()
+    row("C3 text that is not a JSON object or array is refused in a box that says where the parse stopped, and the record on the disk is as it was", "not a JSON object or array" in t and d.get("coll.c1") == '[{"a":2}]',
+        "%r | %r" % (t[-300:], d.get("coll.c1")))
+    e.keys(RET)
+    e.keys(F8)
+    e.quiet()
+    row("C4 compile says it is a record of a collection file and the IDE stays up", "collection file" in e.status() and "IDE: " in "\n".join(e.lines()[:3]), e.status())
+    done(e)
+    e = sb.Ide(BOX, "IDE %s c2" % COL)
+    e.quiet()
+    row("C5 a record that is not there opens as a NEW record holding {} (an empty collection)", "{}" in editor_text(e) and ("New record" in e.status() or "c2" in e.status()), "%r | %r" % (editor_text(e)[:80], e.status()[:100]))
+    e.keys(CTRL_S)
+    e.quiet()
+    d = disk()
+    row("C6 Ctrl-S writes it: the record is an empty collection on the disk", d.get("coll.c2") == "[{}]", repr(d.get("coll.c2")))
+    done(e)
+    e = sb.Ide(BOX, "IDE %s c1" % COL)
+    e.quiet()
+    e.keys(F12)
+    e.quiet()
+    t_ced = "\n".join(e.lines()[:3])
+    e.keys(CTRL_Q)
+    e.quiet()
+    row("C7 F12 hands the record to CED (the IDE's header is gone while it is up) and CED's Ctrl-Q brings the IDE back with 'is as it was'",
+        "IDE: " not in t_ced and "IDE: " in "\n".join(e.lines()[:3]) and "as it was" in e.status(), "%r | %r" % (t_ced[:100], e.status()[:100]))
     done(e)
 
 

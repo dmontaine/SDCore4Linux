@@ -272,7 +272,7 @@ def checks(src, msgs):
        and tick.count("call !edit_recovery('write'") == 1, "")
     sv = label(ide, "save.one")
     ck("R8d a save drops the copy only AFTER the write succeeded (after the ON ERROR branch and the lock is given back)",
-       ordered(sv, "write sv.text on fv, sv.id on error", "return", "release fv, sv.id", "sv.ok = @true", "ri = sv.i", "gosub rc.drop.tab", "msg = sysmsg(11202"), "")
+       ordered(sv, "write sv.out on fv, sv.id on error", "return", "release fv, sv.id", "sv.ok = @true", "ri = sv.i", "gosub rc.drop.tab", "msg = sysmsg(11202"), "")
     cl = label(ide, "close.current")
     qt = label(ide, "do.quit")
     ck("R8e Close drops the copy after the person's answer (Cancel returns first); a normal quit drops every copy only when nothing was cancelled",

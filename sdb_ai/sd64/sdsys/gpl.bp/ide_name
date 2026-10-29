@@ -202,9 +202,13 @@ try.accept:
                read x from fv, ii then
                   msg = sysmsg(11217, ii, ff)
                end else
-                  file = ff
-                  id = ii
-                  res = 'ok'
+                  if mode # 'new' and (fileinfo(fv, FL$COLLECTION) + 0) # 0 then
+                     msg = sysmsg(11745, ff)          ;* 29 Oct 26 (stage F): a text is not saved into a collection file under a new name; New record makes a record of it, an empty collection
+                  end else
+                     file = ff
+                     id = ii
+                     res = 'ok'
+                  end
                end
             end else
                msg = edit_msg(kernel(K$EDIT.KIND, ep))

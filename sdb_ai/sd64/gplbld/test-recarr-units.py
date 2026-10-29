@@ -154,7 +154,8 @@ def checks(p):
     row("I6 do.fields itself does not write, read with a lock or delete, or run a command: the IDE's save (edit.check, the overwrite question) is the only writer",
         not any(re.search(r"\b(write|writeu|writev|readu|readv|delete|deleteu|execute|open)\b", l) for l in df), "\n".join(l for l in df if re.search(r"\b(write|writeu|readu|delete|execute|open)\b", l)))
     row("I7 do.fields changes the tab only when what came back differs (11989), else says it is as it was (11990)",
-        ordered(df, [r"if fd\.new # fd\.was then", r"bx\{k\} = fd\.new", r"sysmsg\(11989,", r"end else", r"sysmsg\(11990,"]))
+        ordered(df[next((n for n, l in enumerate(df) if re.search(r"if \(fd\.new : '\|'\) # \(fd\.was : '\|'\) then", l)), len(df)):],      # from that test on: stage F's branch has an end else of its own above it
+                [r"if \(fd\.new : '\|'\) # \(fd\.was : '\|'\) then", r"bx\{k\} = fd\.new", r"sysmsg\(11989,", r"end else", r"sysmsg\(11990,"]))
 
     # ---- I8-I12: the token form and the language in the IDE (26 Oct 26) ----------------------------------------------------------------------------------------------
     sf = code(section(i, "syntax.for"))

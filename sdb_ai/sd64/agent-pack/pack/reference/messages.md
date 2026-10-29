@@ -6493,10 +6493,10 @@ cited by: `ide_name`
 cited by: `ide_name`
 
 ### msg:11684
-> kind=message tier=reference since=- src=sdsys/messages/11684:1#4b93081a
+> kind=message tier=reference since=- src=sdsys/messages/11684:1#9ba45dd6
 
 ```
-%1 %2 is a record of a collection file: the IDE does not edit collections yet (ced %1 does)
+%1 %2 is not a JSON object or array (it holds a plain value, or something with no JSON form), so the IDE does not open it
 ```
 
 cited by: `ide`
@@ -6968,6 +6968,33 @@ cited by: `ide`
 ```
 
 cited by: `ide`
+
+### msg:11743
+> kind=message tier=reference since=- src=sdsys/messages/11743:1#e049119c
+
+```
+%1 %2 was not saved: its text is not a JSON object or array (the parse stops at character %3).  The text is still in the editor.
+```
+
+cited by: `ide`
+
+### msg:11744
+> kind=message tier=reference since=- src=sdsys/messages/11744:1#92d98538
+
+```
+%1 %2 is a record of a collection file: compile, run, debug, catalog, SED, Save as and Open the include do not apply to it (Edit as fields hands it to CED; Write a copy keeps its JSON text in a record)
+```
+
+cited by: `ide`
+
+### msg:11745
+> kind=message tier=reference since=- src=sdsys/messages/11745:1#c04cab20
+
+```
+%1 is a collection file: a text cannot be saved into it under a new name.  New record makes a record of it, an empty collection to edit as JSON or with Edit as fields
+```
+
+cited by: `ide_name`
 
 ### msg:11750
 > kind=message tier=reference since=- src=sdsys/messages/11750:1#e64264f5

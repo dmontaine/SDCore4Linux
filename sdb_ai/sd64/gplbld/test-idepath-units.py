@@ -348,7 +348,7 @@ MUTANTS = [
     ("a recovery copy is kept of a file", "P16", sub("ide", "      if bx{rk.pk} = 'path' then continue", "      null")),
     ("a file is compiled", "P17", sub("ide", "   gosub path.not.for                   ;* 28 Oct 26 (stage E): an operating system file is not a program\n   if pa.no then return\n", "")),
     ("a file is handed to SED", "P17", sub("ide", "   gosub path.not.for                   ;* 28 Oct 26 (stage E): SED opens records, and none of the operating system's files since S.87\n   if pa.no then return\n", "")),
-    ("a file is edited as fields", "P17", sub("ide", "   gosub path.not.for                   ;* 28 Oct 26 (stage E): the lines of a file are not fields and values\n   if pa.no then return\n", "")),
+    ("a file is edited as fields", "P17", sub("ide", "   gosub path.not.for\n   pa.allow = ''\n   if pa.no then return\n", "   pa.allow = ''\n   pa.no = @false\n")),
     ("a file is saved as a record", "P17", sub("ide", "   gosub path.not.for                   ;* 28 Oct 26 (stage E): Save as would make the tab another record; Write a copy keeps the text\n   if pa.no then return\n", "")),
     ("Write a copy is refused for a file (no way out of a failed save)", "P17", sub("ide", "   if not(na.ok) then return\n   * 28 Oct 26 (stage E, review finding 4): Write a copy WORKS",
                                                                                    "   if not(na.ok) then return\n   gosub path.not.for\n   if pa.no then return\n   * 28 Oct 26 (stage E, review finding 4): Write a copy WORKS")),

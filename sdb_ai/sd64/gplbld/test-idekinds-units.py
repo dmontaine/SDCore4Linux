@@ -40,6 +40,7 @@ GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 NEWMSG = list(range(11684, 11699))
 NEWMSG2 = [11750, 11751, 11752, 11753, 11754, 11761]     # 28 Oct 26: the AUTOLOGOUT countdown and the read-only tab for bytes outside ASCII
+NEWMSG3 = [11743, 11744, 11745]                          # 29 Oct 26 (stage F): JSON that will not parse, a collection record is not a program, a text is not saved into a collection file
 
 
 def strip(src):
@@ -84,7 +85,12 @@ def load():
             src["ide"] = f.read()
     except OSError:
         src["ide"] = ""
-    for n in NEWMSG + NEWMSG2 + [11215, 11226]:
+    try:
+        with open(os.path.join(GPL, "ide_name"), encoding="latin-1") as f:
+            src["ide_name"] = f.read()
+    except OSError:
+        src["ide_name"] = ""
+    for n in NEWMSG + NEWMSG2 + NEWMSG3 + [11215, 11226]:
         try:
             with open(os.path.join(MSG, str(n)), encoding="latin-1") as f:
                 src["m%d" % n] = f.read()
@@ -105,7 +111,7 @@ def checks(src):
                                      "tab.lock", "relock.all", "ro.check", "open.record", "save.one", "close.current", "retake.quiet", "do.saveas", "do.writeas",
                                      "seq.take", "do.new", "open.select", "do.compile", "do.sed", "do.include", "kind.of", "dict.trim", "load.current", "new.form",
                                      "do.replace", "do.fields", "ai.apply", "edit.check", "name.untitled", "add.new.record", "tab.find", "status.line",
-                                     "tab.state", "na.mark", "na.check", "ro.box", "idle.text", "rc.untitled")}
+                                     "tab.state", "na.mark", "na.check", "ro.box", "idle.text", "rc.untitled", "coll.text", "coll.value", "path.not.for")}
     head = ide[: ide.find("gosub open.screen")]
     main = ide[: ide.find("apply.theme:")]
     ck("K0", "NULL CASE: the IDE was read and every routine this check reads is there (a check on nothing would pass)",
@@ -158,10 +164,36 @@ def checks(src):
 
     # ---- the lock -----------------------------------------------------------------------------------------------------------------------------------------------------------
     lt = L["lock.take"]
-    ck("K10", "lock.take opens the file WITH the dictionary flag, refuses a collection file (11684) BEFORE any read, and finds a free slot (11690 when there is none)",
-       ordered(lt, "open lk.dict, lk.file to fv else", "if fileinfo(fv, FL$COLLECTION) then", "lk.err = sysmsg(11684, lk.name, lk.id)", "return", "gosub kind.of",
-               "if tused<lk.s> = '' then exit", "lk.err = sysmsg(11690)", "tfv(lk.s) = fv", "readu ")
-       and lt.find("FL$COLLECTION") < lt.find("readu ") and lt.find("FL$COLLECTION") < lt.find("read lk.rec"), "")
+    ck("K10", "lock.take opens the file WITH the dictionary flag, knows a collection file BEFORE any read (kind 'coll', not kind.of: a collection file has no dictionary part to ask about), and finds a free "
+       "slot (11690 when there is none); since stage F (29 Oct 26) the record is READ as the collection it is and made text AFTER the read (coll.text), the lock given back when it is neither a "
+       "collection nor an array (11684) or has no JSON form",
+       ordered(lt, "open lk.dict, lk.file to fv else", "lk.coll = (fileinfo(fv, FL$COLLECTION) + 0 # 0)", "if lk.coll then", "lk.kind = 'coll'", "end else", "gosub kind.of",
+               "if tused<lk.s> = '' then exit", "lk.err = sysmsg(11690)", "tfv(lk.s) = fv", "readu ", "if lk.coll and lk.err = '' and lk.exists then gosub coll.text", "if lk.err # '' then lk.got = @false")
+       and lt.find("FL$COLLECTION") < lt.find("readu ") and lt.find("FL$COLLECTION") < lt.find("read lk.rec")
+       and ordered(L["coll.text"], "lk.ct = jtype(lk.rec)", "jbuild(lk.rec, JB$PRETTY)", "if lk.cj = '' then", "lk.err = sysmsg(11684, lk.name, lk.id)", "if lk.got then release tfv(lk.s), lk.id"), "")
+    cx = L["coll.value"]
+    ck("K37", "stage F: the text of a collection file's record is parsed by JPARSE with its STATUS() and INMAT() taken at once, and refused in a box (11743) unless it is a collection or an array; "
+       "save.one writes sv.out - the parsed collection for kind 'coll', else the text - and compares the disk record AS JBUILD'S TEXT with what the tab read; the kept text is the JBUILD layout, so "
+       "a compact text is not 'changed' for ever",
+       ordered(cx, "cv.y = jparse(sv.text)", "cv.st = status()", "cv.at = inmat()", "cv.ok = (cv.st = 0)", "jtype(cv.y) = 'collection' or jtype(cv.y) = 'array'", "sysmsg(11743, sv.name, sv.id, cv.at)", "gosub refuse.box")
+       and ordered(L["save.one"], "sv.out = sv.text", "if sv.kind = 'coll' then", "gosub coll.value", "if not(cv.ok) then return", "sv.out = cv.y", "readu disk from fv, sv.id locked",
+                   "if sv.kind = 'coll' then disk = jbuild(disk, JB$PRETTY)", "if disk # sv.saved then", "writeu sv.out on fv", "write sv.out on fv", "if sv.kind = 'coll' then", "sv.text = jbuild(sv.out, JB$PRETTY)",
+                   "k = 's' : u", "bx{k} = sv.text", "if sv.kind = 'coll' and sv.i = cb then gosub load.current"), "")
+    ck("K38", "stage F: a record of a collection file that is not there opens as a NEW record holding {} (an empty collection), in open.record and in New record (add.new.record), unless the person took a copy",
+       "if lk.kind = 'coll' and or.new and rc.choice # 'use' then tb.shown = '{}'" in L["open.record"]
+       and "if lk.kind = 'coll' and rc.choice # 'use' then bx{k} = '{}'" in L["add.new.record"], "")
+    fo = L["do.fields"]
+    ck("K39", "stage F: Edit as fields on a collection record parses the tab's text FIRST (and says so in a box when it will not parse: the screen is not left), hands CED the collection with data type 0 and "
+       "no file and no id (CED writes nothing), and takes the JBUILD text back; path.not.for is asked with pa.allow = 'coll' for this command only",
+       ordered(fo, "pa.allow = 'coll'", "gosub path.not.for", "pa.allow = ''", "if pa.no then return", "fd.coll = (bx{k} = 'coll')", "gosub coll.value", "if not(cv.ok) then return", "fd.c = cv.y",
+               "gosub leave.screen", "call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)", "fd.text = jbuild(fd.c, JB$PRETTY)", "call $cedit(fd.arr, '', '', 2,")
+       and "pa.allow = ''" in main, "")
+    pn = L["path.not.for"]
+    ck("K40", "stage F: path.not.for refuses a collection record for compile, run, debug, catalog, SED, Save as and the include (11744) unless pa.allow is 'coll', and keeps its operating-system-file "
+       "lines (11739) after it; the name form refuses a text saved into a collection file under a new name (11745) except for New record",
+       ordered(pn, "pa.k = 'k' : bu<cb>", "if bx{pa.k} = 'coll' and pa.allow # 'coll' then", "sysmsg(11744, bn<cb>, bi<cb>)", "return", "if bn<cb> # 'path:' then return", "sysmsg(11739, bn<cb>, bi<cb>)")
+       and ordered(strip(src["ide_name"]), "if mode # 'new' and (fileinfo(fv, FL$COLLECTION) + 0) # 0 then", "sysmsg(11745, ff)", "file = ff", "res = 'ok'")
+       and all((re.search(r"gosub (\S+)", L[n]) or [None, ""])[1] == "path.not.for" for n in ("do.compile", "do.sed", "do.include")), "")
     ck("K11", "lock.take reads with READU THROUGH THE TAB'S OWN FILE VARIABLE tfv(slot), ON ERROR; LOCKED takes the holder from STATUS() and reads without a lock (read-only); the "
        "slot is kept only when this session got the lock, otherwise the file variable is let go",
        ordered(lt, "readu lk.rec from tfv(lk.s), lk.id on error", "end locked", "lk.owner = status()", "read lk.rec from tfv(lk.s), lk.id then", "end then", "lk.got = @true",
@@ -184,8 +216,8 @@ def checks(src):
        "on that path; a tab with none opens the file with its dictionary flag, writes and releases",
        ordered(so, "gosub ro.check", "if not(ro.ok) then", "gosub refuse.box", "return", "if bi<sv.i> = '' then", "sv.slot = bx{k} + 0", "if sv.slot then", "fv = tfv(sv.slot)",
                "end else", "open sv.dict, bn<sv.i> to fv else", "gosub edit.check", "readu disk from fv, sv.id locked", "if sv.slot then",
-               "writeu sv.text on fv, sv.id on error", "end else", "write sv.text on fv, sv.id on error", "release fv, sv.id")
-       and "release" not in so[so.find("writeu sv.text"): so.find("end else", so.find("writeu sv.text") + 1) + 10]
+               "writeu sv.out on fv, sv.id on error", "end else", "write sv.out on fv, sv.id on error", "release fv, sv.id")
+       and "release" not in so[so.find("writeu sv.out"): so.find("end else", so.find("writeu sv.out") + 1) + 10]
        and "if not(sv.slot) then release fv, sv.id" in so, "")
     ck("K16", "save.one compares a dictionary item with the disk record trimmed the same way (dict.trim: an A, C, I or S item without its compiled code from DICT.SYS.INFO on)",
        ordered(so, "if sv.kind = 'dict' then", "gosub dict.trim", "if disk # sv.saved then")
@@ -268,8 +300,8 @@ def checks(src):
        and ordered(L["do.sed"], "read disk from fv, sd.id", "na.text = disk", "gosub na.mark")
        and ordered(L["rc.untitled"], "gosub rc.took", "na.text = rc.text", "gosub na.mark", "gosub load.current")
        and ordered(L["add.new.record"], "gosub tab.state", "na.text = rc.text", "gosub na.mark", "an.made = @true")
-       and ordered(L["load.current"], "ro = (bx{k} # '')", "k = 'a' : u", "if bx{k} then ro = 1", "mw{'readonly'} = ro")
-       and ordered(L["new.form"], "ed.ro = (bx{k} # '')", "k = 'a' : u", "if bx{k} then ed.ro = 1", "if ed.ro then")
+       and ordered(L["load.current"], "ro = (bx{k} # '')", "k = 'a' : u\n      if bx{k} then ro = 1", "mw{'readonly'} = ro")           # (the pair adjacent: stage E's own flag, 'z', follows it and would mask the 'a' test)
+       and ordered(L["new.form"], "ed.ro = (bx{k} # '')", "k = 'a' : u\n      if bx{k} then ed.ro = 1", "if ed.ro then")
        and ordered(L["status.line"], "k = 'a' : bu<cb>", "if bx{k} then t := '  ' : sysmsg(11753)"), "")
     ck("K32", "ro.check asks the ASCII flag FIRST (ro.why 'ascii', 11754) and the lock second ('lock'); ro.box shows a refusal in a box only for 'ascii'; Save (save.one), "
        "Replace, Edit as fields and an AI edit go through ro.check and ro.box (save.one's own box); Save as and Write a copy ask na.check before anything, which keeps a lock's "
@@ -299,6 +331,9 @@ def checks(src):
        and re.search(r"^\s*IDL\.WARN = 60\b", main, re.M) is not None
        and ordered(L["status.line"], "gosub idle.text", "if idl.txt # '' then t = idl.txt", "t = '[' : pn : ']'"), "")
     m2 = {n: src["m%d" % n] for n in NEWMSG2}
+    ck("K41", "stage F: messages 11743-11745 are there, one line each; 11743 takes the character the parse stopped at (%3), 11744 and 11745 are cited by the IDE and the name form",
+       all(src["m%d" % n].strip() and src["m%d" % n].count("\n") == 1 for n in NEWMSG3) and "%3" in src["m11743"] and "%2" in src["m11744"] and "sysmsg(11743" in ide and "sysmsg(11744" in ide
+       and "sysmsg(11745" in strip(src["ide_name"]), "")
     ck("K36", "messages 11750-11754 and 11761 are there, one line each; the countdown's three begin 'Idle: signing out in %1 s' and say what happens to the changes; the refusal "
        "and the open note name the record (%1 %2); the help names the read-only rule and the countdown",
        all(t.count("\n") == 1 and t.endswith("\n") for t in m2.values())
@@ -332,7 +367,24 @@ MUTANTS = [
     ("Find reads a collection file", "K7", sub("ide", "   if fileinfo(fv, FL$COLLECTION) then\n      msg = sysmsg(11698, ctx.file)", "   if 0 then\n      msg = sysmsg(11698, ctx.file)")),
     ("the dictionary node is never shown", "K8", sub("ide", "         if ldict<lp> then\n            nn += 1", "         if 0 then\n            nn += 1")),
     ("a dictionary item opens as a data record", "K9", sub("ide", "               if code[1, 2] = 'Q:' then or.dict = 'DICT'", "               null")),
-    ("a collection record is read", "K10", sub("ide", "   if fileinfo(fv, FL$COLLECTION) then\n      lk.err = sysmsg(11684, lk.name, lk.id)\n      return\n   end\n", "")),
+    ("a collection record is read as a text (the collection is not known before the read)", "K10", sub("ide", "   lk.coll = (fileinfo(fv, FL$COLLECTION) + 0 # 0)", "   lk.coll = 0")),
+    ("a collection record is shown without its JSON", "K10", sub("ide", "   if lk.coll and lk.err = '' and lk.exists then gosub coll.text", "   null")),
+    ("a record that is not a collection keeps its lock", "K10", sub("ide", "      if lk.got then release tfv(lk.s), lk.id ", "      null ")),
+    ("a collection record is treated as a dictionary-part kind", "K10", sub("ide", "   if lk.coll then\n      lk.kind = 'coll'\n   end else", "   if 0 then\n      lk.kind = 'coll'\n   end else")),
+    ("JSON that will not parse is written", "K37", sub("ide", "      gosub coll.value\n      if not(cv.ok) then return\n      sv.out = cv.y", "      cv.ok = 1\n      sv.out = sv.text")),
+    ("the status is read after INMAT", "K37", sub("ide", "   cv.st = status()\n   cv.at = inmat()", "   cv.at = inmat()\n   cv.st = status()")),
+    ("a plain value passes for a collection", "K37", sub("ide", "   if cv.ok then cv.ok = (jtype(cv.y) = 'collection' or jtype(cv.y) = 'array')", "   null")),
+    ("the disk record is compared as a collection variable, not as text", "K37", sub("ide", "      if sv.kind = 'coll' then disk = jbuild(disk, JB$PRETTY)", "      null")),
+    ("the text written is the typed text", "K37", sub("ide", "      sv.text = jbuild(sv.out, JB$PRETTY)\n", "")),
+    ("a new collection record starts empty text", "K38", sub("ide", "   if lk.kind = 'coll' and or.new and rc.choice # 'use' then tb.shown = '{}'", "   null")),
+    ("New record in a collection file starts empty text", "K38", sub("ide", "   if lk.kind = 'coll' and rc.choice # 'use' then bx{k} = '{}'", "   null")),
+    ("Edit as fields does not parse first", "K39", sub("ide", "      gosub coll.value\n      if not(cv.ok) then return\n      fd.c = cv.y", "      fd.c = collection()")),
+    ("CED is given the data mode for a collection", "K39", sub("ide", "      call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)", "      call $cedit(fd.c, '', '', 2, fd.file : ' ' : fd.id, fd.res)")),
+    ("CED is given the file for a collection", "K39", sub("ide", "      call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)", "      call $cedit(fd.c, tfv(1), fd.id, 0, fd.file : ' ' : fd.id, fd.res)")),
+    ("a collection record is compiled", "K40", sub("ide", "   if bx{pa.k} = 'coll' and pa.allow # 'coll' then", "   if 0 then")),
+    ("Edit as fields is refused for a collection", "K39", sub("ide", "   pa.allow = 'coll'                    ;* 29 Oct 26 (stage F)", "   pa.allow = ''                    ;* 29 Oct 26 (stage F)")),
+    ("a stage F message is empty", "K41", sub("m11744", "\n", "")),
+    ("a text is saved into a collection file under a new name", "K40", sub("ide_name", "                  if mode # 'new' and (fileinfo(fv, FL$COLLECTION) + 0) # 0 then", "                  if 0 then")),
     ("the dictionary flag is not used to open", "K10", sub("ide", "   open lk.dict, lk.file to fv else\n      lk.err", "   open lk.file to fv else\n      lk.err")),
     ("the lock is taken through fv, not the tab's variable", "K11", sub("ide", "   readu lk.rec from tfv(lk.s), lk.id on error", "   readu lk.rec from fv, lk.id on error")),
     ("a record another session holds is taken over", "K11", sub("ide", "      lk.owner = status()\n      read lk.rec from tfv(lk.s), lk.id then", "      read lk.rec from tfv(lk.s), lk.id then")),
@@ -344,7 +396,7 @@ MUTANTS = [
     ("the tab forgets its lock", "K14", sub("ide", "   ts.slot = lk.slot\n   ts.owner = lk.owner\n   gosub tab.state\n   tm.u = uid", "   ts.slot = 0\n   ts.owner = lk.owner\n   gosub tab.state\n   tm.u = uid")),
     ("a read-only tab is saved", "K15", sub("ide", "save.one:\n   sv.ok = @false\n   ro.i = sv.i\n   gosub ro.check", "save.one:\n   sv.ok = @false\n   ro.i = sv.i\n   ro.ok = 1")),
     ("the save opens its own file variable (the lock moves to it)", "K15", sub("ide", "   if sv.slot then\n      fv = tfv(sv.slot)\n   end else", "   if sv.slot then\n      open sv.dict, bn<sv.i> to fv else null\n   end else")),
-    ("the save gives the tab's lock away", "K15", sub("ide", "      writeu sv.text on fv, sv.id on error", "      write sv.text on fv, sv.id on error")),
+    ("the save gives the tab's lock away", "K15", sub("ide", "      writeu sv.out on fv, sv.id on error", "      write sv.out on fv, sv.id on error")),
     ("a dictionary item always looks changed", "K16", sub("ide", "      if sv.kind = 'dict' then\n         dt.rec = disk\n         gosub dict.trim", "      if 0 then\n         dt.rec = disk\n         gosub dict.trim")),
     ("Close keeps the lock", "K17", sub("ide", "   tu.i = cb\n   gosub tab.unlock                              ;* 28 Oct 26 (stage B): and its record's lock", "   tu.i = cb")),
     ("the end keeps the locks", "K17", sub("ide", "   gosub release.all                           ;* 28 Oct 26 (stage B)", "   null                           ;* 28 Oct 26 (stage B)")),
