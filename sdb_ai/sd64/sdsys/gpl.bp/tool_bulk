@@ -704,23 +704,43 @@ ask.op:
          end
          o.a1 = tv
       case o.kind = 'replace'
-         prm = 'Replace this text in attribute ' : o.attr : ' (printable ASCII, not empty)'
-         screen ask prm width 100 value old1 title 'Operation: replace  1 of 2' returning tv else return
-         gosub check.text
-         if not(tok) then
-            msg = twhy
+         * S.88: one form with both texts in view; the first one check.text refuses is said under the entries and the form stays
+         spec = 'Operation: replace in attribute ' : o.attr : @fm : '&Use' : @fm : 'Printable ASCII.  The first text is not empty; an empty second text takes the first out.'
+         spec<-1> = 'old' : @vm : 'Replace this text' : @vm : 100 : @vm : 300
+         spec<-1> = 'new' : @vm : 'with this text' : @vm : 100 : @vm : 300
+         fv = old1 : @fm : old2
+         call $tk_form('open', ctx, spec, fv, fo)
+         if fo = 'no' then
+            msg = 'the form does not fit this window: the operation was not added'
             return
          end
-         o.a1 = tv
-         screen ask 'with this text (empty takes the text out)' width 100 value old2 title 'Operation: replace  2 of 2' returning tv else return
-         emptyok = 1
-         gosub check.text
-         emptyok = 0
-         if not(tok) then
-            msg = twhy
-            return
-         end
-         o.a2 = tv
+         loop
+            call $tk_form('run', ctx, fans, fv, fid)
+            if fans # 'ok' then
+               call $tk_form('close', ctx, '', '', '')
+               return
+            end
+            fbad = '' ; fid = ''
+            tv = fv<1>
+            gosub check.text
+            if not(tok) then
+               fbad = twhy ; fid = 'old'
+            end else
+               o.a1 = tv
+               tv = fv<2>
+               emptyok = 1
+               gosub check.text
+               emptyok = 0
+               if not(tok) then
+                  fbad = twhy ; fid = 'new'
+               end else
+                  o.a2 = tv
+               end
+            end
+            if fbad = '' then exit
+            call $tk_form('say', ctx, fbad, fid, '')
+         repeat
+         call $tk_form('close', ctx, '', '', '')
       case o.kind = 'add'
          prm = 'The number to add to attribute ' : o.attr : ' (a negative one takes away; the attribute must hold a number)'
          screen ask prm width 20 value old1 title 'Operation: the number' returning tv else return

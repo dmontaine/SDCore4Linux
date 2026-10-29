@@ -164,8 +164,8 @@ def checks(raw):
        and "at lst.x + 2,lst.y + 1 attr 'header'" in dsl and "at lst.x + 2,lst.y + 1 + r attr rat" in dsl and "for r = 1 to DR" in dd and "at det.x + 2,det.y + r width dtw" in dd and "for r = 1 to VL" in dsl, "")
     cs = block(pg, "chk.stamp")
     ck("AU18", "a time typed for the filters or go-to is digits, '-', ' ' and ':' only and at most 19 characters, and a refused time stops the dialog before anything is changed; Esc at any question returns without applying the filters",
-       "if len(v) > 19 then stamp.ok = 0" in cs and "index('0123456789- :', v[si, 1], 1) = 0" in cs and block(pg, "do.filter").count("else return") == 6 and block(pg, "do.filter").count("if not(stamp.ok) then return") == 2
-       and block(pg, "do.filter").find("flt = nf") > block(pg, "do.filter").rfind("else return"), cs[:200])
+       "if len(v) > 19 then stamp.ok = 0" in cs and "index('0123456789- :', v[si, 1], 1) = 0" in cs and block(pg, "do.filter").count("gosub chk.stamp") == 2 and block(pg, "do.filter").count("call $tk_form('close'") == 2
+       and block(pg, "do.filter").find("flt = nf") > block(pg, "do.filter").rfind("call $tk_form('close'") > block(pg, "do.filter").find("call $tk_form('say'") > block(pg, "do.filter").find("call $tk_form('run'"), cs[:200])
     ck("AU19", "when the file shrinks (a rotation) the page reads from the end again and says so; older lines past the 3000 kept drop the newest, newer lines past it drop the oldest, and the cursor and scroll position are moved with them",
        "if res<2> < hi then" in block(pg, "read.newer") and "the audit file was rotated" in block(pg, "read.newer") and "ci -= ncut" in block(pg, "read.newer") and "ta -= ncut" in block(pg, "read.newer")
        and "del ent<i>" in block(pg, "load.older") and "ci += n.old" in block(pg, "load.older") and "ta += n.old" in block(pg, "load.older"), "")
@@ -234,8 +234,7 @@ MUTANTS = [
     ("the lines box overruns the detail", "AU17", sub("page", "ld<2> = 'lines' : @vm : 2 : @vm : 1 : @vm : 20", "ld<2> = 'lines' : @vm : 2 : @vm : 1 : @vm : 21")),
     ("the first filter line runs under the [?]", "AU17", sub("page", "attr 'bold' width ttw - 6", "attr 'bold' width ttw")),
     ("a time with letters is allowed", "AU18", sub("page", "index('0123456789- :', v[si, 1], 1) = 0", "index('0123456789- :abc', v[si, 1], 1) = 0")),
-    ("Esc at the third question applies the first two", "AU18", sub("page", "   screen ask 'Event: words of the event, such as login or modify.account (empty for any)' width 40 value cv title 'Audit filter  3 of 6' returning v else return\n",
-                                                                    "   screen ask 'Event: words of the event, such as login or modify.account (empty for any)' width 40 value cv title 'Audit filter  3 of 6' returning v else flt = nf\n")),
+    ("To is not tested as a time", "AU18", sub("page", "      v = trim(fv<2>)\n      gosub chk.stamp\n", "      v = trim(fv<2>)\n")),
     ("a rotation is not noticed", "AU19", sub("page", "      if res<2> < hi then\n", "      if @false then\n")),
     ("going back leaves the cursor where it was", "AU19", sub("page", "   nent += n.old\n   ci += n.old\n", "   nent += n.old\n")),
 ]

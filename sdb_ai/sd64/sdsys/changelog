@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  FIVE MORE QUESTION CHAINS ARE ONE FORM: NEW SERVER, CUSTOM AI CONNECTION, AUDIT FILTERS, REPLACE IN A BULK UPDATE, A PROGRAM IN MY.MENU.
+
+             What        - TOOL.REMOTE N (seven answers), TOOL.AI C (six), TOOL.AUDIT F (six), TOOL.BULK's replace operation (two) and MY.MENU's add and change (four) used to ask
+                           their questions one box after the other. Each now shows one form with every answer in view, Tab moves between them and Return presses the button; the first
+                           answer that is not accepted is named under the entries, the form stays with what you typed, and Esc leaves it with nothing changed.
+                         It does NOT change what is checked or what is run: the same checks, in the same order, then the same Run or Cancel box and the same command.
+
 30 Oct 26  CREATING AN ACCOUNT IN TOOL.ACCOUNTS IS ONE FORM.
 
              What        - C used to ask the kind, the name and then the doors or the directory in three boxes. It now shows one form with the kind, the name, the doors and the directory

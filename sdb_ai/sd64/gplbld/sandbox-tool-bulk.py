@@ -459,6 +459,10 @@ class Page:
             self.key("enter", idle=1.0)
             self.typed(str(src) + "\r", idle=1.2)
             return
+        if kind == "replace":                                      # S.88: one form, the two texts joined by Tab, Return presses Use
+            self.typed(a1 + "\t" + a2 + "\r", idle=1.2)
+            self.h.s.settle(0.6)
+            return
         for t in (a1, a2):
             if t is not None:
                 self.typed(t + "\r", idle=1.0)

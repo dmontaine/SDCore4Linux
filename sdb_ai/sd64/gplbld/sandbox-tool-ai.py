@@ -280,13 +280,14 @@ def provider_section():
     h.typed("x", idle=0.9)
     arow("T10a", "X on a row with no key says so and runs nothing", "No key is set for Custom" in st(h), repr(st(h)))
     h.typed("c", idle=1.0)
-    for ans in ("Bad", "http://127.0.0.1/v1", "openai", "bearer", "", "max_tokens"):
-        h.typed(ans + "\r", idle=1.0)
-    arow("T10b", "an http address is refused by the page: 'Not accepted: the address', nothing changed", "Not accepted: the address" in st(h) and not any(l.startswith("custom.") for l in conf()), repr((st(h), conf())))
+    # S.88: one form (six entries, Tab between them, Return presses Continue); a refusal is said in the form, which stays until Esc
+    h.typed("\t".join(("Bad", "http://127.0.0.1/v1", "openai", "bearer", "", "max_tokens")) + "\r", idle=1.2)
+    refused = "Not accepted: the address" in h.text()
+    h.key("esc", idle=1.0)
+    arow("T10b", "an http address is refused by the form: 'Not accepted: the address', nothing changed", refused and not any(l.startswith("custom.") for l in conf()), repr((st(h), conf())))
     h.typed("c", idle=1.0)
     url = "https://127.0.0.1:%d/v1/chat/completions" % STATE["port"]
-    for ans in ("MyLLM", url, "openai", "bearer", "", "max_tokens"):
-        h.typed(ans + "\r", idle=1.0)
+    h.typed("\t".join(("MyLLM", url, "openai", "bearer", "", "max_tokens")) + "\r", idle=1.5)
     T = h.text()
     arow("T11a", "the whole sentence is shown before it runs: set.ai custom MyLLM <url> openai bearer - max_tokens, and the effect names the host",
          ("set.ai custom MyLLM " + url + " openai bearer - max_tokens") in re.sub(r"\s+", " ", T) or ("set.ai custom MyLLM" in T and "openai bearer - max_tokens" in T), T[-900:])

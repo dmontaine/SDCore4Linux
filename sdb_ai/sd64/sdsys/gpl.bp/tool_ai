@@ -713,26 +713,55 @@ do.custom:
    v4 = paut<4>
    v5 = pver<4>
    v6 = pmax<4>
-   screen ask 'Name (letters, digits and . _ : / @ + , - only)' width 40 value v1 title 'Custom AI connection  1 of 6' returning v1 else return
-   screen ask 'Address: https only, no query string' width 100 value v2 title 'Custom AI connection  2 of 6' returning v2 else return
-   screen ask 'Request layout: anthropic or openai' width 12 value v3 title 'Custom AI connection  3 of 6' returning v3 else return
-   screen ask 'Authentication: bearer or x-api-key' width 12 value v4 title 'Custom AI connection  4 of 6' returning v4 else return
-   screen ask 'Version header (empty or a dash for none)' width 24 value v5 title 'Custom AI connection  5 of 6' returning v5 else return
-   screen ask 'Field that limits the length of an answer (max_tokens or max_completion_tokens)' width 30 value v6 title 'Custom AI connection  6 of 6' returning v6 else return
-   v1 = trim(v1) ; v2 = trim(v2) ; v3 = downcase(trim(v3)) ; v4 = downcase(trim(v4)) ; v5 = trim(v5) ; v6 = trim(v6)
-   if v5 = '' then v5 = '-'
-   bad = ''
-   vmax = 40 ; vw = v1 ; gosub valid.word ; if not(vw.ok) then bad = 'the name'
-   vmax = 300 ; vw = v2 ; gosub valid.word ; if not(vw.ok) or v2[1, 8] # 'https://' then bad = 'the address (https://, no query string)'
-   if v3 # 'anthropic' and v3 # 'openai' then bad = 'the request layout (anthropic or openai)'
-   if v4 # 'bearer' and v4 # 'x-api-key' then bad = 'the authentication (bearer or x-api-key)'
-   vmax = 40 ; vw = v5 ; gosub valid.word ; if not(vw.ok) then bad = 'the version header'
-   vmax = 60 ; vw = v6 ; gosub valid.word ; if not(vw.ok) then bad = 'the answer length field'
-   if bad # '' then
-      msg = 'Not accepted: ' : bad : '.  Nothing was changed'
-      gosub draw.all
+   * S.88: one form with the six answers in view; a refusal names the field and the form stays
+   spec = 'Custom AI connection' : @fm : '&Continue' : @fm : ''
+   spec<-1> = 'name' : @vm : 'Name' : @vm : 40 : @vm : 40
+   spec<-1> = 'url' : @vm : 'Address (https only)' : @vm : 100 : @vm : 300
+   spec<-1> = 'layout' : @vm : 'Layout: anthropic, openai' : @vm : 12 : @vm : 12
+   spec<-1> = 'auth' : @vm : 'Auth: bearer, x-api-key' : @vm : 12 : @vm : 12
+   spec<-1> = 'version' : @vm : 'Version header (- none)' : @vm : 24 : @vm : 40
+   spec<-1> = 'maxfield' : @vm : 'Length field' : @vm : 30 : @vm : 60
+   fv = v1 : @fm : v2 : @fm : v3 : @fm : v4 : @fm : v5 : @fm : v6
+   call $tk_form('open', ctx, spec, fv, fo)
+   if fo = 'no' then
+      msg = 'the form does not fit this window: nothing was changed'
       return
    end
+   loop
+      call $tk_form('run', ctx, fans, fv, fid)
+      if fans # 'ok' then
+         call $tk_form('close', ctx, '', '', '')
+         return
+      end
+      v1 = trim(fv<1>) ; v2 = trim(fv<2>) ; v3 = downcase(trim(fv<3>)) ; v4 = downcase(trim(fv<4>)) ; v5 = trim(fv<5>) ; v6 = trim(fv<6>)
+      if v5 = '' then v5 = '-'
+      bad = '' ; fid = ''
+      vmax = 40 ; vw = v1 ; gosub valid.word
+      if not(vw.ok) then
+         bad = 'the name (letters, digits and . _ : / @ + , -)' ; fid = 'name'
+      end
+      vmax = 300 ; vw = v2 ; gosub valid.word
+      if bad = '' and (not(vw.ok) or v2[1, 8] # 'https://') then
+         bad = 'the address (https://, no query string)' ; fid = 'url'
+      end
+      if bad = '' and v3 # 'anthropic' and v3 # 'openai' then
+         bad = 'the request layout (anthropic or openai)' ; fid = 'layout'
+      end
+      if bad = '' and v4 # 'bearer' and v4 # 'x-api-key' then
+         bad = 'the authentication (bearer or x-api-key)' ; fid = 'auth'
+      end
+      vmax = 40 ; vw = v5 ; gosub valid.word
+      if bad = '' and not(vw.ok) then
+         bad = 'the version header' ; fid = 'version'
+      end
+      vmax = 60 ; vw = v6 ; gosub valid.word
+      if bad = '' and not(vw.ok) then
+         bad = 'the answer length field' ; fid = 'maxfield'
+      end
+      if bad = '' then exit
+      call $tk_form('say', ctx, 'Not accepted: ' : bad : '.  Nothing was changed', fid, '')
+   repeat
+   call $tk_form('close', ctx, '', '', '')
    sent = 'set.ai custom ' : v1 : ' ' : v2 : ' ' : v3 : ' ' : v4 : ' ' : v5 : ' ' : v6
    typed = 'custom'
    el = ''

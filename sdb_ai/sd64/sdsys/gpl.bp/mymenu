@@ -223,22 +223,41 @@ change.item:
 * The four questions; ok is 1 when all were answered and the label and the command are not empty
 ask.item:
    ok = 0
-   screen ask 'Label (up to 21 characters)' width 24 value lab title 'Add a program' returning a1 else return
-   screen ask 'Command, as you would type it at your prompt' width 100 value cmd title 'Add a program' returning a2 else return
-   screen ask 'Glyph (up to 3 characters, empty for >>>)' width 5 value gly title 'Add a program' returning a3 else return
-   screen ask 'Wait for Enter when the command has finished printing? (y/n)' width 3 value pau title 'Add a program' returning a4 else return
-   lab = trim(a1)[1, 21]
-   cmd = trim(a2)[1, 200]
-   gly = a3[1, 3]
-   pau = downcase(trim(a4))[1, 1]
-   if lab = '' or cmd = '' then
-      msg = 'a program needs a label and a command: nothing was saved'
+   spec = 'Add a program' : @fm : '&Save' : @fm : ''
+   spec<-1> = 'label' : @vm : 'Label (21 characters)' : @vm : 24 : @vm : 21
+   spec<-1> = 'command' : @vm : 'Command, as you type it' : @vm : 100 : @vm : 200
+   spec<-1> = 'glyph' : @vm : 'Glyph (3, empty for >>>)' : @vm : 5 : @vm : 3
+   spec<-1> = 'wait' : @vm : 'Wait for Enter? (y/n)' : @vm : 3 : @vm : 3
+   fv = lab : @fm : cmd : @fm : gly : @fm : pau
+   call $tk_form('open', ctx, spec, fv, fo)
+   if fo = 'no' then
+      msg = 'the form does not fit this window: nothing was saved'
       return
    end
-   if index(lab : cmd : gly, @fm, 1) or index(lab : cmd : gly, @vm, 1) then
-      msg = 'those characters cannot be used: nothing was saved'
-      return
-   end
+   loop
+      call $tk_form('run', ctx, fans, fv, fid)
+      if fans # 'ok' then
+         call $tk_form('close', ctx, '', '', '')
+         return
+      end
+      lab = trim(fv<1>)[1, 21]
+      cmd = trim(fv<2>)[1, 200]
+      gly = fv<3>[1, 3]
+      pau = downcase(trim(fv<4>))[1, 1]
+      fbad = ''
+      fid = ''
+      begin case
+         case lab = ''
+            fbad = 'a program needs a label' ; fid = 'label'
+         case cmd = ''
+            fbad = 'a program needs a command' ; fid = 'command'
+         case index(lab : cmd : gly, @fm, 1) or index(lab : cmd : gly, @vm, 1)
+            fbad = 'those characters cannot be used' ; fid = 'label'
+      end case
+      if fbad = '' then exit
+      call $tk_form('say', ctx, fbad, fid, '')
+   repeat
+   call $tk_form('close', ctx, '', '', '')
    ok = 1
    return
 

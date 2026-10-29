@@ -336,8 +336,8 @@ def check_d(t):
         and "sent = 'modify.account ' : an.name : ' ' : (if on.now then 'ai-off' else 'ai-on') el = '' typed = '' if on.now then" in v
         and v.count("typed = 'custom'") == 1 and v.count("typed = 'ca'") == 1, "")
     row("every word that is typed is checked against SET.AI's own list before the sentence is built: the model (1 to 80), the four fields and the address of Custom (https:// first), the certificate file, and a limit's name and digits",
-        ordered(v, "do.model:", "vmax = 80 gosub valid.word if not(vw.ok) then", "sent = 'set.ai model '") and ordered(v, "do.custom:", "vmax = 40 ; vw = v1 ; gosub valid.word", "vmax = 300 ; vw = v2 ; gosub valid.word ; if not(vw.ok) or v2[1, 8] # 'https://'",
-        "vmax = 40 ; vw = v5 ; gosub valid.word", "vmax = 60 ; vw = v6 ; gosub valid.word", "if bad # '' then", "sent = 'set.ai custom '") and ordered(v, "do.ca:", "vmax = 300 gosub valid.word if not(vw.ok) then", "sent = 'set.ai ca '")
+        ordered(v, "do.model:", "vmax = 80 gosub valid.word if not(vw.ok) then", "sent = 'set.ai model '") and ordered(v, "do.custom:", "vmax = 40 ; vw = v1 ; gosub valid.word", "vmax = 300 ; vw = v2 ; gosub valid.word", "v2[1, 8] # 'https://'",
+        "vmax = 40 ; vw = v5 ; gosub valid.word", "vmax = 60 ; vw = v6 ; gosub valid.word", "call $tk_form('say'", "call $tk_form('close'", "sent = 'set.ai custom '") and ordered(v, "do.ca:", "vmax = 300 gosub valid.word if not(vw.ok) then", "sent = 'set.ai ca '")
         and ordered(v, "do.limit:", "locate ln in lnames<1> setting lk else", "convert('0123456789', space(10), lv)) # ''", "sent = 'set.ai limit '"), "")
     okc_page = re.search(r"\bokc = '([^']*)'", bas(t["tool_ai"]))
     okc_set = re.search(r"\bokc = '([^']*)'", bas(t["setai"]))

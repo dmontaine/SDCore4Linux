@@ -500,35 +500,49 @@ on.mouse:
 
 * Ask for the six filters one after another.  Esc at any question leaves all of them as they were.
 do.filter:
+   * S.88: one form with the six filters in view; a time that is not one is refused in the form, which stays
    nf = flt
-   cv = flt<1>
-   screen ask 'From: a time such as 2026-10-25 or 2026-10-25 14:30 (empty for any)' width 20 value cv title 'Audit filter  1 of 6' returning v else return
-   v = trim(v)
-   gosub chk.stamp
-   if not(stamp.ok) then return
-   nf<1> = v
-   cv = flt<2>
-   screen ask 'To: a time such as 2026-10-25 (the whole day) or 2026-10-25 14:30 (empty for any)' width 20 value cv title 'Audit filter  2 of 6' returning v else return
-   v = trim(v)
-   gosub chk.stamp
-   if not(stamp.ok) then return
-   nf<2> = v
-   cv = flt<3>
-   screen ask 'Event: words of the event, such as login or modify.account (empty for any)' width 40 value cv title 'Audit filter  3 of 6' returning v else return
-   v = trim(v)
-   nf<3> = v[1, 60]
-   cv = flt<4>
-   screen ask 'Account: the account= value (empty for any)' width 40 value cv title 'Audit filter  4 of 6' returning v else return
-   v = trim(v)
-   nf<4> = v[1, 60]
-   cv = flt<5>
-   screen ask 'User: the user or the sudo user (empty for any)' width 40 value cv title 'Audit filter  5 of 6' returning v else return
-   v = trim(v)
-   nf<5> = v[1, 60]
-   cv = flt<6>
-   screen ask 'Text: anywhere in the line (empty for any)' width 60 value cv title 'Audit filter  6 of 6' returning v else return
-   v = trim(v)
-   nf<6> = v[1, 60]
+   spec = 'Audit filter (empty = any)' : @fm : '&Filter' : @fm : 'From and To: 2026-10-25 or 2026-10-25 14:30 (To a date alone is the whole day).  Event: words of it, such as login.'
+   spec<-1> = 'from' : @vm : 'From (time)' : @vm : 20 : @vm : 19
+   spec<-1> = 'to' : @vm : 'To (time)' : @vm : 20 : @vm : 19
+   spec<-1> = 'event' : @vm : 'Event' : @vm : 40 : @vm : 60
+   spec<-1> = 'account' : @vm : 'Account (account=)' : @vm : 40 : @vm : 60
+   spec<-1> = 'user' : @vm : 'User or sudo user' : @vm : 40 : @vm : 60
+   spec<-1> = 'text' : @vm : 'Text anywhere' : @vm : 60 : @vm : 60
+   fv = flt<1> : @fm : flt<2> : @fm : flt<3> : @fm : flt<4> : @fm : flt<5> : @fm : flt<6>
+   call $tk_form('open', ctx, spec, fv, fo)
+   if fo = 'no' then
+      msg = 'the form does not fit this window: the filters are as they were'
+      return
+   end
+   loop
+      call $tk_form('run', ctx, fans, fv, fid)
+      if fans # 'ok' then
+         call $tk_form('close', ctx, '', '', '')
+         msg = ''
+         return
+      end
+      fbad = ''
+      v = trim(fv<1>)
+      gosub chk.stamp
+      if not(stamp.ok) then
+         fbad = 'From is not a time' ; fid = 'from'
+      end
+      v = trim(fv<2>)
+      gosub chk.stamp
+      if fbad = '' and not(stamp.ok) then
+         fbad = 'To is not a time' ; fid = 'to'
+      end
+      if fbad = '' then exit
+      call $tk_form('say', ctx, fbad : ': a time looks like 2026-10-25 or 2026-10-25 14:30', fid, '')
+   repeat
+   call $tk_form('close', ctx, '', '', '')
+   msg = ''
+   nf<1> = trim(fv<1>)
+   nf<2> = trim(fv<2>)
+   for k = 3 to 6
+      nf<k> = trim(fv<k>)[1, 60]
+   next k
    flt = nf
    gosub read.initial
    gosub draw.all

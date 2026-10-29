@@ -302,9 +302,13 @@ class Page:
     def set_filters(self, vals):
         """F, then the six questions; vals is from to event account user text."""
         self.h.typed("f", idle=1.2)
-        for i, v in enumerate(vals):
-            self.ask(v, self.flt[i])
+        self.form(vals, self.flt)
         self.flt = list(vals)
+
+    def form(self, vals, existing):
+        """S.88: the six filters are one form; Tab between the entries, backspaces for what an entry holds, Return in the last presses Filter"""
+        s = "\t".join("\x7f" * len(existing[i]) + v for i, v in enumerate(vals)) + "\r"
+        self.h.typed(s, idle=1.5)
         self.h.s.settle(1.2)
 
     def end(self):
@@ -432,13 +436,12 @@ def section_a3(p):
     case("A3f", "event api refused and account zzhd and user zzhd together", ["", "", "api refused", "zzhd", "zzhd", ""], expect_nonempty=False)
     before = list(p.flt)
     p.h.typed("f", idle=1.2)
-    p.ask("2026-10-01", before[0])
-    p.ask("", before[1])
+    p.h.typed("\x7f" * len(before[0]) + "2026-10-01", idle=0.6)          # typed in the first entry, then Esc: the form is cancelled
     p.h.key("esc", idle=1.2)
-    arow("A3g", "Esc at the third question leaves every filter as it was (the first two answers are not kept)", p.loaded() is not None and "From: 2026-10-01" not in p.top(), p.top()[:200])
+    arow("A3g", "Esc in the form leaves every filter as it was (what was typed is not kept)", p.loaded() is not None and "From: 2026-10-01" not in p.top(), p.top()[:200])
     p.h.typed("f", idle=1.2)
-    p.ask("abc", before[0])
-    arow("A3h", "a time with letters in it is refused in words and the filters stay", "a time looks like 2026-10-25" in st(p.h), st(p.h))
+    p.h.typed("\x7f" * len(before[0]) + "abc\r", idle=1.2)
+    arow("A3h", "a time with letters in it is refused in words, in the form, and the filters stay", "a time looks like 2026-10-25" in p.h.text(), p.h.text()[-400:])
     p.h.key("esc", idle=0.8)
     p.key("c", 1.5)
     top = p.top()

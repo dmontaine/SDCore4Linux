@@ -275,19 +275,16 @@ def main():
         row("Enter on it starts MY.MENU: the page 'My programs' with the empty-list line, and the keys Ctrl-N add, Enter change, Del remove, U up, D down",
             "You have not added a program yet" in T and h.line(42).startswith("Enter change  ^N add  Del remove  U up  D down  ^Q quit"), repr(h.line(42)))
         h.typed("\x0e", idle=0.8)                      # Ctrl-N (it was F2; owner answer 20, 29 Oct 26)
-        h.typed("Orders\r", idle=0.8)
-        h.typed("who.am.i\r", idle=0.8)
-        h.typed("\r", idle=0.8)
-        h.typed("\r", idle=1.2)
+        # S.88: one form (label, command, glyph, wait): Tab between the entries, Return in an entry presses Save; the wait entry starts as y
+        h.typed("Orders\twho.am.i\r", idle=1.2)
         T = h.text()
         row("F2 asks the label, the command, the glyph and whether to wait; the item is in the list (Orders, who.am.i, waits yes) and the line under the page says 'added Orders'",
             re.search(r"Orders\s+>>>\s+who\.am\.i\s+yes", T) is not None and "added Orders" in h.line(40), T[-500:])
         rec = g.plain("zzhm", ["CT &menus& home"])
         row("...and it is in the person's own file: the record HOME of &menus& holds Orders and who.am.i", has(rec, r"Orders") and has(rec, r"who\.am\.i"), repr(rec[:6]))
         h.typed("\x0e", idle=0.8)
-        h.typed("Alpha\r", idle=0.8)
-        h.typed("date\r", idle=0.8)
-        h.typed("\r", idle=0.8)
+        h.typed("Alpha\tdate\t\t", idle=0.8)           # label, command, glyph left empty, now in the wait entry (it starts as y)
+        h.key("bs", idle=0.3)
         h.typed("n\r", idle=1.2)
         h.typed("u", idle=1.0)                         # U moves it up (it was F4)
         L3, L4 = h.line(3), h.line(4)

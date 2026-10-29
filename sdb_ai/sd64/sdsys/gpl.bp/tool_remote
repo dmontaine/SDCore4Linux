@@ -664,81 +664,103 @@ do.delete:
 
 * N: ask for the fields, check every one the way SET.SERVER does, then give the terminal to the verb
 do.new:
-   screen ask 'Name: a lower case letter, then up to 15 lower case letters or digits' width 18 value '' title 'Define a server  1 of 7' returning s.name else return
-   s.name = downcase(trim(s.name))
-   ok = (s.name # '' and len(s.name) <= 16 and s.name[1, 1] >= 'a' and s.name[1, 1] <= 'z')
-   for q = 1 to len(s.name)
-      if index('abcdefghijklmnopqrstuvwxyz0123456789', s.name[q, 1], 1) = 0 then ok = 0
-   next q
-   if not(ok) then
-      msg = 'a server name is a lower case letter and up to 15 lower case letters or digits'
+   * S.88: one form with the seven answers in view; the first one SET.SERVER would refuse is said under the entries and the form stays
+   spec = 'Define a server' : @fm : '&Define' : @fm : 'Pin: the word connect (fetch and confirm it) or the 64 hex digits from the other administrator.  Port 4247 is a full SD Core, 4249 a Solo.'
+   spec<-1> = 'name' : @vm : 'Name (a-z, 0-9)' : @vm : 18 : @vm : 16
+   spec<-1> = 'host' : @vm : 'Host (DNS, IPv4, IPv6)' : @vm : 60 : @vm : 253
+   spec<-1> = 'port' : @vm : 'API port' : @vm : 8 : @vm : 5
+   spec<-1> = 'acc' : @vm : 'Account on the server' : @vm : 34 : @vm : 32
+   spec<-1> = 'pin' : @vm : 'Pin' : @vm : 66 : @vm : 64
+   spec<-1> = 'mode' : @vm : 'Files: read or write' : @vm : 8 : @vm : 8
+   spec<-1> = 'accts' : @vm : 'Local accounts (a,b)' : @vm : 60 : @vm : 300
+   fv = '' : @fm : '' : @fm : '4247' : @fm : '' : @fm : 'connect' : @fm : 'read' : @fm : ''
+   call $tk_form('open', ctx, spec, fv, fo)
+   if fo = 'no' then
+      msg = 'the form does not fit this window: nothing was defined'
       return
    end
-   screen ask 'Host: a DNS name, an IPv4 address or an IPv6 literal' width 60 value '' title 'Define a server  2 of 7' returning s.host else return
-   s.host = downcase(trim(s.host))
-   ok = (s.host # '' and len(s.host) <= 253 and s.host[1, 1] # '-' and s.host[1, 1] # '.')
-   for q = 1 to len(s.host)
-      if index('abcdefghijklmnopqrstuvwxyz0123456789.-:', s.host[q, 1], 1) = 0 then ok = 0
-   next q
-   if not(ok) then
-      msg = 'a host is letters, digits, dots, hyphens and colons, not starting with a hyphen or a dot'
-      return
-   end
-   screen ask 'Port of the API of the server (4247 for a full SD Core, 4249 for a Solo)' width 8 value '4247' title 'Define a server  3 of 7' returning s.port else return
-   s.port = trim(s.port)
-   ok = (s.port # '' and len(s.port) <= 5)
-   for q = 1 to len(s.port)
-      if index('0123456789', s.port[q, 1], 1) = 0 then ok = 0
-   next q
-   if ok then
-      if (s.port + 0) < 1 or (s.port + 0) > 65535 then ok = 0
-   end
-   if not(ok) then
-      msg = 'a port is a number from 1 to 65535'
-      return
-   end
-   screen ask 'Account to enter on the remote server (letters, digits, dots, underscores, hyphens)' width 34 value '' title 'Define a server  4 of 7' returning s.acc else return
-   s.acc = trim(s.acc)
-   ok = (s.acc # '' and len(s.acc) <= 32)
-   for q = 1 to len(s.acc)
-      if index('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-', s.acc[q, 1], 1) = 0 then ok = 0
-   next q
-   if not(ok) then
-      msg = 'a remote account is up to 32 letters, digits, dots, underscores and hyphens'
-      return
-   end
-   screen ask 'Pin: the word connect (fetch and confirm it), or the 64 hexadecimal digits from the other administrator' width 70 value 'connect' title 'Define a server  5 of 7' returning s.pin else return
-   s.pin = downcase(trim(s.pin))
-   ok = (s.pin = 'connect')
-   if not(ok) and len(s.pin) = 64 then
-      ok = 1
-      for q = 1 to 64
-         if index('0123456789abcdef', s.pin[q, 1], 1) = 0 then ok = 0
-      next q
-   end
-   if not(ok) then
-      msg = 'a pin is the word connect or exactly 64 hexadecimal digits'
-      return
-   end
-   screen ask 'What a program may do with the files of the server: read or write' width 8 value 'read' title 'Define a server  6 of 7' returning s.mode else return
-   s.mode = downcase(trim(s.mode))
-   if s.mode # 'read' and s.mode # 'write' then
-      msg = 'the mode is read or write'
-      return
-   end
-   screen ask 'Local accounts that may use it: registered names separated by commas, no space (empty for none)' width 70 value '' title 'Define a server  7 of 7' returning s.accts else return
-   s.accts = downcase(trim(s.accts))
-   ok = 1
-   for w = 1 to dcount(s.accts, ',')
-      wd = field(s.accts, ',', w)
-      if s.accts # '' then
-         if index(@fm : unames : @fm, @fm : wd : @fm, 1) = 0 then ok = 0
+   loop
+      call $tk_form('run', ctx, fans, fv, fid)
+      if fans # 'ok' then
+         call $tk_form('close', ctx, '', '', '')
+         return
       end
-   next w
-   if not(ok) then
-      msg = 'each local account must be a registered USER account (see the routes view), separated by commas with no space'
-      return
-   end
+      s.name = downcase(trim(fv<1>))
+      s.host = downcase(trim(fv<2>))
+      s.port = trim(fv<3>)
+      s.acc = trim(fv<4>)
+      s.pin = downcase(trim(fv<5>))
+      s.mode = downcase(trim(fv<6>))
+      s.accts = downcase(trim(fv<7>))
+      fbad = '' ; fid = ''
+      ok = (s.name # '' and len(s.name) <= 16 and s.name[1, 1] >= 'a' and s.name[1, 1] <= 'z')
+      for q = 1 to len(s.name)
+         if index('abcdefghijklmnopqrstuvwxyz0123456789', s.name[q, 1], 1) = 0 then ok = 0
+      next q
+      if not(ok) then
+         fbad = 'a server name is a lower case letter and up to 15 lower case letters or digits' ; fid = 'name'
+      end
+      if fbad = '' then
+         ok = (s.host # '' and len(s.host) <= 253 and s.host[1, 1] # '-' and s.host[1, 1] # '.')
+         for q = 1 to len(s.host)
+            if index('abcdefghijklmnopqrstuvwxyz0123456789.-:', s.host[q, 1], 1) = 0 then ok = 0
+         next q
+         if not(ok) then
+            fbad = 'a host is letters, digits, dots, hyphens and colons, not starting with a hyphen or a dot' ; fid = 'host'
+         end
+      end
+      if fbad = '' then
+         ok = (s.port # '' and len(s.port) <= 5)
+         for q = 1 to len(s.port)
+            if index('0123456789', s.port[q, 1], 1) = 0 then ok = 0
+         next q
+         if ok then
+            if (s.port + 0) < 1 or (s.port + 0) > 65535 then ok = 0
+         end
+         if not(ok) then
+            fbad = 'a port is a number from 1 to 65535' ; fid = 'port'
+         end
+      end
+      if fbad = '' then
+         ok = (s.acc # '' and len(s.acc) <= 32)
+         for q = 1 to len(s.acc)
+            if index('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-', s.acc[q, 1], 1) = 0 then ok = 0
+         next q
+         if not(ok) then
+            fbad = 'a remote account is up to 32 letters, digits, dots, underscores and hyphens' ; fid = 'acc'
+         end
+      end
+      if fbad = '' then
+         ok = (s.pin = 'connect')
+         if not(ok) and len(s.pin) = 64 then
+            ok = 1
+            for q = 1 to 64
+               if index('0123456789abcdef', s.pin[q, 1], 1) = 0 then ok = 0
+            next q
+         end
+         if not(ok) then
+            fbad = 'a pin is the word connect or exactly 64 hexadecimal digits' ; fid = 'pin'
+         end
+      end
+      if fbad = '' and s.mode # 'read' and s.mode # 'write' then
+         fbad = 'the mode is read or write' ; fid = 'mode'
+      end
+      if fbad = '' then
+         ok = 1
+         for w = 1 to dcount(s.accts, ',')
+            wd = field(s.accts, ',', w)
+            if s.accts # '' then
+               if index(@fm : unames : @fm, @fm : wd : @fm, 1) = 0 then ok = 0
+            end
+         next w
+         if not(ok) then
+            fbad = 'each local account must be a registered USER account (see the routes view), separated by commas with no space' ; fid = 'accts'
+         end
+      end
+      if fbad = '' then exit
+      call $tk_form('say', ctx, fbad, fid, '')
+   repeat
+   call $tk_form('close', ctx, '', '', '')
    sent = 'set.server ' : s.name : ' ' : s.host : ' ' : s.port : ' ' : s.acc : ' ' : s.pin : ' ' : s.mode
    if s.accts # '' then sent := ' accounts ' : s.accts
    typed = ''
