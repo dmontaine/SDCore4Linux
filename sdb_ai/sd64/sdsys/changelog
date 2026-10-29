@@ -10,15 +10,23 @@ Next release - in progress
                            At 140 by 43 they look exactly as before; 140 by 43 stays the smallest window.
                          - TOOL.DICT and TOOL.VOC hand a record to the IDE (ide dict FILE ID, ide voc ID) where they used SED, with their own gates and confirmation boxes.
                          - The IDE: Tab and Shift-Tab indent and outdent the line or the selected lines (3 blanks, one undo step, never a tab character; F6 and Shift-F6 move between
-                           panes); in the last minute before AUTOLOGOUT would sign you out the status line counts down and any key stops it; a record holding characters outside
-                           ASCII (bytes 128-247) opens read-only so that its bytes cannot be damaged, with save, Save as, Write a copy, Replace, Edit as fields and an AI edit refused.
+                           panes); in the last minute before AUTOLOGOUT would sign you out the status line counts down (read from the same inactivity clock AUTOLOGOUT uses, so a
+                           wait for the AI counts) and any key stops it; a record holding characters outside ASCII (bytes 128-247) opens read-only so that its bytes cannot be
+                           damaged, with save, Save as, Write a copy, Replace, Edit as fields and an AI edit refused; Compile, Run, Debug and Catalog work on a read-only tab that
+                           has no changes (they save first only when there is something to save).
                          - Recovery copies (still OFF as delivered, per account) are kept in your own Linux home, ~/.local/state/sd/recovery/<account>/, outside every account:
-                           BACKUP.ACCOUNT never contains them. They are kept only when your home and every directory below it are your own and nobody else can write them. Copies left
-                           in an account's $recovery by the first version are offered once and then removed. Turning recovery off does not delete copies that exist.
+                           BACKUP.ACCOUNT never contains them. They are kept only when your home and every directory below it are your own and nobody else can write them, and every
+                           directory above it belongs to root or to you and cannot be written by others (a sticky one such as /tmp excepted): a home under a group-writable
+                           directory gets no copies. A copy left in an account's $recovery by the first version is offered; with recovery on it is moved to your home, with it off
+                           it stays where it is until you answer (Use, Delete; Cancel keeps it). Turning recovery off does not delete copies that exist.
                          - PSTAT, the profiler display and the Hot Spot Monitor display, and the profiler and monitor dumps, show another session's text (program names, the
                            command, the record it waits for) with control characters and reserved marks as ?, by the same rule as the lock list. kernel(K$SHOW.SAFE, text) gives
                            a program that rule.
-                         - SED's PATH: form opens exactly the file name that was checked against the account's OS gate; it used to retry with the name in upper case.
+                         - SED no longer retries a failed PATH: open with the name in upper case. The PATH: form of a file name went with FILERULE in the emulation removal, so
+                           SED asks the account's OS gate and then cannot open the file at all; SED edits no operating-system file now, and the IDE will take that over behind
+                           the same gate.
+                         - The master files check (CHECK.MASTERS, LIST.MASTER.PENDING) shows record ids and journal lines with every control byte, DEL and reserved mark as ?, by
+                           the same rule as the lock list; the backups page counted its hidden accounts ("... and N more accounts") one too low.
                          It does NOT change the minimum window, the IDE's keys beyond Tab, or SED and CED otherwise.
 
 28 Oct 26  THE IDE EDITS DICTIONARY ITEMS AND VOC RECORDS AND LOCKS WHAT IT HAS OPEN; THE FULL-SCREEN PAGES HAVE A LAYOUT SERVICE AND A RESIZE IS NO LONGER LOST IN A DIALOG.

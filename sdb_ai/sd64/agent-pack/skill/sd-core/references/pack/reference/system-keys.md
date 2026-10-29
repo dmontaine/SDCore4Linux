@@ -456,7 +456,7 @@ Constants beginning `K$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`
 - `K$AK.COLLATION` = 47 - Select/deselect AK collation map
 - `K$EXIT.STATUS` = 48 - Set/retrieve exit status
 - `K$CASE.MAP` = 49 - Set upper/lower case pairing
-- `K$AUTOLOGOUT` = 50 - Set/retrieve autologout period
+- `K$AUTOLOGOUT` = 50 - Set/retrieve autologout period (-1 reads it; -2 reads the inactivity clock, in ms)
 - `K$MAP.DIR.IDS` = 51 - Enable/disable dir file id mapping
 - `K$IN.GROUP` = 52 - Is user in named group?
 - `K$BREAK.HANDLER` = 53 - Define break handler

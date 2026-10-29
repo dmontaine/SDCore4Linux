@@ -92,7 +92,7 @@ def params(src):
     def num(pat):
         m = re.search(pat, src, re.M)
         return int(m.group(1)) if m else None
-    return dict(TW=num(r"^\$define HT\.TW\s+(\d+)"), GAP=num(r"^\$define HT\.GAP\s+(\d+)"), PGAP=num(r"^\$define HT\.PGAP\s+(\d+)"),
+    return dict(TW=num(r"^\$define HT\.TW\s+(\d+)"), GAP=num(r"^\$define HT\.GAP\s+(\d+)"), PGAP=num(r"^\$define HT\.PGAP\s+(\d+)"), BASE=num(r"^\$define HT\.BASECOLS\s+(\d+)"),
                 right=num(r"^\s*avail = pnw - (\d+)\s*$"), left=num(r"^\s*xcol<k> = pnx \+ (\d+) \+"))
 
 
@@ -128,8 +128,9 @@ def table(src):
     return groups
 
 
-def page(groups, is_admin, npins=0, nrecent=0):
-    """the page's gr and tl as the BASIC builds them: groups numbered from 1, tiles (id, group, size)"""
+def page(groups, is_admin, npins=0, nrecent=0, off=()):
+    """the page's gr and tl as the BASIC builds them: groups numbered from 1, tiles (id, group, size); the groups named in `off` keep their place in gr but every tile of theirs
+    is off (SET.TILE: home_off leaves the tiles out of tl, not the group out of gr)"""
     gr, tl = [], []
     for g in groups:
         if g["admin"] and not is_admin:
@@ -138,6 +139,8 @@ def page(groups, is_admin, npins=0, nrecent=0):
             continue
         gr.append(dict(name=g["name"], band=g["band"], cols=g["cols"]))
         for tid, size, kind in g["tiles"]:
+            if g["name"] in off:
+                continue
             if kind == "pinloop":
                 for p in range(1, npins + 1):
                     tl.append(dict(id="pin%d" % p, group=len(gr), size="n"))
@@ -199,12 +202,14 @@ def columns(pnx, pnw, p):
     return ncol, tw, xcol
 
 
-def band_cols(gr, gtiles, b, ncol):
-    """tool_home's `band.cols`: the columns each group of band b is given (by group number)"""
+def band_cols(gr, gtiles, b, ncol, base):
+    """tool_home's `band.cols`: the columns each group of band b is given (by group number); a panel of `base` (HT.BASECOLS) columns or fewer shares nothing out"""
     gcw = {k: g["cols"] for k, g in enumerate(gr, 1)}
     inb = [k for k, g in enumerate(gr, 1) if g["band"] == b and gtiles.get(k, 0) > 0]
     bsum = sum(gr[k - 1]["cols"] for k in inb)
     if bsum < 1:
+        return gcw
+    if ncol <= base:
         return gcw
     unit = 2 if len(inb) > 1 else 1
     bx = (ncol - bsum) // unit if ncol >= bsum else 0           # (a band wider than the panel: nothing to share; the BASIC's idiv is then 0 or less and it returns)
@@ -224,7 +229,7 @@ def band_cols(gr, gtiles, b, ncol):
     return gcw
 
 
-def new_layout(gr, tl, ncol, tw, xcol):
+def new_layout(gr, tl, ncol, tw, xcol, base):
     """tool_home's `layout` since L2"""
     xcol = list(xcol) + [0] * 64                                     # xcol<k> past the last column is '' (0) in BASIC: such a tile lands on column 0 and fails the rows
     out = {}
@@ -238,7 +243,7 @@ def new_layout(gr, tl, ncol, tw, xcol):
     for b in range(b0, nb + 1):
         c0 = 0
         bandend = ys
-        gcw = band_cols(gr, gtiles, b, ncol)
+        gcw = band_cols(gr, gtiles, b, ncol, base)
         for k, g in enumerate(gr, 1):
             if g["band"] == b and gtiles.get(k, 0) > 0:
                 gcols = gcw[k]
@@ -329,11 +334,28 @@ def checks(raw):
     for name, adm, npins, nrec in PAGES:
         gr, tl = page(groups, adm, npins, nrec)
         o, oh, och = old_layout(gr, tl, old)
-        n, nh, nch = new_layout(gr, tl, ncol, tw, xcol)
+        n, nh, nch = new_layout(gr, tl, ncol, tw, xcol, p["BASE"])
         if o != n or oh != nh or och != nch:
             diff = [(tl[i]["id"], o.get(i), n.get(i)) for i in sorted(set(o) | set(n)) if o.get(i) != n.get(i)]
             bad.append("%s: %r heads %r/%r height %d/%d" % (name, diff[:4], oh, nh, och, nch))
     ck("G2", "AT 140 BY 43 every tile, heading and the page's height are where the page before L2 put them, on %s" % "; ".join(n for n, _, _, _ in PAGES), not bad, " | ".join(bad))
+
+    # a group of a band whose tiles are all off (SET.TILE) leaves the band's other groups where they were: the columns it would have had are not shared out at 140 by 43
+    bad = []
+    nvar = 0
+    for name, adm, npins, nrec in PAGES:
+        for g0 in page(groups, adm, npins, nrec)[0]:
+            if g0["name"] == "Recent" or sum(1 for g1 in page(groups, adm, npins, nrec)[0] if g1["band"] == g0["band"]) < 2:
+                continue
+            nvar += 1
+            gr, tl = page(groups, adm, npins, nrec, off=(g0["name"],))
+            o, oh, och = old_layout(gr, tl, old)
+            n, nh, nch = new_layout(gr, tl, ncol, tw, xcol, p["BASE"])
+            if o != n or oh != nh or och != nch:
+                diff = [(tl[i]["id"], o.get(i), n.get(i)) for i in sorted(set(o) | set(n)) if o.get(i) != n.get(i)]
+                bad.append("%s, %s off: %r heads %r/%r height %d/%d" % (name, g0["name"], diff[:3], oh, nh, och, nch))
+    ck("G2b", "AT 140 BY 43 a group whose tiles are ALL off leaves the other groups of its band where the page before L2 put them (%d pages: every group that has a band-mate, off in turn, on every page of G2)" % nvar,
+       nvar >= 3 and not bad, " | ".join(bad) if bad else "%d variants" % nvar)
 
     bad = []
     for (W, H) in SIZES[1:]:
@@ -359,7 +381,7 @@ def checks(raw):
             bad.append("%dx%d header %r" % (W, H, h2))
         for name, adm, npins, nrec in PAGES:
             gr, tl = page(groups, adm, npins, nrec)
-            n, nh, nch = new_layout(gr, tl, nc, w, xc)
+            n, nh, nch = new_layout(gr, tl, nc, w, xc, p["BASE"])
             boxes = list(n.values())
             for i, bx in n.items():
                 if bx[0] < pnx or bx[0] + bx[2] - 1 > pnx + pnw - 1:
@@ -389,7 +411,7 @@ def checks(raw):
                   "for k = 1 to ncol", "xcol<k> = pnx +", "+ (k - 1) * (tw.n + HT.GAP) + idiv(k - 1, 2) * (HT.PGAP - HT.GAP)"), cb[:300])
     bc = TL.squeeze(block(src, "band.cols"))
     ck("T3", "`band.cols` is the model's: a group's HG.COLS, the band's extra columns in pairs when it has more than one group, shared by idiv on HG.COLS, the rest one unit at a time from the first",
-       TL.ordered(bc, "gcw<k> = gr<k, HG.COLS>", "bsum += gr<k, HG.COLS>", "nbg += 1", "if bsum < 1 then return", "unit = 1", "if nbg > 1 then unit = 2", "bx = idiv(ncol - bsum, unit)",
+       TL.ordered(bc, "gcw<k> = gr<k, HG.COLS>", "bsum += gr<k, HG.COLS>", "nbg += 1", "if bsum < 1 then return", "if ncol <= HT.BASECOLS then return", "unit = 1", "if nbg > 1 then unit = 2", "bx = idiv(ncol - bsum, unit)",
                   "if bx < 1 then return", "gadd = idiv(bx * gr<k, HG.COLS>, bsum)", "gcw<k> = gcw<k> + gadd * unit", "rest = bx - given", "gcw<k> = gcw<k> + unit"), bc[:300])
     ly = TL.squeeze(block(src, "layout"))
     ck("T4", "`layout` places the header first, gives every band its columns (band.cols) and every tile a column of xcol, tw.n wide, a wide one to the end of the next column",
@@ -453,6 +475,8 @@ MUTANTS = [
     ("the old wide tile was 44", "G2", oldpage(wide=44)),
     ("Switch account stands on the third column from the right", "T9", sub("tl<i, HT.X> = xcol<ncol - 1>", "tl<i, HT.X> = xcol<ncol - 2>")),
     ("a band's groups take single columns", "T3", sub("   if nbg > 1 then unit = 2\n", "")),
+    ("band.cols shares columns out at 140 by 43 too (the guard is out)", "T3", sub("   if ncol <= HT.BASECOLS then return\n", "")),
+    ("the base column count is five (a sparse band is then given a pair at 140 by 43)", "G2b", sub("$define HT.BASECOLS 6 ", "$define HT.BASECOLS 5 ")),
     ("a wide tile is two tiles wide only", "T4", sub("if tw = 2 then tl<i, HT.W> = xcol<c0 + cc + 2> + tw.n - xcol<c0 + cc + 1>", "if tw = 2 then tl<i, HT.W> = 2 * tw.n")),
     ("the leftover is not shared to the tiles", "T2", sub("tw.n = HT.TW + idiv(avail - used, ncol)", "tw.n = HT.TW")),
     ("the page keeps its own copy of the frame's rules", "T5", sub("   call $tk_layout('refresh', ctx, '', lay.chg)\n", "   call $sl_window(w, h)\n")),

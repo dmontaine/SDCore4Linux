@@ -18,6 +18,8 @@ START-HISTORY:
               copy keeps its date), R7i / R7j / R7k (the store, then the first version's directory), R14 (the first version's copies offered once, moved with the
               switch on), R15 (nothing written in the account); R8b allows the countdown's idle.count before rc.tick; 14 new mutants, 4 replaced.  The C test of
               the home is test-userhome-units.py.
+28 Oct 26 dm  Review fix (finding 3 of the L2 review): R14 follows 'find' leaving a first-version copy in the account with the switch OFF (it deleted it before the person
+              had answered); the mutant "an old copy is removed with the switch off" is new, the "moved into the account" one is rewritten for the new initial value.
 END-HISTORY
 
 WHAT IT HOLDS.  The switch is register field 19 (ACC$RECOVERY), OFF AS DELIVERED: blank means no, CREATE.ACCOUNT writes 'no' unless RECOVERY-ON was typed, and there is
@@ -29,7 +31,7 @@ carries it (recovery: 1 / 0, USER arm) and RESTORE.ACCOUNT gives it back only fo
 password database (SDEXT SD_USER_HOME; never $HOME, never root), every directory from the home down trusted only when it is a real directory of that user's that
 nobody else can write (made under umask 077 when missing), and the account's own one used only when the kernel's SD_FILE_PRIVATE (lstat, owner, no group or other
 bits) says so - any account with a register record, the administrator too (it was a USER account and its own person only, in <account>/$recovery; a copy left there
-is offered once, moved into the store when the switch is on, and removed from the account); a copy is
+is offered, moved into the store when the switch is on and removed from the account only then - with the switch off it stays until the person's answer); a copy is
 written under umask 077, unlinked first when what is at its name is not a private file, removed when the write fails, when it is not private afterwards or when it
 does not read back identical; a copy is offered only when its magic, account, length and SHA-256 hold and it is the record asked for.  It writes no audit line and
 reaches nothing outside the directory (no OPENSEQ, no OS.EXECUTE).
@@ -238,12 +240,12 @@ def checks(src, msgs):
     of = label(er, "old.find")
     ck("R14 THE FIRST VERSION'S COPIES are looked for only where that version could have made one (a USER account sdu_<user>, not the administrator) and only under its own "
        "tests; one found is moved into the store only with the switch on (do.write, the date and time it was kept, rc.dir put back to the store FIRST), and removed from the "
-       "account when it was moved or the switch is off (offered once) - kept when a move failed",
+       "account ONLY when it was moved - kept with the switch off (the person's answer decides: 'drop') and kept when a move failed",
        ordered(where, "if apath[1, 1] = '/' and rc.user # 'sdsys' then", "if downcase(trim(arec<ACC$GROUP>)) = 'sdu_' : rc.user then rc.old = apath : '/$recovery'",
                "rc.home = SDEXT")
        and ordered(of, "if rc.old = '' then return", "rc.dir = rc.old", "gosub private.dir", "if not(dir.ok) then", "gosub check.file", "if not(file.ok) then",
                    "openpath rc.dir to orf", "read rec from orf, of.slot", "gosub parse.copy", "if not(cp.ok) or cp.file # rfile or cp.id # rid then", "rc.dir = of.dir",
-                   "of.moved = @true", "if rc.on then", "wr.date = cp.date", "wr.time = cp.time", "gosub do.write", "of.moved = (res = '')", "if of.moved then delete orf, of.slot",
+                   "of.moved = @false", "if rc.on then", "wr.date = cp.date", "wr.time = cp.time", "gosub do.write", "of.moved = (res = '')", "if of.moved then delete orf, of.slot",
                    "text = of.text", "res = of.res")
        and 0 <= of.find("rc.dir = of.dir\n   of.moved") < of.find("gosub do.write"), "")
     ck("R15 NOTHING IS WRITTEN IN THE ACCOUNT ANY MORE: '$recovery' is named only where rc.old is set; do.write is reached only from the op and from old.find after rc.dir is the "
@@ -384,7 +386,8 @@ MUTANTS = [
      "      rc.old = apath : '/$recovery'"),
     ("edit_recovery", "an old copy is removed though its move failed", "      of.moved = (res = '')\n", ""),
     ("edit_recovery", "an old copy is moved with the switch off", "   if rc.on then\n      text = of.text", "   if 1 then\n      text = of.text"),
-    ("edit_recovery", "an old copy is moved into the account", "   rc.dir = of.dir\n   of.moved = @true\n", "   of.moved = @true\n"),
+    ("edit_recovery", "an old copy is moved into the account", "   rc.dir = of.dir\n   of.moved = @false\n", "   of.moved = @false\n"),
+    ("edit_recovery", "an old copy is removed with the switch off (before the person answers)", "   rc.dir = of.dir\n   of.moved = @false\n", "   rc.dir = of.dir\n   of.moved = @true\n"),
     ("edit_recovery", "an old copy is read without the file test", "   gosub check.file\n   if not(file.ok) then\n      rc.dir = of.dir\n      return\n   end\n   of.slot", "   of.slot"),
     ("edit_recovery", "a list holds an id twice", "                  locate cp.id in ls.ids<1> setting ls.pos else", "                  locate cp.id in ls.none<1> setting ls.pos else"),
     ("edit_recovery", "the switch is not asked", "   if upcase(trim(arec<ACC$RECOVERY>)) = 'YES' then rc.on = 1\n", "   rc.on = 1\n"),

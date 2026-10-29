@@ -329,7 +329,7 @@ draw.detail:
       end
    next r
    if dcount(lines, @fm) > DV then
-      s = '... and ' : na - (DV - 3) : ' more accounts'                ;* three lines (the facts, a blank, the heading) come before the accounts
+      s = '... and ' : na - (DV - 4) : ' more accounts'                ;* three lines (the facts, a blank, the heading) come before the accounts, and this line stands on the last row, in place of one
       screen text s at tx,det.y + DV width tw
    end
    return

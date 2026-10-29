@@ -616,6 +616,7 @@ void tio_write(char * s);
 void freescrn(SCREEN_IMAGE * image);
 void break_key(void);
 int16_t keyin(int timeout);
+int32_t keyin_idle_ms(void); /* ms waited with nothing typed, as AUTOLOGOUT judges it (kernel(K$AUTOLOGOUT, -2)) */
 bool keyready(void);
 int32_t type_ahead_count(void);
 bool write_socket(char * str, int bytes, bool flush);

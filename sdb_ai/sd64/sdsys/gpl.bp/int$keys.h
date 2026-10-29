@@ -140,7 +140,7 @@
       $define K$AK.COLLATION    47       ;* Select/deselect AK collation map
       $define K$EXIT.STATUS     48       ;* Set/retrieve exit status
       $define K$CASE.MAP        49       ;* Set upper/lower case pairing
-      $define K$AUTOLOGOUT      50       ;* Set/retrieve autologout period
+      $define K$AUTOLOGOUT      50       ;* Set/retrieve autologout period (-1 reads it; -2 reads the inactivity clock, in ms)
       $define K$MAP.DIR.IDS     51       ;* Enable/disable dir file id mapping
       $define K$IN.GROUP        52       ;* Is user in named group?
       $define K$BREAK.HANDLER   53       ;* Define break handler

@@ -137,7 +137,7 @@ def checks(raw):
        and "screen box at top.x,top.y size top.w,top.h" in dl and "screen box at lst.x,lst.y size lst.w,lst.h" in dl and "screen box at det.x,det.y size det.w,det.h" in dl
        and "VA = lst.h - 3" in lg and "DV = det.h - 2" in lg and "tw = lst.w - 4" in lg and "mk.x = top.x + top.w - 5" in lg and "mk.y = top.y + 1" in lg
        and "attr 'bold' width tw - 6" in block(pg, "draw.top") and "at tx,lst.y + 1 attr 'header'" in dsl and "at tx,lst.y + 1 + r attr rat width tw" in dsl and "for r = 1 to DV" in dd and "at tx,det.y + r width tw" in dd
-       and "if dcount(lines, @fm) > DV then" in dd and "na - (DV - 3)" in dd and "at tx,det.y + DV width tw" in dd
+       and "if dcount(lines, @fm) > DV then" in dd and "na - (DV - 4)" in dd and "at tx,det.y + DV width tw" in dd
        and "call $tk_layout('refresh', ctx, '', lay.chg)\n            gosub lay.get" in pg and re.search(r"\b(134|138|136|17)\b", re.sub(r"(?m)^   d<\d> = .*$", "", pg)) is None, "")
     return rows
 
@@ -194,7 +194,7 @@ MUTANTS = [
     ("the help record names no page", "TB13", sub("help", "01a-account-maintenance", "")),
     ("the archives box overruns the manifest", "TB14", sub("page", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20 :", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 21 :")),
     ("the page draws a box at a literal place again", "TB14", sub("page", "screen box at lst.x,lst.y size lst.w,lst.h title 'Archives'", "screen box at 1,7 size 138,20 title 'Archives'")),
-    ("the 'more accounts' line counts from a literal again", "TB14", sub("page", "na - (DV - 3)", "na - 8")),
+    ("the 'more accounts' line counts from a literal again", "TB14", sub("page", "na - (DV - 4)", "na - 7")),
     ("the resize no longer asks the layout again", "TB14", sub("page", "            call $tk_layout('refresh', ctx, '', lay.chg)\n", "")),
 ]
 

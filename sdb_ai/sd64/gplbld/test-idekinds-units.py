@@ -11,6 +11,9 @@ START-HISTORY:
 28 Oct 26 dm  Two of the owner's approved items of 28 Oct: K30-K32 a record holding bytes 128 to 247 is read-only (na.mark, ro.check 'ascii', ro.box, na.check) and
               K33-K36 the AUTOLOGOUT countdown (idle.count, idle.text, messages 11750-11754 and 11761); K20 follows ro.box; 20 mutants from M_NA.  On a screen these
               are rows of sandbox-ide-kinds.py (NA) and sandbox-ide.py (IDLE), written, not run.
+28 Oct 26 dm  Review fixes (findings 4 and 9 of the L2 review): K24 follows do.compile saving first only when there is something to save (is.dirty, untitled, new), two mutants;
+              K33 and K34 follow the countdown reading the KERNEL's inactivity clock (kernel(K$AUTOLOGOUT, -2)) - the IDE's own bookkeeping (idle.count, IDL.SLACK, idl.t0/fp) is gone;
+              four countdown mutants replaced.
 END-HISTORY
 
 WHAT IT HOLDS (gpl.bp/ide).  `ide dict file id` and `ide voc id` start on a dictionary item or a VOC record; CREATING.SEQKEY in the place of the id takes the file's
@@ -102,7 +105,7 @@ def checks(src):
                                      "tab.lock", "relock.all", "ro.check", "open.record", "save.one", "close.current", "retake.quiet", "do.saveas", "do.writeas",
                                      "seq.take", "do.new", "open.select", "do.compile", "do.sed", "do.include", "kind.of", "dict.trim", "load.current", "new.form",
                                      "do.replace", "do.fields", "ai.apply", "edit.check", "name.untitled", "add.new.record", "tab.find", "status.line",
-                                     "tab.state", "na.mark", "na.check", "ro.box", "idle.count", "idle.text", "rc.untitled")}
+                                     "tab.state", "na.mark", "na.check", "ro.box", "idle.text", "rc.untitled")}
     head = ide[: ide.find("gosub open.screen")]
     main = ide[: ide.find("apply.theme:")]
     ck("K0", "NULL CASE: the IDE was read and every routine this check reads is there (a check on nothing would pass)",
@@ -225,8 +228,10 @@ def checks(src):
     ck("K23", "New record locks the new record for its creation after the recovery copy's question, and refuses one that is now there (11217) or being made (11686)",
        ordered(L["add.new.record"], "gosub rc.offer", "if rc.choice = 'cancel' then return", "gosub lock.take", "if lk.exists then", "gosub lock.free",
                "msg = sysmsg(11217, nm.id, nm.file)", "if lk.owner # '' then", "msg = sysmsg(11686", "nbuf += 1", "ts.slot = lk.slot", "gosub tab.state"), "")
-    ck("K24", "a dictionary item is not compiled (11697, after the save, before BASIC is run), and SED is given DICT for one",
-       ordered(L["do.compile"], "gosub save.current", "if bx{k} = 'dict' then", "msg = sysmsg(11697, c.file, c.id)", "return", "execute 'basic '")
+    ck("K24", "a dictionary item is not compiled (11697, after the save, before BASIC is run), and SED is given DICT for one; the save before a build is made only when there is "
+       "something to save (a changed text, an untitled buffer or a record not on the disk yet), so a read-only tab with nothing to save can be compiled, run, debugged and catalogued",
+       ordered(L["do.compile"], "gosub stash.current", "gosub is.dirty", "if dirty or bi<cb> = '' or bx{k} then", "gosub save.current", "if not(sv.ok) then return",
+               "if bx{k} = 'dict' then", "msg = sysmsg(11697, c.file, c.id)", "return", "execute 'basic '")
        and ordered(L["do.sed"], "sd.dict = bx{k}", "if sd.dict # '' then qp.f = 'dict ' : qp.f", "execute 'sed '", "open sd.dict, sd.file to fv then"), "")
     di = L["do.include"]
     ck("K25", "Open the include: the first word is $include (a comment after ; is cut), one word looks in the tab's file and then syscom, two words name the file; a collection file "
@@ -278,16 +283,14 @@ def checks(src):
 
     # ---- 28 Oct 26 (approved by the owner): the AUTOLOGOUT countdown ---------------------------------------------------------------------------------------------------------
     loop = ide[ide.find("   loop\n      gosub status.line"): ide.find("until done")]
-    ck("K33", "the idle count: the time is taken just before the one-second wait; every event but a resize, and Esc, start the count again; a timeout runs idle.count (before rc.tick); "
-       "the screen taken back from a program starts it again",
-       ordered(loop, "gosub status.line", "idl.t0 = system(1081)", "screen wait f timeout 1 returning ev then", "if et # 'resize' then idl.ms = 0", "case ev<1> = 'timeout'",
-               "gosub idle.count", "gosub rc.tick", "case 1", "idl.ms = 0", "cmd = 'menu'")
-       and ordered(L["retake.quiet"], "idl.ms = 0", "gosub open.screen"), loop[:150])
-    ck("K34", "idle.count: a wait that lasted more than IDL.SLACK, or after which the editor (cursor, scroll, mark, undo count, length), the AI line or the focus is not what it was, "
-       "had keys in it and leaves one quiet second; otherwise the wait's length is added",
-       ordered(L["idle.count"], "idl.el = system(1081) - idl.t0", "idl.now = f{'focus'}", "mw{'cx'}", "mw{'cy'}", "mw{'ukn'}", "len(mw{'value'})", "screen get f, 'ai'",
-               "if idl.el > IDL.SLACK or idl.now # idl.fp then", "idl.ms = 1000", "end else", "idl.ms += idl.el", "idl.fp = idl.now")
-       and re.search(r"^\s*IDL\.SLACK = 1[0-9]{3}\b", main, re.M) is not None, "")
+    ck("K33", "the countdown keeps no clock of its own (28 Oct 26, the L2 review: the IDE's guess was late by an AI wait and by a stall): no idl.t0, idl.fp, idl.el, idl.now, idle.count or "
+       "IDL.SLACK anywhere in the IDE and no idl.ms set to 0; the loop waits one second and a timeout runs rc.tick; a program run needs no reset in retake.quiet",
+       not any(w in ide for w in ("idl.t0", "idl.fp", "idl.el", "idl.now", "idle.count", "IDL.SLACK", "idl.ms = 0"))
+       and ordered(loop, "gosub status.line", "screen wait f timeout 1 returning ev then", "case ev<1> = 'timeout'", "gosub rc.tick", "case 1", "cmd = 'menu'"), loop[:150])
+    ck("K34", "idle.text reads the time waited with nothing typed from the KERNEL's inactivity clock (K$AUTOLOGOUT asked with -2), after the period test and before the seconds left "
+       "are worked out, and nothing else assigns idl.ms",
+       ordered(L["idle.text"], "idl.al = kernel(K$AUTOLOGOUT, -1) + 0", "if idl.al <= 0 then return", "idl.ms = kernel(K$AUTOLOGOUT, -2) + 0", "idl.left = int((idl.al - idl.ms + 999) / 1000)")
+       and len(re.findall(r"\bidl\.ms\s*(?:\+|-)?=", ide)) == 1, "")
     ck("K35", "idle.text: the period is the kernel's (K$AUTOLOGOUT asked with -1, as the autologout verb asks it) and 0 shows nothing; the line shows only in the last IDL.WARN (60) "
        "seconds; no unsaved change says 11752, unsaved changes 11751 with the recovery switch on and 11750 without; the status line puts it first",
        ordered(L["idle.text"], "idl.txt = ''", "idl.al = kernel(K$AUTOLOGOUT, -1) + 0", "if idl.al <= 0 then return", "idl.left = int((idl.al - idl.ms + 999) / 1000)",
@@ -357,6 +360,8 @@ MUTANTS = [
     ("New record takes no lock", "K23", sub("ide", "   lk.dict = ''\n   lk.file = nm.file\n   lk.id = nm.id\n   gosub lock.take\n", "   lk.dict = ''\n   lk.file = nm.file\n   lk.id = nm.id\n   lk.slot = 0 ; lk.err = '' ; lk.exists = 0 ; lk.owner = ''\n")),
     ("a dictionary item is compiled", "K24", sub("ide", "   if bx{k} = 'dict' then\n      msg = sysmsg(11697, c.file, c.id)", "   if 0 then\n      msg = sysmsg(11697, c.file, c.id)")),
     ("SED gets the data record for a dictionary item", "K24", sub("ide", "   if sd.dict # '' then qp.f = 'dict ' : qp.f\n", "")),
+    ("a build saves first whatever the tab holds (a read-only tab cannot be built)", "K24", sub("ide", "   if dirty or bi<cb> = '' or bx{k} then\n      gosub save.current", "   if 1 then\n      gosub save.current")),
+    ("a new record or an untitled buffer is built without its save", "K24", sub("ide", "   if dirty or bi<cb> = '' or bx{k} then\n      gosub save.current", "   if dirty then\n      gosub save.current")),
     ("the include does not look in syscom", "K25", sub("ide", "         if in.files # 'syscom' then in.files<-1> = 'syscom'\n", "")),
     ("the include reads a collection record", "K25", sub("ide", "      if fileinfo(fv, FL$COLLECTION) then continue\n", "")),
     ("a directory file is data", "K26", sub("ide", "      case fileinfo(fv, FL$TYPE) = FL$TYPE.DIR\n         ko.kind = 'source'", "      case fileinfo(fv, FL$TYPE) = FL$TYPE.DIR\n         ko.kind = 'data'")),
@@ -378,10 +383,10 @@ MUTANTS += [
     ("Save as writes a non-ASCII record", "K32", sub("ide", "do.saveas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   gosub na.check", "do.saveas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   na.ok = 1")),
     ("Write a copy writes a non-ASCII record", "K32", sub("ide", "do.writeas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   gosub na.check", "do.writeas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   na.ok = 1")),
     ("Save as of a locked tab says the lock's refusal", "K32", sub("ide", "      msg = na.msg                   ;* a lock's refusal is not this one's\n", "")),
-    ("Esc does not count as a key", "K33", sub("ide", "               idl.ms = 0               ;* 28 Oct 26: Esc is a key too\n", "")),
-    ("a resize counts as a key", "K33", sub("ide", "         if et # 'resize' then idl.ms = 0", "         idl.ms = 0")),
-    ("a wait with keys in it counts as idle", "K34", sub("ide", "   if idl.el > IDL.SLACK or idl.now # idl.fp then", "   if idl.now # idl.fp then")),
-    ("the editor's changes are not looked at", "K34", sub("ide", "   if idl.el > IDL.SLACK or idl.now # idl.fp then", "   if idl.el > IDL.SLACK then")),
+    ("the IDE keeps its own clock again: the start of a wait is noted", "K33", sub("ide", "      screen wait f timeout 1 returning ev then\n", "      idl.t0 = system(1081)\n      screen wait f timeout 1 returning ev then\n")),
+    ("Esc zeroes a count of the IDE's own", "K33", sub("ide", "            case 1\n               cmd = 'menu'             ;* Esc", "            case 1\n               idl.ms = 0\n               cmd = 'menu'             ;* Esc")),
+    ("the countdown reads the period as the clock", "K34", sub("ide", "idl.ms = kernel(K$AUTOLOGOUT, -2) + 0", "idl.ms = kernel(K$AUTOLOGOUT, -1) + 0")),
+    ("the clock is read before the period is known", "K34", sub("ide", "   if idl.al <= 0 then return\n   idl.ms = kernel(K$AUTOLOGOUT, -2) + 0", "   idl.ms = kernel(K$AUTOLOGOUT, -2) + 0\n   if idl.al <= 0 then return")),
     ("the countdown shows with AUTOLOGOUT off", "K35", sub("ide", "   if idl.al <= 0 then return\n", "")),
     ("the countdown shows the whole period", "K35", sub("ide", "   if idl.left > IDL.WARN then return\n", "")),
     ("unsaved changes are said to be kept without the switch", "K35", sub("ide", "      case rc.on\n         idl.txt = sysmsg(11751, idl.left)", "      case 1\n         idl.txt = sysmsg(11751, idl.left)")),

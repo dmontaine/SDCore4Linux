@@ -9,6 +9,8 @@ No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it c
 
 START-HISTORY:
 28 Oct 26 dm  New with SD_USER_HOME.
+28 Oct 26 dm  Review fix (findings 7 and 8 of the L2 review): the ANCESTORS of the home are held to the rule (T5, T6, F17-F19, K5, four mutants; the scenario's base directory is
+              chmod'ed 0755 so a 002 umask cannot make every home look untrusted) and the argument buffer is freed unless it is argument 0 (K6).
 END-HISTORY
 
 WHAT IT DOES.  It CUTS user_home_dir() out of gplsrc/op_sdext.c (from its signature to the closing brace at the start of a line), compiles it with a small
@@ -100,6 +102,7 @@ def scenario(tmp):
     other = me + 1 if me + 1 != 0 else me + 2
     b = os.path.join(tmp, "t")
     os.mkdir(b)
+    os.chmod(b, 0o755)                    # an ancestor of every home below: its mode must not depend on the umask this test runs under
 
     def d(path, mode):
         os.makedirs(path, exist_ok=True)
@@ -120,6 +123,17 @@ def scenario(tmp):
     owhome = d(os.path.join(b, "owhome"), 0o757)
     home700 = d(os.path.join(b, "home700"), 0o700)
     os.symlink(good, os.path.join(b, "homelink"))
+    # the ancestors of a home (28 Oct 26, the L2 review): a good home below a directory group can write, other can write, a sticky one other can write (like /tmp), and a 0755 one
+    anc775 = d(os.path.join(b, "anc775"), 0o775)
+    anc777 = d(os.path.join(b, "anc777"), 0o777)
+    ancsticky = d(os.path.join(b, "ancsticky"), 0o1777)
+    anc755 = d(os.path.join(b, "anc755"), 0o755)
+    deep = d(os.path.join(anc775, "mid"), 0o755)
+    h775 = d(os.path.join(anc775, "home"), 0o755)
+    h777 = d(os.path.join(anc777, "home"), 0o755)
+    hsticky = d(os.path.join(ancsticky, "home"), 0o755)
+    h755 = d(os.path.join(anc755, "home"), 0o755)
+    hdeep = d(os.path.join(deep, "home"), 0o755)
     rgood = os.path.realpath(good)
     rows = [
         ("T1 a 0755 home of the uid, '' -> the home", good, "", me, 1, rgood),
@@ -142,6 +156,13 @@ def scenario(tmp):
         ("F14 an empty word", good, ".local//state", me, 0, ""),
         ("F15 a leading slash", good, "/.local", me, 0, ""),
         ("F16 a trailing slash", good, ".local/", me, 0, ""),
+        ("T7 the test's own scratch directory (0700, below the system temp directory) as a home: trusted for its owner - the control for F4b", tmp, "", me, 1, os.path.realpath(tmp)),
+        ("F4b a home somebody else owns, below ancestors root owns (the owner test alone refuses it: with another uid every ancestor of the deeper rows is foreign)", tmp, "", other, 0, ""),
+        ("T5 a home below a 0755 directory (a control for the ancestor rows)", h755, "", me, 1, os.path.realpath(h755)),
+        ("T6 a home below a sticky 1777 directory (like /tmp): trusted", hsticky, "", me, 1, os.path.realpath(hsticky)),
+        ("F17 a home below a directory group can write (and no sticky bit)", h775, "", me, 0, ""),
+        ("F18 a home below a directory other can write (and no sticky bit)", h777, "", me, 0, ""),
+        ("F19 a home two levels below a directory group can write (the whole chain is looked at)", hdeep, "", me, 0, ""),
     ]
     return rows
 
@@ -178,6 +199,10 @@ MUTANTS = [
     ("'..' is taken", "((e - p == 2) && (p[0] == '.') && (p[1] == '.'))", "0"),
     ("a directory below may be group-writable", "(st.st_uid != me) || ((st.st_mode & 022) != 0))\n      return 0;\n    if ((*e == '/')", "(st.st_uid != me))\n      return 0;\n    if ((*e == '/')"),
     ("a trailing slash is taken", "    if ((*e == '/') && (e[1] == '\\0'))\n      return 0; /* a trailing slash */\n", ""),
+    ("an ancestor may be group- or other-writable", "|| (((st.st_mode & 022) != 0) && ((st.st_mode & S_ISVTX) == 0));", ";"),
+    ("the sticky bit does not excuse a writable ancestor", " && ((st.st_mode & S_ISVTX) == 0)", ""),
+    ("the ancestors are not looked at", "    if (work[i] != '/')\n      continue;\n", "    continue;\n"),
+    ("the directory just above the home is skipped (the chain stops one short)", "  for (i = 0; i < len; i++) {            /* the ancestors", "  for (i = 0; i < len && strchr(work + i + 1, '/') != NULL; i++) {            /* the ancestors"),
 ]
 
 
@@ -197,6 +222,12 @@ def text_checks(src, kc, kb):
                  and "HOME" not in fn))
     rows.append(("K4 an effective uid of 0 is refused before anything is looked up (no row can show it: an ordinary user cannot make a root-owned home)",
                  re.search(r"me = geteuid\(\);\n  if \(me == 0\)\n    return 0;\n  if \(\(getpwuid_r", fn) is not None))
+    rows.append(("K5 an ancestor of the home must be root's or the person's (no row can show it: an ordinary user cannot make a directory a third user owns) and a sticky one is excused "
+                 "from the write bits; the loop runs before the words of REL are looked at",
+                 "((st.st_uid != 0) && (st.st_uid != me))" in fn and "(st.st_mode & S_ISVTX) == 0" in fn and 0 <= fn.find("for (i = 0; i < len; i++) {") < fn.find("for (p = rel;")))
+    rows.append(("K6 op_sdext() frees its argument buffer unless SDMEArgArray[0] IS that buffer (myval_in_args), not by IsArgMV: an empty argument with IsArgMV false leaked one byte a call",
+                 "myval_in_args = 1;" in src and "if (!myval_in_args) {" in src and "if (IsArgMV != 0) {      /* rem if IsArgMV not set" not in src
+                 and src.find("myval_in_args = 1;") < src.find("if (!myval_in_args) {")))
     return rows
 
 

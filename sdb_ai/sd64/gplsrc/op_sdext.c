@@ -18,6 +18,9 @@
  * 
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.88 review of L2: (1) user_home_dir() also holds the ANCESTORS of the home to the rule (root's or the person's, not writable by group or other unless sticky);
+ *               (2) op_sdext() freed the argument buffer only when IsArgMV was set, so an empty argument with IsArgMV false (SD_USER_HOME's call for the home itself) leaked one
+ *               byte per call: it is freed unless SDMEArgArray[0] is it.
  * 28 Oct 26 dm  S.88 (the recovery store in the person's home, the owner's approval of 28 Oct): SD_USER_HOME (112) - the home
  *               directory of the process's effective user from the password database (never $HOME), and a directory below it,
  *               trusted only when every step is a real directory of that user's that nobody else can write; fails closed.
@@ -136,6 +139,7 @@ void op_sdext() {
   int32_t myval_len;
   int32_t mybuf_sz;
   char* myval_buffer;                      /* buffer for past value string  */
+  int myval_in_args = 0;                   /* 1 when SDMEArgArray[0] IS myval_buffer, which the release loop below then frees */
   STRING_CHUNK* str;
   int argIdx;
   int argCnt;
@@ -221,7 +225,8 @@ void op_sdext() {
 	    }
     } else {  /* MV Flag not set, */
         argCnt = 1;                       /* always one args */
-        SDMEArgArray[0] = myval_buffer;   /* we just point to the value buffer created earlier */  
+        SDMEArgArray[0] = myval_buffer;   /* we just point to the value buffer created earlier */
+        myval_in_args = 1;
     }
   }	  
   
@@ -538,7 +543,9 @@ void op_sdext() {
   }
   /* and the val buffer */
   if (myval_buffer != NULL){
-    if (IsArgMV != 0) {      /* rem if IsArgMV not set, we pointed DMEArgArray[0] to myval_buffer*/
+    /* 28 Oct 26 dm - the buffer is freed here unless SDMEArgArray[0] points at it (the release loop above has freed it then).  The test used to be IsArgMV != 0,
+       which left the one byte of an EMPTY argument with IsArgMV false allocated for good: SDEXT('', @FALSE, key) is SD_USER_HOME's call for the home itself. */
+    if (!myval_in_args) {
 	    explicit_bzero(myval_buffer, strlen(myval_buffer));
 	    free(myval_buffer);    /* do not want to attempt to free the memory again!!*/
     }
@@ -670,7 +677,11 @@ Private int file_private_check(const char* path, int want_dir) {
        user, that neither group nor other can write.
    So nobody but the person (and root) can rename, replace or add an entry anywhere on the way: the test the editors' recovery copy
    needs before it trusts a directory to stay what it checked.  It is a check, not a lock, and it makes nothing: the caller makes a
-   missing directory (under umask 077) and asks again.  Answers 0 (OUT empty) on every failure. */
+   missing directory (under umask 077) and asks again.  Answers 0 (OUT empty) on every failure.
+   The ANCESTORS of the resolved home are held to it too (28 Oct 26, the L2 review): each directory above the home, "/" included, must be a
+   directory of root's or of this user's that neither group nor other can write - unless its sticky bit is set, when an entry can only be
+   renamed by its owner or the directory's (the person, or root), as with /tmp.  A home below a directory someone else can write could be
+   renamed away and a look-alike put in its place between this test and the open. */
 Private int user_home_dir(const char* rel, char* out, size_t out_sz) {
   struct passwd pwbuf;
   struct passwd* pw = NULL;
@@ -680,6 +691,10 @@ Private int user_home_dir(const char* rel, char* out, size_t out_sz) {
   struct stat st;
   uid_t me;
   size_t len;
+  size_t i;
+  size_t cutat;
+  char save;
+  int bad;
   const char* p;
   const char* e;
 
@@ -700,6 +715,18 @@ Private int user_home_dir(const char* rel, char* out, size_t out_sz) {
   if (len + 1 >= sizeof(work))
     return 0;
   memcpy(work, home, len + 1);
+
+  for (i = 0; i < len; i++) {            /* the ancestors: "/" and every prefix of the resolved home that ends before a slash */
+    if (work[i] != '/')
+      continue;
+    cutat = (i == 0) ? 1 : i;
+    save = work[cutat];
+    work[cutat] = '\0';
+    bad = (lstat(work, &st) != 0) || !S_ISDIR(st.st_mode) || ((st.st_uid != 0) && (st.st_uid != me)) || (((st.st_mode & 022) != 0) && ((st.st_mode & S_ISVTX) == 0));
+    work[cutat] = save;
+    if (bad)
+      return 0;
+  }
 
   if (rel == NULL)
     rel = "";

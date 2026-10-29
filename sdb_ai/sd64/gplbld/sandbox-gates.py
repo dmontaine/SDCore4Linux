@@ -11,7 +11,8 @@
 # (shared memory keys 0x53434c91/92): stop it afterwards with sandbox-fromtree.py <dir> stop.
 #
 # START-HISTORY:
-# 28 Oct 26 dm  Section E2 (one row, WRITTEN, NOT RUN): SED's PATH: form opens the name K$PATH.OK was asked about and no other.
+# 28 Oct 26 dm  Section E2 (one row, WRITTEN, NOT RUN): SED's PATH: form opens the name K$PATH.OK was asked about and no other.  CORRECTED (L2 review): since S.87 the
+#               branch's final OPEN never succeeds, so the row now shows what a screen can: refused with the gate off, "File not found" with it on.
 # 27 Oct 26 dm  S.87 batch 3: the OPENTEMP rows no longer write ECS (a word that was read and ignored; it is refused now).
 # 13 Oct 26 dm  Written for S.63 (owner, 13 Oct 2026: the tiers were to go and the per-account gates to stay, off by
 #               default, switched by SDSYS).
@@ -1028,12 +1029,15 @@ def main():
     row("E: zzon - outside=1 inside=1 sibling=1 dotdot=1 empty=0 (an empty name is never allowed)",
         has(out, r"^KP outside=1 inside=1 sibling=1 dotdot=1 empty=0$"), "output=%r" % (out[-3:],))
 
-    # --- E2. SED's PATH: form opens the name it asked about and no other (28 Oct 26, owner-approved) -----------------------
+    # --- E2. SED's PATH: form (28 Oct 26, owner-approved; CORRECTED the same day by the L2 review) ----------------------------
     # NOT RUN when written.  open.file used to retry a failed OPENSEQ under upcase(fpath): K$PATH.OK was asked about the name as typed
-    # and a different name was opened.  The file is upper case only and outside the account (a sibling directory of the accounts:
-    # upcase() of a relative path keeps the dots and slashes, which an absolute path under /tmp would not).  The row reads three
-    # outcomes off the pseudo-terminal's screen: zzoff (gate off) refused with 11180 and the marker not shown; zzon (gate on) with
-    # the exact name opens it and shows the marker; zzon with the name in lower case says "File not found" - the old retry opened it.
+    # and a different name was opened; the retry is gone (test-gates-units.py B28 holds that as text).  BUT since S.87 (FILERULE and
+    # the PATH: form of a file name are gone, `_voc_ref`, 2930d92f) the last statement of that branch, OPEN of `PATH:<dir>/`, always
+    # fails, so SED opens NO operating-system file whatever the gate says, and a screen cannot tell "no retry" from "a retry that reaches
+    # the same failing OPEN".  What the row can show: the gate is asked first (zzoff refused with 11180, nothing shown) and the file's
+    # text is never shown (zzon, the exact name and the lower-case one: "File not found").  The file is upper case only and outside the
+    # account (a sibling directory of the accounts).  SED's PATH: branch is dead code and goes with SED; the IDE's stage E is the way
+    # to edit an OS file (it asks the same K$PATH.OK on the exact name, then opens it).
     up_dir = os.path.join(BOX, "user_accounts", "ZZSEDUP")
     shutil.rmtree(up_dir, ignore_errors=True)
     os.makedirs(up_dir)
@@ -1045,12 +1049,12 @@ def main():
         say("    > [pty 140x42] -a%s SED PATH:%s -> %d screen lines" % (acct, nm, len(shot[tag])))
     scr = {k: "\n".join(v) for k, v in shot.items()}
     off_ok = "has no OS access" in scr["off-exact"] and "SEDPATHMARK" not in scr["off-exact"]
-    on_ok = "SEDPATHMARK" in scr["on-exact"] and "has no OS access" not in scr["on-exact"]
+    on_ok = "File not found" in scr["on-exact"] and "SEDPATHMARK" not in scr["on-exact"] and "has no OS access" not in scr["on-exact"]
     low_ok = "File not found" in scr["on-lower"] and "SEDPATHMARK" not in scr["on-lower"]
-    row("E2: SED PATH: - an upper-case-only file outside the account: gate off refused (11180, nothing shown); gate on with the "
-        "exact name opened; gate on with the name in lower case NOT opened (File not found - no upcase() retry)",
+    row("E2: SED PATH: opens no OS file since S.87 - an upper-case-only file outside the account: gate off refused (11180, nothing shown); "
+        "gate on, the exact name and the lower-case name both 'File not found' and the text never shown (the PATH: file name form is gone)",
         off_ok and on_ok and low_ok,
-        "off-exact refused=%s  on-exact opened=%s  on-lower not-found=%s  last lines: off=%r on=%r lower=%r"
+        "off-exact refused=%s  on-exact not-found=%s  on-lower not-found=%s  last lines: off=%r on=%r lower=%r"
         % (off_ok, on_ok, low_ok, shot["off-exact"][-2:], shot["on-exact"][-2:], shot["on-lower"][-2:]))
     shutil.rmtree(up_dir, ignore_errors=True)
 

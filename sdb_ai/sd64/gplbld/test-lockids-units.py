@@ -13,7 +13,7 @@ holds ESC ] 0 ; ... BEL or ESC [ 2 J wrote that sequence into the administrator'
 another session's id the same way, and SYSTEM(1083) handed the ids and paths of the other sessions in a deadlock to a program.
 
 THE CHANGE (gplsrc/op_lock.c): lock_unsafe_byte() names the bytes that are shown as '?' - 0-31, 127, the C1 controls 128-159
-and the marks 248-255 (masters.c's mst_buf_text() takes 0-31 and 253-255); lock_safe_text() copies into a buffer and
+and the marks 248-255 (masters.c's mst_buf_text() took 0-31 and 253-255 until the L2 review of 28 Oct, which made it use this rule: L12); lock_safe_text() copies into a buffer and
 lock_ts_safe() appends to the target string; getlocks_line() builds every GETLOCKS() line, with the numbers through ts_printf()
 and the text through lock_ts_safe().  The lock table, UNLOCK, RELEASE and FILEINFO(f, 1039) (a program's OWN locks) are not
 changed.
@@ -49,6 +49,7 @@ OPLOCK = os.path.join(SD64, "gplsrc", "op_lock.c")
 OPDIO2 = os.path.join(SD64, "gplsrc", "op_dio2.c")
 SDH = os.path.join(SD64, "gplsrc", "sd.h")
 KERNEL = os.path.join(SD64, "gplsrc", "kernel.c")
+MASTERS = os.path.join(SD64, "gplsrc", "masters.c")
 TOOLSESS = os.path.join(SD64, "sdsys", "gpl.bp", "tool_sessions")
 
 EXPECTED_UNSAFE = set(range(0, 32)) | {127} | set(range(128, 160)) | set(range(248, 256))
@@ -130,6 +131,11 @@ def checks(files):
     ck("L11 sd.h declares the three for every file: bool show_unsafe_byte(u_char c); char * show_safe_text(...); void show_ts_safe(...);",
        "bool show_unsafe_byte(u_char c);" in sdh and "char * show_safe_text(char * out, int out_size, const char * s, int len);" in sdh
        and "void show_ts_safe(const char * s, int len);" in sdh)
+    mb = func_body(strip_c_comments(files["masters"]), r"^Private void mst_buf_text\(")
+    mbs = squash(mb or "")
+    ck("L12 masters.c's mst_buf_text() (the ids and journal lines of CHECK.MASTERS and LIST.MASTER.PENDING) uses the one rule on every byte and has no byte-range test of its own "
+       "(it took only 0-31 and 253-255, so DEL, the C1 controls and 248-252 reached the terminal)",
+       mb is not None and "if (show_unsafe_byte((u_char)c)) c = '?';" in mbs and "0xFD" not in mbs and "< 32" not in mbs and "c = s[i];" in mbs)
 
     # kernel.c: the process-status dump that PSTAT prints
     kcode = strip_c_comments(files["kernel"])
@@ -217,6 +223,8 @@ def mutants(files):
        "    memcpy(deadlock_info + deadlock_info_len, id, id_len);\n")
     M.append(("FILEINFO 1039 gives every session's locks", dict(files, op_dio2=files["op_dio2"].replace(
         "(rlptr->hash != 0) && (rlptr->owner == process.user_no) && (rlptr->file_id == fvar->file_id)", "(rlptr->hash != 0) && (rlptr->file_id == fvar->file_id)", 1))))
+    M.append(("masters.c takes its own narrower rule again (0-31 and 253 and up)", dict(files, masters=files["masters"].replace(
+        "if (show_unsafe_byte((u_char)c))", "if (((unsigned char)c >= 0xFD) || ((unsigned char)c < 32))", 1))))
     M.append(("tool.sessions lets '?' into an UNLOCK sentence", dict(files, tool_sessions=files["tool_sessions"].replace(
         "index('abcdefghijklmnopqrstuvwxyz0123456789.-_', word[pi, 1], 1)", "index('abcdefghijklmnopqrstuvwxyz0123456789.-_?', word[pi, 1], 1)", 1))))
     return M
@@ -224,7 +232,7 @@ def mutants(files):
 
 def load():
     files = {}
-    for k, p in (("op_lock", OPLOCK), ("op_dio2", OPDIO2), ("tool_sessions", TOOLSESS), ("sd_h", SDH), ("kernel", KERNEL)):
+    for k, p in (("op_lock", OPLOCK), ("op_dio2", OPDIO2), ("tool_sessions", TOOLSESS), ("sd_h", SDH), ("kernel", KERNEL), ("masters", MASTERS)):
         if not os.path.isfile(p):
             return None, p
         with open(p, encoding="latin-1") as f:

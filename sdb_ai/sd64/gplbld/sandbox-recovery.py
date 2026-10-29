@@ -15,6 +15,8 @@
 #               from the password database as the kernel takes it; G now shows that an account whose group is not sdu_<user> HAS copies (the swap races are gone),
 #               and nothing in the account directory; C9b an intermediate directory somebody else could write; section O, a copy the first version left in the
 #               account's $recovery: offered once, moved with the switch on, removed either way.  WRITTEN, NOT RUN.
+# 28 Oct 26 dm  Review fix (finding 3): with the switch OFF a first-version copy is no longer removed when it is offered - O2 now shows Cancel keeps it and it is offered
+#               again, O2b that Delete removes it, O2c that the record then opens as on the disk.  WRITTEN, NOT RUN.
 # END-HISTORY
 #
 # WHAT RUNS.  ORDINARY sessions of fixture accounts (made as sandbox-gates.py makes them; their LOGIN paragraph says TERM LINUX, so the keys are the linux forms) on a
@@ -45,7 +47,7 @@
 #   C9b  a directory on the way (the run's store) that group can write: no copy is written (SD_USER_HOME refuses the way down)
 #   C10  the switch turned off in the register: a new hang-up leaves no new copy
 #   O1   a copy the FIRST version left in <account>/$recovery, the switch on: offered (Use), then gone from the account and in the store with the date it was kept
-#   O2   ...the switch off: offered once (Cancel), then gone from the account and NOT in the store
+#   O2   ...the switch off: offered (Cancel), and it is STILL in the account, not in the store; O2b offered again, Delete removes it; O2c the record opens as on the disk
 #   O3   an untitled one there is offered by a bare IDE
 #   R1   two untitled copies, both answered Open: both stay on the disk (a second Open wrote the empty startup buffer over the first tab, and a tick deleted its copy)
 #   R2   a copy the tab does not own under the name its first save gave it: kept, the person told (11778); once it is gone the tab writes its own within 10 s
@@ -540,7 +542,7 @@ def section_old():
     R.row("O1 the first version's copy is offered (the question names bp and the record) and Use puts its text in the editor", asked and used, "asked %r used %r" % (asked, used), phase=PH)
     R.row("O1b ...it is gone from the account's $recovery, and the store holds it, with the date and time it was first kept (20000, 3600) and the same text",
           lmode(old1) is None and len(f) == 9 and f[4:6] == ["20000", "3600"] and f[8] == "OLDTEXT1", "old %r store %r" % (lmode(old1), f[:6]), phase=PH)
-    # O2: the switch off: offered once (Cancel); then gone from the account and not in the store
+    # O2: the switch off: offered; Cancel keeps it where it is (nothing moved, nothing removed); offered again; Delete removes it
     register(ACC_ON, "no")
     r2 = rid("o2")
     fr.mk(recbp(ACC_ON, r2), "keptO2\n")
@@ -549,10 +551,15 @@ def section_old():
     asked = "A recovery copy of bp " + r2 in s.text()
     s.type(L_DOWN + L_DOWN + RET, wait=1.5, show="Down Down RET (Cancel)")
     s.end()
-    R.row("O2 with the switch off it is still offered, once: after Cancel it is gone from the account and the store does not hold it",
-          asked and lmode(old2) is None and not stored(ACC_ON, "OLDTEXT2"), "asked %r old %r" % (asked, lmode(old2)), phase=PH)
+    R.row("O2 with the switch off it is offered, and after Cancel it is STILL in the account (Cancel is not an answer: 'kept' is true) and the store does not hold it",
+          asked and lmode(old2) is not None and not stored(ACC_ON, "OLDTEXT2"), "asked %r old %r" % (asked, lmode(old2)), phase=PH)
     s = ide("O2b", ACC_ON, "bp " + r2)
-    R.row("O2b ...and the record opened again asks nothing: it opens as it is on the disk", "A recovery copy of" not in s.text() and "keptO2" in s.editor(), "", phase=PH)
+    asked_again = "A recovery copy of bp " + r2 in s.text()
+    s.type(L_DOWN + RET, wait=1.5, show="Down RET (Delete)")
+    s.end()
+    R.row("O2b ...the record opened again asks again, and Delete removes the copy from the account", asked_again and lmode(old2) is None, "asked again %r old %r" % (asked_again, lmode(old2)), phase=PH)
+    s = ide("O2c", ACC_ON, "bp " + r2)
+    R.row("O2c ...and the record opened again asks nothing: it opens as it is on the disk", "A recovery copy of" not in s.text() and "keptO2" in s.editor(), "", phase=PH)
     s.end()
     register(ACC_ON, "yes")
     # O3: an untitled copy there is offered by a bare IDE

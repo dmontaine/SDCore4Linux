@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 28 Oct 26 dm  S.88 review of L2: mst_buf_text() uses the kernel's one rule for another session's text (show_unsafe_byte(), op_lock.c). It took only bytes below 32 and 253 and up,
+ *               so DEL, the C1 controls (0x9B CSI, 0x9D OSC) and 248-252 of an id or a journal line reached the terminal through CHECK.MASTERS and LIST.MASTER.PENDING.
  * 26 Oct 26 dm  F6 (alternative C, owner): the sdsys user is in NO user account's group as delivered, and `modify.account <name> sdsys-on` puts it there (sdsys-off takes it out).  A save of a
  *               master record into an account whose group does not list sdsys is refused with message 11976 (MST_W_OFF; it was MST_W_NOTMEMBER and message 11587), CHECK.MASTERS reports
  *               nonwritable and norights only for accounts where the sdsys user IS in the group and counts the others once ("off", after the rows, not a difference), and masters_fix_modes
@@ -246,14 +248,15 @@ Private void mst_buf_num(MST_BUF *x, long v) {
   mst_buf_str(x, t);
 }
 
-/* a field or value mark may not come out of an id into an answer */
+/* a field or value mark, a control byte or a terminal's C1 control may not come out of an id or a journal line into an answer that a person reads: the kernel's one
+   rule for another session's text (show_unsafe_byte(), op_lock.c: 0-31, 127, 128-159 and 248-255 are '?'; 160-247 stay, a directory file's id may hold them) */
 Private void mst_buf_text(MST_BUF *x, const char *s, int len) {
   int i;
   char c;
 
   for (i = 0; i < len; i++) {
     c = s[i];
-    if (((unsigned char)c >= 0xFD) || ((unsigned char)c < 32))
+    if (show_unsafe_byte((u_char)c))
       c = '?';
     mst_buf_add(x, &c, 1);
   }

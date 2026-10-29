@@ -44,6 +44,8 @@ LINUXIO = os.path.join(SD64, "gplsrc", "linuxio.c")
 SLGUARD = os.path.join(SD64, "sdsys", "gpl.bp", "sl_guard")
 SED = os.path.join(SD64, "sdsys", "gpl.bp", "sed")
 MSG2503 = os.path.join(SD64, "sdsys", "messages", "2503")
+OPKERNEL = os.path.join(SD64, "gplsrc", "op_kernel.c")
+SDH = os.path.join(SD64, "gplsrc", "sd.h")
 
 
 def strip_c_comments(text):
@@ -116,6 +118,14 @@ def checks(files):
        "polls the keyboard with very short timed KEYINs and works between them counts as waiting" in hist
        and "KNOWN AND INTENDED" in hist)
 
+    ck("A12 keyin_idle_ms() (28 Oct 26, the L2 review) gives the clock only while it is carried - 0 after a byte or an interrupt - clamped to 32 bits, and assigns nothing",
+       re.search(r"int32_t keyin_idle_ms\(void\) \{ int64 ms = idle_carry \? idle_waited : 0; return \(ms > 0x7FFFFFFF\) \? 0x7FFFFFFF : \(int32_t\)ms; \}", squash(code_all)) is not None)
+    kc = squash(strip_c_comments(files["op_kernel"]))
+    ck("A13 kernel(K$AUTOLOGOUT, -2) is the clock and any other argument is the period as before: the setter (>= 0) comes first, then result = (value == -2) ? keyin_idle_ms() : autologout",
+       "case K_AUTOLOGOUT: GetInt(descr); if (descr->data.value >= 0) autologout = descr->data.value; "
+       "result.data.value = (descr->data.value == -2) ? keyin_idle_ms() : autologout; break;" in kc)
+    ck("A14 sd.h declares int32_t keyin_idle_ms(void);", "int32_t keyin_idle_ms(void);" in squash(strip_c_comments(files["sd_h"])))
+
     g = strip_basic_comments(guard)
     ck("G1 $sl_guard has no AUTOLOGOUT work-around: no K$AUTOLOGOUT, no slice, no wait without a timeout",
        "K$AUTOLOGOUT" not in g and "slice" not in g and not re.search(r"keyin\(\s*\)", g))
@@ -172,12 +182,15 @@ def mutants(files):
     gd("$sl_guard no longer tells a timeout from an ended input", "         if kst # ER$TIMEOUT then", "         if 1 then")
     gd("$sl_guard waits for ever", "      k = keyin(1)", "      k = keyin()")
     M.append(("SED's own work-around is taken out", dict(files, sed=files["sed"].replace("if kernel(K$AUTOLOGOUT, -1) then wk.slice = 0", "wk.slice = 1", 1))))
+    lx("keyin_idle_ms() gives the clock after a byte too (the carry is not asked)", "int64 ms = idle_carry ? idle_waited : 0;", "int64 ms = idle_waited;")
+    M.append(("kernel(K$AUTOLOGOUT, -2) answers the period", dict(files, op_kernel=files["op_kernel"].replace(
+        "(descr->data.value == -2) ? keyin_idle_ms() : autologout", "autologout", 1))))
     return M
 
 
 def load():
     files = {}
-    for k, p in (("linuxio", LINUXIO), ("sl_guard", SLGUARD), ("sed", SED), ("2503", MSG2503)):
+    for k, p in (("linuxio", LINUXIO), ("sl_guard", SLGUARD), ("sed", SED), ("2503", MSG2503), ("op_kernel", OPKERNEL), ("sd_h", SDH)):
         if not os.path.isfile(p):
             return None, p
         with open(p, encoding="latin-1") as f:

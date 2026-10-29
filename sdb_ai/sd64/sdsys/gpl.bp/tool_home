@@ -109,6 +109,7 @@ $define HG.MENU    6       ;* null for a group of the top page, else the name of
 $define HT.TW      21      ;* a tile's width in the narrowest panel (138 columns); a wider panel widens every tile by what is left over after the columns that fit
 $define HT.GAP     1       ;* the columns between the two tiles of a pair of columns
 $define HT.PGAP    3       ;* the columns between two pairs
+$define HT.BASECOLS 6      ;* the tile columns of the 140 by 43 panel: a panel with no more than these gives every group exactly its HG.COLS (band.cols), as the page was drawn before the service
 $define HM.DEPTH   8       ;* sub-menu pages open at most this many levels deep (MAX.DEPTH is int$keys.h's)
 
    common /tkhome/ hflag, hlogto
@@ -588,7 +589,8 @@ layout:
 
 * The columns each group of band b is given (gcw<k>): its HG.COLS, and the columns the panel has beyond the band's sum shared among the band's groups by those same numbers -
 * all of them to a band's one group, in whole pairs to the groups of a band of several (so that each still starts on the first column of a pair, after the wider gap), what
-* is left one (pair) at a time from the first.  At 140 by 43 there are six columns and no band needs more: every group has exactly its HG.COLS.
+* is left one (pair) at a time from the first.  A panel of HT.BASECOLS columns or fewer (140 by 43 is six) shares nothing out: every group has exactly its HG.COLS, whichever
+* groups of its band have no tiles on (a band of one group with tiles must stay as wide as the page was drawn before the service).
 band.cols:
    bsum = 0
    nbg = 0
@@ -600,6 +602,7 @@ band.cols:
       end
    next k
    if bsum < 1 then return
+   if ncol <= HT.BASECOLS then return
    unit = 1
    if nbg > 1 then unit = 2
    bx = idiv(ncol - bsum, unit)

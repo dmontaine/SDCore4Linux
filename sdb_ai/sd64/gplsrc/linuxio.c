@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 28 Oct 26 dm  S.88 review of L2: keyin_idle_ms() gives the inactivity clock (idle_waited, 0 unless the last wait ended by its own timeout) to kernel(K$AUTOLOGOUT, -2), so the
+ *               IDE's countdown reads the clock AUTOLOGOUT really uses.
  * 28 Oct 26 dm  S.88 phase 2 (S3): AUTOLOGOUT measures idle time ACROSS keyin() calls.  A wait that ends by its own timeout
  *               no longer starts the inactivity clock again, so the screen library's one-second polling cannot keep a
  *               session alive; a byte of input or an interrupt starts it again as before.  A program that never gives keyin()
@@ -617,6 +619,15 @@ int32_t type_ahead_count() {
     n += waiting;
   input_handler_enabled = TRUE;
   return n;
+}
+
+/* 28 Oct 26 dm - S.88 review of L2: the inactivity clock, for kernel(K$AUTOLOGOUT, -2): how long this process has waited with nothing typed, in milliseconds, as AUTOLOGOUT
+   itself will judge it at the next keyin() - the clock runs on only while the last wait ended by its own timeout, so after a key (or an interrupt) it is 0.  Read only, and only
+   the process's own.  The IDE's countdown used to GUESS this from what it could see (a wait that took long, a change in the editor) and was late by an AI wait and by a stall. */
+int32_t keyin_idle_ms(void) {
+  int64 ms = idle_carry ? idle_waited : 0;
+
+  return (ms > 0x7FFFFFFF) ? 0x7FFFFFFF : (int32_t)ms;
 }
 
 int16_t keyin(timeout) int timeout; /* Milliseconds */

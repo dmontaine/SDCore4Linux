@@ -6,14 +6,17 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  REVIEW OF L2, findings 4 and 9: Compile, Run, Debug and Catalog save first only when there is something to save (do.compile: a read-only tab that is unchanged is built
+*               as it is on the disk; save.one still refuses a read-only tab that has changes); the AUTOLOGOUT countdown reads the kernel's inactivity clock (kernel(K$AUTOLOGOUT, -2))
+*               instead of counting its own - idle.count, IDL.SLACK and the per-wait bookkeeping are gone.
 * 28 Oct 26 dm  Four items the owner approved on 28 Oct (Opus's recommendations).  (1) TAB INDENTS in the editor: the memo's tabindent (width 3, the codebase's),
 *               Tab puts blanks in to the next stop or indents the selected lines, Shift-Tab takes them out, one undo step each, never a tab character; F6 and
 *               Shift-F6 move between the panes, and Tab still moves through the controls of the tree, the messages and every form (an option of this
 *               editor only: a user program's SCREEN MEMO keeps today's Tab).  (2) The recovery copies are in the person's Linux home now
-*               (!edit_recovery); nothing here changed but this note.  (3) AN AUTOLOGOUT COUNTDOWN: the IDE counts its own idle time (the waits that end in a
-*               quiet second, and what the editor shows changing, or a wait that lasted longer, for the keys it consumed) and, in the last 60 seconds before
-*               the session's AUTOLOGOUT period (kernel K$AUTOLOGOUT; nothing when it is 0) would end the session, says so on the status line; any key
-*               cancels it.  (4) A RECORD HOLDING BYTES 128 TO 247 OPENS READ-ONLY (bx a<uid>): the editor shows them as they are and cannot be trusted to
+*               (!edit_recovery); nothing here changed but this note.  (3) AN AUTOLOGOUT COUNTDOWN: in the last 60 seconds before the session's AUTOLOGOUT
+*               period (kernel K$AUTOLOGOUT; nothing when it is 0) would end the session, the status line says so; any key cancels it.  (First built by counting
+*               its own idle time from what the IDE could see; the L2 review replaced that by the kernel's inactivity clock, K$AUTOLOGOUT -2: the guess was late
+*               by an AI wait and by a stall.)  (4) A RECORD HOLDING BYTES 128 TO 247 OPENS READ-ONLY (bx a<uid>): the editor shows them as they are and cannot be trusted to
 *               keep them, so Save, Save as, Write a copy, Replace, Edit as fields and an AI edit are refused in a box.  Nothing is decoded, encoded or
 *               normalised; the marks 248-255 still go through the token form.
 * 28 Oct 26 dm  The editor merge, stage B (Opus_TUI_Plan.txt section 11): RECORD KINDS AND LOCKS.  Each tab has a kind (bx k: source, dict, voc, data;
@@ -200,16 +203,12 @@ $include dictdict.h
    RC.LOOK = 10                            ;* seconds between two looks for a copy a tab does not own (rc.tick)
 
    * 28 Oct 26: the bytes that make a record read-only here (128 to 247: text in another character set, or UTF-8; 248 to 255 are SD's marks, which the
-   *   token form shows), and the AUTOLOGOUT countdown's own idle count (idle.count)
+   *   token form shows), and the AUTOLOGOUT countdown (idle.text reads the kernel's own inactivity clock)
    NA.CHARS = ''
    for na.i = 128 to 247
       NA.CHARS := char(na.i)
    next na.i
-   IDL.SLACK = 1250                        ;* ms: a one-second wait that took longer than this had keys in it, which the editor consumed
    IDL.WARN = 60                           ;* seconds before the sign-out that the status line says so
-   idl.ms = 0                              ;* the time waited with nothing typed, as far as the IDE can tell
-   idl.fp = ''
-   idl.t0 = 0
 
    call $sl_scr('get', scr)
    w = scr<SL.S.W> + 0
@@ -347,12 +346,10 @@ $include dictdict.h
       gosub status.line
       * A second of quiet is an event (timeout), so that the status line follows what is typed: the editor
       * consumes its own keys and nothing else returns to this loop for them
-      idl.t0 = system(1081)                ;* 28 Oct 26: when this wait began, in ms (idle.count)
       screen wait f timeout 1 returning ev then
          et = ev<1>
          eid = ev<2>
          edata = ev<3>
-         if et # 'resize' then idl.ms = 0    ;* 28 Oct 26: every event but a resize is a key or a click, which starts AUTOLOGOUT's period again
          begin case
             case et = 'activate'
                msg = ''
@@ -378,10 +375,8 @@ $include dictdict.h
                gosub rc.tick                    ;* the input ended or the terminal hung up: the changed buffers' copies are brought up to date (D2)
                done = @true
             case ev<1> = 'timeout'
-               gosub idle.count                 ;* 28 Oct 26: the countdown's idle time
                gosub rc.tick                    ;* a second of quiet: the copies follow the buffers (an abort cannot be caught)
             case 1
-               idl.ms = 0               ;* 28 Oct 26: Esc is a key too
                cmd = 'menu'             ;* Esc
                gosub run.cmd
          end case
@@ -1687,39 +1682,16 @@ set.indicators:
 
 * ======================================================================
 * The AUTOLOGOUT countdown (28 Oct 26, approved by the owner).  The kernel ends a session whose AUTOLOGOUT period passes with nothing typed (keyin counts
-* the time spent waiting, across the IDE's one-second waits), and an IDE with unsaved changes then loses them.  The IDE counts the same thing ITSELF, from
-* what it sees: an event (a key or a click the form did not keep) starts the count again; a wait that ended in a quiet second adds its length, unless it
-* lasted more than IDL.SLACK (keys came in it, which the editor consumed: the quiet second after the last one is all that counts) or the editor, the AI line
-* or the focus changed (idl.fp).  A key the count cannot see (one that changes nothing, early in a wait) makes it count too much, so the warning can come
-* early, never late; one the kernel would not have signed out for is put right once the period is well past.  Nothing is asked of the kernel but the period.
-
-* After a wait that ended in a quiet second.  In: idl.t0 (when it began).  Out: idl.ms
-idle.count:
-   idl.el = system(1081) - idl.t0
-   idl.now = f{'focus'}
-   if have.form then
-      call $sl_form('find', f, '', 'ed', en)
-      mw = f{'widgets', en}
-      idl.now := '|' : mw{'cx'} : '|' : mw{'cy'} : '|' : mw{'top'} : '|' : mw{'left'} : '|' : mw{'mx'} : '|' : mw{'my'} : '|' : mw{'ukn'} : '|' : len(mw{'value'})
-      if ai.on then
-         screen get f, 'ai' returning idl.ai
-         idl.now := '|' : len(idl.ai) : '|' : idl.ai
-      end
-   end
-   if idl.el > IDL.SLACK or idl.now # idl.fp then
-      idl.ms = 1000
-   end else
-      idl.ms += idl.el
-   end
-   idl.fp = idl.now
-   return
+* the time spent waiting, across the IDE's one-second waits, the waits of a dialog and of the AI line), and an IDE with unsaved changes then loses them.  The
+* countdown is read from that same clock: kernel(K$AUTOLOGOUT, -2) is the time waited with nothing typed, as AUTOLOGOUT will judge it at the next wait, 0 after a
+* key.  (The first version GUESSED it from what the IDE could see - a wait that took long, a change in the editor - and was late by an AI wait and by a stall.)
 
 * Out: idl.txt, the countdown for the status line, or '' when the period is off (0) or more than IDL.WARN seconds away
 idle.text:
    idl.txt = ''
    idl.al = kernel(K$AUTOLOGOUT, -1) + 0          ;* ms, as the autologout verb reads it; 0 is off
    if idl.al <= 0 then return
-   if idl.ms > idl.al + 10000 then idl.ms = 0     ;* the session was not signed out: the count missed a key, and starts again
+   idl.ms = kernel(K$AUTOLOGOUT, -2) + 0          ;* ms waited with nothing typed: the kernel's own clock
    idl.left = int((idl.al - idl.ms + 999) / 1000)
    if idl.left > IDL.WARN then return
    if idl.left < 1 then idl.left = 1
@@ -2586,8 +2558,17 @@ do.compile:
       msg = sysmsg(11218)
       return
    end
-   gosub save.current
-   if not(sv.ok) then return
+   * 28 Oct 26 (review of L2): the record is saved first only when there is something to save - a changed text, an untitled buffer or a record not on the disk yet.  A tab that
+   *   is read-only (another session holds the record's lock, or it holds bytes 128 to 247) and unchanged is compiled, run, debugged and catalogued as it is on the disk;
+   *   save.one refuses a read-only tab even when nothing needs saving.
+   gosub stash.current
+   i = cb
+   gosub is.dirty
+   k = 'n' : bu<cb>
+   if dirty or bi<cb> = '' or bx{k} then
+      gosub save.current
+      if not(sv.ok) then return
+   end
    c.file = bn<cb>
    c.id = bi<cb>
    k = 'k' : bu<cb>
@@ -2678,8 +2659,6 @@ retake.screen:
 * 28 Oct 26: the setting is read again, as the person has it now ('close' above may have put back the one an earlier aborted app had held, which is the
 *   person's own and not the one this program read at its start), and kept again by $tk_brk before the break key is turned off
 retake.quiet:
-   idl.ms = 0                            ;* 28 Oct 26: the program run here had the keyboard; the countdown starts again
-   idl.fp = ''
    saved.trap = pterm(PT$BREAK, -1)
    call $tk_brk('save', saved.trap)
    void pterm(PT$BREAK, @false)

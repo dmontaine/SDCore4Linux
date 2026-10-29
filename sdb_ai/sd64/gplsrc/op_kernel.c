@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.88 review of L2: kernel(K$AUTOLOGOUT, -2) returns the inactivity clock (keyin_idle_ms()) instead of the period, for the IDE's countdown.
  * 28 Oct 26 dm  S.88 phase 2: K_SHOW_SAFE (151), another session's text made safe to print by the kernel's one rule (show_ts_safe()), for PSTAT,
  *               PROFILER DISPLAY and HSM USER n, which print the $IPC records S<n>, F<n> and H<n> that any SD user can write.
  * 27 Oct 26 dm  S.87 batch 16: K_KEEP_SELECT (107) is gone with the KEEP.SELECT statement and OPTION CLEAR.SELECT; the number stays reserved.
@@ -233,7 +234,7 @@ void op_kernel() {
      K$COLLATION.NAME     Set primary collation map name
      K$AK.COLLATION       Select AK collation map
      K$EXIT.STATUS        Set exit status
-     K$AUTOLOGOUT         Set/retrieve autologout period
+     K$AUTOLOGOUT         Set/retrieve autologout period (-1 reads it; -2 reads the inactivity clock in ms)
      K$MAP.DIR.IDS        Enable/disable dir file id mapping
  */
 
@@ -1338,7 +1339,8 @@ void op_kernel() {
       GetInt(descr);
       if (descr->data.value >= 0)
         autologout = descr->data.value;
-      result.data.value = autologout;
+      /* 28 Oct 26 dm - S.88 review of L2: an argument of -2 gives the inactivity clock instead of the period (read only; keyin_idle_ms(), linuxio.c) */
+      result.data.value = (descr->data.value == -2) ? keyin_idle_ms() : autologout;
       break;
 
     case K_MAP_DIR_IDS:

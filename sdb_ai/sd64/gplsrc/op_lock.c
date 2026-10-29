@@ -96,9 +96,9 @@ Private bool unlock_id(int16_t file_id, char* raw_id, int16_t id_len);
    user names that ANOTHER session put in the lock table, and the deadlock message prints them on this session's terminal.  A
    record id of a hashed file is checked only for being empty or too long, so an ordinary user's READU on an id holding ESC ] 0 ;
    ... BEL or ESC [ 2 J would write that sequence into the administrator's terminal through LIST.READU and tool.sessions (read from
-   the source, Opus TUI evidence ADM-01: op_lock.c printed it with %.*s; sandbox-termsafe.py S1-K is the live row).  So, as masters.c's mst_buf_text() does for the ids of its answers, every byte
+   the source, Opus TUI evidence ADM-01: op_lock.c printed it with %.*s; sandbox-termsafe.py S1-K is the live row).  So, as masters.c's mst_buf_text() did for the ids of its answers, every byte
    below 32 and every mark becomes '?'; this also takes DEL (127), the C1 controls 128-159 (0x9B is CSI on a terminal that is not
-   in UTF-8 mode) and the reserved marks 248-255, where mst_buf_text() takes 0xFD and up only.  Bytes 160-247 are left alone:
+   in UTF-8 mode) and the reserved marks 248-255, where mst_buf_text() took 0xFD and up only (since the L2 review it uses this rule too).  Bytes 160-247 are left alone:
    they may be in a directory file's record id (sheet item 34).  The copy is cut at MAX_ID_LEN or MAX_PATHNAME_LEN by the caller's
    buffer, out_size, and always ends with a nul.  The lock table itself is not touched: UNLOCK, RELEASE and the deadlock check
    still compare the real bytes, and FILEINFO(f, 1039) still gives a program its OWN record ids exactly.                      */

@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  REVIEW FIX: 'find' no longer deletes a first-version copy from the account's $recovery with the switch off (it did so before the person had answered, so Cancel
+*               said "kept" over a copy that was gone, and a hang-up after Use lost it); the copy goes only once the store holds it, or on 'drop'.
 * 28 Oct 26 dm  THE STORE MOVED TO THE PERSON'S LINUX HOME (Opus's recommendation, approved by the owner 28 Oct).  The copies are kept in
 *               <home>/.local/state/sd/recovery/<account>/, the home taken from the password database for the user this process runs as
 *               (SDEXT SD_USER_HOME, never $HOME), each directory on the way checked to be a real directory of that user's that nobody
@@ -49,8 +51,9 @@
 *
 *   THE FIRST VERSION'S COPIES.  It kept them in <account directory>/$recovery, for a USER account and its own person only.  'find' and
 *   'list' still look there (with that rule and the old private checks) when the store has none: a copy found is offered as before, moved
-*   into the store first when the switch is on (so that Cancel keeps it), and removed from the account either way - offered once.  'drop'
-*   removes it there too.  Nothing is ever written there again.
+*   into the store first when the switch is on (so that Cancel keeps it), and removed from the account only when the store holds it.  With
+*   the switch off 'find' removes nothing: the copy stays in the account until the person's answer, 'drop' (Delete, or the tab saved or
+*   closed) removes it there too, and Cancel or Later keeps it and it is offered again.  Nothing is ever written there again.
 *
 *   NOTHING HERE WRITES THE RECORD ITSELF, and nothing here reads or writes anything but the store and the old $recovery directory.  No
 *   audit line holds the text (none is written at all: the switch's own change is audited by MODIFY.ACCOUNT).
@@ -282,7 +285,8 @@ do.find:
    return
 
 * A copy the first version left in the account's $recovery (rc.old): read under that version's checks; moved into the store when the switch is on, with
-* the date and time it was kept (so that the person's Cancel keeps it), and removed from the account either way.  Out: text and res as do.find
+* the date and time it was kept (so that the person's Cancel keeps it), and removed from the account only then.  With the switch off it is offered where it is and
+* nothing is removed until the person answers ('drop').  Out: text and res as do.find
 old.find:
    if rc.old = '' then return
    of.dir = rc.dir
@@ -314,7 +318,7 @@ old.find:
    of.text = cp.text
    of.res = 1 : @fm : cp.date : @fm : cp.time
    rc.dir = of.dir
-   of.moved = @true
+   of.moved = @false
    if rc.on then
       text = of.text
       wr.date = cp.date
@@ -324,7 +328,8 @@ old.find:
       wr.time = ''
       of.moved = (res = '')
    end
-   * offered once: the account does not keep it - unless the switch is on and the move failed (then it is offered again next time, not lost)
+   * the account's copy goes only when the store holds it: with the switch off nothing was moved, and what becomes of the copy is the person's answer (Use leaves it until
+   * the tab is saved or closed, Delete and that close call 'drop', Cancel keeps it and it is offered again); a move that failed keeps it too
    if of.moved then delete orf, of.slot on error null
    close orf
    text = of.text

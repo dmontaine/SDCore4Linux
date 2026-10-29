@@ -269,7 +269,7 @@ draw.accounts:
          if len(tf) > tfw then tf = tf[1, tfw - 1] : '+'
          s = fmt(ids<k>[1, 13], '14L') : fmt(atype<k> : (if asusp<k> then ' (s)' else ''), '10L') : fmt(stext, '19L') : fmt((if apins<k> then 'yes' else 'no'), '5L') : tf
       end
-      screen text s at acl.x + 2,acl.y + r attr (if k = ai and k <= na then (if pane = 1 then 'highlight' else 'bold') else 'normal') width aw
+      screen text s at acl.x + 2,acl.y + 1 + r attr (if k = ai and k <= na then (if pane = 1 then 'highlight' else 'bold') else 'normal') width aw      ;* row 1 is under the header, as the hit test at the click counts it
    next r
    call $tk_help('mark', mk.acx, mk.acy, 0, 0)                    ;* F1, ? or a click: what this box shows
    return
