@@ -26960,7 +26960,7 @@
 "tcl:my.menu": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 60
 },

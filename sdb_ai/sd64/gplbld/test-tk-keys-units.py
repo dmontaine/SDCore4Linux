@@ -32,7 +32,7 @@ GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 
 EXPECT_PROGRAMS = 24
-EXPECT_ADD_ROWS = 254          # the 232 rows of the tree before 29 Oct 26, the two rows of tool_tktest's pilot (S2), the Esc row of tool_mygates and the Ctrl-O and Esc rows of tool_viewers (30 Oct 26, the F0a pilots of $tk_menubar)
+EXPECT_ADD_ROWS = 255         # the 232 rows of the tree before 29 Oct 26, the two rows of tool_tktest's pilot (S2), the Esc row of tool_mygates and the Ctrl-O and Esc rows of tool_viewers (30 Oct 26, the F0a pilots of $tk_menubar)
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
 # an action that has two keys on purpose (the second is for a terminal that keeps the first for itself)
@@ -52,10 +52,6 @@ LEDGER = {
         "tool_tktest:f11": "the throw-away test app's pick-a-file key; it goes with the app",
         "tool_tktest:f6": "the throw-away test app's table refresh; it goes with the app",
         "tool_tktest:f10": "the throw-away test app's multi-pick key; it goes with the app",
-        "mymenu:f2": "mymenu add (F2 is find an action); Phase 5 moves it (owner answer 20: Ctrl-N)",
-        "mymenu:f3": "mymenu F3 (Phase 5)",
-        "mymenu:f4": "mymenu F4 (Phase 5)",
-        "mymenu:f6": "mymenu F6 down (F6 is the next pane); Phase 5 moves it",
         "tool_home:f10": "tool_home binds F10 for its menu without Esc first (K8)",
     },
     "mnemonic": {

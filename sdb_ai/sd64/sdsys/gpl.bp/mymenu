@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 30 Oct 26 dm  S.88 U4: a menu bar made from the key table ($tk_menubar); the keys are Ctrl-N, Del, U and D in place of F2, F3, F4 and F6 (owner answer 20); no key hint in the first message.
 * 22 Oct 26 dm  New (S.75; the owner: "users need to be able to add their own items to the full screen menu if allowed by the admin - not manage universal tiles, but just
 *               for their own programs").
 * END-HISTORY
@@ -13,7 +14,8 @@
 *   MY.MENU
 *
 *   A full-screen page, in the toolkit's frame (140 columns by 43 lines at least), for the programs a person has added to their own home screen: the list of them, and
-*   F2 add, Enter change the one selected, F3 remove it, F4 move it up, F6 move it down, Ctrl-Q leave.  An item is a label (up to 21 characters), a command (what the
+*   Ctrl-N add, Enter change the one selected, Del remove it, U move it up, D move it down, Ctrl-Q leave; Esc or F10 opens the menu bar (the owner's answer 20 of 29 Oct 2026: the
+*   function keys F2, F3, F4 and F6 gave way, F2 and F6 being the toolkit's find-an-action and next-pane keys).  An item is a label (up to 21 characters), a command (what the
 *   person would type at their prompt) and, if they like, a three-character glyph and whether the screen waits for Enter after a command that only prints.  The
 *   items are the record HOME of the file &MENUS& in the person's own account.
 *
@@ -51,26 +53,38 @@ $include tk.h
 
    keys = ''
    call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)
-   call $tk_keys('add', keys, 'f2', 'add', 'add', '', 1)
-   call $tk_keys('add', keys, 'f3', 'remove', 'remove', '', 1)
-   call $tk_keys('add', keys, 'f4', 'up', 'up', '', 1)
-   call $tk_keys('add', keys, 'f6', 'down', 'down', '', 1)
+   call $tk_keys('add', keys, 'ctrl-n', 'add', 'add', '', 1)
+   call $tk_keys('add', keys, 'del', 'remove', 'remove', '', 1)
+   call $tk_keys('add', keys, 'u', 'up', 'up', '', 1)
+   call $tk_keys('add', keys, 'd', 'down', 'down', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U4: Esc opens the menu bar (this page holds nothing of its own that Esc closes first)
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'add', '&Program', '&Add a program', '', '')
+   call $tk_keys('menu', keys, 'change', '&Program', '&Change it', '', '')
+   call $tk_keys('menu', keys, 'remove', '&Program', '&Remove it', '', '')
+   call $tk_keys('menu', keys, 'up', '&Program', 'Move it &up', '', '')
+   call $tk_keys('menu', keys, 'down', '&Program', 'Move it &down', '', '')
 
    VIS = 30
    sel = 1
    top = 0
    gen = 0
    done = 0
-   msg = 'F2 adds a program'
+   msg = ''
 
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, 'My programs', '', '', mr)        ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, 'My programs', msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key returning nm
+      mr = ''
+      if nm # '' then call $tk_menubar('key', ctx, keys, 'My programs', nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
+      if mr<1> # '' then nm = mr<4>
+      if len(nm) = 1 then nm = downcase(nm)                          ;* U and u are one key
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -82,6 +96,12 @@ $include tk.h
             gosub draw.all
          case nm = 'mouse'
             screen mouse returning mev else mev = ''
+            mr = ''
+            call $tk_menubar('click', ctx, keys, 'My programs', mev, '', mr)         ;* a click on the bar on row 0
+            if mr<1> # '' then
+               nm = mr<4>
+               gosub on.key
+            end
          case 1
             gosub on.key
       end case
@@ -114,7 +134,7 @@ draw.all:
       screen text s at 3,2 + r attr (if k = sel and k <= n then 'highlight' else 'normal') width 134
    next r
    if n = 0 then
-      screen text 'You have not added a program yet.  F2 adds one.' at 3,4 width 134
+      screen text 'You have not added a program yet.  Ctrl-N adds one.' at 3,4 width 134
       screen text 'A program here is a command you could type at your prompt.  It is started from your home screen.' at 3,5 attr 'disabled' width 134
    end
    screen text "The standard tiles of the home screen are the administrator's; this list is only yours." at 3,34 attr 'disabled' width 134
@@ -142,17 +162,17 @@ on.key:
       case nm = 'end'
          sel = n
          gosub draw.all
-      case nm = 'f2'
+      case nm = 'ctrl-n'
          gosub add.item
       case nm = 'enter' or nm = ' '
          if n > 0 then gosub change.item
-      case nm = 'f3'
+      case nm = 'del'
          if n > 0 then gosub remove.item
-      case nm = 'f4'
+      case nm = 'u'
          if sel > 1 then
             gosub swap.up
          end
-      case nm = 'f6'
+      case nm = 'd'
          if sel < n then
             gosub swap.down
          end

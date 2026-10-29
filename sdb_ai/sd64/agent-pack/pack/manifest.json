@@ -133,7 +133,7 @@
   },
   "tcl.verb": {
    "chunks": 205,
-   "sha256": "85c39e1ad2e9c65a02fa9eb712f58cc7535ce991e0eabbad9f6f4788f5dc351d"
+   "sha256": "0505f30ad0028c99162a1636dcaa3922b96fe5e50c5d1c34d73f825fcee3ed8b"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -175,7 +175,7 @@
    "words": 569
   },
   "index.json": {
-   "sha256": "04dc04c95f1d0c0c6e03217d588ad2cda4b5af90a48e30f339270f1093c00a08"
+   "sha256": "a76d1c38f30019ed0d1acf6c63f5dc18dff1466229fdedc0822dd9093fac9a08"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
@@ -219,7 +219,7 @@
   },
   "reference/tcl-verbs.md": {
    "chunks": 209,
-   "sha256": "f7f2c0ecbc06e604685e5caa94cd1930c337dfab7a8e40ce496b4268e917bce3",
+   "sha256": "0c690396c12b30113209d55774a31a94d5aec22b46ef2afa0540febe58343f0c",
    "words": 9588
   },
   "reference/voc.md": {

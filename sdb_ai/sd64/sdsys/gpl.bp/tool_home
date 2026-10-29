@@ -1033,7 +1033,11 @@ on.key:
       case nm = 'enter' or nm = ' '
          gosub start.tile
       case nm = 'esc' or nm = 'bs'
-         gosub close.menu                                  ;* back one page; on the top page there is nowhere to go and nothing happens
+         if nm = 'esc' and cur.menu = '' then
+            gosub run.menu                                 ;* S.88 U9, the Esc rule: on the top page there is nothing to go back to, so Esc opens the menu bar (as F10 does)
+         end else
+            gosub close.menu                               ;* back one page
+         end
       case nm = 'f5'
          gosub rebuild
       case nm = 'f10'

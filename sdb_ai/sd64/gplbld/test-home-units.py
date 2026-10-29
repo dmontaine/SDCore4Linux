@@ -285,9 +285,9 @@ def checks(s):
     ck("H30b ...Back one page does nothing on the top page (the test of the stack comes before it is read), gives the focus and the scroll back, takes the level off both stacks, and enters the page left",
        ordered(cm, "dep = dcount(stk, @fm)", "if dep = 0 then return", "e = stk<dep>", "cur.menu = e<1, 1>", "want.id = e<1, 2>", "want.top = e<1, 3>", "del stk<dep>", "del crumb<dep>", "gosub enter.level"), cm)
     st_tile = between(th, "\nstart.tile:\n", "\nnote.recent:\n")
-    ck("H30c ...a folder tile and the Back tile are started like any tile (Enter, the space bar, a click, the AI line), Esc and Backspace and the Go menu's Back entry do the same, and a tile that runs a command notes it for the Recent group before it runs",
+    ck("H30c ...a folder tile and the Back tile are started like any tile (Enter, the space bar, a click, the AI line), Esc (inside a folder; on the top page Esc opens the menu bar, S.88 U9) and Backspace and the Go menu's Back entry do the same, and a tile that runs a command notes it for the Recent group before it runs",
        ordered(st_tile, "case act[1, 4] = 'cmd:'", "gosub note.recent", "gosub run.command", "case act[1, 5] = 'menu:'\n         gosub open.menu", "case act = 'back'\n         gosub close.menu")
-       and "case nm = 'esc' or nm = 'bs'\n         gosub close.menu" in th and "case cmd = 'back'\n         gosub close.menu" in th, st_tile)
+       and "case nm = 'esc' or nm = 'bs'\n         if nm = 'esc' and cur.menu = '' then\n            gosub run.menu" in th and "end else\n            gosub close.menu" in th and "case cmd = 'back'\n         gosub close.menu" in th, st_tile)
     bp_ = between(th, "\nbuild.page:\n", "\nadd.recent:\n")
     plh = between(th, "\nplace.header:\n", "\nalloc.styles:\n")
     ck("H30d ...the Back tile is built only on a sub-menu page, at the left end of the header (the first tile column, column 3 at 140 by 43, the header's first row), as a header tile, after the Switch account and Sign out tiles; "

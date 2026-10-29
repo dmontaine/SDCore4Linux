@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  MY PROGRAMS (MY.MENU) HAS A MENU BAR AND NEW KEYS; ESC OPENS THE HOME SCREEN'S MENU BAR.
+
+             What        - MY.MENU (the list of programs you added to your home screen) opens a menu bar with Esc or F10. Its keys changed so that they no longer collide with the toolkit's:
+                           Ctrl-N adds a program (was F2), Del removes it (was F3), U moves it up (was F4) and D moves it down (was F6). Enter still changes the one selected.
+                         - On the top page of the home screen Esc now opens the menu bar, as F10 does (it did nothing there). Inside a folder Esc still goes back.
+                         It does NOT change what a program you add may run: that is still your own command, started the way a tile starts it.
+
 30 Oct 26  THE TESTS, DICTIONARY, QUERY AND BULK UPDATE PAGES HAVE A MENU BAR.
 
              What        - TOOL.TEST, TOOL.DICT, TOOL.QUERY and TOOL.BULK open a menu bar with Esc or F10; Alt and a title's letter opens that menu; an entry does what its key does
