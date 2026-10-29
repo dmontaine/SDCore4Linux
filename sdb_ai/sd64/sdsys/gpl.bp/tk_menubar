@@ -70,6 +70,11 @@ $include tk.h
             case len(nm) = 5 and nm[1, 4] = 'alt-'
                gosub find.title
          end case
+         if start > 0 then
+            * a key the page binds to an action of its own in this pane (not the Esc row's 'menu') is the page's
+            call $tk_keys('action', keys, nm, pane, pa, '', '')
+            if pa # '' and pa # 'menu' then start = 0
+         end
          if start > 0 then gosub run.bar
       case op = 'click'
          if a<1> = 'press' and a<2> = 1 and a<4> + 0 = ctx<TK.C.YMENU> + 0 then
@@ -127,7 +132,7 @@ build.widget:
 
 * What the bar looks like now, to know whether it needs drawing
 bar.sig:
-   sig = ctx<TK.C.W> : '/' : ctx<TK.C.GEN> : '/' : ctx<TK.C.EPOCH> : '/' : pane : @fm : menus
+   sig = ctx<TK.C.W> : '/' : ctx<TK.C.GEN> : '/' : ctx<TK.C.EPOCH> : '/' : convert(@fm : @vm : @sm, '|~^', menus)      ;* no marks: ctx is a dynamic array (the pane's effect is in the D flags of menus)
    return
 
 * The bar drawn on row 0, if it is not already

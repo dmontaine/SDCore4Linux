@@ -109,7 +109,7 @@ def checks(s):
     ck("O2 none writes, deletes, opens or runs anything and none asks the kernel: the pane's history is memory only, the picker reads through the library, the form validates nothing", not bad, repr(bad))
 
     ck("O3 $tk_out: a phantom returns first; the history belongs to one open of the app (ctx<TK.C.EPOCH>): another open starts with a new, empty collection",
-       ordered(out, "tot = c", "c = ''", "if system(25) then return", "if out.epoch # ctx<TK.C.EPOCH> + 0 then", "out.w = collection()", "out.epoch = ctx<TK.C.EPOCH> + 0", "begin case"), out[:400])
+       ordered(out, "tot = c", "c = ''", "if system(25) then return", "if out.epoch # ctx<TK.C.EPOCH> + 0 or jtype(out.w) # 'collection' then", "out.w = collection()", "out.epoch = ctx<TK.C.EPOCH> + 0", "begin case"), out[:400])
 
     od = op(out, "draw")
     ck("O4 draw: only an open pane whose layout pane is shown, in the rectangle $tk_layout 'pane' gives; the library widget is made again only when the rectangle changed (or never made)",
@@ -133,8 +133,8 @@ def checks(s):
 
     rf = label(fm, "run.form")
     ck("O8 $tk_form run: waits for events; the button 'ok' is 'ok', anything else (Cancel, Esc, the input ending) is 'cancel'; every entry is read with SCREEN GET; the focused entry comes back; the form is not hidden",
-       ordered(rf, "if not(tf.open + 0) then return", "screen wait tf.f returning ev then", "case ev<1> = 'focus'", "last = ev<2>", "case ev<1> = 'button'", "res = (if ev<2> = 'ok' then 'ok' else 'cancel')", "case ev<1> = 'cancel'",
-               "end else", "res = 'cancel'", "repeat", "screen get tf.f, tf.ids<1, i> returning v", "a = res", "c = last") and "screen hide" not in rf, rf[:300])
+       ordered(rf, "if not(tf.open + 0) then return", "screen wait tf.f returning ev then", "case ev<1> = 'focus'", "null", "case ev<1> = 'button'", "res = (if ev<2> = 'ok' then 'ok' else 'cancel')", "case ev<1> = 'cancel'",
+               "end else", "res = 'cancel'", "repeat", "screen get tf.f, tf.ids<1, i> returning v", "a = res", "fx = tf.f{'focus'} + 0", "c = last", "c = fw{'id'}") and "screen hide" not in rf, rf[:300])
 
     sf = label(fm, "say.text")
     ck("O9 $tk_form say: the text is wrapped to the message width into exactly three rows (each set, so a written empty one empties it) and the focus goes to the entry named, with an ELSE",
@@ -175,7 +175,7 @@ MUTANTS = [
     ("tk_out loses an argument", "tk_out", "subroutine tk_out(op, ctx, a, b, c)", "subroutine tk_out(op, ctx, a, b)", "O1"),
     ("the pane writes its history to a file", "tk_out", "         call $sl_out('add', out.w, '', a : @fm : b, r)\n", "         call $sl_out('add', out.w, '', a : @fm : b, r)\n         write b on fh, 'out'\n", "O2"),
     ("the form asks the kernel", "tk_form", "   c = 'no'\n   if system(25) then return", "   c = 'no'\n   x = kernel(K$AI.STATUS, 0)\n   if system(25) then return", "O2"),
-    ("the history survives another open", "tk_out", "   if out.epoch # ctx<TK.C.EPOCH> + 0 then\n", "   if 0 then\n", "O3"),
+    ("the history survives another open", "tk_out", "   if out.epoch # ctx<TK.C.EPOCH> + 0 or jtype(out.w) # 'collection' then\n", "   if 0 then\n", "O3"),
     ("a phantom draws", "tk_out", "   if system(25) then return                     ;* a phantom", "   null                                          ;* a phantom", "O3"),
     ("the pane is drawn closed", "tk_out", "      case op = 'draw'\n         if out.w{'open'} + 0 then", "      case op = 'draw'\n         if 1 then", "O4"),
     ("the pane is drawn where the layout collapsed it", "tk_out", "            if rc<1, 5> + 0 then\n", "            if 1 then\n", "O4"),
@@ -189,7 +189,7 @@ MUTANTS = [
     ("a masked entry shows its text", "tk_form", "value ini mask maxlen ml", "value ini maxlen ml", "O7"),
     ("the form is open before it is drawn", "tk_form", "   tf.open = 1\n   c = ''", "   c = ''", "O7"),
     ("Cancel is not the cancel button", "tk_form", " at 2 + len(eff) + 6,nf + 6 cancel", " at 2 + len(eff) + 6,nf + 6", "O7"),
-    ("run hides the form", "tk_form", "   a = res\n   c = last\n", "   screen hide tf.f\n   a = res\n   c = last\n", "O8"),
+    ("run hides the form", "tk_form", "   a = res\n   fx = tf.f", "   screen hide tf.f\n   a = res\n   fx = tf.f", "O8"),
     ("any button is ok", "tk_form", "res = (if ev<2> = 'ok' then 'ok' else 'cancel')", "res = 'ok'", "O8"),
     ("the end of the input is ok", "tk_form", "      end else\n         res = 'cancel'                              ;* the input ended", "      end else\n         res = 'ok'                              ;* the input ended", "O8"),
     ("say leaves the old rows", "tk_form", "   for j = 1 to 3\n      screen set tf.f, 'm' : j text pieces<j>[1, tf.msgw]", "   for j = 1 to 1\n      screen set tf.f, 'm' : j text pieces<j>[1, tf.msgw]", "O9"),

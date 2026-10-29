@@ -124,7 +124,7 @@ run.form:
       screen wait tf.f returning ev then
          begin case
             case ev<1> = 'focus'
-               last = ev<2>
+               null
             case ev<1> = 'button'
                res = (if ev<2> = 'ok' then 'ok' else 'cancel')
                exit
@@ -142,7 +142,12 @@ run.form:
       b<i> = v
    next i
    a = res
+   fx = tf.f{'focus'} + 0                          ;* the form's own pointer: a focus moved by 'say' makes no event
    c = last
+   if fx >= 1 then
+      fw = tf.f{'widgets', fx}
+      if index(@vm : tf.ids : @vm, @vm : fw{'id'} : @vm, 1) > 0 then c = fw{'id'}
+   end
    return
 
 * ------------------------------------------------------------------------------------------------- say

@@ -113,7 +113,7 @@ def checks(s):
 
     pb = label(mb, "paint.bar")
     ck("M6 draw: a signature of width, generation, epoch, pane and menus; nothing is written when it is the same as ctx<TK.C.BAR>; after a draw it records it and clears last.top; ctx<TK.C.GEN> is never assigned",
-       "sig = ctx<TK.C.W> : '/' : ctx<TK.C.GEN> : '/' : ctx<TK.C.EPOCH> : '/' : pane : @fm : menus" in code(label(mb, "bar.sig")) and ordered(pb, "gosub bar.sig", "if sig = ctx<TK.C.BAR> then return", "call $sl_menu('init'", "call $sl_menu('draw'", "ctx<TK.C.BAR> = sig", "last.top = ''")
+       "sig = ctx<TK.C.W> : '/' : ctx<TK.C.GEN> : '/' : ctx<TK.C.EPOCH> : '/' : convert(@fm : @vm : @sm, '|~^', menus)" in code(label(mb, "bar.sig")) and ordered(pb, "gosub bar.sig", "if sig = ctx<TK.C.BAR> then return", "call $sl_menu('init'", "call $sl_menu('draw'", "ctx<TK.C.BAR> = sig", "last.top = ''")
        and "common /tkframe/ last.stat, last.keys, last.bord, last.top, last.gen, last.geo" in mb and "common /tkframe/ last.stat, last.keys, last.bord, last.top, last.gen, last.geo" in fr and not re.search(r"ctx<TK\.C\.GEN>\s*=", mb), pb[:300])
 
     ck("M7 a run: init, draw, the start menu after them, run, the context put back, the bar's record and last.top, then 'act' with the action and its key only when an entry was chosen, else 'none'",
@@ -170,7 +170,7 @@ MUTANTS = [
     ("the bar draws every time", "tk_menubar", "   if sig = ctx<TK.C.BAR> then return\n", "", "M6"),
     ("the bar bumps the generation", "tk_menubar", "   ctx<TK.C.BAR> = sig\n   last.top = ''                                       ;* row 0 was written whole", "   ctx<TK.C.BAR> = sig\n   ctx<TK.C.GEN> = ctx<TK.C.GEN> + 1\n   last.top = ''                                       ;* row 0 was written whole", "M6"),
     ("the right end of row 0 is not written again", "tk_menubar", "   last.top = ''                                       ;* row 0 was written whole: the app's name and the audience at its right end are written again by the next $tk_frame\n", "", "M6"),
-    ("the signature leaves the pane out", "tk_menubar", " : '/' : pane : @fm : menus", " : '/' : @fm : menus", "M6"),
+    ("the signature holds field marks (ctx grows on every pass)", "tk_menubar", "convert(@fm : @vm : @sm, '|~^', menus)", "menus", "M6"),
     ("the start menu is set before init", "tk_menubar", "   call $sl_menu('draw', w, scr, '', r)\n   w<SL.W.S1> = start\n   call $sl_menu('run', w, scr, '', r)", "   w<SL.W.S1> = start\n   call $sl_menu('draw', w, scr, '', r)\n   call $sl_menu('run', w, scr, '', r)", "M7"),
     ("a person who leaves is reported as a choice", "tk_menubar", "   if r # '' then\n      call $tk_keys('keyof', keys, r, pane, kn, '', '')", "   if 1 then\n      call $tk_keys('keyof', keys, r, pane, kn, '', '')", "M7"),
     ("a click on any row opens a menu", "tk_menubar", "a<1> = 'press' and a<2> = 1 and a<4> + 0 = ctx<TK.C.YMENU> + 0", "a<1> = 'press' and a<2> = 1", "M8"),

@@ -263,6 +263,12 @@ draw.effect:
    if pane = 2 and fn > 0 then
       lines<-1> = 'Selected: ' : fpath<fi> : (if fon<fi> then ' is allowed.  Enter stops allowing it.' else (if fwhy<fi> = '' then ' is not allowed.  Enter allows it.' else ' cannot be allowed: ' : fwhy<fi> : '.'))
    end
+   if outopen and ((pane = 1 and na > 0) or (pane = 2 and fn > 0)) then
+      nl = dcount(lines, @fm)                       ;* the output pane left 8 rows: what is selected (the last line) goes first so that it is never the one cut
+      sl = lines<nl>
+      del lines<nl>
+      lines = sl : @fm : lines
+   end
    gosub wrap.lines
    for r = 1 to m.h - 3
       screen text lines<r> at m.x + 2,m.y + 1 + r width m.tw

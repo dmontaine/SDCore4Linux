@@ -46,7 +46,7 @@ $include tk.h
    tot = c                                       ;* 'progress' is given the total in c
    c = ''
    if system(25) then return                     ;* a phantom has no screen to show a pane on, and no history is worth keeping
-   if out.epoch # ctx<TK.C.EPOCH> + 0 then
+   if out.epoch # ctx<TK.C.EPOCH> + 0 or jtype(out.w) # 'collection' then
       out.w = collection()                       ;* another open of an app than the history belongs to: it starts empty and closed
       out.epoch = ctx<TK.C.EPOCH> + 0
    end

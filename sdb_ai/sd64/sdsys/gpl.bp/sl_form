@@ -571,6 +571,7 @@ fix.focus:
       end
       f{'focus'} = 0
       f{'nofocus'} = 1
+      if fpaint then gosub park.cursor                 ;* the cursor has no widget to sit in
    end
    return
 

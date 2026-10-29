@@ -248,6 +248,7 @@ def section_readonly():
     h.key("enter", idle=0.6)
     h.click(40, 5)
     h.click(40, 8)
+    h.key("esc", idle=0.8)                      # S.88 F0a: Esc opens the menu bar on this page, and the next Esc closes it again (the drop-down covers the box title)
     h.key("esc", idle=0.8)
     cells = {k: v[0] for k, v in table(h).items()}
     arow("M6", "Enter, the arrows, R, T, U, A, Q, P, space, a click on a row: no record, no group line and no audit line changed, and every gate still says what it said",
