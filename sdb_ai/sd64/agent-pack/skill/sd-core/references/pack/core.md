@@ -106,7 +106,6 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
 - **`clear.file`** {**`data`** | **`dict`**} *file*
 - **`compile.dict`** *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`compile.dict data`** *file* {*i-type* …}  ·  **`compile.dict local`**  ·  **`compile.dict all`**
-- **`configure.file`** {**`dict`**} *voc.name* {*parameters*} | **`default`**  ·  **`configure.file`** *voc.name* **`next`** *n* | **`query`**
 - **`count`** {**`dict`**} *file* {*selection*}
 - **`create.file`** {**`dict`**} *voc.name* {**`directory`**} {*parameters*} {**`server`** *server* {**`as`** *remote.name*}}
 - **`create.index`** *file* *field* … {**`no.nulls`**} {**`pathname`** *path*}
@@ -118,6 +117,7 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
 - **`generate`** {**`dict`**} *file* *record* …
 - **`home`**  —  the home screen: tiles for the account's tools, a terminal, switch account and sign out
+- **`ide`** {*file* *record*}
 - **`list`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 - **`list.index`** *file* {*field* …}
 - **`logto`** *account* {**`reset`** {**`all`**}}

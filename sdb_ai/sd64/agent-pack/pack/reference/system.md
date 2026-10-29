@@ -802,7 +802,7 @@ Account word `start-terminal`
 Account word `suspended`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> suspended`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 988
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 989
 
 ### sys:word:unsuspended
 > kind=sys.word tier=reference since=L1.1-0 src=sdsys/gpl.bp/modifya:596#ffefe965
@@ -810,7 +810,7 @@ Account word `suspended`
 Account word `unsuspended`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> unsuspended`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 988
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 989
 
 ### sys:word:voc-off
 > kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:596#ffefe965
