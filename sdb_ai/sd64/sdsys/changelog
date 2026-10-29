@@ -11,12 +11,17 @@ Next release - in progress
                            The IDE itself holds no statement that opens a file.
                          - Save writes the file where it is (the same inode, owner, mode and links - a file renamed over it would change all four) and cuts it to the new length.
                            Just before it writes, the IDE reads the file once more and asks "has been changed by someone else, Overwrite it?" (Cancel is the default) if it is not
-                           what it read, or is no longer text. If the write fails, a box says the file may be partly written and your text stays in the editor.
+                           what it read, or is no longer text; a file that was removed, or replaced by another one renamed over it (an editor or git may do that), is refused outright,
+                           because the tab holds the old file and a write would only seem to work. The file is read back after the write and must be the bytes meant. If the write
+                           fails, a box says the file may be partly written and your text stays in the editor; Write a copy keeps that text in a record. A program you run from the
+                           IDE that does a bare RELEASE lets go of the file's lock (the save still reads the file again first).
                          - Bytes are not converted. Lines end with LF, or with CR LF when every line does (and stay so); a CR anywhere else is an ordinary character, a tab is kept,
                            and a file without a last newline is not given one. A file with a NUL or a byte from 248 to 255, a file over 2 MB, and a directory, device, pipe or
                            socket are refused with a message; a file with bytes from 128 to 247 (another character set, or UTF-8) opens read-only, as a record does.
                          - The file is locked while the tab is open (a second session is told it is in use); no recovery copy is kept for it, whatever the account's switch.
-                         - Compile, Run, Debug, Catalog, SED, Edit as fields, Save as, Write a copy and Open the include do not apply to such a tab and say so.
+                         - Compile, Run, Debug, Catalog, SED, Edit as fields, Save as and Open the include do not apply to such a tab and say so; Write a copy does apply.
+                         - Two things the review of this work found and fixed: opening a file another session held stopped the IDE (and lost unsaved tabs), and a change of the
+                           same size made by another program was not noticed by the save.
                          It does NOT create a file, save under another path, browse directories or take a relative name, a name with . or .. in it, or a device; and it does not yet
                          edit collection-file records.
 

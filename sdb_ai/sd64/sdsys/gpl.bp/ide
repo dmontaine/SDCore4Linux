@@ -6,14 +6,22 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  REVIEW OF STAGE E (an Opus reviewer, 11 findings; the first was a stop of the IDE): !ide_osfile no longer assumes ELSE runs after LOCKED (a file another session held
+*               stopped the IDE, and every unsaved tab with it) and has an ON ERROR for -ER_MAXRLOCK; the second look at the file throws the file variable's buffer away (a same-size change
+*               by another program was read back as the old text) and refuses a file that was removed or renamed over (11742: STATUS link count 0); the write is read back and must be
+*               the bytes meant; the tab's baseline is what the disk gives back, not what was typed (a text ending in an empty line no longer asks the overwrite question next time);
+*               texts are compared as strings (a one-line "1.0" changed to "1" is a change - is.dirty too, for records); TRIM no longer squeezes blanks inside a path; a path with a mark
+*               byte is refused; the form made again after a resize keeps a read-only file read-only; Write a copy works on such a tab (the way out of a failed save).  A bare RELEASE in a
+*               program run from the IDE still lets the lock go (documented, not fixed), and a FIFO opened read-only blocks the open until a writer comes (documented, not fixed).
 * 28 Oct 26 dm  S.88 STAGE E: OPERATING SYSTEM FILES IN THE IDE.  `ide path:/full/name`, and path:/full/name (or path: and the name) in Open's form, open an operating system file in a
 *               tab of its own (bx k 'path'; the tab's file is 'path:' and its record the exact path).  EVERY TOUCH OF THE FILE IS IN !ide_osfile, which is NOT $internal, so the kernel asks the
 *               account's OS gate and edit gates for it (an $internal program is trusted with an OPENSEQ by pathname, and the IDE would have been the only guard); the IDE asks
 *               kernel(K$PATH.OK) of the same string first, for its own message.  The file is opened for reading and writing without truncation, under the SD record lock the tab keeps
 *               (tfv, bx l); the text is the lines of the file (CR LF taken off and put back; whether the last line had its line end is remembered); a file with a NUL or a byte from 248
 *               to 255, over 2 MB, a directory, a device or a pipe is refused, one with bytes 128 to 247 opens read-only (na.mark), and a file the account may not change opens read-only (bx z).
-*               Save asks the kernel's gates again by reading the file once more, compares it with what was read (the overwrite question), and writes IN PLACE: the same inode, owner, mode and
-*               links.  No recovery copy is kept for such a tab.  Compile, Run, Debug, Catalogue, SED, Edit as fields, Save as, Write a copy and Open the include do not apply to it (11739).
+*               Save reads the file once more through the tab's own file variable (opened under the gates; a file opened read-only is not written), compares it with what was read (the
+*               overwrite question; a file removed or replaced by a rename is refused, 11742), and writes IN PLACE and reads the bytes back: the same inode, owner, mode and
+*               links.  No recovery copy is kept for such a tab.  Compile, Run, Debug, Catalogue, SED, Edit as fields, Save as and Open the include do not apply to it (11739); Write a copy does.
 *               New, Save as and the trees do not take a path yet (stage E2).
 * 28 Oct 26 dm  REVIEW OF L2, findings 4 and 9: Compile, Run, Debug and Catalog save first only when there is something to save (do.compile: a read-only tab that is unchanged is built
 *               as it is on the disk; save.one still refuses a read-only tab that has changes); the AUTOLOGOUT countdown reads the kernel's inactivity clock (kernel(K$AUTOLOGOUT, -2))
@@ -174,7 +182,7 @@ $include dictdict.h
    path0 = ''
    rest0 = field(@sentence, ' ', 2, 9999)
    if upcase(rest0[1, 5]) = 'PATH:' then
-      path0 = trim(rest0[6, 9999])
+      path0 = trimf(trimb(rest0[6, 9999]))     ;* the ends only: TRIM would squeeze two blanks inside a name into one and open another file (review of 28 Oct 26, finding 5)
       pq0 = path0[1, 1]
       if len(path0) > 1 and (pq0 = '"' or pq0 = "'") and path0[len(path0), 1] = pq0 then path0 = path0[2, len(path0) - 2]
       fn0 = ''
@@ -643,8 +651,14 @@ new.form:
       ed.ro = (bx{k} # '')                ;* 28 Oct 26 (stage B): read-only while another session holds the record's lock
       k = 'a' : u
       if bx{k} then ed.ro = 1              ;* 28 Oct 26: or while the record holds bytes 128 to 247 (na.mark)
+      k = 'z' : u
+      if bx{k} then ed.ro = 1              ;* 28 Oct 26 (stage E, review finding 7): or an operating system file this session may not change - load.current had it, the form made again after a resize did not
       sy.file = bn<cb>
       sy.id = bi<cb>
+      if bn<cb> = 'path:' then
+         sy.file = ''                      ;* (stage E) named by its last component, as load.current does
+         sy.id = field(bi<cb>, '/', dcount(bi<cb>, '/'))
+      end
       sy.first = field(tb.raw, @fm, 1)
       gosub syntax.for
       ed.syn = syn
@@ -1107,7 +1121,7 @@ open.record:
 *   same string first, for its own message.  The tab: bn 'path:', bi the path, kind 'path', no dictionary flag; it keeps the file variable (tfv, bx l) and with it the file's SD
 *   lock until it is closed; bx p holds the line ends and bx z is 1 when the file is read-only.  A recovery copy is never kept for it (rc.tick), and Save writes it in place.
 open.path:
-   op.path = trim(op.path)
+   op.path = trimf(trimb(op.path))
    call !ide_osfile('check', op.path, op.f, op.text, op.info, op.why)
    if op.why # '' then
       gosub path.refusal
@@ -1411,7 +1425,7 @@ relock.all:
       rl.k = 'l' : rl.u
       rl.s = bx{rl.k} + 0
       rl.k2 = 'k' : rl.u
-      if bx{rl.k2} = 'path' then rl.s = 0     ;* 28 Oct 26 (stage E): an operating system file's lock is the file variable's own, and no program run here has it by name; the save reads the file again before it writes
+      if bx{rl.k2} = 'path' then rl.s = 0     ;* 28 Oct 26 (stage E): an operating system file's lock is the file variable's own and is not taken again here. A BARE RELEASE in a program run from the IDE lets it go (review, finding 3): the save then still reads the file again (a changed or replaced file is caught), and only another session's write between that read and ours is not
       if rl.s then
          rl.lost = @false
          recordlocku tfv(rl.s), bi<rl.i> locked
@@ -1627,7 +1641,7 @@ is.dirty:
    d1 = bx{k}
    k = 's' : u
    d2 = bx{k}
-   dirty = (d1 # d2)
+   dirty = ((d1 : '|') # (d2 : '|'))     ;* as strings: # compares two numbers as numbers, so a one-line "1.0" changed to "1" was not a change (review of 28 Oct 26, finding 6)
    k = 'n' : u
    if bx{k} and d1 # '' then dirty = @true            ;* a record that is not on the disk yet and holds text
    return
@@ -2419,7 +2433,7 @@ save.one:
    i = sv.i
    gosub buf.label
    sv.name = bf.name
-   if not(sv.new) and sv.text = sv.saved then
+   if not(sv.new) and (sv.text : '|') = (sv.saved : '|') then
       sv.ok = @true
       msg = sysmsg(11971)
       return
@@ -2508,18 +2522,35 @@ save.path:
       return
    end
    call !ide_osfile('reread', sv.id, tfv(sv.slot), sp.text, sp.info, sp.why)
+   if sp.why = 'gone' then
+      * 28 Oct 26 (review, finding 2a): another program removed the file or renamed another over it; the tab holds the old inode, and a write would "succeed" into a file nobody can reach
+      rf.text = sysmsg(11742, sv.name, sv.id)
+      msg = rf.text
+      gosub refuse.box
+      return
+   end
+   * the texts are compared as STRINGS ((x : '|') = (y : '|')): = and # compare two numbers as numbers, so "1.0" and "1" are the same to them (review, finding 6)
    sp.same = (sp.why = '')
-   if sp.same then sp.same = (sp.text = sv.saved and sp.info<1> + 0 = sv.pinfo<1> + 0 and sp.info<2> + 0 = sv.pinfo<2> + 0)
+   if sp.same then sp.same = ((sp.text : '|') = (sv.saved : '|') and sp.info<1> + 0 = sv.pinfo<1> + 0 and sp.info<2> + 0 = sv.pinfo<2> + 0)
    if not(sp.same) then
       screen msgbox sysmsg(11203, sv.name, sv.id) buttons 'Overwrite,Cancel' default 2 returning b else b = 0
       if b # 1 then return
    end
    sp.winfo = sv.pinfo
+   sp.sent = sv.text
    call !ide_osfile('save', sv.id, tfv(sv.slot), sv.text, sp.winfo, sp.why)
    begin case
       case sp.why = ''
+         * the helper gave SV.TEXT and SP.WINFO back as the next reread gives them (a text ending in an empty line is written with that line end, and reads back without the line)
          k = 's' : u
          bx{k} = sv.text
+         k = 'p' : u
+         bx{k} = (sp.winfo<1> + 0) : @fm : (sp.winfo<2> + 0)
+         if (sv.text : '|') # (sp.sent : '|') then
+            k = 't' : u
+            bx{k} = sv.text
+            if sv.i = cb then gosub load.current
+         end
          sv.ok = @true
          msg = sysmsg(11202, sv.name, sv.id)
       case sp.why = 'ro'
@@ -3243,8 +3274,9 @@ do.writeas:
    end
    gosub na.check                       ;* 28 Oct 26: not from a tab whose record holds bytes outside ASCII (a box)
    if not(na.ok) then return
-   gosub path.not.for                   ;* 28 Oct 26 (stage E): Write a copy makes a record; an operating system file as a source is stage E2
-   if pa.no then return
+   * 28 Oct 26 (stage E, review finding 4): Write a copy WORKS on an operating system file's tab - it puts the text in a RECORD and touches neither the file nor the tab - because it is the
+   *   way out of a save that failed, was refused or found the file replaced, when the editor holds the only copy of the text (a record's tab keeps one in the record; this tab keeps none
+   *   in a recovery copy)
    gosub stash.current
    u = bu<cb>
    k = 't' : u
@@ -3332,7 +3364,7 @@ do.saveas:
    end
    gosub na.check                       ;* 28 Oct 26: not from a tab whose record holds bytes outside ASCII (a box)
    if not(na.ok) then return
-   gosub path.not.for                   ;* 28 Oct 26 (stage E): as Write a copy
+   gosub path.not.for                   ;* 28 Oct 26 (stage E): Save as would make the tab another record; Write a copy keeps the text
    if pa.no then return
    gosub stash.current
    gosub default.file

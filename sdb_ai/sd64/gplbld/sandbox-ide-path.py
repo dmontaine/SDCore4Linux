@@ -24,7 +24,8 @@
 #   R    refused: NUL; bytes 254 and 255; over 2 MB; a directory; a FIFO (and the IDE is not hung); a file that is not there; a relative path; a .. component; bytes 128 to 247
 #        (opens read-only, nothing changes); a file mode 0444 (opens read-only, nothing changes)
 #   L    a second session cannot open a file the first holds; after the first closes it can
-#   C    the file changed on disk between the open and the save: the overwrite question (Cancel is the default; Cancel leaves the other bytes; Overwrite writes ours)
+#   C    the file changed on disk between the open and the save: the overwrite question (Cancel is the default; Cancel leaves the other bytes; Overwrite writes ours); a
+#        same-size change in place (C4, the reviewer's finding 2b); a file renamed over the one the tab holds (C5, finding 2a); Write a copy is there as the way out (C6)
 #   N    what does not apply: Ctrl-E (SED) and F8 (compile) on such a tab say so and change nothing; no recovery copy was written for it
 #   G    an ordinary account: OS gate off - a file inside the account opens and saves, a file outside it and a link that leads out are refused (the bytes untouched);
 #        OS gate on - the outside file opens and saves
@@ -98,6 +99,8 @@ FILES = {
     "big": (b"x" * 2097153, 0o640),
     "cut": (b"alpha\nbeta\ngamma\n", 0o640),
     "chg": (b"first\nsecond\n", 0o640),
+    "ren": (b"one\ntwo\n", 0o640),
+    "same": (b"abcd\n", 0o640),
     "lock": (b"held\n", 0o640),
 }
 
@@ -319,6 +322,37 @@ def section_changed():
     e.keys(LEFT, RET)                                                # Overwrite
     e.quiet()
     row("C3 Overwrite writes our text over it, whole", rd(fpath("chg")) == b"ZZfirst\nsecond\n", repr(rd(fpath("chg"))))
+    done(e)
+
+    # review of 28 Oct 26, finding 2b: a change of the SAME SIZE, written in place by another program (same inode), in a file small enough for one block buffer - the second look used to
+    #   read the buffer and see the old text
+    e = sb.Ide(BOX, "IDE path:%s" % fpath("same"))
+    e.quiet()
+    with open(fpath("same"), "r+b") as fh:
+        fh.write(b"wxyz\n")
+    e.keys("ZZ")
+    e.keys(CTRL_S)
+    box = e.text()
+    row("C4 a same-size change made in place by another program is seen (the overwrite question), where the buffer once hid it", "changed by someone else" in box, box[-300:])
+    e.keys(RET)
+    row("C4b Cancel leaves the other program's bytes", rd(fpath("same")) == b"wxyz\n", repr(rd(fpath("same"))))
+    done(e)
+
+    # finding 2a: another program writes a new file and renames it over this one (vim, sed -i, git): the tab holds the old, unlinked inode
+    e = sb.Ide(BOX, "IDE path:%s" % fpath("ren"))
+    e.quiet()
+    new = fpath("ren") + ".new"
+    with open(new, "wb") as fh:
+        fh.write(b"replaced\n")
+    os.replace(new, fpath("ren"))
+    e.keys("ZZ")
+    e.keys(CTRL_S)
+    box = e.text()
+    row("C5 a file renamed over the one the tab holds is refused ('renamed over it'), not saved into the old inode", "renamed over it" in box and rd(fpath("ren")) == b"replaced\n", "%r | %r" % (box[-300:], rd(fpath("ren"))))
+    e.keys(RET)
+    e.keys(F10, DOWN * 7, RET)                                          # File / Write a copy (the place of the entry in the File menu is a guess: look here first if this row fails)
+    row("C6 Write a copy is offered for such a tab (the way out): the name form opens", "Write a copy" in e.text() or "copy" in e.text().lower(), e.text()[-300:])
+    e.keys(ESC)
     done(e)
 
 

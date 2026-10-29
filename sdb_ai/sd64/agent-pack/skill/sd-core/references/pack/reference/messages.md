@@ -6934,10 +6934,10 @@ cited by: `ide`
 cited by: `ide`
 
 ### msg:11739
-> kind=message tier=reference since=- src=sdsys/messages/11739:1#f3fa029d
+> kind=message tier=reference since=- src=sdsys/messages/11739:1#f4529262
 
 ```
-%1 %2 is an operating system file, not a record or a program: compile, run, debug, catalogue, SED, fields, Save as, Write a copy and Open the include do not apply to it
+%1 %2 is an operating system file, not a record or a program: compile, run, debug, catalog, SED, fields, Save as and Open the include do not apply to it (Write a copy does: it keeps the text in a record)
 ```
 
 cited by: `ide`
@@ -6956,6 +6956,15 @@ cited by: `ide`
 
 ```
 %1 %2 was not saved: its text holds a NUL or a byte from 248 to 255, or is over 2 MB, and the IDE does not write that to a file.  The text is still in the editor.
+```
+
+cited by: `ide`
+
+### msg:11742
+> kind=message tier=reference since=- src=sdsys/messages/11742:1#ef140aeb
+
+```
+%1 %2 was removed, or another file was renamed over it, since it was opened, so a save would go into a file nobody can reach.  Your text is still in the editor: Write a copy keeps it in a record.
 ```
 
 cited by: `ide`

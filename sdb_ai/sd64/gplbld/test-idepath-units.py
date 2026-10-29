@@ -35,7 +35,7 @@ SDSYS = os.path.join(SD64, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 ERRH = os.path.join(SD64, "gplsrc", "err.h")
-NEWMSG = list(range(11727, 11742))
+NEWMSG = list(range(11727, 11743))
 
 
 def strip(src):
@@ -125,7 +125,7 @@ def checks(src):
     osf = strip(src["osf"])
     LI = {n: label(ide, n) for n in ("open.path", "path.refusal", "path.not.for", "save.one", "save.path", "tab.state", "tab.unlock", "relock.all", "ro.check", "rc.tick",
                                        "load.current", "tab.labels", "default.file", "get.context", "do.open", "do.compile", "do.sed", "do.fields", "do.writeas", "do.saveas",
-                                       "do.include", "ai.go", "status.line")}
+                                       "do.include", "ai.go", "status.line", "is.dirty", "new.form")}
     LO = {n: label(osf, n) for n in ("check.name", "open.file", "read.file", "read.all", "parse.raw", "write.file")}
     ta = label(inm, "try.accept")
     head = ide[: ide.find("gosub open.screen")]
@@ -140,12 +140,15 @@ def checks(src):
        re.search(r"^\$internal", osf, re.M) is None and "$catalog !ide_osfile" in osf and "subroutine ide_osfile(op, path, f, text, info, why)" in osf, "")
     opens = re.findall(r"^[ \t]*(?:openseqp?|openpath|opendb|open)[ \t]+.*$", osf, re.M | re.I)
     ck("P2", "the helper's ONE way to a file is `openseq path to f locked ...` - no OVERWRITE (it truncates), no READONLY, no APPEND, no record form, no OPENPATH, no EXECUTE, no OSPATH, no delete",
-       opens == ["   openseq path to f locked lk.user = 1 then"] and not re.search(r"\b(execute|ospath|oswrite|osread|osdelete|writeseq|readseq|delete|sh)\b", osf, re.I), repr(opens))
+       opens == ["   openseq path to f on error"] and not re.search(r"\b(execute|ospath|oswrite|osread|osdelete|writeseq|readseq|delete|sh)\b", osf, re.I), repr(opens))
     o = LO["open.file"]
-    ck("P3", "open.file: the name is checked first; OPENSEQ is LOCKED-aware; the ELSE branch CLOSES the variable (an OPENSEQ that took ELSE keeps the name locked) before it decides why; locked, "
-       "absent, the gate (ER_PERM) and not-a-file (ER_NSEQ) each have their own answer and anything else is 'cant' with the status",
-       ordered(o, "gosub check.name", "if why # '' then return", "openseq path to f locked lk.user = 1 then", "end else", "op.st = status()", "if not(unassigned(f)) then close f",
-               "case lk.user", "why = 'locked'", "case op.st = 0", "why = 'none'", "case op.st = ER.PERM", "why = 'gate'", "case op.st = ER.NSEQ", "why = 'dir'", "why = 'cant'", "info<6> = op.st"), "")
+    ck("P3", "open.file: the name is checked first; OPENSEQ has ON ERROR (it returns itself) and LOCKED, and the LOCKED flag is tested AFTER the statement - the clauses END the statement, so an ELSE is never "
+       "reached from LOCKED and the next FILEINFO would meet a file variable that was never assigned (the reviewer's finding 1); the ELSE branch CLOSES the variable (an OPENSEQ that took ELSE keeps the "
+       "name locked) before it decides why; absent, the gate (ER_PERM) and not-a-file (ER_NSEQ) each have their own answer and anything else is 'cant' with the status",
+       ordered(o, "gosub check.name", "if why # '' then return", "openseq path to f on error", "why = 'cant'", "return", "end locked", "lk.user = 1", "end then", "end else", "op.st = status()",
+               "if not(unassigned(f)) then close f", "case op.st = 0", "why = 'none'", "case op.st = ER.PERM", "why = 'gate'", "case op.st = ER.NSEQ", "why = 'dir'", "why = 'cant'", "info<6> = op.st",
+               "if lk.user then", "why = 'locked'", "return", "FL$SEQTYPE")
+       and "case lk.user" not in o, "")
     ck("P4", "after the open: a port, device, pipe or block device (FL$SEQTYPE) is closed again BEFORE anything is read; the read-only state of the variable is noted; a failed read closes the "
        "file it opened; the read-only flag is INFO<3>",
        ordered(o, "if (fileinfo(f, FL$SEQTYPE) + 0) # 0 then", "close f", "why = 'special'", "return", "ro = fileinfo(f, FL$READONLY) + 0", "gosub read.file", "if why # '' then", "close f",
@@ -157,13 +160,19 @@ def checks(src):
     pr = LO["parse.raw"]
     ck("P6", "parse.raw refuses a NUL or a byte from 248 to 255 (the set is built from char(0) and 248 to 255), takes CR LF only when EVERY line ends so (as many CR as LF, and as many CR LF), "
        "remembers whether the last line had its line end, and splits on that end",
-       "nope = char(0)" in osf and "for j = 248 to 255" in osf and ordered(pr, "if convert(nope, '', raw) # raw then", "why = 'bytes'", "n.lf = count(raw, lf.c)", "count(raw, cr.c) = n.lf",
+       ordered(osf, "nope = char(0)", "for j = 248 to 255", "nope := char(j)") and ordered(pr, "if convert(nope, '', raw) # raw then", "why = 'bytes'", "n.lf = count(raw, lf.c)", "count(raw, cr.c) = n.lf",
        "count(raw, cr.c : lf.c) = n.lf", "crlf = 1", "fin = 1", "text = change(body, eol, @fm)"), "")
     wf = LO["write.file"]
     ck("P7", "write.file: a read-only file variable is not written (FL$READONLY, no write tried); the text is checked for NUL and the marks (the field marks that are its line ends taken out first) "
        "and for the size; the write is SEEK 0, WRITEBLK, WEOFSEQ ON ERROR in that order (IN PLACE: nothing is truncated until the new text is written); and the helper opens nothing there",
        ordered(wf, "if fileinfo(f, FL$READONLY) then", "why = 'ro'", "flat = convert(@fm, '', text)", "if convert(nope, '', flat) # flat then", "why = 'bytes'", "if len(data) > OSF.MAX then",
-               "seek f, 0, 0 else", "writeblk data to f else", "weofseq f on error") and "openseq" not in wf, "")
+               "seek f, 0, 0 else", "writeblk data to f else", "weofseq f on error", "gosub read.all", "if len(raw) # len(data) or raw # data then", "why = 'io'", "gosub parse.raw")
+       and "openseq" not in wf, "")
+    rf_ = LO["read.file"]
+    ck("P7b", "the second look ('reread', rr.again): the file variable's buffer is thrown away first (a WRITEBLK of nothing, not on a read-only variable: a SEEK keeps the buffer and a same-size change by "
+       "another program was read back as the old text), and after the read the link count of the variable (STATUS field 7, an fstat) being 0 is 'gone' - removed, or replaced by a rename; open does neither",
+       ordered(rf_, "if rr.again then", "writeblk '' to f", "gosub read.all", "gosub parse.raw", "if rr.again then", "status st.f from f", "(st.f<7> + 0) = 0", "why = 'gone'")
+       and "FL$READONLY" in rf_[: rf_.find("gosub read.all")] and "rr.again = 0" in osf and ordered(osf, "case op = 'reread'", "rr.again = 1", "gosub read.file"), "")
     cons = {m.group(1): m.group(2) for m in re.finditer(r"#define\s+(ER_NSEQ|ER_PERM)\s+(\d+)", src["errh"])}
     ck("P8", "the status numbers the helper compares are gplsrc/err.h's (ER_NSEQ, ER_PERM) and the size cap is 2 MB as message 11732 says",
        cons.get("ER_NSEQ") and cons.get("ER_PERM") and ("ER.NSEQ = %s" % cons["ER_NSEQ"]) in osf and ("ER.PERM = %s" % cons["ER_PERM"]) in osf and "OSF.MAX = 2097152" in osf
@@ -172,7 +181,8 @@ def checks(src):
     ck("P9", "the name is written in the one form: at least two characters, at most 1000, absolute, no final slash, no control character (0 to 31 and 127 are built in the helper), no // /./ /../ and no "
        "final /. or /..",
        all(s in cn for s in ("p.n < 2", "p.n > 1000", "path[1, 1] # '/'", "path[p.n, 1] = '/'", "convert(ctl, '', path) # path", "index(path, '//', 1)", "index(path, '/./', 1)",
-                              "index(path, '/../', 1)", "path[p.n - 1, 2] = '/.'", "path[p.n - 2, 3] = '/..'")) and "ctl = char(127)" in osf and "for j = 0 to 31" in osf, "")
+                              "index(path, '/../', 1)", "path[p.n - 1, 2] = '/.'", "path[p.n - 2, 3] = '/..'"))
+       and ordered(osf, "ctl = char(127)", "for j = 0 to 31", "ctl := char(j)", "for j = 248 to 255", "ctl := char(j)"), "")
 
     # ---- the IDE touches no file itself --------------------------------------------------------------------------------------------------------------------------------
     bad = re.findall(r"\b(openseqp?|openpath|readblk|writeblk|weofseq|readseq|writeseq|ospath|oswrite|osread|osdelete)\b|^\s*seek\b", ide + "\n" + inm, re.I | re.M)
@@ -203,13 +213,15 @@ def checks(src):
     so = LI["save.one"]
     ck("P14", "save.one: a read-only tab is refused first (ro.check), 'nothing to save' is judged as for a record, and then a path tab goes to save.path BEFORE the record's file variable, "
        "edit.check and WRITEU are reached",
-       ordered(so, "gosub ro.check", "if not(sv.new) and sv.text = sv.saved then", "if sv.kind = 'path' then", "gosub save.path", "return", "if sv.slot then\n      fv = tfv(sv.slot)", "gosub edit.check"), "")
+       ordered(so, "gosub ro.check", "if not(sv.new) and (sv.text : '|') = (sv.saved : '|') then", "if sv.kind = 'path' then", "gosub save.path", "return", "if sv.slot then\n      fv = tfv(sv.slot)", "gosub edit.check"), "")
     sp = LI["save.path"]
     ck("P14b", "save.path: no lock slot is a failure, the file is READ AGAIN through the tab's own variable, compared with what was read (text, CR LF, final line end) and a difference - or a file that is not "
        "text now - is the overwrite question with Cancel the default; only then is the helper asked to save; sv.ok is set only when it answered ''",
-       ordered(sp, "if sv.slot = 0 then", "call !ide_osfile('reread', sv.id, tfv(sv.slot), sp.text, sp.info, sp.why)", "sp.same = (sp.why = '')", "sp.text = sv.saved", "sp.info<1> + 0 = sv.pinfo<1> + 0",
-               "sp.info<2> + 0 = sv.pinfo<2> + 0", "buttons 'Overwrite,Cancel' default 2", "if b # 1 then return", "call !ide_osfile('save', sv.id, tfv(sv.slot), sv.text, sp.winfo, sp.why)",
-               "case sp.why = ''", "k = 's' : u", "sv.ok = @true", "case sp.why = 'ro'") and sp.count("sv.ok = @true") == 1, "")
+       ordered(sp, "if sv.slot = 0 then", "call !ide_osfile('reread', sv.id, tfv(sv.slot), sp.text, sp.info, sp.why)", "if sp.why = 'gone' then", "sysmsg(11742, sv.name, sv.id)", "return",
+               "sp.same = (sp.why = '')", "(sp.text : '|') = (sv.saved : '|')", "sp.info<1> + 0 = sv.pinfo<1> + 0", "sp.info<2> + 0 = sv.pinfo<2> + 0", "buttons 'Overwrite,Cancel' default 2",
+               "if b # 1 then return", "sp.sent = sv.text", "call !ide_osfile('save', sv.id, tfv(sv.slot), sv.text, sp.winfo, sp.why)", "case sp.why = ''", "k = 's' : u", "bx{k} = sv.text",
+               "k = 'p' : u", "bx{k} = (sp.winfo<1> + 0) : @fm : (sp.winfo<2> + 0)", "if (sv.text : '|') # (sp.sent : '|') then", "if sv.i = cb then gosub load.current", "sv.ok = @true",
+               "case sp.why = 'ro'") and sp.count("sv.ok = @true") == 1, "")
     ck("P14c", "a failed write is said in a box (11738 'may be partly written', 11741 for text it will not write) and leaves the tab's baseline alone, so the next save asks again",
        ordered(sp, "case sp.why = 'bytes' or sp.why = 'big'", "11741", "gosub refuse.box", "case 1", "11738", "sp.winfo<6>", "gosub refuse.box") and sp.count("k = 's' : u") == 1
        and sp[sp.find("case sp.why = 'ro'"):].count("sv.ok") == 0, "")
@@ -225,11 +237,12 @@ def checks(src):
 
     # ---- what does not apply ----------------------------------------------------------------------------------------------------------------------------------------
     pnf = LI["path.not.for"]
-    ck("P17", "path.not.for answers true, and says why (11739), for a tab whose file is 'path:'; compile (and so run, debug and catalogue), SED, fields and the include ask it FIRST; Save as and Write a copy "
-       "ask it after the non-ASCII check and before they ask the form",
+    ck("P17", "path.not.for answers true, and says why (11739), for a tab whose file is 'path:'; compile (and so run, debug and catalogue), SED, fields and the include ask it FIRST; Save as asks it after the "
+       "non-ASCII check and before it asks the form; WRITE A COPY DOES NOT ASK IT: it puts the text in a record and touches neither the file nor the tab, and it is the way out of a save that failed (finding 4)",
        ordered(pnf, "if nbuf = 0 then return", "if bn<cb> # 'path:' then return", "pa.no = @true", "sysmsg(11739, bn<cb>, bi<cb>)")
        and all(first_gosub(LI[n]) == "path.not.for" and "if pa.no then return" in LI[n] for n in ("do.compile", "do.sed", "do.fields", "do.include"))
-       and all(ordered(LI[n], "gosub na.check", "gosub path.not.for", "if pa.no then return", "gosub stash.current") for n in ("do.writeas", "do.saveas")), "")
+       and ordered(LI["do.saveas"], "gosub na.check", "gosub path.not.for", "if pa.no then return", "gosub stash.current")
+       and "path.not.for" not in LI["do.writeas"] and ordered(LI["do.writeas"], "gosub na.check", "wa.text = bx{k}", "write wa.text on fv, wa.id on error"), "")
     ck("P17b", "the forms start from a file of records (default.file and get.context never answer 'path:'), and the AI is told it is an operating system file, not a record",
        "if df = 'path:' then df = ''" in LI["default.file"] and "if ctx.file = 'path:' then ctx.file = ''" in LI["get.context"]
        and ordered(LI["ai.go"], "if bn<cb> = 'path:' then", "It is the operating system file", "end else", "'File ' : bn<cb>"), "")
@@ -237,13 +250,14 @@ def checks(src):
     # ---- naming it --------------------------------------------------------------------------------------------------------------------------------------------------
     ck("P18", "the name form takes path: BEFORE it asks for a record id and from the name as typed (pw, never the folded ff); Open only (any other mode says 11727); the spelling is $ide_osfile's 'check'; "
        "it returns the file 'path:' and the name, and opens nothing and asks no kernel key itself",
-       ordered(ta, "pw = trim(w1{'value'})", "ff = downcase(pw)", "case ff = ''", "case ff[1, 5] = 'path:'", "op.path = trim(pw[6, 9999])", "if op.path = '' then op.path = ii", "if mode # 'open' then",
+       ordered(ta, "pw = trimf(trimb(w1{'value'}))", "ff = downcase(pw)", "case ff = ''", "case ff[1, 5] = 'path:'", "op.path = trimf(trimb(pw[6, 9999]))",
+               "if op.path = '' then op.path = trimf(trimb(w2{'value'}))", "if mode # 'open' then",
                "msg = sysmsg(11727)", "call !ide_osfile('check', op.path", "msg = sysmsg(11728, op.path)", "file = 'path:'", "id = op.path", "res = 'ok'", "case ii = ''")
        and "downcase(pw" not in ta.replace("ff = downcase(pw)", "")
        and not re.search(r"^\s*open\b|kernel\(", ta[ta.find("case ff[1, 5] = 'path:'"): ta.find("case ii = ''")], re.M), "")
     ck("P19", "the command line: the path is the rest of the sentence after the first word, as typed (never folded or split), the file and record words are cleared, it opens after the form is made, "
        "and the bare start's recovery offer is skipped",
-       ordered(head, "path0 = ''", "rest0 = field(@sentence, ' ', 2, 9999)", "if upcase(rest0[1, 5]) = 'PATH:' then", "path0 = trim(rest0[6, 9999])", "fn0 = ''", "id0 = ''", "dflag0 = ''", "seq0 = 0")
+       ordered(head, "path0 = ''", "rest0 = field(@sentence, ' ', 2, 9999)", "if upcase(rest0[1, 5]) = 'PATH:' then", "path0 = trimf(trimb(rest0[6, 9999]))", "fn0 = ''", "id0 = ''", "dflag0 = ''", "seq0 = 0")
        and "downcase(path0" not in ide and "downcase(rest0" not in ide
        and ordered(main, "gosub new.form", "if path0 # '' then", "op.path = path0", "gosub open.path", "screen focus f, 'ed'", "and path0 = '' then gosub rc.untitled"), "")
     ck("P20", "Open (Ctrl-O) hands a 'path:' answer to open.path with the name as the form gave it (never folded), before it would open a record; the tab strip shows the last name with 'os '; "
@@ -251,10 +265,15 @@ def checks(src):
        ordered(LI["do.open"], "if op.file = 'path:' then", "op.path = op.id", "gosub open.path", "return", "or.file = op.file") and "downcase(op.id" not in LI["do.open"]
        and "if bn<i> = 'path:' then labels<1, i> = 'os ' : field(bi<i>, '/', dcount(bi<i>, '/'))" in LI["tab.labels"]
        and ordered(LI["load.current"], "if bn<cb> = 'path:' then", "sy.file = ''", "sy.id = field(bi<cb>, '/', dcount(bi<cb>, '/'))", "gosub syntax.for"), "")
-    ck("P21", "the messages 11727-11741 exist, are one line, and each is used (11727 by the name form, the rest by the IDE); the help names path:",
+    ck("P21", "the messages 11727-11742 exist, are one line, and each is used (11727 by the name form, the rest by the IDE); the help names path:",
        all(src["m%d" % n].strip() and src["m%d" % n].count("\n") == 1 for n in NEWMSG)
-       and "sysmsg(11727" in inm and all(("sysmsg(%d" % n) in ide for n in range(11728, 11742) if n not in (11728,)) and "sysmsg(11728" in ide and "sysmsg(11728" in inm
+       and "sysmsg(11727" in inm and all(("sysmsg(%d" % n) in ide for n in range(11728, 11743) if n not in (11728,)) and "sysmsg(11728" in ide and "sysmsg(11728" in inm
        and "path:/full/name" in src["m11214"], repr([n for n in NEWMSG if not src["m%d" % n].strip()]))
+    ck("P22", "the reviewer's smaller findings: a path is trimmed at its ENDS only (TRIM squeezes blanks inside a name: open.path, the command line, the name form); texts are compared as strings in is.dirty "
+       "(# compares two numbers as numbers, so a one-line 1.0 made 1 was no change); the form made again after a resize keeps an operating system file read-only and names its language by its last component",
+       "op.path = trimf(trimb(op.path))" in LI["open.path"] and "trim(" not in re.sub(r"trim[fb]\(", "", LI["open.path"]) and "dirty = ((d1 : '|') # (d2 : '|'))" in LI["is.dirty"]
+       and ordered(LI["new.form"], "k = 'z' : u", "if bx{k} then ed.ro = 1", "if bn<cb> = 'path:' then", "sy.file = ''", "sy.id = field(bi<cb>, '/', dcount(bi<cb>, '/'))")
+       and not re.search(r"(?<![a-z])trim\(", head[head.find("path0 = ''"): head.find("seq0 = 0")]) and not re.search(r"(?<![a-z])trim\(", ta[ta.find("case ff[1, 5] = 'path:'"): ta.find("case ii = ''")]), "")
     return rows
 
 
@@ -270,12 +289,19 @@ def sub(key, old, new):
 
 MUTANTS = [
     ("the helper is $internal", "P1", sub("osf", "subroutine ide_osfile(", "$internal\nsubroutine ide_osfile(")),
-    ("the helper truncates (OVERWRITE)", "P2", sub("osf", "   openseq path to f locked lk.user = 1 then", "   openseq path overwrite to f locked lk.user = 1 then")),
-    ("the helper opens read-only", "P2", sub("osf", "   openseq path to f locked lk.user = 1 then", "   openseq path readonly to f locked lk.user = 1 then")),
+    ("the helper truncates (OVERWRITE)", "P2", sub("osf", "   openseq path to f on error", "   openseq path overwrite to f on error")),
+    ("the helper opens read-only", "P2", sub("osf", "   openseq path to f on error", "   openseq path readonly to f on error")),
     ("the helper has a second way in", "P2", sub("osf", "   gosub read.file\n   if why # '' then\n      close f", "   openpath path to f2 else null\n   gosub read.file\n   if why # '' then\n      close f")),
-    ("the ELSE keeps the name locked", "P3", sub("osf", "      if not(unassigned(f)) then close f\n", "")),
+    ("the ELSE keeps the name locked", "P3", sub("osf", "      op.st = status()\n      if not(unassigned(f)) then close f\n      begin case", "      op.st = status()\n      begin case")),
     ("a gate refusal is said as 'cannot'", "P3", sub("osf", "         case op.st = ER.PERM\n            why = 'gate'", "         case op.st = ER.PERM\n            why = 'cant'")),
-    ("a locked file is not told apart", "P3", sub("osf", "         case lk.user\n            why = 'locked'", "         case 0\n            why = 'locked'")),
+    ("a locked file is read as an open one (the stop of the IDE)", "P3", sub("osf", "   if lk.user then\n      why = 'locked'\n      return\n   end\n", "")),
+    ("the LOCKED clause sets nothing", "P3", sub("osf", "   end locked\n      lk.user = 1", "   end locked\n      lk.user = 0")),
+    ("MAXRLOCK stops the IDE again (no ON ERROR)", "P3", sub("osf", "   openseq path to f on error\n      op.st = status()\n      if not(unassigned(f)) then close f\n      why = 'cant'\n      info<6> = op.st\n      return\n   end locked",
+                                                         "   openseq path to f locked\n      lk.user = 1\n   end")),
+    ("the second look keeps the buffer", "P7b", sub("osf", "      if not(fileinfo(f, FL$READONLY)) then writeblk '' to f else null", "      null")),
+    ("a replaced file is saved into", "P7b", sub("osf", "         if (st.f<7> + 0) = 0 then why = 'gone'", "         null")),
+    ("the write is not read back", "P7", sub("osf", "   if len(raw) # len(data) or raw # data then", "   if 0 then")),
+    ("a mark byte is allowed in a path", "P9", sub("osf", "   for j = 248 to 255                      ;* and SD's marks", "   for j = 249 to 255                      ;* and SD's marks")),
     ("a device is read", "P4", sub("osf", "   if (fileinfo(f, FL$SEQTYPE) + 0) # 0 then\n      close f\n      why = 'special'\n      return\n   end\n", "")),
     ("a failed read keeps the file open", "P4", sub("osf", "   gosub read.file\n   if why # '' then\n      close f\n      return\n   end\n   info<3> = ro", "   gosub read.file\n   if why # '' then\n      return\n   end\n   info<3> = ro")),
     ("the size cap is gone", "P5", sub("osf", "   if fsize > OSF.MAX then", "   if 0 then")),
@@ -303,8 +329,14 @@ MUTANTS = [
     ("a tab never loses an old flag", "P13", sub("ide", "   k = 'z' : uid\n   bx{k} = 0 ", "   k = 'z' : uid\n   null ")),
     ("a refusal has no message", "P13b", sub("ide", "      case op.why = 'locked'\n         msg = sysmsg(11731, op.path)", "      case op.why = 'locked'\n         msg = ''")),
     ("a path tab is written as a record", "P14", sub("ide", "   if sv.kind = 'path' then\n      gosub save.path ", "   if 0 then\n      gosub save.path ")),
-    ("the file is not read again", "P14b", sub("ide", "   call !ide_osfile('reread', sv.id, tfv(sv.slot), sp.text, sp.info, sp.why)\n   sp.same = (sp.why = '')",
-                                                 "   sp.text = sv.saved\n   sp.info = sv.pinfo\n   sp.why = ''\n   sp.same = (sp.why = '')")),
+    ("the file is not read again", "P14b", sub("ide", "   call !ide_osfile('reread', sv.id, tfv(sv.slot), sp.text, sp.info, sp.why)\n   if sp.why = 'gone' then",
+                                                 "   sp.text = sv.saved\n   sp.info = sv.pinfo\n   sp.why = ''\n   if sp.why = 'gone' then")),
+    ("a removed or replaced file is saved into", "P14b", sub("ide", "   if sp.why = 'gone' then", "   if 0 then")),
+    ("the texts are compared as numbers", "P14b", sub("ide", "(sp.text : '|') = (sv.saved : '|')", "sp.text = sv.saved")),
+    ("the baseline is what was typed, not what the disk gives", "P14b", sub("ide", "         k = 'p' : u\n         bx{k} = (sp.winfo<1> + 0) : @fm : (sp.winfo<2> + 0)\n", "")),
+    ("TRIM squeezes the blanks in a path", "P22", sub("ide", "   op.path = trimf(trimb(op.path))", "   op.path = trim(op.path)")),
+    ("a one-line 1.0 made 1 is no change", "P22", sub("ide", "dirty = ((d1 : '|') # (d2 : '|'))", "dirty = (d1 # d2)")),
+    ("the form made again forgets a read-only file", "P22", sub("ide", "      k = 'z' : u\n      if bx{k} then ed.ro = 1", "      k = 'z' : u\n      if 0 then ed.ro = 1")),
     ("Overwrite is the default", "P14b", sub("ide", "buttons 'Overwrite,Cancel' default 2 returning b else b = 0\n      if b # 1 then return\n   end\n   sp.winfo", "buttons 'Overwrite,Cancel' default 1 returning b else b = 0\n      if b # 1 then return\n   end\n   sp.winfo")),
     ("a change of line ends is not a change", "P14b", sub("ide", " and sp.info<1> + 0 = sv.pinfo<1> + 0 and sp.info<2> + 0 = sv.pinfo<2> + 0", "")),
     ("a failed write is said saved", "P14c", sub("ide", "      case 1\n         rf.text = sysmsg(11738, sv.name, sv.id, sp.winfo<6>)", "      case 1\n         sv.ok = @true\n         rf.text = sysmsg(11738, sv.name, sv.id, sp.winfo<6>)")),
@@ -317,16 +349,19 @@ MUTANTS = [
     ("a file is compiled", "P17", sub("ide", "   gosub path.not.for                   ;* 28 Oct 26 (stage E): an operating system file is not a program\n   if pa.no then return\n", "")),
     ("a file is handed to SED", "P17", sub("ide", "   gosub path.not.for                   ;* 28 Oct 26 (stage E): SED opens records, and none of the operating system's files since S.87\n   if pa.no then return\n", "")),
     ("a file is edited as fields", "P17", sub("ide", "   gosub path.not.for                   ;* 28 Oct 26 (stage E): the lines of a file are not fields and values\n   if pa.no then return\n", "")),
-    ("a file is saved as a record", "P17", sub("ide", "   gosub path.not.for                   ;* 28 Oct 26 (stage E): as Write a copy\n   if pa.no then return\n", "")),
-    ("a file is written as a copy", "P17", sub("ide", "   gosub path.not.for                   ;* 28 Oct 26 (stage E): Write a copy makes a record; an operating system file as a source is stage E2\n   if pa.no then return\n", "")),
+    ("a file is saved as a record", "P17", sub("ide", "   gosub path.not.for                   ;* 28 Oct 26 (stage E): Save as would make the tab another record; Write a copy keeps the text\n   if pa.no then return\n", "")),
+    ("Write a copy is refused for a file (no way out of a failed save)", "P17", sub("ide", "   if not(na.ok) then return\n   * 28 Oct 26 (stage E, review finding 4): Write a copy WORKS",
+                                                                                   "   if not(na.ok) then return\n   gosub path.not.for\n   if pa.no then return\n   * 28 Oct 26 (stage E, review finding 4): Write a copy WORKS")),
     ("a file has an include", "P17", sub("ide", "   gosub path.not.for                   ;* 28 Oct 26 (stage E): a $include names a record of the account's files\n   if pa.no then return\n", "")),
     ("path.not.for lets a file through", "P17", sub("ide", "   if bn<cb> # 'path:' then return", "   if 0 then return")),
     ("a form starts from path:", "P17b", sub("ide", "   if df = 'path:' then df = ''", "   null")),
     ("the name form takes path: after the id", "P18", sub("ide_name", "      case ff[1, 5] = 'path:'", "      case ii # '' and ff[1, 5] = 'path:'")),
-    ("the name form folds the path", "P18", sub("ide_name", "         op.path = trim(pw[6, 9999])", "         op.path = trim(ff[6, 9999])")),
+    ("the name form folds the path", "P18", sub("ide_name", "         op.path = trimf(trimb(pw[6, 9999]))", "         op.path = trimf(trimb(ff[6, 9999]))")),
+    ("the name form squeezes the blanks in a path", "P22", sub("ide_name", "         op.path = trimf(trimb(pw[6, 9999]))", "         op.path = trim(pw[6, 9999])")),
     ("New takes a path", "P18", sub("ide_name", "         if mode # 'open' then\n            msg = sysmsg(11727)", "         if 0 then\n            msg = sysmsg(11727)")),
     ("the name form opens the file", "P18", sub("ide_name", "               file = 'path:'\n", "               open op.path to fv else null\n               file = 'path:'\n")),
-    ("the command line folds the path", "P19", sub("ide", "      path0 = trim(rest0[6, 9999])", "      path0 = downcase(trim(rest0[6, 9999]))")),
+    ("the command line folds the path", "P19", sub("ide", "      path0 = trimf(trimb(rest0[6, 9999]))", "      path0 = downcase(trimf(trimb(rest0[6, 9999])))")),
+    ("the command line squeezes the blanks in a path", "P22", sub("ide", "      path0 = trimf(trimb(rest0[6, 9999]))", "      path0 = trim(rest0[6, 9999])")),
     ("the bare start's copies are offered", "P19", sub("ide", " and path0 = '' then gosub rc.untitled", " then gosub rc.untitled")),
     ("Open folds the path", "P20", sub("ide", "      op.path = op.id ", "      op.path = downcase(op.id) ")),
     ("the tab strip says nothing", "P20", sub("ide", "      if bn<i> = 'path:' then labels<1, i> = 'os ' :", "      if 0 then labels<1, i> = 'os ' :")),

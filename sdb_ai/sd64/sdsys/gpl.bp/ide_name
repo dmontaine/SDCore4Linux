@@ -147,7 +147,7 @@ swap.focus:
 
 * Return: the questions, in order.  The first that fails is said in the form and the form stays; all passed: file, id and res are returned
 try.accept:
-   pw = trim(w1{'value'})                     ;* as typed: a path: name is NEVER folded (the fold below is for SD file names), so the name checked is the name opened
+   pw = trimf(trimb(w1{'value'}))             ;* (the ends only: TRIM squeezes blanks inside a name) as typed: a path: name is NEVER folded (the fold below is for SD file names), so the name checked is the name opened
    ff = downcase(pw)                          ;* file names are lower case everywhere SD writes them (the owner's rule), so the IDE's comparisons with its tabs and tree agree
    ii = trim(w2{'value'})
    msg = ''
@@ -159,8 +159,8 @@ try.accept:
          * 28 Oct 26 (S.88 stage E): path:/full/name in the file entry, or path: in it and the full name in the record entry, names an operating system file, for Open only.
          *   The form checks the spelling (!ide_osfile 'check') and nothing else: whether the account may reach the file, and whether it is there, are asked by the IDE and the
          *   kernel when it is opened.  The other modes make records, and an operating system file is not one yet.
-         op.path = trim(pw[6, 9999])
-         if op.path = '' then op.path = ii
+         op.path = trimf(trimb(pw[6, 9999]))
+         if op.path = '' then op.path = trimf(trimb(w2{'value'}))
          op.why = ''
          if mode # 'open' then
             msg = sysmsg(11727)

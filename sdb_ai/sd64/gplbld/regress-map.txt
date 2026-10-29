@@ -583,7 +583,7 @@ sdsys/gpl.bp/ide_name        : ide-fresh ide editgates shared ide-small ide-sed 
 sdsys/gpl.bp/ide_osfile      : ide-path gates editgates ide-kinds
 sdsys/messages/1172[7-9]     : ide-path
 sdsys/messages/1173[0-9]     : ide-path
-sdsys/messages/1174[01]      : ide-path
+sdsys/messages/1174[0-2]     : ide-path
 gplbld/sandbox-ide-path.py   : @self
 sdsys/messages/1196[3-9]     : ide-fresh ide
 sdsys/messages/1197[0-5]     : ide-fresh ide

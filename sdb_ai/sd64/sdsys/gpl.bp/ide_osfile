@@ -18,11 +18,15 @@
 *     op     'check'   is PATH written in the form the IDE takes? (why 'name' when not; nothing is opened or touched, F TEXT and INFO are not used)
 *            'open'    open PATH (it must be there), keep the file variable F and give its text; the file is opened for reading and writing without truncation (or
 *                      for reading only when the account may not change it) and the SD record lock on it is taken, which F keeps until the caller closes F
-*            'reread'  read F again from the start (the caller keeps F): TEXT and INFO as for 'open'; the IDE compares them with what it read before it writes
-*            'save'    write TEXT over the file F is open on, in place (SEEK 0, WRITEBLK, then WEOFSEQ at the new length), with the line ends INFO<1> and INFO<2> say
+*            'reread'  read F again from the start (the caller keeps F): TEXT and INFO as for 'open'; the IDE compares them with what it read before it writes.  The buffer of F is
+*                      thrown away first, so that a change made by another program is seen; why 'gone' when nothing links to the file F holds any more (it was removed, or replaced
+*                      by another file renamed over it: a write would go into a file nobody can reach)
+*            'save'    write TEXT over the file F is open on, in place (SEEK 0, WRITEBLK, then WEOFSEQ at the new length), with the line ends INFO<1> and INFO<2> say; the file is then
+*                      READ BACK and must be the bytes meant (why 'io' if not), and TEXT and INFO come back as the next 'reread' would give them (so the caller's baseline is what
+*                      the disk gives, not what was typed)
 *     path   the full name of the file, as the IDE has checked it (absolute, no . or .., no doubled slash)
 *     f      the file variable (out for 'open'; in for 'reread' and 'save')
-*     text   the lines of the file as a record: the lines separated by field marks (out for 'open' and 'reread'; in for 'save')
+*     text   the lines of the file as a record: the lines separated by field marks (out for 'open' and 'reread'; in AND out for 'save')
 *     info   one field mark between the parts:
 *              <1> 1 when every line ended with CR LF (they are taken off, and put back by 'save'); 0 for LF, and a CR in a line is then just a character
 *              <2> 1 when the last line ended with its line end (it is not in TEXT, and 'save' puts it back)
@@ -36,7 +40,8 @@
 *              'dir'     not a plain file: a directory, a socket     'special'  a device, a pipe or a port (the file is closed again before it is read)
 *              'locked'  another session holds the file's SD lock    'big'    more than 2 MB (2,097,152 bytes); INFO<4> is its size
 *              'bytes'   a NUL, or a byte from 248 to 255 (SD's marks): not text this editor can keep as it is
-*              'io'      reading, positioning, writing or cutting the file failed, or the file is not the size it was a moment ago
+*              'io'      reading, positioning, writing or cutting the file failed, the bytes read back after a write are not the bytes written, or the file is not the size it was a moment ago
+*              'gone'    'reread' only: nothing links to the file F holds (removed, or replaced by a rename)
 *              'ro'      'save' on a file opened read-only (no write was tried)   'cant'  an OPENSEQ that failed: INFO<6> is its STATUS()   'op'  an unknown OP
 *     A file that is NOT open (a failure of 'open') is closed here: an OPENSEQ that took its ELSE keeps the name locked until the variable is closed.
 *
@@ -64,14 +69,19 @@ $include syscom keys.h
    for j = 0 to 31
       ctl := char(j)
    next j
+   for j = 248 to 255                      ;* and SD's marks: a path holding one would split the IDE's tab arrays (review of 28 Oct 26, finding 10)
+      ctl := char(j)
+   next j
 
    why = ''
+   rr.again = 0
    begin case
       case op = 'check'
          gosub check.name
       case op = 'open'
          gosub open.file
       case op = 'reread'
+         rr.again = 1
          gosub read.file
       case op = 'save'
          gosub write.file
@@ -97,15 +107,24 @@ open.file:
    info = ''
    gosub check.name
    if why # '' then return
+   * THE CLAUSES END THE STATEMENT: after ON ERROR or LOCKED the program goes to what follows the whole OPENSEQ, not to THEN or ELSE (review of 28 Oct 26, finding 1: the ELSE was
+   *   assumed to run after LOCKED, and the next statement asked FILEINFO of a file variable that was never assigned, which stops the program).  So ON ERROR returns itself, and the
+   *   LOCKED flag is tested after the statement.  ON ERROR is there for -ER_MAXRLOCK, which stops a program that has no such clause.
    lk.user = 0
-   openseq path to f locked lk.user = 1 then
+   openseq path to f on error
+      op.st = status()
+      if not(unassigned(f)) then close f
+      why = 'cant'
+      info<6> = op.st
+      return
+   end locked
+      lk.user = 1
+   end then
       null
    end else
       op.st = status()
       if not(unassigned(f)) then close f
       begin case
-         case lk.user
-            why = 'locked'
          case op.st = 0
             why = 'none'
          case op.st = ER.PERM
@@ -116,6 +135,10 @@ open.file:
             why = 'cant'
             info<6> = op.st
       end case
+      return
+   end
+   if lk.user then
+      why = 'locked'
       return
    end
    if (fileinfo(f, FL$SEQTYPE) + 0) # 0 then
@@ -136,9 +159,25 @@ open.file:
 read.file:
    text = ''
    info = ''
+   * A second look (the IDE reads the file once more before it writes) must see the disk as it is NOW.  A SEEK keeps the file variable's one block buffer, and a READBLK of the
+   *   block the buffer holds does not read the disk, so a change of the same size made by another program was read back as the old text (review of 28 Oct 26, finding 2b);
+   *   a WRITEBLK of nothing is the one statement that throws the buffer away and writes no byte.  And a file that was REPLACED (written elsewhere and renamed over this one, as vim,
+   *   sed -i and git do) or removed leaves the tab holding an inode that nothing links to: STATUS of the variable is an fstat, and its link count (field 7) is then 0.
+   if rr.again then
+      if not(fileinfo(f, FL$READONLY)) then writeblk '' to f else null
+   end
    gosub read.all
    if why # '' then return
    gosub parse.raw
+   if why # '' then return
+   if rr.again then
+      status st.f from f then null else st.f = ''
+      if st.f = '' then
+         why = 'io'
+      end else
+         if (st.f<7> + 0) = 0 then why = 'gone'
+      end
+   end
    return
 
 * In: f.  Out: raw, why.  The size is asked first (SEEK to the end), so that a large file is refused without being read, and the bytes read must come to that size: the
@@ -223,7 +262,21 @@ write.file:
       why = 'io'
       info<6> = status()
    end
-   if why = '' then info<4> = len(data)
+   if why # '' then return
+   * What is on the disk is read back and must be what was meant: the kernel counts a short WRITEBLK (a full disk, a quota) as written whole, and WEOFSEQ then cuts the file to the
+   *   length it thinks it wrote, which pads a short file with NUL bytes (review of 28 Oct 26, finding 4).  The file's text is then given back as the next 'reread' would give it
+   *   (TEXT and INFO are in and out here): a file "a" + LF + "b" with "b" deleted is written "a" + LF, which reads back as the one line "a" with its end, so the caller keeps THAT
+   *   as what the disk holds, and a text that is not what a reread gives is not taken for a change of the disk (finding 9).
+   gosub read.all
+   if why # '' then
+      info<6> = status()
+      return
+   end
+   if len(raw) # len(data) or raw # data then
+      why = 'io'
+      return
+   end
+   gosub parse.raw
    return
 end
 
