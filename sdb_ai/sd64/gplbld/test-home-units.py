@@ -367,9 +367,10 @@ def checks(s):
        ordered(th, "if terminal.off then actx<11> = 'nocmd'", "call $tk_ai('ask', ctx, actx, res)", "case res<1> = 'command' and terminal.off", "case res<1> = 'command'\n         sentence = res<2>")
        and "msg = 'the Terminal is turned off for this account'" in between(th, "case res<1> = 'command' and terminal.off", "case res<1> = 'command'\n"), between(th, "\nask.ai:\n", "\nstart.tile:\n"))
     aia = between(th, "\nask.ai:\n", "\n   ctxt = ")
-    ck("H34b the AI is told that every action only NAVIGATES (so that Enter alone accepts) only while no pin and no Terminal tile is among the actions offered (S6): the flag starts at 1, a pin (id pin<n>) or the Terminal tile makes it 0, "
-       "and the flag - not a constant - is the fifth field of what the AI is told",
-       ordered(aia, "ai.nav = 1", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.nav = 0") and "acts : @fm : ai.nav" in th and "acts : @fm : 1" not in th, aia)
+    ck("H34b the AI is told which offered actions do more than NAVIGATE (S6, per proposal since handoff step 2): the flag (field 5) starts at 1 and is never made 0 by a pin; ai.more starts empty and a pin (id pin<n>) "
+       "or the Terminal tile adds its id to it; ai.more - not a constant - is the twelfth field of what the AI is told, so that Enter alone accepts a delivered tile and rejects a pin or the Terminal tile",
+       ordered(aia, "ai.nav = 1", "ai.more = ''", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>") and "acts : @fm : ai.nav" in th and "acts : @fm : 1" not in th
+       and "actx<12> = ai.more" in th and "ai.nav = 0" not in th, aia)
     return rows
 
 
@@ -419,8 +420,10 @@ MUTANTS = [
     ("a command answer runs with the Terminal off", "tool_home", "      case res<1> = 'command' and terminal.off\n         msg = 'the Terminal is turned off for this account'", "      case res<1> = 'command' and @false\n         msg = 'the Terminal is turned off for this account'"),
     ("a LOGTO that aborts ends HOME", "tool_home", "   execute 'logto ' : acct trapping aborts ", "   execute 'logto ' : acct ;"),
     ("the AI is told every action only navigates", "tool_home", "acts : @fm : ai.nav", "acts : @fm : 1"),
-    ("a pin does not clear the navigation flag", "tool_home", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.nav = 0", "if ta = 'terminal' then ai.nav = 0"),
-    ("the Terminal tile does not clear the navigation flag", "tool_home", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.nav = 0", "if tl<i, HT.ID>[1, 3] = 'pin' then ai.nav = 0"),
+    ("a pin is not named as doing more", "tool_home", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>", "if ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>"),
+    ("the Terminal tile is not named as doing more", "tool_home", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>", "if tl<i, HT.ID>[1, 3] = 'pin' then ai.more<1, -1> = tl<i, HT.ID>"),
+    ("a pin turns Enter-accepts off for the whole page again", "tool_home", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.nav = 0"),
+    ("the library is not told which actions do more", "tool_home", "   actx<12> = ai.more ", "   null "),
     ("a tile draws outside the panel", "tool_home", "      if sy >= lo and sy <= hi then", "      if @true then"),
     ("the scroll bar is not drawn", "tool_home", "   if ch > ph then\n      call $sl_scrollbar", "   if @false then\n      call $sl_scrollbar"),
     ("a piped session is let in", "tool_home", "   if @tty[1, 5] # '/dev/' then\n      display sysmsg(11863)", "   if @false then\n      display sysmsg(11863)"),

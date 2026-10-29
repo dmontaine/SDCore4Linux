@@ -67,8 +67,9 @@ Next release - in progress
                            setting means.
                          - Undo in the full-screen text area gives back exactly what was there. A record holding value, subvalue or text marks came back changed after Ctrl-Z.
                          - The AI popup shows every line of a proposed change, command or request in full instead of cutting it at the box edge, so what you accept or run is what
-                           you saw. A proposed change that would take more than 30 rows to show is not offered. HOME's AI line no longer lets Enter alone accept a proposal when one
-                           of your own programs or the Terminal tile is among the things it may start.
+                           you saw. A proposed change that would take more than 30 rows to show is not offered. On HOME's AI line, Enter alone accepts a proposal that only opens one of
+                           the delivered tools, as before, but REJECTS a proposal of one of your own programs or of the Terminal tile (which leaves for the command prompt): the
+                           default is decided for the proposal, not for the whole page, so having a program of your own on the page no longer changes what Enter does for the rest.
                          - TOOL.QUERY saves and deletes records in your file &queries&. An account with the vocabulary gate on but the program gate off could point the name
                            &queries& at its program file and have the page overwrite or delete program source. The page now checks, before every save and every delete, that
                            &queries& is an ordinary data file in your own account directory that your gates allow you to change, and it refuses a record that is not a saved

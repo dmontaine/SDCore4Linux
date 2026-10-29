@@ -17,6 +17,9 @@
 *               then pick.level keeps the groups of the menu being shown.  Behaviour-preserving while there: reopen and rebuild share enter.level; an empty band takes no room.
 * 28 Oct 26 dm  S.88 phase 2: a tile's command and a LOGTO are run TRAPPING ABORTS and followed by $sl_cleanup (a refusal no longer ends HOME; the screen and the break key an aborted app held
 *               are given back before the page is taken again); the AI's "only navigates" flag is 0 while a pin or the Terminal tile is offered (S6: Enter alone no longer runs a pinned command the model chose).
+* 28 Oct 26 dm  S.88 handoff step 2 (the owner's approval of Opus's proposal): the AI's default is decided PER PROPOSAL, not per page: ask.ai names the offered actions that do more than navigate
+*               (pins, the Terminal tile) in actx<12> and $tk_ai makes Reject the default for those only, so a delivered tile is accepted by Enter again (the owner's 23 Oct answer) while pins
+*               are offered; a command keeps Cancel.
 * 28 Oct 26 dm  TUI phase 2 review: a command that aborts waits for a key before the page is drawn again (the abort message was overwritten); with the Terminal tile off for the account the AI
 *               line is told 'nocmd' and a command answer is refused (the AI was a way to a command prompt).
 * 28 Oct 26 dm  S.88 L2: the page is laid out by the layout service ($tk_layout): three panes (the header, the panel of tiles, the hint row) declared at their 140 by 43 sizes,
@@ -1127,21 +1130,24 @@ ai.key:
 * to run, each only after the person has chosen Accept or Run; both are done exactly as a click on a tile or the Terminal tile's prompt would do them.
 ask.ai:
    acts = ''
-   ai.nav = 1                                             ;* 1 only while every action offered opens a tool of the delivered table (S.88 phase 2, S6)
+   ai.nav = 1                                             ;* the actions offered open a tool, except those named in ai.more (S.88 phase 2, S6; per proposal since handoff step 2)
+   ai.more = ''                                           ;* the ids of the offered actions that do more than open a tool: the person's own programs and the Terminal tile
    for i = 1 to nt
       ta = tl<i, HT.ACT>
       if ta[1, 4] = 'cmd:' or ta = 'terminal' then
          if tl<i, HT.ID>[1, 2] # 'r:' then                ;* a recent tile is a copy of one that is offered already
             acts<1, -1> = tl<i, HT.ID> : ':' : tl<i, HT.LABEL> : ' - ' : (if tl<i, HT.SUB> = '' then 'starts ' : ta else tl<i, HT.SUB>)
-            * the person's own programs (pin1, pin2 ...) run a command the person wrote, and the Terminal tile leaves the toolkit for the prompt: neither only NAVIGATES, so with either on
-            * offer Enter alone must reject the proposal and not accept it (a pin the model chose would run on one stray Enter)
-            if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.nav = 0
+            * the person's own programs (pin1, pin2 ...) run a command the person wrote, and the Terminal tile leaves the toolkit for the prompt: neither only NAVIGATES, so when the AI
+            * proposes one of THESE Enter alone must reject the proposal and not accept it (a pin the model chose would run on one stray Enter); a delivered tile, which only opens a tool
+            * the person could open anyway, keeps Accept as its default (the owner's answer of 23 Oct) even while pins are offered
+            if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>
          end
       end
    next i
    ctxt = 'This is the home screen of the SD database system, a page of tiles.' : @vm : 'Each action starts the tool of that tile, exactly as the person could by choosing the tile.'
    ctxt := @vm : 'The person is ' : (if is.admin then 'the administrator.' else 'an account holder.')     ;* the lines of the page's text are VALUES (a field mark would move the fields after it)
    actx = 'home' : @fm : 'home' : @fm : ctxt : @fm : acts : @fm : ai.nav
+   actx<12> = ai.more                                     ;* the library's default is Reject for a proposal of one of these
    * The Terminal tile turned off for the account means no command prompt through the AI either: the library is told there is nowhere to run a command (<11> 'nocmd') and ignores one
    if terminal.off then actx<11> = 'nocmd'
    call $tk_ai('ask', ctx, actx, res)

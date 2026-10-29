@@ -76,6 +76,8 @@ MUTANTS = {
     "action-not-checked": ("      if found then\n         pk = 'action'", "      found = 1\n      if found then\n         pk = 'action'", ["L8", "L9", "L11", "L14"]),
     "command-default-run": ("         btn = '&Run,&Cancel'                              ;* (not Reject: its letter would be Run's)\n         dflt = 2", "         btn = '&Run,&Cancel'                              ;* (not Reject: its letter would be Run's)\n         dflt = 1", ["L10"]),
     "command-not-cleaned": ("         if len(c) > 200 or c # raw then", "         if len(c) > 200 then", ["L10"]),
+    # handoff step 2: the default is per proposal; without the test of the proposed id Enter alone accepts the Terminal tile (this page offers it)
+    "default-per-page": ("dflt = (if nav and index(@vm : nav.not : @vm, @vm : pid : @vm, 1) = 0 then 1 else 2)", "dflt = (if nav then 1 else 2)", ["L8g"]),
 }
 
 
@@ -330,6 +332,14 @@ def sec_proposals():
          and msg(11649, "format-disk") in T and "Close" in T and "Accept" not in T and "Run" not in T, T[-800:])
     h.key("enter", idle=1.5)
     arow("L8e", "Close returns to the home screen, which is whole", h.home(), repr(h.text()[:100]))
+    h.key("ctrl-q", idle=1.5)
+    h.end()
+    # 28 Oct 26 (handoff step 2): the default is decided PER PROPOSAL.  This page offers the Terminal tile, and a delivered tile (L8c above: the IDE) is still accepted by Enter alone;
+    # the Terminal tile leaves the toolkit for the command prompt, so it is the Reject button that Enter chooses
+    h, T = reply("open a terminal [[act_terminal]]")
+    arow("L8f", "the AI proposes the Terminal tile: it is offered with Accept and Reject", "Opening a terminal." in T and msg(11647, "Terminal") in T and "Accept" in T and "Reject" in T, T[-800:])
+    h.key("enter", idle=2.0)
+    arow("L8g", "Enter alone is Reject for it: nothing started, the home screen is still there (the prompt did not take the terminal)", h.home() and "File" not in h.line(0), repr(h.text()[:100]))
     h.key("ctrl-q", idle=1.5)
     h.end()
     h, T = reply("sign me out [[act_signout]]")

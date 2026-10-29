@@ -78,7 +78,9 @@ def checks(s):
     ck("A6 a command is shown and never run here: no execute, no os.execute, no kernel call but the five K$AI.* of this file; it must be printable, at most 200 characters and unchanged by the cleaning",
        not re.search(r"\b(execute|os\.execute|perform)\b", ai) and "if len(c) > 200 or c # raw then" in prop and "sysmsg(11650)" in prop, "")
     ck("A7 a command's default button is the one that does NOT run it, and its letters are distinct (Run, Cancel): Enter alone never runs a command", "btn = '&Run,&Cancel'" in ask and re.search(r"btn = '&Run,&Cancel'[^\n]*\n\s*dflt = 2", ask) is not None, "")
-    ck("A8 Enter alone accepts an action only when the app said every action just navigates (actx<5>), else it rejects", "dflt = (if nav then 1 else 2)" in ask and "nav = a<5>" in ask, "")
+    ck("A8 Enter alone accepts an action only when the app said the actions just navigate (actx<5>) AND the one proposed is not among the ids the app named as doing more (actx<12>: its own "
+       "programs, the prompt), else it rejects - per proposal, not per page (handoff step 2, 28 Oct 26)",
+       "dflt = (if nav and index(@vm : nav.not : @vm, @vm : pid : @vm, 1) = 0 then 1 else 2)" in ask and "nav = a<5>" in ask and "nav.not = a<12>" in ask, "")
     ck("A9 the model's text is read as ONE JSON object from the first { to the last } (a fence round it does no harm) and anything else is shown as words with the note 11651 and nothing proposed",
        ordered(prop, "index(atext, '{', 1)", "jparse(atext[f1, l1 - f1 + 1])", "sysmsg(11651)") and "obj.ok" in prop, "")
     ck("A10 a parsed JSON object is never compared with a string (that raises 'Value not found' and the error is swallowed: the answer popup never came, 23 Oct): a flag says whether obj holds one",
@@ -90,9 +92,11 @@ def checks(s):
     ck("A14 the wait gives up on Esc, on the cursor lock's way out and on an input that has ended, and cancels the request", ordered(ask, "screen key timeout 1 returning nm", "nm = 'esc' or nm = 'guardquit'", "ER$EOF", "kernel(K$AI.CANCEL, 0)"), "")
     ck("H1 the home screen offers only tiles that start a tool: 'cmd:' tiles and the terminal; never Sign out or Switch account", "if ta[1, 4] = 'cmd:' or ta = 'terminal' then" in home
        and "acts<1, -1> = " in home, "")
-    ck("H2 the page's text goes in as VALUES of one field (a field mark would move the fields after it: the action list was empty on 23 Oct), and the navigation flag (actx<5>) is 1 only while every action offered opens a tool of the delivered table: ai.nav is 0 while a pin or the Terminal tile is offered (S.88 phase 2, S6)",
+    ck("H2 the page's text goes in as VALUES of one field (a field mark would move the fields after it: the action list was empty on 23 Oct), the navigation flag (actx<5>) is 1 and the ids of the "
+       "offered actions that do more than open a tool - a pin, the Terminal tile - go in actx<12> (ai.more), so the library makes Reject the default for those proposals only (S.88 phase 2, S6; per proposal since step 2)",
        "ctxt := @vm : " in home and "@vm : 'Each action starts the tool" in home and re.search(r"actx = 'home' : @fm : 'home' : @fm : ctxt : @fm : acts : @fm : ai\.nav", home) is not None
-       and "ai.nav = 1" in home and "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.nav = 0" in home, "")
+       and "ai.nav = 1" in home and "ai.more = ''" in home and "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>" in home
+       and "actx<12> = ai.more" in home and "then ai.nav = 0" not in home, "")
     ck("H3 an accepted action is looked up by id among the page's own tiles and started through start.tile, as a click would; a command goes through run.command, as the Terminal's prompt would",
        ordered(home, "case res<1> = 'action'", "tl<i, HT.ID> = res<2>", "gosub start.tile", "case res<1> = 'command'", "gosub run.command"), "")
     ck("H4 the AI line is the last stop of the Tab ring and the first of Back-tab, and without the AI the old keys are unchanged (the tests ask ctx<TK.C.AI>)", "if ctx<TK.C.AI> and fi = nt then" in home and "if ctx<TK.C.AI> and fi = 1 then" in home, "")
@@ -196,6 +200,11 @@ MUTANTS = [
     ("the debugger sends text to edit", "debug", ": @fm : '' : @fm : 1 : @fm : '' : @fm : 'nocmd'", ": @fm : ai.page : @fm : 1 : @fm : '' : @fm : 'nocmd'", "X6"),
     # 28 Oct 26 (TUI phase 2 review): the IDE's AI step in the memo's old form (value marks for line ends), which the memo reads as legacy - marker 27 for --from=27
     ("the IDE pushes the old-form step again", "ide", "   call $sl_memo('snap', mw, '', '', ai.sr)\n", "   mw{'undo'} = mw{'cy'} : @tm : mw{'cx'} : @tm : convert(@fm, @vm, mw{'value'}) : @fm : mw{'undo'}\n", "I2"),
+    # 28 Oct 26 (handoff step 2): the AI's default is per proposal - the first of these is marker 28 for --from=28
+    ("the proposed action is not asked about (a pin is accepted by Enter)", "tk_ai", "if nav and index(@vm : nav.not : @vm, @vm : pid : @vm, 1) = 0 then 1 else 2", "if nav then 1 else 2", "A8"),
+    ("every action is a rejection by default again", "tk_ai", "if nav and index(@vm : nav.not : @vm, @vm : pid : @vm, 1) = 0 then 1 else 2", "if 0 then 1 else 2", "A8"),
+    ("the library never learns which actions do more", "tool_home", "   actx<12> = ai.more ", "   null ", "H2"),
+    ("a pin is not named as doing more", "tool_home", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>", "if ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>", "H2"),
 ]
 M_STAGE2 = 10
 M_STAGE3 = 18
