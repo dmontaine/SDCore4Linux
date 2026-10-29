@@ -75,6 +75,19 @@ $include tk.h
    call $tk_keys('add', keys, 'l', 'limit', 'limit', 'Provider', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U3: Esc opens the menu bar (this page holds nothing of its own that Esc closes first)
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'change', '&Provider', '&Select this provider', '', '')
+   call $tk_keys('menu', keys, 'model', '&Provider', '&Model', '', '')
+   call $tk_keys('menu', keys, 'key', '&Provider', '&Key', '', '')
+   call $tk_keys('menu', keys, 'clearkey', '&Provider', 'Clear ke&y', '', '')
+   call $tk_keys('menu', keys, 'custom', '&Provider', 'C&ustom provider', '', '')
+   call $tk_keys('menu', keys, 'dropcustom', '&Provider', '&Drop custom provider', '', '')
+   call $tk_keys('menu', keys, 'ca', '&Provider', 'CA &file', '', '')
+   call $tk_keys('menu', keys, 'limit', '&Provider', '&Limit', '', '')
+   call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
 
    provs = 'anthropic' : @fm : 'openai' : @fm : 'deepseek' : @fm : 'custom'
    lnames = 'requests-hour' : @fm : 'tokens-day' : @fm : 'timeout' : @fm : 'bytes-request' : @fm : 'bytes-reply' : @fm : 'max-tokens'
@@ -86,17 +99,21 @@ $include tk.h
    ci = 1                                                      ;* the account row under the cursor
    ta = 0                                                      ;* the account rows scrolled off the top
    gen = 0
-   msg = 'Enter selects the provider with the check box; M sets its model and K its key'
+   msg = ''
    done = 0
 
    gosub read.all
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, pnames<pane>, '', '', mr)         ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, pnames<pane>, msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key returning nm
+      mr = ''
+      if nm # '' then call $tk_menubar('key', ctx, keys, pnames<pane>, nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -470,6 +487,13 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, pnames<pane>, mev, '', mr)                ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    call $tk_help('hit', mev, mk.px, mk.py, hit.prov)
    call $tk_help('hit', mev, mk.ax, mk.ay, hit.acc)
    if hit.prov or hit.acc then

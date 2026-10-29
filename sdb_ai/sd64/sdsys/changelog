@@ -1,6 +1,12 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE REMOTE ACCESS PAGE (TOOL.REMOTE) AND THE AI CHOICE PAGE (TOOL.AI) HAVE A MENU BAR.
+
+             What        - Esc or F10 opens a menu bar; Alt and a title's letter opens that menu; an entry does what its key does. On the remote page Esc goes back to the doors
+                           view first. The key hint is gone from the first status message on both pages; F1 lists the keys.
+                         It does NOT change what either page may run: each change still goes through its own command, after the Run or Cancel box.
+
 30 Oct 26  THE BACKUPS PAGE (TOOL.BACKUPS) HAS A MENU BAR.
 
              What        - Esc or F10 opens a menu bar (File, Backups, View, Help); Alt and a title's letter opens that menu; an entry does what its key does. The key hint is gone

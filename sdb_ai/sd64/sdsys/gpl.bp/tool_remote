@@ -67,6 +67,19 @@ $include tk.h
    call $tk_keys('add', keys, 'n', 'new', 'new', 'Servers', 1)
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U4: Esc goes back to the doors view first, else opens the menu bar
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'api', '&Door', '&API door on or off', '', '')
+   call $tk_keys('menu', keys, 'ssh', '&Door', '&Ssh door on or off', '', '')
+   call $tk_keys('menu', keys, 'delete', '&Server', '&Delete the server', '', '')
+   call $tk_keys('menu', keys, 'new', '&Server', '&New server', '', '')
+   call $tk_keys('menu', keys, 'doors', '&View', '&Doors', '', '')
+   call $tk_keys('menu', keys, 'routes', '&View', '&Routes', '', '')
+   call $tk_keys('menu', keys, 'servers', '&View', '&Servers', '', '')
+   call $tk_keys('menu', keys, 'connected', '&View', '&Connected', '', '')
+   call $tk_keys('menu', keys, 'tls', '&View', '&TLS', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', 'Re&fresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
    panes = 'Doors' : @fm : 'Routes' : @fm : 'Servers' : @fm : 'Connected' : @fm : 'TLS'
 
    gosub lay.declare                                            ;* the panes; VR (the list rows on the screen) and DV (the explanation rows) come from them
@@ -81,16 +94,21 @@ $include tk.h
    ci = 1 ; ta = 0
    gen = 0
    done = 0
-   msg = '1 to 5 change the view; A changes the API and S ssh on the doors view, X and N delete and define a server'
+   msg = ''
 
    gosub read.all
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, panes<view>, '', '', mr)          ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, panes<view>, msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key returning nm
+      mr = ''
+      busy = (if view # 1 then 1 else 0)
+      if nm # '' then call $tk_menubar('key', ctx, keys, panes<view>, nm, busy, mr)       ;* the Esc rule: another view is left before the bar opens
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -481,12 +499,26 @@ on.key:
          if hm # '' then msg = hm
       case nm = 'ctrl-q'
          done = 1
+      case nm = 'esc'
+         if view # 1 then
+            view = 1
+            ci = 1 ; ta = 0
+            gosub build.rows
+            gosub draw.all
+         end
    end case
    return
 
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, panes<view>, mev, '', mr)                 ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    call $tk_help('hit', mev, mk.x, mk.y, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.remote.page', hm, 0, 0)

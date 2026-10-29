@@ -126,8 +126,8 @@ def checks(raw):
        "case view = 1" in br and "case view = 2" in br and "case view = 3" in br and "case view = 4" in br and "pn[1, 16] : '...'" in br and "if gid = 'ssh' or gid = 'api' or gid = 'files' or gid = 'files-write' or gid = 'files-admin' or gid = 'net' then" in block(pg, "read.accounts")
        and "if gerr = '' and ainfo<1> = 'USER' then" in block(pg, "read.accounts") and "if cell.api = 'no' and cell.files = 'yes' then" in rl and "bitand(flg, USR$SDNET)" in sl and "bitand(flg, USR$SDVBSRVR)" in sl and "bitand(flg, USR$PHANTOM)" in sl and "inapi = (l[1, 5] = '[api]')" in ra, "")
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
-    ck("RM12", "the key table has exactly: help, doors, routes, servers, connected, tls, api, ssh, delete, new, refresh, quit; A and S act on the doors view only and X and N on the servers view only",
-       acts == sorted(["help", "doors", "routes", "servers", "connected", "tls", "api", "ssh", "delete", "new", "refresh", "quit"]) and "case nm = 'a' and view = 1" in pg and "case nm = 's' and view = 1" in pg and "case nm = 'x' and view = 3" in pg
+    ck("RM12", "the key table has exactly: help, doors, routes, servers, connected, tls, api, ssh, delete, new, refresh, quit - and the Esc row that opens the menu bar (S.88 U4; it runs nothing); A and S act on the doors view only and X and N on the servers view only",
+       acts == sorted(["help", "doors", "routes", "servers", "connected", "tls", "api", "ssh", "delete", "new", "refresh", "quit", "menu"]) and "case nm = 'a' and view = 1" in pg and "case nm = 's' and view = 1" in pg and "case nm = 'x' and view = 3" in pg
        and "case nm = 'n' and view = 3" in pg and "case nm >= '1' and nm <= '5' and len(nm) = 1" in pg and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
     ck("RM13", "the page waits for a key with no timeout and reads again only when it opens, on F5 and after a command or a hand-over",
        "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 4, "read.all x%d" % pg.count("gosub read.all"))
