@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE BYPASS PROGRAMS PAGE (TOOL.VIEWERS) HAS A MENU BAR AND AN OUTPUT PANE.
+
+             What        - Esc or F10 opens a menu bar (File, Program, View, Help); Alt and a title's letter opens that menu; a menu entry does what its key does.
+                         - Ctrl-O (View > Output) shows a six-row output pane that keeps what each set.viewer command answered, newest first, while the page is open; PgUp and PgDn
+                           scroll it and Esc puts it away before it would open the bar.
+                         - The key hint is gone from the first status message; F1 lists the keys.
+                         It does NOT change what the page may run: only set.viewer, after the Run or Cancel box.
+
 30 Oct 26  THE "WHAT MY ACCOUNT MAY DO" PAGE (TOOL.GATES IN YOUR ACCOUNT) HAS A MENU BAR.
 
              What        - Esc or F10 opens a menu bar on the top row (File: Quit; View: Refresh; Help), Alt and a title's letter opens that menu, and a click on the top row opens the

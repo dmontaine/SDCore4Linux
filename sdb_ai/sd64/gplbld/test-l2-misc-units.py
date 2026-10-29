@@ -517,7 +517,7 @@ def checks(raw, model=None, head=True):
 
     bad = []
     for n in PAGE_NAMES + ["tool_tktest"]:
-        body = "\n".join(l for l in code[n].split("\n") if not l.lstrip().startswith("d<"))
+        body = "\n".join(l for l in code[n].split("\n") if not l.lstrip().startswith(("d<", "o<")))     # o<: the declaration with the output pane open (tool_viewers, 30 Oct 26: it holds the reference sizes too)
         if n == "tool_tktest":
             continue
         for pat in BAD_LITERALS:
