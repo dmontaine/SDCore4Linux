@@ -118,12 +118,12 @@ def checks(s):
 
     ck("M7 a run: init, draw, the start menu after them, run, the context put back, the bar's record and last.top, then 'act' with the action and its key only when an entry was chosen, else 'none'",
        ordered(ok, "call $sl_menu('init', w, scr, '', r)", "call $sl_menu('draw', w, scr, '', r)", "w<SL.W.S1> = start", "call $sl_menu('run', w, scr, '', r)", "call $sl_scr('put', scr)", "ctx<TK.C.BAR> = sig", "last.top = ''",
-               "if r # '' then", "call $tk_keys('keyof'", "c = 'act' : @fm : r : @fm : kn", "end else", "c = 'none'"), ok[:300])
+               "if r # '' then", "call $tk_keys('keyof'", "c = 'act' : @fm : r : @fm : kn : @fm : (if kn = '' then 'act:' : r else kn)", "end else", "gosub no.answer"), ok[:300])
 
     cb = re.search(r"case op = 'click'\n(.*?)case op = 'open'", mb, re.S)
     cb = cb.group(1) if cb else ""
     ck("M8 a click is the bar's only for a left press on the menu row; the title under it opens, a column with no title is used up ('none')",
-       ordered(cb, "a<1> = 'press' and a<2> = 1 and a<4> + 0 = ctx<TK.C.YMENU> + 0", "call $sl_menu('hit', w, scr, a<3> + 0, start)", "if start > 0 then gosub run.bar else c = 'none'"), cb[:300])
+       ordered(cb, "a<1> = 'press' and a<2> = 1 and a<4> + 0 = ctx<TK.C.YMENU> + 0", "call $sl_menu('hit', w, scr, a<3> + 0, start)", "if start > 0 then gosub run.bar else gosub no.answer"), cb[:300])
 
     ft = label(mb, "find.title")
     ck("M9 Alt-letter: the letter after the & of a title (the first letter without one), either case, never a submenu (a title that begins with >)",
@@ -140,6 +140,14 @@ def checks(s):
        and ordered(hp, "common /tkreg/ reg.keys, reg.pane, reg.epoch", "if reg.epoch + 0 > 0 then call $tk_keys('keylist', reg.keys, reg.pane, rg, '', '', '')", "if rg # '' then", "kb<-1> = sysmsg(11244)",
                    "kb<-1> = '  ' : rg<p>[1, wrapw - 2]", "kb<-1> = ''", "for p = 1 to dcount(lines, @fm)", "call $tk_wrap(lines<p>, wrapw, pieces)",
                    "if kb # '' and dcount(kb, @fm) + dcount(body, @fm) <= scr<SL.S.H> - 8 then body = kb : @fm : body", "screen msgbox body"), "")
+
+    na = label(mb, "no.answer")
+    ck("M13 when nothing was chosen the answer is 'none' with the name 'none' to dispatch on (<4>), so a page's own case finds nothing to do", ordered(na, "c = 'none' : @fm : @fm : @fm : 'none'", "return"), na[:200])
+
+    mk = label(mb, "make.menus")
+    ck("M14 the menus come in the table's order, File (with or without its & mark) first and Help last", ordered(mk, "call $tk_keys('menus', keys, '', menus, pane, '', '')", "if nmenu > 1 then", "tt = change(menus<k, 1>, '&', '')",
+                                                                                                     "case tt = 'File'\n               mn.first<-1> = menus<k>", "case tt = 'Help'\n               mn.last<-1> = menus<k>", "case 1\n               mn.mid<-1> = menus<k>",
+                                                                                                     "menus = mn.first", "if mn.mid # '' then menus<-1> = mn.mid", "if mn.last # '' then menus<-1> = mn.last"), mk[:300])
 
     ck("M12 message 11244 exists and is one line", s["m11244"] is not None and len(s["m11244"].rstrip("\n").split("\n")) == 1 and s["m11244"].strip() != "", repr(s["m11244"]))
     return rows
@@ -166,7 +174,11 @@ MUTANTS = [
     ("the start menu is set before init", "tk_menubar", "   call $sl_menu('draw', w, scr, '', r)\n   w<SL.W.S1> = start\n   call $sl_menu('run', w, scr, '', r)", "   w<SL.W.S1> = start\n   call $sl_menu('draw', w, scr, '', r)\n   call $sl_menu('run', w, scr, '', r)", "M7"),
     ("a person who leaves is reported as a choice", "tk_menubar", "   if r # '' then\n      call $tk_keys('keyof', keys, r, pane, kn, '', '')", "   if 1 then\n      call $tk_keys('keyof', keys, r, pane, kn, '', '')", "M7"),
     ("a click on any row opens a menu", "tk_menubar", "a<1> = 'press' and a<2> = 1 and a<4> + 0 = ctx<TK.C.YMENU> + 0", "a<1> = 'press' and a<2> = 1", "M8"),
-    ("a click beside the titles opens the first menu", "tk_menubar", "if start > 0 then gosub run.bar else c = 'none'", "if start > 0 then gosub run.bar else start = 1 ; gosub run.bar", "M8"),
+    ("a click beside the titles opens the first menu", "tk_menubar", "if start > 0 then gosub run.bar else gosub no.answer", "if start > 0 then gosub run.bar else start = 1 ; gosub run.bar", "M8"),
+    ("a left menu answers with no name to dispatch on", "tk_menubar", "   c = 'none' : @fm : @fm : @fm : 'none'", "   c = 'none'", "M13"),
+    ("an action with no key gets no name to dispatch on", "tk_menubar", " : @fm : (if kn = '' then 'act:' : r else kn)", "", "M7"),
+    ("the menus are in the table's order only", "tk_menubar", "            case tt = 'File'\n               mn.first<-1> = menus<k>\n", "            case tt = 'File' and 0\n               mn.first<-1> = menus<k>\n", "M14"),
+    ("Help is not put last", "tk_menubar", "            case tt = 'Help'\n               mn.last<-1> = menus<k>\n", "            case tt = 'Help' and 0\n               mn.last<-1> = menus<k>\n", "M14"),
     ("a submenu title can be reached by Alt", "tk_menubar", "      if t[1, 1] # '>' then\n", "      if 1 then\n", "M9"),
     ("Alt-letter is case sensitive", "tk_menubar", "         if upcase(mn) = want then", "         if mn = want then", "M9"),
     ("slot 27 is not the bar's", "tk.h", "$define TK.C.BAR       27 ", "$define TK.C.BAR       28 ", "M10"),

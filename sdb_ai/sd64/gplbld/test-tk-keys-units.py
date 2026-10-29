@@ -32,7 +32,7 @@ GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 
 EXPECT_PROGRAMS = 24
-EXPECT_ADD_ROWS = 234                    # the 232 rows of the tree before 29 Oct 26, and the two rows of tool_tktest's pilot (S2)
+EXPECT_ADD_ROWS = 235                    # the 232 rows of the tree before 29 Oct 26, the two rows of tool_tktest's pilot (S2), and the Esc row of tool_mygates (30 Oct 26, the F0a pilot of $tk_menubar)
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
 # an action that has two keys on purpose (the second is for a terminal that keeps the first for itself)
@@ -316,6 +316,7 @@ def run_a(raw, rows):
             if not r["key"] or r["on"] == "off":          # a menu-only action has no key; a row switched off needs no handler
                 continue
             hit =(re.search(r"\bact\s*=\s*'%s'" % re.escape(r["act"]), body) is not None
+                   or (r["key"] == "esc" and r["act"] == "menu" and "$tk_menubar('key'" in body)           # the bar takes Esc itself ($tk_menubar 'key': the Esc rule), whatever the page's own case says
                    or re.search(r"=\s*'%s'" % re.escape(r["key"]), body) is not None
                    or re.search(r"\bcase\b[^\n]*'%s'" % re.escape(r["key"]), body) is not None)
             if not hit:
@@ -498,6 +499,7 @@ def run_b(raw):
     # a page that puts actions in a menu runs a menu answer through the page's one case on the action id
     res["samehandler"] = []
     menus_users = []
+    facade_users = []
     for prog in sorted(raw):
         if prog.startswith("msg:"):
             continue
@@ -506,6 +508,27 @@ def run_b(raw):
         if not acts:
             continue
         menus_users.append(prog)
+        if "$tk_menubar(" in code:
+            # 30 Oct 26 (S.88 F0a): a page on the toolkit's bar.  The bar returns the KEY of the chosen action (field 4 of its answer is the name to dispatch on) and the page's own case on that
+            # key does what it does for the key itself: ONE handler per action, the key's, with the registry running nothing.  So: every menu action has a key, the page asks the bar for a key
+            # once and for a click once, takes each answer as `nm = mr<4>` once, and draws the bar before the frame.
+            facade_users.append(prog)
+            keyed = {args[4].strip().strip("'") for no, op, args, line in calls_in(code) if op == "add" and len(args) == 7 and args[2].strip().strip("'") != ""}
+            for act in sorted(set(acts)):
+                if act not in keyed:
+                    res["samehandler"].append("%s: the menu action '%s' has no key, so the bar has nothing to replay through the page's case; a keyless action needs its row read" % (prog, act))
+            for hook, want in (("'draw'", 1), ("'key'", 1), ("'click'", 1)):
+                n = len(re.findall(r"call \$tk_menubar\(%s," % hook, code))
+                if n != want:
+                    res["samehandler"].append("%s: %d calls of $tk_menubar %s, expected %d" % (prog, n, hook, want))
+            n = len(re.findall(r"\bnm = \w+<4>", code))
+            if n != 2:
+                res["samehandler"].append("%s: the bar's answer reaches nm %d times, expected 2 (the key hook and the click hook)" % (prog, n))
+            if re.search(r"\bmr<[123]>", code) and not re.search(r"\bmr<1>\s*#\s*''", code):
+                res["samehandler"].append("%s: the bar's answer is read for something other than the name to dispatch on" % prog)
+            if code.find("call $tk_menubar('draw'") > code.find("call $tk_frame("):
+                res["samehandler"].append("%s: the bar is not drawn before the frame" % prog)
+            continue
         for act in sorted(set(acts)):
             lines = [l for l in code.split("\n") if re.match(r"\s*case\b", l) and re.search(r"\bact\s*=\s*'%s'" % re.escape(act), l)]
             if len(lines) != 1:
@@ -524,8 +547,8 @@ def run_b(raw):
             res["samehandler"].append("%s: the menu answer does not reach `act` before the program's case on act" % prog)
         if "call $tk_keys('action', keys, k, pane, act, '', '')" not in code or code.find("act = " + mc) < code.find("call $tk_keys('action'"):
             res["samehandler"].append("%s: ACT is not set from the key table before the menu answer replaces it" % prog)
-    if menus_users != ["tool_tktest"]:
-        res["samehandler"].append("the programs that call $tk_keys 'menu' are %s; this check was written for tool_tktest and a new page needs its row read" % menus_users)
+    if [p for p in menus_users if p not in facade_users] != ["tool_tktest"]:
+        res["samehandler"].append("the programs that call $tk_keys 'menu' are %s; the registry's own pilot is tool_tktest, the pages on $tk_menubar are held by the rules above, and any other needs its row read" % menus_users)
     # mnemonics of the registry's own menus: one & in every entry, unique in a menu and among the titles
     res["regmenu"] = []
     for prog in sorted(raw):
@@ -642,6 +665,13 @@ mut("tool_tktest", "'refresh', '&Actions', '&Refresh'", "'refresh', '&Actions', 
 mut("tool_tktest", "'refresh', '&Actions', '&Refresh'", "'refresh', '&Actions', '&Sample'", "two entries with the letter S", "regmenu")
 mut("msg:11188", "%1", "reason", "message 11188 loses its substitution", "messages")
 mut("tk.h", "$define TK.K.ROW       9", "$define TK.K.ROW       8", "ROW takes WHY's place", "tablevalues")
+# 30 Oct 26 (S.88 F0a pilot): tool_mygates on $tk_menubar - the first of these is marker M_F0A for --from=
+M_F0A = len(M)
+mut("tool_mygates", "   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')\n", "   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')\n   call $tk_keys('menu', keys, 'saveas', '&File', 'Save &as', '', '')\n", "a menu action with no key on a bar page", "samehandler")
+mut("tool_mygates", "      if mr<1> # '' then nm = mr<4>\n", "", "the bar's answer is not taken in the loop", "samehandler")
+mut("tool_mygates", "      nm = mr<4>\n      gosub on.key\n", "      nm = mr<2>\n      gosub on.key\n", "a click on the bar is dispatched on the action id, not the name", "samehandler")
+mut("tool_mygates", "      call $tk_menubar('draw', ctx, keys, 'My gates', '', '', mr)", "      call $tk_frame(ctx, keys, 'My gates', msg)\n      call $tk_menubar('draw', ctx, keys, 'My gates', '', '', mr)", "the bar is drawn after the frame", "samehandler")
+mut("tool_mygates", "      if nm # '' then call $tk_menubar('key', ctx, keys, 'My gates', nm, 0, mr)", "      if nm # '' then mr = ''", "the Esc row has no bar to take it", "handler")
 # ---- PART B MUTANTS END ----
 
 

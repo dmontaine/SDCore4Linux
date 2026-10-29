@@ -28,7 +28,11 @@
 *
 *   out is a dynamic array, null when the bar did not take the key or the click: <1> 'none' (the bar took it and nothing was chosen: the person left, or clicked beside the titles) or
 *   'act' (an entry was chosen); <2> the action's id; <3> the key the action is bound to for this pane (the page replays it through its own dispatch), null for an action with no key
-*   (a page that offers one handles <2>).  An entry that is shown disabled can not be chosen, so an action that comes back is one the page's key table would also give for its key.
+*   (a page that offers one handles <2>); <4> THE NAME THE PAGE DISPATCHES ON: the key when the action has one, 'act:' and the action's id when it has none, 'none' when nothing was chosen -
+*   so a page takes a bar answer with  if out<1> # '' then nm = out<4>  and its own case runs as for the key itself ('none' and 'act:...' are names no case has).  An entry that is shown
+*   disabled can not be chosen, so an action that comes back is one the page's key table would also give for its key.
+*
+*   THE ORDER OF THE MENUS is the table's, except that a menu called File (with or without its & mark) comes first and one called Help last.
 *
 *   After a run the bar is on the screen again as it was drawn and ctx<TK.C.BAR> says so.  An app that clears or repaints the screen raises ctx<TK.C.GEN>, as it does for $tk_frame.
 *   A session with no terminal gets nothing.
@@ -74,7 +78,7 @@ $include tk.h
             call $sl_menu('init', w, scr, '', r)
             call $sl_menu('hit', w, scr, a<3> + 0, start)
             call $sl_scr('put', scr)
-            if start > 0 then gosub run.bar else c = 'none'
+            if start > 0 then gosub run.bar else gosub no.answer
          end
       case op = 'open'
          start = a + 0
@@ -91,6 +95,24 @@ make.menus:
    call $tk_keys('menus', keys, '', menus, pane, '', '')
    nmenu = dcount(menus, @fm)
    if menus = '' then nmenu = 0
+   if nmenu > 1 then
+      * the usual order: File first, Help last, the others as the table gives them
+      mn.first = '' ; mn.mid = '' ; mn.last = ''
+      for k = 1 to nmenu
+         tt = change(menus<k, 1>, '&', '')
+         begin case
+            case tt = 'File'
+               mn.first<-1> = menus<k>
+            case tt = 'Help'
+               mn.last<-1> = menus<k>
+            case 1
+               mn.mid<-1> = menus<k>
+         end case
+      next k
+      menus = mn.first
+      if mn.mid # '' then menus<-1> = mn.mid
+      if mn.last # '' then menus<-1> = mn.last
+   end
    return
 
 * The widget $sl_menu takes: the bar's row and width, and the menus from field 20
@@ -152,10 +174,15 @@ run.bar:
    last.top = ''
    if r # '' then
       call $tk_keys('keyof', keys, r, pane, kn, '', '')
-      c = 'act' : @fm : r : @fm : kn
+      c = 'act' : @fm : r : @fm : kn : @fm : (if kn = '' then 'act:' : r else kn)
    end else
-      c = 'none'
+      gosub no.answer
    end
+   return
+
+* Nothing was chosen: the bar took the key or the click
+no.answer:
+   c = 'none' : @fm : @fm : @fm : 'none'
    return
 end
 

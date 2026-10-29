@@ -7,6 +7,8 @@
 *
 * START-HISTORY:
 * 24 Oct 26 dm  New.
+* 30 Oct 26 dm  S.88 F0a pilot: a menu bar made from the key table ($tk_menubar: Esc, F10, Alt and a letter, a click on row 0), the Esc key in the table, the key hint taken out of the first
+*               status message; F1 lists the keys of the pane by itself ($tk_help).
 * 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the gate list shows
 *               more rows and every box is wider (the text is wrapped at the box's width), and a resize is $tk_layout 'refresh' and all of it drawn again.
 * END-HISTORY
@@ -21,7 +23,9 @@
 *   asks the kernel what the session may do (kernel(K$..., -1), the same answer every gate gives) and the system which route groups the person is in; it writes no file, runs no
 *   command and writes no audit line.  Nothing is probed: it never tries an operation to learn whether it works.
 *
-*   Keys: Up and Down move, PgUp and PgDn and Home and End jump, F5 asks again, F1 or ? or a click on the [?] explains the page, Ctrl-Q leaves.
+*   Keys: Up and Down move, PgUp and PgDn and Home and End jump, F5 asks again, F1 or ? or a click on the [?] explains the page, Ctrl-Q leaves.  Esc or F10 (or a click on the top
+*   row) opens the menu bar (File: Quit; View: Refresh; Help); Alt and a title's letter opens that menu.  The bar is made from the key table ($tk_menubar) and runs nothing: a
+*   choice is the key it stands for, taken by this page's own case below.
 *
 *   WHERE EACH STATE COMES FROM.  The gates of the register (sh, os, sd, voc, bp, dict, net, shared-read, shared-write) are what the SESSION holds: sh, os, sd, net and shared were
 *   loaded when it entered this account; voc, bp and dict at SIGN-ON only (LOGTO does not reload them), so an administrator's change shows after the next sign-on.  The route gates (ssh,
@@ -55,8 +59,12 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 F0a: Esc opens the menu bar (this page holds nothing of its own that Esc closes first)
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
 
-   VIS = 16                                                      ;* gate rows on the screen (the gate pane's height less 5: set by get.rects)
+   VIS = 16                                                     ;* gate rows on the screen (the gate pane's height less 5: set by get.rects)
    perr = ''
    gosub declare.layout
    call $tk_gate_info('list', gids)
@@ -80,7 +88,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    ci = 1
    ta = 0
    gen = 0
-   msg = 'Up and Down move; this page only shows what you may do, it cannot change it'
+   msg = 'This page only shows what you may do; it cannot change it'
    done = 0
    gst = ''
 
@@ -88,10 +96,14 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, 'My gates', '', '', mr)           ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, 'My gates', msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key returning nm
+      mr = ''
+      if nm # '' then call $tk_menubar('key', ctx, keys, 'My gates', nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar; a choice comes back as the key it has
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -327,6 +339,13 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, 'My gates', mev, '', mr)                  ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    call $tk_help('hit', mev, g.x + g.w - 5, g.y + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.gates.mine', hm, 0, 0)

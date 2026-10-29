@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE "WHAT MY ACCOUNT MAY DO" PAGE (TOOL.GATES IN YOUR ACCOUNT) HAS A MENU BAR.
+
+             What        - Esc or F10 opens a menu bar on the top row (File: Quit; View: Refresh; Help), Alt and a title's letter opens that menu, and a click on the top row opens the
+                           menu under it. A menu entry does what its key does. The page still only shows what the account may do and changes nothing.
+                         - The first line of the status bar no longer lists the movement keys; F1 lists the keys of the page.
+                         It is the first page on the toolkit's new menu bar; the other tool pages follow.
+
 30 Oct 26  F1 IN THE TOOL PAGES LISTS THE KEYS OF THE PANE; THE TOOLKIT HAS A MENU BAR FOR PAGES TO USE.
 
              What        - The help box that F1 (or the [?] button) opens on a tool page now begins with "Keys in this pane": the keys the pane has, one to a line, made from
