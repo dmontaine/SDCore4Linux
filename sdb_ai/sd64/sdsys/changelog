@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE CONFIGURATION PAGE (TOOL.CONFIG) HAS A MENU BAR.
+
+             What        - Esc or F10 opens a menu bar (File, Parameter, View, Help); Alt and a title's letter opens that menu; an entry does what its key does. Esc goes back to
+                           the parameters and takes the two row filters off first, and opens the bar only from the plain parameters view. The key hint is gone from the first
+                           status message; F1 lists the keys.
+                         It does NOT change how a parameter is changed: through its own command, after the Run or Cancel box.
+
 30 Oct 26  THE GATE MATRIX (TOOL.GATES FOR THE ADMINISTRATOR) HAS A MENU BAR.
 
              What        - Esc or F10 opens a menu bar (File, Gates, View, Help); Alt and a title's letter opens that menu; an entry does what its key does. Esc takes the account

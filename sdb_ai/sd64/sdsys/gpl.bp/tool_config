@@ -74,6 +74,16 @@ $include tk.h
    call $tk_keys('add', keys, 'e', 'change', 'edit', 'Parameters', 1)
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U3: Esc goes back to the parameters and takes the row filters off first, else opens the menu bar
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'edit', '&Parameter', '&Change this parameter', '', '')
+   call $tk_keys('menu', keys, 'parameters', '&View', '&Parameters', '', '')
+   call $tk_keys('menu', keys, 'backups', '&View', '&Backup directory', '', '')
+   call $tk_keys('menu', keys, 'report', '&View', '&Report', '', '')
+   call $tk_keys('menu', keys, 'differ', '&View', '&Differences only', '', '')
+   call $tk_keys('menu', keys, 'setonly', '&View', '&Set by the file only', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', 'Re&fresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
    panes = 'Parameters' : @fm : 'Backup directory' : @fm : 'Report'
 
    gosub lay.declare                                            ;* the panes; VP (the parameter rows on the screen) and DV (the detail rows) come from them
@@ -87,16 +97,21 @@ $include tk.h
    conf.path = ''
    gen = 0
    done = 0
-   msg = 'P parameters, B backup directory, R report; D shows where the file and SD disagree, S what the file sets, E changes one'
+   msg = ''
 
    gosub read.all
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, panes<view>, '', '', mr)          ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, panes<view>, msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key returning nm
+      mr = ''
+      busy = (if view # 1 or only.diff or only.set then 1 else 0)
+      if nm # '' then call $tk_menubar('key', ctx, keys, panes<view>, nm, busy, mr)       ;* the Esc rule: another view or a row filter is closed before the bar opens
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -609,6 +624,14 @@ on.key:
          if hm # '' then msg = hm
       case nm = 'ctrl-q'
          done = 1
+      case nm = 'esc'
+         if view # 1 or only.diff or only.set then
+            only.diff = 0 ; only.set = 0
+            gosub filter.rows
+            ci = 1 ; ta = 0
+            view = 1
+            gosub draw.all
+         end
    end case
    return
 
@@ -635,6 +658,13 @@ step.down:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, panes<view>, mev, '', mr)                 ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    call $tk_help('hit', mev, mk.x, mk.y, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.config.page', hm, 0, 0)
