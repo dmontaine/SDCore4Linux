@@ -16,7 +16,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 BP = os.environ.get("BPDIR", os.path.normpath(os.path.join(HERE, "..", "sdsys", "gpl.bp")))
 # program -> the file variables whose OPENSEQ must close in ELSE
-WANT = {"tool_config": ["tf", "cf"], "tool_catalog": ["sf"], "sed": ["fpath.f"]}
+WANT = {"tool_config": ["tf", "cf"], "tool_catalog": ["sf"], "sed": ["fpath.f"], "ide_osfile": ["f"]}       # 28 Oct 26: ide_osfile (S.88 stage E) opens a file the IDE's tab then holds for as long as it is open
 
 
 def read(name):
@@ -121,7 +121,8 @@ def selftest():
     mutant("tool_config conf read", "tool_config", "      if not(unassigned(cf)) then close cf ", "      if not(unassigned(cf)) then null ")
     mutant("tool_catalog object", "tool_catalog", "            if not(unassigned(sf)) then close sf ", "            if not(unassigned(sf)) then null ")
     mutant("sed first open", "sed", "            if not(unassigned(fpath.f)) then close fpath.f ", "            if not(unassigned(fpath.f)) then null ")
-    mutant("sed second open", "sed", "               if not(unassigned(fpath.f)) then close fpath.f\n               open.ok = @false", "               open.ok = @false")
+    mutant("ide_osfile open", "ide_osfile", "      if not(unassigned(f)) then close f\n", "      if not(unassigned(f)) then null\n")
+    # (the "sed second open" mutant is gone: SED's retry with the name in upper case was removed on 28 Oct 26, so there is no second OPENSEQ to mutate; test-gates-units B28 holds that)
     print("selftest: %d of %d mutants caught, %d missed" % (caught, caught + missed, missed))
     return 0 if missed == 0 else 1
 

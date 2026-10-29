@@ -298,9 +298,11 @@ def checks(src, msgs):
     ck("R8i no routine of the copy writes a record, opens a file or audits: the record is written only by the person's save",
        len(rc_all) > 2000 and not re.search(r"(?:^|\bthen|\belse)\s*(write|writeu|writev|open|openpath|openseq|delete)\s", rc_all, re.M) and "K$AUDIT" not in rc_all,
        "%d characters" % len(rc_all))
-    ck("R8j every tab the IDE makes starts owning no copy (open.record, add.untitled, add.new.record call rc.init.tab), and a bare IDE offers the untitled copies",
-       "gosub rc.init.tab" in orc and "gosub rc.init.tab" in label(ide, "add.untitled") and "gosub rc.init.tab" in an and ide.count("gosub rc.init.tab") == 3
-       and "if id0 = '' and not(seq0) and sel0 = '' then gosub rc.untitled" in ide, "")
+    ck("R8j every tab the IDE makes starts owning no copy (open.record, add.untitled, add.new.record and, since stage E, open.path call rc.init.tab), and a bare IDE offers the untitled "
+       "copies (not one that starts on an operating system file: path0)",
+       "gosub rc.init.tab" in orc and "gosub rc.init.tab" in label(ide, "add.untitled") and "gosub rc.init.tab" in an and "gosub rc.init.tab" in label(ide, "open.path")
+       and ide.count("gosub rc.init.tab") == 4
+       and "if id0 = '' and not(seq0) and sel0 = '' and path0 = '' then gosub rc.untitled" in ide, "")
 
     # ---- 28 Oct 26: the TUI phase 2 review's findings
     rcu = label(ide, "rc.untitled")

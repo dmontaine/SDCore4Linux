@@ -2676,7 +2676,7 @@ cited by: `movelist`
 %1 has no OS access, so a file or directory outside its own account cannot be reached by pathname (SDSYS can give it: modify.account %1 os-on)
 ```
 
-cited by: `convertdata`, `importdata`, `oscopya`, `qproc`, `sed`, `seldir`, `setptr`
+cited by: `convertdata`, `ide`, `importdata`, `oscopya`, `qproc`, `sed`, `seldir`, `setptr`
 
 ### msg:1119
 > kind=message tier=reference since=- src=sdsys/messages/1119:1#0860c7cd
@@ -2896,10 +2896,10 @@ Line %1, column %2
 cited by: `ide`
 
 ### msg:11214
-> kind=message tier=reference since=- src=sdsys/messages/11214:1#ea4a32a8
+> kind=message tier=reference since=- src=sdsys/messages/11214:1#50c4a5fb
 
 ```
-The IDE\n\nTab, Shift-Tab   In the editor: indent, outdent the line or the selected lines (3 blanks, one undo step); elsewhere the next / previous control\nF6, Shift-F6     Next / previous pane\nReturn           Open the file or record; go to the error\nSpace, Right     Open or close a tree node\nCtrl-S           Save the record (an untitled one asks for its file and name)\nCtrl-N           New record\nCtrl-O           Open a record by file and name\nCtrl-W           Close the record\nCtrl-PgDn, PgUp  Next / previous record tab (Alt-PgDn, PgUp too: a terminal may keep the Ctrl keys for its own tabs)\n
+The IDE\n\nTab, Shift-Tab   In the editor: indent, outdent the line or the selected lines (3 blanks, one undo step); elsewhere the next / previous control\nF6, Shift-F6     Next / previous pane\nReturn           Open the file or record; go to the error\nSpace, Right     Open or close a tree node\nCtrl-S           Save the record (an untitled one asks for its file and name)\nCtrl-N           New record\nCtrl-O           Open a record by file and name; path:/full/name there opens an operating system file\nCtrl-W           Close the record\nCtrl-PgDn, PgUp  Next / previous record tab (Alt-PgDn, PgUp too: a terminal may keep the Ctrl keys for its own tabs)\n
 ```
 
 cited by: `ide`
@@ -6824,6 +6824,141 @@ cited by: `sl_guard`
 ```
 
 cited by: `sl_guard`
+
+### msg:11727
+> kind=message tier=reference since=- src=sdsys/messages/11727:1#bb58ddc7
+
+```
+A path: name opens an operating system file with Open (Ctrl-O), or from the command line as ide path:/full/name; New, Save as and Write a copy take a file of records
+```
+
+cited by: `ide_name`
+
+### msg:11728
+> kind=message tier=reference since=- src=sdsys/messages/11728:1#4d091a03
+
+```
+The name of an operating system file is its full path: it starts with a slash and has no . or .. and no doubled slash, and no control characters (%1)
+```
+
+cited by: `ide`, `ide_name`
+
+### msg:11729
+> kind=message tier=reference since=- src=sdsys/messages/11729:1#6eee54c2
+
+```
+There is no operating system file %1
+```
+
+cited by: `ide`
+
+### msg:11730
+> kind=message tier=reference since=- src=sdsys/messages/11730:1#f845b307
+
+```
+%1 is not a plain file (it is a directory, a device, a pipe or a socket), so the IDE does not open it
+```
+
+cited by: `ide`
+
+### msg:11731
+> kind=message tier=reference since=- src=sdsys/messages/11731:1#8360bfdd
+
+```
+%1 is in use by another session (it holds the file's lock), so it was not opened
+```
+
+cited by: `ide`
+
+### msg:11732
+> kind=message tier=reference since=- src=sdsys/messages/11732:1#f80d104e
+
+```
+%1 is larger than 2 MB (%2 bytes), so the IDE does not open it
+```
+
+cited by: `ide`
+
+### msg:11733
+> kind=message tier=reference since=- src=sdsys/messages/11733:1#5cceeaa1
+
+```
+%1 holds a NUL byte or a byte from 248 to 255, so it is not text the IDE can keep as it is, and it was not opened
+```
+
+cited by: `ide`
+
+### msg:11734
+> kind=message tier=reference since=- src=sdsys/messages/11734:1#49107d21
+
+```
+%1 could not be opened or read as a whole (error %2)
+```
+
+cited by: `ide`
+
+### msg:11735
+> kind=message tier=reference since=- src=sdsys/messages/11735:1#360d3333
+
+```
+%1 is open read-only: the operating system, or an edit gate of this account, does not let this session change it
+```
+
+cited by: `ide`
+
+### msg:11736
+> kind=message tier=reference since=- src=sdsys/messages/11736:1#e57e98f9
+
+```
+[read-only: this session may not change it]
+```
+
+cited by: `ide`
+
+### msg:11737
+> kind=message tier=reference since=- src=sdsys/messages/11737:1#52fbbd87
+
+```
+%1 %2 is read-only here: the operating system, or an edit gate of this account, does not let this session change it.  Its text can be read and copied, not saved.
+```
+
+cited by: `ide`
+
+### msg:11738
+> kind=message tier=reference since=- src=sdsys/messages/11738:1#0ae0b11d
+
+```
+%1 %2 was not saved whole: writing it failed (error %3), and the file may be partly written.  The text is still in the editor.
+```
+
+cited by: `ide`
+
+### msg:11739
+> kind=message tier=reference since=- src=sdsys/messages/11739:1#f3fa029d
+
+```
+%1 %2 is an operating system file, not a record or a program: compile, run, debug, catalogue, SED, fields, Save as, Write a copy and Open the include do not apply to it
+```
+
+cited by: `ide`
+
+### msg:11740
+> kind=message tier=reference since=- src=sdsys/messages/11740:1#7dfc17d7
+
+```
+%1 %2: every line ends with CR LF, and stays so when it is saved
+```
+
+cited by: `ide`
+
+### msg:11741
+> kind=message tier=reference since=- src=sdsys/messages/11741:1#cc52f2a2
+
+```
+%1 %2 was not saved: its text holds a NUL or a byte from 248 to 255, or is over 2 MB, and the IDE does not write that to a file.  The text is still in the editor.
+```
+
+cited by: `ide`
 
 ### msg:11750
 > kind=message tier=reference since=- src=sdsys/messages/11750:1#e64264f5

@@ -6,6 +6,15 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 STAGE E: OPERATING SYSTEM FILES IN THE IDE.  `ide path:/full/name`, and path:/full/name (or path: and the name) in Open's form, open an operating system file in a
+*               tab of its own (bx k 'path'; the tab's file is 'path:' and its record the exact path).  EVERY TOUCH OF THE FILE IS IN !ide_osfile, which is NOT $internal, so the kernel asks the
+*               account's OS gate and edit gates for it (an $internal program is trusted with an OPENSEQ by pathname, and the IDE would have been the only guard); the IDE asks
+*               kernel(K$PATH.OK) of the same string first, for its own message.  The file is opened for reading and writing without truncation, under the SD record lock the tab keeps
+*               (tfv, bx l); the text is the lines of the file (CR LF taken off and put back; whether the last line had its line end is remembered); a file with a NUL or a byte from 248
+*               to 255, over 2 MB, a directory, a device or a pipe is refused, one with bytes 128 to 247 opens read-only (na.mark), and a file the account may not change opens read-only (bx z).
+*               Save asks the kernel's gates again by reading the file once more, compares it with what was read (the overwrite question), and writes IN PLACE: the same inode, owner, mode and
+*               links.  No recovery copy is kept for such a tab.  Compile, Run, Debug, Catalogue, SED, Edit as fields, Save as, Write a copy and Open the include do not apply to it (11739).
+*               New, Save as and the trees do not take a path yet (stage E2).
 * 28 Oct 26 dm  REVIEW OF L2, findings 4 and 9: Compile, Run, Debug and Catalog save first only when there is something to save (do.compile: a read-only tab that is unchanged is built
 *               as it is on the disk; save.one still refuses a read-only tab that has changes); the AUTOLOGOUT countdown reads the kernel's inactivity clock (kernel(K$AUTOLOGOUT, -2))
 *               instead of counting its own - idle.count, IDL.SLACK and the per-wait bookkeeping are gone.
@@ -98,6 +107,7 @@
 * START-DESCRIPTION:
 *
 *   IDE {DICT} {file {record | CREATING.SEQKEY}}
+*   IDE path:/full/name                 an operating system file (see the history: !ide_osfile)
 *
 *   The account is the project: the tree lists the files of the VOC (type F); Return on a file lists its
 *   records (up to 2000) and its dictionary, Return on the dictionary lists its items, and Return on a record
@@ -158,6 +168,20 @@ $include dictdict.h
    seq0 = (upcase(id0) = 'CREATING.SEQKEY')
    q0 = id0[1, 1]
    if len(id0) > 1 and (q0 = '"' or q0 = "'") and id0[len(id0), 1] = q0 then id0 = id0[2, len(id0) - 2]
+
+   * 28 Oct 26 (stage E): IDE path:/full/name opens an operating system file.  The path is the rest of the sentence after the first word (it may hold blanks), as it was typed: it is
+   *   never folded to lower case or split, and the word path: is not a file of the VOC (the file and record above are cleared, so the start is the bare one and the path opens over it)
+   path0 = ''
+   rest0 = field(@sentence, ' ', 2, 9999)
+   if upcase(rest0[1, 5]) = 'PATH:' then
+      path0 = trim(rest0[6, 9999])
+      pq0 = path0[1, 1]
+      if len(path0) > 1 and (pq0 = '"' or pq0 = "'") and path0[len(path0), 1] = pq0 then path0 = path0[2, len(path0) - 2]
+      fn0 = ''
+      id0 = ''
+      dflag0 = ''
+      seq0 = 0
+   end
 
    * The file variables through which the tabs hold their record locks: a lock belongs to the file variable it was taken through, and goes when that
    *   variable is closed, so each tab that holds one keeps its own (bx l<uid> is the slot, tused the slots in use)
@@ -360,7 +384,13 @@ $include dictdict.h
       screen focus f, 'ed'
       focus.id = 'ed'
    end
-   if id0 = '' and not(seq0) and sel0 = '' then gosub rc.untitled          ;* 28 Oct 26 (D2): the text of untitled buffers kept when an editor ended
+   if path0 # '' then
+      op.path = path0                          ;* 28 Oct 26 (stage E): the bare start's untitled buffer is taken away by the file that opens, and stays when it does not
+      gosub open.path
+      screen focus f, 'ed'
+      focus.id = 'ed'
+   end
+   if id0 = '' and not(seq0) and sel0 = '' and path0 = '' then gosub rc.untitled          ;* 28 Oct 26 (D2): the text of untitled buffers kept when an editor ended
 
    menu.click = ''                          ;* the column of a click on the menu bar, while the menu it opens is being started
    loop
@@ -752,6 +782,7 @@ tab.labels:
       labels<1, i> = bi<i>
       k = 'd' : bu<i>
       if bx{k} # '' then labels<1, i> = 'dict ' : bi<i>         ;* 28 Oct 26 (stage B): a dictionary item says so on its tab
+      if bn<i> = 'path:' then labels<1, i> = 'os ' : field(bi<i>, '/', dcount(bi<i>, '/'))     ;* 28 Oct 26 (stage E): an operating system file: its last name, the whole path is on the status line
       if bi<i> = '' then
          k = 'u' : bu<i>
          labels<1, i> = sysmsg(11963, bx{k})              ;* an untitled buffer
@@ -848,12 +879,18 @@ load.current:
       mw{'value'} = tb.disp
       sy.file = bn<cb>
       sy.id = bi<cb>
+      if bn<cb> = 'path:' then
+         sy.file = ''                    ;* 28 Oct 26 (stage E): an operating system file is named by its last component (the language follows its suffix, or a #! first line)
+         sy.id = field(bi<cb>, '/', dcount(bi<cb>, '/'))
+      end
       sy.first = field(tb.raw, @fm, 1)
       gosub syntax.for
       k = 'o' : u
       ro = (bx{k} # '')                  ;* 28 Oct 26 (stage B): another session holds the record's lock: the tab is read-only
       k = 'a' : u
       if bx{k} then ro = 1               ;* 28 Oct 26: so is a record that holds bytes 128 to 247 (na.mark)
+      k = 'z' : u
+      if bx{k} then ro = 1               ;* 28 Oct 26 (stage E): and an operating system file this session may not change
    end else
       mw{'value'} = ''
       syn = ''
@@ -1063,6 +1100,122 @@ open.record:
    return
 
 * ======================================================================
+* Operating system files (28 Oct 26, the editor merge's stage E)
+
+* In: op.path, the full name as typed (the command line's, or the name form's: never folded).  Opens the file in a tab of its own, or goes to the tab it is already in.
+*   EVERYTHING THAT TOUCHES THE FILE IS !ide_osfile's, which is not $internal, so the kernel asks the account's OS gate and the edit gates for it; K$PATH.OK is asked here of the
+*   same string first, for its own message.  The tab: bn 'path:', bi the path, kind 'path', no dictionary flag; it keeps the file variable (tfv, bx l) and with it the file's SD
+*   lock until it is closed; bx p holds the line ends and bx z is 1 when the file is read-only.  A recovery copy is never kept for it (rc.tick), and Save writes it in place.
+open.path:
+   op.path = trim(op.path)
+   call !ide_osfile('check', op.path, op.f, op.text, op.info, op.why)
+   if op.why # '' then
+      gosub path.refusal
+      return
+   end
+   tf.dict = ''
+   tf.file = 'path:'
+   tf.id = op.path
+   gosub tab.find
+   if tf.p then
+      new.cb = tf.p
+      if new.cb # cb then gosub switch.to
+      return
+   end
+   if not(kernel(K$PATH.OK, op.path)) then
+      msg = sysmsg(11180, @who)                ;* %1 has no OS access, so a file or directory outside its own account cannot be reached by pathname
+      return
+   end
+   for op.s = 1 to MAXLOCK
+      if tused<op.s> = '' then exit
+   next op.s
+   if op.s > MAXLOCK then
+      msg = sysmsg(11690)                      ;* Too many records are open: close a tab first
+      return
+   end
+   call !ide_osfile('open', op.path, op.f, op.text, op.info, op.why)
+   if op.why # '' then
+      gosub path.refusal
+      return
+   end
+   tfv(op.s) = op.f
+   close op.f                                  ;* the tab's variable is the one that holds the file, and its lock, from here
+   tused<op.s> = 1
+   gosub stash.current
+   gosub drop.clean.untitled
+   nbuf += 1
+   uid += 1
+   bn<nbuf> = 'path:'
+   bi<nbuf> = op.path
+   bu<nbuf> = uid
+   k = 'n' : uid
+   bx{k} = 0
+   k = 's' : uid
+   bx{k} = op.text
+   k = 'c' : uid
+   bx{k} = ''
+   k = 't' : uid
+   bx{k} = op.text
+   gosub rc.init.tab
+   ts.kind = 'path'
+   ts.dict = ''
+   ts.slot = op.s
+   ts.owner = ''
+   gosub tab.state
+   k = 'm' : uid
+   bx{k} = 0                                   ;* never the token form: the lines of a file are text
+   k = 'p' : uid
+   bx{k} = (op.info<1> + 0) : @fm : (op.info<2> + 0)
+   k = 'z' : uid
+   bx{k} = op.info<3> + 0
+   na.u = uid
+   na.text = op.text
+   gosub na.mark                               ;* bytes 128 to 247: read-only, as for a record
+   cb = nbuf
+   begin case
+      case op.info<3> + 0
+         msg = sysmsg(11735, op.path)
+      case op.info<1> + 0
+         msg = sysmsg(11740, 'path:', op.path)
+   end case
+   k = 'a' : uid
+   if bx{k} then msg = sysmsg(11761, 'path:', op.path)      ;* %1 %2 is open read-only: it holds characters outside ASCII
+   gosub load.current
+   return
+
+* In: op.why, op.path, op.info.  Out: msg, why an operating system file was not opened
+path.refusal:
+   begin case
+      case op.why = 'name'
+         msg = sysmsg(11728, op.path)
+      case op.why = 'none'
+         msg = sysmsg(11729, op.path)
+      case op.why = 'gate'
+         msg = sysmsg(11180, @who)
+      case op.why = 'dir' or op.why = 'special'
+         msg = sysmsg(11730, op.path)
+      case op.why = 'locked'
+         msg = sysmsg(11731, op.path)
+      case op.why = 'big'
+         msg = sysmsg(11732, op.path, op.info<4>)
+      case op.why = 'bytes'
+         msg = sysmsg(11733, op.path)
+      case 1
+         msg = sysmsg(11734, op.path, op.info<6>)
+   end case
+   return
+
+* Out: pa.no, true (and msg says why) when the tab in the editor is an operating system file: the commands for records and programs - compile, run, debug, catalogue, SED, fields,
+*   Save as, Write a copy, Open the include - do not apply to it
+path.not.for:
+   pa.no = @false
+   if nbuf = 0 then return
+   if bn<cb> # 'path:' then return
+   pa.no = @true
+   msg = sysmsg(11739, bn<cb>, bi<cb>)
+   return
+
+* ======================================================================
 * Kinds and locks (28 Oct 26, the editor merge's stage B)
 
 * In: uid, ts.kind, ts.dict, ts.slot, ts.owner.  The tab uid's kind, dictionary flag, lock slot and read-only owner
@@ -1077,6 +1230,10 @@ tab.state:
    bx{k} = ts.owner
    k = 'a' : uid
    bx{k} = 0                         ;* 28 Oct 26: no byte outside ASCII until na.mark says so
+   k = 'z' : uid
+   bx{k} = 0                         ;* 28 Oct 26 (stage E): not an operating system file that this session may not change (open.path sets it)
+   k = 'p' : uid
+   bx{k} = ''                        ;* an operating system file's line ends: 1 when every line ends CR LF, FM, 1 when the last line had its line end (the helper's INFO<1> and <2>, as they are passed to 'save')
    return
 
 * In: na.u (a tab's uid), na.text (its record, and the text it shows).  28 Oct 26 (the owner's approval): bx a<uid> is 1 when the text holds a byte from 128 to
@@ -1205,7 +1362,12 @@ tab.unlock:
    tu.k = 'l' : bu<tu.i>
    tu.s = bx{tu.k} + 0
    if tu.s then
-      release tfv(tu.s), bi<tu.i>
+      tu.k2 = 'k' : bu<tu.i>
+      if bx{tu.k2} = 'path' then
+         close tfv(tu.s)                 ;* 28 Oct 26 (stage E): an operating system file's lock goes with the file variable (bi is a path, not a record id to release)
+      end else
+         release tfv(tu.s), bi<tu.i>
+      end
       tfv(tu.s) = 0
       tused<tu.s> = ''
       bx{tu.k} = 0
@@ -1248,6 +1410,8 @@ relock.all:
       rl.u = bu<rl.i>
       rl.k = 'l' : rl.u
       rl.s = bx{rl.k} + 0
+      rl.k2 = 'k' : rl.u
+      if bx{rl.k2} = 'path' then rl.s = 0     ;* 28 Oct 26 (stage E): an operating system file's lock is the file variable's own, and no program run here has it by name; the save reads the file again before it writes
       if rl.s then
          rl.lost = @false
          recordlocku tfv(rl.s), bi<rl.i> locked
@@ -1280,6 +1444,15 @@ ro.check:
       i = ro.i
       gosub buf.label
       msg = sysmsg(11754, bf.name, bf.id)                         ;* %1 %2 holds characters outside ASCII ... read-only in the IDE ...
+      return
+   end
+   ro.k = 'z' : bu<ro.i>
+   if bx{ro.k} then
+      ro.ok = @false                                              ;* 28 Oct 26 (stage E): an operating system file this session may not change
+      ro.why = 'osro'
+      i = ro.i
+      gosub buf.label
+      msg = sysmsg(11737, bf.name, bf.id)                         ;* %1 %2 is read-only here: the operating system, or an edit gate of this account, does not let this session change it
       return
    end
    ro.k = 'o' : bu<ro.i>
@@ -1379,6 +1552,8 @@ do.include:
       msg = sysmsg(11218)
       return
    end
+   gosub path.not.for                   ;* 28 Oct 26 (stage E): a $include names a record of the account's files
+   if pa.no then return
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    in.line = mw{'value'}<mw{'cy'} + 0>
@@ -1529,6 +1704,8 @@ rc.tick:
    for ri = 1 to nbuf
       i = ri
       gosub is.dirty
+      rk.pk = 'k' : bu<ri>
+      if bx{rk.pk} = 'path' then continue                  ;* 28 Oct 26 (stage E): no recovery copy is kept of an operating system file: the store is in the person's home, the file may be anywhere
       if not(dirty) then
          gosub rc.drop.tab
       end else
@@ -1758,6 +1935,8 @@ status.line:
       if bx{k} # '' then t := '  ' : sysmsg(11687, bx{k})        ;* 28 Oct 26 (stage B): [read-only: user %1 holds its lock]
       k = 'a' : bu<cb>
       if bx{k} then t := '  ' : sysmsg(11753)                    ;* 28 Oct 26: [read-only: characters outside ASCII]
+      k = 'z' : bu<cb>
+      if bx{k} then t := '  ' : sysmsg(11736)                    ;* 28 Oct 26 (stage E): [read-only: this session may not change it]
       t := '   ' : sysmsg(11213, mw{'cy'}, mw{'cx'})
    end
    if msg # '' then t := '   ' : msg
@@ -2245,6 +2424,10 @@ save.one:
       msg = sysmsg(11971)
       return
    end
+   if sv.kind = 'path' then
+      gosub save.path                   ;* 28 Oct 26 (stage E): an operating system file is read again and written in place, not written as a record
+      return
+   end
    * 28 Oct 26 (stage B): a tab that holds its record's lock saves through the file variable the lock was taken through: a READU through another one would move the
    *   lock to it (it is this session's), and the close of that one would then give it away.  The tab keeps the lock after the save (WRITEU).
    if sv.slot then
@@ -2309,6 +2492,47 @@ save.one:
       rt.dict = sv.dict
       gosub refresh.tree.for                   ;* the record is in the file now: the tree lists it
    end
+   return
+
+* In: sv.i, u, sv.text, sv.saved, sv.slot, sv.name (a tab of kind 'path' whose text has changed).  Out: sv.ok.  The kernel's gates were asked when the file was opened, through the
+*   file variable the tab keeps, and are asked again by the write itself (a file opened read-only is not written: ro.check).  The file is read once more through that variable and
+*   compared with what the tab read - the text, and whether its lines end with CR LF and whether the last one had its end - and a difference (or a file that is not text now) is the
+*   overwrite question, as for a record.  Then !ide_osfile writes it IN PLACE: the same inode, owner, mode and links, no truncation until the new text is written.  If the write fails
+*   the tab keeps its text and its old baseline, so the next save asks again, and the message says the file may be partly written.
+save.path:
+   sv.id = bi<sv.i>
+   k = 'p' : u
+   sv.pinfo = bx{k}
+   if sv.slot = 0 then
+      msg = sysmsg(11734, sv.id, 0)
+      return
+   end
+   call !ide_osfile('reread', sv.id, tfv(sv.slot), sp.text, sp.info, sp.why)
+   sp.same = (sp.why = '')
+   if sp.same then sp.same = (sp.text = sv.saved and sp.info<1> + 0 = sv.pinfo<1> + 0 and sp.info<2> + 0 = sv.pinfo<2> + 0)
+   if not(sp.same) then
+      screen msgbox sysmsg(11203, sv.name, sv.id) buttons 'Overwrite,Cancel' default 2 returning b else b = 0
+      if b # 1 then return
+   end
+   sp.winfo = sv.pinfo
+   call !ide_osfile('save', sv.id, tfv(sv.slot), sv.text, sp.winfo, sp.why)
+   begin case
+      case sp.why = ''
+         k = 's' : u
+         bx{k} = sv.text
+         sv.ok = @true
+         msg = sysmsg(11202, sv.name, sv.id)
+      case sp.why = 'ro'
+         msg = sysmsg(11737, sv.name, sv.id)
+      case sp.why = 'bytes' or sp.why = 'big'
+         rf.text = sysmsg(11741, sv.name, sv.id)
+         msg = rf.text
+         gosub refuse.box
+      case 1
+         rf.text = sysmsg(11738, sv.name, sv.id, sp.winfo<6>)
+         msg = rf.text
+         gosub refuse.box
+   end case
    return
 
 * In: sv.i, an untitled buffer.  Out: sv.named.  The form asks for the file and the record; the buffer becomes that record (not yet on the disk: the save that follows writes it)
@@ -2509,6 +2733,7 @@ drop.clean.untitled:
 default.file:
    df = ''
    if nbuf > 0 then df = bn<cb>
+   if df = 'path:' then df = ''                         ;* 28 Oct 26 (stage E): the forms start from a file of records
    if df = '' then
       gosub get.context
       df = ctx.file
@@ -2604,6 +2829,8 @@ do.compile:
       msg = sysmsg(11218)
       return
    end
+   gosub path.not.for                   ;* 28 Oct 26 (stage E): an operating system file is not a program
+   if pa.no then return
    * 28 Oct 26 (review of L2): the record is saved first only when there is something to save - a changed text, an untitled buffer or a record not on the disk yet.  A tab that
    *   is read-only (another session holds the record's lock, or it holds bytes 128 to 247) and unchanged is compiled, run, debugged and catalogued as it is on the disk;
    *   save.one refuses a read-only tab even when nothing needs saving.
@@ -2728,6 +2955,8 @@ do.sed:
       msg = sysmsg(11218)
       return
    end
+   gosub path.not.for                   ;* 28 Oct 26 (stage E): SED opens records, and none of the operating system's files since S.87
+   if pa.no then return
    k = 'n' : bu<cb>
    if bi<cb> = '' or bx{k} then
       gosub save.current                ;* an untitled buffer, or a new record not yet on the disk, has no record for SED to open: it is named and written first
@@ -2795,6 +3024,8 @@ do.fields:
       msg = sysmsg(11218)
       return
    end
+   gosub path.not.for                   ;* 28 Oct 26 (stage E): the lines of a file are not fields and values
+   if pa.no then return
    ro.i = cb
    gosub ro.check                       ;* 28 Oct 26 (stage B): the text of a read-only tab is not changed
    if not(ro.ok) then
@@ -2925,7 +3156,11 @@ ai.go:
       gosub buf.label
       page<1, -1> = 'An untitled buffer, ' : bf.name : ', not yet saved to a record.'
    end else
-      page<1, -1> = 'File ' : bn<cb> : ', record ' : bi<cb> : '.'
+      if bn<cb> = 'path:' then
+         page<1, -1> = 'It is the operating system file ' : bi<cb> : ', not a record.'      ;* 28 Oct 26 (stage E)
+      end else
+         page<1, -1> = 'File ' : bn<cb> : ', record ' : bi<cb> : '.'
+      end
       k = 'd' : bu<cb>
       if bx{k} # '' then page<1, -1> = "It is an item of the file's dictionary."
    end
@@ -2996,6 +3231,7 @@ get.context:
       if code[1, 2] = 'R:' or code[1, 2] = 'Q:' then ctx.file = field(code, ':', 2)
    end
    if ctx.file = '' and nbuf > 0 then ctx.file = bn<cb>
+   if ctx.file = 'path:' then ctx.file = ''             ;* 28 Oct 26 (stage E): an operating system file is in no file of records
    return
 
 * Ctrl-W, as SED's: the text in the editor is written to a record of the file under another name and the editor goes on
@@ -3007,6 +3243,8 @@ do.writeas:
    end
    gosub na.check                       ;* 28 Oct 26: not from a tab whose record holds bytes outside ASCII (a box)
    if not(na.ok) then return
+   gosub path.not.for                   ;* 28 Oct 26 (stage E): Write a copy makes a record; an operating system file as a source is stage E2
+   if pa.no then return
    gosub stash.current
    u = bu<cb>
    k = 't' : u
@@ -3067,6 +3305,15 @@ do.open:
    call $ide_name('open', op.file, op.id, op.res)
    last.status = char(1)
    if op.res # 'ok' then return
+   if op.file = 'path:' then
+      op.path = op.id                           ;* 28 Oct 26 (stage E): an operating system file: the form returns the name as it was typed
+      gosub open.path
+      if nbuf > 0 then
+         ft.id = 'ed'
+         gosub focus.to
+      end
+      return
+   end
    or.file = op.file
    or.id = op.id
    cur.code = 'R:' : or.file : ':' : or.id
@@ -3085,6 +3332,8 @@ do.saveas:
    end
    gosub na.check                       ;* 28 Oct 26: not from a tab whose record holds bytes outside ASCII (a box)
    if not(na.ok) then return
+   gosub path.not.for                   ;* 28 Oct 26 (stage E): as Write a copy
+   if pa.no then return
    gosub stash.current
    gosub default.file
    sa.file = df

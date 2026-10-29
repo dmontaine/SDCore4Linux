@@ -1,6 +1,25 @@
 Next release - in progress
 --------------------------
 
+28 Oct 26  THE IDE OPENS AND SAVES FILES OF THE OPERATING SYSTEM, UNDER THE SAME GATES YOUR OWN PROGRAMS ARE HELD TO.
+
+             What        - ide path:/full/name, or path:/full/name in the File entry of Open (Ctrl-O), opens a file of the operating system in a tab of its own; the tab strip
+                           shows "os" and the file's last name and the status line its whole path. SED has opened no such file since the emulation removal; this is the way back.
+                         - The gates are the kernel's, not the IDE's. Everything that touches the file is done by !ide_osfile, a program that is NOT internal, so the kernel asks
+                           it what it asks your own OPENSEQ: an account without the OS gate (os-on) reaches only files inside its own directory, and a link inside the account that
+                           leads out of it counts as outside; a file in a VOC, a dictionary, a program file or the shared account that the account may not change opens read-only.
+                           The IDE itself holds no statement that opens a file.
+                         - Save writes the file where it is (the same inode, owner, mode and links - a file renamed over it would change all four) and cuts it to the new length.
+                           Just before it writes, the IDE reads the file once more and asks "has been changed by someone else, Overwrite it?" (Cancel is the default) if it is not
+                           what it read, or is no longer text. If the write fails, a box says the file may be partly written and your text stays in the editor.
+                         - Bytes are not converted. Lines end with LF, or with CR LF when every line does (and stay so); a CR anywhere else is an ordinary character, a tab is kept,
+                           and a file without a last newline is not given one. A file with a NUL or a byte from 248 to 255, a file over 2 MB, and a directory, device, pipe or
+                           socket are refused with a message; a file with bytes from 128 to 247 (another character set, or UTF-8) opens read-only, as a record does.
+                         - The file is locked while the tab is open (a second session is told it is in use); no recovery copy is kept for it, whatever the account's switch.
+                         - Compile, Run, Debug, Catalog, SED, Edit as fields, Save as, Write a copy and Open the include do not apply to such a tab and say so.
+                         It does NOT create a file, save under another path, browse directories or take a relative name, a name with . or .. in it, or a device; and it does not yet
+                         edit collection-file records.
+
 28 Oct 26  THE TOOLKIT PAGES AND THE HOME SCREEN USE THE WHOLE WINDOW; THE IDE'S TAB INDENTS; RECOVERY COPIES LIVE IN YOUR OWN HOME; STATUS DISPLAYS ESCAPE OTHER SESSIONS' TEXT.
 
              What        - The gate matrix, the sessions and locks page, the master files page, the audit trail, the accounts page, the configuration, remote access, backups and

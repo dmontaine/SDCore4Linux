@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 stage E: Open takes path:/full/name in the file entry (or path: there and the full name in the record entry) and returns file 'path:' and the name as it was typed;
+*               the spelling is checked by !ide_osfile 'check' and the form stays open on a bad one; every other mode refuses a path: name (11727).  Nothing else is asked here.
 * 28 Oct 26 dm  New (S.88 Phase 4, plan 4.2).  The IDE asked for a record id alone and took the file from the tree's current node, which on a bare start is the account
 *               directory; it wrote an empty record at once.  Now the file is on the form, and a refusal stays on it.
 * END-HISTORY
@@ -14,7 +16,8 @@
 *
 *     mode   'new' (New record), 'save' (the first save of an untitled buffer), 'saveas' or 'copy' (Save as, Write a copy): only the title of the box differs.
 *            'open' (Open a record, Ctrl-O): the other way round - the record must EXIST, and the account's edit gate is not asked (reading needs none)
-*     file   in: the file the form starts with; out: the file typed, when res is 'ok'
+*     file   in: the file the form starts with; out: the file typed, when res is 'ok' - or 'path:' (mode 'open' only) when an operating system file was named, in which
+*            case ID is its full name as typed, not folded to lower case, and no record or file was looked at
 *     id     in: the record id the form starts with (null for a new one); out: the id typed, when res is 'ok'
 *     res    'ok' or 'cancel' (Esc, or an input that ended, or a session with no terminal)
 *
@@ -144,13 +147,34 @@ swap.focus:
 
 * Return: the questions, in order.  The first that fails is said in the form and the form stays; all passed: file, id and res are returned
 try.accept:
-   ff = downcase(trim(w1{'value'}))           ;* file names are lower case everywhere SD writes them (the owner's rule), so the IDE's comparisons with its tabs and tree agree
+   pw = trim(w1{'value'})                     ;* as typed: a path: name is NEVER folded (the fold below is for SD file names), so the name checked is the name opened
+   ff = downcase(pw)                          ;* file names are lower case everywhere SD writes them (the owner's rule), so the IDE's comparisons with its tabs and tree agree
    ii = trim(w2{'value'})
    msg = ''
    begin case
       case ff = ''
          msg = sysmsg(11975)
          if focus = 2 then gosub swap.focus
+      case ff[1, 5] = 'path:'
+         * 28 Oct 26 (S.88 stage E): path:/full/name in the file entry, or path: in it and the full name in the record entry, names an operating system file, for Open only.
+         *   The form checks the spelling (!ide_osfile 'check') and nothing else: whether the account may reach the file, and whether it is there, are asked by the IDE and the
+         *   kernel when it is opened.  The other modes make records, and an operating system file is not one yet.
+         op.path = trim(pw[6, 9999])
+         if op.path = '' then op.path = ii
+         op.why = ''
+         if mode # 'open' then
+            msg = sysmsg(11727)
+         end else
+            call !ide_osfile('check', op.path, op.f, op.text, op.info, op.why)
+            if op.why # '' then
+               msg = sysmsg(11728, op.path)
+            end else
+               file = 'path:'
+               id = op.path
+               res = 'ok'
+            end
+         end
+         if res # 'ok' and focus = 2 then gosub swap.focus
       case ii = ''
          msg = sysmsg(11970)
          if focus = 1 then gosub swap.focus
