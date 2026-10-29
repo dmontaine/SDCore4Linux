@@ -1,6 +1,12 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE SESSIONS AND LOCKS PAGE (TOOL.SESSIONS) HAS A MENU BAR.
+
+             What        - Esc or F10 opens a menu bar (File, Sessions, View, Help); Alt and a title's letter opens that menu; an entry does what its key does, and an entry
+                           that belongs to the other list is shown dimmed. The key hint is gone from the first status message; F1 lists the keys.
+                         It does NOT change what the page may run: logout, unlock and inhibit.login, each after its Run or Cancel box.
+
 30 Oct 26  THE MASTER FILES PAGE (TOOL.MASTERS) HAS A MENU BAR.
 
              What        - Esc or F10 opens a menu bar (File, Masters, View, Help); Alt and a title's letter opens that menu; an entry does what its key does. Esc leaves the

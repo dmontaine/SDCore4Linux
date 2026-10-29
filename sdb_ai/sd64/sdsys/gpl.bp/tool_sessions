@@ -64,6 +64,14 @@ $include tk.h
    call $tk_keys('add', keys, 'i', 'logins', 'inhibit', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U2: Esc opens the menu bar (this page holds nothing of its own that Esc closes first)
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'logout', '&Sessions', '&Log out the session', '', '')
+   call $tk_keys('menu', keys, 'unlock', '&Sessions', '&Unlock the lock', '', '')
+   call $tk_keys('menu', keys, 'inhibit', '&Sessions', '&Inhibit or allow logins', '', '')
+   call $tk_keys('menu', keys, 'switch', '&View', '&Switch list', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
    panes = 'Sessions' : @fm : 'Locks'
 
    hs =fmt('', '2L') : fmt('User', '5R') : '  ' : fmt('Pid', '8R') : '  ' : fmt('Logged in', '12L') : ' ' : fmt('Kind', '8L') : fmt('Login user', '15L') : fmt('Account', '20L') : fmt('Where from', '26L') : 'State'
@@ -77,16 +85,20 @@ $include tk.h
    sig = ''
    gen = 0
    done = 0
-   msg = 'Tab changes the list; L logs a session out, U releases a lock, I stops or allows new logins'
+   msg = ''
 
    gosub read.all
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, panes<pane>, '', '', mr)          ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, panes<pane>, msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key timeout 3 returning nm
+      mr = ''
+      if nm # '' then call $tk_menubar('key', ctx, keys, panes<pane>, nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -531,6 +543,13 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, panes<pane>, mev, '', mr)                 ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    call $tk_help('hit', mev, ssn.x + ssn.w - 5, ssn.y + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.sessions.page', hm, 0, 0)
