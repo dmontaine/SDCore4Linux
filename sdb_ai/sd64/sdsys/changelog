@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE TESTS, DICTIONARY, QUERY AND BULK UPDATE PAGES HAVE A MENU BAR.
+
+             What        - TOOL.TEST, TOOL.DICT, TOOL.QUERY and TOOL.BULK open a menu bar with Esc or F10; Alt and a title's letter opens that menu; an entry does what its key does
+                           (an entry that belongs to another pane is shown dimmed). Where a pane has a name filter, Esc takes it off first; in the Output, Results and Saved views
+                           Esc keeps going back, as it did. The key hint is gone from the first status message of each; F1 lists the keys.
+                         It does NOT change what any of them may run: each change still goes through its own command, after the Run or Cancel box.
+
 30 Oct 26  THE FILES, VOCABULARY, PROGRAMS, ACCOUNTS AND AUDIT PAGES HAVE A MENU BAR.
 
              What        - TOOL.FILES, TOOL.VOC, TOOL.CATALOG, TOOL.ACCOUNTS and TOOL.AUDIT open a menu bar with Esc or F10; Alt and a title's letter opens that menu; an entry does what

@@ -81,6 +81,16 @@ $include tk.h
    call $tk_keys('add', keys, 'esc', 'tests', 'back', 'Output', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', 'Tests', 1)           ;* S.88 U7: in the Tests pane Esc takes the name filter off first, else opens the menu bar (in Output it is 'back')
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'run', '&Tests', '&Run this test', '', '')
+   call $tk_keys('menu', keys, 'runall', '&Tests', 'Run &all', '', '')
+   call $tk_keys('menu', keys, 'runfailed', '&Tests', 'Run &failed', '', '')
+   call $tk_keys('menu', keys, 'compile', '&Tests', '&Build (compile)', '', '')
+   call $tk_keys('menu', keys, 'output', '&Tests', 'Show the &output', '', '')
+   call $tk_keys('menu', keys, 'filter', '&View', '&Filter the names', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
 
    dim rz(500)                                                  ;* the result of a test: state, passed, failed, seconds, time, lines, lines left out, abort message, answers used, what the output is, last line, command
    dim oz(500)                                                  ;* what it printed (the kept lines, one to a field)
@@ -113,16 +123,21 @@ $include tk.h
    capped = 0
    vlines = '' ; nv = 0 ; ot = 0
    sentinel = ''
-   msg = 'Up and Down move; R runs the test under the cursor, A runs all of them, F the failed ones, B compiles, Enter shows its output'      ;* 26 Oct 26 (review, low): the longer hint was cut at the edge of the status line
+   msg = ''                                                     ;* S.88 U7: no key hint in the status line (F1 lists the keys)
 
    gosub read.all
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, pn, '', '', mr)                   ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, pn, msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key returning nm
+      mr = ''
+      busy = (if filt # '' then 1 else 0)
+      if nm # '' then call $tk_menubar('key', ctx, keys, pn, nm, busy, mr)       ;* the Esc rule: a name filter is taken off before the bar opens (in Output Esc is the page's own 'back')
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -650,6 +665,13 @@ out.key:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, pn, mev, '', mr)                          ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.test.page', hm, 0, 0)

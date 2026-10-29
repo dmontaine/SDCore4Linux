@@ -104,7 +104,7 @@ $include tk.h
    pane = 1 ; sc = 1 ; oc = 1 ; ra = 1
    gen = 0
    done = 0
-   msg = 'F chooses the file, then the records (Selection), then the operations; R makes a dry run, A applies it'
+   msg = ''
 
    un.have = 0 ; un.state = ''
    gosub build.keys
@@ -112,10 +112,14 @@ $include tk.h
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, panes<pane>, '', '', mr)          ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, panes<pane>, msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key returning nm
+      mr = ''
+      if nm # '' then call $tk_menubar('key', ctx, keys, panes<pane>, nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -157,6 +161,21 @@ build.keys:
    call $tk_keys('add', keys, 'u', 'undo', 'undo', '', (if un.have and un.state # 'undone' then 1 else 0))
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U5: Esc opens the menu bar (this page holds nothing of its own that Esc closes first)
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'file', '&Update', 'Choose the &file', '', '')
+   call $tk_keys('menu', keys, 'how', '&Update', 'Selection &how', '', '')
+   call $tk_keys('menu', keys, 'join', '&Update', '&All / any', '', '')
+   call $tk_keys('menu', keys, 'list', '&Update', 'Saved &list', '', '')
+   call $tk_keys('menu', keys, 'new', '&Update', '&New condition or operation', '', '')
+   call $tk_keys('menu', keys, 'edit', '&Update', '&Edit it', '', '')
+   call $tk_keys('menu', keys, 'remove', '&Update', '&Remove it', '', '')
+   call $tk_keys('menu', keys, 'dry', '&Update', '&Dry run', '', '')
+   call $tk_keys('menu', keys, 'apply', '&Update', 'A&pply', '', '')
+   call $tk_keys('menu', keys, 'undo', '&Update', '&Undo', '', '')
+   call $tk_keys('menu', keys, 'switch', '&View', '&Switch list', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
    return
 
 * ------------------------------------------------------------------------------------------------- the small checks every route uses
@@ -1675,6 +1694,13 @@ on.move:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, panes<pane>, mev, '', mr)                 ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    call $tk_help('hit', mev, fx + fw - 5, fy + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.bulk.page', hm, 0, 0)

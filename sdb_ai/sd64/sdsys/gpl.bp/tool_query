@@ -118,6 +118,30 @@ $include tk.h
    call $tk_keys('add', keys, 'enter', 'load', 'loadsel', 'Saved', 1)
    call $tk_keys('add', keys, 'x', 'delete', 'delsel', 'Saved', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', panes, 1)             ;* S.88 U6: in the editing panes Esc takes the name filter off first, else opens the menu bar (in Results and Saved it is 'back')
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'choose', '&Query', '&Choose the file', '', '')
+   call $tk_keys('menu', keys, 'run', '&Query', '&Run the query', '', '')
+   call $tk_keys('menu', keys, 'edit', '&Query', '&Edit the sentence', '', '')
+   call $tk_keys('menu', keys, 'save', '&Query', '&Save the query', '', '')
+   call $tk_keys('menu', keys, 'load', '&Query', '&Load a saved query', '', '')
+   call $tk_keys('menu', keys, 'filter', '&Query', '&Filter the files', '', '')
+   call $tk_keys('menu', keys, 'reread', '&Query', 'Read the files a&gain', '', '')
+   call $tk_keys('menu', keys, 'mark', 'Co&lumns', '&Mark the column', '', '')
+   call $tk_keys('menu', keys, 'break', 'Co&lumns', '&Break on it', '', '')
+   call $tk_keys('menu', keys, 'total', 'Co&lumns', '&Total it', '', '')
+   call $tk_keys('menu', keys, 'clear', 'Co&lumns', '&Clear the marks', '', '')
+   call $tk_keys('menu', keys, 'editrow', 'Con&ditions', '&Edit the row', '', '')
+   call $tk_keys('menu', keys, 'join', 'Con&ditions', '&And / or', '', '')
+   call $tk_keys('menu', keys, 'clearrow', 'Con&ditions', '&Clear the row', '', '')
+   call $tk_keys('menu', keys, 'sortitem', '&Sort', '&Choose the item', '', '')
+   call $tk_keys('menu', keys, 'sortdir', '&Sort', '&Order', '', '')
+   call $tk_keys('menu', keys, 'option', '&Options', '&Change the option', '', '')
+   call $tk_keys('menu', keys, 'back', '&Results', '&Back to the query', '', '')
+   call $tk_keys('menu', keys, 'again', '&Results', 'Run &again', '', '')
+   call $tk_keys('menu', keys, 'loadsel', 'Sa&ved', '&Load it', '', '')
+   call $tk_keys('menu', keys, 'delsel', 'Sa&ved', '&Delete it', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
 
    gosub reset.query
    fnames = '' ; fkinds = '' ; nfl = 0
@@ -134,7 +158,7 @@ $include tk.h
    done = 0
    dropped = 0 ; dict.ok = 0
    hx = 0 ; hy = 0                                                ;* the [?] button: set by the drawing of each view
-   msg = 'Choose a file (Enter), mark its columns (Space), set conditions and sorts, then R runs the query'
+   msg = ''
 
    gosub read.files
    gosub apply.filter
@@ -156,10 +180,15 @@ $include tk.h
 
    loop
       gosub set.pane
+      call $tk_menubar('draw', ctx, keys, cur.pane, '', '', mr)             ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, cur.pane, msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key returning nm
+      mr = ''
+      busy = (if filt # '' then 1 else 0)
+      if nm # '' then call $tk_menubar('key', ctx, keys, cur.pane, nm, busy, mr)       ;* the Esc rule: the file filter is taken off before the bar opens (Results and Saved have their own 'back')
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -1153,6 +1182,13 @@ keys.saved:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, cur.pane, mev, '', mr)                    ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    call $tk_help('hit', mev, hx, hy, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.query.page', hm, 0, 0)
