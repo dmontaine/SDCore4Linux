@@ -28052,7 +28052,7 @@
 "tcl:tool.menus": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 52
 },

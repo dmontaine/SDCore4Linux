@@ -69,6 +69,12 @@ $include tk.h
    call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U4: Esc opens the menu bar (this page holds nothing of its own that Esc closes first)
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'change', '&Setting', '&Change the setting', '', '')
+   call $tk_keys('menu', keys, 'pane', '&View', '&Next pane', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this setting', '', '')
 
    tids = 'editor' : @fm : 'ide' : @fm : 'terminal' : @fm : 'keys' : @fm : 'switch' : @fm : 'signout' : @fm : 'files' : @fm : 'voc' : @fm : 'dict' : @fm : 'query' : @fm : 'bulk' : @fm : 'catalog' : @fm : 'test' : @fm : 'recent'
    tlabs = 'Editor' : @fm : 'IDE' : @fm : 'Terminal' : @fm : 'Keys' : @fm : 'Switch account' : @fm : 'Sign out' : @fm : 'Files' : @fm : 'Vocabulary' : @fm : 'Dictionary' : @fm : 'Queries' : @fm : 'Bulk update' : @fm : 'Programs' : @fm : 'Tests' : @fm : 'Recent group'
@@ -81,17 +87,21 @@ $include tk.h
    si = 1                                                        ;* the row selected in the Menu pane: 1 is where the account starts, 2 its own programs, 3 to nmenu the standard tiles
    top = 0
    gen = 0
-   msg = 'Tab changes pane, Enter changes the setting'
+   msg = ''
    done = 0
 
    gosub read.all
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, pnames<pane>, '', '', mr)         ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, pnames<pane>, msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)                          ;* the cursor waits at the start of the status line: in a window made smaller it is off the screen, and the library's cursor lock takes the keyboard
       nm = ''
       screen key returning nm
+      mr = ''
+      if nm # '' then call $tk_menubar('key', ctx, keys, pnames<pane>, nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -424,6 +434,13 @@ redraw.panes:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, pnames<pane>, mev, '', mr)                ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    gosub help.click
    if clicked then return
    if mev<1> = 'press' and mev<2> = 1 then
