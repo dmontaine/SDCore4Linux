@@ -560,7 +560,7 @@ do.create:
                if px > 0 or word = 'sdsys' then
                   fbad = word : ' is already an account' ; fid = 'name'
                end else
-                  if kd = 'user' and index(' none ssh api both ', ' ' : rt : ' ', 1) = 0 then
+                  if kd = 'user' and rt # 'none' and rt # 'ssh' and rt # 'api' and rt # 'both' then
                      fbad = 'the doors are none, ssh, api or both' ; fid = 'doors'
                   end
                   if kd = 'other' and (pth[1, 1] # '/' or index(pth, ' ', 1) > 0 or len(pth) > 200) then

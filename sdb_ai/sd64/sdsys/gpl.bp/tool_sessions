@@ -588,6 +588,13 @@ on.mouse:
       if hm # '' then msg = hm
       return
    end
+   if outopen then
+      call $tk_out('mouse', ctx, mev, '', oc)                  ;* the wheel over the output pane scrolls it
+      if oc = 'handled' then
+         call $tk_out('draw', ctx, 'output', '', oc)
+         return
+      end
+   end
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>

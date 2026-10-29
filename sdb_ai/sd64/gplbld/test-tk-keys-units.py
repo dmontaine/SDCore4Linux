@@ -95,14 +95,32 @@ def strip_bas(src):
     return "\n".join(out)
 
 
-def esc_bar_ok(body):
+# What the BUSY expression of each page with an Esc case of its own must hold (the Opus review of 29 Oct 26, finding 2: a regex on "not the literal 0" passed the pre-fix tool_dict and
+# tool_query, whose busy was a variable that was 0 in the pane with its own Esc).  A page with an Esc case that is not listed here fails until its panes have been read.
+ESC_LEDGER = {
+    "tool_dict": "pi = 3",                 # the Indices pane goes back to the items; the Files and Items panes have a name filter
+    "tool_query": "cur.pane = 'File'",     # the file filter belongs to the File pane alone
+    "tool_test": "filt #", "tool_masters": "view = 2", "tool_config": "view # 1", "tool_files": "filt #", "tool_audit": "flt #", "tool_catalog": "filt #",
+    "tool_remote": "view # 1", "tool_gates": "flt #", "tool_voc": "filt #",
+    "tool_sessions": "outopen", "tool_viewers": "outopen",     # the output pane, passed as BUSY itself
+}
+
+
+def esc_bar_ok(prog, body):
     """the bar takes Esc itself ($tk_menubar 'key': the Esc rule) and the page can say when its own state wants Esc first.  A page whose source has an Esc case of its own must pass the
-    bar a BUSY that is not the literal 0 (the Opus review of the fan-out, 30 Oct 26, finding 5: tool_dict's Indices pane and tool_query's panes had an Esc case the bar's row covered)"""
+    bar a BUSY that is not the literal 0 AND hold what ESC_LEDGER says its busy must hold"""
     if "$tk_menubar('key'" not in body:
         return False
     if not re.search(r"\bcase\b[^\n]*'esc'", body):
         return True
-    return re.search(r"\$tk_menubar\('key',[^\n]*,\s*nm,\s*(?!0\s*,)[\w.]+\s*,\s*\w+\)", body) is not None
+    if re.search(r"\$tk_menubar\('key',[^\n]*,\s*nm,\s*(?!0\s*,)[\w.]+\s*,\s*\w+\)", body) is None:
+        return False
+    need = ESC_LEDGER.get(prog)
+    if need is None:
+        return False
+    if need == "outopen":
+        return re.search(r"\$tk_menubar\('key',[^\n]*,\s*nm,\s*outopen\s*,", body) is not None
+    return any(l.strip().startswith("busy = ") and need in l for l in body.split("\n"))
 
 
 def cut_comment(line):
@@ -320,10 +338,12 @@ def run_a(raw, rows):
         for r in rs:
             if not r["key"] or r["on"] == "off":          # a menu-only action has no key; a row switched off needs no handler
                 continue
-            hit =(re.search(r"\bact\s*=\s*'%s'" % re.escape(r["act"]), body) is not None
-                   or (r["key"] == "esc" and r["act"] == "menu" and esc_bar_ok(body))           # the bar takes Esc itself ($tk_menubar 'key': the Esc rule); a page with an Esc case of its own passes a BUSY
-                   or re.search(r"=\s*'%s'" % re.escape(r["key"]), body) is not None
-                   or re.search(r"\bcase\b[^\n]*'%s'" % re.escape(r["key"]), body) is not None)
+            if r["key"] == "esc" and r["act"] == "menu" and "$tk_menubar('key'" in body:
+                hit = esc_bar_ok(prog, body)           # the bar takes Esc itself ($tk_menubar 'key': the Esc rule); the page's own Esc case must NOT count as a handler of this row (it hid the faults of the fan-out)
+            else:
+                hit =(re.search(r"\bact\s*=\s*'%s'" % re.escape(r["act"]), body) is not None
+                       or re.search(r"=\s*'%s'" % re.escape(r["key"]), body) is not None
+                       or re.search(r"\bcase\b[^\n]*'%s'" % re.escape(r["key"]), body) is not None)
             if not hit:
                 res["handler"].append("%s:%s/%s" % (prog, r["key"], r["act"]))
     # reserved keys
@@ -446,7 +466,8 @@ def run_b(raw):
     m = re.search(r" act\.state: (.*?) return key\.name:", tk)
     st = m.group(1) if m else ""
     for what, text in (("the flag D from the action's state", "fl = (if ia then '' else 'D')"), ("the shown key derived (ik)", "ent = keys<i, TK.K.ENTRY> : @sm : ik : @sm : fa : @sm : fl"),
-                       ("one entry an action", "if index(seen, @fm : fa : @fm, 1) = 0 then")):
+                       ("one entry an action", "if index(seen, @fm : fa : @fm, 1) = 0 then"),
+                       ("Quit held back and put last in its menu", "if fa = 'quit' then qent = ent else m<1, -1> = ent"), ("Quit put last", "if qent # '' then m<1, -1> = qent")):
         if text not in mb:
             res["menus"].append("'menus' lacks " + what)
     for what, text in (("enabled means ON # '0' and no reason", "if keys<j, TK.K.ON> # '0' and keys<j, TK.K.WHY> = '' then ia = 1"),
@@ -677,10 +698,14 @@ mut("tool_mygates", "      if mr<1> # '' then nm = mr<4>\n", "", "the bar's answ
 mut("tool_mygates", "      nm = mr<4>\n      if nm # '' then gosub on.key", "      nm = mr<2>\n      if nm # '' then gosub on.key", "a click on the bar is dispatched on the action id, not the name", "samehandler")
 mut("tool_mygates", "      call $tk_menubar('draw', ctx, keys, 'My gates', '', '', mr)", "      call $tk_frame(ctx, keys, 'My gates', msg)\n      call $tk_menubar('draw', ctx, keys, 'My gates', '', '', mr)", "the bar is drawn after the frame", "samehandler")
 mut("tool_mygates", "      if nm # '' then call $tk_menubar('key', ctx, keys, 'My gates', nm, 0, mr)", "      if nm # '' then mr = ''", "the Esc row has no bar to take it", "handler")
-# 30 Oct 26 (the Opus review of the page fan-out, findings 1, 2, 5 and 13) - the first of these is marker M_FANOUT for --from=
+# 29 Oct 26 (the Opus reviews of the page fan-out, findings 1, 2, 5 and 13) - the first of these is marker M_FANOUT for --from=
 M_FANOUT = len(M)
 mut("tool_query", "call $tk_menubar('key', ctx, keys, cur.pane, nm, busy, mr)", "call $tk_menubar('key', ctx, keys, cur.pane, nm, 0, mr)", "a page with an Esc case of its own gives the bar no busy", "handler")
-mut("tool_dict", "call $tk_menubar('key', ctx, keys, pnames<pi>, nm, busy, mr)", "call $tk_menubar('key', ctx, keys, pnames<pi>, nm, 0, mr)", "tool_dict gives the bar no busy", "handler")# ---- PART B MUTANTS END ----
+mut("tool_query", "busy = (if cur.pane = 'File' and filt # '' then 1 else 0)", "busy = (if filt # '' then 1 else 0)", "tool_query's busy holds for every pane (the pre-fix code)", "handler")
+mut("tool_dict", "or pi = 3 then 1 else 0)", "then 1 else 0)", "tool_dict's busy leaves the Indices pane out (the pre-fix code)", "handler")
+mut("tk_keys", "            if qent # '' then m<1, -1> = qent", "            if 0 then m<1, -1> = qent", "Quit is dropped from its menu", "menus")
+mut("tk_keys", "if fa = 'quit' then qent = ent else m<1, -1> = ent", "m<1, -1> = ent", "Quit stays where the table put it", "menus")
+# ---- PART B MUTANTS END ----
 
 
 def selftest(frm, s0):

@@ -19,7 +19,7 @@
 *                                            generation, the epoch, the pane or the menus differ from what it drew last (ctx<TK.C.BAR>), so a page may call it on every pass of its
 *                                            loop.  Row 0 is written whole, which erases the right end that $tk_frame wrote (the app's name and the audience): the bar sets that
 *                                            part of the frame's cache to forgotten, so the next $tk_frame writes it again.  Call this BEFORE $tk_frame.  A page with no menu rows draws nothing.
-*     key    (ctx, keys, pane, nm, busy -> out)   nm = a key name from $sl_key.  F10 opens the first menu; Alt and a letter opens the menu whose marked letter it is; Esc opens the first menu
+*     key    (ctx, keys, pane, nm, busy -> out)   nm = a key name from $sl_key.  F10 opens the first menu; Alt and a letter opens the menu whose marked letter it is; Esc opens the first menu whose first entry is not Quit (so Esc then Enter cannot leave the page)
 *                                            when busy is 0 - busy is 1 while the page has something that Esc closes first (a filter, a sub-view, an output pane): THE ESC RULE, a page closes
 *                                            its own state first, else the bar opens.  Any other key, and any of these in a page with no menu rows, is not the bar's (out null).
 *     click  (ctx, keys, pane, mev -> out)   mev = the event of SCREEN MOUSE.  A left press on the menu row opens the menu under it; one with no title under it is used up (out 'none').
@@ -67,7 +67,10 @@ $include tk.h
             case nm = 'f10'
                start = 1
             case nm = 'esc'
-               if not(busy) then start = 1
+               if not(busy) then
+                  start = 1
+                  gosub skip.quit
+               end
             case len(nm) = 5 and nm[1, 4] = 'alt-'
                gosub find.title
          end case
@@ -147,6 +150,17 @@ paint.bar:
    call $sl_scr('put', scr)
    ctx<TK.C.BAR> = sig
    last.top = ''                                       ;* row 0 was written whole: the app's name and the audience at its right end are written again by the next $tk_frame
+   return
+
+* Esc must not land on Quit: a stray Esc then Enter would leave the page (and drop what it holds) without a word.  The first menu whose first entry is not Quit is opened instead;
+* F10, Alt and a click still open File.  A bar whose menus all begin with Quit opens the first.
+skip.quit:
+   for k = 1 to nmenu
+      if menus<k, 2, 3> # 'quit' then
+         start = k
+         exit
+      end
+   next k
    return
 
 * Alt and a letter: start = the number of the menu whose marked letter it is, 0 if none (a title that begins with > is a submenu, not on the bar)

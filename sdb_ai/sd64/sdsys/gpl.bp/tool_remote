@@ -665,7 +665,7 @@ do.delete:
 * N: ask for the fields, check every one the way SET.SERVER does, then give the terminal to the verb
 do.new:
    * S.88: one form with the seven answers in view; the first one SET.SERVER would refuse is said under the entries and the form stays
-   spec = 'Define a server' : @fm : '&Define' : @fm : 'Pin: the word connect (fetch and confirm it) or the 64 hex digits from the other administrator.  Port 4247 is a full SD Core, 4249 a Solo.'
+   spec = 'Define a server' : @fm : '&Define' : @fm : 'Pin: connect or 64 hex digits.  Port 4247 SD Core, 4249 Solo.'
    spec<-1> = 'name' : @vm : 'Name (a-z, 0-9)' : @vm : 18 : @vm : 16
    spec<-1> = 'host' : @vm : 'Host (DNS, IPv4, IPv6)' : @vm : 60 : @vm : 253
    spec<-1> = 'port' : @vm : 'API port' : @vm : 8 : @vm : 5

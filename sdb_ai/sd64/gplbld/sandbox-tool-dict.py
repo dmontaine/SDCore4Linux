@@ -658,8 +658,7 @@ def section_try():
     goto(h, "amt")
     h.typed("t", idle=1.2)
     h.typed("nosuchrec", idle=1.0)                 # S.88: the picker lists only records that exist; a filter that matches none has nothing to take
-    h.key("esc", idle=1.0)
-    h.key("esc", idle=1.0)
+    h.key("esc", idle=1.0)                         # the picker ends; the page says 'nothing tried' (a second Esc would reach the page and its key handler clears that message)
     arow("D5f", "a record that is not in the file cannot be picked: Esc leaves with 'nothing tried' and nothing is shown", "nothing tried" in st(h) and "Try an item" not in h.text(), repr(st(h)))
     goto(h, "uncomp")
     h.typed("t", idle=1.5)

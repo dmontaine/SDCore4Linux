@@ -109,9 +109,11 @@ def checks(s):
     kb = re.search(r"case op = 'key'\n(.*?)case op = 'click'", mb, re.S)
     kb = kb.group(1) if kb else ""
     ck("M5 op key: F10 starts on the first menu, Alt and a letter on the menu it marks, Esc on the first menu only when busy is off; anything else leaves start 0 and takes nothing",
-       ordered(kb, "start = 0", "case nm = 'f10'", "start = 1", "case nm = 'esc'", "if not(busy) then start = 1", "case len(nm) = 5 and nm[1, 4] = 'alt-'", "gosub find.title", "if start > 0 then gosub run.bar"), kb[:300])
+       ordered(kb, "start = 0", "case nm = 'f10'", "start = 1", "case nm = 'esc'", "if not(busy) then", "gosub skip.quit", "case len(nm) = 5 and nm[1, 4] = 'alt-'", "gosub find.title", "if start > 0 then gosub run.bar"), kb[:300])
 
     pb = label(mb, "paint.bar")
+    sq = label(mb, "skip.quit")
+    ck("M5b Esc does not land on Quit: skip.quit opens the first menu whose first entry (value 2, sub-value 3 = the action id) is not quit, and leaves menu 1 when every menu begins with it", ordered(sq, "for k = 1 to nmenu", "if menus<k, 2, 3> # 'quit' then", "start = k", "exit", "next k", "return") and ordered(kb, "case nm = 'esc'", "gosub skip.quit"), sq[:200])
     ck("M6 draw: a signature of width, generation, epoch, pane and menus; nothing is written when it is the same as ctx<TK.C.BAR>; after a draw it records it and clears last.top; ctx<TK.C.GEN> is never assigned",
        "sig = ctx<TK.C.W> : '/' : ctx<TK.C.GEN> : '/' : ctx<TK.C.EPOCH> : '/' : convert(@fm : @vm : @sm, '|~^', menus)" in code(label(mb, "bar.sig")) and ordered(pb, "gosub bar.sig", "if sig = ctx<TK.C.BAR> then return", "call $sl_menu('init'", "call $sl_menu('draw'", "ctx<TK.C.BAR> = sig", "last.top = ''")
        and "common /tkframe/ last.stat, last.keys, last.bord, last.top, last.gen, last.geo" in mb and "common /tkframe/ last.stat, last.keys, last.bord, last.top, last.gen, last.geo" in fr and not re.search(r"ctx<TK\.C\.GEN>\s*=", mb), pb[:300])
@@ -166,7 +168,9 @@ MUTANTS = [
     ("the bar asks a kernel key", "tk_menubar", "      call $tk_keys('keyof', keys, r, pane, kn, '', '')\n", "      call $tk_keys('keyof', keys, r, pane, kn, '', '')\n      x = kernel(K$AI.STATUS, 0)\n", "M2"),
     ("the bar knows a key of its own", "tk_menubar", "            case nm = 'f10'\n               start = 1\n", "            case nm = 'f10' or nm = 'ctrl-q'\n               start = 1\n", "M3"),
     ("the bar draws before it knows it has menus", "tk_menubar", "   gosub make.menus\n   if nmenu = 0 then return                            ;* a page", "   gosub make.menus\n   null                                                ;* a page", "M4"),
-    ("Esc always opens the bar", "tk_menubar", "               if not(busy) then start = 1", "               start = 1", "M5"),
+    ("Esc always opens the bar", "tk_menubar", "               if not(busy) then\n                  start = 1\n                  gosub skip.quit\n               end", "               start = 1\n               gosub skip.quit", "M5"),
+    ("Esc lands on Quit", "tk_menubar", "                  gosub skip.quit\n", "", "M5b"),
+    ("the Quit skip tests the wrong action", "tk_menubar", "if menus<k, 2, 3> # 'quit' then", "if menus<k, 2, 3> # 'refresh' then", "M5b"),
     ("any key opens the bar", "tk_menubar", "            case len(nm) = 5 and nm[1, 4] = 'alt-'\n               gosub find.title\n", "            case 1\n               start = 1\n", "M5"),
     ("the bar draws every time", "tk_menubar", "   if sig = ctx<TK.C.BAR> then return\n", "", "M6"),
     ("the bar bumps the generation", "tk_menubar", "   ctx<TK.C.BAR> = sig\n   last.top = ''                                       ;* row 0 was written whole", "   ctx<TK.C.BAR> = sig\n   ctx<TK.C.GEN> = ctx<TK.C.GEN> + 1\n   last.top = ''                                       ;* row 0 was written whole", "M6"),

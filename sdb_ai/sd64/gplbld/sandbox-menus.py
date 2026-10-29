@@ -278,7 +278,7 @@ def main():
         # S.88: one form (label, command, glyph, wait): Tab between the entries, Return in an entry presses Save; the wait entry starts as y
         h.typed("Orders\twho.am.i\r", idle=1.2)
         T = h.text()
-        row("F2 asks the label, the command, the glyph and whether to wait; the item is in the list (Orders, who.am.i, waits yes) and the line under the page says 'added Orders'",
+        row("Ctrl-N shows the form with the label, the command, the glyph and whether to wait; the item is in the list (Orders, who.am.i, waits yes) and the line under the page says 'added Orders'",
             re.search(r"Orders\s+>>>\s+who\.am\.i\s+yes", T) is not None and "added Orders" in h.line(40), T[-500:])
         rec = g.plain("zzhm", ["CT &menus& home"])
         row("...and it is in the person's own file: the record HOME of &menus& holds Orders and who.am.i", has(rec, r"Orders") and has(rec, r"who\.am\.i"), repr(rec[:6]))

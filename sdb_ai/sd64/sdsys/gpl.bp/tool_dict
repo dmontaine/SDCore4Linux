@@ -1243,7 +1243,6 @@ do.test:
       msg = 'nothing tried'
       return
    end
-   lastrec = rid
    rid = trim(rid)
    if rid = '' or len(rid) > 200 then
       msg = 'give the id of a record'

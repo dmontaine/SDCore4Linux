@@ -107,7 +107,7 @@ def checks(raw):
     ck("AC8", "C asks the kind (user, group or other only), a name that passes plain.word and is not an account already (nor sdsys), and then what the kind needs, in that order and BEFORE any sentence: a user account the doors (none, ssh, api or both), "
        "an other account an absolute path with no space; a group account is made with no.query after the box; a user account is handed the terminal",
        "case kd # 'user' and kd # 'group' and kd # 'other'" in cc and "call $tk_form('open', ctx, spec, fv, fo)" in cc and 0 < cc.find("call $tk_form('run'") < cc.find("call $tk_form('say'") < cc.rfind("call $tk_form('close'") < cc.find("sent = ")
-       and cc.count("call $tk_form('close'") == 2 and "if px > 0 or word = 'sdsys' then" in cc and "index(' none ssh api both ', ' ' : rt : ' ', 1) = 0" in cc and "pth[1, 1] # '/' or index(pth, ' ', 1) > 0 or len(pth) > 200" in cc
+       and cc.count("call $tk_form('close'") == 2 and "if px > 0 or word = 'sdsys' then" in cc and "rt # 'none' and rt # 'ssh' and rt # 'api' and rt # 'both'" in cc and "pth[1, 1] # '/' or index(pth, ' ', 1) > 0 or len(pth) > 200" in cc
        and "sent = 'create.account group ' : nn : ' no.query'" in cc and "sent = 'create.account user ' : nn : ' ' : rt" in cc and "sent = 'create.account other ' : nn : ' ' : pth : ' no.query'" in cc
        and 0 < cc.find("case kd # 'user'") < cc.find("gosub plain.word") < cc.find("if px > 0") < cc.find("sent = ") and cc.count("gosub confirm.and.hand.over") == 1 and cc.count("gosub confirm.and.run") == 2 and "use.x = 1" in cc, cc[:200])
     dd = block(pg, "do.delete")
@@ -178,7 +178,8 @@ MUTANTS = [
     ("C allows an account that exists", "AC8", sub("page", "if px > 0 or word = 'sdsys' then", "if 0 then")),
     ("C leaves the form open on every way out", "AC8", sub("page", "      if fans # 'ok' then\n         call $tk_form('close', ctx, '', '', '')\n", "      if fans # 'ok' then\n")),
     ("C does not say a refusal in the form", "AC8", sub("page", "      call $tk_form('say', ctx, fbad, fid, '')\n", "      msg = fbad\n")),
-    ("C allows another door word", "AC8", sub("page", "index(' none ssh api both ', ' ' : rt : ' ', 1) = 0", "index(' none ssh api both root ', ' ' : rt : ' ', 1) = 0")),
+    ("C allows another door word", "AC8", sub("page", "rt # 'none' and rt # 'ssh' and rt # 'api' and rt # 'both'", "rt # 'none' and rt # 'root' and rt # 'ssh' and rt # 'api' and rt # 'both'")),
+    ("C allows two door words", "AC8", sub("page", "rt # 'none' and rt # 'ssh' and rt # 'api' and rt # 'both'", "index(' none ssh api both ', ' ' : rt : ' ', 1) = 0")),
     ("C allows a relative path", "AC8", sub("page", "pth[1, 1] # '/' or index(pth, ' ', 1) > 0 or len(pth) > 200", "index(pth, ' ', 1) > 0 or len(pth) > 200")),
     ("a group account is made without no.query", "AC8", sub("page", "' no.query'\n         typed = ''\n         el = ''\n         el<-1> = 'A group account", "''\n         typed = ''\n         el = ''\n         el<-1> = 'A group account")),
     ("X needs no typed name", "AC9", sub("page", "   typed = anm<ci>\n", "   typed = ''\n")),

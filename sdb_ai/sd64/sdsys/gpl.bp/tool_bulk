@@ -705,29 +705,29 @@ ask.op:
          o.a1 = tv
       case o.kind = 'replace'
          * S.88: one form with both texts in view; the first one check.text refuses is said under the entries and the form stays
-         spec = 'Operation: replace in attribute ' : o.attr : @fm : '&Use' : @fm : 'Printable ASCII.  The first text is not empty; an empty second text takes the first out.'
+         spec = 'Operation: replace in attribute ' : o.attr : @fm : '&Use' : @fm : 'Printable ASCII.  An empty second text takes the first out.'
          spec<-1> = 'old' : @vm : 'Replace this text' : @vm : 100 : @vm : 300
          spec<-1> = 'new' : @vm : 'with this text' : @vm : 100 : @vm : 300
-         fv = old1 : @fm : old2
-         call $tk_form('open', ctx, spec, fv, fo)
+         fvals = old1 : @fm : old2
+         call $tk_form('open', ctx, spec, fvals, fo)
          if fo = 'no' then
             msg = 'the form does not fit this window: the operation was not added'
             return
          end
          loop
-            call $tk_form('run', ctx, fans, fv, fid)
+            call $tk_form('run', ctx, fans, fvals, fid)
             if fans # 'ok' then
                call $tk_form('close', ctx, '', '', '')
                return
             end
             fbad = '' ; fid = ''
-            tv = fv<1>
+            tv = fvals<1>
             gosub check.text
             if not(tok) then
                fbad = twhy ; fid = 'old'
             end else
                o.a1 = tv
-               tv = fv<2>
+               tv = fvals<2>
                emptyok = 1
                gosub check.text
                emptyok = 0

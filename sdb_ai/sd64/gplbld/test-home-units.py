@@ -362,6 +362,9 @@ def checks(s):
        "(@abort.code is 0 again when the command processor returns, so it is not used), that is read BEFORE $sl_cleanup, and an aborted command waits for a key (wait.key) before the screen is taken again, as a tile with a pause does",
        ordered(rcm, "gosub set.sentinel", "execute sentence trapping aborts", "aborted = (@abort.message # sentinel)", "call $sl_cleanup", "if pause or aborted then gosub wait.key", "gosub reopen")
        and "@abort.code" not in rcm and "sentv = 1 / zero" in rcm and "catch sys.program.div_zero" in rcm and ordered(rcm, "sentinel = ''", "try", "sentinel = @abort.message", "if sentv # 0 then sentinel = ''"), rcm)
+    ck("H80 F1 shows tool.home.page (a key row f1/help, the case before F5) and the AI menu entry follows the AI: 'Ask the AI' (enabled, action ai) when ctx<TK.C.AI> is set, 'AI is off' dimmed otherwise, and the action moves the focus to the AI line (S.88 U9; an Opus review of 29 Oct found no guard for it)",
+       "call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)" in th and "case nm = 'f1'\n         call $tk_help('box', 'tool.home.page', hm, 0, 0)" in th
+       and "if ctx<TK.C.AI> then m = '&AI|&Ask the AI~~ai' else m = '&AI|AI is off~~ai~D'" in th and "case cmd = 'ai'\n         gosub ai.focus.on" in th)
     ck("H34d the AI is told there is nowhere to run a command ('nocmd', field 11) when the Terminal tile is off for the account, BEFORE it is asked, and a 'command' answer is refused with a message and never reaches run.command in that case (TUI phase 2 review, b: the Terminal tile off "
        "means no command prompt through the AI either; this tightens a default)",
        ordered(th, "if terminal.off then actx<11> = 'nocmd'", "call $tk_ai('ask', ctx, actx, res)", "case res<1> = 'command' and terminal.off", "case res<1> = 'command'\n         sentence = res<2>")
@@ -475,6 +478,9 @@ MUTANTS = [
     ("the Back tile stands where Sign out does", "tool_home", "               tl<i, HT.X> = xcol<1>", "               tl<i, HT.X> = xcol<ncol>"),
     ("the header tiles are placed once and not after a resize", "tool_home", "layout:\n   gosub place.header\n", "layout:\n"),
     ("the header is cleared over the Switch account tile", "tool_home", "screen clear at 0,hdy size xcol<ncol - 1> - 1,3", "screen clear at 0,hdy size xcol<ncol - 1> + 5,3"),
+    ("the AI menu entry always says off", "tool_home", "if ctx<TK.C.AI> then m = '&AI|&Ask the AI~~ai' else", "if 0 then m = '&AI|&Ask the AI~~ai' else"),
+    ("the AI menu action does nothing", "tool_home", "case cmd = 'ai'\n         gosub ai.focus.on", "case cmd = 'ai'\n         null"),
+    ("F1 asks for another record", "tool_home", "'tool.home.page', hm, 0, 0)", "'tool.home.nopage', hm, 0, 0)"),
     ("the AI is offered the copies of the Recent group", "tool_home", "if tl<i, HT.ID>[1, 2] # 'r:' then", "if @true then"),
     ("an empty band takes a row", "tool_home", "      if c0 > 0 then ys = bandend + 1", "      ys = bandend + 1"),
     ("the Esc key is on the function-key row of the top page", "tool_home", "   if cur.menu # '' then call $tk_keys('add', keys, 'esc', 'back', 'back', '', 1)\n", "   call $tk_keys('add', keys, 'esc', 'back', 'back', '', 1)\n"),

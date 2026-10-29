@@ -308,7 +308,7 @@ MUTANTS = [
     ("an eleventh operation", "TB16", sub("page", "   if nopr >= NOPS then\n      msg = 'at most ' : NOPS : ' operations'\n      return\n   end\n", "")),
     ("a bigger selection is read", "TB16", sub("page", "MAXSEL = 100000", "MAXSEL = 100000000")),
     ("text with a control character is taken", "TB17", sub("page", "      if d < 32 or d > 126 then", "      if d < 0 then")),
-    ("a replace text is not checked", "TB17", sub("page", "         emptyok = 1\n         gosub check.text\n         emptyok = 0\n", "         emptyok = 1\n         emptyok = 0\n")),
+    ("a replace text is not checked", "TB17", sub("page", "               emptyok = 1\n               gosub check.text\n               emptyok = 0\n", "               emptyok = 1\n               emptyok = 0\n")),
     ("attribute 0 is taken", "TB17", sub("page", "tn < 1 or tn > 999", "tn < 0 or tn > 999")),
     ("a copy onto the same attribute is taken", "TB17", sub("page", "         if ra.n = o.attr then\n            msg = 'copying an attribute onto itself changes nothing'\n            return\n         end\n", "")),
     ("the preview shows a value as it is", "TB18", sub("page", "         sv = rec<fd>\n         gosub safe.text\n         bef = sv", "         sv = rec<fd>\n         bef = sv")),

@@ -147,6 +147,11 @@ def checks(raw):
     ck("SS16", "every command the page ran is audited, once, after $tk_run answered without an error: audit.run writes 'tool run app=tool.sessions command=' + the sentence + the status, and it is called in the else branch of each run, before the status line is made",
        "void kernel(K$AUDIT, 'tool run app=tool.sessions command=' : sent : ' status=' : stat)" in ar and pg.count("gosub audit.run") == 3
        and len(re.findall(r"if err # '' then\s*\n\s*msg = err\s*\n(?:\s*call \$tk_out\('add', ctx, 'refuse'[^\n]*\n)?\s*end else\s*\n\s*gosub audit\.run\s*\n\s*gosub first\.line", pg)) == 3)
+    lo_rows = [int(x) for x in re.findall(r"lo<\d> = '[a-z]+' : @vm : \d+ : @vm : 1 : @vm : (\d+) : @vm : 138", pg)]
+    ck("SS17", "the output pane (Ctrl-O): the open layout (rows named lo, the closed one stays the page's own) is 13 + 10 + 10 + 6 = 39 rows with the pane named output; the bar is given outopen as BUSY and Esc closes the pane first; Ctrl-PgUp / Ctrl-PgDn and the wheel scroll it only while open; every command's answer is added once, refusals too",
+       lo_rows == [13, 10, 10, 6] and sum(lo_rows) == 39 and "lo<4> = 'output'" in pg and "nm, outopen, mr)" in pg and "case nm = 'esc'\n         if outopen then gosub toggle.out" in pg
+       and "case (nm = 'ctrl-pgup' or nm = 'ctrl-pgdn') and outopen" in pg and 0 < pg.find("if outopen then\n      call $tk_out('mouse', ctx, mev, '', oc)") < pg.find("if mev<1> = 'press' and mev<2> = 1 then")
+       and pg.count("call $tk_out('add'") == 6 and "if outopen then call $tk_out('draw', ctx, 'output', '', oc)" in pg and "case nm = 'ctrl-o'\n         gosub toggle.out" in pg, repr(lo_rows))
     return rows
 
 
@@ -210,6 +215,11 @@ MUTANTS = [
     ("a command is run without an audit line (unlock)", "SS16", sub("page", "         gosub audit.run\n         gosub first.line\n         otext = said\n         if otext = '' then otext = 'ran'\n         call $tk_out('add', ctx, 'ok', sent : '  ' : otext, '')\n         msg = (if said # '' then said[1, 130] else 'released')", "         gosub first.line\n         otext = said\n         if otext = '' then otext = 'ran'\n         call $tk_out('add', ctx, 'ok', sent : '  ' : otext, '')\n         msg = (if said # '' then said[1, 130] else 'released')")),
     ("the audit line is written even when the command did not run", "SS16", sub("page", "      call $tk_run(allow, sent, out, stat, err)\n      if err # '' then\n         msg = err\n         call $tk_out('add', ctx, 'refuse', sent : '  ' : err, '')           ;* what the command answered stays in the output pane, whether or not it is open\n      end else\n         gosub audit.run\n         gosub first.line\n         otext = said\n         if otext = '' then otext = 'ran'\n         call $tk_out('add', ctx, 'ok', sent : '  ' : otext, '')\n         msg = (if said # '' then said[1, 130] else 'done')", "      call $tk_run(allow, sent, out, stat, err)\n      gosub audit.run\n      if err # '' then\n         msg = err\n         call $tk_out('add', ctx, 'refuse', sent : '  ' : err, '')           ;* what the command answered stays in the output pane, whether or not it is open\n      end else\n         gosub first.line\n         otext = said\n         if otext = '' then otext = 'ran'\n         call $tk_out('add', ctx, 'ok', sent : '  ' : otext, '')\n         msg = (if said # '' then said[1, 130] else 'done')")),
     ("the audit line names the wrong thing", "SS16", sub("page", "'tool run app=tool.sessions command=' : sent : ' status=' : stat", "'tool run app=tool.sessions command=' : uid : ' status=' : stat")),
+    ("the bar is not told the output pane is open", "SS17", sub("page", "nm, outopen, mr)", "nm, 0, mr)")),
+    ("Esc does not close the output pane", "SS17", sub("page", "case nm = 'esc'\n         if outopen then gosub toggle.out", "case nm = 'esc'\n         if 0 then gosub toggle.out")),
+    ("the locks box of the open layout is a row too tall", "SS17", sub("page", "lo<2> = 'locks' : @vm : 2 : @vm : 1 : @vm : 10", "lo<2> = 'locks' : @vm : 2 : @vm : 1 : @vm : 11")),
+    ("the wheel does not scroll the pane", "SS17", sub("page", "call $tk_out('mouse', ctx, mev, '', oc)", "oc = ''")),
+    ("an answer is not kept in the pane", "SS17", sub("page", "call $tk_out('add', ctx, 'ok', sent : '  ' : otext, '')", "oc = ''")),
 ]
 
 
