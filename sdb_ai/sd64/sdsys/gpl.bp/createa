@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm S.88 plan 2.9 (D2): RECOVERY-ON, the new user account's editors keep a recovery copy of unsaved text (off unless typed); CA$RECOVERY in createacc.h; !create_account
+*           refuses it for a group or other account (11771); the audit gates= list names it.
 * 26 Oct 26 dm S.75, home: START-MENU / START-TERMINAL (where the account starts) and PINS-ON (the person may add programs of their own to their home screen), the words MODIFY.ACCOUNT takes
 *           that differ from the delivered state; CA$START and CA$PINS in createacc.h; two start words are refused (11791) before anything is made; the audit gates= list names pins-on and a
 *           start= tail is written when a start word was given.
@@ -151,7 +153,7 @@
 *
 * START-DESCRIPTION:
 *
-* CREATE.ACCOUNT USER  <name> {SSH | API | BOTH | NONE} {SH-ON} {OS-ON} {VOC-ON} {BP-ON} {DICT-ON} {SHARED-READ-OFF} {SHARED-WRITE-ON} {NET-ON} {FILES-ON} {START-MENU | START-TERMINAL} {PINS-ON} {NO.QUERY}
+* CREATE.ACCOUNT USER  <name> {SSH | API | BOTH | NONE} {SH-ON} {OS-ON} {VOC-ON} {BP-ON} {DICT-ON} {SHARED-READ-OFF} {SHARED-WRITE-ON} {NET-ON} {FILES-ON} {START-MENU | START-TERMINAL} {PINS-ON} {RECOVERY-ON} {NO.QUERY}
 * CREATE.ACCOUNT GROUP <name> {NO.QUERY}
 * CREATE.ACCOUNT OTHER <name> <pathname> {NO.QUERY}
 *
@@ -180,6 +182,8 @@
 *                 (SET.START.DEFAULT; delivered as menu).  Both in one command are refused (11791) before anything is made.  Any account type may have one (10087 does not apply).
 *     PINS-ON     (26 Oct 26, S.75) the person may add programs of their own to their home screen (MY.MENU).  Off unless typed.  Any account type may have it.
 *                 MODIFY.ACCOUNT's START-DEFAULT and PINS-OFF restate what an account has when neither is typed here, so they are not accepted here (as SHARED-READ-ON is not).
+*     RECOVERY-ON (28 Oct 26, S.88 plan 2.9) the account's editors keep a recovery copy of text that was not saved, so a hang-up or an abort does not lose it.  Off
+*                 unless typed.  A user account only (11771).  RECOVERY-OFF restates the default and is not accepted here.
 *   SH-ON and OS-ON are two independent switches, so "SH-ON OS-ON" gives both and neither cancels the
 *   other.  A GROUP or OTHER account has no Linux user of its own, so it is refused all four (10087,
 *   10105).  MODIFY.ACCOUNT changes any of them later, either way.  ATTACH is install-only and says only
@@ -265,7 +269,7 @@ $include createacc.h
      gosub more.args
 
    case 1
-    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {no.query}'
+    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {recovery-on} {no.query}'
     crt '                create.account group <group name> {start-menu | start-terminal} {pins-on} {no.query}'
     crt '                create.account other <account name> <pathname> {start-menu | start-terminal} {pins-on} {no.query}'
     crt '  A new user account starts with no ssh, no API, no shell (sh), no os.execute, and no right to change'
@@ -275,6 +279,7 @@ $include createacc.h
     crt '  the words above give them, and modify.account changes any of them afterwards, either way.'
     crt '  It starts where the system default says (set.start.default) unless start-menu or start-terminal is typed,'
     crt '  and cannot add programs of its own to its home screen unless pins-on is typed.'
+    crt '  Its editors keep no recovery copy of unsaved text unless recovery-on is typed (a user account only).'
     @system.return.code = -ER$ARGS
     stop
    end case
@@ -311,6 +316,7 @@ $include createacc.h
    if settings<CA$SHARED.READ.OFF> = 1 then gates<-1> = 'shared-read-off'
    if settings<CA$SHARED.WRITE> = 1 then gates<-1> = 'shared-write-on'
    if settings<CA$PINS> = 1 then gates<-1> = 'pins-on'
+   if settings<CA$RECOVERY> = 1 then gates<-1> = 'recovery-on'     ;* 28 Oct 26, S.88 plan 2.9 (D2)
    if gates = '' then gates = 'none' else gates = convert(@fm, ',', gates)
 * 26 Oct 26 dm - S.75, home: where the account was told to start is a tail of its own, only when a start word was typed (start=menu or start=terminal); an account that follows the system default
 *   has the line it always had.
@@ -401,6 +407,11 @@ more.args:
             settings<CA$START> = downcase(token[7, 99])
          case upcase(token) = 'PINS-ON'
             settings<CA$PINS> = 1
+
+* 28 Oct 26 dm - S.88 plan 2.9 (D2): RECOVERY-ON, the account's editors keep a recovery copy of unsaved text; off unless typed.  !create_account refuses it for a group or other
+*   account (11771) before anything is made.  RECOVERY-OFF restates the default and is not accepted.
+         case upcase(token) = 'RECOVERY-ON'
+            settings<CA$RECOVERY> = 1
 
 * 11 Sep 26 dm - ATTACH (renamed from ADOPT 19 Sep).  ***THE TESTS ARE IN THE
 *   CASE CONDITION, AND THAT IS THE POINT***: with either gate shut the word

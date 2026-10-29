@@ -6,6 +6,8 @@
 * START-HISTORY:
 * 12 Oct 26 dm  New.
 * 19 Oct 26 dm  SL.S.DIFF (sl.h): text the terminal already shows in the same styles is not written again.
+* 28 Oct 26 dm  S.88 phase 2 (S1): a control character in the text is never sent to the terminal (see the description).
+* 28 Oct 26 dm  S.88 phase 2 (S1, review): the C1 controls too - bytes 128 to 159 on a terminal that is not in UTF-8 mode, C2 80 to C2 9F in UTF-8 mode.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -16,7 +18,21 @@
 *            to match what is drawn, so scr must be the caller's own variable: it is changed in place.
 *     x y    the cell of the first character, from 0 as in @(x, y)
 *     text   one line.  A mark character (field mark and the like) is shown as a dot: the shadow is
-*            a dynamic array.
+*            a dynamic array.  A CONTROL CHARACTER is never sent to the terminal (28 Oct 26, S.88 phase 2, S1: text that
+*            comes from data - a record, a record id, a lock id, a file name, an answer of the AI, a help page - can hold an
+*            escape sequence, and sent raw it retitles the window, wipes the screen or types into the terminal): a tab is
+*            shown as a blank, DEL as ?, and every other character below a blank as the letter that is 64 above it (ESC as [,
+*            NUL as @, return as M) in the reverse style, ONE CELL for ONE CHARACTER, so the widths a caller worked out stay
+*            right.  The shadow holds what is shown, not the control character.  THE C1 CONTROLS (28 Oct 26, review): 0x9B is CSI
+*            on a terminal that is not in UTF-8 mode.  The terminal is taken as UTF-8 when LC_ALL, else LC_CTYPE, else LANG says
+*            UTF-8 (UTF-8 or UTF8, as the IDE decides), or when the program opened the screen with LINES.  Not UTF-8: the bytes
+*            128 to 159 are shown like the other controls, as the character 64 below (0x9B as [), reverse, one cell each.  UTF-8: the
+*            two-byte form C2 80 to C2 9F is shown as a dot and that letter, reverse, two cells for the two bytes (the shadow counts
+*            bytes); every other sequence, a curly quote E2 80 9C included, and the bytes 160 up outside UTF-8 mode, pass.
+*            What passes unchanged: every printable
+*            ASCII character, the other bytes from 128 up (UTF-8 text, and the bytes of the glyphs a program writes itself) and the
+*            nine stand-ins of $sl_line, CHAR(14) to CHAR(22), which this routine turns into line-drawing characters
+*            below: they are the library's own glyph path, and are harmless as data (they become a line character).
 *     attr   either one style code (n r u x, see $sl_attr) for all of text, or a string as long as
 *            text with one code per character
 *
@@ -38,6 +54,47 @@ $catalog $sl_put
 $include sl.h
 
    common /sllin/ ln.on
+   common /slctl/ ctl.from, ctl.to, loc.mode, c1.from, c1.to
+
+   * 28 Oct 26 (S1, C1 controls): is the terminal in UTF-8 mode?  Resolved once per process from LC_ALL, then LC_CTYPE, then LANG, as a shell does and as the IDE and $tk_open do (1 = UTF-8, 2 = not).
+   *   A program that opened the screen with LINES has said so itself ($sl_line 'on'), and that counts as UTF-8 too.  A block of COMMON starts as 0 in every variable, or unassigned.
+   if unassigned(loc.mode) then loc.mode = 0
+   if loc.mode # 1 and loc.mode # 2 then
+      loc = env('LC_ALL')
+      if loc = '' then loc = env('LC_CTYPE')
+      if loc = '' then loc = env('LANG')
+      loc = upcase(loc)
+      loc.mode = 2
+      if index(loc, 'UTF-8', 1) > 0 or index(loc, 'UTF8', 1) > 0 then loc.mode = 1
+   end
+
+   * 28 Oct 26 (S1): the control characters and what each is shown as; made once per process.  The stand-ins CHAR(14) to CHAR(22) are not in the list (the library's glyphs, below)
+   *   and the tab is dealt with before it (a blank).  A block of COMMON starts as 0 in every variable, or unassigned.
+   if unassigned(ctl.from) then ctl.from = ''
+   if unassigned(ctl.to) then ctl.to = ''
+   if len(ctl.from) < 20 then
+      ctl.from = ''
+      ctl.to = ''
+      for ci = 0 to 31
+         if ci # 9 and (ci < 14 or ci > 22) then
+            ctl.from := char(ci)
+            ctl.to := char(ci + 64)
+         end
+      next ci
+      ctl.from := char(127)
+      ctl.to := '?'
+   end
+   * The C1 controls, bytes 128 to 159 (0x9B is CSI on a terminal that is not in UTF-8 mode): each is shown as the character 64 below it (0x9B as [), as the C0 controls are 64 above
+   if unassigned(c1.from) then c1.from = ''
+   if unassigned(c1.to) then c1.to = ''
+   if len(c1.from) < 32 then
+      c1.from = ''
+      c1.to = ''
+      for ci = 128 to 159
+         c1.from := char(ci)
+         c1.to := char(ci - 64)
+      next ci
+   end
 
    n = len(text)
    if n = 0 then return
@@ -55,6 +112,35 @@ $include sl.h
       cells = cells[1, n]
    end
    text = convert(@fm : @vm : @sm : @tm : char(255), '.....', text)
+
+   * 28 Oct 26 (S1): a control character in the text is shown, not sent.  One cell for one character, so n and the cells are as they were; the character's cell is drawn in reverse.
+   *   (COMPARE, not =, as below.)
+   text = convert(char(9), ' ', text)
+   safe = convert(ctl.from, ctl.to, text)
+   * The C1 controls.  Not UTF-8: the bytes 128 to 159, one for one.  UTF-8: only the two-byte form C2 80 to C2 9F (a lead byte can only be C2 there; the bytes 128 to 191 inside a
+   *   well-formed sequence, as in a curly quote E2 80 9C, are left alone), shown as '.' and the letter, two cells for the two bytes, as the shadow counts bytes.
+   if loc.mode = 1 or ln.on = 1 then
+      k = 1
+      loop
+         p = index(safe, char(194), k)
+      while p > 0 do
+         c2 = 0
+         if p < n then c2 = seq(safe[p + 1, 1])
+         if c2 >= 128 and c2 <= 159 then
+            safe = safe[1, p - 1] : '.' : char(c2 - 64) : safe[p + 2, n]
+         end else
+            k += 1
+         end
+      repeat
+   end else
+      safe = convert(c1.from, c1.to, safe)
+   end
+   if compare(safe, text) # 0 then
+      for ci = 1 to n
+         if compare(safe[ci, 1], text[ci, 1]) # 0 then cells = cells[1, ci - 1] : 'r' : cells[ci + 1, n]
+      next ci
+      text = safe
+   end
 
    * Clip to the screen and to the clip rectangle
    x0 = 0 ; x1 = sw - 1

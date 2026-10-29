@@ -4,6 +4,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 phase 2 (S3): the wait is a second at a time whether or not AUTOLOGOUT is set.  The kernel now measures
+*               idle time across keyin() calls (linuxio.c), so a one-second slice no longer stops AUTOLOGOUT firing, and the
+*               slice of 0 for an AUTOLOGOUT session, which delayed a resize until the next key, is gone.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 18 Oct 26 dm  New (terminal 140 by 42, phase 4).
 * END-HISTORY
@@ -25,7 +28,7 @@
 *   (a long line's end, a prompt on a row below the window) the program calls this BEFORE it reads a key, and while the cursor
 *   is off the screen the user types blind.  So: the screen is cleared, a warning is drawn in the upper left corner (reverse
 *   video, wrapped to the window), and every key and every mouse report is discarded.  The window is looked at about once a
-*   second (a session with AUTOLOGOUT set waits on the keyboard alone, so a resize is noticed at its next key); when it is big
+*   second (AUTOLOGOUT still fires: the kernel counts the idle time across the one-second waits); when it is big
 *   enough to show the cursor the routine returns 'ok'.  Ctrl-Q is the one key that does anything: it changes the warning to
 *   "Leave? (changes are NOT saved) y/n" in the same box, y leaves ('quit') and anything else goes back to the warning.  The
 *   way out is the routine's own, never the program's prompt, which may be on a row that cannot be seen.
@@ -42,7 +45,6 @@ subroutine sl_guard(name, minw, minh, cx, cy, result)
 $catalog $sl_guard
 
 $include keys.h
-$include int$keys.h
 $include err.h
 
    equate BOX.WIDE to 70           ;* the warning's width, if the window is wider
@@ -52,11 +54,10 @@ $include err.h
    if cx < w and cy < h then return
 
    asking = @false
-   slice = (if kernel(K$AUTOLOGOUT, -1) then 0 else 1)   ;* seconds; 0 = wait for a key alone (AUTOLOGOUT must be able to fire)
    gosub draw.box
 
    loop
-      if slice then k = keyin(slice) else k = keyin()
+      k = keyin(1)                                  ;* a second at a time; AUTOLOGOUT is the kernel's, across these waits
       kst = status()                                ;* before anything else is called: a timeout is not the end of the input
 
       call $sl_window(w2, h2)

@@ -3,6 +3,7 @@
       * Copyright (c) 2004, Ladybridge Systems, All Rights Reserved
       
       $list off
+      * 28 Oct 26 dm  S.88 2.9 (D2): ACC$RECOVERY (19), whether the editors keep a recovery copy of unsaved text (off as delivered).
       * 18 Oct 26 dm  S.66: ACC$SHARED.READ (13) and ACC$SHARED.WRITE (14), the shared-account gates.
       * 17 Oct 26 dm  S.65 slice 1: ACC$NET (15), the per-account NET gate.
       * 09 Sep 26 dm  add ACC$TIER (5) and ACC$PRIOR.TIER (6), matching the
@@ -441,6 +442,13 @@
       *   account).  The administrator always may.  A tile of their own runs a sentence the account could type at its prompt, so it adds no access; what the gate decides is whether
       *   the screen shows such tiles and MY.MENU edits them.  SDSYS sets it (MODIFY.ACCOUNT PINS-ON / PINS-OFF).  Any account type may have it.
       $define ACC$PINS         18    ;* may add its own programs to the home screen (yes/no; blank = no)
+      * 28 Oct 26 dm - FIELD 19: the recovery copy (S.88, plan 2.9, defect D2; owner's answer to Q2 of 28 Oct: "Build it, ship it off").  yes/no; BLANK MEANS NO (delivered off;
+      *   SDSYS turns it on per account: MODIFY.ACCOUNT RECOVERY-ON / RECOVERY-OFF; CREATE.ACCOUNT takes RECOVERY-ON).  With it the IDE keeps a copy of a changed record's text that
+      *   was not saved, in the directory $recovery of the account, mode 0700 / 0600, so that a hang-up or an abort does not lose it; the copy is offered back the next time
+      *   the record is opened and never written to the record without the person choosing it (!edit_recovery).  A USER ACCOUNT ONLY, and only for the account's own person:
+      *   a group or other account is entered by several people, any of whom could rename the directory, so the words are refused there (11771).  Not a gate: nothing is
+      *   loaded at sign-on; the editor reads the field when it writes a copy, so RECOVERY-OFF stops new copies at once.  No upgrade walk: existing accounts stay off.
+      $define ACC$RECOVERY     19    ;* the editors keep a recovery copy of unsaved text (yes/no; blank = no)
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *

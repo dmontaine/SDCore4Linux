@@ -109,7 +109,7 @@ def checks(s):
     ck("H4 tool_home: every tile of the table has a fixed action (cmd:sed, ide, ced, tool.keys, my.menu, the development apps and the eleven administrator pages), terminal, switch, signout or back (the Back tile of a sub-menu page); the ONLY other action is a person's own program (H25); and no tile of the delivered page opens a sub-menu (no menu:<name>)",
        sorted(cmds) == sorted(["cmd:sed", "cmd:ide", "cmd:ced", "terminal", "cmd:tool.keys", "switch", "signout", "back", "cmd:my.menu"] + ["cmd:" + v for v in ADMIN_TILES.values()] + ["cmd:" + v for v in DEV_TILES.values()]), repr(cmds))
     ck("H4b ...execute is given only a sentence from that table, 'quit', or the logto of an account picked from the register list",
-       sorted(re.findall(r"execute ([^\n]+)", th)) == sorted(["sentence", "'quit'", "'quit'", "'logto ' : acct"]), repr(re.findall(r"execute ([^\n]+)", th)))     # 'quit' twice: sign out, and the confined account
+       sorted(re.findall(r"execute ([^\n]+)", th)) == sorted(["sentence trapping aborts", "'quit'", "'quit'", "'logto ' : acct trapping aborts"]), repr(re.findall(r"execute ([^\n]+)", th)))     # 'quit' twice: sign out, and the confined account; the two that run what is not HOME's own are trapped (28 Oct 26, S.88 phase 2)
     fin = between(th, "\nfinish:\n", "\nreturn")
     t0 = fin.find("outcome = 'terminal'")
     ck("H5 the Terminal tile: the screen is given back FIRST, then the flag is set and the banner (11864) shown; the program then ends and the real prompt is there",
@@ -344,6 +344,25 @@ def checks(s):
     ck("H33 messages 11956 to 11961 are the sub-menu refusals and the Recent group's words: 11956 and 11957 take %1, none begins with a capital command word",
        all(m.get(str(n)) for n in range(11956, 11962)) and "%1" in m["11956"] and "%1" in m["11957"] and "Esc" in m["11957"] and "Recent group is on" in m["11958"] and "forgotten" in m["11959"] and "&menus&" in m["11960"] and "administrator" in m["11961"],
        repr([m.get(str(n)) for n in range(11956, 11962)]))
+
+    # ---------------------------------------------------------------------------------------------------------------- 28 Oct 26, S.88 phase 2 (plan 2.5, 2.8)
+    rcm = between(th, "\nrun.command:\n", "\nwait.key:\n")
+    ck("H34 a tile's command is run TRAPPING ABORTS, so that a refusal does not end HOME (plan 2.5); the terminal is given up first, $sl_cleanup follows the command (an app the command started and that was aborted may hold the screen and the break key) and the screen is taken again last; "
+       "the same for the LOGTO of Switch account, whose $sl_cleanup comes before the screen is taken again",
+       ordered(rcm, "call $tk_close(ctx)", "execute sentence trapping aborts", "call $sl_cleanup", "if pause or aborted then gosub wait.key", "gosub reopen")
+       and ordered(sw, "execute 'logto ' : acct trapping aborts", "hlogto = 0", "call $sl_cleanup", "gosub reopen"), rcm + sw)
+    ck("H34c an aborted command is not drawn over (TUI phase 2 review, a): a sentinel @abort.message is set BEFORE the command (set.sentinel, caught division by zero as tool.test does), the command is judged aborted when @abort.message is no longer the sentinel "
+       "(@abort.code is 0 again when the command processor returns, so it is not used), that is read BEFORE $sl_cleanup, and an aborted command waits for a key (wait.key) before the screen is taken again, as a tile with a pause does",
+       ordered(rcm, "gosub set.sentinel", "execute sentence trapping aborts", "aborted = (@abort.message # sentinel)", "call $sl_cleanup", "if pause or aborted then gosub wait.key", "gosub reopen")
+       and "@abort.code" not in rcm and "sentv = 1 / zero" in rcm and "catch sys.program.div_zero" in rcm and ordered(rcm, "sentinel = ''", "try", "sentinel = @abort.message", "if sentv # 0 then sentinel = ''"), rcm)
+    ck("H34d the AI is told there is nowhere to run a command ('nocmd', field 11) when the Terminal tile is off for the account, BEFORE it is asked, and a 'command' answer is refused with a message and never reaches run.command in that case (TUI phase 2 review, b: the Terminal tile off "
+       "means no command prompt through the AI either; this tightens a default)",
+       ordered(th, "if terminal.off then actx<11> = 'nocmd'", "call $tk_ai('ask', ctx, actx, res)", "case res<1> = 'command' and terminal.off", "case res<1> = 'command'\n         sentence = res<2>")
+       and "msg = 'the Terminal is turned off for this account'" in between(th, "case res<1> = 'command' and terminal.off", "case res<1> = 'command'\n"), between(th, "\nask.ai:\n", "\nstart.tile:\n"))
+    aia = between(th, "\nask.ai:\n", "\n   ctxt = ")
+    ck("H34b the AI is told that every action only NAVIGATES (so that Enter alone accepts) only while no pin and no Terminal tile is among the actions offered (S6): the flag starts at 1, a pin (id pin<n>) or the Terminal tile makes it 0, "
+       "and the flag - not a constant - is the fifth field of what the AI is told",
+       ordered(aia, "ai.nav = 1", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.nav = 0") and "acts : @fm : ai.nav" in th and "acts : @fm : 1" not in th, aia)
     return rows
 
 
@@ -379,7 +398,22 @@ MUTANTS = [
     ("the Terminal tile shows the banner before giving the screen back", "tool_home", "         call $tk_close(ctx)\n         hflag = 1", "         hflag = 1"),
     ("Sign out does not ask", "tool_home", "   if b = 1 then\n      outcome = 'signout'", "   if @true then\n      outcome = 'signout'"),
     ("Enter on the sign-out box signs out", "tool_home", "default 2 returning b", "default 1 returning b"),
-    ("the logto does not mark hlogto", "tool_home", "   hlogto = 1\n   execute 'logto ' : acct\n   hlogto = 0\n", "   execute 'logto ' : acct\n"),
+    ("the logto does not mark hlogto", "tool_home", "   hlogto = 1\n   execute 'logto ' : acct trapping aborts", "   execute 'logto ' : acct trapping aborts"),
+    # 28 Oct 26, S.88 phase 2 (plan 2.5, 2.8; defects S6, D4): H34 holds these
+    ("a refused command ends HOME again", "tool_home", "   execute sentence trapping aborts\n", "   execute sentence\n"),
+    ("an aborted app's screen and break key are not given back", "tool_home", "   call $sl_cleanup\n   if pause or aborted then gosub wait.key", "   if pause or aborted then gosub wait.key"),
+    # 28 Oct 26, TUI phase 2 review (a) and (b): H34c and H34d hold these
+    ("an aborted command is drawn over again", "tool_home", "   if pause or aborted then gosub wait.key", "   if pause then gosub wait.key"),
+    ("the abort is judged by @abort.code, which is 0 again", "tool_home", "aborted = (@abort.message # sentinel)", "aborted = (@abort.code # 0)"),
+    ("the abort is judged after the cleanup", "tool_home", "   aborted = (@abort.message # sentinel)                  ;* read before $sl_cleanup\n   call $sl_cleanup\n", "   call $sl_cleanup\n   aborted = (@abort.message # sentinel)\n"),
+    ("the sentinel is not set before the command", "tool_home", "   gosub set.sentinel\n   execute sentence trapping aborts", "   execute sentence trapping aborts"),
+    ("the AI may still offer a command with the Terminal off", "tool_home", "   if terminal.off then actx<11> = 'nocmd'\n", ""),
+    ("the AI is told nocmd only when the Terminal is on", "tool_home", "   if terminal.off then actx<11> = 'nocmd'", "   if not(terminal.off) then actx<11> = 'nocmd'"),
+    ("a command answer runs with the Terminal off", "tool_home", "      case res<1> = 'command' and terminal.off\n         msg = 'the Terminal is turned off for this account'", "      case res<1> = 'command' and @false\n         msg = 'the Terminal is turned off for this account'"),
+    ("a LOGTO that aborts ends HOME", "tool_home", "   execute 'logto ' : acct trapping aborts ", "   execute 'logto ' : acct ;"),
+    ("the AI is told every action only navigates", "tool_home", "acts : @fm : ai.nav", "acts : @fm : 1"),
+    ("a pin does not clear the navigation flag", "tool_home", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.nav = 0", "if ta = 'terminal' then ai.nav = 0"),
+    ("the Terminal tile does not clear the navigation flag", "tool_home", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.nav = 0", "if tl<i, HT.ID>[1, 3] = 'pin' then ai.nav = 0"),
     ("a tile draws outside the panel", "tool_home", "      if sy >= lo and sy <= hi then", "      if @true then"),
     ("the scroll bar is not drawn", "tool_home", "   if ch > ph then\n      call $sl_scrollbar", "   if @false then\n      call $sl_scrollbar"),
     ("a piped session is let in", "tool_home", "   if @tty[1, 5] # '/dev/' then\n      display sysmsg(11863)", "   if @false then\n      display sysmsg(11863)"),

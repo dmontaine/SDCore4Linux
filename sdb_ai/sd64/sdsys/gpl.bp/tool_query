@@ -6,6 +6,8 @@
 *
 * START-HISTORY:
 * 25 Oct 26 dm  New.
+* 28 Oct 26 dm  S.88 phase 2 (S2): before every write and delete the page asks $tk_ownfile whether &queries& is a file it may write (a VOC entry &queries& that pointed at bp was written and
+*               deleted from, with only voc-edit on), and a delete or a write-over of a record that is not a saved query (field 1 is not query1) is refused.
 * 28 Oct 26 dm  S.87: the word spellings matches, matching, not.matching, before and after are gone from the reserved operator words (the VOC records were removed).
 * 26 Oct 26 dm  faults: the boxes that save and delete a saved query are titled "Write this record?" and "Delete this record?" ($tk_confirm's sixth argument), not "Run this command?".
 * END-HISTORY
@@ -30,7 +32,9 @@
 *   query held; a word that sends the output somewhere else or writes (TO, SAVING, ON.TO, LPTR, FILE, AS, CSV, DELIMITER, XML, JSON, STYLE ...) is refused even when it is also the name
 *   of a dictionary item.  A saved query is data: when it is loaded every part is checked against the file's dictionary, the operator table and q.value, and what does not pass is dropped.
 *
-*   NO GATE IS NEEDED and none is asked for: the sentence only reads, and the page itself writes only the one file &QUERIES& (a dictionary item that calls a program of the account runs it, as the same query would
+*   NO GATE IS NEEDED and none is asked for: the sentence only reads, and the page itself writes only the one file &QUERIES& - after $tk_ownfile has said that the VOC name &queries& leads
+*   to a file it may write (a dynamic file in the account's own directory, of no guarded kind, which the kernel's edit rules let this session change: the page is $internal, which those
+*   rules let through, so a name pointed at the program file would otherwise be written), and a record it deletes or writes over must be a saved query (field 1 is query1) - (a dictionary item that calls a program of the account runs it, as the same query would
 *   at the prompt; the save, the delete and the creation of &QUERIES& leave no audit line of their own).  The shared account is not in the account's VOC as a file, so its files are not offered.  A dictionary can hold a phrase
 *   (PH) or a defaults record ($QUERY.DEFAULTS) whose words the query processor adds to a sentence; the page does not list a phrase and cannot see the defaults, which are the account's own.
 *
@@ -1668,11 +1672,24 @@ do.save:
          return
       end
    end
+   * 28 Oct 26 (S.88 phase 2, S2): this page is $internal, which the kernel's edit gates let through, so it asks for itself whether &queries& is a file it may write: a dynamic file standing
+   * in this account's own directory under that name, of no guarded kind, which the kernel's edit rules allow this session to change.  A VOC entry &queries& that points at bp is refused.
+   gosub check.qfile
+   if not(qok) then
+      msg = qwhy : ': nothing was saved'
+      close qf
+      return
+   end
    exists = 0
    old.file = ''
    read xrec from qf, qname then
       exists = 1
       old.file = convert(ctl, dots, xrec<2>)[1, 40]
+      if xrec<1> # 'query1' then
+         msg = sysmsg(11760, qname) : ': nothing was saved'          ;* a record of that name that is not a saved query is never written over
+         close qf
+         return
+      end
    end
    if not(exists) then
       select qf to 9
@@ -1696,6 +1713,12 @@ do.save:
    end
    if res # 'run' then
       msg = cmsg
+      close qf
+      return
+   end
+   gosub check.qfile                                           ;* again, after the box: the gates or the account's files may have changed while it was on the screen
+   if not(qok) then
+      msg = qwhy : ': nothing was saved'
       close qf
       return
    end
@@ -1732,10 +1755,45 @@ pack.record:
    wrec<19> = sent
    return
 
+* May this page write and delete records of the file it has open as qf (&queries&)?  $tk_ownfile asks: a dynamic file, not read only, directly in this account's own directory under the
+* name &queries&, of no guarded kind (K$EDIT.KIND 0), and one the kernel's edit rules (K$EDIT.OK) allow this session to change.  Out: qok, qwhy
+check.qfile:
+   qok = 0
+   qwhy = ''
+   call $tk_ownfile(qf, '&queries&', qok, qwhy)
+   return
+
+* Out: dwhy is null and qf is OPEN when the record lname may be deleted; else dwhy says why not and qf is closed.  The record must be a saved query: field 1 is query1.
+check.delete:
+   dwhy = ''
+   open '&queries&' to qf else
+      dwhy = 'the file &queries& could not be opened: nothing was deleted'
+      return
+   end
+   gosub check.qfile
+   if not(qok) then
+      dwhy = qwhy : ': nothing was deleted'
+      close qf
+      return
+   end
+   read qdrec from qf, lname else qdrec = ''
+   if qdrec<1> # 'query1' then
+      dwhy = sysmsg(11760, lname)
+      close qf
+   end
+   return
+
 * X in the list: the record is deleted from &queries& after a box, with its name typed
 delete.selected:
    if nsv < 1 then return
    lname = sv.ids<svc>
+   * 28 Oct 26 (S.88 phase 2, S2): refused BEFORE the box when the file is not one this page may write, or the record is not a saved query (field 1 query1)
+   gosub check.delete
+   if dwhy # '' then
+      msg = dwhy
+      return
+   end
+   close qf
    dsent = 'delete ' : lname : ' from &queries&'
    lines = 'Deletes the saved query ' : lname : ' from your file &queries&.  This is not a command: the page deletes that one record itself.  The query on the screen is not touched.'
 *  26 Oct 26: "Delete this record?" (11953)
@@ -1744,13 +1802,14 @@ delete.selected:
       msg = cmsg
       return
    end
-   delok = @true
-   open '&queries&' to qf then
-      delete qf, lname on error delok = @false
-      close qf
-   end else
-      delok = @false
+   gosub check.delete                                          ;* again, with the file open for the delete: nothing between this test and the delete
+   if dwhy # '' then
+      msg = dwhy
+      return
    end
+   delok = @true
+   delete qf, lname on error delok = @false
+   close qf
    gosub read.saved
    if svc > nsv then svc = nsv
    if svc < 1 then svc = 1

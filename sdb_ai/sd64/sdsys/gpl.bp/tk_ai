@@ -7,6 +7,7 @@
 *
 * START-HISTORY:
 * 23 Oct 26 dm  New (AI line stage 1: the library routine and the home screen).
+* 28 Oct 26 dm  S.88 phase 2 (S5): every line of the preview, the diff and the command is shown whole, in rows, not cut at the box (wrap.exact); a diff counts its rows towards the 30.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -40,8 +41,8 @@
 *   <11> 'nocmd' when the app has nowhere to run a command, which makes the library ignore one.  The text is sent as it is, a byte that is not plain ASCII shown to the model as ?
 *   (one for one, so a position in what it saw is a position in the original).  The model may then answer with "edits": a list of {"old", "new"}.  Each old must be in the text EXACTLY ONCE,
 *   in whole lines or not, the edits must not overlap, there are at most 8 and the original must really hold what the model was shown at that place.  A set that does not meet that is ignored
-*   whole and said so (11660).  A set that is accepted is SHOWN as a diff in full - the line numbers, the old lines with -, the new lines with + - and a diff of more than 30 lines is not
-*   offered (11659), so that nobody accepts what they could not read.  The default button is Reject.  res is then <1> 'edit', <2> the edits, as values of  position SM length SM new text
+*   whole and said so (11660).  A set that is accepted is SHOWN as a diff in full - the line numbers, the old lines with -, the new lines with + - and a diff of more than 30 rows (a line wider than the box goes on in the
+*   rows below it, never cut) is not offered (11659), so that nobody accepts what they could not read.  The default button is Reject.  res is then <1> 'edit', <2> the edits, as values of  position SM length SM new text
 *   (positions in the text of actx<8>, in the order they appear), <4> what the AI said.  THE LIBRARY CHANGES NOTHING: the app applies an accepted set to its own buffer, through its own
 *   undo, and saves nothing.
 *
@@ -361,20 +362,33 @@ run.ask:
       body<-1> = '  ' : pieces<p>
    next p
    body<-1> = sysmsg(11641, n.acts, len(alist))
+   * 28 Oct 26 (S5): a line that is wider than the box goes on in the next rows (wrap.exact), not cut: what is shown is all of it
+   wr.w = wrapw - 2
+   wr.p1 = '  ' ; wr.p2 = '  '
    for i = 1 to n.acts
-      body<-1> = '  ' : acts<1, i>[1, wrapw - 2]
+      wr.text = acts<1, i>
+      gosub wrap.exact
+      body<-1> = wr.out
    next i
    body<-1> = sysmsg(11642, len(ptext))
    n.shown = dcount(ptext, nl)
    for p = 1 to n.shown
-      if p <= 8 then body<-1> = '  ' : field(ptext, nl, p)[1, wrapw - 2]
+      if p <= 8 then
+         wr.text = field(ptext, nl, p)
+         gosub wrap.exact
+         body<-1> = wr.out
+      end
    next p
    if n.shown > 8 then body<-1> = '  ' : sysmsg(11644, n.shown - 8)
    if tbm # '' then
       n.tb = dcount(tbm, nl)
       body<-1> = sysmsg(11668, n.tb, len(tbm), tb.first)
       for p = 1 to n.tb
-         if p <= 6 then body<-1> = '  ' : field(tbm, nl, p)[1, wrapw - 2]
+         if p <= 6 then
+            wr.text = field(tbm, nl, p)
+            gosub wrap.exact
+            body<-1> = wr.out
+         end
       next p
       if n.tb > 6 then body<-1> = '  ' : sysmsg(11644, n.tb - 6)
    end
@@ -382,7 +396,11 @@ run.ask:
       n.sel = dcount(selm, nl)
       body<-1> = sysmsg(11669, len(selm))
       for p = 1 to n.sel
-         if p <= 6 then body<-1> = '  ' : field(selm, nl, p)[1, wrapw - 2]
+         if p <= 6 then
+            wr.text = field(selm, nl, p)
+            gosub wrap.exact
+            body<-1> = wr.out
+         end
       next p
       if n.sel > 6 then body<-1> = '  ' : sysmsg(11644, n.sel - 6)
    end
@@ -481,14 +499,20 @@ run.ask:
          dflt = 2                                         ;* a change to a text is never accepted by Enter alone
       case pk = 'action'
          body<-1> = ''
-         body<-1> = sysmsg(11647, plabel : (if parg # '' then ' (' : parg : ')' else ''))
+         call $tk_wrap(sysmsg(11647, plabel : (if parg # '' then ' (' : parg : ')' else '')), wrapw, pieces)      ;* (S5) a label and an argument can be wider than the box: wrapped, not cut
+         body<-1> = pieces
          btn = '&Accept,&Reject'
          dflt = (if nav then 1 else 2)
       case pk = 'command'
          body<-1> = ''
          body<-1> = sysmsg(11648)
-         body<-1> = '  ' : pcmd
-         btn = '&Run,&Cancel'                              ;* (not Reject: its letter would be Run's)
+         * (S5) the command is shown WHOLE, in rows of exactly its characters, because Run runs all of it; it is 200 characters at most
+         wr.w = wrapw - 4
+         wr.p1 = '  ' ; wr.p2 = '  '
+         wr.text = pcmd
+         gosub wrap.exact
+         body<-1> = wr.out
+         btn = '&Run,&Cancel'                            ;* (not Reject: its letter would be Run's)
          dflt = 2
       case 1
          btn = '&Close'
@@ -502,6 +526,20 @@ run.ask:
    end else
       b = 'none' : @fm : '' : @fm : '' : @fm : say : @fm : ''
    end
+   return
+
+* 28 Oct 26 (S5): wr.text cut into rows of EXACTLY wr.w characters at most, no character lost and none added, so that what is shown is all of what is sent, applied or run.  The first row
+* begins wr.p1 and the others wr.p2.  Out: wr.out, the rows as fields (an empty text is the one row wr.p1).  wr.w is at least 14 (wrapw is at least 20).
+wrap.exact:
+   wr.out = ''
+   wr.len = len(wr.text)
+   if wr.len = 0 then
+      wr.out = wr.p1
+      return
+   end
+   for wr.k = 1 to wr.len step wr.w
+      wr.out<-1> = (if wr.k = 1 then wr.p1 else wr.p2) : wr.text[wr.k, wr.w]
+   next wr.k
    return
 
 * The model's text to a proposal.  The text is read as ONE JSON object (a first { to the last }, so a code fence round it does no harm); if it is not, it is shown as it is and nothing is
@@ -633,16 +671,25 @@ read.edits:
       line.no = tb.first
       if ep > 1 then line.no = tb.first + count(tb.raw[1, ep - 1], nl)
       diff.lines<-1> = sysmsg(11658, k, ed.n, line.no)
+      * 28 Oct 26 (S5): a long line is shown whole, in rows (a hanging indent after the sign), and every row counts towards the 30: the person is shown all that Accept would apply, or the
+      *   proposal is not offered.  (It used to be cut at the box and applied whole.)
+      wr.w = wrapw - 6
       eo = tb.raw[ep, elen<k>]
+      wr.p1 = '- ' ; wr.p2 = '  '
       for j = 1 to dcount(eo, nl)
-         diff.lines<-1> = '- ' : field(eo, nl, j)[1, wrapw - 6]
-         dl += 1
+         wr.text = field(eo, nl, j)
+         gosub wrap.exact
+         diff.lines<-1> = wr.out
+         dl += dcount(wr.out, @fm)
       next j
       en = enew<k>
       if en # '' then
+         wr.p1 = '+ ' ; wr.p2 = '  '
          for j = 1 to dcount(en, nl)
-            diff.lines<-1> = '+ ' : field(en, nl, j)[1, wrapw - 6]
-            dl += 1
+            wr.text = field(en, nl, j)
+            gosub wrap.exact
+            diff.lines<-1> = wr.out
+            dl += dcount(wr.out, @fm)
          next j
       end
       ed.list<1, -1> = ep : @sm : elen<k> : @sm : en

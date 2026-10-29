@@ -25,6 +25,7 @@ FILES = {
     "newvoc": os.path.join(SDSYS, "newvoc", "tool.voc"),
     "help": os.path.join(SDSYS, "helptext", "tool.voc.page"),
     "run": os.path.join(GPL, "tk_run"),
+    "word": os.path.join(GPL, "tk_word"),
 }
 SAFE = "abcdefghijklmnopqrstuvwxyz0123456789._-"
 
@@ -64,6 +65,17 @@ def block(text, label):
     return text[m.start(): m.end() + (n.start() if n else len(text))]
 
 
+def ordered(text, *needles):
+    """every needle is in the text and they come in this order"""
+    at = -1
+    for n in needles:
+        i = text.find(n, at + 1)
+        if i < 0:
+            return False
+        at = i
+    return True
+
+
 def checks(raw):
     rows = []
 
@@ -98,6 +110,13 @@ def checks(raw):
     ck("TV7", "an id goes into a command only when it is made of the characters $tk_run lets through (the same list, at most 63 long); the refusal says which command to type instead",
        "good = '%s'" % SAFE in nm and "okname = (len(vid) > 0 and len(vid) <= 63)" in nm and "okname = @false" in nm and ("good = '%s'" % SAFE) in raw["run"]
        and all(b.count("gosub check.name") == 1 and "if not(okname) then" in b for b in (de, ed)) and "type  sed voc " in ed and "type  delete voc " in de, "")
+    # 28 Oct 26, S.88 phase 2 (plan 2.3, defect S4): DELETE VOC ALL asks "Delete all records in VOC?" into the output the page captures, so the page refuses a VOC keyword before any box
+    wd = strip_bas(raw["word"])
+    ck("TV7b", "S4: D asks $tk_word - the routine TOOL.FILES and TOOL.DICT's rule is now in - whether the id is a keyword of the VOC (type K: all, detail, no.query ...) AFTER the character check and BEFORE the sentence is built, the box is shown or anything runs, and a refusal "
+       "returns with the routine's own words; $tk_word opens the VOC, reads the id and refuses a first letter K, and changes nothing; E (SED) is not held back by it",
+       ordered(de, "gosub check.name", "call $tk_word(vid, kwok, kwwhy)", "if not(kwok) then\n      msg = kwwhy\n      return\n   end", "sent = 'delete voc ' : vid", "call $tk_confirm", "call $tk_run")
+       and "$tk_word" not in ed and pg.count("$tk_word") == 1
+       and ordered(wd, "open 'VOC' to kwf then", "read kwr from kwf, name then", "upcase(kwr<1>[1, 1]) = 'K'", "ok = @false", "why = sysmsg(11755, name)") and not re.search(r"^\s*(write|delete|execute|clearfile)\b", wd, re.M), "")
     cl = block(pg, "classify")
     ck("TV8", "the types are read from the first letters of field 1 (PA, PH and PQ as two), a file or Q-pointer is OPENED to see whether it works, and an entry is compared with the shipped VOC (newvoc) record for record: same, changed, added",
        "ety = t1[1, 1]" in cl and "if t1[1, 2] = 'PA' or t1[1, 2] = 'PH' or t1[1, 2] = 'PQ' then ety = t1[1, 2]" in cl and cl.count("open vid to tf then") == 2
@@ -142,6 +161,11 @@ MUTANTS = [
     ("the page reads NEWVOC before it opens the base", "TV2", sub("page", "   call $tk_open('tool.voc', '', ctx, err)\n", "   open 'newvoc' to nvx then close nvx\n   call $tk_open('tool.voc', '', ctx, err)\n")),
     ("an ordinary account has no verb", "TV1", setkey("newvoc", "")),
     ("SDSYS's verb runs another program", "TV1", sub("voc", "$tool_voc", "$tool_keys")),
+    ("a VOC keyword may be deleted", "TV7b", sub("page", "   call $tk_word(vid, kwok, kwwhy)\n   if not(kwok) then\n      msg = kwwhy\n      return\n   end\n", "")),
+    ("the keyword test is asked after the box", "TV7b", sub("page", "   call $tk_word(vid, kwok, kwwhy)\n   if not(kwok) then\n      msg = kwwhy\n      return\n   end\n   sent = 'delete voc ' : vid", "   sent = 'delete voc ' : vid\n   call $tk_word(vid, kwok, kwwhy)\n   if not(kwok) then\n      msg = kwwhy\n      return\n   end")),
+    ("the keyword refusal does not return", "TV7b", sub("page", "      msg = kwwhy\n      return\n   end\n   sent = 'delete voc ' : vid", "      msg = kwwhy\n   end\n   sent = 'delete voc ' : vid")),
+    ("the keyword test reads no VOC", "TV7b", sub("word", "      read kwr from kwf, name then\n", "      read kwr from kwf, 'x-none' then\n")),
+    ("the keyword test takes any type", "TV7b", sub("word", "upcase(kwr<1>[1, 1]) = 'K'", "upcase(kwr<1>[1, 1]) = 'Z'")),
     ("the page may run another command", "TV3", sub("page", "allow = 'delete'", "allow = 'delete sh'")),
     ("the page runs a second command with execute", "TV3", sub("page", "   crt\n   crt sysmsg(11865) :", "   execute 'who'\n   crt\n   crt sysmsg(11865) :")),
     ("the page writes a record", "TV4", sub("page", "   ttl = 'The VOC of ' : @who\n", "   ttl = 'The VOC of ' : @who\n   write 'x' on vocx, 'y'\n")),

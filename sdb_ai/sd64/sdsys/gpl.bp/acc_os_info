@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 28 Oct 26 dm S.88 plan 2.9 (D2): the manifest key recovery (1 only if ACC$RECOVERY says yes), USER arm only, after shared.write.
 * 23 Oct 26 dm S.69 step 2: the manifest key route.ai (1 if the user is in the group sdaiusers, the right to use the AI provider's API), after route.files.admin.
 * 21 Oct 26 dm S.73 item 3: the manifest key route.files.admin (1 if the user is in the group sdfilesadmin, which lets the files-only login administer files), after route.files.write.
 * 18 Oct 26 dm S.65 write group: the manifest key route.files.write (1 if the user is in the group sdfileswrite, which lets the files-only login change files), after route.files.
@@ -23,7 +24,7 @@
 *    acc.name ''  - the system keys: product, host, accounts.root, sd.version.
 *    acc.name set - the account's keys, from its ACCOUNTS record (acc.rec):
 *                   type, os.user, os.group, route.ssh, route.api, route.files, route.files.write, route.files.admin, route.ai, os.sh,
-*                   os.execute, and for a GROUP account its members.
+*                   os.execute, edit.voc, edit.bp, edit.dict, net, shared.read, shared.write, recovery, and for a GROUP account its members.
 *
 *    LINUX DETAIL.  The type comes from the register's group (sdu_ USER, sdg_
 *    GROUP, anything else OTHER), as DELETE.ACCOUNT reads it.  A route is
@@ -81,6 +82,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          info<-1> = 'net: ':(if upcase(trim(acc.rec<ACC$NET>)) = 'YES' then 1 else 0)     ;* 17 Oct 26, S.65 slice 1: the NET gate (does nothing yet)
          info<-1> = 'shared.read: ':(if upcase(trim(acc.rec<ACC$SHARED.READ>)) # 'NO' then 1 else 0)     ;* 18 Oct 26, S.66: BLANK MEANS ON, so only the word no gives 0
          info<-1> = 'shared.write: ':(if upcase(trim(acc.rec<ACC$SHARED.WRITE>)) = 'YES' then 1 else 0)
+         info<-1> = 'recovery: ':(if upcase(trim(acc.rec<ACC$RECOVERY>)) = 'YES' then 1 else 0)     ;* 28 Oct 26, S.88 plan 2.9: the recovery copy (blank means off)
 
       case grp[1,4] = 'sdg_'
          info<-1> = 'type: GROUP'

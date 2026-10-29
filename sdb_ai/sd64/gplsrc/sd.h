@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.88 phase 2 review: prototypes of show_unsafe_byte(), show_safe_text() and show_ts_safe() (op_lock.c), the one
+ *               rule for showing another session's text; kernel.c's dump_status() uses it.
  * 20 Oct 26 dm  S.72b: NETG_PEEK (net_gate's read-mode test alone, for RECORDLOCKED()).
  * 19 Oct 26 dm  S.67, the verifier's findings: masters_note_read, masters_cas_on and masters_cas_check (a save of a master record is judged against the record the
  *               session read, and again inside the account's write).
@@ -557,6 +559,12 @@ char * deadlock_info_string(int * len);
 void unlock_txn(u_int32_t txn);
 void transfer_txn_locks(u_int32_t from, u_int32_t to); /* 15 Oct 26: a non-durable child commit hands its locks to the parent */
 void clear_lock_wait(void);
+/* 28 Oct 26 S.88 phase 2 review: ONE rule for showing another session's text (a record id, a path, a user name, a command,
+   @PSTAT) to a program or a terminal: bytes 0-31, 127, 128-159 and 248-255 become '?', 160-247 are kept.  Used by op_lock.c
+   (GETLOCKS(), SYSTEM(1083), message 1451) and kernel.c (the process-status dump that PSTAT prints). */
+bool show_unsafe_byte(u_char c);
+char * show_safe_text(char * out, int out_size, const char * s, int len); /* a copy, cut at out_size - 1, nul ended */
+void show_ts_safe(const char * s, int len);                                /* appended to the ts_init() string; len < 0: to the nul */
 void rebuild_llt(void);
 
 /* OP_MISC.C */

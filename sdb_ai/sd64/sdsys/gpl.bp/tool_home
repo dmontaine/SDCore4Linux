@@ -15,6 +15,10 @@
 *               Backspace going back one, the path on the status line, 8 levels at most and a menu already open refused), and the RECENT GROUP (the tiles the person started last, newest
 *               first, when they have turned it on in the View menu; kept by !home_recent in their own file &menus&; off as delivered).  The page is built in two steps now: the whole table,
 *               then pick.level keeps the groups of the menu being shown.  Behaviour-preserving while there: reopen and rebuild share enter.level; an empty band takes no room.
+* 28 Oct 26 dm  S.88 phase 2: a tile's command and a LOGTO are run TRAPPING ABORTS and followed by $sl_cleanup (a refusal no longer ends HOME; the screen and the break key an aborted app held
+*               are given back before the page is taken again); the AI's "only navigates" flag is 0 while a pin or the Terminal tile is offered (S6: Enter alone no longer runs a pinned command the model chose).
+* 28 Oct 26 dm  TUI phase 2 review: a command that aborts waits for a key before the page is drawn again (the abort message was overwritten); with the Terminal tile off for the account the AI
+*               line is told 'nocmd' and a command answer is refused (the AI was a way to a command prompt).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -1002,17 +1006,23 @@ ai.key:
 * to run, each only after the person has chosen Accept or Run; both are done exactly as a click on a tile or the Terminal tile's prompt would do them.
 ask.ai:
    acts = ''
+   ai.nav = 1                                             ;* 1 only while every action offered opens a tool of the delivered table (S.88 phase 2, S6)
    for i = 1 to nt
       ta = tl<i, HT.ACT>
       if ta[1, 4] = 'cmd:' or ta = 'terminal' then
          if tl<i, HT.ID>[1, 2] # 'r:' then                ;* a recent tile is a copy of one that is offered already
             acts<1, -1> = tl<i, HT.ID> : ':' : tl<i, HT.LABEL> : ' - ' : (if tl<i, HT.SUB> = '' then 'starts ' : ta else tl<i, HT.SUB>)
+            * the person's own programs (pin1, pin2 ...) run a command the person wrote, and the Terminal tile leaves the toolkit for the prompt: neither only NAVIGATES, so with either on
+            * offer Enter alone must reject the proposal and not accept it (a pin the model chose would run on one stray Enter)
+            if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.nav = 0
          end
       end
    next i
    ctxt = 'This is the home screen of the SD database system, a page of tiles.' : @vm : 'Each action starts the tool of that tile, exactly as the person could by choosing the tile.'
    ctxt := @vm : 'The person is ' : (if is.admin then 'the administrator.' else 'an account holder.')     ;* the lines of the page's text are VALUES (a field mark would move the fields after it)
-   actx = 'home' : @fm : 'home' : @fm : ctxt : @fm : acts : @fm : 1
+   actx = 'home' : @fm : 'home' : @fm : ctxt : @fm : acts : @fm : ai.nav
+   * The Terminal tile turned off for the account means no command prompt through the AI either: the library is told there is nowhere to run a command (<11> 'nocmd') and ignores one
+   if terminal.off then actx<11> = 'nocmd'
    call $tk_ai('ask', ctx, actx, res)
    call $tk_ai('clear', ctx, '', '')
    aif = 0
@@ -1028,6 +1038,8 @@ ask.ai:
             gosub set.focus
             gosub start.tile
          end
+      case res<1> = 'command' and terminal.off
+         msg = 'the Terminal is turned off for this account'      ;* defence in depth: the library was told 'nocmd' and should never return one
       case res<1> = 'command'
          sentence = res<2>
          pause = 1
@@ -1077,10 +1089,32 @@ run.command:
    keep.id = tl<fi, HT.ID>                               ;* the screen comes back with the same tile selected, scrolled as it was
    keep.top = top
    call $tk_close(ctx)
-   execute sentence
-   if pause then gosub wait.key
+   * 28 Oct 26 (S.88 phase 2, plan 2.5): TRAPPING ABORTS - a command that is refused (a verb that aborts, a program that stops with an error) comes back here and the page is taken again,
+   * where it used to end HOME and leave the person at the prompt of a session that had been in the toolkit.  An app the command started and that was aborted may still hold the screen and
+   * the break setting: $sl_cleanup gives both back (it writes nothing where the library holds nothing), and reopen takes the screen again.
+   * An abort prints its message on the ordinary terminal and the page then draws over it, so the person never read why the tile failed (every delivered tile has pause = 0).  EXECUTE ... TRAPPING ABORTS
+   * reports an abort only through @abort.message (@abort.code is back to 0 when the command processor returns): a sentinel message is set first, as tool.test does, and an aborted command is the
+   * one that leaves a different message.  The key is waited for as for a tile with a pause, before the screen is taken again.
+   gosub set.sentinel
+   execute sentence trapping aborts
+   aborted = (@abort.message # sentinel)                  ;* read before $sl_cleanup
+   call $sl_cleanup
+   if pause or aborted then gosub wait.key
    gosub reopen
    keep.id = ''
+   return
+
+* The system keeps the message of the last abort (and of an exception that was caught), which a command that ends normally does not touch: a message of the page's own is set first
+set.sentinel:
+   zero = 0
+   sentv = 0
+   sentinel = ''
+   try
+      sentv = 1 / zero
+   catch sys.program.div_zero
+      sentinel = @abort.message
+   end
+   if sentv # 0 then sentinel = ''
    return
 
 * The terminal is the ordinary one again here (the screen was closed), where a key is read when Enter is pressed: so the question is for Enter, and INPUT reads it
@@ -1354,8 +1388,9 @@ switch.account:
    end
    call $tk_close(ctx)
    hlogto = 1
-   execute 'logto ' : acct
+   execute 'logto ' : acct trapping aborts              ;* 28 Oct 26 (S.88 phase 2): a LOGTO that aborts comes back here too; the screen is taken again below, in whichever account the session is in
    hlogto = 0
+   call $sl_cleanup
    cur.menu = ''                                          ;* the screen of the new account starts at its top page
    stk = ''
    crumb = ''

@@ -84,10 +84,10 @@ def checks(raw):
         before.count("return") >= 3 and "err = " in before, "returns before screen open: %d" % before.count("return"))
     add("T5", "the audience test is asked of the kernel (K$ADMINISTRATOR, -1) and only for the administrator audience, before any data is read",
         re.search(r"audience = 'admin' then if not\(kernel\(K\$ADMINISTRATOR, -1\)\)", op) is not None, "")
-    add("T6", "the break setting is saved before it is changed, and the screen is opened with line drawing only when the terminal says UTF-8",
+    add("T6", "the break setting is saved before it is changed, and the screen is opened with line drawing only when the terminal says UTF-8",      # (28 Oct 26: and kept by $tk_brk for $sl_cleanup)
         ordered(op, "pterm(PT$BREAK, -1)", "pterm(PT$BREAK, @false)", "screen open") and "screen open clear lines" in op and "UTF-8" in op, "")
     cl = sq["tk_close"]
-    add("T7", "$tk_close gives the screen back, then the break setting it saved, then the break key", ordered(cl, "screen close", "pterm(PT$BREAK,", "break on"), "")
+    add("T7", "$tk_close gives the screen back, then the break setting it saved, then the break key", ordered(cl, "screen close", "call $tk_brk('close', ctx<TK.C.TRAP>)"), "")      # 28 Oct 26 (S.88 phase 2, D4): the setting and BREAK ON go back through $tk_brk 'close' (test-tkguards-units.py holds that routine)
     fr = sq["tk_frame"]
     add("T8", "$tk_frame writes the status line in reverse video, only when its text changed since it was last written, and keeps the cursor where the widget left it",
         "attr 'reverse'" in fr and "if t = last.stat then" in fr and "call $sl_curat('get'" in fr and re.search(r"attr 'reverse' call \$sl_curat\('back'", fr) is not None, "")
@@ -359,7 +359,7 @@ MUT = [
     ("tk_open", "the size is typed into the program", "call $sl_need(app, TK.MINW, TK.MINH,", "call $sl_need(app, 140, 42,"),
     ("tk_open", "the cursor lock is not asked for", "call $sl_guardmode(app, TK.MINW, TK.MINH)", "null"),
     ("tk_open", "the break setting is changed before it is saved", "saved.trap = pterm(PT$BREAK, -1)", "saved.trap = 1"),
-    ("tk_close", "the break setting is not given back", "void pterm(PT$BREAK, ctx<TK.C.TRAP>)", "null"),
+    ("tk_close", "the break setting is not given back", "call $tk_brk('close', ctx<TK.C.TRAP>)", "null"),
     ("tk_frame", "the status line is written every time", "if t = last.stat then", "if 0 then"),
     ("tk_frame", "the status line moves the cursor", "screen text t at 0,ystat attr 'reverse'\n      call $sl_curat('back', keep.cur)", "screen text t at 0,ystat attr 'reverse'"),
     ("tk_frame", "the function keys are redrawn on every call", "if ft # last.keys then", "if 1 then"),

@@ -16,6 +16,8 @@
 #               smaller than that is refused, with one message the library owns; a window made smaller after SED has started shows
 #               the upper left corner of the layout and nothing past the edge; and while the cursor is off the screen the keys are
 #               ignored and a warning is shown until the window is made bigger or the user leaves with Ctrl-Q.
+# 28 Oct 26 dm  S.88 phase 2 (S3): part F - with AUTOLOGOUT set the lock is now lifted by a bigger window without a key ($sl_guard lost its
+#               AUTOLOGOUT work-around: the kernel counts AUTOLOGOUT across waits); the nolift mutant is run on F too.  NOT RUN yet.
 # END-HISTORY
 #
 # HOW IT DRIVES SED.  On a PSEUDO-TERMINAL (ptydrive.py), the window size set BEFORE SD starts (it asks the tty when it starts) and
@@ -455,7 +457,7 @@ def part_e():
 
 
 def part_f():
-    say("\n--- F: a session with AUTOLOGOUT waits for the keyboard alone, so a resize is seen at the next key -------------------")
+    say("\n--- F: a session with AUTOLOGOUT: SED waits for the keyboard alone (its own wait), the lock ($sl_guard) a second at a time ---")
     e = Term(BOX, "SED %s r1" % F)
     base = list(e.lines())
     e.end()
@@ -465,15 +467,16 @@ def part_f():
     e.keys(DOWN, idle=0.8)
     check_corner(e, m, 100, 30, base, "AUTOLOGOUT, 100x30 after the next key")
     L = e.keys(DOWN * 45, idle=1.2)
-    row("...45 Downs: the cursor leaves the screen and the warning is shown (the guard waits on the keyboard alone)",
+    row("...45 Downs: the cursor leaves the screen and the warning is shown",
         "The window is 100 by 30" in "\n".join(L[:8]), "\n".join(l[:60] for l in L[:4]))
-    e.resize(LAY_W, LAY_H)
+    # 28 Oct 26 (S.88 phase 2, S3): $sl_guard no longer waits on the keyboard alone when AUTOLOGOUT is set - the kernel counts AUTOLOGOUT across its
+    # one-second waits - so the lock is lifted without a key, as in part D.  These two rows used to say "still locked, the lift waits for the next key".
+    e.resize(LAY_W, LAY_H, wait=2.2)
     L = e.lines()
-    row("...made 140 by 42 with no key: still locked, the lift waits for the next key (the price of AUTOLOGOUT firing on time)",
-        "The window is 100 by 30" in "\n".join(L[:8]), "\n".join(l[:60] for l in L[:4]))
-    L = e.keys("x", idle=1.0)
-    row("...the next key lifts the lock (and is itself dropped): the layout is whole and the cursor on line 30, with no x typed",
-        L[1].startswith("L01") and at(e) == (30, 1) and not any(l.startswith("x") or "xL30" in l for l in L), repr(at(e)))
+    row("...made 140 by 42 with no key: the lock is lifted within a second or two, AUTOLOGOUT or not ($sl_guard looks at the window every second)",
+        "The window is 100 by 30" not in "\n".join(L[:8]) and L[1].startswith("L01"), "\n".join(l[:60] for l in L[:4]))
+    row("...the layout is whole and the cursor on line 30 (the Downs after the first off-screen one were dropped), nothing typed",
+        at(e) == (30, 1) and not any(l.startswith("x") or "xL30" in l for l in L), repr(at(e)))
     e.resize(100, 30)
     e.keys(CTRL("q"))
     L = e.keys("y", idle=1.0)
@@ -487,7 +490,7 @@ def part_f():
 #   noguard     wait.key never calls $sl_guard: SED takes keys with the cursor off the screen.   D, E  (the lock rows)
 #   nodiscard   wait.key calls $sl_guard only when no key is waiting: a burst of keys reaches    D       (45 Downs: line 46, not 30)
 #               SED instead of being dropped at the first one the cursor leaves the screen on.
-#   nolift      $sl_guard does not return when the window is made bigger.                     D, E    (made 140 by 42 again)
+#   nolift      $sl_guard does not return when the window is made bigger.                     D, E, F (made 140 by 42 again)
 #   noescape    $sl_guard ignores Ctrl-Q: the user cannot leave.                              D, E    (the Leave? rows)
 #   noask       $sl_guard leaves at Ctrl-Q without asking.                                    D, E    (the Leave? rows)
 #   cutseq      wait.key hands back the news of a resize while a key is waiting, which cuts   C, F    (the Down typed with the resize)
@@ -497,7 +500,7 @@ MUTANTS = {
     "noguard": ("sed", "      if cur.x >= clip.w or cur.y >= clip.h then\n", "      if 0 then\n", "d,e"),
     "nodiscard": ("sed", "      if cur.x >= clip.w or cur.y >= clip.h then\n",
                   "      if (cur.x >= clip.w or cur.y >= clip.h) and not(keyready()) then\n", "d"),
-    "nolift": ("sl_guard", "         if cx < w and cy < h then return           ;* the cursor shows again\n", "         null\n", "d,e"),
+    "nolift": ("sl_guard", "         if cx < w and cy < h then return           ;* the cursor shows again\n", "         null\n", "d,e,f"),
     "noescape": ("sl_guard", "            case k = char(17)\n", "            case k = char(17) and 0\n", "d,e"),
     "cutseq": ("sed", "      if win.changed and not(keyready()) then", "      if win.changed then", "c,f"),
     "noask": ("sl_guard", "            case k = char(17)\n               asking = @true\n",

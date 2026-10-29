@@ -1,6 +1,44 @@
 Next release - in progress
 --------------------------
 
+28 Oct 26  DATA CAN NO LONGER SEND CODES TO YOUR TERMINAL; AUTOLOGOUT WORKS IN THE FULL-SCREEN PROGRAMS; A QUERY CANNOT WRITE THE WRONG FILE; THE IDE CAN KEEP A RECOVERY COPY.
+
+             What        - Text that comes from data (a record, a record id, another user's lock id, a file name, an AI answer) can no longer send control codes to your
+                           terminal. Before, an escape sequence in a record could retitle the window or wipe the screen, and a lock id made by another user could do the same
+                           on the administrator's screen through LIST.READU or the sessions page. Now each such character is shown as a visible letter in reverse (ESC shows as
+                           [) and nothing is sent; in the kernel's lock list (LIST.READU, GETLOCKS(), the deadlock report) control characters, DEL, the bytes 128-159 and the mark
+                           characters are shown as ?. It does not change UTF-8 text or the line-drawing characters, the locks themselves (UNLOCK and RELEASE act on the real id)
+                           or FILEINFO(f, 1039), which still gives a program its own ids exactly.
+                         - AUTOLOGOUT now works in the full-screen programs. The screen library, the IDE, the home screen and every tool page wait one second at a time, and each
+                           wait started the inactivity timer again, so a session left in any of them was never logged out. SD now counts idle time across those short waits: only
+                           a key actually typed (or the break key) starts the period again, and the logout is the same as at a TCL prompt. Programs that wait with no time limit
+                           behave as before. Its default stays off. An administrator who leaves tool.sessions open without typing will now be logged out, which is what the
+                           setting means.
+                         - Undo in the full-screen text area gives back exactly what was there. A record holding value, subvalue or text marks came back changed after Ctrl-Z.
+                         - The AI popup shows every line of a proposed change, command or request in full instead of cutting it at the box edge, so what you accept or run is what
+                           you saw. A proposed change that would take more than 30 rows to show is not offered. HOME's AI line no longer lets Enter alone accept a proposal when one
+                           of your own programs or the Terminal tile is among the things it may start.
+                         - TOOL.QUERY saves and deletes records in your file &queries&. An account with the vocabulary gate on but the program gate off could point the name
+                           &queries& at its program file and have the page overwrite or delete program source. The page now checks, before every save and every delete, that
+                           &queries& is an ordinary data file in your own account directory that your gates allow you to change, and it refuses a record that is not a saved
+                           query. TOOL.BULK's undo file uses the same check.
+                         - TOOL.VOC's Delete no longer offers delete voc all (or any other keyword of the VOC), and TOOL.FILES refuses a keyword as the name of a file to make,
+                           clear, delete or report on.
+                         - The break key (Ctrl-C) comes back after an abort inside a full-screen page, and the HOME screen no longer ends when a tile's command is refused.
+                         - The IDE can keep a recovery copy of text you have not saved, so that closing the terminal, a lost connection or an abort does not lose your changes.
+                           It is OFF as delivered; the administrator turns it on for a user account with modify.account <account> recovery-on (or create.account user <name>
+                           recovery-on) and off with recovery-off. With it on, every changed record's text is copied, readable only by you, into the account's $recovery directory
+                           after a second without typing and when the session ends; the copy is deleted when you save, close or quit normally, and the next time you open that
+                           record the IDE asks whether to use the copy, delete it, or not open the record. The record itself is never changed until you save. It does not work in
+                           group or other accounts, or for the administrator, and copies are included in BACKUP.ACCOUNT archives. SED and CED keep no copies.
+                         - PSTAT no longer sends another session's control characters to your terminal: the command, the record it waits for, its program names and account, and
+                           its @PSTAT text are shown with each control character and reserved mark as ? (the marks in @PSTAT are still shown as spaces), and a long command or
+                           @PSTAT text is no longer saved in the status record with the wrong length. HOME's AI line cannot run a command when the account's Terminal tile is off.
+                           A tile whose command is refused shows its message until a key is pressed.
+                         A program that polls the keyboard with very short timed KEYINs and works between them counts as waiting, so AUTOLOGOUT can end it; a timed wait exactly as
+                         long as the AUTOLOGOUT period still ends with a plain timeout.
+                         It does NOT cover the lock and trace files the kernel writes for the administrator, the profiler and Hot Spot Monitor dumps (program names), or the pages' sizes.
+
 28 Oct 26  THE IDE OPENS READY TO TYPE, NAMES A NEW RECORD ON ONE FORM, AND A REFUSED SAVE NO LONGER ENDS IT.
 
              What        Started with no record, the IDE opened empty and read-only: the letters you typed were jumps in the file tree, and File / New record

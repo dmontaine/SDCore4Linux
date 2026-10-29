@@ -60,6 +60,8 @@ JSON_REPLIES = {
     "edit_overlap": '{"say": "Overlapping.", "action": "none", "arg": "", "command": "", "edits": [{"old": "x = 1\\n   crt \'bye\'", "new": "y"}, {"old": "crt \'bye\'", "new": "z"}]}',
     "edit_big": '{"say": "A big change.", "action": "none", "arg": "", "command": "", "edits": [{"old": "x = 1", "new": "' + "\\n".join("line %d" % i for i in range(1, 41)) + '"}]}',
     "edit_cmd": '{"say": "Run it.", "action": "none", "arg": "", "command": "who.am.i"}',
+    # 28 Oct 26 (S.88 phase 2, S5): one new line of 230 characters, wider than the box, made of Z so that a count of the Z on the screen is a count of the characters shown
+    "edit_wide": '{"say": "A wide line.", "action": "none", "arg": "", "command": "", "edits": [{"old": "crt \'hello\'", "new": "' + "Z" * 230 + '"}]}',
     "edit_empty": '{"say": "Nothing to change.", "action": "none", "arg": "", "command": "", "edits": []}',
     "edit_delete": '{"say": "Removed it.", "action": "none", "arg": "", "command": "", "edits": [{"old": "x = 1\\n", "new": ""}]}',
     # CED's edits (AI line stage 3): the record is {"name":"widget","size":3,"tags":["a","b"]} and CED shows it as indented JSON, one element to a line

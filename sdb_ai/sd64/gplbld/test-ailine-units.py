@@ -90,8 +90,9 @@ def checks(s):
     ck("A14 the wait gives up on Esc, on the cursor lock's way out and on an input that has ended, and cancels the request", ordered(ask, "screen key timeout 1 returning nm", "nm = 'esc' or nm = 'guardquit'", "ER$EOF", "kernel(K$AI.CANCEL, 0)"), "")
     ck("H1 the home screen offers only tiles that start a tool: 'cmd:' tiles and the terminal; never Sign out or Switch account", "if ta[1, 4] = 'cmd:' or ta = 'terminal' then" in home
        and "acts<1, -1> = " in home, "")
-    ck("H2 the page's text goes in as VALUES of one field (a field mark would move the fields after it: the action list was empty on 23 Oct), and every action is a navigation (actx<5> = 1)",
-       "ctxt := @vm : " in home and "@vm : 'Each action starts the tool" in home and re.search(r"actx = 'home' : @fm : 'home' : @fm : ctxt : @fm : acts : @fm : 1", home) is not None, "")
+    ck("H2 the page's text goes in as VALUES of one field (a field mark would move the fields after it: the action list was empty on 23 Oct), and the navigation flag (actx<5>) is 1 only while every action offered opens a tool of the delivered table: ai.nav is 0 while a pin or the Terminal tile is offered (S.88 phase 2, S6)",
+       "ctxt := @vm : " in home and "@vm : 'Each action starts the tool" in home and re.search(r"actx = 'home' : @fm : 'home' : @fm : ctxt : @fm : acts : @fm : ai\.nav", home) is not None
+       and "ai.nav = 1" in home and "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.nav = 0" in home, "")
     ck("H3 an accepted action is looked up by id among the page's own tiles and started through start.tile, as a click would; a command goes through run.command, as the Terminal's prompt would",
        ordered(home, "case res<1> = 'action'", "tl<i, HT.ID> = res<2>", "gosub start.tile", "case res<1> = 'command'", "gosub run.command"), "")
     ck("H4 the AI line is the last stop of the Tab ring and the first of Back-tab, and without the AI the old keys are unchanged (the tests ask ctx<TK.C.AI>)", "if ctx<TK.C.AI> and fi = nt then" in home and "if ctx<TK.C.AI> and fi = 1 then" in home, "")
@@ -115,7 +116,7 @@ def checks(s):
        all(w in edits for w in ("for ei = 1 to 8", "'more than 8 edits'", "bad.why = 'an empty old text'", "len(en) > 4000", "epos<i> + elen<i> > epos<i + 1>", "bad.why = 'two edits overlap'", "if dl > 30 then", "sysmsg(11659, dl)")), "")
     ck("E4 a change to a text is never accepted by Enter alone: the popup of an edit has Accept and Reject and Reject is the default", re.search(r"case pk = 'edit'.*?btn = '&Accept,&Reject'\s*\n\s*dflt = 2", ask, re.S) is not None, "")
     ck("E5 the diff shows EVERY edit in full: each old line with -, each new line with +, the change number and the line it is at (11658)",
-       ordered(edits, "sysmsg(11658, k, ed.n, line.no)", "'- ' : field(eo, nl, j)", "'+ ' : field(en, nl, j)"), "")
+       ordered(edits, "sysmsg(11658, k, ed.n, line.no)", "wr.p1 = '- ' ; wr.p2 = '  '", "wr.text = field(eo, nl, j)", "gosub wrap.exact", "wr.p1 = '+ ' ; wr.p2 = '  '", "wr.text = field(en, nl, j)", "gosub wrap.exact"), "")      # 28 Oct 26 (S5): a long line goes on in rows (test-aiwrap-units.py)
     ck("E6 an app that has nowhere to run a command says so ('nocmd') and a command is then ignored; an action is looked for first, edits second, a command last",
        "no.cmd" in ai and ordered(prop, "if found then", "if pk = '' and tbm # '' then gosub read.edits", "if pk = '' and not(no.cmd) then"), "")
     ck("E7 the accepted edits are returned only for an edit proposal, with the model's own words: pk, the edit list, the argument, the words", "(if pk = 'action' then pid else (if pk = 'edit' then ed.list else pcmd))" in ask, "")
@@ -123,8 +124,9 @@ def checks(s):
     ck("I1 the edits are applied only if the buffer still holds, at every place, exactly what the model was shown ($tk_ai 'splice'): it answers null otherwise, and the IDE then says 11666, changes nothing and returns",
        ordered(splice, "s.now[s.off + s.p, s.l] # s.win[s.p, s.l]", "if not(s.fits) then return", "s.new = s.now")
        and ordered(apply_, "call $tk_ai('splice'", "if ai.sp = '' then", "msg = sysmsg(11666)", "return", "mw{'value'} = "), "")
-    ck("I2 the change is ONE undo step: the old text and cursor go on the memo's undo stack before the new value is set, and redo is forgotten",
-       ordered(apply_, "mw{'undo'} = ai.snap", "mw{'redo'} = ''", "mw{'value'} = "), "")
+    # 28 Oct 26 (TUI phase 2 review): through the memo's own 'snap' op, which keeps the step in the memo's form (the old mw{'undo'} push was the legacy form, whose value marks came back as line ends)
+    ck("I2 the change is ONE undo step: the memo's own 'snap' puts the old text and cursor on its undo steps (and forgets redo) before the new value is set; the IDE writes no undo key itself",
+       ordered(apply_, "call $sl_memo('snap', mw,", "mw{'value'} = ") and not re.search(r"\{'(undo|redo)'\}", apply_), "")
     ck("I3 the IDE writes nothing to the disk for the AI: no write, no save in the routine that applies the edits", not re.search(r"\b(write|writev|save|do\.save|delete)\b", apply_), "")
     ck("I4 the AI is asked through $tk_ai only, only when a record is open, and the IDE gives the text, the line it starts at, the selection and 'nocmd'",
        ide.count("call $tk_ai('ask'") == 1 and ordered(ide, "ai.go:", "if nbuf = 0 then", "msg = sysmsg(11662)", "call $tk_ai('ask'") and "ai.sel : @fm : 'nocmd'" in ide, "")
@@ -178,7 +180,7 @@ MUTANTS = [
     ("a bad edit is only skipped, not the whole set", "tk_ai", "      note.p = sysmsg(11660, bad.why)\n      return\n", "      note.p = sysmsg(11660, bad.why)\n", "E1"),
     ("Enter accepts an edit", "tk_ai", "         dflt = 2                                         ;* a change to a text is never accepted by Enter alone", "         dflt = 1", "E4"),
     ("splice applies without the fit test", "tk_ai", "      if s.now[s.off + s.p, s.l] # s.win[s.p, s.l] then s.fits = 0", "      null", "I1"),
-    ("the IDE's change is not an undo step", "ide", "   mw{'undo'} = ai.snap : @fm : mw{'undo'}\n", "", "I2"),
+    ("the IDE's change is not an undo step", "ide", "   call $sl_memo('snap', mw, '', '', ai.sr)\n", "", "I2"),
     ("the IDE saves after applying", "ide", "   msg = sysmsg(11661, ai.n)\n", "   msg = sysmsg(11661, ai.n)\n   write ai.new on fv, bi<cb>\n", "I3"),
     ("the IDE does not say nocmd", "ide", "ai.sel : @fm : 'nocmd'", "ai.sel", "I4"),
     ("every entry activates", "sl_form", "(aw{'type'} = 'entry' and aw{'activate'} + 0)", "aw{'type'} = 'entry'", "I7"),
@@ -192,6 +194,8 @@ MUTANTS = [
     ("CED saves after applying", "ced_edit", "   message.text = sysmsg(11676, ai.sp<3>)\n", "   gosub save.record\n   message.text = sysmsg(11676, ai.sp<3>)\n", "X5"),
     ("the debugger offers AI outside the full-screen display", "debug", "   if full.screen then call $tk_ai('usable', '', ai.ok, ai.pm)", "   call $tk_ai('usable', '', ai.ok, ai.pm)", "X6"),
     ("the debugger sends text to edit", "debug", ": @fm : '' : @fm : 1 : @fm : '' : @fm : 'nocmd'", ": @fm : ai.page : @fm : 1 : @fm : '' : @fm : 'nocmd'", "X6"),
+    # 28 Oct 26 (TUI phase 2 review): the IDE's AI step in the memo's old form (value marks for line ends), which the memo reads as legacy - marker 27 for --from=27
+    ("the IDE pushes the old-form step again", "ide", "   call $sl_memo('snap', mw, '', '', ai.sr)\n", "   mw{'undo'} = mw{'cy'} : @tm : mw{'cx'} : @tm : convert(@fm, @vm, mw{'value'}) : @fm : mw{'undo'}\n", "I2"),
 ]
 M_STAGE2 = 10
 M_STAGE3 = 18

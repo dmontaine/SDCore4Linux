@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 phase 2 (S4): D refuses an entry the VOC holds as a keyword (type K: all, detail, no.query ...) - DELETE VOC ALL asks "Delete all records in VOC?" into the output the page captures,
+*               and a y would empty the VOC.  The test is $tk_word's, the same one TOOL.FILES and TOOL.DICT make.
 * 26 Oct 26 dm  New.
 * END-HISTORY
 *
@@ -17,7 +19,7 @@
 *   VOC: the same as NEWVOC (the file every account's VOC was copied from), changed from it, or one the account added.  The entry under the cursor is shown field by field.
 *
 *   WHAT IT CAN DO.  E edits the entry in SED (the terminal is handed to SED and taken back); the kernel's own rule applies when SED saves it - writing the VOC needs voc-edit, and the page
-*   says which of the edit gates the session holds.  D deletes an entry (DELETE VOC name) after a box and the name typed.  Nothing is written by the page itself: a record is changed by
+*   says which of the edit gates the session holds.  D deletes an entry (DELETE VOC name) after a box and the name typed; an entry that is a keyword of the VOC (type K: all, detail ...) is refused, because DELETE would read the name as the keyword.  Nothing is written by the page itself: a record is changed by
 *   SED or by a verb, never by this program.
 *
 *   Keys: Up and Down, PgUp and PgDn, Home and End move; T cycles the type shown (all, verbs, files, pointers, paragraphs and sentences, other); / or F11 filters by a part of the name;
@@ -505,6 +507,12 @@ do.delete:
    gosub check.name
    if not(okname) then
       msg = 'this id has a character the page does not give to a command: type  delete voc ' : vid : '  at the prompt'
+      return
+   end
+   * a keyword of the VOC is read by DELETE as the keyword (DELETE VOC ALL means every record), not as the name of an entry: refused here, before any box
+   call $tk_word(vid, kwok, kwwhy)
+   if not(kwok) then
+      msg = kwwhy
       return
    end
    sent = 'delete voc ' : vid

@@ -11,6 +11,8 @@
 #
 # START-HISTORY:
 # 28 Oct 26 dm  New (S.88 Phase 0).  Written from the probes of the Opus evaluation (Opus_TUI_Evidence/rt2: probe_lib, probe_pages, probe_e2).
+# 28 Oct 26 dm  S.88 phase 2 (written, not run): section D4 - the break key after an abort inside a toolkit app and after SED, and HOME after a refused tile command (plan 2.5, 2.6).
+# 28 Oct 26 dm  TUI phase 2 review (written, not run): D4d0 - a tile command that aborts waits for Enter before HOME is drawn again, and D4d presses it.
 # END-HISTORY
 #
 # WHAT IT HOLDS, row by row (the id is the plan's; the phase is the plan's phase whose change makes the row pass):
@@ -19,6 +21,7 @@
 #   K / S1   an ORDINARY session's READU lock on a record id holding ESC bytes must not reach the ADMINISTRATOR's terminal through tool.sessions                               [2]
 #   S2       tool.query with voc-edit ON and bp-edit OFF and a VOC entry &queries& that points at bp must not overwrite (S) or delete (X) a bp record                         [2]
 #   S4       tool.voc D on the VOC entry `all` is refused by the page, and the account's VOC is not emptied                                                                  [2]
+#   D4       the break key is back (PTERM DISPLAY at the prompt) after an abort inside a toolkit app and after SED, the person's own Off is not turned on, and HOME survives a refused tile command   [2]
 #   D3       memo undo keeps a value mark: type, Ctrl-Z, byte for byte (subvalue and text marks are the controls)                                                               [2]
 #   F2       SCREEN SET ... VALUE '' / TEXT '' / ITEMS '' clear an entry, a label, a list, a table's rows and a memo                                                           [3]
 #   F3       a hidden or disabled entry takes no typed letters, and the focus moves on                                                                                          [3]
@@ -64,7 +67,7 @@ ESC = "\x1b"
 F8, F9 = "\x1b[19~", "\x1b[20~"
 CTRL_Q, CTRL_Z = "\x11", "\x1a"
 TAB, RET, DOWN = "\t", "\r", "\x1b[B"
-HD, ZT, Q1, Q2, TV = "zzhd", "zzta", "zzq1", "zzq2", "zztv"
+HD, ZT, Q1, Q2, TV, BK = "zzhd", "zzta", "zzq1", "zzq2", "zztv", "zzbk"
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
 
@@ -949,6 +952,110 @@ def section_autologout():
         hh.end()
 
 
+# ---------------------------------------------------------------------------------------------------------------------------------------- D4 and plan 2.5: the break key after an abort, and HOME after a refused command
+# (28 Oct 26, S.88 phase 2, WRITTEN AND NOT RUN: the owner ruled that no suite runs until all the phases are in.)
+#
+# THE INSTRUMENT.  A tiny INTERNAL program of the sandbox's own, $zzab, opens the toolkit's base like a page ($tk_open turns the break key off and takes the screen) and then reads an unassigned
+# variable, which aborts the program with the screen open and the break key off - the state an abort inside a page, the IDE or CED leaves.  An ordinary account gets it as a verb through a VOC entry
+# (V, CA, $zzab), as every tool.* page is given.  The break setting is READ AS THE PERSON WOULD, with PTERM DISPLAY at the prompt ("Break trapping: On|Off (char ^C)", message 6830/6831), after the abort:
+# On is the person's own setting, restored; Off with the person having typed PTERM BREAK OFF first is the control that the fix puts back what the person had and does not turn the key on.
+# THE NULL CASES.  Before any abort the setting is read (the control reaches the prompt and PTERM DISPLAY answers); the abort row shows the library was reached (the page's own sign that the program ran is
+# the unassigned-variable message at the prompt, and the screen's top rows are the page's, not a shell's); SED is shown to have started (its menu bar) before it is left.
+
+ZZAB = """$internal
+program $zzab
+$catalog $zzab
+
+   call $tk_open('zzab', '', ctx, err)
+   if err # '' then
+      crt err
+      stop
+   end
+   crt zzunset
+   call $tk_close(ctx)
+end
+"""
+
+ZZVE = """   open 'VOC' to v else crt 'ZVE novoc' ; stop
+   write 'V':@fm:'CA':@fm:'$zzab' on v, 'zzab'
+   write 'V':@fm:'CA':@fm:'$zzab' on v, 'tool.keys'
+   crt 'ZVE done'
+end
+"""
+
+
+def break_state(h):
+    """what the person would read at the prompt: 'On', 'Off' or None (PTERM DISPLAY's own line)"""
+    send(h, "pterm display\r", idle=1.3, label="PTERM DISPLAY")
+    m = re.findall(r"Break trapping: (On|Off)", h.text())
+    return m[-1] if m else None
+
+
+def section_break():
+    say("\n--- D4: the break key after an abort inside a toolkit app, after SED, and HOME after a refused command (account %s)" % BK)
+    g.put(os.path.join(sh.SYS, "gpl.bp", "zzab"), ZZAB)
+    out = adm("BASIC gpl.bp zzab")
+    R.row("D4-ctl0 the throw-away internal program $zzab compiled in the sandbox", any(re.match(r"^Compiled 1 program\(s\) with no errors", l) for l in out), "\n".join(out[-6:]))
+    compile_progs(BK, {"zzve": ZZVE})
+    out = g.plain(BK, ["RUN bp zzve"])
+    R.row("D4-ctl0b the verbs zzab and tool.keys (the latter pointing at $zzab) are in %s's VOC" % BK, any("ZVE done" in l for l in out), "\n".join(out[-4:]))
+
+    h = open_h(account=BK)
+    b0 = break_state(h)
+    R.row("D4-ctl1 before anything runs the person's break setting is On (PTERM DISPLAY answered: %r)" % b0, b0 == "On", "PTERM DISPLAY said %r; screen %r" % (b0, h.text()[-200:]))
+    send(h, "zzab\r", idle=3.5, label="zzab (opens the base, then aborts)")
+    T = h.text()
+    aborted = ("nassigned" in T or "Unassigned" in T)
+    R.row("D4-ctl2 $zzab ran and aborted (the unassigned-variable message is on the screen) and the TCL prompt is back", aborted and any(l.startswith(":") for l in h.lines()), "screen tail %r" % [l[:80] for l in h.lines() if l.strip()][-4:])
+    b1 = break_state(h)
+    R.row("D4a after an abort inside a toolkit app (screen open, break key off) the break setting is On again at the prompt (PTERM DISPLAY: %r)" % b1, b1 == "On", "PTERM DISPLAY said %r" % b1, phase=2 if aborted else None)
+
+    send(h, "pterm break off\r", idle=1.0, label="PTERM BREAK OFF (the person's own choice)")
+    b2 = break_state(h)
+    R.row("D4-ctl3 PTERM BREAK OFF took: the setting reads Off", b2 == "Off", "PTERM DISPLAY said %r" % b2)
+    send(h, "zzab\r", idle=3.5, label="zzab again")
+    b3 = break_state(h)
+    R.row("D4b ...and after the same abort the person's own Off is what is given back (the fix restores what the person had; it does not force the key on)", b3 == "Off", "PTERM DISPLAY said %r" % b3, phase=2 if aborted else None)
+    send(h, "pterm break on\r", idle=1.0, label="PTERM BREAK ON")
+
+    # SED: it turns the break key off with PTERM BREAK OFF and gave nothing back (reset.term.state)
+    send(h, "sed voc zzab\r", idle=3.0, label="SED on the VOC record zzab")
+    started = "File" in h.line(0) or "Edit" in h.line(0)
+    R.row("D4-ctl4 SED started on the record (its menu bar is on row 0)", started, "row 0 %r" % h.line(0)[:100])
+    send(h, CTRL_Q, idle=1.5, label="Ctrl-Q")
+    if until(h, lambda t: "uit without saving" in t, 1.0):
+        send(h, "y", idle=1.2, label="y")
+    waitfor(h, 1.0)
+    b4 = break_state(h)
+    R.row("D4c after SED the break setting is On again at the prompt (PTERM DISPLAY: %r)" % b4, b4 == "On", "PTERM DISPLAY said %r" % b4, phase=2 if started else None)
+    h.end()
+
+    # HOME: a tile whose command is refused no longer ends HOME (plan 2.5).  The tile Keys runs tool.keys, which is $zzab in this account: it aborts.
+    h = open_h(account=BK)
+    send(h, "home\r", idle=3.0, label="home")
+    up = h.home()
+    R.row("D4-ctl5 HOME is on the screen (Everyone, Terminal and Sign out)", up, "screen %r" % [l[:80] for l in h.lines() if l.strip()][:4])
+    if up:
+        send(h, "k", idle=0.8, label="k (jumps to Keys)")
+        send(h, RET, idle=3.5, label="Enter (starts the tile: tool.keys -> $zzab, which aborts)")
+        waitfor(h, 1.5)
+        # 28 Oct 26, TUI phase 2 review (a): an aborted command waits for a key before the page is drawn again, so that the abort message is read (written, not run)
+        held = (not h.home()) and any("Press Enter to return" in l for l in h.lines())
+        R.row("D4d0 the abort message is not drawn over: the screen waits for Enter (\"Press Enter to return\") and is not the home screen yet", held, "screen %r" % [l[:80] for l in h.lines() if l.strip()][-4:], phase=2)
+        if held:
+            send(h, RET, idle=3.0, label="Enter (the page is drawn again)")
+            waitfor(h, 1.5)
+        back = h.home()
+        R.row("D4d the aborted tile command did not end HOME: the home screen is on the screen again, not the TCL prompt", back, "screen %r" % [l[:80] for l in h.lines() if l.strip()][-4:], phase=2)
+        if back:
+            send(h, "\x1b[B", idle=0.5, label="Down (the page answers keys: HOME is alive)")
+    h.end()
+    h = open_h(account=BK)
+    b5 = break_state(h)
+    R.row("D4-ctl6 a new session of the account reads On (the setting is per session: the rows above do not carry into it)", b5 == "On", "PTERM DISPLAY said %r" % b5)
+    h.end()
+
+
 # ---------------------------------------------------------------------------------------------------------------------------------------- main
 
 def main():
@@ -958,9 +1065,9 @@ def main():
         sh.setup("sandbox-termsafe.py")
         if sh.tkb.failed:
             bail("the sandbox setup did not pass its own row")
-        for a, spec in ((ZT, ("yes", "yes", "yes")), (Q1, ("yes", "yes", "yes")), (Q2, ("yes", "yes", "yes")), (TV, ("yes", "yes", "yes"))):
+        for a, spec in ((ZT, ("yes", "yes", "yes")), (Q1, ("yes", "yes", "yes")), (Q2, ("yes", "yes", "yes")), (TV, ("yes", "yes", "yes")), (BK, ("yes", "yes", "yes"))):
             make_account(a, *spec)
-        for fn in (section_widgets, section_pages, section_sessions, section_query, section_vocall, section_memo, section_set, section_focus, section_frame):
+        for fn in (section_widgets, section_pages, section_sessions, section_query, section_vocall, section_break, section_memo, section_set, section_focus, section_frame):
             try:
                 fn()
             except SystemExit:

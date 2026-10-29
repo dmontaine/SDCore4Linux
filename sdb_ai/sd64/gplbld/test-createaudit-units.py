@@ -29,7 +29,8 @@ PAIRS = [("CA$ROUTE.SSH", "ssh"), ("CA$ROUTE.API", "api"), ("CA$OS.SH", "sh-on")
          ("CA$FILESWRITE", "files-write-on"), ("CA$FILESADMIN", "files-admin-on"),   # 21 Oct 26, S.73 item 3
          ("CA$AI", "ai-on"),   # 23 Oct 26, S.69 step 2
          ("CA$SHARED.READ.OFF", "shared-read-off"), ("CA$SHARED.WRITE", "shared-write-on"),
-         ("CA$PINS", "pins-on")]   # 26 Oct 26, S.75: the person may add programs of their own to their home screen
+         ("CA$PINS", "pins-on"),   # 26 Oct 26, S.75: the person may add programs of their own to their home screen
+         ("CA$RECOVERY", "recovery-on")]   # 28 Oct 26, S.88 plan 2.9 (D2): the account's editors keep a recovery copy of unsaved text
 AUDIT = "void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates : start.audit)"
 START_WORDS = {"START-MENU", "START-TERMINAL"}       # 26 Oct 26, S.75: where the account starts, not an access: they have a tail of their own (start=), not a place in gates=
 

@@ -19,6 +19,9 @@
 * 
 *
 * START-HISTORY:
+* 28 Oct 26 dm S.88 plan 2.9 (D2; owner's answer to Q2: "Build it, ship it off"): RECOVERY-ON / RECOVERY-OFF, whether the account's editors keep a recovery copy of unsaved text
+*           (register field 19, ACC$RECOVERY; off as delivered), through os.set like PINS-ON.  A USER account only: a group or other account is refused with 11771 (the copy is
+*           kept in the account's directory, which every member of a group account can rename entries in).  Slot RC; 11770 is the line os.set prints; the audit line is os.set's.
 * 26 Oct 26 dm F6 (S.67 stage 2, alternative C; core direction: high security is delivered and the administrator loosens it later): SDSYS-ON / SDSYS-OFF put the sdsys operating-system user in or out of
 *           the Linux group of a USER account (sd-elevate sdsys-join / sdsys-leave; sdsys-on also runs group-write, which is repeatable and repairs the modes), which is what switches master
 *           edits and SDSYS's writing inside the account on and off.  The state is the membership, as the route words' is: no register field.  set.sdsys is the one routine; 11977 / 11978 are
@@ -155,6 +158,14 @@
 * MODIFY.ACCOUNT account FILES-ADMIN-OFF
 * MODIFY.ACCOUNT account AI-ON
 * MODIFY.ACCOUNT account AI-OFF
+* MODIFY.ACCOUNT account RECOVERY-ON
+* MODIFY.ACCOUNT account RECOVERY-OFF
+*
+* 28 Oct 26 dm - S.88 plan 2.9 (D2).  RECOVERY-ON / RECOVERY-OFF write 'yes' / 'no' in register field 19 (ACC$RECOVERY).  With yes the IDE keeps a copy of the text of a
+*   changed record that was not saved, owner-only, in the directory $recovery of the account (!edit_recovery), and offers it back when the record is opened again; a
+*   hang-up or an abort no longer loses it.  Off for a new account and for every existing one (blank means no; there is no upgrade walk).  A user account only (11771).
+*   The line printed is "Account %1 keeps a recovery copy of unsaved editor text: yes|no".  It takes effect at once: the editor reads the field each time it writes a copy.
+*   RECOVERY-OFF stops new copies; copies made before stay the person's and are still offered (MODIFY.ACCOUNT runs as sdsys and cannot read them, by design).
 *
 * 23 Oct 26 dm - S.69 step 2.  AI-ON / AI-OFF add or remove the account's person from the Linux group sdaiusers.  A person in it may use the AI provider the administrator chose
 *   (set.ai, the same provider and model for every account) through the helper sd-ai; a person outside it is refused by the helper (nogate).  Off for a new account.  The line
@@ -383,6 +394,16 @@ do.action:
          os.field = ACC$DICT.EDIT ; os.want = @false
          gosub os.set
          return
+* 28 Oct 26 dm - S.88 plan 2.9 (D2): RECOVERY-ON / RECOVERY-OFF, whether the account's editors keep a recovery copy of unsaved text (delivered off).  A user account
+*   only (os.set refuses any other with 11771).  Not loaded at sign-on: the editor reads the field each time it would write a copy, so it takes effect at once.
+      case action = 'RECOVERY-ON'
+         os.field = ACC$RECOVERY ; os.want = @true
+         gosub os.set
+         return
+      case action = 'RECOVERY-OFF'
+         os.field = ACC$RECOVERY ; os.want = @false
+         gosub os.set
+         return
 * 17 Oct 26 dm - S.65 slice 1 (SDNet, owner's rulings of 17 Oct): NET-ON / NET-OFF, the gate for opening a file on another SD server.  Allowed on a
 *   group account as SD-ON is.  Account-scoped: it takes effect at the person's next account entry (sign-on, LOGTO, the API server).  The gate takes
 *   effect for the remote-file slices that follow and does nothing yet.
@@ -573,7 +594,7 @@ add.delete.arm:
          
       end else
          crt 'modify.account Action Must Be add, delete, ssh, api, both, none,'
-         crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, voc-on, voc-off, bp-on, bp-off, dict-on, dict-off, net-on, net-off,'
+         crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, voc-on, voc-off, bp-on, bp-off, dict-on, dict-off, recovery-on, recovery-off, net-on, net-off,'
          crt '   shared-read-on, shared-read-off, shared-write-on, shared-write-off,'
          crt '   start-menu, start-terminal, start-default, pins-on, pins-off,'
          crt '   files-on, files-off, files-write-on, files-write-off, files-admin-on, files-admin-off, ai-on, ai-off, sdsys-on, sdsys-off, suspended or unsuspended'
@@ -597,6 +618,7 @@ show.usage:
    crt '                 modify.account <account> os-on | os-off'
    crt '                 modify.account <account> sd-on | sd-off'
    crt '                 modify.account <account> voc-on | voc-off | bp-on | bp-off | dict-on | dict-off'
+   crt '                 modify.account <account> recovery-on | recovery-off'
    crt '                 modify.account <account> net-on | net-off'
    crt '                 modify.account <account> shared-read-on | shared-read-off | shared-write-on | shared-write-off'
    crt '                 modify.account <account> files-on | files-off | files-write-on | files-write-off | files-admin-on | files-admin-off'
@@ -627,8 +649,8 @@ show.usage:
 *   The conflict test compares DIFFERENT words only: the same word twice is one action (want.at is set once).
 
 validate.actions:
-   word.arr = convert(',', @fm, 'SSH,API,BOTH,NONE,SH-ON,SH-OFF,OS-ON,OS-OFF,SD-ON,SD-OFF,VOC-ON,VOC-OFF,BP-ON,BP-OFF,DICT-ON,DICT-OFF,NET-ON,NET-OFF,SHARED-READ-ON,SHARED-READ-OFF,SHARED-WRITE-ON,SHARED-WRITE-OFF,FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,AI-ON,AI-OFF,SDSYS-ON,SDSYS-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED,UNSUSPENDED')
-   slot.arr = convert(',', @fm, 'R,R,R,R,SH,SH,OS,OS,SD,SD,VOC,VOC,BP,BP,DICT,DICT,NET,NET,SR,SR,SW,SW,F,F,FW,FW,FA,FA,AI,AI,SY,SY,ST,ST,ST,PN,PN,S,S')
+   word.arr = convert(',', @fm, 'SSH,API,BOTH,NONE,SH-ON,SH-OFF,OS-ON,OS-OFF,SD-ON,SD-OFF,VOC-ON,VOC-OFF,BP-ON,BP-OFF,DICT-ON,DICT-OFF,RECOVERY-ON,RECOVERY-OFF,NET-ON,NET-OFF,SHARED-READ-ON,SHARED-READ-OFF,SHARED-WRITE-ON,SHARED-WRITE-OFF,FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,AI-ON,AI-OFF,SDSYS-ON,SDSYS-OFF,START-MENU,START-TERMINAL,START-DEFAULT,PINS-ON,PINS-OFF,SUSPENDED,UNSUSPENDED')
+   slot.arr = convert(',', @fm, 'R,R,R,R,SH,SH,OS,OS,SD,SD,VOC,VOC,BP,BP,DICT,DICT,RC,RC,NET,NET,SR,SR,SW,SW,F,F,FW,FW,FA,FA,AI,AI,SY,SY,ST,ST,ST,PN,PN,S,S')
    n.words = dcount(actions, @fm)
    pos.of = ''
    want.at = ''
@@ -1379,9 +1401,15 @@ os.set:
 *   A GROUP or OTHER account is entered by whoever its Linux group admits, so a shell granted to it would
 *   be a shell granted to all of them, decided by group membership rather than by the administrator who
 *   typed SH-ON.  sdu_ is the only group that names one person (the Windows port's 10105).
+*   28 Oct 26, S.88 plan 2.9 (D2): the recovery copy is refused the same way, with its own reason (11771): the copy sits in the account's directory, and in a
+*   group or other account several people can rename entries there, so the private directory the editor checks could be swapped for somebody else's.
    if group.name[1,4] # 'sdu_' and os.field # ACC$SD.ACCOUNTS and os.field # ACC$VOC.EDIT and os.field # ACC$BP.EDIT and os.field # ACC$DICT.EDIT and os.field # ACC$SHARED.READ and os.field # ACC$SHARED.WRITE and os.field # ACC$NET and os.field # ACC$PINS then
       @system.return.code = -ER$FAILED
-      crt sysmsg(10105, acc.name)  ;* %1 is a group account and has no Linux user
+      if os.field = ACC$RECOVERY then
+         crt sysmsg(11771, acc.name)  ;* %1 is not a user account, and a recovery copy is kept only in a user account, for its own person; nothing was changed
+      end else
+         crt sysmsg(10105, acc.name)  ;* %1 is a group account and has no Linux user
+      end
       return
    end
 
@@ -1425,6 +1453,11 @@ os.set:
       sh.write.now = 'no'
       if upcase(trim(acc.new<ACC$SHARED.WRITE>)) = 'YES' then sh.write.now = 'yes'
       crt sysmsg(11515, acc.name, sh.read.now, sh.write.now)  ;* Account %1 has shared.read %2, shared.write %3
+      return
+   end
+   if os.field = ACC$RECOVERY then
+*     28 Oct 26, S.88 plan 2.9 (D2): one field of its own, so the line names only it.
+      crt sysmsg(11770, acc.name, if upcase(trim(acc.new<ACC$RECOVERY>)) = 'YES' then 'yes' else 'no')   ;* Account %1 keeps a recovery copy of unsaved editor text: %2
       return
    end
    if os.field = ACC$PINS then

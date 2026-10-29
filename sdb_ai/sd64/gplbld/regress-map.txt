@@ -158,13 +158,14 @@ gplsrc/op_btree.c            : @functions
 gplsrc/op_arith.c            : @functions
 gplsrc/op_logic.c            : @functions lang-b45 partial
 gplsrc/op_misc.c             : @functions epoch txnstatus
-gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1  @files netfile masters
+gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1  @files netfile masters lockids tool-sessions
 gplsrc/locks.h               : lock-b6 listu-a5 conf-b1
 # S.71 (20 Oct 26): the API server's input path (keyin, read_socket, keyready in linuxio.c; the two packet readers in op_tio.c; the length test in apipkt.h)
 # is run by the apispin suite: a real `sd -n -q` behind the real TLS relay, and a `sd -Q -C` over pipes, with a client that goes away.
 # qmclient (a real local API session through sdclilib.so) and req29 (a real `sd -Q` server over pipes) read through the same functions.
 gplsrc/op_tio.c              : @pty terminfo-ext apispin qmclient req29
-gplsrc/linuxio.c             : @pty apispin qmclient req29
+# S.88 phase 2 (28 Oct 26): keyin() keeps AUTOLOGOUT's idle clock across waits that end by their own timeout (autologout)
+gplsrc/linuxio.c             : @pty apispin qmclient req29 autologout
 gplsrc/apipkt.h              : apispin
 gplsrc/keyin.h               : @pty
 gplsrc/tio.h                 : @pty
@@ -186,7 +187,7 @@ gplsrc/sdsem.c               : shmmode @core
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode segtrust auditwriter @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof netfile masters
-gplsrc/kernel.c : @core csvb q5 listu-a5 inhibit-q8  prof resetall  classinit sysexc try editgates apispin segtrust ipc
+gplsrc/kernel.c : @core csvb q5 listu-a5 inhibit-q8  prof resetall  classinit sysexc try editgates apispin segtrust ipc lockids q4
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
 gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust
@@ -324,8 +325,15 @@ sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-mas
 sdsys/gpl.bp/tk_runx         : tk-base tool-ai tool-backups tool-accounts
 sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
 sdsys/gpl.bp/tk_gates        : tk-base tk-keys tool-ai tool-gates tool-accounts
+# S.88 phase 2 (28 Oct 26): the toolkit's shared guards.  $tk_ownfile is asked by tool.query (&queries&, S2) and tool.bulk (its undo file); $tk_word by tool.voc and tool.files (S4); $tk_brk keeps and
+# gives back the break setting (D4: tk_open, tk_close, sl_cleanup, SED, home).  test-tkguards-units.py holds all three as text.
+sdsys/gpl.bp/tk_ownfile      : tool-query tool-bulk termsafe
+sdsys/gpl.bp/tk_word         : tool-voc tool-files termsafe
+sdsys/gpl.bp/tk_brk          : tk-base tk-keys @pages tk-resize termsafe sed-menu
 # 26 Oct 26 (task faults): the window cap is in $tk_open, the sixth argument of $tk_confirm and message 11865 are the faults suite's
 sdsys/gpl.bp/tk_open         : tk-base tk-keys tk-faults @pages tk-resize termsafe
+# S.88 phase 2 (28 Oct 26, S5): the AI popup shows every line of a diff, a command and the preview whole (before, the rule below this one hid the AI suites from a change of tk_ai)
+sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys
 sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
@@ -526,12 +534,21 @@ sdsys/gpl.bp/sl_theme       : screen sed-menu syntax viewport ide ced dbgui tk-b
 # 28 Oct 26 (S.88 phase 0): sl.h stood AFTER the *.h rule below, so it never matched and a change of the screen library's header ran the compiler suites; first match wins
 sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages
 sdsys/gpl.bp/*.h             : @compiler @core
-sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base tk-keys @pages termsafe
+# S.88 phase 2 (28 Oct 26, S1): SCREEN TEXT draws through $sl_put, whose control-character scrub escdata reads from the raw bytes
+sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base tk-keys @pages termsafe escdata
 # S.75 (22 Oct 26): the pick window is used by the toolkit only (tktest); no other screen suite draws it.
 sdsys/gpl.bp/sl_pickwin      : tk-base
-sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe
+# S.88 phase 2 (28 Oct 26): the cursor lock of a window smaller than the layout; used by SED, the debugger and $sl_key's guard mode; its AUTOLOGOUT work-around is gone
+sdsys/gpl.bp/sl_guard        : sed-small ide-small sed-menu dbgui tk-resize autologout
+# S.88 phase 2 (28 Oct 26): the memo's undo steps (D3) and the control-character scrub of $sl_put (S1); any sl_ program draws through $sl_put, so escdata, and the memo is every editor's text area
+sdsys/gpl.bp/sl_memo         : memoundo escdata screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe recarr
+sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps
-sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr
+sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery
+# S.88 plan 2.9 (28 Oct 26): the editors' recovery copy - its keeper, its messages 11770-11777, and its suite (the register words are in modifya, createa and create_account, held by test-recovery-units.py)
+sdsys/gpl.bp/edit_recovery   : recovery ide-fresh
+sdsys/messages/1177[0-7]     : recovery
+gplbld/sandbox-recovery.py   : @self
 # S.88 Phase 4 (28 Oct 26): the IDE's one name form, and its messages 11963-11975 (11214 and 11225 changed too)
 sdsys/gpl.bp/ide_name        : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr
 sdsys/messages/1196[3-9]     : ide-fresh ide
@@ -544,6 +561,8 @@ sdsys/gpl.bp/ced*            : ced editgates shared ide-small ai-apps recarr
 # One-editor plan, stage 1 (26 Oct 26): $recarr, a record as a nested array and back; CED's data mode; the IDE's F12 (messages 11988-11990)
 sdsys/gpl.bp/recarr          : recarr
 gplbld/sandbox-recarr.py     : @self
+gplbld/sandbox-memoundo.py   : @self
+gplbld/sandbox-escdata.py    : @self
 sdsys/messages/1198[89]      : recarr
 sdsys/messages/1199[12]      : recarr
 sdsys/messages/11990         : recarr
@@ -716,6 +735,10 @@ sdsys/voc_template/json          : jsonx
 sdsys/voc_template/json.lines    : jsonx
 sdsys/voc_template/*         : @core dictfold misc-a9
 sdsys/messages/1172[0-4]     : docs
+# S.88 phase 2 (28 Oct 26): 11755 keyword refused (tool.voc, tool.files), 11756 to 11759 the file test (tool.bulk's undo file, tool.query's &queries&), 11760 a record that is not a saved query (tool.query)
+sdsys/messages/11755         : tool-voc tool-files termsafe
+sdsys/messages/1175[6-9]     : tool-query tool-bulk termsafe
+sdsys/messages/11760         : tool-query termsafe
 sdsys/messages/117*          : crypt
 sdsys/messages/11197        : sed-menu sed-small
 sdsys/messages/1160[0-2]     : sed-small ide-small

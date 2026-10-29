@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 phase 2 (S2): check.undo calls $tk_ownfile, the test moved out unchanged so that TOOL.QUERY makes the same one of &queries&.
 * 27 Oct 26 dm  S.87 batch 13: digest(x, 0, 'MD5') for the removed md5(x) (the same 32 lower case hex characters).
 * 26 Oct 26 dm  New.
 * 26 Oct 26 dm  faults: the boxes of the update and of the undo are titled "Update these records?" and "Put these records back?" ($tk_confirm's sixth argument); the file pick list shows a VOC id through a control-character filter.
@@ -1095,32 +1096,10 @@ describe.op:
 * account's own directory under its own name, and one the kernel's edit rules would let this session change.  The page is $internal, which the kernel lets through, so it asks for itself
 * (a person with voc-edit but not bp-edit could otherwise point the name at a program file).  In: uf open.  Out: uck = 1 when it may be used; ucw says why not.
 check.undo:
+   * 28 Oct 26 (S.88 phase 2, S2): the test itself is $tk_ownfile's now, so that TOOL.QUERY asks exactly the same of &queries&; the wording is the same (messages 11756 to 11759)
    uck = 0
    ucw = ''
-   ucd = ''
-   open 'VOC' to uvf then
-      ucd = fileinfo(uvf, FL$PATH)
-      close uvf
-   end
-   if ucd # '' then ucd = field(ucd, '/', 1, dcount(ucd, '/') - 1)         ;* the account's own directory: the folder the VOC is in
-   ucp = fileinfo(uf, FL$PATH)
-   uct = fileinfo(uf, FL$TYPE)
-   ucek = kernel(K$EDIT.KIND, ucp)
-   uceo = kernel(K$EDIT.OK, ucp)
-   begin case
-      case uct # FL$TYPE.DH
-         ucw = UNDOF : ' is not a dynamic file of this account'
-      case fileinfo(uf, FL$READONLY) = 1
-         ucw = UNDOF : ' is read only'
-      case ucd = '' or ucp # ucd : '/' : UNDOF
-         ucw = UNDOF : " does not stand in this account's own directory"
-      case ucek >= 1 and ucek <= 3
-         ucw = UNDOF : ' leads to ' : (if ucek = 1 then 'the VOC' else (if ucek = 2 then 'a dictionary' else 'a program file'))
-      case not(uceo)
-         ucw = edit_msg(ucek)                                   ;* the kernel's own words
-      case 1
-         uck = 1
-   end case
+   call $tk_ownfile(uf, UNDOF, uck, ucw)
    return
 
 undo.file:

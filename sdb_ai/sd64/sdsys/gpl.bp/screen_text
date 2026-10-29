@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 12 Oct 26 dm  New.
+* 28 Oct 26 dm  S.88 phase 2 (S1): a control character in the string is shown (reverse, one cell), never sent: $sl_put does it.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -15,7 +16,8 @@
 *
 *   call !screen_text(string, x, y, attr, width, ret, status)
 *
-*     string   one line; a mark character shows as a dot
+*     string   one line; a mark character shows as a dot, and a control character (an escape sequence in a record, a lock id or
+*              a file name) as the letter 64 above it in reverse, ESC as [, one cell each, never as the control itself ($sl_put)
 *     x y      the cell of its first character, from 0.  Left out, the text goes where the library's
 *              cursor is (after the last SCREEN TEXT, or where SCREEN CURSOR AT put it)
 *     attr     a style: normal, reverse, underline, bold, window, highlight ... (see $sl_theme); default

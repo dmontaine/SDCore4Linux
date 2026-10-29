@@ -9,6 +9,7 @@
 #
 # START-HISTORY:
 # 25 Oct 26 dm  New (S.75, DV4).
+# 28 Oct 26 dm  S.88 phase 2 (S2): section Q13 and its three runtime mutants (written, not run); the sandbox copy of the page is compiled together with $tk_ownfile.
 # END-HISTORY
 #
 # WHAT RUNS.  Two fixture accounts, zzqa and zzqb, each with the files zq (eight records and a dictionary with a column of every kind and four names the page must not put in a sentence),
@@ -33,6 +34,10 @@
 #   Q10     the results box: 2,000 lines kept and the number said, scrolling, escape sequences taken out, the empty file, the file that went away, a waiting select list
 #   Q11     help, a small window, the file given after the verb, the mouse, a piped session
 #   Q12     delete from the saved list needs the name typed
+#   Q13     S2 (S.88 phase 2): the page asks for itself whether &queries& is a file it may write.  zzqc has voc-edit ON, bp-edit OFF and a VOC entry &queries& that points at bp: S over a bp record and
+#           X on one are refused (the bp record is read from the DISK, unchanged) with no box; zzqd has a proper &queries& holding a record that is not a saved query (field 1 is junk): S over it and X on
+#           it are refused, a proper saved query is written and deleted as before (the controls).  WRITTEN, NOT RUN (28 Oct 26: the owner ruled that no suite runs until all the phases are in).  Runtime
+#           mutants: ownfile-skipped (Q13a, Q13b), record-write-over (Q13c) and record-delete (Q13d).
 import importlib.util
 import os
 import re
@@ -63,7 +68,8 @@ LEAK = "/tmp/zzq-leak-%d.txt" % os.getpid()
 
 SCREEN = [None]      # the pty session of the section running: a failed row prints what it was looking at
 
-PAGE_FILES = ("gpl.bp/tool_query", "newvoc/tool.query", "voc_template/tool.query", "helptext/tool.query.page")
+PAGE_FILES = ("gpl.bp/tool_query", "newvoc/tool.query", "voc_template/tool.query", "helptext/tool.query.page",
+              "gpl.bp/tk_ownfile", "messages/11756", "messages/11757", "messages/11758", "messages/11759", "messages/11760")      # 28 Oct 26 (S.88 phase 2, S2): the shared file test and its words
 
 
 def arow(rid, name, ok, detail=""):
@@ -83,6 +89,10 @@ MUTANTS = {
     "load-unchecked": ("   gosub validate.panes\n   gosub gen.sentence\n   * a sentence that was edited",
                        "   gosub gen.sentence\n   * a sentence that was edited",
                        ["Q9b", "Q9c", "Q9d", "Q9g2"], ["q9"]),
+    # 28 Oct 26 (S.88 phase 2, S2): the shared file test is skipped (the save and the delete both go through check.qfile); a record that is not a saved query may be written over / deleted
+    "ownfile-skipped": ("   call $tk_ownfile(qf, '&queries&', qok, qwhy)\n", "   qok = 1\n", ["Q13a", "Q13b"], ["q13"]),
+    "record-write-over": ("      if xrec<1> # 'query1' then", "      if 0 then", ["Q13c"], ["q13"]),
+    "record-delete": ("   if qdrec<1> # 'query1' then", "   if 0 then", ["Q13d"], ["q13"]),
     "delete-no-typed-name": ("   call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "   call $tk_confirm(dsent, lines, '', res, cmsg, sysmsg(11953))", ["Q12b", "Q12c"], ["q12"]),      # 26 Oct 26: the sixth argument (the box title) since the faults batch
 }
 
@@ -112,9 +122,9 @@ def sync_page():
 
 
 def compile_page():
-    out = adm("BASIC gpl.bp tool_query")
-    if not has(out, r"^Compiled 1 program\(s\) with no errors"):
-        bail("tool_query did not compile in the sandbox:\n" + "\n".join(out[-8:]))
+    out = adm("BASIC gpl.bp tk_ownfile tool_query")                    # 28 Oct 26: the page calls $tk_ownfile, which a sandbox built before it was written does not have
+    if not has(out, r"^Compiled 2 program\(s\) with no errors"):
+        bail("tool_query and tk_ownfile did not compile in the sandbox:\n" + "\n".join(out[-8:]))
 
 
 def mutate(name):
@@ -972,8 +982,141 @@ def section_q12():
     h.end()
 
 
+# ------------------------------------------------------------------------------------------------- Q13: S2, the page asks for itself whether &queries& is a file it may write
+# (28 Oct 26, S.88 phase 2.  WRITTEN, NOT RUN.)
+
+A3, A4 = "zzqc", "zzqd"
+SENT = "SENTINEL-ORIGINAL\n"
+
+PTR = "\n".join([                                    # zzqc: the VOC entry &queries& leads to the program file bp
+    "   open 'VOC' to v else crt 'ZZPT no voc' ; stop",
+    "   write 'F':@fm:'bp' on v, '&queries&'",
+    "   crt 'ZZPT done'", "end", ""])
+
+NQ = "\n".join([                                     # zzqd: a proper &queries& that holds a record that is not a saved query
+    "   execute 'create.file &queries& dynamic' capturing mk",
+    "   open '&queries&' to f else crt 'ZZNQ no queries' ; stop",
+    "   write 'junk':@fm:'zq':@fm:'list' on f, 'zz-other'",
+    "   crt 'ZZNQ done'", "end", ""])
+
+
+_PL = POPULATE.split("\n")
+POP_ZQ = "\n".join(_PL[:next(i for i, l in enumerate(_PL) if "DICT zbig" in l)] + ["   crt 'ZZQW done'", "end", ""])      # POPULATE up to the file zq: the S2 accounts have no other file
+
+
+def reg3(name, voc, bp, dic):
+    """a register record with the three edit gates as given (reg_record sets all three alike)"""
+    return [acct_dir(name), "", g.GROUP, "", "", "", "no", "no", "no", voc, bp, dic, "", "", "no", "", "", ""]
+
+
+def make_s2_account(a, helper, name):
+    g.FIXTURES[a] = ("no", "no")
+    g.build_account(a)
+    g.reg_write(a, reg_record(a, True))                    # the edit gates are ON while the fixture is built: a program has to be compiled to put the data in
+    bp = os.path.join(acct_dir(a), "bp")
+    g.put(os.path.join(bp, "zzqw"), POP_ZQ)
+    g.put(os.path.join(bp, "zzrd"), READER)
+    g.put(os.path.join(bp, name), helper)
+    out = g.plain(a, ["CREATE.FILE zq", "BASIC bp zzqw zzrd " + name, "RUN bp zzqw", "RUN bp " + name])
+    if not has(out, r"^ZZQW done$") or not has(out, r"^%s done$" % name.upper()) or not has(out, r"Compiled 3 program"):
+        bail("the S2 fixture of %s was not made:\n%s" % (a, "\n".join(out[-14:])))
+
+
+def disk_text(path):
+    try:
+        with open(path, "rb") as fh:
+            return fh.read().decode("latin-1")
+    except OSError:
+        return None
+
+
+def after_name(h, name, box_words, typed=None):
+    """S, the name; if a box that offers the write comes up (it must not, for a refused target) answer it Run and type the name when it asks"""
+    tp(h, "s", 1.0)
+    tp(h, name + "\r", 2.0)
+    shown = until(h, lambda t: re.search(box_words, t) is not None, 3.0)
+    if shown:
+        tp(h, "r", 1.5)
+        if typed:
+            tp(h, typed + "\r", 2.0)
+    return shown
+
+
+def section_q13():
+    say("\n--- Q13: S2, the page asks whether &queries& is a file it may write (zzqc: &queries& points at bp, voc-edit on, bp-edit off; zzqd: a record that is not a saved query)")
+    make_s2_account(A3, PTR, "zzpt")
+    make_s2_account(A4, NQ, "zznq")
+    bpa = os.path.join(acct_dir(A3), "bp", "aa-sent")
+    g.put(bpa, SENT)
+    g.reg_write(A3, reg3(A3, "yes", "no", "yes"))          # voc-edit on, bp-edit OFF, dict-edit on: the account the plan names
+    g.reg_write(A4, reg3(A4, "yes", "yes", "yes"))
+    reg = g.reg_read(A3)
+    arow("Q13ctl1", "the fixture is as the defect needs it: %s has voc-edit yes, bp-edit no, dict-edit yes (register fields 10-12 read %r) and the bp record aa-sent is on the disk" % (A3, reg[9:12]),
+         [x.strip() for x in reg[9:12]] == ["yes", "no", "yes"] and disk_text(bpa) == SENT, repr((reg[9:12], disk_text(bpa))))
+
+    # --- zzqc: S over a bp record through the pointer
+    h = page(A3, "zq")
+    arow("Q13ctl2", "the page is up on the file zq for %s (the sentence box says list zq)" % A3, "The sentence" in h.text() and sentence(h) == "list zq", repr(sentence(h)))
+    box = after_name(h, "aa-sent", r"Replaces the saved query|Saves the query on the screen", typed="aa-sent")
+    now = disk_text(bpa)
+    arow("Q13a", "S with the name of a bp record (aa-sent) while &queries& points at bp: the page refuses, shows no box that offers the write, says nothing was saved, and the bp record is unchanged on the DISK",
+         (not box) and now == SENT and "nothing was saved" in st(h), repr((box, (now or "")[:40], st(h))))
+    # --- X on the same record through the list
+    tp(h, "l", 1.5)
+    listed = "aa-sent" in h.text()
+    arow("Q13ctl3", "L lists the bp record aa-sent through the pointer (the instrument reaches the record X has to refuse)", listed, h.text()[-300:])
+    if listed:
+        tp(h, "x", 1.2)
+        box = until(h, lambda t: "Deletes the saved query" in t, 2.5)
+        if box:
+            tp(h, "r", 1.5)
+            tp(h, "aa-sent\r", 2.0)
+        now = disk_text(bpa)
+        arow("Q13b", "X on aa-sent: the page refuses before any box (no 'Deletes the saved query'), says nothing was deleted, and the bp record is still on the DISK, unchanged",
+             (not box) and now == SENT and "nothing was deleted" in st(h), repr((box, (now or "")[:40], st(h))))
+    else:
+        arow("Q13b", "X on aa-sent: (the list did not show the record, so X could not be pressed)", False, h.text()[-300:])
+    h.key("esc", idle=1.0)
+    h.key("ctrl-q", idle=1.2)
+    h.end()
+
+    # --- zzqd: a proper &queries& with a record that is not a saved query
+    junk0 = read_rec(A4, "zz-other")
+    arow("Q13ctl4", "the planted record zz-other is in %s's &queries& and its first field is junk (read by a program of the account)" % A4, junk0 is not None and junk0.startswith("junk"), repr(junk0))
+    h = page(A4, "zq")
+    box = after_name(h, "qa-one", r"Saves the query on the screen")
+    rec = read_rec(A4, "qa-one") or ""
+    arow("Q13ctl5", "the control: S with a new name (qa-one) offers its box, Run writes it, and the record is a saved query (query1, the file zq)", box and rec.startswith("query1|zq|list"), repr((box, rec[:40])))
+    box = after_name(h, "zz-other", r"Replaces the saved query|Saves the query on the screen", typed="zz-other")
+    junk1 = read_rec(A4, "zz-other")
+    arow("Q13c", "S over zz-other, a record whose first field is not query1: refused (no box), nothing was saved, and the record is as it was",
+         (not box) and junk1 == junk0 and "nothing was saved" in st(h), repr((box, junk1, st(h))))
+    tp(h, "l", 1.5)
+    arow("Q13ctl6", "L lists qa-one and zz-other", "qa-one" in h.text() and "zz-other" in h.text(), h.text()[-300:])
+    h.key("down", idle=0.6)                                     # the cursor goes from qa-one to zz-other
+    tp(h, "x", 1.2)
+    box = until(h, lambda t: "Deletes the saved query" in t, 2.5)
+    if box:
+        tp(h, "r", 1.5)
+        tp(h, "zz-other\r", 2.0)
+    junk2 = read_rec(A4, "zz-other")
+    arow("Q13d", "X on zz-other (not a saved query): refused before any box, nothing was deleted, and the record is as it was",
+         (not box) and junk2 == junk0 and "it was not changed" in st(h), repr((box, junk2, st(h))))
+    h.key("up", idle=0.6)
+    tp(h, "x", 1.2)
+    box = until(h, lambda t: "Deletes the saved query" in t, 2.5)
+    if box:
+        tp(h, "r", 1.5)
+        tp(h, "qa-one\r", 2.0)
+    gone = read_rec(A4, "qa-one")
+    arow("Q13ctl7", "the control: X on qa-one, a saved query, offers its box and Run with the name typed deletes it (read back: no record)", box and gone == "norecord", repr((box, gone)))
+    h.key("esc", idle=1.0)
+    h.key("ctrl-q", idle=1.2)
+    h.end()
+
+
 SECTIONS = [("q1", section_q1), ("q2", section_q2), ("q3", section_q3), ("q4", section_q4), ("q5", section_q5), ("q6", section_q6), ("q7", section_q7), ("q8", section_q8),
-            ("q9", section_q9), ("q10", section_q10), ("q11", section_q11), ("q12", section_q12)]
+            ("q9", section_q9), ("q10", section_q10), ("q11", section_q11), ("q12", section_q12), ("q13", section_q13)]
 
 
 def main():

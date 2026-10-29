@@ -730,9 +730,11 @@ def checks_2b(srcs, c, ck):
                "return file_private_check(parent, 1);")
        and re.search(r"return file_private_check\(parent, 1\);\s*\}\s*$", fb2) is not None, "")
     sdext_calls = {n[3:]: re.findall(r"SDEXT\([^\n]*SD_FILE_PRIVATE\)[^\n]*", t) for n, t in c.items() if n.startswith("bp:") and "SD_FILE_PRIVATE" in t}
-    ck("F5 only $netcred (5 calls: the directory, and the file for EXISTS, READ, the new file and DELETE) and set.netlogin (1: the directory) call it, each with "
-       "@TRUE and a FILE or DIR word, each compared with the text '1'",
-       set(sdext_calls) == {"netcred", "setnetlogin"} and len(sdext_calls.get("netcred", [])) == 5 and len(sdext_calls.get("setnetlogin", [])) == 1
+    # 28 Oct 26: !edit_recovery (S.88 plan 2.9, D2, the editors' recovery copy) is the third caller, with 2 calls: its directory and a copy (test-recovery-units.py holds its rows)
+    ck("F5 only $netcred (5 calls: the directory, and the file for EXISTS, READ, the new file and DELETE), set.netlogin (1: the directory) and !edit_recovery (2: the directory and "
+       "a copy) call it, each with @TRUE and a FILE or DIR word, each compared with the text '1'",
+       set(sdext_calls) == {"netcred", "setnetlogin", "edit_recovery"} and len(sdext_calls.get("netcred", [])) == 5 and len(sdext_calls.get("setnetlogin", [])) == 1
+       and len(sdext_calls.get("edit_recovery", [])) == 2
        and all(re.search(r"SDEXT\(\w[\w.]* : @FM : '(?:FILE|DIR)', @TRUE, SD_FILE_PRIVATE\) (?:#|=) '1'", x) for v in sdext_calls.values() for x in v), repr(sdext_calls))
     ck("F6 SDEXT is an INTERNAL intrinsic in BCOMP (int.intrinsics), so a user program cannot call SD_FILE_PRIVATE, or SD_PBKDF2, or any of its neighbours",
        'int.intrinsics<-1> = "SDEXT"' in bc and re.search(r'(?<!int\.)intrinsics<-1> = "SDEXT"', bc) is None, "")
@@ -1146,7 +1148,7 @@ def checks_2c(srcs, c, ck):
                      mo, re.M) is not None, "")
     ck("W21 CREATEA: the word FILES-ON sets CA$FILES = 1 (and nothing sets it to anything else), the syntax line names {files-on} and the text says what it is",
        re.search(r"case upcase\(token\) = 'FILES-ON'\s*\n\s*settings<CA\$FILES> = 1\s*\n", cr) is not None and len(re.findall(r"(?<!if )settings<CA\$FILES>\s*=", cr)) == 1
-       and "{net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {no.query}" in cr and "files-only login (files-on" in cr, "")
+       and "{net-on} {files-on} {files-write-on} {files-admin-on} {ai-on} {start-menu | start-terminal} {pins-on} {recovery-on} {no.query}" in cr and "files-only login (files-on" in cr, "")   # 28 Oct 26: {recovery-on} (S.88 plan 2.9)
     ck("W21b createacc.h defines CA$FILES as 36 right after CA$NET 35 (the compiler warns 'not assigned a value' and reads 0 errors without it: test-includes-units.py), "
        "and no register field is added - the membership of the group IS the state",
        re.search(r"\$define\s+CA\$FILES\s+36\b", c["createacc.h"]) is not None and re.search(r"\$define\s+CA\$NET\s+35\b", c["createacc.h"]) is not None

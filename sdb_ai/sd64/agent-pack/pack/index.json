@@ -3890,7 +3890,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 205
+"words": 223
 },
 "core:start": {
 "kind": "core.start",
@@ -10255,6 +10255,111 @@
 "tier": "reference",
 "words": 24
 },
+"msg:11755": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 34
+},
+"msg:11756": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 14
+},
+"msg:11757": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 9
+},
+"msg:11758": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 14
+},
+"msg:11759": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 9
+},
+"msg:11760": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 23
+},
+"msg:11770": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 17
+},
+"msg:11771": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 29
+},
+"msg:11772": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 27
+},
+"msg:11773": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 22
+},
+"msg:11774": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 10
+},
+"msg:11775": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 18
+},
+"msg:11776": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
+"msg:11777": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 20
+},
+"msg:11778": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 22
+},
 "msg:11790": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -10330,7 +10435,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 24
+"words": 25
 },
 "msg:11807": {
 "kind": "message",
@@ -23826,7 +23931,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 243
+"words": 261
 },
 "sys:keys:csv$": {
 "kind": "sys.keys",
@@ -24337,7 +24442,7 @@
 "part": "reference/system.md",
 "since": "-",
 "tier": "reference",
-"words": 324
+"words": 347
 },
 "sys:word:add": {
 "kind": "sys.word",
@@ -24499,6 +24604,20 @@
 "since": "-",
 "tier": "reference",
 "words": 72
+},
+"sys:word:recovery-off": {
+"kind": "sys.word",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 22
+},
+"sys:word:recovery-on": {
+"kind": "sys.word",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 39
 },
 "sys:word:sd-off": {
 "kind": "sys.word",
@@ -24783,7 +24902,7 @@
 "tcl:autologout": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 33
 },

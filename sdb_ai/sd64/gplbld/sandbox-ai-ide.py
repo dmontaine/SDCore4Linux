@@ -83,9 +83,11 @@ MUTANTS = {
     # name: (program of the sandbox, old text, new text, the row ids that must fail and no others)
     "edit-applied-to-disk-rows": ("tk_ai", "dflt = 2                                         ;* a change to a text is never accepted by Enter alone", "dflt = 1", ["I6"]),
     "dup-not-refused": ("tk_ai", "               case index(tbm, eo, 2) > 0\n                  bad.why = 'old text found more than once'", "               case @false\n                  bad.why = 'old text found more than once'", ["I9"]),
-    "no-undo-step": ("ide", "   mw{'undo'} = ai.snap : @fm : mw{'undo'}\n", "", ["I7", "I8"]),
+    "no-undo-step": ("ide", "   call $sl_memo('snap', mw, '', '', ai.sr)\n", "", ["I7", "I8"]),     # 28 Oct 26: the step goes on through the memo's 'snap' (the old mw{'undo'} push was the legacy form)
+    # 28 Oct 26 (S5): the diff shows the first row of a long line only (the old cut at the box)
+    "cut-not-wrapped": ("tk_ai", "   for wr.k = 1 to wr.len step wr.w\n", "   for wr.k = 1 to 1 step wr.w\n", ["I14"]),
 }
-MUTANT_SECTIONS = {"edit-applied-to-disk-rows": "edits", "dup-not-refused": "refused", "no-undo-step": "edits"}
+MUTANT_SECTIONS = {"edit-applied-to-disk-rows": "edits", "dup-not-refused": "refused", "no-undo-step": "edits", "cut-not-wrapped": "wide"}
 
 
 def box():
@@ -485,6 +487,25 @@ def sec_refused():
     e.end()
 
 
+def sec_wide():
+    """28 Oct 26 (S.88 phase 2, S5): a proposed line wider than the box is SHOWN whole (in rows), because Accept applies it whole.  The new line is 230 Z; the diff must show 230."""
+    say("\n--- a line wider than the box")
+    reset_record()
+    e = ide(OK_REC)
+    focus_entry(e)
+    e.keys("x [[edit_wide]]")
+    e.keys(RET)
+    e.keys("s")
+    T = wait_popup(e)
+    arow("I14a", "the diff of a 230 character new line shows all 230 characters (the old code cut it at the box, about 94), and offers Accept and Reject", T.count("Z") == 230 and "Accept" in T and "Reject" in T,
+         "Z shown: %d" % T.count("Z"))
+    arow("I14b", "...in more than one row: no row of the popup holds more than 100 Z (the longest is a chunk of the box's width, not the whole line)",
+         max([ln.count("Z") for ln in T.split("\n")] or [0]) <= 100, repr(max([ln.count("Z") for ln in T.split("\n")] or [0])))
+    e.keys(RET)
+    e.end()
+    reset_record()
+
+
 def sec_explain():
     say("\n--- Explain the error and Explain the selection")
     fm = STATE["fm"]
@@ -575,6 +596,7 @@ def main():
             sec_preview()
             sec_edits()
             sec_refused()
+            sec_wide()
             sec_explain()
             sec_wait()
         else:
@@ -582,6 +604,8 @@ def main():
             if sec == "edits":
                 sec_preview()
                 sec_edits()
+            elif sec == "wide":
+                sec_wide()
             else:
                 sec_refused()
     finally:

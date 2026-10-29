@@ -169,10 +169,25 @@ def checks(raw):
        and all(re.search(r"^\s*open\s+'&queries&'\s+to\s+qf\b", l) for l in pg.split("\n") if re.search(r"\bto qf\b", l) and l.strip().startswith("open"))
        and ordered(sav, "gosub check.name", "if not(okname) or len(fn) > 40 then", "qname = fn", "call $tk_confirm(qsent, lines, '', res, cmsg)", "if res # 'run' then", "execute qsent trapping aborts capturing mk",
                    "if naq >= MAXSAVED then", "call $tk_confirm(wsent, lines, qname, res, cmsg, sysmsg(11952))", "call $tk_confirm(wsent, lines, '', res, cmsg, sysmsg(11952))",
-                   "if res # 'run' then\n      msg = cmsg\n      close qf\n      return\n   end\n   gosub pack.record", "write wrec to qf, qname") and "fn = downcase(trim(nn))" in sav, repr((wr, dl, sorted(set(opens)))))
+                   "if res # 'run' then\n      msg = cmsg\n      close qf\n      return\n   end\n   gosub check.qfile", "gosub pack.record", "write wrec to qf, qname") and "fn = downcase(trim(nn))" in sav, repr((wr, dl, sorted(set(opens)))))
     dsel = block(pg, "delete.selected")
     ck("TQ14", "X: a saved query is deleted only after a box that asks its name typed, and the only record deleted is the one named in the list",
-       ordered(dsel, "lname = sv.ids<svc>", "call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "if res # 'run' then\n      msg = cmsg\n      return\n   end", "open '&queries&' to qf then", "delete qf, lname on error delok = @false"), "")
+       ordered(dsel, "lname = sv.ids<svc>", "call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "if res # 'run' then\n      msg = cmsg\n      return\n   end", "gosub check.delete", "delete qf, lname on error delok = @false"), "")
+    # 28 Oct 26, S.88 phase 2 (plan 2.2, defect S2): the page is $internal, which the kernel's edit gates let through, so it asks for itself before it writes or deletes
+    cq = block(pg, "check.qfile")
+    cdl = block(pg, "check.delete")
+    ck("TQ14b", "S2: before EVERY write and delete the page asks $tk_ownfile whether &queries& is a file it may write (the one routine TOOL.BULK asks of its undo file): check.qfile is the only caller and gives it the open file and the name '&queries&'; "
+       "the save asks right after the file is open or made and BEFORE it reads or counts anything in it, and again after the box and BEFORE the record is packed and written; a record of that name that is not a query (field 1 is not query1) is never written over",
+       "call $tk_ownfile(qf, '&queries&', qok, qwhy)" in cq and pg.count("$tk_ownfile") == 1 and "kernel(" not in pg
+       and ordered(sav, "open '&queries&' to qf then have.q = 1", "gosub check.qfile\n   if not(qok) then\n      msg = qwhy : ': nothing was saved'\n      close qf\n      return\n   end\n   exists = 0", "read xrec from qf, qname then",
+                   "if xrec<1> # 'query1' then", "close qf\n         return", "call $tk_confirm(wsent", "gosub check.qfile", "gosub pack.record", "write wrec to qf, qname")
+       and sav.count("gosub check.qfile") == 2 and sav.find("select qf to 9") > sav.find("gosub check.qfile"), "")
+    ck("TQ14c", "S2: X refuses BEFORE the box and again after it, with the file open for the delete: check.delete opens &queries&, asks check.qfile (a refusal closes the file), reads the record and wants field 1 to be query1 (a refusal closes the file); delete.selected deletes "
+       "only when the second check left dwhy null, and deletes nothing else",
+       ordered(cdl, "dwhy = ''", "open '&queries&' to qf else", "gosub check.qfile", "if not(qok) then", "close qf", "read qdrec from qf, lname else qdrec = ''", "if qdrec<1> # 'query1' then", "close qf")
+       and ordered(re.sub(r"[ \t]+\n", "\n", dsel), "gosub check.delete\n   if dwhy # '' then\n      msg = dwhy\n      return\n   end\n   close qf", "call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))",
+                   "gosub check.delete\n   if dwhy # '' then\n      msg = dwhy\n      return\n   end\n   delok = @true\n   delete qf, lname on error delok = @false", "close qf")
+       and dsel.count("delete qf, ") == 1 and "open '&queries&'" not in dsel, "")
     ls = block(pg, "load.selected")
     ck("TQ15", "a loaded record is DATA: it must say it is a query, name a file the page lists (checked again as a name), its kind is one of three words, it goes into the boxes only through validate.panes BEFORE the sentence is built, "
        "and a sentence it holds is kept only when check.sentence accepts it",
@@ -271,14 +286,25 @@ MUTANTS = [
     ("a change does not give up a hand edit", "TQ12", sub("page", "   if edited then\n      edited = 0\n      msg = 'the sentence was written again from the boxes'\n   end\n   gosub gen.sentence", "   gosub gen.sentence")),
     ("marking a column does not write the sentence again", "TQ12", sub("page", "      cols<-1> = mcol\n   end\n   gosub changed\n   return", "      cols<-1> = mcol\n   end\n   return")),
     ("a second record is written", "TQ13", sub("page", "   wrec<19> = sent\n   return", "   wrec<19> = sent\n   write wrec to qf, 'zz'\n   return")),
-    ("the save writes without waiting for the box", "TQ13", sub("page", "   if res # 'run' then\n      msg = cmsg\n      close qf\n      return\n   end\n   gosub pack.record", "   gosub pack.record")),
+    ("the save writes without waiting for the box", "TQ13", sub("page", "   if res # 'run' then\n      msg = cmsg\n      close qf\n      return\n   end\n   gosub check.qfile ", "   gosub check.qfile ")),
     ("a record is replaced without its name typed", "TQ13", sub("page", "call $tk_confirm(wsent, lines, qname, res, cmsg, sysmsg(11952))", "call $tk_confirm(wsent, lines, '', res, cmsg, sysmsg(11952))")),
     ("the cap of saved queries is not looked at", "TQ13", sub("page", "      if naq >= MAXSAVED then", "      if naq >= 999999 then")),
     ("a name is not checked", "TQ13", sub("page", "   if not(okname) or len(fn) > 40 then", "   if len(fn) > 40 then")),
     ("another file is opened", "TQ13", sub("page", "set.pane:\n   begin case", "set.pane:\n   open 'bp' to xbp then close xbp\n   begin case")),
     ("the file the page creates is made without its box", "TQ13", sub("page", "      call $tk_confirm(qsent, lines, '', res, cmsg)\n      if res # 'run' then\n         msg = cmsg\n         return\n      end\n", "")),
-    ("a saved query is deleted without its name typed", "TQ14", sub("page", "call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "call $tk_confirm(dsent, lines, '', res, cmsg, sysmsg(11953))")),
-    ("a saved query is deleted without the box", "TQ14", sub("page", "   call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   delok", "   delok")),
+    # 28 Oct 26, S.88 phase 2 (S2)
+    ("the save does not ask whether &queries& may be written", "TQ14b", sub("page", "   gosub check.qfile\n   if not(qok) then\n      msg = qwhy : ': nothing was saved'\n      close qf\n      return\n   end\n   exists = 0", "   exists = 0")),
+    ("the save does not ask again after the box", "TQ14b", sub("page", "   gosub check.qfile                                           ;* again, after the box: the gates or the account's files may have changed while it was on the screen\n   if not(qok) then\n      msg = qwhy : ': nothing was saved'\n      close qf\n      return\n   end\n   gosub pack.record", "   gosub pack.record")),
+    ("a record that is not a saved query is written over", "TQ14b", sub("page", "      if xrec<1> # 'query1' then", "      if 0 then")),
+    ("the shared test is replaced by a constant", "TQ14b", sub("page", "   call $tk_ownfile(qf, '&queries&', qok, qwhy)\n", "   qok = 1\n")),
+    ("the shared test is asked about another name", "TQ14b", sub("page", "call $tk_ownfile(qf, '&queries&', qok, qwhy)", "call $tk_ownfile(qf, 'bp', qok, qwhy)")),
+    ("the page asks the kernel itself", "TQ14b", sub("page", "   call $tk_ownfile(qf, '&queries&', qok, qwhy)\n", "   qok = kernel(K$EDIT.OK, fileinfo(qf, FL$PATH))\n")),
+    ("the delete does not ask whether &queries& may be written", "TQ14c", sub("page", "   gosub check.qfile\n   if not(qok) then\n      dwhy = qwhy : ': nothing was deleted'", "   qok = 1\n   if not(qok) then\n      dwhy = qwhy : ': nothing was deleted'")),
+    ("a record that is not a saved query is deleted", "TQ14c", sub("page", "   if qdrec<1> # 'query1' then", "   if 0 then")),
+    ("the delete does not ask again after the box", "TQ14c", sub("page", "   gosub check.delete                                          ;* again, with the file open for the delete: nothing between this test and the delete\n   if dwhy # '' then\n      msg = dwhy\n      return\n   end\n   delok = @true", "   open '&queries&' to qf else return\n   delok = @true")),
+    ("the delete asks nothing before the box", "TQ14c", sub("page", "   gosub check.delete\n   if dwhy # '' then\n      msg = dwhy\n      return\n   end\n   close qf\n   dsent", "   dsent")),
+    ("a saved query is deleted without its name typed", "TQ14",sub("page", "call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "call $tk_confirm(dsent, lines, '', res, cmsg, sysmsg(11953))")),
+    ("a saved query is deleted without the box", "TQ14", sub("page", "   call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub check.delete ", "   gosub check.delete ")),
     ("a loaded record skips the checks", "TQ15", sub("page", "   gosub validate.panes\n   gosub gen.sentence\n   * a sentence that was edited", "   gosub gen.sentence\n   * a sentence that was edited")),
     ("a loaded record may name any file", "TQ15", sub("page", "   if not(known) then", "   if known = 7 then")),
     ("a loaded sentence is taken unchecked", "TQ15", sub("page", "      chk.s = lrec<19>\n      gosub check.sentence\n      if chk.err = '' then\n         sent = chk.out", "      chk.s = lrec<19>\n      chk.err = ''\n      if chk.err = '' then\n         sent = chk.s")),

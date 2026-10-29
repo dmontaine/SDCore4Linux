@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 22 Oct 26 dm  New (S.75, TK-0.1).
 * 26 Oct 26 dm  faults: a window above TK.MAXW by TK.MAXH is refused (message 11951), after the audience check and before the screen.
+* 28 Oct 26 dm  S.88 phase 2 (D4): the break setting is also kept by $tk_brk, so that $sl_cleanup can give it back when the app is aborted before $tk_close.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -77,6 +78,7 @@ $include tk.h
    utf8 = (index(loc, 'UTF-8', 1) > 0 or index(loc, 'UTF8', 1) > 0)
 
    saved.trap = pterm(PT$BREAK, -1)
+   call $tk_brk('save', saved.trap)                 ;* kept where $sl_cleanup can find it if the app is aborted (28 Oct 26, D4)
    void pterm(PT$BREAK, @false)
    break off
 
@@ -91,8 +93,7 @@ $include tk.h
       end
    end
    if not(opened) then
-      break on
-      void pterm(PT$BREAK, saved.trap)
+      call $tk_brk('close', saved.trap)
       err = sysmsg(11802, app)
       return
    end

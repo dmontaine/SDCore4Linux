@@ -17,6 +17,13 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 28 Oct 26 dm  S.88 phase 2 review: the escaping rule is shared - show_unsafe_byte(), show_safe_text() and show_ts_safe()
+ *               (were lock_unsafe_byte(), lock_safe_text(), lock_ts_safe(), Private) are declared in sd.h and kernel.c's
+ *               process-status dump uses the same rule.  No change of behaviour here.
+ * 28 Oct 26 dm  S.88 phase 2 (S1, the kernel half): GETLOCKS(), SYSTEM(1083) and the deadlock message 1451 give another session's
+ *               record id, file path and user name with every control byte (0-31, 127, 128-159) and mark (248-255) as '?'
+ *               (lock_safe_text(), lock_ts_safe()); GETLOCKS() lines are built by getlocks_line(), off ts_printf()'s 500 byte
+ *               buffer.  The lock table itself, UNLOCK and FILEINFO(f, 1039) are unchanged.
  * 28 Oct 26 dm  S.87: OPTION COMMAND.LEVEL.LOCKS is gone: park_fvar(), release_parked_fvars() and the parked-file list are removed; a file variable that goes closes its file and its locks.
  * 24 Oct 26 dm  W.11 F9: the lock trace and deadlock files are under sd_sysdir() (the configuration file's), not the segment's copy.
  * 20 Oct 26 dm  S.72b: op_reclckd() of a NET_FILE is refused for a read mode one (message 11501, nothing sent) inside net_recordlocked; the server refuses request 34 to a login without sdfileswrite.
@@ -81,6 +88,72 @@ Private bool unlock_id(int16_t file_id, char* raw_id, int16_t id_len);
 /* 20 Oct 26 S.72: the file id GETLOCKS() is given for a file on another server.  File ids start at 1 (FPtr(1)), so no lock, file lock or waiter in this machine's tables carries it,
    and -1 stays "every file". */
 #define NO_LOCAL_FILE 0
+
+/* ======================================================================
+   show_safe_text()  -  A copy of another session's text that is safe to show
+
+   28 Oct 26 dm - S.88 phase 2 (S1, the kernel half).  GETLOCKS() and SYSTEM(1083) hand the caller record ids, file paths and
+   user names that ANOTHER session put in the lock table, and the deadlock message prints them on this session's terminal.  A
+   record id of a hashed file is checked only for being empty or too long, so an ordinary user's READU on an id holding ESC ] 0 ;
+   ... BEL or ESC [ 2 J would write that sequence into the administrator's terminal through LIST.READU and tool.sessions (read from
+   the source, Opus TUI evidence ADM-01: op_lock.c printed it with %.*s; sandbox-termsafe.py S1-K is the live row).  So, as masters.c's mst_buf_text() does for the ids of its answers, every byte
+   below 32 and every mark becomes '?'; this also takes DEL (127), the C1 controls 128-159 (0x9B is CSI on a terminal that is not
+   in UTF-8 mode) and the reserved marks 248-255, where mst_buf_text() takes 0xFD and up only.  Bytes 160-247 are left alone:
+   they may be in a directory file's record id (sheet item 34).  The copy is cut at MAX_ID_LEN or MAX_PATHNAME_LEN by the caller's
+   buffer, out_size, and always ends with a nul.  The lock table itself is not touched: UNLOCK, RELEASE and the deadlock check
+   still compare the real bytes, and FILEINFO(f, 1039) still gives a program its OWN record ids exactly.                      */
+
+/* 28 Oct 26 dm - S.88 phase 2 review: THE ONE RULE.  The process-status dump (kernel.c dump_status(), read by PSTAT) wrote
+   another session's last command, the record id it waits for and @PSTAT raw, and PSTAT is in every account's VOC.  So the rule
+   is no longer this file's own: show_unsafe_byte(), show_safe_text() and show_ts_safe() are declared in sd.h (OP_LOCK.C) and
+   kernel.c uses show_unsafe_byte() for the status record.  They were lock_unsafe_byte(), lock_safe_text() and lock_ts_safe(). */
+
+bool show_unsafe_byte(u_char c) {
+  return (c < 32) || (c == 127) || ((c >= 128) && (c <= 159)) || (c >= 248);
+}
+
+char* show_safe_text(char* out, int out_size, const char* s, int len) {
+  int i;
+
+  if (len < 0)
+    len = (int)strlen(s);
+  if (len > out_size - 1)
+    len = out_size - 1;
+  for (i = 0; i < len; i++)
+    out[i] = show_unsafe_byte((u_char)(s[i])) ? '?' : s[i];
+  out[len] = '\0';
+  return out;
+}
+
+/* The same, appended to the target string that ts_init() started.  A negative len means "up to the nul". */
+
+void show_ts_safe(const char* s, int len) {
+  int i;
+
+  if (s == NULL)
+    return;
+  if (len < 0)
+    len = (int)strlen(s);
+  for (i = 0; i < len; i++)
+    ts_copy_byte(show_unsafe_byte((u_char)(s[i])) ? '?' : s[i]);
+}
+
+/* One line of GETLOCKS(): file_id VM path VM userno VM type VM id VM username VM time.  id and user_name may be NULL (empty).
+   28 Oct 26 S.88 (S1): the four lines were four ts_printf() calls with the path and the id as %s / %.*s, through ts_printf()'s
+   500 byte buffer (strings.c), which a 255 byte path and a 255 byte id together could overrun.  The text now goes through
+   show_ts_safe() and only the numbers through ts_printf().                                                             */
+
+Private void getlocks_line(int file_id, const char* path, int user_no, const char* type, const char* id, int id_len,
+                           const char* user_name, int32_t when) {
+  ts_printf("%d", file_id);
+  ts_copy_byte(VALUE_MARK);
+  show_ts_safe(path, -1);
+  ts_printf("\xfd%d\xfd%s\xfd", user_no, type);
+  show_ts_safe(id, id_len);
+  ts_copy_byte(VALUE_MARK);
+  show_ts_safe(user_name, -1);
+  ts_printf("\xfd%d", (int)when);
+}
 
 /* ======================================================================
    lock_trace()  -  LOCK.TRACER (16 Oct 26, QM4 gaps)
@@ -405,6 +478,9 @@ void op_getlocks() {
      Id is absent for file lock
      Multiple locks for a single file are not merged
      Locks are only reported for the specified user / file
+     28 Oct 26 S.88 (S1): each line is built by getlocks_line(), so the path,
+     the record id and the user name go out with a control byte or a mark in
+     them as '?' (show_unsafe_byte()).
  */
 
   DESCRIPTOR* descr;
@@ -466,9 +542,9 @@ void op_getlocks() {
       if (((file_id < 0) || (i == file_id)) &&
           ((user == 0) || (user == abs(lock_owner)))) {
         ts_copy_byte(FIELD_MARK);
-        ts_printf("%d\xfd%s\xfd%d\xfd%s\xfd\xfd%s\xfd%d", (int)i, fptr->pathname,
-                  (int)abs(lock_owner), (lock_owner < 0) ? "SX" : "FX",
-                  lock_owner_name(abs(lock_owner)), (int)(fptr->file_lock_time));
+        getlocks_line((int)i, (char*)(fptr->pathname), (int)abs(lock_owner),
+                      (lock_owner < 0) ? "SX" : "FX", NULL, 0,
+                      lock_owner_name(abs(lock_owner)), fptr->file_lock_time);
       }
     }
   }
@@ -485,11 +561,10 @@ void op_getlocks() {
         if (str_head != NULL)
           ts_copy_byte(FIELD_MARK);
 
-        ts_printf("%d\xfd%s\xfd%d\xfd%s\xfd%.*s\xfd%s\xfd%d", (int)(rlptr->file_id),
-                  fptr->pathname, (int)lock_owner,
-                  (rlptr->lock_type == L_UPDATE) ? "RU" : "RL", rlptr->id_len,
-                  rlptr->id, lock_owner_name(abs(lock_owner)),
-                  (int)(rlptr->lock_time));
+        getlocks_line((int)(rlptr->file_id), (char*)(fptr->pathname), (int)lock_owner,
+                      (rlptr->lock_type == L_UPDATE) ? "RU" : "RL", rlptr->id,
+                      rlptr->id_len, lock_owner_name(abs(lock_owner)),
+                      rlptr->lock_time);
       }
     }
   }
@@ -521,9 +596,9 @@ void op_getlocks() {
           if (str_head != NULL)
             ts_copy_byte(FIELD_MARK);
 
-          ts_printf("%d\xfd%s\xfd%d\xfdWAIT\xfd%.*s\xfd\xfd%d", (int)(rlptr->file_id),
-                    fptr->pathname, (int)(uptr->uid), rlptr->id_len, rlptr->id,
-                    (int)(uptr->lockwait_time));
+          getlocks_line((int)(rlptr->file_id), (char*)(fptr->pathname), (int)(uptr->uid),
+                        "WAIT", rlptr->id, rlptr->id_len, NULL,
+                        uptr->lockwait_time);
         }
       } else /* Waiting for file lock */
       {
@@ -532,8 +607,8 @@ void op_getlocks() {
           if (str_head != NULL)
             ts_copy_byte(FIELD_MARK);
 
-          ts_printf("%d\xfd%s\xfd%d\xfdWAIT\xfd\xfd\xfd%d", (int)(-j), fptr->pathname,
-                    (int)(uptr->uid), (int)(uptr->lockwait_time));
+          getlocks_line((int)(-j), (char*)(fptr->pathname), (int)(uptr->uid), "WAIT",
+                        NULL, 0, NULL, uptr->lockwait_time);
         }
       }
     }
@@ -1330,7 +1405,8 @@ bool check_lock(FILE_VAR* fvar,
    process and lasts until its next deadlock, so a program that follows the
    abort can still ask for it.  A deadlock of so many processes that the
    buffer fills is reported without the later ones.  Record ids are as the
-   lock table holds them (upper case in a file that folds case).             */
+   lock table holds them (upper case in a file that folds case), with a
+   control byte or a mark shown as '?' since 28 Oct 26 (S.88, S1).           */
 
 #define DEADLOCK_INFO_SIZE 8192
 Private char deadlock_info[DEADLOCK_INFO_SIZE];
@@ -1349,13 +1425,16 @@ Private void deadlock_info_add(bool first, int16_t user, char* path, char* id,
 
   if (deadlock_info_len > 0)
     deadlock_info[deadlock_info_len++] = FIELD_MARK;
-  deadlock_info_len += sprintf(deadlock_info + deadlock_info_len, "%d%c%s",
-                               (int)user, VALUE_MARK, path);
+  /* 28 Oct 26 S.88 (S1): the path and the id of the OTHER processes in the chain reach the caller's SYSTEM(1083), so they
+     go in as show_safe_text() makes them: a control byte or a mark is '?'.  The lengths do not change.                   */
+  deadlock_info_len += sprintf(deadlock_info + deadlock_info_len, "%d%c",
+                               (int)user, VALUE_MARK);
+  (void)show_safe_text(deadlock_info + deadlock_info_len, (int)strlen(path) + 1, path, -1);
+  deadlock_info_len += (int)strlen(path);
   if (id != NULL && id_len > 0) {
     deadlock_info[deadlock_info_len++] = VALUE_MARK;
-    memcpy(deadlock_info + deadlock_info_len, id, id_len);
+    (void)show_safe_text(deadlock_info + deadlock_info_len, id_len + 1, id, id_len);
     deadlock_info_len += id_len;
-    deadlock_info[deadlock_info_len] = '\0';
   }
 }
 
@@ -1498,6 +1577,7 @@ int16_t lock_record(
   /* -------------------- */
   FILE_ENTRY* d_fptr;
   RLOCK_ENTRY* d_lptr;
+  char d_safe_id[MAX_ID_LEN + 1]; /* 28 Oct 26 S.88 (S1): message 1451 */
   LLT_ENTRY* llt;
 
   if (fvar->type == NET_FILE)
@@ -1609,8 +1689,10 @@ int16_t lock_record(
                     if (lwi > 0) /* Waiting for record lock */
                     {
                       d_lptr = RLPtr(lwi);
-                      tio_printf(sysmsg(1451), d_lptr->file_id, d_lptr->id_len,
-                                 d_lptr->id, d_lptr->owner);
+                      /* 28 Oct 26 S.88 (S1): another process's record id, printed on this terminal: made safe first */
+                      tio_printf(sysmsg(1451), d_lptr->file_id, (int)(d_lptr->id_len),
+                                 show_safe_text(d_safe_id, sizeof(d_safe_id), d_lptr->id, d_lptr->id_len),
+                                 d_lptr->owner);
                       deadlock_info_add(FALSE, u, (char*)(FPtr(d_lptr->file_id)->pathname),
                                         d_lptr->id, d_lptr->id_len);
                       u = RLPtr(lwi)->owner;

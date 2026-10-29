@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 phase 2 (S4): a name the VOC holds as a keyword (all ...) is refused as a target of Make, Clear and Delete and of the reports ($tk_word, check.kw).
 * 27 Oct 26 dm  S.87 batch 12: the dead FL$TYPE.SH branch of the file kind is gone with the constant.
 * 27 Oct 26 dm  S.87: A runs ANALYZE.FILE (the US spelling; the British verb record is gone).
 * 26 Oct 26 dm  New.
@@ -426,6 +427,12 @@ check.name:
    next q
    return
 
+* 28 Oct 26 (S.88 phase 2, S4): a name that the VOC holds as a keyword (all, detail, no.query ...) is read by the verb as that keyword, whoever's file it was meant to be: CLEAR.FILE and
+* DELETE.FILE would act on the word and not the file, and CREATE.FILE would put a pointer where a keyword stands.  $tk_word asks the same of every page.  In: fn (already through check.name).  Out: kwok, kwwhy
+check.kw:
+   call $tk_word(fn, kwok, kwwhy)
+   return
+
 * Run sent with the confirm box already answered Run (or for a verb that only reports): the verb's own words go to the status line, the files are read again
 run.sent:
    call $tk_run(allow, sent, out, stat, rerr)
@@ -455,6 +462,11 @@ do.show:
    gosub check.name
    if not(okname) then
       msg = 'this name has a character the page does not give to a command: type ' : field(sent, ' ', 1) : ' at the prompt'
+      return
+   end
+   gosub check.kw
+   if not(kwok) then
+      msg = kwwhy
       return
    end
    if index(' ' : show.allow : ' ', ' ' : field(sent, ' ', 1) : ' ', 1) = 0 then
@@ -497,6 +509,11 @@ do.new:
       msg = 'a name of letters a-z, digits, dot, dash and underscore only, at most 63 (the page gives nothing else to a command)'
       return
    end
+   gosub check.kw
+   if not(kwok) then
+      msg = kwwhy
+      return
+   end
    screen msgbox 'What kind of file is ' : fn : '?' : @fm : '' : @fm : 'Dynamic: records in groups, indexable, the usual data file.' : @fm : 'Directory: each record is a file in a directory of the operating system.' title 'New file' buttons '&Dynamic,Di&rectory,&Cancel' default 1 returning b else b = 3
    if b # 1 and b # 2 then
       msg = 'nothing made'
@@ -526,6 +543,11 @@ do.clear:
       msg = 'this name has a character the page does not give to a command: type clear.file ' : fn : ' at the prompt'
       return
    end
+   gosub check.kw
+   if not(kwok) then
+      msg = kwwhy
+      return
+   end
    sent = 'clear.file ' : fn
    gosub find.meta
    lines = 'Removes every record of ' : fn : ' (about ' : meta<1, 2> : ').  The file, its dictionary and its indices stay; the records cannot be got back.'
@@ -545,6 +567,11 @@ do.delete:
    gosub check.name
    if not(okname) then
       msg = 'this name has a character the page does not give to a command: type delete.file ' : fn : ' at the prompt'
+      return
+   end
+   gosub check.kw
+   if not(kwok) then
+      msg = kwwhy
       return
    end
    sent = 'delete.file ' : fn : ' no.query'

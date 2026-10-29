@@ -6645,6 +6645,141 @@ The shared account has no pdf directory (the installer makes it), so there is no
 
 cited by: `docsinst`
 
+### msg:11755
+> kind=message tier=reference since=- src=sdsys/messages/11755:1#451a91b5
+
+```
+%1 is a keyword of the VOC, which a command would read as that keyword and not as a name: this page does not give it to a command
+```
+
+cited by: `tk_word`
+
+### msg:11756
+> kind=message tier=reference since=- src=sdsys/messages/11756:1#b0db4d4c
+
+```
+%1 is not a dynamic file of this account
+```
+
+cited by: `tk_ownfile`
+
+### msg:11757
+> kind=message tier=reference since=- src=sdsys/messages/11757:1#c9f646bf
+
+```
+%1 is read only
+```
+
+cited by: `tk_ownfile`
+
+### msg:11758
+> kind=message tier=reference since=- src=sdsys/messages/11758:1#cb19f179
+
+```
+%1 does not stand in this account's own directory
+```
+
+cited by: `tk_ownfile`
+
+### msg:11759
+> kind=message tier=reference since=- src=sdsys/messages/11759:1#1616a8f9
+
+```
+%1 leads to %2
+```
+
+cited by: `tk_ownfile`
+
+### msg:11760
+> kind=message tier=reference since=- src=sdsys/messages/11760:1#64d75c77
+
+```
+%1 is not a query this page saved (its first field is not query1): it was not changed
+```
+
+cited by: `tool_query`
+
+### msg:11770
+> kind=message tier=reference since=- src=sdsys/messages/11770:1#dd0831b5
+
+```
+Account %1 keeps a recovery copy of unsaved editor text: %2
+```
+
+cited by: `create_account`, `modifya`
+
+### msg:11771
+> kind=message tier=reference since=- src=sdsys/messages/11771:1#a74d7275
+
+```
+%1 is not a user account, and a recovery copy is kept only in a user account, for its own person; nothing was changed
+```
+
+cited by: `modifya`
+
+### msg:11772
+> kind=message tier=reference since=- src=sdsys/messages/11772:1#0ee1c8fd
+
+```
+A recovery copy of %1 %2, kept on %3, holds text that was not saved.  The record itself has not been changed.
+```
+
+cited by: `ide`
+
+### msg:11773
+> kind=message tier=reference since=- src=sdsys/messages/11773:1#d44519e6
+
+```
+The recovery copy is in the editor; the record on disk is unchanged until you save it
+```
+
+cited by: `ide`
+
+### msg:11774
+> kind=message tier=reference since=- src=sdsys/messages/11774:1#19d651ab
+
+```
+The recovery copy was deleted
+```
+
+cited by: `ide`
+
+### msg:11775
+> kind=message tier=reference since=- src=sdsys/messages/11775:1#ce681435
+
+```
+The recovery copy of %1 %2 is kept; the record was not opened
+```
+
+cited by: `ide`
+
+### msg:11776
+> kind=message tier=reference since=- src=sdsys/messages/11776:1#4e533154
+
+```
+Text typed in an untitled buffer was kept on %1 when the editor ended.  Open it in a new tab?
+```
+
+cited by: `ide`
+
+### msg:11777
+> kind=message tier=reference since=- src=sdsys/messages/11777:1#f2ed6d46
+
+```
+A recovery copy could not be written (%1); the text is still in the editor
+```
+
+cited by: `ide`
+
+### msg:11778
+> kind=message tier=reference since=- src=sdsys/messages/11778:1#1495b089
+
+```
+%1 %2 gets no recovery copy: another one is there (another session's, or older) and is kept
+```
+
+cited by: `ide`
+
 ### msg:11790
 > kind=message tier=reference since=- src=sdsys/messages/11790:1#9c87fe87
 
@@ -6742,7 +6877,7 @@ cited by: `tk_run`, `tk_runx`
 %1 has a character that a command word may not have: use a-z, 0-9, dot, dash or underscore
 ```
 
-cited by: `tk_run`, `tk_runx`
+cited by: `tk_run`, `tk_runx`, `tk_word`
 
 ### msg:11807
 > kind=message tier=reference since=- src=sdsys/messages/11807:1#c5e7c01d

@@ -646,7 +646,7 @@ Constants beginning `V$` in `sdsys/gpl.bp/int$keys.h` (internal programs only (`
 - `V$JSON.NULL` = 21
 
 ### sys:keys:acc$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:351#1255e51e
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:352#1255e51e
 
 Constants beginning `ACC$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -667,9 +667,10 @@ Constants beginning `ACC$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `ACC$START` = 16 - menu, terminal, or blank = the system default
 - `ACC$TILES.OFF` = 17 - tile ids that are off for this account, separated by spaces
 - `ACC$PINS` = 18 - may add its own programs to the home screen (yes/no; blank = no)
+- `ACC$RECOVERY` = 19 - the editors keep a recovery copy of unsaved text (yes/no; blank = no)
 
 ### sys:keys:csv$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:329#ea4c0227
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:330#ea4c0227
 
 Constants beginning `CSV$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -683,7 +684,7 @@ Constants beginning `CSV$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `CSV$QUOTE3` = 128 - CSVBUILD: enclose every field (CSV.MODE 3)
 
 ### sys:keys:fc$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:663#f7761cf5
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:671#f7761cf5
 
 Constants beginning `FC$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -700,7 +701,7 @@ Constants beginning `FC$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `FC$CRLF.NO.CR` = 3 - (the same, spelt as the manual's text spells it)
 
 ### sys:keys:fl$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:25#15e61397
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:26#15e61397
 
 Constants beginning `FL$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -776,7 +777,7 @@ Constants beginning `FL$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `FL$CONSTRAINTS` = 1040 - Data integrity constraints?
 
 ### sys:keys:ik$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:147#e6949383
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:148#e6949383
 
 Constants beginning `IK$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -784,7 +785,7 @@ Constants beginning `IK$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `IK$SLCOUNT` = 3 - Fetch number of entries in select list
 
 ### sys:keys:it$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:152#5209b9b8
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:153#5209b9b8
 
 Constants beginning `IT$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -844,7 +845,7 @@ Constants beginning `IT$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `IT$BRIGHT.WHITE` = 15
 
 ### sys:keys:jb$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:319#d5fc125e
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:320#d5fc125e
 
 Constants beginning `JB$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -858,7 +859,7 @@ Constants beginning `JB$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `JB$PRETTY` = 128 - SD's own: one element to a line, indented (used by CT)
 
 ### sys:keys:jp$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:317#002df50b
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:318#002df50b
 
 Constants beginning `JP$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -866,7 +867,7 @@ Constants beginning `JP$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `JP$UNQUOTED.NAME` = 2 - Element names may be unquoted
 
 ### sys:keys:lock$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:137#57747b47
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:138#57747b47
 
 Constants beginning `LOCK$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -879,7 +880,7 @@ Constants beginning `LOCK$` in `sdsys/syscom/keys.h` (an ordinary program may in
 - `LOCK$MY.FILELOCK` = 3
 
 ### sys:keys:lptr$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:111#1b7c1d4a
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:112#1b7c1d4a
 
 Constants beginning `LPTR$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -908,7 +909,7 @@ Constants beginning `LPTR$` in `sdsys/syscom/keys.h` (an ordinary program may in
 - `LPTR$HIGH.PRINT.UNIT` = 255 - Highest available print unit number
 
 ### sys:keys:ml$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:654#b3260586
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:662#b3260586
 
 Constants beginning `ML$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -918,7 +919,7 @@ Constants beginning `ML$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `ML$UNSORTED` = 32 - MERGELIST: the lists are not in order, so put them in order first
 
 ### sys:keys:nls$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:263#436755ae
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:264#436755ae
 
 Constants beginning `NLS$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -927,7 +928,7 @@ Constants beginning `NLS$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `NLS$DECIMAL` = 3
 
 ### sys:keys:oi$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:345#ea938b71
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:346#ea938b71
 
 Constants beginning `OI$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -935,7 +936,7 @@ Constants beginning `OI$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `OI$CLASS` = 1 - Class name
 
 ### sys:keys:os$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:619#de908335
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:627#de908335
 
 Constants beginning `OS$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -949,7 +950,7 @@ Constants beginning `OS$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `OS$IS.DIR` = 17 - Is the path a directory?
 
 ### sys:keys:pp$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:268#58d4e178
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:269#58d4e178
 
 Constants beginning `PP$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -960,7 +961,7 @@ Constants beginning `PP$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `PP$STOP.BITS` = 6 - 0=One, 1= One and a half, 2 = Two
 
 ### sys:keys:pu$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:210#ff204522
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:211#ff204522
 
 Constants beginning `PU$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1015,7 +1016,7 @@ Constants beginning `PU$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `PU$LINENO` = 2000
 
 ### sys:keys:skt$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:276#02116ea3
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:277#02116ea3
 
 Constants beginning `SKT$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1049,7 +1050,7 @@ Constants beginning `SKT$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `SKT$EXCEPTION.EVENT` = 4 - An exception condition
 
 ### sys:keys:sl$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:146#0e61ee56
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:147#0e61ee56
 
 Constants beginning `SL$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1057,7 +1058,7 @@ Constants beginning `SL$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `SL$COUNT` = 3 - Fetch number of entries in select list
 
 ### sys:keys:srt$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:645#c4cbc5d3
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:653#c4cbc5d3
 
 Constants beginning `SRT$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1072,7 +1073,7 @@ Constants beginning `SRT$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `SRT$DATA` = 128 - SORT(): sort has an associated data element
 
 ### sys:keys:sys$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:512#6bc3f689
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:520#6bc3f689
 
 Constants beginning `SYS$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1189,7 +1190,7 @@ Constants beginning `SYS$` in `sdsys/syscom/keys.h` (an ordinary program may inc
 - `SYS$CASING` = 1086 - Is case sensitivity of string comparisons on in this program?
 
 ### sys:keys:vt$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:676#4692cf70
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:684#4692cf70
 
 Constants beginning `VT$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 
@@ -1215,7 +1216,7 @@ Constants beginning `VT$` in `sdsys/syscom/keys.h` (an ordinary program may incl
 - `VT$SORT` = 20
 
 ### sys:keys:xml$
-> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:339#e2aedf5e
+> kind=sys.keys tier=reference since=- src=sdsys/syscom/keys.h:340#e2aedf5e
 
 Constants beginning `XML$` in `sdsys/syscom/keys.h` (an ordinary program may include it):
 

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 28 Oct 26 dm  S.88 phase 2 (D4): the break setting SED takes (PTERM BREAK OFF) is kept by $tk_brk and given back where the terminal is given up (reset.term.state); it was never given back.
 * 28 Oct 26 dm  S.88 D33 (owner, 20 Oct 26): in the default key layout Ctrl-W closes the buffer (F.DELETE.BUFFER, as in Edit and Geany, and as in the IDE and the toolkit) and Save as (F.WRITE.RECORD)
 *               is reached from the File menu only; Ctrl-PageDown and Ctrl-PageUp (ESC [ 6 ; 5 ~ and ESC [ 5 ; 5 ~) are the next and previous buffer in the place of Esc N and Esc P; F5 compiles
 *               and runs (F.COMPRUN, ESC [ 15 ~, and ESC [ [ E on the Linux console).  The menus name those keys (fmt.key knows the two modified sequences and the F5 forms).  The EMACS layout is as it was.
@@ -4821,6 +4822,7 @@ refresh.status:
 
 get.set.term.state:
    * tty.modes = ""
+   call $tk_brk('save', pterm(PT$BREAK, -1))      ;* 28 Oct 26 (D4): the person's setting, kept for reset.term.state
    execute "PTERM BREAK OFF"
 
    * 13 Oct 26: the theme syntax colour uses is put back when the terminal comes back to this program
@@ -4838,6 +4840,8 @@ reset.term.state:
    if syn.on then call $sl_theme('reset', '', '', '', '', syn.r)
 
    gosub mouse.disarm                 ;* 13 Oct 26: and the mouse is the terminal's again
+
+   call $tk_brk('give', '')           ;* 28 Oct 26 (D4): and the break key (Ctrl-C) is the person's again
 
    return
 

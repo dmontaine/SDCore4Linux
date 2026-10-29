@@ -25,6 +25,7 @@ FILES = {
     "newvoc": os.path.join(SDSYS, "newvoc", "tool.files"),
     "help": os.path.join(SDSYS, "helptext", "tool.files.page"),
     "run": os.path.join(GPL, "tk_run"),
+    "word": os.path.join(GPL, "tk_word"),
 }
 SAFE = "abcdefghijklmnopqrstuvwxyz0123456789._-"
 
@@ -64,6 +65,17 @@ def block(text, label):
         return ""
     n = re.search(r"^[a-z][a-z.0-9]*:\s*$|^end\s*$", text[m.end():], re.M)
     return text[m.start(): m.end() + (n.start() if n else len(text))]
+
+
+def ordered(text, *needles):
+    """every needle is in the text and they come in this order"""
+    at = -1
+    for n in needles:
+        i = text.find(n, at + 1)
+        if i < 0:
+            return False
+        at = i
+    return True
 
 
 def checks(raw):
@@ -107,6 +119,14 @@ def checks(raw):
     ck("TF8", "a name goes into a command only when it is made of the characters $tk_run lets through (the same list, at most 63 long), checked in every route that sends one, and the refusal says which verb to type instead",
        "good = '%s'" % SAFE in nm and "okname = (len(fn) > 0 and len(fn) <= 63)" in nm and "okname = @false" in nm and ("good = '%s'" % SAFE) in raw["run"]
        and all(b.count("gosub check.name") == 1 and "if not(okname) then" in b for b in (cl, de, ne, sw)), "")
+    # 28 Oct 26, S.88 phase 2 (plan 2.3, defect S4): a VOC keyword is not a name
+    kwb = block(pg, "check.kw")
+    kw_site = "gosub check.kw\n   if not(kwok) then\n      msg = kwwhy\n      return\n   end\n"
+    ck("TF8b", "S4: a name the VOC holds as a keyword (type K: all, detail, no.query ...) is not given to a command: check.kw asks $tk_word, and every route that sends a name (clear, delete, new, the reports) asks it once, AFTER the character check and BEFORE its box or its "
+       "command, and returns with the routine's own words; $tk_word is the one test TOOL.VOC and TOOL.DICT make too",
+       "call $tk_word(fn, kwok, kwwhy)" in kwb and pg.count("$tk_word") == 1 and all(b.count(kw_site) == 1 and b.find("gosub check.name") < b.find("gosub check.kw") for b in (cl, de, ne, sw))
+       and cl.find("gosub check.kw") < cl.find("call $tk_confirm") and de.find("gosub check.kw") < de.find("call $tk_confirm") and ne.find("gosub check.kw") < ne.find("call $tk_confirm") and sw.find("gosub check.kw") < sw.find("execute sent")
+       and ordered(strip_bas(raw["word"]), "open 'VOC' to kwf then", "read kwr from kwf, name then", "upcase(kwr<1>[1, 1]) = 'K'", "ok = @false", "why = sysmsg(11755, name)"), "")
     ck("TF9", "a report is the verb's own printout on the terminal, which the page hands over (the verbs print through the print unit, which EXECUTE ... CAPTURING does not catch): the base is closed BEFORE the verb runs, the verb is followed by the Press Enter message and a read of the answer, the base is opened again AFTER, the files are read again and the cursor goes back to the file it was on",
        0 <= sw.find("keep = fn") < sw.find("call $tk_close(ctx)") < sw.find("execute sent") < sw.find("crt sysmsg(11865)") < sw.find("input junk") < sw.find("call $tk_open('tool.files', '', ctx, err)")
        < sw.find("gosub read.all") < sw.find("if shown<q> = keep then ci = q") < sw.find("gosub draw.all") and "gen += 1" in sw and "ctx<TK.C.GEN> = gen" in sw, "")
@@ -176,6 +196,12 @@ MUTANTS = [
                                                   "do.delete:\n   if ns < 1 then return\n   fn = shown<ci>\n")),
     ("a report is run with the base still open", "TF9", sub("page", "   call $tk_close(ctx)\n   execute sent\n", "   execute sent\n   call $tk_close(ctx)\n")),
     ("a report does not wait for Enter", "TF9", sub("page", "   input junk\n", "")),
+    ("a keyword may be the file to delete", "TF8b", sub("page", "      msg = 'this name has a character the page does not give to a command: type delete.file ' : fn : ' at the prompt'\n      return\n   end\n   gosub check.kw\n   if not(kwok) then\n      msg = kwwhy\n      return\n   end\n", "      msg = 'this name has a character the page does not give to a command: type delete.file ' : fn : ' at the prompt'\n      return\n   end\n")),
+    ("a keyword may be the file to clear", "TF8b", sub("page", "type clear.file ' : fn : ' at the prompt'\n      return\n   end\n   gosub check.kw\n   if not(kwok) then\n      msg = kwwhy\n      return\n   end\n", "type clear.file ' : fn : ' at the prompt'\n      return\n   end\n")),
+    ("a keyword may be the name of a new file", "TF8b", sub("page", "(the page gives nothing else to a command)'\n      return\n   end\n   gosub check.kw\n   if not(kwok) then\n      msg = kwwhy\n      return\n   end\n", "(the page gives nothing else to a command)'\n      return\n   end\n")),
+    ("a keyword may be the file of a report", "TF8b", sub("page", "      msg = 'this name has a character the page does not give to a command: type ' : field(sent, ' ', 1) : ' at the prompt'\n      return\n   end\n   gosub check.kw\n   if not(kwok) then\n      msg = kwwhy\n      return\n   end\n", "      msg = 'this name has a character the page does not give to a command: type ' : field(sent, ' ', 1) : ' at the prompt'\n      return\n   end\n")),
+    ("the keyword test is not the shared routine", "TF8b", sub("page", "   call $tk_word(fn, kwok, kwwhy)\n", "   kwok = 1\n")),
+    ("the keyword test takes any type", "TF8b", sub("word", "upcase(kwr<1>[1, 1]) = 'K'", "upcase(kwr<1>[1, 1]) = 'Z'")),
     ("the page is not opened again after a report", "TF9", sub("page", "   call $tk_open('tool.files', '', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n   gen += 1\n   ctx<TK.C.GEN> = gen\n", "   gen += 1\n")),
     ("the cursor does not go back to the file after a report", "TF9", sub("page", "      if shown<q> = keep then ci = q\n", "      if shown<q> = keep then ci = 1\n")),
     ("the files are not read again after a report", "TF9", sub("page", "   gosub read.all\n   for q = 1 to ns\n      if shown<q> = keep then ci = q", "   for q = 1 to ns\n      if shown<q> = keep then ci = q")),

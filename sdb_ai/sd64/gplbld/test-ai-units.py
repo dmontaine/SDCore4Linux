@@ -198,7 +198,7 @@ def check_b(t):
     h, cr, ca2, ai, rs, hd = (t[k] for k in ("modifya", "createa", "create_account", "acc_os_info", "restorea", "createacc.h"))
     row("createacc.h defines CA$AI as 41, once; create.account's AI-ON sets it and nothing else does; the syntax line and the audit gates= list name it", re.search(r"\$define\s+CA\$AI\s+41\b", hd) is not None
         and len(re.findall(r"\$define\s+\S+\s+41\b", hd)) == 1 and re.search(r"case upcase\(token\) = 'AI-ON'\s*\n\s*settings<CA\$AI> = 1\s*\n", cr) is not None and len(re.findall(r"(?<!if )settings<CA\$AI>\s*=", cr)) == 1
-        and "{ai-on} {start-menu | start-terminal} {pins-on} {no.query}" in cr and "if settings<CA$AI> = 1 then gates<-1> = 'ai-on'" in cr, "")        # 26 Oct 26: the home screen's words (S.75) stand between {ai-on} and {no.query}
+        and "{ai-on} {start-menu | start-terminal} {pins-on} {recovery-on} {no.query}" in cr and "if settings<CA$AI> = 1 then gates<-1> = 'ai-on'" in cr, "")        # 26 Oct 26: the home screen's words (S.75) stand between {ai-on} and {no.query}; 28 Oct 26: and {recovery-on} (S.88 plan 2.9)
     cab = bas(ca2)
     row("!create_account: ai.want is exactly 1; the group sdaiusers is looked for BEFORE the Linux user is made and joined AFTER, a group or other account is refused as for FILES-ON, and the state line 11606 is read off /etc/group",
         "ai.want = (settings<CA$AI> = 1)" in cab and ordered(cab, "if ai.want then", "files.grp.name = 'sdaiusers'", "gosub check.files.group", "if not(create_user(acc.uname)) then", "if ai.want then", "files.grp.name = 'sdaiusers'",

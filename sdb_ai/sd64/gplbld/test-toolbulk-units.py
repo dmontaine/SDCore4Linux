@@ -26,6 +26,7 @@ FILES = {
     "newvoc": os.path.join(SDSYS, "newvoc", "tool.bulk"),
     "help": os.path.join(SDSYS, "helptext", "tool.bulk.page"),
     "run": os.path.join(GPL, "tk_run"),
+    "own": os.path.join(GPL, "tk_ownfile"),
 }
 SAFE = "abcdefghijklmnopqrstuvwxyz0123456789._-"
 
@@ -220,8 +221,12 @@ def checks(raw):
     ck("TB31", "the old record is kept before the new one is written, and if the data write fails the old record kept for it is taken out again and the run stops",
        order(ar, "write id : @fm : digest(newrec, 0, 'MD5') : @fm : rec on uf, n.written on error", "writeu newrec on fv, id on error", "delete uf, n.written") and "n.written -= 1" in ar, "")
     cu = block(pg, "check.undo")
+    ow = strip_bas(raw["own"])
+    ow_ok = ("uct # FL$TYPE.DH" in ow and "fileinfo(fv, FL$READONLY) = 1" in ow and "ucd = '' or ucp # ucd : '/' : name" in ow and "ucek = kernel(K$EDIT.KIND, ucp)" in ow and "uceo = kernel(K$EDIT.OK, ucp)" in ow
+             and "ucek >= 1 and ucek <= 3" in ow and "case not(uceo)" in ow)
     ck("TB32", "the undo file is checked before anything is cleared, written or read back from it (the page is $internal, which the kernel lets through): check.undo wants a dynamic file, not read only, directly in the account's own directory under its own name, and the kernel's edit rules (K$EDIT.KIND outside the VOC, dictionary and program kinds, K$EDIT.OK) to allow it; undo.file (both opens), apply.run and do.undo call it right after the open and refuse before the first clearfile or write",
-       "uct # FL$TYPE.DH" in cu and "fileinfo(uf, FL$READONLY) = 1" in cu and "ucd = '' or ucp # ucd : '/' : UNDOF" in cu and "ucek = kernel(K$EDIT.KIND, ucp)" in cu and "uceo = kernel(K$EDIT.OK, ucp)" in cu and "ucek >= 1 and ucek <= 3" in cu and "case not(uceo)" in cu
+       # 28 Oct 26 (S.88 phase 2, S2): the test itself is in $tk_ownfile now (raw["own"]), which TOOL.QUERY calls too; check.undo only calls it with the open undo file and its name
+       "call $tk_ownfile(uf, UNDOF, uck, ucw)" in cu and ow_ok
        and uf.count("gosub check.undo") == 2 and order(ar, "open UNDOF to uf else", "gosub check.undo", "if not(uck) then", "clearfile uf") and order(du, "open UNDOF to uf else", "gosub check.undo", "if not(uck) then", "n.undo = 0"), "")
     return rows
 
@@ -324,8 +329,10 @@ MUTANTS = [
     ("Add pads an empty attribute", "TB29", sub("page", "            if ov = '' or not(num(ov)) then\n               cant = 1", "            if not(num(ov)) then\n               cant = 1")),
     ("an attribute is assigned even when it did not change", "TB29", sub("page", "      if ('S' : nv) # ('S' : ov) then newrec<oa> = nv", "      newrec<oa> = nv")),
     ("the undo file is not checked before it is cleared", "TB32", sub("page", "   gosub check.undo\n   if not(uck) then\n      close fv\n      close uf\n", "   uck = 1\n   if not(uck) then\n      close fv\n      close uf\n")),
-    ("the undo file may stand anywhere", "TB32", sub("page", "      case ucd = '' or ucp # ucd : '/' : UNDOF\n", "      case 0\n")),
-    ("the kernel's edit kind of the undo file is not asked", "TB32", sub("page", "      case ucek >= 1 and ucek <= 3\n", "      case 0\n")),
+    ("the undo file may stand anywhere", "TB32", sub("own", "      case ucd = '' or ucp # ucd : '/' : name\n", "      case 0\n")),
+    ("the kernel's edit kind of the undo file is not asked", "TB32", sub("own", "      case ucek >= 1 and ucek <= 3\n", "      case 0\n")),
+    ("the kernel's edit rules are not asked of the undo file", "TB32", sub("own", "      case not(uceo)\n", "      case 0\n")),
+    ("the undo file's test is no longer asked of the shared routine", "TB32", sub("page", "   call $tk_ownfile(uf, UNDOF, uck, ucw)\n", "   uck = 1\n")),
     ("two numeric looking values are compared as numbers", "TB29", sub("page", "if ('S' : nv) # ('S' : ov) then newrec<oa> = nv", "if nv # ov then newrec<oa> = nv")),
     ("an Add that would lose decimals goes ahead", "TB29", sub("page", " or len(ov) > 15 or len(opr.a1<oj>) > 15 then cant = 1", " then cant = 0")),
     ("a record that cannot be worked out is changed", "TB29", sub("page", "      if cant then exit\n", "")),

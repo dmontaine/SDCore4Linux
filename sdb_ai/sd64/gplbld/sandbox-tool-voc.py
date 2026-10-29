@@ -22,9 +22,14 @@
 #   V6      E hands the terminal to SED on the entry and the page comes back
 #   V7      an account with voc-edit OFF: the box says so, the kernel refuses the delete, the entry is still there
 #   V8      F1 and the [?] reach the help box; a window under 140 by 43 gets no page
+#   (28 Oct 26)
+#   V9      S4 (S.88 phase 2): D on an entry the VOC holds as a KEYWORD (type K: all) is refused by the page - $tk_word - before any box, so "delete voc all" is never offered (its question,
+#           "Delete all records in VOC?", would go to output the page captures and a y would empty the VOC); the VOC is read from a separate session, unchanged.  WRITTEN, NOT RUN (28 Oct 26:
+#           the owner ruled that no suite runs until all the phases are in).  Runtime mutant: keyword-unchecked (V9).
 import importlib.util
 import os
 import re
+import shutil
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -62,8 +67,9 @@ MUTANTS = {
     # name: (old text of the sandbox's tool_voc, new text, the row ids that must fail and no others)
     "delete-no-typed-name": ("call $tk_confirm(sent, lines, vid, res, cmsg)", "call $tk_confirm(sent, lines, '', res, cmsg)", ["V5"]),
     "all-same": ("edif = (if sr = r then 'same' else 'changed')", "edif = 'same'", ["V2", "V4"]),
+    "keyword-unchecked": ("   call $tk_word(vid, kwok, kwwhy)\n", "   kwok = 1\n", ["V9"]),           # 28 Oct 26 (S.88 phase 2, S4)
 }
-MUTANT_SECTIONS = {"delete-no-typed-name": ("delete",), "all-same": ("list", "filters")}
+MUTANT_SECTIONS = {"delete-no-typed-name": ("delete",), "all-same": ("list", "filters"), "keyword-unchecked": ("keyword",)}
 
 
 def box():
@@ -79,10 +85,17 @@ def reg_record(name, edit):
     return [acct_dir(name), "", g.GROUP, "", "", "", "no", "no", "no", e, e, e, "", "", "no", "", "", ""]
 
 
+def sync_tree():
+    # 28 Oct 26 (S.88 phase 2, S4): the page calls $tk_word and prints message 11755; a sandbox built before they were written has neither, so the tree's copies go in first (and a mutant of
+    # an earlier run is undone).  Not part of compile_page(): a mutant is compiled by it and must keep its change.
+    for rel in ("gpl.bp/tool_voc", "gpl.bp/tk_word", "messages/11755", "messages/11806"):
+        shutil.copyfile(os.path.join(TREE, "sdsys", rel), os.path.join(sh.SYS, rel))
+
+
 def compile_page():
-    out = adm("BASIC gpl.bp tool_voc")
-    if not has(out, r"^Compiled 1 program\(s\) with no errors"):
-        bail("tool_voc did not compile in the sandbox:\n" + "\n".join(out[-8:]))
+    out = adm("BASIC gpl.bp tk_word tool_voc")
+    if not has(out, r"^Compiled 2 program\(s\) with no errors"):
+        bail("tool_voc and tk_word did not compile in the sandbox:\n" + "\n".join(out[-8:]))
 
 
 def mutate(name):
@@ -139,6 +152,7 @@ def setup_voc():
         g.FIXTURES[a] = ("no", "no")
         g.build_account(a)
         g.reg_write(a, reg_record(a, edit))
+    sync_tree()
     compile_page()
     g.put(os.path.join(acct_dir(A1), "bp", "zzvw"), "\n".join([
         "   open 'VOC' to v else crt 'VW no voc' ; stop",
@@ -285,6 +299,35 @@ def section_delete():
     h.end()
 
 
+def section_keyword():
+    say("\n--- V9: D on `all`, a VOC keyword (S4): the page refuses; the VOC is unchanged")
+    n0 = voccount(A1)
+    k0 = vocinfo(A1, "all")
+    arow("V9ctl1", "the fixture VOC holds the entry `all` (a keyword: its type letter is K) and a count of its entries is read by a separate session", k0 not in (None, "ERROR") and k0[0][:1].upper() == "K" and n0 is not None, repr((k0, n0)))
+    h = page(A1)
+    filt(h, "all")
+    order = table(h)[1]
+    arow("V9ctl2", "the entry `all` is in the filtered list (the cursor can be put on it)", "all" in order, repr(order))
+    if "all" not in order:
+        h.key("ctrl-q", idle=1.2)
+        h.end()
+        return
+    for _ in range(order.index("all")):
+        h.key("down", idle=0.4)
+    h.typed("d", idle=1.5)
+    T = re.sub(r"[|\s]+", " ", h.text())
+    offered = "delete voc all" in T
+    if offered:                                                  # the mutant's path: the box is up; Run and the id typed, then the DELETE's question is answered No so the fixture VOC survives
+        h.typed("r", idle=1.2)
+        h.typed("all\r", idle=2.5)
+        h.typed("n\r", idle=2.0)
+    n1 = voccount(A1)
+    arow("V9", "D on `all` is refused: no box offers 'delete voc all', the status line says the id is a keyword, and the VOC is unchanged (a separate session: `all` is there and the count is %s)" % n0,
+         (not offered) and "keyword" in st(h) and vocinfo(A1, "all") not in (None, "ERROR") and n1 == n0, repr((offered, st(h), n1)))
+    h.key("ctrl-q", idle=1.2)
+    h.end()
+
+
 def section_edit():
     say("\n--- V6: E hands the terminal to SED")
     h = page(A1)
@@ -360,6 +403,8 @@ def main():
             section_filters()
         if run("delete"):
             section_delete()
+        if run("keyword"):
+            section_keyword()
         if mutant is None:
             section_edit()
             section_refused()

@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 22 Oct 26 dm  New (S.75, TK-0.1).
+* 28 Oct 26 dm  S.88 phase 2 (D4): the break setting is given back through $tk_brk, which also forgets what $sl_cleanup would have given back.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -27,8 +28,7 @@ $include int$keys.h
 $include tk.h
 
    screen close
-   void pterm(PT$BREAK, ctx<TK.C.TRAP>)
-   break on
+   call $tk_brk('close', ctx<TK.C.TRAP>)          ;* the break setting back (the one kept at the start of the first app, if an earlier one was aborted), and BREAK ON
 
    return
 end

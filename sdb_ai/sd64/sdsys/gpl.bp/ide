@@ -6,6 +6,21 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  The TUI phase 2 review's five findings.  (1) An AI edit's undo step goes on the memo through its own 'snap' (it was pushed in the memo's old form, and
+*               Ctrl-Z turned the record's value marks into line ends).  (2) A bare IDE that offers two untitled copies and is answered Open twice keeps both: the
+*               editor holds each recovered tab as soon as it is made (the second Open wrote the empty startup buffer over the first, and a tick then deleted its copy).
+*               (3) A tab that finds a copy it does not own under its key says so (11778) and looks again every 10 seconds; when that copy is gone it writes its own
+*               (it never wrote one again).  (4) An empty untitled tab taken away when a record is opened or made drops the copy it owns.  (5) The break setting is
+*               kept by $tk_brk (save at the start and when the screen is taken back, close at every way out and when the screen is handed to a program), so an
+*               abort inside the IDE no longer leaves Ctrl-C dead at the prompt.
+* 28 Oct 26 dm  S.88 plan 2.9 (D2; the owner's answer to Q2: "Build it, ship it off").  THE RECOVERY COPY.  Where the administrator has turned it on for the account
+*               (MODIFY.ACCOUNT RECOVERY-ON; off as delivered, and then nothing below writes anything), every buffer with changes has a copy of its text, owner-only,
+*               in the account's $recovery directory (!edit_recovery): written after a second of quiet, before the screen is handed to a program, and when the IDE
+*               ends without the person's word (the input ended or the terminal hung up, Ctrl-Q y at the cursor lock).  An abort cannot be caught, so the quiet
+*               second is what saves the text then.  A copy goes when its record is saved, when the person closes the tab (Save or Discard) or quits normally,
+*               and when the buffer has no changes any more.  Opening a record that has a copy, or naming a new record that has one, asks first: Use the copy
+*               (the buffer holds it; the record is unchanged until it is saved), Delete the copy, or Cancel (the record is not opened; the copy stays).  A bare
+*               IDE offers the copies of untitled buffers.  A copy this tab did not write or take is never written over.
 * 28 Oct 26 dm  S.88 Phase 4 (the plan in ~/Documents/Audits/TUI/Opus_TUI_Plan.txt, 4.1-4.4, 4.6, 4.9).  A bare IDE opens "Untitled 1", an editable buffer with the focus in the editor, and the
 *               first save of an untitled buffer asks for the file and the record in ONE form ($ide_name), which says why it refuses (the account's gate, a record that exists) and stays open.
 *               New record writes nothing until Save.  Save as switches the tab to the new record (Write a copy keeps the old behaviour, Ctrl-W).  A save takes the record's lock, reads it
@@ -95,8 +110,10 @@ $include tk.h
    fn0 = field(@sentence, ' ', 2)
    id0 = field(@sentence, ' ', 3)
 
-   * Ctrl-C and the terminal's break are keys of the editor; both are given back on the way out
+   * Ctrl-C and the terminal's break are keys of the editor; both are given back on the way out.  The setting is also kept by $tk_brk, so that an abort
+   * inside the IDE (which skips every way out below) does not leave the person at the prompt with Ctrl-C dead: $sl_cleanup gives it back (28 Oct 26)
    saved.trap = pterm(PT$BREAK, -1)
+   call $tk_brk('save', saved.trap)
    void pterm(PT$BREAK, @false)
    break off
 
@@ -111,21 +128,24 @@ $include tk.h
    * A window smaller than the layout is refused before the screen is taken (the library's one check and message)
    call $sl_need('IDE', LAYW, LAYH, need.msg, '')
    if need.msg # '' then
-      break on
-      void pterm(PT$BREAK, saved.trap)
+      call $tk_brk('close', saved.trap)        ;* the setting back and BREAK ON; nothing is held any more
       display need.msg
       stop
    end
 
    gosub open.screen
    if not(opened) then
-      break on
-      void pterm(PT$BREAK, saved.trap)
+      call $tk_brk('close', saved.trap)
       stop
    end
 
    * 23 Oct 26: whether the AI is usable for this account (the gate, a provider, a model and a key): without it the IDE has no AI entry, no AI menu and the same layout as ever
    call $tk_ai('usable', '', ai.on, ai.pm)
+
+   * 28 Oct 26 (S.88 plan 2.9, D2): whether this session keeps recovery copies (the account's switch, delivered off; a user account and its own person only)
+   call !edit_recovery('on', '', '', '', rc.on)
+   rc.warned = 0
+   RC.LOOK = 10                            ;* seconds between two looks for a copy a tab does not own (rc.tick)
 
    call $sl_scr('get', scr)
    w = scr<SL.S.W> + 0
@@ -199,6 +219,7 @@ $include tk.h
       screen focus f, 'ed'
       focus.id = 'ed'
    end
+   if id0 = '' then gosub rc.untitled          ;* 28 Oct 26 (D2): the text of untitled buffers kept when an editor ended
 
    menu.click = ''                          ;* the column of a click on the menu bar, while the menu it opens is being started
    loop
@@ -231,9 +252,10 @@ $include tk.h
       end else
          begin case
             case ev<1> = 'end'
+               gosub rc.tick                    ;* the input ended or the terminal hung up: the changed buffers' copies are brought up to date (D2)
                done = @true
             case ev<1> = 'timeout'
-               null
+               gosub rc.tick                    ;* a second of quiet: the copies follow the buffers (an abort cannot be caught)
             case 1
                cmd = 'menu'             ;* Esc
                gosub run.cmd
@@ -243,8 +265,7 @@ $include tk.h
    repeat
 
    screen close
-   break on
-   void pterm(PT$BREAK, saved.trap)
+   call $tk_brk('close', saved.trap)           ;* the setting back (or the one an earlier, aborted app left held) and BREAK ON
    display @(-1) :
    stop
 
@@ -709,9 +730,27 @@ open.record:
       msg = sysmsg(11200, or.file)
       return
    end
+   * 28 Oct 26 (D2): a recovery copy of the record is offered before the tab is made - also for a record that is not on the disk (a new record that was never
+   *   saved), which then opens as a new record holding the copy.  Cancel opens nothing and keeps the copy.
+   or.new = 0
+   rc.file = or.file
+   rc.id = or.id
    read rec from fv, or.id else
-      msg = sysmsg(11201, or.id, or.file)
-      return
+      rc.has.disk = @false
+      rc.disk = ''
+      gosub rc.offer
+      if rc.choice # 'use' then
+         if rc.res = '' then msg = sysmsg(11201, or.id, or.file)
+         return
+      end
+      rec = ''
+      or.new = 1
+   end
+   if not(or.new) then
+      rc.has.disk = @true
+      rc.disk = rec
+      gosub rc.offer
+      if rc.choice = 'cancel' then return
    end
    gosub stash.current
    gosub drop.clean.untitled
@@ -721,16 +760,20 @@ open.record:
    bi<nbuf> = or.id
    bu<nbuf> = uid
    k = 'n' : uid
-   bx{k} = 0
+   bx{k} = or.new
    k = 's' : uid
-   bx{k} = rec
-   k = 't' : uid
    bx{k} = rec
    k = 'c' : uid
    bx{k} = ''
+   tb.shown = rec
+   if rc.choice = 'use' then tb.shown = rc.text
+   k = 't' : uid
+   bx{k} = tb.shown
+   gosub rc.init.tab
    tm.u = uid
-   tm.raw = rec
+   tm.raw = tb.shown
    gosub set.token.mode
+   if rc.choice = 'use' then gosub rc.took
    cb = nbuf
    gosub load.current
    return
@@ -752,6 +795,221 @@ is.dirty:
    dirty = (d1 # d2)
    k = 'n' : u
    if bx{k} and d1 # '' then dirty = @true            ;* a record that is not on the disk yet and holds text
+   return
+
+* ======================================================================
+* The recovery copy (28 Oct 26, S.88 plan 2.9, D2).  Only where the administrator has turned it on for the account (MODIFY.ACCOUNT RECOVERY-ON; delivered off), and
+* only in a user account for its own person: !edit_recovery decides that, makes and checks the owner-only directory, and keeps the copies.  The IDE says WHICH text and
+* WHEN.  For each tab: bx qk<uid> is the file and record (as two values) of the copy THIS TAB owns ('' none), bx r<uid> the text that copy holds, bx w<uid> the
+* token an untitled buffer's copy is kept under.  A tab owns a copy it wrote or one the person took into it (Use the copy); a copy it does not own is never written
+* over, and the person is asked about it (rc.offer) before any tab for that record is made.  NOTHING HERE WRITES THE RECORD: the person's save does, as ever.
+
+* A new tab owns no copy.  In: uid
+rc.init.tab:
+   k = 'qk' : uid
+   bx{k} = ''
+   k = 'r' : uid
+   bx{k} = ''
+   k = 'w' : uid
+   bx{k} = ''
+   k = 'x' : uid
+   bx{k} = ''                        ;* file VM record VM time: a copy the tab does not own was found under that key, look again at that time (rc.tick)
+   return
+
+* In: uid, rc.file, rc.id, rc.text.  The tab uid has just taken the copy: it owns it, and the copy stays until the record is saved or the tab closed
+rc.took:
+   k = 'qk' : uid
+   bx{k} = rc.file : @vm : rc.id
+   k = 'r' : uid
+   bx{k} = rc.text
+   if rc.file = '' then
+      k = 'w' : uid
+      bx{k} = rc.id
+   end
+   msg = sysmsg(11773)               ;* The recovery copy is in the editor; the record on disk is unchanged until you save it
+   return
+
+* In: ri.  Out: rk.file, rk.id, the key of buffer ri's copy: its file and record, or for an untitled buffer no file and a token of its own (made the first time)
+rc.key:
+   rk.u = bu<ri>
+   rk.file = bn<ri>
+   rk.id = bi<ri>
+   if rk.id = '' then
+      rk.file = ''
+      k = 'w' : rk.u
+      rk.id = bx{k}
+      if rk.id = '' then
+         rk.id = 'untitled.' : date() : '.' : int(time()) : '.' : rk.u
+         bx{k} = rk.id
+      end
+   end
+   return
+
+* In: ri.  The copy buffer ri owns goes (its record was saved, or the person closed the buffer, saved or discarded, or it has no changes any more)
+rc.drop.tab:
+   k = 'qk' : bu<ri>
+   rq = bx{k}
+   if rq # '' then
+      call !edit_recovery('drop', rq<1, 1>, rq<1, 2>, '', rr)
+      bx{k} = ''
+      k = 'r' : bu<ri>
+      bx{k} = ''
+   end
+   return
+
+* After a second of quiet, before the screen is handed to a program, and when the IDE ends without the person's word: every buffer with changes has a copy holding
+* its text, and a buffer without changes has none.  Nothing at all when the switch is off.  A failure is said once on the status line (11777) and the text stays in
+* the editor; 'off' (RECOVERY-OFF since the IDE started) stops the tries.
+rc.tick:
+   if not(rc.on) then return
+   gosub stash.current
+   for ri = 1 to nbuf
+      i = ri
+      gosub is.dirty
+      if not(dirty) then
+         gosub rc.drop.tab
+      end else
+         k = 't' : bu<ri>
+         rt.text = bx{k}
+         gosub rc.key
+         rk.now = rk.file : @vm : rk.id
+         k = 'qk' : bu<ri>
+         rq = bx{k}
+         rt.write = @true
+         if rq = rk.now then
+            k = 'r' : bu<ri>
+            if bx{k} = rt.text then rt.write = @false     ;* the copy already holds this text
+         end else
+*           The tab is another record now (save as; an untitled buffer that was named), or owns no copy yet: the old one goes, and a copy somebody else
+*           left under the new name (another session of the same person) is not written over.
+            if rq # '' then
+               call !edit_recovery('drop', rq<1, 1>, rq<1, 2>, '', rr)
+               bx{k} = ''
+            end
+*           28 Oct 26 (TUI phase 2 review): a copy the tab does not own was found under its key once, and then the tab never wrote a copy again, even after that copy
+*           was gone, and the person was not told.  Now the person is told (11778) the first time, and the copy is looked for again every RC.LOOK seconds (not
+*           every second: it is a file read and a digest); once it is gone the tab writes its own.  Such a copy is another IDE session's of the same person in the
+*           same account with the same record open and changed, or one left when an editor ended, under a name this tab took without the question (Save as, or
+*           the first save of an untitled buffer, to that record): either holds text the person may want, so it is never written over.
+            k = 'x' : bu<ri>
+            rx = bx{k}
+            rt.now = date() * 86400 + int(time())
+            rt.seen = @false
+            if rx # '' then rt.seen = (rx<1, 1> = rk.file and rx<1, 2> = rk.id)
+            if rt.seen and rt.now < rx<1, 3> + 0 then
+               rt.write = @false                                  ;* looked for less than RC.LOOK seconds ago
+            end else
+               call !edit_recovery('find', rk.file, rk.id, rt.other, rr)
+               if rr # '' then
+                  rt.write = @false
+                  bx{k} = rk.now : @vm : rt.now + RC.LOOK
+                  if not(rt.seen) then
+                     i = ri
+                     gosub buf.label
+                     msg = sysmsg(11778, bf.name, bf.id)   ;* %1 %2 gets no recovery copy: another one is there (another session's, or older) and is kept
+                  end
+               end else
+                  bx{k} = ''                                      ;* none there (or no longer): the tab writes its own below
+               end
+            end
+         end
+         if rt.write then
+            call !edit_recovery('write', rk.file, rk.id, rt.text, rr)
+            if rr = '' then
+               k = 'qk' : bu<ri>
+               bx{k} = rk.now
+               k = 'r' : bu<ri>
+               bx{k} = rt.text
+               rc.warned = 0
+            end else
+               k = 'qk' : bu<ri>
+               bx{k} = ''                                   ;* a failed write leaves no copy behind (!edit_recovery removes it)
+               if rr = 'off' then
+                  rc.on = 0
+               end else
+                  if not(rc.warned) then msg = sysmsg(11777, rr)   ;* A recovery copy could not be written (%1); the text is still in the editor
+                  rc.warned = 1
+               end
+            end
+         end
+      end
+   next ri
+   return
+
+* In: rc.file, rc.id (a record a tab is about to be made for), rc.has.disk and rc.disk (the record as it is on the disk).  Out: rc.res ('' when there is no whole,
+* private copy), rc.choice and rc.text: 'none' (no copy; or a copy that says nothing the record does not, which is removed; or the person deleted it), 'use'
+* (rc.text is the copy, for the tab to take) or 'cancel' (no tab: the copy stays).  The question is the person's; Enter is Use the copy, which writes nothing.
+rc.offer:
+   rc.choice = 'none'
+   rc.text = ''
+   call !edit_recovery('find', rc.file, rc.id, rc.text, rc.res)
+   if rc.res = '' then return
+   if rc.has.disk and rc.text = rc.disk then
+      call !edit_recovery('drop', rc.file, rc.id, '', rr)
+      rc.text = ''
+      return
+   end
+   rc.when = oconv(rc.res<2>, 'D') : ' ' : oconv(rc.res<3>, 'MT')
+   rf.w = lw - 16
+   if rf.w > 100 then rf.w = 100
+   call $tk_wrap(sysmsg(11772, rc.file, rc.id, rc.when), rf.w, rc.pieces)   ;* A recovery copy of %1 %2, kept on %3, holds text that was not saved...
+   screen msgbox change(rc.pieces, @fm, @vm) buttons 'Use the copy,Delete the copy,Cancel' default 1 returning rc.b else rc.b = 3
+   last.status = char(1)
+   begin case
+      case rc.b = 1
+         rc.choice = 'use'
+      case rc.b = 2
+         call !edit_recovery('drop', rc.file, rc.id, '', rr)
+         rc.text = ''
+         msg = sysmsg(11774)                  ;* The recovery copy was deleted
+      case 1
+         rc.choice = 'cancel'
+         rc.text = ''
+         msg = sysmsg(11775, rc.file, rc.id)  ;* The recovery copy of %1 %2 is kept; the record was not opened
+   end case
+   return
+
+* A bare IDE: the copies of untitled buffers that were kept when an editor ended are offered, each in a tab of its own (Open), deleted, or left for another time
+rc.untitled:
+   rc.list = ''
+   call !edit_recovery('list', '', '', rc.list, rc.n)
+   rc.got = @false
+   for ru = 1 to rc.n
+      rc.file = ''
+      rc.id = rc.list<ru, 1>
+      call !edit_recovery('find', rc.file, rc.id, rc.text, rc.res)
+      if rc.res # '' then
+         rc.when = oconv(rc.res<2>, 'D') : ' ' : oconv(rc.res<3>, 'MT')
+         rf.w = lw - 16
+         if rf.w > 100 then rf.w = 100
+         call $tk_wrap(sysmsg(11776, rc.when), rf.w, rc.pieces)   ;* Text typed in an untitled buffer was kept on %1 when the editor ended.  Open it in a new tab?
+         screen msgbox change(rc.pieces, @fm, @vm) buttons 'Open,Delete the copy,Later' default 1 returning rc.b else rc.b = 3
+         last.status = char(1)
+         begin case
+            case rc.b = 1
+               gosub drop.clean.untitled
+               gosub add.untitled
+               k = 't' : uid
+               bx{k} = rc.text
+               tm.u = uid
+               tm.raw = rc.text
+               gosub set.token.mode
+               gosub rc.took
+*              28 Oct 26 (TUI phase 2 review): the editor is made to hold this tab at once.  It still held the empty startup buffer, so the next Open's add.untitled
+*              (stash.current: the editor's text into the tab in the editor) wrote that empty text over THIS copy's tab, and the next tick deleted the copy from the
+*              disk as a buffer without changes.  The copy stays on the disk; it goes only by the rules of any tab's copy, now that its text is in a tab.
+               gosub load.current
+               rc.got = @true
+            case rc.b = 2
+               call !edit_recovery('drop', rc.file, rc.id, '', rr)
+               msg = sysmsg(11774)
+         end case
+      end
+   next ru
+   if rc.got then
+      ft.id = 'ed'
+      gosub focus.to
+   end
    return
 
 * ======================================================================
@@ -885,6 +1143,7 @@ do.key:
       case edata = 'f12'
          cmd = 'fields'                  ;* the record as fields, values and subvalues, in CED
       case edata = 'guardquit'
+         gosub rc.tick                   ;* 28 Oct 26 (D2): the copies are kept, as for a hang-up: the person could not see the buffers to decide
          done = @true                    ;* the user left from the cursor lock ($sl_guardmode): nothing is saved
       case edata = 'mouse'
          * The bar is not a widget, so a click on it comes here as a key the form had no use for.  19 Oct 26 dm: the left button on the bar's
@@ -1260,6 +1519,8 @@ save.one:
    k = 'n' : u
    bx{k} = 0
    sv.ok = @true
+   ri = sv.i
+   gosub rc.drop.tab                            ;* 28 Oct 26 (D2): the text is in the record now; its recovery copy goes
    msg = sysmsg(11202, bn<sv.i>, sv.id)
    if sv.new then
       rt.file = bn<sv.i>
@@ -1333,11 +1594,20 @@ add.untitled:
    bx{k} = 1                         ;* not on the disk
    k = 'u' : uid
    bx{k} = untitled
+   gosub rc.init.tab
    cb = nbuf
    return
 
-* In: nm.file, nm.id.  A record that is not on the disk yet, in a tab of its own: nothing is written until it is saved
+* In: nm.file, nm.id.  A record that is not on the disk yet, in a tab of its own: nothing is written until it is saved.  Out: an.made.
+* 28 Oct 26 (D2): a recovery copy kept for that record is offered first; Cancel makes no tab and keeps the copy (an.made is false).
 add.new.record:
+   an.made = @false
+   rc.file = nm.file
+   rc.id = nm.id
+   rc.has.disk = @false
+   rc.disk = ''
+   gosub rc.offer
+   if rc.choice = 'cancel' then return
    gosub stash.current
    gosub drop.clean.untitled
    nbuf += 1
@@ -1348,22 +1618,34 @@ add.new.record:
    k = 's' : uid
    bx{k} = ''
    k = 't' : uid
-   bx{k} = ''
+   bx{k} = rc.text                   ;* '' unless the person took the copy
    k = 'c' : uid
    bx{k} = ''
    k = 'm' : uid
    bx{k} = 0
    k = 'n' : uid
    bx{k} = 1
+   gosub rc.init.tab
+   if rc.choice = 'use' then
+      tm.u = uid
+      tm.raw = rc.text
+      gosub set.token.mode
+      gosub rc.took
+   end
    cb = nbuf
+   an.made = @true
    return
 
-* The tab in the editor, when it is an untitled buffer nobody has typed in, is taken away (a record that is opened or made takes its place)
+* The tab in the editor, when it is an untitled buffer nobody has typed in, is taken away (a record that is opened or made takes its place).
+* 28 Oct 26 (TUI phase 2 review): a recovery copy the tab owns goes with it (the person emptied the buffer; with the switch off, or within the quiet second,
+*   no tick had dropped it), so the next bare IDE does not offer text the person deleted
 drop.clean.untitled:
    if nbuf > 0 and bi<cb> = '' then
       u = bu<cb>
       k = 't' : u
       if bx{k} = '' then
+         ri = cb
+         gosub rc.drop.tab
          del bn<cb>
          del bi<cb>
          del bu<cb>
@@ -1403,6 +1685,8 @@ close.current:
             return
       end case
    end
+   ri = cb
+   gosub rc.drop.tab                             ;* 28 Oct 26 (D2): the person closed it (saved, or Discard): its recovery copy goes
    del bn<cb>
    del bi<cb>
    del bu<cb>
@@ -1447,6 +1731,9 @@ do.quit:
    until abort
    next qi
    if not(abort) then
+      for ri = 1 to nbuf
+         gosub rc.drop.tab                       ;* 28 Oct 26 (D2): every buffer was saved or discarded by the person: no recovery copy is left
+      next ri
       done = @true
    end else
       gosub load.current              ;* a buffer that was named by the loop has its new tab label
@@ -1537,17 +1824,21 @@ catalog.verified:
 
 * The terminal goes back to the program being run, and comes back to the IDE after it
 leave.screen:
+   gosub rc.tick                         ;* 28 Oct 26 (D2): the program run may abort the session
    screen close
-   break on
-   void pterm(PT$BREAK, saved.trap)
+   call $tk_brk('close', saved.trap)     ;* 28 Oct 26: the program run has the person's break key, and nothing is held while it runs (CED and SED keep their own)
    display @(-1) :
    return
 
 retake.screen:
    display sysmsg(11223)
    input junk
-* Without the pause (SED handed the record back and has nothing left to be read): the same, straight on
+* Without the pause (SED handed the record back and has nothing left to be read): the same, straight on.
+* 28 Oct 26: the setting is read again, as the person has it now ('close' above may have put back the one an earlier aborted app had held, which is the
+*   person's own and not the one this program read at its start), and kept again by $tk_brk before the break key is turned off
 retake.quiet:
+   saved.trap = pterm(PT$BREAK, -1)
+   call $tk_brk('save', saved.trap)
    void pterm(PT$BREAK, @false)
    break off
    gosub open.screen
@@ -1781,10 +2072,10 @@ ai.apply:
    ai.new = ai.sp<1>
    ai.line1 = ai.sp<2>
    ai.n = ai.sp<3>
-   * the memo's own undo stack: the old text and cursor go on the front, as its snap.make has them, and redo is forgotten
-   ai.snap = mw{'cy'} : @tm : mw{'cx'} : @tm : convert(@fm, @vm, mw{'value'})
-   mw{'undo'} = ai.snap : @fm : mw{'undo'}
-   mw{'redo'} = ''
+   * the old text and cursor go on the memo's own undo steps as one step, and redo is forgotten: the memo's 'snap' does it, in the memo's own form.  28 Oct 26 (TUI
+   *   phase 2 review): this pushed the step in the memo's OLD form (the lines joined by value marks), which the memo now reads as legacy and turns every value
+   *   mark back into a line end, so Ctrl-Z after an AI edit gave back a record whose values had become lines
+   call $sl_memo('snap', mw, '', '', ai.sr)
    mw{'value'} = change(ai.new, char(10), @fm)
    mw{'lastop'} = ''
    mw{'cy'} = ai.line1
@@ -1937,6 +2228,7 @@ do.new:
    last.status = char(1)
    if nm.res # 'ok' then return
    gosub add.new.record
+   if not(an.made) then return               ;* 28 Oct 26 (D2): Cancel at the recovery copy's question
    gosub load.current
    ft.id = 'ed'
    gosub focus.to

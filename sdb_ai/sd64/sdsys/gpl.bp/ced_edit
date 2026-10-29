@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  The break setting the editor takes is kept by $tk_brk (save, and close at both exits), so that an abort inside the editor does not leave Ctrl-C dead (TUI phase 2 review).
 * 26 Oct 26 dm  Data mode (ftype 2, the one-editor plan, stage 1): c is a record as $recarr makes it, an array of fields; only text and lists of values and subvalues can be made;
 *               Ctrl-S makes the record text with $recarr, and writes it when id is not null.  Used by the IDE's "Edit as fields" (F12).
 * 18 Oct 26 dm  Terminal 140 by 42 (plan-terminal-140x42.md, phase 3).  The editor is laid out for at least 140 by 42 and refuses a
@@ -92,6 +93,7 @@ $include sl.h
    * Ctrl-C is a key here (copy), so neither the break key nor the terminal's break character may act on
    * it; both are given back on the way out
    saved.trap = pterm(PT$BREAK, -1)
+   call $tk_brk('save', saved.trap)         ;* 28 Oct 26: kept where $sl_cleanup can find it if the editor is aborted before it gives the setting back
    void pterm(PT$BREAK, @false)
    break off
 
@@ -100,8 +102,7 @@ $include sl.h
    screen open clear then
       have.screen = @true
    end else
-      break on
-      void pterm(PT$BREAK, saved.trap)
+      call $tk_brk('close', saved.trap)
       return
    end
    call $sl_guardmode('CED', LAYW, LAYH)   ;* the cursor lock: the keys are not the editor's while its cursor is off the screen
@@ -147,8 +148,7 @@ $include sl.h
    repeat
 
    screen close
-   break on
-   void pterm(PT$BREAK, saved.trap)
+   call $tk_brk('close', saved.trap)        ;* the setting back (or the earlier app's, if one was aborted) and BREAK ON; nothing is held any more
    result<1> = kept
    result<2> = quit.all
    return
