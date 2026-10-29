@@ -102,7 +102,9 @@ PINS = {
                 "case mx >= ac.x + 1 and mx <= ac.x + ac.w - 2 and my >= ac.y + 2 and my <= ac.y + 1 + VISA", "if ta + my - (ac.y + 1) <= an then ci = ta + my - (ac.y + 1)",
                 "call $tk_wrap(lines<wi>, tw, pieces)", "for r = 1 to DV", "for r = 1 to EV", "at tx,pr.y + pr.h - 2 attr 'bold' width tw", "at tx,ac.y + ac.h - 2 attr 'bold' width tw", "mk.py = pr.y + 1", "mk.ay = ac.y + 1"],
     "tool_menus": ["call $tk_layout('refresh', ctx, '', lay.chg)\n            gosub lay.get", "screen box at acl.x,acl.y size acl.w,acl.h", "screen box at mnu.x,mnu.y size mnu.w,mnu.h", "screen box at wat.x,wat.y size wat.w,wat.h",
-                   "screen box at dfl.x,dfl.y size dfl.w,dfl.h", "screen box at hlp.x,hlp.y size hlp.w,hlp.h", "call $tk_help('mark', mk.acx, mk.acy, 0, 0)", "call $tk_help('mark', mk.mx, mnu.y + r, 0, 0)",
+                   "screen box at dfl.x,dfl.y size dfl.w,dfl.h", "screen box at hlp.x,hlp.y size hlp.w,hlp.h",
+                   "at acl.x + 2,acl.y + 1 attr 'header'", "screen text s at acl.x + 2,acl.y + 1 + r attr",         # the header on the row under the border, the account rows under the header (found by the review, 28 Oct 26: they were drawn on the header's row)
+                   "call $tk_help('mark', mk.acx, mk.acy, 0, 0)", "call $tk_help('mark', mk.mx, mnu.y + r, 0, 0)",
                    "call $tk_help('mark', mk.dx, mk.dy, 0, 0)", "call $tk_help('hit', mev, mk.mx, mnu.y + hr, hit.now)", "call $tk_help('hit', mev, mk.dx, mk.dy, hit.default)", "call $tk_help('hit', mev, mk.acx, mk.acy, hit.accounts)",
                    "case mx >= acl.x + 1 and mx <= acl.x + acl.w - 2 and my >= acl.y + 2 and my <= acl.y + 1 + VIS", "k = top + my - (acl.y + 1)",
                    "case mx >= mnu.x + 1 and mx <= mnu.x + mnu.w - 1 and my >= mnu.y + 1 and my <= mnu.y + nmenu", "si = my - mnu.y",
@@ -391,6 +393,7 @@ MUTANTS = [
     ("menus: the Menu box takes the extra rows as well", "G3", sub("tool_menus", "@vm : 21 : @vm : 67 : @vm : 1 : @vm : '' : @vm : '' : @vm : 'stretch'", "@vm : 21 : @vm : 67 : @vm : 1 : @vm : 'stretch' : @vm : 1 : @vm : 'stretch'")),
     ("menus: the Help box is a row taller", "G1", sub("tool_menus", "d<3> = 'help' : @vm : 1 : @vm : 1 : @vm : 3 :", "d<3> = 'help' : @vm : 1 : @vm : 1 : @vm : 4 :")),
     ("menus: the account rows are a constant again", "D", sub("tool_menus", "VIS = acl.h - 4", "VIS = 26")),
+    ("menus: the account rows are drawn on the header's row (the L2 review's finding 1)", "T", sub("tool_menus", "screen text s at acl.x + 2,acl.y + 1 + r attr", "screen text s at acl.x + 2,acl.y + r attr")),
     ("menus: the Tiles off cut is a literal again", "T", sub("tool_menus", "if len(tf) > tfw then tf = tf[1, tfw - 1] : '+'", "if len(tf) > 18 then tf = tf[1, 17] : '+'")),
     ("menus: a click in the Menu box is tested at a literal column", "T", sub("tool_menus", "case mx >= mnu.x + 1 and mx <= mnu.x + mnu.w - 1", "case mx >= 73 and mx <= mnu.x + mnu.w - 1")),
     ("menus: the explanation wraps at a literal width", "T", sub("tool_menus", "call $tk_wrap(lines<wi>, ww, pieces)", "call $tk_wrap(lines<wi>, 63, pieces)")),

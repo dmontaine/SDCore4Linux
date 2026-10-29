@@ -14,6 +14,12 @@ Next release - in progress
                            wait for the AI counts) and any key stops it; a record holding characters outside ASCII (bytes 128-247) opens read-only so that its bytes cannot be
                            damaged, with save, Save as, Write a copy, Replace, Edit as fields and an AI edit refused; Compile, Run, Debug and Catalog work on a read-only tab that
                            has no changes (they save first only when there is something to save).
+                         - The IDE needs a window of 140 by 43 (it was 140 by 42) and has the same foot as the toolkit pages: the status line, a border and a row of function keys
+                           (Esc menu, F1 help, Ctrl-S save and the build keys) on the last three rows. When the window is made smaller than that while the IDE runs, the IDE now
+                           holds the keyboard behind a warning that gives the window's size and the size it needs, whatever the cursor is doing (before, it carried on while the
+                           cursor was in the part that still showed). The warning says that text you have not saved is lost if you leave unless the recovery copy is on, and it is
+                           worded shorter for a very small window so that it always fits. Making the window big enough again brings the IDE back at once; Ctrl-Q, then y, leaves.
+                           CED and the debugger keep their own 140 by 42 and cursor-based lock.
                          - Recovery copies (still OFF as delivered, per account) are kept in your own Linux home, ~/.local/state/sd/recovery/<account>/, outside every account:
                            BACKUP.ACCOUNT never contains them. They are kept only when your home and every directory below it are your own and nobody else can write them, and every
                            directory above it belongs to root or to you and cannot be written by others (a sticky one such as /tmp excepted): a home under a group-writable

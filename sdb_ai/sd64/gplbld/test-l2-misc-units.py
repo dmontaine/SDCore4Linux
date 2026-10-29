@@ -24,7 +24,7 @@ reads the boxes off the screen against this file's rectangles.  What a text chec
   L2-7  no number that is really the window's is left in the drawing and the mouse code: no 128, 134, 136, 138 or 139, no `at <number>,`, no `for r = 1 to <number>`, no `ctx<TK.C.H> - 5`.
   L2-8  the floor each page declares stays 140 by 43: $tk_open is called with its four arguments.
   L2-9  STAGE C: TOOL.VOC's E runs `ide voc <id>` and TOOL.DICT's `ide dict <file> <id>` (the same character checks before, the same hand-over after), the one list of commands TOOL.DICT hands the terminal
-        to is `ide list.index`, no text the page shows names SED, and the IDE starts on exactly those two forms and refuses nothing the page sends (its floor, 140 by 42, is under the pages' 140 by 43).
+        to is `ide list.index`, no text the page shows names SED, and the IDE starts on exactly those two forms and refuses nothing the page sends (its floor, 140 by 43 since its window lock of 28 Oct 26, is the pages' own and no higher).
   L2-10 TKTEST declares no pane on purpose (its table stands at column 0, its forms at the places the library's suite measures) but follows a resize: refresh and a new generation of the frame.
 
 --selftest breaks each invariant in the way an edit plausibly would and requires the named check to notice; a mutant that nothing catches is a failure of the self-test.
@@ -558,10 +558,10 @@ def checks(raw, model=None, head=True):
             bad.append("%s: the help text does not name the IDE" % h)
     ide = squeeze(strip_bas(raw["ide"]))
     if not (ordered(ide, "fn0 = field(@sentence, ' ', 2)", "id0 = field(@sentence, ' ', 3)", "if upcase(fn0) = 'DICT' then", "dflag0 = 'DICT'", "fn0 = field(@sentence, ' ', 3)", "id0 = field(@sentence, ' ', 4)")
-            and "LAYW = 140" in ide and "LAYH = 42" in ide and "call $sl_need('IDE', LAYW, LAYH, need.msg, '')" in ide):
-        bad.append("ide: the start forms `ide dict file id` and `ide voc id`, or its floor 140 by 42, are not what the pages count on")
+            and "LAYW = 140" in ide and "LAYH = 43" in ide and "call $sl_need('IDE', LAYW, LAYH, need.msg, '')" in ide):
+        bad.append("ide: the start forms `ide dict file id` and `ide voc id`, or its floor 140 by 43, are not what the pages count on")
     ck("L2-9", "STAGE C: TOOL.VOC's E runs `ide voc <id>` and TOOL.DICT's `ide dict <file> <id>` after the same character checks, TOOL.DICT's hand-over list is `ide list.index`, each page has its one execute statement, "
-       "no string they show and no help text names SED, and the IDE starts on exactly those forms with a floor (140 by 42) under the pages' own (140 by 43)", not bad, "; ".join(bad)[:700])
+       "no string they show and no help text names SED, and the IDE starts on exactly those forms with a floor (140 by 43, since its window lock; it was 42) no higher than the pages' own (140 by 43)", not bad, "; ".join(bad)[:700])
 
     # ---- tktest
     tk = sq["tool_tktest"]
@@ -661,7 +661,7 @@ MUTANTS = [
     ("dict: the help text names SED", "L2-9", sub("help.dict", "E edits the item in the IDE", "E edits the item in SED")),
     # the IDE
     ("ide: the dictionary form is lost", "L2-9", sub("ide", "if upcase(fn0) = 'DICT' then", "if upcase(fn0) = 'DICTS' then")),
-    ("ide: the floor rises above the pages'", "L2-9", sub("ide", "LAYH = 42 ", "LAYH = 44 ")),
+    ("ide: the floor rises above the pages'", "L2-9", sub("ide", "LAYH = 43 ", "LAYH = 44 ")),
     # tktest
     ("tktest: a resize is not followed", "L2-10", sub("tool_tktest", "         call $tk_layout('refresh', ctx, '', chg)        ;* the frame", "         null        ;* the frame")),
     ("tktest: the frame is not written again", "L2-10", sub("tool_tktest", "         ctx<TK.C.GEN> = tgen\n", "         null\n")),

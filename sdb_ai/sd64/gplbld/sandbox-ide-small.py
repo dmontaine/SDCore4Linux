@@ -20,6 +20,10 @@
 # 18 Oct 26 dm  Phase 3 checked: the message box puts the cursor on its button while a guarded program has it up (a box below the rows
 #               the window shows is locked, not typed into blind), the menu and the box close on the lock's way out, and the mutant
 #               "nomap" was aimed at a program the IDE's question does not use (it survived); it is $screen_ask now.
+# 28 Oct 26 dm  S.88 handoff step 1 (WRITTEN, NOT RUN): the IDE is laid out for 140 by 43 and its lock is the WINDOW's (the layout mode of $sl_guardmode): the foot is the status
+#               line (row 40), a border and the function-key row; below 140 by 43 the keyboard is held behind a warning that names both sizes and says unsaved text is lost
+#               unless a recovery copy is on, in the longest of three wordings that fits the window's rows; part C's IDE rows and part D are rewritten for that (the old
+#               cursor-lock rows - 45 Downs leaving the screen, a window of 24 lines being fine - are gone); CED and the debugger keep 140 by 42 and the cursor lock.
 # 28 Oct 26 dm  S.88 Phase 4: the File menu has seven entries (New, Open, Save, Save as, Write a copy, Close, Quit), so Close record is five Downs
 #               from New record and Quit six; no other key of these rows changed meaning (Ctrl-S, Ctrl-Q, Ctrl-L, F10 and the Downs are as before).
 # END-HISTORY
@@ -58,7 +62,8 @@ SCR = "zzisscr" + RUN                                # a user's SCREEN OPEN prog
 passed = failed = 0
 BOX = SYS = None
 
-LAY_W, LAY_H = 140, 42                              # what they are laid out for
+LAY_W, LAY_H = 140, 42                              # what CED and the debugger are laid out for
+IDE_H = 43                                          # what the IDE is laid out for since the window lock (28 Oct 26): 140 by 43, its foot is the status line (row 40), a border and the key row
 UP, DOWN, LEFT, RIGHT = "\x1bOA", "\x1bOB", "\x1bOD", "\x1bOC"
 F10 = "\x1b[21~"
 ESC, RET, BS = "\x1b", "\r", "\x7f"
@@ -117,8 +122,10 @@ def internal(*cmds):
 class Term:
     """One run of a command on a pseudo-terminal: type to it, read its screen.  The window is the tty's, set before SD starts."""
 
-    def __init__(self, box, cmd, cols=LAY_W, rows=LAY_H, pre=(), idle=1.2):
-        """pre: commands typed first (TERM 100,30, AUTOLOGOUT 30 ...)."""
+    def __init__(self, box, cmd, cols=LAY_W, rows=None, pre=(), idle=1.2):
+        """pre: commands typed first (TERM 100,30, AUTOLOGOUT 30 ...).  rows left out: the height the program is laid out for (the IDE's, else CED's and the debugger's)."""
+        if rows is None:
+            rows = IDE_H if cmd.split()[0].upper() == "IDE" else LAY_H
         self.cols = cols
         self.rows = rows
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C", LANG="C")
@@ -173,9 +180,16 @@ def warn_shown(L, w, h, name):
     return ("The window is %d by %d and %s is laid out for 140 by 42" % (w, h, name)) in t and "Ctrl-Q" in t
 
 
+def ide_warn(L, w, h):
+    """The IDE's window lock (layout mode) is up for a window w by h, in whichever of the three wordings fits: the window's size and the floor's are both in the first rows,
+    and Ctrl-Q is named (the shortest wording has it as '^Q'-less 'Ctrl-Q leaves')."""
+    t = " ".join(l.strip() for l in L[:6])
+    return re.search(r"\b%d by %d(?!\d)" % (w, h), t) is not None and "140 by 43" in t and "Ctrl-Q" in t
+
+
 def ide_at(e):
-    """(line, column) from the IDE's status line (the last row of a window at the full size)."""
-    t = "\n".join(e.lines()[-3:])
+    """(line, column) from the IDE's status line (three rows above the last of a window at the full size: the status line, the border, the key row)."""
+    t = "\n".join(e.lines()[IDE_H - 4:IDE_H - 2])
     m = re.search(r"Line (\d+), column (\d+)", t)
     return (int(m.group(1)), int(m.group(2))) if m else None
 
@@ -219,19 +233,25 @@ def leave(e):
 
 # ------------------------------------------------------------------------------------------------------------------------------
 def part_a():
-    say("\n--- A: the IDE and CED are laid out for 140 by 42, and use a bigger window whole ---------------------------------------")
+    say("\n--- A: the IDE is laid out for 140 by 43, CED for 140 by 42, and both use a bigger window whole -----------------------------")
     e = Term(BOX, "IDE %s r1" % F)
     base = list(e.lines())
-    row("control: the IDE is up at 140 by 42 with the record in the editor (status line on row 41)",
-        base[41].startswith("[Editor]  " + F + " r1") and "L01 the quick" in base[3] and ide_at(e) == (1, 1), repr(base[41][:50]) + repr(base[3][:50]))
+    row("control: the IDE is up at 140 by 43 with the record in the editor (status line on row 40, then the border, then the key row)",
+        base[40].startswith("[Editor]  " + F + " r1") and "L01 the quick" in base[3] and ide_at(e) == (1, 1), repr(base[40][:50]) + repr(base[3][:50]))
     row("the menu bar is row 0 and the frame starts on row 1", " File" in base[0] and base[1].startswith("+- IDE"), repr(base[0][:40]) + repr(base[1][:20]))
+    row("the form's bottom edge is row 39, the row above the status line (the form is 39 rows: 1 to 39)", base[39].startswith("+-") and base[39].rstrip().endswith("+"), repr(base[39][:20]))
+    row("the border is row 41 and the function-key row is row 42: Esc menu, F1 help, ^S save and ^Q quit are on it (the toolkit's frame, plan 5.1)",
+        base[41].strip() != "" and set(base[41].strip()) <= set("-") | {"─"} and all(w in base[42] for w in ("Esc menu", "F1 help", "^S save", "^Q quit")),
+        repr(base[41][:30]) + repr(base[42][:80]))
+    row("...the key row is within the layout (no more than 140 columns) and names no key the IDE does not act on (F2 is not on it: Ctrl-S is the one save key)",
+        len(base[42].rstrip()) <= LAY_W and "F2" not in base[42], repr(base[42][-40:]))
     row("the frame's right edge is column 139 (the layout is 140 wide)", len(base[1].rstrip()) == 140 and base[1].rstrip().endswith("+"), repr(base[1][-8:]))
     row("a row never reaches past column 140", max(len(l) for l in base) <= LAY_W, str(max(len(l) for l in base)))
     e.end()
     e = Term(BOX, "IDE %s r1" % F, 200, 60)
     L = e.lines()
-    row("200 by 60: the IDE uses the whole window: the status line is row 59 and the frame is 200 wide",
-        L[59].startswith("[Editor]  " + F + " r1") and len(L[1].rstrip()) == 200, repr(L[59][:40]) + str(len(L[1].rstrip())))
+    row("200 by 60: the IDE uses the whole window: the status line is row 57, the border row 58, the key row row 59, and the frame is 200 wide",
+        L[57].startswith("[Editor]  " + F + " r1") and len(L[1].rstrip()) == 200 and "Esc menu" in L[59] and L[58].strip() != "", repr(L[57][:40]) + str(len(L[1].rstrip())) + repr(L[59][:30]))
     leave(e)
 
     e = Term(BOX, "CED %s j1" % F)
@@ -249,22 +269,23 @@ def part_a():
 
 
 def part_b():
-    say("\n--- B: a window under 140 by 42 at the start: the IDE and CED are refused, the debugger uses line mode -------------------")
-    for (c, r) in ((80, 24), (100, 30), (120, 36), (139, 42), (140, 41)):
-        for (cmd, name) in (("IDE", "IDE"), ("CED %s j1" % F, "CED")):
+    say("\n--- B: a window under the floor at the start (the IDE 140 by 43, CED and the debugger 140 by 42): refused, the debugger uses line mode ---")
+    for (cmd, name, fh, sizes) in (("IDE", "IDE", IDE_H, ((80, 24), (100, 30), (120, 36), (139, 43), (140, 42))),
+                                   ("CED %s j1" % F, "CED", LAY_H, ((80, 24), (100, 30), (120, 36), (139, 42), (140, 41)))):
+        for (c, r) in sizes:
             e = Term(BOX, cmd, c, r)
             L = e.lines()
-            want = "%s needs a window of at least 140 columns by 42 lines; this one is %d by %d" % (name, c, r)
-            row("%s at %dx%d: refused with the message, which names the size the window is" % (name, c, r), any(want in l for l in L), text(L, 12))
+            want = "%s needs a window of at least 140 columns by %d lines; this one is %d by %d" % (name, fh, c, r)
+            row("%s at %dx%d: refused with the message, which names the floor and the size the window is" % (name, c, r), any(want in l for l in L), text(L, 12))
             row("%s at %dx%d: nothing is drawn (no menu bar, no frame) and SD is at its prompt" % (name, c, r),
                 not any(" File  Go" in l or l.startswith("+- IDE") or "k01" in l for l in L) and prompt_shown(e), text(L, 12))
             e.end()
     held = locked("j1")
     row("a refused CED touched nothing: the record is not locked", held is False, repr(held))
     row("a refused IDE and CED changed nothing: the records are as they were", rec("r1") == RECORD and rec("j1") == [JSONREC], repr(rec("j1"))[:60])
-    e = Term(BOX, "IDE %s r1" % F, 140, 42, pre=("TERM 100,30",))
+    e = Term(BOX, "IDE %s r1" % F, 140, IDE_H, pre=("TERM 100,30",))
     L = e.lines()
-    row("a 140 by 42 window whose display was set to 100 by 30 with TERM is refused: the display is what they can draw on",
+    row("a 140 by 43 window whose display was set to 100 by 30 with TERM is refused: the display is what they can draw on",
         any("this one is 100 by 30" in l for l in L) and not any(l.startswith("+- IDE") for l in L), text(L, 12))
     e.end()
     e = Term(BOX, "CED %s j1" % F, 80, 24, pre=("TERM 200,60",))
@@ -272,8 +293,8 @@ def part_b():
     row("an 80 by 24 window whose display was set to 200 by 60 is refused too: the window is what there is to draw on",
         any("this one is 80 by 24" in l for l in L), text(L, 12))
     e.end()
-    e = Term(BOX, "IDE %s r1" % F, 140, 42)
-    row("control: exactly 140 by 42 starts the IDE", e.lines()[1].startswith("+- IDE"), repr(e.lines()[1][:20]))
+    e = Term(BOX, "IDE %s r1" % F, 140, IDE_H)
+    row("control: exactly 140 by 43 starts the IDE", e.lines()[1].startswith("+- IDE"), repr(e.lines()[1][:20]))
     e.end()
     e = Term(BOX, "CED %s j1" % F, 140, 42)
     row("control: exactly 140 by 42 starts CED", "k01" in e.lines()[2], repr(e.lines()[2][:40]))
@@ -336,21 +357,24 @@ def part_c():
     e = Term(BOX, "IDE %s r1" % F)
     base_ide = list(e.lines())
     e.end()
-    for (w, h) in ((100, 30), (80, 24), (139, 41), (139, 42), (140, 41)):
+    # 28 Oct 26: the IDE's lock is the WINDOW's (the layout mode of $sl_guardmode): any window under 140 by 43 holds the keyboard behind the warning, wherever the cursor is -
+    #   the editor's cursor is on line 1, row 2, and it shows in every one of these, which used to leave the IDE usable in a corner.  So there is no corner to compare; what must be
+    #   true is the lock, and the whole layout, foot included, drawn again the moment the window is big enough.
+    for (w, h) in ((100, 30), (80, 24), (139, 42), (139, 43), (140, 42)):
         e = Term(BOX, "IDE %s r1" % F)
-        m = e.resize(w, h)
-        if h >= 30:                 # the editor's cursor is on line 1, row 2: it shows in all of these
-            check_corner(e, m, w, h, base_ide, "IDE %dx%d" % (w, h))
-            row("IDE %dx%d: the cursor shows, so no warning, and typing works (ab in front of line 1)" % (w, h),
-                "The window is" not in text(e.lines(), 6) and "abL01" in e.keys("ab")[3][:60], text(e.lines(), 4))
-        else:
-            check_corner(e, m, w, h, base_ide, "IDE %dx%d" % (w, h))
-        m2 = e.resize(LAY_W, LAY_H)
-        got, n = e.replay(m2, LAY_W, LAY_H)
-        want = list(base_ide)
-        d = corner_diff(got[:41], want[:41], LAY_W, 1)
-        row("IDE %dx%d: made 140 by 42 again, it draws the whole layout again (replayed: the frame and the menu bar)" % (w, h),
-            n > 0 and got[1].startswith("+- IDE") and " File" in got[0] and len(got[41].rstrip()) > 0, "no bytes" if n == 0 else repr(got[41][:30]))
+        e.resize(w, h)
+        L = e.lines()
+        row("IDE %dx%d: locked at once although the cursor (line 1) shows: the warning names both sizes" % (w, h), ide_warn(L, w, h), text(L, 6))
+        L = e.keys("qzx")
+        row("IDE %dx%d: ...and typing does nothing: the warning is still up and qzx is on no row" % (w, h),
+            ide_warn(L, w, h) and not any("qzx" in l for l in L), text(L, 6))
+        m2 = e.resize(LAY_W, IDE_H)
+        got, n = e.replay(m2, LAY_W, IDE_H)
+        row("IDE %dx%d: made 140 by 43 again, it draws the whole layout again (replayed: the menu bar, the frame, the status line on row 40, the border and the key row)" % (w, h),
+            n > 0 and got[1].startswith("+- IDE") and " File" in got[0] and got[40].startswith("[Editor]") and got[41].strip() != "" and "Esc menu" in got[42],
+            "no bytes" if n == 0 else repr(got[40][:30]) + repr(got[42][:30]))
+        row("IDE %dx%d: ...the keys typed while locked did not reach the record (line 1 reads L01 the quick, as at the start)" % (w, h),
+            "qzx" not in e.lines()[3][:20] and ide_at(e) == (1, 1), repr(e.lines()[3][:30]) + repr(ide_at(e)))
         e.end()
 
     e = Term(BOX, "CED %s j1" % F)
@@ -371,8 +395,8 @@ def part_c():
     e = Term(BOX, "IDE %s r1" % F)
     e.resize(200, 60)
     L = e.lines()
-    row("IDE grown to 200 by 60: the layout takes the window (status line on row 59, frame 200 wide), nothing is lost",
-        L[59].startswith("[Editor]  " + F + " r1") and len(L[1].rstrip()) == 200 and "L01 the quick" in L[3], repr(L[59][:30]) + str(len(L[1].rstrip())))
+    row("IDE grown to 200 by 60: the layout takes the window (status line on row 57, the border and the key row below it, frame 200 wide), nothing is lost",
+        L[57].startswith("[Editor]  " + F + " r1") and len(L[1].rstrip()) == 200 and "L01 the quick" in L[3] and "Esc menu" in L[59], repr(L[57][:30]) + str(len(L[1].rstrip())))
     leave(e)
 
     say("\n--- C: the debugger, shrunk in width only (the command line is still on the screen) ---------------------------------")
@@ -394,7 +418,7 @@ def part_c():
 
 
 def part_d():
-    say("\n--- D: the cursor lock: the IDE -------------------------------------------------------------------------------------")
+    say("\n--- D: the window lock (the layout mode): the IDE ------------------------------------------------------------------")
     burst = DOWN * 45
     e = Term(BOX, "IDE %s r1" % F)
     L = e.keys(burst, idle=1.0)
@@ -403,7 +427,7 @@ def part_d():
     time.sleep(1.5)
     e.s.settle(0.4)
     L = e.lines()
-    row("control, 140x42: 45 Downs are all accepted (line 46) and no warning shows", ide_at(e) == (46, 1) and "The window is" not in text(L, 6), repr(ide_at(e)))
+    row("control, 140x43: 45 Downs are all accepted (line 46) and no warning shows", ide_at(e) == (46, 1) and "The window is" not in text(L, 6), repr(ide_at(e)))
     leave(e)
 
     e = Term(BOX, "IDE %s r1" % F)
@@ -411,37 +435,40 @@ def part_d():
     e.keys("Z")
     row("setup: Z typed at 1.1 (a change nobody has saved)", "ZL01" in e.lines()[3], repr(e.lines()[3][:50]))
     m = e.resize(100, 30)
+    row("100x30: locked at once, with no key typed: the cursor (line 1, row 3) shows, and it is the WINDOW that decides, against 140 by 43",
+        ide_warn(e.lines(), 100, 30), text(e.lines(), 8))
     L = e.keys(burst, idle=1.2)
-    row("100x30: 45 Downs in one burst: the cursor leaves the screen and the IDE shows the warning in the upper left",
-        warn_shown(L, 100, 30, "IDE"), text(L, 8))
+    row("...45 Downs in one burst change nothing: the warning is still in the upper left", ide_warn(L, 100, 30), text(L, 8))
+    row("...it says that text not saved is lost unless a recovery copy is on (the person must know before choosing Ctrl-Q)",
+        "recovery copy" in " ".join(l.strip() for l in L[:6]), text(L, 6))
     row("...the rest of the screen is blank (nothing of the IDE shows)", not any("L01" in l or "ZL" in l or "File" in l for l in L) and not any(l.strip() for l in L[8:]),
         text(L, 12))
     row("...the warning fits the window (no row wider than 100)", max(len(l) for l in L) <= 100, str(max(len(l) for l in L)))
     row("...and it is in reverse video", e.s.screen.reverse(0).startswith("The window"), repr(e.s.screen.reverse(0)[:30]))
     L = e.keys("xyz", RET, DOWN, UP, CTRL("s"), F10, idle=0.6)
     row("keys while locked are ignored: the warning is still there, nothing was typed, the menu did not open",
-        warn_shown(L, 100, 30, "IDE") and not any("xyz" in l for l in L), text(L, 6))
-    m2 = e.resize(LAY_W, LAY_H, wait=2.2)
-    got, n = e.replay(m2, LAY_W, LAY_H)
-    row("made 140 by 42 again: the lock is lifted without a key and the IDE draws the whole layout (replayed)",
-        n > 0 and got[1].startswith("+- IDE") and " File" in got[0], "no bytes" if n == 0 else text(got, 3))
+        ide_warn(L, 100, 30) and not any("xyz" in l for l in L), text(L, 6))
+    m2 = e.resize(LAY_W, IDE_H, wait=2.2)
+    got, n = e.replay(m2, LAY_W, IDE_H)
+    row("made 140 by 43 again: the lock is lifted without a key and the IDE draws the whole layout (replayed: the menu bar, the frame, the foot)",
+        n > 0 and got[1].startswith("+- IDE") and " File" in got[0] and got[40].startswith("[Editor]") and "Esc menu" in got[42], "no bytes" if n == 0 else text(got, 3))
     L = e.lines()
     at = ide_at(e)
-    row("...the Downs after the first off-screen one were dropped: the cursor is on line 28 (column 2, after the Z), not 46", at == (28, 2), repr(at))
+    row("...all 45 Downs were dropped: the cursor is still on line 1 (column 2, after the Z)", at == (1, 2), repr(at))
     row("...the xyz typed while locked is not in the record", not any("xyz" in l for l in L), "")
-    row("...and the editor takes keys again: Q goes in at line 28 (row 30)", "Q" in e.keys("Q")[30][:60], repr(e.lines()[30][:60]))
+    row("...and the editor takes keys again: Q goes in at line 1", "Q" in e.keys("Q")[3][:60], repr(e.lines()[3][:60]))
     e.keys(BS)
-    e.resize(100, 30)           # the cursor is on line 28, row 30: the first row a 30-row window does not show
+    e.resize(100, 30)
     L = e.lines()
-    row("shrunk to 100x30 with the cursor on line 28 (row 30): locked at once, with no key typed", warn_shown(L, 100, 30, "IDE"), text(L, 4))
+    row("shrunk to 100x30 again: locked at once, with no key typed", ide_warn(L, 100, 30), text(L, 4))
     L = e.keys(CTRL("q"))
     row("Ctrl-Q asks 'Leave? (changes are NOT saved) y/n' in the same box", any("Leave? (changes are NOT saved) y/n" in l for l in L[:4]), text(L, 4))
     row("...and the warning is gone while it asks", not any("The window is" in l for l in L), "")
     L = e.keys("n")
-    row("n goes back to the warning", warn_shown(L, 100, 30, "IDE") and not any("Leave?" in l for l in L), text(L, 4))
+    row("n goes back to the warning", ide_warn(L, 100, 30) and not any("Leave?" in l for l in L), text(L, 4))
     e.keys(CTRL("q"))
     L = e.keys("x")
-    row("any other key than y goes back to the warning too", warn_shown(L, 100, 30, "IDE"), text(L, 4))
+    row("any other key than y goes back to the warning too", ide_warn(L, 100, 30), text(L, 4))
     e.keys(CTRL("q"))
     mk = e.mark()
     L = e.keys("y", idle=1.2)
@@ -451,6 +478,23 @@ def part_d():
     row("...nothing was saved: the record on disk is as it was", rec("r1") == RECORD, repr(rec("r1"))[:100])
     e.end()
 
+    say("\n--- D: the warning fits whatever window it is shown in: the longest of three wordings whose rows fit, the sizes always in the first ---")
+    for (w, h) in ((100, 30), (70, 5), (60, 4), (40, 3), (30, 2), (20, 1)):
+        e = Term(BOX, "IDE %s r1" % F)
+        e.resize(w, h)
+        L = e.lines()
+        t = " ".join(l.strip() for l in L[:h])
+        row("%dx%d: the first row names the window's size" % (w, h), re.search(r"\b%d by %d(?!\d)" % (w, h), L[0]) is not None, text(L, h))
+        row("%dx%d: ...nothing is wider than the window, and the rows below the warning are blank" % (w, h),
+            max(len(l.rstrip()) for l in L) <= w and not any(l.strip() for l in L[min(h, 6):]), text(L, h))
+        if w >= 30:
+            row("%dx%d: ...it says Ctrl-Q leaves" % (w, h), "Ctrl-Q" in t, text(L, h))
+        if w >= 40 and h >= 3:
+            row("%dx%d: ...and that unsaved text is lost" % (w, h), "lost" in t, text(L, h))
+        e.keys(CTRL("q"))
+        e.keys("y", idle=1.2)                       # the IDE is locked: Ctrl-Q, y is its way out
+        e.end()
+
     say("\n--- D: a question the IDE asks while the window is made smaller: the lock's way out closes it as Esc does --------------")
     e = Term(BOX, "IDE %s r1" % F)
     e.keys(DOWN * 20, idle=0.8)
@@ -459,7 +503,7 @@ def part_d():
         any("Line number:" in l for l in L[18:24]), text(L[16:26], 10))
     e.resize(100, 16)
     L = e.lines()
-    row("100x16 with the question open: its cursor is on row 20, which this window does not show: locked", warn_shown(L, 100, 16, "IDE"), text(L, 6))
+    row("100x16 with the question open: locked (the question's own cursor is on row 20, which this window does not show, but the window decides)", ide_warn(L, 100, 16), text(L, 6))
     e.keys(CTRL("q"))
     L = e.keys("y", idle=1.2)
     row("...Ctrl-Q, y leaves: the question was closed as Esc and the IDE was left (SD at its prompt)", prompt_shown(e) and not any("Line number" in l for l in L),
@@ -473,9 +517,9 @@ def part_d():
     row("setup: F10 opens the File menu and six Downs select its last item, Quit (the seventh entry since S.88 Phase 4; menu rows 1 to 9)", any(l.lstrip().startswith("Quit") for l in L[1:11]), text(L, 11))
     e.resize(140, 4)
     L = e.lines()
-    row("140x4 with the menu open: the selected item is below the window's last row (3), which this window does not show: locked", warn_shown(L, 140, 4, "IDE"), text(L, 5))
+    row("140x4 with the menu open: locked, with whichever wording fits four rows", ide_warn(L, 140, 4), text(L, 5))
     L = e.keys("xyz", RET, idle=0.6)
-    row("...keys are ignored (a Return would have chosen Quit and left the IDE)", warn_shown(L, 140, 4, "IDE"), text(L, 5))
+    row("...keys are ignored (a Return would have chosen Quit and left the IDE)", ide_warn(L, 140, 4), text(L, 5))
     e.keys(CTRL("q"))
     L = e.keys("y", idle=1.2)
     row("...Ctrl-Q, y closes the menu as Esc does and leaves the IDE (SD at its prompt, not looping in the menu)", prompt_shown(e), text(L, 6))
@@ -489,9 +533,9 @@ def part_d():
         any("[ Save ]" in l for l in L[17:22]), text(L[15:24], 9))
     e.resize(140, 10)
     L = e.lines()
-    row("140x10 with the box open: its button is on row 19, which this window does not show: locked at once", warn_shown(L, 140, 10, "IDE"), text(L, 5))
+    row("140x10 with the box open: locked at once", ide_warn(L, 140, 10), text(L, 5))
     L = e.keys("d", "s", RET, idle=0.6)
-    row("...keys are ignored: Discard, Save and Return were not taken (the warning is still up)", warn_shown(L, 140, 10, "IDE"), text(L, 5))
+    row("...keys are ignored: Discard, Save and Return were not taken (the warning is still up)", ide_warn(L, 140, 10), text(L, 5))
     e.keys(CTRL("q"))
     L = e.keys("y", idle=1.2)
     row("...Ctrl-Q, y closes the box as Esc does and leaves the IDE (SD at its prompt)", prompt_shown(e), text(L, 6))
@@ -501,9 +545,8 @@ def part_d():
     e.keys("Z")
     e.keys(F10)
     e.keys(DOWN * 5, RET, idle=0.8)                     # Close record, the sixth entry
-    e.resize(140, 24)
     L = e.lines()
-    row("control: the same box in a window of 24 lines (its button is on row 19, shown): no warning, the box is up",
+    row("control: the same box at the full size (140 by 43; a window of 24 lines would be locked now, the cursor is no longer the test): no warning, the box is up",
         "The window is" not in text(L, 6) and any("[ Save ]" in l for l in L[17:22]), text(L[15:24], 9))
     L = e.keys("c", idle=1.0)
     row("...and its keys work: c chooses Cancel, the box closes and the record is still open with its change (line 1 reads ZL01)",
@@ -628,7 +671,9 @@ def part_f():
 #   noguard      $sl_key never asks for the cursor lock: the IDE and CED take keys with the cursor off the screen.     D, E
 #   nocurat      $sl_curat does not remember where the cursor is: the lock has nothing to ask.                           D, E
 #   noquit       $sl_key takes the user's y for a lift: the user cannot leave from the lock.                             D, E
-#   nolayout     the IDE's layout follows the window when it shrinks (no floor of 140 by 42): the corner is a reflow.   C
+#   nowindowlock the IDE asks for the old cursor lock, not the window's (the layout mode): a window under 140 by 43 with the
+#                cursor on screen is not locked.                                                                       C, D
+#   nokeyrow     the IDE's function-key row is blank.                                                                    A, C
 #   noneed       the IDE does not ask for the size at the start.                                                         B
 #   ceduneed     CED (ced_edit) does not ask for the size: !CED() draws on any window.                                  B
 #   dbgnoneed    the debugger does not fall back to line mode: it is full screen on any window.                         B
@@ -643,7 +688,8 @@ MUTANTS = {
     "nocurat": ("sl_curat", "         cu.has = 1\n", "         cu.has = 0\n", "d,e"),
     "noquit": ("sl_key", "   if gres = 'quit' then\n      g.quit = 1\n   end else\n",
                "   if gres = 'quit' then\n      sz.last = 'x'\n   end else\n", "d,e"),
-    "nolayout": ("ide", "   if lw < LAYW then lw = LAYW", "   if lw < 0 then lw = LAYW", "c"),
+    "nowindowlock": ("ide", "$sl_guardmode('IDE', LAYW, LAYH, 'layout', LAYW, LAYH)", "$sl_guardmode('IDE', LAYW, LAYH)", "c,d"),
+    "nokeyrow": ("ide", "   call $tk_fkeys(fk.ctx, ide.keys, '', fk.text)\n", "   fk.text = ''\n", "a,c"),
     "noneed": ("ide", "   if need.msg # '' then\n      break on\n", "   if 0 then\n      break on\n", "b"),
     "cednoneed": ("ced_edit", "   if need.msg # '' then\n      display need.msg\n", "   if 0 then\n      display need.msg\n", "b"),
     "dbgnoneed": ("debug", "      if need.msg # '' then\n         full.screen = @false\n", "      if 0 then\n         full.screen = @false\n", "b"),

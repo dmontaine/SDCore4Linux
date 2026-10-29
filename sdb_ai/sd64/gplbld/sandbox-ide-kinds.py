@@ -255,11 +255,11 @@ def tab_row(e):
 
 
 def tree_text(e):
-    return "\n".join(l[:28] for l in e.lines()[3:40])
+    return "\n".join(l[:28] for l in e.lines()[3:39])          # rows 3 to 38: row 39 is the form's bottom border since the IDE's foot (28 Oct 26, 140 by 43)
 
 
 def editor_text(e):
-    return "\n".join(l[28:] for l in e.lines()[3:40])
+    return "\n".join(l[28:] for l in e.lines()[3:39])
 
 
 def quit_discard(e):
@@ -646,10 +646,10 @@ def section_gate():
         env.pop("SDTEST_ADMIN", None)
         env.pop("SSH_CONNECTION", None)
         say("    > pty %s: %s | keys %r" % (acct, cmd, keys))
-        s = PtySession([g.SD, "-a" + acct], path, env, 140, 42)
+        s = PtySession([g.SD, "-a" + acct], path, env, 140, 43)        # 140 by 43: the IDE's floor since its window lock (28 Oct 26)
         s.settle(2.0)
         s.type("TERM xterm\r")
-        s.type("TERM 140,42\r")
+        s.type("TERM 140,43\r")
         s.type(cmd + "\r", idle=1.5)
         for k in keys:
             s.type(k, idle=0.8)

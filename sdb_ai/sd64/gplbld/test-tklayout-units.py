@@ -41,7 +41,7 @@ SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 PROGS = ["tk.h", "tk_layout", "tk_open", "tk_close", "tk_frame", "sl_guardmode", "sl_guard", "sl_key", "sl_msgbox", "sl_scr", "screen_key", "sl_form", "screen_close", "sl_cleanup", "ide", "ced_edit", "debug"]
-MESSAGES = [11540, 11541, 11542, 11600]
+MESSAGES = [11540, 11541, 11542, 11600, 11725, 11726]
 
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------- the model
@@ -567,11 +567,17 @@ def checks(raw):
        ordered(gc, "if g.mode = 'layout' then", "call $sl_window(gw, gh)", "if gw >= g.minw and gh >= g.minh then return",
                "call $sl_guard(g.name, g.minw, g.minh, g.minw - 1, g.minh - 1, gres, 'layout')", "end else", "if not(cu.has) or cu.hid then return",
                "if cu.x < gw and cu.y < gh then return", "call $sl_guard(g.name, g.minw, g.minh, cu.x, cu.y, gres)", "if gres = 'quit' then"), gc[:300])
-    ck("W8", "$sl_guard is VAR.ARGS with a seventh argument read through UNASSIGNED(); 'layout' words the warning as 11540, anything else as 11600; 11540 names the window, the app and the floor "
-             "and keeps the words 'is laid out for' before the floor (sandbox-tk-keys.py and sandbox-tk-resize.py read them)",
+    ck("W8", "$sl_guard is VAR.ARGS with a seventh argument read through UNASSIGNED(); 'layout' words the warning as the longest of three wordings whose wrapped rows fit the window "
+             "(11540, 11725, 11726: a loop of three tiers, each wrapped by its own label, the first with nlines <= h kept), anything else as 11600; 11540 names the window, the app and the floor "
+             "and keeps the words 'is laid out for' before the floor (sandbox-tk-keys.py and sandbox-tk-resize.py read them), and says that Ctrl-Q leaves and that text not saved is lost unless a "
+             "recovery copy is on; 11725 and 11726 name the window and the floor too (%1, %3) and Ctrl-Q",
        "subroutine sl_guard(name, minw, minh, cx, cy, result, mode) var.args" in gd and "if not(unassigned(mode)) then gmode = mode" in gd
-       and "if gmode = 'layout' then text = sysmsg(11540, w : ' by ' : h, name, minw : ' by ' : minh) end else text = sysmsg(11600, w : ' by ' : h, name, minw : ' by ' : minh) end" in gd
-       and re.match(r"^The window is %1 and %2 is laid out for %3\b", raw["m11540"]) is not None and "Ctrl-Q" in raw["m11540"], repr(raw["m11540"][:80]))
+       and ordered(gd, "draw.box:", "if gmode = 'layout' then", "for tier = 1 to 3", "text = sysmsg(11540, w : ' by ' : h, name, minw : ' by ' : minh)",
+                   "text = sysmsg(11725, w : ' by ' : h, name, minw : ' by ' : minh)", "text = sysmsg(11726, w : ' by ' : h, name, minw : ' by ' : minh)", "gosub wrap.text",
+                   "if nlines <= h then exit", "next tier", "end else", "text = sysmsg(11600, w : ' by ' : h, name, minw : ' by ' : minh)", "gosub wrap.text")
+       and "nshow = nlines" in gd and "if nshow > h then nshow = h" in gd and "wrap.text:" in gd
+       and re.match(r"^The window is %1 and %2 is laid out for %3\b", raw["m11540"]) is not None and "Ctrl-Q" in raw["m11540"] and "unless a recovery copy is on" in raw["m11540"]
+       and all(t in raw["m11725"] for t in ("%1", "%2", "%3", "Ctrl-Q")) and all(t in raw["m11726"] for t in ("%1", "%2", "%3", "Ctrl-Q")), repr(raw["m11540"][:80]))
     ck("W9", "R-a: $sl_key notes every resize it hands out (rz.pending = 1 in resized:, common /slpend/); $sl_scr 'pending' returns and clears the note, and 'open' and 'close' clear it; "
              "the block /slscr/ is unchanged (CPROC declares it)",
        "common /slpend/ rz.pending" in ky and "rz.pending = 1" in label(ky, "resized") and "common /slpend/ rz.pending" in sc
@@ -592,8 +598,10 @@ def checks(raw):
        and "common /tkepoch/ ep.next, ep.drawn" in fr and "if ctx<TK.C.EPOCH> # ep.drawn then forget = 1" in fr and "if geo # last.geo then forget = 1" in fr
        and "if ctx<TK.C.GEN> # last.gen then forget = 1" in fr and ordered(fr, "if forget then", "ep.drawn = ctx<TK.C.EPOCH>", "last.stat = ''", "last.keys = ''", "last.bord = ''", "last.top = ''")
        and "common /tkepoch/ ep.next, ep.drawn" in cl and ordered(cl, "screen close", "call $tk_brk('close'", "ep.drawn = ''", "ctx<TK.C.EPOCH> = ''"), "")
-    ck("W13", "the editors keep the cursor mode: the IDE and CED call $sl_guardmode with three arguments, the debugger $sl_guard with six; SCREEN CLOSE and $sl_cleanup still take the lock off",
-       "call $sl_guardmode('IDE', LAYW, LAYH)" in code["ide"] and "call $sl_guardmode('CED', LAYW, LAYH)" in code["ced_edit"]
+    ck("W13", "the IDE holds the WINDOW lock (28 Oct 26, handoff step 1): it calls $sl_guardmode in the layout mode with its floor and its layout size; CED keeps the cursor mode (three arguments), "
+              "the debugger $sl_guard with six; SCREEN CLOSE and $sl_cleanup still take the lock off",
+       "call $sl_guardmode('IDE', LAYW, LAYH, 'layout', LAYW, LAYH)" in code["ide"] and "call $sl_guardmode('IDE', LAYW, LAYH)" not in code["ide"]
+       and "call $sl_guardmode('CED', LAYW, LAYH)" in code["ced_edit"]
        and "call $sl_guard('the debugger', LAY.WIDTH, LAY.DEPTH, cur.x, command.line, guard.result)" in code["debug"]
        and "call $sl_guardmode('', 0, 0)" in code["screen_close"] and "call $sl_guardmode('', 0, 0)" in code["sl_cleanup"], "")
     ck("W14", "$tk_layout is an internal subroutine catalogued $tk_layout, VAR.ARGS (op, ctx, arg, ret), and has the ops open, refresh, declare, pane and body",
@@ -602,7 +610,7 @@ def checks(raw):
        and all(("op = '%s'" % o) in lay for o in ("open", "refresh", "declare", "pane", "body")), "")
     ck("W15", "messages: 11540 (the layout lock), 11541 (a pane not valid: %1 app, %2 pane, %3 what) and 11542 (the panes do not fit: %1 app, %2 by %3) exist, one line each, in this "
               "port's block",
-       all(raw["m%d" % n].endswith("\n") and raw["m%d" % n].count("\n") == 1 for n in (11540, 11541, 11542))
+       all(raw["m%d" % n].endswith("\n") and raw["m%d" % n].count("\n") == 1 for n in (11540, 11541, 11542, 11725, 11726))
        and all(t in raw["m11541"] for t in ("%1", "%2", "%3")) and all(t in raw["m11542"] for t in ("%1", "%2", "%3")), "")
     return rows
 
@@ -685,7 +693,12 @@ MUTANTS = [
     ("the frame ignores the geometry", "W12", sub("tk_frame", "   if geo # last.geo then forget = 1\n", "")),
     ("$tk_close keeps the epoch", "W12", sub("tk_close", "   ep.drawn = ''", "   null")),
     ("$tk_open makes no new epoch", "W12", sub("tk_open", "   ep.next += 1\n", "")),
-    ("the IDE is put in the layout mode", "W13", sub("ide", "call $sl_guardmode('IDE', LAYW, LAYH)", "call $sl_guardmode('IDE', LAYW, LAYH, 'layout', LAYW, LAYH)")),
+    ("the IDE is put back in the cursor mode", "W13", sub("ide", "call $sl_guardmode('IDE', LAYW, LAYH, 'layout', LAYW, LAYH)", "call $sl_guardmode('IDE', LAYW, LAYH)")),
+    ("CED is put in the layout mode", "W13", sub("ced_edit", "call $sl_guardmode('CED', LAYW, LAYH)", "call $sl_guardmode('CED', LAYW, LAYH, 'layout', LAYW, LAYH)")),
+    ("the warning is always the longest wording", "W8", sub("sl_guard", "            if nlines <= h then exit\n", "            null\n")),
+    ("the middle wording is the cursor's", "W8", sub("sl_guard", "text = sysmsg(11725,", "text = sysmsg(11600,")),
+    ("11540 stops saying that unsaved text is lost", "W8", sub("m11540", "; text not saved is lost unless a recovery copy is on", "")),
+    ("11726 loses the floor", "W8", sub("m11726", "needs %3", "needs more")),
     ("$tk_layout loses the op pane", "W14", sub("tk_layout", "case op = 'pane'", "case op = 'panes'")),
     ("11542 loses its size", "W15", sub("m11542", "%2 by %3", "reference")),
 ]

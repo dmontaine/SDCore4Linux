@@ -94,7 +94,7 @@ def sess(box, *cmds):
 class Ide:
     """One run of the IDE on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd="IDE", cols=140, rows=42, utf8=False, term=None):
+    def __init__(self, box, cmd="IDE", cols=140, rows=43, utf8=False, term=None):
         self.box = box
         # the locale decides whether the IDE draws its borders with line-drawing characters, so every run sets it:
         # C (plain + - |) unless the row is about UTF-8
@@ -126,6 +126,12 @@ class Ide:
         return "\n".join(l for l in self.lines() if l.strip())
 
     def status(self):
+        """The IDE's status line: three rows above the last (28 Oct 26: then the border and the function-key row; it was the last row at 140 by 42)."""
+        L = self.lines()
+        return L[-3] if len(L) >= 3 else ""
+
+    def keyrow(self):
+        """The function-key row, the last row."""
         L = self.lines()
         return L[-1] if L else ""
 
@@ -144,7 +150,7 @@ CSI = re.compile(r"\x1b\[([0-9;?]*)([A-Za-z])")
 
 def cells_written(raw):
     """(cells, rows): how many cells the bytes write to the screen and the set of rows they touch (0-based), from the cursor
-    positions and the printable text after each.  A screen of 140 by 42 is 5880 cells."""
+    positions and the printable text after each.  A screen of 140 by 43 is 6020 cells (it was 140 by 42 and 5880 until the window lock of 28 Oct 26)."""
     s = raw.decode("latin-1")
     n = 0
     rows = set()
@@ -786,28 +792,29 @@ end
 
         # ---- the window follows the terminal ------------------------------------------------------------------------
         say("\n--- the window --------------------------------------------------------------------------------------------")
-        # 18 Oct 26 (terminal 140 by 42): the IDE is laid out for at least 140 by 42 and a window that becomes smaller shows the upper left
-        # corner of that layout; sandbox-ide-small.py has the rows for the refusal, the shrink and the cursor lock.
+        # 28 Oct 26 (step 1): the IDE is laid out for at least 140 by 43 and a window that becomes smaller holds the keyboard behind a warning (the window lock, the layout
+        # mode of $sl_guardmode); sandbox-ide-small.py has the rows for the refusal, the shrink and the lock.
         e = Ide(box, "IDE bp %s" % B)
-        row("at 140 by 42 the form's frame ends on the row before the status line (row 40) and the status line is the last row",
-            re.match(r"^\+-+\+$", e.lines()[40].strip()) is not None and ("bp %s" % B) in e.status(), "\n".join(e.lines()[38:42]))
+        row("at 140 by 43 the form's frame ends on row 39, the row before the status line (row 40), then the border (41) and the function-key row (42)",
+            re.match(r"^\+-+\+$", e.lines()[39].strip()) is not None and ("bp %s" % B) in e.status() and e.lines()[41].strip() != "" and "Esc menu" in e.keyrow(),
+            "\n".join(e.lines()[38:43]))
         e.s.resize(100, 30, idle=1.5)
         time.sleep(1.8)
         e.s.settle(0.8)
         L = e.lines()
-        row("a resize to 100 by 30 shows the upper left corner of the same layout: the menu bar and the frame's top, no row wider than 100",
-            re.search(r"File\s+Go\s+Search", L[0]) is not None and L[1].startswith("+- IDE") and max(len(l) for l in L) <= 100, "\n".join(l[:60] for l in L[:3]))
-        row("...the record is still open in its tab", "[%s]" % B in L[2], L[2])
+        row("a resize to 100 by 30 holds the keyboard behind the warning (naming 100 by 30 and 140 by 43), no row wider than 100",
+            re.search(r"\b100 by 30(?!\d)", " ".join(L[:6])) is not None and "140 by 43" in " ".join(L[:6]) and max(len(l) for l in L) <= 100, "\n".join(l[:60] for l in L[:3]))
         e.s.resize(160, 50, idle=1.5)
         time.sleep(1.8)
         e.s.settle(0.8)
         L = e.lines()
-        row("a resize to 160 by 50 makes the layout the window's: the frame is 160 wide and the status line is the last row (49)",
-            len(L[1].rstrip()) == 160 and ("bp %s" % B) in L[49], repr(L[1][-6:]) + repr(L[49][:30]))
+        row("a resize to 160 by 50 lifts the lock and makes the layout the window's: the frame is 160 wide, the status line is row 47 and the function-key row the last (49)",
+            len(L[1].rstrip()) == 160 and ("bp %s" % B) in L[47] and "Esc menu" in L[49], repr(L[1][-6:]) + repr(L[47][:30]) + repr(L[49][:30]))
+        row("...the record is still open in its tab", "[%s]" % B in L[2], L[2])
         e.end()
         e = Ide(box, "IDE", cols=50, rows=12)
-        row("a terminal smaller than 140 by 42 is refused with the library's message, and nothing is drawn",
-            "".join("IDE needs a window of at least 140 columns by 42 lines; this one is 50 by 12".split()) in "".join(e.text().split())   # the message wraps at column 50
+        row("a terminal smaller than 140 by 43 is refused with the library's message, and nothing is drawn",
+            "".join("IDE needs a window of at least 140 columns by 43 lines; this one is 50 by 12".split()) in "".join(e.text().split())   # the message wraps at column 50
             and not re.search(r"File\s+Go\s+Search", e.lines()[0]), e.text()[:300])
         e.end()
 
@@ -854,14 +861,14 @@ end
         n, rws = cells_written(raw)
         row("the second record is open in its own tab, and the cursor is shown in the editor", has(L[2:3], A, B) and scr.cursor_visible and scr.c >= 29,
             "%s | cursor %r" % (L[2][:80], (scr.r, scr.c, scr.cursor_visible)))
-        row("choosing it writes less than one screen's worth of cells (%d of the screen's 5880; it wrote 14800 when it drew the form three times)" % n,
-            n < 5880, repr(n))
+        row("choosing it writes less than one screen's worth of cells (%d of the screen's 6020; it wrote 14800 when it drew the form three times)" % n,
+            n < 6020, repr(n))
         row("...nothing in the menu bar, only the two [*] / [-] marks (6 cells) on the form's title row, and no clear-screen",
             0 not in rws and row_cells(raw, 1) <= 6 and b"\x1b[2J" not in raw, repr(sorted(rws))[:80] + " title row cells " + str(row_cells(raw, 1)))
         m = len(e.s.raw)
         L = e.keys(CTRL_PGDN)                             # the other tab
         n, rws = cells_written(bytes(e.s.raw[m:]))
-        row("Ctrl-PageDown, to the other tab, writes under one screen's worth too (%d cells) and leaves the title row alone" % n, n < 5880 and 1 not in rws, repr((n, sorted(rws))))
+        row("Ctrl-PageDown, to the other tab, writes under one screen's worth too (%d cells) and leaves the title row alone" % n, n < 6020 and 1 not in rws, repr((n, sorted(rws))))
         e.keys(SHIFT_F6)                                  # editor -> tabs (F3 went to the tree at once; the ring takes two keys, so the second is measured)
         m = len(e.s.raw)
         e.keys(SHIFT_F6)                                  # tabs -> tree
@@ -870,7 +877,7 @@ end
             repr((scr.r, scr.c, scr.cursor_visible)))
         raw = bytes(e.s.raw[m:])
         row("...and Shift-F6 draws only the two widgets that change (%d cells; the tab strip and the tree, and their two [*] / [-] marks), not the form" % n,
-            n < 5880 and 0 not in rws and row_cells(raw, 1) <= 6, repr((n, sorted(rws))) + " title row cells " + str(row_cells(raw, 1)))
+            n < 6020 and 0 not in rws and row_cells(raw, 1) <= 6, repr((n, sorted(rws))) + " title row cells " + str(row_cells(raw, 1)))
         e.end()
 
         e = Ide(box, "IDE bp %s" % A)
@@ -927,9 +934,9 @@ end
 
         e = Ide(box, "IDE bp %s" % A, term="200,60")
         L = e.lines()
-        row("a display of 200 by 60 on a window of 140 by 42 (TERM 200,60): the IDE is laid out for the window - menu bar on row 0, title on row 1, status line on the last row",
-            re.search(r"File\s+Go\s+Search", L[0]) is not None and L[1].startswith("+- IDE") and ("bp %s" % A) in L[41],
-            "\n".join(l[:70] for l in (L[0], L[1], L[2], L[40], L[41])))
+        row("a display of 200 by 60 on a window of 140 by 43 (TERM 200,60): the IDE is laid out for the window - menu bar on row 0, title on row 1, status line three rows above the last",
+            re.search(r"File\s+Go\s+Search", L[0]) is not None and L[1].startswith("+- IDE") and ("bp %s" % A) in L[40],
+            "\n".join(l[:70] for l in (L[0], L[1], L[2], L[40], L[41], L[42])))
         e.end()
 
         section_tab(box, T)

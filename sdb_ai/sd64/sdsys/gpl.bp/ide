@@ -141,8 +141,8 @@ $include dictdict.h
    MAXHIT = 500                            ;* lines a search lists
    MAXSEL = 10                             ;* 28 Oct 26 (stage B): records of an active select list opened in tabs at the start
    MAXLOCK = 100                           ;* 28 Oct 26 (stage B): tabs that can hold a record lock at one time (file variables kept in tfv)
-   LAYW = 140                              ;* what the layout is made for; a bigger window is used whole, a smaller one is refused at
-   LAYH = 42                               ;* the start and clipped (upper left corner) if it becomes smaller while the IDE runs
+   LAYW = 140                              ;* what the layout is made for (the owner's 140 by 43 for every full-screen app): a bigger window is used whole, a smaller one
+   LAYH = 43                               ;* is refused at the start and, if it becomes smaller while the IDE runs, the keyboard is held until it is big enough again (layout lock)
 
    * 28 Oct 26 (stage B): IDE {DICT} {file {record | CREATING.SEQKEY}}.  A record id in quotes is taken as it is (so "creating.seqkey" is that record);
    *   the file name is lower case, as everywhere SD writes one (the name form makes it so too, and the tabs and the tree compare with it)
@@ -209,6 +209,27 @@ $include dictdict.h
       NA.CHARS := char(na.i)
    next na.i
    IDL.WARN = 60                           ;* seconds before the sign-out that the status line says so
+
+   * The function-key row (foot.draw): the keys the IDE acts on in do.key, most used first, so that a narrow row loses the last.  $tk_fkeys cuts it to the width.
+   ide.keys = ''
+   call $tk_keys('add', ide.keys, 'esc', 'menu', 'menu', '', 1)
+   call $tk_keys('add', ide.keys, 'f1', 'help', 'help', '', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-s', 'save', 'save', '', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-o', 'open', 'open', '', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-w', 'close', 'close', '', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', ide.keys, 'f4', 'problem', 'nexterr', '', 1)
+   call $tk_keys('add', ide.keys, 'f5', 'run', 'run', '', 1)
+   call $tk_keys('add', ide.keys, 'f6', 'pane', 'nextpane', '', 1)
+   call $tk_keys('add', ide.keys, 'f7', 'debug', 'debug', '', 1)
+   call $tk_keys('add', ide.keys, 'f8', 'compile', 'compile', '', 1)
+   call $tk_keys('add', ide.keys, 'f9', 'build', 'catalog', '', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-l', 'go to', 'goto', '', 1)
+   call $tk_keys('add', ide.keys, 'f12', 'fields', 'fields', '', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-n', 'new', 'new', '', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-e', 'SED', 'sed', '', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-r', 'replace', 'replace', '', 1)
+   last.foot = ''
 
    call $sl_scr('get', scr)
    w = scr<SL.S.W> + 0
@@ -411,8 +432,9 @@ open.screen:
          opened = @true
       end
    end
-   * The cursor lock: when the cursor is off the screen the keys are not the IDE's (it is laid out for LAYW by LAYH)
-   if opened then call $sl_guardmode('IDE', LAYW, LAYH)
+   * The window lock (the layout mode of $sl_guardmode, 28 Oct 26): while the WINDOW is smaller than LAYW by LAYH the keys are not the IDE's, wherever its cursor is - the
+   *   keyboard is held, the warning names both sizes, and Ctrl-Q then y leaves ('guardquit'); the lock lifts the moment the window is big enough
+   if opened then call $sl_guardmode('IDE', LAYW, LAYH, 'layout', LAYW, LAYH)
    return
 
 * ======================================================================
@@ -521,10 +543,14 @@ list.ids:
 size.layout:
    lw = w
    lh = h
-   if lw < LAYW then lw = LAYW                 ;* the window is smaller only after the start: the layout keeps its size and the
-   if lh < LAYH then lh = LAYH                 ;* library cuts what falls outside (the upper left corner shows)
+   if lw < LAYW then lw = LAYW                 ;* the window is smaller only after the start: the layout keeps its size, the library cuts what falls outside
+   if lh < LAYH then lh = LAYH                 ;* (the upper left corner shows) and the window lock holds the keyboard until the window is big enough
+   * the rows, as the toolkit's pages have them (tk.h): the menu bar on row 0, the form from row 1, then the status line, the border and the function keys on the last three
+   ystat = lh - 3
+   ybord = lh - 2
+   ykeys = lh - 1
    fw = lw
-   fh = lh - 2
+   fh = ystat - 1
    iw = fw - 2
    ih = fh - 2
    tw = 28
@@ -542,7 +568,7 @@ size.layout:
 
 * The form and everything on it, from the state
 new.form:
-   last.status = char(1)                ;* the screen is made again: the status line has to be written (status.line writes only a changed text)
+   last.status = char(1)                ;* the screen is made again: the status line has to be written (status.line writes only a changed text), and the foot (it forgets last.foot)
    lc.nodraw = @false                   ;* see load.current
    did.focus = @false
    call $sl_scr('get', scr)
@@ -1715,6 +1741,7 @@ idle.text:
 * The status line, and the bar
 
 status.line:
+   if last.status = char(1) then last.foot = ''     ;* the screen was made again, or a dialog or a program wrote over it: the foot is written too
    gosub set.indicators
    t = ''
    if nbuf > 0 then
@@ -1759,11 +1786,30 @@ status.line:
    end case
    if pn # '' then t = '[' : pn : ']' : (if t = '' then '' else '  ' : t)
    t = fmt(t[1, lw], lw : 'L')
-   if t = last.status then return
-   last.status = t
+   if t # last.status then
+      last.status = t
+      keep.cur = ''
+      call $sl_curat('get', keep.cur)
+      screen text t at 0,ystat attr 'reverse'     ;* the status row: off the screen in a smaller window
+      call $sl_curat('back', keep.cur)
+   end
+   gosub foot.draw
+   return
+
+* The border and the function-key row under the status line (the toolkit's frame: tk.h rows H-2 and H-1, plan section 5.1).  Written only when the layout's size
+* changed or the screen was made again (status.line forgets last.foot then); the row is made by $tk_fkeys from the IDE's key table (ide.keys), cut to the layout's width.
+foot.draw:
+   foot.geo = lw : '/' : lh
+   if foot.geo = last.foot then return
+   last.foot = foot.geo
+   fk.ctx = ''
+   fk.ctx<TK.C.W> = lw
+   call $tk_fkeys(fk.ctx, ide.keys, '', fk.text)
+   call $sl_line('h', 0, fk.hc)
    keep.cur = ''
    call $sl_curat('get', keep.cur)
-   screen text t at 0,lh - 1 attr 'reverse'     ;* the layout's last row: off the screen in a smaller window
+   screen text str(fk.hc, lw) at 0,ybord
+   screen text fk.text at 0,ykeys attr 'bar'
    call $sl_curat('back', keep.cur)
    return
 
@@ -2886,7 +2932,7 @@ ai.go:
    page<1, -1> = 'The cursor is on line ' : ai.cy : ' of ' : ai.total : '.'
    if ai.note # '' then page<1, -1> = ai.note
    if ai.first > 1 or ai.last < ai.total then msg = sysmsg(11667, ai.first, ai.last - ai.first + 1)
-   actx = 'IDE' : @fm : 'ide' : @fm : page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : lh - 1 : @fm : ai.win : @fm : ai.first : @fm : ai.sel : @fm : 'nocmd'
+   actx = 'IDE' : @fm : 'ide' : @fm : page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : ystat : @fm : ai.win : @fm : ai.first : @fm : ai.sel : @fm : 'nocmd'
    ai.ctx = ''
    ai.ctx<TK.C.W> = lw
    res = ''

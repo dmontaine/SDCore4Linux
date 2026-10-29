@@ -112,7 +112,7 @@ def line_of(e):
 
 def table_empty(L):
     """The error table (below the editor) holds no row: only blanks between the frame and the scroll bar."""
-    return all(not l[30:136].strip() for l in L[35:40])
+    return all(not l[30:136].strip() for l in L[35:39])           # rows 35 to 38: the table's last rows; row 39 is the form's bottom border (the IDE's foot, 28 Oct 26)
 
 
 def main():
@@ -182,7 +182,7 @@ end
         row("...the editor shows what SED saved (ZZ at the start of line 1) and the status line says it is saved",
             "ZZcrt" in "\n".join(L[2:8]) and "Back from SED" in e.status() and " *" not in e.status().split("Back")[0], e.status() + " | " + L[3][28:80])
         row("...the record on disk has it (read back through CT)", "ZZcrt" in ID.rec_text(box, P), ID.rec_text(box, P)[-200:])
-        row("...the compile errors are gone: the table is empty (they named lines of the old text)", table_empty(L), "\n".join(l[30:100] for l in L[34:40]))
+        row("...the compile errors are gone: the table is empty (they named lines of the old text)", table_empty(L), "\n".join(l[30:100] for l in L[34:39]))
         row("...the cursor is shown, in the editor", scr.cursor_visible and 2 <= scr.r <= 33 and scr.c >= 29, repr((scr.r, scr.c, scr.cursor_visible)))
         e.quiet()
         at0 = line_of(e)

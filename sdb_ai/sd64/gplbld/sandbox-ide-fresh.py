@@ -129,7 +129,7 @@ class Sess:
 
     def editor(self):
         """the editor's part of the screen: below the title and right of the tree"""
-        return "\n".join(l[28:].rstrip() for l in self.lines()[3:40])
+        return "\n".join(l[28:].rstrip() for l in self.lines()[3:39])          # row 39 is the form's bottom border since the IDE's foot (28 Oct 26)
 
     def in_ide(self):
         return "IDE: " in self.row(1) and not self.p.exited
@@ -286,7 +286,7 @@ def section_new():
           re.search(r"\bbp\b", box) is not None, "box=%r" % box[:200], phase=4)
     s.type(n1, wait=0.6, show=repr(n1))
     s.type(RET, wait=2.5, show="RET")
-    s.show("after naming %s" % n1, rows=[0, 1, 2, 3, 42])
+    s.show("after naming %s" % n1, rows=[0, 1, 2, 3, 40])
     in_acc = readf(os.path.join(sh.SYS, n1))
     say("    disk: account directory %s: %s   bp: %s" % (os.path.join(sh.SYS, n1), disk(os.path.join(sh.SYS, n1)), disk(bp(n1))))
     R.row("I1 a New record from a bare start does NOT make the record in the account directory ($acc) (today it does, empty)", in_acc is None, "the file %s exists in the account directory" % n1, phase=4)
@@ -306,7 +306,7 @@ def section_new():
     s.type(RET, wait=2.0, show="RET")
     s.type("fresh text", wait=1.2, show="'fresh text'")
     s.type(CTRL_S, wait=2.0, show="Ctrl-S")
-    s.show("after Ctrl-S", rows=[0, 1, 2, 3, 42])
+    s.show("after Ctrl-S", rows=[0, 1, 2, 3, 40])
     t = readf(bp(n2))
     say("    disk: bp/%s: %s   account directory: %s" % (n2, disk(bp(n2)), disk(os.path.join(sh.SYS, n2))))
     R.row("I1 control: with a bp record open, New record then typed text and Ctrl-S leave the record in the bp file (and not in the account directory)",
@@ -398,7 +398,7 @@ def section_edge():
     say("    status row after Down: %r" % s.status())
     s.type("QQ", wait=1.2, show="'QQ'")
     e2 = s.editor()
-    s.show("after Down and QQ", rows=[2, 3, 4, 42])
+    s.show("after Down and QQ", rows=[2, 3, 4, 40])
     R.row("I3 Down in a one-line record, then typing: 'QQ' reaches the editor (today the focus moves to Messages and the letters are dropped)",
           "QQ" in e2, "status=%r editor=%r" % (s.status()[:80], e2.strip()[:80]), phase=4)
     s.end()
@@ -417,10 +417,10 @@ def section_saveas():
     asked = "Name of the new record" in s.text()
     s.type(c5, wait=0.6, show=repr(c5))
     s.type(RET, wait=2.0, show="RET")
-    s.show("after Save as", rows=[0, 1, 2, 3, 42])
+    s.show("after Save as", rows=[0, 1, 2, 3, 40])
     s.type("MORE", wait=1.2, show="'MORE'")
     s.type(CTRL_S, wait=2.0, show="Ctrl-S")
-    s.show("after the Ctrl-S that follows", rows=[0, 1, 2, 3, 42])
+    s.show("after the Ctrl-S that follows", rows=[0, 1, 2, 3, 40])
     orig, cp = readf(bp(r5)), readf(bp(c5))
     say("    disk: original bp/%s: %s   copy bp/%s: %s" % (r5, disk(bp(r5)), c5, disk(bp(c5))))
     R.row("I4 control: Save as asked for a name and wrote the copy with the first change ('NEW' and 'orig' are in it)",
@@ -671,7 +671,7 @@ def section_oldkeys():
     s.type(X_F2, wait=2.0, show="F2 (it saved before Phase 4)")
     after_f2 = readf(bp(r10))
     still = " *" in s.status() and s.in_ide()
-    s.show("after F2", rows=[0, 1, 2, 3, 42])
+    s.show("after F2", rows=[0, 1, 2, 3, 40])
     R.row("K2 F2 does not save: the record on disk is as it was and the buffer is still marked changed (Ctrl-S is the only save key)",
           after_f2 == "ten\n" and still, "disk=%s still_changed=%r status=%r" % (disk(bp(r10)), still, s.status()[:80]))
     s.type(CTRL_S, wait=2.0, show="Ctrl-S")
@@ -693,7 +693,7 @@ def section_oldkeys():
     R.row("K5 Ctrl-W on a changed record asks what to do with the changes ('has changes') and does not ask for the name of a copy (it used to be Write a copy)",
           asked and not named, "asked=%r name_form=%r" % (asked, named))
     s.type(X_DOWN + RET, wait=1.5, show="Down RET (Discard)")
-    s.show("after Discard", rows=[0, 1, 2, 3, 42])
+    s.show("after Discard", rows=[0, 1, 2, 3, 40])
     gone = ("[%s]" % r11) not in tab_row(s) and re.search(r"Untitled \d", s.text()) is not None
     R.row("K6 Discard closes the record: its tab is gone, an Untitled buffer takes its place, the IDE is still up and the record on disk is as it was",
           gone and s.in_ide() and readf(bp(r11)) == "eleven\n", "tab row=%r in_ide=%r disk=%s" % (tab_row(s)[:80], s.in_ide(), disk(bp(r11))))
@@ -704,7 +704,7 @@ def section_oldkeys():
     s = admin("K7", "IDE bp %s" % r12)
     tab_before = ("[%s]" % r12) in tab_row(s)
     s.type(CTRL_W, wait=1.5, show="Ctrl-W on an unchanged record")
-    s.show("after Ctrl-W", rows=[0, 1, 2, 3, 42])
+    s.show("after Ctrl-W", rows=[0, 1, 2, 3, 40])
     closed = ("[%s]" % r12) not in tab_row(s) and re.search(r"Untitled \d", s.text()) is not None
     R.row("K7 Ctrl-W on an unchanged record closes it at once: no question, no name form, its tab gone, an Untitled buffer in its place (the tab was there before: %r)" % tab_before,
           tab_before and closed and "has changes" not in s.text() and "Name of the new record" not in s.text() and s.in_ide() and readf(bp(r12)) == "twelve\n",
@@ -737,7 +737,7 @@ def section_oldkeys():
 def section_tree():
     say("\n--- T: the tree does not list $acc, $hold, $map, $release -----------------------------------------------------------------------")
     s = admin("T1", "IDE")
-    left = [l[:28].rstrip() for l in s.lines()[3:40]]
+    left = [l[:28].rstrip() for l in s.lines()[3:39]]
     shown = [l for l in left if l.strip()]
     s.show("the tree (left 28 columns)", rows=range(2, 40))
     dollars = [l for l in shown if "$" in l]

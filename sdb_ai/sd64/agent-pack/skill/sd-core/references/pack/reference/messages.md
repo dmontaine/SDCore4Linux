@@ -5415,10 +5415,10 @@ The name %1 is already in your VOC: nothing was created on server %2
 cited by: `createf`
 
 ### msg:11540
-> kind=message tier=reference since=- src=sdsys/messages/11540:1#f8cd5805
+> kind=message tier=reference since=- src=sdsys/messages/11540:1#841b4ce7
 
 ```
-The window is %1 and %2 is laid out for %3 or larger: part of the screen is outside the window and keys are ignored. Make the window larger to carry on, or press Ctrl-Q to leave.
+The window is %1 and %2 is laid out for %3 or larger: part of the screen is outside the window and keys are ignored. Make the window larger to carry on, or press Ctrl-Q to leave; text not saved is lost unless a recovery copy is on.
 ```
 
 cited by: `sl_guard`
@@ -6806,6 +6806,24 @@ The shared account has no pdf directory (the installer makes it), so there is no
 ```
 
 cited by: `docsinst`
+
+### msg:11725
+> kind=message tier=reference since=- src=sdsys/messages/11725:1#5ddcd720
+
+```
+The window is %1; %2 needs %3 or larger. Make it larger to carry on, or press Ctrl-Q to leave (text not saved is lost unless a recovery copy is on).
+```
+
+cited by: `sl_guard`
+
+### msg:11726
+> kind=message tier=reference since=- src=sdsys/messages/11726:1#999cd6b3
+
+```
+%1: %2 needs %3. Enlarge it, or Ctrl-Q leaves (unsaved text is lost).
+```
+
+cited by: `sl_guard`
 
 ### msg:11750
 > kind=message tier=reference since=- src=sdsys/messages/11750:1#e64264f5

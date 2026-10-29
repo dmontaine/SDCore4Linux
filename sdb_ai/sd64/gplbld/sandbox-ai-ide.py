@@ -256,7 +256,7 @@ def reset_record():
 class AccIde(ids.Ide):
     """sandbox-ide.py's Ide, signed on to the fixture account ACC as an ordinary session (-a, no SDTEST_ADMIN)."""
 
-    def __init__(self, box, cmd="IDE", cols=140, rows=42):
+    def __init__(self, box, cmd="IDE", cols=140, rows=43):           # 140 by 43 since the IDE's window lock (28 Oct 26)
         self.box = box
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C", LANG="C")
         for k in ("SDTEST_ADMIN", "SSH_CONNECTION", "SSH_TTY"):
@@ -341,7 +341,7 @@ def sec_on():
     L = e.lines()
     arow("I1a", "the menu bar has the AI menu before Help", re.search(r"File\s+Go\s+Search\s+Build\s+View\s+AI\s+Help", L[0]) is not None, repr(L[0][:90]))
     r, line = ai_row(e)
-    arow("I1b", "an AI> row under the editor, in the form's last row (the next row down is the form's bottom border, then the status line)", r is not None and r == len(L) - 3 and "AI>" in line, repr((r, len(L), line[:60])))
+    arow("I1b", "an AI> row under the editor, in the form's last row (the next row down is the form's bottom border, then the status line, the foot's border and the key row)", r is not None and r == len(L) - 5 and "AI>" in line, repr((r, len(L), line[:60])))
     arow("I2", "Tab from the editor goes on round the ring and ends at the AI entry (the status line names it [AI])", focus_entry(e), repr(e.status()))
     e.end()
 

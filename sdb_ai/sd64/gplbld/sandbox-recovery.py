@@ -423,7 +423,7 @@ def section_review():
     s.type(RET, wait=1.5, show="RET (Open, the first)")
     q2 = "untitled buffer was kept" in s.text()
     s.type(RET, wait=2.5, show="RET (Open, the second) then 2.5 s of quiet (a tick)")
-    s.show("after two Opens", rows=[0, 1, 2, 3, 42])
+    s.show("after two Opens", rows=[0, 1, 2, 3, 40])
     live = (untitled_holding(d, "TWOMARKA"), untitled_holding(d, "TWOMARKB"))
     R.row("R1b both questions were asked, and after two Opens and a quiet second BOTH copies are still on the disk holding their texts (the first Open's was deleted before)",
           q1 and q2 and len(live[0]) == 1 and len(live[1]) == 1, "asked %r %r copies %r" % (q1, q2, live), phase=PH)

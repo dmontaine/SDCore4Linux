@@ -385,10 +385,11 @@ def pty_edit(account, cmd, keys, leave):
     env.pop("SDTEST_ADMIN", None)
     env.pop("SSH_CONNECTION", None)
     say("    > pty %s: %s | keys %r" % (account, cmd, keys))
-    s = PtySession([g.SD, "-a" + account], acct_path(account), env, 140, 42)       # 18 Oct 26: SED is 140 by 42 (it was 120 by 36)
+    rows = 43 if cmd.split()[0].upper() == "IDE" else 42                           # 18 Oct 26: SED is 140 by 42 (it was 120 by 36); the IDE 140 by 43 since its window lock (28 Oct 26)
+    s = PtySession([g.SD, "-a" + account], acct_path(account), env, 140, rows)
     s.settle(1.0)
     s.type("TERM xterm\r")
-    s.type("TERM 140,42\r")
+    s.type("TERM 140,%d\r" % rows)
     s.type(cmd + "\r", idle=1.2)
     for k in keys:
         s.type(k, idle=0.7)
