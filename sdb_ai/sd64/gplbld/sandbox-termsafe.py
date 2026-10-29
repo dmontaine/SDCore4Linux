@@ -873,7 +873,8 @@ def frame_row(rid, what, h, m, app, status, gate):
     nb = nonblank_by_row(h.s.raw[m:])
     cells = [nb.get(r, 0) for r in (0, 40, 41, 42)]
     s_ok = all(st.values())
-    b_ok = all(nb.get(r, 0) >= 10 for r in (40, 41, 42)) and nb.get(0, 0) >= len(app)
+    # 29 Oct 26: the pages' first status message no longer carries a key hint, so the status row can hold only its pane name ("[Files]", 7 cells): its floor is the pane's name
+    b_ok = nb.get(40, 0) >= (len(status) if status else 10) and all(nb.get(r, 0) >= 10 for r in (41, 42)) and nb.get(0, 0) >= len(app)
     say("    %s: screen %r; non-blank cells written on rows 0/40/41/42 after the command: %r; rows 40-42 now: %r" % (what, st, cells, [h.line(r)[:60] for r in (40, 41, 42)]))
     R.row("%s %s: the app name, the status line, the border and the key row are on the screen" % (rid, what), s_ok, "screen %r" % (st,),
           phase=None if gate is None else (3 if gate[0] else None))

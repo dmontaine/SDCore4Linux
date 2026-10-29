@@ -26,7 +26,7 @@ DONE = "CEDVERB done"
 
 
 def _sess(box, *cmds):
-    env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"))
+    env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), SDTEST_ADMIN="1", LC_ALL="C")      # 29 Oct 26: INTERNAL mode as the sandbox's administrator; without it the session said "Account don not in register"
     body = "\nTERM 200,9999\n" + "".join(c + "\n" for c in cmds) + "OFF\n"
     p = subprocess.Popen([os.path.join(box, "sys", "bin", "sd"), "-internal"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                          cwd=os.path.join(box, "sys"), env=env)

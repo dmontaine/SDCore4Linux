@@ -190,7 +190,7 @@ def section_list():
     tt = table_text(e)
     row("L1 List matching lines puts the lines that hold 'alpha' in the table at the bottom, with their numbers (1 and 3, not 2)", "alpha beta" in tt and "alphabet end" in tt and "Beta gamma" not in tt, repr(tt[:300]))
     row("L2 the status line says how many", "2 lines" in e.status(), e.status()[:120])
-    menu(e, 2, 5)                                                       # Find options
+    menu(e, 2, 4)                                                       # Find options (the fifth entry of Search: Find, Replace, List, Query replace, Find options)
     e.keys("W", RET)
     e.quiet()
     menu(e, 2, 2)
@@ -198,8 +198,8 @@ def section_list():
     e.quiet()
     tt = table_text(e)
     row("L3 with whole words on, 'alpha' lists line 1 only ('alphabet' is another word)", "alpha beta" in tt and "alphabet end" not in tt, repr(tt[:300]))
-    menu(e, 2, 5)
-    e.keys(RET)                                                         # blank: match case off, whole words off
+    menu(e, 2, 4)
+    e.keys(RET)                                                       # blank: match case off, whole words off
     e.quiet()
     menu(e, 2, 2)
     e.keys("BETA", RET)
@@ -231,16 +231,16 @@ def section_case():
     e = open_rec()
     e.keys(CTRL_G)
     e.keys(RIGHT * 5)                                                   # the mark at line 1 column 1, the cursor at column 6
-    menu(e, 2, 6)                                                       # Upcase the selection
+    menu(e, 2, 5)                                                       # Upcase the selection (index 5)
     t = editor_text(e)
     row("U1 only the selection changes case: 'ALPHA beta' (the rest of the line and the other lines are as they were)", "ALPHA beta" in t and "Beta gamma" in t and "alphabet end" in t, repr(t[:200]))
     e.keys(CTRL_G)
     e.keys(RIGHT * 5)
-    menu(e, 2, 7)                                                       # Downcase the selection
+    menu(e, 2, 6)                                                       # Downcase the selection (index 6)
     t = editor_text(e)
     row("U2 Downcase gives it back", "alpha beta" in t, repr(t[:200]))
-    menu(e, 2, 6)
-    row("U3 with nothing selected it says so", "Nothing is selected" in e.status(), e.status()[:120])
+    menu(e, 2, 5)
+    row("U3with nothing selected it says so", "Nothing is selected" in e.status(), e.status()[:120])
     done(e)
 
 
@@ -249,13 +249,13 @@ def section_xp():
     e = open_rec()
     e.keys(CTRL_G)
     e.keys(RIGHT * 5)
-    menu(e, 2, 9)                                                       # Export the selection: the form for the file and the record
+    menu(e, 2, 8)                                                       # Export the selection: the form for the file and the record
     e.keys(EXP, RET)
     e.quiet()
     d = disk()
     row("X1 Export writes the selected text to the new record (the file is bp, the form's own default)", d.get(EXP) == "[alpha]", repr((d.get(EXP), e.status()[:100])))
     e.keys(DOWN, DOWN)                                                  # (the cursor to line 3 for the import)
-    menu(e, 2, 8)                                                       # Import a record here
+    menu(e, 2, 7)                                                       # Import a record here
     e.keys(REC + "imp", RET)
     e.quiet()
     t = editor_text(e)
@@ -366,7 +366,7 @@ def section_modes():
     row("M11 View > Tab width 5 says so", "Tab width is 5" in e.status(), e.status()[:120])
     e.keys(CTRL_HOME, "\t")
     e.quiet()
-    row("M12 Tab now indents by 5: the first line begins with 5 blanks", "     alpha beta" in editor_text(e) and "      alpha beta" not in editor_text(e), repr(editor_text(e)[:120]))
+    row("M12 Tab now indents by 5: the first line begins with 5 blanks", "1      alpha beta" in editor_text(e) and "1       alpha beta" not in editor_text(e), repr(editor_text(e)[:120]))
     done(e)
     e = sb.Ide(BOX, "IDE bp %sfmt" % REC)
     e.quiet()

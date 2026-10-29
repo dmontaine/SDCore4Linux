@@ -166,7 +166,7 @@ def anchors_ok(lines, page, rects, ids, at140):
         if at140 and (r, c) != old:
             bad.append("%s: the place %r is not the old %r" % (pid, (r, c), old))
         line = lines[r] if r < len(lines) else ""
-        if not re.match(pat, line[c:]):
+        if not re.match(r"\s?(?:" + pat + ")", line[c:]):                 # 29 Oct 26: the locks heading begins with the blank of its right-aligned 'User' (fmt 5R)
             bad.append("%s: %r not at row %d column %d (there: %r)" % (pid, pat, r, c, line[c:c + 40]))
     return not bad, "; ".join(bad)[:700]
 

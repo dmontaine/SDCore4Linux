@@ -43,7 +43,7 @@ PFRT = "zzwt" + RUN
 passed = failed = 0
 
 SRC_OUT = """$internal
-$include tk.h
+$include gpl.bp tk.h
    ctx = ''
    ctx<TK.C.EPOCH> = 7
    call $tk_out('state', ctx, '', '', c)
@@ -70,7 +70,7 @@ end
 """
 
 SRC_PIK = """$internal
-$include tk.h
+$include gpl.bp tk.h
    ctx = ''
    ctx<TK.C.EPOCH> = 7
    for m = 1 to 3
@@ -91,7 +91,7 @@ end
 """
 
 SRC_FRM = """$internal
-$include tk.h
+$include gpl.bp tk.h
    ctx = ''
    ctx<TK.C.EPOCH> = 7
    spec = 'Probe form' : @fm : '&Go' : @fm : ''
@@ -107,7 +107,7 @@ end
 """
 
 SRC_FRT = """$internal
-$include tk.h
+$include gpl.bp tk.h
    ctx = ''
    ctx<TK.C.EPOCH> = 7
    spec = 'Probe form' : @fm : '&Go' : @fm : ''

@@ -218,6 +218,8 @@ PL_FUSER = "9999"
 
 
 def codes(s):
+    if isinstance(s, bytes):
+        s = s.decode("latin-1")                  # 29 Oct 26: the callers that read raw output (rb"...") pass bytes
     s = (s or "").strip().strip(",")
     return bytes(int(x) for x in s.split(",")) if s else b""
 

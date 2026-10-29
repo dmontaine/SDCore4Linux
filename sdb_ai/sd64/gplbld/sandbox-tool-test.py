@@ -356,7 +356,7 @@ def section_list():
     first = table(h)[1][0]
     arow("T1g", "the box under the list describes the test under the cursor (the first): its program file, where its object code is, and that R runs it", B[0].startswith(first + "  -  in the program file") and any("Not run in this session" in x or "cannot be run yet" in x or "does not give this name" in x for x in B), repr(B[:3]))
     Fk = h.line(42)
-    arow("T1h", "the function-key row of the Tests pane is made from the key table", Fk.startswith("F1 help  R run  A run all  F run failed  B compile  Enter output  F11 filter  F5 refresh  ^Q quit"), repr(Fk))
+    arow("T1h", "the function-key row of the Tests pane is made from the key table", Fk.startswith("F1 help  R run  A run all  F run failed  B compile  Enter output  / filter  F5 refresh  ^O runs  ^Q quit"), repr(Fk))
     h.key("ctrl-q", idle=1.2)
     h.end()
     h = page(A2)
@@ -435,7 +435,7 @@ def section_output(h):
     until(h, lambda t: "Output of test.i.long" in h.line(23), 10)
     T0 = h.line(23)
     arow("T6a", "Enter: the lower box becomes the output - title 'Output of test.i.long (lines 1 to 15 of 400 kept', the first row is line 1 of what it printed, the function-key row is the Output pane's",
-         "Output of test.i.long  (lines 1 to 15 of 400 kept" in T0 and h.line(24)[3:20].strip() == "1  line 1" and h.line(42).startswith("F1 help  Esc tests  F5 refresh  ^Q quit"), repr((T0[:80], h.line(24)[:30], h.line(42))))
+         "Output of test.i.long  (lines 1 to 15 of 400 kept" in T0 and h.line(24)[3:20].strip() == "1  line 1" and h.line(42).startswith("F1 help  Esc tests  F5 refresh  ^O runs  ^Q quit"), repr((T0[:80], h.line(24)[:30], h.line(42))))
     h.key("down", idle=0.5)
     arow("T6b", "Down scrolls one line: lines 2 to 16", "(lines 2 to 16 of 400 kept" in h.line(23) and h.line(24)[3:20].strip() == "2  line 2", repr((h.line(23)[:80], h.line(24)[:30])))
     h.key("pgdn", idle=0.5)

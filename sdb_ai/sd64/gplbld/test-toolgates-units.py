@@ -75,8 +75,8 @@ def checks(raw):
        and re.search(r"call \$tk_confirm\(sent, el, typed, res, cmsg\)\s*\n\s*if res = 'run' then\s*\n\s*call \$tk_run\(allow, sent, out, stat, err\)", pg) is not None)
     mk = block(pg, "make.sentence")
     ck("TG4", "the sentence is 'modify.account ' + the account's name from the register + the words: a gate's own on or off word from the table, or one of the four route words; no other source of a word",
-       "sent = 'modify.account ' : anm<av> : ' ' : trim(change(words, @fm, ' '))" in mk and mk.count("words<-1> =") == 2 and "words<-1> = (if aq<av, k> = 1 then gon<k> else goff<k>)" in mk and "words<-1> = rw" in mk
-       and set(re.findall(r"rw = '([a-z]+)'", mk)) == {"both", "ssh", "api", "none"})
+       "sent = 'modify.account ' : anm<av> : ' ' : trim(change(words, @fm, ' '))" in mk and mk.count("words<-1> =") == 2 and "words<-1> = (if aq<av, k> = 1 then gon<k> else goff<k>)" in mk and "words<-1> = rword" in mk
+       and set(re.findall(r"rword = '([a-z]+)'", mk)) == {"both", "ssh", "api", "none"})
     ck("TG5", "there is no key that queues everything ON: nothing assigns the literal 1 to a queued cell, the cells are written only by queueing the opposite state, taking it back, tighten (0) and the refresh, and the key table has exactly the eight actions and the Esc row that opens the menu bar (S.88 U2: the bar runs nothing, a choice is one of those keys)",
        not re.search(r"^\s*aq<.*>\s*=\s*1\b", pg, re.M) and re.search(r"aq<av, k> = \(if nw = s0 then '' else nw\)", pg) is not None
        and sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg))) == sorted(["help", "queue", "run", "drop", "tighten", "filter", "refresh", "quit", "menu"]))
@@ -88,7 +88,7 @@ def checks(raw):
        and 0 < pg.find("gosub check.needs") < pg.find("gosub make.sentence") < pg.find("call $tk_confirm(") < pg.find("call $tk_run("))
     ck("TG8", "a gate that is off as delivered being turned ON is said so, with the tighter choice", "if gdef<k> = 'off' then loosen = 1" in mk and "Leaving it off is the tighter choice" in mk and "if loosen then" in mk)
     ck("TG9", "ssh and api are one setting: the per-gate words skip both columns, and the pair of final states gives one of both, ssh, api or none, in that order of cases",
-       "if aq<av, k> # '' and k # rs and k # ra then" in mk and re.search(r"case fin<rs> = 1 and fin<ra> = 1\s*\n\s*rw = 'both'\s*\n\s*case fin<rs> = 1\s*\n\s*rw = 'ssh'\s*\n\s*case fin<ra> = 1\s*\n\s*rw = 'api'\s*\n\s*case 1\s*\n\s*rw = 'none'", mk) is not None)
+       "if aq<av, k> # '' and k # rs and k # ra then" in mk and re.search(r"case fin<rs> = 1 and fin<ra> = 1\s*\n\s*rword = 'both'\s*\n\s*case fin<rs> = 1\s*\n\s*rword = 'ssh'\s*\n\s*case fin<ra> = 1\s*\n\s*rword = 'api'\s*\n\s*case 1\s*\n\s*rword = 'none'", mk) is not None)
     cn = block(pg, "check.needs")
     ck("TG10", "files-write needs files and files-admin needs files-write: refused by the page, in words, before the box, from the states the account WILL have",
        "if fin<fw> = 1 and fin<fi> # 1 then bad = 'files-write needs files" in cn and "if fin<fa> = 1 and fin<fw> # 1 then bad = 'files-admin needs files-write" in cn
@@ -144,7 +144,7 @@ MUTANTS = [
     ("the beyond flag is read from the wrong column", "TG7", sub("page", "gbey<k> = gi<TK.G.BEYOND>", "gbey<k> = gi<TK.G.BEYOND - 1>")),
     ("the sentence is made before the needs are checked", "TG7", sub("page", "   gosub check.needs\n   if bad # '' then\n      msg = bad\n      return\n   end\n   gosub make.sentence", "   gosub make.sentence\n   gosub check.needs\n   if bad # '' then\n      msg = bad\n      return\n   end")),
     ("the delivered-off sentence is gone", "TG8", sub("page", "Leaving it off is the tighter choice", "Leaving it off is the other choice")),
-    ("both is sent as ssh", "TG9", sub("page", "            rw = 'both'", "            rw = 'ssh'")),
+    ("both is sent as ssh", "TG9", sub("page", "            rword = 'both'", "            rword = 'ssh'")),
     ("the route columns are also sent as words of their own", "TG9", sub("page", "if aq<av, k> # '' and k # rs and k # ra then", "if aq<av, k> # '' then")),
     ("files-write is allowed without files", "TG10", sub("page", "if fin<fw> = 1 and fin<fi> # 1 then bad =", "if fin<fw> = 1 and fin<fi> = 7 then bad =")),
     ("files-admin is allowed without files-write", "TG10", sub("page", "if fin<fa> = 1 and fin<fw> # 1 then bad =", "if @false then bad =")),

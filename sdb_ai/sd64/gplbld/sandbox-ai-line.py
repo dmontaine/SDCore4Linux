@@ -338,7 +338,7 @@ def sec_proposals():
     h, T = reply("open a terminal [[act_terminal]]")
     arow("L8f", "the AI proposes the Terminal tile: it is offered with Accept and Reject", "Opening a terminal." in T and msg(11647, "Terminal") in T and "Accept" in T and "Reject" in T, T[-800:])
     h.key("enter", idle=2.0)
-    arow("L8g", "Enter alone is Reject for it: nothing started, the home screen is still there (the prompt did not take the terminal)", h.home() and "File" not in h.line(0), repr(h.text()[:100]))
+    arow("L8g", "Enter alone is Reject for it: nothing started, the home screen is still there (the prompt did not take the terminal)", h.home(), repr(h.text()[:100]))               # (row 0 always holds the menu bar's titles now: "File" there says nothing)
     h.key("ctrl-q", idle=1.5)
     h.end()
     h, T = reply("sign me out [[act_signout]]")

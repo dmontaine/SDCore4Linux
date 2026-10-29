@@ -55,7 +55,7 @@ end
 """
 
 SRC_SEQ = """$internal
-$include sl.h
+$include gpl.bp sl.h
    call $sl_theme('list', '', '', '', '', l)
    crt 'LST ' : change(l, @fm, ',')
    call $sl_theme('name', '', '', '', '', cur)

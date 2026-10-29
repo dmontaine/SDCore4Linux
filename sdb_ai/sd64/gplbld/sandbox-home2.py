@@ -243,7 +243,7 @@ CHAIN = ("   id = 'again' ; grp = g ; label = 'Again' ; glyph = '(o)' ; sub = 'o
          "         id = 'leaf' ; grp = g ; label = 'Leaf' ; glyph = '.  ' ; sub = 'level 9' ; act = 'cmd:who.am.i' ; pal = 'gray' ; size = 'n' ; pause = 1 ; why = '' ; gosub add.tile\n"
          "      end\n"
          "   next fz\n")
-HX_MARK = "   hx = 95 ; hy = 1\n"
+HX_MARK = "   gosub add.recent\n   gosub pick.level\n"          # 29 Oct 26: the end of the tile table (the old marker, hx = 95, went with the layout service)
 
 
 def declare_folders():

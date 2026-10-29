@@ -714,19 +714,19 @@ make.sentence:
          words<-1> = (if aq<av, k> = 1 then gon<k> else goff<k>)
       end
    next k
-   rw = ''
+   rword = ''                                                    ;* NOT rw: names are case-insensitive and RW is the rows of each list (get.rects); rw overwrote it and the page stopped in draw.who
    if route.changed then
       begin case
          case fin<rs> = 1 and fin<ra> = 1
-            rw = 'both'
+            rword = 'both'
          case fin<rs> = 1
-            rw = 'ssh'
+            rword = 'ssh'
          case fin<ra> = 1
-            rw = 'api'
+            rword = 'api'
          case 1
-            rw = 'none'
+            rword = 'none'
       end case
-      words<-1> = rw
+      words<-1> = rword
    end
    sent = 'modify.account ' : anm<av> : ' ' : trim(change(words, @fm, ' '))
    el = ''
@@ -746,7 +746,7 @@ make.sentence:
          locate gwhen<k> in whens<1> setting wp else whens<-1> = gwhen<k>
       end
    next k
-   if route.changed then el<-1> = 'ssh and api are one setting: the word sent is ' : rw : ', which gives ssh ' : (if fin<rs> = 1 then 'ON' else 'off') : ' and api ' : (if fin<ra> = 1 then 'ON' else 'off') : '.'
+   if route.changed then el<-1> = 'ssh and api are one setting: the word sent is ' : rword : ', which gives ssh ' : (if fin<rs> = 1 then 'ON' else 'off') : ' and api ' : (if fin<ra> = 1 then 'ON' else 'off') : '.'
    if loosen then
       el<-1> = 'A gate that is off as delivered is being turned ON.  Leaving it off is the tighter choice; you decide.'
    end

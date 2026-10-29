@@ -344,6 +344,7 @@ if [ $SNAPSHOT -eq 1 ]; then
     exit 2
   fi
   SNAP="$RUN/snap"
+  export SDREGRESS_REPO="$REPO"     # 29 Oct 26: the copy has no .git; a suite that reads an old commit (sandbox-l2-files, sandbox-l2-home: git show) finds the repository here
   mkdir -p "$SNAP"
   # 27 Oct 26: --cached also lists a tracked file the work tree no longer has (a deleted file), and rsync refuses it: only files that exist are copied
   (cd "$REPO" && git ls-files -z --cached --others --exclude-standard sdb_ai \

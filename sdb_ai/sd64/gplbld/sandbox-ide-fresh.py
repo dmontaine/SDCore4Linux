@@ -125,7 +125,7 @@ class Sess:
         return "\n".join(l.rstrip() for l in self.lines())
 
     def status(self):
-        return self.row(self.rows - 1)
+        return self.row(self.rows - 3)         # 28 Oct 26: the status line is three rows above the last (then the border and the function-key row); it was the last row
 
     def editor(self):
         """the editor's part of the screen: below the title and right of the tree"""
@@ -363,9 +363,9 @@ def section_gate():
     refused = "bp.edit" in s.text()
     R.row("I5 control: the IDE page is up in the ordinary account, nothing is written (%s) and the refusal is said somewhere (the words bp.edit are on the screen)" % ng,
           s.in_ide() and readf(pg) is None and refused, "in_ide=%r disk=%s refused=%r" % (s.in_ide(), disk(pg), refused))
-    inbody = any("bp.edit" in l for l in L[1:s.rows - 1])
+    inbody = any("bp.edit" in l for l in L[1:s.rows - 3])
     s.wait(4.0)
-    inbody2 = any("bp.edit" in l for l in s.lines()[1:s.rows - 1])
+    inbody2 = any("bp.edit" in l for l in s.lines()[1:s.rows - 3])
     R.row("I5 the refusal of New record is shown in a box or form that stays (on a row above the status line, and still there 4 s later), not on the status line only",
           inbody and inbody2, "above status now=%r after 4 s=%r status=%r" % (inbody, inbody2, s.status()[:100]), phase=4)
     s.end()

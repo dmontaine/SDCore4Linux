@@ -516,7 +516,7 @@ def main():
 
         say("\n--- the panel scrolls (the sandbox's copy of tool_home with thirty extra tiles in the table)")
         src = open(os.path.join(SYS, "gpl.bp", "tool_home"), encoding="latin-1").read()
-        marker = "   hx = 95 ; hy = 1\n"
+        marker = "   gosub add.recent\n   gosub pick.level\n"          # 29 Oct 26: the end of the tile table (the old marker, hx = 95, went with the layout service)
         extra = ("   for fz = 1 to 30\n"
                  "      id = 'zz' : fz ; grp = 1 ; label = 'Filler ' : fz ; glyph = '...' ; sub = 'filler' ; act = 'cmd:who.am.i' ; pal = pal.tools ; size = 'n' ; pause = 1 ; why = '' ; gosub add.tile\n"
                  "   next fz\n")

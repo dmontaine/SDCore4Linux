@@ -104,7 +104,6 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`basic`** {*file*} *record* {*record* …}
 - **`build.index`** *file* *field* … | **`all`**
 - **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
-- **`clear.file`** {**`data`** | **`dict`**} *file*
 - **`compile.dict`** *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`compile.dict data`** *file* {*i-type* …}  ·  **`compile.dict local`**  ·  **`compile.dict all`**
 - **`count`** {**`dict`**} *file* {*selection*}
 - **`create.file`** {**`dict`**} *voc.name* {**`directory`**} {*parameters*} {**`server`** *server* {**`as`** *remote.name*}}
@@ -114,6 +113,7 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`delete.index`** *file* *field* … | **`all`**
 - **`display`** *text*
 - **`ed`** {**`dict`**} *file* {*id* … | **`creating.seqkey`**}
+- **`format`** {*file*} {*record*} {**`case`**}
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
 - **`generate`** {**`dict`**} *file* *record* …
 - **`home`**  —  the home screen: tiles for the account's tools, a terminal, switch account and sign out

@@ -52,7 +52,7 @@ BOX = SYS = UA = None
 E = "\x1b"
 CTRL_Q = "\x11"
 OLD_COMMIT = "10380d19"                                               # the last commit before L2 moved these pages onto the layout service
-REPO = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
+REPO = os.environ.get("SDREGRESS_REPO") or os.path.normpath(os.path.join(HERE, "..", "..", ".."))        # regress.sh --snapshot sets it: the copy has no .git
 GPLREL = "sdb_ai/sd64/sdsys/gpl.bp/"
 CORNERS = set("+") | set("┌┐└┘┬┴├┤┼╔╗╚╝")                                # LC_ALL=C draws +, - and | (UNVERIFIED: this suite has not been run)
 # page -> (the verb, a text the old page shows, the view of the declaration, what the list pane holds: (a text on every list row, the id of the list pane, the rows it has at 140 by 43))

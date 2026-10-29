@@ -54,7 +54,7 @@ E = "\x1b"
 CTRL_Q = "\x11"
 RIGHT = E + "[C"
 OLD_COMMIT = "10380d19"                                               # the last commit before L2 moved the home screen onto the layout service
-REPO = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
+REPO = os.environ.get("SDREGRESS_REPO") or os.path.normpath(os.path.join(HERE, "..", "..", ".."))        # regress.sh --snapshot sets it: the copy has no .git
 REL = "sdb_ai/sd64/sdsys/gpl.bp/tool_home"
 
 
