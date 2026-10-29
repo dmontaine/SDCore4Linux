@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE MASTER FILES PAGE (TOOL.MASTERS) HAS A MENU BAR.
+
+             What        - Esc or F10 opens a menu bar (File, Masters, View, Help); Alt and a title's letter opens that menu; an entry does what its key does. Esc leaves the
+                           journal view first, and opens the bar only from the account view.
+                         - The key hint is gone from the first status message; F1 lists the keys.
+                         It does NOT change what the page may run: sync.masters, after its Run or Cancel box.
+
 30 Oct 26  THE BYPASS PROGRAMS PAGE (TOOL.VIEWERS) HAS A MENU BAR AND AN OUTPUT PANE.
 
              What        - Esc or F10 opens a menu bar (File, Program, View, Help); Alt and a title's letter opens that menu; a menu entry does what its key does.

@@ -32,7 +32,7 @@ GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 
 EXPECT_PROGRAMS = 24
-EXPECT_ADD_ROWS = 237                    # the 232 rows of the tree before 29 Oct 26, the two rows of tool_tktest's pilot (S2), the Esc row of tool_mygates and the Ctrl-O and Esc rows of tool_viewers (30 Oct 26, the F0a pilots of $tk_menubar)
+EXPECT_ADD_ROWS = 238                   # the 232 rows of the tree before 29 Oct 26, the two rows of tool_tktest's pilot (S2), the Esc row of tool_mygates and the Ctrl-O and Esc rows of tool_viewers (30 Oct 26, the F0a pilots of $tk_menubar)
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
 # an action that has two keys on purpose (the second is for a terminal that keeps the first for itself)

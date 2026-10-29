@@ -28087,7 +28087,7 @@
 "tcl:tool.viewers": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 47
 },

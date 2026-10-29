@@ -117,8 +117,8 @@ def checks(raw):
     ck("MA8", "the page waits for a key with no timeout (a check reads every master file and applies the journal; it is not repeated on a timer), and reads again only when it opens, on F5 and after a sync",
        re.search(r"screen key returning nm", pg) is not None and "timeout" not in pg.replace("no timeout", "") and pg.count("gosub read.all") == 3, "read.all called %d times" % pg.count("gosub read.all"))
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
-    ck("MA9", "the key table has exactly: help, syncall, syncone, journal, refresh, quit; the dispatch has S, Y and P",
-       acts == sorted(["help", "syncall", "syncone", "journal", "refresh", "quit"]) and "case nm = 's'\n         gosub do.syncall" in pg and "case nm = 'y'\n         gosub do.syncone" in pg and "case nm = 'p'" in pg, " ".join(acts))
+    ck("MA9", "the key table has exactly: help, syncall, syncone, journal, refresh, quit - and the Esc row that opens the menu bar (S.88 U1; the bar runs nothing, a choice is one of those keys); the dispatch has S, Y and P",
+       acts == sorted(["help", "syncall", "syncone", "journal", "refresh", "quit", "menu"]) and "case nm = 's'\n         gosub do.syncall" in pg and "case nm = 'y'\n         gosub do.syncone" in pg and "case nm = 'p'" in pg, " ".join(acts))
     cn = block(pg, "confirm.and.run")
     ck("MA10", "after the command the lists are read again and the page is drawn again, and the status line says what the check finds now (every copy matches, n differences remain, or the files are still not set up)",
        re.search(r"call \$tk_run\(allow, sent, out, stat, err\)\s*\n\s*gosub read\.all\s*\n\s*gosub draw\.all", cn) is not None and "every master copy matches its account" in cn and "difference" in cn and "still not set up" in cn)
