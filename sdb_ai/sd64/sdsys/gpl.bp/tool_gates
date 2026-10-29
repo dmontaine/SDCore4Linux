@@ -70,6 +70,15 @@ $include tk.h
    call $tk_keys('add', keys, 'f', 'filter', 'filter', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U2: Esc takes the filter off first, else opens the menu bar
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'queue', '&Gates', '&Queue the cell', '', '')
+   call $tk_keys('menu', keys, 'run', '&Gates', '&Run the queue', '', '')
+   call $tk_keys('menu', keys, 'drop', '&Gates', '&Drop the queue', '', '')
+   call $tk_keys('menu', keys, 'tighten', '&Gates', '&Tighten the account', '', '')
+   call $tk_keys('menu', keys, 'filter', '&View', '&Filter the accounts', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
 
    CW = 6                                                        ;* width of a gate's cell (VIS, the account rows on the screen, and X0, the column of the first cell, come from the layout)
    fnames = 'all accounts' : @fm : 'accounts of persons' : @fm : 'accounts with a gate on that reaches beyond SD'
@@ -79,7 +88,7 @@ $include tk.h
    ta = 0                                                        ;* the rows scrolled off the top
    flt = 0
    gen = 0
-   msg = 'Enter queues the opposite state for the cell, R runs what is queued for the account'
+   msg = ''
    done = 0
 
    call $tk_gate_info('list', gids)
@@ -106,10 +115,15 @@ $include tk.h
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, 'Gates', '', '', mr)              ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, 'Gates', msg)
       call $sl_curat(0, ctx<TK.C.YSTAT>)
       nm = ''
       screen key returning nm
+      mr = ''
+      busy = (if flt # 0 then 1 else 0)
+      if nm # '' then call $tk_menubar('key', ctx, keys, 'Gates', nm, busy, mr)       ;* the Esc rule: a filter is taken off before the bar opens
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -520,6 +534,15 @@ on.key:
          msg = 'read the machine again'
       case nm = 'ctrl-q'
          done = 1
+      case nm = 'esc'
+         if flt # 0 then
+            flt = 0
+            ci = 1
+            ta = 0
+            gosub make.view
+            gosub draw.all
+            msg = 'showing ' : fnames<flt + 1>
+         end
    end case
    return
 
@@ -532,6 +555,13 @@ redraw:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, 'Gates', mev, '', mr)                     ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      gosub on.key
+      return
+   end
    call $tk_help('hit', mev, mat.x + mat.w - 5, mat.y + 1, hit.m)
    if hit.m then
       call $tk_help('box', 'tool.gates.matrix', hm, 0, 0)

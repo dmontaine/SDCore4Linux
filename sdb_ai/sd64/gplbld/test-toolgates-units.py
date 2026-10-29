@@ -77,9 +77,9 @@ def checks(raw):
     ck("TG4", "the sentence is 'modify.account ' + the account's name from the register + the words: a gate's own on or off word from the table, or one of the four route words; no other source of a word",
        "sent = 'modify.account ' : anm<av> : ' ' : trim(change(words, @fm, ' '))" in mk and mk.count("words<-1> =") == 2 and "words<-1> = (if aq<av, k> = 1 then gon<k> else goff<k>)" in mk and "words<-1> = rw" in mk
        and set(re.findall(r"rw = '([a-z]+)'", mk)) == {"both", "ssh", "api", "none"})
-    ck("TG5", "there is no key that queues everything ON: nothing assigns the literal 1 to a queued cell, the cells are written only by queueing the opposite state, taking it back, tighten (0) and the refresh, and the key table has exactly the eight actions",
+    ck("TG5", "there is no key that queues everything ON: nothing assigns the literal 1 to a queued cell, the cells are written only by queueing the opposite state, taking it back, tighten (0) and the refresh, and the key table has exactly the eight actions and the Esc row that opens the menu bar (S.88 U2: the bar runs nothing, a choice is one of those keys)",
        not re.search(r"^\s*aq<.*>\s*=\s*1\b", pg, re.M) and re.search(r"aq<av, k> = \(if nw = s0 then '' else nw\)", pg) is not None
-       and sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg))) == sorted(["help", "queue", "run", "drop", "tighten", "filter", "refresh", "quit"]))
+       and sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg))) == sorted(["help", "queue", "run", "drop", "tighten", "filter", "refresh", "quit", "menu"]))
     th = block(pg, "tighten")
     ck("TG6", "T queues OFF (0) and only for a built gate that is off as delivered and on now, and not sh or os for an account that is not a person",
        "aq<av, k> = 0" in th and "gstat<k> = 'built' and gdef<k> = 'off' and ast<av, k> = 1" in th and "person.only = (gids<k> = 'sh' or gids<k> = 'os')" in th and "not(person.only and aty<av> # 'USER')" in th and th.count("aq<av, k> =") == 1)
