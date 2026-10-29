@@ -110,6 +110,10 @@
 *               to its cursor) and Ask about this record.  Nothing is sent before the preview is answered Send.  An answer may propose edits of the record, shown as a diff in
 *               full; Accept changes the EDITOR'S BUFFER as one undo step (Ctrl-Z) and nothing else - saving is the person's own act, through the same save path as ever.
 *               Without the AI nothing in the IDE changes.
+* 29 Oct 26 dm  The Opus review of stage F and D1, each finding verified by independent readers: Go to line gave gl.p no value before its first element (the first use stopped the IDE);
+*               Run a command is EXECUTE ... TRAPPING ABORTS; a collection record's text is kept in the text area's field-mark form (it was "changed" for ever), compared as text and
+*               with a guard before JBUILD; Replace and Query replace change the RECORD behind a token-form tab (ed.source, ed.shown); no string is cut at 99,999 characters; a text to find
+*               over 256 characters is refused (11552); Export asks the non-ASCII test and writes the record; Import's collection refusal is 11557; Go to line finds tokens in any case.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -157,6 +161,7 @@ $include dictdict.h
 
    MAXREC = 2000                           ;* records listed for a file (and read by Find in the records, and from a select list)
    MAXHIT = 500                            ;* lines a search lists
+   FINDMAX = 256                           ;* the longest text Find, Replace, Query replace and List take: INDEX cuts a longer one and COUNT stops the program (29 Oct 26, review R6)
    MAXSEL = 10                             ;* 28 Oct 26 (stage B): records of an active select list opened in tabs at the start
    MAXLOCK = 100                           ;* 28 Oct 26 (stage B): tabs that can hold a record lock at one time (file variables kept in tfv)
    LAYW = 140                              ;* what the layout is made for (the owner's 140 by 43 for every full-screen app): a bigger window is used whole, a smaller one
@@ -1384,10 +1389,13 @@ lock.take:
 
 * 29 Oct 26 (stage F).  In: lk.rec, a record of a collection file as READ gave it (a collection or an array).  Out: lk.rec as the text of its JSON, one element to a line
 *   (JBUILD with JB$PRETTY, the layout CT shows), or lk.err (11684) when it is neither, or has no JSON form (JBUILD gives a null string and STATUS() 1019, never an abort).
+*   29 Oct 26 (review R3): the lines are joined by FIELD MARKS, which is how the text area keeps them (the memo turns a line feed into one); JBUILD's own line feeds would make the tab "changed" for
+*   ever, the text area's text never being equal to the text it was given.  Lossless: JBUILD writes a line feed inside a string as \n and every byte under 32 or over 127 as an escape, so no mark can
+*   stand in the text it makes; coll.value turns the field marks back into line feeds before JPARSE (a mark typed inside a string would be read as data).
 coll.text:
    lk.ct = jtype(lk.rec)
    lk.cj = ''
-   if lk.ct = 'collection' or lk.ct = 'array' then lk.cj = jbuild(lk.rec, JB$PRETTY)
+   if lk.ct = 'collection' or lk.ct = 'array' then lk.cj = convert(char(10), @fm, jbuild(lk.rec, JB$PRETTY))
    if lk.cj = '' then
       lk.err = sysmsg(11684, lk.name, lk.id)
       lk.rec = ''
@@ -2521,8 +2529,16 @@ save.one:
          gosub dict.trim                     ;* the tab holds the item without its compiled code: so is the disk record compared
          disk = dt.rec
       end
-      if sv.kind = 'coll' then disk = jbuild(disk, JB$PRETTY)      ;* 29 Oct 26 (stage F): the record as the tab read it (a plain value there now gives a null string: a change)
-      if disk # sv.saved then
+      if sv.kind = 'coll' then
+         * 29 Oct 26 (stage F): the record as the tab read it, in the text area's form (see coll.text).  JBUILD of anything that is not a collection or an array STOPS the program (message 11121); a
+         *   READ of a collection file gives one of those or fails, but a read trigger could hand back a string: that is a change, so the question is asked (review R8).
+         if jtype(disk) = 'collection' or jtype(disk) = 'array' then
+            disk = convert(char(10), @fm, jbuild(disk, JB$PRETTY))
+         end else
+            disk = ''
+         end
+      end
+      if (disk : '|') # (sv.saved : '|') then      ;* as text: "1" and "1.0" are one number, two texts (review R8)
          screen msgbox sysmsg(11203, sv.name, sv.id) buttons 'Overwrite,Cancel' default 2 returning b else b = 0
          if b # 1 then
             if not(sv.slot) then release fv, sv.id
@@ -2547,11 +2563,14 @@ save.one:
       end
       release fv, sv.id
    end
+   sv.reload = @false
    if sv.kind = 'coll' then
       * 29 Oct 26 (stage F): the tab keeps the record in the one layout JBUILD gives it, so that the next save compares like with like and the tab is not "changed" because it was typed compact
-      sv.text = jbuild(sv.out, JB$PRETTY)
+      sv.shown = sv.text
+      sv.text = convert(char(10), @fm, jbuild(sv.out, JB$PRETTY))
       k = 't' : u
       bx{k} = sv.text
+      sv.reload = ((sv.text : '|') # (sv.shown : '|'))        ;* review R8: the editor is loaded again only when the layout changed under the person's hands (its undo steps go with that)
    end
    k = 's' : u
    bx{k} = sv.text
@@ -2566,13 +2585,15 @@ save.one:
       rt.dict = sv.dict
       gosub refresh.tree.for                   ;* the record is in the file now: the tree lists it
    end
-   if sv.kind = 'coll' and sv.i = cb then gosub load.current       ;* 29 Oct 26 (stage F): the editor shows the layout that was kept
+   if sv.reload and sv.i = cb then gosub load.current              ;* 29 Oct 26 (stage F): the editor shows the layout that was kept
    return
 
 * In: sv.text, sv.name, sv.id.  Out: cv.ok, cv.y (the collection or array the text is).  JPARSE answers a null string and STATUS() 1020 (INMAT() the character it gave up at) for text that is
 *   not a JSON object or array; that is said in a box (11743) and nothing is written.  (29 Oct 26, stage F.)
 coll.value:
-   cv.y = jparse(sv.text)
+   * The tab's text has its lines joined by field marks (coll.text); JPARSE reads a field mark between tokens as white space but BYTE 254 INSIDE a string or a name as data, so a Return typed in the
+   *   middle of a string put a mark byte in the value.  The line feeds go back first: between tokens they are white space, inside a string the parse stops (11743) and says where.  (Review of the fixes, CT1.)
+   cv.y = jparse(convert(@fm, char(10), sv.text))
    cv.st = status()
    cv.at = inmat()
    cv.ok = (cv.st = 0)
@@ -3173,7 +3194,7 @@ do.fields:
    if fd.coll then
       call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)
       if fd.res<1> then
-         fd.text = jbuild(fd.c, JB$PRETTY)
+         fd.text = convert(char(10), @fm, jbuild(fd.c, JB$PRETTY))        ;* the text area's form (coll.text)
          if fd.text # '' then fd.new = fd.text
       end
    end else
@@ -3557,6 +3578,10 @@ do.find:
    end
    screen ask sysmsg(11210, ctx.file) returning pat else return
    if pat = '' then return
+   if len(pat) > FINDMAX then
+      msg = sysmsg(11552, FINDMAX)               ;* INDEX cuts a text at 256 characters and would list records that do not hold it (review of the fixes, CB1)
+      return
+   end
    open ctx.file to fv else
       msg = sysmsg(11200, ctx.file)
       return
@@ -3672,9 +3697,11 @@ find.in.line:
       fp.nee = upcase(fp.nee)
    end
    fp.ln = len(fp.nee)
+   if fp.ln > FINDMAX then return               ;* INDEX would cut the text at 256 and "find" what is not there; the commands refuse such a text at the prompt, this keeps any other caller safe
    fp.p = fp.from
+   fp.hl = len(fp.hay)
    loop
-      fp.i = index(fp.hay[fp.p, 99999], fp.nee, 1)
+      fp.i = index(fp.hay[fp.p, fp.hl], fp.nee, 1)
       if fp.i = 0 then exit
       fp.s = fp.p + fp.i - 1
       fp.good = @true
@@ -3710,7 +3737,7 @@ replace.line:
       rl.from = fp.at + len(rl.old)
       rl.n += 1
    repeat
-   rl.out := rl.line[rl.from, 99999]
+   rl.out := rl.line[rl.from, len(rl.line)]         ;* the rest of the line, whatever its length (29 Oct 26: it was cut at 99,999 characters)
    return
 
 * Ctrl-R, as SED's: a text is replaced by another all through the record in the editor, as ONE undo step (29 Oct 26: it was set through load.current, which forgot the undo steps).  The
@@ -3720,16 +3747,21 @@ do.replace:
    if not(ed.ok) then return
    screen ask sysmsg(11232) returning rp.old else return
    if rp.old = '' then return
+   if len(rp.old) > FINDMAX then
+      msg = sysmsg(11552, FINDMAX)
+      return
+   end
    screen ask sysmsg(11233) returning rp.new else return
+   gosub ed.source
    if fo.case and not(fo.word) then
-      rp.n = count(ed.t, rp.old)
-      ed.new = change(ed.t, rp.old, rp.new)
+      rp.n = count(ed.src, rp.old)
+      ed.new = change(ed.src, rp.old, rp.new)
    end else
       rp.n = 0
       ed.new = ''
-      rp.nl = dcount(ed.t, @fm)
+      rp.nl = dcount(ed.src, @fm)
       for rp.j = 1 to rp.nl
-         rl.line = ed.t<rp.j>
+         rl.line = ed.src<rp.j>
          rl.old = rp.old
          rl.new = rp.new
          gosub replace.line
@@ -3741,9 +3773,36 @@ do.replace:
       msg = sysmsg(11234, 0)
       return
    end
+   gosub ed.shown
+   if not(ed.ok) then return
    ed.cy = 0
    gosub ed.set
    msg = sysmsg(11234, rp.n)
+   return
+
+* 29 Oct 26 (review R4).  In: ed.t (the live text).  Out: ed.src, the text Replace and Query replace work on, and ed.tok.  A tab that shows the token form (a data record, a dictionary item, a
+*   VOC record) is changed as the RECORD it stands for, so that a colon in a value is a colon and a mark's token (:@vm:) is never text to be found or changed; the record is shown again by
+*   ed.shown.  Any other tab is changed as the text it is.  The lines are the record's fields one to one either way, so a line number is the same in both.
+ed.source:
+   ed.src = ed.t
+   ed.kk = 'm' : bu<cb>
+   ed.tok = bx{ed.kk}
+   if ed.tok then call $recarr('fromtext', ed.t, ed.src, ed.ok2)
+   return
+
+* In: ed.new, the changed record (ed.source's); ed.tok.  Out: ed.new as the editor shows it, with ed.ok true.  The token form is refused for a record in which a field would be just the text of a
+*   mark token (it would be read back as a mark): ed.ok is false, msg says so (11992) and the text is left as it was.
+ed.shown:
+   ed.ok = @true
+   if ed.tok then
+      call $recarr('totext', ed.new, ed.disp, ed.ok2)
+      if ed.ok2 then
+         ed.new = ed.disp
+      end else
+         msg = sysmsg(11234, 0) : '. ' : sysmsg(11992, ed.disp)        ;* "0 replacement(s)": 11992 alone says why the token form cannot show the text, not that nothing was replaced (review of the fixes, TF3)
+         ed.ok = @false
+      end
+   end
    return
 
 * Search / Query replace: each match is asked about - Yes, No, All (the rest without asking) or Quit - with the line it is in; the answers are collected and the text is set ONCE at the end
@@ -3753,16 +3812,22 @@ do.qreplace:
    if not(ed.ok) then return
    screen ask sysmsg(11232) returning qr.old else return
    if qr.old = '' then return
+   if len(qr.old) > FINDMAX then
+      msg = sysmsg(11552, FINDMAX)
+      return
+   end
    screen ask sysmsg(11233) returning qr.new else return
-   ed.new = ed.t
-   qr.nl = dcount(ed.t, @fm)
+   gosub ed.source
+   ed.new = ed.src
+   qr.nl = dcount(ed.src, @fm)
    qr.yes = 0
    qr.no = 0
    qr.all = @false
    qr.quit = @false
    qr.last = 0
    for qr.j = 1 to qr.nl
-      qr.line = ed.t<qr.j>
+      qr.line = ed.src<qr.j>
+      qr.shown = ed.t<qr.j>                          ;* the line as the person sees it (the token form shows a mark as :@vm:); the matches are found in qr.line
       qr.out = ''
       qr.from = 1
       loop
@@ -3773,7 +3838,7 @@ do.qreplace:
       until not(fp.at) or qr.quit
          qr.take = qr.all
          if not(qr.all) then
-            qr.body = sysmsg(11546, qr.old, qr.new, qr.j) : @vm : qr.line
+            qr.body = sysmsg(11546, qr.old, qr.new, qr.j) : @vm : qr.shown
             screen msgbox qr.body buttons 'Yes,No,All,Quit' default 1 returning qr.b else qr.b = 4
             last.status = char(1)
             begin case
@@ -3799,7 +3864,7 @@ do.qreplace:
             qr.from = fp.at + len(qr.old)
          end
       repeat
-      qr.out := qr.line[qr.from, 99999]
+      qr.out := qr.line[qr.from, len(qr.line)]
       ed.new<qr.j> = qr.out
    until qr.quit
    next qr.j
@@ -3807,6 +3872,8 @@ do.qreplace:
       msg = sysmsg(11547, 0, qr.no)
       return
    end
+   gosub ed.shown
+   if not(ed.ok) then return
    ed.cy = qr.last
    gosub ed.set
    msg = sysmsg(11547, qr.yes, qr.no)
@@ -3818,6 +3885,10 @@ do.view:
    if not(ed.ok) then return
    screen ask sysmsg(11543) returning vw.pat else return
    if vw.pat = '' then return
+   if len(vw.pat) > FINDMAX then
+      msg = sysmsg(11552, FINDMAX)
+      return
+   end
    err.rows = ''
    err.lines = ''
    vw.n = 0
@@ -3889,7 +3960,7 @@ do.case:
       if dc.j = sr.y2 then dc.z = sr.x2 - 1
       dc.part = dc.ln[dc.a, dc.z - dc.a + 1]
       if dc.up then dc.part = upcase(dc.part) else dc.part = downcase(dc.part)
-      ed.new<dc.j> = dc.ln[1, dc.a - 1] : dc.part : dc.ln[dc.z + 1, 99999]
+      ed.new<dc.j> = dc.ln[1, dc.a - 1] : dc.part : dc.ln[dc.z + 1, len(dc.ln)]
    next dc.j
    ed.cy = 0
    gosub ed.set
@@ -3900,6 +3971,8 @@ do.case:
 do.export:
    gosub ed.read
    if not(ed.ok) then return
+   gosub na.check                       ;* 29 Oct 26 (review R7): as Write a copy, not from a tab whose record holds bytes outside ASCII (a box)
+   if not(na.ok) then return
    gosub sel.range
    if not(sr.ok) then
       msg = sysmsg(11551)
@@ -3908,6 +3981,17 @@ do.export:
    xp.res = ''
    call $tk_ai('select', ed.t, sr.my : @vm : sr.mx : @vm : sr.cy : @vm : sr.cx, xp.res)
    wa.text = change(xp.res<1>, char(10), @fm)
+   * 29 Oct 26 (review R7): a tab that shows the token form writes the RECORD, as Write a copy does: a whole token in the selection (:@vm:) becomes the mark; half of one stays the text it is
+   ed.kk = 'm' : bu<cb>
+   if bx{ed.kk} then
+      * Only whole lines: a cut that starts or ends inside a line could take half of a token (or text that only looks like one, a literal @vm next to the cut) and make a mark of it; that is
+      *   written as the text shown.  (Review of the fixes, TF2.)
+      xp.last = ed.t<sr.y2>
+      if sr.x1 = 1 and sr.x2 > len(xp.last) then
+         call $recarr('fromtext', wa.text, ex.rec, ed.ok2)
+         wa.text = ex.rec
+      end
+   end
    gosub default.file
    wa.file = df
    wa.id = ''
@@ -3945,7 +4029,7 @@ do.import:
       return
    end
    if fileinfo(fv, FL$COLLECTION) then
-      msg = sysmsg(11698, im.file)
+      msg = sysmsg(11557, im.file)              ;* 29 Oct 26 (review R7): its own words (11698 is about Find in the records)
       return
    end
    read im.x from fv, im.id else
@@ -3968,7 +4052,7 @@ do.import:
    end
    if im.cx < 1 then im.cx = 1
    im.block = im.ln[1, im.cx - 1] : im.x
-   im.block := im.ln[im.cx, 99999]
+   im.block := im.ln[im.cx, len(im.ln)]
    ed.new = ed.t
    ed.new<im.cy> = im.block
    ed.cy = im.cy
@@ -3978,14 +4062,17 @@ do.import:
 
 * Build / Run a command (SED's XEQ): a command of the account's TCL is run as the prompt would run it - through the same command processor, so its gates are the prompt's - with its
 *   output captured into the table at the bottom.  The changed texts' copies are kept first (a command may end the session), and the locks the tabs hold are taken again after it (a
-*   bare RELEASE in it lets them go).  A command that asks for input from the keyboard is not for this.
+*   bare RELEASE in it lets them go).  A command that asks for input from the keyboard is not for this (its prompt is captured, not shown), and neither is one that changes the account (LOGTO):
+*   the IDE goes on in the account the command left (29 Oct 26, review R8: said, not guarded - a first-word test is not a wall, and a paragraph can do the same).
+*   TRAPPING ABORTS (29 Oct 26, review R2): a command that aborts - a program with a run-time error, ABORT, QUIT - is stopped as Run and Debug's are; without it the abort passed up and
+*   cast the IDE off with every unsaved tab.  What it printed before the abort is thrown away (kernel.c), so the table says it printed nothing.
 do.xeq:
    screen ask sysmsg(11554) returning xq.cmd else return
    xq.cmd = trimf(trimb(xq.cmd))
    if xq.cmd = '' then return
    gosub rc.tick
    xq.out = ''
-   execute xq.cmd capturing xq.out
+   execute xq.cmd trapping aborts capturing xq.out
    gosub relock.all
    last.status = char(1)
    err.rows = ''
@@ -4031,11 +4118,15 @@ do.goto:
    gl.text = trim(gl.text)
    gl.k = dcount(gl.text, ',')
    if gl.text = '' or gl.k > 3 then return
+   gl.p = ''                                    ;* 29 Oct 26 (review R1): an element of a variable that has no value stops the program; it was the first Go to line's end
    for gl.i = 1 to gl.k
-      gl.p<gl.i> = trim(field(gl.text, ',', gl.i))
-      if gl.p<gl.i> = '' then return
-      if not(num(gl.p<gl.i>)) then return
-      if gl.p<gl.i> + 0 < 1 then return
+      gl.v = trim(field(gl.text, ',', gl.i))
+      if gl.v = '' then return
+      if not(num(gl.v)) then return
+      gl.v = int(gl.v + 0)                      ;* 1.5 is 1: a line and a column are whole numbers
+      if gl.v < 1 then return
+      if gl.v > 99999999 then gl.v = 99999999   ;* an INDEX occurrence is a 32-bit number: 3000000000 stopped the program with "Numeric overflow" (review of the fixes, RT1)
+      gl.p<gl.i> = gl.v
    next gl.i
    gl.n = gl.p<1> + 0
    gosub goto.line
@@ -4043,20 +4134,22 @@ do.goto:
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    gl.ln = mw{'value'}<mw{'cy'} + 0>
+   gl.lo = downcase(gl.ln)                      ;* the tokens are found in any case (reading accepts :@VM:); the length is the same, so a position in one is a position in the other
    gl.col = gl.p<2> + 0
    if gl.k = 3 then
       gl.from = 1
       if gl.p<2> + 0 > 1 then
-         gl.q = index(gl.ln, ':@vm:', gl.p<2> + 0 - 1)
-         if gl.q = 0 then gl.q = index(gl.ln, ':@vm:', dcount(gl.ln, ':@vm:') - 1)
+         gl.q = index(gl.lo, ':@vm:', gl.p<2> + 0 - 1)
+         if gl.q = 0 then gl.q = index(gl.lo, ':@vm:', dcount(gl.lo, ':@vm:') - 1)
          if gl.q > 0 then gl.from = gl.q + 5
       end
       gl.col = gl.from
       if gl.p<3> + 0 > 1 then
-         gl.seg = gl.ln[gl.from, 99999]
+         gl.seg = gl.lo[gl.from, len(gl.lo)]
          gl.e = index(gl.seg, ':@vm:', 1)
          if gl.e > 0 then gl.seg = gl.seg[1, gl.e - 1]
          gl.q = index(gl.seg, ':@sm:', gl.p<3> + 0 - 1)
+         if gl.q = 0 then gl.q = index(gl.seg, ':@sm:', dcount(gl.seg, ':@sm:') - 1)   ;* a subvalue out of range goes to the last one, as a value does
          if gl.q > 0 then gl.col = gl.from + gl.q + 4
       end
    end

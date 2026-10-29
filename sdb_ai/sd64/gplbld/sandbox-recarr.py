@@ -11,6 +11,8 @@
 # 26 Oct 26 dm  Written for gpl.bp/recarr (the data mode of CED and the IDE's hand-over to it).
 # 28 Oct 26 dm  The editor merge, stage B: the IDE's token form follows the record's KIND, so the token rows (E, F) open records of the DATA file zzrfd (read back by
 #               a second probe), and a new row E0 holds that the same record in bp, a program, is never shown in the token form.  Written, NOT run.
+# 29 Oct 26 dm  Rows H0-H2 (review R4): Replace on a token-form tab changes the colons of the TEXT and leaves the :@vm: tokens alone, and the saved record keeps its value mark; the data file
+#               gains the record tokcol (10:30 VM 11:45 / a:b) and the second probe reads three records.  Written, NOT run.
 # END-HISTORY
 #
 # WHAT IT PROVES.  CED edits a record as a tree, and the record comes back with its value and subvalue marks put in from the SHAPE of the tree alone.  That is only safe if
@@ -516,14 +518,15 @@ FIELDS_FIX2 = """   execute 'DELETE.FILE zzrfd%(r)s' capturing j0
    write 'first line':@fm:'# a comment':@fm:'hello world' on d, 'plain'
    write 'Don':@vm:'Henry':@vm:'June':@fm:'x':@sm:'y':@tm:'z' on d, 'tokrec'
    write '@vm':@fm:'b':@vm:'c' on d, 'tokfix'
+   write '10:30':@vm:'11:45':@fm:'a:b' on d, 'tokcol'
    crt 'FIXTURE2 DONE'
 end
 """
 # 28 Oct 26 (the editor merge, stage B): the token form follows the KIND of the record - a data record shows it, a program (bp) never does - so the token rows read
 # records of the data file, through this probe, run as the fixture above is
 FIELDS_PROBE2 = """   open 'zzrfd%(r)s' to d else stop 'no data file'
-   ids = 'tokrec':@fm:'tokfix'
-   for i = 1 to 2
+   ids = 'tokrec':@fm:'tokfix':@fm:'tokcol'
+   for i = 1 to 3
       read r from d, ids<i> else r = '<absent>'
       crt 'DREC':i:'[':convert(@fm:@vm:@sm:@tm, '^|~#', r):']'
    next i
@@ -562,10 +565,10 @@ def fields_part(box, sysd, made):
 
     def ddisk():
         o = sb.sess(box, "RUN bp %s" % (probe + "b"))
-        return [tag(o, "DREC%d" % i) for i in (1, 2)]
+        return [tag(o, "DREC%d" % i) for i in (1, 2, 3)]
 
     dd0 = ddisk()
-    row("control: the second probe reads the data file's token records as written", dd0 == ["Don|Henry|June^x~y#z", "@vm^b|c"], repr(dd0))
+    row("control: the second probe reads the data file's token records as written", dd0 == ["Don|Henry|June^x~y#z", "@vm^b|c", "10:30|11:45^a:b"], repr(dd0))
 
     e = sb.Ide(box)
     e.keys(F12)
@@ -720,6 +723,24 @@ def fields_part(box, sysd, made):
     row("a data record whose field 1 is the text @vm is shown as it is: the status line says field 1 holds the text of a mark token, and the tab is not marked changed",
         "Marks are shown as characters: field 1 holds the text of a mark token" in st and re.search(r"%s tokfix \*" % dfile, st) is None, st)
     row("... and the record on disk is untouched", ddisk()[1] == dd0[1], repr(ddisk()[1]))
+    e.end()
+
+    # ---- H: Replace on a token-form tab changes the RECORD, not the tokens (the review of 29 Oct 26, R4).  WRITTEN, NOT RUN; the old Replace changed the shown text, so ':' became '.' in :@vm: too -------
+    e = sb.Ide(box, "IDE %s tokcol" % dfile)
+    e.quiet()
+    t = "\n".join(e.lines())
+    row("H0 control: a data record 10:30 VM 11:45 / a:b opens in the token form: the editor shows 10:30:@vm:11:45", "10:30:@vm:11:45" in t and "a:b" in t, t[:600])
+    e.keys(sb.CTRL_R)
+    e.keys(":", sb.RET)
+    e.keys(".", sb.RET)
+    e.quiet()
+    t = "\n".join(e.lines())
+    st = e.status()
+    row("H1 Replace ':' with '.' changes the colons of the TEXT and not the token's: the editor shows 10.30:@vm:11.45 and a.b, and the status line says 3 replacements (one colon in each text)",
+        "10.30:@vm:11.45" in t and "a.b" in t and "3 replacement" in st, st + "\n" + t[:600])
+    e.keys(sb.CTRL_S)
+    dd = ddisk()
+    row("H2 Ctrl-S writes 10.30|11.45^a.b: the value mark is still a mark (the old Replace wrote ONE value, 10.30.@vm.11.45)", dd[2] == "10.30|11.45^a.b", repr(dd[2]))
     e.end()
 
     # ---- G: the language of a record is $sl_syntax's, as SED's: the first line decides when the name does not -------------------------------------------------------------

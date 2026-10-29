@@ -14,6 +14,7 @@
 #               fields, Save as and Write a copy are refused in a box before anything is asked, the disk keeps every byte, and a record whose only high bytes
 #               are SD's marks is NOT read-only (control).  The fixture gains r5; S0 does not read it.  WRITTEN, NOT RUN.  The AI edit's refusal is held as
 #               text only (test-idekinds-units.py K32): this suite has no fake provider.
+# 29 Oct 26 dm  Rows C1b and C1c (review R3): a collection record nobody has changed is not marked changed and Ctrl-S says there is nothing to save.  WRITTEN, NOT RUN.
 # END-HISTORY
 #
 # WHAT RUNS.  The IDE on a PSEUDO-TERMINAL at 140 by 42 (sandbox-ide.py's Ide, in the sandbox user's own account, as sandbox-recarr.py drives it), and pipe
@@ -605,7 +606,14 @@ def section_collection():
     e.quiet()
     row("C1 a collection file's record opens as the text of its JSON, one element to a line (it was refused until stage F), in a tab that says its name",
         '"a"' in editor_text(e) and "[c1]" in tab_row(e) and "IDE: " in "\n".join(e.lines()[:3]), "%r | %r" % (editor_text(e)[:200], tab_row(e)[:80]))
+    row("C1b the tab of a record nobody has changed is NOT marked changed (review R3, 29 Oct 26: JBUILD's line feeds against the text area's field marks made it changed for ever)",
+        re.search(r"%s c1 \*" % re.escape(COL), e.status()) is None, e.status()[:120])
+    e.keys(CTRL_S)
+    e.quiet()
+    row("C1c Ctrl-S on it says there is nothing to save, and the record on the disk is as it was", "No changes to save" in e.status() and disk().get("coll.c1") == '[{"a":1}]', "%r | %r" % (e.status()[:100], disk().get("coll.c1")))
     e.keys(DOWN, END, "\x7f", "2")                                      # line 2 is  "a": 1  : the 1 becomes 2
+    e.quiet()
+    row("C1d after the edit the tab IS marked changed (the positive control of C1b: the regex does see the marker)", re.search(r"%s c1 \*" % re.escape(COL), e.status()) is not None, e.status()[:120])
     e.keys(CTRL_S)
     e.quiet()
     d = disk()

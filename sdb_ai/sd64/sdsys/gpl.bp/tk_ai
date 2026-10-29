@@ -11,6 +11,7 @@
 * 28 Oct 26 dm  S.88 handoff step 2 (the owner's approval of Opus's proposal): actx<12>, the ids of the offered actions that do more than navigate; the default of an action proposal
 *               is Accept only when <5> says the actions navigate and the one proposed is not in <12>, so a delivered tile is accepted by Enter as the owner answered on 23 Oct
 *               and a pin or the Terminal tile is rejected by Enter, whatever else the page offered (it was: any pin or the Terminal tile on the page turned Accept off for all).
+* 29 Oct 26 dm  'select': the first line of a selection is taken to its end whatever its length (it was cut at 99,999 characters; Export the selection in the IDE reads it too).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -155,7 +156,7 @@ make.select:
          case t.y1 = t.y2
             t.part = t.ln[t.x1, t.x2 - t.x1]
          case t.q = t.y1
-            t.part = t.ln[t.x1, 99999]
+            t.part = t.ln[t.x1, len(t.ln)]
          case t.q = t.y2
             t.part = t.ln[1, t.x2 - 1]
          case 1

@@ -11,6 +11,8 @@
 # 29 Oct 26 dm  New with stage D.  WRITTEN, NOT RUN (the owner's rule for the full-screen phases: one complete run at the end).  The free check that holds the same properties as text is
 #               test-ideedit-units.py.  EXPECT FIRST-RUN FAULTS IN THE SUITE: the number of Down presses to an entry of a menu, the words of a box and how the form of Export and Import takes its
 #               answers are guesses from the other IDE suites.
+# 29 Oct 26 dm  The review's rows (R1, R2): G3 and G4 (Go to a line alone and 1.5,2.5; the IDE is up) and C2/C3 (a command that aborts leaves the IDE up).  G1 already held R1's second form.
+#               WRITTEN, NOT RUN.
 # END-HISTORY
 #
 # WHAT RUNS.  The IDE on a PSEUDO-TERMINAL at 140 by 43 in the sandbox user's own account (sandbox-ide.py's Ide), on a record of the file bp that this script writes.  EVERY VERDICT ON A RECORD IS READ
@@ -93,6 +95,10 @@ PROBE = """   open 'bp' to p else stop 'EPROBE no bp'
       read r from p, id then crt 'EREC ':id:' [':convert(@fm, '^', r):']' else crt 'EREC ':id:' <absent>'
    next i
    crt 'EPROBE END'
+end
+"""
+ABORTP = """   crt 'EABORT start'
+   abort 'EABORT now'
 end
 """
 SUBS = {"l1": LINES[0], "l2": LINES[1], "l3": LINES[2], "l4": LINES[3], "rec": REC, "exp": EXP}
@@ -267,6 +273,15 @@ def section_goto():
     e.keys("0", RET)
     e.quiet()
     row("G2 a zero is not a line: the cursor stays", re.search(r"\b3\b\D+\b4\b", e.status()) is not None, e.status()[:120])
+    e.keys(CTRL_L)
+    e.keys("2", RET)
+    e.quiet()
+    row("G3 'Go to 2' (a line alone) leaves the IDE up and puts the cursor on line 2 (review R1, 29 Oct 26: gl.p was used before it had a value, so any answer stopped the IDE)",
+        "IDE: " in "\n".join(e.lines()[:3]) and re.search(r"\b2\b", e.status()) is not None, e.status()[:120])
+    e.keys(CTRL_L)
+    e.keys("1.5,2.5", RET)
+    e.quiet()
+    row("G4 'Go to 1.5,2.5' is line 1, column 2 (a line and a column are whole numbers), and the IDE is still up", "IDE: " in "\n".join(e.lines()[:3]) and re.search(r"\b1\b\D+\b2\b", e.status()) is not None, e.status()[:120])
     done(e)
 
 
@@ -280,6 +295,20 @@ def section_xeq():
     menu(e, 4, 1)                                                       # View menu, Refresh
     row("V1 Refresh leaves the IDE up and the record on the screen", "alpha beta" in editor_text(e) and "IDE: " in "\n".join(e.lines()[:3]), "%r" % editor_text(e)[:100])
     done(e)
+    # review R2, 29 Oct 26: a command that ABORTS must not take the IDE with it (EXECUTE ... TRAPPING ABORTS).  The aborting program is compiled here and not in the setup, so that a compile
+    # fault is one failed row and not the end of the run.  WRITTEN, NOT RUN.
+    put("zzeabort" + RUN, ABORTP)
+    o = sb.sess(BOX, "BASIC bp zzeabort" + RUN)
+    ok = re.search(r"(?m)^Compiled 1 program\(s\) with no errors", o) is not None
+    row("C2 setup: the program that aborts compiled", ok, o[-300:])
+    if ok:
+        e = open_rec()
+        menu(e, 3, 4)
+        e.keys("RUN bp zzeabort" + RUN, RET)
+        e.quiet()
+        row("C3 a command that aborts leaves the IDE up with the record on the screen (without TRAPPING ABORTS the abort cast the IDE off)", "IDE: " in "\n".join(e.lines()[:3]) and "alpha beta" in editor_text(e),
+            "%r | %r" % ("\n".join(e.lines()[:3]), editor_text(e)[:100]))
+        done(e)
 
 
 def teardown():

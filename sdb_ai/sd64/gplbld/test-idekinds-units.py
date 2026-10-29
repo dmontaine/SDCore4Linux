@@ -14,6 +14,8 @@ START-HISTORY:
 28 Oct 26 dm  Review fixes (findings 4 and 9 of the L2 review): K24 follows do.compile saving first only when there is something to save (is.dirty, untitled, new), two mutants;
               K33 and K34 follow the countdown reading the KERNEL's inactivity clock (kernel(K$AUTOLOGOUT, -2)) - the IDE's own bookkeeping (idle.count, IDL.SLACK, idl.t0/fp) is gone;
               four countdown mutants replaced.
+29 Oct 26 dm  Review R3 and R8: K10, K37 and K39 follow the collection text in the text area's field-mark form (convert(char(10), @fm, jbuild(...))), the guard before JBUILD of the disk
+              record, the text compare and the conditional reload; seven mutants replaced or added.
 END-HISTORY
 
 WHAT IT HOLDS (gpl.bp/ide).  `ide dict file id` and `ide voc id` start on a dictionary item or a VOC record; CREATING.SEQKEY in the place of the id takes the file's
@@ -170,15 +172,18 @@ def checks(src):
        ordered(lt, "open lk.dict, lk.file to fv else", "lk.coll = (fileinfo(fv, FL$COLLECTION) + 0 # 0)", "if lk.coll then", "lk.kind = 'coll'", "end else", "gosub kind.of",
                "if tused<lk.s> = '' then exit", "lk.err = sysmsg(11690)", "tfv(lk.s) = fv", "readu ", "if lk.coll and lk.err = '' and lk.exists then gosub coll.text", "if lk.err # '' then lk.got = @false")
        and lt.find("FL$COLLECTION") < lt.find("readu ") and lt.find("FL$COLLECTION") < lt.find("read lk.rec")
-       and ordered(L["coll.text"], "lk.ct = jtype(lk.rec)", "jbuild(lk.rec, JB$PRETTY)", "if lk.cj = '' then", "lk.err = sysmsg(11684, lk.name, lk.id)", "if lk.got then release tfv(lk.s), lk.id"), "")
+       and ordered(L["coll.text"], "lk.ct = jtype(lk.rec)", "convert(char(10), @fm, jbuild(lk.rec, JB$PRETTY))", "if lk.cj = '' then", "lk.err = sysmsg(11684, lk.name, lk.id)", "if lk.got then release tfv(lk.s), lk.id"), "")
     cx = L["coll.value"]
     ck("K37", "stage F: the text of a collection file's record is parsed by JPARSE with its STATUS() and INMAT() taken at once, and refused in a box (11743) unless it is a collection or an array; "
-       "save.one writes sv.out - the parsed collection for kind 'coll', else the text - and compares the disk record AS JBUILD'S TEXT with what the tab read; the kept text is the JBUILD layout, so "
-       "a compact text is not 'changed' for ever",
-       ordered(cx, "cv.y = jparse(sv.text)", "cv.st = status()", "cv.at = inmat()", "cv.ok = (cv.st = 0)", "jtype(cv.y) = 'collection' or jtype(cv.y) = 'array'", "sysmsg(11743, sv.name, sv.id, cv.at)", "gosub refuse.box")
+       "save.one writes sv.out - the parsed collection for kind 'coll', else the text - and compares the disk record AS JBUILD'S TEXT, in the text area's form (lines joined by field marks, "
+       "as coll.text made it - 29 Oct 26 review R3), with what the tab read, AS TEXT; a disk value that is not a collection or an array (a read trigger's string: JBUILD would stop the program) is a "
+       "change; the kept text is the JBUILD layout, so a compact text is not 'changed' for ever, and the editor is loaded again (its undo steps gone) only when that layout differs from what it showed",
+       ordered(cx, "cv.y = jparse(convert(@fm, char(10), sv.text))", "cv.st = status()", "cv.at = inmat()", "cv.ok = (cv.st = 0)", "jtype(cv.y) = 'collection' or jtype(cv.y) = 'array'", "sysmsg(11743, sv.name, sv.id, cv.at)", "gosub refuse.box")
        and ordered(L["save.one"], "sv.out = sv.text", "if sv.kind = 'coll' then", "gosub coll.value", "if not(cv.ok) then return", "sv.out = cv.y", "readu disk from fv, sv.id locked",
-                   "if sv.kind = 'coll' then disk = jbuild(disk, JB$PRETTY)", "if disk # sv.saved then", "writeu sv.out on fv", "write sv.out on fv", "if sv.kind = 'coll' then", "sv.text = jbuild(sv.out, JB$PRETTY)",
-                   "k = 's' : u", "bx{k} = sv.text", "if sv.kind = 'coll' and sv.i = cb then gosub load.current"), "")
+                   "if sv.kind = 'coll' then", "if jtype(disk) = 'collection' or jtype(disk) = 'array' then", "disk = convert(char(10), @fm, jbuild(disk, JB$PRETTY))", "disk = ''",
+                   "if (disk : '|') # (sv.saved : '|') then", "writeu sv.out on fv", "write sv.out on fv", "sv.reload = @false", "if sv.kind = 'coll' then", "sv.shown = sv.text",
+                   "sv.text = convert(char(10), @fm, jbuild(sv.out, JB$PRETTY))", "sv.reload = ((sv.text : '|') # (sv.shown : '|'))",
+                   "k = 's' : u", "bx{k} = sv.text", "if sv.reload and sv.i = cb then gosub load.current"), "")
     ck("K38", "stage F: a record of a collection file that is not there opens as a NEW record holding {} (an empty collection), in open.record and in New record (add.new.record), unless the person took a copy",
        "if lk.kind = 'coll' and or.new and rc.choice # 'use' then tb.shown = '{}'" in L["open.record"]
        and "if lk.kind = 'coll' and rc.choice # 'use' then bx{k} = '{}'" in L["add.new.record"], "")
@@ -186,7 +191,7 @@ def checks(src):
     ck("K39", "stage F: Edit as fields on a collection record parses the tab's text FIRST (and says so in a box when it will not parse: the screen is not left), hands CED the collection with data type 0 and "
        "no file and no id (CED writes nothing), and takes the JBUILD text back; path.not.for is asked with pa.allow = 'coll' for this command only",
        ordered(fo, "pa.allow = 'coll'", "gosub path.not.for", "pa.allow = ''", "if pa.no then return", "fd.coll = (bx{k} = 'coll')", "gosub coll.value", "if not(cv.ok) then return", "fd.c = cv.y",
-               "gosub leave.screen", "call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)", "fd.text = jbuild(fd.c, JB$PRETTY)", "call $cedit(fd.arr, '', '', 2,")
+               "gosub leave.screen", "call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)", "fd.text = convert(char(10), @fm, jbuild(fd.c, JB$PRETTY))", "call $cedit(fd.arr, '', '', 2,")
        and "pa.allow = ''" in main, "")
     pn = L["path.not.for"]
     ck("K40", "stage F: path.not.for refuses a collection record for compile, run, debug, catalog, SED, Save as and the include (11744) unless pa.allow is 'coll', and keeps its operating-system-file "
@@ -220,7 +225,7 @@ def checks(src):
        and "release" not in so[so.find("writeu sv.out"): so.find("end else", so.find("writeu sv.out") + 1) + 10]
        and "if not(sv.slot) then release fv, sv.id" in so, "")
     ck("K16", "save.one compares a dictionary item with the disk record trimmed the same way (dict.trim: an A, C, I or S item without its compiled code from DICT.SYS.INFO on)",
-       ordered(so, "if sv.kind = 'dict' then", "gosub dict.trim", "if disk # sv.saved then")
+       ordered(so, "if sv.kind = 'dict' then", "gosub dict.trim", "if (disk : '|') # (sv.saved : '|') then")
        and "dt.rec = trim(field(dt.rec, @fm, 1, DICT.SYS.INFO - 1), @fm, 'T')" in L["dict.trim"] and "$include dictdict.h" in raw
        and ordered(orc, "if lk.kind = 'dict' then", "gosub dict.trim"), "")
     ck("K17", "the locks are given back: tab.unlock RELEASEs through the tab's file variable and frees the slot; Close calls it before the tab goes; release.all runs for every tab "
@@ -375,8 +380,16 @@ MUTANTS = [
     ("JSON that will not parse is written", "K37", sub("ide", "      gosub coll.value\n      if not(cv.ok) then return\n      sv.out = cv.y", "      cv.ok = 1\n      sv.out = sv.text")),
     ("the status is read after INMAT", "K37", sub("ide", "   cv.st = status()\n   cv.at = inmat()", "   cv.at = inmat()\n   cv.st = status()")),
     ("a plain value passes for a collection", "K37", sub("ide", "   if cv.ok then cv.ok = (jtype(cv.y) = 'collection' or jtype(cv.y) = 'array')", "   null")),
-    ("the disk record is compared as a collection variable, not as text", "K37", sub("ide", "      if sv.kind = 'coll' then disk = jbuild(disk, JB$PRETTY)", "      null")),
-    ("the text written is the typed text", "K37", sub("ide", "      sv.text = jbuild(sv.out, JB$PRETTY)\n", "")),
+    ("the disk record is compared as a collection variable, not as text", "K37", sub("ide", "            disk = convert(char(10), @fm, jbuild(disk, JB$PRETTY))", "            null")),
+    ("the disk record is compared in JBUILD's own line feeds", "K37", sub("ide", "            disk = convert(char(10), @fm, jbuild(disk, JB$PRETTY))", "            disk = jbuild(disk, JB$PRETTY)")),
+    ("a disk value that is not a collection reaches JBUILD", "K37", sub("ide", "         if jtype(disk) = 'collection' or jtype(disk) = 'array' then\n            disk = convert", "         if 1 then\n            disk = convert")),
+    ("the disk record is compared as a number", "K37", sub("ide", "      if (disk : '|') # (sv.saved : '|') then", "      if disk # sv.saved then")),
+    ("the text written is the typed text", "K37", sub("ide", "      sv.text = convert(char(10), @fm, jbuild(sv.out, JB$PRETTY))\n", "")),
+    ("JPARSE is given the field marks of the text area", "K37", sub("ide", "cv.y = jparse(convert(@fm, char(10), sv.text))", "cv.y = jparse(sv.text)")),
+    ("the kept text has JBUILD's line feeds", "K37", sub("ide", "      sv.text = convert(char(10), @fm, jbuild(sv.out, JB$PRETTY))\n", "      sv.text = jbuild(sv.out, JB$PRETTY)\n")),
+    ("the editor is loaded again after every save of a collection record", "K37", sub("ide", "   if sv.reload and sv.i = cb then gosub load.current", "   if sv.kind = 'coll' and sv.i = cb then gosub load.current")),
+    ("a collection record is read with JBUILD's line feeds", "K10", sub("ide", "lk.cj = convert(char(10), @fm, jbuild(lk.rec, JB$PRETTY))", "lk.cj = jbuild(lk.rec, JB$PRETTY)")),
+    ("Edit as fields takes JBUILD's line feeds back", "K39", sub("ide", "         fd.text = convert(char(10), @fm, jbuild(fd.c, JB$PRETTY))", "         fd.text = jbuild(fd.c, JB$PRETTY)")),
     ("a new collection record starts empty text", "K38", sub("ide", "   if lk.kind = 'coll' and or.new and rc.choice # 'use' then tb.shown = '{}'", "   null")),
     ("New record in a collection file starts empty text", "K38", sub("ide", "   if lk.kind = 'coll' and rc.choice # 'use' then bx{k} = '{}'", "   null")),
     ("Edit as fields does not parse first", "K39", sub("ide", "      gosub coll.value\n      if not(cv.ok) then return\n      fd.c = cv.y", "      fd.c = collection()")),

@@ -14,6 +14,9 @@ Next release - in progress
                          - Build, Run a command runs a TCL command through the same command processor as the prompt, so with the prompt's gates, and puts what it printed in the table.
                            The changed texts' recovery copies are kept before it runs and the tabs' locks taken again after it.
                          - Go to line takes line,column, and field,value,subvalue in a record shown with :@vm: marks. View, Refresh draws the screen again.
+                         - In a record shown with :@vm: marks, Replace and Query replace change the record's own text and never a mark's token (a colon in 10:30 is a colon). A text to
+                           find (Find in the records, List, Replace, Query replace) is at most 256 characters. A command run with Run a command that aborts is stopped and the IDE
+                           stays up. Export the selection writes whole lines of such a record as the record and is refused for a record with characters outside ASCII.
                          It does NOT add keys: the new commands are menu entries only. Delete word, overwrite and auto-indent, the top and bottom keys, tab stops and FORMAT are not in yet.
 
 29 Oct 26  THE IDE EDITS THE RECORDS OF A DATA COLLECTION FILE AS JSON.

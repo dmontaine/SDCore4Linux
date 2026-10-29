@@ -11,6 +11,7 @@
 # 28 Oct 26 dm  New with stage E.  WRITTEN, NOT RUN (the owner's rule for the full-screen phases: one complete run at the end).  The free check that holds the same properties
 #               as text is test-idepath-units.py.  EXPECT FIRST-RUN FAULTS IN THE SUITE: the keys that answer the overwrite question (Left, Return), the exact words of a box, and
 #               whether a refused open leaves the editor focused are guesses from the other IDE suites.
+# 29 Oct 26 dm  Row C6 (review R8): Write a copy is File's fifth entry (DOWN * 4, as sandbox-ide-kinds.py NA7); DOWN * 7 wrapped round to New record, and the row passed on the word "copy".
 # END-HISTORY
 #
 # WHAT RUNS.  The IDE on a PSEUDO-TERMINAL at 140 by 43 (sandbox-ide.py's Ide) in the sandbox user's own account, opening FILES OF THE OPERATING SYSTEM (`ide path:/full/name`)
@@ -350,8 +351,9 @@ def section_changed():
     box = e.text()
     row("C5 a file renamed over the one the tab holds is refused ('renamed over it'), not saved into the old inode", "renamed over it" in box and rd(fpath("ren")) == b"replaced\n", "%r | %r" % (box[-300:], rd(fpath("ren"))))
     e.keys(RET)
-    e.keys(F10, DOWN * 7, RET)                                          # File / Write a copy (the place of the entry in the File menu is a guess: look here first if this row fails)
-    row("C6 Write a copy is offered for such a tab (the way out): the name form opens", "Write a copy" in e.text() or "copy" in e.text().lower(), e.text()[-300:])
+    e.keys(F10, DOWN * 4, RET)                                          # File / Write a copy: the fifth entry (DOWN * 7 wrapped round the seven entries to New record: review R8, 29 Oct 26; sandbox-ide-kinds.py NA7 uses DOWN * 4)
+    t6 = e.text()
+    row("C6 Write a copy is offered for such a tab (the way out): the name form opens (its own words, not the word 'copy' anywhere on the screen)", "Name of the" in t6 or "File:" in t6, t6[-300:])
     e.keys(ESC)
     done(e)
 

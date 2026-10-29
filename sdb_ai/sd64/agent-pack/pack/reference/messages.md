@@ -5522,6 +5522,15 @@ Nothing is selected: Ctrl-G sets the mark where the cursor is, then move the cur
 
 cited by: `ide`
 
+### msg:11552
+> kind=message tier=reference since=- src=sdsys/messages/11552:1#23b89253
+
+```
+A text to find can be at most %1 characters
+```
+
+cited by: `ide`
+
 ### msg:11553
 > kind=message tier=reference since=- src=sdsys/messages/11553:1#bea2d70d
 
@@ -5554,6 +5563,15 @@ cited by: `ide`
 
 ```
 "%1" printed nothing
+```
+
+cited by: `ide`
+
+### msg:11557
+> kind=message tier=reference since=- src=sdsys/messages/11557:1#c6d1edd2
+
+```
+%1 is a collection file: its records are not text, so they cannot be imported into the text
 ```
 
 cited by: `ide`
