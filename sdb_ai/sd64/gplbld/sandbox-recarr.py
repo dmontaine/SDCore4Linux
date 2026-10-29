@@ -9,6 +9,8 @@
 #
 # START-HISTORY:
 # 26 Oct 26 dm  Written for gpl.bp/recarr (the data mode of CED and the IDE's hand-over to it).
+# 28 Oct 26 dm  The editor merge, stage B: the IDE's token form follows the record's KIND, so the token rows (E, F) open records of the DATA file zzrfd (read back by
+#               a second probe), and a new row E0 holds that the same record in bp, a program, is never shown in the token form.  Written, NOT run.
 # END-HISTORY
 #
 # WHAT IT PROVES.  CED edits a record as a tree, and the record comes back with its value and subvalue marks put in from the SHAPE of the tree alone.  That is only safe if
@@ -512,7 +514,20 @@ FIELDS_FIX2 = """   execute 'DELETE.FILE zzrfd%(r)s' capturing j0
    open 'zzrfd%(r)s' to d else stop 'no data file'
    write '#!/bin/sh':@fm:'# a comment':@fm:'hello world' on d, 'script'
    write 'first line':@fm:'# a comment':@fm:'hello world' on d, 'plain'
+   write 'Don':@vm:'Henry':@vm:'June':@fm:'x':@sm:'y':@tm:'z' on d, 'tokrec'
+   write '@vm':@fm:'b':@vm:'c' on d, 'tokfix'
    crt 'FIXTURE2 DONE'
+end
+"""
+# 28 Oct 26 (the editor merge, stage B): the token form follows the KIND of the record - a data record shows it, a program (bp) never does - so the token rows read
+# records of the data file, through this probe, run as the fixture above is
+FIELDS_PROBE2 = """   open 'zzrfd%(r)s' to d else stop 'no data file'
+   ids = 'tokrec':@fm:'tokfix'
+   for i = 1 to 2
+      read r from d, ids<i> else r = '<absent>'
+      crt 'DREC':i:'[':convert(@fm:@vm:@sm:@tm, '^|~#', r):']'
+   next i
+   crt 'END'
 end
 """
 
@@ -523,7 +538,7 @@ def fields_part(box, sysd, made):
     ra, rb, rc, rd, re_, rf_ = ("zzrf%s%s" % (RUN, c) for c in "abcdef")
     dfile = "zzrfd" + RUN
     fix, probe = "zzrffix" + RUN, "zzrfprobe" + RUN
-    for nm, body in ((fix, FIELDS_FIX), (probe, FIELDS_PROBE), (fix + "b", FIELDS_FIX2)):
+    for nm, body in ((fix, FIELDS_FIX), (probe, FIELDS_PROBE), (fix + "b", FIELDS_FIX2), (probe + "b", FIELDS_PROBE2)):
         with open(os.path.join(sysd, "bp", nm), "w") as fh:
             fh.write(body % {"r": RUN})
         made.append(nm)
@@ -541,8 +556,16 @@ def fields_part(box, sysd, made):
     d0 = disk()
     row("control: the probe reads the six records as written (marks shown as ^ | ~ #)",
         d0 == ["Acme^red|dark~green|blue^x", "one^two|three", "p^q|r~s^t", "x^y|z", "Don|Henry|June^x~y#z", "@vm^b|c"], repr(d0))
-    o2 = sb.sess(box, "BASIC bp %s" % (fix + "b"), "RUN bp %s" % (fix + "b"))
-    row("setup: the second fixture (an ordinary session) made the data file %s with its two scripts" % dfile, "FIXTURE2 DONE" in o2, o2[-300:])
+    o2 = sb.sess(box, "BASIC bp %s" % (fix + "b"), "RUN bp %s" % (fix + "b"), "BASIC bp %s" % (probe + "b"))
+    row("setup: the second fixture (an ordinary session) made the data file %s with its two scripts and its two token records, and its probe compiled" % dfile,
+        "FIXTURE2 DONE" in o2 and len(re.findall(r"(?m)^Compiled 1 program\(s\) with no errors", o2)) == 2, o2[-300:])
+
+    def ddisk():
+        o = sb.sess(box, "RUN bp %s" % (probe + "b"))
+        return [tag(o, "DREC%d" % i) for i in (1, 2)]
+
+    dd0 = ddisk()
+    row("control: the second probe reads the data file's token records as written", dd0 == ["Don|Henry|June^x~y#z", "@vm^b|c"], repr(dd0))
 
     e = sb.Ide(box)
     e.keys(F12)
@@ -657,34 +680,46 @@ def fields_part(box, sysd, made):
 
     # ---- E: a record that holds marks is shown in the token form, and typing a token writes a mark --------------------------------------------------------------------
     say("\n--- the token form in the IDE: marks shown as :@vm: :@sm: :@tm:, read back when the record is saved ---------------------------------------------------")
+    # 28 Oct 26 (the editor merge, stage B): the token form follows the KIND of the record.  The same record in bp is a program, and a program is never shown so
+    #   (E0, the control the owner's rule asks for); in a data file it is (E1 onward).  These rows used the bp record until stage B.
     e = sb.Ide(box, "IDE bp %s" % re_)
     e.quiet()
     t = "\n".join(e.lines())
     st = e.status()
-    row("a record that holds marks opens in the token form: the editor shows Don:@vm:Henry:@vm:June and x:@sm:y:@tm:z",
+    row("E0 a PROGRAM (bp) that holds marks is never shown in the token form: the editor does not show Don:@vm:Henry, the status line does not say so, and the tab is "
+        "not marked changed", "Don:@vm:Henry" not in t and "Marks are shown as @vm" not in st and re.search(r"bp %s \*" % re_, st) is None, st + "\n" + t[:600])
+    e.end()
+    row("... and the program on disk is untouched", disk()[4] == d0[4], repr(disk()[4]))
+    e = sb.Ide(box, "IDE %s tokrec" % dfile)
+    e.quiet()
+    t = "\n".join(e.lines())
+    st = e.status()
+    row("a DATA record that holds marks opens in the token form: the editor shows Don:@vm:Henry:@vm:June and x:@sm:y:@tm:z",
         "Don:@vm:Henry:@vm:June" in t and "x:@sm:y:@tm:z" in t, t[:900])
-    row("... and no mark character (251, 252 or 253) is drawn", not any(ch in t for ch in "\xfb\xfc\xfd"), repr([ch for ch in t if ch in "\xfb\xfc\xfd"]))
+    row("... and no mark character (251, 252 or 253) is drawn (a weak companion: the token text above is the evidence)", not any(ch in t for ch in "\xfb\xfc\xfd"),
+        repr([ch for ch in t if ch in "\xfb\xfc\xfd"]))
     row("... the status line says that marks are shown as @vm, @sm and @tm", "Marks are shown as @vm, @sm and @tm" in st, st)
-    row("... and the tab is not marked changed: what was read converts back to the record exactly", re.search(r"bp %s \*" % re_, st) is None, st)
+    row("... and the tab is not marked changed: what was read converts back to the record exactly", re.search(r"%s tokrec \*" % dfile, st) is None, st)
     e.keys(sb.END, ":@vm:Jules")
     e.quiet()
     st = e.status()
-    d = disk()
-    row("typing :@vm:Jules at the end of line 1 marks the tab changed, and the disk is as it was", re.search(r"bp %s \*" % re_, st) is not None and d[4] == d0[4], "%r %r" % (st, d[4]))
+    dd = ddisk()
+    row("typing :@vm:Jules at the end of line 1 marks the tab changed, and the disk is as it was", re.search(r"%s tokrec \*" % dfile, st) is not None and dd[0] == dd0[0],
+        "%r %r" % (st, dd[0]))
     e.keys(sb.CTRL_S)
     st = e.status()
-    d = disk()
+    dd = ddisk()
     row("Ctrl-S in the IDE saves it as marks: Don|Henry|June|Jules^x~y#z - the value mark written from the typed token, the rest of the record exactly as it was",
-        ("Saved bp %s" % re_) in st and d[4] == "Don|Henry|June|Jules^x~y#z", "%r %r" % (st, d[4]))
+        ("Saved %s tokrec" % dfile) in st and dd[0] == "Don|Henry|June|Jules^x~y#z", "%r %r" % (st, dd[0]))
     e.end()
 
     # ---- F: a field that holds the TEXT of a token is not converted ---------------------------------------------------------------------------------------------------
-    e = sb.Ide(box, "IDE bp %s" % rf_)
+    e = sb.Ide(box, "IDE %s tokfix" % dfile)
     e.quiet()
     st = e.status()
-    row("a record whose field 1 is the text @vm is shown as it is: the status line says field 1 holds the text of a mark token, and the tab is not marked changed",
-        "Marks are shown as characters: field 1 holds the text of a mark token" in st and re.search(r"bp %s \*" % rf_, st) is None, st)
-    row("... and the record on disk is untouched", disk()[5] == d0[5], repr(disk()[5]))
+    row("a data record whose field 1 is the text @vm is shown as it is: the status line says field 1 holds the text of a mark token, and the tab is not marked changed",
+        "Marks are shown as characters: field 1 holds the text of a mark token" in st and re.search(r"%s tokfix \*" % dfile, st) is None, st)
+    row("... and the record on disk is untouched", ddisk()[1] == dd0[1], repr(ddisk()[1]))
     e.end()
 
     # ---- G: the language of a record is $sl_syntax's, as SED's: the first line decides when the name does not -------------------------------------------------------------

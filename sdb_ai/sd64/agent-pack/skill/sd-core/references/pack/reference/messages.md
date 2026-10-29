@@ -2905,10 +2905,10 @@ The IDE\n\nTab, Shift-Tab   Next / previous pane\nF6, Shift-F6     Next / previo
 cited by: `ide`
 
 ### msg:11215
-> kind=message tier=reference since=- src=sdsys/messages/11215:1#735ac6e4
+> kind=message tier=reference since=- src=sdsys/messages/11215:1#2222ac72
 
 ```
-F4               Next error or result\nF5               Run\nF7               Debug\nF8               Compile\nF9               Build: compile and catalogue\nCtrl-L           Go to a line\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks\nMenus            Save as, Write a copy and Find in the records of the file are in the File and Search menus\n
+F4               Next error or result\nF5               Run\nF7               Debug\nF8               Compile\nF9               Build: compile and catalogue\nCtrl-L           Go to a line\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A dictionary item's, a VOC record's or a data record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks (a program's never)\nLocks            A record open in a tab is locked; one another session has locked opens read-only\nInclude          Go, Open the include: the record a $include line at the cursor names\nMenus            Save as, Write a copy and Find in the records of the file are in the File and Search menus\n
 ```
 
 cited by: `ide`
@@ -2941,10 +2941,10 @@ No record is open
 cited by: `ide`
 
 ### msg:11219
-> kind=message tier=reference since=- src=sdsys/messages/11219:1#c9fcb2f4
+> kind=message tier=reference since=- src=sdsys/messages/11219:1#be88526a
 
 ```
-Only the first %1 records of %2 are listed
+Only the first %1 records of %2 are listed: there are more records (Ctrl-O opens one by its name)
 ```
 
 cited by: `ide`
@@ -3000,10 +3000,10 @@ cited by: `ide`
 ```
 
 ### msg:11226
-> kind=message tier=reference since=- src=sdsys/messages/11226:1#ab26469e
+> kind=message tier=reference since=- src=sdsys/messages/11226:1#d6a25a13
 
 ```
-&Go|Go to &line~^L~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Edit in SED~^E~sed|Edit as f&ields~F12~fields
+&Go|Go to &line~^L~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Open the include~~include|&Edit in SED~^E~sed|Edit as f&ields~F12~fields
 ```
 
 ### msg:11227
@@ -5414,6 +5414,33 @@ The name %1 is already in your VOC: nothing was created on server %2
 
 cited by: `createf`
 
+### msg:11540
+> kind=message tier=reference since=- src=sdsys/messages/11540:1#f8cd5805
+
+```
+The window is %1 and %2 is laid out for %3 or larger: part of the screen is outside the window and keys are ignored. Make the window larger to carry on, or press Ctrl-Q to leave.
+```
+
+cited by: `sl_guard`
+
+### msg:11541
+> kind=message tier=reference since=- src=sdsys/messages/11541:1#72cecd8c
+
+```
+%1: pane %2 of the layout is not valid: %3
+```
+
+cited by: `tk_layout`
+
+### msg:11542
+> kind=message tier=reference since=- src=sdsys/messages/11542:1#426c3fce
+
+```
+%1: the panes do not fit the %2 by %3 layout they are declared for
+```
+
+cited by: `tk_layout`
+
 ### msg:11560
 > kind=message tier=reference since=- src=sdsys/messages/11560:1#e57b2080
 
@@ -6464,6 +6491,141 @@ cited by: `ide_name`
 ```
 
 cited by: `ide_name`
+
+### msg:11684
+> kind=message tier=reference since=- src=sdsys/messages/11684:1#4b93081a
+
+```
+%1 %2 is a record of a collection file: the IDE does not edit collections yet (ced %1 does)
+```
+
+cited by: `ide`
+
+### msg:11685
+> kind=message tier=reference since=- src=sdsys/messages/11685:1#771d74eb
+
+```
+New record %1 in %2: nothing is written until you save it
+```
+
+cited by: `ide`
+
+### msg:11686
+> kind=message tier=reference since=- src=sdsys/messages/11686:1#7f431061
+
+```
+%1 %2 is being made by another session (user %3); it was not opened
+```
+
+cited by: `ide`
+
+### msg:11687
+> kind=message tier=reference since=- src=sdsys/messages/11687:1#7b14941c
+
+```
+[read-only: user %1 holds its lock]
+```
+
+cited by: `ide`
+
+### msg:11688
+> kind=message tier=reference since=- src=sdsys/messages/11688:1#93688e2e
+
+```
+%1 %2 is read-only here: user %3 holds its lock, so it cannot be changed or saved.  Close the tab and open the record again when the lock is free; Write a copy keeps the text under another name.
+```
+
+cited by: `ide`
+
+### msg:11689
+> kind=message tier=reference since=- src=sdsys/messages/11689:1#d3386374
+
+```
+%1 %2 is open read-only: user %3 holds its lock
+```
+
+cited by: `ide`
+
+### msg:11690
+> kind=message tier=reference since=- src=sdsys/messages/11690:1#46a38fff
+
+```
+Too many records are open to hold another lock: close a tab first
+```
+
+cited by: `ide`
+
+### msg:11691
+> kind=message tier=reference since=- src=sdsys/messages/11691:1#0950322d
+
+```
+%1 %2 is open in another tab of the IDE: save it there
+```
+
+cited by: `ide`
+
+### msg:11692
+> kind=message tier=reference since=- src=sdsys/messages/11692:1#8b4ae0e1
+
+```
+%1 %2: another session (user %3) took its lock while the IDE was away; the tab is read-only
+```
+
+cited by: `ide`
+
+### msg:11693
+> kind=message tier=reference since=- src=sdsys/messages/11693:1#04e09dde
+
+```
+(dictionary)
+```
+
+cited by: `ide`
+
+### msg:11694
+> kind=message tier=reference since=- src=sdsys/messages/11694:1#a770a1cd
+
+```
+%1 record(s) of the select list are listed below; the first %2 are open in tabs
+```
+
+cited by: `ide`
+
+### msg:11695
+> kind=message tier=reference since=- src=sdsys/messages/11695:1#a949b852
+
+```
+The line at the cursor is not a $include line
+```
+
+cited by: `ide`
+
+### msg:11696
+> kind=message tier=reference since=- src=sdsys/messages/11696:1#dc6a74ab
+
+```
+Include record %1 was not found (looked in %2)
+```
+
+cited by: `ide`
+
+### msg:11697
+> kind=message tier=reference since=- src=sdsys/messages/11697:1#2a0a51c6
+
+```
+dict %1 %2 is a dictionary item: it is not compiled here (an I-type is compiled when it is used)
+```
+
+cited by: `ide`
+
+### msg:11698
+> kind=message tier=reference since=- src=sdsys/messages/11698:1#2211119b
+
+```
+%1 is a collection file: Find in the records reads records of text only
+```
+
+cited by: `ide`
 
 ### msg:11700
 > kind=message tier=reference since=- src=sdsys/messages/11700:1#1e363371

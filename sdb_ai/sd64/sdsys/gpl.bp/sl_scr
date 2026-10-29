@@ -6,6 +6,8 @@
 * START-HISTORY:
 * 12 Oct 26 dm  New (the spike: SCREEN MSGBOX).
 * 12 Oct 26 dm  The owned screen: open / put / close, per-cell styles, the cursor.
+* 28 Oct 26 dm  S.88 L1 (R-a): the op pending, the program's own wait asking whether a resize was read by a dialogue and not delivered (the note
+*               $sl_key keeps in common /slpend/); open and close forget the note.  The block /slscr/ is unchanged (CPROC declares it too).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -13,7 +15,12 @@
 *   call $sl_scr(op, scr)
 *
 *     resized  scr returns 1 if the kept context has been made a new size (the terminal was resized, or TERM w,h
-*            typed) since this was last asked, else 0, and the flag is cleared
+*            typed) since this was last asked, else 0, and the flag is cleared (SCREEN REFRESH's RETURNING)
+*     pending  scr returns 1 if $sl_key has handed out the key resize since the program's own wait (SCREEN KEY, SCREEN WAIT) last
+*            delivered one, else 0, and the note is cleared.  The wait asks it before it reads a key and delivers resize first: a
+*            resize read by a dialogue (a menu, a message box, SCREEN ASK, a pick window, the toolkit's confirm and AI boxes, the
+*            IDE's name box) redraws the dialogue and was never the program's, which went on with the old geometry (R-a, 28 Oct 2026).
+*            The wait that delivers a resize it read itself asks it too, so that the note is not delivered a second time.
 *     get    scr is the screen context (sl.h) the library is to use.  If the library owns the screen and the
 *            terminal is no longer the size the kept context was made for, the context is first made the new
 *            size, keeping every cell that still fits, and the screen drawn again from it.  Until SCREEN OPEN has been done
@@ -41,6 +48,7 @@ $catalog $sl_scr
 $include sl.h
 
    common /slscr/ ctx, ctx.open, ctx.resized
+   common /slpend/ rz.pending                     ;* $sl_key's note of a resize handed out and not yet delivered by the program's wait
 
    if unassigned(ctx.open) then
       ctx = ''
@@ -75,15 +83,22 @@ $include sl.h
          ctx = blank.scr
          ctx.open = 1
          scr = ctx
+         rz.pending = 0                         ;* a resize from before this screen is not this program's
 
       case op = 'resized'
          scr = ctx.resized + 0                  ;* 1 if the context has been made a new size since this was last asked
          ctx.resized = 0
 
+      case op = 'pending'
+         scr = 0
+         if rz.pending then scr = 1             ;* a resize handed out by $sl_key and not yet delivered by the program's wait
+         rz.pending = 0
+
       case op = 'close'
          ctx = ''
          ctx.open = 0
          ctx.resized = 0
+         rz.pending = 0
    end case
 
    return

@@ -18,6 +18,7 @@
 *               being ignored, so that the IDE can open its menu from a click on the bar.
 * 22 Oct 26 dm  selector (S.75, TK-0.10): dispatched like the slider, and a change of its value is a change event.
 * 22 Oct 26 dm  Accelerators (S.75, TK-0.12): find.accel and run.accel at the top of route.key; f{'achg'} makes the change event.
+* 28 Oct 26 dm  S.88 L1 (R-a): wait.event asks $sl_scr('pending') before each key: a resize a dialogue read is the event resize first.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -1056,7 +1057,16 @@ wait.event:
    f{'scrolled'} = ''
    gosub park.cursor                         ;* the statement before this one gave the cursor back to the program
    loop
-      call $sl_key(tmo, kk)
+      * 28 Oct 26 (R-a): a resize that a dialogue read - one the program opened between two waits, or an open list of this form - was never the
+      * program's: it is the key now, before any other, and goes the way of a resize read here (the form is made the size and drawn again, and
+      * the event is resize).  One read here clears the note too, so that it is delivered once.
+      call $sl_scr('pending', rz.was)
+      if rz.was then
+         kk = 'resize'
+      end else
+         call $sl_key(tmo, kk)
+         if kk = 'resize' then call $sl_scr('pending', rz.was)
+      end
       if kk = '' then
          evt = 'end'
          * 19 Oct 26: only the time running out is a timeout.  An input that has ended also gives a null key at once, and a

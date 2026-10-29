@@ -9,6 +9,7 @@
 #   - the IDE gives CED NO file and NO record id (so CED writes nothing and takes no lock), hands the screen over and back around the call, puts what comes back into the tab's text
 #     before the screen is rebuilt, and never writes, reads with a lock or deletes in do.fields: the IDE's own save has the S.64 gate;
 #   - F12 and the Go menu entry reach do.fields, the entry's mnemonic is not another entry's, and the help and the messages are there.
+#   - 28 Oct 26 (the editor merge, stage B): the token form follows the tab's KIND (dict, voc, data), never a program's (source), and the kind is set before the mode (I11, I13, I14).
 # FREE CHECK: no install, no sd.
 #
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-recarr-units.py
@@ -168,9 +169,22 @@ def checks(p):
         ordered(td, [r"k = 'm' : tb\.u", r"if bx\{k\} then", r"call \$recarr\('totext', tb\.raw, tb\.disp, tb\.ok\)", r"if not\(tb\.ok\) then"])
         and k0 is not None and ordered(td[k0:], [r"bx\{k\} = 0", r"msg = sysmsg\(11992, tb\.disp\)", r"tb\.disp = tb\.raw"]), "\n".join(td))
     sm = code(section(i, "set.token.mode"))
-    row("I11 set.token.mode: a tab is in token mode (bx m = 1) only when the record holds a mark AND 'totext' accepts it; a record it refuses says why (11992)",
-        ordered(sm, [r"bx\{k\} = 0", r"index\(tm\.raw, @vm, 1\) or index\(tm\.raw, @sm, 1\) or index\(tm\.raw, @tm, 1\)", r"call \$recarr\('totext', tm\.raw, tm\.disp, tm\.ok\)", r"if tm\.ok then", r"bx\{k\} = 1", r"msg = sysmsg\(11991\)", r"msg = sysmsg\(11992, tm\.disp\)"]), "\n".join(sm))
+    # 28 Oct 26 (the editor merge, stage B): the KIND decides, not whether the record held marks when it was read
+    row("I11 set.token.mode: a tab is in token mode (bx m = 1) only when its KIND is dict, voc or data (a program never: source returns first) AND 'totext' accepts the record; "
+        "11991 is said only when the record holds a mark; a record it refuses says why (11992)",
+        ordered(sm, [r"bx\{k\} = 0", r"tm\.kind = bx\{tm\.k\}", r"^if tm\.kind # 'dict' and tm\.kind # 'voc' and tm\.kind # 'data' then return$",
+                     r"index\(tm\.raw, @vm, 1\) or index\(tm\.raw, @sm, 1\) or index\(tm\.raw, @tm, 1\)", r"call \$recarr\('totext', tm\.raw, tm\.disp, tm\.ok\)", r"if tm\.ok then",
+                     r"bx\{k\} = 1", r"if tm\.marks then msg = sysmsg\(11991\)", r"msg = sysmsg\(11992, tm\.disp\)"]), "\n".join(sm))
+    ko = code(section(i, "kind.of"))
+    au = code(section(i, "add.untitled"))
+    row("I13 a program is 'source' and never tokenised: kind.of answers source for the kernel's program file (edit kind 3) and for a directory file, dict for the dictionary flag, "
+        "voc for edit kind 1, data otherwise; an untitled buffer is source",
+        ordered(ko, [r"^ko\.kind = 'data'$", r"^if ko\.dict # '' then$", r"^ko\.kind = 'dict'$", r"ko\.ek = kernel\(K\$EDIT\.KIND, fileinfo\(fv, FL\$PATH\)\)", r"^case ko\.ek = 1$",
+                     r"^ko\.kind = 'voc'$", r"^case ko\.ek = 3$", r"^ko\.kind = 'source'$", r"^case fileinfo\(fv, FL\$TYPE\) = FL\$TYPE\.DIR$"])
+        and first(au, r"^ts\.kind = 'source'$") is not None, "\n".join(ko))
     orc = code(section(i, "open.record"))
+    row("I14 open.record sets the tab's kind (tab.state) BEFORE it sets the token mode, so the mode is the kind's",
+        ordered(orc, [r"^ts\.kind = lk\.kind$", r"gosub tab\.state", r"gosub set\.token\.mode"]))
     dsd = code(section(i, "do.sed"))
     dfl = code(section(i, "do.fields"))
     nf = code(section(i, "new.form"))
@@ -248,8 +262,14 @@ def selftest():
     mutant("an empty text is written between two tokens", "recarr", "      if seg # '' then\n         if need.sep", "      if 1 then\n         if need.sep", "R7")
     mutant("the IDE's language is the suffix again", "ide", "call $sl_syntax('detect', sy.file, sy.id, sy.first, '', syn)", "syn = '' ; suffix = 'c'", "I8")
     mutant("every tab is converted on the way back", "ide", "      if bx{k} then\n         call $recarr('fromtext'", "      if 1 then\n         call $recarr('fromtext'", "I9")
-    mutant("a record that totext refuses is put in token mode", "ide", "      if tm.ok then\n         bx{k} = 1", "      if 1 then\n         bx{k} = 1", "I11")
-    mutant("open.record leaves the mode unset", "ide", "   tm.u = uid\n   tm.raw = rec\n   gosub set.token.mode\n", "", "I12")
+    mutant("a record that totext refuses is put in token mode", "ide", "   if tm.ok then\n      bx{k} = 1", "   if 1 then\n      bx{k} = 1", "I11")
+    mutant("open.record leaves the mode unset", "ide", "   tm.u = uid\n   tm.raw = tb.shown\n   gosub set.token.mode\n", "", "I1")
+    # 28 Oct 26, stage B: the token form by kind
+    mutant("a program is put in token mode", "ide", "   if tm.kind # 'dict' and tm.kind # 'voc' and tm.kind # 'data' then return\n", "   if tm.kind = 'collection' then return\n", "I11")
+    mutant("a bp file is data", "ide", "      case ko.ek = 3\n         ko.kind = 'source'\n", "      case ko.ek = 3\n         ko.kind = 'data'\n", "I13")
+    mutant("an untitled buffer is data", "ide", "   ts.kind = 'source'                ;* 28 Oct 26 (stage B)", "   ts.kind = 'data'                ;* 28 Oct 26 (stage B)", "I13")
+    mutant("open.record sets the mode before the kind", "ide", "   gosub tab.state\n   tm.u = uid\n   tm.raw = tb.shown\n   gosub set.token.mode\n",
+           "   tm.u = uid\n   tm.raw = tb.shown\n   gosub set.token.mode\n   gosub tab.state\n", "I14")
     mutant("11992 has no field number", "m11992", "field %1 holds", "a field holds", "M5")
     mutant("the menu entry is gone", "m11226", "|Edit as f&ields~F12~fields", "", "M1")
     mutant("the menu entry takes SED's mnemonic", "m11226", "Edit as f&ields~F12~fields", "&Edit as fields~F12~fields", "M2")

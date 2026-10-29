@@ -6,6 +6,22 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 28 Oct 26 dm  The editor merge, stage B (Opus_TUI_Plan.txt section 11): RECORD KINDS AND LOCKS.  Each tab has a kind (bx k: source, dict, voc, data;
+*               collection is refused until stage F; path is reserved for stage E) and a dictionary flag (bx d), and the TOKEN FORM follows the kind:
+*               a dictionary item, a VOC record or a data record shows its marks as :@vm: and so on, a program never does (it followed whether the
+*               record held marks when it was read).  `ide dict file id` and `ide voc id` start on one; the tree lists a file's dictionary as a node
+*               of its own under the file, read only when it is opened.  A file's records are listed by SELECT and READNEXT up to MAXREC and no
+*               further (load.file SSELECTed the whole file first, which hangs on a big data file), and Find in the records reads the same way.
+*               LOCK ON OPEN: a record opened in a tab is locked (READU, through a file variable the tab keeps, bx l / tfv) for the life of the tab;
+*               a record another session holds opens READ-ONLY, the status line naming the user, and cannot be saved; closing the tab, quitting
+*               and every other way out give the locks back, and Run, Debug, SED and CED keep them (they are looked at again when the screen is
+*               taken back).  A save of a locked tab writes with WRITEU through the tab's own file variable (a READU or a RELEASE through another
+*               would move the lock to it, or let it go).  A record that is not there opens as a NEW record (after the account's edit gate) for
+*               `ide file id`, `ide dict file id` and `ide voc id`; CREATING.SEQKEY in the place of the id takes the file's next sequential id, as
+*               SED does (on the command line and in New record); an active select list at the start opens its first records in tabs and lists
+*               them all.  A dictionary item is written only through the account's dict edit gate and a VOC record through its voc edit gate (the
+*               IDE is $internal: edit.check on the open file's own path before every write).  Go / Open the include: the record a $include
+*               line at the cursor names, in a tab.
 * 28 Oct 26 dm  The TUI phase 2 review's five findings.  (1) An AI edit's undo step goes on the memo through its own 'snap' (it was pushed in the memo's old form, and
 *               Ctrl-Z turned the record's value marks into line ends).  (2) A bare IDE that offers two untitled copies and is answered Open twice keeps both: the
 *               editor holds each recovered tab as soon as it is made (the second Open wrote the empty startup buffer over the first, and a tick then deleted its copy).
@@ -68,11 +84,16 @@
 *
 * START-DESCRIPTION:
 *
-*   IDE {file {record}}
+*   IDE {DICT} {file {record | CREATING.SEQKEY}}
 *
 *   The account is the project: the tree lists the files of the VOC (type F); Return on a file lists its
-*   records (up to 2000) and Return on a record opens it in the editor.  Everything the editor does with a
-*   record is the SCREEN MEMO's own; this program adds what a development environment needs around it.
+*   records (up to 2000) and its dictionary, Return on the dictionary lists its items, and Return on a record
+*   opens it in the editor.  Everything the editor does with a record is the SCREEN MEMO's own; this program
+*   adds what a development environment needs around it.
+*
+*   A record named on the command line that is not there opens as a new record (nothing is written until it
+*   is saved).  With a file and no record, an active select list opens its first records in tabs.  A record
+*   open in a tab is locked; a record another session has locked opens read-only.
 *
 *   Save writes the record, and asks first if somebody else changed it since it was read.  Compile saves,
 *   runs BASIC and shows the compiler's lines in the table at the bottom; Return on one goes to its line.
@@ -96,19 +117,40 @@ $include syscom keys.h
 $include int$keys.h
 $include sl.h
 $include tk.h
+$include dictdict.h
 
    deffun edit_msg(kind) calling '!edit_msg'      ;* 18 Oct 26 dm, S.66
 
    prompt ''
    if system(25) then stop                 ;* a phantom has no terminal
 
-   MAXREC = 2000                           ;* records listed for a file
+   MAXREC = 2000                           ;* records listed for a file (and read by Find in the records, and from a select list)
    MAXHIT = 500                            ;* lines a search lists
+   MAXSEL = 10                             ;* 28 Oct 26 (stage B): records of an active select list opened in tabs at the start
+   MAXLOCK = 100                           ;* 28 Oct 26 (stage B): tabs that can hold a record lock at one time (file variables kept in tfv)
    LAYW = 140                              ;* what the layout is made for; a bigger window is used whole, a smaller one is refused at
    LAYH = 42                               ;* the start and clipped (upper left corner) if it becomes smaller while the IDE runs
 
+   * 28 Oct 26 (stage B): IDE {DICT} {file {record | CREATING.SEQKEY}}.  A record id in quotes is taken as it is (so "creating.seqkey" is that record);
+   *   the file name is lower case, as everywhere SD writes one (the name form makes it so too, and the tabs and the tree compare with it)
+   dflag0 = ''
    fn0 = field(@sentence, ' ', 2)
    id0 = field(@sentence, ' ', 3)
+   if upcase(fn0) = 'DICT' then
+      dflag0 = 'DICT'
+      fn0 = field(@sentence, ' ', 3)
+      id0 = field(@sentence, ' ', 4)
+   end
+   fn0 = downcase(fn0)
+   seq0 = (upcase(id0) = 'CREATING.SEQKEY')
+   q0 = id0[1, 1]
+   if len(id0) > 1 and (q0 = '"' or q0 = "'") and id0[len(id0), 1] = q0 then id0 = id0[2, len(id0) - 2]
+
+   * The file variables through which the tabs hold their record locks: a lock belongs to the file variable it was taken through, and goes when that
+   *   variable is closed, so each tab that holds one keeps its own (bx l<uid> is the slot, tused the slots in use)
+   dim tfv(MAXLOCK)
+   mat tfv = 0
+   tused = ''
 
    * Ctrl-C and the terminal's break are keys of the editor; both are given back on the way out.  The setting is also kept by $tk_brk, so that an abort
    * inside the IDE (which skips every way out below) does not leave the person at the prompt with Ctrl-C dead: $sl_cleanup gives it back (28 Oct 26)
@@ -178,9 +220,18 @@ $include tk.h
    bi = ''
    bu = ''
    bx = collection()                 ;* s<uid> the text as it is on disk, t<uid> the text as it was left, c<uid> the cursor
+   *                                   28 Oct 26 (stage B): k<uid> the kind (source, dict, voc, data), d<uid> 'DICT' or '', l<uid> the lock slot (0: no lock
+   *                                   held), o<uid> the user who holds the record's lock when the tab is read-only ('' when it is not)
    fl = ''                           ;* the files of the VOC
    lfiles = ''                       ;* the files whose records are listed in the tree
    lrecs = ''                        ;* their record ids, as values, in step
+   ldict = ''                        ;* in step: 1 when the file has a dictionary (the tree shows a node for it)
+   dfiles = ''                       ;* the files whose DICTIONARY items are listed in the tree (opened by Return on the dictionary node)
+   drecs = ''                        ;* their item ids, as values, in step
+   or.dict = ''                      ;* open.record's dictionary flag and "a missing record is a new one": each call takes them and puts them back to ''
+   or.mknew = 0
+   rt.dict = ''
+   out.dict = ''                     ;* the dictionary flag of the records a search or a select list put in the table
    cur.code = ''
    err.rows = ''                     ;* the table at the bottom
    err.lines = ''
@@ -198,28 +249,76 @@ $include tk.h
    done = @false
    untitled = 0                      ;* the number of the last untitled buffer made
 
+   * 28 Oct 26 (stage B): a file named with no record and an active select list (SELECT, then IDE file, as SED takes it): its ids are read here, before anything
+   *   could use list 0, at most MAXREC of them and without building the rest of a list that is still being made; the list is used up, as SED's is
+   sel0 = ''
+   sel0.more = @false
+   if fn0 # '' and id0 = '' and not(seq0) then
+      if selectinfo(0, SL$ACTIVE) then
+         sel0.n = 0
+         loop
+            readnext sel.id from 0 else exit
+            if sel0.n >= MAXREC then
+               sel0.more = @true
+               exit
+            end
+            sel0.n += 1
+            sel0<-1> = sel.id
+         repeat
+         clearselect 0
+      end
+   end
+
    gosub build.files
    if fn0 # '' then
       lf.name = fn0
       gosub load.file
       cur.code = 'F:' : fn0
+      if dflag0 # '' then
+         ld.name = fn0
+         gosub load.dict
+         cur.code = 'D:' : fn0
+      end
    end
 
    * 28 Oct 26 (S.88 Phase 4): with no record named the IDE opens an editable "Untitled 1", the focus in the editor; with only a file named the tree keeps the focus
-   if id0 = '' then
+   if id0 = '' and not(seq0) and sel0 = '' then
       gosub add.untitled
       if fn0 = '' then focus.id = 'ed'
    end
 
    gosub new.form
-   if fn0 # '' and id0 # '' then
-      or.file = fn0
-      or.id = id0
-      gosub open.record
+   begin case
+      case fn0 # '' and seq0
+         * 28 Oct 26 (stage B): CREATING.SEQKEY in the place of the record: the file's next sequential id, as SED takes it, and a new record of that id
+         sq.dict = dflag0
+         sq.file = fn0
+         gosub seq.take
+         if sq.id # '' then
+            or.dict = dflag0
+            or.file = fn0
+            or.id = sq.id
+            or.mknew = 1
+            gosub open.record
+         end
+      case fn0 # '' and id0 # ''
+         or.dict = dflag0
+         or.file = fn0
+         or.id = id0
+         or.mknew = 1                          ;* 28 Oct 26 (stage B): a record that is not there is a new one (it said "Cannot read record" and opened nothing)
+         gosub open.record
+      case sel0 # ''
+         gosub open.select
+   end case
+   if fn0 # '' and (id0 # '' or seq0 or sel0 # '') then
+      if nbuf = 0 then
+         gosub add.untitled                    ;* nothing could be opened: the editor is never left without a buffer
+         gosub load.current
+      end
       screen focus f, 'ed'
       focus.id = 'ed'
    end
-   if id0 = '' then gosub rc.untitled          ;* 28 Oct 26 (D2): the text of untitled buffers kept when an editor ended
+   if id0 = '' and not(seq0) and sel0 = '' then gosub rc.untitled          ;* 28 Oct 26 (D2): the text of untitled buffers kept when an editor ended
 
    menu.click = ''                          ;* the column of a click on the menu bar, while the menu it opens is being started
    loop
@@ -264,6 +363,7 @@ $include tk.h
    until done
    repeat
 
+   gosub release.all                           ;* 28 Oct 26 (stage B): every record lock the tabs hold is given back (quit, the end of the input, a hang-up, the cursor lock)
    screen close
    call $tk_brk('close', saved.trap)           ;* the setting back (or the one an earlier, aborted app left held) and BREAK ON
    display @(-1) :
@@ -315,21 +415,17 @@ build.files:
    end
    return
 
-* In: lf.name.  The records of the file go into lfiles / lrecs (or are replaced there)
+* In: lf.name.  The records of the file go into lfiles / lrecs (or are replaced there), and ldict says whether it has a dictionary
 load.file:
    open lf.name to fv else
       msg = sysmsg(11200, lf.name)
       return
    end
-   sselect fv to 9
-   readlist ids from 9 else ids = ''
-   n = dcount(ids, @fm)
-   if ids = '' then n = 0
-   if n > MAXREC then
-      msg = sysmsg(11219, MAXREC, lf.name)
-      ids = field(ids, @fm, 1, MAXREC)
-   end
-   ids = convert(@fm, @vm, ids)
+   gosub list.ids
+   if lr.more then msg = sysmsg(11219, MAXREC, lf.name)
+   ids = lr.ids
+   lf.dict = 0
+   open 'DICT', lf.name to lf.dv then lf.dict = 1
    lp = 0
    nl = dcount(lfiles, @fm)
    if lfiles = '' then nl = 0
@@ -342,9 +438,60 @@ load.file:
    if lp = 0 then
       lfiles<-1> = lf.name
       lrecs<-1> = ids
+      ldict<dcount(lfiles, @fm)> = lf.dict
    end else
       lrecs<lp> = ids
+      ldict<lp> = lf.dict
    end
+   return
+
+* In: ld.name.  The items of the file's DICTIONARY go into dfiles / drecs (or are replaced there).  28 Oct 26 (stage B): read when the dictionary node is opened, not before
+load.dict:
+   open 'DICT', ld.name to fv else
+      msg = sysmsg(11200, 'dict ' : ld.name)
+      return
+   end
+   gosub list.ids
+   if lr.more then msg = sysmsg(11219, MAXREC, 'dict ' : ld.name)
+   lp = 0
+   nl = dcount(dfiles, @fm)
+   if dfiles = '' then nl = 0
+   for q = 1 to nl
+      if dfiles<q> = ld.name then
+         lp = q
+         exit
+      end
+   next q
+   if lp = 0 then
+      dfiles<-1> = ld.name
+      drecs<-1> = lr.ids
+   end else
+      drecs<lp> = lr.ids
+   end
+   return
+
+* In: fv, an open file.  Out: lr.ids, its record ids as values, in order; lr.more, true when the file has more than MAXREC records and the list stops there.
+* 28 Oct 26 (stage B): SELECT and READNEXT, stopped at MAXREC, and the list cleared - a hashed file's SELECT is made a group at a time as it is read, so a big
+*   file is not read to the end (the SSELECT that was here sorted the whole file first, which hangs the IDE on a big data file).  The ids read are put in order.
+list.ids:
+   lr.ids = ''
+   lr.n = 0
+   lr.more = @false
+   select fv to 9 on error
+      clearselect 9
+      return
+   end
+   loop
+      readnext lr.id from 9 else exit
+      if lr.n >= MAXREC then
+         lr.more = @true
+         exit
+      end
+      lr.n += 1
+      locate lr.id in lr.ids<1> by 'AL' setting lr.p else null
+      ins lr.id before lr.ids<1, lr.p>
+   repeat
+   clearselect 9                       ;* a select left part read keeps the file from splitting and merging: it is ended here
    return
 
 * ======================================================================
@@ -415,7 +562,8 @@ new.form:
       tb.raw = bx{k}
       gosub tab.display
       ed.text = tb.disp
-      ed.ro = 0
+      k = 'o' : u
+      ed.ro = (bx{k} # '')                ;* 28 Oct 26 (stage B): read-only while another session holds the record's lock
       sy.file = bn<cb>
       sy.id = bi<cb>
       sy.first = field(tb.raw, @fm, 1)
@@ -495,6 +643,33 @@ tree.nodes:
       next q
       if lp then
          open.list<1, -1> = nn
+         * 28 Oct 26 (stage B): the file's dictionary, first under the file, a node of its own; its items are under it once it has been opened
+         if ldict<lp> then
+            nn += 1
+            nodes<-1> = sysmsg(11693) : @sm : 2 : @sm : 'D:' : nm
+            if 'D:' : nm = cur.code then cur.k = nn
+            dp = 0
+            ndl = dcount(dfiles, @fm)
+            if dfiles = '' then ndl = 0
+            for q = 1 to ndl
+               if dfiles<q> = nm then
+                  dp = q
+                  exit
+               end
+            next q
+            if dp then
+               open.list<1, -1> = nn
+               dids = drecs<dp>
+               ndi = dcount(dids, @vm)
+               if dids = '' then ndi = 0
+               for j = 1 to ndi
+                  nn += 1
+                  c2 = 'Q:' : nm : ':' : dids<1, j>
+                  nodes<-1> = dids<1, j> : @sm : 3 : @sm : c2
+                  if c2 = cur.code then cur.k = nn
+               next j
+            end
+         end
          ids = lrecs<lp>
          ni = dcount(ids, @vm)
          if ids = '' then ni = 0
@@ -525,6 +700,8 @@ tab.labels:
    labels = ''
    for i = 1 to nbuf
       labels<1, i> = bi<i>
+      k = 'd' : bu<i>
+      if bx{k} # '' then labels<1, i> = 'dict ' : bi<i>         ;* 28 Oct 26 (stage B): a dictionary item says so on its tab
       if bi<i> = '' then
          k = 'u' : bu<i>
          labels<1, i> = sysmsg(11963, bx{k})              ;* an untitled buffer
@@ -561,18 +738,23 @@ tab.display:
    end
    return
 
-* In: tm.u (the tab's uid), tm.raw (its record, as it is on disk).  Sets bx m: 1 when the record holds marks and can be shown in the token form, else 0.
+* In: tm.u (the tab's uid), tm.raw (its record, as it is on disk).  Sets bx m: 1 when the tab shows the token form, else 0.
+* 28 Oct 26 (stage B): the KIND decides, not what the record held when it was read: a dictionary item, a VOC record and a data record are shown in the token form
+*   (one with no marks too, so that :@vm: typed into it is a mark when it is kept), a program never is, whatever it holds (bx k 'source', and an untitled buffer).
+*   The form is used only when 'totext' accepts the record (it reads every line back); one it refuses is shown as it is and says why.
 set.token.mode:
    k = 'm' : tm.u
    bx{k} = 0
-   if index(tm.raw, @vm, 1) or index(tm.raw, @sm, 1) or index(tm.raw, @tm, 1) then
-      call $recarr('totext', tm.raw, tm.disp, tm.ok)
-      if tm.ok then
-         bx{k} = 1
-         msg = sysmsg(11991)
-      end else
-         msg = sysmsg(11992, tm.disp)
-      end
+   tm.k = 'k' : tm.u
+   tm.kind = bx{tm.k}
+   if tm.kind # 'dict' and tm.kind # 'voc' and tm.kind # 'data' then return
+   tm.marks = (index(tm.raw, @vm, 1) or index(tm.raw, @sm, 1) or index(tm.raw, @tm, 1))
+   call $recarr('totext', tm.raw, tm.disp, tm.ok)
+   if tm.ok then
+      bx{k} = 1
+      if tm.marks then msg = sysmsg(11991)
+   end else
+      msg = sysmsg(11992, tm.disp)
    end
    return
 
@@ -618,7 +800,8 @@ load.current:
       sy.id = bi<cb>
       sy.first = field(tb.raw, @fm, 1)
       gosub syntax.for
-      ro = 0
+      k = 'o' : u
+      ro = (bx{k} # '')                  ;* 28 Oct 26 (stage B): another session holds the record's lock: the tab is read-only
    end else
       mw{'value'} = ''
       syn = ''
@@ -712,45 +895,83 @@ redraw.tree:
    call $sl_scr('put', scr)
    return
 
-* In: or.file, or.id.  Opens the record in a tab of its own, or goes to the tab it is already in
+* In: or.file, or.id; or.dict ('DICT': an item of the file's dictionary) and or.mknew (1: a record that is not there opens as a NEW record, after the account's
+*   edit gate), which are taken here and put back to '' and 0 at once, so that every other caller gets the data part and "not found".  Opens the record in a tab
+*   of its own, or goes to the tab it is already in.  28 Oct 26 (stage B): the record is read under its lock, which the tab keeps (lock.take); a record another
+*   session holds opens read-only; a collection file's record is refused (stage F hands it to CED).
 open.record:
-   p = 0
-   for i = 1 to nbuf
-      if bn<i> = or.file and bi<i> = or.id then
-         p = i
-         exit
-      end
-   next i
-   if p then
-      new.cb = p
+   od = or.dict
+   omk = or.mknew
+   or.dict = ''
+   or.mknew = 0
+   tf.dict = od
+   tf.file = or.file
+   tf.id = or.id
+   gosub tab.find
+   if tf.p then
+      new.cb = tf.p
       if new.cb # cb then gosub switch.to
       return
    end
-   open or.file to fv else
-      msg = sysmsg(11200, or.file)
+   lk.dict = od
+   lk.file = or.file
+   lk.id = or.id
+   gosub lock.take
+   if lk.err # '' then
+      msg = lk.err
       return
+   end
+   or.name = lk.name
+   rec = lk.rec
+   if lk.kind = 'dict' then
+      dt.rec = rec
+      gosub dict.trim
+      rec = dt.rec
    end
    * 28 Oct 26 (D2): a recovery copy of the record is offered before the tab is made - also for a record that is not on the disk (a new record that was never
    *   saved), which then opens as a new record holding the copy.  Cancel opens nothing and keeps the copy.
    or.new = 0
-   rc.file = or.file
+   rc.file = or.name                  ;* 'dict file' for a dictionary item, whose copy is not the data record's
    rc.id = or.id
-   read rec from fv, or.id else
+   if not(lk.exists) then
+      if lk.owner # '' then
+         msg = sysmsg(11686, or.name, or.id, lk.owner)     ;* %1 %2 is being made by another session (user %3); it was not opened
+         return
+      end
       rc.has.disk = @false
       rc.disk = ''
       gosub rc.offer
-      if rc.choice # 'use' then
-         if rc.res = '' then msg = sysmsg(11201, or.id, or.file)
-         return
-      end
+      begin case
+         case rc.choice = 'use'
+            null
+         case rc.choice = 'cancel'
+            gosub lock.free
+            return
+         case omk
+            * 28 Oct 26 (stage B): a record named on the command line that is not there is a new one - after the account's edit gate, as the name form asks it
+            gosub edit.check
+            if not(edit.ok) then
+               gosub lock.free
+               rf.text = msg
+               gosub refuse.box
+               return
+            end
+            if rc.res = '' then msg = sysmsg(11685, or.id, or.name)   ;* New record %1 in %2: nothing is written until you save it
+         case 1
+            gosub lock.free
+            if rc.res = '' then msg = sysmsg(11201, or.id, or.name)
+            return
+      end case
       rec = ''
       or.new = 1
-   end
-   if not(or.new) then
+   end else
       rc.has.disk = @true
       rc.disk = rec
       gosub rc.offer
-      if rc.choice = 'cancel' then return
+      if rc.choice = 'cancel' then
+         gosub lock.free
+         return
+      end
    end
    gosub stash.current
    gosub drop.clean.untitled
@@ -770,12 +991,349 @@ open.record:
    k = 't' : uid
    bx{k} = tb.shown
    gosub rc.init.tab
+   ts.kind = lk.kind
+   ts.dict = od
+   ts.slot = lk.slot
+   ts.owner = lk.owner
+   gosub tab.state
    tm.u = uid
    tm.raw = tb.shown
    gosub set.token.mode
    if rc.choice = 'use' then gosub rc.took
+   if lk.owner # '' then msg = sysmsg(11689, or.name, or.id, lk.owner)    ;* %1 %2 is open read-only: user %3 holds its lock
    cb = nbuf
    gosub load.current
+   return
+
+* ======================================================================
+* Kinds and locks (28 Oct 26, the editor merge's stage B)
+
+* In: uid, ts.kind, ts.dict, ts.slot, ts.owner.  The tab uid's kind, dictionary flag, lock slot and read-only owner
+tab.state:
+   k = 'k' : uid
+   bx{k} = ts.kind
+   k = 'd' : uid
+   bx{k} = ts.dict
+   k = 'l' : uid
+   bx{k} = ts.slot
+   k = 'o' : uid
+   bx{k} = ts.owner
+   return
+
+* In: tf.dict, tf.file, tf.id.  Out: tf.p, the tab that holds that record (0: none).  A dictionary item and the data record of the same id are two records
+tab.find:
+   tf.p = 0
+   for tf.i = 1 to nbuf
+      tf.k = 'd' : bu<tf.i>
+      if bn<tf.i> = tf.file and bi<tf.i> = tf.id and bx{tf.k} = tf.dict then
+         tf.p = tf.i
+         exit
+      end
+   next tf.i
+   return
+
+* In: ko.dict, fv (the file, open).  Out: ko.kind - 'dict' for the dictionary part (or a file the kernel knows as one), 'voc' for a VOC, 'source' for a program
+*   file (the kernel's own test of the name: bp, bp.out, *.bp) and for any directory file (scripts, C, text), 'data' for every other file.  A collection file is
+*   refused before this is asked.  The kind decides the token form (never for source) and that a dictionary item is not compiled.
+kind.of:
+   ko.kind = 'data'
+   if ko.dict # '' then
+      ko.kind = 'dict'
+      return
+   end
+   ko.ek = kernel(K$EDIT.KIND, fileinfo(fv, FL$PATH))
+   begin case
+      case ko.ek = 1
+         ko.kind = 'voc'
+      case ko.ek = 2
+         ko.kind = 'dict'
+      case ko.ek = 3
+         ko.kind = 'source'
+      case fileinfo(fv, FL$TYPE) = FL$TYPE.DIR
+         ko.kind = 'source'
+   end case
+   return
+
+* In: dt.rec, a dictionary item.  An A, C, I or S item loses its compiled code (the fields from DICT.SYS.INFO on), as SED shows it: the editor holds what a
+*   person writes, and the item is compiled again when it is next used.  The same is done to the disk record before the compare at a save.
+dict.trim:
+   dt.t = upcase(dt.rec[1, 1])
+   if dt.t = 'A' or dt.t = 'C' or dt.t = 'I' or dt.t = 'S' then
+      dt.rec = trim(field(dt.rec, @fm, 1, DICT.SYS.INFO - 1), @fm, 'T')
+   end
+   return
+
+* In: lk.dict, lk.file, lk.id.  Out: lk.err ('' or why nothing can be opened), lk.name (the file as the person reads it: 'dict file' for a dictionary), lk.kind,
+*   lk.exists and lk.rec (the record, '' when it is not there), lk.slot (the slot of tfv the lock is held through; 0 when none is held) and lk.owner (the user
+*   who holds the lock, when it is not this session).  fv is the file, open.  A record that is there and locked by another session is read without a lock (the
+*   tab is read-only); one that is not there is locked for its creation, as SED locks it.
+lock.take:
+   lk.err = ''
+   lk.kind = ''
+   lk.slot = 0
+   lk.owner = ''
+   lk.exists = @false
+   lk.rec = ''
+   lk.name = lk.file
+   if lk.dict # '' then lk.name = 'dict ' : lk.file
+   open lk.dict, lk.file to fv else
+      lk.err = sysmsg(11200, lk.name)
+      return
+   end
+   * a collection file's record is not text, and a plain READ of it would stop the IDE and every tab with it: refused until stage F hands it to CED
+   if fileinfo(fv, FL$COLLECTION) then
+      lk.err = sysmsg(11684, lk.name, lk.id)
+      return
+   end
+   ko.dict = lk.dict
+   gosub kind.of
+   lk.kind = ko.kind
+   for lk.s = 1 to MAXLOCK
+      if tused<lk.s> = '' then exit
+   next lk.s
+   if lk.s > MAXLOCK then
+      lk.err = sysmsg(11690)               ;* Too many records are open: close a tab first
+      return
+   end
+   tfv(lk.s) = fv                        ;* the tab's own file variable: the lock is taken through it and lives as long as it does
+   lk.got = @false
+   readu lk.rec from tfv(lk.s), lk.id on error
+      lk.err = sysmsg(11201, lk.id, lk.name) : ' (' : status() : ')'
+      lk.rec = ''
+   end locked
+      lk.owner = status()
+      read lk.rec from tfv(lk.s), lk.id then
+         lk.exists = @true
+      end else
+         lk.rec = ''
+      end
+   end then
+      lk.exists = @true
+      lk.got = @true
+   end else
+      lk.rec = ''
+      lk.got = @true
+   end
+   if lk.err # '' then lk.got = @false
+   if lk.got then
+      lk.slot = lk.s
+      tused<lk.s> = 1
+   end else
+      tfv(lk.s) = 0
+   end
+   return
+
+* In: lk.slot, lk.id.  The lock lock.take took is given back (no tab was made for it)
+lock.free:
+   if lk.slot then
+      release tfv(lk.slot), lk.id
+      tfv(lk.slot) = 0
+      tused<lk.slot> = ''
+      lk.slot = 0
+   end
+   return
+
+* In: tu.i.  The lock tab tu.i holds is given back (the tab is being closed, or becomes another record)
+tab.unlock:
+   tu.k = 'l' : bu<tu.i>
+   tu.s = bx{tu.k} + 0
+   if tu.s then
+      release tfv(tu.s), bi<tu.i>
+      tfv(tu.s) = 0
+      tused<tu.s> = ''
+      bx{tu.k} = 0
+   end
+   return
+
+* Every lock the tabs hold is given back (every way the IDE ends)
+release.all:
+   for tu.i = 1 to nbuf
+      gosub tab.unlock
+   next tu.i
+   return
+
+* In: tu.i.  The tab is given its record's lock (a tab that has just become a record: an untitled buffer named, Save as, New record).  Out: tl.ok, false when
+*   another session holds it (the tab then holds none; its save will say so) or the file cannot be opened (msg)
+tab.lock:
+   tl.ok = @false
+   tl.u = bu<tu.i>
+   tl.k = 'd' : tl.u
+   lk.dict = bx{tl.k}
+   lk.file = bn<tu.i>
+   lk.id = bi<tu.i>
+   gosub lock.take
+   if lk.err # '' then
+      msg = lk.err
+      return
+   end
+   tl.k = 'k' : tl.u
+   bx{tl.k} = lk.kind
+   tl.k = 'l' : tl.u
+   bx{tl.k} = lk.slot
+   tl.ok = (lk.slot > 0)
+   return
+
+* After the terminal was handed to a program (Run, Debug, SED, CED): a lock the program let go - a RELEASE in it, or SED's own READU of the record, which moves the
+*   lock to SED's file variable and gives it back when SED closes the file - is taken again through the tab's own file variable (a lock this session already holds
+*   is only moved back to it).  One that another session took meanwhile makes the tab read-only, and says so.
+relock.all:
+   for rl.i = 1 to nbuf
+      rl.u = bu<rl.i>
+      rl.k = 'l' : rl.u
+      rl.s = bx{rl.k} + 0
+      if rl.s then
+         rl.lost = @false
+         recordlocku tfv(rl.s), bi<rl.i> locked
+            rl.lost = @true
+            rl.owner = status()
+         end
+         if rl.lost then
+            tfv(rl.s) = 0
+            tused<rl.s> = ''
+            bx{rl.k} = 0
+            k = 'o' : rl.u
+            bx{k} = rl.owner
+            i = rl.i
+            gosub buf.label
+            msg = sysmsg(11692, bf.name, bf.id, rl.owner)   ;* %1 %2: another session (user %3) took its lock while the IDE was away; the tab is read-only
+         end
+      end
+   next rl.i
+   return
+
+* In: ro.i.  Out: ro.ok, false (and msg says why) when tab ro.i is read-only: another session holds its record's lock, so nothing may change its text
+ro.check:
+   ro.ok = @true
+   ro.k = 'o' : bu<ro.i>
+   if bx{ro.k} = '' then return
+   ro.ok = @false
+   i = ro.i
+   gosub buf.label
+   msg = sysmsg(11688, bf.name, bf.id, bx{ro.k})                 ;* %1 %2 is read-only here: user %3 holds its lock ...
+   return
+
+* In: sq.dict, sq.file.  Out: sq.id, the file's next sequential record id (CREATING.SEQKEY, as SED takes it: $seqkey), or '' with the reason in msg.  The account's
+*   edit gate is asked first: an id taken is not given back
+seq.take:
+   sq.id = ''
+   sq.name = sq.file
+   if sq.dict # '' then sq.name = 'dict ' : sq.file
+   open sq.dict, sq.file to fv else
+      msg = sysmsg(11200, sq.name)
+      return
+   end
+   gosub edit.check
+   if not(edit.ok) then
+      rf.text = msg
+      gosub refuse.box
+      return
+   end
+   sq.why = ''
+   call $seqkey(fv, @true, sq.id, sq.why)
+   if sq.why # '' then
+      msg = sq.why
+      sq.id = ''
+   end
+   return
+
+* The records of the select list that was active at the start (sel0, read before anything else could use list 0): all of them in the table at the bottom, where
+*   Return opens one, and the first MAXSEL of them in tabs
+open.select:
+   os.n = dcount(sel0, @fm)
+   err.rows = ''
+   err.lines = ''
+   sid = ''
+   sln = ''
+   for os.i = 1 to os.n
+      err.rows<-1> = 1 : @vm : sel0<os.i>
+      err.lines<-1> = 1
+      sid<-1> = sel0<os.i>
+      sln<-1> = 1
+   next os.i
+   out.kind = 'search'
+   out.file = fn0
+   out.dict = dflag0
+   gosub err.load
+   os.open = os.n
+   if os.open > MAXSEL then os.open = MAXSEL
+   for os.i = 1 to os.open
+      or.dict = dflag0
+      or.file = fn0
+      or.id = sel0<os.i>
+      gosub open.record
+   next os.i
+   if nbuf > 1 and cb # 1 then
+      new.cb = 1
+      gosub switch.to
+   end
+   msg = sysmsg(11694, os.n, os.open)          ;* %1 records of the select list are listed below; the first %2 are open in tabs
+   if sel0.more then msg := '  ' : sysmsg(11219, MAXREC, 'the select list')
+   return
+
+* Go / Open the include: the line at the editor's cursor is $include {file} record (the compiler's form: a comment after ; is not part of it).  The record opens in a
+*   tab.  With no file the compiler's own order is looked in: the file of the record in the editor, then syscom
+do.include:
+   if nbuf = 0 then
+      msg = sysmsg(11218)
+      return
+   end
+   call $sl_form('find', f, '', 'ed', en)
+   mw = f{'widgets', en}
+   in.line = mw{'value'}<mw{'cy'} + 0>
+   in.line = trim(field(in.line, ';', 1))
+   if downcase(field(in.line, ' ', 1)) # '$include' then
+      msg = sysmsg(11695)                              ;* The line at the cursor is not a $include line
+      return
+   end
+   in.n = dcount(in.line, ' ')
+   begin case
+      case in.n = 2
+         in.rec = field(in.line, ' ', 2)
+         in.files = bn<cb>
+         if in.files = '' then in.files = 'bp'
+         k = 'd' : bu<cb>
+         if bx{k} # '' then in.files = 'bp'               ;* a dictionary item has no program file of its own
+         if in.files # 'syscom' then in.files<-1> = 'syscom'
+      case in.n = 3
+         in.rec = field(in.line, ' ', 3)
+         in.files = field(in.line, ' ', 2)
+      case 1
+         msg = sysmsg(11695)
+         return
+   end case
+   in.found = @false
+   in.nf = dcount(in.files, @fm)
+   for in.j = 1 to in.nf
+      in.file = in.files<in.j>
+      open in.file to fv else
+         open downcase(in.file) to fv then in.file = downcase(in.file) else continue
+      end
+      if fileinfo(fv, FL$COLLECTION) then continue
+      read in.x from fv, in.rec on error
+         continue
+      end then
+         in.found = @true
+      end else
+         read in.x from fv, downcase(in.rec) then
+            in.rec = downcase(in.rec)
+            in.found = @true
+         end
+      end
+      if in.found then exit
+   next in.j
+   if not(in.found) then
+      msg = sysmsg(11696, in.rec, change(in.files, @fm, ', '))   ;* Include record %1 was not found (looked in %2)
+      return
+   end
+   or.file = in.file
+   or.id = in.rec
+   cur.code = 'R:' : or.file : ':' : or.id
+   gosub open.record
+   if nbuf > 0 then
+      ft.id = 'ed'
+      gosub focus.to
+      gosub redraw.tabs
+   end
    return
 
 * In: new.cb
@@ -833,6 +1391,8 @@ rc.took:
 rc.key:
    rk.u = bu<ri>
    rk.file = bn<ri>
+   k = 'd' : rk.u
+   if bx{k} # '' then rk.file = 'dict ' : bn<ri>     ;* 28 Oct 26 (stage B): a dictionary item's copy is not the data record's (open.record offers it so)
    rk.id = bi<ri>
    if rk.id = '' then
       rk.file = ''
@@ -1052,12 +1612,12 @@ status.line:
       gosub is.dirty
       call $sl_form('find', f, '', 'ed', en)
       mw = f{'widgets', en}
-      t = bn<cb> : ' ' : bi<cb>
-      if bi<cb> = '' then
-         k = 'u' : bu<cb>
-         t = sysmsg(11963, bx{k})
-      end
+      gosub buf.label
+      t = bf.name : ' ' : bf.id
+      if bi<cb> = '' then t = bf.name
       if dirty then t := ' *'
+      k = 'o' : bu<cb>
+      if bx{k} # '' then t := '  ' : sysmsg(11687, bx{k})        ;* 28 Oct 26 (stage B): [read-only: user %1 holds its lock]
       t := '   ' : sysmsg(11213, mw{'cy'}, mw{'cx'})
    end
    if msg # '' then t := '   ' : msg
@@ -1243,6 +1803,8 @@ run.cmd:
          gosub do.sed
       case cmd = 'fields'
          gosub do.fields
+      case cmd = 'include'
+         gosub do.include                ;* 28 Oct 26 (stage B): Go / Open the include (a menu entry; no key: a terminal sends Ctrl-Enter as Return)
       case cmd = 'quit'
          gosub do.quit
       case cmd = 'goto'
@@ -1308,15 +1870,38 @@ do.act:
                if lp then
                   del lfiles<lp>
                   del lrecs<lp>
+                  del ldict<lp>
                end else
                   gosub load.file
                end
                cur.code = code
                gosub tree.apply
                gosub redraw.tree
-            case code[1, 2] = 'R:'
+            case code[1, 2] = 'D:'
+               * 28 Oct 26 (stage B): the dictionary node: its items are read now (the first time), and Return again closes it
+               ld.name = code[3, 99]
+               lp = 0
+               nl = dcount(dfiles, @fm)
+               if dfiles = '' then nl = 0
+               for q = 1 to nl
+                  if dfiles<q> = ld.name then
+                     lp = q
+                     exit
+                  end
+               next q
+               if lp then
+                  del dfiles<lp>
+                  del drecs<lp>
+               end else
+                  gosub load.dict
+               end
+               cur.code = code
+               gosub tree.apply
+               gosub redraw.tree
+            case code[1, 2] = 'R:' or code[1, 2] = 'Q:'
                or.file = field(code, ':', 2)
                or.id = code[len(or.file) + 4, 9999]
+               if code[1, 2] = 'Q:' then or.dict = 'DICT'      ;* an item of the file's dictionary
                cur.code = code
                * 18 Oct 26 dm - the editor is drawn once: by the focus that follows, not also by open.record (which drew the whole form, and then
                *   again at the end of this routine).  SCREEN FOCUS only moves the form's pointer and draws nothing, so the focus goes through the
@@ -1352,6 +1937,7 @@ do.act:
 act.error:
    if k2 < 1 or k2 > dcount(err.rows, @fm) then return
    if out.kind = 'search' then
+      or.dict = out.dict                ;* 28 Oct 26 (stage B): a select list of dictionary items lists items
       or.file = out.file
       or.id = sid<k2>
       gosub open.record
@@ -1466,6 +2052,13 @@ refuse.box:
 * buffer was read as, and written ON ERROR.  The lock is given back on every path.  28 Oct 26 (S.88 Phase 4, I6, D1): the write used to abort the IDE when the kernel refused it.
 save.one:
    sv.ok = @false
+   ro.i = sv.i
+   gosub ro.check                    ;* 28 Oct 26 (stage B): a read-only tab (another session holds the record's lock) is not saved
+   if not(ro.ok) then
+      rf.text = msg
+      gosub refuse.box
+      return
+   end
    if bi<sv.i> = '' then
       gosub name.untitled
       if not(sv.named) then return
@@ -1477,16 +2070,31 @@ save.one:
    sv.saved = bx{k}
    k = 'n' : u
    sv.new = bx{k}
+   k = 'd' : u
+   sv.dict = bx{k}
+   k = 'k' : u
+   sv.kind = bx{k}
+   k = 'l' : u
+   sv.slot = bx{k} + 0
+   i = sv.i
+   gosub buf.label
+   sv.name = bf.name
    if not(sv.new) and sv.text = sv.saved then
       sv.ok = @true
       msg = sysmsg(11971)
       return
    end
-   open bn<sv.i> to fv else
-      msg = sysmsg(11200, bn<sv.i>)
-      return
+   * 28 Oct 26 (stage B): a tab that holds its record's lock saves through the file variable the lock was taken through: a READU through another one would move the
+   *   lock to it (it is this session's), and the close of that one would then give it away.  The tab keeps the lock after the save (WRITEU).
+   if sv.slot then
+      fv = tfv(sv.slot)
+   end else
+      open sv.dict, bn<sv.i> to fv else
+         msg = sysmsg(11200, sv.name)
+         return
+      end
    end
-   gosub edit.check                  ;* 17 Oct 26 dm - S.64
+   gosub edit.check                  ;* 17 Oct 26 dm - S.64; the dictionary's own path for a dictionary item (dict.edit), the VOC's for a VOC record (voc.edit)
    if not(edit.ok) then
       rf.text = msg
       gosub refuse.box
@@ -1494,26 +2102,39 @@ save.one:
    end
    sv.id = bi<sv.i>
    readu disk from fv, sv.id locked
-      msg = sysmsg(11973, bn<sv.i>, sv.id)
+      msg = sysmsg(11973, sv.name, sv.id)
       return
    end then
+      if sv.kind = 'dict' then
+         dt.rec = disk
+         gosub dict.trim                     ;* the tab holds the item without its compiled code: so is the disk record compared
+         disk = dt.rec
+      end
       if disk # sv.saved then
-         screen msgbox sysmsg(11203, bn<sv.i>, sv.id) buttons 'Overwrite,Cancel' default 2 returning b else b = 0
+         screen msgbox sysmsg(11203, sv.name, sv.id) buttons 'Overwrite,Cancel' default 2 returning b else b = 0
          if b # 1 then
-            release fv, sv.id
+            if not(sv.slot) then release fv, sv.id
             return
          end
       end
    end else
       null
    end
-   write sv.text on fv, sv.id on error
-      sv.err = status()
+   if sv.slot then
+      writeu sv.text on fv, sv.id on error
+         sv.err = status()
+         msg = sysmsg(11972, sv.name, sv.id, sv.err)
+         return
+      end
+   end else
+      write sv.text on fv, sv.id on error
+         sv.err = status()
+         release fv, sv.id
+         msg = sysmsg(11972, sv.name, sv.id, sv.err)
+         return
+      end
       release fv, sv.id
-      msg = sysmsg(11972, bn<sv.i>, sv.id, sv.err)
-      return
    end
-   release fv, sv.id
    k = 's' : u
    bx{k} = sv.text
    k = 'n' : u
@@ -1521,9 +2142,10 @@ save.one:
    sv.ok = @true
    ri = sv.i
    gosub rc.drop.tab                            ;* 28 Oct 26 (D2): the text is in the record now; its recovery copy goes
-   msg = sysmsg(11202, bn<sv.i>, sv.id)
+   msg = sysmsg(11202, sv.name, sv.id)
    if sv.new then
       rt.file = bn<sv.i>
+      rt.dict = sv.dict
       gosub refresh.tree.for                   ;* the record is in the file now: the tree lists it
    end
    return
@@ -1539,8 +2161,23 @@ name.untitled:
    call $ide_name(nm.mode, nm.file, nm.id, nm.res)
    last.status = char(1)
    if nm.res # 'ok' then return
+   * 28 Oct 26 (stage B): a record another tab holds (a new one, not yet on the disk, which the form cannot see) is not named twice
+   tf.dict = ''
+   tf.file = nm.file
+   tf.id = nm.id
+   gosub tab.find
+   if tf.p then
+      msg = sysmsg(11691, nm.file, nm.id)            ;* %1 %2 is open in another tab of the IDE: save it there
+      return
+   end
    bn<sv.i> = nm.file
    bi<sv.i> = nm.id
+   tu.i = sv.i
+   gosub tab.lock                                   ;* the record is locked for its creation and the tab keeps the lock; its kind is the file's
+   tm.u = bu<sv.i>
+   k = 't' : tm.u
+   tm.raw = bx{k}
+   gosub set.token.mode
    gosub tab.named
    sv.named = @true
    return
@@ -1555,18 +2192,36 @@ tab.named:
 * In: rt.file.  If that file's records are listed in the tree they are read again (a record has just been made in it) and the tree is drawn
 refresh.tree.for:
    rt.keep = i                                  ;* the callers may be in a loop on i (do.quit); tree.nodes uses it
+   rt.d = rt.dict                               ;* 28 Oct 26 (stage B): 'DICT': the item was made in the file's dictionary (taken here, and put back to '')
+   rt.dict = ''
    lp = 0
-   nl = dcount(lfiles, @fm)
-   if lfiles = '' then nl = 0
-   for q = 1 to nl
-      if lfiles<q> = rt.file then
-         lp = q
-         exit
-      end
-   next q
+   if rt.d # '' then
+      nl = dcount(dfiles, @fm)
+      if dfiles = '' then nl = 0
+      for q = 1 to nl
+         if dfiles<q> = rt.file then
+            lp = q
+            exit
+         end
+      next q
+   end else
+      nl = dcount(lfiles, @fm)
+      if lfiles = '' then nl = 0
+      for q = 1 to nl
+         if lfiles<q> = rt.file then
+            lp = q
+            exit
+         end
+      next q
+   end
    if lp then
-      lf.name = rt.file
-      gosub load.file
+      if rt.d # '' then
+         ld.name = rt.file
+         gosub load.dict
+      end else
+         lf.name = rt.file
+         gosub load.file
+      end
       gosub tree.apply
       gosub redraw.tree
    end
@@ -1595,6 +2250,11 @@ add.untitled:
    k = 'u' : uid
    bx{k} = untitled
    gosub rc.init.tab
+   ts.kind = 'source'                ;* 28 Oct 26 (stage B): a buffer with no record is text, and holds no lock
+   ts.dict = ''
+   ts.slot = 0
+   ts.owner = ''
+   gosub tab.state
    cb = nbuf
    return
 
@@ -1608,6 +2268,24 @@ add.new.record:
    rc.disk = ''
    gosub rc.offer
    if rc.choice = 'cancel' then return
+   * 28 Oct 26 (stage B): the new record is locked for its creation, as SED locks it, and the tab keeps the lock
+   lk.dict = ''
+   lk.file = nm.file
+   lk.id = nm.id
+   gosub lock.take
+   if lk.err # '' then
+      msg = lk.err
+      return
+   end
+   if lk.exists then
+      gosub lock.free
+      msg = sysmsg(11217, nm.id, nm.file)        ;* made by another session since the name form looked
+      return
+   end
+   if lk.owner # '' then
+      msg = sysmsg(11686, nm.file, nm.id, lk.owner)
+      return
+   end
    gosub stash.current
    gosub drop.clean.untitled
    nbuf += 1
@@ -1626,6 +2304,14 @@ add.new.record:
    k = 'n' : uid
    bx{k} = 1
    gosub rc.init.tab
+   ts.kind = lk.kind
+   ts.dict = ''
+   ts.slot = lk.slot
+   ts.owner = ''
+   gosub tab.state
+   tm.u = uid
+   tm.raw = rc.text
+   if rc.choice # 'use' then gosub set.token.mode     ;* the kind decides the token form (a copy taken sets it below)
    if rc.choice = 'use' then
       tm.u = uid
       tm.raw = rc.text
@@ -1687,6 +2373,8 @@ close.current:
    end
    ri = cb
    gosub rc.drop.tab                             ;* 28 Oct 26 (D2): the person closed it (saved, or Discard): its recovery copy goes
+   tu.i = cb
+   gosub tab.unlock                              ;* 28 Oct 26 (stage B): and its record's lock
    del bn<cb>
    del bi<cb>
    del bu<cb>
@@ -1701,6 +2389,8 @@ close.current:
 buf.label:
    bf.name = bn<i>
    bf.id = bi<i>
+   k = 'd' : bu<i>
+   if bx{k} # '' then bf.name = 'dict ' : bn<i>          ;* 28 Oct 26 (stage B)
    if bf.id = '' then
       k = 'u' : bu<i>
       bf.name = sysmsg(11963, bx{k})
@@ -1754,6 +2444,11 @@ do.compile:
    if not(sv.ok) then return
    c.file = bn<cb>
    c.id = bi<cb>
+   k = 'k' : bu<cb>
+   if bx{k} = 'dict' then
+      msg = sysmsg(11697, c.file, c.id)          ;* 28 Oct 26 (stage B), as SED: a dictionary item is not a program (its I-type is compiled when it is used)
+      return
+   end
    qp.file = c.file ; qp.id = c.id ; gosub quote.pair
    execute 'basic ' : qp.f : ' ' : qp.i : c.opt capturing c.out
    c.ok = (@system.return.code # 0)
@@ -1843,6 +2538,7 @@ retake.quiet:
    break off
    gosub open.screen
    gosub apply.theme
+   gosub relock.all                      ;* 28 Oct 26 (stage B): the locks a program run here let go are taken again (before the form: a tab may now be read-only)
    gosub new.form
    return
 
@@ -1879,15 +2575,26 @@ do.sed:
    sd.u = bu<cb>
    k = 's' : sd.u
    sd.was = bx{k}
+   k = 'd' : sd.u
+   sd.dict = bx{k}                       ;* 28 Oct 26 (stage B): a dictionary item goes to SED as DICT file item
+   k = 'k' : sd.u
+   sd.kind = bx{k}
    gosub leave.screen
    ide.call = 1
    qp.file = sd.file ; qp.id = sd.id ; gosub quote.pair
+   if sd.dict # '' then qp.f = 'dict ' : qp.f
+   * The tab keeps the record's lock while SED has it: SED's own READU in this session is granted, and moves the lock to SED's file; retake.quiet takes it back
    execute 'sed ' : qp.f : ' ' : qp.i trapping aborts
    sd.used = (ide.call = 2)
    ide.call = 0
    disk = sd.was
-   open sd.file to fv then
+   open sd.dict, sd.file to fv then
       read disk from fv, sd.id else disk = sd.was
+      if sd.kind = 'dict' then
+         dt.rec = disk
+         gosub dict.trim
+         disk = dt.rec
+      end
    end
    k = 's' : sd.u
    bx{k} = disk
@@ -1912,6 +2619,9 @@ do.fields:
       msg = sysmsg(11218)
       return
    end
+   ro.i = cb
+   gosub ro.check                       ;* 28 Oct 26 (stage B): the text of a read-only tab is not changed
+   if not(ro.ok) then return
    k = 'n' : bu<cb>
    if bi<cb> = '' or bx{k} then
       gosub save.current                ;* an untitled buffer, or a new record not yet on the disk, is named and written first
@@ -2037,6 +2747,8 @@ ai.go:
       page<1, -1> = 'An untitled buffer, ' : bf.name : ', not yet saved to a record.'
    end else
       page<1, -1> = 'File ' : bn<cb> : ', record ' : bi<cb> : '.'
+      k = 'd' : bu<cb>
+      if bx{k} # '' then page<1, -1> = "It is an item of the file's dictionary."
    end
    page<1, -1> = 'The cursor is on line ' : ai.cy : ' of ' : ai.total : '.'
    if ai.note # '' then page<1, -1> = ai.note
@@ -2060,6 +2772,9 @@ ai.go:
 * The accepted edits (res<2>: position SM length SM new text, as values, positions in the window) go into the editor's buffer, as ONE undo step.  The buffer must still hold, at each
 * place, exactly what the model was shown; if the person changed it while the AI was answering, nothing is applied.  Nothing is written to the disk.
 ai.apply:
+   ro.i = cb
+   gosub ro.check                       ;* 28 Oct 26 (stage B): the text of a read-only tab is not changed
+   if not(ro.ok) then return
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    ai.now = change(mw{'value'}, @fm, char(10))
@@ -2095,8 +2810,8 @@ get.context:
    ctx.file = ''
    if focus.id = 'tree' or nbuf = 0 then
       screen get f, 'tree' returning code
-      if code[1, 2] = 'F:' then ctx.file = code[3, 99]
-      if code[1, 2] = 'R:' then ctx.file = field(code, ':', 2)
+      if code[1, 2] = 'F:' or code[1, 2] = 'D:' then ctx.file = code[3, 99]
+      if code[1, 2] = 'R:' or code[1, 2] = 'Q:' then ctx.file = field(code, ':', 2)
    end
    if ctx.file = '' and nbuf > 0 then ctx.file = bn<cb>
    return
@@ -2118,6 +2833,15 @@ do.writeas:
    call $ide_name('copy', wa.file, wa.id, wa.res)       ;* the form has asked the gate and whether the record exists
    last.status = char(1)
    if wa.res # 'ok' then return
+   * 28 Oct 26 (stage B): a record open in a tab (a new one, not yet on the disk, which the form cannot see) is not written from another: its tab holds its lock
+   tf.dict = ''
+   tf.file = wa.file
+   tf.id = wa.id
+   gosub tab.find
+   if tf.p then
+      msg = sysmsg(11691, wa.file, wa.id)
+      return
+   end
    open wa.file to fv else
       msg = sysmsg(11200, wa.file)
       return
@@ -2182,13 +2906,34 @@ do.saveas:
    call $ide_name('saveas', sa.file, sa.id, sa.res)
    last.status = char(1)
    if sa.res # 'ok' then return
+   tf.dict = ''
+   tf.file = sa.file
+   tf.id = sa.id
+   gosub tab.find
+   if tf.p then
+      msg = sysmsg(11691, sa.file, sa.id)                 ;* 28 Oct 26 (stage B): another tab holds that record
+      return
+   end
+   * 28 Oct 26 (stage B): the tab lets go of the record it had (that record is as it was on the disk) and takes the lock of the one it becomes; a read-only tab
+   *   becomes an ordinary one (the lock it could not have was the old record's).  The form names a file of records: the new record is in its data part.
+   tu.i = cb
+   gosub tab.unlock
    u = bu<cb>
+   k = 'o' : u
+   bx{k} = ''
+   k = 'd' : u
+   bx{k} = ''
    bn<cb> = sa.file
    bi<cb> = sa.id
    k = 's' : u
    bx{k} = ''
    k = 'n' : u
    bx{k} = 1                                            ;* the record is not on the disk until the save below has written it
+   gosub tab.lock
+   tm.u = u
+   k = 't' : u
+   tm.raw = bx{k}
+   gosub set.token.mode
    sv.i = cb
    gosub tab.named
    gosub save.one
@@ -2201,6 +2946,9 @@ do.replace:
       msg = sysmsg(11218)
       return
    end
+   ro.i = cb
+   gosub ro.check                       ;* 28 Oct 26 (stage B): the text of a read-only tab is not changed
+   if not(ro.ok) then return
    screen ask sysmsg(11232) returning rp.old else return
    if rp.old = '' then return
    screen ask sysmsg(11233) returning rp.new else return
@@ -2227,6 +2975,24 @@ do.new:
    call $ide_name('new', nm.file, nm.id, nm.res)
    last.status = char(1)
    if nm.res # 'ok' then return
+   * 28 Oct 26 (stage B): CREATING.SEQKEY as the name, as SED takes it: the file's next sequential id; in quotes it is a record of that name
+   if upcase(nm.id) = 'CREATING.SEQKEY' then
+      sq.dict = ''
+      sq.file = nm.file
+      gosub seq.take
+      if sq.id = '' then return
+      nm.id = sq.id
+   end else
+      if upcase(nm.id) = '"CREATING.SEQKEY"' or upcase(nm.id) = "'CREATING.SEQKEY'" then nm.id = nm.id[2, len(nm.id) - 2]
+   end
+   tf.dict = ''
+   tf.file = nm.file
+   tf.id = nm.id
+   gosub tab.find
+   if tf.p then
+      msg = sysmsg(11691, nm.file, nm.id)                 ;* a new record of that name is already open in a tab
+      return
+   end
    gosub add.new.record
    if not(an.made) then return               ;* 28 Oct 26 (D2): Cancel at the recovery copy's question
    gosub load.current
@@ -2247,11 +3013,15 @@ do.find:
       msg = sysmsg(11200, ctx.file)
       return
    end
-   sselect fv to 9
-   readlist ids from 9 else ids = ''
-   n = dcount(ids, @fm)
+   if fileinfo(fv, FL$COLLECTION) then
+      msg = sysmsg(11698, ctx.file)              ;* 28 Oct 26 (stage B): a collection's records are not text; a plain READ of one would stop the IDE
+      return
+   end
+   * 28 Oct 26 (stage B): the records are read as the tree lists them, at most MAXREC, without sorting the whole file first
+   gosub list.ids
+   ids = convert(@vm, @fm, lr.ids)
+   n = lr.n
    if ids = '' then n = 0
-   if n > MAXREC then n = MAXREC
    upat = upcase(pat)
    hits = 0
    err.rows = ''
@@ -2276,8 +3046,10 @@ do.find:
    next i
    out.kind = 'search'
    out.file = ctx.file
+   out.dict = ''
    gosub err.load
    msg = sysmsg(11211, hits, ctx.file)
+   if lr.more then msg := '  ' : sysmsg(11219, MAXREC, ctx.file)
    return
 
 * END-CODE

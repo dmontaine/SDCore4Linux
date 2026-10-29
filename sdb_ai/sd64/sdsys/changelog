@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+28 Oct 26  THE IDE EDITS DICTIONARY ITEMS AND VOC RECORDS AND LOCKS WHAT IT HAS OPEN; THE FULL-SCREEN PAGES HAVE A LAYOUT SERVICE AND A RESIZE IS NO LONGER LOST IN A DIALOG.
+
+             What        - The IDE edits dictionary items and VOC records as well as programs and data. ide dict FILE ID and ide voc ID open one, and the file tree shows each file's
+                           dictionary as a node of its own, read only when you open it. Writing one asks the account's dict.edit or voc.edit as writing a program asks bp.edit.
+                         - A record open in a tab is locked for as long as the tab is open. If another session already holds it, it opens read-only and the status line says which
+                           user holds it. Closing the tab, quitting, a lost connection or any other way of leaving gives the locks back. An IDE left open therefore blocks other
+                           sessions and batch writes on those records until it is closed, AUTOLOGOUT ends it or tool.sessions unlocks them, as SED always did.
+                         - A record named on the command line that does not exist opens as a new, unsaved record (after the account's gate allows it). CREATING.SEQKEY in place of
+                           the record name takes the file's next sequential id. If a select list is active, ide FILE opens its first records in tabs and lists them all.
+                         - Marks appear as :@vm: :@sm: :@tm: in dictionary, VOC and data records (including ones that had no marks), and never in programs.
+                         - A big file is no longer read whole before it is listed: the tree shows the first 2,000 records and says there are more. A collection-file record is refused
+                           with a message for now. Go, Open the include opens the record a $include line names.
+                         - A page that is laid out from the window (the new layout service $tk_layout, which the toolkit pages will use) keeps its frame rows, and the window
+                           lock lifts as soon as the window is big enough, wherever the cursor is. A resize that arrives while a dialog is open (a question, a menu, the AI box) is
+                           no longer swallowed: the page gets it afterwards. At 140 by 43 every page is laid out exactly as before; no page uses the service yet.
+                         It does NOT edit collection files, operating-system paths or a dictionary named in the New record form yet.
+
 28 Oct 26  DATA CAN NO LONGER SEND CODES TO YOUR TERMINAL; AUTOLOGOUT WORKS IN THE FULL-SCREEN PROGRAMS; A QUERY CANNOT WRITE THE WRONG FILE; THE IDE CAN KEEP A RECOVERY COPY.
 
              What        - Text that comes from data (a record, a record id, another user's lock id, a file name, an AI answer) can no longer send control codes to your

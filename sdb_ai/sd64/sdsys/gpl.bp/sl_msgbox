@@ -10,6 +10,7 @@
 * 18 Oct 26 dm  For a program that asked for the cursor lock, the cursor is put on the selected button ($sl_curat) while the box is up and
 *               put back where it was when the box goes: a box in a part of the screen the window does not show is a question the
 *               user cannot read, and the keys are then taken by the lock.  A program that has not asked is not affected.
+* 28 Oct 26 dm  S.88 L1: the common block /slguard/ has the lock's mode and layout size at its end, as $sl_guardmode and $sl_key declare it.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -48,7 +49,7 @@ $include sl.h
    equate B.AY to 17
    equate B.CURSAVE to 18     ;* where the cursor lock thought the cursor was before the box: has : x : y : hid (guarded programs only)
 
-   common /slguard/ g.on, g.name, g.minw, g.minh, g.quit
+   common /slguard/ g.on, g.name, g.minw, g.minh, g.quit, g.mode, g.lw, g.lh
    common /slcur/ cu.has, cu.x, cu.y, cu.hid
 
    title = w<SL.W.D>

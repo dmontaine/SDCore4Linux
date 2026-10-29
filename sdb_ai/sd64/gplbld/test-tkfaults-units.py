@@ -148,7 +148,7 @@ def checks(raw):
        and re.search(r"\$define TK\.MINW\s+140\b", th) is not None and re.search(r"\$define TK\.MINH\s+43\b", th) is not None, "")
     ck("F2", "ORDER in $tk_open: a phantom is turned away, the minimum is asked, the audience is asked, THEN the window is asked for its size and the maximum applied, and only then the screen is taken - "
              "a window too big is refused before the screen is taken (taking it is what costs the time) and after the audience (so the administrator-only message is the same at every size)",
-       ordered(op, "system(25)", "call $sl_need(", "K$ADMINISTRATOR", "call $sl_window(win.w, win.h)", "TK.MAXW", "TK.MAXH", "screen open", "call $sl_guardmode("), "")
+       ordered(op, "system(25)", "call $sl_need(", "K$ADMINISTRATOR", "call $sl_window(win.w, win.h)", "TK.MAXW", "TK.MAXH", "screen open", "call $tk_layout('open'"), "")   # 28 Oct 26 (S.88 L1): the lock is armed by $tk_layout 'open'
     ck("F3", "the refusal says message 11951 with the app, TK.MAXW, TK.MAXH and the size found, and RETURNS (it is a test of BOTH dimensions, either one over the limit refuses; no number is typed into the program)",
        re.search(r"if win\.w > TK\.MAXW or win\.h > TK\.MAXH then err = sysmsg\(11951, app, TK\.MAXW, TK\.MAXH, win\.w : ' by ' : win\.h\) return end", op) is not None
        and not re.search(r"\b(500|300|9999)\b", op)
@@ -227,10 +227,11 @@ def move_max(raw):
     """the same block, but after the screen is taken and the cursor lock asked for"""
     r = dict(raw)
     t = r["tk_open"]
-    if MAXBLK not in t or "   call $sl_guardmode(app, TK.MINW, TK.MINH)\n" not in t:
+    lay = "   call $tk_layout('open', ctx, '', lay.chg)\n"          # 28 Oct 26 (S.88 L1): the layout and its cursor lock, after the screen is taken
+    if MAXBLK not in t or lay not in t:
         raise KeyError("tk_open: the block to move is not there, so the mutant cannot be made")
     t = t.replace(MAXBLK, "", 1)
-    t = t.replace("   call $sl_guardmode(app, TK.MINW, TK.MINH)\n", "   call $sl_guardmode(app, TK.MINW, TK.MINH)\n" + MAXBLK, 1)
+    t = t.replace(lay, lay + MAXBLK, 1)
     r["tk_open"] = t
     return r
 

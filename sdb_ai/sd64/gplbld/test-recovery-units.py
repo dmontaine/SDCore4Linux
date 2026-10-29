@@ -11,6 +11,8 @@ START-HISTORY:
 28 Oct 26 dm  The TUI phase 2 review's findings (R10-R13, 11 mutants): a second Open of an untitled copy no longer wipes the first; a tab that found a copy it does not own
               looks again and writes its own when that copy is gone, and says so once (11778); an empty untitled tab taken away drops its copy; the IDE's break setting
               goes through $tk_brk at every way in and out.
+28 Oct 26 dm  The editor merge's stage B: open.record reads under the record's lock (lock.take) and gives the lock back on Cancel (lock.free); R8f, R8j and the
+              Cancel mutant follow it.
 END-HISTORY
 
 WHAT IT HOLDS.  The switch is register field 19 (ACC$RECOVERY), OFF AS DELIVERED: blank means no, CREATE.ACCOUNT writes 'no' unless RECOVERY-ON was typed, and there is
@@ -230,8 +232,10 @@ def checks(src, msgs):
        ordered(cl, "if dirty then", "case 1", "return", "end case", "ri = cb", "gosub rc.drop.tab", "del bn<cb>")
        and ordered(qt, "if not(abort) then", "for ri = 1 to nbuf", "gosub rc.drop.tab", "next ri", "done = @true"), "")
     orc = label(ide, "open.record")
-    ck("R8f opening a record offers its copy BEFORE the tab is made, Cancel opens nothing, and only 'use' puts the copy's text in the buffer (the disk record stays the saved text)",
-       ordered(orc, "read rec from fv, or.id else", "gosub rc.offer", "if rc.choice # 'use' then", "return", "gosub rc.offer", "if rc.choice = 'cancel' then return", "nbuf += 1",
+    ck("R8f opening a record offers its copy BEFORE the tab is made, Cancel opens nothing (and gives back the lock the open took: stage B, 28 Oct 26), and only 'use' "
+       "puts the copy's text in the buffer (the disk record stays the saved text)",
+       ordered(orc, "gosub lock.take", "if not(lk.exists) then", "gosub rc.offer", "case rc.choice = 'use'", "case rc.choice = 'cancel'", "gosub lock.free", "return",
+               "rc.disk = rec", "gosub rc.offer", "if rc.choice = 'cancel' then", "gosub lock.free", "return", "nbuf += 1",
                "bx{k} = rec", "if rc.choice = 'use' then tb.shown = rc.text", "bx{k} = tb.shown", "gosub rc.init.tab"), "")
     an = label(ide, "add.new.record")
     ck("R8g a new record that has a copy is offered it too, before its tab; Cancel makes no tab and do.new stops",
@@ -249,7 +253,7 @@ def checks(src, msgs):
        "%d characters" % len(rc_all))
     ck("R8j every tab the IDE makes starts owning no copy (open.record, add.untitled, add.new.record call rc.init.tab), and a bare IDE offers the untitled copies",
        "gosub rc.init.tab" in orc and "gosub rc.init.tab" in label(ide, "add.untitled") and "gosub rc.init.tab" in an and ide.count("gosub rc.init.tab") == 3
-       and "if id0 = '' then gosub rc.untitled" in ide, "")
+       and "if id0 = '' and not(seq0) and sel0 = '' then gosub rc.untitled" in ide, "")
 
     # ---- 28 Oct 26: the TUI phase 2 review's findings
     rcu = label(ide, "rc.untitled")
@@ -342,7 +346,7 @@ MUTANTS = [
     ("ide", "the hang-up writes nothing", "            case ev<1> = 'end'\n               gosub rc.tick ", "            case ev<1> = 'end'\n               null "),
     ("ide", "a copy somebody else left is written over", "               if rr # '' then\n                  rt.write = @false\n", "               if rr # '' then\n                  null\n"),
     ("ide", "a save drops the copy before it writes", "   ri = sv.i\n   gosub rc.drop.tab                            ;* 28 Oct 26 (D2): the text is in the record now; its recovery copy goes\n", ""),
-    ("ide", "Cancel opens the record anyway", "      if rc.choice = 'cancel' then return\n   end\n   gosub stash.current", "   end\n   gosub stash.current"),
+    ("ide", "Cancel opens the record anyway", "      if rc.choice = 'cancel' then\n         gosub lock.free\n         return\n      end\n   end\n   gosub stash.current", "   end\n   gosub stash.current"),
     ("ide", "Enter deletes the copy", "buttons 'Use the copy,Delete the copy,Cancel' default 1", "buttons 'Use the copy,Delete the copy,Cancel' default 2"),
     ("ide", "Use the copy writes it to the record", "         rc.choice = 'use'\n", "         rc.choice = 'use'\n         write rc.text on fv, rc.id\n"),
     ("ide", "a quit that was cancelled drops the copies", "   if not(abort) then\n      for ri = 1 to nbuf", "   if @true then\n      for ri = 1 to nbuf"),

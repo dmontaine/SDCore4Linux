@@ -17,6 +17,8 @@
 # 28 Oct 26 dm  F3 is the editor's find next (D31) and Shift-F3 find previous, so it no longer goes to the tree: GOTO_TREE (Shift-F6 twice from the
 #               editor) does; Shift-F6 is the previous pane; Alt-PageDown / Alt-PageUp switch tabs as the Ctrl forms do; the Go menu has Files and
 #               records (no key) and Previous pane (Shift-F6).  New rows: find next / previous in the IDE, Shift-F6, Alt-PageDown / Up, the Go entry.
+# 28 Oct 26 dm  The editor merge, stage B: the Go menu has ten entries, Open the include (no key) before Edit in SED.  Written, NOT run.  The kinds,
+#               the locks and the include itself are sandbox-ide-kinds.py's.
 # END-HISTORY
 #
 # HOW IT DRIVES THE IDE.  On a PSEUDO-TERMINAL (ptydrive.py) at 120 by 36, the screen read from the emulator
@@ -376,8 +378,12 @@ end
         row("...Files and records is an entry of its own and carries no key (F3 is the editor's find next, not the tree's)",
             has(L[1:14], "Files and records") and any("Files and records" in l and not re.search(r"\^|F\d|Shift|Alt", l[l.index("Files and records"):][:29]) for l in L[1:14]),
             e.text()[:500])
-        row("...and the nine entries are all there: Go to line, Next error, Next tab, Previous tab, Files and records, Next pane, Previous pane, Edit in SED, Edit as fields",
-            has(L[1:14], "Go to line", "Next error", "Next tab", "Previous tab", "Files and records", "Next pane", "Previous pane", "Edit in SED", "Edit as fields"), e.text()[:500])
+        row("...and the ten entries are all there: Go to line, Next error, Next tab, Previous tab, Files and records, Next pane, Previous pane, Open the include (stage B, "
+            "28 Oct 26), Edit in SED, Edit as fields",
+            has(L[1:15], "Go to line", "Next error", "Next tab", "Previous tab", "Files and records", "Next pane", "Previous pane", "Open the include", "Edit in SED",
+                "Edit as fields"), e.text()[:500])
+        row("...Open the include carries no key (a terminal sends Ctrl-Enter as Return)",
+            any("Open the include" in l and not re.search(r"\^|F\d|Shift|Alt", l[l.index("Open the include"):][:29]) for l in L[1:15]), e.text()[:500])
         L = e.keys(RIGHT)
         row("Right again: the Search menu holds Find in the records (no key) and Replace in the record (^R)",
             any("Find in the records" in l and "F11" not in l for l in L[1:12]) and any("Replace in the record" in l and "^R" in l for l in L[1:12]), e.text()[:400])

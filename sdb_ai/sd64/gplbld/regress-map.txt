@@ -78,6 +78,8 @@ gplbld/sandbox-openzero.py   : none
 # 27 Oct 26 (S.87 batch 13): the Pick style CALL "file name" is gone, and its suite with it
 gplbld/sandbox-callfile.py   : none
 gplbld/sandbox-*.py          : @self
+# S.88 L1 (28 Oct 26): sandbox-tk-layout.py takes its expected rectangles from this free check's model of $tk_layout
+gplbld/test-tklayout-units.py : tk-layout
 gplbld/test-*.py             : none
 gplbld/regress.sh            : none
 gplbld/regress-map.txt       : none
@@ -315,7 +317,7 @@ sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared wi
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
-sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults @pages tk-resize
+sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults @pages tk-resize tk-layout
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
 sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
 sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
@@ -331,14 +333,17 @@ sdsys/gpl.bp/tk_ownfile      : tool-query tool-bulk termsafe
 sdsys/gpl.bp/tk_word         : tool-voc tool-files termsafe
 sdsys/gpl.bp/tk_brk          : tk-base tk-keys @pages tk-resize termsafe sed-menu
 # 26 Oct 26 (task faults): the window cap is in $tk_open, the sixth argument of $tk_confirm and message 11865 are the faults suite's
-sdsys/gpl.bp/tk_open         : tk-base tk-keys tk-faults @pages tk-resize termsafe
+sdsys/gpl.bp/tk_open         : tk-base tk-keys tk-faults @pages tk-resize termsafe tk-layout
+# S.88 L1 (28 Oct 26): the layout service, its messages 11540 (the cursor lock's layout mode, which tool.keys' suite reads) and 11541-11542 (a declaration refused)
+sdsys/gpl.bp/tk_layout       : tk-layout tk-base tk-keys @pages tk-resize termsafe
+sdsys/messages/1154[0-2]     : tk-layout tk-keys tk-resize
 # S.88 phase 2 (28 Oct 26, S5): the AI popup shows every line of a diff, a command and the preview whole (before, the rule below this one hid the AI suites from a change of tk_ai)
 sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys
-sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe
+sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
 sdsys/gpl.bp/tool_keys       : tk-keys
-sdsys/gpl.bp/sl_key          : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys @pages realkeys
+sdsys/gpl.bp/sl_key          : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys @pages realkeys tk-layout tk-resize
 sdsys/gpl.bp/_keycode        : @core tk-base tk-keys eofkeys input realkeys screen ide
 sdsys/syscom/keyin.h         : @core tk-base tk-keys eofkeys input realkeys screen ide
 # S.88 phase 1 (28 Oct 26): the account's login paragraph no longer forces TERM LINUX, so the terminal type of every suite that signs on is the environment's
@@ -535,22 +540,26 @@ sdsys/gpl.bp/sl_theme       : screen sed-menu syntax viewport ide ced dbgui tk-b
 sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages
 sdsys/gpl.bp/*.h             : @compiler @core
 # S.88 phase 2 (28 Oct 26, S1): SCREEN TEXT draws through $sl_put, whose control-character scrub escdata reads from the raw bytes
-sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base tk-keys @pages termsafe escdata
+sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base tk-keys @pages termsafe escdata tk-layout
 # S.75 (22 Oct 26): the pick window is used by the toolkit only (tktest); no other screen suite draws it.
 sdsys/gpl.bp/sl_pickwin      : tk-base
 # S.88 phase 2 (28 Oct 26): the cursor lock of a window smaller than the layout; used by SED, the debugger and $sl_key's guard mode; its AUTOLOGOUT work-around is gone
-sdsys/gpl.bp/sl_guard        : sed-small ide-small sed-menu dbgui tk-resize autologout
+sdsys/gpl.bp/sl_guard        : sed-small ide-small sed-menu dbgui tk-resize autologout tk-layout tk-keys
 # S.88 phase 2 (28 Oct 26): the memo's undo steps (D3) and the control-character scrub of $sl_put (S1); any sl_ program draws through $sl_put, so escdata, and the memo is every editor's text area
 sdsys/gpl.bp/sl_memo         : memoundo escdata screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe recarr
-sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata
+sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps
-sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery
+sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds
+# The editor merge, stage B (28 Oct 26): the IDE's record kinds and locks - messages 11684-11698 (11215 and 11226 changed too), and its suite
+sdsys/messages/1168[4-9]     : ide-kinds ide
+sdsys/messages/1169[0-8]     : ide-kinds ide
+sdsys/messages/11219         : ide-kinds
 # S.88 plan 2.9 (28 Oct 26): the editors' recovery copy - its keeper, its messages 11770-11777, and its suite (the register words are in modifya, createa and create_account, held by test-recovery-units.py)
 sdsys/gpl.bp/edit_recovery   : recovery ide-fresh
 sdsys/messages/1177[0-7]     : recovery
 gplbld/sandbox-recovery.py   : @self
 # S.88 Phase 4 (28 Oct 26): the IDE's one name form, and its messages 11963-11975 (11214 and 11225 changed too)
-sdsys/gpl.bp/ide_name        : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr
+sdsys/gpl.bp/ide_name        : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr ide-kinds
 sdsys/messages/1196[3-9]     : ide-fresh ide
 sdsys/messages/1197[0-5]     : ide-fresh ide
 sdsys/messages/11214         : ide ide-small ide-sed
@@ -743,8 +752,8 @@ sdsys/messages/117*          : crypt
 sdsys/messages/11197        : sed-menu sed-small
 sdsys/messages/1160[0-2]     : sed-small ide-small
 sdsys/messages/1160[3-5]     : ide-sed
-sdsys/messages/1121[5]       : ide ide-small ide-sed recarr
-sdsys/messages/11226         : ide ide-sed recarr
+sdsys/messages/1121[5]       : ide ide-small ide-sed recarr ide-kinds
+sdsys/messages/11226         : ide ide-sed recarr ide-kinds
 sdsys/messages/1123[7-9]     : ide idedraw
 sdsys/messages/11240         : ide idedraw
 # 19 Oct 26 (K2, K1): 11482 is printed by MODIFY.ACCOUNT and CREATE.ACCOUNT, 11521 is the refusal the netfile suite shows and the net suite pins; 11522 and 11523 are filesgrp's lines.

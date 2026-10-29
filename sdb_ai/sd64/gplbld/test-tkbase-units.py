@@ -75,10 +75,13 @@ def checks(raw):
     add("T1", "tk.h fixes the minimum at 140 by 43 and names the chrome rows", re.search(r"\$define TK\.MINW\s+140\b", h) is not None and re.search(r"\$define TK\.MINH\s+43\b", h) is not None
         and "TK.C.YSTAT" in h and "TK.C.YBORD" in h and "TK.C.YKEYS" in h, "")
     op = sq["tk_open"]
-    add("T2", "ORDER in $tk_open: a phantom is turned away, then the size is asked, then the audience, and only then the screen is taken, then the cursor lock",
-        ordered(op, "system(25)", "call $sl_need(", "K$ADMINISTRATOR", "screen open", "call $sl_guardmode("), "")
-    add("T3", "the size asked is TK.MINW by TK.MINH (never a number typed in the program) and so is the cursor lock's",
-        "call $sl_need(app, TK.MINW, TK.MINH," in op and "call $sl_guardmode(app, TK.MINW, TK.MINH)" in op and not re.search(r"\b(140|42|43)\b", op), "")
+    # 28 Oct 26 (S.88 L1): the size asked is the app's FLOOR (TK.MINW by TK.MINH unless the app declares another), and the cursor lock is armed by $tk_layout 'open' with it
+    # (test-tklayout-units.py W3 and W4 hold the rest)
+    add("T2", "ORDER in $tk_open: a phantom is turned away, then the size is asked, then the audience, and only then the screen is taken, then the layout and its cursor lock",
+        ordered(op, "system(25)", "call $sl_need(", "K$ADMINISTRATOR", "screen open", "call $tk_layout('open'"), "")
+    add("T3", "the size asked is the floor, TK.MINW by TK.MINH unless the app declares another (never a number typed in the program), and the layout is made from the same floor",
+        "call $sl_need(app, floor.w, floor.h," in op and "floor.w = TK.MINW" in op and "floor.h = TK.MINH" in op and "ctx<TK.C.FLOORW> = floor.w" in op
+        and "call $tk_layout('open', ctx," in op and not re.search(r"\b(140|42|43)\b", op), "")
     before = op.split("screen open", 1)[0]
     add("T4", "EVERY REFUSAL RETURNS before the screen is opened: the phantom, the size and the audience each set err and return",
         before.count("return") >= 3 and "err = " in before, "returns before screen open: %d" % before.count("return"))
@@ -356,8 +359,8 @@ def run(raw, quiet=False):
 MUT = [
     ("tk_open", "the audience is tested after the screen is taken", "audience = 'admin' then", "audience = 'admin' and 0 then"),
     ("tk_open", "a refusal does not return", "err = sysmsg(11801, app)\n      return", "err = sysmsg(11801, app)"),
-    ("tk_open", "the size is typed into the program", "call $sl_need(app, TK.MINW, TK.MINH,", "call $sl_need(app, 140, 42,"),
-    ("tk_open", "the cursor lock is not asked for", "call $sl_guardmode(app, TK.MINW, TK.MINH)", "null"),
+    ("tk_open", "the size is typed into the program", "call $sl_need(app, floor.w, floor.h,", "call $sl_need(app, 140, 42,"),
+    ("tk_open", "the cursor lock is not asked for", "call $tk_layout('open', ctx, '', lay.chg)", "null"),
     ("tk_open", "the break setting is changed before it is saved", "saved.trap = pterm(PT$BREAK, -1)", "saved.trap = 1"),
     ("tk_close", "the break setting is not given back", "call $tk_brk('close', ctx<TK.C.TRAP>)", "null"),
     ("tk_frame", "the status line is written every time", "if t = last.stat then", "if 0 then"),

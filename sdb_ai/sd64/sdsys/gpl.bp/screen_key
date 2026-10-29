@@ -5,6 +5,8 @@
 *
 * START-HISTORY:
 * 12 Oct 26 dm  New.
+* 28 Oct 26 dm  S.88 L1 (R-a): a resize that a dialogue read (and the program never saw) is the key this statement gives first, before it waits;
+*               a resize it reads itself clears the note, so that it is given once.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -20,7 +22,9 @@
 *              f1 to f12, ctrl-a to ctrl-z (those with no name of their own), or the character itself.
 *              The terminal's own terminfo entry decides what a sequence means ($sl_key).  A report of the
 *              mouse (once SCREEN OPEN has switched reporting on) is the name mouse: SCREEN MOUSE then says
-*              what it was.
+*              what it was.  resize when the terminal's size changed - also when it changed while a dialogue (a menu,
+*              a message box, SCREEN ASK ...) was open, which then had the key: the program is given it at its next
+*              SCREEN KEY, at once and before any key typed since.
 *     status   0 a key; 1 the time ran out or the input has ended (ELSE)
 *
 * END-DESCRIPTION
@@ -32,7 +36,13 @@ subroutine screen_key(timeout, ret, status)
 $catalog !screen_key
 
    ret = ''
-   call $sl_key(timeout, ret)
+   call $sl_scr('pending', pend)                   ;* a resize a dialogue read and the program did not see (R-a): it is the key, first
+   if pend then
+      ret = 'resize'
+   end else
+      call $sl_key(timeout, ret)
+      if ret = 'resize' then call $sl_scr('pending', pend)    ;* delivered here: the note is not left for the next call
+   end
    if ret = 'resize' then
       call $sl_scr('get', scr)                 ;* makes the kept picture the terminal's size and draws it again
       call $sl_scr('put', scr)

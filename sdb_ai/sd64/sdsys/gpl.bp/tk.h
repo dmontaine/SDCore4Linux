@@ -6,6 +6,9 @@
 * START-HISTORY:
 * 22 Oct 26 dm  New (TK-0.1: the frame, the key table and the function-key row).
 * 26 Oct 26 dm  faults: TK.MAXW and TK.MAXH, the largest window a page is given (a session at 200 by 9999 spent minutes opening the screen).
+* 28 Oct 26 dm  S.88 L1, the layout service ($tk_layout): ctx slots 12 to 26 (the floor, the body, the mode, the frame-cache epoch, the panes), the body's
+*               origin (TK.XBODY, TK.YBODY), the smallest floor an app may declare (TK.LEASTW, TK.LEASTH) and the pane declaration's attributes (TK.P.*).
+*               No slot before 12 moved.
 * END-HISTORY
 *
 * THE MINIMUM WINDOW is 140 columns by 43 lines (the owner's ruling of 20 Oct 2026).  The 43rd line is the function-key row, outside the window below its border.
@@ -14,7 +17,10 @@
 * in 0.5 s, 140 by 1600 in 5.6 s, 140 by 3200 in 21.5 s and a 200 by 9999 window (what the sandbox suites' plain sessions set so that nothing pages) did not draw in 40 s
 * at full CPU.  $tk_open refuses a window above this size, before it takes the screen, in the words of message 11951; 500 by 300 opens in about a second.
 *
-* THE FOOT OF THE SCREEN, counted from the last row of the layout (the layout is the window when it is bigger than the minimum, the minimum when it is smaller):
+*   It is also the REFERENCE layout: the size every pane declaration is written for (TK.P.*), and every app's floor unless it declares another to $tk_open.
+*
+* THE FOOT OF THE SCREEN, counted from the last row of the layout (the layout is the window when it is bigger than the app's floor, the floor when it is smaller; never
+* bigger than TK.MAXW by TK.MAXH):
 *      row H-1   the function keys      (YKEYS)
 *      row H-2   the border             (YBORD)
 *      row H-3   the status line        (YSTAT)   [pane]  message
@@ -25,7 +31,7 @@ $define TK.MINW        140
 $define TK.MINH        43
 $define TK.MAXW        500
 $define TK.MAXH        300
-$define TK.C.W         1       ;* the layout's width: the window's, or TK.MINW when it is smaller
+$define TK.C.W         1       ;* the layout's width: the window's, or the app's floor (TK.C.FLOORW, TK.MINW unless declared) when it is smaller
 $define TK.C.H         2       ;* the layout's height
 $define TK.C.UTF8      3       ;* 1 when the terminal says UTF-8 (the screen was opened with line drawing)
 $define TK.C.TRAP      4       ;* the break setting before the app took it, for $tk_close to give back
@@ -36,6 +42,48 @@ $define TK.C.YBORD     8       ;* the row of the border
 $define TK.C.YKEYS     9       ;* the row of the function keys
 $define TK.C.GEN       10      ;* a number the app raises to have $tk_frame write all of the frame again (after the screen was cleared or repainted under it)
 $define TK.C.AI        11      ;* 1 when the AI line is drawn on row YSTAT - 1 (set by $tk_ai 'init'; the AI is on for this account and the helper has a provider, model and key), else null
+*   Slots 12 to 26 are the layout service's ($tk_layout, 28 Oct 2026).  $tk_open fills them; $tk_layout 'refresh' makes them the window's again after a resize.
+$define TK.C.FLOORW    12      ;* the app's floor: the smallest window it is laid out for (TK.MINW unless the app declared another to $tk_open)
+$define TK.C.FLOORH    13
+$define TK.C.WINW      14      ;* the window ($sl_window) when the layout was last made
+$define TK.C.WINH      15
+$define TK.C.XBODY     16      ;* the body: the cells between the menu bar (row 0) and the status line, less a column at each side
+$define TK.C.YBODY     17
+$define TK.C.BODYW     18
+$define TK.C.BODYH     19      ;* YSTAT - YBODY rows: the body ends on the row above the status line (the AI line's row when the AI is on, as the pages have always drawn)
+$define TK.C.MODE      20      ;* full: every pane has at least its declared size; compact: the layout is smaller than 140 by 43 and a pane was made smaller or collapsed
+$define TK.C.EPOCH     21      ;* the frame cache's epoch: a new number from each $tk_open, cleared by $tk_close; $tk_frame forgets what it wrote when it differs
+$define TK.C.YMENU     22      ;* the row of the menu bar (0)
+$define TK.C.PANES     23      ;* the pane declaration given to $tk_layout 'declare': a value to a pane, a subvalue to an attribute (TK.P.*)
+$define TK.C.RECTS     24      ;* each pane's rectangle, a value to a pane in the order declared: x, y, w, h, shown (subvalues; shown 0 for a collapsed pane)
+$define TK.C.CHANGED   25      ;* 1 when the last 'open', 'refresh' or 'declare' changed the frame, the body or a pane's rectangle, else 0
+$define TK.C.PANEERR   26      ;* null, or why the last 'declare' was refused (the panes it holds are then none)
+*
+* THE BODY'S ORIGIN.  ONE NUMBER EACH: a menu bar of its own on row 0 that pushes every body down a row is TK.YBODY 2 (and the reference body below is a row shorter).
+$define TK.XBODY       1       ;* the body starts in column 1 and ends a column short of the right edge: BODYW = W - 2 * TK.XBODY
+$define TK.YBODY       1       ;* the first row of the body: BODYH = YSTAT - TK.YBODY
+* THE SMALLEST FLOOR an app may declare to $tk_open: under 100 by 30 there is ED (plan section 12).  A floor is never larger than TK.MAXW by TK.MAXH.
+$define TK.LEASTW      100
+$define TK.LEASTH      30
+*
+* THE PANE DECLARATION given to $tk_layout 'declare': one FIELD to a pane, its VALUES these attributes.  Every size is the pane's size in the REFERENCE layout, 140 by 43
+* (body 138 by 39): what the page draws today.  A larger layout gives the growth to the panes that stretch, by weight; a smaller one (an app whose floor is under 140 by 43)
+* takes rows and columns from the panes that stretch, then from the fixed ones, down to their least size, and then collapses whole panes, the highest priority number first.
+* The body is split into BANDS stacked from the top (band 1 first); a band into COLUMNS side by side (column 1 at the left); a column into the panes of that band and column,
+* stacked in the order they are declared.  A band is as tall as its tallest column; a column as wide as its widest pane.
+$define TK.P.ID        1       ;* the pane's id: a plain word, unique in the declaration
+$define TK.P.BAND      2       ;* its band, 1 up
+$define TK.P.COL       3       ;* its column in the band, 1 up (null 1)
+$define TK.P.H         4       ;* its height in the reference layout, border rows included
+$define TK.P.W         5       ;* its width in the reference layout
+$define TK.P.GAP       6       ;* the columns left empty before its column (the first pane of a column says it; null 0)
+$define TK.P.VKIND     7       ;* fixed (null) or stretch: whether it takes rows the layout has beyond the reference
+$define TK.P.VWT       8       ;* the weight of a stretching pane's share of the rows (null 1)
+$define TK.P.HKIND     9       ;* fixed (null) or stretch: the same for columns
+$define TK.P.HWT       10      ;* the weight of its column's share of the columns (null 1)
+$define TK.P.MINH      11      ;* the least height it may be given in a smaller layout (null: its height)
+$define TK.P.MINW      12      ;* the least width (null: its width)
+$define TK.P.PRIO      13      ;* collapse priority: null or 0 never collapses; otherwise the highest number collapses first
 *
 * THE GATE TABLE ($tk_gate_info, plan section 2.4) returns one gate as a dynamic array, a field to a value:
 $define TK.G.ID        1       ;* the gate's id, the column name of the gate screen: sh, os, sd, voc ...

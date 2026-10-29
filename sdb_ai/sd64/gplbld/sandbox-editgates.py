@@ -17,6 +17,8 @@
 #               the .S and .D stack commands and (until 28 Oct 26, when multifiles went) CREATE.FILE on an existing pointer; !WRITELIST in an account with no $savedlists; and the
 #               C routes from an ordinary program (OSPATH 5 / 13 / 14, the socket trace log, CREATE.FILE and OPENTEMP inside a guarded
 #               file, the private catalogue, a record called sample.bp).  Not driven: SP.VIEW, PHANTOM LOG, apisrvr.
+# 28 Oct 26 dm  The editor merge, stage B: the editors section has a row for the IDE on a dictionary item (IDE DICT zzd zzq), which is saved only through
+#               dict.edit; written, NOT run (the owner's rule: one complete run at the end).
 # END-HISTORY
 #
 # It uses sandbox-gates.py's way of making ordinary sessions in fixture accounts, by loading that file.  Every fixture account holds the
@@ -197,7 +199,7 @@ REC = "\n".join(
      "   open 'voc' to v else stop", "   open 'bp' to b else stop", "   open 'DICT', 'zzd' to dd else stop"]
     + sum([["   read x from %s, '%s' then crt 'REC %s ':convert(@fm, '|', x) else crt 'REC %s <absent>'" % (fv, rid, label, label)]
            for label, fv, rid in (("voc-zzvrec2", "v", "zzvrec2"), ("voc-zzvrec3", "v", "zzvrec3"), ("bp-zzold", "b", "zzold"),
-                                  ("bp-zzold2", "b", "zzold2"), ("dict-zzf", "dd", "zzf"), ("dict-zzf2", "dd", "zzf2"))], []) + ["end", ""])
+                                  ("bp-zzold2", "b", "zzold2"), ("dict-zzf", "dd", "zzf"), ("dict-zzf2", "dd", "zzf2"), ("dict-zzq", "dd", "zzq"))], []) + ["end", ""])
 
 
 def chk_lines(label, fv, stmt):
@@ -422,10 +424,13 @@ def editors_section():
         t3 = pty_edit(n, "SED bp zzold2", ["ZZ", CTRL_S], [CTRL_Q, "y"])
         t4 = pty_edit(n, "SED voc zzvrec3", ["ZZ", CTRL_S], [CTRL_Q, "y"])
         t5 = pty_edit(n, "SED DICT zzd zzf2", ["ZZ", CTRL_S], [CTRL_Q, "y"])
+        # 28 Oct 26 (the editor merge, stage B): the IDE opens a dictionary item by `ide dict file id` and saves it through the account's dict.edit gate
+        t6 = pty_edit(n, "IDE dict zzd zzq", [HOME, "ZZ", CTRL_S], [RET, CTRL_Q, DOWN, RET])
         r = records(n)
         for label, rec_key, allowed, text, msg in (
                 ("IDE saves a program record", "bp-zzold", bp, t1, MESSAGES["bp"]),
                 ("IDE saves a VOC record", "voc-zzvrec2", voc, t2, MESSAGES["voc"]),
+                ("IDE saves a dictionary item (ide dict zzd zzq)", "dict-zzq", dic, t6, MESSAGES["dict"]),
                 ("SED saves a program record", "bp-zzold2", bp, t3, MESSAGES["bp"]),
                 ("SED saves a VOC record", "voc-zzvrec3", voc, t4, MESSAGES["voc"]),
                 ("SED saves a dictionary record", "dict-zzf2", dic, t5, MESSAGES["dict"])):

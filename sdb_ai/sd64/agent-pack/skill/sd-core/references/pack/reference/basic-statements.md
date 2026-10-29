@@ -896,7 +896,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `logmsg` *text*
 
 - a statement of SD BASIC
-- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 468
+- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 479
 
 ### basic:stmt:loop
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:421#ae1c50d9 src2=docs:tools/syntax-shapes.txt:136#13c6f6f2
@@ -1140,7 +1140,7 @@ clause of `input` and `input @` — show nothing of what is typed
 clause of `input` — type over what is already there
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `User/markdown/27a-sd-tcl-sed.md` line 238
+- docs: `User/markdown/27a-sd-tcl-sed.md` line 239
 
 ### basic:stmt:overwrite
 > kind=basic.clause tier=reference since=L1.1-0 src=sdsys/gpl.bp/bcomp:11613#58a91974 src2=docs:tools/syntax-shapes.txt:161#83abfd0b

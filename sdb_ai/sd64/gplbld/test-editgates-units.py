@@ -336,8 +336,14 @@ def checks(srcs, messages_dir):
     ck("G6 SED leaves its -EXT extension record out of a file the session may not change",
        sd.count("kernel(K$EDIT.OK, fileinfo(file(current.buffer), FL$PATH))") >= 2, "")
     ide = c["ide"]
-    ck("G7 IDE asks before it saves and before it writes a copy (edit.check; the reason goes to msg and to a box, not DISPLAY)",
-       ide.count("gosub edit.check") >= 2 and "msg = edit_msg(edit.kind)" in ide and "$include syscom keys.h" in ide, "")
+    # 28 Oct 26 (the editor merge, stage B): the IDE has more callers of edit.check now (a new record named on the command line, CREATING.SEQKEY), so the count
+    #   alone no longer proves that the save and the copy ask: each is held by its own order, from its open of the file to its write
+    ide_sv = ide[ide.find("\nsave.one:"):ide.find("\nname.untitled:")]
+    ide_wa = ide[ide.find("\ndo.writeas:"):ide.find("\ndo.open:")]
+    ck("G7 IDE asks before it saves and before it writes a copy (edit.check, after the file is open and before the write; the reason goes to msg and to a box, not DISPLAY)",
+       ide.count("gosub edit.check") >= 2 and "msg = edit_msg(edit.kind)" in ide and "$include syscom keys.h" in ide
+       and 0 < at(ide_sv, "gosub edit.check") < at(ide_sv, "write sv.text on fv") and at(ide_sv, "open sv.dict, bn<sv.i> to fv") < at(ide_sv, "gosub edit.check")
+       and 0 < at(ide_wa, "open wa.file to fv") < at(ide_wa, "gosub edit.check") < at(ide_wa, "write wa.text on fv"), "")
     inm = c["ide_name"]
     ck("G7b the IDE's name form (new record, first save, save as, write a copy) asks the kernel by the pathname of the OPEN file and says the reason in the form",
        "kernel(K$EDIT.OK, ep)" in inm and "edit_msg(kernel(K$EDIT.KIND, ep))" in inm and "fileinfo(fv, FL$PATH)" in inm and "$include syscom keys.h" in inm
@@ -514,7 +520,8 @@ MUTANTS = [
     ("COPY forgets the source of a move", "copy", "   if deleting then\n      if not(edit_guard(src.file)) then", "   if 0 then\n      if not(edit_guard(src.file)) then"),
     ("CNAME forgets the new name", "cname", "      if ek = 1 then ek.path = rec<2> else ek.path = new.file.name", "      if ek = 1 then ek.path = rec<2> else ek.path = ''"),
     ("SED saves without asking", "sed", "   edit.f = file(current.buffer)\n   gosub check.edit.file\n   if not(edit.ok) then return\n\n   * Process source control actions if required", "   * Process source control actions if required"),
-    ("IDE's write-a-copy forgets to ask at the write", "ide", "   gosub edit.check                  ;* asked again at the write, as save.one does: the form's answer is not the gate\n   if not(edit.ok) then\n      rf.text = msg\n      gosub refuse.box\n      return\n   end\n   write wa.text on fv, wa.id on error", "   write wa.text on fv, wa.id on error"),
+    ("IDE's write-a-copy forgets to ask at the write", "ide", "   gosub edit.check                  ;* asked again at the write, as save.one does: the form's answer is not the gate\n   if not(edit.ok) then\n      rf.text = msg\n      gosub refuse.box\n      return\n   end\n   * under the record's lock", "   * under the record's lock"),
+    ("IDE's save forgets to ask (stage B)", "ide", "   gosub edit.check                  ;* 17 Oct 26 dm - S.64; the dictionary's own path", "   null                  ;* 17 Oct 26 dm - S.64; the dictionary's own path"),
     ("IDE's name form forgets to ask", "ide_name", "            if kernel(K$EDIT.OK, ep) then", "            if 1 then"),
     ("CED saves without asking", "ced_edit", "   if not(kernel(K$EDIT.OK, edit.p)) then", "   if 0 then"),
     ("CED asks about a variable too (no id, no file)", "ced_edit", "   if id # '' then\n      edit.p = fileinfo(fv, FL$PATH)", "   if 1 then\n      edit.p = fileinfo(fv, FL$PATH)"),

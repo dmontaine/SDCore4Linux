@@ -18,6 +18,9 @@ emulated screen as the evidence).  What a text check is for: the properties an e
 have, a help that still names the old key.
 
 --selftest breaks each invariant in the way an edit plausibly would and requires a check to notice; a mutant that nothing catches is a failure of the self-test.
+
+28 Oct 26 (the editor merge, stage B): the Go menu has "Open the include" (command word `include`, no key: a terminal sends Ctrl-Enter as Return, and the
+owner's keys of 20 Oct are not rebound) between Previous pane and Edit in SED; IK24 holds that run.cmd runs do.include for it and no key leads to it.
 """
 
 import os
@@ -56,7 +59,8 @@ HELP = (
     ("m11216", "Ctrl-R", "Replace", "ctrl-r"),
 )
 FILE_MENU = ["new", "open", "save", "saveas", "writeas", "close", "quit"]
-GO_MENU = ["goto", "nexterr", "nexttab", "prevtab", "tree", "nextpane", "prevpane", "sed", "fields"]
+GO_MENU = ["goto", "nexterr", "nexttab", "prevtab", "tree", "nextpane", "prevpane", "include", "sed", "fields"]
+UNKEYED = ["find", "include", "saveas", "tree", "writeas"]
 SEARCH_MENU = ["find", "replace"]
 BUILD_MENU = ["compile", "catalog", "run", "debug"]
 
@@ -171,10 +175,11 @@ def checks(raw):
     ck("IK4", "every key a menu shows (messages 11225-11228) is bound in do.key to the SAME command word the entry carries",
        not bad and sum(1 for es in menus.values() for e in es if e[1]) >= 14, repr(bad[:4]))
     unkeyed = sorted(c for es in menus.values() for _, s, c in es if not s)
-    ck("IK4b", "the entries with no key are exactly Save as, Write a copy, Find in the records and Files and records (the tree: F3 is the editor's find next), and no key in do.key leads to them",
-       unkeyed == ["find", "saveas", "tree", "writeas"] and not ({"find", "saveas", "tree", "writeas"} & set(bound.values())), repr(unkeyed))
+    ck("IK4b", "the entries with no key are exactly Save as, Write a copy, Find in the records, Files and records (the tree: F3 is the editor's find next) and Open the include, "
+       "and no key in do.key leads to them",
+       unkeyed == UNKEYED and not (set(UNKEYED) & set(bound.values())), repr(unkeyed))
     ck("IK5", "the menus list their entries in the settled order: File (New, Open, Save, Save as, Write a copy, Close, Quit), Go (Go to line, Next error, Next tab, Previous tab, Files and records, "
-       "Next pane, Previous pane, Edit in SED, Edit as fields), Search (Find in the records, Replace in the record), Build (Compile, Compile and catalogue, Run, Debug)",
+       "Next pane, Previous pane, Open the include, Edit in SED, Edit as fields), Search (Find in the records, Replace in the record), Build (Compile, Compile and catalogue, Run, Debug)",
        [c for _, _, c in menus[11225]] == FILE_MENU and [c for _, _, c in menus[11226]] == GO_MENU and [c for _, _, c in menus[11227]] == SEARCH_MENU
        and [c for _, _, c in menus[11228]] == BUILD_MENU, repr([[c for _, _, c in menus[n]] for n in menus]))
     miss = []
@@ -250,6 +255,13 @@ def checks(raw):
     ck("IK23", "SED's key.rec binds the Alt sequences beside the Ctrl ones: next buffer = Ctrl-PageDown ESC [ 6 ; 5 ~ and Alt-PageDown ESC [ 6 ; 3 ~, previous buffer = Ctrl-PageUp ESC [ 5 ; 5 ~ and Alt-PageUp ESC [ 5 ; 3 ~",
        re.search(r"key\.rec<-1> = '@\[\[6;5~':@VM:'@\[\[6;3~'\s*;\*\s*F\.NEXT\.BUFFER", sed) is not None
        and re.search(r"key\.rec<-1> = '@\[\[5;5~':@VM:'@\[\[5;3~'\s*;\*\s*F\.PREV\.BUFFER", sed) is not None, "")
+    # ---- 28 Oct 26, stage B: Open the include --------------------------------------------------------------------------------------------------------------------
+    inc = [(re.sub(r"&", "", a), b, c) for a, b, c in menus[11226] if c == "include"]
+    di = block(ide, "do.include")
+    ck("IK24", "Go / Open the include: one entry with no key, command word 'include', run.cmd runs do.include for it, do.include reads the editor's line at the cursor, takes "
+       "'$include' as its first word and opens the record through open.record; the help names it",
+       inc == [("Open the include", "", "include")] and re.search(r"case cmd = 'include'\s*\n\s*gosub do\.include", rc) is not None
+       and "mw{'cy'}" in di and "'$include'" in di and "gosub open.record" in di and "include" not in bound.values() and "Open the include" in allhelp, repr(inc))
     return rows
 
 
@@ -320,6 +332,16 @@ MUTANTS += [
     ("SED has no Alt-PageDown", "IK23", sub("sed", "'@[[6;5~':@VM:'@[[6;3~'", "'@[[6;5~'")),
     ("SED has no Alt-PageUp", "IK23", sub("sed", "'@[[5;5~':@VM:'@[[5;3~'", "'@[[5;5~'")),
     ("SED binds Alt-PageUp to the next buffer", "IK23", sub("sed", "'@[[5;5~':@VM:'@[[5;3~'          ;* F.PREV.BUFFER", "'@[[5;5~':@VM:'@[[5;3~'          ;* F.NEXT.BUFFER")),
+]
+# 28 Oct 26, stage B: Open the include
+M_INC = len(MUTANTS)
+MUTANTS += [
+    ("the Go menu has no Open the include", "IK5", sub("m11226", "|&Open the include~~include", "")),
+    ("Open the include runs nothing", "IK24", sub("ide", "      case cmd = 'include'\n         gosub do.include", "      case cmd = 'include'\n         null")),
+    ("Open the include is given F3", "IK4", sub("m11226", "&Open the include~~include", "&Open the include~F3~include")),
+    ("do.include opens the record without open.record", "IK24", sub("ide", "   cur.code = 'R:' : or.file : ':' : or.id\n   gosub open.record\n   if nbuf > 0 then\n      ft.id = 'ed'\n      gosub focus.to\n      gosub redraw.tabs",
+                                                                    "   cur.code = 'R:' : or.file : ':' : or.id\n   null\n   if nbuf > 0 then\n      ft.id = 'ed'\n      gosub focus.to\n      gosub redraw.tabs")),
+    ("the help does not name Open the include", "IK24", sub("m11215", "Go, Open the include:", "Go, the include:")),
 ]
 
 
