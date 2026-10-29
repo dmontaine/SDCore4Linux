@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  CREATING AN ACCOUNT IN TOOL.ACCOUNTS IS ONE FORM.
+
+             What        - C used to ask the kind, the name and then the doors or the directory in three boxes. It now shows one form with the kind, the name, the doors and the directory
+                           together; a refusal ("is already an account", a bad door word, a relative path) is said under the entries and the form stays, with what you typed, so you
+                           can correct it. Doors apply to a user account, the directory to an "other" account.
+                         It does NOT change what is checked or what is run: the same checks, then the same Run or Cancel box, then the same create.account command.
+
 30 Oct 26  THE MENU BARS OF THE TOOL PAGES: ESC, QUIT AND THE STATUS LINE BEHAVE.
 
              What        - Esc in the Indices pane of TOOL.DICT goes back to the items, and in TOOL.QUERY a file filter in the File pane no longer keeps Esc from the other panes:

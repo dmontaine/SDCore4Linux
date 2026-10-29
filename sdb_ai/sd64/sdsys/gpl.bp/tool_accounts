@@ -524,34 +524,59 @@ do.person:
 
 * C: the kind, the name, then what that kind needs; a USER account is made with the terminal given to the verb (its password prompt)
 do.create:
-   screen ask 'Kind of account: user, group or other' width 10 value 'user' title 'Create an account  1 of 3' returning kd else return
-   kd = downcase(trim(kd))
-   if kd # 'user' and kd # 'group' and kd # 'other' then
-      msg = 'the kind is user, group or other'
+   * S.88: one form with the four answers in view (it was three questions in a row); a refusal is said under the entries and the form stays
+   spec = 'Create an account' : @fm : '&Create' : @fm : ''
+   spec<-1> = 'kind' : @vm : 'Kind: user, group, other' : @vm : 10 : @vm : 10
+   spec<-1> = 'name' : @vm : 'Name (a-z 0-9 . - _)' : @vm : 34 : @vm : 32
+   spec<-1> = 'doors' : @vm : 'Doors: none ssh api both' : @vm : 10 : @vm : 10
+   spec<-1> = 'dir' : @vm : 'Directory (other only)' : @vm : 60 : @vm : 200
+   fv = 'user' : @fm : '' : @fm : 'none' : @fm : ''
+   call $tk_form('open', ctx, spec, fv, fo)
+   if fo = 'no' then
+      msg = 'the form does not fit this window'
       return
    end
-   screen ask 'Name of the new account (a-z, 0-9, dot, dash and underscore)' width 34 value '' title 'Create an account  2 of 3' returning nn else return
-   word = trim(nn)
-   gosub plain.word
-   if not(plain) then
-      msg = 'an account name has only a-z, 0-9, dot, dash and underscore, up to 32 characters'
-      return
-   end
-   locate word in anm<1> setting px else px = 0
-   if px > 0 or word = 'sdsys' then
-      msg = word : ' is already an account'
-      return
-   end
+   loop
+      call $tk_form('run', ctx, fans, fv, fid)
+      if fans # 'ok' then
+         call $tk_form('close', ctx, '', '', '')
+         return
+      end
+      kd = downcase(trim(fv<1>))
+      word = trim(fv<2>)
+      rt = downcase(trim(fv<3>))
+      pth = trim(fv<4>)
+      fbad = ''
+      fid = ''
+      begin case
+         case kd # 'user' and kd # 'group' and kd # 'other'
+            fbad = 'the kind is user, group or other' ; fid = 'kind'
+         case 1
+            gosub plain.word
+            if not(plain) then
+               fbad = 'an account name has only a-z, 0-9, dot, dash and underscore, up to 32 characters' ; fid = 'name'
+            end else
+               locate word in anm<1> setting px else px = 0
+               if px > 0 or word = 'sdsys' then
+                  fbad = word : ' is already an account' ; fid = 'name'
+               end else
+                  if kd = 'user' and index(' none ssh api both ', ' ' : rt : ' ', 1) = 0 then
+                     fbad = 'the doors are none, ssh, api or both' ; fid = 'doors'
+                  end
+                  if kd = 'other' and (pth[1, 1] # '/' or index(pth, ' ', 1) > 0 or len(pth) > 200) then
+                     fbad = 'give an absolute path with no space in it' ; fid = 'dir'
+                  end
+               end
+            end
+      end case
+      if fbad = '' then exit
+      call $tk_form('say', ctx, fbad, fid, '')
+   repeat
+   call $tk_form('close', ctx, '', '', '')
    nn = word
    use.x = 0
    begin case
       case kd = 'user'
-         screen ask 'Remote doors for the new person: none, ssh, api or both' width 10 value 'none' title 'Create an account  3 of 3' returning rt else return
-         rt = downcase(trim(rt))
-         if index(' none ssh api both ', ' ' : rt : ' ', 1) = 0 then
-            msg = 'the doors are none, ssh, api or both'
-            return
-         end
          sent = 'create.account user ' : nn : ' ' : rt
          typed = ''
          el = ''
@@ -566,12 +591,6 @@ do.create:
          el<-1> = 'People are added to it afterwards with A.'
          gosub confirm.and.run
       case 1
-         screen ask 'Directory of the account: an absolute path that exists' width 100 value '' title 'Create an account  3 of 3' returning pth else return
-         pth = trim(pth)
-         if pth[1, 1] # '/' or index(pth, ' ', 1) > 0 or len(pth) > 200 then
-            msg = 'give an absolute path with no space in it'
-            return
-         end
          use.x = 1
          sent = 'create.account other ' : nn : ' ' : pth : ' no.query'
          typed = ''
