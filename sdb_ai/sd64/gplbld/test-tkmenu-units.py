@@ -139,7 +139,7 @@ def checks(s):
        and ordered(cl, "common /tkreg/ reg.keys, reg.pane, reg.epoch", "screen close", "reg.keys = ''", "reg.pane = ''", "reg.epoch = ''")
        and ordered(hp, "common /tkreg/ reg.keys, reg.pane, reg.epoch", "if reg.epoch + 0 > 0 then call $tk_keys('keylist', reg.keys, reg.pane, rg, '', '', '')", "if rg # '' then", "kb<-1> = sysmsg(11244)",
                    "kb<-1> = '  ' : rg<p>[1, wrapw - 2]", "kb<-1> = ''", "for p = 1 to dcount(lines, @fm)", "call $tk_wrap(lines<p>, wrapw, pieces)",
-                   "if kb # '' and dcount(kb, @fm) + dcount(body, @fm) <= scr<SL.S.H> - 8 then body = kb : @fm : body", "screen msgbox body"), "")
+                   "if kb # '' and dcount(kb, @fm) + dcount(body, @fm) <= scr<SL.S.H> - 14 then body = kb : @fm : body", "screen msgbox body"), "")
 
     na = label(mb, "no.answer")
     ck("M13 when nothing was chosen the answer is 'none' with the name 'none' to dispatch on (<4>), so a page's own case finds nothing to do", ordered(na, "c = 'none' : @fm : @fm : @fm : 'none'", "return"), na[:200])
@@ -186,7 +186,7 @@ MUTANTS = [
     ("the close leaves the keys", "tk_close", "   reg.keys = ''                                  ;* F0a: and no app has keys to list\n", "", "M11"),
     ("F1 lists keys with no app drawing", "tk_help", "if reg.epoch + 0 > 0 then call $tk_keys", "if 1 then call $tk_keys", "M11"),
     ("F1's key lines are not cut to the box", "tk_help", "rg<p>[1, wrapw - 2]", "rg<p>", "M11"),
-    ("F1 shows the keys even when the box would not fit the screen", "tk_help", "if kb # '' and dcount(kb, @fm) + dcount(body, @fm) <= scr<SL.S.H> - 8 then body = kb : @fm : body", "if kb # '' then body = kb : @fm : body", "M11"),
+    ("F1 shows the keys even when the box would not fit the screen", "tk_help", "if kb # '' and dcount(kb, @fm) + dcount(body, @fm) <= scr<SL.S.H> - 14 then body = kb : @fm : body", "if kb # '' then body = kb : @fm : body", "M11"),
 ]
 
 

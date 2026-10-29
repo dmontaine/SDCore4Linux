@@ -126,7 +126,7 @@ show.box:
       body<-1> = pieces
    next p
    * the keys go above the text, unless the two together would not fit the screen (the function-key row shows the keys anyway)
-   if kb # '' and dcount(kb, @fm) + dcount(body, @fm) <= scr<SL.S.H> - 8 then body = kb : @fm : body
+   if kb # '' and dcount(kb, @fm) + dcount(body, @fm) <= scr<SL.S.H> - 14 then body = kb : @fm : body
    if doc # '' then
       btn = '&Documentation,&Close'
       dflt = 2

@@ -1637,7 +1637,7 @@ def pilot_rows(box, made):
     if "F1 help" not in "\n".join(t.lines()):
         say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
         bail("tktest menubar never drew its function-key row, so no row below can be believed")
-    row("`tktest menubar`: row 0 starts with the menu title Actions and still ends with the app's name (the frame writes the right end of row 0)", t.line(0).startswith("Actions") and "tktest" in t.line(0)[40:], repr(t.line(0)))
+    row("`tktest menubar`: row 0 starts with the menu title Actions and still ends with the app's name (the frame writes the right end of row 0)", t.line(0).lstrip().startswith("Actions") and "tktest" in t.line(0)[40:], repr(t.line(0)))
     row("...and the function-key row is what it was: Esc has ROW 0 and Save as has no key, so neither is on it (control: the pages that annotate nothing are the other suites' rows)", t.line(42) == F_A, repr(t.line(42)))
     t.key("F3")
     row("CONTROL, the key: F3 in pane A leaves the status line 'sorted' (the handler's own word)", "sorted" in t.line(40), repr(t.line(40)))
