@@ -3278,6 +3278,24 @@ All exploded sort items (BY.EXP, BY.EXP.DSND) must be in the same association
 
 cited by: `qproc`
 
+### msg:11248
+> kind=message tier=reference since=- src=sdsys/messages/11248:1#abf2b5bc
+
+```
+Return does it, Esc leaves
+```
+
+cited by: `tk_form`
+
+### msg:11249
+> kind=message tier=reference since=- src=sdsys/messages/11249:1#77dfd213
+
+```
+Cancel
+```
+
+cited by: `tk_form`
+
 ### msg:1125
 > kind=message tier=reference since=- src=sdsys/messages/1125:1#6958e706
 

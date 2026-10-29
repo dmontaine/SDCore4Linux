@@ -1,0 +1,32 @@
+* TK_PICKREC
+* The full-screen toolkit, shared base: pick a file of the account and a record in it, READ ONLY (S.88 phase 5, F0b; the library window is $sl_picker, S.88 3.10A).
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 30 Oct 26 dm  New (S.88 F0b).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   call $tk_pickrec(ctx, mode, file, id, res, newtext)
+*
+*   A THIN FACADE over $sl_picker, so that a page never names the library.  mode null: the person picks a file and then a record in it; 'file': only a file (id is null);
+*   'record': file is given and only the record is picked.  res is 'ok' (file and id are the answer, with mode 'file' only file), 'new' (Ctrl-N in the list of records: file is the
+*   file and newtext what had been typed into the filter; the page runs ITS OWN new-record path, with its own gates) or 'cancel' (Esc, a session with no terminal, no file to pick
+*   from, or a file that cannot be opened).  THE PICKER NEVER WRITES: it opens the file for reading, takes no lock and creates, changes and deletes nothing; what the page does with
+*   the answer, and whether it may, is the page's.  The window puts the screen back under it, so the page needs no redraw of its own.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine tk_pickrec(ctx, mode, file, id, res, newtext)
+$catalog $tk_pickrec
+
+   call $sl_picker(mode, file, id, res, newtext)
+   return
+end
+
+* END-CODE

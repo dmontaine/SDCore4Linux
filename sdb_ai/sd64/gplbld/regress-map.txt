@@ -793,6 +793,11 @@ sdsys/messages/1117[1-5]     : tk-base tk-widgets
 # S.88 F0a (30 Oct 26): the menu bar made from the key table ($tk_menubar) has no page yet, so no page suite runs it; the pilot's suites are tk-base and tk-keys.  11244 is F1's "Keys in this pane" (tk_help)
 sdsys/gpl.bp/tk_menubar      : tk-base tk-keys
 sdsys/messages/11244         : tk-base tk-keys @pages
+# S.88 F0b (30 Oct 26): the output pane, record picker and labelled form facades ($tk_out, $tk_pickrec, $tk_form) have no page yet; 11248 and 11249 are the form's hint and Cancel button
+sdsys/gpl.bp/tk_out          : tk-base tk-widgets
+sdsys/gpl.bp/tk_pickrec      : tk-base tk-widgets
+sdsys/gpl.bp/tk_form         : tk-base
+sdsys/messages/1124[89]      : tk-base
 # S.88 phase 3.10B (29 Oct 26): the output pane's messages 11179 and 11181-11185 (11180 is another program's; before the 117* line)
 sdsys/messages/11179         : tk-widgets
 sdsys/messages/1118[1-5]     : tk-widgets
