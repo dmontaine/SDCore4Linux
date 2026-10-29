@@ -593,6 +593,9 @@ sdsys/messages/1173[0-9]     : ide-path
 sdsys/messages/1174[0-2]     : ide-path
 sdsys/messages/1174[3-5]     : ide-kinds ide
 # stage D, first slice (29 Oct 26): the editing commands - messages 11543-11559, the Search / Build / View menus (11227-11229), the Go to prompt (11209) and the help (11216)
+sdsys/messages/1176[6-9]     : ide-edit
+sdsys/messages/11779         : ide-edit
+sdsys/messages/1178[0-5]     : ide-edit
 sdsys/messages/1154[3-9]     : ide-edit
 sdsys/messages/1155[0-9]     : ide-edit
 sdsys/messages/11209         : ide-edit ide

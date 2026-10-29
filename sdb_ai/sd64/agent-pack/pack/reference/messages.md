@@ -3045,10 +3045,10 @@ F4               Next error or result\nF5               Run\nF7               De
 cited by: `ide`
 
 ### msg:11216
-> kind=message tier=reference since=- src=sdsys/messages/11216:1#3efd2b93
+> kind=message tier=reference since=- src=sdsys/messages/11216:1#2f4830b0
 
 ```
-Ctrl-F, Ctrl-B   Find forward, backward   F3, Shift-F3  The next, the previous (Return in the question finds the next)   Ctrl-R  Replace\nEsc, F10        The menus (Files and records is in the Go menu)\nCtrl-Q           Quit\nF1               This screen\nCtrl-A           Select all   Ctrl-D  Duplicate the line   Ctrl-K  Cut the line\nCtrl-P, Ctrl-U   A word back, on\nSearch menu      List matching lines (the lines that hold a text, in the table), Query replace (Yes, No, All, Quit), Find options (C = match case, W = whole words), Upcase and Downcase the selection (Ctrl-G sets the mark), Import a record here, Export the selection to a record\nBuild menu       Run a command: what it prints is in the table\nGo to line       A line; line,column; or field,value,subvalue in a record shown with :@vm: marks\nView menu        Refresh draws the screen again
+Ctrl-F, Ctrl-B   Find forward, backward   F3, Shift-F3  The next, the previous (Return in the question finds the next)   Ctrl-R  Replace\nEsc, F10        The menus (Files and records is in the Go menu)\nCtrl-Q           Quit\nF1               This screen\nCtrl-A           Select all   Ctrl-D  Duplicate the line   Ctrl-K  Cut the line\nCtrl-P, Ctrl-U   A word back, on (Ctrl-Left, Right too)   Ctrl-Home, Ctrl-End  Text start, end   Ctrl-Del  Delete word   Ins  Overwrite\nSearch menu      List matching lines (the lines that hold a text, in the table), Query replace (Yes, No, All, Quit), Find options (C = match case, W = whole words), Upcase and Downcase the selection (Ctrl-G sets the mark), Import a record here, Export the selection to a record\nBuild menu       Run a command: what it prints is in the table. Format the program lays it out again, indenting by the tab width\nGo to line       A line; line,column; or field,value,subvalue in a record shown with :@vm: marks\nView menu        Refresh draws the screen again; Overwrite mode, Auto-indent (Return keeps the indent), Tab width
 ```
 
 cited by: `ide`
@@ -3145,17 +3145,17 @@ cited by: `ide`
 ```
 
 ### msg:11228
-> kind=message tier=reference since=- src=sdsys/messages/11228:1#441875e5
+> kind=message tier=reference since=- src=sdsys/messages/11228:1#4b2fbc7d
 
 ```
-&Build|&Compile~F8~compile|Compile and cat&alog~F9~catalog|&Run~F5~run|&Debug~F7~debug|Run a co&mmand~~xeq
+&Build|&Compile~F8~compile|Compile and cat&alog~F9~catalog|&Run~F5~run|&Debug~F7~debug|Run a co&mmand~~xeq|&Format the program~~format
 ```
 
 ### msg:11229
-> kind=message tier=reference since=- src=sdsys/messages/11229:1#834bcd4e
+> kind=message tier=reference since=- src=sdsys/messages/11229:1#a005f132
 
 ```
-&View|&Theme~~theme|&Refresh~~refresh
+&View|&Theme~~theme|&Refresh~~refresh|&Overwrite mode~Ins~overwrite|&Auto-indent~~autoindent|Tab &width~~tabwidth
 ```
 
 ### msg:1123
@@ -7415,6 +7415,42 @@ cited by: `tool_query`
 
 cited by: `ide`
 
+### msg:11766
+> kind=message tier=reference since=- src=sdsys/messages/11766:1#fcc765c0
+
+```
+[overwrite]
+```
+
+cited by: `ide`
+
+### msg:11767
+> kind=message tier=reference since=- src=sdsys/messages/11767:1#700c7267
+
+```
+Overwrite mode: a typed character replaces the one under the cursor (Ins or View, Overwrite mode puts it back)
+```
+
+cited by: `ide`
+
+### msg:11768
+> kind=message tier=reference since=- src=sdsys/messages/11768:1#0dada91f
+
+```
+Insert mode: a typed character is put in before the one under the cursor
+```
+
+cited by: `ide`
+
+### msg:11769
+> kind=message tier=reference since=- src=sdsys/messages/11769:1#2b62d5fc
+
+```
+Tab width, 1 to 8 (Tab and Shift-Tab indent by it; Format uses it)
+```
+
+cited by: `ide`
+
 ### msg:11770
 > kind=message tier=reference since=- src=sdsys/messages/11770:1#dd0831b5
 
@@ -7492,6 +7528,69 @@ cited by: `ide`
 
 ```
 %1 %2 gets no recovery copy: another one is there (another session's, or older) and is kept
+```
+
+cited by: `ide`
+
+### msg:11779
+> kind=message tier=reference since=- src=sdsys/messages/11779:1#f24fc041
+
+```
+Format is for a program: this record is not one, so it was left as it is
+```
+
+cited by: `ide`
+
+### msg:11780
+> kind=message tier=reference since=- src=sdsys/messages/11780:1#8225a667
+
+```
+Format found %1 problem(s) in the program (the first: %2) and changed nothing
+```
+
+cited by: `ide`
+
+### msg:11781
+> kind=message tier=reference since=- src=sdsys/messages/11781:1#ab6d15f0
+
+```
+The program is already laid out that way: nothing changed
+```
+
+cited by: `ide`
+
+### msg:11782
+> kind=message tier=reference since=- src=sdsys/messages/11782:1#f9c59527
+
+```
+The program is laid out again with an indent of %1 (Ctrl-Z undoes it; nothing is saved until you save)
+```
+
+cited by: `ide`
+
+### msg:11783
+> kind=message tier=reference since=- src=sdsys/messages/11783:1#accdd573
+
+```
+Auto-indent is on: Return begins the new line with the blanks the line began with
+```
+
+cited by: `ide`
+
+### msg:11784
+> kind=message tier=reference since=- src=sdsys/messages/11784:1#4c1069eb
+
+```
+Auto-indent is off
+```
+
+cited by: `ide`
+
+### msg:11785
+> kind=message tier=reference since=- src=sdsys/messages/11785:1#9185ed44
+
+```
+Tab width is %1
 ```
 
 cited by: `ide`

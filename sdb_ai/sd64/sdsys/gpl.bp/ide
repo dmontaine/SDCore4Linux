@@ -327,6 +327,9 @@ $include dictdict.h
    have.form = @false
    done = @false
    untitled = 0                      ;* the number of the last untitled buffer made
+   ed.over = 0                       ;* 29 Oct 26 (S.88 D2): the editor's overwrite mode, auto-indent and tab width; the form is made again on a resize, so they live here and are given to it
+   ed.auto = 0
+   ed.tab = 3
    pa.allow = ''                     ;* 29 Oct 26 (stage F): the kind path.not.for lets through for one command (do.fields asks 'coll')
    * 29 Oct 26 (stage D): the find options of Search / Find options - match case (on as delivered: how Replace has always compared) and whole words (off) - and the characters a word is made of
    fo.case = @true
@@ -691,7 +694,9 @@ new.form:
    mw{'passkeys'} = 'ctrl-e'                     ;* Ctrl-E hands the record to SED (the area's own meaning of it, end of row, is End); F3 / Shift-F3 are the area's find next / previous (the owner's D31)
    mw{'stay'} = 1                                ;* 28 Oct 26 (I3): Up on the first line and Down on the last stay in the editor and do not move the focus to the tabs or the messages
    mw{'edkeys'} = 1                              ;* 29 Oct 26 (S.88 D2): Ctrl-Home / Ctrl-End (start and end of the text), Ctrl-Left / Ctrl-Right (a word) and Ctrl-Del (delete a word)
-   mw{'tabindent'} = 3                          ;* 28 Oct 26 (approved by the owner): Tab and Shift-Tab indent and outdent here, by the codebase's 3; F6 / Shift-F6 move between the panes
+   mw{'over'} = ed.over
+   mw{'autoindent'} = ed.auto
+   mw{'tabindent'} = ed.tab                         ;* 28 Oct 26 (approved by the owner): Tab and Shift-Tab indent and outdent here, by the codebase's 3; F6 / Shift-F6 move between the panes
    mw{'softcur'} = 1                             ;* 19 Oct 26: the character under the cursor is highlighted while the editor has the focus
 
    cols = sysmsg(11221) : @sm : '6R' : @vm : sysmsg(11222) : @sm : (ew - 11) : 'L'
@@ -1997,6 +2002,7 @@ status.line:
       k = 'z' : bu<cb>
       if bx{k} then t := '  ' : sysmsg(11736)                    ;* 28 Oct 26 (stage E): [read-only: this session may not change it]
       t := '   ' : sysmsg(11213, mw{'cy'}, mw{'cx'})
+      if mw{'over'} + 0 then t := '  ' : sysmsg(11766)                  ;* 29 Oct 26 (S.88 D2): [overwrite]
    end
    if msg # '' then t := '   ' : msg
    gosub idle.text                                               ;* 28 Oct 26: the AUTOLOGOUT countdown goes first, where it is read
@@ -2234,6 +2240,14 @@ run.cmd:
          gosub do.export
       case cmd = 'xeq'
          gosub do.xeq
+      case cmd = 'overwrite'
+         gosub do.overwrite
+      case cmd = 'autoindent'
+         gosub do.autoindent
+      case cmd = 'tabwidth'
+         gosub do.tabwidth
+      case cmd = 'format'
+         gosub do.format
       case cmd = 'refresh'
          gosub do.refresh
       case cmd = 'new'
@@ -3236,6 +3250,11 @@ do.fields:
 * The window changed size: the form is made again at the new size from the state
 relayout:
    gosub stash.current
+   if have.form then
+      call $sl_form('find', f, '', 'ed', en)
+      ow = f{'widgets', en}
+      ed.over = ow{'over'} + 0                      ;* Ins in the area toggles it there: the new form is given what the old one had
+   end
    screen clear
    gosub new.form
    return
@@ -4123,6 +4142,72 @@ do.refresh:
 
 * Go / Go to line, which takes more than a line number (29 Oct 26): N a line, N,C a line and a column, and F,V,S - in a record shown in the token form - a field (line), the V-th value in it
 *   (between :@vm:) and the S-th subvalue of that (between :@sm:).  A number out of range goes to the nearest.
+* ======================================================================
+* S.88 D2 (29 Oct 26): the editor's modes and Format.  Overwrite and auto-indent are the text area's opt-ins (w{'over'}, w{'autoindent'}), the tab width is its tabindent; the IDE keeps
+* the three in ed.over, ed.auto and ed.tab so that a form made again (a resize) is given them.  None of them changes a record: Save is the person's act.
+
+* View > Overwrite mode (Ins in the area does the same): a typed character replaces the one under the cursor
+do.overwrite:
+   call $sl_form('find', f, '', 'ed', en)
+   ed.mw = f{'widgets', en}
+   ed.over = (if ed.mw{'over'} + 0 then 0 else 1)
+   ed.mw{'over'} = ed.over
+   msg = (if ed.over then sysmsg(11767) else sysmsg(11768))
+   return
+
+do.autoindent:
+   call $sl_form('find', f, '', 'ed', en)
+   ed.mw = f{'widgets', en}
+   ed.auto = (if ed.auto then 0 else 1)
+   ed.mw{'autoindent'} = ed.auto
+   msg = (if ed.auto then sysmsg(11783) else sysmsg(11784))
+   return
+
+* The width Tab and Shift-Tab indent by, and Format indents with: a whole number from 1 to 8; anything else leaves it as it was
+do.tabwidth:
+   screen ask sysmsg(11769) width 4 value ed.tab returning tw.text else return
+   tw.text = trim(tw.text)
+   if tw.text = '' or not(num(tw.text)) then return
+   tw.n = int(tw.text + 0)
+   if tw.n < 1 or tw.n > 8 then return
+   ed.tab = tw.n
+   call $sl_form('find', f, '', 'ed', en)
+   ed.mw = f{'widgets', en}
+   ed.mw{'tabindent'} = ed.tab
+   msg = sysmsg(11785, ed.tab)
+   return
+
+* Build > Format the program: !format() (the FORMAT verb's routine) lays the program in the tab out again with the tab width as its indent, in QUIET mode (the named common /fmtq/: no dots,
+* no error display, no key asked for) and the IDE says what it found.  Only a program (kind source); the text is changed through ed.set as ONE undo step and nothing is saved.
+* A program with a problem (fq.log is not empty after a format with errors) is left as it is.
+common /fmtq/ fq.quiet, fq.log
+do.format:
+   gosub ed.get
+   if not(ed.ok) then return
+   k = 'k' : bu<cb>
+   if bx{k} # 'source' then
+      msg = sysmsg(11779)
+      return
+   end
+   fm.res = ''
+   fm.err = 0
+   fq.quiet = 1
+   call !format(ed.t, fm.res, bn<cb>, ed.tab, @false, fm.err)
+   fq.quiet = 0
+   if fm.err > 0 then
+      msg = sysmsg(11780, fm.err, field(fq.log, @fm, 1))
+      return
+   end
+   if (fm.res : '|') = (ed.t : '|') then
+      msg = sysmsg(11781)
+      return
+   end
+   ed.new = fm.res
+   ed.cy = 0
+   gosub ed.set
+   msg = sysmsg(11782, ed.tab)
+   return
+
 do.goto:
    if nbuf = 0 then
       msg = sysmsg(11218)

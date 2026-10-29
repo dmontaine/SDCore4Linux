@@ -85,6 +85,7 @@ def bail(msg):
 FIX = """   open 'bp' to p else stop 'EFIX no bp'
    write '%(l1)s':@fm:'%(l2)s':@fm:'%(l3)s':@fm:'%(l4)s' on p, '%(rec)s'
    write 'INS1':@fm:'INS2' on p, '%(rec)simp'
+   write '      x = 1':@fm:'if x = 1 then':@fm:'y = 2':@fm:'end' on p, '%(rec)sfmt'
    delete p, '%(exp)s'
    crt 'EFIX done'
 end
@@ -311,6 +312,78 @@ def section_xeq():
         done(e)
 
 
+CTRL_HOME, CTRL_END, CTRL_RIGHT, CTRL_DEL, INS = "\x1b[1;5H", "\x1b[1;5F", "\x1b[1;5C", "\x1b[3;5~", "\x1b[2~"
+
+
+def section_modes():
+    say("\n--- M: the editor's keys and modes (S.88 D2, 29 Oct 26; WRITTEN, NOT RUN) -------------------------------------------------------")
+    e = open_rec()
+    e.keys(CTRL_END, "Z")
+    e.quiet()
+    t = editor_text(e)
+    row("M1 Ctrl-End goes to the end of the text: a typed Z is appended to the last line", "line fourZ" in t, repr(t[-120:]))
+    done(e)
+    e = open_rec()
+    e.keys(CTRL_END, CTRL_HOME, "Y")
+    e.quiet()
+    row("M2 Ctrl-Home goes back to line 1 column 1: a typed Y begins the first line", "Yalpha beta" in editor_text(e), repr(editor_text(e)[:120]))
+    e.keys(CTRL_RIGHT, "|")
+    e.quiet()
+    row("M3 Ctrl-Right moves over the rest of a word: the | stands after 'Yalpha'", "Yalpha| beta" in editor_text(e), repr(editor_text(e)[:120]))
+    done(e)
+    e = open_rec()
+    e.keys(CTRL_DEL)
+    e.quiet()
+    row("M4 Ctrl-Del at the start of line 1 deletes the word 'alpha', not the line", " beta" in editor_text(e) and "alpha beta" not in editor_text(e) and "Beta gamma" in editor_text(e), repr(editor_text(e)[:120]))
+    e.keys(CTRL_Z)
+    e.quiet()
+    row("M5 ONE Ctrl-Z gives the word back", "alpha beta" in editor_text(e), repr(editor_text(e)[:120]))
+    done(e)
+    e = open_rec()
+    e.keys(INS, "XY")
+    e.quiet()
+    row("M6 Ins turns overwrite on: XY replaces 'al' (the first line is 'XYpha beta') and the status line says [overwrite]", "XYpha beta" in editor_text(e) and "[overwrite]" in e.status(), "%r | %r" % (editor_text(e)[:100], e.status()[:120]))
+    e.keys(INS, "Q")
+    e.quiet()
+    row("M7 Ins again turns it off: Q is put in before the next character, and the marker is gone", "XYQpha beta" in editor_text(e) and "[overwrite]" not in e.status(), "%r | %r" % (editor_text(e)[:100], e.status()[:120]))
+    done(e)
+    e = open_rec()
+    e.keys("   x", RET, "Q")
+    e.quiet()
+    row("M8 control (auto-indent off): Return after '   x' starts the next line at column 1, so the line holding Q is 'Qalpha beta'", "Qalpha beta" in editor_text(e) and "   Qalpha" not in editor_text(e), repr(editor_text(e)[:120]))
+    done(e)
+    e = open_rec()
+    menu(e, 4, 3)                                                       # View menu, Auto-indent (the fourth entry after Theme, Refresh, Overwrite mode)
+    row("M9 View > Auto-indent says it is on", "Auto-indent is on" in e.status(), e.status()[:120])
+    e.keys("   x", RET, "Q")
+    e.quiet()
+    row("M10 with auto-indent on, Return after '   x' begins the next line with the same 3 blanks: '   Qalpha beta'", "   Qalpha beta" in editor_text(e), repr(editor_text(e)[:120]))
+    done(e)
+    e = open_rec()
+    menu(e, 4, 4)                                                       # View menu, Tab width
+    e.keys("\x7f5", RET)
+    e.quiet()
+    row("M11 View > Tab width 5 says so", "Tab width is 5" in e.status(), e.status()[:120])
+    e.keys(CTRL_HOME, "\t")
+    e.quiet()
+    row("M12 Tab now indents by 5: the first line begins with 5 blanks", "     alpha beta" in editor_text(e) and "      alpha beta" not in editor_text(e), repr(editor_text(e)[:120]))
+    done(e)
+    e = sb.Ide(BOX, "IDE bp %sfmt" % REC)
+    e.quiet()
+    before = editor_text(e)
+    menu(e, 3, 5)                                                       # Build menu, Format the program (its sixth entry)
+    after = editor_text(e)
+    row("M13 Build > Format changes the program's layout (the text is not what it was) and the status line says it is laid out again", after != before and "laid out again" in e.status(), "%r | %r | %r" % (before[:80], after[:80], e.status()[:100]))
+    e.keys(CTRL_Z)
+    e.quiet()
+    row("M14 ONE Ctrl-Z gives the program back as it was", editor_text(e).split("\n")[0].rstrip() == before.split("\n")[0].rstrip(), repr(editor_text(e)[:100]))
+    done(e)
+    e = open_rec()
+    menu(e, 3, 5)
+    row("M15 Format on a record that is not BASIC (the fixture's lines) changes nothing or says so: the text is still there", "alpha beta" in editor_text(e), "%r | %r" % (editor_text(e)[:100], e.status()[:100]))
+    done(e)
+
+
 def teardown():
     if BOX:
         subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
@@ -344,6 +417,7 @@ def main():
         section_xp()
         section_goto()
         section_xeq()
+        section_modes()
     finally:
         teardown()
     say("\nsandbox-ide-edit: %d passed, %d failed" % (passed, failed))

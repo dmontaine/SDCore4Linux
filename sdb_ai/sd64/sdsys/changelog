@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+29 Oct 26  THE IDE'S EDITOR HAS OVERWRITE MODE, AUTO-INDENT, A TAB WIDTH AND FORMAT; LONG CUTS AND PASTES ARE FAST.
+
+             What        - IDE: Ins (or View > Overwrite mode) makes a typed character replace the one under the cursor; the status line shows [overwrite]. View > Auto-indent makes
+                           Return begin the new line with the blanks the line began with. View > Tab width (1 to 8) sets what Tab and Shift-Tab indent by. Build > Format the program
+                           lays the program out again with the FORMAT verb's rules and the tab width, as one undo step; nothing is saved, and a program with problems is left alone.
+                           The three modes start off (tab width 3) in each session.
+                         - A cut or a paste of more than 100 lines is put together once instead of line by line.
+                         It does NOT change what the IDE may write: its own save is still the only thing that writes.
+
 29 Oct 26  THE IDE'S EDITOR HAS CTRL-HOME, CTRL-END, CTRL-LEFT, CTRL-RIGHT AND CTRL-DEL; A JSON RECORD OF AN ORDINARY FILE OPENS AS A TREE; TWO MENU LETTERS FIXED.
 
              What        - IDE: Ctrl-Home and Ctrl-End go to the start and the end of the text, Ctrl-Left and Ctrl-Right a word back and on, and Ctrl-Del deletes the word at the cursor

@@ -105,6 +105,8 @@ $include sl.h
    ti = w{'tabindent'} + 0                       ;* 28 Oct 26: the indent width Tab and Shift-Tab use (0: they are not the area's keys)
    if ti < 0 then ti = 0
    ek = w{'edkeys'} + 0                          ;* 29 Oct 26 (S.88 D2): the editor's keys Ctrl-Home, Ctrl-End, Ctrl-Left, Ctrl-Right and Ctrl-Del (an opt-in of the program; 0: they are 'unhandled')
+   ov = w{'over'} + 0                            ;* 29 Oct 26 (S.88 D2): overwrite mode (with edkeys, Ins toggles it; the program reads w{'over'} to show it): a typed character replaces the one under the cursor
+   ai = w{'autoindent'} + 0                      ;* 29 Oct 26 (S.88 D2): Return copies the blanks the line begins with (up to the cursor) onto the new line; set by the program
    wrap = w{'wrap'} + 0
    * 18 Oct 26: hbar (1) puts a horizontal scroll bar in the last row of the area, and the text has one row less.  Opt in: a program that
    * does not set it (SCREEN MEMO) is drawn as it always was.  There is none when the text wraps (nothing to scroll sideways) or the area is
@@ -440,10 +442,20 @@ sel.text:
 del.sel:
    head = lines<sy>[1, sx - 1]
    tail = lines<ey>[ex, 999999]
-   lines<sy> = head : tail
-   for i = ey to sy + 1 step -1
-      del lines<i>
-   next i
+   if ey - sy > 100 then
+      * 29 Oct 26 (S.88 D2): a long selection is cut out once (the lines before, the joined line, the lines after); a DEL for each of thousands of lines is quadratic
+      nn = dcount(lines, @fm)
+      nl = ''
+      if sy > 1 then nl = field(lines, @fm, 1, sy - 1) : @fm
+      nl := head : tail
+      if ey < nn then nl := @fm : field(lines, @fm, ey + 1, 99999999)
+      lines = nl
+   end else
+      lines<sy> = head : tail
+      for i = ey to sy + 1 step -1
+         del lines<i>
+      next i
+   end
    cy = sy
    cx = sx
    want = cx
@@ -573,11 +585,21 @@ paste.t:
    end else
       head = ln[1, cx - 1]
       tail = ln[cx, 999999]
-      lines<cy> = head : t<1>
-      for i = 2 to nt - 1
-         ins t<i> before lines<cy + i - 1>
-      next i
-      ins t<nt> : tail before lines<cy + nt - 1>
+      if nt > 100 then
+         * 29 Oct 26 (S.88 D2): a long paste is put together once (the lines before, the pasted lines, the lines after); an INS for each of thousands of lines is quadratic
+         nn = dcount(lines, @fm)
+         nl = ''
+         if cy > 1 then nl = field(lines, @fm, 1, cy - 1) : @fm
+         nl := head : t<1> : @fm : field(t, @fm, 2, nt - 2) : @fm : t<nt> : tail
+         if cy < nn then nl := @fm : field(lines, @fm, cy + 1, 99999999)
+         lines = nl
+      end else
+         lines<cy> = head : t<1>
+         for i = 2 to nt - 1
+            ins t<i> before lines<cy + i - 1>
+         next i
+         ins t<nt> : tail before lines<cy + nt - 1>
+      end
       cy += nt - 1
       cx = len(t<nt>) + 1
    end
@@ -715,6 +737,8 @@ handle.key:
                cx = 1
             end
          end
+      case key = 'ins' and ek
+         w{'over'} = (if ov then 0 else 1)       ;* 29 Oct 26 (S.88 D2): overwrite mode on or off; nothing is changed in the text, so no undo step
       case key = 'ctrl-home' and ek
          * 29 Oct 26 (S.88 D2): with edkeys the editor's keys: Ctrl-Home is the start of the text, Ctrl-End its end, Ctrl-Left and Ctrl-Right a word back and on
          cy = 1
@@ -864,9 +888,18 @@ handle.key:
          ln = lines<cy>
          lines<cy> = ln[1, cx - 1]
          rest = ln[cx, len(ln)]
+         nb = 0
+         if ai then
+            * 29 Oct 26 (S.88 D2): the new line begins with the blanks the old one began with, as many as stand before the cursor
+            loop
+            while nb < cx - 1 and ln[nb + 1, 1] = ' '
+               nb += 1
+            repeat
+            rest = space(nb) : rest
+         end
          ins rest before lines<cy + 1>
          cy += 1
-         cx = 1
+         cx = nb + 1
          want = cx
          my = 0 ; mx = 0
       case key = 'bs'
@@ -1002,7 +1035,11 @@ handle.key:
          gosub snap.push
          if has.sel then gosub del.sel
          ln = lines<cy>
-         lines<cy> = ln[1, cx - 1] : key : ln[cx, len(ln)]
+         if ov and kind = 'type' and cx <= len(ln) then
+            lines<cy> = ln[1, cx - 1] : key : ln[cx + 1, len(ln)]       ;* 29 Oct 26 (S.88 D2): overwrite mode (not over a selection, which was deleted and is typed in as before)
+         end else
+            lines<cy> = ln[1, cx - 1] : key : ln[cx, len(ln)]
+         end
          cx += 1
          want = cx
          my = 0 ; mx = 0

@@ -64,9 +64,9 @@ HELP = (
 )
 FILE_MENU = ["new", "open", "save", "saveas", "writeas", "close", "quit"]
 GO_MENU = ["goto", "nexterr", "nexttab", "prevtab", "tree", "nextpane", "prevpane", "include", "sed", "fields"]
-UNKEYED = ["downcase", "export", "find", "findopts", "import", "include", "qreplace", "saveas", "tree", "upcase", "view", "writeas", "xeq"]       # 29 Oct 26 (stage D): the editing commands have no key
+UNKEYED = ["downcase", "export", "find", "findopts", "format", "import", "include", "qreplace", "saveas", "tree", "upcase", "view", "writeas", "xeq"]       # 29 Oct 26 (stage D): the editing commands have no key
 SEARCH_MENU = ["find", "replace", "view", "qreplace", "findopts", "upcase", "downcase", "import", "export"]
-BUILD_MENU = ["compile", "catalog", "run", "debug", "xeq"]
+BUILD_MENU = ["compile", "catalog", "run", "debug", "xeq", "format"]
 
 
 def load():
@@ -202,7 +202,7 @@ def checks(raw):
        and all(w in allhelp for w in ("Shift-F6", "Shift-F3", "Alt-PgDn"))
        and all(("Ctrl-" + c) in allhelp for c in ("S", "N", "O", "W", "L", "E", "R", "Q", "PgDn")), "")
     ck("IK8", "the menu is the help's key table made of the same words: the entry for each of F5, F7, F8, F9 shows that key (the menu was where F7 compile and F8 compile-and-catalogue stood)",
-       [(c, s) for _, s, c in menus[11228]] == [("compile", "F8"), ("catalog", "F9"), ("run", "F5"), ("debug", "F7"), ("xeq", "")], repr(menus[11228]))      # (xeq, 29 Oct 26: no key)
+       [(c, s) for _, s, c in menus[11228]] == [("compile", "F8"), ("catalog", "F9"), ("run", "F5"), ("debug", "F7"), ("xeq", ""), ("format", "")], repr(menus[11228]))      # (xeq, format, 29 Oct 26: no key)
     cat = case_block(rc, "case cmd = 'catalog'")
     ck("IK9", "F9 builds: 'catalog' compiles first (no debugging option), runs CATALOG only when the compile was good, and only then asks catalog.verified; 'compile' catalogues nothing",
        re.search(r"c\.opt = ''\s*\n\s*gosub do\.compile\s*\n\s*if c\.ok then\s*\n.*\n\s*execute 'catalog ' : qp\.f : ' ' : qp\.i capturing co\s*\n\s*gosub catalog\.verified", cat) is not None
@@ -291,7 +291,7 @@ def checks(raw):
     ti_sets = re.findall(r"\{'tabindent'\}\s*=\s*(\S+)", ide)
     ck("IK27", "the IDE sets the editor's tabindent to 3 (the codebase's width), once, where it sets the other options of the editor; the help says Tab, Shift-Tab indent and outdent "
        "in the editor and F6, Shift-F6 move between the panes",
-       ti_sets == ["3"] and ordered(block(ide, "new.form"), "mw{'stay'} = 1", "mw{'tabindent'} = 3", "mw{'softcur'} = 1")
+       ti_sets == ["ed.tab", "ed.tab"] and ide.count("ed.tab = 3") == 1 and ordered(block(ide, "new.form"), "mw{'stay'} = 1", "mw{'tabindent'} = ed.tab", "mw{'softcur'} = 1")
        and re.search(r"Tab, Shift-Tab\s+In the editor: indent, outdent", help_text(raw["m11214"])) is not None
        and not re.search(r"Tab, Shift-Tab\s+Next / previous pane", help_text(raw["m11214"])), repr(ti_sets))
     return rows
@@ -399,7 +399,8 @@ MUTANTS += [
     ("Shift-Tab makes a step that changes nothing", "IK26", sub("memo", "   if not(in.any) then return\n", "")),
     ("Shift-Tab takes out the whole width, not back to the stop", "IK26", sub("memo", "   in.r = mod(in.l, ti)\n", "   in.r = ti\n")),
     ("a run of indents is one undo step", "IK26", sub("memo", "(kind = 'type' or kind = 'bs' or kind = 'del')", "(kind = 'type' or kind = 'bs' or kind = 'del' or kind = 'indent')")),
-    ("the IDE does not set the option (Tab moves the focus again)", "IK27", sub("ide", "   mw{'tabindent'} = 3", "   mw{'tabindent'} = 0")),
+    ("the IDE does not set the option (Tab moves the focus again)", "IK27", sub("ide", "   mw{'tabindent'} = ed.tab", "   mw{'tabindent'} = 0")),
+    ("the IDE's tab width starts at another number", "IK27", sub("ide", "   ed.tab = 3\n", "   ed.tab = 4\n")),
     ("the help still says Tab is the next pane", "IK27", sub("m11214", "Tab, Shift-Tab   In the editor: indent, outdent", "Tab, Shift-Tab   Next / previous pane; in the editor: indent, outdent")),
 ]
 
