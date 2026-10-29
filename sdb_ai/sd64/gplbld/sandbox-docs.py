@@ -439,7 +439,7 @@ def main():
         T = h.text()
         row("F1 on the next row (programs of its own) shows that one", "Programs of the account's own" in T and "Off as delivered." in T, T[-500:])
         h.key("esc", idle=0.8)
-        for _ in range(4):
+        for _ in range(3):                                   # 4 before the Record editor tile went (S.88 g-P1): editor, ide, terminal
             h.key("down", idle=0.4)
         h.key("f1", idle=1.2)
         T = h.text()
