@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+29 Oct 26  THE HOME SCREEN'S AI LINE KEEPS WHAT YOU TYPED WHEN THE WINDOW IS RESIZED.
+
+             What        - Making the terminal window bigger or smaller used to make the AI line on the home screen again: the request you had typed in it was lost and the
+                           line gave up the keyboard. The line is now only moved to where the new window puts it; its text, the cursor in it and whether it had the keyboard
+                           stay as they were.
+                         It does NOT change the AI line of the IDE (which is rebuilt on a resize), and a new session, F5 and a change of account still make the line again.
+
 29 Oct 26  THE SCREEN COLOUR THEME WORKS: SCREENTHEME IS READ, THE SHIPPED LOOK IS BLUE, AND THE LIBRARY HAS FIVE MORE STYLES.
 
              What        - SCREENTHEME in sd.conf (mono, classic, dark, light or blue) was never read: CONFIG() ignored any parameter name over eight characters, and

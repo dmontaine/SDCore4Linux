@@ -418,9 +418,10 @@ def checks(raw):
        TL.ordered(ly, "gosub place.header", "for b = b0 to nb", "gosub band.cols", "gcols = gcw<k>", "gr<k, HG.X> = xcol<c0 + 1>", "tl<i, HT.X> = xcol<c0 + cc + 1>", "tl<i, HT.W> = tw.n",
                   "if tw = 2 then tl<i, HT.W> = xcol<c0 + cc + 2> + tw.n - xcol<c0 + cc + 1>"), ly[:300])
     rl = TL.squeeze(block(src, "relayout"))
-    ck("T5", "a resize is $tk_layout 'refresh', then a new generation, the AI line made again, geometry, set.title, layout, the rows above the status line cleared, and draw.all",
-       TL.ordered(rl, "call $tk_layout('refresh', ctx, '',", "gen += 1", "ctx<TK.C.GEN> = gen", "call $tk_ai('init', ctx, '', '')", "gosub geometry", "gosub set.title", "gosub layout",
-                  "screen clear at 0,hdy size lw,ctx<TK.C.YSTAT> - hdy", "gosub draw.all") and "case nm = 'resize' gosub relayout" in TL.squeeze(src), rl[:300])
+    ck("T5", "a resize is $tk_layout 'refresh', then a new generation, the AI line MOVED (p3.3a: its text and focus are kept, no init), geometry, set.title, layout, the rows above the status line cleared, and draw.all",
+       TL.ordered(rl, "call $tk_layout('refresh', ctx, '',", "gen += 1", "ctx<TK.C.GEN> = gen", "call $tk_ai('move', ctx, '', '')", "gosub geometry", "gosub set.title", "gosub layout",
+                  "screen clear at 0,hdy size lw,ctx<TK.C.YSTAT> - hdy", "gosub draw.all") and "case nm = 'resize' gosub relayout" in TL.squeeze(src)
+       and "$tk_ai('init'" not in rl and "aif = 0" not in rl, rl[:300])
     sq = TL.squeeze(src)
     ck("T6", "the declaration is made after BOTH $tk_open calls (the start and reopen) and a refused one stops the page before it draws; $tk_open is asked for no floor (140 by 43 stays: plan section 12)",
        sq.count("call $tk_open('home', '', ctx, err)") == 2 and "$tk_open('home', '', ctx, err," not in sq
@@ -480,6 +481,8 @@ MUTANTS = [
     ("a wide tile is two tiles wide only", "T4", sub("if tw = 2 then tl<i, HT.W> = xcol<c0 + cc + 2> + tw.n - xcol<c0 + cc + 1>", "if tw = 2 then tl<i, HT.W> = 2 * tw.n")),
     ("the leftover is not shared to the tiles", "T2", sub("tw.n = HT.TW + idiv(avail - used, ncol)", "tw.n = HT.TW")),
     ("the page keeps its own copy of the frame's rules", "T5", sub("   call $tk_layout('refresh', ctx, '', lay.chg)\n", "   call $sl_window(w, h)\n")),
+    ("a resize makes the AI line again (the typed request is lost)", "T5", sub("   call $tk_ai('move', ctx, '', '')                       ;* the rows moved", "   call $tk_ai('init', ctx, '', '')                       ;* the rows moved")),
+    ("a resize takes the focus off the AI line", "T5", sub("   lastmin = ''\n   call $tk_ai('move', ctx, '', '')", "   lastmin = ''\n   aif = 0\n   call $tk_ai('move', ctx, '', '')")),
     ("a resize does not clear the old header", "T5", sub("   screen clear at 0,hdy size lw,ctx<TK.C.YSTAT> - hdy\n", "")),
     ("a resize leaves the identity where it was", "T5", sub("   gosub set.title                                        ;* the identity's column", "   null                                        ;* the identity's column")),
     ("reopen does not declare the panes", "T6", sub("   call $tk_ai('init', ctx, '', '')                       ;* the account may be another, and the window another size\n   gosub declare.panes\n",

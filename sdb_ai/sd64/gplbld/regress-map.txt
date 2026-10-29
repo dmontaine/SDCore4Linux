@@ -352,7 +352,7 @@ sdsys/gpl.bp/tk_open         : tk-base tk-keys tk-faults @pages tk-resize termsa
 sdsys/gpl.bp/tk_layout       : tk-layout tk-base tk-keys @pages tk-resize termsafe
 sdsys/messages/1154[0-2]     : tk-layout tk-keys tk-resize
 # S.88 phase 2 (28 Oct 26, S5): the AI popup shows every line of a diff, a command and the preview whole (before, the rule below this one hid the AI suites from a change of tk_ai)
-sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys
+sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys tk-resize
 sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)

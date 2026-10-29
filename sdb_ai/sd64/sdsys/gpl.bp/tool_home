@@ -1402,8 +1402,7 @@ relayout:
    gen += 1
    ctx<TK.C.GEN> = gen
    lastmin = ''
-   aif = 0
-   call $tk_ai('init', ctx, '', '')                       ;* the rows moved: the line is made again (its text is lost, a resize is rare)
+   call $tk_ai('move', ctx, '', '')                       ;* the rows moved: the line is put where they are now; the request typed in it and its focus (aif) are kept
    gosub geometry
    gosub set.title                                        ;* the identity's column is a tile column's
    gosub layout

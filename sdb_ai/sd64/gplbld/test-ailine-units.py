@@ -90,6 +90,12 @@ def checks(s):
     ck("A13 the line is not drawn at all when the AI is not usable (the gate, a provider, a model and a key): read.status sets ai.on only after all four tests, and the other ops do nothing when it is 0",
        ordered(ai, "read.status:", "if not(hj{'gate'}) then return", "hj{'provider'} = ''", "if not(hj{'key'}) then return", "ai.on = 1") and ai.count("if ai.on then") >= 6, "")
     ck("A14 the wait gives up on Esc, on the cursor lock's way out and on an input that has ended, and cancels the request", ordered(ask, "screen key timeout 1 returning nm", "nm = 'esc' or nm = 'guardquit'", "ER$EOF", "kernel(K$AI.CANCEL, 0)"), "")
+    mv = re.search(r"case op = 'move'\n(.*?)\n      case op = 'draw'", ai, re.S)
+    mvb = mv.group(1) if mv else ""
+    ck("A15 the 'move' op only puts the entry where the new window says (place.widget): it does not read the status, make the entry again, empty the text or touch the focus, and make.widget places the entry the same way before $sl_entry('init')",
+       mv is not None and "gosub place.widget" in mvb and not any(w in mvb for w in ("read.status", "sl_entry", "ai.w =", "ai.focus", "ctx<TK.C.AI>", "'value'", "'pos'", "'pan'"))
+       and ordered(ai, "make.widget:", "gosub place.widget", "call $sl_entry('init', ai.w, '', '', r)", "place.widget:", "ai.w{'ax'} = ", "ai.w{'ay'} = ", "ai.w{'w'} = ")
+       and "place.widget:\n   lw = ctx<TK.C.W>" in ai, "")
     ck("H1 the home screen offers only tiles that start a tool: 'cmd:' tiles and the terminal; never Sign out or Switch account", "if ta[1, 4] = 'cmd:' or ta = 'terminal' then" in home
        and "acts<1, -1> = " in home, "")
     ck("H2 the page's text goes in as VALUES of one field (a field mark would move the fields after it: the action list was empty on 23 Oct), the navigation flag (actx<5>) is 1 and the ids of the "
@@ -100,7 +106,9 @@ def checks(s):
     ck("H3 an accepted action is looked up by id among the page's own tiles and started through start.tile, as a click would; a command goes through run.command, as the Terminal's prompt would",
        ordered(home, "case res<1> = 'action'", "tl<i, HT.ID> = res<2>", "gosub start.tile", "case res<1> = 'command'", "gosub run.command"), "")
     ck("H4 the AI line is the last stop of the Tab ring and the first of Back-tab, and without the AI the old keys are unchanged (the tests ask ctx<TK.C.AI>)", "if ctx<TK.C.AI> and fi = nt then" in home and "if ctx<TK.C.AI> and fi = 1 then" in home, "")
-    ck("H5 the hint row is drawn only when there is no AI line, and the AI line is made again on a resize, a new session and F5", home.count("call $tk_ai('init', ctx, '', '')") >= 4 and "if ctx<TK.C.AI> then\n      call $tk_ai('draw', ctx, aif, '')" in home, "")
+    ck("H5 the hint row is drawn only when there is no AI line, the AI line is made again in a new session and on F5 (three init calls), and a resize only MOVES it (p3.3a: the request typed in it and its focus aif are kept, and the resize no longer sets aif = 0)",
+       home.count("call $tk_ai('init', ctx, '', '')") == 3 and home.count("call $tk_ai('move', ctx, '', '')") == 1 and "if ctx<TK.C.AI> then\n      call $tk_ai('draw', ctx, aif, '')" in home
+       and re.search(r"gen \+= 1\n   ctx<TK\.C\.GEN> = gen\n   lastmin = ''\n   call \$tk_ai\('move', ctx, '', ''\)", home) is not None, "")
     ck("H6 while the line has the focus no tile does (draw.tile), and the cursor is in the line (the loop draws it and does not park the cursor on the status line)",
        "if aif then focused = 0" in home and ordered(home, "if aif then", "call $tk_ai('draw', ctx, 1, '')", "call $sl_curat(0, ctx<TK.C.YSTAT>)"), "")
     ck("M1 messages 11635 to 11652 exist, each one line", all(s["msgs"][n] is not None and len(s["msgs"][n].rstrip("\n").split("\n")) == 1 for n in MSGS), repr([n for n in MSGS if s["msgs"][n] is None]))
@@ -205,6 +213,12 @@ MUTANTS = [
     ("every action is a rejection by default again", "tk_ai", "if nav and index(@vm : nav.not : @vm, @vm : pid : @vm, 1) = 0 then 1 else 2", "if 0 then 1 else 2", "A8"),
     ("the library never learns which actions do more", "tool_home", "   actx<12> = ai.more ", "   null ", "H2"),
     ("a pin is not named as doing more", "tool_home", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>", "if ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>", "H2"),
+    # 29 Oct 26 (S.88 p3.3a): a resize moves the home screen's AI line - the first of these is marker 32 for --from=32
+    ("a resize makes the AI line again (the typed request is lost)", "tool_home", "   call $tk_ai('move', ctx, '', '')", "   aif = 0\n   call $tk_ai('init', ctx, '', '')", "H5"),
+    ("a resize clears the line's focus", "tool_home", "   call $tk_ai('move', ctx, '', '')", "   aif = 0\n   call $tk_ai('move', ctx, '', '')", "H5"),
+    ("the move reads the status again", "tk_ai", "      case op = 'move'\n         if ai.on then gosub place.widget", "      case op = 'move'\n         gosub read.status\n         if ai.on then gosub place.widget", "A15"),
+    ("the move makes the entry again", "tk_ai", "      case op = 'move'\n         if ai.on then gosub place.widget", "      case op = 'move'\n         if ai.on then gosub make.widget", "A15"),
+    ("the move empties the text", "tk_ai", "      case op = 'move'\n         if ai.on then gosub place.widget", "      case op = 'move'\n         if ai.on then ai.w{'value'} = ''\n         if ai.on then gosub place.widget", "A15"),
 ]
 M_STAGE2 = 10
 M_STAGE3 = 18
