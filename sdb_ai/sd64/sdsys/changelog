@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  ENCRYPT.KEY SET REFUSES A PASSPHRASE OF FEWER THAN 12 CHARACTERS.
+
+             What        - encrypt.key set name salt asks for the passphrase at its hidden prompt as before; if the two copies typed with CONFIRM differ it says so, and a passphrase of fewer than
+                           12 characters (message 11994) sets no key. The verb applied no rule at all before.
+             Why         - The key is made from the passphrase and nothing else is secret about it (the salt is kept with the data), so a short passphrase is the weak point of everything encrypted
+                           under it.
+             Does NOT    - Change sdkey(), which still takes any passphrase that is not empty: a program that wants a shorter or a stricter rule calls it and applies its own. A key already
+                           made, or a value already encrypted, is not affected.
+
 30 Oct 26  THREE SMALL TIGHTENINGS: THE FILE $IPC IS NOT READABLE BY OPERATING-SYSTEM USERS OUTSIDE sdusers; OSPATH() CANNOT DELETE OR MAKE ANYTHING IN THE SHARED ACCOUNT; SHOW ... EVAL WRITES NOTHING.
 
              What        - $ipc, the file that holds what a phantom is told to run, the DATA queues and the user messages of every SD user's process, was mode 775 and so readable by every

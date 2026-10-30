@@ -12236,6 +12236,13 @@
 "tier": "reference",
 "words": 17
 },
+"msg:11994": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 16
+},
 "msg:1200": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -26316,7 +26323,7 @@
 "tcl:encrypt.key": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 39
 },

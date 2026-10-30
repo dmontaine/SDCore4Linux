@@ -9156,6 +9156,15 @@ C-type dictionary item %1 is not compiled: write it as an I-type
 
 cited by: `dcomp`
 
+### msg:11994
+> kind=message tier=reference since=- src=sdsys/messages/11994:1#f65cfb5f
+
+```
+The passphrase has fewer than %1 characters.  No key was set.
+```
+
+cited by: `encryptkey`
+
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
 

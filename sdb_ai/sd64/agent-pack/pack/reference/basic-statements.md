@@ -1284,7 +1284,7 @@ clause of `execute` — hand the active select list to the command
 clause of `input` — read exactly *length* characters as they arrive
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `User/markdown/06a-sd-basic-encryption.md` line 132
+- docs: `User/markdown/06a-sd-basic-encryption.md` line 133
 
 ### basic:stmt:read
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:434#d5b3ec8b src2=docs:tools/syntax-shapes.txt:180#7f31b3b1
