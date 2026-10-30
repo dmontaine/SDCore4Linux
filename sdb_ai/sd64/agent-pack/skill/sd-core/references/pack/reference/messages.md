@@ -9109,7 +9109,7 @@ cited by: `sed`
 A record holds only text, and lists of values and subvalues: this is not one
 ```
 
-cited by: `ced_core`
+cited by: `ced_core`, `ide`
 
 ### msg:11989
 > kind=message tier=reference since=- src=sdsys/messages/11989:1#c157911a
@@ -9166,10 +9166,46 @@ The passphrase has fewer than %1 characters.  No key was set.
 cited by: `encryptkey`
 
 ### msg:11995
-> kind=message tier=reference since=- src=sdsys/messages/11995:1#a3300bb4
+> kind=message tier=reference since=- src=sdsys/messages/11995:1#32ac8f74
 
 ```
-F1 help   Return open   Esc up   Ins insert   Del delete   F3 rename   F4 type   Ctrl-S keep   F12 or Ctrl-Q leave
+F1 help   Return open   Esc up   Ins insert   Del delete   F3 rename   Ctrl-T type   Ctrl-S save   F12 text
+```
+
+cited by: `ide`
+
+### msg:11996
+> kind=message tier=reference since=- src=sdsys/messages/11996:1#359e3b16
+
+```
+%1 may have been made: an error (%2) ended the create, and an empty file of that name may be there.  Look for it and remove it if you do not want it.  The text is still in the editor.
+```
+
+cited by: `ide`
+
+### msg:11997
+> kind=message tier=reference since=- src=sdsys/messages/11997:1#33583ae2
+
+```
+%1 is locked by another user, so nothing was written to it.  If this attempt made the file, an empty file of that name is there.  The text is still in the editor.
+```
+
+cited by: `ide`
+
+### msg:11998
+> kind=message tier=reference since=- src=sdsys/messages/11998:1#98db3d94
+
+```
+This works on the text of the record: show the text first (F12), then do it
+```
+
+cited by: `ide`
+
+### msg:11999
+> kind=message tier=reference since=- src=sdsys/messages/11999:1#de29b649
+
+```
+%1 %2 is no longer text the fields can show, so the text is shown (nothing was lost)
 ```
 
 cited by: `ide`

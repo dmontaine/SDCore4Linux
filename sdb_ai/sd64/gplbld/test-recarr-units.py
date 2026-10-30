@@ -151,18 +151,21 @@ def checks(p):
     row("I2 run.cmd: the command 'fields' runs do.fields", ordered(rc, [r"case cmd = 'fields'", r"gosub do\.fields"]))
     df = code(section(i, "do.fields"))
     row("I3 do.fields: with no record open it says so (11218) and goes no further", ordered(df, [r"if nbuf = 0 then", r"msg = sysmsg\(11218\)", r"^return$", r"call \$recarr\('to'"]), "\n".join(df[:8]))
-    row("I4 do.fields: the order - the record to an array, the fields view run IN the IDE's form (the screen is not left), the array back to text, the tab's text set, the form made again from it",
-        ordered(df, [r"call \$recarr\('to'", r"gosub fields\.run", r"call \$recarr\('from'", r"bx\{k\} = fd\.new", r"^screen clear", r"gosub new\.form"])
-        and not any(re.search(r"gosub leave\.screen|\$cedit|retake\.", l) for l in df), "\n".join(df))
-    fr = code(section(i, "fields.run"))
-    row("I5 the fields view is given NO file and NO record id, only the array and the data mode (2): the engine writes nothing and the view takes no lock",
-        first(df, r"fz\.type = 2") is not None and ordered(df[first(df, r"fz\.type = 2"):], [r"fz\.c = fd\.arr", r"gosub fields\.run"]) and first(fr, r"fz\.st\{'ftype'\} = fz\.type") is not None
-        and not any(re.search(r"\b(readu|recordlocku|writeu|write|openseq)\b", l) for l in fr), "\n".join(fr[:14]))
+    row("I4 do.fields: F12 on a tab that shows its fields leaves them (fields.leave); otherwise the record goes to an array and the PANE is entered IN the IDE's form (the screen is not left); "
+        "the array comes back to text at each change (fields.writeback), not here",
+        ordered(df, [r"gosub fields\.is\.on", r"gosub fields\.leave", r"call \$recarr\('to'", r"fz\.title = ", r"gosub fields\.enter"])
+        and not any(re.search(r"gosub leave\.screen|\$cedit|retake\.|call \$recarr\('from'|screen clear|gosub new\.form", l) for l in df), "\n".join(df))
+    fe = code(section(i, "fields.enter"))
+    row("I5 the fields pane is given NO file and NO record id, only the array and the data mode (2): the engine writes nothing and the pane takes no lock",
+        first(df, r"fz\.type = 2") is not None and ordered(df[first(df, r"fz\.type = 2"):], [r"fz\.c = fd\.arr", r"gosub fields\.enter"]) and first(fe, r"fz\.st\{'ftype'\} = fz\.type") is not None
+        and not any(re.search(r"\b(readu|recordlocku|writeu|write|openseq)\b", l) for l in fe), "\n".join(fe[:14]))
     row("I6 do.fields itself does not write, read with a lock or delete, or run a command: the IDE's save (edit.check, the overwrite question) is the only writer",
         not any(re.search(r"\b(write|writeu|writev|readu|readv|delete|deleteu|execute|open)\b", l) for l in df), "\n".join(l for l in df if re.search(r"\b(write|writeu|readu|delete|execute|open)\b", l)))
-    row("I7 do.fields changes the tab only when what came back differs (11989), else says it is as it was (11990)",
-        ordered(df[next((n for n, l in enumerate(df) if re.search(r"if \(fd\.new : '\|'\) # \(fd\.was : '\|'\) then", l)), len(df)):],      # from that test on: stage F's branch has an end else of its own above it
-                [r"if \(fd\.new : '\|'\) # \(fd\.was : '\|'\) then", r"bx\{k\} = fd\.new", r"sysmsg\(11989,", r"end else", r"sysmsg\(11990,"]))
+    fl = code(section(i, "fields.leave"))
+    row("I7 fields.leave: the text goes into the text area only when it differs from what the area shows (entering and leaving without a change touches nothing, as ONE undo step otherwise), and the message is 11989 "
+        "when the tab is changed since it was read or saved, nothing when the change was saved since, 11990 when nothing changed",
+        ordered(fl, [r"bx\{fz\.k1\} = 0", r"fvs\{'e' : fz\.u\} = ''", r"gosub tab\.display", r"gosub fields\.view\.off", r"if \(tb\.disp : '\|'\) # \(ed\.mw\{'value'\} : '\|'\) then", r"gosub ed\.set",
+                     r"gosub is\.dirty", r"^case dirty$", r"sysmsg\(11989,", r"^msg = ''", r"^case 1$", r"sysmsg\(11990,"]))
 
     # ---- I8-I12: the token form and the language in the IDE (26 Oct 26) ----------------------------------------------------------------------------------------------
     sf = code(section(i, "syntax.for"))
@@ -170,7 +173,7 @@ def checks(p):
         first(sf, r"call \$sl_syntax\('detect', sy\.file, sy\.id, sy\.first, '', syn\)") is not None and first(sf, r"suffix") is None, "\n".join(sf))
     sc = code(section(i, "stash.current"))
     row("I9 stash.current turns the editor's tokens back into marks only for a tab in token mode (bx m), and BEFORE the text is put in the tab's record",
-        ordered(sc, [r"k = 'm' : u", r"if bx\{k\} then", r"call \$recarr\('fromtext', txt, tb\.raw, tb\.ok\)", r"txt = tb\.raw", r"k = 't' : u", r"bx\{k\} = txt"]), "\n".join(sc))
+        ordered(sc, [r"k = 'v' : bu<cb>", r"if bx\{k\} then return", r"k = 'm' : u", r"^if bx\{k\} then$", r"call \$recarr\('fromtext', txt, tb\.raw, tb\.ok\)", r"txt = tb\.raw", r"k = 't' : u", r"bx\{k\} = txt"]), "\n".join(sc))
     td = code(section(i, "tab.display"))
     k0 = first(td, r"if not\(tb\.ok\) then")
     row("I10 tab.display shows tokens only for a tab in token mode and falls back to the record as it is (with message 11992) when 'totext' refuses",
@@ -198,12 +201,12 @@ def checks(p):
     nf = code(section(i, "new.form"))
     lc_ = code(section(i, "load.current"))
     row("I12 the mode is set wherever the real record comes from (open.record, the return from SED, the return from CED) and the editor's text is made by tab.display (new.form, load.current)",
-        ordered(orc, [r"bx\{k\} = rec", r"gosub set\.token\.mode", r"gosub load\.current"]) and ordered(dsd, [r"bx\{k\} = disk", r"gosub set\.token\.mode"]) and ordered(dfl, [r"bx\{k\} = fd\.new", r"gosub set\.token\.mode", r"msg = sysmsg\(11989"])
+        ordered(orc, [r"bx\{k\} = rec", r"gosub set\.token\.mode", r"gosub load\.current"]) and ordered(dsd, [r"bx\{k\} = disk", r"gosub set\.token\.mode"]) and ordered(code(section(i, "fields.writeback")), [r"bx\{fz\.k1\} = fz\.txt", r"gosub set\.token\.mode"])
         and ordered(nf, [r"gosub tab\.display", r"ed\.text = tb\.disp"]) and ordered(lc_, [r"gosub tab\.display", r"mw\{'value'\} = tb\.disp"]))
 
     row("G1 (g-P2) the record of an ordinary file whose text is a JSON object or array with no value or subvalue mark goes to CED as the tree (data type 0, no file, no id); marks, text that does not parse or a first character other than { or [ keep the multivalue view and say nothing about JSON",
         ordered(dfl, [r"fd\.json = 0", r"if not\(fd\.coll\) then", r"index\(fd\.was, @vm, 1\) = 0 and index\(fd\.was, @sm, 1\) = 0", r"= '\{' or fd\.jq = '\['", r"jparse\(", r"fd\.jst = status\(\)", r"jtype\(fd\.c\) = 'collection' or jtype\(fd\.c\) = 'array'",
-                      r"if not\(fd\.json\) then call \$recarr\('to'", r"if fd\.coll or fd\.json then", r"fz\.type = 0", r"fz\.c = fd\.c", r"gosub fields\.run"]))
+                      r"if not\(fd\.json\) then call \$recarr\('to'", r"if fd\.coll or fd\.json then", r"fz\.type = 0", r"fz\.c = fd\.c", r"gosub fields\.enter"]))
 
     # ---- M: the menu, the help, the messages ----------------------------------------------------------------------------------------------------------------------
     m = p["m11226"].strip("\n")
@@ -264,11 +267,17 @@ def selftest():
     mutant("a list may be a subvalue", "ced_core", "if n.path < 2 then ct.allowed<-1> = 'array'\n      case et = 'array'", "if n.path < 3 then ct.allowed<-1> = 'array'\n      case et = 'array'", "C4")
     mutant("insert offers numbers in data mode", "ced_core", "      ct.allowed = 'string'\n      if n.path < 2", "      ct.allowed = 'string' : @fm : 'number'\n      if n.path < 2", "C5")
     mutant("a paste is not asked of data.fits", "ced_core", "      gosub data.fits\n      if not(fits) then", "      fits = 1\n      if not(fits) then", "C8")
-    mutant("the fields view is given the record's file to write", "ide", "   fz.kept = fz.st{'kept'}\n   return", "   fz.kept = fz.st{'kept'}\n   writeu fz.c on fv, fd.id\n   return", "I5")
-    mutant("the fields view is given the JSON data mode for a record", "ide", "      fz.type = 2\n      fz.c = fd.arr", "      fz.type = 0\n      fz.c = fd.arr", "I5")
-    mutant("do.fields writes the record itself", "ide", "if fd.ok then fd.new = fd.text", "if fd.ok then fd.new = fd.text ; write fd.new on fv, fd.id", "I6")
-    mutant("do.fields does not make the form again", "ide", "   screen clear                          ;* the form is made again from the tab's text (as relayout does); the screen was never left, so nothing is taken back and no lock was let go\n   gosub new.form\n   return", "   return", "I4")
-    mutant("do.fields leaves the screen again", "ide", "   fd.res = ''\n   fd.new = fd.was\n   fz.title", "   gosub leave.screen\n   fd.res = ''\n   fd.new = fd.was\n   fz.title", "I4")
+    mutant("the fields pane is given the record's file to write", "ide", "   fz.st{'ai.ok'} = 0                                         ;* the AI line of the fields view is a later stage\n   call $ced_core('init', fz.st, '', fz.out)\n   fz.st{'path.row'} = ystat                                  ;* what the engine paints over a dialogue (a refused value) goes on the status row, which the IDE writes again after\n   fz.st{'msg.row'} = ystat\n   fz.k1 = 't' : fz.u",
+           "   fz.st{'ai.ok'} = 0\n   writeu fz.c on fv, fd.id\n   call $ced_core('init', fz.st, '', fz.out)\n   fz.st{'path.row'} = ystat\n   fz.st{'msg.row'} = ystat\n   fz.k1 = 't' : fz.u", "I5")
+    mutant("the fields pane is given the JSON data mode for a record", "ide", "      fz.type = 2\n      fz.c = fd.arr", "      fz.type = 0\n      fz.c = fd.arr", "I5")
+    mutant("do.fields writes the record itself", "ide", "   gosub fields.enter\n   return", "   write fd.was on fv, fd.id\n   gosub fields.enter\n   return", "I6")
+    mutant("do.fields makes the form again", "ide", "   gosub fields.enter\n   return", "   gosub fields.enter\n   screen clear\n   gosub new.form\n   return", "I4")
+    mutant("do.fields leaves the screen again", "ide", "   fz.title = fd.file : ' ' : fd.id\n   gosub fields.enter", "   gosub leave.screen\n   fz.title = fd.file : ' ' : fd.id\n   gosub fields.enter", "I4")
+    mutant("F12 does not leave the fields", "ide", "   if fv.on then\n      gosub fields.leave                ;* 30 Oct 26 (stage 2b): F12 again shows the text\n      return\n   end\n", "", "I4")
+    mutant("leaving the fields always sets the text", "ide", "   if (tb.disp : '|') # (ed.mw{'value'} : '|') then\n      ed.new = tb.disp\n      ed.cy = 0\n      gosub ed.set\n   end\n", "   ed.new = tb.disp\n   ed.cy = 0\n   gosub ed.set\n", "I7")
+    mutant("leaving the fields says the change is not saved when it is", "ide", "      case dirty\n         msg = sysmsg(11989, bf.name, bf.id)", "      case 1\n         msg = sysmsg(11989, bf.name, bf.id)", "I7")
+    mutant("a tab that shows its fields is stashed from the hidden text area", "ide", "      k = 'v' : bu<cb>\n      if bx{k} then return              ;* 30 Oct 26 (stage 2b)", "      k = 'v' : bu<cb>\n      if 0 then return                  ;* 30 Oct 26 (stage 2b)", "I9")
+    mutant("the write-back leaves the token mode as it was", "ide", "   tm.u = fz.u\n   tm.raw = fz.txt\n   gosub set.token.mode\n   fz.st{'h.text'} = fz.txt", "   fz.st{'h.text'} = fz.txt", "I12")
     mutant("a JSON record with marks goes to the tree", "ide", "if index(fd.was, @vm, 1) = 0 and index(fd.was, @sm, 1) = 0 then", "if 1 then", "G1")
     mutant("any text is tried as JSON", "ide", "if fd.jq = '{' or fd.jq = '[' then", "if 1 then", "G1")
     mutant("text that parses as a number is a tree", "ide", "jtype(fd.c) = 'collection' or jtype(fd.c) = 'array'", "1", "G1")

@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 30 Oct 26 dm  S.88 A3 (the second E2 review): 'create' says 'cantmade' for an ON ERROR clause (the file may be there, empty).  This program is not $internal and cannot ask
+*               kernel(): the IDE (os.create) tells the OS gate from an edit gate when it gets 'gate'.
 * 30 Oct 26 dm  S.88 stage E2: 'create' (an exclusive create, then the same write and read-back as 'save') and 'list' (the one DIR() of the IDE); write.file is split into make.data and put.data.
 * 28 Oct 26 dm  New (S.88 stage E).  The IDE opens and saves a file of the operating system by its path.  THIS PROGRAM IS NOT $internal ON PURPOSE: the kernel trusts a $internal
 *               program with an OPENSEQ by pathname (it asks neither the account's OS gate nor the edit gates), so the IDE, which is $internal, would have been the only guard.
@@ -50,6 +52,7 @@
 *              'io'      reading, positioning, writing or cutting the file failed, the bytes read back after a write are not the bytes written, or the file is not the size it was a moment ago
 *              'gone'    'reread' only: nothing links to the file F holds (removed, or replaced by a rename)
 *              'ro'      'save' on a file opened read-only (no write was tried)   'cant'  an OPENSEQ that failed: INFO<6> is its STATUS()   'op'  an unknown OP
+*              'cantmade'  'create' only (30 Oct 26): the OPENSEQ ... CREATING took its ON ERROR clause, so the file MAY have been made (empty) first: INFO<6> is the STATUS()
 *     A file that is NOT open (a failure of 'open') is closed here: an OPENSEQ that took its ELSE keeps the name locked until the variable is closed.
 *
 * END-DESCRIPTION
@@ -317,7 +320,7 @@ create.file:
    openseq path creating to f on error
       op.st = status()
       if not(unassigned(f)) then close f
-      why = 'cant'
+      why = 'cantmade'                      ;* 30 Oct 26 (S.88 A3): an ON ERROR clause ends the statement, and the file may have been made (empty) before the error: the IDE says so
       info<6> = op.st
       return
    end locked

@@ -42,7 +42,9 @@ GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 NEWMSG = list(range(11684, 11699))
 NEWMSG2 = [11750, 11751, 11752, 11753, 11754, 11761]     # 28 Oct 26: the AUTOLOGOUT countdown and the read-only tab for bytes outside ASCII
-NEWMSG3 = [11743, 11744, 11745]                          # 29 Oct 26 (stage F): JSON that will not parse, a collection record is not a program, a text is not saved into a collection file
+FIELDS_LABELS = ("fields.enter", "fields.leave", "fields.view.on", "fields.form", "fields.apply", "fields.sync", "fields.sync.tab", "fields.parse", "fields.rebuild", "fields.drop", "fields.esc",
+                 "fields.key", "fields.after", "fields.writeback", "fields.fill", "fields.pull", "fields.show", "fields.label")     # 30 Oct 26 (stage 2b): the pane's labels in gpl.bp/ide
+NEWMSG3 = [11743, 11744, 11745]                         # 29 Oct 26 (stage F): JSON that will not parse, a collection record is not a program, a text is not saved into a collection file
 
 
 def strip(src):
@@ -191,11 +193,12 @@ def checks(src):
     ck("K39", "stage F: Edit as fields on a collection record parses the tab's text FIRST (and says so in a box when it will not parse: the screen is not left), hands CED the collection with data type 0 and "
        "no file and no id (CED writes nothing), and takes the JBUILD text back; path.not.for is asked with pa.allow = 'coll' for this command only",
        ordered(fo, "pa.allow = 'coll'", "gosub path.not.for", "pa.allow = ''", "if pa.no then return", "fd.coll = (bx{k} = 'coll')", "gosub coll.value", "if not(cv.ok) then return", "fd.c = cv.y",
-               "fz.type = 0", "fz.c = fd.c", "gosub fields.run", "fd.c = fz.c", "fd.text = convert(char(10), @fm, jbuild(fd.c, JB$PRETTY))", "fz.type = 2")
+               "fz.type = 0", "fz.c = fd.c", "fz.type = 2", "gosub fields.enter")
+       and ordered(label(ide, "fields.writeback"), "fz.txt = convert(char(10), @fm, jbuild(fz.nc, JB$PRETTY))")         # 30 Oct 26 (stage 2b): the JBUILD text goes back into the tab at each change
        and "pa.allow = ''" in main
        and 0 <= fo.find("pa.allow = 'coll'") < fo.find("gosub path.not.for")             # the allowance comes before the FIRST path.not.for of the command, not only before the one after a save
        and "gosub leave.screen" not in fo and "$cedit" not in fo
-       and not re.search(r"\b(write|writeu|writev|delete|readu|execute)\b", "\n".join(label(ide, n) for n in ("fields.run", "fields.key", "fields.pull", "fields.show", "fields.status"))), "")
+       and not re.search(r"\b(write|writeu|writev|delete|readu|execute)\b", "\n".join(label(ide, n) for n in FIELDS_LABELS)), "")
     pn = L["path.not.for"]
     ck("K40", "stage F: path.not.for refuses a collection record for compile, run, debug, catalog, SED, Save as and the include (11744) unless pa.allow is 'coll', and keeps its operating-system-file "
        "lines (11739) after it; the name form refuses a text saved into a collection file under a new name (11745) except for New record",
@@ -312,22 +315,23 @@ def checks(src):
        and ordered(L["load.current"], "ro = (bx{k} # '')", "k = 'a' : u\n      if bx{k} then ro = 1", "mw{'readonly'} = ro")           # (the pair adjacent: stage E's own flag, 'z', follows it and would mask the 'a' test)
        and ordered(L["new.form"], "ed.ro = (bx{k} # '')", "k = 'a' : u\n      if bx{k} then ed.ro = 1", "if ed.ro then")
        and ordered(L["status.line"], "k = 'a' : bu<cb>", "if bx{k} then t := '  ' : sysmsg(11753)"), "")
-    ck("K32", "ro.check asks the ASCII flag FIRST (ro.why 'ascii', 11754) and the lock second ('lock'); ro.box shows a refusal in a box only for 'ascii'; Save (save.one), "
+    ck("K32", "ro.check asks the ASCII flag FIRST (ro.why 'ascii', 11754) and the lock second ('lock'); ro.box shows a refusal in a box only for 'ascii' and 'osro' (a lock's stays on the status line); Save (save.one), "
        "Replace, Edit as fields and an AI edit go through ro.check and ro.box (save.one's own box); Save as and Write a copy ask na.check before anything, which keeps a lock's "
        "message out (a lock does not stop them)",
        ordered(L["ro.check"], "ro.why = ''", "ro.k = 'a' : bu<ro.i>", "if bx{ro.k} then", "ro.why = 'ascii'", "msg = sysmsg(11754, bf.name, bf.id)", "return",
                "ro.k = 'o' : bu<ro.i>", "ro.why = 'lock'", "msg = sysmsg(11688")
-       and ordered(L["ro.box"], "if ro.why # 'ascii' then return", "rf.text = msg", "gosub refuse.box")
+       and ordered(L["ro.box"], "if ro.why # 'ascii' and ro.why # 'osro' then return", "rf.text = msg", "gosub refuse.box")
        and ordered(L["save.one"], "gosub ro.check", "if not(ro.ok) then", "gosub refuse.box", "return", "write")
        and all(ordered(L[n], "gosub na.check", "if not(na.ok) then return", "gosub stash.current") for n in ("do.saveas", "do.writeas"))
        and ordered(L["na.check"], "na.msg = msg", "gosub ro.check", "if ro.why # 'ascii' then", "msg = na.msg", "return", "na.ok = @false", "gosub ro.box"), "")
 
     # ---- 28 Oct 26 (approved by the owner): the AUTOLOGOUT countdown ---------------------------------------------------------------------------------------------------------
-    loop = ide[ide.find("   loop\n      gosub status.line"): ide.find("until done")]
+    loop = ide[ide.find("   loop\n      gosub fields.sync"): ide.find("until done")]
     ck("K33", "the countdown keeps no clock of its own (28 Oct 26, the L2 review: the IDE's guess was late by an AI wait and by a stall): no idl.t0, idl.fp, idl.el, idl.now, idle.count or "
        "IDL.SLACK anywhere in the IDE and no idl.ms set to 0; the loop waits one second and a timeout runs rc.tick; a program run needs no reset in retake.quiet",
        not any(w in ide for w in ("idl.t0", "idl.fp", "idl.el", "idl.now", "idle.count", "IDL.SLACK", "idl.ms = 0"))
-       and ordered(loop, "gosub status.line", "screen wait f timeout 1 returning ev then", "case ev<1> = 'timeout'", "gosub rc.tick", "case 1", "cmd = 'menu'"), loop[:150])
+       and ordered(loop, "gosub fields.sync", "gosub status.line", "screen wait f timeout 1 returning ev then", "case ev<1> = 'timeout'", "gosub rc.tick", "case 1", "gosub fields.esc")
+       and ordered(label(ide, "fields.esc"), "if fv.on and focus.id = 'fld' then", "if fz.st{'path'} # '' then", "fz.key = 'esc'", "gosub fields.key", "return", "cmd = 'menu'", "gosub run.cmd"), loop[:150])
     ck("K34", "idle.text reads the time waited with nothing typed from the KERNEL's inactivity clock (K$AUTOLOGOUT asked with -2), after the period test and before the seconds left "
        "are worked out, and nothing else assigns idl.ms",
        ordered(L["idle.text"], "idl.al = kernel(K$AUTOLOGOUT, -1) + 0", "if idl.al <= 0 then return", "idl.ms = kernel(K$AUTOLOGOUT, -2) + 0", "idl.left = int((idl.al - idl.ms + 999) / 1000)")
@@ -392,13 +396,15 @@ MUTANTS = [
     ("the kept text has JBUILD's line feeds", "K37", sub("ide", "      sv.text = convert(char(10), @fm, jbuild(sv.out, JB$PRETTY))\n", "      sv.text = jbuild(sv.out, JB$PRETTY)\n")),
     ("the editor is loaded again after every save of a collection record", "K37", sub("ide", "   if sv.reload and sv.i = cb then gosub load.current", "   if sv.kind = 'coll' and sv.i = cb then gosub load.current")),
     ("a collection record is read with JBUILD's line feeds", "K10", sub("ide", "lk.cj = convert(char(10), @fm, jbuild(lk.rec, JB$PRETTY))", "lk.cj = jbuild(lk.rec, JB$PRETTY)")),
-    ("Edit as fields takes JBUILD's line feeds back", "K39", sub("ide", "         fd.text = convert(char(10), @fm, jbuild(fd.c, JB$PRETTY))", "         fd.text = jbuild(fd.c, JB$PRETTY)")),
     ("a new collection record starts empty text", "K38", sub("ide", "   if lk.kind = 'coll' and or.new and rc.choice # 'use' then tb.shown = '{}'", "   null")),
     ("New record in a collection file starts empty text", "K38", sub("ide", "   if lk.kind = 'coll' and rc.choice # 'use' then bx{k} = '{}'", "   null")),
     ("Edit as fields does not parse first", "K39", sub("ide", "      gosub coll.value\n      if not(cv.ok) then return\n      fd.c = cv.y", "      fd.c = collection()")),
     ("the fields view is given the data mode for a collection", "K39", sub("ide", "      fz.type = 0\n      fz.c = fd.c", "      fz.type = 2\n      fz.c = fd.c")),
-    ("the fields view writes the record itself", "K39", sub("ide", "   fz.c = fz.st{'c'}\n   fz.kept = fz.st{'kept'}\n   return", "   fz.c = fz.st{'c'}\n   fz.kept = fz.st{'kept'}\n   writeu fz.c on fv, fd.id\n   return")),
-    ("the screen is left for the fields view again", "K39", sub("ide", "   fd.res = ''\n   fd.new = fd.was\n   fz.title", "   gosub leave.screen\n   fd.res = ''\n   fd.new = fd.was\n   fz.title")),
+    ("the fields view writes the record itself", "K39", sub("ide", "fields.after:\n   fz.st{'done'} = @false", "fields.after:\n   writeu fz.nc on fv, fd.id\n   fz.st{'done'} = @false")),
+    ("the screen is left for the fields view again", "K39", sub("ide", "   fz.title = fd.file : ' ' : fd.id\n   gosub fields.enter", "   gosub leave.screen\n   fz.title = fd.file : ' ' : fd.id\n   gosub fields.enter")),
+    ("the pane's write-back loses JBUILD's line feeds", "K39", sub("ide", "      fz.txt = convert(char(10), @fm, jbuild(fz.nc, JB$PRETTY))", "      fz.txt = jbuild(fz.nc, JB$PRETTY)")),
+    ("the loop does not keep the pane in step with the text", "K33", sub("ide", "      gosub fields.sync                           ;* 30 Oct 26", "      null                                        ;* 30 Oct 26")),
+    ("Esc in the pane always opens the menu", "K33", sub("ide", "      if fz.st{'path'} # '' then\n         msg = ''\n         fz.key = 'esc'", "      if 0 then\n         msg = ''\n         fz.key = 'esc'")),
     ("a collection record is compiled", "K40", sub("ide", "   if bx{pa.k} = 'coll' and pa.allow # 'coll' then", "   if 0 then")),
     ("Edit as fields is refused for a collection", "K39", sub("ide", "   pa.allow = 'coll'                    ;* 29 Oct 26 (stage F)", "   pa.allow = ''                    ;* 29 Oct 26 (stage F)")),
     ("a stage F message is empty", "K41", sub("m11744", "\n", "")),
@@ -449,12 +455,13 @@ MUTANTS += [
     ("the record read back from SED is not looked at", "K31", sub("ide", "   na.text = disk\n   gosub na.mark", "   na.text = disk\n   null")),
     ("the editor is not read-only for the flag", "K31", sub("ide", "      if bx{k} then ro = 1               ;* 28 Oct 26", "      if 0 then ro = 1               ;* 28 Oct 26")),
     ("ro.check asks the lock only", "K32", sub("ide", "   ro.k = 'a' : bu<ro.i>\n   if bx{ro.k} then\n", "   ro.k = 'a' : bu<ro.i>\n   if 0 then\n")),
-    ("the refusal is a status-line message", "K32", sub("ide", "ro.box:\n   if ro.why # 'ascii' then return\n   rf.text = msg\n   gosub refuse.box\n", "ro.box:\n   return\n")),
+    ("the refusal is a status-line message", "K32", sub("ide", "   rf.text = msg\n   gosub refuse.box\n   return\n\n* 28 Oct 26: Save as", "   return\n\n* 28 Oct 26: Save as")),
+    ("an operating system file's refusal stays on the status line", "K32", sub("ide", "if ro.why # 'ascii' and ro.why # 'osro' then return", "if ro.why # 'ascii' then return")),
     ("Save as writes a non-ASCII record", "K32", sub("ide", "do.saveas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   gosub na.check", "do.saveas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   na.ok = 1")),
     ("Write a copy writes a non-ASCII record", "K32", sub("ide", "do.writeas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   gosub na.check", "do.writeas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   na.ok = 1")),
     ("Save as of a locked tab says the lock's refusal", "K32", sub("ide", "      msg = na.msg                   ;* a lock's refusal is not this one's\n", "")),
     ("the IDE keeps its own clock again: the start of a wait is noted", "K33", sub("ide", "      screen wait f timeout 1 returning ev then\n", "      idl.t0 = system(1081)\n      screen wait f timeout 1 returning ev then\n")),
-    ("Esc zeroes a count of the IDE's own", "K33", sub("ide", "            case 1\n               cmd = 'menu'             ;* Esc", "            case 1\n               idl.ms = 0\n               cmd = 'menu'             ;* Esc")),
+    ("Esc zeroes a count of the IDE's own", "K33", sub("ide", "            case 1\n               gosub fields.esc         ;* Esc", "            case 1\n               idl.ms = 0\n               gosub fields.esc         ;* Esc")),
     ("the countdown reads the period as the clock", "K34", sub("ide", "idl.ms = kernel(K$AUTOLOGOUT, -2) + 0", "idl.ms = kernel(K$AUTOLOGOUT, -1) + 0")),
     ("the clock is read before the period is known", "K34", sub("ide", "   if idl.al <= 0 then return\n   idl.ms = kernel(K$AUTOLOGOUT, -2) + 0", "   idl.ms = kernel(K$AUTOLOGOUT, -2) + 0\n   if idl.al <= 0 then return")),
     ("the countdown shows with AUTOLOGOUT off", "K35", sub("ide", "   if idl.al <= 0 then return\n", "")),

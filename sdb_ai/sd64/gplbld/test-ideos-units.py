@@ -40,7 +40,8 @@ SDSYS = os.path.join(SD64, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 SRC = os.path.join(SD64, "gplsrc")
-NEWMSG = {11746: "tree.os", 11747: "os.load", 11748: "os.load", 11749: "os.create", 11762: "os.create", 11763: "os.create", 11764: "os.create", 11765: "os.create"}
+NEWMSG = {11746: "tree.os", 11747: "os.load", 11748: "os.load", 11749: "os.create", 11762: "os.create", 11763: "os.create", 11764: "os.create", 11765: "os.create",
+          11996: "os.create", 11997: "os.create"}
 DELETED = (11727, 11558)
 
 _miss = []
@@ -228,9 +229,11 @@ def checks(src):
     # ---- the helper: 'create' -----------------------------------------------------------------------------------------------------------------------------------------
     cf = LO.get("create.file", "")
     ck("O3a", "create.file: the name is checked and the TEXT is checked (make.data: bytes, size) BEFORE the OPENSEQ - a refusal touches nothing; the OPENSEQ is `creating` with ON ERROR (it returns itself) and "
-       "LOCKED, the flag tested AFTER the statement; ON ERROR and the ELSE branch each CLOSE the variable when it is assigned; the ELSE says exists (ER_EXISTS), gate, dir or cant with the status",
+       "LOCKED, the flag tested AFTER the statement; ON ERROR and the ELSE branch each CLOSE the variable when it is assigned; ON ERROR says cantmade (the file may have been made, empty, "
+       "before the error: S.88 A3); the ELSE says exists (ER_EXISTS), gate, dir or cant with the status (the helper is not $internal and has no kernel(): the IDE's os.create tells an edit gate from "
+       "the OS gate, row O7)",
        ordered(cf, "gosub check.name", "if why # '' then return", "gosub make.data", "if why # '' then return", "lk.user = 0", "openseq path creating to f on error", "op.st = status()",
-               "if not(unassigned(f)) then close f", "why = 'cant'", "info<6> = op.st", "return", "end locked", "lk.user = 1", "end then", "null", "end else", "op.st = status()",
+               "if not(unassigned(f)) then close f", "why = 'cantmade'", "info<6> = op.st", "return", "end locked", "lk.user = 1", "end then", "null", "end else", "op.st = status()",
                "if not(unassigned(f)) then close f", "case op.st = ER.EXISTS", "why = 'exists'", "case op.st = ER.PERM", "why = 'gate'", "case op.st = ER.NSEQ", "why = 'dir'", "case 1",
                "why = 'cant'", "info<6> = op.st", "return", "if lk.user then", "why = 'locked'", "return")
        and cf.count("if not(unassigned(f)) then close f") == 2 and cf.count("openseq") == 1 and "case lk.user" not in cf
@@ -285,11 +288,15 @@ def checks(src):
     # ---- the IDE: making a file, and nothing else changes until it is made --------------------------------------------------------------------------------------------
     oc = LI.get("os.create", "")
     ck("O7", "os.create is the ONLY caller of !ide_osfile 'create' (five arguments after the op: path, file variable, text, info, why) and says each answer in its words - exists or ro 11762, dir or special "
-       "11749, locked 11731, bytes or big 11765, cant 11763 with the status, name 11728, gate 11180, anything else (io) 11764 in a box (the file may be there and not whole); a refusal changes "
+       "11749, locked 11997, cantmade 11996, bytes or big 11765, cant 11763 with the status, name 11728, gate 11180, anything else (io) 11764; exists or ro, locked, cantmade and io are each in a "
+       "BOX (S.88 9g and A3: the status line cut the sentence, and a file may be there); a refusal changes "
        "NO tab, lock, copy or buffer (os.create touches none of them)",
        ide.count("call !ide_osfile('create'") == 1 and ordered(oc, "call !ide_osfile('create', cr.path, cr.f, cr.text, cr.info, cr.why)", "case cr.why = ''", "null", "case cr.why = 'name'",
-       "sysmsg(11728, cr.path)", "case cr.why = 'gate'", "sysmsg(11180, @who)", "case cr.why = 'exists' or cr.why = 'ro'", "sysmsg(11762, cr.path)", "case cr.why = 'dir' or cr.why = 'special'",
-       "sysmsg(11749, cr.path)", "case cr.why = 'locked'", "sysmsg(11731, cr.path)", "case cr.why = 'bytes' or cr.why = 'big'", "sysmsg(11765, cr.path)", "case cr.why = 'cant'",
+       "sysmsg(11728, cr.path)", "case cr.why = 'gate'", "if kernel(K$EDIT.OS.OK, cr.path) then", "sysmsg(11180, @who)", "end else", "sysmsg(11763, cr.path, 3035)",
+       "case cr.why = 'exists' or cr.why = 'ro'", "rf.text = sysmsg(11762, cr.path)", "msg = rf.text", "gosub refuse.box",
+       "case cr.why = 'dir' or cr.why = 'special'",
+       "sysmsg(11749, cr.path)", "case cr.why = 'locked'", "rf.text = sysmsg(11997, cr.path)", "msg = rf.text", "gosub refuse.box", "case cr.why = 'cantmade'",
+       "rf.text = sysmsg(11996, cr.path, cr.info<6>)", "msg = rf.text", "gosub refuse.box", "case cr.why = 'bytes' or cr.why = 'big'", "sysmsg(11765, cr.path)", "case cr.why = 'cant'",
        "sysmsg(11763, cr.path, cr.info<6>)", "case 1", "rf.text = sysmsg(11764, cr.path, cr.info<6>)", "msg = rf.text", "gosub refuse.box") and FORBID_TAB.search(oc) is None,
        repr(FORBID_TAB.findall(oc)[:3]))
     sl = LI.get("os.slot", "")
@@ -396,7 +403,7 @@ def checks(src):
         top = max([int(x) for x in re.findall(r"%(\d)", t)] or [0])
         if not t.strip() or t.count("\n") != 1 or not mm or nargs != top:
             bad.append((n, bool(mm), nargs, top))
-    ck("O19", "messages 11746-11749 and 11762-11765 exist, are one line, each is cited in the routine that says it (tree.os, os.load, os.create) with exactly as many arguments as the text has %n",
+    ck("O19", "messages 11746-11749, 11762-11765, 11996 and 11997 exist, are one line, each is cited in the routine that says it (tree.os, os.load, os.create) with exactly as many arguments as the text has %n",
        not bad, repr(bad))
     gone = [n for n in DELETED if src["m%d" % n].strip()]
     cited = [n for n in DELETED if re.search(r"sysmsg\(\s*%d\b" % n, src["allbp"])]
@@ -478,7 +485,7 @@ mut("the name is not checked", "O3a", sub1("osf", "create.file:\n   gosub check.
 mut("ON ERROR keeps the name locked", "O3a", sub1("osf", "   openseq path creating to f on error\n      op.st = status()\n      if not(unassigned(f)) then close f\n", "   openseq path creating to f on error\n      op.st = status()\n"))
 mut("the ELSE keeps the name locked", "O3a", sub1("osf", "      if not(unassigned(f)) then close f\n      begin case\n         case op.st = ER.EXISTS", "      begin case\n         case op.st = ER.EXISTS"))
 mut("a taken name is only cant", "O3a", sub1("osf", "         case op.st = ER.EXISTS\n            why = 'exists'", "         case op.st = ER.EXISTS\n            why = 'cant'"))
-mut("the OS gate is only cant", "O3a", sub1("osf", "         case op.st = ER.PERM\n            why = 'gate'\n         case op.st = ER.NSEQ\n            why = 'dir'\n         case 1\n            why = 'cant'\n            info<6> = op.st\n      end case\n      return\n   end\n   if lk.user then\n      why = 'locked'\n      return\n   end\n   if (fileinfo(f, FL$SEQTYPE) + 0) # 0 then\n      close f\n      why = 'special'\n      return\n   end\n   if fileinfo(f, FL$READONLY) then", "         case op.st = ER.PERM\n            why = 'cant'\n         case op.st = ER.NSEQ\n            why = 'dir'\n         case 1\n            why = 'cant'\n            info<6> = op.st\n      end case\n      return\n   end\n   if lk.user then\n      why = 'locked'\n      return\n   end\n   if (fileinfo(f, FL$SEQTYPE) + 0) # 0 then\n      close f\n      why = 'special'\n      return\n   end\n   if fileinfo(f, FL$READONLY) then"))
+mut("the OS gate is only cant", "O3a", sub1("osf", "         case op.st = ER.PERM\n            why = 'gate'\n", "         case op.st = ER.PERM\n            why = 'cant'\n"))
 mut("a locked file is written", "O3b", sub1("osf", "   if lk.user then\n      why = 'locked'\n      return\n   end\n   if (fileinfo(f, FL$SEQTYPE) + 0) # 0 then\n      close f\n      why = 'special'\n      return\n   end\n   if fileinfo(f, FL$READONLY) then", "   if (fileinfo(f, FL$SEQTYPE) + 0) # 0 then\n      close f\n      why = 'special'\n      return\n   end\n   if fileinfo(f, FL$READONLY) then"))
 mut("a device is kept open", "O3b", sub1("osf", "      close f\n      why = 'special'\n      return\n   end\n   if fileinfo(f, FL$READONLY) then", "      why = 'special'\n      return\n   end\n   if fileinfo(f, FL$READONLY) then"))
 mut("a read-only file is written", "O3b", sub1("osf", "   if fileinfo(f, FL$READONLY) then\n      close f\n      why = 'ro'\n      return\n   end\n   seek f, 0, 2", "   seek f, 0, 2"))
@@ -517,7 +524,7 @@ mut("the edit gate is asked of another string", "O6", sub1("inm", "case not(kern
 mut("Open asks the OS gate in the form", "O6", sub1("inm", "            case mode = 'open'\n               file = 'path:'", "            case mode = 'open' and not(kernel(K$PATH.OK, op.path))\n               msg = sysmsg(11180, @who)\n            case mode = 'open'\n               file = 'path:'"))
 # ---- the IDE
 mut("a refusal changes the tab", "O7", sub1("ide", "      case cr.why = 'gate'\n         msg = sysmsg(11180, @who)\n      case cr.why = 'exists' or cr.why = 'ro'", "      case cr.why = 'gate'\n         msg = sysmsg(11180, @who)\n         nbuf += 1\n      case cr.why = 'exists' or cr.why = 'ro'"))
-mut("a taken name says the directory is missing", "O7", sub1("ide", "      case cr.why = 'exists' or cr.why = 'ro'\n         msg = sysmsg(11762, cr.path)", "      case cr.why = 'exists' or cr.why = 'ro'\n         msg = sysmsg(11763, cr.path, cr.info<6>)"))
+mut("a taken name says the directory is missing", "O7", sub1("ide", "      case cr.why = 'exists' or cr.why = 'ro'\n         rf.text = sysmsg(11762, cr.path)", "      case cr.why = 'exists' or cr.why = 'ro'\n         rf.text = sysmsg(11763, cr.path, cr.info<6>)"))
 mut("a bad byte says the file is not whole", "O7", sub1("ide", "      case cr.why = 'bytes' or cr.why = 'big'\n         msg = sysmsg(11765, cr.path)", "      case cr.why = 'bytes' or cr.why = 'big'\n         msg = sysmsg(11764, cr.path, cr.info<6>)"))
 mut("a half-written file is not boxed", "O7", sub1("ide", "         rf.text = sysmsg(11764, cr.path, cr.info<6>)\n         msg = rf.text\n         gosub refuse.box", "         msg = sysmsg(11764, cr.path, cr.info<6>)"))
 mut("a second create call", "O7", sub1("ide", "   gosub os.create\n   if cr.why = '' then\n      close cr.f", "   call !ide_osfile('create', cr.path, cr.f, cr.text, cr.info, cr.why)\n   if cr.why = '' then\n      close cr.f"))
@@ -589,6 +596,19 @@ mut("the file,record form does not look at the raw record name", "O1d", sub1("se
 mut("a link to nothing no longer marks the file variable read only", "O1d", sub1("seqio", "if (leaf_is_link && !(flags & SQ_PORT) && !ValidFileHandle(fu))", "if (0 && !(flags & SQ_PORT) && !ValidFileHandle(fu))"))
 mut("the create on a first write follows a link again", "O1d", sub1("seqio", "fu = dio_open(sq_file->pathname, DIO_OVERWRITE_NOFOLLOW);", "fu = dio_open(sq_file->pathname, DIO_OVERWRITE);"))
 mut("the new open mode has no O_NOFOLLOW", "O1d", sub1("dhfile", "open_modes = O_RDWR | O_CREAT | O_NOFOLLOW | O_BINARY;", "open_modes = O_RDWR | O_CREAT | O_BINARY;"))
+M_A345 = len(M)                     # the first mutant of S.88 A3 and A5 and the boxes (30 Oct 26): --selftest --from=N with this N runs only these
+mut("an ON ERROR of the create is only cant", "O3a", sub1("osf", "      why = 'cantmade'", "      why = 'cant'"))
+mut("the gate answer is always the OS gate", "O7", sub1("ide", "         if kernel(K$EDIT.OS.OK, cr.path) then\n            msg = sysmsg(11180, @who)\n         end else\n            msg = sysmsg(11763, cr.path, 3035)", "         if 1 then\n            msg = sysmsg(11180, @who)\n         end else\n            msg = sysmsg(11763, cr.path, 3035)"))
+mut("the edit gate is asked of another name", "O7", sub1("ide", "if kernel(K$EDIT.OS.OK, cr.path) then", "if kernel(K$EDIT.OS.OK, '') then"))
+mut("the edit gate is never the OS gate's words", "O7", sub1("ide", "            msg = sysmsg(11180, @who)\n         end else", "            msg = sysmsg(11763, cr.path, 3035)\n         end else"))
+mut("a locked file says the old words", "O7", sub1("ide", "rf.text = sysmsg(11997, cr.path)", "rf.text = sysmsg(11731, cr.path)"))
+mut("a locked file is not boxed", "O7", sub1("ide", "         rf.text = sysmsg(11997, cr.path)                       ;* 30 Oct 26 (S.88 A3): and says that an empty file may be there\n         msg = rf.text\n         gosub refuse.box", "         msg = sysmsg(11997, cr.path)"))
+mut("an error that may have left a file is not boxed", "O7", sub1("ide", "         rf.text = sysmsg(11996, cr.path, cr.info<6>)           ;* 30 Oct 26 (S.88 A3): an ON ERROR ended the create; the file may have been made\n         msg = rf.text\n         gosub refuse.box", "         msg = sysmsg(11996, cr.path, cr.info<6>)"))
+mut("a taken name is not boxed", "O7", sub1("ide", "         rf.text = sysmsg(11762, cr.path)                       ;* 30 Oct 26 (S.88 9g): in a box, the status line cut it\n         msg = rf.text\n         gosub refuse.box", "         msg = sysmsg(11762, cr.path)"))
+mut("the cantmade case is gone", "O7", sub1("ide", "      case cr.why = 'cantmade'\n", "      case cr.why = 'cantmaid'\n"))
+mut("11996 wants a third argument", "O19", setmsg(11996, "%1 may have been made (error %2, %3)\n"))
+mut("11997 has two lines", "O19", setmsg(11997, "%1 is locked\nand more\n"))
+mut("11996 is not cited", "O19", sub1("ide", "sysmsg(11996, cr.path, cr.info<6>)", "sysmsg(11764, cr.path, cr.info<6>)"))
 
 
 def report(rows):

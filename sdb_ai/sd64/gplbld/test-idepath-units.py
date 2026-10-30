@@ -248,7 +248,8 @@ def checks(src):
     ck("P17", "path.not.for answers true, and says why (11739), for a tab whose file is 'path:'; compile (and so run, debug and catalogue), SED, fields and the include ask it FIRST; Save as asks it after the "
        "non-ASCII check and before it asks the form; WRITE A COPY DOES NOT ASK IT: it puts the text in a record and touches neither the file nor the tab, and it is the way out of a save that failed (finding 4)",
        ordered(pnf, "if nbuf = 0 then return", "if bn<cb> # 'path:' then return", "pa.no = @true", "sysmsg(11739, bn<cb>, bi<cb>)")
-       and all(first_gosub(LI[n]) == "path.not.for" and "if pa.no then return" in LI[n] for n in ("do.compile", "do.sed", "do.fields", "do.include"))
+       and all(first_gosub(LI[n]) == "path.not.for" and "if pa.no then return" in LI[n] for n in ("do.compile", "do.sed", "do.include"))
+       and ordered(LI["do.fields"], "gosub fields.is.on", "gosub fields.leave", "gosub path.not.for", "if pa.no then return", "gosub ro.check")         # 30 Oct 26 (stage 2b): F12 on a tab that shows its fields leaves; otherwise the file is asked first
        and ordered(LI["do.saveas"], "gosub na.check", "gosub path.not.for", "if pa.no then return", "gosub stash.current")
        and "path.not.for" not in LI["do.writeas"] and ordered(LI["do.writeas"], "gosub na.check", "wa.text = bx{k}", "gosub write.copy"), "")
     ck("P17b", "the forms start from a file of records (default.file and get.context never answer 'path:'), and the AI is told it is an operating system file, not a record",
@@ -371,7 +372,7 @@ MUTANTS = [
     ("the name form folds the path", "P18", sub("ide_name", "         op.path = trimf(trimb(pw[6, 9999]))", "         op.path = trimf(trimb(ff[6, 9999]))")),
     ("the name form squeezes the blanks in a path", "P22", sub("ide_name", "         op.path = trimf(trimb(pw[6, 9999]))", "         op.path = trim(pw[6, 9999])")),
     ("a creating mode skips the OS gate", "P18", sub("ide_name", "            case not(kernel(K$PATH.OK, op.path))\n               msg = sysmsg(11180, @who)\n", "")),
-    ("a creating mode skips the edit gates", "P18", sub("ide_name", "            case not(kernel(K$EDIT.OS.OK, op.path))\n               msg = edit_msg(kernel(K$EDIT.KIND, op.path))\n", "")),
+    ("a creating mode skips the edit gates", "P18", sub("ide_name", "            case not(kernel(K$EDIT.OS.OK, op.path))\n", "            case 0\n")),
     ("Open asks a kernel key", "P18", sub("ide_name", "            case mode = 'open'\n               file = 'path:'", "            case mode = 'open' and kernel(K$PATH.OK, op.path)\n               file = 'path:'")),
     ("message 11727 is back in the name form", "P21", sub("ide_name", "            case op.why # ''\n               msg = sysmsg(11728, op.path)", "            case op.why # ''\n               msg = sysmsg(11727)")),
     ("a create is not the second openseq of the helper", "P2", sub("osf", "   openseq path creating to f on error", "   openseq path creating shared to f on error")),

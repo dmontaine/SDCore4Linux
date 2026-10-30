@@ -301,6 +301,10 @@ $include dictdict.h
    bx = collection()                 ;* s<uid> the text as it is on disk, t<uid> the text as it was left, c<uid> the cursor
    *                                   28 Oct 26 (stage B): k<uid> the kind (source, dict, voc, data), d<uid> 'DICT' or '', l<uid> the lock slot (0: no lock
    *                                   held), o<uid> the user who holds the record's lock when the tab is read-only ('' when it is not)
+   fvs = collection()                ;* 30 Oct 26 (CED in the IDE, stage 2b): e<uid> the fields view's engine state ($ced_core) of a tab that shows its fields (bx v<uid> is 1)
+   fv.on = @false                    ;* the current tab shows its fields (fields.is.on)
+   fv.shown = @false                 ;* the form has the fields table showing and the text area hidden
+   fv.pt = ''                        ;* the path line as it was last put on the form
    fl = ''                           ;* the files of the VOC
    lfiles = ''                       ;* the files whose records are listed in the tree
    lrecs = ''                        ;* their record ids, as values, in step
@@ -424,6 +428,7 @@ $include dictdict.h
 
    menu.click = ''                          ;* the column of a click on the menu bar, while the menu it opens is being started
    loop
+      gosub fields.sync                           ;* 30 Oct 26 (stage 2b): a tab that shows its fields agrees with its text, whoever changed the text (Reload, an AI edit)
       gosub status.line
       * A second of quiet is an event (timeout), so that the status line follows what is typed: the editor
       * consumes its own keys and nothing else returns to this loop for them
@@ -458,8 +463,7 @@ $include dictdict.h
             case ev<1> = 'timeout'
                gosub rc.tick                    ;* a second of quiet: the copies follow the buffers (an abort cannot be caught)
             case 1
-               cmd = 'menu'             ;* Esc
-               gosub run.cmd
+               gosub fields.esc         ;* Esc: up a level in the fields view when it is not at the top, else the menu
          end case
       end
    until done
@@ -737,6 +741,7 @@ new.form:
    screen label f, 'ixerr', ind.want<4> at ex + ew - 3,err.y width 3 attr 'window'
    ind.cur = ind.want
 
+   gosub fields.form                    ;* 30 Oct 26 (stage 2b): the form was made with the text area showing; a tab that shows its fields has the view put back
    gosub tree.apply
    if nbuf > 0 then gosub memo.cursor
    screen focus f, focus.id
@@ -930,6 +935,7 @@ os.collapse:
 * In: os.fp, the path of a file that has just been made. If the directory it is in is listed in the tree, it is listed again and the tree is drawn
 os.refresh:
    if not(os.on) then return
+   os.keep.i = i                                ;* 30 Oct 26 (S.88 A4): tree.nodes uses i, and a caller may be in a loop on it (refresh.tree.for keeps it the same way)
    os.dir = '/'
    os.ln = len(os.fp)
    for os.j = os.ln to 1 step -1
@@ -944,6 +950,7 @@ os.refresh:
       gosub tree.apply
       gosub redraw.tree
    end
+   i = os.keep.i
    return
 
 * The tree widget takes the nodes again, keeping the current one
@@ -1028,6 +1035,8 @@ set.token.mode:
 * Keep what the editor holds (text and cursor) with the record that is open
 stash.current:
    if nbuf > 0 and have.form then
+      k = 'v' : bu<cb>
+      if bx{k} then return              ;* 30 Oct 26 (stage 2b): the tab shows its fields: its text is the one the view wrote (fields.writeback), and the hidden text area holds an older one
       call $sl_form('find', f, '', 'ed', en)
       mw = f{'widgets', en}
       screen get f, 'ed' returning txt
@@ -1089,6 +1098,7 @@ load.current:
    *   owner saw as a flash each time a record was chosen ("flashes the whole screen").  A caller that is about to focus the editor (which
    *   draws it) sets lc.nodraw and draws the tab strip itself.
    if not(lc.nodraw) then gosub redraw.editor
+   gosub fields.apply                    ;* 30 Oct 26 (stage 2b): the tab now shown shows its text or its fields; the form says the same
    return
 
 * The cursor of the record cb goes back where it was
@@ -1147,6 +1157,9 @@ quote.pair:
 
 * The focus goes to widget ft.id and is shown there: the widget that had it and the one that has it are drawn, and the cursor goes to the new one
 focus.to:
+   gosub fields.is.on
+   if ft.id = 'ed' and fv.on then ft.id = 'fld'        ;* 30 Oct 26 (stage 2b): the editor pane is the fields table while the tab shows its fields
+   if ft.id = 'fld' and not(fv.on) then ft.id = 'ed'
    focus.id = ft.id
    call $sl_scr('get', scr)
    call $sl_form('focus', f, scr, ft.id, rr)
@@ -1411,17 +1424,29 @@ os.create:
       case cr.why = 'name'
          msg = sysmsg(11728, cr.path)
       case cr.why = 'gate'
-         msg = sysmsg(11180, @who)
+         if kernel(K$EDIT.OS.OK, cr.path) then
+            msg = sysmsg(11180, @who)
+         end else
+            msg = sysmsg(11763, cr.path, 3035)       ;* 30 Oct 26 (S.88 A5): the refusal is an edit gate that came into force since the name form asked, not "no OS access"
+         end
       case cr.why = 'exists' or cr.why = 'ro'
-         msg = sysmsg(11762, cr.path)
+         rf.text = sysmsg(11762, cr.path)                       ;* 30 Oct 26 (S.88 9g): in a box, the status line cut it
+         msg = rf.text
+         gosub refuse.box
       case cr.why = 'dir' or cr.why = 'special'
          msg = sysmsg(11749, cr.path)
       case cr.why = 'locked'
-         msg = sysmsg(11731, cr.path)
+         rf.text = sysmsg(11997, cr.path)                       ;* 30 Oct 26 (S.88 A3): and says that an empty file may be there
+         msg = rf.text
+         gosub refuse.box
+      case cr.why = 'cantmade'
+         rf.text = sysmsg(11996, cr.path, cr.info<6>)           ;* 30 Oct 26 (S.88 A3): an ON ERROR ended the create; the file may have been made
+         msg = rf.text
+         gosub refuse.box
       case cr.why = 'bytes' or cr.why = 'big'
          msg = sysmsg(11765, cr.path)
       case cr.why = 'cant'
-         msg = sysmsg(11763, cr.path, cr.info<6>)
+         msg = sysmsg(11763, cr.path, cr.info<6>)             ;* also an edit-blocked race (S.88 A5)
       case 1
          rf.text = sysmsg(11764, cr.path, cr.info<6>)
          msg = rf.text
@@ -1555,7 +1580,9 @@ path.not.for:
    end
    if bn<cb> # 'path:' then return
    pa.no = @true
-   msg = sysmsg(11739, bn<cb>, bi<cb>)
+   rf.text = sysmsg(11739, bn<cb>, bi<cb>)                      ;* 30 Oct 26 (S.88 9g): in a box, the status line cut it
+   msg = rf.text
+   gosub refuse.box
    return
 
 * ======================================================================
@@ -1830,7 +1857,7 @@ ro.check:
 
 * After ro.check refused: the refusal for bytes outside ASCII is shown in a box, whole (28 Oct 26; the owner's approval); the lock's stays on the status line
 ro.box:
-   if ro.why # 'ascii' then return
+   if ro.why # 'ascii' and ro.why # 'osro' then return          ;* 30 Oct 26 (S.88 9g): 11737 (an operating system file this session may not change) is as long as the ASCII message and was cut by the status line
    rf.text = msg
    gosub refuse.box
    return
@@ -1918,6 +1945,11 @@ do.include:
    end
    gosub path.not.for                   ;* 28 Oct 26 (stage E): a $include names a record of the account's files
    if pa.no then return
+   gosub fields.is.on
+   if fv.on then
+      msg = sysmsg(11998)               ;* 30 Oct 26 (stage 2b): it reads the line at the cursor of the text area
+      return
+   end
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    in.line = mw{'value'}<mw{'cy'} + 0>
@@ -2225,8 +2257,10 @@ rc.untitled:
 * ind.want = the four texts, in the order of ind.panes
 indicator.texts:
    ind.want = ''
+   ind.at = focus.id
+   if ind.at = 'fld' then ind.at = 'ed'                ;* 30 Oct 26 (stage 2b): the fields view is the editor pane's other face
    for ix = 1 to 4
-      ind.want<ix> = if focus.id = ind.panes<ix> then '[*]' else '[-]'
+      ind.want<ix> = if ind.at = ind.panes<ix> then '[*]' else '[-]'
    next ix
    return
 
@@ -2301,8 +2335,13 @@ status.line:
       if bx{k} then t := '  ' : sysmsg(11753)                    ;* 28 Oct 26: [read-only: characters outside ASCII]
       k = 'z' : bu<cb>
       if bx{k} then t := '  ' : sysmsg(11736)                    ;* 28 Oct 26 (stage E): [read-only: this session may not change it]
-      t := '   ' : sysmsg(11213, mw{'cy'}, mw{'cx'})
-      if mw{'over'} + 0 then t := '  ' : sysmsg(11766)                  ;* 29 Oct 26 (S.88 D2): [overwrite]
+      gosub fields.is.on
+      if fv.on then
+         if msg = '' then t := '   ' : sysmsg(11995)                   ;* 30 Oct 26 (stage 2b): the keys of the fields view, where the cursor's line and column would be
+      end else
+         t := '   ' : sysmsg(11213, mw{'cy'}, mw{'cx'})
+         if mw{'over'} + 0 then t := '  ' : sysmsg(11766)                  ;* 29 Oct 26 (S.88 D2): [overwrite]
+      end
    end
    if msg # '' then t := '   ' : msg
    gosub idle.text                                               ;* 28 Oct 26: the AUTOLOGOUT countdown goes first, where it is read
@@ -2319,7 +2358,7 @@ status.line:
          pn = sysmsg(11237)
       case focus.id = 'tabs'
          pn = sysmsg(11238)
-      case focus.id = 'ed'
+      case focus.id = 'ed' or focus.id = 'fld'
          pn = sysmsg(11239)
       case focus.id = 'err'
          pn = sysmsg(11240)
@@ -2418,6 +2457,10 @@ do.key:
             menu.click = mev<3>
             cmd = 'menu'
          end
+      case focus.id = 'fld'
+         * 30 Oct 26 (stage 2b): the keys the IDE has no use of go to the fields view, last, so that every IDE key (F1, Ctrl-S, F4-F10, Ctrl-N / O / W / Q / E / L / R, F12) wins
+         fz.key = edata
+         gosub fields.key
    end case
    if cmd # '' then gosub run.cmd
    return
@@ -2463,7 +2506,8 @@ run.cmd:
          end
       case cmd = 'nextpane' or cmd = 'prevpane'
          * F6 and Shift-F6: the focus goes round the panes in the order the status line and the [*] marks name them (Tab does the same inside the form)
-         pane.ring = 'tree' : @fm : 'tabs' : @fm : 'ed' : @fm : 'err'
+         gosub fields.is.on
+         pane.ring = 'tree' : @fm : 'tabs' : @fm : (if fv.on then 'fld' else 'ed') : @fm : 'err'      ;* 30 Oct 26 (stage 2b): the editor pane is the fields table while the tab shows its fields
          if ai.on then pane.ring<-1> = 'ai'
          locate focus.id in pane.ring<1> setting pane.at else pane.at = 0
          if cmd = 'nextpane' then pane.at += 1 else pane.at -= 1
@@ -2673,6 +2717,9 @@ do.act:
          ai.req = edata
          ai.kind = 'ask'
          gosub ai.go
+      case focus.id = 'fld'
+         fz.key = 'enter'                  ;* 30 Oct 26 (stage 2b): Return in the fields table opens the element (the engine's dive / edit)
+         gosub fields.key
       case 1
          null
    end case
@@ -2993,7 +3040,9 @@ save.path:
          sv.ok = @true
          msg = sysmsg(11202, sv.name, sv.id)
       case sp.why = 'ro'
-         msg = sysmsg(11737, sv.name, sv.id)
+         rf.text = sysmsg(11737, sv.name, sv.id)                ;* 30 Oct 26 (S.88 9g): in a box
+         msg = rf.text
+         gosub refuse.box
       case sp.why = 'bytes' or sp.why = 'big'
          rf.text = sysmsg(11741, sv.name, sv.id)
          msg = rf.text
@@ -3246,6 +3295,9 @@ close.current:
    gosub rc.drop.tab                             ;* 28 Oct 26 (D2): the person closed it (saved, or Discard): its recovery copy goes
    tu.i = cb
    gosub tab.unlock                              ;* 28 Oct 26 (stage B): and its record's lock
+   k = 'v' : bu<cb>
+   bx{k} = 0                                     ;* 30 Oct 26 (stage 2b): and its fields view
+   fvs{'e' : bu<cb>} = ''
    del bn<cb>
    del bi<cb>
    del bu<cb>
@@ -3510,6 +3562,11 @@ do.fields:
       msg = sysmsg(11218)
       return
    end
+   gosub fields.is.on
+   if fv.on then
+      gosub fields.leave                ;* 30 Oct 26 (stage 2b): F12 again shows the text
+      return
+   end
    pa.allow = 'coll'                    ;* 29 Oct 26 (stage F): a collection record IS handed to CED (below); an operating system file is not fields and values
    gosub path.not.for
    pa.allow = ''
@@ -3562,46 +3619,18 @@ do.fields:
    end else
       if not(fd.json) then call $recarr('to', fd.was, fd.arr, fd.ok)
    end
-   * 30 Oct 26 (CED in the IDE, stage 2a): the editor's engine ($ced_core) runs HERE, in the IDE's own form (fields.run), and no longer in a program that takes the whole screen: the
-   *   screen is not left, no record lock is let go, the tree, the tab strip and the status line stay.  The view is MODAL for now - the tabs, the menu and the other panes wait until it ends.
-   fd.res = ''
-   fd.new = fd.was
-   fz.title = fd.file : ' ' : fd.id
+   * 30 Oct 26 (CED in the IDE, stage 2b): the fields view is a PANE of the tab, not a mode of the IDE.  The editor's engine ($ced_core) runs in the IDE's own form for as long as the tab
+   *   shows its fields, and the tabs, the menu, the other panes and every IDE key stay alive.  The engine's data is the tab's text in another shape: each change the engine makes is
+   *   written back into the tab's text at once (fields.after), so that Save, Compile and the recovery copy never see anything but the text.  F12 again shows the text.
    if fd.coll or fd.json then
       fz.type = 0
       fz.c = fd.c
-      gosub fields.run
-      fd.c = fz.c
-      fd.res<1> = fz.kept
-      if fd.res<1> then
-         fd.text = convert(char(10), @fm, jbuild(fd.c, JB$PRETTY))        ;* the text area's form (coll.text)
-         if fd.text # '' then fd.new = fd.text
-      end
    end else
       fz.type = 2
       fz.c = fd.arr
-      gosub fields.run
-      fd.arr = fz.c
-      fd.res<1> = fz.kept
-      if fd.res<1> then
-         call $recarr('from', fd.arr, fd.text, fd.ok)
-         if fd.ok then fd.new = fd.text
-      end
    end
-   if (fd.new : '|') # (fd.was : '|') then
-      k = 't' : fd.u
-      bx{k} = fd.new
-      k = 'c' : fd.u
-      bx{k} = ''
-      tm.u = fd.u
-      tm.raw = fd.new
-      gosub set.token.mode
-      msg = sysmsg(11989, fd.file, fd.id)
-   end else
-      msg = sysmsg(11990, fd.file, fd.id)
-   end
-   screen clear                          ;* the form is made again from the tab's text (as relayout does); the screen was never left, so nothing is taken back and no lock was let go
-   gosub new.form
+   fz.title = fd.file : ' ' : fd.id
+   gosub fields.enter
    return
 
 * ======================================================================
@@ -3610,11 +3639,11 @@ do.fields:
 * something).  It writes NOTHING: the IDE's own save is the only writer, with its edit gates and its overwrite question.  The keys are the ones CED has always had (Ctrl-S keeps, Ctrl-Q or F12
 * leaves, with the question when something is changed and not kept), and the table is the form's, so the Up and Down keys, the pages, the mouse and the scroll bar are the widget's.
 * MODAL: the loop below is the only one that reads events until the view ends, so the tabs, the menu bar and the other panes wait; the memo stays under the view, hidden.
-fields.run:
-   fz.kept = @false
+fields.enter:
    fz.kind = jtype(fz.c)
    if fz.kind # 'collection' and fz.kind # 'array' then return
    if fz.type = 2 and fz.kind # 'array' then return          ;* a record is an array of fields
+   fz.u = bu<cb>
    fz.st = collection()
    fz.st{'c'} = fz.c
    fz.st{'ftype'} = fz.type
@@ -3625,84 +3654,328 @@ fields.run:
    call $ced_core('init', fz.st, '', fz.out)
    fz.st{'path.row'} = ystat                                  ;* what the engine paints over a dialogue (a refused value) goes on the status row, which the IDE writes again after
    fz.st{'msg.row'} = ystat
-   fz.done = @false
+   fz.k1 = 't' : fz.u
+   fz.st{'h.text'} = bx{fz.k1}                                ;* the host's keys: the text the engine's data stands for,
+   fz.st{'h.from'} = bx{fz.k1}                                ;* the text when the view was entered (fields.leave: one undo step if it changed),
+   fz.st{'h.sig'} = jbuild(fz.c)                              ;* and the data as the engine last agreed it with the text
+   fvs{'e' : fz.u} = fz.st
+   fz.k1 = 'v' : fz.u
+   bx{fz.k1} = 1
+   fv.on = @true
    gosub fields.view.on
-   loop
-      gosub fields.status
-      screen wait f timeout 1 returning ev then
-         et = ev<1>
-         eid = ev<2>
-         edata = ev<3>
-         begin case
-            case et = 'activate'
-               if eid = 'fld' then
-                  fz.key = 'enter'
-                  gosub fields.key
-               end
-            case et = 'key'
-               fz.key = edata
-               gosub fields.key
-            case et = 'resize'
-               * the window changed size: the form is made again at the new size (as the main loop does), the engine is laid out for it, and the view is shown again with the same path,
-               *   selection and changes (they are the engine's state, not the form's)
-               gosub relayout
-               call $ced_core('layout', fz.st, ew : @fm : (mh + 3), fz.out)
-               fz.st{'path.row'} = ystat
-               fz.st{'msg.row'} = ystat
-               gosub fields.view.on
-         end case
-      end else
-         begin case
-            case ev<1> = 'end'
-               call $ced_core('abandon', fz.st, '', fz.out)       ;* the input ended or the terminal hung up: what was not kept is given up, without a question
-               fz.done = @true
-            case ev<1> = 'timeout'
-               null
-            case 1
-               fz.key = 'esc'                                      ;* Esc comes back as no event: it goes up a level, as it does in CED
-               gosub fields.key
-         end case
-      end
-   until fz.done
-   repeat
-   fz.c = fz.st{'c'}
-   fz.kept = fz.st{'kept'}
+   ft.id = 'fld'
+   gosub focus.to
+   msg = sysmsg(11995)
    return
 
-* The view on: the memo hidden, the table and the path line shown with the engine's state, the focus on the table.  Also after the form was made again (a resize), whose widgets start hidden.
+* F12 in the view: the tab shows its text again.  The tab's text is already the engine's (fields.after wrote it back at each change); the text area is given it as ONE undo step when it
+*   differs from what the area still shows, so Ctrl-Z in the area brings back the text as it was before the fields were shown.  Entering and leaving without a change touches nothing.
+fields.leave:
+   gosub fields.state
+   fz.k1 = 'v' : fz.u
+   bx{fz.k1} = 0
+   fvs{'e' : fz.u} = ''
+   fv.on = @false
+   fz.k1 = 't' : fz.u
+   tb.u = fz.u
+   tb.raw = bx{fz.k1}
+   gosub tab.display
+   gosub fields.view.off
+   call $sl_form('find', f, '', 'ed', en)
+   ed.mw = f{'widgets', en}
+   if (tb.disp : '|') # (ed.mw{'value'} : '|') then
+      ed.new = tb.disp
+      ed.cy = 0
+      gosub ed.set
+   end
+   ft.id = 'ed'
+   gosub focus.to
+   i = cb
+   gosub buf.label
+   gosub is.dirty
+   begin case
+      case dirty
+         msg = sysmsg(11989, bf.name, bf.id)                 ;* changed since the record was read or saved: it is not on the disk yet
+      case (bx{fz.k1} : '|') # (fz.st{'h.from'} : '|')
+         msg = ''                                            ;* changed while the fields were shown, and saved since
+      case 1
+         msg = sysmsg(11990, bf.name, bf.id)
+   end case
+   return
+
+* In: the current tab shows its fields.  Out: fz.u (the tab's uid) and fz.st (its engine state).
+fields.state:
+   fz.u = bu<cb>
+   fz.st = fvs{'e' : fz.u}
+   return
+
+* Out: fv.on, whether the current tab shows its fields
+fields.is.on:
+   fv.on = @false
+   if nbuf > 0 then
+      fv.k = 'v' : bu<cb>
+      if bx{fv.k} then fv.on = @true
+   end
+   return
+
+* The view on: the text area hidden, the table and the path line shown with the engine's state.  The engine is laid out again when the form's size is not the one it was made for.  Draws.
 fields.view.on:
+   gosub fields.state
+   if fz.st{'w'} + 0 # ew or fz.st{'h'} + 0 # (mh + 3) then
+      call $ced_core('layout', fz.st, ew : @fm : (mh + 3), fz.out)
+      fz.st{'path.row'} = ystat
+      fz.st{'msg.row'} = ystat
+   end
+   f{'quiet'} = 1
    screen set f, 'ed' visible 0
    screen set f, 'fld' visible 1
    screen set f, 'fpath' visible 1
+   f{'quiet'} = 0
+   fv.shown = @true
+   gosub fields.fill
+   gosub redraw
+   return
+
+* The view off: the text area showing, the table and the path line hidden.  Draws.
+fields.view.off:
+   f{'quiet'} = 1
+   screen set f, 'fld' visible 0
+   screen set f, 'fpath' visible 0
+   screen set f, 'ed' visible 1
+   f{'quiet'} = 0
+   fv.shown = @false
+   gosub redraw
+   return
+
+* A form just made (new.form): its widgets start with the text area showing.  A tab that shows its fields has the view put in; the focus follows the pane.
+fields.form:
+   fv.shown = @false
+   gosub fields.is.on
+   if fv.on then
+      gosub fields.state
+      if fz.st{'w'} + 0 # ew or fz.st{'h'} + 0 # (mh + 3) then
+         call $ced_core('layout', fz.st, ew : @fm : (mh + 3), fz.out)
+         fz.st{'path.row'} = ystat
+         fz.st{'msg.row'} = ystat
+      end
+      f{'quiet'} = 1
+      screen set f, 'ed' visible 0
+      screen set f, 'fld' visible 1
+      screen set f, 'fpath' visible 1
+      f{'quiet'} = 0
+      fv.shown = @true
+      gosub fields.fill
+      gosub redraw
+      if focus.id = 'ed' then focus.id = 'fld'
+   end else
+      if focus.id = 'fld' then focus.id = 'ed'
+   end
+   return
+
+* A tab was put on the form (load.current): the view is made to match it.  An engine that is not in step with the tab's text is brought in step first, and a text it cannot show ends the view.
+fields.apply:
+   gosub fields.is.on
+   if fv.on then
+      gosub fields.state
+      gosub fields.sync.tab
+   end
+   begin case
+      case fv.on
+         gosub fields.view.on
+         ft.id = focus.id
+         gosub focus.to
+      case fv.shown
+         gosub fields.view.off
+         ft.id = focus.id
+         gosub focus.to
+   end case
+   return
+
+* The main loop, once a time round: the engine of the tab on show follows its text (it can be changed by the overwrite question's Reload, an AI edit, SED, anything that sets the text) and
+*   the path line follows the tab's marker.  A text the engine cannot show ends the view, and the text area takes over.
+fields.sync:
+   gosub fields.is.on
+   if not(fv.on) then return
+   gosub fields.state
+   gosub fields.sync.tab
+   if fv.on then
+      gosub fields.label
+   end else
+      gosub load.current
+   end
+   return
+
+* In: fz.u, fz.st.  The engine's data against the tab's text: equal text, nothing to do; the same data in another layout (a save keeps the JSON layout JBUILD makes), the text is taken as the new
+*   stamp; other data, the engine is made again from the text, in the container it was in when that still exists.  Out: fv.on (false when the text is not a record the fields can show).
+fields.sync.tab:
+   fz.k1 = 't' : fz.u
+   fz.txt = bx{fz.k1}
+   if (fz.txt : '|') = (fz.st{'h.text'} : '|') then return
+   gosub fields.parse
+   if not(fz.ok) then
+      gosub fields.drop
+      return
+   end
+   fz.sig = jbuild(fz.nc)
+   if (fz.sig : '|') = (fz.st{'h.sig'} : '|') then
+      fz.st{'h.text'} = fz.txt
+      return
+   end
+   gosub fields.rebuild
+   return
+
+* In: fz.st, fz.txt.  Out: fz.nc (the data the text stands for) and fz.ok (false when it is not a record the fields can show)
+fields.parse:
+   fz.nc = ''
+   fz.ok = @false
+   if fz.st{'ftype'} + 0 = 2 then
+      call $recarr('to', fz.txt, fz.nc, fz.ok)
+   end else
+      fz.nc = jparse(convert(@fm, char(10), fz.txt))
+      fz.ok = (status() = 0)
+   end
+   if fz.ok then
+      fz.kind = jtype(fz.nc)
+      if fz.kind # 'collection' and fz.kind # 'array' then fz.ok = @false
+      if fz.st{'ftype'} + 0 = 2 and fz.kind # 'array' then fz.ok = @false
+   end
+   return
+
+* In: fz.u, fz.st, fz.nc (the new data), fz.txt (its text), fz.sig.  The engine is made again for the new data, in the container it was in (and on the row it was on) when that is still there; the
+*   clip stays.  The tab's text is not touched.
+fields.rebuild:
+   fz.old = fz.st
+   fz.st = collection()
+   fz.st{'c'} = fz.nc
+   fz.st{'ftype'} = fz.old{'ftype'}
+   fz.st{'title'} = fz.old{'title'}
+   fz.st{'w'} = ew
+   fz.st{'h'} = mh + 3
+   fz.st{'ai.ok'} = 0
+   call $ced_core('init', fz.st, '', fz.out)
+   fz.st{'path.row'} = ystat
+   fz.st{'msg.row'} = ystat
+   fz.pth = fz.old{'path'}
+   fz.np = dcount(fz.pth, @fm)
+   if fz.pth = '' then fz.np = 0
+   fz.good = @true
+   fz.x = fz.nc
+   for fz.j = 1 to fz.np
+      if fz.good then
+         fz.x = fz.x{fz.pth<fz.j>}
+         fz.t = jtype(fz.x)
+         if fz.t # 'collection' and fz.t # 'array' then fz.good = @false
+      end
+   next fz.j
+   if fz.good and fz.np > 0 then
+      fz.st{'path'} = fz.pth
+      fz.st{'hist.sel'} = fz.old{'hist.sel'}
+      fz.st{'hist.top'} = fz.old{'hist.top'}
+      fz.st{'sel'} = fz.old{'sel'}
+      fz.st{'top'} = fz.old{'top'}
+      call $ced_core('layout', fz.st, ew : @fm : (mh + 3), fz.out)          ;* resolves the path again and builds the list; the selection is kept inside it
+   end
+   fz.st{'clip.has'} = fz.old{'clip.has'}
+   fz.st{'clip'} = fz.old{'clip'}
+   fz.st{'clip.type'} = fz.old{'clip.type'}
+   fz.st{'clip.name'} = fz.old{'clip.name'}
+   fz.st{'h.text'} = fz.txt
+   fz.st{'h.from'} = fz.old{'h.from'}
+   fz.st{'h.sig'} = fz.sig
+   fvs{'e' : fz.u} = fz.st
+   return
+
+* The view ends because the text is not a record the fields can show (a Reload brought text that does not parse, say).  The text is the tab's and is not touched.
+fields.drop:
+   fz.k1 = 'v' : fz.u
+   bx{fz.k1} = 0
+   fvs{'e' : fz.u} = ''
+   fv.on = @false
+   i = cb
+   gosub buf.label
+   msg = sysmsg(11999, bf.name, bf.id)
+   return
+
+* Esc (the key comes back as no event): up a level in the fields view when it is on the table and not at the top, else the IDE's own Esc, the menu bar.
+fields.esc:
+   gosub fields.is.on
+   if fv.on and focus.id = 'fld' then
+      gosub fields.state
+      if fz.st{'path'} # '' then
+         msg = ''
+         fz.key = 'esc'
+         gosub fields.key
+         return
+      end
+   end
+   cmd = 'menu'
+   gosub run.cmd
+   return
+
+* One key for the engine, from do.key (the keys the IDE has no use of) or the table's Return.  The IDE's keys never get here, so Ctrl-S is the IDE's save of the tab's text and Ctrl-Q the IDE's quit.
+fields.key:
+   fz.k = fz.key
+   if fz.k = 'mouse' or fz.k = 'tab' or fz.k = 'shift-tab' or fz.k = 'f2' or fz.k = 'resize' or fz.k = 'guardquit' then return
+   if upcase(fz.k) = 'Q' then return                       ;* the engine's Q leaves a CED: this view is left with F12
+   if fz.k = 'ctrl-t' then fz.k = 'f4'                      ;* the engine's change of type (F4 is the IDE's next problem)
+   if fz.k = 'left' or fz.k = 'backspace' then fz.k = 'esc'
+   gosub fields.state
+   gosub fields.pull
+   call $ced_core('key', fz.st, fz.k, fz.out)
+   gosub fields.after
+   return
+
+* After the engine took a key: it has no end of its own here, the data is written back to the tab's text when it changed, the engine's message is the status line's, and the view is drawn again.
+fields.after:
+   fz.st{'done'} = @false
+   fz.st{'quit.all'} = @false
+   fz.st{'req'} = ''
+   fz.nc = fz.st{'c'}
+   fz.sig = jbuild(fz.nc)
+   if (fz.sig : '|') # (fz.st{'h.sig'} : '|') then gosub fields.writeback
+   gosub fields.is.on
+   if not(fv.on) then
+      gosub load.current                                    ;* the view ended (fields.drop): the text area takes over, with the text the tab holds
+      return
+   end
+   msg = fz.st{'msg'}
+   last.status = char(1)                                    ;* a dialogue or the engine's message line may have written over the status row
    gosub fields.show
    ft.id = 'fld'
    gosub focus.to
    return
 
-* One key, from the loop above (or the table's Return): F12 and Ctrl-Q leave (CED's Ctrl-Q), the rest are CED's own
-fields.key:
-   fz.k = fz.key
-   if fz.k = 'f12' then fz.k = 'ctrl-q'
-   if fz.k = 'guardquit' then
-      call $ced_core('abandon', fz.st, '', fz.out)               ;* the cursor lock's way out: nothing is kept, and the IDE ends too
-      fz.done = @true
-      done = @true
+* In: fz.u, fz.st, fz.nc (the data after the key), fz.sig.  The text of the data goes into the tab (as the record, token mode and cursor worked out again) and the engine is stamped with it.  When the data
+*   cannot be a record (the engine allows a shape $recarr refuses) the engine goes back to the tab's text, which was the last that was good, and says so.
+fields.writeback:
+   if fz.st{'ftype'} + 0 = 2 then
+      call $recarr('from', fz.nc, fz.txt, fz.ok)
+   end else
+      fz.txt = convert(char(10), @fm, jbuild(fz.nc, JB$PRETTY))
+      fz.ok = @true
+   end
+   if not(fz.ok) then
+      fz.k1 = 't' : fz.u
+      fz.txt = bx{fz.k1}
+      gosub fields.parse
+      if fz.ok then
+         fz.sig = jbuild(fz.nc)
+         gosub fields.rebuild
+         fz.st{'msg'} = sysmsg(11988)
+      end else
+         gosub fields.drop
+      end
       return
    end
-   if fz.k = 'mouse' or fz.k = 'tab' or fz.k = 'shift-tab' then return
-   gosub fields.pull
-   call $ced_core('key', fz.st, fz.k, fz.out)
-   if fz.st{'req'} = 'save' then
-      call $ced_core('prep.save', fz.st, '', fz.out)
-      if fz.st{'ok'} then call $ced_core('saved', fz.st, 1, fz.out)      ;* nothing to write: Ctrl-S keeps the change in the array
-   end
-   fz.done = fz.st{'done'}
-   last.status = char(1)                                          ;* a dialogue or the engine's message line may have written over the status row
-   if not(fz.done) then
-      gosub fields.show
-      ft.id = 'fld'
-      gosub focus.to
-   end
+   fz.k1 = 't' : fz.u
+   bx{fz.k1} = fz.txt
+   fz.k1 = 'c' : fz.u
+   bx{fz.k1} = ''
+   tm.u = fz.u
+   tm.raw = fz.txt
+   gosub set.token.mode
+   fz.st{'h.text'} = fz.txt
+   fz.st{'h.sig'} = fz.sig
    return
 
 * The engine's selection and window from the table: the Up, Down and page keys and the mouse move the widget and not the engine
@@ -3714,8 +3987,8 @@ fields.pull:
    if fz.tt{'top'} + 0 >= 1 then fz.st{'top'} = fz.tt{'top'} + 0
    return
 
-* The table and the path line from the engine's state
-fields.show:
+* The table and the path line from the engine's state, put on the form and not drawn
+fields.fill:
    fz.tb = fz.st{'tbl'}
    call $sl_form('find', f, '', 'fld', fz.tn)
    fz.tt = f{'widgets', fz.tn}
@@ -3726,24 +3999,42 @@ fields.show:
    fz.tt{'value'} = fz.st{'sel'}
    fz.tt{'picked'} = ''
    call $sl_widget_init(fz.tt)
-   fz.pt = sysmsg(11138, '/' : change(fz.st{'path'}, @fm, '/'))
-   if fz.st{'dirty'} then fz.pt := ' *'
+   gosub fields.pathtext
+   fz.q = f{'quiet'} + 0
+   f{'quiet'} = 1
    screen set f, 'fpath' text fz.pt
-   gosub redraw
+   f{'quiet'} = fz.q
+   fv.pt = fz.pt
    return
 
-* The status row while the view is up: the engine's message, or the keys
-fields.status:
-   fz.t = fz.st{'msg'}
-   if fz.t = '' then fz.t = sysmsg(11995)
-   fz.t = fmt(fz.t[1, lw], lw : 'L')
-   if fz.t # last.status then
-      last.status = fz.t
-      keep.cur = ''
-      call $sl_curat('get', keep.cur)
-      screen text fz.t at 0,ystat attr 'reverse'
-      call $sl_curat('back', keep.cur)
-   end
+* Out: fz.pt, the path line: the container the view is in, and the tab's marker (the tab changed since it was read or saved, as the status line says it)
+fields.pathtext:
+   fz.pt = sysmsg(11138, '/' : change(fz.st{'path'}, @fm, '/'))
+   fz.k2 = 't' : fz.u
+   fz.k3 = 's' : fz.u
+   fz.dd = ((bx{fz.k2} : '|') # (bx{fz.k3} : '|'))
+   fz.k3 = 'n' : fz.u
+   if bx{fz.k3} and bx{fz.k2} # '' then fz.dd = @true
+   if fz.dd then fz.pt := ' *'
+   return
+
+* The path line when the tab's marker changed under it (a save): the label alone is set and drawn again
+fields.label:
+   gosub fields.pathtext
+   if fz.pt = fv.pt then return
+   fv.pt = fz.pt
+   f{'quiet'} = 1
+   screen set f, 'fpath' text fz.pt
+   f{'quiet'} = 0
+   call $sl_scr('get', scr)
+   call $sl_form('drawwidget', f, scr, 'fpath', rr)
+   call $sl_scr('put', scr)
+   return
+
+* The table and the path line from the engine's state, drawn
+fields.show:
+   gosub fields.fill
+   gosub redraw
    return
 
 * The window changed size: the form is made again at the new size from the state
@@ -3794,6 +4085,11 @@ ai.selection:
       msg = sysmsg(11662)
       return
    end
+   gosub fields.is.on
+   if fv.on then
+      msg = sysmsg(11998)               ;* 30 Oct 26 (stage 2b): the AI line works on the text; its fields-view form is stage 4
+      return
+   end
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    ai.my = mw{'my'} + 0
@@ -3824,6 +4120,11 @@ ai.go:
       return
    end
    if trim(ai.req) = '' then return
+   gosub fields.is.on
+   if fv.on then
+      msg = sysmsg(11998)               ;* 30 Oct 26 (stage 2b): see ai.selection
+      return
+   end
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    ai.lines = mw{'value'}
@@ -4188,6 +4489,11 @@ ed.read:
    ed.ok = @false
    if nbuf = 0 then
       msg = sysmsg(11218)
+      return
+   end
+   gosub fields.is.on
+   if fv.on then
+      msg = sysmsg(11998)               ;* 30 Oct 26 (stage 2b): the commands that work on the text (Replace, case, Import, Export, Format, ...) wait for F12: the text area behind the table is not the record's text
       return
    end
    call $sl_form('find', f, '', 'ed', en)
@@ -4751,6 +5057,11 @@ do.format:
 do.goto:
    if nbuf = 0 then
       msg = sysmsg(11218)
+      return
+   end
+   gosub fields.is.on
+   if fv.on then
+      msg = sysmsg(11998)               ;* 30 Oct 26 (stage 2b): it moves the cursor of the text area, which is hidden while the tab shows its fields
       return
    end
    screen ask sysmsg(11209) returning gl.text else return

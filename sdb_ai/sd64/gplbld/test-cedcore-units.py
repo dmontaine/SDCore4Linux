@@ -189,12 +189,20 @@ def checks(p):
     # the IDE is the engine's second host (30 Oct 26, stage 2a): it no longer calls the CED program, it runs the engine in its own form and writes nothing
     ide = code(p["ide"])
     fr = []
-    for lab in ("fields.run", "fields.key"):
+    # 30 Oct 26 (stage 2b): the view is a pane of the tab and not a mode; the tab's text is the record, written back by the IDE's own labels, so the IDE asks the engine for init, key and layout
+    #   only - the 'prep.save' / 'saved' / 'abandon' ops are the full-screen host's (a write to a file, a Ctrl-S, a question at the quit)
+    for lab in ("fields.enter", "fields.leave", "fields.view.on", "fields.form", "fields.apply", "fields.sync", "fields.sync.tab", "fields.parse", "fields.rebuild", "fields.drop",
+                "fields.esc", "fields.key", "fields.after", "fields.writeback", "fields.fill", "fields.pull", "fields.show", "fields.label"):
         fr += section(ide, lab) or []
     sent_ide = sorted(set(re.findall(r"call \$ced_core\('([\w.]+)'", "\n".join(fr))))
-    row("E22 the IDE no longer calls $cedit (stage 5 of the plan, reached by the in-form view); its fields view calls the engine's init, key, layout (after a resize), prep.save, saved and abandon and nothing it writes",
-        not any("$cedit" in l for l in ide) and sent_ide == ["abandon", "init", "key", "layout", "prep.save", "saved"]
+    row("E22 the IDE no longer calls $cedit (stage 5 of the plan, reached by the in-form pane); its fields view calls the engine's init, key and layout (after a resize or a rebuild) and nothing it writes",
+        not any("$cedit" in l for l in ide) and sent_ide == ["init", "key", "layout"]
         and not any(re.search(r"\b(write|writeu|writev|delete|readu|execute)(?![\w.])", l) for l in fr), repr(sent_ide))
+    lay = [r"if fz\.st\{'w'\} \+ 0 # ew or fz\.st\{'h'\} \+ 0 # \(mh \+ 3\) then", r"call \$ced_core\('layout', fz\.st, ew : @fm : \(mh \+ 3\), fz\.out\)", r"fz\.st\{'path\.row'\} = ystat",
+           r"fz\.st\{'msg\.row'\} = ystat"]
+    row("E23 the pane lays the engine out again, when the form's size is not the one the engine was made for, before it shows the view (view.on) and in a form just made (form); a rebuilt engine is laid out for the form",
+        all(ordered(section(ide, lab) or [], lay) for lab in ("fields.view.on", "fields.form"))
+        and ordered(section(ide, "fields.rebuild") or [], [r"call \$ced_core\('init', fz\.st", r"call \$ced_core\('layout', fz\.st, ew : @fm : \(mh \+ 3\), fz\.out\)"]))
     return rows
 
 
@@ -263,10 +271,13 @@ def selftest():
     mutant("a new window size is not given to the engine", "ced_edit", "      call $ced_core('layout', st, w : @fm : h, out)", "      null", "E20|E4")
     mutant("a call of the engine with three arguments", "ced_edit", "call $ced_core('layout', st, w : @fm : h, out)", "call $ced_core('layout', st, w : @fm : h)", "E21")
     mutant("the IDE calls the engine with three arguments", "ide", "call $ced_core('init', fz.st, '', fz.out)", "call $ced_core('init', fz.st, '')", "E21")
-    mutant("the IDE calls the CED program again", "ide", "      fz.type = 2\n      fz.c = fd.arr\n      gosub fields.run", "      call $cedit(fd.arr, '', '', 2, fz.title, fd.res)\n      fz.type = 2\n      fz.c = fd.arr\n      gosub fields.run", "E22")
-    mutant("the IDE's fields view writes the record", "ide", "   fz.c = fz.st{'c'}\n   fz.kept = fz.st{'kept'}\n   return", "   fz.c = fz.st{'c'}\n   fz.kept = fz.st{'kept'}\n   writeu fz.c on fv, fd.id\n   return", "E22")
-    mutant("the IDE's view ignores a resize again", "ide", "               call $ced_core('layout', fz.st, ew : @fm : (mh + 3), fz.out)\n", "", "E22")
-    mutant("the IDE's view never tells the engine a write was kept", "ide", "      if fz.st{'ok'} then call $ced_core('saved', fz.st, 1, fz.out)", "      if fz.st{'ok'} then null", "E22")
+    mutant("the IDE calls the CED program again", "ide", "   gosub fields.enter\n   return", "   call $cedit(fd.arr, '', '', 2, fz.title, fd.res)\n   gosub fields.enter\n   return", "E22")
+    mutant("the IDE's fields view writes the record", "ide", "fields.after:\n   fz.st{'done'} = @false", "fields.after:\n   writeu fz.nc on fv, fd.id\n   fz.st{'done'} = @false", "E22")
+    mutant("the IDE's view asks the engine to write", "ide", "   call $ced_core('key', fz.st, fz.k, fz.out)\n   gosub fields.after", "   call $ced_core('key', fz.st, fz.k, fz.out)\n   call $ced_core('prep.save', fz.st, '', fz.out)\n   gosub fields.after", "E22")
+    mutant("the IDE's view never lays the engine out again", "ide", "   if fz.st{'w'} + 0 # ew or fz.st{'h'} + 0 # (mh + 3) then\n      call $ced_core('layout', fz.st, ew : @fm : (mh + 3), fz.out)\n      fz.st{'path.row'} = ystat\n      fz.st{'msg.row'} = ystat\n   end\n   f{'quiet'} = 1\n   screen set f, 'ed' visible 0",
+           "   f{'quiet'} = 1\n   screen set f, 'ed' visible 0", "E23")
+    mutant("a form made again keeps an engine laid out for the old size", "ide", "      if fz.st{'w'} + 0 # ew or fz.st{'h'} + 0 # (mh + 3) then\n         call $ced_core('layout', fz.st, ew : @fm : (mh + 3), fz.out)\n         fz.st{'path.row'} = ystat\n         fz.st{'msg.row'} = ystat\n      end\n      f{'quiet'} = 1",
+           "      f{'quiet'} = 1", "E23")
     print("selftest: %d of %d mutants caught, %d missed" % (caught, caught + missed, missed))
     return 0 if missed == 0 else 1
 
