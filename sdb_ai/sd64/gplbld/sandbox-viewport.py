@@ -597,9 +597,11 @@ def part_con(box):
         blank_rect(L, 13, 22, 31, 61) and has(L, "TOPLABEL") and has(L, "OUTSIDE"), "\n".join(L[12:23]))
     L = finish(t)
     lg = logline(L)
-    row("the focus: hidden children are skipped by Tab (oe), come back when shown (cb, oe), a disabled container's are skipped by Tab and Shift-Tab and "
-        "cannot be clicked, enabled again one can (ce); the delete said 9 and the child was gone (SCREEN GET: ELSE)",
-        lg == "F:oe F:cb F:oe F:ce DEL:9 GONE", repr(lg))
+    # fix.focus (sl_form, redraw): hiding the container moves the focus from ce to oe at once and silently (no key changed it, so no event), and the Tab after that finds
+    # no other control: the first F:oe of the log before 30 Oct 26 is gone
+    row("the focus: hidden children are skipped by Tab (the focus moved to oe by the hide, no event), come back when shown (cb, oe), a disabled container's are skipped by "
+        "Tab and Shift-Tab and cannot be clicked, enabled again one can (ce); the delete said 9 and the child was gone (SCREEN GET: ELSE)",
+        lg == "F:cb F:oe F:ce DEL:9 GONE", repr(lg))
     t.end()
 
 
@@ -642,7 +644,7 @@ def part_nst(box):
     L = finish(t)
     lg = logline(L)
     row("the focus: the deep entry is skipped while the outer container is hidden or disabled (no click, no Tab), reached again when it is enabled; the "
-        "delete said 6", lg == "F:oe F:de F:oe F:de DEL:6 GONE", repr(lg))
+        "delete said 6 (the hide moves the focus from de to oe by fix.focus, silently: no event for it)", lg == "F:de F:oe F:de DEL:6 GONE", repr(lg))
     t.end()
 
 
@@ -1098,8 +1100,8 @@ def part_vpops(box):
     t.keys(TAB)
     L = finish(t)
     lg = logline(L)
-    row("a disabled viewport takes no wheel, and its children take no click: the log has the focus on the viewport from before, then the Tab that "
-        "leaves it for the next widget that can have the focus (oe) - not for a child of it", lg == "F:vp F:oe", repr(lg))
+    row("a disabled viewport takes no wheel, and its children take no click: the log has the focus on the viewport from before; the F8 that disables it moves the focus "
+        "to the next widget that can have it (oe) by fix.focus, silently, so the Tab leaves that one for ok - not for a child of the viewport", lg == "F:vp F:ok", repr(lg))
     t.end()
 
     t = term(box, "zzvpver")

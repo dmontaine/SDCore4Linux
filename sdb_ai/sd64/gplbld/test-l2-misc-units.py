@@ -253,7 +253,7 @@ def ev(expr, env, extra=None):
 def head_literals(page):
     """the literal boxes of the page as committed (git HEAD), or None when git cannot say"""
     try:
-        r = subprocess.run(["git", "-C", HERE, "show", "HEAD:sdb_ai/sd64/sdsys/gpl.bp/" + page], capture_output=True, text=True, errors="replace", timeout=30)
+        r = subprocess.run(["git", "-C", os.environ.get("SDREGRESS_REPO") or HERE, "show", "HEAD:sdb_ai/sd64/sdsys/gpl.bp/" + page], capture_output=True, text=True, errors="replace", timeout=30)
     except (OSError, subprocess.SubprocessError):
         return None
     if r.returncode != 0:

@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 30 Oct 26 dm  THE FIRST VERSION'S $recovery CODE IS GONE (old.find, rc.old, the old branches of 'drop' and 'list'): that version's 65-character copy names were all refused by the
+*               directory file (MAXIDLEN 63), so no copy of it can exist; removed on the owner's word (he deferred to Opus's recommendation, 29 Oct).  The header's hash is the first 62 hex digits.
 * 29 Oct 26 dm  A COPY THAT IS NOT WHOLE NO LONGER STOPS THE IDE: parse.copy leaves cp.file, cp.id, cp.date and cp.time assigned on every path ("cp.ok and cp.file = ..." evaluates both sides;
 *               it died with "Unassigned variable CP.FILE at line 407 of !edit_recovery" at a bare start, and when a record with such a copy was opened).  Found by sandbox-recovery.py's C7 and R rows.
 * 29 Oct 26 dm  THE NAME OF A COPY IS 63 CHARACTERS, NOT 65: 'c' and the 64 hex digits of the hash were over MAXIDLEN (default 63), so every write of a copy was refused (status 3000) and the IDE
@@ -47,19 +49,13 @@
 *   WHERE.  <home>/.local/state/sd/recovery/<account>.  The home is getpwuid(geteuid()) - never $HOME - resolved, and SDEXT SD_USER_HOME
 *   (op_sdext.c user_home_dir) trusts each directory from the home down only when it is a real directory (lstat: not a link) owned by
 *   this user with no group or other WRITE bit; a missing one is made under umask 077.  The account's own directory must also pass
-*   SD_FILE_PRIVATE (owner-only, mode 0700).  A copy is one file, 'c' and the SHA-256 of file and id in hex, written under umask 077 (0600)
+*   SD_FILE_PRIVATE (owner-only, mode 0700).  A copy is one file, 'c' and the first 62 hex digits of the SHA-256 of file and id, written under umask 077 (0600)
 *   and kept only when SD_FILE_PRIVATE says the same of it and it reads back identical.  Outside every account, so BACKUP.ACCOUNT,
 *   RESTORE.ACCOUNT and every VOC pointer never see it; the person's own backup of their home does.  A copy is: the line sd-recovery 1, the
 *   account, the file, the record id, the date and time, the text's length and its SHA-256, then the text, in image mode (MARK.MAPPING
 *   OFF): a copy that was cut short or changed does not match and is never offered.
 *
-*   THE FIRST VERSION'S COPIES.  It kept them in <account directory>/$recovery, for a USER account and its own person only.  'find' and
-*   'list' still look there (with that rule and the old private checks) when the store has none: a copy found is offered as before, moved
-*   into the store first when the switch is on (so that Cancel keeps it), and removed from the account only when the store holds it.  With
-*   the switch off 'find' removes nothing: the copy stays in the account until the person's answer, 'drop' (Delete, or the tab saved or
-*   closed) removes it there too, and Cancel or Later keeps it and it is offered again.  Nothing is ever written there again.
-*
-*   NOTHING HERE WRITES THE RECORD ITSELF, and nothing here reads or writes anything but the store and the old $recovery directory.  No
+*   NOTHING HERE WRITES THE RECORD ITSELF, and nothing here reads or writes anything but the store.  No
 *   audit line holds the text (none is written at all: the switch's own change is audited by MODIFY.ACCOUNT).
 *
 * END-DESCRIPTION
@@ -79,8 +75,6 @@ $include int$keys.h
    STORE = '.local/state/sd/recovery'      ;* below the home; the account's name is the last directory
    ACCT.CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789._-'
    rc.op = downcase(op)
-   wr.date = ''                            ;* set by old.find when a copy is moved: the date and time it was kept
-   wr.time = ''
 
    gosub where
    begin case
@@ -101,15 +95,13 @@ $include int$keys.h
 
 * ======================================================================
 * Out: rc.mine (a store can be established for this session's person), rc.on (rc.mine and field 19 says yes), rc.home (the trusted home),
-* rc.rel (the store's directory relative to it), rc.dir (the store's directory), rc.old (the first version's $recovery of this account, '' when that
-* version could not have kept one here), rc.acct (the account's name as the register keeps it).
+* rc.rel (the store's directory relative to it), rc.dir (the store's directory), rc.acct (the account's name as the register keeps it).
 where:
    rc.mine = 0
    rc.on = 0
    rc.home = ''
    rc.rel = ''
    rc.dir = ''
-   rc.old = ''
    rc.acct = downcase(@who)
    rc.user = downcase(trim(kernel(K$USERNAME, 0)))
    arec = ''
@@ -121,16 +113,6 @@ where:
    if rc.user = '' or rc.user = 'root' then return            ;* root never (the kernel refuses an effective uid of 0 too)
    if rc.acct = '' or rc.acct[1, 1] = '.' then return
    if convert(ACCT.CHARS, '', rc.acct) # '' then return       ;* a name that is not one directory name has no store
-
-   * The first version kept copies in the account's own directory, for a USER account and its own person only: only there is one looked for
-   apath = trim(arec<ACC$PATH>)
-   loop
-   while len(apath) > 1 and apath[len(apath), 1] = '/'
-      apath = apath[1, len(apath) - 1]
-   repeat
-   if apath[1, 1] = '/' and rc.user # 'sdsys' then
-      if downcase(trim(arec<ACC$GROUP>)) = 'sdu_' : rc.user then rc.old = apath : '/$recovery'
-   end
 
    rc.home = SDEXT('', @FALSE, SD_USER_HOME)                  ;* the password database's home of this process's user, trusted, or ''
    if rc.home = '' then return
@@ -154,7 +136,7 @@ check.dir:
    gosub private.dir
    return
 
-* Out: dir.ok, rc.dir is a real directory of this user's alone: the last step of check.dir, and the whole of the first version's test of its $recovery
+* Out: dir.ok, rc.dir is a real directory of this user's alone: the last step of check.dir
 private.dir:
    dir.ok = (SDEXT(rc.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) = '1')
    return
@@ -234,10 +216,8 @@ do.write:
       delete rf, rc.slot on error null
    end
 
-   if wr.date = '' then
-      wr.date = date()
-      wr.time = int(time())
-   end
+   wr.date = date()
+   wr.time = int(time())
    rec = MAGIC : @fm : rc.acct : @fm : rfile : @fm : rid : @fm : wr.date : @fm : wr.time : @fm : len(text) : @fm : downcase(digest(text, 0, 'SHA256')) : @fm : text
    rc.um = umask(63)
    rc.written = @true
@@ -289,59 +269,6 @@ do.find:
          end
       end
    end
-   gosub old.find
-   return
-
-* A copy the first version left in the account's $recovery (rc.old): read under that version's checks; moved into the store when the switch is on, with
-* the date and time it was kept (so that the person's Cancel keeps it), and removed from the account only then.  With the switch off it is offered where it is and
-* nothing is removed until the person answers ('drop').  Out: text and res as do.find
-old.find:
-   if rc.old = '' then return
-   of.dir = rc.dir
-   rc.dir = rc.old
-   gosub slot.name
-   gosub private.dir
-   if not(dir.ok) then
-      rc.dir = of.dir
-      return
-   end
-   gosub check.file
-   if not(file.ok) then
-      rc.dir = of.dir
-      return
-   end
-   of.slot = rc.slot
-   openpath rc.dir to orf else
-      rc.dir = of.dir
-      return
-   end
-   mark.mapping orf, off
-   read rec from orf, of.slot else rec = ''
-   gosub parse.copy
-   if not(cp.ok) or cp.file # rfile or cp.id # rid then
-      close orf
-      rc.dir = of.dir
-      return
-   end
-   of.text = cp.text
-   of.res = 1 : @fm : cp.date : @fm : cp.time
-   rc.dir = of.dir
-   of.moved = @false
-   if rc.on then
-      text = of.text
-      wr.date = cp.date
-      wr.time = cp.time
-      gosub do.write
-      wr.date = ''
-      wr.time = ''
-      of.moved = (res = '')
-   end
-   * the account's copy goes only when the store holds it: with the switch off nothing was moved, and what becomes of the copy is the person's answer (Use leaves it until
-   * the tab is saved or closed, Delete and that close call 'drop', Cancel keeps it and it is offered again); a move that failed keeps it too
-   if of.moved then delete orf, of.slot on error null
-   close orf
-   text = of.text
-   res = of.res
    return
 
 do.drop:
@@ -360,25 +287,6 @@ do.drop:
          end
       end
    end
-   * and one the first version left in the account
-   if rc.old # '' then
-      od.dir = rc.dir
-      rc.dir = rc.old
-      gosub slot.name
-      gosub private.dir
-      if dir.ok then
-         gosub check.file
-         if file.ok then
-            openpath rc.dir to rf then
-               rc.gone = @true
-               delete rf, rc.slot on error rc.gone = @false
-               close rf
-               if rc.gone then res = 1
-            end
-         end
-      end
-      rc.dir = od.dir
-   end
    return
 
 do.list:
@@ -387,13 +295,6 @@ do.list:
    if not(rc.mine) then return
    gosub check.dir
    if dir.ok then gosub list.dir
-   if rc.old # '' and res < MAXLIST then
-      ol.dir = rc.dir
-      rc.dir = rc.old
-      gosub private.dir
-      if dir.ok then gosub list.dir
-      rc.dir = ol.dir
-   end
    return
 
 * The untitled copies in rc.dir (a checked directory) are added to text and counted in res, an id that is there already once only

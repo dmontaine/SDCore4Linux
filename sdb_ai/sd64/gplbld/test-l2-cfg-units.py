@@ -36,6 +36,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 REPO = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
+# regress.sh --snapshot runs this in a copy that has no .git and exports SDREGRESS_REPO, the live repository (30 Oct 26: stage 2 passed G1b as SKIPPED)
+GITREPO = os.environ.get("SDREGRESS_REPO") or REPO
 OLD_COMMIT = "10380d19"          # the last commit whose pages drew literal boxes
 
 # TK.P.* in the order of tk.h: the values of one field of a declaration
@@ -218,7 +220,7 @@ def overlaps(a, b):
 def old_boxes_from_git(page):
     """the page's literal boxes at OLD_COMMIT, or None when git cannot show them"""
     try:
-        out = subprocess.run(["git", "-C", REPO, "show", "%s:sdb_ai/sd64/sdsys/gpl.bp/%s" % (OLD_COMMIT, page)], capture_output=True, timeout=30)
+        out = subprocess.run(["git", "-C", GITREPO, "show","%s:sdb_ai/sd64/sdsys/gpl.bp/%s" % (OLD_COMMIT, page)], capture_output=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
         return None
     if out.returncode != 0:
@@ -254,7 +256,8 @@ def checks(raw, M, git_boxes=None):
     ck("G1", "AT 140 BY 43 EACH PAGE'S DECLARATION (read off its lay.declare) IS VALID AND GIVES EXACTLY THE BOXES THE PAGE DREW BEFORE THE SERVICE: %s" % ", ".join("%s %d" % (n, len(OLD[n])) for n in PAGES), not bad, "; ".join(bad)[:700])
 
     if git_boxes is None:
-        ck("G1b", "SKIPPED (git cannot show %s): the table of old boxes is held against the page as it was" % OLD_COMMIT, True, "")
+        ck("G1b", "SKIPPED (git cannot show %s): the table of old boxes is held against the page as it was; under regress.sh (SDREGRESS_REPO set) a skip FAILS" % OLD_COMMIT,
+           not os.environ.get("SDREGRESS_REPO"), "")
     else:
         bad = []
         for n in PAGES:

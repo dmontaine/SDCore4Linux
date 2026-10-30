@@ -135,7 +135,7 @@ def page(groups, is_admin, npins=0, nrecent=0, off=()):
     for g in groups:
         if g["admin"] and not is_admin:
             continue
-        if g["pins"] and npins == 0:
+        if g["pins"] and not (is_admin or npins > 0):   # home_pins: the administrator always has the switch on, so "My programs" and its tile stay with no pins
             continue
         gr.append(dict(name=g["name"], band=g["band"], cols=g["cols"]))
         for tid, size, kind in g["tiles"]:

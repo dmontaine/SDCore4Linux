@@ -26,6 +26,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+# regress.sh --snapshot runs this in a copy that has no .git and exports SDREGRESS_REPO, the live repository (stage 2 of 29 Oct 26 skipped L3 / L4 and counted a pass)
+GITREPO = os.environ.get("SDREGRESS_REPO") or REPO
 SDSYS = os.path.join(REPO, "sdb_ai", "sd64", "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
 TAG = "v1.1-3"
@@ -56,14 +58,14 @@ def read_tree():
 def git_tag_files(d):
     """{file name: text} of sdsys/<d> at the release tag, or None when git or the tag is not there."""
     base = "sdb_ai/sd64/sdsys/%s" % d
-    r = subprocess.run(["git", "-C", REPO, "ls-tree", "--name-only", TAG + ":" + base], capture_output=True, text=True, errors="replace")
+    r = subprocess.run(["git", "-C", GITREPO, "ls-tree", "--name-only", TAG + ":" + base], capture_output=True, text=True, errors="replace")
     if r.returncode != 0:
         return None
     out = {}
     for n in r.stdout.split("\n"):
         if not n:
             continue
-        s = subprocess.run(["git", "-C", REPO, "show", "%s:%s/%s" % (TAG, base, n)], capture_output=True, text=True, errors="replace")
+        s = subprocess.run(["git", "-C", GITREPO, "show", "%s:%s/%s" % (TAG, base, n)], capture_output=True, text=True, errors="replace")
         out[n] = s.stdout
     return out
 
@@ -119,6 +121,8 @@ def checks(t, old_newvoc=None, old_template=None):
         old_template = git_tag_files("voc_template")
     if old_newvoc is None or old_template is None:
         print("  [SKIP] L3 / L4: git or the tag %s is not here, so the list is not compared with what that release shipped" % TAG)
+        if os.environ.get("SDREGRESS_REPO"):              # under regress.sh a skip is not a pass
+            ck("L3", "git and the tag %s are here (regress.sh exports SDREGRESS_REPO: the comparison must run)" % TAG, False, "git_tag_files gave None for %s" % GITREPO)
     else:
         gone = sorted((set(old_newvoc) - t["newvoc"]) | (set(old_template) - t["template"]))
         miss = [g for g in gone if g not in lst]

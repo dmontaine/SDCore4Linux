@@ -17,6 +17,8 @@
 #               account's $recovery: offered once, moved with the switch on, removed either way.  WRITTEN, NOT RUN.
 # 28 Oct 26 dm  Review fix (finding 3): with the switch OFF a first-version copy is no longer removed when it is offered - O2 now shows Cancel keeps it and it is offered
 #               again, O2b that Delete removes it, O2c that the record then opens as on the disk.  WRITTEN, NOT RUN.
+# 30 Oct 26 dm  Section O (a copy the first version left in <account>/$recovery) and plant_old are gone with the program's dead first-version code (the owner deferred to Opus,
+#               29 Oct: that version's 65-character names were all refused, so no such copy can exist). olddir stays: G2, A1 and C1a still show that nothing is made there.
 # END-HISTORY
 #
 # WHAT RUNS.  ORDINARY sessions of fixture accounts (made as sandbox-gates.py makes them; their LOGIN paragraph says TERM LINUX, so the keys are the linux forms) on a
@@ -28,8 +30,6 @@
 # password database's, which is the point of the design, so a test cannot point it anywhere else - and this suite must not mix its copies with that person's real
 # ones.  The sandbox's edit_recovery keeps them in .local/state/sd/zzrc-<run> instead of .local/state/sd/recovery (one constant); the walk from the home down, the
 # trust tests and everything else are the shipped code.  The run's directory is removed at the end, and .local/state/sd too when the run made it and it is empty.
-# (2) THE FIRST VERSION'S RULE, for section O only: an old $recovery is looked at only for a register group sdu_<the Linux user>, which a sandbox cannot make; the
-# one line is pointed at the fixture group.
 #
 #   G    an account whose group is not sdu_<user> (any kind of account now): with the switch on it HAS a copy, in the store, and nothing in the account holds the text
 #   A    the switch OFF (blank field, as delivered): typing, a pause, a hang-up leave no store directory and no file anywhere in the account or the store holding the text
@@ -46,9 +46,6 @@
 #   C9   the account's store directory made group- and world-readable: no copy is written in it
 #   C9b  a directory on the way (the run's store) that group can write: no copy is written (SD_USER_HOME refuses the way down)
 #   C10  the switch turned off in the register: a new hang-up leaves no new copy
-#   O1   a copy the FIRST version left in <account>/$recovery, the switch on: offered (Use), then gone from the account and in the store with the date it was kept
-#   O2   ...the switch off: offered (Cancel), and it is STILL in the account, not in the store; O2b offered again, Delete removes it; O2c the record opens as on the disk
-#   O3   an untitled one there is offered by a bare IDE
 #   R1   two untitled copies, both answered Open: both stay on the disk (a second Open wrote the empty startup buffer over the first tab, and a tick deleted its copy)
 #   R2   a copy the tab does not own under the name its first save gave it: kept, the person told (11778); once it is gone the tab writes its own within 10 s
 #   R3   an untitled tab opened from a copy, emptied, then replaced by New record (the switch off, so no tick): its copy goes
@@ -90,7 +87,6 @@ RUN = "%05d" % (os.getpid() % 100000)
 ACC_G, ACC_OFF, ACC_ON = "zzrcg", "zzrc0", "zzrc1"
 SHIPPED_STORE = "   STORE = '.local/state/sd/recovery'"
 RUN_STORE = "zzrc-" + RUN
-SHIPPED_OLD = "      if downcase(trim(arec<ACC$GROUP>)) = 'sdu_' : rc.user then rc.old = apath : '/$recovery'"
 HOME = os.path.realpath(pwd.getpwuid(os.geteuid()).pw_dir)       # the password database's home, as the kernel's SD_USER_HOME takes it (never $HOME)
 SD_STATE = os.path.join(HOME, ".local", "state", "sd")
 SD_STATE_WAS = os.path.isdir(SD_STATE)
@@ -199,17 +195,16 @@ def setup():
 
 
 def patch_programs():
-    """the sandbox's own edit_recovery: the store's name made the run's own, and the first version's rule pointed at the fixture group; recompiled as the administrator"""
+    """the sandbox's own edit_recovery: the store's name made the run's own; recompiled as the administrator"""
     p = os.path.join(sh.SYS, "gpl.bp", "edit_recovery")
     with open(p, encoding="latin-1") as f:
         src = f.read()
-    if src.count(SHIPPED_STORE) != 1 or src.count(SHIPPED_OLD) != 1:
-        bail("the sandbox's edit_recovery does not hold the store line and the old rule once each (%d, %d)" % (src.count(SHIPPED_STORE), src.count(SHIPPED_OLD)))
+    if src.count(SHIPPED_STORE) != 1:
+        bail("the sandbox's edit_recovery does not hold the store line once (%d)" % src.count(SHIPPED_STORE))
     new_store = "   STORE = '.local/state/sd/%s'" % RUN_STORE
-    new_old = "      if downcase(trim(arec<ACC$GROUP>)) = '%s' then rc.old = apath : '/$recovery'" % g.GROUP.lower()
     with open(p, "w", encoding="latin-1") as f:
-        f.write(src.replace(SHIPPED_STORE, new_store).replace(SHIPPED_OLD, new_old))
-    say("    PATCH (1): %r -> %r\n    PATCH (2): %r -> %r\n    in %s" % (SHIPPED_STORE.strip(), new_store.strip(), SHIPPED_OLD.strip(), new_old.strip(), p))
+        f.write(src.replace(SHIPPED_STORE, new_store))
+    say("    PATCH: %r -> %r\n    in %s" % (SHIPPED_STORE.strip(), new_store.strip(), p))
     out = g.adm(["BASIC gpl.bp edit_recovery"], internal=True)
     if not g.has(out, r"^Compiled 1 program\(s\) with no errors"):
         bail("the patched edit_recovery did not compile:\n" + "\n".join(out[-6:]))
@@ -512,68 +507,6 @@ def section_dir():
 
 
 # ---- O: a copy the FIRST version left in the account's $recovery (WRITTEN, NOT RUN) ---------------------------------------------------------------------------
-def plant_old(a, fname, r, body, date="20000", tim="3600"):
-    """a whole, private copy where and as the first version wrote it: <account>/$recovery (0700), the copy 0600"""
-    d = olddir(a)
-    os.makedirs(d, exist_ok=True)
-    os.chmod(d, 0o700)
-    p = os.path.join(d, slot(fname, r))
-    rec = "\xfe".join(["sd-recovery 1", a, fname, r, date, tim, str(len(body)), hashlib.sha256(body.encode("latin-1")).hexdigest(), body])
-    with open(p, "w", encoding="latin-1") as f:
-        f.write(rec)
-    os.chmod(p, 0o600)
-    say("    (planted the first version's copy %s for %s %s)" % (p, fname, r))
-    return p
-
-
-def section_old():
-    say("\n--- O: a copy the first version left in the account ------------------------------------------------------------------")
-    # O1: the switch on: offered, Use; then the copy is in the store (moved, with the date it was kept) and gone from the account
-    r1 = rid("o1")
-    fr.mk(recbp(ACC_ON, r1), "keptO1\n")
-    old1 = plant_old(ACC_ON, "bp", r1, "OLDTEXT1")
-    s = ide("O1", ACC_ON, "bp " + r1)
-    asked = "A recovery copy of bp " + r1 in s.text()
-    s.type(RET, wait=1.5, show="RET (Use the copy)")
-    used = "OLDTEXT1" in s.editor()
-    s.end()
-    moved = os.path.join(rdir(ACC_ON), slot("bp", r1))
-    f = (fr.readf(moved) or "").split("\xfe", 8)
-    R.row("O1 the first version's copy is offered (the question names bp and the record) and Use puts its text in the editor", asked and used, "asked %r used %r" % (asked, used), phase=PH)
-    R.row("O1b ...it is gone from the account's $recovery, and the store holds it, with the date and time it was first kept (20000, 3600) and the same text",
-          lmode(old1) is None and len(f) == 9 and f[4:6] == ["20000", "3600"] and f[8] == "OLDTEXT1", "old %r store %r" % (lmode(old1), f[:6]), phase=PH)
-    # O2: the switch off: offered; Cancel keeps it where it is (nothing moved, nothing removed); offered again; Delete removes it
-    register(ACC_ON, "no")
-    r2 = rid("o2")
-    fr.mk(recbp(ACC_ON, r2), "keptO2\n")
-    old2 = plant_old(ACC_ON, "bp", r2, "OLDTEXT2")
-    s = ide("O2", ACC_ON, "bp " + r2)
-    asked = "A recovery copy of bp " + r2 in s.text()
-    s.type(L_DOWN + L_DOWN + RET, wait=1.5, show="Down Down RET (Cancel)")
-    s.end()
-    R.row("O2 with the switch off it is offered, and after Cancel it is STILL in the account (Cancel is not an answer: 'kept' is true) and the store does not hold it",
-          asked and lmode(old2) is not None and not stored(ACC_ON, "OLDTEXT2"), "asked %r old %r" % (asked, lmode(old2)), phase=PH)
-    s = ide("O2b", ACC_ON, "bp " + r2)
-    asked_again = "A recovery copy of bp " + r2 in s.text()
-    s.type(L_DOWN + RET, wait=1.5, show="Down RET (Delete)")
-    s.end()
-    R.row("O2b ...the record opened again asks again, and Delete removes the copy from the account", asked_again and lmode(old2) is None, "asked again %r old %r" % (asked_again, lmode(old2)), phase=PH)
-    s = ide("O2c", ACC_ON, "bp " + r2)
-    R.row("O2c ...and the record opened again asks nothing: it opens as it is on the disk", "A recovery copy of" not in s.text() and "keptO2" in s.editor(), "", phase=PH)
-    s.end()
-    register(ACC_ON, "yes")
-    # O3: an untitled copy there is offered by a bare IDE
-    drop_untitled(rdir(ACC_ON))
-    tok = "untitled.20000.3600.9"
-    old3 = plant_old(ACC_ON, "", tok, "OLDUNTITLED")
-    s = ide("O3", ACC_ON, "")
-    asked = "untitled buffer was kept" in s.text()
-    s.type(RET, wait=1.5, show="RET (Open)")
-    R.row("O3 a bare IDE offers the first version's untitled copy, Open puts its text in a tab, and the account no longer holds it",
-          asked and "OLDUNTITLED" in s.editor() and lmode(old3) is None, "asked %r" % asked, phase=PH)
-    s.end()
-
-
 def main():
     try:
         setup()
@@ -582,7 +515,6 @@ def main():
         section_off()
         section_on()
         section_review()
-        section_old()
         section_dir()
     finally:
         try:

@@ -1124,8 +1124,10 @@ def part_focus(box):
     L = t.keys("\x1b[15~")                                  # F5
     row("SCREEN FOCUS on the disabled first entry is refused (ELSE) and the focus stays on the third", has(9) and not has(5), repr((t.attrs(5)[16:32], t.attrs(9)[16:32])))
     L = t.keys("\x1b[18~")                                  # F7
-    row("SCREEN FOCUS on the button moves the focus for real: the third entry is not reverse any more and the cursor is not in the entries",
-        not has(9) and t.cursor()[1] not in (5, 7, 9), repr((t.attrs(9)[16:32], t.cursor())))
+    # the cursor stays where the program's own SCREEN CURSOR put it (column 7, row 9: left of the entries, which start at column 16), because $sl_scr('put') puts it there after
+    # every statement and park.cursor does not move it into the widget (screenlib-design.md says the next WAIT hides it; the code does not - a follow-up for the owner)
+    row("SCREEN FOCUS on the button moves the focus for real: the third entry is not reverse any more and the cursor is not in the entries (it is the program's own, at 7,9)",
+        not has(9) and t.cursor() == (7, 9), repr((t.attrs(9)[16:32], t.cursor())))
     L = t.keys(ESC, idle=0.9)
     L = t.keys("z")
     row("the program saw no focus event for the moves it caused itself, and F5 was refused: the log is REF;", result(L, "FOCUS") == "REF;|", repr(result(L, "FOCUS")))

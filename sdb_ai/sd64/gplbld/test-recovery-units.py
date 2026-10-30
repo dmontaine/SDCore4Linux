@@ -20,6 +20,8 @@ START-HISTORY:
               the home is test-userhome-units.py.
 28 Oct 26 dm  Review fix (finding 3 of the L2 review): R14 follows 'find' leaving a first-version copy in the account with the switch OFF (it deleted it before the person
               had answered); the mutant "an old copy is removed with the switch off" is new, the "moved into the account" one is rewritten for the new initial value.
+30 Oct 26 dm  The first version's code is removed from edit_recovery (the owner deferred to Opus's recommendation, 29 Oct): R7b, R7h, R7i, R7j and R7k lose their old-copy parts,
+              R14 now says the first version's names are gone and R15 that nothing is written in the account; the six old-copy mutants are replaced by two.
 END-HISTORY
 
 WHAT IT HOLDS.  The switch is register field 19 (ACC$RECOVERY), OFF AS DELIVERED: blank means no, CREATE.ACCOUNT writes 'no' unless RECOVERY-ON was typed, and there is
@@ -186,7 +188,7 @@ def checks(src, msgs):
     ck("R7b WHO (28 Oct 26, the store in the person's home): the account must have a register record; the Linux user this process runs as (K$USERNAME) is never empty "
        "or root; the account's name is one directory name (letters, digits, . _ -, not starting with .); rc.mine needs the home SD_USER_HOME trusts, and nothing about "
        "the account's group (any kind of account, the administrator too); rc.on needs rc.mine AND field 19 = yes",
-       ordered(where, "rc.mine = 0", "rc.on = 0", "rc.home = ''", "rc.dir = ''", "rc.old = ''", "rc.user = downcase(trim(kernel(K$USERNAME, 0)))", "if arec = '' then return",
+       ordered(where, "rc.mine = 0", "rc.on = 0", "rc.home = ''", "rc.dir = ''", "rc.user = downcase(trim(kernel(K$USERNAME, 0)))", "if arec = '' then return",
                "if rc.user = '' or rc.user = 'root' then return", "if rc.acct = '' or rc.acct[1, 1] = '.' then return",
                "if convert(ACCT.CHARS, '', rc.acct) # '' then return", "rc.home = SDEXT('', @FALSE, SD_USER_HOME)", "if rc.home = '' then return",
                "rc.rel = STORE : '/' : rc.acct", "rc.dir = rc.home : '/' : rc.rel", "rc.mine = 1", "if upcase(trim(arec<ACC$RECOVERY>)) = 'YES' then rc.on = 1", "return")
@@ -216,43 +218,32 @@ def checks(src, msgs):
        "dir.ok = (SDEXT(rc.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) = '1')" in er and "file.ok = (SDEXT(rc.path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) = '1')" in er, "")
     ck("R7h a copy carries its own check: the magic, the account, the length and the SHA-256 of the text, all written and all tested before a copy is believed",
        "rec = MAGIC : @fm : rc.acct : @fm : rfile : @fm : rid : @fm : wr.date : @fm : wr.time : @fm : len(text) : @fm : downcase(digest(text, 0, 'SHA256')) : @fm : text" in wr
-       and ordered(wr, "if wr.date = '' then", "wr.date = date()", "wr.time = int(time())", "rec = MAGIC")
+       and ordered(wr, "wr.date = date()", "wr.time = int(time())", "rec = MAGIC")
        and ordered(label(er, "parse.copy"), "cp.ok = 0", "if rec<1> # MAGIC then return", "if rec<2> # rc.acct then return", "if len(cp.text) # cp.len + 0 then",
                    "if downcase(digest(cp.text, 0, 'SHA256')) # rec<8> then", "cp.ok = 1"), "")
     fd = label(er, "do.find")
-    ck("R7i FIND needs rc.mine, the trusted directory and a private file BEFORE it reads, and answers only for a whole copy of the very record asked for; only when the store "
-       "has none does it look for the first version's (old.find)",
+    ck("R7i FIND needs rc.mine, the trusted directory and a private file BEFORE it reads, and answers only for a whole copy of the very record asked for, and for nothing else "
+       "(the first version's directory is not looked at since 30 Oct 26)",
        ordered(fd, "res = ''", "if not(rc.mine) then return", "gosub check.dir", "if dir.ok then", "gosub check.file", "if file.ok then",
-               "read rec from rf, rc.slot", "gosub parse.copy", "if cp.ok and cp.file = rfile and cp.id = rid then", "text = cp.text", "res = 1", "return", "gosub old.find"), "")
+               "read rec from rf, rc.slot", "gosub parse.copy", "if cp.ok and cp.file = rfile and cp.id = rid then", "text = cp.text", "res = 1", "return"), "")
     dr = label(er, "do.drop")
     dl = label(er, "do.list")
     ld = label(er, "list.dir")
-    ck("R7j DROP and LIST need rc.mine and a checked directory (the store's, or the old one under its own test); DROP removes only a private file, in both; LIST takes an id once",
-       ordered(dr, "if not(rc.mine) then return", "gosub check.dir", "if dir.ok then", "gosub check.file", "if file.ok then", "delete rf, rc.slot",
-               "if rc.old # '' then", "rc.dir = rc.old", "gosub private.dir", "if dir.ok then", "gosub check.file", "if file.ok then", "delete rf, rc.slot", "rc.dir = od.dir")
-       and ordered(dl, "if not(rc.mine) then return", "gosub check.dir", "if dir.ok then gosub list.dir", "if rc.old # '' and res < MAXLIST then", "rc.dir = rc.old",
-                   "gosub private.dir", "if dir.ok then gosub list.dir", "rc.dir = ol.dir")
+    ck("R7j DROP and LIST need rc.mine and a checked directory (the store's); DROP removes only a private file; LIST takes an id once",
+       ordered(dr, "if not(rc.mine) then return", "gosub check.dir", "if dir.ok then", "gosub check.file", "if file.ok then", "delete rf, rc.slot")
+       and ordered(dl, "if not(rc.mine) then return", "gosub check.dir", "if dir.ok then gosub list.dir")
        and ordered(ld, "gosub check.file", "if file.ok then", "locate cp.id in ls.ids<1> setting ls.pos else", "ls.ids<1, -1> = cp.id"), "")
     ck("R7k the copies are read and written in image mode (MARK.MAPPING OFF) wherever a copy's bytes are read or written",
-       "mark.mapping rf, off" in wr and "mark.mapping rf, off" in fd and "mark.mapping rf, off" in ld and "mark.mapping orf, off" in label(er, "old.find"), "")
+       "mark.mapping rf, off" in wr and "mark.mapping rf, off" in fd and "mark.mapping rf, off" in ld, "")
 
-    # ---- 28 Oct 26: the store in the person's home, and the first version's copies -----------------------------------------------------------------------------------
-    of = label(er, "old.find")
-    ck("R14 THE FIRST VERSION'S COPIES are looked for only where that version could have made one (a USER account sdu_<user>, not the administrator) and only under its own "
-       "tests; one found is moved into the store only with the switch on (do.write, the date and time it was kept, rc.dir put back to the store FIRST), and removed from the "
-       "account ONLY when it was moved - kept with the switch off (the person's answer decides: 'drop') and kept when a move failed",
-       ordered(where, "if apath[1, 1] = '/' and rc.user # 'sdsys' then", "if downcase(trim(arec<ACC$GROUP>)) = 'sdu_' : rc.user then rc.old = apath : '/$recovery'",
-               "rc.home = SDEXT")
-       and ordered(of, "if rc.old = '' then return", "rc.dir = rc.old", "gosub private.dir", "if not(dir.ok) then", "gosub check.file", "if not(file.ok) then",
-                   "openpath rc.dir to orf", "read rec from orf, of.slot", "gosub parse.copy", "if not(cp.ok) or cp.file # rfile or cp.id # rid then", "rc.dir = of.dir",
-                   "of.moved = @false", "if rc.on then", "wr.date = cp.date", "wr.time = cp.time", "gosub do.write", "of.moved = (res = '')", "if of.moved then delete orf, of.slot",
-                   "text = of.text", "res = of.res")
-       and 0 <= of.find("rc.dir = of.dir\n   of.moved") < of.find("gosub do.write"), "")
-    ck("R15 NOTHING IS WRITTEN IN THE ACCOUNT ANY MORE: '$recovery' is named only where rc.old is set; do.write is reached only from the op and from old.find after rc.dir is the "
-       "store again; the first version's directory is tested by private.dir alone (only check.dir adds SD_USER_HOME's way down), and every gosub private.dir but "
-       "check.dir's follows rc.dir = rc.old",
-       er.count("'/$recovery'") == 1 and er.count("gosub do.write") == 2 and er.count("SD_USER_HOME") == 4
-       and er.count("gosub private.dir") == 4 and len(re.findall(r"rc\.dir = rc\.old\n(?:\s*gosub slot\.name\n)?\s*gosub private\.dir", er)) == 3, "%d %d %d" % (er.count("'/$recovery'"), er.count("gosub do.write"), er.count("SD_USER_HOME")))
+    # ---- 28 Oct 26: the store in the person's home; 30 Oct 26: the first version's copies are not looked for at all --------------------------------------------------------
+    ck("R14 THE FIRST VERSION'S CODE IS GONE (30 Oct 26): its names for a copy were 65 characters, which a directory file refused, so no copy of it can exist; nothing names "
+       "'$recovery', rc.old, old.find or an old-copy variable (of., od., ol.)",
+       "$recovery" not in er and "rc.old" not in er and "old.find" not in er and not re.search(r"\b(of|od|ol)\.", er), "")
+    ck("R15 NOTHING IS WRITTEN IN THE ACCOUNT: do.write is reached only from the op, the one gosub private.dir is check.dir's (with SD_USER_HOME's way down), and no path is built from "
+       "the account's directory (ACC$PATH is not read)",
+       er.count("gosub do.write") == 1 and er.count("SD_USER_HOME") == 4 and er.count("gosub private.dir") == 1 and "ACC$PATH" not in er,
+       "%d %d %d" % (er.count("gosub do.write"), er.count("SD_USER_HOME"), er.count("gosub private.dir")))
 
     ide = strip(src["ide"])
     tick = label(ide, "rc.tick")
@@ -384,13 +375,8 @@ MUTANTS = [
     ("edit_recovery", "the store is trusted without asking the way down", "   if SDEXT(rc.rel, @FALSE, SD_USER_HOME) # rc.dir then return\n", ""),
     ("edit_recovery", "a directory that is there and not trusted is used", "         if ospath(md.path, OS$EXISTS) then return             ;* there, and not to be trusted\n", ""),
     ("edit_recovery", "a made directory is not asked again", "         if SDEXT(md.rel, @FALSE, SD_USER_HOME) # md.path then return\n", ""),
-    ("edit_recovery", "a group account's old $recovery is read", "      if downcase(trim(arec<ACC$GROUP>)) = 'sdu_' : rc.user then rc.old = apath : '/$recovery'",
-     "      rc.old = apath : '/$recovery'"),
-    ("edit_recovery", "an old copy is removed though its move failed", "      of.moved = (res = '')\n", ""),
-    ("edit_recovery", "an old copy is moved with the switch off", "   if rc.on then\n      text = of.text", "   if 1 then\n      text = of.text"),
-    ("edit_recovery", "an old copy is moved into the account", "   rc.dir = of.dir\n   of.moved = @false\n", "   of.moved = @false\n"),
-    ("edit_recovery", "an old copy is removed with the switch off (before the person answers)", "   rc.dir = of.dir\n   of.moved = @false\n", "   rc.dir = of.dir\n   of.moved = @true\n"),
-    ("edit_recovery", "an old copy is read without the file test", "   gosub check.file\n   if not(file.ok) then\n      rc.dir = of.dir\n      return\n   end\n   of.slot", "   of.slot"),
+    ("edit_recovery", "the first version's directory is named again", "   rc.dir = ''\n   rc.acct", "   rc.dir = ''\n   rc.old = apath : '/$recovery'\n   rc.acct"),
+    ("edit_recovery", "a second write is reached from a path of the account", "   gosub do.write\n", "   gosub do.write\n   gosub do.write\n"),
     ("edit_recovery", "a list holds an id twice", "                  locate cp.id in ls.ids<1> setting ls.pos else", "                  locate cp.id in ls.none<1> setting ls.pos else"),
     ("edit_recovery", "the switch is not asked", "   if upcase(trim(arec<ACC$RECOVERY>)) = 'YES' then rc.on = 1\n", "   rc.on = 1\n"),
     ("edit_recovery", "a write does not need the switch", "   res = 'off'\n   if not(rc.on) then return\n", "   res = 'off'\n"),

@@ -254,15 +254,11 @@ def sec_same():
         R.row("S0 control: the OLD %s is up at 140x43 (%r and the ^Q key)" % (cmd, mark), ok, t[:200])
         olds[p] = snapshot(w) if ok else None
         w.end()
-    for p, (cmd, mark, _v, _l) in PAGES.items():
+    # S1 (each page at 140x43 equals the page before L2, cell for cell) was RETIRED on 30 Oct 26 on the owner's word ("I defer to Opus' recommendation", Opus review 29oct-c):
+    # the menu bars, key rows and keys have changed on purpose since 10380d19. The tree's pages stay compiled for the sections after this one.
+    for p in PAGES:
         if not compile_page(p, new_text[p], "tree's"):
             bail("the tree's %s did not compile in this sandbox" % p)
-        w = launch("S-new-" + p, cmd, 140, 43)
-        new = snapshot(w)
-        old = olds[p]
-        d = differences(old, new) if old else ["null case: the old page was not up"]
-        R.row("S1 %s at 140x43 is the old page in every cell, text and look" % cmd, old is not None and not d, "%d differences, first %r" % (len(d), d[:5]))
-        w.end()
 
 
 # ------------------------------------------------------------------------------------------------------------------------ G: grown

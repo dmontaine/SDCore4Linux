@@ -251,13 +251,9 @@ def sec_same():
         w.end()
     if not compile_home(new_text, "tree's"):
         bail("the tree's tool_home did not compile in this sandbox")
-    for who, acct in (("administrator", None), ("ordinary", "zzhd")):
-        w = launch("S-new-" + who, 140, 43, acct)
-        new = snapshot(w)
-        old = olds[who]
-        d = differences(old, new) if old else ["null case: the old page was not up"]
-        R.row("S1 the %s's page at 140x43 is the old page in every cell, text and look (the clock row and digits aside)" % who, old is not None and not d, "%d differences, first %r" % (len(d), d[:5]))
-        w.end()
+    # S1 (the page at 140x43 equals the page before L2 cell for cell) was RETIRED on 30 Oct 26 on the owner's word ("I defer to Opus' recommendation", Opus review 29oct-c):
+    # the menu bars, key rows and keys have changed on purpose since 10380d19. The tree's page stays compiled for the sections after this one; the grid rows (G, R) and
+    # test-l2-home-units.py's model hold the layout.
 
 
 # ------------------------------------------------------------------------------------------------------------------------ G: the grid at 180 by 55 and 200 by 60
