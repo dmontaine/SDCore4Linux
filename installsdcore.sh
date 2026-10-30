@@ -1476,8 +1476,9 @@ fi
 # while a parameter existed must remove its line.  Only a line that BEGINS with the exact name and an equals sign is
 # removed (a comment, or another name that merely starts the same way, is left alone).  The list is the parameters
 # config.c no longer reads; gplbld/test-install-retiredconf.sh holds it to config.c.
-retired_conf_keys="INVCASE CODEPAGE EXCLREM RINGWAIT TXCHAR APILOGIN CREATUSR JNLDIR JNLMODE GDI FIXUSERS PORTMAP FILERULE"
-for retired_key in $retired_conf_keys; do
+# 30 Oct 26 (S.89): THE NAMES ARE THE LITERAL WORDS OF THE for.  This script runs under IFS=$'\n\t' (line 100), so a list kept in a variable
+# ("for k in $list") is ONE word here and matched nothing: an upgrade that kept an sd.conf still naming APILOGIN could not start SD.
+for retired_key in INVCASE CODEPAGE EXCLREM RINGWAIT TXCHAR APILOGIN CREATUSR JNLDIR JNLMODE GDI FIXUSERS PORTMAP FILERULE; do
     if grep -q "^${retired_key}=" /etc/sd.conf; then
         sudo sed -i "/^${retired_key}=/d" /etc/sd.conf
         echo "Removed the retired parameter ${retired_key} from /etc/sd.conf."
