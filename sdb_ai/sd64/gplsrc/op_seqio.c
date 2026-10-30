@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 30 Oct 26 dm  S.88 A1: the OPENSEQ file,record form looks at the raw record name for a symbolic link before resolving it (so CREATING of a link to nothing
+ *               is refused there too), and the create that WRITESEQ and WEOFSEQ make on the first write never follows a link at the end of the name
+ *               (DIO_OVERWRITE_NOFOLLOW).
  * 30 Oct 26 dm  S.88 stage E2: OPENSEQ ... CREATING of a name that does not exist is exclusive (O_EXCL; ER_EXISTS 6032 when a file or a dangling link is there by
  *               the time it is made); SHARED keeps open-or-create.
  * 17 Oct 26 dm  S.64 part 2: OPENSEQ and DELETESEQ ask edit_os_path_refusal() about what is ABOVE the final name only (include_leaf
@@ -552,6 +555,11 @@ Private void openseq(bool map_name) {
       k_error("Overflowed path/filename size in openseq()");
       goto exit_op_openseq;
     }
+    /* 30 Oct 26 dm - S.88 A1 (the second Opus review of E2): the record of a directory file can be a planted symbolic link as well, and fullpath()
+       follows it just as it does in the pathname form below; the raw name is looked at BEFORE it is resolved, so the CREATING refusal further down
+       covers this form too. */
+    if (lstat(pathname, &leaf_stat_buf) == 0 && S_ISLNK(leaf_stat_buf.st_mode))
+      leaf_is_link = TRUE;
     fullpath(fullpathname, pathname);
   } else /* OPENSEQP */
   {
@@ -724,6 +732,11 @@ Private void openseq(bool map_name) {
   fvar->id = NULL;
   fvar->flags = 0;
   if (read_only || edit_blocked) /* edit_blocked also covers a file that does not exist yet: its first WRITESEQ is refused */
+    fvar->flags |= FV_RDONLY;
+  /* 30 Oct 26 dm - S.88 A1: the name is a link that leads nowhere (stat() failed above, so no file was opened): fullpath() has already replaced the name by the
+     link's TARGET, so the create that the first WRITESEQ would make could not tell any more; the first WRITESEQ is refused as for a place the session may not
+     change.  (DIO_OVERWRITE_NOFOLLOW in create_seq_record covers a link planted after this OPENSEQ.) */
+  if (leaf_is_link && !(flags & SQ_PORT) && !ValidFileHandle(fu))
     fvar->flags |= FV_RDONLY;
 
   if (flags & SQ_NOTFL) /* Not really a file at all */
@@ -2133,7 +2146,11 @@ Private OSFILE create_seq_record(FILE_VAR* fvar) {
     }
   }
 
-  fu = dio_open(sq_file->pathname, DIO_OVERWRITE);
+  /* 30 Oct 26 dm - S.88 A1: never through a symbolic link at the end of the name.  The OPENSEQ that left this file to be made on its first write found
+     nothing at the name; a link planted since (or a dangling one that stat() could not follow) would send the create to the link's TARGET, which the
+     OS-access gate resolved as "inside the account".  A failure is -ER_SQNC, as any other file that cannot be made.  Not O_EXCL: two processes may add to
+     one log file. */
+  fu = dio_open(sq_file->pathname, DIO_OVERWRITE_NOFOLLOW);
   if (ValidFileHandle(fu))
     sq_file->fu = fu;
 

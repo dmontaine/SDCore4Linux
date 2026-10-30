@@ -303,7 +303,32 @@ ZSLK = """\
 end
 """
 
-PROGS = {"zsopen": ZSOPEN, "zswrite": ZSWRITE, "zsone": ZSONE, "zsidx": ZSIDX, "zshold": ZSHOLD, "zslk": ZSLK}
+# 30 Oct 26 (S.66, the OSPATH() gap; Opus's decision): the SAME OS probe as ZSINT but an ORDINARY program, run by an account that holds the OS access.  The function OSPATH() of a program that
+# is not $internal is a different opcode (x_ospath, op_xfun.c) from the $internal one (op_dio2.c), and the shared-account refusal was only in the second.  The line it prints starts NO ..., so
+# the rows cannot mistake it for ZSINT's.  kind|target as in ZSINT; OSS prints STATUS() after the call.
+ZSNON = """\
+program zsnon
+   openseq 'zs.args' to a else crt 'NO noargs' ; stop
+   loop
+      readseq line from a else exit
+      kind = field(line, '|', 1) ; tgt = field(line, '|', 2)
+      ok = 1
+      begin case
+         case kind = 'OSD'
+            x = ospath(tgt, 5) ; if not(x) then ok = 0
+         case kind = 'OSM'
+            x = ospath(tgt, 13) ; if not(x) then ok = 0
+         case kind = 'OSP'
+            x = ospath(tgt, 14) ; if not(x) then ok = 0
+      end case
+      crt 'NO ':kind:' ':tgt:' ':(if ok then 'OK' else 'REFUSED'):' status=':status()
+   repeat
+   close a
+   crt 'NO end'
+end
+"""
+
+PROGS = {"zsopen": ZSOPEN, "zswrite": ZSWRITE, "zsone": ZSONE, "zsidx": ZSIDX, "zshold": ZSHOLD, "zslk": ZSLK, "zsnon": ZSNON}
 
 ZSK = """\
 $internal
@@ -1019,6 +1044,30 @@ def structure_section():
         row("C: %s: ...the DISK agrees: the file is still there, the directory is not made, nothing new was created" % name,
             os.path.exists(os.path.join(S_, "szdel.txt")) and os.path.isdir(os.path.join(S_, "szdeldir")) and not os.path.exists(os.path.join(S_, "szmkdir"))
             and not os.path.exists(os.path.join(S_, "szmkpath")) and not os.path.exists(os.path.join(S_, "zsnewfile")), "")
+    # --- the ORDINARY program's OSPATH() (30 Oct 26, S.66, Opus's decision): an account that holds the OS access is not stopped by the OS gate, so the shared-account refusal is the only wall
+    S_n = S()
+    g.put(os.path.join(S_n, "sznon.txt"), "delete me too\n")
+    os.makedirs(os.path.join(S_n, "sznondir"), exist_ok=True)
+    own = os.path.join(acct_path("zsall"), "zsown-del.txt")
+    g.put(own, "mine\n")
+    nlines = ["OSD|%s/sznon.txt" % S_n, "OSM|%s/sznonmk" % S_n, "OSP|%s/sznonpath/a/b" % S_n, "OSD|%s/sznondir" % S_n, "OSD|%s" % own]
+    out = run_prog("zsall", "zsnon", nlines)
+    row("C: zsall (every gate on), an ORDINARY program: OSPATH() delete / mkdir / mkpath inside shared answer false with STATUS() ER_PERM (the function, not the $internal opcode)",
+        has_text(out, "NO OSD %s/sznon.txt REFUSED" % S_n) and has_text(out, "NO OSM %s/sznonmk REFUSED" % S_n) and has_text(out, "NO OSP %s/sznonpath/a/b REFUSED" % S_n)
+        and has_text(out, "NO OSD %s/sznondir REFUSED" % S_n), repr(out[-7:]))
+    row("C: ...the DISK agrees: the file is still there, the directory still exists, nothing was made",
+        os.path.exists(os.path.join(S_n, "sznon.txt")) and os.path.isdir(os.path.join(S_n, "sznondir")) and not os.path.exists(os.path.join(S_n, "sznonmk"))
+        and not os.path.exists(os.path.join(S_n, "sznonpath")), "")
+    row("C: CONTROL - the same call on a file in the account's OWN directory is not refused: OK, and the file is gone",
+        has_text(out, "NO OSD %s OK" % own) and not os.path.exists(own), repr(out[-3:]))
+    out = g.sd(acct_path("zsall"), ["RUN bp zsnon"], admin=True, account="zsall")
+    row("C: CONTROL - the administrator, the same ordinary program: the shared file is deleted, the directory made",
+        has_text(out, "NO OSD %s/sznon.txt OK" % S_n) and has_text(out, "NO OSM %s/sznonmk OK" % S_n) and not os.path.exists(os.path.join(S_n, "sznon.txt"))
+        and os.path.isdir(os.path.join(S_n, "sznonmk")), repr(out[-5:]))
+    for p in ("sznonmk", "sznonpath", "sznondir"):
+        full = os.path.join(S_n, p)
+        if os.path.isdir(full):
+            shutil.rmtree(full)
     args_file("zsall", lines)
     out = g.sd(acct_path("zsall"), ["ZSINT"], admin=True, account="zsall")
     row("C: CONTROL - the administrator, the same program: every one of them is OK", all(has_text(out, "IN %s %s OK" % (k, t)) for k, t in (

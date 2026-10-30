@@ -136,7 +136,8 @@ def read(path):
 
 def load():
     src = {"ide": read(os.path.join(GPL, "ide")), "inm": read(os.path.join(GPL, "ide_name")), "osf": read(os.path.join(GPL, "ide_osfile")),
-           "seqio": read(os.path.join(SRC, "op_seqio.c")), "dio4": read(os.path.join(SRC, "op_dio4.c")), "dhfile": read(os.path.join(SRC, "dh_file.c"))}
+           "seqio": read(os.path.join(SRC, "op_seqio.c")), "dio4": read(os.path.join(SRC, "op_dio4.c")), "dhfile": read(os.path.join(SRC, "dh_file.c")),
+           "sdh": read(os.path.join(SRC, "sd.h"))}
     for n in list(NEWMSG) + list(DELETED) + [11214, 11739, 11202]:
         src["m%d" % n] = read(os.path.join(MSG, str(n)))
     allbp = []
@@ -198,7 +199,16 @@ def checks(src):
        "change here' refusal",
        ordered(nb, "lstat(file_name, &leaf_stat_buf) == 0 && S_ISLNK(leaf_stat_buf.st_mode)", "leaf_is_link = TRUE;", "fullpath(fullpathname, file_name);")
        and ordered(nb, "else if ((op_flags & 0x400) && edit_blocked)", "else if ((op_flags & 0x400) && leaf_is_link)", "process.status = ER_EXISTS;", "else if (op_flags & 0x400)")
-       and nb.count("leaf_is_link") == 3, repr(nb.count("leaf_is_link")))
+       and nb.count("leaf_is_link") == 5, repr(nb.count("leaf_is_link")))        # 5 since S.88 A1: the declaration, the two places that set it (pathname form, file,record form), the CREATING refusal, the read-only mark
+    ck("O1d", "op_seqio.c (S.88 A1, the second Opus review): the OPENSEQ file,record form looks at the raw record name with lstat() BEFORE fullpath() resolves it, so a CREATING of a record that is a "
+       "link to nothing is refused as in the pathname form; an OPENSEQ that found a link to nothing and opened nothing marks the file variable read only (the first WRITESEQ is refused: fullpath() "
+       "has already replaced the name by the link's target, so the create cannot tell any more); the create a WRITESEQ makes on a first write never follows a link at the end of the name "
+       "(DIO_OVERWRITE_NOFOLLOW = O_RDWR | O_CREAT | O_NOFOLLOW)",
+       ordered(nb, "lstat(pathname, &leaf_stat_buf) == 0 && S_ISLNK(leaf_stat_buf.st_mode)", "leaf_is_link = TRUE;", "fullpath(fullpathname, pathname);")
+       and ordered(nb, "if (leaf_is_link && !(flags & SQ_PORT) && !ValidFileHandle(fu))", "fvar->flags |= FV_RDONLY;")
+       and "fu = dio_open(sq_file->pathname, DIO_OVERWRITE_NOFOLLOW);" in nb
+       and re.search(r"case DIO_OVERWRITE_NOFOLLOW:.*?O_RDWR \| O_CREAT \| O_NOFOLLOW", dh, re.S) is not None
+       and "DIO_OVERWRITE_NOFOLLOW" in src["sdh"], repr((nb.count("DIO_OVERWRITE_NOFOLLOW"), "DIO_OVERWRITE_NOFOLLOW" in src.get("sdh", ""))))
     dio = re.search(r"OSFILE dio_open\(char\* fn, int mode\) \{(.*?)\n\}\n", dh, re.S)
     dio = dio.group(1) if dio else ""
     nbd = norm(dio)
@@ -574,6 +584,11 @@ mut("11727 is cited again", "O20", add_bp(" msg = sysmsg(11727)"))
 mut("the help forgets Save", "O21", sub1("m11214", "an untitled one asks for its file and name; path:/full/name there makes a file of the operating system", "an untitled one asks for its file and name"))
 mut("the help forgets New", "O21", sub1("m11214", "New record (path:/full/name makes an empty file of the operating system and opens it)", "New record"))
 mut("11739 forgets the file copy", "O21", sub1("m11739", ", or in another operating system file", ""))
+M_A1 = len(M)                       # the first mutant of S.88 A1 (30 Oct 26): --selftest --from=N with this N runs only these four
+mut("the file,record form does not look at the raw record name", "O1d", sub1("seqio", "if (lstat(pathname, &leaf_stat_buf) == 0 && S_ISLNK(leaf_stat_buf.st_mode))", "if (lstat(pathname, &leaf_stat_buf) == 1 && S_ISLNK(leaf_stat_buf.st_mode))"))
+mut("a link to nothing no longer marks the file variable read only", "O1d", sub1("seqio", "if (leaf_is_link && !(flags & SQ_PORT) && !ValidFileHandle(fu))", "if (0 && !(flags & SQ_PORT) && !ValidFileHandle(fu))"))
+mut("the create on a first write follows a link again", "O1d", sub1("seqio", "fu = dio_open(sq_file->pathname, DIO_OVERWRITE_NOFOLLOW);", "fu = dio_open(sq_file->pathname, DIO_OVERWRITE);"))
+mut("the new open mode has no O_NOFOLLOW", "O1d", sub1("dhfile", "open_modes = O_RDWR | O_CREAT | O_NOFOLLOW | O_BINARY;", "open_modes = O_RDWR | O_CREAT | O_BINARY;"))
 
 
 def report(rows):

@@ -194,6 +194,7 @@ OSFILE dio_open(char * fn, int mode);
    #define DIO_READ      3 /* Open existing file, read only */
    #define DIO_UPDATE    4 /* Open existing file, read/write */
    #define DIO_OVERWRITE 5 /* Open file, creating if doesn't exist */
+   #define DIO_OVERWRITE_NOFOLLOW 6 /* As DIO_OVERWRITE, but never through a symbolic link at the end of the name (O_NOFOLLOW; 30 Oct 26, S.88 A1) */
 
 /* INIPATH.C */
 bool GetConfigPath(char * inipath);

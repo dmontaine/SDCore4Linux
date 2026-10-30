@@ -29,7 +29,7 @@ def read(path):
 
 
 def load():
-    d = {n: read(os.path.join(BP, n)) for n in ("recarr", "ced_edit", "ide")}
+    d = {n: read(os.path.join(BP, n)) for n in ("recarr", "ced_edit", "ced_core", "ide")}
     for n in ("11226", "11215", "11988", "11989", "11990", "11991", "11992"):
         d["m" + n] = read(os.path.join(MSG, n))
     return d
@@ -106,15 +106,19 @@ def checks(p):
         "\n".join(ff))
 
     # ---- C: CED's data mode ----------------------------------------------------------------------------------------------------------------------------------------
-    c = p["ced_edit"]
+    ce = p["ced_edit"]                       # 30 Oct 26 (one-editor plan, stage 1): the host keeps the key loop and the write; the engine ced_core holds what the editor does with the data
+    c = p["ced_core"]
     row("C1 CED: an editor called with ftype 2 on something that is not an array returns at once (a record is an array of fields)",
-        re.search(r"if ftype = 2 and kind # 'array' then return", c) is not None)
-    sv = code(section(c, "save.record"))
-    row("C2 save.record: ftype 2 asks $recarr for the record text BEFORE anything is written, and a refusal sets save.ok false with message 11988 and returns",
-        ordered(sv, [r"if ftype = 2 then", r"call \$recarr\('from', c, rec\.text, rec\.ok\)", r"if not\(rec\.ok\) then", r"message\.text = sysmsg\(11988\)", r"save\.ok = @false", r"^return$", r"\bwriteu\b"]),
-        "\n".join(sv[:14]))
-    row("C3 save.record: the text written in data mode is the one $recarr made (rec.text), not the JSON",
-        first(sv, r"if ftype = 2 then text = rec\.text else text = jbuild\(c\)") is not None)
+        re.search(r"if ftype = 2 and kind # 'array' then return", ce) is not None)
+    pv = code(section(c, "op.prep.save"))
+    sv = code(section(ce, "save.record"))
+    row("C2 save: ftype 2 asks $recarr for the record text BEFORE anything is written - the engine's prep.save refuses (message 11988, ok false) and the host's save.record returns before its first writeu",
+        ordered(pv, [r"case ftype = 2", r"call \$recarr\('from', c, rec\.text, rec\.ok\)", r"if not\(rec\.ok\) then", r"message\.text = sysmsg\(11988\)", r"st\{'ok'\} = @false"])
+        and ordered(sv, [r"call \$ced_core\('prep\.save', st, '', out\)", r"if not\(st\{'ok'\}\) then", r"^return$", r"\bwriteu\b"]),
+        "\n".join(pv[:14]) + "\n--\n" + "\n".join(sv[:8]))
+    row("C3 save: the text written in data mode is the one $recarr made (rec.text), not the JSON - the engine hands it over as st{'text'} and the host writes rec.text for every ftype but 0",
+        ordered(pv, [r"case ftype = 2", r"st\{'text'\} = rec\.text", r"case ftype = 1", r"st\{'text'\} = jbuild\(c\)"]) and first(sv, r"^rec\.text = st\{'text'\}$") is not None
+        and first(sv, r"writeu rec\.text on fv, id on error") is not None)
     dt = code(section(c, "data.types"))
     row("C4 data.types: a string may become a list only where n.path < 2, a list becomes a string only when empty or one string",
         first(dt, r"if n\.path < 2 then ct\.allowed<-1> = 'array'") is not None and first(dt, r"if inmat\(x\) = 0 then") is not None
@@ -250,11 +254,13 @@ def selftest():
     mutant("a field of subvalues only is a string", "recarr", "index(f.t, @vm, 1) or index(f.t, @sm, 1)", "index(f.t, @vm, 1)", "R2")
     mutant("the value mark is not put back", "recarr", "if v.i > 1 then b := @vm", "if v.i > 1 then b := @fm", "R3")
     mutant("a subvalue that is not a string is let through", "recarr", "if jtype(s.e) = 'string' then b := s.e else ok = 0", "b := s.e", "R4")
-    mutant("save.record does not ask $recarr", "ced_edit", "call $recarr('from', c, rec.text, rec.ok)", "rec.ok = 1", "C2")
-    mutant("the JSON is written in data mode", "ced_edit", "if ftype = 2 then text = rec.text else text = jbuild(c)", "text = jbuild(c)", "C3")
-    mutant("a list may be a subvalue", "ced_edit", "if n.path < 2 then ct.allowed<-1> = 'array'\n      case et = 'array'", "if n.path < 3 then ct.allowed<-1> = 'array'\n      case et = 'array'", "C4")
-    mutant("insert offers numbers in data mode", "ced_edit", "      ct.allowed = 'string'\n      if n.path < 2", "      ct.allowed = 'string' : @fm : 'number'\n      if n.path < 2", "C5")
-    mutant("a paste is not asked of data.fits", "ced_edit", "      gosub data.fits\n      if not(fits) then", "      fits = 1\n      if not(fits) then", "C8")
+    mutant("save does not ask $recarr", "ced_core", "call $recarr('from', c, rec.text, rec.ok)", "rec.ok = 1", "C2")
+    mutant("the host writes before the engine has agreed", "ced_edit", "   if not(st{'ok'}) then\n      gosub pull ", "   if 0 then\n      gosub pull ", "C2")
+    mutant("the JSON is written in data mode (the host)", "ced_edit", "writeu rec.text on fv, id on error", "writeu jbuild(c) on fv, id on error", "C3")
+    mutant("the JSON is handed over in data mode (the engine)", "ced_core", "st{'text'} = rec.text", "st{'text'} = jbuild(c)", "C3")
+    mutant("a list may be a subvalue", "ced_core", "if n.path < 2 then ct.allowed<-1> = 'array'\n      case et = 'array'", "if n.path < 3 then ct.allowed<-1> = 'array'\n      case et = 'array'", "C4")
+    mutant("insert offers numbers in data mode", "ced_core", "      ct.allowed = 'string'\n      if n.path < 2", "      ct.allowed = 'string' : @fm : 'number'\n      if n.path < 2", "C5")
+    mutant("a paste is not asked of data.fits", "ced_core", "      gosub data.fits\n      if not(fits) then", "      fits = 1\n      if not(fits) then", "C8")
     mutant("do.fields gives CED the record's file and id", "ide", "call $cedit(fd.arr, '', '', 2,", "call $cedit(fd.arr, fv, fd.id, 2,", "I")
     mutant("do.fields writes the record itself", "ide", "if fd.ok then fd.new = fd.text", "if fd.ok then fd.new = fd.text ; write fd.new on fv, fd.id", "I6")
     mutant("do.fields does not take the screen again", "ide", "   gosub retake.quiet\n   return\n\n* The window changed size", "   return\n\n* The window changed size", "I4")

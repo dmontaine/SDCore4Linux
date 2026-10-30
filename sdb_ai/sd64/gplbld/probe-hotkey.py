@@ -75,6 +75,22 @@ PROG_LOAD = """   open '%(f)s' to f else stop 'no file'
 end
 """
 
+# How many ids the index holds for the hot value, and how many records the file holds: the fixture's own control (a probe that times a fixture it did not check is worth nothing).
+PROG_COUNT = """   open '%(f)s' to f else stop 'no file'
+   selectindex 'VAL', 'HOT' from f to 5
+   readlist l from 5 else l = ''
+   ni = dcount(l, @fm)
+   if l = '' then ni = 0
+   nrec = 0
+   select f
+   loop
+      readnext id else exit
+      nrec += 1
+   repeat
+   crt 'IDS[':ni:'] RECORDS[':nrec:']'
+end
+"""
+
 PROG_CHANGE = """   open '%(f)s' to f else stop 'no file'
    nd = 0
    for i = %(a)d to %(b)d
@@ -102,6 +118,7 @@ def measure_size(box, sysd, n, hot, label):
     progs["zzhkw2"] = prog_change("put", a2, b2, wval)
     progs["zzhkd1"] = prog_change("del", a1, b1, wval)
     progs["zzhkd2"] = prog_change("del", a2, b2, wval)
+    progs["zzhkc"] = PROG_COUNT % {"f": F}
     for nm, body in progs.items():
         with open(os.path.join(sysd, "bp", nm), "w") as fh:
             fh.write(body)
@@ -118,7 +135,20 @@ def measure_size(box, sysd, n, hot, label):
         say("  %s: BUILD.INDEX %s" % (label, out))
         return {"label": label, "n": n, "build": None, "w": None, "d": None}
     say("  %s: CREATE.INDEX + BUILD.INDEX took %.1f s" % (label, tb))
-    res = {"label": label, "n": n, "build": tb}
+    res = {"label": label, "n": n, "build": tb, "ids": None}
+
+    def count(tag, want_ids):
+        t, o = timed(box, "RUN bp zzhkc")
+        mm = re.search(r"(?m)^IDS\[(\d+)\] RECORDS\[(\d+)\]", o) if t is not None else None
+        if not mm:
+            say("  %s: %s: the count printed nothing" % (label, tag))
+            return None
+        ids, recs = int(mm.group(1)), int(mm.group(2))
+        flag = "" if (want_ids is None or ids == want_ids) else "   <== THE INDEX HOLDS %d IDS, THE FILE %d RECORDS: the fixture or the index is wrong" % (ids, recs)
+        say("  %s: %s: the index holds %d ids for the value, the file %d records%s" % (label, tag, ids, recs, flag))
+        return ids
+
+    res["ids"] = count("after BUILD.INDEX", n if hot else None)
     times = {}
     for nm, want in (("zzhkw1", SMALL), ("zzhkw2", BIG), ("zzhkd1", SMALL), ("zzhkd2", BIG)):
         t, out = timed(box, "RUN bp %s" % nm)
@@ -129,6 +159,9 @@ def measure_size(box, sysd, n, hot, label):
         else:
             times[nm] = t
             say("  %s: %s %d changes in %.2f s" % (label, nm, want, t))
+        if nm == "zzhkw2":
+            res["ids_after_writes"] = count("after the 500 writes", n + SMALL + BIG if hot else None)
+    res["ids_end"] = count("after the 500 deletes", n if hot else None)
     for key, (small, big) in (("w", ("zzhkw1", "zzhkw2")), ("d", ("zzhkd1", "zzhkd2"))):
         res[key] = None if times[small] is None or times[big] is None else (times[big] - times[small]) / (BIG - SMALL) * 1000.0
     return res
@@ -167,17 +200,18 @@ def main():
         rows.append(measure_size(box, sysd, control, False, "unique %d" % control))
     finally:
         sess(box, "DELETE.FILE %s" % F)
-        for nm in ("zzhkl", "zzhkw1", "zzhkw2", "zzhkd1", "zzhkd2"):
+        for nm in ("zzhkl", "zzhkw1", "zzhkw2", "zzhkd1", "zzhkd2", "zzhkc"):
             for d in ("bp", "bp.out"):
                 p = os.path.join(sysd, d, nm)
                 if os.path.exists(p):
                     os.remove(p)
         subprocess.run([sys.executable, TOOL, box, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
     say("\nprobe-hotkey: RESULT (ms per ONE online change with the index kept by the write; BUILD in seconds)")
-    say("  %-18s %10s %12s %14s %14s" % ("case", "records", "BUILD s", "write ms", "delete ms"))
+    say("  %-18s %10s %12s %14s %14s %24s" % ("case", "records", "BUILD s", "write ms", "delete ms", "ids: built/+500/-500"))
     for r in rows:
         f = lambda v, w=1: "n/a" if v is None else ("%.*f" % (w, v))
-        say("  %-18s %10d %12s %14s %14s" % (r["label"], r["n"], f(r["build"]), f(r["w"], 2), f(r["d"], 2)))
+        say("  %-18s %10d %12s %14s %14s %24s" % (r["label"], r["n"], f(r["build"]), f(r["w"], 2), f(r["d"], 2),
+                                               "%s/%s/%s" % (r.get("ids"), r.get("ids_after_writes"), r.get("ids_end"))))
     say("probe-hotkey: done (a measurement; no verdict)")
     return 0
 

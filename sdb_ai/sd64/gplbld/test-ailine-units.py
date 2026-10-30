@@ -19,7 +19,7 @@ GPL = os.path.join(SD64, "sdsys", "gpl.bp")
 MSG = os.path.join(SD64, "sdsys", "messages")
 FILES = {"tk_ai": os.path.join(GPL, "tk_ai"), "tool_home": os.path.join(GPL, "tool_home"), "tk.h": os.path.join(GPL, "tk.h"),
          "ide": os.path.join(GPL, "ide"), "sl_form": os.path.join(GPL, "sl_form"),
-         "sed": os.path.join(GPL, "sed"), "ced_edit": os.path.join(GPL, "ced_edit"), "debug": os.path.join(GPL, "debug")}
+         "sed": os.path.join(GPL, "sed"), "ced_edit": os.path.join(GPL, "ced_edit"), "ced_core": os.path.join(GPL, "ced_core"), "debug": os.path.join(GPL, "debug")}
 MSGS = list(range(11635, 11653))
 MSGS2 = list(range(11653, 11682))              # AI line stage 2 (the IDE: edits as diffs, 11653-11669) and stage 3 (SED, CED, the debugger: 11670-11681)
 
@@ -151,7 +151,8 @@ def checks(s):
     # AI line stage 3 (24 Oct 2026): SED, CED and the debugger
     sed = strip_bas(s["sed"])
     sed_ai = sed[sed.find("ai.run:"):sed.find("ai.say:")]
-    ced = strip_bas(s["ced_edit"])
+    ced = strip_bas(s["ced_core"])               # 30 Oct 26: CED's AI code is the engine's (ced_core); the host (ced_edit) asks whether the AI is usable and hands the answer over
+    ced_host = strip_bas(s["ced_edit"])
     ced_ai = ced[ced.find("ai.menu:"):ced.find("revert:")]
     dbg = strip_bas(s["debug"])
     dbg_ai = dbg[dbg.find("ai.run:"):dbg.find("help:")]
@@ -167,7 +168,7 @@ def checks(s):
        ordered(sed_ai, "ai.apply:", "if read.only then", "gosub read.only.buffer", "call $tk_ai('splice'", "if ai.sp = '' then", "sysmsg(11666)", "gosub rebuild.chunks", "record.updated = @true")
        and not re.search(r"\b(save\.record|write|writeu|writev)\b", sed_ai), "")
     ck("X5 CED offers F2 only when the AI is usable; an accepted set must leave a JSON collection or array (else 11677 and c is not touched); the old record is kept for one undo BEFORE c is replaced; the routines save nothing",
-       "case c.key = 'f2' and ai.ok" in ced and "call $tk_ai('usable', '', ai.ok, ai.pm)" in ced
+       "case c.key = 'f2' and ai.ok" in ced and "call $tk_ai('usable', '', ai.ok, ai.pm)" in ced_host and "st{'ai.ok'} = ai.ok" in ced_host
        and ordered(ced_ai, "ai.apply:", "call $tk_ai('splice'", "ai.y = jparse(ai.sp<1>)", "if ai.bad then", "sysmsg(11677)", "return", "ai.undo = jbuild(c)", "c = ai.y", "dirty = @true")
        and "'nocmd'" in ced_ai and not re.search(r"\b(save\.record|writeu|writev)\b", ced_ai), "")
     ck("X6 the debugger offers the command AI only in the full-screen display and when the AI is usable (ai.ok is set only under full.screen), sends no text to edit (so no edit is asked for), ignores a command, and draws the screen again after",
@@ -201,9 +202,9 @@ MUTANTS = [
     ("SED applies in a read only buffer", "sed", "   if read.only then\n      gosub read.only.buffer\n      return\n   end\n   gosub save.current\n   gosub assemble.record\n   ai.now", "   gosub save.current\n   gosub assemble.record\n   ai.now", "X4"),
     ("SED offers the AI without the gate", "sed", "   if ai.ok then\n      ml = '-' ; mc = 'x:' ; gosub add.item\n      ml = 'Ask the &AI...'", "   if @true then\n      ml = '-' ; mc = 'x:' ; gosub add.item\n      ml = 'Ask the &AI...'", "X2"),
     ("SED lets the mouse report during the wait", "sed", "   gosub mouse.disarm\n   call $tk_ai('ask'", "   call $tk_ai('ask'", "X3"),
-    ("CED accepts invalid JSON", "ced_edit", "   if ai.bad then\n      message.text = sysmsg(11677)\n      return\n   end\n", "   if ai.bad then\n      ai.y = jparse('{}')\n   end\n", "X5"),
-    ("CED replaces c before keeping the old record", "ced_edit", "   ai.undo = jbuild(c)\n   c = ai.y\n", "   c = ai.y\n   ai.undo = jbuild(c)\n", "X5"),
-    ("CED saves after applying", "ced_edit", "   message.text = sysmsg(11676, ai.sp<3>)\n", "   gosub save.record\n   message.text = sysmsg(11676, ai.sp<3>)\n", "X5"),
+    ("CED accepts invalid JSON", "ced_core", "   if ai.bad then\n      message.text = sysmsg(11677)\n      return\n   end\n", "   if ai.bad then\n      ai.y = jparse('{}')\n   end\n", "X5"),
+    ("CED replaces c before keeping the old record", "ced_core", "   ai.undo = jbuild(c)\n   c = ai.y\n", "   c = ai.y\n   ai.undo = jbuild(c)\n", "X5"),
+    ("CED saves after applying", "ced_core", "   message.text = sysmsg(11676, ai.sp<3>)\n", "   gosub save.record\n   message.text = sysmsg(11676, ai.sp<3>)\n", "X5"),
     ("the debugger offers AI outside the full-screen display", "debug", "   if full.screen then call $tk_ai('usable', '', ai.ok, ai.pm)", "   call $tk_ai('usable', '', ai.ok, ai.pm)", "X6"),
     ("the debugger sends text to edit", "debug", ": @fm : '' : @fm : 1 : @fm : '' : @fm : 'nocmd'", ": @fm : ai.page : @fm : 1 : @fm : '' : @fm : 'nocmd'", "X6"),
     # 28 Oct 26 (TUI phase 2 review): the IDE's AI step in the memo's old form (value marks for line ends), which the memo reads as legacy - marker 27 for --from=27

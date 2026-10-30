@@ -841,6 +841,7 @@ FC_START, FC_END = "read -r -d '' FC_PY <<'FC_PY_END' || true\n", "\nFC_PY_END\n
 def ownedby_rows(helper=None):
     """Returns (rows, skipped).  A row is (label, ok, detail)."""
     import grp
+    import pwd
     rows = []
     skipped = []
     if os.geteuid() == 0:
@@ -954,6 +955,20 @@ def ownedby_rows(helper=None):
             os.symlink(sub, lsub)
             wrow("REFUSE: a link in a directory ABOVE the file (the path names another place than the file opened) is found, and nothing is changed", os.path.join(lsub, "f4"),
                  lambda c, o: c == 2 and "not where it was when it was checked" in o and os.stat(os.path.join(sub, "f4")).st_gid == g1, group=gname(g2))
+        if g2 is not None:
+            # ---- 30 Oct 26, S.78 3c: the account shapes name no owner (-1) and give the file to a user BY NAME
+            f6 = mkfile("f6")
+            wrow("ALLOW: an owner argument of -1 is 'no rule about who owns it now': the same file the control below refuses is chowned", f6,
+                 lambda c, o: c == 0 and "chowned" in o and os.stat(f6).st_gid == g2, owner=-1, group=gname(g2))
+            f7 = mkfile("f7")
+            wrow("REFUSE: ...and the control: with an owner argument of uid+1 that file is refused and unchanged", f7,
+                 lambda c, o: c == 2 and "belongs to uid" in o and os.stat(f7).st_gid == g1, owner=me + 1, group=gname(g2))
+            f8 = mkfile("f8")
+            wrow("ALLOW: the user may be given by NAME: the runner's own name gives the file to the runner (the output names the uid)", f8,
+                 lambda c, o: c == 0 and f"to {me}:" in o and os.stat(f8).st_uid == me and os.stat(f8).st_gid == g2, owner=-1, group=gname(g2), newuid=pwd.getpwuid(me).pw_name)
+            f9 = mkfile("f9")
+            wrow("REFUSE: a user that does not exist is refused, and the file is unchanged", f9,
+                 lambda c, o: c == 2 and "the user zzf12nouser does not exist" in o and os.stat(f9).st_gid == g1, owner=-1, group=gname(g2), newuid="zzf12nouser")
         wf = os.path.join(wd, "pipe")
         os.mkfifo(wf)
         wrow("REFUSE: the worker refuses a named pipe", wf, lambda c, o: c == 2 and "neither a directory nor a plain file" in o)
@@ -961,15 +976,21 @@ def ownedby_rows(helper=None):
         wrow("REFUSE: the worker refuses a path that is not there (a worker that never opened anything must not say it chowned)", os.path.join(wd, "nothere"),
              lambda c, o: c == 2 and "cannot open" in o and "chowned" not in o)
         # ---- the tail: the real run calls the worker with the path, the owner, the group and 0, in that order, only for this shape
-        tail = 'if [[ -n $FC_PATH ]]; then\n  python3 -I -c "$FC_PY" "$FC_PATH" "$FC_OWNER" "$FC_GROUP" 0 || exit $?\nelse\n  "${cmd[@]}" || exit $?\nfi\n'
-        rows.append(("TEXT: the real run chowns through the worker when FC_PATH is set (path, owner, group, 0 - the order the worker reads them) and runs the command otherwise", tail in src, ""))
+        tail = ('if [[ -n $FC_PATH ]]; then\n  python3 -I -c "$FC_PY" "$FC_PATH" "$FC_OWNER" "$FC_GROUP" "$FC_USER" || exit $?\n'
+                'elif [[ -n $SG_PATH ]]; then\n  python3 -I -c "$SG_PY" "$SG_PATH" || exit $?\nelse\n  "${cmd[@]}" || exit $?\nfi\n')
+        rows.append(("TEXT: the real run chowns through the worker when FC_PATH is set (path, owner, group, user - the order the worker reads them), sets the setgid bit through its own when SG_PATH is set, and runs the command otherwise", tail in src, ""))
         rows.append(("TEXT: every python3 the helper runs from a string is run with -I (sudo keeps the caller's current directory, and `python3 -c` would import a planted grp.py from it as root); "
                      "none without; and the worker refuses, rather than skips the link check, when /proc cannot be read",
-                     src.count("python3 -c") == 0 and src.count("python3 -I -c") == 2 and 'refuse("cannot tell where the open file is' in src and "here = path" not in src,
+                     src.count("python3 -c") == 0 and src.count("python3 -I -c") == 4 and 'refuse("cannot tell where the open file is' in src and "here = path" not in src,
                      f"python3 -c: {src.count('python3 -c')}, python3 -I -c: {src.count('python3 -I -c')}"))
         root_case = src[src.find("    root)\n      [[ $group == sdusers ]]"):src.find("    sdsys)\n      require_sd_chown_path")]
-        rows.append(("TEXT: FC_PATH is set in the root case of require_account_owner and nowhere else, after the owner has been checked",
-                     src.count("FC_PATH=$real") == 1 and 0 < root_case.find("require_sdsys_owned") < root_case.find("FC_PATH=$real"), root_case[-120:]))
+        sdsys_case = src[src.find("    sdsys)\n      require_sd_chown_path"):src.find("    *)\n      require_sd_user \"$user\"")]
+        user_case = src[src.find("    *)\n      require_sd_user \"$user\""):src.find("  # Not -R: createa names each path it made")]
+        rows.append(("TEXT: FC_PATH is set in each of the three cases of require_account_owner and nowhere else, after that case's own checks (the owner for root, the group account's files for sdsys, the account directory for a user)",
+                     src.count("FC_PATH=$real") == 3 and 0 < root_case.find("require_sdsys_owned") < root_case.find("FC_PATH=$real")
+                     and 0 < sdsys_case.find("require_group_account_files") < sdsys_case.find("FC_PATH=$real") and sdsys_case.find("FC_OWNER=-1") > 0 and "FC_USER=sdsys" in sdsys_case
+                     and 0 < user_case.find('is not the account directory of') < user_case.find("FC_PATH=$real") and user_case.find("FC_OWNER=-1") > 0 and 'FC_USER=$user' in user_case,
+                     (sdsys_case[-160:] + " | " + user_case[-160:])))
     finally:
         shutil.rmtree(td, ignore_errors=True)
     return rows, skipped
@@ -978,19 +999,23 @@ def ownedby_rows(helper=None):
 _FW = 'fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY)'
 OWNEDBY_MUTANTS = [
     ("ownedby: the worker follows a link at the end", _FW, _FW.replace(" | os.O_NOFOLLOW", "")),
-    ("ownedby: the worker does not ask the open file who owns it", "    if st.st_uid != owner:\n        refuse(", "    if False:\n        refuse("),
+    ("ownedby: the worker does not ask the open file who owns it", "    if owner >= 0 and st.st_uid != owner:", "    if False:"),
     ("ownedby: the worker takes any kind of file", "    if not (stat.S_ISDIR(st.st_mode) or stat.S_ISREG(st.st_mode)):\n", "    if False:\n"),
-    ("ownedby: the worker does not check that the path still names the open file", "    if here != path:\n        refuse(", "    if False:\n        refuse("),
+    ("ownedby: the worker does not check that the path still names the open file", "    if here != path:\n        refuse(\"%s is not where it was when it was checked (the open file", "    if False:\n        refuse(\"%s is not where it was when it was checked (the open file"),
     ("ownedby: the helper's own owner check is gone", '  [[ $have == "$SDSYS_UID" ]] \\\n    || die "path', '  true \\\n    || die "path'),
     ("ownedby: the root shape does not ask for the owner", '      require_sdsys_owned "$real"\n', ''),
     ("ownedby: the fixture is honoured on a real run", "if [[ $DRY -eq 1 && -n ${SD_SDSYS_UID_FIXTURE:-} ]]; then", "if [[ -n ${SD_SDSYS_UID_FIXTURE:-} ]]; then"),
     ("ownedby: a fixture that is not a number is taken", '[[ $SD_SDSYS_UID_FIXTURE =~ ^[0-9]+$ ]] || die "SD_SDSYS_UID_FIXTURE is not a number"', 'true || die "SD_SDSYS_UID_FIXTURE is not a number"'),
     ("ownedby: any kind of file passes the helper's own check", '  [[ -d $real || -f $real ]] || die "path \'$real\' is neither a directory nor a plain file"\n', ''),
-    ("ownedby: the real run runs the command and not the worker", 'python3 -I -c "$FC_PY" "$FC_PATH" "$FC_OWNER" "$FC_GROUP" 0 || exit $?', '"${cmd[@]}" || exit $?'),
+    ("ownedby: the real run runs the command and not the worker", 'python3 -I -c "$FC_PY" "$FC_PATH" "$FC_OWNER" "$FC_GROUP" "$FC_USER" || exit $?', '"${cmd[@]}" || exit $?'),
     ("ownedby: the worker runs without -I (a grp.py in the caller's current directory would be imported as root)", 'python3 -I -c "$FC_PY"', 'python3 -c "$FC_PY"'),
     ("ownedby: group-write's worker runs without -I", 'python3 -I -c "$GW_PY"', 'python3 -c "$GW_PY"'),
     ("ownedby: the worker goes on when /proc cannot say where the open file is", 'refuse("cannot tell where the open file is (is /proc mounted?): %s" % e.strerror)', 'here = path'),
-    ("ownedby: the worker is given the arguments in another order", '"$FC_PATH" "$FC_OWNER" "$FC_GROUP" 0 || exit $?', '"$FC_PATH" "$FC_GROUP" "$FC_OWNER" 0 || exit $?'),
+    ("ownedby: the worker is given the arguments in another order", '"$FC_PATH" "$FC_OWNER" "$FC_GROUP" "$FC_USER" || exit $?', '"$FC_PATH" "$FC_GROUP" "$FC_OWNER" "$FC_USER" || exit $?'),
+    ("ownedby: -1 is no longer 'no rule' (the worker asks the owner of every file)", "    if owner >= 0 and st.st_uid != owner:", "    if st.st_uid != owner:"),
+    ("ownedby: a user that does not exist is chowned to uid 0", "        refuse(\"the user %s does not exist\" % new_user)", "        new_uid = 0"),
+    ("ownedby: the sdsys shape still chowns by name through the command", "      FC_PATH=$real\n      FC_GROUP=$group\n      FC_OWNER=-1\n      FC_USER=sdsys\n", "      FC_PATH=\n"),
+    ("ownedby: the user shape still chowns by name through the command", "      FC_PATH=$real                        # 30 Oct 26 (S.78 3c): through the open file, as above\n", "      FC_PATH=                             # 30 Oct 26 (S.78 3c): through the open file, as above\n"),
 ]
 
 
@@ -1108,6 +1133,9 @@ def envtrust_rows(helper=None):
         top = src.find("\nPATH=/usr/sbin:/usr/bin:/sbin:/bin\nexport PATH\n")
         rows.append(("TEXT: PATH is fixed once, after set -uo pipefail and before the first function",
                      src.count("PATH=/usr/sbin:/usr/bin:/sbin:/bin") == 1 and 0 < src.find("\nset -uo pipefail\n") < top < src.find("\nuid_min() {"), f"at {top}"))
+        lc = src.find("\nLC_ALL=C\nexport LC_ALL\n")
+        rows.append(("TEXT: the locale is fixed once (LC_ALL=C, exported), right after PATH and before the first function, so that the caller's LANG and LC_* do not decide how the helper reads a tool's output (S.78, 30 Oct 26)",
+                     src.count("\nLC_ALL=C\nexport LC_ALL\n") == 1 and 0 < top < lc < src.find("\nuid_min() {"), f"at {lc}"))
         rows.append(("TEXT: the environment's SD_ACCT_ROOT and SD_ACCARCHIVE are read once each, into variables that main resets",
                      'SD_ACCT_ROOT=${SD_ACCT_ROOT:-$SD_ACCT_ROOT_REAL}' in src and 'SD_ACCARCHIVE=${SD_ACCARCHIVE:-$SD_ACCARCHIVE_REAL}' in src
                      and 'SD_SOCKET_UNIT=${SD_SOCKET_UNIT:-$SD_SOCKET_UNIT_REAL}' in src
@@ -1150,6 +1178,123 @@ ENVTRUST_MUTANTS = [
      '[[ -z ${SD_PATH_PREPEND:-} ]] || PATH=$SD_PATH_PREPEND:$PATH\nif trust_fixtures "$DRY" "${EUID:-$(id -u)}"; then\n  :\n'),
     ("envtrust: main never asks trust_fixtures", _TB, ""),
     ("envtrust: main tells trust_fixtures it is never a dry run", 'if trust_fixtures "$DRY" "${EUID:-$(id -u)}"; then', 'if trust_fixtures 0 "${EUID:-$(id -u)}"; then'),
+    ("envtrust: the locale is not fixed", "\nLC_ALL=C\nexport LC_ALL\n", "\n"),
+    ("envtrust: the locale is fixed but not exported", "\nLC_ALL=C\nexport LC_ALL\n", "\nLC_ALL=C\n"),
+    ("envtrust: the locale is the caller's again (LC_ALL falls back to what it was)", "\nLC_ALL=C\nexport LC_ALL\n", "\nLC_ALL=${LC_ALL:-C}\nexport LC_ALL\n"),
+]
+
+
+SG_START, SG_END = "read -r -d '' SG_PY <<'SG_PY_END' || true\n", "\nSG_PY_END\n"
+SW_START, SW_END = "read -r -d '' SW_PY <<'SW_PY_END' || true\n", "\nSW_PY_END\n"
+
+
+def fdworkers_rows(helper=None):
+    """S.78 3c (30 Oct 26).  The setgid worker (SG_PY) and the restore-place walker (SW_PY), lifted from the helper and run on scratch trees as an ordinary user (they do not need root to change a
+    directory the runner owns).  A link at the end of the name, a link above it and a link inside the tree are the three ways to aim the bit at something else; none may be followed.
+    Returns (rows, skipped).  A row is (label, ok, detail)."""
+    import stat as st_
+    rows = []
+    skipped = []
+    hp = helper or HELPER
+    src = open(hp, encoding="utf-8").read()
+    for s, e in ((SG_START, SG_END), (SW_START, SW_END)):
+        if src.count(s) != 1 or src.count(e) != 1:
+            rows.append((f"TEXT: the worker {s.split()[5]} is found once between its markers", False, "markers not found once"))
+            return rows, skipped
+    sg = src[src.index(SG_START) + len(SG_START):src.index(SG_END)] + "\n"
+    sw = src[src.index(SW_START) + len(SW_START):src.index(SW_END)] + "\n"
+    rows.append(("TEXT: both workers are found once between their markers (a test that lifted nothing must fail)", len(sg) > 500 and len(sw) > 900, f"{len(sg)} and {len(sw)} bytes"))
+    td = os.path.realpath(tempfile.mkdtemp(prefix="sdelev-fdw-"))
+    try:
+        def run(py, *args):
+            p = subprocess.run(["python3", "-I", "-c", py] + list(args), capture_output=True, text=True)
+            return p.returncode, ((p.stdout or "") + (p.stderr or "")).strip()
+
+        def isg(p):
+            return bool(os.lstat(p).st_mode & st_.S_ISGID)
+
+        def mk(*parts):
+            p = os.path.join(td, *parts)
+            os.makedirs(p, exist_ok=True)
+            return p
+
+        # ---- SG_PY: one directory
+        d1 = mk("d1")
+        code, out = run(sg, d1)
+        rows.append(("ALLOW: the setgid worker sets the bit of a directory through the open directory (and says so)", code == 0 and isg(d1) and "set the setgid bit" in out, f"exit {code}: {out[:100]}"))
+        code, out = run(sg, d1)
+        rows.append(("ALLOW: ...and the same again is no error", code == 0 and isg(d1), f"exit {code}: {out[:100]}"))
+        d2 = mk("d2")
+        l2 = os.path.join(td, "l2")
+        os.symlink(d2, l2)
+        code, out = run(sg, l2)
+        rows.append(("REFUSE: a link at the end of the name is not followed: the directory behind it is not changed", code == 2 and "without following a link" in out and not isg(d2), f"exit {code}: {out[:100]}"))
+        sub = mk("sub")
+        d3 = mk("sub", "d3")
+        lsub = os.path.join(td, "lsub")
+        os.symlink(sub, lsub)
+        code, out = run(sg, os.path.join(lsub, "d3"))
+        rows.append(("REFUSE: a link in a directory ABOVE the name (the name is another place than the directory opened) is found, and nothing is changed",
+                     code == 2 and "not where it was when it was checked" in out and not isg(d3), f"exit {code}: {out[:100]}"))
+        f1 = os.path.join(td, "f1")
+        open(f1, "w").close()
+        code, out = run(sg, f1)
+        rows.append(("REFUSE: a plain file is not a directory (and gets no bit)", code == 2 and "as a directory" in out and not isg(f1), f"exit {code}: {out[:100]}"))
+        code, out = run(sg, os.path.join(td, "nothere"))
+        rows.append(("REFUSE: a path that is not there (a worker that opened nothing must not say it set a bit)", code == 2 and "cannot open" in out and "set the setgid bit" not in out, f"exit {code}: {out[:100]}"))
+        # ---- SW_PY: a whole tree
+        top = mk("tree")
+        mk("tree", "a", "b")
+        mk("tree", "c")
+        mk("tree", "e")
+        os.chmod(os.path.join(top, "e"), os.stat(os.path.join(top, "e")).st_mode | st_.S_ISGID)
+        fl = os.path.join(top, "a", "file")
+        open(fl, "w").close()
+        outside = mk("outside")
+        out_sub = mk("outside", "inner")
+        os.symlink(outside, os.path.join(top, "lnk"))
+        os.symlink(f1, os.path.join(top, "flnk"))
+        code, out = run(sw, top)
+        dirs = [top] + [os.path.join(top, x) for x in ("a", "a/b", "c", "e")]
+        rows.append(("ALLOW: every directory of the tree gets the bit (the top, two levels, one that had it already), and the output counts them: 4 set, 1 already had it",
+                     code == 0 and all(isg(x) for x in dirs) and "setgid on 4 directories" in out and "1 already had it" in out, f"exit {code}: {out[:160]}"))
+        rows.append(("REFUSE: a file of the tree is not given the bit", not isg(fl) and not (os.lstat(fl).st_mode & 0o2000), ""))
+        rows.append(("REFUSE: a link INSIDE the tree is not followed: the directory outside that it leads to, and its inner one, are not changed",
+                     not isg(outside) and not isg(out_sub), f"outside {isg(outside)}, inner {isg(out_sub)}"))
+        rows.append(("REFUSE: ...and a link inside the tree that leads to a file does not give the file the bit", not isg(f1), ""))
+        top2 = mk("tree2")
+        mk("tree2", "x")
+        lt = os.path.join(td, "lt")
+        os.symlink(top2, lt)
+        code, out = run(sw, lt)
+        rows.append(("REFUSE: a link as the top is not followed: the tree behind it is not changed", code == 2 and "without following a link" in out and not isg(top2) and not isg(os.path.join(top2, "x")), f"exit {code}: {out[:100]}"))
+        mk("sub", "tree3", "y")
+        code, out = run(sw, os.path.join(lsub, "tree3"))
+        rows.append(("REFUSE: a link in a directory above the top is found: nothing is changed", code == 2 and "not where it was" in out and not isg(os.path.join(sub, "tree3")), f"exit {code}: {out[:100]}"))
+        code, out = run(sw, f1)
+        rows.append(("REFUSE: a plain file is not a tree", code == 2 and "as a directory" in out, f"exit {code}: {out[:100]}"))
+        code, out = run(sw, os.path.join(td, "nothere2"))
+        rows.append(("REFUSE: a top that is not there says so and changes nothing", code == 2 and "cannot open" in out, f"exit {code}: {out[:100]}"))
+        # ---- the helper's use of them
+        rows.append(("TEXT: restore-place sets the bit through the walker (SW_PY, python3 -I) and no longer by find -exec chmod; the setgid verb through SG_PY",
+                     'python3 -I -c "$SW_PY" "$treal"' in src and 'find "$treal" -type d -exec chmod g+s {} +' not in src and 'python3 -I -c "$SG_PY" "$SG_PATH"' in src and 'cmd=(chmod g+s -- "$(realpath -e -- "$1")")' in src, ""))
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
+    return rows, skipped
+
+
+FDWORKERS_MUTANTS = [
+    ("fdworkers: the setgid worker follows a link at the end", "fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_NOCTTY)", "fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOCTTY)"),
+    ("fdworkers: the setgid worker does not check that the name still is the open directory", "    if here != path:\n        refuse(\"%s is not where it was when it was checked (the open directory", "    if False:\n        refuse(\"%s is not where it was when it was checked (the open directory"),
+    ("fdworkers: the setgid worker takes a file", "fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_NOCTTY)", "fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NOCTTY)"),
+    ("fdworkers: the setgid worker says it set the bit and sets none", "        os.fchmod(fd, stat.S_IMODE(os.fstat(fd).st_mode) | stat.S_ISGID)\n", "        pass\n"),
+    ("fdworkers: the walker opens its top following a link", "topfd = os.open(top, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_NOCTTY)", "topfd = os.open(top, os.O_RDONLY | os.O_DIRECTORY | os.O_NOCTTY)"),
+    ("fdworkers: the walker does not check where its top is", "    if os.readlink(\"/proc/self/fd/%d\" % topfd) != top:\n        refuse(", "    if False:\n        refuse("),
+    ("fdworkers: the walker follows links inside the tree", "os.fwalk(top, follow_symlinks=False):\n    st = os.fstat(dirfd)", "os.fwalk(top, follow_symlinks=True):\n    st = os.fstat(dirfd)"),
+    ("fdworkers: the walker leaves the directories alone", "        os.fchmod(dirfd, mode | stat.S_ISGID)\n", "        pass\n"),
+    ("fdworkers: the walker gives files the bit too", "    mode = stat.S_IMODE(st.st_mode)\n    if mode & stat.S_ISGID:", "    mode = stat.S_IMODE(st.st_mode)\n    for fname in filenames:\n        os.chmod(fname, 0o2644, dir_fd=dirfd)\n    if mode & stat.S_ISGID:"),
+    ("fdworkers: restore-place goes back to find -exec chmod", 'python3 -I -c "$SW_PY" "$treal"', 'find "$treal" -type d -exec chmod g+s {} +'),
+    ("fdworkers: the setgid verb goes back to chmod by name", 'python3 -I -c "$SG_PY" "$SG_PATH"', 'chmod g+s -- "$SG_PATH"'),
 ]
 
 
@@ -1170,7 +1315,8 @@ def selftest():
     for family, rows_fn, mutants in (("group", group_rows, GROUP_MUTANTS), ("record-file", record_rows, RECORD_MUTANTS),
                                      ("sdsys-join", sdsys_rows, SDSYS_MUTANTS), ("sdsys-leave", leave_rows, LEAVE_MUTANTS), ("log", log_rows, LOG_MUTANTS),
                                      ("stamp", stamp_rows, STAMP_MUTANTS), ("chown-group", chowngrp_rows, CHOWNGRP_MUTANTS), ("groupadd", groupadd_rows, GROUPADD_MUTANTS),
-                                     ("ownedby", ownedby_rows, OWNEDBY_MUTANTS), ("pwunset", pwunset_rows, PWUNSET_MUTANTS), ("envtrust", envtrust_rows, ENVTRUST_MUTANTS)):
+                                     ("ownedby", ownedby_rows, OWNEDBY_MUTANTS), ("pwunset", pwunset_rows, PWUNSET_MUTANTS), ("envtrust", envtrust_rows, ENVTRUST_MUTANTS),
+                                     ("fdworkers", fdworkers_rows, FDWORKERS_MUTANTS)):
         if only and family not in only:
             continue
         rows, skipped = rows_fn()
@@ -1521,7 +1667,7 @@ def main():
     # ---- 26 Oct 26, F6: sdsys-leave (leave_rows) and the log lines (log_rows).  The rows that expect the verb to go through are the controls.
     # 26 Oct 26, F12: the stamp, chown-group and groupadd families (their labels begin ALLOW: or REFUSE:).
     for family, rows_fn in (("sdsys-leave", leave_rows), ("log", log_rows), ("stamp", stamp_rows), ("chown-group", chowngrp_rows), ("groupadd", groupadd_rows),
-                            ("ownedby", ownedby_rows), ("pwunset", pwunset_rows), ("envtrust", envtrust_rows)):
+                            ("ownedby", ownedby_rows), ("pwunset", pwunset_rows), ("envtrust", envtrust_rows), ("fdworkers", fdworkers_rows)):
         lrows, lskipped = rows_fn()
         for s in lskipped:
             print(f"  SKIPPED {s}")
@@ -1529,7 +1675,7 @@ def main():
             print(f"  [{'PASS' if ok else 'FAIL'}] {family.upper():11} {label:52} | {detail}")
             if ok:
                 passed += 1
-                if family in ("stamp", "chown-group", "groupadd", "ownedby", "pwunset", "envtrust"):
+                if family in ("stamp", "chown-group", "groupadd", "ownedby", "pwunset", "envtrust", "fdworkers"):
                     if label.startswith("ALLOW:"):
                         n_allow += 1
                     else:

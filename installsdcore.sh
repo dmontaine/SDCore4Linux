@@ -1603,7 +1603,13 @@ fi
 for bootstrap_dir in '$hold.dic' '$ipc' '$map' '$map.dic' voc accounts.dic batch.jobs.dic dict.dic dir_dict voc.dic; do
     if [ -d "${sdsysdir}/${bootstrap_dir}" ]; then
         if [ "${bootstrap_dir}" = '$ipc' ]; then
-            sudo chmod -R 775 "${sdsysdir}/${bootstrap_dir}"
+            # IPCMODE-BEGIN
+            # 30 Oct 26 dm - W.11 (Opus's decision of 30 Oct, the owner deferred to him): $ipc holds what a phantom is told to run, the DATA queues and the user messages of
+            # every SD user's process.  It was 775, so every operating-system user on the machine, an SD user or not, could read them.  Nothing outside the group sdusers needs
+            # it: directories owner and group only, and setgid so that a subfile an SD user's process makes belongs to sdusers (their primary group is another); files owner and group.
+            sudo chmod -R u=rwX,g=rwX,o= "${sdsysdir}/${bootstrap_dir}"
+            sudo find "${sdsysdir}/${bootstrap_dir}" -type d -exec chmod g+s {} +
+            # IPCMODE-END
         else
             sudo chmod -R 755 "${sdsysdir}/${bootstrap_dir}"
         fi

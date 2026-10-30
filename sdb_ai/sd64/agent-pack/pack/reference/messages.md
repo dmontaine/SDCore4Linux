@@ -2309,7 +2309,7 @@ cited by: `ced_edit`
 Name
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11134
 > kind=message tier=reference since=- src=sdsys/messages/11134:1#3deb7456
@@ -2318,7 +2318,7 @@ cited by: `ced_edit`
 Type
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11135
 > kind=message tier=reference since=- src=sdsys/messages/11135:1#8dce170d
@@ -2327,7 +2327,7 @@ cited by: `ced_edit`
 Value
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11136
 > kind=message tier=reference since=- src=sdsys/messages/11136:1#c6cd9815
@@ -2336,7 +2336,7 @@ cited by: `ced_edit`
 Collection editor\n\nCursor up/down   Select the previous/next element\nPage up/down     Previous/next page\nReturn           Dive into a collection or array; change a value\nEsc              Back to the parent element\nF2               The AI menu (only when the AI is on for your account)\nF3               Rename the selected element\nF4               Change its data type\nF5 or Ctrl-C     Copy the selected element\nF6 or Ctrl-X     Cut the selected element\nF7 or Ctrl-V     Paste what was copied or cut\nIns or Ctrl-I    Insert a new element\nDel              Delete the selected element\nCtrl-S           Save changes and carry on\nQ                Quit from the top level\nCtrl-Q           Quit from any level\nF1 or ?          This screen
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11137
 > kind=message tier=reference since=- src=sdsys/messages/11137:1#816df5fc
@@ -2377,7 +2377,7 @@ Deadlock detected
 New name
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11141
 > kind=message tier=reference since=- src=sdsys/messages/11141:1#fd21889a
@@ -2386,7 +2386,7 @@ cited by: `ced_edit`
 That name is already in use
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11142
 > kind=message tier=reference since=- src=sdsys/messages/11142:1#92359fb3
@@ -2395,7 +2395,7 @@ cited by: `ced_edit`
 A name must not be empty or contain a slash
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11143
 > kind=message tier=reference since=- src=sdsys/messages/11143:1#c5e0f804
@@ -2404,7 +2404,7 @@ cited by: `ced_edit`
 The elements of an array have no names to change
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11144
 > kind=message tier=reference since=- src=sdsys/messages/11144:1#0281bfc8
@@ -2420,7 +2420,7 @@ Change type to: %1 (Esc cancels)
 The type of this element cannot be changed
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11146
 > kind=message tier=reference since=- src=sdsys/messages/11146:1#c07793a4
@@ -2429,7 +2429,7 @@ cited by: `ced_edit`
 Position (1 to %1)
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11147
 > kind=message tier=reference since=- src=sdsys/messages/11147:1#8dce170d
@@ -2438,7 +2438,7 @@ cited by: `ced_edit`
 Value
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11148
 > kind=message tier=reference since=- src=sdsys/messages/11148:1#9a2e6c35
@@ -2447,7 +2447,7 @@ cited by: `ced_edit`
 That is not a number
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11149
 > kind=message tier=reference since=- src=sdsys/messages/11149:1#68506508
@@ -2456,7 +2456,7 @@ cited by: `ced_edit`
 That is not true or false
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:1115
 > kind=message tier=reference since=- src=sdsys/messages/1115:1#57c76fdd
@@ -2472,7 +2472,7 @@ Invalid print unit
 Nothing has been copied or cut
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11151
 > kind=message tier=reference since=- src=sdsys/messages/11151:1#1fe2a080
@@ -2481,7 +2481,7 @@ cited by: `ced_edit`
 Save changes (Y/N)?
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11152
 > kind=message tier=reference since=- src=sdsys/messages/11152:1#c0ae8f6e
@@ -2490,7 +2490,7 @@ cited by: `ced_edit`
 Saved
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11153
 > kind=message tier=reference since=- src=sdsys/messages/11153:1#f1e0fa36
@@ -2499,7 +2499,7 @@ cited by: `ced_edit`
 The record was not saved (error %1)
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11154
 > kind=message tier=reference since=- src=sdsys/messages/11154:1#1da9b7b9
@@ -2526,7 +2526,7 @@ cited by: `ced`
 The name of this element is empty or contains a slash, so it cannot be changed here
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11157
 > kind=message tier=reference since=- src=sdsys/messages/11157:1#03b4acbd
@@ -2544,7 +2544,7 @@ cited by: `ced`
 A null cannot be edited; change its type with F4
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11159
 > kind=message tier=reference since=- src=sdsys/messages/11159:1#92d0c4e2
@@ -6371,7 +6371,7 @@ cited by: `tk_ai`
 AI>
 ```
 
-cited by: `ced_edit`, `ide`, `sed`, `tk_ai`
+cited by: `ced_core`, `ide`, `sed`, `tk_ai`
 
 ### msg:11637
 > kind=message tier=reference since=- src=sdsys/messages/11637:1#78c91c62
@@ -6639,7 +6639,7 @@ cited by: `tk_ai`
 The text changed while the AI was answering, so its change no longer fits: nothing was applied
 ```
 
-cited by: `ced_edit`, `ide`, `sed`
+cited by: `ced_core`, `ide`, `sed`
 
 ### msg:11667
 > kind=message tier=reference since=- src=sdsys/messages/11667:1#a2451611
@@ -6648,7 +6648,7 @@ cited by: `ced_edit`, `ide`, `sed`
 The text sent is the record from line %1 on, as far as it fits (%2 lines); the AI cannot see the rest
 ```
 
-cited by: `ced_edit`, `ide`, `sed`
+cited by: `ced_core`, `ide`, `sed`
 
 ### msg:11668
 > kind=message tier=reference since=- src=sdsys/messages/11668:1#209376ed
@@ -6693,7 +6693,7 @@ cited by: `sed`
 &Explain the selected element
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11673
 > kind=message tier=reference since=- src=sdsys/messages/11673:1#1d554ac0
@@ -6702,7 +6702,7 @@ cited by: `ced_edit`
 &Ask the AI about this record
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11674
 > kind=message tier=reference since=- src=sdsys/messages/11674:1#c617de90
@@ -6711,7 +6711,7 @@ cited by: `ced_edit`
 &Undo the AI's last change
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11675
 > kind=message tier=reference since=- src=sdsys/messages/11675:1#f5298bb2
@@ -6720,7 +6720,7 @@ cited by: `ced_edit`
 Nothing to explain: the container is empty
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11676
 > kind=message tier=reference since=- src=sdsys/messages/11676:1#d2fc89c8
@@ -6729,7 +6729,7 @@ cited by: `ced_edit`
 The AI's change is in the record (%1 edits): choose Undo the AI's last change on F2 to take it back; nothing is saved until you save
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11677
 > kind=message tier=reference since=- src=sdsys/messages/11677:1#01ca2000
@@ -6738,7 +6738,7 @@ cited by: `ced_edit`
 The AI's change would not leave valid JSON, so it was ignored
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11678
 > kind=message tier=reference since=- src=sdsys/messages/11678:1#74e3065c
@@ -6747,7 +6747,7 @@ cited by: `ced_edit`
 Explain this part of the record: what it is for, and anything that looks wrong. The part is %1
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11679
 > kind=message tier=reference since=- src=sdsys/messages/11679:1#dd642d31
@@ -6756,7 +6756,7 @@ cited by: `ced_edit`
 Nothing to undo: the AI has not changed this record
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11680
 > kind=message tier=reference since=- src=sdsys/messages/11680:1#ca4d84df
@@ -6765,7 +6765,7 @@ cited by: `ced_edit`
 The AI's last change is taken back
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11681
 > kind=message tier=reference since=- src=sdsys/messages/11681:1#ac36e5ce
@@ -9109,7 +9109,7 @@ cited by: `sed`
 A record holds only text, and lists of values and subvalues: this is not one
 ```
 
-cited by: `ced_edit`
+cited by: `ced_core`
 
 ### msg:11989
 > kind=message tier=reference since=- src=sdsys/messages/11989:1#c157911a

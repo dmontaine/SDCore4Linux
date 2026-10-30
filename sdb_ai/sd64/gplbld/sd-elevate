@@ -138,6 +138,11 @@ set -uo pipefail
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 
+# 30 Oct 26 dm - S.78 (Opus's decision 3d).  THE LOCALE IS THE SAME KIND OF INPUT AS THE PATH: sudo keeps LANG and LC_* from the caller on the distributions whose sudoers say so, and the helper reads the
+# output of stat, getent, id and the rest as text and gives python3 its arguments, so the caller must not decide how a name is sorted, folded or spelled.  SD is English only; C is the locale it has always been tested in.
+LC_ALL=C
+export LC_ALL
+
 PROG=${0##*/}
 
 # The SD accounts root.  installsdcore.sh uses /home/sd; kept in one place here.
@@ -738,20 +743,21 @@ require_sdsys_owned() {
 }
 
 # BEGIN fc_worker
-# The real run of chown-account root sdusers, as python3 text so that it can be run on a scratch tree by gplbld/test-sd-elevate.py.  Arguments: the path, the uid that must own it (the sdsys user's),
-# the group's name, and the uid it is given (0).  It opens the path with O_NOFOLLOW (a link at the end is refused), asks the OPEN FILE who owns it and what it is, checks that the path still names
+# The real run of chown-account root sdusers, as python3 text so that it can be run on a scratch tree by gplbld/test-sd-elevate.py.  Arguments: the path, the uid that must own it (the sdsys user's; -1 for no rule, 30 Oct 26),
+# the group's name, and the uid it is given (a number, or a user's name; 0 for the root shape).  It opens the path with O_NOFOLLOW (a link at the end is refused), asks the OPEN FILE who owns it and what it is, checks that the path still names
 # that file (a link planted in a directory above it would show here), and chowns through the descriptor.  RUN WITH THE ISOLATED FLAG (26 Oct 26, review): sudo keeps the caller's current directory,
 # and python's -c option puts it first on sys.path, so a grp.py planted there by sdsys would run as root wherever grp is not built into python; the isolated flag leaves the directory and the environment out.
 read -r -d '' FC_PY <<'FC_PY_END' || true
 import grp
 import os
+import pwd
 import stat
 import sys
 
 path = sys.argv[1]
 owner = int(sys.argv[2])
 group = sys.argv[3]
-new_uid = int(sys.argv[4])
+new_user = sys.argv[4]          # 30 Oct 26 (S.78 3c): a number, or a user's name looked up here (the account shapes name the user, and a dry run must not need the user to exist)
 PROG = "sd-elevate"
 
 
@@ -768,7 +774,7 @@ try:
     st = os.fstat(fd)
     if not (stat.S_ISDIR(st.st_mode) or stat.S_ISREG(st.st_mode)):
         refuse("%s is neither a directory nor a plain file" % path)
-    if st.st_uid != owner:
+    if owner >= 0 and st.st_uid != owner:      # 30 Oct 26 (S.78 3c): -1 is "no rule about who owns it now" (the account shapes: the path was validated against the account's tree)
         refuse("%s belongs to uid %d, not to the user sdsys (uid %d)" % (path, st.st_uid, owner))
     try:
         here = os.readlink("/proc/self/fd/%d" % fd)
@@ -781,6 +787,10 @@ try:
     except KeyError:
         refuse("the group %s does not exist" % group)
     try:
+        new_uid = int(new_user) if new_user.isdigit() else pwd.getpwnam(new_user).pw_uid
+    except KeyError:
+        refuse("the user %s does not exist" % new_user)
+    try:
         os.fchown(fd, new_uid, gid)
     except OSError as e:
         sys.stderr.write("%s: FAILED - the change of owner of %s failed: %s\n" % (PROG, path, e.strerror))
@@ -790,6 +800,99 @@ finally:
     os.close(fd)
 FC_PY_END
 # END fc_worker
+
+# 30 Oct 26 dm - S.78 3c (Opus's decision).  THE SETGID BIT, THROUGH THE OPEN DIRECTORY.  `chmod g+s PATH` named the directory a second time, after the check: a directory of the tree swapped for a link
+# between the two would have given a file elsewhere the setgid bit, as root.  The worker opens the path as a directory without following a link at its end, checks that the path still names the open
+# directory (a link planted in a directory above it would show here), and sets the bit with fchmod on the descriptor.  Run with the isolated flag, as FC_PY is.
+# BEGIN sg_worker
+read -r -d '' SG_PY <<'SG_PY_END' || true
+import os
+import stat
+import sys
+
+path = sys.argv[1]
+PROG = "sd-elevate"
+
+
+def refuse(s):
+    sys.stderr.write("%s: REFUSED - %s\n" % (PROG, s))
+    sys.exit(2)
+
+
+try:
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_NOCTTY)
+except OSError as e:
+    refuse("cannot open %s as a directory without following a link: %s" % (path, e.strerror))
+try:
+    try:
+        here = os.readlink("/proc/self/fd/%d" % fd)
+    except OSError as e:
+        refuse("cannot tell where the open directory is (is /proc mounted?): %s" % e.strerror)
+    if here != path:
+        refuse("%s is not where it was when it was checked (the open directory is %s)" % (path, here))
+    try:
+        os.fchmod(fd, stat.S_IMODE(os.fstat(fd).st_mode) | stat.S_ISGID)
+    except OSError as e:
+        sys.stderr.write("%s: FAILED - the setgid bit of %s could not be set: %s\n" % (PROG, path, e.strerror))
+        sys.exit(1)
+    print("%s: set the setgid bit of %s through the open directory" % (PROG, path))
+finally:
+    os.close(fd)
+SG_PY_END
+# END sg_worker
+
+# 30 Oct 26 dm - S.78 3c.  THE SETGID BIT ON EVERY DIRECTORY OF A RESTORED TREE, THROUGH THE OPEN DIRECTORIES.  restore-place ran `find TREE -type d -exec chmod g+s {} +`: find lists a name, chmod then follows
+# whatever the name is by then, so an account user who swapped a directory of the restored tree for a link in that moment aimed root's chmod at a file elsewhere (a setgid root program).  The worker walks
+# the tree with python's os.fwalk on descriptors, which compares each directory it opens with what it listed and never follows a link, and sets the bit with fchmod on the descriptor; it does not leave the
+# filesystem the tree is on.  Run with the isolated flag.
+# BEGIN sw_worker
+read -r -d '' SW_PY <<'SW_PY_END' || true
+import os
+import stat
+import sys
+
+top = sys.argv[1]
+PROG = "sd-elevate"
+done = same = other_fs = 0
+
+
+def refuse(s):
+    sys.stderr.write("%s: REFUSED - %s\n" % (PROG, s))
+    sys.exit(2)
+
+
+try:
+    topfd = os.open(top, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_NOCTTY)
+except OSError as e:
+    refuse("cannot open %s as a directory without following a link: %s" % (top, e.strerror))
+try:
+    if os.readlink("/proc/self/fd/%d" % topfd) != top:
+        refuse("%s is not where it was when it was checked" % top)
+    dev = os.fstat(topfd).st_dev
+finally:
+    os.close(topfd)
+for dirpath, dirnames, filenames, dirfd in os.fwalk(top, follow_symlinks=False):
+    st = os.fstat(dirfd)
+    if st.st_dev != dev or not stat.S_ISDIR(st.st_mode):
+        dirnames[:] = []
+        other_fs += 1
+        continue
+    mode = stat.S_IMODE(st.st_mode)
+    if mode & stat.S_ISGID:
+        same += 1
+        continue
+    try:
+        os.fchmod(dirfd, mode | stat.S_ISGID)
+    except OSError as e:
+        sys.stderr.write("%s: FAILED - the setgid bit of %s could not be set: %s\n" % (PROG, dirpath, e.strerror))
+        sys.exit(1)
+    done += 1
+if done + same + other_fs == 0:
+    refuse("nothing was walked under %s (it was changed while it was being opened)" % top)       # fwalk gives nothing, without an error, for a top that is not what it lstat'ed
+print("%s: setgid on %d director%s of %s through the open directories, %d already had it, %d left alone (another filesystem)" % (
+    PROG, done, "y" if done == 1 else "ies", top, same, other_fs))
+SW_PY_END
+# END sw_worker
 
 # 18 Sep 26 dm - CHOWN-ACCOUNT, FOR CREATE.ACCOUNT'S OWN STEP (the A4 finding of
 # the first fresh cycle's witness run).  createa's set.owner computed
@@ -840,6 +943,13 @@ require_account_owner() {
     sdsys)
       require_sd_chown_path "$path"
       require_group_account_files "$group" "$path"
+      # 30 Oct 26 (S.78 3c, Opus's decision): the real run chowns through the file it has opened without following a link, not through the path again - a directory of the
+      # tree swapped for a link between the check above and the chown would otherwise have aimed root's chown at a file elsewhere
+      FC_PATH=$real
+      FC_GROUP=$group
+      FC_OWNER=-1
+      FC_USER=sdsys
+      FC_NOTE="(opened without following a link, found to be where it was checked, and chowned to sdsys through the open file)"
       ;;
     *)
       require_sd_user "$user"
@@ -853,6 +963,11 @@ require_account_owner() {
         || die "the user accounts root '$SD_ACCT_ROOT/user_accounts' does not exist"
       [[ $real == "$uroot/$user" || $real == "$uroot/$user"/* ]] \
         || die "'$real' is not the account directory of '$user'"
+      FC_PATH=$real                        # 30 Oct 26 (S.78 3c): through the open file, as above
+      FC_GROUP=$group
+      FC_OWNER=-1
+      FC_USER=$user
+      FC_NOTE="(opened without following a link, found to be where it was checked, and chowned to $user through the open file)"
       ;;
   esac
   # Not -R: createa names each path it made, exactly as the intrinsic did.
@@ -1018,11 +1133,10 @@ restore_place() {
     die "could not put the restored tree in place; the current account was put back"
   fi
   step chown -R -P -- "$owner:$group" "$treal" || die "chown of $treal failed; the restored tree is in place, the old one is at $old"
-  if [[ $DRY -eq 1 ]]; then
-    printf '%s: find %s -type d -exec chmod g+s {} +\n' "$PROG" "$treal"
-  else
-    printf '%s: find %s -type d -exec chmod g+s {} +\n' "$PROG" "$treal"
-    find "$treal" -type d -exec chmod g+s {} + || die "setgid on $treal failed"
+  # 30 Oct 26 (S.78 3c): the setgid bit goes on through the open directories (SW_PY), not by `find -exec chmod` naming each directory a second time
+  printf '%s: setgid on every directory of %s, through the open directories (no link followed)\n' "$PROG" "$treal"
+  if [[ $DRY -ne 1 ]]; then
+    python3 -I -c "$SW_PY" "$treal" || die "setgid on $treal failed"
   fi
   step rm -rf --one-file-system -- "$old" || die "the restore is in place, but the old tree at $old could not be removed"
   printf '%s: restored %s (%s:%s)\n' "$PROG" "$treal" "$owner" "$group"
@@ -1746,10 +1860,12 @@ shift || true
 # bottom.  One exit path means the dry run and the real run cannot drift.
 declare -a cmd=()
 declare -a extra=()
-FC_PATH=      # F12b: set by chown-account root sdusers; the real run then chowns through FC_PY (the path, the owner it must have, the group) instead of running cmd
+FC_PATH=      # F12b: set by chown-account (all three shapes since 30 Oct 26, S.78 3c); the real run then chowns through FC_PY (the path, the owner it must have or -1, the group, the user) instead of running cmd
 FC_GROUP=
 FC_OWNER=
+FC_USER=0     # who the file is given to: 0 (root) for the root shape, a user's name for the other two
 FC_NOTE=
+SG_PATH=      # S.78 3c: set by setgid; the real run then sets the bit through SG_PY
 
 case $verb in
   useradd)
@@ -1857,6 +1973,7 @@ case $verb in
     [[ $# -eq 1 ]] || usage
     require_sd_path "$1"
     cmd=(chmod g+s -- "$(realpath -e -- "$1")")
+    SG_PATH=${cmd[-1]}             # 30 Oct 26 (S.78 3c): the real run sets the bit through the open directory (SG_PY), not by naming it again
     ;;
 
   chown-account)
@@ -2099,6 +2216,7 @@ esac
 # Instrument rule: say what was RESOLVED, not what was asked for.
 printf '%s: %s\n' "$PROG" "${cmd[*]}"
 [[ -z $FC_PATH ]] || printf '%s: %s\n' "$PROG" "$FC_NOTE"
+[[ -z $SG_PATH ]] || printf '%s: %s\n' "$PROG" "(opened as a directory without following a link, found to be where it was checked, and the setgid bit set through the open directory)"
 for m in "${extra[@]:-}"; do
   [[ -n $m ]] && printf '%s: gpasswd -a %s %s\n' "$PROG" "$m" "${cmd[-1]}"
 done
@@ -2112,7 +2230,9 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
 fi
 
 if [[ -n $FC_PATH ]]; then
-  python3 -I -c "$FC_PY" "$FC_PATH" "$FC_OWNER" "$FC_GROUP" 0 || exit $?
+  python3 -I -c "$FC_PY" "$FC_PATH" "$FC_OWNER" "$FC_GROUP" "$FC_USER" || exit $?
+elif [[ -n $SG_PATH ]]; then
+  python3 -I -c "$SG_PY" "$SG_PATH" || exit $?
 else
   "${cmd[@]}" || exit $?
 fi

@@ -156,7 +156,7 @@ def checks(raw):
     ck("G13b", "CED keeps the break setting with $tk_brk 'save' AFTER it reads it and BEFORE it turns the break key off (so an abort inside the editor leaves it held for $sl_cleanup), gives it back through $tk_brk 'close' when the "
        "screen cannot be taken and again at its end, and no longer puts it back by hand (a hand copy would leave the kept one held)",
        ordered(ce, "saved.trap = pterm(PT$BREAK, -1)", "call $tk_brk('save', saved.trap)", "void pterm(PT$BREAK, @false)", "break off", "screen open clear then", "call $tk_brk('close', saved.trap)", "return",
-               "screen close", "call $tk_brk('close', saved.trap)", "result<1> = kept") and "void pterm(PT$BREAK, saved.trap)" not in ce and ce.count("$tk_brk") == 3, "")
+               "screen close", "call $tk_brk('close', saved.trap)", "result<1> = st{'kept'}") and "void pterm(PT$BREAK, saved.trap)" not in ce and ce.count("$tk_brk") == 3, "")
 
     # ------------------------------------------------------------------------------------------------------------------------------------ the messages
     m = {n: raw["m" + n].strip() for n in MESSAGES}

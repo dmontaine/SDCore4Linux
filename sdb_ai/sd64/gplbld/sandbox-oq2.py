@@ -10,6 +10,8 @@
 # THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 30 Oct 26 dm  S.88 A1 (the second Opus review of E2): rows 485e-f.  The same refusal in the OPENSEQ file,record form (a record that is a link to nothing: the ELSE, STATUS() 6032,
+#               the target not made) and for the create that a WRITESEQ makes on the first write of a name the OPENSEQ found to be a link to nothing (the target not made).
 # 30 Oct 26 dm  S.88 stage E2: rows 485b-d next to row 485.  OPENSEQ ... CREATING is exclusive (a dangling link: the ELSE, STATUS() 6032, the target not made), a free name and a
 #               file with content as before, SHARED open-or-create.  WRITTEN, NOT RUN.
 # 27 Oct 26 dm  S.87 batch 8: the three rows of item 288 (OPTION CATALOGUE.LOCAL) are replaced by one MAP LOCAL row.
@@ -206,7 +208,7 @@ def main():
                 row("%s: wanted %r" % (label, want), got == want, "got %r" % got if m else "no output")
     finally:
         # the VOC pointers of the scratch directory files
-        sess(box, *["DELETE.FILE zzoqd%02d" % i for i in range(len(CASES) + 1)])
+        sess(box, *["DELETE.FILE zzoqd%02d" % i for i in range(len(CASES) + 1)], "DELETE.FILE zzoqlk")
         for p in made:
             if os.path.isdir(p):
                 shutil.rmtree(p)
@@ -433,6 +435,42 @@ def run_verbs(box, sysd, bp):
             row("524 ids not in the file are listed, one per line", has(text, r"(?m)^'zznone1' not found") and has(text, r"(?m)^'zznone2' not found"), text[-400:])
             row("524 ...and SHOW stops there: no screen is drawn and no list is made",
                 got == ["NONE"] and not has(text, r"Select, Clear, Top") and not has(text, r"record\(s\) selected"), "%r %s" % (got, text[-400:]))
+
+            # --- SHOW ... EVAL (30 Oct 26, S.66, Opus's decision): the expression is compiled IN MEMORY ($dcomp).  SHOW is a $internal program, so the edit gates never saw the temporary I-type
+            #     it used to write into the user's dictionary (writeu, COMPILE.DICT, delete).  The disk is the evidence: the newest modification time under the file's dictionary directory.
+            def newest(root):
+                t = 0
+                for dp, dn, fn in os.walk(root):
+                    for n_ in fn + dn:
+                        try:
+                            t = max(t, os.lstat(os.path.join(dp, n_)).st_mtime_ns)
+                        except OSError:
+                            pass
+                return t
+            dic1 = os.path.join(sysd, "zzoqsh1.dic")
+            row("SHOW EVAL CONTROL: the dictionary directory of zzoqsh1 is there to be watched", os.path.isdir(dic1) and newest(dic1) > 0, dic1)
+            before_t = newest(dic1)
+            text = sess(box, 'SHOW zzoqsh1 EVAL "1 + 2"', "S VIS", "Q")
+            row("SHOW EVAL: the expression is evaluated and shown: the screen is drawn and no compile error or refusal is printed",
+                has(text, r"record\(s\) selected|Select, Clear, Top") and not has(text, r"Compilation error|cannot be used|must be quoted"), text[-400:])
+            row("SHOW EVAL: ...and the dictionary's files are as they were (it passed on the old program too: the old write never reached the disk)",
+                newest(dic1) == before_t, "%d -> %d" % (before_t, newest(dic1)))
+            # A GUARD, NOT A RED-THEN-GREEN ROW (measured 30 Oct 26 on the program before the change: 0.1 s with the record held, and the same with the dictionary's files made
+            # read-only - the old write never reached the disk in this sandbox, so no row here could tell the two programs apart; the change is shown by reading the code).
+            # The guard: a second session holds the dictionary record __SHOW (ITYPE.NAME) locked for 14 s and SHOW EVAL must not wait for it.
+            holder = os.path.join(bp, "zzoqsh3")
+            made.append(holder)
+            write(holder, ("   open 'DICT', 'zzoqsh1' to d else stop 'no dict'\n   readu x from d, '__SHOW' else null\n   sleep 14\n   release\nend\n"))
+            sess(box, "BASIC bp zzoqsh3")
+            ph = subprocess.Popen([sys.executable, TOOL, box, "sess", os.path.join(box, "user_accounts"), "RUN bp zzoqsh3"],
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            time.sleep(4)   # the holder has the lock by now
+            t0 = time.time()
+            text = sess(box, 'SHOW zzoqsh1 EVAL "1 + 2"', "S VIS", "Q")
+            took = time.time() - t0
+            ph.wait(timeout=60)
+            row("SHOW EVAL: another session holds the dictionary record __SHOW locked for 14 s and SHOW still evaluates and shows the expression at once (%.1f s; under 7)" % took,
+                took < 7 and has(text, r"record\(s\) selected|Select, Clear, Top") and not has(text, r"Compilation error"), "%.1f s %s" % (took, text[-300:]))
         finally:
             sess(box, "DELETE.FILE zzoqsh1", "DELETE.FILE zzoqsh2")
         hd = os.path.join(sysd, "zzoqhd")
@@ -588,6 +626,49 @@ def run_verbs(box, sysd, bp):
         row("485d: SHARED on a dangling link is refused as CREATING is: the ELSE with STATUS() 6032 and the target is NOT made (a link planted in an account does not steer a create out of it)",
             has(out, r"^D_ELSE\[6032\]") and not has(out, r"^D_THEN") and not os.path.lexists(st2) and os.path.islink(sl2) and os.readlink(sl2) == st2,
             "%s | %s" % (out[-300:], os.path.lexists(st2)))
+        # --- 485e-g (30 Oct 26, S.88 A1, the second Opus review of E2): the same refusal in the OPENSEQ file,record form and for the create that a WRITESEQ makes on a first write.
+        #     Before the change a link planted in a directory file, and a link named by an OPENSEQ that took its ELSE, both sent the create to the link's TARGET.  The disk is the evidence.
+        probe3 = os.path.join(bp, "zzoqp3")
+        made.append(probe3)
+        lkd = os.path.join(sysd, "zzoqlk")                                      # a directory file: the file,record form needs one
+        made.append(lkd)
+        sess(box, "DELETE.FILE zzoqlk", "CREATE.FILE zzoqlk DIRECTORY")
+        lt, ll = os.path.join(d, "zzoq485rt"), os.path.join(lkd, "lnk")         # a dangling link INSIDE the directory file (ll) and its target outside it (lt)
+        wt, wl = os.path.join(d, "zzoq485wt"), os.path.join(d, "zzoq485wl")     # a dangling link (wl) for the WRITESEQ route and its target (wt)
+        ok_ = os.path.join(d, "zzoq485ok")                                      # a free name: the control of the WRITESEQ route
+        for p_ in (lt, wt, ok_, ll, wl):
+            if os.path.lexists(p_):
+                os.remove(p_)
+        os.symlink(lt, ll)
+        os.symlink(wt, wl)
+        write(probe3, ("   openseq 'zzoqlk', 'lnk' creating to g then crt 'G_THEN[':status():']' else crt 'G_ELSE[':status():']'\n"
+                       "   if not(unassigned(g)) then close g\n"
+                       "   openseq 'zzoqlk', 'free' creating to h then crt 'H_THEN[':status():']' else crt 'H_ELSE[':status():']'\n"
+                       "   if not(unassigned(h)) then close h\n"
+                       "   openseq '%s' to y then crt 'Y_THEN' else crt 'Y_ELSE[':status():']'\n"
+                       "   if not(unassigned(y)) then\n"
+                       "      writeseq 'ok' to y else crt 'Y_WRITE_ELSE'\n"
+                       "      weofseq y\n"
+                       "      close y\n"
+                       "   end\n"
+                       "   crt 'P485B MID'\n"
+                       "   openseq '%s' to w then crt 'W_THEN' else crt 'W_ELSE[':status():']'\n"
+                       "   if not(unassigned(w)) then\n"
+                       "      writeseq 'hello' to w on error crt 'W_ERR[':status():']' else crt 'W_WRITE_ELSE'\n"
+                       "      close w\n"
+                       "   end\n"
+                       "   crt 'P485B END'\nend\n") % (ok_, wl))
+        out = sess(box, "BASIC bp zzoqp3", "RUN bp zzoqp3")
+        row("485e CONTROL: the program reached its middle (the file,record rows and the control of the WRITESEQ route ran)", has(out, r"^P485B MID"), out[-500:])
+        row("485e: OPENSEQ file, record CREATING of a record that is a link to nothing takes the ELSE with STATUS() 6032 and the target is NOT made",
+            has(out, r"^G_ELSE\[6032\]") and not has(out, r"^G_THEN") and not os.path.lexists(lt) and os.path.islink(ll) and os.readlink(ll) == lt,
+            "%s | %s %s" % (out[-300:], os.path.lexists(lt), os.path.islink(ll)))
+        row("485e CONTROL: the same form with a free record name makes the record at once: the THEN with STATUS() 0, a plain file of size 0 in the directory file",
+            has(out, r"^H_THEN\[0\]") and os.path.isfile(os.path.join(lkd, "free")) and os.path.getsize(os.path.join(lkd, "free")) == 0, "%s | %s" % (out[-300:], os.path.lexists(os.path.join(lkd, "free"))))
+        row("485f CONTROL: the create that a WRITESEQ makes on a first write still works for a free name: the file holds the line written",
+            has(out, r"^Y_ELSE\[0\]") and (slurp(ok_) or b"").startswith(b"ok"), "%s | %r" % (out[-300:], slurp(ok_)))
+        row("485f: OPENSEQ of a link to nothing, then WRITESEQ: the target is NOT made (the first write is refused), and the link is still the same link",
+            not os.path.lexists(wt) and os.path.islink(wl) and os.readlink(wl) == wt, "%s | %s" % (out[-300:], os.path.lexists(wt)))
         sess(box, "BASIC bp zzoqsA", "BASIC bp zzoqsB")
         pa = subprocess.Popen([sys.executable, TOOL, box, "sess", os.path.join(box, "user_accounts"), "RUN bp zzoqsA"],
                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)

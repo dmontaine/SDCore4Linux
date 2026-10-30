@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 30 Oct 26 dm  S.66: OSPATH() keys 5, 13 and 14 (delete, make a directory, make a path) inside the shared account are refused for anybody but SDSYS, as the $internal OSPATH has
+ *               done since 18 Oct (an account that holds os-on was not stopped by anything else).
  * 28 Oct 26 dm  S.87: the PMATRIX descriptor type is gone.
  * 27 Oct 26 dm  S.87 batch 13: XF 5 to 12 (IS.ALNUM, IS.ALPHA, IS.DIGIT, IS.GRAPH, IS.MARK, IS.SPACE, LEFT, RIGHT) are gone; the numbers stay reserved.
  * 27 Oct 26 dm  S.87 batch 3: XF_SWAPMARKS (28), which returned its argument, is gone; the number stays reserved.
@@ -986,6 +988,13 @@ Private void x_ospath() {
          $internal program, which has its own OSPATH; the flag is tested as os_path_open_ok does.)                              */
       if (((key == 5) || (key == 13) || (key == 14)) && !(process.program.flags & HDR_INTERNAL) &&
           (edit_os_path_refusal(path, (key == 5) ? edit_leaf_counts(path) : TRUE) != EDIT_NONE)) {
+        process.status = ER_PERM;
+        goto ospath_done;
+      }
+      /* 30 Oct 26 dm - S.66 (Opus's decision of 30 Oct): deleting or making a file or directory INSIDE the shared account is a structure change, SDSYS's alone.
+         The $internal OSPATH (op_dio2.c) has had this refusal since 18 Oct; this is the function for every other program, which the account's OS access let
+         through (an account that holds os-on is not stopped by os_path_open_ok above).  Nothing is done: the answer is false and STATUS() is ER_PERM. */
+      if (((key == 5) || (key == 13) || (key == 14)) && !MY_ADMIN() && path_resolved_in_shared(path)) {
         process.status = ER_PERM;
         goto ospath_done;
       }

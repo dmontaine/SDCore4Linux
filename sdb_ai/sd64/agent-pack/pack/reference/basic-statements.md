@@ -328,7 +328,7 @@ clause of `execute` and `os.execute` — take the output
 `openseq` *path*`,` *id* `creating to` *file.var* `then` … `else` …
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 50
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 49
 
 ### basic:stmt:crt
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:405#2dfd1c3c src2=docs:tools/syntax-shapes.txt:51#d239b475

@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THREE SMALL TIGHTENINGS: THE FILE $IPC IS NOT READABLE BY OPERATING-SYSTEM USERS OUTSIDE sdusers; OSPATH() CANNOT DELETE OR MAKE ANYTHING IN THE SHARED ACCOUNT; SHOW ... EVAL WRITES NOTHING.
+
+             What        - $ipc, the file that holds what a phantom is told to run, the DATA queues and the user messages of every SD user's process, was mode 775 and so readable by every
+                           operating-system user on the machine, an SD user or not. The installer now makes its directories 2770 (owner and group, setgid so that a subfile made by an SD
+                           user's process belongs to sdusers) and its files 0660. Nothing outside the group needed it. An upgrade install does the same.
+                         - OSPATH() with the key to delete (5), to make a directory (13) or to make a path (14) is refused for a path inside the shared account when the session is not SDSYS: the answer is
+                           false and STATUS() is the permission error. The OSPATH of a $internal program has refused it since 18 October; the function every other program uses did not, and an account that
+                           holds the operating-system access is stopped by nothing else.
+                         - SHOW file EVAL "expression" compiles the expression in memory. It used to write a temporary I-type into the file's dictionary, compile it and delete it again, which no
+                           edit gate saw (SHOW is a $internal program) and which waited for any session holding that record. The dictionary is not touched.
+             Why         - Each is a wall that did not hold: the first showed one user's phantom commands and messages to another account on the machine, the second let an os-on account change
+                           the shared account's structure, the third wrote into a dictionary the session might not be allowed to change.
+             Does NOT    - Change what a session can do inside its own account, or what SDSYS can do. A site that reads $ipc from a program that is not an SD user's must put it in the group sdusers.
+
 30 Oct 26  THE IDE CAN MAKE FILES OF THE OPERATING SYSTEM AND BROWSE THEM; OPENSEQ ... CREATING NO LONGER FOLLOWS A LINK THAT LEADS NOWHERE.
 
              What        - IDE: New (Ctrl-N), Save as, the first save of an untitled buffer, Write a copy and Search > Export the selection take path:/full/name as the name and make a file
@@ -17,8 +31,9 @@ Next release - in progress
                          - IDE, Search > Import a record here takes path:/full/name too, from the tab that holds the file or from the file itself.
                          - OPENSEQ pathname ... CREATING of a name that does not exist now creates the file exclusively: if the name has been taken by the time it is made, or is a link that leads
                            nowhere, nothing is created and STATUS() is 6032 (it was 0 for the first and the link's target was made for the second). A link that leads nowhere is refused the
-                           same way for SHARED, whose gate could not see where such a link goes; SHARED is otherwise unchanged (open or create, every write at the end). The OPENSEQ file, record
-                           form is not changed, and a WRITESEQ that makes the file still follows a link that leads nowhere.
+                           same way for SHARED, whose gate could not see where such a link goes; SHARED is otherwise unchanged (open or create, every write at the end). (Later the same day:) the
+                           OPENSEQ file, record form refuses a link that leads nowhere the same way (the ELSE, STATUS() 6032, nothing made), and an OPENSEQ of such a name without CREATING
+                           opens it as a file that cannot be written, so the WRITESEQ that would have made the target is refused; a link placed at the name after the open is refused too.
                          - DIR() lists a plain file as F and a directory as D only: a socket is no longer listed as a file and a block device is no longer listed as a directory.
                          It does NOT let the IDE reach anything the account's operating system access did not already allow, make a directory, or change the content of a file that has
                          any. For a program the two kernel changes show only in a race or with a dangling link; an OPENSEQ ... CREATING of a name that is free works as before.

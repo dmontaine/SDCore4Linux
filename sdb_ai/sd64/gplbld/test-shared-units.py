@@ -53,8 +53,8 @@ MSG_USERS = {11513: {"edit_msg"}, 11514: {"edit_msg"}, 11515: {"create_account",
 BP_PROGRAMS = ("login", "cproc", "apisrvr", "createa", "create_account", "modifya", "delacc", "acc_os_info", "restorea", "_voc_ref", "shared_ref",
                "listshared", "edit_msg", "edit_guard", "ide", "ced_edit", "spview", "sed", "cname", "createf", "deletef", "basic")
 C_NAMED = ("keys.h", "sysseg.h", "sd.h", "op_sh.c", "op_kernel.c", "op_dio1.c", "op_dio2.c", "op_dio3.c", "dh_ak.c", "dh_misc.c", "op_seqio.c",
-           "op_jumps.c", "kernel.c")
-EDIT_MSG_SITES = (("edit_guard", "display edit_msg(kind)"), ("ide", "msg = edit_msg(edit.kind)"), ("ced_edit", "message.text = edit_msg(edit.kind)"),
+           "op_jumps.c", "kernel.c", "op_xfun.c")
+EDIT_MSG_SITES = (("edit_guard", "display edit_msg(kind)"), ("ide", "msg = edit_msg(edit.kind)"), ("ced_edit", "call $ced_core('message', st, edit_msg(edit.kind), out)"),
                   ("spview", "prompt.text = edit_msg(edit.kind)"), ("sed", "message = edit_msg(edit.kind)"), ("cname", "stop edit_msg(ek.kind)"),
                   ("createf", "stop edit_msg(kernel(K$EDIT.KIND, vp))"), ("deletef", "stop edit_msg(ef.kind)"), ("apisrvr", "error.msg = edit_msg(ed.kind)"))
 
@@ -363,6 +363,11 @@ def checks(srcs):
        re.search(r"\(\(key == OS_DELETE\) \|\| \(key == OS_MKDIR\) \|\| \(key == OS_MKPATH\)\) && !MY_ADMIN\(\) && path_resolved_in_shared\(path\)", osp) is not None
        and ordered(osp, "path_resolved_in_shared(path)", "process.status = ER_PERM;", "status = 0;", "switch (key) {") and "OS_CHOWN" not in between(osp, "path_resolved_in_shared(path)", "switch (key) {")
        and ordered(osn, "MY_ADMIN()", "path_resolved_in_shared(old_path)", "path_resolved_in_shared(new_path)", "ER_PERM", "access(old_path, 0)", "rename(old_path, new_path)"), "")
+    xo = func_body(C("op_xfun.c"), "Private void x_ospath()")
+    ck("K13b x_ospath, the OSPATH() FUNCTION of every program that is not $internal (30 Oct 26, S.66, Opus's decision): keys 5, 13 and 14 (delete, make a directory, make a path) inside shared are refused "
+       "with ER_PERM for a non-administrator, after the OS-access gate and the edit gates, before the switch that does them; the keys that only look (and OS$CHOWN's neighbours) are not named in it",
+       re.search(r"\(\(key == 5\) \|\| \(key == 13\) \|\| \(key == 14\)\) && !MY_ADMIN\(\) && path_resolved_in_shared\(path\)", xo) is not None
+       and ordered(xo, "os_path_open_ok(path)", "edit_os_path_refusal(", "path_resolved_in_shared(path)", "process.status = ER_PERM;", "goto ospath_done;", "switch (key) {"), "")
     cer = func_body(d1, "Private int create_edit_refusal(const char* path)")
     ck("K14 create_edit_refusal: making anything inside shared is EDIT_SHARED_STRUCT for a non-administrator, tested BEFORE the $internal exemption (createf is $internal); op_create_dh and "
        "op_create_t1 print edit_refused_message(kind), not 11404 + kind",
@@ -680,6 +685,8 @@ MUTANTS = [
     ("FCONTROL() FC$MINMOD is not asked", "c:dh_misc.c", "(action == 1) || (action == 4) || (action == 7)", "(action == 1) || (action == 4)"),
     ("FCONTROL() refuses a query too", "c:dh_misc.c", "    if (descr->data.value != -1)\n      k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));", "    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));"),
     ("SET.TRIGGER is not asked", "c:dh_misc.c", "  if (shared_structure_refusal(fvar) != EDIT_NONE)\n    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));\n\n  /* A directory file has no header", "  /* A directory file has no header"),
+    ("the OSPATH() function deletes in shared", "c:op_xfun.c", "if (((key == 5) || (key == 13) || (key == 14)) && !MY_ADMIN() && path_resolved_in_shared(path)) {", "if (((key == 5) || (key == 13) || (key == 14)) && MY_ADMIN() && path_resolved_in_shared(path)) {"),
+    ("the OSPATH() function forgets the make-a-path key", "c:op_xfun.c", "if (((key == 5) || (key == 13) || (key == 14)) && !MY_ADMIN() && path_resolved_in_shared(path)) {", "if (((key == 5) || (key == 13)) && !MY_ADMIN() && path_resolved_in_shared(path)) {"),
     ("OSPATH makes a path in shared", "c:op_dio2.c", "((key == OS_DELETE) || (key == OS_MKDIR) || (key == OS_MKPATH))", "((key == OS_DELETE) || (key == OS_MKDIR))"),
     ("OSPATH refuses OS_CHOWN too", "c:op_dio2.c", "((key == OS_DELETE) || (key == OS_MKDIR) || (key == OS_MKPATH))", "((key == OS_DELETE) || (key == OS_MKDIR) || (key == OS_MKPATH) || (key == OS_CHOWN))"),
     ("OSRENAME forgets the new name", "c:op_dio2.c", "(path_resolved_in_shared(old_path) || path_resolved_in_shared(new_path))", "(path_resolved_in_shared(old_path))"),
