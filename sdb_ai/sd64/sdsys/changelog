@@ -15,9 +15,10 @@ Next release - in progress
                            os-on). Return on a directory lists its entries (directories first, then files; at most 1000, and a note says how many were left out because their names hold
                            a control character or a byte from 248 to 255); Return on a file opens it in a tab. An account without that access does not see the node.
                          - IDE, Search > Import a record here takes path:/full/name too, from the tab that holds the file or from the file itself.
-                         - OPENSEQ ... CREATING of a name that does not exist now creates the file exclusively: if the name has been taken by the time it is made, or is a link that leads
+                         - OPENSEQ pathname ... CREATING of a name that does not exist now creates the file exclusively: if the name has been taken by the time it is made, or is a link that leads
                            nowhere, nothing is created and STATUS() is 6032 (it was 0 for the first and the link's target was made for the second). A link that leads nowhere is refused the
-                           same way for SHARED, whose gate could not see where such a link goes; SHARED is otherwise unchanged (open or create, every write at the end).
+                           same way for SHARED, whose gate could not see where such a link goes; SHARED is otherwise unchanged (open or create, every write at the end). The OPENSEQ file, record
+                           form is not changed, and a WRITESEQ that makes the file still follows a link that leads nowhere.
                          - DIR() lists a plain file as F and a directory as D only: a socket is no longer listed as a file and a block device is no longer listed as a directory.
                          It does NOT let the IDE reach anything the account's operating system access did not already allow, make a directory, or change the content of a file that has
                          any. For a program the two kernel changes show only in a race or with a dangling link; an OPENSEQ ... CREATING of a name that is free works as before.
