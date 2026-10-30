@@ -272,6 +272,22 @@ def sdidx_rows():
     row("I0 (control): the fixture holds %0 %1 %2 and sdidx -q says the indices are not relocated",
         ls(d) == ["%0", "%1", "%2"] and "Indices are not relocated" in q(d), repr(ls(d)))
 
+    # 30 Oct 26, S.78 (Opus's decision 3c): sdidx opens %0 with O_NOFOLLOW.  A copy whose %0 is a LINK to a real copy of the primary subfile: -q must refuse it (errno 40, ELOOP) and the file behind
+    # the link must be byte for byte as it was; the control is the same copy with a plain %0, which -q reads.
+    dl = fresh("i-link")
+    real = os.path.join(os.path.dirname(dl), "real0")
+    os.rename(os.path.join(dl, "%0"), real)
+    os.symlink(real, os.path.join(dl, "%0"))
+    with open(real, "rb") as fh:
+        before = fh.read()
+    rc, out, to = tool("sdidx", "-q", dl)
+    with open(real, "rb") as fh:
+        after = fh.read()
+    row("I0b a %0 that is a symbolic link is refused (Cannot open data file [40]) and the file behind it is untouched",
+        "Cannot open data file [40]" in out and "Indices are not relocated" not in out and after == before, "%r %r" % (rc, out[-160:]))
+    dp = fresh("i-plain")
+    row("I0c (control for I0b) the same copy with a plain %0 is read: -q answers", "Indices are not relocated" in q(dp), q(dp)[-160:])
+
     say("\n--- -m from local to elsewhere, long path ---------------------------------------------------------------")
     x = os.path.join(WORK, "i-local", "idx")
     say("    BEFORE %r" % ls(d))

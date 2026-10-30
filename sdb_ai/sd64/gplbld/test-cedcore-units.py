@@ -185,7 +185,16 @@ def checks(p):
     n_cedit = sum(1 for prog in PROGS for l in code(p[prog]) if re.search(r"call \$cedit\(", l))
     n_core = sum(1 for prog in PROGS for l in code(p[prog]) if re.search(r"call \$ced_core\(", l))
     row("E21 every call of $cedit passes its six arguments and every call of $ced_core its four (a short call stops at run time with 'Argument count mismatch' and nothing else sees it)",
-        not miss and n_cedit >= 3 and n_core >= 8, "%r (cedit calls %d, ced_core calls %d)" % (miss, n_cedit, n_core))
+        not miss and n_cedit >= 2 and n_core >= 8, "%r (cedit calls %d, ced_core calls %d)" % (miss, n_cedit, n_core))
+    # the IDE is the engine's second host (30 Oct 26, stage 2a): it no longer calls the CED program, it runs the engine in its own form and writes nothing
+    ide = code(p["ide"])
+    fr = []
+    for lab in ("fields.run", "fields.key"):
+        fr += section(ide, lab) or []
+    sent_ide = sorted(set(re.findall(r"call \$ced_core\('([\w.]+)'", "\n".join(fr))))
+    row("E22 the IDE no longer calls $cedit (stage 5 of the plan, reached by the in-form view); its fields view calls the engine's init, key, prep.save, saved and abandon and nothing it writes",
+        not any("$cedit" in l for l in ide) and sent_ide == ["abandon", "init", "key", "prep.save", "saved"]
+        and not any(re.search(r"\b(write|writeu|writev|delete|readu|execute)(?![\w.])", l) for l in fr), repr(sent_ide))
     return rows
 
 
@@ -253,7 +262,10 @@ def selftest():
     mutant("the end of the input is not given up on", "ced_edit", "         call $ced_core('abandon', st, '', out)", "         null", "E19|E4")
     mutant("a new window size is not given to the engine", "ced_edit", "      call $ced_core('layout', st, w : @fm : h, out)", "      null", "E20|E4")
     mutant("a call of the engine with three arguments", "ced_edit", "call $ced_core('layout', st, w : @fm : h, out)", "call $ced_core('layout', st, w : @fm : h)", "E21")
-    mutant("the IDE calls CED with five arguments", "ide", "call $cedit(fd.arr, '', '', 2, fd.file : ' ' : fd.id, fd.res)", "call $cedit(fd.arr, '', '', 2, fd.res)", "E21")
+    mutant("the IDE calls the engine with three arguments", "ide", "call $ced_core('init', fz.st, '', fz.out)", "call $ced_core('init', fz.st, '')", "E21")
+    mutant("the IDE calls the CED program again", "ide", "      fz.type = 2\n      fz.c = fd.arr\n      gosub fields.run", "      call $cedit(fd.arr, '', '', 2, fz.title, fd.res)\n      fz.type = 2\n      fz.c = fd.arr\n      gosub fields.run", "E22")
+    mutant("the IDE's fields view writes the record", "ide", "   fz.c = fz.st{'c'}\n   fz.kept = fz.st{'kept'}\n   return", "   fz.c = fz.st{'c'}\n   fz.kept = fz.st{'kept'}\n   writeu fz.c on fv, fd.id\n   return", "E22")
+    mutant("the IDE's view never tells the engine a write was kept", "ide", "      if fz.st{'ok'} then call $ced_core('saved', fz.st, 1, fz.out)", "      if fz.st{'ok'} then null", "E22")
     print("selftest: %d of %d mutants caught, %d missed" % (caught, caught + missed, missed))
     return 0 if missed == 0 else 1
 

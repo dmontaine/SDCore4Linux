@@ -455,30 +455,59 @@ end
 """
 
 
+EDX = 29                                   # the column where the IDE's editor rectangle starts (the tree is 28 wide and a border follows); the fields view's table lives in it
+FAIL_FIELDS_VIEW = "the fields view is not on the screen"
+
+
+def _fcell(l):
+    """The editor rectangle of a screen line with the form's right border and the table's scroll bar column (^ | v) cut off."""
+    seg = l[EDX:] if len(l) > EDX else ""
+    seg = seg.rstrip()
+    if seg.endswith("|"):
+        seg = seg[:-1].rstrip()
+    if seg and seg[-1] in "^v|" and len(seg) >= 100:
+        seg = seg[:-1].rstrip()
+    return seg
+
+
 def elements(L):
-    """[(marker, name, type, value)] from the element rows of CED's screen (rows 2 up to the path line)."""
+    """[(marker, name, type, value)] from the rows of the IDE's fields view: the lines between its header (Name Type Value) and the path line.  The marker is '' (the selected row is drawn in
+    another style, not with a character, as the err table's)."""
     out = []
-    for l in L[2:]:
-        if l.startswith("Path:"):
+    started = False
+    for l in L:
+        seg = _fcell(l)
+        if not started:
+            started = seg.lstrip().startswith("Name") and "Type" in seg and "Value" in seg
+            continue
+        if seg.lstrip().startswith("Path:"):
             break
-        if len(l) >= 140:
-            l = l[:139]                   # the table's scroll bar is the last column
-        m = re.match(r"^([> ]) ?(\S+)\s+(string|array|\?)\s*(.*?)\s*$", l)
+        m = re.match(r"^\s*(\d+)\s+(string|array|\?)\s*(.*?)\s*$", seg)
         if m:
-            out.append(m.groups())
+            out.append(("",) + m.groups())
     return out
 
 
 def path_of(L):
     for l in L:
-        if l.startswith("Path:"):
-            return l[5:].strip()
+        seg = _fcell(l).strip()
+        if seg.startswith("Path:"):
+            return seg[5:].strip().rstrip("*").strip()
+    return None
+
+
+def dirty_of(L):
+    """True when the fields view's path line ends with the changed star."""
+    for l in L:
+        seg = _fcell(l).strip()
+        if seg.startswith("Path:"):
+            return seg.endswith("*")
     return None
 
 
 def bottom(L):
-    last = [l for l in L if l.strip()]
-    return last[-1].strip() if last else ""
+    """The IDE's status row (three above the last: then the border and the function-key row): the fields view puts the engine's message there."""
+    return L[-3].strip() if len(L) >= 3 else ""
 
 
 def menu_choices(L):
@@ -572,8 +601,8 @@ def fields_part(box, sysd, made):
 
     e = sb.Ide(box)
     e.keys(F12)
-    row("F12 on the bare IDE's Untitled buffer asks for a file and a record first (the name form), and CED is not started (S.88 Phase 4: there is always a buffer now; it said 'No record is open')",
-        "Name of the new record" in e.text() and not bottom(e.lines()).startswith("Collection editor"), e.status())
+    row("F12 on the bare IDE's Untitled buffer asks for a file and a record first (the name form), and the fields view is not started (S.88 Phase 4: there is always a buffer now; it said 'No record is open')",
+        "Name of the new record" in e.text() and path_of(e.lines()) is None, e.status())
     e.keys("\x1b")
     e.end()
 
@@ -582,9 +611,10 @@ def fields_part(box, sysd, made):
     e.quiet()
     L = e.keys(F12)
     el = elements(L)
-    row("F12: CED shows the record as fields - the title names the record, the rows are the field numbers with string / array and the value",
-        L[0].strip() == "Collection editor: bp %s" % ra and [(x[1], x[2], x[3]) for x in el] == [("1", "string", "Acme"), ("2", "array", "[3]"), ("3", "string", "x")],
-        "%r %r" % (L[0].strip(), el))
+    row("F12: the fields view shows the record as fields INSIDE the IDE - the tree, the tab strip naming the record and the messages pane are still on the screen - and the rows are the field numbers with string / array and the value",
+        path_of(L) == "/" and [(x[1], x[2], x[3]) for x in el] == [("1", "string", "Acme"), ("2", "array", "[3]"), ("3", "string", "x")]
+        and "accounts" in L[2] and ("[%s]" % ra) in L[2] and any(l.lstrip("| ").startswith("Messages") or "Messages" in l[EDX:] for l in L) and dirty_of(L) is False,
+        "%r %r %r" % (path_of(L), el, L[2].strip()))
     L = e.keys(sb.DOWN, sb.RET)
     el = elements(L)
     row("a field of values dives into its values: /2 holds string red, an array of two subvalues, string blue",
@@ -609,10 +639,10 @@ def fields_part(box, sysd, made):
     row("the subvalue green is asked for in a dialogue", any("green" in l for l in L), "\n".join(l for l in L if l.strip())[-300:])
     L = e.keys(CTRL_U, "lime", sb.RET)
     by = {x[1]: (x[2], x[3]) for x in elements(L)}
-    row("the new text is shown: subvalue 2 is the string lime, and the title says the record is changed (a star)",
-        by.get("2") == ("string", "lime") and L[0].rstrip().endswith("*"), "%r %r" % (by, L[0].strip()))
+    row("the new text is shown: subvalue 2 is the string lime, and the path line says the record is changed (a star)",
+        by.get("2") == ("string", "lime") and dirty_of(L) is True, "%r %r" % (by, dirty_of(L)))
     L = e.keys(sb.CTRL_S)
-    row("Ctrl-S keeps it: the star goes and the message line says Saved", not L[0].rstrip().endswith("*") and bottom(L) == "Saved", "%r %r" % (L[0].strip(), bottom(L)))
+    row("Ctrl-S keeps it: the star goes and the status line says Saved", dirty_of(L) is False and bottom(L) == "Saved", "%r %r" % (dirty_of(L), bottom(L)))
     d = disk()
     row("CED wrote nothing: the record on disk is as it was (the IDE has the save)", d[0] == d0[0], repr(d[0]))
     e.keys(sb.CTRL_Q)
@@ -653,7 +683,7 @@ def fields_part(box, sysd, made):
     L = e.keys(sb.RET)
     el = elements(L)
     row("pasting it at the top is allowed: four fields, string array array string, and the title shows the star",
-        [(x[1], x[2]) for x in el] == [("1", "string"), ("2", "array"), ("3", "array"), ("4", "string")] and L[0].rstrip().endswith("*"), "%r %r" % (el, L[0].strip()))
+        [(x[1], x[2]) for x in el] == [("1", "string"), ("2", "array"), ("3", "array"), ("4", "string")] and dirty_of(L) is True, "%r %r" % (el, dirty_of(L)))
     e.keys(sb.CTRL_Q, "N")
     e.quiet()
     st = e.status()
@@ -671,7 +701,7 @@ def fields_part(box, sysd, made):
     e.keys(sb.DOWN, sb.RET)
     L = e.keys(CTRL_U, "Z2", sb.RET)
     by = {x[1]: x[3] for x in elements(L)}
-    row("a second change after Ctrl-S is shown (z is now Z2) and the record is marked changed again", by.get("2") == "Z2" and L[0].rstrip().endswith("*"), "%r %r" % (by, L[0].strip()))
+    row("a second change after Ctrl-S is shown (z is now Z2) and the record is marked changed again", by.get("2") == "Z2" and dirty_of(L) is True, "%r %r" % (by, dirty_of(L)))
     e.keys(sb.CTRL_Q, "N")
     e.quiet()
     st = e.status()

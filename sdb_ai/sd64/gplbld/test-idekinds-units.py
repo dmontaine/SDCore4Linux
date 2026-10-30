@@ -191,8 +191,11 @@ def checks(src):
     ck("K39", "stage F: Edit as fields on a collection record parses the tab's text FIRST (and says so in a box when it will not parse: the screen is not left), hands CED the collection with data type 0 and "
        "no file and no id (CED writes nothing), and takes the JBUILD text back; path.not.for is asked with pa.allow = 'coll' for this command only",
        ordered(fo, "pa.allow = 'coll'", "gosub path.not.for", "pa.allow = ''", "if pa.no then return", "fd.coll = (bx{k} = 'coll')", "gosub coll.value", "if not(cv.ok) then return", "fd.c = cv.y",
-               "gosub leave.screen", "call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)", "fd.text = convert(char(10), @fm, jbuild(fd.c, JB$PRETTY))", "call $cedit(fd.arr, '', '', 2,")
-       and "pa.allow = ''" in main, "")
+               "fz.type = 0", "fz.c = fd.c", "gosub fields.run", "fd.c = fz.c", "fd.text = convert(char(10), @fm, jbuild(fd.c, JB$PRETTY))", "fz.type = 2")
+       and "pa.allow = ''" in main
+       and 0 <= fo.find("pa.allow = 'coll'") < fo.find("gosub path.not.for")             # the allowance comes before the FIRST path.not.for of the command, not only before the one after a save
+       and "gosub leave.screen" not in fo and "$cedit" not in fo
+       and not re.search(r"\b(write|writeu|writev|delete|readu|execute)\b", "\n".join(label(ide, n) for n in ("fields.run", "fields.key", "fields.pull", "fields.show", "fields.status"))), "")
     pn = L["path.not.for"]
     ck("K40", "stage F: path.not.for refuses a collection record for compile, run, debug, catalog, SED, Save as and the include (11744) unless pa.allow is 'coll', and keeps its operating-system-file "
        "lines (11739) after it; the name form refuses a text saved into a collection file under a new name (11745) except for New record",
@@ -393,8 +396,9 @@ MUTANTS = [
     ("a new collection record starts empty text", "K38", sub("ide", "   if lk.kind = 'coll' and or.new and rc.choice # 'use' then tb.shown = '{}'", "   null")),
     ("New record in a collection file starts empty text", "K38", sub("ide", "   if lk.kind = 'coll' and rc.choice # 'use' then bx{k} = '{}'", "   null")),
     ("Edit as fields does not parse first", "K39", sub("ide", "      gosub coll.value\n      if not(cv.ok) then return\n      fd.c = cv.y", "      fd.c = collection()")),
-    ("CED is given the data mode for a collection", "K39", sub("ide", "      call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)", "      call $cedit(fd.c, '', '', 2, fd.file : ' ' : fd.id, fd.res)")),
-    ("CED is given the file for a collection", "K39", sub("ide", "      call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)", "      call $cedit(fd.c, tfv(1), fd.id, 0, fd.file : ' ' : fd.id, fd.res)")),
+    ("the fields view is given the data mode for a collection", "K39", sub("ide", "      fz.type = 0\n      fz.c = fd.c", "      fz.type = 2\n      fz.c = fd.c")),
+    ("the fields view writes the record itself", "K39", sub("ide", "   fz.c = fz.st{'c'}\n   fz.kept = fz.st{'kept'}\n   return", "   fz.c = fz.st{'c'}\n   fz.kept = fz.st{'kept'}\n   writeu fz.c on fv, fd.id\n   return")),
+    ("the screen is left for the fields view again", "K39", sub("ide", "   fd.res = ''\n   fd.new = fd.was\n   fz.title", "   gosub leave.screen\n   fd.res = ''\n   fd.new = fd.was\n   fz.title")),
     ("a collection record is compiled", "K40", sub("ide", "   if bx{pa.k} = 'coll' and pa.allow # 'coll' then", "   if 0 then")),
     ("Edit as fields is refused for a collection", "K39", sub("ide", "   pa.allow = 'coll'                    ;* 29 Oct 26 (stage F)", "   pa.allow = ''                    ;* 29 Oct 26 (stage F)")),
     ("a stage F message is empty", "K41", sub("m11744", "\n", "")),

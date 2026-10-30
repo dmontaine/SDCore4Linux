@@ -442,7 +442,9 @@ def section_keys():
     s.type(F12, wait=2.0, show="F12 (Edit as fields)")
     title = s.row(0).strip()
     say("    row 0 after F12: %r" % title)
-    R.row("I8 control: F12 stays bound: CED opens on the record as fields ('Collection editor: bp %s' on row 0)" % r9, title.startswith("Collection editor: bp %s" % r9), repr(title))
+    # 30 Oct 26 (CED in the IDE, stage 2a): the fields view is drawn INSIDE the IDE's form, so the IDE's menu bar stays on row 0 and the view's path line ('Path: /') is on the screen
+    R.row("I8 control: F12 stays bound: the fields view opens on the record inside the IDE (the menu bar on row 0, 'Path: /' and the 'Name Type Value' header on the screen)",
+          title.startswith("File") and "Path: /" in s.text() and "Name" in s.text() and "Value" in s.text(), repr(title))
     s.end()
 
     s = admin("I8b", "IDE bp %s" % r9)

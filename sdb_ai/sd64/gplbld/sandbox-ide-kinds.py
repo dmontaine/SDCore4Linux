@@ -646,10 +646,11 @@ def section_collection():
     e.keys(F12)
     e.quiet()
     t_ced = "\n".join(e.lines()[:3])
+    t_view = "\n".join(e.lines())
     e.keys(CTRL_Q)
     e.quiet()
-    row("C7 F12 hands the record to CED (the IDE's header is gone while it is up) and CED's Ctrl-Q brings the IDE back with 'is as it was'",
-        "IDE: " not in t_ced and "IDE: " in "\n".join(e.lines()[:3]) and "as it was" in e.status(), "%r | %r" % (t_ced[:100], e.status()[:100]))
+    row("C7 F12 shows the record in the fields view INSIDE the IDE (30 Oct 26: the IDE's header is still on the screen with the path line of the view) and Ctrl-Q brings the editor back with 'is as it was'",
+        "IDE: " in t_ced and "Path: /" in t_view and "IDE: " in "\n".join(e.lines()[:3]) and "as it was" in e.status(), "%r | %r | %r" % (t_ced[:100], t_view[:60], e.status()[:100]))
     done(e)
 
 

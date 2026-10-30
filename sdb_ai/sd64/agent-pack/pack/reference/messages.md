@@ -2309,7 +2309,7 @@ cited by: `ced_edit`
 Name
 ```
 
-cited by: `ced_core`
+cited by: `ced_core`, `ide`
 
 ### msg:11134
 > kind=message tier=reference since=- src=sdsys/messages/11134:1#3deb7456
@@ -2318,7 +2318,7 @@ cited by: `ced_core`
 Type
 ```
 
-cited by: `ced_core`
+cited by: `ced_core`, `ide`
 
 ### msg:11135
 > kind=message tier=reference since=- src=sdsys/messages/11135:1#8dce170d
@@ -2327,7 +2327,7 @@ cited by: `ced_core`
 Value
 ```
 
-cited by: `ced_core`
+cited by: `ced_core`, `ide`
 
 ### msg:11136
 > kind=message tier=reference since=- src=sdsys/messages/11136:1#c6cd9815
@@ -2352,7 +2352,7 @@ Press any key to continue
 Path: %1
 ```
 
-cited by: `ced_edit`
+cited by: `ced_edit`, `ide`
 
 ### msg:11139
 > kind=message tier=reference since=- src=sdsys/messages/11139:1#4afb33c0
@@ -9164,6 +9164,15 @@ The passphrase has fewer than %1 characters.  No key was set.
 ```
 
 cited by: `encryptkey`
+
+### msg:11995
+> kind=message tier=reference since=- src=sdsys/messages/11995:1#a3300bb4
+
+```
+F1 help   Return open   Esc up   Ins insert   Del delete   F3 rename   F4 type   Ctrl-S keep   F12 or Ctrl-Q leave
+```
+
+cited by: `ide`
 
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce

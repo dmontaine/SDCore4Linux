@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE IDE'S FIELDS VIEW (F12) IS INSIDE THE IDE: THE COLLECTION EDITOR'S ENGINE IS SHARED, AND THE SCREEN IS NO LONGER LEFT.
+
+             What        - F12 (Go, Edit as fields) used to hand the record to the CED program, which took the whole screen, and the IDE took the screen back when CED ended. The editor's work
+                           (the list of fields, values and subvalues, diving in, changing a text, Ins and Del, rename, change type, copy, cut and paste, the question when something is changed and
+                           not kept) is now one engine, $ced_core, that CED and the IDE both use. In the IDE the list is drawn in the editor's own rectangle: the tree, the tab strip and the
+                           messages pane stay on the screen, the status row shows the keys, and the record's lock is never let go. The keys are the ones CED has always had; Ctrl-S keeps the
+                           change in the view, and Ctrl-Q or F12 leaves it. A new message (11995) is the status row's text.
+             Why         - The owner wants CED's functions inside the IDE. This is the first step: the same editing code, with the IDE's form around it, and no moment when the IDE has let go of the
+                           screen and the locks. The IDE's own save is still the only thing that writes.
+             Does NOT    - Let the tabs, the menu bar or the other panes work while the view is up (it has the keyboard to itself until you leave it), put the AI line in the view, or change the
+                           !CED() subroutine, which works as before.
+
 30 Oct 26  ENCRYPT.KEY SET REFUSES A PASSPHRASE OF FEWER THAN 12 CHARACTERS.
 
              What        - encrypt.key set name salt asks for the passphrase at its hidden prompt as before; if the two copies typed with CONFIRM differ it says so, and a passphrase of fewer than

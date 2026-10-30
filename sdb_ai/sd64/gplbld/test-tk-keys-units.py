@@ -52,7 +52,8 @@ LEDGER = {
     "mnemonic": {
     },
     "handler": {
-        "ide:esc/menu": "the IDE's Esc is handled where the form is read (the menu bar), not in do.key",
+        # 30 Oct 26: "ide:esc/menu" (the IDE's Esc is handled where the form is read, not in do.key) is gone from this ledger because the IDE's fields view (fields.run) now has the literal 'esc' in its
+        #   source; the Esc that opens the menu bar is still the main loop's `case 1`, so the check passes by the fields view's word until somebody takes it out, when this entry comes back
         "tool_remote:2/": "tool_remote's digit keys 2 to 4 choose a pane by number (a computed test, not a literal case)",
         "tool_remote:3/": "(as 2)",
         "tool_remote:4/": "(as 2)",

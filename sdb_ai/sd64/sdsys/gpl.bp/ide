@@ -715,6 +715,12 @@ new.form:
       aw = f{'widgets', an}
       aw{'activate'} = 1
    end
+   * 30 Oct 26 dm (CED in the IDE, stage 2a): the fields view's two widgets, in the editor's rectangle and HIDDEN until F12 (fields.run) shows them: the table of the record's fields and the
+   *   line that names the container.  They are made here, with the rest of the form, so that a form made again (a resize, a program run) has them; added before the pane indicators, which stay on top.
+   screen table f, 'fld', sysmsg(11133) : @sm : '10L' : @vm : sysmsg(11134) : @sm : '10L' : @vm : sysmsg(11135) : @sm : (ew - 26) : 'L', '' at ex,2 size ew,mh - 1
+   screen label f, 'fpath', ' ' at ex,mh + 1 width ew attr 'window'
+   screen set f, 'fld' visible 0
+   screen set f, 'fpath' visible 0
    * Return in the tree and in the table is an event of its own (activate), not the press of a default button
    f{'activate'} = 1
    f{'bgclick'} = 1                     ;* a left click on no widget (the menu bar) comes back as the key mouse: the bar is the IDE's, not a widget
@@ -3556,17 +3562,27 @@ do.fields:
    end else
       if not(fd.json) then call $recarr('to', fd.was, fd.arr, fd.ok)
    end
-   gosub leave.screen
+   * 30 Oct 26 (CED in the IDE, stage 2a): the editor's engine ($ced_core) runs HERE, in the IDE's own form (fields.run), and no longer in a program that takes the whole screen: the
+   *   screen is not left, no record lock is let go, the tree, the tab strip and the status line stay.  The view is MODAL for now - the tabs, the menu and the other panes wait until it ends.
    fd.res = ''
    fd.new = fd.was
+   fz.title = fd.file : ' ' : fd.id
    if fd.coll or fd.json then
-      call $cedit(fd.c, '', '', 0, fd.file : ' ' : fd.id, fd.res)
+      fz.type = 0
+      fz.c = fd.c
+      gosub fields.run
+      fd.c = fz.c
+      fd.res<1> = fz.kept
       if fd.res<1> then
          fd.text = convert(char(10), @fm, jbuild(fd.c, JB$PRETTY))        ;* the text area's form (coll.text)
          if fd.text # '' then fd.new = fd.text
       end
    end else
-      call $cedit(fd.arr, '', '', 2, fd.file : ' ' : fd.id, fd.res)
+      fz.type = 2
+      fz.c = fd.arr
+      gosub fields.run
+      fd.arr = fz.c
+      fd.res<1> = fz.kept
       if fd.res<1> then
          call $recarr('from', fd.arr, fd.text, fd.ok)
          if fd.ok then fd.new = fd.text
@@ -3584,7 +3600,137 @@ do.fields:
    end else
       msg = sysmsg(11990, fd.file, fd.id)
    end
-   gosub retake.quiet
+   screen clear                          ;* the form is made again from the tab's text (as relayout does); the screen was never left, so nothing is taken back and no lock was let go
+   gosub new.form
+   return
+
+* ======================================================================
+* The fields view (30 Oct 26, CED in the IDE, stage 2a).  The engine is gpl.bp/ced_core, the same that CED's own program uses; this is the second host.  In: fz.c (the collection or array),
+* fz.type (0 a collection or a JSON record, 2 a record as $recarr makes it), fz.title.  Out: fz.c (the engine may replace it: a revert, an accepted AI edit), fz.kept (Ctrl-S kept
+* something).  It writes NOTHING: the IDE's own save is the only writer, with its edit gates and its overwrite question.  The keys are the ones CED has always had (Ctrl-S keeps, Ctrl-Q or F12
+* leaves, with the question when something is changed and not kept), and the table is the form's, so the Up and Down keys, the pages, the mouse and the scroll bar are the widget's.
+* MODAL: the loop below is the only one that reads events until the view ends, so the tabs, the menu bar and the other panes wait; the memo stays under the view, hidden.
+fields.run:
+   fz.kept = @false
+   fz.kind = jtype(fz.c)
+   if fz.kind # 'collection' and fz.kind # 'array' then return
+   if fz.type = 2 and fz.kind # 'array' then return          ;* a record is an array of fields
+   fz.st = collection()
+   fz.st{'c'} = fz.c
+   fz.st{'ftype'} = fz.type
+   fz.st{'title'} = fz.title
+   fz.st{'w'} = ew
+   fz.st{'h'} = mh + 3
+   fz.st{'ai.ok'} = 0                                         ;* the AI line of the fields view is a later stage
+   call $ced_core('init', fz.st, '', fz.out)
+   fz.st{'path.row'} = ystat                                  ;* what the engine paints over a dialogue (a refused value) goes on the status row, which the IDE writes again after
+   fz.st{'msg.row'} = ystat
+   screen set f, 'ed' visible 0
+   screen set f, 'fld' visible 1
+   screen set f, 'fpath' visible 1
+   fz.done = @false
+   gosub fields.show
+   ft.id = 'fld'
+   gosub focus.to
+   loop
+      gosub fields.status
+      screen wait f timeout 1 returning ev then
+         et = ev<1>
+         eid = ev<2>
+         edata = ev<3>
+         begin case
+            case et = 'activate'
+               if eid = 'fld' then
+                  fz.key = 'enter'
+                  gosub fields.key
+               end
+            case et = 'key'
+               fz.key = edata
+               gosub fields.key
+         end case
+      end else
+         begin case
+            case ev<1> = 'end'
+               call $ced_core('abandon', fz.st, '', fz.out)       ;* the input ended or the terminal hung up: what was not kept is given up, without a question
+               fz.done = @true
+            case ev<1> = 'timeout'
+               null
+            case 1
+               fz.key = 'esc'                                      ;* Esc comes back as no event: it goes up a level, as it does in CED
+               gosub fields.key
+         end case
+      end
+   until fz.done
+   repeat
+   fz.c = fz.st{'c'}
+   fz.kept = fz.st{'kept'}
+   return
+
+* One key, from the loop above (or the table's Return): F12 and Ctrl-Q leave (CED's Ctrl-Q), the rest are CED's own
+fields.key:
+   fz.k = fz.key
+   if fz.k = 'f12' then fz.k = 'ctrl-q'
+   if fz.k = 'guardquit' then
+      call $ced_core('abandon', fz.st, '', fz.out)               ;* the cursor lock's way out: nothing is kept, and the IDE ends too
+      fz.done = @true
+      done = @true
+      return
+   end
+   if fz.k = 'mouse' or fz.k = 'tab' or fz.k = 'shift-tab' then return
+   gosub fields.pull
+   call $ced_core('key', fz.st, fz.k, fz.out)
+   if fz.st{'req'} = 'save' then
+      call $ced_core('prep.save', fz.st, '', fz.out)
+      if fz.st{'ok'} then call $ced_core('saved', fz.st, 1, fz.out)      ;* nothing to write: Ctrl-S keeps the change in the array
+   end
+   fz.done = fz.st{'done'}
+   last.status = char(1)                                          ;* a dialogue or the engine's message line may have written over the status row
+   if not(fz.done) then
+      gosub fields.show
+      ft.id = 'fld'
+      gosub focus.to
+   end
+   return
+
+* The engine's selection and window from the table: the Up, Down and page keys and the mouse move the widget and not the engine
+fields.pull:
+   screen get f, 'fld' returning fz.rn
+   call $sl_form('find', f, '', 'fld', fz.tn)
+   fz.tt = f{'widgets', fz.tn}
+   fz.st{'sel'} = fz.rn + 0
+   if fz.tt{'top'} + 0 >= 1 then fz.st{'top'} = fz.tt{'top'} + 0
+   return
+
+* The table and the path line from the engine's state
+fields.show:
+   fz.tb = fz.st{'tbl'}
+   call $sl_form('find', f, '', 'fld', fz.tn)
+   fz.tt = f{'widgets', fz.tn}
+   fz.tt{'cols'} = fz.tb{'cols'}
+   fz.tt{'rows'} = fz.tb{'rows'}
+   fz.tt{'top'} = fz.st{'top'}
+   fz.tt{'cur'} = fz.st{'sel'}
+   fz.tt{'value'} = fz.st{'sel'}
+   fz.tt{'picked'} = ''
+   call $sl_widget_init(fz.tt)
+   fz.pt = sysmsg(11138, '/' : change(fz.st{'path'}, @fm, '/'))
+   if fz.st{'dirty'} then fz.pt := ' *'
+   screen set f, 'fpath' text fz.pt
+   gosub redraw
+   return
+
+* The status row while the view is up: the engine's message, or the keys
+fields.status:
+   fz.t = fz.st{'msg'}
+   if fz.t = '' then fz.t = sysmsg(11995)
+   fz.t = fmt(fz.t[1, lw], lw : 'L')
+   if fz.t # last.status then
+      last.status = fz.t
+      keep.cur = ''
+      call $sl_curat('get', keep.cur)
+      screen text fz.t at 0,ystat attr 'reverse'
+      call $sl_curat('back', keep.cur)
+   end
    return
 
 * The window changed size: the form is made again at the new size from the state

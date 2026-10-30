@@ -151,10 +151,13 @@ def checks(p):
     row("I2 run.cmd: the command 'fields' runs do.fields", ordered(rc, [r"case cmd = 'fields'", r"gosub do\.fields"]))
     df = code(section(i, "do.fields"))
     row("I3 do.fields: with no record open it says so (11218) and goes no further", ordered(df, [r"if nbuf = 0 then", r"msg = sysmsg\(11218\)", r"^return$", r"call \$recarr\('to'"]), "\n".join(df[:8]))
-    row("I4 do.fields: the order - the record to an array, the screen left, CED called, the array back to text, the tab's text set, the screen taken again",
-        ordered(df, [r"call \$recarr\('to'", r"gosub leave\.screen", r"call \$cedit\(", r"call \$recarr\('from'", r"bx\{k\} = fd\.new", r"gosub retake\.quiet"]), "\n".join(df))
-    row("I5 do.fields gives CED NO file and NO record id (null, null) and the data mode (2): CED writes nothing and takes no lock",
-        first(df, r"call \$cedit\(fd\.arr, '', '', 2, ") is not None)
+    row("I4 do.fields: the order - the record to an array, the fields view run IN the IDE's form (the screen is not left), the array back to text, the tab's text set, the form made again from it",
+        ordered(df, [r"call \$recarr\('to'", r"gosub fields\.run", r"call \$recarr\('from'", r"bx\{k\} = fd\.new", r"^screen clear", r"gosub new\.form"])
+        and not any(re.search(r"gosub leave\.screen|\$cedit|retake\.", l) for l in df), "\n".join(df))
+    fr = code(section(i, "fields.run"))
+    row("I5 the fields view is given NO file and NO record id, only the array and the data mode (2): the engine writes nothing and the view takes no lock",
+        first(df, r"fz\.type = 2") is not None and ordered(df[first(df, r"fz\.type = 2"):], [r"fz\.c = fd\.arr", r"gosub fields\.run"]) and first(fr, r"fz\.st\{'ftype'\} = fz\.type") is not None
+        and not any(re.search(r"\b(readu|recordlocku|writeu|write|openseq)\b", l) for l in fr), "\n".join(fr[:14]))
     row("I6 do.fields itself does not write, read with a lock or delete, or run a command: the IDE's save (edit.check, the overwrite question) is the only writer",
         not any(re.search(r"\b(write|writeu|writev|readu|readv|delete|deleteu|execute|open)\b", l) for l in df), "\n".join(l for l in df if re.search(r"\b(write|writeu|readu|delete|execute|open)\b", l)))
     row("I7 do.fields changes the tab only when what came back differs (11989), else says it is as it was (11990)",
@@ -200,7 +203,7 @@ def checks(p):
 
     row("G1 (g-P2) the record of an ordinary file whose text is a JSON object or array with no value or subvalue mark goes to CED as the tree (data type 0, no file, no id); marks, text that does not parse or a first character other than { or [ keep the multivalue view and say nothing about JSON",
         ordered(dfl, [r"fd\.json = 0", r"if not\(fd\.coll\) then", r"index\(fd\.was, @vm, 1\) = 0 and index\(fd\.was, @sm, 1\) = 0", r"= '\{' or fd\.jq = '\['", r"jparse\(", r"fd\.jst = status\(\)", r"jtype\(fd\.c\) = 'collection' or jtype\(fd\.c\) = 'array'",
-                      r"if not\(fd\.json\) then call \$recarr\('to'", r"gosub leave\.screen", r"if fd\.coll or fd\.json then", r"call \$cedit\(fd\.c, '', '', 0,"]))
+                      r"if not\(fd\.json\) then call \$recarr\('to'", r"if fd\.coll or fd\.json then", r"fz\.type = 0", r"fz\.c = fd\.c", r"gosub fields\.run"]))
 
     # ---- M: the menu, the help, the messages ----------------------------------------------------------------------------------------------------------------------
     m = p["m11226"].strip("\n")
@@ -261,9 +264,11 @@ def selftest():
     mutant("a list may be a subvalue", "ced_core", "if n.path < 2 then ct.allowed<-1> = 'array'\n      case et = 'array'", "if n.path < 3 then ct.allowed<-1> = 'array'\n      case et = 'array'", "C4")
     mutant("insert offers numbers in data mode", "ced_core", "      ct.allowed = 'string'\n      if n.path < 2", "      ct.allowed = 'string' : @fm : 'number'\n      if n.path < 2", "C5")
     mutant("a paste is not asked of data.fits", "ced_core", "      gosub data.fits\n      if not(fits) then", "      fits = 1\n      if not(fits) then", "C8")
-    mutant("do.fields gives CED the record's file and id", "ide", "call $cedit(fd.arr, '', '', 2,", "call $cedit(fd.arr, fv, fd.id, 2,", "I")
+    mutant("the fields view is given the record's file to write", "ide", "   fz.kept = fz.st{'kept'}\n   return", "   fz.kept = fz.st{'kept'}\n   writeu fz.c on fv, fd.id\n   return", "I5")
+    mutant("the fields view is given the JSON data mode for a record", "ide", "      fz.type = 2\n      fz.c = fd.arr", "      fz.type = 0\n      fz.c = fd.arr", "I5")
     mutant("do.fields writes the record itself", "ide", "if fd.ok then fd.new = fd.text", "if fd.ok then fd.new = fd.text ; write fd.new on fv, fd.id", "I6")
-    mutant("do.fields does not take the screen again", "ide", "   gosub retake.quiet\n   return\n\n* The window changed size", "   return\n\n* The window changed size", "I4")
+    mutant("do.fields does not make the form again", "ide", "   screen clear                          ;* the form is made again from the tab's text (as relayout does); the screen was never left, so nothing is taken back and no lock was let go\n   gosub new.form\n   return", "   return", "I4")
+    mutant("do.fields leaves the screen again", "ide", "   fd.res = ''\n   fd.new = fd.was\n   fz.title", "   gosub leave.screen\n   fd.res = ''\n   fd.new = fd.was\n   fz.title", "I4")
     mutant("a JSON record with marks goes to the tree", "ide", "if index(fd.was, @vm, 1) = 0 and index(fd.was, @sm, 1) = 0 then", "if 1 then", "G1")
     mutant("any text is tried as JSON", "ide", "if fd.jq = '{' or fd.jq = '[' then", "if 1 then", "G1")
     mutant("text that parses as a number is a tree", "ide", "jtype(fd.c) = 'collection' or jtype(fd.c) = 'array'", "1", "G1")
