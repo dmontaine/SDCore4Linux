@@ -341,10 +341,13 @@ def section_b3(p):
             p.key(k, 1.2)
             if box_open(p) or "other session(s) are signed on" not in st(p) or "Backup some accounts" in p.text():
                 bad.append((label, st(p)))
-            p.key("esc", 0.6)
+            if box_open(p):
+                p.key("esc", 0.6)               # 29 Oct 26: only a box is closed with Esc; with nothing open Esc opens the MENU BAR (since d09ccd78), and the next keys went into the Backups menu (Opus, review 29oct-c)
         arow("B3b", "B, A and R each say another session is signed on and show no box and no question", not bad and len([ln for ln in audit_lines()[a0:] if "backup.account" in ln or "restore.account" in ln]) == 0, repr(bad))
     finally:
         other.end()
+    # 29 Oct 26: B3c was red in four runs, and I took it for a user-table row that stays after a hang-up.  It was this suite: the Esc after each refused key opened the menu bar, so the Backups
+    #   menu was open and every F5 went into it (the text I read as key help was its entries).  With no stray Esc the page is asked once, as it was first written.
     time.sleep(2.0)
     p.key("f5", 2.5)
     arow("B3c", "when that session has gone, F5 says no other session is signed on", "No other session is signed on: a backup or a restore can start." in p.top(), p.top()[:200])

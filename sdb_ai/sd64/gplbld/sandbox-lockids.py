@@ -162,7 +162,7 @@ PSTAT_TEXT = b"zzps-?[2jclrps?x" + bytes([200]) + b" tail"
 # or removes F<n>.  It is $internal for the common block that holds $IPC's file variable (syscom.h ipc.f), as zzgl is for GETLOCKS().
 ZZPL = """$internal
 program zzpl
-$include syscom.h
+$include gpl.bp syscom.h
    args = trim(@sentence)
    kind = field(args, ' ', 4)
    n = field(args, ' ', 5)

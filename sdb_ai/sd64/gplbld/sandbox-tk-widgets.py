@@ -115,13 +115,17 @@ $include gpl.bp tk.h
    spec<-1> = 'b' : @vm : 'Beta' : @vm : 20 : @vm : 20
    fv = 'x' : @fm : 'y'
    call $tk_form('open', ctx, spec, fv, fo)
-   crt 'FRT open=<' : fo : '>'
+   o1 = 'FRT open=<' : fo : '>'
    call $tk_form('run', ctx, ans, vals, fid)
-   crt 'FRT first=' : ans : ' a=<' : vals<1> : '> b=<' : vals<2> : '> focus=' : fid
+   r1 = 'FRT first=' : ans : ' a=<' : vals<1> : '> b=<' : vals<2> : '> focus=' : fid
    call $tk_form('say', ctx, 'the refusal words', 'b', '')
    call $tk_form('run', ctx, ans, vals, fid)
-   crt 'FRT second=' : ans : ' a=<' : vals<1> : '> b=<' : vals<2> : '> focus=' : fid
+   r2 = 'FRT second=' : ans : ' a=<' : vals<1> : '> b=<' : vals<2> : '> focus=' : fid
    call $tk_form('close', ctx, '', '', '')
+   * the lines are printed AFTER the close: a line written while the form is open lies on its window, and the close puts back what was under it (29 Oct 26, seen on the screen)
+   crt o1
+   crt r1
+   crt r2
    crt 'FRT done'
 end
 """
@@ -163,6 +167,17 @@ def isess(box, *cmds):
     return ANSI.sub("", p.stdout + p.stderr)
 
 
+def psess(box, *cmds):
+    """A NORMAL session as the administrator on a pipe whose input ENDS right after the last command (the screen library takes that as Esc).  Not `sd -internal`: that mode
+    spins at 100% CPU when its input has ended (measured by hand 29 Oct 26, the pick probe: 20 s of CPU in 21 s), a normal session ends in 0.03 s.  The probes were compiled INTERNAL
+    (isess, above) and an administrator may run them.  `no terminal` in the toolkit is a PHANTOM (SYSTEM(25)); a pipe is not one, so these rows are about an input that has ended."""
+    body = "TERM xterm\nTERM 140,43\n" + "".join(c + "\n" for c in cmds)
+    p = subprocess.run([os.path.join(box, "sys", "bin", "sd")], input=body, cwd=os.path.join(box, "sys"), env=sdenv(box),
+                       capture_output=True, text=True, errors="replace", timeout=60)
+    text = ANSI.sub("", p.stdout + p.stderr)
+    return re.sub(r"\b(OUT|PRK|FRM) (?=[a-z])", r"\n\1 ", text)        # a probe's line follows the picture a page drew on the same line (no line feed): start it on a line of its own
+
+
 def pty_run(box, prog, keys):
     """INTERNAL mode on a pseudo-terminal of 140 by 60: RUN the probe, then send each of keys (text, idle seconds); returns the screen's lines"""
     s = PtySession([os.path.join(box, "sys", "bin", "sd"), "-internal"], os.path.join(box, "sys"), sdenv(box, "xterm"), 140, 60)
@@ -178,7 +193,16 @@ def pty_run(box, prog, keys):
 
 
 def tagged(text, tag):
-    return [ln.rstrip() for ln in (text if isinstance(text, list) else text.split("\n")) if ln.startswith(tag + " ")]
+    """the probe lines that carry the tag: a probe's crt line is written wherever the cursor stood, so it may come after blanks or after what a page drew on the same screen row (29 Oct 26: on the
+    pseudo-terminal 'FRT first=' was printed after the form closed and was not at the start of its row); the tag must stand at the start of the row or after a blank"""
+    out = []
+    for ln in (text if isinstance(text, list) else text.split("\n")):
+        i = ln.find(tag + " ")
+        while i > 0 and ln[i - 1] != " ":
+            i = ln.find(tag + " ", i + 1)
+        if i >= 0:
+            out.append(ln[i:].rstrip())
+    return out
 
 
 def val(lines, tag, key):
@@ -219,8 +243,8 @@ def main():
         if n != 4:
             bail("the probes did not compile:\n" + iout[-800:])
 
-        say("\n--- O: $tk_out with no terminal ---------------------------------------------------------------------")
-        out = isess(box, "RUN bp " + POUT)
+        say("\n--- O: $tk_out on a pipe whose input has ended ------------------------------------------------------")
+        out = psess(box, "RUN bp " + POUT)
         g = {k: val(out, "OUT", k) for k in ("state before", "state after add", "toggle 1", "state open", "toggle 2", "state closed", "state other epoch")}
         row("the probe answered for every step (the null case: the instrument measured)", all(v is not None for v in g.values()), repr(g))
         row("the pane starts closed (state 0), and 'add' keeps the history without opening it", g["state before"] == "0" and g["state after add"] == "0", repr(g))
@@ -228,28 +252,29 @@ def main():
             g["toggle 1"] == "1" and g["state open"] == "1" and g["toggle 2"] == "0" and g["state closed"] == "0", repr(g))
         row("another open of the app (TK.C.EPOCH 8) starts closed although epoch 7 had opened it", g["state other epoch"] == "0", repr(g))
 
-        say("\n--- K: $tk_pickrec with no terminal -----------------------------------------------------------------")
-        out = isess(box, "RUN bp " + PPIK)
+        say("\n--- K: $tk_pickrec on a pipe whose input has ended --------------------------------------------------")
+        out = psess(box, "RUN bp " + PPIK)
         pk = tagged(out, "PRK")
         row("the probe answered four times (the null case)", len(pk) == 4, repr(pk))
-        row("a session with no terminal gets 'cancel' in the whole pick, in 'file' mode and in 'record' mode, and the id stays empty",
+        row("a session whose input has ended gets 'cancel' in the whole pick, in 'file' mode and in 'record' mode, and the id stays empty",
             len(pk) >= 3 and all("res=cancel" in x for x in pk[:3]) and all("id=<>" in x for x in pk[:3]), repr(pk[:3]))
         row("a record of a file that does not exist is 'cancel'", any(x == "PRK nosuchfile res=cancel" for x in pk), repr(pk))
 
-        say("\n--- F: $tk_form with no terminal --------------------------------------------------------------------")
-        out = isess(box, "RUN bp " + PFRM)
+        say("\n--- F: $tk_form on a pipe whose input has ended -----------------------------------------------------")
+        out = psess(box, "RUN bp " + PFRM)
         fo, fr = val(out, "FRM", "open"), val(out, "FRM", "run")
         row("the probe answered (the null case)", fo is not None and fr is not None, repr((fo, fr)))
-        row("'open' answers 'no' (nothing was drawn) and 'run' answers 'cancel'", fo == "<no>" and fr == "cancel", repr((fo, fr)))
+        row("'open' answers null (the form was drawn: only a phantom gets 'no') and 'run' answers 'cancel' because the input has ended", fo == "<>" and fr == "cancel", repr((fo, fr)))
 
         say("\n--- T: $tk_form on a terminal -----------------------------------------------------------------------")
-        lines = pty_run(box, PFRT, [("Q\tZ\r", 1.5)])
+        # the probe prints its lines after the form is CLOSED (a line written while it is open is wiped by the close), and it runs the form twice: each row ends the second run with an Esc
+        lines = pty_run(box, PFRT, [("Q\tZ\r", 1.5), ("\x1b", 1.5)])
         t = tagged(lines, "FRT")
         row("the form opened (c null) and the first 'run' answered", any(x == "FRT open=<>" for x in t) and any(x.startswith("FRT first=") for x in t), repr(t))
         first = [x for x in t if x.startswith("FRT first=")]
         row("Q, Tab, Z, Return: both entries started with their texts and the cursor stood after them (xQ, yZ), Return in the second entry pressed the default button ('ok'), and the focus entry is b",
             bool(first) and first[0] == "FRT first=ok a=<xQ> b=<yZ> focus=b", repr(first))
-        lines = pty_run(box, PFRT, [("\x1b", 1.5)])
+        lines = pty_run(box, PFRT, [("\x1b", 1.5), ("\x1b", 1.5)])
         first = [x for x in tagged(lines, "FRT") if x.startswith("FRT first=")]
         row("Esc is 'cancel' (and the texts come back as they were: x and y)", bool(first) and first[0].startswith("FRT first=cancel a=<x> b=<y>"), repr(first))
         lines = pty_run(box, PFRT, [("\x1b", 1.5), ("\x1b", 1.5)])

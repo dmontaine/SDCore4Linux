@@ -173,8 +173,10 @@ def main():
             S[k] = open_h(k)
         for k in "ABCEFGH":
             send(S[k], k, "AUTOLOGOUT 1\r")
+        cmd_at = {}                     # when each session's last command went in: the idle clock of a session starts there, and t0 (below) is taken after the later sessions were started
         for k in "ABDE":
             send(S[k], k, "RUN bp zzal1\r", idle=1.5)
+            cmd_at[k] = time.time()
         send(S["F"], "F", "RUN bp zzal2\r", idle=1.5)
         send(S["G"], "G", "tool.keys\r", idle=2.0)
         send(S["H"], "H", "RUN bp zzal3\r", idle=1.5)
@@ -237,8 +239,8 @@ def main():
         R.row("AL-B a key every 0.5 s keeps the session (alive after %.0f s) and the program saw the keys (counted %d of %d sent)" % (IDLE_TOTAL, bcount, keys["B"]),
               not S["B"].s.exited and bcount >= keys["B"] // 2 and keys["B"] >= 100, "exited=%s counted=%d sent=%d" % (S["B"].s.exited, bcount, keys["B"]))
         # the fault
-        ta = ended.get("A")
-        R.row("AL-A AUTOLOGOUT 1 ended the idle keyin(1) program between 55 and 85 s (ended at %s s)" % (None if ta is None else "%.1f" % ta),
+        ta = None if ended.get("A") is None else ended["A"] + (t0 - cmd_at["A"])      # seconds after A's own RUN, not after t0 (29 Oct 26: A ended at 53.0 s from t0, 62.6 s from its command)
+        R.row("AL-A AUTOLOGOUT 1 ended the idle keyin(1) program between 55 and 85 s after its command (ended at %s s after it, %s s after the idle period began)" % (None if ta is None else "%.1f" % ta, ended.get("A")),
               ta is not None and 55.0 <= ta <= 85.0 and gone("A"), "ended=%r in table=%s" % (ta, pids["A"] in after), phase=2 if gone("C") else None)
         R.row("AL-Am the ended keyin(1) session's terminal said %r, as a plain prompt's does" % MSG.decode(), said("A"), "not in %d bytes" % len(S["A"].s.raw),
               phase=2 if said("C") else None)

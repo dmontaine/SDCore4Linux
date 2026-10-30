@@ -294,8 +294,8 @@ def main():
             all(w in T for w in ("My tools", "Editor", "IDE", "Everyone", "Terminal", "Keys", "Switch account", "Sign out")), "")
         row("the identity (row 2) and the date and time (row 3): 'don @ zzhm' and a line like 'Thursday 22 Oct 2026  -  18:52'",
             h.line(2).strip().startswith("don @ zzhm") and re.match(r"^\s+[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2} \d{4}  -  \d\d:\d\d", h.line(3)) is not None, repr((h.line(2)[:40], h.line(3)[:50])))
-        row("the foot: the hint line (row 39), the status line [Home] (row 40), the border (row 41), the function keys (row 42: Enter start, F5 refresh, F10 menu, ^Q sign out)",
-            "arrows move" in h.line(39) and h.line(40).startswith("[Home]") and set(h.line(41)) == {"-"} and h.line(42) == "Enter start  F5 refresh  F10 menu  ^Q sign out", repr((h.line(39)[:30], h.line(40), h.line(42))))
+        row("the foot: the hint line (row 39), the status line [Home] (row 40), the border (row 41), the function keys (row 42: Enter start, F1 help, F5 refresh, F10 menu, ^Q sign out)",
+            "arrows move" in h.line(39) and h.line(40).startswith("[Home]") and set(h.line(41)) == {"-"} and h.line(42) == "Enter start  F1 help  F5 refresh  F10 menu  ^Q sign out", repr((h.line(39)[:30], h.line(40), h.line(42))))
         row("row 0: the menu bar File Go View AI Help at the left, 'home  don@zzhm' at the right", h.line(0).startswith(" File  Go  View  AI  Help") and h.line(0).endswith("home  don@zzhm"), repr(h.line(0)))
         row("the focus starts on the first tile of the page (Editor): one tile in reverse video", h.focus() == ["Editor"], repr(h.focus()))
         # Vocabulary (24,27) is the only tile in IDE's columns below it, so Down from IDE goes to it (a tile that shares columns comes before one that does not: Terminal is narrower than two columns)

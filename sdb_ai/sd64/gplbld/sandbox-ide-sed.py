@@ -112,7 +112,7 @@ def line_of(e):
 
 def table_empty(L):
     """The error table (below the editor) holds no row: only blanks between the frame and the scroll bar."""
-    return all(not l[30:136].strip() for l in L[35:39])           # rows 35 to 38: the table's last rows; row 39 is the form's bottom border (the IDE's foot, 28 Oct 26)
+    return all(not l[30:136].strip() for l in L[34:39])           # rows 34 to 38: the table's rows at 140 by 43 (row 33 is its heading Line / Message, row 39 the frame; seen on the screen 29 Oct 26); it held rows 35 to 38 at 140 by 42
 
 
 def main():
@@ -236,7 +236,7 @@ end
         e = IdeK(box, "IDE bp %s" % P)
         L = e.keys(F10, RIGHT)
         row("the Go menu lists Edit in SED with its key, ^E", any("Edit in SED" in l and "^E" in l for l in L[1:12]), "\n".join(l[:60] for l in L[:10]))
-        L = e.keys(DOWN * 7, RET, idle=0.8)                 # the eighth entry of Go: Go to line, Next error, Next tab, Previous tab, Files and records, Next pane, Previous pane, Edit in SED
+        L = e.keys(DOWN * 8, RET, idle=0.8)                 # the ninth entry of Go (message 11226): Go to line, Next error, Next tab, Previous tab, Files and records, Next pane, Previous pane, Open the include, Edit in SED (29 Oct 26: Open the include is before it)
         L = wait(e)
         row("choosing it opens SED on the record", in_sed(L), L[-1][:80])
         L = leave_sed(e)

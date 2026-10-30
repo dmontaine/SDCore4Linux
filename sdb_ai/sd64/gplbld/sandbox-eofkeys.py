@@ -89,7 +89,7 @@ def pipe_session(box, label, *lines):
     sysd = os.path.join(box, "sys")
     sd = os.path.join(sysd, "bin", "sd")
     env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"))
-    body = "TERM 140,42\n" + "".join(l + "\n" for l in lines)
+    body = "TERM 140,43\n" + "".join(l + "\n" for l in lines)           # 29 Oct 26: the IDE needs 140 by 43 since its key row (it refused 140 by 42: "this one is 140 by 42"); SED takes a bigger window
     outf = os.path.join(box, "eofkeys-%s.out" % label)
     killed = []
     wall_at_deadline = 0.0
@@ -384,11 +384,11 @@ def ed_rows(box, sysd, made):
 
     say("\n  ON A TERMINAL an empty Enter is an empty command: ED stays (the end of the input is not an empty line)")
     env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm")
-    s = PtySession([os.path.join(sysd, "bin", "sd")], sysd, env, 140, 42)
+    s = PtySession([os.path.join(sysd, "bin", "sd")], sysd, env, 140, 43)
     try:
         s.settle(1.0)
         s.type("TERM xterm\r")
-        s.type("TERM 140,42\r")
+        s.type("TERM 140,43\r")
         s.type("ed zzeof %s\r" % R("pt1"), idle=0.8)
         s.type("\r", idle=0.5)
         s.type("\r", idle=0.5)

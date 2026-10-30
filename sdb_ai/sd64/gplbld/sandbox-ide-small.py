@@ -501,13 +501,13 @@ def part_d():
     e.keys(DOWN * 20, idle=0.8)
     L = e.keys(CTRL("l"), idle=0.8)
     row("setup: Ctrl-L opens the go-to-line question (its box is on rows 19 to 22)",
-        any("Line number:" in l for l in L[18:24]), text(L[16:26], 10))
+        any("Go to (a line" in l for l in L[18:24]), text(L[16:26], 10))        # 29 Oct 26: message 11209 reads "Go to (a line; line,column; ..." ("Line number:" was the first wording)
     e.resize(100, 16)
     L = e.lines()
     row("100x16 with the question open: locked (the question's own cursor is on row 20, which this window does not show, but the window decides)", ide_warn(L, 100, 16), text(L, 6))
     e.keys(CTRL("q"))
     L = e.keys("y", idle=1.2)
-    row("...Ctrl-Q, y leaves: the question was closed as Esc and the IDE was left (SD at its prompt)", prompt_shown(e) and not any("Line number" in l for l in L),
+    row("...Ctrl-Q, y leaves: the question was closed as Esc and the IDE was left (SD at its prompt)", prompt_shown(e) and not any("Go to (a line" in l for l in L),
         text(L, 8))
     e.end()
 

@@ -2503,13 +2503,14 @@ save.one:
    i = sv.i
    gosub buf.label
    sv.name = bf.name
+   sv.id = bi<sv.i>                     ;* 29 Oct 26: set here, before coll.value, which says it in its box (11743); it was set after the record was opened and the box stopped the IDE: "Unassigned variable SV.ID"
    if not(sv.new) and (sv.text : '|') = (sv.saved : '|') then
       sv.ok = @true
       msg = sysmsg(11971)
       return
    end
    if sv.kind = 'path' then
-      gosub save.path                   ;* 28 Oct 26 (stage E): an operating system file is read again and written in place, not written as a record
+      gosub save.path                  ;* 28 Oct 26 (stage E): an operating system file is read again and written in place, not written as a record
       return
    end
    sv.out = sv.text                     ;* what is written: the text, or (stage F) the collection the text of a collection file's record parses to
@@ -2534,7 +2535,6 @@ save.one:
       gosub refuse.box
       return
    end
-   sv.id = bi<sv.i>
    readu disk from fv, sv.id locked
       msg = sysmsg(11973, sv.name, sv.id)
       return

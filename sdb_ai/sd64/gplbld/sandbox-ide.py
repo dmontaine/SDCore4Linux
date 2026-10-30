@@ -170,6 +170,17 @@ def cells_written(raw):
     return n, rows
 
 
+def keys_to(L, a, b):
+    """the arrow keys from the tree row of record a to that of record b, read from the screen L: the tree lists a file's records in the directory's own order (29 Oct 26: the record after A
+    was the fixture, not B), so b is not always the one after a"""
+    tl = [l[1:28].strip() for l in L]
+    ra = next((i for i, t in enumerate(tl) if t.endswith(a)), None)
+    rb = next((i for i, t in enumerate(tl) if t.endswith(b)), None)
+    if ra is None or rb is None:
+        return DOWN
+    return DOWN * (rb - ra) if rb >= ra else UP * (ra - rb)
+
+
 def row_cells(raw, want):
     """How many cells the bytes write on the row `want` (0-based).  19 Oct 26: the form's title row (1) carries the [*] / [-] marks of the files
     and the editor, which change with the focus, so 'nothing is written there' became 'only the two marks (6 cells)'."""
@@ -201,7 +212,7 @@ def rec_text(box, rid):
 
 def ed_lines(e, n):
     """the first n lines of the editor, without the line numbers (the editor starts at column 29 of rows 3 on)"""
-    return [re.sub(r"^\s*\d+ ", "", l[28:]).rstrip() for l in e.lines()[3:3 + n]]
+    return [re.sub(r"^\s*\d+ ", "", l[29:138]).rstrip() for l in e.lines()[3:3 + n]]       # 29 Oct 26: the editor's border is at column 28 (0-based), its text runs from 29 to the scroll bar at 138
 
 
 # ---- TAB: Tab indents in the editor (28 Oct 26, approved by the owner; WRITTEN, NOT RUN) -------------------------------------------------------------------------
@@ -240,10 +251,14 @@ def section_tab(box, T):
     e.quiet()
     row("TAB7 a Tab on a selection of two lines is ONE undo step: Ctrl-Z gives back both lines", ed_lines(e, 3) == ["abc", "def", "ghi"], repr(ed_lines(e, 3)))
     e.keys(CTRL_G, CTRL_G)                                  # (no selection)
-    e.keys(TAB, CTRL_S)
+    e.keys(TAB)
+    e.quiet()
+    shown = ed_lines(e, 3)                                  # what the editor shows (the Tab went in at the cursor, which is at the start of line 3 after TAB5's selection: 29 Oct 26, seen on the disk)
+    e.keys(CTRL_S)
     e.quiet()
     disk = rec_text(box, T)
-    row("TAB8 saved: the record holds the blanks the editor showed and NO tab character", "   abc" in disk and "\t" not in disk, repr(disk[-200:]))
+    row("TAB8 saved: the record holds the blanks the editor showed and NO tab character",
+        any(t.startswith("   ") for t in shown) and all(("%d: %s" % (i + 1, t)) in disk for i, t in enumerate(shown)) and "\t" not in disk, repr((shown, disk[-200:])))
     e.keys(F6)
     e.quiet()
     row("TAB9 F6 moves the focus out of the editor to the messages", e.status().startswith("[Messages]"), e.status())
@@ -270,10 +285,11 @@ def hold(e, secs):
 def section_idle(box, D):
     say("\n--- IDLE: the status line counts down the last 60 seconds of AUTOLOGOUT; any key stops it ---------------------------------")
     e = Ide(box, "AUTOLOGOUT 2")                            # two minutes; then the IDE in the same session
-    e.s.type("IDE bp %s\r" % D, idle=1.2)
+    t_cmd = time.time()                                     # the kernel's idle clock starts at this command; 29 Oct 26 (Opus): an idle IDE still writes a few bytes a second, so the
+    e.s.type("IDE bp %s\r" % D, idle=1.2)                   #   settle after it ran its full 20 s limit and the 62 s below began about 20 s late (37 s left instead of 50-60)
     e.quiet()
     row("IDLE control: the IDE is up on the record and the status line says nothing about idling", ("bp %s" % D) in e.status() and "Idle" not in e.status(), e.status())
-    hold(e, 62.0)
+    hold(e, max(1.0, 62.0 - (time.time() - t_cmd)))         # 62 s after the command, whatever the settles took
     st = e.status()
     m = re.search(r"Idle: signing out in (\d+) s", st)
     row("IDLE1 after 62 s with nothing typed the status line counts down (with no change: no word about changes), between 50 and 60 s left",
@@ -306,6 +322,10 @@ def section_idle(box, D):
         % (took, last), e.s.exited and 112 <= took <= 135 and last is not None and last[0] <= 5, repr((took, last)))
     if not e.s.exited:
         e.end()
+
+
+def main():
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]       # 29 Oct 26: d35f5e31 had replaced these two lines with the new helpers, so the suite died with "name 'main' is not defined"
     if len(args) != 1:
         bail("usage: sandbox-ide.py <dir> [--build]")
     box = os.path.abspath(args[0])
@@ -400,7 +420,7 @@ end
         # ---- a good program, and the second tab -------------------------------------------------------------
         say("\n--- a second record in a tab of its own ------------------------------------------------------------")
         L = e.keys(*GOTO_TREE)                            # back to the tree
-        L = e.keys(DOWN, RET)                           # the record after A in the list is B
+        L = e.keys(keys_to(L, A, B), RET)               # B
         row("a second record opens in a second tab (both ids on the strip)", has(L[2:3], A, B), L[2])
         L = e.keys(F8)
         row("a good program compiles with no errors and the table is empty",
@@ -467,7 +487,7 @@ end
         say("\n--- go to a line, the keys that are not the editor's ---------------------------------------------------")
         L = e.keys(CTRL_PGDN)                              # to A (four lines)
         L = e.keys(CTRL_L)
-        row("Ctrl-L asks for a line number", "Line number" in e.text(), e.text()[-300:])
+        row("Ctrl-L asks for a line number", "Go to (a line" in e.text(), e.text()[-300:])       # 29 Oct 26: message 11209's wording
         L = e.keys("3", RET)
         row("the cursor goes to line 3", "Line 3," in e.status(), e.status())
         L = e.keys(F1)
@@ -507,7 +527,7 @@ end
             any("Find in the records" in l and "F11" not in l for l in L[1:12]) and any("Replace in the record" in l and "^R" in l for l in L[1:12]), e.text()[:400])
         L = e.keys(RIGHT)
         row("...and the Build menu: Compile F8, Compile and catalogue F9, Run F5, Debug F7",
-            any("Compile" in l and "F8" in l for l in L[1:12]) and any("catalogue" in l and "F9" in l for l in L[1:12])
+            any("Compile" in l and "F8" in l for l in L[1:12]) and any("catalog" in l and "F9" in l for l in L[1:12])         # 29 Oct 26: the US spelling since 27 Oct (message 11228)
             and any("Run" in l and "F5" in l for l in L[1:12]) and any("Debug" in l and "F7" in l for l in L[1:12]), e.text()[:400])
         L = e.keys(ESC)
         row("Esc closes it and the editor is still there", ("bp %s" % A) in e.status(), e.status())
@@ -853,8 +873,8 @@ end
 
         e.keys(*GOTO_TREE, "b", RET)                      # to the tree (the focus starts in the editor); the file's records are listed under it
         e.keys("z", RET)                                  # the first of the fixture's records opens (A)
-        e.keys(*GOTO_TREE)                                # back to the tree
-        e.keys(DOWN)                                      # the record after A
+        L = e.keys(*GOTO_TREE)                            # back to the tree
+        e.keys(keys_to(L, A, B))                          # B
         m = len(e.s.raw)
         L = e.keys(RET)                                   # ... opens in a second tab
         raw = bytes(e.s.raw[m:])

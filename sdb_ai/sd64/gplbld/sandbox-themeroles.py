@@ -99,11 +99,11 @@ end
 
 SRC_DEF = """$internal
    screen open
-   call $sl_theme('name', '', '', '', '', n)
-   crt 'DEF open theme=' : n
+   call $sl_theme('name', '', '', '', '', n1)
    screen close
-   call $sl_theme('name', '', '', '', '', n)
-   crt 'DEF after close theme=' : n
+   call $sl_theme('name', '', '', '', '', n2)
+   crt 'DEF open theme=' : n1
+   crt 'DEF after close theme=' : n2
 end
 """
 
@@ -144,7 +144,8 @@ def sess(box, *cmds):
 
 def isess(box, *cmds, term=None):
     """INTERNAL mode on a pipe: no terminal"""
-    body = "\nTERM 200,9999\n" + "".join(c + "\n" for c in cmds) + "OFF\n"
+    # 29 Oct 26: the TERM variable in the environment did not give the pipe a terminal type (a pipe given TERM=vt100 still walked blue, classic, dark, light); the type is the TERM command, as pty_internal sends it
+    body = "\n" + ("TERM %s\n" % term if term else "") + "TERM 200,9999\n" + "".join(c + "\n" for c in cmds) + "OFF\n"
     p = subprocess.run([os.path.join(box, "sys", "bin", "sd"), "-internal"], input=body, cwd=os.path.join(box, "sys"), env=sdenv(box, term),
                        capture_output=True, text=True, errors="replace", timeout=300)
     return ANSI.sub("", p.stdout + p.stderr)
@@ -248,11 +249,13 @@ def main():
         write_conf(box, original)
 
         say("\n--- L: the list, and 'next' with no terminal -------------------------------------------------------")
-        out = isess(box, "RUN bp " + PSEQ)
+        # 29 Oct 26: the library's "no terminal" is a PHANTOM (SYSTEM(25)); a session on a pipe is not one and follows its TERM, which the first run showed (a pipe with the harness's
+        #   xterm walked blue, classic, dark, light).  So the pipe is given a terminal type with no colour.
+        out = isess(box, "RUN bp " + PSEQ, term="vt100")
         lst = tagged(out, "LST")
         row("$sl_theme 'list' is blue,classic,dark,light,mono", lst == ["LST blue,classic,dark,light,mono"], repr(lst))
         nx = tagged(out, "NXT")
-        row("on a pipe (no terminal) 'next' is mono whatever it is asked, and mono is the theme the program starts in",
+        row("on a pipe whose terminal type (vt100) has no colour 'next' is mono whatever it is asked, and mono is the theme the program starts in",
             nx and nx[0] == "NXT start=mono" and all(re.match(r"NXT (mono->mono|set mono ret=0)$", x) for x in nx[1:]), repr(nx))
 
         say("\n--- P: a colour terminal ----------------------------------------------------------------------------")
@@ -277,7 +280,7 @@ def main():
                 row("%s mono: no role asks for dim%s" % (term, "" if dim else " (this terminal has none: the row proves nothing here)"),
                     all(not dim or dim not in sq["mono"][r] for r in ROLES), repr((dim, {r: sq["mono"][r] for r in ROLES})))
                 row("%s mono: the roles use flags and no colour (no 'setf' or 'setb' sequence differs from normal's start)" % term,
-                    all(sq["mono"][r].count("<27>[3") == 0 and sq["mono"][r].count("<27>[4") == 0 for r in ROLES), repr({r: sq["mono"][r] for r in ROLES}))
+                    all(re.search(r"<27>\[[34]\d", sq["mono"][r]) is None for r in ROLES), repr({r: sq["mono"][r] for r in ROLES}))      # setf / setb are ESC[3n and ESC[4n; ESC[4m is the underline
         lines = pty_internal(box, "vt100", ["RUN bp " + PSEQ])
         nx = [re.match(r"NXT (\S+)->(\S+)$", x).groups() for x in tagged(lines, "NXT") if "->" in x]
         row("vt100 (no colour): 'next' never leaves mono, and the colour themes are refused (ret 1)", nx and all(b == "mono" for _, b in nx) and any("refused ret=1" in x for x in tagged(lines, "SEQ")), repr(nx))

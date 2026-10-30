@@ -2299,7 +2299,7 @@ def files_section_body():
     # CREATE.ACCOUNT: only the refusals that come before anything is made
     out = g.adm(["CREATE.ACCOUNT"])
     row("CREATE.ACCOUNT's syntax line names {files-on} {files-write-on} {files-admin-on} {ai-on} and its text says what the words are",
-        g.has(out, r"\{net-on\} \{files-on\} \{files-write-on\} \{files-admin-on\} \{ai-on\} \{start-menu \| start-terminal\} \{pins-on\} \{no\.query\}") and g.has(out, r"files-only login \(files-on; it cannot change files here without files-write-on\)"), repr(out[-9:]))
+        g.has(out, r"\{net-on\} \{files-on\} \{files-write-on\} \{files-admin-on\} \{ai-on\} \{start-menu \| start-terminal\} \{pins-on\} \{recovery-on\} \{no\.query\}") and g.has(out, r"files-only login \(files-on; it cannot change files here without files-write-on\)"), repr(out[-9:]))
     out = g.adm(["create.account group zznfilgx files-on"])
     row("create.account group ... files-on: refused (10087), and no account, no register record and no directory was made",
         has_line(out, msg(10087, "zznfilgx")) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilgx")), repr(out[-3:]))

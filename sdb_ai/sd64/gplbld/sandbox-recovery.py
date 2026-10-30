@@ -132,7 +132,7 @@ def recbp(a, r):
 
 def slot(fname, r):
     """the copy's file name as !edit_recovery makes it: 'c' and the SHA-256, in hex, of the file name, a field mark (char 254) and the record id"""
-    return "c" + hashlib.sha256((fname + "\xfe" + r).encode("latin-1")).hexdigest()
+    return "c" + hashlib.sha256((fname + "\xfe" + r).encode("latin-1")).hexdigest()[:62]       # 63 characters in all (MAXIDLEN); edit_recovery cuts the hash the same way
 
 
 def holders(a, text):
@@ -175,7 +175,7 @@ def type_pause_hangup(s, text, pause=2.5):
     changed = " *" in s.status()
     el, went = s.hangup_timed()
     time.sleep(1.0)
-    say("    [%s] hung up: gone after %.2f s (went=%r); the status before was %r" % (s.label, el, went, s.status()[:80]))
+    say("    [%s] hung up: gone after %.2f s (went=%r); the status before was %r" % (s.label, el, went, s.status()[:140]))
     return changed
 
 

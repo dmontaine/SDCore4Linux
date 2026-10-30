@@ -119,11 +119,14 @@ def launch(label, cols, rows, account=None):
     say("== %s: argv=%r cwd=%s TERM=xterm LC_ALL=C SD_CONFIG=%s SDBOX_KEYSET=%s pty=%dx%d" % (label, argv, cwd, env["SD_CONFIG"], env.get("SDBOX_KEYSET"), cols, rows))
     w = Win(label, PtySession(argv, cwd, env, cols, rows), cols, rows)
     w.s.settle(1.0)
-    if not account:
+    w.pump(2.5)
+    # 29 Oct 26 (Opus, review 29oct-c): with the delivered default the administrator signs on to the home screen too, and the three lines below were typed INTO it - the Return started the tile that
+    #   had the focus (Menu management = tool.menus).  An ordinary account has always been left alone.  They are sent only when the screen is not the home page.
+    if not account and "Sign out" not in "\n".join(w.s.screen.lines()):
         w.send("TERM xterm\r", 0.4)
         w.send("TERM %d,%d\r" % (cols, rows), 0.4)
         w.send("home\r", 1.5)
-    w.pump(2.5)
+        w.pump(2.5)
     return w
 
 
@@ -189,7 +192,7 @@ def expect(W, H, admin):
     pnx, py0, pnw, ph, _ = g["panel"]
     nc, tw, xc = L2.columns(pnx, pnw, p)
     gr, tl = L2.page(groups, admin)
-    n, _, _ = L2.new_layout(gr, tl, nc, tw, xc)
+    n, _, _ = L2.new_layout(gr, tl, nc, tw, xc, p["BASE"])
     lab = labels()
     cells = []
     for i, (x, y, w, h) in n.items():

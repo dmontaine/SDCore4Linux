@@ -106,7 +106,16 @@ FILES = {
 }
 
 
+# The IDE's status line is the tab's name, the position and then the message, in 140 columns, and the messages of rows O2 and N1 repeat the file's full path: under the
+#   regression's directory (/tmp/sdregress.XXXXXX/sbx-ide-path/user_accounts/...) the words the rows look for are cut off the right edge.  Those fixtures (SHORT_KEYS)
+#   therefore live in a short directory of their own, which the sandbox user (the administrator, in SDSYS) may open, and which teardown() removes.
+SHORT = "/tmp/zq%s" % RUN
+SHORT_KEYS = ("crlf", "tab")
+
+
 def fpath(key):
+    if key in SHORT_KEYS:
+        return os.path.join(SHORT, "%s.txt" % key)
     return os.path.join(ACC, "zzp%s-%s.txt" % (RUN, key))
 
 
@@ -130,6 +139,7 @@ def ident(p):
 
 
 def make_files():
+    os.makedirs(SHORT, exist_ok=True)
     for key, (data, mode) in FILES.items():
         p = fpath(key)
         if os.path.exists(p):
@@ -427,6 +437,15 @@ def section_gate():
 
 
 def teardown():
+    for key in SHORT_KEYS:                                       # the two files this run made in SHORT, and then the directory if nothing else is in it
+        try:
+            os.remove(fpath(key))
+        except OSError:
+            pass
+    try:
+        os.rmdir(SHORT)
+    except OSError:
+        pass
     if BOX:
         subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
 

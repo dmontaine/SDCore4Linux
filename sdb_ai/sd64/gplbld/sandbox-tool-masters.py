@@ -381,7 +381,6 @@ def section_m5(p):
     p.key("y", 1.2)
     T = norm(p.text())
     arow("M5c", "Y on it is refused in words and no box opens", "is not a registered account: S removes its master copies" in st(p.h) and "taken out" not in T and "sync.masters" not in (audit_new(a0) or ""), repr(st(p.h)))
-    p.key("esc", 0.8)
     p.key("s", 1.5)
     T = norm(p.text())
     arow("M5d", "S shows 'sync.masters' and that it makes the copies of EVERY registered account match and removes those of accounts that are not registered (single words: the box wraps its text)",

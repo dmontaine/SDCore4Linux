@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 29 Oct 26 dm  The last argument may be unassigned on entry (a page's `oc` is never set before its first call): `tot = c` stopped with "Unassigned variable" at Ctrl-O.
+*              Found by sandbox-tk-widgets.py's first probe (run by hand).
 * 30 Oct 26 dm  New (S.88 F0b).
 * END-HISTORY
 *
@@ -43,7 +45,7 @@ $include tk.h
 
    common /tkout/ out.w, out.epoch               ;* the pane of the app that is open: the library's collection, and the open (TK.C.EPOCH) it belongs to
 
-   tot = c                                       ;* 'progress' is given the total in c
+   if unassigned(c) then tot = '' else tot = c   ;* 'progress' is given the total in c; every other operation is given a variable the caller never set (29 Oct 26: "Unassigned variable" at Ctrl-O)
    c = ''
    if system(25) then return                     ;* a phantom has no screen to show a pane on, and no history is worth keeping
    if out.epoch # ctx<TK.C.EPOCH> + 0 or jtype(out.w) # 'collection' then

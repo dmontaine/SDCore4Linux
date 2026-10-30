@@ -574,7 +574,7 @@ def section_select():
     e.keys("IDE %s\r" % DF)
     e.quiet()
     st, tabs = e.status(), tab_row(e)
-    row("SL1 SELECT then `ide file` opens the listed records in tabs ([r1] and [r2]) and says so", "[r1]" in tabs and "[r2]" in tabs and "of the select list" in st,
+    row("SL1 SELECT then `ide file` opens the listed records in tabs (r1 is the shown one, in brackets, and r2 is the other tab) and says so", "[r1]" in tabs and re.search(r"\br2\b", tabs) is not None and "of the select list" in st,
         "%r | %r" % (st, tabs[:100]))
     quit_discard(e)
     done(e)

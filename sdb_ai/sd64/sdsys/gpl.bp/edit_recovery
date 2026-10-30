@@ -4,6 +4,10 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 29 Oct 26 dm  A COPY THAT IS NOT WHOLE NO LONGER STOPS THE IDE: parse.copy leaves cp.file, cp.id, cp.date and cp.time assigned on every path ("cp.ok and cp.file = ..." evaluates both sides;
+*               it died with "Unassigned variable CP.FILE at line 407 of !edit_recovery" at a bare start, and when a record with such a copy was opened).  Found by sandbox-recovery.py's C7 and R rows.
+* 29 Oct 26 dm  THE NAME OF A COPY IS 63 CHARACTERS, NOT 65: 'c' and the 64 hex digits of the hash were over MAXIDLEN (default 63), so every write of a copy was refused (status 3000) and the IDE
+*               said "A recovery copy could not be written (write)".  Found by sandbox-recovery.py's first run (20 rows red); the hash is cut to its first 62 digits.
 * 28 Oct 26 dm  REVIEW FIX: 'find' no longer deletes a first-version copy from the account's $recovery with the switch off (it did so before the person had answered, so Cancel
 *               said "kept" over a copy that was gone, and a hang-up after Use lost it); the copy goes only once the store holds it, or on 'drop'.
 * 28 Oct 26 dm  THE STORE MOVED TO THE PERSON'S LINUX HOME (Opus's recommendation, approved by the owner 28 Oct).  The copies are kept in
@@ -138,7 +142,7 @@ where:
 
 * Out: rc.slot, the name of the copy of rfile / rid, and rc.path, its path in rc.dir
 slot.name:
-   rc.slot = 'c' : downcase(digest(rfile : @fm : rid, 0, 'SHA256'))
+   rc.slot = 'c' : downcase(digest(rfile : @fm : rid, 0, 'SHA256'))[1, 62]      ;* 63 characters: the default MAXIDLEN, and a directory file refuses a longer record id (status 3000); 248 bits of the hash are plenty
    rc.path = rc.dir : '/' : rc.slot
    return
 
@@ -186,6 +190,10 @@ make.dir:
 parse.copy:
    cp.ok = 0
    cp.text = ''
+   cp.file = ''                         ;* 29 Oct 26: every cp.* is assigned before a test returns: the callers say "cp.ok and cp.file = ..." and BASIC does not short-circuit,
+   cp.id = ''                           ;*   so a copy that was not whole stopped the IDE with "Unassigned variable CP.FILE" (the bare start, and the opening of a record that had one)
+   cp.date = ''
+   cp.time = ''
    if rec<1> # MAGIC then return
    if rec<2> # rc.acct then return
    cp.p = index(rec, @fm, 8)
@@ -403,7 +411,7 @@ list.dir:
             read rec from rf, nm else rec = ''
             gosub parse.copy
             if cp.ok and cp.file = '' then
-               if nm = 'c' : downcase(digest('' : @fm : cp.id, 0, 'SHA256')) then
+               if nm = 'c' : downcase(digest('' : @fm : cp.id, 0, 'SHA256'))[1, 62] then          ;* the name slot.name makes for no file and this id (63 characters since 29 Oct 26)
                   locate cp.id in ls.ids<1> setting ls.pos else
                      ls.ids<1, -1> = cp.id
                      text<-1> = cp.id : @vm : cp.date : @vm : cp.time

@@ -239,8 +239,10 @@ def section_case():
     menu(e, 2, 6)                                                       # Downcase the selection (index 6)
     t = editor_text(e)
     row("U2 Downcase gives it back", "alpha beta" in t, repr(t[:200]))
+    done(e)
+    e = open_rec()                                                      # a fresh editor, no mark set: a case change keeps the mark, so the one U1 and U2 set would still select
     menu(e, 2, 5)
-    row("U3with nothing selected it says so", "Nothing is selected" in e.status(), e.status()[:120])
+    row("U3 with nothing selected it says so", "Nothing is selected" in e.status(), e.status()[:120])
     done(e)
 
 

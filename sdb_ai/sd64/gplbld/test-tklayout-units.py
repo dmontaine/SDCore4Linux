@@ -309,7 +309,9 @@ def pre_l2_source(page, working):
         return working
     import subprocess
     try:
-        out = subprocess.run(["git", "-C", os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "show",
+        # 29 Oct 26: regress.sh --snapshot runs this in a copy that has no .git and exports SDREGRESS_REPO (the live repository); stage 2 of the complete run died here with an IndexError
+        repo = os.environ.get("SDREGRESS_REPO") or os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        out = subprocess.run(["git", "-C", repo, "show",
                               "%s:sdb_ai/sd64/sdsys/gpl.bp/%s" % (PRE_L2, page)], capture_output=True, timeout=60)
         return out.stdout.decode("latin-1") if out.returncode == 0 else working
     except (OSError, subprocess.SubprocessError):

@@ -272,7 +272,7 @@ def c_sub():
       repr((h.line(40), focus_label(h))))
     R("C2b", "...the Back tile is at the left of the header and the identity has moved right of it; Switch account and Sign out are still there",
       "Back" in h.line(2)[3:24] and h.line(2)[25:].strip().startswith("don @ zzhm") and "Switch account" in T and "Sign out" in T, repr(h.line(2)[:60]))
-    R("C2c", "...and the function-key row names Esc (Enter start  Esc back  F5 refresh  F10 menu  ^Q sign out)", h.line(42) == "Enter start  Esc back  F5 refresh  F10 menu  ^Q sign out", repr(h.line(42)))
+    R("C2c", "...and the function-key row names Esc (Enter start  Esc back  F1 help  F5 refresh  F10 menu  ^Q sign out)", h.line(42) == "Enter start  Esc back  F1 help  F5 refresh  F10 menu  ^Q sign out", repr(h.line(42)))
     h.key("enter", idle=2.5)
     started = "The file under the cursor" in h.text()
     h.typed("\x11", idle=1.6)
