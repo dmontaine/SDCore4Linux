@@ -74,7 +74,8 @@ if [ "${1:-}" = "--selftest" ]; then
   exit $?
 fi
 
-OPTS=$(grep -m1 -E '^set -' "$INST")
+OPTS=$(grep -m1 -E '^set -' "$INST"; grep -m1 -E '^IFS=' "$INST")        # 30 Oct 26 (S.89): the installer's IFS too - a block must be run under both
+case "$OPTS" in *IFS=*) ;; *) echo "test-install-shared: CANNOT RUN - no IFS line in the installer (S.89)"; exit 2;; esac
 PRE=$(awk '/^shared_preflight\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$INST")
 BLK=$(awk '/^# SHARED-CREATE-BEGIN/{f=1;next} /^# SHARED-CREATE-END/{f=0} f{print}' "$INST")
 echo "installer : $INST"
@@ -109,7 +110,7 @@ run_pre() {   # prints the output, then RC=n
   SUDO_LOG="$T/sudo.log" SDSYSDIR="$T/sdsys" bash -c '
       eval "$OPTS"
       sdsysdir="$SDSYSDIR"; RED=; NC=
-      sudo() { printf "%s\n" "$*" >> "$SUDO_LOG"; "$@"; }
+      sudo() { ( IFS=" "; printf "%s\n" "$*" ) >> "$SUDO_LOG"; "$@"; }      # S.89: "$*" joins with the first character of IFS, a newline under the installer IFS
       eval "$PRE_T"
       rc=0; shared_preflight || rc=$?
       echo "RC=$rc"' 2>&1
@@ -173,7 +174,7 @@ run_blk() {   # run_blk SCENARIO STAT GETENT -- prints the output, then REACHED-
   REG_GROUP="${REG_GROUP:-sdg_shared}" SUDO_LOG="$T/sudo.log" SDSYSDIR="$T/sdsys" bash -c '
       eval "$OPTS"
       sdsysdir="$SDSYSDIR"; RED=; NC=
-      sudo() { printf "%s\n" "$*" >> "$SUDO_LOG"; "$@"; }
+      sudo() { ( IFS=" "; printf "%s\n" "$*" ) >> "$SUDO_LOG"; "$@"; }      # S.89: "$*" joins with the first character of IFS, a newline under the installer IFS
       stat() { printf "%s\n" "$STAT_OUT"; }
       getent() { printf "%s\n" "$GETENT_OUT"; }
       cd "$T/work"

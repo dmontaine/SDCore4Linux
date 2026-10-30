@@ -92,6 +92,14 @@
 #   (bin/sd, bin/sdlnxd, bin/sdidx, bin/pcode) are made root's, with the
 #   directory bin and everything in it, and bin is made immutable where the file
 #   system keeps the attribute (the ROOTBIN block).
+#
+#   27 Oct 2026 dm - S.87: the RETIRED-CONF block takes the sd.conf parameters SD
+#   no longer reads out of a restored sd.conf (SD refuses to start on a name it
+#   does not know).
+#
+#   30 Oct 2026 dm - S.89: that block never removed anything, because this script's
+#   IFS made its list of names one word; the names are now the literal words of the
+#   for statement.
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -1476,7 +1484,7 @@ fi
 # while a parameter existed must remove its line.  Only a line that BEGINS with the exact name and an equals sign is
 # removed (a comment, or another name that merely starts the same way, is left alone).  The list is the parameters
 # config.c no longer reads; gplbld/test-install-retiredconf.sh holds it to config.c.
-# 30 Oct 26 (S.89): THE NAMES ARE THE LITERAL WORDS OF THE for.  This script runs under IFS=$'\n\t' (line 100), so a list kept in a variable
+# 30 Oct 26 (S.89): THE NAMES ARE THE LITERAL WORDS OF THE for.  This script runs under IFS=$'\n\t' (the IFS line near the top), so a list kept in a variable
 # ("for k in $list") is ONE word here and matched nothing: an upgrade that kept an sd.conf still naming APILOGIN could not start SD.
 for retired_key in INVCASE CODEPAGE EXCLREM RINGWAIT TXCHAR APILOGIN CREATUSR JNLDIR JNLMODE GDI FIXUSERS PORTMAP FILERULE; do
     if grep -q "^${retired_key}=" /etc/sd.conf; then

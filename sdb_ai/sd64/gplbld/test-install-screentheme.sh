@@ -48,7 +48,8 @@ if [ "${1:-}" = "--selftest" ]; then
   exit $?
 fi
 
-OPTS=$(grep -m1 -E '^set -' "$INST")
+OPTS=$(grep -m1 -E '^set -' "$INST"; grep -m1 -E '^IFS=' "$INST")        # 30 Oct 26 (S.89): the installer's IFS too - a block must be run under both
+case "$OPTS" in *IFS=*) ;; *) echo "test-install-screentheme: CANNOT RUN - no IFS line in the installer (S.89)"; exit 2;; esac
 BLOCK=$(awk '/^# SCREENTHEME-BEGIN$/{f=1;next} /^# SCREENTHEME-END$/{f=0} f{print}' "$INST")
 echo "installer : $INST"
 echo "options   : ${OPTS:-<none found>}"

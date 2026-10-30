@@ -1424,7 +1424,7 @@ conf_set_backupdir() {   # conf_set_backupdir FILE PATH - one BACKUPDIR= line, l
 #   THE LIST.  14 parameters, the TUNING ones: CLEANUP DHCACHE GRPSIZE LGNWAIT LPTRHIGH LPTRWIDE MAXCALL MAXRLOCK NETREPLY NETWAIT NUMLOCKS RECCACHE SORTMRG USPLIT.  Each is a parameter
 #   config.c itself range-checks (rangecheck() in read_config), so the range here is the range SD enforces at start-up and the helper cannot accept what SD would refuse.  The other
 #   38 parameters of the parser are known here by name (confset_fixed) only so that a refusal can say "known, not changed here" instead of "unknown": they are the doors (NETFILES,
-#   SDCLIENT, FILERULE), every path and command (DUMPDIR, GRPDIR, USRDIR, SDSYS, SH, SH1, SORTWORK, SPOOLER, STARTUP, TEMPDIR, TERMINFO, BACKUPDIR), the log, dump and
+#   SDCLIENT), every path and command (DUMPDIR, GRPDIR, USRDIR, SDSYS, SH, SH1, SORTWORK, SPOOLER, STARTUP, TEMPDIR, TERMINFO, BACKUPDIR), the log, dump and
 #   diagnostic settings (DEBUG, DEADLOCK, ERRLOG, PDUMP), the security throttle PWDELAY, the sizing and combining parameters config.c does not range-check or checks against each other
 #   (CMDSTACK, FDS, MAXIDLEN, NUMFILES, NUMUSERS, OBJECTS, OBJMEM, PHANTOMS, SORTMEM, USERPOOL) and the ones that change what existing programs compute or how files are
 #   written (FLTDIFF, FSYNC, INTPREC, MUSTLOCK, SAFEDIR, YEARBASE, SCREENTHEME).  (27 Oct 26, S.87: APILOGIN, CODEPAGE, CREATUSR, EXCLREM, FIXUSERS, GDI, JNLDIR, JNLMODE, PORTMAP, RINGWAIT and TXCHAR were removed from the parser.)

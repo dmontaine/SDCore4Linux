@@ -77,7 +77,8 @@ if [ "${1:-}" = "--selftest" ]; then
   exit $?
 fi
 
-OPTS=$(grep -m1 -E '^set -' "$INST")
+OPTS=$(grep -m1 -E '^set -' "$INST"; grep -m1 -E '^IFS=' "$INST")        # 30 Oct 26 (S.89): the installer's IFS too - a block must be run under both
+case "$OPTS" in *IFS=*) ;; *) echo "test-install-agentpack: CANNOT RUN - no IFS line in the installer (S.89)"; exit 2;; esac
 BLK=$(awk '/^# AGENTPACK-BEGIN$/{f=1;next} /^# AGENTPACK-END$/{f=0} f{print}' "$INST")
 MODE=$(awk '/^# AGENTPACK-MODE-BEGIN$/{f=1;next} /^# AGENTPACK-MODE-END$/{f=0} f{print}' "$INST")
 echo "installer : $INST"
@@ -108,7 +109,7 @@ run() {   # run BLOCK-VARIABLE-NAME: prints what the block printed, then REACHED
   SUDO_LOG="$T/sudo.log" SDSYSDIR="$T/sdsys" WHICH="$1" bash -c '
       eval "$OPTS"
       sdsysdir="$SDSYSDIR"; RED=; NC=
-      sudo() { printf "%s\n" "$*" >> "$SUDO_LOG"; "$@"; }
+      sudo() { ( IFS=" "; printf "%s\n" "$*" ) >> "$SUDO_LOG"; "$@"; }      # S.89: "$*" joins with the first character of IFS, a newline under the installer IFS
       cd "$T/work"
       eval "${!WHICH}"
       echo "REACHED-END"' 2>&1

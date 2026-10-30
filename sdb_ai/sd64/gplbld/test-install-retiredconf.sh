@@ -16,8 +16,8 @@
 # this check, run under the default IFS, passed) with sudo a function and /etc/sd.conf swapped for a scratch file:
 #
 #   A  a file holding a retired parameter loses that line and nothing else, in the same order
-#   A2 a name from the middle of the list and the last name are both removed (the loop goes on past the first name; it does NOT check that the
-#      list is COMPLETE - that would need config.c as it was in the last release, read through git)
+#   A2 a name from the middle of the list and the last name are both removed (the loop goes on past the first name)
+#   F  the list is COMPLETE: every parameter v1.1-0's config.c read and today's does not is in it (read through git; skipped without git)
 #   B  a file without one is left byte for byte as it was, and the block says nothing
 #   C  a comment, and a name that merely starts or ends the same way, are left alone
 #   D  every name in the list is one config.c no longer parses and config.table no longer lists
@@ -51,8 +51,9 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant only-the-first-name 's/^for retired_key in INVCASE .*; do$/for retired_key in INVCASE; do/'
   mutant last-name-dropped  's/ FILERULE; do$/; do/'
   mutant ifs-line-missing   '/^IFS=/d'
-  echo "selftest: $caught of 7 mutants caught, $missed missed"
-  [ "$caught" -eq 7 ] && [ "$missed" -eq 0 ]
+  mutant list-lacks-a-name  's/ GDI / /'
+  echo "selftest: $caught of 8 mutants caught, $missed missed"
+  [ "$caught" -eq 8 ] && [ "$missed" -eq 0 ]
   exit $?
 fi
 
@@ -142,6 +143,21 @@ for k in $KEYS; do
   if grep -q "^$k|" "$SD64/sdsys/config.table"; then bad="$bad $k(config.table)"; fi
 done
 row "D: no retired name is still parsed by config.c or listed in config.table" $([ -z "$bad" ] && echo 0 || echo 1) "still live:$bad"
+
+# F (S.89 follow-up, 30 Oct 26): the list is COMPLETE - every parameter that the first release (v1.1-0) read and config.c no longer reads is in it.  Needs git and the tag (a snapshot
+# has neither: it is SKIPPED and said so; with SDREGRESS_REPO set a skip is a FAILURE, as in test-vocremoved-units.py).  Its null case: if no name has gone, the extraction found nothing.
+REPO="${SDREGRESS_REPO:-$(cd "$HERE/../../.." && pwd)}"
+if git -C "$REPO" rev-parse -q --verify 'v1.1-0^{commit}' >/dev/null 2>&1 && git -C "$REPO" show v1.1-0:sdb_ai/sd64/gplsrc/config.c >/dev/null 2>&1; then
+  gone=$(comm -23 <(git -C "$REPO" show v1.1-0:sdb_ai/sd64/gplsrc/config.c | grep -o '"[A-Z][A-Z0-9]*=' | tr -d '"=' | sort -u) <(grep -o '"[A-Z][A-Z0-9]*=' "$SD64/gplsrc/config.c" | tr -d '"=' | sort -u) | tr '\n' ' ')
+  missing=""
+  for g in $gone; do case " $KEYS " in *" $g "*) ;; *) missing="$missing $g";; esac; done
+  row "F: every parameter the first release read and config.c no longer reads is in the list (checked against v1.1-0's config.c: gone: ${gone:-<none>})" \
+      "$([ -n "$gone" ] && [ -z "$missing" ] && echo 0 || echo 1)" "missing from the list:${missing:- (none - but nothing was found to compare, the null case)}"
+elif [ -n "${SDREGRESS_REPO:-}" ]; then
+  row "F: the completeness check needs git and the tag v1.1-0" 1 "SDREGRESS_REPO=$SDREGRESS_REPO is set and holds neither (a skip is a failure)"
+else
+  printf '  [SKIP] F: the completeness check needs git and the tag v1.1-0 (not found in %s)\n' "$REPO"
+fi
 
 # E
 lr=$(grep -n '^# Copy saved sd\.conf file if it exists' "$INST" | head -1 | cut -d: -f1)

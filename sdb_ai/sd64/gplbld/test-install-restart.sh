@@ -61,7 +61,8 @@ if [ "${1:-}" = "--selftest" ]; then
   exit $?
 fi
 
-OPTS=$(grep -m1 -E '^set -' "$INST")
+OPTS=$(grep -m1 -E '^set -' "$INST"; grep -m1 -E '^IFS=' "$INST")        # 30 Oct 26 (S.89): the installer's IFS too - a block must be run under both
+case "$OPTS" in *IFS=*) ;; *) echo "test-install-restart: CANNOT RUN - no IFS line in the installer (S.89)"; exit 2;; esac
 BLOCK=$(awk '/^sd_running_state="not started"/{f=1} f{print} f&&/^fi$/{exit}' "$INST")
 echo "installer : $INST"
 echo "options   : ${OPTS:-<none found>}"
@@ -80,7 +81,7 @@ run_block() {   # rc the stubbed sudo returns; prints the block's output, then R
   : > "$CALLS"
   SUDO_RC="$1" bash -c '
       eval "$OPTS"
-      sudo() { printf "%s\n" "$*" >> "$CALLS"; return "$SUDO_RC"; }
+      sudo() { ( IFS=" "; printf "%s\n" "$*" ) >> "$CALLS"; return "$SUDO_RC"; }      # S.89: "$*" joins with the first character of IFS, which is a newline under the installer'"'"'s
       RED=; NC=
       eval "$BLOCK"
       echo "REACHED-END state=$sd_running_state"' 2>&1

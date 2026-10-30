@@ -25,7 +25,8 @@
 
 INST="$(cd "$(dirname "$0")/../../.." && pwd)/installsdcore.sh"
 REAL=/var/tmp/sdcore-install-pass3.log
-OPTS=$(grep -m1 -E '^set -' "$INST")
+OPTS=$(grep -m1 -E '^set -' "$INST"; grep -m1 -E '^IFS=' "$INST")        # 30 Oct 26 (S.89): the installer's IFS too - a block must be run under both
+case "$OPTS" in *IFS=*) ;; *) echo "test-install-pass3: CANNOT RUN - no IFS line in the installer (S.89)"; exit 2;; esac
 BLOCK=$(awk '/^echo "Bootstrap pass 3."/{f=1} f{print} f&&/^fi$/{n++} f&&n==2{exit}' "$INST")
 echo "installer : $INST"
 echo "options   : ${OPTS:-<none found>}"
