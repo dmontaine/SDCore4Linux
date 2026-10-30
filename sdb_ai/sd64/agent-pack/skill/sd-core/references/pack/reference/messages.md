@@ -5735,10 +5735,10 @@ cited by: `ide`
 cited by: `ide`
 
 ### msg:11559
-> kind=message tier=reference since=- src=sdsys/messages/11559:1#524a521f
+> kind=message tier=reference since=- src=sdsys/messages/11559:1#39a736f8
 
 ```
-%1 %2 holds value marks, subvalue marks, text marks or characters outside ASCII, so it cannot be imported into the text
+Cannot be imported into the text: %1 %2 holds value marks, subvalue marks, text marks or characters outside ASCII
 ```
 
 cited by: `ide`

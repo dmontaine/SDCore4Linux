@@ -612,11 +612,11 @@ def do_import(e, path):
 
 # the tree's rows are 3 to 38, its first 28 columns; a node is a marker (+ or -, or a blank for a leaf) at column (depth - 1) * 2 and its label two columns on
 def tree_lines(e):
-    return [l[:28] for l in e.lines()[3:39]]
+    return [l[:27] for l in e.lines()[3:39]]                          # 30 Oct 26: not column 27, where a long listing draws the scroll bar (# | v ^) and a label would carry it
 
 
 def label_of(seg):
-    return re.sub(r"^[\s+\-]+", "", seg).strip()
+    return re.sub(r"^[\s+\-|]+", "", seg).strip()                       # 30 Oct 26: column 0 of a row is the frame's border '|' at 140 by 43; the first run never matched a label
 
 
 def tree_row_of(e, label):
@@ -633,12 +633,17 @@ def cur_label(e):
     return None
 
 
+TG_TRACE = []                                                    # (row of the label, row of the cursor) at each step of the last tree_goto: what a failed row shows
+
+
 def tree_goto(e, label, tries=60):
     """Move the tree's cursor to the node with that label (the cursor is drawn on the current node): by the Up and Down keys when it is on the screen, by the node's first letter
     (the tree jumps to the next node that starts with it) and Page Down when it is not.  True when the cursor is on it"""
+    TG_TRACE[:] = []
     for _ in range(tries):
         r = tree_row_of(e, label)
         cur = e.s.screen.r
+        TG_TRACE.append((r, cur))
         if r is not None:
             if r == cur:
                 return True
@@ -646,7 +651,10 @@ def tree_goto(e, label, tries=60):
         else:
             e.keys(label[0])
             if tree_row_of(e, label) is None:
-                e.keys(sb.PGDN)
+                e.keys(sb.HOME, label[0])                                # 30 Oct 26: the letter jump only looks DOWN the tree; a node above the view (the root, after a long listing) is reached from the top
+                if tree_row_of(e, label) is None:
+                    e.keys(sb.PGDN)
+        e.quiet()
     return False
 
 
@@ -990,7 +998,10 @@ def section_tree():
     e.quiet()
     row("T0 CONTROL: the tree has the focus (the status line says [Files])", e.status().startswith("[Files]"), e.status()[:100])
     found = tree_goto(e, "Operating system files")
-    row("T1 the administrator's tree has the node 'Operating system files', after the account's own files", found, "\n".join(tree_lines(e)))
+    scr_ = e.s.screen                                                     # 30 Oct 26: the first run failed here with the node in plain sight; show where the cursor is and how the rows are drawn
+    row("T1 the administrator's tree has the node 'Operating system files', after the account's own files", found,
+        "steps (label row, cursor row) %r\ncursor (row, col, visible) %r\nattrs of the tree's rows 3-%d:\n%s\n%s" % (TG_TRACE[:12], (scr_.r, scr_.c, scr_.cursor_visible), 3 + len(tree_lines(e)) - 1,
+                                                                                  "\n".join("%2d %s %s" % (r, scr_.attrs(r)[:28], scr_.lines()[r][:28]) for r in range(3, 17)), "\n".join(tree_lines(e))))
     if not found:
         done(e)
         return
@@ -1078,7 +1089,7 @@ def section_import():
     row("I1b ...the status line counts the lines ('inserted at the cursor')", "inserted at the cursor" in e.status(), e.status()[:160])
     row("I1c ...the file is as it was and NO lock was left on it (another session gets it), the record on the disk is as it was and its lock is still held",
         full_ident(ia) == ida and rd(ia) == b"imp-a\nimp-b\n" and os_lock(ia) == "GOT" and recs() == before and rec_lock("rec5").startswith("LOCKED"), "%r %r" % (os_lock(ia), rec_lock("rec5")))
-    for label, path, anchor in (("a file with a NUL", nulf, "NUL byte"), ("a file with characters outside ASCII", highf, "cannot be imported"), ("a directory", dirf, "not a plain file"),
+    for label, path, anchor in (("a file with a NUL", nulf, "NUL byte"), ("a file with characters outside ASCII", highf, "Cannot be imported into the text"), ("a directory", dirf, "not a plain file"),
                                 ("a name with no file", scr("i-none.txt"), "There is no operating system file")):
         do_import(e, path)
         row("I2 Import of %s is refused: the message says %r" % (label, anchor), anchor in e.status() or anchor in e.text(), repr(e.status()[:160]))
@@ -1179,9 +1190,12 @@ def section_gate():
     t = pty("zzpg2", p2, "IDE", [CTRL_N, TAB, CTRL_U, "path:" + newout, RET])
     io_ = full_ident(newout)
     row("G8 OS gate ON: New with path:<a name outside the account> makes it: an empty plain file, ours", io_ is not None and io_[4] == 0 and io_[2] == UID, repr((io_, t[-300:])))
-    gated, free = scr("prog.bp", "gated.txt"), scr("ord-ok.txt")
+    # 30 Oct 26: the edit gate looks at the components BELOW THE ACCOUNT'S OWN DIRECTORY only (op_sh.c edit_os_path_refusal: an account that holds OS.EXECUTE - the register's
+    # os field - is "the whole machine ... not covered"), so the first version of this row, a directory called prog.bp OUTSIDE the account, was made by design.  The program file
+    # that the account may not change is its own bp; the control is the same account's other place.
+    gated, free = os.path.join(p3, "bp", "gated.txt"), os.path.join(p3, "ord-ok.txt")
     t = pty("zzpg3", p3, "IDE", [CTRL_N, TAB, CTRL_U, "path:" + gated, RET], close=[ESC])
-    row("G9 OS gate ON but bp.edit OFF: New below a directory called prog.bp (a program file) is refused IN THE FORM with the edit gate's words (bp.edit), the form stays open, no file made",
+    row("G9 OS gate ON but bp.edit OFF: New below the account's own bp (a program file) is refused IN THE FORM with the edit gate's words (bp.edit), the form stays open, no file made",
         "bp.edit" in t and "Name of the new record" in t and not os.path.lexists(gated), repr((os.path.lexists(gated), t[-300:])))
     t = pty("zzpg3", p3, "IDE", [CTRL_N, TAB, CTRL_U, "path:" + free, RET])
     row("G9b CONTROL: the same account makes a file that is not below a program file", rd(free) == b"", repr((rd(free), t[-300:])))
@@ -1207,11 +1221,22 @@ def teardown():
         subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
 
 
+ONLY = [a[len("--only="):].split(",") for a in sys.argv[1:] if a.startswith("--only=")]
+
+
+def wanted(name):
+    """--only=tree,import,gate runs those sections after S0 and S1 (which always run: the fixtures and the controls); no --only runs them all"""
+    return not ONLY or name in ONLY[0]
+
+
 def main():
     global BOX, SYSD, ACC
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
-        say("usage: sandbox-ide-path.py <dir> [--build]")
+        say("usage: sandbox-ide-path.py <dir> [--build] [--only=open_save,refused,lock,changed,notfor,make,excl,tree,import,gate]")
+        sys.exit(2)
+    if ONLY and not set(ONLY[0]) <= {"open_save", "refused", "lock", "changed", "notfor", "make", "excl", "tree", "import", "gate"}:
+        say("sandbox-ide-path: --only names a section that is not there: %s" % ",".join(ONLY[0]))
         sys.exit(2)
     BOX = os.path.abspath(args[0])
     SYSD = os.path.join(BOX, "sys")
@@ -1229,17 +1254,14 @@ def main():
     subprocess.run([sys.executable, TOOL, BOX, "start"], capture_output=True, text=True, errors="replace", timeout=120)
     try:
         section_setup()
-        section_open_save()
-        section_refused()
-        section_lock()
-        section_changed()
-        section_notfor()
+        for name, fn in (("open_save", section_open_save), ("refused", section_refused), ("lock", section_lock), ("changed", section_changed), ("notfor", section_notfor)):
+            if wanted(name):
+                fn()
         section_scratch()              # S1: stops the suite (exit 2) when the scratch directory or a probe is not what it must be
-        section_make()
-        section_excl()
-        section_tree()
-        section_import()
-        section_gate()                 # last: prepare() makes the sandbox user ordinary unless SDTEST_ADMIN is set
+        for name, fn in (("make", section_make), ("excl", section_excl), ("tree", section_tree), ("import", section_import),
+                         ("gate", section_gate)):          # gate last: prepare() makes the sandbox user ordinary unless SDTEST_ADMIN is set
+            if wanted(name):
+                fn()
     finally:
         teardown()
     say("\nsandbox-ide-path: %d passed, %d failed" % (passed, failed))
