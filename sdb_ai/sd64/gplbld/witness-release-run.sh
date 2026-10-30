@@ -852,7 +852,8 @@ else
     if [ "$COMMIT" -eq 1 ]; then
         ck_line "V1a a plain account HAS sh (S.27: SH for every account)" "VOC sh" "$OUT"
         for v in create.account config; do ck_says "V1 a plain account lacks $v" "Record '$v' not found" "$OUT"; done
-        ck_says "V7 a new account's list voc shows descriptions" "File for BASIC programs" "$OUT"
+        # 30 Oct 26: the DESC column of LIST VOC wraps the text at its width ("File for BASIC" / "programs" on two lines), so the row looks for the first line of it
+        ck_says "V7 a new account's list voc shows descriptions (the BP file's, wrapped at the column)" "File for BASIC" "$OUT"
     fi
     OUT=$(run_sd sdsys "sdsys: CT VOC sh, create.account, config" "CT VOC sh" "CT VOC create.account" "CT VOC config")
     if [ "$COMMIT" -eq 1 ]; then
@@ -2522,11 +2523,17 @@ if [ "$COMMIT" -eq 1 ]; then
         # 27 Oct 26, S.87: APILOGIN is no longer accepted (config.c refuses it) and the installer's RETIRED-CONF block removes the
         # line from a restored sd.conf, so a line still here means the block did not run and SD should not be active.
         ck "R3 /etc/sd.conf still carries APILOGIN after the install (the installer removes it; SD refuses to start with it)" absent present
+    elif [ -n "${SD_INSTALL_LOG:-}" ] && grep -q 'Removed the retired parameter APILOGIN' "$SD_INSTALL_LOG" 2>/dev/null; then
+        # 30 Oct 26 (S.89): a run told where the INSTALLER's log is (SD_INSTALL_LOG=/path) after a cycle that planted the line (.claude/vmtools/plant-apilogin.sh) and kept the configuration
+        #   can see the claim itself: the installer's own words say it removed the line, none is left, and SD is running.
+        say "      | the installer's log ($SD_INSTALL_LOG) says it removed the retired parameter"
+        ck "R3 a planted APILOGIN=1 was removed by the installer (its log says so), /etc/sd.conf has no APILOGIN line now and sd.service is active" yes "$([ "$SDACTIVE" = active ] && echo yes || echo no)"
     else
         say "  /etc/sd.conf has no APILOGIN line, so this was a cycle that did NOT keep the"
         say "  configuration.  R3 needs one that did - answer Y to \"keep your existing"
         say "  configuration\" - and cannot be forced from here (see the note above this"
-        say "  section).  NOT REACHED is the row refusing to pass on nothing."
+        say "  section).  NOT REACHED is the row refusing to pass on nothing.  (Or give the"
+        say "  installer's log: SD_INSTALL_LOG=/path sudo -E bash $SELF --commit, 30 Oct 26.)"
         not_reached "R3 a restored APILOGIN=1 is accepted (needs a keep-configuration cycle)"
     fi
 fi
