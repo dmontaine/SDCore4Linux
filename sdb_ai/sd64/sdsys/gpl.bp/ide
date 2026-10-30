@@ -3625,13 +3625,8 @@ fields.run:
    call $ced_core('init', fz.st, '', fz.out)
    fz.st{'path.row'} = ystat                                  ;* what the engine paints over a dialogue (a refused value) goes on the status row, which the IDE writes again after
    fz.st{'msg.row'} = ystat
-   screen set f, 'ed' visible 0
-   screen set f, 'fld' visible 1
-   screen set f, 'fpath' visible 1
    fz.done = @false
-   gosub fields.show
-   ft.id = 'fld'
-   gosub focus.to
+   gosub fields.view.on
    loop
       gosub fields.status
       screen wait f timeout 1 returning ev then
@@ -3647,6 +3642,14 @@ fields.run:
             case et = 'key'
                fz.key = edata
                gosub fields.key
+            case et = 'resize'
+               * the window changed size: the form is made again at the new size (as the main loop does), the engine is laid out for it, and the view is shown again with the same path,
+               *   selection and changes (they are the engine's state, not the form's)
+               gosub relayout
+               call $ced_core('layout', fz.st, ew : @fm : (mh + 3), fz.out)
+               fz.st{'path.row'} = ystat
+               fz.st{'msg.row'} = ystat
+               gosub fields.view.on
          end case
       end else
          begin case
@@ -3664,6 +3667,16 @@ fields.run:
    repeat
    fz.c = fz.st{'c'}
    fz.kept = fz.st{'kept'}
+   return
+
+* The view on: the memo hidden, the table and the path line shown with the engine's state, the focus on the table.  Also after the form was made again (a resize), whose widgets start hidden.
+fields.view.on:
+   screen set f, 'ed' visible 0
+   screen set f, 'fld' visible 1
+   screen set f, 'fpath' visible 1
+   gosub fields.show
+   ft.id = 'fld'
+   gosub focus.to
    return
 
 * One key, from the loop above (or the table's Return): F12 and Ctrl-Q leave (CED's Ctrl-Q), the rest are CED's own

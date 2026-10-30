@@ -670,6 +670,30 @@ def fields_part(box, sysd, made):
         "Back from the fields: bp %s is as it was" % rb in st and re.search(r"bp %s \*" % rb, st) is None and disk()[1] == d0[1], "%r %r" % (st, disk()[1]))
     e.end()
 
+    # ---- J: the window is made smaller and then big enough again while the view is up (30 Oct 26): the form is made again and the view comes back with its path and its rows ----------
+    e = sb.Ide(box, "IDE bp %s" % rb)
+    e.quiet()
+    e.keys(F12)
+    L = e.keys(sb.DOWN, sb.RET)
+    p0 = path_of(L)
+    el0 = [(x[1], x[2], x[3]) for x in elements(L)]
+    e.s.resize(100, 30)
+    e.quiet()
+    e.s.resize(140, 43)
+    e.quiet()
+    L = e.lines()
+    el1 = [(x[1], x[2], x[3]) for x in elements(L)]
+    row("J1 a resize down and back up while the view is up: the view is still there at /2 with its rows (two, three), not the text editor and not a blank screen",
+        p0 == "/2" and el0 == [("1", "string", "two"), ("2", "string", "three")] and path_of(L) == p0 and el1 == el0, "%r %r | %r %r" % (p0, el0, path_of(L), el1))
+    L = e.keys(sb.DOWN, sb.RET)
+    row("J2 ... and it still works after the resize: the selection moves and a Return edits (the value dialogue is drawn)", any("two" in l or "three" in l for l in L), "\n".join(l for l in L if l.strip())[-300:])
+    e.keys(sb.ESC)
+    L = e.keys(sb.CTRL_Q)
+    e.quiet()
+    st = e.status()
+    row("J3 leaving after the resize works: the IDE says the record is as it was", "Back from the fields: bp %s is as it was" % rb in st, st)
+    e.end()
+
     # ---- C: a paste that is not a record is refused; the leave-without-saving question throws the changes away ---------------------------
     e = sb.Ide(box, "IDE bp %s" % rc)
     e.quiet()

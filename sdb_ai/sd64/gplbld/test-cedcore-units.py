@@ -192,8 +192,8 @@ def checks(p):
     for lab in ("fields.run", "fields.key"):
         fr += section(ide, lab) or []
     sent_ide = sorted(set(re.findall(r"call \$ced_core\('([\w.]+)'", "\n".join(fr))))
-    row("E22 the IDE no longer calls $cedit (stage 5 of the plan, reached by the in-form view); its fields view calls the engine's init, key, prep.save, saved and abandon and nothing it writes",
-        not any("$cedit" in l for l in ide) and sent_ide == ["abandon", "init", "key", "prep.save", "saved"]
+    row("E22 the IDE no longer calls $cedit (stage 5 of the plan, reached by the in-form view); its fields view calls the engine's init, key, layout (after a resize), prep.save, saved and abandon and nothing it writes",
+        not any("$cedit" in l for l in ide) and sent_ide == ["abandon", "init", "key", "layout", "prep.save", "saved"]
         and not any(re.search(r"\b(write|writeu|writev|delete|readu|execute)(?![\w.])", l) for l in fr), repr(sent_ide))
     return rows
 
@@ -265,6 +265,7 @@ def selftest():
     mutant("the IDE calls the engine with three arguments", "ide", "call $ced_core('init', fz.st, '', fz.out)", "call $ced_core('init', fz.st, '')", "E21")
     mutant("the IDE calls the CED program again", "ide", "      fz.type = 2\n      fz.c = fd.arr\n      gosub fields.run", "      call $cedit(fd.arr, '', '', 2, fz.title, fd.res)\n      fz.type = 2\n      fz.c = fd.arr\n      gosub fields.run", "E22")
     mutant("the IDE's fields view writes the record", "ide", "   fz.c = fz.st{'c'}\n   fz.kept = fz.st{'kept'}\n   return", "   fz.c = fz.st{'c'}\n   fz.kept = fz.st{'kept'}\n   writeu fz.c on fv, fd.id\n   return", "E22")
+    mutant("the IDE's view ignores a resize again", "ide", "               call $ced_core('layout', fz.st, ew : @fm : (mh + 3), fz.out)\n", "", "E22")
     mutant("the IDE's view never tells the engine a write was kept", "ide", "      if fz.st{'ok'} then call $ced_core('saved', fz.st, 1, fz.out)", "      if fz.st{'ok'} then null", "E22")
     print("selftest: %d of %d mutants caught, %d missed" % (caught, caught + missed, missed))
     return 0 if missed == 0 else 1
