@@ -1,7 +1,21 @@
 [Unit]
-Description=String Database (SD)  Per-Connection clinet Server
+Description=String Database (SD)  Per-Connection client Server
 
 [Service]
 ExecStart=/usr/local/sdsys/bin/sd -n -q
 StandardInput=socket
+# 30 Oct 26 (W.11 F5, Opus's decision 1b): the safe set.  The per-connection server runs as root until a session has logged in and dropped to its user, so what a bug in the
+# pre-login reader could reach is narrowed to what this server never needs: kernel tunables, kernel modules and the kernel log, the control groups, the clock, the host name, real-time
+# scheduling, new namespaces and a changed execution domain, and any system call of another architecture.  NOT set, on purpose: NoNewPrivileges and CapabilityBoundingSet (a session
+# runs sudo sd-elevate), ProtectSystem, ProtectHome and PrivateTmp (a session writes $ipc, errlog and the accounts under /usr/local and /home/sd).
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
 

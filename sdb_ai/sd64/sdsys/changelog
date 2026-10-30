@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE PER-CONNECTION SERVER (sdclient@.service) IS CONFINED BY THE SAFE SET OF SYSTEMD'S SANDBOX SETTINGS.
+
+             What        - The unit that starts one server for each connection to the API port now sets ProtectKernelTunables, ProtectKernelModules, ProtectKernelLogs, ProtectControlGroups, ProtectClock,
+                           ProtectHostname, RestrictRealtime, RestrictNamespaces, LockPersonality and SystemCallArchitectures=native. The server runs as root until a session has logged in and
+                           dropped to its user; these settings take away from that stage what it never uses (changing kernel settings, loading modules, reading the kernel log, the control groups, the
+                           clock, the host name, real-time scheduling, new namespaces, a changed execution domain, system calls of another architecture). A fresh install has them; an upgrade that does
+                           not delete the units keeps the old unit file until it is replaced (copy usr/lib/systemd/system/sdclient@.service over it and run systemctl daemon-reload).
+             Why         - A fault in the part of the server that reads a connection before anyone has logged in would otherwise run with all of root's reach.
+             Does NOT    - Set NoNewPrivileges, a capability bound, ProtectSystem, ProtectHome or PrivateTmp: a session runs sudo sd-elevate and writes the system directory and the accounts, and those
+                           settings would stop it. Change the answer to any request. The release witness (323 of 323, API door, administrator verbs through sudo) passed with the unit loaded.
+
 30 Oct 26  THE IDE'S FIELDS VIEW (F12) IS INSIDE THE IDE: THE COLLECTION EDITOR'S ENGINE IS SHARED, AND THE SCREEN IS NO LONGER LEFT.
 
              What        - F12 (Go, Edit as fields) used to hand the record to the CED program, which took the whole screen, and the IDE took the screen back when CED ended. The editor's work
