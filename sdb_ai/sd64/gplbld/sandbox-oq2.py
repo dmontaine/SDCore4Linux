@@ -10,6 +10,8 @@
 # THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 30 Oct 26 dm  S.88 stage E2: rows 485b-d next to row 485.  OPENSEQ ... CREATING is exclusive (a dangling link: the ELSE, STATUS() 6032, the target not made), a free name and a
+#               file with content as before, SHARED open-or-create.  WRITTEN, NOT RUN.
 # 27 Oct 26 dm  S.87 batch 8: the three rows of item 288 (OPTION CATALOGUE.LOCAL) are replaced by one MAP LOCAL row.
 # 27 Oct 26 dm  S.87 batch 3: EREPLACE (item 472's first function) was removed, with its eight rows; FIX stays.  The refusal is a row of sandbox-mode-q16.py.
 # 18 Oct 26 dm  Row 56's mode 1 and mode 6 jobs name SPOOLER "true": they went to the machine's lp, and with a default printer set
@@ -544,6 +546,48 @@ def run_verbs(box, sysd, bp):
         out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
         row("485: OPENSEQ without CREATING of a file that is not there takes the ELSE", has(out, r"MISSING_BEFORE"), out[-300:])
         row("485: OPENSEQ ... CREATING makes the file at once and takes the THEN", has(out, r"THEN_G") and os.path.exists(sq), out[-300:])
+
+        # --- 485b-d (30 Oct 26, S.88 stage E2): a plain CREATING is EXCLUSIVE (O_CREAT | O_EXCL), SHARED keeps open-or-create.  WRITTEN, NOT RUN.
+        #     The disk is the evidence in every row: whether the link's TARGET exists, whether the link is still the same link, the size and the bytes of the files.  Each row
+        #     has its own control in the same run: the plain OPENSEQ of the dangling link (the ELSE with STATUS 0, nothing made), a free name (made, THEN), a file with content
+        #     (opened, not truncated).
+        dt, dl = os.path.join(d, "zzoq485t"), os.path.join(d, "zzoq485l")       # a dangling link (dl) and its target (dt), which does not exist
+        st2, sl2 = os.path.join(d, "zzoq485st"), os.path.join(d, "zzoq485sl")   # a second pair, for SHARED
+        fr, ex = os.path.join(d, "zzoq485f"), os.path.join(d, "zzoq485e")       # a free name, and a file with content
+        for p_ in (dt, dl, st2, sl2, fr, ex):
+            if os.path.lexists(p_):
+                os.remove(p_)
+        os.symlink(dt, dl)
+        os.symlink(st2, sl2)
+        write(ex, "keep me\n")
+        write(probe, ("   openseq '%s' to f then crt 'BC_THEN' else crt 'BC_ELSE[':status():']'\n"
+                      "   if not(unassigned(f)) then close f\n"
+                      "   openseq '%s' creating to g then crt 'B_THEN' else crt 'B_ELSE[':status():']'\n"
+                      "   if not(unassigned(g)) then close g\n"
+                      "   openseq '%s' creating to h then crt 'C_THEN[':status():']' else crt 'C_ELSE[':status():']'\n"
+                      "   if not(unassigned(h)) then close h\n"
+                      "   openseq '%s' creating to k then crt 'E_THEN[':status():']' else crt 'E_ELSE[':status():']'\n"
+                      "   if not(unassigned(k)) then close k\n"
+                      "   openseq '%s' shared to m then crt 'D_THEN[':status():']' else crt 'D_ELSE[':status():']'\n"
+                      "   if not(unassigned(m)) then close m\n"
+                      "   crt 'P485 END'\nend\n") % (dl, dl, fr, ex, sl2))
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("485b CONTROL: the program ran to its end (the other 485b-d rows read nothing from a probe that stopped halfway)", has(out, r"^P485 END"), out[-400:])
+        row("485b CONTROL: a plain OPENSEQ of a dangling link takes the ELSE with STATUS() 0 (the name is not there), as it always did",
+            has(out, r"^BC_ELSE\[0\]"), out[-400:])
+        row("485b: OPENSEQ ... CREATING on a dangling link takes the ELSE with STATUS() 6032 (ER_EXISTS), where it made the link's target",
+            has(out, r"^B_ELSE\[6032\]") and not has(out, r"^B_THEN"), out[-400:])
+        row("485b: ...and the target of the link does not exist afterwards, and the link is still the same link (read from the disk)",
+            not os.path.lexists(dt) and os.path.islink(dl) and os.readlink(dl) == dt, repr((os.path.lexists(dt), os.path.islink(dl))))
+        row("485c: a plain CREATING of a free name still makes the file at once: the THEN with STATUS() 0, a plain file of size 0",
+            has(out, r"^C_THEN\[0\]") and os.path.isfile(fr) and not os.path.islink(fr) and os.path.getsize(fr) == 0, "%s | %s" % (out[-300:], os.path.lexists(fr)))
+        row("485c: ...and a plain CREATING of a file that is there opens it (the THEN) and does not truncate it: the bytes are as they were",
+            has(out, r"^E_THEN\[0\]") and slurp(ex) == b"keep me\n", "%s | %r" % (out[-300:], slurp(ex)))
+        # (First run, 30 Oct 26: 485b was red - fullpath() FOLLOWS a link at the end of the name, so the exclusive create made the link's TARGET.  The kernel now looks at the name before it is
+        #  resolved and refuses a CREATING of a link to nothing, SHARED too: its gate, os_path_open_ok, resolves with realpath(), which fails on a dangling link and takes the name for one not made yet.)
+        row("485d: SHARED on a dangling link is refused as CREATING is: the ELSE with STATUS() 6032 and the target is NOT made (a link planted in an account does not steer a create out of it)",
+            has(out, r"^D_ELSE\[6032\]") and not has(out, r"^D_THEN") and not os.path.lexists(st2) and os.path.islink(sl2) and os.readlink(sl2) == st2,
+            "%s | %s" % (out[-300:], os.path.lexists(st2)))
         sess(box, "BASIC bp zzoqsA", "BASIC bp zzoqsB")
         pa = subprocess.Popen([sys.executable, TOOL, box, "sess", os.path.join(box, "user_accounts"), "RUN bp zzoqsA"],
                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)

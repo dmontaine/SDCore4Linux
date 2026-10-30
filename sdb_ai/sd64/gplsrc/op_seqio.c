@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 30 Oct 26 dm  S.88 stage E2: OPENSEQ ... CREATING of a name that does not exist is exclusive (O_EXCL; ER_EXISTS 6032 when a file or a dangling link is there by
+ *               the time it is made); SHARED keeps open-or-create.
  * 17 Oct 26 dm  S.64 part 2: OPENSEQ and DELETESEQ ask edit_os_path_refusal() about what is ABOVE the final name only (include_leaf
  *               FALSE): a record called sample.bp, voc or x.dic in an ordinary directory file is a plain file, not a program file.
  * 17 Oct 26 dm  S.64: OPENSEQ opens read only, and cannot create, a file under a VOC, a dictionary or a program file the session may not
@@ -450,6 +452,8 @@ Private void openseq(bool map_name) {
   u_int16_t op_flags;
   bool read_only = FALSE;
   bool edit_blocked = FALSE; /* 17 Oct 26 S.64: a path in a VOC, a dictionary or a program file that the session may not change */
+  bool leaf_is_link = FALSE; /* 30 Oct 26 S.88 E2: the name given is itself a symbolic link (fullpath() follows it below) */
+  struct stat leaf_stat_buf;
   int16_t blocking_user;
   bool record_locked = FALSE; /* 14 Sep 26 - lock_record() succeeded */
   int status;
@@ -583,6 +587,13 @@ Private void openseq(bool map_name) {
 
       flags |= SQ_PORT;
     } else {
+      /* 30 Oct 26 dm - S.88 stage E2: fullpath() FOLLOWS a symbolic link at the end of the name, even a dangling one, so the file that would be
+         made is the link's TARGET, wherever that is; the OS-access gate (os_path_open_ok above) resolves with realpath(), which fails on a
+         dangling link and takes it for a name not made yet inside the account.  A CREATING of such a name is refused below (ER_EXISTS), so
+         the exclusive create cannot be steered out of the account by a link someone planted.  Looked at BEFORE the name is resolved. */
+      if (lstat(file_name, &leaf_stat_buf) == 0 && S_ISLNK(leaf_stat_buf.st_mode))
+        leaf_is_link = TRUE;
+
       fullpath(fullpathname, file_name);
       strcpy(file_name, fullpathname);
 
@@ -674,12 +685,20 @@ Private void openseq(bool map_name) {
     {
       process.status = ER_PERM;
       goto exit_op_openseq;
+    } else if ((op_flags & 0x400) && leaf_is_link) /* CREATING of a name that is a link to nothing (stat() failed): the target is not made */
+    {
+      process.status = ER_EXISTS;
+      goto exit_op_openseq;
     } else if (op_flags & 0x400) /* CREATING (and SHARED, which includes it): make the file now */
     {
       /* 12 Oct 26, openQM items 485 and 397 */
-      fu = dio_open(fullpathname, DIO_OVERWRITE);
+      /* 30 Oct 26 dm - S.88 stage E2: a plain CREATING is EXCLUSIVE (O_CREAT | O_EXCL).  The stat() above failed, so the name was free a moment ago;
+         a file made in between, or a dangling symbolic link at the name (stat follows the link and fails, a plain O_CREAT then follows it and
+         makes its TARGET), is now ER_EXISTS and nothing is created.  SHARED (0x800) keeps the open-or-create it always had: it appends to a file
+         that others add to. */
+      fu = dio_open(fullpathname, (op_flags & 0x800) ? DIO_OVERWRITE : DIO_NEW);
       if (!ValidFileHandle(fu)) {
-        process.status = ER_FNF;
+        process.status = (!(op_flags & 0x800) && errno == EEXIST) ? ER_EXISTS : ER_FNF;
         goto exit_op_openseq;
       }
     } else /* Does not exist, take ELSE clause, STATUS() = 0 */

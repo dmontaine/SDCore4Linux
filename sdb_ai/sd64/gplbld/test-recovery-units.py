@@ -22,6 +22,7 @@ START-HISTORY:
               had answered); the mutant "an old copy is removed with the switch off" is new, the "moved into the account" one is rewritten for the new initial value.
 30 Oct 26 dm  The first version's code is removed from edit_recovery (the owner deferred to Opus's recommendation, 29 Oct): R7b, R7h, R7i, R7j and R7k lose their old-copy parts,
               R14 now says the first version's names are gone and R15 that nothing is written in the account; the six old-copy mutants are replaced by two.
+30 Oct 26 dm  Stage E2: the tab of an operating system file is made in path.tab.make (open.path's tail, shared with New): R8j asks it, not open.path, for rc.init.tab; two mutants.
 END-HISTORY
 
 WHAT IT HOLDS.  The switch is register field 19 (ACC$RECOVERY), OFF AS DELIVERED: blank means no, CREATE.ACCOUNT writes 'no' unless RECOVERY-ON was typed, and there is
@@ -289,9 +290,11 @@ def checks(src, msgs):
     ck("R8i no routine of the copy writes a record, opens a file or audits: the record is written only by the person's save",
        len(rc_all) > 2000 and not re.search(r"(?:^|\bthen|\belse)\s*(write|writeu|writev|open|openpath|openseq|delete)\s", rc_all, re.M) and "K$AUDIT" not in rc_all,
        "%d characters" % len(rc_all))
-    ck("R8j every tab the IDE makes starts owning no copy (open.record, add.untitled, add.new.record and, since stage E, open.path call rc.init.tab), and a bare IDE offers the untitled "
-       "copies (not one that starts on an operating system file: path0)",
-       "gosub rc.init.tab" in orc and "gosub rc.init.tab" in label(ide, "add.untitled") and "gosub rc.init.tab" in an and "gosub rc.init.tab" in label(ide, "open.path")
+    ck("R8j every tab the IDE makes starts owning no copy (open.record, add.untitled, add.new.record and, since stage E, path.tab.make - the tail of open.path that New with an operating system "
+       "name uses too, 30 Oct 26 - call rc.init.tab; open.path itself makes its tab only by calling path.tab.make), and a bare IDE offers the untitled copies (not one that starts on an operating "
+       "system file: path0)",
+       "gosub rc.init.tab" in orc and "gosub rc.init.tab" in label(ide, "add.untitled") and "gosub rc.init.tab" in an and "gosub rc.init.tab" in label(ide, "path.tab.make")
+       and "gosub path.tab.make" in label(ide, "open.path") and "nbuf += 1" not in label(ide, "open.path")
        and ide.count("gosub rc.init.tab") == 4
        and "if id0 = '' and not(seq0) and sel0 = '' and path0 = '' then gosub rc.untitled" in ide, "")
 
@@ -415,6 +418,9 @@ MUTANTS = [
     ("ide", "the screen is taken back without keeping the setting", "   call $tk_brk('save', saved.trap)\n   void pterm(PT$BREAK, @false)\n   break off\n   gosub open.screen",
      "   void pterm(PT$BREAK, @false)\n   break off\n   gosub open.screen"),
     ("ide", "a too small window leaves the setting held", "      call $tk_brk('close', saved.trap)        ;* the setting back and BREAK ON", "      break on        ;* the setting back and BREAK ON"),
+    # 30 Oct 26 (stage E2): the tab of an operating system file is made in path.tab.make
+    ("ide", "the operating system file's tab owns whatever copy the last tab had", "   gosub rc.init.tab\n   ts.kind = 'path'\n   ts.dict = ''\n   ts.slot = op.s\n", "   ts.kind = 'path'\n   ts.dict = ''\n   ts.slot = op.s\n"),
+    ("ide", "open.path makes the tab itself again", "   tused<op.s> = 1\n   gosub path.tab.make\n   return", "   tused<op.s> = 1\n   nbuf += 1\n   return"),
 ]
 
 

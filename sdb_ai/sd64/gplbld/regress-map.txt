@@ -135,7 +135,9 @@ gplbld/*                     : @core
 gplsrc/netfiles.c            : netfile
 # S.67 stage 1 (19 Oct 26): the master files.  masters.c is theirs; the DH layer's write, delete, clear and create, OSPATH and OSRENAME, open_file and K_MASTERS call it.
 gplsrc/masters.c             : masters tool-masters @files
-gplsrc/op_dio4.c             : @lists fixes-b12 netfile
+# 30 Oct 26 (S.88 stage E2): op_dio4.c's DIR() tells a file from a directory with S_ISREG / S_ISDIR (the IDE's operating system tree lists through it), and op_seqio.c's plain CREATING is exclusive
+#   (ER_EXISTS 6032; oq2 rows 485b-d and the ide-path rows of making a file): both select ide-path.
+gplsrc/op_dio4.c             : @lists fixes-b12 netfile ide-path
 gplsrc/op_dio3.c             : @files @seq prof lockown editgates netfile shared masters
 gplsrc/op_dio2.c             : @files fixes-b12 sys-b2 netfile shared masters
 gplsrc/op_dio1.c             : @files  prof lockown netfile shared masters
@@ -151,7 +153,7 @@ gplsrc/txn.c : trans-b43 txnstatus coll collfile sysexc masters @core
 gplsrc/sdfix.c               : sdfixseq akcase fixes-b12 tools
 gplsrc/sdidx.c               : akcase idx-nocase tools
 gplsrc/sdconv.c              : nocase upgradenocase
-gplsrc/op_seqio.c            : @seq prof getdev editgates
+gplsrc/op_seqio.c            : @seq prof getdev editgates ide-path
 gplsrc/op_coll.c             : coll collfile dbgcoll jsonx
 # 20 Oct 26 (the CSV / JSON / XML task): op_csv.c is FORMCSV and the CSV intrinsics, op_json.c is merge / patch / path / validate, op_xml.c is XPARSE / XBUILD / XPATH.
 gplsrc/op_csv.c              : csv-b5 csvb csvq xml func-b4
@@ -592,6 +594,11 @@ sdsys/messages/1172[7-9]     : ide-path
 sdsys/messages/1173[0-9]     : ide-path
 sdsys/messages/1174[0-2]     : ide-path
 sdsys/messages/1174[3-5]     : ide-kinds ide
+# stage E2 (30 Oct 26): making operating system files - 11746 is the tree's node label (shown in every IDE suite), 11747 to 11749 the listing and a file that is not plain,
+#   11762 to 11765 the four ways a file is not made (exists, no directory, not written whole, bytes or size); 11739 and 11214 were reworded (11739 is covered above, 11214 below);
+#   11727 and 11558 were deleted (covered by the 1172[7-9] and 1155[0-9] rules).  These come BEFORE the 1176[6-9] rule and the broad 117* line near the end.
+sdsys/messages/1174[6-9]     : ide-path ide
+sdsys/messages/1176[2-5]     : ide-path
 # stage D, first slice (29 Oct 26): the editing commands - messages 11543-11559, the Search / Build / View menus (11227-11229), the Go to prompt (11209) and the help (11216)
 sdsys/messages/1176[6-9]     : ide-edit
 sdsys/messages/11779         : ide-edit

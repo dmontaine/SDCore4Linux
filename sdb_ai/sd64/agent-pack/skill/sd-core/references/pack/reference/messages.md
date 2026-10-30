@@ -2730,7 +2730,7 @@ cited by: `movelist`
 %1 has no OS access, so a file or directory outside its own account cannot be reached by pathname (SDSYS can give it: modify.account %1 os-on)
 ```
 
-cited by: `convertdata`, `ide`, `importdata`, `oscopya`, `qproc`, `sed`, `seldir`, `setptr`
+cited by: `convertdata`, `ide`, `ide_name`, `importdata`, `oscopya`, `qproc`, `sed`, `seldir` and 1 more
 
 ### msg:11181
 > kind=message tier=reference since=- src=sdsys/messages/11181:1#29ff1ce7
@@ -3027,10 +3027,10 @@ Line %1, column %2
 cited by: `ide`
 
 ### msg:11214
-> kind=message tier=reference since=- src=sdsys/messages/11214:1#50c4a5fb
+> kind=message tier=reference since=- src=sdsys/messages/11214:1#84879850
 
 ```
-The IDE\n\nTab, Shift-Tab   In the editor: indent, outdent the line or the selected lines (3 blanks, one undo step); elsewhere the next / previous control\nF6, Shift-F6     Next / previous pane\nReturn           Open the file or record; go to the error\nSpace, Right     Open or close a tree node\nCtrl-S           Save the record (an untitled one asks for its file and name)\nCtrl-N           New record\nCtrl-O           Open a record by file and name; path:/full/name there opens an operating system file\nCtrl-W           Close the record\nCtrl-PgDn, PgUp  Next / previous record tab (Alt-PgDn, PgUp too: a terminal may keep the Ctrl keys for its own tabs)\n
+The IDE\n\nTab, Shift-Tab   In the editor: indent, outdent the line or the selected lines (3 blanks, one undo step); elsewhere the next / previous control\nF6, Shift-F6     Next / previous pane\nReturn           Open the file or record; go to the error\nSpace, Right     Open or close a tree node\nCtrl-S           Save the record (an untitled one asks for its file and name; path:/full/name there makes a file of the operating system)\nCtrl-N           New record (path:/full/name makes an empty file of the operating system and opens it)\nCtrl-O           Open a record by file and name; path:/full/name there opens an operating system file\nCtrl-W           Close the record\nCtrl-PgDn, PgUp  Next / previous record tab (Alt-PgDn, PgUp too: a terminal may keep the Ctrl keys for its own tabs)\n
 ```
 
 cited by: `ide`
@@ -5734,15 +5734,6 @@ cited by: `ide`
 
 cited by: `ide`
 
-### msg:11558
-> kind=message tier=reference since=- src=sdsys/messages/11558:1#f5895173
-
-```
-An operating system file cannot be imported yet: open it in a tab of its own
-```
-
-cited by: `ide`
-
 ### msg:11559
 > kind=message tier=reference since=- src=sdsys/messages/11559:1#524a521f
 
@@ -7136,15 +7127,6 @@ cited by: `sl_guard`
 
 cited by: `sl_guard`
 
-### msg:11727
-> kind=message tier=reference since=- src=sdsys/messages/11727:1#bb58ddc7
-
-```
-A path: name opens an operating system file with Open (Ctrl-O), or from the command line as ide path:/full/name; New, Save as and Write a copy take a file of records
-```
-
-cited by: `ide_name`
-
 ### msg:11728
 > kind=message tier=reference since=- src=sdsys/messages/11728:1#4d091a03
 
@@ -7245,10 +7227,10 @@ cited by: `ide`
 cited by: `ide`
 
 ### msg:11739
-> kind=message tier=reference since=- src=sdsys/messages/11739:1#f4529262
+> kind=message tier=reference since=- src=sdsys/messages/11739:1#88a051d8
 
 ```
-%1 %2 is an operating system file, not a record or a program: compile, run, debug, catalog, SED, fields, Save as and Open the include do not apply to it (Write a copy does: it keeps the text in a record)
+%1 %2 is an operating system file, not a record or a program: compile, run, debug, catalog, SED, fields, Save as and Open the include do not apply to it (Write a copy does: it keeps the text in a record, or in another operating system file)
 ```
 
 cited by: `ide`
@@ -7306,6 +7288,42 @@ cited by: `ide`
 ```
 
 cited by: `ide_name`
+
+### msg:11746
+> kind=message tier=reference since=- src=sdsys/messages/11746:1#d20a5108
+
+```
+Operating system files
+```
+
+cited by: `ide`
+
+### msg:11747
+> kind=message tier=reference since=- src=sdsys/messages/11747:1#8e7eca40
+
+```
+The entries of %1 could not be listed (error %2)
+```
+
+cited by: `ide`
+
+### msg:11748
+> kind=message tier=reference since=- src=sdsys/messages/11748:1#732f1ca8
+
+```
+%2 entries of %1 are not shown: their names cannot be shown or put in a path, or the directory holds more than 1000
+```
+
+cited by: `ide`
+
+### msg:11749
+> kind=message tier=reference since=- src=sdsys/messages/11749:1#91b7c13c
+
+```
+%1 is not a plain file (it is a directory, a device, a pipe or a socket), so nothing was written to it
+```
+
+cited by: `ide`
 
 ### msg:11750
 > kind=message tier=reference since=- src=sdsys/messages/11750:1#e64264f5
@@ -7411,6 +7429,42 @@ cited by: `tool_query`
 
 ```
 %1 %2 is open read-only: it holds characters outside ASCII
+```
+
+cited by: `ide`
+
+### msg:11762
+> kind=message tier=reference since=- src=sdsys/messages/11762:1#79fafe6e
+
+```
+%1 was not made: a file with that name is there already (an empty one is filled, but one with content is never replaced: open it to change it), or it cannot be changed
+```
+
+cited by: `ide`
+
+### msg:11763
+> kind=message tier=reference since=- src=sdsys/messages/11763:1#ae2fb6ec
+
+```
+%1 was not made: its directory is not there, or the operating system or an edit gate of this account does not let this session make a file there (error %2)
+```
+
+cited by: `ide`, `ide_name`
+
+### msg:11764
+> kind=message tier=reference since=- src=sdsys/messages/11764:1#079ef343
+
+```
+%1 was not made whole: writing it failed (error %2), and an empty or partly written file may be there.  The text is still in the editor.
+```
+
+cited by: `ide`
+
+### msg:11765
+> kind=message tier=reference since=- src=sdsys/messages/11765:1#45fef0e2
+
+```
+%1 was not made: the text holds a NUL or a byte from 248 to 255, or is over 2 MB, and the IDE does not write that to a file.  The text is still in the editor.
 ```
 
 cited by: `ide`

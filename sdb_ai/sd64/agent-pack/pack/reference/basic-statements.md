@@ -328,6 +328,7 @@ clause of `execute` and `os.execute` — take the output
 `openseq` *path*`,` *id* `creating to` *file.var* `then` … `else` …
 
 - a word that belongs inside another statement's syntax, not a statement of its own
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 50
 
 ### basic:stmt:crt
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:405#2dfd1c3c src2=docs:tools/syntax-shapes.txt:51#d239b475
@@ -445,7 +446,7 @@ clause of `enter` — run at the current command level
 `deleteseq` *path* {`on error` …} `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 151
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 153
 
 ### basic:stmt:deleteu
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:407#75823171 src2=docs:tools/syntax-shapes.txt:66#a4d37a58
@@ -611,7 +612,7 @@ clause of `if`, and of every statement that has a `then`
 `flush` *file.var* `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 97
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 99
 
 ### basic:stmt:flush.dh.cache
 > kind=basic.statement tier=reference since=next src=sdsys/gpl.bp/bcomp:413#cb280ab5 src2=docs:tools/syntax-shapes.txt:326#1b422820
@@ -675,7 +676,7 @@ clause of `read`, `readnext`, `matbuild`, `matparse`, `remove`, `readcsv`
 `get` *var* `from` *object*
 
 - a statement of SD BASIC
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 199
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 201
 
 ### basic:stmt:getlist
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:415#b667d46d src2=docs:tools/syntax-shapes.txt:102#e9acd199
@@ -1045,7 +1046,7 @@ clause of `input` and `input @` — show nothing of what is typed
 `nobuf` *file.var* `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 191
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 193
 
 ### basic:stmt:non.transactional
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:11546#6fdf4d31 src2=docs:tools/syntax-shapes.txt:312#76964e53
@@ -1116,7 +1117,7 @@ clause of `input` and `input @` — show nothing of what is typed
 (no syntax line yet in the docs' syntax-shapes.txt)
 
 - a statement of SD BASIC
-- docs: `User/markdown/07-sd-basic-file-handling.md` line 435
+- docs: `User/markdown/07-sd-basic-file-handling.md` line 438
 
 ### basic:stmt:osread
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:458#561a5e43
@@ -1503,7 +1504,7 @@ clause of `open`, `openpath` and `openseq`
 clause of `execute` — take the command's error text
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 214
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 216
 
 ### basic:stmt:revremove
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:457#70eb5c71
@@ -1566,7 +1567,7 @@ clause of `execute` — take the list the command left
 `seek` *file.var*, *offset* {, *relative.to*} `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 174
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 176
 
 ### basic:stmt:select
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:441#876d1c19 src2=docs:tools/syntax-shapes.txt:216#6c9b41d5
@@ -1653,7 +1654,7 @@ clause of `execute` — take the list the command left
 (no syntax line yet in the docs' syntax-shapes.txt)
 
 - a statement of SD BASIC
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 91
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 93
 
 ### basic:stmt:sendmail
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:443#e3f07a55 src2=docs:tools/syntax-shapes.txt:223#47214601
@@ -1724,7 +1725,7 @@ clause of `execute` — take the list the command left
 `set.trigger` *file.var*, *mode*, *program* {, *modes*}
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/07-sd-basic-file-handling.md` line 431
+- docs: `User/markdown/07-sd-basic-file-handling.md` line 434
 
 ### basic:stmt:set.unassigned
 > kind=basic.restricted tier=reference since=- src=sdsys/gpl.bp/bcomp:488#b233e95e src2=docs:tools/syntax-shapes.txt:232#477d6f21
@@ -1914,7 +1915,7 @@ clause of `if`, and of every statement that has an `else`
 `timeout` *file.var*, *seconds*
 
 - a statement of SD BASIC
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 193
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 195
 
 ### basic:stmt:to
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:577#e429e75b src2=docs:tools/syntax-shapes.txt:256#90ca2210
@@ -2010,7 +2011,7 @@ clause of `loop`: `loop` … `until` *condition* … `repeat`
 clause of `input`: `input` *var* `waiting` *seconds*
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 215
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 217
 
 ### basic:stmt:wake
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:451#b3143678 src2=docs:tools/syntax-shapes.txt:268#33efbca5
@@ -2034,7 +2035,7 @@ clause of `input`: `input` *var* `waiting` *seconds*
 `weofseq` *file.var* {`on error` …}
 
 - a statement of SD BASIC
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 92
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 94
 
 ### basic:stmt:while
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:452#70e7f0f1 src2=docs:tools/syntax-shapes.txt:271#b46e25d5
@@ -2106,7 +2107,7 @@ clause of `loop`: `loop` … `while` *condition* … `repeat`
 `writeseqf` *var* `to` *file.var* {`on error` …} `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `User/markdown/10-sd-basic-sequential-files.md` line 89
+- docs: `User/markdown/10-sd-basic-sequential-files.md` line 91
 
 ### basic:stmt:writeu
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:454#bfa4d305 src2=docs:tools/syntax-shapes.txt:278#6ffaa4d0

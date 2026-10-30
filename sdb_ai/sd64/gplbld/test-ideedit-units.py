@@ -10,6 +10,7 @@ START-HISTORY:
 29 Oct 26 dm  New with stage D, first slice.
 29 Oct 26 dm  The review's findings (R1-R8): E11 and E12 follow the new code; E14 (Replace on the record), E15 (an element is assigned to a variable that has a value) and E16 (no 99,999 cut, the 256
               limit) are new, with their mutants.
+30 Oct 26 dm  Stage E2: message 11558 is deleted (Import takes an operating system file now): NEWMSG loses it (E13) and its mutant goes; E10's words follow.
 END-HISTORY
 
 WHAT IT HOLDS (gpl.bp/ide, the end of the program).  Every command works on the TEXT AREA'S LIVE TEXT (mw{'value'}) and sets it ONCE through ed.set, which puts the old text and cursor on the
@@ -32,7 +33,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
-NEWMSG = [11543, 11544, 11545, 11546, 11547, 11548, 11549, 11550, 11551, 11552, 11553, 11554, 11555, 11556, 11557, 11558, 11559]
+NEWMSG = [11543, 11544, 11545, 11546, 11547, 11548, 11549, 11550, 11551, 11552, 11553, 11554, 11555, 11556, 11557, 11559]      # 11558 (Import refuses an operating system file) was deleted 30 Oct 26
 CMDS = ["view", "qreplace", "findopts", "upcase", "downcase", "import", "export", "xeq", "refresh"]
 
 
@@ -154,7 +155,8 @@ def checks(src):
        and not re.search(r"^\s*(write|writeu|readu)\s", ex, re.M) and ordered(L["do.writeas"], "call $ide_name('copy', wa.file, wa.id, wa.res)", "gosub tab.find", "gosub write.copy")
        and ordered(L["write.copy"], "open wa.file to fv else", "gosub edit.check", "readu x from fv, wa.id locked", "write wa.text on fv, wa.id on error", "release fv, wa.id", "gosub refresh.tree.for"), "")
     im = L["do.import"]
-    ck("E10", "Import a record here needs a tab that can be changed, asks the name form in the 'open' mode (the record must exist), refuses an operating system file, a collection file, a record holding "
+    ck("E10", "Import a record here needs a tab that can be changed, asks the name form in the 'open' mode (the record must exist; path:/full/name names an operating system file since 30 Oct 26, whose "
+       "reading is test-ideos-units.py's O-rows), refuses a collection file, a record holding "
        "value, subvalue or text marks or bytes 128 to 247, and puts the lines in at the cursor through ed.set; it writes no record",
        ordered(im, "gosub ed.get", "call $ide_name('open', im.file, im.id, im.res)", "if im.file = 'path:' then", "FL$COLLECTION", "read im.x from fv, im.id else", "index(im.x, @vm, 1)", "index(im.x, @sm, 1)",
                "index(im.x, @tm, 1)", "convert(NA.CHARS, '', im.x) # im.x", "im.block = im.ln[1, im.cx - 1] : im.x", "im.block := im.ln[im.cx, len(im.ln)]", "ed.new<im.cy> = im.block", "gosub ed.set")
@@ -301,7 +303,6 @@ MUTANTS = [
     ("Find in the records takes a text over 256 characters", "E16", sub("ide", "   if len(pat) > FINDMAX then", "   if 0 then")),
     ("the AI selection cuts the first line at 99999 again", "E16", sub("tk_ai", "t.part = t.ln[t.x1, len(t.ln)]", "t.part = t.ln[t.x1, 99999]")),
     ("Upcase cuts the last line at 99999 again", "E8", sub("ide", "dc.ln[dc.z + 1, len(dc.ln)]", "dc.ln[dc.z + 1, 99999]")),
-    ("Import takes an operating system file", "E10", sub("ide", "   if im.file = 'path:' then\n      msg = sysmsg(11558)", "   if 0 then\n      msg = sysmsg(11558)")),
     ("Import works in a read-only tab", "E10", sub("ide", "do.import:\n   gosub ed.get", "do.import:\n   gosub ed.read")),
     ("Run a command does not keep the copies first", "E11", sub("ide", "   gosub rc.tick\n   xq.out = ''", "   xq.out = ''")),
     ("Run a command does not take the locks again", "E11", sub("ide", "   execute xq.cmd trapping aborts capturing xq.out\n   gosub relock.all", "   execute xq.cmd trapping aborts capturing xq.out")),

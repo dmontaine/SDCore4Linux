@@ -221,7 +221,7 @@ def checks(raw):
        "gosub do.new" in nmcase and "gosub do.open" in case_block(rc, "case cmd = 'open'") and "case mode = 'open'" in inm and "read x from fv, ii" in inm, "")
     nm_d = block(inm, "try.accept")
     i_dollar = nm_d.find("case ff[1, 1] = '$'")
-    i_open = nm_d.find("case mode = 'open'")
+    i_open = nm_d.find("case mode = 'open'", i_dollar)      # 30 Oct 26 (E2): the path: branch above has a "case mode = 'open'" of its own; the one that opens a record comes after the dollar test
     ck("IK13", "the name form refuses a file whose name starts with a dollar sign (11683) BEFORE it opens anything, and names the file in the message",
        0 < i_dollar < i_open and re.search(r"case ff\[1, 1\] = '\$'\s*\n\s*msg = sysmsg\(11683, ff\)", nm_d) is not None and "%1" in raw["m11683"] and "dollar sign" in raw["m11683"], "")
     bf = block(ide, "build.files")

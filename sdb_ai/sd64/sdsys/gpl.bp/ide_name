@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 30 Oct 26 dm  S.88 stage E2: every mode takes path:/full/name now. 'open' is as before; New, 'save', 'saveas' and 'copy' name an operating system file to MAKE, and the form asks the
+*               account's OS gate and edit gates for it (K$PATH.OK, K$EDIT.OS.OK) and stays open on a refusal; whether the name is free is the create's to say (!ide_osfile 'create').
 * 28 Oct 26 dm  S.88 stage E: Open takes path:/full/name in the file entry (or path: there and the full name in the record entry) and returns file 'path:' and the name as it was typed;
 *               the spelling is checked by !ide_osfile 'check' and the form stays open on a bad one; every other mode refuses a path: name (11727).  Nothing else is asked here.
 * 28 Oct 26 dm  New (S.88 Phase 4, plan 4.2).  The IDE asked for a record id alone and took the file from the tree's current node, which on a bare start is the account
@@ -16,8 +18,8 @@
 *
 *     mode   'new' (New record), 'save' (the first save of an untitled buffer), 'saveas' or 'copy' (Save as, Write a copy): only the title of the box differs.
 *            'open' (Open a record, Ctrl-O): the other way round - the record must EXIST, and the account's edit gate is not asked (reading needs none)
-*     file   in: the file the form starts with; out: the file typed, when res is 'ok' - or 'path:' (mode 'open' only) when an operating system file was named, in which
-*            case ID is its full name as typed, not folded to lower case, and no record or file was looked at
+*     file   in: the file the form starts with; out: the file typed, when res is 'ok' - or 'path:' when an operating system file was named (every mode since 30 Oct 26), in which
+*            case ID is its full name as typed, not folded to lower case, and no record or file was looked at (for a mode that makes one, only the account's gates were asked)
 *     id     in: the record id the form starts with (null for a new one); out: the id typed, when res is 'ok'
 *     res    'ok' or 'cancel' (Esc, or an input that ended, or a session with no terminal)
 *
@@ -161,19 +163,45 @@ try.accept:
          *   kernel when it is opened.  The other modes make records, and an operating system file is not one yet.
          op.path = trimf(trimb(pw[6, 9999]))
          if op.path = '' then op.path = trimf(trimb(w2{'value'}))
+         * 30 Oct 26 (S.88 stage E2): the other modes name a file to MAKE (New, the first save of an untitled buffer, Save as, Write a copy): the spelling is checked, and the account's OS gate
+         *   (K$PATH.OK) and edit gates (K$EDIT.OS.OK: nothing below the account in a VOC, a dictionary, a program file, the shared account or the private catalogue that the account
+         *   may not change) are asked HERE, so that a refusal is said in the form and the form stays open.  Whether the name is free, and its directory there, is the create's to say.
          op.why = ''
-         if mode # 'open' then
-            msg = sysmsg(11727)
-         end else
-            call !ide_osfile('check', op.path, op.f, op.text, op.info, op.why)
-            if op.why # '' then
+         call !ide_osfile('check', op.path, op.f, op.text, op.info, op.why)
+         begin case
+            case op.why # ''
                msg = sysmsg(11728, op.path)
-            end else
+            case mode = 'open'
                file = 'path:'
                id = op.path
                res = 'ok'
-            end
-         end
+            case not(kernel(K$PATH.OK, op.path))
+               msg = sysmsg(11180, @who)
+            case not(kernel(K$EDIT.OS.OK, op.path))
+               * K$EDIT.KIND names the kind by the LAST component only, which for a file to MAKE is the new file's name and answers 0 (and !edit_msg(0) says the VOC's words, which would send the
+               *   administrator to the wrong gate): the kind is asked of each directory above it, from the parent up, and the first that is a guarded place gives the reason
+               ek = kernel(K$EDIT.KIND, op.path)
+               ep = op.path
+               loop
+               while ek = 0 and len(ep) > 1
+                  ex = len(ep)
+                  loop
+                  while ex > 1 and ep[ex, 1] # '/'
+                     ex -= 1
+                  repeat
+                  ep = ep[1, ex - 1]
+                  if ep # '' then ek = kernel(K$EDIT.KIND, ep)
+               repeat
+               if ek = 0 then
+                  msg = sysmsg(11763, op.path, 3035)           ;* no gate to name: the kernel refused (ER_PERM)
+               end else
+                  msg = edit_msg(ek)
+               end
+            case 1
+               file = 'path:'
+               id = op.path
+               res = 'ok'
+         end case
          if res # 'ok' and focus = 2 then gosub swap.focus
       case ii = ''
          msg = sysmsg(11970)

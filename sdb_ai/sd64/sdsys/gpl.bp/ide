@@ -307,6 +307,9 @@ $include dictdict.h
    ldict = ''                        ;* in step: 1 when the file has a dictionary (the tree shows a node for it)
    dfiles = ''                       ;* the files whose DICTIONARY items are listed in the tree (opened by Return on the dictionary node)
    drecs = ''                        ;* their item ids, as values, in step
+   ofiles = ''                       ;* 30 Oct 26 (stage E2): the directories of the operating system whose entries are listed in the tree ('/' is the node itself)
+   orecs = ''                        ;* their entries, in step: as values, the letter D or F and then the name
+   os.on = kernel(K$PATH.OK, '/') + 0   ;* the operating system node is in the tree only when this account may open pathnames outside its own directory (OS access, or SDSYS)
    or.dict = ''                      ;* open.record's dictionary flag and "a missing record is a new one": each call takes them and puts them back to ''
    or.mknew = 0
    rt.dict = ''
@@ -797,6 +800,144 @@ tree.nodes:
          next j
       end
    next i
+   if os.on then gosub tree.os
+   return
+
+* The operating system node (30 Oct 26, stage E2), after the files of the account: a root, then the entries of every directory that is listed (os.find), a directory a node of its own
+*   that opens and closes with Return (code O:path) and a file a node that opens in a tab (P:path).  The listings are depth first, each under the directory it belongs to.
+tree.os:
+   nn += 1
+   os.rootn = nn
+   nodes<-1> = sysmsg(11746) : @sm : 1 : @sm : 'O:/'
+   if cur.code = 'O:/' then cur.k = nn
+   os.dir = '/'
+   gosub os.find
+   if not(os.q) then return
+   open.list<1, -1> = os.rootn
+   os.sp = 1
+   os.stk.dir = '/'
+   os.stk.ix = 0
+   os.stk.lv = 2
+   loop
+   while os.sp > 0
+      os.dir = os.stk.dir<os.sp>
+      gosub os.find
+      os.ents = orecs<os.q>
+      os.ne = dcount(os.ents, @vm)
+      if os.ents = '' then os.ne = 0
+      os.ix = os.stk.ix<os.sp> + 1
+      if os.ix > os.ne then
+         os.sp -= 1
+      end else
+         os.stk.ix<os.sp> = os.ix
+         os.lv = os.stk.lv<os.sp>
+         os.e = os.ents<1, os.ix>
+         os.nm = os.e[2, 9999]
+         if os.dir = '/' then
+            os.pth = '/' : os.nm
+         end else
+            os.pth = os.dir : '/' : os.nm
+         end
+         nn += 1
+         if os.e[1, 1] = 'D' then
+            os.c = 'O:' : os.pth
+            nodes<-1> = os.nm : '/' : @sm : os.lv : @sm : os.c
+            if os.c = cur.code then cur.k = nn
+            os.dir = os.pth
+            gosub os.find
+            if os.q then
+               open.list<1, -1> = nn
+               os.sp += 1
+               os.stk.dir<os.sp> = os.pth
+               os.stk.ix<os.sp> = 0
+               os.stk.lv<os.sp> = os.lv + 1
+            end
+         end else
+            os.c = 'P:' : os.pth
+            nodes<-1> = os.nm : @sm : os.lv : @sm : os.c
+            if os.c = cur.code then cur.k = nn
+         end
+      end
+   repeat
+   return
+
+* In: os.dir.  Out: os.q, the place of that directory in ofiles (0: its entries are not listed)
+os.find:
+   os.q = 0
+   os.nf = dcount(ofiles, @fm)
+   if ofiles = '' then os.nf = 0
+   for os.j = 1 to os.nf
+      if ofiles<os.j> = os.dir then
+         os.q = os.j
+         exit
+      end
+   next os.j
+   return
+
+* In: os.dir.  The entries of the directory are asked of !ide_osfile 'list' (the only DIR() of the IDE; the kernel asks the account's OS gate) and put in ofiles / orecs, or replaced there.
+*   Out: os.ok, and msg when the directory could not be listed or entries were left out.
+os.load:
+   os.ok = @false
+   call !ide_osfile('list', os.dir, os.lf, os.lt, os.li, os.lw)
+   if os.lw # '' then
+      begin case
+         case os.lw = 'name'
+            msg = sysmsg(11728, os.dir)
+         case os.lw = 'gate'
+            msg = sysmsg(11180, @who)
+         case os.lw = 'none'
+            msg = sysmsg(11729, os.dir)
+         case 1
+            msg = sysmsg(11747, os.dir, os.li<6>)
+      end case
+      return
+   end
+   os.ents = ''
+   os.nl = dcount(os.lt, @fm)
+   if os.lt = '' then os.nl = 0
+   for os.j = 1 to os.nl
+      os.ents<1, -1> = os.lt<os.j, 2> : os.lt<os.j, 1>
+   next os.j
+   gosub os.find
+   if os.q = 0 then
+      ofiles<-1> = os.dir
+      os.q = dcount(ofiles, @fm)
+   end
+   orecs<os.q> = os.ents
+   if os.li<5> + 0 then msg = sysmsg(11748, os.dir, os.li<5>)
+   os.ok = @true
+   return
+
+* In: os.dir.  The directory and every directory listed under it are taken out of the tree's lists ('/' takes them all)
+os.collapse:
+   os.nf = dcount(ofiles, @fm)
+   if ofiles = '' then os.nf = 0
+   for os.j = os.nf to 1 step -1
+      os.pp = ofiles<os.j>
+      if os.pp = os.dir or os.dir = '/' or os.pp[1, len(os.dir) + 1] = os.dir : '/' then
+         del ofiles<os.j>
+         del orecs<os.j>
+      end
+   next os.j
+   return
+
+* In: os.fp, the path of a file that has just been made. If the directory it is in is listed in the tree, it is listed again and the tree is drawn
+os.refresh:
+   if not(os.on) then return
+   os.dir = '/'
+   os.ln = len(os.fp)
+   for os.j = os.ln to 1 step -1
+      if os.fp[os.j, 1] = '/' then
+         if os.j > 1 then os.dir = os.fp[1, os.j - 1]
+         exit
+      end
+   next os.j
+   gosub os.find
+   if os.q then
+      gosub os.load
+      gosub tree.apply
+      gosub redraw.tree
+   end
    return
 
 * The tree widget takes the nodes again, keeping the current one
@@ -1178,6 +1319,12 @@ open.path:
    tfv(op.s) = op.f
    close op.f                                  ;* the tab's variable is the one that holds the file, and its lock, from here
    tused<op.s> = 1
+   gosub path.tab.make
+   return
+
+* In: op.s (the slot of tfv that holds the file's variable, and with it the file's SD lock, tused set), op.path, op.text and op.info (as !ide_osfile 'open' or 'create' gave them).
+*   The file is opened in a tab of its own, which becomes the one in the editor (30 Oct 26, stage E2: the tail of open.path, which New with an operating system name uses too)
+path.tab.make:
    gosub stash.current
    gosub drop.clean.untitled
    nbuf += 1
@@ -1240,6 +1387,153 @@ path.refusal:
       case 1
          msg = sysmsg(11734, op.path, op.info<6>)
    end case
+   return
+
+* ======================================================================
+* Making operating system files (30 Oct 26, stage E2).  EVERY TOUCH OF A FILE IS STILL !ide_osfile's: the kernel creates it exclusively (OPENSEQ ... CREATING is O_EXCL since 30 Oct 26), asks the
+*   account's OS gate and edit gates for it, and never makes the directory it is in.  The name form has asked K$PATH.OK and K$EDIT.OS.OK first, for its own words.  A file is made BEFORE anything
+*   else changes: when it is not made, the tab, the record and the lock the tab had are as they were.  An existing EMPTY file is filled; a file with content is never replaced.
+
+* In: cr.path (the name as the form returned it), cr.text (the lines, field marks between them), cr.info (the line ends: field 1 CR LF, field 2 the last line's end; 0 FM 1 for text typed).
+*   Out: cr.why ('' when made), cr.f (open, with the SD lock, then; the caller keeps it in a tab or closes it), cr.text and cr.info as the file reads back; msg (and the box when the file may be
+*   there and not whole) when it was not made
+os.create:
+   call !ide_osfile('create', cr.path, cr.f, cr.text, cr.info, cr.why)
+   begin case
+      case cr.why = ''
+         null
+      case cr.why = 'name'
+         msg = sysmsg(11728, cr.path)
+      case cr.why = 'gate'
+         msg = sysmsg(11180, @who)
+      case cr.why = 'exists' or cr.why = 'ro'
+         msg = sysmsg(11762, cr.path)
+      case cr.why = 'dir' or cr.why = 'special'
+         msg = sysmsg(11749, cr.path)
+      case cr.why = 'locked'
+         msg = sysmsg(11731, cr.path)
+      case cr.why = 'bytes' or cr.why = 'big'
+         msg = sysmsg(11765, cr.path)
+      case cr.why = 'cant'
+         msg = sysmsg(11763, cr.path, cr.info<6>)
+      case 1
+         rf.text = sysmsg(11764, cr.path, cr.info<6>)
+         msg = rf.text
+         gosub refuse.box
+   end case
+   return
+
+* In: cr.path.  Out: cr.slot (a free slot of tfv, 0 and msg when there is none or the file is open in a tab already).  Not touching any file.
+os.slot:
+   cr.slot = 0
+   tf.dict = ''
+   tf.file = 'path:'
+   tf.id = cr.path
+   gosub tab.find
+   if tf.p then
+      msg = sysmsg(11691, 'path:', cr.path)                  ;* open in another tab: save it there
+      return
+   end
+   for cr.s = 1 to MAXLOCK
+      if tused<cr.s> = '' then exit
+   next cr.s
+   if cr.s > MAXLOCK then
+      msg = sysmsg(11690)                                   ;* Too many records are open: close a tab first
+      return
+   end
+   cr.slot = cr.s
+   return
+
+* New record (Ctrl-N) with a name of the operating system: an EMPTY file is made and opened in a tab of its own (a tab needs the file, and its lock).  In: nm.id (the path).
+os.new:
+   cr.path = nm.id
+   cr.why = 'slot'                                           ;* not made (os.slot refused) until os.create says otherwise
+   gosub os.slot
+   if not(cr.slot) then return
+   cr.text = ''
+   cr.info = 0 : @fm : 0
+   gosub os.create
+   if cr.why # '' then return
+   op.s = cr.slot
+   op.f = cr.f
+   op.path = cr.path
+   op.text = cr.text
+   op.info = cr.info
+   tfv(op.s) = op.f
+   close op.f
+   tused<op.s> = 1
+   gosub path.tab.make
+   msg = sysmsg(11202, 'path:', op.path)
+   os.fp = op.path
+   gosub os.refresh                             ;* the directory it is in, when the tree lists it
+   return
+
+* Save as (and the first save of an untitled buffer) with a name of the operating system: the file is made with the tab's text, and ONLY THEN does the tab let go of the record it had (its
+*   lock, its recovery copy) and become the file's tab, which keeps the file variable and the SD lock.  In: oc.i (the tab), oc.path.  Out: oc.ok.
+os.convert:
+   oc.ok = @false
+   cr.path = oc.path
+   gosub os.slot
+   if not(cr.slot) then return
+   oc.u = bu<oc.i>
+   k = 't' : oc.u
+   cr.text = bx{k}
+   cr.info = 0 : @fm : (cr.text # '')
+   oc.sent = cr.text
+   gosub os.create
+   if cr.why # '' then return
+   oc.s = cr.slot
+   tfv(oc.s) = cr.f
+   close cr.f
+   tused<oc.s> = 1
+   ri = oc.i
+   gosub rc.drop.tab                            ;* the text is in the file now; a recovery copy of the buffer or record goes
+   tu.i = oc.i
+   gosub tab.unlock                             ;* the record's lock, if the tab held one
+   bn<oc.i> = 'path:'
+   bi<oc.i> = oc.path
+   oc.uid = uid                                 ;* tab.state works on uid (the last one made): point it at this tab for a moment
+   uid = oc.u
+   ts.kind = 'path'
+   ts.dict = ''
+   ts.slot = oc.s
+   ts.owner = ''
+   gosub tab.state
+   uid = oc.uid
+   k = 'm' : oc.u
+   bx{k} = 0
+   k = 'p' : oc.u
+   bx{k} = (cr.info<1> + 0) : @fm : (cr.info<2> + 0)
+   k = 'n' : oc.u
+   bx{k} = 0
+   k = 's' : oc.u
+   bx{k} = cr.text                              ;* the baseline is what the disk gives back
+   if (cr.text : '|') # (oc.sent : '|') then
+      k = 't' : oc.u
+      bx{k} = cr.text
+   end
+   na.u = oc.u
+   na.text = cr.text
+   gosub na.mark
+   oc.ok = @true
+   msg = sysmsg(11202, 'path:', oc.path)
+   if oc.i = cb then gosub load.current
+   os.fp = oc.path
+   gosub os.refresh
+   return
+
+* Write a copy and Export with a name of the operating system: the text is written to a file that is made for it; no tab is made and no lock is kept.  In: wa.id (the path), wa.text.
+copy.to.os:
+   cr.path = wa.id
+   cr.text = wa.text
+   cr.info = 0 : @fm : (cr.text # '')
+   gosub os.create
+   if cr.why = '' then
+      close cr.f
+      msg = sysmsg(11202, 'path:', wa.id)
+      os.fp = wa.id
+      gosub os.refresh
+   end
    return
 
 * Out: pa.no, true (and msg says why) when the tab in the editor is an operating system file: the commands for records and programs - compile, run, debug, catalogue, SED, fields,
@@ -2322,6 +2616,28 @@ do.act:
                cur.code = code
                gosub tree.apply
                gosub redraw.tree
+            case code[1, 2] = 'O:'
+               * 30 Oct 26 (stage E2): a directory of the operating system: its entries are listed (!ide_osfile 'list') the first time, and Return again closes it and everything listed under it
+               os.dir = code[3, 9999]
+               gosub os.find
+               if os.q then
+                  gosub os.collapse
+               end else
+                  gosub os.load
+               end
+               cur.code = code
+               gosub tree.apply
+               gosub redraw.tree
+            case code[1, 2] = 'P:'
+               op.path = code[3, 9999]                     ;* a file of the operating system: opened in a tab of its own, as Open with a path: name does
+               cur.code = code
+               gosub open.path
+               if nbuf > 0 then
+                  ft.id = 'ed'
+                  gosub focus.to
+                  did.focus = @true
+                  gosub redraw.tabs
+               end
             case code[1, 2] = 'R:' or code[1, 2] = 'Q:'
                or.file = field(code, ':', 2)
                or.id = code[len(or.file) + 4, 9999]
@@ -2484,8 +2800,13 @@ save.one:
       return
    end
    if bi<sv.i> = '' then
+      sv.osdone = @false
       gosub name.untitled
       if not(sv.named) then return
+      if sv.osdone then
+         sv.ok = @true                       ;* 30 Oct 26 (stage E2): an operating system file, made with the text; os.convert said "Saved"
+         return
+      end
    end
    u = bu<sv.i>
    k = 't' : u
@@ -2689,6 +3010,17 @@ name.untitled:
    call $ide_name(nm.mode, nm.file, nm.id, nm.res)
    last.status = char(1)
    if nm.res # 'ok' then return
+   if nm.file = 'path:' then
+      * 30 Oct 26 (stage E2): the first save of an untitled buffer to an operating system file: the file is made with the text and the buffer becomes its tab; save.one has nothing more to do
+      oc.i = sv.i
+      oc.path = nm.id
+      gosub os.convert
+      if oc.ok then
+         sv.named = @true
+         sv.osdone = @true
+      end
+      return
+   end
    * 28 Oct 26 (stage B): a record another tab holds (a new one, not yet on the disk, which the form cannot see) is not named twice
    tf.dict = ''
    tf.file = nm.file
@@ -2985,6 +3317,8 @@ do.compile:
    if dirty or bi<cb> = '' or bx{k} then
       gosub save.current
       if not(sv.ok) then return
+      gosub path.not.for                ;* 30 Oct 26 (E2): the save of an untitled buffer may have made it an operating system file's tab (path:/name); that is not a program
+      if pa.no then return
    end
    c.file = bn<cb>
    c.id = bi<cb>
@@ -3105,6 +3439,8 @@ do.sed:
    if bi<cb> = '' or bx{k} then
       gosub save.current                ;* an untitled buffer, or a new record not yet on the disk, has no record for SED to open: it is named and written first
       if not(sv.ok) then return
+      gosub path.not.for                ;* 30 Oct 26 (E2): the save may have made the tab an operating system file's (path:/name): SED opens records
+      if pa.no then return
    end
    gosub stash.current
    i = cb
@@ -3182,6 +3518,10 @@ do.fields:
    if bi<cb> = '' or bx{k} then
       gosub save.current                ;* an untitled buffer, or a new record not yet on the disk, is named and written first
       if not(sv.ok) then return
+      pa.allow = 'coll'
+      gosub path.not.for                ;* 30 Oct 26 (E2): the save may have made the tab an operating system file's (path:/name), which has no fields
+      pa.allow = ''
+      if pa.no then return
    end
    gosub stash.current
    fd.u = bu<cb>
@@ -3456,6 +3796,10 @@ do.writeas:
 * In: wa.text, wa.file, wa.id (the form has named a record that was not there, and no tab holds it).  29 Oct 26 (stage D): the write of Write a copy, taken out so that Export the selection
 *   writes the same way: the file is opened, the account's edit gate asked again, the record locked and looked at again, and written ON ERROR.
 write.copy:
+   if wa.file = 'path:' then
+      gosub copy.to.os                  ;* 30 Oct 26 (stage E2): a name of the operating system: a file is made for the text
+      return
+   end
    open wa.file to fv else
       msg = sysmsg(11200, wa.file)
       return
@@ -3533,6 +3877,13 @@ do.saveas:
    call $ide_name('saveas', sa.file, sa.id, sa.res)
    last.status = char(1)
    if sa.res # 'ok' then return
+   if sa.file = 'path:' then
+      * 30 Oct 26 (stage E2): the tab becomes the operating system file, made with its text (see os.convert); the record it had is as it was on the disk
+      oc.i = cb
+      oc.path = sa.id
+      gosub os.convert
+      return
+   end
    tf.dict = ''
    tf.file = sa.file
    tf.id = sa.id
@@ -3577,6 +3928,16 @@ do.new:
    call $ide_name('new', nm.file, nm.id, nm.res)
    last.status = char(1)
    if nm.res # 'ok' then return
+   if nm.file = 'path:' then
+      * 30 Oct 26 (stage E2): a name of the operating system: an empty file is made and opened in a tab of its own
+      gosub os.new
+      if nbuf > 0 and cr.why = '' then
+         ft.id = 'ed'
+         gosub focus.to
+         gosub redraw.tabs
+      end
+      return
+   end
    * 28 Oct 26 (stage B): CREATING.SEQKEY as the name, as SED takes it: the file's next sequential id; in quotes it is a record of that name
    if upcase(nm.id) = 'CREATING.SEQKEY' then
       sq.dict = ''
@@ -4054,20 +4415,40 @@ do.import:
    last.status = char(1)
    if im.res # 'ok' then return
    if im.file = 'path:' then
-      msg = sysmsg(11558)
-      return
-   end
-   open im.file to fv else
-      msg = sysmsg(11200, im.file)
-      return
-   end
-   if fileinfo(fv, FL$COLLECTION) then
-      msg = sysmsg(11557, im.file)              ;* 29 Oct 26 (review R7): its own words (11698 is about Find in the records)
-      return
-   end
-   read im.x from fv, im.id else
-      msg = sysmsg(11201, im.id, im.file)
-      return
+      * 30 Oct 26 (stage E2): the text of an operating system file.  A file that a tab of this IDE holds is imported from the TAB's text (opening it again and closing that variable would give away
+      *   the lock the tab keeps); any other is opened and read through !ide_osfile 'open', which asks the account's gates, and closed again at once.
+      tf.dict = ''
+      tf.file = 'path:'
+      tf.id = im.id
+      gosub tab.find
+      if tf.p then
+         im.k = 't' : bu<tf.p>
+         im.x = bx{im.k}
+         if tf.p = cb then im.x = ed.t                  ;* the tab in the editor: the live text (ed.get read it), not what stash.current has not been asked to store
+      end else
+         call !ide_osfile('open', im.id, im.f, im.x, im.info, im.why)
+         if im.why # '' then
+            op.why = im.why
+            op.path = im.id
+            op.info = im.info
+            gosub path.refusal
+            return
+         end
+         close im.f
+      end
+   end else
+      open im.file to fv else
+         msg = sysmsg(11200, im.file)
+         return
+      end
+      if fileinfo(fv, FL$COLLECTION) then
+         msg = sysmsg(11557, im.file)              ;* 29 Oct 26 (review R7): its own words (11698 is about Find in the records)
+         return
+      end
+      read im.x from fv, im.id else
+         msg = sysmsg(11201, im.id, im.file)
+         return
+      end
    end
    if index(im.x, @vm, 1) or index(im.x, @sm, 1) or index(im.x, @tm, 1) or convert(NA.CHARS, '', im.x) # im.x then
       msg = sysmsg(11559, im.file, im.id)

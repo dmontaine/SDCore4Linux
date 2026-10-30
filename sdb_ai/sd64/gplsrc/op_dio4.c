@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 30 Oct 26 dm  S.88 stage E2: op_dir() tells a file from a directory with S_ISREG / S_ISDIR (a socket was listed as a file, a block device as a directory).
  * 28 Oct 26 dm  S.87: OPTION DIR.SEL.OMIT.HIDDEN is gone: a select of a directory file includes the names that begin with a dot.
  * 27 Oct 26 dm  S.87 batch 17: op_rdnxpos ($MODE COMPOSITE.READNEXT) is gone; readnext() mode 0 is no longer called.
  * 27 Oct 26 dm  S.87 batch 9: $MODE PICK.READNEXT is gone; READNEXT stores the id and a READNEXT that takes its ELSE sets the target to the null string, as without the mode.
@@ -1446,9 +1447,11 @@ void op_dir() {
           continue;
 
         strcpy(name, dp->d_name);
-        if (statbuf.st_mode & S_IFREG)
+        /* 30 Oct 26 dm - S.88 stage E2: the file type is a FIELD of st_mode, not a set of bits: "& S_IFREG" (0100000) is also set for a socket (0140000)
+           and "& S_IFDIR" (0040000) for a block device (0060000), which were listed as a file and as a directory */
+        if (S_ISREG(statbuf.st_mode))
           mode = 'F';
-        else if (statbuf.st_mode & S_IFDIR)
+        else if (S_ISDIR(statbuf.st_mode))
           mode = 'D';
         else
           continue;

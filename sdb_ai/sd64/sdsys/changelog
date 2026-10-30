@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+30 Oct 26  THE IDE CAN MAKE FILES OF THE OPERATING SYSTEM AND BROWSE THEM; OPENSEQ ... CREATING NO LONGER FOLLOWS A LINK THAT LEADS NOWHERE.
+
+             What        - IDE: New (Ctrl-N), Save as, the first save of an untitled buffer, Write a copy and Search > Export the selection take path:/full/name as the name and make a file
+                           of the operating system. New makes an empty file and opens it in a tab; Save as and the first save write the text to a new file and the tab becomes that file
+                           (the record it had is as it was on the disk, its lock is given back and its recovery copy is dropped); Write a copy and Export write the text and keep no tab and
+                           no lock. The file is made before anything else changes, so a refusal leaves the tab, the record and its lock as they were, and the form stays open.
+                         - A file that is there already with content is never replaced from the IDE (an existing EMPTY file is filled). The directory the file goes in must exist: the IDE
+                           never makes a directory. Text with a NUL, a byte from 248 to 255 or more than 2 MB is refused before any file is touched. A write that fails says so in a box;
+                           the text is still in the editor, and an empty or part written file may be there. The new file has the mode a file made by OPENSEQ has: 0666 less the session's
+                           umask.
+                         - IDE tree: an "Operating system files" node after the account's files, for an account that has operating system access (the administrator, or an account with
+                           os-on). Return on a directory lists its entries (directories first, then files; at most 1000, and a note says how many were left out because their names hold
+                           a control character or a byte from 248 to 255); Return on a file opens it in a tab. An account without that access does not see the node.
+                         - IDE, Search > Import a record here takes path:/full/name too, from the tab that holds the file or from the file itself.
+                         - OPENSEQ ... CREATING of a name that does not exist now creates the file exclusively: if the name has been taken by the time it is made, or is a link that leads
+                           nowhere, nothing is created and STATUS() is 6032 (it was 0 for the first and the link's target was made for the second). A link that leads nowhere is refused the
+                           same way for SHARED, whose gate could not see where such a link goes; SHARED is otherwise unchanged (open or create, every write at the end).
+                         - DIR() lists a plain file as F and a directory as D only: a socket is no longer listed as a file and a block device is no longer listed as a directory.
+                         It does NOT let the IDE reach anything the account's operating system access did not already allow, make a directory, or change the content of a file that has
+                         any. For a program the two kernel changes show only in a race or with a dangling link; an OPENSEQ ... CREATING of a name that is free works as before.
+
 29 Oct 26  THE IDE'S EDITOR HAS OVERWRITE MODE, AUTO-INDENT, A TAB WIDTH AND FORMAT; LONG CUTS AND PASTES ARE FAST.
 
              What        - IDE: Ins (or View > Overwrite mode) makes a typed character replace the one under the cursor; the status line shows [overwrite]. View > Auto-indent makes
