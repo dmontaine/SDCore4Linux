@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 31 Oct 26 dm  The A and S dictionary item types are gone: an index that still has the type letter A or S is listed like a D-type one, and the dictionary check flags it.
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
 * 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
@@ -244,24 +245,6 @@ not.all.keyword:
             expr = fmt(ak.data<DICT.ITYPE.SOURCE>, '40L')
             gosub show.expr
             comp.field = 2
-
-         case (type = 'A' or type = 'S')
-            * Single/multi value
-
-            line[33, 1] = 'M'
-
-            * Justification
-
-            line[37, 1] = ak.data<DICT.A.JUSTIFY>
-
-            if ak.data<DICT.A.CORRELATIVE> # '' then
-               expr = fmt(ak.data<DICT.A.CORRELATIVE>, '40L')
-               gosub show.expr
-               comp.field = 8
-            end else
-               line[40, 40] = ak.data<DICT.LOC>
-               comp.field = 2
-            end
 
          case 1
             * Single/multi value

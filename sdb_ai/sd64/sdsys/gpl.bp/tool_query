@@ -321,10 +321,10 @@ read.dict:
             t2 = upcase(drec<1>)
             tc = t2[1, 1]
             if t2[1, 2] = 'PH' then tc = ''
-            if index('DEICAS', tc, 1) = 0 then tc = ''
+            if index('DEI', tc, 1) = 0 then tc = ''      ;* 31 Oct 26: the A and S types (and C) are gone
             if did[1, 1] = '$' then tc = ''
             if tc # '' then
-               hd = (if tc = 'A' or tc = 'S' then drec<3> else drec<4>)
+               hd = drec<4>
                hd = convert(ctl, dots, hd)[1, 30]
                if did = '@id' then
                   id.t = tc

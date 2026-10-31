@@ -3965,10 +3965,10 @@ The dictionary item %1 cannot be compiled
 cited by: `apisrvr`
 
 ### msg:11342
-> kind=message tier=reference since=- src=sdsys/messages/11342:1#a67c6030
+> kind=message tier=reference since=- src=sdsys/messages/11342:1#497d1164
 
 ```
-%1 is not a dictionary item that defines data (types D, A, S and I do)
+%1 is not a dictionary item that defines data (types D and I do)
 ```
 
 cited by: `apisrvr`
@@ -8759,6 +8759,15 @@ Sessions started from now on use it; sessions that are already running keep the 
 
 cited by: `setconfig`
 
+### msg:11938
+> kind=message tier=reference since=- src=sdsys/messages/11938:1#0dd04901
+
+```
+A or S type dictionary item %1 is not compiled: write it as a D-type or an I-type
+```
+
+cited by: `cd`, `dcomp`, `mkindx`
+
 ### msg:11946
 > kind=message tier=reference since=- src=sdsys/messages/11946:1#ce2f5d0f
 
@@ -11213,13 +11222,13 @@ cited by: `mkindx`
 Compilation error in %1
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`, `mkindx`
+cited by: `bcomp`, `mkindx`
 
 ### msg:2613
-> kind=message tier=reference since=- src=sdsys/messages/2613:1#58f5ece1
+> kind=message tier=reference since=- src=sdsys/messages/2613:1#f11811a5
 
 ```
-%1 is not a A, D, I or S-type dictionary item
+%1 is not a D or I-type dictionary item
 ```
 
 cited by: `mkindx`
@@ -12805,7 +12814,7 @@ cited by: `bcomp`
 THEN not found where expected in conditional expression
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2951
 > kind=message tier=reference since=- src=sdsys/messages/2951:1#7ed0b54b
@@ -12814,7 +12823,7 @@ cited by: `acomp`, `bcomp`, `icomp`
 ELSE not found where expected in conditional expression
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2952
 > kind=message tier=reference since=- src=sdsys/messages/2952:1#b460f472
@@ -12841,7 +12850,7 @@ cited by: `bcomp`
 Mismatched brackets
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2955
 > kind=message tier=reference since=- src=sdsys/messages/2955:1#79693eb9
@@ -12850,7 +12859,7 @@ cited by: `acomp`, `bcomp`, `icomp`
 Data item or constant not found where expected
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2956
 > kind=message tier=reference since=- src=sdsys/messages/2956:1#5251dc3f
@@ -12886,7 +12895,7 @@ cited by: `bcomp`
 Comma not found where expected
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2960
 > kind=message tier=reference since=- src=sdsys/messages/2960:1#86dc65d8
@@ -12895,7 +12904,7 @@ cited by: `acomp`, `bcomp`, `icomp`
 Semicolon not found where expected
 ```
 
-cited by: `acomp`, `bcomp`
+cited by: `bcomp`
 
 ### msg:2961
 > kind=message tier=reference since=- src=sdsys/messages/2961:1#96bc5598
@@ -12922,7 +12931,7 @@ cited by: `bcomp`
 Right bracket not found where expected
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2964
 > kind=message tier=reference since=- src=sdsys/messages/2964:1#58cd0e5b
@@ -12931,7 +12940,7 @@ cited by: `acomp`, `bcomp`, `icomp`
 Right square bracket not found where expected
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:2965
 > kind=message tier=reference since=- src=sdsys/messages/2965:1#16cffb4d
@@ -13004,10 +13013,10 @@ Cannot open pcode file
 ```
 
 ### msg:2974
-> kind=message tier=reference since=- src=sdsys/messages/2974:1#367e92c9
+> kind=message tier=reference since=- src=sdsys/messages/2974:1#170147a4
 
 ```
-Record '%1' is not a C or I-type
+Record '%1' is not an I-type
 ```
 
 cited by: `cd`
@@ -13037,7 +13046,7 @@ cited by: `cd`
 Unclosed string
 ```
 
-cited by: `acomp`, `fmtsub`, `icomp`
+cited by: `fmtsub`, `icomp`
 
 ### msg:2978
 > kind=message tier=reference since=- src=sdsys/messages/2978:1#817cce17
@@ -13055,7 +13064,7 @@ cited by: `icomp`
 Structural error in IF/THEN/ELSE
 ```
 
-cited by: `acomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2980
 > kind=message tier=reference since=- src=sdsys/messages/2980:1#464b9080
@@ -13064,7 +13073,7 @@ cited by: `acomp`, `icomp`
 Internal error: Label %1 referenced but not defined
 ```
 
-cited by: `acomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2981
 > kind=message tier=reference since=- src=sdsys/messages/2981:1#d806630c
@@ -13073,7 +13082,7 @@ cited by: `acomp`, `icomp`
 Internal error: Duplicate label
 ```
 
-cited by: `acomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2982
 > kind=message tier=reference since=- src=sdsys/messages/2982:1#bdb29105
@@ -13082,7 +13091,7 @@ cited by: `acomp`, `icomp`
 Field '%1' is not defined
 ```
 
-cited by: `acomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2983
 > kind=message tier=reference since=- src=sdsys/messages/2983:1#1f9a4d1a
@@ -13100,7 +13109,7 @@ cited by: `icomp`
 Field '%1' is not a data item
 ```
 
-cited by: `acomp`, `icomp`
+cited by: `icomp`
 
 ### msg:2985
 > kind=message tier=reference since=- src=sdsys/messages/2985:1#14b0f688
@@ -13217,7 +13226,7 @@ cited by: `bcomp`
 {name} contructs nested too deeply
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
+cited by: `bcomp`
 
 ### msg:2999
 > kind=message tier=reference since=- src=sdsys/messages/2999:1#dee06ded
@@ -14573,16 +14582,7 @@ cited by: `hsm`, `profiler`
 Unable to load embedded object code for %1
 ```
 
-cited by: `acomp`, `bcomp`, `icomp`
-
-### msg:3401
-> kind=message tier=reference since=- src=sdsys/messages/3401:1#11d9c3b5
-
-```
-Compiled dictionary items nested too deeply
-```
-
-cited by: `acomp`
+cited by: `bcomp`, `icomp`
 
 ### msg:3402
 > kind=message tier=reference since=- src=sdsys/messages/3402:1#241af69d
@@ -14590,24 +14590,6 @@ cited by: `acomp`
 ```
 Unsupported expression type in A/S type dictionary record
 ```
-
-### msg:3403
-> kind=message tier=reference since=- src=sdsys/messages/3403:1#8400841a
-
-```
-Expression would result in stack underflow
-```
-
-cited by: `acomp`
-
-### msg:3404
-> kind=message tier=reference since=- src=sdsys/messages/3404:1#379f5075
-
-```
-Unexpected token (%1) in correlative expression
-```
-
-cited by: `acomp`
 
 ### msg:3405
 > kind=message tier=reference since=- src=sdsys/messages/3405:1#841ed59e
@@ -14707,19 +14689,10 @@ Field name %1 is not in the dictionary
 cited by: `bcomp`
 
 ### msg:3416
-> kind=message tier=reference since=- src=sdsys/messages/3416:1#c03d8e51
+> kind=message tier=reference since=- src=sdsys/messages/3416:1#083dbe1b
 
 ```
-%1 is not a D, A or S-type dictionary item
-```
-
-cited by: `bcomp`
-
-### msg:3417
-> kind=message tier=reference since=- src=sdsys/messages/3417:1#d1070c34
-
-```
-%1 has a correlative expression
+%1 is not a D-type dictionary item
 ```
 
 cited by: `bcomp`

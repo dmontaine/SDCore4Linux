@@ -3883,7 +3883,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 417
+"words": 274
 },
 "core:gates": {
 "kind": "core.digest",
@@ -4093,7 +4093,7 @@
 "part": "reference/dictionaries.md",
 "since": "-",
 "tier": "reference",
-"words": 91
+"words": 63
 },
 "dict:format": {
 "kind": "dict.format",
@@ -4312,41 +4312,6 @@
 "tier": "examples",
 "words": 18
 },
-"dict:item:dict.dic:a.assoc": {
-"kind": "dict.item",
-"part": "examples/dictionary-items.md",
-"since": "-",
-"tier": "examples",
-"words": 18
-},
-"dict:item:dict.dic:a.conv": {
-"kind": "dict.item",
-"part": "examples/dictionary-items.md",
-"since": "-",
-"tier": "examples",
-"words": 18
-},
-"dict:item:dict.dic:a.just": {
-"kind": "dict.item",
-"part": "examples/dictionary-items.md",
-"since": "-",
-"tier": "examples",
-"words": 18
-},
-"dict:item:dict.dic:a.name": {
-"kind": "dict.item",
-"part": "examples/dictionary-items.md",
-"since": "-",
-"tier": "examples",
-"words": 18
-},
-"dict:item:dict.dic:a.width": {
-"kind": "dict.item",
-"part": "examples/dictionary-items.md",
-"since": "-",
-"tier": "examples",
-"words": 18
-},
 "dict:item:dict.dic:assoc": {
 "kind": "dict.item",
 "part": "examples/dictionary-items.md",
@@ -4359,7 +4324,7 @@
 "part": "examples/dictionary-items.md",
 "since": "-",
 "tier": "examples",
-"words": 26
+"words": 19
 },
 "dict:item:dict.dic:cnv": {
 "kind": "dict.item",
@@ -4373,14 +4338,7 @@
 "part": "examples/dictionary-items.md",
 "since": "-",
 "tier": "examples",
-"words": 26
-},
-"dict:item:dict.dic:correl": {
-"kind": "dict.item",
-"part": "examples/dictionary-items.md",
-"since": "-",
-"tier": "examples",
-"words": 18
+"words": 19
 },
 "dict:item:dict.dic:d.name": {
 "kind": "dict.item",
@@ -4471,7 +4429,7 @@
 "part": "examples/dictionary-items.md",
 "since": "-",
 "tier": "examples",
-"words": 30
+"words": 19
 },
 "dict:item:dict.dic:format": {
 "kind": "dict.item",
@@ -4485,7 +4443,7 @@
 "part": "examples/dictionary-items.md",
 "since": "-",
 "tier": "examples",
-"words": 26
+"words": 19
 },
 "dict:item:dict.dic:loc": {
 "kind": "dict.item",
@@ -4506,7 +4464,7 @@
 "part": "examples/dictionary-items.md",
 "since": "-",
 "tier": "examples",
-"words": 26
+"words": 19
 },
 "dict:item:dict.dic:sm": {
 "kind": "dict.item",
@@ -4520,7 +4478,7 @@
 "part": "examples/dictionary-items.md",
 "since": "-",
 "tier": "examples",
-"words": 26
+"words": 19
 },
 "dict:item:dict.dic:type": {
 "kind": "dict.item",
@@ -4746,13 +4704,6 @@
 "tier": "reference",
 "words": 115
 },
-"dict:type:A": {
-"kind": "dict.type",
-"part": "reference/dictionaries.md",
-"since": "-",
-"tier": "reference",
-"words": 223
-},
 "dict:type:D": {
 "kind": "dict.type",
 "part": "reference/dictionaries.md",
@@ -4779,7 +4730,7 @@
 "part": "reference/dictionaries.md",
 "since": "-",
 "tier": "reference",
-"words": 602
+"words": 600
 },
 "dict:type:PH": {
 "kind": "dict.type",
@@ -4787,13 +4738,6 @@
 "since": "-",
 "tier": "reference",
 "words": 85
-},
-"dict:type:S": {
-"kind": "dict.type",
-"part": "reference/dictionaries.md",
-"since": "-",
-"tier": "reference",
-"words": 33
 },
 "dict:type:X": {
 "kind": "dict.type",
@@ -4807,14 +4751,14 @@
 "part": "reference/dictionaries.md",
 "since": "-",
 "tier": "reference",
-"words": 267
+"words": 228
 },
 "dict:use": {
 "kind": "dict.overview",
 "part": "reference/dictionaries.md",
 "since": "-",
 "tier": "reference",
-"words": 308
+"words": 303
 },
 "dict:what": {
 "kind": "dict.overview",
@@ -8069,7 +8013,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 21
+"words": 19
 },
 "msg:11343": {
 "kind": "message",
@@ -11921,6 +11865,13 @@
 "tier": "reference",
 "words": 21
 },
+"msg:11938": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
 "msg:11946": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -14047,14 +13998,14 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 12
+"words": 10
 },
 "msg:2613": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 16
+"words": 14
 },
 "msg:2614": {
 "kind": "message",
@@ -15307,14 +15258,14 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 15
+"words": 14
 },
 "msg:2951": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 15
+"words": 14
 },
 "msg:2952": {
 "kind": "message",
@@ -15335,14 +15286,14 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 9
+"words": 8
 },
 "msg:2955": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 15
+"words": 14
 },
 "msg:2956": {
 "kind": "message",
@@ -15370,14 +15321,14 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 12
+"words": 11
 },
 "msg:2960": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 11
+"words": 10
 },
 "msg:2961": {
 "kind": "message",
@@ -15398,14 +15349,14 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 13
+"words": 12
 },
 "msg:2964": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 14
+"words": 13
 },
 "msg:2965": {
 "kind": "message",
@@ -15468,7 +15419,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 13
+"words": 11
 },
 "msg:2975": {
 "kind": "message",
@@ -15489,7 +15440,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 9
+"words": 8
 },
 "msg:2978": {
 "kind": "message",
@@ -15503,28 +15454,28 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 10
+"words": 9
 },
 "msg:2980": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 14
+"words": 13
 },
 "msg:2981": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 10
+"words": 9
 },
 "msg:2982": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 11
+"words": 10
 },
 "msg:2983": {
 "kind": "message",
@@ -15538,7 +15489,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 13
+"words": 12
 },
 "msg:2985": {
 "kind": "message",
@@ -15629,7 +15580,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 12
+"words": 10
 },
 "msg:2999": {
 "kind": "message",
@@ -16763,14 +16714,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 15
-},
-"msg:3401": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
+"words": 14
 },
 "msg:3402": {
 "kind": "message",
@@ -16778,20 +16722,6 @@
 "since": "-",
 "tier": "reference",
 "words": 10
-},
-"msg:3403": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
-},
-"msg:3404": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
 },
 "msg:3405": {
 "kind": "message",
@@ -16875,14 +16805,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 15
-},
-"msg:3417": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 10
+"words": 12
 },
 "msg:3418": {
 "kind": "message",

@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+31 Oct 26  THE A AND S DICTIONARY ITEM TYPES ARE GONE: SD READS D, I, E, L, PH AND X ITEMS, AND THE CORRELATIVE COMPILER IS REMOVED.
+
+             What        - An A item was a data field described in another system's layout (the heading in field 3, the conversion in field 7, a correlative in field 8, the justification
+                           in field 9, the width in field 10), and an S item was the same. SD no longer reads either. COMPILE.DICT says message 11938 for one and makes no object code; CD
+                           refuses it with the same message; a query that names one stops with message 7275, "Unexpected A type item (NAME) in query sentence"; the programmer's API call that
+                           evaluates a dictionary item answers that the item defines no data; a link (L) to one is refused as not a suitable type. The correlative compiler (the program acomp), the
+                           A;NOCASE; and "if" forms that went with it, the DICT.A.* names in the dictionary header and four messages that only it used are removed, and the
+                           dictionary page (tool.dict) no longer offers or compiles an A item. Five of the shipped dictionary items (A.ASSOC, A.CONV, A.JUST, A.NAME and A.WIDTH) and the
+                           CORREL item are removed, and the six that told the two layouts apart now read one. Nothing else changes. D, I, E, L, PH and X items work as before.
+                           A dictionary that still holds an A or S item keeps it as a record, but it gives no value in a query. Write it again as a D item (a field of the record) or an
+                           I item (a value worked out from the record, where the correlative's calculation goes). An alternate-key index that was made from an A or S item is kept up by
+                           the file system until it is deleted, but a query no longer uses it and scans the file, so delete it (DELETE.INDEX) and build one on the new D or I item.
+             Why         - Each A item was a second way to say what a D item says, and each correlative a second way to say what an I-type says, in a layout that no other part of SD
+                           shares. The compiler for it was 1,500 lines that nothing else called.
+             Does NOT    - Convert an existing A or S item (there is no verb for it: SD cannot know whether a correlative was meant for a display or a calculation), search a user's
+                           dictionaries for one at an upgrade, or touch D, I, E, L, PH or X items, C items (already refused, message 11993) or the I-type SUBR() call.
+
 30 Oct 26  THE PER-CONNECTION SERVER (sdclient@.service) IS CONFINED BY THE SAFE SET OF SYSTEMD'S SANDBOX SETTINGS.
 
              What        - The unit that starts one server for each connection to the API port now sets ProtectKernelTunables, ProtectKernelModules, ProtectKernelLogs, ProtectControlGroups, ProtectClock,

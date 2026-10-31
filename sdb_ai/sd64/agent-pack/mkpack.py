@@ -835,10 +835,10 @@ def dict_chunks(ctx, since):
         m = re.match(r"^`([A-Z]+)`$", cells[0])
         if m and len(cells) >= 3:
             letters.append((m.group(1), cells, ln))
-    if len(letters) < 8:
+    if len(letters) < 6:
         raise SystemExit("mkpack: the docs' table of dictionary record types gave %d types - refusing" % len(letters))
     out.append(Chunk("dict:types", "dict.types", "reference", "-", [ctx.src(D33, tln)], "**%s**\n\n%s" % (h, tbody), "dict"))
-    own = {"D": r"^The D record", "I": r"^The I record", "C": r"^The C record", "A": r"^The A record", "PH": r"^The PH record",
+    own = {"D": r"^The D record", "I": r"^The I record", "C": r"^The C record", "PH": r"^The PH record",
            "L": r"^The L record", "X": r"^The X record"}
     for letter, cells, ln in letters:
         row = "| " + " | ".join(cells) + " |"
@@ -848,8 +848,6 @@ def dict_chunks(ctx, since):
             h2, b2, ln2 = d33.section(own[letter], with_children=True)
             body += ["", "**%s**" % h2, "", b2]
             srcs.append(ctx.src(D33, ln2))
-        elif letter == "S":
-            body += ["", "`S` is laid out exactly like `A`: see dict:type:A."]
         elif letter == "E":
             body += ["", "`E` is laid out like `D`, but field 2 is the path of an element of a data collection record instead of a field number: see dict:type:D and the collection files page."]
         out.append(Chunk("dict:type:" + letter, "dict.type", "reference", "-", srcs, "\n".join(body), "dict"))
@@ -1093,11 +1091,11 @@ def core_chunks(ctx, voc, since, shapes, chunks_so_far):
     h, b, ln = d32.section(r"^The ten record types")
     out.append(Chunk("core:voc-types", "core.digest", "core", "-", [ctx.src(VOC_TYPE_DOC, ln)],
                      "The VOC record types (field 1, character 1, is the type). Each type is the chunk `voc:type:<T>`.\n\n" + "\n".join(first_table(b)), "core"))
-    # 3. the dictionary item types and the D and A layouts
+    # 3. the dictionary item types and the D layout
     d33 = DocSections(ctx, D33)
     h, b, ln = d33.section(r"^The dictionary record types")
     parts = ["The dictionary item types (field 1 starts with the letter). Each type is the chunk `dict:type:<T>`.", "", "\n".join(first_table(b))]
-    for letter in ("D", "A"):
+    for letter in ("D",):
         h2, b2, ln2 = d33.section(r"^The %s record" % letter, with_children=True)
         t = first_table(b2)
         if t:

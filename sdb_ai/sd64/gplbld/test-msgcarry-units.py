@@ -71,6 +71,8 @@ ALLOWED = {
     # 26 Oct 26, the one-editor plan stage 1: the IDE's help in Core names F12 (Edit as fields: CED's data mode); Solo's IDE has no F12 until the owner says to carry it (Core only)
     ("cproc", "10149"): "F1 at an empty prompt: Core names list voc with type = \"V\" (28 Oct 26, S.87 C-020: the listv sentence is gone with sd.voclib); Solo still says listv until the carry",
     ("bcomp", "2935"): "Core's ON expression GOSUB or GOTO says so without GO (27 Oct 26, S.87 batch 13); Solo keeps GO until the carry",
+    ("bcomp", "3416"): "Core's says the item is not a D-type dictionary item (31 Oct 26, the A and S dictionary types were removed); Solo's says D, A or S-type until the carry",
+    ("cd", "2974"):    "Core's says the record is not an I-type (31 Oct 26, the A and S dictionary types were removed; the C type went 28 Oct); Solo's says C or I-type until the carry",
     ("bcomp", "11394"):"Core's list of constant @-variables lost @AM and @SVM (27 Oct 26, S.87 batch 13); Solo keeps them until the carry",
     ("login", "11900"):"Core's VOC update reports the records its deletion list removed (27 Oct 26, S.87); Solo's 11900 is another message until the carry",
     ("ide", "11209"): "Core's Go to prompt names line,column and field,value,subvalue (29 Oct 26, stage D); Solo's older IDE says 'Line number:' until the carry",

@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 31 Oct 26 dm  The A and S dictionary item types are gone (owner, 30 Oct 2026): N offers a data or a computed item only, C compiles and T tries D and I items, an index is offered on a D or I
+*               item, and an old A or S item is shown with a sentence that says SD no longer reads it (its fields are not shown: they were in the Pick layout, which no program reads now).
 * 28 Oct 26 dm  S.88 L2: the two boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the list shows more rows and the
 *               description more lines, both wider; text longer than its box is wrapped when the box is wider than it was.  S.88 stage C: E hands the item to the IDE ('ide dict file item';
 *               the IDE locks the record, asks the account's dict-edit gate and gives the lock back) and LIST.INDEX's hand-over is checked against 'ide list.index', in place of SED.
@@ -22,14 +24,14 @@
 *
 *   A full-screen page, in the toolkit's frame (140 columns by 43 lines at least), for the dictionary of one data file of the account the session is in.  With a file named after the verb the page
 *   opens that file's dictionary; with none it first lists the files the account's VOC points at (the VOC entries of type F) and Enter opens the dictionary of the one under the cursor.
-*   THE ITEMS PANE lists every item of the dictionary: its id, its type (D data, A, S, I, E, L, PH, X; any other is shown as its first character), where its value comes from (the field
+*   THE ITEMS PANE lists every item of the dictionary: its id, its type (D data, I, E, L, PH, X; any other, an old A or S item included, is shown as its first character), where its value comes from (the field
 *   number, or "computed"), its heading, format, conversion, whether it is single or multivalued, its association, and the expression of an I-type.  The box under the list describes the item
 *   under the cursor in plain words.  THE INDICES PANE (I or Tab) lists the alternate key indices of the file: the item each is on, whether it is built, nulls, case, sort.
 *
-*   WHAT IT CAN DO.  N makes an item (a D, A or I record): the page asks the id, the type and the fields that type needs, one at a time, each checked, shows the whole record in a box, and after Run
+*   WHAT IT CAN DO.  N makes an item (a D or I record): the page asks the id, the type and the fields that type needs, one at a time, each checked, shows the whole record in a box, and after Run
 *   WRITES IT ITSELF with an ordinary record write to the dictionary - this is the ONLY place the page writes.  The page is $internal, so the kernel's own refusal of a write to a dictionary does
 *   not apply to it: it asks the kernel for itself (K$EDIT.OK, the question the IDE asks) before the write and shows the kernel's own refusal (!edit_msg) when the answer is no.  E hands the
-*   terminal to the IDE on the item (ide dict file item); the IDE makes the same check when it saves.  D deletes the item with the DELETE verb, after its id is typed.  C compiles an A, S or I item with
+*   terminal to the IDE on the item (ide dict file item); the IDE makes the same check when it saves.  D deletes the item with the DELETE verb, after its id is typed.  C compiles an I item with
 *   COMPILE.DICT.  T tries the item on a record of the data file: the value ITYPE() gives for that record, which is what the query processor computes, and the same value converted and formatted as
 *   a query would print it.  In the indices pane N makes an index (CREATE.INDEX defines it, then BUILD.INDEX builds it, because an index that is not built finds nothing), B builds it again (BUILD.INDEX),
 *   D deletes it (DELETE.INDEX, after its name is typed) and L lists it in full (LIST.INDEX: it prints to the terminal, which is handed to the verb).  Every verb is the one the person could type,
@@ -113,7 +115,7 @@ $include dictdict.h
    rtw = TK.MINW - 2 * TK.XBODY - 4                                    ;* the text width of a pane in the reference layout (140 by 43): 134
    MAXV = 3000                                                        ;* items read: a dictionary is some tens; more than this are not listed, and the page says so
    hl.f = fmt('File', '30L') : fmt('Kind', '12L') : fmt('Dictionary', '12L') : fmt('Items', '8R') : fmt('Indices', '9R')
-   hl.i = fmt('Id', '26L') : fmt('Type', '5L') : fmt('Field', '9L') : fmt('Heading', '22L') : fmt('Format', '8L') : fmt('Conversion', '12L') : fmt('S/M', '4L') : fmt('Association', '12L') : 'Expression, correlative or text'
+   hl.i = fmt('Id', '26L') : fmt('Type', '5L') : fmt('Field', '9L') : fmt('Heading', '22L') : fmt('Format', '8L') : fmt('Conversion', '12L') : fmt('S/M', '4L') : fmt('Association', '12L') : 'Expression or text'
    hl.x = fmt('Index', '24L') : fmt('Built', '6L') : fmt('Type', '5L') : fmt('Nulls', '6L') : fmt('S/M', '5L') : fmt('Fmt', '5L') : fmt('Case', '6L') : 'Field or expression'
 
    ctl.set = ''                                                        ;* the characters that are never shown as they are (controls, DEL and the bytes above ASCII)
@@ -316,8 +318,8 @@ apply.filter.i:
    next q
    return
 
-* In: rec (an item).  Out: ty (D data, E, I, A, S, L, PH, X or any other first character), wh (where the value comes from), hd (heading), ft2 (format), cv (conversion), sm (S or M),
-* asoc (association), ex (expression, correlative or text).  Every one is cleaned for the screen.  The fields of an A or S item are in the Pick layout (dictdict.h).
+* In: rec (an item).  Out: ty (D data, E, I, L, PH, X or any other first character, an old A or S included), wh (where the value comes from), hd (heading), ft2 (format), cv (conversion), sm (S or M),
+* asoc (association), ex (expression or text).  Every one is cleaned for the screen.
 classify.item:
    ty = upcase(rec<DICT.TYPE>)
    if ty[1, 2] = 'PH' then ty = 'PH' else ty = ty[1, 1]
@@ -327,9 +329,6 @@ classify.item:
          wh = rec<DICT.LOC> ; cv = rec<DICT.CONV> ; hd = rec<DICT.DISPLAY.NAME> ; ft2 = rec<DICT.FORMAT> ; sm = rec<DICT.S.M> ; asoc = rec<DICT.ASSOC>
       case ty = 'I'
          wh = 'computed' ; ex = rec<DICT.ITYPE.SOURCE> ; cv = rec<DICT.CONV> ; hd = rec<DICT.DISPLAY.NAME> ; ft2 = rec<DICT.FORMAT> ; sm = rec<DICT.S.M> ; asoc = rec<DICT.ASSOC>
-      case ty = 'A' or ty = 'S'
-         wh = rec<DICT.A.LOC> ; hd = rec<DICT.A.DISPLAY.NAME> ; asoc = rec<DICT.A.ASSOC> ; cv = rec<DICT.A.CONV> ; ex = rec<DICT.A.CORRELATIVE>
-         ft2 = rec<DICT.A.WIDTH> : rec<DICT.A.JUSTIFY>
       case ty = 'L'
          wh = 'link' ; ex = rec<2> : '  file ' : rec<3>
       case ty = 'X' or ty = 'PH'
@@ -364,12 +363,8 @@ read.indices:
             dd = indices(fv, ixl<i>)
             xt = upcase(dd<1, 1>)
             if xt = '' then xt = 'D'
-            xs = dd<6>                                                ;* single or multivalued (an A or S item does not say)
+            xs = dd<6>                                                ;* single or multivalued
             xj = dd<5>                                                ;* L or R: how the keys are justified, which is how they are ordered
-            if xt = 'A' or xt = 'S' then
-               xs = ''
-               xj = dd<9>
-            end
             ct = dd<2> ; gosub clean.text
             xnames<-1> = ixl<i>
             xmeta<-1> = (if dd<1, 4> = '1' then 'yes' else 'no') : @vm : xt : @vm : (if dd<1, 3> = '1' then 'no' else 'yes') : @vm : xs : @vm : xj : @vm : (if dd<1, 8> = '1' then 'any' else 'exact') : @vm : ct
@@ -660,7 +655,7 @@ describe.item:
    lines<1> = iid : '  -  ' : tyw
    loc = wh
    begin case
-      case ty = 'D' or ty = 'A' or ty = 'S'
+      case ty = 'D'
          if loc = '' or not(num(loc)) then
             lines<-1> = 'Its location "' : loc : '" is not a field number, so a query cannot read it.'
          end else
@@ -691,13 +686,12 @@ describe.item:
          lines<-1> = 'A phrase: a fragment of a query command, replaced where its name is typed: ' : ex
       case ty = 'X'
          lines<-1> = 'Text kept in the dictionary under this name.  A query does not read it as a field.'
+      case ty = 'A' or ty = 'S'
+         lines<-1> = 'SD no longer reads A and S items: a query that names it is refused.  Write it again as a data item (N, D) or a computed item (N, I).'
       case 1
          lines<-1> = 'SD reads this item as nothing a query can use.'
    end case
-   if ty = 'D' or ty = 'A' or ty = 'S' or ty = 'I' or ty = 'E' then
-      if ty = 'A' or ty = 'S' then
-         if ex # '' then lines<-1> = 'The correlative "' : ex : '" changes the value before it is shown (C compiles it).'
-      end
+   if ty = 'D' or ty = 'I' or ty = 'E' then
       begin case
          case hd = ''
             lines<-1> = 'The column heading is the name of the item.'
@@ -720,18 +714,14 @@ describe.item:
          gosub describe.conv
          lines<-1> = 'Converted for display with ' : cv : ' (' : cdesc : ').'
       end
-      if ty # 'A' and ty # 'S' then
-         begin case
-            case sm = 'M'
-               lines<-1> = 'Multivalued: the field holds several values.' : (if asoc # '' then '  Association ' : asoc : ': its values line up, value by value, with the other items of that association.' else '')
-            case sm = 'S'
-               lines<-1> = 'Single valued.' : (if asoc # '' then '  Association ' : asoc : '.' else '')
-            case 1
-               lines<-1> = 'Single or multivalued is not said.' : (if asoc # '' then '  Association ' : asoc : '.' else '')
-         end case
-      end else
-         if asoc # '' then lines<-1> = 'Association ' : asoc : ': its values line up, value by value, with the other items of that association.'
-      end
+      begin case
+         case sm = 'M'
+            lines<-1> = 'Multivalued: the field holds several values.' : (if asoc # '' then '  Association ' : asoc : ': its values line up, value by value, with the other items of that association.' else '')
+         case sm = 'S'
+            lines<-1> = 'Single valued.' : (if asoc # '' then '  Association ' : asoc : '.' else '')
+         case 1
+            lines<-1> = 'Single or multivalued is not said.' : (if asoc # '' then '  Association ' : asoc : '.' else '')
+      end case
    end
    lines<-1> = ''
    rawl = 'Record:'
@@ -754,9 +744,9 @@ type.words:
       case ty = 'D'
          tyw = 'a data field (D)'
       case ty = 'A'
-         tyw = 'an A-type field, the Pick layout (A)'
+         tyw = 'an A-type item, which SD no longer reads (A)'
       case ty = 'S'
-         tyw = 'an S-type field, the Pick layout (S)'
+         tyw = 'an S-type item, which SD no longer reads (S)'
       case ty = 'I'
          tyw = 'a computed field (I-type)'
       case ty = 'E'
@@ -844,7 +834,7 @@ describe.index:
       case ma<1, 2> = 'I'
          lines<-1> = 'It is on the computed item with the expression: ' : ma<1, 7>
       case ma<1, 2> = 'A' or ma<1, 2> = 'S'
-         lines<-1> = 'It is on the A-type item, field ' : ma<1, 7> : '.'
+         lines<-1> = 'It was made from an A or S item, which SD no longer reads, so a query never uses it.  Delete it (D); N makes one on a data or computed item.'
       case 1
          lines<-1> = 'It is on field ' : ma<1, 7> : ' of each record.'
    end case
@@ -1163,13 +1153,13 @@ do.delete:
    gosub draw.all
    return
 
-* C: COMPILE.DICT file item, after a box.  Only the types the verb compiles (A, S, I)
+* C: COMPILE.DICT file item, after a box.  Only the type the verb compiles (I)
 do.compile:
    if nis < 1 then return
    iid = iids<ishown<ci>>
    ma = imeta<ishown<ci>>
-   if index(' A S I ', ' ' : ma<1, 1> : ' ', 1) = 0 then
-      msg = 'only A, S and I items are compiled; ' : iid : ' is of type ' : ma<1, 1>
+   if index(' I ', ' ' : ma<1, 1> : ' ', 1) = 0 then
+      msg = 'only I items are compiled; ' : iid : ' is of type ' : ma<1, 1>
       return
    end
    cw = iid
@@ -1227,11 +1217,11 @@ do.test:
       return
    end
    gosub classify.item
-   if index(' D A S I ', ' ' : ty : ' ', 1) = 0 then
-      msg = 'only D, A, S and I items give a value for a record; ' : iid : ' is of type ' : ty
+   if index(' D I ', ' ' : ty : ' ', 1) = 0 then
+      msg = 'only D and I items give a value for a record; ' : iid : ' is of type ' : ty
       return
    end
-   needs.obj = (ty = 'I' or ((ty = 'A' or ty = 'S') and rec<DICT.A.CORRELATIVE> # ''))
+   needs.obj = (ty = 'I')
    if needs.obj and (rec<DICT.SYS.INFO> = '' or rec<DICT.ITYPE.OBJECT> = '') then
       msg = iid : ' has not been compiled yet: C compiles it, then T can try it'
       return
@@ -1340,14 +1330,12 @@ do.new:
       return
    end
    nid = askv
-   screen msgbox 'What kind of item is ' : nid : '?' : @fm : '' : @fm : 'Data: shows one field of the record, by its number.' : @fm : 'A-type: the Pick layout of the same thing, with a correlative if you want one.' : @fm : 'Indirect: a value computed from an expression.' title 'New item' buttons '&Data,&A-type,&Indirect,&Cancel' default 1 returning b else b = 4
+   screen msgbox 'What kind of item is ' : nid : '?' : @fm : '' : @fm : 'Data: shows one field of the record, by its number.' : @fm : 'Indirect: a value computed from an expression.' title 'New item' buttons '&Data,&Indirect,&Cancel' default 1 returning b else b = 3
    nrec = ''
    begin case
       case b = 1
          gosub ask.d
       case b = 2
-         gosub ask.a
-      case b = 3
          gosub ask.i
       case 1
          askok = 0
@@ -1507,61 +1495,6 @@ ask.d:
    fnames.new = 'type' : @fm : 'field number' : @fm : 'conversion' : @fm : 'heading' : @fm : 'format' : @fm : 'single/multi' : @fm : 'association'
    return
 
-* The fields of an A item (the Pick layout)
-ask.a:
-   atl = 'New A-type item ' : nid : '  1 of 7'
-   aq = 'Number of the field of the record it shows (0 is the record id)'
-   adef = '' ; aw = 8 ; vk = 'num' ; vlo = 0 ; vhi = 9999 ; vopt = 0
-   gosub ask.valid
-   if not(askok) then return
-   dloc = askv
-   atl = 'New A-type item ' : nid : '  2 of 7'
-   aq = 'Column heading (empty uses the id)'
-   adef = '' ; aw = 44 ; vk = 'text' ; vhi = 40 ; vopt = 1
-   gosub ask.valid
-   if not(askok) then return
-   dhead = askv
-   atl = 'New A-type item ' : nid : '  3 of 7'
-   aq = 'Association (empty for none)'
-   adef = '' ; aw = 34 ; vk = 'word' ; vopt = 1
-   gosub ask.valid
-   if not(askok) then return
-   dassoc = askv
-   atl = 'New A-type item ' : nid : '  4 of 7'
-   aq = 'Conversion code for display (empty for none)'
-   adef = '' ; aw = 40 ; vk = 'conv' ; vopt = 1
-   gosub ask.valid
-   if not(askok) then return
-   dconv = askv
-   atl = 'New A-type item ' : nid : '  5 of 7'
-   aq = 'Correlative (empty for none; C compiles it afterwards)'
-   adef = '' ; aw = 80 ; vk = 'text' ; vhi = 200 ; vopt = 1
-   gosub ask.valid
-   if not(askok) then return
-   dcorr = askv
-   atl = 'New A-type item ' : nid : '  6 of 7'
-   aq = 'Justification: L left, R right, T text that wraps'
-   adef = 'L' ; aw = 4 ; vk = 'just' ; vopt = 0
-   gosub ask.valid
-   if not(askok) then return
-   djust = askv
-   atl = 'New A-type item ' : nid : '  7 of 7'
-   aq = 'Width of the column in characters'
-   adef = '10' ; aw = 6 ; vk = 'num' ; vlo = 1 ; vhi = 200 ; vopt = 0
-   gosub ask.valid
-   if not(askok) then return
-   dwid = askv
-   nrec = 'A'
-   nrec<DICT.A.LOC> = dloc
-   nrec<DICT.A.DISPLAY.NAME> = dhead
-   nrec<DICT.A.ASSOC> = dassoc
-   nrec<DICT.A.CONV> = dconv
-   nrec<DICT.A.CORRELATIVE> = dcorr
-   nrec<DICT.A.JUSTIFY> = djust
-   nrec<DICT.A.WIDTH> = dwid
-   fnames.new = 'type' : @fm : 'field number' : @fm : 'heading' : @fm : 'association' : @fm : '' : @fm : '' : @fm : 'conversion' : @fm : 'correlative' : @fm : 'justification' : @fm : 'width'
-   return
-
 * The fields of an I item
 ask.i:
    atl = 'New computed item ' : nid : '  1 of 7'
@@ -1628,7 +1561,7 @@ show.new:
       if nrec<q> # '' then lines<-1> = '   ' : fmt(q, '2R') : '  ' : fmt(fnames.new<q>, '14L') : nrec<q>
    next q
    lines<-1> = ''
-   if nrec[1, 1] = 'I' or (nrec[1, 1] = 'A' and nrec<DICT.A.CORRELATIVE> # '') then lines<-1> = 'It is not compiled yet: C compiles it, and a query does it when it first uses the item.'
+   if nrec[1, 1] = 'I' then lines<-1> = 'It is not compiled yet: C compiles it, and a query does it when it first uses the item.'
    lines<-1> = 'Nothing else changes: the records of ' : fn : ' are not touched.'
    gosub dict.access
    if dref # '' then lines<-1> = dref : '  The write is expected to be refused.'
@@ -1690,7 +1623,7 @@ do.newindex:
    cdef = 1
    for q = 1 to ni
       ma = imeta<q>
-      if index(' D A S I ', ' ' : ma<1, 1> : ' ', 1) > 0 then
+      if index(' D I ', ' ' : ma<1, 1> : ' ', 1) > 0 then
          cw = iids<q>
          gosub check.word
          if okname then
@@ -1700,7 +1633,7 @@ do.newindex:
       end
    next q
    if cand = '' then
-      msg = 'the dictionary has no data, A, S or I item with an id the page can give to a command: type create.index ' : fn : ' and the item at the prompt, then build.index'
+      msg = 'the dictionary has no data or I item with an id the page can give to a command: type create.index ' : fn : ' and the item at the prompt, then build.index'
       return
    end
    pk = ''

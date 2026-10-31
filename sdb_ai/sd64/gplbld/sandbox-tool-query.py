@@ -8,6 +8,7 @@
 # failed, 2 it could not run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of the page and exit 0 means the rows that had to fail failed and no others (MUTANTS).
 #
 # START-HISTORY:
+# 31 Oct 26 dm  The A and S dictionary item types are gone: the fixture item rega (an A item) is removed with its place in the lists and the count of items (8 now).
 # 25 Oct 26 dm  New (S.75, DV4).
 # 28 Oct 26 dm  S.88 phase 2 (S2): section Q13 and its three runtime mutants (written, not run); the sandbox copy of the page is compiled together with $tk_ownfile.
 # END-HISTORY
@@ -143,7 +144,6 @@ POPULATE = "\n".join([
     "   write 'D':@fm:'2':@fm:'':@fm:'Qty':@fm:'5R':@fm:'S' on d, 'qty'",
     "   write 'D':@fm:'3':@fm:'MD2':@fm:'Price':@fm:'8R':@fm:'S' on d, 'price'",
     "   write 'D':@fm:'4':@fm:'':@fm:'Region':@fm:'8L':@fm:'S' on d, 'region'",
-    "   write 'A':@fm:'4':@fm:'Reg A':@fm:'':@fm:'':@fm:'':@fm:'':@fm:'':@fm:'L':@fm:'8' on d, 'rega'",
     "   write 'PH':@fm:'name qty' on d, 'phr'",
     "   write 'D':@fm:'1':@fm:'':@fm:'Lp':@fm:'6L':@fm:'S' on d, 'lptr'",
     "   write 'D':@fm:'1':@fm:'':@fm:'Wt':@fm:'6L':@fm:'S' on d, 'wait'",
@@ -360,9 +360,9 @@ def mark(h, pos, n=1):
     tp(h, " ", 0.5)
 
 
-ZQ_ITEMS = ["@id", "lptr", "name", "price", "qty", "rega", "region", "wait", "x$y"]
+ZQ_ITEMS = ["@id", "lptr", "name", "price", "qty", "region", "wait", "x$y"]
 POS = {n: i + 1 for i, n in enumerate(ZQ_ITEMS)}
-USABLE = ["@id", "name", "price", "qty", "rega", "region"]           # what the pick list offers for a condition
+USABLE = ["@id", "name", "price", "qty", "region"]           # what the pick list offers for a condition
 SORT_PICK = ["(none)"] + USABLE
 
 
@@ -489,9 +489,9 @@ def section_q2():
     tb, order = files_rows(h)
     arow("Q2", "Enter chooses the file: the Columns box takes the focus, the file is marked in the File box and the sentence box holds list zq", "[*] Columns" in h.text() and tb.get("zq", ("",))[0] == "*" and sentence(h) == "list zq", repr((sentence(h), tb.get("zq"))))
     cr = cols_rows(h)
-    arow("Q2b", "the Columns box lists @id first and then the dictionary in name order, with the type of each (D, and A for rega); a phrase (phr) and a record that starts with a dollar are not listed",
-         [c[2] for c in cr] == ZQ_ITEMS and dict((c[2], c[3]) for c in cr)["rega"] == "A" and dict((c[2], c[3]) for c in cr)["name"] == "D" and "phr" not in [c[2] for c in cr] and "$qd" not in [c[2] for c in cr], repr(cr))
-    arow("Q2c", "the status line counts the items: 9 in the dictionary of zq", "zq: 9 items in its dictionary" in st(h), repr(st(h)))
+    arow("Q2b", "the Columns box lists @id first and then the dictionary in name order, with the type of each (D); a phrase (phr) and a record that starts with a dollar are not listed",
+         [c[2] for c in cr] == ZQ_ITEMS and dict((c[2], c[3]) for c in cr)["name"] == "D" and "phr" not in [c[2] for c in cr] and "$qd" not in [c[2] for c in cr], repr(cr))
+    arow("Q2c", "the status line counts the items: 8 in the dictionary of zq", "zq: 8 items in its dictionary" in st(h), repr(st(h)))
     refused = {}
     for item in ("lptr", "wait", "x$y"):
         mark(h, POS[item])

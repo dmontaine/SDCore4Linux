@@ -667,7 +667,6 @@ sdsys/gpl.bp/qselect         : @query
 sdsys/gpl.bp/_itype          : @query
 sdsys/gpl.bp/icomp           : @query itypemode ltype
 sdsys/gpl.bp/linkref         : @query ltype
-sdsys/gpl.bp/acomp           : @query option-q17
 sdsys/gpl.bp/dcomp           : @query
 sdsys/gpl.bp/_sselct         : @lists
 sdsys/gpl.bp/_sselctv        : @lists

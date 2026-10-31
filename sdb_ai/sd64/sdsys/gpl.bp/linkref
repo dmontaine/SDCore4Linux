@@ -18,6 +18,7 @@
 *
 * START-HISTORY:
 * 17 Oct 26 dm  Written (QM4 Fixes 7, L-type dictionary records in I-type expressions).
+* 31 Oct 26 dm  The A and S dictionary item types are gone: a link to one gives status 6, like any type that has no properties to give.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -133,14 +134,6 @@ $include dictdict.h
             attr<3> = item.rec<DICT.CONV>
             attr<4> = item.rec<DICT.S.M>
             attr<5> = item.rec<DICT.ASSOC>
-
-         case index('AS', upcase(item.rec[1,1]), 1) and item.rec[1,1] # ''
-            * A and S types keep these in other fields; the format is the width and justification
-            attr<1> = item.rec<DICT.A.DISPLAY.NAME>
-            attr<2> = item.rec<DICT.A.WIDTH> : item.rec<DICT.A.JUSTIFY>
-            attr<3> = item.rec<DICT.A.CONV>
-            attr<4> = 'M'
-            attr<5> = item.rec<DICT.A.ASSOC>
 
          case 1
             status = 6

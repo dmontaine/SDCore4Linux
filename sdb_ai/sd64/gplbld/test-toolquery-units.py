@@ -142,9 +142,9 @@ def checks(raw):
        and len(re.findall(r"^\s*sent = ", gs, re.M)) == 2 and "senterr = 'condition ' : gi : ': ' : qv.err\n            exit" in gs, "")
     rd = block(pg, "read.dict")
     ic = block(pg, "item.check")
-    ck("TQ9", "the items offered are the fields of the dictionary: types D E I C A S only (a phrase, a link, a text record and a record whose id starts with a dollar are not listed), @id first; an item is put in a sentence only when its name is made of a-z 0-9 dot dash underscore "
+    ck("TQ9", "the items offered are the fields of the dictionary: types D E I only (a phrase, a link, a text record and a record whose id starts with a dollar are not listed), @id first; an item is put in a sentence only when its name is made of a-z 0-9 dot dash underscore "
        "(@ as the first character), is not a word of the lists the page knows, and is not a keyword of the VOC",
-       "index('DEICAS', tc, 1) = 0" in rd and "if t2[1, 2] = 'PH' then tc = ''" in rd and "if did[1, 1] = '$' then tc = ''" in rd and "ditem<1> = '@id'" in rd
+       "index('DEI', tc, 1) = 0" in rd and "if t2[1, 2] = 'PH' then tc = ''" in rd and "if did[1, 1] = '$' then tc = ''" in rd and "ditem<1> = '@id'" in rd
        and "if upcase(dkr<1>)[1, 1] = 'K' then ck.ok = 0" in rd and "okc = '%s'" % SAFE in ic and "not(ck.q = 1 and ck.c = '@')" in ic and "index(' ' : qwords : ' ', ' ' : ck.id : ' ', 1) > 0" in ic
        and ordered(rd, "gosub item.check", "read dkr from dvoc, ck.id then", "dok<rd> = (if ck.ok then 1 else 0)"), "")
     rf, pf, cf, cn = block(pg, "read.files"), block(pg, "probe.file"), block(pg, "choose.file"), block(pg, "check.name")

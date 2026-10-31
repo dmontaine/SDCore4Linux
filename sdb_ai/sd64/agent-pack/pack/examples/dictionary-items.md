@@ -336,76 +336,6 @@ D
 S
 ```
 
-### dict:item:dict.dic:a.assoc
-> kind=dict.item tier=examples since=- src=gplbld/FILES_DICTS/dict.dic^a.assoc:1#50c9e8d5
-
-Item `a.assoc` of the shipped dictionary `dict.dic` (type D), in `gplbld/FILES_DICTS/dict.dic^a.assoc`:
-
-```
-D
-4
-
-ASSOC
-8L
-S
-```
-
-### dict:item:dict.dic:a.conv
-> kind=dict.item tier=examples since=- src=gplbld/FILES_DICTS/dict.dic^a.conv:1#50c9e8d5
-
-Item `a.conv` of the shipped dictionary `dict.dic` (type D), in `gplbld/FILES_DICTS/dict.dic^a.conv`:
-
-```
-D
-7
-
-CONV
-6L
-S
-```
-
-### dict:item:dict.dic:a.just
-> kind=dict.item tier=examples since=- src=gplbld/FILES_DICTS/dict.dic^a.just:1#50c9e8d5
-
-Item `a.just` of the shipped dictionary `dict.dic` (type D), in `gplbld/FILES_DICTS/dict.dic^a.just`:
-
-```
-D
-9
-
-JUST
-10L
-S
-```
-
-### dict:item:dict.dic:a.name
-> kind=dict.item tier=examples since=- src=gplbld/FILES_DICTS/dict.dic^a.name:1#50c9e8d5
-
-Item `a.name` of the shipped dictionary `dict.dic` (type D), in `gplbld/FILES_DICTS/dict.dic^a.name`:
-
-```
-D
-3
-
-NAME
-12L
-S
-```
-
-### dict:item:dict.dic:a.width
-> kind=dict.item tier=examples since=- src=gplbld/FILES_DICTS/dict.dic^a.width:1#50c9e8d5
-
-Item `a.width` of the shipped dictionary `dict.dic` (type D), in `gplbld/FILES_DICTS/dict.dic^a.width`:
-
-```
-D
-10
-
-WIDTH
-10L
-S
-```
-
 ### dict:item:dict.dic:assoc
 > kind=dict.item tier=examples since=- src=gplbld/FILES_DICTS/dict.dic^assoc:1#50c9e8d5
 
@@ -427,7 +357,7 @@ Item `association` of the shipped dictionary `dict.dic` (type I), in `gplbld/FIL
 
 ```
 I
-IF type='A' OR type='S' THEN a.assoc ELSE assoc
+assoc
 
 ASSOC
 8L
@@ -464,7 +394,7 @@ Item `conversion` of the shipped dictionary `dict.dic` (type I), in `gplbld/FILE
 
 ```
 I
-IF type='A' OR type='S' THEN a.conv ELSE cnv
+cnv
 
 CONV
 6L
@@ -478,20 +408,6 @@ S
 
 
    1276981452
-```
-
-### dict:item:dict.dic:correl
-> kind=dict.item tier=examples since=- src=gplbld/FILES_DICTS/dict.dic^correl:1#50c9e8d5
-
-Item `correl` of the shipped dictionary `dict.dic` (type D), in `gplbld/FILES_DICTS/dict.dic^correl`:
-
-```
-D
-8
-
-CORRELATIVE
-10L
-S
 ```
 
 ### dict:item:dict.dic:d.name
@@ -669,7 +585,7 @@ Item `fld` of the shipped dictionary `dict.dic` (type I), in `gplbld/FILES_DICTS
 
 ```
 I
-IF (type='A' OR type='S') AND f8 # '' THEN f8 ELSE f2
+f2
 
 LOC
 14T
@@ -706,7 +622,7 @@ Item `format.code` of the shipped dictionary `dict.dic` (type I), in `gplbld/FIL
 
 ```
 I
-IF type='A' OR type='S' THEN f10:f9 ELSE f5
+f5
 
 FORMAT
 6L
@@ -757,7 +673,7 @@ Item `name` of the shipped dictionary `dict.dic` (type I), in `gplbld/FILES_DICT
 
 ```
 I
-IF type='A' OR type='S' THEN a.name ELSE d.name
+d.name
 
 NAME
 12L
@@ -794,7 +710,7 @@ Item `smv` of the shipped dictionary `dict.dic` (type I), in `gplbld/FILES_DICTS
 
 ```
 I
-IF type='A' OR type='S' THEN '' ELSE f6
+f6
 
 S/M
 3L

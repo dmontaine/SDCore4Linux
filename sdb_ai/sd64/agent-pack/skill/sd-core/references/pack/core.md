@@ -30,8 +30,6 @@ The dictionary item types (field 1 starts with the letter). Each type is the chu
 | `D` | direct | references a field number in the data record |
 | `E` | element | like `D`, but field 2 is the **path** of an element of a **data collection** record instead of a field number — see SD TCL - Data Collection Files |
 | `I` | indirect | an expression that returns a value — a virtual field |
-| `A` | A-type | Pick-style data definition, with a different field layout |
-| `S` | S-type | identical to `A` in SD — kept for compatibility |
 | `L` | link | names another file and how to find the record in it, so that a query or an I-type can use its fields as `link%item` |
 | `PH` | phrase | a stored fragment substituted into a query command line |
 | `X` | text | miscellaneous data — not a field definition |
@@ -48,20 +46,6 @@ The dictionary item types (field 1 starts with the letter). Each type is the chu
 | `6` | S/M | `S` for single-valued, `M` for multivalued |
 | `7` | association | a name grouping multivalued fields, or empty |
 | `8` | user | free for the application — SD does not read it |
-
-**The A record — a Pick-style field - fields**
-
-| Field | Name | What it holds |
-|---|---|---|
-| `1` | type | `A` or `S`, optionally followed by a comment |
-| `2` | location | the field number in the data record |
-| `3` | display name | the column heading |
-| `4` | association | a name grouping multivalued fields |
-| `5`-`6` | | not used |
-| `7` | conversion | a conversion code |
-| `8` | correlative | a correlative code — like a mini I-type |
-| `9` | justify | `L` or `R` |
-| `10` | width | column width |
 
 ### core:gates
 > kind=core.digest tier=core since=- src=sdsys/gpl.bp/createa:272#65ba882f

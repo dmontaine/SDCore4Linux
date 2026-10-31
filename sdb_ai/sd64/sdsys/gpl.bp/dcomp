@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 31 Oct 26 dm  The A and S dictionary item types are gone (owner, 30 Oct 2026): dcomp says message 11938 and makes no object code, as for C; $acomp is deleted.
 * 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -49,16 +50,10 @@ $include err.h
    dict.rec = field(dict.rec, @fm, 1, DICT.ITYPE.OBJECT - 1)
 
    type = upcase(dict.rec[1,1])
+   object = ''           ;* 31 Oct 26: the refusals below (A, S, C) and the unknown types make none
    begin case
-      case (type = 'A' or type = 'S') and dict.rec<8> # ''
-         source = dict.rec<DICT.A.CORRELATIVE>
-         if source # '' then
-            call $acomp(dict.f,                ;* Dictionary file
-                        dict.rec<DICT.A.LOC>,  ;* Field number
-                        source,                ;* Correlative source
-                        object,                ;* Object code
-                        1)                     ;* Recursion depth
-         end
+      case type = 'A' or type = 'S'
+         display sysmsg(11938, dict.id)       ;* 31 Oct 26: A and S items are not compiled any more; no object code is made
 
       case type = 'I'
          call $icomp(dict.f,

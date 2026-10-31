@@ -96,7 +96,7 @@ def main():
         spec = importlib.util.spec_from_file_location("solo_swap", os.path.join(HERE, "solo_swap.py"))
         ss = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(ss)
-        ok, why = ss.swap(box, programs=("acomp", "bcomp", "cd", "cname", "generate", "icomp", "listi", "mkindx", "qproc", "show",
+        ok, why = ss.swap(box, programs=("bcomp", "cd", "cname", "generate", "icomp", "listi", "mkindx", "qproc", "show",
                                          "_nextptr", "createf", "write_install_dicts"), messages=(6129,), dictdir=True)
         say("sandbox-dictfold: SOLO MODE - " + why.splitlines()[0])
         if not ok:

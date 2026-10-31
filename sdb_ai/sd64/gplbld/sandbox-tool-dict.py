@@ -132,7 +132,7 @@ def fixture_program(a):
           "   open 'DICT ixf' to d2 else crt 'ZZDF no dict ixf' ; stop", "   open 'ixf' to f2 else crt 'ZZDF no ixf' ; stop",
           "   open 'VOC' to v else crt 'ZZDF no voc' ; stop"]
     w("d", "name", "D", "1", "", "Name", "20L", "S")
-    w("d", "city", "A", "2", "City", "", "", "", "", "", "L", "12")
+    w("d", "city", "D", "2", "", "City", "12L", "S")        # 31 Oct 26: it was an A item, the Pick layout of the same thing
     w("d", "amt", "D", "3", "", "Amt", "10R", "S")
     w("d", "dbl", "I", "AMT * 2", "", "Double", "10R", "S")
     L.append("   write 'D':@fm:'4':@fm:'':@fm:'Tags':@fm:'10L':@fm:'M':@fm:'LINE' on d, 'tags'")
@@ -461,8 +461,8 @@ def section_items():
     say("\n--- D2: the items, the item under the cursor, the filter, the gate")
     h = page(A1, "cust")
     tb, order = itable(h)
-    arow("D2", "the items of cust as the disk has them: types D A I X, the field, heading, format; dbl shows computed and its expression, tags is multivalued with its association, dt has its conversion",
-         tb["amt"][:4] == ("D", "3", "Amt", "10R") and tb["name"][:4] == ("D", "1", "Name", "20L") and tb["city"][:4] == ("A", "2", "City", "12L") and tb["dbl"][:4] == ("I", "computed", "Double", "10R") and tb["dbl"][7] == "AMT * 2"
+    arow("D2", "the items of cust as the disk has them: types D I X, the field, heading, format; dbl shows computed and its expression, tags is multivalued with its association, dt has its conversion",
+         tb["amt"][:4] == ("D", "3", "Amt", "10R") and tb["name"][:4] == ("D", "1", "Name", "20L") and tb["city"][:4] == ("D", "2", "City", "12L") and tb["dbl"][:4] == ("I", "computed", "Double", "10R") and tb["dbl"][7] == "AMT * 2"
          and tb["tags"][5:7] == ("M", "LINE") and tb["note"][0] == "X" and tb["note"][7] == "some text" and tb["dt"][4] == "D2/" and tb["@id"][:2] == ("D", "0"), repr(tb))
     arow("D2b", "the gate line says dict-edit on for this account", "Your gate:  dict-edit on" in h.line(19), repr(h.line(19)[:80]))
     goto(h, "amt")
@@ -485,7 +485,7 @@ def section_items():
     h.key("esc", idle=1.0)
     goto(h, "city")
     B = lowtxt(h)
-    arow("D2g", "city in words: an A-type field in the Pick layout, field 2, heading City, 12 wide left-justified", "an A-type field, the Pick layout (A)" in B and "Shows field 2 of each record." in B and 'Column heading "City".' in B and "12 characters wide, left-justified" in B, B[:300])
+    arow("D2g", "city in words: a data field, field 2, heading City, 12 wide left-justified", "a data field (D)" in B and "Shows field 2 of each record." in B and 'Column heading "City".' in B and "12 characters wide, left-justified" in B, B[:300])
     h.key("esc", idle=1.0)
     goto(h, "dt")
     B = lowtxt(h)
@@ -569,22 +569,14 @@ def section_new():
     h.typed("r", idle=2.5)
     d = item(A1, "cust", "zze")
     arow("D3j", "Run: the multivalued item is on the disk (D, 4, '', T2, 10L, M, LINE)", d is not None and d[0] == ["D", "4", "", "T2", "10L", "M", "LINE"], repr(d))
-    # an A-type item: location, heading, association, conversion, correlative, justification, width
+    # the New item box offers a data and a computed item only (31 Oct 26: the A type is gone)
     h.typed("n", idle=1.0)
     h.typed("newa\r", idle=1.0)
-    h.typed("a", idle=1.2)
-    h.typed("2\r", idle=0.8)
-    h.typed("Cty\r", idle=0.8)
-    h.typed("CTY\r", idle=0.8)
-    h.typed("\r", idle=0.8)
-    h.typed("\r", idle=0.8)
-    h.typed("\x15r\r", idle=0.8)
-    h.typed("\x15" + "14\r", idle=1.5)
-    bt = boxtext(h)
-    arow("D3k", "an A-type item: the box lists it in the Pick layout (3 heading, 4 association, 9 justification, 10 width)", "1 type A" in bt and "3 heading Cty" in bt and "4 association CTY" in bt and "9 justification R" in bt and "10 width 14" in bt, bt[:600])
-    h.typed("r", idle=2.5)
+    bx = h.text()
+    arow("D3k", "the New item box offers Data and Indirect only: there is no A-type button", "Data" in bx and "Indirect" in bx and "A-type" not in bx, bx[:600])
+    h.key("esc", idle=1.5)
     d = item(A1, "cust", "newa")
-    arow("D3l", "Run: the A item is on the disk with the Pick layout (A, 2, Cty, CTY, -, -, -, -, R, 14)", d is not None and d[0] == ["A", "2", "Cty", "CTY", "", "", "", "", "R", "14"], repr(d))
+    arow("D3l", "Esc on that box writes nothing: no item newa is on the disk and the status says so", d is None and "nothing written" in st(h), repr((d, st(h))))
     # an I-type item: the expression
     h.typed("n", idle=1.0)
     h.typed("newi\r", idle=1.0)
@@ -639,7 +631,7 @@ def section_try():
     h = page(A1, "cust")
     for it, rid, want, kind in (("amt", "c1", ["The value:", " 12.5", "As a query prints it (format 10R), between bars:", "| 12.5|"], "D"),
                                 ("dbl", "c1", ["The value:", " 25", "As a query prints it (format 10R), between bars:", "| 25|"], "I"),
-                                ("city", "c2", ["The value:", "Rome"], "A"),
+                                ("city", "c2", ["The value:", "Rome"], "D"),
                                 ("tags", "c1", ["The value (3 values, between bars):", "a | b | c"], "D")):
         goto(h, it)
         h.typed("t", idle=1.2)
@@ -666,7 +658,7 @@ def section_try():
     h.key("esc", idle=1.0)
     goto(h, "note")
     h.typed("t", idle=1.5)
-    arow("D5h", "an item that holds no value (text X) is refused with its type", "only D, A, S and I items give a value for a record; note is of type X" in st(h), repr(st(h)))
+    arow("D5h", "an item that holds no value (text X) is refused with its type", "only D and I items give a value for a record; note is of type X" in st(h), repr(st(h)))
     h.key("esc", idle=1.0)
     goto(h, "UpCase")
     h.typed("t", idle=1.2)
@@ -684,7 +676,7 @@ def section_compile():
     h = page(A1, "cust")
     goto(h, "amt")
     h.typed("c", idle=1.5)
-    arow("D6", "C on a D item is refused with its type before any box", "only A, S and I items are compiled; amt is of type D" in st(h) and "Run this command?" not in h.text(), repr(st(h)))
+    arow("D6", "C on a D item is refused with its type before any box", "only I items are compiled; amt is of type D" in st(h) and "Run this command?" not in h.text(), repr(st(h)))
     h.key("esc", idle=1.0)
     goto(h, "uncomp")
     h.typed("c", idle=1.5)

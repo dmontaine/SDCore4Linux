@@ -9,6 +9,7 @@
 # Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 31 Oct 26 dm  The A and S dictionary item types are gone: row H11b (it was H4) now expects the two A items ANAME and ATRIPLE to be refused as items that define no data; it follows H10 because the client keeps the last error text.
 # 15 Oct 26 dm  Written for QM4 gaps bundle C-1.
 # 15 Oct 26 dm  Part R: six threads in one process (sheet 456).  K1's helper thread selects its own session now: the current
 #               session is per thread.
@@ -113,7 +114,7 @@ USER_PROGS = {
                "   write 'Gadget':@fm:'7':@fm:'green' on f, 'r2'\n"
                "   write 'Gizmo':@fm:'9':@fm:'a':@vm:'b':@vm:'c' on f, 'r3'\n"
                # more dictionary items for the Evaluate rows: I-types (one with a conversion, one that is @ID, one that will not
-               # compile), A items with and without a correlative, D items with a conversion, a phrase that defines no data
+               # compile), A items (since 31 Oct 26 the type is gone: they are refused as items that define no data), D items with a conversion, a phrase that defines no data
                "   write 'I':@fm:'QTY * 2':@fm:'':@fm:'Dbl':@fm:'8R':@fm:'S' on d, 'DOUBLE'\n"
                "   write 'I':@fm:'NAME':@fm:'MCU':@fm:'Up':@fm:'10L':@fm:'S' on d, 'UPNAME'\n"
                "   write 'I':@fm:'@ID':@fm:'':@fm:'Id':@fm:'6L':@fm:'S' on d, 'IDCOPY'\n"
@@ -684,8 +685,6 @@ def main():
             drec is not None and len(drec.split(FM)) == 6, s(drec))
         row("H3: an I-type that is @ID answers the id given", ev(b"IDCOPY") == b"r1" and ev(b"IDCOPY", id=b"zz9") == b"zz9", s(ev(b"IDCOPY")))
         row("H3: ... and the null id gives the null string", ev(b"IDCOPY", id=b"") == b"", s(ev(b"IDCOPY", id=b"")))
-        row("H4: an A item with no correlative gives its field; one with the correlative A;2*'3' (field 2 times the constant 3) gives it times three",
-            ev(b"ANAME") == flds[0] and ev(b"ATRIPLE") == str(int(flds[1]) * 3).encode(), s(ev(b"ANAME")) + " / " + s(ev(b"ATRIPLE")))
         row("H5: several names (value marks) give the answers joined by item marks (character 255)",
             ev(b"NAME" + VM + b"QTY") == flds[0] + IM + flds[1], s(ev(b"NAME" + VM + b"QTY")))
         row("H6: SDEvaluate applies NO conversion: the I-type UPNAME (conversion MCU) is Widget", ev(b"UPNAME") == b"Widget", s(ev(b"UPNAME")))
@@ -704,6 +703,9 @@ def main():
         row("H10: an item that is not in the dictionary gives nothing, and no error text about types or compiling",
             ev(b"NOSUCH") == b"" and b"defines data" not in err() and b"compiled" not in err(), s(err()))
         row("H11: a phrase (type PH) defines no data: nothing, and the error says so", ev(b"PH1") == b"" and b"defines data" in err(), s(err()))
+        # 31 Oct 26: after H10 and H11 because the client keeps the last error text: an error left by an earlier row is read by H10's "no error" test
+        row("H11b: an A item is not evaluated any more (31 Oct 26: the A and S types are gone): nothing, and the error says it defines no data",
+            ev(b"ANAME") == b"" and b"ANAME" in err() and b"defines data" in err() and ev(b"ATRIPLE") == b"" and b"ATRIPLE" in err() and b"defines data" in err(), s(err()))
         row("H12: an I-type that will not compile gives nothing, and the error says it cannot be compiled",
             ev(b"BADI") == b"" and b"cannot be compiled" in err(), s(err()))
         row("H13: a file number that was never opened is refused with the file number message", ev(b"NAME", f=99) == b"" and b"file number" in err().lower(), s(err()))

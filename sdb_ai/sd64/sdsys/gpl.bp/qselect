@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 31 Oct 26 dm  The A and S dictionary item types are gone: SAVING takes the field number of a D item only.
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
@@ -145,8 +146,6 @@ $include int$keys.h
                   type = upcase(dict.rec[1,1])
                   begin case
                      case type = 'D'
-                        null
-                     case (type = 'A' or type = 'S') and dict.rec<DICT.A.CORRELATIVE> = ''
                         null
                      case 1
                         stop sysmsg(3285, token) ;* %1 is not of suitable type for this operation

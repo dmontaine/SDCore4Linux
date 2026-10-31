@@ -454,7 +454,7 @@ clause of `enter` — run at the current command level
 `deleteu` *file.var*, *id* {`on error` …}
 
 - a statement of SD BASIC
-- docs: `User/markdown/38-sd-glossary.md` line 127
+- docs: `User/markdown/38-sd-glossary.md` line 123
 
 ### basic:stmt:delimiter
 > kind=basic.clause tier=reference since=next src=sdsys/gpl.bp/bcomp:9203#360206a9 src2=docs:tools/syntax-shapes.txt:300#a67bf24e
