@@ -562,7 +562,7 @@ def checks(srcs):
        "with a failure tolerated (|| shared_rc=$?), and the marker is removed WHATEVER happened (not under an if, not behind &&)",
        ordered(srcs["sh:installsdcore.sh"], '${tuser_lc}', "# SHARED-CREATE-BEGIN", "# SHARED-CREATE-END", 'if [ "$accounts_kept" = yes ]; then')
        and ordered(rawblk, 'if sudo test -f "$shared_reg"; then', "is already registered and is kept", "elif sudo test -d", "WARNING:", 'sudo touch "$shared_marker"',
-                   "sudo bin/sd -internal create-account GROUP shared || shared_rc=$?", 'sudo rm -f "$shared_marker"')
+                   "sudo bin/sd -internal create.account GROUP shared || shared_rc=$?", 'sudo rm -f "$shared_marker"')
        and re.search(r'^    sudo rm -f "\$shared_marker"$', rawblk, re.M) is not None and "shared_marker=\"${sdsysdir}/\\$shared.make\"" in rawblk, "")
     ck("I3b ...afterwards it says what the system ACTUALLY holds (register lines 1 and 3, the directory's group and mode, the members of sdg_shared), prints a WARNING for a group other than sdg_shared, "
        "a directory that is not 'sdusers 2775', members besides root and sdsys and a missing register, each of which sets shared_ok=no, and the success line "
@@ -776,7 +776,7 @@ MUTANTS = [
     ("the preflight forgets line 3", "sh:installsdcore.sh", ' && [ "$line3" = "sdg_shared" ]', ""),
     ("the preflight forgets the live register", "sh:installsdcore.sh", 'for reg in "/home/sd/accounts/shared" "${sdsysdir}/accounts/shared"; do', 'for reg in "/home/sd/accounts/shared"; do'),
     ("the marker is not removed", "sh:installsdcore.sh", '    sudo rm -f "$shared_marker"\n', "    true\n"),
-    ("a failed create ends the install", "sh:installsdcore.sh", "sudo bin/sd -internal create-account GROUP shared || shared_rc=$?", "sudo bin/sd -internal create-account GROUP shared"),
+    ("a failed create ends the install", "sh:installsdcore.sh", "sudo bin/sd -internal create.account GROUP shared || shared_rc=$?", "sudo bin/sd -internal create.account GROUP shared"),
     ("the success line is unguarded", "sh:installsdcore.sh", '    if [ "$shared_ok" = yes ]; then', "    if true; then"),
     ("a directory with the wrong mode is not reported", "sh:installsdcore.sh", 'if [ "$shared_stat" != "sdusers 2775" ]; then', "if false; then"),
     ("members besides root and sdsys are not reported", "sh:installsdcore.sh", '        elif [ -n "$shared_extra" ]; then', "        elif false; then"),

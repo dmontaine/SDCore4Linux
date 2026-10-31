@@ -625,7 +625,7 @@ ck "M9b the installer creates BOTH route groups (S.29)" 1 \
 # older spelling of it: `create-account USER` alone matches the comment first
 # and the row would then compare against prose.
 GRP_LINE=$(grep -n 'for sd_route_group in sdssh sdapi' "$REPO/installsdcore.sh" | head -1 | cut -d: -f1)
-SEED_LINE=$(grep -n 'bin/sd -internal create-account USER' "$REPO/installsdcore.sh" | head -1 | cut -d: -f1)
+SEED_LINE=$(grep -n 'bin/sd -internal create.account USER' "$REPO/installsdcore.sh" | head -1 | cut -d: -f1)
 say "  installsdcore.sh: route groups made at line ${GRP_LINE:-<absent>}, account seeded at line ${SEED_LINE:-<absent>}"
 if [ -n "$GRP_LINE" ] && [ -n "$SEED_LINE" ]; then
   ck "M9b2 and it makes them before any account exists" yes \
@@ -634,7 +634,7 @@ else
   not_reached "M9b2 and it makes them before any account exists"
 fi
 ck "M9c the installer seeds a PLAIN account (no ADMINISTRATOR keyword)" 0 \
-   "$(grep -c 'create-account USER .*ADMINISTRATOR' "$REPO/installsdcore.sh" 2>/dev/null)"
+   "$(grep -c 'create.account USER .*ADMINISTRATOR' "$REPO/installsdcore.sh" 2>/dev/null)"
 # 20 Sep 26 - ***M9d MEASURED THE LAYOUT OF OUR OWN SOURCE, NOT THE FACT IT
 #   CLAIMED, AND S.29 PART 3 BROKE IT*** (the 93-row cycle: 92 passed, this
 #   one failed against a correct helper).  It matched `printf.*Match Group

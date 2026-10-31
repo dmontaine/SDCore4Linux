@@ -1748,7 +1748,9 @@ if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
     echo "Creating a user account for ${tuser}."
     attach_marker="${sdsysdir}/\$attach.${tuser_lc}"
     sudo touch "$attach_marker"
-    sudo bin/sd -internal create-account USER "$tuser" ATTACH
+    # 30 Oct 26: create.account, not create-account.  S.87 batch 6 (27 Oct) removed the hyphen form of the verbs, so this line said "create-account is not in your VOC" and a fresh install
+    #   stopped here (exit 2) with no first account.  Found by the first FRESH install since: the installs of 28-30 Oct kept their accounts, so this branch never ran.
+    sudo bin/sd -internal create.account USER "$tuser" ATTACH
     sudo rm -f "$attach_marker"
 
     # The instrument rule: say what the register ACTUALLY holds, not what the
@@ -1820,7 +1822,7 @@ else
     shared_marker="${sdsysdir}/\$shared.make"
     shared_rc=0
     sudo touch "$shared_marker"
-    sudo bin/sd -internal create-account GROUP shared || shared_rc=$?
+    sudo bin/sd -internal create.account GROUP shared || shared_rc=$?
     sudo rm -f "$shared_marker"
 
     # The instrument rule: say what the system ACTUALLY holds.

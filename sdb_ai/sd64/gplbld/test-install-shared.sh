@@ -60,7 +60,7 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant preflight-says-nothing-unchanged '/^shared_preflight() {/,/^}/ s/Nothing has been changed\./Something has been changed./'
   mutant marker-not-made                's/^    sudo touch "\$shared_marker"$/    true/'
   mutant marker-not-removed             's/^    sudo rm -f "\$shared_marker"$/    true/'
-  mutant failed-create-not-tolerated    's/create-account GROUP shared || shared_rc=\$?/create-account GROUP shared/'
+  mutant failed-create-not-tolerated    's/create.account GROUP shared || shared_rc=\$?/create.account GROUP shared/'
   mutant success-line-unguarded         's/^    if \[ "\$shared_ok" = yes \]; then$/    if true; then/'
   mutant wrong-group-not-reported       's/if \[ "\$shared_line3" != "sdg_shared" \]; then/if false; then/'
   mutant wrong-mode-not-reported        's/if \[ "\$shared_stat" != "sdusers 2775" \]; then/if false; then/'
@@ -68,7 +68,7 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant not-registered-not-reported    's/^    if \[ -z "\$shared_line1" \]; then$/    if false; then/'
   mutant kept-account-recreated         's/^if sudo test -f "\$shared_reg"; then$/if false; then/'
   mutant directory-without-register-made 's/^elif sudo test -d "\$shared_dir"; then$/elif false; then/'
-  mutant creates-without-internal       's/sudo bin\/sd -internal create-account GROUP shared/sudo bin\/sd create-account GROUP shared/'
+  mutant creates-without-internal       's/sudo bin\/sd -internal create.account GROUP shared/sudo bin\/sd create.account GROUP shared/'
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$caught" -eq "$total" ] && [ "$missed" -eq 0 ]
   exit $?
@@ -190,8 +190,8 @@ echo "--- C1: a good creation"
 reset; cp "$T/stub-sd" "$T/work/bin/sd"
 OUT=$(run_blk good "$GOODSTAT" "$GOODENT")
 printf '%s\n' "$OUT" | sed 's/^/      | /'
-row "C1 the stub was RUN, with exactly: -internal create-account GROUP shared (the null case: a block that never ran it passes nothing)" \
-    "$(grep -q '^ARGS: -internal create-account GROUP shared$' "$T/sd.log" && echo 0 || echo 1)" "sd.log: $(tr '\n' ';' < "$T/sd.log")"
+row "C1 the stub was RUN, with exactly: -internal create.account GROUP shared (the null case: a block that never ran it passes nothing; the hyphen form was removed from SD on 27 Oct)" \
+    "$(grep -q '^ARGS: -internal create.account GROUP shared$' "$T/sd.log" && echo 0 || echo 1)" "sd.log: $(tr '\n' ';' < "$T/sd.log")"
 row "C1b ...the marker was there when it ran, and it is gone afterwards" \
     "$(grep -q '^MARKER-PRESENT$' "$T/sd.log" && [ ! -e "$T/sdsys/\$shared.make" ] && echo 0 || echo 1)" "sd.log: $(tr '\n' ';' < "$T/sd.log")"
 row "C1c ...the success line is printed, no WARNING is, and the block reached its end" \
