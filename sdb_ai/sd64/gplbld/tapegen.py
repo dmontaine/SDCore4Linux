@@ -93,10 +93,16 @@ def i_token(it):
     return body + b"%04d" % llll + rec + FM
 
 
+def o_token(it):
+    blocks = it.get("blocks") or max(1, (len(it["data"]) + BINBLK - 1) // BINBLK)
+    return (b"I" + it["num"] + FM + it["group"] + FM + b"O%d" % blocks + FM + it["id"] + FM +
+            it["data"].ljust(blocks * BINBLK, b"\x00") + IM + IM + IM + b"X" + IM + b"\x82" + b"%d" % len(it["data"]))
+
+
 def stream_bytes(model):
     out = b""
     for it in model["items"]:
-        out += IM + (d_token(it) if it["kind"] == "D" else i_token(it))
+        out += IM + {"D": d_token, "I": i_token, "O": o_token}[it["kind"]](it)
     return out + IM + b"XX"
 
 
@@ -116,6 +122,15 @@ def build_image(model):
 
 LABEL_RE = re.compile(rb"\xffL ([0-9A-F]{4}) (\d\d:\d\d:\d\d)  (\d\d [A-Za-z]{3} \d{4}) DATA ([!-~]+)(?: ([!-~]+))? *\xfe(\d\d)")
 DIGITS = re.compile(rb"[0-9]{1,9}")
+# The binary form of an item (the old writer used it for any record holding an item mark), observed in as-ref-2.img:
+#   IM I<num> FM <group> FM O<blocks> FM <id> FM <data, padded with NUL to 1000 * blocks bytes> IM IM IM X IM \x82 <true length> IM ...
+# The data may itself hold IM, FM, even a copy of the trailer, so the end is found by the block count, never by a search.
+O_HEAD = re.compile(rb"\xffI([0-9]{1,9})\xfe([0-9]{1,9})\xfeO([0-9]{1,9})\xfe([^\xfe\xff]*)\xfe")
+O_TRAIL = re.compile(rb"\xff\xff\xffX\xff\x82([0-9]{1,9})(?=\xff)")
+BINBLK = 1000
+# The old writer meant the numbers of this form to be hex (it called oconv(n, "MCDX")) and wrote DECIMAL digits: in its image 1511 is 1511.
+# A Pick system's image would hold hex; only decimal has been seen, so decimal is what is read until an image says otherwise.
+BINLEN_BASE = 10
 
 
 def _payload(blk, what):
@@ -167,53 +182,85 @@ def parse_image(data, max_image=MAX_IMAGE, max_item=MAX_ITEM, max_files=MAX_FILE
     if end != len(blks) - 1:
         raise TapeError("R-TRAILING", "blocks after the end-of-file block")
     stream = b"".join(_payload(blks[n], "block %d" % n) for n in range(5, end))
-    cut = stream.find(IM + b"XX")
-    if cut < 0:
-        raise TapeError("R-NOEND", "the data has no end-of-account mark")
-    if stream[cut + 3:].strip(b" "):
-        raise TapeError("R-TRAILING", "bytes after the end-of-account mark")
-    body = stream[:cut]
     items = []
     files = {}
-    if body:
-        if body[:1] != IM:
-            raise TapeError("R-STREAM", "the data does not start with an item mark")
-        for tok in body.split(IM)[1:]:
-            if len(tok) > max_item:
-                raise TapeError("R-ITEMCAP", "an item of %d bytes" % len(tok))
-            t = tok[:1]
-            f = tok.split(FM)
-            if t == b"D":
-                if len(f) < 6 or f[0] != b"D":
-                    raise TapeError("R-HEADER", "a file header with %d fields" % len(f))
-                if f[1] not in (b"1", b"2", b"3"):
-                    raise TapeError("R-LEVEL", "level %r" % f[1][:8])
-                if not DIGITS.fullmatch(f[2]):
-                    raise TapeError("R-FILENUM", "file number %r" % f[2][:12])
-                if not re.fullmatch(rb"[0-9]{4}.*", f[3], re.S):
-                    raise TapeError("R-HEADER", "no length in front of the file name")
-                it = {"kind": "D", "level": f[1], "num": f[2], "name": f[3][4:], "attrs": f[4:], "llll": int(f[3][:4])}
-                files[f[2]] = it
-                if len(files) > max_files:
-                    raise TapeError("R-FILECAP", "more than %d files" % max_files)
-            elif t == b"I":
-                if len(f) < 4 or not DIGITS.fullmatch(f[0][1:]):
-                    raise TapeError("R-HEADER", "an item header with %d fields" % len(f))
-                if not DIGITS.fullmatch(f[1]):
-                    raise TapeError("R-FILENUM", "group %r" % f[1][:12])
-                if f[0][1:] not in files:
-                    raise TapeError("R-NOFILE", "an item for file %s, which has no header" % f[0][1:].decode())
-                if not re.fullmatch(rb"[0-9]{4}.*", f[2], re.S):
-                    raise TapeError("R-HEADER", "no length in front of the record id")
-                rest = f[3:]
-                if rest and rest[-1] == b"":
-                    rest = rest[:-1]
-                it = {"kind": "I", "num": f[0][1:], "group": f[1], "id": f[2][4:], "fields": rest, "llll": int(f[2][:4])}
-            elif t in (b"O", b"B", b"L", b"R", b"H", b"F", b"E"):
-                raise TapeError("R-UNSUPPORTED", "an item of type %s" % t.decode())
-            else:
-                raise TapeError("R-BLOCKTYPE", "an item of unknown type %r" % t[:4])
-            items.append(it)
+    pos = 0
+    size = len(stream)
+    done = False
+    while pos < size:
+        if stream[pos:pos + 1] != IM:
+            raise TapeError("R-STREAM", "the data has bytes between two items")
+        om = O_HEAD.match(stream, pos)
+        if om:
+            # the binary form: the length is the block count, never a search for the trailer (a record may hold a copy of it)
+            num, group, nblocks, rid = om.group(1), om.group(2), int(om.group(3)), om.group(4)
+            if num not in files:
+                raise TapeError("R-NOFILE", "a binary item for file %s, which has no header" % num.decode())
+            if nblocks < 1:
+                raise TapeError("R-HEADER", "a binary item of no blocks")
+            if nblocks * BINBLK > max_item:
+                raise TapeError("R-ITEMCAP", "a binary item of %d blocks" % nblocks)
+            dstart = om.end()
+            dend = dstart + nblocks * BINBLK
+            tm = O_TRAIL.match(stream, dend) if dend <= size else None
+            if not tm:
+                raise TapeError("R-ITEMEND", "no trailer after %d blocks of data" % nblocks)
+            ln = int(tm.group(1), BINLEN_BASE)
+            if ln < 1 or ln > nblocks * BINBLK or (nblocks > 1 and ln <= (nblocks - 1) * BINBLK):
+                raise TapeError("R-ITEMEND", "length %d does not fit %d blocks" % (ln, nblocks))
+            raw = stream[dstart:dend]
+            if raw[ln:].strip(b"\x00"):
+                raise TapeError("R-ITEMEND", "the padding of a binary item is not NUL")
+            items.append({"kind": "O", "num": num, "group": group, "blocks": nblocks, "id": rid, "data": raw[:ln]})
+            pos = tm.end()
+            continue
+        end = stream.find(IM, pos + 1)
+        if end < 0:
+            end = size
+        tok = stream[pos + 1:end]
+        if tok[:2] == b"XX":
+            if tok[2:].strip(b" "):
+                raise TapeError("R-TRAILING", "bytes after the end-of-account mark")
+            done = True
+            break
+        pos = end
+        if len(tok) > max_item:
+            raise TapeError("R-ITEMCAP", "an item of %d bytes" % len(tok))
+        t = tok[:1]
+        f = tok.split(FM)
+        if t == b"D":
+            if len(f) < 6 or f[0] != b"D":
+                raise TapeError("R-HEADER", "a file header with %d fields" % len(f))
+            if f[1] not in (b"1", b"2", b"3"):
+                raise TapeError("R-LEVEL", "level %r" % f[1][:8])
+            if not DIGITS.fullmatch(f[2]):
+                raise TapeError("R-FILENUM", "file number %r" % f[2][:12])
+            if not re.fullmatch(rb"[0-9]{4}.*", f[3], re.S):
+                raise TapeError("R-HEADER", "no length in front of the file name")
+            it = {"kind": "D", "level": f[1], "num": f[2], "name": f[3][4:], "attrs": f[4:], "llll": int(f[3][:4])}
+            files[f[2]] = it
+            if len(files) > max_files:
+                raise TapeError("R-FILECAP", "more than %d files" % max_files)
+        elif t == b"I":
+            if len(f) < 4 or not DIGITS.fullmatch(f[0][1:]):
+                raise TapeError("R-HEADER", "an item header with %d fields" % len(f))
+            if not DIGITS.fullmatch(f[1]):
+                raise TapeError("R-FILENUM", "group %r" % f[1][:12])
+            if f[0][1:] not in files:
+                raise TapeError("R-NOFILE", "an item for file %s, which has no header" % f[0][1:].decode())
+            if not re.fullmatch(rb"[0-9]{4}.*", f[2], re.S):
+                raise TapeError("R-HEADER", "no length in front of the record id")
+            rest = f[3:]
+            if rest and rest[-1] == b"":
+                rest = rest[:-1]
+            it = {"kind": "I", "num": f[0][1:], "group": f[1], "id": f[2][4:], "fields": rest, "llll": int(f[2][:4])}
+        elif t in (b"O", b"B", b"L", b"R", b"H", b"F", b"E"):
+            raise TapeError("R-UNSUPPORTED", "an item of type %s" % t.decode())
+        else:
+            raise TapeError("R-BLOCKTYPE", "an item of unknown type %r" % t[:4])
+        items.append(it)
+    if not done:
+        raise TapeError("R-NOEND", "the data has no end-of-account mark")
     return {"label": {"time": lab["time"], "date": lab["date"], "account": lab["account"], "reel": lab["reel"]},
             "items": items, "blocks": len(blks)}
 
@@ -342,6 +389,22 @@ def _big_item():
     return build_image(m)
 
 
+def _o_item(rid, data, num=b"102"):
+    return {"kind": "O", "num": num, "group": b"103", "id": rid, "data": data}
+
+
+def _raw_o(num=b"102", blocks=b"1", rid=b"B1", data=b"ab", pad=b"\x00", declared=b"2", x=b"X"):
+    """A binary item written by hand so that one part of it can be wrong."""
+    nb = int(blocks)
+    body = data.ljust(nb * BINBLK, pad) if nb <= 5 else data
+    return IM + b"I" + num + FM + b"103" + FM + b"O" + blocks + FM + rid + FM + body + IM + IM + IM + x + IM + b"\x82" + declared
+
+
+def _o_image(raw):
+    """An image of the small account whose last item is `raw`."""
+    return _stream_image(stream_bytes(small_model(records=0))[:-3] + raw + IM + b"XX")
+
+
 def _bad_blocksize(code):
     return build_image(small_model()).replace(b"L 01F4 ", b"L " + code + b" ")
 
@@ -366,6 +429,20 @@ RECIPES = {
     "file-header-too-short": (lambda: _stream_image(IM + b"D" + FM + b"1" + IM + b"XX"), "R-HEADER", {}),
     "file-header-without-length": (lambda: _stream_image(IM + b"D" + FM + b"1" + FM + b"5" + FM + b"name" + FM + b"D" + FM + b"1" + FM + b"1" + FM + IM + b"XX"),
                                    "R-HEADER", {}),
+    "ok-binary-forms": (lambda: build_image(_with(small_model(records=0), items=small_model(records=0)["items"] + [
+        _o_item(b"B9", b"abc" + IM + b"def" + FM + b"x"), _o_item(b"B1000", b"q" * 999 + IM), _o_item(b"B1001", b"w" * 1000 + IM),
+        _o_item(b"B2000", IM * 2000)])), None, {}),
+    "ok-binary-lookalikes": (lambda: build_image(_with(small_model(records=0), items=small_model(records=0)["items"] + [
+        _o_item(b"TRAILER", b"tail" + IM + b"X" + IM + b"\x82" + b"FF"), _o_item(b"ENDMARK", b"a" + IM + b"XX" + b"b"),
+        _o_item(b"FULLTRAIL", b"k" + IM + IM + IM + b"X" + IM + b"\x82" + b"7" + IM + b"m"), _o_item(b"AFTER", b"z")])), None, {}),
+    "binary-trailer-missing": (lambda: _o_image(_raw_o(x=b"Y")), "R-ITEMEND", {}),
+    "binary-length-too-big": (lambda: _o_image(_raw_o(declared=b"1500")), "R-ITEMEND", {}),
+    "binary-length-fits-fewer-blocks": (lambda: _o_image(_raw_o(blocks=b"2", declared=b"5")), "R-ITEMEND", {}),
+    "binary-padding-not-nul": (lambda: _o_image(_raw_o(pad=b"x")), "R-ITEMEND", {}),
+    "binary-data-runs-off-the-end": (lambda: _o_image(_raw_o(blocks=b"999")), "R-ITEMEND", {}),
+    "binary-block-count-over-cap": (lambda: _o_image(_raw_o(blocks=b"999999999")), "R-ITEMCAP", {}),
+    "binary-for-unknown-file": (lambda: _o_image(_raw_o(num=b"555")), "R-NOFILE", {}),
+    "binary-zero-blocks": (lambda: _o_image(_raw_o(blocks=b"0")), "R-HEADER", {}),
     "bytes-after-end-mark": (lambda: _stream_image(_valid_stream() + b"junk"), "R-TRAILING", {}),
     "blocksize-ffff": (lambda: _bad_blocksize(b"FFFF"), "R-BLOCKSIZE", {}),
     "blocksize-0000": (lambda: _bad_blocksize(b"0000"), "R-BLOCKSIZE", {}),

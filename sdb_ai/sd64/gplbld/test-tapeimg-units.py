@@ -27,6 +27,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REAL = "/home/don/Projects/SDCore4Linux/.claude/tape-ref/as-ref-1.img"
+REAL2 = "/home/don/Projects/SDCore4Linux/.claude/tape-ref/as-ref-2.img"
 SRC = os.path.join(HERE, "tapegen.py")
 
 
@@ -97,6 +98,41 @@ def run_checks(tg, big):
           repr(docs))
     check("A4g ORD holds its 100 records", len([i for i in ii if i["num"] == b"184"]) == 100)
 
+    # ---- 1b. the second real image: records that hold an item mark, which the old writer saves in the binary form
+    data2 = open(REAL2, "rb").read()
+    try:
+        m2 = tg.parse_image(data2)
+    except Exception as e:  # noqa: BLE001
+        check("A5 the second real image parses", False, "%s: %s" % (type(e).__name__, e))
+        m2 = None
+    if m2 is not None:
+        IMk, FMk = tg.IM, tg.FM
+        want = {b"BIN1": b"abc" + IMk + b"def" + FMk + b"x", b"BIN2": b"z" * 1500 + IMk + b"y" * 10, b"BIN3": IMk,
+                b"BIN4": b"a" + IMk + IMk + b"b", b"BIN5": b"q" * 999 + IMk, b"BIN6": b"tail" + IMk + b"X" + IMk + b"\x82FF",
+                b"BIN7": b"w" * 998 + IMk + b"k" + FMk + b"second field"}
+        got = dict((i["id"], i) for i in m2["items"] if i["kind"] == "O")
+        # the eighth is the object code of FIXBIN itself, in BP.OUT: compiled code holds item marks too
+        check("A5a the second real image holds the seven binary records and the object code of the program that made them",
+              sorted(got) == sorted(list(want) + [b"FIXBIN"]) and got.get(b"FIXBIN", {}).get("num") != b"180", "got %r" % sorted(got))
+        check("A5b each binary item comes back with its data and no padding",
+              all(got.get(k, {}).get("data") == v for k, v in want.items()),
+              "; ".join("%s %d/%d" % (k.decode(), len(got.get(k, {}).get("data", b"")), len(v)) for k, v in want.items() if got.get(k, {}).get("data") != v))
+        check("A5c the block counts are the old writer's (1000 bytes exactly is one block, 1001 two)",
+              [got.get(k, {}).get("blocks") for k in (b"BIN1", b"BIN2", b"BIN3", b"BIN4", b"BIN5", b"BIN6", b"BIN7")] == [1, 2, 1, 1, 1, 1, 2])
+        try:
+            again2 = tg.build_image(m2)
+        except Exception as e:  # noqa: BLE001
+            again2 = b""
+            check("A5d the writer rebuilds the second real image", False, "%s: %s" % (type(e).__name__, e))
+        else:
+            first = next((k for k in range(min(len(again2), len(data2))) if again2[k] != data2[k]), None)
+            check("A5d the writer rebuilds the second real image byte for byte (%d bytes)" % len(data2), again2 == data2,
+                  "lengths %d/%d, first difference at %s" % (len(again2), len(data2), first))
+        keys1 = set((i["num"], i["id"]) for i in ii)
+        keys2 = set((i["num"], i["id"]) for i in m2["items"] if i["kind"] == "I")
+        check("A5e the second image holds the same 13 headers and every ordinary item of the first",
+              len([i for i in m2["items"] if i["kind"] == "D"]) == 13 and keys1 <= keys2, "%d of %d items missing" % (len(keys1 - keys2), len(keys1)))
+
     # ---- 2. the recipes
     codes_used = set()
     for name, (build, verdict, opts) in sorted(tg.RECIPES.items()):
@@ -159,7 +195,14 @@ MUTANTS = [
     ("blocksize check out", 'if m.group(1) != BLOCKSIZE_FIELD:', 'if False:'),
     ("level range widened", 'if f[1] not in (b"1", b"2", b"3"):', 'if f[1] not in (b"0", b"1", b"2", b"3", b"4"):'),
     ("unknown item type skipped", 'raise TapeError("R-BLOCKTYPE", "an item of unknown type %r" % t[:4])', 'continue'),
-    ("end-of-account check out", 'if cut < 0:', 'if False:'),
+    ("end-of-account check out", 'if not done:', 'if False:'),
+    ("binary: length rule loosened", 'if ln < 1 or ln > nblocks * BINBLK or (nblocks > 1 and ln <= (nblocks - 1) * BINBLK):', 'if ln < 1:'),
+    ("binary: padding unchecked", 'if raw[ln:].strip(b"\\x00"):', 'if False:'),
+    ("binary: trailer searched for", 'tm = O_TRAIL.match(stream, dend) if dend <= size else None', 'tm = O_TRAIL.search(stream, dstart)'),
+    ("binary: block cap out", 'if nblocks * BINBLK > max_item:', 'if False:'),
+    ("binary: zero blocks allowed", 'if nblocks < 1:', 'if False:'),
+    ("binary: file header unchecked", 'if num not in files:', 'if False:'),
+    ("binary: length read as hex", 'BINLEN_BASE = 10', 'BINLEN_BASE = 16'),
     ("file number check out", 'if not DIGITS.fullmatch(f[2]):', 'if False:'),
     ("file cap out", 'if len(files) > max_files:', 'if False:'),
     ("item cap out", 'if len(tok) > max_item:', 'if False:'),
@@ -173,7 +216,7 @@ MUTANTS = [
     ("trailing field mark kept", 'if rest and rest[-1] == b"":', 'if False:'),
     ("descriptor check out", 'if _payload(blks[3], "block 3")[:7] != IM + b"M65" + IM + b"XC" or', 'if False and _payload(blks[3], "block 3")[:7] != IM + b"M65" + IM + b"XC" or'),
     ("blocks after end allowed", 'if end != len(blks) - 1:', 'if False:'),
-    ("bytes after end mark allowed", 'if stream[cut + 3:].strip(b" "):', 'if False:'),
+    ("bytes after end mark allowed", 'if tok[2:].strip(b" "):', 'if False:'),
     ("missing end-of-file block allowed", 'if end is None:', 'if False:'),
     ("short image allowed", 'if len(data) % PHYS:', 'if False:'),
     ("pad check out", 'if blk[:PAD] != b"\\x00" * PAD:', 'if False:'),
@@ -197,10 +240,11 @@ def report(res, quiet=False):
 
 
 def main(argv):
-    if not os.path.isfile(REAL) or os.path.getsize(REAL) == 0:
-        print("CANNOT RUN: the reference image %s is missing or empty; nothing was checked." % REAL)
-        return 2
-    print("test-tapeimg-units: image %s (%d bytes), module %s" % (REAL, os.path.getsize(REAL), SRC))
+    for img in (REAL, REAL2):
+        if not os.path.isfile(img) or os.path.getsize(img) == 0:
+            print("CANNOT RUN: the reference image %s is missing or empty; nothing was checked." % img)
+            return 2
+    print("test-tapeimg-units: images %s (%d bytes) and %s (%d bytes), module %s" % (REAL, os.path.getsize(REAL), REAL2, os.path.getsize(REAL2), SRC))
     tg = load(SRC, "tapegen_real")
     res = run_checks(tg, big=True)
     failed = report(res)
