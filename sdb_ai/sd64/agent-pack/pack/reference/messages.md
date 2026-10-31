@@ -8721,6 +8721,67 @@ cited by: `create_account`
 The fill step named a path that is not inside the new account: %1
 ```
 
+### msg:11923
+> kind=message tier=reference since=- src=sdsys/messages/11923:1#b6b5be2d
+
+```
+Syntax: tape.import image to account {from account} {format as} {list} {no.query}\n        image is the absolute path of a save image written by the old account.save.\n        to names a NEW user account; an existing one is refused.\n        list reads the image and says what it holds, and writes nothing.
+```
+
+cited by: `tapeimp`
+
+### msg:11924
+> kind=message tier=reference since=- src=sdsys/messages/11924:1#00387934
+
+```
+The image was refused: %1 (%2)
+```
+
+cited by: `tapeimp`
+
+### msg:11925
+> kind=message tier=reference since=- src=sdsys/messages/11925:1#1682f6ef
+
+```
+Image %1: account %2, %3 file(s), %4 record(s)
+```
+
+cited by: `tapeimp`
+
+### msg:11926
+> kind=message tier=reference since=- src=sdsys/messages/11926:1#7258498e
+
+```
+Cannot make or open %1 in the new account.
+```
+
+### msg:11927
+> kind=message tier=reference since=- src=sdsys/messages/11927:1#f1dc8419
+
+```
+Import the image into the NEW user account %1? (Y/N)
+```
+
+cited by: `tapeimp`
+
+### msg:11928
+> kind=message tier=reference since=- src=sdsys/messages/11928:1#bcdf1997
+
+```
+The image holds the account %1, not %2.
+```
+
+cited by: `tapeimp`
+
+### msg:11929
+> kind=message tier=reference since=- src=sdsys/messages/11929:1#c469a408
+
+```
+Not enough free space on %1: %2 KB free, %3 KB needed (the image's size and a tenth of the disk).
+```
+
+cited by: `tapeimp`
+
 ### msg:11930
 > kind=message tier=reference since=- src=sdsys/messages/11930:1#bfc9f698
 
@@ -8790,6 +8851,51 @@ Sessions started from now on use it; sessions that are already running keep the 
 ```
 
 cited by: `setconfig`
+
+### msg:11938
+> kind=message tier=reference since=- src=sdsys/messages/11938:1#a306424a
+
+```
+Nothing was imported.
+```
+
+cited by: `tapeimp`
+
+### msg:11939
+> kind=message tier=reference since=- src=sdsys/messages/11939:1#9535c1bf
+
+```
+Imported into %1: %2 file(s), %3 record(s), %4 left out.
+```
+
+cited by: `tapeimp`
+
+### msg:11940
+> kind=message tier=reference since=- src=sdsys/messages/11940:1#d2d39676
+
+```
+The log could not be written: %1
+```
+
+cited by: `tapeimp`
+
+### msg:11941
+> kind=message tier=reference since=- src=sdsys/messages/11941:1#f5d087c8
+
+```
+Log: tape.log, record %1
+```
+
+cited by: `tapeimp`
+
+### msg:11942
+> kind=message tier=reference since=- src=sdsys/messages/11942:1#9493cbb1
+
+```
+%1 binary item(s) are left out.
+```
+
+cited by: `tapeimp`
 
 ### msg:11946
 > kind=message tier=reference since=- src=sdsys/messages/11946:1#ce2f5d0f
@@ -10539,7 +10645,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 21 more
+cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 22 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

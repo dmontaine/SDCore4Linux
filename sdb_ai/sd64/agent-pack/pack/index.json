@@ -11893,6 +11893,55 @@
 "tier": "reference",
 "words": 16
 },
+"msg:11923": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 53
+},
+"msg:11924": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 11
+},
+"msg:11925": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 13
+},
+"msg:11926": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 11
+},
+"msg:11927": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 15
+},
+"msg:11928": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 13
+},
+"msg:11929": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 26
+},
 "msg:11930": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -11948,6 +11997,41 @@
 "since": "-",
 "tier": "reference",
 "words": 21
+},
+"msg:11938": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 8
+},
+"msg:11939": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 15
+},
+"msg:11940": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 12
+},
+"msg:11941": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 9
+},
+"msg:11942": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 11
 },
 "msg:11946": {
 "kind": "message",
@@ -28112,6 +28196,13 @@
 "tier": "reference",
 "words": 32
 },
+"tcl:tape.import": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 40
+},
 "tcl:tasklock": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -28607,7 +28698,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 100
+"words": 101
 },
 "voc:type:F": {
 "kind": "voc.type",

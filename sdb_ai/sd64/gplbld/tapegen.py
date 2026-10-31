@@ -301,6 +301,17 @@ def name_verdict(raw, maxlen=MAX_NAME):
     return None
 
 
+FILE_NAME_CHARS = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._$-"
+
+
+def file_name_verdict(raw, maxlen=MAX_NAME):
+    """The name of a FILE: the id rules and, besides, only the characters a file of the account can carry ('unsafe' otherwise)."""
+    why = name_verdict(raw, maxlen)
+    if why is None and any(c not in FILE_NAME_CHARS for c in raw):
+        return "unsafe"
+    return why
+
+
 def fold_names(names):
     """Fold case like the files do and keep the FIRST of any that collide: (kept, dropped)."""
     seen = {}

@@ -199,6 +199,23 @@ DRIVER = r"""* ZZTIDRV - drives !tapeimg over the images of a list and writes on
       write txt to outf, name
       n.img += 1
    repeat
+   * the name rule: the same op the filler asks for every file name and record id
+   openseq '%(names)s' readonly to nf then
+      nout = ''
+      loop
+         readseq nline from nf else exit
+         nk = field(nline, '|', 1)
+         hx2 = field(nline, '|', 2)
+         nmax = field(nline, '|', 3)
+         raw = ''
+         for j = 1 to len(hx2) step 2
+            raw := char(index(hexd, hx2[j, 1], 1) * 16 + index(hexd, hx2[j + 1, 1], 1) - 17)
+         next j
+         call !tapeimg('name', raw : @fm : nk : @fm : nmax, kind, num, aux, id, rec, verdict)
+         nout := hx2 : '|' : nk : '|' : rec : nl
+      repeat
+      write nout to outf, 'names'
+   end
    crt 'DRIVER DONE ' : n.img
    stop
 
@@ -294,7 +311,22 @@ def main():
         listf = os.path.join(work, "list.txt")
         open(listf, "w").write("\n".join(lines) + "\n")
 
-        prog = DRIVER % {"list": listf}
+        # the names: the hostile and good ones of tapegen, and generated ones (never an FM: an FM cannot be in a name the reader hands over)
+        rnd = random.Random(20261030)
+        raws = [r for r, _ in tg.HOSTILE_NAMES] + list(tg.GOOD_NAMES) + [b"A.B_c-d$1", b"Odd Name", b"a'b", b"a\xfdb", b"a\xfb", b"007", b"x" * 64, b"x" * 65, b"\x7f", b" ", b"~"]
+        pool = [0x41, 0x61, 0x30, 0x2E, 0x2F, 0x20, 0x27, 0x24, 0x5F, 0x2D, 0x00, 0x01, 0x7F, 0x80, 0xE9, 0xFD, 0xFF, 0x7E, 0x22, 0x60, 0x5C]
+        for _ in range(300):
+            raws.append(bytes(rnd.choice(pool) if rnd.random() < 0.5 else rnd.randrange(256) for _ in range(rnd.randrange(1, 9))).replace(b"\xfe", b"e"))
+        name_lines = []
+        name_expect = []
+        for raw in raws:
+            for kd in ("id", "file"):
+                name_lines.append("%s|%s|64" % (kd, raw.hex().upper()))
+                why = tg.name_verdict(raw, 64) if kd == "id" else tg.file_name_verdict(raw, 64)
+                name_expect.append("%s|%s|%s" % (raw.hex().upper(), kd, why or ""))
+        namef = os.path.join(work, "names.txt")
+        open(namef, "w").write("\n".join(name_lines) + "\n")
+        prog = DRIVER % {"list": listf, "names": namef}
         open(os.path.join(sysd, "bp", "zztidrv"), "w").write(prog)
         outdir = os.path.join(sysd, "zzticout")      # a directory file of the SDSYS account: each record is an OS file
         sess(box, "DELETE.FILE zzticout", "CREATE.FILE zzticout DIRECTORY")
@@ -332,6 +364,14 @@ def main():
             say("      basic: %s" % (("%s ... (%d bytes)" % (got[:150], len(got))) if got is not None else "NO FILE"))
             say("      twin : %s ... (%d bytes)" % (want[:150], len(want)))
         say("    twin verdicts over all images: " + ", ".join("%s %d" % kv for kv in sorted(verdicts.items())))
+        fp = os.path.join(outdir, "names")
+        got_names = open(fp, "rb").read().decode("latin-1").rstrip("\n").split("\n") if os.path.isfile(fp) else []
+        bad_names = [(g, w) for g, w in zip(got_names, name_expect) if g != w]
+        row("the name rule: %d names asked as ids and as file names, the BASIC reason equals the twin's" % len(name_expect),
+            len(got_names) == len(name_expect) and not bad_names, "got %d lines, %d differ, e.g. %r" % (len(got_names), len(bad_names), bad_names[:2]))
+        row("the name rule gave every reason (the generated names reach them all)",
+            set(w.split("|")[2] for w in name_expect) >= {"", "empty", "dot", "dotdot", "nul", "slash", "leading-dot", "too-long", "control", "high-byte", "unsafe"},
+            str(sorted(set(w.split("|")[2] for w in name_expect))))
         row("the generated images are not all alike (at least 8 different outcomes among all)", len(verdicts) >= 8, str(sorted(verdicts)))
         row("the parsing outcome is not rare: at least 20 images parse", verdicts.get("parses", 0) >= 20, str(verdicts.get("parses")))
     finally:

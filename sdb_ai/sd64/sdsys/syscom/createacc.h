@@ -96,6 +96,6 @@ $define CA$RECOVERY        44    ;* 1 = the new account starts with ACC$RECOVERY
 *   and returns in made the pathnames (field-mark separated, every one inside pathname) of the files and directories it created, which are handed over one by one, and in ferr a message number
 *   and its arguments as err has them, or blank.  A refusal removes the directory, the Linux user with its home and the groups this call made (11920), or says what stays (11921).
 $define CA$AFTER           45    ;* '!tape_fill': fill the new account before it is handed over (S.92)
-$define CA$AFTER.ARG       46    ;* one string for that subroutine
+$define CA$AFTER.ARG       46    ;* the argument for that subroutine; its parts are value-mark separated here and arrive field-mark separated
 
 * END-CODE

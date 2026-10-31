@@ -1,0 +1,457 @@
+* TAPE_FILL
+* The filler of TAPE.IMPORT (S.92, stage S3): writes the files and records of a save image into a NEW account while its directory is still the sdsys user's.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 30 Oct 26 dm Written for S.92.  Called by !create_account through CA$AFTER (the only name it accepts), never by hand: it assumes nothing about the account but that its VOC is
+*              the one create_account has just filled.  The reader is !tapeimg (held to gplbld/tapegen.py by sandbox-tapeimg.py); this program decides what is written.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !tape_fill(pathname, arg, made, ferr)
+*
+*    pathname  the new account's directory.
+*    arg       <1> the image's absolute path, <2> <3> <4> the limits of !tapeimg (image bytes, item bytes, files; blank = its defaults), <5> the most log lines (10000).
+*    made      OUT, field-mark separated: every directory and file this program made under pathname, which create_account hands over one by one.
+*    ferr      OUT, '' or a message number and its arguments (value-mark separated), as err in create_account.
+*
+*    What it writes (decisions of 30 Oct 2026; the image is read by !tapeimg, item by item):
+*    - a level 2 header makes the file's dictionary (<name>.dic, dynamic); a level 3 header its data part (dynamic, or a directory file for a DQ); a VOC F-pointer is written at the end.
+*      A name that is not usable (not English, a path, not made of letters, digits . _ $ -) is not made and is logged; a name the VOC already holds (the account's own verbs and
+*      files) becomes tape.<name>; two names that fold together keep the first.
+*    - an item is written as it is, case-folding the id; a record id that is not usable, or a second one that folds to a first, is logged and skipped; so is a binary item (the form
+*      the old writer used for any record holding an item mark, object code included) - nothing from the image is ever compiled, catalogued or run.
+*    - a dictionary item the old writer converted from SD's D type to Pick's A type (SD-D or QM-D in attribute 17) is converted back.
+*    - the items of the level 1 header (the old account's VOC) are written to the file md.import, except the F and Q pointers, which are logged and skipped.
+*    - an index definition is not built; the new account has the files and records only.
+*    The log lines (kind|file|id|reason) and the counts are left in COMMON /tapeimp/ for tape.import, which writes them.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+subroutine tape_fill(pathname, arg, made, ferr)
+$catalog !tape_fill
+
+$include syscom keys.h
+
+   common /tapeimp/ tf.log, tf.nlog, tf.nfiles, tf.ndicts, tf.nrecs, tf.nskip, tf.nmd, tf.nbin, tf.logcap, tf.suppressed, tf.src
+
+   made = ''
+   ferr = ''
+   fm = @fm
+   vm = @vm
+   maxid = 64
+   tf.log = ''
+   tf.nlog = 0
+   tf.nfiles = 0
+   tf.ndicts = 0
+   tf.nrecs = 0
+   tf.nskip = 0
+   tf.nmd = 0
+   tf.nbin = 0
+   tf.suppressed = 0
+   tf.logcap = 10000
+   tf.src = ''
+   if arg<5> # '' then tf.logcap = arg<5> + 0
+
+   img.arg = arg<1> : fm : arg<2> : fm : arg<3> : fm : arg<4>
+   call !tapeimg('open', img.arg, kind, num, aux, id, rec, verdict)
+   if verdict # '' then
+      ferr = 11924 : vm : verdict : vm : rec
+      return
+   end
+   tf.src = id
+
+   openpath pathname : @ds : 'voc' to voc.f else
+      ferr = 6017          ;* Unable to open new VOC
+      call !tapeimg('close', '', kind, num, aux, id, rec, verdict)
+      return
+   end
+
+   * what the account's directory already holds (its own voc, $svlists, cat ...): a file of the image never takes such a name, whatever the VOC says
+   ex.names = ''
+   ents = dir(pathname)
+   n.ents = dcount(ents, fm)
+   if ents = '' then n.ents = 0
+   for j.ent = 1 to n.ents
+      ex.names<-1> = '#' : downcase(ents<j.ent, 1>)
+   next j.ent
+
+   fl.base = ''           ;* one entry for each file name met, in step: the base name, the name it gets, whether the dictionary and the data part were made
+   fl.final = ''
+   fl.hasdict = ''
+   fl.hasdata = ''
+   nm.keys = ''           ;* one entry for each header: '#' and its file number, what its items are (data, dict, md or skip), the path, whether a directory file
+   nm.kind = ''
+   nm.target = ''
+   nm.isdir = ''
+   nm.name = ''
+   cr.paths = ''          ;* the directories this program made
+   cur.key = ''
+   cur.mp = 0
+   cur.open = 0
+   md.open = 0
+   md.n = 0
+
+   loop
+      call !tapeimg('next', '', kind, num, aux, id, rec, verdict)
+      if verdict # '' then
+         ferr = 11924 : vm : verdict : vm : rec
+         goto bail
+      end
+   until kind = 'E' do
+      begin case
+         case kind = 'D'
+            gosub do.header
+         case 1
+            gosub do.item
+      end case
+      if ferr # '' then goto bail
+   repeat
+
+   gosub close.cur
+   if md.open then close md.f
+
+   * the VOC pointers, last, so that every part is there
+   for k = 1 to dcount(fl.final, fm)
+      f = fl.final<k>[2, 999999]
+      if not(fl.hasdata<k>) then
+         create.file pathname : @ds : f dynamic on error
+            ferr = 11926 : vm : f
+            goto bail
+         end
+         cr.paths<-1> = pathname : @ds : f
+         fl.hasdata<k> = 1
+         tf.nfiles += 1
+         add.kind = 'file' ; add.file = f ; add.id = '' ; add.why = 'the image has a dictionary and no data part: an empty data file was made'
+         gosub add.log
+      end
+      vr = 'F'
+      vr<2> = f
+      if fl.hasdict<k> then vr<3> = f : '.dic'
+      write vr to voc.f, f
+   next k
+   if md.n > 0 then
+      vr = 'F'
+      vr<2> = 'md.import'
+      write vr to voc.f, 'md.import'
+   end
+   close voc.f
+   call !tapeimg('close', '', kind, num, aux, id, rec, verdict)
+   if tf.suppressed > 0 then
+      tf.log<-1> = '*|*||' : tf.suppressed : ' more lines were not kept'
+   end
+
+   gosub walk.made
+   return
+
+* A refusal or a failure: give everything back.  What was made stays for create_account to remove with the account.
+bail:
+   gosub close.cur
+   if md.open then close md.f
+   close voc.f
+   call !tapeimg('close', '', kind, num, aux, id, rec, verdict)
+   return
+
+* ---------------------------------------------------------------------------------------------------------------------------------------------------------
+* headers
+
+* In: aux (the level), id (the name), rec (type, base, modulus ...), num (the file number).
+do.header:
+   key = '#' : num
+   locate key in nm.keys<1> setting hp then
+      add.kind = 'file' ; add.file = downcase(id) ; add.id = '' ; add.why = 'a second header for file number ' : num
+      gosub add.log
+      return
+   end else null
+   level = aux
+   mp = dcount(nm.keys, fm) + 1
+   if level = '1' then
+      nm.keys<mp> = key
+      nm.kind<mp> = 'md'
+      nm.target<mp> = ''
+      nm.isdir<mp> = 0
+      nm.name<mp> = 'md'
+      return
+   end
+   nm.keys<mp> = key
+   nm.kind<mp> = 'skip'
+   nm.target<mp> = ''
+   nm.isdir<mp> = 0
+   base = downcase(id)
+   nm.name<mp> = base
+   call !tapeimg('name', base : fm : 'file' : fm : maxid, k1, k2, k3, k4, why, v)
+   if why # '' then
+      add.kind = 'file' ; add.file = base ; add.id = '' ; add.why = 'the file name cannot be used (' : why : ')'
+      gosub add.log
+      return
+   end
+   * names that look like numbers compare as numbers: the '#' in front keeps 007 and 7 apart
+   locate '#' : base in fl.base<1> setting k else k = 0
+   if k = 0 then
+      final = base
+      gosub is.taken
+      if taken then final = 'tape.' : base
+      if final = 'md.import' then final = 'tape.md.import'
+      gosub is.taken
+      if taken then
+         add.kind = 'file' ; add.file = base ; add.id = '' ; add.why = 'the name is taken, and so is tape.' : base
+         gosub add.log
+         return
+      end
+      locate '#' : final in fl.final<1> setting k2 then
+         add.kind = 'file' ; add.file = base ; add.id = '' ; add.why = 'the name folds to a file already made'
+         gosub add.log
+         return
+      end else null
+      k = dcount(fl.base, fm) + 1
+      fl.base<k> = '#' : base
+      fl.final<k> = '#' : final
+      fl.hasdict<k> = 0
+      fl.hasdata<k> = 0
+      if final # base then
+         add.kind = 'file' ; add.file = base ; add.id = '' ; add.why = 'the name is one the account already has; the file is called ' : final
+         gosub add.log
+      end
+   end
+   final = fl.final<k>[2, 999999]
+   dtype = field(rec, fm, 1)
+   if level = '2' then
+      if fl.hasdict<k> then
+         add.kind = 'file' ; add.file = base ; add.id = '' ; add.why = 'a second dictionary of the same name'
+         gosub add.log
+         return
+      end
+      target = pathname : @ds : final : '.dic'
+      create.file target dynamic on error
+         ferr = 11926 : vm : final : '.dic'
+         return
+      end
+      fl.hasdict<k> = 1
+      tf.ndicts += 1
+      nm.kind<mp> = 'dict'
+      nm.isdir<mp> = 0
+      nm.name<mp> = final : '.dic'
+   end else
+      if fl.hasdata<k> then
+         add.kind = 'file' ; add.file = base ; add.id = '' ; add.why = 'a second data part of the same name'
+         gosub add.log
+         return
+      end
+      target = pathname : @ds : final
+      if dtype = 'DQ' then
+         create.file target directory on error
+            ferr = 11926 : vm : final
+            return
+         end
+         nm.isdir<mp> = 1
+      end else
+         create.file target dynamic on error
+            ferr = 11926 : vm : final
+            return
+         end
+         nm.isdir<mp> = 0
+      end
+      fl.hasdata<k> = 1
+      tf.nfiles += 1
+      nm.kind<mp> = 'data'
+      nm.name<mp> = final
+   end
+   nm.target<mp> = target
+   cr.paths<-1> = target
+   return
+
+* In: final.  Out: taken, 1 when the new account's VOC has a record of that name or its directory already holds the file (or its dictionary): the account's own voc, $svlists, cat.
+is.taken:
+   taken = 0
+   read chk from voc.f, final then taken = 1
+   locate '#' : final in ex.names<1> setting ex.at then taken = 1 else null
+   locate '#' : final : '.dic' in ex.names<1> setting ex.at then taken = 1 else null
+   return
+
+* ---------------------------------------------------------------------------------------------------------------------------------------------------------
+* items
+
+* In: kind ('I' or 'O'), num, id, rec.
+do.item:
+   key = '#' : num
+   if key = cur.key then
+      mp = cur.mp
+   end else
+      gosub close.cur
+      locate key in nm.keys<1> setting mp else mp = 0
+      if mp = 0 then
+         add.kind = 'item' ; add.file = num ; add.id = id ; add.why = 'an item of a file with no usable header'
+         gosub add.log
+         tf.nskip += 1
+         return
+      end
+      cur.key = key
+      cur.mp = mp
+      if nm.kind<mp> = 'data' or nm.kind<mp> = 'dict' then
+         openpath nm.target<mp> to cur.f else
+            ferr = 11926 : vm : nm.target<mp>
+            return
+         end
+         cur.open = 1
+      end
+   end
+   mk = nm.kind<mp>
+   if kind = 'O' then
+      tf.nbin += 1
+      add.kind = 'item' ; add.file = nm.name<mp> ; add.id = id ; add.why = 'binary item (' : len(rec) : ' bytes) skipped'
+      gosub add.log
+      return
+   end
+   begin case
+      case mk = 'skip'
+         tf.nskip += 1
+      case mk = 'md'
+         gosub put.md
+      case 1
+         gosub put.rec
+   end case
+   return
+
+* A record of a file or of a dictionary.
+put.rec:
+   call !tapeimg('name', id : fm : 'id' : fm : maxid, k1, k2, k3, k4, why, v)
+   if why = '' and nm.isdir<mp> and index(id, "'", 1) then why = 'quote'     ;* a directory file's id is a file name the helper is given single-quoted
+   if why # '' then
+      add.kind = 'item' ; add.file = nm.name<mp> ; add.id = id ; add.why = 'record id cannot be used (' : why : ')'
+      gosub add.log
+      tf.nskip += 1
+      return
+   end
+   * a directory file keeps the case it is given and the others fold it: one spelling in the new account whatever the file is (lower case everywhere)
+   lid = downcase(id)
+   read dup from cur.f, lid then
+      add.kind = 'item' ; add.file = nm.name<mp> ; add.id = id ; add.why = 'a record with this id (case folded) is already there'
+      gosub add.log
+      tf.nskip += 1
+      return
+   end else null
+   if mk = 'dict' then gosub convert.dict
+   write rec to cur.f, lid
+   tf.nrecs += 1
+   return
+
+* The old writer turned SD's D dictionary items into Pick A items with SD-D in attribute 17; the old reader turned them back (QM-D in its time).
+convert.dict:
+   if field(rec, fm, 1) = 'A' then
+      tag = rec<17, 1>[1, 4]
+      if tag = 'SD-D' or tag = 'QM-D' then
+         t = 'D'
+         t<2> = rec<2>
+         t<3> = rec<8>
+         t<4> = rec<3>
+         t<5> = rec<10> : rec<9>
+         t<6> = rec<17, 2>
+         t<7> = rec<17, 3>
+         t<8> = rec<17, 4>
+         rec = t
+      end
+   end
+   return
+
+* An item of the old account's VOC (the level 1 header): a pointer is of no use here, anything else is kept in md.import.
+put.md:
+   t1 = field(rec, fm, 1)
+   if t1 = 'F' or t1 = 'Q' then
+      add.kind = 'item' ; add.file = 'md' ; add.id = id ; add.why = 'a pointer of the old VOC, skipped'
+      gosub add.log
+      tf.nskip += 1
+      return
+   end
+   call !tapeimg('name', id : fm : 'id' : fm : maxid, k1, k2, k3, k4, why, v)
+   if why # '' then
+      add.kind = 'item' ; add.file = 'md' ; add.id = id ; add.why = 'record id cannot be used (' : why : ')'
+      gosub add.log
+      tf.nskip += 1
+      return
+   end
+   if not(md.open) then
+      create.file pathname : @ds : 'md.import' dynamic on error
+         ferr = 11926 : vm : 'md.import'
+         return
+      end
+      openpath pathname : @ds : 'md.import' to md.f else
+         ferr = 11926 : vm : 'md.import'
+         return
+      end
+      cr.paths<-1> = pathname : @ds : 'md.import'
+      md.open = 1
+   end
+   lid = downcase(id)
+   read dup from md.f, lid then
+      add.kind = 'item' ; add.file = 'md' ; add.id = id ; add.why = 'a record with this id (case folded) is already there'
+      gosub add.log
+      tf.nskip += 1
+      return
+   end else null
+   write rec to md.f, lid
+   md.n += 1
+   tf.nmd += 1
+   return
+
+close.cur:
+   if cur.open then close cur.f
+   cur.open = 0
+   cur.key = ''
+   cur.mp = 0
+   return
+
+* ---------------------------------------------------------------------------------------------------------------------------------------------------------
+* the log, and the list of what was made
+
+* In: add.kind, add.file, add.id, add.why.  The id is shown with every byte that is not a printable ASCII character as '?', cut at 60.
+add.log:
+   if tf.nlog >= tf.logcap then
+      tf.suppressed += 1
+      return
+   end
+   shown = ''
+   n.show = len(add.id)
+   if n.show > 60 then n.show = 60
+   for j.show = 1 to n.show
+      c.show = seq(add.id[j.show, 1])
+      if c.show < 32 or c.show > 126 or add.id[j.show, 1] = '|' then shown := '?' else shown := add.id[j.show, 1]
+   next j.show
+   shown.file = ''
+   n.show = len(add.file)
+   if n.show > 80 then n.show = 80
+   for j.show = 1 to n.show
+      c.show = seq(add.file[j.show, 1])
+      if c.show < 32 or c.show > 126 or add.file[j.show, 1] = '|' then shown.file := '?' else shown.file := add.file[j.show, 1]
+   next j.show
+   tf.log<-1> = add.kind : '|' : shown.file : '|' : shown : '|' : add.why
+   tf.nlog += 1
+   return
+
+* Every directory and file below the directories made: create_account hands each over.
+walk.made:
+   queue = cr.paths
+   loop while queue # '' do
+      p = queue<1>
+      del queue<1>
+      made<-1> = p
+      ents = dir(p)
+      n.ents = dcount(ents, fm)
+      if ents = '' then n.ents = 0
+      for j.ent = 1 to n.ents
+         e.name = ents<j.ent, 1>
+         e.type = ents<j.ent, 2>
+         if e.name = '' or e.name = '.' or e.name = '..' then continue
+         if e.type = 'D' then
+            queue<-1> = p : @ds : e.name
+         end else
+            made<-1> = p : @ds : e.name
+         end
+      next j.ent
+   repeat
+   return
+end
+
+* END-CODE

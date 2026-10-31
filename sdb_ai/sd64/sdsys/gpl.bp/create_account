@@ -204,7 +204,7 @@ deffun valid_os_path(path) calling '!valid_os_path'
 *   shared account), because a failed fill removes the directory, the Linux user and the groups this call made and must not be able to remove anything that was there before.  Refused before
 *   anything is made.
    after.name = trim(settings<CA$AFTER>)
-   after.arg = settings<CA$AFTER.ARG>
+   after.arg = change(settings<CA$AFTER.ARG>, @vm, @fm)       ;* the settings are an array: the caller separates the parts of the argument with value marks
    after.failed = @false
    if after.name # '' then
       if after.name # '!tape_fill' or (acc.type # 'USER' and acc.type # 'GROUP') or settings<CA$ATTACH> = 1 or reuse.sd.user or acc.shared then

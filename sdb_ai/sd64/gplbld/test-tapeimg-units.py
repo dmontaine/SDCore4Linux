@@ -187,6 +187,10 @@ def run_checks(tg, big):
         check("C name %-14r is accepted" % raw[:14], tg.name_verdict(raw) is None, "got %r" % tg.name_verdict(raw))
     kept, dropped = tg.fold_names([b"Jack", b"JACK", b"jill", b"jack", b"Jill"])
     check("C fold keeps the first of each", kept == [b"Jack", b"jill"] and dropped == [b"JACK", b"jack", b"Jill"], "%r %r" % (kept, dropped))
+    for raw, why in ((b"Odd Name", "unsafe"), (b"a'b", "unsafe"), (b"a\xfdb", "high-byte"), (b"x y", "unsafe"), (b"../x", "slash"), (b"", "empty")):
+        check("C file name %-10r is refused as %s" % (raw, why), tg.file_name_verdict(raw) == why, "got %r" % tg.file_name_verdict(raw))
+    for raw in (b"cust", b"tape.voc", b"A.B_c-d$1", b"007", b"$hold", b"x" * 64):
+        check("C file name %-10r is accepted" % raw[:10], tg.file_name_verdict(raw) is None, "got %r" % tg.file_name_verdict(raw))
     return res
 
 
@@ -227,6 +231,9 @@ MUTANTS = [
     ("name: length unchecked", 'if len(raw) > maxlen:', 'if len(raw) > maxlen + 1000:'),
     ("name: leading dot allowed", 'if raw[:1] == b".":', 'if False:'),
     ("fold keeps everything", 'if k in seen:', 'if False:'),
+    ("file names: unsafe characters allowed", 'if why is None and any(c not in FILE_NAME_CHARS for c in raw):', 'if False:'),
+    ("file names: the dollar sign refused", b'FILE_NAME_CHARS = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._$-"'.decode(),
+     'FILE_NAME_CHARS = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"'),
     ("fold keeps the last", 'dropped.append(n)', 'dropped.append(kept.pop(kept.index(seen[k]))); seen[k] = n; kept.append(n)'),
 ]
 

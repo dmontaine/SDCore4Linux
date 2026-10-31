@@ -1,0 +1,209 @@
+* TAPEIMP
+* TAPE.IMPORT verb (S.92), SD Core for Linux: makes a NEW user account from a save image written by the old ACCOUNT.SAVE.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 30 Oct 26 dm Written for S.92 (owner's yes of 30 Oct 2026 to the nine recommendations and to the fill hook of create_account).  The reader is !tapeimg (held to gplbld/tapegen.py by
+*              sandbox-tapeimg.py), the writer is !tape_fill (held to an oracle by sandbox-tapeimport.py) and the account is made by !create_account, which calls the writer while the new
+*              account's directory is still the sdsys user's (CA$AFTER).  This program reads the whole image once to refuse what it cannot understand BEFORE anything is made.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    TAPE.IMPORT image TO account {FROM account} {FORMAT AS} {LIST} {NO.QUERY}
+*
+*    An administrator verb, for SDSYS alone: it is in no other account's VOC and nobody can be given it.
+*
+*    image      the absolute path of a save image (a file, not a device).  Only the layout the old ACCOUNT.SAVE wrote ("AS") is understood; FORMAT AS says so and nothing else is accepted.
+*    TO         the name of a NEW user account.  An existing account is refused, nothing is merged.  A new user account asks for a password, as CREATE.ACCOUNT does: NO.QUERY
+*               only skips this program's own question, and a hand-typed image is the only input it has.
+*    FROM       the account the image holds, if you want it checked: an image holds one account in this release.
+*    LIST       reads the image, says what it holds and what would be made, and writes nothing.
+*    NO.QUERY   does not ask whether to go on.
+*
+*    The image is read twice: once here, to the end, so that an image that cannot be understood is refused before anything is made; and once by !tape_fill, which writes the files
+*    and records into the new account while create_account holds it.  A refused fill removes the account again.  The result of each run is a new record in the file tape.log of the
+*    SDSYS account: <account>.<yyyymmdd>.<hhmmss>.<user number>, the image, the time, the counts and one line (kind|file|id|reason) for everything that was left out.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $tape.import
+$catalog $TAPEIMP
+
+$include keys.h
+$include int$keys.h
+$include parser.h
+$include err.h
+$include createacc.h
+
+   common /tapeimp/ tf.log, tf.nlog, tf.nfiles, tf.ndicts, tf.nrecs, tf.nskip, tf.nmd, tf.nbin, tf.logcap, tf.suppressed, tf.src
+
+   prompt ''
+   @system.return.code = -ER$ARGS
+   tf.src = ''
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001)  ;* Command requires administrator privileges
+   end
+
+   parser = "!PARSER"
+   call @parser(PARSER$RESET, 0, @sentence, 0)
+   call @parser(PARSER$GET.TOKEN, token.type, token, keyword)   ;* verb
+   call @parser(PARSER$GET.TOKEN, token.type, image, keyword)
+   if token.type = PARSER$END then stop sysmsg(11923)           ;* Syntax
+
+   to.name = ''
+   from.name = ''
+   list.only = @false
+   no.query = @false
+   loop
+      call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
+   until token.type = PARSER$END
+      begin case
+         case keyword = KW$NO.QUERY
+            no.query = @true
+         case keyword = KW$TO
+            call @parser(PARSER$GET.TOKEN, token.type, to.name, keyword)
+            if token.type = PARSER$END then stop sysmsg(11923)
+         case keyword = KW$FROM
+            call @parser(PARSER$GET.TOKEN, token.type, from.name, keyword)
+            if token.type = PARSER$END then stop sysmsg(11923)
+         case upcase(token) = 'LIST'
+            list.only = @true
+         case upcase(token) = 'FORMAT'
+            call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
+            if token.type = PARSER$END or upcase(token) # 'AS' then stop sysmsg(11923)
+         case 1
+            stop sysmsg(11923)
+      end case
+   repeat
+   if to.name = '' and not(list.only) then stop sysmsg(11923)
+   to.name = downcase(trim(to.name))
+
+* ---------------------------------------------------------------- the first reading: the whole image, nothing written
+   call !tapeimg('open', image, kind, num, aux, id, rec, verdict)
+   if verdict # '' then
+      display sysmsg(11924, verdict, rec) ;* The image was refused: %1 (%2)
+      stop
+   end
+   src.acct = id
+   blocks = num
+   if from.name # '' then
+      if ('#' : downcase(trim(from.name))) # ('#' : downcase(src.acct)) then
+         call !tapeimg('close', '', kind, num, aux, id, rec, verdict)
+         stop sysmsg(11928, src.acct, from.name) ;* The image holds the account %1, not %2
+      end
+   end
+   n.files = 0
+   n.items = 0
+   n.bin = 0
+   names = ''
+   loop
+      call !tapeimg('next', '', kind, num, aux, id, rec, verdict)
+      if verdict # '' then
+         display sysmsg(11924, verdict, rec)
+         stop
+      end
+   until kind = 'E' do
+      begin case
+         case kind = 'D'
+            if aux = '3' then
+               n.files += 1
+               if n.files <= 20 then names<-1> = downcase(id)
+            end
+         case kind = 'I'
+            n.items += 1
+         case kind = 'O'
+            n.bin += 1
+      end case
+   repeat
+   call !tapeimg('close', '', kind, num, aux, id, rec, verdict)
+   display sysmsg(11925, image, src.acct, n.files, n.items) ;* Image %1: account %2, %3 file(s), %4 record(s)
+   if n.bin > 0 then display sysmsg(11942, n.bin)           ;* %1 binary item(s) are left out
+   if list.only then
+      for j = 1 to dcount(names, @fm)
+         if names = '' then exit
+         display '  ' : names<j>
+      next j
+      if n.files > 20 then display '  ... and ' : (n.files - 20) : ' more'
+      @system.return.code = 0
+      stop
+   end
+
+* ---------------------------------------------------------------- the checks before anything is made
+   usr = config('USRDIR')
+   if usr = '' then usr = '/home/sd/user_accounts'
+   if index(usr, "'", 1) = 0 then
+      os.execute "df -Pk '" : usr : "' 2>/dev/null | tail -n 1" capturing dfout
+      dfl = trim(dfout<1>)
+      df.total = field(dfl, ' ', 2)
+      df.avail = field(dfl, ' ', 4)
+      if df.total # '' and df.avail # '' and num(df.total) and num(df.avail) then
+         need = int(blocks * 512 / 1024)
+         if df.avail - need < int(df.total / 10) then
+            stop sysmsg(11929, usr, df.avail, need + int(df.total / 10)) ;* Not enough free space on %1: %2 KB free, %3 KB needed
+         end
+      end
+   end
+
+   if not(no.query) then
+      display sysmsg(11927, to.name):         ;* Import the image into the NEW user account %1? (Y/N)
+      input yn
+      if yn = '' and status() = ER$EOF then yn = 'N'
+      if upcase(trim(yn)) # 'Y' then stop sysmsg(11938)   ;* Nothing was imported.
+   end
+
+* ---------------------------------------------------------------- the account is made, and filled while it is made
+   fname = field(image, '/', dcount(image, '/'))
+   settings = ''
+   settings<CA$DESC> = 'Imported from the tape image ' : fname[1, 60]
+   settings<CA$AFTER> = '!tape_fill'
+   settings<CA$AFTER.ARG> = image
+   err = ''
+   call !create_account('USER', to.name, settings, err)
+   ok = (err = '')
+   if not(ok) then
+      display sysmsg(err<1, 1>, err<1, 2>, err<1, 3>, err<1, 4>)
+   end
+
+   if tf.src # '' then gosub write.log
+
+   if ok then
+      @system.return.code = 0
+      display sysmsg(11939, to.name, tf.nfiles, tf.nrecs, tf.nskip + tf.nbin) ;* Imported into %1: %2 file(s), %3 record(s), %4 left out
+   end else
+      @system.return.code = -ER$FAILED
+   end
+   stop
+
+* ---------------------------------------------------------------- the log: a new record of tape.log in the SDSYS account for every run
+write.log:
+   log.id = to.name : '.' : oconv(date(), 'D4Y') : oconv(date(), 'DM') : oconv(date(), 'DD') : '.' : convert(':', '', oconv(time(), 'MTS')) : '.' : @userno
+   lg = image
+   lg<2> = oconv(date(), 'D4-YMD') : ' ' : oconv(time(), 'MTS')
+   lg<3> = 'from=' : tf.src : ' to=' : to.name : ' result=' : (if ok then 'imported' else 'refused ' : err<1, 1>)
+   lg<4> = 'files=' : tf.nfiles : ' dictionaries=' : tf.ndicts : ' records=' : tf.nrecs : ' left-out=' : tf.nskip : ' md.import=' : tf.nmd : ' binary=' : tf.nbin : ' log-lines=' : tf.nlog
+   lg<5> = 'indices: not built; nothing was compiled or run'
+   for j = 1 to dcount(tf.log, @fm)
+      if tf.log = '' then exit
+      lg<-1> = tf.log<j>
+   next j
+   open 'tape.log' to logf else
+      execute 'CREATE.FILE tape.log DYNAMIC' capturing junk
+      if junk # '' then null                      ;* the verb says nothing of its own; the open below is the test
+      open 'tape.log' to logf else
+         display sysmsg(11940, 'tape.log') ;* The log could not be written: %1
+         return
+      end
+   end
+   write lg to logf, log.id
+   close logf
+   display sysmsg(11941, log.id) ;* Log: tape.log, record %1
+   return
+
+end
+
+* END-CODE

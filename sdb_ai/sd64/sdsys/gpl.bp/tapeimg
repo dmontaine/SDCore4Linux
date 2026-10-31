@@ -79,6 +79,8 @@ $include syscom keys.h
          gosub do.next
       case op = 'close'
          gosub do.close
+      case op = 'name'
+         gosub do.name
       case 1
          gosub refuse.op
    end case
@@ -87,6 +89,47 @@ $include syscom keys.h
 refuse.op:
    verdict = 'R-OP'
    rec = 'unknown operation'
+   return
+
+* op 'name': may the name arg<1> be used?  arg<2> 'file' (a file name: the id rules and, besides, only the characters a file of the account can carry) or 'id' (a record id),
+*   arg<3> the longest allowed (64).  rec = '' when it may, else the reason, in the words of gplbld/tapegen.py name_verdict / file_name_verdict.  English only: ids, file names
+*   and account names are the whole of it; record CONTENT is never looked at.  Nothing in a name can leave the account directory: no slash, no leading dot, no NUL.
+do.name:
+   nm.raw = arg<1>
+   nm.max = 64
+   if arg<3> # '' then nm.max = arg<3> + 0
+   rec = ''
+   begin case
+      case nm.raw = ''
+         rec = 'empty'
+      case nm.raw = '.'
+         rec = 'dot'
+      case nm.raw = '..'
+         rec = 'dotdot'
+      case index(nm.raw, nul, 1)
+         rec = 'nul'
+      case index(nm.raw, '/', 1)
+         rec = 'slash'
+      case nm.raw[1, 1] = '.'
+         rec = 'leading-dot'
+      case len(nm.raw) > nm.max
+         rec = 'too-long'
+      case 1
+         for nm.j = 1 to len(nm.raw)
+            nm.c = seq(nm.raw[nm.j, 1])
+            if nm.c < 32 or nm.c = 127 then
+               rec = 'control'
+               exit
+            end
+            if nm.c > 127 then
+               rec = 'high-byte'
+               exit
+            end
+         next nm.j
+         if rec = '' and arg<2> = 'file' then
+            if convert('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._$-', '', nm.raw) # '' then rec = 'unsafe'
+         end
+   end case
    return
 
 * A refusal: verdict is set by the caller, the file is given back.

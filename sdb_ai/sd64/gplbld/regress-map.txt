@@ -122,8 +122,11 @@ gplbld/sandbox-gates.py      : @self segtrust auditjournal auditwriter
 # 24 Oct 26 (W.11 F4, C1): sandbox-auditwriter loads sandbox-auditjournal (its journal reader), so a change to that one runs this one too.
 gplbld/sandbox-auditjournal.py : @self auditwriter
 # 30 Oct 26 (S.92 S2): the BASIC reader and its Python twin are held to each other by sandbox-tapeimg.
-sdsys/gpl.bp/tapeimg         : tapeimg
-gplbld/tapegen.py            : tapeimg
+sdsys/gpl.bp/tapeimg         : tapeimg tapeimport
+sdsys/gpl.bp/tape_fill       : tapeimport
+sdsys/gpl.bp/tapeimp         : tapeimport
+sdsys/voc_template/tape.import : tapeimport
+gplbld/tapegen.py            : tapeimg tapeimport
 gplbld/*.py                  : none
 gplbld/*.sh                  : none
 gplbld/*.md                  : none
