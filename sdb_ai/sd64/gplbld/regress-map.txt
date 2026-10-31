@@ -438,6 +438,10 @@ gplbld/sandbox-tool-ai.py    : @self
 sdsys/gpl.bp/tool_ai         : tool-ai l2-cfg
 sdsys/voc_template/tool.ai   : tool-ai
 # 24 Oct 26 (S.75 A2): the gate matrix runs the real modify.account against the scratch groups, so a change to the verb selects it
+# S.90 (31 Oct 26): the dictionary item form's engine (stage 1); the IDE face and tool_dict's N will add their suites to these rules
+sdsys/gpl.bp/dict_item       : dictitem
+gplbld/sandbox-dictitem.py   : @self
+gplbld/test-dictitem-units.py : none
 gplbld/sandbox-tool-gates.py : @self
 sdsys/gpl.bp/tool_gates      : tool-gates l2-admin
 sdsys/voc_template/tool.gates : tool-gates
