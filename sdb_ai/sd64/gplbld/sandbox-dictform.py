@@ -25,7 +25,8 @@
 #   DF7   an L item has its own three rows, a PH item one text row, an X item a text area (and no Field #)
 #   DF8   an item the form cannot show stays text, with the reason said, and nothing is written
 #   DF9   /form on a tab that is not a dictionary item says so and shows no form
-#   DF10  the Go menu has the entry and it opens the form
+#   DF10  the form is the DEFAULT face (31 Oct 26: no last word opens it; Esc leaves the item as text; an item it cannot show and `/text` open as text; a new item opens as a new D item);
+#         the Go menu has the entry and it opens the form
 #   DF11  Edit as text leaves the form with the text view and writes nothing
 import importlib.util
 import os
@@ -244,12 +245,16 @@ def run_rows():
     h = ide("ide dict zzdf1 ph1 /form")
     T = h.text()
     row("DF7b a PH item: one text row, Phrase, with the phrase in it", form_up(h) and "2. Phrase:" in T and "GRAND.TOTAL" in T and "Field #" not in T, T[:600])
-    h.key("esc", idle=1.5)
+    row("DF7b2 ...and the form has its Edit as text button (31 Oct 26: the Phrase memo's id was the button's, and the button was missing)", "Edit as text" in T, T[-900:])
+    h.typed("t", idle=1.5)
+    row("DF7b3 ...and the t key leaves it for the text view, writing nothing", not form_up(h) and "dict zzdf1 ph1" in h.text() and disk("ph1") == FIXTURE["ph1"], repr((form_up(h), disk("ph1"))))
     leave(h)
     h = ide("ide dict zzdf1 note /form")
     T = h.text()
     row("DF7c an X item: a text area with its two lines", form_up(h) and "2. Text:" in T and "line one" in T and "line two" in T, T[:700])
-    h.key("esc", idle=1.5)
+    row("DF7c2 ...and the form has its Edit as text button", "Edit as text" in T, T[-900:])
+    h.typed("t", idle=1.5)
+    row("DF7c3 ...and the t key leaves it for the text view, writing nothing", not form_up(h) and "dict zzdf1 note" in h.text() and disk("note") == FIXTURE["note"], repr((form_up(h), disk("note"))))
     leave(h)
 
     say("\n--- an item the form cannot show, and a tab that is not an item")
@@ -263,9 +268,27 @@ def run_rows():
     row("DF9 /form on a record of the data file says the form is for a dictionary item and shows no form", not form_up(h) and "dictionary form is for a dictionary item" in T, T[-300:])
     leave(h)
 
-    say("\n--- the Go menu, and Edit as text")
+    say("\n--- the default face, /text, the Go menu, and Edit as text")
+    reset()
     h = ide("ide dict zzdf1 fld")
-    row("DF10a without /form the item opens as text: no form", not form_up(h), h.text()[:200])
+    row("DF10a without a last word the item opens as the FORM (the default face since 31 Oct 26): the Type row and the item's own rows", form_up(h) and "2. Field #:" in h.text() and "(new item)" not in h.text(),
+        h.text()[:300])
+    h.key("esc", idle=1.5)
+    T = h.text()
+    row("DF10a2 ...and Esc with nothing changed leaves the item as a text tab: no form, no question, the disk as it was", not form_up(h) and "Leave without saving" not in T and "dict zzdf1 fld" in T and disk("fld") == FIXTURE["fld"],
+        repr((T[:200], disk("fld"))))
+    leave(h)
+    h = ide("ide dict zzdf1 badfmt")
+    T = h.text()
+    row("DF10a3 an item the form cannot show opens as text by default too, with the reason said: no form, nothing written", not form_up(h) and "cannot show" in T and disk("badfmt") == FIXTURE["badfmt"], repr((T[-300:], disk("badfmt"))))
+    leave(h)
+    h = ide("ide dict zzdf1 newdef")
+    row("DF10a4 a new item opens as the form by default: a new D item (new item), nothing written until it is saved", form_up(h) and "(new item)" in h.text() and disk("newdef") == "ABSENT", repr((form_up(h), disk("newdef"))))
+    h.key("esc", idle=1.5)
+    leave(h)
+    h = ide("ide dict zzdf1 fld /text")
+    T = h.text()
+    row("DF10a5 a last word /text opens the item as text: the editor shows its lines (Name, 10L), no form", not form_up(h) and "dict zzdf1 fld" in T and "Name" in T and "10L" in T, T[:300])
     h.key("esc", idle=1.0)
     h.key("right", idle=0.8)
     T = h.text()

@@ -426,7 +426,7 @@ def editors_section():
         t4 = pty_edit(n, "SED voc zzvrec3", ["ZZ", CTRL_S], [CTRL_Q, "y"])
         t5 = pty_edit(n, "SED DICT zzd zzf2", ["ZZ", CTRL_S], [CTRL_Q, "y"])
         # 28 Oct 26 (the editor merge, stage B): the IDE opens a dictionary item by `ide dict file id` and saves it through the account's dict.edit gate
-        t6 = pty_edit(n, "IDE dict zzd zzq", [HOME, "ZZ", CTRL_S], [RET, CTRL_Q, DOWN, RET])
+        t6 = pty_edit(n, "IDE dict zzd zzq /text", [HOME, "ZZ", CTRL_S], [RET, CTRL_Q, DOWN, RET])      # 31 Oct 26 (S.90): /text, since the form is the default face of an item and this row types into the text
         r = records(n)
         for label, rec_key, allowed, text, msg in (
                 ("IDE saves a program record", "bp-zzold", bp, t1, MESSAGES["bp"]),

@@ -6,6 +6,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 31 Oct 26 dm  S.90: THE FORM IS THE DEFAULT FACE OF A DICTIONARY ITEM (the owner's word).  `ide dict file item` and Return on an item in the tree open the item as the full-screen form (dform.default); a last
+*               word /text opens it as text, as /form opened the form before.  Edit as text, Esc and an item the form cannot show or the tab cannot change (read-only) leave the text; a record found by
+*               a search or opened with others from a list, Ctrl-O and an item already in a tab are as they were.
 * 31 Oct 26 dm  S.86 stage 4.  The AI line works in the fields view: a request typed in the AI entry and the Tools menu's "explain the selection" go to the engine ($ced_core 'ai.request'
 *               and 'ai.explain', fields.ai), and what is accepted is written back into the text like any change of the fields.  IDE file id1 id2 ... opens a tab for each id and IDE file *
 *               lists the records of the file as a select list does (G4 of the old CED).  Ctrl-T on the empty top level asks collection or array (G3, in the engine).  The key table has the
@@ -176,11 +179,14 @@ $include dictdict.h
    * 28 Oct 26 (stage B): IDE {DICT} {file {record | CREATING.SEQKEY}}.  A record id in quotes is taken as it is (so "creating.seqkey" is that record);
    *   the file name is lower case, as everywhere SD writes one (the name form makes it so too, and the tabs and the tree compare with it)
    * 31 Oct 26 (S.90 stage 2): a last word /form opens the dictionary item named as a FORM (do.dform) instead of as text; it is taken off the sentence here, so that no id is read from it
+   * 31 Oct 26 (S.90): a dictionary item opens as the form whatever the last word (it is the default face); a last word /text asks for the text, and is taken off the same way
    sent.in = @sentence
    form0 = @false
+   text0 = @false
    if upcase(field(sent.in, ' ', 2)[1, 5]) # 'PATH:' and dcount(sent.in, ' ') > 2 then
-      if upcase(field(sent.in, ' ', dcount(sent.in, ' '))) = '/FORM' then
-         form0 = @true
+      sw.last = upcase(field(sent.in, ' ', dcount(sent.in, ' ')))
+      if sw.last = '/FORM' or sw.last = '/TEXT' then
+         if sw.last = '/FORM' then form0 = @true else text0 = @true
          sent.in = trimb(sent.in[1, len(trimb(sent.in)) - 5])
       end
    end
@@ -489,6 +495,8 @@ $include dictdict.h
    if form0 and nbuf > 0 then
       gosub redraw                             ;* 31 Oct 26 (S.90 stage 2): IDE DICT file item /form: the form is the first thing the person sees, over the IDE's own screen
       gosub do.dform
+   end else
+      if dflag0 = 'DICT' and id0 # '' and not(text0) then gosub dform.default      ;* 31 Oct 26 (S.90): the same without the word, unless /text asked for the text
    end
 
    menu.click = ''                          ;* the column of a click on the menu bar, while the menu it opens is being started
@@ -2770,6 +2778,7 @@ do.act:
                *   again at the end of this routine).  SCREEN FOCUS only moves the form's pointer and draws nothing, so the focus goes through the
                *   form's own op, which draws the widget that had it (the tree) and the one that has it (the editor, with the cursor in its text).
                lc.nodraw = @true
+               dq.u0 = uid
                gosub open.record
                lc.nodraw = @false
                if nbuf > 0 then
@@ -2778,6 +2787,7 @@ do.act:
                   did.focus = @true
                   gosub redraw.tabs
                end
+               if code[1, 2] = 'Q:' and uid > dq.u0 then gosub dform.default      ;* 31 Oct 26 (S.90): an item that was not open yet is shown as the form; one already in a tab is only gone to
          end case
       case focus.id = 'err'
          screen get f, 'err' returning rn
@@ -3704,6 +3714,21 @@ do.fields:
    end
    fz.title = fd.file : ' ' : fd.id
    gosub fields.enter
+   return
+
+* ======================================================================
+* The form is the DEFAULT face of a dictionary item (31 Oct 26, S.90; the owner's word).  Called for the tab a person has just opened on an item - `ide dict file item` and Return on an item in the
+*   tree -, not for a record found by a search (it is opened at a line), opened with others from a list or already in a tab.  Nothing is said and the text stays when the current tab is not a dictionary
+*   item (nothing could be opened) or is read-only (open.record has said why: another session holds the record, or it holds bytes outside ASCII); do.dform says why when the form cannot show the item.
+dform.default:
+   if nbuf = 0 then return
+   k = 'k' : bu<cb>
+   if bx{k} # 'dict' then return
+   ro.i = cb
+   gosub ro.check
+   if not(ro.ok) then return
+   gosub redraw
+   gosub do.dform
    return
 
 * ======================================================================

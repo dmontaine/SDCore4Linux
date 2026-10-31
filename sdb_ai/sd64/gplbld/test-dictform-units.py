@@ -8,6 +8,8 @@ No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it c
 
 START-HISTORY:
 31 Oct 26 dm  New with the form (plan .claude/plan-s90-dict-form.md).
+31 Oct 26 dm  The form is the DEFAULT face of a dictionary item (the owner's word): I5 reads /text too, I8-I10 hold dform.default (the start, the tree, silent for a tab it cannot or must not
+              show) and 8 mutants of the sitting.
 END-HISTORY
 
 WHAT IT HOLDS.  $dict_form is the screen over !dict_item: it opens nothing, writes nothing and makes no record of its own (every record comes from the engine's 'build'); it
@@ -91,6 +93,10 @@ def checks(src, others):
        "size 140,43" in form and "screen memo f, key" in form and "screen entry f, key at 26,y width ew value vals{key} maxlen em" in form
        and "screen button f, 'save', '&Save' at 26,38 default" in form and "screen button f, 'cancel', '&Cancel' at 62,38 cancel" in form, "")
 
+    keys = set(re.findall(r"rw<-1> = '(\w+)'", others.get("dict_item", "")))
+    ids = set(re.findall(r"screen (?:button|label) f, '([\w.]+)'", form))
+    ck("F11 no button or label has the id of a layout row: the Text row of a PH or X item is a memo with the id `text`, and a second widget of one id took the Edit as text button's place; the button's own id is turned back to `text` before the result is made",
+       len(keys) >= 10 and "text" in keys and "astext" in ids and not (ids & keys) and ordered(form, "bt = ev<2>", "if bt = 'astext' then bt = 'text'", "if bt = 'save' or bt = 'text' then"), repr((len(keys), sorted(ids & keys))))
     d = between(ide, "\ndo.dform:", "\nfields.enter:")
     ck("I1 do.dform refuses an empty editor, a tab that is not a dictionary item (11949) and a read-only tab, and keeps the editor's text first",
        ordered(d, "if nbuf = 0 then", "if bx{k} # 'dict' then", "msg = sysmsg(11949)", "gosub ro.check", "if not(ro.ok) then", "gosub stash.current", "df.rec = bx{k}"), "")
@@ -101,10 +107,20 @@ def checks(src, others):
        ordered(d, "gosub load.current", "if df.res = 'save' then", "gosub save.one") and d.count("gosub save.one") == 1 and d.count("save.current") == 0, "")
     ck("I4 the command dform is a case of run.cmd and the Go menu ends with the entry, which has no key", "case cmd = 'dform'" in ide and "gosub do.dform" in ide
        and src["go"].strip().endswith("|Dictionary item as for&m~~dform"), repr(src["go"][-60:]))
-    ck("I5 the start word /form is taken off the sentence before any id is read, and the sentence is read once",
-       ordered(ide, "sent.in = @sentence", "form0 = @true", "sent.in = trimb(sent.in[1, len(trimb(sent.in)) - 5])", "fn0 = field(sent.in, ' ', 2)") and ide.count("@sentence") == 1, repr(ide.count("@sentence")))
+    ck("I5 the start words /form and /text are taken off the sentence before any id is read, and the sentence is read once",
+       ordered(ide, "sent.in = @sentence", "text0 = @false", "'/FORM'", "'/TEXT'", "form0 = @true", "text0 = @true", "sent.in = trimb(sent.in[1, len(trimb(sent.in)) - 5])", "fn0 = field(sent.in, ' ', 2)")
+       and ide.count("@sentence") == 1, repr(ide.count("@sentence")))
     ck("I6 IDE DICT file item /form opens the form after the record is open and before the main loop",
        ordered(ide, "gosub rc.untitled", "if form0 and nbuf > 0 then", "gosub redraw", "gosub do.dform", "menu.click = ''"), "")
+    ck("I8 THE DEFAULT (31 Oct 26): a dictionary item named on the command line - DICT, one id, no /text - goes to dform.default when /form was not given, before the main loop",
+       ordered(ide, "if form0 and nbuf > 0 then", "gosub do.dform", "end else", "if dflag0 = 'DICT' and id0 # '' and not(text0) then gosub dform.default", "menu.click = ''"), "")
+    dd = between(ide, "\ndform.default:", "\ndo.dform:")
+    ck("I9 dform.default does nothing and says nothing for an empty editor, a tab that is not a dictionary item or a read-only tab, and otherwise redraws and calls do.dform",
+       ordered(dd, "if nbuf = 0 then return", "if bx{k} # 'dict' then return", "gosub ro.check", "if not(ro.ok) then return", "gosub redraw", "gosub do.dform", "return")
+       and "sysmsg(" not in dd and "save.one" not in dd and "ro.box" not in dd, repr(dd[:300]))
+    ck("I10 the form is the default for the tree's item (a tab that was not open: the tab counter moved) and for the start; NOT for a search list's row, a select list, Ctrl-O or an include",
+       ordered(ide, "dq.u0 = uid", "gosub open.record", "if code[1, 2] = 'Q:' and uid > dq.u0 then gosub dform.default") and ide.count("gosub dform.default") == 2
+       and ide.count("dform.default") == 3, repr((ide.count("gosub dform.default"), ide.count("dform.default"))))
     ck("I7 message 11949 says the tab is not a dictionary item; 11950 takes the item and the reason",
        "dictionary item" in src["m1"] and "%1" in src["m2"] and "%2" in src["m2"], "")
     return rows
@@ -153,6 +169,18 @@ MUTANTS = [
     ("ide", "/form is left on the sentence", "         sent.in = trimb(sent.in[1, len(trimb(sent.in)) - 5])", "         null"),
     ("ide", "the start form runs after the main loop begins", "   if form0 and nbuf > 0 then\n      gosub redraw ", "   if 0 then\n      gosub redraw "),
     ("go", "the menu entry has a key", "|Dictionary item as for&m~~dform", "|Dictionary item as for&m~F11~dform"),
+    # 31 Oct 26 (the default): own mutants of the sitting
+    ("form", "the Edit as text button has the id of the Text row", "screen button f, 'astext', 'Edit as &text' at 40,38", "screen button f, 'text', 'Edit as &text' at 40,38"),
+    ("form", "the button's id is not turned back to the result word", "   if bt = 'astext' then bt = 'text'          ;* the button's own id is not the result word\n", ""),
+    ("ide", "the start no longer shows the form by default", "if dflag0 = 'DICT' and id0 # '' and not(text0) then gosub dform.default", "if 0 then gosub dform.default"),
+    ("ide", "/text is ignored at the start", "and id0 # '' and not(text0) then gosub dform.default", "and id0 # '' then gosub dform.default"),
+    ("ide", "/text is left on the sentence", "         if sw.last = '/FORM' then form0 = @true else text0 = @true\n         sent.in = trimb(sent.in[1, len(trimb(sent.in)) - 5])",
+     "         if sw.last = '/FORM' then form0 = @true else text0 = @true"),
+    ("ide", "the tree opens the form for an item that was already in a tab", "if code[1, 2] = 'Q:' and uid > dq.u0 then gosub dform.default", "if code[1, 2] = 'Q:' and nbuf > 0 then gosub dform.default"),
+    ("ide", "the tree opens the form for a record of the data part", "if code[1, 2] = 'Q:' and uid > dq.u0 then gosub dform.default", "if uid > dq.u0 then gosub dform.default"),
+    ("ide", "dform.default takes a tab that is not a dictionary item", "   if bx{k} # 'dict' then return\n   ro.i = cb", "   ro.i = cb"),
+    ("ide", "dform.default takes a read-only tab", "   gosub ro.check\n   if not(ro.ok) then return\n   gosub redraw", "   gosub redraw"),
+    ("ide", "a search list's row opens the form", "      gosub open.record\n      gl.n = sln<k2> + 0", "      gosub open.record\n      gosub dform.default\n      gl.n = sln<k2> + 0"),
 ]
 
 

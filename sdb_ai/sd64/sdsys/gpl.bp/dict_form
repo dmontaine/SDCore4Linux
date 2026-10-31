@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 * START-HISTORY:
 * 31 Oct 26 dm  New (S.90, plan .claude/plan-s90-dict-form.md).  The rules are !dict_item's; this program is the screen.
+* 31 Oct 26 dm  The Edit as text button is 'astext': its id was 'text', the id of the Text row's memo, so a PH or X item's form had no such button (found when the form became the default).
 * END-HISTORY
 * START-DESCRIPTION:
 *   call $dict_form(rec, title, newrec, res)
@@ -90,7 +91,7 @@ make.form:
    screen label f, 'hint', ' ' at 2,30 width 134
    screen label f, 'err', ' ' at 2,32 width 134
    screen button f, 'save', '&Save' at 26,38 default
-   screen button f, 'text', 'Edit as &text' at 40,38
+   screen button f, 'astext', 'Edit as &text' at 40,38        ;* 31 Oct 26: not 'text' - the Text row of a PH or X item is a memo with that id, and the second widget of an id took the button's place
    screen button f, 'cancel', '&Cancel' at 62,38 cancel
    return
 
@@ -243,6 +244,7 @@ hint.for:
 * A button: Save and Edit as text build the record from the rows; a row that fails is named in the err line and takes the focus; nothing ends the form while one fails
 on.button:
    bt = ev<2>
+   if bt = 'astext' then bt = 'text'          ;* the button's own id is not the result word
    if bt = 'save' or bt = 'text' then
       gosub collect
       call !dict_item('build', vals, rec, nr, be)

@@ -315,10 +315,29 @@ def section_setup():
 # ---- D: a dictionary item -----------------------------------------------------------------------------------------------------------------------------------------------
 def section_dict():
     say("\n--- D: a dictionary item ------------------------------------------------------------------------------------------------")
-    e = sb.Ide(BOX, "IDE DICT %s name" % DF)
+    # 31 Oct 26 (S.90): the form is the default face of an item. First, before D2 changes the item: Return on it in the tree opens the form, and Esc leaves it with the item as text
+    e = sb.Ide(BOX, "IDE %s" % DF)
+    e.quiet()
+    e.keys(DOWN)                                      # from the file to its first node, the dictionary
+    e.keys(RET)
+    e.keys(DOWN)                                      # the dictionary's first item, @id (every dictionary has it)
+    e.keys(DOWN)                                      # its item name
+    e.keys(RET)
+    e.quiet()
+    t2 = "\n".join(e.lines())
+    row("D0a Return on the item `name` in the tree opens the FORM (the default face): the Type row, Save, Edit as text and Cancel, and the disk is as it was",
+        "1. Type:" in t2 and "Edit as text" in t2 and "Cancel" in t2 and disk().get("dict.name") == "[D^1^^Name^20L^S]", repr((t2[:300], disk().get("dict.name"))))
+    e.keys(ESC)
+    e.quiet()
+    st2 = e.status()
+    row("D0b Esc leaves the form with nothing changed: the item is a tab, as text, the tree is as it was and the disk is as it was",
+        ("dict %s name" % DF) in st2 and "1. Type:" not in "\n".join(e.lines()) and "(dictionary)" in tree_text(e) and disk().get("dict.name") == "[D^1^^Name^20L^S]", repr((st2, tree_text(e)[:200])))
+    done(e)
+
+    e = sb.Ide(BOX, "IDE DICT %s name /text" % DF)          # 31 Oct 26 (S.90): without /text the item opens as the form (sandbox-dictform.py DF10a), and these rows type into the text
     e.quiet()
     st, tabs, ed = e.status(), tab_row(e), editor_text(e)
-    row("D1 `ide dict file id` opens the dictionary item: the status line says dict %s name, the tab says dict name, the editor shows its fields (Name, 20L)" % DF,
+    row("D1 `ide dict file id /text` opens the dictionary item: the status line says dict %s name, the tab says dict name, the editor shows its fields (Name, 20L)" % DF,
         ("dict %s name" % DF) in st and "dict name" in tabs and "Name" in ed and "20L" in ed, "%r | %r | %r" % (st, tabs[:80], ed[:200]))
     row("D1b the tree has the file's (dictionary) node opened, with the item name under it", "(dictionary)" in tree_text(e) and "name" in tree_text(e), tree_text(e)[:600])
     e.keys("ZZ")
@@ -713,7 +732,7 @@ def section_gate():
         s.finish()
         return text
 
-    t1 = pty("IDE DICT zzkgd name", ["ZZ", CTRL_S])
+    t1 = pty("IDE DICT zzkgd name /text", ["ZZ", CTRL_S])          # /text: the form is the default face (S.90), and this row types into the text
     r = read_back()
     row("G1 dict edit OFF: the IDE refuses to save the dictionary item, says why (dict.edit) and the item is as it was",
         "A dictionary can only be changed by an account that has dict.edit" in t1 and r.get("dict") == "[D^1]", "%r | %r" % (r, t1[-400:]))
