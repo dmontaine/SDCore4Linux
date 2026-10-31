@@ -8689,99 +8689,6 @@ The VOC of %2 already holds a record %1: it was not overwritten.
 
 cited by: `rstvoc`
 
-### msg:11919
-> kind=message tier=reference since=- src=sdsys/messages/11919:1#079d53a3
-
-```
-The fill step is only for a new user or group account made by this command, and only the import's own. Nothing was created.
-```
-
-### msg:11920
-> kind=message tier=reference since=- src=sdsys/messages/11920:1#ecaa66e8
-
-```
-The new account %1 was removed again because filling it failed.
-```
-
-cited by: `create_account`
-
-### msg:11921
-> kind=message tier=reference since=- src=sdsys/messages/11921:1#68e788d2
-
-```
-The new account %1 was made, filling it failed, and removing it again also failed (step %2: 1 the directory, 2 the Linux user, 3 the group). Check them by hand.
-```
-
-cited by: `create_account`
-
-### msg:11922
-> kind=message tier=reference since=- src=sdsys/messages/11922:1#1cc80998
-
-```
-The fill step named a path that is not inside the new account: %1
-```
-
-### msg:11923
-> kind=message tier=reference since=- src=sdsys/messages/11923:1#64477c3d
-
-```
-Syntax: tape.import image to account {from account} {format as|r83|jbs|fs|mv} {list} {no.query}\n        image is the absolute path of a save image; without format it is read as the old account.save wrote it.\n        to names a NEW user account; an existing one is refused.\n        list reads the image and says what it holds, and writes nothing.
-```
-
-cited by: `tapeimp`
-
-### msg:11924
-> kind=message tier=reference since=- src=sdsys/messages/11924:1#00387934
-
-```
-The image was refused: %1 (%2)
-```
-
-cited by: `tapeimp`
-
-### msg:11925
-> kind=message tier=reference since=- src=sdsys/messages/11925:1#1682f6ef
-
-```
-Image %1: account %2, %3 file(s), %4 record(s)
-```
-
-cited by: `tapeimp`
-
-### msg:11926
-> kind=message tier=reference since=- src=sdsys/messages/11926:1#7258498e
-
-```
-Cannot make or open %1 in the new account.
-```
-
-### msg:11927
-> kind=message tier=reference since=- src=sdsys/messages/11927:1#f1dc8419
-
-```
-Import the image into the NEW user account %1? (Y/N)
-```
-
-cited by: `tapeimp`
-
-### msg:11928
-> kind=message tier=reference since=- src=sdsys/messages/11928:1#bcdf1997
-
-```
-The image holds the account %1, not %2.
-```
-
-cited by: `tapeimp`
-
-### msg:11929
-> kind=message tier=reference since=- src=sdsys/messages/11929:1#c469a408
-
-```
-Not enough free space on %1: %2 KB free, %3 KB needed (the image's size and a tenth of the disk).
-```
-
-cited by: `tapeimp`
-
 ### msg:11930
 > kind=message tier=reference since=- src=sdsys/messages/11930:1#bfc9f698
 
@@ -8851,51 +8758,6 @@ Sessions started from now on use it; sessions that are already running keep the 
 ```
 
 cited by: `setconfig`
-
-### msg:11938
-> kind=message tier=reference since=- src=sdsys/messages/11938:1#a306424a
-
-```
-Nothing was imported.
-```
-
-cited by: `tapeimp`
-
-### msg:11939
-> kind=message tier=reference since=- src=sdsys/messages/11939:1#9535c1bf
-
-```
-Imported into %1: %2 file(s), %3 record(s), %4 left out.
-```
-
-cited by: `tapeimp`
-
-### msg:11940
-> kind=message tier=reference since=- src=sdsys/messages/11940:1#d2d39676
-
-```
-The log could not be written: %1
-```
-
-cited by: `tapeimp`
-
-### msg:11941
-> kind=message tier=reference since=- src=sdsys/messages/11941:1#f5d087c8
-
-```
-Log: tape.log, record %1
-```
-
-cited by: `tapeimp`
-
-### msg:11942
-> kind=message tier=reference since=- src=sdsys/messages/11942:1#9493cbb1
-
-```
-%1 binary item(s) are left out.
-```
-
-cited by: `tapeimp`
 
 ### msg:11946
 > kind=message tier=reference since=- src=sdsys/messages/11946:1#ce2f5d0f
@@ -10645,7 +10507,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 22 more
+cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 21 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

@@ -1,23 +1,6 @@
 Next release - in progress
 --------------------------
 
-30 Oct 26  TAPE.IMPORT MAKES A NEW USER ACCOUNT FROM A SAVE IMAGE WRITTEN BY THE OLD ACCOUNT.SAVE.
-
-             What        - tape.import image TO account {FROM account} {FORMAT AS|R83|JBS|FS|MV} {LIST} {NO.QUERY}, for SDSYS only, reads the file image to its end before it makes anything, then makes
-                           the new user account (all gates off, as any new account) and writes its files, their dictionaries and records into it while it is made. Names are lower case;
-                           a file name that is not letters, digits and . _ $ - , a record id with a control character, a byte above 127, a slash or more than 64 characters, a name that
-                           folds onto one already made, and every binary item (the old writer's form for a record that holds an item mark, a compiled program included) are left out and
-                           listed in a new record of the file tape.log of the SDSYS account for every run. A file the new account already has by name (voc, the account's own) is called
-                           tape.<name>. The items of the old VOC go to the file md.import except F and Q pointers. A dictionary item that the old writer had turned from D to A is turned
-                           back. LIST says what the image holds and makes nothing. A failure while the files are written removes the account, its Linux user and its groups again.
-                           FORMAT names the layout of the image: AS (the default) is what the old ACCOUNT.SAVE wrote; R83, JBS, FS and MV are read the way the original reader of the old
-                           tape subsystem read them (their labels, an optional pad, hexadecimal file numbers, header tokens that are left out and logged, items of the types F and E,
-                           an end mark XX, XC or X), and the account is the one the first file header of the data names.
-             Why         - A person moving to SD from another multivalue system had no way to bring an account's files across without writing a loader of their own.
-             Does NOT    - Merge into an existing account, build indices, compile or run anything from the image, read a tape drive or a second reel, or read the layout ULTFS, the item
-                           forms B, R, L and the binary form of another system, or a T-DUMP. No image of R83, JBS, FS or MV has been read: the files of other systems' save programs are
-                           not tested, and a good image may be refused.
-
 30 Oct 26  THE PER-CONNECTION SERVER (sdclient@.service) IS CONFINED BY THE SAFE SET OF SYSTEMD'S SANDBOX SETTINGS.
 
              What        - The unit that starts one server for each connection to the API port now sets ProtectKernelTunables, ProtectKernelModules, ProtectKernelLogs, ProtectControlGroups, ProtectClock,

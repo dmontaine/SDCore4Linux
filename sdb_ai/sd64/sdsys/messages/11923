@@ -1,1 +1,0 @@
-Syntax: tape.import image to account {from account} {format as|r83|jbs|fs|mv} {list} {no.query}\n        image is the absolute path of a save image; without format it is read as the old account.save wrote it.\n        to names a NEW user account; an existing one is refused.\n        list reads the image and says what it holds, and writes nothing.
