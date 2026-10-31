@@ -557,7 +557,7 @@ def checks(raw, model=None, head=True):
         if "the IDE" not in raw[h]:
             bad.append("%s: the help text does not name the IDE" % h)
     ide = squeeze(strip_bas(raw["ide"]))
-    if not (ordered(ide, "fn0 = field(@sentence, ' ', 2)", "id0 = field(@sentence, ' ', 3)", "if upcase(fn0) = 'DICT' then", "dflag0 = 'DICT'", "fn0 = field(@sentence, ' ', 3)", "id0 = field(@sentence, ' ', 4)")
+    if not (ordered(ide, "fn0 = field(sent.in, ' ', 2)", "id0 = field(sent.in, ' ', 3)", "if upcase(fn0) = 'DICT' then", "dflag0 = 'DICT'", "fn0 = field(sent.in, ' ', 3)", "id0 = field(sent.in, ' ', 4)")
             and "LAYW = 140" in ide and "LAYH = 43" in ide and "call $sl_need('IDE', LAYW, LAYH, need.msg, '')" in ide):
         bad.append("ide: the start forms `ide dict file id` and `ide voc id`, or its floor 140 by 43, are not what the pages count on")
     ck("L2-9", "STAGE C: TOOL.VOC's E runs `ide voc <id>` and TOOL.DICT's `ide dict <file> <id>` after the same character checks, TOOL.DICT's hand-over list is `ide list.index`, each page has its one execute statement, "

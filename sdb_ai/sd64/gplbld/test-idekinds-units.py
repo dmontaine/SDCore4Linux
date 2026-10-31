@@ -124,7 +124,7 @@ def checks(src):
     # ---- the start ----------------------------------------------------------------------------------------------------------------------------------------------------
     ck("K1", "the start form: a first word DICT sets the dictionary flag and moves the file and the id one word on; CREATING.SEQKEY (unquoted, any case) is seq0; an id in "
        "quotes loses them (so \"creating.seqkey\" is a record of that name); the file name is lower case",
-       ordered(head, "dflag0 = ''", "if upcase(fn0) = 'DICT' then", "dflag0 = 'DICT'", "fn0 = field(@sentence, ' ', 3)", "id0 = field(@sentence, ' ', 4)",
+       ordered(head, "dflag0 = ''", "if upcase(fn0) = 'DICT' then", "dflag0 = 'DICT'", "fn0 = field(sent.in, ' ', 3)", "id0 = field(sent.in, ' ', 4)",
                "fn0 = downcase(fn0)", "seq0 = (upcase(id0) = 'CREATING.SEQKEY')", "id0 = id0[2, len(id0) - 2]"), "")
     st = main[main.find("gosub new.form\n   begin case"):]
     ck("K2", "the start opens: CREATING.SEQKEY through seq.take and then a NEW record of that id; a named record with or.mknew = 1 (a record that is not there is a new one) and the "

@@ -519,7 +519,7 @@ end
         row("...and the ten entries are all there: Go to line, Next error, Next tab, Previous tab, Files and records, Next pane, Previous pane, Open the include (stage B, "
             "28 Oct 26), Edit in SED, Edit as fields",
             has(L[1:15], "Go to line", "Next error", "Next tab", "Previous tab", "Files and records", "Next pane", "Previous pane", "Open the include", "Edit in SED",
-                "Edit as fields"), e.text()[:500])
+                "Edit as fields", "Dictionary item as form"), e.text()[:500])
         row("...Open the include carries no key (a terminal sends Ctrl-Enter as Return)",
             any("Open the include" in l and not re.search(r"\^|F\d|Shift|Alt", l[l.index("Open the include"):][:29]) for l in L[1:15]), e.text()[:500])
         L = e.keys(RIGHT)

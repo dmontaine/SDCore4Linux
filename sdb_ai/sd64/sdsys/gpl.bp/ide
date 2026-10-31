@@ -175,13 +175,22 @@ $include dictdict.h
 
    * 28 Oct 26 (stage B): IDE {DICT} {file {record | CREATING.SEQKEY}}.  A record id in quotes is taken as it is (so "creating.seqkey" is that record);
    *   the file name is lower case, as everywhere SD writes one (the name form makes it so too, and the tabs and the tree compare with it)
+   * 31 Oct 26 (S.90 stage 2): a last word /form opens the dictionary item named as a FORM (do.dform) instead of as text; it is taken off the sentence here, so that no id is read from it
+   sent.in = @sentence
+   form0 = @false
+   if upcase(field(sent.in, ' ', 2)[1, 5]) # 'PATH:' and dcount(sent.in, ' ') > 2 then
+      if upcase(field(sent.in, ' ', dcount(sent.in, ' '))) = '/FORM' then
+         form0 = @true
+         sent.in = trimb(sent.in[1, len(trimb(sent.in)) - 5])
+      end
+   end
    dflag0 = ''
-   fn0 = field(@sentence, ' ', 2)
-   id0 = field(@sentence, ' ', 3)
+   fn0 = field(sent.in, ' ', 2)
+   id0 = field(sent.in, ' ', 3)
    if upcase(fn0) = 'DICT' then
       dflag0 = 'DICT'
-      fn0 = field(@sentence, ' ', 3)
-      id0 = field(@sentence, ' ', 4)
+      fn0 = field(sent.in, ' ', 3)
+      id0 = field(sent.in, ' ', 4)
    end
    fn0 = downcase(fn0)
    seq0 = (upcase(id0) = 'CREATING.SEQKEY')
@@ -191,7 +200,7 @@ $include dictdict.h
    * 28 Oct 26 (stage E): IDE path:/full/name opens an operating system file.  The path is the rest of the sentence after the first word (it may hold blanks), as it was typed: it is
    *   never folded to lower case or split, and the word path: is not a file of the VOC (the file and record above are cleared, so the start is the bare one and the path opens over it)
    path0 = ''
-   rest0 = field(@sentence, ' ', 2, 9999)
+   rest0 = field(sent.in, ' ', 2, 9999)
    if upcase(rest0[1, 5]) = 'PATH:' then
       path0 = trimf(trimb(rest0[6, 9999]))     ;* the ends only: TRIM would squeeze two blanks inside a name into one and open another file (review of 28 Oct 26, finding 5)
       pq0 = path0[1, 1]
@@ -208,7 +217,7 @@ $include dictdict.h
    star0 = @false
    sel0.new = @false
    if fn0 # '' and id0 # '' and not(seq0) then
-      sent0 = trim(@sentence)
+      sent0 = trim(sent.in)
       id.base = (if dflag0 # '' then 4 else 3)
       n.tok = dcount(sent0, ' ')
       begin case
@@ -476,6 +485,11 @@ $include dictdict.h
       focus.id = 'ed'
    end
    if id0 = '' and not(seq0) and sel0 = '' and path0 = '' then gosub rc.untitled          ;* 28 Oct 26 (D2): the text of untitled buffers kept when an editor ended
+
+   if form0 and nbuf > 0 then
+      gosub redraw                             ;* 31 Oct 26 (S.90 stage 2): IDE DICT file item /form: the form is the first thing the person sees, over the IDE's own screen
+      gosub do.dform
+   end
 
    menu.click = ''                          ;* the column of a click on the menu bar, while the menu it opens is being started
    loop
@@ -2609,6 +2623,8 @@ run.cmd:
          gosub do.sed
       case cmd = 'fields'
          gosub do.fields
+      case cmd = 'dform'
+         gosub do.dform                  ;* 31 Oct 26 (S.90 stage 2): a dictionary item as a full-screen form
       case cmd = 'include'
          gosub do.include                ;* 28 Oct 26 (stage B): Go / Open the include (a menu entry; no key: a terminal sends Ctrl-Enter as Return)
       case cmd = 'quit'
@@ -3688,6 +3704,56 @@ do.fields:
    end
    fz.title = fd.file : ' ' : fd.id
    gosub fields.enter
+   return
+
+* ======================================================================
+* A dictionary item as a full-screen form (31 Oct 26, S.90 stage 2).  The form is gpl.bp/dict_form, over !dict_item: it opens nothing and writes nothing, and gives back the record it built.  MODAL, over the IDE's
+*   own screen.  Save: the record becomes the tab's text (the token form, as a Reload would show it) and the IDE's own save writes it, with its edit gates and its overwrite question.  Edit as text: the same
+*   text, not written.  Esc or Cancel: nothing changes.  An item the form cannot show (a type it does not know, a format that is not a width, L R T or C and decimals) stays text, with the reason said.
+do.dform:
+   if nbuf = 0 then
+      msg = sysmsg(11218)
+      return
+   end
+   k = 'k' : bu<cb>
+   if bx{k} # 'dict' then
+      msg = sysmsg(11949)
+      return
+   end
+   ro.i = cb
+   gosub ro.check                       ;* a read-only tab (another session holds the record, bytes outside ASCII) is not changed
+   if not(ro.ok) then
+      gosub ro.box
+      return
+   end
+   gosub stash.current
+   df.u = bu<cb>
+   k = 't' : df.u
+   df.rec = bx{k}
+   i = cb
+   gosub buf.label
+   call $dict_form(df.rec, bf.name : ' ' : bf.id, df.new, df.res)
+   last.status = char(1)
+   gosub redraw
+   begin case
+      case df.res = 'cannot'
+         msg = sysmsg(11950, bf.name : ' ' : bf.id, df.new)
+      case df.res = 'save' or df.res = 'text'
+         if (df.new : '|') # (df.rec : '|') then
+            k = 't' : df.u
+            bx{k} = df.new
+            k = 'c' : df.u
+            bx{k} = ''
+            tm.u = df.u
+            tm.raw = df.new
+            gosub set.token.mode
+            gosub load.current
+         end
+         if df.res = 'save' then
+            sv.i = cb
+            gosub save.one
+         end
+   end case
    return
 
 * ======================================================================

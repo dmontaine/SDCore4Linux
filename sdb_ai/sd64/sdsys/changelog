@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+31 Oct 26  THE IDE EDITS A DICTIONARY ITEM AS A FULL-SCREEN FORM: GO, DICTIONARY ITEM AS FORM, OR IDE DICT FILE ITEM /FORM.
+
+             What        - The form fills the screen over the IDE and has a numbered label and entry for each field the item's type has. The first row is the Type (D, E, I, L, PH or X); choosing another
+                           with Left and Right changes the rows to that type's, keeping what was typed in the rows the two share: a D item has Field #, Conversion, Heading, Width, Justification, Decimals,
+                           Single/Multi, Association and User; an E item has a Path in place of the Field #; an I item an Expression; an L item an Id expression, a File and a File expression; a PH item its
+                           Phrase; an X item a text area. Each value is checked as you leave its row, with the reason near the foot and a hint above it: a field number is a whole number from 0 to 9999, a
+                           width 1 to 200, decimals 0 to 9, a justification L, R, T or C, a heading and a conversion at most 40 characters and a conversion SD knows, an association letters, digits, dots,
+                           dashes and underscores (used only when Single/Multi is M), an L item's expressions one expression with no semicolon. Save is refused while a row fails, names the row and puts the
+                           focus there; when every row passes the item becomes the tab's text and the IDE's own save writes it, with the dictionary-edit gate and the overwrite question as for any save. Edit
+                           as text takes the record to the text view without saving; Esc after a change asks before leaving. An item the form cannot show (a type it does not know, a format that is not a width, L R T
+                           or C and decimals, text with characters it cannot hold) stays text and the status line says why. The compile stamp and object code of an I item are kept while its type stays. Messages
+                           11949 and 11950.
+             Why         - The text view of an item shows the raw record, so a number in the wrong field or a justification that is not one went unnoticed until a query failed.
+             Does NOT    - Replace the text view (it is still what opens an item from the tree, and the form is one menu entry away), let the tabs or the menu work while the form is up, or change how TOOL.DICT's
+                           N and E make and edit an item (they still ask question by question and open the text view).
+
 31 Oct 26  THE PHANTOM DEBUGGER'S MESSAGES ARE KEPT IN THE USER'S PRIVATE DIRECTORY, NOT IN THE SHARED FILE $IPC.
 
              What        - PDEBUG and the phantom it debugs now leave each other their messages as records of a directory file, .local/state/sd/pdebug below the Linux home of the user who

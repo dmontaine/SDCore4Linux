@@ -3131,10 +3131,10 @@ cited by: `ide`
 ```
 
 ### msg:11226
-> kind=message tier=reference since=- src=sdsys/messages/11226:1#d6a25a13
+> kind=message tier=reference since=- src=sdsys/messages/11226:1#2bd8ff52
 
 ```
-&Go|Go to &line~^L~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Open the include~~include|&Edit in SED~^E~sed|Edit as f&ields~F12~fields
+&Go|Go to &line~^L~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Open the include~~include|&Edit in SED~^E~sed|Edit as f&ields~F12~fields|Dictionary item as for&m~~dform
 ```
 
 ### msg:11227
@@ -8803,6 +8803,24 @@ The debugger's private directory could not be set up (%1), so the phantom debugg
 ```
 
 cited by: `pdebug`
+
+### msg:11949
+> kind=message tier=reference since=- src=sdsys/messages/11949:1#5934bddc
+
+```
+The dictionary form is for a dictionary item; this tab is not one
+```
+
+cited by: `ide`
+
+### msg:11950
+> kind=message tier=reference since=- src=sdsys/messages/11950:1#9041a7ab
+
+```
+The form cannot show %1: %2, so the item stays as text
+```
+
+cited by: `ide`
 
 ### msg:11951
 > kind=message tier=reference since=- src=sdsys/messages/11951:1#ebdd4fee

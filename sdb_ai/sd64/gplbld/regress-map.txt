@@ -439,9 +439,15 @@ sdsys/gpl.bp/tool_ai         : tool-ai l2-cfg
 sdsys/voc_template/tool.ai   : tool-ai
 # 24 Oct 26 (S.75 A2): the gate matrix runs the real modify.account against the scratch groups, so a change to the verb selects it
 # S.90 (31 Oct 26): the dictionary item form's engine (stage 1); the IDE face and tool_dict's N will add their suites to these rules
-sdsys/gpl.bp/dict_item       : dictitem
+sdsys/gpl.bp/dict_item       : dictitem dictform
 gplbld/sandbox-dictitem.py   : @self
 gplbld/test-dictitem-units.py : none
+# stage 2 (31 Oct 26): the full-screen form and the IDE's hook for it (do.dform, /form, the Go menu entry, messages 11949 and 11950)
+sdsys/gpl.bp/dict_form       : dictform ide-small
+gplbld/sandbox-dictform.py   : @self
+gplbld/test-dictform-units.py : none
+sdsys/messages/1194[9]       : dictform
+sdsys/messages/11950         : dictform
 gplbld/sandbox-tool-gates.py : @self
 sdsys/gpl.bp/tool_gates      : tool-gates l2-admin
 sdsys/voc_template/tool.gates : tool-gates
@@ -574,7 +580,7 @@ sdsys/gpl.bp/sl_guard        : sed-small ide-small sed-menu dbgui tk-resize auto
 sdsys/gpl.bp/sl_memo         : memoundo escdata screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe recarr
 sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps gates
-sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds tool-voc tool-dict ide-path ide-edit ide-fields
+sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds tool-voc tool-dict ide-path ide-edit ide-fields dictform
 # S.88 d2b (29 Oct 26): FORMAT's quiet mode, used by the IDE's Format command (named COMMON /fmtq/); the free check is test-fmtquiet-units.py
 sdsys/gpl.bp/fmtsub          : ide-edit
 # The editor merge, stage B (28 Oct 26): the IDE's record kinds and locks - messages 11684-11698 (11215 and 11226 changed too), and its suite
@@ -826,7 +832,7 @@ sdsys/messages/11197        : sed-menu sed-small
 sdsys/messages/1160[0-2]     : sed-small ide-small
 sdsys/messages/1160[3-5]     : ide-sed
 sdsys/messages/1121[56]      : ide ide-small ide-sed recarr ide-kinds ide-edit
-sdsys/messages/11226         : ide ide-sed recarr ide-kinds
+sdsys/messages/11226         : ide ide-sed recarr ide-kinds dictform
 sdsys/messages/1123[7-9]     : ide idedraw
 sdsys/messages/11240         : ide idedraw
 # 19 Oct 26 (K2, K1): 11482 is printed by MODIFY.ACCOUNT and CREATE.ACCOUNT, 11521 is the refusal the netfile suite shows and the net suite pins; 11522 and 11523 are filesgrp's lines.

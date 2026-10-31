@@ -63,8 +63,8 @@ HELP = (
     ("m11216", "Ctrl-R", "Replace", "ctrl-r"),
 )
 FILE_MENU = ["new", "open", "save", "saveas", "writeas", "close", "quit"]
-GO_MENU = ["goto", "nexterr", "nexttab", "prevtab", "tree", "nextpane", "prevpane", "include", "sed", "fields"]
-UNKEYED = ["downcase", "export", "find", "findopts", "format", "import", "include", "qreplace", "saveas", "tree", "upcase", "view", "writeas", "xeq"]       # 29 Oct 26 (stage D): the editing commands have no key
+GO_MENU = ["goto", "nexterr", "nexttab", "prevtab", "tree", "nextpane", "prevpane", "include", "sed", "fields", "dform"]     # 31 Oct 26 (S.90 stage 2): the dictionary item form, last, no key
+UNKEYED = ["dform", "downcase", "export", "find", "findopts", "format", "import", "include", "qreplace", "saveas", "tree", "upcase", "view", "writeas", "xeq"]       # 29 Oct 26 (stage D): the editing commands have no key
 SEARCH_MENU = ["find", "replace", "view", "qreplace", "findopts", "upcase", "downcase", "import", "export"]
 BUILD_MENU = ["compile", "catalog", "run", "debug", "xeq", "format"]
 

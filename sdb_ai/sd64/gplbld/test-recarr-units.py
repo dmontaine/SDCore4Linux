@@ -213,7 +213,7 @@ def checks(p):
     entries = m.split("|")[1:]
     labels = [e.split("~")[0] for e in entries]
     mn = [re.search(r"&(.)", lab).group(1).lower() for lab in labels if re.search(r"&(.)", lab)]
-    row("M1 the Go menu has the entry 'Edit as fields~F12~fields' last, after the SED entry", len(entries) >= 2 and entries[-1].endswith("~F12~fields") and entries[-2].endswith("~sed"), repr(entries[-2:]))
+    row("M1 the Go menu has the entry 'Edit as fields~F12~fields' after the SED entry (31 Oct 26: the dictionary item form, ~~dform, follows it)", len(entries) >= 3 and entries[-2].endswith("~F12~fields") and entries[-3].endswith("~sed") and entries[-1].endswith("~~dform"), repr(entries[-3:]))
     row("M2 every entry of the Go menu has a mnemonic and no two share one", len(mn) == len(entries) and len(set(mn)) == len(mn), repr(mn))
     row("M3 the IDE's help names F12 and the tokens", "F12" in p["m11215"] and "fields" in p["m11215"] and ":@vm: :@sm: :@tm:" in p["m11215"])
     row("M5 messages 11991 and 11992 are there: 11991 names the three tokens in lower case, 11992 takes the field number (%1)",

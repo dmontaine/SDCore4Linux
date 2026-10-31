@@ -268,7 +268,7 @@ def checks(src):
        and "kernel(" not in ta[ta.find("case mode = 'open'"): ta.find("case not(kernel(K$PATH.OK")], "")
     ck("P19", "the command line: the path is the rest of the sentence after the first word, as typed (never folded or split), the file and record words are cleared, it opens after the form is made, "
        "and the bare start's recovery offer is skipped",
-       ordered(head, "path0 = ''", "rest0 = field(@sentence, ' ', 2, 9999)", "if upcase(rest0[1, 5]) = 'PATH:' then", "path0 = trimf(trimb(rest0[6, 9999]))", "fn0 = ''", "id0 = ''", "dflag0 = ''", "seq0 = 0")
+       ordered(head, "path0 = ''", "rest0 = field(sent.in, ' ', 2, 9999)", "if upcase(rest0[1, 5]) = 'PATH:' then", "path0 = trimf(trimb(rest0[6, 9999]))", "fn0 = ''", "id0 = ''", "dflag0 = ''", "seq0 = 0")
        and "downcase(path0" not in ide and "downcase(rest0" not in ide
        and ordered(main, "gosub new.form", "if path0 # '' then", "op.path = path0", "gosub open.path", "screen focus f, 'ed'", "and path0 = '' then gosub rc.untitled"), "")
     ck("P20", "Open (Ctrl-O) hands a 'path:' answer to open.path with the name as the form gave it (never folded), before it would open a record; the tab strip shows the last name with 'os '; "
