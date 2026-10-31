@@ -1,0 +1,86 @@
+* PDBG_STORE
+* The phantom debugger's private store (W.11 F10b): where PDEBUG and the phantom it debugs leave each other messages.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+* START-HISTORY:
+* 31 Oct 26 dm  New (W.11 F10b, Opus's decision of 30 Oct).  The conversation used to be carried in $ipc, a file every SD user can write, so a user with
+*               an operating-system shell could answer a debugger that was not theirs.  The directory code is edit_recovery's (where / make.dir / check.dir),
+*               with the store one level shorter: no account directory, because the record ids already carry the account.
+* END-HISTORY
+* START-DESCRIPTION:
+*   call !pdbg_store(pf, why)
+*     pf   the directory file <home>/.local/state/sd/pdebug opened with mark mapping OFF (a message keeps its field marks), else ''
+*     why  '' when pf is open, else a word: user (no usable operating-system user: not root), home (the kernel finds no trusted home for this process's
+*          user), directory (a directory on the way is not trusted, or cannot be made) or open (the directory could not be opened)
+*   WHO MAY USE IT.  Only the person whose process asks: the home is getpwuid(geteuid()) - never $HOME - and SDEXT SD_USER_HOME (op_sdext.c) trusts each
+*   directory from the home down only when it is a real directory (lstat: not a link) owned by that user with no group or other WRITE bit; a missing one
+*   is made under umask 077 and trusted before the next is made.  The store itself must also pass SD_FILE_PRIVATE (owner-only, mode 0700), so no other
+*   user can enter it, create, rename or read a message in it.  A PDEBUG and a phantom reach each other only when they run as the SAME operating-system
+*   user (the home is that user's): that is the whole security gain, and the documented form - PDEBUG waiting, a phantom started afterwards, by the same
+*   user - works unchanged.
+*   A message is a record whose id begins D. or DR.; it is deleted by the side that reads it.  The files hold no secret beyond what the debugger shows.
+* END-DESCRIPTION
+* START-CODE
+
+$internal
+subroutine pdbg_store(pf, why)
+$catalog !pdbg_store
+
+$include keys.h
+$include int$keys.h
+
+   STORE = '.local/state/sd/pdebug'         ;* below the home; the last directory is the store
+
+   pf = ''
+   why = 'user'
+   ps.user = downcase(trim(kernel(K$USERNAME, 0)))
+   if ps.user = '' or ps.user = 'root' then return          ;* root never (the kernel refuses an effective uid of 0 too)
+
+   why = 'home'
+   ps.home = SDEXT('', @FALSE, SD_USER_HOME)                ;* the password database's home of this process's user, trusted, or ''
+   if ps.home = '' then return
+
+   why = 'directory'
+   ps.dir = ps.home : '/' : STORE
+   gosub make.dir
+   if not(dir.ok) then return
+
+   why = 'open'
+   openpath ps.dir to pf else
+      pf = ''
+      return
+   end
+   mark.mapping pf, off
+   why = ''
+   return
+
+* Out: dir.ok, the store's directory is trusted all the way from the home (SD_USER_HOME) and is this user's alone (SD_FILE_PRIVATE)
+check.dir:
+   dir.ok = @false
+   if SDEXT(STORE, @FALSE, SD_USER_HOME) # ps.dir then return
+   dir.ok = (SDEXT(ps.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) = '1')
+   return
+
+* The store's directories are made one at a time, from the home down, each only when it is not there and under umask 077, and each must then be
+* trusted by SD_USER_HOME before the next is made (one that is a link, or that somebody else can write, stops it).  Out: dir.ok
+make.dir:
+   dir.ok = @false
+   md.rel = ''
+   md.n = dcount(STORE, '/')
+   for md.i = 1 to md.n
+      md.word = field(STORE, '/', md.i)
+      if md.rel = '' then md.rel = md.word else md.rel = md.rel : '/' : md.word
+      md.path = ps.home : '/' : md.rel
+      if SDEXT(md.rel, @FALSE, SD_USER_HOME) # md.path then
+         if ospath(md.path, OS$EXISTS) then return             ;* there, and not to be trusted
+         md.um = umask(63)
+         void ospath(md.path, OS$MKDIR)
+         if umask(md.um) then null
+         if SDEXT(md.rel, @FALSE, SD_USER_HOME) # md.path then return
+      end
+   next md.i
+   gosub check.dir
+   return
+end
+
+* END-CODE

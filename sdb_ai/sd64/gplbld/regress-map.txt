@@ -648,8 +648,13 @@ sdsys/gpl.bp/settrig         : file-a8 dirtrig
 sdsys/gpl.bp/listtrg         : file-a8 dirtrig
 sdsys/gpl.bp/debug           : @debugger ide-small ai-apps
 sdsys/gpl.bp/debug.h         : @debugger ide-small
-sdsys/gpl.bp/pdbg            : @debugger sysexc
-sdsys/gpl.bp/pdebug          : @debugger
+# W.11 F10b (31 Oct 26): the phantom debugger's conversation is in the user's private directory (!pdbg_store); oq2 row 251 runs PDEBUG against a phantom end to end,
+# sysexc 513 and the forged-record row run a phantom with no PDEBUG
+sdsys/gpl.bp/pdbg            : @debugger sysexc oq2
+sdsys/gpl.bp/pdebug          : @debugger oq2
+sdsys/gpl.bp/pdbg_store      : @debugger sysexc oq2
+sdsys/messages/11948         : @debugger
+gplbld/test-pdbgstore-units.py : none
 sdsys/gpl.bp/ftype           : dictfold
 sdsys/gpl.bp/listfl          : listu-a5
 sdsys/gpl.bp/listcom         : misc-a9

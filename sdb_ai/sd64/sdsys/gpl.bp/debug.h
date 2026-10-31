@@ -99,7 +99,9 @@ $define MAX.DATA.AREA.LINES   15
 
                    debugger.uid,                ;* Other side for phantom debugger
 
-                   ai.ok                        ;* 24 Oct 26: the AI command is available (the AI is usable for the account and the display is full screen); set once, in initialise
+                   ai.ok,                       ;* 24 Oct 26: the AI command is available (the AI is usable for the account and the display is full screen); set once, in initialise
+
+                   dbg.store                    ;* 31 Oct 26 (W.11 F10b): the phantom debugger's private store, a directory file made by !pdbg_store (PDEBUG and PDBG open it; DEBUG uses it)
 
 * Event codes (additive)
 

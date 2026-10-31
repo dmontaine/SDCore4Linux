@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 31 Oct 26 dm  W.11 F10b: the messages to and from the debugged phantom go through dbg.store (made by PDEBUG with !pdbg_store, the user's private directory), not $ipc.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
 * 24 Oct 26 dm  AI line stage 3: the command AI (or AI and a question) in the full-screen display when the AI is usable for the account; the model is told where the program has
 *               stopped, the call stack and the source round the stop; it answers in words, nothing is changed ($tk_ai).
@@ -2178,17 +2179,17 @@ end
 
 local subroutine send.message
    id = 'DR.':@userno
-   recordlocku ipc.f, id
-   write out.msg to ipc.f, id
+   recordlocku dbg.store, id
+   write out.msg to dbg.store, id
    wake debugger.uid
 
    id = 'D.':@userno
    loop
-      readu in.msg from ipc.f, id then exit
-      release ipc.f, id
+      readu in.msg from dbg.store, id then exit
+      release dbg.store, id
       pause
    repeat
-   delete ipc.f, id
+   delete dbg.store, id
    set.status in.msg<2>
 
    return
@@ -2197,8 +2198,8 @@ end
 local subroutine dbg.stop(msgno)
    if phantom then
       id = 'DR.':@userno
-      recordlocku ipc.f, id
-      write 'STOP' to ipc.f, id
+      recordlocku dbg.store, id
+      write 'STOP' to dbg.store, id
       wake debugger.uid
       break on      ;* Will have been turned off by PDEBUG
       display sysmsg(msgno)

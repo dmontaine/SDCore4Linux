@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+31 Oct 26  THE PHANTOM DEBUGGER'S MESSAGES ARE KEPT IN THE USER'S PRIVATE DIRECTORY, NOT IN THE SHARED FILE $IPC.
+
+             What        - PDEBUG and the phantom it debugs now leave each other their messages as records of a directory file, .local/state/sd/pdebug below the Linux home of the user who
+                           runs them (the home from the password database, never $HOME; each directory on the way is made when missing, must be a real directory that nobody else can write,
+                           and the store itself must be readable by its owner alone). They used to be records of $IPC, which every SD user can write, so a user with a shell could answer
+                           a debugger that was not theirs. A PDEBUG and a phantom now reach each other only as the same operating-system user, which is how they are started; PDEBUG
+                           waiting and a phantom started afterwards by the same person works as before. PDEBUG says "The debugger's private directory could not be set up (reason)" and stops
+                           (message 11948) when the store cannot be made, and a phantom that cannot make it behaves as if no PDEBUG were waiting (SYS.PROGRAM.NO_PDEBUG when a handler is
+                           there). The store survives a restart of SD, which $IPC did not, so PDEBUG removes the records of its own user number when it starts and a phantom ignores a start
+                           record whose PDEBUG has gone.
+             Why         - The phantom start-up records were sealed earlier in this release; this was the part of the phantom machinery that still trusted the shared file.
+             Does NOT    - Let a PDEBUG of one operating-system user debug the phantom of another (the two must be the same user), change what the debugger shows or its commands, or
+                           touch the debugger of an ordinary (not phantom) session.
+
 31 Oct 26  THE IDE'S FIELDS VIEW HAS THE AI LINE, ASKS COLLECTION OR ARRAY FOR AN EMPTY RECORD, AND IDE CAN BE GIVEN SEVERAL RECORD NAMES OR AN ASTERISK.
 
              What        - In the fields view (F12), a request typed in the AI entry goes to the model with the record as indented JSON, one element to a line, and the Tools menu's "explain the

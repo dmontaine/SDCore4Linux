@@ -731,10 +731,11 @@ def checks_2b(srcs, c, ck):
        and re.search(r"return file_private_check\(parent, 1\);\s*\}\s*$", fb2) is not None, "")
     sdext_calls = {n[3:]: re.findall(r"SDEXT\([^\n]*SD_FILE_PRIVATE\)[^\n]*", t) for n, t in c.items() if n.startswith("bp:") and "SD_FILE_PRIVATE" in t}
     # 28 Oct 26: !edit_recovery (S.88 plan 2.9, D2, the editors' recovery copy) is the third caller, with 2 calls: its directory and a copy (test-recovery-units.py holds its rows)
-    ck("F5 only $netcred (5 calls: the directory, and the file for EXISTS, READ, the new file and DELETE), set.netlogin (1: the directory) and !edit_recovery (2: the directory and "
-       "a copy) call it, each with @TRUE and a FILE or DIR word, each compared with the text '1'",
-       set(sdext_calls) == {"netcred", "setnetlogin", "edit_recovery"} and len(sdext_calls.get("netcred", [])) == 5 and len(sdext_calls.get("setnetlogin", [])) == 1
-       and len(sdext_calls.get("edit_recovery", [])) == 2
+    # 31 Oct 26: !pdbg_store (W.11 F10b, the phantom debugger's private directory) is the fourth caller, with 1 call: its directory (test-pdbgstore-units.py holds its rows)
+    ck("F5 only $netcred (5 calls: the directory, and the file for EXISTS, READ, the new file and DELETE), set.netlogin (1: the directory), !edit_recovery (2: the directory and "
+       "a copy) and !pdbg_store (1: the directory) call it, each with @TRUE and a FILE or DIR word, each compared with the text '1'",
+       set(sdext_calls) == {"netcred", "setnetlogin", "edit_recovery", "pdbg_store"} and len(sdext_calls.get("netcred", [])) == 5 and len(sdext_calls.get("setnetlogin", [])) == 1
+       and len(sdext_calls.get("edit_recovery", [])) == 2 and len(sdext_calls.get("pdbg_store", [])) == 1
        and all(re.search(r"SDEXT\(\w[\w.]* : @FM : '(?:FILE|DIR)', @TRUE, SD_FILE_PRIVATE\) (?:#|=) '1'", x) for v in sdext_calls.values() for x in v), repr(sdext_calls))
     ck("F6 SDEXT is an INTERNAL intrinsic in BCOMP (int.intrinsics), so a user program cannot call SD_FILE_PRIVATE, or SD_PBKDF2, or any of its neighbours",
        'int.intrinsics<-1> = "SDEXT"' in bc and re.search(r'(?<!int\.)intrinsics<-1> = "SDEXT"', bc) is None, "")

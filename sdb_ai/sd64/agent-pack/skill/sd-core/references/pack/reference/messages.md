@@ -8795,6 +8795,15 @@ Phantom %1 : start-up records missing or not from the process that started it, n
 
 cited by: `cproc`
 
+### msg:11948
+> kind=message tier=reference since=- src=sdsys/messages/11948:1#58ed5a7a
+
+```
+The debugger's private directory could not be set up (%1), so the phantom debugger cannot start
+```
+
+cited by: `pdebug`
+
 ### msg:11951
 > kind=message tier=reference since=- src=sdsys/messages/11951:1#ebdd4fee
 

@@ -389,6 +389,30 @@ def main():
                 wanted = "ph1=started|ph2 absent|ph3 absent|"
             row("513 %s: the phantom %s" % (vlabel, "gets SYS.PROGRAM.NO_PDEBUG and carries on" if goes_on else "ends, as it always did"),
                 got == wanted, ("got %r" % got) if m else out[-300:].replace("\n", " | "))
+
+        # W.11 F10b (31 Oct 26): the debugger's conversation is in the user's private directory (!pdbg_store), no longer in $ipc, which every SD user can write.  A START record
+        # forged in $ipc, naming this live session as the debugger, used to be taken by the phantom (it deleted the record and then waited for an answer that never came);
+        # now it is not looked at: the phantom has no PDEBUG, gets NO_PDEBUG and carries on, and the forged record is still there afterwards.
+        write(ph, "   open 'zzsxf' to f else stop 'nofile'\n"
+                  "   write 'started' to f, 'ph1'\n   try\n      debug\n      write 'no throw' to f, 'ph2'\n   catch sys.program.no_pdebug\n"
+                  "      write 'caught:':@exception:'/':@exception.data to f, 'ph2'\n   end\n   write 'finished' to f, 'ph3'\nend\n")
+        write(p, "   x = ''\n   open 'zzsxf' to f else stop 'nofile'\n   delete f, 'ph1'\n   delete f, 'ph2'\n   delete f, 'ph3'\n"
+                 "   openpath @sdsys:@ds:'$ipc' to ipcf else\n      crt 'FG[no $ipc]'\n      stop\n   end\n"
+                 "   fid = 'DR.':@who:'!':@logname\n   recordlocku ipcf, fid\n   write 'START':@fm:@userno to ipcf, fid\n"
+                 "   read chk from ipcf, fid then planted = (chk<1> = 'START' and chk<2> = @userno) else planted = 0\n"
+                 "   execute 'PHANTOM NO.MSG RUN bp zzsxph' capturing o\n"
+                 "   for w = 1 to 40\n      read q from f, 'ph3' then exit\n      sleep 1\n   next w\n"
+                 "   sleep 1\n   for each id in 'ph1':@fm:'ph2':@fm:'ph3'\n"
+                 "      read q from f, id then x := id:'=':q:'|' else x := id:' absent|'\n   next id\n"
+                 "   read chk from ipcf, fid then left = (chk<1> = 'START') else left = 0\n"
+                 "   recordlocku ipcf, fid\n   delete ipcf, fid\n"
+                 "   crt 'FG[planted=':planted:' left=':left:' ':x:']'\nend\n")
+        out = sess(box, "BASIC bp zzsxph DEBUGGING", "BASIC bp %s" % prog, "RUN bp %s" % prog)
+        m = re.search(r"(?m)^FG\[(.*)\]\s*$", out)
+        got = m.group(1) if m else None
+        wanted = "planted=1 left=1 ph1=started|ph2=caught:SYS.PROGRAM.NO_PDEBUG/Phantom debugger not active|ph3=finished|"
+        row("F10b a START record forged in $ipc is not answered: the phantom gets SYS.PROGRAM.NO_PDEBUG and carries on, and the forged record is left where it was",
+            got == wanted, ("got %r" % got) if m else out[-300:].replace("\n", " | "))
     finally:
         sess(box, *["DELETE.CATALOG %s" % nm for nm in catalogued])
         sess(box, "DELETE.FILE zzsxf")
