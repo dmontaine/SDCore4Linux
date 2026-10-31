@@ -9,6 +9,8 @@
 #
 # START-HISTORY:
 # 30 Oct 26 dm  Written with stage 2b, from Opus's FV1-FV15 (.claude/opus-decisions-30oct.md, Part B item 3) and the falsifiers of the review's risk list.  WRITTEN, NOT RUN.
+# 31 Oct 26 dm  Section G (stage 4): Ctrl-T on the empty top level asks collection or array (G3 of the old CED) and the ids on the command line (G4).  The AI line in the fields view has no
+#               row here (it needs an answering model: the free check test-fieldspane-units F2 holds its wiring).
 # END-HISTORY
 #
 # WHAT IT PROVES.  F12 shows the tab's record as fields in the editor's rectangle of the IDE's own form, and the TAB'S TEXT IS THE RECORD: each change the pane makes is in the tab's text
@@ -71,6 +73,7 @@ FIX = """   open 'bp' to f else stop 'no bp'
    write 'Acme':@fm:'red':@vm:'dark':@sm:'green':@vm:'blue':@fm:'x' on f, 'zzfc%(r)s'
    write 'Acme':@fm:'red':@vm:'dark':@sm:'green':@vm:'blue':@fm:'x' on f, 'zzfd%(r)s'
    write '{"a":1,"b":[true,null],"c":"x"}' on f, 'zzfj%(r)s'
+   write '{}' on f, 'zzfe%(r)s'
    crt 'FIXTURE DONE'
 end
 """
@@ -89,6 +92,8 @@ PROBE = """   open 'bp' to f else stop 'no bp'
    b = c{'b'}
    crt 'JBN[':inmat(b):']'
    crt 'JC[':c{'c'}:']'
+   read r from f, 'zzfe%(r)s' else r = '<absent>'
+   crt 'EMPTYREC[':r:']'
    crt 'END'
 end
 """
@@ -152,7 +157,7 @@ def main():
 
     def disk():
         o = sb.sess(box, "RUN bp %s" % probe)
-        return {k: tag(o, k) for k in ("REC1", "REC2", "REC3", "REC4", "JLINES", "JSTATUS", "JA", "JBN", "JC")}
+        return {k: tag(o, k) for k in ("REC1", "REC2", "REC3", "REC4", "JLINES", "JSTATUS", "JA", "JBN", "JC", "EMPTYREC")}
 
     d0 = disk()
     row("control: the probe reads the records as written", d0["REC1"] == "Acme^red|dark~green|blue^x" and d0["REC2"] == "one^two|three" and d0["JA"] == "1" and d0["JBN"] == "2" and d0["JC"] == "x",
@@ -319,6 +324,40 @@ def main():
     t = "\n".join(editor_rows(e.lines()))
     row("U2 ONE Ctrl-Z brings back the record as it was (red, blue), and the tab is not marked changed again", "plum" not in t and "navy" not in t and "red" in t and re.search(r"bp %s \*" % rc_, e.status()) is None,
         e.status() + "\n" + t[:300])
+    e.end()
+
+    # ---- G: stage 4 (31 Oct 26): Ctrl-T on the empty top level (G3) and several ids on the command line (G4) ---------------------------------------------------------------------------
+    say("\n--- G: Ctrl-T on an empty record asks collection or array; IDE file id id opens a tab each; IDE file * lists the file -----------------")
+    re_ = "zzfe" + RUN
+    e = sb.Ide(box, "IDE bp %s" % re_)
+    e.quiet()
+    L = e.keys(F12)
+    row("G1 F12 on the JSON record {} shows the pane at / with no field in it and the tab not changed", rc.path_of(L) == "/" and len(rc.elements(L)) == 0 and rc.dirty_of(L) is False,
+        "%r %r" % (rc.path_of(L), rc.elements(L)))
+    L = e.keys(CTRL_T)
+    row("G2 Ctrl-T on the empty top level asks 'collection or array' (the old CED's question: C = collection, A = array, Esc = cancel), not the 'cannot be changed' message",
+        "A = array" in "\n".join(L) and "cannot be changed" not in e.status(), e.status())
+    L = e.keys(sb.ESC)
+    row("G3 Esc leaves it as it was: the tab is not changed", rc.path_of(L) == "/" and rc.dirty_of(L) is False, repr(rc.dirty_of(L)))
+    e.keys(CTRL_T)
+    L = e.keys("a")
+    row("G4 A makes the record an array: the tab is changed and the disk is still {}", rc.dirty_of(L) is True and disk()["EMPTYREC"] == "{}", "%r %r" % (rc.dirty_of(L), disk()["EMPTYREC"]))
+    e.keys(sb.CTRL_S)
+    row("G5 Ctrl-S writes [] - the empty array", disk()["EMPTYREC"] == "[]", repr(disk()["EMPTYREC"]))
+    e.keys(F12)
+    e.end()
+    e = sb.Ide(box, "IDE bp %s %s" % (ra, rb))
+    e.quiet()
+    L = e.lines()
+    st = e.status()
+    row("G6 IDE bp id1 id2 opens a tab for each record named (both names on the tab strip) and says how many are listed and open", ("[%s]" % ra) in L[2] and ("[%s]" % rb) in L[2] or (ra in L[2] and rb in L[2]),
+        L[2] + " | " + st)
+    row("G7 ... in the words of message 11919, not the select list's", "record(s) are listed below; the first 2 are open in tabs" in st, st)
+    e.end()
+    e = sb.Ide(box, "IDE bp *")
+    e.quiet()
+    st = e.status()
+    row("G8 IDE bp * lists the records of the file and opens the first ten in tabs", "record(s) are listed below; the first 10 are open in tabs" in st, st)
     e.end()
 
     say("\nsandbox-ide-fields: %d passed, %d failed" % (passed, failed))

@@ -6,6 +6,10 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 31 Oct 26 dm  S.86 stage 4.  The AI line works in the fields view: a request typed in the AI entry and the Tools menu's "explain the selection" go to the engine ($ced_core 'ai.request'
+*               and 'ai.explain', fields.ai), and what is accepted is written back into the text like any change of the fields.  IDE file id1 id2 ... opens a tab for each id and IDE file *
+*               lists the records of the file as a select list does (G4 of the old CED).  Ctrl-T on the empty top level asks collection or array (G3, in the engine).  The key table has the
+*               eight keys of the fields pane (pane "fields").
 * 28 Oct 26 dm  REVIEW OF STAGE E (an Opus reviewer, 11 findings; the first was a stop of the IDE): !ide_osfile no longer assumes ELSE runs after LOCKED (a file another session held
 *               stopped the IDE, and every unsaved tab with it) and has an ON ERROR for -ER_MAXRLOCK; the second look at the file throws the file variable's buffer away (a same-size change
 *               by another program was read back as the old text) and refuses a file that was removed or renamed over (11742: STATUS link count 0); the write is read back and must be
@@ -119,6 +123,8 @@
 * START-DESCRIPTION:
 *
 *   IDE {DICT} {file {record | CREATING.SEQKEY}}
+*   IDE {DICT} file record record ...   a tab for each record named (a record that is not there is a new one)
+*   IDE {DICT} file *                   the records of the file listed as a select list is, the first ten in tabs
 *   IDE path:/full/name                 an operating system file (see the history: !ide_osfile)
 *
 *   The account is the project: the tree lists the files of the VOC (type F); Return on a file lists its
@@ -196,6 +202,32 @@ $include dictdict.h
       seq0 = 0
    end
 
+   * 31 Oct 26 (S.86 stage 4, G4 of the old CED): IDE {DICT} file id1 id2 ... opens a tab for each record named (one that is not there is a new record, as for one id), and IDE {DICT} file *
+   *   lists the records of the file as a select list does (the first MAXSEL in tabs).  The ids are the words of the sentence, so an id with a blank in it cannot be named here (Ctrl-O does it).
+   ids0 = ''
+   star0 = @false
+   sel0.new = @false
+   if fn0 # '' and id0 # '' and not(seq0) then
+      sent0 = trim(@sentence)
+      id.base = (if dflag0 # '' then 4 else 3)
+      n.tok = dcount(sent0, ' ')
+      begin case
+         case id0 = '*' and n.tok <= id.base
+            star0 = @true
+            id0 = ''
+            lr.ids = ''                                  ;* load.file leaves these alone when the file will not open
+            lr.more = @false
+         case n.tok > id.base
+            for g4.i = id.base to n.tok
+               g4.t = field(sent0, ' ', g4.i)
+               g4.q = g4.t[1, 1]
+               if len(g4.t) > 1 and (g4.q = '"' or g4.q = "'") and g4.t[len(g4.t), 1] = g4.q then g4.t = g4.t[2, len(g4.t) - 2]
+               if g4.t # '' then ids0<-1> = g4.t
+            next g4.i
+            id0 = ''
+      end case
+   end
+
    * The file variables through which the tabs hold their record locks: a lock belongs to the file variable it was taken through, and goes when that
    *   variable is closed, so each tab that holds one keeps its own (bx l<uid> is the slot, tused the slots in use)
    dim tfv(MAXLOCK)
@@ -266,6 +298,16 @@ $include dictdict.h
    call $tk_keys('add', ide.keys, 'ctrl-n', 'new', 'new', '', 1)
    call $tk_keys('add', ide.keys, 'ctrl-e', 'SED', 'sed', '', 1)
    call $tk_keys('add', ide.keys, 'ctrl-r', 'replace', 'replace', '', 1)
+   * 31 Oct 26 (S.86 stage 4): the keys of the fields pane (F12), which fields.key hands to the engine ($ced_core 'key'); the pane's name is not one of the focus ring's.  Not on the
+   *   function-key row (that names the pane '', so a row that names panes is left off it) and no key of the IDE's own is repeated here: F1, Ctrl-S, Ctrl-Q, F12 and the rest win over the pane
+   call $tk_keys('add', ide.keys, 'enter', 'open', 'dive', 'fields', 1)
+   call $tk_keys('add', ide.keys, 'f3', 'rename', 'rename', 'fields', 1)
+   call $tk_keys('add', ide.keys, 'ins', 'insert', 'insert', 'fields', 1)
+   call $tk_keys('add', ide.keys, 'del', 'delete', 'delete', 'fields', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-c', 'copy', 'copy', 'fields', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-x', 'cut', 'cut', 'fields', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-v', 'paste', 'paste', 'fields', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-t', 'type', 'type', 'fields', 1)
    last.foot = ''
 
    call $sl_scr('get', scr)
@@ -353,7 +395,7 @@ $include dictdict.h
    *   could use list 0, at most MAXREC of them and without building the rest of a list that is still being made; the list is used up, as SED's is
    sel0 = ''
    sel0.more = @false
-   if fn0 # '' and id0 = '' and not(seq0) then
+   if fn0 # '' and id0 = '' and not(seq0) and ids0 = '' and not(star0) then
       if selectinfo(0, SL$ACTIVE) then
          sel0.n = 0
          loop
@@ -379,6 +421,15 @@ $include dictdict.h
          gosub load.dict
          cur.code = 'D:' : fn0
       end
+   end
+   * 31 Oct 26 (stage 4, G4): the ids typed after the file name, or all the records of the file (the list load.file or load.dict made last, at most MAXREC), are opened as a select list is
+   if ids0 # '' then
+      sel0 = ids0
+      sel0.new = @true
+   end
+   if star0 then
+      sel0 = convert(@vm, @fm, lr.ids)
+      sel0.more = lr.more
    end
 
    * 28 Oct 26 (S.88 Phase 4): with no record named the IDE opens an editable "Untitled 1", the focus in the editor; with only a file named the tree keeps the focus
@@ -1926,14 +1977,20 @@ open.select:
       or.dict = dflag0
       or.file = fn0
       or.id = sel0<os.i>
+      or.mknew = (if sel0.new then 1 else 0)   ;* 31 Oct 26 (stage 4): an id typed on the command line that is not there is a new record, as for one id; the ids of a list are there
       gosub open.record
    next os.i
    if nbuf > 1 and cb # 1 then
       new.cb = 1
       gosub switch.to
    end
-   msg = sysmsg(11694, os.n, os.open)          ;* %1 records of the select list are listed below; the first %2 are open in tabs
-   if sel0.more then msg := '  ' : sysmsg(11219, MAXREC, 'the select list')
+   if ids0 # '' or star0 then
+      msg = sysmsg(11919, os.n, os.open)         ;* %1 records are listed below; the first %2 are open in tabs
+      if sel0.more then msg := '  ' : sysmsg(11219, MAXREC, fn0)
+   end else
+      msg = sysmsg(11694, os.n, os.open)          ;* %1 records of the select list are listed below; the first %2 are open in tabs
+      if sel0.more then msg := '  ' : sysmsg(11219, MAXREC, 'the select list')
+   end
    return
 
 * Go / Open the include: the line at the editor's cursor is $include {file} record (the compiler's form: a comment after ; is not part of it).  The record opens in a
@@ -3650,7 +3707,7 @@ fields.enter:
    fz.st{'title'} = fz.title
    fz.st{'w'} = ew
    fz.st{'h'} = mh + 3
-   fz.st{'ai.ok'} = 0                                         ;* the AI line of the fields view is a later stage
+   fz.st{'ai.ok'} = 0                                         ;* the engine's own F2 menu is not used (F2 is the toolkit's): the AI entry and the Tools menu call 'ai.request' and 'ai.explain' (fields.ai)
    call $ced_core('init', fz.st, '', fz.out)
    fz.st{'path.row'} = ystat                                  ;* what the engine paints over a dialogue (a refused value) goes on the status row, which the IDE writes again after
    fz.st{'msg.row'} = ystat
@@ -3925,6 +3982,21 @@ fields.key:
    gosub fields.after
    return
 
+* The AI line for the engine (31 Oct 26, stage 4).  In: fz.op ('ai.request' with the request in fz.arg, or 'ai.explain').  The engine asks the person what it needs (Send or Cancel, then
+*   Accept or Reject: $tk_ai) and puts what is accepted in its data; that is written back into the tab's text by fields.after like the result of any key, as one change of the fields
+*   (F12 and Ctrl-Z in the text area undo all of a session's changes at once).  There is no undo of its own for the AI's last change here.
+fields.ai:
+   gosub fields.state
+   gosub fields.pull
+   if fz.op = 'ai.explain' then
+      call $ced_core('ai.explain', fz.st, '', fz.out)
+   end else
+      call $ced_core('ai.request', fz.st, fz.arg, fz.out)
+   end
+   last.status = char(1)                                    ;* the wait wrote on the status row
+   gosub fields.after
+   return
+
 * After the engine took a key: it has no end of its own here, the data is written back to the tab's text when it changed, the engine's message is the status line's, and the view is drawn again.
 fields.after:
    fz.st{'done'} = @false
@@ -4088,7 +4160,9 @@ ai.selection:
    end
    gosub fields.is.on
    if fv.on then
-      msg = sysmsg(11998)               ;* 30 Oct 26 (stage 2b): the AI line works on the text; its fields-view form is stage 4
+      fz.op = 'ai.explain'              ;* 31 Oct 26 (stage 4): in the fields view the "selection" is the element the table has selected
+      fz.arg = ''
+      gosub fields.ai
       return
    end
    call $sl_form('find', f, '', 'ed', en)
@@ -4123,7 +4197,16 @@ ai.go:
    if trim(ai.req) = '' then return
    gosub fields.is.on
    if fv.on then
-      msg = sysmsg(11998)               ;* 30 Oct 26 (stage 2b): see ai.selection
+      * 31 Oct 26 (stage 4): in the fields view a request typed in the AI entry goes to the engine, which has the record as indented JSON and takes what is accepted; the other
+      *   kinds (a compile message, a selection of text) are about the text area and stay with it
+      if ai.kind = 'ask' then
+         screen set f, 'ai' value ''
+         fz.op = 'ai.request'
+         fz.arg = ai.req
+         gosub fields.ai
+      end else
+         msg = sysmsg(11998)
+      end
       return
    end
    call $sl_form('find', f, '', 'ed', en)

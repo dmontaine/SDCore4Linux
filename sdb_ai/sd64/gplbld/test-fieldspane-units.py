@@ -102,9 +102,12 @@ def checks(src):
        and ordered(L["close.current"], "k = 'v' : bu<cb>", "bx{k} = 0", "fvs{'e' : bu<cb>} = ''", "del bu<cb>"), "")
 
     ck("F2", "THE HIDDEN TEXT AREA IS NEVER READ AS THE RECORD: stash.current returns before it reads the area when the tab shows its fields; ed.read (and so Replace, case, Import, Export, Format, ...), "
-       "Go to line, Open the include, the AI selection and the AI line refuse with 11998 before they touch the area",
+       "Go to line and Open the include refuse with 11998 before they touch the area; since stage 4 the AI selection explains the selected element through the engine (fields.ai) and the AI line sends a typed request there, "
+       "and the other kinds of the AI line (a compile message) refuse with 11998, all before they touch the area",
        ordered(L["stash.current"], "k = 'v' : bu<cb>", "if bx{k} then return", "screen get f, 'ed' returning txt", "bx{k} = txt")
-       and all(ordered(L[n], "gosub fields.is.on", "if fv.on then", "msg = sysmsg(11998)", "return", "call $sl_form('find', f, '', 'ed', en)") for n in ("ed.read", "do.goto", "do.include", "ai.selection", "ai.go")), "")
+       and all(ordered(L[n], "gosub fields.is.on", "if fv.on then", "msg = sysmsg(11998)", "return", "call $sl_form('find', f, '', 'ed', en)") for n in ("ed.read", "do.goto", "do.include"))
+       and ordered(L["ai.selection"], "gosub fields.is.on", "if fv.on then", "fz.op = 'ai.explain'", "gosub fields.ai", "return", "call $sl_form('find', f, '', 'ed', en)")
+       and ordered(L["ai.go"], "gosub fields.is.on", "if fv.on then", "if ai.kind = 'ask' then", "fz.op = 'ai.request'", "gosub fields.ai", "msg = sysmsg(11998)", "return", "call $sl_form('find', f, '', 'ed', en)"), "")
 
     ck("F3", "the keys: every IDE key in do.key comes before the pane's case, which is the LAST case, guarded by the focus being on the table and passing the key on; Return in the table (do.act) "
        "is the engine's Return; Esc (no event) goes to fields.esc, which goes up a level only on the table and not at the top, else the IDE's menu",
@@ -223,7 +226,8 @@ def mut(name, row, fn):
 mut("the stash reads the hidden area", "F2", sub1("      if bx{k} then return              ;* 30 Oct 26 (stage 2b)", "      if 0 then return              ;* 30 Oct 26 (stage 2b)"))
 mut("Replace works on the hidden area", "F2", sub1("   gosub fields.is.on\n   if fv.on then\n      msg = sysmsg(11998)               ;* 30 Oct 26 (stage 2b): the commands that work", "   gosub fields.is.on\n   if 0 then\n      msg = sysmsg(11998)               ;* 30 Oct 26 (stage 2b): the commands that work"))
 mut("Go to line moves the hidden cursor", "F2", sub1("      msg = sysmsg(11998)               ;* 30 Oct 26 (stage 2b): it moves the cursor", "      msg = ''               ;* 30 Oct 26 (stage 2b): it moves the cursor"))
-mut("the AI line reads the hidden area", "F2", sub1("      msg = sysmsg(11998)               ;* 30 Oct 26 (stage 2b): see ai.selection", "      msg = ''               ;* 30 Oct 26 (stage 2b): see ai.selection"))
+mut("the AI line reads the hidden area", "F2", sub1("      end else\n         msg = sysmsg(11998)\n      end\n      return\n   end\n   call $sl_form('find', f, '', 'ed', en)\n   mw = f{'widgets', en}\n   ai.lines", "      end else\n         msg = ''\n      end\n      return\n   end\n   call $sl_form('find', f, '', 'ed', en)\n   mw = f{'widgets', en}\n   ai.lines"))
+mut("the AI selection falls through to the hidden area", "F2", sub1("      gosub fields.ai\n      return\n   end\n   call $sl_form('find', f, '', 'ed', en)\n   mw = f{'widgets', en}\n   ai.my", "      gosub fields.ai\n   end\n   call $sl_form('find', f, '', 'ed', en)\n   mw = f{'widgets', en}\n   ai.my"))
 def pane_first(src):
     """the pane's case moved from the end of do.key's cases to the start: every IDE key then goes to the engine while the focus is on the table"""
     r = dict(src)

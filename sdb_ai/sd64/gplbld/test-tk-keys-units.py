@@ -32,7 +32,7 @@ GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 
 EXPECT_PROGRAMS = 24
-EXPECT_ADD_ROWS = 258         # (256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 258 with tool_test's Ctrl-O row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
+EXPECT_ADD_ROWS = 266         # (266 with the IDE's eight rows of the pane "fields", 31 Oct 26; 256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 258 with tool_test's Ctrl-O row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
 # an action that has two keys on purpose (the second is for a terminal that keeps the first for itself)
@@ -338,6 +338,9 @@ def run_a(raw, rows):
                 hit =(re.search(r"\bact\s*=\s*'%s'" % re.escape(r["act"]), body) is not None
                        or re.search(r"=\s*'%s'" % re.escape(r["key"]), body) is not None
                        or re.search(r"\bcase\b[^\n]*'%s'" % re.escape(r["key"]), body) is not None)
+                if not hit and prog == "ide" and r["panes"] == frozenset(["fields"]):
+                    # 31 Oct 26 (S.86 stage 4): a key of the IDE's pane "fields" is handed to the engine, whose key handler is the one that acts on it
+                    hit = re.search(r"\bc\.key\s*=\s*'%s'" % re.escape(r["key"]), strip_bas(raw["ced_core"])) is not None
             if not hit:
                 res["handler"].append("%s:%s/%s" % (prog, r["key"], r["act"]))
     # reserved keys
@@ -699,6 +702,10 @@ mut("tool_query", "busy = (if cur.pane = 'File' and filt # '' then 1 else 0)", "
 mut("tool_dict", "or pi = 3 then 1 else 0)", "then 1 else 0)", "tool_dict's busy leaves the Indices pane out (the pre-fix code)", "handler")
 mut("tk_keys", "            if qent # '' then m<1, -1> = qent", "            if 0 then m<1, -1> = qent", "Quit is dropped from its menu", "menus")
 mut("tk_keys", "if fa = 'quit' then qent = ent else m<1, -1> = ent", "m<1, -1> = ent", "Quit stays where the table put it", "menus")
+# 31 Oct 26 (S.86 stage 4): the IDE's pane "fields" - the first of these is marker M_S86 for --from=
+M_S86 = len(M)
+mut("ide", "call $tk_keys('add', ide.keys, 'ctrl-v', 'paste', 'paste', 'fields', 1)", "call $tk_keys('add', ide.keys, 'ctrl-9', 'paste', 'paste', 'fields', 1)", "a key of the pane that the engine has no case for", "handler")
+mut("ide", "call $tk_keys('add', ide.keys, 'ctrl-c', 'copy', 'copy', 'fields', 1)", "call $tk_keys('add', ide.keys, 'ctrl-t', 'copy', 'copy', 'fields', 1)", "Ctrl-T bound to two actions in the pane", "conflict")
 # ---- PART B MUTANTS END ----
 
 

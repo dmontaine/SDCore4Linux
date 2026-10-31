@@ -2517,7 +2517,7 @@ cited by: `ced`
 New record '%1': C = collection, A = array, Esc = cancel
 ```
 
-cited by: `ced`
+cited by: `ced`, `ced_core`
 
 ### msg:11156
 > kind=message tier=reference since=- src=sdsys/messages/11156:1#f5540ab6
@@ -8688,6 +8688,15 @@ The VOC of %2 already holds a record %1: it was not overwritten.
 ```
 
 cited by: `rstvoc`
+
+### msg:11919
+> kind=message tier=reference since=- src=sdsys/messages/11919:1#413eeb2e
+
+```
+%1 record(s) are listed below; the first %2 are open in tabs
+```
+
+cited by: `ide`
 
 ### msg:11930
 > kind=message tier=reference since=- src=sdsys/messages/11930:1#bfc9f698

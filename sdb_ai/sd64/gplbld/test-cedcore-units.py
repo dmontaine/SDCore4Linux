@@ -123,8 +123,8 @@ def checks(p):
             break
         main.append(l.strip())
     ops = [m.group(1) for l in main for m in [re.match(r"case op = '([\w.]+)'$", l)] if m]
-    sent = sorted(set(re.findall(r"call \$ced_core\('([\w.]+)'", htext)))
-    row("E4 every op the host sends is a case of the engine's dispatch (and the dispatch has no op the host never sends but 'key')", all(s in ops for s in sent) and sorted(set(ops) - set(sent)) == [],
+    sent = sorted(set(re.findall(r"call \$ced_core\('([\w.]+)'", htext)) | set(re.findall(r"call \$ced_core\('([\w.]+)'", "\n".join(code(p["ide"])))))      # 31 Oct 26: the IDE is the second host
+    row("E4 every op a host (the CED program, the IDE) sends is a case of the engine's dispatch (and the dispatch has no op that neither sends)", all(s in ops for s in sent) and sorted(set(ops) - set(sent)) == [],
         "sent %r, dispatched %r" % (sent, ops))
     lab = labels(core)
     gos = sorted(set(m.group(1) for l in core for m in [re.search(r"\bgosub ([\w.]+)", l)] if m))
@@ -192,11 +192,11 @@ def checks(p):
     # 30 Oct 26 (stage 2b): the view is a pane of the tab and not a mode; the tab's text is the record, written back by the IDE's own labels, so the IDE asks the engine for init, key and layout
     #   only - the 'prep.save' / 'saved' / 'abandon' ops are the full-screen host's (a write to a file, a Ctrl-S, a question at the quit)
     for lab in ("fields.enter", "fields.leave", "fields.view.on", "fields.form", "fields.apply", "fields.sync", "fields.sync.tab", "fields.parse", "fields.rebuild", "fields.drop",
-                "fields.esc", "fields.key", "fields.after", "fields.writeback", "fields.fill", "fields.pull", "fields.show", "fields.label"):
+                "fields.esc", "fields.key", "fields.ai", "fields.after", "fields.writeback", "fields.fill", "fields.pull", "fields.show", "fields.label"):
         fr += section(ide, lab) or []
     sent_ide = sorted(set(re.findall(r"call \$ced_core\('([\w.]+)'", "\n".join(fr))))
-    row("E22 the IDE no longer calls $cedit (stage 5 of the plan, reached by the in-form pane); its fields view calls the engine's init, key and layout (after a resize or a rebuild) and nothing it writes",
-        not any("$cedit" in l for l in ide) and sent_ide == ["init", "key", "layout"]
+    row("E22 the IDE no longer calls $cedit (stage 5 of the plan, reached by the in-form pane); its fields view calls the engine's init, key and layout (after a resize or a rebuild) and, for the AI line (stage 4), ai.request and ai.explain and nothing it writes",
+        not any("$cedit" in l for l in ide) and sent_ide == ["ai.explain", "ai.request", "init", "key", "layout"]
         and not any(re.search(r"\b(write|writeu|writev|delete|readu|execute)(?![\w.])", l) for l in fr), repr(sent_ide))
     lay = [r"if fz\.st\{'w'\} \+ 0 # ew or fz\.st\{'h'\} \+ 0 # \(mh \+ 3\) then", r"call \$ced_core\('layout', fz\.st, ew : @fm : \(mh \+ 3\), fz\.out\)", r"fz\.st\{'path\.row'\} = ystat",
            r"fz\.st\{'msg\.row'\} = ystat"]

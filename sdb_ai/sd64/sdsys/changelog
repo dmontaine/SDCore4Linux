@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+31 Oct 26  THE IDE'S FIELDS VIEW HAS THE AI LINE, ASKS COLLECTION OR ARRAY FOR AN EMPTY RECORD, AND IDE CAN BE GIVEN SEVERAL RECORD NAMES OR AN ASTERISK.
+
+             What        - In the fields view (F12), a request typed in the AI entry goes to the model with the record as indented JSON, one element to a line, and the Tools menu's "explain the
+                           selection" explains the element the table has selected; the usual preview (Send or Cancel) and the diff (Accept or Reject) come first, and what you accept changes the
+                           fields and so the tab's text, like any other edit there. A compile message still cannot be explained from the fields view (message 11998). On the empty top level of a
+                           record, Ctrl-T asks whether it is a collection or an array (C, A or Esc); a new record of a collection file starts as an empty collection, so this is how to make it an
+                           array. IDE file id1 id2 ... opens a tab for each record named (one that is not there is a new record) and IDE file * lists the records of the file as a select list does,
+                           with the first ten in tabs; the same two forms work after DICT. Ids are the words of the command, so an id with a blank in it is opened with Ctrl-O.
+             Why         - The collection editor had these and the IDE's fields view, which replaces it, did not.
+             Does NOT    - Offer a separate undo for the AI's last change in the fields view (F12 and Ctrl-Z in the text area take the whole visit back), put a key on F2 (F2 is not used by
+                           the IDE), or change what the AI is sent in the text view.
+
 31 Oct 26  THE A AND S DICTIONARY ITEM TYPES ARE GONE: SD READS D, I, E, L, PH AND X ITEMS, AND THE CORRELATIVE COMPILER IS REMOVED.
 
              What        - An A item was a data field described in another system's layout (the heading in field 3, the conversion in field 7, a correlative in field 8, the justification

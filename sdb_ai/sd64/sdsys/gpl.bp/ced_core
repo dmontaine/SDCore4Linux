@@ -7,6 +7,8 @@
 * START-HISTORY:
 * 30 Oct 26 dm  Written (the one-editor plan, stage 1, no change in what the editor does): the code that ced_edit held between its key loop and its painting, taken
 *               out of it unchanged except where a label wrote the file or painted.  The state lives in a collection, so that a host can hold more than one editor.
+* 31 Oct 26 dm  S.86 stage 4: the ops 'ai.request' and 'ai.explain' (the IDE's AI line in the fields view), and Ctrl-T / F4 on the empty top level asks collection or array (G3, the old CED's
+*               choice for a new record).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -32,6 +34,8 @@
 *         prep.save  before the host writes: st{'ok'} 1 and st{'text'} the record text (data mode: from $recarr, which may refuse - message 11988; ftype 1: the JSON)
 *         saved    the host has written (or tried): a = 1 : @fm : 0 written, 0 : @fm : status the write failed, -1 refused before the write (the message is set)
 *         message  a is put on the message line
+*         ai.request  the AI line (the IDE's entry): a is the request, the whole record is the text; what is accepted is put in st{'c'} (the host sees it change)
+*         ai.explain  the AI line, the selected element explained
 *         abandon  put c back as it was last saved, and leave without a question (the terminal is gone)
 *
 *   THE ENGINE NEVER OPENS OR CLOSES THE SCREEN AND NEVER WRITES A FILE.  It asks its questions with SCREEN ASK, MENU and MSGBOX on the screen the host has open.
@@ -70,6 +74,13 @@ $include sl.h
          gosub op.saved
       case op = 'message'
          message.text = a
+      case op = 'ai.request'
+         ai.req = a
+         ai.sel = ''
+         ai.note = ''
+         gosub ai.go
+      case op = 'ai.explain'
+         gosub ai.explain
       case op = 'abandon'
          gosub revert
          quit.all = @true
@@ -698,7 +709,13 @@ choose.type:
 
 change.type:
    if count = 0 then
-      display @sys.bell :
+      * 31 Oct 26 (S.86 stage 4, the old CED's choice of a new record's kind, G3): the top level of a record that is empty is a collection or an array, whichever the person says; the
+      *   data mode (ftype 2) is always an array of fields and has nothing to choose
+      if path = '' and ftype # 2 then
+         gosub choose.top
+      end else
+         display @sys.bell :
+      end
       return
    end
    i = sel
@@ -745,6 +762,24 @@ change.type:
    if ct.pick = '' then return
    gosub apply.type
    dirty = @true
+   gosub build.list
+   return
+
+* choose.top  -  The top level of an empty record: a dialogue asks collection or array (11155; Esc leaves it as it is).  The choice is a change only when it is the other kind.
+choose.top:
+   nb = 0
+   screen msgbox sysmsg(11155, title) buttons '&Collection,&Array' returning nb else nb = 0
+   want = ''
+   begin case
+      case nb = 1
+         want = 'collection'
+      case nb = 2
+         want = 'array'
+   end case
+   if want = '' or want = jtype(c) then return
+   if want = 'collection' then c = collection() else c = mat()
+   dirty = (jbuild(c) # saved.text)
+   gosub resolve
    gosub build.list
    return
 
