@@ -93,6 +93,10 @@ def check(srcs, voct, newvoc_has, messages):
         bool(mk) and all(("pathname" in t or "target" in t) for t in mk) and first(F, "target = pathname : @ds : final : '.dic'") is not None and first(F, "target = pathname : @ds : final\n") is None or
         (bool(mk) and all(("pathname" in t or "target" in t) for t in mk)), repr(mk[:3]))
     row("C the filler's log is capped at 10000 lines by default", any(t.strip() == "tf.logcap = 10000" for _, t in F))
+    p_reached = first(F, "tf.src = '-'")
+    p_fopen = first(F, "call !tapeimg('open', img.arg")
+    row("C the filler marks that it was reached BEFORE it opens the image, so that a refused image is logged too (the VM witness found it was not)",
+        None not in (p_reached, p_fopen) and p_reached < p_fopen)
     p_fname = first(F, "call !tapeimg('name', base : fm : 'file' : fm : maxid")
     p_fcreate = first(F, "create.file target dynamic on error")
     row("C a file name is judged by the name rule before the first file is created", None not in (p_fname, p_fcreate) and p_fname < p_fcreate)
@@ -146,6 +150,7 @@ MUTANTS = [
     ("tapeimp", "LIST does not stop", "      @system.return.code = 0\n      stop\n   end\n\n* ---------------------------------------------------------------- the checks before anything is made", "      @system.return.code = 0\n   end\n\n* ---------------------------------------------------------------- the checks before anything is made"),
     ("tapeimp", "a group account", "call !create_account('USER', to.name, settings, err)", "call !create_account('GROUP', to.name, settings, err)"),
     ("tapeimp", "a gate switched on", "   settings<CA$AFTER> = '!tape_fill'\n", "   settings<CA$AFTER> = '!tape_fill'\n   settings<CA$ROUTE.SSH> = 1\n"),
+    ("tape_fill", "the filler is marked as reached only after the image opened", "   tf.src = '-'           ;* ", "   tf.src = ''            ;* "),
     ("tapeimp", "the log only when it worked", "   if tf.src # '' then gosub write.log", "   if tf.src # '' and ok then gosub write.log"),
     ("tapeimp", "the log record overwritten", "log.id = to.name : '.' : oconv(date(), 'D4Y')", "log.id = to.name : '.' : '1' : oconv(date(), 'D4Y')"),
     ("tapeimp", "the verb opens the image itself", "   call !tapeimg('open', image, kind, num, aux, id, rec, verdict)\n   if verdict # '' then\n      display sysmsg(11924, verdict, rec)",
