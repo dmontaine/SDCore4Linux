@@ -8689,6 +8689,38 @@ The VOC of %2 already holds a record %1: it was not overwritten.
 
 cited by: `rstvoc`
 
+### msg:11919
+> kind=message tier=reference since=- src=sdsys/messages/11919:1#079d53a3
+
+```
+The fill step is only for a new user or group account made by this command, and only the import's own. Nothing was created.
+```
+
+### msg:11920
+> kind=message tier=reference since=- src=sdsys/messages/11920:1#ecaa66e8
+
+```
+The new account %1 was removed again because filling it failed.
+```
+
+cited by: `create_account`
+
+### msg:11921
+> kind=message tier=reference since=- src=sdsys/messages/11921:1#68e788d2
+
+```
+The new account %1 was made, filling it failed, and removing it again also failed (step %2: 1 the directory, 2 the Linux user, 3 the group). Check them by hand.
+```
+
+cited by: `create_account`
+
+### msg:11922
+> kind=message tier=reference since=- src=sdsys/messages/11922:1#1cc80998
+
+```
+The fill step named a path that is not inside the new account: %1
+```
+
 ### msg:11930
 > kind=message tier=reference since=- src=sdsys/messages/11930:1#bfc9f698
 

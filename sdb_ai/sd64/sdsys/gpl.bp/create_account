@@ -17,6 +17,11 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 30 Oct 26 dm S.92 (TAPE.IMPORT, owner's yes of 30 Oct): CA$AFTER / CA$AFTER.ARG, the fill hook.  The subroutine !tape_fill (the only name accepted) is called after the last thing make.account makes and
+*              BEFORE the VOC is handed over, while the directory is still the sdsys user's; the paths it returns are handed over one by one (run.after).  A refusal, or a path outside the new
+*              directory, REMOVES what this call made (unwind.new: the directory, the Linux user and its home, the groups: 11920, or 11921 with what is left).  Refused before anything is made (11919)
+*              for ATTACH, a reused user, the shared account and any type but USER and GROUP.  Every other caller passes nothing and runs as it did.  The unwind did not exist before: a failure
+*              after the directory was made used to leave it, the user and the groups behind.
 * 28 Oct 26 dm S.88 plan 2.9 (D2): CA$RECOVERY (exactly 1) writes ACC$RECOVERY 'yes' for a user account ('no' otherwise, written explicitly like the gates) and is said with 11770;
 *              a group or other account is refused (11771) before anything is made.
 * 26 Oct 26 dm S.75, home: CA$START (menu, terminal or blank) is written to ACC$START and CA$PINS (exactly 1) to ACC$PINS 'yes', for every type of account, and said with 11868 and 11885; a start
@@ -194,6 +199,20 @@ deffun valid_os_path(path) calling '!valid_os_path'
    shared.write.want = (settings<CA$SHARED.WRITE> = 1)
    no.query = settings<CA$NO.QUERY> = 1
    reuse.sd.user = settings<CA$REUSE.SD.USER> = 1
+
+* 30 Oct 26 dm - S.92 (owner's yes of 30 Oct 2026): the fill hook.  Only the import's own subroutine, only for a USER or GROUP account that THIS call makes (no ATTACH, no reused user, not the
+*   shared account), because a failed fill removes the directory, the Linux user and the groups this call made and must not be able to remove anything that was there before.  Refused before
+*   anything is made.
+   after.name = trim(settings<CA$AFTER>)
+   after.arg = settings<CA$AFTER.ARG>
+   after.failed = @false
+   if after.name # '' then
+      if after.name # '!tape_fill' or (acc.type # 'USER' and acc.type # 'GROUP') or settings<CA$ATTACH> = 1 or reuse.sd.user or acc.shared then
+         @system.return.code = -ER$ARGS
+         err = 11919 ;* The fill step is only for a new user or group account made by this command
+         return
+      end
+   end
 
 * ATTACH, re-checked here: -internal and the one-shot marker for THIS account.
 *   The verb has already refused the word when either gate was shut, without
@@ -609,7 +628,10 @@ PW.TRY.AGAIN:
    end case
 
    gosub make.account
-   if err # '' then goto exit.create
+   if err # '' then
+      if after.failed then gosub unwind.new
+      goto exit.create
+   end
 
    set.owner.path = pathname
    gosub set.owner
@@ -823,12 +845,70 @@ make.account:
       gosub set.owner
    end
 
+* 30 Oct 26 dm - S.92: the fill hook, after the last thing this routine makes and BEFORE the VOC is handed over, so that the filler can still write the VOC's pointers.
+   if after.name # '' then
+      gosub run.after
+      if err # '' then return
+   end
+
    set.owner.path = pathname:@ds:'voc'
    gosub set.owner
    set.owner.path = pathname:@ds:'voc':@ds:'%0'
    gosub set.owner
    set.owner.path = pathname:@ds:'voc':@ds:'%1'
    gosub set.owner
+   return
+
+* ======================================================================
+
+* RUN.AFTER  -  the fill hook (30 Oct 26, S.92).  The subroutine named in settings is called while the directory is still the sdsys user's; it returns the pathnames it made, and each is
+*   handed over like the others.  Every path must lie inside the new account's directory and carry no quote and no dot-dot component (the helper is given it single-quoted).  A refusal, or a
+*   path that does not qualify, sets err and after.failed, and the caller removes what this call made.
+run.after:
+   made = ''
+   ferr = ''
+   call @after.name(pathname, after.arg, made, ferr)
+   if ferr # '' then
+      @system.return.code = -ER$FAILED
+      err = ferr
+      after.failed = @true
+      return
+   end
+   n.made = dcount(made, @fm)
+   for i.made = 1 to n.made
+      set.owner.path = made<i.made>
+      if set.owner.path = '' then continue
+      if set.owner.path[1, len(pathname) + 1] # pathname : @ds or index(set.owner.path, "'", 1) or index(set.owner.path, @ds : '..' : @ds, 1) or set.owner.path[len(set.owner.path) - 2, 3] = @ds : '..' then
+         @system.return.code = -ER$FAILED
+         err = 11922:@vm:set.owner.path[1, 120] ;* The fill step named a path that is not inside the new account
+         after.failed = @true
+         return
+      end
+      gosub set.owner
+   next i.made
+   return
+
+* ======================================================================
+* UNWIND.NEW  -  a fill that was refused: remove what THIS call made, last made first (the directory, the Linux user and its home, the groups).  Only reached for a USER or GROUP account
+*   that this call made, with no ATTACHed or reused user (refused at the top), so nothing that was there before can be touched.  The register record is not written yet.
+unwind.new:
+   unwind.stat = 0
+   os.execute "sudo /usr/local/sbin/sd-elevate rmtree-account '" : pathname : "'"
+   if OS.ERROR() # 0 then unwind.stat = 1
+   if acc.type = 'USER' then
+      os.execute "sudo /usr/local/sbin/sd-elevate userdel-home " : acc.uname
+      if is_user(acc.uname) then os.execute "sudo /usr/local/sbin/sd-elevate userdel " : acc.uname
+      if is_user(acc.uname) then unwind.stat = 2
+   end
+   if group_name # '' then
+      os.execute "sudo /usr/local/sbin/sd-elevate groupdel " : group_name
+      if is_group(group_name) then unwind.stat = 3
+   end
+   if unwind.stat = 0 then
+      crt sysmsg(11920, acc.name) ;* The new account %1 was removed again because filling it failed
+   end else
+      crt sysmsg(11921, acc.name, unwind.stat) ;* ... and removing it again also failed
+   end
    return
 
 * ======================================================================

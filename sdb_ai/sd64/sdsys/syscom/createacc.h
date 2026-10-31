@@ -89,4 +89,13 @@ $define CA$PINS            43    ;* 1 = the new account starts with ACC$PINS 'ye
 *   Refused for a group or other account (11771).
 $define CA$RECOVERY        44    ;* 1 = the new account starts with ACC$RECOVERY 'yes'
 
+* Linux only (30 Oct 26, S.92, TAPE.IMPORT): the account is FILLED by a subroutine while its directory is still the sdsys user's, before the VOC and the files it made are handed to
+*   the account's user.  CA$AFTER is the subroutine's name and only '!tape_fill' is accepted; CA$AFTER.ARG is one string handed to it.  Refused (11919) for an ATTACHed user, a reused user,
+*   the shared account and any type but USER and GROUP, before anything is made, because a failed fill removes what THIS call made and nothing else.  The subroutine is called
+*   call !tape_fill(pathname, arg, made, ferr)
+*   and returns in made the pathnames (field-mark separated, every one inside pathname) of the files and directories it created, which are handed over one by one, and in ferr a message number
+*   and its arguments as err has them, or blank.  A refusal removes the directory, the Linux user with its home and the groups this call made (11920), or says what stays (11921).
+$define CA$AFTER           45    ;* '!tape_fill': fill the new account before it is handed over (S.92)
+$define CA$AFTER.ARG       46    ;* one string for that subroutine
+
 * END-CODE
