@@ -11898,7 +11898,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 53
+"words": 59
 },
 "msg:11924": {
 "kind": "message",
@@ -28201,7 +28201,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 40
+"words": 48
 },
 "tcl:tasklock": {
 "kind": "tcl.keyword",

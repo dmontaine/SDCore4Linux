@@ -16,7 +16,8 @@
 # the verdict ('V|R-...') or the label and every item (kind, file number, level or group, id and record, all in hex).  This file
 # makes the same dump with tapegen.parse_image.  A row passes when the two texts are EQUAL, so the BASIC reader is held to the
 # twin on every byte it returns, not only on the verdict.  The images are
-#   - the 42 recipes of tapegen.RECIPES (synthetic and hostile, each with its own verdict),
+#   - the recipes of tapegen.RECIPES (synthetic and hostile, each with its own verdict; since 30 Oct the layouts r83, jbs, fs and mv are among them,
+#     each image asked for under its own layout word),
 #   - the two images the old ACCOUNT.SAVE wrote (the private .claude/tape-ref; this suite exits 2 without them),
 #   - N images made by changing one thing in a valid image at a time (a seeded generator: one byte, a block's pad, a digit, a mark),
 #     where the twin is the oracle and the BASIC may not disagree with it,
@@ -94,12 +95,14 @@ def dump_twin(data, opts):
     except tg.TapeError as e:
         return "V|" + e.code
     lab = m["label"]
-    lines = ["H|%s|%s|%d|%s %s" % (lab["account"].decode(), lab["reel"].decode(), m["blocks"], lab["time"].decode(), lab["date"].decode())]
+    lines = ["H|%s|%s|%d|%s %s" % (lab["account"].hex().upper(), lab["reel"].decode(), m["blocks"], lab["time"].decode(), lab["date"].decode())]
     for it in m["items"]:
         if it["kind"] == "D":
             lines.append("D|%s|%s|%s|%s" % (it["num"].decode(), it["level"].decode(), it["name"].hex().upper(), tg.FM.join(it["attrs"]).hex().upper()))
         elif it["kind"] == "I":
             lines.append("I|%s|%s|%s|%s" % (it["num"].decode(), it["group"].decode(), it["id"].hex().upper(), tg.FM.join(it["fields"]).hex().upper()))
+        elif it["kind"] == "H":
+            lines.append("T|" + it["text"].hex().upper())
         else:
             lines.append("O|%s|%s/%d|%s|%s" % (it["num"].decode(), it["group"].decode(), it["blocks"], it["id"].hex().upper(), it["data"].hex().upper()))
     lines.append("E")
@@ -111,12 +114,13 @@ def dump_twin(data, opts):
 
 def fuzz_images(count):
     rnd = random.Random(30102026)
-    bases = [(n, tg.RECIPES[n][0]()) for n in ("ok-small", "ok-long-record", "ok-marks-and-high-byte", "ok-binary-forms", "ok-binary-lookalikes")]
-    bases.append(("real1", open(REAL["real1"], "rb").read()[: 512 * 9] + tg.eof_block()))
+    bases = [(n, tg.RECIPES[n][0](), tg.RECIPES[n][2]) for n in ("ok-small", "ok-long-record", "ok-marks-and-high-byte", "ok-binary-forms", "ok-binary-lookalikes",
+                                                                  "g-ok-r83", "g-ok-mv-with-h", "g-ok-long-padded", "g-ok-long-flat", "g-ok-space-pad", "g-ok-end-xc")]
+    bases.append(("real1", open(REAL["real1"], "rb").read()[: 512 * 9] + tg.eof_block(), {}))
     interesting = [0x00, 0xFF, 0xFE, 0xFD, 0x20, 0x58, 0x82, 0x30, 0x39, 0x4F, 0x44, 0x49, 0x42, 0x4C, 0x31, 0x32, 0x33, 0x34, 0x46]
     out = []
     for i in range(count):
-        name, img = rnd.choice(bases)
+        name, img, bopts = rnd.choice(bases)
         b = bytearray(img)
         kind = rnd.choice(("byte", "byte", "byte", "interesting", "interesting", "label", "pad", "swap", "trunc", "dupblock", "dropblock"))
         if kind == "byte":
@@ -124,7 +128,7 @@ def fuzz_images(count):
         elif kind == "interesting":
             b[rnd.randrange(len(b))] = rnd.choice(interesting)
         elif kind == "label":
-            blk = rnd.choice((0, 2, 4)) * tg.PHYS
+            blk = rnd.choice([k for k in (0, 2, 4) if k < len(b) // tg.PHYS]) * tg.PHYS      # an image of the other layouts may have fewer than five blocks
             b[blk + tg.PAD + rnd.randrange(80)] = rnd.choice(interesting + [0x20, 0x41, 0x61])
         elif kind == "pad":
             blk = rnd.randrange(len(b) // tg.PHYS) * tg.PHYS
@@ -141,7 +145,7 @@ def fuzz_images(count):
         else:
             n = rnd.randrange(len(b) // tg.PHYS)
             del b[n * tg.PHYS:(n + 1) * tg.PHYS]
-        out.append(("fz%03d-%s-%s" % (i, name.replace("ok-", ""), kind), bytes(b), {}))
+        out.append(("fz%03d-%s-%s" % (i, name.replace("ok-", ""), kind), bytes(b), dict(bopts)))
     return out
 
 
@@ -166,12 +170,14 @@ DRIVER = r"""* ZZTIDRV - drives !tapeimg over the images of a list and writes on
    loop
       readseq line from lf else exit
       name = field(line, '|', 1)
-      arg = field(line, '|', 2) : @fm : field(line, '|', 3) : @fm : field(line, '|', 4) : @fm : field(line, '|', 5)
+      arg = field(line, '|', 2) : @fm : field(line, '|', 3) : @fm : field(line, '|', 4) : @fm : field(line, '|', 5) : @fm : field(line, '|', 6)
       call !tapeimg('open', arg, kind, num, aux, id, rec, verdict)
       if verdict # '' then
          txt = 'V|' : verdict
       end else
-         txt = 'H|' : id : '|' : aux : '|' : num : '|' : rec
+         s = id
+         gosub hexify
+         txt = 'H|' : hx : '|' : aux : '|' : num : '|' : rec
          done = 0
          loop while not(done) do
             call !tapeimg('next', '', kind, num, aux, id, rec, verdict)
@@ -189,6 +195,10 @@ DRIVER = r"""* ZZTIDRV - drives !tapeimg over the images of a list and writes on
                   s = rec
                   gosub hexify
                   txt := nl : kind : '|' : num : '|' : aux : '|' : hid : '|' : hx
+               case kind = 'H'
+                  s = rec
+                  gosub hexify
+                  txt := nl : 'T|' : hx
                case 1
                   txt = 'V|NOKIND'
                   done = 1
@@ -290,7 +300,7 @@ def main():
         for name, data, o in cases:
             path = os.path.join(work, "in", name + ".img")
             open(path, "wb").write(data)
-            lines.append("%s|%s|%s|%s|%s" % (name, path, o.get("max_image", ""), o.get("max_item", ""), o.get("max_files", "")))
+            lines.append("%s|%s|%s|%s|%s|%s" % (name, path, o.get("max_image", ""), o.get("max_item", ""), o.get("max_files", ""), o.get("layout", "")))
             expect[name] = dump_twin(data, o)
         # 4. what only the operating system can refuse
         good = os.path.join(work, "in", "rc-ok-small.img")
@@ -306,7 +316,7 @@ def main():
                     ("os-doubled-slash", os.path.join(work, "in") + "//rc-ok-small.img", "V|R-PATH"),
                     ("os-empty-path", "", "V|R-PATH")]
         for name, path, want in os_cases:
-            lines.append("%s|%s|||" % (name, path))
+            lines.append("%s|%s||||" % (name, path))
             expect[name] = want
         listf = os.path.join(work, "list.txt")
         open(listf, "w").write("\n".join(lines) + "\n")
@@ -404,6 +414,19 @@ MUTANTS = {
                            "   if not(index(ti.files, fnum, 1)) then\n      verdict = 'R-NOFILE'\n"),
     "trailer-by-search": ("   t1 = d1 + o.blocks * TI.BIN             ;* where the trailer must begin\n",
                           "   t1 = index(ti.buf, im : im : im : 'X', 1)\n"),
+    # stage S4a (30 Oct 26): the other layouts
+    "gen-label-count": ("      case lay = 'r83'\n         lay.labels = 2\n", "      case lay = 'r83'\n         lay.labels = 1\n"),
+    "gen-eof-skip": ("         gb += 1\n         gosub is.eof\n", "         gb += 1\n         is.eof = 0\n"),
+    "gen-pad-any": ("   if not(pad.ok) then pad.ok = (convert(nul : ' ', '', blk[1, ti.lpad]) = '')\n", "   pad.ok = 1\n"),
+    "gen-pad-nul-only": ("   if not(pad.ok) then pad.ok = (convert(nul : ' ', '', blk[1, ti.lpad]) = '')\n", "   if not(pad.ok) then pad.ok = (convert(nul, '', blk[1, ti.lpad]) = '')\n"),
+    "gen-first-header": ("   if kind # 'D' or ('#' : aux) # '#1' then\n", "   if 0 then\n"),
+    "gen-endmark-bare-x": ("      endmark = (xs[1, 1] = 'C' or convert(' ', '', xs) = '')\n", "      endmark = (xs[1, 1] = 'C')\n"),
+    "gen-endmark-xc": ("      endmark = (xs[1, 1] = 'C' or convert(' ', '', xs) = '')\n", "      endmark = (convert(' ', '', xs) = '')\n"),
+    "gen-subtype-o-l": ("   if ti.gen and (f3[1, 1] = 'O' or f3[1, 1] = 'L') then\n", "   if 0 then\n"),
+    "gen-keys-decimal": ("   ti.keys = hexup\n", "   ti.keys = digits\n"),
+    "gen-flat": ("   if blk[1, 1] # nul and blk[1, 1] # ' ' then\n", "   if 0 then\n"),
+    "gen-blocksize": ("   if ('#' : s[4, 4]) # ('#' : want) then\n", "   if 0 then\n"),
+    "gen-h-as-item": ("      case ti.gen and t = 'H'\n         kind = 'H'\n         rec = tok[2, 999999999]\n", "      case ti.gen and t = 'H'\n         verdict = 'R-UNSUPPORTED'\n"),
 }
 
 

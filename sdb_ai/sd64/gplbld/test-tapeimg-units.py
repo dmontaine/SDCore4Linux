@@ -15,6 +15,7 @@ system writes.
 
   python3 test-tapeimg-units.py              the checks
   python3 test-tapeimg-units.py --selftest   the checks run against mutants of tapegen.py; each mutant must fail at least one
+  python3 test-tapeimg-units.py --selftest --from=N   only the mutants from number N on (M_S4 is the first of stage S4a, the other layouts)
 
 Exit 0 all passed, 1 a check failed, 2 cannot run (no reference image).
 """
@@ -144,8 +145,8 @@ def run_checks(tg, big):
         try:
             got = tg.parse_image(img, **opts)
             result = "parses"
-            again = tg.build_image(got)
-            rt = (again == img)
+            # the byte-for-byte round trip is the AS layout's (its labels are rebuilt from the model); the others have the model round trip of section 2b
+            rt = True if opts.get("layout", "as") != "as" else (tg.build_image(got) == img)
         except tg.TapeError as e:
             got, result, rt = None, e.code, True
         except Exception as e:  # noqa: BLE001
@@ -160,6 +161,55 @@ def run_checks(tg, big):
     in_reader = set(re.findall(r'TapeError\("(R-[A-Z]+)"', src))
     check("B0 every refusal code the reader can give has a recipe", in_reader <= codes_used,
           "no recipe for %s" % sorted(in_reader - codes_used))
+
+    # ---- 2b. the other layouts (S4a): a model written in each layout, padded or not, comes back as it was written
+    def shape(items):
+        out = []
+        for i in items:
+            if i["kind"] == "H":
+                out.append(("H", i["text"]))
+            elif i["kind"] == "D":
+                out.append(("D", i["level"], i["num"], i["name"], tuple(i["attrs"])))
+            else:
+                out.append(("I", i["num"], i["group"], i["id"], tuple(i["fields"]), i.get("tag", b"I")))
+        return out
+    m_gen = tg.gen_model(head=[{"kind": "H", "text": b"mvBase header"}], extra=[{"kind": "H", "text": b"tail"}])
+    check("D0 the layouts are the five the original reader positioned for, ultfs is refused by name",
+          tg.LAYOUTS == {"as": 3, "r83": 2, "jbs": 1, "fs": 1, "mv": 1} and tg.LAYOUT_REFUSED == ("ultfs",),
+          "%r %r" % (tg.LAYOUTS, tg.LAYOUT_REFUSED))
+    for layout in ("r83", "jbs", "fs", "mv"):
+        for flat in (False, True):
+            for eofs in ((0, 1, 2) if tg.LAYOUTS[layout] > 1 else (1,)):
+                what = "D1 %s %s%s" % (layout, "no pad" if flat else "padded", (", %d end-of-file block(s) between the labels" % eofs) if tg.LAYOUTS[layout] > 1 else "")
+                try:
+                    img = tg.build_image(m_gen, layout, flat=flat, eofs=eofs)
+                    got = tg.parse_image(img, layout=layout)
+                    ok = shape(got["items"]) == shape(m_gen["items"]) and got["label"]["account"] == b"DEMO" and got["blocks"] == len(img) // tg.PHYS
+                    detail = "items %d/%d account %r" % (len(got["items"]), len(m_gen["items"]), got["label"]["account"])
+                except Exception as e:  # noqa: BLE001
+                    ok, detail = False, "%s: %s" % (type(e).__name__, e)
+                check(what + " comes back as written", ok, detail)
+                try:
+                    tg.parse_image(img)
+                    asas = "parses"
+                except tg.TapeError as e:
+                    asas = e.code
+                except Exception as e:  # noqa: BLE001
+                    asas = "CRASH"
+                check(what + ": the AS reader refuses it", asas not in ("parses", "CRASH"), asas)
+    img_r = tg.build_image(m_gen, "r83")
+    img_j = tg.build_image(m_gen, "jbs")
+    for written, image, read in (("r83", img_r, "jbs"), ("jbs", img_j, "r83")):
+        try:
+            tg.parse_image(image, layout=read)
+            r = "parses"
+        except tg.TapeError as e:
+            r = e.code
+        except Exception as e:  # noqa: BLE001
+            r = "CRASH"
+        check("D2 an %s image read as %s is refused, not read as another account" % (written, read), r not in ("parses", "CRASH"), r)
+    same = tg.build_image(m_gen, "jbs") == tg.build_image(m_gen, "fs") == tg.build_image(m_gen, "mv")
+    check("D3 jbs, fs and mv are one shape of image (they differ only in the word that is asked for)", same)
 
     # ---- the file route: the size is asked of the file system first
     with tempfile.TemporaryDirectory() as d:
@@ -207,7 +257,7 @@ MUTANTS = [
     ("binary: zero blocks allowed", 'if nblocks < 1:', 'if False:'),
     ("binary: file header unchecked", 'if num not in files:', 'if False:'),
     ("binary: length read as hex", 'BINLEN_BASE = 10', 'BINLEN_BASE = 16'),
-    ("file number check out", 'if not DIGITS.fullmatch(f[2]):', 'if False:'),
+    ("file number check out", 'if not keys.fullmatch(f[2]):', 'if False:'),
     ("file cap out", 'if len(files) > max_files:', 'if False:'),
     ("item cap out", 'if len(tok) > max_item:', 'if False:'),
     ("image cap out", 'if len(data) > max_image:', 'if False:'),
@@ -220,7 +270,7 @@ MUTANTS = [
     ("trailing field mark kept", 'if rest and rest[-1] == b"":', 'if False:'),
     ("descriptor check out", 'if _payload(blks[3], "block 3")[:7] != IM + b"M65" + IM + b"XC" or', 'if False and _payload(blks[3], "block 3")[:7] != IM + b"M65" + IM + b"XC" or'),
     ("blocks after end allowed", 'if end != len(blks) - 1:', 'if False:'),
-    ("bytes after end mark allowed", 'if tok[2:].strip(b" "):', 'if False:'),
+    ("bytes after end mark allowed", 'if rest.strip(b" "):', 'if False:'),
     ("missing end-of-file block allowed", 'if end is None:', 'if False:'),
     ("short image allowed", 'if len(data) % PHYS:', 'if False:'),
     ("pad check out", 'if blk[:PAD] != b"\\x00" * PAD:', 'if False:'),
@@ -235,6 +285,36 @@ MUTANTS = [
     ("file names: the dollar sign refused", b'FILE_NAME_CHARS = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._$-"'.decode(),
      'FILE_NAME_CHARS = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"'),
     ("fold keeps the last", 'dropped.append(n)', 'dropped.append(kept.pop(kept.index(seen[k]))); seen[k] = n; kept.append(n)'),
+]
+
+# Stage S4a (30 Oct 2026): the mutants of the other layouts.  `--selftest --from=N` with N = M_S4 runs only these.
+M_S4 = len(MUTANTS)
+MUTANTS += [
+    ("gen: r83 reads one label", '"r83": 2,', '"r83": 1,'),
+    ("gen: end-of-file blocks between labels refused", 'while first < len(blks) and _is_eof(blks[first]):', 'while False:'),
+    ("gen: a pad may hold anything", 'if blk[:PAD].strip(b"\\x00 "):', 'if False:'),
+    ("gen: a pad of spaces refused", 'if blk[:PAD].strip(b"\\x00 "):', 'if blk[:PAD].strip(b"\\x00"):'),
+    ("gen: block size field unchecked", 'if m.group(1) != (BLOCKSIZE_FLAT if flat else BLOCKSIZE_FIELD):', 'if False:'),
+    ("gen: images with no pad unknown", 'flat = blks[0][:1] not in (b"\\x00", b" ")', 'flat = False'),
+    ("gen: running out of blocks unchecked", 'if first >= len(blks):', 'if False:'),
+    ("gen: minimum size as for AS", '(LAYOUTS[layout] + 2 if gen else 6)', '6'),
+    ("gen: blank label text allowed", 'if not m or not m.group(2).strip(b" "):', 'if not m:'),
+    ("gen: control bytes in a label allowed", 'GEN_LABEL_RE = re.compile(rb"\\xffL ([0-9A-F]{4}) ([\\x20-\\x7e\\xfe]*)")',
+     'GEN_LABEL_RE = re.compile(rb"\\xffL ([0-9A-F]{4}) ([\\x00-\\x7e\\xfe]*)")'),
+    ("gen: level 1 header not required first", 'if it["kind"] != "D" or it["level"] != b"1" or not re.fullmatch(rb"[!-~]{1,64}", it["name"]):', 'if False:'),
+    ("gen: an unprintable account name allowed", ' or not re.fullmatch(rb"[!-~]{1,64}", it["name"]):', ':'),
+    ("gen: a header token may be the first thing", 'if gen and it["kind"] != "H" and not any(i["kind"] != "H" for i in items):',
+     'if gen and not any(i["kind"] != "H" for i in items):'),
+    ("gen: O and L subtypes read as ordinary", 'if gen and f[2][:1] in (b"O", b"L"):', 'if False:'),
+    ("gen: XC end mark refused", 'tok[1:2] == b"C" or not tok[1:].strip(b" ")', 'not tok[1:].strip(b" ")'),
+    ("gen: bare X end mark refused", '(tok[1:2] == b"C" or not tok[1:].strip(b" "))', '(tok[1:2] == b"C")'),
+    ("gen: H token refused", 'elif gen and t == b"H":', 'elif False:'),
+    ("gen: F and E items refused", 'elif t == b"I" or (gen and t in (b"F", b"E")):', 'elif t == b"I":'),
+    ("gen: file numbers decimal", 'keys = KEYS_HEX if gen else DIGITS', 'keys = DIGITS'),
+    ("gen: lengths decimal", 'lens = LEN_HEX if gen else LEN_DEC', 'lens = LEN_DEC'),
+    ("gen: lower case hex allowed", 'KEYS_HEX = re.compile(rb"[0-9A-F]{1,9}")', 'KEYS_HEX = re.compile(rb"[0-9A-Fa-f]{1,9}")'),
+    ("layout word unchecked", 'if layout not in LAYOUTS:', 'if False:'),
+    ("ultfs taken for an unknown word", 'LAYOUT_REFUSED = ("ultfs",)', 'LAYOUT_REFUSED = ()'),
 ]
 
 
@@ -262,8 +342,14 @@ def main(argv):
         return 0
     text = open(SRC, encoding="utf-8").read()
     survivors = []
+    start = 0
+    for a in argv:
+        if a.startswith("--from="):
+            start = int(a.split("=", 1)[1])
     with tempfile.TemporaryDirectory() as d:
         for n, (name, old, new) in enumerate(MUTANTS):
+            if n < start:
+                continue
             if text.count(old) != 1:
                 print("  [BAD ] mutant %d (%s): the old text occurs %d times" % (n, name, text.count(old)))
                 survivors.append(name)
@@ -278,7 +364,7 @@ def main(argv):
             print("  [%s] mutant %2d %-36s %s" % ("KILL" if bad else "LIVE", n, name, ("%d check(s) failed, first: %s" % (len(bad), bad[0][0][:50])) if bad else ""))
             if not bad:
                 survivors.append(name)
-    print("%d mutants, %d survived" % (len(MUTANTS), len(survivors)))
+    print("%d mutants run (from %d), %d survived" % (len(MUTANTS) - start, start, len(survivors)))
     return 1 if survivors else 0
 
 

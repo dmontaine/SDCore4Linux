@@ -90,7 +90,8 @@ def message(n):
 # ---------------------------------------------------------------------------------------------------------------------------
 # The image that holds every case.
 
-def mix_image():
+def mix_image(layout="as", flat=False):
+    """Every case in one image.  For a layout other than AS the binary item (not read there) is left out and a header token, an F and an E item and a file with a hex number are added."""
     m = tg.small_model(account=b"MIX", records=0)
     items = [{"kind": "D", "level": b"1", "num": b"10", "name": b"MIX", "attrs": [b"D", b"101", b"101", b"", b"", b"", b"", b"SYS2", b"L", b"12", b""]}]
 
@@ -145,8 +146,18 @@ def mix_image():
     rec(b"10", b"x1", [b"V", b"CA", b"$other"], grp=b"12")   # folds onto X1
     rec(b"10", b"bad/id", [b"V"], grp=b"12")
     rec(b"10", b"PA1", [b"PA", b"DISPLAY hi"], grp=b"12")
+    if layout != "as":
+        items = [i for i in items if i["kind"] != "O"]
+        hdr(b"3", b"1F", b"hexfile")
+        rec(b"1F", b"K1", [b"in a file whose number is hex"], grp=b"A0")
+        rec(b"1F", b"K2", [b"read like an I item"], grp=b"A0")
+        items[-1]["tag"] = b"F"
+        rec(b"1F", b"K3", [b"read like an I item, too"], grp=b"A0")
+        items[-1]["tag"] = b"E"
+        items.insert(0, {"kind": "H", "text": b"mvBase header"})
+        items.append({"kind": "H", "text": b""})
     m["items"] = items
-    return tg.build_image(m)
+    return tg.build_image(m, layout, flat=flat)
 
 
 # ---------------------------------------------------------------------------------------------------------------------------
@@ -159,8 +170,8 @@ def esc(b, limit):
     return bytes(c if (32 <= c <= 126 and c != 0x7C) else 0x3F for c in b[:limit]).decode("latin-1")
 
 
-def expected(data, initial_voc, logcap=10000):
-    m = tg.parse_image(data)
+def expected(data, initial_voc, logcap=10000, layout="as"):
+    m = tg.parse_image(data, layout=layout)
     voc = dict(initial_voc)            # id (lower) -> record bytes
     files = {}                         # final -> {"data": {id: rec} or None, "dict": ..., "dir": bool}
     log = []
@@ -179,6 +190,10 @@ def expected(data, initial_voc, logcap=10000):
         log.append("%s|%s|%s|%s" % (kind, esc(f, 80), esc(i, 60), why))
 
     for it in m["items"]:
+        if it["kind"] == "H":
+            counts["skip"] += 1
+            addlog("header", b"", b"", "a header token of the image (%d bytes) was left out" % len(it["text"]))
+            continue
         if it["kind"] == "D":
             num = it["num"]
             level = it["level"]
@@ -301,8 +316,8 @@ def expected(data, initial_voc, logcap=10000):
     return voc, files, log, counts
 
 
-def dump_expected(data, initial_voc, logcap=10000):
-    voc, files, log, c = expected(data, initial_voc, logcap)
+def dump_expected(data, initial_voc, logcap=10000, layout="as"):
+    voc, files, log, c = expected(data, initial_voc, logcap, layout)
     lines = ["C|%d|%d|%d|%d|%d|%d|%d" % (c["files"], c["dicts"], c["recs"], c["skip"], c["md"], c["bin"], len([l for l in log if not l.startswith("*|*")])),
              "E|"]
     lines += ["L|" + l for l in log]
@@ -349,6 +364,7 @@ DRIVER = r"""* ZZTIFILL - calls !tape_fill for each case of a list, reads the ac
       img = field(line, '|', 2)
       acct = field(line, '|', 3)
       cap = field(line, '|', 4)
+      lay = field(line, '|', 5)
       create.file acct : '/voc' dynamic on error
          crt 'CANNOT MAKE VOC ' : name
          continue
@@ -359,7 +375,7 @@ DRIVER = r"""* ZZTIFILL - calls !tape_fill for each case of a list, reads the ac
       end
       write 'V' : @fm : 'CA' : @fm : 'x' to vf, 'cust'
       close vf
-      arg = img : @fm : @fm : @fm : @fm : cap
+      arg = img : @fm : @fm : @fm : @fm : cap : @fm : lay
       made = '' ; ferr = ''
       call !tape_fill(acct, arg, made, ferr)
       txt = 'C|' : tf.nfiles : '|' : tf.ndicts : '|' : tf.nrecs : '|' : tf.nskip : '|' : tf.nmd : '|' : tf.nbin : '|' : tf.nlog
@@ -489,16 +505,19 @@ def main():
     imgdir = os.path.join(work, "img")
     os.mkdir(imgdir)
     try:
-        cases = [("real1", open(REAL["real1"], "rb").read(), ""), ("real2", open(REAL["real2"], "rb").read(), "3"),
-                 ("mix", mix_image(), "")]
+        cases = [("real1", open(REAL["real1"], "rb").read(), "", "as"), ("real2", open(REAL["real2"], "rb").read(), "3", "as"),
+                 ("mix", mix_image(), "", "as"),
+                 # S4a: the other layouts, the same cases with a header token, F and E items and a hex file number (the binary item is not read there)
+                 ("mix-mv", mix_image("mv"), "", "mv"), ("mix-r83-flat", mix_image("r83", flat=True), "", "r83"),
+                 ("gen-small", tg.build_image(tg.gen_model(), "jbs"), "", "jbs"), ("mix-mv-cap", mix_image("mv"), "4", "mv")]
         initial = {b"cust": b"V" + FM + b"CA" + FM + b"x"}
         lines = []
-        for name, data, cap in cases:
+        for name, data, cap, layout in cases:
             ip = os.path.join(imgdir, name + ".img")
             open(ip, "wb").write(data)
             ap = os.path.join(work, "acct-" + name)
             os.mkdir(ap)
-            lines.append("%s|%s|%s|%s" % (name, ip, ap, cap))
+            lines.append("%s|%s|%s|%s|%s" % (name, ip, ap, cap, layout if layout != "as" else ""))
         listf = os.path.join(work, "list.txt")
         open(listf, "w").write("\n".join(lines) + "\n")
         open(os.path.join(sysd, "bp", "zztifill"), "w").write(DRIVER % {"list": listf})
@@ -512,14 +531,14 @@ def main():
         row("the driver filled every case", m is not None and int(m.group(1)) == len(cases) and "CANNOT" not in out,
             "done=%s of %d; %s" % (m.group(1) if m else None, len(cases), out[-300:].replace("\n", " | ")))
 
-        for name, data, cap in cases:
+        for name, data, cap, layout in cases:
             say("\n--- %s " % name + "-" * (90 - len(name)))
             fp = os.path.join(sysd, "zzticout", name)
             got = open(fp, "rb").read().decode("latin-1") if os.path.isfile(fp) else None
             row("%s: the filler left a dump" % name, got is not None and got != "", "no dump")
             if not got:
                 continue
-            want = dump_expected(data, initial, int(cap) if cap else 10000)
+            want = dump_expected(data, initial, int(cap) if cap else 10000, layout)
             g_log, g_rest = normalise(got)
             w_log, w_rest = normalise("\n".join(want))
             row("%s: no error from the filler" % name, "E|" in got.split("\n") and not any(l.startswith("E|") and len(l) > 2 for l in got.split("\n")),
@@ -608,8 +627,30 @@ def main():
         row("the question is asked and N imports nothing", "Import the image into the NEW user account newone? (Y/N)" in out and "Nothing was imported." in out, out[-300:])
         out = internal(box, "TAPE.IMPORT", img1, "TO", "newone", stdin="")
         row("the question at the end of the input imports nothing (it does not loop)", "Nothing was imported." in out, out[-300:])
+        # S4a: FORMAT takes the other layouts.  The images are written by tapegen (no real image of them has been seen).
+        gen_jbs = os.path.join(work, "img", "gen-jbs.img")
+        gen_mv = os.path.join(work, "img", "gen-mv.img")
+        gen_r83 = os.path.join(work, "img", "gen-r83.img")
+        open(gen_jbs, "wb").write(tg.build_image(tg.gen_model(), "jbs"))
+        open(gen_mv, "wb").write(tg.build_image(tg.gen_model(head=[{"kind": "H", "text": b"mvBase header"}]), "mv"))
+        open(gen_r83, "wb").write(tg.build_image(tg.gen_model(), "r83", flat=True))
         out = internal(box, "TAPE.IMPORT", img1, "TO", "newone", "FORMAT", "R83")
-        row("FORMAT R83 is refused", "Syntax: tape.import" in out, out[-200:])
+        row("FORMAT R83 over an image of the AS layout: the reader refuses it with a code, it is not a syntax error",
+            "The image was refused: R-" in out and "Syntax: tape.import" not in out, out[-300:])
+        out = internal(box, "TAPE.IMPORT", img1, "TO", "newone", "FORMAT", "XYZ")
+        row("FORMAT with a word that is no layout: the syntax", "Syntax: tape.import" in out, out[-200:])
+        out = internal(box, "TAPE.IMPORT", gen_jbs, "TO", "newone", "FORMAT", "ULTFS")
+        row("FORMAT ULTFS is refused by name (R-UNSUPPORTED, and the sentence says ultfs)", "The image was refused: R-UNSUPPORTED" in out and "ultfs" in out, out[-300:])
+        for word, path in (("JBS", gen_jbs), ("FS", gen_jbs), ("MV", gen_mv), ("R83", gen_r83)):
+            out = internal(box, "TAPE.IMPORT", path, "LIST", "FORMAT", word)
+            row("LIST FORMAT %s: the account its file header names, 1 file, 3 records" % word,
+                "Image %s: account DEMO, 1 file(s), 3 record(s)" % path in out and "The image was refused" not in out, out[-300:])
+        out = internal(box, "TAPE.IMPORT", gen_jbs, "LIST")
+        row("an image of another layout asked for as AS: refused with a code, nothing listed", "The image was refused: R-" in out and "Image " not in out, out[-300:])
+        out = internal(box, "TAPE.IMPORT", gen_jbs, "FROM", "other", "LIST", "FORMAT", "JBS")
+        row("FROM another account is refused for a layout whose file header names the account", "The image holds the account DEMO, not other." in out, out[-300:])
+        out = internal(box, "TAPE.IMPORT", gen_jbs, "FROM", "demo", "LIST", "FORMAT", "jbs")
+        row("FROM the account the file header names (any case) goes on; the layout word in lower case", "account DEMO, " in out and "The image holds the account" not in out, out[-300:])
         # The administrator check is not run here: a sandbox session is the administrator (the sandbox user plays sdsys), so a refusal cannot be shown;
         # test-tapeimport-units.py holds the check as text (it comes first) and the VM witness shows it for an ordinary account.
         users_after = sorted(os.listdir(os.path.join(box, "user_accounts"))) if os.path.isdir(os.path.join(box, "user_accounts")) else []
@@ -644,6 +685,8 @@ MUTANTS = {
     "second-data-part": ("      if fl.hasdata<k> then\n         add.kind", "      if 0 then\n         add.kind"),
     "no-log-cap": ("   if tf.nlog >= tf.logcap then\n", "   if 0 then\n"),
     "md-import-clash": ("      if final = 'md.import' then final = 'tape.md.import'\n", ""),
+    "h-token-as-item": ("         case kind = 'H'\n            gosub do.hdr\n", ""),
+    "layout-not-passed": ("arg<3> : fm : arg<4> : fm : arg<6>\n", "arg<3> : fm : arg<4>\n"),
 }
 
 

@@ -6,15 +6,18 @@
 * 30 Oct 26 dm Written for S.92 (owner's yes of 30 Oct 2026 to the nine recommendations and to the fill hook of create_account).  The reader is !tapeimg (held to gplbld/tapegen.py by
 *              sandbox-tapeimg.py), the writer is !tape_fill (held to an oracle by sandbox-tapeimport.py) and the account is made by !create_account, which calls the writer while the new
 *              account's directory is still the sdsys user's (CA$AFTER).  This program reads the whole image once to refuse what it cannot understand BEFORE anything is made.
+* 30 Oct 26 dm S4a: FORMAT takes AS, R83, JBS, FS, MV (and ULTFS, which the reader refuses by name); the word is handed to the reader and to the filler.
 * END-HISTORY
 *
 * START-DESCRIPTION:
 *
-*    TAPE.IMPORT image TO account {FROM account} {FORMAT AS} {LIST} {NO.QUERY}
+*    TAPE.IMPORT image TO account {FROM account} {FORMAT AS|R83|JBS|FS|MV} {LIST} {NO.QUERY}
 *
 *    An administrator verb, for SDSYS alone: it is in no other account's VOC and nobody can be given it.
 *
-*    image      the absolute path of a save image (a file, not a device).  Only the layout the old ACCOUNT.SAVE wrote ("AS") is understood; FORMAT AS says so and nothing else is accepted.
+*    image      the absolute path of a save image (a file, not a device).  Without FORMAT the layout the old ACCOUNT.SAVE wrote ("AS") is understood, the one layout checked against an image
+*               another program wrote.  FORMAT R83, JBS, FS or MV reads one of the other layouts AS THE ORIGINAL READER READ IT: no image of any of them has been seen, so an image that is
+*               refused may be a good one.  FORMAT ULTFS is refused with its reason.  The data of an image holds one account; the file header of its first (level 1) item names it.
 *    TO         the name of a NEW user account.  An existing account is refused, nothing is merged.  A new user account asks for a password, as CREATE.ACCOUNT does: NO.QUERY
 *               only skips this program's own question, and a hand-typed image is the only input it has.
 *    FROM       the account the image holds, if you want it checked: an image holds one account in this release.
@@ -57,6 +60,7 @@ $include createacc.h
 
    to.name = ''
    from.name = ''
+   layout = 'as'
    list.only = @false
    no.query = @false
    loop
@@ -75,7 +79,9 @@ $include createacc.h
             list.only = @true
          case upcase(token) = 'FORMAT'
             call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
-            if token.type = PARSER$END or upcase(token) # 'AS' then stop sysmsg(11923)
+            if token.type = PARSER$END then stop sysmsg(11923)
+            layout = downcase(token)
+            if index(',as,r83,jbs,fs,mv,ultfs,', ',' : layout : ',', 1) = 0 then stop sysmsg(11923)
          case 1
             stop sysmsg(11923)
       end case
@@ -84,7 +90,7 @@ $include createacc.h
    to.name = downcase(trim(to.name))
 
 * ---------------------------------------------------------------- the first reading: the whole image, nothing written
-   call !tapeimg('open', image, kind, num, aux, id, rec, verdict)
+   call !tapeimg('open', image : @fm : @fm : @fm : @fm : layout, kind, num, aux, id, rec, verdict)
    if verdict # '' then
       display sysmsg(11924, verdict, rec) ;* The image was refused: %1 (%2)
       stop
@@ -161,7 +167,7 @@ $include createacc.h
    settings = ''
    settings<CA$DESC> = 'Imported from the tape image ' : fname[1, 60]
    settings<CA$AFTER> = '!tape_fill'
-   settings<CA$AFTER.ARG> = image
+   settings<CA$AFTER.ARG> = image : @vm : @vm : @vm : @vm : @vm : layout       ;* the parts <2> to <5> are the limits and the log size: blank means the defaults
    err = ''
    call !create_account('USER', to.name, settings, err)
    ok = (err = '')

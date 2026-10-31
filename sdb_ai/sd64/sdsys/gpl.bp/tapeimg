@@ -5,6 +5,8 @@
 * START-HISTORY:
 * 30 Oct 26 dm Written for S.92 (owner's yes of 30 Oct 2026, the nine recommendations).  The BASIC twin of gplbld/tapegen.py's parse_image:
 *              the same checks in the same order, the same verdicts.  sandbox-tapeimg.py holds the two to each other.
+* 30 Oct 26 dm S4a: the layouts r83, jbs, fs and mv (arg<5>), the item kind 'H', F and E items read as I, hex file numbers, a pad of NULs or SPACEs or none (size field 0200).
+*              The scan of the data blocks and the start of the data are now routines of their own, shared by AS and the other layouts.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -16,12 +18,16 @@
 *    administrator still apply, and nothing from the image is compiled, catalogued or run.  This is NOT an $internal program for that reason.
 *
 *    op 'open'   arg<1> the absolute path of the image, arg<2> the most bytes of image (default 1073741824), arg<3> the most bytes of
-*                one item (16777216), arg<4> the most files (10000).  Reads the five labels and looks at every block ONCE before it returns:
-*                the end-of-file block, the pad.  On success: id = the account name, aux = the reel, num = the number of blocks,
-*                rec = the time and date of the label.
+*                one item (16777216), arg<4> the most files (10000), arg<5> the layout: as (the default), r83, jbs, fs or mv.  Reads the labels and
+*                looks at every block ONCE before it returns: the end-of-file block, the pad.  On success: id = the account name, aux = the reel,
+*                num = the number of blocks, rec = the time and date of the label.
+*                The layouts other than AS are read AS THE ORIGINAL READER READ THEM; no real image of one has been seen (gplbld/tapegen.py has the list
+*                of what is read and what is refused).  There the account is the one the first (level 1) file header of the data names, and aux and
+*                the time and date are empty.  'ultfs' is refused (R-UNSUPPORTED), any other word is R-FORMAT.
 *    op 'next'   the next item: kind 'D' (a file header: num = its number, aux = its level 1/2/3, id = its name, rec = the rest of the
-*                header joined by field marks), 'I' (an ordinary item: aux = its group, id = the record id, rec = the record), 'O' (the
-*                binary form: aux = group, a slash and the block count, rec = the data), or 'E' when the end-of-account mark was
+*                header joined by field marks), 'I' (an ordinary item: aux = its group, id = the record id, rec = the record; the F and E items
+*                of the other layouts come back as 'I'), 'O' (the binary form: aux = group, a slash and the block count, rec = the data), 'H' (a header
+*                token of the other layouts, to be left out: rec = its text), or 'E' when the end-of-account mark was
 *                read.  Nothing is built in memory but the window of one item, so an image is not read into a string.
 *    op 'close'  gives the file back.  Every refusal does that too.
 *
@@ -41,7 +47,7 @@ $catalog !tapeimg
 
 $include syscom keys.h
 
-   common /tapeimg/ ti.open, ti.fu, ti.nblk, ti.end, ti.next, ti.buf, ti.done, ti.maxitem, ti.maxfiles, ti.files, ti.nfiles
+   common /tapeimg/ ti.open, ti.fu, ti.nblk, ti.end, ti.next, ti.buf, ti.done, ti.maxitem, ti.maxfiles, ti.files, ti.nfiles, ti.gen, ti.lpad, ti.lpay, ti.keys
 
    ER.NSEQ = 3013                          ;* gplsrc/err.h ER_NSEQ: not a sequential file (a directory, a socket)
    TI.BLK = 512                            ;* a physical block: 12 NULs of pad and 500 bytes of payload
@@ -58,6 +64,7 @@ $include syscom keys.h
    for j = 33 to 126
       printable := char(j)
    next j
+   lblch = ' ' : printable : fm            ;* what the text of a label of the other layouts may hold
    ctl = char(127)
    for j = 0 to 31
       ctl := char(j)
@@ -157,6 +164,29 @@ do.open:
    if arg<2> # '' then max.image = arg<2> + 0
    if arg<3> # '' then ti.maxitem = arg<3> + 0
    if arg<4> # '' then ti.maxfiles = arg<4> + 0
+   * the layout: how many labels come before the data, and the least blocks an image of it has
+   lay = downcase(arg<5>)
+   if lay = '' then lay = 'as'
+   lay.labels = 3
+   nmin = 6
+   begin case
+      case lay = 'as'
+         null
+      case lay = 'r83'
+         lay.labels = 2
+      case lay = 'jbs' or lay = 'fs' or lay = 'mv'
+         lay.labels = 1
+      case lay = 'ultfs'
+         verdict = 'R-UNSUPPORTED'
+         rec = 'the layout ultfs is not read: the original reader does not agree with itself about where its data starts'
+         return
+      case 1
+         verdict = 'R-FORMAT'
+         rec = 'unknown layout'
+         return
+   end case
+   ti.gen = (lay # 'as')
+   if ti.gen then nmin = lay.labels + 2
    path = arg<1>
    p.n = len(path)
    if p.n < 2 or p.n > 1000 or path[1, 1] # '/' or path[p.n, 1] = '/' or convert(ctl, '', path) # path or index(path, '//', 1) or index(path, '/./', 1) or index(path, '/../', 1) or path[p.n - 1, 2] = '/.' or path[p.n - 2, 3] = '/..' then
@@ -215,7 +245,7 @@ do.open:
       case mod(size, TI.BLK) # 0
          verdict = 'R-SHAPE'
          rec = size : ' bytes is not a whole number of ' : TI.BLK : ' byte blocks'
-      case size < 6 * TI.BLK
+      case size < nmin * TI.BLK
          verdict = 'R-SHAPE'
          rec = (size / TI.BLK) : ' blocks'
    end case
@@ -228,6 +258,13 @@ do.open:
       verdict = 'R-IO'
       rec = 'cannot seek'
       gosub fail
+      return
+   end
+   ti.lpad = TI.PAD
+   ti.lpay = TI.PAY
+   ti.keys = digits
+   if ti.gen then
+      gosub open.generic
       return
    end
 
@@ -306,22 +343,38 @@ do.open:
       return
    end
 
-   * the end-of-file block: the first from block 5, which must be the last; the pad of every data block before it
+   gen.first = 5
+   gosub scan.data
+   if verdict = '' then gosub start.data
+   if verdict # '' then
+      gosub fail
+      return
+   end
+   id = lab.acct
+   aux = lab.reel
+   num = ti.nblk
+   rec = lab.time : ' ' : lab.date
+   return
+
+* The end-of-file block: the first from block gen.first, which must be the last; the pad of every data block before it.
+* In: gen.first.  Out: end.at, or verdict (the caller gives the file back).
+scan.data:
    end.at = -1
    pad.bad = -1
-   for j = 5 to ti.nblk - 1
+   for j = gen.first to ti.nblk - 1
       gosub read.phys
-      if verdict # '' then
-         gosub fail
-         return
-      end
+      if verdict # '' then return
       gosub is.eof
       if is.eof then
          end.at = j
          exit
       end
       if pad.bad < 0 then
-         gosub check.pad
+         if ti.gen then
+            gosub gen.check.pad
+         end else
+            gosub check.pad
+         end
          if not(pad.ok) then pad.bad = j
       end
    next j
@@ -336,26 +389,135 @@ do.open:
          verdict = 'R-PAD'
          rec = 'block ' : pad.bad : ' has no pad'
    end case
-   if verdict # '' then
-      gosub fail
-      return
-   end
+   return
+
+* Positions at the first data block and clears the window.  In: gen.first, end.at.  Out: verdict 'R-IO' when the seek fails.
+start.data:
    ti.end = end.at
-   ti.next = 5
+   ti.next = gen.first
    ti.buf = ''
    ti.done = 0
    ti.files = ','
    ti.nfiles = 0
-   seek ti.fu, 5 * TI.BLK, 0 else
+   seek ti.fu, gen.first * TI.BLK, 0 else
       verdict = 'R-IO'
       rec = 'cannot seek'
+   end
+   return
+
+* ---------------------------------------------------------------------------------------------------------------------------------------------------------
+* open, the layouts other than AS: r83, jbs, fs, mv.  The first byte of the first block says whether blocks have a pad (NUL, or SPACE in mvBase) or none; the labels are
+* only `IM L SP size SP text`; the data starts after the layout's last label; the account is the one the first file header names.
+open.generic:
+   ti.keys = hexup
+   gosub read.phys
+   if verdict # '' then
       gosub fail
       return
    end
-   id = lab.acct
-   aux = lab.reel
+   if blk[1, 1] # nul and blk[1, 1] # ' ' then
+      ti.lpad = 0
+      ti.lpay = TI.BLK
+   end
+   blk.no = 0
+   gosub gen.label
+   if verdict # '' then
+      gosub fail
+      return
+   end
+   gb = 1
+   for gk = 2 to lay.labels
+      is.eof = 1
+      loop while is.eof do
+         if gb >= ti.nblk then
+            verdict = 'R-LAYOUT'
+            rec = 'the layout reads ' : lay.labels : ' labels'
+            gosub fail
+            return
+         end
+         gosub read.phys
+         if verdict # '' then
+            gosub fail
+            return
+         end
+         gb += 1
+         gosub is.eof
+      repeat
+      blk.no = gb - 1
+      gosub gen.label
+      if verdict # '' then
+         gosub fail
+         return
+      end
+   next gk
+   gen.first = gb
+   gosub scan.data
+   if verdict = '' then gosub start.data
+   if verdict # '' then
+      gosub fail
+      return
+   end
+   * the first thing that is not a header token must be the account's own file header: it names the account
+   pk = 'H'
+   loop while pk = 'H' do
+      gosub do.next
+      if verdict # '' then return
+      pk = kind
+   repeat
+   if kind # 'D' or ('#' : aux) # '#1' or len(id) < 1 or len(id) > 64 or convert(printable, '', id) # '' then
+      verdict = 'R-LAYOUT'
+      rec = 'the data does not begin with the file header of a named account'
+      gosub fail
+      return
+   end
+   gen.acct = id
+   gosub start.data
+   if verdict # '' then
+      gosub fail
+      return
+   end
+   kind = ''
+   id = gen.acct
+   aux = ''
    num = ti.nblk
-   rec = lab.time : ' ' : lab.date
+   rec = ' '
+   return
+
+* In: blk.  Out: pad.ok, 1 when the pad (if the image has one) holds only NULs and SPACEs
+gen.check.pad:
+   pad.ok = (ti.lpad = 0)
+   if not(pad.ok) then pad.ok = (convert(nul : ' ', '', blk[1, ti.lpad]) = '')
+   return
+
+* In: blk, blk.no.  Out: verdict 'R-PAD' / 'R-LABEL' / 'R-BLOCKSIZE'.  The label is IM L SP size SP text, the text printable bytes and field marks and not blank.
+gen.label:
+   gosub gen.check.pad
+   if not(pad.ok) then
+      verdict = 'R-PAD'
+      rec = 'block ' : blk.no : ' has no pad'
+      return
+   end
+   s = blk[ti.lpad + 1, ti.lpay]
+   n = len(s)
+   loop while n > 0 and s[n, 1] = nul do n -= 1 repeat
+   s = s[1, n]
+   ok = (n >= 9)
+   if ok then ok = (s[1, 1] = im and s[2, 1] = 'L' and s[3, 1] = ' ' and convert(hexup, '', s[4, 4]) = '' and s[8, 1] = ' ')
+   if ok then
+      body = s[9, n - 8]
+      ok = (convert(lblch, '', body) = '' and convert(' ', '', body) # '')
+   end
+   if not(ok) then
+      verdict = 'R-LABEL'
+      rec = 'block ' : blk.no : ' is not a label'
+      return
+   end
+   want = '01F4'
+   if ti.lpad = 0 then want = '0200'
+   if ('#' : s[4, 4]) # ('#' : want) then
+      verdict = 'R-BLOCKSIZE'
+      rec = 'block size field ' : s[4, 4]
+   end
    return
 
 * Out: blk (512 bytes), verdict 'R-IO' when the file gave less.
@@ -485,20 +647,32 @@ do.next:
       return
    end
 
-   * the binary form is tried first, as in the twin
-   gosub try.binary
+   * the binary form is tried first, as in the twin (AS only)
+   of.found = 0
+   if not(ti.gen) then gosub try.binary
    if verdict # '' then
       gosub fail
       return
    end
    if of.found then return
 
-   * the end-of-account mark: the item's own text, up to the next item mark, is XX and spaces
-   if ti.buf[2, 2] = 'XX' then
+   * the end-of-account mark: the item's own text, up to the next item mark, is XX and spaces; in the other layouts also XC or a bare X, each with only spaces after it
+   endmark = (ti.buf[2, 2] = 'XX')
+   if ti.gen and not(endmark) and ti.buf[2, 1] = 'X' then
       if p2 then
-         tail = ti.buf[4, p2 - 4]
+         xs = ti.buf[3, p2 - 3]
       end else
-         tail = ti.buf[4, 999999999]
+         xs = ti.buf[3, 999999999]
+      end
+      endmark = (xs[1, 1] = 'C' or convert(' ', '', xs) = '')
+   end
+   if endmark then
+      rs = 3
+      if ti.buf[3, 1] = 'X' or ti.buf[3, 1] = 'C' then rs = 4
+      if p2 then
+         tail = ti.buf[rs, p2 - rs]
+      end else
+         tail = ti.buf[rs, 999999999]
       end
       if convert(' ', '', tail) # '' then
          verdict = 'R-TRAILING'
@@ -550,8 +724,11 @@ do.next:
    begin case
       case t = 'D'
          gosub parse.header
-      case t = 'I'
+      case t = 'I' or (ti.gen and (t = 'F' or t = 'E'))
          gosub parse.item
+      case ti.gen and t = 'H'
+         kind = 'H'
+         rec = tok[2, 999999999]
       case index('OBLRHFE', t, 1) and t # ''
          verdict = 'R-UNSUPPORTED'
          rec = 'an item of type ' : t
@@ -574,7 +751,7 @@ load.block:
       return
    end
    ti.next += 1
-   pl = blk[TI.PAD + 1, TI.PAY]
+   pl = blk[ti.lpad + 1, ti.lpay]
    have = 1
    return
 
@@ -593,13 +770,13 @@ parse.header:
       return
    end
    fnum = field(tok, fm, 3)
-   if len(fnum) < 1 or len(fnum) > 9 or convert(digits, '', fnum) # '' then
+   if len(fnum) < 1 or len(fnum) > 9 or convert(ti.keys, '', fnum) # '' then
       verdict = 'R-FILENUM'
       rec = 'file number ' : fnum[1, 12]
       return
    end
    f4 = field(tok, fm, 4)
-   if len(f4) < 4 or convert(digits, '', f4[1, 4]) # '' then
+   if len(f4) < 4 or convert(ti.keys, '', f4[1, 4]) # '' then
       verdict = 'R-HEADER'
       rec = 'no length in front of the file name'
       return
@@ -624,13 +801,13 @@ parse.header:
 parse.item:
    f1 = field(tok, fm, 1)
    fnum = f1[2, 999999999]
-   if nf < 4 or len(fnum) < 1 or len(fnum) > 9 or convert(digits, '', fnum) # '' then
+   if nf < 4 or len(fnum) < 1 or len(fnum) > 9 or convert(ti.keys, '', fnum) # '' then
       verdict = 'R-HEADER'
       rec = 'an item header with ' : nf : ' fields'
       return
    end
    grp = field(tok, fm, 2)
-   if len(grp) < 1 or len(grp) > 9 or convert(digits, '', grp) # '' then
+   if len(grp) < 1 or len(grp) > 9 or convert(ti.keys, '', grp) # '' then
       verdict = 'R-FILENUM'
       rec = 'group ' : grp[1, 12]
       return
@@ -641,7 +818,13 @@ parse.item:
       return
    end
    f3 = field(tok, fm, 3)
-   if len(f3) < 4 or convert(digits, '', f3[1, 4]) # '' then
+   * the binary and the large forms of the other layouts are not read (their ends are not in the original reader's code)
+   if ti.gen and (f3[1, 1] = 'O' or f3[1, 1] = 'L') then
+      verdict = 'R-UNSUPPORTED'
+      rec = 'a binary or large item'
+      return
+   end
+   if len(f3) < 4 or convert(ti.keys, '', f3[1, 4]) # '' then
       verdict = 'R-HEADER'
       rec = 'no length in front of the record id'
       return

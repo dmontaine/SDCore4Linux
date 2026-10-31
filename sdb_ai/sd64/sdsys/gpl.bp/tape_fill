@@ -5,6 +5,7 @@
 * START-HISTORY:
 * 30 Oct 26 dm Written for S.92.  Called by !create_account through CA$AFTER (the only name it accepts), never by hand: it assumes nothing about the account but that its VOC is
 *              the one create_account has just filled.  The reader is !tapeimg (held to gplbld/tapegen.py by sandbox-tapeimg.py); this program decides what is written.
+* 30 Oct 26 dm S4a: arg<6> is the layout, and a header token (kind 'H') is left out and logged.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -12,7 +13,8 @@
 *    call !tape_fill(pathname, arg, made, ferr)
 *
 *    pathname  the new account's directory.
-*    arg       <1> the image's absolute path, <2> <3> <4> the limits of !tapeimg (image bytes, item bytes, files; blank = its defaults), <5> the most log lines (10000).
+*    arg       <1> the image's absolute path, <2> <3> <4> the limits of !tapeimg (image bytes, item bytes, files; blank = its defaults), <5> the most log lines (10000),
+*              <6> the layout of the image (blank = as; r83, jbs, fs or mv, see !tapeimg).
 *    made      OUT, field-mark separated: every directory and file this program made under pathname, which create_account hands over one by one.
 *    ferr      OUT, '' or a message number and its arguments (value-mark separated), as err in create_account.
 *
@@ -56,7 +58,7 @@ $include syscom keys.h
    tf.src = '-'           ;* "reached, the account of the image not known yet": tape.import logs every attempt that got here, a refused image included
    if arg<5> # '' then tf.logcap = arg<5> + 0
 
-   img.arg = arg<1> : fm : arg<2> : fm : arg<3> : fm : arg<4>
+   img.arg = arg<1> : fm : arg<2> : fm : arg<3> : fm : arg<4> : fm : arg<6>
    call !tapeimg('open', img.arg, kind, num, aux, id, rec, verdict)
    if verdict # '' then
       ferr = 11924 : vm : verdict : vm : rec
@@ -105,6 +107,8 @@ $include syscom keys.h
       begin case
          case kind = 'D'
             gosub do.header
+         case kind = 'H'
+            gosub do.hdr
          case 1
             gosub do.item
       end case
@@ -273,6 +277,13 @@ is.taken:
 
 * ---------------------------------------------------------------------------------------------------------------------------------------------------------
 * items
+
+* A header token of the layouts other than AS (mvBase's): it holds no record, so it is left out and logged.  In: rec.
+do.hdr:
+   tf.nskip += 1
+   add.kind = 'header' ; add.file = '' ; add.id = '' ; add.why = 'a header token of the image (' : len(rec) : ' bytes) was left out'
+   gosub add.log
+   return
 
 * In: kind ('I' or 'O'), num, id, rec.
 do.item:

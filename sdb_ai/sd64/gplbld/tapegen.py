@@ -13,8 +13,14 @@ The BASIC reader that ships (`!tapeimg`, stage S2) must give the same verdicts; 
 
 WHAT IT CANNOT PROVE.  parse_image(build_image(m)) == m proves the pair agree; the round trip of the REAL image
 (build_image(parse_image(real)) == real, byte for byte) proves the writer matches the old writer for everything that image holds.
-Neither says a Pick system writes the same bytes.  Layouts other than the 3-label AS one, and the binary item forms (O, B), are
-REFUSED here (R-LAYOUT, R-UNSUPPORTED) until an image exists to read them from.
+Neither says a Pick system writes the same bytes.
+
+OTHER LAYOUTS (stage S4a, 30 Oct 2026).  `layout=` takes r83, jbs, fs or mv besides as.  They are READ AS THE ORIGINAL READER READ THEM and NO REAL IMAGE OF ANY OF THEM HAS
+BEEN SEEN (the owner has none; he vouches for the old code): what is built is the label count it positioned for (r83 two, jbs / fs / mv one), a label that only has to start
+`IM L SP size SP` and carry some text, a pad of NULs or SPACEs (mvBase's has spaces) or none (size field 0200), file numbers and groups in hex, an `IM H` header token that is
+skipped (mv), item types F and E that are read like I, and an end mark of X, XX or XC.  The account is named by the first file header (level 1) of the data, where ACCOUNT.RESTORE
+took it from, not by the label.  REFUSED with a reason: ultfs (SETDEV counts two labels before the data, ACCRST reads three), and the item forms L (two possible shapes in the old
+code), B, R and the foreign O form (their ends depend on the old code's own "fragile" arithmetic), T-DUMP streams.  Only AS is checked against an image another program wrote.
 
   python3 tapegen.py list                  the recipes and their verdicts
   python3 tapegen.py make NAME OUT         write one recipe's image
@@ -31,6 +37,9 @@ BLKSZ = 500               # payload bytes of a block
 PHYS = PAD + BLKSZ        # a physical block
 LABEL_FM_AT = 77          # offset, in the payload, of the field mark that ends a label's text
 BLOCKSIZE_FIELD = b"01F4"  # 500 in hex, what the old writer put in a label
+BLOCKSIZE_FLAT = b"0200"   # 512 in hex: an image with no pad (the old reader took pad = 0 for every size but 500)
+LAYOUTS = {"as": 3, "r83": 2, "jbs": 1, "fs": 1, "mv": 1}     # the labels each layout reads before its data
+LAYOUT_REFUSED = ("ultfs",)                                     # a word the owner may use, and a layout this reader will not guess
 
 MAX_IMAGE = 1 << 30       # caps a caller may raise (decision 7 of 30 Oct)
 MAX_ITEM = 16 << 20
@@ -49,7 +58,11 @@ class TapeError(Exception):
 # ---------------------------------------------------------------------------------------------------------------------------
 # The writer.
 
-def frame(payload, fill=b"\x00"):
+def frame(payload, fill=b"\x00", flat=False):
+    if flat:
+        if len(payload) > PHYS:
+            raise ValueError("payload of %d bytes" % len(payload))
+        return payload + fill * (PHYS - len(payload))
     if len(payload) > BLKSZ:
         raise ValueError("payload of %d bytes" % len(payload))
     return b"\x00" * PAD + payload + fill * (BLKSZ - len(payload))
@@ -70,6 +83,11 @@ def descriptor_block():
     return frame(IM + b"M65" + IM + b"XC", b" ")
 
 
+def generic_label_block(text, flat=False):
+    """A label of a layout other than AS: IM L SP size SP text, NUL padded.  Nothing more is required of the text."""
+    return frame(IM + b"L " + (BLOCKSIZE_FLAT if flat else BLOCKSIZE_FIELD) + b" " + text, flat=flat)
+
+
 def d_token(it):
     attrs = FM.join(it["attrs"])
     head = b"D" + FM + it["level"] + FM + it["num"] + FM
@@ -84,7 +102,7 @@ def d_token(it):
 
 def i_token(it):
     rec = it["id"] + (FM + FM.join(it["fields"]) if it["fields"] else b"")
-    body = b"I" + it["num"] + FM + it["group"] + FM
+    body = it.get("tag", b"I") + it["num"] + FM + it["group"] + FM
     if it.get("llll") is not None:
         llll = it["llll"]
     else:
@@ -93,22 +111,42 @@ def i_token(it):
     return body + b"%04d" % llll + rec + FM
 
 
+def h_token(it):
+    return b"H" + it["text"]
+
+
 def o_token(it):
     blocks = it.get("blocks") or max(1, (len(it["data"]) + BINBLK - 1) // BINBLK)
     return (b"I" + it["num"] + FM + it["group"] + FM + b"O%d" % blocks + FM + it["id"] + FM +
             it["data"].ljust(blocks * BINBLK, b"\x00") + IM + IM + IM + b"X" + IM + b"\x82" + b"%d" % len(it["data"]))
 
 
-def stream_bytes(model):
+def stream_bytes(model, end=b"XX"):
     out = b""
     for it in model["items"]:
-        out += IM + {"D": d_token, "I": i_token, "O": o_token}[it["kind"]](it)
-    return out + IM + b"XX"
+        out += IM + {"D": d_token, "I": i_token, "O": o_token, "H": h_token}[it["kind"]](it)
+    return out + IM + end
 
 
-def build_image(model):
+def gen_image(stream, lab, layout, flat=False, eofs=1):
+    """An image of a layout other than AS whose data stream is exactly `stream`: the layout's labels with `eofs` end-of-file blocks between them, the data, an end-of-file block."""
+    text = lab["time"] + b" " + lab["date"] + b" DATA " + lab["account"]
+    blocks = [generic_label_block(text, flat)]
+    for _ in range(LAYOUTS[layout] - 1):
+        blocks += [eof_block()] * eofs + [generic_label_block(text, flat)]
+    pay = PHYS if flat else BLKSZ
+    for i in range(0, len(stream), pay):
+        blocks.append(frame(stream[i:i + pay], b" ", flat=flat))
+    blocks.append(eof_block())
+    return b"".join(blocks)
+
+
+def build_image(model, layout="as", flat=False, eofs=1, end=b"XX"):
+    """layout 'as' is what the old ACCOUNT.SAVE wrote (flat, eofs and end are ignored); any other layout is gen_image of the model's stream."""
     lab = model["label"]
-    stream = stream_bytes(model)
+    stream = stream_bytes(model, end)
+    if layout != "as":
+        return gen_image(stream, lab, layout, flat, eofs)
     blocks = [label_block(lab, lab["account"]), eof_block(), label_block(lab, lab["account"]), descriptor_block(),
               label_block(lab, lab["account"] + b" " + lab["account"])]
     for i in range(0, len(stream), BLKSZ):
@@ -122,6 +160,12 @@ def build_image(model):
 
 LABEL_RE = re.compile(rb"\xffL ([0-9A-F]{4}) (\d\d:\d\d:\d\d)  (\d\d [A-Za-z]{3} \d{4}) DATA ([!-~]+)(?: ([!-~]+))? *\xfe(\d\d)")
 DIGITS = re.compile(rb"[0-9]{1,9}")
+# the other layouts: file numbers and groups are hex (the old reader converted them with MCXD), the length in front of a name is 4 hex digits,
+# and a label is only `IM L SP size SP text` (printable bytes and at most field marks), the text is not looked at
+KEYS_HEX = re.compile(rb"[0-9A-F]{1,9}")
+LEN_DEC = re.compile(rb"[0-9]{4}.*", re.S)
+LEN_HEX = re.compile(rb"[0-9A-F]{4}.*", re.S)
+GEN_LABEL_RE = re.compile(rb"\xffL ([0-9A-F]{4}) ([\x20-\x7e\xfe]*)")
 # The binary form of an item (the old writer used it for any record holding an item mark), observed in as-ref-2.img:
 #   IM I<num> FM <group> FM O<blocks> FM <id> FM <data, padded with NUL to 1000 * blocks bytes> IM IM IM X IM \x82 <true length> IM ...
 # The data may itself hold IM, FM, even a copy of the trailer, so the end is found by the block count, never by a search.
@@ -153,7 +197,28 @@ def _label(blk, n):
     return {"time": m.group(2), "date": m.group(3), "account": m.group(4), "second": m.group(5), "reel": m.group(6)}
 
 
-def parse_image(data, max_image=MAX_IMAGE, max_item=MAX_ITEM, max_files=MAX_FILES):
+def _gen_payload(blk, flat, what):
+    """The payload of a block of a layout other than AS: the whole block when there is no pad, else what follows a pad of NULs and SPACEs."""
+    if flat:
+        return blk
+    if blk[:PAD].strip(b"\x00 "):
+        raise TapeError("R-PAD", "%s has no pad" % what)
+    return blk[PAD:]
+
+
+def _gen_label(blk, flat, n):
+    pl = _gen_payload(blk, flat, "block %d" % n).rstrip(b"\x00")
+    m = GEN_LABEL_RE.fullmatch(pl)
+    if not m or not m.group(2).strip(b" "):
+        raise TapeError("R-LABEL", "block %d is not a label" % n)
+    if m.group(1) != (BLOCKSIZE_FLAT if flat else BLOCKSIZE_FIELD):
+        raise TapeError("R-BLOCKSIZE", "block size field %s" % m.group(1).decode())
+
+
+def parse_image(data, max_image=MAX_IMAGE, max_item=MAX_ITEM, max_files=MAX_FILES, layout="as"):
+    if layout not in LAYOUTS:
+        raise TapeError("R-UNSUPPORTED" if layout in LAYOUT_REFUSED else "R-FORMAT", "layout %s" % layout)
+    gen = layout != "as"
     if len(data) > max_image:
         raise TapeError("R-IMAGESIZE", "%d bytes" % len(data))
     if len(data) == 0:
@@ -161,19 +226,35 @@ def parse_image(data, max_image=MAX_IMAGE, max_item=MAX_ITEM, max_files=MAX_FILE
     if len(data) % PHYS:
         raise TapeError("R-SHAPE", "%d bytes is not a whole number of %d byte blocks" % (len(data), PHYS))
     blks = [data[i:i + PHYS] for i in range(0, len(data), PHYS)]
-    if len(blks) < 6:
+    if len(blks) < (LAYOUTS[layout] + 2 if gen else 6):
         raise TapeError("R-SHAPE", "%d blocks" % len(blks))
-    lab = _label(blks[0], 0)
-    if not _is_eof(blks[1]):
-        raise TapeError("R-LAYOUT", "block 1 is not an end-of-file block")
-    lab2 = _label(blks[2], 2)
-    if _payload(blks[3], "block 3")[:7] != IM + b"M65" + IM + b"XC" or _payload(blks[3], "block 3")[7:] != b" " * (BLKSZ - 7):
-        raise TapeError("R-LAYOUT", "block 3 is not the descriptor")
-    lab3 = _label(blks[4], 4)
-    if lab3["second"] != lab3["account"] or lab2["account"] != lab["account"] or lab3["account"] != lab["account"]:
-        raise TapeError("R-LAYOUT", "the three labels name different accounts")
+    flat = False
+    if not gen:
+        lab = _label(blks[0], 0)
+        if not _is_eof(blks[1]):
+            raise TapeError("R-LAYOUT", "block 1 is not an end-of-file block")
+        lab2 = _label(blks[2], 2)
+        if _payload(blks[3], "block 3")[:7] != IM + b"M65" + IM + b"XC" or _payload(blks[3], "block 3")[7:] != b" " * (BLKSZ - 7):
+            raise TapeError("R-LAYOUT", "block 3 is not the descriptor")
+        lab3 = _label(blks[4], 4)
+        if lab3["second"] != lab3["account"] or lab2["account"] != lab["account"] or lab3["account"] != lab["account"]:
+            raise TapeError("R-LAYOUT", "the three labels name different accounts")
+        first = 5
+    else:
+        # the first byte of the first block tells a padded image (NUL, or SPACE for mvBase) from one with no pad
+        flat = blks[0][:1] not in (b"\x00", b" ")
+        _gen_label(blks[0], flat, 0)
+        first = 1
+        for _ in range(1, LAYOUTS[layout]):
+            while first < len(blks) and _is_eof(blks[first]):
+                first += 1
+            if first >= len(blks):
+                raise TapeError("R-LAYOUT", "the layout reads %d labels" % LAYOUTS[layout])
+            _gen_label(blks[first], flat, first)
+            first += 1
+        lab = {"time": b"", "date": b"", "account": b"", "reel": b""}
     end = None
-    for n in range(5, len(blks)):
+    for n in range(first, len(blks)):
         if _is_eof(blks[n]):
             end = n
             break
@@ -181,16 +262,18 @@ def parse_image(data, max_image=MAX_IMAGE, max_item=MAX_ITEM, max_files=MAX_FILE
         raise TapeError("R-NOEOF", "no end-of-file block after the data")
     if end != len(blks) - 1:
         raise TapeError("R-TRAILING", "blocks after the end-of-file block")
-    stream = b"".join(_payload(blks[n], "block %d" % n) for n in range(5, end))
+    stream = b"".join((_gen_payload(blks[n], flat, "block %d" % n) if gen else _payload(blks[n], "block %d" % n)) for n in range(first, end))
     items = []
     files = {}
     pos = 0
     size = len(stream)
     done = False
+    keys = KEYS_HEX if gen else DIGITS
+    lens = LEN_HEX if gen else LEN_DEC
     while pos < size:
         if stream[pos:pos + 1] != IM:
             raise TapeError("R-STREAM", "the data has bytes between two items")
-        om = O_HEAD.match(stream, pos)
+        om = None if gen else O_HEAD.match(stream, pos)
         if om:
             # the binary form: the length is the block count, never a search for the trailer (a record may hold a copy of it)
             num, group, nblocks, rid = om.group(1), om.group(2), int(om.group(3)), om.group(4)
@@ -218,8 +301,10 @@ def parse_image(data, max_image=MAX_IMAGE, max_item=MAX_ITEM, max_files=MAX_FILE
         if end < 0:
             end = size
         tok = stream[pos + 1:end]
-        if tok[:2] == b"XX":
-            if tok[2:].strip(b" "):
+        # the end of the account: XX and spaces; in the other layouts also XC (Ultimate's) or a bare X, each with only spaces after it
+        if tok[:2] == b"XX" or (gen and tok[:1] == b"X" and (tok[1:2] == b"C" or not tok[1:].strip(b" "))):
+            rest = tok[2:] if tok[1:2] in (b"X", b"C") else tok[1:]
+            if rest.strip(b" "):
                 raise TapeError("R-TRAILING", "bytes after the end-of-account mark")
             done = True
             break
@@ -233,34 +318,47 @@ def parse_image(data, max_image=MAX_IMAGE, max_item=MAX_ITEM, max_files=MAX_FILE
                 raise TapeError("R-HEADER", "a file header with %d fields" % len(f))
             if f[1] not in (b"1", b"2", b"3"):
                 raise TapeError("R-LEVEL", "level %r" % f[1][:8])
-            if not DIGITS.fullmatch(f[2]):
+            if not keys.fullmatch(f[2]):
                 raise TapeError("R-FILENUM", "file number %r" % f[2][:12])
-            if not re.fullmatch(rb"[0-9]{4}.*", f[3], re.S):
+            if not lens.fullmatch(f[3]):
                 raise TapeError("R-HEADER", "no length in front of the file name")
-            it = {"kind": "D", "level": f[1], "num": f[2], "name": f[3][4:], "attrs": f[4:], "llll": int(f[3][:4])}
+            it = {"kind": "D", "level": f[1], "num": f[2], "name": f[3][4:], "attrs": f[4:], "llll": None if gen else int(f[3][:4])}
             files[f[2]] = it
             if len(files) > max_files:
                 raise TapeError("R-FILECAP", "more than %d files" % max_files)
-        elif t == b"I":
-            if len(f) < 4 or not DIGITS.fullmatch(f[0][1:]):
+        elif t == b"I" or (gen and t in (b"F", b"E")):
+            if len(f) < 4 or not keys.fullmatch(f[0][1:]):
                 raise TapeError("R-HEADER", "an item header with %d fields" % len(f))
-            if not DIGITS.fullmatch(f[1]):
+            if not keys.fullmatch(f[1]):
                 raise TapeError("R-FILENUM", "group %r" % f[1][:12])
             if f[0][1:] not in files:
                 raise TapeError("R-NOFILE", "an item for file %s, which has no header" % f[0][1:].decode())
-            if not re.fullmatch(rb"[0-9]{4}.*", f[2], re.S):
+            if gen and f[2][:1] in (b"O", b"L"):
+                raise TapeError("R-UNSUPPORTED", "a binary or large item")
+            if not lens.fullmatch(f[2]):
                 raise TapeError("R-HEADER", "no length in front of the record id")
             rest = f[3:]
             if rest and rest[-1] == b"":
                 rest = rest[:-1]
-            it = {"kind": "I", "num": f[0][1:], "group": f[1], "id": f[2][4:], "fields": rest, "llll": int(f[2][:4])}
+            it = {"kind": "I", "num": f[0][1:], "group": f[1], "id": f[2][4:], "fields": rest, "llll": None if gen else int(f[2][:4]), "tag": t}
+        elif gen and t == b"H":
+            it = {"kind": "H", "text": tok[1:]}
         elif t in (b"O", b"B", b"L", b"R", b"H", b"F", b"E"):
             raise TapeError("R-UNSUPPORTED", "an item of type %s" % t.decode())
         else:
             raise TapeError("R-BLOCKTYPE", "an item of unknown type %r" % t[:4])
+        # the first thing that is not a header token must be the account's own file header: it names the account, and the name is printed and logged, so it is printable
+        if gen and it["kind"] != "H" and not any(i["kind"] != "H" for i in items):
+            if it["kind"] != "D" or it["level"] != b"1" or not re.fullmatch(rb"[!-~]{1,64}", it["name"]):
+                raise TapeError("R-LAYOUT", "the data does not begin with the file header of a named account")
         items.append(it)
     if not done:
         raise TapeError("R-NOEND", "the data has no end-of-account mark")
+    if gen:
+        named = next((i for i in items if i["kind"] != "H"), None)
+        if named is None:
+            raise TapeError("R-LAYOUT", "the data holds no file header")
+        lab["account"] = named["name"]
     return {"label": {"time": lab["time"], "date": lab["date"], "account": lab["account"], "reel": lab["reel"]},
             "items": items, "blocks": len(blks)}
 
@@ -420,6 +518,48 @@ def _bad_blocksize(code):
     return build_image(small_model()).replace(b"L 01F4 ", b"L " + code + b" ")
 
 
+def gen_model(account=b"DEMO", head=(), extra=()):
+    """What only the other layouts read: file numbers and groups in hex, an F and an E item, header tokens (`head` first, `extra` last)."""
+    attrs = [b"D", b"1A1", b"1", b"", b"", b"", b"", b"", b"L", b"10", b""]
+    items = list(head) + [
+        {"kind": "D", "level": b"1", "num": b"1A0", "name": account, "attrs": [b"D", b"1A1", b"1A1", b"", b"", b"", b"", b"SYS2", b"L", b"12", b""]},
+        {"kind": "D", "level": b"2", "num": b"1A1", "name": b"CUST", "attrs": attrs},
+        {"kind": "D", "level": b"3", "num": b"1A2", "name": b"CUST", "attrs": attrs},
+        {"kind": "I", "num": b"1A2", "group": b"1B", "id": b"C001", "fields": [b"Name 0", b"x"]},
+        {"kind": "I", "num": b"1A2", "group": b"1B", "id": b"C002", "fields": [b"Name 1", b"y"], "tag": b"F"},
+        {"kind": "I", "num": b"1A2", "group": b"1C", "id": b"C003", "fields": [b"Name 2", b"z"], "tag": b"E"},
+    ] + list(extra)
+    return {"label": small_model()["label"], "items": items}
+
+
+def _gen(layout, model=None, **kw):
+    return build_image(model or gen_model(), layout, **kw)
+
+
+def _gen_bad(tail, layout="jbs", end=b"XX", flat=False):
+    """A valid data stream of the other layouts with `tail` (tokens written by hand) in front of its end mark."""
+    return gen_image(stream_bytes(gen_model(), end)[:-(1 + len(end))] + tail + IM + end, small_model()["label"], layout, flat)
+
+
+def _gen_blocks(img):
+    return [img[i:i + PHYS] for i in range(0, len(img), PHYS)]
+
+
+def _space_pad(img):
+    """The same image with four SPACEs where the pad of every padded block begins (what mvBase wrote)."""
+    return b"".join(b"    " + b[4:] if b[:1] == b"\x00" else b for b in _gen_blocks(img))
+
+
+def _pad_junk(img, block=2):
+    b = _gen_blocks(img)
+    b[block] = b[block][:5] + b"x" + b[block][6:]
+    return b"".join(b)
+
+
+def _gen_d(level, num, name=b"X"):
+    return IM + d_token({"level": level, "num": num, "name": name, "attrs": [b"D", b"1", b"1", b"", b"", b"", b"", b"", b"L", b"10", b""]})
+
+
 # name -> (builder, verdict or None when it must parse, reader options).
 RECIPES = {
     "ok-small": (lambda: build_image(small_model()), None, {}),
@@ -476,6 +616,67 @@ RECIPES = {
     "files-at-cap": (lambda: _many_files(999), None, {"max_files": 1000}),
     "image-over-cap": (lambda: build_image(small_model()), "R-IMAGESIZE", {"max_image": PHYS * 5}),
 }
+
+
+def _gen_long(layout, flat=False):
+    """A record of 60 lines: the data runs over nine blocks, the item over several."""
+    return _gen(layout, gen_model(extra=[{"kind": "I", "num": b"1A2", "group": b"1D", "id": b"LONG", "fields": [b"line %d " % i + b"y" * 60 for i in range(60)]}]), flat=flat)
+
+
+def _gl():
+    return small_model()["label"]
+
+
+# Stage S4a, the other layouts.  Every one is the original reader's reading, built by our writer: no image of any of them has been seen.
+RECIPES.update({
+    "g-ok-jbs": (lambda: _gen("jbs"), None, {"layout": "jbs"}),
+    "g-ok-fs": (lambda: _gen("fs"), None, {"layout": "fs"}),
+    "g-ok-r83": (lambda: _gen("r83"), None, {"layout": "r83"}),
+    "g-ok-r83-two-eofs": (lambda: _gen("r83", eofs=2), None, {"layout": "r83"}),
+    "g-ok-r83-no-eof": (lambda: _gen("r83", eofs=0), None, {"layout": "r83"}),
+    "g-ok-mv-with-h": (lambda: _gen("mv", gen_model(head=[{"kind": "H", "text": b"mvBase header"}], extra=[{"kind": "H", "text": b""}])), None, {"layout": "mv"}),
+    "g-ok-long-padded": (lambda: _gen_long("jbs"), None, {"layout": "jbs"}),
+    "g-ok-long-flat": (lambda: _gen_long("r83", flat=True), None, {"layout": "r83"}),
+    "g-ok-flat-jbs": (lambda: _gen("jbs", flat=True), None, {"layout": "jbs"}),
+    "g-ok-space-pad": (lambda: _space_pad(_gen_long("mv")), None, {"layout": "mv"}),
+    "g-ok-end-xc": (lambda: _gen("jbs", end=b"XC"), None, {"layout": "jbs"}),
+    "g-ok-end-x": (lambda: _gen("jbs", end=b"X"), None, {"layout": "jbs"}),
+    "g-ok-label-text-free": (lambda: gen_image(stream_bytes(gen_model()), {"time": b"ACCOUNT-SAVE", "date": b"30-OCT-26", "account": b"whatever"}, "r83"), None, {"layout": "r83"}),
+    "g-ok-hex-length": (lambda: _gen_bad(IM + b"D" + FM + b"2" + FM + b"2A0" + FM + b"00AFNAME" + FM + b"D" + FM + b"1" + FM + b"1" + FM), None, {"layout": "jbs"}),
+    "g-ultfs": (lambda: _gen("jbs"), "R-UNSUPPORTED", {"layout": "ultfs"}),
+    "g-unknown-format": (lambda: _gen("jbs"), "R-FORMAT", {"layout": "xyz"}),
+    "g-an-as-image-read-as-jbs": (lambda: build_image(small_model()), "R-TRAILING", {"layout": "jbs"}),
+    "g-a-jbs-image-read-as-as": (lambda: _gen_long("jbs"), "R-LABEL", {}),
+    "g-r83-over-a-jbs-image": (lambda: _gen_long("jbs"), "R-LABEL", {"layout": "r83"}),
+    "g-r83-runs-out-of-blocks": (lambda: generic_label_block(b"a b") + eof_block() * 3, "R-LAYOUT", {"layout": "r83"}),
+    "g-too-short": (lambda: generic_label_block(b"a b") + eof_block(), "R-SHAPE", {"layout": "jbs"}),
+    "g-no-eof-block": (lambda: _gen_long("jbs")[:-PHYS], "R-NOEOF", {"layout": "jbs"}),
+    "g-blocks-after-eof": (lambda: _gen("jbs") + frame(b"x"), "R-TRAILING", {"layout": "jbs"}),
+    "g-pad-junk": (lambda: _pad_junk(_gen_long("jbs")), "R-PAD", {"layout": "jbs"}),
+    "g-pad-junk-in-label": (lambda: _pad_junk(_gen("jbs"), 0), "R-PAD", {"layout": "jbs"}),
+    "g-blocksize-flat-in-padded": (lambda: _gen("jbs").replace(b"L 01F4 ", b"L 0200 "), "R-BLOCKSIZE", {"layout": "jbs"}),
+    "g-blocksize-padded-in-flat": (lambda: _gen("jbs", flat=True).replace(b"L 0200 ", b"L 01F4 "), "R-BLOCKSIZE", {"layout": "jbs"}),
+    "g-blocksize-other": (lambda: _gen("jbs").replace(b"L 01F4 ", b"L 0400 "), "R-BLOCKSIZE", {"layout": "jbs"}),
+    "g-label-blank": (lambda: generic_label_block(b"   ") + _gen("jbs")[PHYS:], "R-LABEL", {"layout": "jbs"}),
+    "g-label-control-byte": (lambda: generic_label_block(b"ab\x01cd") + _gen("jbs")[PHYS:], "R-LABEL", {"layout": "jbs"}),
+    "g-no-level-1": (lambda: gen_image(_gen_d(b"2", b"1A1") + IM + b"XX", _gl(), "jbs"), "R-LAYOUT", {"layout": "jbs"}),
+    "g-only-end": (lambda: gen_image(IM + b"XX", _gl(), "jbs"), "R-LAYOUT", {"layout": "jbs"}),
+    "g-only-h-then-end": (lambda: gen_image(IM + b"Habc" + IM + b"XX", _gl(), "jbs"), "R-LAYOUT", {"layout": "jbs"}),
+    "g-no-end-mark": (lambda: gen_image(stream_bytes(gen_model())[:-3] + b"   ", _gl(), "jbs"), "R-NOEND", {"layout": "jbs"}),
+    "g-end-junk": (lambda: _gen_bad(b"", end=b"XXabc"), "R-TRAILING", {"layout": "jbs"}),
+    "g-end-xq": (lambda: _gen_bad(IM + b"XQ"), "R-BLOCKTYPE", {"layout": "jbs"}),
+    "g-type-b": (lambda: _gen_bad(IM + b"B" + FM + b"x"), "R-UNSUPPORTED", {"layout": "jbs"}),
+    "g-type-r": (lambda: _gen_bad(IM + b"R" + FM + b"x"), "R-UNSUPPORTED", {"layout": "jbs"}),
+    "g-type-l": (lambda: _gen_bad(IM + b"L1" + FM + b"x"), "R-UNSUPPORTED", {"layout": "jbs"}),
+    "g-item-subtype-o": (lambda: _gen_bad(IM + b"I1A2" + FM + b"1B" + FM + b"O1" + FM + b"ID" + FM + b"data"), "R-UNSUPPORTED", {"layout": "jbs"}),
+    "g-item-subtype-l": (lambda: _gen_bad(IM + b"I1A2" + FM + b"1B" + FM + b"L12" + FM + b"ID"), "R-UNSUPPORTED", {"layout": "jbs"}),
+    "g-f-for-unknown-file": (lambda: _gen_bad(IM + b"F7F" + FM + b"1" + FM + b"0010id" + FM + b"x" + FM), "R-NOFILE", {"layout": "jbs"}),
+    "g-lowercase-hex-file-number": (lambda: _gen_bad(_gen_d(b"2", b"1a")), "R-FILENUM", {"layout": "jbs"}),
+    "g-account-name-escape": (lambda: _gen("jbs", gen_model(account=b"EVIL\x1b[2J")), "R-LAYOUT", {"layout": "jbs"}),
+    "g-account-name-too-long": (lambda: _gen("jbs", gen_model(account=b"A" * 65)), "R-LAYOUT", {"layout": "jbs"}),
+    "g-ok-account-name-64": (lambda: _gen("jbs", gen_model(account=b"A" * 64)), None, {"layout": "jbs"}),
+    "g-h-token-over-cap": (lambda: _gen_bad(IM + b"H" + b"h" * 400), "R-ITEMCAP", {"layout": "jbs", "max_item": 150}),
+})
 
 # Names the name layer must refuse, and one it must accept.
 HOSTILE_NAMES = [(b"../../etc/x", "slash"), (b"..", "dotdot"), (b".", "dot"), (b"a/b", "slash"), (b"a\x00b", "nul"), (b"", "empty"),

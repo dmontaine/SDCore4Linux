@@ -8722,10 +8722,10 @@ The fill step named a path that is not inside the new account: %1
 ```
 
 ### msg:11923
-> kind=message tier=reference since=- src=sdsys/messages/11923:1#b6b5be2d
+> kind=message tier=reference since=- src=sdsys/messages/11923:1#64477c3d
 
 ```
-Syntax: tape.import image to account {from account} {format as} {list} {no.query}\n        image is the absolute path of a save image written by the old account.save.\n        to names a NEW user account; an existing one is refused.\n        list reads the image and says what it holds, and writes nothing.
+Syntax: tape.import image to account {from account} {format as|r83|jbs|fs|mv} {list} {no.query}\n        image is the absolute path of a save image; without format it is read as the old account.save wrote it.\n        to names a NEW user account; an existing one is refused.\n        list reads the image and says what it holds, and writes nothing.
 ```
 
 cited by: `tapeimp`
