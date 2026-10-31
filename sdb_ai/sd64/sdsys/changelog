@@ -10,7 +10,23 @@ Next release - in progress
                            not delete the units keeps the old unit file until it is replaced (copy usr/lib/systemd/system/sdclient@.service over it and run systemctl daemon-reload).
              Why         - A fault in the part of the server that reads a connection before anyone has logged in would otherwise run with all of root's reach.
              Does NOT    - Set NoNewPrivileges, a capability bound, ProtectSystem, ProtectHome or PrivateTmp: a session runs sudo sd-elevate and writes the system directory and the accounts, and those
-                           settings would stop it. Change the answer to any request. The release witness (323 of 323, API door, administrator verbs through sudo) passed with the unit loaded.
+                           settings would stop it. Change the answer to any request.
+
+30 Oct 26  THE IDE'S FIELDS VIEW (F12) IS A PANE OF THE TAB: THE TABS, THE MENU AND EVERY IDE KEY KEEP WORKING WHILE IT IS UP, AND CTRL-S IS THE IDE'S SAVE.
+
+             What        - The fields view used to hold the keyboard until you left it. It is now one of the two faces of a tab: F12 shows the record as fields, values and subvalues in the editor's
+                           rectangle, F12 again shows the text, and each tab remembers which it shows. Every change you make in the fields is in the tab's text at once, so the tab is marked changed
+                           (the star on the status line and on the pane's path line), the other tabs, the menu, F6 and a resize all work, and Ctrl-S is the IDE's own save (the edit gate and the
+                           overwrite question as for any record). Esc, Left and Backspace go up a level (Esc at the top is the IDE's Esc), Ctrl-T changes the type, Ctrl-C / Ctrl-X / Ctrl-V copy, cut
+                           and paste (F4 to F7 are the IDE's own). One Ctrl-Z in the text area takes a whole visit to the fields back, and going to the fields and back without a change touches nothing.
+                           If something else changes the text meanwhile (the overwrite question's Reload, SED) the pane follows it. The commands that work on the text - Replace, the case changes,
+                           Import, Export, Format, Go to line, Open the include and the AI line - say "This works on the text of the record" (message 11998) and wait for F12. New messages 11996 to 11999.
+             Why         - The editor's functions belong inside the IDE, not in a mode that stops it. The tab's text is the record, so nothing else in the IDE had to learn about the fields.
+             Does NOT    - Put the AI line in the fields view, or add the Collection / Array choice for a new record; the pane writes nothing and takes no lock.
+
+             Also in this release, the same sitting: a create of an operating system file that ends because the name is locked, or on an error, now says that an empty file of that name may be there
+             (messages 11996 and 11997); a refusal of an operating system file's edit gate is told apart from the account's missing OS access; and the long refusals of Save, Save as and New are
+             shown in a box (11737, 11739, 11762) instead of being cut off on the status row.
 
 30 Oct 26  THE IDE'S FIELDS VIEW (F12) IS INSIDE THE IDE: THE COLLECTION EDITOR'S ENGINE IS SHARED, AND THE SCREEN IS NO LONGER LEFT.
 
@@ -19,7 +35,7 @@ Next release - in progress
                            not kept) is now one engine, $ced_core, that CED and the IDE both use. In the IDE the list is drawn in the editor's own rectangle: the tree, the tab strip and the
                            messages pane stay on the screen, the status row shows the keys, and the record's lock is never let go. The keys are the ones CED has always had; Ctrl-S keeps the
                            change in the view, and Ctrl-Q or F12 leaves it. A new message (11995) is the status row's text.
-             Why         - The owner wants CED's functions inside the IDE. This is the first step: the same editing code, with the IDE's form around it, and no moment when the IDE has let go of the
+             Why         - The editor's functions belong inside the IDE. This is the first step: the same editing code, with the IDE's form around it, and no moment when the IDE has let go of the
                            screen and the locks. The IDE's own save is still the only thing that writes.
              Does NOT    - Let the tabs, the menu bar or the other panes work while the view is up (it has the keyboard to itself until you leave it), put the AI line in the view, or change the
                            !CED() subroutine, which works as before.
@@ -669,7 +685,7 @@ Next release - in progress
 
 27 Oct 26  FIVE SECOND NAMES OF @ VARIABLES ARE REMOVED: @AM, @SVM, @USER, @USER.NO AND @FILENAME.
 
-             What        Thirteenth batch, on the owner's word. Write @FM for @AM, @SM for @SVM, @LOGNAME for @USER, @USERNO for @USER.NO and @FILE.NAME for @FILENAME. Each was a second
+             What        Write @FM for @AM, @SM for @SVM, @LOGNAME for @USER, @USERNO for @USER.NO and @FILE.NAME for @FILENAME. Each was a second
                          spelling of a variable that stays and compiled to the same code. SD's own programs and the three directory-file dictionary items (days, owner, dtm) were changed.
                          A dictionary item of your own that says @FILENAME stops compiling until you write @FILE.NAME.
              Why it      One name for one thing.
@@ -677,7 +693,7 @@ Next release - in progress
 
 27 Oct 26  THREE MORE OPTION WORDS, THE STATEMENT inputclear AND THE CONSTANT FL$TYPE.SH ARE REMOVED.
 
-             What        Twelfth batch, on the owner's word. The options chain.keep.common, backslash.not.quote and correlative.reuse are gone: CHAIN always discards the unnamed common, a backslash
+             What        The options chain.keep.common, backslash.not.quote and correlative.reuse are gone: CHAIN always discards the unnamed common, a backslash
                          always opens a quoted string in a command line, and a shorter array's missing values count as zero in an array operation (an operand can still say reuse()). INPUTCLEAR is
                          gone: write CLEARINPUT (the same statement, compiled to the same code); SD's own three uses were changed. FL$TYPE.SH, the file-type constant for a static hashed file SD
                          never had, is gone, with the two branches of the files and dictionary pages that tested for it. The option numbers stay reserved.
@@ -686,7 +702,7 @@ Next release - in progress
 
 27 Oct 26  FOUR SECOND NAMES OF BASIC FUNCTIONS ARE REMOVED: dquote, dquotes, swap AND xlate.
 
-             What        The eleventh batch. dquote() and dquotes() were the same functions as quote() and quotes(); swap() was change(); xlate() was trans(). A program that calls one stops
+             What        dquote() and dquotes() were the same functions as quote() and quotes(); swap() was change(); xlate() was trans(). A program that calls one stops
                          compiling with "Unrecognised function" the next time it is compiled; write the first name. SD's own use (three lines of setptr) and the tests were changed.
                          Programs already compiled keep running (the compiler wrote the same code for both names).
              Why it      One name for each function is easier to learn, document and test.
@@ -694,7 +710,7 @@ Next release - in progress
 
 27 Oct 26  FIVE VOC RECORDS AND THREE LOOSE FORMS OF A DICTIONARY EXPRESSION ARE REMOVED: caption, nopage, col.hdr.space, edit.list, listdict.
 
-             What        Tenth batch, through the VOC deletion list. caption and nopage were second names of grand.total and no.page; col.hdr.space (a blank line under the column headings,
+             What        Removed through the VOC deletion list: caption and nopage were second names of grand.total and no.page; col.hdr.space (a blank line under the column headings,
                          added earlier in this release) is gone, and a heading that ends in a blank line does the same; edit.list is gone (write ed $savedlists name); listdict, a paragraph
                          over list dict, is gone (write list dict file). In an I-type or correlative: an IF with no THEN or no ELSE is refused again (messages 2950 and 2951), a name such as
                          CUST-NO is read as CUST minus NO even when an item of that name exists (rename the item or write the subtraction), and a format string straight after a value needs
@@ -705,7 +721,7 @@ Next release - in progress
 
 27 Oct 26  THREE MORE $MODE WORDS ARE REMOVED: execute.clearlist, open.fail.zero.fvar AND pick.readnext.
 
-             What        The ninth batch. A program that names one of them in $mode, or in the MODE line of a $basic.options record, is refused with "Unrecognised mode name". Without the mode:
+             What        A program that names one of them in $mode, or in the MODE line of a $basic.options record, is refused with "Unrecognised mode name". Without the mode:
                          an execute leaves the default select list alone (clearselect 0 clears it), the file variable of a failed open or openpath is left unassigned, and a readnext that
                          takes its else sets the id variable to the null string. The compiler's code for them, the kernel's flag handling (open, readnext, execute) and the three suites
                          that tested only these modes are gone; the mode bits stay reserved. A program already compiled with one of them runs as the kernel now does (the three flags are
@@ -715,7 +731,7 @@ Next release - in progress
 
 27 Oct 26  FOUR MORE OPTION WORDS ARE REMOVED: no.sel.list.query, catalogue.local, inherit.mfile.path AND correlative.nocase.
 
-             What        The eighth batch of the removal. Each now does what it did with the option off. no.sel.list.query: ed, ct, delete, setmode, deletef, copy and cd ask "Use active select
+             What        Each now does what it did with the option off. no.sel.list.query: ed, ct, delete, setmode, deletef, copy and cd ask "Use active select
                          list?" unless no.query is given. catalogue.local: catalog and delete.catalog with no word work on the private catalogue; say local for the local one (the files
                          page no longer mentions the option). inherit.mfile.path: a new multifile subfile goes in the directory named for the file unless pathname says otherwise.
                          correlative.nocase: a correlative or I-type is case blind only through its own A;NOCASE; flag or an I-type's $mode nocase.strings. The option numbers stay reserved.
@@ -724,7 +740,7 @@ Next release - in progress
 
 27 Oct 26  ELEVEN OPTION WORDS ARE REMOVED: THE WAY SD BEHAVES WITH THEM OFF IS NOW THE ONLY WAY.
 
-             What        The seventh batch of the removal the owner asked for. Removed OPTION words: run.no.page and paginate.on.heading (a run, a debug and a catalogued program started by
+             What        Removed OPTION words: run.no.page and paginate.on.heading (a run, a debug and a catalogued program started by
                          name are paginated as usual; run ... no.page still turns it off), pick.ml.conv.mask (a left bracket in an ML or MR conversion is the round-bracket negative style),
                          chained.select (a select does not run the first line of the data queue), default.mv (a dictionary item with a blank S/M flag is single valued), query.string.comp and
                          query.str.comp.all (= and ne compare as BASIC compares), assoc.all (the dictionary's associations are used), query.footer.pause (a report waits for nothing after its page
@@ -736,14 +752,14 @@ Next release - in progress
 
 27 Oct 26  ELEVEN SECOND NAMES OF TCL VERBS, AND THE HYPHEN FORM OF A VERB NAME, ARE REMOVED.
 
-             What        The sixth batch of the removal the owner asked for, and the first to use the VOC deletion list (the entry below). Removed verbs: analyse.file (write analyze.file;
+             What        Removed verbs (through the VOC deletion list, described in the entry below): analyse.file (write analyze.file;
                          the American spelling stays), delete.catalogue (write delete.catalog), cs (write clr), rename (write cname), cleardata, clearinput, clearprompts and clearselect (write
                          clear.data, clear.input, clear.prompts and clear.select), and sp.open and sp.close (write printer keep.open and printer close). A verb typed with a hyphen where
                          the name has a dot (clear-select) is no longer found: the command processor stops after the as-typed, lower-case and upper-case attempts. The BASIC statements
                          cleardata, clearinput and clearselect are NOT affected. The full-screen files page and the API server's "analyse" request now run analyze.file; the request's name in
                          the audit line (op=analyse.file) and on the wire is unchanged. Each removed record is on the deletion list, so the next VOC update takes it out of existing accounts,
                          after saving a copy, unless the account's record of that name is not the one SD shipped.
-             Why it      Each was a second name for something SD already says one way (the owner: US spelling stays, dotted names are the names). One name for each thing is easier to learn,
+             Why it      Each was a second name for something SD already says one way (the US spelling stays, and dotted names are the names). One name for each thing is easier to learn,
                          document and test, and a hyphen that quietly worked hid a mistyped verb.
              Does not    Change cname's comma form (cname old, new, which the survey also listed, is left until it is decided on its own), the BASIC statements of the same names, or any
                          account's own record of one of these names that differs from the shipped one.
@@ -769,7 +785,7 @@ Next release - in progress
 
 27 Oct 26  THE sd -l OPTION, THIRTY-ONE TERMINAL NAMES OF OLD HARDWARE AND THE system:account:file FILE NAME ARE REMOVED, AND SOME CODE THAT NEVER RAN.
 
-             What        The fifth batch of the removal the owner asked for: things that belonged to systems or hardware SD does not have. Removed: the sd -l option ("apply new licence": SD has no licence;
+             What        Things that belonged to systems or hardware SD does not have. Removed: the sd -l option ("apply new licence": SD has no licence;
                          it set a flag nothing read, and sd -l is an unrecognised option now like any other); the terminal definitions of Data General (dg210, dg-ansi, dg-generic, dg6053-old,
                          dg100), MDC Prism (prism2, prism4, prism5, prism7, prism8, prism9, prism12, prism14 and p4 p5 p7 p8 p9 p12 p14), Prime (pt100, pt200, wren, fenix, their 132-column forms
                          pt100w pt200w wrenw fenixw, pt250 and pt250w) and the Televideo 910 (tvi910), 31 names, of the 82 list.term.types showed, which now shows 51 (ansi, vt100 and xterm replace
@@ -783,11 +799,11 @@ Next release - in progress
 
 27 Oct 26  THIRTEEN SECOND SPELLINGS OF QUERY KEYWORDS, AND DICTIONARY FIELD NUMBERS 9998 AND 9999, ARE REMOVED.
 
-             What        The fourth batch of the removal the owner asked for: the query processor. Removed keywords: col.spcs (write col.spaces), display.name (col.hdg), evaluate (eval),
+             What        The query processor. Removed keywords: col.spcs (write col.spaces), display.name (col.hdg), evaluate (eval),
                          calculate (calc), intersection and difference (intersect and diff, in merge.list and list.inter / list.diff too), margin (left.margin), stats (statistics), supp (hdr.sup),
                          only (id.only) and the mirrored comparison spellings => =< and >< (write >= <= and <>). The word id.only (and only) is no longer accepted BEFORE the file name; write it
                          after, as in "list customers id.only". (The noise word than is NOT removed: it was on the list, but without it "less than 25" would mean "less than the word than or less
-                         than 25" and list every record, so it stays until the owner decides.)
+                         than 25" and list every record, so it stays for now.)
                          A dictionary item of type d, a or s whose field location was 9998 (the item count, @ni) or 9999 (the length of the record in bytes) now reads field 9998 or 9999 like any
                          other number: use an I-type with @ni or len(@record). The query processor, the I-type and A-correlative compilers, the run-time I-type and the dictionary page lost the
                          two special cases. A new account no longer has the VOC records of the removed keywords. An account that already has them loses them at its next VOC update, through the
@@ -798,7 +814,7 @@ Next release - in progress
 
 27 Oct 26  TWENTY-SEVEN SECOND SPELLINGS AND FORMS OF BASIC STATEMENTS, CLAUSES, FUNCTIONS AND CONVERSIONS ARE REMOVED.
 
-             What        The third batch of the removal the owner asked for: the words and forms of SD BASIC that gave a second way to write something SD already writes one way. Removed
+             What        The words and forms of SD BASIC that gave a second way to write something SD already writes one way. Removed
                          statements: $insert (write $include), include without the dollar sign (write $include), com (common), dimension and redimension (dim and redim), enter and the mode
                          pick.enter that switched it on (call, or chain to hand control on for good), perform (execute), printerr (inputerr), remark (rem), rqm (sleep), sub (subroutine, also
                          after local, private and public) and tclread (read @sentence). Removed clause forms: execute ... setting (returning), execute ... passlist with no variable (the clause
@@ -812,13 +828,13 @@ Next release - in progress
              Why it      Each was a second name, or a second form, kept so that source written for another product compiles. One way to write each thing is easier to learn, to document and to
                          test. SD's own programs used two of them (printerr in the full-screen input, sub twice in the compiler) and now use the surviving word, and the debugger no longer
                          takes a line that starts with remark for a comment.
-             Does not    Remove the words that remain on the owner's list (the next batches), change a program that uses only the surviving spellings, or change what input ... waiting,
+             Does not    Remove the words that remain (see the other removal entries), change a program that uses only the surviving spellings, or change what input ... waiting,
                          execute ... returning, execute ... passlist variable, locate ... setting, inputerr, rem, sleep, call, common, dim, redim, mx or terminfo() do. A source that uses one of the
                          removed words stops compiling and has to be edited.
 
 27 Oct 26  SEVEN $mode NAMES THAT EXISTED TO IMITATE OTHER PRODUCTS ARE REMOVED.
 
-             What        The second batch of the removal the owner asked for: the compile modes. Removed: prclose.default.0 (printer close with no unit closed only unit 0), unassigned.common (the
+             What        The compile modes. Removed: prclose.default.0 (printer close with no unit closed only unit 0), unassigned.common (the
                          variables of a common block started unassigned), no.case.invert (input ignored the terminal's case inversion in every input), optional.then.else (a read needed no then or
                          else), implied.stop (a program that ran off its final end stopped the run instead of returning), exception.save.stack (every catch saved the call stack) and
                          conditional.statements (a name that did nothing: the file statements have always been allowed as the condition of while and until). The compiler now refuses each with
@@ -832,7 +848,7 @@ Next release - in progress
 
 27 Oct 26  TWENTY-TWO OPTION WORDS THAT EXISTED TO IMITATE OTHER PRODUCTS ARE REMOVED, AND SO IS THE option pick SHORTCUT.
 
-             What        The owner asked for the features that exist only to make SD behave like another MultiValue product to go. The first batch is the OPTION words. Removed: pick (the shortcut
+             What        Features that exist only to make SD behave like another MultiValue product are removed. First, the OPTION words. Removed: pick (the shortcut
                          that switched nine words on together), assoc.unassoc.mv, pick.breakpoint, pick.breakpoint.u, pick.explode, pick.grand.total, pick.implied.eq, pick.null, pick.wildcard,
                          qualified.display, with.implies.or, query.no.case, query.priority.and, ampm.upcase, crdb.upcase, no.date.wrapping, space.mct, lock.beep, ed.no.query.fd,
                          create.file.upcase, select.keep.case, debug.rebind.keys and proc.a. OPTION now refuses each of them with the usual "Option name not recognised". Everything they switched on
@@ -884,7 +900,7 @@ Next release - in progress
                          named --View-- and the text, and the buffer you came from is as it was. A text that no line holds is said so and no buffer is made.
              Why it      A long record and a long list of records were harder to follow than they need be, and a split window could not be resized.
              Does not    Give split.up, split.down or view a key of their own (they are in the menus and on the command line: a new key-bound function would have renumbered the ones that
-                         are not bound), change the list of files, or take commands from the data queue, which the sheet also lists and which waits for a decision on its form.
+                         are not bound), change the list of files, or take commands from the data queue, which is not there yet.
 
 26 Oct 26  A REFUSED API LOGIN NO LONGER SOMETIMES ENDS WITH NO ANSWER AT ALL.
 
@@ -904,7 +920,7 @@ Next release - in progress
                          accounts after it and the count were lost. Now an account whose VOC cannot be written is left exactly as it was: the command says "<path>: this session cannot write the VOC
                          of that account (the sdsys user is not in its group), so it was left as it was. modify.account <name> sdsys-on lets sdsys do it; the installer's upgrade updates every
                          account", goes on to the next account, and ends with the count of accounts updated (as before) and, if any, "n account(s) were left as they were". newvoc.mods is not
-                         tried in an account that could not be written. Found on a real install by witness-release-run.sh (V10).
+                         tried in an account that could not be written.
              Why it      The error looked like a full disk and hid which accounts had been updated.
              Does not    Make SDSYS able to write those accounts: that is sdsys-on, or the installer's upgrade, which runs as root and is unchanged (its walk updates every account).
 
@@ -926,7 +942,7 @@ Next release - in progress
                          that kept the accounts (the sdsys user is kept with them) that took sdsys out of sdg_shared and out of the group of every other group account, and out of any
                          account group the question about the sdsys user, asked at the start of the install, had been told to keep. The command now appends (-a), so the groups the sdsys
                          user is in are left as they were; the question's answer still decides the groups of the user accounts, as before, and a group account's group is not touched. A fresh
-                         install is unchanged. Found on a real install: sdg_shared held only root after a kept-accounts install, root and sdsys before it and after a fresh one.
+                         install is unchanged.
              Why it      The shared account is registered with the group sdg_shared so that only root and SDSYS may sign on to it; after an upgrade SDSYS could no longer do so, and the
                          same went for every group account the administrator had made.
              Does not    Put the sdsys user back into the group of a group account an earlier upgrade took it out of: sudo gpasswd -a sdsys sdg_shared (and sdg_<name> for the others).
@@ -937,8 +953,7 @@ Next release - in progress
                          user's own process reads it through. RESTORE.ACCOUNT gave a restored account the group in its register record, so after RESTORE.ACCOUNT LATEST ALL, or a restore of
                          shared by name, the shared account's directory and files were sdsys:sdg_shared and no ordinary user could read the documentation or anything else in it. A
                          restore now puts the shared account back as sdsys:sdusers; every other group account still goes back as sdsys:sdg_<name> and a user account as <user>:sdu_<user>.
-                         The root helper's restore-place accepts sdusers for the account called shared and for no other. Found on a real install: a run of witness-accounts.sh after a
-                         run of witness-backup.sh failed three rows about the shared account, and a fresh install passed all 84.
+                         The root helper's restore-place accepts sdusers for the account called shared and for no other.
              Why it      Restoring all accounts is what the backup page tells an administrator to do after a disaster, and it silently broke the one account every user reads.
              matters
              Does not    Repair a shared account that a restore has already changed: give it back with sudo chgrp -R sdusers on the account's directory, or restore it again after the
@@ -950,7 +965,7 @@ Next release - in progress
                          different content: the matrix of every account's gates for the administrator, and for an account holder the read-only page of what that account may do.
                          UPDATE.ACCOUNTS, and UPDATE.ACCOUNTS ALL which the installer runs on every install and an administrator runs after an upgrade, copied NEWVOC over the SDSYS
                          account's own VOC too, so SDSYS found the holder's page where the matrix should be. Updating the SDSYS account's own VOC now reads VOC_TEMPLATE; every
-                         other account is updated from NEWVOC as before. Found on a real install by witness-toolgates.py, whose first row asks for the matrix as SDSYS.
+                         other account is updated from NEWVOC as before.
              Why it      Without it the administrator could not open the page that changes an account's gates (the matrix) after any install or update, only read the holder's view.
              matters
              Does not    Repair an install made before this change: run UPDATE.ACCOUNTS ALL in the SDSYS account after the upgrade (the installer does), or copy the record
@@ -978,11 +993,7 @@ Next release - in progress
              Does not    Make the sdsys login harmless: it can still write the global catalogue, make a new SD user and set its first password, put a person in any account's
                          group (modify.account add is exactly that), have a restore replace an account with a tree it staged itself, and turn any file or directory it owns into one
                          owned by root and the group sdusers. The group-account verbs now look for a directory named group_accounts literally, so a GRPDIR set to another name is
-                         refused by them. create.account, modify.account, delete.account and the installer send the same calls as before: read from the programs, held by the unit checks, and
-                         shown on a Debian 13 install on 26 Oct 26 (witness-f12.py, 83 rows: a user and a group account made, changed and deleted through SD, an OTHER account
-                         with a path outside the accounts root, the retry and the unwind of a refused password, every refusal as sdsys through sudo, and the helper started from a
-                         directory holding a module planted by sdsys; the python of that machine has grp built in, so that last row cannot fail there). Not shown: a restore
-                         through restore.account (witness-backup.sh).
+                         refused by them. create.account, modify.account, delete.account and the installer send the same calls as before: read from the programs.
 
 26 Oct 26  THE FILES ROOT RUNS ARE NOW ROOT'S, AND SO IS THE DIRECTORY THEY ARE IN (W.11 F11).
 
@@ -1001,9 +1012,9 @@ Next release - in progress
                          verbs F12 narrows). A system installed before this change keeps its old owners until SD is deleted and installed again. During the minutes of an
                          install, before this step, bin is still the sdsys user's. Putting a file of your own into bin now needs sudo chattr -i /usr/local/sdsys/bin first, and
                          catalog ... pcode and a recursive compile (SD's own developers' tools) need root. On a file system that cannot keep the attribute the files are root's but bin
-                         can still be renamed. Measured on a Debian 13 install on 26 Oct 26 (witness-f11.py, 34 rows): the owners and the attribute, the sdsys login unable to write, make or rename
-                         anything in bin or to rename bin itself, SD and the audit daemon starting from it, systemd restarting a killed daemon, and SDSYS still compiling,
-                         cataloguing and running update.accounts all; not measured: a reboot, a file system without the attribute, and a root catalog ... pcode.
+                         can still be renamed. With the attribute set, the sdsys login cannot write, make or rename
+                         anything in bin or rename bin itself, SD and the audit daemon start from it, systemd restarts a killed daemon, and SDSYS can still compile,
+                         catalogue and run update.accounts all.
 
 26 Oct 26  TWO PEOPLE CAN NOW BE AT THE HOME SCREEN AT THE SAME TIME: A SESSION THAT STARTED AT IT NO LONGER KEEPS THE NEXT ONE WAITING AT SIGN-ON.
 
@@ -1013,14 +1024,13 @@ Next release - in progress
                          first session to start at the home screen kept an update lock on start.default for as long as it lived, and the next session, of any account that took
                          its start from the system default, waited at sign-on, showing the licence banner and nothing else, until the first one signed off. The home entry now
                          closes the variable when the file is not there. The same shape was in set.start.default, the menu management page, the list of PDF viewers and OSREAD,
-                         whose read of a file that was not there left a lock on its name for the rest of the session; each now closes it. Found on a real install, by the witness
-                         for the SDSYS second session, on 26 Oct 2026; a sandbox with two sessions did not see it because it only looked at the first session's screen.
+                         whose read of a file that was not there left a lock on its name for the rest of the session; each now closes it.
              Why it      With more than one person using the system, an account without a start setting of its own could not sign on while someone else was at the home screen.
              matters
              Does not    Change OPENSEQ: a program of your own that opens a file that may not be there, takes ELSE and does not close the file variable still keeps the lock on
                          its name until it does (closeseq it in the ELSE branch).
 
-26 Oct 26  THE SDSYS USER IS IN NO USER ACCOUNT'S GROUP AS DELIVERED, AND THE ADMINISTRATOR SWITCHES IT ON ONE ACCOUNT AT A TIME: modify.account <name> sdsys-on AND sdsys-off (F6, S.67 stage 2).
+26 Oct 26  THE SDSYS USER IS IN NO USER ACCOUNT'S GROUP AS DELIVERED, AND THE ADMINISTRATOR SWITCHES IT ON ONE ACCOUNT AT A TIME: modify.account <name> sdsys-on AND sdsys-off.
 
              What        create.account used to make every user account's Linux group with the sdsys user in it, and the installer put the sdsys user back in the group of every
                          account it kept, so SDSYS could write inside any account: its VOC and dictionaries and whatever else the account's group may write. That is now off as
@@ -1039,10 +1049,10 @@ Next release - in progress
              Does not    Make the sdsys login unable to reach an account's code: it can still write the global catalogue and run sd-elevate (since F11 the files
                          root runs are root's, and F12 narrowed sd-elevate's verbs: see their entries), and a session of SDSYS that is already running keeps its groups until it ends. It does not change group accounts or the
                          shared account, and it does not switch the access on for the installing user's account. That
-                         SDSYS also loses general write inside an account (logto and an editor, an interactive update.accounts) is read from the modes and has not been measured on a
+                         SDSYS also loses general write inside an account (logto and an editor, an interactive update.accounts) follows from the modes on a
                          real install.
 
-26 Oct 26  THE CONFIGURATION SCREEN CAN NOW CHANGE FOURTEEN TUNING PARAMETERS OF sd.conf: THE NEW VERB set.config AND THE E KEY OF tool.config (S.75, A6).
+26 Oct 26  THE CONFIGURATION SCREEN CAN NOW CHANGE FOURTEEN TUNING PARAMETERS OF sd.conf: THE NEW VERB set.config AND THE E KEY OF tool.config.
 
              What        set.config parameter value, in SDSYS's vocabulary, changes one line of /etc/sd.conf (set.config cleanup 600), and on tool.config's parameters view the E key does
                          the same: it asks for the number, checks it against the range SD itself enforces, shows the exact command and when it takes effect in the usual box, runs it
@@ -1063,7 +1073,7 @@ Next release - in progress
                          conf-set - the sudo rule for ordinary users names four exact commands and conf-set is not one - and it refuses every name it does not list and every number
                          SD would refuse.
              Does not    Change a door, a path, a command or a log or security setting, restart SD, reach any file but /etc/sd.conf, or put sd.conf.bak back (as root: cp
-                         /etc/sd.conf.bak /etc/sd.conf). The root write itself is checked on a real install, not in the test sandbox.
+                         /etc/sd.conf.bak /etc/sd.conf).
 
 26 Oct 26  A PHANTOM RUNS THE COMMAND IN ITS START-UP RECORDS ONLY IF THE PROCESS THAT STARTED IT SEALED THEM (SECURITY-MODEL EVALUATION, FINDING F10).
 
@@ -1083,10 +1093,10 @@ Next release - in progress
              Does not    Change who may start a phantom, what a phantom can do or which files it uses. It does not seal the other records in $ipc: messages, the phantom register that
                          status shows and the tables that profiler, hsm and pstat ask another session for are only displayed, never run. THE CONVERSATION OF THE PHANTOM DEBUGGER (pdebug,
                          for a phantom that reaches a DEBUG statement) IS STILL CARRIED IN $ipc AND IS TRUSTED AS THE SHARED SEGMENT IS: sealing it would mean refusing the documented
-                         form that attaches the debugger to a phantom something else started, and that is for the owner to decide. That the environment of a process can be read only by the
+                         form that attaches the debugger to a phantom something else started, and that is not done. That the environment of a process can be read only by the
                          same operating-system user is the operating system's rule; it has been tested here with one user only.
 
-26 Oct 26  A TOOLKIT PAGE REFUSES A WINDOW OF MORE THAN 500 BY 300 INSTEAD OF SPENDING MINUTES OPENING IT; THE BOXES THAT WRITE OR DELETE A RECORD SAY SO; AND "PRESS ENTER TO RETURN" NO LONGER NAMES THE WRONG SCREEN (S.75, THE PAGES' KNOWN FAULTS).
+26 Oct 26  A TOOLKIT PAGE REFUSES A WINDOW OF MORE THAN 500 BY 300 INSTEAD OF SPENDING MINUTES OPENING IT; THE BOXES THAT WRITE OR DELETE A RECORD SAY SO; AND "PRESS ENTER TO RETURN" NO LONGER NAMES THE WRONG SCREEN.
 
              What        Every page of the full-screen toolkit - tool.keys, tool.files, tool.query, tool.dict, tool.voc, tool.bulk, tool.catalog, tool.test, the administrator's pages and the
                          home screen, which opens the same way - now turns a window bigger than 500 columns by 300 lines away before it takes the screen, with "tool.keys needs a window of
@@ -1106,7 +1116,7 @@ Next release - in progress
              Does not    Limit SED, the IDE, CED or a program of your own, which open the same kind of screen and cost the same at a window that big; change what any page writes; or give a
                          page any new right. The limit is fixed in the program (tk.h), not a setting. The first line of the box still reads "this will run:" above a record sentence.
 
-26 Oct 26  THE HOME SCREEN CAN OPEN A PAGE OF TILES FROM A TILE, CAN KEEP A GROUP OF THE TILES YOU STARTED LAST, AND create.account SETS WHERE AN ACCOUNT STARTS; THE DEVELOPMENT TILES ARE STANDARD TILES (S.75, home).
+26 Oct 26  THE HOME SCREEN CAN OPEN A PAGE OF TILES FROM A TILE, CAN KEEP A GROUP OF THE TILES YOU STARTED LAST, AND create.account SETS WHERE AN ACCOUNT STARTS; THE DEVELOPMENT TILES ARE STANDARD TILES.
 
              What        Sub-menus. A tile of the home screen's table whose action is menu:<name> opens a page of its own: the groups of the table that belong to that menu. The new page has
                          a Back tile at the left of the header (the name moves right to make room) and the status line shows the way in, Home > Develop. Esc, Backspace, the Back tile and
@@ -1135,7 +1145,7 @@ Next release - in progress
                          (it confines nobody: the Terminal tile is there unless the administrator turns it off), or put the new words on restore.account (a restored account does not get its
                          start setting, tiles or pins back; that was so before).
 
-26 Oct 26  SDSYS CAN BE SIGNED ON IN MORE THAN ONE PLACE, AND THE ADMINISTRATOR CAN NOW SEE IT: AN AUDIT LINE, A MARK ON THE SESSIONS PAGE AND A COUNT ON THE HOME SCREEN (S.76).
+26 Oct 26  SDSYS CAN BE SIGNED ON IN MORE THAN ONE PLACE, AND THE ADMINISTRATOR CAN NOW SEE IT: AN AUDIT LINE, A MARK ON THE SESSIONS PAGE AND A COUNT ON THE HOME SCREEN.
 
              What        Nothing ever stopped a second terminal window, or a second local login of the sdsys user, from starting sd, and it still does not: a stuck
                          session can be ended with logout from another one, and a limit of one would lock the administrator out until sd -cleanup. What changed is that
@@ -1149,7 +1159,7 @@ Next release - in progress
              matters     and the audit trail did not say that it had begun.
              Does not    Limit SDSYS to one session, refuse or end the second one, or count a session over the API or ssh (SDSYS has neither).
 
-26 Oct 26  THE DICTIONARY OF A FILE CAN BE SEEN AND CHANGED ON ONE SCREEN: tool.dict, FOR EVERY ACCOUNT (S.75, DV2).
+26 Oct 26  THE DICTIONARY OF A FILE CAN BE SEEN AND CHANGED ON ONE SCREEN: tool.dict, FOR EVERY ACCOUNT.
 
              What        tool.dict (in every account's vocabulary; a window of 140 by 43 or more) shows the dictionary of one file of the account - with a file named
                          after the verb (tool.dict customers) at once, or after a list of the account's files from which Enter opens one. Each item is listed with its
@@ -1170,7 +1180,7 @@ Next release - in progress
                          page says which verb to type), keep any file open while it waits (a build needs the file to itself), copy items from one file to another, edit the
                          master dictionary, or change the dictionaries of the shared account except as the shared account's own rules allow.
 
-26 Oct 26  A QUERY CAN BE BUILT, RUN AND SAVED ON ONE SCREEN: tool.query, FOR EVERY ACCOUNT (S.75, DV4).
+26 Oct 26  A QUERY CAN BE BUILT, RUN AND SAVED ON ONE SCREEN: tool.query, FOR EVERY ACCOUNT.
 
              What        tool.query (in every account's vocabulary; a window of 140 by 43 or more) builds a LIST, SORT, COUNT or SUM sentence on one of the
                          account's files in five boxes - the file, the columns (Space marks one, B breaks on it, T totals it), up to six conditions joined
@@ -1190,7 +1200,7 @@ Next release - in progress
                          saving, csv and as are refused), ask run-time prompts, save a query as a VOC paragraph, put a quote in a heading (the page-number
                          codes are typed at the prompt), or stop a query on a big file once it has started (the first-n option is the trial).
 
-26 Oct 26  MANY RECORDS OF ONE DATA FILE CAN BE CHANGED IN ONE GO, WITH A DRY RUN FIRST AND AN UNDO AFTER: tool.bulk, FOR EVERY ACCOUNT (S.75, DV5).
+26 Oct 26  MANY RECORDS OF ONE DATA FILE CAN BE CHANGED IN ONE GO, WITH A DRY RUN FIRST AND AN UNDO AFTER: tool.bulk, FOR EVERY ACCOUNT.
 
              What        tool.bulk (in every account's vocabulary; a window of 140 by 43 or more) changes the records of ONE dynamic data file of the account the
                          session is in. F chooses the file. The records are chosen by up to four conditions (an item of the file's dictionary, an operator and a value;
@@ -1213,7 +1223,7 @@ Next release - in progress
                          edit gates, add numbers with more than 4 decimals (the record is left alone and counted), or keep a select list you had active (the page uses
                          the default one, list 0).
 
-26 Oct 26  THE PROGRAMS OF AN ACCOUNT CAN BE SEEN, COMPILED AND CATALOGUED ON ONE SCREEN: tool.catalog, FOR EVERY ACCOUNT (S.75, DV6).
+26 Oct 26  THE PROGRAMS OF AN ACCOUNT CAN BE SEEN, COMPILED AND CATALOGUED ON ONE SCREEN: tool.catalog, FOR EVERY ACCOUNT.
 
              What        tool.catalog (in every account's vocabulary; a window of 140 by 43 or more) lists the records of the account's program files (bp, any file
                          ending .bp, any file with a .out file beside it) - what each is (program, subroutine, function, class, or an include or screen record), when it
@@ -1231,11 +1241,11 @@ Next release - in progress
                          administrator's own command), give a name with a capital, a dollar or a leading dot, dash or underscore to a command (the page says which verb to
                          type), write an audit line of its own (the verbs write theirs), or list programs of the shared account.
 
-26 Oct 26  THE TESTS OF AN ACCOUNT CAN BE RUN AND JUDGED ON ONE SCREEN: tool.test, FOR EVERY ACCOUNT (S.75, DV7).
+26 Oct 26  THE TESTS OF AN ACCOUNT CAN BE RUN AND JUDGED ON ONE SCREEN: tool.test, FOR EVERY ACCOUNT.
 
              What        tool.test (in every account's vocabulary; a window of 140 by 43 or more) lists the tests of the account - the programs whose record id
                          starts with test. in its program files (bp, a file whose name ends .bp, or one with a .out file beside it) - and runs them. A test prints
-                         what it checks, and its last non-empty line says how it went, N passed, 0 failed (the line SD's own test suites end with; a name and a colon
+                         what it checks, and its last non-empty line says how it went, N passed, 0 failed (a name and a colon
                          may come first). R runs the test under the cursor, A every test shown, one after another (Esc stops after the one that is running), F the
                          ones that failed, again; A and F first show a box with the number of tests and the first commands, and Cancel is what Enter chooses. A test is a pass when the line says nothing failed and something passed, a fail when something failed or the run
                          aborted (the page shows the abort message, because the system throws away what an aborted program printed), and has no verdict when there is
@@ -1250,7 +1260,7 @@ Next release - in progress
                          an ampersand or a dollar (the page says what to type), change any gate (running a test needs none; compiling needs bp-edit and the compiler's
                          own refusal is what is shown), or list the tests of the shared account.
 
-26 Oct 26  THE FILES AND THE VOCABULARY OF AN ACCOUNT CAN BE SEEN AND MANAGED ON ONE SCREEN EACH: tool.files AND tool.voc, FOR EVERY ACCOUNT (S.75, DV1 AND DV3); THE ADMINISTRATOR'S HOME SCREEN HAS A TILE FOR EVERY ADMINISTRATOR PAGE.
+26 Oct 26  THE FILES AND THE VOCABULARY OF AN ACCOUNT CAN BE SEEN AND MANAGED ON ONE SCREEN EACH: tool.files AND tool.voc, FOR EVERY ACCOUNT; THE ADMINISTRATOR'S HOME SCREEN HAS A TILE FOR EVERY ADMINISTRATOR PAGE.
 
              What        tool.files (in every account's vocabulary; a window of 140 by 43 or more) lists the account's files - what kind each is, about how many
                          records it holds, its modulus and size, how many indices it has, whether it has a trigger, whether its record ids ignore case, whether it has
@@ -1271,7 +1281,7 @@ Next release - in progress
                          on its own dict-edit, and the verb's own refusal is what is shown), give a file name with a capital, an ampersand or a dollar to a command (the
                          page says which verb to type), change the VOC itself (SED and delete do, under the voc-edit gate), or change the shared account's files.
 
-25 Oct 26  EVERYTHING THAT REACHES SD FROM OUTSIDE CAN BE SEEN AND CONTROLLED ON ONE SCREEN: tool.remote, FOR THE ADMINISTRATOR (S.75, A9).
+25 Oct 26  EVERYTHING THAT REACHES SD FROM OUTSIDE CAN BE SEEN AND CONTROLLED ON ONE SCREEN: tool.remote, FOR THE ADMINISTRATOR.
 
              What        tool.remote (SDSYS's VOC only; a window of 140 by 43 or more) has five views, chosen with the keys 1 to 5. The doors: what REMOTE.API and
                          REMOTE.SSH report with no keyword, which is the machine's own answer; A changes the API (on, local or off) and S changes ssh (on or
@@ -1285,7 +1295,7 @@ Next release - in progress
              Does not    Open a door where the machine cannot (a sandbox, or a firewall that gates nothing: the verb refuses and the page shows its words),
                          change an account's doors (TOOL.GATES), run SET.SERVER with NO.QUERY, or show enrolled client machines (that is not built).
 
-25 Oct 26  THE ACCOUNTS CAN BE SEEN AND MANAGED ON ONE SCREEN: tool.accounts, FOR THE ADMINISTRATOR (S.75, A3).
+25 Oct 26  THE ACCOUNTS CAN BE SEEN AND MANAGED ON ONE SCREEN: tool.accounts, FOR THE ADMINISTRATOR.
 
              What        tool.accounts lists every account but SDSYS with its kind, whether it is suspended, the gates that are ON for it and how many sessions
                          are signed on in it; the box at the foot shows the account under the cursor. S suspends the account or lifts the suspension, A and R
@@ -1297,7 +1307,7 @@ Next release - in progress
              matters
              Does not    Change a gate (TOOL.GATES), list or change SDSYS, run DELETE.ACCOUNT without the name typed, or pass a password through the page.
 
-25 Oct 26  BACKUPS AND RESTORES CAN BE DONE ON ONE SCREEN: tool.backups, FOR THE ADMINISTRATOR (S.75, A8).
+25 Oct 26  BACKUPS AND RESTORES CAN BE DONE ON ONE SCREEN: tool.backups, FOR THE ADMINISTRATOR.
 
              What        tool.backups shows the saved backup directory, the SD-*.zip archives in it newest first (when, how large, how many accounts, which
                          product), the manifest of the archive under the cursor read without unpacking it, and whether anyone else is signed on. B backs every
@@ -1310,7 +1320,7 @@ Next release - in progress
              Does not    Make a backup or place an account where the root helper cannot (the verb says why and the page shows its words), or restore an archive
                          that would have to make an account.
 
-25 Oct 26  THE CONFIGURATION CAN BE READ ON ONE SCREEN: tool.config, FOR THE ADMINISTRATOR (S.75, A6, THE VIEW HALF).
+25 Oct 26  THE CONFIGURATION CAN BE READ ON ONE SCREEN: tool.config, FOR THE ADMINISTRATOR.
 
              What        tool.config lists the 63 parameters of sd.conf with the value this SD is running with (CONFIG), the value the file says now, the
                          default, when a change takes effect (session: a session reads sd.conf itself when it starts; restart: it takes effect when SD is next
@@ -1323,7 +1333,7 @@ Next release - in progress
              Does not    Write sd.conf: that would be a new way to write a file only root owns and needs your word; edit the file by hand and restart SD where
                          the page says restart.
 
-25 Oct 26  THE AUDIT TRAIL CAN BE READ ON ONE SCREEN: tool.audit, FOR THE ADMINISTRATOR (S.75, A5).
+25 Oct 26  THE AUDIT TRAIL CAN BE READ ON ONE SCREEN: tool.audit, FOR THE ADMINISTRATOR.
 
              What        tool.audit (SDSYS's VOC only; a window of 140 by 43 or more) shows the audit file, the newest line at the bottom, one line of the
                          file to a row (time, user, event words, then the key=value pairs), and the whole line under the cursor cut into its parts. It
@@ -1403,8 +1413,7 @@ Next release - in progress
                          stopped with "Bootstrap pass 3 failed" and an administrator cataloguing globally would have made a program that would not load. (2) The audit
                          daemon sets the mode of its socket directory (/run/sd) to 0755 itself; made by "sudo sd -start" under a user umask of 007 it was 0750, no
                          member of sdusers could reach the socket, and only sdsys's and root's records reached the audit file (the others were in the journal only).
-             Why it      Both were invisible to the test sandboxes, whose group is the user's own and whose daemon starts under the user's own umask. Neither is in
-                         a release: the global-catalogue check and the audit daemon are new in this cycle.
+             Why it      An object the group can write is refused when it is loaded, and an audit socket that ordinary users cannot reach loses their records from the audit file.
              Does not    Repair a /run/sd made 0750 before the daemon is restarted with this build (stop and start SD), or change an object already in gcat (the
                          installer's own sweep of gcat still sets 755).
 
@@ -1433,7 +1442,7 @@ Next release - in progress
              Why it      With the group able to write the file, a person with a shell who was in sdusers could add a line that claimed any user, uid or pid.
              Does not    Check the SD user number (uid=), which the sender gives and the daemon cannot verify; limit how fast one user can send; rotate the
                          file while SD runs (it is rotated when SD starts); restart the daemon if it dies; or reach an existing system until the installer
-                         is run on it again. Nothing has run on a real install yet.
+                         is run on it again.
 
 24 Oct 26  EVERY AUDIT RECORD IS ALSO SENT TO THE SYSTEM JOURNAL, WHICH SAYS WHO REALLY SENT IT (SECURITY-MODEL EVALUATION, FINDING F4).
 
@@ -1516,8 +1525,8 @@ Next release - in progress
                          is a way to change the code every session loads, the administrator's included. And a shared segment that every local user could
                          change is state that SD processes, one of them root, rely on.
              Does not    Stop an SD user who has a shell from changing the segment: the segment is shared by every SD process, so members of sdusers can
-                         still attach it; it is closed to everyone else. The kernel check is by group sdusers and by others, so the objects of a private
-                         sandbox (made with the user's own group) still load. An existing install is not changed until it is installed again (or the
+                         still attach it; it is closed to everyone else. The kernel check is by group sdusers and by others.
+                         An existing install is not changed until it is installed again (or the
                          files are fixed by hand with chmod go-w); its running segment keeps its old mode until SD is stopped and started. A global
                          catalogue object that a person made group-writable on purpose now stops the program that loads it: the message says what to do.
 
@@ -1631,7 +1640,7 @@ Next release - in progress
                          login or request), or change sh or os for a group or other account (the verb refuses it in both
                          directions and the page says so). The home screen's settings (pins-on, the start words) are not
                          gates and stay on tool.menus. The route gates (ssh, api, files, ai) change Linux
-                         groups through sd-elevate, which a sandbox replaces with a stand-in: NOT SHOWN on a real install.
+                         groups through sd-elevate.
 
 24 Oct 26  SED, CED AND THE DEBUGGER CAN BE ASKED ABOUT WHAT YOU ARE LOOKING AT WHEN THE AI IS ON FOR THE ACCOUNT, WITH THE SAME PREVIEW OF EVERYTHING THAT IS SENT. WITHOUT THE AI
            NOTHING IN THEM CHANGES.
@@ -1705,10 +1714,7 @@ Next release - in progress
                         holds the key. What leaves the machine is the text the person typed after they have seen it; the helper uses https only, always
                         checks the certificate and the host name, follows no redirect and sends the key only to the provider's address. Custom lets the
                         administrator name any https address and a private certificate file, which is a deliberate widening: leave it unfilled to allow
-                        the three named providers only. The answer is plain ASCII, never run. NOT BUILT: an AI line on the home screen, in the IDE, SED or
-                        CED, applying a suggestion, a key for each user, and any other provider's request layout. NOT SHOWN: a run against a real
-                        provider (the OpenAI layout in particular follows its documentation), and the installer, the real systemd socket and the helper
-                        as the user sdai on a real install.
+                        the three named providers only. The answer is plain ASCII, never run.
 
 23 Oct 26  MENU BRINGS UP THE FULL-SCREEN MENU, EVERY SETTING ON THE ADMINISTRATOR'S PAGES HAS A [?] THAT EXPLAINS IT, AND PDF SHOWS A DOCUMENT IN A
            PDF READER THE ADMINISTRATOR HAS ALLOWED - EVEN FOR AN ACCOUNT THAT MAY NOT RUN PROGRAMS. NO READER IS ALLOWED AS DELIVERED.
@@ -1926,8 +1932,8 @@ Next release - in progress
                         accounts are kept.
              Why it      The in-SD model call that is planned will keep its key and make its outgoing connection as a user of its own, so
              matters     that the part of SD that talks to the internet holds nothing else.
-             Does not    Nothing runs as sdai yet and it holds no key. There is no MCP door at the server: the owner decided on 21 October
-                        that AI agents use the command line over ssh and people use the full screen programs, and the ssh settings are as
+             Does not    Nothing runs as sdai yet and it holds no key. There is no MCP door at the server:
+                        AI agents use the command line over ssh and people use the full screen programs, and the ssh settings are as
                         they were.
 
 21 Oct 26  THE STATEMENTS THAT QUERY AN INDEX NOW WORK ON A FILE ON ANOTHER SD SERVER (SDNET), AND A QUERY ON ONE USES THE OTHER MACHINE'S INDEX.
@@ -2389,8 +2395,7 @@ Next release - in progress
              Why it      A permission the administrator never gave must not come back at the next, unrelated command, and the audit line should
              matters    send the administrator to the right group.
              Does not    The wording of the other lines of modify.account is unchanged. files-write-on and files-write-off do what they did. The real
-                        group changes still need root; they were run against a scratch group file and a stand-in for the helper, and on a real machine
-                        only by the witness scripts.
+                        group changes still need root and are done through the privileged helper.
 
 19 Oct 26  THE API'S FILE LOCK AND UNLOCK (REQUESTS 32 AND 33) ACT ON THE FILE THEY ARE ASKED ABOUT.
 
@@ -2425,7 +2430,7 @@ Next release - in progress
                         that TLS 1.3 sends after the handshake end the first read early, and the read that follows has no time limit. Against the
                         test server, which closes a silent connection after 5 seconds, a client set to wait 3 waited 5; with the tickets turned off
                         it waited 3.) A server that sends the acknowledgement and then goes silent IS given up on after NETREPLY seconds, as
-                        intended (3.0 seconds measured with NETREPLY=3). The first case is measured and reported to the owner, and not fixed here.
+                        intended (3.0 seconds measured with NETREPLY=3). The first case is not changed.
 
 19 Oct 26  AN INDEPENDENT REVIEW OF THE TWO MASTER-FILES ENTRIES BELOW FOUND SEVEN FAULTS AND EVERY ONE IS FIXED: THE MASTER FILES COULD BE READ BY EVERY SD USER, A SAVE COULD OVERWRITE AN ACCOUNT'S NEWER CHANGE, AND A FULL SYNC TOOK THE SQUARE OF THE NUMBER OF ACCOUNTS.
 
@@ -2468,18 +2473,15 @@ Next release - in progress
                         writers. A write to a VOC or a dictionary costs about 4 to 6 microseconds more than it did before the master files
                         (15.5 microseconds for a VOC record before them, 19.4 on this build before the master files exist, 21.6 with them,
                         measured on 100,000 writes; a quieter run gave 13.1, 18.3 and 19.5); a data file's write is not touched. The modes and
-                        the owner of the master files, and the refusal for a member of sdusers, are checked on one operating-system user in
-                        the sandbox (the modes, and the group through a setgid directory) and in gplbld/witness-masters.sh, which the owner
-                        runs with sudo on an install; it has not been run.
+                        the owner of the master files, and the refusal for a member of sdusers, depend on the machine having more than one operating-system user.
 
 19 Oct 26  SDSYS CAN NOW CHANGE ANY ACCOUNT'S VOC OR DICTIONARY BY SAVING THE ACCOUNT'S MASTER COPY: THE SAVE IS WRITTEN INTO THE ACCOUNT AT ONCE, OR REFUSED WITH ITS REASON AND NOTHING CHANGED. TO DO IT THE sdsys OPERATING-SYSTEM USER IS NOW A MEMBER OF EVERY ACCOUNT'S GROUP, AND EVERY ACCOUNT'S VOC AND DICTIONARIES CAN BE WRITTEN BY THAT GROUP.
 
              Warning      This gives the sdsys operating-system user write access to the VOC and the dictionaries of EVERY account, and to
                         anything else in an account that the account's group may write. A VOC entry or an I-type is code that runs inside the
                         account, so a stolen sdsys login is a way into every account. It is not a way in from the network (sdsys has no
-                        remote access at all), and a process that is not a real sdsys login is not an administrator. The owner chose this on
-                        17 October 2026 in place of a tighter arrangement, an outbox the account applies for itself, which would have given
-                        sdsys no such access. To take the access away for one account: gpasswd -d sdsys sdu_<account>; saves for that
+                        remote access at all), and a process that is not a real sdsys login is not an administrator.
+                        To take the access away for one account: gpasswd -d sdsys sdu_<account>; saves for that
                         account are then refused with a message and everything else works. THE NEXT INSTALL OR UPGRADE PUTS THE MEMBERSHIP BACK
                         (its walk adds sdsys to the group of every account, and says so): there is no switch that keeps it away.
              What        SDSYS opens voc_master (key account*recordid) or dict_master (key account*file*recordid) and writes the record with
@@ -2514,9 +2516,8 @@ Next release - in progress
                         cannot be saved inside a transaction. Creating, removing or renaming a dictionary file is still done in the account.
                         A session of SDSYS that was already open when sdsys joined a group cannot use the new membership: sign on again (SD
                         says so). The group membership, the 775 and 664 modes and the ownership that decide whether a save is accepted are
-                        set by the root session of an install and by sd-elevate, and have been checked here only as far as one operating-system
-                        user allows: the real groups, the real modes after the upgrade and an edit reaching a second user's VOC are tested by
-                        gplbld/witness-masters.sh, run with sudo by the owner, and have not been seen on an install.
+                        set by the root session of an install and by sd-elevate, and depend on
+                        the real groups, the real modes after the upgrade and an edit reaching a second user's VOC.
 
 19 Oct 26  SDSYS NOW KEEPS A COPY OF EVERY ACCOUNT'S VOC RECORDS AND DICTIONARY RECORDS (voc_master AND dict_master), KEPT UP TO DATE BY A JOURNAL, AND THREE NEW VERBS MANAGE THEM: sync.masters, check.masters AND list.master.pending.
 
@@ -2834,7 +2835,7 @@ Next release - in progress
                         cursor there, so give a memo or table a size that fits.  Dragging a widget with the mouse (for the screen builder)
                         is a separate piece.  A form that uses none of this is drawn exactly as before.
 
-18 Oct 26  THE SHARED ACCOUNT: FILES THAT EVERY ACCOUNT CAN OPEN BY NAME, WITHOUT LOGTO OR A POINTER (S.66).
+18 Oct 26  THE SHARED ACCOUNT: FILES THAT EVERY ACCOUNT CAN OPEN BY NAME, WITHOUT LOGTO OR A POINTER.
 
              What        The installer now makes a group account named shared (its directory is /home/sd/group_accounts/shared and its
                         Linux group is sdg_shared).  The files in it can be opened by every account by file name: OPEN "inventory"
@@ -2891,9 +2892,6 @@ Next release - in progress
                         for everyone.
              Not done    The shared account is not replicated to other servers, and a catalogue of shared programs is not shared.
                         SD Core Solo has one account and does not have it.
-             Tested      The installer's two new blocks were run against stand-ins for sudo and the account tools, and the scripts
-                        were syntax checked.  NOTHING HAS RUN ON A REAL INSTALL: the account's creation by the installer, its
-                        ownership and modes, the lookup, the gates and the API entry have not been seen to work.
              Messages    11513 to 11520 are new.
 
 18 Oct 26  TWO WAYS AROUND THE OS ACCESS GATES WERE CLOSED: A CONVERSION CODE, AND A PRINT UNIT'S SPOOLER STRING.
@@ -2911,7 +2909,7 @@ Next release - in progress
              Not done    OPEN.SOCKET still connects from any account: whether a program may open a network connection by default is a
                         decision for the owner and is recorded as a question.
 
-18 Oct 26  SDNET, FIFTH SLICE (E): FILES ON ANOTHER SD SERVER CAN BE WRITTEN AND LOCKED, FOR A SERVER DEFINED WITH WRITE (S.65).
+18 Oct 26  SDNET, FIFTH SLICE (E): FILES ON ANOTHER SD SERVER CAN BE WRITTEN AND LOCKED, FOR A SERVER DEFINED WITH WRITE.
 
              What        For a server that SDSYS defined with the word write (set.server ... write), a file opened through an N pointer
                         accepts WRITE, WRITEU, MATWRITE, WRITEV, DELETE, CLEARFILE, the locking reads (READU, READL, READVU, MATREADU
@@ -2926,7 +2924,7 @@ Next release - in progress
                         index statements and CREATING.SEQKEY stay refused.  A write-mode file is never read from the record cache.
              Not yet     Only a test server has been used; no two machines have talked to each other.
 
-18 Oct 26  SDNET: A SHORT RECORD CACHE FOR REMOTE FILES, AND LOGTO CLOSES THEIR CONNECTIONS (S.65).
+18 Oct 26  SDNET: A SHORT RECORD CACHE FOR REMOTE FILES, AND LOGTO CLOSES THEIR CONNECTIONS.
 
              What        A process now keeps the last 64 records it READ from files on other SD servers for 2 seconds, and the fact that
                         a record was not there.  A second READ of the same record from the same open file in that time costs no request:
@@ -2937,7 +2935,7 @@ Next release - in progress
                         every remote file opened before unusable (a READ on it is an error); a new OPEN dials again.  Until now the
                         connections stayed until the process ended.
 
-17 Oct 26  SDNET, FOURTH SLICE (D): LIST, COUNT, SORT AND SELECT WORK ON A FILE ON ANOTHER SD SERVER (S.65).
+17 Oct 26  SDNET, FOURTH SLICE (D): LIST, COUNT, SORT AND SELECT WORK ON A FILE ON ANOTHER SD SERVER.
 
              What        SELECT, SELECTV and SSELECT of the remote file give every record id the server holds as an ordinary select
                         list.  OPEN 'DICT' of the VOC pointer opens the file's dictionary from the same server.  With those two, the
@@ -2949,7 +2947,7 @@ Next release - in progress
              Not yet     Writes, locks, transactions and the server's indices are still refused; LOGTO does not yet drop the connections.
                         Only a test server has been used so far.
 
-17 Oct 26  SDNET, THIRD SLICE (C): A FILE ON ANOTHER SD SERVER CAN BE OPENED AND READ (S.65).
+17 Oct 26  SDNET, THIRD SLICE (C): A FILE ON ANOTHER SD SERVER CAN BE OPENED AND READ.
 
              What        A VOC entry whose first field is N, with the server's name in field 2 and the file's name on that server in
                         field 3, is a pointer to a file on another SD server defined with set.server.  OPEN by that name gives a file
@@ -2963,7 +2961,7 @@ Next release - in progress
                         crash at logout, because the object's destroy code ran after the stack it needs had been freed.  The objects are
                         now released first.  No program written so far was affected.
 
-17 Oct 26  SDNET, SECOND SLICE (C): A SECOND, NARROWER API ROUTE THAT REACHES FILES AND NOTHING ELSE (S.65).
+17 Oct 26  SDNET, SECOND SLICE (C): A SECOND, NARROWER API ROUTE THAT REACHES FILES AND NOTHING ELSE.
 
              Why         Until now a person could log in to a server's API only as a member of the Linux group sdapi, and then the
                         whole API was theirs: execute commands, call subroutines, enter other accounts, read and write sequential files,
@@ -3003,19 +3001,12 @@ Next release - in progress
              Archives    The account archive carries route.files: 1 or 0 for a user account, and restore.account puts an account it
                         has to create back in the group.  The key is not called files because that is already the count of files in
                         the archive.  An older archive has no such line and restores the account out of the group.
-             Not yet     Nothing on the client side uses the route yet: set.netlogin still makes the ordinary login exchange and no
-                        SDNet client opens a file on another server, so no one has connected by this route.
-             Tested      The helper's group rules were run as an ordinary user (180 rows, and 8 mutants of the group rules killed),
-                        the installer and helper scripts were syntax checked, and the free checks that read the programs as text pass.
-                        NONE OF THE SD PROGRAMS FOR THE ROUTE WAS COMPILED OR RUN: the login with a real user in sdfiles, the refusal
-                        of a request on a live session, files-on and files-off against a real group file, the installer making the
-                        group and the archive round trip have not been seen to work.  There is no sandbox row for the route yet.
              Messages    11480 (the refusal) and 11482 (the FILES state line) are new.
              Documents   The Administrator guide's Accounts and Security page has a section on the route with the full lists of what
                         is allowed and refused and the checks in the order the login makes them; its SDNet page, the Remote Access
                         page and the Getting Started account and API pages mention it; the TCL syntax card lists the new words.
 
-17 Oct 26  SDNET, SECOND SLICE (B): A PERSON'S OWN LOGIN ON A SERVER, KEPT AS DERIVED VALUES AND NEVER AS THE PASSWORD (S.65).
+17 Oct 26  SDNET, SECOND SLICE (B): A PERSON'S OWN LOGIN ON A SERVER, KEPT AS DERIVED VALUES AND NEVER AS THE PASSWORD.
 
              Why         To use a server SDSYS has defined, a person needs a login on it.  set.netlogin server asks for the user name
                         and password the person has on that other server, makes ONE TLS connection to the server, runs the same
@@ -3055,14 +3046,11 @@ Next release - in progress
                         files-only login yet, so the stored values reach whatever that user reaches there.
              Audit       set.netlogin server=name remote=user and delete.netlogin server=name, on success only, and never a password,
                         key, salt or hash.
-             Tested      The helper through --dry-run, and the sudoers line, were tested.  The BASIC programs and the C check were NOT
-                        COMPILED OR RUN (the C had a syntax check only), and nor was a real run of the helper: the exchange has not
-                        been seen to work against a live server.
              Messages    11450 to 11479 are new.
              Documents   The Administrator guide's SDNet page describes the credential model, what the file does and does not protect
                         against, both verbs, the helper and the checks in order; the TCL syntax card lists both verbs.
 
-17 Oct 26  SDNET, SECOND SLICE (A):SET.SERVER CAN CONNECT ONCE AND SHOW YOU THE SERVER'S KEY HASH (S.65).
+17 Oct 26  SDNET, SECOND SLICE (A):SET.SERVER CAN CONNECT ONCE AND SHOW YOU THE SERVER'S KEY HASH.
 
              Why         A server definition pins the hash of the other server's public key, and until now SDSYS had to type those 64
                         digits from a message, with nothing to say they were right.  set.server now takes the word connect in place of
@@ -3099,7 +3087,7 @@ Next release - in progress
              Documents   The Administrator guide's SDNet page describes the connect flow, its failure messages and the audit words, and
                         the Sockets page lists key 11; the TCL syntax card shows {pin | connect}.
 
-17 Oct 26  SDNET, FIRST SLICE: THE NET SWITCH AND THE SERVER DEFINITIONS (S.65).  NOTHING CONNECTS YET.
+17 Oct 26  SDNET, FIRST SLICE: THE NET SWITCH AND THE SERVER DEFINITIONS.  NOTHING CONNECTS YET.
 
              Why         SDNet, files on another SD server that a program opens and reads as if they were local, is being built in
                         slices.  This is the first.  It adds the permission an account will need and the list of servers SDSYS is
@@ -3138,7 +3126,7 @@ Next release - in progress
              Documents   The Administrator guide has a new page, SDNet, and the NET switch in Accounts and Security; the TCL syntax
                         card has the three verbs and net-on / net-off.
 
-17 Oct 26  THE EDIT GATES: VOC.EDIT, BP.EDIT AND DICT.EDIT (S.64).
+17 Oct 26  THE EDIT GATES: VOC.EDIT, BP.EDIT AND DICT.EDIT.
 
              Gates       Three more per-account switches, beside the shell, OS.EXECUTE, SD.ACCOUNTS, ssh and the API, say whether
                         the person who signed on to an account may SAVE A CHANGE to a VOC, to a program file (source or object
@@ -5726,7 +5714,7 @@ Next release - in progress
 
            Not done: IPADDR, to listen on one address only (SD opens no listening
            port of its own - sshd does - so there is nothing for it to bind); STARTUP taking an account, user and password
-           (that puts a password in sd.conf, which is for the owner to decide);
+           (that puts a password in sd.conf, which SD does not do);
            and switching FSYNC off while an index is built - an index build
            makes only four fsync calls in all, so there is nothing to save.
 

@@ -116,7 +116,7 @@ def checks(src):
     ck("F4", "fields.key: the keys the pane must not give the engine are dropped (the mouse, Tab, F2, a resize, the cursor lock, and Q: the engine's Q leaves a CED), Ctrl-T is the engine's F4, Left and "
        "Backspace are its Esc; the selection comes from the table before the engine is called and fields.after follows",
        ordered(L["fields.key"], "if fz.k = 'mouse' or fz.k = 'tab' or fz.k = 'shift-tab' or fz.k = 'f2' or fz.k = 'resize' or fz.k = 'guardquit' then return", "if upcase(fz.k) = 'Q' then return",
-               "if fz.k = 'ctrl-t' then fz.k = 'f4'", "if fz.k = 'left' or fz.k = 'backspace' then fz.k = 'esc'", "gosub fields.state", "gosub fields.pull", "call $ced_core('key', fz.st, fz.k, fz.out)",
+               "if fz.k = 'ctrl-t' then fz.k = 'f4'", "if fz.k = 'left' or fz.k = 'bs' then fz.k = 'esc'", "gosub fields.state", "gosub fields.pull", "call $ced_core('key', fz.st, fz.k, fz.out)",
                "gosub fields.after"), "")
 
     ck("F5", "fields.after: the engine has no end of its own here (done, quit.all and req are cleared); the data is written back only when its signature differs from the stamp; a pane that ended "
@@ -164,7 +164,7 @@ def checks(src):
        ordered(L["fields.view.on"], "gosub fields.state", "call $ced_core('layout', fz.st, ew : @fm : (mh + 3), fz.out)", "screen set f, 'ed' visible 0", "screen set f, 'fld' visible 1", "screen set f, 'fpath' visible 1",
                "fv.shown = @true", "gosub fields.fill", "gosub redraw")
        and ordered(L["fields.view.off"], "screen set f, 'fld' visible 0", "screen set f, 'fpath' visible 0", "screen set f, 'ed' visible 1", "fv.shown = @false", "gosub redraw")
-       and ordered(L["fields.fill"], "call $sl_widget_init(fz.tt)", "gosub fields.pathtext", "fz.q = f{'quiet'} + 0", "f{'quiet'} = 1", "screen set f, 'fpath' text fz.pt", "f{'quiet'} = fz.q")
+       and ordered(L["fields.fill"], "fz.tt{'stay'} = 1", "call $sl_widget_init(fz.tt)", "gosub fields.pathtext", "fz.q = f{'quiet'} + 0", "f{'quiet'} = 1", "screen set f, 'fpath' text fz.pt", "f{'quiet'} = fz.q")
        and ordered(L["fields.pathtext"], "fz.dd = ((bx{fz.k2} : '|') # (bx{fz.k3} : '|'))", "if bx{fz.k3} and bx{fz.k2} # '' then fz.dd = @true", "if fz.dd then fz.pt := ' *'")
        and "dirty" not in L["fields.pathtext"].replace("fz.dd", ""), "")
 
@@ -244,7 +244,7 @@ mut("the loop does not follow the text", "F3", sub1("      gosub fields.sync    
 mut("Q leaves the pane through the engine", "F4", sub1("   if upcase(fz.k) = 'Q' then return", "   if 0 then return"))
 mut("Tab goes to the engine (an insert)", "F4", sub1("fz.k = 'tab' or fz.k = 'shift-tab' or fz.k = 'f2'", "fz.k = 'shift-tab' or fz.k = 'f2'"))
 mut("Ctrl-T is not the type", "F4", sub1("   if fz.k = 'ctrl-t' then fz.k = 'f4'", "   null"))
-mut("Left is not up", "F4", sub1("   if fz.k = 'left' or fz.k = 'backspace' then fz.k = 'esc'", "   null"))
+mut("Left is not up", "F4", sub1("   if fz.k = 'left' or fz.k = 'bs' then fz.k = 'esc'", "   null"))
 mut("the engine's end is kept", "F5", sub1("   fz.st{'done'} = @false\n   fz.st{'quit.all'} = @false", "   fz.st{'quit.all'} = @false"))
 mut("every key writes back", "F5", sub1("   if (fz.sig : '|') # (fz.st{'h.sig'} : '|') then gosub fields.writeback", "   gosub fields.writeback"))
 mut("an ended pane is drawn", "F5", sub1("   if not(fv.on) then\n      gosub load.current                                    ;* the view ended", "   if 0 then\n      gosub load.current                                    ;* the view ended"))
@@ -271,6 +271,7 @@ mut("the view is not laid out again", "F11", sub1("   gosub fields.state\n   if 
 mut("the text area stays after the view is on", "F11", sub1("   screen set f, 'ed' visible 0\n   screen set f, 'fld' visible 1\n   screen set f, 'fpath' visible 1\n   f{'quiet'} = 0\n   fv.shown = @true\n   gosub fields.fill\n   gosub redraw",
                                                               "   screen set f, 'fld' visible 1\n   screen set f, 'fpath' visible 1\n   f{'quiet'} = 0\n   fv.shown = @true\n   gosub fields.fill\n   gosub redraw"))
 mut("the path line uses the engine's flag", "F11", sub1("   if fz.dd then fz.pt := ' *'", "   if fz.st{'dirty'} then fz.pt := ' *'"))
+mut("the table lets Up and Down leave the pane", "F11", sub1("   fz.tt{'stay'} = 1 ", "   fz.tt{'stay'} = 0 "))
 mut("the fill draws", "F11", sub1("   fz.q = f{'quiet'} + 0\n   f{'quiet'} = 1\n   screen set f, 'fpath' text fz.pt\n   f{'quiet'} = fz.q", "   screen set f, 'fpath' text fz.pt"))
 mut("the status line keeps the cursor's line", "F12", sub1("         if msg = '' then t := '   ' : sysmsg(11995)", "         null"))
 mut("the pane is not named", "F12", sub1("      case focus.id = 'ed' or focus.id = 'fld'", "      case focus.id = 'ed'"))

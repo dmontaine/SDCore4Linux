@@ -3918,7 +3918,7 @@ fields.key:
    if fz.k = 'mouse' or fz.k = 'tab' or fz.k = 'shift-tab' or fz.k = 'f2' or fz.k = 'resize' or fz.k = 'guardquit' then return
    if upcase(fz.k) = 'Q' then return                       ;* the engine's Q leaves a CED: this view is left with F12
    if fz.k = 'ctrl-t' then fz.k = 'f4'                      ;* the engine's change of type (F4 is the IDE's next problem)
-   if fz.k = 'left' or fz.k = 'backspace' then fz.k = 'esc'
+   if fz.k = 'left' or fz.k = 'bs' then fz.k = 'esc'              ;* Backspace is 'bs' to the key reader ($sl_key)
    gosub fields.state
    gosub fields.pull
    call $ced_core('key', fz.st, fz.k, fz.out)
@@ -3998,6 +3998,7 @@ fields.fill:
    fz.tt{'cur'} = fz.st{'sel'}
    fz.tt{'value'} = fz.st{'sel'}
    fz.tt{'picked'} = ''
+   fz.tt{'stay'} = 1                                         ;* 30 Oct 26 (stage 2b): Up on the first row and Down on the last stay in the table; the form would move the focus to another pane
    call $sl_widget_init(fz.tt)
    gosub fields.pathtext
    fz.q = f{'quiet'} + 0

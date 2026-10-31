@@ -445,6 +445,7 @@ def section_keys():
     # 30 Oct 26 (CED in the IDE, stage 2a): the fields view is drawn INSIDE the IDE's form, so the IDE's menu bar stays on row 0 and the view's path line ('Path: /') is on the screen
     R.row("I8 control: F12 stays bound: the fields view opens on the record inside the IDE (the menu bar on row 0, 'Path: /' and the 'Name Type Value' header on the screen)",
           title.startswith("File") and "Path: /" in s.text() and "Name" in s.text() and "Value" in s.text(), repr(title))
+    s.type(F12, wait=1.5, show="F12 (back to the text; the pane is the IDE's, so the session ends from the text area)")
     s.end()
 
     s = admin("I8b", "IDE bp %s" % r9)

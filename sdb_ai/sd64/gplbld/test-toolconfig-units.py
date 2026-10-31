@@ -448,7 +448,7 @@ MUTANTS = [
     ("a message of the verb is missing", "CF25b", lambda raw: dict(raw, msgs={n: t for n, t in raw["msgs"].items() if n != 11934})),
     ("the guide's reason differs from the table's", "CF26", sub("doc", "| A diagnostic: 2 makes SD write a file of the locks involved; set it by hand while you hunt one. |", "| A diagnostic. |")),
     ("the guide's range differs from the table's", "CF26", sub("doc", "| `CLEANUP` | 30 to 3600 | restart |", "| `CLEANUP` | 30 to 36000 | restart |")),
-    ("the guide forgets a parameter's row", "CF26", sub("doc", "| `YEARBASE` | Changes how every program reads a two-digit year; config.c checks no range. |\n", "")),
+    ("the guide forgets a parameter's row", "CF26", sub("doc", "| `YEARBASE` | Changes how every program reads a two-digit year; SD checks no range. |\n", "")),
     ("the help still says the page only looks", "CF27", sub("help", "Only 14 tuning parameters", "The page only looks. Only 14 tuning parameters")),
 ]
 

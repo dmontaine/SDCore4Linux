@@ -199,6 +199,18 @@ def in_ide(e):
     return not e.s.exited and "IDE: " in "\n".join(e.lines()[:3])
 
 
+def says(e, *words):
+    """(hit, status line): one of the words is on the status line or in a refusal box.  Since 30 Oct 26 (S.88 9g) the long refusals 11737, 11739 and 11762 are in a box, which stays up until a
+    key closes it, so a box is closed here with Return and the next step starts clean."""
+    st, t = e.status(), e.text()
+    hit = any(w in st or w in t for w in words)
+    if "[ OK ]" in t:                                                 # the box has its button on the screen; the status line may still hold the last case's message, so it cannot tell
+        hit = any(w in t for w in words)
+        e.keys(RET)
+        e.quiet()
+    return hit, st
+
+
 def done(e):
     """Leave the IDE the way a person does (Ctrl-Q, Discard to every question), so that it gives its locks back, then log off"""
     if in_ide(e):
@@ -401,10 +413,12 @@ def section_notfor():
     e.keys("Q")
     e.keys(CTRL_E)
     e.quiet()
-    row("N1 Ctrl-E (SED) says it is an operating system file and the IDE stays up with the tab", "operating system file" in e.status() and in_ide(e), e.status()[:160])
+    hit, st = says(e, "operating system file")                      # a box since 30 Oct 26 (9g)
+    row("N1 Ctrl-E (SED) says it is an operating system file and the IDE stays up with the tab", hit and in_ide(e), st[:160])
     e.keys(F8)
     e.quiet()
-    row("N2 F8 (compile) says the same and does not save the text", "operating system file" in e.status() and rd(fpath("tab")) == b"ZZa\tb\n", repr((e.status()[:100], rd(fpath("tab")))))
+    hit, st = says(e, "operating system file")
+    row("N2 F8 (compile) says the same and does not save the text", hit and rd(fpath("tab")) == b"ZZa\tb\n", repr((st[:100], rd(fpath("tab")))))
     time.sleep(2.5)
     after = sorted(os.listdir(rcdir)) if os.path.isdir(rcdir) else None
     row("N3 no recovery copy was written for the changed tab (the store in the home is as it was)", before == after, repr((before, after)))
@@ -723,8 +737,8 @@ def try_names(e, op, cases, who, rid=None, base=None):
     lock are as they were; without one, no operating system tab was made"""
     for label, path, anchor, check in cases:
         op(e, path)
-        st, box = e.status(), e.text()
-        row("%s onto %s is refused: the message says %r" % (who, label, anchor), anchor in st or anchor in box, repr(st[:160]))
+        hit, st = says(e, anchor)
+        row("%s onto %s is refused: the message says %r" % (who, label, anchor), hit, repr(st[:160]))
         row("%s ...%s: the disk is as it was" % (who, label), check(), "")
         if rid:
             row("%s ...%s: the tab is still the record's, the editor shows the same text and the record's lock is still held" % (who, label), tab_unchanged(e, rid, base),
@@ -956,7 +970,8 @@ def section_excl():
         for label, path, ok in (("a link to nothing", dang, lambda: not os.path.lexists(tgt) and full_ident(dang) == st_dang and os.readlink(dang) == tgt),
                                 ("a file with content", keep, lambda: full_ident(keep) == st_keep and rd(keep) == b"keep two\n")):
             op(e, path)
-            row("X1 %s onto %s is refused ('there already')" % (who, label), "there already" in e.status() or "there already" in e.text(), repr(e.status()[:160]))
+            hit, st = says(e, "there already")
+            row("X1 %s onto %s is refused ('there already')" % (who, label), hit, repr(st[:160]))
             row("X1b ...the disk is as it was (the link's target is NOT made)", ok(), "")
             row("X1c ...and the tab, the editor and the record's lock are as they were", tab_unchanged(e, "rec1", base), tab_row(e)[:100])
     done(e)
@@ -966,7 +981,8 @@ def section_excl():
         e.quiet()
         base = ed_lines(e)
         export_sel(e, path)
-        row("X2 Export onto %s is refused ('there already')" % label, "there already" in e.status() or "there already" in e.text(), repr(e.status()[:160]))
+        hit, st = says(e, "there already")
+        row("X2 Export onto %s is refused ('there already')" % label, hit, repr(st[:160]))
         row("X2b ...the disk is as it was", ok(), "")
         row("X2c ...the record's tab and lock are as they were", tab_unchanged(e, "rec1", base), tab_row(e)[:100])
         done(e)
@@ -976,8 +992,9 @@ def section_excl():
     e.keys("scrap")
     e.keys(CTRL_S)
     name_to(e, dang)
-    row("X3 the first save of an untitled buffer onto a link to nothing is refused ('there already'), the target is not made", ("there already" in e.status() or "there already" in e.text())
-        and not os.path.lexists(tgt) and full_ident(dang) == st_dang, repr(e.status()[:160]))
+    hit, st = says(e, "there already")
+    row("X3 the first save of an untitled buffer onto a link to nothing is refused ('there already'), the target is not made", hit
+        and not os.path.lexists(tgt) and full_ident(dang) == st_dang, repr(st[:160]))
     row("X3b ...the buffer is still untitled and still holds scrap (no os tab)", "os " not in tab_row(e) and "scrap" in "\n".join(ed_lines(e)), tab_row(e)[:100])
     p = scr("scrap.txt")
     e.keys(CTRL_S)

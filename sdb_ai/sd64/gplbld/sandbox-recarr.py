@@ -43,6 +43,7 @@ TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 RUN = "%05d" % (os.getpid() % 100000)
 F12, INS, CTRL_U = "\x1b[24~", "\x1b[2~", "\x15"
+CTRL_C, CTRL_V, CTRL_Z = "\x03", "\x16", "\x1a"        # 30 Oct 26 (stage 2b): the pane's copy and paste (F5-F7 are the IDE's run and debug), and the text area's undo
 passed = failed = 0
 
 
@@ -641,29 +642,30 @@ def fields_part(box, sysd, made):
     by = {x[1]: (x[2], x[3]) for x in elements(L)}
     row("the new text is shown: subvalue 2 is the string lime, and the path line says the record is changed (a star)",
         by.get("2") == ("string", "lime") and dirty_of(L) is True, "%r %r" % (by, dirty_of(L)))
-    L = e.keys(sb.CTRL_S)
-    row("Ctrl-S keeps it: the star goes and the status line says Saved", dirty_of(L) is False and bottom(L) == "Saved", "%r %r" % (dirty_of(L), bottom(L)))
     d = disk()
-    row("CED wrote nothing: the record on disk is as it was (the IDE has the save)", d[0] == d0[0], repr(d[0]))
-    e.keys(sb.CTRL_Q)
+    row("nothing is on the disk while the pane edits: the record is as it was (the tab's text changes at once, the IDE's save writes it)", d[0] == d0[0], repr(d[0]))
     e.quiet()
     st = e.status()
-    row("back in the IDE: the status line says the fields came back changed, and the tab is marked changed",
-        "Back from the fields: bp %s is changed, save it to keep it" % ra in st and re.search(r"bp %s \*" % ra, st) is not None, st)
-    d = disk()
-    row("... and still nothing is on disk until the IDE saves", d[0] == d0[0], repr(d[0]))
-    e.keys(sb.CTRL_S)                                  # the IDE's save key is Ctrl-S only (F2 went, S.88 Phase 4)
+    row("... and the IDE's own status line marks the tab changed while the pane is up", re.search(r"bp %s \*" % ra, st) is not None, st)
+    e.keys(sb.CTRL_S)                                  # 30 Oct 26 (stage 2b): Ctrl-S in the pane is the IDE's save of the tab's text (the engine's Ctrl-S is not reached)
+    L = e.lines()
     st = e.status()
     d = disk()
-    row("Ctrl-S in the IDE saves it: the status line says so and the record is Acme^red|dark~lime|blue^x - the subvalue mark in place, nobody typed it",
-        ("Saved bp %s" % ra) in st and d[0] == "Acme^red|dark~lime|blue^x", "%r %r" % (st, d[0]))
+    row("Ctrl-S in the pane is the IDE's save: the status line says Saved, the star goes (status line and path line), and the record is Acme^red|dark~lime|blue^x - the subvalue mark in place, nobody typed it",
+        ("Saved bp %s" % ra) in st and re.search(r"bp %s \*" % ra, st) is None and dirty_of(L) is False and d[0] == "Acme^red|dark~lime|blue^x", "%r %r %r" % (st, dirty_of(L), d[0]))
+    e.keys(F12)
+    e.quiet()
+    st = e.status()
+    t = "\n".join(e.lines())
+    row("F12 shows the text again: the record as it was saved (lime in it), the pane is gone and nothing is marked changed",
+        "lime" in t and path_of(e.lines()) is None and re.search(r"bp %s \*" % ra, st) is None, st + "\n" + t[:400])
     e.end()
 
     # ---- B: leave without changing anything ---------------------------------------------------------------------------------------------
     e = sb.Ide(box, "IDE bp %s" % rb)
     e.quiet()
     e.keys(F12)
-    e.keys(sb.CTRL_Q)
+    e.keys(F12)                                        # 30 Oct 26 (stage 2b): F12 again leaves the pane (Ctrl-Q is the IDE's quit)
     e.quiet()
     st = e.status()
     row("F12 and leave without a change: the IDE says the record is as it was, the tab is not marked changed, the disk is as it was",
@@ -688,7 +690,7 @@ def fields_part(box, sysd, made):
     L = e.keys(sb.DOWN, sb.RET)
     row("J2 ... and it still works after the resize: the selection moves and a Return edits (the value dialogue is drawn)", any("two" in l or "three" in l for l in L), "\n".join(l for l in L if l.strip())[-300:])
     e.keys(sb.ESC)
-    L = e.keys(sb.CTRL_Q)
+    L = e.keys(F12)
     e.quiet()
     st = e.status()
     row("J3 leaving after the resize works: the IDE says the record is as it was", "Back from the fields: bp %s is as it was" % rb in st, st)
@@ -698,21 +700,29 @@ def fields_part(box, sysd, made):
     e = sb.Ide(box, "IDE bp %s" % rc)
     e.quiet()
     e.keys(F12)
-    e.keys(sb.DOWN, sb.F5)                             # copy field 2, an array holding an array
+    e.keys(sb.DOWN, CTRL_C)                            # copy field 2, an array holding an array (30 Oct 26: the pane's copy is Ctrl-C; F5 is the IDE's run)
     e.keys(sb.RET)                                     # into /2, the level of values
-    L = e.keys(sb.F7)
+    L = e.keys(CTRL_V)
     row("pasting a field into the level of values is refused (message 11988: it would be a list below a subvalue) and the list is as it was",
-        bottom(L).startswith("A record holds only text") and [x[1] for x in elements(L)] == ["1", "2"], "%r %r" % (bottom(L), [x[1] for x in elements(L)]))
-    L = e.keys(sb.ESC, sb.F7)
+        "A record holds only text" in bottom(L) and [x[1] for x in elements(L)] == ["1", "2"], "%r %r" % (bottom(L), [x[1] for x in elements(L)]))      # 30 Oct 26: the status line starts with the pane's name now
+    L = e.keys(sb.ESC, CTRL_V)
     L = e.keys(sb.RET)
     el = elements(L)
     row("pasting it at the top is allowed: four fields, string array array string, and the title shows the star",
         [(x[1], x[2]) for x in el] == [("1", "string"), ("2", "array"), ("3", "array"), ("4", "string")] and dirty_of(L) is True, "%r %r" % (el, dirty_of(L)))
-    e.keys(sb.CTRL_Q, "N")
+    e.keys(F12)
     e.quiet()
     st = e.status()
-    row("Ctrl-Q and No to the question throws the paste away: the IDE says as it was and the disk is as it was",
-        "Back from the fields: bp %s is as it was" % rc in st and disk()[2] == d0[2], "%r %r" % (st, disk()[2]))
+
+    def line4():
+        return any(re.match(r"^\W*4 t\b", l[EDX - 2:]) for l in e.lines()[2:10])        # the text area's line 4: the record p, q|r~s, t with field 2 pasted again is p, q|r~s, q|r~s, t
+    row("F12 leaves with the paste in the tab (there is no question to answer): the IDE says changed, save it, the text shows four fields, and the disk is as it was",
+        "Back from the fields: bp %s is changed, save it to keep it" % rc in st and re.search(r"bp %s \*" % rc, st) is not None and disk()[2] == d0[2] and line4(), "%r %r" % (st, disk()[2]))
+    e.keys(CTRL_Z)
+    e.quiet()
+    st = e.status()
+    row("Ctrl-Z in the text area takes the whole fields session back in ONE step: the tab is not marked changed again and the text has three fields",
+        re.search(r"bp %s \*" % rc, st) is None and not line4(), st + "\n" + "\n".join(e.lines()[2:9]))
     e.end()
 
     # ---- D: Ctrl-S, then another change, then leave without saving: what comes back is what Ctrl-S kept -----------------------------------
@@ -721,18 +731,21 @@ def fields_part(box, sysd, made):
     e.keys(F12)
     e.keys(sb.DOWN, sb.RET, sb.RET)
     e.keys(CTRL_U, "Y1", sb.RET)
-    e.keys(sb.CTRL_S)
+    e.keys(sb.CTRL_S)                                  # 30 Oct 26 (stage 2b): the IDE's save, from the pane
+    d1 = disk()[3]
     e.keys(sb.DOWN, sb.RET)
     L = e.keys(CTRL_U, "Z2", sb.RET)
     by = {x[1]: x[3] for x in elements(L)}
-    row("a second change after Ctrl-S is shown (z is now Z2) and the record is marked changed again", by.get("2") == "Z2" and dirty_of(L) is True, "%r %r" % (by, dirty_of(L)))
-    e.keys(sb.CTRL_Q, "N")
+    row("a second change after the save is shown (z is now Z2) and the tab is marked changed again; the first save wrote x^Y1|z",
+        by.get("2") == "Z2" and dirty_of(L) is True and d1 == "x^Y1|z", "%r %r %r" % (by, dirty_of(L), d1))
+    e.keys(F12)
     e.quiet()
     st = e.status()
-    e.keys(sb.CTRL_S)                                  # the IDE's Ctrl-S (the one CED's Ctrl-S above is not)
     d = disk()
-    row("leaving with No keeps what Ctrl-S kept: the IDE saves x^Y1|z, not x^Y1|Z2",
-        "is changed, save it to keep it" in st and d[3] == "x^Y1|z", "%r %r" % (st, d[3]))
+    row("F12 leaves with 'changed, save it', and the disk still holds what the first Ctrl-S wrote", "is changed, save it to keep it" in st and d[3] == "x^Y1|z", "%r %r" % (st, d[3]))
+    e.keys(sb.CTRL_S)                                  # the IDE's save, from the text area
+    d = disk()
+    row("Ctrl-S in the text area saves the second change too: x^Y1|Z2", d[3] == "x^Y1|Z2", "%r" % (d[3],))
     e.end()
 
     # ---- E: a record that holds marks is shown in the token form, and typing a token writes a mark --------------------------------------------------------------------
