@@ -448,6 +448,10 @@ RECIPES = {
     "blocksize-0000": (lambda: _bad_blocksize(b"0000"), "R-BLOCKSIZE", {}),
     "level-4": (lambda: build_image(_patch_header(small_model(), 1, level=b"4")), "R-LEVEL", {}),
     "level-0": (lambda: build_image(_patch_header(small_model(), 1, level=b"0")), "R-LEVEL", {}),
+    # strings that look like numbers are not numbers: a reader that compares them as numbers takes these for the right answer
+    "level-01": (lambda: build_image(_patch_header(small_model(), 1, level=b"01")), "R-LEVEL", {}),
+    "filenum-0102-vs-102": (lambda: build_image(_patch_header(small_model(), 2, num=b"0102")), "R-NOFILE", {}),
+    "label-account-7-vs-007": (lambda: build_image(small_model(account=b"007")).replace(b"DATA 007 007", b"DATA 7 7    "), "R-LAYOUT", {}),
     "filenum-ffffffff": (lambda: build_image(_patch_header(small_model(), 1, num=b"FFFFFFFF")), "R-FILENUM", {}),
     "filenum-20-digits": (lambda: build_image(_patch_header(small_model(), 1, num=b"9" * 20)), "R-FILENUM", {}),
     "item-without-header": (lambda: build_image(_patch_header(small_model(), 3, num=b"555")), "R-NOFILE", {}),
