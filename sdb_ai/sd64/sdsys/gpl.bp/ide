@@ -121,6 +121,8 @@
 *               Run a command is EXECUTE ... TRAPPING ABORTS; a collection record's text is kept in the text area's field-mark form (it was "changed" for ever), compared as text and
 *               with a guard before JBUILD; Replace and Query replace change the RECORD behind a token-form tab (ed.source, ed.shown); no string is cut at 99,999 characters; a text to find
 *               over 256 characters is refused (11552); Export asks the non-ASCII test and writes the record; Import's collection refusal is 11557; Go to line finds tokens in any case.
+* 1 Nov 26 dm  S.99 (look only; the owner, 1 Nov 26: "all panes need to share the same look and feel if possible"): the IDE's name and the person (ide  name@account) at the right
+*               end of row 0, as the toolkit pages and SED have them.  The menu bar and the name are drawn by draw.bar, at each place the bar was drawn and after a menu closes.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -818,7 +820,18 @@ new.form:
    gosub tree.apply
    if nbuf > 0 then gosub memo.cursor
    screen focus f, focus.id
+   gosub draw.bar
+   return
+
+* The menu bar on row 0, and the IDE's name and the person at its right end in the bar's style, as $tk_frame writes them on the toolkit pages (S.99, 1 Nov 26).  The bar is
+* written whole each time, so the name is written after it, every time; the cursor is put back where the widget with the focus left it.
+draw.bar:
    screen menubar menus row 0 draw else null
+   db.tag = 'ide  ' : @logname : '@' : @who : ' '
+   keep.cur = ''
+   call $sl_curat('get', keep.cur)
+   screen text db.tag at lw - len(db.tag),0 attr 'bar'
+   call $sl_curat('back', keep.cur)
    return
 
 * The nodes of the tree (a file, and under it the records of a file that is loaded), the numbers of the open ones
@@ -2560,6 +2573,7 @@ run.cmd:
                gosub run.cmd
             end
          end
+         gosub draw.bar                    ;* S.99: the menu closed and the library drew its bar again, without the name at the right
       case cmd = 'help'
          s = convert(char(13), '', sysmsg(11214) : sysmsg(11215) : sysmsg(11216))
          s = change(s, char(10), @vm)
@@ -3760,7 +3774,7 @@ do.dform:
    call $dict_form(df.rec, bf.name : ' ' : bf.id, df.new, df.res)
    last.status = char(1)
    gosub redraw
-   screen menubar menus row 0 draw else null              ;* 1 Nov 26: the form drew its own bar on row 0 and the IDE's menu bar is no widget of the form, so redraw leaves the form's bar there
+   gosub draw.bar                                          ;* 1 Nov 26: the form drew its own bar on row 0 and the IDE's menu bar is no widget of the form, so redraw leaves the form's bar there
    begin case
       case df.res = 'cannot'
          msg = sysmsg(11950, bf.name : ' ' : bf.id, df.new)

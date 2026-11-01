@@ -24,6 +24,8 @@
 #               IDLE: with AUTOLOGOUT 2 the status line counts down the last 60 s, a key in the editor stops it, the wording follows unsaved changes, and the
 #               session is signed out where the countdown ends (about four minutes).  Two rows that pressed Tab IN THE EDITOR to move on press F6 now.
 #               WRITTEN, NOT RUN.
+# 1 Nov 26 dm   S.99 (look only): rows for the IDE's name and the person (ide  name@account) at the right end of row 0, in the menu bar's style, at the start
+#               and again after a menu has been opened and closed (the library draws its bar whole when a menu closes).
 # END-HISTORY
 #
 # HOW IT DRIVES THE IDE.  On a PSEUDO-TERMINAL (ptydrive.py) at 120 by 36, the screen read from the emulator
@@ -377,6 +379,10 @@ end
         e = Ide(box)
         L = e.lines()
         row("the menu bar is on the top row", re.search(r"File\s+Go\s+Search\s+Build\s+View\s+Help", L[0]) is not None, L[0])
+        row("S.99: the IDE's name and the person are at the right end of row 0 (ide  user@account), within 140 columns",
+            re.search(r"ide  \S+@\S+$", L[0].rstrip()) is not None and len(L[0].rstrip()) <= 140, repr(L[0].rstrip()[-40:]))
+        st, sb = e.s.screen.style(0, len(L[0].rstrip()) - 2), e.s.screen.style(0, 100)
+        row("...in the menu bar's style (its cells look as a blank cell of the bar does)", st == sb, "name %r, bar %r" % (st, sb))
         row("the form's title names the account", "IDE: " in L[1], L[1])
         row("the tree lists the account's files (bp, gpl.bp, voc)", has(L[2:], " bp", "gpl.bp", " voc"), e.text()[:400])
         row("the tab strip shows an empty Untitled 1 buffer (S.88 Phase 4: a bare start is editable; it said '(no record)' before)", "Untitled 1" in L[2], L[2])
@@ -532,6 +538,9 @@ end
         L = e.keys(ESC)
         row("Esc closes it and the editor is still there", ("bp %s" % A) in e.status(), e.status())
         e.quiet()
+        L = e.lines()
+        row("S.99: ...and the name is at the right end of row 0 again after the menu closed", re.search(r"ide  \S+@\S+$", L[0].rstrip()) is not None,
+            repr(L[0].rstrip()[-40:]))
         row("control: the focus is in the editor before the menu entry is used", e.status().startswith("[Editor]"), e.status())
         L = e.keys(F10, RIGHT, DOWN * 4, RET)               # Go, Files and records (the fifth entry: Go to line, Next error, Next tab, Previous tab, Files and records)
         e.quiet()

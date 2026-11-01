@@ -13,6 +13,12 @@ Next release - in progress
              Does NOT    - Change any key, command, menu item or option of SED, or what it writes. A site whose SCREENTHEME is none, mono, dark or light sees SED's colours as before. `!ced()` stays
                            at 140 by 42.
 
+1 Nov 26   THE IDE'S MENU BAR NAMES THE IDE AND WHO YOU ARE AT ITS RIGHT END, AS THE TOOLKIT PAGES AND SED DO.
+
+             What        - The right end of the IDE's top row says "ide" and user@account, in the bar's colours, from the start and again each time a menu closes.
+             Why         - Every other full-screen tool says what it is and whose session it is there; the IDE was the one that did not.
+             Does NOT    - Change the menus, the panes, the [*] / [-] pane marks or any key.
+
 1 Nov 26   THE AI LINE ANSWERS FROM SD'S OWN DOCUMENTATION: THE FEW SECTIONS THAT MATCH THE REQUEST ARE IN THE PREVIEW AND GO WITH IT.
 
              What        - The installer now puts the User and Administrator documents (markdown) in docs/user and docs/admin under the system directory. When you press Enter on a request, SD picks up to four
