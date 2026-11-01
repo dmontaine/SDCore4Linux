@@ -11,6 +11,7 @@
 *               No slot before 12 moved.
 * 30 Oct 26 dm  S.88 F0a: ctx slot 27 (TK.C.BAR), the menu bar's record of what it drew.  No slot before 27 moved.
 * 1 Nov 26 dm   S.97 stage 1: ctx slot 28 (TK.C.AIROW), the row the AI line takes from the body, and key-table value 10 (TK.K.AI), an action offered to the AI.  Nothing before them moved.
+* 1 Nov 26 dm   S.97 stage 4: TK.K.AI may be 2 (offered, and it makes or compiles something).  No slot moved.
 * END-HISTORY
 *
 * THE MINIMUM WINDOW is 140 columns by 43 lines (the owner's ruling of 20 Oct 2026).  The 43rd line is the function-key row, outside the window below its border.
@@ -120,4 +121,4 @@ $define TK.K.MENU      6       ;* the menu title with its & mark ('&File'); null
 $define TK.K.ENTRY     7       ;* the entry text with its & mark ('&Save'); the key it shows is DERIVED from the table, never typed
 $define TK.K.WHY       8       ;* why the action is not available now (op 'why' sets it, and ON to 0); null: available
 $define TK.K.ROW       9       ;* 0: bound but not on the function-key row (a second key for one action); null or 1: on the row
-$define TK.K.AI        10      ;* 1: the action may be OFFERED to the AI (op 'ai' sets it, per action; null is not offered, the default).  The AI can only press the page's own keys, so every confirm box and gate applies unchanged
+$define TK.K.AI        10      ;* 1: the action may be OFFERED to the AI (op 'ai' sets it, per action; null is not offered, the default); 2: offered, and it does more than navigate (S.97 stage 4: Reject is the default, its argument reaches the page).  The AI can only press the page's own keys, so every confirm box and gate applies unchanged

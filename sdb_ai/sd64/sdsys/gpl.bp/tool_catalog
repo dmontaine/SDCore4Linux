@@ -12,6 +12,8 @@
 * 25 Oct 26 dm  New.
 * 1 Nov 26 dm  S.97 stage 2: the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; filter and refresh are offered to the model, and a proposal is carried out by
 *              the page's own key.  An account without the AI sees the page as it was.
+* 1 Nov 26 dm  S.97 stage 4 (the owner's editing actions): B (compile) is offered too, marked 'edit' (Enter alone rejects the proposal); the AI's argument with an accepted filter is the
+*              DEFAULT of the filter's text.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -90,6 +92,7 @@ $include header.h
    * key.  Where the AI is not usable for the account nothing here adds a key, a row or a line, and the page is what it always was.
    call $tk_keys('ai', keys, 'filter', '', '', '', '')
    call $tk_keys('ai', keys, 'refresh', '', '', '', '')
+   call $tk_keys('ai', keys, 'compile', 'edit', '', '', '')            ;* S.97 stage 4 (the owner's editing actions): compile the program under the cursor, through the page's own Run box
    call $tk_aipage('init', ctx, keys, '', '', aout)
 
    VIS = 16                                                     ;* program rows on the screen (the list pane's height less 6: set by get.rects)
@@ -127,7 +130,9 @@ $include header.h
       mr = ''
       ao = ''
       if nm # '' then call $tk_aipage('key', ctx, keys, 'Programs', nm, ao)          ;* S.97 stage 2: while the AI line has the focus it takes the keys, before the bar sees them
+      ai.arg = ''                                                                    ;* S.97 stage 4: the argument of an accepted proposal, the DEFAULT of this page's own prompt for that key
       if ao<1> = 'replay' then nm = ao<2>                                            ;* an action the AI proposed and the person accepted: this page's own key for it
+      if ao<1> = 'replay' then ai.arg = ao<5>
       if ao<1> # '' then msg = ao<4>
       busy = (if filt # '' then 1 else 0)
       if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, 'Programs', nm, busy, mr)       ;* the Esc rule: a name filter is taken off before the bar opens
@@ -1224,7 +1229,7 @@ do.delcat:
    return
 
 do.filter:
-   screen ask 'Part of a program or file name (empty shows every program)' width 40 title 'Filter' returning ft then got = 1 else got = 0
+   screen ask 'Part of a program or file name (empty shows every program)' width 40 value ai.arg title 'Filter' returning ft then got = 1 else got = 0
    if not(got) then return
    filt = trim(ft)
    gosub apply.filter

@@ -8,6 +8,7 @@
 * 1 Nov 26 dm  New (S.97 stage 1).
 * 1 Nov 26 dm  S.97 stage 2: the op 'keys', for a page that makes its key table anew (tool.bulk): the line's two rows are put back when the page has a line; the rows are one
 *              internal subroutine, add.rows, which 'init' calls too.
+* 1 Nov 26 dm  S.97 stage 4 (the owner's editing actions): the ids a page marked 'edit' go to $tk_ai in actx<12> (Enter alone rejects them) and a replay carries the argument in out<5>.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -24,14 +25,16 @@
 *                               into the line, Esc, Tab, Back-tab, Up and Down give the focus back, and Enter on a request asks.  out is null when the key is not the line's;
 *                               'taken' (the line used it) with <3> 1 when the screen was covered (the preview, the wait and the answer) and the page must draw all of itself again,
 *                               and <4> a message for the status line; 'replay' when the AI proposed an action: <2> is the key of that action in this pane, and the page runs its own
-*                               handler for that key exactly as if the person had pressed it.
-*   open   (ctx, keys, pane -> out)   the page's own case on F6 (or the menu entry): the line takes the focus; out is the message for the status line.  Nothing when there is no line.
+*                               handler for that key exactly as if the person had pressed it; <5> the argument the model gave with it (S.97 stage 4), which the page may offer as the
+*                               DEFAULT of its own prompt (the person still answers that prompt, and every box after it).
+*   open  (ctx, keys, pane -> out)   the page's own case on F6 (or the menu entry): the line takes the focus; out is the message for the status line.  Nothing when there is no line.
 *   mouse  (ctx, keys, pane, a -> out)   a = the event of SCREEN MOUSE: a left press on the line gives it the focus; out is then its message, else null.
 *
 *   WHAT IS OFFERED TO THE MODEL is the page's key table, not a list typed again: the actions the page opted in ($tk_keys 'ai') that are available now for the pane and have a key.  The
 *   model can only name one of those ids (the library refuses any other), and an accepted proposal is run as the page's own key, so every confirm box, gate and $tk_run path of the
 *   page applies unchanged.  Stage 1 offers actions that navigate (the owner: opt-in, off by default): the proposal is accepted by Enter alone, as a delivered tile is on the home screen.
-*   No command is run from here (the library is told there is nowhere to run one) and the argument the model may give with an action is not used.  ***This program runs nothing
+*   S.97 stage 4: an action the page marked 'edit' ($tk_keys 'ai' with b = 'edit': it makes or compiles something) is sent in actx<12>, so Enter alone REJECTS its proposal.
+*   No command is run from here (the library is told there is nowhere to run one); the argument is handed to the page in out<5> and nothing else is done with it.  ***This program runs nothing
 *   and writes nothing.***  No text of any file is sent: the page tells what it is and what it offers, never a record or a value.
 *
 * END-DESCRIPTION
@@ -99,7 +102,8 @@ $include tk.h
 * The request in the line goes to $tk_ai with what this page offers: the actions its key table opted in, each as 'id:what it does'.  The answer is an action to carry out, by the page's
 * own key, once the person has chosen Accept (Enter), or words to show.  The preview, the wait and the answer covered the page, so out says it is to be drawn again.
 ask:
-   call $tk_keys('aiacts', keys, pane, acts, '', '', '')
+   ai.edits = ''
+   call $tk_keys('aiacts', keys, pane, acts, ai.edits, '', '')
    app = ctx<TK.C.APP>
    txt = 'This is the page ' : app : ' of the SD database system, a full-screen page of the toolkit.'
    txt := @vm : 'Each action presses the key of that action on the page, exactly as the person could.'
@@ -107,6 +111,7 @@ ask:
    actx = app : @fm : 'page' : @fm : txt : @fm : acts : @fm : 1               ;* <5> 1: the actions only navigate, so Enter alone accepts a proposal
    actx<11> = 'nocmd'                                                         ;* a page has no command prompt: a command from the model is ignored
    actx<13> = 'none'                                                          ;* the page sends no text of any file (the AI's wall asks every app where its text comes from)
+   actx<12> = ai.edits                                                        ;* S.97 stage 4: the actions that make or compile something: Enter alone rejects a proposal of one of them
    call $tk_ai('ask', ctx, actx, res)
    call $tk_ai('clear', ctx, '', '')
    call $tk_ai('focus', ctx, 0, '')                                           ;* the line gives the focus back to the page
@@ -114,7 +119,7 @@ ask:
    if res<1> = 'action' then
       call $tk_keys('keyof', keys, res<2>, pane, kk, '', '')
       if kk # '' then
-         out = 'replay' : @fm : kk : @fm : 1 : @fm : res<5>
+         out = 'replay' : @fm : kk : @fm : 1 : @fm : res<5> : @fm : res<3>      ;* <5> (S.97 stage 4): the argument, already cleaned by $tk_ai; the page offers it as the default of its OWN prompt
       end else
          out<4> = sysmsg(11944, res<2>)
       end

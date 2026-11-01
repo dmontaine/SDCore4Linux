@@ -66,7 +66,7 @@ PROGS = ("tk_ai", "tk_aipage", "tk_frame", "tk_keys", "tk_layout", "tool_voc", "
 
 # 1 Nov 26 (S.97 stage 2): the pages that got the line in stage 2, each with the ids it offers the model and one id it has and must NOT offer (an action that does
 # something).  Sections P7 (the AI off) and P8 (the AI on, the preview and Cancel) run each of them.
-MORE = (("tool.catalog", ["filter", "refresh"], "compile"),
+MORE = (("tool.catalog", ["filter", "refresh", "compile"], "catalog"),     # 1 Nov 26 (S.97 stage 4): compile is offered, as an editing action
         ("tool.gates", ["refresh"], "help"),                  # in an ordinary account tool.gates is the holder's page (tool_mygates)
         ("tool.dict", ["filter", "refresh"], "delete"),       # it starts in the Files pane: the Items and Indices views are offered from the panes that have them
         ("tool.test", ["filter", "refresh", "runspane"], "run"),
@@ -265,10 +265,28 @@ def sec_files():
     h = page("tool.files")
     ask(h, "read it again [[act_refresh]]")
     T = h.text()
-    arow("P6a", "tool.files offers filter and refresh and not delete, clear or new", "  refresh:Refresh" in T and "  filter:Filter the names" in T and "  delete:" not in T and "  clear:" not in T and "  new:" not in T, T[-900:])
+    arow("P6a", "tool.files offers filter, refresh and (S.97 stage 4) new, and not delete or clear", "  refresh:Refresh" in T and "  filter:Filter the names" in T and "  new:" in T and "  delete:" not in T and "  clear:" not in T, T[-900:])
     h.typed("s", idle=4.0)
     h.key("enter", idle=3.0)
     arow("P6b", "a proposal of refresh is carried out by the page's own F5: it read the files again", "read the files again" in h.line(40), repr(h.line(40)[:90]))
+    # S.97 stage 4: an EDITING action (new) with an argument.  Enter alone rejects it; Accept opens the page's own N prompt with the argument as its default; Esc there makes nothing.
+    acct = os.path.join(al.sh.BOX, "user_accounts", ACCT)
+    if not os.path.isdir(acct):
+        bail("P6c: the account's directory %s is not there, so 'no file was made' would prove nothing" % acct)
+    made = lambda: os.path.exists(os.path.join(acct, "zzaifile")) or os.path.exists(os.path.join(acct, "zzaifile.dic"))
+    ask(h, "make a file called zzaifile [[act_newfile]]")
+    h.typed("s", idle=4.0)
+    T = h.text()
+    h.key("enter", idle=2.0)
+    T2 = h.text()
+    arow("P6c", "a proposal of new (an editing action) shows Accept and Reject, and Enter alone REJECTS it: no New file prompt, no file", "Accept" in T and "Reject" in T and "Name of the new file" not in T2 and not made(), T[-500:])
+    ask(h, "make a file called zzaifile [[act_newfile]]")
+    h.typed("s", idle=4.0)
+    h.typed("a", idle=2.5)
+    T = h.text()
+    arow("P6d", "Accept: the page's OWN N prompt opens with the AI's argument as its default (zzaifile), and nothing is made yet", "Name of the new file" in T and "zzaifile" in T and not made(), T[-500:])
+    h.key("esc", idle=1.5)
+    arow("P6e", "Esc at that prompt makes nothing: no file zzaifile", not made(), repr(h.line(40)[:90]))
     h.key("ctrl-q", idle=1.5)
     h.end()
 

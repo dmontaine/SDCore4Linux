@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   THE AI LINE ON TOOL.DICT, TOOL.FILES AND TOOL.CATALOG MAY PROPOSE A NEW ITEM, A NEW FILE OR A COMPILE, NOT ONLY A CHANGE OF WHAT IS SHOWN.
+
+             What        - On tool.dict the AI may propose N (a new dictionary item) and C (compile the I item under the cursor), on tool.files N (a new file), on tool.catalog B
+                           (compile the program under the cursor). A name it gives with the proposal - the item's id, the file's name, or the text of a filter on any page -
+                           is put into the page's own question as the answer to start from.
+             Why         - The owner asked for the AI to help with editing work on the editing pages, not only to move around them.
+             Does NOT    - Do anything by itself. For these proposals Reject is the default (Enter alone turns one down; a to accept), the page's own question can be changed
+                           and is checked as a typed answer, and the page's Run or Cancel box still comes after. Delete, clear, edit, run and apply are still never offered,
+                           and a page sends the AI no record or value of any file. The AI line exists only where the administrator has turned the ai gate on.
+
 1 Nov 26   TOOL.GATES HAS "ALL GATES ON" (A) AND "ALL GATES OFF" (N) FOR THE ACCOUNT UNDER THE CURSOR.
 
              What        - A queues every gate of the account that can change to ON, N every one to off; both are in the Gates menu too. Then Enter on a cell takes one gate

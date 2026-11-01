@@ -100,8 +100,9 @@ def checks(raw):
     ck("AP5", "the dim hint of a page says F6 (message 11943), the home screen's is the old one (11637): the choice is made on ctx<TK.C.AIROW> in the one place the hint is drawn",
        "sysmsg((if ctx<TK.C.AIROW> then 11943 else 11637))" in ai and ai.count("11637") == 1, "")
     ck("AP6", "$tk_keys 'ai' only sets TK.K.AI on the rows of the action named, and 'aiacts' offers only rows that carry it, once each, that are available now for the pane AND have a key to press",
-       re.search(r"case op = 'ai'.*?if keys<i, TK\.K\.ACT> = a then keys<i, TK\.K\.AI> = 1", ks, re.S) is not None and "if keys<i, TK.K.AI> = 1 and fa # '' and index(seen, @fm : fa : @fm, 1) = 0 then" in ks
-       and "if ia and ikf # '' then" in ks, "")
+       re.search(r"case op = 'ai'.*?if keys<i, TK\.K\.ACT> = a then keys<i, TK\.K\.AI> = \(if b = 'edit' then 2 else 1\)", ks, re.S) is not None
+       and "if (keys<i, TK.K.AI> = 1 or keys<i, TK.K.AI> = 2) and fa # '' and index(seen, @fm : fa : @fm, 1) = 0 then" in ks
+       and "if ia and ikf # '' then" in ks and re.search(r"b<1, -1> = fa : ':' : lab\s*\n\s*if keys<i, TK\.K\.AI> = 2 then c<1, -1> = fa", ks) is not None, "")
     ck("AP7", "THE REGISTRY STILL HOLDS NO CODE, and neither does the page program: no execute, perform, chain, write, delete, open, read, confirm box or $tk_run in $tk_keys or $tk_aipage, and no assignment to the frame's generation",
        not re.search(r"^\s*(?:execute|os\.execute|perform|chain|write[uv]?|delete[uv]?|matwrite|openpath|open|openseq|readu?|readv|gosub on\.key)\b", ks + "\n" + ap, re.M) and "$tk_run" not in ks + ap
        and "$tk_confirm" not in ks + ap and "TK.C.GEN" not in ap, "")
@@ -110,9 +111,10 @@ def checks(raw):
        and ordered(ap, "case op = 'init' or op = 'again'", "ctx<TK.C.AIROW> = ''", "if ctx<TK.C.AI> then", "ctx<TK.C.AIROW> = 1", "if op = 'init' then gosub add.rows", "$tk_layout('refresh'",
                   "case op = 'keys'", "if ctx<TK.C.AIROW> then gosub add.rows")
        and ordered(ap, "add.rows:", "$tk_keys('add', keys, 'f6', 'ask ai', 'ai', '', 1)", "$tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')", "return"), "")
-    ck("AP9", "WHAT IS OFFERED is the page's table (aiacts), the actions only NAVIGATE (<5> 1: Enter alone accepts), a command is ignored ('nocmd'), no file's text is sent (<13> 'none'), ONE ask, and an accepted action is carried out only through the key the table gives for it (keyof)",
-       ap.count("$tk_ai('ask'") == 1 and "$tk_keys('aiacts', keys, pane, acts, '', '', '')" in ap and "acts : @fm : 1" in ap and "actx<11> = 'nocmd'" in ap and "actx<13> = 'none'" in ap
-       and "$tk_keys('keyof', keys, res<2>, pane, kk, '', '')" in ap and "out = 'replay' : @fm : kk" in ap, "")
+    ck("AP9", "WHAT IS OFFERED is the page's table (aiacts); <5> 1 with the actions that do more than navigate in <12> (S.97 stage 4: Enter alone REJECTS a proposal of one of them), a command is ignored ('nocmd'), no file's text is sent (<13> 'none'), ONE ask, an accepted action is carried out only through the key the table gives for it (keyof), and its argument is handed to the page in out<5>",
+       ap.count("$tk_ai('ask'") == 1 and "$tk_keys('aiacts', keys, pane, acts, ai.edits, '', '')" in ap and "acts : @fm : 1" in ap and "actx<11> = 'nocmd'" in ap and "actx<13> = 'none'" in ap
+       and "actx<12> = ai.edits" in ap and 0 < ap.find("$tk_keys('aiacts'") < ap.find("actx<12> = ai.edits") < ap.find("$tk_ai('ask'")
+       and "$tk_keys('keyof', keys, res<2>, pane, kk, '', '')" in ap and "out = 'replay' : @fm : kk : @fm : 1 : @fm : res<5> : @fm : res<3>" in ap, "")
     ck("AP10", "the line takes a key only while it has the focus, and never the end of the input, a resize, the mouse or the cursor lock's guard; Esc, Tab, Back-tab, Up and Down give the focus back and clear the message",
        "$tk_ai('focused', ctx, foc, '')" in ap and "if foc and nm # '' and nm # 'resize' and nm # 'mouse' and nm # 'guardquit' then" in ap
        and "case ko = 'leave' or ko = 'tab' or ko = 'btab' or ko = 'up' or ko = 'down'" in ap, "")
@@ -167,6 +169,17 @@ def checks(raw):
             where = where and pre < pg.find(lay_call)
         ck("AP11" + letter, "%s offers the AI exactly %s (never edit, delete, run, apply, save, quit, help, new or the menu), and asks for the line after its key table and before its layout, or lays itself out again after"
            % (name, ", ".join(opts)), len(pg) > 200 and sorted(got) == sorted(opts) and where, repr((got, lastmenu, pre)))
+        # 1 Nov 26 (S.97 stage 4): the EDITING actions, exactly the owner's (New and Compile where the page has them), marked 'edit'; no other second argument; on a replay the page keeps
+        # the argument for that key only (reset before, taken from out<5>) and offers it as the DEFAULT of its own prompts (the person still answers them)
+        EDITS = {"b": ["new"], "c": ["compile"], "e": ["new", "compile"]}
+        eg = re.findall(r"\$tk_keys\('ai', keys, '([a-z.]+)', 'edit', '', '', ''\)", pg)
+        other = re.findall(r"\$tk_keys\('ai', keys, '[a-z.]+', '([^']+)'", pg)
+        argok = True
+        if "ai.arg" in pg:
+            argok = (ordered(pg, "ai.arg = ''", "if ao<1> = 'replay' then nm = ao<2>", "if ao<1> = 'replay' then ai.arg = ao<5>")
+                     and all("value ai.arg" in ln or "adef = ai.arg" in ln for ln in pg.split("\n") if "ai.arg" in ln and "ai.arg = " not in ln.split(";*")[0].replace("adef = ai.arg", "")))
+        ck("AP13" + letter, "%s offers as EDITING actions exactly %s, marked 'edit' (Reject is the default), nothing else with a second argument, and the AI's argument is only ever the DEFAULT of the page's own prompt"
+           % (name, ", ".join(EDITS.get(letter, [])) or "none"), sorted(eg) == sorted(EDITS.get(letter, [])) and set(other) <= {"edit"} and argok, repr((eg, other)))
         reopen = (hand < 0 and again < 0) or (0 < hand < again < decl2)
         ck("AP12" + letter, "%s: the hook sees every key BEFORE the menu bar and the bar is not given a key the line used; an accepted proposal is replayed as the page's own key; the status line follows the answer; 'taken' is the first case; F6 and a click on the line reach it; a new context after a hand-over is given its row before its layout" % name,
            ordered(pg, "call $tk_aipage('key', ctx, keys, %s, nm, ao)" % nm, "if ao<1> = 'replay' then nm = ao<2>", "if ao<1> # '' then msg = ao<4>", "if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, %s" % nm,
@@ -199,7 +212,15 @@ MUTANTS = [
     ("the frame draws the line for a page with no row", "AP3", sub("frame", "if ctx<TK.C.AIROW> and ctx<TK.C.AI> then call $tk_ai('show', ctx, '', '')", "if ctx<TK.C.AI> then call $tk_ai('show', ctx, '', '')")),
     ("the line is written on every call", "AP4", sub("ai", "            if sg # ai.sig then", "            if 1 then")),
     ("a page's hint is the home screen's", "AP5", sub("ai", "sysmsg((if ctx<TK.C.AIROW> then 11943 else 11637))", "sysmsg(11637)")),
-    ("every action of the table is offered", "AP6", sub("keys", "if keys<i, TK.K.AI> = 1 and fa # '' and index(seen,", "if fa # '' and index(seen,")),
+    ("every action of the table is offered", "AP6", sub("keys", "if (keys<i, TK.K.AI> = 1 or keys<i, TK.K.AI> = 2) and fa # '' and index(seen,", "if fa # '' and index(seen,")),
+    ("an editing action is marked as navigation", "AP6", sub("keys", "keys<i, TK.K.AI> = (if b = 'edit' then 2 else 1)", "keys<i, TK.K.AI> = 1")),
+    ("the editing ids are not returned", "AP6", sub("keys", "                  if keys<i, TK.K.AI> = 2 then c<1, -1> = fa\n", "")),
+    ("the editing ids are not sent, so Enter accepts them", "AP9", sub("page", "   actx<12> = ai.edits", "   actx<12> = ''")),
+    ("the argument is not handed to the page", "AP9", sub("page", "res<5> : @fm : res<3>", "res<5>")),
+    ("tool.files offers delete as an editing action", "AP13b", sub("files", "   call $tk_keys('ai', keys, 'new', 'edit', '', '', '')", "   call $tk_keys('ai', keys, 'new', 'edit', '', '', '')\n   call $tk_keys('ai', keys, 'delete', 'edit', '', '', '')")),
+    ("tool.dict offers new as navigation", "AP13e", sub("dict", "   call $tk_keys('ai', keys, 'new', 'edit', '', '', '')", "   call $tk_keys('ai', keys, 'new', '', '', '', '')")),
+    ("tool.catalog keeps the argument for every key", "AP13c", sub("catalog", "      ai.arg = ''", "      ai.arg = ai.arg")),
+    ("tool.files writes with the argument, not as a default", "AP13b", sub("files", "width 40 value ai.arg title 'New file' returning nn then", "width 40 title 'New file' returning nn then\n   nn = ai.arg")),
     ("an action with no key is offered", "AP6", sub("keys", "if ia and ikf # '' then", "if ia then")),
     ("the page program writes a record", "AP7", sub("page", "   out = ''\n\n   begin case", "   out = ''\n   write 'x' to nowhere, 'y'\n\n   begin case")),
     ("a page keeps the row of an earlier context", "AP8", sub("page", "         ctx<TK.C.AIROW> = ''\n", "")),

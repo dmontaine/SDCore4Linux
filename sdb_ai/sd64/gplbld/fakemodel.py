@@ -47,6 +47,7 @@ JSON_REPLIES = {
     "act_refresh": '{"say": "Reading the page again.", "action": "refresh", "arg": "", "command": ""}',
     "act_type": '{"say": "Changing the type shown.", "action": "type", "arg": "", "command": ""}',
     "act_delete": '{"say": "Deleting the entry.", "action": "delete", "arg": "", "command": ""}',
+    "act_newfile": '{"say": "Making the file.", "action": "new", "arg": "zzaifile", "command": ""}',     # 1 Nov 26 (S.97 stage 4): an editing action with an argument
     "cmd_list": '{"say": "List the files like this.", "action": "none", "arg": "", "command": "who.am.i"}',
     "cmd_tab": '{"say": "Odd command.", "action": "none", "arg": "", "command": "list\\tfiles"}',
     "cmd_long": '{"say": "A long one.", "action": "none", "arg": "", "command": "' + "x" * 300 + '"}',
