@@ -136,7 +136,7 @@ def checks(raw):
              ("l", strip_bas(raw["config"]), "panes<view>", ["parameters", "backups", "report", "differ", "refresh"], "tool.config", 0, 0, "lay.declare"),
              ("m", strip_bas(raw["gates"]), "'Gates'", ["filter", "refresh"], "tool.gates", 1, 0, "declare.layout"),
              ("n", strip_bas(raw["masters"]), "'Masters'", ["journal", "refresh"], "tool.masters", 1, 0, "declare.layout"),
-             ("o", strip_bas(raw["remote"]), "panes<view>", ["doors", "routes", "servers", "connected", "tls", "refresh"], "tool.remote", 0, 0, "lay.declare"),
+             ("o", strip_bas(raw["remote"]), "panes<view>", ["doors", "routes", "servers", "connected", "tls", "login", "refresh"], "tool.remote", 0, 0, "lay.declare"),
              ("p", strip_bas(raw["sessions"]), "panes<pane>", ["switch", "output", "refresh"], "tool.sessions", 1, 0, "declare.layout"),
              ("q", strip_bas(raw["viewers"]), "pnames<pane>", ["pane", "output", "refresh"], "tool.viewers", 0, 0, "declare.layout"),
              ("r", strip_bas(raw["aipg"]), "pnames<pane>", ["pane", "refresh"], "tool.ai", 0, 0, "lay.declare"),

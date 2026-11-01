@@ -37,7 +37,7 @@ MSG = os.path.join(SDSYS, "messages")
 # entry); the page's own source has the case, which test-aipage-units.py holds.
 FOOT_ONLY = ("dict_form", "tk_aipage")
 EXPECT_PROGRAMS = 26
-EXPECT_ADD_ROWS = 271         # 266 + the 4 foot rows of dict_form, 1 Nov 26, + tk_aipage's F6 row
+EXPECT_ADD_ROWS = 275         # 266 + the 4 foot rows of dict_form, 1 Nov 26, + tk_aipage's F6 row; + tool_remote's 6, O, R, F rows (S.95 stage 1b, 1 Nov 26)
 # earlier counts: (266 with the IDE's eight rows of the pane "fields", 31 Oct 26; 256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 258 with tool_test's Ctrl-O row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
@@ -61,9 +61,10 @@ LEDGER = {
     "handler": {
         # 30 Oct 26: "ide:esc/menu" (the IDE's Esc is handled where the form is read, not in do.key) is gone from this ledger because the IDE's fields view (fields.run) now has the literal 'esc' in its
         #   source; the Esc that opens the menu bar is still the main loop's `case 1`, so the check passes by the fields view's word until somebody takes it out, when this entry comes back
-        "tool_remote:2/": "tool_remote's digit keys 2 to 4 choose a pane by number (a computed test, not a literal case)",
+        "tool_remote:2/": "tool_remote's digit keys 2 to 5 choose a pane by number (a computed test, not a literal case; 1 and 6 are its ends)",
         "tool_remote:3/": "(as 2)",
         "tool_remote:4/": "(as 2)",
+        "tool_remote:5/": "(as 2; 1 Nov 26, S.95 stage 1b, the sixth view made 5 an inner key)",
     },
     "conflict": {},
     "quitkey": {

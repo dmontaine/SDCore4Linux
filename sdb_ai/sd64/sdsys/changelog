@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   THE AUTHENTICATOR CODE FOR SDSYS'S SSH SIGN-IN CAN BE SET UP, RENEWED AND SWITCHED OFF FROM INSIDE SD: REMOTE.SDSYS, AND A SIXTH VIEW OF TOOL.REMOTE.
+
+             What        - remote.sdsys with no keyword says whether the code is on, how many recovery codes are left and whether ssh lets sdsys in. remote.sdsys on shows a new
+                           secret and its link once, then asks for a code from the app (three tries); a right code switches it on, shows the eight recovery codes and opens ssh
+                           for sdsys. remote.sdsys recovery makes eight new recovery codes. remote.sdsys off shuts ssh to sdsys first and then removes the code. tool.remote has a
+                           view 6, "sdsys login", which shows the same report; O, R and F run on, recovery and off after a box, and on asks for the word OPEN to be typed.
+             Why         - Until now the code could only be set up by the installer or by "sudo sd-elevate totp-begin" from a Linux shell. An administrator signed in at the machine
+                           as sdsys can now do it without leaving SD.
+             Does NOT    - Show the secret or the recovery codes anywhere but the terminal: they are not written to a file, the audit trail (which records only the keyword and the
+                           result) or the error log, the screen is cleared after Enter, and on and recovery refuse while a COMO file is recording the session. The code typed is
+                           never put on a command line. It cannot clear the terminal program's own scroll-back. Available to SDSYS only.
+
 1 Nov 26   SDSYS CAN SIGN IN OVER ssh FROM ANOTHER COMPUTER, WITH AN AUTHENTICATOR CODE AND ITS PASSWORD (LINUX ONLY). IT HAD NO REMOTE ROUTE AT ALL.
 
              What        - The administrator can now be reached over ssh, for a server that has no screen or keyboard. The door stays shut until an authenticator code is enrolled

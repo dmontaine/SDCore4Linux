@@ -1,0 +1,1 @@
+remote.sdsys on | recovery | off\n\nON        a new secret for the authenticator app, shown once, then a code from\n          the app; a right code switches the code on and opens ssh for sdsys.\nRECOVERY  eight new recovery codes; the old ones stop working.\nOFF       closes ssh for sdsys, then removes the code.\n\nWith no keyword it reports the state and changes nothing.

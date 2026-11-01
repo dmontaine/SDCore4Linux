@@ -776,6 +776,9 @@ sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net s
 sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient tool-remote
 sdsys/gpl.bp/remotessh       : gates tool-remote
+# 1 Nov 26 (S.95 stage 1b): REMOTE.SDSYS runs only the root helper's totp verbs (no sandbox can: sudo); tool.remote runs its report and hands the terminal to it.  Its text rules are test-remotesdsys-units.py
+sdsys/gpl.bp/remotesdsys     : tool-remote
+sdsys/voc_template/remote.sdsys : tool-remote
 sdsys/gpl.bp/cred_*          : gates qmclient
 # 26 Oct 26 (F6 and the home work): create.account no longer puts the sdsys user into the account's group, and takes the start and pins words
 sdsys/gpl.bp/create_account  : masters gates editgates shared tool-accounts home2 @core

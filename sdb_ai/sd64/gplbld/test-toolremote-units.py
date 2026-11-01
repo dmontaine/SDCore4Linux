@@ -84,9 +84,9 @@ def checks(raw):
        "open %s audit %s first %s" % (i_open, i_audit, i_first))
     cr = block(pg, "confirm.and.run")
     ch = block(pg, "confirm.and.hand.over")
-    ck("RM3", "the routine runs remote.api, remote.ssh and delete.server (one allow list) and nothing else: $tk_run directly after the confirm box guarded by res = 'run', and in run.report for the two reports; "
+    ck("RM3", "the routine runs remote.api, remote.ssh, delete.server and remote.sdsys (one allow list) and nothing else: $tk_run directly after the confirm box guarded by res = 'run', and in run.report for the three reports; "
        "the one other way a verb is run is the terminal hand-over (`execute sent` once, after the box and after $tk_close); no $tk_runx, os.execute, perform or chain",
-       re.findall(r"\ballow = '([^']*)'", pg) == ["remote.api remote.ssh delete.server"] and pg.count("call $tk_run(allow,") == 2 and "$tk_runx" not in pg
+       re.findall(r"\ballow = '([^']*)'", pg) == ["remote.api remote.ssh delete.server remote.sdsys"] and pg.count("call $tk_run(allow,") == 2 and "$tk_runx" not in pg
        and re.search(r"call \$tk_confirm\(sent, el, typed, res, cmsg\)\s*\n\s*if res = 'run' then\s*\n\s*call \$tk_run\(allow, sent, out, stat, err\)", cr) is not None
        and len(re.findall(r"\bexecute\b", pg)) == 1 and re.search(r"call \$tk_confirm\(sent, el, typed, res, cmsg\)\s*\n\s*if res # 'run' then\s*\n\s*msg = cmsg\s*\n\s*return\s*\n\s*end\s*\n\s*call \$tk_close\(ctx\)\s*\n\s*execute sent", ch) is not None
        and not re.search(r"\b(os\.execute|perform|chain)\b", pg), "")
@@ -95,8 +95,8 @@ def checks(raw):
        and pg.count("openpath @sdsys : @ds : 'accounts'") == 1 and "if id # 'sdsys' then" in block(pg, "read.accounts"), "")
     rr = block(pg, "run.report")
     ra = block(pg, "read.all")
-    ck("RM5", "the two reports are run as exactly 'remote.api' and 'remote.ssh' with NO keyword (so they report and change nothing), in read.all and nowhere else; a change is built only in do.api and do.ssh",
-       "cmd = 'remote.api'" in ra and "cmd = 'remote.ssh'" in ra and pg.count("cmd = ") == 2 and "call $tk_run(allow, cmd, rep, rstat, rerr)" in rr and pg.count("sent = 'remote.api ' : aw") == 1 and pg.count("sent = 'remote.ssh ' : sw") == 1, ra[:200])
+    ck("RM5", "the three reports are run as exactly 'remote.api', 'remote.ssh' and 'remote.sdsys' with NO keyword (so they report and change nothing), in read.all and nowhere else; a change is built only in do.api, do.ssh and do.sdsys",
+       "cmd = 'remote.api'" in ra and "cmd = 'remote.ssh'" in ra and "cmd = 'remote.sdsys'" in ra and pg.count("cmd = ") == 3 and "call $tk_run(allow, cmd, rep, rstat, rerr)" in rr and pg.count("sent = 'remote.api ' : aw") == 1 and pg.count("sent = 'remote.ssh ' : sw") == 1, ra[:200])
     da = block(pg, "do.api")
     ds = block(pg, "do.ssh")
     ck("RM6", "A takes on, local or off only and S on or off only, tested BEFORE the sentence; turning a door ON wants the word OPEN typed (typed = 'OPEN' for on, null otherwise), and the box says what ON opens",
@@ -126,9 +126,16 @@ def checks(raw):
        "case view = 1" in br and "case view = 2" in br and "case view = 3" in br and "case view = 4" in br and "pn[1, 16] : '...'" in br and "if gid = 'ssh' or gid = 'api' or gid = 'files' or gid = 'files-write' or gid = 'files-admin' or gid = 'net' then" in block(pg, "read.accounts")
        and "if gerr = '' and ainfo<1> = 'USER' then" in block(pg, "read.accounts") and "if cell.api = 'no' and cell.files = 'yes' then" in rl and "bitand(flg, USR$SDNET)" in sl and "bitand(flg, USR$SDVBSRVR)" in sl and "bitand(flg, USR$PHANTOM)" in sl and "inapi = (l[1, 5] = '[api]')" in ra, "")
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
-    ck("RM12", "the key table has exactly: help, doors, routes, servers, connected, tls, api, ssh, delete, new, refresh, quit - and the Esc row that opens the menu bar (S.88 U4; it runs nothing); A and S act on the doors view only and X and N on the servers view only",
-       acts == sorted(["help", "doors", "routes", "servers", "connected", "tls", "api", "ssh", "delete", "new", "refresh", "quit", "menu"]) and "case nm = 'a' and view = 1" in pg and "case nm = 's' and view = 1" in pg and "case nm = 'x' and view = 3" in pg
-       and "case nm = 'n' and view = 3" in pg and "case nm >= '1' and nm <= '5' and len(nm) = 1" in pg and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
+    ck("RM12", "the key table has exactly: help, doors, routes, servers, connected, tls, login, api, ssh, delete, new, codeon, recovery, codeoff, refresh, quit - and the Esc row that opens the menu bar (S.88 U4; it runs nothing); A and S act on the doors view only, X and N on the servers view only, O R F on the login view only",
+       acts == sorted(["help", "doors", "routes", "servers", "connected", "tls", "login", "api", "ssh", "delete", "new", "codeon", "recovery", "codeoff", "refresh", "quit", "menu"]) and "case nm = 'a' and view = 1" in pg and "case nm = 's' and view = 1" in pg and "case nm = 'x' and view = 3" in pg
+       and "case nm = 'n' and view = 3" in pg and "case (nm = 'o' or nm = 'r' or nm = 'f') and view = 6" in pg and "case nm >= '1' and nm <= '6' and len(nm) = 1" in pg and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
+    dsd = block(pg, "do.sdsys")
+    ck("RM16", "S.95 stage 1b, the login view: the three sentences are FIXED words (nothing typed reaches them); ON wants OPEN typed and, like RECOVERY, gives the terminal to the verb (the secret and the codes are shown there and never pass "
+       "through the page); OFF tightens and runs through the routine after its box; the page never parses a secret= or recovery= line",
+       sorted(re.findall(r"sent = '([^']*)'", dsd)) == ["remote.sdsys off", "remote.sdsys on", "remote.sdsys recovery"] and dsd.count("sent = ") == 3 and dsd.count("typed = 'OPEN'") == 1
+       and re.search(r"sent = 'remote.sdsys on'\s*\n\s*typed = 'OPEN'", dsd) is not None and dsd.count("gosub confirm.and.hand.over") == 2 and dsd.count("gosub confirm.and.run") == 1
+       and re.search(r"sent = 'remote.sdsys off'[^\n]*\n(?:[^\n]*\n){0,3}?\s*gosub confirm.and.run", dsd) is not None
+       and not re.search(r"secret=|recovery=", pg), dsd[:200])
     ck("RM13", "the page waits for a key with no timeout and reads again only when it opens, on F5 and after a command or a hand-over",
        "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 4, "read.all x%d" % pg.count("gosub read.all"))
     ck("RM14", "the page has a [?] and F1, ? and a click show tool.remote.page, whose record exists with a title, the remote access page of the administrator guide (which has a section on tool.remote) and a body",
@@ -175,7 +182,7 @@ MUTANTS = [
     ("the page is opened for anyone", "RM2", sub("page", "call $tk_open('tool.remote', 'admin', ctx, err)", "call $tk_open('tool.remote', '', ctx, err)")),
     ("the page runs a report before it opens the base", "RM2", sub("page", "   call $tk_open('tool.remote', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n", "   call $tk_run(allow, 'remote.api', o0, s0, e0)\n   call $tk_open('tool.remote', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n")),
     ("an ordinary account gets the verb", "RM1", setkey("newvoc_has", "1")),
-    ("the page may run another command", "RM3", sub("page", "allow = 'remote.api remote.ssh delete.server'", "allow = 'remote.api remote.ssh delete.server set.server'")),
+    ("the page may run another command", "RM3", sub("page", "allow = 'remote.api remote.ssh delete.server remote.sdsys'", "allow = 'remote.api remote.ssh delete.server remote.sdsys set.server'")),
     ("the page runs with the loose routine", "RM3", sub("page", "      call $tk_run(allow, sent, out, stat, err)\n      gosub read.all", "      call $tk_runx(allow, sent, out, stat, err)\n      gosub read.all")),
     ("the box is skipped", "RM3", sub("page", "   call $tk_confirm(sent, el, typed, res, cmsg)\n   if res = 'run' then", "   res = 'run'\n   if res = 'run' then")),
     ("the terminal is handed over before the box", "RM3", sub("page", "   call $tk_confirm(sent, el, typed, res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   call $tk_close(ctx)\n   execute sent", "   call $tk_close(ctx)\n   execute sent")),
@@ -200,6 +207,12 @@ MUTANTS = [
     ("an other account is listed in the routes", "RM11", sub("page", "if gerr = '' and ainfo<1> = 'USER' then", "if gerr = '' then")),
     ("a key is added to the table", "RM12", sub("page", "   call $tk_keys('add', keys, 'n', 'new', 'new', 'Servers', 1)\n", "   call $tk_keys('add', keys, 'n', 'new', 'new', 'Servers', 1)\n   call $tk_keys('add', keys, 'k', 'kill', 'kill', '', 1)\n")),
     ("A acts on every view", "RM12", sub("page", "      case nm = 'a' and view = 1\n", "      case nm = 'a'\n")),
+    ("O R F act on every view", "RM12", sub("page", "      case (nm = 'o' or nm = 'r' or nm = 'f') and view = 6\n", "      case (nm = 'o' or nm = 'r' or nm = 'f')\n")),
+    ("the code is switched on with no typed word", "RM16", sub("page", "         sent = 'remote.sdsys on'\n         typed = 'OPEN'\n", "         sent = 'remote.sdsys on'\n         typed = ''\n")),
+    ("ON runs through the routine, so the secret comes back to the page", "RM16", sub("page", "         typed = 'OPEN'\n         el<-1> = 'A new secret", "         typed = 'OPEN'\n         gosub confirm.and.run\n         el<-1> = 'A new secret")),
+    ("RECOVERY runs through the routine", "RM16", sub("page", "         sent = 'remote.sdsys recovery'\n", "         sent = 'remote.sdsys recovery'\n         gosub confirm.and.run\n")),
+    ("the page reads the secret", "RM16", sub("page", "   sd.out = rep\n", "   sd.out = rep\n   if index(rep, 'secret=', 1) then msg = 'x'\n")),
+    ("the sentence takes a typed word", "RM16", sub("page", "         sent = 'remote.sdsys off'\n", "         sent = 'remote.sdsys ' : sw\n")),
     ("the page reads on a timer", "RM13", sub("page", "      screen key returning nm\n", "      screen key timeout 3 returning nm\n")),
     ("the help key names a record that does not exist", "RM14", sub("page", "call $tk_help('box', 'tool.remote.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'", "call $tk_help('box', 'tool.remote.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'")),     # 1 Nov 26: F6 (the AI line) is the case after help
     ("the help record names no page", "RM14", sub("help", "05-remote-access-and-the-machine", "")),

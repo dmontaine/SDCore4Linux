@@ -1,0 +1,280 @@
+* REMOTESDSYS
+* REMOTE.SDSYS verb
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 1 Nov 26 dm  New.  S.95 stage 1b: the administrator's way, at a plain terminal, to set up the authenticator code the sdsys login over ssh asks for,
+*              to get new recovery codes and to switch the code off.  TOOL.REMOTE's sixth view hands the terminal to this verb, so the secret is handled here only.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    REMOTE.SDSYS {ON | RECOVERY | OFF}
+*
+*    The second factor of the remote sdsys login (S.95): a code from an authenticator app, asked by SD's PAM module inside sshd before sdsys's password.
+*
+*       ON        sd-elevate totp-begin makes a NEW secret and prints it once with its otpauth:// link; this verb shows them and asks for a code from the app,
+*                 up to three times.  sd-elevate totp-confirm switches the code on only when the code is right, prints eight recovery codes, and opens sshd
+*                 for sdsys (status 3: the code is on but sshd could not be opened, and says why).  A code that is never confirmed changes nothing.
+*       RECOVERY  eight new recovery codes; the old ones stop working.
+*       OFF       sd-elevate totp-off closes sshd for sdsys FIRST, then removes the code.  It tightens, so nothing is asked.
+*
+*    With no keyword it prints what the root helper reports (active, pending, recovery codes left, the sshd arm) and changes nothing.
+*
+*    THE SECRET AND THE RECOVERY CODES.  They are captured from the helper into variables of this program, shown on the terminal, and cleared from the
+*    variables and the screen after Enter.  They are never written to a file, an audit line, the error log or a message.  ON and RECOVERY refuse while a
+*    COMO file is recording the session (SYSTEM(1033)), because COMO would keep them.  The code typed is handed to the helper on standard input through a
+*    file in a private 0700 directory, never on a command line, and the file is removed at once.  What this cannot reach: a terminal's own scroll-back.
+*
+*    ADMINISTRATOR ONLY, and audited (the keyword and the helper's status; never what it printed).
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $remote.sdsys
+$catalog $remotesdsys
+
+$include keys.h
+$include int$keys.h
+$include parser.h
+$include err.h
+
+$define HELPER     'sudo -n /usr/local/sbin/sd-elevate'
+$define CODE.TRIES 3
+
+   prompt ''
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001)  ;* Command requires administrator privileges
+   end
+
+   action = ''
+   extra = ''
+   pdir = ''
+
+   parser = "!PARSER"
+   call @parser(PARSER$RESET, 0, @sentence, 0)
+   call @parser(PARSER$GET.TOKEN, token.type, token, keyword)   ;* Verb remote.sdsys
+   call @parser(PARSER$GET.TOKEN, token.type, action, keyword)  ;* ON | RECOVERY | OFF
+
+   if token.type = PARSER$END or action = '' then
+      os.execute HELPER : ' totp-status'
+      rc = os.error()
+      if rc # 0 then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(11924, 'report', rc)
+      end
+      stop
+   end
+
+   action = downcase(trim(action))
+   if action # 'on' and action # 'recovery' and action # 'off' then
+      @system.return.code = -ER$ARGS
+      stop sysmsg(11923)  ;* remote.sdsys on | recovery | off
+   end
+
+   call @parser(PARSER$GET.TOKEN, token.type, extra, keyword)
+   if token.type # PARSER$END then
+      @system.return.code = -ER$ARGS
+      stop sysmsg(11923)
+   end
+
+   if action # 'off' and system(SYS$COMO_ON) then
+      @system.return.code = -ER$FAILED
+      stop sysmsg(11925)  ;* not shown while a COMO file records the session
+   end
+
+   begin case
+      case action = 'on'
+         gosub do.on
+      case action = 'recovery'
+         gosub do.recovery
+      case 1
+         gosub do.off
+   end case
+
+   void kernel(K$AUDIT, 'remote.sdsys ' : action : ' status=' : rc)
+   @system.return.code = (if rc = 0 then 0 else -ER$FAILED)
+   stop
+
+* ------------------------------------------------------------------------------------------------- the three keywords
+
+* ON: a new secret, shown once; a code from the app, up to three tries; the recovery codes when the code was right
+do.on:
+   cmd = HELPER : ' totp-begin 2>&1'
+   gosub run.cmd
+   if rc # 0 then
+      gosub show.out
+      crt sysmsg(11924, 'begin', rc)
+      return
+   end
+   secret = '' ; uri = ''
+   for i = 1 to dcount(out, @fm)
+      if out<i>[1, 7] = 'secret=' then secret = out<i>[8, 999]
+      if out<i>[1, 4] = 'uri=' then uri = out<i>[5, 9999]
+   next i
+   out = ''
+   if secret = '' then
+      rc = 2
+      crt sysmsg(11924, 'begin', rc)
+      return
+   end
+   crt
+   crt '  Secret: ' : secret
+   crt '  Link:   ' : uri
+   crt
+   crt sysmsg(11926)  ;* put it into the app; it is shown this once
+   secret = '' ; uri = ''
+   gosub make.pdir
+   if pdir = '' then
+      rc = 2
+      crt sysmsg(11924, 'confirm', rc)
+      gosub clear.screen
+      return
+   end
+   rc = 1
+   for try = 1 to CODE.TRIES
+      crt sysmsg(11927) :  ;* Code from the app (Enter to stop):
+      input code
+      code = trim(code)
+      if code = '' then exit
+      if len(code) < 6 or len(code) > 8 or not(code matches '0N') then
+         crt sysmsg(11928)  ;* That code was not accepted.
+         continue
+      end
+      gosub confirm.code
+      code = ''
+      if rc = 0 or rc = 3 then exit
+      gosub show.refusal
+      if refused = 'discarded' then exit                       ;* the helper threw the new secret away: no try can succeed
+      crt sysmsg(11928)
+   next try
+   code = ''
+   gosub drop.pdir
+   if rc = 0 or rc = 3 then
+      gosub show.codes
+      if rc = 0 then crt sysmsg(11929)  ;* The code is on
+      gosub show.err
+      crt sysmsg(11939)  ;* write the recovery codes down
+   end else
+      crt sysmsg(11924, 'confirm', rc)
+   end
+   out = ''
+   gosub clear.screen
+   return
+
+* RECOVERY: eight new recovery codes
+do.recovery:
+   cmd = HELPER : ' totp-recovery 2>&1'
+   gosub run.cmd
+   if rc # 0 then
+      gosub show.out
+      crt sysmsg(11924, 'recovery', rc)
+      out = ''
+      return
+   end
+   crt
+   gosub show.codes
+   crt sysmsg(11939)
+   out = ''
+   gosub clear.screen
+   return
+
+* OFF: the helper closes sshd for sdsys first, then removes the code; its words go straight to the terminal
+do.off:
+   os.execute HELPER : ' totp-off'
+   rc = os.error()
+   if rc # 0 then crt sysmsg(11924, 'off', rc)
+   return
+
+* ------------------------------------------------------------------------------------------------- helpers
+
+* cmd in; out (fields) and rc out.  Nothing here prints what the helper said.
+run.cmd:
+   out = ''
+   os.execute cmd capturing out
+   rc = os.error()
+   out = change(change(out, char(13) : char(10), @fm), char(13), '')
+   if out[len(out), 1] = @fm then out = out[1, len(out) - 1]
+   return
+
+* The helper's lines that hold no secret, as it printed them (a failure's reason)
+show.out:
+   for i = 1 to dcount(out, @fm)
+      if out<i>[1, 7] # 'secret=' and out<i>[1, 4] # 'uri=' and out<i>[1, 9] # 'recovery=' then crt '  ' : out<i>
+   next i
+   return
+
+* The lines after the codes that are neither the codes nor 'ok': why sshd was not opened (status 3)
+show.err:
+   for i = 1 to dcount(out, @fm)
+      l = out<i>
+      if l # 'ok' and l[1, 9] # 'recovery=' and trim(l) # '' then crt '  ' : l
+   next i
+   return
+
+show.codes:
+   crt
+   n = 0
+   for i = 1 to dcount(out, @fm)
+      if out<i>[1, 9] = 'recovery=' then
+         n += 1
+         crt '  Recovery code ' : n : ':  ' : out<i>[10, 99]
+      end
+   next i
+   crt
+   return
+
+* refused is the helper's word after refused= (wrong, replay, discarded, nothing, bad), or null
+show.refusal:
+   refused = ''
+   for i = 1 to dcount(out, @fm)
+      if out<i>[1, 8] = 'refused=' then refused = out<i>[9, 20]
+   next i
+   if refused = '' then gosub show.out
+   out = ''
+   return
+
+* The code goes to the helper on standard input from a file in the private directory, never on a command line; the file goes at once
+confirm.code:
+   c.path = pdir : '/c'
+   os.execute "umask 077 && : > '" : c.path : "'"
+   rc = 2
+   out = ''
+   openseq c.path to c.f else
+      if not(unassigned(c.f)) then close c.f       ;* an OPENSEQ that took ELSE keeps the name locked until the variable is closed (as tool_config)
+      return
+   end
+   writeseq code to c.f else null
+   close c.f
+   cmd = HELPER : " totp-confirm < '" : c.path : "' 2>&1"
+   gosub run.cmd
+   os.execute "rm -f -- '" : c.path : "'"
+   return
+
+* A PRIVATE directory for the code (umask 077 makes it 0700; mkdir refuses a name that exists, a planted link included), as set.acc.password makes one
+make.pdir:
+   pdir = '/tmp/sd-totp.' : @userno : '.' : date() : time() : rnd(999999)
+   os.execute "umask 077 && mkdir -- '" : pdir : "'"
+   if os.error() # 0 then pdir = ''
+   return
+
+drop.pdir:
+   if pdir # '' then os.execute "rm -rf -- '" : pdir : "'"
+   pdir = ''
+   return
+
+* The secret or the codes are on the screen: they stay until Enter, then the screen is cleared
+clear.screen:
+   crt sysmsg(11945) :  ;* Press Enter to clear the screen.
+   input junk
+   if junk = char(1) then null                                 ;* any answer clears; the answer itself is not used
+   crt @(-1) :
+   return
+
+end
+
+* END-CODE

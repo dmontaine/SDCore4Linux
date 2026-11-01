@@ -11837,6 +11837,55 @@
 "tier": "reference",
 "words": 39
 },
+"msg:11923": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 64
+},
+"msg:11924": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 63
+},
+"msg:11925": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 32
+},
+"msg:11926": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 35
+},
+"msg:11927": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 12
+},
+"msg:11928": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 10
+},
+"msg:11929": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 23
+},
 "msg:11930": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -11900,6 +11949,13 @@
 "tier": "reference",
 "words": 25
 },
+"msg:11939": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 37
+},
 "msg:11940": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -11934,6 +11990,13 @@
 "since": "-",
 "tier": "reference",
 "words": 19
+},
+"msg:11945": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 11
 },
 "msg:11946": {
 "kind": "message",
@@ -27601,6 +27664,13 @@
 "tier": "reference",
 "words": 43
 },
+"tcl:remote.sdsys": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "-",
+"tier": "reference",
+"words": 36
+},
 "tcl:remote.ssh": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -28236,7 +28306,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 87
+"words": 103
 },
 "tcl:tool.sessions": {
 "kind": "tcl.verb",
@@ -28586,7 +28656,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 100
+"words": 101
 },
 "voc:type:F": {
 "kind": "voc.type",

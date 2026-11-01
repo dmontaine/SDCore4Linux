@@ -8721,6 +8721,69 @@ Passages of SD's own documentation follow, each with its id in brackets. Use the
 
 cited by: `tk_ai`
 
+### msg:11923
+> kind=message tier=reference since=- src=sdsys/messages/11923:1#2eeabdc1
+
+```
+remote.sdsys on | recovery | off\n\nON        a new secret for the authenticator app, shown once, then a code from\n          the app; a right code switches the code on and opens ssh for sdsys.\nRECOVERY  eight new recovery codes; the old ones stop working.\nOFF       closes ssh for sdsys, then removes the code.\n\nWith no keyword it reports the state and changes nothing.
+```
+
+cited by: `remotesdsys`
+
+### msg:11924
+> kind=message tier=reference since=- src=sdsys/messages/11924:1#3b0ff3de
+
+```
+The sdsys authenticator code: %1 did not succeed (status %2).\n\nStatus 1: refused - the code was wrong, already used or not typed, or there is\nnothing to do this to; nothing was switched on.  Status 2: the helper refused\nor could not run.  Status 3: the code is on, but ssh was not opened for sdsys;\nthe lines above say why.
+```
+
+cited by: `remotesdsys`
+
+### msg:11925
+> kind=message tier=reference since=- src=sdsys/messages/11925:1#799b75d8
+
+```
+A COMO file is recording this session, and it would keep the secret and the\nrecovery codes.  Close it with COMO OFF and try again.  Nothing was changed.
+```
+
+cited by: `remotesdsys`
+
+### msg:11926
+> kind=message tier=reference since=- src=sdsys/messages/11926:1#d83a1ad8
+
+```
+Put the secret into your authenticator app: type it, or open the link where the\napp can read it.  It is shown this once.  Then type the digits the app shows.
+```
+
+cited by: `remotesdsys`
+
+### msg:11927
+> kind=message tier=reference since=- src=sdsys/messages/11927:1#76765072
+
+```
+  Code from the app (Enter to stop):
+```
+
+cited by: `remotesdsys`
+
+### msg:11928
+> kind=message tier=reference since=- src=sdsys/messages/11928:1#57474159
+
+```
+  That code was not accepted.
+```
+
+cited by: `remotesdsys`
+
+### msg:11929
+> kind=message tier=reference since=- src=sdsys/messages/11929:1#8a369bbf
+
+```
+The code is on: sdsys can sign in over ssh with its password and a code from\nthe app.
+```
+
+cited by: `remotesdsys`
+
 ### msg:11930
 > kind=message tier=reference since=- src=sdsys/messages/11930:1#bfc9f698
 
@@ -8800,6 +8863,15 @@ A or S type dictionary item %1 is not compiled: write it as a D-type or an I-typ
 
 cited by: `cd`, `dcomp`, `mkindx`
 
+### msg:11939
+> kind=message tier=reference since=- src=sdsys/messages/11939:1#66a3345d
+
+```
+Write the recovery codes down now, somewhere that is not the phone: each signs\nin once in place of a code, and they are not shown again.  Any older recovery\ncodes no longer work.
+```
+
+cited by: `remotesdsys`
+
 ### msg:11940
 > kind=message tier=reference since=- src=sdsys/messages/11940:1#c06cef8b
 
@@ -8842,6 +8914,15 @@ The AI proposed %1, which this page has no key for.  Nothing was done
 ```
 
 cited by: `tk_aipage`
+
+### msg:11945
+> kind=message tier=reference since=- src=sdsys/messages/11945:1#4f0de4c4
+
+```
+Press Enter to clear the screen
+```
+
+cited by: `remotesdsys`
 
 ### msg:11946
 > kind=message tier=reference since=- src=sdsys/messages/11946:1#ce2f5d0f
@@ -10618,7 +10699,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 21 more
+cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 22 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
