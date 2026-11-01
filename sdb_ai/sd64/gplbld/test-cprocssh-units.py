@@ -58,6 +58,10 @@ def rows_for(path, bp_dir):
         and "'elevation granted reason=sdsys login over ssh from=' : from.addr" in arm and arm.find("from.addr =") < arm.find("K$AUDIT"), "")
     row("the grant is audited AFTER the administrator bit is set (a trail must not record rights not yet given)", g < arm.find("elevation granted"), "")
     row("the old refusal 10191 is used nowhere in CPROC any more", "10191" not in code, "")
+    m11795 = os.path.join(os.path.dirname(bp_dir), "messages", "11795")
+    txt = open(m11795, encoding="utf-8", errors="replace").read() if os.path.isfile(m11795) else ""
+    row("the ssh arm's notice is 11795 with the client address, never the local arm's 10916 (which says 'a local session'); 11795 says over ssh and keeps the words witnesses find (SD administration granted)",
+        "admin.notice<-1> = sysmsg(11795, from.addr)" in arm[:max(e + g, 0)] and "sysmsg(10916)" not in arm[:max(e + g, 0)] and txt.startswith("SD administration granted") and "over ssh" in txt and "%1" in txt, "")
     return rows
 
 
@@ -69,7 +73,8 @@ MUTANTS = [
     ("the grant is not said to be over ssh", "'elevation granted reason=sdsys login over ssh from=' : from.addr", "'elevation granted reason=sdsys login from=' : from.addr"),
     ("no address when there is none", "               if from.addr = '' then from.addr = 'unknown'\n", ""),
     ("the address is the second field", "field(env('SSH_CONNECTION'), ' ', 1)", "field(env('SSH_CONNECTION'), ' ', 2)"),
-    ("a second grant is added", "               admin.notice<-1> = sysmsg(10916)\n            end else\n               refuse.msg", "               admin.notice<-1> = sysmsg(10916)\n               void kernel(K$ADMINISTRATOR, 1)\n            end else\n               refuse.msg"),
+    ("a second grant is added", "               admin.notice<-1> = sysmsg(11795, from.addr)\n            end else\n               refuse.msg", "               admin.notice<-1> = sysmsg(11795, from.addr)\n               void kernel(K$ADMINISTRATOR, 1)\n            end else\n               refuse.msg"),
+    ("the ssh arm says 'a local session' again", "               admin.notice<-1> = sysmsg(11795, from.addr)\n", "               admin.notice<-1> = sysmsg(10916)\n"),
     ("the local arm's line changes", LOCAL_LINE, LOCAL_LINE.replace("env('SSH_TTY') = ''", "env('SSH_TTY') = \"\"")),
 ]
 

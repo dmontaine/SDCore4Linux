@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 1 Nov 26 dm  S.95: the ssh arm's notice is 11795 ("signed in over ssh from <address> with its password and an authenticator code"); it showed 10916, which says "a local session".
 * 1 Nov 26 dm  S.95: an sdsys session that arrived over ssh (SSH_CONNECTION or SSH_TTY set) is granted when the login behind it is sdsys's own, as a local one is, and refused with 10195 when it is not (su sdsys keeps the variables); it used to be refused outright (10191, now unused).
 * 1 Nov 26 dm  The hyphen form is back (owner: "restore the hyphen option"): an unknown verb is retried with its hyphens changed to dots, lower case then upper case.
 * 28 Oct 26 dm  S.87: multifiles are gone.  A program file named in RUN is always name.out (the file,part form of the name is not split), and F4 of a file's VOC record is ignored.
@@ -520,7 +521,8 @@ $ifndef IS_INSTALL
                from.addr = field(env('SSH_CONNECTION'), ' ', 1)
                if from.addr = '' then from.addr = 'unknown'
                void kernel(K$AUDIT, 'elevation granted reason=sdsys login over ssh from=' : from.addr)
-               admin.notice<-1> = sysmsg(10916)
+* 1 Nov 26 dm - not 10916, whose words say "a local session" (seen on the S.95 VM witness).
+               admin.notice<-1> = sysmsg(11795, from.addr)
             end else
                refuse.msg = sysmsg(10195)   ;* several lines: one DISPLAY each
                loop

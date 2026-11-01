@@ -7681,6 +7681,15 @@ Account %1: NOT every action was carried out. Done: %2. Not done: %3
 
 cited by: `modifya`
 
+### msg:11795
+> kind=message tier=reference since=- src=sdsys/messages/11795:1#580a67ce
+
+```
+SD administration granted: this session is the sdsys OS user, signed in over ssh\nfrom %1 with its password and an authenticator code
+```
+
+cited by: `cproc`
+
 ### msg:11800
 > kind=message tier=reference since=- src=sdsys/messages/11800:1#dd02a6e6
 

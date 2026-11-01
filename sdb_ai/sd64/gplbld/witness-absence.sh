@@ -500,7 +500,16 @@ fi
 if [ -f /etc/ssh/sshd_config ]; then
   SSC=$(cat /etc/ssh/sshd_config)
   ck_says "M7f sshd forces every sdusers member into sd" "Match Group sdusers,!sdsys" "$SSC"
-  ck_says "M7g and denies sdsys network login" "DenyUsers sdsys" "$SSC"
+  # 01 Nov 26 dm - S.95: DenyUsers sdsys is the CLOSED arm, the state until an authenticator code is enrolled.  Once one is (totp-confirm opens the arm), the
+  #   arm is a Match User sdsys block forced into sd with keyboard-interactive only; which one is expected is the helper's own word (--sdsys-state).
+  #   Found by the S.95 VM witness, where this row failed on an install that had enrolled a code at the installer's question.
+  ARM=$(/usr/local/sbin/ssh-forcecommand --sdsys-state 2>/dev/null | sed -n 's/^sdsys-arm=//p')
+  if [ "$ARM" = open ]; then
+    ck_says "M7g the sdsys arm is OPEN (a code is enrolled): a Match User sdsys block" "Match User sdsys" "$SSC"
+    ck_says "M7g' and it allows keyboard-interactive only" "AuthenticationMethods keyboard-interactive" "$SSC"
+  else
+    ck_says "M7g and denies sdsys network login (no code enrolled: the arm is closed)" "DenyUsers sdsys" "$SSC"
+  fi
   ck_absent "M7h and not the sdadmin exemption" "sdusers,!sdadmin" "$SSC"
 # 20 Sep 26 - S.29 part 3: THE ssh ROUTE IS READ BY sshd, AND THE ORDER IS THE
 #   WHOLE OF IT.  sshd takes the FIRST matching arm's ForceCommand, so an SD
