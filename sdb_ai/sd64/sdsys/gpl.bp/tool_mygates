@@ -11,6 +11,8 @@
 *               status message; F1 lists the keys of the pane by itself ($tk_help).
 * 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the gate list shows
 *               more rows and every box is wider (the text is wrapped at the box's width), and a resize is $tk_layout 'refresh' and all of it drawn again.
+* 1 Nov 26 dm  S.97 stage 2: the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; refresh is the one action offered to the model.  An account without the AI
+*               sees the page as it was.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -63,6 +65,10 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   * S.97 stage 2: the AI line.  The page offers the AI only refresh (the owner: opt-in, off by default; the page changes nothing and offers nothing that does); a proposal is
+   * carried out by the page's own key.  Where the AI is not usable for the account nothing here adds a key, a row or a line, and the page is what it always was.
+   call $tk_keys('ai', keys, 'refresh', '', '', '', '')
+   call $tk_aipage('init', ctx, keys, '', '', aout)
 
    VIS = 16                                                     ;* gate rows on the screen (the gate pane's height less 5: set by get.rects)
    perr = ''
@@ -102,9 +108,19 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
       nm = ''
       screen key returning nm
       mr = ''
-      if nm # '' then call $tk_menubar('key', ctx, keys, 'My gates', nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar; a choice comes back as the key it has
+      ao = ''
+      if nm # '' then call $tk_aipage('key', ctx, keys, 'My gates', nm, ao)          ;* S.97 stage 2: while the AI line has the focus it takes the keys, before the bar sees them
+      if ao<1> = 'replay' then nm = ao<2>                                            ;* an action the AI proposed and the person accepted: this page's own key for it
+      if ao<1> # '' then msg = ao<4>
+      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, 'My gates', nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar; a choice comes back as the key it has
       if mr<1> # '' then nm = mr<4>
       begin case
+         case ao<1> = 'taken'
+            if ao<3> then
+               gen += 1                                                               ;* the preview, the wait and the answer covered the page: all of it is drawn again
+               ctx<TK.C.GEN> = gen
+               gosub draw.all
+            end
          case nm = ''
             if status() = ER$EOF then exit
          case nm = 'guardquit'
@@ -326,6 +342,9 @@ on.key:
          gosub read.all
          gosub draw.all
          msg = 'asked the system again'
+      case nm = 'f6'
+         call $tk_aipage('open', ctx, keys, 'My gates', '', ap)             ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
+         if ap # '' then msg = ap
       case nm = 'ctrl-q'
          done = 1
    end case
@@ -344,6 +363,11 @@ on.mouse:
    if mr<1> # '' then
       nm = mr<4>
       if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
+      return
+   end
+   call $tk_aipage('mouse', ctx, keys, 'My gates', mev, ap)                         ;* S.97 stage 2: a click on the AI line gives it the focus
+   if ap # '' then
+      msg = ap
       return
    end
    call $tk_help('hit', mev, g.x + g.w - 5, g.y + 1, hit.m)

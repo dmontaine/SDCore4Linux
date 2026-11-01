@@ -15,6 +15,7 @@
 * 26 Oct 26 dm  S.75, home: the Menu box lists the seven development tiles (Files, Vocabulary, Dictionary, Queries, Bulk update, Programs, Tests) and the Recent group after the seven
 *               it had, so it is 17 rows (the number is nmenu); the Menu box is taller, What this means moves down with it, and the box of key hints is one line under the system default.
 * 29 Oct 26 dm  S.88 g-P1: the Record editor entry (ced) is gone with the verb, so the Menu box is 16 rows (nmenu is counted from tids).
+* 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the others [-], as the IDE does.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -199,6 +200,7 @@ lay.declare:
    d<3> = 'help' : @vm : 1 : @vm : 1 : @vm : 3 : @vm : 70 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
    d<4> = 'menu' : @vm : 1 : @vm : 2 : @vm : 21 : @vm : 67 : @vm : 1 : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
    d<5> = 'what' : @vm : 1 : @vm : 2 : @vm : 17 : @vm : 67 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   ctx<TK.C.FOCI> = 'accounts' : @sm : 'Accounts' : @vm : 'menu' : @sm : 'Menu' : @vm : 'default' : @sm : 'Default'        ;* S.99: the boxes that take the focus, for $tk_frame's [*] / [-]
    call $tk_layout('declare', ctx, d, lay.err)
    gosub lay.get
    return

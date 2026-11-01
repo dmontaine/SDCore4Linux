@@ -26,6 +26,9 @@
 #   P5a-P5d  an action the AI names is carried out by the PAGE'S OWN KEY once the person chooses Accept (Enter alone, it only navigates): refresh says it read the VOC again, type changes the
 #            type shown; delete, which the page has but did not offer, is ignored and said so (11649) and no box appears; the page is whole again after the popup
 #   P6a-P6b  tool.files: a proposal of refresh is carried out by that page's own key
+#   P7a-P7f  (S.97 stage 2, 1 Nov 26) the AI off: tool.catalog, tool.gates (the holder's page), tool.dict, tool.test, tool.query and tool.bulk have no AI row, no F6 and no AI title
+#   P8x1-x3  the AI on, each of those six: the line, F6 and AI in the bar; the preview offers the page's navigation actions and NOT one that does something (compile, help, delete,
+#            run, run, apply); Cancel sends nothing
 # NOT HELD: the IDE hand-over (E on an entry) and the line after it, a window other than 140 by 43, Esc during the wait, a command from the model (none is run: nocmd), a destructive action.
 import importlib.util
 import os
@@ -53,7 +56,17 @@ KEY, MODEL = al.KEY, al.MODEL
 ACCT = al.ACCT
 FAILED_IDS = []
 SCREEN = [None]
-PROGS = ("tk_ai", "tk_aipage", "tk_frame", "tk_keys", "tk_layout", "tool_voc", "tool_files")
+PROGS = ("tk_ai", "tk_aipage", "tk_frame", "tk_keys", "tk_layout", "tool_voc", "tool_files",
+         "tool_catalog", "tool_mygates", "tool_dict", "tool_test", "tool_query", "tool_bulk")     # 1 Nov 26: the pages of S.97 stage 2
+
+# 1 Nov 26 (S.97 stage 2): the pages that got the line in stage 2, each with the ids it offers the model and one id it has and must NOT offer (an action that does
+# something).  Sections P7 (the AI off) and P8 (the AI on, the preview and Cancel) run each of them.
+MORE = (("tool.catalog", ["filter", "refresh"], "compile"),
+        ("tool.gates", ["refresh"], "help"),                  # in an ordinary account tool.gates is the holder's page (tool_mygates)
+        ("tool.dict", ["filter", "refresh"], "delete"),       # it starts in the Files pane: the Items and Indices views are offered from the panes that have them
+        ("tool.test", ["filter", "refresh", "runspane"], "run"),
+        ("tool.query", ["filter", "reread"], "run"),
+        ("tool.bulk", ["switch", "refresh"], "apply"))
 FILES = ("gpl.bp/tk.h",) + tuple("gpl.bp/" + n for n in PROGS) + ("messages/11943", "messages/11944")
 
 MUTANTS = {
@@ -255,6 +268,43 @@ def sec_files():
     h.end()
 
 
+def sec_more_off():
+    """P7: with the AI off (the runner sec_off started, with no such gate group) each stage 2 page draws no AI row, no F6 and no AI title.  Runs straight after sec_off."""
+    say("\n--- P7: the AI is off: the stage 2 pages are what they were")
+    for i, (verb, _offers, _not) in enumerate(MORE):
+        h = page(verb)
+        drawn = "File" in h.line(0) and "Help" in h.line(0)
+        arow("P7" + "abcdef"[i], "%s, AI off: the page is drawn, no AI row on row 39, no F6 on the key row, no AI title in the menu bar" % verb,
+             drawn and not h.line(39).lstrip().startswith("AI>") and "F6 ask ai" not in h.line(42) and re.search(r"\bAI\b", h.line(0)) is None,
+             repr((h.line(0)[:70], h.line(39)[:40], h.line(42)[:100])))
+        h.key("ctrl-q", idle=1.5)
+        h.end()
+
+
+def sec_more_on():
+    """P8: with the AI on each stage 2 page has the line, F6 and the AI title; the preview lists exactly the actions it offers and not one it has that does something; Cancel sends
+    nothing (the fake's log is the evidence)."""
+    say("\n--- P8: the AI is on: the stage 2 pages - the line, the key, the menu, the preview and Cancel")
+    fm = al.STATE["fm"]
+    for i, (verb, offers, notoff) in enumerate(MORE):
+        L = "abcdef"[i]
+        h = page(verb)
+        arow("P8" + L + "1", "%s, AI on: the AI row on row 39, F6 ask ai on the key row and AI in the menu bar" % verb,
+             h.line(39).lstrip().startswith("AI>") and "F6 ask ai" in h.line(42) and re.search(r"\bAI\s+Help", h.line(0)) is not None,
+             repr((h.line(0)[:80], h.line(39)[:50], h.line(42)[:110])))
+        n0 = len(fm.log)
+        ask(h, "what can I do here [[act_refresh]]")
+        T = h.text()
+        arow("P8" + L + "2", "%s: the preview offers %s and NOT %s, and nothing has been sent" % (verb, ", ".join(offers), notoff),
+             all(("  %s:" % o) in T for o in offers) and ("  %s:" % notoff) not in T and "  ai:" not in T and ("the page %s of the SD database system" % verb) in T and len(fm.log) == n0,
+             T[-900:])
+        h.key("enter", idle=1.5)
+        arow("P8" + L + "3", "%s: Enter on the default button is Cancel: nothing was sent and the page is drawn again" % verb,
+             len(fm.log) == n0 and msg(11630) in h.line(40) and "File" in h.line(0), repr((len(fm.log) - n0, h.line(40)[:80])))
+        h.key("ctrl-q", idle=1.5)
+        h.end()
+
+
 def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
     if mutant is not None and mutant not in MUTANTS:
@@ -265,11 +315,13 @@ def main():
         sync_and_compile(mutant)
         sec_off()
         if mutant is None:
+            sec_more_off()
             sec_on()
             sec_focus()
             sec_preview()
             sec_send()
             sec_files()
+            sec_more_on()
         elif mutant == "offers-all":
             sec_on()
             sec_preview()

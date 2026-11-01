@@ -88,7 +88,8 @@ def checks(raw):
     ck("MG13", "THE MENU BAR (S.88 F0a pilot): drawn before the frame in the loop, a key goes to $tk_menubar with busy 0 (the page holds nothing Esc closes first) before the page's own case and a bar answer replaces the key by the name to dispatch on, "
        "a click on the bar is asked first in on.mouse and replays through on.key, the bar's rows are only the three actions of the table, and every call passes seven arguments",
        re.search(r"loop\s*\n\s*call \$tk_menubar\('draw', ctx, keys, 'My gates', '', '', mr\)\s*\n\s*call \$tk_frame\(ctx, keys, 'My gates', msg\)", pg) is not None
-       and re.search(r"screen key returning nm\s*\n\s*mr = ''\s*\n\s*if nm # '' then call \$tk_menubar\('key', ctx, keys, 'My gates', nm, 0, mr\)\s*\n\s*if mr<1> # '' then nm = mr<4>\s*\n\s*begin case", pg) is not None
+       # 1 Nov 26 (S.97 stage 2): the AI line's four lines come between (test-aipage-units AP12d holds them); the bar is then asked only for a key the line did not use
+       and re.search(r"screen key returning nm\s*\n\s*mr = ''\s*\n\s*ao = ''\s*\n(?:[^\n]*\n){3}\s*if nm # '' and ao<1> = '' then call \$tk_menubar\('key', ctx, keys, 'My gates', nm, 0, mr\)\s*\n\s*if mr<1> # '' then nm = mr<4>\s*\n\s*begin case", pg) is not None
        and re.search(r"if mev = '' then return\s*\n\s*mr = ''\s*\n\s*call \$tk_menubar\('click', ctx, keys, 'My gates', mev, '', mr\)\s*\n\s*if mr<1> # '' then\s*\n\s*nm = mr<4>\s*\n\s*if nm # '' then gosub on\.key[^\n]*\n\s*return\s*\n\s*end", pg) is not None
        and sorted(re.findall(r"call \$tk_keys\('menu', keys, '([a-z]+)'", pg)) == ["help", "quit", "refresh"]
        and all(len(m.split(",")) == 7 for m in re.findall(r"\$tk_menubar\(([^)]*)\)", pg)) and len(re.findall(r"\$tk_menubar\(", pg)) == 3, "")

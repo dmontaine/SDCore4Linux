@@ -13,6 +13,9 @@
 *               deleted from, with only voc-edit on), and a delete or a write-over of a record that is not a saved query (field 1 is not query1) is refused.
 * 28 Oct 26 dm  S.87: the word spellings matches, matching, not.matching, before and after are gone from the reserved operator words (the VOC records were removed).
 * 26 Oct 26 dm  faults: the boxes that save and delete a saved query are titled "Write this record?" and "Delete this record?" ($tk_confirm's sixth argument), not "Run this command?".
+* 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the others [-], as the IDE does.
+* 1 Nov 26 dm  S.97 stage 2: the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI, from every view; the file filter and reading the files again are offered to
+*              the model (running, saving, loading and editing are not), and a proposal is carried out by the page's own key.  An account without the AI sees the page as it was.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -142,6 +145,12 @@ $include tk.h
    call $tk_keys('menu', keys, 'loadsel', 'Sa&ved', '&Load it', '', '')
    call $tk_keys('menu', keys, 'delsel', 'Sa&ved', '&Delete it', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   * S.97 stage 2: the AI line.  The page offers the AI only the actions that change what is shown - the file filter and reading the files again (the owner: opt-in, off by
+   * default; running, saving, loading and editing the query are not offered); a proposal is carried out by the page's own key.  Where the AI is not usable for the account
+   * nothing here adds a key, a row or a line.
+   call $tk_keys('ai', keys, 'filter', '', '', '', '')
+   call $tk_keys('ai', keys, 'reread', '', '', '', '')
+   call $tk_aipage('init', ctx, keys, '', '', aout)
 
    gosub reset.query
    fnames = '' ; fkinds = '' ; nfl = 0
@@ -186,10 +195,20 @@ $include tk.h
       nm = ''
       screen key returning nm
       mr = ''
+      ao = ''
+      if nm # '' then call $tk_aipage('key', ctx, keys, cur.pane, nm, ao)            ;* S.97 stage 2: while the AI line has the focus it takes the keys, before the bar sees them
+      if ao<1> = 'replay' then nm = ao<2>                                            ;* an action the AI proposed and the person accepted: this page's own key for it
+      if ao<1> # '' then msg = ao<4>
       busy = (if cur.pane = 'File' and filt # '' then 1 else 0)
-      if nm # '' then call $tk_menubar('key', ctx, keys, cur.pane, nm, busy, mr)       ;* the Esc rule: the file filter (it belongs to the File pane alone, the only pane with an Esc case for it) is taken off before the bar opens (Results and Saved have their own 'back')
+      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, cur.pane, nm, busy, mr)       ;* the Esc rule: the file filter (it belongs to the File pane alone, the only pane with an Esc case for it) is taken off before the bar opens (Results and Saved have their own 'back')
       if mr<1> # '' then nm = mr<4>
       begin case
+         case ao<1> = 'taken'
+            if ao<3> then
+               gen += 1                                                               ;* the preview, the wait and the answer covered the page: all of it is drawn again
+               ctx<TK.C.GEN> = gen
+               gosub draw.all
+            end
          case nm = ''
             if status() = ER$EOF then exit
          case nm = 'guardquit'
@@ -633,6 +652,8 @@ declare.layout:
    end else
       dcl<1> = 'whole' : @vm : 1 : @vm : 1 : @vm : 39 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
    end
+   * S.99: the boxes that take the focus, for $tk_frame's [*] / [-]; the whole view (Results, Saved) has one box and so no marks
+   ctx<TK.C.FOCI> = 'files' : @sm : 'File' : @vm : 'columns' : @sm : 'Columns' : @vm : 'conds' : @sm : 'Conditions' : @vm : 'sorts' : @sm : 'Sort' : @vm : 'options' : @sm : 'Options'
    call $tk_layout('declare', ctx, dcl, perr)
    gosub get.rects
    return
@@ -956,6 +977,11 @@ on.key:
       if hm # '' then msg = hm
       return
    end
+   if nm = 'f6' then
+      call $tk_aipage('open', ctx, keys, cur.pane, '', ap)                  ;* S.97 stage 2: the cursor goes to the AI line, from every view (nothing happens where the AI is not on)
+      if ap # '' then msg = ap
+      return
+   end
    begin case
       case view = 'results'
          gosub keys.results
@@ -1187,6 +1213,11 @@ on.mouse:
    if mr<1> # '' then
       nm = mr<4>
       if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
+      return
+   end
+   call $tk_aipage('mouse', ctx, keys, cur.pane, mev, ap)                           ;* S.97 stage 2: a click on the AI line gives it the focus
+   if ap # '' then
+      msg = ap
       return
    end
    call $tk_help('hit', mev, hx, hy, hit.m)

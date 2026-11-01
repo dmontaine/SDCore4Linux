@@ -601,6 +601,16 @@ def section_s8(p):
         arow("S8b", "a click on a lock row puts the cursor there and the focus on the locks list", p.pane() == "Locks" and ("User %d" % L[0]["uid"]) in p.detail(), repr((p.pane(), p.detail()[:120])))
     p.key("tab", 0.8)
     arow("S8c", "Tab changes the list", p.pane() == "Sessions", p.pane())
+    # S.99 (1 Nov 26): the focus marks, as the IDE has them - [*] at the top right of the box with the focus, [-] on the other box that can take it, none on the
+    # box under them (it never has the focus).  The boxes are 138 wide from column 1, so the mark is columns 135 to 137 of each box's top border.
+    m1, m2, m3 = p.line(1)[135:138], p.line(16)[135:138], p.line(30)[135:138]
+    arow("S8c1", "S.99: the focus on the sessions list: [*] on its box, [-] on the locks box, no mark on the box under them",
+         (m1, m2) == ("[*]", "[-]") and m3 not in ("[*]", "[-]"), repr((m1, m2, m3)))
+    p.key("tab", 0.8)
+    m1, m2 = p.line(1)[135:138], p.line(16)[135:138]
+    arow("S8c2", "S.99: ...Tab to the locks list moves them: [-] on the sessions box, [*] on the locks box", p.pane() == "Locks" and (m1, m2) == ("[-]", "[*]"),
+         repr((p.pane(), m1, m2)))
+    p.key("tab", 0.8)
     p.key("f5", 1.5)
     arow("S8d", "F5 reads again and says so", "asked the system again" in st(p.h), st(p.h))
     p.h.click(135, 2)

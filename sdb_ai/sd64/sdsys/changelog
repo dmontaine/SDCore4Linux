@@ -1,6 +1,32 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   A VERB TYPED WITH HYPHENS FOR ITS DOTS IS FOUND AGAIN: CLEAR-SELECT RUNS CLEAR.SELECT, CREATE-ACCOUNT RUNS CREATE.ACCOUNT.
+
+             What        - When a typed verb is not in the VOC as typed, in lower case or in upper case, the command processor tries it once more with every hyphen changed to a dot
+                           (lower case, then upper case). This undoes the removal of 27 Oct below, which said nothing in SD typed a hyphenated verb; the installer did.
+             Why         - Paragraphs, scripts and habits written for Pick, and for SD before 27 Oct, type the hyphen form.
+             Does NOT    - Make a name with no dotted verb behind it work (no-such-verb is still not in the VOC), or bring back any of the eleven second names removed with it.
+
+1 Nov 26   THE INSTALLER ASKS ONCE WHETHER TO OPEN EVERY ACCESS GATE ON THE INSTALLING USER'S OWN NEW ACCOUNT (DEFAULT NO).
+
+             What        - When it is about to make your own SD account, the installer asks "Open every access gate for <you>'s SD account? (y/N)". A y gives the account every
+                           gate modify.account has: ssh and the API, the shell, OS.EXECUTE, SD.ACCOUNTS, changing the VOC, programs and dictionaries, the recovery copy, SDNet, writing
+                           the shared account's files, the files-only login with its write and admin rights, the AI, pins, and the sdsys user in the account's group. The install then
+                           reads the register and the Linux groups back and says which gates are open, naming any that are not.
+             Why         - On a machine someone is testing on, opening a dozen gates by hand after every fresh install is a chore, and it is easy to miss one.
+             Does NOT    - Open anything unless you type y; ask, or change anything, when your account already exists; open a gate on any other account; let the account use the
+                           AI before SDSYS has chosen a provider and given its key. Every account SD makes is still closed as delivered.
+
+1 Nov 26   THE AI LINE IS ON EVERY DEVELOPMENT PAGE: TOOL.CATALOG, TOOL.DICT, TOOL.QUERY, TOOL.BULK, TOOL.TEST AND THE HOLDER'S TOOL.GATES, AS ON TOOL.VOC AND TOOL.FILES.
+
+             What        - For an account that has the AI, F6 or AI > Ask the AI puts the cursor in a line above the status line; Enter shows everything that will be sent (Cancel is the
+                           default). The model is offered only the keys of the page that change what is shown - filters, views, refresh, the output pane of the runs - and a proposal you
+                           accept is carried out by the page's own key, exactly as if you had pressed it.
+             Why         - The line was on two pages only; a person on the others had to leave the page to ask.
+             Does NOT    - Offer compile, run, apply, undo, save, delete, edit or any other key that changes something; send a record or a value; change a page for an account without
+                           the AI (no line, no key, no menu title, the same rows as before). The administrator's pages do not have it yet, and tool.keys will not (it shows every key).
+
 1 Nov 26   SED LOOKS LIKE THE REST OF THE FULL-SCREEN TOOLS: A KEY ROW, ITS NAME ON THE MENU BAR, THE SITE'S COLOURS. IT NOW NEEDS A WINDOW OF 140 BY 43.
 
              What        - The last row of SED is a key row like the one on the IDE and the toolkit pages: F10 menu, ^S save, ^Q quit, ^O open, ^F find, ^R replace, ^L go to, ^Z undo, ^Y redo,
@@ -12,6 +38,13 @@ Next release - in progress
                            they were; the extra row is the key row.
              Does NOT    - Change any key, command, menu item or option of SED, or what it writes. A site whose SCREENTHEME is none, mono, dark or light sees SED's colours as before. `!ced()` stays
                            at 140 by 42.
+
+1 Nov 26   ON A TOOLKIT PAGE WITH SEVERAL BOXES, THE BOX THE KEYBOARD IS IN IS MARKED [*] AND THE OTHERS [-], AS IN THE IDE.
+
+             What        - tool.bulk, tool.query, tool.test, tool.sessions, tool.menus, tool.ai and tool.viewers put [*] in the top right corner of the box that has the keyboard
+                           and [-] on each other box Tab can reach; Tab, a click or a menu entry that moves the keyboard moves the mark. A box the keyboard never goes to has none.
+             Why         - The status line named the box, but a person looks at the boxes. The IDE has marked its panes this way since 19 October.
+             Does NOT    - Change any key, box or text of the pages, or mark a page that has only one box the keyboard can be in.
 
 1 Nov 26   THE IDE'S MENU BAR NAMES THE IDE AND WHO YOU ARE AT ITS RIGHT END, AS THE TOOLKIT PAGES AND SED DO.
 

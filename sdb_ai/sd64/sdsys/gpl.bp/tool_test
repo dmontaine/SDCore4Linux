@@ -10,6 +10,9 @@
 * 27 Oct 26 dm  S.87 batch 12: CLEARINPUT in place of INPUTCLEAR (two places).
 * 25 Oct 26 dm  New.
 * 26 Oct 26 dm  faults: the first status hint and the hint under the list are shortened to fit (both were cut at the edge of their line, the second one in the middle of the Ctrl-C then Q instruction).
+* 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the other [-], as the IDE does.
+* 1 Nov 26 dm  S.97 stage 2: the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI, in both panes; filter, refresh and the output pane of the runs are offered to
+*              the model (running a test is not), and a proposal is carried out by the page's own key.  An account without the AI sees the page as it was.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -94,6 +97,14 @@ $include tk.h
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'runspane', '&View', '&Output of the runs (Ctrl-PgUp, Ctrl-PgDn scroll)', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   * S.97 stage 2: the AI line.  The page offers the AI only the actions that change what is shown - the filter, refresh and the output pane of the runs (the owner: opt-in, off
+   * by default; running a test is not offered); a proposal is carried out by the page's own key.  Where the AI is not usable for the account nothing here adds a key, a row or a
+   * line.  This page lays itself out before its key table, so a line that took a row has the panes declared again.
+   call $tk_keys('ai', keys, 'filter', '', '', '', '')
+   call $tk_keys('ai', keys, 'refresh', '', '', '', '')
+   call $tk_keys('ai', keys, 'runspane', '', '', '', '')
+   call $tk_aipage('init', ctx, keys, '', '', aout)
+   if aout then gosub declare.layout
 
    dim rz(500)                                                  ;* the result of a test: state, passed, failed, seconds, time, lines, lines left out, abort message, answers used, what the output is, last line, command
    dim oz(500)                                                  ;* what it printed (the kept lines, one to a field)
@@ -138,10 +149,20 @@ $include tk.h
       nm = ''
       screen key returning nm
       mr = ''
+      ao = ''
+      if nm # '' then call $tk_aipage('key', ctx, keys, pn, nm, ao)                  ;* S.97 stage 2: while the AI line has the focus it takes the keys, before the bar sees them
+      if ao<1> = 'replay' then nm = ao<2>                                            ;* an action the AI proposed and the person accepted: this page's own key for it
+      if ao<1> # '' then msg = ao<4>
       busy = (if filt # '' or outopen then 1 else 0)
-      if nm # '' then call $tk_menubar('key', ctx, keys, pn, nm, busy, mr)       ;* the Esc rule: a name filter is taken off before the bar opens (in Output Esc is the page's own 'back')
+      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, pn, nm, busy, mr)       ;* the Esc rule: a name filter is taken off before the bar opens (in Output Esc is the page's own 'back')
       if mr<1> # '' then nm = mr<4>
       begin case
+         case ao<1> = 'taken'
+            if ao<3> then
+               gen += 1                                                               ;* the preview, the wait and the answer covered the page: all of it is drawn again
+               ctx<TK.C.GEN> = gen
+               gosub draw.all
+            end
          case nm = ''
             if status() = ER$EOF then exit
          case nm = 'guardquit'
@@ -326,6 +347,7 @@ declare.layout:
       lo<3> = d<2> ; lo<3, 2> = 3                              ;* the lower box as it was, one band lower
       d = lo
    end
+   ctx<TK.C.FOCI> = 'list' : @sm : 'Tests' : @vm : 'detail' : @sm : 'Output'        ;* S.99: the boxes that take the focus (Output scrolls in the lower box), for $tk_frame's [*] / [-]
    call $tk_layout('declare', ctx, d, perr)
    gosub get.rects
    return
@@ -647,6 +669,9 @@ on.key:
          gosub read.all
          gosub draw.all
          msg = 'read the program files again; the results are kept'
+      case nm = 'f6'
+         call $tk_aipage('open', ctx, keys, pn, '', ap)                     ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
+         if ap # '' then msg = ap
       case nm = 'ctrl-q'
          done = 1
    end case
@@ -692,6 +717,9 @@ out.key:
          pn = 'Tests'
          gosub draw.all
          msg = 'read the program files again; the results are kept'
+      case nm = 'f6'
+         call $tk_aipage('open', ctx, keys, pn, '', ap)                     ;* S.97 stage 2: the AI line from the Output pane too
+         if ap # '' then msg = ap
       case nm = 'ctrl-q'
          done = 1
    end case
@@ -705,6 +733,11 @@ on.mouse:
    if mr<1> # '' then
       nm = mr<4>
       if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
+      return
+   end
+   call $tk_aipage('mouse', ctx, keys, pn, mev, ap)                                 ;* S.97 stage 2: a click on the AI line gives it the focus
+   if ap # '' then
+      msg = ap
       return
    end
    call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)

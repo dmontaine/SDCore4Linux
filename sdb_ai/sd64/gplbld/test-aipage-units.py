@@ -3,7 +3,8 @@
 
     python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-aipage-units.py [--selftest]
 
-WHAT THIS IS, AND WHAT IT IS NOT.  It reads the BASIC of the library programs and of the two pilot pages (tool.voc, tool.files) as text, comments removed.  ***IT RUNS NOTHING, SO IT CANNOT
+WHAT THIS IS, AND WHAT IT IS NOT.  It reads the BASIC of the library programs and of the pages that have the line (the pilot pages tool.voc and tool.files of stage 1; tool.catalog, tool.mygates,
+tool.dict, tool.test, tool.query and tool.bulk since stage 2, 1 Nov 26) as text, comments removed.  ***IT RUNS NOTHING, SO IT CANNOT
 SAY WHAT A SESSION SEES***: that is `sandbox-ai-pages.py` (an ordinary session on a private SD, the fake provider's log and the screen as the evidence).  What a text check is for: the
 properties that make the line SAFE and make a page WITHOUT the AI exactly what it was - the row is taken only when a page asked, the line is drawn only then, an action is offered only
 when the page opted it in, a proposal is carried out only by the page's own key, nothing here runs a command or writes - are mostly ORDER and ABSENCE, and an edit that breaks one still
@@ -28,6 +29,12 @@ FILES = {
     "page": os.path.join(GPL, "tk_aipage"),
     "voc": os.path.join(GPL, "tool_voc"),
     "files": os.path.join(GPL, "tool_files"),
+    "catalog": os.path.join(GPL, "tool_catalog"),
+    "mygates": os.path.join(GPL, "tool_mygates"),
+    "dict": os.path.join(GPL, "tool_dict"),
+    "test": os.path.join(GPL, "tool_test"),
+    "query": os.path.join(GPL, "tool_query"),
+    "bulk": os.path.join(GPL, "tool_bulk"),
     "m43": os.path.join(SDSYS, "messages", "11943"),
     "m44": os.path.join(SDSYS, "messages", "11944"),
     "fake": os.path.join(HERE, "fakemodel.py"),
@@ -88,15 +95,27 @@ def checks(raw):
        and "$tk_confirm" not in ks + ap and "TK.C.GEN" not in ap, "")
     ck("AP8", "$tk_aipage is an internal subroutine with SIX arguments, catalogued $tk_aipage; 'init' clears the page's row FIRST and gives it, adds the F6 row and the AI menu entry and refreshes the layout ONLY when the AI is usable ('again' adds no row)",
        re.search(r"\$internal\s*\nsubroutine tk_aipage\(op, ctx, keys, pane, a, out\)\s*\n\$catalog \$tk_aipage\b", ap) is not None
-       and ordered(ap, "case op = 'init' or op = 'again'", "ctx<TK.C.AIROW> = ''", "if ctx<TK.C.AI> then", "ctx<TK.C.AIROW> = 1", "if op = 'init' then", "$tk_keys('add', keys, 'f6', 'ask ai', 'ai', '', 1)",
-                  "$tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')", "end", "$tk_layout('refresh'"), "")
+       and ordered(ap, "case op = 'init' or op = 'again'", "ctx<TK.C.AIROW> = ''", "if ctx<TK.C.AI> then", "ctx<TK.C.AIROW> = 1", "if op = 'init' then gosub add.rows", "$tk_layout('refresh'",
+                  "case op = 'keys'", "if ctx<TK.C.AIROW> then gosub add.rows")
+       and ordered(ap, "add.rows:", "$tk_keys('add', keys, 'f6', 'ask ai', 'ai', '', 1)", "$tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')", "return"), "")
     ck("AP9", "WHAT IS OFFERED is the page's table (aiacts), the actions only NAVIGATE (<5> 1: Enter alone accepts), a command is ignored ('nocmd'), no file's text is sent (<13> 'none'), ONE ask, and an accepted action is carried out only through the key the table gives for it (keyof)",
        ap.count("$tk_ai('ask'") == 1 and "$tk_keys('aiacts', keys, pane, acts, '', '', '')" in ap and "acts : @fm : 1" in ap and "actx<11> = 'nocmd'" in ap and "actx<13> = 'none'" in ap
        and "$tk_keys('keyof', keys, res<2>, pane, kk, '', '')" in ap and "out = 'replay' : @fm : kk" in ap, "")
     ck("AP10", "the line takes a key only while it has the focus, and never the end of the input, a resize, the mouse or the cursor lock's guard; Esc, Tab, Back-tab, Up and Down give the focus back and clear the message",
        "$tk_ai('focused', ctx, foc, '')" in ap and "if foc and nm # '' and nm # 'resize' and nm # 'mouse' and nm # 'guardquit' then" in ap
        and "case ko = 'leave' or ko = 'tab' or ko = 'btab' or ko = 'up' or ko = 'down'" in ap, "")
-    for pg, nm, opts, name in ((voc, "VOC", ["type", "state", "filter", "refresh"], "tool.voc"), (fil, "Files", ["filter", "refresh"], "tool.files")):
+    # 1 Nov 26 (S.97 stage 2): every page that has the line, as one table: its id letter, its source, the pane argument it gives the library (a literal in quotes or a variable),
+    # what it offers the model, whether it lays itself out BEFORE its key table (then the panes are declared again right after 'init'), and whether it makes its key table anew
+    # (tool.bulk: the line's rows are put back by $tk_aipage 'keys' at the end of build.keys).  Only actions that change what is shown are offered.
+    PAGES = (("a", voc, "'VOC'", ["type", "state", "filter", "refresh"], "tool.voc", 0, 0),
+             ("b", fil, "'Files'", ["filter", "refresh"], "tool.files", 0, 0),
+             ("c", strip_bas(raw["catalog"]), "'Programs'", ["filter", "refresh"], "tool.catalog", 0, 0),
+             ("d", strip_bas(raw["mygates"]), "'My gates'", ["refresh"], "tool.mygates", 0, 0),
+             ("e", strip_bas(raw["dict"]), "pnames<pi>", ["indices", "items", "file", "filter", "refresh"], "tool.dict", 0, 0),
+             ("f", strip_bas(raw["test"]), "pn", ["filter", "refresh", "runspane"], "tool.test", 1, 0),
+             ("g", strip_bas(raw["query"]), "cur.pane", ["filter", "reread"], "tool.query", 0, 0),
+             ("h", strip_bas(raw["bulk"]), "panes<pane>", ["switch", "refresh"], "tool.bulk", 1, 1))
+    for letter, pg, nm, opts, name, lay_first, rebuilt in PAGES:
         got = re.findall(r"\$tk_keys\('ai', keys, '([a-z.]+)', '', '', '', ''\)", pg)
         pre = pg.find("$tk_aipage('init'")
         lastmenu = pg.rfind("$tk_keys('menu'")
@@ -104,12 +123,25 @@ def checks(raw):
         hand = pg.find("call $tk_open(", o1 + 1) if o1 >= 0 else -1                   # the SECOND open of the toolkit: the page took the terminal back from the IDE or a verb
         again = pg.find("$tk_aipage('again'")
         decl2 = pg.find("gosub declare.layout", hand) if hand >= 0 else -1
-        ck("AP11" + ("a" if nm == "VOC" else "b"), "%s offers the AI exactly %s (never edit, delete, quit, help, new, clear, analyse, indices, triggers or the menu), and asks for the line after its key table and before its first layout" % (name, ", ".join(opts)),
-           sorted(got) == sorted(opts) and 0 < lastmenu < pre < pg.find("gosub declare.layout") and re.search(r"call \$tk_aipage\('init', ctx, keys, '', '', aout\)", pg) is not None, repr((got, lastmenu, pre)))
-        ck("AP12" + ("a" if nm == "VOC" else "b"), "%s: the hook sees every key BEFORE the menu bar and the bar is not given a key the line used; an accepted proposal is replayed as the page's own key; the status line follows the answer; 'taken' is the first case; F6 and a click on the line reach it; the new context after a hand-over is given its row before its layout" % name,
-           ordered(pg, "call $tk_aipage('key', ctx, keys, '%s', nm, ao)" % nm, "if ao<1> = 'replay' then nm = ao<2>", "if ao<1> # '' then msg = ao<4>", "if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, '%s'" % nm,
-                    "case ao<1> = 'taken'", "case nm = ''") and re.search(r"case nm = 'f6'\s*\n\s*call \$tk_aipage\('open', ctx, keys, '%s', '', ap\)" % nm, pg) is not None
-           and ordered(pg, "call $tk_aipage('mouse', ctx, keys, '%s', mev, ap)" % nm, "call $tk_help('hit'") and hand > 0 and hand < again < decl2, repr((hand, again, decl2)))
+        init_ok = pg.count("$tk_aipage('init'") == 1 and re.search(r"call \$tk_aipage\('init', ctx, keys, '', '', aout\)", pg) is not None
+        if rebuilt:
+            bk = pg[pg.find("build.keys:"):]
+            bk = bk[:bk.find("\n   return")]
+            where = (init_ok and "call $tk_aipage('keys', ctx, keys, '', '', aout)" in bk and 0 <= pg.find("gosub build.keys") < pre
+                     and all("$tk_keys('ai', keys, '%s'" % o in bk for o in opts))
+        else:
+            where = init_ok and 0 < lastmenu < pre
+        if lay_first:
+            where = where and re.search(r"call \$tk_aipage\('init', ctx, keys, '', '', aout\)[^\n]*\n\s*if aout then gosub declare\.layout", pg) is not None
+        else:
+            where = where and pre < pg.find("gosub declare.layout")
+        ck("AP11" + letter, "%s offers the AI exactly %s (never edit, delete, run, apply, save, quit, help, new or the menu), and asks for the line after its key table and before its layout, or lays itself out again after"
+           % (name, ", ".join(opts)), len(pg) > 200 and sorted(got) == sorted(opts) and where, repr((got, lastmenu, pre)))
+        reopen = (hand < 0 and again < 0) or (0 < hand < again < decl2)
+        ck("AP12" + letter, "%s: the hook sees every key BEFORE the menu bar and the bar is not given a key the line used; an accepted proposal is replayed as the page's own key; the status line follows the answer; 'taken' is the first case; F6 and a click on the line reach it; a new context after a hand-over is given its row before its layout" % name,
+           ordered(pg, "call $tk_aipage('key', ctx, keys, %s, nm, ao)" % nm, "if ao<1> = 'replay' then nm = ao<2>", "if ao<1> # '' then msg = ao<4>", "if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, %s" % nm,
+                    "case ao<1> = 'taken'", "case nm = ''") and re.search(r"(?:case|if) nm = 'f6'(?: then)?\s*\n\s*call \$tk_aipage\('open', ctx, keys, %s, '', ap\)" % re.escape(nm), pg) is not None
+           and ordered(pg, "call $tk_aipage('mouse', ctx, keys, %s, mev, ap)" % nm, "call $tk_help('hit'") and reopen, repr((hand, again, decl2)))
     m43 = raw["m43"].rstrip("\n")
     m44 = raw["m44"].rstrip("\n")
     ck("AP13", "messages 11943 (the hint: names F6) and 11944 (the replay refusal: takes the action id) are one line each and under 80 characters",
@@ -153,6 +185,14 @@ MUTANTS = [
     ("tool.files has no F6", "AP12b", sub("files", "      case nm = 'f6'\n         call $tk_aipage('open', ctx, keys, 'Files', '', ap)", "      case nm = 'zz6'\n         call $tk_aipage('open', ctx, keys, 'Files', '', ap)")),
     ("tool.voc forgets the row after the IDE", "AP12a", sub("voc", "   call $tk_aipage('again', ctx, keys, '', '', aout)", "   aout = 0")),
     ("the hint does not say F6", "AP13", sub("m43", "press F6, ", "press Tab, ")),
+    # 1 Nov 26 (S.97 stage 2)
+    ("tool.catalog offers compile to the AI", "AP11c", sub("catalog", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n   call $tk_keys('ai', keys, 'compile', '', '', '', '')\n")),
+    ("tool.test does not lay out again after the line took a row", "AP11f", sub("test", "   if aout then gosub declare.layout\n", "")),
+    ("tool.bulk's new key table loses the line's rows", "AP11h", sub("bulk", "   call $tk_aipage('keys', ctx, keys, '', '', aout)\n", "")),
+    ("tool.dict forgets the row after the hand-over", "AP12e", sub("dict", "   call $tk_aipage('again', ctx, keys, '', '', aout)", "   aout = 0")),
+    ("tool.query has no F6", "AP12g", sub("query", "   if nm = 'f6' then\n", "   if nm = 'zz6' then\n")),
+    ("tool.mygates' bar sees a key the line used", "AP12d", sub("mygates", "if nm # '' and ao<1> = '' then call $tk_menubar('key'", "if nm # '' then call $tk_menubar('key'")),
+    ("the keys op adds the rows without a line", "AP8", sub("page", "         if ctx<TK.C.AIROW> then gosub add.rows", "         gosub add.rows")),
 ]
 
 

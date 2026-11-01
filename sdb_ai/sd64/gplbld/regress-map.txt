@@ -476,7 +476,7 @@ sdsys/gpl.bp/tool_gates      : tool-gates l2-admin
 sdsys/voc_template/tool.gates : tool-gates
 # 24 Oct 26 (S.75 A2, the account holder's half): the same verb in every account's VOC runs the read-only page; it asks the system for the group of the person's login name
 gplbld/sandbox-tool-mygates.py : @self
-sdsys/gpl.bp/tool_mygates    : tool-mygates docs l2-misc
+sdsys/gpl.bp/tool_mygates    : tool-mygates docs l2-misc ai-pages
 sdsys/newvoc/tool.gates      : tool-mygates docs
 # 24 Oct 26 (S.75 A4): the sessions and locks page runs the real logout, unlock and inhibit.login against live sessions; the programs behind those verbs and the lock listing select it
 gplbld/sandbox-tool-sessions.py : @self
@@ -533,31 +533,31 @@ sdsys/helptext/tool.voc.*    : docs tool-voc
 # 26 Oct 26 (S.75 DV2, DV4-DV7): the dictionary, query, bulk update, catalogue and test pages, built by a workflow in private clones and integrated here; each is a verb for every account (newvoc and voc_template)
 gplbld/sandbox-tool-dict.py  : @self
 gplbld/test-tooldict-units.py : none
-sdsys/gpl.bp/tool_dict       : tool-dict tk-faults l2-misc
+sdsys/gpl.bp/tool_dict       : tool-dict tk-faults l2-misc ai-pages
 sdsys/newvoc/tool.dict       : tool-dict
 sdsys/voc_template/tool.dict : tool-dict
 sdsys/helptext/tool.dict.*   : docs tool-dict
 gplbld/sandbox-tool-query.py : @self
 gplbld/test-toolquery-units.py : none
-sdsys/gpl.bp/tool_query      : tool-query tk-faults l2-files
+sdsys/gpl.bp/tool_query      : tool-query tk-faults l2-files ai-pages
 sdsys/newvoc/tool.query      : tool-query
 sdsys/voc_template/tool.query : tool-query
 sdsys/helptext/tool.query.*  : docs tool-query
 gplbld/sandbox-tool-bulk.py  : @self
 gplbld/test-toolbulk-units.py : none
-sdsys/gpl.bp/tool_bulk       : tool-bulk l2-files
+sdsys/gpl.bp/tool_bulk       : tool-bulk l2-files ai-pages
 sdsys/newvoc/tool.bulk       : tool-bulk
 sdsys/voc_template/tool.bulk : tool-bulk
 sdsys/helptext/tool.bulk.*   : docs tool-bulk
 gplbld/sandbox-tool-catalog.py : @self
 gplbld/test-toolcatalog-units.py : none
-sdsys/gpl.bp/tool_catalog    : tool-catalog l2-files
+sdsys/gpl.bp/tool_catalog    : tool-catalog l2-files ai-pages
 sdsys/newvoc/tool.catalog    : tool-catalog
 sdsys/voc_template/tool.catalog : tool-catalog
 sdsys/helptext/tool.catalog.* : docs tool-catalog
 gplbld/sandbox-tool-test.py  : @self
 gplbld/test-tooltest-units.py : none
-sdsys/gpl.bp/tool_test       : tool-test l2-files
+sdsys/gpl.bp/tool_test       : tool-test l2-files ai-pages
 sdsys/newvoc/tool.test       : tool-test
 sdsys/voc_template/tool.test : tool-test
 sdsys/helptext/tool.test.*   : docs tool-test

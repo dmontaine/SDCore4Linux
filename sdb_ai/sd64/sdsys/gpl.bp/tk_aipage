@@ -6,6 +6,8 @@
 *
 * START-HISTORY:
 * 1 Nov 26 dm  New (S.97 stage 1).
+* 1 Nov 26 dm  S.97 stage 2: the op 'keys', for a page that makes its key table anew (tool.bulk): the line's two rows are put back when the page has a line; the rows are one
+*              internal subroutine, add.rows, which 'init' calls too.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -17,6 +19,7 @@
 *                               'refresh'; the stretching panes give the row up), the key F6 and the menu entry AI > Ask the AI are added to the table, and out is 1 (the layout changed).
 *                               Else nothing is added, nothing is drawn and the page is laid out exactly as it was: out is 0.  $tk_frame draws the line.
 *   again  (ctx, keys -> out)   the same for a context made anew by $tk_open after the page handed the terminal over (the key table is kept, so no row is added again).
+*   keys   (ctx, keys)          a page that made its key table anew: F6 and AI > Ask the AI are added again when the page has a line (nothing is asked, nothing laid out).
 *   key    (ctx, keys, pane, a -> out)   a = the key name.  Call it for every key BEFORE the menu bar sees it.  While the line has the focus it takes the keys: the person's text goes
 *                               into the line, Esc, Tab, Back-tab, Up and Down give the focus back, and Enter on a request asks.  out is null when the key is not the line's;
 *                               'taken' (the line used it) with <3> 1 when the screen was covered (the preview, the wait and the answer) and the page must draw all of itself again,
@@ -50,13 +53,14 @@ $include tk.h
          ctx<TK.C.AIROW> = ''
          if ctx<TK.C.AI> then
             ctx<TK.C.AIROW> = 1
-            if op = 'init' then                                           ;* 'again' is for a context made anew ($tk_open after a hand-over): the key table already has the rows
-               call $tk_keys('add', keys, 'f6', 'ask ai', 'ai', '', 1)
-               call $tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')
-            end
+            if op = 'init' then gosub add.rows                            ;* 'again' is for a context made anew ($tk_open after a hand-over): the key table already has the rows
             call $tk_layout('refresh', ctx, '', chg)
             out = chg
          end
+
+      case op = 'keys'
+         * S.97 stage 2: a page that makes its key table anew (tool.bulk's build.keys) has the line's rows put back; nothing is asked of the helper and nothing is laid out again
+         if ctx<TK.C.AIROW> then gosub add.rows
 
       case op = 'open'
          if ctx<TK.C.AIROW> and ctx<TK.C.AI> then
@@ -115,6 +119,12 @@ ask:
          out<4> = sysmsg(11944, res<2>)
       end
    end
+   return
+
+* The line's own rows in the key table: F6, and the menu entry AI > Ask the AI
+add.rows:
+   call $tk_keys('add', keys, 'f6', 'ask ai', 'ai', '', 1)
+   call $tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')
    return
 
 end

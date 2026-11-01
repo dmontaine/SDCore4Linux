@@ -10,6 +10,7 @@
 *               keeps what each set.viewer answered, the Esc rule, the key hint out of the first status message.
 * 28 Oct 26 dm  S.88 L2: the four boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the two lists show
 *               more rows and are wider, the explanation is wider, and a resize is $tk_layout 'refresh' and all of it drawn again.
+* 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the other [-], as the IDE does.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -166,6 +167,7 @@ declare.layout:
    d<2> = 'found' : @vm : 1 : @vm : 2 : @vm : 14 : @vm : 67 : @vm : 1 : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
    d<3> = 'means' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
    d<4> = 'help' : @vm : 3 : @vm : 1 : @vm : 5 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   ctx<TK.C.FOCI> = 'allowed' : @sm : 'Allowed' : @vm : 'found' : @sm : 'Found'        ;* S.99: the boxes that take the focus, for $tk_frame's [*] / [-] (open.layout keeps both)
    call $tk_layout('declare', ctx, d, perr)
    if outopen then gosub open.layout                             ;* the output pane is open: the same panes with room for it (declaring again replaces)
    gosub get.rects

@@ -14,6 +14,7 @@
 *               shows more accounts), every box and text is as wide as the window, and the detail and the explanation wrap at the box's width. The rows, widths, hit tests and the [?]
 *               buttons are counted from the pane rectangles. The layout is declared again after the terminal was given to SET.AI KEY and the screen taken again.
 * 23 Oct 26 dm  New.
+* 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the other [-], as the IDE does.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -230,6 +231,7 @@ lay.declare:
    d<2> = 'row' : @vm : 2 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
    d<3> = 'accounts' : @vm : 3 : @vm : 1 : @vm : 9 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
    d<4> = 'effect' : @vm : 4 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   ctx<TK.C.FOCI> = 'providers' : @sm : 'Provider' : @vm : 'accounts' : @sm : 'Accounts'        ;* S.99: the boxes that take the focus, for $tk_frame's [*] / [-]
    call $tk_layout('declare', ctx, d, lay.err)
    gosub lay.get
    return

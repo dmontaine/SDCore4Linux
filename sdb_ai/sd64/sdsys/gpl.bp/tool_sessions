@@ -9,6 +9,7 @@
 *               "SDSYS in N places" and the row under the cursor says so.  !SDSYSN is the one definition of such a session.
 * 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the two lists show more rows
 *               and every box is wider, and the sentences about the row are wrapped at the width of their box.  The resize key makes the layout again.
+* 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the other [-], as the IDE does.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -216,6 +217,7 @@ declare.layout:
       lo<4> = 'output' : @vm : 4 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
       ld = lo
    end
+   ctx<TK.C.FOCI> = 'sessions' : @sm : 'Sessions' : @vm : 'locks' : @sm : 'Locks'        ;* S.99: the boxes that take the focus, for $tk_frame's [*] / [-]
    call $tk_layout('declare', ctx, ld, perr)
    if perr # '' then
       call $tk_close(ctx)

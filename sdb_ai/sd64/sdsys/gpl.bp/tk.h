@@ -64,6 +64,8 @@ $define TK.C.PANEERR   26      ;* null, or why the last 'declare' was refused (t
 $define TK.C.BAR       27      ;* what $tk_menubar last drew on row 0: the width, the generation, the epoch, the pane and the menus; it draws again only when this differs
 *   Slot 28 is the AI line's on a page of the toolkit ($tk_aipage, 1 Nov 2026, S.97 stage 1).
 $define TK.C.AIROW     28      ;* 1 when the page has given the AI line a row: $tk_aipage 'init' sets it when the AI is usable, and $tk_layout then takes the LAST row of the body for the line (BODYH is one less; the stretching panes give the row up), else null and the page is laid out as it always was
+*   Slot 29 is the focus marks' ($tk_frame, 1 Nov 2026, S.99: the owner's [*] / [-] of 19 Oct, the IDE's, on the pages).
+$define TK.C.FOCI      29      ;* the panes that can take the focus: a value to each, the layout pane's id (TK.P.ID) and, as the second subvalue, the name the page gives $tk_frame for it; null: no marks
 *
 * THE BODY'S ORIGIN.  ONE NUMBER EACH: a menu bar of its own on row 0 that pushes every body down a row is TK.YBODY 2 (and the reference body below is a row shorter).
 $define TK.XBODY       1       ;* the body starts in column 1 and ends a column short of the right edge: BODYW = W - 2 * TK.XBODY

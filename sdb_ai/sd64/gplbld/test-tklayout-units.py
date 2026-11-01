@@ -28,6 +28,10 @@ that nothing catches is a failure of the self-test.
 
 START-HISTORY:
 28 Oct 26 dm  New (S.88 L1).
+1 Nov 26 dm   T6 follows S.97 stage 1 (1c8b6b4c), which let the mode stay full when the only row the body lacks is the AI line's (tk_layout:261); the check
+              still wanted the line before it and failed on every tree since.  A mutant holds the allowance to the AI row only.  And the "a page's box
+              moves a row" mutant changes the page's source before L2, which M2 compares with (it changed the working copy, which has no literal boxes since
+              L2, and raised a KeyError on every self-test).
 END-HISTORY
 """
 
@@ -518,8 +522,9 @@ def checks(raw):
              "only among the failing bands unless the height failed; until nothing collapses",
        ordered(lp, "loop", "gosub structure", "gosub fit.width", "gosub fit.height", "if hfail # '' or vfail then", "if shown<i> and ppr<i> > 0 then", "can = vfail",
                "if ppr<i> >= bestp then", "if best then shown<best> = 0", "until not(best) do"), lp[:300])
-    ck("T6", "the mode is full when the body is at least the reference body both ways, else compact; a collapsed pane's rectangle is 0, 0, 0, 0, 0; the cut also stops a pane at its band's foot",
-       "if bw >= rbw and bh >= rbh then ctx<TK.C.MODE> = 'full' else ctx<TK.C.MODE> = 'compact'" in lp and "rects<1, i> = 0 : @sm : 0 : @sm : 0 : @sm : 0 : @sm : 0" in lp
+    ck("T6", "the mode is full when the body is at least the reference body both ways (one row less when the page gave the AI line a row: S.97 stage 1), else compact; "
+             "a collapsed pane's rectangle is 0, 0, 0, 0, 0; the cut also stops a pane at its band's foot",
+       "if bw >= rbw and bh >= rbh - (if ctx<TK.C.AIROW> then 1 else 0) then ctx<TK.C.MODE> = 'full' else ctx<TK.C.MODE> = 'compact'" in lp and "rects<1, i> = 0 : @sm : 0 : @sm : 0 : @sm : 0 : @sm : 0" in lp
        and "if ry + rh > y + hb then rh = y + hb - ry" in label(lay, "cut"), "")
     cd = label(lay, "check.decl")
     ck("T7", "the declaration is checked before it is kept (11541 with the pane and the attribute) and against the reference body (11542), and a refused one leaves no panes in the context",
@@ -640,9 +645,12 @@ def page(name, old, new):
     def f(raw):
         r = dict(raw)
         r["pages"] = dict(raw["pages"])
-        if old not in r["pages"].get(name, ""):
+        # 1 Nov 26: a page that moved onto the layout service holds no literal boxes; M2 compares with its source before L2 (pre_l2_source), so the mutant changes THAT
+        #   text, and pre_l2_source then takes the mutated text as the working copy because it has boxes again.  Before, the mutant failed with a KeyError on every run.
+        src = pre_l2_source(name, r["pages"].get(name, ""))
+        if old not in src:
             raise KeyError("%s: %r is not in the page" % (name, old))
-        r["pages"][name] = r["pages"][name].replace(old, new, 1)
+        r["pages"][name] = src.replace(old, new, 1)
         return r
     return f
 
@@ -666,6 +674,7 @@ MUTANTS = [
     ("the collapse takes the first of equals", "T5", sub("tk_layout", "if ppr<i> >= bestp then", "if ppr<i> > bestp then")),
     ("a never-collapse pane collapses", "T5", sub("tk_layout", "if shown<i> and ppr<i> > 0 then", "if shown<i> then")),
     ("the mode is always full", "T6", sub("tk_layout", "else ctx<TK.C.MODE> = 'compact'", "else ctx<TK.C.MODE> = 'full'")),
+    ("a row short is full for every page, not only one with the AI line", "T6", sub("tk_layout", "bh >= rbh - (if ctx<TK.C.AIROW> then 1 else 0)", "bh >= rbh - 1")),
     ("a refused declaration keeps its panes", "T7", sub("tk_layout", "         if perr # '' then\n            ctx<TK.C.PANES> = ''\n", "         if perr # '' then\n")),
     ("the fit is not checked", "T7", sub("tk_layout", "      if need > rbw then perr = sysmsg(11542, app, TK.MINW, TK.MINH)\n", "")),
     ("a slot moves", "W1", sub("tk.h", "$define TK.C.AI        11", "$define TK.C.AI        12")),

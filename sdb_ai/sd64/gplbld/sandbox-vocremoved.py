@@ -355,8 +355,11 @@ def main():
         g.has(segment(walk_e, "zzvre"), r"6 VOC record\(s\) removed, because SD no longer ships them: .*sp\.close") and
         g.has(segment(walk_e, "zzvre"), r"2 VOC record\(s\) kept although SD no longer ships the name, because the record is not the one SD shipped: .*clearinput"), "\n".join(segment(walk_e, "zzvre")))
     row("E4: and audits it: removed=6 differs=2", [ln for ln in audit_lines(a0) if "voc update account=zzvre removed=6 differs=2 locked=0" in ln] != [], repr([ln for ln in audit_lines(a0) if "zzvre" in ln]))
+    # 1 Nov 26 (owner: "restore the hyphen option"): the hyphen form is back, so E5 holds the opposite of what it held from 27 Oct, with a control
     out = g.plain("zzvre", ["CLEAR-SELECT"])
-    row("E5: a verb typed with a hyphen for a dot is no longer found: CLEAR-SELECT is not in the VOC", g.has(out, r"CLEAR-SELECT is not in your VOC"), "\n".join(out))
+    row("E5: a verb typed with a hyphen for a dot is found again (1 Nov 26): CLEAR-SELECT runs clear.select", not g.has(out, r"is not in your VOC"), "\n".join(out))
+    out = g.plain("zzvre", ["NO-SUCH-VERB"])
+    row("E5b: ...and a hyphenated name with no dotted verb behind it is still not in the VOC (the control)", g.has(out, r"NO-SUCH-VERB is not in your VOC"), "\n".join(out))
     out = g.plain("zzvre", ["CLEAR.SELECT"])
     row("E6: ... while the dotted verb, the control, runs", not g.has(out, r"is not in your VOC"), "\n".join(out))
     out = g.plain("zzvre", ["ANALYZE.FILE VOC"])
