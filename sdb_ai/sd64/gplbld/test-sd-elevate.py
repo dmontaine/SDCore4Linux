@@ -1421,6 +1421,109 @@ LOGIN_MUTANTS = [
 ]
 
 
+def totp_rows(helper=None):
+    """S.95 stage 1 (1 Nov 26).  The five verbs that run sd-totp (totp-status, -begin, -confirm, -recovery, -off): what each prints on a dry run (the resolved command, the code never in it), the account text
+    built from the host name (a `hostname` stub put first by SD_PATH_PREPEND), an extra argument refused, a real run refused for lack of root, the tool path that no fixture moves, and the text rules that
+    say what the verbs do NOT do.  sd-totp itself is test-totp-store.py's.  Returns (rows, skipped)."""
+    rows = []
+    skipped = []
+    hp = helper or HELPER
+    src = open(hp, encoding="utf-8").read()
+    tool = "/usr/local/sdsys/bin/sd-totp"
+    td = tempfile.mkdtemp(prefix="sdelev-totp-")
+    try:
+        stub = os.path.join(td, "stub")
+        os.makedirs(stub)
+        with open(os.path.join(stub, "hostname"), "w", encoding="utf-8") as f:
+            f.write('#!/bin/bash\n[[ -z ${STUB_HOST_FAIL:-} ]] || exit 1\nprintf "%s\\n" "${STUB_HOST:-}"\n')
+        os.chmod(os.path.join(stub, "hostname"), 0o755)
+
+        def go(argv, host="web01", dry=True, extra=None, stdin=None):
+            env = {"SD_PATH_PREPEND": stub, "STUB_HOST": host}
+            env.update(extra or {})
+            return run(argv, helper, env, dry=dry, stdin=stdin)
+
+        def detail(code, out):
+            return f"exit {code}: {out.strip()[:120]}"
+
+        for verb, args in (("totp-status", "status"), ("totp-begin", "begin SD Core sdsys@web01"), ("totp-confirm", "confirm"), ("totp-recovery", "recovery"), ("totp-off", "off")):
+            code, out = go([verb])
+            # the helper's name in front of the line is its file's name (a mutated copy has another), so the line is matched without it
+            rows.append((f"ALLOW: {verb} on a dry run prints the resolved command and nothing else",
+                         code == 0 and len(out.splitlines()) == 1 and out.endswith(f": {tool} {args}\n"), detail(code, out)))
+        for what, host, want in (("a host name with a space, an underscore and a mark", "Web 01!_x", "sdsys@Web01x"), ("a host name with shell characters", "a;b`c`$(d)", "sdsys@abcd"),
+                                 ("an empty host name", "", "sdsys@localhost"), ("a host name of 60 letters", "a" * 60, "sdsys@" + "a" * 48), ("dots and hyphens", "db-1.prod", "sdsys@db-1.prod")):
+            code, out = go(["totp-begin"], host=host)
+            rows.append((f"ALLOW: totp-begin builds the account text from {what}: {want}", code == 0 and f"begin SD Core {want}\n" in out, detail(code, out)))
+        code, out = go(["totp-begin"], extra={"STUB_HOST_FAIL": "1"})
+        rows.append(("ALLOW: ... and from a `hostname` that fails: sdsys@localhost", code == 0 and "begin SD Core sdsys@localhost\n" in out, detail(code, out)))
+        for verb in ("totp-status", "totp-begin", "totp-confirm", "totp-recovery", "totp-off"):
+            code, out = go([verb, "x"])
+            rows.append((f"REFUSE: {verb} with a stray argument is a usage error (exit 2, the usage text, no command printed)", code == 2 and "privileged helper" in out and tool not in out, detail(code, out)))
+        code, out = go(["totp-confirm"], stdin="123456\n")
+        rows.append(("REFUSE: totp-confirm on a dry run does not take the code into its output (it is on standard input, never in the line)", code == 0 and "123456" not in out, detail(code, out)))
+        for verb in ("totp-status", "totp-begin", "totp-confirm", "totp-recovery", "totp-off"):
+            code, out = go([verb], dry=False)
+            rows.append((f"REFUSE: a real {verb} as an ordinary user stops at 'must run as root' and runs nothing", code == 2 and "must run as root" in out, detail(code, out)))
+        code, out = go(["totp-status"], extra={"SD_SYS_ROOT_FIXTURE": "/tmp/evil"})
+        rows.append(("REFUSE: SD_SYS_ROOT_FIXTURE does not move the tool: the line still names the real path", code == 0 and tool in out and "/tmp/evil" not in out, detail(code, out)))
+        # ---- a real run as root, played by a user namespace: the tool is not there, so the helper says so (127 would mean it ran a thing that does not exist)
+        try:
+            ok_ns = subprocess.run(["unshare", "-Ur", "true"], capture_output=True).returncode == 0
+        except OSError:
+            ok_ns = False
+        if not ok_ns or os.path.exists(tool):
+            skipped.append("totp: no `unshare -Ur` here, or sd-totp is installed on this machine, so the 'tool is not installed' row is left out")
+        else:
+            p = subprocess.run(["unshare", "-Ur", "bash", hp, "totp-status"], capture_output=True, text=True, env=dict(os.environ, SD_PATH_PREPEND=stub))
+            o = (p.stdout or "") + (p.stderr or "")
+            rows.append(("REFUSE: as 'root' (a user namespace) a real totp-status with no sd-totp installed says it is not installed (exit 2)", p.returncode == 2 and "is not installed" in o, detail(p.returncode, o)))
+        # ---- the text: what the verbs must not do
+        fn = src[src.find("totp_verb() {"):]
+        fn = fn[:fn.find("\n}\n") + 3] if "\n}\n" in fn else ""
+        rows.append(("TEXT: usage and the case branch name the same five verbs",
+                     all(v in src[src.find("usage() {"):src.find("\nEOF\n", src.find("usage() {"))] for v in ("totp-status", "totp-begin", "totp-confirm", "totp-recovery", "totp-off"))
+                     and "  totp-status|totp-begin|totp-confirm|totp-recovery|totp-off)\n    [[ $# -eq 0 ]] || usage\n    totp_verb \"$verb\"\n" in src, ""))
+        rows.append(("TEXT: the code is not an argument: totp-confirm runs `sd-totp confirm` and nothing more", "    totp-confirm)  args=(confirm) ;;\n" in fn, ""))
+        rows.append(("TEXT: sd-totp is run as a bare line - its output is not piped, redirected, captured or logged", '\n  "$tool" "${args[@]}"\n  rc=$?\n' in fn and fn.count("logger") == 1, ""))
+        rows.append(("TEXT: the system log gets the verb and sd-totp's exit status, and not for totp-status",
+                     '  [[ $v == totp-status ]] || logger -t sd-elevate "$v: sd-totp exited $rc" 2>/dev/null || true\n' in fn, ""))
+        rows.append(("TEXT: the dry run ends before need_root and need_root comes before the tool is looked for or run",
+                     0 < fn.find("[[ $DRY -eq 1 ]] && exit 0") < fn.find("  need_root\n") < fn.find("[[ -x $tool ]]") < fn.find('"$tool" "${args[@]}"'), ""))
+        rows.append(("TEXT: the tool is under SD_SYS_ROOT_REAL (the sealed bin), never a fixture; the function ends with `exit $rc`",
+                     "tool=$SD_SYS_ROOT_REAL/bin/sd-totp" in fn and "SD_SYS_ROOT_FIXTURE" not in fn and fn.rstrip().endswith("exit $rc\n}"), ""))
+        rows.append(("TEXT: the host name is cut to letters, digits, dots and hyphens, to 48 characters, with localhost for none",
+                     "h=${h//[^A-Za-z0-9.-]/}" in src and '"${h:0:48}"' in src and "[[ -n $h ]] || h=localhost" in src, ""))
+        sudoers = os.path.join(HERE, "sdcore.sudoers")
+        try:
+            sd_text = open(sudoers, encoding="utf-8").read()
+        except OSError:
+            sd_text = None
+        rows.append(("TEXT: the sudoers file gives an ordinary SD user none of these verbs (only sdsys's any-argument rule reaches them)",
+                     sd_text is not None and "totp" not in sd_text, "sdcore.sudoers not read" if sd_text is None else ""))
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
+    return rows, skipped
+
+
+TOTP_MUTANTS = [
+    ("totp: the code is read into an argument", '    totp-confirm)  args=(confirm) ;;\n', '    totp-confirm)  args=(confirm "$(cat)") ;;\n'),
+    ("totp: a real run does not need root", '  need_root\n  [[ -x $tool ]]', '  [[ -x $tool ]]'),
+    ("totp: the tool path follows the fixture", 'tool=$SD_SYS_ROOT_REAL/bin/sd-totp', 'tool=$SD_SYS_ROOT/bin/sd-totp'),
+    ("totp: the host name is not cut", 'h=${h//[^A-Za-z0-9.-]/}', ':'),
+    ("totp: the host name is not shortened", '"${h:0:48}"', '"$h"'),
+    ("totp: no fallback name", '[[ -n $h ]] || h=localhost', ':'),
+    ("totp: off runs status", '    totp-off)      args=(off) ;;\n', '    totp-off)      args=(status) ;;\n'),
+    ("totp: begin leaves out the issuer", 'args=(begin "$TOTP_ISSUER" "$(totp_account)")', 'args=(begin "" "$(totp_account)")'),
+    ("totp: a stray argument is allowed", '    [[ $# -eq 0 ]] || usage\n    totp_verb "$verb"', '    totp_verb "$verb"'),
+    ("totp: the exit status is lost", '  exit $rc\n}', '  exit 0\n}'),
+    ("totp: sd-totp's output goes to the system log", '  "$tool" "${args[@]}"\n  rc=$?', '  "$tool" "${args[@]}" | logger -t sd-elevate\n  rc=$?'),
+    ("totp: a missing tool is not noticed", '  [[ -x $tool ]] || die "$tool is not installed"\n', ''),
+    ("totp: the dry run goes on to the tool", '  [[ $DRY -eq 1 ]] && exit 0\n  need_root\n  [[ -x $tool ]]', '  need_root\n  [[ -x $tool ]]'),
+    ("totp: status is logged too", '  [[ $v == totp-status ]] || logger', '  logger'),
+]
+
+
 def selftest():
     """The group rows must pass on the real helper and fail on every mutant."""
     if not os.path.exists(HELPER):
@@ -1439,7 +1542,8 @@ def selftest():
                                      ("sdsys-join", sdsys_rows, SDSYS_MUTANTS), ("sdsys-leave", leave_rows, LEAVE_MUTANTS), ("log", log_rows, LOG_MUTANTS),
                                      ("stamp", stamp_rows, STAMP_MUTANTS), ("chown-group", chowngrp_rows, CHOWNGRP_MUTANTS), ("groupadd", groupadd_rows, GROUPADD_MUTANTS),
                                      ("ownedby", ownedby_rows, OWNEDBY_MUTANTS), ("pwunset", pwunset_rows, PWUNSET_MUTANTS), ("envtrust", envtrust_rows, ENVTRUST_MUTANTS),
-                                     ("fdworkers", fdworkers_rows, FDWORKERS_MUTANTS), ("login", login_rows, LOGIN_MUTANTS)):
+                                     ("fdworkers", fdworkers_rows, FDWORKERS_MUTANTS), ("login", login_rows, LOGIN_MUTANTS),
+                                     ("totp", totp_rows, TOTP_MUTANTS)):
         if only and family not in only:
             continue
         rows, skipped = rows_fn()
@@ -1790,7 +1894,7 @@ def main():
     # ---- 26 Oct 26, F6: sdsys-leave (leave_rows) and the log lines (log_rows).  The rows that expect the verb to go through are the controls.
     # 26 Oct 26, F12: the stamp, chown-group and groupadd families (their labels begin ALLOW: or REFUSE:).
     for family, rows_fn in (("sdsys-leave", leave_rows), ("log", log_rows), ("stamp", stamp_rows), ("chown-group", chowngrp_rows), ("groupadd", groupadd_rows),
-                            ("ownedby", ownedby_rows), ("pwunset", pwunset_rows), ("envtrust", envtrust_rows), ("fdworkers", fdworkers_rows), ("login", login_rows)):
+                            ("ownedby", ownedby_rows), ("pwunset", pwunset_rows), ("envtrust", envtrust_rows), ("fdworkers", fdworkers_rows), ("login", login_rows), ("totp", totp_rows)):
         lrows, lskipped = rows_fn()
         for s in lskipped:
             print(f"  SKIPPED {s}")
@@ -1798,7 +1902,7 @@ def main():
             print(f"  [{'PASS' if ok else 'FAIL'}] {family.upper():11} {label:52} | {detail}")
             if ok:
                 passed += 1
-                if family in ("stamp", "chown-group", "groupadd", "ownedby", "pwunset", "envtrust", "fdworkers", "login"):
+                if family in ("stamp", "chown-group", "groupadd", "ownedby", "pwunset", "envtrust", "fdworkers", "login", "totp"):
                     if label.startswith("ALLOW:"):
                         n_allow += 1
                     else:

@@ -100,7 +100,7 @@ EXTRA_C_FLAGS ?=
 
 sd: ARCH :=
 sd: C_FLAGS  :=  -std=gnu17 -Wall -Wformat=2 -Wno-format-nonliteral -DLINUX -D_FILE_OFFSET_BITS=64 -I$(GPLSRC) $(PY_HDRS) -DEMBED_PYTHON -DGPL -g $(ARCH) -fPIE $(EXTRA_C_FLAGS)
-sd: $(SDOBJS) sdclilib.so sdtic sdfix sdconv sdidx sdlnxd terminfo
+sd: $(SDOBJS) sdclilib.so sdtic sdfix sdconv sdidx sdlnxd sd-totp terminfo
 	@echo Linking $@
 	@cd $(GPLOBJ) && $(COMP) $(ARCH) $(L_FLAGS) $(SDOBJSD) -o $(GPLBIN)sd
 
@@ -130,6 +130,12 @@ sdconv: sdconv.o ctype.o linuxlb.o dh_hash.o
 sdidx: sdidx.o
 	@echo Linking $@
 	@$(COMP) $(C_FLAGS) -lc $(GPLOBJ)sdidx.o -o $(GPLBIN)sdidx
+
+# 01 Nov 26 dm - S.95 stage 1: the command sd-elevate's totp-* verbs and the installer run as root (the second factor of the sdsys user);
+#   linked with libcrypto only.  The store and the engine are separate objects so that the PAM module (stage 2) can be built from the same two.
+sd-totp: sd_totp_cmd.o sd_totp_store.o sd_totp.o
+	@echo Linking $@
+	@$(COMP) $(C_FLAGS) $(GPLOBJ)sd_totp_cmd.o $(GPLOBJ)sd_totp_store.o $(GPLOBJ)sd_totp.o $(OPENSSL_LIBS) -o $(GPLBIN)sd-totp
 
 sdlnxd: sdlnxd.o sdsem.o audit_rot.o
 	@echo Linking $@
@@ -182,6 +188,15 @@ sdfix.o: sdfix.c sd.h dh_int.h revstamp.h
 sdidx.o: sdidx.c sd.h dh_int.h revstamp.h
 	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)sdidx.o
 
+sd_totp.o: sd_totp.c sd_totp.h
+	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)sd_totp.o
+
+sd_totp_store.o: sd_totp_store.c sd_totp_store.h sd_totp.h
+	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)sd_totp_store.o
+
+sd_totp_cmd.o: sd_totp_cmd.c sd_totp_store.h sd_totp.h
+	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)sd_totp_cmd.o
+
 sdtic.o: sdtic.c ti_names.h revstamp.h
 	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)sdtic.o
 
@@ -207,5 +222,5 @@ check-includes:
 clean:
 	@echo Cleaning build files
 	@$(RM) -f $(GPLOBJ)*.o
-	@$(RM) -f $(GPLBIN)sd $(GPLBIN)sdclilib.so $(GPLBIN)libsdcli.so $(GPLBIN)sdtic $(GPLBIN)sdfix $(GPLBIN)sdconv $(GPLBIN)sdidx $(GPLBIN)sdlnxd
+	@$(RM) -f $(GPLBIN)sd $(GPLBIN)sdclilib.so $(GPLBIN)libsdcli.so $(GPLBIN)sdtic $(GPLBIN)sdfix $(GPLBIN)sdconv $(GPLBIN)sdidx $(GPLBIN)sdlnxd $(GPLBIN)sd-totp
 	@$(RM) -Rf $(TERMINFO)

@@ -235,6 +235,9 @@ gplsrc/sd_scram.c            : qmclient
 gplsrc/scram_client.h        : qmclient
 gplsrc/sd_totp.c             : none
 gplsrc/sd_totp.h             : none
+gplsrc/sd_totp_store.c       : none
+gplsrc/sd_totp_store.h       : none
+gplsrc/sd_totp_cmd.c         : none
 gplsrc/sdclilib.c            : qmclient
 gplsrc/sdclilib.h            : qmclient
 gplsrc/sdclient.h            : qmclient

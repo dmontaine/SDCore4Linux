@@ -189,6 +189,8 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate --dry-run   pw-check          (SD's password rule, one line on stdin)
   sd-elevate [--dry-run] remote-api on | local | off | show
   sd-elevate [--dry-run] remote-ssh on | off | show
+  sd-elevate [--dry-run] totp-status | totp-begin | totp-confirm | totp-recovery | totp-off
+                                  (the second factor of the remote sdsys login, run through sd-totp; totp-confirm reads one code on stdin)
   sd-elevate [--dry-run] cred-own query | verify | set   (the caller's own SD
                                   password; verify reads 1 line, set 7, on stdin)
   sd-elevate [--dry-run] netcred-dir            (makes the caller's own /var/lib/sd-net/<user>, mode 0700, for
@@ -552,6 +554,41 @@ remote_ssh() {
   fi
   ssh_show
   return 0
+}
+
+# 01 Nov 26 dm - S.95 stage 1.  THE SECOND FACTOR OF THE REMOTE SDSYS LOGIN is kept by sd-totp, a root-owned file in the sealed bin (gplsrc/sd_totp_cmd.c); these five verbs only run it.  What matters is
+# what they do NOT do: the code is on standard input and never an argument (so it is not in a process list or in the line this helper prints), the system log gets the verb and the exit status and
+# nothing sd-totp printed (the secret, the link and the recovery codes go to the caller once and nowhere else), and the account text for the authenticator app is built from the short host name cut
+# to letters, digits, dots and hyphens, so a host name cannot put anything else into the link.  Like every verb here it is asked of the caller sudo names, and sudo names sdsys: sdsys_login_gate has
+# already refused an sdsys that did not log in.
+TOTP_ISSUER="SD Core"
+totp_account() {
+  local h
+  h=$(hostname -s 2>/dev/null) || h=
+  h=${h//[^A-Za-z0-9.-]/}
+  [[ -n $h ]] || h=localhost
+  printf 'sdsys@%s' "${h:0:48}"
+}
+
+totp_verb() {   # totp_verb VERB - runs sd-totp for it and exits with its status
+  local v=$1 tool=$SD_SYS_ROOT_REAL/bin/sd-totp rc
+  local -a args=()
+  case $v in
+    totp-status)   args=(status) ;;
+    totp-begin)    args=(begin "$TOTP_ISSUER" "$(totp_account)") ;;
+    totp-confirm)  args=(confirm) ;;
+    totp-recovery) args=(recovery) ;;
+    totp-off)      args=(off) ;;
+    *) die "internal: no sd-totp command for '$v'" ;;
+  esac
+  printf '%s: %s %s\n' "$PROG" "$tool" "${args[*]}"
+  [[ $DRY -eq 1 ]] && exit 0
+  need_root
+  [[ -x $tool ]] || die "$tool is not installed"
+  "$tool" "${args[@]}"
+  rc=$?
+  [[ $v == totp-status ]] || logger -t sd-elevate "$v: sd-totp exited $rc" 2>/dev/null || true
+  exit $rc
 }
 
 # ---------------------------------------------------------------- validation
@@ -2234,6 +2271,11 @@ case $verb in
     logger -t sd-elevate "conf-set: $1 is now $2 in $SD_CONF$cs_note" 2>/dev/null || true
     printf '%s: %s is now %s in %s%s; takes effect: %s\n' "$PROG" "$1" "$2" "$SD_CONF" "$cs_note" "$CS_EFFECT"
     exit 0
+    ;;
+
+  totp-status|totp-begin|totp-confirm|totp-recovery|totp-off)
+    [[ $# -eq 0 ]] || usage
+    totp_verb "$verb"
     ;;
 
   *)

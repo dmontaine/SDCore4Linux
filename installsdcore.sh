@@ -2332,7 +2332,7 @@ sudo cp "${inst_folder}/sd64/terminfo.src" "$sdsysdir"
 echo
 
 # 26 Oct 26 dm - W.11 F11 (security-model evaluation).  THE FILES ROOT RUNS ARE ROOT'S, NOT THE sdsys USER'S.  sd.service runs bin/sd (-start and -stop) as root,
-#            sd-lnxd.service runs bin/sdlnxd as root, sdclient@.service runs bin/sd -n -q with no User=, sd-elevate's akpath-set runs bin/sdidx as root, and every session
+#            sd-lnxd.service runs bin/sdlnxd as root, sdclient@.service runs bin/sd -n -q with no User=, sd-elevate's akpath-set runs bin/sdidx as root, sd-elevate's totp-* verbs (S.95) run bin/sd-totp as root, and every session
 #            (the root first stage of an API connection too) reads bin/pcode.  The "chown -R sdsys:sdusers" far above made all of them the sdsys user's, so whoever held
 #            that login could replace one and have root run it at the next start - the reason sd-elevate itself lives outside this tree.  Here the whole of bin becomes
 #            root:root with no group or other write, and bin itself is made IMMUTABLE (chattr +i): the sdsys user owns $sdsysdir, and the owner of a directory may rename any
@@ -2343,7 +2343,7 @@ echo
 #            test-install-rootbin.sh runs this block; test-rootbin-units.py holds rootbin_files to what the units, the helper and the kernel really run.
 # ROOTBIN-BEGIN
 rootbin="$sdsysdir/bin"
-rootbin_files=(sd sdlnxd sdidx pcode)
+rootbin_files=(sd sdlnxd sdidx pcode sd-totp)
 rootbin_imm=no
 rootbin_sealed=0
 rootbin_bad=""
