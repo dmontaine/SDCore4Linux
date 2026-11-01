@@ -137,6 +137,14 @@ sd-totp: sd_totp_cmd.o sd_totp_store.o sd_totp.o
 	@echo Linking $@
 	@$(COMP) $(C_FLAGS) $(GPLOBJ)sd_totp_cmd.o $(GPLOBJ)sd_totp_store.o $(GPLOBJ)sd_totp.o $(OPENSSL_LIBS) -o $(GPLBIN)sd-totp
 
+# 01 Nov 26 dm - S.95 stage 2: SD's own PAM module (the authenticator code of a remote sdsys login), built from the same store and engine.  NOT a prerequisite of
+#   sd: it needs the PAM headers (libpam0g-dev, pam-devel), which the installer installs and a developer's machine may lack, so the installer runs `make pam_sdtotp.so`
+#   as a step of its own.  Hidden symbols but its two PAM entry points; linked now and relro, with no undefined symbol.
+PAM_LIBS ?= -lpam
+pam_sdtotp.so: pam_sdtotp.c sd_totp_store.c sd_totp_store.h sd_totp.c sd_totp.h
+	@echo Linking $@
+	@$(COMP) -std=gnu17 -Wall -Wformat=2 -Wno-format-nonliteral -O2 -fPIC -fvisibility=hidden -shared -I$(GPLSRC) $(GPLSRC)pam_sdtotp.c $(GPLSRC)sd_totp_store.c $(GPLSRC)sd_totp.c $(PAM_LIBS) $(OPENSSL_LIBS) -Wl,-z,relro,-z,now -Wl,--no-undefined -o $(GPLBIN)pam_sdtotp.so
+
 sdlnxd: sdlnxd.o sdsem.o audit_rot.o
 	@echo Linking $@
 	@$(COMP) $(C_FLAGS) -lc $(GPLOBJ)sdlnxd.o $(GPLOBJ)sdsem.o $(GPLOBJ)audit_rot.o -o $(GPLBIN)sdlnxd
@@ -222,5 +230,5 @@ check-includes:
 clean:
 	@echo Cleaning build files
 	@$(RM) -f $(GPLOBJ)*.o
-	@$(RM) -f $(GPLBIN)sd $(GPLBIN)sdclilib.so $(GPLBIN)libsdcli.so $(GPLBIN)sdtic $(GPLBIN)sdfix $(GPLBIN)sdconv $(GPLBIN)sdidx $(GPLBIN)sdlnxd $(GPLBIN)sd-totp
+	@$(RM) -f $(GPLBIN)sd $(GPLBIN)sdclilib.so $(GPLBIN)libsdcli.so $(GPLBIN)sdtic $(GPLBIN)sdfix $(GPLBIN)sdconv $(GPLBIN)sdidx $(GPLBIN)sdlnxd $(GPLBIN)sd-totp $(GPLBIN)pam_sdtotp.so
 	@$(RM) -Rf $(TERMINFO)

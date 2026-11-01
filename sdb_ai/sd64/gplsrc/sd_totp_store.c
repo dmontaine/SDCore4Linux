@@ -76,6 +76,8 @@
 #define NAME_ACTIVE     "sdsys.active"
 #define NAME_PENDING    "sdsys.pending"
 #define NAME_RECOVERY   "sdsys.recovery"
+#define NAME_FAIL       "sdsys.fail"
+#define FAIL_FILE_MAX   16384
 #define SALT_BYTES      16
 #define HEX_SALT        (2 * SALT_BYTES)
 #define HEX_HASH        (2 * SHA256_DIGEST_LENGTH)
@@ -718,8 +720,8 @@ int sd_totps_recovery(const char *dir, char rc_out[][SD_TOTPS_RC_TEXT + 1])
 int sd_totps_off(const char *dir)
 {
     static const char *const names[] = {
-        NAME_ACTIVE, NAME_PENDING, NAME_RECOVERY,
-        ".new-" NAME_ACTIVE, ".new-" NAME_PENDING, ".new-" NAME_RECOVERY
+        NAME_ACTIVE, NAME_PENDING, NAME_RECOVERY, NAME_FAIL,
+        ".new-" NAME_ACTIVE, ".new-" NAME_PENDING, ".new-" NAME_RECOVERY, ".new-" NAME_FAIL
     };
     size_t i;
     int dfd = open_dir(dir, 0);
@@ -731,6 +733,251 @@ int sd_totps_off(const char *dir)
         if (unlinkat(dfd, names[i], 0) != 0 && errno != ENOENT) rc = SD_TOTPS_ERROR;
     }
     (void)fsync(dfd);
+    close(dfd);
+    return rc;
+}
+
+
+/* ------------------------------------------------------------------ the memory of failed logins (sdsys.fail) */
+
+struct failrec { char src[SD_TOTPS_SRC_LEN]; long count; uint64_t last; uint64_t ok; };
+struct fails   { struct failrec r[SD_TOTPS_SRC_MAX]; int n; long all_count; uint64_t all_start; };
+
+void sd_totps_source(const char *raw, char *out)
+{
+    size_t n = 0;
+    char c;
+
+    if (raw != NULL) {
+        for (; *raw != '\0' && n < SD_TOTPS_SRC_LEN - 1; raw++) {
+            c = *raw;
+            out[n++] = ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == ':' || c == '.' || c == '%' || c == '_' || c == '-') ? c : '?';
+        }
+    }
+    if (n == 0) {
+        strcpy(out, "unknown");
+        return;
+    }
+    out[n] = '\0';
+}
+
+/* A source as sd_totps_source makes it (the '?' it puts for a character it will not keep included). */
+static int src_ok(const char *s)
+{
+    size_t n = strlen(s);
+    size_t i;
+    char c;
+
+    if (n == 0 || n >= SD_TOTPS_SRC_LEN) return 0;
+    for (i = 0; i < n; i++) {
+        c = s[i];
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == ':' || c == '.' || c == '%' || c == '_' || c == '-' || c == '?')) return 0;
+    }
+    return 1;
+}
+
+static int parse_u64(const char *s, uint64_t *out)
+{
+    const char *p;
+
+    if (*s == '\0' || strlen(s) > 19) return 0;
+    for (p = s; *p; p++) {
+        if (*p < '0' || *p > '9') return 0;
+    }
+    *out = (uint64_t)strtoull(s, NULL, 10);
+    return 1;
+}
+
+/* LN cut at its single spaces into TOK; the number of fields, or -1 for more than MAX. */
+static int split_line(char *ln, char **tok, int max)
+{
+    int n = 0;
+    char *sp;
+
+    for (;;) {
+        if (n == max) return -1;
+        tok[n++] = ln;
+        sp = strchr(ln, ' ');
+        if (sp == NULL) return n;
+        *sp = '\0';
+        ln = sp + 1;
+    }
+}
+
+static int parse_fail(char *text, struct fails *f)
+{
+    char *cur = text;
+    char *ln = next_line(&cur);
+    char *tok[8];
+    uint64_t cnt;
+    uint64_t last;
+    uint64_t ok;
+    int got_all = 0;
+    int nt;
+
+    memset(f, 0, sizeof *f);
+    if (ln == NULL || strcmp(ln, MAGIC) != 0) return SD_TOTPS_UNSAFE;
+    while ((ln = next_line(&cur)) != NULL) {
+        nt = split_line(ln, tok, 8);
+        if (nt == 5 && strcmp(tok[0], "src") == 0 && f->n < SD_TOTPS_SRC_MAX && src_ok(tok[1]) && parse_u64(tok[2], &cnt) && cnt <= 1000000
+            && parse_u64(tok[3], &last) && parse_u64(tok[4], &ok)) {
+            snprintf(f->r[f->n].src, SD_TOTPS_SRC_LEN, "%s", tok[1]);
+            f->r[f->n].count = (long)cnt;
+            f->r[f->n].last = last;
+            f->r[f->n].ok = ok;
+            f->n++;
+        } else if (nt == 3 && strcmp(tok[0], "all") == 0 && !got_all && parse_u64(tok[1], &cnt) && cnt <= 100000000 && parse_u64(tok[2], &last)) {
+            f->all_count = (long)cnt;
+            f->all_start = last;
+            got_all = 1;
+        } else {
+            return SD_TOTPS_UNSAFE;
+        }
+    }
+    return got_all ? 0 : SD_TOTPS_UNSAFE;
+}
+
+/* 0 loaded (an absent file is an empty memory); SD_TOTPS_UNSAFE; SD_TOTPS_ERROR */
+static int load_fail(int dfd, struct fails *f)
+{
+    char buf[FAIL_FILE_MAX];
+    int rc = read_file(dfd, NAME_FAIL, buf, sizeof buf);
+
+    if (rc == LOAD_ABSENT) {
+        memset(f, 0, sizeof *f);
+        return 0;
+    }
+    if (rc == 0) rc = parse_fail(buf, f);
+    return rc;
+}
+
+static int store_fail(int dfd, const struct fails *f)
+{
+    char text[FAIL_FILE_MAX];
+    size_t len;
+    int i;
+
+    len = (size_t)snprintf(text, sizeof text, MAGIC "\nall %ld %" PRIu64 "\n", f->all_count, f->all_start);
+    for (i = 0; i < f->n; i++) {
+        len += (size_t)snprintf(text + len, sizeof text - len, "src %s %ld %" PRIu64 " %" PRIu64 "\n", f->r[i].src, f->r[i].count, f->r[i].last, f->r[i].ok);
+    }
+    return write_file(dfd, NAME_FAIL, text);
+}
+
+static int fail_find(const struct fails *f, const char *src)
+{
+    int i;
+
+    for (i = 0; i < f->n; i++) {
+        if (strcmp(f->r[i].src, src) == 0) return i;
+    }
+    return -1;
+}
+
+static void fail_drop(struct fails *f, int i)
+{
+    memmove(&f->r[i], &f->r[i + 1], (size_t)(f->n - i - 1) * sizeof f->r[0]);
+    f->n--;
+}
+
+int sd_totps_attempt(const char *dir, uint64_t now, const char *src, int *slow)
+{
+    struct fails f;
+    int dfd;
+    int rc;
+    int i;
+    int oldest;
+
+    if (slow != NULL) *slow = 0;
+    if (src == NULL || !src_ok(src)) return SD_TOTPS_BAD;
+    dfd = open_dir(dir, 0);
+    if (dfd == DIR_ABSENT) return SD_TOTPS_NOTHING;
+    if (dfd < 0) return dir_result(dfd);
+    rc = load_fail(dfd, &f);
+    if (rc != 0) goto done;
+    for (i = f.n - 1; i >= 0; i--) {                        /* forget what nobody has tried for a day */
+        if (f.r[i].last + SD_TOTPS_FORGET_SECS < now) fail_drop(&f, i);
+    }
+    if (f.all_start == 0 || now < f.all_start || now >= f.all_start + SD_TOTPS_GLOBAL_SECS) {
+        f.all_count = 0;
+        f.all_start = now;
+    }
+    i = fail_find(&f, src);
+    if (i >= 0 && f.r[i].count >= SD_TOTPS_FAIL_MAX) {
+        if (slow != NULL) *slow = f.all_count > SD_TOTPS_GLOBAL_MAX;
+        if (now < f.r[i].last + SD_TOTPS_LOCK_SECS) {       /* locked: ask nothing, count nothing, write nothing */
+            rc = SD_TOTPS_LOCKED;
+            goto done;
+        }
+        f.r[i].count = 0;                                   /* the lock has run out */
+        f.r[i].ok = 0;
+    }
+    if (i < 0) {
+        if (f.n >= SD_TOTPS_SRC_MAX) {                      /* the table is full: the source tried longest ago makes room */
+            oldest = 0;
+            for (i = 1; i < f.n; i++) {
+                if (f.r[i].last < f.r[oldest].last) oldest = i;
+            }
+            fail_drop(&f, oldest);
+        }
+        i = f.n++;
+        snprintf(f.r[i].src, SD_TOTPS_SRC_LEN, "%s", src);
+        f.r[i].count = 0;
+        f.r[i].last = 0;
+        f.r[i].ok = 0;
+    }
+    f.r[i].count++;
+    f.r[i].last = now;
+    f.all_count++;
+    if (slow != NULL) *slow = f.all_count > SD_TOTPS_GLOBAL_MAX;
+    rc = store_fail(dfd, &f);
+done:
+    close(dfd);
+    return rc;
+}
+
+int sd_totps_ok(const char *dir, uint64_t now, const char *src)
+{
+    struct fails f;
+    int dfd;
+    int rc;
+    int i;
+
+    if (src == NULL || !src_ok(src)) return SD_TOTPS_BAD;
+    dfd = open_dir(dir, 0);
+    if (dfd == DIR_ABSENT) return SD_TOTPS_NOTHING;
+    if (dfd < 0) return dir_result(dfd);
+    rc = load_fail(dfd, &f);
+    if (rc == 0 && (i = fail_find(&f, src)) >= 0) {
+        f.r[i].ok = now;
+        rc = store_fail(dfd, &f);
+    }
+    close(dfd);
+    return rc;
+}
+
+int sd_totps_clear(const char *dir, uint64_t now, const char *src)
+{
+    struct fails f;
+    int dfd;
+    int rc;
+    int i;
+
+    if (src == NULL || !src_ok(src)) return SD_TOTPS_BAD;
+    dfd = open_dir(dir, 0);
+    if (dfd == DIR_ABSENT) return SD_TOTPS_NOTHING;
+    if (dfd < 0) return dir_result(dfd);
+    rc = load_fail(dfd, &f);
+    if (rc == 0) {
+        i = fail_find(&f, src);
+        if (i >= 0 && f.r[i].ok != 0 && now >= f.r[i].ok && now - f.r[i].ok <= SD_TOTPS_OK_SECS) {
+            fail_drop(&f, i);
+            if (f.all_count > 0) f.all_count--;
+            rc = store_fail(dfd, &f);
+        } else {
+            rc = SD_TOTPS_NOTHING;
+        }
+    }
     close(dfd);
     return rc;
 }

@@ -73,6 +73,20 @@
 #define SD_TOTPS_UNSAFE         (-5)    /* the directory or a file is not as it must be, or does not parse */
 #define SD_TOTPS_ERROR          (-6)    /* an input or output failure, or the generator failed */
 #define SD_TOTPS_BAD            (-7)    /* an argument, or the text typed, is not usable */
+#define SD_TOTPS_LOCKED         (-8)    /* attempt: this source has used its attempts and is locked for a while */
+
+/* The memory of failed logins (sdsys.fail), kept per SOURCE ADDRESS because the name sdsys is public: a lock on the account would let anyone shut the door for the
+ * administrator.  An attempt is counted when it STARTS; a source that has had SD_TOTPS_FAIL_MAX of them is locked until SD_TOTPS_LOCK_SECS after the last; the count is
+ * forgotten only when the whole login succeeded (sd_totps_ok, then sd_totps_clear).  More than SD_TOTPS_GLOBAL_MAX attempts from anywhere in SD_TOTPS_GLOBAL_SECS
+ * SLOW every attempt (the caller waits longer after a failure) and lock nobody. */
+#define SD_TOTPS_FAIL_MAX       5
+#define SD_TOTPS_LOCK_SECS      600
+#define SD_TOTPS_FORGET_SECS    86400   /* a source nobody has tried for this long is dropped from the file */
+#define SD_TOTPS_GLOBAL_MAX     30
+#define SD_TOTPS_GLOBAL_SECS    3600
+#define SD_TOTPS_OK_SECS        300     /* how long the mark "the code was right" waits for the rest of the login */
+#define SD_TOTPS_SRC_LEN        64      /* a source address as kept, with the NUL */
+#define SD_TOTPS_SRC_MAX        64      /* sources remembered; the one tried longest ago makes room */
 
 struct sd_totps_info {
     int has_active;
@@ -103,7 +117,20 @@ int sd_totps_check(const char *dir, uint64_t now, const char *given);
  * active secret. */
 int sd_totps_recovery(const char *dir, char rc[][SD_TOTPS_RC_TEXT + 1]);
 
-/* Switch the factor off: remove all three files. */
+/* Switch the factor off: remove every file of the store, the memory of failed logins included. */
 int sd_totps_off(const char *dir);
+
+/* A source address as the memory keeps it: letters, digits and : . % _ - (anything else becomes '?'), cut to SD_TOTPS_SRC_LEN - 1; "unknown" for none. */
+void sd_totps_source(const char *raw, char *out);
+
+/* Count an attempt from SRC (already through sd_totps_source).  SD_TOTPS_OK: go on and ask for the code; *slow says whether the global slow-down is in force.
+ * SD_TOTPS_LOCKED: SRC is locked, ask nothing, and nothing was counted. */
+int sd_totps_attempt(const char *dir, uint64_t now, const char *src, int *slow);
+
+/* The code from SRC was right (the rest of the login is still to come): leave a mark for sd_totps_clear. */
+int sd_totps_ok(const char *dir, uint64_t now, const char *src);
+
+/* The whole login from SRC succeeded: if the mark is fresh, forget SRC's failures and the mark (SD_TOTPS_OK); else change nothing (SD_TOTPS_NOTHING). */
+int sd_totps_clear(const char *dir, uint64_t now, const char *src);
 
 #endif
