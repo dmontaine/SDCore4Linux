@@ -562,6 +562,7 @@ remote_ssh() {
 # to letters, digits, dots and hyphens, so a host name cannot put anything else into the link.  Like every verb here it is asked of the caller sudo names, and sudo names sdsys: sdsys_login_gate has
 # already refused an sdsys that did not log in.
 TOTP_ISSUER="SD Core"
+SSH_FC=/usr/local/sbin/ssh-forcecommand       # the installed ssh-forcecommand.sh: totp-confirm opens the sdsys arm of sshd with it, totp-off closes it (S.95 stage 2b)
 totp_account() {
   local h
   h=$(hostname -s 2>/dev/null) || h=
@@ -571,7 +572,7 @@ totp_account() {
 }
 
 totp_verb() {   # totp_verb VERB - runs sd-totp for it and exits with its status
-  local v=$1 tool=$SD_SYS_ROOT_REAL/bin/sd-totp rc
+  local v=$1 tool=$SD_SYS_ROOT_REAL/bin/sd-totp rc orc
   local -a args=()
   case $v in
     totp-status)   args=(status) ;;
@@ -581,14 +582,65 @@ totp_verb() {   # totp_verb VERB - runs sd-totp for it and exits with its status
     totp-off)      args=(off) ;;
     *) die "internal: no sd-totp command for '$v'" ;;
   esac
-  printf '%s: %s %s\n' "$PROG" "$tool" "${args[*]}"
+  case $v in
+    totp-off)     printf '%s: %s --close-sdsys\n' "$PROG" "$SSH_FC"
+                  printf '%s: then: %s %s\n' "$PROG" "$tool" "${args[*]}" ;;
+    totp-confirm) printf '%s: %s %s\n' "$PROG" "$tool" "${args[*]}"
+                  printf '%s: then, only if the code was right: %s --open-sdsys\n' "$PROG" "$SSH_FC" ;;
+    totp-status)  printf '%s: %s %s\n' "$PROG" "$tool" "${args[*]}"
+                  printf '%s: then: %s --sdsys-state\n' "$PROG" "$SSH_FC" ;;
+    *)            printf '%s: %s %s\n' "$PROG" "$tool" "${args[*]}" ;;
+  esac
   [[ $DRY -eq 1 ]] && exit 0
   need_root
   [[ -x $tool ]] || die "$tool is not installed"
-  "$tool" "${args[@]}"
-  rc=$?
-  [[ $v == totp-status ]] || logger -t sd-elevate "$v: sd-totp exited $rc" 2>/dev/null || true
-  exit $rc
+  case $v in totp-confirm|totp-off) [[ -x $SSH_FC ]] || die "$SSH_FC is not installed" ;; esac
+  case $v in
+    # S.95 stage 2b.  THE ORDER IS THE SAFETY.  Switching off shuts the door FIRST (the arm back to DenyUsers) and removes the factor second, so there is never a moment with the
+    # door open and no code to ask; if the door cannot be shut the factor is removed all the same (the PAM module refuses sdsys while nothing is enrolled) and the caller is told.
+    totp-off)
+      "$SSH_FC" --close-sdsys
+      orc=$?
+      "$tool" "${args[@]}"
+      rc=$?
+      logger -t sd-elevate "$v: ssh-forcecommand --close-sdsys exited $orc, sd-totp exited $rc" 2>/dev/null || true
+      if [[ $orc -ne 0 ]]; then
+        printf '%s: the second factor is off, but the sshd arm for sdsys could NOT be put back to closed (status %d): the PAM module refuses sdsys while no code is enrolled, but close the arm by hand\n' "$PROG" "$orc" >&2
+        [[ $rc -ne 0 ]] || rc=3
+      fi
+      exit $rc
+      ;;
+    # Enrolling opens the door only when the code was right (sd-totp exits 0 only then).  The recovery codes have already been printed when the door is tried, and are good whether
+    # or not it opens: a door that will not open is exit 3, with the reason on standard error, and the factor stays enrolled.
+    totp-confirm)
+      "$tool" "${args[@]}"
+      rc=$?
+      if [[ $rc -eq 0 ]]; then
+        "$SSH_FC" --open-sdsys
+        orc=$?
+        logger -t sd-elevate "$v: sd-totp exited $rc, ssh-forcecommand --open-sdsys exited $orc" 2>/dev/null || true
+        if [[ $orc -ne 0 ]]; then
+          printf '%s: the second factor is ENROLLED (the recovery codes above are good), but the sshd arm for sdsys was NOT opened (status %d); nothing can log in as sdsys over ssh until it is\n' "$PROG" "$orc" >&2
+          rc=3
+        fi
+      else
+        logger -t sd-elevate "$v: sd-totp exited $rc" 2>/dev/null || true
+      fi
+      exit $rc
+      ;;
+    totp-status)
+      "$tool" "${args[@]}"
+      rc=$?
+      [[ ! -x $SSH_FC ]] || "$SSH_FC" --sdsys-state || true
+      exit $rc
+      ;;
+    *)
+      "$tool" "${args[@]}"
+      rc=$?
+      logger -t sd-elevate "$v: sd-totp exited $rc" 2>/dev/null || true
+      exit $rc
+      ;;
+  esac
 }
 
 # ---------------------------------------------------------------- validation

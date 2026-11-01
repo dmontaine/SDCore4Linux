@@ -1446,11 +1446,14 @@ def totp_rows(helper=None):
         def detail(code, out):
             return f"exit {code}: {out.strip()[:120]}"
 
-        for verb, args in (("totp-status", "status"), ("totp-begin", "begin SD Core sdsys@web01"), ("totp-confirm", "confirm"), ("totp-recovery", "recovery"), ("totp-off", "off")):
+        fc = "/usr/local/sbin/ssh-forcecommand"
+        for verb, want in (("totp-status", [f"{tool} status", f"then: {fc} --sdsys-state"]), ("totp-begin", [f"{tool} begin SD Core sdsys@web01"]),
+                           ("totp-confirm", [f"{tool} confirm", f"then, only if the code was right: {fc} --open-sdsys"]), ("totp-recovery", [f"{tool} recovery"]),
+                           ("totp-off", [f"{fc} --close-sdsys", f"then: {tool} off"])):
             code, out = go([verb])
-            # the helper's name in front of the line is its file's name (a mutated copy has another), so the line is matched without it
-            rows.append((f"ALLOW: {verb} on a dry run prints the resolved command and nothing else",
-                         code == 0 and len(out.splitlines()) == 1 and out.endswith(f": {tool} {args}\n"), detail(code, out)))
+            # the helper's name in front of each line is its file's name (a mutated copy has another), so the lines are matched without it
+            got = [ln.split(": ", 1)[1] if ": " in ln else ln for ln in out.splitlines()]
+            rows.append((f"ALLOW: {verb} on a dry run prints the resolved command(s) and nothing else", code == 0 and got == want, detail(code, out)))
         for what, host, want in (("a host name with a space, an underscore and a mark", "Web 01!_x", "sdsys@Web01x"), ("a host name with shell characters", "a;b`c`$(d)", "sdsys@abcd"),
                                  ("an empty host name", "", "sdsys@localhost"), ("a host name of 60 letters", "a" * 60, "sdsys@" + "a" * 48), ("dots and hyphens", "db-1.prod", "sdsys@db-1.prod")):
             code, out = go(["totp-begin"], host=host)
@@ -1485,13 +1488,30 @@ def totp_rows(helper=None):
                      all(v in src[src.find("usage() {"):src.find("\nEOF\n", src.find("usage() {"))] for v in ("totp-status", "totp-begin", "totp-confirm", "totp-recovery", "totp-off"))
                      and "  totp-status|totp-begin|totp-confirm|totp-recovery|totp-off)\n    [[ $# -eq 0 ]] || usage\n    totp_verb \"$verb\"\n" in src, ""))
         rows.append(("TEXT: the code is not an argument: totp-confirm runs `sd-totp confirm` and nothing more", "    totp-confirm)  args=(confirm) ;;\n" in fn, ""))
-        rows.append(("TEXT: sd-totp is run as a bare line - its output is not piped, redirected, captured or logged", '\n  "$tool" "${args[@]}"\n  rc=$?\n' in fn and fn.count("logger") == 1, ""))
-        rows.append(("TEXT: the system log gets the verb and sd-totp's exit status, and not for totp-status",
-                     '  [[ $v == totp-status ]] || logger -t sd-elevate "$v: sd-totp exited $rc" 2>/dev/null || true\n' in fn, ""))
+        runs = [ln.strip() for ln in fn.splitlines() if '"$tool"' in ln and "[[ -x" not in ln and "printf" not in ln]
+        loggers = [ln.strip() for ln in fn.splitlines() if "logger" in ln]
+        rows.append(("TEXT: sd-totp is run as a bare line, in each of the four branches - its output is not piped, redirected, captured or logged",
+                     len(runs) == 4 and all(r == '"$tool" "${args[@]}"' for r in runs) and all("$(" not in l and "| logger" not in l and "tee" not in l for l in loggers), "%s" % runs))
+        status_body = fn[fn.find("    totp-status)\n      \"$tool\""):]
+        status_body = status_body[:status_body.find(";;")]
+        rows.append(("TEXT: the system log gets the verb and the exit statuses (sd-totp's, and the door's), and nothing for totp-status",
+                     len(loggers) == 4 and all(l.startswith('logger -t sd-elevate "$v: ') and l.endswith("2>/dev/null || true") for l in loggers)
+                     and "logger" not in status_body and status_body != "", "%s" % loggers))
         rows.append(("TEXT: the dry run ends before need_root and need_root comes before the tool is looked for or run",
                      0 < fn.find("[[ $DRY -eq 1 ]] && exit 0") < fn.find("  need_root\n") < fn.find("[[ -x $tool ]]") < fn.find('"$tool" "${args[@]}"'), ""))
-        rows.append(("TEXT: the tool is under SD_SYS_ROOT_REAL (the sealed bin), never a fixture; the function ends with `exit $rc`",
-                     "tool=$SD_SYS_ROOT_REAL/bin/sd-totp" in fn and "SD_SYS_ROOT_FIXTURE" not in fn and fn.rstrip().endswith("exit $rc\n}"), ""))
+        rows.append(("TEXT: the tool is under SD_SYS_ROOT_REAL (the sealed bin), never a fixture; every branch ends with `exit $rc`",
+                     "tool=$SD_SYS_ROOT_REAL/bin/sd-totp" in fn and "SD_SYS_ROOT_FIXTURE" not in fn and fn.count("      exit $rc\n      ;;") == 4, ""))
+        off_body = fn[fn.find("    totp-off)\n      \"$SSH_FC\""):]
+        off_body = off_body[:off_body.find(";;")]
+        conf_body = fn[fn.find("    totp-confirm)\n      \"$tool\""):]
+        conf_body = conf_body[:conf_body.find(";;")]
+        rows.append(("TEXT: switching off closes the sshd arm BEFORE it removes the factor, still removes the factor if the door will not close, and says so (exit 3 only when sd-totp itself was fine)",
+                     0 < off_body.find('"$SSH_FC" --close-sdsys') < off_body.find('"$tool" "${args[@]}"') and "could NOT be put back" in off_body and "rc=3" in off_body, off_body[:60]))
+        rows.append(("TEXT: enrolling opens the sshd arm ONLY when sd-totp said the code was right, and a door that will not open is exit 3 with the factor left enrolled",
+                     0 < conf_body.find('"$tool" "${args[@]}"') < conf_body.find("if [[ $rc -eq 0 ]]; then") < conf_body.find('"$SSH_FC" --open-sdsys') and "rc=3" in conf_body
+                     and "ENROLLED" in conf_body, conf_body[:60]))
+        rows.append(("TEXT: the installed ssh-forcecommand is the one run (a fixed path, no fixture), and it must be there for totp-confirm and totp-off",
+                     "SSH_FC=/usr/local/sbin/ssh-forcecommand" in src and 'case $v in totp-confirm|totp-off) [[ -x $SSH_FC ]] || die' in fn and "SSH_FC_FIXTURE" not in src, ""))
         rows.append(("TEXT: the host name is cut to letters, digits, dots and hyphens, to 48 characters, with localhost for none",
                      "h=${h//[^A-Za-z0-9.-]/}" in src and '"${h:0:48}"' in src and "[[ -n $h ]] || h=localhost" in src, ""))
         sudoers = os.path.join(HERE, "sdcore.sudoers")
@@ -1516,11 +1536,16 @@ TOTP_MUTANTS = [
     ("totp: off runs status", '    totp-off)      args=(off) ;;\n', '    totp-off)      args=(status) ;;\n'),
     ("totp: begin leaves out the issuer", 'args=(begin "$TOTP_ISSUER" "$(totp_account)")', 'args=(begin "" "$(totp_account)")'),
     ("totp: a stray argument is allowed", '    [[ $# -eq 0 ]] || usage\n    totp_verb "$verb"', '    totp_verb "$verb"'),
-    ("totp: the exit status is lost", '  exit $rc\n}', '  exit 0\n}'),
-    ("totp: sd-totp's output goes to the system log", '  "$tool" "${args[@]}"\n  rc=$?', '  "$tool" "${args[@]}" | logger -t sd-elevate\n  rc=$?'),
+    ("totp: the exit status is lost", '      exit $rc\n      ;;\n  esac\n}', '      exit 0\n      ;;\n  esac\n}'),
+    ("totp: sd-totp's output goes to the system log", '    *)\n      "$tool" "${args[@]}"\n      rc=$?', '    *)\n      "$tool" "${args[@]}" | logger -t sd-elevate\n      rc=$?'),
+    ("totp: enrolling opens the door whatever the code was", '      if [[ $rc -eq 0 ]]; then\n        "$SSH_FC" --open-sdsys', '      if true; then\n        "$SSH_FC" --open-sdsys'),
+    ("totp: switching off removes the factor before it closes the door", '      "$SSH_FC" --close-sdsys\n      orc=$?\n      "$tool" "${args[@]}"\n      rc=$?',
+     '      "$tool" "${args[@]}"\n      rc=$?\n      "$SSH_FC" --close-sdsys\n      orc=$?'),
+    ("totp: a door that will not open is not reported", '          rc=3\n        fi\n      else', '        fi\n      else'),
+    ("totp: a door that will not close is not reported", "        [[ $rc -ne 0 ]] || rc=3\n", ""),
     ("totp: a missing tool is not noticed", '  [[ -x $tool ]] || die "$tool is not installed"\n', ''),
     ("totp: the dry run goes on to the tool", '  [[ $DRY -eq 1 ]] && exit 0\n  need_root\n  [[ -x $tool ]]', '  need_root\n  [[ -x $tool ]]'),
-    ("totp: status is logged too", '  [[ $v == totp-status ]] || logger', '  logger'),
+    ("totp: status is logged too", '    totp-status)\n      "$tool" "${args[@]}"\n      rc=$?\n', '    totp-status)\n      "$tool" "${args[@]}"\n      rc=$?\n      logger -t sd-elevate "$v: sd-totp exited $rc" 2>/dev/null || true\n'),
 ]
 
 
