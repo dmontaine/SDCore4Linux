@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   SDSYS CAN SIGN IN OVER ssh FROM ANOTHER COMPUTER, WITH AN AUTHENTICATOR CODE AND ITS PASSWORD (LINUX ONLY). IT HAD NO REMOTE ROUTE AT ALL.
+
+             What        - The administrator can now be reached over ssh, for a server that has no screen or keyboard. The door stays shut until an authenticator code is enrolled
+                           (sudo sd-elevate totp-begin, then totp-confirm with the first six digits). After that an ssh sign-in as sdsys asks for the code first and the password second,
+                           and lands in an SD session with no shell, no forwarding and no keys. Eight single-use recovery codes are given at enrolment. Wrong codes are counted for each
+                           source address: five lock that address for ten minutes. Every attempt is written to the audit trail and the system log. sd-elevate totp-off shuts the door again.
+             Why         - A server in a data centre cannot always be reached at a console. A code from a phone as well as the password keeps a stolen password from being enough.
+             Does NOT    - Open the API to sdsys from another computer (it stays closed), accept an ssh key or a push approval, let "su sdsys" or "sudo -u sdsys" in, or change any other
+                           account. Turning it on asks sshd itself what it would do with sdsys and puts the files back, saying why, if sshd's own answer is not the one SD wrote (UsePAM off,
+                           an earlier Match block, an AllowUsers that leaves sdsys out). The installer also installs the PAM development package (libpam0g-dev, pam-devel on Fedora).
+
 1 Nov 26   THE ROOT HELPER ANSWERS THE USER SDSYS ONLY WHEN SDSYS HAS LOGGED IN. "su sdsys" AND "sudo -u sdsys" FROM ANOTHER USER'S SESSION NO LONGER REACH IT.
 
              What        - SD runs a few jobs as root through one helper (sd-elevate): making users, setting a first password, changing a few settings, putting back an account. The
