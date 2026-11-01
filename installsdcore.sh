@@ -800,13 +800,20 @@ detect_distro
 # openssl the way Debian, Fedora and openSUSE do; installing "openssl" there
 # carries the headers already.
 #
+# 01 Nov 26 - S.95: the PAM development package added to both branches (owner,
+# 1 Nov 2026: "the appropriate pam package should be added to the list of packages
+# installed during the installation process").  SD's own PAM module, which asks
+# for the authenticator code when sdsys logs in over ssh (stage 2), is built from
+# the clone and wants <security/pam_modules.h>: libpam0g-dev on Debian and Ubuntu,
+# pam-devel on Fedora.  The library itself is on every one of these systems.
+#
 # 04 Oct 26 - the Arch and openSUSE branches are removed (owner, 4 Oct 2026; see
 # detect_distro): Debian, Ubuntu and Fedora only.
 if [ "$is_debian" -eq 1 ]; then
     echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
     # 04 Oct 26 - "openssl" (the command, sd-elevate tls-show) added to both lists:
     #   Fedora Workstation ships without it (measured on a VM: Solo's installer refused).
-    if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev openssl openssh-server python3-dev; then
+    if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev libpam0g-dev openssl openssh-server python3-dev; then
         printf "%b\n" "$RED"
         echo "Package installation using apt-get failed.  Exiting script."
         echo "Verify your internet connection and then try again."
@@ -818,7 +825,7 @@ if [ "$is_debian" -eq 1 ]; then
     sudo apt-get -y --ignore-missing install libcrypt-dev || true
 elif [ "$is_fedora" -eq 1 ]; then
     echo "Detected Fedora from /etc/os-release."
-    if ! sudo dnf -y install git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl openssl-devel openssh-server python3-devel; then
+    if ! sudo dnf -y install git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl openssl-devel pam-devel openssh-server python3-devel; then
         printf "%b\n" "$RED"
         echo "Package installation using dnf failed.  Exiting script."
         echo "Verify your internet connection and then try again."
