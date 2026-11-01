@@ -150,9 +150,9 @@ run_user() {
 
 # as the sdsys user, through sudo, the way SD calls the helper
 as_sdsys_elevate() {
-    say "      \$ sudo -u sdsys sudo $ELEVATE $*" >&2
+    say "      \$ sudo -u sdsys sudo $ELEVATE $*   (after giving the process tree sdsys's loginuid, as a login would: the helper refuses a sdsys that did not log in, 1 Nov 26 S.95)" >&2
     local out
-    out=$(sudo -u sdsys sudo "$ELEVATE" "$@" 2>&1); local rc=$?
+    out=$(sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys sudo "$@"' sd-elevate-as-sdsys "$ELEVATE" "$@" 2>&1); local rc=$?
     printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
     printf '%s\nEXIT=%d' "$out" "$rc"
 }

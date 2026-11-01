@@ -3,6 +3,9 @@
 
 Written 09 Sep 26 for PRE_RELEASE 14.
 
+01 Nov 26 dm S.95 (owner: "sd-elevate, refuse unless caller logged in as sdsys"): the `login` family (login_rows, LOGIN_MUTANTS) - a caller sudo says is sdsys is refused unless the audit loginuid is
+sdsys's own uid; played on a dry run with SD_LOGINUID_FIXTURE, SD_SDSYS_UID_FIXTURE and SUDO_USER / SUDO_UID, the real run driven once to show it ignores them.  `--selftest --only=login` runs just it.
+
 26 Oct 26 dm F12 (the security review, route R-C: the helper's verbs reach more than their callers need): three families, each with mutants of its own and each row labelled ALLOW: (a caller's
 argument list, still accepted) or REFUSE: - `stamp` (setpw, passwd and userdel want the "SD account" stamp, through a getent of the test's own on PATH), `chown-group` (chown-account's sdsys shape
 takes only a group account's files, in its own group, on a scratch accounts root) and `groupadd` (sdu_<user> is made for an SD user that exists, holding root and that user).  The SD-user probe of
@@ -58,7 +61,7 @@ def run(args, helper=None, env=None, dry=True, stdin=None):
     to see a fixture ignored use it."""
     e = dict(os.environ)
     for k in ("SD_GROUP_FIXTURE", "SD_GW_GROUP_FIXTURE", "STUB_GROUPS", "STUB_MEMBERS", "STUB_PW_USER", "STUB_PW_GECOS", "STUB_LOG", "STUB_SHADOW_HASH", "STUB_SHADOW_SET",
-              "STUB_SHADOW_FAIL", "SD_PATH_PREPEND", "SD_SDSYS_UID_FIXTURE", "SD_ACCARCHIVE"):
+              "STUB_SHADOW_FAIL", "SD_PATH_PREPEND", "SD_SDSYS_UID_FIXTURE", "SD_ACCARCHIVE", "SD_LOGINUID_FIXTURE", "SUDO_USER", "SUDO_UID"):
         e.pop(k, None)                      # nothing leaks in; a row sets what it needs
     e.update(env or {})
     p = subprocess.run(
@@ -1298,6 +1301,126 @@ FDWORKERS_MUTANTS = [
 ]
 
 
+def login_rows(helper=None):
+    """S.95 (1 Nov 26; owner: "sd-elevate, refuse unless caller logged in as sdsys").  A caller that sudo says is the user sdsys must have LOGGED IN as sdsys: the audit loginuid is sdsys's own uid.  Played on
+    a dry run with SD_LOGINUID_FIXTURE (the login), SD_SDSYS_UID_FIXTURE (sdsys's uid) and SUDO_USER / SUDO_UID; the probe verb is the one the STAMP row of main uses, which a dry run accepts and
+    prints "SD account" for, so "nothing was done" is a row of its own (that text must not appear).  The REAL run is also driven, as an ordinary user, to show that it ignores both fixtures.
+    Returns (rows, skipped).  A row is (label, ok, detail)."""
+    rows = []
+    skipped = []
+    hp = helper or HELPER
+    src = open(hp, encoding="utf-8").read()
+    sds = "979"
+    probe = ["useradd", "sdprobe_nonexistent"]
+
+    def go(env, argv=probe, dry=True):
+        return run(argv, helper, env, dry=dry)
+
+    def gate(out):
+        return "did not log in as sdsys" in out
+
+    def accepted(code, out):
+        return code == 0 and "SD account" in out and not gate(out)
+
+    def refused(code, out):
+        return code == 2 and gate(out) and "SD account" not in out
+
+    caller = {"SUDO_USER": "sdsys", "SUDO_UID": sds, "SD_SDSYS_UID_FIXTURE": sds}
+
+    def login(n):
+        return dict(caller, SD_LOGINUID_FIXTURE=str(n))
+
+    def detail(code, out):
+        return f"exit {code}: {out.strip()[:110]}"
+
+    code, out = go(login(sds))
+    rows.append(("ALLOW: a caller sudo says is sdsys, whose login IS sdsys's: the verb goes through", accepted(code, out), detail(code, out)))
+    for n, why in (("1000", "somebody else's (su sdsys, sudo -u sdsys)"), ("4294967295", "none at all (a service or a container: the loginuid is unset)"),
+                   ("0", "root's"), ("abc", "not a number")):
+        code, out = go(login(n))
+        rows.append((f"REFUSE: ...the login behind the same caller is {why}: refused in the helper's words, and nothing is done", refused(code, out), detail(code, out)))
+    # ---- who is asked: the caller sudo names, by name or by uid, and nobody else
+    e = login(1000)
+    e["SUDO_USER"] = "sudoer"
+    code, out = go(e)
+    rows.append(("REFUSE: a caller named only by SUDO_UID (the name differs) is sdsys all the same", refused(code, out), detail(code, out)))
+    e = login(1000)
+    del e["SUDO_UID"]
+    code, out = go(e)
+    rows.append(("REFUSE: a caller named only by SUDO_USER (no uid) is sdsys all the same", refused(code, out), detail(code, out)))
+    e = login(sds)
+    del e["SD_SDSYS_UID_FIXTURE"]
+    code, out = go(e)
+    rows.append(("REFUSE: sdsys's own uid cannot be established: even a login equal to the sudo uid is not shown to be sdsys's", refused(code, out), detail(code, out)))
+    e = login(0)
+    e["SD_SDSYS_UID_FIXTURE"] = "0"
+    e["SUDO_UID"] = "0"
+    code, out = go(e)
+    rows.append(("REFUSE: uid 0 is never an sdsys login, even where the fixture says sdsys is uid 0", refused(code, out), detail(code, out)))
+    code, out = go(dict(login(1000), SUDO_USER="alice", SUDO_UID="1001"))
+    rows.append(("ALLOW: another user through sudo (their own verbs) is not asked about any login", accepted(code, out), detail(code, out)))
+    code, out = go({"SD_LOGINUID_FIXTURE": "4294967295"})
+    rows.append(("ALLOW: root with no sudo at all and no login (the installer, a service) is not asked", accepted(code, out), detail(code, out)))
+    code, out = go({"SD_LOGINUID_FIXTURE": "1000", "SUDO_USER": "root", "SUDO_UID": "0", "SD_SDSYS_UID_FIXTURE": sds})
+    rows.append(("ALLOW: root through sudo, whatever login it carries, is not asked", accepted(code, out), detail(code, out)))
+    code, out = go(dict(caller))
+    rows.append(("ALLOW: a dry run with no login named asks nobody (the control for every older row of this file)", accepted(code, out), detail(code, out)))
+    # ---- before any verb looks at its arguments
+    code, out = go(login(1000), ["nosuchverb"])
+    rows.append(("REFUSE: the gate comes before the verb is known: a verb that does not exist is refused for the login, not as an unknown verb", refused(code, out), detail(code, out)))
+    code, out = go(login(1000), ["cred-own", "query"])
+    rows.append(("REFUSE: a self-service verb called by sdsys with a borrowed login is refused by the gate, not by the verb", refused(code, out), detail(code, out)))
+    code, out = go(login(sds), ["useradd", "Bad Name"])
+    rows.append(("ALLOW: with the right login the verb's own checks still run: a bad name is refused for the name",
+                 code != 0 and not gate(out) and "not a valid name" in out, detail(code, out)))
+    # ---- a real run reads the machine, not the environment
+    try:
+        real_lu = open("/proc/self/loginuid", encoding="ascii").read().strip()
+    except OSError:
+        real_lu = ""
+    p = subprocess.run(["id", "-u", "sdsys"], capture_output=True, text=True)
+    real_want = p.stdout.strip() if p.returncode == 0 else ""
+    if real_want and real_lu == real_want:
+        skipped.append("login: this test is running inside a login as sdsys, so a real run would pass the gate and the row that shows it ignores the fixtures cannot be played")
+    else:
+        fx = real_want or sds           # the fixtures name the machine's REAL sdsys uid as the login, so a real run that read them would pass the gate
+        code, out = go(dict(caller, SD_LOGINUID_FIXTURE=fx, SD_SDSYS_UID_FIXTURE=fx), dry=False)
+        rows.append(("REFUSE: a REAL run ignores SD_LOGINUID_FIXTURE and SD_SDSYS_UID_FIXTURE: the fixtures say the login is sdsys's, the machine says it is not",
+                     code == 2 and gate(out), detail(code, out)))
+    # ---- the text: where the gate stands, and what each branch reads
+    fn = src[src.find("sdsys_login_gate() {"):]
+    fn = fn[:fn.find("\n}\n") + 3] if "\n}\n" in fn else ""
+    dry_part, _, real_part = fn.partition("\n  else\n")
+    call = src.find("\nsdsys_login_gate ")
+    rows.append(("TEXT: the gate is called once, after the verb is read and before the first case on it",
+                 src.count("\nsdsys_login_gate ") == 1 and 0 < src.find("\nverb=${1:-}") < call < src.find("\ncase $verb in"), f"at {call}"))
+    rows.append(("TEXT: the fixtures are read only in the dry-run branch; the real branch reads /proc/self/loginuid and id -u sdsys",
+                 bool(fn) and "SD_LOGINUID_FIXTURE" in dry_part and "SD_LOGINUID_FIXTURE" not in real_part and "SD_SDSYS_UID_FIXTURE" in dry_part
+                 and "SD_SDSYS_UID_FIXTURE" not in real_part and "/proc/self/loginuid" in real_part and "/proc/self/loginuid" not in dry_part
+                 and "id -u sdsys" in real_part, ""))
+    rows.append(("TEXT: a refusal on a real run, and only there, is written to the system log; the helper then dies",
+                 '[[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller is sdsys' in fn and "\n  die \"the caller is the user sdsys" in fn, ""))
+    return rows, skipped
+
+
+LOGIN_MUTANTS = [
+    ("login: any login is accepted", '  [[ $want =~ ^[1-9][0-9]*$ && $lu == "$want" ]] && return 0\n', '  return 0\n'),
+    ("login: only the sudo name is looked at", '  [[ $who == sdsys || ( -n $want && $suid == "$want" ) ]] || return 0\n', '  [[ $who == sdsys ]] || return 0\n'),
+    ("login: only the sudo uid is looked at", '  [[ $who == sdsys || ( -n $want && $suid == "$want" ) ]] || return 0\n', '  [[ -n $want && $suid == "$want" ]] || return 0\n'),
+    ("login: everybody is asked", '  [[ $who == sdsys || ( -n $want && $suid == "$want" ) ]] || return 0\n', ''),
+    ("login: uid 0 or an empty uid counts as sdsys's", '^[1-9][0-9]*$', '^[0-9]*$'),
+    ("login: the login only has to be set", '&& $lu == "$want" ]] && return 0', '&& -n $lu ]] && return 0'),
+    ("login: the gate is never called", 'sdsys_login_gate      # 01 Nov 26 dm S.95: before any verb looks at its arguments\n', ''),
+    ("login: a real run honours the fixture", '  if [[ $DRY -eq 1 ]]; then\n    [[ -n ${SD_LOGINUID_FIXTURE:-} ]] || return 0\n',
+     '  if [[ $DRY -eq 1 || -n ${SD_LOGINUID_FIXTURE:-} ]]; then\n    [[ -n ${SD_LOGINUID_FIXTURE:-} ]] || return 0\n'),
+    ("login: a dry run always asks", '    [[ -n ${SD_LOGINUID_FIXTURE:-} ]] || return 0\n    want=', '    want='),
+    ("login: a refusal is only an echo", '  die "the caller is the user sdsys but did not log in', '  echo "the caller is the user sdsys but did not log in'),
+    ("login: a real run reads the login from the environment", '    lu=$(cat /proc/self/loginuid 2>/dev/null) || lu=\n', '    lu=${SD_LOGINUID_FIXTURE:-}\n'),
+    ("login: a refusal is not logged", '  [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller is sdsys but the login behind it is uid ${lu:-unknown}, not sdsys\'s" 2>/dev/null || true\n', ''),
+    ("login: a dry run logs its refusal too", '  [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused:', '  logger -t sd-elevate "refused:'),
+]
+
+
 def selftest():
     """The group rows must pass on the real helper and fail on every mutant."""
     if not os.path.exists(HELPER):
@@ -1316,7 +1439,7 @@ def selftest():
                                      ("sdsys-join", sdsys_rows, SDSYS_MUTANTS), ("sdsys-leave", leave_rows, LEAVE_MUTANTS), ("log", log_rows, LOG_MUTANTS),
                                      ("stamp", stamp_rows, STAMP_MUTANTS), ("chown-group", chowngrp_rows, CHOWNGRP_MUTANTS), ("groupadd", groupadd_rows, GROUPADD_MUTANTS),
                                      ("ownedby", ownedby_rows, OWNEDBY_MUTANTS), ("pwunset", pwunset_rows, PWUNSET_MUTANTS), ("envtrust", envtrust_rows, ENVTRUST_MUTANTS),
-                                     ("fdworkers", fdworkers_rows, FDWORKERS_MUTANTS)):
+                                     ("fdworkers", fdworkers_rows, FDWORKERS_MUTANTS), ("login", login_rows, LOGIN_MUTANTS)):
         if only and family not in only:
             continue
         rows, skipped = rows_fn()
@@ -1667,7 +1790,7 @@ def main():
     # ---- 26 Oct 26, F6: sdsys-leave (leave_rows) and the log lines (log_rows).  The rows that expect the verb to go through are the controls.
     # 26 Oct 26, F12: the stamp, chown-group and groupadd families (their labels begin ALLOW: or REFUSE:).
     for family, rows_fn in (("sdsys-leave", leave_rows), ("log", log_rows), ("stamp", stamp_rows), ("chown-group", chowngrp_rows), ("groupadd", groupadd_rows),
-                            ("ownedby", ownedby_rows), ("pwunset", pwunset_rows), ("envtrust", envtrust_rows), ("fdworkers", fdworkers_rows)):
+                            ("ownedby", ownedby_rows), ("pwunset", pwunset_rows), ("envtrust", envtrust_rows), ("fdworkers", fdworkers_rows), ("login", login_rows)):
         lrows, lskipped = rows_fn()
         for s in lskipped:
             print(f"  SKIPPED {s}")
@@ -1675,7 +1798,7 @@ def main():
             print(f"  [{'PASS' if ok else 'FAIL'}] {family.upper():11} {label:52} | {detail}")
             if ok:
                 passed += 1
-                if family in ("stamp", "chown-group", "groupadd", "ownedby", "pwunset", "envtrust", "fdworkers"):
+                if family in ("stamp", "chown-group", "groupadd", "ownedby", "pwunset", "envtrust", "fdworkers", "login"):
                     if label.startswith("ALLOW:"):
                         n_allow += 1
                     else:

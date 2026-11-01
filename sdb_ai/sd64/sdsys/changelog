@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   THE ROOT HELPER ANSWERS THE USER SDSYS ONLY WHEN SDSYS HAS LOGGED IN. "su sdsys" AND "sudo -u sdsys" FROM ANOTHER USER'S SESSION NO LONGER REACH IT.
+
+             What        - SD runs a few jobs as root through one helper (sd-elevate): making users, setting a first password, changing a few settings, putting back an account. The
+                           administrator, sdsys, may ask it for any of them. The helper now also checks how that sdsys came to be: the kernel records which user logged in, and every program
+                           that login starts keeps that record. When the helper is asked for something by sdsys and the login behind it is not sdsys's own - the session was started with su,
+                           with sudo -u, or by a service - it refuses, says why, writes a line to the system log and does nothing. SD already refused such a session as the administrator;
+                           the helper, which a user could run by hand with sudo, did not.
+             Why         - Anyone who learned the sdsys Linux password could "su sdsys" from their own account and then run every one of the helper's jobs as root, without ever logging
+                           in as the administrator. Now they have to log in as sdsys.
+             Does NOT    - Change what an administrator sees who logs in as sdsys at the machine: every job works as before. Ask anything of root or of an ordinary user's own jobs (the
+                           first password of their own SD account and their SDNet login folder). Stop someone who has the sdsys password and logs in as sdsys; that is a real login.
+
 1 Nov 26   THE AI LINE IS ON THE ADMINISTRATOR'S PAGES, TOOL.MENUS AND MY.MENU TOO, SO EVERY PAGE OF THE TOOLKIT BUT TOOL.KEYS HAS IT.
 
              What        - tool.accounts, tool.audit, tool.backups, tool.config, tool.gates, tool.masters, tool.remote, tool.sessions, tool.viewers, tool.ai and tool.menus have
