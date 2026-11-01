@@ -29,10 +29,11 @@ SDSYS = os.path.join(HERE, os.pardir, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 FILES = {k: os.path.join(GPL, v) for k, v in (("wall", "tk_aiwall"), ("ai", "tk_ai"), ("ide", "ide"), ("sed", "sed"), ("core", "ced_core"), ("cedit", "ced_edit"), ("dbg", "debug"),
-                                                ("dbgh", "debug.h"), ("home", "tool_home"), ("verb", "ai"))}
+                                                ("dbgh", "debug.h"), ("home", "tool_home"), ("verb", "ai"), ("aipage", "tk_aipage"))}
 FILES.update({"m40": os.path.join(MSG, "11940"), "m41": os.path.join(MSG, "11941"), "m42": os.path.join(MSG, "11942")})
 # the programs that call $tk_ai('ask' and how each says where its text comes from
-CALLERS = {"ide": "@fm : '' : @fm : ai.org", "sed": "@fm : '' : @fm : ai.org", "ced_core": "@fm : '' : @fm : st{'origin'}", "debug": "@fm : '' : @fm : ai.org", "tool_home": "actx<13> = 'none'"}
+CALLERS = {"ide": "@fm : '' : @fm : ai.org", "sed": "@fm : '' : @fm : ai.org", "ced_core": "@fm : '' : @fm : st{'origin'}", "debug": "@fm : '' : @fm : ai.org", "tool_home": "actx<13> = 'none'",
+           "tk_aipage": "actx<13> = 'none'"}      # 1 Nov 26 (S.97 stage 1): the AI line on a page of the toolkit sends no text of any file, only what the page is and what it offers
 PROVIDER_WORDS = ("anthropic", "openai", "google", "gemini", "deepseek", "custom", "sonnet", "gpt")      # ("claude" is not here: CLAUDE.md is a file this program's header names)
 
 
@@ -70,7 +71,7 @@ def checks(src, tree_calls):
     def ck(name, ok, detail=""):
         rows.append((name, bool(ok), detail))
 
-    wall, ai, ide, sed, core, cedit, dbg, dbgh, home, verb = (strip(src[k]) for k in ("wall", "ai", "ide", "sed", "core", "cedit", "dbg", "dbgh", "home", "verb"))
+    wall, ai, ide, sed, core, cedit, dbg, dbgh, home, verb, aipage = (strip(src[k]) for k in ("wall", "ai", "ide", "sed", "core", "cedit", "dbg", "dbgh", "home", "verb", "aipage"))
     ck("N0 NULL CASE: the reader sees the wall (over 2 KB of code), $tk_ai (over 15 KB), the IDE (over 100 KB) and SED (over 100 KB)", len(wall) > 2000 and len(ai) > 15000 and len(ide) > 100000 and len(sed) > 100000,
        repr((len(wall), len(ai), len(ide), len(sed))))
     ck("W1 the wall is $internal, `subroutine tk_aiwall(op, a, why)`, catalogued as $tk_aiwall, and no other program takes the name",
@@ -114,7 +115,7 @@ def checks(src, tree_calls):
     sites = tree_calls["ask"]
     ck("C1 EVERY PROGRAM THAT CALLS $tk_ai('ask' IS ON THE LIST HERE and says where its text comes from: %s (a new caller is refused by this check until it is added with its origin)" % ", ".join(sorted(CALLERS)),
        sorted(sites) == sorted(CALLERS), repr(sorted(sites)))
-    ok = {"ide": ide, "sed": sed, "ced_core": core, "debug": dbg, "tool_home": home}
+    ok = {"ide": ide, "sed": sed, "ced_core": core, "debug": dbg, "tool_home": home, "tk_aipage": aipage}
     ck("C2 each of them has its origin in the request it builds", all(CALLERS[k] in ok[k] for k in CALLERS), repr([k for k in CALLERS if CALLERS[k] not in ok[k]]))
     d = between(ide, "ai.origin:", "* The fields view")
     ck("C3 the IDE's origin: untitled when there is no record yet, path (the operating system pathname) for a path: tab, a record with its file, its id and the dictionary flag otherwise; the fields view gets the same",

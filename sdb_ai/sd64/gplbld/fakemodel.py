@@ -43,6 +43,10 @@ JSON_REPLIES = {
     "act_terminal": '{"say": "Opening a terminal.", "action": "terminal", "arg": "", "command": ""}',
     "act_bad": '{"say": "Formatting the disk.", "action": "format-disk", "arg": "all", "command": ""}',
     "act_signout": '{"say": "Signing you out.", "action": "signout", "arg": "", "command": ""}',
+    # 1 Nov 26 (S.97 stage 1): the actions of a toolkit PAGE (tool.voc, tool.files): refresh and type are offered to the model, delete is a key of the page that is NOT
+    "act_refresh": '{"say": "Reading the page again.", "action": "refresh", "arg": "", "command": ""}',
+    "act_type": '{"say": "Changing the type shown.", "action": "type", "arg": "", "command": ""}',
+    "act_delete": '{"say": "Deleting the entry.", "action": "delete", "arg": "", "command": ""}',
     "cmd_list": '{"say": "List the files like this.", "action": "none", "arg": "", "command": "who.am.i"}',
     "cmd_tab": '{"say": "Odd command.", "action": "none", "arg": "", "command": "list\\tfiles"}',
     "cmd_long": '{"say": "A long one.", "action": "none", "arg": "", "command": "' + "x" * 300 + '"}',

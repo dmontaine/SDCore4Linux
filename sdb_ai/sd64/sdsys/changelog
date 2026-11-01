@@ -1,6 +1,25 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   TOOL.DICT'S N (NEW ITEM) NOW HANDS THE NEW ITEM TO THE IDE, WHICH SHOWS THE DICTIONARY FORM; THE PAGE ITSELF WRITES NOTHING.
+
+             What        - N asks the id (the same rules as before: lower case, a plain word, not an SD keyword, not already an item in any case) and then takes the terminal to the IDE on a new item, shown
+                           as the form: the Type, then the rows that type needs, each checked as you leave it; Accept writes the record and Cancel leaves nothing. Where it used to ask the number of the
+                           field, the heading, the justification, the width, the conversion and the rest one question at a time, and show the whole record in a box before writing it itself.
+             Why         - The form is the face of a dictionary item since the IDE got it, and it checks what a person types more fully than the questions did. One place now makes and writes an item,
+                           and the page no longer needs a write of its own, so the account's dict-edit gate is asked in one place, by the IDE, as it already is for an item that is there.
+             Does NOT    - Change E, D, C, T or the indices pane, or what an account without dict-edit may do: the form opens, Accept is refused with the system's own words and nothing is written.
+
+1 Nov 26   THE AI LINE IS ON TOOL.VOC AND TOOL.FILES: F6, OR AI > ASK THE AI, PUTS THE CURSOR IN A LINE ABOVE THE STATUS LINE, FOR AN ACCOUNT THAT HAS THE AI.
+
+             What        - The two pages have the line the home screen has: type what you want, press Enter, see everything that will be sent (Cancel is the default), choose Send. The model is
+                           offered only the keys of the page that change what is shown - T, S, / and F5 on tool.voc, / and F5 on tool.files - and a proposal you accept (Enter alone does) is
+                           carried out by the page's own key, exactly as if you had pressed it. The line takes one row from the list above it; the key row has F6 and the menu bar has an AI title.
+             Why         - The line was only on the home screen, the IDE and the editors. A person on a page of the toolkit had to leave it to ask.
+             Does NOT    - Change a page for an account without the AI: no line, no key, no menu title, the same rows as before. It does not offer the AI any key that edits, deletes, creates or
+                           leaves the page (those keys are not offered, and a proposal for one is ignored with a note), run a command, or send a record or a value; and the other pages of the
+                           toolkit do not have it yet.
+
 1 Nov 26   THE AI IS NEVER GIVEN SD'S OWN CODE OR SYSTEM FILES, AND A QUESTION ABOUT SD'S OWN CODE OR BUILD IS NOT TAKEN TO IT FROM INSIDE SD - FOR EVERY PROVIDER, THE ADMINISTRATOR INCLUDED.
 
              What        - Before, nothing told the AI routine where a text came from, so an administrator who had one of the system's own program files open in the IDE or SED sent it to the

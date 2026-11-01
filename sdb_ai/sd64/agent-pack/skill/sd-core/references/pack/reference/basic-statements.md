@@ -123,9 +123,9 @@ clause of `locate` and `sselect` — `by` `'AL'`, `'AR'`, `'DL'`, `'DR'`
 - docs: `User/markdown/05-sd-basic-dynamic-arrays.md` line 157
 
 ### basic:stmt:call
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:400#7bacea30 src2=docs:tools/syntax-shapes.txt:24#34888adc
+> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:400#7bacea30 src2=docs:tools/syntax-shapes.txt:24#c375d74f
 
-`call` *name*`(`*arg*, …`)`   ·   `call @`*var*`(`*arg*, …`)`   ·   `call "`*file* *name*`"(`*arg*, …`)`
+`call` *name*`(`*arg*, …`)`   ·   `call @`*var*`(`*arg*, …`)`
 
 - a statement of SD BASIC
 - docs: `User/markdown/01-sd-basic-program-structure.md` line 23
@@ -235,9 +235,9 @@ clause of `execute` and `os.execute` — take the output
 - docs: `User/markdown/08-sd-basic-select-lists.md` line 20
 
 ### basic:stmt:close
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:403#df1a710a src2=docs:tools/syntax-shapes.txt:37#87d857e0
+> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:403#df1a710a src2=docs:tools/syntax-shapes.txt:37#e9853845
 
-`close` *file.var* {`on error` …}
+`close` *file.var* {`on error` …} — closes any file variable, sequential or not
 
 - a statement of SD BASIC
 - docs: `User/markdown/07-sd-basic-file-handling.md` line 43
@@ -347,9 +347,9 @@ clause of `execute` and `os.execute` — take the output
 - docs: `User/markdown/11-sd-basic-csv-files.md` line 27
 
 ### basic:stmt:current.level
-> kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:8521#540f0127 src2=docs:tools/syntax-shapes.txt:51#b40f2fff
+> kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:8521#540f0127 src2=docs:tools/syntax-shapes.txt:51#dcadf392
 
-clause of `enter` — run at the current command level
+clause of `execute` — run at the current command level ***(clause word)***
 
 - a word that belongs inside another statement's syntax, not a statement of its own
 
@@ -410,9 +410,9 @@ clause of `enter` — run at the current command level
 - docs: `User/markdown/04a-sd-basic-string-matching.md` line 320
 
 ### basic:stmt:delete
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:406#724c0dca src2=docs:tools/syntax-shapes.txt:59#49e5ce3c
+> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:406#724c0dca src2=docs:tools/syntax-shapes.txt:59#78d4677d
 
-`delete` *file.var*, *id* {`on error` …}   ·   `delete(`*arr*, *f* {, *v* {, *sv*}}`)`
+`delete` *file.var*, *id* {`on error` …}
 
 - a statement of SD BASIC
 - docs: `User/markdown/05-sd-basic-dynamic-arrays.md` line 91
@@ -457,9 +457,9 @@ clause of `enter` — run at the current command level
 - docs: `User/markdown/38-sd-glossary.md` line 123
 
 ### basic:stmt:delimiter
-> kind=basic.clause tier=reference since=next src=sdsys/gpl.bp/bcomp:9203#360206a9 src2=docs:tools/syntax-shapes.txt:276#a67bf24e
+> kind=basic.clause tier=reference since=next src=sdsys/gpl.bp/bcomp:9203#360206a9 src2=docs:tools/syntax-shapes.txt:276#49f9fdbe
 
-`for each` *var* `in` *string* {`delimiter` *d*} … `next` *var*
+`for each` *var* `in` *string* {`delimiter` *d*} … `next` *var*; also a clause of `readcsv`, `matreadcsv`, `writecsv` and `matwritecsv` ***(clause word)***
 
 - a word that belongs inside another statement's syntax, not a statement of its own
 - docs: `User/markdown/01-sd-basic-program-structure.md` line 237
@@ -551,9 +551,9 @@ clause of `if`, and of every statement that has a `then`
 - docs: `User/markdown/01-sd-basic-program-structure.md` line 156
 
 ### basic:stmt:execute
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:411#df06eed6 src2=docs:tools/syntax-shapes.txt:78#07dea5c6
+> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:411#df06eed6 src2=docs:tools/syntax-shapes.txt:78#a0cfd7dc
 
-`execute` *cmd* {`capturing` *v*} {`returning` *v*} {`passlist` {*l*}} {`rtnlist` {*v*}} {`stacklist`}
+`execute` *cmd* {`capturing` *v*} {`returning` *v*} {`passlist` *l*} {`rtnlist` *v*} {`stacklist`}
 
 - a statement of SD BASIC
 - docs: `User/markdown/01-sd-basic-program-structure.md` line 22
@@ -615,9 +615,9 @@ clause of `if`, and of every statement that has a `then`
 - docs: `User/markdown/10-sd-basic-sequential-files.md` line 99
 
 ### basic:stmt:flush.dh.cache
-> kind=basic.statement tier=reference since=next src=sdsys/gpl.bp/bcomp:413#cb280ab5 src2=docs:tools/syntax-shapes.txt:299#1b422820
+> kind=basic.statement tier=reference since=next src=sdsys/gpl.bp/bcomp:413#cb280ab5 src2=docs:tools/syntax-shapes.txt:299#4ccea512
 
-`flush.dh.cache` {`local` | `no.wait`}
+`flush.dh.cache` {`local` \| `no.wait`}
 
 - a statement of SD BASIC
 - docs: `User/markdown/07-sd-basic-file-handling.md` line 77
@@ -671,9 +671,9 @@ clause of `read`, `readnext`, `matbuild`, `matparse`, `remove`, `readcsv`
 - docs: `User/markdown/18-sd-basic-modern-program-structure.md` line 146
 
 ### basic:stmt:get
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:469#bbfa5415 src2=docs:tools/syntax-shapes.txt:95#a1c43724
+> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:469#bbfa5415 src2=docs:tools/syntax-shapes.txt:95#18891ef4
 
-`get` *var* `from` *object*
+`get` *var* {`,` *length*} {`setting` *count*} `from` *file.var* {`until` *terminator*} {`returning` *last*} {`waiting` *seconds*} {`then` … `else` …} ([Sequential Files](10-sd-basic-sequential-files.html)) · in a class module, `get` *name* … `end` declares a property ([Modern Program Structure](18-sd-basic-modern-program-structure.html))
 
 - a statement of SD BASIC
 - docs: `User/markdown/10-sd-basic-sequential-files.md` line 201
@@ -1072,17 +1072,17 @@ clause of `input` and `input @` — show nothing of what is typed
 - docs: `User/markdown/01-sd-basic-program-structure.md` line 382
 
 ### basic:stmt:open
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:427#7f383d2e src2=docs:tools/syntax-shapes.txt:144#60ecc91a
+> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:427#7f383d2e src2=docs:tools/syntax-shapes.txt:144#63ebacc7
 
-`open` {*dict*`,`} *name* `to` *file.var* {`readonly`} {`on error` …} `then` … `else` …
+`open` {*dict*`,`} *name* {`sync`} `to` *file.var* {`readonly`} {`on error` …} `then` … `else` … — `sync` writes every write and delete of the file to disk
 
 - a statement of SD BASIC
 - docs: `User/markdown/07-sd-basic-file-handling.md` line 28
 
 ### basic:stmt:openpath
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:427#7f383d2e src2=docs:tools/syntax-shapes.txt:146#4ae5220e
+> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:427#7f383d2e src2=docs:tools/syntax-shapes.txt:146#bb2852f1
 
-`openpath` *path* `to` *file.var* {`readonly`} {`on error` …} `then` … `else` …
+`openpath` *path* {`sync`} `to` *file.var* {`readonly`} {`on error` …} `then` … `else` …
 
 - a statement of SD BASIC
 - docs: `User/markdown/07-sd-basic-file-handling.md` line 28
@@ -1096,9 +1096,9 @@ clause of `input` and `input @` — show nothing of what is typed
 - docs: `User/markdown/04-sd-basic-string-functions.md` line 348
 
 ### basic:stmt:opentemp
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:427#7f383d2e src2=docs:tools/syntax-shapes.txt:304#93ea8bf2
+> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:427#7f383d2e src2=docs:tools/syntax-shapes.txt:304#e457b7b9
 
-`opentemp` {*path*} {`ecs`} {`non.transactional`} `to` *file.var* {`on error` …} `then` … `else` …
+`opentemp` {*path*} {`non.transactional`} `to` *file.var* {`on error` …} `then` … `else` …
 
 - a statement of SD BASIC
 - docs: `User/markdown/07-sd-basic-file-handling.md` line 55
@@ -1167,9 +1167,9 @@ clause of `input` — pan a field wider than the screen
 - a word that belongs inside another statement's syntax, not a statement of its own
 
 ### basic:stmt:passlist
-> kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:8521#540f0127 src2=docs:tools/syntax-shapes.txt:153#2a45e955
+> kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:8521#540f0127 src2=docs:tools/syntax-shapes.txt:153#9fe51e2d
 
-clause of `execute` — hand the active select list to the command
+clause of `execute` — the select list held in a variable becomes the command's default list ***(clause word)***
 
 - a word that belongs inside another statement's syntax, not a statement of its own
 - docs: `User/markdown/02-sd-basic-program-control.md` line 335
@@ -1405,9 +1405,9 @@ clause of `open`, `openpath` and `openseq`
 - docs: `User/markdown/07-sd-basic-file-handling.md` line 278
 
 ### basic:stmt:redim
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:437#7b3b0f28 src2=docs:tools/syntax-shapes.txt:289#6172beb7
+> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:437#7b3b0f28 src2=docs:tools/syntax-shapes.txt:289#09fb48d9
 
-`redim` *name*`(`*rows* {, *cols*}`)` — the same as `redimension`
+`redim` *name*`(`*rows* {, *cols*}`)` — changes the size of a matrix passed in as an argument
 
 - a statement of SD BASIC
 
@@ -2046,9 +2046,9 @@ clause of `loop`: `loop` … `while` *condition* … `repeat`
 - docs: `User/markdown/02-sd-basic-program-control.md` line 94
 
 ### basic:stmt:write
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:452#70e7f0f1 src2=docs:tools/syntax-shapes.txt:249#d993da9a
+> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:452#70e7f0f1 src2=docs:tools/syntax-shapes.txt:249#80cc5b78
 
-`write` *var* `to` *file.var*, *id* {`on error` …} — ***inside a transaction the lock must already be held***
+`write` *var* `to` *file.var*, *id* {`on error` …} — ***inside a transaction the lock must already be held***  ·  `write` *var* `to` *file.var* `creating.seqkey` *id.var* {`on error` …} — a hashed file numbers the record itself
 
 - a statement of SD BASIC
 - docs: `User/markdown/05c-sd-basic-json-and-collection-files.md` line 265
@@ -2110,9 +2110,9 @@ clause of `loop`: `loop` … `while` *condition* … `repeat`
 - docs: `User/markdown/10-sd-basic-sequential-files.md` line 91
 
 ### basic:stmt:writeu
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:454#bfa4d305 src2=docs:tools/syntax-shapes.txt:255#6ffaa4d0
+> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:454#bfa4d305 src2=docs:tools/syntax-shapes.txt:255#836416cd
 
-`writeu` *var* `to` *file.var*, *id* {`on error` …}
+`writeu` *var* `to` *file.var*, *id* {`on error` …}  ·  `writeu` *var* `to` *file.var* `creating.seqkey` *id.var* {`on error` …}
 
 - a statement of SD BASIC
 - docs: `User/markdown/05c-sd-basic-json-and-collection-files.md` line 265

@@ -103,24 +103,22 @@ def checks(raw):
        and len(re.findall(r"^\s*execute\b", code, re.M)) == 1 and len(re.findall(r"^\s*execute\b", hv, re.M)) == 1
        and 0 <= hv.find("if index(' ' : show.allow : ' ', ' ' : field(sent, ' ', 1) : ' ', 1) = 0 then") < hv.find("execute sent") and "execute sent capturing" not in pg
        and pg.count("call $tk_run(allow, sent, out, stat, rerr)") == 1 and "$tk_runx" not in pg, repr(re.findall(r"\ballow = '([^']*)'", pg)))
-    ck("TD4", "THE PAGE HAS ONE WRITE: exactly one write statement, in write.item, with an on error clause; no delete, writev, clearfile, osdelete, rename, logto, openpath, openseq, oswrite and no execute outside hand.over (the other changes are verbs)",
-       len(re.findall(r"^[ \t]*(write|writev|writet|matwrite|writeu)(?![.\w])", code, re.M)) == 1 and "write nrec on dv, nid on error" in block(pg, "write.item")
+    ck("TD4", "THE PAGE WRITES NOTHING (S.90 stage 3): no write statement of any kind, no delete, clearfile, osdelete, rename, logto, openpath, openseq, oswrite and no execute outside hand.over (every change is a verb, or the IDE's)",
+       len(re.findall(r"^[ \t]*(write|writev|writet|matwrite|writeu)(?![.\w])", code, re.M)) == 0
        and not re.search(r"^[ \t]*(delete|clearfile|osdelete|oswrite|rename|logto|openpath|openseq|osopen|writeseq|execute)(?![.\w])", code.replace(nostr(hv), ""), re.M)
        and "openpath" not in code and "$tk_runx" not in pg, "")
-    wi = block(pg, "write.item")
-    ck("TD5", "THE WALL: before the write the page opens the dictionary, takes its PATH from the open file, asks the kernel whether this session may change that file (K$EDIT.OK) and, if not, says the kernel's own reason (!edit_msg of K$EDIT.KIND) and writes nothing; the dictionary is closed on every way out",
-       inorder(wi, "open 'DICT', fn to dv else", "dpath = fileinfo(dv, FL$PATH)", "if not(kernel(K$EDIT.OK, dpath)) then", "msg = edit_msg(kernel(K$EDIT.KIND, dpath))", "close dv\n      return\n   end", "read old from dv, nid then",
-               "write nrec on dv, nid on error")
-       and wi.count("close dv") >= 4 and "deffun edit_msg(kind) calling '!edit_msg'" in pg, "")
-    ck("TD6", "a record already there is not overwritten (it is read first and the page says so), and the write is followed by a close and a message that the item was written",
-       inorder(wi, "read old from dv, nid then", "nothing written", "write nrec on dv, nid on error", "close dv\n   msg = 'wrote the item '"), "")
-    sn = block(pg, "show.new")
-    ck("TD7", "NEW writes only after the box: the whole record is listed in the box with the command line saying what will be done, the box is answered by $tk_confirm and the page returns unless it answered Run, and write.item is called nowhere else",
-       inorder(sn, "call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))", "if res # 'run' then\n      msg = cmsg\n      return\n   end", "gosub write.item") and pg.count("gosub write.item") == 1
-       and "sent = 'write the item ' : nid : ' in the dictionary of ' : fn" in sn and "gosub dict.access" in sn, "")
-    ck("TD8", "the box for NEW says when the write will be refused, from the kernel's own answer for the dictionary that is open (not from a guess): dict.access asks K$EDIT.OK of the path of the open file and keeps the kernel's reason",
+    dn = block(pg, "do.new")
+    ck("TD5", "N (do.new) asks the id with the id rules and cancels with 'nothing written', checks the FILE's name before it is given to a command, and hands the terminal to the IDE on the new item through hand.over: ide dict FILE ID, the cursor kept on the id; it has no box of its own and writes nothing",
+       inorder(dn, "vk = 'id'", "gosub ask.valid", "if not(askok) then\n      msg = 'nothing written'\n      return\n   end", "nid = askv", "cw = fn\n   gosub check.word", "if not(okname) then", "sent = 'ide dict ' : fn : ' ' : nid",
+               "keep = nid", "gosub hand.over")
+       and "$tk_confirm" not in dn and "screen msgbox" not in dn and "$tk_run" not in dn and not re.search(r"^[ \t]*(write|execute)\b", dn, re.M), "")
+    ck("TD6", "the code that made and wrote a record is GONE: no ask.d, ask.i, show.new or write.item, no nrec or fnames.new, and no sysmsg(11952) (that title is tool.query's now)",
+       not any(s in pg for s in ("ask.d:", "ask.i:", "show.new:", "write.item:", "nrec", "fnames.new", "sysmsg(11952)", "gosub write.item", "gosub show.new")), "")
+    ck("TD7", "N is a key of the Items pane only, with its entry in the Items menu, and its handler is the one case that calls do.new",
+       "call $tk_keys('add', keys, 'n', 'new', 'new', 'Items', 1)" in pg and "call $tk_keys('menu', keys, 'new', '&Items', '&New item', '', '')" in pg and len(re.findall(r"gosub do\.new[ \t]*$", pg, re.M)) == 1, "")
+    ck("TD8", "the box for DELETE says when the verb will be refused, from the kernel's own answer for the dictionary that is open (not from a guess): dict.access asks K$EDIT.OK of the path of the open file and keeps the kernel's reason",
        inorder(block(pg, "dict.access"), "open 'DICT', fn to dv2 then", "dpath = fileinfo(dv2, FL$PATH)", "close dv2", "if not(kernel(K$EDIT.OK, dpath)) then dref = edit_msg(kernel(K$EDIT.KIND, dpath))")
-       and "The write is expected to be refused" in raw["page"], "")
+       and "The delete is expected to be refused" in raw["page"], "")
     de = block(pg, "do.delete")
     ck("TD9", "DELETE is the DELETE verb on the dictionary (delete dict FILE ITEM), built from the item's id and the file's name after both passed the name check, behind the box with the ID TYPED, and nothing is sent unless the box answered Run",
        "sent = 'delete dict ' : fn : ' ' : iid" in de and "iid = iids<ishown<ci>>" in de and de.count("gosub check.word") == 2 and de.find("gosub check.word") < de.find("sent = ")
@@ -172,15 +170,11 @@ def checks(raw):
     ck("TD21", "the help record names a page of the documentation, and the page asks for it by that name (the key is the record's name), from the key, the mark and the mouse",
        pg.count("call $tk_help('box', 'tool.dict.page', hm, 0, 0)") == 2 and re.match(r"^[^\n]{1,60}\n[0-9a-z-]+\n", raw["help"]) is not None, repr(raw["help"][:60]))
     ta = block(pg, "test.answer")
-    ck("TD22", "every answer to a question of NEW is checked by a test of its own, and asked again until it passes or the person cancels: the id (a-z 0-9 . _ -, in lower case, not one that exists in any case), a number inside its range, L R T, S M, plain characters of a limit, a name of letters and digits, and a conversion SD knows (OCONV answers status 2 for one it does not)",
-       all(("case vk = '%s'" % k) in ta for k in ("id", "num", "just", "sm", "text", "word", "conv")) and "askv = downcase(askv)" in ta and "if upcase(iids<xq>) = upcase(askv) then vok = 0" in ta
-       and "vok = (askv >= vlo and askv <= vhi)" in ta and "void oconv('1', askv)" in ta and "if status() = 2 then" in ta and "vok = (askv = 'L' or askv = 'R' or askv = 'T')" in ta
+    ck("TD22", "the id N asks for is checked, and asked again until it passes or the person cancels: in lower case, a plain word that no SD keyword is, starting with a letter or a digit, and not one that exists in any case; the rules for the fields are the form's (!dict_item) and are gone from the page",
+       "case vk = 'id'" in ta and ta.count("case vk = ") == 1 and "askv = downcase(askv)" in ta and "gosub check.word" in ta and "if upcase(iids<xq>) = upcase(askv) then vok = 0" in ta
        and inorder(block(pg, "ask.valid"), "screen ask aq : (if etxt = '' then '' else '   <-  ' : etxt) width aw value adef title atl returning askv", "gosub test.answer", "if vok then", "adef = askv", "repeat"), "")
-    ad, ai = block(pg, "ask.d"), block(pg, "ask.i")
-    ck("TD23", "the record NEW writes has the layout of dictdict.h for its type: D has the field number, conversion, heading, format (width then justification), S/M and association in fields 2-7; I has the expression in field 2 and the rest as D; there is no A item to make (31 Oct 26: the type is gone)",
-       all(s in ad for s in ("nrec<DICT.LOC> = dloc", "nrec<DICT.CONV> = dconv", "nrec<DICT.DISPLAY.NAME> = dhead", "nrec<DICT.FORMAT> = dwid : djust", "nrec<DICT.S.M> = dsm"))
-       and "ask.a:" not in pg and "DICT.A." not in pg and "&A-type" not in pg
-       and all(s in ai for s in ("nrec<DICT.ITYPE.SOURCE> = dexpr", "nrec<DICT.CONV> = dconv", "nrec<DICT.DISPLAY.NAME> = dhead", "nrec<DICT.FORMAT> = dwid : djust", "nrec<DICT.S.M> = dsm")) and "$include dictdict.h" in pg, "")
+    ck("TD23", "the page makes no record of its own: no field of a new item is assigned (nrec), there is no wizard for a type (no A-type, Data or Indirect button), and the form's types are not listed here",
+       "nrec" not in pg and "ask.a:" not in pg and "DICT.A." not in pg and "&A-type" not in pg and "&Data,&Indirect" not in pg, "")
     dt = block(pg, "do.test")
     ck("TD24", "TRY reads and runs nothing but the item: no write, no execute, no verb; an item that must be compiled and is not is refused with the reason BEFORE anything is asked; the record is READ (not locked) from the data file, ITYPE() is evaluated inside a TRY so a bad item cannot stop the page, and the files are closed",
        not re.search(r"^[ \t]*(write|writev|delete|execute|readu|clearfile)(?![.\w])", nostr(dt), re.M) and "call $tk_run" not in dt
@@ -189,8 +183,8 @@ def checks(raw):
     ck("TD25", "TRY shows the value of a D or I item only (the other types hold no value), and the value as a query prints it - conversion, then format - only for a format the page can read, each inside a TRY",
        "if index(' D I ', ' ' : ty : ' ', 1) = 0 then" in dt and "fmt.ok = (fs # '' and fw # '' and fj # '' and index('LRCU', fj, 1) > 0)" in dt and inorder(dt, "if cv # '' then shown.v = oconv(one, cv)", "if fmt.ok then shown.v = fmt(shown.v, fs)", "catch sys"), "")
     ck("TD26", "a name that is not the page's to give is never given: no id, file name or index name reaches a command except through the routines above, and the commands are built in one place each (sent = ... appears once per verb)",
-       all(pg.count(s) == 1 for s in ("sent = 'ide dict '", "sent = 'delete dict '", "sent = 'compile.dict '", "sent = 'create.index '", "sent = 'delete.index '", "sent = 'list.index '"))
-       and pg.count("sent = 'build.index '") == 2, "")      # B, and the build that follows a good create.index in N
+       all(pg.count(s) == 1 for s in ("sent = 'delete dict '", "sent = 'compile.dict '", "sent = 'create.index '", "sent = 'delete.index '", "sent = 'list.index '"))
+       and pg.count("sent = 'build.index '") == 2 and pg.count("sent = 'ide dict '") == 2, "")      # B, and the build that follows a good create.index in N; E, and N of a new item (S.90 stage 3)
     ck("TD27", "the cursor of each pane goes back to what it was on after the data is read again (the file, the item, the index are found by name), and the cursor is kept inside the list",
        "sel.f = fnames<fshown<cf>>" in block(pg, "read.files") and "sel.i = iids<ishown<ci>>" in block(pg, "read.items") and "sel.x = xnames<cx>" in block(pg, "read.indices")
        and all("if %s > %s then %s = %s" % (a, b, a, b) in block(pg, lb) for lb, a, b in (("read.files", "cf", "nfs"), ("read.items", "ci", "nis"), ("read.indices", "cx", "nx"))), "")
@@ -235,16 +229,13 @@ MUTANTS = [
     ("the page runs a command itself", "TD3", sub("page", "   call $tk_run(allow, sent, out, stat, rerr)\n   if rerr # '' then\n      msg = rerr\n      return\n   end\n   gosub join.out", "   execute sent capturing out\n   gosub join.out")),
     ("the page writes a second record", "TD4", sub("page", "   ttl = 'Files of ' : @who\n", "   ttl = 'Files of ' : @who\n   write 'x' on vocf, 'y'\n")),
     ("the page deletes a record", "TD4", sub("page", "   ttl = 'Files of ' : @who\n", "   ttl = 'Files of ' : @who\n   delete vocf, 'x'\n")),
-    ("THE WRITE IS NOT PRECEDED BY THE KERNEL'S QUESTION", "TD5", sub("page", "   if not(kernel(K$EDIT.OK, dpath)) then\n      msg = edit_msg(kernel(K$EDIT.KIND, dpath))\n      close dv\n      return\n   end\n   read old from dv, nid then", "   read old from dv, nid then")),
-    ("the kernel is asked after the write", "TD5", sub("page", "   if not(kernel(K$EDIT.OK, dpath)) then\n      msg = edit_msg(kernel(K$EDIT.KIND, dpath))\n      close dv\n      return\n   end\n   read old from dv, nid then\n      msg = nid : ' is already an item (of type ' : upcase(old[1, 1]) : '): nothing written'\n      close dv\n      return\n   end else\n      null\n   end\n   write nrec on dv, nid on error\n      msg = 'the write of ' : nid : ' failed (status ' : status() : ')'\n      close dv\n      return\n   end\n",
-                                  "   read old from dv, nid then\n      msg = nid : ' is already an item (of type ' : upcase(old[1, 1]) : '): nothing written'\n      close dv\n      return\n   end else\n      null\n   end\n   write nrec on dv, nid on error\n      msg = 'the write of ' : nid : ' failed (status ' : status() : ')'\n      close dv\n      return\n   end\n   if not(kernel(K$EDIT.OK, dpath)) then\n      msg = edit_msg(kernel(K$EDIT.KIND, dpath))\n      close dv\n      return\n   end\n")),
-    ("the kernel is asked about a name, not the open file's path", "TD5", sub("page", "if not(kernel(K$EDIT.OK, dpath)) then\n      msg = edit_msg(kernel(K$EDIT.KIND, dpath))\n      close dv", "if not(kernel(K$EDIT.OK, fn : '.dic')) then\n      msg = edit_msg(kernel(K$EDIT.KIND, dpath))\n      close dv")),
-    ("the refusal is not the kernel's reason", "TD5", sub("page", "      msg = edit_msg(kernel(K$EDIT.KIND, dpath))\n      close dv\n      return", "      msg = 'refused'\n      close dv\n      return")),
-    ("the write has no on error clause", "TD4", sub("page", "   write nrec on dv, nid on error\n      msg = 'the write of ' : nid : ' failed (status ' : status() : ')'\n      close dv\n      return\n   end\n", "   write nrec on dv, nid\n")),
-    ("an existing record is overwritten without a word", "TD6", sub("page", "   read old from dv, nid then\n      msg = nid : ' is already an item (of type ' : upcase(old[1, 1]) : '): nothing written'\n      close dv\n      return\n   end else\n      null\n   end\n", "")),
-    ("NEW writes whatever the box answered", "TD7", sub("page", "   call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub write.item", "   call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))\n   gosub write.item")),
-    ("NEW has no box", "TD7", sub("page", "   call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub write.item", "   gosub write.item")),
-    ("the box for NEW does not say that the write will be refused", "TD8", sub("page", "'  The write is expected to be refused.'", "'  ok'")),
+    ("N hands the IDE a delete instead of a new item", "TD5", sub("page", "   sent = 'ide dict ' : fn : ' ' : nid\n   keep = nid", "   sent = 'delete dict ' : fn : ' ' : nid\n   keep = nid")),
+    ("N does not check the file's name", "TD5", sub("page", "   nid = askv\n   cw = fn\n", "   nid = askv\n   cw = nid\n")),
+    ("N has a box of its own again", "TD5", sub("page", "   nid = askv\n   cw = fn\n", "   nid = askv\n   call $tk_confirm(sent, lines, '', res, cmsg)\n   cw = fn\n")),
+    ("a write.item is back", "TD6", sub("page", "\ndo.new:\n", "\nwrite.item:\n   return\n\ndo.new:\n")),
+    ("N has no key", "TD7", sub("page", "   call $tk_keys('add', keys, 'n', 'new', 'new', 'Items', 1)\n", "")),
+    ("an id may be asked about a number", "TD22", sub("page", "      case vk = 'id'\n", "      case vk = 'num'\n         vok = 1\n      case vk = 'id'\n")),
+    ("the box for DELETE does not say that the delete will be refused", "TD8", sub("page", "'  The delete is expected to be refused.'", "'  ok'")),
     ("the dictionary's answer is not asked of the open file's path", "TD8", sub("page", "if not(kernel(K$EDIT.OK, dpath)) then dref = edit_msg(kernel(K$EDIT.KIND, dpath))", "if not(kernel(K$DICT.EDIT, -1)) then dref = edit_msg(2)")),
     ("DELETE does not ask for the id", "TD9", sub("page", "call $tk_confirm(sent, lines, iid, res, cmsg)", "call $tk_confirm(sent, lines, '', res, cmsg)")),
     ("DELETE runs whatever the box answered", "TD9", sub("page", "   call $tk_confirm(sent, lines, iid, res, cmsg)\n   if res # 'run' then\n      msg = cmsg\n      return\n   end\n   gosub run.sent", "   call $tk_confirm(sent, lines, iid, res, cmsg)\n   gosub run.sent")),
@@ -289,13 +280,7 @@ MUTANTS = [
     ("the help key names a record that does not exist", "TD21", sub("help", "29c-sd-tcl-the-development-tools", "")),
     ("the id may be in any case", "TD22", sub("page", "         askv = downcase(askv)\n         cw = askv", "         cw = askv")),
     ("an id that exists in another case is accepted", "TD22", sub("page", "if upcase(iids<xq>) = upcase(askv) then vok = 0", "if iids<xq> = askv then vok = 0")),
-    ("a number is not held to its range", "TD22", sub("page", "            vok = (askv >= vlo and askv <= vhi)\n", "")),
-    ("a conversion is not tried", "TD22", sub("page", "            void oconv('1', askv)\n            if status() = 2 then", "            if 0 then")),
-    ("a justification other than L R T is accepted", "TD22", sub("page", "vok = (askv = 'L' or askv = 'R' or askv = 'T')", "vok = 1")),
     ("a wrong answer is not asked again", "TD22", sub("page", "      adef = askv\n   repeat", "      return\n   repeat")),
-    ("the format is written justification first", "TD23", sub("page", "   nrec<DICT.FORMAT> = dwid : djust\n   nrec<DICT.S.M> = dsm\n   if dassoc # '' then nrec<DICT.ASSOC> = dassoc\n   fnames.new = 'type' : @fm : 'field number'", "   nrec<DICT.FORMAT> = djust : dwid\n   nrec<DICT.S.M> = dsm\n   if dassoc # '' then nrec<DICT.ASSOC> = dassoc\n   fnames.new = 'type' : @fm : 'field number'")),
-    ("the A-type wizard is back", "TD23", sub("page", "'&Data,&Indirect,&Cancel'", "'&Data,&A-type,&Indirect,&Cancel'")),
-    ("an I item keeps its expression in the wrong field", "TD23", sub("page", "nrec<DICT.ITYPE.SOURCE> = dexpr", "nrec<DICT.CONV> = dexpr")),
     ("TRY writes a record", "TD24", sub("page", "   @id = rid\n   @record = drec\n", "   @id = rid\n   @record = drec\n   write drec on df, rid\n")),
     ("TRY evaluates outside a TRY", "TD24", sub("page", "   try\n      val = itype(rec)\n   catch sys\n      failed = @exception.data\n   end\n", "   val = itype(rec)\n")),
     ("TRY does not ask whether the item was compiled", "TD24", sub("page", "   if needs.obj and (rec<DICT.SYS.INFO> = '' or rec<DICT.ITYPE.OBJECT> = '') then", "   if 0 then")),

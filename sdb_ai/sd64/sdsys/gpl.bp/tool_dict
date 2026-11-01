@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 1 Nov 26 dm   S.90 stage 3: N asks the id and hands the terminal to the IDE on a new item, shown as the dictionary form; ask.d, ask.i, show.new and write.item (the page's only write) and the
+*               answer rules only they used are gone, so the page writes nothing: the dict-edit gate and the write are the IDE's.
 * 31 Oct 26 dm  The A and S dictionary item types are gone (owner, 30 Oct 2026): N offers a data or a computed item only, C compiles and T tries D and I items, an index is offered on a D or I
 *               item, and an old A or S item is shown with a sentence that says SD no longer reads it (its fields are not shown: they were in the Pick layout, which no program reads now).
 * 28 Oct 26 dm  S.88 L2: the two boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the list shows more rows and the
@@ -28,10 +30,9 @@
 *   number, or "computed"), its heading, format, conversion, whether it is single or multivalued, its association, and the expression of an I-type.  The box under the list describes the item
 *   under the cursor in plain words.  THE INDICES PANE (I or Tab) lists the alternate key indices of the file: the item each is on, whether it is built, nulls, case, sort.
 *
-*   WHAT IT CAN DO.  N makes an item (a D or I record): the page asks the id, the type and the fields that type needs, one at a time, each checked, shows the whole record in a box, and after Run
-*   WRITES IT ITSELF with an ordinary record write to the dictionary - this is the ONLY place the page writes.  The page is $internal, so the kernel's own refusal of a write to a dictionary does
-*   not apply to it: it asks the kernel for itself (K$EDIT.OK, the question the IDE asks) before the write and shows the kernel's own refusal (!edit_msg) when the answer is no.  E hands the
-*   terminal to the IDE on the item (ide dict file item); the IDE makes the same check when it saves.  D deletes the item with the DELETE verb, after its id is typed.  C compiles an I item with
+*   WHAT IT CAN DO.  THE PAGE WRITES NOTHING (S.90 stage 3, 1 Nov 2026).  N makes an item: the page asks the id and checks it, and hands the terminal to the IDE on a NEW item (ide dict file id),
+*   which shows the dictionary form - the type, then the fields that type needs, each checked - and writes the record itself, with the account's dict-edit gate and the IDE's own questions.  E hands
+*   the terminal to the IDE on the item that is there (ide dict file item) in the same way.  D deletes the item with the DELETE verb, after its id is typed.  C compiles an I item with
 *   COMPILE.DICT.  T tries the item on a record of the data file: the value ITYPE() gives for that record, which is what the query processor computes, and the same value converted and formatted as
 *   a query would print it.  In the indices pane N makes an index (CREATE.INDEX defines it, then BUILD.INDEX builds it, because an index that is not built finds nothing), B builds it again (BUILD.INDEX),
 *   D deletes it (DELETE.INDEX, after its name is typed) and L lists it in full (LIST.INDEX: it prints to the terminal, which is handed to the verb).  Every verb is the one the person could type,
@@ -1316,7 +1317,9 @@ do.test:
 
 * ------------------------------------------------------------------------------------------------- a new item
 
-* N: the id, the type and the fields that type needs, one at a time; the whole record in a box; after Run the page writes it
+* N: the id, then the terminal goes to the IDE on a NEW item, which it shows as the dictionary form (S.90 stage 3, 1 Nov 26).  The page asks the id and checks it (the same rules as ever: lower
+* case, a plain word that no VOC keyword is, not taken, and the file's name a word the page may give to a command); the type, the fields, their checks, the write, the dict-edit gate and the
+* overwrite question are the IDE's and the form's.  THE PAGE WRITES NOTHING.
 do.new:
    atl = 'New item'
    aq = 'Id of the new item (a-z, 0-9, dot, dash and underscore)'
@@ -1330,21 +1333,15 @@ do.new:
       return
    end
    nid = askv
-   screen msgbox 'What kind of item is ' : nid : '?' : @fm : '' : @fm : 'Data: shows one field of the record, by its number.' : @fm : 'Indirect: a value computed from an expression.' title 'New item' buttons '&Data,&Indirect,&Cancel' default 1 returning b else b = 3
-   nrec = ''
-   begin case
-      case b = 1
-         gosub ask.d
-      case b = 2
-         gosub ask.i
-      case 1
-         askok = 0
-   end case
-   if not(askok) then
-      msg = 'nothing written'
+   cw = fn
+   gosub check.word
+   if not(okname) then
+      msg = 'this file name is not given to a command by the page (a character it does not pass, or an SD keyword): type  ide dict ' : fn : ' ' : nid : '  at the prompt'
       return
    end
-   gosub show.new
+   sent = 'ide dict ' : fn : ' ' : nid
+   keep = nid
+   gosub hand.over
    return
 
 * The answers to a question until one passes the test named by vk, or the person cancels.  In: aq, adef, aw, atl, vk, vlo, vhi, vopt (1 when an empty answer is allowed).  Out: askok, askv
@@ -1392,227 +1389,7 @@ test.answer:
             next xq
             if not(vok) then etxt = 'that id is taken'
          end
-      case vk = 'num'
-         vok = (askv # '' and len(askv) <= 5)
-         for vq = 1 to len(askv)
-            if index('0123456789', askv[vq, 1], 1) = 0 then vok = 0
-         next vq
-         if vok then
-            askv = askv + 0
-            vok = (askv >= vlo and askv <= vhi)
-         end
-         etxt = 'a whole number from ' : vlo : ' to ' : vhi
-      case vk = 'just'
-         askv = upcase(askv)
-         vok = (askv = 'L' or askv = 'R' or askv = 'T')
-         etxt = 'L, R or T'
-      case vk = 'sm'
-         askv = upcase(askv)
-         vok = (askv = 'S' or askv = 'M')
-         etxt = 'S or M'
-      case vk = 'text'
-         vok = (len(askv) <= vhi)
-         for vq = 1 to len(askv)
-            if seq(askv[vq, 1]) < 32 or seq(askv[vq, 1]) > 126 then vok = 0
-         next vq
-         etxt = 'plain characters, at most ' : vhi
-      case vk = 'word'
-         vok = (len(askv) <= 30)
-         for vq = 1 to len(askv)
-            if index('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-', askv[vq, 1], 1) = 0 then vok = 0
-         next vq
-         etxt = 'letters, digits, dot, dash, underscore only'
-      case vk = 'conv'
-         vok = (len(askv) <= 40)
-         for vq = 1 to len(askv)
-            if seq(askv[vq, 1]) <= 32 or seq(askv[vq, 1]) > 126 then vok = 0
-         next vq
-         etxt = 'no spaces, at most 40 characters'
-         if vok and upcase(askv[1, 1]) # 'U' then
-            void oconv('1', askv)
-            if status() = 2 then
-               vok = 0
-               etxt = 'SD does not know this conversion'
-            end
-         end
    end case
-   return
-
-* The fields of a D item, asked one at a time
-ask.d:
-   atl = 'New data item ' : nid : '  1 of 7'
-   aq = 'Number of the field of the record it shows (0 is the record id)'
-   adef = '' ; aw = 8 ; vk = 'num' ; vlo = 0 ; vhi = 9999 ; vopt = 0
-   gosub ask.valid
-   if not(askok) then return
-   dloc = askv
-   atl = 'New data item ' : nid : '  2 of 7'
-   aq = 'Column heading (empty uses the id; a backslash prints none)'
-   adef = '' ; aw = 44 ; vk = 'text' ; vhi = 40 ; vopt = 1
-   gosub ask.valid
-   if not(askok) then return
-   dhead = askv
-   atl = 'New data item ' : nid : '  3 of 7'
-   aq = 'Justification: L left, R right, T text that wraps'
-   adef = 'L' ; aw = 4 ; vk = 'just' ; vopt = 0
-   gosub ask.valid
-   if not(askok) then return
-   djust = askv
-   atl = 'New data item ' : nid : '  4 of 7'
-   aq = 'Width of the column in characters'
-   adef = '10' ; aw = 6 ; vk = 'num' ; vlo = 1 ; vhi = 200 ; vopt = 0
-   gosub ask.valid
-   if not(askok) then return
-   dwid = askv
-   atl = 'New data item ' : nid : '  5 of 7'
-   aq = 'Conversion code for display (D2/ date, MD2 two decimals, MCU upper case; empty for none)'
-   adef = '' ; aw = 40 ; vk = 'conv' ; vopt = 1
-   gosub ask.valid
-   if not(askok) then return
-   dconv = askv
-   atl = 'New data item ' : nid : '  6 of 7'
-   aq = 'Single valued (S) or multivalued (M)'
-   adef = 'S' ; aw = 4 ; vk = 'sm' ; vopt = 0
-   gosub ask.valid
-   if not(askok) then return
-   dsm = askv
-   dassoc = ''
-   if dsm = 'M' then
-      atl = 'New data item ' : nid : '  7 of 7'
-      aq = 'Association (a name shared by multivalued items whose values line up; empty for none)'
-      adef = '' ; aw = 34 ; vk = 'word' ; vopt = 1
-      gosub ask.valid
-      if not(askok) then return
-      dassoc = askv
-   end
-   nrec = 'D'
-   nrec<DICT.LOC> = dloc
-   nrec<DICT.CONV> = dconv
-   nrec<DICT.DISPLAY.NAME> = dhead
-   nrec<DICT.FORMAT> = dwid : djust
-   nrec<DICT.S.M> = dsm
-   if dassoc # '' then nrec<DICT.ASSOC> = dassoc
-   fnames.new = 'type' : @fm : 'field number' : @fm : 'conversion' : @fm : 'heading' : @fm : 'format' : @fm : 'single/multi' : @fm : 'association'
-   return
-
-* The fields of an I item
-ask.i:
-   atl = 'New computed item ' : nid : '  1 of 7'
-   aq = 'The expression (for example  AMT * 2  or  UPCASE(NAME)); one line'
-   adef = '' ; aw = 100 ; vk = 'text' ; vhi = 300 ; vopt = 0
-   gosub ask.valid
-   if not(askok) then return
-   dexpr = askv
-   atl = 'New computed item ' : nid : '  2 of 7'
-   aq = 'Column heading (empty uses the id; a backslash prints none)'
-   adef = '' ; aw = 44 ; vk = 'text' ; vhi = 40 ; vopt = 1
-   gosub ask.valid
-   if not(askok) then return
-   dhead = askv
-   atl = 'New computed item ' : nid : '  3 of 7'
-   aq = 'Justification: L left, R right, T text that wraps'
-   adef = 'L' ; aw = 4 ; vk = 'just' ; vopt = 0
-   gosub ask.valid
-   if not(askok) then return
-   djust = askv
-   atl = 'New computed item ' : nid : '  4 of 7'
-   aq = 'Width of the column in characters'
-   adef = '10' ; aw = 6 ; vk = 'num' ; vlo = 1 ; vhi = 200 ; vopt = 0
-   gosub ask.valid
-   if not(askok) then return
-   dwid = askv
-   atl = 'New computed item ' : nid : '  5 of 7'
-   aq = 'Conversion code for display (empty for none)'
-   adef = '' ; aw = 40 ; vk = 'conv' ; vopt = 1
-   gosub ask.valid
-   if not(askok) then return
-   dconv = askv
-   atl = 'New computed item ' : nid : '  6 of 7'
-   aq = 'Single valued (S) or multivalued (M)'
-   adef = 'S' ; aw = 4 ; vk = 'sm' ; vopt = 0
-   gosub ask.valid
-   if not(askok) then return
-   dsm = askv
-   dassoc = ''
-   if dsm = 'M' then
-      atl = 'New computed item ' : nid : '  7 of 7'
-      aq = 'Association (empty for none)'
-      adef = '' ; aw = 34 ; vk = 'word' ; vopt = 1
-      gosub ask.valid
-      if not(askok) then return
-      dassoc = askv
-   end
-   nrec = 'I'
-   nrec<DICT.ITYPE.SOURCE> = dexpr
-   nrec<DICT.CONV> = dconv
-   nrec<DICT.DISPLAY.NAME> = dhead
-   nrec<DICT.FORMAT> = dwid : djust
-   nrec<DICT.S.M> = dsm
-   if dassoc # '' then nrec<DICT.ASSOC> = dassoc
-   fnames.new = 'type' : @fm : 'expression' : @fm : 'conversion' : @fm : 'heading' : @fm : 'format' : @fm : 'single/multi' : @fm : 'association'
-   return
-
-* The whole record in the box, field by field; after Run the page writes it (write.item)
-show.new:
-   sent = 'write the item ' : nid : ' in the dictionary of ' : fn
-   lines = ''
-   lines<-1> = 'The page writes this record itself, as an ordinary record write, only after Run:'
-   for q = 1 to dcount(nrec, @fm)
-      if nrec<q> # '' then lines<-1> = '   ' : fmt(q, '2R') : '  ' : fmt(fnames.new<q>, '14L') : nrec<q>
-   next q
-   lines<-1> = ''
-   if nrec[1, 1] = 'I' then lines<-1> = 'It is not compiled yet: C compiles it, and a query does it when it first uses the item.'
-   lines<-1> = 'Nothing else changes: the records of ' : fn : ' are not touched.'
-   gosub dict.access
-   if dref # '' then lines<-1> = dref : '  The write is expected to be refused.'
-*  26 Oct 26: the box is about a record the page writes, not a command: its title says so (11952)
-   call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))
-   if res # 'run' then
-      msg = cmsg
-      return
-   end
-   gosub write.item
-   filti = ''
-   gosub read.items
-   for q = 1 to nis
-      if iids<ishown<q>> = nid then ci = q
-   next q
-   gosub draw.all
-   return
-
-* THE ONLY WRITE OF THE PAGE.  In: fn, nid, nrec.  Out: msg.  The page is $internal, so the kernel does not refuse a write to a dictionary on its own account: it asks, as SED and the IDE do, whether this
-* session may change the dictionary (dict-edit; the shared account's rule is in the answer too) and gives the kernel's own reason when it may not.  The dictionary is closed again at once.
-* 26 Oct 26 (task faults, the review's "not applied" item): THIS CHECK STAYS THE WALL, it is not replaced by a catalogued helper that is not $internal.  The reason is the pattern: the question put here is the one
-* every $internal editor puts (!edit_guard's header names ED, SED, the IDE and the rest), a helper that is not $internal would be a new program and a new word in every VOC that any session could call, to be kept in
-* step with this page, and the question is asked of the file that was opened, before anything is read or written, with the administrator and the shared account's rule inside the kernel's answer.
-* (An earlier version of this comment said a refused write ends a program that is not $internal because there is no ON ERROR for it; the review found that false - a WRITE, DELETE and CLEARFILE take their
-* ON ERROR clause there - and that is not the reason.)  sandbox-tk-faults.py (section G) drives the page in
-* an account with dict-edit off and reads the disk (nothing written), in an account with it on (the record is there), and its mutant dict-no-gate takes the question out and is caught by the first.
-write.item:
-   open 'DICT', fn to dv else
-      msg = fn : ' has no dictionary now'
-      return
-   end
-   dpath = fileinfo(dv, FL$PATH)
-   if not(kernel(K$EDIT.OK, dpath)) then
-      msg = edit_msg(kernel(K$EDIT.KIND, dpath))
-      close dv
-      return
-   end
-   read old from dv, nid then
-      msg = nid : ' is already an item (of type ' : upcase(old[1, 1]) : '): nothing written'
-      close dv
-      return
-   end else
-      null
-   end
-   write nrec on dv, nid on error
-      msg = 'the write of ' : nid : ' failed (status ' : status() : ')'
-      close dv
-      return
-   end
-   close dv
-   msg = 'wrote the item ' : nid : ' in the dictionary of ' : fn
    return
 
 * ------------------------------------------------------------------------------------------------- the indices

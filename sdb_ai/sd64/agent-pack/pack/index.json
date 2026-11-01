@@ -502,7 +502,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 29
+"words": 48
 },
 "basic:func:field": {
 "kind": "basic.function",
@@ -1202,7 +1202,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 28
+"words": 64
 },
 "basic:func:osrename": {
 "kind": "basic.internal",
@@ -1454,7 +1454,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 34
+"words": 41
 },
 "basic:func:sdpyobj": {
 "kind": "basic.internal",
@@ -1475,7 +1475,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 32
+"words": 26
 },
 "basic:func:select.socket": {
 "kind": "basic.function",
@@ -2098,7 +2098,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 23
+"words": 18
 },
 "basic:stmt:callv": {
 "kind": "basic.restricted",
@@ -2196,7 +2196,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 16
+"words": 24
 },
 "basic:stmt:close.socket": {
 "kind": "basic.statement",
@@ -2294,7 +2294,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 25
+"words": 27
 },
 "basic:stmt:data": {
 "kind": "basic.statement",
@@ -2350,7 +2350,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 24
+"words": 17
 },
 "basic:stmt:delete.ak": {
 "kind": "basic.restricted",
@@ -2392,7 +2392,7 @@
 "part": "reference/basic-statements.md",
 "since": "next",
 "tier": "reference",
-"words": 30
+"words": 41
 },
 "basic:stmt:dim": {
 "kind": "basic.statement",
@@ -2581,7 +2581,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 15
+"words": 46
 },
 "basic:stmt:getlist": {
 "kind": "basic.statement",
@@ -2938,14 +2938,14 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 24
+"words": 37
 },
 "basic:stmt:openpath": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 23
+"words": 24
 },
 "basic:stmt:openseq": {
 "kind": "basic.statement",
@@ -2959,7 +2959,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 24
+"words": 23
 },
 "basic:stmt:os.execute": {
 "kind": "basic.statement",
@@ -3022,7 +3022,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 32
+"words": 38
 },
 "basic:stmt:pause": {
 "kind": "basic.statement",
@@ -3232,7 +3232,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 15
+"words": 22
 },
 "basic:stmt:release": {
 "kind": "basic.statement",
@@ -3799,7 +3799,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 29
+"words": 47
 },
 "basic:stmt:writeblk": {
 "kind": "basic.statement",
@@ -3855,7 +3855,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 29
 },
 "basic:stmt:writev": {
 "kind": "basic.statement",
@@ -9994,14 +9994,14 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 21
+"words": 18
 },
 "msg:11638": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 24
+"words": 25
 },
 "msg:11639": {
 "kind": "message",
@@ -11900,6 +11900,20 @@
 "tier": "reference",
 "words": 21
 },
+"msg:11943": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 13
+},
+"msg:11944": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 19
+},
 "msg:11946": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -11947,7 +11961,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 9
+"words": 8
 },
 "msg:11953": {
 "kind": "message",

@@ -33,9 +33,11 @@ MSG = os.path.join(SDSYS, "messages")
 
 # A program that builds a key table only to NAME the keys of its foot (the form of a dictionary item, 1 Nov 26): its keys are the library form's (Enter is the default button, Esc the cancel
 # button, Tab the focus), it has no help and no quit of a page, so the page rules (handler, F1, Ctrl-Q) do not apply to it; it is still parsed and counted.
-FOOT_ONLY = ("dict_form",)
-EXPECT_PROGRAMS = 25
-EXPECT_ADD_ROWS = 270         # 266 + the 4 foot rows of dict_form, 1 Nov 26
+# $tk_aipage (S.97 stage 1, 1 Nov 26) is in the same list for another reason: it is not a page but adds ONE row, F6 for the action ai, to the table of the page that calls it (and the AI menu
+# entry); the page's own source has the case, which test-aipage-units.py holds.
+FOOT_ONLY = ("dict_form", "tk_aipage")
+EXPECT_PROGRAMS = 26
+EXPECT_ADD_ROWS = 271         # 266 + the 4 foot rows of dict_form, 1 Nov 26, + tk_aipage's F6 row
 # earlier counts: (266 with the IDE's eight rows of the pane "fields", 31 Oct 26; 256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 258 with tool_test's Ctrl-O row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
@@ -43,7 +45,8 @@ KNOWN_OPS_S0 = {"add", "name", "action"}
 TWO_KEYS = {}
 RESERVED = ("f2", "f6", "f10", "f11")
 # the action a reserved key may stand for (plan 5.2 / K8: F2 find an action, F6 the next pane, F10 the menu is NOT a page key, F11 gone)
-RESERVED_OK = {"f2": {"palette", "find"}, "f6": {"nextpane"}}
+# 1 Nov 26 (the owner accepted Opus's review): F6 is the AI line on every page - "ai"; the IDE keeps F6 as its next pane until its panes are decided (S.99)
+RESERVED_OK = {"f2": {"palette", "find"}, "f6": {"nextpane", "ai"}}
 MYMENU_MOVED = ("f2", "f3", "f4", "f6")
 
 LEDGER = {
@@ -424,7 +427,7 @@ def norm(text):
     return re.sub(r"\s+", " ", text)
 
 
-REGISTRY_OPS = {"add", "name", "action", "menu", "why", "menus", "keyof", "keylist"}
+REGISTRY_OPS = {"add", "name", "action", "menu", "why", "menus", "keyof", "keylist", "ai", "aiacts"}      # 'ai' and 'aiacts': S.97 stage 1, an action offered to the AI and what is offered (both only list)
 # what a program that only lists and names actions must never contain: it would be a second way to run one
 NO_RUN_WORDS = ("execute", "perform", "chain", "screen", "display", "print", "crt", "open", "openseq", "write", "writeseq", "writev", "delete", "kernel(", "@sentence",
                 "stop", "abort", "call $", "call(", "input", "read")
@@ -438,7 +441,7 @@ def run_b(raw):
     app = strip_bas(raw.get("tool_tktest", ""))
     appn = norm(app)
     # the table's values: the first five did not move
-    want = [("KEY", 1), ("LABEL", 2), ("ACT", 3), ("PANES", 4), ("ON", 5), ("MENU", 6), ("ENTRY", 7), ("WHY", 8), ("ROW", 9)]
+    want = [("KEY", 1), ("LABEL", 2), ("ACT", 3), ("PANES", 4), ("ON", 5), ("MENU", 6), ("ENTRY", 7), ("WHY", 8), ("ROW", 9), ("AI", 10)]
     res["tablevalues"] = ["TK.K.%s is not %d" % (n, v) for n, v in want if re.search(r"\$define TK\.K\.%s +%d\b" % (n, v), tkh) is None]
     res["tablevalues"] += ["TK.K.%s is defined more than once" % n for n, v in want if len(re.findall(r"\$define TK\.K\.%s\b" % n, tkh)) != 1]
     # the subroutine: seven arguments, the ops, the 'add' line as the pages have always had it
@@ -532,7 +535,7 @@ def run_b(raw):
     menus_users = []
     facade_users = []
     for prog in sorted(raw):
-        if prog.startswith("msg:"):
+        if prog.startswith("msg:") or prog == "tk_aipage":      # tk_aipage puts ONE entry in the menu of the page that calls it; the page's own case on that key is test-aipage-units.py's
             continue
         code = strip_bas(raw[prog])
         acts = [args[2].strip().strip("'") for no, op, args, line in calls_in(code) if op == "menu" and len(args) == 7]
@@ -627,7 +630,7 @@ def run_b(raw):
 
 B_TEXT = {
     "tablevalues": "tk.h: the key table's nine values, the first five where they were (MENU 6, ENTRY 7, WHY 8, ROW 9 are new)",
-    "ops": "tk_keys keeps seven arguments and the five-value 'add'; it implements add, name, action, menu, why, menus, keyof, keylist and no other op",
+    "ops": "tk_keys keeps seven arguments and the five-value 'add'; it implements add, name, action, menu, why, menus, keyof, keylist, ai, aiacts and no other op",
     "action": "'action': an empty key matches nothing, a switched-off action or one with a reason is not returned, the pane is tested",
     "why": "'why' takes the action out of use together with the reason, and gives back only an action that had one",
     "menus": "'menus': the flag D comes from the action's state (switched off, a reason, or a pane that does not use it); the shown key is derived; one entry an action",

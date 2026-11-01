@@ -22,9 +22,9 @@
 #   D1   the files: the chooser lists the account's files with their dictionaries; Enter opens one; a file with no dictionary is said so; a file named after the verb is opened (lower
 #        or upper case), anything the page cannot give to a command or that is not a file is said politely and the chooser is shown; the input ending ends the page (no spin)
 #   D2   the items: types, fields, headings, formats in id order; the item under the cursor in words for each kind; the filter; the gate line for dict-edit on and off; a click
-#   D3   N makes an item in the account with dict-edit ON: each wrong answer is refused and asked again; Cancel is the default; Run writes the record (D, D multivalued, A, I - the
-#        exact fields, read from the disk)
-#   D4   N in the account with dict-edit OFF: the box says the write will be refused, Run is met by the kernel's own words and NO record appears  [mutant no-edit-check]
+#   D3   N asks the id (a wrong one is refused and asked again) and hands the terminal to the IDE on a NEW item, shown as the dictionary form; Cancel writes nothing; D, Tab, a field number and
+#        Accept write the record (disk), written by the IDE; capitals in the id are made lower case (S.90 stage 3: THE PAGE WRITES NOTHING)
+#   D4   N in the account with dict-edit OFF: the form opens, Accept is refused with the kernel's own words and NO record appears
 #   D5   T tries an item on a record: D, A, I, multivalued, a conversion and format; a missing record, an item not compiled, an item that holds no value
 #   D6   C compiles an I item: only A S I; Cancel is the default; Run puts the object code in the record (disk), and T then works; compiling is not held back by dict-edit
 #   D7   E hands the terminal to the IDE on the item ('ide dict file id', S.88 stage C; it was SED - re-pointed 28 Oct 26, NOT RUN) and the page comes back; a change saved by the IDE is on the disk (dict-edit ON) and is refused and not on the disk (OFF)
@@ -76,11 +76,9 @@ def arow(rid, name, ok, detail=""):
             dump(SCREEN[0])
 
 
-WRITE_WALL = ("   if not(kernel(K$EDIT.OK, dpath)) then\n      msg = edit_msg(kernel(K$EDIT.KIND, dpath))\n      close dv\n      return\n   end\n   read old from dv, nid then")
 
 MUTANTS = {
     # name: (old text of the sandbox's page, new text, the base row ids that must fail and no others, the section that runs)
-    "no-edit-check": (WRITE_WALL, "   read old from dv, nid then", ["D4"], "refused"),
     "delete-no-typed-name": ("call $tk_confirm(sent, lines, iid, res, cmsg)", "call $tk_confirm(sent, lines, '', res, cmsg)", ["D8"], "delete"),
     "delete-index-all": ("sent = 'delete.index ' : fn : ' ' : xn", "sent = 'delete.index ' : fn : ' all'", ["D10"], "indices"),
     "keyword-wall-open": ("if upcase(kwr<1>[1, 1]) = 'K' then okname = @false", "if 0 then okname = @false", ["D9"], "odd"),
@@ -352,21 +350,6 @@ def boxtext(h):
     return re.sub(r"[|\s]+", " ", " ".join(inner))
 
 
-def new_item_d(h, nid, loc, head, just, width, conv, sm, assoc=""):
-    """N, the id, Data, and every answer: an answer that is the default is accepted with Enter, any other is typed over it (Ctrl-U empties the entry first)"""
-    h.typed("n", idle=1.0)
-    h.typed(nid + "\r", idle=1.0)
-    h.typed("d", idle=1.2)
-    h.typed(loc + "\r", idle=0.8)
-    h.typed(head + "\r", idle=0.8)
-    h.typed(("\x15" + just if just != "L" else "") + "\r", idle=0.8)
-    h.typed(("\x15" + width if width != "10" else "") + "\r", idle=0.8)
-    h.typed(conv + "\r", idle=0.8)
-    h.typed(("\x15" + sm if sm != "S" else "") + "\r", idle=1.2)
-    if sm == "M":
-        h.typed(assoc + "\r", idle=1.2)
-
-
 def pipe_end(account, lines, deadline=10.0):
     """the page in a session whose input is a pipe that is then closed: it must end by itself, without using the CPU for as long as it is let run.  (ended, wall, cpu, output)"""
     env = dict(os.environ, SD_CONFIG=os.path.join(box(), "sd.conf"))
@@ -512,8 +495,28 @@ def section_items():
     h.end()
 
 
+def leave_ide(h):
+    """Ctrl-Q in the IDE (Discard, DOWN and Enter, to every 'has changes' question), then Enter on 'Press Enter to return': the page is back"""
+    h.typed("\x11", idle=1.5)
+    n = 0
+    while "has changes" in h.text() and n < 6:
+        h.key("down", idle=0.5)
+        h.key("enter", idle=1.0)
+        n += 1
+    until(h, lambda t: "Press Enter" in t or "Dictionary of" in t, 10)
+    h.key("enter", idle=2.0)
+    until(h, lambda t: "Dictionary of" in t, 10)
+
+
+def new_in_ide(h, nid):
+    """N and the id: the terminal goes to the IDE on the new item, which opens as the form (a read-only tab or an item the form cannot show opens as text); waits for either"""
+    h.typed("n", idle=1.0)
+    h.typed(nid + "\r", idle=2.5)
+    until(h, lambda t: form_up(t) or ("File" in h.line(0) and "Search" in h.line(0)))
+
+
 def section_new():
-    say("\n--- D3: N makes an item in an account with dict-edit ON")
+    say("\n--- D3: N asks the id and hands the terminal to the IDE on a new item, shown as the dictionary form (S.90 stage 3: the page writes nothing)")
     h = page(A1, "cust")
     h.typed("n", idle=1.0)
     h.typed("amt\r", idle=1.2)
@@ -528,95 +531,50 @@ def section_new():
     h.typed("Bad$\r", idle=1.2)
     arow("D3c", "an id with a dollar is refused (a-z, 0-9, dot, dash, underscore)", "a-z, 0-9, dot, dash, underscore" in h.text(), flat(h)[-300:])
     h.key("esc", idle=1.2)
-    h.typed("n", idle=1.0)
-    h.typed("zzd\r", idle=1.0)
-    h.typed("d", idle=1.2)
-    h.typed("x\r", idle=1.2)
-    t1 = "a whole number from 0 to 9999" in h.text()
-    h.typed("\x15" + "10000\r", idle=1.2)
-    t2 = "a whole number from 0 to 9999" in h.text()
-    h.typed("\x15" + "7\r", idle=1.0)
-    h.typed("Zed\r", idle=1.0)
-    h.typed("\x15q\r", idle=1.2)
-    t3 = "L, R or T" in h.text()
-    h.typed("\x15r\r", idle=1.0)
-    h.typed("\x15" + "0\r", idle=1.2)
-    t4 = "a whole number from 1 to 200" in h.text()
-    h.typed("\x15" + "12\r", idle=1.0)
-    h.typed("XYZ\r", idle=1.2)
-    t5 = "SD does not know this conversion" in h.text()
-    h.typed("\x15D2/\r", idle=1.0)
-    h.typed("\x15z\r", idle=1.2)
-    t6 = "S or M" in h.text()
-    h.typed("\x15s\r", idle=1.5)
-    arow("D3d", "every wrong answer is refused with its reason and asked again: a letter or 10000 for the field number, Q for the justification, 0 for the width, XYZ for the conversion, Z for single or multi",
-         t1 and t2 and t3 and t4 and t5 and t6, repr((t1, t2, t3, t4, t5, t6)))
-    bt = boxtext(h)
-    arow("D3e", "the box shows the command line and the WHOLE record field by field (type D, field 7, conversion D2/, heading Zed, format 12R, S), and that nothing else changes",
-         "write the item zzd in the dictionary of cust" in bt and "1 type D" in bt and "2 field number 7" in bt and "3 conversion D2/" in bt and "4 heading Zed" in bt and "5 format 12R" in bt and "6 single/multi S" in bt
-         and "Nothing else changes" in bt and "expected to be refused" not in bt, bt[:600])
-    h.key("enter", idle=1.5)
-    arow("D3f", "Enter is Cancel: nothing is written - the disk has no item zzd and the status says nothing was run", item(A1, "cust", "zzd") is None and "nothing was run" in st(h), repr((item(A1, "cust", "zzd"), st(h))))
-    new_item_d(h, "zzd", "7", "Zed", "R", "12", "D2/", "S")
-    h.typed("r", idle=2.5)
+    new_in_ide(h, "zzd")
+    T = h.text()
+    arow("D3e", "a good id hands the screen to the IDE on a NEW item, shown as the dictionary form: the Type row and (new item), the item's name, Accept and Cancel, and none of the page's boxes and no question of the page's own",
+         form_up(T) and "(new item)" in T and "cust zzd" in T and "The item under the cursor" not in T and "Run" not in T, T[:400])
+    h.key("esc", idle=1.5)
+    leave_ide(h)
+    arow("D3f", "Cancel (Esc) in the form and Ctrl-Q: nothing was written - the disk has no item zzd - and the page is back with the status line saying it came back from ide dict cust zzd",
+         item(A1, "cust", "zzd") is None and "back from ide dict cust zzd" in st(h), repr((item(A1, "cust", "zzd"), st(h))))
+    new_in_ide(h, "zzd")
+    h.typed("D", idle=0.4)
+    h.key("tab", idle=1.8)
+    until(h, lambda t: "Field #:" in t)
+    h.typed("7", idle=0.4)
+    h.key("enter", idle=2.5)
+    leave_ide(h)
     d = item(A1, "cust", "zzd")
     tb, order = itable(h)
-    arow("D3g", "Run: the record is on the DISK exactly (D, 7, D2/, Zed, 12R, S), the list has it with the cursor on it, and the status says it was written",
-         d is not None and d[0] == ["D", "7", "D2/", "Zed", "12R", "S"] and tb.get("zzd", ("",))[:5] == ("D", "7", "Zed", "12R", "D2/") and "wrote the item zzd" in st(h), repr((d, tb.get("zzd"), st(h))))
-    arow("D3h", "...and it is described: field 7, heading Zed, 12 wide right-justified, converted with D2/", "Shows field 7 of each record." in lowtxt(h) and "12 characters wide, right-justified" in lowtxt(h), lowtxt(h)[:200])
-    new_item_d(h, "zze", "4", "T2", "L", "10", "", "M", "LINE")
-    arow("D3i", "a multivalued item asks for its association; the box shows it as field 7", "7 association LINE" in boxtext(h) and "6 single/multi M" in boxtext(h), boxtext(h)[:500])
-    h.typed("r", idle=2.5)
-    d = item(A1, "cust", "zze")
-    arow("D3j", "Run: the multivalued item is on the disk (D, 4, '', T2, 10L, M, LINE)", d is not None and d[0] == ["D", "4", "", "T2", "10L", "M", "LINE"], repr(d))
-    # the New item box offers a data and a computed item only (31 Oct 26: the A type is gone)
-    h.typed("n", idle=1.0)
-    h.typed("newa\r", idle=1.0)
-    bx = h.text()
-    arow("D3k", "the New item box offers Data and Indirect only: there is no A-type button", "Data" in bx and "Indirect" in bx and "A-type" not in bx, bx[:600])
+    arow("D3g", "D, Tab, a field number and Accept: the record is on the DISK (D, 7, '', '', 10L, S) - written by the IDE - the list has it with the cursor on it, and the status line says it came back from the IDE",
+         d is not None and d[0] == ["D", "7", "", "", "10L", "S"] and "zzd" in order and tb["zzd"][0] == "D" and tb["zzd"][1] == "7" and "back from ide dict cust zzd" in st(h), repr((d, tb.get("zzd"), st(h))))
+    arow("D3h", "...and it is described: field 7 of each record", "Shows field 7 of each record." in lowtxt(h), lowtxt(h)[:200])
+    new_in_ide(h, "ZzCap")
+    T = h.text()
+    arow("D3i", "an id typed with capitals (ZzCap) is made in lower case before the IDE gets it: the form is for dict cust zzcap", form_up(T) and "cust zzcap" in T and "ZzCap" not in T, T[:300])
     h.key("esc", idle=1.5)
-    d = item(A1, "cust", "newa")
-    arow("D3l", "Esc on that box writes nothing: no item newa is on the disk and the status says so", d is None and "nothing written" in st(h), repr((d, st(h))))
-    # an I-type item: the expression
-    h.typed("n", idle=1.0)
-    h.typed("newi\r", idle=1.0)
-    h.typed("i", idle=1.2)
-    h.typed("AMT + 5\r", idle=1.0)
-    h.typed("Plus5\r", idle=0.8)
-    h.typed("\x15r\r", idle=0.8)
-    h.typed("\x15" + "8\r", idle=0.8)
-    h.typed("\r", idle=0.8)
-    h.typed("\r", idle=1.5)
-    bt = boxtext(h)
-    arow("D3m", "an I item: the box shows the expression as field 2 and says it is not compiled yet", "2 expression AMT + 5" in bt and "4 heading Plus5" in bt and "5 format 8R" in bt and "It is not compiled yet" in bt, bt[:600])
-    h.typed("r", idle=2.5)
-    d = item(A1, "cust", "newi")
-    arow("D3n", "Run: the I item is on the disk (I, AMT + 5, '', Plus5, 8R, S) with no object code yet", d is not None and d[0] == ["I", "AMT + 5", "", "Plus5", "8R", "S"] and d[1] == 0, repr(d))
-    # an id typed with capitals is made in lower case
-    h.typed("n", idle=1.0)
-    h.typed("ZzCap\r", idle=1.0)
-    h.typed("d", idle=1.2)
-    for k in range(6):
-        h.typed("2\r" if k == 0 else "\r", idle=(0.8 if k < 5 else 1.5))
-    bt = boxtext(h)
-    h.typed("r", idle=2.5)
-    d = item(A1, "cust", "zzcap")
-    arow("D3p", "an id typed with capitals (ZzCap) is made in lower case: the box names zzcap and the disk has the record zzcap (D, 2, '', '', 10L, S)", "write the item zzcap in the dictionary of cust" in bt and d is not None and d[0] == ["D", "2", "", "", "10L", "S"], repr((bt[:200], d)))
-    # nothing else changed: the other items are as they were
-    arow("D3o", "the items that were there are as they were (amt and dbl read from the disk)", item(A1, "cust", "amt")[0] == ["D", "3", "", "Amt", "10R", "S"] and item(A1, "cust", "dbl")[0][:2] == ["I", "AMT * 2"], repr((item(A1, "cust", "amt"), item(A1, "cust", "dbl"))))
+    leave_ide(h)
+    arow("D3j", "...and nothing was written for it (neither zzcap nor ZzCap is on the disk)", item(A1, "cust", "zzcap") is None, repr(item(A1, "cust", "zzcap")))
+    arow("D3o", "the items that were there are as they were (amt and dbl read from the disk)", item(A1, "cust", "amt")[0] == ["D", "3", "", "Amt", "10R", "S"] and item(A1, "cust", "dbl")[0][:2] == ["I", "AMT * 2"],
+         repr((item(A1, "cust", "amt"), item(A1, "cust", "dbl"))))
     h.key("ctrl-q", idle=1.2)
     h.end()
 
 
 def section_refused():
-    say("\n--- D4: N in an account with dict-edit OFF")
+    say("\n--- D4: N in an account with dict-edit OFF: the IDE refuses at once, in the kernel's own words")
     before = ids(A2, "cust")
     h = page(A2, "cust")
-    new_item_d(h, "refus1", "7", "Nope", "L", "10", "", "S")
-    bt = boxtext(h)
-    arow("D4", "the box says the write is expected to be refused, with the kernel's own reason (dict.edit, modify.account <account> dict-on)", "expected to be refused" in bt and "dict.edit" in bt and "dict-on" in bt, bt[:700])
-    h.typed("r", idle=2.5)
-    arow("D4b", "Run: the status line carries the kernel's own refusal (a dictionary can only be changed by an account that has dict.edit)", "A dictionary can only be changed by an account that has dict.edit" in st(h), repr(st(h)))
+    new_in_ide(h, "refus1")
+    T = h.text()
+    arow("D4", "the IDE does not open the form for a new item in an account without dict-edit: a box says so in the kernel's own words (a dictionary can only be changed by an account that has dict.edit, modify.account <account> dict-on)",
+         not form_up(T) and "has dict.edit" in T and "dict-on" in T, T[-700:])
+    h.key("enter", idle=1.5)
+    T = h.text()
+    arow("D4b", "OK closes the box and the IDE is on the screen (its menu bar), with nothing of the form", "File" in h.line(0) and "Search" in h.line(0) and not form_up(T), T[:300])
+    leave_ide(h)
     after = ids(A2, "cust")
     arow("D4c", "...and NO record appears: refus1 is not on the disk, and the dictionary holds the same items as before", item(A2, "cust", "refus1") is None and after == before, repr((item(A2, "cust", "refus1"), before, after)))
     tb, order = itable(h)

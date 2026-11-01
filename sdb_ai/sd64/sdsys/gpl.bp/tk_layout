@@ -6,6 +6,10 @@
 * START-HISTORY:
 * 28 Oct 26 dm  New (S.88 L1): the frame, the body and the panes of a page made from the window and the app's floor, and made again after a
 *               resize ('refresh'); the cursor lock armed in its layout mode (decided by the window against the floor, never by the cursor).
+* 1 Nov 26 dm  S.97 stage 1: THE AI LINE'S ROW.  A page that has given the AI line a row (ctx<TK.C.AIROW>, set by $tk_aipage 'init' only when the AI is usable for the account) has a
+*               body one row shorter, the last one, which is YSTAT - 1 where $tk_ai draws the line; the panes that stretch give the row up (the shrinking below), so no page declares
+*               it.  A page that has not is laid out exactly as before.  A pane that stretches and declared no least height may give that one row ('normalise'), else the row would
+*               have come out of the pane that does not stretch.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -146,7 +150,7 @@ body:
    ctx<TK.C.XBODY> = TK.XBODY
    ctx<TK.C.YBODY> = TK.YBODY
    ctx<TK.C.BODYW> = ctx<TK.C.W> - 2 * TK.XBODY
-   ctx<TK.C.BODYH> = ctx<TK.C.YSTAT> - TK.YBODY
+   ctx<TK.C.BODYH> = ctx<TK.C.YSTAT> - TK.YBODY - (if ctx<TK.C.AIROW> then 1 else 0)     ;* S.97 stage 1: a page that gave the AI line a row has one row less, and only then
    return
 
 * The cursor lock in its layout mode: the keys are not the page's while the window is smaller than the floor, wherever the cursor is
@@ -254,7 +258,7 @@ lay.panes:
    bh = ctx<TK.C.BODYH> + 0
    xb = ctx<TK.C.XBODY> + 0
    yb = ctx<TK.C.YBODY> + 0
-   if bw >= rbw and bh >= rbh then ctx<TK.C.MODE> = 'full' else ctx<TK.C.MODE> = 'compact'
+   if bw >= rbw and bh >= rbh - (if ctx<TK.C.AIROW> then 1 else 0) then ctx<TK.C.MODE> = 'full' else ctx<TK.C.MODE> = 'compact'     ;* the AI line's row is not a row the reference body lacks
    pd = ctx<TK.C.PANES>
    np = dcount(pd, @vm)
    if np = 0 then
@@ -388,7 +392,10 @@ normalise:
       end
       phs<i> = v + 0
       v = pd<1, i, TK.P.MINH>
-      if v = '' then v = ph<i>
+      if v = '' then
+         v = ph<i>
+         if ctx<TK.C.AIROW> and pvs<i> > 0 and v > 1 then v -= 1          ;* S.97 stage 1: the AI line's row is given up by a pane that stretches, though its page declared no least height
+      end
       pmh<i> = v + 0
       v = pd<1, i, TK.P.MINW>
       if v = '' then v = pw<i>

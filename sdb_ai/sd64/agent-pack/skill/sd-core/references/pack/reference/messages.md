@@ -6380,8 +6380,6 @@ cited by: `ced_core`, `ide`, `sed`, `tk_ai`
 Ask the AI: press Tab until the cursor is here, type a request and press Enter
 ```
 
-cited by: `tk_ai`
-
 ### msg:11638
 > kind=message tier=reference since=- src=sdsys/messages/11638:1#399ece07
 
@@ -6389,7 +6387,7 @@ cited by: `tk_ai`
 Type a request. Enter shows what will be sent; nothing is sent until you choose Send. Esc comes back
 ```
 
-cited by: `tool_home`
+cited by: `tk_aipage`, `tool_home`
 
 ### msg:11639
 > kind=message tier=reference since=- src=sdsys/messages/11639:1#0cd22701
@@ -8804,6 +8802,22 @@ SD cannot tell where this text comes from, so it is not sent to the AI
 
 cited by: `tk_ai`
 
+### msg:11943
+> kind=message tier=reference since=- src=sdsys/messages/11943:1#a1ec8a55
+
+```
+Ask the AI: press F6, type a request and press Enter
+```
+
+### msg:11944
+> kind=message tier=reference since=- src=sdsys/messages/11944:1#059b008a
+
+```
+The AI proposed %1, which this page has no key for.  Nothing was done
+```
+
+cited by: `tk_aipage`
+
 ### msg:11946
 > kind=message tier=reference since=- src=sdsys/messages/11946:1#ce2f5d0f
 
@@ -8865,7 +8879,7 @@ cited by: `tk_open`
 Write this record?
 ```
 
-cited by: `tool_dict`, `tool_query`
+cited by: `tool_query`
 
 ### msg:11953
 > kind=message tier=reference since=- src=sdsys/messages/11953:1#f9187972

@@ -10,6 +10,7 @@
 *               origin (TK.XBODY, TK.YBODY), the smallest floor an app may declare (TK.LEASTW, TK.LEASTH) and the pane declaration's attributes (TK.P.*).
 *               No slot before 12 moved.
 * 30 Oct 26 dm  S.88 F0a: ctx slot 27 (TK.C.BAR), the menu bar's record of what it drew.  No slot before 27 moved.
+* 1 Nov 26 dm   S.97 stage 1: ctx slot 28 (TK.C.AIROW), the row the AI line takes from the body, and key-table value 10 (TK.K.AI), an action offered to the AI.  Nothing before them moved.
 * END-HISTORY
 *
 * THE MINIMUM WINDOW is 140 columns by 43 lines (the owner's ruling of 20 Oct 2026).  The 43rd line is the function-key row, outside the window below its border.
@@ -61,6 +62,8 @@ $define TK.C.CHANGED   25      ;* 1 when the last 'open', 'refresh' or 'declare'
 $define TK.C.PANEERR   26      ;* null, or why the last 'declare' was refused (the panes it holds are then none)
 *   Slots 27 and up are the menu bar's ($tk_menubar, 30 Oct 2026, S.88 F0a).  No slot before 27 moved.
 $define TK.C.BAR       27      ;* what $tk_menubar last drew on row 0: the width, the generation, the epoch, the pane and the menus; it draws again only when this differs
+*   Slot 28 is the AI line's on a page of the toolkit ($tk_aipage, 1 Nov 2026, S.97 stage 1).
+$define TK.C.AIROW     28      ;* 1 when the page has given the AI line a row: $tk_aipage 'init' sets it when the AI is usable, and $tk_layout then takes the LAST row of the body for the line (BODYH is one less; the stretching panes give the row up), else null and the page is laid out as it always was
 *
 * THE BODY'S ORIGIN.  ONE NUMBER EACH: a menu bar of its own on row 0 that pushes every body down a row is TK.YBODY 2 (and the reference body below is a row shorter).
 $define TK.XBODY       1       ;* the body starts in column 1 and ends a column short of the right edge: BODYW = W - 2 * TK.XBODY
@@ -115,3 +118,4 @@ $define TK.K.MENU      6       ;* the menu title with its & mark ('&File'); null
 $define TK.K.ENTRY     7       ;* the entry text with its & mark ('&Save'); the key it shows is DERIVED from the table, never typed
 $define TK.K.WHY       8       ;* why the action is not available now (op 'why' sets it, and ON to 0); null: available
 $define TK.K.ROW       9       ;* 0: bound but not on the function-key row (a second key for one action); null or 1: on the row
+$define TK.K.AI        10      ;* 1: the action may be OFFERED to the AI (op 'ai' sets it, per action; null is not offered, the default).  The AI can only press the page's own keys, so every confirm box and gate applies unchanged

@@ -21,11 +21,11 @@
 #      on both sides, on each dimension; an ordinary account that runs an administrator page at 200 by 9999 is told it is for the administrator only.  (mutants no-size-cap and cap-first;
 #      no-size-cap IS the tree before the fix for these rows: every page spins for the 8 seconds it is given, 8.0 s of CPU in 8.0 s)
 #   T  THE TITLE of $tk_confirm's box.  A program of the sandbox calls $tk_confirm with five arguments (every old caller), with an empty sixth, and with each of the four titles; the title is read
-#      from the pseudo-terminal's screen, and in the box that asks for the name typed as well.  Then the pages: tool.dict N is "Write this record?", tool.query X "Delete this record?", and a
-#      command (tool.dict C) is still "Run this command?".  (mutant title-ignored)
-#   G  THE DICTIONARY GATE.  tool.dict writes a dictionary item from an $internal program, which the kernel's edit gate does not hold; the page asks for itself (K$EDIT.OK).  An ordinary account
-#      WITHOUT dict-edit drives the page through N and Run: the kernel's words are on the status line and the DISK has no record; an account WITH it gets the record.  (mutant dict-no-gate: the page's
-#      question is taken out, and the write goes through - which is what shows the page's own question is the wall.)
+#      from the pseudo-terminal's screen, and in the box that asks for the name typed as well.  Then the pages: tool.query X "Delete this record?", and a
+#      command (tool.dict C) is still "Run this command?".  (mutant title-ignored; tool.dict N had its own box until S.90 stage 3 and has none now)
+#   G  THE DICTIONARY GATE.  tool.dict N hands the new item to the IDE (S.90 stage 3), which asks the gate at the write; the page writes nothing.  An ordinary account WITHOUT dict-edit drives
+#      the page through N, a type and Accept: the kernel's words are on the screen and the DISK has no record; an account WITH it gets the record.  (There is no mutant: the page has no gate
+#      of its own to take out; the IDE's gate is held by sandbox-editgates.py.)
 #   M  MESSAGE 11865.  A page that hands the terminal to a verb (tool.files A) asks "Press Enter to return" and Enter brings back THE PAGE; the text names no screen.  (mutant msg-11865-old)
 #
 # THE INSTRUMENT.  A pipe session is the sandbox's sd as a child with a PIPE for its input: TERM w,h, the verb, then the pipe is CLOSED (no OFF line), waited for with wait4() so that its own CPU
@@ -151,10 +151,6 @@ def m_title_ignored():
     mutate_prog("tk_confirm", "      if boxtitle # '' then ttl = boxtitle\n", "      if 0 then ttl = boxtitle\n")
 
 
-def m_dict_no_gate():
-    mutate_prog("tool_dict", td.WRITE_WALL, "   read old from dv, nid then")
-
-
 def m_eof_spin():
     mutate_prog("tool_files", "         case nm = ''\n            if status() = ER$EOF then exit\n", "         case nm = ''\n            if 0 then exit\n")
 
@@ -168,8 +164,7 @@ def m_msg_old():
 MUTANTS = {
     "no-size-cap": (m_no_size_cap, ["W01", "W02", "W03", "W04", "W05", "W06", "W07", "W08", "W09", "W10", "W12", "W13"], "w"),
     "cap-first": (m_cap_first, ["W15"], "w"),
-    "title-ignored": (m_title_ignored, ["T03", "T04", "T05", "T06", "T07", "T08", "T10"], "t"),
-    "dict-no-gate": (m_dict_no_gate, ["G1", "G1b", "G1c"], "g"),
+    "title-ignored": (m_title_ignored, ["T03", "T04", "T05", "T06", "T07", "T10"], "t"),
     "eof-spin": (m_eof_spin, ["E02b"], "e"),
     "msg-11865-old": (m_msg_old, ["M1"], "m"),
 }
@@ -368,15 +363,8 @@ def section_t():
     h.end()
 
     # the pages
-    nid = uid("zzt")
     h = td.page(A1, "cust")
     SCREEN[0] = h
-    td.new_item_d(h, nid, "7", "Ttl", "L", "10", "", "S")
-    bt = td.boxtext(h)
-    arow("T08", "tool.dict N: the box about the record it writes is titled \"Write this record?\" (not \"Run this command?\") and shows the record   [item %s]" % nid,
-         has_title(h, "Write this record?") and not has_title(h, "Run this command?") and ("write the item %s in the dictionary of cust" % nid) in bt, repr((title_rows(h), bt[:200])))
-    h.key("enter", idle=1.5)
-    arow("T08b", "Enter is Cancel: the disk has no item %s" % nid, td.item(A1, "cust", nid) is None and "nothing was run" in td.st(h), repr((td.item(A1, "cust", nid), td.st(h))))
     td.goto(h, "uncomp")
     h.typed("c", idle=1.5)
     arow("T09", "tool.dict C (compile) is a command: its box keeps the title \"Run this command?\"", has_title(h, "Run this command?") and not has_title(h, "Write this record?")
@@ -400,15 +388,17 @@ def section_t():
 # ------------------------------------------------------------------------------------------------------------------------------ G: the dictionary gate
 
 def section_g():
-    say("\n--- G: tool.dict writes a dictionary item only where the kernel would let the session")
+    say("\n--- G: tool.dict N writes a dictionary item only where the kernel would let the session (the IDE asks; the page writes nothing)")
     before = td.ids(A2, "cust")
     nid = uid("zzg")
     h = td.page(A2, "cust")
     SCREEN[0] = h
-    td.new_item_d(h, nid, "7", "Gate", "L", "10", "", "S")
-    h.typed("r", idle=2.5)
-    arow("G1", "dict-edit OFF, N and Run: the status line carries the kernel's own refusal (a dictionary can only be changed by an account that has dict.edit)   [item %s]" % nid,
-         "A dictionary can only be changed by an account that has dict.edit" in td.st(h) and "wrote the item" not in td.st(h), repr(td.st(h)))
+    td.new_in_ide(h, nid)
+    T = h.text()
+    arow("G1", "dict-edit OFF, N and a good id: the IDE refuses at once and the kernel's own words are on the screen (a dictionary can only be changed by an account that has dict.edit); no form   [item %s]" % nid,
+         not td.form_up(T) and "has dict.edit" in T, T[-600:])
+    h.key("enter", idle=1.5)
+    td.leave_ide(h)
     d = td.item(A2, "cust", nid)
     arow("G1b", "...and the DISK has no record %s in the dictionary of cust (read by a separate session)" % nid, d is None, repr(d))
     after = td.ids(A2, "cust")
@@ -418,11 +408,16 @@ def section_g():
     nid = uid("zzg")
     h = td.page(A1, "cust")
     SCREEN[0] = h
-    td.new_item_d(h, nid, "7", "Gate", "L", "10", "", "S")
-    h.typed("r", idle=2.5)
+    td.new_in_ide(h, nid)
+    h.typed("D", idle=0.4)
+    h.key("tab", idle=1.8)
+    td.until(h, lambda t: "Field #:" in t)
+    h.typed("7", idle=0.4)
+    h.key("enter", idle=2.5)
+    td.leave_ide(h)
     d = td.item(A1, "cust", nid)
-    arow("G2", "CONTROL, dict-edit ON, the same keys: the record is on the disk (D, 7, '', Gate, 10L, S) and the status line says it was written   [item %s]" % nid,
-         d is not None and d[0] == ["D", "7", "", "Gate", "10L", "S"] and "wrote the item %s" % nid in td.st(h), repr((d, td.st(h))))
+    arow("G2", "CONTROL, dict-edit ON, the same keys: the record is on the disk (D, 7, '', '', 10L, S) and the page is back from the IDE   [item %s]" % nid,
+         d is not None and d[0] == ["D", "7", "", "", "10L", "S"] and ("back from ide dict cust %s" % nid) in td.st(h), repr((d, td.st(h))))
     h.key("ctrl-q", idle=1.2)
     h.end()
 

@@ -343,7 +343,10 @@ sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared wi
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
-sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults @pages tk-resize tk-layout
+# S.97 stage 1 (1 Nov 26): the AI line on a page of the toolkit ($tk_aipage; pilot tool.voc and tool.files) - its suite ai-pages joins every rule of a program it runs through
+sdsys/gpl.bp/tk_aipage       : ai-pages tk-base tk-keys tool-voc tool-files
+sdsys/messages/1194[34]      : ai-pages
+sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults @pages tk-resize tk-layout ai-pages
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
 sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
 sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
@@ -361,13 +364,13 @@ sdsys/gpl.bp/tk_brk          : tk-base tk-keys @pages tk-resize termsafe sed-men
 # 26 Oct 26 (task faults): the window cap is in $tk_open, the sixth argument of $tk_confirm and message 11865 are the faults suite's
 sdsys/gpl.bp/tk_open         : tk-base tk-keys tk-faults @pages tk-resize termsafe tk-layout
 # S.88 L1 (28 Oct 26): the layout service, its messages 11540 (the cursor lock's layout mode, which tool.keys' suite reads) and 11541-11542 (a declaration refused)
-sdsys/gpl.bp/tk_layout       : tk-layout tk-base tk-keys @pages tk-resize termsafe
+sdsys/gpl.bp/tk_layout       : tk-layout tk-base tk-keys @pages tk-resize termsafe ai-pages
 sdsys/messages/1154[0-2]     : tk-layout tk-keys tk-resize
 # 1 Nov 26 (S.97 stage 0): the AI's wall; above the `tk_*` rule below, which would otherwise take it first
 sdsys/gpl.bp/tk_aiwall       : ai-boundary ai-line ai-ide ai-apps ai-verb
 # S.88 phase 2 (28 Oct 26, S5): the AI popup shows every line of a diff, a command and the preview whole (before, the rule below this one hid the AI suites from a change of tk_ai)
-sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys tk-resize
-sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout
+sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys tk-resize ai-pages
+sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout ai-pages
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
 sdsys/gpl.bp/tool_keys       : tk-keys l2-misc themeroles
@@ -384,7 +387,7 @@ sdsys/voc_template/tool.keys : tk-keys
 sdsys/gpl.bp/tool_home       : home home2 ai-line l2-home tk-resize
 # AI line stage 1 (23 Oct 26): the toolkit's AI line ($tk_ai) on the home screen, its messages and the fake model's JSON replies
 sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps
-gplbld/sandbox-ai-line.py    : @self
+gplbld/sandbox-ai-line.py    : @self ai-pages
 # AI line stage 2 (23 Oct 26): the AI line in the IDE, edits as diffs ($tk_ai edits, the IDE's AI entry and menu, sl_form's activating entry)
 gplbld/sandbox-ai-ide.py     : @self
 sdsys/messages/1165[3-9]     : ai-ide
@@ -446,7 +449,7 @@ sdsys/voc_template/set.start.default : home
 gplbld/sd-ai                 : aigate ai-verb ai-line
 gplbld/sd-ai-ctl             : aigate
 gplbld/ai-runner.py          : aigate ai-verb ai-line
-gplbld/fakemodel.py          : aigate ai-verb ai-line ai-ide ai-apps
+gplbld/fakemodel.py          : aigate ai-verb ai-line ai-ide ai-apps ai-pages
 gplbld/ai-providers          : aigate ai-verb ai-line
 gplbld/sandbox-aigate.py     : @self ai-verb
 gplbld/sandbox-ai-verb.py    : @self
@@ -512,14 +515,14 @@ sdsys/helptext/tool.accounts.* : docs tool-accounts
 # 26 Oct 26 (S.75 DV1): the files page, the first development app (a verb for every account: newvoc and voc_template both have it); it runs the real create.file, clear.file, delete.file, analyse.file, list.index and list.triggers
 gplbld/sandbox-tool-files.py : @self
 gplbld/test-toolfiles-units.py : none
-sdsys/gpl.bp/tool_files      : tool-files l2-files
+sdsys/gpl.bp/tool_files      : tool-files l2-files ai-pages
 sdsys/newvoc/tool.files      : tool-files
 sdsys/voc_template/tool.files : tool-files
 sdsys/helptext/tool.files.*  : docs tool-files
 # 26 Oct 26 (S.75 DV3): the VOC page, a verb for every account; it runs the real delete (on the VOC) and hands the terminal to sed voc <id>
 gplbld/sandbox-tool-voc.py   : @self
 gplbld/test-toolvoc-units.py : none
-sdsys/gpl.bp/tool_voc        : tool-voc l2-misc
+sdsys/gpl.bp/tool_voc        : tool-voc l2-misc ai-pages
 sdsys/newvoc/tool.voc        : tool-voc
 sdsys/voc_template/tool.voc  : tool-voc
 sdsys/helptext/tool.voc.*    : docs tool-voc

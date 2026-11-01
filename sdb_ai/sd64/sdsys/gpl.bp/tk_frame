@@ -8,6 +8,7 @@
 * 22 Oct 26 dm  ctx<TK.C.GEN>: an app that has cleared or repainted the screen under the frame has all of it written again (TK-1, tool.keys).
 * 28 Oct 26 dm  S.88 L1 (F1): the cache is forgotten when the context's epoch is not the one last drawn ($tk_open makes a new one, $tk_close clears
 *               it: a second open of an app drew no border, status line or keys) or when the layout's geometry changed ($tk_layout 'refresh').
+* 1 Nov 26 dm  S.97 stage 1: draws the AI line ($tk_ai 'show') on a page that has given it a row (ctx<TK.C.AIROW>); nothing is drawn or changed for a page that has not.
 * 30 Oct 26 dm  S.88 F0a: the key table and the pane are kept in common /tkreg/ on every call, so that F1 can list the keys of the pane ($tk_help 'box'); $tk_close clears them.
 * END-HISTORY
 *
@@ -113,6 +114,9 @@ $include tk.h
       screen text a at lw - len(a),0 attr 'bar'
       call $sl_curat('back', keep.cur)
    end
+
+   * the AI line, on the row above the status line that the layout took from the body, when the page asked for one ($tk_aipage 'init'); it draws only when it changed
+   if ctx<TK.C.AIROW> and ctx<TK.C.AI> then call $tk_ai('show', ctx, '', '')
 
    return
 end

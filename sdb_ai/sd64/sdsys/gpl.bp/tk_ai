@@ -16,6 +16,7 @@
 * 1 Nov 26 dm   THE WALL (S.97 stage 0; the owner: the AI field never reaches the C and GPL.BP code or any other system information, and no system-development question is taken to it from
 *               inside SD, for every provider): 'ask' first screens the typed request ($tk_aiwall 'request') and then asks where the text comes from (actx<13>, $tk_aiwall 'origin'), and sends
 *               nothing, not even a preview, when the request names SD's own code or build, when the text is of SD's own files, or when its origin cannot be told.  Every app now passes <13>.
+* 1 Nov 26 dm   S.97 stage 1: the ops 'show' (the line drawn by $tk_frame on a page that has given it a row, written only when it changed) and 'focused'.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -28,6 +29,8 @@
 *   move    (ctx)              the window changed size: puts the line where the new ctx<TK.C.W> and ctx<TK.C.YSTAT> say, and nothing else.  The request typed in it, the cursor in
 *                              it and its focus are kept; the status is not read again (init does all of that anew).  It draws nothing: the next draw does.
 *   draw    (ctx, focused)     draws the line on row YSTAT - 1: the label, then the entry; empty and not focused it shows a dim hint.
+*   show    (ctx)              (S.97 stage 1) what $tk_frame calls on a page of the toolkit: draws the line, with the focus it has, only when something it shows has changed.  focused (-> a)
+*                              is 1 when the line is on and has the focus.
 *   key     (ctx, nm -> out)   a key for the line while it has the focus: Esc gives the focus back (out 'leave'); Tab, Shift-Tab, Up and Down also give it back and come back
 *                              as out 'tab' 'btab' 'up' 'down' for the app to move its own focus; Enter on a non-empty line is out 'ask'; any other key edits the line (the
 *                              library's entry widget: left, right, home, end, delete, ctrl-u ...).
@@ -80,7 +83,7 @@ $include err.h
 $include sl.h
 $include tk.h
 
-   common /tkai/ ai.on, ai.w, ai.focus, ai.prov, ai.model, ai.line
+   common /tkai/ ai.on, ai.w, ai.focus, ai.prov, ai.model, ai.line, ai.sig
 
    if unassigned(ai.on) then
       ai.on = 0
@@ -89,6 +92,7 @@ $include tk.h
       ai.prov = ''
       ai.model = ''
       ai.line = 0
+      ai.sig = ''
    end
 
    begin case
@@ -101,6 +105,7 @@ $include tk.h
          gosub read.status
          ai.line = ai.on
          ai.focus = 0
+         ai.sig = ''
          ctx<TK.C.AI> = (if ai.on then 1 else '')
          ai.w = collection()
          if ai.on then gosub make.widget
@@ -109,6 +114,19 @@ $include tk.h
       case op = 'draw'
          ai.focus = (a = 1)
          if ai.on then gosub paint
+      case op = 'show'
+         * S.97 stage 1: the line on a page of the toolkit, drawn by $tk_frame with the focus the line has now.  Written only when something it shows has changed since it was last
+         * written (the window, the frame's generation and epoch, the focus, the text, the cursor or the pan): the frame is called on every key and about once a second.
+         if ai.on and ai.line then
+            sg = ctx<TK.C.W> : '/' : ctx<TK.C.YSTAT> : '/' : ctx<TK.C.GEN> : '/' : ctx<TK.C.EPOCH> : '/' : ai.focus : '/' : ai.w{'value'} : '/' : ai.w{'pos'} : '/' : ai.w{'pan'}
+            if sg # ai.sig then
+               ai.sig = sg
+               gosub place.widget                             ;* the window may be another size
+               gosub paint
+            end
+         end
+      case op = 'focused'
+         a = (if ai.on and ai.line and ai.focus then 1 else 0)
       case op = 'focus'
          ai.focus = (a = 1)
          if ai.on then gosub paint
@@ -290,7 +308,7 @@ paint:
    screen text '' at 0,y width lw
    screen text ai.label at 3,y attr (if ai.focus then 'bold' else 'disabled')
    if ai.w{'value'} = '' and not(ai.focus) then
-      screen text sysmsg(11637)[1, lw - 3 - len(ai.label) - 3] at ai.w{'ax'},y attr 'disabled'
+      screen text sysmsg((if ctx<TK.C.AIROW> then 11943 else 11637))[1, lw - 3 - len(ai.label) - 3] at ai.w{'ax'},y attr 'disabled'     ;* a page of the toolkit has no Tab ring: its hint says F6 (S.97 stage 1)
    end else
       ai.w{'focused'} = (if ai.focus then 1 else 0)
       call $sl_scr('get', scr)

@@ -12,6 +12,8 @@
 * 27 Oct 26 dm  S.87: A runs ANALYZE.FILE (the US spelling; the British verb record is gone).
 * 26 Oct 26 dm  New.
 * 26 Oct 26 dm  A, I and T hand the terminal to the verb (the report is printed, not captured: the first version waited for ever on LIST.INDEX's page prompt).
+* 1 Nov 26 dm   S.97 stage 1: the AI line ($tk_aipage): F6 or AI > Ask the AI puts the cursor in the line; / and F5 are offered to the model, and a proposal is carried out by this
+*               page's own key for it.  An account without the AI sees no line and no key, and the page is laid out as it always was.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -81,8 +83,13 @@ $include tk.h
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the names', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   * S.97 stage 1: the AI line.  The page offers the AI the actions that only change what is shown (the owner: opt-in, off by default); a proposal is carried out by the page's own key.
+   * Where the AI is not usable for the account nothing here adds a key, a row or a line, and the page is what it always was.
+   call $tk_keys('ai', keys, 'filter', '', '', '', '')
+   call $tk_keys('ai', keys, 'refresh', '', '', '', '')
+   call $tk_aipage('init', ctx, keys, '', '', aout)
 
-   VIS = 16                                                     ;* file rows on the screen (the list pane's height less 6: set by get.rects)
+   VIS = 16                                                    ;* file rows on the screen (the list pane's height less 6: set by get.rects)
    rtw = TK.MINW - 2 * TK.XBODY - 4                             ;* the text width of a pane in the reference layout (140 by 43): 134
    perr = ''
    gosub declare.layout
@@ -106,10 +113,20 @@ $include tk.h
       nm = ''
       screen key returning nm
       mr = ''
+      ao = ''
+      if nm # '' then call $tk_aipage('key', ctx, keys, 'Files', nm, ao)             ;* S.97 stage 1: while the AI line has the focus it takes the keys, before the bar sees them
+      if ao<1> = 'replay' then nm = ao<2>                                            ;* an action the AI proposed and the person accepted: this page's own key for it
+      if ao<1> # '' then msg = ao<4>
       busy = (if filt # '' then 1 else 0)
-      if nm # '' then call $tk_menubar('key', ctx, keys, 'Files', nm, busy, mr)       ;* the Esc rule: a name filter is taken off before the bar opens
+      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, 'Files', nm, busy, mr)       ;* the Esc rule: a name filter is taken off before the bar opens
       if mr<1> # '' then nm = mr<4>
       begin case
+         case ao<1> = 'taken'
+            if ao<3> then
+               gen += 1                                                               ;* the preview, the wait and the answer covered the page: all of it is drawn again
+               ctx<TK.C.GEN> = gen
+               gosub draw.all
+            end
          case nm = ''
             if status() = ER$EOF then exit
          case nm = 'guardquit'
@@ -467,6 +484,9 @@ on.key:
          gosub read.all
          gosub draw.all
          msg = 'read the files again'
+      case nm = 'f6'
+         call $tk_aipage('open', ctx, keys, 'Files', '', ap)                ;* S.97 stage 1: the cursor goes to the AI line (nothing happens where the AI is not on)
+         if ap # '' then msg = ap
       case nm = 'ctrl-q'
          done = 1
    end case
@@ -484,6 +504,11 @@ on.mouse:
    if mr<1> # '' then
       nm = mr<4>
       if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
+      return
+   end
+   call $tk_aipage('mouse', ctx, keys, 'Files', mev, ap)                            ;* S.97 stage 1: a click on the AI line gives it the focus
+   if ap # '' then
+      msg = ap
       return
    end
    call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)
@@ -574,6 +599,7 @@ do.show:
       done = 1
       return
    end
+   call $tk_aipage('again', ctx, keys, '', '', aout)             ;* S.97 stage 1: the new context has no AI line yet; the account may have changed it in the command
    gosub declare.layout                                          ;* the new context has no panes
    gen += 1
    ctx<TK.C.GEN> = gen

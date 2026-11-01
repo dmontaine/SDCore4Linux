@@ -180,7 +180,7 @@ def checks(raw):
        "subroutine tk_confirm(sentence, lines, typed, res, msg, boxtitle) var.args" in cf
        and cf.count("boxtitle") == 4 and ordered(cf, "ttl = sysmsg(11812)", "if not(unassigned(boxtitle)) then if boxtitle # '' then ttl = boxtitle end", "screen msgbox body title ttl buttons", "tt = ttl", "screen ask pr width fw title tt")
        and cf.count("sysmsg(11812)") == 1 and "title sysmsg(11812)" not in cf and " and boxtitle" not in cf and " or boxtitle" not in cf, "")
-    want = {("tool_dict", "show.new"): ["sysmsg(11952)"], ("tool_query", "do.save"): ["sysmsg(11952)", "sysmsg(11952)"], ("tool_query", "delete.selected"): ["sysmsg(11953)"],
+    want = {("tool_query", "do.save"): ["sysmsg(11952)", "sysmsg(11952)"], ("tool_query", "delete.selected"): ["sysmsg(11953)"],
             ("tool_bulk", "do.apply"): ["sysmsg(11954)"], ("tool_bulk", "do.undo"): ["sysmsg(11955)"]}
     got = {}
     bad_count = []
@@ -196,7 +196,7 @@ def checks(raw):
                 got.setdefault((page, lab), []).append(args[5])
             elif len(args) != 5:
                 bad_count.append((page, lab, len(args)))
-    ck("F5", "EXACTLY the places that write or delete a record instead of running a command pass the title - tool.dict N (11952), tool.query S twice (11952) and X (11953), tool.bulk apply (11954) "
+    ck("F5", "EXACTLY the places that write or delete a record instead of running a command pass the title - tool.query S twice (11952; tool.dict N is the IDE's since S.90 stage 3) and X (11953), tool.bulk apply (11954) "
              "and undo (11955) - and every other call of $tk_confirm in the toolkit has five arguments, as before (the null case: all the other pages were read)",
        got == want and not bad_count, repr((got, bad_count)))
 
@@ -222,7 +222,7 @@ def checks(raw):
     ck("F8", "the literal texts of tool.query and tool.test that are drawn with SCREEN TEXT ... WIDTH n fit n (the statement cuts the text at n: three hints of tool.query and the foot hint of tool.test were "
              "cut, the last in the middle of the Ctrl-C then Q instruction); the null case: tool.query has seventeen of them and tool.test one",
        too_long(tq)[0] >= 10 and too_long(tt)[0] >= 1 and not too_long(tq)[1] and not too_long(tt)[1], repr((too_long(tq), too_long(tt))))
-    ta = re.search(r"case vk = 'id'\n(.*?)case vk = 'num'", td, re.S)
+    ta = re.search(r"case vk = 'id'\n(.*?)end case", td, re.S)      # the id is the only rule left of test.answer (S.90 stage 3: the fields are the form's)
     ta = squeeze(ta.group(1)) if ta else ""
     ck("F9", "tool.dict: the id of a NEW item must start with a letter or a digit (. .. and a leading dash or dot are read as options or directories by some verbs), asked before the check that the id is taken",
        ordered(ta, "gosub check.word", "starting with a letter or a digit", "if index('abcdefghijklmnopqrstuvwxyz0123456789', askv[1, 1], 1) = 0 then vok = 0", "that id is taken"), ta[:200])
@@ -283,8 +283,6 @@ MUTANTS = [
                                                                         "   if not(unassigned(boxtitle)) and boxtitle # '' then\n      ttl = boxtitle\n   end")),
     ("the box that asks for the name has the old title", "F4", sub("tk_confirm", "      tt = ttl\n", "      tt = sysmsg(11812)\n")),
     ("the box has the old title whatever the caller says", "F4", sub("tk_confirm", "screen msgbox body title ttl buttons", "screen msgbox body title sysmsg(11812) buttons")),
-    ("tool.dict N has the old title", "F5", sub("tool_dict", "call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))", "call $tk_confirm(sent, lines, '', res, cmsg)")),
-    ("tool.dict N says it deletes", "F5", sub("tool_dict", "call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11952))", "call $tk_confirm(sent, lines, '', res, cmsg, sysmsg(11953))")),
     ("tool.query S (replace) has the old title", "F5", sub("tool_query", "call $tk_confirm(wsent, lines, qname, res, cmsg, sysmsg(11952))", "call $tk_confirm(wsent, lines, qname, res, cmsg)")),
     ("tool.query X has the write title", "F5", sub("tool_query", "call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11952))")),
     ("tool.bulk apply has the old title", "F5", sub("tool_bulk", "call $tk_confirm(sent, lines, bf, res, cmsg, sysmsg(11954))", "call $tk_confirm(sent, lines, bf, res, cmsg)")),
