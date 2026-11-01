@@ -392,9 +392,19 @@ run.ask:
    nav.not = a<12>                                         ;* the ids of the actions that do more than navigate (the app's own programs, the prompt): Enter alone never accepts one of these
    n.acts = dcount(acts, @vm)
 
+   * the documentation passages (S.100): the few sections of SD's own pages that match the typed request, chosen HERE so that the preview can show them.  The administrator's pages are
+   *   the administrator's alone ($tk_aidocs asks).  The request screen above has already run, so a request that names SD's own code never gets here.
+   call $tk_aidocs('find', req, dres)
+   n.doc = dres<1> + 0
+   doc.bytes = 0
+   for i = 1 to n.doc
+      doc.bytes += len(dres<4, i>)
+   next i
+
    * what will leave the machine: the fixed instruction, the list of the page's actions, what the page tells about itself, and the request
    sysx = sysmsg(11635, app)
    if tbm # '' then sysx := ' ' : sysmsg(11653)             ;* the model may answer with edits, only when there is a text to edit
+   if n.doc > 0 then sysx := ' ' : sysmsg(11922)
    nl = char(10)
    alist = ''
    for i = 1 to n.acts
@@ -406,6 +416,9 @@ run.ask:
    prompt = 'Actions this page offers (id: what it does):' : alist : nl : nl : 'What this page tells you about itself:' : nl : ptext
    if tbm # '' then prompt := nl : nl : 'The text being worked on (it starts at line ' : tb.first : '):' : nl : tbm
    if selm # '' then prompt := nl : nl : 'The selected text:' : nl : selm
+   for i = 1 to n.doc
+      prompt := nl : nl : 'Documentation passage [' : dres<2, i> : '] ' : dres<3, i> : ':' : nl : dres<4, i>
+   next i
    prompt := nl : nl : 'Request: ' : req
    size = len(sysx) + len(prompt)
 
@@ -463,6 +476,21 @@ run.ask:
          end
       next p
       if n.sel > 6 then body<-1> = '  ' : sysmsg(11644, n.sel - 6)
+   end
+   if n.doc > 0 then
+      body<-1> = sysmsg(11920, n.doc, doc.bytes)
+      for i = 1 to n.doc
+         body<-1> = sysmsg(11921, dres<2, i>, len(dres<4, i>) : ' bytes')
+         n.dl = dcount(dres<4, i>, nl)
+         for p = 1 to n.dl
+            if p <= 4 then
+               wr.text = field(dres<4, i>, nl, p)
+               gosub wrap.exact
+               body<-1> = wr.out
+            end
+         next p
+         if n.dl > 4 then body<-1> = '  ' : sysmsg(11644, n.dl - 4)
+      next i
    end
    body<-1> = sysmsg(11643, len(req))
    call $tk_wrap(req, wrapw, pieces)

@@ -117,6 +117,7 @@ IFS=$'\n\t'
 #            redirect.
 REPO_URL="https://github.com/dmontaine/SDCore4Linux"
 REPO_BRANCH="main"
+DOCS_URL="https://github.com/dmontaine/SDCore4LinuxDocs"
 # define where we expect to find the package
 # 09 Sep 26  THE DOWNLOAD GOES UNDER $HOME, NOT INTO WHATEVER DIRECTORY THE
 #            SCRIPT WAS RUN FROM.  It used to be "$(pwd)/.sdb64tmp", so running
@@ -1188,6 +1189,27 @@ else
 fi
 # AGENTPACK-END
 #
+# 01 Nov 26 dm - S.100 (owner, 1 Nov 2026: "install the user/admin docs too ... with the caveat that the admin doc should only be available to the admin").  THE DOCUMENTATION THE
+#            AI LINE DRAWS ON: the markdown of the User and Administrator documents, from the documentation repository, branch REPO_BRANCH, to docs/user and docs/admin under the system
+#            directory.  gpl.bp/tk_aidocs picks a few sections of them for a request and the preview shows them before anything is sent.  The administrator's pages are kept from every
+#            other session by the operating system (the modes block below: docs/admin is 700, its files 600, owner sdsys) and the reader asks the kernel for the administrator before it
+#            looks.  SKIPPED WITH A NOTE, NEVER AN ERROR: no network to the documentation, no clone, a clone without the two directories, or no mktemp leaves the AI line working as it
+#            did, without passages; an older install's docs are replaced only when the new ones are complete.  test-install-aidocs.sh runs these two blocks.
+# DOCS-CORPUS-BEGIN
+docs_tmp=$(mktemp -d 2>/dev/null) || docs_tmp=""
+if [ -n "$docs_tmp" ] && GIT_TERMINAL_PROMPT=0 git clone --quiet --branch "$REPO_BRANCH" --depth 1 "$DOCS_URL" "$docs_tmp/docs" >/dev/null 2>&1 \
+   && [ -d "$docs_tmp/docs/User/markdown" ] && [ -d "$docs_tmp/docs/Administrator/markdown" ]; then
+    sudo rm -rf "$sdsysdir/docs"
+    sudo mkdir -p "$sdsysdir/docs/user" "$sdsysdir/docs/admin"
+    sudo cp "$docs_tmp"/docs/User/markdown/*.md "$sdsysdir/docs/user/"
+    sudo cp "$docs_tmp"/docs/Administrator/markdown/*.md "$sdsysdir/docs/admin/"
+    echo "Installed the documentation the AI line draws on: $sdsysdir/docs"
+else
+    echo "Note: the documentation could not be fetched from ${DOCS_URL}, so the AI line will answer without passages of it."
+fi
+if [ -n "$docs_tmp" ]; then rm -rf "$docs_tmp"; fi
+# DOCS-CORPUS-END
+#
 sudo chown -R sdsys:sdusers "$sdsysdir"
 sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"
 
@@ -1206,6 +1228,22 @@ if [ -d "$sdsysdir/agent-pack" ]; then
     sudo find "$sdsysdir/agent-pack" -type f -exec chmod 644 {} +
 fi
 # AGENTPACK-MODE-END
+# 01 Nov 26 dm - S.100: the documentation for the AI line.  docs/user is readable by every session (755 / 644); docs/admin is the administrator's alone - the sdsys user, which is the only
+#            operating-system user an administrator session runs as: 700 for the directory, 600 for its files.  AFTER the chmod -R above.
+# DOCS-MODE-BEGIN
+if [ -d "$sdsysdir/docs" ]; then
+    sudo chown -R sdsys:sdusers "$sdsysdir/docs"
+    sudo chmod 755 "$sdsysdir/docs"
+    if [ -d "$sdsysdir/docs/user" ]; then
+        sudo chmod 755 "$sdsysdir/docs/user"
+        sudo find "$sdsysdir/docs/user" -type f -exec chmod 644 {} +
+    fi
+    if [ -d "$sdsysdir/docs/admin" ]; then
+        sudo chmod 700 "$sdsysdir/docs/admin"
+        sudo find "$sdsysdir/docs/admin" -type f -exec chmod 600 {} +
+    fi
+fi
+# DOCS-MODE-END
 
 # 09 Sep 26 dm - PRE_RELEASE 8.  THE INSTALL STAMP, read from the clone above.
 # assert-current.py compares "commit" against the working tree's HEAD, which is

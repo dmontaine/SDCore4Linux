@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   THE AI LINE ANSWERS FROM SD'S OWN DOCUMENTATION: THE FEW SECTIONS THAT MATCH THE REQUEST ARE IN THE PREVIEW AND GO WITH IT.
+
+             What        - The installer now puts the User and Administrator documents (markdown) in docs/user and docs/admin under the system directory. When you press Enter on a request, SD picks up to four
+                           sections of them that match your words (at most 2,400 bytes each and 6,000 in all), lists them in the preview with the page and section they come from and their first lines, and
+                           sends them with the request, with a sentence asking the model to name the page it used. Cancel is still the default, and a request that matches nothing well gets no passage. The
+                           Administrator pages are for the administrator only: the directory is mode 700 and owned by sdsys, and the routine asks SD for the administrator before it looks there, so an
+                           account holder's request is never answered from them.
+             Why         - Asked how to do something in SD, a model answers from what it remembers of other multivalue systems, and gets verbs and options wrong. With the section in front of it, it can
+                           quote SD.
+             Does NOT    - Send anything you have not seen counted and named in the preview (the preview shows the first four lines of each passage and says how many more there are), reach the
+                           AI line of an account that has no AI, change the rule that the AI never receives SD's own code (the documentation is the published user and administrator text, not the
+                           source), or work on a machine where the documentation could not be fetched at install time: the installer says so and the AI line answers as it did.
+
 1 Nov 26   TOOL.DICT'S N (NEW ITEM) NOW HANDS THE NEW ITEM TO THE IDE, WHICH SHOWS THE DICTIONARY FORM; THE PAGE ITSELF WRITES NOTHING.
 
              What        - N asks the id (the same rules as before: lower case, a plain word, not an SD keyword, not already an item in any case) and then takes the terminal to the IDE on a new item, shown

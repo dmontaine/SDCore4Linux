@@ -369,7 +369,11 @@ sdsys/messages/1154[0-2]     : tk-layout tk-keys tk-resize
 # 1 Nov 26 (S.97 stage 0): the AI's wall; above the `tk_*` rule below, which would otherwise take it first
 sdsys/gpl.bp/tk_aiwall       : ai-boundary ai-line ai-ide ai-apps ai-verb
 # S.88 phase 2 (28 Oct 26, S5): the AI popup shows every line of a diff, a command and the preview whole (before, the rule below this one hid the AI suites from a change of tk_ai)
-sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys tk-resize ai-pages
+# S.100 (1 Nov 26): the documentation passages of the AI line ($tk_aidocs, read by $tk_ai) and their messages
+sdsys/gpl.bp/tk_aidocs       : aidocs ai-line
+sdsys/messages/1192[0-2]     : aidocs
+gplbld/sandbox-aidocs.py     : @self
+sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys tk-resize ai-pages aidocs
 sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout ai-pages
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)

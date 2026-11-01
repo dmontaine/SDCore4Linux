@@ -8696,6 +8696,33 @@ cited by: `rstvoc`
 
 cited by: `ide`
 
+### msg:11920
+> kind=message tier=reference since=- src=sdsys/messages/11920:1#8f743495
+
+```
+The documentation: %1 passages, %2 bytes, from SD's own pages. They are sent with your request, and the AI is asked to name the page it used.
+```
+
+cited by: `tk_ai`
+
+### msg:11921
+> kind=message tier=reference since=- src=sdsys/messages/11921:1#0c93e068
+
+```
+  [%1] %2
+```
+
+cited by: `tk_ai`
+
+### msg:11922
+> kind=message tier=reference since=- src=sdsys/messages/11922:1#35f90323
+
+```
+Passages of SD's own documentation follow, each with its id in brackets. Use them when they answer the request, say which id you used, and do not claim a feature they do not describe.
+```
+
+cited by: `tk_ai`
+
 ### msg:11930
 > kind=message tier=reference since=- src=sdsys/messages/11930:1#bfc9f698
 
