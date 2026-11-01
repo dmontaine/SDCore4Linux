@@ -152,6 +152,9 @@ SANDBOX_PATCHES = [
     # 24 Oct 26 (W.11 F4, option C1): the audit daemon's socket.  A sandbox build must NOT carry the live path: on a machine whose own sdlnxd is running, a sandbox
     # session would hand its audit records to the live trail.  A directory of its own per keyset, so the daemon's checks of its directory hold (it is ours).
     ("gplsrc/sddefs.h", '#define SD_AUDIT_SOCK "/run/sd/audit.sock"', '#define SD_AUDIT_SOCK "/tmp/sdbox-audit-%d/audit.sock"' % KEYSET, "sandbox audit socket"),
+    # 31 Oct 26 (S.94): the gpm daemon's socket and whether a session on a pseudo terminal may talk to it (sandbox-gpm.py's stand-in daemon).  The shipped build asks for /dev/gpmctl and a text console.
+    ("gplsrc/sddefs.h", '#define SD_GPM_SOCK "/dev/gpmctl"', '#define SD_GPM_SOCK "/tmp/sdbox-gpm-%d/gpm.sock"' % KEYSET, "sandbox gpm socket"),
+    ("gplsrc/sddefs.h", "#define SD_GPM_ANY_TTY 0", "#define SD_GPM_ANY_TTY 1", "sandbox gpm any tty"),
     ("gplsrc/sd.c",
      '  if (geteuid() != 0) {\n    fprintf(stderr, "Command requires administrator privileges\\n");\n    exit(1);\n  }\n',
      '  fprintf(stderr, "sd: SANDBOX BUILD - check_admin stubbed\\n");\n',

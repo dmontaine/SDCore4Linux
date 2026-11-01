@@ -103,6 +103,12 @@
  * kernel's credentials of the sender, never from the text.  Fixed at compile time and NOT an environment variable: a variable the user can set would let a user send
  * their own session's records somewhere they are not kept.  The sandbox tools change the path in their own copy of the tree (as they do the keys above). */
 #define SD_AUDIT_SOCK "/run/sd/audit.sock"
+
+/* 31 Oct 26 dm - S.94 (gpmmouse.c).  The socket of the gpm daemon, which reads the mouse on a Linux text console, and whether a session on something that is not one may talk to it.
+ * Both fixed at compile time and NOT environment variables, for the reason of the audit socket above; the sandbox tools change them in their own copy of the tree, so that a
+ * session on a pseudo terminal can talk to a stand-in daemon.  A shipped build asks for a console (character device 4:1 to 4:63) and nothing else. */
+#define SD_GPM_SOCK "/dev/gpmctl"
+#define SD_GPM_ANY_TTY 0
 #define AUDIT_MAGIC "SDAUDIT1 "
 #define AUDIT_DGRAM_MAX 2048
 

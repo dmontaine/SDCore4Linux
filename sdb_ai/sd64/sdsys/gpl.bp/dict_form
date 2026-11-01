@@ -1,25 +1,29 @@
 * DICT_FORM
-* A dictionary item as a full-screen form: a label and an entry for each field its type has (S.90, stage 2).
+* A dictionary item as a full-screen form: a label and an entry for each field its type has (S.90).
 * Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 * START-HISTORY:
+* 31 Oct 26 dm  THE LAYOUT THE OWNER SPECIFIED (his message of 31 Oct, after seeing the first build): Type is an ENTRY, typed, and the rows of that type appear when it has been entered
+*               (a new item shows only Type until then); no row numbers; the labels Field #, Conversion Cd, Column Heading and ONE row Len & Just (30 L, 12 R 2) in place of
+*               Width, Justification and Decimals; the buttons are Accept and Cancel and nothing else (Edit as text is gone: Cancel leaves the item as text in its tab).  The first
+*               build had a radio row for the Type, numbered rows, three format rows and a third button.
 * 31 Oct 26 dm  New (S.90, plan .claude/plan-s90-dict-form.md).  The rules are !dict_item's; this program is the screen.
-* 31 Oct 26 dm  The Edit as text button is 'astext': its id was 'text', the id of the Text row's memo, so a PH or X item's form had no such button (found when the form became the default).
 * END-HISTORY
+*
 * START-DESCRIPTION:
 *   call $dict_form(rec, title, newrec, res)
 *     rec     the dictionary record as it is ('' for a new item)
 *     title   what the form's border says (the file and the item)
-*     newrec  the record the form built, when res is save or text; the reason in words when res is cannot; else rec
-*     res     save    Save was pressed and every field passed: newrec is the record
-*             text    Edit as text was pressed and every field passed: newrec is the record, the caller shows it as text
+*     newrec  the record the form built, when res is save; the reason in words when res is cannot; else rec
+*     res     save    Accept was pressed and every field passed: newrec is the record
 *             cancel  Esc or Cancel (after the question when something was changed): nothing is returned
 *             cannot  the form cannot show the item (a type it does not know, a format that is not a width, L R T or C and decimals, text with
 *                     characters it cannot hold): newrec says why in words and the caller shows the item as text
-*   A FULL-SCREEN FORM, 140 by 43 (the window is at least that: the IDE refuses a smaller one).  The first row is the Type, a choice of D E I L PH and X;
-*   choosing another type makes the form again with the rows of that type and keeps what was typed for the rows the two types share.  Each other row is a
-*   label and an entry; a phrase or a text is a text area.  A value is checked as the focus leaves it, with the reason on the line near the foot, and once
-*   more when Save is pressed, which names the row and puts the focus there; nothing is returned while a row is refused.  The rules are those of !dict_item.
+*   A FULL-SCREEN FORM, 140 by 43 (the window is at least that: the IDE refuses a smaller one).  The first row is the Type, an entry: D, E, I, L, PH or X is typed and checked as the
+*   focus leaves it, and the rows of that type appear (a new item shows nothing else until then; an existing item shows its rows with its values in them, to be edited).  Typing
+*   another type makes the form again with the rows of that type and keeps what was typed for the rows the two types share.  Each other row is a label and an entry; a phrase or a text is
+*   a text area; the format is ONE row, Len & Just, read as a width, a letter and optional decimals.  A value is checked as the focus leaves it, with the reason on the line near the foot, and
+*   once more when Accept is pressed, which names the row and puts the focus there; nothing is returned while a row is refused.  The rules are those of !dict_item.
 *   This program WRITES NOTHING: it opens no file and runs no command.  The caller (the IDE) puts the record in the tab and saves it with its own save.
 * END-DESCRIPTION
 * START-CODE
@@ -30,11 +34,9 @@ $catalog $dict_form
 
    res = 'cancel'
    newrec = rec
-   call !dict_item('types', '', types, '', xd)
-   ntypes = dcount(types, @fm)
-   typeitems = change(types, @fm, @vm)
    if rec = '' then
       call !dict_item('parse', 'D', vals, '', pd)
+      vals{'type'} = ''                    ;* a new item has no type until one is typed
       vals{'width'} = '10'
       vals{'just'} = 'L'
       vals{'sm'} = 'S'
@@ -55,6 +57,8 @@ $catalog $dict_form
          return
       end
    end
+   fmt.err = ''
+   focus.first = 0
 
    loop
       gosub make.form
@@ -66,22 +70,29 @@ $catalog $dict_form
 * In: vals (the values).  Out: the form f, shown by the first screen wait
 make.form:
    ty = vals{'type'}
-   call !dict_item('layout', ty, rows, '', xd)
+   if ty = '' then
+      rows = 'type' : @vm : 'Type' : @vm : 'type' : @vm : '' : @vm : '' : @vm : 0
+   end else
+      call !dict_item('layout', ty, rows, '', xd)
+      gosub fold.format
+   end
    nrows = dcount(rows, @fm)
    screen form title title : (if is.new then '  (new item)' else '') size 140,43 returning f
-   screen label f, 'ttl', 'Tab and Down go to the next row, Return presses Save, Esc leaves.  The rows are those of the type chosen in the first.' at 2,1 width 134
+   screen label f, 'ttl', 'Type D, E, I, L, PH or X and press Tab: the rows of that type appear.  Tab and Down: next row.  Return: Accept.  Esc: leave.' at 2,1 width 134
    y = 3
    for rp = 1 to nrows
       key = rows<rp, 1>
-      screen label f, 'l.' : key, rp : '. ' : rows<rp, 2> : ':' at 2,y width 22
+      screen label f, 'l.' : key, ' ' at 2,y width 22
+      screen set f, 'l.' : key text rows<rp, 2> : ':'          ;* SET TEXT, not the label's own text: SCREEN LABEL takes the first & of its text for a hot key and drops it, and Len & Just has one
       begin case
          case key = 'type'
-            tix = 1
-            locate ty in types<1> setting tix else tix = 1
-            screen radio f, 'type', typeitems at 26,y value tix across
+            screen entry f, 'type' at 26,y width 6 value vals{'type'} maxlen 2
          case rows<rp, 3> = 'memo'
             screen memo f, key, convert(char(10), @fm, vals{key}) at 26,y size 106,14
             y += 13
+         case key = 'fmt'
+            call !dict_item('fmtshow', vals, fx, '', xd)
+            screen entry f, 'fmt' at 26,y width 14 value fx maxlen 12
          case 1
             gosub entry.size
             screen entry f, key at 26,y width ew value vals{key} maxlen em
@@ -90,9 +101,29 @@ make.form:
    next rp
    screen label f, 'hint', ' ' at 2,30 width 134
    screen label f, 'err', ' ' at 2,32 width 134
-   screen button f, 'save', '&Save' at 26,38 default
-   screen button f, 'astext', 'Edit as &text' at 40,38        ;* 31 Oct 26: not 'text' - the Text row of a PH or X item is a memo with that id, and the second widget of an id took the button's place
-   screen button f, 'cancel', '&Cancel' at 62,38 cancel
+   screen button f, 'accept', '&Accept' at 26,38 default
+   screen button f, 'cancel', '&Cancel' at 40,38 cancel
+   if focus.first then
+      if nrows >= 2 then screen focus f, rows<2, 1> else null
+      focus.first = 0
+   end
+   return
+
+* The engine's Width, Justification and Decimals rows are ONE row on the form, Len & Just (key fmt)
+fold.format:
+   nr2 = ''
+   for rp = 1 to dcount(rows, @fm)
+      k = rows<rp, 1>
+      begin case
+         case k = 'width'
+            nr2<-1> = 'fmt' : @vm : 'Len & Just' : @vm : 'fmt' : @vm : '' : @vm : '' : @vm : 1
+         case k = 'just' or k = 'dec'
+            null
+         case 1
+            nr2<-1> = rows<rp>
+      end case
+   next rp
+   rows = nr2
    return
 
 * In: key.  Out: ew (the width of its entry), em (the longest text it takes)
@@ -102,9 +133,7 @@ entry.size:
    begin case
       case key = 'loc'
          ew = 8 ; em = 5
-      case key = 'width'
-         ew = 6 ; em = 3
-      case key = 'dec' or key = 'just' or key = 'sm'
+      case key = 'sm'
          ew = 4 ; em = 1
       case key = 'conv'
          ew = 40 ; em = 40
@@ -124,16 +153,6 @@ run.form:
    loop
       screen wait f returning ev then
          begin case
-            case ev<1> = 'change' and ev<2> = 'type'
-               screen get f, 'type' returning tn
-               tn = tn + 0
-               if tn >= 1 and tn <= ntypes then
-                  if types<tn> # ty then
-                     gosub collect
-                     vals{'type'} = types<tn>
-                     act = 'type'
-                  end
-               end
             case ev<1> = 'focus'
                gosub on.focus
             case ev<1> = 'button'
@@ -153,20 +172,37 @@ run.form:
    screen hide f
    return
 
-* The values of the rows on the form, into vals (the Type is vals{'type'} already)
+* The values of the rows on the form, into vals (the Type is vals{'type'} already).  Len & Just is split into width, justification and decimals; what is wrong with it is in fmt.err
 collect:
+   fmt.err = ''
    for rp = 1 to nrows
       key = rows<rp, 1>
       if key # 'type' then
          screen get f, key returning cv
          if rows<rp, 3> = 'memo' then cv = convert(@fm, char(10), cv)
-         vals{key} = cv
+         if key = 'fmt' then
+            call !dict_item('fmtsplit', cv, fw, '', fe)
+            if fe = '' then
+               vals{'width'} = fw{'width'}
+               vals{'just'} = fw{'just'}
+               vals{'dec'} = fw{'dec'}
+            end else
+               fmt.err = fe
+            end
+         end else
+            vals{key} = cv
+         end
       end
    next rp
    return
 
-* Esc or Cancel: nothing to ask when nothing was changed, else Discard or Keep editing.  Sets act and res when the form ends
+* Esc or Cancel: nothing to ask when nothing was changed (or no Type was ever entered), else Discard or Keep editing.  Sets act and res when the form ends
 ask.discard:
+   if ty = '' then
+      res = 'cancel'
+      act = 'done'
+      return
+   end
    gosub collect
    call !dict_item('build', vals, rec, nr, be)
    if be = '' and nr = rec then
@@ -184,12 +220,54 @@ ask.discard:
 * The focus moved: the row it left is checked and the hint of the row it went to is shown.  In: ev (the widget it went to, then the one it left)
 on.focus:
    lfk = ev<3>
+   hn = ev<2>
+   if lfk = 'type' then
+      gosub type.left
+   end else
+      gosub row.left
+   end
+   if act = '' then
+      hint = ''
+      gosub hint.for
+      screen set f, 'hint' text hint
+   end
+   return
+
+* The Type entry was left (or Accept was pressed with a Type typed): a good type that is not the one on the form makes the form again with that type's rows, the focus on the first of them
+type.left:
+   screen get f, 'type' returning cv
+   call !dict_item('check', 'D', 'type', cv, ce)
+   if ce = '' then
+      screen set f, 'type' value cv
+      screen set f, 'err' text ' '
+      if cv # ty then
+         gosub collect
+         vals{'type'} = cv
+         focus.first = 1
+         act = 'type'
+      end
+   end else
+      screen set f, 'err' text '! Type: ' : ce
+      screen focus f, 'type' else null
+   end
+   return
+
+* A row other than the Type was left: it is checked, and a good value is put back in its normal form
+row.left:
    for rp = 1 to nrows
-      if rows<rp, 1> = lfk and lfk # 'type' and rows<rp, 3> # 'memo' then
+      if rows<rp, 1> = lfk and rows<rp, 3> # 'memo' then
          screen get f, lfk returning cv
-         call !dict_item('check', ty, lfk, cv, ce)
+         if lfk = 'fmt' then
+            call !dict_item('fmtsplit', cv, fw, '', ce)
+            if ce = '' then
+               call !dict_item('fmtshow', fw, fx, '', xd)
+               screen set f, 'fmt' value fx
+            end
+         end else
+            call !dict_item('check', ty, lfk, cv, ce)
+            if ce = '' then screen set f, lfk value cv
+         end
          if ce = '' then
-            screen set f, lfk value cv
             screen set f, 'err' text ' '
          end else
             screen set f, 'err' text '! ' : rows<rp, 2> : ': ' : ce
@@ -197,17 +275,13 @@ on.focus:
          exit
       end
    next rp
-   hn = ev<2>
-   hint = ''
-   gosub hint.for
-   screen set f, 'hint' text hint
    return
 
 * In: hn (a row key).  Out: hint
 hint.for:
    begin case
       case hn = 'type'
-         hint = 'D a data field, E an element of a collection, I a computed value, L a link to another file, PH a phrase, X text'
+         hint = 'D a data field, E an element of a collection, I a computed value, L a link to another file, PH a phrase, X text.  Type one and press Tab.'
       case hn = 'loc'
          hint = 'A whole number from 0 to 9999: the field of the record this item shows.  0 is the record id.'
       case hn = 'path'
@@ -224,12 +298,8 @@ hint.for:
          hint = 'Optional: a conversion for display, for example D2 for a date or MD2 for two decimals'
       case hn = 'head'
          hint = 'Optional: the column heading, up to 40 characters.  A backslash prints none.'
-      case hn = 'width'
-         hint = 'The width of the column in characters, 1 to 200'
-      case hn = 'just'
-         hint = 'L left, R right, T text that wraps, C centred.  Needed when there is a width.'
-      case hn = 'dec'
-         hint = 'Optional: decimal places, 0 to 9, for a number'
+      case hn = 'fmt'
+         hint = 'The width of the column, then L left, R right, T text that wraps or C centred, then decimals if any: 30 L or 12 R 2'
       case hn = 'sm'
          hint = 'S for one value in the field, M for many values (multivalued)'
       case hn = 'assoc'
@@ -241,20 +311,33 @@ hint.for:
    end case
    return
 
-* A button: Save and Edit as text build the record from the rows; a row that fails is named in the err line and takes the focus; nothing ends the form while one fails
+* A button: Accept builds the record from the rows; a row that fails is named in the err line and takes the focus; nothing ends the form while one fails
 on.button:
    bt = ev<2>
-   if bt = 'astext' then bt = 'text'          ;* the button's own id is not the result word
-   if bt = 'save' or bt = 'text' then
+   if bt = 'accept' then
+      gosub type.left
+      if act # '' then return
+      if ty = '' then
+         screen set f, 'err' text '! Type: D, E, I, L, PH or X'
+         screen focus f, 'type' else null
+         return
+      end
       gosub collect
+      if fmt.err # '' then
+         screen set f, 'err' text '! Len & Just: ' : fmt.err
+         screen focus f, 'fmt' else null
+         return
+      end
       call !dict_item('build', vals, rec, nr, be)
       if be = '' then
          newrec = nr
-         res = bt
+         res = 'save'
          act = 'done'
       end else
+         fk = be<1>
+         if fk = 'width' or fk = 'just' or fk = 'dec' then fk = 'fmt'
          screen set f, 'err' text '! ' : be<2>
-         screen focus f, be<1> else null
+         screen focus f, fk else null
       end
    end
    return

@@ -68,9 +68,15 @@ def checks(src, others):
        and len(re.findall(r"^      case ty = '", code[code.find("\nrows.for:"):code.find("\nrows.tail:")], re.M)) == 6, "")
     ck("D4 the limits of the owner's example: loc 0 to 9999, width 1 to 200, decimals 0 to 9, heading 40, conversion 40, association 30, expression 300",
        all(s in code for s in ("'loc' : @vm : 'Field #' : @vm : 'num' : @vm : 0 : @vm : 9999 : @vm : 0", "'width' : @vm : 'Width' : @vm : 'num' : @vm : 1 : @vm : 200 : @vm : 1",
-                               "'dec' : @vm : 'Decimals' : @vm : 'num' : @vm : 0 : @vm : 9 : @vm : 1", "'head' : @vm : 'Heading' : @vm : 'text' : @vm : '' : @vm : 40 : @vm : 1",
-                               "'conv' : @vm : 'Conversion' : @vm : 'conv' : @vm : '' : @vm : 40 : @vm : 1", "'assoc' : @vm : 'Association' : @vm : 'word' : @vm : '' : @vm : 30 : @vm : 1",
+                               "'dec' : @vm : 'Decimals' : @vm : 'num' : @vm : 0 : @vm : 9 : @vm : 1", "'head' : @vm : 'Column Heading' : @vm : 'text' : @vm : '' : @vm : 40 : @vm : 1",
+                               "'conv' : @vm : 'Conversion Cd' : @vm : 'conv' : @vm : '' : @vm : 40 : @vm : 1", "'assoc' : @vm : 'Association' : @vm : 'word' : @vm : '' : @vm : 30 : @vm : 1",
                                "'expr' : @vm : 'Expression' : @vm : 'expr' : @vm : '' : @vm : 300 : @vm : 0")), "")
+    ck("D4b the owner's labels (31 Oct 26): Column Heading and Conversion Cd for D, E and I; Element Path, Id Expression and File Expression for the rows that were Path, Id expression and File expression",
+       all(s in code for s in ("'path' : @vm : 'Element Path'", "'idexpr' : @vm : 'Id Expression'", "'fexpr' : @vm : 'File Expression'")), "")
+    ck("D4c Len & Just: fmtshow makes ONE text from width, justification and decimals (30 L, 12 R 2) and fmtsplit reads it back through the rows' own rules (width 1 to 200, one of L R T C, decimals 0 to 9); neither writes anything",
+       ordered(code, "case op.l = 'fmtshow'", "gosub do.fmtshow", "case op.l = 'fmtsplit'", "gosub do.fmtsplit")
+       and ordered(code, "do.fmtshow:", "b = a{'width'} : ' ' : a{'just'}", "if a{'dec'} # '' then b := ' ' : a{'dec'}", "do.fmtsplit:", "tv.kind = 'num' ; tv.lo = 1 ; tv.hi = 200 ;", "tv.kind = 'just'",
+               "tv.kind = 'num' ; tv.lo = 0 ; tv.hi = 9 ;", "b{'width'} = fx.w", "b{'just'} = fx.j", "b{'dec'} = fx.d"), "")
     ck("D5 the association row depends on sm = M, and build leaves it out otherwise",
        "'assoc' : @vm : 'Association'" in code and ": @vm : 'sm' : @vm : 'M'" in code
        and ordered(code, "if rw<rp, 7> # '' then", "if upcase(trim(a{rw<rp, 7>})) # rw<rp, 8> then skip = 1", "if skip then", "tv.val = ''", "tv.opt = 1")
@@ -118,6 +124,10 @@ def report(rows):
 # (name, old, new): each must match the engine's text once and be caught
 MUTANTS = [
     ("it writes a record", "      case op.l = 'types'\n         b = TYPES", "      case op.l = 'types'\n         write b to df, 'x'\n         b = TYPES"),
+    ("Len & Just takes a width of 201", "tv.key = 'width' ; tv.kind = 'num' ; tv.lo = 1 ; tv.hi = 200 ; tv.opt = 0 ; tv.val = fx.w", "tv.key = 'width' ; tv.kind = 'num' ; tv.lo = 1 ; tv.hi = 2000 ; tv.opt = 0 ; tv.val = fx.w"),
+    ("Len & Just takes ten decimals", "tv.key = 'dec' ; tv.kind = 'num' ; tv.lo = 0 ; tv.hi = 9 ; tv.opt = 1 ; tv.val = fx.d", "tv.key = 'dec' ; tv.kind = 'num' ; tv.lo = 0 ; tv.hi = 99 ; tv.opt = 1 ; tv.val = fx.d"),
+    ("Len & Just forgets the decimals", "      if a{'dec'} # '' then b := ' ' : a{'dec'}", "      if 0 then b := ' ' : a{'dec'}"),
+    ("the column heading is called Heading again", "'head' : @vm : 'Column Heading'", "'head' : @vm : 'Heading'"),
     ("it prints", "   TYPES = 'D' : @fm", "   crt 'hello'\n   TYPES = 'D' : @fm"),
     ("a type is missing", "TYPES = 'D' : @fm : 'E' : @fm : 'I' : @fm : 'L' : @fm : 'PH' : @fm : 'X'", "TYPES = 'D' : @fm : 'E' : @fm : 'I' : @fm : 'L' : @fm : 'PH'"),
     ("the field number may be 10000", "'num' : @vm : 0 : @vm : 9999 : @vm : 0", "'num' : @vm : 0 : @vm : 10000 : @vm : 0"),

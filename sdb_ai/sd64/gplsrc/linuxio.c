@@ -71,6 +71,7 @@
 #include "telnet.h"
 #include "tio.h"
 #include "sd_tls.h"
+#include "gpmmouse.h"
 
 #include <netdb.h>
 #include <pwd.h>
@@ -98,6 +99,8 @@ Private volatile int16_t ring_in = 0;
 Private volatile int16_t ring_out = 0;
 
 Private void io_handler(int sig);
+Private void gpm_to_ring(void);
+Private int input_poll(int timeout);
 Private int stdin_modes;
 Private void do_input(void);
 Private bool input_handler_enabled = TRUE;
@@ -578,6 +581,9 @@ bool keyready() {
 
   input_handler_enabled = FALSE;
 
+  /* 31 Oct 26 dm - S.94: what the gpm daemon has sent for the mouse joins the ring first (a text console only) */
+  gpm_to_ring();
+
   /* Check if there is anything pending on stdin. We may have had
      the SIGIO handler disabled when this arrived.                       */
 
@@ -722,7 +728,7 @@ int16_t keyin(timeout) int timeout; /* Milliseconds */
          call to keyin() or keyready() as it will still be in the queue. */
 
       do {
-        poll_ret = sdpoll(0, (timeout && timeout < 1000) ? timeout : 1000);
+        poll_ret = input_poll((timeout && timeout < 1000) ? timeout : 1000);       /* 31 Oct 26 (S.94): the keyboard and, on a text console, the gpm daemon */
 
         /* 0188 Added check for EINTR so that signals do not cause us
            to terminate the process.                                  */
@@ -815,11 +821,58 @@ void io_handler(int sig) {
   signal(SIGIO, io_handler);
 }
 
+/* ======================================================================
+   gpm_to_ring()  -  the mouse reports the gpm daemon has sent (gpmmouse.c), as input bytes
+
+   Whole reports only, and only when the ring has room for the whole report: a report left behind is taken on the next call.  The reports are xterm SGR mouse reports (ESC [ < b ; x ; y M),
+   which KEYCODE and $SL_KEY read as they read the ones a terminal emulator sends.  Called with the SIGIO handler disabled, or from it.                                           */
+
+Private void gpm_to_ring() {
+  char rep[32];
+  int len, i, room;
+
+  if (gpm_fd() < 0)
+    return;
+  for (;;) {
+    len = gpm_peek_report(rep);
+    if (len <= 0)
+      return;
+    room = (ring_out - ring_in - 1 + RING_SIZE) % RING_SIZE;
+    if (room < len)
+      return; /* no room for the whole report: it stays until the reader has taken some input */
+    for (i = 0; i < len; i++) {
+      ring_buff[ring_in] = rep[i];
+      ring_in = (ring_in + 1) % RING_SIZE;
+    }
+    gpm_report_done();
+  }
+}
+
+/* input_poll()  -  wait for the keyboard, or the gpm daemon when a session has one */
+
+Private int input_poll(int timeout) {
+  struct pollfd fds[2];
+  int nfds = 1;
+
+  fds[0].fd = 0;
+  fds[0].events = POLLIN;
+  fds[0].revents = 0;
+  if (gpm_fd() >= 0) {
+    fds[1].fd = gpm_fd();
+    fds[1].events = POLLIN;
+    fds[1].revents = 0;
+    nfds = 2;
+  }
+  return poll(fds, nfds, timeout);
+}
+
 Private void do_input() {
   char c;
   int16_t n;
   ssize_t got;
   static bool last_was_cr = TRUE; /* May need to skip leading NUL/LF */
+
+  gpm_to_ring(); /* 31 Oct 26 dm - S.94 */
 
 again:
   while (!connection_lost) {

@@ -219,8 +219,9 @@ read.mouse:
    b += 0
    mods = ''
    if bitand(b, 4) then mods := 's'
-   if bitand(b, 8) then mods := mods : 'a'
-   if bitand(b, 16) then mods := mods : 'c'
+   * 31 Oct 26 dm (S.94): both appended mods to itself (:= already appends), so shift and control read as (ssc) and shift and alt as (ssa); found by sandbox-gpm.py G3d
+   if bitand(b, 8) then mods := 'a'
+   if bitand(b, 16) then mods := 'c'
    base = bitand(b, 3)
    if bitand(b, 64) and base >= 2 then return          ;* a sideways wheel or swipe (66, 67): no key, it used to be read as the wheel down
    begin case

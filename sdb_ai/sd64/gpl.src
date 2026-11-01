@@ -19,6 +19,7 @@ dh_read
 dh_selct
 dh_split
 dh_write
+gpmmouse
 ingroup
 inipath
 kernel

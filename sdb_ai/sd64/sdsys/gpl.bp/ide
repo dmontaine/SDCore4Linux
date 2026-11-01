@@ -7,7 +7,7 @@
 *
 * START-HISTORY:
 * 31 Oct 26 dm  S.90: THE FORM IS THE DEFAULT FACE OF A DICTIONARY ITEM (the owner's word).  `ide dict file item` and Return on an item in the tree open the item as the full-screen form (dform.default); a last
-*               word /text opens it as text, as /form opened the form before.  Edit as text, Esc and an item the form cannot show or the tab cannot change (read-only) leave the text; a record found by
+*               word /text opens it as text, as /form opened the form before.  Cancel (Esc) and an item the form cannot show or the tab cannot change (read-only) leave the text; a record found by
 *               a search or opened with others from a list, Ctrl-O and an item already in a tab are as they were.
 * 31 Oct 26 dm  S.86 stage 4.  The AI line works in the fields view: a request typed in the AI entry and the Tools menu's "explain the selection" go to the engine ($ced_core 'ai.request'
 *               and 'ai.explain', fields.ai), and what is accepted is written back into the text like any change of the fields.  IDE file id1 id2 ... opens a tab for each id and IDE file *
@@ -3733,8 +3733,8 @@ dform.default:
 
 * ======================================================================
 * A dictionary item as a full-screen form (31 Oct 26, S.90 stage 2).  The form is gpl.bp/dict_form, over !dict_item: it opens nothing and writes nothing, and gives back the record it built.  MODAL, over the IDE's
-*   own screen.  Save: the record becomes the tab's text (the token form, as a Reload would show it) and the IDE's own save writes it, with its edit gates and its overwrite question.  Edit as text: the same
-*   text, not written.  Esc or Cancel: nothing changes.  An item the form cannot show (a type it does not know, a format that is not a width, L R T or C and decimals) stays text, with the reason said.
+*   own screen.  Accept: the record becomes the tab's text (the token form, as a Reload would show it) and the IDE's own save writes it, with its edit gates and its overwrite question.
+*   Esc or Cancel: nothing changes, and the tab shows the item as text.  (The form's third result, text, went with its Edit as text button on 31 Oct 26: the owner's layout has Accept and Cancel.)  An item the form cannot show (a type it does not know, a format that is not a width, L R T or C and decimals) stays text, with the reason said.
 do.dform:
    if nbuf = 0 then
       msg = sysmsg(11218)

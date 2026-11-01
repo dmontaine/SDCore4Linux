@@ -711,15 +711,16 @@ def section_compile():
 
 
 def form_up(t):
-    return "1. Type:" in t and "Edit as text" in t and "Cancel" in t
+    return "Type:" in t and "Accept" in t and "Cancel" in t
 
 
 def to_ide_text(h, what):
-    """31 Oct 26 (S.90): the IDE opens a dictionary item as the FORM first (it is the default face), so after E the screen is the form; Edit as text (the t key, from the Type row) gives the
-    IDE's text view that these rows type into. Waits for either (an item the form cannot show opens as text), presses t when it is the form, and waits for the IDE's menu bar and `what` in the status."""
+    """31 Oct 26 (S.90): the IDE opens a dictionary item as the FORM first (it is the default face), so after E the screen is the form; Cancel (Esc, with nothing changed) leaves the item as
+    text in its tab, which is the IDE's text view that these rows type into. Waits for either (an item the form cannot show opens as text), presses Esc when it is the form, and waits for
+    the IDE's menu bar and `what` in the status."""
     until(h, lambda t: form_up(t) or ("File" in h.line(0) and "Search" in h.line(0) and what in t))
     if form_up(h.text()):
-        h.typed("t", idle=1.5)
+        h.key("esc", idle=1.5)
     until(h, lambda t: "File" in h.line(0) and "Search" in h.line(0) and what in t)
 
 
@@ -752,11 +753,11 @@ def section_edit():
     h.typed("e", idle=2.0)
     until(h, lambda t: form_up(t) or ("File" in h.line(0) and "Search" in h.line(0) and "dict cust note" in t))
     T0 = h.text()
-    arow("D7a", "E on note hands the screen to the IDE, which shows the item as the FORM (the default face since 31 Oct 26): Type, the text 'some text', Save, Edit as text and Cancel, and the page's boxes are gone",
+    arow("D7a", "E on note hands the screen to the IDE, which shows the item as the FORM (the default face since 31 Oct 26): Type, the text 'some text', Accept and Cancel, and the page's boxes are gone",
          form_up(T0) and "some text" in T0 and "cust note" in T0 and "The item under the cursor" not in T0, T0[:300])
     to_ide_text(h, "dict cust note")
     T = h.text()
-    arow("D7", "Edit as text from the form gives the IDE's text view: the menu bar is on row 0, the record dict cust note is the one open (its fields X and 'some text' are on the screen)",
+    arow("D7", "Cancel (Esc) from the form gives the IDE's text view: the menu bar is on row 0, the record dict cust note is the one open (its fields X and 'some text' are on the screen)",
          "File" in h.line(0) and "Search" in h.line(0) and "dict cust note" in T and "some text" in T and not form_up(T), T[:300])
     h.typed("\x11", idle=1.5)
     until(h, lambda t: "Press Enter" in t or "Dictionary of" in t, 10)

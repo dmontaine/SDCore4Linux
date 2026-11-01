@@ -44,6 +44,7 @@ $include dictdict.h
    gosub t.edits
    gosub t.refusals
    gosub t.check
+   gosub t.fmt
    crt 'DIDONE'
    stop
 
@@ -287,6 +288,27 @@ t.check:
       gosub say
    next cr
    return
+
+* 31 Oct 26 (the owner's layout): the format as ONE text, Len & Just - shown from the values, and read back
+t.fmt:
+   gosub base
+   for fr = 1 to 3
+      v{'width'} = (if fr = 3 then '' else '30')
+      v{'just'} = (if fr = 3 then '' else 'L')
+      v{'dec'} = (if fr = 2 then '2' else '')
+      call !dict_item('fmtshow', v, fo, '', fd)
+      lab = 'fmtshow ' : fr
+      txt = '[' : fo : ']'
+      gosub say
+   next fr
+   fs = '30 L' : @fm : '30L' : @fm : '12 r 2' : @fm : '  7   C  ' : @fm : '' : @fm : '030 L' : @fm : '0 L' : @fm : '201 L' : @fm : '30' : @fm : 'L' : @fm : '30 X' : @fm : '30 L 10' : @fm : '30 L x' : @fm : '12R2'
+   for fr = 1 to dcount(fs, @fm)
+      call !dict_item('fmtsplit', fs<fr>, fb, '', fd)
+      lab = 'fmtsplit [' : fs<fr> : ']'
+      txt = 'w=' : fb{'width'} : ' j=' : fb{'just'} : ' d=' : fb{'dec'} : ' ' : (if fd = '' then 'ok' else 'refused')
+      gosub say
+   next fr
+   return
 end
 """
 
@@ -346,6 +368,11 @@ EXPECT = [
     ("check D loc [007]", "[7] ok"), ("check D just [l]", "[L] ok"), ("check D type [ph]", "[PH] ok"), ("check D conv []", "[] ok"),
     ("check D loc []", "[] refused"), ("check D nosuchrow [x]", "[x] no such row"), ("check D width [300]", "[300] refused"),
     ("check I expr [  AMT  *  2  ]", "[AMT  *  2] ok"), ("check L idexpr [A;B]", "[A;B] refused"),
+    ("fmtshow 1", "[30 L]"), ("fmtshow 2", "[30 L 2]"), ("fmtshow 3", "[]"),
+    ("fmtsplit [30 L]", "w=30 j=L d= ok"), ("fmtsplit [30L]", "w=30 j=L d= ok"), ("fmtsplit [12 r 2]", "w=12 j=R d=2 ok"), ("fmtsplit [  7   C  ]", "w=7 j=C d= ok"),
+    ("fmtsplit []", "w= j= d= ok"), ("fmtsplit [030 L]", "w=30 j=L d= ok"), ("fmtsplit [12R2]", "w=12 j=R d=2 ok"),
+    ("fmtsplit [0 L]", "w= j= d= refused"), ("fmtsplit [201 L]", "w= j= d= refused"), ("fmtsplit [30]", "w= j= d= refused"), ("fmtsplit [L]", "w= j= d= refused"),
+    ("fmtsplit [30 X]", "w= j= d= refused"), ("fmtsplit [30 L 10]", "w= j= d= refused"), ("fmtsplit [30 L x]", "w= j= d= refused"),
 ]
 
 

@@ -443,6 +443,12 @@
 #define K_AI_CANCEL          162
 #define K_AI_STATUS          163
 
+/* 31 Oct 26 dm - S.94 (gpmmouse.c).  K_GPM: the Linux console's mouse, through the gpm daemon.  The argument is 1 (connect for this session's console and have the daemon's reports
+   read as xterm mouse reports; the answer is 1 if connected, 0 if this is not a text console or no daemon answers), 0 (disconnect) or 2 (is it connected).  Any program may ask: it only
+   changes where mouse input comes from, and it connects nothing for a session that is not on a text console.  $SL_MOUSE asks it with the escape sequences that switch an xterm's
+   mouse reporting on and off.  Linux only: Windows has no text console of this kind and defines nothing here.  GPL.BP/INT$KEYS.H carries the same number. */
+#define K_GPM                170
+
 /* PTERM() function action keys */
 #define PT_BREAK              1
 /* 2 was PT_INVERT (case inversion, removed 27 Oct 26, S.87): the number stays reserved. */

@@ -1,23 +1,38 @@
 Next release - in progress
 --------------------------
 
+31 Oct 26  THE FULL-SCREEN TOOLS WORK ON A LINUX TEXT CONSOLE WITH NO DESKTOP: THE MOUSE THROUGH GPM, SHIFT-F1 TO SHIFT-F8, AND SHIFT-TAB.
+
+             What        - On the text console of a server (tty1 to tty6, terminal type linux) the home screen, the IDE and the pages already drew and took the keys the console sends; three things
+                           were missing and are fixed. (1) The mouse: a console does not report the mouse the way a terminal emulator does, so there was none. If the gpm daemon is running, SD
+                           now connects to it when a full-screen program turns the mouse on, and gives the program the same press, release, drag and wheel reports an emulator would, so every
+                           page that takes the mouse takes it on the console; gpm draws the pointer. (2) Shift-F1 to Shift-F8 are named again: the console sends them as F13 to F20, which SD ignored,
+                           so the IDE's Previous pane (Shift-F6) and the editor's find previous (Shift-F3) did nothing there. (3) Shift-Tab, which the console sends as Esc and Tab, is the back-tab key
+                           in forms and dialogues; it was dropped. The documentation (the terminfo page, "The Linux text console") says what size a console must be (140 by 43; a narrower font such as
+                           Terminus 6x12 gives a small screen the room) and which keys a console cannot send at all.
+             Why         - A data-center server is often reached at its text console, or through a remote console that is one, and the tools had only been tried on terminal emulators.
+             Does NOT    - Give the console keys it has no bytes for (Ctrl, Shift or Alt with the arrows, Home, End, Insert, Delete and the page keys; Shift-F9 to Shift-F12; Ctrl-F1 to Ctrl-F12): the
+                           IDE's tab and pane changes are in its Go menu. Give SED a mouse on the console (it reads its own reports), or a mouse inside tmux, screen or an ssh session. Change anything for
+                           another terminal type: the gpm connection and the two key forms are for the type linux only, and the connection only when the input is a text console.
+
 31 Oct 26  THE IDE EDITS A DICTIONARY ITEM AS A FULL-SCREEN FORM, AND THE FORM IS WHAT OPENS: IDE DICT FILE ITEM, OR RETURN ON AN ITEM IN THE TREE; /TEXT ASKS FOR THE TEXT.
 
              What        - Opening a dictionary item in the IDE - IDE DICT FILE ITEM (a new item too), or Return on an item in the tree - shows the form first; IDE DICT FILE ITEM /TEXT opens the
-                           text, and Edit as text and Esc in the form leave the item as text in its tab. An item the form cannot show, one that another session holds (read-only), a record found by a
+                           text, and Cancel (Esc) in the form leaves the item as text in its tab. An item the form cannot show, one that another session holds (read-only), a record found by a
                            search, items opened together from a list or with Ctrl-O, and an item already in a tab open as text as before; Go, Dictionary item as form (and /FORM) shows the form
-                           for the tab you are in. The form fills the screen over the IDE and has a numbered label and entry for each field the item's type has. The first row is the Type (D, E, I, L, PH or X); choosing another
-                           with Left and Right changes the rows to that type's, keeping what was typed in the rows the two share: a D item has Field #, Conversion, Heading, Width, Justification, Decimals,
-                           Single/Multi, Association and User; an E item has a Path in place of the Field #; an I item an Expression; an L item an Id expression, a File and a File expression; a PH item its
-                           Phrase; an X item a text area. Each value is checked as you leave its row, with the reason near the foot and a hint above it: a field number is a whole number from 0 to 9999, a
-                           width 1 to 200, decimals 0 to 9, a justification L, R, T or C, a heading and a conversion at most 40 characters and a conversion SD knows, an association letters, digits, dots,
-                           dashes and underscores (used only when Single/Multi is M), an L item's expressions one expression with no semicolon. Save is refused while a row fails, names the row and puts the
-                           focus there; when every row passes the item becomes the tab's text and the IDE's own save writes it, with the dictionary-edit gate and the overwrite question as for any save. Edit
-                           as text takes the record to the text view without saving; Esc after a change asks before leaving. An item the form cannot show (a type it does not know, a format that is not a width, L R T
-                           or C and decimals, text with characters it cannot hold) stays text and the status line says why. The compile stamp and object code of an I item are kept while its type stays. Messages
-                           11949 and 11950.
+                           for the tab you are in. The form fills the screen over the IDE and is one form: the first row is the Type, an entry in which you type D, E, I, L, PH or X, and when it
+                           has been entered the rows of that type appear with a label and an entry each (a new item shows only the Type until then; an item that exists shows its rows with its values
+                           in them, to be edited), and the buttons are Accept and Cancel. A D item has Field #, Conversion Cd, Column Heading, Len & Just (one entry: the width, a letter and decimals if any,
+                           such as 30 L or 12 R 2), Single/Multi, Association (used only when Single/Multi is M) and User; an E item an Element Path in place of the Field #; an I item an Expression; an L item an Id
+                           Expression, a File and a File Expression; a PH item its Phrase; an X item a text area. Typing another Type makes the rows of that type and keeps what was typed in the rows
+                           the two share. Each value is checked as you leave its row, with the reason near the foot and a hint above it: a field number is a whole number from 0 to 9999, Len & Just
+                           a width 1 to 200 then L, R, T or C then decimals 0 to 9, a column heading and a conversion at most 40 characters and a conversion SD knows, an association letters, digits, dots,
+                           dashes and underscores, an L item's expressions one expression with no semicolon. Accept is refused while a row fails, names the row and puts the focus there; when every row
+                           passes the item becomes the tab's text and the IDE's own save writes it, with the dictionary-edit gate and the overwrite question as for any save. Esc after a change asks
+                           before leaving. An item the form cannot show (a type it does not know, a format that is not a width, L R T or C and decimals, text with characters it cannot hold) stays text and
+                           the status line says why. The compile stamp and object code of an I item are kept while its type stays. Messages 11949 and 11950.
              Why         - The text view of an item shows the raw record, so a number in the wrong field or a justification that is not one went unnoticed until a query failed.
-             Does NOT    - Take the text view away (/TEXT, Edit as text and the text of any tab are still there), let the tabs or the menu work while the form is up, or change how TOOL.DICT's N makes
+             Does NOT    - Take the text view away (/TEXT, Cancel and the text of any tab are still there), let the tabs or the menu work while the form is up, or change how TOOL.DICT's N makes
                            an item (it still asks question by question); TOOL.DICT's E hands the item to the IDE, so it now shows the form.
 
 31 Oct 26  THE PHANTOM DEBUGGER'S MESSAGES ARE KEPT IN THE USER'S PRIVATE DIRECTORY, NOT IN THE SHARED FILE $IPC.

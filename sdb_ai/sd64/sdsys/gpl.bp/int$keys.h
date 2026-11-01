@@ -234,6 +234,7 @@
       $define K$AI.POLL         161     ;* 'W' waiting, 'D':@fm:the helper's reply (JSON), or 'E':@fm:why
       $define K$AI.CANCEL       162     ;* give the request up
       $define K$AI.STATUS       163     ;* the helper's status line, 'D':@fm:json, or 'E':@fm:why (waits at most two seconds)
+      $define K$GPM             170     ;* 1 connect to the gpm daemon for this text console's mouse (answers 1 if connected, else 0), 0 disconnect, 2 is it connected (31 Oct 26, S.94; Linux only)
       $define K$LOCK.TRACE      115    ;* 1 start lock tracing (administrator: makes the locktrace file), 0 stop, -1 ask; the state, -1 if refused (16 Oct 26)
 
       * PTERM() action keys

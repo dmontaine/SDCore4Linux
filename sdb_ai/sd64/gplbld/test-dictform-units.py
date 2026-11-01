@@ -74,29 +74,37 @@ def checks(src, others):
        and not any(re.search(r"^\$catalog\s+\$dict_form\b", strip(t), re.M | re.I) for t in others.values()), "")
     bad = re.findall(r"\b(openseq|openpath|open|write|writev|writeu|delete|execute|perform|chain|kernel|oscopy|osopen)\b", form, re.I)
     ck("F2 it opens nothing, writes nothing and runs nothing", not bad, repr(bad[:5]))
-    ck("F3 every record comes from the engine: the form calls !dict_item for types, parse, layout, check and build, and never assigns a field of a record",
-       all(("call !dict_item('%s'" % o) in form for o in ("types", "parse", "layout", "check", "build")) and re.search(r"\b(newrec|nr|rec)<", form) is None, "")
+    ck("F3 every record comes from the engine: the form calls !dict_item for parse, layout, check, build and the Len & Just text (fmtshow, fmtsplit), and never assigns a field of a record",
+       all(("call !dict_item('%s'" % o) in form for o in ("parse", "layout", "check", "build", "fmtshow", "fmtsplit")) and re.search(r"\b(newrec|nr|rec)<", form) is None, "")
     ck("F4 an item the engine will not parse ends as `cannot` with the reason in words, BEFORE any form is made",
        ordered(form, "if pd # '' then", "res = 'cannot'", "newrec = ", "return", "loop\n      gosub make.form") and form.count("res = 'cannot'") == 1, "")
-    ck("F5 the form ends with save, text, cancel or cannot and nothing else",
-       sorted(set(re.findall(r"res = '(\w+)'", form))) == ["cancel", "cannot"] and "res = bt" in form and "bt = ev<2>" in form
-       and "if bt = 'save' or bt = 'text' then" in form, "")
-    ck("F6 Save and Edit as text end the form only when `build` accepted every row; otherwise the row is named in the err line and takes the focus",
-       ordered(form, "on.button:", "call !dict_item('build', vals, rec, nr, be)", "if be = '' then", "newrec = nr", "res = bt", "act = 'done'", "else", "screen set f, 'err' text '! ' : be<2>", "screen focus f, be<1> else null"), "")
-    ck("F7 a row is checked as the focus leaves it (check, then the err line; a good value is put back in its normal form)",
-       ordered(form, "on.focus:", "lfk = ev<3>", "call !dict_item('check', ty, lfk, cv, ce)", "screen set f, lfk value cv", "screen set f, 'err' text '! '"), "")
-    ck("F8 a change of type collects what was typed BEFORE it makes the form again, and only when the type is another one",
-       ordered(form, "case ev<1> = 'change' and ev<2> = 'type'", "if types<tn> # ty then", "gosub collect", "vals{'type'} = types<tn>", "act = 'type'"), "")
-    ck("F9 Esc or Cancel asks only when something was changed (the built record is not the old one, or the rows fail), and Keep editing leaves the form on the screen",
-       ordered(form, "ask.discard:", "gosub collect", "call !dict_item('build', vals, rec, nr, be)", "if be = '' and nr = rec then", "res = 'cancel'", "screen msgbox", "if bq = 1 then", "res = 'cancel'"), "")
-    ck("F10 the form is 140 by 43, a text row is a memo, every other row an entry with its own width and longest text, Save is the default button and Cancel the cancel button",
+    ck("F5 the form ends with save, cancel or cannot and nothing else",
+       sorted(set(re.findall(r"res = '(\w+)'", form))) == ["cancel", "cannot", "save"] and "bt = ev<2>" in form and "if bt = 'accept' then" in form, "")
+    ck("F6 Accept ends the form only when `build` accepted every row, after a Type typed and not yet left has been taken and a bad Len & Just has been refused; otherwise the row is named in the err line and takes the focus",
+       ordered(form, "on.button:", "if bt = 'accept' then", "gosub type.left", "if act # '' then return", "gosub collect", "if fmt.err # '' then", "screen focus f, 'fmt' else null",
+               "call !dict_item('build', vals, rec, nr, be)", "if be = '' then", "newrec = nr", "res = 'save'", "act = 'done'", "else", "screen set f, 'err' text '! ' : be<2>", "screen focus f, fk else null"), "")
+    ck("F7 a row is checked as the focus leaves it (check, then the err line; a good value is put back in its normal form); the Type goes to type.left and every other row to row.left",
+       ordered(form, "on.focus:", "lfk = ev<3>", "if lfk = 'type' then", "gosub type.left", "gosub row.left")
+       and ordered(form, "row.left:", "call !dict_item('check', ty, lfk, cv, ce)", "screen set f, lfk value cv", "screen set f, 'err' text '! '"), "")
+    ck("F8 THE TYPE IS AN ENTRY THAT IS TYPED (the owner's layout): checked as the focus leaves it, and a good type that is another one collects what was typed BEFORE it makes the form again with that type's rows and the focus on the first",
+       "screen entry f, 'type' at 26,y width 6 value vals{'type'} maxlen 2" in form and "screen radio" not in form
+       and ordered(form, "type.left:", "call !dict_item('check', 'D', 'type', cv, ce)", "if cv # ty then", "gosub collect", "vals{'type'} = cv", "focus.first = 1", "act = 'type'"), "")
+    ck("F9 Esc or Cancel asks only when something was changed (the built record is not the old one, or the rows fail) and never before a Type was entered, and Keep editing leaves the form on the screen",
+       ordered(form, "ask.discard:", "if ty = '' then", "res = 'cancel'", "gosub collect", "call !dict_item('build', vals, rec, nr, be)", "if be = '' and nr = rec then", "res = 'cancel'", "screen msgbox", "if bq = 1 then", "res = 'cancel'"), "")
+    ck("F10 the form is 140 by 43, a text row is a memo, every other row an entry with its own width and longest text, and there are TWO buttons: Accept (the default) and Cancel (the cancel button)",
        "size 140,43" in form and "screen memo f, key" in form and "screen entry f, key at 26,y width ew value vals{key} maxlen em" in form
-       and "screen button f, 'save', '&Save' at 26,38 default" in form and "screen button f, 'cancel', '&Cancel' at 62,38 cancel" in form, "")
+       and "screen button f, 'accept', '&Accept' at 26,38 default" in form and "screen button f, 'cancel', '&Cancel' at 40,38 cancel" in form and form.count("screen button f,") == 2, "")
 
     keys = set(re.findall(r"rw<-1> = '(\w+)'", others.get("dict_item", "")))
     ids = set(re.findall(r"screen (?:button|label) f, '([\w.]+)'", form))
-    ck("F11 no button or label has the id of a layout row: the Text row of a PH or X item is a memo with the id `text`, and a second widget of one id took the Edit as text button's place; the button's own id is turned back to `text` before the result is made",
-       len(keys) >= 10 and "text" in keys and "astext" in ids and not (ids & keys) and ordered(form, "bt = ev<2>", "if bt = 'astext' then bt = 'text'", "if bt = 'save' or bt = 'text' then"), repr((len(keys), sorted(ids & keys))))
+    ck("F11 no button or label has the id of a layout row (the Text row of a PH or X item is a memo with the id `text`; in the first build a second widget of that id took a button's place)",
+       len(keys) >= 10 and "text" in keys and {"accept", "cancel"} <= ids and not (ids & keys), repr((len(keys), sorted(ids & keys))))
+    ck("F12 THE FORMAT IS ONE ROW, Len & Just: the engine's width, justification and decimals rows are folded into it, shown by fmtshow, split by fmtsplit when the rows are collected, and a bad one is refused with its own message",
+       ordered(form, "fold.format:", "case k = 'width'", "'fmt' : @vm : 'Len & Just'", "case k = 'just' or k = 'dec'") and "case key = 'fmt'" in form and ordered(form, "collect:", "if key = 'fmt' then", "call !dict_item('fmtsplit', cv, fw, '', fe)", "fmt.err = fe")
+       and "'! Len & Just: ' : fmt.err" in form, "")
+    ck("F13 a new item shows only the Type row until a type is entered, and no row is numbered",
+       ordered(form, "make.form:", "if ty = '' then", "rows = 'type' : @vm : 'Type'", "end else", "call !dict_item('layout', ty, rows, '', xd)", "gosub fold.format") and "rp : '. '" not in form
+       and ordered(form, "screen label f, 'l.' : key, ' ' at 2,y width 22", "screen set f, 'l.' : key text rows<rp, 2> : ':'"), "")
     d = between(ide, "\ndo.dform:", "\nfields.enter:")
     ck("I1 do.dform refuses an empty editor, a tab that is not a dictionary item (11949) and a read-only tab, and keeps the editor's text first",
        ordered(d, "if nbuf = 0 then", "if bx{k} # 'dict' then", "msg = sysmsg(11949)", "gosub ro.check", "if not(ro.ok) then", "gosub stash.current", "df.rec = bx{k}"), "")
@@ -151,15 +159,25 @@ def report(rows):
 # (file key, name, old, new): each must match its file's text once and be caught
 MUTANTS = [
     ("form", "the form writes a record", "   res = 'cancel'\n   newrec = rec\n", "   res = 'cancel'\n   newrec = rec\n   write rec to df, 'x'\n"),
-    ("form", "the form assembles a record itself", "         newrec = nr\n         res = bt", "         newrec<2> = nr\n         res = bt"),
+    ("form", "the form assembles a record itself", "         newrec = nr\n         res = 'save'", "         newrec<2> = nr\n         res = 'save'"),
     ("form", "an item it cannot parse is shown anyway", "         res = 'cannot'\n         begin case", "         res = 'cancel'\n         begin case"),
-    ("form", "Save does not ask the engine", "      call !dict_item('build', vals, rec, nr, be)\n      if be = '' then\n         newrec = nr", "      be = ''\n      nr = rec\n      if be = '' then\n         newrec = nr"),
-    ("form", "a bad row does not take the focus", "         screen focus f, be<1> else null", "         null"),
-    ("form", "a row is not checked as the focus leaves it", "         call !dict_item('check', ty, lfk, cv, ce)", "         ce = ''"),
-    ("form", "a change of type forgets what was typed", "                     gosub collect\n                     vals{'type'} = types<tn>", "                     vals{'type'} = types<tn>"),
+    ("form", "Accept does not ask the engine", "      call !dict_item('build', vals, rec, nr, be)\n      if be = '' then\n         newrec = nr", "      be = ''\n      nr = rec\n      if be = '' then\n         newrec = nr"),
+    ("form", "a bad row does not take the focus", "         screen focus f, fk else null", "         null"),
+    ("form", "a row is not checked as the focus leaves it", "            call !dict_item('check', ty, lfk, cv, ce)", "            ce = ''"),
+    ("form", "a change of type forgets what was typed", "         gosub collect\n         vals{'type'} = cv", "         vals{'type'} = cv"),
     ("form", "Esc always asks", "   if be = '' and nr = rec then", "   if 0 then"),
     ("form", "the form is smaller than the layout", "size 140,43", "size 100,30"),
-    ("form", "Cancel is not the cancel button", "'&Cancel' at 62,38 cancel", "'&Cancel' at 62,38"),
+    ("form", "Cancel is not the cancel button", "'&Cancel' at 40,38 cancel", "'&Cancel' at 40,38"),
+    # 31 Oct 26 (the owner's layout): own mutants of the rebuild
+    ("form", "the Type is a row of radio buttons again", "screen entry f, 'type' at 26,y width 6 value vals{'type'} maxlen 2", "screen radio f, 'type', 'D,E,I,L,PH,X' at 26,y value 1 across"),
+    ("form", "Width, Justification and Decimals are three rows again", "         case k = 'width'\n", "         case k = 'zzwidth'\n"),
+    ("form", "an Edit as text button is back", "   screen button f, 'cancel', '&Cancel' at 40,38 cancel", "   screen button f, 'astext', 'Edit as &text' at 40,38\n   screen button f, 'cancel', '&Cancel' at 40,38 cancel"),
+    ("form", "a new item shows every row before a type is entered", "   if ty = '' then\n      rows = 'type'", "   if 0 then\n      rows = 'type'"),
+    ("form", "the Type typed is not checked", "call !dict_item('check', 'D', 'type', cv, ce)", "ce = ''"),
+    ("form", "Len & Just is read without the engine", "call !dict_item('fmtsplit', cv, fw, '', fe)\n            if fe = '' then\n               vals{'width'}", "fe = ''\n            if fe = '' then\n               vals{'width'}"),
+    ("form", "the Accept button has the id of a row", "'accept', '&Accept'", "'text', '&Accept'"),
+    ("form", "the label text goes through SCREEN LABEL again and loses the & of Len & Just", "      screen set f, 'l.' : key text rows<rp, 2> : ':'", "      screen label f, 'l2.' : key, rows<rp, 2> : ':' at 2,y width 22"),
+    ("form", "a bad Len & Just is not refused at Accept", "      if fmt.err # '' then\n         screen set f, 'err' text '! Len & Just: ' : fmt.err", "      if 0 then\n         screen set f, 'err' text '! Len & Just: ' : fmt.err"),
     ("ide", "do.dform takes a tab that is not a dictionary item", "   if bx{k} # 'dict' then\n      msg = sysmsg(11949)", "   if 0 then\n      msg = sysmsg(11949)"),
     ("ide", "do.dform changes a read-only tab", "   gosub ro.check                       ;* a read-only tab (another session holds the record, bytes outside ASCII) is not changed", "   ro.ok = 1"),
     ("ide", "do.dform reads the tab before the editor's text is kept", "   gosub stash.current\n   df.u = bu<cb>", "   df.u = bu<cb>"),
@@ -170,8 +188,6 @@ MUTANTS = [
     ("ide", "the start form runs after the main loop begins", "   if form0 and nbuf > 0 then\n      gosub redraw ", "   if 0 then\n      gosub redraw "),
     ("go", "the menu entry has a key", "|Dictionary item as for&m~~dform", "|Dictionary item as for&m~F11~dform"),
     # 31 Oct 26 (the default): own mutants of the sitting
-    ("form", "the Edit as text button has the id of the Text row", "screen button f, 'astext', 'Edit as &text' at 40,38", "screen button f, 'text', 'Edit as &text' at 40,38"),
-    ("form", "the button's id is not turned back to the result word", "   if bt = 'astext' then bt = 'text'          ;* the button's own id is not the result word\n", ""),
     ("ide", "the start no longer shows the form by default", "if dflag0 = 'DICT' and id0 # '' and not(text0) then gosub dform.default", "if 0 then gosub dform.default"),
     ("ide", "/text is ignored at the start", "and id0 # '' and not(text0) then gosub dform.default", "and id0 # '' then gosub dform.default"),
     ("ide", "/text is left on the sentence", "         if sw.last = '/FORM' then form0 = @true else text0 = @true\n         sent.in = trimb(sent.in[1, len(trimb(sent.in)) - 5])",

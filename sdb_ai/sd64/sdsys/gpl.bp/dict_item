@@ -21,6 +21,10 @@
 *               else the row's key, a field mark, and what to say (nothing in c).  Everything the form does not show is kept: the user field, the type's comment in field 1 when
 *               the type is the same, fields after the last one the type uses.  A record that changes TYPE loses the fields the new type does not use, and field 15 on (the
 *               compile stamp and the object code), which a new type would not match.  A new item of type I needs no stamp: SD compiles it when it is first used.
+*     'fmtshow'  a = a collection of values (as 'parse' makes);  b = the format as ONE text for the form's Len & Just row: the width, a blank, the justification and, when there are
+*               decimals, a blank and the decimals (30 L, 12 R 2), or '' when there is no width.
+*     'fmtsplit' a = that text (30 L, 30L, 12 r 2 ...);  b = a collection with width, just and dec, each in its normal form (an empty string for what the text does not give);
+*               d = '' when the text is good (an empty text is), else what to say.
 *   Nothing here writes a record or a file, opens one, runs a command or prints.
 * END-DESCRIPTION
 * START-CODE
@@ -49,6 +53,10 @@ $include dictdict.h
          gosub do.check
       case op.l = 'build'
          gosub do.build
+      case op.l = 'fmtshow'
+         gosub do.fmtshow
+      case op.l = 'fmtsplit'
+         gosub do.fmtsplit
       case 1
          d = 'unknown operation'
    end case
@@ -65,15 +73,15 @@ rows.for:
          rw<-1> = 'loc' : @vm : 'Field #' : @vm : 'num' : @vm : 0 : @vm : 9999 : @vm : 0
          gosub rows.tail
       case ty = 'E'
-         rw<-1> = 'path' : @vm : 'Path' : @vm : 'path' : @vm : '' : @vm : 300 : @vm : 0
+         rw<-1> = 'path' : @vm : 'Element Path' : @vm : 'path' : @vm : '' : @vm : 300 : @vm : 0
          gosub rows.tail
       case ty = 'I'
          rw<-1> = 'expr' : @vm : 'Expression' : @vm : 'expr' : @vm : '' : @vm : 300 : @vm : 0
          gosub rows.tail
       case ty = 'L'
-         rw<-1> = 'idexpr' : @vm : 'Id expression' : @vm : 'expr' : @vm : '' : @vm : 300 : @vm : 0
+         rw<-1> = 'idexpr' : @vm : 'Id Expression' : @vm : 'expr' : @vm : '' : @vm : 300 : @vm : 0
          rw<-1> = 'file' : @vm : 'File' : @vm : 'word' : @vm : '' : @vm : 63 : @vm : 0
-         rw<-1> = 'fexpr' : @vm : 'File expression' : @vm : 'expr' : @vm : '' : @vm : 300 : @vm : 1
+         rw<-1> = 'fexpr' : @vm : 'File Expression' : @vm : 'expr' : @vm : '' : @vm : 300 : @vm : 1
       case ty = 'PH'
          rw<-1> = 'text' : @vm : 'Phrase' : @vm : 'memo' : @vm : '' : @vm : 2000 : @vm : 0
       case ty = 'X'
@@ -86,8 +94,8 @@ rows.for:
 
 * The rows D, E and I share
 rows.tail:
-   rw<-1> = 'conv' : @vm : 'Conversion' : @vm : 'conv' : @vm : '' : @vm : 40 : @vm : 1
-   rw<-1> = 'head' : @vm : 'Heading' : @vm : 'text' : @vm : '' : @vm : 40 : @vm : 1
+   rw<-1> = 'conv' : @vm : 'Conversion Cd' : @vm : 'conv' : @vm : '' : @vm : 40 : @vm : 1
+   rw<-1> = 'head' : @vm : 'Column Heading' : @vm : 'text' : @vm : '' : @vm : 40 : @vm : 1
    rw<-1> = 'width' : @vm : 'Width' : @vm : 'num' : @vm : 1 : @vm : 200 : @vm : 1
    rw<-1> = 'just' : @vm : 'Justification' : @vm : 'just' : @vm : '' : @vm : '' : @vm : 1
    rw<-1> = 'dec' : @vm : 'Decimals' : @vm : 'num' : @vm : 0 : @vm : 9 : @vm : 1
@@ -252,6 +260,65 @@ do.parse:
          end
       end
    end
+   return
+
+* ======================================================================
+* In: a (values).  Out: b (the format as one text)
+do.fmtshow:
+   b = ''
+   if a{'width'} # '' then
+      b = a{'width'} : ' ' : a{'just'}
+      if a{'dec'} # '' then b := ' ' : a{'dec'}
+   end
+   return
+
+* In: a (the text).  Out: b (width, just, dec), d ('' or what to say).  The width is the leading digits; the justification the one letter that follows them (blanks between are allowed);
+*   the decimals what follows the letter.  Each part is held to the rules of its own row.
+do.fmtsplit:
+   b = collection()
+   b{'width'} = ''
+   b{'just'} = ''
+   b{'dec'} = ''
+   d = ''
+   fx.t = trimb(trimf(a))
+   if fx.t = '' then return
+   fx.w = ''
+   fx.p = 1
+   loop
+   while fx.p <= len(fx.t) and index('0123456789', fx.t[fx.p, 1], 1) > 0 do
+      fx.w := fx.t[fx.p, 1]
+      fx.p += 1
+   repeat
+   fx.rest = trimb(trimf(fx.t[fx.p, 9999]))
+   fx.j = fx.rest[1, 1]
+   fx.d = trimb(trimf(fx.rest[2, 9999]))
+   fx.say = 'a width from 1 to 200, then L, R, T or C, then decimals if any (for example 30 L or 12 R 2)'
+   tv.key = 'width' ; tv.kind = 'num' ; tv.lo = 1 ; tv.hi = 200 ; tv.opt = 0 ; tv.val = fx.w
+   gosub test.value
+   if tv.err # '' then
+      d = fx.say
+      return
+   end
+   fx.w = tv.val
+   tv.key = 'just' ; tv.kind = 'just' ; tv.lo = '' ; tv.hi = '' ; tv.opt = 0 ; tv.val = fx.j
+   gosub test.value
+   if tv.err # '' then
+      d = fx.say
+      return
+   end
+   fx.j = tv.val
+   if fx.d # '' then
+      tv.key = 'dec' ; tv.kind = 'num' ; tv.lo = 0 ; tv.hi = 9 ; tv.opt = 1 ; tv.val = fx.d
+      gosub test.value
+      if tv.err # '' then
+         d = fx.say
+         return
+      end
+      fx.d = tv.val
+   end
+   b{'width'} = fx.w
+   b{'just'} = fx.j
+   b{'dec'} = fx.d
    return
 
 * ======================================================================

@@ -55,6 +55,11 @@ PLAIN = [("up", E + "[A"), ("down", E + "[B"), ("right", E + "[C"), ("left", E +
 APPMODE = [("up", E + "OA"), ("down", E + "OB"), ("right", E + "OC"), ("left", E + "OD"), ("home", E + "OH"), ("end", E + "OF"), ("home", E + "[1~"), ("end", E + "[4~")]
 MODIFIED = [("ctrl-left", E + "[1;5D"), ("ctrl-right", E + "[1;5C"), ("ctrl-home", E + "[1;5H"), ("ctrl-end", E + "[1;5F"), ("ctrl-pgup", E + "[5;5~"),
             ("ctrl-pgdn", E + "[6;5~"), ("shift-up", E + "[1;2A"), ("shift-down", E + "[1;2B"), ("alt-left", E + "[1;3D"), ("ctrl-del", E + "[3;5~")]
+# 31 Oct 26 (S.94): what the kernel's default keymap sends on a real Linux console, measured on a Debian 13 virtual console (gplbld/../.claude vmtools console-rawkeys.py): Shift-F1 to
+# Shift-F8 as F13 to F20, and Shift-Tab as Esc Tab.  For the linux terminal type they are shift-f1 to shift-f8 and btab; for any other type nothing is named (rxvt and the VT220
+# numbering give those strings other meanings, and Esc Tab is Alt-Tab).
+CONSOLE = [("shift-f1", E + "[25~"), ("shift-f2", E + "[26~"), ("shift-f3", E + "[28~"), ("shift-f4", E + "[29~"), ("shift-f5", E + "[31~"), ("shift-f6", E + "[32~"),
+           ("shift-f7", E + "[33~"), ("shift-f8", E + "[34~"), ("btab", E + "\t")]
 # bytes that are not keys: dropped, never named, never typed
 JUNK = [("a lone high byte 0x80 (was f1)", "\x80"), ("0xC8 (was the mouse key)", "\xc8"), ("0xCB (was up)", "\xcb"),
         ("a UTF-8 bullet E2 80 A2", "\xe2\x80\xa2"), ("an unknown CSI sequence ESC [ 9 9 ; 9 z", E + "[99;9z"), ("an unknown SS3 sequence ESC O z", E + "Oz")]
@@ -181,6 +186,14 @@ def run_keys(box, label, type_lines, expect_type):
     for want, seq in MODIFIED:
         names, raw = t.press(seq, want)
         R.row("%s: %s sent as %r is the one key %s, nothing is typed" % (label, want, seq, want), names == [want], "named %r" % (names,), phase=1)
+    if expect_type == "linux":
+        for want, seq in CONSOLE:
+            names, raw = t.press(seq, want + " (as the Linux console sends it)")
+            R.row("%s: %s sent as %r is the one key %s (the Linux console's own form)" % (label, want, seq, want), names == [want], "named %r" % (names,))
+    elif expect_type == "xterm":
+        for want, seq in CONSOLE:
+            names, raw = t.press(seq, want + " (control: not a key of this terminal type)")
+            R.row("%s: control: %r names no key for the xterm type (it is not the console's %s there)" % (label, seq, want), names == [], "named %r" % (names,))
     t.press("\x15", "(Ctrl-U: clear)", wait=0.3)
     for what, seq in JUNK:
         names, raw = t.press(seq, what)

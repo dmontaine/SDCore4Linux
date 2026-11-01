@@ -82,6 +82,7 @@
 #include "tio.h"
 #include "debug.h"
 #include "keys.h"
+#include "gpmmouse.h"
 #include "syscom.h"
 #include "config.h"
 #include "options.h"
@@ -1378,6 +1379,24 @@ void op_kernel() {
     case K_AUDIT:
       k_get_c_string(descr, s, sizeof(s) - 1);
       audit_message(s);
+      break;
+
+    /* 31 Oct 26 dm - S.94: the Linux console's mouse through gpm (gpmmouse.c).  1 connects (answer 1 if it did), 0 disconnects, 2 asks.  Any program: it connects nothing for a
+       session that is not on a text console, and it only changes where mouse input comes from. */
+    case K_GPM:
+      GetInt(descr);
+      result.data.value = 0;
+      switch (descr->data.value) {
+        case 0:
+          gpm_disable();
+          break;
+        case 1:
+          result.data.value = gpm_enable();
+          break;
+        case 2:
+          result.data.value = (gpm_fd() >= 0) ? 1 : 0;
+          break;
+      }
       break;
 
     /* 23 Oct 26 dm - S.69 step 2: the in-SD AI helper (op_ai.c), a transport that only a $internal program may use. */
