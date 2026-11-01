@@ -131,10 +131,10 @@ def sed_path_screen(acct, name):
     from ptydrive import PtySession
     e = env(False)
     e["TERM"] = "xterm"
-    s = PtySession([SD, "-a" + acct], os.path.join(BOX, "user_accounts", acct), e, 140, 42)
+    s = PtySession([SD, "-a" + acct], os.path.join(BOX, "user_accounts", acct), e, 140, 43)     # 43 since S.99 (1 Nov 26): SED refuses 42 rows
     s.settle(1.0)
     s.type("TERM xterm\r")
-    s.type("TERM 140,42\r")
+    s.type("TERM 140,43\r")
     s.type("SED PATH:%s\r" % name, idle=1.5)
     lines = list(s.screen.lines())
     s.type("\x11", idle=0.5)
@@ -192,8 +192,13 @@ def prepare():
     if "SDTEST_ADMIN" not in text:
         if text.count(old) != 1:
             bail("the sandbox CPROC does not have the one elevation test this suite patches (%d matches)" % text.count(old))
+        # 1 Nov 26 (S.95): the arm for a session that came over ssh gets the same switch, so rows 0c and 0d can drive it as the sandbox user
+        old2 = "if downcase(kernel(K$USERNAME, 0)) = 'sdsys' then"
+        new2 = "if downcase(kernel(K$USERNAME, 0)) = '%s' and env('SDTEST_ADMIN') = '1' then" % USER
+        if text.count(old2) != 1:
+            bail("the sandbox CPROC does not have the one ssh-arm test this suite patches (%d matches)" % text.count(old2))
         with open(path, "w", encoding="utf-8") as f:
-            f.write(text.replace(old, new))
+            f.write(text.replace(old, new).replace(old2, new2))
     put(os.path.join(SYS, "gpl.bp", "define_install.h"), "*comment out * $define IS_INSTALL\n")
     out = adm(["BASIC gpl.bp cproc"], internal=True)
     if not has(out, r"^Compiled 1 program\(s\) with no errors"):
@@ -304,6 +309,33 @@ def main():
     f = flags(sd(os.path.join(BOX, "user_accounts", "zzoff"), ["ZZKF"], admin=True, account="zzoff"))
     row("0b: the same session with SDTEST_ADMIN=1 is an administrator (admin=1) - the control that the switch works",
         f is not None and f[0] == "1", "KFLAGS line: %r" % (f,))
+
+    # --- 0c, 0d. a session that came over ssh (S.95, 1 Nov 26): the same grant as a local one, with the client address in the audit line ---
+    # The login-uid test is patched to true in this sandbox (the sandbox user is not sdsys), so these rows measure what the ssh arm does AFTER that test: it grants, and it says
+    # where from.  The refusal for a login that is somebody else's (10195) cannot be played here; witness-absence.sh M12d is that row.
+    def ssh_flags(admin):
+        e = env(admin)
+        e["SSH_CONNECTION"] = "10.0.0.9 51000 10.0.0.1 22"
+        say("    > [ssh, %s] -azzoff ZZKF with SSH_CONNECTION=%r" % ("admin" if admin else "plain", e["SSH_CONNECTION"]))
+        p = subprocess.run([SD, "-azzoff"], input="\nTERM 200,9999\nZZKF\nOFF\n", cwd=os.path.join(BOX, "user_accounts", "zzoff"), env=e,
+                           capture_output=True, text=True, errors="replace", timeout=300)
+        out = ANSI.sub("", p.stdout + p.stderr).split(":TERM 200,9999", 1)[-1]
+        return flags([ln.rstrip() for ln in out.splitlines() if ln.strip() and not ln.startswith(":")])
+
+    audit_path = os.path.join(SYS, "audit")           # the kernel appends to the audit file and never creates it, and a sandbox has no audit daemon
+    if not os.path.exists(audit_path):
+        open(audit_path, "a").close()
+    f = ssh_flags(True)
+    row("0c: a session that came over ssh, with the switch, is granted the administrator (admin=1)", f is not None and f[0] == "1", "KFLAGS line: %r" % (f,))
+    try:
+        with open(os.path.join(SYS, "audit"), encoding="utf-8", errors="replace") as af:
+            tail = af.read()[-4000:]
+    except OSError:
+        tail = ""
+    row("0c': ... and the audit line says it was over ssh and from which address", "elevation granted reason=sdsys login over ssh from=10.0.0.9" in tail,
+        "audit tail: %r" % (tail[-200:],))
+    f = ssh_flags(False)
+    row("0d: the same session without the switch is not an administrator (admin=0): the ssh arm grants nothing by itself", f is not None and f[0] == "0", "KFLAGS line: %r" % (f,))
 
     # --- A. the grants are loaded at account entry -----------------------------------------------------------
     say("\n--- A. LOGIN loads the grants from ACC$SH / ACC$OS.EXEC: yes is on, anything else is off -----------------------")

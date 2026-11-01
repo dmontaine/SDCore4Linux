@@ -140,7 +140,11 @@ def main():
              "install arm grants the sandbox uid"),
             ("sdsys/gpl.bp/cproc", "if downcase(kernel(K$USERNAME, 0)) = 'sdsys' and",
              "if downcase(kernel(K$USERNAME, 0)) = '%s' and" % USER, "the sandbox user plays sdsys"),
-            ("sdsys/gpl.bp/cproc", "if kernel(K$LOGIN.UID, 'sdsys') = 1 then", "if 1 then", "no sdsys login uid"),
+            # 1 Nov 26 (S.95): the test is now in two arms of cproc, the local one (12 spaces before the grant) and the ssh one (15), so each is named by the line after it
+            ("sdsys/gpl.bp/cproc", "if kernel(K$LOGIN.UID, 'sdsys') = 1 then\n            void kernel(K$ADMINISTRATOR, 1)",
+             "if 1 then\n            void kernel(K$ADMINISTRATOR, 1)", "no sdsys login uid"),
+            ("sdsys/gpl.bp/cproc", "if kernel(K$LOGIN.UID, 'sdsys') = 1 then\n               void kernel(K$ADMINISTRATOR, 1)",
+             "if 1 then\n               void kernel(K$ADMINISTRATOR, 1)", "no sdsys login uid (the ssh arm)"),
             ("sdsys/gpl.bp/bbproc", "if system(27) # 0 then", "if system(27) # %d then" % UID, "bootstrap uid"),
             ("sdsys/gpl.bp/login", "if  not(is_grp_member(lgn.id,'sdusers')) then", "if @false then", "no sdusers group"),
             ("sdsys/gpl.bp/write_install_dicts", "IF SYSTEM(27) # 0 THEN", "IF SYSTEM(27) # %d THEN" % UID, "pass 3 uid"),

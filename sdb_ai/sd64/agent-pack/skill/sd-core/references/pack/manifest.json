@@ -80,7 +80,7 @@
   },
   "message": {
    "chunks": 2822,
-   "sha256": "bf8bfb374438148047cbdc7b9219f351add784bb7ca47ea17d3253636ba52b00"
+   "sha256": "597c80697e527e2edfbf0da56364d4630e17a7444163fa0fceb87939addc5c28"
   },
   "sys.keys": {
    "chunks": 41,
@@ -150,7 +150,7 @@
    "words": 569
   },
   "index.json": {
-   "sha256": "db4fb0ef4502d27cb97ece28154c9e1d4fe097db325442a3dc980e4de62d59ea"
+   "sha256": "a13c1089a8b3059451598329b4f580d5b6a498f1d9230707b0d2b755f2e41140"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
@@ -174,8 +174,8 @@
   },
   "reference/messages.md": {
    "chunks": 2822,
-   "sha256": "2ef8393ffc59481910b29d05182874bd00640548cc34aa0148186376bf9d0955",
-   "words": 36841
+   "sha256": "4b361122f84f58f7a211e77e274b942982195a467381bbbc94baebe85d0aa5e0",
+   "words": 36838
   },
   "reference/system-keys.md": {
    "chunks": 41,

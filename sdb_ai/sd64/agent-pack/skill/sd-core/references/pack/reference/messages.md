@@ -1012,8 +1012,6 @@ The sdsys OS user may not administer over ssh or the API;
 run sd as that user on the machine itself.
 ```
 
-cited by: `cproc`
-
 ### msg:10192
 > kind=message tier=reference since=- src=sdsys/messages/10192:1#91074107
 

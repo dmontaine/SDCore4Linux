@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 1 Nov 26 dm  S.95: an sdsys session that arrived over ssh (SSH_CONNECTION or SSH_TTY set) is granted when the login behind it is sdsys's own, as a local one is, and refused with 10195 when it is not (su sdsys keeps the variables); it used to be refused outright (10191, now unused).
 * 1 Nov 26 dm  The hyphen form is back (owner: "restore the hyphen option"): an unknown verb is retried with its hyphens changed to dots, lower case then upper case.
 * 28 Oct 26 dm  S.87: multifiles are gone.  A program file named in RUN is always name.out (the file,part form of the name is not split), and F4 of a file's VOC record is ignored.
 * 28 Oct 26 dm  S.87 C-020: message 10149 (F1) names list voc with type = "V" instead of LISTV, whose sentence is gone with sd.voclib.
@@ -499,39 +500,36 @@ $ifndef IS_INSTALL
             goto abort.cproc
          end
       end else
-* 19 Sep 26 dm - SDSYS HAS NO REMOTE ACCESS AT ALL (owner, 19 Sep 2026: "sdsys
-*   should not have any remote access from ssh or api").  REFUSED AT THE DOOR
-*   NOW, not at the account.
-*
-*   WHAT IT WAS BEFORE, MEASURED RATHER THAN ASSUMED: the test above simply did
-*   not match a remote sdsys session, so it got no grant and carried on; LOGIN
-*   then refused it entry to the SDSYS account (login:334, 10002, audited).  So
-*   the door was SHUT, and this is a hardening rather than a hole - but it was
-*   shut one room further in, and a refusal at the door is what the owner's
-*   ruling asks for and what root (10190) and a non-login sdsys (10195) already
-*   get.  A session that should not exist should not start.
-*
-*   10191 WAS WRITTEN FOR EXACTLY THIS CASE IN THE TEARDOWN AND NEVER WIRED.
-*   It was deleted earlier tonight as an orphan (S.34) and is restored here
-*   with its original text, because the text was right and only the wiring was
-*   missing.  ***THAT IS THE LESSON OF S.34 CORRECTING ITSELF WITHIN THE DAY:
-*   AN ORPHANED MESSAGE MEANS "UNFINISHED" AS OFTEN AS IT MEANS "DEAD", AND
-*   ONLY A RULING TELLS YOU WHICH.***
-*
-*   ssh IS NOT THE ONLY REMOTE TRANSPORT THIS CATCHES, WHICH IS WHY THE ARM IS
-*   THE else OF THE LOCAL TEST RATHER THAN AN SSH TEST OF ITS OWN: anything
-*   that sets SSH_CONNECTION or SSH_TTY lands here.  The API does not come
-*   through CPROC at all - APISRVR has its own two doors (10174 remote, 10922
-*   not-sdsys-on-the-socket) - so "or api" in the owner's ruling is served
-*   there and named here only so the next reader does not look for it.
+* 1 Nov 26 dm - S.95: SDSYS MAY SIGN IN OVER ssh (owner, 31 Oct and 1 Nov 2026), with an
+*   authenticator code and its password.  This arm used to refuse every sdsys session that
+*   carried SSH_CONNECTION or SSH_TTY (19 Sep 26: "sdsys should not have any remote access
+*   from ssh or api", message 10191).  The wall is now sshd's: the sdsys arm of the ssh block
+*   is DenyUsers until a code is enrolled, and when it is open the PAM module asks for the code
+*   before the password (pam_sdtotp), so a process that reaches here as sdsys over ssh has
+*   passed both.  WHAT THIS ARM STILL DOES NOT TAKE ON TRUST is the question the local arm
+*   asks: was the LOGIN sdsys's own?  "su sdsys" without a dash keeps SSH_CONNECTION and
+*   carries the loginuid of whoever ran su, so the kernel's answer (K$LOGIN.UID) is asked here
+*   too and the refusal is the same 10195.  A remote session is granted exactly as a local one
+*   is, and its audit line says where from (the client address of SSH_CONNECTION).  The API
+*   does not come through CPROC at all - APISRVR has its own two doors (10174 remote, 10922
+*   not-sdsys-on-the-socket) - and stays closed to sdsys from every other computer.
+*   Message 10191 is no longer used by anything.
          if downcase(kernel(K$USERNAME, 0)) = 'sdsys' then
-            refuse.msg = sysmsg(10191)   ;* several lines: one DISPLAY each
-            loop
-               display remove(refuse.msg, refuse.more)
-            while refuse.more
-            repeat
-            void kernel(K$AUDIT, 'elevation refused reason=sdsys session from a remote transport')  ;* 07 Oct 26 PAL-24
-            goto abort.cproc
+            if kernel(K$LOGIN.UID, 'sdsys') = 1 then
+               void kernel(K$ADMINISTRATOR, 1)
+               from.addr = field(env('SSH_CONNECTION'), ' ', 1)
+               if from.addr = '' then from.addr = 'unknown'
+               void kernel(K$AUDIT, 'elevation granted reason=sdsys login over ssh from=' : from.addr)
+               admin.notice<-1> = sysmsg(10916)
+            end else
+               refuse.msg = sysmsg(10195)   ;* several lines: one DISPLAY each
+               loop
+                  display remove(refuse.msg, refuse.more)
+               while refuse.more
+               repeat
+               void kernel(K$AUDIT, 'elevation refused reason=sdsys session without a sdsys login')
+               goto abort.cproc
+            end
          end
       end
 $endif

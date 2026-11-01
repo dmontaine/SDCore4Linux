@@ -570,10 +570,13 @@ if [ "$COMMIT" -eq 1 ]; then
 fi
 
 # ==========================================================================
-# 19 Sep 26 dm - M12, SDSYS HAS NO REMOTE ACCESS (owner, 19 Sep 2026: "sdsys
-# should not have any remote access from ssh or api").  CPROC now refuses a
-# sdsys session that arrives over a remote transport, at the door (10191),
-# instead of letting it start and leaving LOGIN to refuse the ACCOUNT (10002).
+# 1 Nov 26 dm - S.95: THIS ROW WAS REWRITTEN.  It was M12, "SDSYS HAS NO REMOTE ACCESS" (19 Sep
+# 2026): CPROC refused a sdsys session that carried SSH_CONNECTION or SSH_TTY (10191).  The owner
+# then ruled that sdsys may sign in over ssh with an authenticator code (31 Oct, 1 Nov), the wall
+# became sshd's and the PAM module's, and CPROC now asks of such a session what it asks of a local
+# one: is the LOGIN sdsys's own?  Yes: granted, audited with the client address.  No (su sdsys
+# keeps the variables): 10195.  UNRUN since the rewrite: owed the next real-install cycle.
+# What follows is the 19 Sep text, still true of the limit it names.
 #
 # ***THIS MEASURES SD'S HALF AND SAYS SO.***  A real ssh login as sdsys cannot
 # be staged here: sshd's DenyUsers refuses it, which is the other half of the
@@ -586,21 +589,25 @@ fi
 # sdsys, loginuid sdsys.  Without it the refusal would be 10195 and the row
 # would pass for the wrong reason; M12b is the control that says which refusal
 # fired.  UNRUN WHEN WRITTEN: owed the next cycle.
-head2 "M12. sdsys over a remote transport is refused at the door (owner, 19 Sep)"
+head2 "M12. sdsys over ssh: granted for a login that is sdsys's own, refused (10195) for one that is not (S.95, 1 Nov 26)"
 if [ "$COMMIT" -eq 0 ]; then
-  for r in "M12a refused in 10191's words" "M12b not the 10195 refusal" "M12c no grant" "M12d audited"; do not_reached "$r"; done
+  for r in "M12a granted" "M12b not the old 10191 refusal" "M12c audited with the client address" "M12d su-style session refused in 10195's words" "M12e audited as a session without a sdsys login"; do not_reached "$r"; done
 else
   say "  a bridged sdsys session (loginuid sdsys) with SSH_CONNECTION set"
   OUT=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | timeout 90 sudo sh -c \
         'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys SSH_CONNECTION="10.0.0.9 51000 10.0.0.1 22" "$1"' \
         sd-run "$SD_BIN" 2>&1 | strip)
   printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
-  # The anchor sits inside ONE line of 10191 - M8f was fixed on the third cycle
-  # for spanning a line break, and this message wraps in the same way.
-  ck_says "M12a refused in 10191's words" "may not administer over ssh or the API" "$OUT"
-  ck_absent "M12b and NOT as a session without a sdsys login (10195)" "was not logged in as" "$OUT"
-  ck_absent "M12c no administrator grant" "SD administration granted" "$OUT"
-  ck_says "M12d audited as a remote transport" "elevation refused reason=sdsys session from a remote transport" \
+  ck_says "M12a the administrator is granted" "SD administration granted" "$OUT"
+  ck_absent "M12b and NOT refused in the old words (10191)" "may not administer over ssh or the API" "$OUT"
+  ck_says "M12c audited as a login over ssh, with the client address" "elevation granted reason=sdsys login over ssh from=10.0.0.9" \
+    "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
+  say "  the same variables, but a login that is somebody else's (su sdsys without a dash keeps them)"
+  OUT=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | timeout 90 sudo -u sdsys SSH_CONNECTION="10.0.0.9 51000 10.0.0.1 22" "$SD_BIN" 2>&1 | strip)
+  printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
+  ck_says "M12d refused in 10195's words" "was not logged in as" "$OUT"
+  ck_absent "M12d' and no administrator grant" "SD administration granted" "$OUT"
+  ck_says "M12e audited as a session without a sdsys login" "elevation refused reason=sdsys session without a sdsys login" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
 fi
 
