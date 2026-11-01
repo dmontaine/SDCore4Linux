@@ -151,8 +151,13 @@ def verb_rows(fm, box, providers):
     out2 = q3.adm(["set.ai provider anthropic"])
     if msg(11611, "anthropic") not in out2:
         q3.bail("set.ai provider anthropic did not work in the setup: %r" % out2[-3:])
+    out, n, aud = ask(["ai hello", "y"], "V2b", fm)
+    row("V2b a named provider with no model of the administrator's: its default model stands, so only the key is missing: 11626 (anthropic, key), not (anthropic, model), no preview, nothing sent",
+        msg(11626, "anthropic", "key") in out and msg(11626, "anthropic", "model") not in out and n == 0 and not req_lines(aud), repr(out[-4:]))
+    out2 = q3.adm(["set.ai custom MyLLM https://127.0.0.1:%d/v1/chat/completions openai bearer - max_tokens" % fm.port, "set.ai provider custom"])
     out, n, aud = ask(["ai hello", "y"], "V2", fm)
-    row("V2 a provider and no model: 11626 (anthropic, model), no preview, nothing sent", msg(11626, "anthropic", "model") in out and n == 0 and not req_lines(aud), repr(out[-4:]))
+    row("V2 Custom has no default model: a provider and no model: 11626 (custom, model), no preview, nothing sent", msg(11626, "custom", "model") in out and n == 0 and not req_lines(aud), repr(out[-4:]))
+    out2 = q3.adm(["set.ai provider anthropic"])
     out2 = q3.adm(["set.ai model anthropic " + MODEL])
     if msg(11613, "anthropic", MODEL) not in out2:
         q3.bail("set.ai model did not work in the setup: %r" % out2[-3:])

@@ -11,8 +11,8 @@
 * START-DESCRIPTION:
 *
 *   SET.AI                                   says what is set
-*   SET.AI PROVIDER name | none              the provider every account uses: anthropic, openai, deepseek or custom; none turns the AI off
-*   SET.AI MODEL provider name | -           the model for a provider (- clears it)
+*   SET.AI PROVIDER name | none              the provider every account uses: anthropic, openai, google, deepseek or custom; none turns the AI off
+*   SET.AI MODEL provider name | -           the model for a provider (- clears it: the provider's starting model is used again; Custom has none)
 *   SET.AI KEY provider                      asks for the key at the terminal, not shown, and keeps it for the helper only
 *   SET.AI KEY provider CLEAR                removes it
 *   SET.AI CUSTOM name url format auth version | - maxparam     the fourth choice, where everything is the administrator's (format anthropic | openai, auth bearer | x-api-key)
@@ -59,7 +59,7 @@ $include err.h
       if trim(convert(okc, space(len(okc)), w)) # '' then stop sysmsg(11622, w[1, 40])    ;* %1 has a character that is not allowed here
    next i
    sub = downcase(field(words, ' ', 2))
-   providers = ' anthropic openai deepseek custom '
+   providers = ' anthropic openai google deepseek custom '
 
    begin case
       case n.words = 1
@@ -72,7 +72,7 @@ $include err.h
 
       case sub = 'provider' and n.words = 3
          prov = downcase(field(words, ' ', 3))
-         if prov # 'none' and index(providers, ' ' : prov : ' ', 1) = 0 then stop sysmsg(11610, prov[1, 40])      ;* %1 is not one of anthropic, openai, deepseek and custom
+         if prov # 'none' and index(providers, ' ' : prov : ' ', 1) = 0 then stop sysmsg(11610, prov[1, 40])      ;* %1 is not one of anthropic, openai, google, deepseek and custom
          qargs = "'provider' '" : prov : "'"
          gosub run.ctl
          gosub need.ok

@@ -87,8 +87,8 @@ ANCH = {
         (180, 55): [("A backup and a restore both run only when every other session", 3, 4), ("B backs every account up", 3, 5), ("[?]", 174, 2), ("Made", 3, 8), ("~director", 40)],
     },
     "tool_ai": {
-        (140, 43): [("Provider", 7, 2), ("[?]", 134, 2), ("Account", 3, 24), ("[?]", 134, 24), ("~account", 31), ("One provider and one model serve every account", 3, 34)],
-        (180, 55): [("Provider", 7, 2), ("[?]", 174, 2), ("Account", 3, 24), ("[?]", 174, 24), ("~account", 43), ("One provider and one model serve every account", 3, 46)],
+        (140, 43): [("Provider", 7, 2), ("[?]", 134, 2), ("Account", 3, 25), ("[?]", 134, 25), ("~account", 31), ("One provider and one model serve every account", 3, 34)],
+        (180, 55): [("Provider", 7, 2), ("[?]", 174, 2), ("Account", 3, 25), ("[?]", 174, 25), ("~account", 43), ("One provider and one model serve every account", 3, 46)],
     },
     "tool_menus": {
         (140, 43): [("Account", 3, 2), ("[?]", 66, 2), ("Starts in", 74, 2), ("[?]", 134, 2), ("An account with no setting of its own starts in the", 3, 32), ("[?]", 66, 32),
@@ -239,7 +239,7 @@ def judge(rid, page, cols, rows, scr, ctrl, nbytes=None):
     cmd = PAGES[page]
     ids, rects = expected(page, cols, rows)
     if (cols, rows) == (140, 43):
-        old = dict(lc.OLD[page])
+        old = dict(lc.NOW.get(page, lc.OLD[page]))      # NOW: the boxes a page has had since a change made on purpose (tool.ai, 1 Nov 26: Google's row)
         want = [old[i] for i in ids]
         assert sorted(want) == sorted(rects)
     else:

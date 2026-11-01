@@ -11,6 +11,8 @@
 # START-HISTORY:
 # 13 Oct 26 dm  Written with the wiring of $sl_syntax into SED.
 # 18 Oct 26 dm  SED is 140 by 42 (terminal 140x42, phase 2): the window here is 140 by 42.
+# 1 Nov 26 dm   THE DEFAULT IS ON (owner: "turn syntax on by default"): the first section holds the default, SYNTAX OFF and the bare SYNTAX in both directions, a new section holds NO.SYNTAX
+#               in &sed.options&, and the vt100 rows hold a silent start and the bare SYNTAX's message.
 # END-HISTORY
 #
 # HOW IT DRIVES SED.  On a PSEUDO-TERMINAL (ptydrive.py), the screen read from the emulator in termscreen.py, whose
@@ -153,6 +155,10 @@ def main():
     prog += "   crt 'FIXTURE DONE'\nend\n"
     with open(os.path.join(sysd, "bp", "zzsyfix"), "w") as fh:
         fh.write(prog)
+    with open(os.path.join(sysd, "bp", "zzsyopt"), "w") as fh:
+        fh.write("   write 'X' : @fm : 'NO.SYNTAX' on @voc, '&sed.options&'\n   crt 'OPT DONE'\nend\n")
+    with open(os.path.join(sysd, "bp", "zzsyopt0"), "w") as fh:
+        fh.write("   delete @voc, '&sed.options&'\n   crt 'OPT GONE'\nend\n")
     try:
         say("\n--- fixture --------------------------------------------------------------------------------------")
         out = sess(box, "BASIC bp zzsyfix", "RUN bp zzsyfix")
@@ -160,18 +166,28 @@ def main():
         if "FIXTURE DONE" not in out:
             bail("the fixture was not made:\n" + out[-800:])
 
-        say("\n--- colour is off until it is asked for ---------------------------------------------------------")
+        say("\n--- colour is ON until it is taken away (1 Nov 26: the default) ----------------------------------")
         t = Term(box, "SED %s demo.c" % F)
         L = t.keys()
         p = where(L, "static int count")
         row("setup: the record is on the screen", p is not None, "\n".join(L[:12]))
         r0, c0 = p if p else (4, 0)
-        row("by default nothing on the screen has a colour: the keyword, the comment, the string are as plain as the rest",
-            plain(t, r0, c0, 6) and plain(t, 1, 0, 24) and all(t.fg(r, c) is None for r in range(1, 10) for c in range(0, 40)), "")
+        row("by default the comment, the directive and the keyword are coloured and the variable after them is not",
+            coloured(t, 1, 0, 24) and coloured(t, 2, 0, 8) and coloured(t, r0, c0, 6) and plain(t, r0, c0 + 11, 5), repr([t.fg(1, 0), t.fg(2, 0), t.fg(r0, c0), t.fg(r0, c0 + 11)]))
+        L = t.keys(F10, RIGHT, RIGHT, RIGHT, RIGHT, RIGHT)
+        sc = where(L, "Syntax colour")
+        row("control: the Tools menu has the item, checked (a * before it)", sc is not None and L[sc[0]][sc[1] - 1] == "*", "\n".join(L[:20]))
+        t.keys("\x1b", idle=1.0)
+        L = t.command("SYNTAX OFF")
+        row("SYNTAX OFF takes the default away: the same cells are plain", plain(t, 1, 0, 24) and plain(t, r0, c0, 6) and all(t.fg(r, c) is None for r in range(1, 10) for c in range(0, 40)), repr(t.fg(1, 0)))
         L = t.keys(F10, RIGHT, RIGHT, RIGHT, RIGHT, RIGHT)
         sc = where(L, "Syntax colour")
         row("control: the Tools menu has the item, not checked (a blank before it)", sc is not None and L[sc[0]][sc[1] - 1] == " ", "\n".join(L[:20]))
         t.keys("\x1b", idle=1.0)
+        L = t.command("SYNTAX")
+        row("the bare word SYNTAX turns it on again when it is off", coloured(t, 1, 0, 24) and coloured(t, r0, c0, 6), repr((t.fg(1, 0), t.fg(r0, c0))))
+        L = t.command("SYNTAX")
+        row("...and off again when it is on", plain(t, 1, 0, 24) and plain(t, r0, c0, 6), repr((t.fg(1, 0), t.fg(r0, c0))))
 
         say("\n--- SYNTAX turns it on, per language -----------------------------------------------------------")
         L = t.command("SYNTAX ON")
@@ -209,6 +225,18 @@ def main():
         row("deleting the /* of line 1 recolours the rows below: 'int x = 1;' is code now, not comment", t.fg(2, 0) != com, repr((t.fg(2, 0), com, L[1:4])))
         t.end()
 
+        say("\n--- a menu choice that empties a row, with colour on (1 Nov 26: the old text stayed on the screen) -----")
+        t = Term(box, "SED %s demo.c" % F)
+        L = t.keys()
+        row("control: line 1 (the comment) is on the screen before", L[1].startswith("/* demo.c"), repr(L[1]))
+        L = t.keys(F10, RIGHT)
+        L = t.keys("k")
+        row("Edit > Kill line with colour on: the text of line 1 is gone from the SCREEN (it used to stay, though the buffer had lost it)", not L[1].startswith("/* demo.c"), "\n".join(L[0:4]))
+        L = t.keys(F10, RIGHT)
+        L = t.keys("u")
+        row("Edit > Undo with colour on brings the line back on the screen", L[1].startswith("/* demo.c"), "\n".join(L[0:4]))
+        t.end()
+
         say("\n--- the language comes from the record id -----------------------------------------------------")
         t = Term(box, "SED %s prog.b" % F)
         t.keys()
@@ -232,7 +260,31 @@ def main():
         row("both windows are coloured: the keyword static in each", n == 2 and all(coloured(t, r, L[r].find("static"), 6) for r in rows), repr(rows))
         t.end()
 
+        say("\n--- NO.SYNTAX in &sed.options& starts SED with the colour off -----------------------------------")
+        out = sess(box, "BASIC bp zzsyopt zzsyopt0", "RUN bp zzsyopt")
+        row("setup: &sed.options& holds NO.SYNTAX", "OPT DONE" in out, out[-400:])
+        t = Term(box, "SED %s demo.c" % F)
+        L = t.keys()
+        p = where(L, "static int count")
+        r0, c0 = p if p else (4, 0)
+        row("the record is on the screen and nothing on it has a colour", p is not None and all(t.fg(r, c) is None for r in range(1, 10) for c in range(0, 40)), repr((p, t.fg(1, 0))))
+        L = t.command("SYNTAX")
+        row("the bare word turns it on: the comment and the keyword are coloured", coloured(t, 1, 0, 24) and coloured(t, r0, c0, 6), repr((t.fg(1, 0), t.fg(r0, c0))))
+        t.end()
+        out = sess(box, "RUN bp zzsyopt0")
+        row("cleanup: &sed.options& is gone", "OPT GONE" in out, out[-400:])
+        t = Term(box, "SED %s demo.c" % F)
+        t.keys()
+        row("control: with the record gone the default is back: coloured", coloured(t, 1, 0, 24), repr(t.fg(1, 0)))
+        t.end()
+
         say("\n--- a terminal that cannot show colour, and the theme after SED ---------------------------------")
+        t = Term(box, "SED %s demo.c" % F, term="vt100")
+        L = t.keys()
+        row("on a vt100 SED starts plain and says nothing about colour (the default is silent)", plain(t, 1, 0, 24) and not any("cannot show colour" in l for l in L), "\n".join(l for l in L if l.strip())[:300])
+        L = t.command("SYNTAX")
+        row("the bare word SYNTAX on a vt100 tries to turn it on and says so (this terminal cannot show colour)", any("cannot show colour" in l for l in L) and plain(t, 1, 0, 24), "\n".join(l for l in L if l.strip())[:300])
+        t.end()
         t = Term(box, "SED %s demo.c" % F, term="vt100")
         t.keys()
         L = t.command("SYNTAX ON")
@@ -241,7 +293,7 @@ def main():
         t.end()
         t = Term(box, "SED %s demo.c" % F)
         t.keys()
-        t.command("SYNTAX ON")
+        row("control: on an xterm SED starts coloured, so the theme given back below is a real change", coloured(t, 1, 0, 24), repr(t.fg(1, 0)))
         t.s.type("\x11", idle=1.0)
         L = t.lines()
         last = max(i for i, l in enumerate(L) if l.strip())
@@ -250,11 +302,12 @@ def main():
         t.s.finish()
     finally:
         say("\n--- cleanup ---------------------------------------------------------------------------------------")
-        sess(box, "DELETE.FILE %s" % F)
+        sess(box, "DELETE.FILE %s" % F, "RUN bp zzsyopt0")
         for d in ("bp", "bp.out"):
-            pth = os.path.join(sysd, d, "zzsyfix")
-            if os.path.exists(pth):
-                os.remove(pth)
+            for nm in ("zzsyfix", "zzsyopt", "zzsyopt0"):
+                pth = os.path.join(sysd, d, nm)
+                if os.path.exists(pth):
+                    os.remove(pth)
 
     say("\nsandbox-syntax: %d passed, %d failed" % (passed, failed))
     if passed + failed == 0:

@@ -31,8 +31,12 @@ SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 
-EXPECT_PROGRAMS = 24
-EXPECT_ADD_ROWS = 266         # (266 with the IDE's eight rows of the pane "fields", 31 Oct 26; 256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 258 with tool_test's Ctrl-O row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
+# A program that builds a key table only to NAME the keys of its foot (the form of a dictionary item, 1 Nov 26): its keys are the library form's (Enter is the default button, Esc the cancel
+# button, Tab the focus), it has no help and no quit of a page, so the page rules (handler, F1, Ctrl-Q) do not apply to it; it is still parsed and counted.
+FOOT_ONLY = ("dict_form",)
+EXPECT_PROGRAMS = 25
+EXPECT_ADD_ROWS = 270         # 266 + the 4 foot rows of dict_form, 1 Nov 26
+# earlier counts: (266 with the IDE's eight rows of the pane "fields", 31 Oct 26; 256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 258 with tool_test's Ctrl-O row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
 # an action that has two keys on purpose (the second is for a terminal that keeps the first for itself)
@@ -312,6 +316,8 @@ def run_a(raw, rows):
     # quit is ctrl-q, help is f1
     res["quitkey"], res["helpkey"] = [], []
     for prog, rs in byprog.items():
+        if prog in FOOT_ONLY:
+            continue
         for r in rs:
             if r["act"] == "quit" and r["key"] != "ctrl-q":
                 res["quitkey"].append("%s:quit is on %s" % (prog, r["key"]))
@@ -328,7 +334,9 @@ def run_a(raw, rows):
     # a handler in the page's source for every registered key
     res["handler"] = []
     for prog, rs in byprog.items():
-        body = "\n".join(l for l in strip_bas(raw[prog]).split("\n") if "$tk_keys('add'" not in l)
+        if prog in FOOT_ONLY:
+            continue
+        body ="\n".join(l for l in strip_bas(raw[prog]).split("\n") if "$tk_keys('add'" not in l)
         for r in rs:
             if not r["key"] or r["on"] == "off":          # a menu-only action has no key; a row switched off needs no handler
                 continue

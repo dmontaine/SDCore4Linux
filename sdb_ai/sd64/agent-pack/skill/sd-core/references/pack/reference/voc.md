@@ -147,7 +147,7 @@ The record above is a phrase a site might add: named `gt.l`, say, it
 expands to `grand.total "'L'"` wherever `gt.l` appears in a query.
 
 **No phrase ships in the VOC.** The two that did, `no.grand.total` and
-`without`, were removed in 1.2-0; write `grand.total "'L'"` and `with no`
+`without`, were removed in 2.0-0; write `grand.total "'L'"` and `with no`
 in the command instead.
 
 
@@ -170,7 +170,7 @@ The record above is a phrase a site might add: named `gt.l`, say, it
 expands to `grand.total "'L'"` wherever `gt.l` appears in a query.
 
 **No phrase ships in the VOC.** The two that did, `no.grand.total` and
-`without`, were removed in 1.2-0; write `grand.total "'L'"` and `with no`
+`without`, were removed in 2.0-0; write `grand.total "'L'"` and `with no`
 in the command instead.
 
 
@@ -210,7 +210,7 @@ every time it is used**, so editing the referenced record changes what the
 command does without touching the VOC entry. **SD ships no R-record any more**:
 the ten ready-made `list` sentences (`listf`, `listfl`, `listfr`, `listk`,
 `listpa`, `listph`, `listq`, `listr`, `lists`, `listv`) and the `sd.voclib` file
-that held them were removed in 1.2-0. To list the records of one type, ask the
+that held them were removed in 2.0-0. To list the records of one type, ask the
 query processor: `list voc with type = "V"` (`"F"` for files, `"K"` for
 keywords, `"PA"` paragraphs, `"PH"` phrases, `"Q"` Q-pointers, `"R"` R-records,
 `"S"` sentences).
@@ -274,7 +274,7 @@ processor's dispatch list. Several names share one: `off` and `quit` are
 both internal verb 1, and `clr` is internal verb 2. (`cs` for `clr`, and the
 run-together `cleardata`, `clearinput`, `clearprompts` and `clearselect` for
 `clear.data` and the rest, were second names for the same numbers and were
-removed in 1.2-0.)
+removed in 2.0-0.)
 
 **The four keyword-verbs**
 

@@ -18,6 +18,11 @@
 * 
 * 
 * START-HISTORY:
+* 1 Nov 26 dm   A MENU CHOICE LEFT THE OLD TEXT ON THE SCREEN when colour was on: after the menu closed the image was blanked but the terminal was not cleared, so a row that became empty (Kill line,
+*               Undo) was never written.  The menu's close now clears the screen as the SYNTAX command does (sandbox-syntax.py, sandbox-sed-menu.py, sandbox-sed-edit.py).
+* 1 Nov 26 dm   Syntax colour is ON by default (owner, 1 Nov 26: "turn syntax on by default"; it was off until asked for since 13 Oct): syn.want starts true, and syn.start still turns it on only for a terminal
+*               that can show colour, silently.  The word no.syntax in &sed.options& (or SYNTAX OFF) turns it off.  The SYNTAX command with no word turns colour off when it is IN USE (syn.on): on a terminal that
+*               cannot show colour it tries to turn it on and says so (11192) instead of doing nothing the first time.
 * 28 Oct 26 dm  Security fix (owner-approved): open.file's PATH: handling asked K$PATH.OK about the name as typed and, when OPENSEQ failed, opened upcase() of it - a check on one name and use of another.  The retry is removed; a path is opened as typed or refused.
 * 28 Oct 26 dm  S.88 phase 2 (D4): the break setting SED takes (PTERM BREAK OFF) is kept by $tk_brk and given back where the terminal is given up (reset.term.state); it was never given back.
 * 28 Oct 26 dm  S.88 D33 (owner, 20 Oct 26): in the default key layout Ctrl-W closes the buffer (F.DELETE.BUFFER, as in Edit and Geany, and as in the IDE and the toolkit) and Save as (F.WRITE.RECORD)
@@ -452,11 +457,12 @@ $include sl.h
 
    dim image(screen.lines + 1) ; mat image = sw.space
 
-   * Syntax colour (13 Oct 26).  OFF unless &sed.options& says SYNTAX or the Tools menu is used, and the screen
-   * is then drawn exactly as before.  The language of the record, one style code per character of every line
+   * Syntax colour (13 Oct 26).  ON unless &sed.options& says NO.SYNTAX or SYNTAX OFF / the Tools menu is used (1 Nov 26; it was
+   * off until asked for), and on a terminal that cannot show colour the screen is drawn exactly as before.  The language of the
+   * record, one style code per character of every line
    * drawn, and the state each line ends in (so that a comment or string that goes on to the next line colours
    * it) come from $sl_syntax; the colours are the theme's ($sl_theme: dark, or light for SYNTAX.LIGHT).
-   syn.want = @false                  ;* asked for, by &sed.options& or the menu
+   syn.want = @true                   ;* asked for: the default, taken away by &sed.options& (NO.SYNTAX) or the menu
    syn.light = @false                 ;* the light theme rather than the dark one
    syn.on = @false                    ;* in use: wanted AND this terminal can show colour
    syn.lang = 0                       ;* the number of the record's language in $sl_syntax; 0 = none
@@ -7120,7 +7126,10 @@ run.menu:
    call $sl_menu('run', bar.w, scr, '', menu.code)
    gosub mouse.disarm
    if syn.on then                          ;* the library puts plain text back from its shadow
-      mat image = sw.space ; mat simage = ''
+      * 1 Nov 26: the screen is CLEARED as well as the image blanked.  Blanking the image alone said the terminal was blank while it still held the old text, so a row that became
+      *   empty (Kill line, Undo) equalled the blank image and was never written: the old text stayed on the screen though it was gone from the buffer (found when colour became the default).
+      gosub clear.screen
+      mat simage = ''
       gosub refresh.all
    end
    action = 0
@@ -7985,7 +7994,7 @@ ext.command:
          * SYNTAX (toggle), SYNTAX ON, SYNTAX OFF, SYNTAX LIGHT, SYNTAX DARK
          arg = upcase(trim(s<2>))
          begin case
-            case arg = 'OFF' or (arg = '' and syn.want)
+            case arg = 'OFF' or (arg = '' and syn.on)
                syn.want = @false
                gosub syn.stop
             case arg = '' or arg = 'ON' or arg = 'LIGHT' or arg = 'DARK'

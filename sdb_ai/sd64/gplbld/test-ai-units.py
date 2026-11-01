@@ -150,10 +150,12 @@ def check_a(t):
         and not re.search(r'\{[^}]*"echo"', ad), "")
     p = t["providers"]
     secs = re.findall(r"^\[([a-z]+)\]$", p, re.M)
-    row("the shipped providers table has exactly anthropic, openai and deepseek", secs == ["anthropic", "openai", "deepseek"], repr(secs))
+    row("the shipped providers table has exactly anthropic, openai, google and deepseek", secs == ["anthropic", "openai", "google", "deepseek"], repr(secs))
     urls = re.findall(r"^url=(.*)$", p, re.M)
-    row("every shipped URL is https and names a host", len(urls) == 3 and all(re.match(r"^https://[a-z.]+/", u) for u in urls), repr(urls))
-    row("the shipped table holds no model and no key (the person supplies both)", not re.search(r"^(model|key)", p, re.M | re.I), "")
+    row("every shipped URL is https and names a host", len(urls) == 4 and all(re.match(r"^https://[a-z.]+/", u) for u in urls), repr(urls))
+    models = re.findall(r"^model=(.*)$", p, re.M)
+    row("the shipped table holds a default model for each provider (a plain model name) and no key (the person supplies the key; the model may be changed)",
+        len(models) == 4 and all(re.match(r"^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,99}$", m) for m in models) and not re.search(r"^key", p, re.M | re.I), repr(models))
     k = code_only(t["ctl"])
     kb = between(k, 'elif cmd == "key" and len(rest) == 1:', "if req is None:")
     row("sd-ai-ctl never takes a key as an argument: in the key branch the key comes from getpass or stdin only (rest holds the provider and nothing else), and it is never printed",
@@ -323,7 +325,7 @@ def check_d(t):
         ordered(v, "confirm.and.run: call $tk_confirm(sent, el, typed, res, cmsg) if res = 'run' then if use.x then call $tk_runx(", "call $tk_run(allow.acc", "end else msg = cmsg end return") and v.count("call $tk_confirm(sent, el, typed") == 1, "")
     row("the one direct EXECUTE is the hand-over of the terminal to SET.AI KEY: the name is tested against the fixed four, the sentence is a fixed text and that name, the confirm box comes first and anything but run returns, then the screen is given back",
         len(re.findall(r"\bexecute\b", v)) == 1 and not re.search(r"\b(os\.execute|perform|chain|sh)\b", v)
-        and ordered(v, "do.key: p = provs<pi> if index(' anthropic openai deepseek custom ', ' ' : p : ' ', 1) = 0 then return", "sent = 'set.ai key ' : p", "call $tk_confirm(sent, el, '', res, cmsg) if res # 'run' then msg = cmsg return end",
+        and ordered(v, "do.key: p = provs<pi> if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return", "sent = 'set.ai key ' : p", "call $tk_confirm(sent, el, '', res, cmsg) if res # 'run' then msg = cmsg return end",
                     "call $tk_close(ctx) execute sent", "gosub reopen"), "")
     row("THE KEY IS NOT HANDLED: the page reads nothing at the terminal but the Enter that ends the hand-over (one INPUT, into a variable called junk), has no hidden or masked entry and no GETPASS, and builds no sentence that holds a key",
         v.count("input ") == 1 and "input junk" in v and not re.search(r"getpass|\bmask\b|keyin|rawkey", v, re.I) and "sent = 'set.ai key ' : p el = ''" in v and "sent = 'set.ai key ' : p : ' clear'" in v
@@ -441,7 +443,7 @@ GROUP_D_MUTANTS = [
     ("tool_ai", "a certificate file needs no word", "      typed = 'ca'\n", "      typed = ''\n"),
     ("tool_ai", "a semicolon is an allowed character", "0123456789._:/@+,-'", "0123456789._:/@+,-;'"),
     ("tool_ai", "the page may run sh", "allow.set = 'set.ai'", "allow.set = 'set.ai sh'"),
-    ("tool_ai", "the key hand-over is not guarded by the fixed four", "   if index(' anthropic openai deepseek custom ', ' ' : p : ' ', 1) = 0 then return\n", ""),
+    ("tool_ai", "the key hand-over is not guarded by the fixed four", "   if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return\n", ""),
     ("tool_ai", "the key is put in the sentence", "   sent = 'set.ai key ' : p\n   el = ''\n", "   sent = 'set.ai key ' : p : ' ' : kv\n   el = ''\n"),
     ("tool_ai", "the model is not checked", "   vmax = 80\n   gosub valid.word\n", "   vmax = 80\n   vw.ok = 1\n"),
     ("tool_ai", "the page is opened for anyone", "   call $tk_open('tool.ai', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop", "   call $tk_open('tool.ai', '', ctx, err)\n   if err # '' then\n      display err\n      stop"),

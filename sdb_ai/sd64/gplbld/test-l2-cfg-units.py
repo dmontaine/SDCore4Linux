@@ -21,6 +21,7 @@ screen read back).  What it holds is the geometry the pages DECLARE, worked out 
 
 START-HISTORY:
 28 Oct 26 dm  New (S.88 L2, the group of TOOL.CONFIG, TOOL.REMOTE, TOOL.BACKUPS, TOOL.AI and TOOL.MENUS).
+1 Nov 26 dm   TOOL.AI's boxes changed on purpose (Google's row): NOW holds them, G1 holds the declaration to NOW, G1b still holds OLD against git; DERIVED and GROW follow.
 END-HISTORY
 """
 
@@ -51,6 +52,9 @@ OLD = {
     "tool_ai": [("providers", (1, 1, 138, 9)), ("row", (1, 10, 138, 13)), ("accounts", (1, 23, 138, 10)), ("effect", (1, 33, 138, 6))],
     "tool_menus": [("accounts", (1, 1, 70, 30)), ("menu", (72, 1, 67, 21)), ("what", (72, 22, 67, 17)), ("default", (1, 31, 70, 5)), ("help", (1, 36, 70, 3))],
 }
+# Where a page's boxes have been changed on purpose since OLD_COMMIT (G1 holds the declaration to these; G1b still holds OLD against git).  TOOL.AI, 1 Nov 26: Google is a fifth row of the Provider
+# box, which is one row taller, and the Accounts box gave that row up so that the last row of the body stays free for the AI line (the boxes still add up to 38).
+NOW = {"tool_ai": [("providers", (1, 1, 138, 10)), ("row", (1, 11, 138, 13)), ("accounts", (1, 24, 138, 9)), ("effect", (1, 33, 138, 6))]}
 # The rows the page leaves empty at the foot of the body at 140 by 43 (the body is 39 rows): they stay empty at every size.
 SPARE = {"tool_config": 0, "tool_remote": 0, "tool_backups": 0, "tool_ai": 1, "tool_menus": 1}
 # What the pages count from their rectangles at 140 by 43: the constants they used to have.
@@ -58,7 +62,7 @@ DERIVED = {
     "tool_config": {"tw": 134, "VP": 17, "DV": 11, "mk.x": 134, "mk.y": 2},
     "tool_remote": {"tw": 134, "VR": 17, "DV": 11, "mk.x": 134, "mk.y": 2},
     "tool_backups": {"tw": 134, "VA": 17, "DV": 11, "mk.x": 134, "mk.y": 2},
-    "tool_ai": {"tw": 134, "VISA": 6, "DV": 11, "EV": 4, "mk.px": 134, "mk.py": 2, "mk.ax": 134, "mk.ay": 24},
+    "tool_ai": {"tw": 134, "VISA": 5, "DV": 11, "EV": 4, "mk.px": 134, "mk.py": 2, "mk.ax": 134, "mk.ay": 25},
     "tool_menus": {"aw": 66, "mw": 63, "ww": 63, "dw": 66, "hw": 66, "VIS": 26, "WV": 15, "mk.acx": 66, "mk.acy": 2, "mk.mx": 134, "mk.dx": 66, "mk.dy": 32},
 }
 # derived name -> (pane id, function of the pane's x, y, w, h): a number of rows (or columns) is the pane's height (width) less a fixed number, a place is a corner of its pane
@@ -80,7 +84,7 @@ GROW = {
     "tool_config": {"top": (1, 1, 178, 6), "list": (1, 7, 178, 32), "detail": (1, 39, 178, 13)},
     "tool_remote": {"top": (1, 1, 178, 6), "list": (1, 7, 178, 32), "detail": (1, 39, 178, 13)},
     "tool_backups": {"top": (1, 1, 178, 6), "list": (1, 7, 178, 32), "detail": (1, 39, 178, 13)},
-    "tool_ai": {"providers": (1, 1, 178, 9), "row": (1, 10, 178, 13), "accounts": (1, 23, 178, 22), "effect": (1, 45, 178, 6)},
+    "tool_ai": {"providers": (1, 1, 178, 10), "row": (1, 11, 178, 13), "accounts": (1, 24, 178, 21), "effect": (1, 45, 178, 6)},
     "tool_menus": {"accounts": (1, 1, 90, 42), "default": (1, 43, 90, 5), "help": (1, 48, 90, 3), "menu": (92, 1, 87, 21), "what": (92, 22, 87, 29)},
 }
 SIZES = [(140, 43), (141, 44), (150, 45), (180, 55), (200, 60), (233, 71), (500, 300)]
@@ -250,7 +254,7 @@ def checks(raw, M, git_boxes=None):
         v = model.validate(decl[n])
         rects, mode = model.layout(decl[n], fr0)
         got = [(d["id"], r[:4]) for d, r in zip(decl[n], rects)]
-        want = OLD[n]
+        want = NOW.get(n, OLD[n])
         if v is not None or mode != "full" or not all(r[4] for r in rects) or sorted(got) != sorted(want):
             bad.append("%s: valid %r mode %s got %r want %r" % (n, v, mode, got, want))
     ck("G1", "AT 140 BY 43 EACH PAGE'S DECLARATION (read off its lay.declare) IS VALID AND GIVES EXACTLY THE BOXES THE PAGE DREW BEFORE THE SERVICE: %s" % ", ".join("%s %d" % (n, len(OLD[n])) for n in PAGES), not bad, "; ".join(bad)[:700])

@@ -77,6 +77,7 @@ ALLOWED = {
     ("login", "11900"):"Core's VOC update reports the records its deletion list removed (27 Oct 26, S.87); Solo's 11900 is another message until the carry",
     ("ide", "11209"): "Core's Go to prompt names line,column and field,value,subvalue (29 Oct 26, stage D); Solo's older IDE says 'Line number:' until the carry",
     ("ide", "11215"): "Core's help names F12, Edit as fields (26 Oct 26, one-editor plan stage 1); Solo's does not until the carry",
+    ("setai", "11610"): "Core's list of providers has Google (1 Nov 26); Solo's does not until the carry (Core only, the owner's 26 Oct rule)",
     ("ide", "11214"): "Core's help names Ctrl-N, New record, and the untitled buffer's first save (28 Oct 26, S.88 Phase 4); Solo's does not until the carry",
     ("ide", "11216"): "Core's help names F3, F10, Ctrl-A, Ctrl-D and Ctrl-K by the owner's keys of 20 Oct (28 Oct 26, S.88 Phase 4); Solo's does not until the carry",
     ("ide", "11219"): "Core's says the file has more records than the bounded list shows (28 Oct 26, the editor merge stage B: the tree stops at 2,000 without reading the whole file); Solo's does not until the carry",

@@ -4,8 +4,8 @@
 # everyone else, by the uid it reads from the socket, so there is no password here and nothing to guess.  Standard library only.
 #
 #   sd-ai-ctl [--socket PATH] show [--json]
-#   sd-ai-ctl [--socket PATH] provider anthropic | openai | deepseek | custom | none
-#   sd-ai-ctl [--socket PATH] model PROVIDER NAME            (NAME - clears it)
+#   sd-ai-ctl [--socket PATH] provider anthropic | openai | google | deepseek | custom | none
+#   sd-ai-ctl [--socket PATH] model PROVIDER NAME            (NAME - clears it: the provider's starting model is used again)
 #   sd-ai-ctl [--socket PATH] custom NAME URL FORMAT AUTH VERSION MAXPARAM      (VERSION - for none; FORMAT anthropic | openai; AUTH bearer | x-api-key)
 #   sd-ai-ctl [--socket PATH] custom-clear
 #   sd-ai-ctl [--socket PATH] ca PATH                         (PATH - for the system store)
@@ -28,7 +28,7 @@ import socket
 import sys
 
 DEFAULT_SOCKET = "/run/sd-ai/sock"      # --socket PATH names another; so does SD_AI_SOCKET in the environment (the tests; the product never sets either)
-PROVIDERS = ("anthropic", "openai", "deepseek", "custom")
+PROVIDERS = ("anthropic", "openai", "google", "deepseek", "custom")
 
 
 def usage():
@@ -69,7 +69,7 @@ def show(reply, as_json):
         p = reply["providers"][n]
         print("  [%s] %-9s %-10s %s  (%s, %s%s, size field %s)" % ("x" if reply.get("provider") == n else " ", n, p["name"], p["url"] or "(not set)", p["format"] or "-", p["auth"] or "-",
               (", version " + p["version"]) if p["version"] else "", p["maxparam"] or "-"))
-        print("      model: %s   key: %s" % (p["model"] or "(not set)", "set" if p["key"] else "(not set)"))
+        print("      model: %s   key: %s" % (p["model"] or (("%s (default)" % p["default"]) if p.get("default") else "(not set)"), "set" if p["key"] else "(not set)"))
     print("  ca-file: %s" % (reply.get("ca-file") or "(the system store)"))
     print("  limits: " + ", ".join("%s=%s" % (k, v) for k, v in sorted(reply.get("limits", {}).items())))
 

@@ -9805,7 +9805,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 15
+"words": 16
 },
 "msg:11611": {
 "kind": "message",
@@ -28089,7 +28089,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 55
+"words": 66
 },
 "tcl:tool.audit": {
 "kind": "tcl.verb",

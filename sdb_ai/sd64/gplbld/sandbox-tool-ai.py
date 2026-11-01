@@ -17,8 +17,9 @@
 # THE INSTRUMENT.  Every outcome is read from the DISK or the AUDIT TRAIL, not from what the page said: ai.conf, the key file, the scratch group file, the audit file.  A row that
 # says "nothing was run" is judged by those, and the key sentinel is looked for in the whole byte stream the terminal received.
 #
-#   T0-T2   an ordinary account has no tool.ai; the page: four boxes, four providers each with its shipped address (Custom not filled in), no model, no key, none checked, the
-#           summary says the AI is off; a [?] at the end of the Provider and the Accounts boxes
+#   T0-T2   an ordinary account has no tool.ai; the page: four boxes, four named providers (Anthropic, OpenAI, Google, DeepSeek) each with its shipped address and default model, and
+#           Custom not filled in, no key, none checked, the summary says the AI is off; a [?] at the end of the Provider and the Accounts boxes (1 Nov 26: Google and the default models)
+#   T7a-T7d M on a model in use names it in the prompt; a dash goes back to the default and ai.conf loses the setting; naming the default already in use changes nothing
 #   T3-T4   Enter on a provider shows the command and its effect and Cancel runs nothing; Run asks for the provider's NAME, a wrong name runs nothing, the right one checks it
 #           (the check box moves, ai.conf holds it, one audit line)
 #   T5-T7   M: the model (the sentence, the effect, ai.conf); a model name with a character it may not have runs nothing; capitals and a colon get through $tk_runx
@@ -122,6 +123,7 @@ def setup_ai():
     providers = os.path.join(b, "ai", "ai-providers")
     text = open(os.path.join(HERE, "ai-providers")).read()
     for old, new in (("https://api.anthropic.com/v1/messages", "https://127.0.0.1:%d/v1/messages" % fm.port), ("https://api.openai.com/v1/chat/completions", "https://127.0.0.1:%d/v1/chat/completions" % fm.port),
+                     ("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "https://127.0.0.1:%d/v1beta/openai/chat/completions" % fm.port),
                      ("https://api.deepseek.com/chat/completions", "https://127.0.0.1:%d/chat/completions" % fm.port)):
         text = text.replace(old, new)
     g.put(providers, text)
@@ -188,21 +190,24 @@ def provider_section():
     arow("T0b", "opening the page writes one audit line, 'tool start app=tool.ai', and nothing else changes: ai.conf holds nothing yet", len(re.findall(r"tool start app=tool\.ai$", fg.audit_new(a_open) or "", re.M)) == 1
          and not any(l.startswith(("provider=", "model.", "custom.", "limit.", "ca-file=")) and not l == "provider=" for l in conf()), repr((fg.audit_new(a_open), conf())))
     arow("T1a", "the four boxes", all(w in T for w in ("AI provider - one for every account", "The row under the cursor", "Accounts that may use the AI", "What this means")), T[:400])
-    urls = ("https://127.0.0.1:%d/v1/messages" % port, "https://127.0.0.1:%d/v1/chat/completions" % port, "https://127.0.0.1:%d/chat/completions" % port)
-    names = ("Anthropic", "OpenAI", "DeepSeek")
-    ok = all(re.match(r"^\[ \] %s\s+%s\s+\(not set\)\s+not set$" % (re.escape(nm), re.escape(u)), cell(h, 3 + i)) for i, (nm, u) in enumerate(zip(names, urls)))
-    arow("T1b", "the three named providers are filled in with their shipped address, no model and no key, none checked", ok, repr([cell(h, r) for r in range(3, 7)]))
-    arow("T1c", "the fourth row is Custom, not filled in, nothing checked", re.match(r"^\[ \] Custom\s+\(not filled in\)\s+\(not set\)\s+not set$", cell(h, 6)) is not None, repr(cell(h, 6)))
-    arow("T1d", "the summary says the AI is off (no provider is selected)", h.line(8)[3:].startswith("The AI is OFF: no provider is selected."), repr(h.line(8)[3:80]))
-    arow("T2", "a [?] at the end of the Provider box and of the Accounts box", h.line(2)[134:137] == "[?]" and h.line(24)[134:137] == "[?]", repr((h.line(2)[130:139], h.line(24)[130:139])))
+    urls = ("https://127.0.0.1:%d/v1/messages" % port, "https://127.0.0.1:%d/v1/chat/completions" % port, "https://127.0.0.1:%d/v1beta/openai/chat/completions" % port, "https://127.0.0.1:%d/chat/completions" % port)
+    names = ("Anthropic", "OpenAI", "Google", "DeepSeek")
+    DEFAULTS = re.findall(r"^model=(.*)$", open(os.path.join(HERE, "ai-providers")).read(), re.M)      # the shipped table's default models, in the order of the names
+    STATE["defaults"] = DEFAULTS
+    ok = len(DEFAULTS) == 4 and all(re.match(r"^\[ \] %s\s+%s\s+%s \(default\)\s+not set$" % (re.escape(nm), re.escape(u), re.escape(dm)), cell(h, 3 + i))
+                                    for i, (nm, u, dm) in enumerate(zip(names, urls, DEFAULTS)))
+    arow("T1b", "the four named providers (Anthropic, OpenAI, Google, DeepSeek) are filled in with their shipped address and their default model (marked default), no key, none checked", ok, repr([cell(h, r) for r in range(3, 8)]))
+    arow("T1c", "the fifth row is Custom, not filled in, nothing checked", re.match(r"^\[ \] Custom\s+\(not filled in\)\s+\(not set\)\s+not set$", cell(h, 7)) is not None, repr(cell(h, 7)))
+    arow("T1d", "the summary says the AI is off (no provider is selected)", h.line(9)[3:].startswith("The AI is OFF: no provider is selected."), repr(h.line(9)[3:80]))
+    arow("T2", "a [?] at the end of the Provider box and of the Accounts box", h.line(2)[134:137] == "[?]" and h.line(25)[134:137] == "[?]", repr((h.line(2)[130:139], h.line(25)[130:139])))
     arow("T1e", "the row under the cursor is described: the Anthropic request layout, the x-api-key header and the version header", all(w in h.text() for w in ("anthropic  (the Messages API)", "x-api-key: <key>", "2023-06-01", "max_tokens")), h.text()[1500:2600])
     # ------------------------------------------------------------------------------------------ select a provider
     say("\n--- Enter on a provider")
     a0 = fg.audit_off()
     h.key("enter", idle=1.4)
     T = h.text()
-    arow("T3a", "Enter shows the command and its effect, and warns that no model and no key are set", "set.ai provider anthropic" in T and "will use Anthropic" in T and "No model is set for it yet" in T
-         and "No key is set for it yet" in T, T[-900:])
+    arow("T3a", "Enter shows the command and its effect, says which default model it will ask, and warns that no key is set", "set.ai provider anthropic" in T and "will use Anthropic" in T
+         and ("It will ask its default model, " + STATE["defaults"][0]) in re.sub(r"\s+", " ", T) and "No model is set for it yet" not in T and "No key is set for it yet" in T, T[-900:])
     h.key("esc", idle=1.0)
     arow("T3b", "Esc is Cancel: nothing was run (the status line says so), ai.conf holds no provider, no audit line", "nothing was run" in st(h) and not any(l.startswith("provider=") and l != "provider=" for l in conf())
          and "set.ai" not in (fg.audit_new(a0) or ""), repr((st(h), conf())))
@@ -219,7 +224,7 @@ def provider_section():
     arow("T4c", "the right name runs it: Anthropic is checked, ai.conf holds provider=anthropic, the audit trail has one 'set.ai provider=anthropic', and the page says what the verb said",
          h.line(3)[3:6] == "[x]" and "provider=anthropic" in conf() and len(re.findall(r"set\.ai provider=anthropic$", new, re.M)) == 1 and "The AI provider for every account is now anthropic" in st(h),
          repr((h.line(3)[3:20], conf(), new[-200:], st(h))))
-    arow("T4d", "the summary says what is missing: no model and no key yet", "In use: Anthropic, model (not set), key not set.  It cannot be used until both are set" in h.line(8), repr(h.line(8)[3:130]))
+    arow("T4d", "the summary says what is missing: only the key (the model is the default)", ("In use: Anthropic, model " + STATE["defaults"][0] + " (default), key not set.  It cannot be used until the key is set") in h.line(9), repr(h.line(9)[3:140]))
     if MUTANT_ONLY_PROVIDER_SELECT:
         h.key("ctrl-q", idle=1.0)
         h.end()
@@ -228,7 +233,7 @@ def provider_section():
     say("\n--- M: the model")
     h.typed("m", idle=1.2)
     T = h.text()
-    arow("T5a", "M asks for the model name of the row under the cursor", "Model name for Anthropic" in T, T[-500:])
+    arow("T5a", "M asks for the model name of the row under the cursor, naming the default in use", "Model for Anthropic (now " + STATE["defaults"][0] in re.sub(r"\s+", " ", T), T[-500:])
     h.typed(MODEL + "\r", idle=1.5)
     T = h.text()
     arow("T5b", "the sentence and its effect are shown before anything runs", "set.ai model anthropic " + MODEL in T and "will ask model " + MODEL in T, T[-700:])
@@ -245,6 +250,22 @@ def provider_section():
     h.typed("GPT-Test:1\r", idle=1.5)
     h.typed("r", idle=2.0)
     arow("T7", "capitals and a colon in a model name go through $tk_runx (the OpenAI row)", "model.openai=GPT-Test:1" in conf() and "GPT-Test:1" in h.line(4), repr((conf(), h.line(4)[3:100], st(h))))
+    h.typed("m", idle=1.0)
+    arow("T7a", "M names the model in use in its prompt, and says a dash is the default", "Model for OpenAI (now GPT-Test:1; - = default)" in re.sub(r"\s+", " ", h.text()), h.text()[-500:])
+    h.typed("-\r", idle=1.5)
+    T = h.text()
+    arow("T7b", "a dash says the model goes back to its default (the table's, named) and shows the sentence", "set.ai model openai -" in T and ("goes back to its default, " + STATE["defaults"][1]) in re.sub(r"\s+", " ", T), T[-700:])
+    h.typed("r", idle=2.0)
+    arow("T7c", "Run: the row shows the default again, marked default, and ai.conf no longer holds the administrator's model",
+         (STATE["defaults"][1] + " (default)") in h.line(4) and "model.openai=GPT-Test:1" not in conf(), repr((h.line(4)[3:100], conf(), st(h))))
+    h.key("down", idle=0.6)
+    a4 = fg.audit_off()
+    before = list(conf())
+    h.typed("m", idle=1.0)
+    h.typed(STATE["defaults"][2] + "\r", idle=1.5)
+    arow("T7d", "M on the Google row, naming the default it already uses: the page says so and runs nothing",
+         ("already uses its default model, " + STATE["defaults"][2]) in st(h) and conf() == before and "set.ai" not in (fg.audit_new(a4) or ""), repr((st(h), fg.audit_new(a4))))
+    h.key("up", idle=0.6)
     h.key("up", idle=0.6)
     # ------------------------------------------------------------------------------------------ the key
     say("\n--- K: the key")
@@ -264,7 +285,7 @@ def provider_section():
     new = fg.audit_new(a2) or ""
     kp = keyfile("anthropic")
     arow("T9a", "back on the page: the row shows the key set, the summary no longer says it cannot be used", re.search(r"claude-test\s+set$", cell(h, 3)) is not None
-         and "In use: Anthropic, model claude-test, key set" in h.line(8) and "cannot be used" not in h.line(8), repr((cell(h, 3), cell(h, 8))))
+         and "In use: Anthropic, model claude-test, key set" in h.line(9) and "cannot be used" not in h.line(9), repr((cell(h, 3), cell(h, 9))))
     arow("T9b", "the key file is the helper's: mode 0600, holds the key; the audit trail has 'set.ai key set provider=anthropic' and no key", os.path.exists(kp) and open(kp).read().strip() == KEY and (os.stat(kp).st_mode & 0o777) == 0o600
          and re.search(r"set\.ai key set provider=anthropic$", new, re.M) is not None and KEY not in new, repr((os.path.exists(kp), new[-200:])))
     arow("T9c", "the key sentinel is in NO byte the terminal received, and on no screen line", KEY.encode() not in h.s.raw and KEY not in h.text(), "")
@@ -275,7 +296,7 @@ def provider_section():
     arow("T9e", "Run removes it: the key file is gone, the row says not set", not os.path.exists(kp) and cell(h, 3).endswith("not set") and "The key for anthropic is cleared" in st(h), repr((os.path.exists(kp), cell(h, 3), st(h))))
     # ------------------------------------------------------------------------------------------ Custom
     say("\n--- C: Custom")
-    for _ in range(3):
+    for _ in range(4):
         h.key("down", idle=0.5)
     h.typed("x", idle=0.9)
     arow("T10a", "X on a row with no key says so and runs nothing", "No key is set for Custom" in st(h), repr(st(h)))
@@ -296,24 +317,24 @@ def provider_section():
     h.typed("custom\r", idle=2.0)
     new = fg.audit_new(a3) or ""
     arow("T11b", "with the word custom typed it runs: the row shows MyLLM and the address, ai.conf holds the connection, the audit line has the host and not the address",
-         "MyLLM" in h.line(6) and ("custom.url=" + url) in conf() and re.search(r"set\.ai custom name=MyLLM host=127\.0\.0\.1:%d$" % STATE["port"], new, re.M) is not None and "/v1/chat/completions" not in new,
-         repr((h.line(6)[3:110], new[-200:])))
+         "MyLLM" in h.line(7) and ("custom.url=" + url) in conf() and re.search(r"set\.ai custom name=MyLLM host=127\.0\.0\.1:%d$" % STATE["port"], new, re.M) is not None and "/v1/chat/completions" not in new,
+         repr((h.line(7)[3:110], new[-200:])))
     h.key("enter", idle=1.2)
     h.typed("r", idle=1.2)
     h.typed("custom\r", idle=2.0)
-    marks = [h.line(r)[3:6] for r in range(3, 7)]
-    arow("T12", "selecting Custom moves the check box: exactly one [x], on the Custom row, and ai.conf says provider=custom", marks == ["[ ]", "[ ]", "[ ]", "[x]"] and "provider=custom" in conf(), repr((marks, conf())))
+    marks = [h.line(r)[3:6] for r in range(3, 8)]
+    arow("T12", "selecting Custom moves the check box: exactly one [x], on the Custom row, and ai.conf says provider=custom", marks == ["[ ]", "[ ]", "[ ]", "[ ]", "[x]"] and "provider=custom" in conf(), repr((marks, conf())))
     h.typed("d", idle=1.0)
     h.typed("r", idle=2.0)
     arow("T13a", "D while Custom is in use: the helper refuses and the page shows its words; the connection stays", "The AI helper refused" in st(h) and any(l.startswith("custom.url=") for l in conf()), repr((st(h), conf())))
     h.key("enter", idle=1.2)
     h.typed("r", idle=2.0)
-    marks = [h.line(r)[3:6] for r in range(3, 7)]
-    arow("T13b", "Enter on the provider in use unchecks it: no [x] anywhere, the summary says the AI is off, ai.conf has an empty provider", marks == ["[ ]"] * 4 and h.line(8)[3:].startswith("The AI is OFF") and "provider=" in conf(),
-         repr((marks, h.line(8)[3:60], conf())))
+    marks = [h.line(r)[3:6] for r in range(3, 8)]
+    arow("T13b", "Enter on the provider in use unchecks it: no [x] anywhere, the summary says the AI is off, ai.conf has an empty provider", marks == ["[ ]"] * 5 and h.line(9)[3:].startswith("The AI is OFF") and "provider=" in conf(),
+         repr((marks, h.line(9)[3:60], conf())))
     h.typed("d", idle=1.0)
     h.typed("r", idle=2.0)
-    arow("T14", "D now works: no custom.* line is left and the row is not filled in again", not any(l.startswith("custom.") for l in conf()) and "(not filled in)" in h.line(6) and "The custom connection is cleared" in st(h), repr((conf(), h.line(6)[3:80], st(h))))
+    arow("T14", "D now works: no custom.* line is left and the row is not filled in again", not any(l.startswith("custom.") for l in conf()) and "(not filled in)" in h.line(7) and "The custom connection is cleared" in st(h), repr((conf(), h.line(7)[3:80], st(h))))
     # ------------------------------------------------------------------------------------------ limits and the CA file
     say("\n--- L and A")
     h.typed("l", idle=1.0)
@@ -341,7 +362,7 @@ def accounts_section():
     h.key("tab", idle=0.8)
     T = h.text()
     arow("T17a", "Tab moves to the Accounts box (the status line names it)", st(h).startswith("[Accounts]"), repr(st(h)))
-    rows = [cell(h, r) for r in range(25, 31)]
+    rows = [cell(h, r) for r in range(26, 31)]
     arow("T17b", "only the USER accounts are listed, by name, each with its gate read from the scratch group file: zzai1 off, zzai2 off, zzai3 off and suspended; no group account, no fixture",
          re.match(r"^zzai1\s+%s\s+off$" % re.escape(ME), rows[0]) is not None and re.match(r"^zzai2\s+zzother2\s+off$", rows[1]) is not None
          and re.match(r"^zzai3\s+zzother3\s+off\s+\(suspended\)$", rows[2]) is not None and rows[3] == "" and "zzaig" not in T, repr(rows))
@@ -352,14 +373,14 @@ def accounts_section():
     arow("T18a", "Enter on zzai1 shows modify.account zzai1 ai-on and the effect", "modify.account zzai1 ai-on" in T and "will be able to" in T, T[-800:])
     h.typed("r", idle=1.2)
     h.typed("nope\r", idle=1.6)
-    arow("T18b", "a wrong name runs nothing: the scratch group file is unchanged and the row is off", ME not in fg.read_group().get("sdaiusers", []) and "off" in h.line(25)[3:], repr((fg.read_group().get("sdaiusers"), h.line(25)[3:80])))
+    arow("T18b", "a wrong name runs nothing: the scratch group file is unchanged and the row is off", ME not in fg.read_group().get("sdaiusers", []) and "off" in h.line(26)[3:], repr((fg.read_group().get("sdaiusers"), h.line(26)[3:80])))
     h.key("enter", idle=1.2)
     h.typed("r", idle=1.2)
     h.typed("zzai1\r", idle=2.5)
     new = fg.audit_new(a0) or ""
     arow("T18", "the name typed: the gate is ON in the scratch group file, the row says ON, the summary counts one, the audit trail has 'modify.account ai-on account=zzai1'",
-         ME in fg.read_group().get("sdaiusers", []) and re.search(r"zzai1\s+%s\s+ON$" % re.escape(ME), cell(h, 25)) is not None and cell(h, 31).startswith("3 accounts of persons; 1 may use the AI.")
-         and re.search(r"modify\.account ai-on account=zzai1$", new, re.M) is not None, repr((fg.read_group().get("sdaiusers"), cell(h, 25), new[-200:])))
+         ME in fg.read_group().get("sdaiusers", []) and re.search(r"zzai1\s+%s\s+ON$" % re.escape(ME), cell(h, 26)) is not None and cell(h, 31).startswith("3 accounts of persons; 1 may use the AI.")
+         and re.search(r"modify\.account ai-on account=zzai1$", new, re.M) is not None, repr((fg.read_group().get("sdaiusers"), cell(h, 26), new[-200:])))
     if MUTANT_ONLY_ACCOUNTS:
         h.key("ctrl-q", idle=1.0)
         h.end()
@@ -368,7 +389,7 @@ def accounts_section():
     T = h.text()
     arow("T19a", "Enter again shows ai-off, and no name is asked for turning a gate OFF", "modify.account zzai1 ai-off" in T and "no longer be able" in T, T[-600:])
     h.typed("r", idle=2.5)
-    arow("T19b", "Run: the gate is off in the scratch group file and the row says off", ME not in fg.read_group().get("sdaiusers", []) and "off" in h.line(25)[3:], repr((fg.read_group().get("sdaiusers"), h.line(25)[3:80])))
+    arow("T19b", "Run: the gate is off in the scratch group file and the row says off", ME not in fg.read_group().get("sdaiusers", []) and "off" in h.line(26)[3:], repr((fg.read_group().get("sdaiusers"), h.line(26)[3:80])))
     h.typed("m", idle=0.9)
     arow("T19c", "a Provider key in the Accounts box is refused in words", "Move to the Provider box" in st(h), repr(st(h)))
     h.key("ctrl-q", idle=1.5)
@@ -381,7 +402,7 @@ def tail_section():
     STATE["runner"].terminate()
     STATE["runner"].wait(timeout=10)
     h.key("f5", idle=2.0)
-    arow("T20a", "the helper is not running: the summary says so in words and the rows are blank", h.line(8)[3:].startswith("The AI helper is not running"), repr(h.line(8)[3:100]))
+    arow("T20a", "the helper is not running: the summary says so in words and the rows are blank", h.line(9)[3:].startswith("The AI helper is not running"), repr(h.line(9)[3:100]))
     h.typed("m", idle=1.0)
     arow("T20b", "M then says the helper could not be reached (11607); the page is still there", "The AI helper could not be reached" in st(h) and "What this means" in h.text(), repr(st(h)))
     h.key("enter", idle=1.0)

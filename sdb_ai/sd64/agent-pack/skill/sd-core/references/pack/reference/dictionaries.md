@@ -281,7 +281,7 @@ MX        MO
 | `MX` | decimal to hexadecimal |
 | `MO` | decimal to octal |
 
-(`MCD`, `MCDX`, `MCX` and `MCXD`, which were second spellings of `MX`, were removed in 1.2-0: they are an invalid conversion code now, STATUS 2.)
+(`MCD`, `MCDX`, `MCX` and `MCXD`, which were second spellings of `MX`, were removed in 2.0-0: they are an invalid conversion code now, STATUS 2.)
 
 `MX0C` converts a hexadecimal string to characters. `MB0C` and `MO0C`
 do the same for binary and octal.
@@ -742,7 +742,7 @@ meaning:
 | `0` | the record id (`@ID`) |
 
 (`9998`, which read the item count, and `9999`, which read the length of the
-record in bytes, were removed in 1.2-0: they are ordinary field numbers now. Use
+record in bytes, were removed in 2.0-0: they are ordinary field numbers now. Use
 an I-type with `@ni` or `len(@record)` for those two.)
 
 A dictionary record with location `0` is how the record id appears in a

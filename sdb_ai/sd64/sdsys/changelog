@@ -1,6 +1,24 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   THE AI CHOICE PAGE HAS GOOGLE, AND EACH NAMED PROVIDER COMES WITH A DEFAULT MODEL: ONLY THE KEY HAS TO BE SUPPLIED.
+
+             What        - tool.ai lists Anthropic, OpenAI, Google and DeepSeek, then Custom. Each of the four comes with its address and a default model (the Model column says (default) beside
+                           one you have not changed), so choosing a provider and typing its key is enough; M names another model, a dash goes back to the default, and M now names the model
+                           in use in its prompt and starts empty, so what you type replaces it. Google is reached through its OpenAI-compatible endpoint. set.ai provider takes google, and
+                           set.ai and sd-ai-ctl show the default beside a model you set. Custom is as before: you fill in everything, the model included.
+             Why         - The page asked for a model name before the AI could be used, which only the provider's own pages could tell you.
+             Does NOT    - Turn anything on: the AI is still off until a provider is chosen, its key is typed and an account's ai gate is on. The default models and Google's request details were read
+                           from the providers' own pages on 1 November 2026 and have NOT been tried against a real key; model names change, so check the one you will pay for.
+
+1 Nov 26   SED COLOURS THE LANGUAGE FROM THE START: SYNTAX COLOUR IS ON BY DEFAULT.
+
+             What        - SED showed every record in plain text until you typed SYNTAX or chose it on the Tools menu; it now starts with the colour on, on a terminal that can show colour. The
+                           words SYNTAX OFF, the Tools menu item, or NO.SYNTAX in &sed.options& turn it off, and the bare SYNTAX switches it the other way. On a terminal that cannot show
+                           colour (a vt100, say) SED starts plain without a word, as before; typing SYNTAX there says that the terminal cannot show colour.
+             Why         - The IDE has always coloured the language; SED, which stays for a quick edit, looked as if it had lost the colour.
+             Does NOT    - Colour a record whose language is not known (a record named note.txt is plain text), or change the palette: SYNTAX LIGHT and SYNTAX DARK still choose it.
+
 31 Oct 26  THE FULL-SCREEN TOOLS WORK ON A LINUX TEXT CONSOLE WITH NO DESKTOP: THE MOUSE THROUGH GPM, SHIFT-F1 TO SHIFT-F8, AND SHIFT-TAB.
 
              What        - On the text console of a server (tty1 to tty6, terminal type linux) the home screen, the IDE and the pages already drew and took the keys the console sends; three things
@@ -20,7 +38,7 @@ Next release - in progress
              What        - Opening a dictionary item in the IDE - IDE DICT FILE ITEM (a new item too), or Return on an item in the tree - shows the form first; IDE DICT FILE ITEM /TEXT opens the
                            text, and Cancel (Esc) in the form leaves the item as text in its tab. An item the form cannot show, one that another session holds (read-only), a record found by a
                            search, items opened together from a list or with Ctrl-O, and an item already in a tab open as text as before; Go, Dictionary item as form (and /FORM) shows the form
-                           for the tab you are in. The form fills the screen over the IDE and is one form: the first row is the Type, an entry in which you type D, E, I, L, PH or X, and when it
+                           for the tab you are in. The form takes the body of the screen in the same frame as the IDE and the pages (its own bar, status line and row of keys) and is one form: the first row is the Type, an entry in which you type D, E, I, L, PH or X, and when it
                            has been entered the rows of that type appear with a label and an entry each (a new item shows only the Type until then; an item that exists shows its rows with its values
                            in them, to be edited), and the buttons are Accept and Cancel. A D item has Field #, Conversion Cd, Column Heading, Len & Just (one entry: the width, a letter and decimals if any,
                            such as 30 L or 12 R 2), Single/Multi, Association (used only when Single/Multi is M) and User; an E item an Element Path in place of the Field #; an I item an Expression; an L item an Id
@@ -5271,7 +5289,7 @@ Next release - in progress
            upgrade hold os-on, so their pointers keep working.
 
 13 Oct 26  SD READS THE WINDOW SIZE; MORE FOR THE SCREEN STATEMENT; COLOUR IN
-           SED; CED AND THE DEBUGGER DRAWN WITH THE SCREEN LIBRARY (1.2-0).
+           SED; CED AND THE DEBUGGER DRAWN WITH THE SCREEN LIBRARY (2.0-0).
 
            The window size.  SD took the size of the screen from the terminal
            definition, 120 columns by 36 lines, unless TERM said otherwise, so
@@ -5378,7 +5396,7 @@ Next release - in progress
            screen is drawn with the library as well (see the entry above).
 
 12 Oct 26  THE SCREEN STATEMENT GETS COLOUR, TABS, TEXT AREAS, TABLES AND THE
-           MOUSE, AND COLOUR WORKS ON THE LINUX CONSOLE TERMINAL TYPE (1.2-0).
+           MOUSE, AND COLOUR WORKS ON THE LINUX CONSOLE TERMINAL TYPE (2.0-0).
 
            Colour.  Everything the SCREEN statement draws is drawn in a named
            style - window, highlight, bar, hotkey, field and so on - and a
@@ -5462,7 +5480,7 @@ Next release - in progress
            does not read the window size - it is what TERM says, 120 by 36
            unless set); sorting, wrapping and undo in the text area and table.
 
-12 Oct 26  THE SCREEN STATEMENT: MENUS, DIALOGUES AND FORMS FROM BASIC (1.2-0).
+12 Oct 26  THE SCREEN STATEMENT: MENUS, DIALOGUES AND FORMS FROM BASIC (2.0-0).
 
            A BASIC program can now draw on the terminal with one new
            statement, SCREEN, followed by a verb, with no C, no extra package
@@ -5506,7 +5524,7 @@ Next release - in progress
            day: see the entry above.)  Shift-Tab is now a key on an xterm (its
            terminfo entry lacked kcbt).
 
-12 Oct 26  SED, THE FULL SCREEN EDITOR, IS BACK, WITH DROP-DOWN MENUS (1.2-0).
+12 Oct 26  SED, THE FULL SCREEN EDITOR, IS BACK, WITH DROP-DOWN MENUS (2.0-0).
 
            SED edits a record of any file (SED file record, or with an active
            select list).  It was removed because its Emacs-style keys are hard
@@ -5544,7 +5562,7 @@ Next release - in progress
            (the entry above) gives to BASIC programs.  It does not change
            anything else.
 
-12 Oct 26  FOUR SMALL FIXES (1.2-0, openQM compatibility).
+12 Oct 26  FOUR SMALL FIXES (2.0-0, openQM compatibility).
 
            CLEAR.FILE on a file that has NO.RESIZE set (CONFIGURE.FILE ...
            NO.RESIZE) empties it but keeps the size it had; it used to send the
@@ -5571,7 +5589,7 @@ Next release - in progress
            variable that is not a socket, whether it holds a number, a string
            or nothing, instead of stopping the program.
 
-12 Oct 26  SIX SMALL BASIC ADDITIONS (1.2-0, openQM compatibility; the compiler
+12 Oct 26  SIX SMALL BASIC ADDITIONS (2.0-0, openQM compatibility; the compiler
            and the kernel).
 
            OPEN and OPENPATH take NON.TRANSACTIONAL, alone or with READONLY and
@@ -5611,7 +5629,7 @@ Next release - in progress
            (LOCATE, FIND and the like).
 
 12 Oct 26  FILE HANDLING: READ-ONLY AND NON-TRANSACTIONAL OPENS FROM THE VOC,
-           A LOCK ON A HELD PRINT FILE, AND BLOCK DEVICES (1.2-0, openQM
+           A LOCK ON A HELD PRINT FILE, AND BLOCK DEVICES (2.0-0, openQM
            compatibility; a kernel change).
 
            Field 6 of a file's VOC entry (the F-type entry) can now hold mode
@@ -5658,7 +5676,7 @@ Next release - in progress
            bytes, fold their case or sort them in any national order.
 
 12 Oct 26  LOCK AND DUMP DIAGNOSTICS: WHEN A LOCK WAS TAKEN, DEADLOCK=2,
-           SYSTEM(1083) AND OBJECTS IN A PROCESS DUMP (1.2-0, openQM
+           SYSTEM(1083) AND OBJECTS IN A PROCESS DUMP (2.0-0, openQM
            compatibility; a kernel change).
 
            The kernel now notes the time at which each record lock and file
@@ -5716,7 +5734,7 @@ Next release - in progress
            waits for system events to become exceptions.
 
 12 Oct 26  FIVE NEW sd.conf PARAMETERS, A LONGER CALL NAME AND A NAME FOR THE
-           STARTUP PROCESS (1.2-0, openQM compatibility; a kernel change).
+           STARTUP PROCESS (2.0-0, openQM compatibility; a kernel change).
 
            Each parameter below is optional.  With none of them in sd.conf
            SD behaves exactly as before, because every default is the number
@@ -5796,7 +5814,7 @@ Next release - in progress
            makes only four fsync calls in all, so there is nothing to save.
 
 12 Oct 26  MORE FILEINFO() AND SYSTEM() KEYS, NUMBERED AS THE OPENQM MANUAL
-           NUMBERS THEM (1.2-0, openQM compatibility; a kernel change).
+           NUMBERS THEM (2.0-0, openQM compatibility; a kernel change).
 
            FILEINFO() gains the keys the openQM 4 manual lists from 1022 to
            1040.  The ones that report something real in SD:
@@ -5873,7 +5891,7 @@ Next release - in progress
            that way, as GETLOCKS() does.
 
 12 Oct 26  A COLLECTION THAT HOLDS A FILE VARIABLE CAN BE WRITTEN TO A
-           COLLECTION FILE (1.2-0, openQM compatibility; a kernel change).
+           COLLECTION FILE (2.0-0, openQM compatibility; a kernel change).
 
            A data collection in a program can hold things a file has no way to
            keep, such as a file variable.  Writing a collection like that to a
@@ -5888,7 +5906,7 @@ Next release - in progress
            cannot be written (1019); and only a collection or JSON text that
            is an object or an array can be written to a collection file.
 
-12 Oct 26  TWO NEW FORMS OF FOR / NEXT (1.2-0, openQM compatibility).
+12 Oct 26  TWO NEW FORMS OF FOR / NEXT (2.0-0, openQM compatibility).
 
              FOR i = 5, 7, 22                    the loop runs once for each
                 ...                              value, in turn
@@ -5922,7 +5940,7 @@ Next release - in progress
            $MODE FOR.STORE.BEFORE.TEST is honoured.  Programs already
            compiled are not affected.
 
-12 Oct 26  THE ELEMENT KEYWORD IN QUERIES (1.2-0, openQM compatibility).
+12 Oct 26  THE ELEMENT KEYWORD IN QUERIES (2.0-0, openQM compatibility).
 
              LIST file ELEMENT "detail/*/prodno" ...
              LIST file ... WITH ELEMENT "ship" = "Dock B"
@@ -5958,7 +5976,7 @@ Next release - in progress
            EVAL, so a dictionary item that happens to be called ELEMENT should
            be given another name.
 
-12 Oct 26  THE DATA COLLECTION EDITOR AND !CED() (1.2-0, openQM
+12 Oct 26  THE DATA COLLECTION EDITOR AND !CED() (2.0-0, openQM
            compatibility).  The editor is reached with !CED() and, for the
            records of a collection file, from the IDE's F12 (Go, Edit as
            fields); there is no ced command.
@@ -6005,7 +6023,7 @@ Next release - in progress
            type.
 
 11 Oct 26  ED, COPY, COPYP, COMPARE.FILES AND TRIGGERS WORK ON A DATA
-           COLLECTION FILE (1.2-0, openQM compatibility; a kernel change, so it
+           COLLECTION FILE (2.0-0, openQM compatibility; a kernel change, so it
            needs a rebuild).
 
              ED file id                  edit a record's JSON, a line to an element
@@ -6068,7 +6086,7 @@ Next release - in progress
            collection file (a collection has no fields), and ANALYSE.FILE, which
            does not say that a file holds collections.
 
-11 Oct 26  THE DEBUGGER SHOWS A DATA COLLECTION (1.2-0, openQM compatibility; a
+11 Oct 26  THE DEBUGGER SHOWS A DATA COLLECTION (2.0-0, openQM compatibility; a
            kernel change, so it needs a rebuild).
 
              /c                      the collection c: kind, elements, JSON
@@ -6119,7 +6137,7 @@ Next release - in progress
            An index that was damaged by the old behaviour is not repaired by
            the update: BUILD.INDEX file ITEM rebuilds it from the file.
 
-13 Oct 26  INDICES ON E-TYPE ITEMS (1.2-0, openQM compatibility; a kernel
+13 Oct 26  INDICES ON E-TYPE ITEMS (2.0-0, openQM compatibility; a kernel
            change, so it needs a rebuild).
 
              CREATE.INDEX file ITEM            ITEM may be an E-type item
@@ -6133,7 +6151,7 @@ Next release - in progress
            D-type item with a field number is refused on a collection file, and
            an E-type item on any other file.
 
-13 Oct 26  LINKED COLLECTIONS AND TRANS() (1.2-0, openQM compatibility; a
+13 Oct 26  LINKED COLLECTIONS AND TRANS() (2.0-0, openQM compatibility; a
            kernel change, so it needs a rebuild).
 
              ok = EXPAND(c{'path'})            join the record a link names
@@ -6166,7 +6184,7 @@ Next release - in progress
            now keep the collection as @RECORD for a collection file, so an I-type
            sees it as a whole.
 
-13 Oct 26  DATA COLLECTION FILES (1.2-0, openQM compatibility; a kernel
+13 Oct 26  DATA COLLECTION FILES (2.0-0, openQM compatibility; a kernel
            change, so it needs a rebuild).
 
              CREATE.FILE name COLLECTION       a file whose records are collections
@@ -6208,7 +6226,7 @@ Next release - in progress
            and XPARSE().
 
 13 Oct 26  COLLECTIONS: BOOLEANS AND NULLS, OPERATORS ON AN ELEMENT, THE HU
-           CONVERSION (1.2-0, openQM compatibility; a kernel change, so it
+           CONVERSION (2.0-0, openQM compatibility; a kernel change, so it
            needs a rebuild).
 
              c{'on'} = JBOOLEAN(1)             store true (JBOOLEAN(0): false)
@@ -6239,7 +6257,7 @@ Next release - in progress
            undoes it and leaves a % that is not followed by two hex digits,
            and a +, as they are.
 
-13 Oct 26  JSON: JPARSE() AND JBUILD() (1.2-0, openQM compatibility; a
+13 Oct 26  JSON: JPARSE() AND JBUILD() (2.0-0, openQM compatibility; a
            kernel change, so it needs a rebuild).
 
              c = JPARSE(text)                  JSON text into a collection
@@ -6285,7 +6303,7 @@ Next release - in progress
 
            The values (1, 2, 1, 2, 4, 8, 16, 32, 64) are SD's own.
 
-13 Oct 26  ARRAYS IN DATA COLLECTIONS (1.2-0, openQM compatibility; a
+13 Oct 26  ARRAYS IN DATA COLLECTIONS (2.0-0, openQM compatibility; a
            kernel change, so it needs a rebuild).
 
              c{'list'} = MAT()                 an empty array
@@ -6318,7 +6336,7 @@ Next release - in progress
            INS value AS ...), so a variable called AS can no longer follow a
            value as a format.
 
-13 Oct 26  DATA COLLECTIONS, FIRST PART (1.2-0, openQM compatibility; a
+13 Oct 26  DATA COLLECTIONS, FIRST PART (2.0-0, openQM compatibility; a
            kernel change, so it needs a rebuild).
 
              c = COLLECTION()                  a new, empty collection
@@ -6353,7 +6371,7 @@ Next release - in progress
            freed, which is how openQM behaves too.
 
 13 Oct 26  FIELD AND VSLICE TAKE MORE, CATALOG ... GLOBAL c, THREE SHOW
-           CHANGES AND SP.VIEW SORTING (1.2-0, openQM compatibility;
+           CHANGES AND SP.VIEW SORTING (2.0-0, openQM compatibility;
            VSLICE needs a rebuild for its new opcode, the rest is BASIC).
 
            SP.VIEW file BY field (or BY.DSND, with NO.CASE before or after
@@ -6389,7 +6407,7 @@ Next release - in progress
            line as 'id' not found, and SHOW stops without drawing the screen
            or making a list.  Before, they were skipped without a word.
 
-12 Oct 26  PTERM ERASE, CTRL.FILTER AND QUERY (1.2-0, openQM
+12 Oct 26  PTERM ERASE, CTRL.FILTER AND QUERY (2.0-0, openQM
            compatibility bundle A-13; a kernel change, so it needs a
            rebuild).
 
@@ -6428,7 +6446,7 @@ Next release - in progress
            QUERY treats bytes within a tenth of a second as one key.  And
            what a pipe delivers all at once, QUERY shows as one key.
 
-12 Oct 26  PTERM MARK (1.2-0, openQM compatibility bundle A-13; a kernel
+12 Oct 26  PTERM MARK (2.0-0, openQM compatibility bundle A-13; a kernel
            change, so it needs a rebuild).
 
              PTERM MARK ON
@@ -6449,7 +6467,7 @@ Next release - in progress
            three keys.  The openQM PTERM page also has CODEPAGE, which is for
            Windows consoles only, and ENCODING, which is not wanted here.
 
-12 Oct 26  SCAN, SEARCH ... DISPLAY AND STRINGS (1.2-0, openQM
+12 Oct 26  SCAN, SEARCH ... DISPLAY AND STRINGS (2.0-0, openQM
            compatibility bundle A-3; new VOC entries, added to an account by
            UPDATE.ACCOUNT, and a change to the query processor).
 
@@ -6492,7 +6510,7 @@ Next release - in progress
            records selected hold none.  Up to 100 strings are used (20
            before).
 
-12 Oct 26  HOLD.FILE.LOGGER, $SETPTR.DEFAULTS AND @SEQNO (1.2-0, openQM
+12 Oct 26  HOLD.FILE.LOGGER, $SETPTR.DEFAULTS AND @SEQNO (2.0-0, openQM
            compatibility bundle A-6; a kernel and system-routine change,
            so it needs a rebuild).
 
@@ -6536,7 +6554,7 @@ Next release - in progress
            only, not for the temporary file a printer job is spooled
            from.
 
-12 Oct 26  SETPTR FORM.FEED, AND THE DIGITS OF THE NEXT NUMBER (1.2-0,
+12 Oct 26  SETPTR FORM.FEED, AND THE DIGITS OF THE NEXT NUMBER (2.0-0,
            openQM compatibility bundle A-6; a kernel change, so it needs a
            rebuild).
 
@@ -6565,7 +6583,7 @@ Next release - in progress
            (The ENCODING option the same manual lists is not here; see the
            next entry for the rest of what the manual describes.)
 
-12 Oct 26  SP.VIEW CAN DELETE THE ITEM IT IS SHOWING (1.2-0, openQM
+12 Oct 26  SP.VIEW CAN DELETE THE ITEM IT IS SHOWING (2.0-0, openQM
            compatibility bundle A-6).
 
            While SP.VIEW shows a record, X now deletes it.  It asks first
@@ -6584,7 +6602,7 @@ Next release - in progress
            clause (SP.VIEW file BY field) and a Return key that pages
            forward while a record is shown; SP.VIEW here has neither.
 
-12 Oct 26  TERM SETS THE DEFAULT PRINTER'S PAGE SIZE (1.2-0, openQM
+12 Oct 26  TERM SETS THE DEFAULT PRINTER'S PAGE SIZE (2.0-0, openQM
            compatibility bundle A-6).
 
              TERM {columns} {, lines} {, prt.cols} {, prt.lines} {type}
@@ -6609,7 +6627,7 @@ Next release - in progress
            width instead of the largest depth; both are 32767, so nothing
            that worked before stops working.
 
-12 Oct 26  SELECTINDEX COMMAND (1.2-0, openQM compatibility bundle A-7; a
+12 Oct 26  SELECTINDEX COMMAND (2.0-0, openQM compatibility bundle A-7; a
            new VOC entry, added to an account by UPDATE.ACCOUNT).
 
              SELECTINDEX {DICT} filename indexname {value} {TO n}
@@ -6637,7 +6655,7 @@ Next release - in progress
            number, said "Error writing saved list record"; they now say
            "Select list number missing or invalid".
 
-12 Oct 26  COPY.LISTP (1.2-0, openQM compatibility bundle A-7; a new VOC
+12 Oct 26  COPY.LISTP (2.0-0, openQM compatibility bundle A-7; a new VOC
            entry, added to an account by UPDATE.ACCOUNT).
 
              COPY.LISTP {{DICT} src.file} {id.list | *} {(options}
@@ -6666,7 +6684,7 @@ Next release - in progress
            its type should be.  It is a verb record now, as it is in the
            Windows port.
 
-12 Oct 26  LISTDICT (1.2-0, openQM compatibility bundle A-8; a new VOC
+12 Oct 26  LISTDICT (2.0-0, openQM compatibility bundle A-8; a new VOC
            entry, added to an account by UPDATE.ACCOUNT).
 
              LISTDICT filename {LPTR}
@@ -6687,7 +6705,7 @@ Next release - in progress
            own, not a copy of openQM's page.  LPTR must be the third word
            of the command.
 
-12 Oct 26  TRY / CATCH / THROW, CAUGHT() AND @EXCEPTION (1.2-0, openQM
+12 Oct 26  TRY / CATCH / THROW, CAUGHT() AND @EXCEPTION (2.0-0, openQM
            compatibility bundle B-4; a kernel and compiler change, so it
            needs a rebuild.  Programs compiled before it are not affected).
 
@@ -6772,7 +6790,7 @@ Next release - in progress
            them as the name of an array or a function needs it renamed.  A
            plain variable of that name is not affected.
 
-12 Oct 26  INMAT() AFTER MATCHES AND MATCHFIELD (1.2-0, openQM
+12 Oct 26  INMAT() AFTER MATCHES AND MATCHFIELD (2.0-0, openQM
            compatibility bundle B-4, fifth part; a kernel change, so it
            needs a rebuild but no recompile of programs).
 
@@ -6797,7 +6815,7 @@ Next release - in progress
            straight after the statement it belongs to.  SD has no
            MATCHESS() or PARSE() function, so those are not covered.
 
-12 Oct 26  EREPLACE() (1.2-0, openQM compatibility bundle B-4, fourth part;
+12 Oct 26  EREPLACE() (2.0-0, openQM compatibility bundle B-4, fourth part;
            a new opcode, so it needs a rebuild and the compiler recompiled).
 
              EREPLACE(string, old, new {, occurrence {, start}})
@@ -6832,7 +6850,7 @@ Next release - in progress
            formatting.  For exact decimal arithmetic use SADD and the other
            S functions.
 
-12 Oct 26  SETPTR INFORM, EJECT AND AS ... IN (1.2-0, openQM compatibility
+12 Oct 26  SETPTR INFORM, EJECT AND AS ... IN (2.0-0, openQM compatibility
            bundle A-6, second part; the print code changed in the kernel, so
            it needs a rebuild).  Syntax is SD's own where openQM's is not
            given.  SETPTR options are separated by commas.
@@ -6847,7 +6865,7 @@ Next release - in progress
                           The job is held in the directory file named
                           instead of $HOLD.
 
-12 Oct 26  FIVE NEW SUBROUTINES AND A SIZE FROM DIR() (1.2-0, openQM
+12 Oct 26  FIVE NEW SUBROUTINES AND A SIZE FROM DIR() (2.0-0, openQM
            compatibility bundle B-4, third part; DIR() is kernel code, so it
            needs a rebuild).  Where openQM has a function, SD's own
            programs have the same thing as a function only inside SD, so
@@ -6872,7 +6890,7 @@ Next release - in progress
                           bytes: name, F or D, size.  Programs that took the
                           first two values are unaffected.
 
-12 Oct 26  REBUILD.ALL.INDICES, REDO AND A PHANTOM STATEMENT (1.2-0, the
+12 Oct 26  REBUILD.ALL.INDICES, REDO AND A PHANTOM STATEMENT (2.0-0, the
            openQM list's unbundled items).  Syntax is SD's own.
 
              REBUILD.ALL.INDICES {NO.QUERY}
@@ -6889,7 +6907,7 @@ Next release - in progress
                           CAPTURING, RETURNING and similar clauses.  The
                           user number is in @SYSTEM.RETURN.CODE.
 
-12 Oct 26  STRING ARITHMETIC, REGEX() AND A PRIVATE VOCABULARY (1.2-0, the
+12 Oct 26  STRING ARITHMETIC, REGEX() AND A PRIVATE VOCABULARY (2.0-0, the
            openQM list's unbundled items; the kernel has six new functions,
            so it needs a rebuild and the compiler recompiled).
 
@@ -6917,7 +6935,7 @@ Next release - in progress
            the C library's POSIX syntax, not Perl's: no \d, no lazy
            quantifiers.
 
-12 Oct 26  PHANTOM OPTIONS, PDUMP, LOGOUT GROUP (1.2-0, openQM compatibility
+12 Oct 26  PHANTOM OPTIONS, PDUMP, LOGOUT GROUP (2.0-0, openQM compatibility
            bundles B-7, B-6 and B-8, first parts; the kernel gained an
            opcode, so it needs a rebuild and the compiler recompiled).  The
            openQM notes give no syntax, so this is SD's own.
@@ -6951,7 +6969,7 @@ Next release - in progress
            Of the rest of the diagnostic list (lock times, deadlock detail,
            object variables in a dump) nothing is built.
 
-12 Oct 26  FOUR BASIC ADDITIONS (1.2-0, openQM compatibility bundle B-5,
+12 Oct 26  FOUR BASIC ADDITIONS (2.0-0, openQM compatibility bundle B-5,
            second part; the kernel gained an opcode and OPENSEQ changed, so
            it needs a rebuild and the compiler recompiled).  Syntax is SD's
            own where the openQM notes give none.
@@ -6981,7 +6999,7 @@ Next release - in progress
            EXECUTE STACKLIST, FLUSH.DH.CACHE, CSV.MODE, FOR EACH, the ~=
            operator and the rest) are not built yet.
 
-12 Oct 26  CREATE.FILE COMMENT, MULTIFILE AND RELATIVE PATHNAME (1.2-0,
+12 Oct 26  CREATE.FILE COMMENT, MULTIFILE AND RELATIVE PATHNAME (2.0-0,
            openQM compatibility bundle A-8, second part).  Syntax is SD's
            own.
 
@@ -7001,7 +7019,7 @@ Next release - in progress
            file that is not dynamic, so LIST.TRIGGERS has no trigger on a
            directory file to show.  FSTAT already takes file names and DICT.
 
-12 Oct 26  MD5(), SAVED LISTS IN ANOTHER FILE, INDEX OPTIONS (1.2-0, openQM
+12 Oct 26  MD5(), SAVED LISTS IN ANOTHER FILE, INDEX OPTIONS (2.0-0, openQM
            compatibility bundles B-4 and A-7, second part; MD5 is a kernel
            function, so it needs a rebuild and the compiler recompiled).
 
@@ -7030,7 +7048,7 @@ Next release - in progress
            list (EREPLACE, FIX, MERGELIST, JBUILD, CAUGHT and the rest) are
            not built.
 
-12 Oct 26  CATALOGUE AND MAP OPTIONS, TWO NEW OPTIONS (1.2-0, openQM
+12 Oct 26  CATALOGUE AND MAP OPTIONS, TWO NEW OPTIONS (2.0-0, openQM
            compatibility bundles A-10 and A-4, second part; the kernel's
            option array grew, so it needs a rebuild).  Syntax is SD's own.
 
@@ -7055,7 +7073,7 @@ Next release - in progress
            unattended install.  A prefix given apart from the call name, and
            a hyphen prefix, need compiler support and are not built.
 
-12 Oct 26  COMMAND LANGUAGE: COMO, IF IN AND EXISTS, INLINE PROMPTS (1.2-0,
+12 Oct 26  COMMAND LANGUAGE: COMO, IF IN AND EXISTS, INLINE PROMPTS (2.0-0,
            openQM compatibility bundle A-9, second part; the kernel's COMO
            statement changed, so it needs a rebuild).  Syntax is SD's own.
 
@@ -7083,7 +7101,7 @@ Next release - in progress
            name) are not built.
 
 12 Oct 26  FILE UTILITIES, COMMON BLOCKS, AUTOMATIC INCLUDES AND NAMES WITH
-           TWO UNDERSCORES (1.2-0, openQM compatibility bundles A-1 and
+           TWO UNDERSCORES (2.0-0, openQM compatibility bundles A-1 and
            A-14, second part).  The openQM notes give the purpose of these
            and not the syntax, so the syntax below is SD's own.  The BASIC
            tokenizer changed in the kernel, so it needs a rebuild.
@@ -7131,7 +7149,7 @@ Next release - in progress
            in it.  FIXDIR rewrites a record only if it holds a carriage
            return.
 
-11 Oct 26  SSELECT SORT OPTIONS AND SSELECTN (1.2-0, openQM compatibility
+11 Oct 26  SSELECT SORT OPTIONS AND SSELECTN (2.0-0, openQM compatibility
            bundle B-5, first part; the kernel gained an opcode, so it needs
            a rebuild and the BASIC compiler recompiled).
 
@@ -7153,7 +7171,7 @@ Next release - in progress
            CSV.MODE, FOR EACH delimiters, OPENTEMP, INPUT options,
            INPUTIF, the ~= operator and the $MODE settings) is not.
 
-11 Oct 26  SIX MULTIVALUED FUNCTIONS (1.2-0, openQM compatibility bundle
+11 Oct 26  SIX MULTIVALUED FUNCTIONS (2.0-0, openQM compatibility bundle
            B-4, first part; the kernel's opcode tables changed, so it needs
            a rebuild and the BASIC compiler recompiled).
 
@@ -7175,7 +7193,7 @@ Next release - in progress
            MATSTR and the others in the openQM list are not built; some
            need syntax or a return format the release notes do not give.
 
-11 Oct 26  CONFIGURATION DEFAULTS, INVCASE AND sd -status (1.2-0, openQM
+11 Oct 26  CONFIGURATION DEFAULTS, INVCASE AND sd -status (2.0-0, openQM
            compatibility bundle B-1; the kernel changed, so it needs a
            rebuild).
 
@@ -7202,7 +7220,7 @@ Next release - in progress
            built.  -quiet was already accepted; SD has no VOC update
            query for it to suppress.
 
-11 Oct 26  FOUR NEW SYSTEM() KEYS (1.2-0, openQM compatibility bundle B-2,
+11 Oct 26  FOUR NEW SYSTEM() KEYS (2.0-0, openQM compatibility bundle B-2,
            first part; the kernel changed, so it needs a rebuild).
 
              SYSTEM(35)    The number of users logged in now, phantoms and
@@ -7222,7 +7240,7 @@ Next release - in progress
            GETPU() ones) are not built; some of them need a facility SD
            does not have.
 
-11 Oct 26  TWO BASIC DEFECTS FIXED (1.2-0, the bug-fix audit against the
+11 Oct 26  TWO BASIC DEFECTS FIXED (2.0-0, the bug-fix audit against the
            reported openQM defects; the kernel changed, so it needs a
            rebuild).
 
@@ -7248,7 +7266,7 @@ Next release - in progress
            distributed file or an encoding with a byte order mark could not
            be tried here.
 
-11 Oct 26  FIVE CONVERSION CODE ADDITIONS AND TRIMW (1.2-0, tenth of the
+11 Oct 26  FIVE CONVERSION CODE ADDITIONS AND TRIMW (2.0-0, tenth of the
            openQM compatibility bundles, and the first that changes the
            kernel's conversion and string code; it needs a rebuild).
 
@@ -7276,7 +7294,7 @@ Next release - in progress
            need the kernel and are listed in PROJECT_STATUS.
 
 11 Oct 26  DECATALOG, LIST.TERM.TYPES, CT ID.SUP AND NUM.SUP, A SPELLING OF
-           $PRIVATE.CATALOG, AND TWO DEBUGGER COMMANDS (1.2-0, ninth of the
+           $PRIVATE.CATALOG, AND TWO DEBUGGER COMMANDS (2.0-0, ninth of the
            openQM compatibility bundles: the small items of the command
            language, catalogue, editor, debugger and terminal groups).
 
@@ -7317,7 +7335,7 @@ Next release - in progress
            give no syntax, or the part of SD they change is not here.
 
 11 Oct 26  SET.TRIGGER WORKS AGAIN, AND GAINS ALL; LIST.TRIGGERS; FSTAT'S
-           COLUMNS ARE WIDER (1.2-0, eighth of the openQM compatibility
+           COLUMNS ARE WIDER (2.0-0, eighth of the openQM compatibility
            bundles).
 
            SET.TRIGGER refused every function name.  Since the call-name
@@ -7345,7 +7363,7 @@ Next release - in progress
            here to extend.
 
 11 Oct 26  SAVED SELECT LISTS: KEEP, DELETING, COUNT.SUP, A DEFAULT NAME,
-           SORT.LIST AND SELECT.DIR (1.2-0, seventh of the openQM
+           SORT.LIST AND SELECT.DIR (2.0-0, seventh of the openQM
            compatibility bundles; the sixth is the one line below it).
 
              SAVE.LIST name KEEP    Leaves the active select list as it was.
@@ -7375,7 +7393,7 @@ Next release - in progress
            release notes do not give their syntax.
 
 11 Oct 26  SP.VIEW SHOWS WHERE OUTPUT GOES FOR PRINT UNIT MODES 0, 4, 5 AND 6
-           (1.2-0, sixth of the openQM compatibility bundles).
+           (2.0-0, sixth of the openQM compatibility bundles).
 
            When SP.VIEW asks which printer to use it shows the print unit's
            destination.  It did that for modes 1 and 3 only; for a unit in
@@ -7387,7 +7405,7 @@ Next release - in progress
            and are not built.
 
 10 Oct 26  WHO USER, PSTAT USER name, A LOCK HOLDER'S NAME IN PSTAT, AND
-           !LISTU (1.2-0, fifth of the openQM compatibility bundles).
+           !LISTU (2.0-0, fifth of the openQM compatibility bundles).
 
              WHO USER        Also shows your login name after the user
                              number and the account.
@@ -7413,7 +7431,7 @@ Next release - in progress
            record something it does not record now.
 
 10 Oct 26  SIX NEW OPTION NAMES FOR COMPATIBILITY WITH OTHER MULTIVALUE SYSTEMS
-           (1.2-0, fourth of the openQM compatibility bundles).
+           (2.0-0, fourth of the openQM compatibility bundles).
 
            All are off, as every option is until OPTION turns it on, so an
            existing application sees no change.  OPTION with no name lists them.
@@ -7446,7 +7464,7 @@ Next release - in progress
            the shortcuts set.
 
 10 Oct 26  THE QUERY PROCESSOR: TWELVE ADDITIONS FROM OTHER MULTIVALUE SYSTEMS
-           (1.2-0, third of the openQM compatibility bundles).
+           (2.0-0, third of the openQM compatibility bundles).
 
            LIST, SORT, SELECT, COUNT, REFORMAT and SEARCH.  None of this
            changes a query that does not use it, except where it says so.
@@ -7498,7 +7516,7 @@ Next release - in progress
            release notes could not be reproduced here.
 
 10 Oct 26  DICTIONARY EXPRESSIONS: SIX THINGS THEY COULD NOT DO BEFORE
-           (1.2-0, second of the openQM compatibility bundles).
+           (2.0-0, second of the openQM compatibility bundles).
 
            These are in I-types and in the compiled forms of A, S and C items.
            Nothing that compiled before changes its answer.
@@ -7539,7 +7557,7 @@ Next release - in progress
            openQM release notes list as fixed, already worked here.
 
 10 Oct 26  THE BASIC COMPILER LEARNS SOME THINGS OTHER MULTIVALUE SYSTEMS
-           ALREADY DO (1.2-0, first of the openQM compatibility bundles).
+           ALREADY DO (2.0-0, first of the openQM compatibility bundles).
 
            These are all in the compiler and its BASIC command.  None of them
            changes a program that does not use them, and none needs the

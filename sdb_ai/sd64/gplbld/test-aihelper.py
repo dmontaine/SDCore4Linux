@@ -81,6 +81,7 @@ class Env:
         with open(SHIPPED) as f:
             text = f.read()
         for old, new in (("https://api.anthropic.com/v1/messages", base + "/v1/messages"), ("https://api.openai.com/v1/chat/completions", base + "/v1/chat/completions"),
+                         ("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", base + "/v1beta/openai/chat/completions"),
                          ("https://api.deepseek.com/chat/completions", base + "/chat/completions")):
             assert old in text, old
             text = text.replace(old, new)
@@ -89,6 +90,10 @@ class Env:
         self.mygroup = grp.getgrgid(os.getgid()).gr_name
         self.logs = []
         self.member(True)
+
+    def table_model(self, name):
+        """The default model the shipped table gives a provider (read from this env's copy of the file)."""
+        return self.mod.read_providers(self.providers)[name]["model"]
 
     def member(self, yes):
         self.mod.GATE_GROUP = self.mygroup if yes else "sdaiusers-no-such-group"
@@ -148,10 +153,13 @@ def rows(env, fm):
     say("\n--- the shipped table and the connection rules")
     try:
         table = mod.read_providers(SHIPPED)
-        row("the shipped gplbld/ai-providers is read: Anthropic, OpenAI and DeepSeek, every URL https, the formats and token parameters as planned",
-            set(table) == {"anthropic", "openai", "deepseek"} and table["anthropic"]["format"] == "anthropic" and table["anthropic"]["auth"] == "x-api-key"
+        row("the shipped gplbld/ai-providers is read: Anthropic, OpenAI, Google and DeepSeek, every URL https, the formats and token parameters as planned",
+            set(table) == {"anthropic", "openai", "google", "deepseek"} and table["anthropic"]["format"] == "anthropic" and table["anthropic"]["auth"] == "x-api-key"
             and table["openai"]["maxparam"] == "max_completion_tokens" and table["deepseek"]["format"] == "openai" and table["deepseek"]["url"] == "https://api.deepseek.com/chat/completions"
+            and table["google"]["format"] == "openai" and table["google"]["auth"] == "bearer" and table["google"]["url"] == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
             and all(p["url"].startswith("https://") for p in table.values()), repr(table))
+        row("every shipped provider has a default model, a plain model name",
+            all(p.get("model") and mod.MODEL_RE.match(p["model"]) for p in table.values()), repr({n: p.get("model") for n, p in table.items()}))
     except mod.Refuse as e:
         row("the shipped table is read", False, "%s %s" % (e.code, e.msg))
     good = {"name": "Mine", "url": "https://llm.example.org:8443/v1/chat/completions", "format": "openai", "auth": "bearer", "maxparam": "max_tokens"}
@@ -203,8 +211,13 @@ def rows(env, fm):
     r = env.ask()
     row("no provider selected (the delivered state): disabled", r.get("code") == "disabled", repr(r))
     env.conf(provider="anthropic")
+    n0 = len(fm.log)
     r = env.ask()
-    row("a provider with no model: nomodel", r.get("code") == "nomodel", repr(r))
+    row("a named provider with no model of the administrator's asks its DEFAULT model (claude-sonnet-5-5 in the shipped table), not nomodel",
+        r.get("t") == "ok" and len(fm.log) > n0 and json.loads(fm.log[n0]["body"])["model"] == env.table_model("anthropic"), repr((r, env.table_model("anthropic"))))
+    env.conf(provider="custom", custom__name="My LLM", custom__url="https://127.0.0.1:%d/v1/chat/completions" % fm.port, custom__format="openai", custom__auth="bearer", custom__maxparam="max_tokens")
+    r = env.ask()
+    row("Custom has no default model: with none set it is nomodel", r.get("code") == "nomodel", repr(r))
     env.conf(provider="anthropic", model__anthropic=M)
     os.remove(os.path.join(env.state, "keys", "anthropic"))
     r = env.ask()
@@ -366,9 +379,13 @@ def rows(env, fm):
     env.member(True)
     env.admin(True)
     r = env.ask(op="status")
-    ok = r["t"] == "status" and set(r.get("providers", {})) == {"anthropic", "openai", "deepseek", "custom"} and r["providers"]["openai"]["key"] is True and r["providers"]["anthropic"]["key"] is True \
+    ok = r["t"] == "status" and set(r.get("providers", {})) == {"anthropic", "openai", "google", "deepseek", "custom"} and r["providers"]["openai"]["key"] is True and r["providers"]["anthropic"]["key"] is True \
         and r["providers"]["openai"]["maxparam"] == "max_completion_tokens" and r["limits"]["tokens-day"] == 100000 and r["ca-file"] == env.ca
-    row("status for the administrator adds the four rows with their details, which have keys, the limits and the ca-file", ok, repr(r)[:300])
+    row("status for the administrator adds the five rows with their details, which have keys, the limits and the ca-file", ok, repr(r)[:300])
+    pv = r.get("providers", {})
+    row("...and each named row carries its default model beside the administrator's own (model: what was set, default: the table's), Custom has no default",
+        all(pv.get(n, {}).get("default") == env.table_model(n) for n in ("anthropic", "openai", "google", "deepseek")) and pv.get("custom", {}).get("default") == ""
+        and pv["openai"]["model"] == M and pv["anthropic"]["model"] == "", repr({n: (v.get("model"), v.get("default")) for n, v in pv.items()}))
     row("no status reply holds the key", KEY not in json.dumps(r), "")
     env.admin(False)
 
@@ -580,8 +597,9 @@ def rows_ctl(env, fm):
             return r.returncode, r.stdout, r.stderr
 
         rc, out, err = run("show")
-        row("show with nothing set: exit 0, says the AI is off and lists the four rows with their details", rc == 0 and "none (the AI is off)" in out and out.count("[ ]") == 4 and ("https://127.0.0.1:%d/v1/messages" % fm.port) in out
-            and "(not set)" in out, repr((rc, out[:400], err)))
+        row("show with nothing set: exit 0, says the AI is off and lists the five rows with their details, a named provider showing its default model and Custom (not set)",
+            rc == 0 and "none (the AI is off)" in out and out.count("[ ]") == 5 and ("https://127.0.0.1:%d/v1/messages" % fm.port) in out
+            and "claude-sonnet-5-5 (default)" in out and "(not set)" in out, repr((rc, out[:600], err)))
         rc, out, err = run("provider", "openai")
         row("provider openai: ok", rc == 0 and out.strip() == "ok", repr((rc, out, err)))
         rc, out, err = run("model", "openai", "gpt-test")
@@ -594,7 +612,7 @@ def rows_ctl(env, fm):
         row("show now: openai is [x] with its model, key set, and the key is not printed", rc == 0 and "[x] openai" in out and "model: gpt-test" in out and "key: set" in out and KEY not in out, repr(out))
         rc, out, err = run("show", "--json")
         j = json.loads(out)
-        row("show --json is the helper's status: provider openai, the four providers with details and keys", j.get("provider") == "openai" and j["providers"]["openai"]["key"] is True and set(j["providers"]) == {"anthropic", "openai", "deepseek", "custom"}, repr(out)[:200])
+        row("show --json is the helper's status: provider openai, the five providers with details and keys", j.get("provider") == "openai" and j["providers"]["openai"]["key"] is True and set(j["providers"]) == {"anthropic", "openai", "google", "deepseek", "custom"}, repr(out)[:200])
         rc, out, err = run("custom", "My LLM", "https://llm.example.org/v1/chat/completions", "openai", "bearer", "-", "max_tokens")
         row("custom with - for the version: ok", rc == 0 and out.strip() == "ok" and "custom.url=https://llm.example.org/v1/chat/completions" in conf_text(env), repr((rc, out, err)))
         rc, out, err = run("custom", "My LLM", "http://llm.example.org/v1", "openai", "bearer", "-", "max_tokens")

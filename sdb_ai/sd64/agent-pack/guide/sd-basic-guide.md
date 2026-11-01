@@ -1,6 +1,6 @@
 # The SD BASIC dialect guide, for an AI agent
 
-**Guide stamp:** `L1.1-3` (the tree's `gpl.bp/revstamp.h`; `gplbld/test-pack-units.py` fails when they differ). This guide describes **SD Core for Linux** at that stamp plus the release in progress (1.2-0). A feature marked **[1.2-0]** is in this tree and not in the released L1.1-3, so a released install and SD Core Solo for Linux may not have it. Its sister, the generated knowledge pack (`../pack/`), holds the rosters: every TCL verb, statement, function, message and setting, each with its source. This guide holds what a roster cannot: how the pieces behave, and where they differ from the other multivalue BASICs you were trained on.
+**Guide stamp:** `L1.1-3` (the tree's `gpl.bp/revstamp.h`; `gplbld/test-pack-units.py` fails when they differ). This guide describes **SD Core for Linux** at that stamp plus the release in progress (2.0-0). A feature marked **[2.0-0]** is in this tree and not in the released L1.1-3, so a released install and SD Core Solo for Linux may not have it. Its sister, the generated knowledge pack (`../pack/`), holds the rosters: every TCL verb, statement, function, message and setting, each with its source. This guide holds what a roster cannot: how the pieces behave, and where they differ from the other multivalue BASICs you were trained on.
 
 **How to trust it.** Every fenced block below is compiled by `gplbld/sandbox-guide.py` on a private SD; a block marked `run` is also run and must print what the block after it says; every line of a `notinsd` block must still fail to compile, so the day SD gains a function this guide fails its own test. A sentence that no block backs is marked **[unverified]** and you should test it before you rely on it. A tool's own words are quoted only where they were seen.
 
@@ -250,7 +250,7 @@ false: (a or b) and c
 true: a or (b and c)
 ```
 
-**Both sides of `and` and `or` are evaluated.** `if a # 0 and 10 / a > 1` divides by zero when `a` is 0. **[1.2-0]** `$mode partial.expressions` makes them stop when the result is known.
+**Both sides of `and` and `or` are evaluated.** `if a # 0 and 10 / a > 1` divides by zero when `a` is 0. **[2.0-0]** `$mode partial.expressions` makes them stop when the result is known.
 
 ```basic frag run
 $mode partial.expressions
@@ -393,7 +393,7 @@ There are three different mechanisms.
 2. **Run time errors** stop the program with a code and a message, unless a `try` catches them.
 3. **`execute` of a command** that does not exist is not an error you can catch: the program carries on and `@system.return.code` is `-1`.
 
-**[1.2-0]** `try / catch / throw` carry exceptions. The name given to `throw` is an **expression**: write it as a string. The name after `catch` is bare. Names are paths, and a `catch` takes everything below the name it writes.
+**[2.0-0]** `try / catch / throw` carry exceptions. The name given to `throw` is an **expression**: write it as a string. The name after `catch` is bare. Names are paths, and a `catch` takes everything below the name it writes.
 
 ```basic frag run
 try
@@ -611,7 +611,7 @@ Hello World
 
 The same codes are field 3 of a dictionary item (B4). The pack has one chunk per code, `dict:conv:<CODE>`.
 
-## A11. Data collections (JSON) **[1.2-0]**
+## A11. Data collections (JSON) **[2.0-0]**
 
 A collection is a set of named values, written `c{'name'}`; it converts to and from JSON. Assigning a collection does not copy it: `collection(c)` does.
 
@@ -636,7 +636,7 @@ Boston
 [] status 1004
 ```
 
-## A12. The compiler's modes and options **[1.2-0]**
+## A12. The compiler's modes and options **[2.0-0]**
 
 `$mode name` changes how one program is compiled and every mode is off unless asked for. The pack has one chunk per mode (`basic:mode:<name>`) and per `option` (`basic:option:<name>`). The ones that change what an expression means are the ones to know: `partial.expressions` (above), `explicit` (every variable must be in a `dim`) and `uv.locate` (a `locate` that works as UniVerse's does).
 
@@ -1124,7 +1124,7 @@ ab ef a |
 
 ## B7. SD Core and SD Core Solo
 
-SD Core Solo for Linux is the single-user product. It has no account verbs, its list of verbs and refusals differs, and it lags this tree by the 1.2-0 backlog until that is carried: everything marked **[1.2-0]** here may be missing from it. The pack is generated per product from that product's own sources, so a Solo reader should use the Solo pack. [unverified] This tree is Core's and Solo was not run.
+SD Core Solo for Linux is the single-user product. It has no account verbs, its list of verbs and refusals differs, and it lags this tree by the 2.0-0 backlog until that is carried: everything marked **[2.0-0]** here may be missing from it. The pack is generated per product from that product's own sources, so a Solo reader should use the Solo pack. [unverified] This tree is Core's and Solo was not run.
 
 ## B8. The loop to follow when you write a program
 
@@ -1369,7 +1369,7 @@ end
 i7|Dune|25.5|open
 ```
 
-**C10. JSON out of a record.** [1.2-0]
+**C10. JSON out of a record.** [2.0-0]
 
 ```basic run id=cjson
 program cjson

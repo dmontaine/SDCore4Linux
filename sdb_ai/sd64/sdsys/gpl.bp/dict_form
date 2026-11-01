@@ -3,6 +3,8 @@
 * Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 * START-HISTORY:
+* 1 Nov 26 dm   A Type typed over an existing item's blanked the form: type.left read the Type into cv, then collect (which reads every row into cv) ran before vals{'type'} = cv, so the
+*               new type was the last row's value and the form was made again with no type.  The typed Type is kept in tl.ty across the collect (sandbox-dictform.py DF5a).
 * 31 Oct 26 dm  THE LAYOUT THE OWNER SPECIFIED (his message of 31 Oct, after seeing the first build): Type is an ENTRY, typed, and the rows of that type appear when it has been entered
 *               (a new item shows only Type until then); no row numbers; the labels Field #, Conversion Cd, Column Heading and ONE row Len & Just (30 L, 12 R 2) in place of
 *               Width, Justification and Decimals; the buttons are Accept and Cancel and nothing else (Edit as text is gone: Cancel leaves the item as text in its tab).  The first
@@ -31,6 +33,16 @@
 $internal
 subroutine dict_form(rec, title, newrec, res)
 $catalog $dict_form
+
+$include sl.h
+$include tk.h
+
+   * the foot's keys: the form's own, as the IDE and the pages name theirs (the row is made by $tk_fkeys from this table)
+   fm.keys = ''
+   call $tk_keys('add', fm.keys, 'enter', 'accept', 'accept', '', 1)
+   call $tk_keys('add', fm.keys, 'esc', 'cancel', 'cancel', '', 1)
+   call $tk_keys('add', fm.keys, 'tab', 'next row', 'next', '', 1)
+   call $tk_keys('add', fm.keys, 'shift-tab', 'previous row', 'previous', '', 1)
 
    res = 'cancel'
    newrec = rec
@@ -77,8 +89,20 @@ make.form:
       gosub fold.format
    end
    nrows = dcount(rows, @fm)
-   screen form title title : (if is.new then '  (new item)' else '') size 140,43 returning f
-   screen label f, 'ttl', 'Type D, E, I, L, PH or X and press Tab: the rows of that type appear.  Tab and Down: next row.  Return: Accept.  Esc: leave.' at 2,1 width 134
+   * the body of the screen as the IDE lays it out (row 0 the bar, the form from row 1, then the status line, the border and the keys on the last three rows), so the form sits in
+   * the same frame as the IDE and the pages and covers none of it: the window is never under 140 by 43 (the IDE refuses a smaller one)
+   call $sl_window(win.w, win.h)
+   fm.w = win.w
+   if fm.w < 140 then fm.w = 140
+   fm.h = win.h
+   if fm.h < 43 then fm.h = 43
+   ystat = fm.h - 3
+   fh = ystat - 1
+   y.hint = fh - 9
+   y.err = fh - 7
+   y.btn = fh - 4
+   screen form title title : (if is.new then '  (new item)' else '') at 0,1 size fm.w,fh returning f
+   screen label f, 'ttl', 'Type D, E, I, L, PH or X and press Tab: the rows of that type appear.  Tab and Down: next row.  Return: Accept.  Esc: leave.' at 2,1 width fm.w - 6
    y = 3
    for rp = 1 to nrows
       key = rows<rp, 1>
@@ -99,14 +123,35 @@ make.form:
       end case
       y += 2
    next rp
-   screen label f, 'hint', ' ' at 2,30 width 134
-   screen label f, 'err', ' ' at 2,32 width 134
-   screen button f, 'accept', '&Accept' at 26,38 default
-   screen button f, 'cancel', '&Cancel' at 40,38 cancel
+   screen label f, 'hint', ' ' at 2,y.hint width fm.w - 6
+   screen label f, 'err', ' ' at 2,y.err width fm.w - 6
+   screen button f, 'accept', '&Accept' at 26,y.btn default
+   screen button f, 'cancel', '&Cancel' at 40,y.btn cancel
    if focus.first then
       if nrows >= 2 then screen focus f, rows<2, 1> else null
       focus.first = 0
    end
+   gosub draw.foot
+   return
+
+* The bar on row 0 (the form's name and the app's, as the pages' bar names the app at its right end) and the status line, the border and the row of keys on the last three rows: the
+* frame of the IDE and the pages.  Written once for each form that is made; the cursor is put back where the focus left it (SCREEN TEXT leaves it after the text)
+draw.foot:
+   keep.cur = ''
+   call $sl_curat('get', keep.cur)
+   bar.r = 'dict.form'
+   bar.t = ' Dictionary item ' : title : (if is.new then '  (new item)' else '')
+   bar.t = fmt(bar.t[1, fm.w - len(bar.r) - 2], (fm.w - len(bar.r) - 1) : 'L') : bar.r : ' '
+   screen text bar.t at 0,0 attr 'bar'
+   st.t = '[Form]  ' : title : '   The rows are checked as you leave them.  Accept writes nothing itself: the IDE saves.'
+   screen text fmt(st.t[1, fm.w], fm.w : 'L') at 0,ystat attr 'reverse'
+   call $sl_line('h', 0, fk.hc)
+   screen text str(fk.hc, fm.w) at 0,ystat + 1
+   fk.ctx = ''
+   fk.ctx<TK.C.W> = fm.w
+   call $tk_fkeys(fk.ctx, fm.keys, '', fk.text)
+   screen text fk.text at 0,ystat + 2 attr 'bar'
+   call $sl_curat('back', keep.cur)
    return
 
 * The engine's Width, Justification and Decimals rows are ONE row on the form, Len & Just (key fmt)
@@ -241,8 +286,9 @@ type.left:
       screen set f, 'type' value cv
       screen set f, 'err' text ' '
       if cv # ty then
+         tl.ty = cv                         ;* collect reads every row into cv, so the Type typed is kept apart
          gosub collect
-         vals{'type'} = cv
+         vals{'type'} = tl.ty
          focus.first = 1
          act = 'type'
       end

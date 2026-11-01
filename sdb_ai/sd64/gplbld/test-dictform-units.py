@@ -10,6 +10,7 @@ START-HISTORY:
 31 Oct 26 dm  New with the form (plan .claude/plan-s90-dict-form.md).
 31 Oct 26 dm  The form is the DEFAULT face of a dictionary item (the owner's word): I5 reads /text too, I8-I10 hold dform.default (the start, the tree, silent for a tab it cannot or must not
               show) and 8 mutants of the sitting.
+1 Nov 26 dm   F8 pins the order tl.ty = cv, gosub collect, vals{'type'} = tl.ty (the old pin held the order that lost the Type) and a mutant that restores the defect.
 END-HISTORY
 
 WHAT IT HOLDS.  $dict_form is the screen over !dict_item: it opens nothing, writes nothing and makes no record of its own (every record comes from the engine's 'build'); it
@@ -88,12 +89,19 @@ def checks(src, others):
        and ordered(form, "row.left:", "call !dict_item('check', ty, lfk, cv, ce)", "screen set f, lfk value cv", "screen set f, 'err' text '! '"), "")
     ck("F8 THE TYPE IS AN ENTRY THAT IS TYPED (the owner's layout): checked as the focus leaves it, and a good type that is another one collects what was typed BEFORE it makes the form again with that type's rows and the focus on the first",
        "screen entry f, 'type' at 26,y width 6 value vals{'type'} maxlen 2" in form and "screen radio" not in form
-       and ordered(form, "type.left:", "call !dict_item('check', 'D', 'type', cv, ce)", "if cv # ty then", "gosub collect", "vals{'type'} = cv", "focus.first = 1", "act = 'type'"), "")
+       and ordered(form, "type.left:", "call !dict_item('check', 'D', 'type', cv, ce)", "if cv # ty then", "tl.ty = cv", "gosub collect", "vals{'type'} = tl.ty", "focus.first = 1", "act = 'type'"), "")
     ck("F9 Esc or Cancel asks only when something was changed (the built record is not the old one, or the rows fail) and never before a Type was entered, and Keep editing leaves the form on the screen",
        ordered(form, "ask.discard:", "if ty = '' then", "res = 'cancel'", "gosub collect", "call !dict_item('build', vals, rec, nr, be)", "if be = '' and nr = rec then", "res = 'cancel'", "screen msgbox", "if bq = 1 then", "res = 'cancel'"), "")
     ck("F10 the form is 140 by 43, a text row is a memo, every other row an entry with its own width and longest text, and there are TWO buttons: Accept (the default) and Cancel (the cancel button)",
-       "size 140,43" in form and "screen memo f, key" in form and "screen entry f, key at 26,y width ew value vals{key} maxlen em" in form
-       and "screen button f, 'accept', '&Accept' at 26,38 default" in form and "screen button f, 'cancel', '&Cancel' at 40,38 cancel" in form and form.count("screen button f,") == 2, "")
+       "at 0,1 size fm.w,fh returning f" in form and "screen memo f, key" in form and "screen entry f, key at 26,y width ew value vals{key} maxlen em" in form
+       and "screen button f, 'accept', '&Accept' at 26,y.btn default" in form and "screen button f, 'cancel', '&Cancel' at 40,y.btn cancel" in form and form.count("screen button f,") == 2, "")
+    ck("F14 THE FORM IS IN THE COMMON FRAME (1 Nov 26: the first build covered the whole screen, the IDE's bar and foot included): it is laid out for the window, never under 140 by 43, from row 1 to the row above the status line (fh = ystat - 1, ystat = height - 3); its buttons and its hint and error rows are counted from fh; "
+       "after the widgets it draws the bar on row 0, the status line in reverse on ystat, the border and the function-key row made by $tk_fkeys from a table that holds Enter accept and Esc cancel",
+       ordered(form, "call $sl_window(win.w, win.h)", "if fm.w < 140 then fm.w = 140", "if fm.h < 43 then fm.h = 43", "ystat = fm.h - 3", "fh = ystat - 1", "y.hint = fh - 9", "y.err = fh - 7", "y.btn = fh - 4",
+               "screen form title", "at 0,1 size fm.w,fh returning f", "screen button f, 'cancel'", "gosub draw.foot", "return")
+       and ordered(form, "draw.foot:", "screen text bar.t at 0,0 attr 'bar'", "screen text fmt(st.t[1, fm.w], fm.w : 'L') at 0,ystat attr 'reverse'", "screen text str(fk.hc, fm.w) at 0,ystat + 1",
+                   "call $tk_fkeys(fk.ctx, fm.keys, '', fk.text)", "screen text fk.text at 0,ystat + 2 attr 'bar'")
+       and "call $tk_keys('add', fm.keys, 'enter', 'accept', 'accept', '', 1)" in form and "call $tk_keys('add', fm.keys, 'esc', 'cancel', 'cancel', '', 1)" in form, "")
 
     keys = set(re.findall(r"rw<-1> = '(\w+)'", others.get("dict_item", "")))
     ids = set(re.findall(r"screen (?:button|label) f, '([\w.]+)'", form))
@@ -164,14 +172,14 @@ MUTANTS = [
     ("form", "Accept does not ask the engine", "      call !dict_item('build', vals, rec, nr, be)\n      if be = '' then\n         newrec = nr", "      be = ''\n      nr = rec\n      if be = '' then\n         newrec = nr"),
     ("form", "a bad row does not take the focus", "         screen focus f, fk else null", "         null"),
     ("form", "a row is not checked as the focus leaves it", "            call !dict_item('check', ty, lfk, cv, ce)", "            ce = ''"),
-    ("form", "a change of type forgets what was typed", "         gosub collect\n         vals{'type'} = cv", "         vals{'type'} = cv"),
+    ("form", "a change of type forgets what was typed", "         gosub collect\n         vals{'type'} = tl.ty", "         vals{'type'} = tl.ty"),
     ("form", "Esc always asks", "   if be = '' and nr = rec then", "   if 0 then"),
-    ("form", "the form is smaller than the layout", "size 140,43", "size 100,30"),
-    ("form", "Cancel is not the cancel button", "'&Cancel' at 40,38 cancel", "'&Cancel' at 40,38"),
+    ("form", "the form is smaller than the layout", "at 0,1 size fm.w,fh returning f", "at 0,1 size 100,30 returning f"),
+    ("form", "Cancel is not the cancel button", "'&Cancel' at 40,y.btn cancel", "'&Cancel' at 40,y.btn"),
     # 31 Oct 26 (the owner's layout): own mutants of the rebuild
     ("form", "the Type is a row of radio buttons again", "screen entry f, 'type' at 26,y width 6 value vals{'type'} maxlen 2", "screen radio f, 'type', 'D,E,I,L,PH,X' at 26,y value 1 across"),
     ("form", "Width, Justification and Decimals are three rows again", "         case k = 'width'\n", "         case k = 'zzwidth'\n"),
-    ("form", "an Edit as text button is back", "   screen button f, 'cancel', '&Cancel' at 40,38 cancel", "   screen button f, 'astext', 'Edit as &text' at 40,38\n   screen button f, 'cancel', '&Cancel' at 40,38 cancel"),
+    ("form", "an Edit as text button is back", "   screen button f, 'cancel', '&Cancel' at 40,y.btn cancel", "   screen button f, 'astext', 'Edit as &text' at 40,y.btn\n   screen button f, 'cancel', '&Cancel' at 40,y.btn cancel"),
     ("form", "a new item shows every row before a type is entered", "   if ty = '' then\n      rows = 'type'", "   if 0 then\n      rows = 'type'"),
     ("form", "the Type typed is not checked", "call !dict_item('check', 'D', 'type', cv, ce)", "ce = ''"),
     ("form", "Len & Just is read without the engine", "call !dict_item('fmtsplit', cv, fw, '', fe)\n            if fe = '' then\n               vals{'width'}", "fe = ''\n            if fe = '' then\n               vals{'width'}"),
@@ -192,6 +200,16 @@ MUTANTS = [
     ("ide", "/text is ignored at the start", "and id0 # '' and not(text0) then gosub dform.default", "and id0 # '' then gosub dform.default"),
     ("ide", "/text is left on the sentence", "         if sw.last = '/FORM' then form0 = @true else text0 = @true\n         sent.in = trimb(sent.in[1, len(trimb(sent.in)) - 5])",
      "         if sw.last = '/FORM' then form0 = @true else text0 = @true"),
+    # 1 Nov 26 (DF5a): the Type typed is read AFTER collect has reused cv - the defect itself
+    ("form", "the new Type is taken from cv after collect has overwritten it", "         tl.ty = cv                         ;* collect reads every row into cv, so the Type typed is kept apart\n         gosub collect\n         vals{'type'} = tl.ty",
+     "         gosub collect\n         vals{'type'} = cv"),
+    # 1 Nov 26 (the common frame): own mutants
+    ("form", "the form covers the whole screen again, the bar and the foot with it", "at 0,1 size fm.w,fh returning f", "size 140,43 returning f"),
+    ("form", "the foot is not drawn", "   gosub draw.foot\n   return", "   return"),
+    ("form", "the status line is not in reverse video", "at 0,ystat attr 'reverse'", "at 0,ystat"),
+    ("form", "the key row is made without the table", "call $tk_fkeys(fk.ctx, fm.keys, '', fk.text)", "fk.text = ''"),
+    ("form", "the window is not asked: the foot is where the IDE's is not", "   call $sl_window(win.w, win.h)\n   fm.w = win.w", "   win.w = 140 ; win.h = 43\n   fm.w = win.w"),
+    ("form", "the buttons are not counted from the form's height", "y.btn = fh - 4", "y.btn = 38"),
     ("ide", "the tree opens the form for an item that was already in a tab", "if code[1, 2] = 'Q:' and uid > dq.u0 then gosub dform.default", "if code[1, 2] = 'Q:' and nbuf > 0 then gosub dform.default"),
     ("ide", "the tree opens the form for a record of the data part", "if code[1, 2] = 'Q:' and uid > dq.u0 then gosub dform.default", "if uid > dq.u0 then gosub dform.default"),
     ("ide", "dform.default takes a tab that is not a dictionary item", "   if bx{k} # 'dict' then return\n   ro.i = cb", "   ro.i = cb"),

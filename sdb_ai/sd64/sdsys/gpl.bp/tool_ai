@@ -7,6 +7,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 1 Nov 26 dm   GOOGLE IS A ROW (Anthropic, OpenAI, Google, DeepSeek, Custom: five rows, the Provider box one row taller) AND EVERY NAMED PROVIDER HAS A DEFAULT MODEL (the owner, 1 Nov 2026:
+*               "pre-filled in except for the key ... an option for a user specified model"): the table and the summary show the model that will be asked, a default marked (default), the
+*               detail says which it is, M starts at it and a dash returns to it; the helper's status carries it as providers/NAME/default.  Custom is still all the administrator's.
 * 28 Oct 26 dm  S.88 L2: the four boxes are panes of the layout service ($tk_layout): drawn exactly as before at 140 by 43, and in a larger window the Accounts box takes the extra rows (it
 *               shows more accounts), every box and text is as wide as the window, and the detail and the explanation wrap at the box's width. The rows, widths, hit tests and the [?]
 *               buttons are counted from the pane rectangles. The layout is declared again after the terminal was given to SET.AI KEY and the screen taken again.
@@ -20,9 +23,9 @@
 *   For the administrator only (it is refused, before anything is read, for anyone else; it is in SDSYS's VOC only).  A full-screen page, in the toolkit's frame (140 columns by 43
 *   lines at least), with two boxes:
 *
-*     Provider   Anthropic, OpenAI, DeepSeek and Custom, one to a row, with a check box on the provider every account uses (none marked: the AI is off), its address, its model and
-*                whether its key is set.  The three named providers come with their connection details; the model and the key are the administrator's.  Custom is the fourth choice,
-*                where the administrator fills in everything.  The row under the cursor is described in full below.
+*     Provider   Anthropic, OpenAI, Google, DeepSeek and Custom, one to a row, with a check box on the provider every account uses (none marked: the AI is off), its address, its model and
+*                whether its key is set.  The four named providers come with their connection details and a default model; the key is the administrator's, and so is any other model (M).
+*                Custom is the fifth choice, where the administrator fills in everything.  The row under the cursor is described in full below.
 *     Accounts   The accounts that belong to a person, with the state of each one's ai gate (modify.account NAME ai-on | ai-off): only an account whose gate is on can send
 *                anything to the provider.
 *
@@ -89,7 +92,8 @@ $include tk.h
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
 
-   provs = 'anthropic' : @fm : 'openai' : @fm : 'deepseek' : @fm : 'custom'
+   provs = 'anthropic' : @fm : 'openai' : @fm : 'google' : @fm : 'deepseek' : @fm : 'custom'
+   nprov = dcount(provs, @fm)                                  ;* the rows of the Provider box; the last is Custom
    lnames = 'requests-hour' : @fm : 'tokens-day' : @fm : 'timeout' : @fm : 'bytes-request' : @fm : 'bytes-reply' : @fm : 'max-tokens'
    pnames = 'Provider' : @fm : 'Accounts'
 
@@ -148,12 +152,12 @@ read.all:
       if not(status()) and hj{'t'} = 'status' then helper.ok = 1
    end
    sel = ''
-   pnm = '' ; purl = '' ; pfmt = '' ; paut = '' ; pver = '' ; pmax = '' ; pmod = '' ; pkey = ''
+   pnm = '' ; purl = '' ; pfmt = '' ; paut = '' ; pver = '' ; pmax = '' ; pmod = '' ; pdef = '' ; pkey = ''
    ca = ''
    lim = ''
    if helper.ok then
       sel = hj{'provider'}
-      for i = 1 to 4
+      for i = 1 to nprov
          p = provs<i>
          pnm<i> = hj{'providers/' : p : '/name'}
          purl<i> = hj{'providers/' : p : '/url'}
@@ -161,7 +165,8 @@ read.all:
          paut<i> = hj{'providers/' : p : '/auth'}
          pver<i> = hj{'providers/' : p : '/version'}
          pmax<i> = hj{'providers/' : p : '/maxparam'}
-         pmod<i> = hj{'providers/' : p : '/model'}
+         pmod<i> = hj{'providers/' : p : '/model'}                 ;* the administrator's model, or null
+         pdef<i> = hj{'providers/' : p : '/default'}               ;* the provider's starting model (null for Custom): used while pmod is null
          pkey<i> = (if hj{'providers/' : p : '/key'} then 1 else 0)
       next i
       ca = hj{'ca-file'}
@@ -206,13 +211,24 @@ read.accounts:
 
 * ------------------------------------------------------------------------------------------------- the layout (S.88 L2)
 
-* The page's four boxes as panes of $tk_layout: each size is the box drawn at 140 by 43 (the body is 138 by 39), so at that size nothing moves; in a larger window the Accounts box
+* A row of the Provider box: the model it will ask, for the table and the summary.  In: r.  Out: mod.s - the administrator's model, else the provider's default with (default)
+* after it, else (not set)
+model.text:
+   mod.s = pmod<r>
+   if mod.s = '' then
+      mod.s = pdef<r>
+      if mod.s = '' then mod.s = '(not set)' else mod.s := ' (default)'
+   end
+   return
+
+* The page's four boxes as panes of $tk_layout: each size is the box drawn at 140 by 43 (the body is 138 by 39; the boxes add up to 38, so that the last row, the AI line's, is free: Google's
+* row made the Provider box one row taller on 1 Nov 26 and the Accounts box gave the row up), so at that size nothing moves; in a larger window the Accounts box
 * stretches (a table shows more rows) and every pane is as wide as the body.  Declared again after the terminal was given away and the screen taken again.
 lay.declare:
    d = ''
-   d<1> = 'providers' : @vm : 1 : @vm : 1 : @vm : 9 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   d<1> = 'providers' : @vm : 1 : @vm : 1 : @vm : 10 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
    d<2> = 'row' : @vm : 2 : @vm : 1 : @vm : 13 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
-   d<3> = 'accounts' : @vm : 3 : @vm : 1 : @vm : 10 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<3> = 'accounts' : @vm : 3 : @vm : 1 : @vm : 9 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
    d<4> = 'effect' : @vm : 4 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
    call $tk_layout('declare', ctx, d, lay.err)
    gosub lay.get
@@ -271,7 +287,7 @@ draw.all:
 
 draw.providers:
    screen text '    ' : fmt('Provider', '14L') : fmt('Address', '56L') : fmt('Model', '28L') : 'Key' at tx,pr.y + 1 attr 'header' width tw
-   for r = 1 to 4
+   for r = 1 to nprov
       s = ''
       if helper.ok then
          nm.s = pnm<r>
@@ -279,9 +295,8 @@ draw.providers:
          url.s = purl<r>
          if url.s = '' then url.s = '(not filled in)'
          if len(url.s) > 54 then url.s = url.s[1, 52] : '..'
-         mod.s = pmod<r>
-         if mod.s = '' then mod.s = '(not set)'
-         s = '[' : (if provs<r> = sel then 'x' else ' ') : '] ' : fmt(nm.s, '14L') : fmt(url.s, '56L') : fmt(mod.s[1, 26], '28L') : (if pkey<r> then 'set' else 'not set')
+         gosub model.text
+         s = '[' : (if provs<r> = sel then 'x' else ' ') : '] ' : fmt(nm.s, '14L') : fmt(url.s, '56L') : fmt(mod.s[1, 27], '28L') : (if pkey<r> then 'set' else 'not set')
       end
       screen text s at tx,pr.y + 1 + r attr (if r = pi then (if pane = 1 then 'highlight' else 'bold') else 'normal') width tw
    next r
@@ -289,13 +304,23 @@ draw.providers:
       s = 'The AI helper is not running, or it is not installed: nothing here can be read or changed.'
    end else
       if sel = '' then
-         s = 'The AI is OFF: no provider is selected.  Check a provider, give it a model and a key, and switch on the ai gate of an account.'
+         s = 'The AI is OFF: no provider is selected.  Check a provider, give it its key (the model has a default), and switch on the ai gate of an account.'
       end else
          lpid = sel
          gosub locate.prov
          k = lpr
-         s = 'In use: ' : pnm<k> : ', model ' : (if pmod<k> = '' then '(not set)' else pmod<k>) : ', key ' : (if pkey<k> then 'set' else 'not set')
-         if pmod<k> = '' or not(pkey<k>) then s := '.  It cannot be used until both are set'
+         r = k
+         gosub model.text
+         s = 'In use: ' : pnm<k> : ', model ' : mod.s : ', key ' : (if pkey<k> then 'set' else 'not set')
+         nomod = (pmod<k> = '' and pdef<k> = '')
+         begin case
+            case nomod and not(pkey<k>)
+               s := '.  It cannot be used until both are set'
+            case nomod
+               s := '.  It cannot be used until a model is set'
+            case not(pkey<k>)
+               s := '.  It cannot be used until the key is set'
+         end case
       end
    end
    screen text s at tx,pr.y + pr.h - 2 attr 'bold' width tw
@@ -325,7 +350,14 @@ draw.detail:
          lines<-1> = fmt('Version header', '19L') : (if pver<r> = '' then '(none)' else pver<r>)
          lines<-1> = fmt('Answer limit field', '19L') : pmax<r>
       end
-      lines<-1> = fmt('Model', '19L') : (if pmod<r> = '' then '(not set - press M)' else pmod<r>)
+      begin case
+         case pmod<r> # ''
+            lines<-1> = fmt('Model', '19L') : pmod<r> : (if pdef<r> = '' then '' else '  (yours; the default is ' : pdef<r> : '; M with a dash goes back to it)')
+         case pdef<r> # ''
+            lines<-1> = fmt('Model', '19L') : pdef<r> : '  (the default that comes with SD; press M to name another)'
+         case 1
+            lines<-1> = fmt('Model', '19L') : '(not set - press M)'
+      end case
       lines<-1> = fmt('Key', '19L') : (if pkey<r> then 'set (kept for the AI helper only; this page never shows it)' else 'not set - press K')
       lines<-1> = ''
       lines<-1> = 'Certificate authorities: ' : (if ca = '' then 'the system store' else ca)
@@ -370,7 +402,7 @@ draw.accounts:
 * In plain sentences
 draw.effect:
    lines = ''
-   lines<-1> = 'One provider and one model serve every account.  The AI is off as delivered: it needs a provider, a model, a key and an account whose ai gate is on.'
+   lines<-1> = 'One provider and one model serve every account.  The AI is off as delivered: it needs a provider, its key (a default model comes with each named provider) and an account whose ai gate is on.'
    lines<-1> = "The key is typed at the AI helper's own prompt and kept for the helper only; it does not pass through SD and this page never shows it.  What an account sends leaves this machine for the provider checked above, over https with the certificate checked."
    if pane = 1 then
       p = provs<pi>
@@ -404,10 +436,10 @@ wrap.lines:
    lines = wrapped
    return
 
-* The row of the provider whose id is in lpid (1 when it is none of the four)
+* The row of the provider whose id is in lpid (1 when it is none of them)
 locate.prov:
    lpr = 1
-   for lp2 = 1 to 4
+   for lp2 = 1 to nprov
       if provs<lp2> = lpid then lpr = lp2
    next lp2
    return
@@ -428,7 +460,7 @@ on.key:
             gosub redraw
          end
       case nm = 'down'
-         if pane = 1 and pi < 4 then
+         if pane = 1 and pi < nprov then
             pi += 1
             gosub redraw
          end
@@ -576,7 +608,8 @@ select.provider:
       el<-1> = 'From now on every account whose ai gate is on will use ' : nm.s : '.'
       host = field(purl<pi>, '/', 3)
       if host # '' then el<-1> = 'The text they send leaves this machine for ' : host : ' over https.'
-      if pmod<pi> = '' then el<-1> = 'No model is set for it yet, so it cannot be used until you press M.'
+      if pmod<pi> = '' and pdef<pi> = '' then el<-1> = 'No model is set for it yet, so it cannot be used until you press M.'
+      if pmod<pi> = '' and pdef<pi> # '' then el<-1> = 'It will ask its default model, ' : pdef<pi> : ' (M names another).'
       if not(pkey<pi>) then el<-1> = 'No key is set for it yet, so it cannot be used until you press K.'
       if p = 'custom' and purl<pi> = '' then el<-1> = 'Custom is not filled in yet: press C first (the helper refuses it until then).'
    end
@@ -611,14 +644,21 @@ toggle.gate:
    gosub confirm.and.run
    return
 
-* M: the model for the provider under the cursor (a dash clears it)
+* M: the model for the provider under the cursor (a dash clears it: the default comes back, where the provider has one)
 do.model:
    p = provs<pi>
    nm.s = pnm<pi>
    if nm.s = '' then nm.s = 'Custom'
    cur = pmod<pi>
-   screen ask 'Model name for ' : nm.s : ' (a dash clears it)' width 60 value cur title 'AI model' returning mv else return
+   if cur = '' then cur = pdef<pi>
+   * the model in use is named in the prompt and the entry starts EMPTY, so that typing a name replaces it (an entry that starts full takes what is typed after it); Enter on nothing changes nothing
+   screen ask 'Model for ' : nm.s : ' (' : (if cur = '' then 'none yet' else 'now ' : cur) : (if pdef<pi> = '' then '; - clears it)' else '; - = default)') width 60 title 'AI model' returning mv else return
    mv = trim(mv)
+   if mv = '' then return
+   if mv # '-' and mv = pdef<pi> and pmod<pi> = '' then
+      msg = nm.s : ' already uses its default model, ' : mv : '; nothing to change'
+      return
+   end
    vw = mv
    vmax = 80
    gosub valid.word
@@ -629,12 +669,15 @@ do.model:
    sent = 'set.ai model ' : p : ' ' : mv
    typed = ''
    el = ''
-   if mv = '-' then
-      el<-1> = 'The model for ' : nm.s : ' will be cleared.  The AI cannot be used with it until a model is set.'
-   end else
-      el<-1> = 'Every account that uses ' : nm.s : ' will ask model ' : mv : ' from now on.'
-      el<-1> = 'The provider charges for that model; the limits shown on this page cap what accounts can send.'
-   end
+   begin case
+      case mv = '-' and pdef<pi> # ''
+         el<-1> = 'The model for ' : nm.s : ' goes back to its default, ' : pdef<pi> : '.'
+      case mv = '-'
+         el<-1> = 'The model for ' : nm.s : ' will be cleared.  The AI cannot be used with it until a model is set.'
+      case 1
+         el<-1> = 'Every account that uses ' : nm.s : ' will ask model ' : mv : ' from now on.'
+         el<-1> = 'The provider charges for that model; the limits shown on this page cap what accounts can send.'
+   end case
    use.x = 1
    gosub confirm.and.run
    return
@@ -642,7 +685,7 @@ do.model:
 * K: the key.  The terminal is given to SET.AI KEY, whose prompt is the helper's own and shows nothing; nothing typed there reaches SD, this page or the audit trail
 do.key:
    p = provs<pi>
-   if index(' anthropic openai deepseek custom ', ' ' : p : ' ', 1) = 0 then return
+   if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return
    nm.s = pnm<pi>
    if nm.s = '' then nm.s = 'Custom'
    sent = 'set.ai key ' : p
@@ -707,12 +750,12 @@ do.custom:
       msg = 'C fills in the Custom row: move the cursor to it first'
       return
    end
-   v1 = (if purl<4> = '' then '' else pnm<4>)
-   v2 = purl<4>
-   v3 = pfmt<4>
-   v4 = paut<4>
-   v5 = pver<4>
-   v6 = pmax<4>
+   v1 = (if purl<nprov> = '' then '' else pnm<nprov>)
+   v2 = purl<nprov>
+   v3 = pfmt<nprov>
+   v4 = paut<nprov>
+   v5 = pver<nprov>
+   v6 = pmax<nprov>
    * S.88: one form with the six answers in view; a refusal names the field and the form stays
    spec = 'Custom AI connection' : @fm : '&Continue' : @fm : ''
    spec<-1> = 'name' : @vm : 'Name' : @vm : 40 : @vm : 40

@@ -6131,10 +6131,10 @@ set.ai {provider NAME | model PROVIDER NAME | key PROVIDER | custom NAME URL FOR
 cited by: `setai`
 
 ### msg:11610
-> kind=message tier=reference since=- src=sdsys/messages/11610:1#9fdc2caf
+> kind=message tier=reference since=- src=sdsys/messages/11610:1#a07bb4a2
 
 ```
-%1 is not one of anthropic, openai, deepseek and custom
+%1 is not one of anthropic, openai, google, deepseek and custom
 ```
 
 cited by: `setai`

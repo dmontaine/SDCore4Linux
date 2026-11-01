@@ -121,6 +121,11 @@ gplbld/sandbox-segtrust.py   : @self
 gplbld/sandbox-gates.py      : @self segtrust auditjournal auditwriter
 # 24 Oct 26 (W.11 F4, C1): sandbox-auditwriter loads sandbox-auditjournal (its journal reader), so a change to that one runs this one too.
 gplbld/sandbox-auditjournal.py : @self auditwriter
+# 1 Nov 26: the AI helper's rules were below the catch-all `gplbld/*` of this block and never matched (a change of `sd-ai` chose the ten @core suites and none of the AI ones); here they come first.
+#   The page, the IDE and the editors read the helper's status (the model, the providers, the default), so their suites run with it.
+gplbld/sd-ai                 : aigate ai-verb ai-line ai-ide ai-apps tool-ai
+gplbld/sd-ai-ctl             : aigate tool-ai
+gplbld/ai-providers          : aigate ai-verb ai-line ai-ide ai-apps tool-ai
 gplbld/*.py                  : none
 gplbld/*.sh                  : none
 gplbld/*.md                  : none

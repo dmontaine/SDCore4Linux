@@ -235,8 +235,8 @@ def run_rows():
     h.key("tab", idle=1.8)
     wait_text(h, "Element Path:")
     T = h.text()
-    row("DF5a typing E in the Type entry and Tab makes the rows of an E item: Element Path, no Field #; the column heading and Len & Just are still there",
-        "Element Path:" in T and "Field #:" not in T and "Name" in rowline(h, "Column Heading:") and re.search(r"Len & Just:\s+10 L\b", rowline(h, "Len & Just:")) is not None, T[:600])
+    row("DF5a typing E in the Type entry and Tab makes the rows of an E item: the Type reads E, Element Path, no Field #; the column heading and Len & Just are still there",
+        re.search(r"Type:\s+E\b", rowline(h, "Type:")) is not None and "Element Path:" in T and "Field #:" not in T and "Name" in rowline(h, "Column Heading:") and re.search(r"Len & Just:\s+10 L\b", rowline(h, "Len & Just:")) is not None, T[:600])
     h.key("up", idle=0.8)
     h.typed("\x15", idle=0.3)
     h.typed("I", idle=0.4)

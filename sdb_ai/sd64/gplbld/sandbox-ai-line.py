@@ -175,12 +175,16 @@ def setup_ai(mutant):
     os.environ["SD_AI_CTL"] = os.path.join(HERE, "sd-ai-ctl")
 
 
-def configure(provider=True, model=True, key=True):
-    """provider, model and key through the verb / the key file, as the administrator would; any of them left out is cleared."""
-    cmds = ["set.ai ca " + STATE["ca"], "set.ai limit requests-hour 1000", "set.ai provider anthropic" if provider else "set.ai provider none",
-            ("set.ai model anthropic " + MODEL) if model else "set.ai model anthropic -"]
+def configure(provider=True, model=True, key=True, custom=False):
+    """provider, model and key through the verb / the key file, as the administrator would; any of them left out is cleared.  A named provider has a DEFAULT model (1 Nov 26), so a model
+    left out is the default and the line is still drawn; custom=True makes the provider Custom, which has none: a provider and a key and no model."""
+    cmds = ["set.ai ca " + STATE["ca"], "set.ai limit requests-hour 1000"]
+    if custom:
+        cmds += ["set.ai custom MyLLM https://127.0.0.1:9/v1/chat/completions openai bearer - max_tokens", "set.ai provider custom", "set.ai model custom -"]
+    else:
+        cmds += ["set.ai provider anthropic" if provider else "set.ai provider none", ("set.ai model anthropic " + MODEL) if model else "set.ai model anthropic -"]
     adm(*cmds)
-    kp = os.path.join(box(), "ai", "state", "keys", "anthropic")
+    kp = os.path.join(box(), "ai", "state", "keys", "custom" if custom else "anthropic")
     if key:
         g.put(kp, KEY + "\n")
         os.chmod(kp, 0o600)
@@ -206,7 +210,7 @@ def ask(h, text, send=True, label=""):
 def sec_off():
     say("\n--- the line is not drawn when the AI is off")
     sh.set_default("menu")
-    for rid, label, kw, grp in (("L0a", "no provider", dict(provider=False), None), ("L0b", "a provider and no model", dict(model=False), None), ("L0c", "no key", dict(key=False), None)):
+    for rid, label, kw, grp in (("L0a", "no provider", dict(provider=False), None), ("L0b", "a provider and no model (Custom, which has no default model)", dict(custom=True), None), ("L0c", "no key", dict(key=False), None)):
         configure(**kw)
         start_runner()
         h = home()
@@ -216,6 +220,12 @@ def sec_off():
         arow(rid + "t", "...and Back-tab from the first tile goes to the last tile (Sign out), not to a line that is not there", "Sign out" in h.focus(), repr(h.focus()))
         h.key("ctrl-q", idle=1.5)
         h.end()
+    configure(model=False)
+    start_runner()
+    h = home()
+    arow("L0f", "a named provider with no model of the administrator's, a key and the gate: its default model stands, so the AI row IS drawn", "AI>" in line_row(h), repr(line_row(h)[:80]))
+    h.key("ctrl-q", idle=1.5)
+    h.end()
     configure()
     start_runner("zz-no-such-gate-group")
     h = home()

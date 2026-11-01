@@ -113,7 +113,7 @@ EOS
 }
 mkpkg() {   # mkpkg dir: the three files of a good name and some that must be left alone
   rm -rf "$1"; mkdir -p "$1"
-  for e in pdf html md; do echo "doc $e" > "$1/sd-core-for-linux-l1.2-0-changes.$e"; done
+  for e in pdf html md; do echo "doc $e" > "$1/sd-core-for-linux-l2.0-0-changes.$e"; done
 }
 
 # ---- C1 -----------------------------------------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ mkpkg "$T/pkg"
 out=$(run_block "$T/pkg" yes yes)
 n=$(ls "$T/shared/pdf" 2>/dev/null | wc -l)
 row "C1 three files copied"                       "$(ok "$([ "$n" = 3 ] && echo yes)")" "found $n files in the pdf directory"
-row "C1 content equal"                            "$(ok "$(cmp -s "$T/pkg/sd-core-for-linux-l1.2-0-changes.pdf" "$T/shared/pdf/sd-core-for-linux-l1.2-0-changes.pdf" && echo yes)")" "pdf differs"
+row "C1 content equal"                            "$(ok "$(cmp -s "$T/pkg/sd-core-for-linux-l2.0-0-changes.pdf" "$T/shared/pdf/sd-core-for-linux-l2.0-0-changes.pdf" && echo yes)")" "pdf differs"
 row "C1 installed owner sdsys group sdusers 644"  "$(ok "$([ "$(grep -c -- 'install -o sdsys -g sdusers -m 644' "$T/sudo.log")" = 3 ] && echo yes)")" "$(grep install "$T/sudo.log" | head -2)"
 row "C1 success line counts three"                "$(ok "$(printf '%s' "$out" | grep -q 'Copied the changes document (3 files)' && echo yes)")" "$out"
 row "C1 the block ends 0"                         "$(ok "$(printf '%s' "$out" | grep -q '^RC=0$' && echo yes)")" "$out"
@@ -133,7 +133,7 @@ row "C2 none beside: said so, exit 0"             "$(ok "$(printf '%s' "$out" | 
 # ---- C3, C4 -------------------------------------------------------------------------------------------------------------
 rm -rf "$T/odd"; mkdir "$T/odd"; echo target > "$T/odd/real.txt"
 ln -s real.txt "$T/odd/sd-core-for-linux-l9-changes.pdf"
-echo x > "$T/odd/sd-core-for-linux-L1.2-0-changes.pdf"
+echo x > "$T/odd/sd-core-for-linux-L2.0-0-changes.pdf"
 echo x > "$T/odd/sd-core-for-linux-l1 2-changes.html"
 echo x > "$T/odd/readme.pdf"
 echo x > "$T/odd/other-changes.pdf"
@@ -150,7 +150,7 @@ out=$(run_block "$T/pkg" yes no)
 row "C7 no pdf directory: nothing copied"         "$(ok "$(! grep -q 'install ' "$T/sudo.log" && printf '%s' "$out" | grep -q '^RC=0$' && echo yes)")" "$out"
 # ---- C8 -----------------------------------------------------------------------------------------------------------------
 out=$(run_block "$T/pkg" yes yes fail)
-row "C8 failed install: WARNING"                  "$(ok "$(printf '%s' "$out" | grep -q 'WARNING: sd-core-for-linux-l1.2-0-changes' && echo yes)")" "$out"
+row "C8 failed install: WARNING"                  "$(ok "$(printf '%s' "$out" | grep -q 'WARNING: sd-core-for-linux-l2.0-0-changes' && echo yes)")" "$out"
 row "C8 failed install: could not be copied, exit 0" "$(ok "$(printf '%s' "$out" | grep -q 'could not be copied' && printf '%s' "$out" | grep -q 'END-OF-BLOCK' && printf '%s' "$out" | grep -q '^RC=0$' && echo yes)")" "$out"
 # ---- S ------------------------------------------------------------------------------------------------------------------
 l_end=$(grep -n '^# SHARED-CONTENT-END' "$INST" | cut -d: -f1); l_beg=$(grep -n '^# CHANGES-DOC-BEGIN' "$INST" | cut -d: -f1)

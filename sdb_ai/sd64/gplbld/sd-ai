@@ -32,6 +32,10 @@
 # program writes, to stderr (the journal), has the uid, the provider, the status and the sizes - never the text, never the key.
 #
 # START-HISTORY:
+# 1 Nov 26 dm   Google is a shipped provider (its OpenAI-compatible endpoint), and every shipped provider has a STARTING model (model= in the providers file): the model asked for is
+#               the administrator's (set model) or, while there is none, that one; a status for sdsys and root carries both ("model" the set one, "default" the starting one), and
+#               the status's own "model" is the one that will be asked for.  Custom has no starting model.  The owner: "pre-filled in except for the key ... an option for a user
+#               specified model".
 # 23 Oct 26 dm  The settings (set, keyset, keyclear) are made here, by sdsys and root, instead of by sd-elevate verbs as the plan first said: the file and the keys are
 #               sdai's own, the one check is the peer's uid, and the same validators serve both the reading and the writing.
 # 23 Oct 26 dm  New.  Group A of plan-ai-step2: non-streaming (the framing is line-based so a streamed reply can follow), two wire formats
@@ -59,7 +63,7 @@ GATE_GROUP = "sdaiusers"          # the right to use the provider's API: a Linux
 ADMIN_USER = "sdsys"              # may read the connection details through `status`
 DEFAULT_STATE = "/var/lib/sd-ai"
 DEFAULT_PROVIDERS = "/usr/local/lib/sd-ai/ai-providers"        # root-owned, with this program: sdsys cannot change where a key is sent
-NAMED = ("anthropic", "openai", "deepseek")
+NAMED = ("anthropic", "openai", "google", "deepseek")        # the order the AI page lists them in; Custom follows
 PROVIDERS = NAMED + ("custom",)
 FORMATS = ("anthropic", "openai")
 AUTHS = ("bearer", "x-api-key")
@@ -109,7 +113,7 @@ def parse_kv(path):
 
 
 def read_providers(path):
-    """The shipped table: [name] sections of key=value lines, only the three named providers, every value checked."""
+    """The shipped table: [name] sections of key=value lines, only the named providers, every value checked."""
     table = {}
     cur = None
     try:
@@ -135,6 +139,8 @@ def read_providers(path):
         raise Refuse("badconf", "cannot read the providers file")
     for name, p in table.items():
         check_connection(p, "providers file [%s]" % name)
+        if not MODEL_RE.match(p.get("model", "x")):
+            raise Refuse("badconf", "providers file [%s]: model has characters a model name may not have" % name)
     if set(table) != set(NAMED):
         raise Refuse("badconf", "providers file does not describe exactly %s" % ", ".join(NAMED))
     return table
@@ -176,7 +182,8 @@ def int_setting(conf, name):
 
 
 def selected(conf, table):
-    """(provider name, its connection details, its model), or None when AI is off (no provider selected)."""
+    """(provider name, its connection details, its model), or None when AI is off (no provider selected).  The model is the administrator's, or the provider's starting model
+    from the shipped table while the administrator has set none (Custom has no starting model)."""
     name = conf.get("provider", "")
     if name == "":
         return None
@@ -188,7 +195,7 @@ def selected(conf, table):
         p.setdefault("name", "Custom")
     else:
         p = dict(table[name])
-    return name, p, conf.get("model." + name, "")
+    return name, p, conf.get("model." + name, "") or p.get("model", "")
 
 
 # ---------------------------------------------------------------------------------------------------- the caller
@@ -451,7 +458,7 @@ def status_reply(state, conf, table, uid):
             else:
                 p = dict(table[n])
             det[n] = {"name": p.get("name", n.title()), "url": p.get("url", ""), "format": p.get("format", ""), "auth": p.get("auth", ""),
-                      "version": p.get("version", ""), "maxparam": p.get("maxparam", ""), "model": conf.get("model." + n, ""),
+                      "version": p.get("version", ""), "maxparam": p.get("maxparam", ""), "model": conf.get("model." + n, ""), "default": ("" if n == "custom" else p.get("model", "")),
                       "key": os.path.isfile(os.path.join(state, "keys", n))}
         out["providers"] = det
         out["ca-file"] = conf.get("ca-file", "")

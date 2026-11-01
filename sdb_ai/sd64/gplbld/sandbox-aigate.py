@@ -201,9 +201,9 @@ def part2():
         row("J0 an ordinary account has no set.ai: it is not in its VOC (the verb is SDSYS's alone)", any("not in your VOC" in ln for ln in out), repr(out[:4]))
         a0 = fg.audit_off()
         out = q3.adm(["set.ai"])
-        row("J1 set.ai alone (the administrator): it says the AI is off and lists the four providers with their details, a [ ] each, none selected, no key set",
-            any("none (the AI is off)" in ln for ln in out) and sum(1 for ln in out if "[ ]" in ln) == 4 and any("https://127.0.0.1:%d/v1/messages" % fm.port in ln for ln in out)
-            and sum(1 for ln in out if "key: (not set)" in ln) == 4, repr(out[:14]))
+        row("J1 set.ai alone (the administrator): it says the AI is off and lists the five providers (Google since 1 Nov 26) with their details, a [ ] each, none selected, no key set, each named one with its default model",
+            any("none (the AI is off)" in ln for ln in out) and sum(1 for ln in out if "[ ]" in ln) == 5 and any("https://127.0.0.1:%d/v1/messages" % fm.port in ln for ln in out)
+            and sum(1 for ln in out if "key: (not set)" in ln) == 5 and sum(1 for ln in out if "(default)" in ln) == 4, repr(out[:16]))
         out = q3.adm(["set.ai provider openai"])
         new = fg.audit_new(a0)
         row("J2 set.ai provider openai: 11611, ai.conf holds provider=openai, one audit line 'set.ai provider=openai'", msg(11611, "openai") in out and "provider=openai" in conf_lines(box)
@@ -261,8 +261,8 @@ def part2():
         out = q3.adm(["set.ai key openai clear"])
         row("J20 set.ai key openai clear: 11616 and the key file is gone", msg(11616, "openai") in out and not os.path.exists(os.path.join(box, "ai", "state", "keys", "openai")), repr(out[-3:]))
         out = q3.adm(["set.ai"])
-        row("J21 set.ai shows no key set for any provider again, and still never shows the key", not any("key: set" in ln for ln in out) and sum(1 for ln in out if "key: (not set)" in ln) == 4
-            and not any(KEY in ln for ln in out), repr(out[:12]))
+        row("J21 set.ai shows no key set for any provider again, and still never shows the key", not any("key: set" in ln for ln in out) and sum(1 for ln in out if "key: (not set)" in ln) == 5
+            and not any(KEY in ln for ln in out), repr(out[:14]))
     finally:
         try:
             runner.terminate()
