@@ -672,6 +672,18 @@ if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
     case $yn_gates in [yY]|[yY][eE][sS] ) open_gates=y;; esac
 fi
 # GATES-ASK-END
+# 01 Nov 26  S.95: THE QUESTION ABOUT SDSYS OVER ssh, asked up front with the others and answered NO unless y is typed (the owner's ruling is that the door is shut until
+#            an authenticator code is enrolled, and the code is the act that opens it).  The enrolment itself runs late (SDSYS-ENROL block, after the passwords), when the
+#            module, the helper and the ssh boundary are in place.  It is asked only on a terminal; an unattended install leaves the door shut and says how to open it.
+# TOTP-ASK-BEGIN
+enrol_sdsys=n
+echo
+echo "SDSYS, the administrator, can sign in over ssh from other computers - with an authenticator code from your phone"
+echo "(Google or Microsoft Authenticator, Authy, 1Password) asked BEFORE its password.  Until a code is set up, sdsys"
+echo "is refused over ssh.  You can set it up at the end of this install, or later with:  sudo sd-elevate totp-begin"
+read -r -p "Set up the authenticator code for SDSYS at the end of this install? (y/N) " yn_totp
+case $yn_totp in [yY]|[yY][eE][sS] ) enrol_sdsys=y;; esac
+# TOTP-ASK-END
 # 23 Oct 26  THE QUESTION ABOUT A PDF READER (owner, 23 Oct 2026: the pdf verb "should be available even if os.execute is not allowed for the account
 #            as a system bypass").  That is a looser default, so the list of readers it may start is EMPTY as delivered and the installer asks once, up
 #            front with the others; the answer is NO unless y or yes is typed.  It is asked only when a known PDF reader is installed in /usr/bin,
@@ -987,6 +999,22 @@ if [ ! -x bin/sd ]; then
     exit 1
 fi
 
+# 01 Nov 26  S.95 (remote sdsys over ssh): SD's OWN PAM MODULE, built here as the calling user like everything else (it needs the PAM headers, which the package step above
+#            installs: libpam0g-dev, pam-devel).  NOT PART OF `make`'s default target on purpose (a developer's machine without the headers must still build SD), so it is built
+#            as a step of its own, and a failure here is a WARNING and not the end of the install: SD works without it, the ssh door of sdsys simply cannot be opened.  It is
+#            installed below, outside the sealed bin, as /usr/local/lib/sd/pam_sdtotp.so.  test-install-sdsystotp.sh runs the blocks of this feature.
+pam_module_built=0
+pam_module_installed=0
+ssh_boundary_ok=0
+if make pam_sdtotp.so && [ -f bin/pam_sdtotp.so ]; then
+    pam_module_built=1
+else
+    printf "%b\n" "$YELLOW"
+    echo "WARNING: SD's PAM module (pam_sdtotp.so) could not be built, so sdsys cannot be let in over ssh."
+    echo "SD itself is built and the install goes on.  Install the PAM development package (libpam0g-dev, or pam-devel)"
+    echo "and run this installer again to get it."
+    printf "%b\n" "$NC"
+fi
 #
 # Create sd system user and group
 # Modified by Composer AI - 2026/06/10.
@@ -1192,6 +1220,22 @@ fi
 #            from the clone, which is deleted at the end of this script.
 echo "Installing ssh-boundary helper: /usr/local/sbin/ssh-forcecommand."
 sudo install -o root -g root -m 0755 gplbld/ssh-forcecommand.sh /usr/local/sbin/ssh-forcecommand
+# 01 Nov 26  S.95: the PAM module, root's, outside /usr/local/sdsys (which the sdsys user owns) and written by nobody but root.  sshd loads it by this path, and
+#            ssh-forcecommand --open-sdsys refuses to put it in the PAM stack unless it is a plain file, root's, not writable by group or other.  restorecon where SELinux
+#            is: a module sshd may not load would fail the sign-in of sdsys alone (the PAM line is guarded to that user).
+# PAMMODULE-BEGIN
+if [ "$pam_module_built" = 1 ]; then
+    echo "Installing SD's PAM module: /usr/local/lib/sd/pam_sdtotp.so."
+    sudo install -d -o root -g root -m 0755 /usr/local/lib/sd
+    sudo install -d -o root -g root -m 0755 /etc/sdcore          # sd-totp makes /etc/sdcore/totp (0700) itself, and only that last directory
+    if sudo install -o root -g root -m 0644 bin/pam_sdtotp.so /usr/local/lib/sd/pam_sdtotp.so; then
+        pam_module_installed=1
+        if command -v restorecon >/dev/null 2>&1; then sudo restorecon -R /usr/local/lib/sd >/dev/null 2>&1 || true; fi
+    else
+        echo "WARNING: could not install /usr/local/lib/sd/pam_sdtotp.so; sdsys cannot be let in over ssh."
+    fi
+fi
+# PAMMODULE-END
 
 # 12 Sep 26  PORT_ADOPTION 19.  The register reconciler, beside the other two
 #            and for the same reasons: it must outlive the clone (sd.service
@@ -1242,6 +1286,7 @@ sudo touch /usr/local/sdsys/errlog
 #
 # copy install template
 sudo cp -R bin "$sdsysdir"
+sudo rm -f "$sdsysdir/bin/pam_sdtotp.so"      # S.95: the module lives in /usr/local/lib/sd, not in the sealed bin that root runs programs from
 sudo cp -R gplsrc "$sdsysdir"
 sudo cp -R gplobj "$sdsysdir"
 # Modified by Composer AI - 2026/06/10.
@@ -2762,6 +2807,55 @@ else
     done
     sd_install_stop
 fi
+# 01 Nov 26  S.95: THE ENROLMENT OF SDSYS'S AUTHENTICATOR CODE, when the question up front was answered y.  It needs the module installed, the ssh boundary applied (the
+#            helper opens the sdsys arm of sshd_config) and a terminal to read the code at.  It uses the helper's own verbs, so the installer and a later `sudo sd-elevate
+#            totp-begin` do exactly the same: totp-begin prints the secret and the link ONCE (to this terminal and nowhere else; nothing here tees or logs them),
+#            totp-confirm takes the code on standard input and, if it is right, prints the eight recovery codes once and opens the sshd arm.  Three tries; the verb throws a
+#            secret away at the fifth wrong code.  Nothing here can fail the install: whatever happens the state is said at the end.
+# SDSYS-ENROL-BEGIN
+sdsys_totp_state="not set up"
+totp_tty=${SD_TOTP_TTY:-/dev/tty}          # the terminal the code is read at; a test points it at a file, as SD_PW_TTY does for the passwords
+if [ "$enrol_sdsys" = y ]; then
+    if [ "$pam_module_installed" != 1 ]; then
+        sdsys_totp_state="not set up (SD's PAM module is not installed)"
+    elif [ "$ssh_boundary_ok" != 1 ]; then
+        sdsys_totp_state="not set up (the ssh boundary was not applied)"
+    elif ! { exec 8<"$totp_tty"; } 2>/dev/null; then       # opened ONCE, so that each read takes the next line
+        sdsys_totp_state="not set up (no terminal to read the code at)"
+    else
+        echo
+        echo "SDSYS: the authenticator code."
+        if sudo /usr/local/sbin/sd-elevate totp-begin; then
+            echo
+            echo "Put the secret into your authenticator app (type it, or open the uri link where the app can read it)."
+            echo "It is shown this once.  Then type the six digits the app shows."
+            totp_try=1
+            sdsys_totp_state="not confirmed"
+            while [ "$totp_try" -le 3 ]; do
+                totp_code=""
+                read -r -p "  Code from the app (Enter to stop): " -u 8 totp_code || totp_code=""
+                [ -n "$totp_code" ] || break
+                totp_rc=0
+                printf '%s\n' "$totp_code" | sudo /usr/local/sbin/sd-elevate totp-confirm || totp_rc=$?
+                if [ "$totp_rc" -eq 0 ]; then
+                    sdsys_totp_state="set up - sdsys can sign in over ssh with the code and its password"
+                    echo "  Write the recovery codes down now, somewhere that is not the phone: they are not shown again."
+                    break
+                elif [ "$totp_rc" -eq 3 ]; then
+                    sdsys_totp_state="enrolled, but the ssh door was NOT opened (see the message above)"
+                    break
+                fi
+                echo "  That code was not accepted."
+                totp_try=$((totp_try + 1))
+            done
+            [ "$sdsys_totp_state" != "not confirmed" ] || sdsys_totp_state="not confirmed (run  sudo sd-elevate totp-confirm  with a code from the app, or totp-begin again)"
+        else
+            sdsys_totp_state="not set up (sd-elevate totp-begin failed; see the message above)"
+        fi
+        exec 8<&-
+    fi
+fi
+# SDSYS-ENROL-END
 #
 # 07 Oct 26 dm - THE LAST STEP LEAVES SD RUNNING (owner, 7 Oct: "make the installer restart sd
 #   as its last step"; S.58 (2), open since 4 Oct).  The password steps above start SD and put
@@ -2883,10 +2977,16 @@ esac
 echo
 echo "SD is administered ONLY by logging in as sdsys (its own password) and"
 echo "running sd - that session has every admin verb.  There is no sudo or"
-echo "su route into it.  sdsys cannot log in over ssh, and the API admits"
-echo "sdsys only from a process running as sdsys on this machine, never"
-echo "from another computer.  A desktop-sharing view of the console (VNC,"
-echo "TeamViewer) is a local login and works."
+echo "su route into it.  sdsys can log in over ssh only after an authenticator code"
+echo "is set up, and the API admits sdsys only from a process running as sdsys on"
+echo "this machine, never from another computer.  A desktop-sharing view of the"
+echo "console (VNC, TeamViewer) is a local login and works."
+echo "SDSYS over ssh: $sdsys_totp_state."
+case "$sdsys_totp_state" in
+    "set up"*) ;;
+    *) echo "  To set it up from this machine or any ssh login with sudo:  sudo /usr/local/sbin/sd-elevate totp-begin"
+       echo "  and then  sudo /usr/local/sbin/sd-elevate totp-confirm  with the code the app shows." ;;
+esac
 echo
 if [ "$sd_running_state" = running ]; then
     echo "SD is running now."

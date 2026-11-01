@@ -433,11 +433,26 @@ echo "Removed /usr/local/sbin/sd-reconcile-accounts."
 #            no SD block is present.  Non-fatal: a stale block matching a group
 #            that is about to be removed is harmless (it just never matches), so
 #            a removal hiccup must not abort the uninstall.
+ssh_fences_out=1
 if [ -x /usr/local/sbin/ssh-forcecommand ]; then
-    sudo /usr/local/sbin/ssh-forcecommand --remove || \
-        echo "WARNING: could not remove the ssh block automatically; check /etc/ssh/sshd_config."
+    if ! sudo /usr/local/sbin/ssh-forcecommand --remove; then
+        ssh_fences_out=0
+        echo "WARNING: could not remove the ssh block automatically; check /etc/ssh/sshd_config and /etc/pam.d/sshd."
+    fi
     sudo rm -f /usr/local/sbin/ssh-forcecommand
     echo "Removed /usr/local/sbin/ssh-forcecommand."
+fi
+# 01 Nov 26 dm - S.95: --remove above took out BOTH fences, the sshd block first and the two PAM lines after it.  The secret and the recovery codes go always (they are SD's
+#            and belong to nothing once the fence is out); the module goes only when the fences are known to be out, because a PAM line naming a missing module would fail
+#            the sign-in of sdsys (the line is guarded to that user, nobody else's).  A reinstall starts with the sdsys ssh door shut until a code is enrolled again.
+sudo rm -rf /etc/sdcore/totp
+sudo rmdir /etc/sdcore 2>/dev/null || true
+echo "Removed /etc/sdcore/totp (the sdsys authenticator secret and recovery codes)."
+if [ "$ssh_fences_out" = 1 ]; then
+    sudo rm -rf /usr/local/lib/sd
+    echo "Removed /usr/local/lib/sd (SD's PAM module)."
+else
+    echo "Kept /usr/local/lib/sd: a PAM line may still name it (see the warning above)."
 fi
 # 10 Sep 26  PRE_RELEASE 25 - THE GROUP GOES ONLY IF THE ACCOUNTS GO.
 #            This removal was unconditional, and it was a lock-out on a

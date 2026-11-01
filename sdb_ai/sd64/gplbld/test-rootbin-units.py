@@ -134,6 +134,8 @@ def bin_names_in(text, comments="shell"):
     names = set()
     if comments == "shell":
         for _, l in code_lines(text):
+            if re.match(r"\s*(sudo\s+)?rm\s+-f\s", l):      # a removal runs nothing (S.95: the installer deletes the PAM module's stray copy from the sealed bin)
+                continue
             names.update(pat.findall(l))
     else:
         names.update(pat.findall(text))
