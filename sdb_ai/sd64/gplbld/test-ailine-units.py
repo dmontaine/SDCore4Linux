@@ -85,7 +85,9 @@ def checks(s):
        ordered(prop, "index(atext, '{', 1)", "jparse(atext[f1, l1 - f1 + 1])", "sysmsg(11651)") and "obj.ok" in prop, "")
     ck("A10 a parsed JSON object is never compared with a string (that raises 'Value not found' and the error is swallowed: the answer popup never came, 23 Oct): a flag says whether obj holds one",
        not re.search(r"\bobj\s*(=|#)\s*''", ai) and not re.search(r"\bhj\s*(=|#)\s*''", ai), "")
-    ck("A11 the audit line is the kernel's: this file writes none and calls no audit of its own", "K$AUDIT" not in ai and "audit" not in ai.lower().replace("the audit", ""), "")
+    au = [l for l in ai.split("\n") if not l.lstrip().startswith("*") and "audit" in l.lower()]
+    ck("A11 the audit line of a request that goes is the kernel's (K$AI.START): this file writes only the two audit lines of a REFUSAL (S.97 stage 0, pinned by test-aiwall-units A3) and no other",
+       len(au) == 2 and all("kernel(K$AUDIT, 'ai refused why=" in l for l in au), "")
     ck("A12 the app's words are cleaned like the person's: every offered action line goes through clean before the preview or the prompt", ordered(ask, "for i = 1 to dcount(a<4>, @vm)", "gosub clean", "acts<1, i> = ", "sysx = sysmsg(11635, app)"), "")
     ck("A13 the line is not drawn at all when the AI is not usable (the gate, a provider, a model and a key): read.status sets ai.on only after all four tests, and the other ops do nothing when it is 0",
        ordered(ai, "read.status:", "if not(hj{'gate'}) then return", "hj{'provider'} = ''", "if not(hj{'key'}) then return", "ai.on = 1") and ai.count("if ai.on then") >= 6, "")
