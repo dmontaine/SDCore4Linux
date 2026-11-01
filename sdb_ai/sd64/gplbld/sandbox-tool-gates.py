@@ -79,7 +79,7 @@ MUTANTS = {
     "route-both-wrong": ("         case fin<rs> = 1 and fin<ra> = 1\n            rw = 'both'", "         case fin<rs> = 1 and fin<ra> = 1\n            rw = 'ssh'", ["G8"]),
     "tighten-queues-on": ("         aq<av, k> = 0\n         n.q += 1", "         aq<av, k> = 1\n         n.q += 1", ["G10"]),
     "needs-not-checked": ("      if fin<fw> = 1 and fin<fi> # 1 then bad =", "      if @false then bad =", ["G9"]),
-    "all-on-key": ("      case nm = 'u'\n         gosub drop.queue", "      case nm = 'u'\n         gosub drop.queue\n      case nm = 'a'\n         for ai.k = 1 to NG\n            if gstat<ai.k> = 'built' then aq<view<ci>, ai.k> = 1\n         next ai.k\n         gosub redraw", ["G18"]),
+    "all-on-skips-test": ("      gosub cell.why\n      if why = '' then\n         aq<av, k> = (if ast<av, k> = tv", "      why = ''\n      if why = '' then\n         aq<av, k> = (if ast<av, k> = tv", ["G18"]),
 }
 
 
@@ -696,13 +696,33 @@ def section_null_and_small():
 
 
 def section_all_on():
-    say("\n--- G18: there is no key that queues everything ON")
+    # 1 Nov 26: A (all on) and N (all off), the owner's convenience ("set all on, and then turn some off").  Until then this section held that A queued NOTHING.
+    say("\n--- G18: A queues every gate ON and N every gate off, for the cursor's account; both only queue")
     p = open_page()
     snap = snapshot()
     p.to(ME, "ssh")
-    p.typed("a", idle=1.0)
+    before = p.rows()[ME][1]
+    p.typed("a", idle=1.2)
     cells = p.rows()[ME][1]
-    arow("G18", "A (and the other letters the page does not use) queue nothing: no star anywhere, and nothing was run", all(not x.endswith("*") for x in cells) and snapshot() == snap, repr(cells))
+    fixed = [i for i, x in enumerate(before) if x in ("-", "plan")]
+    arow("G18a", "A: every cell of %s that can change ends ON (ON* where it was off, ON where it was on already), a '-' or 'plan' cell is left alone, at least one was queued, and NOTHING ran (the register, the group file and the helper's calls as before)" % ME,
+         all(cells[i] == before[i] for i in fixed) and all(x in ("ON", "ON*") for i, x in enumerate(cells) if i not in fixed) and "ON*" in cells and snapshot() == snap and "R runs them" in st(p.h), repr((before, cells, st(p.h))))
+    i_sh = IDS.index("sh")
+    p.to(ME, "sh")
+    p.key("enter", idle=0.8)
+    c2 = p.rows()[ME][1]
+    arow("G18b", "Enter on one queued cell takes that one gate back (the owner's 'then turn some off'): sh is %s again and the others stay queued" % before[i_sh], c2[i_sh] == before[i_sh] and c2.count("ON*") == cells.count("ON*") - (1 if cells[i_sh] == "ON*" else 0), repr(c2))
+    p.typed("r", idle=1.6)
+    T = re.sub(r"\s+", " ", p.text())
+    ok_box = ("modify.account %s " % ME) in T and "Run" in T and "Cancel" in T and "so the account name has to be typed" in T
+    p.key("esc", idle=1.2)
+    arow("G18c", "R shows the ONE command in the box, and a gate that reaches beyond SD still wants the account's name typed; Esc runs nothing", ok_box and snapshot() == snap, T[-600:])
+    p.typed("u", idle=1.0)
+    p.typed("n", idle=1.2)
+    c3 = p.rows()[ME][1]
+    arow("G18d", "N: every cell that can change ends off (off* where it was on), '-' and 'plan' left alone; nothing ran", all(c3[i] == before[i] for i in fixed) and all(x in ("off", "off*") for i, x in enumerate(c3) if i not in fixed) and snapshot() == snap, repr(c3))
+    p.typed("u", idle=1.0)
+    arow("G18e", "U drops it: no star left", all(not x.endswith("*") for x in p.rows()[ME][1]), repr(p.rows()[ME][1]))
     p.quit()
 
 
@@ -743,7 +763,7 @@ def main():
         p.quit()
         if mutant is None:
             section_null_and_small()
-        if mutant in (None, "all-on-key"):
+        if mutant in (None, "all-on-skips-test"):
             section_all_on()
     finally:
         restore_home_fixtures()

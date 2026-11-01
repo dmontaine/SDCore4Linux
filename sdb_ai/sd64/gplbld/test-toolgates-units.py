@@ -5,8 +5,8 @@
 
 WHAT THIS IS, AND WHAT IT IS NOT.  It reads the page's BASIC as text, with comments removed.  ***IT RUNS NOTHING, SO IT CANNOT SAY THAT A CELL CHANGES OR THAT THE VERB ACCEPTS WHAT THE PAGE
 SENDS***: that is `sandbox-tool-gates.py` (a private SD, the real modify.account, the disk as the evidence).  What a text check is for: the properties that make the page a FRONT END and
-not a second wall - it opens the base for the administrator before it reads anything, it runs one command through the one place that runs commands, it writes no file, it has no key that
-queues everything ON, a gate that reaches beyond SD is not turned on without the account's name being typed, and the words it sends come from the gate table - are mostly ORDER and ABSENCE,
+not a second wall - it opens the base for the administrator before it reads anything, it runs one command through the one place that runs commands, it writes no file, its all-on and all-off keys
+(A, N; 1 Nov 2026) only QUEUE and only what a single cell could, a gate that reaches beyond SD is not turned on without the account's name being typed, and the words it sends come from the gate table - are mostly ORDER and ABSENCE,
 and an edit that moves one still compiles.
 
 --selftest breaks each invariant in the way an edit plausibly would and requires a check to notice; a mutant that nothing catches is a failure of the self-test.
@@ -77,9 +77,17 @@ def checks(raw):
     ck("TG4", "the sentence is 'modify.account ' + the account's name from the register + the words: a gate's own on or off word from the table, or one of the four route words; no other source of a word",
        "sent = 'modify.account ' : anm<av> : ' ' : trim(change(words, @fm, ' '))" in mk and mk.count("words<-1> =") == 2 and "words<-1> = (if aq<av, k> = 1 then gon<k> else goff<k>)" in mk and "words<-1> = rword" in mk
        and set(re.findall(r"rword = '([a-z]+)'", mk)) == {"both", "ssh", "api", "none"})
-    ck("TG5", "there is no key that queues everything ON: nothing assigns the literal 1 to a queued cell, the cells are written only by queueing the opposite state, taking it back, tighten (0) and the refresh, and the key table has exactly the eight actions and the Esc row that opens the menu bar (S.88 U2: the bar runs nothing, a choice is one of those keys)",
-       not re.search(r"^\s*aq<.*>\s*=\s*1\b", pg, re.M) and re.search(r"aq<av, k> = \(if nw = s0 then '' else nw\)", pg) is not None
-       and sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg))) == sorted(["help", "queue", "run", "drop", "tighten", "filter", "refresh", "quit", "menu"]))
+    qa = block(pg, "queue.all")
+    cw = block(pg, "cell.why")
+    qc = block(pg, "queue.cell")
+    ck("TG5", "A and N (all on, all off; the owner's convenience of 1 Nov 2026) only QUEUE: A sends tv = 1 and N tv = 0 to queue.all, which writes a cell only when cell.why (the one test Enter uses too: built, applies to the "
+       "kind of account, not sh or os for an account that is not a person) accepts it, to end in tv, taking back a queue for a gate already in tv; queue.all runs and confirms nothing; nothing assigns the literal 1 to a "
+       "queued cell; the key table has exactly the ten actions and the Esc row that opens the menu bar (S.88 U2: the bar runs nothing, a choice is one of those keys)",
+       not re.search(r"^\s*aq<.*>\s*=\s*1\b", pg, re.M) and re.search(r"aq<av, k> = \(if nw = s0 then '' else nw\)", qc) is not None and "gosub cell.why" in qc
+       and re.search(r"case nm = 'a'\s*\n\s*tv = 1\s*\n\s*gosub queue.all", pg) is not None and re.search(r"case nm = 'n'\s*\n\s*tv = 0\s*\n\s*gosub queue.all", pg) is not None
+       and re.search(r"gosub cell\.why\s*\n\s*if why = '' then\s*\n\s*aq<av, k> = \(if ast<av, k> = tv then '' else tv\)", qa) is not None and qa.count("aq<av, k> =") == 1
+       and not re.search(r"\$tk_run|\$tk_confirm|execute|gosub run\.queue", qa) and "case gstat<k> # 'built'" in cw and "case ast<av, k> = 'na'" in cw and "case (gids<k> = 'sh' or gids<k> = 'os') and aty<av> # 'USER'" in cw
+       and sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg))) == sorted(["help", "queue", "run", "drop", "tighten", "allon", "alloff", "filter", "refresh", "quit", "menu"]))
     th = block(pg, "tighten")
     ck("TG6", "T queues OFF (0) and only for a built gate that is off as delivered and on now, and not sh or os for an account that is not a person",
        "aq<av, k> = 0" in th and "gstat<k> = 'built' and gdef<k> = 'off' and ast<av, k> = 1" in th and "person.only = (gids<k> = 'sh' or gids<k> = 'os')" in th and "not(person.only and aty<av> # 'USER')" in th and th.count("aq<av, k> =") == 1)
@@ -95,7 +103,8 @@ def checks(raw):
        and re.search(r"gosub check\.needs\s*\n\s*if bad # '' then\s*\n\s*msg = bad\s*\n\s*return", pg) is not None)
     qc = block(pg, "queue.cell")
     ck("TG11", "sh and os are not queued for an account that is not a person (the verb refuses them in both directions), and a cell that is planned or not applicable queues nothing",
-       "case (gids<k> = 'sh' or gids<k> = 'os') and aty<av> # 'USER'" in qc and "case gstat<k> # 'built'" in qc and "case s0 = 'na'" in qc and qc.find("case gstat<k> # 'built'") < qc.find("case 1"))
+       "case (gids<k> = 'sh' or gids<k> = 'os') and aty<av> # 'USER'" in cw and "case gstat<k> # 'built'" in cw and "case ast<av, k> = 'na'" in cw
+       and 0 < qc.find("gosub cell.why") < qc.find("if why # '' then") < qc.find("aq<av, k> ="))
     ck("TG12", "SDSYS is not a row (modify.account refuses it), and an account whose gates could not be read is not shown", "if id # 'sdsys' then" in pg and "call $tk_gates(names<i>, g, ainfo, gerr)\n      if gerr = '' then" in pg)
     rq = block(pg, "run.queue")
     ck("TG13", "after a command the queue of that account is cleared, the machine is read again and the page is drawn again, and what it shows is the verb's own words",
@@ -136,7 +145,12 @@ MUTANTS = [
     ("the confirm box is skipped", "TG3", sub("page", "   if res = 'run' then\n      call $tk_run(", "   res = 'run'\n   if res = 'run' then\n      call $tk_run(")),
     ("a word comes from somewhere else", "TG4", sub("page", "words<-1> = (if aq<av, k> = 1 then gon<k> else goff<k>)", "words<-1> = (if aq<av, k> = 1 then gon<k> else gall<k>)")),
     ("the sentence names another account", "TG4", sub("page", "sent = 'modify.account ' : anm<av> : ' '", "sent = 'modify.account ' : anm<1> : ' '")),
-    ("a key queues everything on", "TG5", sub("page", "      case nm = 'u'\n         gosub drop.queue\n", "      case nm = 'u'\n         gosub drop.queue\n      case nm = 'a'\n         for ai.k = 1 to NG\n            aq<view<ci>, ai.k> = 1\n         next ai.k\n")),
+    ("a key queues every cell on, past the test", "TG5", sub("page", "      case nm = 'u'\n         gosub drop.queue\n", "      case nm = 'u'\n         gosub drop.queue\n      case nm = 'k'\n         for ai.k = 1 to NG\n            aq<view<ci>, ai.k> = 1\n         next ai.k\n")),
+    ("all on skips the test of a cell", "TG5", sub("page", "      gosub cell.why\n      if why = '' then\n         aq<av, k> = (if ast<av, k> = tv", "      why = ''\n      if why = '' then\n         aq<av, k> = (if ast<av, k> = tv")),
+    ("all on runs the queue at once", "TG5", sub("page", "   gosub redraw\n   w.st = ", "   gosub run.queue\n   w.st = ")),
+    ("all off queues on", "TG5", sub("page", "      case nm = 'n'\n         tv = 0", "      case nm = 'n'\n         tv = 1")),
+    ("cell.why lets sh through for a group account", "TG5", sub("page", "      case (gids<k> = 'sh' or gids<k> = 'os') and aty<av> # 'USER'\n         why =", "      case 0\n         why =")),
+    ("a gate already on is queued again", "TG5", sub("page", "aq<av, k> = (if ast<av, k> = tv then '' else tv)", "aq<av, k> = tv")),
     ("tighten queues ON", "TG5", sub("page", "         aq<av, k> = 0\n         n.q += 1", "         aq<av, k> = 1\n         n.q += 1")),
     ("tighten takes a gate that is on as delivered", "TG6", sub("page", "gstat<k> = 'built' and gdef<k> = 'off' and ast<av, k> = 1", "gstat<k> = 'built' and ast<av, k> = 1")),
     ("tighten queues sh for a group account", "TG6", sub("page", " and not(person.only and aty<av> # 'USER')", "")),
@@ -148,7 +162,8 @@ MUTANTS = [
     ("the route columns are also sent as words of their own", "TG9", sub("page", "if aq<av, k> # '' and k # rs and k # ra then", "if aq<av, k> # '' then")),
     ("files-write is allowed without files", "TG10", sub("page", "if fin<fw> = 1 and fin<fi> # 1 then bad =", "if fin<fw> = 1 and fin<fi> = 7 then bad =")),
     ("files-admin is allowed without files-write", "TG10", sub("page", "if fin<fa> = 1 and fin<fw> # 1 then bad =", "if @false then bad =")),
-    ("sh is queued for a group account", "TG11", sub("page", "      case (gids<k> = 'sh' or gids<k> = 'os') and aty<av> # 'USER'\n         msg =", "      case @false\n         msg =")),
+    ("sh is queued for a group account", "TG11", sub("page", "      case (gids<k> = 'sh' or gids<k> = 'os') and aty<av> # 'USER'\n         why =", "      case @false\n         why =")),
+    ("Enter queues without the test", "TG11", sub("page", "   s0 = ast<av, k>\n   gosub cell.why\n", "   s0 = ast<av, k>\n   why = ''\n")),
     ("SDSYS is a row", "TG12", sub("page", "if id # 'sdsys' then", "if id # 'sdsysx' then")),
     ("the page is not drawn again after a command", "TG13", sub("page", "      gosub read.all\n      gosub draw.all\n   end else\n      msg = cmsg", "      msg = msg\n   end else\n      msg = cmsg")),
     ("the cell shows the queue as the state", "TG14", sub("page", "ct = (if d = 1 then 'ON' else 'off') : (if aq<av, k> # '' then '*' else '')", "ct = (if d = 1 then 'ON' else 'off')")),

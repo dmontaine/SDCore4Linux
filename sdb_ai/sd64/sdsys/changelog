@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   TOOL.GATES HAS "ALL GATES ON" (A) AND "ALL GATES OFF" (N) FOR THE ACCOUNT UNDER THE CURSOR.
+
+             What        - A queues every gate of the account that can change to ON, N every one to off; both are in the Gates menu too. Then Enter on a cell takes one gate
+                           back, and R runs what is left as one modify.account command, as before.
+             Why         - Setting an account up was one Enter per gate. The usual way is now: all on, then turn off the few it should not have.
+             Does NOT    - Change anything by itself: like Enter, A and N only queue, and R's box (Run or Cancel, and the account's name to type when a gate that reaches
+                           beyond SD is turned on) is still the question. It skips a gate that is not built, one that does not apply to the kind of account, and sh and os
+                           for an account that is not a person. It acts on one account, not on every account shown.
+
 1 Nov 26   THE AUTHENTICATOR CODE FOR SDSYS'S SSH SIGN-IN CAN BE SET UP, RENEWED AND SWITCHED OFF FROM INSIDE SD: REMOTE.SDSYS, AND A SIXTH VIEW OF TOOL.REMOTE.
 
              What        - remote.sdsys with no keyword says whether the code is on, how many recovery codes are left and whether ssh lets sdsys in. remote.sdsys on shows a new

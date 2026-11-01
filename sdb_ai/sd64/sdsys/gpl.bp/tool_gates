@@ -7,6 +7,9 @@
 * 24 Oct 26 dm  New.
 * 28 Oct 26 dm  S.88 L2: the four boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the matrix shows more accounts and the
 *               two lists under the cell more rows, every box wider, and the sentences about the cell are wrapped at the width of their box.  The resize key makes the layout again.
+* 1 Nov 26 dm  A (all on) and N (all off) for the cursor's account, in the Gates menu too (owner: "buttons for All gates off and All Gates On"; warned once that all-on was
+*              the one key this page never had, then: "just a convenience feature ... set all on, and then turn some off").  They QUEUE; R's box is still the question.  The
+*              test of whether a cell can be queued is now one routine, cell.why, used by Enter, A and N.
 * 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the filter and refresh are offered to the model, nothing that changes a gate.
 * END-HISTORY
 *
@@ -27,7 +30,8 @@
 *
 *   Keys: arrows move over the cells, Enter or the space bar queues the opposite state for the cell (and again takes it back), R runs the queued changes of the account on the
 *   cursor's row, U drops them, T queues OFF for every gate of that account that is off as delivered and on now (it does not touch a gate whose delivered state is on), F
-*   changes which accounts are shown, F5 reads the machine again, F1 or ? or a click on a [?] explains the matrix, Ctrl-Q leaves.  There is NO key that queues everything ON.
+*   changes which accounts are shown, F5 reads the machine again, F1 or ? or a click on a [?] explains the matrix, Ctrl-Q leaves.  A (all on) and N (all off) queue every gate
+*   of the cursor's account that can change to end ON or off (the owner's convenience, 1 Nov 2026: set all on, then turn some off); they only queue, as Enter does.
 *
 *   THE PAGE WRITES NOTHING ITSELF.  The queued changes of one account become ONE command, MODIFY.ACCOUNT name word word ..., which validates every word before it changes anything
 *   (a conflict is refused whole), shown with its effect in a box answered Run or Cancel (Cancel is what Enter chooses) and run by $tk_run.  Turning ON a gate that reaches beyond
@@ -68,6 +72,8 @@ $include tk.h
    call $tk_keys('add', keys, 'r', 'run', 'run', '', 1)
    call $tk_keys('add', keys, 'u', 'drop', 'drop', '', 1)
    call $tk_keys('add', keys, 't', 'tighten', 'tighten', '', 1)
+   call $tk_keys('add', keys, 'a', 'all on', 'allon', '', 1)
+   call $tk_keys('add', keys, 'n', 'all off', 'alloff', '', 1)
    call $tk_keys('add', keys, 'f', 'filter', 'filter', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
@@ -77,6 +83,8 @@ $include tk.h
    call $tk_keys('menu', keys, 'run', '&Gates', '&Run the queue', '', '')
    call $tk_keys('menu', keys, 'drop', '&Gates', '&Drop the queue', '', '')
    call $tk_keys('menu', keys, 'tighten', '&Gates', '&Tighten the account', '', '')
+   call $tk_keys('menu', keys, 'allon', '&Gates', '&All gates on', '', '')
+   call $tk_keys('menu', keys, 'alloff', '&Gates', 'All gates o&ff', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the accounts', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
@@ -536,6 +544,12 @@ on.key:
          gosub drop.queue
       case nm = 't'
          gosub tighten
+      case nm = 'a'
+         tv = 1
+         gosub queue.all
+      case nm = 'n'
+         tv = 0
+         gosub queue.all
       case nm = 'f'
          flt = mod(flt + 1, 3)
          ci = 1
@@ -615,19 +629,47 @@ queue.cell:
    av = view<ci>
    k = gc
    s0 = ast<av, k>
+   gosub cell.why
+   if why # '' then
+      msg = why
+      return
+   end
+   d = (if aq<av, k> # '' then aq<av, k> else s0)
+   nw = (if d = 1 then 0 else 1)
+   aq<av, k> = (if nw = s0 then '' else nw)
+   gosub redraw
+   return
+
+* Can gate k of account av be queued?  why is null when it can, else the reason (one test for Enter, A and N)
+cell.why:
+   why = ''
    begin case
       case gstat<k> # 'built'
-         msg = gti<k> : ' is planned and not built yet'
-      case s0 = 'na'
-         msg = gti<k> : ' does not apply to a ' : downcase(aty<av>) : ' account'
+         why = gti<k> : ' is planned and not built yet'
+      case ast<av, k> = 'na'
+         why = gti<k> : ' does not apply to a ' : downcase(aty<av>) : ' account'
       case (gids<k> = 'sh' or gids<k> = 'os') and aty<av> # 'USER'
-         msg = 'a ' : downcase(aty<av>) : ' account is entered by whoever its Linux group admits, so modify.account refuses ' : gids<k> : ' for it'
-      case 1
-         d = (if aq<av, k> # '' then aq<av, k> else s0)
-         nw = (if d = 1 then 0 else 1)
-         aq<av, k> = (if nw = s0 then '' else nw)
-         gosub redraw
+         why = 'a ' : downcase(aty<av>) : ' account is entered by whoever its Linux group admits, so modify.account refuses ' : gids<k> : ' for it'
    end case
+   return
+
+* A (tv = 1) and N (tv = 0): every gate of the cursor's account that can be queued is queued to END in state tv; a gate already in it has its queue taken back.  The
+* owner's convenience (1 Nov 2026: "any admin would set all on, and then turn some off"): nothing is changed here, R shows the one command in its box (a gate that reaches
+* beyond SD still wants the account's name typed) and Enter on a cell takes a single gate back out first.
+queue.all:
+   if nv = 0 then return
+   av = view<ci>
+   n.q = 0
+   for k = 1 to NG
+      gosub cell.why
+      if why = '' then
+         aq<av, k> = (if ast<av, k> = tv then '' else tv)
+         if aq<av, k> # '' then n.q += 1
+      end
+   next k
+   gosub redraw
+   w.st = (if tv = 1 then 'ON' else 'OFF')
+   msg = (if n.q = 0 then 'every gate of ' : anm<av> : ' that can change is ' : w.st : ' already' else 'queued ' : w.st : ' for ' : n.q : ' gate' : (if n.q = 1 then '' else 's') : ' of ' : anm<av> : '; Enter on a cell takes one back, R runs them')
    return
 
 * U: drop the queue of the account on the cursor's row
