@@ -82,7 +82,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 28
 },
 "basic:func:ascii": {
 "kind": "basic.function",
@@ -299,7 +299,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 21
 },
 "basic:func:cos": {
 "kind": "basic.function",
@@ -390,7 +390,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 21
+"words": 29
 },
 "basic:func:dir": {
 "kind": "basic.function",
@@ -495,7 +495,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 23
+"words": 59
 },
 "basic:func:fcontrol.int": {
 "kind": "basic.internal",
@@ -1139,7 +1139,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 22
+"words": 24
 },
 "basic:func:object": {
 "kind": "basic.function",
@@ -1356,14 +1356,14 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 22
 },
 "basic:func:rmvd": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 13
 },
 "basic:func:rnd": {
 "kind": "basic.function",
@@ -2245,7 +2245,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 21
 },
 "basic:stmt:create": {
 "kind": "basic.statement",
@@ -2560,7 +2560,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 15
 },
 "basic:stmt:from": {
 "kind": "basic.clause",
@@ -2595,7 +2595,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 21
 },
 "basic:stmt:gosub": {
 "kind": "basic.statement",
@@ -2616,7 +2616,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 20
 },
 "basic:stmt:heading": {
 "kind": "basic.statement",
@@ -2854,7 +2854,7 @@
 "part": "reference/basic-statements.md",
 "since": "next",
 "tier": "reference",
-"words": 19
+"words": 31
 },
 "basic:stmt:matwriteu": {
 "kind": "basic.statement",
@@ -2875,14 +2875,14 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 16
 },
 "basic:stmt:movelistv": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 16
 },
 "basic:stmt:nap": {
 "kind": "basic.statement",
@@ -2973,7 +2973,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 13
 },
 "basic:stmt:osread": {
 "kind": "basic.statement",
@@ -2987,7 +2987,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 15
 },
 "basic:stmt:overlay": {
 "kind": "basic.clause",
@@ -3323,7 +3323,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 17
 },
 "basic:stmt:rewind": {
 "kind": "basic.restricted",
@@ -3400,7 +3400,7 @@
 "part": "reference/basic-statements.md",
 "since": "next",
 "tier": "reference",
-"words": 19
+"words": 26
 },
 "basic:stmt:selectleft": {
 "kind": "basic.statement",
@@ -3414,7 +3414,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 26
 },
 "basic:stmt:selectn": {
 "kind": "basic.statement",
@@ -3435,7 +3435,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 26
 },
 "basic:stmt:selectv": {
 "kind": "basic.statement",
@@ -3449,7 +3449,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 37
 },
 "basic:stmt:sendmail": {
 "kind": "basic.statement",
@@ -3505,7 +3505,7 @@
 "part": "reference/basic-statements.md",
 "since": "next",
 "tier": "reference",
-"words": 19
+"words": 13
 },
 "basic:stmt:set.trigger": {
 "kind": "basic.restricted",
@@ -3659,7 +3659,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 28
+"words": 46
 },
 "basic:stmt:then": {
 "kind": "basic.clause",
@@ -3715,7 +3715,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 18
 },
 "basic:stmt:unload.object": {
 "kind": "basic.restricted",
@@ -3827,7 +3827,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 21
 },
 "basic:stmt:writepkt": {
 "kind": "basic.restricted",

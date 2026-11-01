@@ -2,42 +2,17 @@
  "chunk_count": 4089,
  "development": "the changelog's 'Next release - in progress' section is part of this tree",
  "gaps": {
-  "basic_names_without_a_docs_syntax_line": [
-   "ARG.PRESENT",
-   "CASING",
-   "CONVERT",
-   "FORMLISTV",
-   "GETLISTV",
-   "GROUPSTORE",
-   "MATWRITECSV",
-   "MOVELIST",
-   "MOVELISTV",
-   "OSDELETE",
-   "OSREAD",
-   "OSWRITE",
-   "REUSING",
-   "REVREMOVE",
-   "RMVD",
-   "SELECT.SOCKET",
-   "SELECTINDEXV",
-   "SELECTLEFTV",
-   "SELECTRIGHTV",
-   "SEND",
-   "SET.TIMEZONE",
-   "SYNC",
-   "TTYSET",
-   "WRITELIST"
-  ]
+  "basic_names_without_a_docs_syntax_line": []
  },
  "generator": "agent-pack/mkpack.py",
  "kinds": {
   "basic.clause": {
    "chunks": 32,
-   "sha256": "84e94ae4229cad09dce515479d7b5388177f6e03ead778da04eee1b2f4ee7b81"
+   "sha256": "3880ba4154c1b212460c204cb05ab75faea628b3c93fa08fe9551b63bf4678af"
   },
   "basic.function": {
    "chunks": 230,
-   "sha256": "f9e02dac560479e4d573d7b62fdb0a55a26979a9d7d2b83fcd4f26dfa6928527"
+   "sha256": "0f87908ec2d9cbdcaecd766edd51fddd1a3bad4bb4807a5fa00263d78310401f"
   },
   "basic.internal": {
    "chunks": 37,
@@ -57,7 +32,7 @@
   },
   "basic.statement": {
    "chunks": 203,
-   "sha256": "a8f6b57e5ffef19a08307e116ad3777d5639a2a7db710e97272936b13798f0ad"
+   "sha256": "592ce69c3896b265d0fd9fa73abd541e31c5df9fa3a52b731f9d9bffa02a5e8c"
   },
   "core.digest": {
    "chunks": 5,
@@ -175,12 +150,12 @@
    "words": 569
   },
   "index.json": {
-   "sha256": "501ea6eada503dfc847059ffe8a39613bffa9090d3853ae2e45aba61b50a71e6"
+   "sha256": "56f4517c32d562ee84b01e57e5d9b70062734f4a099438f3fe7fe72682e433b6"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
-   "sha256": "7b3e5149251ef229f9d96011075a3b10dceba4fe4ada9be1652b5ab797a0b3df",
-   "words": 4285
+   "sha256": "c9c7bd2ee763d1da6b7d979fae9a0442d33b291b0b5e6010bcebd86a72e0fcef",
+   "words": 4339
   },
   "reference/basic-modes.md": {
    "chunks": 17,
@@ -189,8 +164,8 @@
   },
   "reference/basic-statements.md": {
    "chunks": 269,
-   "sha256": "32159fd1de9c34f0e142adfcf16dddb7b52a2e0f091808f7a5efcef3e1a6d028",
-   "words": 5754
+   "sha256": "76da89a337fb4eb1147ba9afc9418d3b4ffa8aff3611177dcbc1a777b1b00fef",
+   "words": 5801
   },
   "reference/dictionaries.md": {
    "chunks": 50,
