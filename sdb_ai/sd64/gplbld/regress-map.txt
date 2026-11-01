@@ -64,6 +64,7 @@ gplbld/sandbox-req29.py      : @self fileadmin netindex
 # 21 Oct 26 (S.73 item 3 D1): sandbox-netindex loads sandbox-fileadmin (its test device and fixtures), so a change to that one runs this one too.
 gplbld/sandbox-fileadmin.py  : @self netindex
 # 27 Oct 26 (S.87 batch 7): four suites that tested only a removed option word are deleted; the deletion needs no suite
+gplbld/verify-totp.c         : none
 gplbld/sandbox-stdfil.py : none
 gplbld/sandbox-selectv-mode.py : none
 gplbld/sandbox-wdthenelse.py : none
@@ -232,6 +233,8 @@ gplsrc/clopts.c              : conf-b1 sys-q18
 gplsrc/sd_tls*.c             : qmclient apispin netfile net
 gplsrc/sd_scram.c            : qmclient
 gplsrc/scram_client.h        : qmclient
+gplsrc/sd_totp.c             : none
+gplsrc/sd_totp.h             : none
 gplsrc/sdclilib.c            : qmclient
 gplsrc/sdclilib.h            : qmclient
 gplsrc/sdclient.h            : qmclient

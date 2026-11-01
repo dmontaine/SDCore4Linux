@@ -323,6 +323,25 @@ ADMIN_MORE = (("tool.accounts", ["refresh"], "delete"),
               ("tool.menus", ["pane", "refresh"], "change"))
 
 
+def dialog_text(h):
+    """The text inside the Ask the AI dialog, rows joined, white space taken out.  The dialog sits over the page, so a screen row carries the page's own text (its [?] and [-]
+    marks, a border) beyond the dialog's edge, and a long line is cut inside a word at that edge and goes on in the next row: only the columns between the dialog's own corners
+    are read, found from the title row.  An empty string when no dialog is on the screen."""
+    top = next((r for r in range(43) if "- Ask the AI" in h.line(r)), None)
+    if top is None:
+        return ""
+    row = h.line(top)
+    left = row.index("- Ask the AI") - 1
+    right = row.index("+", left + 1)
+    out = ""
+    for r in range(top + 1, 43):
+        line = h.line(r)
+        if line[left:left + 1] == "+":            # the dialog's bottom corner
+            break
+        out += line[left + 1:right]
+    return re.sub(r"\s+", "", out)
+
+
 def sec_admin_pages():
     """P9 (S.97 stage 2 group B and stage 3, 1 Nov 26): the administrator's pages, in an administrator's session with the AI on - the line, F6 and the AI title; the preview offers
     the page's navigation and NOT the one action of each that changes something (the owner's default: nothing that changes an account, a gate, a session, a door, a setting or a
@@ -343,7 +362,7 @@ def sec_admin_pages():
         n0 = len(fm.log)
         ask(h, "what can I do here [[act_refresh]]")
         T = h.text()
-        flat = re.sub(r"[\s|]+", "", T)           # the preview is a box: a sentence wraps across its rows, between borders, and a long line is cut inside a word
+        flat = dialog_text(h)                     # the preview is a box: a sentence wraps across its rows and a long line is cut inside a word at the box's edge
         arow("P9" + L + "2", "%s: the preview offers %s and NOT %s, says the person is the administrator, and nothing has been sent" % (verb, ", ".join(offers), notoff),
              all(("  %s:" % o) in T for o in offers) and ("  %s:" % notoff) not in T and "  ai:" not in T and ("thepage%softheSDdatabasesystem" % verb) in flat
              and "Thepersonistheadministrator." in flat and len(fm.log) == n0, T[-900:])
