@@ -1141,7 +1141,7 @@ clause of `input` and `input @` — show nothing of what is typed
 clause of `input` — type over what is already there
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `User/markdown/27a-sd-tcl-sed.md` line 239
+- docs: `User/markdown/27a-sd-tcl-sed.md` line 248
 
 ### basic:stmt:overwrite
 > kind=basic.clause tier=reference since=L1.1-0 src=sdsys/gpl.bp/bcomp:11632#58a91974 src2=docs:tools/syntax-shapes.txt:150#83abfd0b

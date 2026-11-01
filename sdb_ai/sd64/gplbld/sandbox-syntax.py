@@ -13,6 +13,7 @@
 # 18 Oct 26 dm  SED is 140 by 42 (terminal 140x42, phase 2): the window here is 140 by 42.
 # 1 Nov 26 dm   THE DEFAULT IS ON (owner: "turn syntax on by default"): the first section holds the default, SYNTAX OFF and the bare SYNTAX in both directions, a new section holds NO.SYNTAX
 #               in &sed.options&, and the vt100 rows hold a silent start and the bare SYNTAX's message.
+# 1 Nov 26 dm   S.99: SED is 140 by 43 (the key row): the window here is 140 by 43.
 # END-HISTORY
 #
 # HOW IT DRIVES SED.  On a PSEUDO-TERMINAL (ptydrive.py), the screen read from the emulator in termscreen.py, whose
@@ -73,7 +74,7 @@ def sess(box, *cmds):
 
 
 class Term:
-    def __init__(self, box, cmd, cols=140, rows=42, term="xterm"):       # SED is 140 by 42 always (18 Oct 26; 120 by 36 on 13 Oct)
+    def __init__(self, box, cmd, cols=140, rows=43, term="xterm"):       # SED is 140 by 43 always (S.99, 1 Nov 26; 140 by 42 from 18 Oct, 120 by 36 on 13 Oct)
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm")
         self.s = PtySession([os.path.join(box, "sys", "bin", "sd")], os.path.join(box, "user_accounts"), env, cols, rows)
         self.s.settle(1.0)

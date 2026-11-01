@@ -8,7 +8,7 @@
  "kinds": {
   "basic.clause": {
    "chunks": 32,
-   "sha256": "30c9decc36824ba5b1d63f62fcd3f8fcbe107fe6898888411a25ba03c824f0ff"
+   "sha256": "f42d5a47b3c0f1dd02607316d3b74f3b27b1ed35a6946da796dcb5953abdcb34"
   },
   "basic.function": {
    "chunks": 230,
@@ -164,7 +164,7 @@
   },
   "reference/basic-statements.md": {
    "chunks": 269,
-   "sha256": "11a3cff749d155993f0f1ef7a7573d35e3d348b467921f5838c62adefcb11882",
+   "sha256": "6b7c6463554537b82fc2333177bb1ddf05756d07becd2218c4c020096b493f02",
    "words": 5895
   },
   "reference/dictionaries.md": {

@@ -18,6 +18,8 @@
 #               ignored and a warning is shown until the window is made bigger or the user leaves with Ctrl-Q.
 # 28 Oct 26 dm  S.88 phase 2 (S3): part F - with AUTOLOGOUT set the lock is now lifted by a bigger window without a key ($sl_guard lost its
 #               AUTOLOGOUT work-around: the kernel counts AUTOLOGOUT across waits); the nolift mutant is run on F too.  NOT RUN yet.
+# 1 Nov 26 dm   S.99 (owner, 1 Nov 26: SED's floor to 140 by 43): LAY_H is 43, the key row is row 42, a 140 by 42 window is refused at the
+#               start and locks after it, and the windows of the old size (140 by 42) join the refused and the shrunk ones.
 # END-HISTORY
 #
 # HOW IT DRIVES SED.  On a PSEUDO-TERMINAL (ptydrive.py), the window size set BEFORE SD starts (it asks the tty when it starts) and
@@ -52,7 +54,7 @@ F = os.environ.get("SMFILE") or "zzsm" + RUN         # the fixture file (SMFILE 
 passed = failed = 0
 BOX = SYS = None
 
-LAY_W, LAY_H = 140, 42                              # what SED is laid out for
+LAY_W, LAY_H = 140, 43                              # what SED is laid out for (S.99, 1 Nov 26; 140 by 42 from 18 Oct)
 UP, DOWN, LEFT, RIGHT = "\x1bOA", "\x1bOB", "\x1bOD", "\x1bOC"
 F10 = "\x1b[21~"
 ESC, RET, BS = "\x1b", "\r", "\x7f"
@@ -165,7 +167,7 @@ class Term:
 
 
 def at(e):
-    """(line, column) from the status line (the last row of a 140 by 42 window)."""
+    """(line, column) from the status line (the status line is the second to last row of a 140 by 43 window)."""
     t = "\n".join(e.lines()[-3:])
     m = re.search(r"\|\s*(\d+)\.(\d+)", t)
     return (int(m.group(1)), int(m.group(2))) if m else None
@@ -209,17 +211,18 @@ def prompt_shown(e):
 
 # ------------------------------------------------------------------------------------------------------------------------------
 def part_a():
-    say("\n--- A: SED is laid out for 140 by 42 ---------------------------------------------------------------------------------")
+    say("\n--- A: SED is laid out for 140 by 43 ---------------------------------------------------------------------------------")
     e = Term(BOX, "SED %s r1" % F)
     base = e.lines()
     row("control: the record is on the screen (line 1 first, 1.1 of 60 lines)",
         base[1].startswith("L01") and at(e) == (1, 1) and "60 lines" in "\n".join(base[-3:]), repr(base[1][:40]) + repr(at(e)))
-    row("the window the session has is 140 by 42, as the instrument believes", len(base) == 42, "%d rows" % len(base))
+    row("the window the session has is 140 by 43, as the instrument believes", len(base) == 43, "%d rows" % len(base))
     row("the menu bar is row 0", "File" in base[0] and "Tools" in base[0], repr(base[0][:60]))
     row("the record starts on row 1 and its 39th line is on row 39", base[1].startswith("L01") and base[39].startswith("L39"),
         repr(base[39][:40]))
     row("the file line is row 40 and holds the file and the record", F in base[40] and "r1" in base[40], repr(base[40][:60]))
     row("the status line is row 41", "60 lines" in base[41] and "1.1" in base[41], repr(base[41][:60]))
+    row("S.99: the key row is row 42, the last row of the layout", "^S save" in base[42] and "F10 menu" in base[42], repr(base[42][:60]))
     row("a line wider than the layout is cut at 140 columns: line 2 is 140 characters and ends at column 140",
         len(base[2]) == LAY_W and base[2] == RECORD[1][:LAY_W], "%d: %r" % (len(base[2]), base[2][-30:]))
     row("the line that is 130 wide is whole", base[3] == RECORD[2] and base[3].endswith(">>END3"), repr(base[3][-30:]))
@@ -227,31 +230,31 @@ def part_a():
     quit_ok = leave_asking
     quit_ok(e)
 
-    say("\n--- A: a bigger window is laid out as 140 by 42 and the rest is blank ------------------------------------------------")
+    say("\n--- A: a bigger window is laid out as 140 by 43 and the rest is blank ------------------------------------------------")
     e = Term(BOX, "SED %s r1" % F, 200, 60)
     L = e.lines()
-    row("200 by 60: rows 0 to 41 are the 140 by 42 layout, as at 140 by 42", L[:42] == base and not any(l.strip() for l in L[42:]),
+    row("200 by 60: rows 0 to 42 are the 140 by 43 layout, as at 140 by 43", L[:43] == base and not any(l.strip() for l in L[43:]),
         "\n".join(l[:60] for l in L[38:44]))
     row("...and nothing is drawn right of column 140", max(len(l) for l in L) <= LAY_W, str(max(len(l) for l in L)))
     leave_asking(e)
 
 
 def part_b():
-    say("\n--- B: a window under 140 by 42 at the start is refused, in words, and SED draws nothing --------------------------------")
-    for (c, r) in ((80, 24), (100, 30), (120, 36), (139, 42), (140, 41)):
+    say("\n--- B: a window under 140 by 43 at the start is refused, in words, and SED draws nothing --------------------------------")
+    for (c, r) in ((80, 24), (100, 30), (120, 36), (139, 43), (140, 42), (140, 41)):
         e = Term(BOX, "SED %s r1" % F, c, r)
         L = e.lines()
-        want = "SED needs a window of at least 140 columns by 42 lines; this one is %d by %d" % (c, r)
+        want = "SED needs a window of at least 140 columns by 43 lines; this one is %d by %d" % (c, r)
         row("%dx%d: refused with the message, which names the size the window is" % (c, r), any(want in l for l in L), "\n".join(L[:6]))
         row("%dx%d: no bar and no record are drawn, and SD is at its prompt" % (c, r),
             not any(l.startswith("L01") for l in L) and "File" not in L[0] and prompt_shown(e), "\n".join(l[:60] for l in L[:6]))
         e.end()
-    e = Term(BOX, "SED %s r1" % F, 140, 42)
-    row("control: exactly 140 by 42 starts", e.lines()[1].startswith("L01") and at(e) == (1, 1), repr(e.lines()[1][:30]))
+    e = Term(BOX, "SED %s r1" % F, 140, 43)
+    row("control: exactly 140 by 43 starts", e.lines()[1].startswith("L01") and at(e) == (1, 1), repr(e.lines()[1][:30]))
     leave_asking(e)
-    e = Term(BOX, "SED %s r1" % F, 140, 42, pre=("TERM 100,30",))
+    e = Term(BOX, "SED %s r1" % F, 140, 43, pre=("TERM 100,30",))
     L = e.lines()
-    row("a 140 by 42 window whose display was set to 100 by 30 with TERM is refused: the display is what SED can draw on",
+    row("a 140 by 43 window whose display was set to 100 by 30 with TERM is refused: the display is what SED can draw on",
         any("this one is 100 by 30" in l for l in L) and not any(l.startswith("L01") for l in L), "\n".join(l[:70] for l in L[:6]))
     e.end()
     e = Term(BOX, "SED %s r1" % F, 80, 24, pre=("TERM 200,60",))
@@ -264,7 +267,7 @@ def part_b():
 def check_corner(e, mark, w, h, base, what):
     got, n = e.replay(mark, w, h)
     d = corner_diff(got, base, w, h)
-    row("%s: SED drew the upper left corner again, cell for cell as at 140 by 42 (replayed on a blank %dx%d screen)" % (what, w, h),
+    row("%s: SED drew the upper left corner again, cell for cell as at 140 by 43 (replayed on a blank %dx%d screen)" % (what, w, h),
         n > 0 and d is None, d or "no bytes written")
     live = e.lines()
     d2 = corner_diff(live, base, w, h)
@@ -279,7 +282,7 @@ def part_c():
     base = list(e.lines())
     row("control: the full-size picture is there to compare with", base[1].startswith("L01") and base[39].startswith("L39"), "")
     e.end()
-    for (w, h) in ((100, 30), (80, 24), (139, 41), (139, 42), (140, 41), (60, 20)):
+    for (w, h) in ((100, 30), (80, 24), (139, 41), (139, 43), (140, 42), (140, 41), (60, 20)):
         e = Term(BOX, "SED %s r1" % F)
         m = e.resize(w, h)
         check_corner(e, m, w, h, base, "%dx%d" % (w, h))
@@ -294,7 +297,7 @@ def part_c():
             want[1] = "ab" + base[1]
         # the status line shows 1.3 after "ab"; compare the rows above it, which are the record
         d = corner_diff(got[:40], want[:40], LAY_W, 40)
-        row("%dx%d: made 140 by 42 again, SED draws the whole layout again (replayed)" % (w, h), n > 0 and d is None, d or "no bytes")
+        row("%dx%d: made 140 by 43 again, SED draws the whole layout again (replayed)" % (w, h), n > 0 and d is None, d or "no bytes")
         e.end()
 
     say("\n--- C: a key typed just as the window changes is read whole ----------------------------------------------------------------")
@@ -314,7 +317,7 @@ def part_c():
     m = e.resize(200, 60)
     L = e.lines()
     row("grown to 200 by 60: the layout is as it was in the upper left and the rest is blank",
-        L[:42] == base and not any(l.strip() for l in L[42:]) and max(len(l) for l in L) <= LAY_W, "\n".join(l[:50] for l in L[38:44]))
+        L[:43] == base and not any(l.strip() for l in L[43:]) and max(len(l) for l in L) <= LAY_W, "\n".join(l[:50] for l in L[38:45]))
     e.keys(DOWN, "Q")
     row("...and SED goes on working: Down, then Q goes in at the start of line 2", e.lines()[2].startswith("QL02"), repr(e.lines()[2][:20]))
     leave_asking(e)
@@ -327,7 +330,7 @@ def part_d():
     # the control: the same keys at the full size are accepted, and nothing warns
     e = Term(BOX, "SED %s r1" % F)
     L = e.keys(burst, idle=1.0)
-    row("control, 140x42: 45 Downs are all accepted (line 46) and no warning shows", at(e) == (46, 1) and not any("off the screen" in l for l in L),
+    row("control, 140x43: 45 Downs are all accepted (line 46) and no warning shows", at(e) == (46, 1) and not any("off the screen" in l for l in L),
         repr(at(e)))
     e.end()
 
@@ -341,7 +344,7 @@ def part_d():
     L = e.keys(burst, idle=1.2)
     warn = "\n".join(L[:8])
     row("100x30: 45 Downs in one burst: the cursor leaves the screen and SED shows the warning in the upper left",
-        "The window is 100 by 30" in warn and "SED is laid out for 140 by 42" in warn and "Ctrl-Q" in warn, warn)
+        "The window is 100 by 30" in warn and "SED is laid out for 140 by 43" in warn and "Ctrl-Q" in warn, warn)
     row("...the warning is a few rows at the top and the rest of the screen is blank (nothing of the record shows)",
         not any(l.startswith("L") or "QQL" in l for l in L) and not any(l.strip() for l in L[8:]), "\n".join(l[:50] for l in L[:12]))
     row("...the warning fits the window (no row wider than 100)", max(len(l) for l in L) <= 100, str(max(len(l) for l in L)))
@@ -362,7 +365,7 @@ def part_d():
     want = list(base)
     want[1] = "QQ" + base[1]
     d = corner_diff(got[:40], want[:40], LAY_W, 40)
-    row("made 140 by 42 again: the lock is lifted without a key and SED draws the whole layout (replayed), text as it was",
+    row("made 140 by 43 again: the lock is lifted without a key and SED draws the whole layout (replayed), text as it was",
         n > 0 and d is None, d or "no bytes")
     row("...the Downs after the first off-screen one were dropped: the cursor is on line 30 (column 3, after the QQ), not 46", at(e) == (30, 3), repr(at(e)))
     row("...the zzz typed while locked is not in the record", not any("zzz" in l for l in e.lines()), "")
@@ -409,7 +412,7 @@ def part_e():
     row("what is typed at a prompt nobody can see is ignored", "The window is 100 by 30" in "\n".join(L[:8]), "\n".join(l[:60] for l in L[:6]))
     e.resize(LAY_W, LAY_H, wait=2.2)
     L = e.lines()
-    row("made 140 by 42: the prompt is on the screen (file line, row 40) and the screen is whole again",
+    row("made 140 by 43: the prompt is on the screen (file line, row 40) and the screen is whole again",
         L[1].startswith("L01") and "earch" in L[40], repr(L[40][:60]))
     L = e.keys("L05", RET, idle=0.8)
     row("...the prompt works: searching for L05 puts the cursor on line 5", at(e) is not None and at(e)[0] == 5, repr(at(e)))
@@ -427,14 +430,14 @@ def part_e():
     say("\n--- E: the cursor off the right edge locks too ----------------------------------------------------------------------")
     e = Term(BOX, "SED %s r1" % F)
     e.keys(DOWN, DOWN, END, idle=0.6)
-    row("control, 140x42: End on line 3 puts the cursor at 3.131", at(e) == (3, 131), repr(at(e)))
+    row("control, 140x43: End on line 3 puts the cursor at 3.131", at(e) == (3, 131), repr(at(e)))
     e.keys(CTRL("a"), UP, UP, idle=0.5)
     e.resize(100, 30)
     L = e.keys(DOWN, DOWN, END, idle=1.0)
     row("100x30: End on line 3 (130 wide) puts the cursor in column 131: off the screen, locked",
         "The window is 100 by 30" in "\n".join(L[:8]), "\n".join(l[:60] for l in L[:4]))
-    e.resize(140, 42, wait=2.2)
-    row("...made 140 by 42, the cursor is where End put it (3.131) and the layout is whole",
+    e.resize(140, 43, wait=2.2)
+    row("...made 140 by 43, the cursor is where End put it (3.131) and the layout is whole",
         at(e) == (3, 131) and e.lines()[3] == RECORD[2], repr(at(e)))
     leave_asking(e)
 
@@ -473,7 +476,7 @@ def part_f():
     # one-second waits - so the lock is lifted without a key, as in part D.  These two rows used to say "still locked, the lift waits for the next key".
     e.resize(LAY_W, LAY_H, wait=2.2)
     L = e.lines()
-    row("...made 140 by 42 with no key: the lock is lifted within a second or two, AUTOLOGOUT or not ($sl_guard looks at the window every second)",
+    row("...made 140 by 43 with no key: the lock is lifted within a second or two, AUTOLOGOUT or not ($sl_guard looks at the window every second)",
         "The window is 100 by 30" not in "\n".join(L[:8]) and L[1].startswith("L01"), "\n".join(l[:60] for l in L[:4]))
     row("...the layout is whole and the cursor on line 30 (the Downs after the first off-screen one were dropped), nothing typed",
         at(e) == (30, 1) and not any(l.startswith("x") or "xL30" in l for l in L), repr(at(e)))

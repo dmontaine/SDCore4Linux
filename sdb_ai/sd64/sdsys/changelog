@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   SED LOOKS LIKE THE REST OF THE FULL-SCREEN TOOLS: A KEY ROW, ITS NAME ON THE MENU BAR, THE SITE'S COLOURS. IT NOW NEEDS A WINDOW OF 140 BY 43.
+
+             What        - The last row of SED is a key row like the one on the IDE and the toolkit pages: F10 menu, ^S save, ^Q quit, ^O open, ^F find, ^R replace, ^L go to, ^Z undo, ^Y redo,
+                           F5 run. The keys are read from the layout in use when the row is drawn, so the EMACS layout shows its own keys (^X ^S save, ^X M run) and an action with no key is left
+                           off. The right end of the menu bar says "sed" and who you are (user@account), as the pages do. Where SCREENTHEME in sd.conf is blue (as delivered) or classic, SED is in
+                           that theme with its syntax colours on it; SYNTAX LIGHT still gives the light syntax colours. SED is laid out for 140 by 43, the size of the IDE and the pages, and a
+                           window of 140 by 42 is now refused with the same message as a smaller one.
+             Why         - SED had its own grey bar and no key row, and looked like a different product beside the IDE and the pages. The text rows, the file line and the status line are where
+                           they were; the extra row is the key row.
+             Does NOT    - Change any key, command, menu item or option of SED, or what it writes. A site whose SCREENTHEME is none, mono, dark or light sees SED's colours as before. `!ced()` stays
+                           at 140 by 42.
+
 1 Nov 26   THE AI LINE ANSWERS FROM SD'S OWN DOCUMENTATION: THE FEW SECTIONS THAT MATCH THE REQUEST ARE IN THE PREVIEW AND GO WITH IT.
 
              What        - The installer now puts the User and Administrator documents (markdown) in docs/user and docs/admin under the system directory. When you press Enter on a request, SD picks up to four

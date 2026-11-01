@@ -11,6 +11,8 @@
 *               (it had none); the ops 'list' and 'next'.  A role is for a program to say what a thing IS (an error, a warning, a result that worked, a read-only
 *               text, work in progress, the thing in focus), whatever the theme.  In mono no role uses dim (SD's xterm entry has none); the six looks are different from
 *               one another, and the words on the screen carry the meaning.
+* 1 Nov 26 dm  S.99: the op 'syntax' (the nine syntax styles of the dark or the light kind put on the theme in force, nothing else changed), so that SED can be in the
+*               site's theme (the pages' colours) and still have SYNTAX LIGHT.  Every other op is as it was.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -66,6 +68,9 @@
 *                  terminal with no colour (or no terminal) can show mono only, so ret is mono whatever a was.
 *         'default' (SCREEN OPEN) takes the theme SCREENTHEME names in sd.conf, unless the program asked for one; a blank or unknown name, or a
 *                  theme this terminal cannot show, leaves the library as it is (mono).
+*         'syntax'  a = dark or light: the nine syntax styles (comment string constant keyword type preproc special error todo) of that kind are put on the
+*                  theme in force and nothing else changes (1 Nov 26, S.99: SED is in the site's blue theme with the light syntax colours when the person asks for
+*                  SYNTAX LIGHT).  ret 0 done; 2 for a kind it does not know.  The theme in force is mono until something set one: it is read first.
 *
 *   $sl_sgr turns a code into what to DISPLAY to put the terminal into that style: it reads the sequences
 *   this routine keeps in the common block /slthm/.  A sequence starts by switching every attribute off,
@@ -151,6 +156,9 @@ $include sl.h
          * be shown (a phantom, a terminal with no colour: the clause is then ignored); 'full' when all sixteen are in use; 'bad' for a colour or a flag
          * it does not know.  A theme leaves the user styles as they are, so a colour survives SCREEN THEME; SCREEN CLOSE empties them.
          gosub get.slot
+
+      case op = 'syntax'
+         gosub set.syntax
 
       case op = 'default'
          * SCREEN OPEN: the theme the administrator chose for the site (SCREENTHEME in sd.conf), unless the program has
@@ -305,6 +313,35 @@ set.theme:
    next s
    gosub build.seqs
    th.name = nm
+   ret = 0
+   return
+
+* The syntax styles of the kind a on the theme in force (the op 'syntax'): the same nine lines the themes take, put through put.def, and the sequences made again.  ret 0, or 2 for a kind it does not know
+set.syntax:
+   ret = 2
+   spec = ''
+   begin case
+      case downcase(a) = 'dark'
+         gosub syntax.dark
+      case downcase(a) = 'light'
+         gosub syntax.light
+      case 1
+         return
+   end case
+   if th.name = '' then gosub load.mono
+   n = dcount(spec, @fm)
+   for k = 1 to n
+      line = spec<k>
+      sname = field(line, '=', 1)
+      rest = field(line, '=', 2)
+      locate sname in names<1> setting i then
+         sfg = field(rest, ',', 1)
+         sbg = field(rest, ',', 2)
+         sfl = field(rest, ',', 3)
+         gosub put.def
+      end
+   next k
+   gosub build.seqs
    ret = 0
    return
 

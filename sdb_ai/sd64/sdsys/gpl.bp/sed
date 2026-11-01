@@ -18,6 +18,11 @@
 * 
 * 
 * START-HISTORY:
+* 1 Nov 26 dm   S.99, LOOK ONLY (owner, 1 Nov 26: "all panes need to share the same look and feel if possible", "Yes, look only"; the 28 Oct freeze is lifted for the look and for nothing else): SED is
+*               laid out for 140 by 43 (SED.ROWS 43; a window of 140 by 42 is refused in words, as a smaller one is).  The 43rd row is a KEY ROW (key.line) in the toolkit pages' style: about ten
+*               actions, each with the key SED's own table gives it NOW (get.key.bindings, fmt.key: a rebound key shows, an action with no key in the layout drops off).  The application's name and
+*               the person (sed  name@account) are at the right end of row 0, and the colours are the pages' (the site's SCREENTHEME, blue by default) whenever colour is in use.  Text rows are the
+*               same 39, the file line and the status line are where they were; no key, command or record content changed.
 * 1 Nov 26 dm   A MENU CHOICE LEFT THE OLD TEXT ON THE SCREEN when colour was on: after the menu closed the image was blanked but the terminal was not cleared, so a row that became empty (Kill line,
 *               Undo) was never written.  The menu's close now clears the screen as the SYNTAX command does (sandbox-syntax.py, sandbox-sed-menu.py, sandbox-sed-edit.py).
 * 1 Nov 26 dm   Syntax colour is ON by default (owner, 1 Nov 26: "turn syntax on by default"; it was off until asked for since 13 Oct): syn.want starts true, and syn.start still turns it on only for a terminal
@@ -350,8 +355,10 @@ $include sl.h
    * by clip.h is the part that shows, read again at every redraw and while SED waits for a key (read.window), and nothing is
    * drawn outside it (put.at, put.cursor, zoned.update).  While the cursor is off the screen the keys are ignored (wait.key,
    * $sl_guard).  A window bigger than the layout leaves the rest of it blank.
+   * 1 Nov 26 (S.99, owner: "all panes need to share the same look and feel", look only): 140 by 43.  The 43rd row is the key row, below the file line and the status line; the 39 rows of text are
+   * the rows they were, so a window of 140 by 42 is refused ($sl_need, message 11197, which names the size) as a smaller one is.
    equate SED.COLS to 140
-   equate SED.ROWS to 42
+   equate SED.ROWS to 43
    call $sl_need('SED', SED.COLS, SED.ROWS, message, '')
    if message # '' then stop message
 
@@ -364,11 +371,12 @@ $include sl.h
 
    * The top terminal row is the menu bar: every row below is the editor's row 0 up
    screen.lines = SED.ROWS - 1
-   displayed.lines = screen.lines - 2
+   displayed.lines = screen.lines - 3         ;* (S.99: the file line, the status line and the key row are below the text)
    last.data.line = displayed.lines - 1
    split.line = int((displayed.lines + 1) / 2)  ;* Top line of lower window
    file.line = displayed.lines
    status.line = displayed.lines + 1
+   key.line = displayed.lines + 2             ;* S.99: the key row, the last row of the layout (terminal row key.line + 1)
    lnum.all = @false
    lcol = 0    ;* Width of line number field
    lcol.fmt = ''
@@ -397,6 +405,25 @@ $include sl.h
    for mz = 1 to 6
       bar.w<19 + mz> = bar.titles<mz>
    next mz
+
+   * 1 Nov 26 (S.99, look only).  THE KEY ROW, the last row of the layout, in the style of the toolkit pages' function-key row: the actions it names, in the order it shows them, each as the action (F.MENU
+   * is the bar's own key, not a bindable one) and the word the row says for it.  The KEY is not written here: make.key.row asks SED's own table (get.key.bindings, fmt.key) when the row is made, so a key
+   * the person rebound is the key shown and an action that has no key in the layout in use drops off the row.  test-sedkeyrow-units.py holds that every action named here is bound in set.default.bindings.
+   kr.defs = ''
+   kr.defs<-1> = F.MENU : @vm : 'menu'
+   kr.defs<-1> = F.SAVE.RECORD : @vm : 'save'
+   kr.defs<-1> = F.QUIT : @vm : 'quit'
+   kr.defs<-1> = F.FIND.RECORD : @vm : 'open'
+   kr.defs<-1> = F.FWD.SEARCH : @vm : 'find'
+   kr.defs<-1> = F.REPLACE : @vm : 'replace'
+   kr.defs<-1> = F.GOTO.LINE : @vm : 'go to'
+   kr.defs<-1> = F.UNDO : @vm : 'undo'
+   kr.defs<-1> = F.REDO : @vm : 'redo'
+   kr.defs<-1> = F.COMPRUN : @vm : 'run'
+   kr.text = ''                     ;* the row as it was last made
+   kr.dirty = @true                 ;* the bindings may have changed: make the row again (load.key.bindings sets it)
+   * The application's name and the person, at the right end of row 0 as the toolkit pages have it (name@account)
+   ap.tag = 'sed  ' : @logname : '@' : @who : ' '
    call $tk_ai('usable', '', ai.ok, ai.pm)    ;* 24 Oct 26: the Tools menu has the AI items only when the AI is usable for this account
    gosub read.window ; win.changed = @false          ;* (the same as the layout, or SED would have been refused)
    gosub set.scr.size
@@ -4282,6 +4309,7 @@ update.screen:
    if bar.dirty then
       bar.dirty = @false
       call $sl_menu('draw', bar.w, scr, '', mz)
+      gosub paint.app.tag                 ;* 1 Nov 26 (S.99): the bar is written whole, so its right end is written again
    end
 
    if not(record.updated) then   ;* Ensure update flag shown on first change
@@ -4418,6 +4446,7 @@ update.screen:
    gosub check.keyready
    if keyready then goto exit.update.screen
    gosub paint.status.line
+   gosub paint.key.line                   ;* 1 Nov 26 (S.99): the key row; zoned.update writes only what differs from what the terminal shows
 
 exit.update.screen:
    return
@@ -4509,6 +4538,64 @@ paint.status.line:
    gosub zoned.update
    display attr :
 
+   return
+
+* 1 Nov 26 (S.99, look only).  The key row, in the toolkit pages' function-key style (the theme's bar): paint.key.line writes it, zoned.update only what differs from what the terminal shows.
+paint.key.line:
+   if kr.dirty then gosub make.key.row
+   ss = kr.text
+   sty = str('a', screen.width)           ;* the bar's style code: the theme's bar (teal in the blue theme), reverse video in mono
+   ln = key.line
+   gosub zoned.update
+   sty = ''
+   return
+
+* The row made from SED's own table as it is NOW: for each action of kr.defs the first key that has a name (fmt.key: what the menus show) written as the pages write a key (^S for Ctrl-S, F5), then the word.
+* An action that has no key in the layout in use is left out, so a key the person rebound is the one shown and an unbound action does not appear.  It reads the table through key.table and uses
+* variables of its own: it runs while the screen is being drawn.
+make.key.row:
+   kr.dirty = @false
+   gosub key.table
+   kr.text = ''
+   kr.n = dcount(kr.defs, @fm)
+   kr.nk = dcount(keys, @fm)
+   for kr.i = 1 to kr.n
+      kr.act = kr.defs<kr.i, 1> + 0
+      kr.show = ''
+      if kr.act <= LAST.BINDABLE.ACTION then
+         for kr.v = 1 to dcount(kb.s<kr.act>, @vm)
+            ks = kb.s<kr.act, kr.v>
+            gosub fmt.key
+            if ks.named then
+               kr.show = ks.out
+               exit
+            end
+         next kr.v
+      end else
+         * F.MENU is not a bindable action: add.menu.key put its sequence (F10) among the keys whatever the bindings
+         for kr.j = 1 to kr.nk
+            if key.actions<kr.j, 1> + 0 = kr.act then
+               ks = keys<kr.j>
+               gosub fmt.key
+               if ks.named then
+                  kr.show = ks.out
+                  exit
+               end
+            end
+         next kr.j
+      end
+      if kr.show # '' then kr.text := change(kr.show, 'Ctrl-', '^') : ' ' : kr.defs<kr.i, 2> : '  '
+   next kr.i
+   kr.text = trimb(kr.text)
+   kr.text = fmt(kr.text[1, screen.width], sw.fmt)
+   return
+
+* The application's name and the person at the right end of row 0, over the bar the library has just drawn (the toolkit pages write the same two things there).  $sl_put keeps the shadow of the
+* screen in step, and cuts the text at the part of the layout the window shows.  It cuts the ARGUMENT, which is passed by reference, so it is given a copy: given ap.tag itself, a
+* window narrower than 140 emptied ap.tag for the rest of the session (sandbox-sed-small.py part C, 1 Nov 26).
+paint.app.tag:
+   at.text = ap.tag
+   call $sl_put(scr, screen.width - len(ap.tag), 0, at.text, 'a')
    return
 
 ******************************************************************************
@@ -4747,12 +4834,25 @@ syn.dirty:
 syn.start:
    syn.on = @false
    if syn.want then
-      call $sl_theme('set', (if syn.light then 'light' else 'dark'), '', '', '', syn.r)
+      gosub syn.theme
       if syn.r = 0 then syn.on = @true
    end
    syn.key = char(255)
    syn.chk = '' ; syn.chk.n = 1 ; syn.top.for = 0 ; syn.lines.seen = 0
    mat simage = '' ; mat syn.end = 0
+   return
+
+* The theme colour is shown in (syn.r 0 when it is in force).  1 Nov 26 (S.99, look only): a site whose theme is blue or classic (SCREENTHEME in sd.conf, blue as delivered) has SED in THAT theme, so that
+* the bar, the key row, the menus and the boxes are the toolkit pages' colours; the syntax colours are the same ones the dark theme has, and SYNTAX LIGHT puts the light ones on it ($sl_theme 'syntax').
+* Any other site theme (none, mono, dark, light) leaves SED as it was: the dark or the light theme.  A terminal that cannot show colour refuses both and SED stays in mono.
+syn.theme:
+   syn.r = 1
+   syn.site = downcase(trim(config('SCREENTHEME')))
+   if syn.site = 'blue' or syn.site = 'classic' then
+      call $sl_theme('set', syn.site, '', '', '', syn.r)
+      if syn.r = 0 and syn.light then call $sl_theme('syntax', 'light', '', '', '', syn.r2)
+   end
+   if syn.r # 0 then call $sl_theme('set', (if syn.light then 'light' else 'dark'), '', '', '', syn.r)
    return
 
 * Put the screen back as it was: the theme to mono, and every row drawn plain
@@ -4809,6 +4909,7 @@ refresh.line:
 
 clear.screen:
    mat image = sw.space
+   simage(key.line + 1) = ''           ;* 1 Nov 26 (S.99): the key row's blanks are in the bar's style; the terminal is blank now, so the whole row is written again
    bar.dirty = @true
    display attr : @(-1) :
    return
@@ -4833,7 +4934,7 @@ get.set.term.state:
    execute "PTERM BREAK OFF"
 
    * 13 Oct 26: the theme syntax colour uses is put back when the terminal comes back to this program
-   if syn.on then call $sl_theme('set', (if syn.light then 'light' else 'dark'), '', '', '', syn.r)
+   if syn.on then gosub syn.theme                  ;* (1 Nov 26, S.99: the same choice syn.start makes)
 
    return
 
@@ -5273,6 +5374,7 @@ add.menu.key:
    return
 
 load.key.bindings:
+   kr.dirty = @true                      ;* 1 Nov 26 (S.99): the key row is made again from the table this builds (make.key.row, at the next draw)
    action.list = str(char(0), 31) : str(char(F.INSERT), 224)
    action.list[254,1] = char(0)  ;* Ban field mark
    action.list[255,1] = char(0)  ;* Ban item mark
@@ -5408,18 +5510,26 @@ save.key.bindings:
 * *****************************************************************************
 
 get.key.bindings:
-   s = ''
+   gosub key.table
+   s = kb.s
 
-   for i = 1 to 255
-      n = seq(action.list[i,1])
-      if n and n <= LAST.BINDABLE.ACTION then s<n,-1> = char(i)
-   next i
+   return
 
-   z = dcount(keys, @fm)
-   for i = 1 to z
-      j = key.actions<i,1>
-      if j <= LAST.BINDABLE.ACTION then s<j,-1> = keys<i>
-   next i
+* The keys of every bindable action, as the table in force holds them: kb.s<n> is a value to each key of action n.  1 Nov 26 (S.99): taken out of get.key.bindings, with variables of its own,
+* so that the key row (make.key.row), which is made while the screen is being drawn, can read the table without touching s, i, n, z or j, which the code that drew the screen may be using.
+key.table:
+   kb.s = ''
+
+   for kb.i = 1 to 255
+      kb.n = seq(action.list[kb.i,1])
+      if kb.n and kb.n <= LAST.BINDABLE.ACTION then kb.s<kb.n,-1> = char(kb.i)
+   next kb.i
+
+   kb.z = dcount(keys, @fm)
+   for kb.i = 1 to kb.z
+      kb.j = key.actions<kb.i,1>
+      if kb.j <= LAST.BINDABLE.ACTION then kb.s<kb.j,-1> = keys<kb.i>
+   next kb.i
 
    return
 
@@ -7131,6 +7241,7 @@ run.menu:
    gosub mouse.arm                               ;* the menu takes clicks (the library reads the reports itself)
    call $sl_menu('run', bar.w, scr, '', menu.code)
    gosub mouse.disarm
+   bar.dirty = @true                       ;* 1 Nov 26 (S.99): the library draws the bar again as it knows it; the next update.screen writes the application's name at its right end again
    if syn.on then                          ;* the library puts plain text back from its shadow
       * 1 Nov 26: the screen is CLEARED as well as the image blanked.  Blanking the image alone said the terminal was blank while it still held the old text, so a row that became
       *   empty (Kill line, Undo) equalled the blank image and was never written: the old text stayed on the screen though it was gone from the buffer (found when colour became the default).
@@ -7243,13 +7354,14 @@ add.item:
 fmt.key:
    * ks = the characters of a key binding, ks.out = how to write it down, ks.named = false for an ESC [ or ESC O sequence that
    * has no name here (the raw cursor and function key sequences, which a menu does not show).  28 Oct 26 (D33): the sequences
-   * of Ctrl-PageDown, Ctrl-PageUp and F5 are named.
+   * of Ctrl-PageDown, Ctrl-PageUp and F5 are named.  1 Nov 26 (S.99): and F10, the key add.menu.key gives the bar (the key row says it; no menu item has it).
    ks.out = ''
    ks.named = @true
    begin case
       case ks = char(27) : '[6;5~' ; ks.out = 'Ctrl-PgDn' ; return
       case ks = char(27) : '[5;5~' ; ks.out = 'Ctrl-PgUp' ; return
       case ks = char(27) : '[15~' or ks = char(27) : '[[E' ; ks.out = 'F5' ; return
+      case ks = char(27) : '[21~' ; ks.out = 'F10' ; return
       case ks[1, 2] = char(27) : '[' or ks[1, 2] = char(27) : 'O' ; ks.named = @false ; return
    end case
    for kz = 1 to len(ks)

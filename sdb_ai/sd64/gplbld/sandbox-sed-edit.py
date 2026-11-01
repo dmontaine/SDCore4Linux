@@ -14,6 +14,8 @@
 # 18 Oct 26 dm  SED is 140 by 42 (terminal 140x42, phase 2): the window here is 140 by 42, the split window's lower half starts
 #               a few rows lower (the click on its third row is at y = 24, 1-based).
 # 26 Oct 26 dm  S.82: part "opts" (--only=opts) - SCROLL1 (sheet 463), NO.CASE.EXPLORE (376), SPLIT.UP / SPLIT.DOWN (578) and VIEW (138).
+# 1 Nov 26 dm   S.99: SED is 140 by 43 (the key row): the window here is 140 by 43; the text rows, the file line and the status line are
+#               the rows they were, so no other row changed.
 # END-HISTORY
 #
 # HOW IT DRIVES SED.  On a PSEUDO-TERMINAL (ptydrive.py), as sandbox-sed-menu.py does, and reads the screen from the emulator
@@ -88,7 +90,7 @@ def sess(box, *cmds):
 class Term:
     """One run of a command on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd, cols=140, rows=42):          # SED is 140 by 42 always (18 Oct 26; 120 by 36 before), and refuses a smaller window
+    def __init__(self, box, cmd, cols=140, rows=43):          # SED is 140 by 43 always (S.99, 1 Nov 26; 140 by 42 from 18 Oct, 120 by 36 before), and refuses a smaller window
         self.cols = cols
         self.rows = rows
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm")

@@ -19,6 +19,9 @@
 # 28 Oct 26 dm  D33 (owner, 20 Oct 26): part_keys - Ctrl-W closes the buffer and asks about a change, Save as is the File menu only, Ctrl-PageUp /
 #               Ctrl-PageDown switch buffers (Esc N / Esc P do not), F5 compiles and runs, the EMACS layout keeps its keys; the shortcut rows
 #               of part_sed show the new keys.  WRITTEN, NOT RUN.
+# 1 Nov 26 dm   S.99 (look only; the floor to 140 by 43, owner 1 Nov 26): the windows here are 140 by 43, a 140 by 42 window is refused, and
+#               rows for the key row (row 42: the default layout's keys, in the bar's look), the application's name at the right of row 0,
+#               and a rebound key shown on the row (part_keys' EMACS layout).
 # END-HISTORY
 #
 # HOW IT DRIVES THE PROGRAMS.  On a PSEUDO-TERMINAL (ptydrive.py), as sandbox-ced.py does, and reads the screen from
@@ -101,7 +104,7 @@ def isess(box, *cmds):
 class Term:
     """One run of a command on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd, cols=140, rows=42):
+    def __init__(self, box, cmd, cols=140, rows=43):
         self.cols = cols
         self.rows = rows
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm")
@@ -436,29 +439,48 @@ def part_sed(box, sysd):
     e.end()
     e = Term(box, "SED %s r1" % F, cols=80, rows=24)
     L = e.lines()
-    row("on an 80x24 window SED is refused, in words, and draws no bar and no record (it is 140 by 42 always)",
-        any("SED needs a window of at least 140 columns by 42 lines; this one is 80 by 24" in l for l in L) and "File" not in L[0]
+    row("on an 80x24 window SED is refused, in words, and draws no bar and no record (it is 140 by 43 always)",
+        any("SED needs a window of at least 140 columns by 43 lines; this one is 80 by 24" in l for l in L) and "File" not in L[0]
         and not any(l.startswith("alpha") for l in L), "\n".join(L[:8]))
     e.end()
-    e = Term(box, "SED %s r1" % F, cols=139, rows=42)
+    e = Term(box, "SED %s r1" % F, cols=139, rows=43)
     L = e.lines()
-    row("one column short is refused too: 139 by 42", any("this one is 139 by 42" in l for l in L) and not any(l.startswith("alpha") for l in L), "\n".join(L[:8]))
-    e.end()
-    e = Term(box, "SED %s r1" % F, cols=140, rows=41)
-    L = e.lines()
-    row("and one row short: 140 by 41", any("this one is 140 by 41" in l for l in L) and not any(l.startswith("alpha") for l in L), "\n".join(L[:8]))
-    e.end()
-    e = Term(box, "SED %s r1" % F, cols=160, rows=50)
-    L = e.lines()
-    row("a bigger window is laid out as 140 by 42: the bar is on row 0, the record on row 1, the file line on row 40 and the status line on row 41, and the rest is blank",
-        "File" in L[0] and L[1].startswith("alpha") and F in L[40] and "lines" in L[41] and not any(l.strip() for l in L[42:]) and len(L[0].rstrip()) <= 140,
-        "\n".join(l[:60] for l in L[:4]) + "\n...\n" + "\n".join(l[:60] for l in L[39:44]))
-    e.keys(CTRL("q"))
+    row("one column short is refused too: 139 by 43", any("this one is 139 by 43" in l for l in L) and not any(l.startswith("alpha") for l in L), "\n".join(L[:8]))
     e.end()
     e = Term(box, "SED %s r1" % F, cols=140, rows=42)
     L = e.lines()
-    row("a window of exactly 140 by 42 is what SED is made for: the bar, the record and the two bottom lines", "File" in L[0] and L[1].startswith("alpha")
-        and F in L[40] and "lines" in L[41], "\n".join(l[:60] for l in L[:3]) + "\n...\n" + "\n".join(l[:60] for l in L[39:42]))
+    row("and one row short: 140 by 42, the size SED had until 1 Nov 26 (S.99)", any("this one is 140 by 42" in l for l in L) and not any(l.startswith("alpha") for l in L),
+        "\n".join(L[:8]))
+    e.end()
+    e = Term(box, "SED %s r1" % F, cols=160, rows=50)
+    L = e.lines()
+    row("a bigger window is laid out as 140 by 43: the bar on row 0, the record on row 1, the file line on row 40, the status line on row 41, the key row on row 42, and the rest is blank",
+        "File" in L[0] and L[1].startswith("alpha") and F in L[40] and "lines" in L[41] and "save" in L[42] and not any(l.strip() for l in L[43:])
+        and len(L[0].rstrip()) <= 140 and len(L[42].rstrip()) <= 140,
+        "\n".join(l[:60] for l in L[:4]) + "\n...\n" + "\n".join(l[:60] for l in L[39:45]))
+    e.keys(CTRL("q"))
+    e.end()
+    e = Term(box, "SED %s r1" % F, cols=140, rows=43)
+    L = e.lines()
+    row("a window of exactly 140 by 43 is what SED is made for: the bar, the record and the three bottom lines", "File" in L[0] and L[1].startswith("alpha")
+        and F in L[40] and "lines" in L[41] and "save" in L[42], "\n".join(l[:60] for l in L[:3]) + "\n...\n" + "\n".join(l[:60] for l in L[39:43]))
+    say("\n--- SED: S.99, the key row and the application's name (look only) --------------------------------")
+    kr = L[42]
+    want = ["F10 menu", "^S save", "^Q quit", "^O open", "^F find", "^R replace", "^L go to", "^Z undo", "^Y redo", "F5 run"]
+    row("the key row names the default layout's keys, in order: " + "  ".join(want),
+        all(w in kr for w in want) and [kr.find(w) for w in want] == sorted(kr.find(w) for w in want), repr(kr.rstrip()))
+    row("...and nothing else (no cursor-key sequence, no unnamed key)", re.sub(r"\s+", " ", kr.strip()) == " ".join(want), repr(kr.rstrip()))
+    sk, s0, sl = e.s.screen.style(42, 139), e.s.screen.style(0, 100), e.s.screen.style(20, 100)
+    row("the key row is in the bar's look: its last cell is styled as a blank cell of the menu bar, and not as a blank text row", sk == s0 and sk != sl,
+        "key row %r, bar %r, text %r" % (sk, s0, sl))
+    row("the application's name and the person are at the right end of row 0 (sed  user@account), and the menu titles are still at its left",
+        re.search(r"sed  \S+@\S+$", L[0].rstrip()) is not None and len(L[0].rstrip()) <= 140 and "File" in L[0][:20],
+        repr(L[0].rstrip()[-40:]))
+    L = e.keys(F10, idle=0.8)
+    L = e.keys(ESC, idle=0.8)
+    row("...and it is there again after the menu has been opened and closed (the bar is drawn whole each time)", re.search(r"sed  \S+@\S+$", L[0].rstrip()) is not None,
+        repr(L[0].rstrip()[-40:]))
+    row("...and the key row too", re.sub(r"\s+", " ", L[42].strip()) == " ".join(want), repr(L[42].rstrip()))
     e.keys(CTRL("q"))
     e.end()
 
@@ -564,6 +586,9 @@ def part_keys(box, sysd):
     row("setup: the options record naming EMACS was written", "EMACS DONE" in out, out[-300:])
     try:
         e = Term(box, "SED %s r1" % F)
+        kr = e.lines()[42]
+        row("S.99: the key row shows the EMACS layout's keys, read from the table in force (^X ^S save, ^X ^F open, ^X M run; not ^S, ^O or F5)",
+            "^X ^S save" in kr and "^X ^F open" in kr and "^X M run" in kr and "^S save" not in kr.replace("^X ^S save", "") and "F5 run" not in kr, repr(kr.rstrip()))
         L = e.keys(F10)
         sa = [l for l in L[1:12] if "Save as" in l]
         row("EMACS: File > Save as... still shows Ctrl-X Ctrl-W", len(sa) == 1 and "Ctrl-X Ctrl-W" in sa[0], "\n".join(sa))
