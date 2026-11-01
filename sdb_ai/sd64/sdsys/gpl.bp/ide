@@ -3760,6 +3760,7 @@ do.dform:
    call $dict_form(df.rec, bf.name : ' ' : bf.id, df.new, df.res)
    last.status = char(1)
    gosub redraw
+   screen menubar menus row 0 draw else null              ;* 1 Nov 26: the form drew its own bar on row 0 and the IDE's menu bar is no widget of the form, so redraw leaves the form's bar there
    begin case
       case df.res = 'cannot'
          msg = sysmsg(11950, bf.name : ' ' : bf.id, df.new)
@@ -3782,6 +3783,21 @@ do.dform:
    return
 
 * ======================================================================
+* Where the text of the current tab comes from, for the AI's wall ($tk_aiwall, S.97 stage 0, 1 Nov 26): out ai.org, a buffer that is not yet a record (untitled), an operating system file
+*   (path, its pathname) or a record (its file, its id, 1 for an item of the file's dictionary).  The wall asks where the FILE is and refuses a text of SD's own files.
+ai.origin:
+   if bi<cb> = '' then
+      ai.org = 'untitled'
+   end else
+      if bn<cb> = 'path:' then
+         ai.org = 'path' : @vm : '' : @vm : bi<cb>
+      end else
+         k = 'd' : bu<cb>
+         ai.org = 'record' : @vm : bn<cb> : @vm : bi<cb> : @vm : (if bx{k} # '' then 1 else 0)
+      end
+   end
+   return
+
 * The fields view (30 Oct 26, CED in the IDE, stage 2a).  The engine is gpl.bp/ced_core, the same that CED's own program uses; this is the second host.  In: fz.c (the collection or array),
 * fz.type (0 a collection or a JSON record, 2 a record as $recarr makes it), fz.title.  Out: fz.c (the engine may replace it: a revert, an accepted AI edit), fz.kept (Ctrl-S kept
 * something).  It writes NOTHING: the IDE's own save is the only writer, with its edit gates and its overwrite question.  The keys are the ones CED has always had (Ctrl-S keeps, Ctrl-Q or F12
@@ -3796,6 +3812,8 @@ fields.enter:
    fz.st{'c'} = fz.c
    fz.st{'ftype'} = fz.type
    fz.st{'title'} = fz.title
+   gosub ai.origin
+   fz.st{'origin'} = ai.org                                   ;* 1 Nov 26: where the record in the view comes from, for the AI's wall
    fz.st{'w'} = ew
    fz.st{'h'} = mh + 3
    fz.st{'ai.ok'} = 0                                         ;* the engine's own F2 menu is not used (F2 is the toolkit's): the AI entry and the Tools menu call 'ai.request' and 'ai.explain' (fields.ai)
@@ -4327,7 +4345,8 @@ ai.go:
    page<1, -1> = 'The cursor is on line ' : ai.cy : ' of ' : ai.total : '.'
    if ai.note # '' then page<1, -1> = ai.note
    if ai.first > 1 or ai.last < ai.total then msg = sysmsg(11667, ai.first, ai.last - ai.first + 1)
-   actx = 'IDE' : @fm : 'ide' : @fm : page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : ystat : @fm : ai.win : @fm : ai.first : @fm : ai.sel : @fm : 'nocmd'
+   gosub ai.origin
+   actx = 'IDE' : @fm : 'ide' : @fm : page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : ystat : @fm : ai.win : @fm : ai.first : @fm : ai.sel : @fm : 'nocmd' : @fm : '' : @fm : ai.org
    ai.ctx = ''
    ai.ctx<TK.C.W> = lw
    res = ''

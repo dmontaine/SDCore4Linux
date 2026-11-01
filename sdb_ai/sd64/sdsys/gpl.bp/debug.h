@@ -73,6 +73,7 @@ $define MAX.DATA.AREA.LINES   15
 
                    program.id(INITIAL.PROGRAMS),    ;* Id (compile time)
                    program.name(INITIAL.PROGRAMS),  ;* Program name
+                   program.src(INITIAL.PROGRAMS),   ;* The pathname of the program's source record (1 Nov 26: the AI's wall asks where the source it would send comes from)
                    head(INITIAL.PROGRAMS),
                    lines(INITIAL.PROGRAMS),
                    symbols(INITIAL.PROGRAMS),

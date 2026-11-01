@@ -8777,6 +8777,33 @@ A or S type dictionary item %1 is not compiled: write it as a D-type or an I-typ
 
 cited by: `cd`, `dcomp`, `mkindx`
 
+### msg:11940
+> kind=message tier=reference since=- src=sdsys/messages/11940:1#c06cef8b
+
+```
+This text is part of SD itself, which the AI is never given: nothing was sent
+```
+
+cited by: `tk_ai`
+
+### msg:11941
+> kind=message tier=reference since=- src=sdsys/messages/11941:1#f1ebfa80
+
+```
+SD does not take questions about its own code or build (%1) to the AI: the source is open, so ask an AI outside SD
+```
+
+cited by: `ai`, `tk_ai`
+
+### msg:11942
+> kind=message tier=reference since=- src=sdsys/messages/11942:1#d0f7e91d
+
+```
+SD cannot tell where this text comes from, so it is not sent to the AI
+```
+
+cited by: `tk_ai`
+
 ### msg:11946
 > kind=message tier=reference since=- src=sdsys/messages/11946:1#ce2f5d0f
 

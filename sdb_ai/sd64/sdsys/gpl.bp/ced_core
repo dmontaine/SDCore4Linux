@@ -1105,7 +1105,7 @@ ai.go:
    ai.page<1, -1> = 'The cursor is on the container /' : change(path, @fm, '/') : '.'
    if ai.note # '' then ai.page<1, -1> = ai.note
    if ai.first > 1 or ai.last < ai.total then ai.page<1, -1> = sysmsg(11667, ai.first, ai.last - ai.first + 1)
-   ai.actx = 'CED' : @fm : 'ced' : @fm : ai.page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : msg.row : @fm : ai.wspec<4> : @fm : ai.first : @fm : ai.sel : @fm : 'nocmd'
+   ai.actx = 'CED' : @fm : 'ced' : @fm : ai.page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : msg.row : @fm : ai.wspec<4> : @fm : ai.first : @fm : ai.sel : @fm : 'nocmd' : @fm : '' : @fm : st{'origin'}     ;* <13>: where the record comes from (the host sets it: the IDE's tab, or none for the collection a program holds)
    ai.ctx = ''
    ai.ctx<1> = w                                           ;* TK.C.W
    ai.res = ''

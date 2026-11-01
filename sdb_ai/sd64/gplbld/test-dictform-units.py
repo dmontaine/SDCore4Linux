@@ -117,7 +117,7 @@ def checks(src, others):
     ck("I1 do.dform refuses an empty editor, a tab that is not a dictionary item (11949) and a read-only tab, and keeps the editor's text first",
        ordered(d, "if nbuf = 0 then", "if bx{k} # 'dict' then", "msg = sysmsg(11949)", "gosub ro.check", "if not(ro.ok) then", "gosub stash.current", "df.rec = bx{k}"), "")
     ck("I2 it calls the form once, redraws, says why an item stays text (11950), and for save or text puts the record in the tab as the token form",
-       d.count("call $dict_form(") == 1 and ordered(d, "call $dict_form(df.rec", "gosub redraw", "df.res = 'cannot'", "sysmsg(11950, ", "df.res = 'save' or df.res = 'text'",
+       d.count("call $dict_form(") == 1 and ordered(d, "call $dict_form(df.rec", "gosub redraw", "screen menubar menus row 0 draw", "df.res = 'cannot'", "sysmsg(11950, ", "df.res = 'save' or df.res = 'text'",
                                                     "bx{k} = df.new", "gosub set.token.mode", "gosub load.current"), "")
     ck("I3 only `save` is written, by the IDE's own save, AFTER the text is in the tab; `text` and `cancel` write nothing",
        ordered(d, "gosub load.current", "if df.res = 'save' then", "gosub save.one") and d.count("gosub save.one") == 1 and d.count("save.current") == 0, "")
@@ -189,7 +189,8 @@ MUTANTS = [
     ("ide", "do.dform takes a tab that is not a dictionary item", "   if bx{k} # 'dict' then\n      msg = sysmsg(11949)", "   if 0 then\n      msg = sysmsg(11949)"),
     ("ide", "do.dform changes a read-only tab", "   gosub ro.check                       ;* a read-only tab (another session holds the record, bytes outside ASCII) is not changed", "   ro.ok = 1"),
     ("ide", "do.dform reads the tab before the editor's text is kept", "   gosub stash.current\n   df.u = bu<cb>", "   df.u = bu<cb>"),
-    ("ide", "do.dform does not redraw", "   last.status = char(1)\n   gosub redraw\n   begin case\n      case df.res = 'cannot'", "   last.status = char(1)\n   begin case\n      case df.res = 'cannot'"),
+    ("ide", "do.dform does not redraw", "   last.status = char(1)\n   gosub redraw\n   screen menubar menus row 0 draw else null", "   last.status = char(1)\n   screen menubar menus row 0 draw else null"),
+    ("ide", "do.dform leaves the form's bar on row 0 (the IDE's menu bar is not drawn again)", "   gosub redraw\n   screen menubar menus row 0 draw else null", "   gosub redraw"),
     ("ide", "Edit as text writes the record too", "         if df.res = 'save' then\n            sv.i = cb", "         if df.res = 'save' or df.res = 'text' then\n            sv.i = cb"),
     ("ide", "the command is not a case of run.cmd", "      case cmd = 'dform'\n         gosub do.dform ", "      case cmd = 'dformx'\n         gosub do.dform "),
     ("ide", "/form is left on the sentence", "         sent.in = trimb(sent.in[1, len(trimb(sent.in)) - 5])", "         null"),

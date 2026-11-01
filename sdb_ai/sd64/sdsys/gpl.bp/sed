@@ -6952,7 +6952,13 @@ ai.run:
    ai.page<1, -1> = 'The cursor is on line ' : ai.cy : ' of ' : ai.total : '.'
    if ai.note # '' then ai.page<1, -1> = ai.note
    if ai.first > 1 or ai.last < ai.total then ai.page<1, -1> = sysmsg(11667, ai.first, ai.last - ai.first + 1)
-   ai.actx = 'SED' : @fm : 'sed' : @fm : ai.page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : status.line + 1 : @fm : ai.wspec<4> : @fm : ai.first : @fm : ai.sel : @fm : 'nocmd'
+   * 1 Nov 26: where the text comes from, for the AI's wall ($tk_aiwall): a record of a file (its name, its id, 1 for an item of the file's dictionary) or a buffer that is not yet a record
+   if record.name = '' then
+      ai.org = 'untitled'
+   end else
+      ai.org = 'record' : @vm : file.name : @vm : record.name : @vm : (if dict.flag = 'DICT' then 1 else 0)
+   end
+   ai.actx = 'SED' : @fm : 'sed' : @fm : ai.page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : status.line + 1 : @fm : ai.wspec<4> : @fm : ai.first : @fm : ai.sel : @fm : 'nocmd' : @fm : '' : @fm : ai.org
    ai.ctx = ''
    ai.ctx<1> = screen.width                                 ;* TK.C.W
    ai.res = ''

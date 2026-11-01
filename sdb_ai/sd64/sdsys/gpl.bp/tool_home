@@ -1155,6 +1155,7 @@ ask.ai:
    ctxt := @vm : 'The person is ' : (if is.admin then 'the administrator.' else 'an account holder.')     ;* the lines of the page's text are VALUES (a field mark would move the fields after it)
    actx = 'home' : @fm : 'home' : @fm : ctxt : @fm : acts : @fm : ai.nav
    actx<12> = ai.more                                     ;* the library's default is Reject for a proposal of one of these
+   actx<13> = 'none'                                      ;* 1 Nov 26: the home screen sends no text of any file (the AI's wall asks every app where its text comes from)
    * The Terminal tile turned off for the account means no command prompt through the AI either: the library is told there is nowhere to run a command (<11> 'nocmd') and ignores one
    if terminal.off then actx<11> = 'nocmd'
    call $tk_ai('ask', ctx, actx, res)

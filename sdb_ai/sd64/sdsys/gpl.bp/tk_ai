@@ -13,6 +13,9 @@
 *               and a pin or the Terminal tile is rejected by Enter, whatever else the page offered (it was: any pin or the Terminal tile on the page turned Accept off for all).
 * 29 Oct 26 dm  'select': the first line of a selection is taken to its end whatever its length (it was cut at 99,999 characters; Export the selection in the IDE reads it too).
 * 29 Oct 26 dm  S.88 p3.3a: the 'move' op (a resize keeps the request typed in the home screen's line: place.widget is shared with make.widget).
+* 1 Nov 26 dm   THE WALL (S.97 stage 0; the owner: the AI field never reaches the C and GPL.BP code or any other system information, and no system-development question is taken to it from
+*               inside SD, for every provider): 'ask' first screens the typed request ($tk_aiwall 'request') and then asks where the text comes from (actx<13>, $tk_aiwall 'origin'), and sends
+*               nothing, not even a preview, when the request names SD's own code or build, when the text is of SD's own files, or when its origin cannot be told.  Every app now passes <13>.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -53,6 +56,11 @@
 *   rows below it, never cut) is not offered (11659), so that nobody accepts what they could not read.  The default button is Reject.  res is then <1> 'edit', <2> the edits, as values of  position SM length SM new text
 *   (positions in the text of actx<8>, in the order they appear), <4> what the AI said.  THE LIBRARY CHANGES NOTHING: the app applies an accepted set to its own buffer, through its own
 *   undo, and saves nothing.
+*
+*   <13> THE ORIGIN of any text of a file that the app puts in the request (the text in <8> and <10>, or source or records in the page text <3>): kind VM file VM id VM dictionary flag, the kinds
+*   being none, untitled, record and path ($tk_aiwall describes them).  An app that sends no such text says none.  It is NOT optional: an app that gives a text in <8> or <10> and no origin is
+*   refused, and a text of SD's own files is refused whatever the app says it is, because the wall asks WHERE THE FILE IS.  The refusal is a message in words (11940, 11941, 11942) on res<5>, one audit
+*   line (`ai refused why=... app=...`, never the text), and nothing else: no preview, no provider.
 *
 *   WHAT THE MODEL CAN CAUSE.  It returns text.  The text is read as ONE JSON object: say (shown), action (used only if it is exactly one of the ids the app offered), arg (cleaned) and
 *   command (printable ASCII, 200 characters, shown for the person to run or reject; this routine never runs it).  Anything else is ignored and said so.  The app performs an accepted
@@ -328,6 +336,24 @@ run.ask:
    if req = '' then return
    app = a<1>
    no.cmd = (a<11> = 'nocmd')
+
+   * THE WALL (S.97 stage 0, 1 Nov 26; $tk_aiwall has the rule and its limits).  Before anything is built for the preview and before any provider is addressed, whichever provider it is.
+   *   First the TYPED request: a question about SD's own code or build is not taken to the AI from inside SD (a screen, said to be one).  Then the ORIGIN of the text the app puts in the
+   *   request (actx<13>): a text of SD's own files is never sent, and a text whose origin cannot be told is not sent either.  The audit line says that a request was refused and why, never what it said.
+   call $tk_aiwall('request', req, why)
+   if why # '' then
+      void kernel(K$AUDIT, 'ai refused why=request app=' : downcase(app) : ' name=' : why)
+      b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : sysmsg(11941, why)
+      return
+   end
+   origin = a<13>
+   if origin = '' and (a<8> # '' or a<10> # '') then origin = 'unknown'     ;* an app that sends a text of a file and does not say where it is from
+   call $tk_aiwall('origin', origin, why)
+   if why # '' then
+      void kernel(K$AUDIT, 'ai refused why=origin app=' : downcase(app) : ' kind=' : origin<1, 1> : ' reason=' : why)
+      b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : (if why = 'system' then sysmsg(11940) else sysmsg(11942))
+      return
+   end
    * the text being worked on, as the model will see it: a byte that is not plain ASCII (the line feed excepted) becomes ?, ONE FOR ONE, so a position in it is a position in the original
    tb.raw = a<8>[1, 24000]
    tb.first = a<9> + 0

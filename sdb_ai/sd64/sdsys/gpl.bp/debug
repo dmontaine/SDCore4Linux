@@ -1198,6 +1198,7 @@ found.spare.entry:
    symbols(idx) = field(s, @vm, 2, 9999999)
    equates(idx) = dbg.info(7,0)   ;* Equate and $DEFINE tokens, only in a $MODE DEBUG.EQUATES program (16 Oct 26)
    program.name(idx) = s<1,1>
+   program.src(idx) = source.path                          ;* 1 Nov 26: for the AI's wall (set by allocate.new.program above)
    program.flags(idx) = dbg.info(5,0)
 
    * Load source record to memory chain
@@ -1336,7 +1337,9 @@ ai.run:
       gosub get.source.line
       ai.page<1, -1> = (if ai.q = src.line then '>' else ' ') : fmt(ai.q, '6R') : ' ' : s<1>[1, 120]
    next ai.q
-   ai.actx = 'debugger' : @fm : 'debugger' : @fm : ai.page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : command.line : @fm : '' : @fm : 1 : @fm : '' : @fm : 'nocmd'
+   * 1 Nov 26: the page text above holds the program's source, so its origin is the source record's pathname (the wall refuses the source of a program of SD itself, and a source it cannot place)
+   ai.org = 'path' : @vm : '' : @vm : program.src(src.idx)
+   ai.actx = 'debugger' : @fm : 'debugger' : @fm : ai.page : @fm : '' : @fm : 0 : @fm : ai.req : @fm : command.line : @fm : '' : @fm : 1 : @fm : '' : @fm : 'nocmd' : @fm : '' : @fm : ai.org
    ai.ctx = ''
    ai.ctx<1> = lay.w                                       ;* TK.C.W
    ai.res = ''

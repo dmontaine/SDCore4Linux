@@ -45,6 +45,14 @@ $include err.h
    if len(question) >= 2 and (q1 = '"' or q1 = "'") and question[len(question), 1] = q1 then question = trim(question[2, len(question) - 2])
    if question = '' then stop sysmsg(11623)                                     ;* ai text
 
+*  1 Nov 26 (S.97 stage 0): a question about SD's own code or build is not taken to the AI from inside SD.  The screen of $tk_aiwall, the same one every AI line uses, for every provider
+   call $tk_aiwall('request', question, why)
+   if why # '' then
+      void kernel(K$AUDIT, 'ai refused why=request app=ai name=' : why)
+      @system.return.code = -ER$FAILED
+      stop sysmsg(11941, why)                                                   ;* SD does not take questions about its own code or build (%1) to the AI
+   end
+
 *  A request that an earlier run left in the kernel (a break while it waited) is given up first; the kernel allows one at a time
    void kernel(K$AI.CANCEL, 0)
 

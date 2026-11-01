@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   THE AI IS NEVER GIVEN SD'S OWN CODE OR SYSTEM FILES, AND A QUESTION ABOUT SD'S OWN CODE OR BUILD IS NOT TAKEN TO IT FROM INSIDE SD - FOR EVERY PROVIDER, THE ADMINISTRATOR INCLUDED.
+
+             What        - Before, nothing told the AI routine where a text came from, so an administrator who had one of the system's own program files open in the IDE or SED sent it to the
+                           provider on "Explain the selection". Now every program that puts a record or file in a request says where it comes from, and the routine refuses, before anything is
+                           shown, a text of SD's own files (the system directory, the AI helper's directories, /etc/sd.conf, a directory called gplsrc) or one whose origin it cannot tell; the
+                           headers in syscom are in the system directory and are not sent either. It also refuses a typed request that names the system's code or build (gpl.bp, gplsrc, gplbld,
+                           $internal, a kernel file such as op_sort.c, a kernel key, the compiler's own programs, the makefile, SD's source or kernel code), in the AI line, in the editors and in the
+                           ai verb, with a message in words and one audit line (ai refused why=request or why=origin) that never holds the text.
+             Why         - The owner's rule: the AI field never reaches the C and GPL.BP code or other system information, and since the source is open, help changing SD is asked of an AI outside SD.
+             Does NOT    - Make a provider forget what it learned from the open source: the first refusal is a wall (it decides by where a file is), the second a screen (a question that names none of
+                           those words passes, and a question that reaches an AI may be answered). It does not stop a person typing or pasting system text into a question themselves: they see it in the
+                           preview. Nothing the AI returns is run, and a command's output is never given back to it, as before.
+
 1 Nov 26   THE AI CHOICE PAGE HAS GOOGLE, AND EACH NAMED PROVIDER COMES WITH A DEFAULT MODEL: ONLY THE KEY HAS TO BE SUPPLIED.
 
              What        - tool.ai lists Anthropic, OpenAI, Google and DeepSeek, then Custom. Each of the four comes with its address and a default model (the Model column says (default) beside

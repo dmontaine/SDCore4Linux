@@ -124,6 +124,7 @@ $include sl.h
    st{'w'} = w
    st{'h'} = h
    st{'ai.ok'} = ai.ok
+   st{'origin'} = 'none'                    ;* 1 Nov 26: the collection a calling program holds, not a record of any file: the AI's wall asks of the engine's host where a text comes from
    call $ced_core('init', st, '', out)
    gosub pull
 
