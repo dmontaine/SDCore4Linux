@@ -13,7 +13,7 @@ Next release - in progress
                            result) or the error log, the screen is cleared after Enter, and on and recovery refuse while a COMO file is recording the session. The code typed is
                            never put on a command line. It cannot clear the terminal program's own scroll-back. Available to SDSYS only.
 
-1 Nov 26   SDSYS CAN SIGN IN OVER ssh FROM ANOTHER COMPUTER, WITH AN AUTHENTICATOR CODE AND ITS PASSWORD (LINUX ONLY). IT HAD NO REMOTE ROUTE AT ALL.
+1 Nov 26   SDSYS CAN SIGN IN OVER ssh FROM ANOTHER COMPUTER, WITH AN AUTHENTICATOR CODE AND ITS PASSWORD (SD CORE FOR LINUX ONLY). IT HAD NO REMOTE ROUTE AT ALL.
 
              What        - The administrator can now be reached over ssh, for a server that has no screen or keyboard. The door stays shut until an authenticator code is enrolled
                            (sudo sd-elevate totp-begin, then totp-confirm with the first six digits). After that an ssh sign-in as sdsys asks for the code first and the password second,
