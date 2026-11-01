@@ -434,7 +434,8 @@ def checks(raw, model=None, head=True):
         if "if ta" not in kv or "< 0 then ta" not in kv and "< 0 then ta1" not in kv:
             bad.append("%s: keep.in.view does not keep the scroll inside the list" % n)
     ac = code["tool_accounts"]
-    if not re.search(r"call \$tk_open\('tool\.accounts', 'admin', ctx, err\)\s*\n\s*if err # '' then\s*\n\s*display err\s*\n\s*done = 1\s*\n\s*return\s*\n\s*end\s*\n\s*gen \+= 1\s*\n\s*ctx<TK\.C\.GEN> = gen\s*\n\s*gosub declare\.layout", ac):
+    # 1 Nov 26 (S.97 stage 2): the AI line's 'again' (test-aipage-units AP12i) may stand between the open and the generation
+    if not re.search(r"call \$tk_open\('tool\.accounts', 'admin', ctx, err\)\s*\n\s*if err # '' then\s*\n\s*display err\s*\n\s*done = 1\s*\n\s*return\s*\n\s*end\s*\n(?:\s*call \$tk_aipage\('again', ctx, keys, '', '', aout\)[^\n]*\n)?\s*gen \+= 1\s*\n\s*ctx<TK\.C\.GEN> = gen\s*\n\s*gosub declare\.layout", ac):
         bad.append("tool_accounts: the layout is not declared again after the terminal was handed to a verb")
     ck("L2-6", "each page opens the layout once between $tk_open and its first read; a refused declaration closes the base and stops; the resize key does refresh, rectangles, scroll kept in view, generation, redraw in that order; "
        "tool.accounts declares again after the terminal was handed to a verb", not bad, "; ".join(bad)[:900])

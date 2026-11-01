@@ -35,6 +35,18 @@ FILES = {
     "test": os.path.join(GPL, "tool_test"),
     "query": os.path.join(GPL, "tool_query"),
     "bulk": os.path.join(GPL, "tool_bulk"),
+    "accounts": os.path.join(GPL, "tool_accounts"),
+    "audit": os.path.join(GPL, "tool_audit"),
+    "backups": os.path.join(GPL, "tool_backups"),
+    "config": os.path.join(GPL, "tool_config"),
+    "gates": os.path.join(GPL, "tool_gates"),
+    "masters": os.path.join(GPL, "tool_masters"),
+    "remote": os.path.join(GPL, "tool_remote"),
+    "sessions": os.path.join(GPL, "tool_sessions"),
+    "viewers": os.path.join(GPL, "tool_viewers"),
+    "aipg": os.path.join(GPL, "tool_ai"),
+    "menus": os.path.join(GPL, "tool_menus"),
+    "mymenu": os.path.join(GPL, "mymenu"),
     "m43": os.path.join(SDSYS, "messages", "11943"),
     "m44": os.path.join(SDSYS, "messages", "11944"),
     "fake": os.path.join(HERE, "fakemodel.py"),
@@ -107,22 +119,38 @@ def checks(raw):
     # 1 Nov 26 (S.97 stage 2): every page that has the line, as one table: its id letter, its source, the pane argument it gives the library (a literal in quotes or a variable),
     # what it offers the model, whether it lays itself out BEFORE its key table (then the panes are declared again right after 'init'), and whether it makes its key table anew
     # (tool.bulk: the line's rows are put back by $tk_aipage 'keys' at the end of build.keys).  Only actions that change what is shown are offered.
-    PAGES = (("a", voc, "'VOC'", ["type", "state", "filter", "refresh"], "tool.voc", 0, 0),
-             ("b", fil, "'Files'", ["filter", "refresh"], "tool.files", 0, 0),
-             ("c", strip_bas(raw["catalog"]), "'Programs'", ["filter", "refresh"], "tool.catalog", 0, 0),
-             ("d", strip_bas(raw["mygates"]), "'My gates'", ["refresh"], "tool.mygates", 0, 0),
-             ("e", strip_bas(raw["dict"]), "pnames<pi>", ["indices", "items", "file", "filter", "refresh"], "tool.dict", 0, 0),
-             ("f", strip_bas(raw["test"]), "pn", ["filter", "refresh", "runspane"], "tool.test", 1, 0),
-             ("g", strip_bas(raw["query"]), "cur.pane", ["filter", "reread"], "tool.query", 0, 0),
-             ("h", strip_bas(raw["bulk"]), "panes<pane>", ["switch", "refresh"], "tool.bulk", 1, 1))
-    for letter, pg, nm, opts, name, lay_first, rebuilt in PAGES:
+    # 1 Nov 26 (S.97 stage 2 group B and stage 3): the administrator's pages, tool.menus and my.menu join; the last field is the page's layout routine (declare.layout or
+    # lay.declare; my.menu has none: its one box leaves the line's row free).  The administrator's pages offer navigation only (the owner's default: nothing that changes an
+    # account, a gate, a session, a door, a setting or a backup); my.menu offers nothing at all.
+    PAGES = (("a", voc, "'VOC'", ["type", "state", "filter", "refresh"], "tool.voc", 0, 0, "declare.layout"),
+             ("b", fil, "'Files'", ["filter", "refresh"], "tool.files", 0, 0, "declare.layout"),
+             ("c", strip_bas(raw["catalog"]), "'Programs'", ["filter", "refresh"], "tool.catalog", 0, 0, "declare.layout"),
+             ("d", strip_bas(raw["mygates"]), "'My gates'", ["refresh"], "tool.mygates", 0, 0, "declare.layout"),
+             ("e", strip_bas(raw["dict"]), "pnames<pi>", ["indices", "items", "file", "filter", "refresh"], "tool.dict", 0, 0, "declare.layout"),
+             ("f", strip_bas(raw["test"]), "pn", ["filter", "refresh", "runspane"], "tool.test", 1, 0, "declare.layout"),
+             ("g", strip_bas(raw["query"]), "cur.pane", ["filter", "reread"], "tool.query", 0, 0, "declare.layout"),
+             ("h", strip_bas(raw["bulk"]), "panes<pane>", ["switch", "refresh"], "tool.bulk", 1, 1, "declare.layout"),
+             ("i", strip_bas(raw["accounts"]), "'Accounts'", ["refresh"], "tool.accounts", 1, 0, "declare.layout"),
+             ("j", strip_bas(raw["audit"]), "'Audit'", ["filter", "clear", "goto", "follow", "refresh"], "tool.audit", 1, 0, "declare.layout"),
+             ("k", strip_bas(raw["backups"]), "'Backups'", ["refresh"], "tool.backups", 0, 0, "lay.declare"),
+             ("l", strip_bas(raw["config"]), "panes<view>", ["parameters", "backups", "report", "differ", "refresh"], "tool.config", 0, 0, "lay.declare"),
+             ("m", strip_bas(raw["gates"]), "'Gates'", ["filter", "refresh"], "tool.gates", 1, 0, "declare.layout"),
+             ("n", strip_bas(raw["masters"]), "'Masters'", ["journal", "refresh"], "tool.masters", 1, 0, "declare.layout"),
+             ("o", strip_bas(raw["remote"]), "panes<view>", ["doors", "routes", "servers", "connected", "tls", "refresh"], "tool.remote", 0, 0, "lay.declare"),
+             ("p", strip_bas(raw["sessions"]), "panes<pane>", ["switch", "output", "refresh"], "tool.sessions", 1, 0, "declare.layout"),
+             ("q", strip_bas(raw["viewers"]), "pnames<pane>", ["pane", "output", "refresh"], "tool.viewers", 0, 0, "declare.layout"),
+             ("r", strip_bas(raw["aipg"]), "pnames<pane>", ["pane", "refresh"], "tool.ai", 0, 0, "lay.declare"),
+             ("s", strip_bas(raw["menus"]), "pnames<pane>", ["pane", "refresh"], "tool.menus", 0, 0, "lay.declare"),
+             ("t", strip_bas(raw["mymenu"]), "'My programs'", [], "my.menu", 0, 0, None))
+    for letter, pg, nm, opts, name, lay_first, rebuilt, lay in PAGES:
+        lay_call = "gosub " + (lay or "no.layout.here")
         got = re.findall(r"\$tk_keys\('ai', keys, '([a-z.]+)', '', '', '', ''\)", pg)
         pre = pg.find("$tk_aipage('init'")
         lastmenu = pg.rfind("$tk_keys('menu'")
         o1 = pg.find("call $tk_open(")
         hand = pg.find("call $tk_open(", o1 + 1) if o1 >= 0 else -1                   # the SECOND open of the toolkit: the page took the terminal back from the IDE or a verb
         again = pg.find("$tk_aipage('again'")
-        decl2 = pg.find("gosub declare.layout", hand) if hand >= 0 else -1
+        decl2 = pg.find(lay_call, hand) if hand >= 0 else -1
         init_ok = pg.count("$tk_aipage('init'") == 1 and re.search(r"call \$tk_aipage\('init', ctx, keys, '', '', aout\)", pg) is not None
         if rebuilt:
             bk = pg[pg.find("build.keys:"):]
@@ -131,17 +159,20 @@ def checks(raw):
                      and all("$tk_keys('ai', keys, '%s'" % o in bk for o in opts))
         else:
             where = init_ok and 0 < lastmenu < pre
-        if lay_first:
-            where = where and re.search(r"call \$tk_aipage\('init', ctx, keys, '', '', aout\)[^\n]*\n\s*if aout then gosub declare\.layout", pg) is not None
+        if lay is None:
+            where = where and "gosub declare.layout" not in pg and "gosub lay.declare" not in pg          # no layout: nothing to lay out again (the row is free)
+        elif lay_first:
+            where = where and re.search(r"call \$tk_aipage\('init', ctx, keys, '', '', aout\)[^\n]*\n\s*if aout then " + re.escape(lay_call), pg) is not None
         else:
-            where = where and pre < pg.find("gosub declare.layout")
+            where = where and pre < pg.find(lay_call)
         ck("AP11" + letter, "%s offers the AI exactly %s (never edit, delete, run, apply, save, quit, help, new or the menu), and asks for the line after its key table and before its layout, or lays itself out again after"
            % (name, ", ".join(opts)), len(pg) > 200 and sorted(got) == sorted(opts) and where, repr((got, lastmenu, pre)))
         reopen = (hand < 0 and again < 0) or (0 < hand < again < decl2)
         ck("AP12" + letter, "%s: the hook sees every key BEFORE the menu bar and the bar is not given a key the line used; an accepted proposal is replayed as the page's own key; the status line follows the answer; 'taken' is the first case; F6 and a click on the line reach it; a new context after a hand-over is given its row before its layout" % name,
            ordered(pg, "call $tk_aipage('key', ctx, keys, %s, nm, ao)" % nm, "if ao<1> = 'replay' then nm = ao<2>", "if ao<1> # '' then msg = ao<4>", "if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, %s" % nm,
                     "case ao<1> = 'taken'", "case nm = ''") and re.search(r"(?:case|if) nm = 'f6'(?: then)?\s*\n\s*call \$tk_aipage\('open', ctx, keys, %s, '', ap\)" % re.escape(nm), pg) is not None
-           and ordered(pg, "call $tk_aipage('mouse', ctx, keys, %s, mev, ap)" % nm, "call $tk_help('hit'") and reopen, repr((hand, again, decl2)))
+           and (ordered(pg, "call $tk_aipage('mouse', ctx, keys, %s, mev, ap)" % nm, "call $tk_help('hit'") if "$tk_help('hit'" in pg
+                else "call $tk_aipage('mouse', ctx, keys, %s, mev, ap)" % nm in pg) and reopen, repr((hand, again, decl2)))
     m43 = raw["m43"].rstrip("\n")
     m44 = raw["m44"].rstrip("\n")
     ck("AP13", "messages 11943 (the hint: names F6) and 11944 (the replay refusal: takes the action id) are one line each and under 80 characters",
@@ -192,6 +223,13 @@ MUTANTS = [
     ("tool.dict forgets the row after the hand-over", "AP12e", sub("dict", "   call $tk_aipage('again', ctx, keys, '', '', aout)", "   aout = 0")),
     ("tool.query has no F6", "AP12g", sub("query", "   if nm = 'f6' then\n", "   if nm = 'zz6' then\n")),
     ("tool.mygates' bar sees a key the line used", "AP12d", sub("mygates", "if nm # '' and ao<1> = '' then call $tk_menubar('key'", "if nm # '' then call $tk_menubar('key'")),
+    # 1 Nov 26 (S.97 stage 2 group B, stage 3): the administrator's pages hold to navigation only
+    ("tool.gates offers queue to the AI", "AP11m", sub("gates", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n   call $tk_keys('ai', keys, 'queue', '', '', '', '')\n")),
+    ("tool.sessions offers logout to the AI", "AP11p", sub("sessions", "   call $tk_keys('ai', keys, 'switch', '', '', '', '')\n", "   call $tk_keys('ai', keys, 'switch', '', '', '', '')\n   call $tk_keys('ai', keys, 'logout', '', '', '', '')\n")),
+    ("tool.accounts does not lay out again after the line took a row", "AP11i", sub("accounts", "   call $tk_aipage('init', ctx, keys, '', '', aout)\n   if aout then gosub declare.layout\n", "   call $tk_aipage('init', ctx, keys, '', '', aout)\n")),
+    ("tool.remote forgets the row after the hand-over", "AP12o", sub("remote", "   call $tk_aipage('again', ctx, keys, '', '', aout)", "   aout = 0")),
+    ("my.menu offers an action", "AP11t", sub("mymenu", "   call $tk_aipage('init', ctx, keys, '', '', aout)", "   call $tk_keys('ai', keys, 'remove', '', '', '', '')\n   call $tk_aipage('init', ctx, keys, '', '', aout)")),
+    ("tool.ai's bar sees a key the line used", "AP12r", sub("aipg", "if nm # '' and ao<1> = '' then call $tk_menubar('key'", "if nm # '' then call $tk_menubar('key'")),
     ("the keys op adds the rows without a line", "AP8", sub("page", "         if ctx<TK.C.AIROW> then gosub add.rows", "         gosub add.rows")),
 ]
 

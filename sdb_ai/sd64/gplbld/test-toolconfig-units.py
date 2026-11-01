@@ -407,7 +407,7 @@ MUTANTS = [
     ("a session parameter is counted as a restart", "CF15", sub("page", "            if teff<i> = 'restart' then nrestart += 1", "            nrestart += 1")),
     ("a key is added to the table", "CF16", sub("page", "   call $tk_keys('add', keys, 's', 'set', 'setonly', 'Parameters', 1)\n", "   call $tk_keys('add', keys, 's', 'set', 'setonly', 'Parameters', 1)\n   call $tk_keys('add', keys, 'w', 'write', 'write', '', 1)\n")),
     ("the page reads on a timer", "CF17", sub("page", "      screen key returning nm\n", "      screen key timeout 3 returning nm\n")),
-    ("the help key names a record that does not exist", "CF18", sub("page", "call $tk_help('box', 'tool.config.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'", "call $tk_help('box', 'tool.config.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'")),
+    ("the help key names a record that does not exist", "CF18", sub("page", "call $tk_help('box', 'tool.config.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'", "call $tk_help('box', 'tool.config.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'")),     # 1 Nov 26: F6 (the AI line) is the case after help
     ("the help record names no page", "CF18", sub("help", "07-sd-admin-configuration", "")),
     ("the lines box overruns the detail", "CF19", sub("page", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20 :", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 21 :")),
     ("the page draws a box at a literal place again", "CF19", sub("page", "screen box at lst.x,lst.y size lst.w,lst.h title ttl", "screen box at 1,7 size 138,20 title ttl")),

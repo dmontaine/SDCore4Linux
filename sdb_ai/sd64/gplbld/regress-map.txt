@@ -419,10 +419,10 @@ sdsys/gpl.bp/setstart        : home
 sdsys/gpl.bp/home_off        : home menus
 sdsys/gpl.bp/settile         : menus home2
 sdsys/voc_template/set.tile  : menus
-sdsys/gpl.bp/tool_menus      : menus docs home2 l2-cfg
+sdsys/gpl.bp/tool_menus      : menus docs home2 l2-cfg ai-pages
 sdsys/voc_template/tool.menus : menus
 sdsys/gpl.bp/home_pins       : home menus
-sdsys/gpl.bp/mymenu          : menus
+sdsys/gpl.bp/mymenu          : menus ai-pages
 sdsys/newvoc/my.menu         : menus
 sdsys/voc_template/my.menu   : menus
 # 23 Oct 26 (S.75 plan 14): the shared account's documentation - context help (load.help, helptext/), pdf, the programs allowed to bypass os.execute, docs.install
@@ -431,7 +431,7 @@ sdsys/gpl.bp/pdf             : docs
 sdsys/gpl.bp/viewlist        : docs
 sdsys/gpl.bp/setviewer       : docs
 sdsys/gpl.bp/docsinst        : docs
-sdsys/gpl.bp/tool_viewers    : docs home l2-misc
+sdsys/gpl.bp/tool_viewers    : docs home l2-misc ai-pages
 sdsys/helptext/tool.ai.*     : docs tool-ai
 sdsys/helptext/tool.gates.*  : docs tool-gates tool-mygates
 sdsys/helptext/*             : docs menus
@@ -458,7 +458,7 @@ gplbld/ai-providers          : aigate ai-verb ai-line
 gplbld/sandbox-aigate.py     : @self ai-verb
 gplbld/sandbox-ai-verb.py    : @self
 gplbld/sandbox-tool-ai.py    : @self
-sdsys/gpl.bp/tool_ai         : tool-ai l2-cfg
+sdsys/gpl.bp/tool_ai         : tool-ai l2-cfg ai-pages
 sdsys/voc_template/tool.ai   : tool-ai
 # 24 Oct 26 (S.75 A2): the gate matrix runs the real modify.account against the scratch groups, so a change to the verb selects it
 # S.90 (31 Oct 26): the dictionary item form's engine (stage 1); the IDE face and tool_dict's N will add their suites to these rules
@@ -472,7 +472,7 @@ gplbld/test-dictform-units.py : none
 sdsys/messages/1194[9]       : dictform
 sdsys/messages/11950         : dictform
 gplbld/sandbox-tool-gates.py : @self
-sdsys/gpl.bp/tool_gates      : tool-gates l2-admin
+sdsys/gpl.bp/tool_gates      : tool-gates l2-admin ai-pages
 sdsys/voc_template/tool.gates : tool-gates
 # 24 Oct 26 (S.75 A2, the account holder's half): the same verb in every account's VOC runs the read-only page; it asks the system for the group of the person's login name
 gplbld/sandbox-tool-mygates.py : @self
@@ -480,23 +480,23 @@ sdsys/gpl.bp/tool_mygates    : tool-mygates docs l2-misc ai-pages
 sdsys/newvoc/tool.gates      : tool-mygates docs
 # 24 Oct 26 (S.75 A4): the sessions and locks page runs the real logout, unlock and inhibit.login against live sessions; the programs behind those verbs and the lock listing select it
 gplbld/sandbox-tool-sessions.py : @self
-sdsys/gpl.bp/tool_sessions   : tool-sessions l2-admin
+sdsys/gpl.bp/tool_sessions   : tool-sessions l2-admin ai-pages
 sdsys/voc_template/tool.sessions : tool-sessions
 sdsys/helptext/tool.sessions.* : docs tool-sessions
 # 24 Oct 26 (S.75 A7): the master files page runs the real sync.masters and reads the kernel's master-file operations; the verbs' program and the set-up select it too
 gplbld/sandbox-tool-masters.py : @self
-sdsys/gpl.bp/tool_masters    : tool-masters l2-admin
+sdsys/gpl.bp/tool_masters    : tool-masters l2-admin ai-pages
 sdsys/voc_template/tool.masters : tool-masters
 sdsys/helptext/tool.masters.* : docs tool-masters
 # 25 Oct 26 (S.75 A5): the audit trail page and its reader (a fixture audit file, the lines read back from the disk)
 gplbld/sandbox-tool-audit.py : @self
-sdsys/gpl.bp/tool_audit      : tool-audit l2-admin
+sdsys/gpl.bp/tool_audit      : tool-audit l2-admin ai-pages
 sdsys/gpl.bp/audit_read      : tool-audit
 sdsys/voc_template/tool.audit : tool-audit
 sdsys/helptext/tool.audit.*  : docs tool-audit
 # 25 Oct 26 (S.75 A6): the configuration page and the table of parameters it shows (held to config.c by test-toolconfig-units.py; the suite edits a sandbox's own sd.conf)
 gplbld/sandbox-tool-config.py : @self
-sdsys/gpl.bp/tool_config     : tool-config l2-cfg
+sdsys/gpl.bp/tool_config     : tool-config l2-cfg ai-pages
 sdsys/config.table           : tool-config
 sdsys/voc_template/tool.config : tool-config
 # 26 Oct 26 (S.75 A6, the write half): the verb set.config and its VOC entry; sd-elevate's conf-set is held by test-confset-elevate-units.py and the suite's shim
@@ -508,12 +508,12 @@ gplbld/test-tkfaults-units.py : none
 sdsys/helptext/tool.config.* : docs tool-config
 # 25 Oct 26 (S.75 A8): the backups page runs the real backup, restore and set-directory verbs and reads archives' manifests
 gplbld/sandbox-tool-backups.py : @self
-sdsys/gpl.bp/tool_backups    : tool-backups l2-cfg
+sdsys/gpl.bp/tool_backups    : tool-backups l2-cfg ai-pages
 sdsys/voc_template/tool.backups : tool-backups
 sdsys/helptext/tool.backups.* : docs tool-backups
 # 25 Oct 26 (S.75 A3): the accounts page runs the real modify.account for suspend and reads the register, the groups and the sessions; create and delete are handed the terminal
 gplbld/sandbox-tool-accounts.py : @self
-sdsys/gpl.bp/tool_accounts   : tool-accounts l2-admin
+sdsys/gpl.bp/tool_accounts   : tool-accounts l2-admin ai-pages
 sdsys/voc_template/tool.accounts : tool-accounts
 sdsys/helptext/tool.accounts.* : docs tool-accounts
 # 26 Oct 26 (S.75 DV1): the files page, the first development app (a verb for every account: newvoc and voc_template both have it); it runs the real create.file, clear.file, delete.file, analyse.file, list.index and list.triggers
@@ -563,7 +563,7 @@ sdsys/voc_template/tool.test : tool-test
 sdsys/helptext/tool.test.*   : docs tool-test
 # 25 Oct 26 (S.75 A9): the remote access page runs the real remote.api / remote.ssh reports, delete.server, and reads the servers with !netdefs; set.server and a door's change are the verbs'
 gplbld/sandbox-tool-remote.py : @self
-sdsys/gpl.bp/tool_remote     : tool-remote l2-cfg
+sdsys/gpl.bp/tool_remote     : tool-remote l2-cfg ai-pages
 sdsys/voc_template/tool.remote : tool-remote
 sdsys/helptext/tool.remote.* : docs tool-remote
 gplsrc/op_ai.c               : ai-verb aigate

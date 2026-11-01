@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   THE AI LINE IS ON THE ADMINISTRATOR'S PAGES, TOOL.MENUS AND MY.MENU TOO, SO EVERY PAGE OF THE TOOLKIT BUT TOOL.KEYS HAS IT.
+
+             What        - tool.accounts, tool.audit, tool.backups, tool.config, tool.gates, tool.masters, tool.remote, tool.sessions, tool.viewers, tool.ai and tool.menus have
+                           the line for an administrator who has the AI: F6 or AI > Ask the AI, a preview of everything that will be sent, Cancel the default. The model is offered
+                           only the keys that change what is shown (the views, the filters, the output pane, refresh). On my.menu the line answers questions and is offered no key.
+             Why         - The administrator's pages are where questions about the system come up; until now the administrator had to leave the page to ask.
+             Does NOT    - Offer anything that changes an account, a gate, a session, a door, a setting, a backup or the master files (no create, delete, suspend, queue, logout,
+                           unlock, sync, restore, edit or key), change a page for an administrator without the AI, or reach tool.keys, whose job is to show every key.
+
 1 Nov 26   A VERB TYPED WITH HYPHENS FOR ITS DOTS IS FOUND AGAIN: CLEAR-SELECT RUNS CLEAR.SELECT, CREATE-ACCOUNT RUNS CREATE.ACCOUNT.
 
              What        - When a typed verb is not in the VOC as typed, in lower case or in upper case, the command processor tries it once more with every hyphen changed to a dot

@@ -7,6 +7,7 @@
 * 30 Oct 26 dm  S.88 U4: a menu bar made from the key table ($tk_menubar); the keys are Ctrl-N, Del, U and D in place of F2, F3, F4 and F6 (owner answer 20); no key hint in the first message.
 * 22 Oct 26 dm  New (S.75; the owner: "users need to be able to add their own items to the full screen menu if allowed by the admin - not manage universal tiles, but just
 *               for their own programs").
+* 1 Nov 26 dm  S.97 stage 3: the AI line ($tk_aipage): F6 or AI > Ask the AI; it answers questions and is offered no action (every key of the page changes the list).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -65,6 +66,9 @@ $include tk.h
    call $tk_keys('menu', keys, 'remove', '&Program', '&Remove it', '', '')
    call $tk_keys('menu', keys, 'up', '&Program', 'Move it &up', '', '')
    call $tk_keys('menu', keys, 'down', '&Program', 'Move it &down', '', '')
+   * S.97 stage 3: the AI line.  Every key of this page changes the person's list, so NO action is offered to the AI: the line answers questions only.  The box ends on
+   * row 34, so the line's row (the one above the status line) is free and nothing moves.  Where the AI is not usable nothing here adds a key, a row or a line.
+   call $tk_aipage('init', ctx, keys, '', '', aout)
 
    VIS = 30
    sel = 1
@@ -82,10 +86,20 @@ $include tk.h
       nm = ''
       screen key returning nm
       mr = ''
-      if nm # '' then call $tk_menubar('key', ctx, keys, 'My programs', nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
+      ao = ''
+      if nm # '' then call $tk_aipage('key', ctx, keys, 'My programs', nm, ao)       ;* S.97 stage 3: while the AI line has the focus it takes the keys, before the bar sees them
+      if ao<1> = 'replay' then nm = ao<2>                                            ;* (nothing is offered here, so the library never replays a key)
+      if ao<1> # '' then msg = ao<4>
+      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, 'My programs', nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
       if mr<1> # '' then nm = mr<4>
       if len(nm) = 1 then nm = downcase(nm)                          ;* U and u are one key
       begin case
+         case ao<1> = 'taken'
+            if ao<3> then
+               gen += 1                                                               ;* the preview, the wait and the answer covered the page: all of it is drawn again
+               ctx<TK.C.GEN> = gen
+               gosub draw.all
+            end
          case nm = ''
             if status() = ER$EOF then exit
          case nm = 'guardquit'
@@ -101,6 +115,9 @@ $include tk.h
             if mr<1> # '' then
                nm = mr<4>
                if nm # '' then gosub on.key                   ;* a bar left with nothing chosen has no name: the status message stays
+            end else
+               call $tk_aipage('mouse', ctx, keys, 'My programs', mev, ap)         ;* S.97 stage 3: a click on the AI line gives it the focus
+               if ap # '' then msg = ap
             end
          case 1
             gosub on.key
@@ -181,6 +198,9 @@ on.key:
          if sel < n then
             gosub swap.down
          end
+      case nm = 'f6'
+         call $tk_aipage('open', ctx, keys, 'My programs', '', ap)          ;* S.97 stage 3: the cursor goes to the AI line (nothing happens where the AI is not on)
+         if ap # '' then msg = ap
       case nm = 'ctrl-q'
          done = 1
    end case

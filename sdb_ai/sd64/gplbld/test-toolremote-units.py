@@ -201,7 +201,7 @@ MUTANTS = [
     ("a key is added to the table", "RM12", sub("page", "   call $tk_keys('add', keys, 'n', 'new', 'new', 'Servers', 1)\n", "   call $tk_keys('add', keys, 'n', 'new', 'new', 'Servers', 1)\n   call $tk_keys('add', keys, 'k', 'kill', 'kill', '', 1)\n")),
     ("A acts on every view", "RM12", sub("page", "      case nm = 'a' and view = 1\n", "      case nm = 'a'\n")),
     ("the page reads on a timer", "RM13", sub("page", "      screen key returning nm\n", "      screen key timeout 3 returning nm\n")),
-    ("the help key names a record that does not exist", "RM14", sub("page", "call $tk_help('box', 'tool.remote.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'", "call $tk_help('box', 'tool.remote.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'")),
+    ("the help key names a record that does not exist", "RM14", sub("page", "call $tk_help('box', 'tool.remote.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'", "call $tk_help('box', 'tool.remote.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'")),     # 1 Nov 26: F6 (the AI line) is the case after help
     ("the help record names no page", "RM14", sub("help", "05-remote-access-and-the-machine", "")),
     ("the list box overruns the detail", "RM15", sub("page", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20 :", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 21 :")),
     ("the page draws a box at a literal place again", "RM15", sub("page", "screen box at lst.x,lst.y size lst.w,lst.h title t.list", "screen box at 1,7 size 138,20 title t.list")),

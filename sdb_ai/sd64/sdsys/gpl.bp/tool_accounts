@@ -9,6 +9,8 @@
 * 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): at 140 by 43 exactly the boxes the page has always drawn, in a bigger window the list shows more accounts
 *               (twice the share of the box under it, which shows more of what is known about the account under the cursor) and every box is wider.  The resize key makes the layout again,
 *               and so does the return from a verb that was given the terminal (the new $tk_open has no panes).
+* 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; refresh is the one action offered to the model (an administrator's
+*               page: nothing that changes an account is offered).  An administrator without the AI sees the page as it was.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -75,6 +77,11 @@ $include tk.h
    call $tk_keys('menu', keys, 'delete', '&Account', '&Delete the account', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   * S.97 stage 2 (group B): the AI line.  The page offers the AI only refresh (an administrator's page: create, delete, suspend and the people are not offered without the
+   * owner's word); a proposal is carried out by the page's own key.  This page laid itself out first, so a line that took a row has the panes declared again.
+   call $tk_keys('ai', keys, 'refresh', '', '', '', '')
+   call $tk_aipage('init', ctx, keys, '', '', aout)
+   if aout then gosub declare.layout
 
    ha ='  ' : fmt('Account', '20L') : fmt('Kind', '7L') : fmt('State', '11L') : fmt('Gates that are on', '41L') : fmt('Signed on', '10L') : 'Description'
 
@@ -96,9 +103,19 @@ $include tk.h
       nm = ''
       screen key returning nm
       mr = ''
-      if nm # '' then call $tk_menubar('key', ctx, keys, 'Accounts', nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
+      ao = ''
+      if nm # '' then call $tk_aipage('key', ctx, keys, 'Accounts', nm, ao)          ;* S.97 stage 2: while the AI line has the focus it takes the keys, before the bar sees them
+      if ao<1> = 'replay' then nm = ao<2>                                            ;* an action the AI proposed and the person accepted: this page's own key for it
+      if ao<1> # '' then msg = ao<4>
+      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, 'Accounts', nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
       if mr<1> # '' then nm = mr<4>
       begin case
+         case ao<1> = 'taken'
+            if ao<3> then
+               gen += 1                                                               ;* the preview, the wait and the answer covered the page: all of it is drawn again
+               ctx<TK.C.GEN> = gen
+               gosub draw.all
+            end
          case nm = ''
             if status() = ER$EOF then exit
          case nm = 'guardquit'
@@ -367,6 +384,9 @@ on.key:
       case nm = 'f1' or nm = '?'
          call $tk_help('box', 'tool.accounts.page', hm, 0, 0)
          if hm # '' then msg = hm
+      case nm = 'f6'
+         call $tk_aipage('open', ctx, keys, 'Accounts', '', ap)             ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
+         if ap # '' then msg = ap
       case nm = 'ctrl-q'
          done = 1
    end case
@@ -380,6 +400,11 @@ on.mouse:
    if mr<1> # '' then
       nm = mr<4>
       if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
+      return
+   end
+   call $tk_aipage('mouse', ctx, keys, 'Accounts', mev, ap)                         ;* S.97 stage 2: a click on the AI line gives it the focus
+   if ap # '' then
+      msg = ap
       return
    end
    call $tk_help('hit', mev, top.x + top.w - 5, top.y + 1, hit.m)
@@ -455,6 +480,7 @@ confirm.and.hand.over:
       done = 1
       return
    end
+   call $tk_aipage('again', ctx, keys, '', '', aout)            ;* S.97 stage 2: the new context has no AI line yet; the account may have changed it in the command
    gen += 1
    ctx<TK.C.GEN> = gen
    gosub declare.layout                                         ;* the new $tk_open has no panes

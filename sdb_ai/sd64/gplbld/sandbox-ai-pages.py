@@ -29,6 +29,9 @@
 #   P7a-P7f  (S.97 stage 2, 1 Nov 26) the AI off: tool.catalog, tool.gates (the holder's page), tool.dict, tool.test, tool.query and tool.bulk have no AI row, no F6 and no AI title
 #   P8x1-x3  the AI on, each of those six: the line, F6 and AI in the bar; the preview offers the page's navigation actions and NOT one that does something (compile, help, delete,
 #            run, run, apply); Cancel sends nothing
+#   P9x1-x3  (group B and stage 3) the administrator's eleven pages in an administrator's session with the AI on: the line, F6, AI in the bar; the preview offers the page's
+#            navigation and NOT the one action that changes something (delete, export, restore, edit, queue, syncall, ssh, logout, change, key, change); Cancel sends nothing.
+#            my.menu is not here (it needs pins-on); test-aipage-units AP11t/AP12t hold its wiring as text
 # NOT HELD: the IDE hand-over (E on an entry) and the line after it, a window other than 140 by 43, Esc during the wait, a command from the model (none is run: nocmd), a destructive action.
 import importlib.util
 import os
@@ -57,7 +60,9 @@ ACCT = al.ACCT
 FAILED_IDS = []
 SCREEN = [None]
 PROGS = ("tk_ai", "tk_aipage", "tk_frame", "tk_keys", "tk_layout", "tool_voc", "tool_files",
-         "tool_catalog", "tool_mygates", "tool_dict", "tool_test", "tool_query", "tool_bulk")     # 1 Nov 26: the pages of S.97 stage 2
+         "tool_catalog", "tool_mygates", "tool_dict", "tool_test", "tool_query", "tool_bulk",     # 1 Nov 26: the pages of S.97 stage 2
+         "tool_accounts", "tool_audit", "tool_backups", "tool_config", "tool_gates", "tool_masters", "tool_remote", "tool_sessions", "tool_viewers", "tool_ai",
+         "tool_menus", "mymenu")                                                                  # group B and stage 3
 
 # 1 Nov 26 (S.97 stage 2): the pages that got the line in stage 2, each with the ids it offers the model and one id it has and must NOT offer (an action that does
 # something).  Sections P7 (the AI off) and P8 (the AI on, the preview and Cancel) run each of them.
@@ -305,6 +310,50 @@ def sec_more_on():
         h.end()
 
 
+ADMIN_MORE = (("tool.accounts", ["refresh"], "delete"),
+              ("tool.audit", ["filter", "clear", "goto", "follow", "refresh"], "export"),
+              ("tool.backups", ["refresh"], "restore"),
+              ("tool.config", ["parameters", "refresh"], "edit"),
+              ("tool.gates", ["filter", "refresh"], "queue"),
+              ("tool.masters", ["journal", "refresh"], "syncall"),
+              ("tool.remote", ["doors", "routes", "refresh"], "ssh"),
+              ("tool.sessions", ["switch", "output", "refresh"], "logout"),
+              ("tool.viewers", ["pane", "output", "refresh"], "change"),
+              ("tool.ai", ["pane", "refresh"], "key"),
+              ("tool.menus", ["pane", "refresh"], "change"))
+
+
+def sec_admin_pages():
+    """P9 (S.97 stage 2 group B and stage 3, 1 Nov 26): the administrator's pages, in an administrator's session with the AI on - the line, F6 and the AI title; the preview offers
+    the page's navigation and NOT the one action of each that changes something (the owner's default: nothing that changes an account, a gate, a session, a door, a setting or a
+    backup); Cancel sends nothing.  The pages with the AI off are their own suites' business (they run without it and pin the layout)."""
+    say("\n--- P9: the administrator's pages, the AI on: the line, the key, the menu, the preview and Cancel")
+    fm = al.STATE["fm"]
+    sh.set_default("terminal")
+    for i, (verb, offers, notoff) in enumerate(ADMIN_MORE):
+        L = "abcdefghijk"[i]
+        h = H(None, admin=True)
+        SCREEN[0] = h
+        h.typed(verb + "\r", idle=3.5)
+        # (tool.ai's key row was full before the line came - it is cut at "F5 r" - so F6 cannot show there; a FULL row is accepted, said in the row's name)
+        kr = h.line(42).rstrip()
+        arow("P9" + L + "1", "%s (administrator, AI on): the AI row on row 39, AI in the menu bar, and F6 ask ai on the key row (or the row is full to the edge)" % verb,
+             h.line(39).lstrip().startswith("AI>") and ("F6 ask ai" in kr or len(kr) >= 138) and re.search(r"\bAI\s+Help", h.line(0)) is not None,
+             repr((h.line(0)[:80], h.line(39)[:50], kr[:110], len(kr))))
+        n0 = len(fm.log)
+        ask(h, "what can I do here [[act_refresh]]")
+        T = h.text()
+        flat = re.sub(r"[\s|]+", "", T)           # the preview is a box: a sentence wraps across its rows, between borders, and a long line is cut inside a word
+        arow("P9" + L + "2", "%s: the preview offers %s and NOT %s, says the person is the administrator, and nothing has been sent" % (verb, ", ".join(offers), notoff),
+             all(("  %s:" % o) in T for o in offers) and ("  %s:" % notoff) not in T and "  ai:" not in T and ("thepage%softheSDdatabasesystem" % verb) in flat
+             and "Thepersonistheadministrator." in flat and len(fm.log) == n0, T[-900:])
+        h.key("enter", idle=1.5)
+        arow("P9" + L + "3", "%s: Enter on the default button is Cancel: nothing was sent and the page is drawn again" % verb,
+             len(fm.log) == n0 and msg(11630) in h.line(40) and "File" in h.line(0), repr((len(fm.log) - n0, h.line(40)[:80])))
+        h.key("ctrl-q", idle=1.5)
+        h.end()
+
+
 def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
     if mutant is not None and mutant not in MUTANTS:
@@ -322,6 +371,7 @@ def main():
             sec_send()
             sec_files()
             sec_more_on()
+            sec_admin_pages()
         elif mutant == "offers-all":
             sec_on()
             sec_preview()

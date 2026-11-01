@@ -15,6 +15,7 @@
 *               buttons are counted from the pane rectangles. The layout is declared again after the terminal was given to SET.AI KEY and the screen taken again.
 * 23 Oct 26 dm  New.
 * 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the other [-], as the IDE does.
+* 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the box switch and refresh are offered, none of the settings.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -92,6 +93,11 @@ $include tk.h
    call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
+   * S.97 stage 2 (group B): the AI line.  The page offers the AI only the box switch and refresh (the provider, the model, the key, the limits and an account's AI are NOT
+   * offered: they are the administrator's settings); a proposal is carried out by the page's own key.  Where the AI is not usable nothing here adds a key, a row or a line.
+   call $tk_keys('ai', keys, 'pane', '', '', '', '')
+   call $tk_keys('ai', keys, 'refresh', '', '', '', '')
+   call $tk_aipage('init', ctx, keys, '', '', aout)
 
    provs = 'anthropic' : @fm : 'openai' : @fm : 'google' : @fm : 'deepseek' : @fm : 'custom'
    nprov = dcount(provs, @fm)                                  ;* the rows of the Provider box; the last is Custom
@@ -117,9 +123,19 @@ $include tk.h
       nm = ''
       screen key returning nm
       mr = ''
-      if nm # '' then call $tk_menubar('key', ctx, keys, pnames<pane>, nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
+      ao = ''
+      if nm # '' then call $tk_aipage('key', ctx, keys, pnames<pane>, nm, ao)        ;* S.97 stage 2: while the AI line has the focus it takes the keys, before the bar sees them
+      if ao<1> = 'replay' then nm = ao<2>                                            ;* an action the AI proposed and the person accepted: this page's own key for it
+      if ao<1> # '' then msg = ao<4>
+      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, pnames<pane>, nm, 0, mr)       ;* F10, Alt and a letter, and Esc (nothing of this page's is open): the bar
       if mr<1> # '' then nm = mr<4>
       begin case
+         case ao<1> = 'taken'
+            if ao<3> then
+               gen += 1                                                               ;* the preview, the wait and the answer covered the page: all of it is drawn again
+               ctx<TK.C.GEN> = gen
+               gosub draw.all
+            end
          case nm = ''
             if status() = ER$EOF then exit
          case nm = 'guardquit'
@@ -481,6 +497,9 @@ on.key:
          gosub read.all
          gosub draw.all
          msg = 'read the machine again'
+      case nm = 'f6'
+         call $tk_aipage('open', ctx, keys, pnames<pane>, '', ap)           ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
+         if ap # '' then msg = ap
       case nm = 'ctrl-q'
          done = 1
       case nm = 'm' or nm = 'k' or nm = 'x' or nm = 'c' or nm = 'd' or nm = 'a' or nm = 'l'
@@ -526,6 +545,11 @@ on.mouse:
    if mr<1> # '' then
       nm = mr<4>
       if nm # '' then gosub on.key                          ;* a bar left with nothing chosen has no name: the status message stays
+      return
+   end
+   call $tk_aipage('mouse', ctx, keys, pnames<pane>, mev, ap)                       ;* S.97 stage 2: a click on the AI line gives it the focus
+   if ap # '' then
+      msg = ap
       return
    end
    call $tk_help('hit', mev, mk.px, mk.py, hit.prov)
@@ -721,6 +745,7 @@ reopen:
       done = 1
       return
    end
+   call $tk_aipage('again', ctx, keys, '', '', aout)            ;* S.97 stage 2: the new context has no AI line yet; the settings may have changed in the command
    gosub lay.declare                                           ;* the new context holds no panes; the window may be another size
    gen += 1
    ctx<TK.C.GEN> = gen

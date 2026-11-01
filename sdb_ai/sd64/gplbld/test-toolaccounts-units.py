@@ -135,7 +135,7 @@ def checks(raw):
        "ld<1> = 'counts' : @vm : 1 : @vm : 1 : @vm : 6 : @vm : 138" in dc and "ld<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20 : @vm : 138" in dc and "ld<3> = 'detail' : @vm : 3 : @vm : 1 : @vm : 13 : @vm : 138" in dc
        and "call $tk_layout('declare', ctx, ld, perr)" in dc and "VA = lst.h - 3" in gr and "DR = det.h - 2" in gr
        and "screen box at top.x,top.y size top.w,top.h" in dl and "screen box at lst.x,lst.y size lst.w,lst.h" in dl and "screen box at det.x,det.y size det.w,det.h" in dl
-       and "attr 'bold' width ttw - 6" in block(pg, "draw.top") and re.search(r"call \$tk_open\('tool\.accounts', 'admin', ctx, err\)\s*\n\s*if err # '' then\s*\n\s*display err\s*\n\s*done = 1\s*\n\s*return\s*\n\s*end\s*\n\s*gen \+= 1\s*\n\s*ctx<TK\.C\.GEN> = gen\s*\n\s*gosub declare\.layout", pg) is not None
+       and "attr 'bold' width ttw - 6" in block(pg, "draw.top") and re.search(r"call \$tk_open\('tool\.accounts', 'admin', ctx, err\)\s*\n\s*if err # '' then\s*\n\s*display err\s*\n\s*done = 1\s*\n\s*return\s*\n\s*end\s*\n(?:\s*call \$tk_aipage\('again', ctx, keys, '', '', aout\)[^\n]*\n)?\s*gen \+= 1\s*\n\s*ctx<TK\.C\.GEN> = gen\s*\n\s*gosub declare\.layout", pg) is not None     # 1 Nov 26: the AI line's 'again' may stand between
        and "at lst.x + 2,lst.y + 1 attr 'header'" in dsl and "at lst.x + 2,lst.y + 1 + r attr rat" in dsl and "for r = 1 to DR" in dd2 and "at det.x + 2,det.y + r width dtw" in dd2, "")
     return rows
 
@@ -185,11 +185,11 @@ MUTANTS = [
     ("X needs no typed name", "AC9", sub("page", "   typed = anm<ci>\n", "   typed = ''\n")),
     ("X asks about remove.home for every kind", "AC9", sub("page", "   if akind<ci> = 'USER' then\n      screen ask \"Also remove", "   if 1 then\n      screen ask \"Also remove")),
     ("X skips the name test", "AC9", sub("page", "   word = anm<ci>\n   gosub plain.word\n   if not(plain) then\n      msg = 'this account name has characters this page will not put in a command; use delete.account at the prompt'\n      return\n   end\n", "")),
-    ("the page does not take the screen back", "AC10", sub("page", "   call $tk_open('tool.accounts', 'admin', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n   gen += 1", "   gen += 1")),
+    ("the page does not take the screen back", "AC10", sub("page", "   call $tk_open('tool.accounts', 'admin', ctx, err)\n   if err # '' then\n      display err\n      done = 1\n      return\n   end\n   call $tk_aipage('again'", "   call $tk_aipage('again'")),     # 1 Nov 26: the AI line's again follows the open
     ("the page does not read after a hand-over", "AC10", sub("page", "   gosub declare.layout                                         ;* the new $tk_open has no panes\n   gosub read.all\n   gosub draw.all\n   msg = 'back from '", "   gosub declare.layout                                         ;* the new $tk_open has no panes\n   gosub draw.all\n   msg = 'back from '")),
     ("a key is added to the table", "AC11", sub("page", "   call $tk_keys('add', keys, 'x', 'delete', 'delete', '', 1)\n", "   call $tk_keys('add', keys, 'x', 'delete', 'delete', '', 1)\n   call $tk_keys('add', keys, 'k', 'kill', 'kill', '', 1)\n")),
     ("the page reads on a timer", "AC12", sub("page", "      screen key returning nm\n", "      screen key timeout 3 returning nm\n")),
-    ("the help key names a record that does not exist", "AC13", sub("page", "call $tk_help('box', 'tool.accounts.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'", "call $tk_help('box', 'tool.accounts.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'")),
+    ("the help key names a record that does not exist", "AC13", sub("page", "call $tk_help('box', 'tool.accounts.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'", "call $tk_help('box', 'tool.accounts.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'")),     # 1 Nov 26: F6 (the AI line) is the case after help
     ("the help record names no page", "AC13", sub("help", "01-accounts-and-security", "")),
     ("the list box overruns the detail", "AC14", sub("page", "ld<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20", "ld<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 21")),
     ("the layout is not declared again after a verb had the terminal", "AC14", sub("page", "   gosub declare.layout                                         ;* the new $tk_open has no panes\n   gosub read.all", "   gosub read.all")),

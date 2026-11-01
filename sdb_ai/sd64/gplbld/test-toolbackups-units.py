@@ -190,7 +190,7 @@ MUTANTS = [
     ("the archives come oldest first", "TB10", sub("page", "locate st in stamps<1> by 'DL' setting p else null", "locate st in stamps<1> by 'AL' setting p else null")),
     ("a key is added to the table", "TB11", sub("page", "   call $tk_keys('add', keys, 'd', 'directory', 'directory', '', 1)\n", "   call $tk_keys('add', keys, 'd', 'directory', 'directory', '', 1)\n   call $tk_keys('add', keys, 'k', 'kill', 'kill', '', 1)\n")),
     ("the page reads on a timer", "TB12", sub("page", "      screen key returning nm\n", "      screen key timeout 3 returning nm\n")),
-    ("the help key names a record that does not exist", "TB13", sub("page", "call $tk_help('box', 'tool.backups.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'", "call $tk_help('box', 'tool.backups.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'ctrl-q'")),
+    ("the help key names a record that does not exist", "TB13", sub("page", "call $tk_help('box', 'tool.backups.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'", "call $tk_help('box', 'tool.backups.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'")),     # 1 Nov 26: F6 (the AI line) is the case after help
     ("the help record names no page", "TB13", sub("help", "01a-account-maintenance", "")),
     ("the archives box overruns the manifest", "TB14", sub("page", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 20 :", "d<2> = 'list' : @vm : 2 : @vm : 1 : @vm : 21 :")),
     ("the page draws a box at a literal place again", "TB14", sub("page", "screen box at lst.x,lst.y size lst.w,lst.h title 'Archives'", "screen box at 1,7 size 138,20 title 'Archives'")),
