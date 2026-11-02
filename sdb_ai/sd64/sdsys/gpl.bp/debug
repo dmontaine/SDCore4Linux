@@ -18,6 +18,12 @@
 * 
 * 
 * START-HISTORY:
+* 1 Nov 26 dm  S.98 H2 (the IDE hands its breakpoints over): when the IDE armed the named common /idebrk/ (idebrk.h) for this run and the first program stopped in is the one it compiled (the same source
+*               path: the directory exactly, the record id in either case), the debugger clears its breakpoints (both lists: the kernel's, which holds 20 and was never emptied between runs of one session, and its
+*               own text), sets the lines the editor marked that begin a statement (the kernel says so: BREAKPOINT 7 leaves STATUS() 1 or 0), and with ibk.go runs on to the first of them without showing anything
+*               (the same silent run-on as a WATCH whose condition is not met); a line already stopped on stays.  The lines that have a breakpoint go back to the IDE (ibk.out) after every command, when the
+*               program is aborted or stopped and before the silent run-on; it does nothing for a phantom or when the paths differ.  The alternate screen is recorded in ibk.alt so that the IDE can give it
+*               back if this program dies.  The tables of programs are made bigger together (program.name, program.src, lines and program.flags were not).
 * 1 Nov 26 dm  S.98 H1 (the debugger in the IDE's style): the full-screen display is laid out for 140 by 43 and has the toolkit's frame - the bar with the app name and the audience at the right of
 *               row 0, the source with a gutter (a mark for a breakpoint or the line about to run, the line number) and the syntax colour of SD BASIC, an Autos pane at the right (the variables
 *               the line about to run uses, then the line last stopped at, the watched variable and the locals, one to a row, never empty while the program has a variable), the messages
@@ -64,6 +70,7 @@ $flags debugger
 $include keys.h
 $include keyin.h
 $include debug.h
+$include idebrk.h
 $include syscom.h
 
 $include int$keys.h
@@ -100,6 +107,7 @@ $define GUTTER.W               2       ;* the source's gutter: a mark (* a break
    if alt.screen and not(alt.on) then
       display terminfo('smcup') : @(-1) :
       alt.on = @true
+      ibk.alt = 1                              ;* S.98 H2: the IDE gives the main screen back if this program dies before it does
    end
 
    * Find program details
@@ -112,6 +120,16 @@ $define GUTTER.W               2       ;* the source's gutter: a mark (* a break
 
 found.program:
    case.sensitive = bitand(program.flags(idx), HDR.CASE.SENSITIVE)
+
+   * S.98 H2: the breakpoints the IDE handed over (idebrk.h), at the first stop of the run it armed.  Before the theme and the layout; nothing in it can stop the program (every value is tested before it is
+   * used: a fault here would leave the terminal on the alternate screen, which ibk.alt lets the IDE repair only after the fact)
+   ib.msgs = ''
+   ib.run = @false
+   gosub ibk.armed                              ;* ib.on: this run was armed by the IDE and this is the debugger of a session with a terminal
+   if ib.on then
+      gosub ibk.apply
+      if ib.run then goto exit.debug            ;* the run goes on to the first breakpoint without showing anything, as a WATCH whose condition is not met does
+   end
 
    if full.screen then gosub theme.in          ;* the library's styles for what follows (given back at exit.debug)
    if alt.screen then                          ;* a fresh alternate screen: the frame is drawn and the messages of the last stop are shown again
@@ -139,6 +157,7 @@ found.program:
    auto.here = idx : ':' : line
    gosub display.source
    if full.screen then gosub refresh.panes
+   gosub ibk.say                               ;* S.98 H2: what the hand-over did (null when it was not asked for)
 
    if bitand(event, DE$WATCH) then
       message = sysmsg(6700, watch.var.name) ;* Watched variable %1 has changed
@@ -561,6 +580,7 @@ error:
             end case
          end
       end
+      gosub ibk.sync                                            ;* S.98 H2: the lines that have a breakpoint now go back to the IDE (a command may have set or cleared one)
       if full.screen and not(done) then gosub refresh.panes     ;* what the command changed: the Autos pane's values, the breakpoint count
    until done
    repeat
@@ -616,6 +636,7 @@ leave.alt:
    if alt.on then
       display terminfo('rmcup') :
       alt.on = @false
+      ibk.alt = 0
    end
    return
 
@@ -1074,6 +1095,7 @@ initialise:
       if not(phantom) then
          display terminfo('smcup') :             ;* the alternate screen, before anything is drawn
          alt.on = @true
+         ibk.alt = 1                             ;* S.98 H2 (see the entry)
       end
       display @(-1) :
       gosub paint.layout
@@ -1408,6 +1430,10 @@ found.source.record:
       dim head(new.table.size)
       dim symbols(new.table.size)
       dim equates(new.table.size)
+      dim program.name(new.table.size)         ;* 1 Nov 26 (S.98 H2): these four were left at INITIAL.PROGRAMS, and an IDE session that debugs a program many times (each F7 compiles a new object) filled the table
+      dim program.src(new.table.size)
+      dim lines(new.table.size)
+      dim program.flags(new.table.size)
 
       for idx = last.program to new.table.size
          program.id(idx) = 0
@@ -1644,6 +1670,7 @@ view:
 * ABORT.DEBUG:
 
 abort.debug:
+   gosub ibk.sync                       ;* S.98 H2: these two end the program and never reach the loop's end
    if full.screen then gosub theme.out
    gosub leave.alt
    gosub dbg.stop(6716) ;* ABORT : Debugging terminated
@@ -1653,6 +1680,7 @@ abort.debug:
 * STOP.DEBUG:
 
 stop.debug:
+   gosub ibk.sync
    if full.screen then gosub theme.out
    gosub leave.alt
    gosub dbg.stop(6715) ;* STOP : Debugging terminated
@@ -2328,6 +2356,157 @@ check.debugable:
          ok = @true
    end case
 
+   return
+
+* ======================================================================
+* THE IDE'S BREAKPOINTS  (S.98 H2, idebrk.h)
+*
+* The IDE arms the named common /idebrk/ before it runs "debug file record" (F7): the pathname of the source record it compiled (ibk.path), the lines the person marked (ibk.in) and whether to
+* run on to the first of them (ibk.go).  At the FIRST stop of that run this program checks that the program it stopped in is the one named, clears both lists of breakpoints, sets the lines the
+* kernel says begin a statement and, with ibk.go, runs on without showing anything.  It writes the lines that have a breakpoint back to ibk.out as the person works and when the program is aborted
+* or stopped; when it dies on the way the IDE finds ibk.mode still LIVE and takes what was last written.  Nothing is opened, run or sent anywhere with any of it: the values are compared and counted.
+* Every value is tested before it is used (the first of this runs after the alternate screen was entered, and nothing may stop the program there).
+
+* Out: ib.on, true when the IDE armed this run and the debugger is the one of a session with a terminal (a phantom is never handed anything)
+ibk.armed:
+   ib.on = @false
+   if not(phantom) then
+      if ibk.mode matches '1N' then
+         if ibk.mode = IBK.K.ARMED then ib.on = @true
+      end
+   end
+   return
+
+* In: ib.pa, ib.pb (two source pathnames: a directory, the separator, the record id).  Out: ib.eq, true when the directories are the same text and the record ids are the same in either case.
+* The directory is compared as it is (a file of another directory is another program whatever its name); the id folds, as the compiler is given it as typed and the file may fold names.
+ibk.same:
+   ib.eq = @false
+   ib.pa := ''
+   ib.pb := ''
+   ib.ca = count(ib.pa, @ds)
+   ib.cb = count(ib.pb, @ds)
+   if ib.ca > 0 and ib.ca = ib.cb then
+      if (field(ib.pa, @ds, 1, ib.ca) : '|') = (field(ib.pb, @ds, 1, ib.cb) : '|') then
+         ib.eq = ((downcase(field(ib.pa, @ds, ib.ca + 1)) : '|') = (downcase(field(ib.pb, @ds, ib.cb + 1)) : '|'))
+      end
+   end
+   return
+
+* The hand-over at the first stop.  In: idx, line, event (this program's arguments).  Out: ib.run, true when the program is to go on to its first breakpoint; ib.msgs, what to say if it is not.
+ibk.apply:
+   ibk.mode = IBK.K.LIVE                         ;* taken: a later stop of this run does not apply it again
+   ibk.out = ''
+   ibk.bad = ''
+   ib.pa = program.src(idx)
+   ib.pb = ibk.path
+   gosub ibk.same
+   if not(ib.eq) then
+      * not the program the editor compiled: nothing is touched, so that a session that debugs another program (or a program that runs a debugger of its own) keeps what it has
+      ibk.mode = IBK.K.IDLE
+      ib.msgs<-1> = sysmsg(11717, convert(banned, replacements, ib.pa), convert(banned, replacements, ib.pb))
+      return
+   end
+   gosub dbg.breakpoint(BRK$CLEAR, 0)            ;* the kernel's list holds 20 and was never emptied between the runs of one session; the text of this program is the other list
+   breakpoints = ''
+   ib.in = ibk.in : ''
+   ib.cnt = dcount(ib.in, @fm)
+   if ib.in = '' then ib.cnt = 0
+   ib.good = ''
+   ib.badl = ''
+   for ib.i = 1 to ib.cnt
+      ib.n = trim(ib.in<ib.i>)
+      if ib.n matches '1N0N' then               ;* the same test the BRK command makes: a whole number, from 1 to the last line of the source
+         ib.n += 0
+         ib.set = @false
+         begin case
+            case ib.n < 1 or ib.n > lines(idx)
+            case dcount(ib.good, @fm) >= MAX.BREAKPOINTS
+            case 1
+               locate ib.n in ib.good<1> setting ib.at then
+                  ib.set = @true                ;* a line given twice
+               end else
+                  n = ib.n
+                  src.idx = idx
+                  gosub check.debugable         ;* the BRK command's own test of a line
+                  if ok then
+                     gosub dbg.breakpoint(BRK$ADD.LINE, ib.n)
+                     if status() then           ;* the kernel found a statement that begins on that line; if not the breakpoint could never be reached
+                        ib.good<-1> = ib.n
+                        breakpoints<-1> = idx : '.' : ib.n
+                        ib.set = @true
+                     end else
+                        gosub dbg.breakpoint(BRK$CLR.LINE, ib.n)
+                     end
+                  end
+               end
+         end case
+         if not(ib.set) then ib.badl<-1> = ib.n
+      end
+   next ib.i
+   ibk.bad = ib.badl
+   ib.nset = dcount(ib.good, @fm)
+   if ib.good = '' then ib.nset = 0
+   gosub ibk.sync
+   if ibk.go matches '1N' then
+      if ibk.go # 0 and ib.nset > 0 and bitand(event, 3) = 0 then
+         * a line the program is stopped on stays: the kernel looks at the DEBUG opcodes still to come, and a run on from here would never see it
+         locate line in ib.good<1> setting ib.at else
+            gosub dbg.breakpoint(BRK$RUN, 0)
+            ib.run = @true
+         end
+      end
+   end
+   if not(ib.run) then
+      if ib.nset > 0 then ib.msgs<-1> = sysmsg(11715, ib.nset)
+      if ib.badl # '' then ib.msgs<-1> = sysmsg(11716, change(ib.badl, @fm, ' '))
+   end
+   return
+
+* The lines that have a breakpoint now, ascending, in ibk.out: from the text list, and only those of the program the IDE named
+ibk.sync:
+   if ibk.mode matches '1N' then
+      if ibk.mode = IBK.K.LIVE then
+         ib.o = ''
+         for ib.i = 1 to dcount(breakpoints, @fm)
+            ib.b = breakpoints<ib.i>
+            if ib.b matches '1N0N"."1N0N' then
+               ib.x = field(ib.b, '.', 1) + 0
+               ib.l = field(ib.b, '.', 2) + 0
+               if ib.x >= 0 and ib.x <= last.program then
+                  ib.pa = program.src(ib.x)
+                  ib.pb = ibk.path
+                  gosub ibk.same
+                  if ib.eq then
+                     ib.at = 0
+                     for ib.j = 1 to dcount(ib.o, @fm)
+                        if ib.o<ib.j> + 0 >= ib.l then
+                           ib.at = ib.j
+                           exit
+                        end
+                     next ib.j
+                     begin case
+                        case ib.at = 0
+                           ib.o<-1> = ib.l
+                        case ib.o<ib.at> + 0 = ib.l
+                        case 1
+                           ins ib.l before ib.o<ib.at>
+                     end case
+                  end
+               end
+            end
+         next ib.i
+         ibk.out = ib.o
+      end
+   end
+   return
+
+* What the hand-over did, said in the messages area once the source is shown
+ibk.say:
+   for ib.i = 1 to dcount(ib.msgs, @fm)
+      message = ib.msgs<ib.i>
+      gosub emit.msg
+   next ib.i
+   ib.msgs = ''
    return
 
 * ======================================================================

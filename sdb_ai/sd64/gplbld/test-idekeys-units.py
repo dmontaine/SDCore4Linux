@@ -46,7 +46,7 @@ for _n in (11204, 11207, 11214, 11215, 11216, 11225, 11226, 11227, 11228, 11683)
 
 # the key map, as the owner settled it: key name -> command word
 KEYMAP = {
-    "f1": "help", "ctrl-s": "save", "f4": "nexterr", "f5": "run", "f6": "nextpane", "shift-f6": "prevpane", "f7": "debug", "f8": "compile", "f9": "catalog",
+    "f1": "help", "ctrl-s": "save", "f4": "nexterr", "f5": "run", "f6": "nextpane", "shift-f6": "prevpane", "f7": "debug", "shift-f7": "bptoggle", "f8": "compile", "f9": "catalog",
     "ctrl-pgdn": "nexttab", "ctrl-pgup": "prevtab", "alt-pgdn": "nexttab", "alt-pgup": "prevtab", "f10": "menu", "ctrl-q": "quit", "ctrl-w": "close", "ctrl-n": "new", "ctrl-o": "open",
     "ctrl-e": "sed", "ctrl-l": "goto", "ctrl-r": "replace", "f12": "fields",
 }
@@ -64,9 +64,9 @@ HELP = (
 )
 FILE_MENU = ["new", "open", "save", "saveas", "writeas", "close", "quit"]
 GO_MENU = ["goto", "nexterr", "nexttab", "prevtab", "tree", "nextpane", "prevpane", "include", "sed", "fields", "dform"]     # 31 Oct 26 (S.90 stage 2): the dictionary item form, last, no key
-UNKEYED = ["dform", "downcase", "export", "find", "findopts", "format", "import", "include", "qreplace", "saveas", "tree", "upcase", "view", "writeas", "xeq"]       # 29 Oct 26 (stage D): the editing commands have no key
+UNKEYED = ["bpclear", "debug1", "dform", "downcase", "export", "find", "findopts", "format", "import", "include", "qreplace", "saveas", "tree", "upcase", "view", "writeas", "xeq"]       # 29 Oct 26 (stage D): the editing commands have no key
 SEARCH_MENU = ["find", "replace", "view", "qreplace", "findopts", "upcase", "downcase", "import", "export"]
-BUILD_MENU = ["compile", "catalog", "run", "debug", "xeq", "format"]
+BUILD_MENU = ["compile", "catalog", "run", "debug", "xeq", "format", "debug1", "bptoggle", "bpclear"]     # 2 Nov 26 (S.98 H2): the breakpoint entries, last
 
 
 def load():
@@ -167,7 +167,7 @@ def checks(raw):
        "Ctrl-PgDn and Alt-PgDn nexttab, Ctrl-PgUp and Alt-PgUp prevtab, Ctrl-W close, Ctrl-N new, Ctrl-O open, and the unchanged F4 nexterr, Ctrl-L goto, Ctrl-E sed, Ctrl-R replace, F12 fields, "
        "F10 menu, Ctrl-Q quit, F1 help; F3 is not among them (IK21)",
        not wrong and not extra and len(bound) == len(pairs) - 0 and len([k for k, _ in pairs]) == len(set(k for k, _ in pairs)), "wrong %r extra %r" % (wrong, extra))
-    run_cases = set(w for heads in re.findall(r"case ((?:cmd = '[a-z.]+'(?: or )?)+)", rc) for w in re.findall(r"cmd = '([a-z.]+)'", heads))   # `case cmd = 'nextpane' or cmd = 'prevpane'` holds both
+    run_cases = set(w for heads in re.findall(r"case ((?:cmd = '[a-z.0-9]+'(?: or )?)+)", rc) for w in re.findall(r"cmd = '([a-z.0-9]+)'", heads))   # `case cmd = 'nextpane' or cmd = 'prevpane'` holds both
     menu_cmds = {c for es in menus.values() for _, _, c in es}
     ck("IK3", "every command word do.key sets and every command word a menu carries has a case in run.cmd",
        set(bound.values()) <= run_cases and menu_cmds <= run_cases, repr(sorted((set(bound.values()) | menu_cmds) - run_cases)))
@@ -202,7 +202,7 @@ def checks(raw):
        and all(w in allhelp for w in ("Shift-F6", "Shift-F3", "Alt-PgDn"))
        and all(("Ctrl-" + c) in allhelp for c in ("S", "N", "O", "W", "L", "E", "R", "Q", "PgDn")), "")
     ck("IK8", "the menu is the help's key table made of the same words: the entry for each of F5, F7, F8, F9 shows that key (the menu was where F7 compile and F8 compile-and-catalogue stood)",
-       [(c, s) for _, s, c in menus[11228]] == [("compile", "F8"), ("catalog", "F9"), ("run", "F5"), ("debug", "F7"), ("xeq", ""), ("format", "")], repr(menus[11228]))      # (xeq, format, 29 Oct 26: no key)
+       [(c, s) for _, s, c in menus[11228]] == [("compile", "F8"), ("catalog", "F9"), ("run", "F5"), ("debug", "F7"), ("xeq", ""), ("format", ""), ("debug1", ""), ("bptoggle", "Shift-F7"), ("bpclear", "")], repr(menus[11228]))      # (xeq, format, 29 Oct 26: no key; the last three, 2 Nov 26, S.98 H2)
     cat = case_block(rc, "case cmd = 'catalog'")
     ck("IK9", "F9 builds: 'catalog' compiles first (no debugging option), runs CATALOG only when the compile was good, and only then asks catalog.verified; 'compile' catalogues nothing",
        re.search(r"c\.opt = ''\s*\n\s*gosub do\.compile\s*\n\s*if c\.ok then\s*\n.*\n\s*execute 'catalog ' : qp\.f : ' ' : qp\.i capturing co\s*\n\s*gosub catalog\.verified", cat) is not None

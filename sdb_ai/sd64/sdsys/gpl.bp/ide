@@ -6,6 +6,13 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 1 Nov 26 dm  S.98 H2: BREAKPOINTS IN THE EDITOR'S GUTTER, HANDED TO THE DEBUGGER.  Shift-F7 (Build / Toggle breakpoint) sets or clears a mark on the cursor's line of a program tab and a click in the editor's
+*               gutter does the same on the line clicked; the gutter has one cell more for the mark (the memo's opt-in bpon, set here and never by SCREEN MEMO).  Marks belong to the open tab, like its cursor
+*               (bx b / j; nothing is written anywhere) and move with the text: the memo follows its own edits and Replace, Format, Import and an AI edit (ed.set), and the tab's marks are moved by the
+*               difference between the text they were kept for and the text the tab holds when it is shown again (bk.load: Ctrl-E, fields, reload, recovery, refresh).  F7 compiles for the debugger as it
+*               did; it then arms the named common /idebrk/ (idebrk.h) with the source path, the marked lines and, when there are marks, the order to run on to the first of them, and "Debug from the first
+*               line" (Build menu) stops at the first line as F7 always did.  Only the active tab's program is handed, and only when the record on the disk is the text in the tab.  When the debugger
+*               ends, the lines it still has breakpoints on come back as the tab's marks (bk.take); the terminal's alternate screen is given back here if the debugger died holding it.
 * 31 Oct 26 dm  S.90: THE FORM IS THE DEFAULT FACE OF A DICTIONARY ITEM (the owner's word).  `ide dict file item` and Return on an item in the tree open the item as the full-screen form (dform.default); a last
 *               word /text opens it as text, as /form opened the form before.  Cancel (Esc) and an item the form cannot show or the tab cannot change (read-only) leave the text; a record found by
 *               a search or opened with others from a list, Ctrl-O and an item already in a tab are as they were.
@@ -164,6 +171,7 @@ $include int$keys.h
 $include sl.h
 $include tk.h
 $include dictdict.h
+$include idebrk.h
 
    deffun edit_msg(kind) calling '!edit_msg'      ;* 18 Oct 26 dm, S.66
 
@@ -175,6 +183,7 @@ $include dictdict.h
    FINDMAX = 256                           ;* the longest text Find, Replace, Query replace and List take: INDEX cuts a longer one and COUNT stops the program (29 Oct 26, review R6)
    MAXSEL = 10                             ;* 28 Oct 26 (stage B): records of an active select list opened in tabs at the start
    MAXLOCK = 100                           ;* 28 Oct 26 (stage B): tabs that can hold a record lock at one time (file variables kept in tfv)
+   MAXBRK = 20                             ;* 1 Nov 26 (S.98 H2): breakpoints a program can have (the debugger's MAX.BREAKPOINTS and the kernel's list)
    LAYW = 140                              ;* what the layout is made for (the owner's 140 by 43 for every full-screen app): a bigger window is used whole, a smaller one
    LAYH = 43                               ;* is refused at the start and, if it becomes smaller while the IDE runs, the keyboard is held until it is big enough again (layout lock)
 
@@ -298,6 +307,8 @@ $include dictdict.h
 
    * The function-key row (foot.draw): the keys the IDE acts on in do.key, most used first, so that a narrow row loses the last.  $tk_fkeys cuts it to the width.
    ide.keys = ''
+   bk.first = @false
+   if ibk.mode + 0 # IBK.K.LIVE then ibk.mode = IBK.K.IDLE    ;* 2 Nov 26 (S.98 H2): nothing is handed to a debugger before F7 says so (an armed run left by a session that died is forgotten; the run of a debugger that has taken its hand-over, which an IDE started by the debugged program must not disturb, is not)
    call $tk_keys('add', ide.keys, 'esc', 'menu', 'menu', '', 1)
    call $tk_keys('add', ide.keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', ide.keys, 'ctrl-s', 'save', 'save', '', 1)
@@ -315,6 +326,7 @@ $include dictdict.h
    call $tk_keys('add', ide.keys, 'ctrl-n', 'new', 'new', '', 1)
    call $tk_keys('add', ide.keys, 'ctrl-e', 'SED', 'sed', '', 1)
    call $tk_keys('add', ide.keys, 'ctrl-r', 'replace', 'replace', '', 1)
+   call $tk_keys('add', ide.keys, 'shift-f7', 'breakpoint', 'bptoggle', '', 1)
    * 31 Oct 26 (S.86 stage 4): the keys of the fields pane (F12), which fields.key hands to the engine ($ced_core 'key'); the pane's name is not one of the focus ring's.  Not on the
    *   function-key row (that names the pane '', so a row that names panes is left off it) and no key of the IDE's own is repeated here: F1, Ctrl-S, Ctrl-Q, F12 and the rest win over the pane
    call $tk_keys('add', ide.keys, 'enter', 'open', 'dive', 'fields', 1)
@@ -780,6 +792,7 @@ new.form:
    mw{'autoindent'} = ed.auto
    mw{'tabindent'} = ed.tab                         ;* 28 Oct 26 (approved by the owner): Tab and Shift-Tab indent and outdent here, by the codebase's 3; F6 / Shift-F6 move between the panes
    mw{'softcur'} = 1                             ;* 19 Oct 26: the character under the cursor is highlighted while the editor has the focus
+   gosub bk.form                                 ;* 2 Nov 26 (S.98 H2): the mark column and the tab's marks
 
    cols = sysmsg(11221) : @sm : '6R' : @vm : sysmsg(11222) : @sm : (ew - 11) : 'L'
    * A bar of its own above the table: the table is drawn like the editor (the text style), and with nothing
@@ -1136,6 +1149,13 @@ stash.current:
       bx{k} = txt
       k = 'c' : u
       bx{k} = mw{'cx'} : @vm : mw{'cy'} : @vm : mw{'top'} : @vm : mw{'left'}
+      k = 'k' : u
+      if bx{k} = 'source' then
+         k = 'b' : u                            ;* 2 Nov 26 (S.98 H2): the breakpoint marks, and the text they were kept for (bk.load moves them if the text is changed while the tab is not shown)
+         bx{k} = mw{'bp'}
+         k = 'j' : u
+         bx{k} = mw{'value'}
+      end
    end
    return
 
@@ -1175,6 +1195,7 @@ load.current:
       ro = 1
    end
    call $sl_widget_init(mw)
+   gosub bk.load                         ;* 2 Nov 26 (S.98 H2): after the init, which would otherwise take the marks from a text they were not made for
    nl = 0
    if syn # '' then call $sl_syntax('index', syn, '', '', '', nl)
    mw{'synlang'} = nl + 0
@@ -2512,6 +2533,8 @@ do.key:
          cmd = 'prevpane'                ;* F3 is find next in the editor (the owner's D31), so the tree is reached by the panes' ring, the Go menu and the mouse
       case edata = 'f7'
          cmd = 'debug'
+      case edata = 'shift-f7'
+         cmd = 'bptoggle'                ;* 2 Nov 26 (S.98 H2): the breakpoint mark of the cursor's line
       case edata = 'f8'
          cmd = 'compile'
       case edata = 'f9'
@@ -2630,15 +2653,28 @@ run.cmd:
             execute 'run ' : qp.f : ' ' : qp.i trapping aborts
             gosub retake.screen
          end
+      case cmd = 'debug1'
+         * 2 Nov 26 (S.98 H2): "Debug from the first line" stops at the first line as F7 always did; F7 (debug) runs on to the first breakpoint when the tab has marks
+         bk.first = @true
+         cmd = 'debug'
+         gosub run.cmd
+         bk.first = @false                ;* (a compile that failed leaves it set)
       case cmd = 'debug'
          c.opt = ' debugging'
          gosub do.compile
          if c.ok then
+            gosub bk.arm
+            bk.first = @false
             gosub leave.screen
             qp.file = c.file ; qp.id = c.id ; gosub quote.pair
             execute 'debug ' : qp.f : ' ' : qp.i trapping aborts
+            gosub bk.take
             gosub retake.screen
          end
+      case cmd = 'bptoggle'
+         gosub bk.toggle
+      case cmd = 'bpclear'
+         gosub bk.clear
       case cmd = 'close'
          gosub close.current
       case cmd = 'sed'
@@ -3551,8 +3587,138 @@ catalog.verified:
    return
 
 * The terminal goes back to the program being run, and comes back to the IDE after it
+* ======================================================================
+* BREAKPOINTS (S.98 H2, idebrk.h).  A program tab's marks are the memo's w{'bp'} while it is shown and bx b<uid> while it is not, with the text they were kept for in bx j<uid>.
+
+* The editor's mark column and the marks of the tab shown, as they were kept (new.form; the text is the one they were kept for)
+bk.form:
+   mw{'bpon'} = 0
+   mw{'bp'} = ''
+   mw{'bpmax'} = MAXBRK
+   if nbuf > 0 then
+      k = 'k' : bu<cb>
+      if bx{k} = 'source' then
+         mw{'bpon'} = 1
+         k = 'b' : bu<cb>
+         mw{'bp'} = bx{k}
+      end
+   end
+   return
+
+* The tab is shown (load.current, after the memo's init): its marks are moved from the text they were kept for to the text it holds now
+bk.load:
+   gosub bk.form
+   if nbuf > 0 then
+      if mw{'bpon'} then
+         u = bu<cb>
+         k = 'b' : u
+         if bx{k} # '' then
+            k = 'j' : u
+            call $sl_memo('bpfollow', mw, '', bx{k}, bk.r)
+            k = 'b' : u
+            bx{k} = mw{'bp'}
+         end
+         k = 'j' : u
+         bx{k} = mw{'value'}
+      end
+   end
+   return
+
+* Shift-F7 / Build: the mark of the cursor's line
+bk.toggle:
+   msg = sysmsg(11788)
+   if nbuf > 0 then
+      call $sl_form('find', f, '', 'ed', en)
+      mw = f{'widgets', en}
+      call $sl_memo('bptoggle', mw, '', 0, bk.r)
+      begin case
+         case bk.r = 'set'
+            msg = sysmsg(11719, mw{'cy'})
+         case bk.r = 'cleared'
+            msg = sysmsg(11786, mw{'cy'})
+         case bk.r = 'full'
+            msg = sysmsg(11787, MAXBRK)
+      end case
+      if bk.r # 'none' then gosub redraw.editor
+   end
+   return
+
+* Build / Clear breakpoints: every mark of the tab shown goes
+bk.clear:
+   msg = sysmsg(11788)
+   if nbuf > 0 then
+      call $sl_form('find', f, '', 'ed', en)
+      mw = f{'widgets', en}
+      call $sl_memo('bpclear', mw, '', 0, bk.r)
+      if bk.r # 'none' then
+         msg = ''
+         gosub redraw.editor
+      end
+   end
+   return
+
+* F7 / Debug from the first line: the debugger is handed the source path of the record just compiled, the tab's marks and whether to run on to the first (idebrk.h).  Only a program
+* whose text on the disk is the text in the tab: the marks are line numbers of that text.  Arming with no marks too, so that the debugger starts from empty lists.
+bk.arm:
+   ibk.mode = IBK.K.IDLE
+   bk.u = ''
+   if nbuf > 0 then
+      u = bu<cb>
+      k = 'k' : u
+      if bx{k} = 'source' then
+         k = 'b' : u
+         bk.marks = bx{k}
+         open c.file to bk.fv then
+            read bk.rec from bk.fv, c.id then
+               k = 't' : u
+               if bk.rec = bx{k} then
+                  ibk.path = fileinfo(bk.fv, FL$PATH) : @ds : c.id
+                  ibk.in = bk.marks
+                  ibk.go = (if bk.first or bk.marks = '' then 0 else 1)
+                  ibk.out = bk.marks
+                  ibk.bad = ''
+                  ibk.alt = 0
+                  ibk.mode = IBK.K.ARMED
+                  bk.u = u
+               end else
+                  if bk.marks # '' then msg = sysmsg(11718)
+               end
+            end
+            close bk.fv
+         end
+      end
+   end
+   return
+
+* The debugger has ended: the lines that still have a breakpoint are the tab's marks (taken only from a run that took the hand-over), and the main screen is given back if the debugger
+* died holding the alternate one
+bk.take:
+   if ibk.mode + 0 = IBK.K.LIVE and bk.u # '' then
+      bk.new = ''
+      bk.last = 0
+      for bk.i = 1 to dcount(ibk.out, @fm)
+         bk.n = ibk.out<bk.i>
+         if bk.n matches '1N0N' then
+            bk.n += 0
+            if bk.n > bk.last and dcount(bk.new, @fm) < MAXBRK then
+               bk.new<-1> = bk.n
+               bk.last = bk.n
+            end
+         end
+      next bk.i
+      k = 'b' : bk.u
+      bx{k} = bk.new
+   end
+   if ibk.alt + 0 then
+      display terminfo('rmcup') :
+      ibk.alt = 0
+   end
+   ibk.mode = IBK.K.IDLE
+   bk.u = ''
+   return
+
 leave.screen:
-   gosub rc.tick                         ;* 28 Oct 26 (D2): the program run may abort the session
+   gosub rc.tick                        ;* 28 Oct 26 (D2): the program run may abort the session
    screen close
    call $tk_brk('close', saved.trap)     ;* 28 Oct 26: the program run has the person's break key, and nothing is held while it runs (CED and SED keep their own)
    display @(-1) :
@@ -4401,7 +4567,9 @@ ai.apply:
    *   phase 2 review): this pushed the step in the memo's OLD form (the lines joined by value marks), which the memo now reads as legacy and turns every value
    *   mark back into a line end, so Ctrl-Z after an AI edit gave back a record whose values had become lines
    call $sl_memo('snap', mw, '', '', ai.sr)
+   ai.old = mw{'value'}
    mw{'value'} = change(ai.new, char(10), @fm)
+   call $sl_memo('bpfollow', mw, '', ai.old, ai.sr)        ;* 2 Nov 26 (S.98 H2): the breakpoint marks move with the text
    mw{'lastop'} = ''
    mw{'cy'} = ai.line1
    mw{'cx'} = 1
@@ -4729,7 +4897,9 @@ ed.get:
 *   and cursor go on the undo steps as ONE step and redo is forgotten ('snap'); the mark is taken away; the editor is drawn.
 ed.set:
    call $sl_memo('snap', ed.mw, '', '', ed.sr)
+   ed.old = ed.mw{'value'}
    ed.mw{'value'} = ed.new
+   call $sl_memo('bpfollow', ed.mw, '', ed.old, ed.sr)     ;* 2 Nov 26 (S.98 H2): the breakpoint marks move with the text
    ed.mw{'lastop'} = ''
    ed.mw{'mx'} = 0
    ed.mw{'my'} = 0

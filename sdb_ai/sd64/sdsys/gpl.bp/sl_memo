@@ -17,6 +17,8 @@
 * 28 Oct 26 dm  tabindent (the owner's approval of 28 Oct: Tab indents in the IDE's editor): an optional width; Tab puts blanks in to the next stop, or indents
 *               the selected lines, and Shift-Tab takes them out, each one undo step.  Opt in: an area without it answers Tab 'unhandled' as before, so the
 *               forms of user programs (SCREEN MEMO) keep Tab for moving between their controls.
+* 2 Nov 26 dm  bpon (S.98 H2: breakpoints in the IDE's editor): an optional mark cell in front of the gutter, the lines in w{'bp'}, ops bptoggle, bpclear and bpfollow, and a click in the
+*               gutter toggles the line's mark; the marks follow the text when a key or a click changes the number of lines (bp.follow).  Opt in: SCREEN MEMO never sets it.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -40,7 +42,13 @@
 *   edkeys (1, the IDE's, 29 Oct 26: Ctrl-Home and Ctrl-End go to the start and the end of the text, Ctrl-Left and Ctrl-Right a word back and on, Ctrl-Del deletes the word at the
 *   cursor (or the selection; at the end of a line it joins the next one) as one undo step 'delword'; without it these keys are 'unhandled'; set by the program, not by SCREEN MEMO), and
 *   tabindent (a width, the IDE's 3: Tab and Shift-Tab indent and outdent - below - instead of answering 'unhandled'; not in a readonly area; set by the program,
-*   not by SCREEN MEMO, so a user program's form keeps Tab for moving between its controls)
+*   not by SCREEN MEMO, so a user program's form keeps Tab for moving between its controls), and
+*   bpon (1, the IDE's, 2 Nov 26: a mark cell in front of the gutter, one cell wider; a line in w{'bp'} (line numbers, ascending, field marks between them) shows a * in the hotkey style
+*   there; a click in the gutter toggles the line; w{'bpmax'}, when above 0, is the most marks there can be; the marks move with the text when a key or a click changes the number
+*   of lines; set by the program, not by SCREEN MEMO; needs 12 columns), and the ops
+*     bptoggle  key<1> a line (0: the cursor's); ret is set, cleared, full (bpmax marks already) or none (not a line, or no bpon)
+*     bpclear   takes every mark away
+*     bpfollow  key is the text the marks were made for (lines with field marks between them): they are moved to the text now in w{'value'}; nothing is drawn, scr may be ''
 *
 *     init    w and h from what was given (at least 3 by 1); a linefeed in the text is taken as the end of a
 *             line; the cursor goes to the start; no selection and nothing to undo
@@ -124,7 +132,13 @@ $include sl.h
       gut = len(max(dcount(lines, @fm), 1)) + 1
       if gut > mw - 4 then gut = 0               ;* an area too narrow for them has none
    end
-   tw = mw - 1 - gut                             ;* the width of the text: the last column is the scroll bar
+   gn = gut                                      ;* 2 Nov 26 (S.98 H2): the width of the line numbers; the mark cell of bpon is in front of them
+   bpon = w{'bpon'} + 0
+   if mw < 12 then bpon = 0
+   bpl = w{'bp'}
+   ob0 = lines                                   ;* the text the marks are kept for: store moves them when the number of lines is not the same as at the end of this call
+   if bpon then gut += 1
+   tw = mw - 1 - gut                            ;* the width of the text: the last column is the scroll bar
    cx = w{'cx'} + 0
    cy = w{'cy'} + 0
    top = w{'top'} + 0
@@ -175,6 +189,26 @@ $include sl.h
       case op = 'mouse'
          gosub count
          gosub click
+
+      case op = 'bptoggle'
+         gosub count
+         bl = key<1> + 0
+         if bl = 0 then bl = cy
+         gosub bp.toggle
+         if ret # 'none' and scr # '' then gosub paint       ;* a program that draws the widget itself (the IDE) gives scr as ''
+
+      case op = 'bpclear'
+         ret = 'none'
+         if bpon then
+            w{'bp'} = ''
+            ret = 'cleared'
+            gosub count
+            if scr # '' then gosub paint
+         end
+
+      case op = 'bpfollow'
+         ob0 = key                                 ;* the text the marks were made for
+         gosub bp.follow
    end case
 
    return
@@ -190,6 +224,19 @@ click:
          gosub count
          gosub scroll
          gosub store
+         gosub paint
+         return
+      end
+   end
+   if bpon then
+      if key<1> # 'wheel' and key<3> - w{'ax'} < gut then
+         * 2 Nov 26 (S.98 H2): a click in the gutter toggles the mark of the line clicked (the first row of a wrapped line is the line's; the cursor, the selection and the view stay)
+         rr = top + key<4> - w{'ay'}
+         if rr > nr then rr = nr
+         if rr < 1 then rr = 1
+         gosub row.text
+         bl = rline
+         gosub bp.toggle
          gosub paint
          return
       end
@@ -383,7 +430,89 @@ to.row:
    cx = rstart + dc - 1
    return
 
+* The marks (bpon).  bp.toggle: In: bl (a line), bpl; Out: ret (set, cleared, full, none) and w{'bp'}.  The marks are line numbers, ascending, one to a field.
+bp.toggle:
+   ret = 'none'
+   if bpon then
+      nl = dcount(lines, @fm)
+      if nl < 1 then nl = 1
+      if bl >= 1 and bl <= nl then
+         bp.n = dcount(bpl, @fm)
+         if bpl = '' then bp.n = 0
+         bp.at = 0
+         for bi = 1 to bp.n
+            if bpl<bi> + 0 >= bl then
+               bp.at = bi
+               exit
+            end
+         next bi
+         bp.max = w{'bpmax'} + 0
+         begin case
+            case bp.at > 0 and bpl<bp.at> + 0 = bl
+               del bpl<bp.at>
+               ret = 'cleared'
+            case bp.max > 0 and bp.n >= bp.max
+               ret = 'full'
+            case bp.at = 0
+               bpl<-1> = bl
+               ret = 'set'
+            case 1
+               ins bl before bpl<bp.at>
+               ret = 'set'
+         end case
+         w{'bp'} = bpl
+      end
+   end
+   return
+
+* bp.follow: In: ob0 (the text the marks were made for), lines (the text now), bpl.  When the number of lines is not the same, the lines the two texts share at the start (bp.p) and at the end
+* (bp.s) are found: a mark in the first part stays, one in the last part moves by the difference, one in what was replaced stays only if it is still inside what replaced it.
+bp.follow:
+   if bpl # '' then
+      bp.oc = dcount(ob0, @fm)
+      bp.nc = dcount(lines, @fm)
+      if bp.oc < 1 then bp.oc = 1
+      if bp.nc < 1 then bp.nc = 1
+      if bp.oc # bp.nc then
+         bp.lo = bp.oc
+         if bp.nc < bp.lo then bp.lo = bp.nc
+         bp.p = 0
+         for bi = 1 to bp.lo
+            if ob0<bi> # lines<bi> then exit
+            bp.p = bi
+         next bi
+         bp.s = 0
+         for bi = 1 to bp.lo - bp.p
+            bp.ox = bp.oc - bi + 1
+            bp.nx = bp.nc - bi + 1
+            if ob0<bp.ox> # lines<bp.nx> then exit
+            bp.s = bi
+         next bi
+         bp.new = ''
+         for bi = 1 to dcount(bpl, @fm)
+            bp.m = bpl<bi> + 0
+            begin case
+               case bp.m <= bp.p
+               case bp.m > bp.oc - bp.s
+                  bp.m += bp.nc - bp.oc
+               case bp.m > bp.nc - bp.s
+                  bp.m = 0
+            end case
+            if bp.m >= 1 and bp.m <= bp.nc then bp.new<-1> = bp.m
+         next bi
+         bpl = bp.new
+         w{'bp'} = bpl
+      end
+   end
+   return
+
 store:
+   if bpl # '' then
+      if lines # ob0 then
+         gosub bp.follow
+         ob0 = lines
+      end
+   end
    w{'value'} = lines
    w{'cx'} = cx
    w{'cy'} = cy
@@ -1142,6 +1271,7 @@ paint:
    call $sl_attr('scroll', wc)                  ;* 14 Oct 26: wc is only the scroll bar's column; was 'window'
    call $sl_attr('highlight', hc)
    call $sl_attr('gutter', gc)                  ;* 14 Oct 26: was 'disabled', whose background is the window's, not the text's
+   call $sl_attr('hotkey', kc)                  ;* 2 Nov 26 (S.98 H2): the style of a breakpoint's mark
    call $sl_scrollbar(mh, top, nr, mh, bar)
    gosub sel.range
    * 19 Oct 26: softcur (1) draws the character under the cursor in the highlight style while the area has the focus, so that the place in the
@@ -1191,8 +1321,18 @@ paint:
       if gut then
          * The line numbers: on the first row of a line (a wrapped line's other rows, and the rows past the text, have none)
          gnum = space(gut)
-         if rr <= nr and rstart = 1 then gnum = fmt(rline, (gut - 1) : 'R') : ' '
-         call $sl_put(scr, w{'ax'} + 0, w{'ay'} + r, gnum, str(gc, gut))
+         gsty = str(gc, gut)
+         if gn then
+            if rr <= nr and rstart = 1 then gnum[bpon + 1, gn] = fmt(rline, (gn - 1) : 'R') : ' '
+         end
+         if bpon and rr <= nr and rstart = 1 then
+            * 2 Nov 26 (S.98 H2): the mark cell, in front of the line numbers, on the first row of a marked line
+            locate rline in bpl<1> setting bp.hit then
+               gnum[1, 1] = '*'
+               gsty[1, 1] = kc
+            end
+         end
+         call $sl_put(scr, w{'ax'} + 0, w{'ay'} + r, gnum, gsty)
       end
       call $sl_put(scr, w{'ax'} + gut, w{'ay'} + r, seg : bar[r + 1, 1], attrs : wc)
    next r

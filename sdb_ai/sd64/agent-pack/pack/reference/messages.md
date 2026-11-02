@@ -3143,10 +3143,10 @@ cited by: `ide`
 ```
 
 ### msg:11228
-> kind=message tier=reference since=- src=sdsys/messages/11228:1#4b2fbc7d
+> kind=message tier=reference since=- src=sdsys/messages/11228:1#75370c0d
 
 ```
-&Build|&Compile~F8~compile|Compile and cat&alog~F9~catalog|&Run~F5~run|&Debug~F7~debug|Run a co&mmand~~xeq|&Format the program~~format
+&Build|&Compile~F8~compile|Compile and cat&alog~F9~catalog|&Run~F5~run|&Debug~F7~debug|Run a co&mmand~~xeq|&Format the program~~format|Debug from the first &line~~debug1|Toggle &breakpoint~Shift-F7~bptoggle|Clear breakpoin&ts~~bpclear
 ```
 
 ### msg:11229
@@ -7062,6 +7062,51 @@ add and delete take a user name and stand alone, and nothing was changed: %1 was
 
 cited by: `modifya`
 
+### msg:11715
+> kind=message tier=reference since=- src=sdsys/messages/11715:1#0071d8d8
+
+```
+Breakpoints set from the editor's marks: %1
+```
+
+cited by: `debug`
+
+### msg:11716
+> kind=message tier=reference since=- src=sdsys/messages/11716:1#1845e3ea
+
+```
+No breakpoint was set on these marked lines (no statement begins there, or a program can have only 20): %1
+```
+
+cited by: `debug`
+
+### msg:11717
+> kind=message tier=reference since=- src=sdsys/messages/11717:1#5e0cb903
+
+```
+The editor's breakpoints were not applied: this program is %1 and the editor compiled %2
+```
+
+cited by: `debug`
+
+### msg:11718
+> kind=message tier=reference since=- src=sdsys/messages/11718:1#f798778e
+
+```
+The breakpoints were not handed to the debugger: the record on the disk is not the text in the editor
+```
+
+cited by: `ide`
+
+### msg:11719
+> kind=message tier=reference since=- src=sdsys/messages/11719:1#5d1e0bea
+
+```
+Breakpoint set at line %1
+```
+
+cited by: `ide`
+
 ### msg:11720
 > kind=message tier=reference since=- src=sdsys/messages/11720:1#8146a258
 
@@ -7643,6 +7688,33 @@ cited by: `ide`
 
 ```
 Tab width is %1
+```
+
+cited by: `ide`
+
+### msg:11786
+> kind=message tier=reference since=- src=sdsys/messages/11786:1#2b67f45f
+
+```
+Breakpoint cleared at line %1
+```
+
+cited by: `ide`
+
+### msg:11787
+> kind=message tier=reference since=- src=sdsys/messages/11787:1#8480487d
+
+```
+A program can have only %1 breakpoints
+```
+
+cited by: `ide`
+
+### msg:11788
+> kind=message tier=reference since=- src=sdsys/messages/11788:1#d402a350
+
+```
+Breakpoints can be set in a program only
 ```
 
 cited by: `ide`
