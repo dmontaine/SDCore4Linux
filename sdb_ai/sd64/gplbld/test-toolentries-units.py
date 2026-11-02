@@ -82,13 +82,15 @@ def checks(src, voc, helps):
        adm is not None and refused is not None and adm < refused < first_open, "admin %s stop %s first openpath %s" % (adm, refused, first_open))
     forbidden = [(n, s) for n, s in lines if re.search(r"(^|[\s;(])(writev|writeu|deletes|chain|perform|osexecute|os\.execute)\s", unquote(s) + " ")
                  or re.search(r"\$tk_run|\$tk_confirm|K\$MASTERS|!acc_|sd-elevate|modify\.account|set\.batch|run\.in", unquote(s))]
+    forbidden = [(n, s) for n, s in forbidden if s != "call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))"]   # M3: D's one confirm box, held by T18
     writes = [s for n, s in lines if re.search(r"(^|[\s;(])write\s", unquote(s) + " ")]
     deletes = [s for n, s in lines if re.search(r"(^|[\s;(])delete\s", unquote(s) + " ")]
     execs = [s for n, s in lines if re.search(r"(^|[\s;(])execute\s", unquote(s) + " ")]
-    ck("T4 WHAT IT MAY CHANGE (M2): no record is written but the temporary pointer in SDSYS's VOC (ONE write, `write qrec on svf, qn on error`), the only deletes take that pointer away "
-       "(`delete svf, qn`) and sweep the user number's own leftovers at the start (`delete svf, sw.id`), the only execute is the one that gives the terminal to the IDE (`execute sent`); no chain, perform, OS command, command runner, confirm box, master-file "
-       "operation or account verb anywhere in the page",
-       not forbidden and writes == ["write qrec on svf, qn on error"] and deletes == ["delete svf, sw.id", "delete svf, qn"] and execs == ["execute sent"],
+    ck("T4 WHAT IT MAY CHANGE (M2, M3): no record is written but the temporary pointer in SDSYS's VOC (ONE write, `write qrec on svf, qn on error`), the deletes take that pointer away "
+       "(`delete svf, qn`), sweep the user number's own leftovers at the start (`delete svf, sw.id`) and delete D's one record through the file edit.record judged (`delete tf, eid`), the only "
+       "execute is the one that gives the terminal to the IDE (`execute sent`); no chain, perform, OS command, command runner, master-file operation or account verb anywhere in the page, "
+       "and no confirm box but D's",
+       not forbidden and writes == ["write qrec on svf, qn on error"] and deletes == ["delete svf, sw.id", "delete svf, qn", "delete tf, eid on error delok = @false"] and execs == ["execute sent"],
        "%s %s %s %s" % (forbidden[:3], writes, deletes, execs))
     opens = [s for n, s in lines if re.search(r"\bopenpath\b", s)]
     kinds = sorted(set("register" if "@sdsys:@ds:'accounts'" in s else ("voc" if re.search(r"(apath<[a-z0-9]+>|ap\.f) ?:@ds ?: ?'voc'", s.replace(" : ", ":")) else ("dict" if re.match(r"openpath dp to df2? then", s)
@@ -136,11 +138,13 @@ def checks(src, voc, helps):
     ck("T9 the filter and the find ask with screen ask, take the AI's argument as the default, and each clears the other",
        txt.count("screen ask ptxt width 40 value ai.arg") == 2 and txt.count("value ai.arg") == 2 and "filt = trim(ft)\nfnd = ''" in txt and "fnd = trim(ft)\nfilt = ''" in txt)
     keyrows = re.findall(r"call \$tk_keys\('add', keys, '([^']+)'", txt)
-    ck("T10 eleven key rows: f1 enter tab / f k e n f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh), never an edit",
-       keyrows == ["f1", "enter", "tab", "/", "f", "k", "e", "n", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
+    ck("T10 twelve key rows: f1 enter tab / f k e n d f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh), never an edit or a delete",
+       keyrows == ["f1", "enter", "tab", "/", "f", "k", "e", "n", "d", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
     er = "\n".join(s for n, s in section(lines, "edit.record:", "sweep.pointers:"))
     ho = "\n".join(s for n, s in section(lines, "hand.over:", "do.filter:"))
-    de = "\n".join(s for n, s in section(lines, "do.edit:", "do.new:"))
+    de = "\n".join(s for n, s in section(lines, "do.edit:", "do.delete:"))
+    dd = "\n".join(s for n, s in section(lines, "do.delete:", "do.new:"))
+    dr = "\n".join(s for n, s in section(lines, "delete.reached:", "hand.over:"))
     dn = "\n".join(s for n, s in section(lines, "do.new:", "edit.record:"))
 
     def at(t, s=er):
@@ -174,6 +178,22 @@ def checks(src, voc, helps):
        "if pane # 2 then" in de and "if kind = 3 then" in de and "ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>" in de and "ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>" in de and "enw = 0" in de
        and "if kind = 3 then" in dn and "if fnd # '' then" in dn and "efl = efile<ec>" in dn and "eid = downcase(trim(nt))" in dn and "enw = 1" in dn
        and "case nm = 'e'\ngosub do.edit" in txt and "case nm = 'n'\ngosub do.new" in txt)
+    def at2(t):
+        return dr.find(t)
+    i_lk, i_cf, i_cancel, i_del, i_bad, i_daud = (at2("readu dold from tf, eid locked"), at2("call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))"), at2("if res # 'run' then"),
+                                                   at2("delete tf, eid on error delok = @false"), at2("if not(delok) then"), at2("void kernel(K$AUDIT, 'master delete account="))
+    i_branch = at("if emode = 'delete' then\ngosub delete.reached\nreturn\nend")
+    ck("T18 D (M3) goes E's whole way and only then deletes: do.delete takes the row as E does (Entries only, the programs refused, a hit in its own account) and calls edit.record with "
+       "emode 'delete'; edit.record branches to delete.reached AFTER both refusals of the opened file and BEFORE E's audit line, and keeps tf open only for D; delete.reached takes the "
+       "record's update lock (a held lock refuses), asks the confirm box with the id to be TYPED and the title 'Delete this record?' (11953), does nothing unless the answer is run, deletes "
+       "through tf, gives the pointer back on each of its four ways out, and writes 'master delete' only after a delete that worked",
+       "if pane # 2 then" in dd and "if kind = 3 then" in dd and "ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>" in dd and "ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>" in dd
+       and "emode = 'delete'\ngosub edit.record" in dd and "emode = 'edit'\ngosub edit.record" in de and "emode = 'edit'\ngosub edit.record" in dn
+       and at("if not(in.ok) then") < i_branch < i_aud and at("if rt # FL$TYPE.DH then") < i_branch and "if emode # 'delete' then close tf" in er and "\nclose tf\n" not in er
+       and 0 <= i_lk < i_cf < i_cancel < i_del < i_bad < i_daud and dr.count("gosub drop.pointer") == 4 and dr.count("close tf") == 4
+       and 0 <= at2("dmsg = 'deleted ' : eid : ' from ' : dwhere") < at2("gosub read.all") and "msg = dmsg" in dr
+       and "case nm = 'd'\ngosub do.delete" in txt and "call $tk_keys('menu', keys, 'delete', '&Entry', '&Delete the record', '', '')" in txt,
+       "branch %d audit %d lock %d confirm %d cancel %d delete %d bad %d daudit %d" % (i_branch, i_aud, i_lk, i_cf, i_cancel, i_del, i_bad, i_daud))
     sw = "\n".join(s for n, s in section(lines, "sweep.pointers:", "drop.pointer:"))
     ck("T17 a pointer left by a session killed inside the IDE is swept when the page starts: right after the start's audit line, before anything is read, only names that begin "
        "zm<this user number>. and only an F or a Q record",
@@ -255,6 +275,14 @@ MUTANTS = [
     ("a slash is a word character", "src", "   good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'\n   for cwq", "   good = 'abcdefghijklmnopqrstuvwxyz0123456789._-/'\n   for cwq"),
     ("E works in Accounts", "src", "   if pane # 2 then\n      msg = 'Tab to the entries first, then E'\n      return\n   end\n", ""),
     ("the pointer is left when SD cannot follow it", "src", "   open dfl, qn to tf else\n      gosub drop.pointer\n", "   open dfl, qn to tf else\n"),
+    ("D deletes without the id typed", "src", "call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))", "call $tk_confirm(dsent, dlines, '', res, cmsg, sysmsg(11953))"),
+    ("D deletes on Cancel", "src", "   if res # 'run' then\n      close tf", "   if 0 then\n      close tf"),
+    ("D ignores another session's lock", "src", "   readu dold from tf, eid locked\n", "   read dold from tf, eid locked\n"),
+    ("D has no branch (it would audit an edit and open the IDE)", "src", "   if emode = 'delete' then\n      gosub delete.reached\n      return\n   end\n", ""),
+    ("D deletes through a second open", "src", "   if emode # 'delete' then close tf", "   close tf"),
+    ("the pointer is left after a delete", "src", "   delete tf, eid on error delok = @false\n   close tf\n   gosub drop.pointer\n", "   delete tf, eid on error delok = @false\n   close tf\n"),
+    ("the delete's message is made after the redraw", "src", "   dmsg = 'deleted ' : eid : ' from ' : dwhere\n", ""),
+    ("a program is deleted", "src", "   if kind = 3 then\n      msg = 'the programs are not deleted from this page yet'\n      return\n   end\n", ""),
     ("the voc record is in newvoc form", "voc", "V\nCA\n$tool_entries\n", "V\nCA\n$tool_jobs\n"),
     ("a help record loses its document", "help", "19-the-master-files", "00-nothing"),
 ]

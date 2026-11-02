@@ -23,6 +23,7 @@
 *              top of the abort branch, so a break, a run-time error or an ABORT cannot leave the administrator in the account (LOGTO SDSYS is refused, so there is no way back by hand).
 *              The six account-scoped switches LOGTO loads are one routine now, load.account.switches, used by LOGTO and RUN.IN.  RUN.IN's BASIC always has the NO.CATALOG option (see basic).
 * 1 Nov 26 dm  S.95: the ssh arm's notice is 11795 ("signed in over ssh from <address> with its password and an authenticator code"); it showed 10916, which says "a local session".
+* 2 Nov 26 dm  Message 10191 deleted: nothing has displayed it since the S.95 line below.  Comments only here.
 * 1 Nov 26 dm  S.95: an sdsys session that arrived over ssh (SSH_CONNECTION or SSH_TTY set) is granted when the login behind it is sdsys's own, as a local one is, and refused with 10195 when it is not (su sdsys keeps the variables); it used to be refused outright (10191, now unused).
 * 1 Nov 26 dm  The hyphen form is back (owner: "restore the hyphen option"): an unknown verb is retried with its hyphens changed to dots, lower case then upper case.
 * 28 Oct 26 dm  S.87: multifiles are gone.  A program file named in RUN is always name.out (the file,part form of the name is not split), and F4 of a file's VOC record is ignored.
@@ -523,7 +524,8 @@ $ifndef IS_INSTALL
 *   is, and its audit line says where from (the client address of SSH_CONNECTION).  The API
 *   does not come through CPROC at all - APISRVR has its own two doors (10174 remote, 10922
 *   not-sdsys-on-the-socket) - and stays closed to sdsys from every other computer.
-*   Message 10191 is no longer used by anything.
+*   Message 10191 was used by nothing after this and was deleted on 2 Nov 26 (housekeeping); the
+*   number stays this port's (the 20 Sep settlement) and is not given to another text.
          if downcase(kernel(K$USERNAME, 0)) = 'sdsys' then
             if kernel(K$LOGIN.UID, 'sdsys') = 1 then
                void kernel(K$ADMINISTRATOR, 1)

@@ -1003,15 +1003,6 @@ it) and run sd from that session, or log in as yourself.
 
 cited by: `cproc`
 
-### msg:10191
-> kind=message tier=reference since=- src=sdsys/messages/10191:1#77b8ac98
-
-```
-SD administration needs a local session.
-The sdsys OS user may not administer over ssh or the API;
-run sd as that user on the machine itself.
-```
-
 ### msg:10192
 > kind=message tier=reference since=- src=sdsys/messages/10192:1#91074107
 
@@ -9262,7 +9253,7 @@ cited by: `tool_query`
 Delete this record?
 ```
 
-cited by: `tool_query`
+cited by: `tool_entries`, `tool_query`
 
 ### msg:11954
 > kind=message tier=reference since=- src=sdsys/messages/11954:1#1b0ac05d

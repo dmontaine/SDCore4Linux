@@ -3,10 +3,10 @@
 # sandbox-tool-entries.py - the master files page (S.96 M1a-M2): TOOL.ENTRIES, the VOC entries, dictionary items and programs of every account by pointer, read only until E10 (E and N edit
 # the record in its own account).  A private SD, no install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-entries.py <dir> [--build] [--only=read|edit] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-entries.py <dir> [--build] [--only=read|edit|delete] [--mutant=NAME]
 #
 # --only (the owner's rule of 3 Nov 26: anything over five minutes has a section selector): `read` is E0-E9 (one chain on one page), `edit` is E10 (a page of its own; it changes the
-# fixture accounts' files, so it runs after `read` when both run).  The build and the fixtures always run.  A mutant runs only its own group.
+# fixture accounts' files, so it runs after `read` when both run), `delete` is E11 (a page of its own, its own records, after `edit`).  The build and the fixtures always run.  A mutant runs only its own group.
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row
 # failed, 2 it could not run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of the page and exit 0 means the rows that had to fail failed and no others (MUTANTS).
@@ -30,12 +30,18 @@
 #        dictionary) is refused for E and N with its reason, before a pointer is made, and the audit trail has a 'master edit' line for every edit that reached the IDE and none for a
 #        refusal; the programs are refused, N while a find is on is refused; a dictionary directory of the account's own whose SUBFILES are links to another account's is refused by the
 #        second test (E10z); a pointer left by a killed session is swept at the next start, and only this user number's (E10y).  The files are read ONCE at the start and ONCE at the
-#        end, one separate session per account (snap).  Runs LAST.  Mutants: no-outside-test, no-subfile-test, pointer-left.
+#        end, one separate session per account (snap).  Mutants: no-outside-test, no-subfile-test, pointer-left.
+#   E11  (M3, S.96; --only=delete) D deletes the record under the cursor IN ITS OWN ACCOUNT after the confirm box with its id TYPED: a VOC entry, a dictionary item, an entry of an account
+#        with every gate off; Cancel and a wrong id delete nothing; a record another LIVE session holds with READU is refused and kept; the POINTER RULE refuses D on an item that lies
+#        outside the account (../other, a link, a directory of links) with no box; the programs are refused; one 'master delete' line per delete that worked and none otherwise;
+#        SDSYS's VOC holds no zm pointer after.  The files read once at the start and once at the end (snap).  Mutants: no-typed-id, no-lock.
 # NOT HELD: SDSYS in the group (a sandbox has no sdsys user: the column can only say no or n/a here), the help text itself (sandbox-docs.py).
 import importlib.util
 import os
 import re
+import subprocess
 import sys
+import threading
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -77,6 +83,11 @@ MUTANTS = {
     "no-outside-test": ("   if not(kernel(K$PATH.IN, ap.f : @fm : tp)) then\n", "   if 0 then\n", ["E10"], "E10"),
     "no-subfile-test": ("   if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')\n   if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')\n", "", ["E10"], "E10"),
     "pointer-left": ("   execute sent\n   gosub drop.pointer\n", "   execute sent\n", ["E10"], "E10"),
+    # M3: the id is not asked for (Run alone deletes), another session's lock is not asked about
+    "no-typed-id": ("call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))", "call $tk_confirm(dsent, dlines, '', res, cmsg, sysmsg(11953))", ["E11"], "E11"),
+    "no-lock": ("   readu dold from tf, eid locked\n      dlu = status()\n      close tf\n      gosub drop.pointer\n"
+                "      msg = eid : ' in ' : dwhere : ' is locked by user ' : dlu : ' (an editor holds it): it is not deleted'\n      return\n   end else\n",
+                "   read dold from tf, eid else\n", ["E11"], "E11"),
 }
 
 
@@ -496,10 +507,10 @@ ER_SRC = "\n".join([
     "end", ""])
 
 
-def snap():
-    """Every record in TRACK as the account's own file holds it (fields joined by |, NONE when it is not there), read by ONE separate session per account, and SDSYS's zm pointers."""
+def snap(track=None):
+    """Every record in TRACK (or track) as the account's own file holds it (fields joined by |, NONE when it is not there), read by ONE separate session per account, and SDSYS's zm pointers."""
     out = {}
-    for acct, keys in TRACK.items():
+    for acct, keys in (track or TRACK).items():
         res = g.adm((["LOGTO %s" % acct] if acct != "sdsys" else []) + ["RUN bp zzerd " + " ".join("%s %s %s" % k for k in keys)])
         for ln in res:
             if ln.startswith("ER|"):
@@ -561,6 +572,12 @@ def ide_open(p, key, ask=None):
 
 def section_e10():
     say("\n--- E10: E and N edit the record in its own account; the pointer rule refuses what lies outside it (S.96 M2)")
+    _section_e10_body(fixture_e10())
+
+
+def fixture_e10():
+    """The readers, E10's records as the fixture made them, and the two dictionaries that only the kernel's geometry sees leading out of ze1 (a link, and a directory of links).  E10 and E11
+    both start here.  Returns the directory of links."""
     for acct in ("ze1", "ze2"):
         g.put(os.path.join(apath(acct), "bp", "zzerd"), ER_SRC)
         out = g.adm(["LOGTO %s" % acct, "BASIC bp zzerd"])
@@ -580,7 +597,7 @@ def section_e10():
     src2 = os.path.join(apath("ze2"), "zecust2.dic")
     for f in os.listdir(src2):
         os.symlink(os.path.join(src2, f), os.path.join(sub, f))
-    _section_e10_body(sub)
+    return sub
 
 
 def reset_e10():
@@ -819,6 +836,169 @@ def _section_e10_body(sub):
     reset_e10()                        # the sandbox as the fixture made it, for a later run on it without --build
 
 
+# E11's records, by account; planted at its start (written over, so a reused sandbox starts the same) and taken away at its end.
+TRACK11 = {
+    "ze1": [("voc", "voc", "zzdel1"), ("voc", "voc", "zzdel2"), ("voc", "voc", "zzdel3"), ("dict", "zecust", "zqdel1")],
+    "ze2": [("voc", "voc", "zzdel4"), ("dict", "zecust2", "zqother")],
+}
+
+
+def e11_records(plant):
+    """Write E11's records into ze1's and ze2's own files (plant) or take them away, by an administrator program in SDSYS."""
+    body = ["$internal", "   openpath '%s/voc' to v1 else crt 'DP no voc' ; stop" % apath("ze1"), "   openpath '%s/voc' to v2 else crt 'DP no voc' ; stop" % apath("ze2"),
+            "   openpath '%s/zecust.dic' to d1 else crt 'DP no dict' ; stop" % apath("ze1")]
+    for fv, rid, rec in (("v1", "zzdel1", "'X' : @fm : 'to go'"), ("v1", "zzdel2", "'X' : @fm : 'kept'"), ("v1", "zzdel3", "'X' : @fm : 'held'"),
+                         ("d1", "zqdel1", "'D' : @fm : '1' : @fm : '' : @fm : 'Gone' : @fm : '5L' : @fm : 'S'"), ("v2", "zzdel4", "'X' : @fm : 'gates off'")):
+        body.append("   write %s on %s, '%s'" % (rec, fv, rid) if plant else "   delete %s, '%s'" % (fv, rid))
+    body += ["   crt 'DP done'", "end", ""]
+    g.put(os.path.join(sh.SYS, "bp", "zzdplant"), "\n".join(body))
+    out = g.adm(["BASIC bp zzdplant", "RUN bp zzdplant"], internal=True)
+    if not has(out, r"^DP done$"):
+        bail("E11's records were not %s:\n%s" % ("planted" if plant else "taken away", "\n".join(out[-6:])))
+
+
+class Holder:
+    """A LIVE administrator session that holds ze1's VOC record zzdel3 with READU and waits on INPUT (its input stays open); release() ends it, and the lock with it."""
+    def __init__(self):
+        g.put(os.path.join(sh.SYS, "bp", "zzhold"), "\n".join(["$internal", "   openpath '%s/voc' to v else crt 'HOLD no voc' ; stop" % apath("ze1"),
+                                                                "   readu r from v, 'zzdel3' locked", "      crt 'HOLD locked'", "      stop", "   end else", "      null", "   end",
+                                                                "   crt 'HOLD held'", "   input x", "   crt 'HOLD released'", "end", ""]))
+        out = g.adm(["BASIC bp zzhold"], internal=True)
+        if not has(out, r"^Compiled 1 program\(s\) with no errors"):
+            bail("zzhold was not compiled:\n" + "\n".join(out[-6:]))
+        say("    > [admin] [internal] in sys, LIVE: RUN bp zzhold (holds ze1 voc zzdel3 until its input is answered)")
+        self.buf = []
+        self.p = subprocess.Popen([g.SD, "-internal"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=sh.SYS, env=g.env(True))
+        threading.Thread(target=self._read, daemon=True).start()
+        self.p.stdin.write(b"\nTERM 200,9999\nRUN bp zzhold\n")
+        self.p.stdin.flush()
+        end = time.time() + 20
+        while time.time() < end and "HOLD held" not in self.text():
+            time.sleep(0.3)
+        self.held = "HOLD held" in self.text()
+
+    def _read(self):
+        for chunk in iter(lambda: self.p.stdout.read1(4096), b""):
+            self.buf.append(chunk.decode("latin-1", "replace"))
+
+    def text(self):
+        return "".join(self.buf)
+
+    def release(self):
+        try:
+            self.p.stdin.write(b"\nOFF\n")
+            self.p.stdin.close()
+            self.p.wait(timeout=20)
+        except (OSError, subprocess.TimeoutExpired):
+            self.p.kill()
+            self.p.wait()
+
+
+def d_and_confirm(p, typed):
+    """D, Run in the confirm box, then the id typed in the second box; returns the text of the box as it was shown."""
+    p.h.typed("d", idle=1.5)
+    box = p.text()
+    p.h.typed("r", idle=1.2)
+    p.h.typed(typed + "\r", idle=2.5)
+    return box
+
+
+def section_e11():
+    say("\n--- E11: D deletes the record in its own account after its id is typed; the pointer rule refuses what lies outside it (S.96 M3)")
+    fixture_e10()
+    # ze1's two pointers to the link and the directory of links, as E10's body makes them (reset_e10 takes them away); without them zeesc is the only row of E11f
+    voc_write("zzelnk", [("ze1", "zelnk", ["F", "zelnk", "zelnk.dic"]), ("ze1", "zesub", ["F", "zesub", "zesub.dic"])])
+    e11_records(True)
+    B = snap(TRACK11)
+    a0 = audit_off()
+    arow("E11a", "control: the planted records are there (ze1 zzdel1 zzdel2 zzdel3 and the item zqdel1, ze2 zzdel4) and SDSYS holds none of the page's pointers",
+         B[("ze1", "voc", "voc", "zzdel1")] == "X|to go" and B[("ze1", "voc", "voc", "zzdel3")] == "X|held" and B[("ze1", "dict", "zecust", "zqdel1")] == "D|1||Gone|5L|S"
+         and B[("ze2", "voc", "voc", "zzdel4")] == "X|gates off", repr(B))
+    p = Page()
+    p.walk_to("ze1")
+    p.key("tab", 0.6)
+    p.key("/", 1.0)
+    p.h.typed("zzdel1\r", idle=1.5)
+    box = d_and_confirm(p, "zzdel1")
+    arow("E11b", "D on ze1's zzdel1 shows the box 'Delete this record?' naming the record and the account (no editor), and Run with the id typed deletes it: the status line says so",
+         "Delete this record?" in box and "delete zzdel1 from the VOC of ze1" in box and "deleted zzdel1 from the VOC of ze1" in norm(p.st()), repr((box[box.find("Delete"):][:400], p.st())))
+    p.key("/", 1.0)
+    p.h.typed("zzdel2\r", idle=1.5)
+    p.h.typed("d", idle=1.5)
+    p.key("esc", 1.5)
+    st_cancel = norm(p.st())
+    box = d_and_confirm(p, "zzdelx")
+    st_wrong = norm(p.st())
+    arow("E11c", "D on zzdel2: Cancel (Esc) says nothing was run; Run with a wrong id typed (zzdelx) says what was typed is not zzdel2 (the record is judged on the disk at the end)",
+         "nothing was run" in st_cancel and "what was typed is not zzdel2" in st_wrong, repr((st_cancel, st_wrong)))
+
+    say("  a record another live session holds")
+    hold = Holder()
+    try:
+        p.key("/", 1.0)
+        p.h.typed("zzdel3\r", idle=1.5)
+        p.h.typed("d", idle=2.0)
+        T = p.text()
+        st_lock = norm(p.st())
+        boxed = "Delete this record?" in T
+        if boxed:
+            p.key("esc", 1.5)                          # a page that offers the box anyway: it is cancelled, so the row fails on what it showed and not on a delete
+    finally:
+        hold.release()
+    arow("E11d", "D on zzdel3, which a LIVE session holds with READU, is refused with no box: 'locked by user'", hold.held and not boxed and "is locked by user" in st_lock and "not deleted" in st_lock,
+         repr((hold.held, boxed, st_lock, hold.text()[-200:])))
+
+    say("  a dictionary item, and the pointer rule")
+    p.key("k", 1.2)
+    p.key("/", 1.0)
+    p.h.typed("zqdel1\r", idle=1.5)
+    box = d_and_confirm(p, "zqdel1")
+    arow("E11e", "D on the item zqdel1 of ze1's zecust names the dictionary in the box and deletes it with its id typed", "delete zqdel1 from the dictionary of zecust of ze1" in box
+         and "deleted zqdel1 from the dictionary of zecust of ze1" in norm(p.st()), repr((box[box.find("Delete"):][:400], p.st())))
+    p.key("/", 1.0)
+    p.h.typed("zqother\r", idle=1.5)
+    said = []
+    for _ in range(3):                                 # zeesc (written ../ze2/..), zelnk (a link), zesub (a directory of links), in that order as in E10
+        m = re.search(r"zqother in the dictionary of (\S+) of ze1", p.text())     # the box under the lists names the row under the cursor: the instrument for where D is pressed
+        p.h.typed("d", idle=2.0)
+        T = p.text()
+        said.append((norm(p.st()), "Delete this record?" in T, m.group(1) if m else None))
+        if "Delete this record?" in T:
+            p.key("esc", 1.5)
+        p.key("down", 0.6)
+    arow("E11f", "D on ze2's item zqother reached through ze1's pointers is refused with no box, each for its reason: zeesc and zelnk lie outside ze1, zesub opens a file outside the account",
+         "zeesc lies outside ze1" in said[0][0] and "zelnk lies outside ze1" in said[1][0] and "opens a file outside the account" in said[2][0] and not any(b for _, b, _ in said)
+         and [c for _, _, c in said] == ["zeesc", "zelnk", "zesub"], repr(said))
+    p.key("k", 1.2)
+    p.h.typed("d", idle=1.0)
+    arow("E11g", "D on the programs says they are not deleted from this page yet (M4)", "not deleted from this page yet" in norm(p.st()), repr(p.st()))
+
+    say("  an account with every edit gate off")
+    p.key("k", 1.2)                                    # round to the VOC
+    p.key("tab", 0.6)
+    arrived = p.walk_to("ze2")
+    p.key("tab", 0.6)
+    p.key("/", 1.0)
+    p.h.typed("zzdel4\r", idle=1.5)
+    d_and_confirm(p, "zzdel4")
+    arow("E11h", "ze2 holds every edit gate off: the administrator's D deletes its zzdel4 all the same", arrived and "deleted zzdel4 from the VOC of ze2" in norm(p.st()), repr((arrived, p.st())))
+    p.quit()
+
+    say("  the files, read once at the end by a separate session in each account (the oracle)")
+    S = snap(TRACK11)
+    arow("E11i", "deleted from the account's own file: ze1's zzdel1, ze1's item zqdel1, ze2's zzdel4", S[("ze1", "voc", "voc", "zzdel1")] == "NONE" and S[("ze1", "dict", "zecust", "zqdel1")] == "NONE"
+         and S[("ze2", "voc", "voc", "zzdel4")] == "NONE", repr(S))
+    arow("E11j", "kept: zzdel2 (Cancel, then a wrong id), zzdel3 (held by another session) and ze2's zqother (outside ze1, refused three ways), each as planted",
+         S[("ze1", "voc", "voc", "zzdel2")] == "X|kept" and S[("ze1", "voc", "voc", "zzdel3")] == "X|held" and S[("ze2", "dict", "zecust2", "zqother")] == B[("ze2", "dict", "zecust2", "zqother")], repr(S))
+    arow("E11k", "SDSYS's VOC holds none of the page's pointers at the end: each was given back (after a delete, a Cancel, a wrong id, a lock, a refusal)", S["zm"] == B["zm"], repr((B["zm"], S["zm"])))
+    lines = [ln for ln in audit_new(a0).splitlines() if "master " in ln]
+    want = ["master delete account=ze1 kind=voc file=voc id=zzdel1", "master delete account=ze1 kind=dict file=zecust id=zqdel1", "master delete account=ze2 kind=voc file=voc id=zzdel4"]
+    arow("E11l", "the audit trail: one 'master delete' line for each of the three deletes, in lower case, and nothing else from the page (no 'master edit', nothing for zzdel2, zzdel3 or zqother)",
+         all(len([ln for ln in lines if w in ln]) == 1 for w in want) and len(lines) == 3, repr(lines[-6:]))
+    e11_records(False)
+    reset_e10()                        # the links and E10's records, as section_e10 leaves them
+
+
 def section_e6(n1, n2):
     say("\n--- E6: the page reads and writes nothing")
     arow("E6a", "the VOC of ze1 and of ze2 have the same number of entries after everything the page did", count_voc("ze1") == n1 and count_voc("ze2") == n2, repr((n1, n2)))
@@ -841,7 +1021,8 @@ def section_e7(p, a0):
     h.end()
 
 
-GROUPS = ("read", "edit")       # --only=read: E0-E9 (one chain on one page: each section leaves the page where the next starts); --only=edit: E10 (a page of its own)
+GROUPS = ("read", "edit", "delete")       # --only=read: E0-E9 (one chain on one page: each section leaves the page where the next starts); edit: E10; delete: E11 (each a page of its own)
+LAST_GROUP = {"E10": "edit", "E11": "delete"}                        # a mutant runs the group of its last section; any other last section is in read
 
 
 def main():
@@ -852,7 +1033,7 @@ def main():
         bail("usage: sandbox-tool-entries.py <dir> [--build] [--only=%s] [--mutant=%s]" % (",".join(GROUPS), "|".join(MUTANTS)))
     last = MUTANTS[mutant][3] if mutant else "E7"
     if mutant is not None:
-        groups = {"edit"} if last == "E10" else {"read"}
+        groups = {LAST_GROUP.get(last, "read")}
     say("sandbox-tool-entries: sections %s" % ", ".join(g2 for g2 in GROUPS if g2 in groups))
     try:
         sh.setup("sandbox-tool-entries.py")
@@ -882,6 +1063,8 @@ def main():
                 p.quit()
         if "edit" in groups:
             section_e10()
+        if "delete" in groups:
+            section_e11()
     finally:
         sh.teardown()
     say("\nsandbox-tool-entries: %d passed, %d failed" % (sh.tkb.passed, sh.tkb.failed))

@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+2 Nov 26   TOOL.ENTRIES: D DELETES A VOC ENTRY OR A DICTIONARY ITEM, IN THE ACCOUNT IT BELONGS TO.
+
+             What        - On the master files page, D deletes the VOC entry or dictionary item under the cursor from the account's own file. A box titled "Delete
+                           this record?" names the record, the account and the file; Cancel is the default, and Run asks for the record's id to be typed: only the
+                           exact id deletes it. A record another session holds (someone editing it) is not deleted. Each delete writes one "master delete" line to
+                           the audit trail.
+             Why         - The owner's master files are to add, change and delete the VOC entries and dictionary items of every account; E and N did the first two.
+             Does NOT    - Delete anything outside the account: it asks the same rule as E, so an item of a dictionary that lies elsewhere (SDSYS's, another
+                           account's, through a link) is refused with the reason before the box is shown. It runs no command, deletes one record at a time, and
+                           does not delete programs yet.
+
 3 Nov 26   TOOL.ENTRIES: E EDITS AND N MAKES A VOC ENTRY OR A DICTIONARY ITEM, IN THE ACCOUNT IT BELONGS TO.
 
              What        - On the master files page, E gives the terminal to the IDE on the VOC entry or dictionary item under the cursor (an item opens as the item form)

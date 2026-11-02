@@ -4,6 +4,10 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 2 Nov 26 dm  S.96 M3: D deletes the record under the cursor, in its own account.  It goes the whole of E's way (edit.record, emode 'delete'): the register and the account's VOC read
+*              again, THE POINTER RULE, the F pointer holding the checked path, the opened file and its two subfiles judged again; then the record is read with its update lock (one held
+*              by another session, an editor's, refuses), the administrator types its id in the confirm box (11953, Cancel the default), and the page deletes that one record through the
+*              file it judged, gives the pointer back and writes "master delete".  Nothing is run as a command.
 * 3 Nov 26 dm  S.96 M2: E edits the record under the cursor and N makes a new one, in the IDE (the VOC entry as text, the dictionary item as the form), IN ITS OWN ACCOUNT.  The IDE reaches another
 *              account's file through a temporary pointer in SDSYS's VOC (mechanism A of the owner's decision of 2 Nov 26), named zm<user number>.<account>.<file>, written just before the
 *              terminal is handed over and taken away just after.  It is an F pointer holding the path the page checked, not a Q-pointer into the account's VOC (an independent review the
@@ -35,7 +39,7 @@
 *   VOC of EVERY account (this reads them all and is asked for by name); the boxes then list the hits with their accounts, and Enter on a hit goes to that entry in its account.
 *
 *   Keys: Up and Down, PgUp and PgDn move in the box, Tab changes box, Enter in Accounts goes to its entries (and on a hit goes to the entry in its account), / filters the entries of the
-*   account by a part of the id, F finds an id in every account, K changes the kind, E edits the record under the cursor in the IDE, N makes a new record (its id asked first), Esc takes the
+*   account by a part of the id, F finds an id in every account, K changes the kind, E edits the record under the cursor in the IDE, N makes a new record (its id asked first), D deletes the record under the cursor (its id typed to confirm), Esc takes the
 *   find and the filter off, F5 reads again, F1 or ? or a click on a [?] explains the box, Ctrl-Q leaves.  Esc or F10 (or a click on the top row) opens the menu bar when there is nothing
 *   to take off.
 *
@@ -81,12 +85,14 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    call $tk_keys('add', keys, 'k', 'kind', 'kind', '', 1)
    call $tk_keys('add', keys, 'e', 'edit', 'edit', '', 1)
    call $tk_keys('add', keys, 'n', 'new', 'new', '', 1)
+   call $tk_keys('add', keys, 'd', 'delete', 'delete', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* Esc takes the find and the filter off first, else opens the menu bar
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
    call $tk_keys('menu', keys, 'edit', '&Entry', '&Edit the record in the editor', '', '')
    call $tk_keys('menu', keys, 'new', '&Entry', '&New record', '', '')
+   call $tk_keys('menu', keys, 'delete', '&Entry', '&Delete the record', '', '')
    call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the entries by id', '', '')
    call $tk_keys('menu', keys, 'find', '&View', 'F&ind an id in every account', '', '')
@@ -705,10 +711,10 @@ draw.effect:
       if asus<ac> # '' then lines<-1> = 'The account is suspended.'
       begin case
          case kind = 1
-            lines<-1> = 'The entries are read from the account' : "'s own VOC file when the cursor comes to the account; nothing is copied.  E edits the entry under the cursor in the editor and N makes a new one: only the VOC's own records, never the file a pointer leads to."
+            lines<-1> = 'The entries are read from the account' : "'s own VOC file when the cursor comes to the account; nothing is copied.  E edits the entry under the cursor in the editor, N makes a new one and D deletes it: only the VOC's own records, never the file a pointer leads to."
             lines<-1> = ">: the entry is a pointer whose target lies outside this account (in SDSYS, as @SDSYS/voc.dic does, or in another account).  The pointer is this account's own record, edited like any VOC entry; what it points at belongs to the account it lies in and is never edited from this page."
          case kind = 2
-            lines<-1> = 'The dictionary items are read, when the cursor comes to the account, from the dictionary of each file its VOC points at (field 3 of the file pointer); nothing is copied.  An item matches a text in its id or in its column heading.  E edits the item under the cursor as the form and N makes a new one in the dictionary of the file under the cursor: only dictionary items.'
+            lines<-1> = 'The dictionary items are read, when the cursor comes to the account, from the dictionary of each file its VOC points at (field 3 of the file pointer); nothing is copied.  An item matches a text in its id or in its column heading.  E edits the item under the cursor as the form, N makes a new one in the dictionary of the file under the cursor and D deletes it: only dictionary items.'
             lines<-1> = ">: the item lives in a dictionary outside this account (SDSYS's, which every account's pointer to it shares, or another account's) and is only read through this account's pointer.  It is edited in the account it lives in, never from here: E and N refuse it."
          case 1
             lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  The programs are not edited from this page yet."
@@ -868,7 +874,7 @@ wrap.lines:
 draw.help:
    screen text 'Up and Down move, PgUp and PgDn a page.  Tab changes box.  Enter in Accounts goes to its entries.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
    screen text '/ filters by a part of an id (of a heading too, in dictionaries).  F finds it in every account (Enter on a hit goes to it).  Esc takes them off.' at h.x + 2,h.y + 2 width h.tw
-   screen text 'K changes the kind.  E edits the record under the cursor, N makes a new one.  F5 reads again.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
+   screen text 'K changes the kind.  E edits the record under the cursor, N makes a new one, D deletes it.  F5 reads again.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
    return
 
 * ------------------------------------------------------------------------------------------------- keys and mouse
@@ -939,6 +945,8 @@ on.key:
          gosub do.edit
       case nm = 'n'
          gosub do.new
+      case nm = 'd'
+         gosub do.delete
       case nm = 'f1' or nm = '?'
          gosub help.here
       case nm = 'f5'
@@ -996,7 +1004,7 @@ open.entry:
       gosub draw.all
       msg = want.id : ' in ' : want.acct
    end else
-      msg = 'E edits the record under the cursor in the editor, N makes a new one'
+      msg = 'E edits the record under the cursor in the editor, N makes a new one, D deletes it'
    end
    return
 
@@ -1032,6 +1040,33 @@ do.edit:
       ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>
    end
    enw = 0
+   emode = 'edit'
+   gosub edit.record
+   return
+
+* D: the record under the cursor is deleted, in its own account (a hit of a find in the account it was found in).  It goes E's way through edit.record, so the pointer rule and every
+* check of E come first; delete.reached then asks for the id to be typed and deletes.
+do.delete:
+   if pane # 2 then
+      msg = 'Tab to the entries first, then D'
+      return
+   end
+   if kind = 3 then
+      msg = 'the programs are not deleted from this page yet'
+      return
+   end
+   nrows = (if fnd # '' then hn else en)
+   if ec < 1 or ec > nrows then
+      msg = 'there is no entry here to delete'
+      return
+   end
+   if fnd # '' then
+      ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>
+   end else
+      ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>
+   end
+   enw = 0
+   emode = 'delete'
    gosub edit.record
    return
 
@@ -1063,6 +1098,7 @@ do.new:
    if eid = '' then return
    ea = anm<ac>
    enw = 1
+   emode = 'edit'
    gosub edit.record
    return
 
@@ -1112,7 +1148,7 @@ edit.record:
    cw = (if efl = '' then 'voc' else efl)
    gosub check.word
    if not(ok1 and ok2 and okname) then
-      msg = 'an account, file or id with a character the page does not hand to the editor: leave this page and use  ide  in that account'
+      msg = 'an account, file or id with a character the page does not handle: work on it in that account (' : (if emode = 'delete' then 'delete' else 'ide') : ')'
       return
    end
    * The pointer SDSYS's VOC holds for the length of the edit is an F pointer that holds THE PATH JUST CHECKED (review of 3 Nov 26, finding 1): a Q-pointer would send the IDE back to
@@ -1150,7 +1186,7 @@ edit.record:
    end
    rp = fileinfo(tf, FL$PATH)
    rt = fileinfo(tf, FL$TYPE)
-   close tf
+   if emode # 'delete' then close tf                            ;* D deletes through THIS open, the one judged below, not a second one
    * What the kernel opened must lie inside the account, and so must the two subfiles of the hashed file it is (finding 2: the check of a directory says nothing of a link inside it,
    * and the subfiles are opened without refusing a link).  A file that is not a hashed file is not handed over at all.
    in.ok = kernel(K$PATH.IN, ap.f : @fm : rp)
@@ -1164,6 +1200,10 @@ edit.record:
    if not(in.ok) then
       gosub drop.pointer
       msg = 'the pointer into ' : ea : ' opens a file outside the account: it is edited in the account it lives in, not from here (' : rp : ')'
+      return
+   end
+   if emode = 'delete' then
+      gosub delete.reached
       return
    end
    void kernel(K$AUDIT, 'master edit account=' : ea : ' kind=' : (if efl = '' then 'voc' else 'dict') : ' file=' : qf : ' id=' : eid : ' new=' : enw)
@@ -1203,6 +1243,62 @@ drop.pointer:
       end
       close svf
    end
+   return
+
+* D, after edit.record reached the record through the pointer and judged the file it opened (tf, still open): the record is read with its update lock (a record another session holds,
+* an editor's, is refused), the administrator types its id in the box (Cancel is the default), and that one record is deleted through tf.  The pointer is given back on every way out.
+* Nothing is run as a command.
+delete.reached:
+   dwhere = (if efl = '' then 'the VOC' else 'the dictionary of ' : efl) : ' of ' : ea
+   dwhat = (if efl = '' then 'VOC entry' else 'dictionary item')
+   dhave = 1
+   readu dold from tf, eid locked
+      dlu = status()
+      close tf
+      gosub drop.pointer
+      msg = eid : ' in ' : dwhere : ' is locked by user ' : dlu : ' (an editor holds it): it is not deleted'
+      return
+   end else
+      dhave = 0
+   end
+   if not(dhave) then
+      close tf
+      gosub drop.pointer
+      msg = eid : ' is not in ' : dwhere : ' any more: F5 reads the list again'
+      return
+   end
+   dsent = 'delete ' : eid : ' from ' : dwhere
+   dlines = 'Deletes the ' : dwhat : ' ' : eid : ' from the account ' : ea : ', in its own file:' : @fm : rp
+   dlines<-1> = 'This is not a command: the page deletes that one record itself.  Type its id to confirm.'
+   call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))   ;* Delete this record?
+   if res # 'run' then
+      close tf                                                  ;* the lock goes with it
+      gosub drop.pointer
+      gosub draw.all
+      msg = cmsg
+      return
+   end
+   delok = @true
+   delete tf, eid on error delok = @false
+   close tf
+   gosub drop.pointer
+   * The messages are made BEFORE anything is drawn: entry.lines (the box under the lists) sets eid and efl to the row under the cursor, which after a delete is another record
+   if not(delok) then
+      msg = 'the ' : dwhat : ' ' : eid : ' of ' : ea : ' was not deleted: the file refused it'
+      gosub draw.all
+      return
+   end
+   void kernel(K$AUDIT, 'master delete account=' : ea : ' kind=' : (if efl = '' then 'voc' else 'dict') : ' file=' : qf : ' id=' : eid)
+   dmsg = 'deleted ' : eid : ' from ' : dwhere
+   keep.ec = ec
+   gosub read.all
+   ec = keep.ec
+   nrows = (if fnd # '' then hn else en)
+   if ec > nrows then ec = nrows
+   if ec < 1 then ec = 1
+   gosub keep.tops
+   gosub draw.all
+   msg = dmsg
    return
 
 * The terminal goes to the IDE and comes back: the pointer is taken away as soon as the IDE has ended, then the page is taken again and what it lists is read again.  Only the IDE can get here.
