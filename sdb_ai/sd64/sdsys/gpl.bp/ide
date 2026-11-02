@@ -3708,6 +3708,8 @@ bk.take:
       next bk.i
       k = 'b' : bk.u
       bx{k} = bk.new
+      * 2 Nov 26 (S.98 H2): the debugger says which marks it could not set only when it stops at the first line; a run that went straight on to a mark said nothing, so it is said here
+      if ibk.bad # '' then msg = sysmsg(11716, change(ibk.bad, @fm, ' '))
    end
    if ibk.alt + 0 then
       display terminfo('rmcup') :

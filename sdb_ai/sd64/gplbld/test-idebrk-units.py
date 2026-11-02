@@ -78,6 +78,11 @@ def checks(s, bpon_elsewhere=None):
     ba = label(d, "ibk.armed")
     ck("D2 ibk.armed: never for a phantom, and only for a run the IDE armed (IBK.K.ARMED)", "not(phantom)" in ba and re.search(r"ibk\.mode = IBK\.K\.ARMED then ib\.on = @true", ba), ba[:200])
 
+    re_init = pos(d, r"^\s*if ibk\.mode \+ 0 = IBK\.K\.ARMED then debug\.initialised = @false")
+    init = pos(d, r"^\s*if not\(debug\.initialised\) then gosub initialise")
+    ck("D8 a run the IDE armed clears debug.initialised BEFORE the debugger decides whether to initialise (an IDE session never passes CPROC's reset: a run-on in the 2nd run never stopped)",
+       0 <= re_init < init, "reset %d, initialise %d" % (re_init, init))
+
     bp = label(d, "ibk.apply")
     first = bp.strip().splitlines()[0] if bp.strip() else ""
     same = pos(bp, r"gosub ibk\.same")
@@ -150,6 +155,7 @@ def mutants(s):
         "                     if 1 then           ;* the kernel found")
     mut("D6 the run goes on with no mark", "debug", "if ibk.go # 0 and ib.nset > 0 and bitand(event, 3) = 0 then", "if ibk.go # 0 and bitand(event, 3) = 0 then")
     mut("D7 abort.debug no longer writes the list back", "debug", "abort.debug:\n   gosub ibk.sync", "abort.debug:\n   null")
+    mut("D8 an armed run no longer restarts the debugger", "debug", "   if ibk.mode + 0 = IBK.K.ARMED then debug.initialised = @false", "   if 0 then debug.initialised = @false")
     mut("I1 armed without the disk test", "ide", "               if bk.rec = bx{k} then", "               if 1 then")
     mut("I2 bk.take from a run that was not taken", "ide", "if ibk.mode + 0 = IBK.K.LIVE and bk.u # '' then", "if bk.u # '' then")
     mut("I3 an armed run survives the IDE's start", "ide", "if ibk.mode + 0 # IBK.K.LIVE then ibk.mode = IBK.K.IDLE", "if 0 then ibk.mode = IBK.K.IDLE")

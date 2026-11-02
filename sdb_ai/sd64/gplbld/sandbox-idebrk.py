@@ -200,6 +200,18 @@ def main():
         back = quit_debugger(e)
         e.quiet()
         row("B5c", "back in the IDE the two marks are gone (only lines the debugger set come back)", back and marked(e, 7) == [], repr((back, marked(e, 7))))
+        e.keys(CTRL_HOME, SHIFT_F7, DOWN * 5, SHIFT_F7)           # line 1 (blank: no statement) and line 6 (x = 2: a statement)
+        e.quiet()
+        two = marked(e, 7)
+        e.keys(F7)
+        e.s.settle(2.0)
+        L5 = e.lines()
+        row("B5d", "one good mark and one bad: the run goes straight on and stops ON line 6 (marked *, no >), and says nothing yet",
+            two == [1, 6] and in_debugger(L5) and dmark(L5, 6) == "*" and arrows(L5) == [] and "marked lines" not in "\n".join(L5), repr((two, arrows(L5), dmark(L5, 6))))
+        back = quit_debugger(e)
+        e.quiet()
+        row("B5e", "back in the IDE the status line names the line that could not be set (11716), and only line 6 is still marked",
+            back and marked(e, 7) == [6] and re.search(r"No breakpoint was set on these marked lines .*: 1$", e.status().rstrip()) is not None, repr((back, marked(e, 7), e.status())))
         e.end()
 
         say("\n--- B6: twenty marks")

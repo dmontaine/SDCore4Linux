@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 2 Nov 26 dm  S.98 H2: a run the IDE armed starts the debugger afresh (debug.initialised cleared, as CPROC does before each TCL command): in an IDE session the second and later
+*               runs skipped initialise and a breakpoint set by the run-on never stopped the program.
 * 1 Nov 26 dm  S.98 H2 (the IDE hands its breakpoints over): when the IDE armed the named common /idebrk/ (idebrk.h) for this run and the first program stopped in is the one it compiled (the same source
 *               path: the directory exactly, the record id in either case), the debugger clears its breakpoints (both lists: the kernel's, which holds 20 and was never emptied between runs of one session, and its
 *               own text), sets the lines the editor marked that begin a statement (the kernel says so: BREAKPOINT 7 leaves STATUS() 1 or 0), and with ibk.go runs on to the first of them without showing anything
@@ -101,6 +103,7 @@ $define GUTTER.W               2       ;* the source's gutter: a mark (* a break
    * by the terminal and comes back when the debugger lets go.  alt.on is true between the two (initialise enters it
    * itself the first time, to paint on it).  A terminal without one, or a session with no terminal, gets line mode.
    alt.on = @false
+   if ibk.mode + 0 = IBK.K.ARMED then debug.initialised = @false     ;* 2 Nov 26 (S.98 H2): CPROC does this before each command; an IDE session never passes through it, and a run-on in the 2nd run of a session ran to the end
    if not(debug.initialised) then gosub initialise
 
    alt.screen = full.screen and not(phantom)

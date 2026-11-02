@@ -7131,13 +7131,13 @@ Breakpoints set from the editor's marks: %1
 cited by: `debug`
 
 ### msg:11716
-> kind=message tier=reference since=- src=sdsys/messages/11716:1#1845e3ea
+> kind=message tier=reference since=- src=sdsys/messages/11716:1#207343c8
 
 ```
-No breakpoint was set on these marked lines (no statement begins there, or a program can have only 20): %1
+No breakpoint was set on these marked lines (no statement there, or over 20): %1
 ```
 
-cited by: `debug`
+cited by: `debug`, `ide`
 
 ### msg:11717
 > kind=message tier=reference since=- src=sdsys/messages/11717:1#5e0cb903
