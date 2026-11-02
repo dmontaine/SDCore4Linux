@@ -162,7 +162,9 @@ def sudo_null_case(box):
 
 def sess(box, *cmds):
     """A session in internal mode (sd -internal), the only place a $internal program compiles; the sandbox tool's own `sess` cannot (as sandbox-sortord.py's isess)."""
-    env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"))
+    # SDTEST_ADMIN=1 as sandbox-gates.py's adm(): once its prepare() has patched CPROC (a REUSED sandbox), the sandbox user plays sdsys only with it, and without it this
+    # session was refused ("Account <user> not in register") - which made the sudo null case fail on every reused sandbox.  An unpatched CPROC ignores it.
+    env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), SDTEST_ADMIN="1")
     body = "\nTERM 200,9999\n" + "".join(c + "\n" for c in cmds) + "OFF\n"
     p = subprocess.Popen([os.path.join(box, "sys", "bin", "sd"), "-internal"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                          cwd=os.path.join(box, "sys"), env=env)
