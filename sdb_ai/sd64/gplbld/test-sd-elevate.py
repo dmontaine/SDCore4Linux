@@ -1576,12 +1576,20 @@ def totp_rows(helper=None):
 
         fc = "/usr/local/sbin/ssh-forcecommand"
         for verb, want in (("totp-status", [f"{tool} status", f"then: {fc} --sdsys-state"]), ("totp-begin", [f"{tool} begin SD Core sdsys@web01"]),
-                           ("totp-confirm", [f"{tool} confirm", f"then, only if the code was right: {fc} --open-sdsys"]), ("totp-recovery", [f"{tool} recovery"]),
-                           ("totp-off", [f"{fc} --close-sdsys", f"then: {tool} off"])):
-            code, out = go([verb])
+                           ("totp-confirm", [f"{tool} confirm", f"then, only if the code was right: {fc} --open-sdsys", "then: publish /etc/sdcore/totp.public saying enrolled yes and the scope"]),
+                           ("totp-recovery", [f"{tool} recovery"]),
+                           ("totp-off", ["first: publish /etc/sdcore/totp.public saying enrolled no", f"{fc} --close-sdsys", f"then: {tool} off"]),
+                           ("totp-local on", [f"{fc} --open-local", f"then: {tool} scope all", "then: publish /etc/sdcore/totp.public"]),
+                           ("totp-local off", [f"{tool} scope remote", "then: publish /etc/sdcore/totp.public", f"then: {fc} --close-local"])):
+            code, out = go(verb.split())
             # the helper's name in front of each line is its file's name (a mutated copy has another), so the lines are matched without it
             got = [ln.split(": ", 1)[1] if ": " in ln else ln for ln in out.splitlines()]
             rows.append((f"ALLOW: {verb} on a dry run prints the resolved command(s) and nothing else", code == 0 and got == want, detail(code, out)))
+        for argv in (["totp-local"], ["totp-local", "maybe"], ["totp-local", "on", "x"]):
+            code, out = go(argv)
+            rows.append((f"REFUSE: {' '.join(argv)} - a usage error or a refusal (exit 2), no command printed", code == 2 and tool not in out, detail(code, out)))
+        code, out = go(["totp-local", "on"], dry=False)
+        rows.append(("REFUSE: a real totp-local on as an ordinary user stops at 'must run as root' and runs nothing", code == 2 and "must run as root" in out, detail(code, out)))
         for what, host, want in (("a host name with a space, an underscore and a mark", "Web 01!_x", "sdsys@Web01x"), ("a host name with shell characters", "a;b`c`$(d)", "sdsys@abcd"),
                                  ("an empty host name", "", "sdsys@localhost"), ("a host name of 60 letters", "a" * 60, "sdsys@" + "a" * 48), ("dots and hyphens", "db-1.prod", "sdsys@db-1.prod")):
             code, out = go(["totp-begin"], host=host)
@@ -1629,15 +1637,39 @@ def totp_rows(helper=None):
                      0 < fn.find("[[ $DRY -eq 1 ]] && exit 0") < fn.find("  need_root\n") < fn.find("[[ -x $tool ]]") < fn.find('"$tool" "${args[@]}"'), ""))
         rows.append(("TEXT: the tool is under SD_SYS_ROOT_REAL (the sealed bin), never a fixture; every branch ends with `exit $rc`",
                      "tool=$SD_SYS_ROOT_REAL/bin/sd-totp" in fn and "SD_SYS_ROOT_FIXTURE" not in fn and fn.count("      exit $rc\n      ;;") == 4, ""))
-        off_body = fn[fn.find("    totp-off)\n      \"$SSH_FC\""):]
+        off_body = fn[fn.find("    totp-off)\n      # S.101"):]
         off_body = off_body[:off_body.find(";;")]
+        conf_body = fn[fn.find("    totp-confirm)\n      \"$tool\""):]
+        conf_body = conf_body[:conf_body.find(";;")]
+        loc = src[src.find("totp_local() {"):]
+        loc = loc[:loc.find("\n}\n") + 3]
+        pub = src[src.find("totp_publish() {"):]
+        pub = pub[:pub.find("\n}\n") + 3]
+        safe = src[src.find("totp_publish_safe() {"):]
+        safe = safe[:safe.find("\n}\n") + 3]
+        rows.append(("TEXT S.101 D: switching off publishes 'enrolled no' FIRST, before the sshd arm is closed and before the factor is removed",
+                     0 < off_body.find("totp_publish no") < off_body.find('"$SSH_FC" --close-sdsys') < off_body.find('"$tool" "${args[@]}"'), off_body[:80]))
+        rows.append(("TEXT S.101 D: enrolling publishes 'enrolled yes' only through totp_publish_safe, after the code was right and the arm was opened",
+                     0 < conf_body.find('"$SSH_FC" --open-sdsys') < conf_body.find("totp_publish_safe yes") and "totp_publish yes" not in src, ""))
+        rows.append(("TEXT S.101 D: totp_publish_safe, for 'enrolled yes', re-opens an sshd arm that has no session fence and puts the console lines in for scope all, BEFORE it publishes; "
+                     "a failure publishes nothing",
+                     0 < safe.find('"pam-session=present"') < safe.find('"$SSH_FC" --open-sdsys') < safe.find('"$SSH_FC" --open-local') < safe.find('totp_publish "$1" "$2"')
+                     and safe.count("return 1") == 2 and 'if [[ $2 == all ]]; then\n      "$SSH_FC" --open-local' in safe
+                     and 'if [[ $st == *"sdsys-arm=open"* && $st != *"pam-session=present"* ]]; then' in safe, safe[:80]))
+        rows.append(("TEXT S.101 D: the status file is written by one rename of a root:root 0644 temp file in its own directory, and its text is exactly the three lines the kernel reads",
+                     "mktemp \"$dir/.totp.public.XXXXXX\"" in pub and "chown root:root" in pub and "chmod 0644" in pub and 'mv -f -T -- "$tmp" "$TOTP_PUBLIC"' in pub
+                     and "printf 'sdtotp 1\\nenrolled %s\\nscope %s\\n'" in src and "TOTP_PUBLIC=/etc/sdcore/totp.public" in src, pub[:80]))
+        rows.append(("TEXT S.101 D: totp-local on puts the console lines in BEFORE it writes the scope; off writes the scope and publishes BEFORE it takes the lines out (and only when the publish worked)",
+                     0 < loc.find('"$SSH_FC" --open-local ||') < loc.find('"$tool" scope all') and 0 < loc.find('"$tool" scope remote') < loc.find('totp_publish "$en" remote') < loc.find('"$SSH_FC" --close-local')
+                     and 'if [[ $want == off && $rc -eq 0 ]]' in loc, loc[:80]))
+        rows.append(("TEXT S.101 D: a store sd-totp cannot read gives the scope all (fail closed)", "case $s in scope=remote) printf 'remote' ;; *) printf 'all' ;; esac" in src, ""))
         conf_body = fn[fn.find("    totp-confirm)\n      \"$tool\""):]
         conf_body = conf_body[:conf_body.find(";;")]
         rows.append(("TEXT: switching off closes the sshd arm BEFORE it removes the factor, still removes the factor if the door will not close, and says so (exit 3 only when sd-totp itself was fine)",
                      0 < off_body.find('"$SSH_FC" --close-sdsys') < off_body.find('"$tool" "${args[@]}"') and "could NOT be put back" in off_body and "rc=3" in off_body, off_body[:60]))
         rows.append(("TEXT: enrolling opens the sshd arm ONLY when sd-totp said the code was right, and a door that will not open is exit 3 with the factor left enrolled",
-                     0 < conf_body.find('"$tool" "${args[@]}"') < conf_body.find("if [[ $rc -eq 0 ]]; then") < conf_body.find('"$SSH_FC" --open-sdsys') and "rc=3" in conf_body
-                     and "ENROLLED" in conf_body, conf_body[:60]))
+                     0 < conf_body.find('"$tool" "${args[@]}"') < conf_body.find("if [[ $rc -eq 0 ]]; then") < conf_body.find('"$SSH_FC" --open-sdsys')
+                     and "until it is\\n' \"$PROG\" \"$orc\" >&2\n          rc=3\n" in conf_body and "ENROLLED" in conf_body, conf_body[:60]))
         rows.append(("TEXT: the installed ssh-forcecommand is the one run (a fixed path, no fixture), and it must be there for totp-confirm and totp-off",
                      "SSH_FC=/usr/local/sbin/ssh-forcecommand" in src and 'case $v in totp-confirm|totp-off) [[ -x $SSH_FC ]] || die' in fn and "SSH_FC_FIXTURE" not in src, ""))
         rows.append(("TEXT: the host name is cut to letters, digits, dots and hyphens, to 48 characters, with localhost for none",
@@ -1669,7 +1701,17 @@ TOTP_MUTANTS = [
     ("totp: enrolling opens the door whatever the code was", '      if [[ $rc -eq 0 ]]; then\n        "$SSH_FC" --open-sdsys', '      if true; then\n        "$SSH_FC" --open-sdsys'),
     ("totp: switching off removes the factor before it closes the door", '      "$SSH_FC" --close-sdsys\n      orc=$?\n      "$tool" "${args[@]}"\n      rc=$?',
      '      "$tool" "${args[@]}"\n      rc=$?\n      "$SSH_FC" --close-sdsys\n      orc=$?'),
-    ("totp: a door that will not open is not reported", '          rc=3\n        fi\n      else', '        fi\n      else'),
+    ("totp: a door that will not open is not reported", '          rc=3\n        fi\n        if ! totp_publish_safe', '        fi\n        if ! totp_publish_safe'),
+    ("totp: off publishes after it closes", '      totp_publish no "$(totp_scope)" || printf', '      : || printf'),
+    ("totp: enrolling publishes nothing", '        if ! totp_publish_safe yes "$(totp_scope)"; then', '        if false; then'),
+    ("totp: safe publish does not re-open a fenceless arm", '    if [[ $st == *"sdsys-arm=open"* && $st != *"pam-session=present"* ]]; then', '    if false; then'),
+    ("totp: scope all publishes without the console lines", '    if [[ $2 == all ]]; then\n      "$SSH_FC" --open-local', '    if false; then\n      "$SSH_FC" --open-local'),
+    ("totp: an unreadable store reads as remote", "case $s in scope=remote) printf 'remote' ;; *) printf 'all' ;; esac", "case $s in scope=all) printf 'all' ;; *) printf 'remote' ;; esac"),
+    ("totp: local on writes the scope before the lines", '    "$SSH_FC" --open-local || { logger -t sd-elevate "totp-local on: ssh-forcecommand --open-local failed" 2>/dev/null || true; exit 1; }\n    "$tool" scope all || exit 1',
+     '    "$tool" scope all || exit 1\n    "$SSH_FC" --open-local || { logger -t sd-elevate "totp-local on: ssh-forcecommand --open-local failed" 2>/dev/null || true; exit 1; }'),
+    ("totp: local off takes the lines out before it publishes", '  if [[ $want == off && $rc -eq 0 ]]; then "$SSH_FC" --close-local || rc=3; fi', '  if [[ $want == off ]]; then "$SSH_FC" --close-local || rc=3; fi'),
+    ("totp: local takes any word", '    case $1 in on|off) ;; *) die "totp-local takes on or off', '    case $1 in *) ;; *) die "totp-local takes on or off'),
+    ("totp: the status file is group-writable", 'chmod 0644 -- "$tmp"', 'chmod 0664 -- "$tmp"'),
     ("totp: a door that will not close is not reported", "        [[ $rc -ne 0 ]] || rc=3\n", ""),
     ("totp: a missing tool is not noticed", '  [[ -x $tool ]] || die "$tool is not installed"\n', ''),
     ("totp: the dry run goes on to the tool", '  [[ $DRY -eq 1 ]] && exit 0\n  need_root\n  [[ -x $tool ]]', '  need_root\n  [[ -x $tool ]]'),

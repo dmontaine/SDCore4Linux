@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 1 Nov 26 dm  New.  S.95 stage 1b: the administrator's way, at a plain terminal, to set up the authenticator code the sdsys login over ssh asks for,
 *              to get new recovery codes and to switch the code off.  TOOL.REMOTE's sixth view hands the terminal to this verb, so the secret is handled here only.
+* 2 Nov 26 dm  S.101 stage D: LOCAL ON | OFF.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -19,6 +20,8 @@
 *                 for sdsys (status 3: the code is on but sshd could not be opened, and says why).  A code that is never confirmed changes nothing.
 *       RECOVERY  eight new recovery codes; the old ones stop working.
 *       OFF       sd-elevate totp-off closes sshd for sdsys FIRST, then removes the code.  It tightens, so nothing is asked.
+*       LOCAL ON  the same code at the console and the desktop login too (sd-elevate totp-local on).  LOCAL OFF: only over ssh again, as delivered
+*                 (the owner's ruling of 2 Nov 26: the console's code is opt-in).
 *
 *    With no keyword it prints what the root helper reports (active, pending, recovery codes left, the sshd arm) and changes nothing.
 *
@@ -71,9 +74,19 @@ $define CODE.TRIES 3
    end
 
    action = downcase(trim(action))
-   if action # 'on' and action # 'recovery' and action # 'off' then
+   if action # 'on' and action # 'recovery' and action # 'off' and action # 'local' then
       @system.return.code = -ER$ARGS
-      stop sysmsg(11923)  ;* remote.sdsys on | recovery | off
+      stop sysmsg(11923)  ;* remote.sdsys on | recovery | off | local on | local off
+   end
+
+   if action = 'local' then                                    ;* S.101 stage D: LOCAL ON | OFF
+      call @parser(PARSER$GET.TOKEN, token.type, extra, keyword)
+      extra = downcase(trim(extra))
+      if extra # 'on' and extra # 'off' then
+         @system.return.code = -ER$ARGS
+         stop sysmsg(11923)
+      end
+      action = 'local ' : extra
    end
 
    call @parser(PARSER$GET.TOKEN, token.type, extra, keyword)
@@ -82,7 +95,7 @@ $define CODE.TRIES 3
       stop sysmsg(11923)
    end
 
-   if action # 'off' and system(SYS$COMO_ON) then
+   if (action = 'on' or action = 'recovery') and system(SYS$COMO_ON) then
       @system.return.code = -ER$FAILED
       stop sysmsg(11925)  ;* not shown while a COMO file records the session
    end
@@ -92,6 +105,8 @@ $define CODE.TRIES 3
          gosub do.on
       case action = 'recovery'
          gosub do.recovery
+      case action[1, 5] = 'local'
+         gosub do.local
       case 1
          gosub do.off
    end case
@@ -188,6 +203,14 @@ do.off:
    os.execute HELPER : ' totp-off'
    rc = os.error()
    if rc # 0 then crt sysmsg(11924, 'off', rc)
+   return
+
+* LOCAL ON | OFF (S.101 stage D): the helper puts the module's lines into the console services, writes the scope and publishes it (on), or the reverse (off);
+* its words go straight to the terminal.  Nothing secret passes here.
+do.local:
+   os.execute HELPER : ' totp-local ' : field(action, ' ', 2)
+   rc = os.error()
+   if rc # 0 then crt sysmsg(11924, action, rc)
    return
 
 * ------------------------------------------------------------------------------------------------- helpers

@@ -21,7 +21,9 @@
  * 01 Nov 26 dm  S.95 stage 1 - written.  See sd_totp_store.h for what the
  *               functions promise and gplbld/test-totp-store.py for the check.
  * 02 Nov 26 dm  S.101: the console's code is opt-in (owner) - no scope file
- *               now means remote only; "all" turns the console on.
+ *               now means remote only; "all" turns the console on.  Stage D:
+ *               sd_totps_set_scope; sd_totps_off removes the grants too (the
+ *               scope word stays: it is the administrator's setting).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -730,8 +732,8 @@ int sd_totps_recovery(const char *dir, char rc_out[][SD_TOTPS_RC_TEXT + 1])
 int sd_totps_off(const char *dir)
 {
     static const char *const names[] = {
-        NAME_ACTIVE, NAME_PENDING, NAME_RECOVERY, NAME_FAIL,
-        ".new-" NAME_ACTIVE, ".new-" NAME_PENDING, ".new-" NAME_RECOVERY, ".new-" NAME_FAIL
+        NAME_ACTIVE, NAME_PENDING, NAME_RECOVERY, NAME_FAIL, NAME_GRANT,
+        ".new-" NAME_ACTIVE, ".new-" NAME_PENDING, ".new-" NAME_RECOVERY, ".new-" NAME_FAIL, ".new-" NAME_GRANT
     };
     size_t i;
     int dfd = open_dir(dir, 0);
@@ -1099,12 +1101,27 @@ int sd_totps_scope_all(const char *dir)
     int rc;
 
     dfd = open_dir(dir, 0);
+    if (dfd == DIR_ABSENT) return 0;                 /* no store at all: no scope file either, so the delivered remote */
     if (dfd < 0) return 1;
     rc = read_file(dfd, NAME_SCOPE, buf, sizeof buf);
     close(dfd);
     if (rc == LOAD_ABSENT) return 0;
     if (rc != 0) return 1;
     return strcmp(buf, MAGIC "\nremote\n") == 0 ? 0 : 1;
+}
+
+/* S.101 stage D.  Write the scope word (the administrator's `local on` is ALL non-zero, `local off` is zero).  The directory is made (0700) if its parent exists, so the
+   console's code can be switched on before a secret is enrolled; the word is kept through sd_totps_off, as the administrator's setting. */
+int sd_totps_set_scope(const char *dir, int all)
+{
+    int dfd;
+    int rc;
+
+    dfd = open_dir(dir, 1);
+    if (dfd < 0) return dir_result(dfd);
+    rc = write_file(dfd, NAME_SCOPE, all ? MAGIC "\nall\n" : MAGIC "\nremote\n");
+    close(dfd);
+    return rc;
 }
 
 int sd_totps_clear(const char *dir, uint64_t now, const char *src)

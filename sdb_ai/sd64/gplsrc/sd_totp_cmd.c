@@ -19,6 +19,7 @@
  *
  * START-HISTORY:
  * 01 Nov 26 dm  S.95 stage 1 - written.  Checked by gplbld/test-totp-store.py.
+ * 02 Nov 26 dm  S.101 stage D: the scope command.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -28,7 +29,10 @@
  *   sd-totp confirm                 one code on standard input; ok, then recovery=<code> x 8, once
  *   sd-totp check                   one code or recovery code on standard input; ok [recovery]
  *   sd-totp recovery                recovery=<code> x 8, once; replaces the old set
- *   sd-totp off                     removes the secret, the recovery codes and any pending secret
+ *   sd-totp scope [all|remote]      scope=all|remote; with a word, writes it first (S.101: all asks the
+ *                                   code at the console too; remote, the delivered default, over ssh only)
+ *   sd-totp off                     removes the secret, the recovery codes, any pending secret and the
+ *                                   grants; the scope word stays
  *
  * EXIT STATUS.  0 done.  1 refused for the code or the state (refused=wrong|replay|discarded|
  * nothing|bad on standard output).  2 the store is not as it must be, an input or output
@@ -57,7 +61,7 @@
 
 static int usage(void)
 {
-    fputs("usage: " PROG " status | begin ISSUER ACCOUNT | confirm | check | recovery | off\n"
+    fputs("usage: " PROG " status | begin ISSUER ACCOUNT | confirm | check | recovery | scope [all|remote] | off\n"
           "       (confirm and check read the code from standard input)\n", stderr);
     return 2;
 }
@@ -166,6 +170,16 @@ int main(int argc, char **argv)
         r = sd_totps_recovery(dir, rc);
         if (r != SD_TOTPS_OK) return failure(r);
         print_codes(rc);
+        return 0;
+    }
+    /* S.101 stage D: the scope word.  With no word it is read (a store that cannot be read reads as all: fail closed); "all" or "remote" writes it. */
+    if (strcmp(argv[1], "scope") == 0 && (argc == 2 || argc == 3)) {
+        if (argc == 3) {
+            if (strcmp(argv[2], "all") != 0 && strcmp(argv[2], "remote") != 0) return usage();
+            r = sd_totps_set_scope(dir, strcmp(argv[2], "all") == 0);
+            if (r != SD_TOTPS_OK) return failure(r);
+        }
+        printf("scope=%s\n", sd_totps_scope_all(dir) ? "all" : "remote");
         return 0;
     }
     if (strcmp(argv[1], "off") == 0 && argc == 2) {

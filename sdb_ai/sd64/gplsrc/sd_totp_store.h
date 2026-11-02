@@ -151,4 +151,7 @@ int sd_totps_take_grant(const char *dir, uint64_t now, const char *src);
  * scope file, the delivered default: the console's code is opt-in, owner 2 Nov 26, or "remote"). */
 int sd_totps_scope_all(const char *dir);
 
+/* S.101 stage D: write the scope word, "all" when ALL is non-zero, "remote" otherwise (the directory is made if its parent exists).  sd_totps_off leaves it. */
+int sd_totps_set_scope(const char *dir, int all);
+
 #endif

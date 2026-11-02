@@ -99,18 +99,20 @@ def checks(raw):
     i_first = min([x for x in (pg.find("os.execute"), pg.find("call @parser")) if x >= 0] or [10 ** 9])
     ck("RS2", "the administrator is asked FIRST (message 2001 and stop), before the sentence is parsed and before anything is run",
        0 < i_adm < i_first and re.search(r"if not\(kernel\(K\$ADMINISTRATOR, -1\)\) then\s*\n\s*stop sysmsg\(2001\)", pg) is not None, "adm %d first %d" % (i_adm, i_first))
-    ck("RS3", "the keyword is on, recovery or off only (else the usage, 11923), one keyword and nothing after it, all tested before any change",
-       "if action # 'on' and action # 'recovery' and action # 'off' then" in main and main.count("stop sysmsg(11923)") == 2 and "if token.type # PARSER$END then" in main
-       and 0 < main.find("if action # 'on'") < main.find("gosub do.on"), "")
-    i_como = main.find("if action # 'off' and system(SYS$COMO_ON) then")
-    ck("RS4", "ON and RECOVERY REFUSE while a COMO file records the session (SYSTEM(1033), message 11925), BEFORE either is called; OFF shows nothing secret and is not refused",
-       0 < i_como < main.find("gosub do.on") and i_como < main.find("gosub do.recovery") and re.search(r"if action # 'off' and system\(SYS\$COMO_ON\) then\s*\n[^\n]*\n\s*stop sysmsg\(11925\)", main) is not None, "como %d" % i_como)
+    ck("RS3", "the keyword is on, recovery, off or local only (else the usage, 11923), local takes on or off (else the usage), nothing after, all tested before any change",
+       "if action # 'on' and action # 'recovery' and action # 'off' and action # 'local' then" in main and main.count("stop sysmsg(11923)") == 3 and "if token.type # PARSER$END then" in main
+       and "if extra # 'on' and extra # 'off' then" in main
+       and 0 < main.find("if action # 'on'") < main.find("if extra # 'on'") < main.find("gosub do.on"), "")
+    i_como = main.find("if (action = 'on' or action = 'recovery') and system(SYS$COMO_ON) then")
+    ck("RS4", "ON and RECOVERY REFUSE while a COMO file records the session (SYSTEM(1033), message 11925), BEFORE either is called; OFF and LOCAL show nothing secret and are not refused",
+       0 < i_como < main.find("gosub do.on") and i_como < main.find("gosub do.recovery")
+       and re.search(r"if \(action = 'on' or action = 'recovery'\) and system\(SYS\$COMO_ON\) then\s*\n[^\n]*\n\s*stop sysmsg\(11925\)", main) is not None, "como %d" % i_como)
     execs = re.findall(r"os\.execute ([^\n]*)", pg)
     helper_execs = [e for e in execs if "HELPER" in e]
     other_execs = [e for e in execs if "HELPER" not in e and e != "cmd capturing out"]
     ck("RS5", "THE HELPER IS THE ONLY THING RUN, with sudo -n and a FIXED verb: every os.execute is HELPER (or cmd, built from HELPER) with totp-status, totp-off or the cmd of run.cmd; "
        "the others only make, fill and remove the private directory and the code file; no execute, perform, chain or phantom",
-       "$define HELPER     '%s'" % HELPER in pg and sorted(helper_execs) == sorted(["HELPER : ' totp-status'", "HELPER : ' totp-off'"]) and "os.execute cmd capturing out" in pg
+       "$define HELPER     '%s'" % HELPER in pg and sorted(helper_execs) == sorted(["HELPER : ' totp-status'", "HELPER : ' totp-off'", "HELPER : ' totp-local ' : field(action, ' ', 2)"]) and "os.execute cmd capturing out" in pg
        and sorted(re.findall(r"cmd = (HELPER[^\n]*)", pg)) == sorted(["HELPER : ' totp-begin 2>&1'", "HELPER : ' totp-recovery 2>&1'", "HELPER : \" totp-confirm < '\" : c.path : \"' 2>&1\""])
        and all(e.startswith('"umask 077 && ') or e.startswith('"rm -') for e in other_execs) and len(other_execs) == 4
        and not re.search(r"^\s*(execute|perform|chain|phantom)\b", pg, re.M), repr((helper_execs, other_execs)))
@@ -141,8 +143,12 @@ def checks(raw):
     ck("RS14", "the nine messages are the Linux block's (11000-11999), each used by this verb and by no other program; 2001 is the administrator refusal",
        used == sorted(list(MSGS) + [2001]) and all(11000 <= n < 12000 for n in MSGS) and raw["others"] == "", repr((used, raw["others"])))
     m = raw["m11923"]
-    ck("RS15", "the usage is lower case where it names the command (remote.sdsys on | recovery | off) and says what each word does and that no keyword changes nothing",
-       m.startswith("remote.sdsys on | recovery | off") and "REMOTE.SDSYS" not in m and "changes nothing" in m and "COMO OFF" in raw["m11925"], m[:60])
+    ck("RS15", "the usage is lower case where it names the command (remote.sdsys on | recovery | off | local on | local off) and says what each word does and that no keyword changes nothing",
+       m.startswith("remote.sdsys on | recovery | off | local on | local off") and "REMOTE.SDSYS" not in m and "changes nothing" in m and "COMO OFF" in raw["m11925"], m[:60])
+    loc = block(pg, "do.local")
+    ck("RS16", "S.101 stage D: LOCAL ON / OFF runs only the helper's totp-local with the word on or off that the parse checked, shows its words (nothing captured), and the audit line says 'local on|off'",
+       loc.count("os.execute") == 1 and "os.execute HELPER : ' totp-local ' : field(action, ' ', 2)" in loc and "capturing" not in loc
+       and "action = 'local ' : extra" in main and "case action[1, 5] = 'local'" in main, loc[:120])
     return rows
 
 
@@ -167,9 +173,11 @@ def setkey(key, val):
 MUTANTS = [
     ("an ordinary account gets the verb", "RS1", setkey("newvoc_has", "1")),
     ("the administrator is asked after the parse", "RS2", sub("prog", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001)  ;* Command requires administrator privileges\n   end\n", "")),
-    ("any keyword is taken", "RS3", sub("prog", "   if action # 'on' and action # 'recovery' and action # 'off' then", "   if action = '' then")),
-    ("COMO is not asked", "RS4", sub("prog", "   if action # 'off' and system(SYS$COMO_ON) then", "   if 0 then")),
-    ("COMO is asked only for on", "RS4", sub("prog", "   if action # 'off' and system(SYS$COMO_ON) then", "   if action = 'on' and system(SYS$COMO_ON) then")),
+    ("any keyword is taken", "RS3", sub("prog", "   if action # 'on' and action # 'recovery' and action # 'off' and action # 'local' then", "   if action = '' then")),
+    ("local takes any word", "RS3", sub("prog", "      if extra # 'on' and extra # 'off' then", "      if extra = '' then")),
+    ("COMO is not asked", "RS4", sub("prog", "   if (action = 'on' or action = 'recovery') and system(SYS$COMO_ON) then", "   if 0 then")),
+    ("COMO is asked only for on", "RS4", sub("prog", "   if (action = 'on' or action = 'recovery') and system(SYS$COMO_ON) then", "   if action = 'on' and system(SYS$COMO_ON) then")),
+    ("local captures its output", "RS16", sub("prog", "   os.execute HELPER : ' totp-local ' : field(action, ' ', 2)\n", "   os.execute HELPER : ' totp-local ' : field(action, ' ', 2) capturing out\n")),
     ("the helper is run without -n", "RS5", sub("prog", "$define HELPER     'sudo -n /usr/local/sbin/sd-elevate'", "$define HELPER     'sudo /usr/local/sbin/sd-elevate'")),
     ("a shell command is run", "RS5", sub("prog", "   pdir = ''\n\n   parser", "   pdir = ''\n   os.execute 'id'\n\n   parser")),
     ("the code goes on the command line", "RS6", sub("prog", "   cmd = HELPER : \" totp-confirm < '\" : c.path : \"' 2>&1\"", "   cmd = 'printf \"' : code : '\\n\" | ' : HELPER : ' totp-confirm 2>&1'")),

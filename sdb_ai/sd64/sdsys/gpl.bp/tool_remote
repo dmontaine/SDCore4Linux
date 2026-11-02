@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 02 Nov 26 dm  S.101 stage D: L on the sdsys login view - REMOTE.SDSYS LOCAL ON or OFF after a box (the code at the console too, or not; off as delivered).
 * 28 Oct 26 dm  S.88 L2: the three boxes are panes of the layout service ($tk_layout): drawn exactly as before at 140 by 43, and in a larger window the list takes the extra rows, every
 *               box and text is as wide as the window, and the explanation wraps at the box's width. The rows, widths, hit tests and the [?] button are counted from the pane rectangles.
 *               The layout is declared again after the terminal was given to SET.SERVER and the screen taken again.
@@ -76,6 +77,7 @@ $include tk.h
    call $tk_keys('add', keys, 'o', 'code on', 'codeon', 'Login', 1)
    call $tk_keys('add', keys, 'r', 'recovery', 'recovery', 'Login', 1)
    call $tk_keys('add', keys, 'f', 'code off', 'codeoff', 'Login', 1)
+   call $tk_keys('add', keys, 'l', 'console', 'console', 'Login', 1)        ;* S.101 stage D: the code at the console too, or not (off is the delivered default)
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U4: Esc goes back to the doors view first, else opens the menu bar
@@ -87,6 +89,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'codeon', '&Login', '&Set up the sdsys code', '', '')
    call $tk_keys('menu', keys, 'recovery', '&Login', 'New &recovery codes', '', '')
    call $tk_keys('menu', keys, 'codeoff', '&Login', 'Switch the code &off', '', '')
+   call $tk_keys('menu', keys, 'console', '&Login', 'The code at the &console', '', '')
    call $tk_keys('menu', keys, 'doors', '&View', '&Doors', '', '')
    call $tk_keys('menu', keys, 'routes', '&View', '&Routes', '', '')
    call $tk_keys('menu', keys, 'servers', '&View', '&Servers', '', '')
@@ -481,6 +484,7 @@ draw.detail:
          lines<-1> = 'O sets the code up: the terminal is given to REMOTE.SDSYS ON, which shows a new secret ONCE, asks for a code from the app, and only a right code switches it on and opens sshd for sdsys. Its box wants the word OPEN typed.'
          lines<-1> = 'R gives the terminal to REMOTE.SDSYS RECOVERY for eight new recovery codes (the old ones stop working). F closes sshd for sdsys first, then removes the code. The secret and the codes are shown on the terminal only, and the screen is cleared after them.'
          lines<-1> = "The machine's sudo user can do the same from any shell: sudo /usr/local/sbin/sd-elevate totp-begin, then totp-confirm with a code on standard input."
+         lines<-1> = "L asks the same code at this machine's own console and desktop login too (on), or only over ssh (off, as delivered). A remote-desktop or KVM-over-IP tool makes a console login a remote one: on such a machine, switch it on."
       case 1
          lines<-1> = 'The certificate the API presents, and the hash of its public key: that hash is what another SD server pins in its definition of this machine (SET.SERVER ... pin).'
          lines<-1> = 'Give the public-key hash to the administrator of the other machine by a way you trust. The certificate fingerprint changes when it is renewed; the public-key hash does not.'
@@ -541,6 +545,8 @@ on.key:
          gosub do.new
       case (nm = 'o' or nm = 'r' or nm = 'f') and view = 6
          gosub do.sdsys
+      case nm = 'l' and view = 6
+         gosub do.console
       case nm = 'f5'
          gosub read.all
          gosub draw.all
@@ -725,6 +731,28 @@ do.sdsys:
          el<-1> = "Setting the code up again makes a new secret; the app's old entry will not work."
          gosub confirm.and.run
    end case
+   return
+
+* L on the sdsys login view (S.101 stage D): the code at the console too, or not.  On tightens; off is the delivered default (the owner's ruling of 2 Nov 26)
+* and its box names what a console login is not on a machine with a remote-desktop tool.  The words are fixed here; on or off is the only thing typed.
+do.console:
+   screen ask 'The code at the console: on or off' width 8 value '' title 'The sdsys code at the console' returning sw else return
+   sw = downcase(trim(sw))
+   if sw # 'on' and sw # 'off' then
+      msg = 'the code at the console is on or off'
+      return
+   end
+   sent = 'remote.sdsys local ' : sw
+   typed = ''
+   el = ''
+   if sw = 'on' then
+      el<-1> = "sdsys is asked for the code from the authenticator app at this machine's text console and desktop login too, before its password."
+      el<-1> = 'Keep the recovery codes where you can reach them without signing in: a lost phone then costs a recovery code, not the machine.'
+   end else
+      el<-1> = 'sdsys is asked for the code only over ssh again; at the console its password is enough, as delivered.'
+      el<-1> = 'A remote-desktop, KVM-over-IP or serial-over-LAN tool makes a "console" login a remote one: on such a machine keep the code on.'
+   end
+   gosub confirm.and.run
    return
 
 * X: forget the server under the cursor

@@ -285,6 +285,25 @@ def rows_for(tool, src_dir):
         r = st.run("off")
         row("off on an empty store is not an error", r[0] == 0, cmd_text(r))
 
+        # ---------------------------------------------------------------- S.101 stage D: the scope word (the console's code is opt-in, owner 2 Nov 26)
+        st = fresh()
+        r = st.run("scope")
+        row("S.101 scope: with no scope file the scope is remote (the delivered default)", r[0] == 0 and r[1] == "scope=remote\n" and "scope" not in st.names(), cmd_text(r))
+        r = st.run("scope", "all")
+        row("... 'scope all' writes it (a 0600 file of its own, the magic and the word) and says scope=all",
+            r[0] == 0 and r[1] == "scope=all\n" and st.text("scope") == "sdtotp 1\nall\n" and mode(st.path("scope")) == 0o600, cmd_text(r))
+        st.enrol()
+        with open(st.path("sdsys.grant"), "w", encoding="utf-8") as f:     # a grant as the PAM module leaves one (its content does not matter to off)
+            f.write("sdtotp 1\n")
+        os.chmod(st.path("sdsys.grant"), 0o600)
+        r = st.run("off")
+        row("... off leaves the scope word (the administrator's setting) and removes the rest, the grants included", r[0] == 0 and st.names() == ["scope"], "%s | %s" % (cmd_text(r), st.names()))
+        r = st.run("scope", "remote")
+        row("... 'scope remote' writes it back", r[0] == 0 and r[1] == "scope=remote\n" and st.text("scope") == "sdtotp 1\nremote\n", cmd_text(r))
+        for args in (("scope", "local"), ("scope", "all", "x")):
+            r = st.run(*args)
+            row("... %s is a usage error (exit 2) and the word is unchanged" % " ".join(args), r[0] == 2 and st.text("scope") == "sdtotp 1\nremote\n", cmd_text(r))
+
         # ---------------------------------------------------------------- the same code at the same moment
         # The processes are started first and all wait for their code on standard input (the command reads it before it touches the store), then the codes are written to all of them
         # together, so that they reach the lock at about the same moment; three rounds, each on a store of its own.

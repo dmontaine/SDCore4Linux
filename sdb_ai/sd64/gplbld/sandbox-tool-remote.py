@@ -422,7 +422,7 @@ def section_r8(p):
     a0 = len(audit_lines())
     out = g.adm(["REMOTE.SDSYS BOGUS", "REMOTE.SDSYS ON EXTRA"])
     T = norm(" ".join(out))
-    arow("R8b", "a keyword that is not on, recovery or off, and a second word after one, each get the usage (11923) and run nothing: twice the usage, no audit line", T.count("remote.sdsys on recovery off ON a new secret") == 2                  # norm() makes the bars spaces
+    arow("R8b", "a keyword that is not on, recovery or off, and a second word after one, each get the usage (11923) and run nothing: twice the usage, no audit line", T.count("remote.sdsys on recovery off local on local off ON a new secret") == 2                  # norm() makes the bars spaces
          and not [ln for ln in audit_lines()[a0:] if "remote.sdsys" in ln], T[:300])
     como_dirs = [os.path.join(sh.SYS, d) for d in ("$COMO", "$como")]
     for d in como_dirs:
