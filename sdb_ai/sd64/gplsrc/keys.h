@@ -241,6 +241,11 @@
    number is compiled into every BASIC program that calls KERNEL, so the binary
    and GPL.BP are one unit: install the commit, do not mix.                   */
 #define K_LOGIN_UID          91
+/* 02 Nov 26 dm - S.101 (Linux Core only, as S.95).  kernel(K$LOGIN.MARK, 'ssh' | 'local') answers 1 when the authenticator code lets this
+   sdsys login be made administrator: no code is enrolled, or the scope is remote and the login local, or the PAM module left a marker for
+   this boot and session that names this loginuid (op_kernel.c login_mark_ok).  171: free in this tree (its keys run to 170) and in the
+   Windows tree (none above 139).  GPL.BP/INT$KEYS.H carries the same number.                                                        */
+#define K_LOGIN_MARK         171
 /* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
    which is not the same question as K_USERNAME.  See op_kernel.c.            */
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH

@@ -2832,6 +2832,18 @@ cited by: `tool_tktest`
 File operation not allowed in transaction
 ```
 
+### msg:11190
+> kind=message tier=reference since=- src=sdsys/messages/11190:1#d743a231
+
+```
+This sdsys login did not give the authenticator code, so it is not the
+administrator. Log in as sdsys again and give the code when it is asked
+for; an administrator of the machine can see the state with
+sudo /usr/local/sbin/sd-elevate totp-status
+```
+
+cited by: `cproc`
+
 ### msg:11192
 > kind=message tier=reference since=- src=sdsys/messages/11192:1#63e73326
 

@@ -45,6 +45,7 @@
 #define SD_TOTP_DIGITS      6       /* digits of a code */
 #define SD_TOTP_STEP        30      /* seconds a code lives */
 #define SD_TOTP_WINDOW      1       /* steps accepted either side of the clock's step */
+#define SD_TOTP_WINDOW_MAX  10      /* the most sd_totp_check_window() takes (S.101: the PAM module's window=N) */
 #define SD_TOTP_SECRET_LEN  20      /* bytes of a new secret: 160 bits, as RFC 4226 recommends */
 #define SD_TOTP_B32_LEN     32      /* characters of such a secret in base32, no padding */
 
@@ -66,6 +67,10 @@ int64_t sd_totp_at(const unsigned char *key, size_t keylen, uint64_t unixtime);
  * caller must store; a code whose step is not greater is SD_TOTP_REPLAY. */
 int64_t sd_totp_check(const unsigned char *key, size_t keylen, uint64_t unixtime,
                       const char *given, int64_t last_step);
+
+/* The same with the window given (1 to SD_TOTP_WINDOW_MAX steps either side; anything else is SD_TOTP_BAD).  sd_totp_check() is this with SD_TOTP_WINDOW. */
+int64_t sd_totp_check_window(const unsigned char *key, size_t keylen, uint64_t unixtime,
+                             const char *given, int64_t last_step, int window);
 
 /* Base32 (RFC 4648), capitals, no padding.  Encode writes a NUL-terminated string and
  * answers its length, or -1 when outsz has no room for the text and the NUL.  Decode

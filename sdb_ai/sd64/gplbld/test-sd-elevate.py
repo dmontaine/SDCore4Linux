@@ -61,7 +61,8 @@ def run(args, helper=None, env=None, dry=True, stdin=None):
     to see a fixture ignored use it."""
     e = dict(os.environ)
     for k in ("SD_GROUP_FIXTURE", "SD_GW_GROUP_FIXTURE", "STUB_GROUPS", "STUB_MEMBERS", "STUB_PW_USER", "STUB_PW_GECOS", "STUB_LOG", "STUB_SHADOW_HASH", "STUB_SHADOW_SET",
-              "STUB_SHADOW_FAIL", "SD_PATH_PREPEND", "SD_SDSYS_UID_FIXTURE", "SD_ACCARCHIVE", "SD_LOGINUID_FIXTURE", "SUDO_USER", "SUDO_UID"):
+              "STUB_SHADOW_FAIL", "SD_PATH_PREPEND", "SD_SDSYS_UID_FIXTURE", "SD_ACCARCHIVE", "SD_LOGINUID_FIXTURE", "SUDO_USER", "SUDO_UID",
+              "SD_MARK_FIXTURE_DIR", "SD_BOOT_FIXTURE", "SD_SESSION_FIXTURE"):
         e.pop(k, None)                      # nothing leaks in; a row sets what it needs
     e.update(env or {})
     p = subprocess.run(
@@ -1404,13 +1405,135 @@ def login_rows(helper=None):
     return rows, skipped
 
 
+def mark_rows(helper=None):
+    """S.101 stage B (2 Nov 26): a caller whose login IS sdsys's must also have given the authenticator code when one is enrolled - the PAM module's marker for this
+    boot and session, naming the login.  Played on a dry run with SD_MARK_FIXTURE_DIR (a scratch totp.public and marks directory, owned by whoever runs the test, as the
+    helper's own files are root's), SD_BOOT_FIXTURE and SD_SESSION_FIXTURE, on top of the login fixtures.  Returns (rows, skipped)."""
+    rows = []
+    skipped = []
+    hp = helper or HELPER
+    src = open(hp, encoding="utf-8").read()
+    sds = "979"
+    boot = "0f1e2d3c-aaaa-bbbb-cccc-1234567890ab"
+    sid = "42"
+    probe = ["useradd", "sdprobe_nonexistent"]
+    d = tempfile.mkdtemp(prefix="sdmark-")
+    marks = os.path.join(d, "marks")
+    os.makedirs(marks)
+    pub = os.path.join(d, "totp.public")
+    mk = os.path.join(marks, "%s.%s" % (boot, sid))
+
+    def put(path, text, mode=0o644):
+        if os.path.lexists(path):
+            os.remove(path)
+        with open(path, "w") as f:
+            f.write(text)
+        os.chmod(path, mode)
+
+    def env(**kw):
+        e = {"SUDO_USER": "sdsys", "SUDO_UID": sds, "SD_SDSYS_UID_FIXTURE": sds, "SD_LOGINUID_FIXTURE": sds,
+             "SD_MARK_FIXTURE_DIR": d, "SD_BOOT_FIXTURE": boot, "SD_SESSION_FIXTURE": sid}
+        e.update(kw)
+        return e
+
+    def go(e, dry=True):
+        return run(probe, helper, e, dry=dry)
+
+    def marked(out):
+        return "did not give the authenticator code" in out or "status file" in out
+
+    def accepted(code, out):
+        return code == 0 and "SD account" in out and not marked(out)
+
+    def refused(code, out):
+        return code == 2 and marked(out) and "SD account" not in out
+
+    def detail(code, out):
+        return f"exit {code}: {out.strip()[:110]}"
+
+    try:
+        code, out = go(env())
+        rows.append(("ALLOW: no status file (no code enrolled): an sdsys login is not asked for a marker", accepted(code, out), detail(code, out)))
+        put(pub, "sdtotp 1\nenrolled no\nscope all\n")
+        code, out = go(env())
+        rows.append(("ALLOW: 'enrolled no': nothing is asked", accepted(code, out), detail(code, out)))
+        put(pub, "sdtotp 1\nenrolled yes\nscope all\n")
+        code, out = go(env())
+        rows.append(("REFUSE: a code is enrolled, scope all, and this session has no marker: refused in the helper's words, nothing done", refused(code, out), detail(code, out)))
+        put(mk, "uid=%s service=login kind=local time=1\n" % sds)
+        code, out = go(env())
+        rows.append(("ALLOW: ...the marker for this boot and session names this login: the verb goes through", accepted(code, out), detail(code, out)))
+        code, out = go(env(SD_SESSION_FIXTURE="43"))
+        rows.append(("REFUSE: ...the same marker does not serve another session of the same boot", refused(code, out), detail(code, out)))
+        unset_mk = os.path.join(marks, "%s.4294967295" % boot)
+        put(unset_mk, "uid=%s service=login kind=local time=1\n" % sds)          # a right-looking marker even under the unset id: the id itself must refuse
+        code, out = go(env(SD_SESSION_FIXTURE="4294967295"))
+        os.remove(unset_mk)
+        rows.append(("REFUSE: ...a session with no kernel session id (a service) is never served, even by a marker filed under that id", refused(code, out), detail(code, out)))
+        put(mk, "uid=1000 service=login kind=local time=1\n")
+        code, out = go(env())
+        rows.append(("REFUSE: a marker that names another login (uid 1000) is not this login's", refused(code, out), detail(code, out)))
+        put(mk, "uid=%s service=login kind=local time=1\n" % sds, 0o666)
+        code, out = go(env())
+        rows.append(("REFUSE: a marker writable by others is not believed", refused(code, out), detail(code, out)))
+        other = os.path.join(d, "elsewhere")
+        put(other, "uid=%s service=login kind=local time=1\n" % sds)
+        os.remove(mk)
+        os.symlink(other, mk)
+        code, out = go(env())
+        rows.append(("REFUSE: a marker that is a LINK (to a right-looking file) is not believed", refused(code, out), detail(code, out)))
+        os.remove(mk)
+        put(pub, "sdtotp 1\nenrolled yes\nscope remote\n")
+        code, out = go(env())
+        rows.append(("ALLOW: 'scope remote' (the administrator's local off) asks no marker of the helper (it cannot tell ssh from a console; cproc's ssh arm still asks)",
+                     accepted(code, out), detail(code, out)))
+        put(pub, "sdtotp 1\nenrolled yes\nscope all\n", 0o666)
+        code, out = go(env())
+        rows.append(("REFUSE: a status file writable by others is not believed (fail closed), and the refusal names the status file",
+                     refused(code, out) and "status file" in out, detail(code, out)))
+        put(pub, "sdtotp 1\nenrolled yes\nscope all\n")
+        code, out = go(env(SD_LOGINUID_FIXTURE="1000"))
+        rows.append(("REFUSE: a login that is NOT sdsys's is refused by the login gate first, in its own words (su sdsys keeps that answer)",
+                     code == 2 and "did not log in as sdsys" in out and not marked(out), detail(code, out)))
+        code, out = go({"SD_MARK_FIXTURE_DIR": d})
+        rows.append(("ALLOW: root with no sudo (the installer, a service) is asked about neither the login nor a marker", accepted(code, out), detail(code, out)))
+        # ---- the text
+        fn = src[src.find("sdsys_mark_gate() {"):]
+        fn = fn[:fn.find("\n}\n") + 3] if "\n}\n" in fn else ""
+        dry_part, _, real_part = fn.partition("\n  else\n")
+        rows.append(("TEXT: the marker gate is called only from the login gate, once the login is shown to be sdsys's",
+                     src.count('sdsys_mark_gate "$lu"') == 1 and src.find('sdsys_mark_gate "$lu"') > src.find("sdsys_login_gate() {") > 0
+                     and src.find('sdsys_mark_gate "$lu"') < src.find('[[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller is sdsys'), ""))
+        rows.append(("TEXT: a file that is a link is refused by its own test (stat answers 777 for any link, so the mode test refuses one too: two walls, held here as text)",
+                     "[[ -f $f && ! -L $f ]] || return 1" in src, ""))
+        rows.append(("TEXT: the fixtures are read only in the dry-run branch; the real branch reads /etc/sdcore/totp.public, /run/sdcore/marks and /proc",
+                     bool(fn) and "SD_MARK_FIXTURE_DIR" in dry_part and "SD_MARK_FIXTURE_DIR" not in real_part and "SD_SESSION_FIXTURE" not in real_part
+                     and "/etc/sdcore/totp.public" in real_part and "/run/sdcore/marks" in real_part and "/proc/self/sessionid" in real_part, ""))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    return rows, skipped
+
+
+MARK_MUTANTS = [
+    ("mark: never called", '    sdsys_mark_gate "$lu"                       # S.101', '    true                       # S.101'),
+    ("mark: no marker needed", '  if [[ $sid =~ ^[0-9]+$ && $sid != 4294967295 && $boot =~ ^[0-9a-f-]+$ ]] && mark_safe_file "$m" && [[ $(head -c 64 -- "$m") == "uid=$lu "* ]]; then',
+     '  if true; then'),
+    ("mark: any login's marker serves", ' && [[ $(head -c 64 -- "$m") == "uid=$lu "* ]]; then', '; then'),
+    ("mark: an unsafe marker is believed", ' && mark_safe_file "$m" && [[', ' && [[ -e $m ]] && [['),
+    ("mark: an unsafe status file is believed", '  mark_safe_file "$pubf" || die "the authenticator', '  true || die "the authenticator'),
+    ("mark: enrolled is not read", "  grep -qx 'enrolled yes' -- \"$pubf\" || return 0\n", "  return 0\n"),
+    ("mark: the link test is lost", '  [[ -f $f && ! -L $f ]] || return 1', '  [[ -f $f ]] || return 1'),
+    ("mark: the unset session counts", ' && $sid != 4294967295', ''),
+]
+
+
 LOGIN_MUTANTS = [
-    ("login: any login is accepted", '  [[ $want =~ ^[1-9][0-9]*$ && $lu == "$want" ]] && return 0\n', '  return 0\n'),
+    ("login: any login is accepted", '  if [[ $want =~ ^[1-9][0-9]*$ && $lu == "$want" ]]; then\n', '  if true; then\n'),
     ("login: only the sudo name is looked at", '  [[ $who == sdsys || ( -n $want && $suid == "$want" ) ]] || return 0\n', '  [[ $who == sdsys ]] || return 0\n'),
     ("login: only the sudo uid is looked at", '  [[ $who == sdsys || ( -n $want && $suid == "$want" ) ]] || return 0\n', '  [[ -n $want && $suid == "$want" ]] || return 0\n'),
     ("login: everybody is asked", '  [[ $who == sdsys || ( -n $want && $suid == "$want" ) ]] || return 0\n', ''),
     ("login: uid 0 or an empty uid counts as sdsys's", '^[1-9][0-9]*$', '^[0-9]*$'),
-    ("login: the login only has to be set", '&& $lu == "$want" ]] && return 0', '&& -n $lu ]] && return 0'),
+    ("login: the login only has to be set", '&& $lu == "$want" ]]; then', '&& -n $lu ]]; then'),
     ("login: the gate is never called", 'sdsys_login_gate      # 01 Nov 26 dm S.95: before any verb looks at its arguments\n', ''),
     ("login: a real run honours the fixture", '  if [[ $DRY -eq 1 ]]; then\n    [[ -n ${SD_LOGINUID_FIXTURE:-} ]] || return 0\n',
      '  if [[ $DRY -eq 1 || -n ${SD_LOGINUID_FIXTURE:-} ]]; then\n    [[ -n ${SD_LOGINUID_FIXTURE:-} ]] || return 0\n'),
@@ -1418,7 +1541,7 @@ LOGIN_MUTANTS = [
     ("login: a refusal is only an echo", '  die "the caller is the user sdsys but did not log in', '  echo "the caller is the user sdsys but did not log in'),
     ("login: a real run reads the login from the environment", '    lu=$(cat /proc/self/loginuid 2>/dev/null) || lu=\n', '    lu=${SD_LOGINUID_FIXTURE:-}\n'),
     ("login: a refusal is not logged", '  [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller is sdsys but the login behind it is uid ${lu:-unknown}, not sdsys\'s" 2>/dev/null || true\n', ''),
-    ("login: a dry run logs its refusal too", '  [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused:', '  logger -t sd-elevate "refused:'),
+    ("login: a dry run logs its refusal too", '  [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller is sdsys', '  logger -t sd-elevate "refused: the caller is sdsys'),
 ]
 
 
@@ -1568,7 +1691,7 @@ def selftest():
                                      ("sdsys-join", sdsys_rows, SDSYS_MUTANTS), ("sdsys-leave", leave_rows, LEAVE_MUTANTS), ("log", log_rows, LOG_MUTANTS),
                                      ("stamp", stamp_rows, STAMP_MUTANTS), ("chown-group", chowngrp_rows, CHOWNGRP_MUTANTS), ("groupadd", groupadd_rows, GROUPADD_MUTANTS),
                                      ("ownedby", ownedby_rows, OWNEDBY_MUTANTS), ("pwunset", pwunset_rows, PWUNSET_MUTANTS), ("envtrust", envtrust_rows, ENVTRUST_MUTANTS),
-                                     ("fdworkers", fdworkers_rows, FDWORKERS_MUTANTS), ("login", login_rows, LOGIN_MUTANTS),
+                                     ("fdworkers", fdworkers_rows, FDWORKERS_MUTANTS), ("login", login_rows, LOGIN_MUTANTS), ("mark", mark_rows, MARK_MUTANTS),
                                      ("totp", totp_rows, TOTP_MUTANTS)):
         if only and family not in only:
             continue
@@ -1920,7 +2043,8 @@ def main():
     # ---- 26 Oct 26, F6: sdsys-leave (leave_rows) and the log lines (log_rows).  The rows that expect the verb to go through are the controls.
     # 26 Oct 26, F12: the stamp, chown-group and groupadd families (their labels begin ALLOW: or REFUSE:).
     for family, rows_fn in (("sdsys-leave", leave_rows), ("log", log_rows), ("stamp", stamp_rows), ("chown-group", chowngrp_rows), ("groupadd", groupadd_rows),
-                            ("ownedby", ownedby_rows), ("pwunset", pwunset_rows), ("envtrust", envtrust_rows), ("fdworkers", fdworkers_rows), ("login", login_rows), ("totp", totp_rows)):
+                            ("ownedby", ownedby_rows), ("pwunset", pwunset_rows), ("envtrust", envtrust_rows), ("fdworkers", fdworkers_rows), ("login", login_rows), ("mark", mark_rows),
+                            ("totp", totp_rows)):
         lrows, lskipped = rows_fn()
         for s in lskipped:
             print(f"  SKIPPED {s}")
@@ -1928,7 +2052,7 @@ def main():
             print(f"  [{'PASS' if ok else 'FAIL'}] {family.upper():11} {label:52} | {detail}")
             if ok:
                 passed += 1
-                if family in ("stamp", "chown-group", "groupadd", "ownedby", "pwunset", "envtrust", "fdworkers", "login", "totp"):
+                if family in ("stamp", "chown-group", "groupadd", "ownedby", "pwunset", "envtrust", "fdworkers", "login", "mark", "totp"):
                     if label.startswith("ALLOW:"):
                         n_allow += 1
                     else:

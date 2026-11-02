@@ -164,6 +164,10 @@
 *   port's K$OS.ELEVATED is 65.  See gplsrc/keys.h.  The binary and GPL.BP are
 *   one unit: a binary that still says 65 refuses this program's KERNEL call.
       $define K$LOGIN.UID      91       ;* Session's loginuid belongs to user?
+* 02 Nov 26 dm - S.101.  kernel(K$LOGIN.MARK, 'ssh' | 'local') answers 1 when the authenticator code lets this sdsys login be made
+*   administrator (no code enrolled; or a local login while the scope is remote; or the PAM module's marker for this boot and session,
+*   naming this loginuid).  Must match gplsrc/keys.h.
+      $define K$LOGIN.MARK     171      ;* The authenticator code allows this login?
 * 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
 *   NOT the same as K$USERNAME, which answers whoever the process is running
 *   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no

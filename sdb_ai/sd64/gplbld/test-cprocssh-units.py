@@ -45,7 +45,7 @@ def rows_for(path, bp_dir):
     i = code.find("\n      end else", code.find(LOCAL_LINE))      # the OUTER else (six spaces): the inner one of the local arm has nine
     arm = code[i:code.find("$endif", i)]
     row("the ssh arm is the else of the local test and is for the user sdsys only", arm.count("if downcase(kernel(K$USERNAME, 0)) = 'sdsys' then") == 1, "")
-    a = arm.find("if kernel(K$LOGIN.UID, 'sdsys') = 1 then")
+    a = arm.find("if kernel(K$LOGIN.UID, 'sdsys') = 1 then\n")      # the grant's own test (2 Nov 26: S.101's line also begins so, and is not followed by a newline)
     g = arm.find("kernel(K$ADMINISTRATOR, 1)")
     row("the ssh arm asks the kernel whether the login was sdsys's own BEFORE it grants, and grants once", 0 <= a < g and arm.count("kernel(K$ADMINISTRATOR, 1)") == 1, "")
     after = arm[g:]
@@ -55,7 +55,27 @@ def rows_for(path, bp_dir):
         e > 0 and "sysmsg(10195)" in refusal and "goto abort.cproc" in refusal and "elevation refused reason=sdsys session without a sdsys login" in refusal, "")
     row("the grant is audited as a login over ssh, from the first field of SSH_CONNECTION, 'unknown' when there is none",
         "from.addr = field(env('SSH_CONNECTION'), ' ', 1)" in arm and "if from.addr = '' then from.addr = 'unknown'" in arm
-        and "'elevation granted reason=sdsys login over ssh from=' : from.addr" in arm and arm.find("from.addr =") < arm.find("K$AUDIT"), "")
+        and "'elevation granted reason=sdsys login over ssh from=' : from.addr" in arm and arm.find("from.addr =") < arm.find("'elevation granted reason=sdsys login over ssh"), "")
+    # 2 Nov 26 (S.101 stage B): each arm asks K$LOGIN.MARK for a login that is sdsys's own, BEFORE the grant, and refuses with 11190
+    loc = code[code.find(LOCAL_LINE):i]                    # the local arm: its line to the outer else
+    for name, part, kind in (("local", loc, "local"), ("ssh", arm, "ssh")):
+        mk = part.find("if kernel(K$LOGIN.UID, 'sdsys') = 1 then lm.ok = kernel(K$LOGIN.MARK, '%s')" % kind)
+        rf = part.find("if not(lm.ok) then")
+        gr = part.find("kernel(K$ADMINISTRATOR, 1)")
+        row("S.101: the %s arm asks K$LOGIN.MARK('%s') only for a login that is sdsys's, refuses with 11190 and abort.cproc without it, all BEFORE the grant" % (name, kind),
+            0 <= mk < rf < gr and "sysmsg(11190)" in part[rf:gr] and "goto abort.cproc" in part[rf:gr]
+            and ("elevation refused reason=sdsys login without the authenticator code kind=%s" % kind) in part[rf:gr], "mark %d refuse %d grant %d" % (mk, rf, gr))
+    keys_c = open(os.path.join(os.path.dirname(os.path.dirname(bp_dir)), "gplsrc", "keys.h"), encoding="utf-8").read()
+    keys_b = open(os.path.join(bp_dir, "int$keys.h"), encoding="utf-8", errors="replace").read()
+    m11190 = os.path.join(os.path.dirname(bp_dir), "messages", "11190")
+    row("S.101: K$LOGIN.MARK is 171 in both gplsrc/keys.h and gpl.bp/int$keys.h, and message 11190 exists and says the code was not given",
+        re.search(r"#define K_LOGIN_MARK\s+171\b", keys_c) is not None and re.search(r"\$define K\$LOGIN\.MARK\s+171\b", keys_b) is not None
+        and os.path.isfile(m11190) and "authenticator code" in open(m11190, encoding="utf-8").read(), "")
+    opk = open(os.path.join(os.path.dirname(os.path.dirname(bp_dir)), "gplsrc", "op_kernel.c"), encoding="utf-8").read()
+    row("S.101: the kernel's test opens the status file and the marker without following a link, wants them root's and not writable by group or others, "
+        "and an absent status file (no code enrolled) is the only absence that answers yes",
+        "O_RDONLY | O_NOFOLLOW | O_CLOEXEC" in opk and "(st.st_uid != 0) || ((st.st_mode & 022) != 0)" in opk
+        and "return absent;" in opk and 'snprintf(want, sizeof(want), "uid=%s ", luid);' in opk, "")
     row("the grant is audited AFTER the administrator bit is set (a trail must not record rights not yet given)", g < arm.find("elevation granted"), "")
     row("the old refusal 10191 is used nowhere in CPROC any more", "10191" not in code, "")
     m11795 = os.path.join(os.path.dirname(bp_dir), "messages", "11795")
@@ -76,6 +96,11 @@ MUTANTS = [
     ("a second grant is added", "               admin.notice<-1> = sysmsg(11795, from.addr)\n            end else\n               refuse.msg", "               admin.notice<-1> = sysmsg(11795, from.addr)\n               void kernel(K$ADMINISTRATOR, 1)\n            end else\n               refuse.msg"),
     ("the ssh arm says 'a local session' again", "               admin.notice<-1> = sysmsg(11795, from.addr)\n", "               admin.notice<-1> = sysmsg(10916)\n"),
     ("the local arm's line changes", LOCAL_LINE, LOCAL_LINE.replace("env('SSH_TTY') = ''", "env('SSH_TTY') = \"\"")),
+    # S.101 stage B (2 Nov 26)
+    ("the local arm does not ask the marker", "lm.ok = kernel(K$LOGIN.MARK, 'local')", "lm.ok = 1"),
+    ("the ssh arm does not ask the marker", "lm.ok = kernel(K$LOGIN.MARK, 'ssh')", "lm.ok = 1"),
+    ("a login without the code is refused but kept", "            void kernel(K$AUDIT, 'elevation refused reason=sdsys login without the authenticator code kind=local')\n            goto abort.cproc\n",
+     "            void kernel(K$AUDIT, 'elevation refused reason=sdsys login without the authenticator code kind=local')\n"),
 ]
 
 

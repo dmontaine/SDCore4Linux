@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 2 Nov 26 dm  S.101 stage B: both arms of the sdsys grant ask kernel(K$LOGIN.MARK) for a login that is sdsys's own - the authenticator code's marker,
+*              when a code is enrolled (everywhere for ssh; for a local login unless the scope is remote) - and refuse with 11190 without it.
 * 3 Nov 26 dm  S.96: RUN.IN (internal verb 42, SDSYS's VOC only), the administrator's account-scoped run of one command from a fixed list (basic, catalog, decatalog, delete.catalog, debug, compile.dict)
 *              in a registered account, and ALWAYS back.  The way back is the safety net (revert.account, the /runin/ common): it runs at the end of the command and, if the command aborted, at the
 *              top of the abort branch, so a break, a run-time error or an ABORT cannot leave the administrator in the account (LOGTO SDSYS is refused, so there is no way back by hand).
@@ -493,6 +495,19 @@ $ifndef IS_INSTALL
 *   downcase: kernel(K$USERNAME, 0) is the OS account, and the comparison must
 *   not depend on who typed what.
       if downcase(kernel(K$USERNAME, 0)) = 'sdsys' and env('SSH_CONNECTION') = '' and env('SSH_TTY') = '' then
+* 2 Nov 26 dm - S.101: a login that is sdsys's own must also have given the authenticator code when one is enrolled and its scope is
+*   everywhere (the PAM module's marker; the kernel judges it).  Asked only for a login that IS sdsys's, so su / sudo keep 10195.
+         lm.ok = 1
+         if kernel(K$LOGIN.UID, 'sdsys') = 1 then lm.ok = kernel(K$LOGIN.MARK, 'local')
+         if not(lm.ok) then
+            refuse.msg = sysmsg(11190)   ;* several lines: one DISPLAY each
+            loop
+               display remove(refuse.msg, refuse.more)
+            while refuse.more
+            repeat
+            void kernel(K$AUDIT, 'elevation refused reason=sdsys login without the authenticator code kind=local')
+            goto abort.cproc
+         end
          if kernel(K$LOGIN.UID, 'sdsys') = 1 then
             void kernel(K$ADMINISTRATOR, 1)
 * 11 Sep 26 dm - PORT_ADOPTION 13.  Written AFTER the grant, the port's
@@ -527,6 +542,19 @@ $ifndef IS_INSTALL
 *   Message 10191 was used by nothing after this and was deleted on 2 Nov 26 (housekeeping); the
 *   number stays this port's (the 20 Sep settlement) and is not given to another text.
          if downcase(kernel(K$USERNAME, 0)) = 'sdsys' then
+* 2 Nov 26 dm - S.101: over ssh the marker is required whenever a code is enrolled (the Opus review: a package update that drops the PAM
+*   fence, or a hand edit of DenyUsers, must not let a password alone in).  Asked only for a login that IS sdsys's, as above.
+            lm.ok = 1
+            if kernel(K$LOGIN.UID, 'sdsys') = 1 then lm.ok = kernel(K$LOGIN.MARK, 'ssh')
+            if not(lm.ok) then
+               refuse.msg = sysmsg(11190)   ;* several lines: one DISPLAY each
+               loop
+                  display remove(refuse.msg, refuse.more)
+               while refuse.more
+               repeat
+               void kernel(K$AUDIT, 'elevation refused reason=sdsys login without the authenticator code kind=ssh')
+               goto abort.cproc
+            end
             if kernel(K$LOGIN.UID, 'sdsys') = 1 then
                void kernel(K$ADMINISTRATOR, 1)
                from.addr = field(env('SSH_CONNECTION'), ' ', 1)

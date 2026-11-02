@@ -96,16 +96,19 @@ class Sink:
 class Scene:
     """One scratch store, one PAM service file and one audit socket."""
 
-    def __init__(self, ctx, base, n, extra="delay_ms=0", enrol=True, audit=None):
+    def __init__(self, ctx, base, n, extra="delay_ms=0", enrol=True, audit=None, session=False):
         self.ctx = ctx
         self.d = os.path.join(base, "s%d" % n)
         self.store = os.path.join(self.d, "store")
         self.conf = os.path.join(self.d, "pam.d")
         self.sock = os.path.join(self.d, "audit.sock")
+        self.marks = os.path.join(self.d, "run", "marks")         # S.101: the marker directory (its parent is made by the module, as /run/sdcore is)
         os.makedirs(self.conf)
         with open(os.path.join(self.conf, "sdtest"), "w") as f:
             # the second line stands for the rest of sshd's stack (the password): without it a module that answers PAM_IGNORE leaves libpam saying PAM_PERM_DENIED
-            f.write("auth required %s dir=%s audit=%s %s\nauth required pam_permit.so\n" % (ctx["so"], self.store, audit or self.sock, extra))
+            f.write("auth required %s dir=%s audit=%s marks=%s %s\nauth required pam_permit.so\n" % (ctx["so"], self.store, audit or self.sock, self.marks, extra))
+            if session:                                            # S.101: login's session stack, after pam_loginuid (a test has its own loginuid and sessionid already)
+                f.write("session optional %s dir=%s audit=%s marks=%s %s\nsession required pam_permit.so\n" % (ctx["so"], self.store, audit or self.sock, self.marks, extra))
         self.sink = Sink(self.sock)
         self.secret = None
         self.recovery = []
@@ -134,10 +137,14 @@ class Scene:
     def wrong(self):
         return not_in_window(self.secret, time.time())
 
-    def run(self, src, replies, mode="login", user="sdsys"):
-        p = subprocess.run([self.ctx["harness"], self.conf, user, src, mode] + list(replies), capture_output=True, text=True, timeout=60)
+    def run(self, src, replies, mode="login", user="sdsys", tty=None):
+        env = dict(os.environ)
+        env.pop("SDTEST_TTY", None)
+        if tty is not None:
+            env["SDTEST_TTY"] = tty
+        p = subprocess.run([self.ctx["harness"], self.conf, user, src, mode] + list(replies), capture_output=True, text=True, timeout=60, env=env)
         r = {"prompts": re.findall(r"^prompt=(.*)$", p.stdout, re.M), "echo": re.findall(r"^echo=(.*)$", p.stdout, re.M)}
-        for k in ("authenticate", "setcred", "elapsed_ms"):
+        for k in ("authenticate", "setcred", "elapsed_ms", "open_session", "close_session"):
             m = re.search(r"^%s=(-?\d+)$" % k, p.stdout, re.M)
             r[k] = int(m.group(1)) if m else None
         r["audit"] = self.sink.drain()
@@ -160,6 +167,27 @@ class Scene:
 
     def close(self):
         self.sink.close()
+
+    # ---- S.101 helpers
+    def put_store_file(self, name, text):
+        p = os.path.join(self.store, name)
+        with open(p, "w") as f:
+            f.write(text)
+        os.chmod(p, 0o600)
+
+    def markers(self):
+        return sorted(os.listdir(self.marks)) if os.path.isdir(self.marks) else []
+
+    def clear_markers(self):
+        for m in self.markers():
+            os.remove(os.path.join(self.marks, m))
+
+
+def marker_name():
+    """<boot_id>.<sessionid> of THIS process's login: the harness is our child and shares both"""
+    boot = open("/proc/sys/kernel/random/boot_id").read().strip()
+    sid = open("/proc/self/sessionid").read().strip()
+    return None if sid == "4294967295" else "%s.%s" % (boot, sid)
 
 
 def audit_has(r, *needles):
@@ -337,10 +365,103 @@ def rows_for(ctx):
         r = sc.run("10.3.3.3", [sc.wrong()])
         row("a source nobody tried for a day is forgotten (an old count of 2 starts again at 1, not 3)", r["prompts"] == [PROMPT] and "src 10.3.3.3 1 " in sc.fail_text(), sc.fail_text().replace("\n", " | "))
 
+        # ---------------------------------------------------------------- S.101 (2 Nov 26): window=N, the console line, the scope, the grant and the login marker
+        def mid_step():
+            """wait out the last seconds of a 30-second step, so the module and this test read the same step"""
+            if int(time.time()) % 30 > 25:
+                time.sleep(6)
+
+        def code_at(s, steps):
+            return otp(s.secret, (int(time.time()) // 30 + steps) * 30 + 15)
+
+        mid_step()
+        sc = scene()
+        r = sc.run("10.4.0.1", [code_at(sc, -2)])
+        row("S.101 window: the module's default window is 2 steps - a code two steps old is accepted", r["authenticate"] == PAM_SUCCESS, r["raw"])
+        mid_step()
+        sc = scene(extra="delay_ms=0 window=1")
+        r = sc.run("10.4.0.2", [code_at(sc, -2)])
+        row("... the control: with window=1 the same kind of code is refused as wrong", r["authenticate"] == PAM_AUTH_ERR and audit_has(r, "reason=wrong code"), r["raw"])
+        mid_step()
+        sc = scene(extra="delay_ms=0 window=11")
+        r = sc.run("10.4.0.3", [code_at(sc, -2)])
+        row("... window=11 (the most is 10) is ignored and the default 2 is used", r["authenticate"] == PAM_SUCCESS, r["raw"])
+
+        sc = scene(extra="delay_ms=0 local", enrol=False)
+        r = sc.run("-", [], tty="/dev/tty1")
+        row("S.101 local: a console line with NO code enrolled asks nothing and leaves the login to the rest of the stack (PAM_IGNORE: a restore without a store must not lock the console)",
+            r["authenticate"] == PAM_SUCCESS and r["prompts"] == [], r["raw"])
+        sc = scene(enrol=False)
+        r = sc.run("10.4.1.1", [])
+        row("... the control: an ssh line with no code enrolled still refuses (S.95)", r["authenticate"] == PAM_AUTH_ERR and r["prompts"] == [], r["raw"])
+        sc = scene(extra="delay_ms=0 local")
+        sc.put_store_file("scope", "sdtotp 1\nremote\n")
+        r = sc.run("-", [], tty="/dev/tty1")
+        row("S.101 local off: with the scope 'remote' a console line asks nothing", r["authenticate"] == PAM_SUCCESS and r["prompts"] == [], r["raw"])
+        sc.put_store_file("scope", "sdtotp 1\nall\n")
+        r = sc.run("-", [sc.wrong()], tty="/dev/tty1")
+        row("... with the scope 'all' it asks, refuses a wrong code and counts it as the source local:sdtest:tty1, audited as a LOCAL login",
+            r["authenticate"] == PAM_AUTH_ERR and r["prompts"] == [PROMPT] and "src local:sdtest:tty1 1 " in sc.fail_text()
+            and audit_has(r, "local sdsys login code refused source=local:sdtest:tty1 reason=wrong code"), r["raw"] + " | " + sc.fail_text().replace("\n", " | "))
+        sc.put_store_file("scope", "nonsense\n")
+        r = sc.run("-", [sc.wrong()], tty="/dev/tty2")
+        row("... a scope file that is not one of the two words means everywhere (it asks): the tighter reading", r["prompts"] == [PROMPT], r["raw"])
+
+        now = int(time.time())
+        sc = scene(extra="delay_ms=0 local")
+        sc.write_fail("sdtotp 1\nall 10 %d\nsrc local:sdtest:tty1 5 %d 0\n" % (now, now - 70))
+        r = sc.run("-", [sc.wrong()], tty="/dev/tty1")
+        row("S.101 a console source's lock lasts 60 s: five failures 70 s ago no longer lock it (the code is asked)", r["prompts"] == [PROMPT], r["raw"])
+        sc.write_fail("sdtotp 1\nall 10 %d\nsrc local:sdtest:tty1 5 %d 0\n" % (now, now - 30))
+        r = sc.run("-", [sc.wrong()], tty="/dev/tty1")
+        row("... five failures 30 s ago DO lock it (nothing asked, refused as locked)", r["prompts"] == [] and audit_has(r, "reason=locked"), r["raw"])
+        sc = scene()
+        sc.write_fail("sdtotp 1\nall 10 %d\nsrc 10.5.5.5 5 %d 0\n" % (now, now - 70))
+        r = sc.run("10.5.5.5", [sc.wrong()])
+        row("... the control: an ssh source with five failures 70 s ago is still locked (ten minutes)", r["prompts"] == [] and audit_has(r, "reason=locked"), r["raw"])
+
+        mn = marker_name()
+        luid = open("/proc/self/loginuid").read().strip()
+        if mn is None:
+            row("S.101 SESSION: CANNOT ANSWER - this process has no kernel session id, so no marker can be named (run it from a login session)", False, "")
+        else:
+            sc = scene(extra="delay_ms=0 local", session=True)
+            r = sc.run("-", [sc.code()], mode="session", tty="/dev/tty1")
+            path = os.path.join(sc.marks, mn)
+            txt = open(path).read() if os.path.exists(path) else ""
+            mode = (os.stat(path).st_mode & 0o7777) if os.path.exists(path) else None
+            dmode = (os.stat(sc.marks).st_mode & 0o7777) if os.path.isdir(sc.marks) else None
+            row("S.101 SESSION: a right code at the console, setcred, then the session: the marker <boot_id>.<sessionid> is written, mode 0644 in a 0755 directory, naming "
+                "the login's uid, the service and kind=local",
+                r["authenticate"] == PAM_SUCCESS and r["setcred"] == PAM_SUCCESS and sc.markers() == [mn] and mode == 0o644 and dmode == 0o755
+                and re.match(r"uid=%s service=sdtest kind=local time=\d+\n$" % re.escape(luid), txt) is not None, "%r %r %r %r" % (r["raw"], sc.markers(), txt, (mode, dmode)))
+            row("... audited 'local sdsys login marker written'", audit_has(r, "local sdsys login marker written source=local:sdtest:tty1"), "%s" % r["audit"])
+            r = sc.run("-", [], mode="close", tty="/dev/tty1")
+            row("... close_session takes the marker away", r["close_session"] == PAM_SUCCESS and sc.markers() == [], "%r %r" % (r["raw"], sc.markers()))
+            r = sc.run("-", [], mode="open", tty="/dev/tty1")
+            row("... a session opened again with no new right code finds no grant (the grant is single use): no marker, and the session is not refused",
+                r["open_session"] == PAM_SUCCESS and sc.markers() == [] and not audit_has(r, "marker written"), "%r %r" % (r["raw"], sc.markers()))
+            sc.put_store_file("sdsys.grant", "sdtotp 1\ngrant local:sdtest:tty1 %d\n" % (int(time.time()) - 400))
+            r = sc.run("-", [], mode="open", tty="/dev/tty1")
+            row("... a grant older than 300 s is not taken: no marker", sc.markers() == [], "%r" % sc.markers())
+            sc.put_store_file("sdsys.grant", "sdtotp 1\ngrant local:sdtest:tty1 %d\n" % int(time.time()))
+            r = sc.run("-", [], mode="open", tty="/dev/tty2")
+            row("... a fresh grant for ANOTHER source (tty1) is not taken by tty2's session: no marker", sc.markers() == [], "%r" % sc.markers())
+            os.chmod(sc.marks, 0o777)
+            r = sc.run("-", [], mode="open", tty="/dev/tty1")
+            row("... with the marker directory writable by others, the grant is used but NO marker is written, and the audit says why",
+                sc.markers() == [] and audit_has(r, "marker not written source=local:sdtest:tty1 reason=marker directory unsafe"), "%r %s" % (sc.markers(), r["audit"]))
+            os.chmod(sc.marks, 0o755)
+            sc = scene(session=True)
+            r = sc.run("10.7.0.1", [sc.code()], mode="session")
+            txt = open(os.path.join(sc.marks, mn)).read() if os.path.exists(os.path.join(sc.marks, mn)) else ""
+            row("S.101 SESSION over ssh (the sshd fence's session line): the marker says kind=ssh", "kind=ssh" in txt and audit_has(r, "ssh sdsys login marker written source=10.7.0.1"), "%r %s" % (txt, r["audit"]))
+
         # ---------------------------------------------------------------- the file itself and its source
         nm = subprocess.run(["nm", "-D", "--defined-only", ctx["so"]], capture_output=True, text=True)
         syms = sorted(l.split()[-1] for l in nm.stdout.splitlines() if l.strip())
-        row("the shared object exports pam_sm_authenticate and pam_sm_setcred and nothing else", syms == ["pam_sm_authenticate", "pam_sm_setcred"], "%s" % syms)
+        row("the shared object exports pam_sm_authenticate, pam_sm_setcred and (S.101) pam_sm_open_session and pam_sm_close_session, and nothing else",
+            syms == ["pam_sm_authenticate", "pam_sm_close_session", "pam_sm_open_session", "pam_sm_setcred"], "%s" % syms)
         src = open(os.path.join(ctx["src_dir"], "pam_sdtotp.c"), encoding="utf-8").read()
         code_only = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
         defs = open(os.path.join(ctx["src_dir"], "sddefs.h"), encoding="utf-8").read() if os.path.exists(os.path.join(ctx["src_dir"], "sddefs.h")) else \
@@ -351,9 +472,15 @@ def rows_for(ctx):
         row("TEXT: the code is asked for with the answer hidden (ECHO_OFF, never ECHO_ON), and the answer is wiped before it is freed",
             "PAM_PROMPT_ECHO_OFF" in code_only and "PAM_PROMPT_ECHO_ON" not in code_only and code_only.find("OPENSSL_cleanse(resp") != -1 and code_only.find("OPENSSL_cleanse(resp") < code_only.find("free(resp)"), "")
         a = code_only[code_only.find("int pam_sm_authenticate"):code_only.find("int pam_sm_setcred")]
-        order = [a.find(k) for k in ("who(pamh, src)", "sd_totps_info(", "sd_totps_attempt(", "pam_prompt(", "sd_totps_check(")]
+        order = [a.find(k) for k in ("who(pamh, o.local, src)", "sd_totps_info(", "sd_totps_attempt_lock(", "pam_prompt(", "sd_totps_check_window(")]
         row("TEXT: authenticate asks who, then what is enrolled, then counts the attempt, then prompts, then checks - in that order", all(o >= 0 for o in order) and order == sorted(order), "%s" % order)
         row("TEXT: authenticate never forgets failures itself (only setcred does), and setcred answers PAM_SUCCESS for a user it handles", "sd_totps_clear" not in a and "return PAM_SUCCESS;" in code_only[code_only.find("int pam_sm_setcred"):], "")
+        osess = code_only[code_only.find("int pam_sm_open_session"):code_only.find("int pam_sm_close_session")]
+        row("TEXT (S.101): open_session takes the grant before anything else it does for sdsys, opens the marker O_EXCL | O_NOFOLLOW with mode 0644 in the checked directory, "
+            "and never refuses a session (it answers PAM_SUCCESS or PAM_IGNORE only)",
+            0 <= osess.find("sd_totps_take_grant(") < osess.find("marker_name(") < osess.find("open_marks(") < osess.find("openat(")
+            and "O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0644" in osess and not re.search(r"return PAM_(?!SUCCESS|IGNORE)", osess)
+            and "st.st_uid != geteuid() || (st.st_mode & 022) != 0" in code_only and "O_RDONLY | O_DIRECTORY | O_NOFOLLOW" in code_only, "")
     finally:
         for s in scenes:
             s.close()
@@ -363,8 +490,20 @@ def rows_for(ctx):
 
 MUTANTS = [
     ("any user is asked", "pam_sdtotp.c", " || strcmp(user, SD_USER) != 0", ""),
-    ("not enrolled is asked anyway", "pam_sdtotp.c", '    if (!info.has_active) return refuse(pamh, &o, 0, src, "not enrolled");\n', ""),
-    ("attempts are not counted", "pam_sdtotp.c", "r = sd_totps_attempt(o.dir, now, src, &slow);", "r = SD_TOTPS_OK;"),
+    ("not enrolled is asked anyway", "pam_sdtotp.c", '        return refuse(pamh, &o, 0, src, "not enrolled");\n', ""),
+    ("attempts are not counted", "pam_sdtotp.c", "r = sd_totps_attempt_lock(o.dir, now, src, &slow, o.local ? SD_TOTPS_LOCK_LOCAL_SECS : SD_TOTPS_LOCK_SECS);", "r = SD_TOTPS_OK;"),
+    # S.101 (2 Nov 26)
+    ("the window argument is ignored", "pam_sdtotp.c", "r = sd_totps_check_window(o.dir, now, resp, o.window);", "r = sd_totps_check(o.dir, now, resp);"),
+    ("a console with no code enrolled is refused", "pam_sdtotp.c", "        if (o.local) return PAM_IGNORE;             /* S.101: no code enrolled", "        if (0) return PAM_IGNORE;             /* S.101: no code enrolled"),
+    ("local off is not obeyed", "pam_sdtotp.c", "    if (o.local && !sd_totps_scope_all(o.dir)) return PAM_IGNORE;", "    if (0) return PAM_IGNORE;"),
+    ("a console's lock is ten minutes", "sd_totp_store.h", "#define SD_TOTPS_LOCK_LOCAL_SECS 60 ", "#define SD_TOTPS_LOCK_LOCAL_SECS 600 "),
+    ("a console login is counted as unknown", "pam_sdtotp.c", "    if (local && (rhost == NULL", "    if (0 && (rhost == NULL"),
+    ("the session needs no grant", "pam_sdtotp.c", "    if (sd_totps_take_grant(o.dir, (uint64_t)time(NULL), src) != SD_TOTPS_OK) return PAM_IGNORE;", "    (void)sd_totps_take_grant(o.dir, (uint64_t)time(NULL), src);"),
+    ("a grant is used again", "sd_totp_store.c", "                grant_drop(&g, i);                          /* single use", "                /* single use"),
+    ("a stale grant is taken", "sd_totp_store.c", "if (now >= g.at[i] && now - g.at[i] <= SD_TOTPS_OK_SECS) rc = SD_TOTPS_OK;", "rc = SD_TOTPS_OK;"),
+    ("the marker directory is not checked", "pam_sdtotp.c", " || st.st_uid != geteuid() || (st.st_mode & 022) != 0", ""),
+    ("the marker is not removed at the end", "pam_sdtotp.c", "    (void)unlinkat(dfd, name, 0);\n    close(dfd);\n    return PAM_SUCCESS;", "    close(dfd);\n    return PAM_SUCCESS;"),
+    ("a scope file that says anything else means remote", "sd_totp_store.c", 'return strcmp(buf, MAGIC "\\nremote\\n") == 0 ? 0 : 1;', 'return strcmp(buf, MAGIC "\\nall\\n") == 0 ? 1 : 0;'),
     ("a locked source is not refused as locked", "pam_sdtotp.c", '    if (r == SD_TOTPS_LOCKED) return refuse(pamh, &o, slow, src, "locked");\n', ""),
     ("the right code forgets the failures at once", "pam_sdtotp.c", "(void)sd_totps_ok(o.dir, now, src);", "(void)sd_totps_ok(o.dir, now, src);\n        (void)sd_totps_clear(o.dir, now, src);"),
     ("no mark is left for setcred", "pam_sdtotp.c", "        (void)sd_totps_ok(o.dir, now, src);\n", ""),

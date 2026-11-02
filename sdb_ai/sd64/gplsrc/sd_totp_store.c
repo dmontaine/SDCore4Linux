@@ -77,6 +77,8 @@
 #define NAME_PENDING    "sdsys.pending"
 #define NAME_RECOVERY   "sdsys.recovery"
 #define NAME_FAIL       "sdsys.fail"
+#define NAME_GRANT      "sdsys.grant"       /* S.101: the single-use grants a right code leaves for the session stage */
+#define NAME_SCOPE      "scope"             /* S.101: "remote" when the code is asked only over ssh (written by sd-elevate totp-local, stage D) */
 #define FAIL_FILE_MAX   16384
 #define SALT_BYTES      16
 #define HEX_SALT        (2 * SALT_BYTES)
@@ -636,6 +638,12 @@ done:
 
 int sd_totps_check(const char *dir, uint64_t now, const char *given)
 {
+    return sd_totps_check_window(dir, now, given, SD_TOTP_WINDOW);
+}
+
+/* 2 Nov 26 (S.101): the same with the window given (the PAM module's window=N, 1 to SD_TOTP_WINDOW_MAX). */
+int sd_totps_check_window(const char *dir, uint64_t now, const char *given, int window)
+{
     struct active a;
     struct recov r;
     unsigned char key[SD_TOTP_SECRET_LEN];
@@ -663,7 +671,7 @@ int sd_totps_check(const char *dir, uint64_t now, const char *given)
             rc = SD_TOTPS_UNSAFE;
             goto done;
         }
-        step = sd_totp_check(key, sizeof key, now, norm, a.last);
+        step = sd_totp_check_window(key, sizeof key, now, norm, a.last, window);
         if (step >= 0) rc = store_active(dfd, a.b32, step);
         else if (step == SD_TOTP_REPLAY) rc = SD_TOTPS_REPLAY;
         else if (step == SD_TOTP_NOMATCH) rc = SD_TOTPS_WRONG;
@@ -882,6 +890,13 @@ static void fail_drop(struct fails *f, int i)
 
 int sd_totps_attempt(const char *dir, uint64_t now, const char *src, int *slow)
 {
+    return sd_totps_attempt_lock(dir, now, src, slow, SD_TOTPS_LOCK_SECS);
+}
+
+/* 2 Nov 26 (S.101): the same with the length of the lock given.  A console login (a local: source) is locked for SD_TOTPS_LOCK_LOCAL_SECS, not ten minutes:
+   anyone at the keyboard could otherwise lock the administrator out of the console with five wrong codes. */
+int sd_totps_attempt_lock(const char *dir, uint64_t now, const char *src, int *slow, uint64_t lock_secs)
+{
     struct fails f;
     int dfd;
     int rc;
@@ -905,7 +920,7 @@ int sd_totps_attempt(const char *dir, uint64_t now, const char *src, int *slow)
     i = fail_find(&f, src);
     if (i >= 0 && f.r[i].count >= SD_TOTPS_FAIL_MAX) {
         if (slow != NULL) *slow = f.all_count > SD_TOTPS_GLOBAL_MAX;
-        if (now < f.r[i].last + SD_TOTPS_LOCK_SECS) {       /* locked: ask nothing, count nothing, write nothing */
+        if (now < f.r[i].last + lock_secs) {                /* locked: ask nothing, count nothing, write nothing */
             rc = SD_TOTPS_LOCKED;
             goto done;
         }
@@ -936,6 +951,8 @@ done:
     return rc;
 }
 
+static int grant_put(int dfd, uint64_t now, const char *src);
+
 int sd_totps_ok(const char *dir, uint64_t now, const char *src)
 {
     struct fails f;
@@ -952,8 +969,137 @@ int sd_totps_ok(const char *dir, uint64_t now, const char *src)
         f.r[i].ok = now;
         rc = store_fail(dfd, &f);
     }
+    if (rc == 0) rc = grant_put(dfd, now, src);                 /* S.101: the session's single-use proof, kept apart from the failure memory */
     close(dfd);
     return rc;
+}
+
+/* ---- S.101 (2 Nov 26): the GRANT.  A right code leaves, besides the mark above, a grant for its source in its own file (NAME_GRANT: "grant SRC TIME" lines).
+   PAM calls pam_sm_setcred (which forgets the failures and the mark: sd_totps_clear) BEFORE pam_sm_open_session on a console login, so the session stage
+   cannot take the mark; it takes the grant instead (sd_totps_take_grant), once, within SD_TOTPS_OK_SECS.  clear does not touch the grants. ---- */
+
+struct grants { char src[SD_TOTPS_SRC_MAX][SD_TOTPS_SRC_LEN]; uint64_t at[SD_TOTPS_SRC_MAX]; int n; };
+
+static int parse_grants(char *text, struct grants *g)
+{
+    char *cur = text;
+    char *ln = next_line(&cur);
+    char *tok[4];
+    uint64_t at;
+
+    memset(g, 0, sizeof *g);
+    if (ln == NULL || strcmp(ln, MAGIC) != 0) return SD_TOTPS_UNSAFE;
+    while ((ln = next_line(&cur)) != NULL) {
+        if (split_line(ln, tok, 4) == 3 && strcmp(tok[0], "grant") == 0 && g->n < SD_TOTPS_SRC_MAX && src_ok(tok[1]) && parse_u64(tok[2], &at)) {
+            snprintf(g->src[g->n], SD_TOTPS_SRC_LEN, "%s", tok[1]);
+            g->at[g->n] = at;
+            g->n++;
+        } else {
+            return SD_TOTPS_UNSAFE;
+        }
+    }
+    return 0;
+}
+
+static int load_grants(int dfd, struct grants *g)
+{
+    char buf[FAIL_FILE_MAX];
+    int rc = read_file(dfd, NAME_GRANT, buf, sizeof buf);
+
+    if (rc == LOAD_ABSENT) {
+        memset(g, 0, sizeof *g);
+        return 0;
+    }
+    if (rc == 0) rc = parse_grants(buf, g);
+    return rc;
+}
+
+static int store_grants(int dfd, const struct grants *g)
+{
+    char text[FAIL_FILE_MAX];
+    size_t len;
+    int i;
+
+    len = (size_t)snprintf(text, sizeof text, MAGIC "\n");
+    for (i = 0; i < g->n; i++) {
+        len += (size_t)snprintf(text + len, sizeof text - len, "grant %s %" PRIu64 "\n", g->src[i], g->at[i]);
+    }
+    return write_file(dfd, NAME_GRANT, text);
+}
+
+static void grant_drop(struct grants *g, int i)
+{
+    memmove(g->src[i], g->src[i + 1], (size_t)(g->n - i - 1) * sizeof g->src[0]);
+    memmove(&g->at[i], &g->at[i + 1], (size_t)(g->n - i - 1) * sizeof g->at[0]);
+    g->n--;
+}
+
+/* A grant for SRC at NOW (one per source: a new one replaces it; stale ones and, when full, the oldest make room). */
+static int grant_put(int dfd, uint64_t now, const char *src)
+{
+    struct grants g;
+    int rc = load_grants(dfd, &g);
+    int i;
+    int oldest;
+
+    if (rc != 0) return rc;
+    for (i = g.n - 1; i >= 0; i--) {
+        if (strcmp(g.src[i], src) == 0 || g.at[i] + SD_TOTPS_OK_SECS < now || g.at[i] > now) grant_drop(&g, i);
+    }
+    if (g.n >= SD_TOTPS_SRC_MAX) {
+        oldest = 0;
+        for (i = 1; i < g.n; i++) {
+            if (g.at[i] < g.at[oldest]) oldest = i;
+        }
+        grant_drop(&g, oldest);
+    }
+    snprintf(g.src[g.n], SD_TOTPS_SRC_LEN, "%s", src);
+    g.at[g.n] = now;
+    g.n++;
+    return store_grants(dfd, &g);
+}
+
+int sd_totps_take_grant(const char *dir, uint64_t now, const char *src)
+{
+    struct grants g;
+    int dfd;
+    int rc;
+    int i;
+
+    if (src == NULL || !src_ok(src)) return SD_TOTPS_BAD;
+    dfd = open_dir(dir, 0);
+    if (dfd == DIR_ABSENT) return SD_TOTPS_NOTHING;
+    if (dfd < 0) return dir_result(dfd);
+    rc = load_grants(dfd, &g);
+    if (rc == 0) {
+        rc = SD_TOTPS_NOTHING;
+        for (i = 0; i < g.n; i++) {
+            if (strcmp(g.src[i], src) == 0) {
+                if (now >= g.at[i] && now - g.at[i] <= SD_TOTPS_OK_SECS) rc = SD_TOTPS_OK;
+                grant_drop(&g, i);                          /* single use: taken, or stale, it goes */
+                if (store_grants(dfd, &g) != 0) rc = SD_TOTPS_ERROR;
+                break;
+            }
+        }
+    }
+    close(dfd);
+    return rc;
+}
+
+/* The scope word kept beside the store (NAME_SCOPE): "remote" means the code is asked only over ssh; anything else, and no file, means everywhere
+   (the delivered default is the tighter one).  Answers 1 for everywhere, 0 for remote only, and 1 for a store that cannot be read (fail closed). */
+int sd_totps_scope_all(const char *dir)
+{
+    char buf[64];
+    int dfd;
+    int rc;
+
+    dfd = open_dir(dir, 0);
+    if (dfd < 0) return 1;
+    rc = read_file(dfd, NAME_SCOPE, buf, sizeof buf);
+    close(dfd);
+    if (rc != 0) return 1;
+    return strcmp(buf, MAGIC "\nremote\n") == 0 ? 0 : 1;
 }
 
 int sd_totps_clear(const char *dir, uint64_t now, const char *src)

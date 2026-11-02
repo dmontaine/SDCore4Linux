@@ -133,4 +133,21 @@ int sd_totps_ok(const char *dir, uint64_t now, const char *src);
 /* The whole login from SRC succeeded: if the mark is fresh, forget SRC's failures and the mark (SD_TOTPS_OK); else change nothing (SD_TOTPS_NOTHING). */
 int sd_totps_clear(const char *dir, uint64_t now, const char *src);
 
+/* ---- S.101 (2 Nov 26): the code for local sdsys logins too. ---- */
+
+#define SD_TOTPS_LOCK_LOCAL_SECS 60     /* a console source's lock: anyone at the keyboard could otherwise keep the administrator out for ten minutes */
+
+/* sd_totps_check with the window given (1 to SD_TOTP_WINDOW_MAX steps either side); sd_totps_check is this with SD_TOTP_WINDOW. */
+int sd_totps_check_window(const char *dir, uint64_t now, const char *given, int window);
+
+/* sd_totps_attempt with the lock's length given; sd_totps_attempt is this with SD_TOTPS_LOCK_SECS. */
+int sd_totps_attempt_lock(const char *dir, uint64_t now, const char *src, int *slow, uint64_t lock_secs);
+
+/* sd_totps_ok also leaves a GRANT for SRC.  Take it: SD_TOTPS_OK when there was one less than SD_TOTPS_OK_SECS old (it is used up either way),
+ * SD_TOTPS_NOTHING when there was none.  The PAM module's session stage takes it before it writes the login's marker. */
+int sd_totps_take_grant(const char *dir, uint64_t now, const char *src);
+
+/* 1 when the code is asked everywhere (the scope file is absent, or says anything but "remote", or the store cannot be read), 0 when only over ssh. */
+int sd_totps_scope_all(const char *dir);
+
 #endif

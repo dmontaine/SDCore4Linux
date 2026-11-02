@@ -333,9 +333,53 @@ sdsys_login_gate() {
     lu=$(cat /proc/self/loginuid 2>/dev/null) || lu=
   fi
   [[ $who == sdsys || ( -n $want && $suid == "$want" ) ]] || return 0
-  [[ $want =~ ^[1-9][0-9]*$ && $lu == "$want" ]] && return 0
+  if [[ $want =~ ^[1-9][0-9]*$ && $lu == "$want" ]]; then
+    sdsys_mark_gate "$lu"                       # S.101: the login is sdsys's own; did it give the authenticator code?
+    return 0
+  fi
   [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller is sdsys but the login behind it is uid ${lu:-unknown}, not sdsys's" 2>/dev/null || true
   die "the caller is the user sdsys but did not log in as sdsys: the login behind this session is uid ${lu:-unknown}, not sdsys's (${want:-unknown}). su, sudo -u and a service keep the login of whoever started them; log in as sdsys itself and run it from there. Nothing was done."
+}
+
+# 02 Nov 26 dm - S.101 stage B (the Opus review of 1 Nov: "the real wall is sd-elevate, which is root-owned" - cproc is sdsys's own BASIC and sdsys can change it).  A caller whose login IS sdsys's
+# must also have given the authenticator code when one is enrolled: the PAM module's session stage wrote <marks>/<boot_id>.<sessionid> naming the login's uid.  sudo runs no pam_loginuid, so the
+# session id the helper sees is the caller's.  This closes `su sdsys` + `crontab -e` and every service with no line of the module (a cron job, fingerprint, autologin): none writes a marker.
+# The public status file (enrolled yes|no, scope all|remote; written by totp-confirm / totp-off / totp-local, root-owned, 0644) decides: absent or "enrolled no" asks nothing; "scope remote" asks
+# nothing EITHER, because the helper cannot tell an ssh login from a console one (sudo resets the environment) - cproc's ssh arm still asks then.  The delivered scope is all, which always asks.
+# A file that is a link, not the helper's own (root), or writable by group or others answers no.  A dry run asks only when SD_MARK_FIXTURE_DIR names a test's files (with SD_BOOT_FIXTURE,
+# SD_SESSION_FIXTURE and SD_LOGINUID_FIXTURE); a real run reads /etc/sdcore/totp.public, /run/sdcore/marks and /proc and ignores every fixture.
+mark_safe_file() {   # FILE - a regular file, not a link, the helper's own, not writable by group or others
+  local f=$1 m
+  [[ -f $f && ! -L $f ]] || return 1
+  [[ $(stat -c %u -- "$f" 2>/dev/null) == "${EUID:-$(id -u)}" ]] || return 1
+  m=$(stat -c %a -- "$f" 2>/dev/null) || return 1
+  (( (8#$m & 8#022) == 0 ))
+}
+
+sdsys_mark_gate() {   # LOGINUID (the caller's login, already shown to be sdsys's)
+  local lu=$1 pubf marks boot sid m
+  if [[ $DRY -eq 1 ]]; then
+    [[ -n ${SD_MARK_FIXTURE_DIR:-} ]] || return 0
+    pubf=$SD_MARK_FIXTURE_DIR/totp.public
+    marks=$SD_MARK_FIXTURE_DIR/marks
+    boot=${SD_BOOT_FIXTURE:-}
+    sid=${SD_SESSION_FIXTURE:-}
+  else
+    pubf=/etc/sdcore/totp.public
+    marks=/run/sdcore/marks
+    boot=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null) || boot=
+    sid=$(cat /proc/self/sessionid 2>/dev/null) || sid=
+  fi
+  [[ -e $pubf || -L $pubf ]] || return 0                                    # no code enrolled: nothing to ask
+  mark_safe_file "$pubf" || die "the authenticator code's status file $pubf is not as it must be (a link, not root's, or writable by others), so this sdsys login cannot be shown to have given the code. Nothing was done."
+  grep -qx 'enrolled yes' -- "$pubf" || return 0
+  grep -qx 'scope remote' -- "$pubf" && return 0
+  m=$marks/$boot.$sid
+  if [[ $sid =~ ^[0-9]+$ && $sid != 4294967295 && $boot =~ ^[0-9a-f-]+$ ]] && mark_safe_file "$m" && [[ $(head -c 64 -- "$m") == "uid=$lu "* ]]; then
+    return 0
+  fi
+  [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller logged in as sdsys but gave no authenticator code (no marker for session ${sid:-unknown})" 2>/dev/null || true
+  die "this sdsys login did not give the authenticator code (no marker for this session in $marks). A cron job, su, and a login service the code is not set up on all lack one. Log in as sdsys again and give the code. Nothing was done."
 }
 
 ufw_state() {   # absent | inactive | active-deny | active-allow  (root only)

@@ -93,10 +93,19 @@ int64_t sd_totp_at(const unsigned char *key, size_t keylen, uint64_t unixtime)
 int64_t sd_totp_check(const unsigned char *key, size_t keylen, uint64_t unixtime,
                       const char *given, int64_t last_step)
 {
+    return sd_totp_check_window(key, keylen, unixtime, given, last_step, SD_TOTP_WINDOW);
+}
+
+
+/* 2 Nov 26 (S.101): the window as an argument, so that the PAM module's root-owned window=N can give a person more time to read the code
+   (the owner, 1 Nov 26: "sometimes it takes me that long to get the phone out of my pocket").  Outside 1 to SD_TOTP_WINDOW_MAX is SD_TOTP_BAD. */
+int64_t sd_totp_check_window(const unsigned char *key, size_t keylen, uint64_t unixtime,
+                             const char *given, int64_t last_step, int window)
+{
     char want[SD_TOTP_DIGITS + 1];
     uint64_t now = unixtime / SD_TOTP_STEP;
-    uint64_t first = (now > SD_TOTP_WINDOW) ? now - SD_TOTP_WINDOW : 0;
-    uint64_t last = now + SD_TOTP_WINDOW;
+    uint64_t first;
+    uint64_t last;
     uint64_t step;
     int64_t code;
     int64_t fresh = SD_TOTP_NOMATCH;
@@ -104,6 +113,9 @@ int64_t sd_totp_check(const unsigned char *key, size_t keylen, uint64_t unixtime
     int i;
 
     if (key == NULL || keylen == 0 || given == NULL || strlen(given) != SD_TOTP_DIGITS) return SD_TOTP_BAD;
+    if (window < 1 || window > SD_TOTP_WINDOW_MAX) return SD_TOTP_BAD;
+    first = (now > (uint64_t)window) ? now - (uint64_t)window : 0;
+    last = now + (uint64_t)window;
     for (i = 0; i < SD_TOTP_DIGITS; i++) {
         if (given[i] < '0' || given[i] > '9') return SD_TOTP_BAD;
     }

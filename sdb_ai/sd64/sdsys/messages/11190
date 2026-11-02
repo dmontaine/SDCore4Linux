@@ -1,0 +1,4 @@
+This sdsys login did not give the authenticator code, so it is not the
+administrator. Log in as sdsys again and give the code when it is asked
+for; an administrator of the machine can see the state with
+sudo /usr/local/sbin/sd-elevate totp-status
