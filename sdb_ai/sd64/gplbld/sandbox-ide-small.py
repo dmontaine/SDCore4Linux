@@ -26,6 +26,9 @@
 #               cursor-lock rows - 45 Downs leaving the screen, a window of 24 lines being fine - are gone); CED and the debugger keep 140 by 42 and the cursor lock.
 # 28 Oct 26 dm  S.88 Phase 4: the File menu has seven entries (New, Open, Save, Save as, Write a copy, Close, Quit), so Close record is five Downs
 #               from New record and Quit six; no other key of these rows changed meaning (Ctrl-S, Ctrl-Q, Ctrl-L, F10 and the Downs are as before).
+# 1 Nov 26 dm   S.98 H1 (the debugger in the IDE's style): the debugger is laid out for 140 by 43 (DBG_H), so a 140 by 42 window is below its floor and gets line mode
+#               with message 11602 naming 43; its command line is row 39 and its messages rows 34 to 38; its source rows start with a gutter mark; the cursor lock's
+#               warning names 140 by 43 for it.  CED keeps 140 by 42.  WRITTEN with the change; run once with it.
 # END-HISTORY
 #
 # HOW IT DRIVES THEM.  On a PSEUDO-TERMINAL (ptydrive.py), the window size set BEFORE SD starts (it asks the tty when it starts) and
@@ -63,7 +66,8 @@ SCR = "zzisscr" + RUN                                # a user's SCREEN OPEN prog
 passed = failed = 0
 BOX = SYS = None
 
-LAY_W, LAY_H = 140, 42                              # what CED and the debugger are laid out for
+LAY_W, LAY_H = 140, 42                              # what CED is laid out for
+DBG_H = 43                                          # what the debugger is laid out for since S.98 (1 Nov 26): the toolkit's floor, its foot the status line (row 40), a border and the key row
 IDE_H = 43                                          # what the IDE is laid out for since the window lock (28 Oct 26): 140 by 43, its foot is the status line (row 40), a border and the key row
 UP, DOWN, LEFT, RIGHT = "\x1bOA", "\x1bOB", "\x1bOD", "\x1bOC"
 F10 = "\x1b[21~"
@@ -126,7 +130,7 @@ class Term:
     def __init__(self, box, cmd, cols=LAY_W, rows=None, pre=(), idle=1.2):
         """pre: commands typed first (TERM 100,30, AUTOLOGOUT 30 ...).  rows left out: the height the program is laid out for (the IDE's, else CED's and the debugger's)."""
         if rows is None:
-            rows = IDE_H if cmd.split()[0].upper() == "IDE" else LAY_H
+            rows = IDE_H if cmd.split()[0].upper() == "IDE" else (DBG_H if DBG in cmd else LAY_H)
         self.cols = cols
         self.rows = rows
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C", LANG="C")
@@ -178,7 +182,8 @@ def text(L, n=8):
 def warn_shown(L, w, h, name):
     """The cursor lock's warning is in the first rows, for a window w by h and the program called name."""
     t = " ".join(l.strip() for l in L[:6])
-    return ("The window is %d by %d and %s is laid out for 140 by 42" % (w, h, name)) in t and "Ctrl-Q" in t
+    lh = DBG_H if name == "the debugger" else LAY_H                  # S.98: the debugger is laid out for 140 by 43, CED for 140 by 42
+    return ("The window is %d by %d and %s is laid out for 140 by %d" % (w, h, name, lh)) in t and "Ctrl-Q" in t
 
 
 def ide_warn(L, w, h):
@@ -270,7 +275,7 @@ def part_a():
 
 
 def part_b():
-    say("\n--- B: a window under the floor at the start (the IDE 140 by 43, CED and the debugger 140 by 42): refused, the debugger uses line mode ---")
+    say("\n--- B: a window under the floor at the start (the IDE 140 by 43, CED 140 by 42, the debugger 140 by 43): refused, the debugger uses line mode ---")
     for (cmd, name, fh, sizes) in (("IDE", "IDE", IDE_H, ((80, 24), (100, 30), (120, 36), (139, 43), (140, 42))),
                                    ("CED %s j1" % F, "CED", LAY_H, ((80, 24), (100, 30), (120, 36), (139, 42), (140, 41)))):
         for (c, r) in sizes:
@@ -313,33 +318,33 @@ def part_b():
     row("control: at 140x42 the same program shows the editor", any("k01" in l for l in L) and not any("CEDBACK" in l for l in L), text(L, 6))
     leave(e)
 
-    say("\n--- B: the debugger on a window under 140 by 42: the message once, then line mode (not a refusal) ---------------------")
-    for (c, r) in ((100, 30), (80, 24), (139, 42), (140, 41)):
+    say("\n--- B: the debugger on a window under 140 by 43: the message once, then line mode (not a refusal) ---------------------")
+    for (c, r) in ((100, 30), (80, 24), (139, 43), (140, 42)):
         e = Term(BOX, "RUN bp %s" % DBG, c, r, idle=2.0)
         L = e.lines()
-        want = "The debugger needs a window of at least 140 columns by 42 lines for its full-screen display; this one is %d by %d, so it is " % (c, r)
+        want = "The debugger needs a window of at least 140 columns by 43 lines for its full-screen display; this one is %d by %d, so it is " % (c, r)
         joined = re.sub(r"\s+", "", "".join(L))          # the terminal wraps the message at its edge, so spaces are not compared
         row("%dx%d: the debugger says why it is in line mode (message 11602, the size named)" % (c, r),
             re.sub(r"\s+", "", want) in joined, text(L, 12))
         row("%dx%d: ...once only" % (c, r), joined.count("Thedebuggerneedsawindow") == 1, joined[:200])
         row("%dx%d: ...it is line mode: no numbered source frame, no title bar, the stop is reported on a line (4:) and the prompt is >" % (c, r),
-            not any(re.match(r"^\s*1:\s+s = 'plain'", l) for l in L) and any(re.match(r"^4:\s+crt 'AFTER-ONE'", l) for l in L)
+            not any(re.match(r"^[ *>]\s*1:\s+s = 'plain'", l) for l in L) and any(re.match(r"^4:\s+crt 'AFTER-ONE'", l) for l in L)
             and any(l.startswith(">") for l in L), text(L, 14))
         L = e.keys("/s", RET)
         row("%dx%d: ...and a debug session works in it: /s shows the variable" % (c, r), any('String (5 bytes)' in l and "plain" in l for l in L), text(L, 14))
         L = e.keys("r", RET, idle=1.0)
         row("%dx%d: ...and R runs the program on: AFTER-ONE, and SD is at its prompt" % (c, r), any(l.strip() == "AFTER-ONE" for l in L) and prompt_shown(e), text(L, 14))
         e.end()
-    e = Term(BOX, "RUN bp %s" % DBG, 140, 42, idle=2.0)
+    e = Term(BOX, "RUN bp %s" % DBG, 140, DBG_H, idle=2.0)
     L = e.lines()
-    row("control: at 140 by 42 the debugger is full screen (numbered source, command line on the last row) and says nothing about line mode",
-        any(re.match(r"^\s*1:\s+s = 'plain'", l) for l in L) and L[41].startswith(">") and not any("line mode" in l for l in L), text(L, 6) + repr(L[41][:20]))
+    row("control: at 140 by 43 the debugger is full screen (numbered source, command line on row 39, its foot below) and says nothing about line mode",
+        any(re.match(r"^[ *>]\s*1:\s+s = 'plain'", l) for l in L) and L[39].startswith(">") and L[42].startswith("F1 help") and not any("line mode" in l for l in L), text(L, 6) + repr(L[39][:20]))
     e.keys("r", RET, idle=1.0)
     e.end()
-    e = Term(BOX, "RUN bp %s" % DBG, 140, 42, pre=("TERM 100,30",), idle=2.0)
+    e = Term(BOX, "RUN bp %s" % DBG, 140, DBG_H, pre=("TERM 100,30",), idle=2.0)
     L = e.lines()
-    row("a 140 by 42 window whose display was set to 100 by 30 with TERM: the debugger is in line mode, with the message",
-        any("this one is 100 by 30" in l for l in L) and not any(re.match(r"^\s*1:\s+s = 'plain'", l) for l in L), text(L, 12))
+    row("a 140 by 43 window whose display was set to 100 by 30 with TERM: the debugger is in line mode, with the message",
+        any("this one is 100 by 30" in l for l in L) and not any(re.match(r"^[ *>]\s*1:\s+s = 'plain'", l) for l in L), text(L, 12))
     e.keys("r", RET, idle=1.0)
     e.end()
 
@@ -403,17 +408,17 @@ def part_c():
     say("\n--- C: the debugger, shrunk in width only (the command line is still on the screen) ---------------------------------")
     e = Term(BOX, "RUN bp %s" % DBG, idle=2.0)
     base_dbg = list(e.lines())
-    row("setup: the debugger is up full screen at 140 by 42", any(re.match(r"^\s*1:\s+s = 'plain'", l) for l in base_dbg) and base_dbg[41].startswith(">"),
+    row("setup: the debugger is up full screen at 140 by 43", any(re.match(r"^[ *>]\s*1:\s+s = 'plain'", l) for l in base_dbg) and base_dbg[39].startswith(">"),
         text(base_dbg, 4))
-    m = e.resize(100, 42)
-    check_corner(e, m, 100, 42, base_dbg, "debugger 100x42")
+    m = e.resize(100, DBG_H)
+    check_corner(e, m, 100, DBG_H, base_dbg, "debugger 100x43")
     L = e.keys("/s", RET)
-    row("debugger 100x42: no warning (the cursor is on the screen), and a command works: /s shows the variable",
+    row("debugger 100x43: no warning (the cursor is on the screen), and a command works: /s shows the variable",
         "The window is" not in text(L, 6) and any('String (5 bytes)' in l and "plain" in l for l in L), text(L[30:], 12))
-    m2 = e.resize(LAY_W, LAY_H)
-    got, n = e.replay(m2, LAY_W, LAY_H)
-    d = corner_diff(got[:34], base_dbg[:34], LAY_W, 34)
-    row("debugger 100x42 -> 140x42: it lays out and draws the whole screen again (replayed: the title and the source)", n > 0 and d is None, d or "no bytes")
+    m2 = e.resize(LAY_W, DBG_H)
+    got, n = e.replay(m2, LAY_W, DBG_H)
+    d = corner_diff(got[:34] + got[40:43], base_dbg[:34] + base_dbg[40:43], LAY_W, 37)
+    row("debugger 100x43 -> 140x43: it lays out and draws the whole screen again (replayed: the title, the source, the Autos pane and the foot)", n > 0 and d is None, d or "no bytes")
     e.keys("r", RET, idle=1.0)
     e.end()
 
@@ -611,21 +616,21 @@ def part_f():
     e = Term(BOX, "RUN bp %s" % DBG, idle=2.0)
     base = list(e.lines())
     e.keys("/n", RET)
-    row("setup: the debugger is full screen at 140x42 and answers a command", any("Integer" in l or "5" in l for l in e.lines()[34:41]), text(e.lines()[34:], 8))
+    row("setup: the debugger is full screen at 140x43 and answers a command", any("Integer" in l or "5" in l for l in e.lines()[34:39]), text(e.lines()[34:], 8))
     e.resize(140, 30)
     L = e.lines()
-    row("140x30: the command line (row 41) is off the screen: locked at once, with no key typed", warn_shown(L, 140, 30, "the debugger"), text(L, 6))
+    row("140x30: the command line (row 39) is off the screen: locked at once, with no key typed", warn_shown(L, 140, 30, "the debugger"), text(L, 6))
     L = e.keys("/s", RET, "r", RET, idle=0.6)
     row("keys while locked are ignored: nothing was run, the warning is still there", warn_shown(L, 140, 30, "the debugger") and not any(l.strip() == "AFTER-ONE" for l in L), text(L, 6))
-    m2 = e.resize(LAY_W, LAY_H, wait=2.2)
-    got, n = e.replay(m2, LAY_W, LAY_H)
+    m2 = e.resize(LAY_W, DBG_H, wait=2.2)
+    got, n = e.replay(m2, LAY_W, DBG_H)
     L = e.lines()
-    row("made 140 by 42 again: the lock is lifted without a key and the debugger draws its whole screen (replayed)",
+    row("made 140 by 43 again: the lock is lifted without a key and the debugger draws its whole screen (replayed)",
         n > 0 and corner_diff(got[:34], base[:34], LAY_W, 34) is None and "The window is" not in text(L, 6), "no bytes" if n == 0 else text(got, 3))
     row("...the keys typed while locked did not reach the command line (it is empty) or the program (not run)",
-        L[41].rstrip() == ">" and not any(l.strip() == "AFTER-ONE" for l in L) and not any('String (5 bytes)' in l for l in L[34:41]), repr(L[41][:30]))
+        L[39].rstrip() == ">" and not any(l.strip() == "AFTER-ONE" for l in L) and not any('String (5 bytes)' in l for l in L[34:39]), repr(L[39][:30]))
     L = e.keys("/s", RET)
-    row("...and the debugger takes commands again", any('String (5 bytes)' in l and "plain" in l for l in L[34:41]), text(L[34:], 8))
+    row("...and the debugger takes commands again", any('String (5 bytes)' in l and "plain" in l for l in L[34:39]), text(L[34:], 8))
     e.resize(140, 30)
     L = e.keys(CTRL("q"))
     row("locked again: Ctrl-Q asks 'Leave? (changes are NOT saved) y/n'", any("Leave? (changes are NOT saved) y/n" in l for l in L[:4]), text(L, 4))

@@ -1244,7 +1244,7 @@ clause of `execute` — the select list held in a variable becomes the command's
 `program` *name*
 
 - a statement of SD BASIC
-- docs: `User/markdown/18-sd-basic-modern-program-structure.md` line 124
+- docs: `User/markdown/17-sd-basic-debugging.md` line 407
 
 ### basic:stmt:prompt
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:433#32a45806 src2=docs:tools/syntax-shapes.txt:161#cd7e741b

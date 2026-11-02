@@ -312,7 +312,7 @@ def sec_dbg():
     time.sleep(0.6)
     e.s.settle(0.6)
     L = e.lines()
-    arow("D3", "the popup is gone and the debugger's screen is whole: the source with its line numbers, the command line on the last row", any(re.match(r"^\s*3:\s+debug", l) for l in L) and L[41].startswith(">"), "\n".join(L[:6] + L[38:42]))
+    arow("D3", "the popup is gone and the debugger's screen is whole: the source with its line numbers, the command line on row 39, the foot below it", any(re.match(r"^[ *>]\s*3:\s+debug", l) for l in L) and L[39].startswith(">") and L[42].startswith("F1 help"), "\n".join(L[:6] + L[38:43]))
     L = e.keys("/x", RET)
     ix = max([i for i, l in enumerate(L) if "/x" in l] or [-1])         # 29 Oct 26: the rows 34-41 of the first run were blank; the answer is looked for from the echo of the command on, wherever the display puts it
     arow("D3b", "...and it goes on working: /x shows the variable", ix >= 0 and any("5" in l for l in L[ix:]), "\n".join(l for l in L if l.strip()))

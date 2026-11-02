@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   THE DEBUGGER'S FULL-SCREEN DISPLAY HAS THE SAME FRAME AS THE OTHER FULL-SCREEN PAGES, AN AUTOS PANE, AND NEEDS A WINDOW OF 140 BY 43.
+
+             What        - The title bar shows "debugger" and who is signed on at its right end. Each source row has a gutter: > marks the line about to run and * a line with a
+                           breakpoint. Under the site's theme the source is coloured as SD BASIC. A new Autos pane at the right of the source lists the variables the line about to
+                           run uses, then those of the line the debugger last stopped at, the variable being watched and the program's other variables, as name = value, and it
+                           follows every command (set n=7 shows at once). Under the messages and the command line there is a status line (breakpoints, the watched variable), a line
+                           across the screen and a function-key row. The keys, the commands, window n and the line-by-line mode are as they were.
+             Why         - The owner found the debugger unfinished beside the other full-screen pages: no frame, no key row, and a data area that showed nothing until a command
+                           had printed something.
+             Does NOT    - Work in a window of 40 to 42 lines: the debugger needed 42 lines and now needs 43, so a 140 by 42 window is told why (message 11602) and gets the
+                           line-by-line mode, as any smaller window does. It colours the source only under the blue, dark and light themes (not classic, which it uses when the
+                           site names no theme, and not mono). It does not yet take breakpoints from the IDE's editor or start from it (F7 in the IDE), nor draw on the bare console
+                           without the alternate screen: those are the next two stages.
+
 1 Nov 26   THE AI LINE ON TOOL.DICT, TOOL.FILES AND TOOL.CATALOG MAY PROPOSE A NEW ITEM, A NEW FILE OR A COMPILE, NOT ONLY A CHANGE OF WHAT IS SHOWN.
 
              What        - On tool.dict the AI may propose N (a new dictionary item) and C (compile the I item under the cursor), on tool.files N (a new file), on tool.catalog B

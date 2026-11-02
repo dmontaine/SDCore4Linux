@@ -16,7 +16,7 @@
   },
   "basic.internal": {
    "chunks": 37,
-   "sha256": "583e14fa9b97cb3e485e84277eeafc0005b18f68858ac919d33168624e81175e"
+   "sha256": "a6bb6f7580ff02fc09d341dce4855147a15e6fc03b2f7cc512cbecf42790af1f"
   },
   "basic.mode": {
    "chunks": 9,
@@ -32,7 +32,7 @@
   },
   "basic.statement": {
    "chunks": 203,
-   "sha256": "2b2d235e4902e37b23029d4f59608db98ee1e9f3968477c4dd248f5564377512"
+   "sha256": "45118788c3e469ba203d118a2050858079650462976b64aa4e61d5175144a9e0"
   },
   "core.digest": {
    "chunks": 5,
@@ -80,7 +80,7 @@
   },
   "message": {
    "chunks": 2832,
-   "sha256": "cef56982d2304273159f7ae8acd5f01f778ca15cedb4dda66e47626dcfb10952"
+   "sha256": "a7fb693c2300f4930474e820121d0a3b10893f57b552046ce472d1665a42c99d"
   },
   "sys.keys": {
    "chunks": 41,
@@ -150,11 +150,11 @@
    "words": 569
   },
   "index.json": {
-   "sha256": "5670d4ff4be2b6c195c27a8746c05d9301c529e2c847a88e48b72220911c9676"
+   "sha256": "19f6de9932c040b580b31940e3c279a12bf7127547c600019d5596cfd5b7e4ea"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
-   "sha256": "5737e299a465a9fa03a6766ccbba5e355fd38dcec36a997736f1e3dfd33f8d3b",
+   "sha256": "12b2d1ec3f1277bc9d53722ac0091e6ed1fdd11669ad7889e2a1ecfa6b59fb42",
    "words": 4395
   },
   "reference/basic-modes.md": {
@@ -164,7 +164,7 @@
   },
   "reference/basic-statements.md": {
    "chunks": 269,
-   "sha256": "6b7c6463554537b82fc2333177bb1ddf05756d07becd2218c4c020096b493f02",
+   "sha256": "c9c15a3cc32cdf1511110d3342cfe034b0c8f3eacac96da38bc85bd8cded09e6",
    "words": 5895
   },
   "reference/dictionaries.md": {
@@ -174,8 +174,8 @@
   },
   "reference/messages.md": {
    "chunks": 2832,
-   "sha256": "5849cc88d8985814cb5807ea649e76e5637cfb8b5f48cac6e2cffc48da058ea9",
-   "words": 37152
+   "sha256": "5dd7305211dfef7113a3929c6407eae10784a97036bd17c7e3d8a159ce5c55a9",
+   "words": 37153
   },
   "reference/system-keys.md": {
    "chunks": 41,
