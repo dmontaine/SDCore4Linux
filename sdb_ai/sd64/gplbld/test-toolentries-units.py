@@ -92,7 +92,7 @@ def checks(src, voc, helps):
        "(`delete svf, qn`), sweep the user number's own leftovers at the start (`delete svf, sw.id`) and delete D's one record through the file edit.record judged (`delete tf, eid`), the two "
        "executes give the terminal to the IDE (`execute sent`) and compile through run.in (`execute csent capturing cout`); no chain, perform, OS command, command runner, master-file operation or account verb anywhere in the page, "
        "and no confirm box but D's",
-       not forbidden and writes == ["write qrec on svf, qn on error"] and deletes == ["delete svf, sw.id", "delete svf, qn", "delete tf, eid on error delok = @false"] and execs == ["execute csent capturing cout", "execute sent"],
+       not forbidden and writes == ["write qrec on svf, qn on error"] and deletes == ["delete svf, sw.id", "delete svf, qn", "delete tf, eid on error delok = @false"] and execs == ["execute csent capturing cout", "execute dbsent", "execute sent"],
        "%s %s %s %s" % (forbidden[:3], writes, deletes, execs))
     opens = [s for n, s in lines if re.search(r"\bopenpath\b", s)]
     kinds = sorted(set("register" if "@sdsys:@ds:'accounts'" in s else ("voc" if re.search(r"(apath<[a-z0-9]+>|ap\.f) ?:@ds ?: ?'voc'", s.replace(" : ", ":")) else ("dict" if re.match(r"openpath dp to df2? then", s)
@@ -140,13 +140,14 @@ def checks(src, voc, helps):
     ck("T9 the filter and the find ask with screen ask, take the AI's argument as the default, and each clears the other",
        txt.count("screen ask ptxt width 40 value ai.arg") == 2 and txt.count("value ai.arg") == 2 and "filt = trim(ft)\nfnd = ''" in txt and "fnd = trim(ft)\nfilt = ''" in txt)
     keyrows = re.findall(r"call \$tk_keys\('add', keys, '([^']+)'", txt)
-    ck("T10 thirteen key rows: f1 enter tab / f k e n d c f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh), never an edit, a delete or a compile",
-       keyrows == ["f1", "enter", "tab", "/", "f", "k", "e", "n", "d", "c", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
+    ck("T10 fourteen key rows: f1 enter tab / f k e n d c b f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh), never an edit, a delete, a compile or a debug",
+       keyrows == ["f1", "enter", "tab", "/", "f", "k", "e", "n", "d", "c", "b", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
     er = "\n".join(s for n, s in section(lines, "edit.record:", "sweep.pointers:"))
     ho = "\n".join(s for n, s in section(lines, "hand.over:", "do.filter:"))
     de = "\n".join(s for n, s in section(lines, "do.edit:", "do.delete:"))
     dd = "\n".join(s for n, s in section(lines, "do.delete:", "do.build:"))
-    db = "\n".join(s for n, s in section(lines, "do.build:", "do.new:"))
+    db = "\n".join(s for n, s in section(lines, "do.build:", "do.debug:"))
+    dg = "\n".join(s for n, s in section(lines, "do.debug:", "do.new:"))
     dr = "\n".join(s for n, s in section(lines, "delete.reached:", "compile.reached:"))
     cr = "\n".join(s for n, s in section(lines, "compile.reached:", "hand.over:"))
     dn = "\n".join(s for n, s in section(lines, "do.new:", "edit.record:"))
@@ -161,7 +162,7 @@ def checks(src, voc, helps):
        "take the pointer away again; the audit line comes after both tests and before the hand-over",
        0 <= i_ck < i_guard < i_w < i_open < i_ck2 < i_aud < i_hand and "read arec from acc.f, ea else arec = ''" in er and "openpath ap.f : @ds : 'voc' to rvf else" in er
        and "tp = ap.f : @ds : 'voc'" in er and "tp = parse.pathname.tokens(trim(fr<3>))" in er and "if tp[1, 1] # '/' then tp = ap.f : @ds : tp" in er
-       and "rp = fileinfo(tf, FL$PATH)" in er and er.count("gosub drop.pointer") == 4 and "if upcase(trim(fr<1>))[1, 1] # 'F' or trim(fr<3>) = '' then" in er
+       and "rp = fileinfo(tf, FL$PATH)" in er and er.count("gosub drop.pointer") == 5 and "if upcase(trim(fr<1>))[1, 1] # 'F' or trim(fr<3>) = '' then" in er
        and "in.ok = kernel(K$PATH.IN, ap.f : @fm : rp)" in er and "if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')" in er
        and "if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')" in er and "rt = fileinfo(tf, FL$TYPE)" in er and "if rt # rtw then" in er
        and "rtw = (if isprog then FL$TYPE.DIR else FL$TYPE.DH)" in er and at("if rt # rtw then", er) < i_aud and at("if not(in.ok) then", er) < i_aud
@@ -225,8 +226,22 @@ def checks(src, voc, helps):
        and "if in.ptr # '' and c.file = in.ptr then" in idc and "execute 'run.in ' : in.acct : ' basic ' : in.file : ' ' : c.id : c.opt capturing c.out" in idc
        and "c.ok = (index(c.out, 'Compiled 1 program(s) with no errors', 1) > 0)" in idc and "execute 'basic ' : qp.f : ' ' : qp.i : c.opt capturing c.out" in idc
        and "if bn<cb> = in.ptr and (cmd = 'catalog' or cmd = 'run' or cmd = 'debug' or cmd = 'debug1') then\ngosub master.build\nreturn" in irc
-       and "execute 'run.in ' : in.acct : ' catalog ' : in.file : ' ' : c.id capturing co" in imb and "if cmd = 'run' then" in imb and "execute 'catalog" not in imb,
+       and "execute 'run.in ' : in.acct : ' catalog ' : in.file : ' ' : c.id capturing co" in imb and "is not run from here" in imb and "execute 'catalog" not in imb,
        "ide %d chars, mb %d, dc %d, rc %d" % (len(itxt), len(imb), len(idc), len(irc)))
+    drr = "\n".join(s for n, s in section(lines, "debug.reached:", "hand.over:"))
+    ck("T20 DEBUG (M5): B (do.debug, programs only, a hit in its own account) goes through edit.record with emode 'debug', whose branch gives the pointer back and calls "
+       "debug.reached after both refusals and before E's audit; debug.reached compiles for the debugger through run.in (compile.in.account, ' debugging'), shows a failed compile "
+       "and debugs nothing, else audits 'master debug' and gives the terminal to `run.in <account> debug <file> <id>`, then takes the page back through retake.page (the editor's "
+       "way back too).  The IDE: Debug and Debug from the first line of a master tab compile with debugging (do.compile, so through run.in) and execute run.in debug in the account, "
+       "never the debug verb here",
+       "if kind # 3 then" in dg and "emode = 'debug'\ngosub edit.record" in dg and "ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>" in dg and "case nm = 'b'\ngosub do.debug" in txt
+       and 0 <= at("if not(in.ok) then") < at("if emode = 'debug' then\ngosub drop.pointer\ngosub debug.reached\nreturn\nend") < i_aud
+       and "copt = ' debugging'\ngosub compile.in.account" in drr
+       and 0 <= drr.find("if not(cok) then") < drr.find("void kernel(K$AUDIT, 'master debug account=") < drr.find("execute dbsent") < drr.find("gosub retake.page")
+       and "dbsent = 'run.in ' : ea : ' debug ' : efl : ' ' : eid" in drr and "execute sent\ngosub drop.pointer\ngosub retake.page" in ho
+       and "c.opt = ' debugging'\ngosub do.compile\nif c.ok then" in imb and "execute 'run.in ' : in.acct : ' debug ' : in.file : ' ' : c.id trapping aborts" in imb
+       and "execute 'debug" not in imb,
+       "dg %d drr %d imb %d" % (len(dg), len(drr), len(imb)))
     sw = "\n".join(s for n, s in section(lines, "sweep.pointers:", "drop.pointer:"))
     ck("T17 a pointer left by a session killed inside the IDE is swept when the page starts: right after the start's audit line, before anything is read, only names that begin "
        "zm<this user number>. and only an F or a Q record",
@@ -331,6 +346,9 @@ MUTANTS = [
     ("the pointer is left after a delete", "src", "   delete tf, eid on error delok = @false\n   close tf\n   gosub drop.pointer\n", "   delete tf, eid on error delok = @false\n   close tf\n"),
     ("the delete's message is made after the redraw", "src", "   dmsg = 'deleted ' : eid : ' from ' : dwhere\n", ""),
     ("a program is deleted", "src", "   if kind = 3 then\n      msg = 'the programs are not deleted from this page yet'\n      return\n   end\n", ""),
+    ("B debugs without the checks", "src", "   emode = 'debug'\n   gosub edit.record\n", "   gosub debug.reached\n"),
+    ("B debugs after a failed compile", "src", "   copt = ' debugging'\n   gosub compile.in.account\n   if not(cok) then\n", "   copt = ' debugging'\n   gosub compile.in.account\n   if 0 then\n"),
+    ("the IDE debugs a master tab here in SDSYS", "ide", "execute 'run.in ' : in.acct : ' debug ' : in.file : ' ' : c.id trapping aborts", "execute 'debug ' : in.file : ' ' : c.id trapping aborts"),
     ("the voc record is in newvoc form", "voc", "V\nCA\n$tool_entries\n", "V\nCA\n$tool_jobs\n"),
     ("a help record loses its document", "help", "19-the-master-files", "00-nothing"),
 ]

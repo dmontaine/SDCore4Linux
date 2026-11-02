@@ -6,6 +6,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 2 Nov 26 dm  S.96 M5: Debug of such a tab (F7 and Debug from the first line) compiles for the debugger and runs the debugger IN the account, both through run.in.
 * 2 Nov 26 dm  S.96 M4: a last word /in=account,file (from tool.entries) marks the file the sentence names as a temporary pointer to another account's program file: Compile and
 *              Catalog of its tabs go through run.in in that account (never BASIC in SDSYS: a $catalog would act as the administrator), Run and Debug of them are refused.
 * 1 Nov 26 dm  S.98 H2: BREAKPOINTS IN THE EDITOR'S GUTTER, HANDED TO THE DEBUGGER.  Shift-F7 (Build / Toggle breakpoint) sets or clears a mark on the cursor's line of a program tab and a click in the editor's
@@ -3592,8 +3593,9 @@ do.compile:
    end
    return
 
-* 2 Nov 26 (S.96 M4): Catalog, Run and Debug of a tab the master files page opened (in.ptr: a program of another account).  Catalog compiles (through run.in, in do.compile) and
-* then catalogues through run.in in that account; Run is refused, because run.in runs no program; Debug is refused until the master files page's stage M5.
+* 2 Nov 26 (S.96 M4, M5): Catalog, Run and Debug of a tab the master files page opened (in.ptr: a program of another account).  Catalog compiles (through run.in, in do.compile) and
+* then catalogues through run.in in that account; Debug (F7, and from the first line) compiles for the debugger and debugs through run.in in that account; Run is refused,
+* because run.in runs no program.
 master.build:
    if cmd = 'catalog' then
       c.opt = ''
@@ -3604,11 +3606,23 @@ master.build:
       end
       return
    end
-   if cmd = 'run' then
-      msg = 'a program of the account ' : in.acct : ' is not run from here: compile it (it is compiled in ' : in.acct : ') and run it in that account'
-   end else
-      msg = 'a program of the account ' : in.acct : ' is not debugged from here yet (the master files page, stage M5)'
+   if cmd = 'debug' or cmd = 'debug1' then
+      * 2 Nov 26 (S.96 M5): compiled for the debugger and debugged IN the account, both through run.in; the editor's marks are armed as for any program (bk.arm)
+      bk.first = (cmd = 'debug1')
+      c.opt = ' debugging'
+      gosub do.compile
+      if c.ok then
+         gosub bk.arm
+         bk.first = @false
+         gosub leave.screen
+         execute 'run.in ' : in.acct : ' debug ' : in.file : ' ' : c.id trapping aborts
+         gosub bk.take
+         gosub retake.screen
+      end
+      bk.first = @false
+      return
    end
+   msg = 'a program of the account ' : in.acct : ' is not run from here: compile it (it is compiled in ' : in.acct : ') and run it in that account'
    return
 
 * In: co, the words CATALOG printed for c.file c.id.  The IDE says "Catalogued" only if CATALOG said the program was added to a catalogue (local, global or private: messages

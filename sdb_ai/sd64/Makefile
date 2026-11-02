@@ -138,7 +138,7 @@ sd-totp: sd_totp_cmd.o sd_totp_store.o sd_totp.o
 	@$(COMP) $(C_FLAGS) $(GPLOBJ)sd_totp_cmd.o $(GPLOBJ)sd_totp_store.o $(GPLOBJ)sd_totp.o $(OPENSSL_LIBS) -o $(GPLBIN)sd-totp
 
 # 01 Nov 26 dm - S.95 stage 2: SD's own PAM module (the authenticator code of a remote sdsys login), built from the same store and engine.  NOT a prerequisite of
-#   sd: it needs the PAM headers (libpam0g-dev, pam-devel), which the installer installs and a developer's machine may lack, so the installer runs `make pam_sdtotp.so`
+#   sd: it needs the PAM headers (libpam0g-dev), which the installer installs and a developer's machine may lack, so the installer runs `make pam_sdtotp.so`
 #   as a step of its own.  Hidden symbols but its two PAM entry points; linked now and relro, with no undefined symbol.
 PAM_LIBS ?= -lpam
 pam_sdtotp.so: pam_sdtotp.c sd_totp_store.c sd_totp_store.h sd_totp.c sd_totp.h

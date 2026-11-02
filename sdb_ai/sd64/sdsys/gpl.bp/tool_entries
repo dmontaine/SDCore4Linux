@@ -4,6 +4,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 2 Nov 26 dm  S.96 M5: B debugs the program under the cursor IN ITS ACCOUNT: edit.record (emode 'debug'), then debug.reached - run.in compiles it for the debugger
+*              (compile.in.account, shared with C; a failure is shown as C shows it) and run.in runs the debugger there; "master debug" is audited; the page comes back
+*              through retake.page, taken out of hand.over so that the editor's and the debugger's way back are one.  The IDE's own Debug of such a tab does the same.
 * 2 Nov 26 dm  S.96 M4: the programs.  E and N open a program in the IDE in its own account (edit.record, isprog: the program file's DATA path is judged by the pointer rule, the
 *              temporary pointer is a data-only F pointer, the opened file must be a directory file, the program's own file must lie inside the account and a name that is a link
 *              leading nowhere is refused); the sentence ends /in=account,file so that the IDE compiles and catalogues the tab through run.in IN THAT ACCOUNT (the owner's
@@ -44,7 +47,7 @@
 *   VOC of EVERY account (this reads them all and is asked for by name); the boxes then list the hits with their accounts, and Enter on a hit goes to that entry in its account.
 *
 *   Keys: Up and Down, PgUp and PgDn move in the box, Tab changes box, Enter in Accounts goes to its entries (and on a hit goes to the entry in its account), / filters the entries of the
-*   account by a part of the id, F finds an id in every account, K changes the kind, E edits the record under the cursor in the IDE, N makes a new record (its id asked first), D deletes the record under the cursor (its id typed to confirm), C compiles the program under the cursor in its own account (run.in), Esc takes the
+*   account by a part of the id, F finds an id in every account, K changes the kind, E edits the record under the cursor in the IDE, N makes a new record (its id asked first), D deletes the record under the cursor (its id typed to confirm), C compiles the program under the cursor in its own account (run.in), B debugs it there, Esc takes the
 *   find and the filter off, F5 reads again, F1 or ? or a click on a [?] explains the box, Ctrl-Q leaves.  Esc or F10 (or a click on the top row) opens the menu bar when there is nothing
 *   to take off.
 *
@@ -92,6 +95,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    call $tk_keys('add', keys, 'n', 'new', 'new', '', 1)
    call $tk_keys('add', keys, 'd', 'delete', 'delete', '', 1)
    call $tk_keys('add', keys, 'c', 'compile', 'compile', '', 1)
+   call $tk_keys('add', keys, 'b', 'debug', 'debug', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* Esc takes the find and the filter off first, else opens the menu bar
@@ -100,6 +104,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    call $tk_keys('menu', keys, 'new', '&Entry', '&New record', '', '')
    call $tk_keys('menu', keys, 'delete', '&Entry', '&Delete the record', '', '')
    call $tk_keys('menu', keys, 'compile', '&Entry', '&Compile the program (in its account)', '', '')
+   call $tk_keys('menu', keys, 'debug', '&Entry', 'De&bug the program (in its account)', '', '')
    call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the entries by id', '', '')
    call $tk_keys('menu', keys, 'find', '&View', 'F&ind an id in every account', '', '')
@@ -724,7 +729,7 @@ draw.effect:
             lines<-1> = 'The dictionary items are read, when the cursor comes to the account, from the dictionary of each file its VOC points at (field 3 of the file pointer); nothing is copied.  An item matches a text in its id or in its column heading.  E edits the item under the cursor as the form, N makes a new one in the dictionary of the file under the cursor and D deletes it: only dictionary items.'
             lines<-1> = ">: the item lives in a dictionary outside this account (SDSYS's, which every account's pointer to it shares, or another account's) and is only read through this account's pointer.  It is edited in the account it lives in, never from here: E and N refuse it."
          case 1
-            lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  E edits the program under the cursor in the editor and N makes a new one in the same program file, in the account it belongs to; C compiles it IN THAT ACCOUNT (run.in), and the editor's own Compile and Catalog do the same."
+            lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  E edits the program under the cursor in the editor and N makes a new one in the same program file, in the account it belongs to; C compiles it IN THAT ACCOUNT (run.in) and B debugs it there, and the editor's own Compile, Catalog and Debug do the same."
             lines<-1> = ">: the program file lies outside this account (SDSYS's or another account's) and is only read through this account's pointer.  Its programs are edited, compiled and run in the account it lives in, never from here."
       end case
    end
@@ -881,7 +886,7 @@ wrap.lines:
 draw.help:
    screen text 'Up and Down move, PgUp and PgDn a page.  Tab changes box.  Enter in Accounts goes to its entries.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
    screen text '/ filters by a part of an id (of a heading too, in dictionaries).  F finds it in every account (Enter on a hit goes to it).  Esc takes them off.' at h.x + 2,h.y + 2 width h.tw
-   screen text 'K changes the kind.  E edits the record under the cursor, N makes a new one, D deletes it, C compiles a program.  F5 reads again.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
+   screen text 'K changes the kind.  E edits the record under the cursor, N makes a new one, D deletes it, C compiles a program, B debugs it.  F5 reads again.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
    return
 
 * ------------------------------------------------------------------------------------------------- keys and mouse
@@ -956,6 +961,8 @@ on.key:
          gosub do.delete
       case nm = 'c'
          gosub do.build
+      case nm = 'b'
+         gosub do.debug
       case nm = 'f1' or nm = '?'
          gosub help.here
       case nm = 'f5'
@@ -1098,6 +1105,31 @@ do.build:
    end
    enw = 0
    emode = 'compile'
+   gosub edit.record
+   return
+
+* B (M5): the program under the cursor in the debugger, IN ITS OWN ACCOUNT (run.in compiles it for the debugger and runs the debugger there).  E's way through edit.record first.
+do.debug:
+   if pane # 2 then
+      msg = 'Tab to the entries first, then B'
+      return
+   end
+   if kind # 3 then
+      msg = 'B debugs a program: K shows the programs'
+      return
+   end
+   nrows = (if fnd # '' then hn else en)
+   if ec < 1 or ec > nrows then
+      msg = 'there is no program here to debug'
+      return
+   end
+   if fnd # '' then
+      ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>
+   end else
+      ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>
+   end
+   enw = 0
+   emode = 'debug'
    gosub edit.record
    return
 
@@ -1264,6 +1296,11 @@ edit.record:
       gosub compile.reached
       return
    end
+   if emode = 'debug' then
+      gosub drop.pointer                                        ;* the same: run.in, in the account
+      gosub debug.reached
+      return
+   end
    akind = (if efl = '' then 'voc' else 'dict')
    if isprog then akind = 'bp'
    void kernel(K$AUDIT, 'master edit account=' : ea : ' kind=' : akind : ' file=' : qf : ' id=' : eid : ' new=' : enw)
@@ -1365,11 +1402,31 @@ delete.reached:
 * C, after edit.record judged the program file and the program (the pointer is already given back): run.in compiles it in its own account and the page shows what the compiler said.
 * The verdict is the compiler's own success line, not a return code (run.in's answer is about run.in).  run.in writes its own audit lines; the page adds "master compile".
 compile.reached:
-   csent = 'run.in ' : ea : ' basic ' : efl : ' ' : eid
+   copt = ''
+   gosub compile.in.account
+   gosub compile.box
+   keep.ec = ec
+   gosub read.all                                               ;* Built changes
+   ec = keep.ec
+   nrows = (if fnd # '' then hn else en)
+   if ec > nrows then ec = nrows
+   if ec < 1 then ec = 1
+   gosub keep.tops
+   gosub draw.all
+   msg = cmsg
+   return
+
+* run.in compiles eid of the program file efl in the account ea (copt: '' or ' debugging').  Out: cout (what it printed), cok (the compiler's success line is there), cmsg.
+compile.in.account:
+   csent = 'run.in ' : ea : ' basic ' : efl : ' ' : eid : copt
    execute csent capturing cout
    cok = (index(cout, 'Compiled 1 program(s) with no errors', 1) > 0)
    void kernel(K$AUDIT, 'master compile account=' : ea : ' file=' : efl : ' id=' : eid : ' result=' : (if cok then 'ok' else 'failed'))
    cmsg = (if cok then 'compiled ' : eid : ' in ' : ea : ' (in its own account, by run.in)' else eid : ' in ' : ea : ' did not compile: the compiler said why')
+   return
+
+* What the compiler said (cout), in a box: its last 30 lines, where the errors and the verdict are
+compile.box:
    cbody = ''
    cn2 = dcount(cout, @fm)
    for cq = 1 to cn2
@@ -1380,15 +1437,28 @@ compile.reached:
    if cbody = '' then cbody = '(the compiler printed nothing)'
    ctitle = 'Compile ' : eid : ' in ' : ea
    screen msgbox cbody title ctitle buttons '&OK' default 1 returning cb2 else cb2 = 0
+   return
+
+* B (M5), after edit.record judged the program file and the program (the pointer is already given back): run.in compiles it for the debugger in its own account, and when that
+* worked the terminal goes to the debugger, which run.in runs IN that account (the owner's mechanism C of 2 Nov 26); the page is taken again when the debugger ends.  A compile that
+* failed is shown as C shows it and nothing is debugged.
+debug.reached:
+   copt = ' debugging'
+   gosub compile.in.account
+   if not(cok) then
+      gosub compile.box
+      gosub draw.all
+      msg = cmsg
+      return
+   end
+   void kernel(K$AUDIT, 'master debug account=' : ea : ' file=' : efl : ' id=' : eid)
+   dbsent = 'run.in ' : ea : ' debug ' : efl : ' ' : eid
+   keep.k = efl : '*' : eid
    keep.ec = ec
-   gosub read.all                                               ;* Built changes
-   ec = keep.ec
-   nrows = (if fnd # '' then hn else en)
-   if ec > nrows then ec = nrows
-   if ec < 1 then ec = 1
-   gosub keep.tops
-   gosub draw.all
-   msg = cmsg
+   call $tk_close(ctx)
+   execute dbsent
+   gosub retake.page
+   msg = 'back from the debugger: ' : eid : ' was debugged in ' : ea
    return
 
 * The terminal goes to the IDE and comes back: the pointer is taken away as soon as the IDE has ended, then the page is taken again and what it lists is read again.  Only the IDE can get here.
@@ -1401,6 +1471,14 @@ hand.over:
    call $tk_close(ctx)
    execute sent
    gosub drop.pointer
+   gosub retake.page
+   msg = 'back from the editor: the list shows ' : (if kind = 1 then 'the VOC' else 'the dictionary') : ' as it is now'
+   if kind = 3 then msg = 'back from the editor: the list shows the programs as they are now'
+   return
+
+* After the editor (hand.over) or the debugger (debug.reached) gave the terminal back: a pause, the page taken again for the window as it is now, the lists read again and the cursor
+* put back on keep.k (keep.ec in a find).  2 Nov 26 (M5): taken out of hand.over, which had it inline, so that the debugger's way back is the same one.
+retake.page:
    crt
    crt sysmsg(11865) :                                         ;* Press Enter to return
    input junk
@@ -1425,8 +1503,6 @@ hand.over:
    end
    gosub keep.tops
    gosub draw.all
-   msg = 'back from the editor: the list shows ' : (if kind = 1 then 'the VOC' else 'the dictionary') : ' as it is now'
-   if kind = 3 then msg = 'back from the editor: the list shows the programs as they are now'
    return
 
 * /: keep the entries of the account whose id holds a text (a dictionary item: its id or its heading)

@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+2 Nov 26   TOOL.ENTRIES: A PROGRAM OF ANY ACCOUNT IS DEBUGGED IN ITS OWN ACCOUNT.
+
+             What        - On the master files page, in the programs view, B compiles the program under the cursor for the debugger and starts the debugger on it,
+                           both in the program's own account (run.in); when the debugger ends the page asks for Enter and comes back on the same program. The IDE's
+                           Debug (F7, and Debug from the first line) on a program the page opened does the same. A compile that fails is shown and nothing is
+                           debugged. Each B writes "master debug" to the audit trail, and run.in writes its own lines.
+             Why         - The owner's master files: compiling and debugging a program take place in the account it belongs to, seamlessly for the administrator.
+             Does NOT    - Run a program (run.in runs none), debug a program outside the account (the same refusals as E and C), or delete a program yet.
+
 2 Nov 26   FEDORA IS NO LONGER SUPPORTED. THIS RELEASE INSTALLS ON DEBIAN AND UBUNTU ONLY.
 
              What        - The installer reads /etc/os-release and refuses any computer that is not Debian, Ubuntu or one of their common derivatives (such as Linux

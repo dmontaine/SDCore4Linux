@@ -40,6 +40,10 @@
 #        SDSYS; ze1's private catalogue), F5 and F7 refused; N makes a program; the pointer rule: ze2's zpother through ze1's ze2.bp refused for E and C, a record that is a LINK
 #        to ze2's file refused, a LINK that leads nowhere refused for N (the kernel's resolve_name, 2 Nov 26: red on the tree before, the IDE opened it as a new record), and nothing of ze2 changed; the audit lines.  The disk is the oracle (a program is a file).
 #        Mutants: ide-compiles-here, no-record-test.  setup_page copies and compiles the tree's ide too.
+#   E13  (M5, S.96; --only=debug) B on a program gives the terminal to the debugger IN ze1 through run.in (its key row, stopped at the first statement, the object compiled in ze1's
+#        bp.out and none in SDSYS's), Q and the pause bring the page back; the IDE's F7 on a tab the page opened does the same and the IDE comes back; run.in's audit lines
+#        and 'master debug'.  NOT HELD: the editor's breakpoints handed to a debugger run through run.in (the harness has no Shift-F7 for the console terminal type).
+#        Mutants: page-debug-here, ide-debug-here.
 # NOT HELD: SDSYS in the group (a sandbox has no sdsys user: the column can only say no or n/a here), the help text itself (sandbox-docs.py).
 import importlib.util
 import os
@@ -96,8 +100,11 @@ MUTANTS = {
     # M4: the IDE compiles a tab of the pointer HERE (BASIC in SDSYS) instead of through run.in; the test of the program's own file is lost
     "ide-compiles-here": ("   if in.ptr # '' and c.file = in.ptr then\n", "   if 0 then\n", ["E12"], "E12"),
     "no-record-test": ("   if isprog and in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : eid)", "   in.ok = in.ok", ["E12"], "E12"),
+    # M5: the page's B and the IDE's F7 run the debugger here in SDSYS instead of through run.in in the account
+    "page-debug-here": ("   dbsent = 'run.in ' : ea : ' debug ' : efl : ' ' : eid", "   dbsent = 'debug ' : efl : ' ' : eid", ["E13"], "E13"),
+    "ide-debug-here": ("execute 'run.in ' : in.acct : ' debug ' : in.file : ' ' : c.id trapping aborts", "execute 'debug ' : in.file : ' ' : c.id trapping aborts", ["E13"], "E13"),
 }
-MUTANT_PROG = {"ide-compiles-here": "ide"}          # the program a mutant changes, when it is not the page; setup_page copies both from the tree first, so a mutant does not outlive its run
+MUTANT_PROG = {"ide-compiles-here": "ide", "ide-debug-here": "ide"}          # the program a mutant changes, when it is not the page; setup_page copies both from the tree first, so a mutant does not outlive its run
 KEY_F5, KEY_F7, KEY_F8, KEY_F9 = "\x1b[[E", "\x1b[18~", "\x1b[19~", "\x1b[20~"     # the console's codes (the sandbox's terminal is linux, as sh.KEYS)
 
 
@@ -1052,6 +1059,7 @@ def section_e12():
     other_m0 = zw_mtime(os.path.join(obj2, "zpother"))
     other_s0 = zw_read("ze2", "bp", "zpother")
     zm0 = sys_zm()
+    sys_out0 = sorted(f for f in os.listdir(sh.SYS) if f.startswith("zm"))     # what SDSYS's directory already holds (a reused sandbox may keep an earlier mutant's leftovers)
     a0 = audit_off()
     p = Page()
     p.walk_to("ze1")
@@ -1103,18 +1111,16 @@ def section_e12():
     st8 = p.h.text()
     m_8 = zw_mtime(os.path.join(obj1, "zwedit"))
     sys_out = sorted(f for f in os.listdir(sh.SYS) if f.startswith("zm"))
-    arow("E12e", "the IDE's F8 on that tab compiled IN ze1 through run.in: the IDE says compiled with no errors, ze1's object is newer, and SDSYS has no zm...out file or directory "
-         "(BASIC was not run on the pointer here)", "with no errors" in st8 and m_8 is not None and m_c is not None and m_8 > m_c and not sys_out, repr((m_c, m_8, sys_out, st8[-400:])))
+    arow("E12e", "the IDE's F8 on that tab compiled IN ze1 through run.in: the IDE says compiled with no errors, ze1's object is newer, and SDSYS's directory gained no zm...out file or "
+         "directory (BASIC was not run on the pointer here)", "with no errors" in st8 and m_8 is not None and m_c is not None and m_8 > m_c and sys_out == sys_out0,
+         repr((m_c, m_8, sys_out0, sys_out, st8[-400:])))
     p.h.typed(KEY_F9, idle=7.0)
     st9 = p.h.text()
     arow("E12f", "F9 (compile and catalogue) catalogues through run.in in ze1: the IDE says Catalogued, ze1's private catalogue has zwedit and the global catalogue does not",
          "Catalogued" in st9 and in_cat(os.path.join(apath("ze1"), "cat"), "zwedit") and not in_cat(os.path.join(sh.SYS, "gcat"), "zwedit"), st9[-400:])
     p.h.typed(KEY_F5, idle=2.0)
     st5 = p.h.text()
-    p.h.typed(KEY_F7, idle=2.0)
-    st7 = p.h.text()
-    arow("E12g", "F5 (run) and F7 (debug) on that tab are refused in words, and the IDE is still on the screen", "is not run from here" in st5 and "not debugged from here" in st7 and ide_up(p.h),
-         repr((st5[-300:], st7[-300:])))
+    arow("E12g", "F5 (run) on that tab is refused in words, and the IDE is still on the screen (F7, debug, is E13's: M5)", "is not run from here" in st5 and ide_up(p.h), st5[-300:])
     to_page(p)
     src_now = zw_read("ze1", "bp", "zwedit")
     arow("E12h", "the edit was written into ze1's own bp (the disk), and the page came back saying so", src_now is not None and "' two'" in src_now
@@ -1184,6 +1190,72 @@ def section_e12():
         os.remove(os.path.join(apath("ze1"), "bp", nm))     # the read section lists ze1's programs: it must not meet them
 
 
+DBG_KEYS = "F1 help  F2 abort  F3 stop  F4 screen  F5 run  F7 step  F8 line  ^F7 parent  ^F8 program"      # the debugger's key row (sandbox-idebrk.py)
+
+
+def in_debugger(h):
+    return any(ln.rstrip() == DBG_KEYS for ln in h.lines()[-4:])
+
+
+def dbg_arrows(h):
+    """the source lines the debugger marks > (the line about to run), from its source pane (rows 1 to 32, before the Autos pane at column 92)"""
+    out = []
+    for ln in h.lines()[1:33]:
+        m = re.match(r"^>\s*(\d+): ", ln[:91])
+        if m:
+            out.append(int(m.group(1)))
+    return out
+
+
+def section_e13():
+    say("\n--- E13: debugging a program IN ITS OWN ACCOUNT, from the page (B) and from the IDE (F7), through run.in (S.96 M5)")
+    bp1, obj1 = os.path.join(apath("ze1"), "bp"), os.path.join(apath("ze1"), "bp.out")
+    g.put(os.path.join(bp1, "zwdbg"), "program zwdbg\n   crt 'DBG one'\n   x = 1\n   crt 'DBG two'\nend\n")
+    if os.path.lexists(os.path.join(obj1, "zwdbg")):
+        os.remove(os.path.join(obj1, "zwdbg"))
+    zm0 = sys_zm()
+    a0 = audit_off()
+    p = Page()
+    p.walk_to("ze1")
+    p.key("tab", 0.6)
+    p.key("k", 1.2)
+    p.key("k", 1.2)
+    p.key("/", 1.0)
+    p.h.typed("zwdbg\r", idle=1.5)
+    p.h.typed("b", idle=1.0)
+    came = wait_for(p.h, lambda t: in_debugger(p.h), 20)
+    arr = dbg_arrows(p.h)
+    scr = p.h.text()
+    arow("E13a", "B on zwdbg gives the terminal to the debugger (its key row is on the screen), stopped at the first statement (line 2 marked >), with the program's object compiled "
+         "IN ze1 (ze1's bp.out) and none in SDSYS's bp.out", came and arr == [2] and os.path.exists(os.path.join(obj1, "zwdbg")) and not os.path.exists(os.path.join(sh.SYS, "bp.out", "zwdbg")),
+         repr((came, arr, scr[-500:])))
+    p.h.typed("q\r", idle=2.0)
+    paused = wait_for(p.h, lambda t: "Press Enter to return" in t, 10)
+    p.h.key("enter", idle=2.5)
+    wait_for(p.h, lambda t: "What this means" in t, 10)
+    arow("E13b", "Q in the debugger ends it, run.in brings the session back, the page pauses ('Press Enter to return') and comes back on its own screen saying where it was",
+         paused and "back from the debugger: zwdbg was debugged in ze1" in norm(p.st()), repr((paused, p.st())))
+
+    say("  the IDE's F7 on a tab the page opened")
+    up = ide_open(p, "e")
+    p.h.typed(KEY_F7, idle=1.0)
+    came2 = wait_for(p.h, lambda t: in_debugger(p.h), 20)
+    arr2 = dbg_arrows(p.h)
+    p.h.typed("q\r", idle=2.0)
+    paused2 = wait_for(p.h, lambda t: "Press Return to go back to the IDE" in t, 10)
+    p.h.key("enter", idle=2.5)
+    back2 = wait_for(p.h, ide_up, 10)
+    arow("E13c", "E opens zwdbg in the IDE; its F7 gives the terminal to the debugger IN ze1 (through run.in), stopped at line 2; Q, the IDE's pause, and the IDE is back",
+         up and came2 and arr2 == [2] and paused2 and back2, repr((up, came2, arr2, paused2, back2)))
+    to_page(p)
+    p.quit()
+    lines = audit_new(a0).splitlines()
+    begins = [ln for ln in lines if re.search(r"run\.in begin account=ze1 command=debug bp zwdbg\b", ln)]
+    mdbg = [ln for ln in lines if "master debug account=ze1 file=bp id=zwdbg" in ln]
+    arow("E13d", "the audit trail: run.in began 'debug bp zwdbg' in ze1 twice (the page's B and the IDE's F7), the page wrote one 'master debug' line, and SDSYS's VOC holds none of "
+         "the page's pointers at the end", len(begins) == 2 and len(mdbg) == 1 and sys_zm() == zm0, repr((len(begins), mdbg, sys_zm())))
+
+
 def section_e6(n1, n2):
     say("\n--- E6: the page reads and writes nothing")
     arow("E6a", "the VOC of ze1 and of ze2 have the same number of entries after everything the page did", count_voc("ze1") == n1 and count_voc("ze2") == n2, repr((n1, n2)))
@@ -1206,8 +1278,8 @@ def section_e7(p, a0):
     h.end()
 
 
-GROUPS = ("read", "edit", "delete", "programs")       # --only=read: E0-E9 (one chain on one page); edit: E10; delete: E11; programs: E12 (each a page of its own)
-LAST_GROUP = {"E10": "edit", "E11": "delete", "E12": "programs"}                        # a mutant runs the group of its last section; any other last section is in read
+GROUPS = ("read", "edit", "delete", "programs", "debug")       # --only=read: E0-E9 (one chain on one page); edit: E10; delete: E11; programs: E12; debug: E13 (each a page of its own)
+LAST_GROUP = {"E10": "edit", "E11": "delete", "E12": "programs", "E13": "debug"}                        # a mutant runs the group of its last section; any other last section is in read
 
 
 def main():
@@ -1252,6 +1324,8 @@ def main():
             section_e11()
         if "programs" in groups:
             section_e12()
+        if "debug" in groups:
+            section_e13()
     finally:
         sh.teardown()
     say("\nsandbox-tool-entries: %d passed, %d failed" % (sh.tkb.passed, sh.tkb.failed))
