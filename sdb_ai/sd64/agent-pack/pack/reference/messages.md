@@ -5917,6 +5917,8 @@ cited by: `masters`
 Master edits cannot be written into account %1 until the sdsys user is in the group %2. From the sdsys login run  sudo /usr/local/sbin/sd-elevate sdsys-join %2  then sign on again
 ```
 
+cited by: `create_account`
+
 ### msg:11580
 > kind=message tier=reference since=- src=sdsys/messages/11580:1#4654a061
 

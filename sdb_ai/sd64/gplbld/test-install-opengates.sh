@@ -34,8 +34,8 @@
 # judged on that line being ABSENT and on "NOT open for" being present; the good scenario on the line being present and no WARNING.
 #
 #   Z   (1 Nov 2026) the last gate, sdsys-on: open_installer_sdsys runs modify.account <account> sdsys-on with its input from /dev/null and is
-#       judged on the group sdu_<account> listing sdsys; it is called only when open_gates is y, and AFTER the call of sdsys_groups_ruling (which
-#       would otherwise take the sdsys user out of the group again on a fresh install).
+#       judged on the group sdu_<account> listing sdsys; it is called only when open_gates is y, and AFTER the call of sdsys_groups_default (S.103, 1 Nov: the
+#       default puts the sdsys user in every account's group, so this gate is a repair; until then the F6 ruling would have taken it out again on a fresh install).
 #
 # 1 NOV 2026: BACK, AND EVERY GATE.  The test was deleted on 26 Oct with the question ("no question, keep it closed") and restored from 945e7662^ on
 # 1 Nov, when the owner asked for the question back and chose "Every gate" (confirmed after the warning about ai-on, files-admin-on and sdsys-on).
@@ -277,10 +277,10 @@ row "Z2 sd does nothing (exit 0): the WARNING names sdsys-on and sdu_don, no suc
 OUT=$(GRPBLIND=1 run_sdsys)
 row "Z3 the group cannot be read: the WARNING, not the success line" \
     "$(ok "$(printf '%s' "$OUT" | grep -q 'NOT in the group sdu_don' && ! printf '%s' "$OUT" | grep -q 'The sdsys user is in the group' && echo yes)")" "$OUT"
-RULE=$(grep -n '^sdsys_groups_ruling "\$ACCT_PATH/\\\$groups.ruled" "\$sdsys_keep"$' "$INST" | head -1 | cut -d: -f1)
+RULE=$(grep -n '^sdsys_groups_default "\$ACCT_PATH/\\\$sdsys.access"$' "$INST" | head -1 | cut -d: -f1)
 ZGUARD=$(grep -n '^if \[ "\${open_gates:-n}" = y \] && \[ -d "/home/sd/user_accounts/\${tuser_lc}" \]; then$' "$INST" | head -1 | cut -d: -f1)
 ZCALL=$(grep -n '^    open_installer_sdsys "\$tuser" "\$tuser_lc"$' "$INST" | head -1 | cut -d: -f1)
-row "Z4 the call is AFTER sdsys_groups_ruling (which would undo it on a fresh install), inside 'if open_gates = y' and the account exists" \
+row "Z4 the call is AFTER sdsys_groups_default (S.103: the sdsys user is in every account's group as delivered, so this is a repair that reads the group back), inside 'if open_gates = y' and the account exists" \
     "$(ok "$([ -n "$RULE" ] && [ -n "$ZGUARD" ] && [ -n "$ZCALL" ] && [ "$RULE" -lt "$ZGUARD" ] && [ "$ZGUARD" -lt "$ZCALL" ] && [ $((ZCALL - ZGUARD)) -eq 1 ] && echo yes)")" "ruling=$RULE guard=$ZGUARD call=$ZCALL"
 
 # ---- S. static -------------------------------------------------------------------------------------------------------------

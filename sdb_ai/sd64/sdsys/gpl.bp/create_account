@@ -21,6 +21,8 @@
 *              a group or other account is refused (11771) before anything is made.
 * 26 Oct 26 dm S.75, home: CA$START (menu, terminal or blank) is written to ACC$START and CA$PINS (exactly 1) to ACC$PINS 'yes', for every type of account, and said with 11868 and 11885; a start
 *              word that is neither is refused (2018) BEFORE the ATTACH marker, the Linux user and the password, so it creates nothing.
+* 1 Nov 26 dm S.103 (owner: "sdsys always read/write access to the /home/sd tree"): REVERSES the F6 line below.  A new user account's group gets the sdsys user again, through join.sdsys (sd-elevate
+*              sdsys-join; 11011 on success, 11012 and 11579 on failure, the account still made); the group is made as before, with root and the user.
 * 26 Oct 26 dm F6 (S.67 stage 2, alternative C): the sdsys user is no longer a member of a user account's group: create.group makes the group with root and the user, and join.sdsys (the join of
 *              19 Oct, sd-elevate sdsys-join, messages 11012 and 11579 on its failure) is gone with its call.  Master edits into the account are switched on afterwards by the administrator,
 *              modify.account <name> sdsys-on.  A GROUP account's group is made as before (root,sdsys: sdsys owns the files of a group account).
@@ -599,8 +601,9 @@ PW.TRY.AGAIN:
       group_name = "sdu_":downcase(acc.uname)
       gosub create.group
       if err # '' then goto exit.create
-* 26 Oct 26 dm - F6 (alternative C): the sdsys user is NOT put in a user account's group (the join of 19 Oct, S.67 stage 2, is gone).  The account is delivered with master edits
-*   switched off; modify.account <name> sdsys-on is the administrator's act that switches them on.
+* 1 Nov 26 dm - S.103 (owner: "sdsys always read/write access to the /home/sd tree"): the sdsys user IS in a user account's group again, as it was before the F6 ruling of 26 Oct.  The group is made with
+*   root and the user (the helper holds groupadd to that), and sdsys joins it through sd-elevate's sdsys-join, the one verb that does it.  modify.account <name> sdsys-off takes it out again.
+      gosub join.sdsys
 
    case acc.type = "GROUP"
       group_name = downcase("sdg_" : acc.name)
@@ -933,7 +936,8 @@ create.group:
    if not(is_group(group_name)) then
 * CREATEA, 09 Sep 26: sd-elevate is "groupadd <group> [members]"; root and sdsys
 *   are legitimate members of an account group.
-* 26 Oct 26 dm - F6: a USER account's group is made with root and the user only; sdsys is a member of a GROUP account's group (it owns the files of a group account) and of no user account's.
+* 26 Oct 26 dm - F6: a USER account's group is made with root and the user only (the helper holds it to that); sdsys is a member of a GROUP account's group (it owns the files of a group account).
+*   1 Nov 26 (S.103): it joins a USER account's group afterwards, in join.sdsys.
       if acc.type = 'USER' then
          OS.EXECUTE "sudo /usr/local/sbin/sd-elevate groupadd ": group_name :" root,":acc.uname
       end else
@@ -945,6 +949,23 @@ create.group:
       end else
          err = 10015:@vm:group_name:@vm:group_stat ;* Unable to create group: %1 status: %2
       end
+   end
+   return
+
+* ======================================================================
+* join.sdsys - group_name is sdu_<user>.  Puts the sdsys operating-system user in it when it is not in it already, through sd-elevate's sdsys-join (the one verb that does it: only sdsys,
+*   only an existing sdu_<user> group).  The sdsys user in an account's group is write access to everything the group may write there: the owner's ruling of 1 Nov 2026 (S.103), which
+*   reverses the F6 ruling of 26 Oct.  A session of SDSYS that began before this has its groups fixed at its start and cannot write the account until SDSYS signs on again.  A failure is said
+*   and the account is still made: modify.account <name> sdsys-on repairs it.
+join.sdsys:
+   if is_grp_member('sdsys', group_name) then return
+   os.execute "sudo /usr/local/sbin/sd-elevate sdsys-join ":group_name
+   stat = OS.ERROR()
+   if stat = 0 then
+      crt sysmsg(11011, 'sdsys', group_name)  ;* %1 added to %2
+   end else
+      crt sysmsg(11012, 'sdsys', group_name, stat) ;* %1 could not be added to %2 (status %3)
+      crt sysmsg(11579, acc.name, group_name) ;* the sdsys user is not in the group %2 of account %1
    end
    return
 

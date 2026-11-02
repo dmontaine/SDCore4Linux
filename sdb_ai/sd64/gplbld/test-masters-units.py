@@ -523,12 +523,13 @@ def checks(srcs):
        and "sync.masters" in (t2.get(11583) or "") + (t2.get(11588) or ""), "")
     ck("S3b F6: 11977 to 11982 are written for BASIC (%1 and the like, never a %s) and are one line each: 11977 and 11978 say master edits are on or off, 11979 says it is not a user account, "
        "11980 has the account, the step and the status, 11981 the number of accounts that are off and the verb that switches one on, 11982 the hint and that same verb; and the three RETIRED messages "
-       "(11579, 11587, 11593) are cited by no code - not by masters.c, create_account, masters or tool_masters",
+       "(11579, 11587, 11593) are cited by no code of the master files - not by masters.c, masters or tool_masters (S.103, 1 Nov: 11579 is used again, once, by create_account's join.sdsys, and by no other program; 11587 and 11593 stay retired)",
        all(t2.get(n) and t2[n].count("\n") == 1 and "%s" not in t2[n] for n in range(11977, 11983))
        and "%1" in t2[11977] and "master edits are on" in t2[11977] and "master edits are off" in t2[11978] and "%1" in t2[11978] and "is not a user account" in t2[11979] and "%1" in t2[11979]
        and all(x in t2[11980] for x in ("%1", "%2", "%3")) and "%1" in t2[11981] and "sdsys-on" in t2[11981] and "%" not in t2[11982] and "sdsys-on" in t2[11982]
        and all(re.search(r"\b%d\b" % n, c["c:masters.c"]) is None for n in (11579, 11587, 11593))
-       and all(("sysmsg(%d" % n) not in c["bp:" + p] for n in (11579, 11587, 11593) for p in ("create_account", "masters", "tool_masters", "modifya")),
+       and all(("sysmsg(%d" % n) not in c["bp:" + p] for n in (11579, 11587, 11593) for p in ("masters", "tool_masters", "modifya"))
+       and all(("sysmsg(%d" % n) not in c["bp:create_account"] for n in (11587, 11593)) and c["bp:create_account"].count("sysmsg(11579") == 1,
        repr({n: (t2.get(n) or "MISSING")[:40] for n in range(11977, 11983)}))
     msgnum = {mm.group(1): int(mm.group(2)) for mm in re.finditer(r"#define (MSG_\w+) (\d+)", m)}
     calls = re.findall(r"mst_refuse\((MSG_\w+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)", m) + re.findall(r"mst_deliver_stop\(&cx, &fv, took, rid, rid_len, (MSG_\w+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)", m)
@@ -711,31 +712,30 @@ def checks(srcs):
 
     # ---- S19 the BASIC and the installer -------------------------------------------------------------------------------------------------------
     ca2 = B("create_account")
-    ck("S19 (F6) create_account does NOT put the sdsys user in a user account's group: the USER account's group is made with root and the user only (groupadd ... root,<user>), the GROUP account's with root,sdsys "
-       "(sdsys owns the files of a group account); join.sdsys, its call, sd-elevate sdsys-join and the messages 11012-on-failure and 11579 are gone from it (11011 and 11012 are still the files groups' lines)",
-       ordered(ca2, 'group_name = "sdu_":downcase(acc.uname)', "gosub create.group", 'case acc.type = "GROUP"', "gosub make.account")
+    ck("S19 (S.103, 1 Nov) create_account puts the sdsys user in a USER account's group (reversing F6): the group is made with root and the user only (groupadd ... root,<user>, which the helper holds it to), the GROUP "
+       "account's with root,sdsys (sdsys owns the files of a group account), and join.sdsys - called once, right after the user group is made - joins through sd-elevate sdsys-join (the one verb), says 11011, and on "
+       "failure 11012 and 11579 and goes on; 11587 and 11593 stay unused",
+       ordered(ca2, 'group_name = "sdu_":downcase(acc.uname)', "gosub create.group", "gosub join.sdsys", 'case acc.type = "GROUP"', "gosub make.account")
        and 'groupadd ": group_name :" root,":acc.uname' in ca2 and 'groupadd ": group_name :" root,sdsys"' in ca2 and ca2.count("root,sdsys") == 1 and "root,sdsys," not in ca2
-       and "join.sdsys" not in ca2 and "sdsys-join" not in ca2 and "sysmsg(11579" not in ca2 and "sysmsg(11587" not in ca2 and "sysmsg(11593" not in ca2
-       and "sd-elevate sdsys" not in ca2, "")
+       and ca2.count("gosub join.sdsys") == 1 and ca2.count("sd-elevate sdsys-join") == 1 and ca2.count("sd-elevate sdsys") == 1
+       and ordered(between(ca2, "join.sdsys:", "\nend"), "is_grp_member('sdsys', group_name)", "sd-elevate sdsys-join", "OS.ERROR()", "sysmsg(11011", "sysmsg(11012", "sysmsg(11579")
+       and "sysmsg(11587" not in ca2 and "sysmsg(11593" not in ca2, "")
     ins2 = c["sh:installsdcore.sh"]
-    jf = re.search(r"^sdsys_groups_ruling\(\) \{.*?^\}", c["sh:installsdcore.sh"], re.M | re.S)
+    jf = re.search(r"^sdsys_groups_default\(\) \{.*?^\}", c["sh:installsdcore.sh"], re.M | re.S)
     jf = jf.group(0) if jf else ""
     raw_ins = srcs["sh:installsdcore.sh"]                       # the markers are comment lines, which `ins2` has lost
-    qa = re.search(r"^# SDSYSGROUPS-ASK-BEGIN$(.*?)^# SDSYSGROUPS-ASK-END$", raw_ins, re.M | re.S)
-    qa = strip_sh(qa.group(1)) if qa else ""
-    call = 'sdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"'
-    ck("S20 (F6) the installer's ruling, sdsys_groups_ruling: ONE verb, sdsys-leave, only for a group named sdu_<something> that /etc/group lists sdsys in (a whole name), only when the marker is absent and the "
-       "answer was not y; judged on sd-elevate's own words; the marker is written (touch, chown sdsys:sdusers, chmod 644) only after the groups are right (a refusal returns before it); never exits; no sdsys-join and "
-       "no group-write; called once, with the marker in /home/sd (ACCT_PATH, not the sdsys directory, which deletesdcore.sh removes) and the answer of the question, after upgrade_editgates and before upgrade_masters",
-       len(jf) > 1500 and jf.count('sudo /usr/local/sbin/sd-elevate sdsys-leave "$group"') == 1 and "sdsys-join" not in jf and "group-write" not in jf
-       and ordered(jf, 'if [ -e "$marker" ]; then', "return 0", "getent group", '$1 ~ /^sdu_./', '/,sdsys,/', 'elif [ "$keep" = y ]; then', 'sdsys-leave "$group"', 'gpasswd -d sdsys ${group}', "if [ \"$n_fail\" -gt 0 ]; then",
-               "return 0", 'sudo touch "$marker"', 'sudo chown sdsys:sdusers "$marker"', 'sudo chmod 644 "$marker"')
-       and re.search(r"\b(exit|return 1)\b", jf) is None and ins2.count(call) == 1 and "sdsysdir/\\$groups.ruled" not in ins2
+    call = 'sdsys_groups_default "$ACCT_PATH/\\$sdsys.access"'
+    ck("S20 (S.103) the installer's default, sdsys_groups_default: TWO verbs, sdsys-join (a group named sdu_<something> that /etc/group does NOT list sdsys in, a whole name) and group-write (that account's directory, when it "
+       "exists), each judged on sd-elevate's own words; only when the marker is absent; the marker is written (touch, chown sdsys:sdusers, chmod 644) only when no account failed (a failure returns before it); "
+       "never exits; no sdsys-leave and no question; called once, with the marker in /home/sd (ACCT_PATH, not the sdsys directory, which deletesdcore.sh removes), after upgrade_editgates and before upgrade_masters",
+       len(jf) > 1200 and jf.count('sudo /usr/local/sbin/sd-elevate sdsys-join "$group"') == 1 and jf.count('sudo /usr/local/sbin/sd-elevate group-write "$dir"') == 1 and "sdsys-leave" not in jf and "read " not in jf
+       and ordered(jf, 'if [ -e "$marker" ]; then', "return 0", "getent group", '$1 ~ /^sdu_./', '!~ /,sdsys,/', 'sdsys-join "$group"', 'usermod -aG ${group} -- sdsys', 'group-write "$dir"', 'sd-elevate: group-write: ',
+               'if [ "$n_fail" -gt 0 ]; then', "return 0", 'sudo touch "$marker"', 'sudo chown sdsys:sdusers "$marker"', 'sudo chmod 644 "$marker"')
+       and re.search(r"\b(exit|return 1)\b", jf) is None and ins2.count(call) == 1 and "sdsysdir/\\$sdsys.access" not in ins2
        and ordered(ins2, "-internal RUN gpl.bp upgrade_editgates", call, "-internal RUN gpl.bp upgrade_masters"), "")
-    ck("S20a (F6) the question: asked once, UP FRONT with the others (before the first sudo), only while the marker /home/sd/$groups.ruled is absent and some sdu_ group lists sdsys; the answer is NO unless y or yes is "
-       "typed, and NO when no answer can be read; it reads the answer, it runs nothing and calls no helper",
-       qa != "" and ordered(qa, "sdsys_keep=n", 'if [ ! -e "/home/sd/\\$groups.ruled" ]; then', "getent group", '$1 ~ /^sdu_./', '/,sdsys,/', 'if [ -n "$sdsys_listed" ]; then', "read -r -p", "|| {", 'sdsys_ans=n', 'case $sdsys_ans in [yY]|[yY][eE][sS] ) sdsys_keep=y;; esac')
-       and "sudo" not in qa and "sd-elevate" not in qa and ordered(raw_ins, "# SDSYSGROUPS-ASK-BEGIN", "# SDSYSGROUPS-ASK-END", "if ! sudo -v; then"), "")
+    ck("S20a (S.103) the F6 question is GONE: no SDSYSGROUPS-ASK markers, no sdsys_keep or sdsys_listed, no sdsys_groups_ruling, no $groups.ruled, no read of an answer about keeping the sdsys user in the groups",
+       "SDSYSGROUPS-ASK" not in raw_ins and "sdsys_keep" not in ins2 and "sdsys_listed" not in ins2 and "sdsys_groups_ruling" not in ins2 and "$groups.ruled" not in ins2
+       and re.search(r"read[^\n|]*[Kk]eep the sdsys", ins2) is None, "")
     se = c["sh:sd-elevate"]
     ck("S21 sd-elevate has the three verbs: sdsys-join builds usermod -aG GROUP -- sdsys (the user written in the helper, never an argument; -aG appends) after require_account_group; sdsys-leave (F6) the other way, "
        "gpasswd -d sdsys GROUP, after the same rule, and a group that does not list sdsys is answered 'sdsys is not in' with exit 0 before any command is built; group-write runs the worker on one validated "
@@ -748,7 +748,7 @@ def checks(srcs):
     ck("S22 wiring: the map has rules for messages 11579-11599, sd-elevate and the two new tests (or the coarse rules take them), and the new installer test is a free check that names the function",
        re.search(r"^sdsys/messages/1157\[0-9\]\s*:.*\bmasters\b", mp_, re.M) is not None and re.search(r"^sdsys/messages/1158\[0-9\]\s*:.*\bmasters\b", mp_, re.M) is not None
        and re.search(r"^sdsys/messages/1159\[0-6\]\s*:.*\bmasters\b", mp_, re.M) is not None and re.search(r"^gplbld/sd-elevate\s*:\s*\S", mp_, re.M) is not None
-       and "sdsys_groups_ruling" in (srcs.get("file:test-install-sdsysgroups.sh") or ""), "")
+       and "sdsys_groups_default" in (srcs.get("file:test-install-sdsysgroups.sh") or ""), "")
     ck("S23 the op 'refusal' is the administrator's (it comes after the 'if (!admin)' refusal) and answers the stage 2 buffer and nothing else; ED asks it at both its write-error sites, only for status 8910, and "
        "displays the second field; CHECK.MASTERS and LIST.MASTER.PENDING each end with it (message 11594)",
        ordered(rq, "if (!admin) {", 'strcmp(op, "refusal") == 0', "masters_refusal_text()", 'strcmp(op, "init") == 0')
@@ -1234,27 +1234,23 @@ MUTANTS += [
     ("alt C: TOOL.MASTERS never shows the count", "bp:tool_masters", "   if ready and noff > 0 then s = sysmsg(11981, noff)", "   if ready and noff > 0 then s = ''"),
     ("alt C: create_account puts the sdsys user in a user account's group again", "bp:create_account", 'groupadd ": group_name :" root,":acc.uname', 'groupadd ": group_name :" root,sdsys,":acc.uname'),
     ("alt C: create_account makes a group account's group without sdsys", "bp:create_account", 'groupadd ": group_name :" root,sdsys"', 'groupadd ": group_name :" root"'),
-    ("alt C: create_account joins the sdsys user to the group it has made", "bp:create_account", "*   switched off; modify.account <name> sdsys-on is the administrator's act that switches them on.\n",
-     "*   switched off; modify.account <name> sdsys-on is the administrator's act that switches them on.\n      os.execute \"sudo /usr/local/sbin/sd-elevate sdsys-join \":group_name\n"),
-    # ---- the installer: the question
-    ("alt C: the question counts group accounts too", "sh:installsdcore.sh", "    sdsys_listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./", "    sdsys_listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sd[ug]_./"),
-    ("alt C: the question reads the wrong marker", "sh:installsdcore.sh", 'if [ ! -e "/home/sd/\\$groups.ruled" ]; then', 'if [ ! -e "/home/sd/\\$groups.done" ]; then'),
-    ("alt C: the question defaults to keep", "sh:installsdcore.sh", 'sdsys_keep=n\nsdsys_listed=""', 'sdsys_keep=y\nsdsys_listed=""'),
-    ("alt C: no answer is yes", "sh:installsdcore.sh", '"No answer could be read: N."; sdsys_ans=n; }', '"No answer could be read: N."; sdsys_ans=y; }'),
-    ("alt C: any answer keeps", "sh:installsdcore.sh", 'case $sdsys_ans in [yY]|[yY][eE][sS] ) sdsys_keep=y;; esac', 'sdsys_keep=y'),
-    ("alt C: the question runs a command as root", "sh:installsdcore.sh", 'sdsys_listed=""\nif [ ! -e', 'sdsys_listed=""\nsudo true\nif [ ! -e'),
-    # ---- the installer: the act and the call
-    ("alt C: the ruling takes the sdsys user out of the group of group accounts too", "sh:installsdcore.sh", "    listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./", "    listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sd[ug]_./"),
-    ("alt C: the ruling matches a prefix of sdsys", "sh:installsdcore.sh", "    listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./ && (\",\" $4 \",\") ~ /,sdsys,/", "    listed=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./ && (\",\" $4 \",\") ~ /sdsys/"),
-    ("alt C: the ruling ignores the answer", "sh:installsdcore.sh", '    elif [ "$keep" = y ]; then', '    elif false; then'),
-    ("alt C: the ruling ignores the marker", "sh:installsdcore.sh", '    if [ -e "$marker" ]; then', '    if false; then'),
-    ("alt C: the marker is written after a refusal", "sh:installsdcore.sh", 'sdsys-leave <group>"\n            printf "%b\\n" "$NC"\n            return 0\n', 'sdsys-leave <group>"\n            printf "%b\\n" "$NC"\n'),
-    ("alt C: the marker is not handed to sdsys", "sh:installsdcore.sh", '    sudo chown sdsys:sdusers "$marker"\n', ""),
-    ("alt C: the marker is open to everybody", "sh:installsdcore.sh", '    sudo chmod 644 "$marker"', '    sudo chmod 666 "$marker"'),
-    ("alt C: the ruling can stop the install", "sh:installsdcore.sh", '        echo "  The sdsys user was taken out of the group of ', '        exit 1; echo "  The sdsys user was taken out of the group of '),
-    ("alt C: the ruling is called twice", "sh:installsdcore.sh", 'sdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"\n', 'sdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"\nsdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"\n'),
-    ("alt C: the ruling's marker is in the sdsys directory", "sh:installsdcore.sh", 'sdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled"', 'sdsys_groups_ruling "$sdsysdir/\\$groups.ruled"'),
-    ("alt C: the ruling is never called", "sh:installsdcore.sh", 'sdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"\n', "true\n"),
+    ("S.103: create_account never joins the sdsys user to a user account's group", "bp:create_account", "      gosub join.sdsys\n", ""),
+    ("S.103: create_account does not say a failed join", "bp:create_account", "      crt sysmsg(11579, acc.name, group_name)", "      null"),
+    ("S.103: create_account joins by some other verb", "bp:create_account", "os.execute \"sudo /usr/local/sbin/sd-elevate sdsys-join \":group_name", "os.execute \"sudo /usr/local/sbin/sd-elevate usermod \":group_name"),
+    # ---- the installer: the default and the call (S.103; the F6 question and ruling are gone)
+    ("S.103: the default counts group accounts too", "sh:installsdcore.sh", "    missing=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./", "    missing=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sd[ug]_./"),
+    ("S.103: the default matches a prefix of sdsys", "sh:installsdcore.sh", "(\",\" $4 \",\") !~ /,sdsys,/", "(\",\" $4 \",\") !~ /sdsys/"),
+    ("S.103: the default ignores the marker", "sh:installsdcore.sh", '    if [ -e "$marker" ]; then', '    if false; then'),
+    ("S.103: the default takes the sdsys user out instead of putting it in", "sh:installsdcore.sh", 'sd-elevate sdsys-join "$group"', 'sd-elevate sdsys-leave "$group"'),
+    ("S.103: the default does not repair the modes", "sh:installsdcore.sh", 'sd-elevate group-write "$dir"', 'sd-elevate stat "$dir"'),
+    ("S.103: the marker is written after a failure", "sh:installsdcore.sh", 'modify.account <account> sdsys-on"\n        printf "%b\\n" "$NC"\n        return 0\n', 'modify.account <account> sdsys-on"\n        printf "%b\\n" "$NC"\n'),
+    ("S.103: the marker is not handed to sdsys", "sh:installsdcore.sh", '    sudo chown sdsys:sdusers "$marker"\n', ""),
+    ("S.103: the marker is open to everybody", "sh:installsdcore.sh", '    sudo chmod 644 "$marker"', '    sudo chmod 666 "$marker"'),
+    ("S.103: the default can stop the install", "sh:installsdcore.sh", '        echo "  The sdsys user was put in the group of ', '        exit 1; echo "  The sdsys user was put in the group of '),
+    ("S.103: the default is called twice", "sh:installsdcore.sh", 'sdsys_groups_default "$ACCT_PATH/\\$sdsys.access"\n', 'sdsys_groups_default "$ACCT_PATH/\\$sdsys.access"\nsdsys_groups_default "$ACCT_PATH/\\$sdsys.access"\n'),
+    ("S.103: the default's marker is in the sdsys directory", "sh:installsdcore.sh", 'sdsys_groups_default "$ACCT_PATH/\\$sdsys.access"', 'sdsys_groups_default "$sdsysdir/\\$sdsys.access"'),
+    ("S.103: the default is never called", "sh:installsdcore.sh", 'sdsys_groups_default "$ACCT_PATH/\\$sdsys.access"\n', "true\n"),
+    ("S.103: the F6 question is back", "sh:installsdcore.sh", '(sdsys_groups_default, below).\nprintf "%b\\n" "$NC"\n', '(sdsys_groups_default, below).\nsdsys_keep=n\nprintf "%b\\n" "$NC"\n'),
     # ---- sd-elevate
     ("alt C: sdsys-leave replaces the groups", "sh:sd-elevate", 'cmd=(gpasswd -d sdsys "$1")', 'cmd=(usermod -G "" -- sdsys)'),
     ("alt C: sdsys-leave takes the user from sudo", "sh:sd-elevate", 'cmd=(gpasswd -d sdsys "$1")', 'cmd=(gpasswd -d "${SUDO_USER:-sdsys}" "$1")'),

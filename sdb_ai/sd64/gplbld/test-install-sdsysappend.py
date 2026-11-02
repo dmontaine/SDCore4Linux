@@ -33,7 +33,7 @@ def checks(text):
     gp = [i + 1 for i, l in code if re.search(r"\bgpasswd\s+-M\b", l)]
     rows.append(("A2 no usermod of the installer replaces the sdsys user's supplementary groups, and no gpasswd -M (%s, %s)" % (replacing, gp), not replacing and not gp, ""))
     made = [i for i, l in code if "useradd -g sdusers -G sdusers" in l and l.strip().endswith("sdsys; then") or "useradd -g sdusers -G sdusers" in l]
-    ruling = [i for i, l in code if re.match(r"\s*sdsys_groups_ruling\b", l) and "()" not in l]
+    ruling = [i for i, l in code if re.match(r"\s*sdsys_groups_default\b", l) and "()" not in l]       # S.103, 1 Nov 26: the F6 ruling's call is the default's
     rows.append(("A3 the line is after the user is created (%s) and before the ruling is called (%s)" % (made and made[0] + 1, ruling and ruling[0] + 1),
                  bool(good and made and ruling and made[0] < good[0] < ruling[0]), "good %s made %s ruling %s" % (good, made, ruling)))
     return rows
@@ -77,7 +77,7 @@ def selftest():
     mutant("line-gone", "A1", text.replace("\n" + GOOD + "\n", "\n", 1))
     mutant("second-replacing-usermod", "A2", text.replace("\n" + GOOD + "\n", "\n" + GOOD + "\nsudo usermod -G sdusers sdsys\n", 1))
     mutant("gpasswd-M", "A2", text.replace("\n" + GOOD + "\n", "\n" + GOOD + "\nsudo gpasswd -M root sdg_shared\n", 1))
-    CALL = '\nsdsys_groups_ruling "$ACCT_PATH/\\$groups.ruled" "$sdsys_keep"\n'
+    CALL = '\nsdsys_groups_default "$ACCT_PATH/\\$sdsys.access"\n'
     mutant("line-after-the-ruling", "A3", text.replace("\n" + GOOD + "\n", "\n", 1).replace(CALL, CALL + GOOD + "\n", 1))
     print("selftest: %d of %d mutants caught, %d missed" % (caught, caught + missed, missed))
     return 0 if missed == 0 else 1

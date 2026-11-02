@@ -22,6 +22,8 @@
 * 28 Oct 26 dm S.88 plan 2.9 (D2; owner's answer to Q2: "Build it, ship it off"): RECOVERY-ON / RECOVERY-OFF, whether the account's editors keep a recovery copy of unsaved text
 *           (register field 19, ACC$RECOVERY; off as delivered), through os.set like PINS-ON.  A USER account only: a group or other account is refused with 11771 (the copy is
 *           kept in the account's directory, which every member of a group account can rename entries in).  Slot RC; 11770 is the line os.set prints; the audit line is os.set's.
+* 1 Nov 26 dm S.103 (owner: "sdsys always read/write access to the /home/sd tree ... sdsys-on/off keep them"): the DELIVERED state of every user account is now ON (create.account and the installer put the
+*           sdsys user in the account's group); SDSYS-OFF is the administrator's way to tighten one account, SDSYS-ON the way back and the repair of the modes.  Nothing else here changed.
 * 26 Oct 26 dm F6 (S.67 stage 2, alternative C; core direction: high security is delivered and the administrator loosens it later): SDSYS-ON / SDSYS-OFF put the sdsys operating-system user in or out of
 *           the Linux group of a USER account (sd-elevate sdsys-join / sdsys-leave; sdsys-on also runs group-write, which is repeatable and repairs the modes), which is what switches master
 *           edits and SDSYS's writing inside the account on and off.  The state is the membership, as the route words' is: no register field.  set.sdsys is the one routine; 11977 / 11978 are
@@ -1295,6 +1297,7 @@ set.ai:
 *****************************************************************************
 * SET.SDSYS  -  MODIFY.ACCOUNT <account> SDSYS-ON | SDSYS-OFF
 *
+* 1 Nov 26 dm - S.103: "in NO user account's group as delivered" below is the F6 text of 26 Oct and is REVERSED: the delivered state is ON for every user account, SDSYS-OFF tightens one.
 * 26 Oct 26 dm - F6 (S.67 stage 2, alternative C; the core direction: high security is delivered and the administrator loosens it later).  The sdsys operating-system user is in NO user
 *   account's group as delivered.  SDSYS-ON puts it in the account's group (sd-elevate sdsys-join) and then makes the account's VOC and dictionaries group-writable (sd-elevate group-write);
 *   SDSYS-OFF takes it out (sd-elevate sdsys-leave).  sdsys.want is set by the caller.  The state is the Linux group membership, as the route words' is (sdssh, sdapi): nothing is written

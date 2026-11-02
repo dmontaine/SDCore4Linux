@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+1 Nov 26   THE sdsys USER IS IN THE GROUP OF EVERY USER ACCOUNT AGAIN, SO SDSYS CAN READ AND WRITE EVERYTHING IN /home/sd.
+
+             What        - create.account puts the sdsys operating-system user in a new user account's group, and the install puts it in the group of the accounts that are
+                           already there, once (it records that in /home/sd/$sdsys.access, so a modify.account <account> sdsys-off you give later is not undone by the next install).
+                           The question the install used to ask (keep the sdsys user in the groups an earlier release put it in?) is gone. modify.account sdsys-on and sdsys-off stay:
+                           sdsys-off takes the user out of one account's group, sdsys-on puts it back and repairs the modes.
+             Why         - The owner's ruling: sdsys always has read/write access to the /home/sd tree, and how much further protection the machine needs is the administrator's to
+                           decide; the system must stay simple for the people who run it. It also lets SDSYS compile, catalogue and debug the programs of an account whose bp-edit
+                           gate is off. This reverses the 26 Oct change that made the membership off as delivered.
+             Does NOT    - Reach the network (sdsys has no API access, and ssh only with an authenticator code), make sdsys root (it is in no sudo group; the root helper is
+                           still limited verb by verb), or change group accounts (SDSYS owns their files). A session of SDSYS that was already running keeps the groups it started
+                           with: sign on again. Files an account's user makes outside SD under a strict umask may not be group-writable until sdsys-on is given again.
+
 1 Nov 26   THE DEBUGGER'S FULL-SCREEN DISPLAY HAS THE SAME FRAME AS THE OTHER FULL-SCREEN PAGES, AN AUTOS PANE, AND NEEDS A WINDOW OF 140 BY 43.
 
              What        - The title bar shows "debugger" and who is signed on at its right end. Each source row has a gutter: > marks the line about to run and * a line with a
