@@ -5168,6 +5168,65 @@ Account %1 has files %2
 
 cited by: `create_account`, `modifya`
 
+### msg:11483
+> kind=message tier=reference since=- src=sdsys/messages/11483:1#d45c77a5
+
+```
+set.batch {add | remove} account command; set.batch alone says which commands each account may run from the command line
+```
+
+cited by: `set_batch`
+
+### msg:11484
+> kind=message tier=reference since=- src=sdsys/messages/11484:1#f758d39b
+
+```
+%1 is not a registered account
+```
+
+cited by: `set_batch`
+
+### msg:11485
+> kind=message tier=reference since=- src=sdsys/messages/11485:1#b78183e8
+
+```
+sdsys is the administrator's account: its sessions may run any command, and it has no list
+```
+
+cited by: `set_batch`
+
+### msg:11486
+> kind=message tier=reference since=- src=sdsys/messages/11486:1#66748c15
+
+```
+%1 is not a paragraph or a sentence in account %2
+```
+
+cited by: `set_batch`
+
+### msg:11487
+> kind=message tier=reference since=- src=sdsys/messages/11487:1#80dcdfae
+
+```
+%1 may now be run from the command line in account %2
+```
+
+### msg:11488
+> kind=message tier=reference since=- src=sdsys/messages/11488:1#52e4f90c
+
+```
+%1 may no longer be run from the command line in account %2
+```
+
+### msg:11489
+> kind=message tier=reference since=- src=sdsys/messages/11489:1#14e584b1
+
+```
+%1 was already allowed in account %2; nothing changed
+```
+
+cited by: `set_batch`
+
 ### msg:11490
 > kind=message tier=reference since=- src=sdsys/messages/11490:1#b23c2b93
 
@@ -7763,6 +7822,42 @@ SD administration granted: this session is the sdsys OS user, signed in over ssh
 ```
 
 cited by: `cproc`
+
+### msg:11796
+> kind=message tier=reference since=- src=sdsys/messages/11796:1#b6ad70de
+
+```
+%1 was not allowed in account %2; nothing changed
+```
+
+cited by: `set_batch`
+
+### msg:11797
+> kind=message tier=reference since=- src=sdsys/messages/11797:1#c638f2d1
+
+```
+The list of batch commands could not be written
+```
+
+cited by: `set_batch`
+
+### msg:11798
+> kind=message tier=reference since=- src=sdsys/messages/11798:1#ee445bba
+
+```
+Account %1 may run from the command line: %2
+```
+
+cited by: `set_batch`
+
+### msg:11799
+> kind=message tier=reference since=- src=sdsys/messages/11799:1#0305acfa
+
+```
+No account may run a command from the command line
+```
+
+cited by: `set_batch`
 
 ### msg:11800
 > kind=message tier=reference since=- src=sdsys/messages/11800:1#dd02a6e6
@@ -10782,7 +10877,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 22 more
+cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 23 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+2 Nov 26   A VERB AND A PAGE FOR THE COMMANDS AN ACCOUNT MAY RUN FROM THE COMMAND LINE: set.batch AND tool.jobs (THE FIRST STAGE OF A SCHEDULED JOBS PAGE).
+
+             What        - set.batch add <account> <command> allows a paragraph or a sentence of that account to be run as sd -a<account> <command>, which is how a cron
+                           job or a systemd timer runs SD; set.batch remove takes it off and set.batch alone lists every account's commands. It checks the name in that
+                           account's VOC before it adds it (the test the login makes), writes the account's record in the SD system file batch.jobs, and writes a line to
+                           the audit trail. tool.jobs, the administrator's Scheduled jobs page, lists every account with the number of commands it may run that way and its
+                           paragraphs and sentences, each allowed or not; Enter shows the set.batch command and what it does and runs it only when you answer Run. A name
+                           still on the list whose VOC record has gone is shown as such and can be taken off.
+             Why         - The owner asked for cron to be managed from within SD. Until now the list was edited by hand with ed, and a mistake was found only when the job
+                           ran and was refused.
+             Does NOT    - Allow anything as delivered, give a job the administrator's rights (it runs with the account's own), or change the administrator's account, which
+                           has no list. It does not write the schedule itself: the crontab or timer of the account's Linux user is still made by hand. Jobs that run as the
+                           administrator are a later stage.
+
 1 Nov 26   THE sdsys USER IS IN THE GROUP OF EVERY USER ACCOUNT AGAIN, SO SDSYS CAN READ AND WRITE EVERYTHING IN /home/sd.
 
              What        - create.account puts the sdsys operating-system user in a new user account's group, and the install puts it in the group of the accounts that are

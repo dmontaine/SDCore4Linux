@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 2 Nov 26 dm  S.102: batch.permitted's comment names SET.BATCH and TOOL.JOBS, the new way to change batch.jobs.  No code changed.
 * 27 Oct 26 dm S.87: the VOC deletion list.  update.voc ends with remove.listed.voc, which removes from the account's VOC the records listed in sdsys/voc_removed that
 *           are still the records SD shipped (!vocrmchk), saves a copy of each to sdsys/voc_removed.saved first, reports the ones it kept and audits.  Messages 11900-11904.
 * 26 Oct 26 dm UPDATE.ACCOUNTS (modes 2 and 4) updates the SDSYS account's own VOC from VOC_TEMPLATE, not NEWVOC: tool.gates is the administrator's page in
@@ -718,8 +719,8 @@ show.msg:
 * The installer makes it sdsys:sdusers 640 - sdusers may READ it (every
 * login checks its own account's entry from its own, unprivileged process)
 * but never WRITE it; the administrator, who owns the file, maintains it
-* directly - there is no verb to edit it with, matching the port, which has
-* not built one either.
+* with SET.BATCH or the Scheduled jobs page, TOOL.JOBS (2 Nov 2026, S.102;
+* until then there was no verb, as in the port), or directly.
 *
 * KEYED BY initial.account, DOWNCASED - the same identity the group-
 * membership test above already proved, so this cannot consult one

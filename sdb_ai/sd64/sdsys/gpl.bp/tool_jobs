@@ -1,0 +1,569 @@
+* TOOL_JOBS
+* The administrator's Scheduled jobs page, first stage: which commands each account may run from the command line (S.102 stage 1; owner, 1 Nov 2026: "a cron
+* management admin pane - so that cron can be managed from within SD").  An administrator app.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 2 Nov 26 dm  New (S.102 stage 1, account jobs only: the batch gate's list; the schedules themselves are a later stage).  Made from tool_viewers.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   TOOL.JOBS
+*
+*   For the administrator only (it is refused, before anything is read, for anyone else; it is in SDSYS's VOC only).  A full-screen page, in the toolkit's frame
+*   (140 columns by 43 lines at least), for the batch gate: a session started with a command on the command line (sd -aACCOUNT 'command', which is how a cron job
+*   or a systemd timer runs SD) is refused unless the command is on the account's list in @SDSYS/batch.jobs.
+*
+*     Accounts   every registered account but SDSYS, with how many commands it may run that way
+*     Commands   the paragraphs and sentences of the selected account's VOC (the only kinds the gate lets run), each allowed or not, and any listed name that is
+*                no longer one
+*
+*   Keys: Up and Down move in the box, PgUp and PgDn move a page, Tab changes box, Enter or the space bar in Commands allows the command under the cursor or stops
+*   allowing it (in Accounts it moves to Commands), F5 reads the lists again, F1 or ? or a click on a [?] explains the box, Ctrl-Q leaves.  Esc or F10 (or a click
+*   on the top row) opens the menu bar - File: Quit; Command: Allow or stop allowing; View: Switch box, Refresh, Output; Help - and Alt and a title's letter opens
+*   that menu.  Ctrl-O (View > Output) shows or puts away the OUTPUT PANE: what each command answered, newest first, for as long as the page is open.
+*
+*   THE PAGE WRITES NOTHING ITSELF.  Every change is SET.BATCH add | remove account command, shown with its effect in a box answered Run or Cancel (Cancel is what
+*   Enter chooses) and run by $tk_run.  A name that holds a character $tk_run does not pass (anything but a-z, 0-9, dot, dash and underscore) is shown with the
+*   command to type at the prompt.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $tool_jobs
+$catalog $tool_jobs
+
+$include keys.h
+$include int$keys.h
+$include err.h
+$include sl.h
+$include tk.h
+
+   prompt ''
+
+   allow = 'set.batch'                                           ;* the one command this page may run
+   PLAIN = 'abcdefghijklmnopqrstuvwxyz0123456789._-'             ;* the characters $tk_run lets through in a word
+
+   call $tk_open('tool.jobs', 'admin', ctx, err)
+   if err # '' then
+      display err
+      stop
+   end
+   void kernel(K$AUDIT, 'tool start app=tool.jobs')
+
+   keys = ''
+   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
+   call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)
+   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)
+   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
+   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'ctrl-o', 'output', 'output', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* Esc closes the output pane when it is open, else opens the menu bar
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'change', '&Command', '&Allow or stop allowing', '', '')
+   call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'output', '&View', '&Output', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
+   * The AI line: offered only the pane switch, the output pane and refresh (allowing a command is NOT offered); a proposal is carried out by the page's own key.
+   call $tk_keys('ai', keys, 'pane', '', '', '', '')
+   call $tk_keys('ai', keys, 'output', '', '', '', '')
+   call $tk_keys('ai', keys, 'refresh', '', '', '', '')
+   call $tk_aipage('init', ctx, keys, '', '', aout)
+
+   pnames = 'Accounts' : @fm : 'Commands'
+
+   VIS = 10                                                      ;* rows in a list (the list pane's height less 4: set by get.rects)
+   pane = 1
+   ai = 1 ; atop = 1                                             ;* the row selected in Accounts, and the first row shown
+   ci = 1 ; ctop = 1                                             ;* the same in Commands
+   an = 0 ; anm = '' ; cn = 0 ; cnm = ''                         ;* read.all reads both before it fills them (BASIC does not short-circuit)
+   gen = 0
+   msg = ''
+   done = 0
+   outopen = 0                                                   ;* 1 while the output pane is shown
+
+   perr = ''
+   gosub declare.layout
+   gosub read.all
+   gosub draw.all
+
+   loop
+      call $tk_menubar('draw', ctx, keys, pnames<pane>, '', '', mr)
+      call $tk_frame(ctx, keys, pnames<pane>, msg)
+      call $sl_curat(0, ctx<TK.C.YSTAT>)
+      nm = ''
+      screen key returning nm
+      mr = ''
+      ao = ''
+      if nm # '' then call $tk_aipage('key', ctx, keys, pnames<pane>, nm, ao)
+      if ao<1> = 'replay' then nm = ao<2>
+      if ao<1> # '' then msg = ao<4>
+      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, pnames<pane>, nm, outopen, mr)
+      if mr<1> # '' then nm = mr<4>
+      begin case
+         case ao<1> = 'taken'
+            if ao<3> then
+               gen += 1
+               ctx<TK.C.GEN> = gen
+               gosub draw.all
+            end
+         case nm = ''
+            if status() = ER$EOF then exit
+         case nm = 'guardquit'
+            exit
+         case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', chg)
+            gosub get.rects
+            gen += 1
+            ctx<TK.C.GEN> = gen
+            gosub draw.all
+         case nm = 'mouse'
+            gosub on.mouse
+         case 1
+            gosub on.key
+      end case
+      if done then exit
+   repeat
+
+   call $tk_close(ctx)
+   stop
+
+* ------------------------------------------------------------------------------------------------- what the system says
+
+* Every registered account but SDSYS by name, each with its path and its list; then the selected account's commands.  The selection is kept by name through a
+* refresh.
+read.all:
+   old.acct = (if ai >= 1 and ai <= an then anm<ai> else '')
+   names = ''
+   apath = ''
+   openpath @sdsys:@ds:'accounts' to acc.f then
+      select acc.f to 9
+      loop
+         readnext id from 9 else exit
+         if id # 'sdsys' then
+            read arec from acc.f, id then
+               locate id in names<1> by 'AL' setting lp else
+                  ins id before names<lp>
+                  ins arec<1> before apath<lp>
+               end
+            end
+         end
+      repeat
+      close acc.f
+   end
+   an = dcount(names, @fm)
+   anm = names
+   alist = ''
+   openpath @sdsys:@ds:'batch.jobs' to batch.f then
+      for i = 1 to an
+         read brec from batch.f, anm<i> else brec = ''
+         lst = change(brec, @vm, @fm)
+         keep = ''
+         for j = 1 to dcount(lst, @fm)
+            w = downcase(trim(lst<j>))
+            if w # '' then
+               locate w in keep<1> setting kp else keep<-1> = w
+            end
+         next j
+         alist<i> = change(keep, @fm, @vm)
+      next i
+      close batch.f
+   end
+   ai = 1
+   if old.acct # '' then
+      locate old.acct in anm<1> setting op then ai = op
+   end
+   if ai > an then ai = an
+   if ai < 1 then ai = 1
+   gosub read.commands
+   return
+
+* The selected account's paragraphs and sentences (field 1 starting PA or S, the login's own test), in name order, and the names on its list that are not one:
+* cnm, ctype ('PA', 'S' or '' for a listed name with no such VOC record), con (1 allowed)
+read.commands:
+   old.cmd = (if ci >= 1 and ci <= cn then cnm<ci> else '')
+   cnm = '' ; ctype = '' ; con = ''
+   cn = 0
+   if an > 0 then
+      openpath apath<ai>:@ds:'voc' to voc.f then
+         select voc.f to 9
+         loop
+            readnext id from 9 else exit
+            read vrec from voc.f, id then
+               vt = upcase(trim(vrec<1>))
+               t = ''
+               if vt[1, 2] = 'PA' then t = 'PA'
+               if vt[1, 1] = 'S' then t = 'S'
+               if t # '' then
+                  locate downcase(id) in cnm<1> by 'AL' setting lp else
+                     ins downcase(id) before cnm<lp>
+                     ins t before ctype<lp>
+                  end
+               end
+            end
+         repeat
+         close voc.f
+      end
+      lst = alist<ai>
+      for j = 1 to dcount(lst, @vm)
+         locate lst<1, j> in cnm<1> by 'AL' setting lp else
+            ins lst<1, j> before cnm<lp>
+            ins '' before ctype<lp>
+         end
+      next j
+      cn = dcount(cnm, @fm)
+      for j = 1 to cn
+         locate cnm<j> in lst<1> setting kp then con<j> = 1 else con<j> = 0
+      next j
+   end
+   ci = 1
+   if old.cmd # '' then
+      locate old.cmd in cnm<1> setting op then ci = op
+   end
+   if ci > cn then ci = cn
+   if ci < 1 then ci = 1
+   gosub keep.tops
+   return
+
+* The first row shown in each box follows the selection
+keep.tops:
+   if ai < atop then atop = ai
+   if ai > atop + VIS - 1 then atop = ai - VIS + 1
+   if atop < 1 then atop = 1
+   if ci < ctop then ctop = ci
+   if ci > ctop + VIS - 1 then ctop = ci - VIS + 1
+   if ctop < 1 then ctop = 1
+   return
+
+* ------------------------------------------------------------------------------------------------- drawing
+
+* The layout: the two lists side by side in the first band, the explanation in the second and the help in the third, at 140 by 43 the sizes tool.viewers has.
+* Out: a.x a.y a.w a.h (Accounts), c.x c.y c.w c.h (Commands), m.x m.y m.w m.h (What this means), h.x h.y h.w h.h (Help), VIS.
+declare.layout:
+   d = ''
+   d<1> = 'accounts' : @vm : 1 : @vm : 1 : @vm : 14 : @vm : 50 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<2> = 'commands' : @vm : 1 : @vm : 2 : @vm : 14 : @vm : 87 : @vm : 1 : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<3> = 'means' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<4> = 'help' : @vm : 3 : @vm : 1 : @vm : 5 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   ctx<TK.C.FOCI> = 'accounts' : @sm : 'Accounts' : @vm : 'commands' : @sm : 'Commands'   ;* the boxes that take the focus, for $tk_frame's [*] / [-]
+   call $tk_layout('declare', ctx, d, perr)
+   if outopen then gosub open.layout
+   gosub get.rects
+   return
+
+* With the output pane open: the same panes, the explanation 6 rows shorter and the output pane, 6 rows, between it and the help
+open.layout:
+   o = ''
+   o<1> = 'accounts' : @vm : 1 : @vm : 1 : @vm : 14 : @vm : 50 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   o<2> = 'commands' : @vm : 1 : @vm : 2 : @vm : 14 : @vm : 87 : @vm : 1 : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   o<3> = 'means' : @vm : 2 : @vm : 1 : @vm : 11 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   o<4> = 'output' : @vm : 3 : @vm : 1 : @vm : 6 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   o<5> = 'help' : @vm : 4 : @vm : 1 : @vm : 5 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   call $tk_layout('declare', ctx, o, perr)
+   return
+
+toggle.out:
+   call $tk_out('toggle', ctx, '', '', oc)
+   outopen = oc
+   gosub declare.layout
+   gen += 1
+   ctx<TK.C.GEN> = gen
+   gosub draw.all
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'accounts', rc)
+   a.x = rc<1, 1> ; a.y = rc<1, 2> ; a.w = rc<1, 3> ; a.h = rc<1, 4>
+   call $tk_layout('pane', ctx, 'commands', rc)
+   c.x = rc<1, 1> ; c.y = rc<1, 2> ; c.w = rc<1, 3> ; c.h = rc<1, 4>
+   call $tk_layout('pane', ctx, 'means', rc)
+   m.x = rc<1, 1> ; m.y = rc<1, 2> ; m.w = rc<1, 3> ; m.h = rc<1, 4>
+   call $tk_layout('pane', ctx, 'help', rc)
+   h.x = rc<1, 1> ; h.y = rc<1, 2> ; h.w = rc<1, 3> ; h.h = rc<1, 4>
+   m.tw = m.w - 4
+   h.tw = h.w - 4
+   VIS = a.h - 4                                                 ;* the header row, the rows, a blank row and the border
+   gosub keep.tops
+   return
+
+draw.all:
+   screen clear at 0,ctx<TK.C.YBODY> size ctx<TK.C.W>,ctx<TK.C.BODYH>
+   screen box at a.x,a.y size a.w,a.h title 'Accounts'
+   screen box at c.x,c.y size c.w,c.h title 'Commands' : (if an > 0 then ' in ' : anm<ai> else '')
+   screen box at m.x,m.y size m.w,m.h title 'What this means'
+   screen box at h.x,h.y size h.w,h.h title 'Help'
+   gosub draw.accounts
+   gosub draw.commands
+   gosub draw.effect
+   gosub draw.help
+   if outopen then call $tk_out('draw', ctx, 'output', '', oc)
+   return
+
+draw.accounts:
+   tw = a.w - 8
+   ex = a.w - 50
+   screen text fmt('Account', (30 + ex) : 'L') : 'Allowed' at a.x + 2,a.y + 1 attr 'header' width tw
+   for r = 1 to VIS
+      k = atop + r - 1
+      s = ''
+      if k <= an then s = fmt(anm<k>[1, 28 + ex], (30 + ex) : 'L') : dcount(alist<k>, @vm)
+      screen text s at a.x + 2,a.y + 1 + r attr (if k = ai and k <= an then (if pane = 1 then 'highlight' else 'bold') else 'normal') width tw
+   next r
+   if an = 0 then screen text 'No account is registered but SDSYS.' at a.x + 2,a.y + 3 width tw
+   call $tk_help('mark', a.x + a.w - 5, a.y + 1, 0, 0)
+   return
+
+draw.commands:
+   tw = c.w - 8
+   ex = c.w - 87
+   screen text fmt('Command', (40 + ex) : 'L') : fmt('Type', '7L') : 'Allowed' at c.x + 2,c.y + 1 attr 'header' width tw
+   for r = 1 to VIS
+      k = ctop + r - 1
+      s = ''
+      if k <= cn then
+         s = fmt(cnm<k>[1, 38 + ex], (40 + ex) : 'L') : fmt((if ctype<k> = '' then '-' else ctype<k>), '7L')
+         if con<k> then
+            s := (if ctype<k> = '' then 'listed; not PA or S now' else 'yes')       ;* 40 + 7 + 23 columns: fits the 79 the box gives at 140 by 43
+         end else
+            s := 'no'
+         end
+      end
+      screen text s at c.x + 2,c.y + 1 + r attr (if k = ci and k <= cn then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
+   next r
+   if an > 0 and cn = 0 then screen text 'This account has no paragraph or sentence in its VOC.' at c.x + 2,c.y + 3 width tw
+   call $tk_help('mark', c.x + c.w - 5, c.y + 1, 0, 0)
+   return
+
+* In plain sentences, for what is selected
+draw.effect:
+   lines = ''
+   lines<-1> = "A command on an account's list may be run from the command line in that account: sd -aACCOUNT 'command', which is how a cron job or a systemd timer runs SD."
+   lines<-1> = "It runs with the account's own rights, as the Linux user that started it, never with the administrator's.  A session at the keyboard is not affected."
+   lines<-1> = 'Nothing is allowed as delivered: such a session is refused, and the refusal is in the audit trail.'
+   lines<-1> = ''
+   lines<-1> = 'Only a paragraph or a sentence can be allowed, and it takes no arguments, so a listed name cannot be turned into another command.'
+   lines<-1> = 'The same test is made each time the command is run; a name whose VOC record has gone or changed type is refused then.'
+   lines<-1> = 'This page does not make the schedule itself: the job is still written in the crontab or the timer of the account' : "'s Linux user."
+   lines<-1> = ''
+   if pane = 2 and cn > 0 then
+      begin case
+         case con<ci> and ctype<ci> = ''
+            lines<-1> = 'Selected: ' : cnm<ci> : ' is on the list but is no longer a paragraph or a sentence in ' : anm<ai> : ', so it is refused when run.  Enter takes it off.'
+         case con<ci>
+            lines<-1> = 'Selected: ' : cnm<ci> : ' may be run from the command line in ' : anm<ai> : '.  Enter stops allowing it.'
+         case 1
+            lines<-1> = 'Selected: ' : cnm<ci> : ' (' : ctype<ci> : ') is not allowed in ' : anm<ai> : '.  Enter allows it.'
+      end case
+   end
+   if pane = 1 and an > 0 then
+      lines<-1> = 'Selected: ' : anm<ai> : ' may run ' : dcount(alist<ai>, @vm) : ' command(s) from the command line.  Enter or Tab goes to its commands.'
+   end
+   if outopen and ((pane = 1 and an > 0) or (pane = 2 and cn > 0)) then
+      nl = dcount(lines, @fm)
+      sl = lines<nl>
+      del lines<nl>
+      lines = sl : @fm : lines
+   end
+   gosub wrap.lines
+   for r = 1 to m.h - 3
+      screen text lines<r> at m.x + 2,m.y + 1 + r width m.tw
+   next r
+   return
+
+wrap.lines:
+   wrapped = ''
+   for wi = 1 to dcount(lines, @fm)
+      call $tk_wrap(lines<wi>, m.tw, pieces)
+      wrapped<-1> = pieces
+   next wi
+   lines = wrapped
+   return
+
+draw.help:
+   screen text 'Up and Down move, PgUp and PgDn a page.  Tab changes box.  Enter in Commands allows or stops allowing.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
+   screen text 'Each change is shown as its command; you answer Run or Cancel.' at h.x + 2,h.y + 2 width h.tw
+   screen text 'F5 reads the lists again.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
+   return
+
+* ------------------------------------------------------------------------------------------------- keys and mouse
+
+on.key:
+   msg = ''
+   begin case
+      case nm = 'up'
+         if pane = 1 and ai > 1 then
+            ai -= 1
+            gosub new.account
+         end
+         if pane = 2 and ci > 1 then
+            ci -= 1
+            gosub redraw
+         end
+      case nm = 'down'
+         if pane = 1 and ai < an then
+            ai += 1
+            gosub new.account
+         end
+         if pane = 2 and ci < cn then
+            ci += 1
+            gosub redraw
+         end
+      case (nm = 'pgup' or nm = 'pgdn') and not(outopen)
+         stp = (if nm = 'pgup' then 0 - VIS else VIS)
+         if pane = 1 and an > 0 then
+            ai = ai + stp
+            if ai < 1 then ai = 1
+            if ai > an then ai = an
+            gosub new.account
+         end
+         if pane = 2 and cn > 0 then
+            ci = ci + stp
+            if ci < 1 then ci = 1
+            if ci > cn then ci = cn
+            gosub redraw
+         end
+      case nm = 'tab' or nm = 'right' or nm = 'btab' or nm = 'left'
+         pane = (if pane = 1 then 2 else 1)
+         gosub redraw
+      case nm = 'enter' or nm = ' '
+         if pane = 1 then
+            pane = 2
+            gosub redraw
+         end else
+            gosub change
+         end
+      case nm = 'f1' or nm = '?'
+         gosub help.here
+      case nm = 'f5'
+         gosub read.all
+         gosub draw.all
+         msg = 'read the lists again'
+      case nm = 'f6'
+         call $tk_aipage('open', ctx, keys, pnames<pane>, '', ap)
+         if ap # '' then msg = ap
+      case nm = 'ctrl-q'
+         done = 1
+      case nm = 'ctrl-o'
+         gosub toggle.out
+      case nm = 'esc'
+         if outopen then gosub toggle.out
+      case (nm = 'pgup' or nm = 'pgdn') and outopen
+         call $tk_out('key', ctx, nm, '', oc)
+         call $tk_out('draw', ctx, 'output', '', oc)
+   end case
+   return
+
+* Another account selected: its commands are read and the box is drawn again under its new title
+new.account:
+   ci = 1
+   ctop = 1
+   cn = 0
+   gosub read.commands
+   gosub draw.all
+   return
+
+redraw:
+   gosub keep.tops
+   gosub draw.accounts
+   gosub draw.commands
+   gosub draw.effect
+   return
+
+on.mouse:
+   screen mouse returning mev else mev = ''
+   if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, pnames<pane>, mev, '', mr)
+   if mr<1> # '' then
+      nm = mr<4>
+      if nm # '' then gosub on.key
+      return
+   end
+   call $tk_aipage('mouse', ctx, keys, pnames<pane>, mev, ap)
+   if ap # '' then
+      msg = ap
+      return
+   end
+   call $tk_help('hit', mev, a.x + a.w - 5, a.y + 1, hit.accounts)
+   call $tk_help('hit', mev, c.x + c.w - 5, c.y + 1, hit.commands)
+   if hit.accounts or hit.commands then
+      pane = (if hit.accounts then 1 else 2)
+      gosub redraw
+      gosub help.here
+      return
+   end
+   if mev<1> = 'press' and mev<2> = 1 then
+      mx = mev<3>
+      my = mev<4>
+      begin case
+         case mx >= a.x + 1 and mx <= a.x + a.w - 2 and my >= a.y + 2 and my <= a.y + 1 + VIS
+            k = atop + my - a.y - 2
+            pane = 1
+            if k <= an and k # ai then
+               ai = k
+               gosub new.account
+            end else
+               gosub redraw
+            end
+         case mx >= c.x + 1 and mx <= c.x + c.w - 2 and my >= c.y + 2 and my <= c.y + 1 + VIS
+            k = ctop + my - c.y - 2
+            if k <= cn then ci = k
+            pane = 2
+            gosub redraw
+      end case
+   end
+   return
+
+help.here:
+   call $tk_help('box', (if pane = 1 then 'tool.jobs.accounts' else 'tool.jobs.commands'), hm, 0, 0)
+   if hm # '' then msg = hm
+   return
+
+* ------------------------------------------------------------------------------------------------- changing something: the command, its effect, Run or Cancel, then the answer
+
+change:
+   if an = 0 or cn = 0 then return
+   acct = anm<ai>
+   cmd = cnm<ci>
+   on.now = con<ci>
+   act = (if on.now then 'remove' else 'add')
+   if convert(PLAIN, '', acct) # '' or convert(PLAIN, '', cmd) # '' then
+      msg = 'This name cannot be sent from the page: at the prompt, set.batch ' : act : ' ' : acct : ' ' : cmd
+      return
+   end
+   sent = 'set.batch ' : act : ' ' : acct : ' ' : cmd
+   el = ''
+   if on.now then
+      el<-1> = "A session started as sd -a" : acct : " '" : cmd : "' will be refused, and the refusal written to the audit trail."
+      el<-1> = 'A scheduled job that runs it will fail from its next run.  The paragraph or sentence itself is not changed.'
+   end else
+      el<-1> = "A session started as sd -a" : acct : " '" : cmd : "', by a cron job or a timer of the account's Linux user, will run " : cmd : ' and nothing else.'
+      el<-1> = "It runs with the account's own rights.  Whoever can change the " : ctype<ci> : ' record ' : cmd : ' in that VOC changes what the job does.'
+   end
+   el<-1> = 'It takes effect at the next such session.'
+   call $tk_confirm(sent, el, '', res, cmsg)
+   if res = 'run' then
+      call $tk_run(allow, sent, out, st, err)
+      if err # '' then
+         msg = err
+         call $tk_out('add', ctx, 'refuse', sent : '  ' : err, '')
+      end else
+         said = trim(change(out, @fm, ' '))
+         msg = (if said # '' then said[1, 130] else 'ran, status ' : st)
+         call $tk_out('add', ctx, 'ok', sent : '  ' : (if said # '' then said else 'ran, status ' : st), '')
+      end
+      gosub read.all
+      gosub draw.all
+   end else
+      msg = cmsg
+   end
+   return
+
+end
+
+* END-CODE
