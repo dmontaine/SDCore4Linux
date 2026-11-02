@@ -8993,10 +8993,10 @@ Passages of SD's own documentation follow, each with its id in brackets. Use the
 cited by: `tk_ai`
 
 ### msg:11923
-> kind=message tier=reference since=- src=sdsys/messages/11923:1#2eeabdc1
+> kind=message tier=reference since=- src=sdsys/messages/11923:1#65e54e77
 
 ```
-remote.sdsys on | recovery | off\n\nON        a new secret for the authenticator app, shown once, then a code from\n          the app; a right code switches the code on and opens ssh for sdsys.\nRECOVERY  eight new recovery codes; the old ones stop working.\nOFF       closes ssh for sdsys, then removes the code.\n\nWith no keyword it reports the state and changes nothing.
+remote.sdsys on | recovery | off | local on | local off\n\nON        a new secret for the authenticator app, shown once, then a code from\n          the app; a right code switches the code on and opens ssh for sdsys.\nRECOVERY  eight new recovery codes; the old ones stop working.\nOFF       closes ssh for sdsys, then removes the code.\nLOCAL ON  the same code at this machine's console and desktop login too.\nLOCAL OFF the code over ssh only, as delivered.\n\nWith no keyword it reports the state and changes nothing.
 ```
 
 cited by: `remotesdsys`

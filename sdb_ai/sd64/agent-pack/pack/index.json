@@ -12052,7 +12052,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 64
+"words": 90
 },
 "msg:11924": {
 "kind": "message",
@@ -27886,7 +27886,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 36
+"words": 42
 },
 "tcl:remote.ssh": {
 "kind": "tcl.verb",

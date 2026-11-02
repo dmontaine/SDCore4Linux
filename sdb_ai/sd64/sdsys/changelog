@@ -1,6 +1,25 @@
 Next release - in progress
 --------------------------
 
+2 Nov 26   THE SDSYS AUTHENTICATOR CODE CAN BE ASKED AT THE MACHINE'S OWN CONSOLE TOO. OFF AS DELIVERED.
+
+             What        - "remote.sdsys local on" (or "sudo /usr/local/sbin/sd-elevate totp-local on", or L on the sdsys view of
+                           tool.remote) has the code that the sdsys sign-in over ssh asks for asked at the text console and at each
+                           desktop sign-in screen that is installed (GDM, LightDM, SDDM) as well, before the password. "local off" goes
+                           back to ssh only. With it on, a sign-in that did not give the code - an automatic sign-in, a fingerprint, a
+                           scheduled job - is refused SDSYS's rights with message 11190, both by SD and by its root helper. Failures at
+                           a console are counted for that console, and five lock it for one minute, not ten. Every right code leaves a
+                           mark for that one sign-in under /run/sdcore/marks; /etc/sdcore/totp.public, readable by all and holding no
+                           secret, tells SD whether a code is enrolled and whether the console asks it.
+             Why         - The owner's ruling: sign-in to the administrator from another computer always needs the code, but at the
+                           console it is the administrator's choice, because the people who run SD are mostly small organisations with
+                           a consultant rather than IT staff, and a console already needs someone at the machine and two passwords.
+                           A remote-desktop or remote-console tool (TeamViewer, VNC, iLO, IPMI) makes a console sign-in a remote one:
+                           on such a machine, switch it on.
+             Does NOT    - Ask anything at the console as delivered, change the sign-in of any user but sdsys, or touch the files that
+                           su and sudo share (common-auth, common-session). On a machine already set up for the ssh code, nothing
+                           changes until one of the code's commands is run again.
+
 2 Nov 26   TOOL.ENTRIES: A PROGRAM OF ANY ACCOUNT IS DEBUGGED IN ITS OWN ACCOUNT.
 
              What        - On the master files page, in the programs view, B compiles the program under the cursor for the debugger and starts the debugger on it,
