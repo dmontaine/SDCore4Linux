@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+2 Nov 26   BREAKPOINTS SET IN THE IDE'S EDITOR, HANDED TO THE DEBUGGER.
+
+             What        - In a program tab, Shift-F7 (or Build, Toggle breakpoint, or a click in the gutter) sets or clears a mark on a line, shown as * in front of its line
+                           number; Build, Clear breakpoints removes them all. The marks move with their lines as you edit. F7 then compiles for the debugger as before, and the
+                           debugger sets a breakpoint on each marked line and runs on to the first one; Build, Debug from the first line stops at the first line instead, with the
+                           breakpoints set. When the debugger ends, the lines that still have a breakpoint (including any you set or cleared with brk and clr) come back as marks.
+             Why         - Setting breakpoints by line number at the debugger's prompt meant reading the numbers off the screen first; the IDE already shows them.
+             Does NOT    - Keep marks when the tab is closed or the IDE is left (they are not saved anywhere), set more than 20, or set one on a line where no statement begins (a
+                           comment, a blank line, a label): when none of the marks could be set the debugger says which lines and stops at the first line, and those marks do not
+                           come back. Marks are for program tabs only, and are handed over only when the record on the disk is the text in the tab. A conditional breakpoint is
+                           still not possible.
+
 2 Nov 26   A VERB AND A PAGE FOR THE COMMANDS AN ACCOUNT MAY RUN FROM THE COMMAND LINE: set.batch AND tool.jobs (THE FIRST STAGE OF A SCHEDULED JOBS PAGE).
 
              What        - set.batch add <account> <command> allows a paragraph or a sentence of that account to be run as sd -a<account> <command>, which is how a cron
