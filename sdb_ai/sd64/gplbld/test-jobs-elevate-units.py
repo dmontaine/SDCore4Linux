@@ -260,6 +260,50 @@ def checks(elev, deleter, sudoers):
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
+    # ---- (5b) S.102 stage 3: the units job_units makes (2 Nov 26)
+    rc, uout, err = bash(HEAD + blk + '\nSD_SYS_ROOT_REAL=/usr/local/sdsys\njob_check nightly check-masters daily 02:30 && job_units nightly && printf "%s\\x1e%s" "$JB_SERVICE" "$JB_TIMER"')
+    svc, _, tmr = uout.partition("\x1e")
+    head = "# an SD scheduled job, written by sd-elevate job-set; changed only by sd-elevate job-set and job-delete\n"
+    want_svc = (head + "[Unit]\nDescription=SD scheduled job nightly: check.masters\nAfter=sd.service\n\n[Service]\nType=oneshot\nUser=sdsys\nGroup=sdusers\n"
+                "WorkingDirectory=/usr/local/sdsys\nExecStart=/usr/local/sdsys/bin/sd \"check.masters\"\n")
+    want_tmr = (head + "[Unit]\nDescription=SD scheduled job nightly: daily 02:30\n\n[Timer]\nOnCalendar=*-*-* 02:30:00\nPersistent=false\nUnit=sdcore-job-nightly.service\n\n"
+                "[Install]\nWantedBy=timers.target\n")
+    ck("T1 the service runs the job's one fixed command as sdsys (group sdusers) from the SDSYS directory, oneshot, after sd.service - and nothing else",
+       rc == 0 and svc == want_svc, repr((rc, svc, err[:200])))
+    ck("T2 the timer starts that service at the definition's OnCalendar, a missed run is not made up (Persistent=false), enabled under timers.target",
+       rc == 0 and tmr == want_tmr, repr(tmr))
+    sa = shutil.which("systemd-analyze")
+    if sa:
+        ud = tempfile.mkdtemp(prefix="jobs-u-")
+        try:
+            open(os.path.join(ud, "sdcore-job-nightly.service"), "w").write(svc)
+            open(os.path.join(ud, "sdcore-job-nightly.timer"), "w").write(tmr)
+            p = subprocess.run([sa, "verify", "--man=no", os.path.join(ud, "sdcore-job-nightly.timer"), os.path.join(ud, "sdcore-job-nightly.service")],
+                               capture_output=True, text=True, timeout=60)
+            msg = (p.stdout + p.stderr).strip()
+            # this machine has no user sdsys, no group sdusers and no /usr/local/sdsys/bin/sd: those three complaints are expected here and real on the VM
+            other = [ln for ln in msg.splitlines() if ln.strip() and not re.search(r"sdsys|sdusers|/usr/local/sdsys|sd\.service", ln)]
+            ck("T3 systemd-analyze verify on this machine finds nothing wrong with the two units but the user, group and program this machine does not have", not other, msg[:300])
+        finally:
+            shutil.rmtree(ud, ignore_errors=True)
+    else:
+        print("  [SKIPPED] T3 systemd-analyze is not on this machine: the units are not verified here (the VM rows do)")
+    vs = elev[elev.find("  job-set)"):elev.find("  job-delete)")]
+    vd = elev[elev.find("  job-delete)"):elev.find("  job-list)")]
+    w1, w2, w3, w4, w5 = (vs.find(p) for p in ('python3 -I -c "$JOBS_PY" set', 'job_unit_write "$SD_UNIT_DIR/sdcore-job-$JB_NAME.service"',
+                                               'job_unit_write "$SD_UNIT_DIR/sdcore-job-$JB_NAME.timer"', "&& systemctl daemon-reload", 'systemctl enable --now "sdcore-job-$JB_NAME.timer"; then'))
+    ck("T4 job-set writes the definition FIRST, then the service, the timer, daemon-reload and enable --now; a failure after the definition is exit 3 with the reason",
+       0 < w1 < w2 < w3 < w4 < w5 and "exit 3" in vs[w5:] and "its timer could not be put in place" in vs, repr((w1, w2, w3, w4, w5)))
+    x1, x2, x3 = (vd.find(p) for p in ('systemctl disable --now "sdcore-job-$1.timer"', 'rm -f -- "$SD_UNIT_DIR/sdcore-job-$1.timer" "$SD_UNIT_DIR/sdcore-job-$1.service"',
+                                       'python3 -I -c "$JOBS_PY" delete'))
+    ck("T5 job-delete disables the timer FIRST, removes the units, then the definition (nothing can start between)", 0 < x1 < x2 < x3, repr((x1, x2, x3)))
+    uw = elev[elev.find("job_unit_write() {"):]
+    uw = uw[:uw.find("\n}\n")]
+    ck("T6 a unit file is written by one rename of a root:root 0644 temp file in the unit directory, and a link or a non-file in its place is refused",
+       '[[ ! -L $f && ( ! -e $f || -f $f ) ]]' in uw and 'mktemp "$SD_UNIT_DIR/.sdcore-job.XXXXXX"' in uw and "chown root:root" in uw and "chmod 0644" in uw and 'mv -f -T -- "$t" "$f"' in uw, uw[:120])
+    ck("T7 SD_UNIT_DIR is /etc/systemd/system and is put back to it on a real run as root, like SD_JOBS_DIR",
+       "SD_UNIT_DIR_REAL=/etc/systemd/system" in elev and "  SD_UNIT_DIR=$SD_UNIT_DIR_REAL\nfi" in elev, "")
+
     # ---- (6) the verbs, through the real script
     td = tempfile.mkdtemp(prefix="jobs-s-")
     try:
@@ -300,7 +344,7 @@ def checks(elev, deleter, sudoers):
         ck("V7 the success lines are the ones the jobs page will anchor on: 'job NAME created|replaced|deleted' and 'no job named NAME; nothing was changed'",
            "printf '%s: job %s %s\\n' \"$PROG\" \"$JB_NAME\" \"$js_how\"" in verb and "no job named %s; nothing was changed" in verb, "")
         ck("V8 SD_JOBS_DIR is the real directory unless a dry run or a non-root process (reset in main next to the other knobs), and is /etc/sdcore/jobs.d",
-           re.search(r"else\n(?:  SD_[A-Z_]+=\$SD_[A-Z_]+_REAL\n)*  SD_JOBS_DIR=\$SD_JOBS_DIR_REAL\nfi", elev) is not None and "SD_JOBS_DIR_REAL=/etc/sdcore/jobs.d" in elev, "")
+           re.search(r"else\n(?:  SD_[A-Z_]+=\$SD_[A-Z_]+_REAL\n)*  SD_JOBS_DIR=\$SD_JOBS_DIR_REAL\n(?:  SD_[A-Z_]+=\$SD_[A-Z_]+_REAL\n)*fi", elev) is not None and "SD_JOBS_DIR_REAL=/etc/sdcore/jobs.d" in elev, "")
         ck("V9 the worker is only ever given the helper's own directory variable and a name that job_check passed (no verb passes a caller's path)", len(re.findall(r'JOBS_PY" (set|delete|list) "\$SD_JOBS_DIR"', elev)) == 3, "")
     finally:
         shutil.rmtree(td, ignore_errors=True)
@@ -310,6 +354,10 @@ def checks(elev, deleter, sudoers):
     jr = deleter.find("rm -rf /etc/sdcore/jobs.d")
     rd = deleter.find("rmdir /etc/sdcore ")
     ck("U3 the deleter removes /etc/sdcore/jobs.d before it removes /etc/sdcore (rmdir), and says so", 0 <= jr < rd and "jobs.d" in deleter[jr:rd + 200], repr((jr, rd)))
+    td_, tr_ = deleter.find('sudo systemctl disable --now "$(basename "$jt")"'), deleter.find("sudo rm -f /etc/systemd/system/sdcore-job-*.timer /etc/systemd/system/sdcore-job-*.service")
+    ck("U4 (S.102 stage 3) the deleter disables every sdcore-job timer, then removes the timers and services, BEFORE the definitions", 0 <= td_ < tr_ < jr, repr((td_, tr_, jr)))
+    ck("U5 (S.101, found by the S.102 VM witness) the deleter removes /etc/sdcore/totp.public with the store, before rmdir /etc/sdcore",
+       0 <= deleter.find("sudo rm -f /etc/sdcore/totp.public") < rd, "")
     return out
 
 
@@ -343,11 +391,19 @@ def mutants(elev, deleter, sudoers):
     mut("L2 a definition with a command of its own is shown as a job", "elev", "[[ $f_cmd == \"$JB_SENTENCE\" ]] && ", "")
     mut("L2 the stored calendar is not compared", "elev", ' && [[ $f_sched == "$JB_SCHED" && $f_cal == "$JB_CAL" ]]', ' && [[ $f_sched == "$JB_SCHED" ]]')
     mut("L2 the name key need not be the file name", "elev", "[[ $f_name == \"$n\" ]] && job_command", "job_command")
-    mut("V5 need_root comes before the checks", "elev", "    job_check \"$@\"\n    printf '%s: job-set", "    need_root\n    job_check \"$@\"\n    printf '%s: job-set")
+    mut("V5 need_root comes before the checks", "elev", "    job_check \"$@\"\n    job_units \"$JB_NAME\"\n", "    need_root\n    job_check \"$@\"\n    job_units \"$JB_NAME\"\n")
     mut("V5 job-set does not ask the caller", "elev", "    need_root\n    job_caller\n    js_how=$(python3 -I -c \"$JOBS_PY\" set", "    need_root\n    js_how=$(python3 -I -c \"$JOBS_PY\" set")
-    mut("V8 SD_JOBS_DIR is never reset", "elev", "  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\nfi", "fi")
+    mut("T1 the job runs as root", "elev", '"User=sdsys"', '"User=root"')
+    mut("T2 a missed run is made up", "elev", '"Persistent=false"', '"Persistent=true"')
+    mut("T4 the timer is not enabled", "elev", ' && systemctl enable --now "sdcore-job-$JB_NAME.timer"; then', '; then')
+    mut("T5 the timer is never disabled", "elev", '      systemctl disable --now "sdcore-job-$1.timer" >/dev/null 2>&1 || true\n', '')
+    mut("T6 a link in the unit directory is written through", "elev", '  [[ ! -L $f && ( ! -e $f || -f $f ) ]] ||', '  true ||')
+    mut("T7 SD_UNIT_DIR is never reset", "elev", "  SD_UNIT_DIR=$SD_UNIT_DIR_REAL\nfi", "fi")
+    mut("V8 SD_JOBS_DIR is never reset", "elev", "  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\n  SD_UNIT_DIR", "  SD_UNIT_DIR")
     mut("U1 sudoers names a job verb", "sudo", "ALL=(root)", "ALL=(root) /usr/local/sbin/sd-elevate job-set *, ", 1)
     mut("U3 the deleter keeps the jobs", "del", "rm -rf /etc/sdcore/jobs.d", "true")
+    mut("U4 the deleter leaves the timers", "del", "sudo rm -f /etc/systemd/system/sdcore-job-*.timer /etc/systemd/system/sdcore-job-*.service", "true")
+    mut("U5 the deleter keeps the status file", "del", "sudo rm -f /etc/sdcore/totp.public", "true")
     return res
 
 

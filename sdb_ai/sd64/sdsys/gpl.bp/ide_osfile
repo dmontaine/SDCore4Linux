@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 02 Nov 26 dm  S.88 A3: the kernel now makes the file of 'create' only once the SD lock on its name is held, so 'locked' means nothing was made.  S.88 A5: 'list' gives the
+*               STATUS() and OS.ERROR() of a DIR() refused with ER.PERM (info<6>, info<7>), which is the OS gate OR a directory the operating system will not open.
 * 30 Oct 26 dm  S.88 A3 (the second E2 review): 'create' says 'cantmade' for an ON ERROR clause (the file may be there, empty).  This program is not $internal and cannot ask
 *               kernel(): the IDE (os.create) tells the OS gate from an edit gate when it gets 'gate'.
 * 30 Oct 26 dm  S.88 stage E2: 'create' (an exclusive create, then the same write and read-back as 'save') and 'list' (the one DIR() of the IDE); write.file is split into make.data and put.data.
@@ -47,7 +49,7 @@
 *              'none'    no file of that name                        'gate'   the account may not reach that path (the OS gate)
 *              'dir'     not a plain file: a directory, a socket     'special'  a device, a pipe or a port (the file is closed again before it is read)
 *              'exists'  'create' only: the name is taken by a file with content, a link or something made meanwhile (nothing was changed)
-*              'locked'  another session holds the file's SD lock    'big'    more than 2 MB (2,097,152 bytes); INFO<4> is its size
+*              'locked'  another session holds the file's SD lock ('create': nothing was made)   'big'    more than 2 MB (2,097,152 bytes); INFO<4> is its size
 *              'bytes'   a NUL, or a byte from 248 to 255 (SD's marks): not text this editor can keep as it is
 *              'io'      reading, positioning, writing or cutting the file failed, the bytes read back after a write are not the bytes written, or the file is not the size it was a moment ago
 *              'gone'    'reread' only: nothing links to the file F holds (removed, or replaced by a rename)
@@ -377,6 +379,8 @@ create.file:
 * In: path, a directory ('/' too).  Out: text, one field for each entry: the name, a value mark, D or F, a value mark, the size in bytes - the directories first, then the files, each in
 *   the order of the names; info<4> the number of entries found, info<5> how many were left out (a name with a control character or one of SD's marks, which the IDE could not show or put in a
 *   path; or more than OSF.LIST of them), why.  DIR() is asked here and nowhere else of the IDE: it is the helper's own call, so the kernel asks the account's OS gate (-ER.PERM: 'gate').
+*   DIR() gives the same ER.PERM for a directory the operating system will not open (EACCES): for 'gate', info<6> is the STATUS() and info<7> the OS.ERROR() of the DIR(), and the IDE,
+*   which may ask kernel(K$PATH.OK), tells the two apart (02 Nov 26, S.88 A5).
 *   A socket, a device and a pipe are not listed (DIR() lists a plain file F and a directory D only).
 list.dir:
    text = ''
@@ -387,9 +391,12 @@ list.dir:
    end
    ld.raw = dir(path)
    ld.st = status()
+   ld.oserr = os.error()
    begin case
       case ld.st = ER.PERM
          why = 'gate'
+         info<6> = ld.st
+         info<7> = ld.oserr                    ;* 02 Nov 26 (S.88 A5): DIR() says ER.PERM for the OS gate AND for a directory the OS will not open; the IDE tells them apart
          return
       case ld.st = 0 or ld.st = ER.FNF
          if ld.st # 0 then

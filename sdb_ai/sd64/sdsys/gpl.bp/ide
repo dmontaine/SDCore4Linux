@@ -6,6 +6,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 2 Nov 26 dm  S.88 A5: a directory of the tree that the account may reach but the operating system will not open (DIR() says ER.PERM for both) says so (11599), not "no OS access".
 * 2 Nov 26 dm  S.96 M5: Debug of such a tab (F7 and Debug from the first line) compiles for the debugger and runs the debugger IN the account, both through run.in.
 * 2 Nov 26 dm  S.96 M4: a last word /in=account,file (from tool.entries) marks the file the sentence names as a temporary pointer to another account's program file: Compile and
 *              Catalog of its tabs go through run.in in that account (never BASIC in SDSYS: a $catalog would act as the administrator), Run and Debug of them are refused.
@@ -1016,7 +1017,11 @@ os.load:
          case os.lw = 'name'
             msg = sysmsg(11728, os.dir)
          case os.lw = 'gate'
-            msg = sysmsg(11180, @who)
+            if kernel(K$PATH.OK, os.dir) then
+               msg = sysmsg(11599, os.dir, os.li<7>)    ;* 02 Nov 26 (S.88 A5): the account may reach it, so the operating system would not open it; not "no OS access"
+            end else
+               msg = sysmsg(11180, @who)
+            end
          case os.lw = 'none'
             msg = sysmsg(11729, os.dir)
          case 1
@@ -1565,7 +1570,7 @@ os.create:
       case cr.why = 'dir' or cr.why = 'special'
          msg = sysmsg(11749, cr.path)
       case cr.why = 'locked'
-         rf.text = sysmsg(11997, cr.path)                       ;* 30 Oct 26 (S.88 A3): and says that an empty file may be there
+         rf.text = sysmsg(11997, cr.path)                       ;* 30 Oct 26 (S.88 A3); since 02 Nov 26 the kernel makes nothing when the name is locked
          msg = rf.text
          gosub refuse.box
       case cr.why = 'cantmade'

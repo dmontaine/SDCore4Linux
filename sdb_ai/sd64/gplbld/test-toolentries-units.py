@@ -28,6 +28,9 @@ VOCREC = os.path.join(SD64, "sdsys", "voc_template", "tool.entries")
 HELP = os.path.join(SD64, "sdsys", "helptext")
 IDE = os.path.join(SD64, "sdsys", "gpl.bp", "ide")
 OPSH = os.path.join(SD64, "gplsrc", "op_sh.c")
+CPROC = os.path.join(SD64, "sdsys", "gpl.bp", "cproc")
+BASIC = os.path.join(SD64, "sdsys", "gpl.bp", "basic")
+OPDIO1 = os.path.join(SD64, "gplsrc", "op_dio1.c")
 REGRESS = os.path.join(HERE, "regress.sh")
 RMAP = os.path.join(HERE, "regress-map.txt")
 
@@ -89,19 +92,20 @@ def checks(src, voc, helps):
     deletes = [s for n, s in lines if re.search(r"(^|[\s;(])delete\s", unquote(s) + " ")]
     execs = [s for n, s in lines if re.search(r"(^|[\s;(])execute\s", unquote(s) + " ")]
     ck("T4 WHAT IT MAY CHANGE (M2, M3, M4): no record is written but the temporary pointer in SDSYS's VOC (ONE write, `write qrec on svf, qn on error`), the deletes take that pointer away "
-       "(`delete svf, qn`), sweep the user number's own leftovers at the start (`delete svf, sw.id`) and delete D's one record through the file edit.record judged (`delete tf, eid`), the two "
+       "(`delete svf, qn`), sweep the user number's own leftovers at the start (`delete svf, sw.id`) and delete D's one record through the file edit.record judged (`delete tf, eid`) and, "
+       "for a program, its compiled program through the .out file object.judge judged (`delete dof, doid`, M6a), the two "
        "executes give the terminal to the IDE (`execute sent`) and compile through run.in (`execute csent capturing cout`); no chain, perform, OS command, command runner, master-file operation or account verb anywhere in the page, "
        "and no confirm box but D's",
-       not forbidden and writes == ["write qrec on svf, qn on error"] and deletes == ["delete svf, sw.id", "delete svf, qn", "delete tf, eid on error delok = @false"] and execs == ["execute csent capturing cout", "execute dbsent", "execute sent"],
+       not forbidden and writes == ["write qrec on svf, qn on error"] and deletes == ["delete svf, sw.id", "delete svf, qn", "delete tf, eid on error delok = @false", "delete dof, doid on error dores = 'failed'"] and execs == ["execute csent capturing cout", "execute dbsent", "execute sent"],
        "%s %s %s %s" % (forbidden[:3], writes, deletes, execs))
     opens = [s for n, s in lines if re.search(r"\bopenpath\b", s)]
     kinds = sorted(set("register" if "@sdsys:@ds:'accounts'" in s else ("voc" if re.search(r"(apath<[a-z0-9]+>|ap\.f) ?:@ds ?: ?'voc'", s.replace(" : ", ":")) else ("dict" if re.match(r"openpath dp to df2? then", s)
-                       else ("prog" if re.match(r"openpath (op2 to ofv|pp to pfv|pp2 to pf2) then", s) else s))) for s in opens))
+                       else ("prog" if re.match(r"openpath (op2 to ofv|pp to pfv|pp2 to pf2) then", s) or s == "openpath dop to dof else return" else s))) for s in opens))
     ck("T5 the only files it opens by pathname are the register, an account's VOC by the pathname the register gives and, by a path of one of that VOC's file pointers, a dictionary, a program "
-       "file or the .out file beside it (twelve opens: the list; the VOC, the dictionaries, the .out file and the program files in collect.account; the entry under the cursor in the VOC, in "
-       "a dictionary and in a program file; and the register and the account's VOC again in edit.record, for E and N); the other opens are SDSYS's own VOC (the pointer) and the file "
+       "file or the .out file beside it (thirteen opens: the list; the VOC, the dictionaries, the .out file and the program files in collect.account; the entry under the cursor in the VOC, in "
+       "a dictionary and in a program file; the register and the account's VOC again in edit.record, for E and N; and D's .out file of a program, M6a); the other opens are SDSYS's own VOC (the pointer) and the file "
        "that pointer leads to, which is judged before the IDE is given it",
-       kinds == ["dict", "prog", "register", "voc"] and len(opens) == 12 and txt.count("close ") >= 12
+       kinds == ["dict", "prog", "register", "voc"] and len(opens) == 13 and txt.count("close ") >= 13
        and len(re.findall(r"^open 'voc' to svf else$", txt, re.M)) == 1 and len(re.findall(r"^open 'voc' to svf then$", txt, re.M)) == 2
        and len(re.findall(r"^open dfl, qn to tf else$", txt, re.M)) == 1, "%s %d" % (kinds, len(opens)))
     cap = "\n".join(s for n, s in section(lines, "collect.account:", "dclassify:"))
@@ -188,14 +192,14 @@ def checks(src, voc, helps):
     i_lk, i_cf, i_cancel, i_del, i_bad, i_daud = (at2("readu dold from tf, eid locked"), at2("call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))"), at2("if res # 'run' then"),
                                                    at2("delete tf, eid on error delok = @false"), at2("if not(delok) then"), at2("void kernel(K$AUDIT, 'master delete account="))
     i_branch = at("if emode = 'delete' then\ngosub delete.reached\nreturn\nend")
-    ck("T18 D (M3) goes E's whole way and only then deletes: do.delete takes the row as E does (Entries only, the programs refused, a hit in its own account) and calls edit.record with "
+    ck("T18 D (M3) goes E's whole way and only then deletes: do.delete takes the row as E does (Entries only, every kind - the programs too since M6a -, a hit in its own account) and calls edit.record with "
        "emode 'delete'; edit.record branches to delete.reached AFTER both refusals of the opened file and BEFORE E's audit line, and keeps tf open only for D; delete.reached takes the "
        "record's update lock (a held lock refuses), asks the confirm box with the id to be TYPED and the title 'Delete this record?' (11953), does nothing unless the answer is run, deletes "
-       "through tf, gives the pointer back on each of its four ways out, and writes 'master delete' only after a delete that worked",
-       "if pane # 2 then" in dd and "if kind = 3 then" in dd and "ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>" in dd and "ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>" in dd
+       "through tf, gives the pointer back on each of its five ways out (M6a: the program's object refused is the fifth), and writes 'master delete' only after a delete that worked",
+       "if pane # 2 then" in dd and "if kind = 3 then" not in dd and "ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>" in dd and "ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>" in dd
        and "emode = 'delete'\ngosub edit.record" in dd and "emode = 'edit'\ngosub edit.record" in de and "emode = 'edit'\ngosub edit.record" in dn
        and at("if not(in.ok) then") < i_branch < i_aud and at("if rt # rtw then") < i_branch and "if emode # 'delete' then close tf" in er and "\nclose tf\n" not in er
-       and 0 <= i_lk < i_cf < i_cancel < i_del < i_bad < i_daud and dr.count("gosub drop.pointer") == 4 and dr.count("close tf") == 4
+       and 0 <= i_lk < i_cf < i_cancel < i_del < i_bad < i_daud and dr.count("gosub drop.pointer") == 5 and dr.count("close tf") == 5
        and 0 <= at2("dmsg = 'deleted ' : eid : ' from ' : dwhere") < at2("gosub read.all") and "msg = dmsg" in dr
        and "case nm = 'd'\ngosub do.delete" in txt and "call $tk_keys('menu', keys, 'delete', '&Entry', '&Delete the record', '', '')" in txt,
        "branch %d audit %d lock %d confirm %d cancel %d delete %d bad %d daudit %d" % (i_branch, i_aud, i_lk, i_cf, i_cancel, i_del, i_bad, i_daud))
@@ -242,6 +246,47 @@ def checks(src, voc, helps):
        and "c.opt = ' debugging'\ngosub do.compile\nif c.ok then" in imb and "execute 'run.in ' : in.acct : ' debug ' : in.file : ' ' : c.id trapping aborts" in imb
        and "execute 'debug" not in imb,
        "dg %d drr %d imb %d" % (len(dg), len(drr), len(imb)))
+    oj = "\n".join(s for n, s in section(lines, "object.judge:", "compile.reached:"))
+    dro = "\n".join(s for n, s in section(lines, "delete.reached:", "object.judge:"))
+
+    def at3(t):
+        return dro.find(t)
+
+    def at4(t):
+        return oj.find(t)
+    ck("T21 D OF A PROGRAM (M6a): edit.record reads the account's VOC record <file>.out again at the keypress (D's object, found by NAME); delete.reached asks object.judge AFTER the "
+       "update lock and BEFORE the box, and a refusal gives the pointer back and deletes nothing; object.judge takes the .out file the VOC names (tokens expanded, made the account's) "
+       "else the one beside the program file, judges it by the POINTER RULE (K$PATH.IN) BEFORE it opens it, then judges what it opened and the object's own file (lower-case id) "
+       "before it reads it; the object is deleted only after the program's delete worked, through that file; 'master delete ... kind=bp ... object=' is written after; the box says "
+       "a catalogue entry is left (no run.in, no DECATALOG, no DELETE.CATALOG is run)",
+       "if isprog then read dorr from rvf, efl : '.out' else dorr = ''" in er and er.find("read dorr from rvf") < er.find("close rvf")
+       and 0 <= at3("readu dold from tf, eid locked") < at3("gosub object.judge") < at3("call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))")
+       and "dohave = 0\nif isprog then\ngosub object.judge\nif not(dook) then\nclose tf\ngosub drop.pointer\nreturn\nend" in dro
+       and "dop = parse.pathname.tokens(trim(dorr<2>))" in oj and "if dop[1, 1] # '/' then dop = ap.f : @ds : dop" in oj and "dop = tp : '.out'" in oj
+       and "doid = downcase(eid)" in oj
+       and 0 <= at4("if not(kernel(K$PATH.IN, ap.f : @fm : dop)) then") < at4("openpath dop to dof else return") < at4("dorp = fileinfo(dof, FL$PATH)")
+       < at4("do.in = kernel(K$PATH.IN, ap.f : @fm : dorp)") < at4("if do.in then do.in = kernel(K$PATH.IN, ap.f : @fm : dorp : @ds : doid)") < at4("if not(do.in) then") < at4("read dox from dof, doid")
+       and "if fileinfo(dof, FL$TYPE) # FL$TYPE.DIR then" in oj
+       and 0 <= at3("delete tf, eid on error delok = @false") < at3("if delok then\ndores = 'deleted'\ndelete dof, doid on error dores = 'failed'") < at3("' object=' : dores")
+       and "dkind = 'bp'" in dro and "A catalogue entry of the program is left" in dro
+       and not re.search(r"run\.in|decatalog|delete\.catalog'", unquote(oj + "\n" + dro)),
+       "oj %d dro %d" % (len(oj), len(dro)))
+    ibk = "\n".join(s for n, s in section(ide, "bk.arm:", "bk.take:"))
+    runin = code(helps.get("__cproc__", ""))
+    rin = "\n".join(s for n, s in section(runin, "int.runin:", "int.if:"))
+
+    def at5(t):
+        return imb.find(t)
+    ck("T22 THE EDITOR'S BREAKPOINTS THROUGH run.in (S.98 H2 on a master tab): master.build's Debug arms /idebrk/ (bk.arm) after the compile worked and BEFORE it gives the terminal to "
+       "`run.in <account> debug`, and takes the marks back (bk.take) after it; bk.arm names the source by what the kernel opened through the tab's pointer (FL$PATH, which the kernel "
+       "makes absolute and real: fullpath in open_file), the compiler stores the source by its FL$PATH too, so the two paths are the same file's; and run.in (int.runin, "
+       "revert.account) neither deletes a common nor touches /idebrk/, so the hand-over survives the account switch (the debugger is the same process)",
+       0 <= at5("c.opt = ' debugging'\ngosub do.compile\nif c.ok then\ngosub bk.arm") < at5("execute 'run.in ' : in.acct : ' debug ' : in.file : ' ' : c.id trapping aborts\ngosub bk.take\ngosub retake.screen")
+       and "open c.file to bk.fv then" in ibk and "ibk.path = fileinfo(bk.fv, FL$PATH) : @ds : c.id" in ibk
+       and "source.path = fileinfo(src.f, fl$path) : @ds" in helps.get("__basic__", "")
+       and re.search(r"^\s*fullpath\(pathname, mapped_name\);", helps.get("__opdio1__", ""), re.M) is not None
+       and len(rin) > 2000 and "revert.account:" in rin and "delete.common" not in rin and "ibk." not in rin and "idebrk" not in rin,
+       "imb %d ibk %d rin %d" % (len(imb), len(ibk), len(rin)))
     sw = "\n".join(s for n, s in section(lines, "sweep.pointers:", "drop.pointer:"))
     ck("T17 a pointer left by a session killed inside the IDE is swept when the page starts: right after the start's audit line, before anything is read, only names that begin "
        "zm<this user number>. and only an F or a Q record",
@@ -277,6 +322,9 @@ def load():
         helps["__ide__"] = f.read()          # M4: the IDE's half of the hand-over (T19); a mutant of kind "ide" changes it
     with open(OPSH, encoding="utf-8", errors="replace") as f:
         helps["__opsh__"] = f.read()         # M4: the kernel's resolve_name refuses a link that leads nowhere (T19); kind "opsh"
+    for key, path in (("__cproc__", CPROC), ("__basic__", BASIC), ("__opdio1__", OPDIO1)):
+        with open(path, encoding="utf-8", errors="replace") as f:
+            helps[key] = f.read()            # M6a T22: run.in keeps /idebrk/, the compiler and the IDE name the source by FL$PATH, the kernel makes it real; kinds "cproc" "basic" "opdio1"
     return src, voc, helps
 
 
@@ -345,7 +393,29 @@ MUTANTS = [
     ("D deletes through a second open", "src", "   if emode # 'delete' then close tf", "   close tf"),
     ("the pointer is left after a delete", "src", "   delete tf, eid on error delok = @false\n   close tf\n   gosub drop.pointer\n", "   delete tf, eid on error delok = @false\n   close tf\n"),
     ("the delete's message is made after the redraw", "src", "   dmsg = 'deleted ' : eid : ' from ' : dwhere\n", ""),
-    ("a program is deleted", "src", "   if kind = 3 then\n      msg = 'the programs are not deleted from this page yet'\n      return\n   end\n", ""),
+    ("D refuses the programs again", "src", "   nrows = (if fnd # '' then hn else en)\n   if ec < 1 or ec > nrows then\n      msg = 'there is no entry here to delete'",
+     "   if kind = 3 then\n      return\n   end\n   nrows = (if fnd # '' then hn else en)\n   if ec < 1 or ec > nrows then\n      msg = 'there is no entry here to delete'"),
+    # M6a: D of a program and its compiled program
+    ("the .out file of D is not judged", "src", "   if not(kernel(K$PATH.IN, ap.f : @fm : dop)) then\n", "   if 0 then\n"),
+    ("the object's own file is not judged", "src", "   if do.in then do.in = kernel(K$PATH.IN, ap.f : @fm : dorp : @ds : doid)", "   do.in = do.in"),
+    ("what the .out open reached is not judged", "src", "   do.in = kernel(K$PATH.IN, ap.f : @fm : dorp)\n", "   do.in = 1\n"),
+    ("D of a program has no object test", "src", "   if isprog then\n      gosub object.judge", "   if 0 then\n      gosub object.judge"),
+    ("the object is deleted when the program was not", "src", "      if delok then\n         dores = 'deleted'", "      if 1 then\n         dores = 'deleted'"),
+    ("the object is not deleted", "src", "         delete dof, doid on error dores = 'failed'\n", ""),
+    ("the .out the VOC names is not read", "src", "      if isprog then read dorr from rvf, efl : '.out' else dorr = ''", "      dorr = ''"),
+    ("the object's id keeps the case", "src", "   doid = downcase(eid)\n", "   doid = eid\n"),
+    ("a program's delete is audited as a dictionary item", "src", "      dkind = 'bp'\n", "      dkind = 'dict'\n"),
+    ("the catalogue entry is not mentioned", "src", "A catalogue entry of the program is left", "The program goes"),
+    ("D of a program runs DECATALOG", "src", "   dores = 'none'\n", "   dores = 'none'\n   execute 'run.in ' : ea : ' decatalog ' : eid capturing dcx\n"),
+    # M6a T22: the editor's breakpoints handed to a debugger run through run.in
+    ("a master tab's debug arms nothing", "ide", "         gosub bk.arm\n         bk.first = @false\n         gosub leave.screen\n         execute 'run.in '",
+     "         bk.first = @false\n         gosub leave.screen\n         execute 'run.in '"),
+    ("a master tab's marks are not taken back", "ide", "c.id trapping aborts\n         gosub bk.take\n         gosub retake.screen\n      end\n      bk.first = @false\n      return",
+     "c.id trapping aborts\n         gosub retake.screen\n      end\n      bk.first = @false\n      return"),
+    ("the hand-over names the pointer, not the file", "ide", "ibk.path = fileinfo(bk.fv, FL$PATH) : @ds : c.id", "ibk.path = c.file : @ds : c.id"),
+    ("run.in deletes the named common", "cproc", "   ri.account = ri.acct\n   ri.active = 1\n", "   ri.account = ri.acct\n   delete.common 'idebrk'\n   ri.active = 1\n"),
+    ("the compiler stores the path as typed", "basic", "   source.path = fileinfo(src.f, fl$path) : @ds", "   source.path = src.name : @ds"),
+    ("the kernel stores the path as given", "opdio1", "  fullpath(pathname, mapped_name);\n", "  strcpy(pathname, mapped_name);\n"),
     ("B debugs without the checks", "src", "   emode = 'debug'\n   gosub edit.record\n", "   gosub debug.reached\n"),
     ("B debugs after a failed compile", "src", "   copt = ' debugging'\n   gosub compile.in.account\n   if not(cok) then\n", "   copt = ' debugging'\n   gosub compile.in.account\n   if 0 then\n"),
     ("the IDE debugs a master tab here in SDSYS", "ide", "execute 'run.in ' : in.acct : ' debug ' : in.file : ' ' : c.id trapping aborts", "execute 'debug ' : in.file : ' ' : c.id trapping aborts"),
@@ -370,7 +440,7 @@ def selftest():
             s = s.replace(old, new)
         elif kind == "voc":
             v = v.replace(old, new)
-        elif kind in ("ide", "opsh"):
+        elif kind in ("ide", "opsh", "cproc", "basic", "opdio1"):
             key = "__%s__" % kind
             if h[key].count(old) != 1:
                 print("  [CANNOT] %-48s the text occurs %d times in %s" % (name, h[key].count(old), kind))

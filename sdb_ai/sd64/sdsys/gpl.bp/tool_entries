@@ -4,6 +4,12 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 2 Nov 26 dm  S.96 M6a: D deletes a PROGRAM too, the way it deletes a VOC entry (edit.record, emode 'delete', then delete.reached: the update lock, the id typed, the delete through
+*              the file judged, "master delete ... kind=bp"), and with it its compiled program: the record of the same name, lower case, in the .out file found by NAME as the list
+*              finds it (the <file>.out the account's VOC names, read again at the keypress, else the one beside the program file).  THE POINTER RULE holds for the .out file as for
+*              the program file: it and the object's own file must lie inside the account (K$PATH.IN), asked before the box and before anything is deleted; a .out file outside the
+*              account refuses the whole delete.  Nothing is run (no run.in: no command on its list removes a bp.out record).  A catalogue entry of the program (local, private or
+*              global) is the account's and is LEFT: the box and the status line say so and name DELETE.CATALOG in that account.
 * 2 Nov 26 dm  S.96 M5: B debugs the program under the cursor IN ITS ACCOUNT: edit.record (emode 'debug'), then debug.reached - run.in compiles it for the debugger
 *              (compile.in.account, shared with C; a failure is shown as C shows it) and run.in runs the debugger there; "master debug" is audited; the page comes back
 *              through retake.page, taken out of hand.over so that the editor's and the debugger's way back are one.  The IDE's own Debug of such a tab does the same.
@@ -54,7 +60,8 @@
 *   WHAT IT CHANGES.  Nothing itself: E and N give the terminal to the IDE on the record, in the account it lives in, and take it back.  The only thing the page writes is the temporary
 *   pointer in SDSYS's VOC (an F pointer holding the checked path) that lets the IDE reach the account's file, and it takes it away again.  An administrator passes the edit gates; they are shown because they are what
 *   locks the account out of its own files.  THE POINTER RULE (owner, 3 Nov 26): a pointer record is edited like any record of its account, but what a pointer points at is never edited
-*   from another account; a dictionary that lies outside the account being listed is refused for E and N, before any pointer is made.
+*   from another account; a dictionary that lies outside the account being listed is refused for E and N, before any pointer is made.  D deletes one record through the file it
+*   judged; for a program also its compiled program in the .out file, judged by the same rule (a catalogue entry is left).
 *
 * END-DESCRIPTION
 *
@@ -729,7 +736,7 @@ draw.effect:
             lines<-1> = 'The dictionary items are read, when the cursor comes to the account, from the dictionary of each file its VOC points at (field 3 of the file pointer); nothing is copied.  An item matches a text in its id or in its column heading.  E edits the item under the cursor as the form, N makes a new one in the dictionary of the file under the cursor and D deletes it: only dictionary items.'
             lines<-1> = ">: the item lives in a dictionary outside this account (SDSYS's, which every account's pointer to it shares, or another account's) and is only read through this account's pointer.  It is edited in the account it lives in, never from here: E and N refuse it."
          case 1
-            lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  E edits the program under the cursor in the editor and N makes a new one in the same program file, in the account it belongs to; C compiles it IN THAT ACCOUNT (run.in) and B debugs it there, and the editor's own Compile, Catalog and Debug do the same."
+            lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  E edits the program under the cursor in the editor and N makes a new one in the same program file, in the account it belongs to; C compiles it IN THAT ACCOUNT (run.in) and B debugs it there, and the editor's own Compile, Catalog and Debug do the same.  D deletes it with its compiled program (a catalogue entry is left: DELETE.CATALOG in the account removes it)."
             lines<-1> = ">: the program file lies outside this account (SDSYS's or another account's) and is only read through this account's pointer.  Its programs are edited, compiled and run in the account it lives in, never from here."
       end case
    end
@@ -1063,10 +1070,6 @@ do.delete:
       msg = 'Tab to the entries first, then D'
       return
    end
-   if kind = 3 then
-      msg = 'the programs are not deleted from this page yet'
-      return
-   end
    nrows = (if fnd # '' then hn else en)
    if ec < 1 or ec > nrows then
       msg = 'there is no entry here to delete'
@@ -1193,6 +1196,8 @@ edit.record:
          return
       end
       read fr from rvf, efl else fr = ''
+      dorr = ''
+      if isprog then read dorr from rvf, efl : '.out' else dorr = ''     ;* M6a: the .out file this VOC names, read at the keypress like the program file (D's object)
       close rvf
       if isprog then
          if upcase(trim(fr<1>))[1, 1] # 'F' or trim(fr<2>) = '' then
@@ -1349,6 +1354,12 @@ drop.pointer:
 delete.reached:
    dwhere = (if efl = '' then 'the VOC' else 'the dictionary of ' : efl) : ' of ' : ea
    dwhat = (if efl = '' then 'VOC entry' else 'dictionary item')
+   dkind = (if efl = '' then 'voc' else 'dict')
+   if isprog then
+      dwhere = 'the program file ' : efl : ' of ' : ea
+      dwhat = 'program'
+      dkind = 'bp'
+   end
    dhave = 1
    readu dold from tf, eid locked
       dlu = status()
@@ -1365,12 +1376,30 @@ delete.reached:
       msg = eid : ' is not in ' : dwhere : ' any more: F5 reads the list again'
       return
    end
+   dohave = 0
+   if isprog then
+      gosub object.judge                                        ;* the compiled program: found by name, judged by the pointer rule, before the box
+      if not(dook) then
+         close tf
+         gosub drop.pointer
+         return
+      end
+   end
    dsent = 'delete ' : eid : ' from ' : dwhere
    dlines = 'Deletes the ' : dwhat : ' ' : eid : ' from the account ' : ea : ', in its own file:' : @fm : rp
-   dlines<-1> = 'This is not a command: the page deletes that one record itself.  Type its id to confirm.'
+   if isprog then
+      if dohave then
+         dlines<-1> = 'and its compiled program ' : doid : ' in ' : dorp
+      end else
+         dlines<-1> = 'It has no compiled program (nothing called ' : doid : ' in ' : dop : ').'
+      end
+      dlines<-1> = 'A catalogue entry of the program is left: it is the account' : "'" : 's (DELETE.CATALOG in ' : ea : ' removes it).'
+   end
+   dlines<-1> = 'This is not a command: the page deletes ' : (if dohave then 'those two records' else 'that one record') : ' itself.  Type its id to confirm.'
    call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))   ;* Delete this record?
    if res # 'run' then
       close tf                                                  ;* the lock goes with it
+      if dohave then close dof
       gosub drop.pointer
       gosub draw.all
       msg = cmsg
@@ -1380,14 +1409,28 @@ delete.reached:
    delete tf, eid on error delok = @false
    close tf
    gosub drop.pointer
+   dores = 'none'
+   if dohave then
+      if delok then
+         dores = 'deleted'
+         delete dof, doid on error dores = 'failed'
+      end
+      close dof
+   end
    * The messages are made BEFORE anything is drawn: entry.lines (the box under the lists) sets eid and efl to the row under the cursor, which after a delete is another record
    if not(delok) then
       msg = 'the ' : dwhat : ' ' : eid : ' of ' : ea : ' was not deleted: the file refused it'
       gosub draw.all
       return
    end
-   void kernel(K$AUDIT, 'master delete account=' : ea : ' kind=' : (if efl = '' then 'voc' else 'dict') : ' file=' : qf : ' id=' : eid)
+   if isprog then
+      void kernel(K$AUDIT, 'master delete account=' : ea : ' kind=' : dkind : ' file=' : qf : ' id=' : eid : ' object=' : dores)
+   end else
+      void kernel(K$AUDIT, 'master delete account=' : ea : ' kind=' : dkind : ' file=' : qf : ' id=' : eid)
+   end
    dmsg = 'deleted ' : eid : ' from ' : dwhere
+   if dores = 'deleted' then dmsg := ' and its compiled program (a catalogue entry is left)'
+   if dores = 'failed' then dmsg := ': its compiled program in ' : dorp : ' was NOT deleted, the file refused it'
    keep.ec = ec
    gosub read.all
    ec = keep.ec
@@ -1397,6 +1440,44 @@ delete.reached:
    gosub keep.tops
    gosub draw.all
    msg = dmsg
+   return
+
+* M6a: the compiled program of the program eid, for D.  Found by NAME as the list finds it (M1c): the .out file the account's VOC names (dorr, the record <efl>.out that edit.record
+* read again at the keypress), else the one beside the program file (tp, the path edit.record judged, and .out); the record is the program's id in lower case, as BASIC writes it.
+* THE POINTER RULE holds for it as for the program file: the .out file (as written, then as the kernel opened it) and the object's own file must lie inside the account, asked
+* here, before the box and before anything is deleted; a .out file outside the account refuses the whole delete.  A .out file that is not there, or holds no such record, is no object.
+* Out: dook (the delete may go on; msg when not), dohave (there is an object; dof is open on its .out file), dop (the .out path), dorp (as opened), doid (the object's id).
+object.judge:
+   dook = @true
+   dohave = 0
+   dorp = ''
+   doid = downcase(eid)
+   if upcase(trim(dorr<1>))[1, 1] = 'F' and trim(dorr<2>) # '' then
+      dop = parse.pathname.tokens(trim(dorr<2>))
+      if dop[1, 1] # '/' then dop = ap.f : @ds : dop
+   end else
+      dop = tp : '.out'
+   end
+   if not(kernel(K$PATH.IN, ap.f : @fm : dop)) then
+      dook = @false
+      msg = 'the compiled programs of ' : efl : ' lie outside ' : ea : ': ' : eid : ' is deleted in the account they live in, not from here (' : dop : ')'
+      return
+   end
+   openpath dop to dof else return                              ;* no .out file: no object
+   dorp = fileinfo(dof, FL$PATH)
+   if fileinfo(dof, FL$TYPE) # FL$TYPE.DIR then
+      close dof
+      return                                                    ;* not a directory file: not where BASIC puts a compiled program
+   end
+   do.in = kernel(K$PATH.IN, ap.f : @fm : dorp)
+   if do.in then do.in = kernel(K$PATH.IN, ap.f : @fm : dorp : @ds : doid)     ;* the object's own file: a link in its place is caught here
+   if not(do.in) then
+      close dof
+      dook = @false
+      msg = 'the compiled program of ' : eid : ' opens a file outside ' : ea : ': it is deleted in the account it lives in, not from here (' : dorp : ')'
+      return
+   end
+   read dox from dof, doid then dohave = 1 else close dof
    return
 
 * C, after edit.record judged the program file and the program (the pointer is already given back): run.in compiles it in its own account and the page shows what the compiler said.

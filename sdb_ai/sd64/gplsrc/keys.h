@@ -246,6 +246,10 @@
    this boot and session that names this loginuid (op_kernel.c login_mark_ok).  171: free in this tree (its keys run to 170) and in the
    Windows tree (none above 139).  GPL.BP/INT$KEYS.H carries the same number.                                                        */
 #define K_LOGIN_MARK         171
+/* 02 Nov 26 dm - S.102 stage 3 (Linux Core only).  kernel(K$JOB.MARK, 0) answers the name of the scheduled administrator job this process IS
+   (systemd's cgroup sdcore-job-<name>.service, a root-owned /etc/sdcore/jobs.d/<name> whose command= is this session's own command line), or ''
+   (sd_jobmark.c).  172: free in this tree and in the Windows tree.  GPL.BP/INT$KEYS.H carries the same number.                        */
+#define K_JOB_MARK           172
 /* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
    which is not the same question as K_USERNAME.  See op_kernel.c.            */
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH

@@ -65,6 +65,7 @@ gplbld/sandbox-req29.py      : @self fileadmin netindex
 gplbld/sandbox-fileadmin.py  : @self netindex
 # 27 Oct 26 (S.87 batch 7): four suites that tested only a removed option word are deleted; the deletion needs no suite
 gplbld/verify-totp.c         : none
+gplbld/verify-jobmark.c      : none
 gplbld/verify-pamtotp.c      : none
 gplbld/sandbox-stdfil.py : none
 gplbld/sandbox-selectv-mode.py : none
@@ -238,6 +239,9 @@ gplsrc/clopts.c              : conf-b1 sys-q18
 gplsrc/sd_tls*.c             : qmclient apispin netfile net
 gplsrc/sd_scram.c            : qmclient
 gplsrc/scram_client.h        : qmclient
+# S.102 stage 3 (2 Nov 26): the scheduled job's identity (K$JOB.MARK) - free-checked by test-jobmark-units.py; no sandbox can be a systemd unit (the VM witness is).
+gplsrc/sd_jobmark.c          : none
+gplsrc/sd_jobmark.h          : none
 gplsrc/sd_totp.c             : none
 gplsrc/sd_totp.h             : none
 gplsrc/sd_totp_store.c       : none

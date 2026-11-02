@@ -10,6 +10,8 @@ No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it c
 START-HISTORY:
 30 Oct 26 dm  New with stage E2.  WRITTEN, NOT RUN against a sandbox: the rows that would say a file appears with the right bytes and mode, or that a refusal leaves the tab alone,
               are sandbox-ide-os.py's (not written yet).  Every row here is an ordering or a shape in the source, with comments removed.
+02 Nov 26 dm  S.88 A3 and A5 (the second Opus review of E2): O1 reads the create in its new place, O1e (the file is made after the SD lock is taken, so a LOCKED create leaves
+              nothing), O16b (DIR()'s ER.PERM told apart: 11180 only when the account may not reach the directory, else 11599), message 11599; mutants from M_A35B.
 END-HISTORY
 
 WHAT IT HOLDS.  New, Save as, the first save of an untitled buffer, Write a copy and Export (and Import, the other way) take path:/full/name and make or read an operating system file.
@@ -41,7 +43,7 @@ GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 SRC = os.path.join(SD64, "gplsrc")
 NEWMSG = {11746: "tree.os", 11747: "os.load", 11748: "os.load", 11749: "os.create", 11762: "os.create", 11763: "os.create", 11764: "os.create", 11765: "os.create",
-          11996: "os.create", 11997: "os.create"}
+          11996: "os.create", 11997: "os.create", 11599: "os.load"}
 DELETED = (11727, 11558)
 
 _miss = []
@@ -185,8 +187,10 @@ def checks(src):
        repr(sorted([n for n in need_i if len(LI.get(n, "")) <= 20] + [n for n in need_o if len(LO.get(n, "")) <= 20])))
 
     # ---- the kernel ---------------------------------------------------------------------------------------------------------------------------------------------------
+    # 02 Nov 26 (S.88 A3): the CREATING branch only sets create_after_lock; the create itself is the `if (create_after_lock) {` block after the lock
     m = re.search(r"else if \(op_flags & 0x400\) \{(.*?)\} else \{", nb)
-    br = m.group(1) if m else ""
+    m2 = re.search(r"if \(create_after_lock\) \{(.*?)\} \}", nb)
+    br = m2.group(1) if (m and m.group(1).strip() == "create_after_lock = TRUE;" and m2) else ""
     ck("O1", "op_seqio.c: OPENSEQ ... CREATING of a name that is not there is EXCLUSIVE - dio_open(.., SHARED ? DIO_OVERWRITE : DIO_NEW) - and the failure is ER_EXISTS only when errno is EEXIST AND the "
        "call is not SHARED (SHARED keeps open-or-create), read straight after the open (nothing between can change errno); the 'may not change here' refusal (ER_PERM) comes before it; an "
        "existing file is opened WITHOUT truncating (no DIO_REPLACE); DIO_NEW is used nowhere else in the file",
@@ -210,6 +214,14 @@ def checks(src):
        and "fu = dio_open(sq_file->pathname, DIO_OVERWRITE_NOFOLLOW);" in nb
        and re.search(r"case DIO_OVERWRITE_NOFOLLOW:.*?O_RDWR \| O_CREAT \| O_NOFOLLOW", dh, re.S) is not None
        and "DIO_OVERWRITE_NOFOLLOW" in src["sdh"], repr((nb.count("DIO_OVERWRITE_NOFOLLOW"), "DIO_OVERWRITE_NOFOLLOW" in src.get("sdh", ""))))
+    ck("O1e", "op_seqio.c (S.88 A3, 02 Nov 26): CREATING of a name that is not there makes the file only AFTER the SD lock on it is taken - the branch sets create_after_lock and opens nothing, "
+       "lock_record() comes next, a name another session holds takes the LOCKED clause (or waits: pc -= 2) with nothing made, and the create is the block after the lock switch and before the "
+       "SQ_FILE is set up; a failed create goes to the exit, which gives the lock back; the lock-conflict branch marks the handle it closed invalid (the exit must not close it again)",
+       ordered(nb, "bool create_after_lock = FALSE;", "else if (op_flags & 0x400) { create_after_lock = TRUE; } else {", "blocking_user = lock_record(fvar, unmapped_name",
+               "default: if (ValidFileHandle(fu)) CloseFile(fu); fu = INVALID_FILE_HANDLE;", "process.status = ER_LCK;", "pc -= 2;", "Sleep(250); return; } }",
+               "if (create_after_lock) { fu = dio_open(fullpathname, (op_flags & 0x800) ? DIO_OVERWRITE : DIO_NEW); if (!ValidFileHandle(fu)) {",
+               "goto exit_op_openseq; } }", "sq_file = (SQ_FILE*)k_alloc(68", "exit_op_openseq:", "if ((fvar != NULL) && record_locked) { (void)unlock_record(")
+       and nb.count("create_after_lock") == 3 and nb.count("dio_open(fullpathname, (op_flags & 0x800)") == 1, repr(nb.count("create_after_lock")))
     dio = re.search(r"OSFILE dio_open\(char\* fn, int mode\) \{(.*?)\n\}\n", dh, re.S)
     dio = dio.group(1) if dio else ""
     nbd = norm(dio)
@@ -379,6 +391,13 @@ def checks(src):
                    "gosub redraw.tree", "case code[1, 2] = 'P:'", "op.path = code[3, 9999]", "cur.code = code", "gosub open.path", "if nbuf > 0 then", "ft.id = 'ed'", "gosub focus.to")
        and "downcase(" not in seg and ordered(da, "case focus.id = 'tree'", "case code[1, 2] = 'O:'", "case focus.id = 'err'")
        and ordered(oco, "for os.j = os.nf to 1 step -1", "os.pp = ofiles<os.j>", "os.pp = os.dir or os.dir = '/' or os.pp[1, len(os.dir) + 1] = os.dir : '/'", "del ofiles<os.j>", "del orecs<os.j>"), "")
+    ck("O16b", "S.88 A5 (02 Nov 26): DIR() says ER.PERM both for the OS gate and for a directory the operating system will not open, so the helper's list gives the DIR()'s STATUS() and "
+       "OS.ERROR() (taken straight after it) for 'gate', and os.load says 11180 (no OS access) only when the account may NOT reach the directory (K$PATH.OK of that directory), else 11599 "
+       "with the operating system's error",
+       ordered(LO.get("list.dir", ""), "ld.raw = dir(path)", "ld.st = status()", "ld.oserr = os.error()", "begin case", "case ld.st = ER.PERM", "why = 'gate'", "info<6> = ld.st",
+               "info<7> = ld.oserr", "return")
+       and ordered(ol, "case os.lw = 'gate'", "if kernel(K$PATH.OK, os.dir) then", "msg = sysmsg(11599, os.dir, os.li<7>)", "end else", "msg = sysmsg(11180, @who)", "end",
+                   "case os.lw = 'none'"), "")
     ck("O17", "after a file is made the directory it is in is listed again, but only when the tree has the node (os.on) and lists that directory (os.find): then os.load, tree.apply, redraw.tree",
        ordered(rf, "if not(os.on) then return", "os.dir = '/'", "gosub os.find", "if os.q then", "gosub os.load", "gosub tree.apply", "gosub redraw.tree"), "")
 
@@ -485,7 +504,7 @@ mut("the name is not checked", "O3a", sub1("osf", "create.file:\n   gosub check.
 mut("ON ERROR keeps the name locked", "O3a", sub1("osf", "   openseq path creating to f on error\n      op.st = status()\n      if not(unassigned(f)) then close f\n", "   openseq path creating to f on error\n      op.st = status()\n"))
 mut("the ELSE keeps the name locked", "O3a", sub1("osf", "      if not(unassigned(f)) then close f\n      begin case\n         case op.st = ER.EXISTS", "      begin case\n         case op.st = ER.EXISTS"))
 mut("a taken name is only cant", "O3a", sub1("osf", "         case op.st = ER.EXISTS\n            why = 'exists'", "         case op.st = ER.EXISTS\n            why = 'cant'"))
-mut("the OS gate is only cant", "O3a", sub1("osf", "         case op.st = ER.PERM\n            why = 'gate'\n", "         case op.st = ER.PERM\n            why = 'cant'\n"))
+mut("the OS gate is only cant", "O3a", sub1("osf", "            why = 'exists'\n         case op.st = ER.PERM\n            why = 'gate'\n", "            why = 'exists'\n         case op.st = ER.PERM\n            why = 'cant'\n"))
 mut("a locked file is written", "O3b", sub1("osf", "   if lk.user then\n      why = 'locked'\n      return\n   end\n   if (fileinfo(f, FL$SEQTYPE) + 0) # 0 then\n      close f\n      why = 'special'\n      return\n   end\n   if fileinfo(f, FL$READONLY) then", "   if (fileinfo(f, FL$SEQTYPE) + 0) # 0 then\n      close f\n      why = 'special'\n      return\n   end\n   if fileinfo(f, FL$READONLY) then"))
 mut("a device is kept open", "O3b", sub1("osf", "      close f\n      why = 'special'\n      return\n   end\n   if fileinfo(f, FL$READONLY) then", "      why = 'special'\n      return\n   end\n   if fileinfo(f, FL$READONLY) then"))
 mut("a read-only file is written", "O3b", sub1("osf", "   if fileinfo(f, FL$READONLY) then\n      close f\n      why = 'ro'\n      return\n   end\n   seek f, 0, 2", "   seek f, 0, 2"))
@@ -501,7 +520,7 @@ mut("'list' is not wired", "O4", sub1("osf", "      case op = 'list'\n         g
 mut("a save no longer checks the text first", "O4", sub1("osf", "   gosub make.data\n   if why # '' then return\n   gosub put.data\n   return", "   gosub put.data\n   return"))
 mut("create has its own write", "O4", sub1("osf", "   gosub put.data\n   if why # '' then\n      info<6> = status()\n      close f", "   gosub put.data\n   gosub put.data\n   if why # '' then\n      info<6> = status()\n      close f"))
 # ---- helper list
-mut("the gate of DIR() is only cant", "O5", sub1("osf", "      case ld.st = ER.PERM\n         why = 'gate'\n         return", "      case ld.st = ER.PERM\n         why = 'cant'\n         return"))
+mut("the gate of DIR() is only cant", "O5", sub1("osf", "      case ld.st = ER.PERM\n         why = 'gate'\n         info<6> = ld.st", "      case ld.st = ER.PERM\n         why = 'cant'\n         info<6> = ld.st"))
 mut("a name with a control byte is listed", "O5", sub1("osf", "convert(ctl, '', ld.name) # ld.name or ", ""))
 mut("a name with a slash is listed", "O5", sub1("osf", " or index(ld.name, '/', 1) then", " then"))
 mut("the cap is gone", "O5", sub1("osf", "         if ld.kept >= OSF.LIST then", "         if 0 then"))
@@ -523,7 +542,7 @@ mut("every mode is open mode", "O6", sub1("inm", "            case mode = 'open'
 mut("the edit gate is asked of another string", "O6", sub1("inm", "case not(kernel(K$EDIT.OS.OK, op.path))", "case not(kernel(K$EDIT.OS.OK, pw))"))
 mut("Open asks the OS gate in the form", "O6", sub1("inm", "            case mode = 'open'\n               file = 'path:'", "            case mode = 'open' and not(kernel(K$PATH.OK, op.path))\n               msg = sysmsg(11180, @who)\n            case mode = 'open'\n               file = 'path:'"))
 # ---- the IDE
-mut("a refusal changes the tab", "O7", sub1("ide", "      case cr.why = 'gate'\n         msg = sysmsg(11180, @who)\n      case cr.why = 'exists' or cr.why = 'ro'", "      case cr.why = 'gate'\n         msg = sysmsg(11180, @who)\n         nbuf += 1\n      case cr.why = 'exists' or cr.why = 'ro'"))
+mut("a refusal changes the tab", "O7", sub1("ide", "      case cr.why = 'gate'\n         if kernel(K$EDIT.OS.OK, cr.path) then\n", "      case cr.why = 'gate'\n         nbuf += 1\n         if kernel(K$EDIT.OS.OK, cr.path) then\n"))
 mut("a taken name says the directory is missing", "O7", sub1("ide", "      case cr.why = 'exists' or cr.why = 'ro'\n         rf.text = sysmsg(11762, cr.path)", "      case cr.why = 'exists' or cr.why = 'ro'\n         rf.text = sysmsg(11763, cr.path, cr.info<6>)"))
 mut("a bad byte says the file is not whole", "O7", sub1("ide", "      case cr.why = 'bytes' or cr.why = 'big'\n         msg = sysmsg(11765, cr.path)", "      case cr.why = 'bytes' or cr.why = 'big'\n         msg = sysmsg(11764, cr.path, cr.info<6>)"))
 mut("a half-written file is not boxed", "O7", sub1("ide", "         rf.text = sysmsg(11764, cr.path, cr.info<6>)\n         msg = rf.text\n         gosub refuse.box", "         msg = sysmsg(11764, cr.path, cr.info<6>)"))
@@ -569,8 +588,8 @@ mut("a refusal to list is not said", "O16", sub1("ide", "            msg = sysms
 mut("collapse goes forward", "O16", sub1("ide", "   for os.j = os.nf to 1 step -1\n      os.pp = ofiles<os.j>", "   for os.j = 1 to os.nf\n      os.pp = ofiles<os.j>"))
 mut("collapse takes a sibling with the same start", "O16", sub1("ide", " or os.pp[1, len(os.dir) + 1] = os.dir : '/' then", " or os.pp[1, len(os.dir)] = os.dir then"))
 mut("what was left out is not said", "O16", sub1("ide", "   if os.li<5> + 0 then msg = sysmsg(11748, os.dir, os.li<5>)", "   null"))
-mut("the tree is not drawn again", "O17", sub1("ide", "   if os.q then\n      gosub os.load\n      gosub tree.apply\n      gosub redraw.tree\n   end\n   return", "   if os.q then\n      gosub os.load\n   end\n   return"))
-mut("the tree lists a directory it did not list", "O17", sub1("ide", "   if not(os.on) then return\n   os.dir = '/'", "   os.dir = '/'"))
+mut("the tree is not drawn again", "O17", sub1("ide", "   if os.q then\n      gosub os.load\n      gosub tree.apply\n      gosub redraw.tree\n   end\n   i = os.keep.i", "   if os.q then\n      gosub os.load\n   end\n   i = os.keep.i"))
+mut("the tree lists a directory it did not list", "O17", sub1("ide", "   if not(os.on) then return\n   os.keep.i = i", "   os.keep.i = i"))
 mut("Import takes the file from disk even when a tab holds it", "O18", sub1("ide", "      if tf.p then\n         im.k = 't' : bu<tf.p>", "      if 0 then\n         im.k = 't' : bu<tf.p>"))
 mut("Import of the tab in the editor takes the stored text, not the live one", "O18", sub1("ide", "         if tf.p = cb then im.x = ed.t ", "         if 0 then im.x = ed.t "))
 mut("compile goes on with a tab the save made an operating system file", "O22", sub1("ide", "gosub path.not.for                ;* 30 Oct 26 (E2): the save of an untitled buffer", "pa.no = @false                    ;* 30 Oct 26 (E2): the save of an untitled buffer"))
@@ -602,13 +621,24 @@ mut("the gate answer is always the OS gate", "O7", sub1("ide", "         if kern
 mut("the edit gate is asked of another name", "O7", sub1("ide", "if kernel(K$EDIT.OS.OK, cr.path) then", "if kernel(K$EDIT.OS.OK, '') then"))
 mut("the edit gate is never the OS gate's words", "O7", sub1("ide", "            msg = sysmsg(11180, @who)\n         end else", "            msg = sysmsg(11763, cr.path, 3035)\n         end else"))
 mut("a locked file says the old words", "O7", sub1("ide", "rf.text = sysmsg(11997, cr.path)", "rf.text = sysmsg(11731, cr.path)"))
-mut("a locked file is not boxed", "O7", sub1("ide", "         rf.text = sysmsg(11997, cr.path)                       ;* 30 Oct 26 (S.88 A3): and says that an empty file may be there\n         msg = rf.text\n         gosub refuse.box", "         msg = sysmsg(11997, cr.path)"))
+mut("a locked file is not boxed", "O7", sub1("ide", "         rf.text = sysmsg(11997, cr.path)                       ;* 30 Oct 26 (S.88 A3); since 02 Nov 26 the kernel makes nothing when the name is locked\n         msg = rf.text\n         gosub refuse.box", "         msg = sysmsg(11997, cr.path)"))
 mut("an error that may have left a file is not boxed", "O7", sub1("ide", "         rf.text = sysmsg(11996, cr.path, cr.info<6>)           ;* 30 Oct 26 (S.88 A3): an ON ERROR ended the create; the file may have been made\n         msg = rf.text\n         gosub refuse.box", "         msg = sysmsg(11996, cr.path, cr.info<6>)"))
 mut("a taken name is not boxed", "O7", sub1("ide", "         rf.text = sysmsg(11762, cr.path)                       ;* 30 Oct 26 (S.88 9g): in a box, the status line cut it\n         msg = rf.text\n         gosub refuse.box", "         msg = sysmsg(11762, cr.path)"))
 mut("the cantmade case is gone", "O7", sub1("ide", "      case cr.why = 'cantmade'\n", "      case cr.why = 'cantmaid'\n"))
 mut("11996 wants a third argument", "O19", setmsg(11996, "%1 may have been made (error %2, %3)\n"))
 mut("11997 has two lines", "O19", setmsg(11997, "%1 is locked\nand more\n"))
 mut("11996 is not cited", "O19", sub1("ide", "sysmsg(11996, cr.path, cr.info<6>)", "sysmsg(11764, cr.path, cr.info<6>)"))
+M_A35B = len(M)                     # the first mutant of 02 Nov 26 (S.88 A3 in the kernel, A5 for DIR()): --selftest --from=N with this N runs only these
+mut("the create is made before the lock again", "O1e", sub1("seqio", "      create_after_lock = TRUE;\n", "      fu = dio_open(fullpathname, (op_flags & 0x800) ? DIO_OVERWRITE : DIO_NEW);\n"))
+mut("the deferred create is never made", "O1e", sub1("seqio", "  if (create_after_lock) {\n", "  if (0) {\n"))
+mut("the lock-conflict branch leaves the closed handle valid", "O1e", sub1("seqio", "        fu = INVALID_FILE_HANDLE; /* 02 Nov 26", "        /* 02 Nov 26"))
+mut("a failed deferred create does not reach the exit", "O1e", sub1("seqio", "      process.status = (!(op_flags & 0x800) && errno == EEXIST) ? ER_EXISTS : ER_FNF;\n      goto exit_op_openseq;\n    }\n  }\n", "      process.status = (!(op_flags & 0x800) && errno == EEXIST) ? ER_EXISTS : ER_FNF;\n    }\n  }\n"))
+mut("the helper does not keep the OS error of a refused DIR()", "O16b", sub1("osf", "         info<7> = ld.oserr", "         null"))
+mut("the OS error is read after another statement", "O16b", sub1("osf", "   ld.st = status()\n   ld.oserr = os.error()\n", "   ld.oserr = os.error()\n   ld.st = status()\n"))
+mut("an unreadable directory says no OS access", "O16b", sub1("ide", "            if kernel(K$PATH.OK, os.dir) then\n", "            if 0 then\n"))
+mut("the OS gate says the unreadable words", "O16b", sub1("ide", "               msg = sysmsg(11180, @who)\n            end\n         case os.lw = 'none'", "               msg = sysmsg(11599, os.dir, os.li<7>)\n            end\n         case os.lw = 'none'"))
+mut("11599 wants a third argument", "O19", setmsg(11599, "%1 could not be listed (%2, %3)\n"))
+mut("11599 is not cited", "O19", sub1("ide", "sysmsg(11599, os.dir, os.li<7>)", "sysmsg(11747, os.dir, os.li<7>)"))
 
 
 def report(rows):

@@ -168,6 +168,9 @@
 *   administrator (no code enrolled; or a local login while the scope is remote; or the PAM module's marker for this boot and session,
 *   naming this loginuid).  Must match gplsrc/keys.h.
       $define K$LOGIN.MARK     171      ;* The authenticator code allows this login?
+* 02 Nov 26 dm - S.102 stage 3.  kernel(K$JOB.MARK, 0) answers the name of the scheduled administrator job this process is (systemd's
+*   cgroup, a root-owned definition whose command is this session's own command line), or ''.  Must match gplsrc/keys.h.
+      $define K$JOB.MARK       172      ;* The scheduled job this session is, or ''
 * 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
 *   NOT the same as K$USERNAME, which answers whoever the process is running
 *   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no

@@ -1130,7 +1130,8 @@ def envtrust_rows(helper=None):
             rows.append((f"{'REFUSE' if want else 'ALLOW'}: trust_fixtures({dry}, {euid}) - {why} - says {'no' if want else 'yes'}", p.returncode == want, f"exit {p.returncode}"))
         # ---- main: the block, in its place
         block = ('if trust_fixtures "$DRY" "${EUID:-$(id -u)}"; then\n  [[ -z ${SD_PATH_PREPEND:-} ]] || PATH=$SD_PATH_PREPEND:$PATH\nelse\n'
-                 '  SD_ACCT_ROOT=$SD_ACCT_ROOT_REAL\n  SD_ACCARCHIVE=$SD_ACCARCHIVE_REAL\n  SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL\n  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\nfi\n')       # 2 Nov 26: + SD_JOBS_DIR (S.102 stage 2)
+                 '  SD_ACCT_ROOT=$SD_ACCT_ROOT_REAL\n  SD_ACCARCHIVE=$SD_ACCARCHIVE_REAL\n  SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL\n  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\n'
+                 '  SD_UNIT_DIR=$SD_UNIT_DIR_REAL\nfi\n')       # 2 Nov 26: + SD_JOBS_DIR (S.102 stage 2), + SD_UNIT_DIR (stage 3)
         dryword = src.find("if [[ ${1:-} == --dry-run ]]; then DRY=1; shift; fi")
         rows.append(("TEXT: main reads SD_PATH_PREPEND only where trust_fixtures says yes, and puts the real accounts root and the real archiver back where it says no - right after the dry-run word and before the verb",
                      block in src and 0 < dryword < src.find(block) < src.find("\nverb=${1:-}"), ""))
@@ -1176,8 +1177,9 @@ ENVTRUST_MUTANTS = [
     ("envtrust: trust_fixtures always says yes", "  [[ $1 -eq 1 || $2 -ne 0 ]]\n", "  true\n"),
     ("envtrust: trust_fixtures wants a dry run AND a non-root process", "  [[ $1 -eq 1 || $2 -ne 0 ]]\n", "  [[ $1 -eq 1 && $2 -ne 0 ]]\n"),
     ("envtrust: a real run as root still reads SD_ACCARCHIVE", "  SD_ACCARCHIVE=$SD_ACCARCHIVE_REAL\n", ""),
-    ("envtrust: a real run as root still reads SD_SOCKET_UNIT (remote-api reads its ListenStream as root)", "  SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL\n  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\nfi\n", "  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\nfi\n"),
-    ("envtrust: a real run as root still reads SD_JOBS_DIR (the jobs' definitions are written as root; S.102 stage 2)", "  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\nfi\n", "fi\n"),
+    ("envtrust: a real run as root still reads SD_SOCKET_UNIT (remote-api reads its ListenStream as root)", "  SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL\n  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\n", "  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\n"),
+    ("envtrust: a real run as root still reads SD_JOBS_DIR (the jobs' definitions are written as root; S.102 stage 2)", "  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\n  SD_UNIT_DIR", "  SD_UNIT_DIR"),
+    ("envtrust: a real run as root still reads SD_UNIT_DIR (the jobs' units are written as root; S.102 stage 3)", "  SD_UNIT_DIR=$SD_UNIT_DIR_REAL\nfi\n", "fi\n"),
     ("envtrust: a real run as root still reads SD_ACCT_ROOT", "  SD_ACCT_ROOT=$SD_ACCT_ROOT_REAL\n", ""),
     ("envtrust: SD_PATH_PREPEND is read whatever trust_fixtures says", _TB.split("else\n")[0],
      '[[ -z ${SD_PATH_PREPEND:-} ]] || PATH=$SD_PATH_PREPEND:$PATH\nif trust_fixtures "$DRY" "${EUID:-$(id -u)}"; then\n  :\n'),
@@ -1367,6 +1369,64 @@ def login_rows(helper=None):
     rows.append(("ALLOW: root through sudo, whatever login it carries, is not asked", accepted(code, out), detail(code, out)))
     code, out = go(dict(caller))
     rows.append(("ALLOW: a dry run with no login named asks nobody (the control for every older row of this file)", accepted(code, out), detail(code, out)))
+    # ---- S.102 stage 3 (2 Nov 26): a scheduled job - no login at all, systemd's cgroup of sdcore-job-<name>.service, a definition only root writes
+    jt = tempfile.mkdtemp(prefix="sdelev-job-")
+    try:
+        etc = os.path.join(jt, "etc")
+        jd = os.path.join(etc, "jobs.d")
+        os.makedirs(jd)
+        os.chmod(etc, 0o755)
+        os.chmod(jd, 0o755)
+        dfile = os.path.join(jd, "nightly")
+
+        def put_def(text="name=nightly\ncommand=check.masters\n", mode=0o644):
+            if os.path.islink(dfile) or os.path.exists(dfile):
+                os.remove(dfile)
+            with open(dfile, "w", encoding="utf-8") as f:
+                f.write(text)
+            os.chmod(dfile, mode)
+
+        cgf = os.path.join(jt, "cgroup")
+
+        def job(cg, lu="4294967295"):
+            with open(cgf, "w", encoding="utf-8") as f:
+                f.write(cg)
+            return dict(caller, SD_LOGINUID_FIXTURE=lu, SD_CGROUP_FIXTURE=cgf, SD_JOBS_FIXTURE_DIR=jd)
+
+        unit = "0::/system.slice/sdcore-job-nightly.service\n"
+        put_def()
+        code, out = go(job(unit))
+        rows.append(("ALLOW (S.102): no login at all, in the cgroup of sdcore-job-nightly.service, with a root-only definition of that name: a scheduled job, admitted", accepted(code, out), detail(code, out)))
+        for cg, why in (("0::/system.slice/sdcore-job-other.service\n", "another job's unit, with no definition"),
+                        ("0::/user.slice/user-979.slice/user@979.service/app.slice/sdcore-job-nightly.service\n", "sdsys's OWN user manager (a user timer it made itself)"),
+                        ("0::/user.slice/user-1000.slice/session-3.scope\n", "a login session's scope"),
+                        ("0::/system.slice/sdcore-job-nightly.service\n1:name=systemd:/\n", "two lines (a hybrid cgroup layout)"),
+                        ("0::/system.slice/sdcore-job-Nightly.service\n", "a unit name that is not a job name"),
+                        ("0::/system.slice/cron.service\n", "the system's cron")):
+            code, out = go(job(cg))
+            rows.append((f"REFUSE (S.102): no login, and the cgroup is {why}: refused for the login", refused(code, out), detail(code, out)))
+        code, out = go(job(unit, lu="1000"))
+        rows.append(("REFUSE (S.102): the job's cgroup does not excuse a BORROWED login (uid 1000): only a process with no login at all is asked about jobs", refused(code, out), detail(code, out)))
+        for text, mode, why in (("name=nightly\ncommand=check.masters\n", 0o664, "writable by its group"), ("name=other\ncommand=check.masters\n", 0o644, "naming another job")):
+            put_def(text, mode)
+            code, out = go(job(unit))
+            rows.append((f"REFUSE (S.102): the definition is {why}: refused", refused(code, out), detail(code, out)))
+        put_def()
+        os.chmod(jd, 0o775)
+        code, out = go(job(unit))
+        rows.append(("REFUSE (S.102): the definitions' directory is writable by its group: refused", refused(code, out), detail(code, out)))
+        os.chmod(jd, 0o755)
+        real = os.path.join(jt, "elsewhere")
+        put_def()
+        os.rename(dfile, real)
+        os.symlink(real, dfile)
+        code, out = go(job(unit))
+        rows.append(("REFUSE (S.102): the definition is a LINK to a right-looking file: refused", refused(code, out), detail(code, out)))
+        os.remove(dfile)
+        code, out = go(job(unit))
+        rows.append(("REFUSE (S.102): no definition at all for the unit's name: refused", refused(code, out), detail(code, out)))
+    finally:
+        shutil.rmtree(jt, ignore_errors=True)
     # ---- before any verb looks at its arguments
     code, out = go(login(1000), ["nosuchverb"])
     rows.append(("REFUSE: the gate comes before the verb is known: a verb that does not exist is refused for the login, not as an unknown verb", refused(code, out), detail(code, out)))
@@ -1546,6 +1606,12 @@ LOGIN_MUTANTS = [
     ("login: a real run reads the login from the environment", '    lu=$(cat /proc/self/loginuid 2>/dev/null) || lu=\n', '    lu=${SD_LOGINUID_FIXTURE:-}\n'),
     ("login: a refusal is not logged", '  [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller is sdsys but the login behind it is uid ${lu:-unknown}, not sdsys\'s" 2>/dev/null || true\n', ''),
     ("login: a dry run logs its refusal too", '  [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller is sdsys', '  logger -t sd-elevate "refused: the caller is sdsys'),
+    # S.102 stage 3 (2 Nov 26)
+    ("login: a job's cgroup excuses any login", '  if [[ $lu == 4294967295 ]] && sdsys_job_gate; then', '  if sdsys_job_gate; then'),
+    ("job: any system unit is a job", r'[[ $cg =~ ^0::/system\.slice/sdcore-job-([a-z]([a-z0-9-]{0,30}[a-z0-9])?)\.service$ ]] || return 1', r'[[ $cg =~ ^0::/.*/(sdcore-job-)?([a-z][a-z0-9-]*)\.(service|scope)$ ]] || return 1'),
+    ("job: the definition is not checked", '  mark_safe_dir "${jdir%/*}" && mark_safe_dir "$jdir" && mark_safe_file "$def" || return 1\n', ''),
+    ("job: the directory's mode is not checked", '  (( (8#$m & 8#022) == 0 ))\n}\n\nmark_safe_file()', '  true\n}\n\nmark_safe_file()'),
+    ("job: the definition may name another job", '  grep -qx "name=$n" -- "$def" || return 1\n', ''),
 ]
 
 

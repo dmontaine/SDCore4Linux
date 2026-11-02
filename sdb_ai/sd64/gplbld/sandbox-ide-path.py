@@ -18,6 +18,8 @@
 #               the number of Down presses to a menu entry (File: Save as 3, Write a copy 4; Search: Import 7, Export 8, as sandbox-ide-edit.py), the words of a message on the
 #               status line, whether the focus is in the editor after a form closes, the cursor row the tree helper reads, and a tab's label for a path (`os name`, as O1).
 #               The kernel's half of the exclusive create is sandbox-oq2.py rows 485b-d; the free check is test-idepath-units.py.
+# 02 Nov 26 dm  S.88 A3 and A5 (the second Opus review of E2): rows X5-X5e (New onto a name another session holds locked makes NOTHING; a background holder, zzphd, keeps
+#               the lock for 30 s and the file-lock probe shows it first) and T4d (a directory of mode 000 says 11599, not 'has no OS access').  S1 compiles six programs.
 # END-HISTORY
 #
 # WHAT RUNS.  The IDE on a PSEUDO-TERMINAL at 140 by 43 (sandbox-ide.py's Ide) in the sandbox user's own account, opening FILES OF THE OPERATING SYSTEM (`ide path:/full/name`)
@@ -502,6 +504,23 @@ MKP = """   id = field(@sentence, ' ', 4)
    crt 'PMK MADE'
 end
 """
+# 02 Nov 26 (S.88 A3): another session HOLDS the SD lock of a name that does not exist (an OPENSEQ that takes its ELSE keeps the lock) for 30 seconds, then lets it go
+HOLDP = """   id = field(@sentence, ' ', 4)
+   openseq id to f locked
+      crt 'PHOLD LOCKED'
+      stop
+   end then
+      crt 'PHOLD THERE'
+      stop
+   end else
+      null
+   end
+   crt 'PHOLD HELD'
+   sleep 30
+   close f
+   crt 'PHOLD DONE'
+end
+"""
 WANT_RECS = {"rec1": "[alpha^beta^gamma]", "rec2": "[two-a^two-b]", "rec3": "[three-a^three-b]", "rec4": "[four-a^four-b]", "rec5": "[five-a^five-b]", "rec6": "[six-a^six-b]",
              "recmark": "[Don|Henry^x]"}
 
@@ -712,10 +731,10 @@ def section_scratch():
     need("S1 control: the tree fixture holds what the T rows expect (d1, d2, a name with a control character, f1 to f3, a FIFO and a socket) - on the disk",
          names == sorted(["d1", "d2", "dctl\x01x", "f1.txt", "f2.txt", "f3.txt", "pfifo", "psock"]) and stat.S_ISFIFO(os.lstat(scr("t", "pfifo")).st_mode)
          and stat.S_ISSOCK(os.lstat(scr("t", "psock")).st_mode), repr(names))
-    for n, t in (("zzppf", FIX), ("zzppr", PROBE), ("zzplk", LOCKP), ("zzpos", OSP), ("zzpmk", MKP)):
+    for n, t in (("zzppf", FIX), ("zzppr", PROBE), ("zzplk", LOCKP), ("zzpos", OSP), ("zzpmk", MKP), ("zzphd", HOLDP)):
         put_prog(n + RUN, t)
-    o = sb.sess(BOX, "BASIC bp zzppf%s zzppr%s zzplk%s zzpos%s zzpmk%s" % ((RUN,) * 5), "RUN bp zzppf" + RUN)
-    need("S1 setup: the fixture and the four probes compile and the fixture ran to its end", re.search(r"(?m)^Compiled 5 program\(s\) with no errors", o) is not None and "PFIX done" in o, o[-600:])
+    o = sb.sess(BOX, "BASIC bp zzppf%s zzppr%s zzplk%s zzpos%s zzpmk%s zzphd%s" % ((RUN,) * 6), "RUN bp zzppf" + RUN)
+    need("S1 setup: the fixture and the five probes compile and the fixture ran to its end", re.search(r"(?m)^Compiled 6 program\(s\) with no errors", o) is not None and "PFIX done" in o, o[-600:])
     d = recs()
     need("S1 control: the record probe reads every record as the fixture wrote it", d == WANT_RECS, repr(d))
     need("S1 control: the lock probe GETS a record nobody holds (so LOCKED below is a lock, not a broken probe)", rec_lock("rec1") == "GOT", repr(rec_lock("rec1")))
@@ -1002,6 +1021,38 @@ def section_excl():
     row("X3c CONTROL: Ctrl-S again and a free name: the file holds scrap and a final line end", rd(p) == b"scrap\n", repr(rd(p)))
     done(e)
     row("X4 the record on the disk is as it was after every refusal", recs() == before, "")
+    # 02 Nov 26 (S.88 A3): New onto a name ANOTHER session holds locked.  The kernel made the file before it asked for the lock, so an empty file was left behind and the IDE
+    #   had to say so; now nothing is made.  The disk is the evidence; the holder's lock is shown first by the file-lock probe (the control).
+    hp = scr("held-new.txt")
+    hold = subprocess.Popen([sys.executable, sb.TOOL, BOX, "sess", os.path.join(BOX, "user_accounts"), "RUN bp zzphd%s %s" % (RUN, hp)],
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
+    say("    > [holder, in the background] RUN bp zzphd%s %s (holds the name's lock for 30 s)" % (RUN, hp))
+    held, end = "NO ANSWER", time.time() + 15
+    while time.time() < end and held != "LOCKED":
+        time.sleep(1.0)
+        held = os_lock(hp)
+    row("X5 CONTROL: another session holds the lock of %s, which does not exist (the file-lock probe is told LOCKED)" % os.path.basename(hp), held == "LOCKED" and not os.path.lexists(hp),
+        repr(held))
+    if held == "LOCKED":
+        e = sb.Ide(BOX, "IDE")
+        e.quiet()
+        do_new(e, hp)
+        hit, st = says(e, "nothing was made")
+        row("X5b New onto the held name is refused in words that say nothing was made (11997)", hit, repr(st[:160]))
+        row("X5c ...and NOTHING is on the disk at that name (it was an empty file before 2 Nov 26) and no operating system tab was made",
+            not os.path.lexists(hp) and "os held-new.txt" not in tab_row(e), "%r | %r" % (full_ident(hp), tab_row(e)[:100]))
+        done(e)
+    try:
+        ho, _ = hold.communicate(timeout=90)
+    except subprocess.TimeoutExpired:
+        hold.kill()
+        ho, _ = hold.communicate()
+    row("X5d CONTROL: the holder held the name to its end (PHOLD HELD, PHOLD DONE) and did not make the file", "PHOLD HELD" in ho and "PHOLD DONE" in ho and not os.path.lexists(hp), ho[-300:])
+    e = sb.Ide(BOX, "IDE")
+    e.quiet()
+    do_new(e, hp)
+    row("X5e CONTROL: once the holder has gone, New onto the same name makes the empty file", rd(hp) == b"" and "os held-new.txt" in tab_row(e), "%r | %r" % (full_ident(hp), tab_row(e)[:100]))
+    done(e)
 
 
 # ---- T ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1060,6 +1111,20 @@ def section_tree():
     e.keys(RET)
     e.quiet()
     row("T4c Return on t/ again lists it afresh: f4.txt (made meanwhile) is there, and d1/ is closed again (inner.txt is not)", tree_goto(e, "f4.txt") and tree_row_of(e, "inner.txt") is None, "\n".join(tree_lines(e)))
+    # 02 Nov 26 (S.88 A5): a directory the operating system will not open for this user.  DIR() says ER.PERM for it as for the OS gate, and the IDE said "has no OS access" - to the
+    #   administrator.  Mode 000 on d2 (empty), put back at once whatever happens.
+    d2 = scr("t", "d2")
+    os.chmod(d2, 0)
+    try:
+        unreadable = not os.access(d2, os.R_OK)
+        tree_goto(e, "d2/")
+        e.keys(RET)
+        e.quiet()
+        hit, st = says(e, "could not be listed: the operating system")
+    finally:
+        os.chmod(d2, 0o755)
+    row("T4d Return on a directory this user cannot read (mode 000) says the operating system will not let the session read it (11599), not 'has no OS access'",
+        unreadable and hit and "has no OS access" not in st, repr((unreadable, st[:160])))
     # a file node opens a tab
     before = rd(scr("t", "f1.txt"))
     tree_goto(e, "f1.txt")

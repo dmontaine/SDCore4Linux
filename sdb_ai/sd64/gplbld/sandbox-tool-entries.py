@@ -3,7 +3,7 @@
 # sandbox-tool-entries.py - the master files page (S.96 M1a-M2): TOOL.ENTRIES, the VOC entries, dictionary items and programs of every account by pointer, read only until E10 (E and N edit
 # the record in its own account).  A private SD, no install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-entries.py <dir> [--build] [--only=read|edit|delete] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-entries.py <dir> [--build] [--only=read,edit,delete,programs,debug] [--mutant=NAME]
 #
 # --only (the owner's rule of 3 Nov 26: anything over five minutes has a section selector): `read` is E0-E9 (one chain on one page), `edit` is E10 (a page of its own; it changes the
 # fixture accounts' files, so it runs after `read` when both run), `delete` is E11 (a page of its own, its own records, after `edit`).  The build and the fixtures always run.  A mutant runs only its own group.
@@ -40,9 +40,12 @@
 #        SDSYS; ze1's private catalogue), F5 and F7 refused; N makes a program; the pointer rule: ze2's zpother through ze1's ze2.bp refused for E and C, a record that is a LINK
 #        to ze2's file refused, a LINK that leads nowhere refused for N (the kernel's resolve_name, 2 Nov 26: red on the tree before, the IDE opened it as a new record), and nothing of ze2 changed; the audit lines.  The disk is the oracle (a program is a file).
 #        Mutants: ide-compiles-here, no-record-test.  setup_page copies and compiles the tree's ide too.
+#        M6a (2 Nov 26): D on a program deletes it AND its compiled program in ze1's bp.out after its id is typed, its private catalogue entry LEFT (E12m, E12s); a program file of
+#        ze1 whose .out file beside it is a LINK to ze2's bp.out is refused with no box (E12q: the pointer rule for the object), ze2's program through ze2.bp too (E12r).
 #   E13  (M5, S.96; --only=debug) B on a program gives the terminal to the debugger IN ze1 through run.in (its key row, stopped at the first statement, the object compiled in ze1's
 #        bp.out and none in SDSYS's), Q and the pause bring the page back; the IDE's F7 on a tab the page opened does the same and the IDE comes back; run.in's audit lines
-#        and 'master debug'.  NOT HELD: the editor's breakpoints handed to a debugger run through run.in (the harness has no Shift-F7 for the console terminal type).
+#        and 'master debug'.  E13e (M6a): the editor's breakpoints handed to the debugger run through run.in - a CLICK in the IDE's gutter marks a line (the harness has no
+#        Shift-F7 for the console terminal type), F7 stops ON it in ze1, and the mark comes back.
 #        Mutants: page-debug-here, ide-debug-here.
 # NOT HELD: SDSYS in the group (a sandbox has no sdsys user: the column can only say no or n/a here), the help text itself (sandbox-docs.py).
 import importlib.util
@@ -987,9 +990,7 @@ def section_e11():
     arow("E11f", "D on ze2's item zqother reached through ze1's pointers is refused with no box, each for its reason: zeesc and zelnk lie outside ze1, zesub opens a file outside the account",
          "zeesc lies outside ze1" in said[0][0] and "zelnk lies outside ze1" in said[1][0] and "opens a file outside the account" in said[2][0] and not any(b for _, b, _ in said)
          and [c for _, _, c in said] == ["zeesc", "zelnk", "zesub"], repr(said))
-    p.key("k", 1.2)
-    p.h.typed("d", idle=1.0)
-    arow("E11g", "D on the programs says they are not deleted from this page yet (M4)", "not deleted from this page yet" in norm(p.st()), repr(p.st()))
+    p.key("k", 1.2)                                    # to the programs (E11g, "programs are not deleted yet", went with M6a: D of a program is E12m-E12s)
 
     say("  an account with every edit gate off")
     p.key("k", 1.2)                                    # round to the VOC
@@ -1034,6 +1035,46 @@ def zw_fixture():
     os.symlink(os.path.join(bp2, "zwnowhere"), os.path.join(bp1, "zwdang"))
     if os.path.lexists(os.path.join(bp2, "zwnowhere")):
         os.remove(os.path.join(bp2, "zwnowhere"))
+    # M6a: zwdel, compiled and catalogued IN ze1 by an administrator session (its object in ze1's bp.out, a private catalogue entry), for D; and zeob.bp, a program file of ze1
+    # whose .out file BESIDE it is a LINK to ze2's bp.out, holding zwob, whose object of the same name is planted in ze2's bp.out (the pointer rule for the compiled program)
+    g.put(os.path.join(bp1, "zwdel"), "program zwdel\n   crt 'ZW del'\nend\n")
+    cat1 = os.path.join(apath("ze1"), "cat")
+    if os.path.isdir(cat1):
+        for f in os.listdir(cat1):
+            if f.lower().startswith("zwdel"):
+                os.remove(os.path.join(cat1, f))
+    out = g.adm(["LOGTO ze1", "BASIC bp zwdel", "CATALOG bp zwdel"])
+    if not has(out, r"^Compiled 1 program\(s\) with no errors"):
+        bail("zwdel was not compiled in ze1:\n" + "\n".join(out[-6:]))
+    zeob = os.path.join(apath("ze1"), "zeob.bp")
+    os.makedirs(zeob, exist_ok=True)
+    g.put(os.path.join(zeob, "zwob"), "program zwob\n   crt 'ZW ob'\nend\n")
+    if os.path.lexists(zeob + ".out"):
+        os.remove(zeob + ".out")
+    os.symlink(os.path.join(apath("ze2"), "bp.out"), zeob + ".out")
+    g.put(os.path.join(apath("ze2"), "bp.out", "zwob"), "PLANTED: not an object, and not ze1's to delete\n")
+    voc_write("zzeob", [("ze1", "zeob.bp", ["F", "zeob.bp"])])
+
+
+def zw_unfixture():
+    """What zw_fixture made for M6a and the read section must not meet on a reused sandbox: zeob.bp, its link, its VOC entry, ze2's planted zwob, zwdel's catalogue entry."""
+    zeob = os.path.join(apath("ze1"), "zeob.bp")
+    for p_ in (zeob + ".out", os.path.join(zeob, "zwob"), os.path.join(apath("ze2"), "bp.out", "zwob")):
+        if os.path.lexists(p_):
+            os.remove(p_)
+    if os.path.isdir(zeob) and not os.path.islink(zeob):
+        import shutil
+        shutil.rmtree(zeob)
+    cat1 = os.path.join(apath("ze1"), "cat")
+    if os.path.isdir(cat1):
+        for f in os.listdir(cat1):
+            if f.lower().startswith("zwdel"):
+                os.remove(os.path.join(cat1, f))
+    g.put(os.path.join(sh.SYS, "bp", "zzeobx"), "\n".join(["$internal", "   openpath '%s/voc' to v else crt 'OBX no voc' ; stop" % apath("ze1"),
+                                                           "   delete v, 'zeob.bp'", "   crt 'OBX done'", "end", ""]))
+    out = g.adm(["BASIC bp zzeobx", "RUN bp zzeobx"], internal=True)
+    if not has(out, r"^OBX done$"):
+        bail("ze1's zeob.bp VOC entry was not taken away:\n" + "\n".join(out[-6:]))
 
 
 def zw_read(acct, *parts):
@@ -1170,9 +1211,47 @@ def section_e12():
     arow("E12l", "N with the id zwdang, a LINK in ze1's bp that leads to a name in ze2's bp that does not exist, is refused by the kernel's test of the program's own file "
          "('opens a file outside the account': op_sh.c's resolve_name no longer takes such a link for a new name), no editor",
          "opens a file outside the account" in st_d and not up_d, repr((st_d, up_d)))
-    p.h.typed("d", idle=1.0)
-    arow("E12m", "D on a program says the programs are not deleted from this page yet", "not deleted from this page yet" in norm(p.st()), repr(p.st()))
+
+    say("  D on a program (M6a): with its compiled program; the pointer rule for the .out file")
+    del_src0 = zw_read("ze1", "bp", "zwdel")
+    del_obj0 = os.path.exists(os.path.join(obj1, "zwdel"))
+    del_cat0 = in_cat(os.path.join(apath("ze1"), "cat"), "zwdel")
+    p.key("/", 1.0)
+    p.h.typed("zwdel\r", idle=1.5)
+    box = d_and_confirm(p, "zwdel")
+    st_del = norm(p.st())
+    arow("E12m", "D on zwdel (built and catalogued in ze1): the box names the program in ze1's bp and its compiled program, and says a catalogue entry is left; Run with the id typed "
+         "deletes both: the status line says so", "delete zwdel from the program file bp of ze1" in box and "compiled program zwdel" in box and "catalogue entry" in box
+         and "deleted zwdel from the program file bp of ze1 and its compiled program" in st_del, repr((box[box.find("delete zwdel"):][:500], st_del)))
+    p.key("/", 1.0)
+    p.h.typed("zwob\r", idle=1.5)
+    rows_ob = p.text()
+    p.h.typed("d", idle=2.0)
+    T = p.text()
+    st_ob = norm(p.st())
+    boxed_ob = "Delete this record?" in T
+    if boxed_ob:
+        p.key("esc", 1.5)                              # a page that offers the box anyway: cancelled, so the row fails on what it showed and not on a delete
+    arow("E12q", "D on zwob of ze1's own zeob.bp, whose .out file BESIDE it is a LINK to ze2's bp.out, is refused with no box: the compiled programs 'lie outside ze1' (the pointer rule "
+         "for the object; the program file itself is ze1's and not marked >)", re.search(r"zeob\.bp zwob ", rows_ob) is not None and "lie outside ze1" in st_ob and not boxed_ob,
+         repr((st_ob, boxed_ob, rows_ob[:400])))
+    p.key("/", 1.0)
+    p.h.typed("zpother\r", idle=1.5)
+    p.h.typed("d", idle=2.0)
+    T = p.text()
+    st_po = norm(p.st())
+    boxed_po = "Delete this record?" in T
+    if boxed_po:
+        p.key("esc", 1.5)
+    arow("E12r", "D on ze2's zpother through ze1's pointer ze2.bp (marked >) is refused with no box: the program file 'lies outside ze1'", "lies outside ze1" in st_po and not boxed_po,
+         repr((st_po, boxed_po)))
     p.quit()
+    arow("E12s", "the disk: zwdel's source and its object in ze1's bp.out are gone (both there before), its private catalogue entry is LEFT (the account's); zwob's source in ze1 and the "
+         "file of that name in ze2's bp.out are as they were",
+         del_src0 is not None and del_obj0 and zw_read("ze1", "bp", "zwdel") is None and not os.path.exists(os.path.join(obj1, "zwdel"))
+         and del_cat0 and in_cat(os.path.join(apath("ze1"), "cat"), "zwdel")
+         and zw_read("ze1", "zeob.bp", "zwob") is not None and (zw_read("ze2", "bp.out", "zwob") or "").startswith("PLANTED"),
+         repr((del_src0 is not None, del_obj0, del_cat0, zw_read("ze1", "bp", "zwdel"), os.path.exists(os.path.join(obj1, "zwdel")), in_cat(os.path.join(apath("ze1"), "cat"), "zwdel"))))
 
     say("  the disk and the audit trail at the end")
     arow("E12n", "nothing of ze2 changed: zpother's source and object are as they were, and nothing was made at the end of zwdang's link",
@@ -1181,13 +1260,15 @@ def section_e12():
     arow("E12o", "SDSYS's VOC holds none of the page's pointers at the end", sys_zm() == zm0, repr((zm0, sys_zm())))
     lines = [ln for ln in audit_new(a0).splitlines() if "master " in ln]
     want = ["master compile account=ze1 file=bp id=zwedit result=ok", "master compile account=ze1 file=bp id=zwbad result=failed",
-            "master edit account=ze1 kind=bp file=bp id=zwedit new=0", "master edit account=ze1 kind=bp file=bp id=zwnew new=1"]
+            "master edit account=ze1 kind=bp file=bp id=zwedit new=0", "master edit account=ze1 kind=bp file=bp id=zwnew new=1",
+            "master delete account=ze1 kind=bp file=bp id=zwdel object=deleted"]
     runin = [ln for ln in audit_new(a0).splitlines() if "run.in begin account=ze1" in ln]
-    arow("E12p", "the audit trail: one line each for the two compiles and the two edits, none for zpother, zwlink or zwdang, and run.in's own begin lines for the page's two "
-         "compiles and the IDE's F8 and F9 (at least four)", all(len([ln for ln in lines if w in ln]) == 1 for w in want) and len(lines) == 4 and len(runin) >= 4,
+    arow("E12p", "the audit trail: one line each for the two compiles, the two edits and zwdel's delete (object=deleted), none for zpother, zwob, zwlink or zwdang, and run.in's own begin lines for the page's two "
+         "compiles and the IDE's F8 and F9 (at least four)", all(len([ln for ln in lines if w in ln]) == 1 for w in want) and len(lines) == 5 and len(runin) >= 4,
          repr((lines[-6:], len(runin))))
     for nm in ("zwlink", "zwdang"):
         os.remove(os.path.join(apath("ze1"), "bp", nm))     # the read section lists ze1's programs: it must not meet them
+    zw_unfixture()
 
 
 DBG_KEYS = "F1 help  F2 abort  F3 stop  F4 screen  F5 run  F7 step  F8 line  ^F7 parent  ^F8 program"      # the debugger's key row (sandbox-idebrk.py)
@@ -1205,6 +1286,23 @@ def dbg_arrows(h):
         if m:
             out.append(int(m.group(1)))
     return out
+
+
+IDE_MARKCOL = 29                   # the IDE's gutter: its first cell is the breakpoint mark (sandbox-idebrk.py MARKCOL; the editor's border is column 28)
+
+
+def ide_marks(h, count):
+    """the lines 1..count the IDE's gutter marks with * (the editor shows line 1 on row 3)"""
+    L = h.lines()
+    return [n for n in range(1, count + 1) if len(L[2 + n]) > IDE_MARKCOL and L[2 + n][IDE_MARKCOL] == "*"]
+
+
+def dbg_mark(L, n):
+    """the debugger's mark of source line n (column 0 of its row in the source pane: > about to run, * a breakpoint), as sandbox-idebrk.py dmark"""
+    for ln in L[1:33]:
+        if re.match(r"^[ *>]\s*%d: " % n, ln[:91]):
+            return ln[0]
+    return None
 
 
 def section_e13():
@@ -1247,13 +1345,30 @@ def section_e13():
     back2 = wait_for(p.h, ide_up, 10)
     arow("E13c", "E opens zwdbg in the IDE; its F7 gives the terminal to the debugger IN ze1 (through run.in), stopped at line 2; Q, the IDE's pause, and the IDE is back",
          up and came2 and arr2 == [2] and paused2 and back2, repr((up, came2, arr2, paused2, back2)))
+
+    say("  the editor's breakpoints handed to the debugger run through run.in (M6a): a click in the gutter, F7")
+    p.h.click(IDE_MARKCOL, 3 + 4 - 1)                  # line 4, crt 'DBG two' (the editor shows line 1 on row 3)
+    m_before = ide_marks(p.h, 6)
+    p.h.typed(KEY_F7, idle=1.0)
+    came3 = wait_for(p.h, lambda t: in_debugger(p.h), 20)
+    L3 = p.h.lines()
+    star3, arr3 = dbg_mark(L3, 4), dbg_arrows(p.h)
+    p.h.typed("q\r", idle=2.0)
+    paused3 = wait_for(p.h, lambda t: "Press Return to go back to the IDE" in t, 10)
+    p.h.key("enter", idle=2.5)
+    back3 = wait_for(p.h, ide_up, 10)
+    m_after = ide_marks(p.h, 6)
+    arow("E13e", "a click in the IDE's gutter marks line 4 of zwdbg; F7 runs it IN ze1 through run.in and the debugger stops ON line 4 (marked *, no line marked >: it ran on from the "
+         "first statement, so it was handed the mark); Q, the pause, the IDE is back and line 4 is still marked (the debugger's list came back)",
+         m_before == [4] and came3 and star3 == "*" and arr3 == [] and paused3 and back3 and m_after == [4],
+         repr((m_before, came3, star3, arr3, paused3, back3, m_after, "\n".join(L3[:8]))))
     to_page(p)
     p.quit()
     lines = audit_new(a0).splitlines()
     begins = [ln for ln in lines if re.search(r"run\.in begin account=ze1 command=debug bp zwdbg\b", ln)]
     mdbg = [ln for ln in lines if "master debug account=ze1 file=bp id=zwdbg" in ln]
-    arow("E13d", "the audit trail: run.in began 'debug bp zwdbg' in ze1 twice (the page's B and the IDE's F7), the page wrote one 'master debug' line, and SDSYS's VOC holds none of "
-         "the page's pointers at the end", len(begins) == 2 and len(mdbg) == 1 and sys_zm() == zm0, repr((len(begins), mdbg, sys_zm())))
+    arow("E13d", "the audit trail: run.in began 'debug bp zwdbg' in ze1 three times (the page's B and the IDE's F7 twice), the page wrote one 'master debug' line, and SDSYS's VOC holds none of "
+         "the page's pointers at the end", len(begins) == 3 and len(mdbg) == 1 and sys_zm() == zm0, repr((len(begins), mdbg, sys_zm())))
 
 
 def section_e6(n1, n2):

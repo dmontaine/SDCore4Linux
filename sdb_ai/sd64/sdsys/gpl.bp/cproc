@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 2 Nov 26 dm  S.102 stage 3: a scheduled administrator job (kernel(K$JOB.MARK)) is granted the administrator in the local arm, before the login
+*              questions, and joins at elevation.done; audited 'elevation granted reason=scheduled job' (the kernel adds job=<name>).
 * 2 Nov 26 dm  S.101 stage B: both arms of the sdsys grant ask kernel(K$LOGIN.MARK) for a login that is sdsys's own - the authenticator code's marker,
 *              when a code is enrolled (everywhere for ssh; for a local login unless the scope is remote) - and refuse with 11190 without it.
 * 3 Nov 26 dm  S.96: RUN.IN (internal verb 42, SDSYS's VOC only), the administrator's account-scoped run of one command from a fixed list (basic, catalog, decatalog, delete.catalog, debug, compile.dict)
@@ -495,6 +497,16 @@ $ifndef IS_INSTALL
 *   downcase: kernel(K$USERNAME, 0) is the OS account, and the comparison must
 *   not depend on who typed what.
       if downcase(kernel(K$USERNAME, 0)) = 'sdsys' and env('SSH_CONNECTION') = '' and env('SSH_TTY') = '' then
+* 2 Nov 26 dm - S.102 stage 3: A SCHEDULED ADMINISTRATOR JOB has no login behind it (a systemd unit sets no login uid), so the questions below cannot
+*   be asked of it.  The kernel answers instead (K$JOB.MARK): this process is in the cgroup of the unit sdcore-job-<name>.service, which only root can
+*   start or put a process into, AND the root-owned definition /etc/sdcore/jobs.d/<name> names this session's own command line.  Anything else - sdsys's
+*   own crontab, at, su sdsys, a user timer - answers '' and meets the refusals below.  Every audit line of the run ends " job=<name>".
+         job.name = kernel(K$JOB.MARK, 0)
+         if job.name # '' then
+            void kernel(K$ADMINISTRATOR, 1)
+            void kernel(K$AUDIT, 'elevation granted reason=scheduled job')   ;* the kernel ends the line with job=<name>
+            goto elevation.done
+         end
 * 2 Nov 26 dm - S.101: a login that is sdsys's own must also have given the authenticator code when one is enrolled and its scope is
 *   everywhere (the PAM module's marker; the kernel judges it).  Asked only for a login that IS sdsys's, so su / sudo keep 10195.
          lm.ok = 1
@@ -573,6 +585,8 @@ $ifndef IS_INSTALL
             end
          end
       end
+* S.102 stage 3: a scheduled job's grant joins here.
+elevation.done:
 $endif
       
       i = '$LOGIN'

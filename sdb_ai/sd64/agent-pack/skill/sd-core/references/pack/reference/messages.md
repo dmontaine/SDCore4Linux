@@ -6192,6 +6192,15 @@ There is no second screen to show on this terminal: the program's own screen is 
 
 cited by: `debug`
 
+### msg:11599
+> kind=message tier=reference since=- src=sdsys/messages/11599:1#ed142ce6
+
+```
+The entries of %1 could not be listed: the operating system does not let this session read that directory (operating system error %2)
+```
+
+cited by: `ide`
+
 ### msg:11600
 > kind=message tier=reference since=- src=sdsys/messages/11600:1#64ada5ed
 
@@ -9647,10 +9656,10 @@ cited by: `ide`
 cited by: `ide`
 
 ### msg:11997
-> kind=message tier=reference since=- src=sdsys/messages/11997:1#33583ae2
+> kind=message tier=reference since=- src=sdsys/messages/11997:1#067a0232
 
 ```
-%1 is locked by another user, so nothing was written to it.  If this attempt made the file, an empty file of that name is there.  The text is still in the editor.
+%1 is locked by another user, so nothing was made or written.  The text is still in the editor.
 ```
 
 cited by: `ide`

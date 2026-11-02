@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Nov 26 dm  S.102 stage 3: audit_message() ends every record of a scheduled job's run with " job=<name>" (sd_job_active, set by K_JOB_MARK).
  * 27 Oct 26 dm  S.87 batch 16: k_unassigned_zero/_null, k_div_zero_warning and k_non_numeric_warning (messages 1109 to 1112) are gone with OPTION UNASS.WARNING,
  *               DIV.ZERO.WARNING and NON.NUMERIC.WARNING: an unassigned variable, a divide by zero and a non-numeric value are always errors.
  * 24 Oct 26 dm  W.11 F4, option C2: audit_rotate() calls audit_rotate_file() (audit_rot.c), which the audit daemon also uses to rotate by size; AUDIT_ROTATE_BYTES is in sddefs.h.
@@ -70,6 +71,7 @@
 #include "options.h"
 #include "tio.h"
 #include "sdtermlb.h"
+#include "sd_jobmark.h"
 
 #include <setjmp.h>
 #include <stdarg.h>
@@ -986,6 +988,7 @@ void audit_message(char* msg) {
   char* p;
   const char* sudo_user = NULL;
   char buff[AUDIT_BUFF_SIZE];
+  char jmsg[AUDIT_BUFF_SIZE];
 
   if (sysseg == NULL)
     return;
@@ -993,6 +996,13 @@ void audit_message(char* msg) {
   for (p = msg; *p != '\0'; p++) {
     if (((u_char)*p < 32) || ((u_char)*p == 127) || ((u_char)*p >= 248))
       *p = '?';
+  }
+
+  /* 02 Nov 26 dm - S.102 stage 3.  A scheduled job's run says so on EVERY line it writes, the daemon's copy and the journal's included (the
+     name came from K_JOB_MARK: lower case letters, digits and dashes only). */
+  if (sd_job_active[0] != '\0') {
+    snprintf(jmsg, sizeof(jmsg), "%s job=%s", msg, sd_job_active);
+    msg = jmsg;
   }
 
   if (getuid() == 0) {

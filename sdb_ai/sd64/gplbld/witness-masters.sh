@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 #
-# witness-masters.sh - what only a ROOT run on a real install (or the VM) shows about MASTER TO ACCOUNT (S.67 stage 2, D7; owner 17 Oct 2026, warned) AS CHANGED BY F6
-#                      (alternative C, 26 Oct 2026; the core direction: high security is delivered and the administrator loosens it later): the sdsys
-#                      operating-system user is in NO user account's group as delivered; `modify.account <name> sdsys-on` puts it there (and sdsys-off takes it
-#                      out); the modes of the VOC and dictionaries; an SDSYS edit reaching a user's VOC at once WHEN IT IS ON and refused (11976) when it is off;
-#                      the refusal when the SDSYS session is older than the membership; the installer's one-time ruling for the accounts that had it.
-#                      ***WRITTEN 26 Oct 26 AND NOT YET RUN.***  Its first run on the VM decides every expectation that says "first real run" below.
+# witness-masters.sh - what only a ROOT run on a real install (or the VM) shows about MASTER TO ACCOUNT (S.67 stage 2, D7; owner 17 Oct 2026, warned) AS CHANGED BY
+#                      S.103 (1 Nov 2026, the owner: "sdsys always read/write access to the /home/sd tree", which reversed the F6 ruling of 26 Oct): the sdsys
+#                      operating-system user is in EVERY user account's group as delivered - create.account puts it there (sd-elevate sdsys-join, message 11011) and
+#                      the installer's sdsys_groups_default puts it in the groups of the accounts already there, ONCE (marker /home/sd/$sdsys.access);
+#                      `modify.account <name> sdsys-off` is the administrator's way to tighten one account and sdsys-on the way back and the repair of the modes;
+#                      the modes of the VOC and dictionaries; an SDSYS edit reaching a new user's VOC at once with NO administrator act, and refused (11976) once
+#                      the account is switched off; the refusal when the SDSYS session is older than the membership; an sdsys-off that stands across an install.
+#                      ***F6 VERSION WRITTEN 26 Oct 26 AND RUN ON THE VM; REWORKED FOR S.103 ON 2 Nov 26 AND NOT YET RUN.***  Its first run on the VM decides every
+#                      expectation that says "first real run" below.  (Under F6 the account was OFF as delivered and the installer asked a question and ruled once;
+#                      the question and sdsys_groups_ruling are gone, and the rows that measured them now measure sdsys_groups_default.)
 #
 #   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-masters.sh               (a dry run: says what it would do, changes nothing)
 #   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-masters.sh --commit      (does it)
@@ -22,24 +26,27 @@
 #   2  group-write as root on a tree that holds what the unit test cannot make: a file owned by ANOTHER user, a file of another group, a link to a file
 #      and a link to a directory (/etc), a data file's directory.  Only the account's own are changed; /etc and /etc/hostname keep their modes; a second
 #      run changes nothing; an account whose directory belongs to another group (the shared account's shape) is refused; it too leaves a line in the log.
-#   3  CREATE.ACCOUNT USER <name> - SD's whole flow, and the DELIVERED SETTING: sdsys is NOT in the new group; an SDSYS save of a master record is REFUSED
-#      (11976) and the VOC is unchanged; a dictionary made under a closed umask is NOT given group bits (C2); CHECK.MASTERS counts the account as off and lists
-#      neither nonwritable nor norights for it.  Then `MODIFY.ACCOUNT <name> SDSYS-ON`: sdsys is in the group, the VOC is owner:group of the account with group
-#      rwx (setgid on the directory) and rw on its subfiles, an SDSYS session saves a master record (ED on voc_master) and an ordinary session of the user finds
-#      the record in its VOC AT ONCE; the audit lines (the edit and the modify.account) are in /usr/local/sdsys/audit; the file keeps its owner and group
-#      (written in place); a dictionary made under a closed umask now IS given its group bits.
-#   4  A SESSION OF SDSYS THAT BEGAN BEFORE THE MEMBERSHIP: a long-lived SDSYS session is started, a second account is made (off: the session's save is
-#      refused with 11976), then switched on by ANOTHER session; the first session's next save is REFUSED with the stale-session message (11586) and changes
-#      nothing; CHECK.MASTERS in it says norights stale-session; a NEW session saves.
-#   5  The administrator's act and the installer's ruling: the account's modes are broken and CHECK.MASTERS says nonwritable, with the hint (11982); a second
-#      SDSYS-ON repairs them and says so; the installer's own sdsys_groups_ruling (and its question), cut out of installsdcore.sh and run with the real sudo and
-#      the real sd-elevate on the throwaway groups only, takes the sdsys user out with the answer n, leaves it with y, writes its marker, and with the marker
-#      present does nothing, so a later SDSYS-ON stands; SDSYS-OFF takes it out again; a group account is refused (11979).  5.3: what is NOT lost when an
-#      account is off (CREATE.ACCOUNT, SYNC.MASTERS, CHECK.MASTERS, LOGTO and a read, DELETE.ACCOUNT) and the one thing that is (a write by SDSYS inside the account).
+#   3  CREATE.ACCOUNT USER <name> - SD's whole flow, and the DELIVERED SETTING (S.103): sdsys IS in the new group (create.account said so, 11011, and the
+#      helper's log line is there), the group lists root, the user and sdsys; the VOC is owner:group of the account with group rwx / rw from the sign-on umask;
+#      with NO modify.account at all an SDSYS session saves a master record (ED on voc_master) and an ordinary session of the user finds the record in its VOC
+#      AT ONCE; the audit line of the edit is in /usr/local/sdsys/audit and no `modify.account sdsys-on` line is (nobody had to switch it on); the file keeps
+#      its owner and group (written in place); a dictionary made under a closed umask IS given its group bits (C2: the account is on).
+#   4  A SESSION OF SDSYS THAT BEGAN BEFORE THE MEMBERSHIP: a long-lived SDSYS session is started, a second account is made by ANOTHER session (create.account
+#      joins sdsys to its group at once, S.103); the first session's save is REFUSED with the stale-session message (11586) and changes nothing; CHECK.MASTERS in
+#      it says norights stale-session; a NEW session saves.  (Under F6 the account began off and was switched on by another session; there is no off phase now.)
+#   5  The administrator's acts and the installer's default: the account's modes are broken and CHECK.MASTERS says nonwritable, with the hint (11982); a second
+#      SDSYS-ON repairs them and says so; SDSYS-OFF takes the sdsys user out (and then a master save is refused, 11976, CHECK.MASTERS counts the account as off,
+#      11981, and a dictionary made under a closed umask is NOT given group bits, C2 - the rows that were section 3's under F6); a group account is refused
+#      (11979).  5.3: what is NOT lost when an account is off (SYNC.MASTERS, CHECK.MASTERS, LOGTO and a read, DELETE.ACCOUNT) and the one thing that is (a write
+#      by SDSYS inside the account).  Then the installer's own sdsys_groups_default, cut out of installsdcore.sh and run with the real sudo and the real
+#      sd-elevate on the throwaway groups only: with no marker it puts the sdsys user back in the group of the account that is off, repairs the modes of its
+#      dictionary, leaves a group that lists sdsys alone and writes its marker; after a second SDSYS-OFF, with the marker present, it does nothing, so the
+#      administrator's sdsys-off STANDS across an install.
 #   5.4 The honest rows (the owner is to be told they pass): sd-elevate would still accept `sdsys-join` (R-C1, a dry run); since F12 (26 Oct 26) it REFUSES a
 #      `chown-account sdsys sdusers` on the throwaway USER account's VOC file (R-C2, a dry run: the sdsys shape is for a group account's files only).  R-C1 PASSES when the
-#      weakness is there: switching a membership off removes the silent route into an account, it does not make a stolen sdsys login unable to reach it.  R-A (the files root
-#      runs belonging to the sdsys user) was a third such row until W.11 F11 (26 Oct 26): bin and its files are root's now, so R-A1 asserts that; witness-f11.py holds the rest.
+#      weakness is there: switching a membership off removes the silent route into an account, it does not make a stolen sdsys login unable to reach it (and under
+#      S.103 the membership is the delivered state anyway).  R-A (the files root runs belonging to the sdsys user) was a third such row until W.11 F11 (26 Oct 26): bin
+#      and its files are root's now, so R-A1 asserts that; witness-f11.py holds the rest.
 #
 # NOT COVERED: the installer run as a whole (witness-release-run.sh and a real install are); SDSYS on a machine with a second administrator (there is
 # none by design); the API server.  The throwaway names are zwmv, zwm1 and zwm2: the script refuses to run if any exists, and removes what it made.
@@ -191,7 +198,7 @@ trap cleanup EXIT
 
 say "witness-masters: $( [ "$COMMIT" -eq 1 ] && echo 'COMMIT - it will change this system' || echo 'DRY RUN - it changes nothing' )"
 say "  date : $(date -Is)   uid: $(id -u) ($(id -un))   sudo user: ${SUDO_USER:-none}"
-say "  sd   : $SD   helper: $ELEVATE   installer (for sdsys_groups_ruling): $INSTALLER"
+say "  sd   : $SD   helper: $ELEVATE   installer (for sdsys_groups_default): $INSTALLER"
 say "  log  : $LOG"
 
 head2 "0. preconditions and the ground being clear"
@@ -200,6 +207,10 @@ for p in "$SD" "$SDSYS" "$REGISTER" "$ACCOUNTS_ROOT" "$ELEVATE" "$AUDIT" "$SDSYS
 done
 grep -q 'sdsys-join' "$ELEVATE" && grep -q 'sdsys-leave' "$ELEVATE" && grep -q 'group-write' "$ELEVATE" || { say "witness-masters: CANNOT RUN - the installed sd-elevate lacks sdsys-join, sdsys-leave or group-write (an install of an earlier build)"; exit 2; }
 grep -q -i 'sdsys-on' "$SDSYS/gpl.bp/modifya" 2>/dev/null || { say "witness-masters: CANNOT RUN - the installed modify.account has no sdsys-on (an install of an earlier build)"; exit 2; }
+# 2 Nov 26 (S.103): the rows below expect create.account to put the sdsys user in the new group.  An install of an F6 build (26 Oct - 1 Nov) has no such call, and every row
+#   of sections 3 and 4 would fail for a reason that is the build's, not the product's: refuse it here.  The text is the call itself, not a comment (F6's comments name the verb too).
+grep -q -F 'sd-elevate sdsys-join ":group_name' "$SDSYS/gpl.bp/create_account" 2>/dev/null || { say "witness-masters: CANNOT RUN - the installed create.account does not put the sdsys user in a new account's group (an install of a build before S.103)"; exit 2; }
+grep -q '^sdsys_groups_default() {' "$INSTALLER" || { say "witness-masters: CANNOT RUN - $INSTALLER has no sdsys_groups_default (a tree before S.103)"; exit 2; }
 id -u sdsys >/dev/null 2>&1 || { say "witness-masters: CANNOT RUN - no sdsys user"; exit 2; }
 if [ "$COMMIT" -eq 1 ]; then
     [ "$(id -u)" -eq 0 ] || { say "witness-masters: CANNOT RUN - --commit needs root: sudo bash $SELF --commit"; exit 2; }
@@ -310,7 +321,10 @@ else
 fi
 
 # ==========================================================================
-head2 "3. CREATE.ACCOUNT USER $A1 - SD's whole flow, the delivered setting (off), then SDSYS-ON and an SDSYS edit that reaches the user's VOC at once"
+head2 "3. CREATE.ACCOUNT USER $A1 - SD's whole flow, the delivered setting (S.103: on), and an SDSYS edit that reaches the user's VOC at once with no administrator act"
+# 2 Nov 26 (S.103): A0 is taken BEFORE the account is made, so that 3f'' can say no modify.account sdsys-on line was written at any point of this account's life here.
+A0=0
+[ "$COMMIT" -eq 1 ] && A0=$(wc -l < "$AUDIT")
 OUT=$(run_sd "CREATE.ACCOUNT USER $A1 (answering the Linux password)" "CREATE.ACCOUNT USER $A1" "_PW_" "_PW_")
 CREATED1=0
 if [ "$COMMIT" -eq 1 ]; then
@@ -318,40 +332,31 @@ if [ "$COMMIT" -eq 1 ]; then
     if [ -e "$REGISTER/$A1" ]; then CREATED1=1; MADE_A1=1; fi
 fi
 if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
-    # 26 Oct 26, F6: the delivered setting.  CREATE.ACCOUNT made the group with root and the user only.
-    ck "3b sdsys is NOT a member of sdu_$A1 (F6: the group was made with root and the user; the join of 19 Oct is gone) and the group lists exactly root and $A1" "no root,$A1" "$(has_member "sdu_$A1" sdsys) $(members_of "sdu_$A1")"
+    # 2 Nov 26, S.103: the delivered setting.  CREATE.ACCOUNT makes the group with root and the user (the helper holds groupadd to that) and then joins sdsys to it
+    #   through sd-elevate sdsys-join (create_account join.sdsys).  Was (F6, 26 Oct): "3b sdsys is NOT a member ... exactly root and $A1", expected "no root,$A1".
+    say "  sdu_$A1 lists: '$(members_of "sdu_$A1")'"
+    ck "3b sdsys IS a member of sdu_$A1 (S.103), and so are root and $A1, and nobody else (3 members; the order is /etc/group's)" "yes yes yes 3" \
+       "$(has_member "sdu_$A1" sdsys) $(has_member "sdu_$A1" root) $(has_member "sdu_$A1" "$A1") $(members_of "sdu_$A1" | tr ',' '\n' | grep -c .)"
+    ck_says "3b1 ...and CREATE.ACCOUNT said so (11011)" "sdsys added to group sdu_$A1" "$OUT"
+    ck_silent "3b2 ...and did not say the join failed (11012)" "could not be added to group sdu_$A1" "$OUT"
+    ck_says "3b3 ...and the helper wrote its line for the join (logger -t sd-elevate)" "sdsys-join: the user sdsys is now in sdu_$A1" "$(sd_log)"
     V="$ACCOUNTS_ROOT/$A1/voc"
     ck "3c the VOC belongs to the account's user and group" "$A1:sdu_$A1 $A1:sdu_$A1" "$(modes_of "$V" | cut -d' ' -f1) $(modes_of "$V/%0" | cut -d' ' -f1)"
-    # first real run decides: with C2 nothing forces the group bits now, so these are what the session's umask 002 made (775 / 664)
-    ck "3d ...with group rwx on the directory and group rw on %0 and %1 (the sign-on umask 002 gives it; nothing forces it while the account is off)" "7 6 6" "$(( ($(stat -c '%a' "$V") / 10) % 10 )) $(( ($(stat -c '%a' "$V/%0") / 10) % 10 )) $(( ($(stat -c '%a' "$V/%1") / 10) % 10 ))"
-    OUT=$(run_sd "SDSYS saves a master record while the account is OFF: ED voc_master $A1*zzoff" "ED voc_master $A1*zzoff" "I" "X" "written while off" "" "FI" "EX" "Y")
-    ck_says "3d1 the save is REFUSED and says why (11976: sdsys is not in the group of the account)" "sdsys is not in the group of $A1" "$OUT"
-    ck_says "3d2 ...and names the verb that switches it on" "modify.account $A1 sdsys-on" "$OUT"
-    OUT2=$(run_user "$A1" "the user looks for the record" "CT VOC zzoff")
-    ck_silent "3d3 ...and the account's VOC has no such record: nothing was changed" "written while off" "$OUT2"
-    ck_nonempty "3d3a ...(the user's session ran and answered)" "$OUT2"
-    OUT3=$(run_sd "CHECK.MASTERS $A1 (the account is off)" "CHECK.MASTERS $A1")
-    ck_says "3d4 CHECK.MASTERS counts the accounts that are off, in a line of its own (11981)" "Master edits are switched off for" "$OUT3"
-    ck_silent "3d5 ...and lists no file of $A1 as nonwritable" "nonwritable: $A1" "$OUT3"
-    ck_silent "3d5' ...nor as norights" "norights: $A1" "$OUT3"
-    OUT4=$(run_user "$A1" "UMASK 077, then CREATE.FILE zzoffd (a dictionary made under a closed umask while the account is off)" "UMASK 077" "CREATE.FILE zzoffd DYNAMIC")
-    DMO="$(stat -c '%a' "$ACCOUNTS_ROOT/$A1/zzoffd.dic" 2>/dev/null) $(stat -c '%a' "$ACCOUNTS_ROOT/$A1/zzoffd.dic/%0" 2>/dev/null)"
-    # first real run decides the exact modes: a directory made under 077 inside a setgid directory is 2700, its %0 is 600
-    ck "3d6 (C2) a dictionary made under UMASK 077 while the account is off is NOT given group bits (2700, 600)" "2700 600" "$DMO"
-    # the administrator's act
-    A0=$(wc -l < "$AUDIT")
-    OUT=$(run_sd "MODIFY.ACCOUNT $A1 SDSYS-ON" "MODIFY.ACCOUNT $A1 SDSYS-ON")
-    ck_says "3d7 MODIFY.ACCOUNT SDSYS-ON says master edits are on, and to sign on again as SDSYS" "Account $A1: master edits are on" "$OUT"
-    ck_says "3d7' ...and tells a running session it does not have it" "a session already running does not have it" "$OUT"
-    ck "3d8 sdsys is a member of sdu_$A1 now (put in by sd-elevate sdsys-join, by the administrator's act)" "yes" "$(has_member "sdu_$A1" sdsys)"
-    ck "3d9 ...the VOC is group rwx / rw (sd-elevate group-write ran too)" "2775 664 664" "$(stat -c '%a' "$V") $(stat -c '%a' "$V/%0") $(stat -c '%a' "$V/%1")"
-    OUT=$(run_sd "SDSYS saves a master record: ED voc_master $A1*zzwitness" "ED voc_master $A1*zzwitness" "I" "X" "saved by sdsys from the master" "" "FI")
+    # first real run decides: create.account runs no group-write (S.103 left it narrow, measured unneeded 1 Nov on the don account), so these are what the session's umask 002 made (775 / 664)
+    ck "3d ...with group rwx on the directory and group rw on %0 and %1 (the sign-on umask 002 gives it; create.account forces nothing)" "7 6 6" "$(( ($(stat -c '%a' "$V") / 10) % 10 )) $(( ($(stat -c '%a' "$V/%0") / 10) % 10 )) $(( ($(stat -c '%a' "$V/%1") / 10) % 10 ))"
+    # 2 Nov 26, S.103: the off-phase rows that stood here under F6 (3d1-3d6: a refused save, 11976, the off count 11981, a dictionary made under 077 while off) and the
+    #   administrator's act (3d7-3d9: SDSYS-ON, the membership, group-write's modes) are moved to section 5 (5off1-5off6, after SDSYS-OFF), or gone (3d7-3d9: nothing is
+    #   switched on here - the account is on as made; a second SDSYS-ON as a repair is 5e / 5f).
+    OUT=$(run_sd "SDSYS saves a master record (a new session, no modify.account first): ED voc_master $A1*zzwitness" "ED voc_master $A1*zzwitness" "I" "X" "saved by sdsys from the master" "" "FI")
+    ck_silent "3e0 the save was not refused as off (11976)" "sdsys is not in the group of $A1" "$OUT"
+    ck_nonempty "3e0' ...(the SDSYS session ran and answered)" "$OUT"
     sleep 1
     OUT2=$(run_user "$A1" "the user reads the record in its own VOC" "CT VOC zzwitness")
     ck_says "3e the user's own session finds the record in ITS VOC at once" "saved by sdsys from the master" "$OUT2"
     NEWAUD=$(tail -n +"$((A0 + 1))" "$AUDIT")
     ck_says "3f the audit trail has the line (lower case, account, file, id)" "master edit account=$A1 file=voc id=zzwitness" "$NEWAUD"
-    ck_says "3f' ...and the administrator's act (lower case: the word sdsys-on is vocabulary of the audit trail)" "modify.account sdsys-on account=$A1" "$NEWAUD"
+    # was 3f' (F6): the administrator's act "modify.account sdsys-on account=$A1" had to be there; under S.103 nobody switched it on, so it must NOT be
+    ck_silent "3f'' ...and NO modify.account sdsys-on line for $A1 since before CREATE.ACCOUNT: the edit needed no administrator act" "modify.account sdsys-on account=$A1" "$NEWAUD"
     ck "3g the file kept its owner and group: written in place by sdsys, not replaced" "$A1:sdu_$A1" "$(modes_of "$V/%0" | cut -d' ' -f1)"
     OUT3=$(run_sd "CHECK.MASTERS $A1" "CHECK.MASTERS $A1")
     ck_says "3h CHECK.MASTERS finds nothing to say about the account" "Every master copy matches its account" "$OUT3"
@@ -361,13 +366,13 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     DM="$(stat -c '%a' "$ACCOUNTS_ROOT/$A1/zzfile.dic" 2>/dev/null) $(stat -c '%a' "$ACCOUNTS_ROOT/$A1/zzfile.dic/%0" 2>/dev/null) $(stat -c '%a' "$ACCOUNTS_ROOT/$A1/zzfile" 2>/dev/null)"
     # 19 Oct 26: the expected data directory is 2700, not 700: the account's directory is setgid, a directory made under it inherits the bit (the first real run said 2700),
     # and what the row is about - no GROUP read, write or search bit - holds either way.
-    ck "3j the dictionary made under UMASK 077 has its GROUP bits (2770, 660) now that the account is ON (C2) and the data file's directory next to it does not (2700: owner only, with the setgid bit it inherits)" "2770 660 2700" "$DM"
+    ck "3j the dictionary made under UMASK 077 has its GROUP bits (2770, 660) because the account is ON as made (C2) and the data file's directory next to it does not (2700: owner only, with the setgid bit it inherits)" "2770 660 2700" "$DM"
 elif [ "$COMMIT" -eq 1 ]; then
-    for r in "3b sdsys not in the group" "3c owner and group" "3d modes" "3d1 off: refused" "3d4 off count" "3d6 off: modes not forced" "3d7 sdsys-on" "3d8 membership" "3e the edit reaches the VOC" "3f audit line" "3g owner kept" "3h check" "3i no norights" "3j dictionary modes"; do not_reached "$r"; done
+    for r in "3b sdsys in the group" "3b1 11011" "3b3 helper log" "3c owner and group" "3d modes" "3e0 not refused" "3e the edit reaches the VOC" "3f audit line" "3f'' no sdsys-on line" "3g owner kept" "3h check" "3i no norights" "3j dictionary modes"; do not_reached "$r"; done
 fi
 
 # ==========================================================================
-head2 "4. an SDSYS session that began BEFORE the membership: refused while the account is off (11976), refused as stale once ANOTHER session switched it on (11586)"
+head2 "4. an SDSYS session that began BEFORE the membership: refused as stale (11586) once ANOTHER session's CREATE.ACCOUNT put sdsys in the new group (S.103)"
 if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     FIFO="$WORK/sdsys.in"
     OUT_STALE="$WORK/stale.out"
@@ -382,21 +387,14 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     say "  --- the account $A2 is made by ANOTHER session ---"
     OUT=$(run_sd "CREATE.ACCOUNT USER $A2 (answering the Linux password)" "CREATE.ACCOUNT USER $A2" "_PW_" "_PW_")
     if [ -e "$REGISTER/$A2" ]; then MADE_A2=1; fi
-    ck "4b the register record of $A2 exists, and sdsys is NOT in sdu_$A2 by /etc/group (F6: delivered off)" "yes no" "$(yesno_path "$REGISTER/$A2") $(has_member "sdu_$A2" sdsys)"
+    # 2 Nov 26, S.103: was "4b ... sdsys is NOT in sdu_$A2 by /etc/group (F6: delivered off)", expected "yes no".  CREATE.ACCOUNT now joins sdsys to the group at once, so the
+    #   long-lived session (whose groups were fixed when it started) is STALE from the moment the account exists.  The F6 rows 4b1, 4b2, 4b2a (the old session refused
+    #   with 11976 while the account was off) and 4b3 (ANOTHER session's SDSYS-ON) have no S.103 counterpart here: there is no off phase at creation.  The refusal
+    #   11976 is measured in section 5 (5off1), after SDSYS-OFF.
+    ck "4b the register record of $A2 exists, and sdsys IS in sdu_$A2 by /etc/group (S.103: create.account joined it)" "yes yes" "$(yesno_path "$REGISTER/$A2") $(has_member "sdu_$A2" sdsys)"
+    ck_says "4b1 ...and CREATE.ACCOUNT said so (11011)" "sdsys added to group sdu_$A2" "$OUT"
     if [ "$MADE_A2" -eq 1 ]; then
         : > "$WORK/stale.mark"
-        # 26 Oct 26, F6: first the account is OFF.  The long-lived session's save is refused with 11976, whatever its groups.
-        printf '%s\n' "ED voc_master $A2*zzoff" "I" "X" "written while off" "" "FI" "EX" "Y" >&3
-        sleep 6
-        OFF_TEXT=$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$OUT_STALE")
-        printf '%s\n' "$OFF_TEXT" | sed -e 's/^/      | /' >&2
-        ck_says "4b1 the OLD session's save while the account is off is refused, and says why (11976)" "sdsys is not in the group of $A2" "$OFF_TEXT"
-        OUT5=$(run_user "$A2" "the user looks for the record written while off" "CT VOC zzoff")
-        ck_silent "4b2 ...and the account's VOC has no such record" "written while off" "$OUT5"
-        ck_nonempty "4b2a ...(the user's session ran and answered)" "$OUT5"
-        # now ANOTHER session switches it on: the old session's groups were fixed when it started, so it is STALE
-        OUT=$(run_sd "MODIFY.ACCOUNT $A2 SDSYS-ON (another session, while the first is still open)" "MODIFY.ACCOUNT $A2 SDSYS-ON")
-        ck "4b3 sdsys is in sdu_$A2 by /etc/group now" "yes" "$(has_member "sdu_$A2" sdsys)"
         # 19 Oct 26: after the refused FI the editor is STILL OPEN with the record changed (the first real run typed CHECK.MASTERS into ED: "Invalid string delimiter").
         # EX asks "Record changed - OK to quit?" and Y answers it; only then is the next line a TCL command.
         printf '%s\n' "ED voc_master $A2*zzstale" "I" "X" "written by the old session" "" "FI" "EX" "Y" "CHECK.MASTERS $A2" >&3
@@ -405,6 +403,7 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
         printf '%s\n' "$STALE_TEXT" | sed -e 's/^/      | /' >&2
         # 19 Oct 26: message 11586 says "joined group" (the verifier round reworded it); the script still had the first draft's "was put in group".
         ck_says "4c the OLD session's save is refused and says why (11586: this session began before sdsys joined the group)" "this session began before sdsys joined group sdu_$A2" "$STALE_TEXT"
+        ck_silent "4c' ...and NOT as an account that is off (11976): /etc/group lists sdsys, only the session's groups are old" "sdsys is not in the group of $A2" "$STALE_TEXT"
         OUT5=$(run_user "$A2" "the user looks for the record" "CT VOC zzstale")
         ck_silent "4d ...and the account's VOC has no such record: nothing was changed" "written by the old session" "$OUT5"
         ck_nonempty "4d1 ...(the user's session ran and answered)" "$OUT5"
@@ -415,17 +414,17 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
         OUT7=$(run_user "$A2" "the user reads the record" "CT VOC zznew")
         ck_says "4f a NEW session of SDSYS (its groups read afresh) saves, and the record is in the user's VOC" "written by a new session" "$OUT7"
     else
-        for r in "4c refused with 11586" "4d nothing changed" "4e norights stale-session" "4f a new session saves"; do not_reached "$r"; done
+        for r in "4c refused with 11586" "4c' not as off" "4d nothing changed" "4e norights stale-session" "4f a new session saves"; do not_reached "$r"; done
     fi
     exec 3>&-
 elif [ "$COMMIT" -eq 1 ]; then
-    for r in "4a" "4b" "4c" "4d" "4e" "4f"; do not_reached "$r (no account from section 3)"; done
+    for r in "4a" "4b" "4b1" "4c" "4d" "4e" "4f"; do not_reached "$r (no account from section 3)"; done
 else
-    say "  (dry run: would start a long-lived SDSYS session, make $A2 by another session, and try a save in the first)"
+    say "  (dry run: would start a long-lived SDSYS session, make $A2 by another session (which puts sdsys in sdu_$A2), and try a save in the first: refused as stale)"
 fi
 
 # ==========================================================================
-head2 "5. a broken mode is repaired by a second SDSYS-ON; the installer's ruling; SDSYS-OFF; what is not lost when an account is off; the honest rows"
+head2 "5. a broken mode is repaired by a second SDSYS-ON; SDSYS-OFF and what it refuses; what is not lost when an account is off; the installer's default (once); the honest rows"
 if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     A="$ACCOUNTS_ROOT/$A1"
     # break the modes as an old install would have them: no group write on the VOC and the dictionary.  The account is ON (section 3), so CHECK.MASTERS says so.
@@ -443,49 +442,8 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     ck_says "5g CHECK.MASTERS is clean again" "Every master copy matches its account" "$OUT3"
     ck_silent "5g' ...and lists no file of $A1 as nonwritable" "nonwritable: $A1" "$OUT3"
 
-    # ---- the installer's ruling, on the throwaway groups ONLY: the question and the act are cut out of the installer and run with the real sudo and the real sd-elevate;
-    # ---- `getent group` (the listing) is narrowed to the groups this run made so that no real account is touched, and the marker is a scratch file, not /home/sd's.
-    RULING_ASK=$(awk '/^# SDSYSGROUPS-ASK-BEGIN$/{f=1;next} /^# SDSYSGROUPS-ASK-END$/{f=0} f{print}' "$INSTALLER" | sed -e "s#/home/sd/#$WORK/ruling/#g")
-    RULING_FN=$(awk '/^sdsys_groups_ruling\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$INSTALLER")
-    RULING_MARKER="$WORK/ruling/\$groups.ruled"
-    mkdir -p "$WORK/ruling"
-    ruling_run() {   # ruling_run ANSWER  - the installer's question (the answer on its input) and then its act, as root, on sdu_zwm1 and sdu_zwm2 only
-        printf '%s\n' "$1" | RULING_ASK="$RULING_ASK" RULING_FN="$RULING_FN" MARKER="$RULING_MARKER" bash -c '
-            set -euo pipefail
-            IFS=$'"'"'\n\t'"'"'
-            RED=; NC=
-            getent() { if [ "${1:-}" = group ] && [ -z "${2:-}" ]; then command getent group | grep -E "^sdu_(zwm1|zwm2|zwmv):" || true; else command getent "$@"; fi; }
-            eval "$RULING_ASK"
-            eval "$RULING_FN"
-            sdsys_groups_ruling "$MARKER" "$sdsys_keep"
-            echo "KEEP=$sdsys_keep"' 2>&1
-    }
-    if [ -z "$RULING_ASK" ] || [ -z "$RULING_FN" ]; then
-        for r in 5h 5i 5j 5k 5l 5m 5n; do not_reached "$r (the installer's SDSYSGROUPS-ASK block or sdsys_groups_ruling not found in $INSTALLER)"; done
-    else
-        REAL_MARKER_BEFORE=$(yesno_path "/home/sd/\$groups.ruled")
-        OUT=$(ruling_run n)
-        printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
-        ck_says "5h the question was reached and the answer n read (the account(s) with the sdsys user in the group were counted)" "KEEP=n" "$OUT"
-        ck_says "5i the act took the sdsys user out of the group of $A1" "the sdsys user is no longer in the group sdu_$A1" "$OUT"
-        OTHERS_OK=yes
-        [ "$(has_member sdusers sdsys)" = yes ] || OTHERS_OK=no
-        # 26 Oct 26, the first real run: the shared account's group sdg_shared lists only root - the sdsys user owns the shared account's files, it is not in the group (the draft assumed it was)
-        ck "5j ...really: /etc/group no longer lists sdsys in sdu_$A1 (nor in sdu_$A2 where it was switched on); sdusers still does" "no no yes" "$(has_member "sdu_$A1" sdsys) $(has_member "sdu_$A2" sdsys) $OTHERS_OK"
-        ck "5k the scratch marker was written: sdsys:sdusers 644; the REAL marker in /home/sd is as it was (this run did not touch it)" "sdsys:sdusers 644 $REAL_MARKER_BEFORE" "$(stat -c '%U:%G %a' "$RULING_MARKER" 2>/dev/null) $(yesno_path "/home/sd/\$groups.ruled")"
-        # the administrator switches it on afterwards; the next install, with the marker there, must leave it alone
-        OUT=$(run_sd "MODIFY.ACCOUNT $A1 SDSYS-ON (after the ruling)" "MODIFY.ACCOUNT $A1 SDSYS-ON")
-        ck "5l after the ruling an administrator's SDSYS-ON puts the user in the group of $A1 again" "yes" "$(has_member "sdu_$A1" sdsys)"
-        OUT=$(ruling_run n)
-        printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
-        ck_says "5m an install again, answer n, marker present: nothing is asked and it says the ruling was made earlier" "ruled on at an earlier install" "$OUT"
-        ck "5n ...and the administrator's SDSYS-ON STANDS: sdsys is still in the group of $A1" "yes" "$(has_member "sdu_$A1" sdsys)"
-        rm -f -- "$RULING_MARKER"
-        OUT=$(ruling_run y)
-        printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
-        ck_says "5o with the answer y (marker absent again) the sdsys user is kept in the group: the question read y" "KEEP=y" "$OUT"
-        ck "5p ...and nothing changed: sdsys is still in the group of $A1, and the marker was written" "yes yes" "$(has_member "sdu_$A1" sdsys) $(yesno_path "$RULING_MARKER")"
-    fi
+    # 2 Nov 26, S.103: the F6 installer's question and sdsys_groups_ruling (rows 5h-5p, which took the sdsys user OUT of the groups on the answer n) are gone from the
+    #   installer.  Their place is taken by sdsys_groups_default, which puts it IN, once; its rows (new 5h-5n) come after 5.3d below, where an account is off for it to act on.
 
     # ---- SDSYS-OFF, the refusal for a group account, and 5.3 what is not lost when an account is off
     A0=$(wc -l < "$AUDIT")
@@ -498,6 +456,22 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     OUT=$(run_sd "MODIFY.ACCOUNT $A1 SDSYS-ON SDSYS-OFF (the two words conflict with each other, and with nothing else)" "MODIFY.ACCOUNT $A1 SDSYS-ON SDSYS-OFF")
     ck_says "5u both words in one command are refused (11791: they set the same access to different states)" "sdsys-on and sdsys-off set the same access" "$OUT"
     ck "5u' ...and nothing was changed" "no" "$(has_member "sdu_$A1" sdsys)"
+    # ---- 2 Nov 26, S.103: what an account that is OFF refuses.  These were section 3's rows 3d1-3d6 under F6, when every account began off; under S.103 an account is off
+    # ---- only after the administrator's SDSYS-OFF, so they are measured here.  Each keeps its F6 expectation; only the place (and the label) moved.
+    OUT=$(run_sd "SDSYS saves a master record while the account is OFF: ED voc_master $A1*zzoff" "ED voc_master $A1*zzoff" "I" "X" "written while off" "" "FI" "EX" "Y")
+    ck_says "5off1 (was 3d1) the save is REFUSED and says why (11976: sdsys is not in the group of the account)" "sdsys is not in the group of $A1" "$OUT"
+    ck_says "5off2 (was 3d2) ...and names the verb that switches it on" "modify.account $A1 sdsys-on" "$OUT"
+    OUT2=$(run_user "$A1" "the user looks for the record" "CT VOC zzoff")
+    ck_silent "5off3 (was 3d3) ...and the account's VOC has no such record: nothing was changed" "written while off" "$OUT2"
+    ck_nonempty "5off3a (was 3d3a) ...(the user's session ran and answered)" "$OUT2"
+    OUT3=$(run_sd "CHECK.MASTERS $A1 (the account is off)" "CHECK.MASTERS $A1")
+    ck_says "5off4 (was 3d4) CHECK.MASTERS counts the accounts that are off, in a line of its own (11981)" "Master edits are switched off for" "$OUT3"
+    ck_silent "5off5 (was 3d5) ...and lists no file of $A1 as nonwritable" "nonwritable: $A1" "$OUT3"
+    ck_silent "5off5' (was 3d5') ...nor as norights" "norights: $A1" "$OUT3"
+    OUT4=$(run_user "$A1" "UMASK 077, then CREATE.FILE zzoffd (a dictionary made under a closed umask while the account is off)" "UMASK 077" "CREATE.FILE zzoffd DYNAMIC")
+    DMO="$(stat -c '%a' "$ACCOUNTS_ROOT/$A1/zzoffd.dic" 2>/dev/null) $(stat -c '%a' "$ACCOUNTS_ROOT/$A1/zzoffd.dic/%0" 2>/dev/null)"
+    # first real run decides the exact modes: a directory made under 077 inside a setgid directory is 2700, its %0 is 600
+    ck "5off6 (was 3d6) (C2) a dictionary made under UMASK 077 while the account is off is NOT given group bits (2700, 600)" "2700 600" "$DMO"
     if [ -d /home/sd/group_accounts/shared ]; then
         H2=$(sha_of)
         OUT=$(run_sd "MODIFY.ACCOUNT shared SDSYS-ON (a group account)" "MODIFY.ACCOUNT shared SDSYS-ON")
@@ -521,11 +495,62 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     ck_nonempty "5.3c1 ...(the SDSYS session ran, entered the account and answered)" "$OUT"
     # A FALSIFICATION ROW (design fact 1, read from the modes and never measured): if this file appears, SDSYS could write inside an account without being in its group
     ck "5.3d (falsification) the WRITE inside the account by SDSYS is the one thing that is lost: zzcollat was NOT made while the account is off" "no" "$(yesno_path "$A/zzcollat")"
+
+    # ---- 2 Nov 26, S.103: the installer's default, on the throwaway groups ONLY.  sdsys_groups_default is cut out of the installer (from its first line to the first
+    # ---- line that is a lone "}") and run as root under the installer's own `set -euo pipefail` and IFS, with the real sudo and the real sd-elevate; `getent group`
+    # ---- with no name (the listing it walks) is narrowed to sdu_zwm1 and sdu_zwm2 so that no real account is touched, and the marker is a scratch file, not /home/sd's.
+    # ---- What it acts on: $A1 is OFF here (5q) and $A2 is ON (create.account joined it, 4b).  Replaces the F6 rows 5h-5p (the question and sdsys_groups_ruling).
+    DEFAULT_FN=$(awk '/^sdsys_groups_default\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$INSTALLER")
+    DEFAULT_MARKER="$WORK/default/\$sdsys.access"
+    mkdir -p "$WORK/default"
+    default_run() {   # default_run  - the installer's sdsys_groups_default, as root, on sdu_zwm1 and sdu_zwm2 only; prints its output and DEFAULT-RC=0 only when it returned 0
+        DEFAULT_FN="$DEFAULT_FN" MARKER="$DEFAULT_MARKER" bash -c '
+            set -euo pipefail
+            IFS=$'"'"'\n\t'"'"'
+            RED=; NC=
+            getent() { if [ "${1:-}" = group ] && [ -z "${2:-}" ]; then command getent group | grep -E "^sdu_(zwm1|zwm2):" || true; else command getent "$@"; fi; }
+            eval "$DEFAULT_FN"
+            sdsys_groups_default "$MARKER"
+            echo "DEFAULT-RC=0"' 2>&1
+    }
+    say "  sdsys_groups_default cut out of $INSTALLER: $(printf '%s\n' "$DEFAULT_FN" | grep -c .) line(s); scratch marker $DEFAULT_MARKER"
+    if [ -z "$DEFAULT_FN" ] || ! printf '%s\n' "$DEFAULT_FN" | grep -q 'sd-elevate sdsys-join'; then
+        for r in 5h 5i 5j 5k 5l 5m 5n; do not_reached "$r (sdsys_groups_default not found whole in $INSTALLER)"; done
+    else
+        REAL_MARKER_BEFORE=$(yesno_path "/home/sd/\$sdsys.access")
+        say "  before: sdu_$A1 lists sdsys: $(has_member "sdu_$A1" sdsys)   sdu_$A2 lists sdsys: $(has_member "sdu_$A2" sdsys)   zzoffd.dic: $(stat -c '%a' "$A/zzoffd.dic" 2>/dev/null) / $(stat -c '%a' "$A/zzoffd.dic/%0" 2>/dev/null)   scratch marker: $(yesno_path "$DEFAULT_MARKER")   real marker: $REAL_MARKER_BEFORE"
+        OUT=$(default_run)
+        printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
+        ck_says "5h with no marker the walk ran to its end (the function returned 0)" "DEFAULT-RC=0" "$OUT"
+        ck_says "5h' ...and put the sdsys user in the group of $A1, the account that was off (the helper's own words, judged by the installer)" "the sdsys user is now in the group sdu_$A1" "$OUT"
+        ck_silent "5h'' ...and did not touch sdu_$A2, which lists sdsys already" "the sdsys user is now in the group sdu_$A2" "$OUT"
+        ck_says "5h''' ...and counted exactly that one (of the two groups it was shown, one lacked sdsys)" "The sdsys user was put in the group of 1 of 1 account(s)." "$OUT"
+        ck_silent "5i no failure was reported (no join refused)" "could not be put in" "$OUT"
+        ck_silent "5i' ...(no mode left unrepaired)" "could not be repaired" "$OUT"
+        ck_silent "5i'' ...(no WARNING)" "WARNING:" "$OUT"
+        ck "5j really: /etc/group lists sdsys in sdu_$A1 and sdu_$A2, and sdusers still does" "yes yes yes" "$(has_member "sdu_$A1" sdsys) $(has_member "sdu_$A2" sdsys) $(has_member sdusers sdsys)"
+        # group-write gives a dictionary's directory g+rwxs and its plain files g+rw (sd-elevate's GW_PY), so the 2700 / 600 of 5off6 becomes 2770 / 660
+        ck "5j' ...and group-write repaired the dictionary made under UMASK 077 while the account was off (2700 / 600 -> 2770 / 660)" "2770 660" "$(stat -c '%a' "$A/zzoffd.dic" 2>/dev/null) $(stat -c '%a' "$A/zzoffd.dic/%0" 2>/dev/null)"
+        ck "5k the scratch marker was written: sdsys:sdusers 644; the REAL marker in /home/sd is as it was (this run did not touch it)" "sdsys:sdusers 644 $REAL_MARKER_BEFORE" "$(stat -c '%U:%G %a' "$DEFAULT_MARKER" 2>/dev/null) $(yesno_path "/home/sd/\$sdsys.access")"
+        # the administrator tightens the account again; the next install, with the marker there, must leave it alone
+        OUT=$(run_sd "MODIFY.ACCOUNT $A1 SDSYS-OFF (after the install's default)" "MODIFY.ACCOUNT $A1 SDSYS-OFF")
+        ck "5l after the default an administrator's SDSYS-OFF takes the user out of the group of $A1 again" "no" "$(has_member "sdu_$A1" sdsys)"
+        OUT=$(default_run)
+        printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
+        ck_says "5m an install again, marker present: it says the matter was settled at an earlier install" "was settled at an earlier install" "$OUT"
+        ck_says "5m' ...and returned 0" "DEFAULT-RC=0" "$OUT"
+        ck_silent "5m'' ...and joined nothing" "is now in the group" "$OUT"
+        ck "5n ...and the administrator's SDSYS-OFF STANDS: sdsys is still NOT in the group of $A1 (and still in that of $A2)" "no yes" "$(has_member "sdu_$A1" sdsys) $(has_member "sdu_$A2" sdsys)"
+    fi
+
     OUT=$(run_sd "MODIFY.ACCOUNT $A1 SDSYS-ON (a new session follows, so that its groups include the account's)" "MODIFY.ACCOUNT $A1 SDSYS-ON")
     OUT=$(run_sd "LOGTO $A1 and CREATE.FILE zzcollat (the account is on)" "LOGTO $A1" "CREATE.FILE zzcollat DYNAMIC")
     ck "5.3e ...and with the account on (a new session) it is made" "yes" "$(yesno_path "$A/zzcollat")"
     if [ "$MADE_A2" -eq 1 ] && [ -e "$REGISTER/$A2" ]; then
-        OUT=$(run_sd "DELETE.ACCOUNT $A2 (the account is off after the ruling)" "DELETE.ACCOUNT $A2" "y")
+        # 2 Nov 26, S.103: under F6 $A2 was off here (after the ruling); under S.103 it is on as made, so the administrator switches it off first, which keeps what the row is about.
+        OUT=$(run_sd "MODIFY.ACCOUNT $A2 SDSYS-OFF (so that the delete is of an account that is off)" "MODIFY.ACCOUNT $A2 SDSYS-OFF")
+        ck "5.3f0 (the precondition) $A2 is off: sdsys is not in sdu_$A2" "no" "$(has_member "sdu_$A2" sdsys)"
+        OUT=$(run_sd "DELETE.ACCOUNT $A2 (the account is off)" "DELETE.ACCOUNT $A2" "y")
         ck "5.3f DELETE.ACCOUNT of an account that is off works: the register record is gone" "no" "$(yesno_path "$REGISTER/$A2")"
     else
         not_reached "5.3f DELETE.ACCOUNT of an account that is off (no $A2 from section 4)"
@@ -542,9 +567,9 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     ck_silent "R-C2' ...and no chown command was printed" "chown -- sdsys:sdusers" "$OUT"
     ck_silent "R-C2'' ...and the exit status is not 0" "EXIT=0" "$OUT"
 elif [ "$COMMIT" -eq 1 ]; then
-    for r in 5a 5b 5c 5d 5e 5f 5g 5h 5i 5j 5k 5l 5m 5n 5o 5p 5q 5r 5s 5t 5u 5.3a 5.3b 5.3c 5.3d 5.3e 5.3f R-A1 R-A2 R-C1 R-C2; do not_reached "$r (no account from section 3)"; done
+    for r in 5a 5b 5c 5d 5e 5f 5g 5q 5r 5s 5t 5u 5off1 5off2 5off3 5off4 5off5 5off6 5v 5.3a 5.3b 5.3c 5.3d 5h 5i 5j 5k 5l 5m 5n 5.3e 5.3f R-A1 R-A2 R-C1 R-C2; do not_reached "$r (no account from section 3)"; done
 else
-    say "  (dry run: would break the modes of $A1, repair them with a second SDSYS-ON, run the installer's question and sdsys_groups_ruling with the real helper on the throwaway groups only (answers n and y, marker present and absent), try SDSYS-OFF and a group account, do what an administrator does with an account that is off, and measure the weaknesses R-A and R-C)"
+    say "  (dry run: would break the modes of $A1, repair them with a second SDSYS-ON, try SDSYS-OFF and what an account that is off refuses (11976, 11981, C2), a group account, do what an administrator does with an account that is off, run the installer's sdsys_groups_default with the real helper on the throwaway groups only (marker absent: it puts sdsys back; marker present after a second SDSYS-OFF: the off stands), and measure the weaknesses R-A and R-C)"
 fi
 
 # ==========================================================================

@@ -7,6 +7,12 @@
 #     Q.28  RUN of a runfile path over 128 characters runs (S.48; 10918 is for 255)
 #     S.2   the administrator (sdsys) LOGTOs an account whose group is newer
 #           than the session (2)
+#     S.103 (2 Nov 26) create.account puts the sdsys user in the new account's
+#           group (A6, T1b), so UPDATE.ACCOUNTS ALL names neither throwaway as
+#           left alone (V10c) and, where every sdu_ group lists sdsys, leaves
+#           no account alone (V10d).  No row of this script expected sdsys OUT
+#           of a group (F6, 26 Oct - 1 Nov); these rows are added, none changed.
+#           NOT YET RUN.
 #     Q.22  logtoaccess: the administrator keeps its access across LOGTOs (2b)
 #     S.10  RUN folds the program name (3b)
 #     W.2   Enter at 2050 means N (5b; W.3, 6133, went with multifiles)
@@ -492,6 +498,13 @@ if [ "$COMMIT" -eq 1 ]; then
     ck "A2 the account directory exists" yes "$(yesno_dir "$ADIR")"
     ck "A3 its bp directory exists" yes "$(yesno_dir "$ADIR/bp")"
     ck_says "A4 SD reported the sdusers membership (10013)" "added to sdusers" "$OUT"
+    # 2 Nov 26 (S.103, the owner 1 Nov: "sdsys always read/write access to the /home/sd tree"): create.account puts the sdsys user in the new account's group
+    #   (sd-elevate sdsys-join; under F6, 26 Oct - 1 Nov, it did not, and nothing here measured it either way).  /etc/group is the state, 11011 SD's success words.
+    say "  sdu_$ACC lists: '$(getent group "sdu_$ACC" | cut -d: -f4)'"
+    ck "A6 sdsys is a member of sdu_$ACC by /etc/group (S.103: the delivered state of a user account)" yes \
+       "$(case ",$(getent group "sdu_$ACC" | cut -d: -f4)," in *,sdsys,*) echo yes ;; *) echo no ;; esac)"
+    ck_says "A6b SD reported the join (11011)" "sdsys added to group sdu_$ACC" "$OUT"
+    ck_absent "A6c ...and no failure of it (11012)" "could not be added to group sdu_$ACC" "$OUT"
     # 19 Sep 26: a missing record reads blank too - refuse that null case.
     if [ -f "$REGISTER/$ACC" ]; then
         ck "A5 field 5 (the suspension flag) is blank - no tier" "" "$(sed -n '5p' "$REGISTER/$ACC")"
@@ -780,7 +793,7 @@ fi
 head2 "8. Q.13 - ADD, DELETE, ELEVATION REFUSED and ELEVATION GRANTED reach the audit trail"
 AUD="$SDSYS/audit"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ ! -f "$AUD" ]; }; then
-    for r in "T1 zzrel2 adopted" "T2 ADD said" "T3 DELETE said" "T4 elevation refused" "T5 ADD record" "T6 DELETE record" "T7 REFUSED record"; do not_reached "$r"; done
+    for r in "T1 zzrel2 adopted" "T1b sdsys in sdu_zzrel2" "T2 ADD said" "T3 DELETE said" "T4 elevation refused" "T5 ADD record" "T6 DELETE record" "T7 REFUSED record"; do not_reached "$r"; done
 else
     N0=0
     [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
@@ -794,6 +807,9 @@ else
     PW_OS=""
     [ "$COMMIT" -eq 1 ] && [ -e "$REGISTER/$ACC2" ] && MADE_ACCOUNT2=1
     [ "$COMMIT" -eq 1 ] && ck "T1 $ACC2 created (register record)" yes "$(yesno_file "$REGISTER/$ACC2")"
+    # 2 Nov 26 (S.103): the second account too - section 12's V10c needs sdsys in its group
+    [ "$COMMIT" -eq 1 ] && ck "T1b sdsys is a member of sdu_$ACC2 by /etc/group (S.103)" yes \
+       "$(case ",$(getent group "sdu_$ACC2" | cut -d: -f4)," in *,sdsys,*) echo yes ;; *) echo no ;; esac)"
     OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC ADD $ACC2, then DELETE" \
           "MODIFY.ACCOUNT $ACC ADD $ACC2" "MODIFY.ACCOUNT $ACC DELETE $ACC2")
     if [ "$COMMIT" -eq 1 ]; then
@@ -846,7 +862,7 @@ A2DIR="$ACCOUNTS_ROOT/$ACC2"
 # by hand.
 head2 "12. S.5 - the parity audit's witness list"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
-    for r in "V1-3 a plain account lacks" "V4-6 sdsys has" "V7 list voc" "V8 10173" "V9 10170" "V10 10171" "D1 SD created" "D2 one question" "D3 home named" "D4 user gone" "D5 home gone" "D6 register gone"; do not_reached "$r"; done
+    for r in "V1-3 a plain account lacks" "V4-6 sdsys has" "V7 list voc" "V8 10173" "V9 10170" "V10 10171" "V10c 11983 names neither throwaway" "D1 SD created" "D2 one question" "D3 home named" "D4 user gone" "D5 home gone" "D6 register gone"; do not_reached "$r"; done
 else
     OUT=$(run_sd "$ACC" "plain account: CT VOC sh, create.account, config; list voc" "CT VOC sh" "CT VOC create.account" "CT VOC config" "LIST VOC WITH TYPE = \"F\" DESC")
     if [ "$COMMIT" -eq 1 ]; then
@@ -865,6 +881,20 @@ else
         ck_says "V9 ALL says what it will do (10170)" "Every registered account will have its VOC updated" "$OUT"
         ck_says "V10 and reports a count (10171)" "account(s) had their VOC updated" "$OUT"
         ck "V10b it finished (not a timeout)" no "$( [ "$SD_RC" = 124 ] && echo yes || echo no )"
+        # 2 Nov 26 (S.103): under F6 (26 Oct - 1 Nov) the sdsys user was in no user account's group, so this walk could not write the VOC of any account that had not
+        #   been switched on and said so (11983 for each, 11984 the count; test-updatevoc-units.py V6 was found on this row).  Under S.103 the two throwaways are in
+        #   (A6, T1b) and a NEW sdsys session (run_sd starts one) has their groups, so neither may be named.  The session ran: V9 and V10 above are its own words.
+        ck_absent "V10c the walk wrote $ACC's VOC: 11983 does not name it (S.103)" "/$ACC/voc: this session cannot write" "$OUT"
+        ck_absent "V10c' ...nor $ACC2's" "/$ACC2/voc: this session cannot write" "$OUT"
+        # V10d - the whole machine, only where it can be judged: every sdu_ group lists sdsys (the install's walk ran and no administrator has said sdsys-off).  Where one
+        #   does not, 11984 is the administrator's tightening at work and the row is SKIPPED, said, never passed.  First real run decides whether an older account's VOC
+        #   mode (not group-writable) still makes it appear; that would be a finding against the install's group-write, not against this row.
+        NOT_LISTED=$(getent group | awk -F: '$1 ~ /^sdu_./ && ("," $4 ",") !~ /,sdsys,/ { print $1 }' | tr '\n' ' ')
+        if [ -z "$NOT_LISTED" ]; then
+            ck_absent "V10d every sdu_ group lists sdsys, so no account was left alone (11984 absent)" "account(s) were left as they were" "$OUT"
+        else
+            ctx "V10d SKIPPED (not passed): the group(s) $NOT_LISTED do not list sdsys (an administrator's sdsys-off, or a walk that did not finish), so 11984 may rightly appear"
+        fi
     fi
 
     say "  CREATE.ACCOUNT USER $ACC3 (SD creates the Linux user, stamped \"SD account\")"

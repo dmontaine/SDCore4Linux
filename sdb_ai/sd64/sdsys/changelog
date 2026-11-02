@@ -1,6 +1,52 @@
 Next release - in progress
 --------------------------
 
+2 Nov 26   SCHEDULED ADMINISTRATOR JOBS NOW RUN: EACH IS A SYSTEMD TIMER THAT ONLY ROOT CAN SET, AND IT RUNS ONE FIXED COMMAND AS SDSYS.
+
+             What        - "sudo /usr/local/sbin/sd-elevate job-set NAME JOB SCHEDULE", run by sdsys, now also writes the timer and service
+                           units /etc/systemd/system/sdcore-job-NAME.timer and .service and switches the timer on; job-delete switches it
+                           off and removes both before the job's definition. At each run systemd starts "sd <command>" as the sdsys user
+                           from the SDSYS account's directory. Such a session has no login behind it, so SD recognises it another way: the
+                           process sits in the cgroup systemd gives that unit (which only root can start or put a process into) and the
+                           job's root-owned definition names exactly the command the session was started with. Only then is it granted
+                           the administrator ("elevation granted reason=scheduled job"), and every audit line of the run ends job=NAME.
+                           The root helper admits the job's own calls the same way. A run missed while the machine was off is not made
+                           up. The uninstaller now stops and removes the jobs' timers and units, and also removes the authenticator code's
+                           status file /etc/sdcore/totp.public, which a delete used to leave behind.
+             Why         - The owner's scheduled-jobs page: administrator jobs that work across accounts, run unattended, without a
+                           second administrator and without trusting anything the sdsys user can edit.
+             Does NOT    - Schedule anything as delivered, let a job run any command but the four the helper owns (backup-all,
+                           check-masters, sync-masters, update-accounts), or change how a job in sdsys's own crontab is treated: that is
+                           still an ordinary sdsys login (cron sets the login), refused only when the console's authenticator code is on.
+                           The page's half (listing jobs, run now) is still to come.
+
+2 Nov 26   TOOL.ENTRIES: D DELETES A PROGRAM WITH ITS COMPILED PROGRAM; THE EDITOR'S BREAKPOINTS REACH A DEBUGGER RUN IN THE ACCOUNT.
+
+             What        - On the master files page, in the programs view, D deletes the program under the cursor from its own account, the way it deletes a
+                           VOC entry: its id is typed in the box, a program someone holds open is refused, and the page deletes it itself. Its compiled program
+                           goes with it: the record of the same name in the .out file the account's VOC names (bp.out for bp), or else the .out file beside the
+                           program file. When that .out file, or the compiled program's own file, lies outside the account, the whole delete is refused, as a
+                           program file outside the account is. The audit line is "master delete account=... kind=bp file=... id=... object=deleted" (or none,
+                           or failed). Breakpoints marked in the editor's gutter on a program the page opened are handed to the debugger that F7 starts in the
+                           program's own account, and come back to the editor when it ends, as they do for any program.
+             Why         - The owner's master files: the administrator manages every account's programs from one page, and nothing a pointer leads to in
+                           another account is changed through it.
+             Does NOT    - Remove a catalogue entry of the program (local, private or global): it is the account's, the box says it is left, and
+                           DELETE.CATALOG (or DECATALOG for a local entry) in that account removes it, for example through run.in. It runs no command.
+
+2 Nov 26   OPENSEQ ... CREATING NO LONGER LEAVES AN EMPTY FILE WHEN THE NAME IS LOCKED; THE IDE SAYS WHEN A DIRECTORY CANNOT BE READ.
+
+             What        - OPENSEQ ... CREATING of a name that does not exist makes the file only once it holds the SD lock on that name. When another session
+                           holds the name, the LOCKED clause runs (or, without one, the OPENSEQ waits for the lock as before) and nothing is made on the disk.
+                         - IDE: a file that New, Save as, Write a copy or Export cannot make because another session holds its name now says that nothing was made
+                           (message 11997); it used to warn that an empty file might be there.
+                         - IDE tree: a directory under "Operating system files" that the operating system does not let the session read now says so, with the
+                           operating system's error number (message 11599). It used to say that the account has no OS access, even for the administrator.
+             Why         - The file was made before the lock was asked for, so a refused or waiting create left an empty file that nobody wrote, and the IDE had to
+                           tell the user to look for it. The tree's message blamed the account's gate for what was the operating system's permission.
+             Does NOT    - Change what OPENSEQ does when the name is free or the file is there, what SHARED appends to, or which directories an account may list.
+                           A create that ends in an error after the file was made (a shortage of memory) may still leave an empty file, and the IDE still says so.
+
 2 Nov 26   THE SDSYS AUTHENTICATOR CODE CAN BE ASKED AT THE MACHINE'S OWN CONSOLE TOO. OFF AS DELIVERED.
 
              What        - "remote.sdsys local on" (or "sudo /usr/local/sbin/sd-elevate totp-local on", or L on the sdsys view of

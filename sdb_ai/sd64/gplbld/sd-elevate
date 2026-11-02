@@ -3,6 +3,9 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 02 Nov 26 dm - S.102 stage 3: job-set also writes /etc/systemd/system/sdcore-job-<name>.service and .timer (root 0644, one rename each) and enables the timer;
+#                job-delete disables the timer first and removes the units, then the definition; sdsys_login_gate admits a caller with no login uid only when
+#                sdsys_job_gate finds it in a job unit's cgroup with a root-owned definition (sudo keeps the cgroup: measured on Debian 13).
 # 02 Nov 26 dm - S.101 stage D: totp-local on|off (the console's code; off, the delivered default, by the owner's ruling of 2 Nov 26) and the public status file
 #                /etc/sdcore/totp.public that SD's doors read: published by totp-confirm (after the marker lines are in place), totp-off (enrolled no, FIRST) and totp-local.
 # 02 Nov 26 dm S.105 (owner, 2 Nov 2026: "remove Fedora support for this release", "Take it out"): comments that named Fedora, RHEL or Arch as
@@ -165,6 +168,8 @@ SD_ACCT_ROOT_REAL=/home/sd
 SD_ACCT_ROOT=${SD_ACCT_ROOT:-$SD_ACCT_ROOT_REAL}
 SD_JOBS_DIR_REAL=/etc/sdcore/jobs.d                     # 2 Nov 26 dm - S.102 stage 2: where the scheduled jobs' definitions are; a test knob like SD_ACCT_ROOT
 SD_JOBS_DIR=${SD_JOBS_DIR:-$SD_JOBS_DIR_REAL}
+SD_UNIT_DIR_REAL=/etc/systemd/system                    # 2 Nov 26 dm - S.102 stage 3: where a job's timer and service units go; a test knob like SD_JOBS_DIR
+SD_UNIT_DIR=${SD_UNIT_DIR:-$SD_UNIT_DIR_REAL}
 
 # Below this, an account is a system account and out of reach.  Read from
 # /etc/login.defs when it is there rather than assumed, because distributions
@@ -228,9 +233,9 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] job-set <name> <job> <schedule words>
                                   (defines or replaces a scheduled administrator job in /etc/sdcore/jobs.d: <job> is backup-all, check-masters, sync-masters or
                                   update-accounts; the schedule is every 5|10|15|20|30 minutes, hourly, daily HH:MM, weekly mon..sun HH:MM or monthly 1..28 HH:MM.
-                                  It writes the definition only: no timer is made and nothing is run)
+                                  It writes the definition, then the timer and service units sdcore-job-<name>, and enables the timer)
   sd-elevate [--dry-run] job-delete <name>
-                                  (removes the definition of that job)
+                                  (stops and removes the job's timer and units, then the definition)
   sd-elevate [--dry-run] job-list (the defined jobs, one line each)
   sd-elevate [--dry-run] sdsys-join <sdu_ group>
                                   (puts the user sdsys, and no other user, into the group of an SD
@@ -340,6 +345,9 @@ sdsys_login_gate() {
     sdsys_mark_gate "$lu"                       # S.101: the login is sdsys's own; did it give the authenticator code?
     return 0
   fi
+  if [[ $lu == 4294967295 ]] && sdsys_job_gate; then   # S.102 stage 3: no login at all, and systemd started this as an SD scheduled job
+    return 0
+  fi
   [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller is sdsys but the login behind it is uid ${lu:-unknown}, not sdsys's" 2>/dev/null || true
   die "the caller is the user sdsys but did not log in as sdsys: the login behind this session is uid ${lu:-unknown}, not sdsys's (${want:-unknown}). su, sudo -u and a service keep the login of whoever started them; log in as sdsys itself and run it from there. Nothing was done."
 }
@@ -352,6 +360,39 @@ sdsys_login_gate() {
 # cproc's ssh arm still asks.  The delivered scope is remote (owner, 2 Nov 26: the console's code is opt-in); "scope all", the administrator's `local on`, always asks.
 # A file that is a link, not the helper's own (root), or writable by group or others answers no.  A dry run asks only when SD_MARK_FIXTURE_DIR names a test's files (with SD_BOOT_FIXTURE,
 # SD_SESSION_FIXTURE and SD_LOGINUID_FIXTURE); a real run reads /etc/sdcore/totp.public, /run/sdcore/marks and /proc and ignores every fixture.
+# 02 Nov 26 dm - S.102 stage 3.  A SCHEDULED ADMINISTRATOR JOB runs as sdsys with no login uid (a systemd unit sets none), so the test above cannot admit it.
+# It is admitted when the helper's own cgroup (sudo does not move it out of the unit's: measured 2 Nov 26 on Debian 13) is exactly one line
+# "0::/system.slice/sdcore-job-<name>.service" - systemd put the job there, and the sdsys user can neither move a process there nor start a system unit - and
+# /etc/sdcore/jobs.d/<name>, with its directory and the directory above, passes the same root-only file test.  The SD command itself is checked by the kernel
+# (K$JOB.MARK); the helper's own verbs are narrowed as ever.  A dry run asks this only with SD_CGROUP_FIXTURE (a file) and SD_JOBS_FIXTURE_DIR.
+sdsys_job_gate() {
+  local cg jdir n def
+  if [[ $DRY -eq 1 ]]; then
+    [[ -n ${SD_CGROUP_FIXTURE:-} && -n ${SD_JOBS_FIXTURE_DIR:-} ]] || return 1
+    cg=$(cat -- "$SD_CGROUP_FIXTURE" 2>/dev/null) || return 1
+    jdir=$SD_JOBS_FIXTURE_DIR
+  else
+    cg=$(cat /proc/self/cgroup 2>/dev/null) || return 1
+    jdir=/etc/sdcore/jobs.d
+  fi
+  [[ $cg =~ ^0::/system\.slice/sdcore-job-([a-z]([a-z0-9-]{0,30}[a-z0-9])?)\.service$ ]] || return 1
+  n=${BASH_REMATCH[1]}
+  def=$jdir/$n
+  mark_safe_dir "${jdir%/*}" && mark_safe_dir "$jdir" && mark_safe_file "$def" || return 1
+  [[ $(stat -c %h -- "$def" 2>/dev/null) == 1 ]] || return 1
+  grep -qx "name=$n" -- "$def" || return 1
+  [[ $DRY -eq 1 ]] || logger -t sd-elevate "admitted the scheduled job $n (no login; cgroup and root-owned definition)" 2>/dev/null || true
+  return 0
+}
+
+mark_safe_dir() {   # DIR - a directory, not a link, the helper's own, not writable by group or others
+  local d=$1 m
+  [[ -d $d && ! -L $d ]] || return 1
+  [[ $(stat -c %u -- "$d" 2>/dev/null) == "${EUID:-$(id -u)}" ]] || return 1
+  m=$(stat -c %a -- "$d" 2>/dev/null) || return 1
+  (( (8#$m & 8#022) == 0 ))
+}
+
 mark_safe_file() {   # FILE - a regular file, not a link, the helper's own, not writable by group or others
   local f=$1 m
   [[ -f $f && ! -L $f ]] || return 1
@@ -2032,6 +2073,27 @@ job_check() {   # job_check NAME ID WORD... - dies unless the name, the job id a
   job_text "$n" "$id"
 }
 
+# 02 Nov 26 dm - S.102 stage 3.  THE UNITS THAT RUN A JOB.  The service runs the job's one fixed SD command as the sdsys user from the SDSYS account's directory
+# (`sd "<command>"`), with no login behind it: CPROC admits it through kernel(K$JOB.MARK) - systemd's cgroup sdcore-job-<name>.service, which only root can start or
+# enter, and the root-owned definition naming that very command - and through sdsys_job_gate here for any helper verb the command needs.  The timer starts the
+# service at the OnCalendar of the definition; a run missed while the machine was off is NOT made up (Persistent=false, the tighter of the two readings).
+job_units() {   # job_units NAME - sets JB_SERVICE and JB_TIMER (the two unit files' text) after job_check has set JB_SENTENCE, JB_SCHED and JB_CAL
+  local n=$1 head="# an SD scheduled job, written by sd-elevate job-set; changed only by sd-elevate job-set and job-delete"
+  JB_SERVICE="$head"$'\n'"[Unit]"$'\n'"Description=SD scheduled job $n: $JB_SENTENCE"$'\n'"After=sd.service"$'\n'$'\n'"[Service]"$'\n'"Type=oneshot"$'\n'"User=sdsys"$'\n'"Group=sdusers"$'\n'"WorkingDirectory=$SD_SYS_ROOT_REAL"$'\n'"ExecStart=$SD_SYS_ROOT_REAL/bin/sd \"$JB_SENTENCE\""$'\n'
+  JB_TIMER="$head"$'\n'"[Unit]"$'\n'"Description=SD scheduled job $n: $JB_SCHED"$'\n'$'\n'"[Timer]"$'\n'"OnCalendar=$JB_CAL"$'\n'"Persistent=false"$'\n'"Unit=sdcore-job-$n.service"$'\n'$'\n'"[Install]"$'\n'"WantedBy=timers.target"$'\n'
+}
+
+job_unit_write() {   # job_unit_write FILE TEXT - root:root 0644 by one rename in the unit directory; refuses a link or a non-file in the way; false when it could not
+  local f=$1 t
+  [[ ! -L $f && ( ! -e $f || -f $f ) ]] || { printf '%s: %s is a link or not a plain file; it was left as it is\n' "$PROG" "$f" >&2; return 1; }
+  t=$(mktemp "$SD_UNIT_DIR/.sdcore-job.XXXXXX") || return 1
+  if printf '%s' "$2" > "$t" && chown root:root -- "$t" && chmod 0644 -- "$t" && mv -f -T -- "$t" "$f"; then
+    return 0
+  fi
+  rm -f -- "$t"
+  return 1
+}
+
 job_caller() {   # job_caller - dies unless sudo says the caller is sdsys; a run by root with no sudo (SUDO_USER unset) is not asked
   [[ -z ${SUDO_USER:-} || ${SUDO_USER:-} == sdsys ]] || die "the scheduled jobs are the administrator's (the user sdsys); sudo says they were asked for by another user"
 }
@@ -2323,6 +2385,7 @@ else
   SD_ACCARCHIVE=$SD_ACCARCHIVE_REAL
   SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL
   SD_JOBS_DIR=$SD_JOBS_DIR_REAL
+  SD_UNIT_DIR=$SD_UNIT_DIR_REAL
 fi
 
 verb=${1:-}
@@ -2686,23 +2749,41 @@ case $verb in
   job-set)
     [[ $# -ge 3 ]] || die "job-set takes a name, a job and a schedule: job-set NAME JOB every 15 minutes | hourly | daily 02:30 | weekly sun 03:00 | monthly 1 04:00"
     job_check "$@"
+    job_units "$JB_NAME"
     printf '%s: job-set %s: runs "%s" (%s) %s, OnCalendar=%s, definition in %s/%s\n' "$PROG" "$JB_NAME" "$JB_SENTENCE" "$JB_ID" "$JB_SCHED" "$JB_CAL" "$SD_JOBS_DIR" "$JB_NAME"
+    printf '%s: then: units %s/sdcore-job-%s.service and .timer, systemctl daemon-reload, systemctl enable --now sdcore-job-%s.timer\n' "$PROG" "$SD_UNIT_DIR" "$JB_NAME" "$JB_NAME"
     [[ $DRY -eq 1 ]] && exit 0
     need_root
     job_caller
     js_how=$(python3 -I -c "$JOBS_PY" set "$SD_JOBS_DIR" "$JB_NAME" "$JB_TEXT" "$JOB_MAX") || exit $?
     logger -t sd-elevate "job-set: job $JB_NAME $js_how ($JB_ID, $JB_SCHED)" 2>/dev/null || true
     printf '%s: job %s %s\n' "$PROG" "$JB_NAME" "$js_how"
-    exit 0
+    # S.102 stage 3: the definition first (the kernel reads it at every run), then the units, then systemd.  A failure here leaves a definition with no
+    # timer - nothing runs - and is exit 3 with the reason.
+    if job_unit_write "$SD_UNIT_DIR/sdcore-job-$JB_NAME.service" "$JB_SERVICE" && job_unit_write "$SD_UNIT_DIR/sdcore-job-$JB_NAME.timer" "$JB_TIMER" \
+       && systemctl daemon-reload && systemctl enable --now "sdcore-job-$JB_NAME.timer"; then
+      logger -t sd-elevate "job-set: job $JB_NAME scheduled (sdcore-job-$JB_NAME.timer, $JB_CAL)" 2>/dev/null || true
+      printf '%s: job %s is scheduled: %s\n' "$PROG" "$JB_NAME" "$JB_SCHED"
+      exit 0
+    fi
+    printf '%s: the definition of %s is written, but its timer could not be put in place; nothing will run until job-set succeeds\n' "$PROG" "$JB_NAME" >&2
+    exit 3
     ;;
 
   job-delete)
     [[ $# -eq 1 ]] || die "job-delete takes the name of one job"
     job_name_ok "$1" || die "a job name is 1 to 32 characters: a lower case letter first, then lower case letters, digits and dashes, not ending in a dash"
-    printf '%s: job-delete %s: removes %s/%s\n' "$PROG" "$1" "$SD_JOBS_DIR" "$1"
+    printf '%s: job-delete %s: first: systemctl disable --now sdcore-job-%s.timer, the units out of %s\n' "$PROG" "$1" "$1" "$SD_UNIT_DIR"
+    printf '%s: then: removes %s/%s\n' "$PROG" "$SD_JOBS_DIR" "$1"
     [[ $DRY -eq 1 ]] && exit 0
     need_root
     job_caller
+    # S.102 stage 3: the timer goes FIRST, so nothing is started between the definition's removal and the units'; a run already going is let finish.
+    if [[ -e $SD_UNIT_DIR/sdcore-job-$1.timer || -L $SD_UNIT_DIR/sdcore-job-$1.timer ]]; then
+      systemctl disable --now "sdcore-job-$1.timer" >/dev/null 2>&1 || true
+    fi
+    rm -f -- "$SD_UNIT_DIR/sdcore-job-$1.timer" "$SD_UNIT_DIR/sdcore-job-$1.service"
+    systemctl daemon-reload || true
     js_how=$(python3 -I -c "$JOBS_PY" delete "$SD_JOBS_DIR" "$1") || exit $?
     if [[ $js_how == absent ]]; then
       printf '%s: no job named %s; nothing was changed\n' "$PROG" "$1"

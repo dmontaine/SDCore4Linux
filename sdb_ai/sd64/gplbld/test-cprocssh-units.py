@@ -40,7 +40,7 @@ def rows_for(path, bp_dir):
             n = strip_comments(open(p, encoding="utf-8", errors="replace").read()).count("kernel(K$ADMINISTRATOR, 1)")
             if n:
                 sites[name] = n
-    row("K$ADMINISTRATOR is set at three places and all are in CPROC (the install arm, the local arm, the ssh arm)", sites == {"cproc": 3}, "%s" % sites)
+    row("K$ADMINISTRATOR is set at four places and all are in CPROC (the install arm, the scheduled job, the local arm, the ssh arm)", sites == {"cproc": 4}, "%s" % sites)
     row("the local arm's line is exactly the one the sandbox tools patch by its text", code.count(LOCAL_LINE) == 1, "")
     i = code.find("\n      end else", code.find(LOCAL_LINE))      # the OUTER else (six spaces): the inner one of the local arm has nine
     arm = code[i:code.find("$endif", i)]
@@ -61,7 +61,7 @@ def rows_for(path, bp_dir):
     for name, part, kind in (("local", loc, "local"), ("ssh", arm, "ssh")):
         mk = part.find("if kernel(K$LOGIN.UID, 'sdsys') = 1 then lm.ok = kernel(K$LOGIN.MARK, '%s')" % kind)
         rf = part.find("if not(lm.ok) then")
-        gr = part.find("kernel(K$ADMINISTRATOR, 1)")
+        gr = part.find("kernel(K$ADMINISTRATOR, 1)", max(rf, 0))     # 2 Nov 26: the scheduled job's grant comes earlier in the local arm (S.102)
         row("S.101: the %s arm asks K$LOGIN.MARK('%s') only for a login that is sdsys's, refuses with 11190 and abort.cproc without it, all BEFORE the grant" % (name, kind),
             0 <= mk < rf < gr and "sysmsg(11190)" in part[rf:gr] and "goto abort.cproc" in part[rf:gr]
             and ("elevation refused reason=sdsys login without the authenticator code kind=%s" % kind) in part[rf:gr], "mark %d refuse %d grant %d" % (mk, rf, gr))
@@ -76,6 +76,19 @@ def rows_for(path, bp_dir):
         "and an absent status file (no code enrolled) is the only absence that answers yes",
         "O_RDONLY | O_NOFOLLOW | O_CLOEXEC" in opk and "(st.st_uid != 0) || ((st.st_mode & 022) != 0)" in opk
         and "return absent;" in opk and 'snprintf(want, sizeof(want), "uid=%s ", luid);' in opk, "")
+    # 2 Nov 26 (S.102 stage 3): the scheduled job's grant
+    jb = loc.find("job.name = kernel(K$JOB.MARK, 0)")
+    jg = loc.find("void kernel(K$ADMINISTRATOR, 1)", jb)
+    ja = loc.find("void kernel(K$AUDIT, 'elevation granted reason=scheduled job')", jb)
+    jgo = loc.find("goto elevation.done", jb)
+    row("S.102: the local arm asks K$JOB.MARK FIRST (before any login question), grants only on a name, audits after the grant and jumps past the refusals to elevation.done",
+        0 <= jb < jg < ja < jgo < loc.find("lm.ok = 1") and "if job.name # '' then" in loc[jb:jg] and code.count("elevation.done:") == 1
+        and code.find("elevation.done:") > code.find("elevation refused reason=sdsys session without a sdsys login", code.find(LOCAL_LINE) + 1), "job %d grant %d audit %d goto %d" % (jb, jg, ja, jgo))
+    row("S.102: K$JOB.MARK is 172 in gplsrc/keys.h and int$keys.h; the kernel compares the session's own single_command (no argument from BASIC), with sd_job_name, "
+        "and audit_message() ends every record with job=<name>",
+        re.search(r"#define K_JOB_MARK\s+172\b", keys_c) is not None and re.search(r"\$define K\$JOB\.MARK\s+172\b", keys_b) is not None
+        and "sd_job_name(SD_JOB_CGROUP_FILE, SD_JOB_DIR, single_command, 0, jn, sizeof(jn))" in opk
+        and 'snprintf(jmsg, sizeof(jmsg), "%s job=%s", msg, sd_job_active);' in open(os.path.join(os.path.dirname(os.path.dirname(bp_dir)), "gplsrc", "k_error.c"), encoding="utf-8").read(), "")
     row("S.101: the console's code is opt-in (owner, 2 Nov 26) - the kernel asks a local login for its marker only when the status file says 'scope all'",
         '(strcmp(kind, "local") == 0) && (strstr(pub, "\\nscope all\\n") == NULL)' in opk and "scope remote" not in opk, "")
     row("the grant is audited AFTER the administrator bit is set (a trail must not record rights not yet given)", g < arm.find("elevation granted"), "")
@@ -101,6 +114,11 @@ MUTANTS = [
     # S.101 stage B (2 Nov 26)
     ("the local arm does not ask the marker", "lm.ok = kernel(K$LOGIN.MARK, 'local')", "lm.ok = 1"),
     ("the ssh arm does not ask the marker", "lm.ok = kernel(K$LOGIN.MARK, 'ssh')", "lm.ok = 1"),
+    # S.102 stage 3 (2 Nov 26)
+    ("any job name is granted without the kernel", "         job.name = kernel(K$JOB.MARK, 0)\n", "         job.name = 'x'\n"),
+    ("the job's grant falls into the login refusals", "            goto elevation.done\n", ""),
+    ("the job is asked after the login questions", "         job.name = kernel(K$JOB.MARK, 0)\n         if job.name # '' then", "         job.name = ''\n         if job.name # '' then"),
+    ("the job is granted without the audit line", "            void kernel(K$AUDIT, 'elevation granted reason=scheduled job')   ;* the kernel ends the line with job=<name>\n", ""),
     ("a login without the code is refused but kept", "            void kernel(K$AUDIT, 'elevation refused reason=sdsys login without the authenticator code kind=local')\n            goto abort.cproc\n",
      "            void kernel(K$AUDIT, 'elevation refused reason=sdsys login without the authenticator code kind=local')\n"),
 ]

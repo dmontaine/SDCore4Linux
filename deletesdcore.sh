@@ -444,10 +444,20 @@ fi
 #            and belong to nothing once the fence is out); the module goes only when the fences are known to be out, because a PAM line naming a missing module would fail
 #            the sign-in of sdsys (the line is guarded to that user, nobody else's).  A reinstall starts with the sdsys ssh door shut until a code is enrolled again.
 sudo rm -rf /etc/sdcore/totp
-# 02 Nov 26 dm - S.102 stage 2: the definitions of the administrator's scheduled jobs (sd-elevate job-set) are SD's and belong to nothing once SD is gone.
+# 02 Nov 26 dm - S.101: the published status of the code (enrolled, scope) goes with the code.  Found by the S.102 VM witness: a delete left
+#            "enrolled yes", and the next install started out claiming a code that no longer existed.
+sudo rm -f /etc/sdcore/totp.public
+# 02 Nov 26 dm - S.102 stage 3: the jobs' timers are stopped and their units removed FIRST (a timer left behind would start a program that is gone),
+#            then the definitions (stage 2), which are SD's and belong to nothing once SD is gone.
+for jt in /etc/systemd/system/sdcore-job-*.timer; do
+    [ -e "$jt" ] || continue
+    sudo systemctl disable --now "$(basename "$jt")" >/dev/null 2>&1 || true
+done
+sudo rm -f /etc/systemd/system/sdcore-job-*.timer /etc/systemd/system/sdcore-job-*.service
+sudo systemctl daemon-reload >/dev/null 2>&1 || true
 sudo rm -rf /etc/sdcore/jobs.d
 sudo rmdir /etc/sdcore 2>/dev/null || true
-echo "Removed /etc/sdcore/totp (the sdsys authenticator secret and recovery codes) and /etc/sdcore/jobs.d (the scheduled jobs' definitions)."
+echo "Removed /etc/sdcore/totp and totp.public (the sdsys authenticator secret, recovery codes and status), the scheduled jobs' timers and units, and /etc/sdcore/jobs.d (their definitions)."
 if [ "$ssh_fences_out" = 1 ]; then
     sudo rm -rf /usr/local/lib/sd
     echo "Removed /usr/local/lib/sd (SD's PAM module)."

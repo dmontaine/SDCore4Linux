@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Nov 26 dm  S.102 stage 3: K_JOB_MARK (172) - the scheduled administrator job this process is (sd_jobmark.c), kept for the audit trail.
  * 02 Nov 26 dm  S.101 stage B: K_LOGIN_MARK (171) - may this sdsys login be made administrator as far as the authenticator code goes (the public
  *               status file /etc/sdcore/totp.public and the PAM module's marker in /run/sdcore/marks for this boot and session).
  * 28 Oct 26 dm  S.88 review of L2: kernel(K$AUTOLOGOUT, -2) returns the inactivity clock (keyin_idle_ms()) instead of the period, for the IDE's countdown.
@@ -91,6 +92,7 @@
 #include "options.h"
 #include "dh_int.h"
 #include "locks.h"
+#include "sd_jobmark.h"
 
 extern int txn_nondurable; /* txn.c: the next COMMIT is non-durable (K_NON_DURABLE_TXN) */
 void kr_wipe(void);        /* sd_keyring.c: empty the key ring of the XE conversion */
@@ -594,6 +596,20 @@ void op_kernel() {
         result.data.value = 0;
         if (k_get_c_string(descr, kind, sizeof(kind) - 1) > 0 && ((strcmp(kind, "ssh") == 0) || (strcmp(kind, "local") == 0)))
           result.data.value = login_mark_ok(kind) ? 1 : 0;
+      }
+      break;
+
+    /* S.102 stage 3 (2 Nov 26): kernel(K$JOB.MARK, 0) - the name of the scheduled administrator job this process is, or ''.  The command compared is
+       the kernel's own single_command (the "sd '<command>'" text), never a value the caller passes.  A name, once answered, stays for the life of the
+       process: every audit line it writes ends " job=<name>" (audit_message).  CPROC's local arm asks it before K$LOGIN.UID; sd-elevate asks the same
+       of its own cgroup in shell.                                                                                                            */
+    case K_JOB_MARK:
+      {
+        char jn[SD_JOB_NAME_MAX + 1];
+
+        if ((sd_job_active[0] == '\0') && (sd_job_name(SD_JOB_CGROUP_FILE, SD_JOB_DIR, single_command, 0, jn, sizeof(jn)) == 0))
+          strcpy(sd_job_active, jn);
+        k_put_c_string(sd_job_active, &result);
       }
       break;
 
