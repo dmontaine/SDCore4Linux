@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   TOOL.ENTRIES: THE DICTIONARY ITEMS OF EVERY ACCOUNT, AND A > FOR EVERY POINTER THAT LEADS OUT OF THE ACCOUNT.
+
+             What        - The master files page gains a second kind of entry: K switches from the VOC entries to the dictionary items of the files the account's VOC
+                           points at (the dictionary path of each file pointer), listed with file, id, type and column heading. / and F match a dictionary item by its id
+                           OR its column heading, so "first name" finds the items headed First Name whatever they are called, in one account or in all of them. A new
+                           column marks with > every entry that is a pointer whose target lies outside the account being listed - a file pointer to another directory
+                           (the shipped ones lead to @SDSYS/voc.dic and the like), a Q-pointer to another account, a remote item - and every dictionary item that
+                           lives outside the account and is only read through its pointer. A path is judged by the kernel, so .. and links cannot make one look inside.
+                           The shipped pointers' @SDSYS/... paths are read as LOGTO reads them. An account whose VOC cannot be opened now shows its path on a line of
+                           its own (a long path was cut at the edge of the box, with the account's name in the part that was lost).
+             Why         - The owner's rule for the master pages: a pointer record may be edited (change @SDSYS/voc.dic to another directory) but a pointer must never
+                           lead the master to edit something in one account from another; what a pointer points at is edited in the account it lives in.
+             Does NOT    - Edit anything: this stage still only reads. The stages that edit are built to the same rule.
+
 3 Nov 26   TOOL.ENTRIES: THE MASTER FILES PAGE, FIRST STAGE - THE VOC OF EVERY ACCOUNT, READ FROM THE ACCOUNT'S OWN FILE.
 
              What        - New full-screen page, administrator only (in the SDSYS VOC only): tool.entries. The left box lists every registered account but SDSYS with the

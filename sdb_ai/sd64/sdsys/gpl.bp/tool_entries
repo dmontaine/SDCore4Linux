@@ -4,7 +4,10 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
-* 3 Nov 26 dm  New (S.96 M1a; owner, 31 Oct 2026: "pointers seem to me to be a good way to do it").  The VOC kind only, READ ONLY; dictionaries and programs, and the editing, are later
+* 3 Nov 26 dm  S.96 M1b: the second kind, the DICTIONARY ITEMS of the account's files (K switches).  The reading of an account is one routine, collect.account, used by the list of the
+*              account under the cursor and by the find in every account; a dictionary item matches a text in its id OR its column heading (the owner's example: "display all dictionary
+*              items with the name First Name"; which of the two he meant is his to say, so both).
+* 3 Nov 26 dm  New (S.96 M1a; owner, 31 Oct 2026: "pointers seem to me to be a good way to do it").  The VOC kind only, READ ONLY; programs, and the editing, are later
 *              stages.  Made from tool_jobs (its Accounts and list boxes) and tool_voc (the entry's type and what it points at).
 * END-HISTORY
 *
@@ -17,7 +20,8 @@
 *
 *     Accounts   every registered account but SDSYS with the edit gates it holds (voc-edit, dict-edit, bp-edit, shown as v d b or a dash), whether the sdsys user is in its group, and
 *                whether it is suspended
-*     Entries    the VOC of the account under the cursor: each entry's id, its type and what it points at, in name order
+*     Entries    the VOC of the account under the cursor: each entry's id, its type and what it points at, in name order; K switches to the DICTIONARY ITEMS of its files (the
+*                dictionary each file pointer of the VOC names): file, item id, type and column heading, in file and id order
 *
 *   The VOC of an account is read when the cursor comes to the account, not at the start: a system with many accounts is not read as a whole.  F finds an id, or a part of one, in the
 *   VOC of EVERY account (this reads them all and is asked for by name); the boxes then list the hits with their accounts, and Enter on a hit goes to that entry in its account.
@@ -62,6 +66,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)
    call $tk_keys('add', keys, '/', 'filter', 'filter', '', 1)
    call $tk_keys('add', keys, 'f', 'find', 'find', '', 1)
+   call $tk_keys('add', keys, 'k', 'kind', 'kind', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* Esc takes the find and the filter off first, else opens the menu bar
@@ -69,12 +74,14 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the entries by id', '', '')
    call $tk_keys('menu', keys, 'find', '&View', 'F&ind an id in every account', '', '')
+   call $tk_keys('menu', keys, 'kind', '&View', '&Kind: VOC entries or dictionary items', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
    * The AI line: offered the actions that only change what is shown; a proposal is carried out by the page's own key, and its argument is the DEFAULT of the page's own prompt.
    call $tk_keys('ai', keys, 'pane', '', '', '', '')
    call $tk_keys('ai', keys, 'filter', '', '', '', '')
    call $tk_keys('ai', keys, 'find', '', '', '', '')
+   call $tk_keys('ai', keys, 'kind', '', '', '', '')
    call $tk_keys('ai', keys, 'refresh', '', '', '', '')
    call $tk_aipage('init', ctx, keys, '', '', aout)
 
@@ -85,6 +92,8 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    ac = 1 ; atop = 1                                             ;* the row selected in Accounts, and the first row shown
    ec = 1 ; etop = 1                                             ;* the same in Entries (the hits, in a find)
    an = 0 ; anm = '' ; en = 0 ; enm = '' ; hn = 0               ;* read.all reads both before it fills them (BASIC does not short-circuit)
+   ekey = '' ; efile = '' ; hfile = '' ; eout = '' ; hout = '' ; vfail = 0 ; dfail = 0
+   kind = 1                                                      ;* 1 the VOC entries, 2 the dictionary items of the account's files
    filt = '' ; fnd = ''
    ai.arg = ''
    gen = 0
@@ -159,7 +168,7 @@ read.all:
             read arec from acc.f, id then
                locate id in names<1> by 'AL' setting lp else
                   ins id before names<lp>
-                  ins arec<1> before apath<lp>
+                  ins parse.pathname.tokens(arec<1>) before apath<lp>
                   gset = (if upcase(trim(arec<ACC$VOC.EDIT>)) = 'YES' then 'v' else '-')
                   gset := (if upcase(trim(arec<ACC$DICT.EDIT>)) = 'YES' then 'd' else '-')
                   gset := (if upcase(trim(arec<ACC$BP.EDIT>)) = 'YES' then 'b' else '-')
@@ -191,43 +200,24 @@ read.all:
    gosub read.entries
    return
 
-* The selected account's VOC, read by the pathname the register gives, in name order: enm, ety (the type word), esm (what it points at), en; filt, if set, keeps the ids that hold it.
-* vfail is 1 when the account's VOC could not be opened; etrunc when MAXV entries were listed and there were more; eall is the number of entries read.
+* The selected account's entries of the kind shown (the VOC, or the dictionary items of its files), read by the pathname the register gives, in name order: ekey (the sort key), enm (the
+* id), efile (the file, for a dictionary item), ety (the type word), esm (what it points at, or the heading), en; filt, if set, keeps what holds it.  vfail is 1 when the account's VOC
+* could not be opened; dfail is the number of dictionaries that could not be opened; etrunc when MAXV were listed and there were more; eall is the number read.
 read.entries:
-   old.e = (if ec >= 1 and ec <= en and fnd = '' then enm<ec> else '')
-   enm = '' ; ety = '' ; esm = ''
-   en = 0 ; eall = 0 ; etrunc = 0 ; vfail = 0
+   old.e = (if ec >= 1 and ec <= en and fnd = '' then ekey<ec> else '')
+   ekey = '' ; enm = '' ; efile = '' ; ety = '' ; esm = '' ; eout = ''
+   en = 0 ; eall = 0 ; etrunc = 0 ; vfail = 0 ; dfail = 0
    if an > 0 then
-      openpath apath<ac>:@ds:'voc' to vf then
-         select vf to 9
-         loop
-            readnext id from 9 else exit
-            eall += 1
-            if filt = '' or index(upcase(id), upcase(filt), 1) > 0 then
-               if en >= MAXV then
-                  etrunc = 1
-               end else
-                  read r from vf, id then
-                     gosub classify
-                     locate id in enm<1> by 'AL' setting lp else
-                        ins id before enm<lp>
-                        ins cty before ety<lp>
-                        ins csm before esm<lp>
-                        en += 1
-                     end
-                  end
-               end
-            end
-         repeat
-         close vf
-      end else
-         vfail = 1
-      end
+      ca = ac
+      pat = filt
+      gosub collect.account
+      ekey = ckey ; enm = cid ; efile = cfile ; ety = cty2 ; esm = csm2 ; eout = cout
+      en = cn ; eall = rcount ; etrunc = ctrunc ; vfail = cfail ; dfail = cdfail
    end
    if fnd = '' then
       ec = 1
       if old.e # '' then
-         locate old.e in enm<1> setting op then ec = op
+         locate old.e in ekey<1> setting op then ec = op
       end
       if ec > en then ec = en
       if ec < 1 then ec = 1
@@ -235,36 +225,146 @@ read.entries:
    gosub keep.tops
    return
 
-* F: the id (or a part of it) in the VOC of EVERY account.  The hits are kept in name order of account and id: hacc, hid, hty, hsm, hn; htrunc when there were more than MAXV; hseen is the
-* number of VOCs that could be opened.  This reads every VOC; it is run only when it is asked for, and again by F5.
-run.find:
-   hacc = '' ; hid = '' ; hty = '' ; hsm = '' ; hkey = '' ; hn = 0 ; htrunc = 0 ; hseen = 0
-   for a = 1 to an
-      openpath apath<a>:@ds:'voc' to vf then
-         hseen += 1
-         select vf to 9
+* The entries of account number ca of the kind shown that hold the text pat ('' = all), sorted by key.  Out: ckey, cid, cfile ('' for a VOC entry), cty2, csm2, cn; rcount (how many were
+* read), ctrunc (MAXV were kept and there were more), cfail (the VOC could not be opened), cdfail (dictionaries that could not be opened).  The VOC is opened by the pathname the register
+* gives and the records are only read.  A dictionary item holds the text in its id or in its heading.  The dictionary path of a file pointer is read as LOGTO reads a pathname: the
+* tokens are expanded (@SDSYS/voc.dic is the system's dictionary of the VOC, and the shipped pointers of every VOC use it), and a path that is still relative is the account's.
+collect.account:
+   ckey = '' ; cid = '' ; cfile = '' ; cty2 = '' ; csm2 = '' ; cout = '' ; cn = 0 ; rcount = 0 ; ctrunc = 0 ; cfail = 0 ; cdfail = 0
+   openpath apath<ca>:@ds:'voc' to vf else
+      cfail = 1
+      return
+   end
+   select vf to 9
+   if kind = 1 then
+      loop
+         readnext id from 9 else exit
+         rcount += 1
+         if pat = '' or index(upcase(id), upcase(pat), 1) > 0 then
+            if cn >= MAXV then
+               ctrunc = 1
+            end else
+               read r from vf, id then
+                  gosub classify
+                  locate id in ckey<1> by 'AL' setting lp else
+                     ins id before ckey<lp>
+                     ins id before cid<lp>
+                     ins '' before cfile<lp>
+                     ins cty before cty2<lp>
+                     ins csm before csm2<lp>
+                     ins coutf before cout<lp>
+                     cn += 1
+                  end
+               end
+            end
+         end
+      repeat
+      close vf
+      return
+   end
+   * dictionaries: the files of this VOC that have one (field 3 of the file pointer), then the items of each
+   dfiles = '' ; dpaths = ''
+   loop
+      readnext id from 9 else exit
+      read r from vf, id then
+         if upcase(trim(r<1>))[1, 1] = 'F' and trim(r<3>) # '' then
+            locate id in dfiles<1> by 'AL' setting lp else
+               ins id before dfiles<lp>
+               ins trim(r<3>) before dpaths<lp>
+            end
+         end
+      end
+   repeat
+   close vf
+   for fi = 1 to dcount(dfiles, @fm)
+      dp = parse.pathname.tokens(dpaths<fi>)                      ;* @SDSYS/voc.dic and the like, as LOGTO and the VOC pointers read them
+      if dp[1, 1] # '/' then dp = apath<ca> : @ds : dp
+      tp = dp
+      gosub out.test                                              ;* a dictionary outside this account (SDSYS's voc.dic, which every account's pointer shares, or another account's) is not this account's to edit
+      doutf = is.out
+      openpath dp to df then
+         select df to 9
          loop
-            readnext id from 9 else exit
-            if index(upcase(id), upcase(fnd), 1) > 0 then
-               if hn >= MAXV then
-                  htrunc = 1
-               end else
-                  read r from vf, id then
-                     gosub classify
-                     k = anm<a> : '*' : id
-                     locate k in hkey<1> by 'AL' setting lp else
-                        ins k before hkey<lp>
-                        ins anm<a> before hacc<lp>
-                        ins id before hid<lp>
-                        ins cty before hty<lp>
-                        ins csm before hsm<lp>
-                        hn += 1
+            readnext did from 9 else exit
+            rcount += 1
+            read dr from df, did then
+               gosub dclassify
+               match.it = (pat = '')
+               if not(match.it) then match.it = (index(upcase(did), upcase(pat), 1) > 0 or index(upcase(dhead), upcase(pat), 1) > 0)
+               if match.it then
+                  if cn >= MAXV then
+                     ctrunc = 1
+                  end else
+                     dk = dfiles<fi> : '*' : did
+                     locate dk in ckey<1> by 'AL' setting lp else
+                        ins dk before ckey<lp>
+                        ins did before cid<lp>
+                        ins dfiles<fi> before cfile<lp>
+                        ins dty before cty2<lp>
+                        ins dhead before csm2<lp>
+                        ins doutf before cout<lp>
+                        cn += 1
                      end
                   end
                end
             end
          repeat
-         close vf
+         close df
+      end else
+         cdfail += 1
+      end
+   next fi
+   return
+
+* In: tp (a pathname with its tokens expanded and made absolute), ca (the account number).  Out: is.out, 1 when the path lies OUTSIDE the directory of that account, whether in SDSYS, in
+* another account or anywhere else.  THE OWNER'S RULE (3 Nov 26, in three messages): "pointers back to sdsys should not be editable ... they need to be edited in the sdsys account"; then
+* "the actual pointer should be editable, for example change @SDSYS/voc.dic to some other directory.  But the system should not follow and edit something in SDSYS from another account";
+* then "no pointer records should ever allow the master to end up editing something in [one] account from [another].  The actual pointer could be edited but never the target of the
+* pointer."  So a row marked > means, for a VOC entry, that the POINTER leads outside this account (the record is this account's and is edited like any VOC entry; what it points at is
+* never reached from here) and, for a dictionary item, that the ITEM LIVES OUTSIDE this account (read through its pointer; it is edited in the account it lives in).  The question is
+* the kernel's own geometry (K$PATH.IN: realpath, so .. and links cannot make a path look inside).  This stage edits nothing; the stages that edit follow the rule.
+out.test:
+   is.out = (if kernel(K$PATH.IN, apath<ca> : @fm : tp) then 0 else 1)
+   return
+
+* In: dr (a dictionary item).  Out: dty (D, I, E, L, PH or X), dhead (its column heading, or for a phrase and a text what it says), on one line
+dclassify:
+   t1 = upcase(trim(dr<1>))
+   dty = t1[1, 1]
+   if t1[1, 2] = 'PH' then dty = 'PH'
+   if dty = 'D' or dty = 'I' or dty = 'E' or dty = 'L' then
+      dhead = dr<4>
+   end else
+      dhead = dr<2>
+   end
+   dhead = convert(@vm, ' ', convert(@sm, ' ', dhead))
+   return
+
+* F: the text in the entries of the kind shown of EVERY account (an id for the VOC; an id or a heading for a dictionary item).  The hits are kept in name order of account and key: hacc,
+* hid, hfile, hty, hsm, hn; htrunc when there were more than MAXV; hseen is the number of VOCs that could be opened.  This reads every VOC (and every dictionary); it is run only when it is
+* asked for, and again by F5.  Each account's entries come back from collect.account already sorted, and the accounts are taken in name order, so the hits are appended.
+run.find:
+   hacc = '' ; hid = '' ; hfile = '' ; hty = '' ; hsm = '' ; hout = '' ; hn = 0 ; htrunc = 0 ; hseen = 0
+   for a = 1 to an
+      ca = a
+      pat = fnd
+      gosub collect.account
+      if not(cfail) then
+         hseen += 1
+         for q = 1 to cn
+            if hn >= MAXV then
+               htrunc = 1
+            end else
+               hn += 1
+               hacc<hn> = anm<a>
+               hid<hn> = cid<q>
+               hfile<hn> = cfile<q>
+               hty<hn> = cty2<q>
+               hsm<hn> = csm2<q>
+               hout<hn> = cout<q>
+            end
+         next q
+         if ctrunc then htrunc = 1
       end
    next a
    ec = 1 ; etop = 1
@@ -290,6 +390,26 @@ classify:
          csm = r<2>
    end case
    csm = convert(@vm, ' ', convert(@sm, ' ', csm))
+   * >: a pointer whose target lies outside this account - a file pointer whose data or dictionary path leads outside its directory, a Q-pointer to any other account, a remote item (R),
+   * whose file this page does not follow to see where it lives.  The pointer record is this account's (see out.test).
+   coutf = 0
+   begin case
+      case cty = 'F'
+         tp = parse.pathname.tokens(trim(r<2>))
+         if tp[1, 1] # '/' then tp = apath<ca> : @ds : tp
+         gosub out.test
+         coutf = is.out
+         if not(coutf) and trim(r<3>) # '' then
+            tp = parse.pathname.tokens(trim(r<3>))
+            if tp[1, 1] # '/' then tp = apath<ca> : @ds : tp
+            gosub out.test
+            coutf = is.out
+         end
+      case cty = 'Q'
+         coutf = (if downcase(trim(r<2>)) = downcase(anm<ca>) then 0 else 1)
+      case cty = 'R'
+         coutf = 1
+   end case
    return
 
 * The first row shown in each box follows the selection
@@ -340,10 +460,11 @@ get.rects:
 draw.all:
    screen clear at 0,ctx<TK.C.YBODY> size ctx<TK.C.W>,ctx<TK.C.BODYH>
    screen box at a.x,a.y size a.w,a.h title 'Accounts'
+   kw1 = (if kind = 1 then 'VOC' else 'Dictionary items')
    if fnd # '' then
-      ttl = 'Ids with "' : fnd : '" in every account'
+      ttl = kw1 : ' with "' : fnd : '" in every account'
    end else
-      ttl = 'VOC' : (if an > 0 then ' of ' : anm<ac> else '') : (if filt # '' then ', ids with "' : filt : '"' else '')
+      ttl = kw1 : (if an > 0 then ' of ' : anm<ac> else '') : (if filt # '' then ', matching "' : filt : '"' else '')
    end
    screen box at c.x,c.y size c.w,c.h title ttl
    screen box at m.x,m.y size m.w,m.h title 'What this means'
@@ -372,27 +493,58 @@ draw.entries:
    tw = c.w - 8
    ex = c.w - 87
    if fnd # '' then
-      screen text fmt('Account', '16L') : fmt('Id', (26 + ex) : 'L') : fmt('Type', '6L') : 'Points at' at c.x + 2,c.y + 1 attr 'header' width tw
+      if kind = 1 then
+         s = fmt('Account', '16L') : fmt('Id', (24 + ex) : 'L') : fmt('>', '2L') : fmt('Type', '6L') : 'Points at'
+      end else
+         s = fmt('Account', '14L') : fmt('File', '12L') : fmt('>', '2L') : fmt('Id', (18 + ex) : 'L') : fmt('Type', '5L') : 'Heading'
+      end
+      screen text s at c.x + 2,c.y + 1 attr 'header' width tw
       for r = 1 to VIS
          k = etop + r - 1
          s = ''
-         if k <= hn then s = fmt(hacc<k>[1, 14], '16L') : fmt(hid<k>[1, 24 + ex], (26 + ex) : 'L') : fmt(hty<k>, '6L') : hsm<k>
+         if k <= hn then
+            if kind = 1 then
+               s = fmt(hacc<k>[1, 14], '16L') : fmt(hid<k>[1, 22 + ex], (24 + ex) : 'L') : fmt((if hout<k> then '>' else ''), '2L') : fmt(hty<k>, '6L') : hsm<k>
+            end else
+               s = fmt(hacc<k>[1, 12], '14L') : fmt(hfile<k>[1, 10], '12L') : fmt((if hout<k> then '>' else ''), '2L') : fmt(hid<k>[1, 16 + ex], (18 + ex) : 'L') : fmt(hty<k>, '5L') : hsm<k>
+            end
+         end
          screen text s at c.x + 2,c.y + 1 + r attr (if k = ec and k <= hn then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
       next r
       if hn = 0 then
-         s = 'No VOC has an id with "' : fnd : '" in it (' : hseen : ' VOCs read).'
+         if kind = 1 then
+            s = 'No VOC has an id with "' : fnd : '" in it (' : hseen : ' VOCs read).'
+         end else
+            s = 'No dictionary item has "' : fnd : '" in its id or its heading (' : hseen : ' accounts read).'
+         end
          screen text s at c.x + 2,c.y + 3 width tw
       end
-      s = hn : (if hn = 1 then ' hit' else ' hits') : ' in ' : hseen : (if hseen = 1 then ' VOC' else ' VOCs') : ' read'
+      s = hn : (if hn = 1 then ' hit' else ' hits') : ' in ' : hseen
+      if kind = 1 then
+         s := (if hseen = 1 then ' VOC' else ' VOCs') : ' read'
+      end else
+         s := (if hseen = 1 then ' account' else ' accounts') : ' read'
+      end
       if htrunc then s := '; only the first ' : MAXV : ' are listed'
       s := '.'
       screen text s at c.x + 2,c.y + c.h - 2 attr 'bold' width tw
    end else
-      screen text fmt('Id', (32 + ex) : 'L') : fmt('Type', '6L') : 'Points at' at c.x + 2,c.y + 1 attr 'header' width tw
+      if kind = 1 then
+         s = fmt('Id', (30 + ex) : 'L') : fmt('>', '2L') : fmt('Type', '6L') : 'Points at'
+      end else
+         s = fmt('File', '13L') : fmt('>', '2L') : fmt('Id', (22 + ex) : 'L') : fmt('Type', '5L') : 'Heading'
+      end
+      screen text s at c.x + 2,c.y + 1 attr 'header' width tw
       for r = 1 to VIS
          k = etop + r - 1
          s = ''
-         if k <= en then s = fmt(enm<k>[1, 30 + ex], (32 + ex) : 'L') : fmt(ety<k>, '6L') : esm<k>
+         if k <= en then
+            if kind = 1 then
+               s = fmt(enm<k>[1, 28 + ex], (30 + ex) : 'L') : fmt((if eout<k> then '>' else ''), '2L') : fmt(ety<k>, '6L') : esm<k>
+            end else
+               s = fmt(efile<k>[1, 11], '13L') : fmt((if eout<k> then '>' else ''), '2L') : fmt(enm<k>[1, 20 + ex], (22 + ex) : 'L') : fmt(ety<k>, '5L') : esm<k>
+            end
+         end
          screen text s at c.x + 2,c.y + 1 + r attr (if k = ec and k <= en then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
       next r
       s = ''
@@ -400,17 +552,28 @@ draw.entries:
          case an = 0
             null
          case vfail
-            s = "This account's VOC cannot be opened from here (" : apath<ac> : ').'
-         case en = 0 and filt # ''
+            s = "This account's VOC cannot be opened from here."
+            s2 = 'Its path in the register: ' : apath<ac>                    ;* on a line of its own: a long path would be cut at the edge of the box, with the account's name in the part that is lost
+            screen text s2 at c.x + 2,c.y + 4 width tw
+         case en = 0 and filt # '' and kind = 1
             s = 'No entry has "' : filt : '" in its id.'
-         case en = 0
+         case en = 0 and filt # ''
+            s = 'No dictionary item has "' : filt : '" in its id or its heading.'
+         case en = 0 and kind = 1
             s = 'The VOC of this account is empty.'
+         case en = 0
+            s = 'No file of this account has a dictionary with an item in it.'
       end case
       if s # '' then screen text s at c.x + 2,c.y + 3 width tw
       if an > 0 and not(vfail) then
-         s = en : ' of ' : eall : (if eall = 1 then ' entry' else ' entries')
+         if kind = 1 then
+            s = en : ' of ' : eall : (if eall = 1 then ' entry' else ' entries')
+         end else
+            s = en : ' of ' : eall : (if eall = 1 then ' item' else ' items')
+         end
          if filt # '' then s := ' hold "' : filt : '"'
          if etrunc then s := '; only the first ' : MAXV : ' are listed'
+         if dfail > 0 then s := '; ' : dfail : (if dfail = 1 then ' dictionary' else ' dictionaries') : ' could not be opened'
          s := '.'
          screen text s at c.x + 2,c.y + c.h - 2 attr 'bold' width tw
       end
@@ -434,7 +597,16 @@ draw.effect:
             lines<-1> = 'The account has no group in the register.'
       end case
       if asus<ac> # '' then lines<-1> = 'The account is suspended.'
-      lines<-1> = 'The entries are read from the account' : "'s own VOC file when the cursor comes to the account; nothing is copied.  This stage only reads: no entry is changed from here."
+      if kind = 1 then
+         lines<-1> = 'The entries are read from the account' : "'s own VOC file when the cursor comes to the account; nothing is copied.  This stage only reads: no entry is changed from here."
+      end else
+         lines<-1> = 'The dictionary items are read, when the cursor comes to the account, from the dictionary of each file its VOC points at (field 3 of the file pointer); nothing is copied.  An item matches a text in its id or in its column heading.  This stage only reads.'
+      end
+      if kind = 1 then
+         lines<-1> = ">: the entry is a pointer whose target lies outside this account (in SDSYS, as @SDSYS/voc.dic does, or in another account).  The pointer is this account's own record, edited like any VOC entry; what it points at belongs to the account it lies in and is never edited from this page."
+      end else
+         lines<-1> = ">: the item lives in a dictionary outside this account (SDSYS's, which every account's pointer to it shares, or another account's) and is only read through this account's pointer.  It is edited in the account it lives in, never from here."
+      end
    end
    lines<-1> = ''
    gosub entry.lines
@@ -446,14 +618,18 @@ draw.effect:
 
 * The entry under the cursor field by field (up to nine fields), read from its account's VOC; the type in words first
 entry.lines:
-   eacct = '' ; eid = ''
+   eacct = '' ; eid = '' ; efl = ''
    if fnd # '' and hn > 0 and ec >= 1 and ec <= hn then
-      eacct = hacc<ec> ; eid = hid<ec> ; ety1 = hty<ec>
+      eacct = hacc<ec> ; eid = hid<ec> ; ety1 = hty<ec> ; efl = hfile<ec>
    end
    if fnd = '' and en > 0 and ec >= 1 and ec <= en then
-      eacct = anm<ac> ; eid = enm<ec> ; ety1 = ety<ec>
+      eacct = anm<ac> ; eid = enm<ec> ; ety1 = ety<ec> ; efl = efile<ec>
    end
    if eid = '' then return
+   if kind = 2 then
+      gosub dict.item.lines
+      return
+   end
    gosub type.word
    lines<-1> = eid : ' in ' : eacct : '  -  ' : tword
    locate eacct in anm<1> setting ap1 then
@@ -465,6 +641,44 @@ entry.lines:
                lines<-1> = fmt(q, '3R') : '  ' : convert(@vm, ' | ', convert(@sm, ' / ', dr<q>))
             next q
             if dcount(dr, @fm) > 9 then lines<-1> = '     (and ' : dcount(dr, @fm) - 9 : ' more fields)'
+         end
+         close vf2
+      end
+   end
+   return
+
+* The dictionary item under the cursor: eid in the dictionary of the file efl of the account eacct, field by field (up to nine), found by the file's pointer in that account's VOC
+dict.item.lines:
+   begin case
+      case ety1 = 'D'
+         tword = 'a D-type item (a field of the record)'
+      case ety1 = 'I'
+         tword = 'an I-type item (calculated)'
+      case ety1 = 'PH'
+         tword = 'a phrase'
+      case 1
+         tword = 'an item of type ' : ety1
+   end case
+   lines<-1> = eid : ' in the dictionary of ' : efl : ' of ' : eacct : '  -  ' : tword
+   locate eacct in anm<1> setting ap1 then
+      openpath apath<ap1>:@ds:'voc' to vf2 then
+         read fr from vf2, efl then
+            dp = trim(fr<3>)
+            if dp # '' then
+               dp = parse.pathname.tokens(dp)
+               if dp[1, 1] # '/' then dp = apath<ap1> : @ds : dp
+               openpath dp to df2 then
+                  read dr from df2, eid then
+                     nfld = dcount(dr, @fm)
+                     if nfld > 9 then nfld = 9
+                     for q = 1 to nfld
+                        lines<-1> = fmt(q, '3R') : '  ' : convert(@vm, ' | ', convert(@sm, ' / ', dr<q>))
+                     next q
+                     if dcount(dr, @fm) > 9 then lines<-1> = '     (and ' : dcount(dr, @fm) - 9 : ' more fields)'
+                  end
+                  close df2
+               end
+            end
          end
          close vf2
       end
@@ -516,8 +730,8 @@ wrap.lines:
 
 draw.help:
    screen text 'Up and Down move, PgUp and PgDn a page.  Tab changes box.  Enter in Accounts goes to its entries.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
-   screen text '/ filters the entries by a part of the id.  F finds an id in the VOC of every account (Enter on a hit goes to it).  Esc takes them off.' at h.x + 2,h.y + 2 width h.tw
-   screen text 'F5 reads again.  Ctrl-Q leaves.  This stage only reads.' at h.x + 2,h.y + 3 width h.tw
+   screen text '/ filters by a part of an id (of a heading too, in dictionaries).  F finds it in every account (Enter on a hit goes to it).  Esc takes them off.' at h.x + 2,h.y + 2 width h.tw
+   screen text 'K shows the VOC entries or the dictionary items.  F5 reads again.  Ctrl-Q leaves.  This stage only reads.' at h.x + 2,h.y + 3 width h.tw
    return
 
 * ------------------------------------------------------------------------------------------------- keys and mouse
@@ -582,6 +796,8 @@ on.key:
          gosub do.filter
       case nm = 'f'
          gosub do.find
+      case nm = 'k'
+         gosub do.kind
       case nm = 'f1' or nm = '?'
          gosub help.here
       case nm = 'f5'
@@ -628,12 +844,13 @@ open.entry:
    if fnd # '' and hn > 0 and ec >= 1 and ec <= hn then
       want.acct = hacc<ec>
       want.id = hid<ec>
+      want.key = (if kind = 1 then hid<ec> else hfile<ec> : '*' : hid<ec>)
       fnd = ''
       locate want.acct in anm<1> setting ap2 then ac = ap2
       filt = ''
       ec = 1 ; etop = 1
       gosub read.entries
-      locate want.id in enm<1> setting ep2 then ec = ep2
+      locate want.key in ekey<1> setting ep2 then ec = ep2
       gosub keep.tops
       gosub draw.all
       msg = want.id : ' in ' : want.acct
@@ -642,9 +859,11 @@ open.entry:
    end
    return
 
-* /: keep the entries of the account whose id holds a text
+* /: keep the entries of the account whose id holds a text (a dictionary item: its id or its heading)
 do.filter:
-   screen ask 'Part of an id (empty shows every entry)' width 40 value ai.arg title 'Filter' returning ft then got = 1 else got = 0
+   ptxt = 'Part of an id (empty shows every entry)'
+   if kind = 2 then ptxt = 'Part of an item id or heading (empty shows every item)'
+   screen ask ptxt width 40 value ai.arg title 'Filter' returning ft then got = 1 else got = 0
    if not(got) then return
    filt = trim(ft)
    fnd = ''
@@ -654,9 +873,11 @@ do.filter:
    msg = (if filt = '' then 'every entry' else en : ' with "' : filt : '"')
    return
 
-* F: an id, or a part of one, in the VOC of every account
+* F: a text in the entries of every account (an id for the VOC; an id or a heading for a dictionary item)
 do.find:
-   screen ask 'Part of an id, searched in the VOC of every account' width 40 value ai.arg title 'Find' returning ft then got = 1 else got = 0
+   ptxt = 'Part of an id, searched in the VOC of every account'
+   if kind = 2 then ptxt = 'Part of an item id or heading, searched in the dictionaries of every account'
+   screen ask ptxt width 40 value ai.arg title 'Find' returning ft then got = 1 else got = 0
    if not(got) then return
    fnd = trim(ft)
    filt = ''
@@ -670,7 +891,17 @@ do.find:
    gosub run.find
    pane = 2
    gosub draw.all
-   msg = hn : ' hit' : (if hn = 1 then '' else 's') : ' in ' : hseen : ' VOCs' : (if htrunc then '; only the first ' : MAXV : ' are listed' else '')
+   msg = hn : ' hit' : (if hn = 1 then '' else 's') : ' in ' : hseen : (if kind = 1 then ' VOCs' else ' accounts') : (if htrunc then '; only the first ' : MAXV : ' are listed' else '')
+   return
+
+* K: the other kind of entry.  What was filtered or found is taken off, because a filter that means an id in the VOC means an id or a heading in a dictionary
+do.kind:
+   kind = 3 - kind
+   fnd = '' ; filt = ''
+   ec = 1 ; etop = 1
+   gosub read.entries
+   gosub draw.all
+   msg = (if kind = 1 then 'the VOC entries' else 'the dictionary items')
    return
 
 on.mouse:

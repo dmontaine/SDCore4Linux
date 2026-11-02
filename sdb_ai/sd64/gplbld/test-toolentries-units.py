@@ -82,9 +82,23 @@ def checks(src, voc, helps):
                  or re.search(r"\$tk_run|\$tk_confirm|K\$MASTERS|!acc_|sd-elevate|modify\.account|set\.batch|run\.in", unquote(s))]
     ck("T4 READ ONLY: no write, delete, execute, command runner, confirm box, master-file operation or account verb anywhere in the page", not forbidden, "%s" % forbidden[:3])
     opens = [s for n, s in lines if re.search(r"\bopenpath\b", s)]
-    kinds = sorted(set("register" if "@sdsys:@ds:'accounts'" in s else ("voc" if re.search(r"apath<[a-z0-9]+>:@ds:'voc'", s) else s) for s in opens))
-    ck("T5 the only files it opens are the register and an account's VOC by the pathname the register gives (four opens: the list, the entries, the find, the entry under the cursor)",
-       kinds == ["register", "voc"] and len(opens) == 4 and txt.count("close ") >= 4, "%s %d" % (kinds, len(opens)))
+    kinds = sorted(set("register" if "@sdsys:@ds:'accounts'" in s else ("voc" if re.search(r"apath<[a-z0-9]+>:@ds:'voc'", s) else ("dict" if re.match(r"openpath dp to df2? then", s) else s)) for s in opens))
+    ck("T5 the only files it opens are the register, an account's VOC by the pathname the register gives and, by the dictionary path of one of that VOC's file pointers, a dictionary (six opens: "
+       "the list; the VOC and the dictionaries in collect.account; the entry under the cursor in the VOC and in the dictionary)",
+       kinds == ["dict", "register", "voc"] and len(opens) == 6 and txt.count("close ") >= 6, "%s %d" % (kinds, len(opens)))
+    cap = "\n".join(s for n, s in section(lines, "collect.account:", "dclassify:"))
+    ck("T5b a dictionary path that is not absolute is made from the ACCOUNT's directory, never the current one; the dictionaries are those the VOC's file pointers name (field 3); an item matches in its id OR its heading",
+       "dp = parse.pathname.tokens(dpaths<fi>)" in cap and "if dp[1, 1] # '/' then dp = apath<ca> : @ds : dp" in cap and "upcase(trim(r<1>))[1, 1] = 'F' and trim(r<3>) # ''" in cap
+       and "index(upcase(did), upcase(pat), 1) > 0 or index(upcase(dhead), upcase(pat), 1) > 0" in cap and "kind = 1 then" in cap)
+    kd = "\n".join(s for n, s in section(lines, "do.kind:", "on.mouse:"))
+    ck("T5c K switches the kind (1 and 2 only) and takes the filter and the find off", "kind = 3 - kind" in kd and "fnd = '' ; filt = ''" in kd and re.search(r"^kind = 1$", txt, re.M) is not None)
+    ck("T5d THE OWNER'S RULE (3 Nov 26): no pointer may lead the master to edit something in one account from another.  A target OUTSIDE the account being listed (asked of the kernel's own "
+       "geometry, K$PATH.IN, which resolves .. and links; tokens expanded and the path made absolute from the account) is marked > - for a dictionary item that the ITEM lives elsewhere, "
+       "for a VOC file pointer, a Q-pointer to another account or a remote item that the POINTER leads elsewhere - in a column of its own in every list; the pointer record itself stays an "
+       "ordinary entry of the account; and the page follows no pointer to change anything (T4)",
+       "is.out = (if kernel(K$PATH.IN, apath<ca> : @fm : tp) then 0 else 1)" in txt and "doutf = is.out" in cap and "ins doutf before cout<lp>" in cap and "ins coutf before cout<lp>" in cap
+       and "coutf = (if downcase(trim(r<2>)) = downcase(anm<ca>) then 0 else 1)" in txt and re.search(r"case cty = 'R'\ncoutf = 1", txt) is not None and txt.count("fmt('>', '2L')") == 4
+       and txt.count("(if hout<k> then '>' else '')") == 2 and txt.count("(if eout<k> then '>' else '')") == 2 and "sdsys" not in "\n".join(s for n, s in section(lines, "out.test:", "dclassify:")))
     ra = section(lines, "read.all:", "read.entries:")
     find_opens = [n for n, s in lines if "for a = 1 to an" in s]
     rf = section(lines, "run.find:", "classify:")
@@ -96,12 +110,12 @@ def checks(src, voc, helps):
        "if id # 'sdsys' then" in txt
        and re.search(r"gset = \(if upcase\(trim\(arec<ACC\$VOC\.EDIT>\)\) = 'YES' then 'v' else '-'\)\s+gset := \(if upcase\(trim\(arec<ACC\$DICT\.EDIT>\)\) = 'YES' then 'd' else '-'\)\s+gset := \(if upcase\(trim\(arec<ACC\$BP\.EDIT>\)\) = 'YES' then 'b' else '-'\)", txt)
        and "if trim(arec<ACC$GROUP>) # '' then" in txt and "is_grp_member('sdsys', trim(arec<ACC$GROUP>))" in txt)
-    ck("T8 both long reads are cut at MAXV (the entries and the hits) and the page says so", txt.count(">= MAXV") == 2 and txt.count("only the first ' : MAXV : ' are listed") == 3)       # the entries' foot, the hits' foot and the status line of a find
+    ck("T8 both long reads are cut at MAXV (the entries and the hits) and the page says so", txt.count(">= MAXV") == 3 and txt.count("only the first ' : MAXV : ' are listed") == 3)       # collect.account's two reads and the find; the entries' foot, the hits' foot and the status line of a find
     ck("T9 the filter and the find ask with screen ask, take the AI's argument as the default, and each clears the other",
-       txt.count("screen ask '") == 2 and txt.count("value ai.arg") == 2 and "filt = trim(ft)\nfnd = ''" in txt and "fnd = trim(ft)\nfilt = ''" in txt)
+       txt.count("screen ask ptxt width 40 value ai.arg") == 2 and txt.count("value ai.arg") == 2 and "filt = trim(ft)\nfnd = ''" in txt and "fnd = trim(ft)\nfilt = ''" in txt)
     keyrows = re.findall(r"call \$tk_keys\('add', keys, '([^']+)'", txt)
-    ck("T10 eight key rows: f1 enter tab / f f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find refresh)",
-       keyrows == ["f1", "enter", "tab", "/", "f", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "refresh"], "%s" % keyrows)
+    ck("T10 nine key rows: f1 enter tab / f k f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh)",
+       keyrows == ["f1", "enter", "tab", "/", "f", "k", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
     ck("T11 four panes declared once (accounts, entries, means, help), the two lists named as the boxes that take the focus, and each list has its [?]",
        txt.count("call $tk_layout('declare'") == 1 and all(("d<%d> = '%s'" % (i + 1, nm)) in txt for i, nm in enumerate(("accounts", "entries", "means", "help")))
        and "ctx<TK.C.FOCI> = 'accounts' : @sm : 'Accounts' : @vm : 'entries' : @sm : 'Entries'" in txt and txt.count("call $tk_help('mark'") == 2)
@@ -132,15 +146,25 @@ def load():
 
 
 MUTANTS = [
-    ("the page writes", "src", "            eall += 1\n", "            eall += 1\n            delete vf, id\n"),
+    ("the page writes", "src", "                  gosub classify\n                  locate id in ckey<1> by 'AL' setting lp else\n", "                  gosub classify\n                  delete vf, id\n                  locate id in ckey<1> by 'AL' setting lp else\n"),
     ("the page runs a command", "src", "   void kernel(K$AUDIT, 'tool start app=tool.entries')\n", "   void kernel(K$AUDIT, 'tool start app=tool.entries')\n   execute 'x'\n"),
     ("the page is not the administrator's", "src", "call $tk_open('tool.entries', 'admin', ctx, err)", "call $tk_open('tool.entries', '', ctx, err)"),
     ("the find runs at the start", "src", "   if fnd # '' then gosub run.find\n", "   gosub run.find\n"),
     ("the dict gate reads the programs field", "src", "gset := (if upcase(trim(arec<ACC$DICT.EDIT>)) = 'YES' then 'd' else '-')", "gset := (if upcase(trim(arec<ACC$BP.EDIT>)) = 'YES' then 'd' else '-')"),
     ("SDSYS is listed", "src", "         if id # 'sdsys' then", "         if id # '' then"),
-    ("the find is not cut", "src", "               if hn >= MAXV then", "               if 0 then"),
+    ("the find is not cut", "src", "            if hn >= MAXV then", "            if 0 then"),
     ("another key row", "src", "   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)\n", "   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)\n   call $tk_keys('add', keys, 'e', 'edit', 'edit', '', 1)\n"),
     ("a third file is opened", "src", "   openpath @sdsys:@ds:'accounts' to acc.f then\n", "   openpath @sdsys:@ds:'batch.jobs' to bj.f then\n      close bj.f\n   end\n   openpath @sdsys:@ds:'accounts' to acc.f then\n"),
+    ("a dictionary item is matched by its id only", "src", " or index(upcase(dhead), upcase(pat), 1) > 0)", ")"),
+    ("a relative dictionary path is not made from the account", "src", "      if dp[1, 1] # '/' then dp = apath<ca> : @ds : dp\n", ""),
+    ("the tokens of a dictionary path are not expanded", "src", "      dp = parse.pathname.tokens(dpaths<fi>)", "      dp = dpaths<fi>"),
+    ("the outside test is lost", "src", "is.out = (if kernel(K$PATH.IN, apath<ca> : @fm : tp) then 0 else 1)", "is.out = 0"),
+    ("the outside test is a text prefix", "src", "is.out = (if kernel(K$PATH.IN, apath<ca> : @fm : tp) then 0 else 1)", "is.out = (if tp[1, len(apath<ca>)] = apath<ca> then 0 else 1)"),
+    ("dictionary items are not marked", "src", "                        ins doutf before cout<lp>\n", ""),
+    ("a Q-pointer to another account is not marked", "src", "         coutf = (if downcase(trim(r<2>)) = downcase(anm<ca>) then 0 else 1)\n", "         coutf = 0\n"),
+    ("a remote item is not marked", "src", "      case cty = 'R'\n         coutf = 1\n", ""),
+    ("K keeps the filter", "src", "   kind = 3 - kind\n   fnd = '' ; filt = ''\n", "   kind = 3 - kind\n"),
+    ("a dictionary is written", "src", "                  read dr from df2, eid then\n", "                  read dr from df2, eid then\n                     write dr to df2, eid\n"),
     ("the voc record is in newvoc form", "voc", "V\nCA\n$tool_entries\n", "V\nCA\n$tool_jobs\n"),
     ("a help record loses its document", "help", "19-the-master-files", "00-nothing"),
 ]

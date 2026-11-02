@@ -56,7 +56,9 @@ BAD = "ze6"                                              # registered, its direc
 MUTANTS = {
     # name: (old text of the sandbox's tool_entries, new text, the row ids that must fail and no others, the last section run)
     "gates": ("gset := (if upcase(trim(arec<ACC$DICT.EDIT>)) = 'YES' then 'd' else '-')", "gset := (if upcase(trim(arec<ACC$BP.EDIT>)) = 'YES' then 'd' else '-')", ["E1"], "E1"),
-    "find-one": ("   for a = 1 to an\n      openpath apath<a>:@ds:'voc' to vf then", "   for a = 1 to 1\n      openpath apath<a>:@ds:'voc' to vf then", ["E5"], "E5a"),
+    "find-one": ("   for a = 1 to an\n      ca = a\n", "   for a = 1 to 1\n      ca = a\n", ["E5"], "E5a"),
+    "heading": (" or index(upcase(dhead), upcase(pat), 1) > 0)", ")", ["E8"], "E8"),
+    "text-prefix": ("is.out = (if kernel(K$PATH.IN, apath<ca> : @fm : tp) then 0 else 1)", "is.out = (if tp[1, len(apath<ca>)] = apath<ca> then 0 else 1)", ["E8"], "E8"),
 }
 
 
@@ -132,8 +134,23 @@ def setup_page():
         g.reg_write(name, [apath(name), "", group, "", susp, "", "no", "no", "", voc, bp, dct])
     os.makedirs(apath(BAD), exist_ok=True)
     g.reg_write(BAD, [apath(BAD), "", g.GROUP, "", "", "", "no", "no", "", "no", "no", "no"])
+    # THE OWNER'S RULE (3 Nov 26): a pointer whose target lies outside the account is marked >.  zeq is a Q-pointer to another account; zeesc is a file pointer written as ../ze2/zecust2, which
+    # STARTS with ze1's own directory as text and lives in ze2's (the kernel's geometry resolves .. and sees it; a text prefix does not).
+    voc_write("zzeptr", [("ze1", "zeq", ["Q", "ze2", "zecust2"]), ("ze1", "zeesc", ["F", "../ze2/zecust2", "../ze2/zecust2.dic"])])
     voc_write("zzefix", [("ze1", "zzqa", ["PA", "DISPLAY QA1"]), ("ze1", "zzqb", ["V", "CA", "$zzkf"]), ("ze1", "zzonly1", ["X", "text one"]),
                          ("ze2", "zzqa", ["PA", "DISPLAY QA2"]), ("ze2", "zzonly2", ["X", "text two"]), ("ze5", "zzqc", ["PA", "DISPLAY QC"])])
+    # M1b: a data file with a dictionary in two accounts, made by an administrator session in the account (CREATE.FILE makes the pointer, the data and the dictionary) and a program
+    # that writes the items.  zqalias has a heading that its id does not hold; zqfirst is in both accounts under the same heading.
+    for acct, fname, items in (("ze1", "zecust", [("zqfirst", "D", "1", "First Name"), ("zqgiven", "D", "2", "Given Name"), ("zqalias", "D", "3", "Nickname"), ("zqdbl", "I", "@ID * 2", "Double")]),
+                               ("ze2", "zecust2", [("zqfirst", "D", "1", "First Name"), ("zqother", "D", "2", "Other")])):
+        body = ["program zzed", "   open 'dict', '%s' to d else crt 'ED no dict' ; stop" % fname]
+        for iid, ity, f2, head in items:
+            body.append("   write '%s':@fm:'%s':@fm:'':@fm:'%s':@fm:'10L':@fm:'S' on d, '%s'" % (ity, f2, head, iid))
+        body += ["   crt 'ED done'", "end"]
+        g.put(os.path.join(apath(acct), "bp", "zzed"), "\n".join(body) + "\n")
+        out = g.adm(["LOGTO %s" % acct, "CREATE.FILE %s DYNAMIC" % fname, "BASIC bp zzed", "RUN bp zzed"])
+        if not has(out, r"^ED done$"):
+            bail("the dictionary of %s in %s was not made:\n%s" % (fname, acct, "\n".join(out[-8:])))
 
 
 def mutate(name):
@@ -167,7 +184,7 @@ class Page:
 
     def on(self):
         """The account the Entries box is titled with."""
-        m = re.search(r"VOC of (\S+)", self.text())
+        m = re.search(r"(?:VOC|Dictionary items) of (\S+)", self.text())
         return m.group(1) if m else None
 
     def walk_to(self, name, n=40):
@@ -177,9 +194,16 @@ class Page:
                 if self.on() == name:
                     return True
                 before = self.on()
-                self.key(direction, 0.5)               # 0.3 s was once not enough for the page to redraw (one run of the find-one mutant, E3 only)
+                self.key(direction, 0.5)
                 if self.on() == before:
-                    break
+                    # the screen may simply not be drawn yet (E3 failed in three of four mutant runs and in no plain run: the walk gave up at the first key whose redraw was late);
+                    # let the pty settle up to a second before believing the cursor did not move
+                    for _ in range(3):
+                        self.h.alive()
+                        if self.on() != before:
+                            break
+                    if self.on() == before:
+                        break
         return self.on() == name
 
     def quit(self):
@@ -244,7 +268,10 @@ def section_e3(p):
     say("\n--- E3: a VOC that cannot be opened")
     p.walk_to(BAD)
     T = p.text()
-    arow("E3", "%s: the Entries box says its VOC cannot be opened from here, with its path" % BAD, "VOC cannot be opened from here" in T and apath(BAD)[-12:] in T, T[:600])
+    ok3 = "VOC cannot be opened from here." in T and ("Its path in the register: " + apath(BAD)) in T       # the path on a line of its own, whole (it was cut at the box edge on a long one)
+    arow("E3", "%s: the Entries box says its VOC cannot be opened from here, with its path" % BAD, ok3, T[:600])
+    if not ok3:
+        dump(p.h)
 
 
 def section_e4(p, n1):
@@ -277,6 +304,86 @@ def section_e5(p):
     T = p.text()
     arow("E5b", "Enter on the hit 'ze2 zzqa' goes to that entry in ze2: the Entries box is titled 'VOC of ze2', the find is off, the status line names the entry",
          p.on() == "ze2" and "zzqa in ze2" in norm(p.st()) and "Ids with" not in T, repr((p.on(), p.st())))
+
+
+def dcount_items(acct, fname):
+    """The number of items of a file's dictionary, counted by a SEPARATE administrator session in the account."""
+    out = g.adm(["LOGTO %s" % acct, "COUNT DICT %s" % fname])
+    for ln in out:
+        m = re.search(r"\b(\d+) record", ln)
+        if m:
+            return int(m.group(1))
+    bail("COUNT DICT %s in %s printed no count:\n%s" % (fname, acct, "\n".join(out[-4:])))
+
+
+def section_e8(p):
+    say("\n--- E8: the dictionary items (K)")
+    nd1 = dcount_items("ze1", "zecust")
+    nd2 = dcount_items("ze2", "zecust2")
+    # THE OWNER'S RULE (3 Nov 26): no pointer may lead the master to edit something in one account from another.  A pointer whose target lies OUTSIDE the account is marked > (the pointer
+    # record is the account's; its target is not).  The control of each row is the pointer that stays inside.
+    p.key("f", 1.0)
+    p.h.typed("$map\r", idle=2.5)
+    T = p.text()
+    arow("E8s1", "F $map (VOC kind): ze1's pointer $map, which leads to @SDSYS/$map, is marked >", re.search(r"ze1 \$map > F data @SDSYS/\$map", T) is not None, T[:900])
+    p.key("esc", 1.2)
+    p.key("f", 1.0)
+    p.h.typed("zecust\r", idle=2.5)
+    T = p.text()
+    arow("E8s2", "F zecust: ze1's own pointer zecust (data zecust, dict zecust.dic, both in the account) has no > - the control of E8s1", re.search(r"ze1 zecust F data zecust", T) is not None, T[:900])
+    p.key("esc", 1.2)
+    p.key("f", 1.0)
+    p.h.typed("zeq\r", idle=2.5)
+    T = p.text()
+    arow("E8o1", "F zeq: ze1's Q-pointer to a file in ANOTHER ACCOUNT (ze2) is marked >", re.search(r"ze1 zeq > Q file zecust2 in the account ze2", T) is not None, T[:900])
+    p.key("esc", 1.2)
+    p.key("f", 1.0)
+    p.h.typed("zeesc\r", idle=2.5)
+    T = p.text()
+    arow("E8o2", "F zeesc: ze1's file pointer ../ze2/zecust2 - which STARTS with ze1's own directory as text and lives in ze2's - is marked > (the kernel's geometry resolves the ..)",
+         re.search(r"ze1 zeesc > F data \.\./ze2/zecust2", T) is not None, T[:900])
+    p.key("esc", 1.2)
+    p.key("tab", 0.6)                  # the focus is in the Entries box after the find: the walk below is in Accounts
+    p.walk_to("ze1")
+    p.key("k", 1.2)
+    T = p.text()
+    arow("E8s3", "K, from the top: the items of the dictionaries outside the account ($map, dict.dict, newvoc, voc: the shipped pointers lead to @SDSYS/...) are marked >", re.search(r"(?:\$map|dict\.dict|newvoc|voc) > \S+", T) is not None, T[:900])
+    arow("E8a", "K shows the dictionary items of the account: the box is titled 'Dictionary items of ze1' and the status line says so",
+         "Dictionary items of ze1" in T and "the dictionary items" in norm(p.st()), repr((p.st(), T[:500])))
+    p.key("/", 1.0)
+    p.h.typed("zq\r", idle=1.5)
+    T = p.text()
+    arow("E8b", "/ zq: the four items of ze1's own zecust - zqfirst D First Name, zqgiven D Given Name, zqalias D Nickname, zqdbl I Double - none marked >, and none of ze2's under that file",
+         all(re.search(r"zecust %s %s %s" % (i, t, h), T) for i, t, h in (("zqfirst", "D", "First Name"), ("zqgiven", "D", "Given Name"), ("zqalias", "D", "Nickname"), ("zqdbl", "I", "Double")))
+         and re.search(r"zecust zqother", T) is None
+         and "could not be opened" not in T, T[:900])      # the shipped file pointers name @SDSYS/voc.dic and the like: their tokens are expanded, so every dictionary opens
+    arow("E8o3", "...and the items that ze1's pointer zeesc (../ze2/zecust2) reaches in ze2's dictionary are listed under zeesc, marked >: they are read, and ze2's, not ze1's",
+         re.search(r"zeesc > zqother D Other", T) is not None and re.search(r"zeesc > zqfirst D First Name", T) is not None, T[:900])
+    p.key("/", 1.0)
+    p.h.typed("nickn\r", idle=1.5)
+    T = p.text()
+    arow("E8c", "/ nickn: matched by the HEADING, not the id (zqalias holds no 'nickn'): only zqalias, and the count line says 1 hold it",
+         re.search(r"zecust zqalias D Nickname", T) is not None and "zqfirst" not in T and re.search(r'\b1 of \d+ items hold "nickn"\.', T) is not None, T[:700])
+    p.key("esc", 1.2)
+    p.key("f", 1.0)
+    p.h.typed("first name\r", idle=2.5)
+    T = p.text()
+    nacc = len([f for f in os.listdir(os.path.join(sh.SYS, "accounts")) if f != "sdsys"])
+    arow("E8d", "F 'first name': three hits - ze1's own zecust zqfirst, ze1's zeesc zqfirst (ze2's item, read through the pointer, marked >) and ze2's own zecust2 zqfirst - found by the heading, "
+         "from every account whose VOC opens (%d of %d)" % (nacc - 1, nacc),
+         re.search(r"ze1 zecust zqfirst D First Name", T) is not None and re.search(r"ze1 zeesc > zqfirst D First Name", T) is not None and re.search(r"ze2 zecust2 zqfirst D First Name", T) is not None
+         and re.search(r"\b3 hits in %d accounts read\." % (nacc - 1), T) is not None, T[:900])
+    p.key("down", 0.5)
+    p.key("down", 0.5)
+    p.key("enter", 1.5)
+    T = p.text()
+    arow("E8e", "Enter on the hit 'ze2 zecust2 zqfirst' goes to it: 'Dictionary items of ze2', the find off, the item shown field by field (First Name, 10L)",
+         p.on() == "ze2" and "Dictionary items of ze2" in T and "zqfirst in ze2" in norm(p.st()) and "First Name" in T and "Ids with" not in T and "Dictionary items with" not in T, repr((p.on(), p.st())))
+    p.key("k", 1.2)
+    T = p.text()
+    arow("E8f", "K again: back to the VOC entries of ze2 (the title says 'VOC of ze2'), the filter off", "VOC of ze2" in T and "Dictionary items" not in T, T[:300])
+    arow("E8g", "the dictionary of ze1's zecust (%d items) and ze2's zecust2 (%d), the one ze1's pointers reach, have the same number of items after everything the page did (COUNT DICT)" % (nd1, nd2),
+         dcount_items("ze1", "zecust") == nd1 and dcount_items("ze2", "zecust2") == nd2 and nd1 >= 4 and nd2 >= 2)
 
 
 def section_e6(n1, n2):
@@ -316,12 +423,14 @@ def main():
             section_e0()
         a0 = audit_off()
         p = section_e1()
-        if mutant is None or last in ("E5a", "E7"):
+        if mutant is None or last in ("E5a", "E7", "E8"):
             n1, n2 = section_e2(p)
             section_e3(p)
             section_e4(p, n1)
-        if mutant is None or last == "E5a":
+        if mutant is None or last in ("E5a", "E8"):
             section_e5(p)
+        if mutant is None or last == "E8":
+            section_e8(p)
         if mutant is None:
             section_e6(n1, n2)
             section_e7(p, a0)
