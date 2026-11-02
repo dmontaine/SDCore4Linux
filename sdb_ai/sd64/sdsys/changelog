@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+2 Nov 26   THE SDSYS USER MAY NOT USE CRON OR AT.  SD'S SCHEDULED JOBS ARE ROOT'S TIMERS INSTEAD.
+
+             What        - The installer puts sdsys in /etc/cron.deny (root:crontab 0640) and, where at is installed, in /etc/at.deny
+                           (root:daemon 0640), and removes any at job sdsys has queued.  A crontab sdsys already had is MOVED to
+                           /var/backups/sdcore-sdsys-crontab.<date> (root only): Debian's cron goes on running an existing crontab after
+                           a deny, so leaving it would have kept it running.  The installer says what it did.  The uninstaller takes the
+                           sdsys lines back out when it removes the sdsys user.
+             Why         - The owner's decision, 2 Nov 2026.  A job in sdsys's own crontab ran as a login of sdsys (cron starts one) and
+                           so was made the administrator with nothing but the password, because no one was there to give a code.  Work
+                           SD should do on a schedule is set up with "sudo /usr/local/sbin/sd-elevate job-set" (systemd timers that only
+                           root can set), which neither needs cron nor gives sdsys a way to schedule anything else.
+             Does NOT    - Touch any other user's cron or at, delete the old crontab (it is kept, root only), or override an
+                           /etc/cron.allow or /etc/at.allow the administrator wrote: one that names sdsys is the administrator's choice
+                           and the installer only warns about it.  To let sdsys use cron again, take sdsys out of /etc/cron.deny.
+
 2 Nov 26   SCHEDULED ADMINISTRATOR JOBS NOW RUN: EACH IS A SYSTEMD TIMER THAT ONLY ROOT CAN SET, AND IT RUNS ONE FIXED COMMAND AS SDSYS.
 
              What        - "sudo /usr/local/sbin/sd-elevate job-set NAME JOB SCHEDULE", run by sdsys, now also writes the timer and service

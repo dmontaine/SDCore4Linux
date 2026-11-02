@@ -549,6 +549,15 @@ if [ "$keep_accts" = "DELETE" ]; then
         sudo userdel sdsys
         echo "Removed sdsys user."
     fi
+    # 02 Nov 26 dm - S.102: the installer's CRONDENY block put the line "sdsys" in /etc/cron.deny and /etc/at.deny; with the user gone, the line goes
+    #            too (that line only; a deny file left empty by it was the installer's own and is removed).  Kept accounts keep the sdsys user, and its deny.
+    for dny in /etc/cron.deny /etc/at.deny; do
+        if sudo test -f "$dny" && sudo grep -qx 'sdsys' "$dny"; then
+            sudo sed -i '/^sdsys$/d' "$dny"
+            if ! sudo test -s "$dny"; then sudo rm -f "$dny"; fi
+            echo "Removed sdsys from $dny."
+        fi
+    done
     if getent group sdusers &>/dev/null; then
         sudo groupdel sdusers
         echo "Removed sdusers group."

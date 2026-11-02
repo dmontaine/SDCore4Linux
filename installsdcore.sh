@@ -1149,6 +1149,68 @@ sudo usermod -g sdusers -a -G sdusers sdsys
 # gate accepts; sudo and su from another user are refused (CPROC 10195).
 sudo usermod -s /bin/sh sdsys
 sudo install -d -o sdsys -g sdusers -m 750 /home/sdsys
+#
+# CRONDENY-BEGIN
+# 02 Nov 26 dm - S.102 (the owner, 2 Nov 2026, asked whether to deny the sdsys user cron and at now that scheduled jobs have their own route: "Yes, deny them").
+#            A job in sdsys's OWN crontab runs as a LOGIN of sdsys (Debian's cron runs pam_loginuid), so SD granted it the administrator with no code
+#            (S.101's recorded hole).  SD's scheduled jobs are root's systemd timers (sd-elevate job-set) and need neither.  So: sdsys in /etc/cron.deny,
+#            root:crontab 0640, Debian's own mode; MEASURED ON DEBIAN 13 (probe-crondeny.py): the deny stops the crontab command - for sdsys, and for
+#            root's crontab -u sdsys too - but the cron DAEMON goes on running a crontab sdsys already had, so an existing one is MOVED out of the spool
+#            into a root-only copy (nothing is deleted).  The same for at, when at is installed: sdsys in /etc/at.deny (root:daemon 0640), sdsys's queued
+#            jobs removed.  An allow file decides by itself: one that does not name sdsys refuses it already and is left alone; one that names it is the
+#            administrator's own choice and is only warned about.  The administrator loosens it by taking the line out (Administrator 22).
+#            test-install-crondeny.sh runs this block.
+crondeny_cron_deny=/etc/cron.deny
+crondeny_cron_allow=/etc/cron.allow
+crondeny_spool=/var/spool/cron/crontabs/sdsys
+crondeny_at_deny=/etc/at.deny
+crondeny_at_allow=/etc/at.allow
+crondeny_backup=/var/backups
+crondeny_ok=1
+crondeny_add() {   # DENYFILE ALLOWFILE GROUP WHAT - sdsys in DENYFILE unless ALLOWFILE decides; crondeny_ok=0 when sdsys is still let in
+  if sudo test -e "$2"; then
+    if sudo grep -qx 'sdsys' "$2" 2>/dev/null; then
+      echo "WARNING: $2 names sdsys, so $4 still lets the sdsys user schedule its own jobs (that is the administrator's choice; take sdsys out of $2 to deny it)."
+      crondeny_ok=0
+    fi
+    return 0
+  fi
+  if ! sudo grep -qx 'sdsys' "$1" 2>/dev/null; then
+    if ! printf 'sdsys\n' | sudo tee -a "$1" > /dev/null; then
+      echo "WARNING: could not add sdsys to $1; $4 still lets the sdsys user schedule its own jobs."
+      crondeny_ok=0
+      return 0
+    fi
+  fi
+  if getent group "$3" > /dev/null 2>&1; then crondeny_grp=$3; else crondeny_grp=root; fi
+  if ! { sudo chown "root:$crondeny_grp" "$1" && sudo chmod 0640 "$1"; }; then
+    echo "WARNING: could not give $1 its owner and mode (root:$crondeny_grp 0640)."
+    crondeny_ok=0
+  fi
+}
+crondeny_add "$crondeny_cron_deny" "$crondeny_cron_allow" crontab cron
+if sudo test -f "$crondeny_spool"; then
+  crondeny_saved="$crondeny_backup/sdcore-sdsys-crontab.$(date +%Y%m%d%H%M%S)"
+  if sudo install -d -o root -g root -m 0755 "$crondeny_backup" && sudo cp -p "$crondeny_spool" "$crondeny_saved" && sudo chown root:root "$crondeny_saved" \
+     && sudo chmod 0600 "$crondeny_saved" && sudo rm -f "$crondeny_spool"; then
+    echo "The sdsys user's crontab is no longer run: it was moved to $crondeny_saved (root only).  Schedule SD's work with sd-elevate job-set."
+  else
+    echo "WARNING: could not move the sdsys user's crontab $crondeny_spool out of the way; cron goes on running it."
+    crondeny_ok=0
+  fi
+fi
+if command -v at > /dev/null 2>&1 || sudo test -e "$crondeny_at_deny"; then
+  crondeny_add "$crondeny_at_deny" "$crondeny_at_allow" daemon at
+  if command -v atq > /dev/null 2>&1; then
+    for crondeny_job in $(sudo atq 2>/dev/null | awk '$NF == "sdsys" {print $1}'); do
+      sudo atrm "$crondeny_job" && echo "Removed the sdsys user's queued at job $crondeny_job."
+    done
+  fi
+fi
+if [ "$crondeny_ok" = 1 ]; then
+  echo "The sdsys user may not use cron or at; SD's scheduled jobs are sd-elevate job-set timers."
+fi
+# CRONDENY-END
 # --------------------
 # PRE_RELEASE 14, the owner's ruling of 9 Sep 2026: SD ships a sudoers.d
 # drop-in for a group SD owns.
