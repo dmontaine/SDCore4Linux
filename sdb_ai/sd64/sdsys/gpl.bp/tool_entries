@@ -4,6 +4,14 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 3 Nov 26 dm  S.96 M2: E edits the record under the cursor and N makes a new one, in the IDE (the VOC entry as text, the dictionary item as the form), IN ITS OWN ACCOUNT.  The IDE reaches another
+*              account's file through a temporary pointer in SDSYS's VOC (mechanism A of the owner's decision of 2 Nov 26), named zm<user number>.<account>.<file>, written just before the
+*              terminal is handed over and taken away just after.  It is an F pointer holding the path the page checked, not a Q-pointer into the account's VOC (an independent review the
+*              same day: a Q-pointer is followed again at every open, after the check); what it opens must be a hashed file whose two subfiles lie inside the account too; a pointer left by
+*              a session killed inside the IDE is swept at the page's next start.  THE OWNER'S POINTER RULE comes first and is asked afresh, of the register and of the account's own VOC, at the keypress (the
+*              list may be old): the file to be edited must lie inside the account (K$PATH.IN, realpath) and so must what the pointer opens (checked again, through the pointer, before the
+*              IDE is given it); a dictionary that lies outside the account is refused with its reason, nothing is written and no pointer is made.  A VOC entry that is itself a pointer is the
+*              account's own record and is edited like any other.  Programs are not edited from here yet.
 * 3 Nov 26 dm  S.96 M1b: the second kind, the DICTIONARY ITEMS of the account's files (K switches).  The reading of an account is one routine, collect.account, used by the list of the
 *              account under the cursor and by the find in every account; a dictionary item matches a text in its id OR its column heading (the owner's example: "display all dictionary
 *              items with the name First Name"; which of the two he meant is his to say, so both).
@@ -27,11 +35,14 @@
 *   VOC of EVERY account (this reads them all and is asked for by name); the boxes then list the hits with their accounts, and Enter on a hit goes to that entry in its account.
 *
 *   Keys: Up and Down, PgUp and PgDn move in the box, Tab changes box, Enter in Accounts goes to its entries (and on a hit goes to the entry in its account), / filters the entries of the
-*   account by a part of the id, F finds an id in every account, Esc takes the find and the filter off, F5 reads again, F1 or ? or a click on a [?] explains the box, Ctrl-Q leaves.
-*   Esc or F10 (or a click on the top row) opens the menu bar when there is nothing to take off.
+*   account by a part of the id, F finds an id in every account, K changes the kind, E edits the record under the cursor in the IDE, N makes a new record (its id asked first), Esc takes the
+*   find and the filter off, F5 reads again, F1 or ? or a click on a [?] explains the box, Ctrl-Q leaves.  Esc or F10 (or a click on the top row) opens the menu bar when there is nothing
+*   to take off.
 *
-*   THIS STAGE ONLY READS.  The page changes no record and runs no command.  An administrator passes the edit gates; they are shown because they are what locks the account out of its
-*   own files.
+*   WHAT IT CHANGES.  Nothing itself: E and N give the terminal to the IDE on the record, in the account it lives in, and take it back.  The only thing the page writes is the temporary
+*   pointer in SDSYS's VOC (an F pointer holding the checked path) that lets the IDE reach the account's file, and it takes it away again.  An administrator passes the edit gates; they are shown because they are what
+*   locks the account out of its own files.  THE POINTER RULE (owner, 3 Nov 26): a pointer record is edited like any record of its account, but what a pointer points at is never edited
+*   from another account; a dictionary that lies outside the account being listed is refused for E and N, before any pointer is made.
 *
 * END-DESCRIPTION
 *
@@ -59,6 +70,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
       stop
    end
    void kernel(K$AUDIT, 'tool start app=tool.entries')
+   gosub sweep.pointers
 
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
@@ -67,10 +79,14 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    call $tk_keys('add', keys, '/', 'filter', 'filter', '', 1)
    call $tk_keys('add', keys, 'f', 'find', 'find', '', 1)
    call $tk_keys('add', keys, 'k', 'kind', 'kind', '', 1)
+   call $tk_keys('add', keys, 'e', 'edit', 'edit', '', 1)
+   call $tk_keys('add', keys, 'n', 'new', 'new', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* Esc takes the find and the filter off first, else opens the menu bar
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'edit', '&Entry', '&Edit the record in the editor', '', '')
+   call $tk_keys('menu', keys, 'new', '&Entry', '&New record', '', '')
    call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the entries by id', '', '')
    call $tk_keys('menu', keys, 'find', '&View', 'F&ind an id in every account', '', '')
@@ -689,13 +705,13 @@ draw.effect:
       if asus<ac> # '' then lines<-1> = 'The account is suspended.'
       begin case
          case kind = 1
-            lines<-1> = 'The entries are read from the account' : "'s own VOC file when the cursor comes to the account; nothing is copied.  This stage only reads: no entry is changed from here."
+            lines<-1> = 'The entries are read from the account' : "'s own VOC file when the cursor comes to the account; nothing is copied.  E edits the entry under the cursor in the editor and N makes a new one: only the VOC's own records, never the file a pointer leads to."
             lines<-1> = ">: the entry is a pointer whose target lies outside this account (in SDSYS, as @SDSYS/voc.dic does, or in another account).  The pointer is this account's own record, edited like any VOC entry; what it points at belongs to the account it lies in and is never edited from this page."
          case kind = 2
-            lines<-1> = 'The dictionary items are read, when the cursor comes to the account, from the dictionary of each file its VOC points at (field 3 of the file pointer); nothing is copied.  An item matches a text in its id or in its column heading.  This stage only reads.'
-            lines<-1> = ">: the item lives in a dictionary outside this account (SDSYS's, which every account's pointer to it shares, or another account's) and is only read through this account's pointer.  It is edited in the account it lives in, never from here."
+            lines<-1> = 'The dictionary items are read, when the cursor comes to the account, from the dictionary of each file its VOC points at (field 3 of the file pointer); nothing is copied.  An item matches a text in its id or in its column heading.  E edits the item under the cursor as the form and N makes a new one in the dictionary of the file under the cursor: only dictionary items.'
+            lines<-1> = ">: the item lives in a dictionary outside this account (SDSYS's, which every account's pointer to it shares, or another account's) and is only read through this account's pointer.  It is edited in the account it lives in, never from here: E and N refuse it."
          case 1
-            lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  This stage only reads."
+            lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  The programs are not edited from this page yet."
             lines<-1> = ">: the program file lies outside this account (SDSYS's or another account's) and is only read through this account's pointer.  Its programs are edited, compiled and run in the account it lives in, never from here."
       end case
    end
@@ -852,7 +868,7 @@ wrap.lines:
 draw.help:
    screen text 'Up and Down move, PgUp and PgDn a page.  Tab changes box.  Enter in Accounts goes to its entries.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
    screen text '/ filters by a part of an id (of a heading too, in dictionaries).  F finds it in every account (Enter on a hit goes to it).  Esc takes them off.' at h.x + 2,h.y + 2 width h.tw
-   screen text 'K shows the VOC entries or the dictionary items.  F5 reads again.  Ctrl-Q leaves.  This stage only reads.' at h.x + 2,h.y + 3 width h.tw
+   screen text 'K changes the kind.  E edits the record under the cursor, N makes a new one.  F5 reads again.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
    return
 
 * ------------------------------------------------------------------------------------------------- keys and mouse
@@ -919,6 +935,10 @@ on.key:
          gosub do.find
       case nm = 'k'
          gosub do.kind
+      case nm = 'e'
+         gosub do.edit
+      case nm = 'n'
+         gosub do.new
       case nm = 'f1' or nm = '?'
          gosub help.here
       case nm = 'f5'
@@ -960,7 +980,7 @@ redraw:
    gosub draw.effect
    return
 
-* Enter in Entries: on a hit of a find it goes to that entry in its account; otherwise this stage only reads
+* Enter in Entries: on a hit of a find it goes to that entry in its account; otherwise it says which key edits
 open.entry:
    if fnd # '' and hn > 0 and ec >= 1 and ec <= hn then
       want.acct = hacc<ec>
@@ -976,8 +996,250 @@ open.entry:
       gosub draw.all
       msg = want.id : ' in ' : want.acct
    end else
-      msg = 'this stage only reads: the entry is not changed from here'
+      msg = 'E edits the record under the cursor in the editor, N makes a new one'
    end
+   return
+
+* ------------------------------------------------------------------------------------------------- E and N (S.96 M2)
+
+* A word the page may put in a Q-pointer's name and in the sentence it gives the IDE: letters a-z, digits, dot, dash and underscore, 1 to 63 of them (what $tk_run lets through).  In: cw.  Out: okname
+check.word:
+   okname = (len(cw) > 0 and len(cw) <= 63)
+   good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'
+   for cwq = 1 to len(cw)
+      if index(good, cw[cwq, 1], 1) = 0 then okname = @false
+   next cwq
+   return
+
+* E: the record under the cursor, in the editor.  The cursor must be in Entries on a row; a hit of a find is edited in the account it was found in.
+do.edit:
+   if pane # 2 then
+      msg = 'Tab to the entries first, then E'
+      return
+   end
+   if kind = 3 then
+      msg = 'the programs are not edited from this page yet'
+      return
+   end
+   nrows = (if fnd # '' then hn else en)
+   if ec < 1 or ec > nrows then
+      msg = 'there is no entry here to edit: N makes a new one'
+      return
+   end
+   if fnd # '' then
+      ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>
+   end else
+      ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>
+   end
+   enw = 0
+   gosub edit.record
+   return
+
+* N: a new record in the account under the cursor (a new item: in the dictionary of the file the row under the cursor belongs to).  Its id is asked first.  Not while a find is on: a hit
+* belongs to an account the Accounts box does not show.
+do.new:
+   if an < 1 then return
+   if kind = 3 then
+      msg = 'the programs are not edited from this page yet'
+      return
+   end
+   if fnd # '' then
+      msg = 'Esc takes the find off first: a new record is made in the account selected in Accounts'
+      return
+   end
+   efl = ''
+   ptxt = 'Id of the new VOC entry in ' : anm<ac>
+   if kind = 2 then
+      if ec < 1 or ec > en or pane # 2 then
+         msg = 'put the cursor on an item of the file the new item belongs to (Tab to the entries)'
+         return
+      end
+      efl = efile<ec>
+      ptxt = 'Id of the new item in the dictionary of ' : efl : ' (' : anm<ac> : ')'
+   end
+   screen ask ptxt width 40 value '' title 'New' returning nt then got = 1 else got = 0
+   if not(got) then return
+   eid = downcase(trim(nt))
+   if eid = '' then return
+   ea = anm<ac>
+   enw = 1
+   gosub edit.record
+   return
+
+* The record eid of the account ea (the VOC when efl is '', else the dictionary of its file efl) in the IDE, enw = 1 when it is to be made.  THE POINTER RULE (owner, 3 Nov 26): nothing is
+* written, and no pointer is made, until the file that would be edited is known to lie inside the account.  The register and the account's own VOC are read AGAIN here (the list may be
+* old; an account may have repointed a file since), the path is judged by the kernel's geometry (K$PATH.IN: realpath, so .. and links cannot make a path look inside), and what the
+* pointer opens is judged once more before the IDE is given it.
+edit.record:
+   openpath @sdsys:@ds:'accounts' to acc.f else
+      msg = 'the register cannot be opened'
+      return
+   end
+   read arec from acc.f, ea else arec = ''
+   close acc.f
+   if arec = '' then
+      msg = ea : ' is not in the register any more: F5 reads the list again'
+      return
+   end
+   ap.f = parse.pathname.tokens(arec<1>)
+   tp = ap.f : @ds : 'voc'
+   if efl # '' then
+      openpath ap.f : @ds : 'voc' to rvf else
+         msg = 'the VOC of ' : ea : ' cannot be opened'
+         return
+      end
+      read fr from rvf, efl else fr = ''
+      close rvf
+      if upcase(trim(fr<1>))[1, 1] # 'F' or trim(fr<3>) = '' then
+         msg = efl : ' is not a file of ' : ea : ' that has a dictionary'
+         return
+      end
+      tp = parse.pathname.tokens(trim(fr<3>))
+      if tp[1, 1] # '/' then tp = ap.f : @ds : tp
+   end
+   if not(kernel(K$PATH.IN, ap.f : @fm : tp)) then
+      msg = (if efl = '' then 'the VOC file of ' : ea : ' lies outside the account' else 'the dictionary of ' : efl : ' lies outside ' : ea : ': it is edited in the account it lives in, not from here (' : tp : ')')
+      return
+   end
+   * The words that go into the pointer's name and the IDE's sentence: asked AFTER the rule, so that a file outside the account ($map's dictionary in SDSYS) is refused for the reason
+   * that matters, not for a character
+   cw = ea
+   gosub check.word
+   ok1 = okname
+   cw = eid
+   gosub check.word
+   ok2 = (okname and eid # 'creating.seqkey')                    ;* the IDE reads that word as "the next sequential id", not as a record
+   cw = (if efl = '' then 'voc' else efl)
+   gosub check.word
+   if not(ok1 and ok2 and okname) then
+      msg = 'an account, file or id with a character the page does not hand to the editor: leave this page and use  ide  in that account'
+      return
+   end
+   * The pointer SDSYS's VOC holds for the length of the edit is an F pointer that holds THE PATH JUST CHECKED (review of 3 Nov 26, finding 1): a Q-pointer would send the IDE back to
+   * the account's own VOC at every open, and an account that may write its VOC could repoint the file between this check and the IDE's open.  For an item both parts are the
+   * dictionary, so nothing else can be reached through the name; for the VOC there is no dictionary part.
+   qf = (if efl = '' then 'voc' else efl)
+   qn = 'zm' : @userno : '.' : ea : '.' : qf
+   if len(qn) > 63 then
+      msg = 'the name of this account and file is too long for the page'
+      return
+   end
+   qrec = 'F' : @fm : tp : @fm : (if efl = '' then '' else tp)
+   open 'voc' to svf else
+      msg = "the VOC of SDSYS cannot be opened"
+      return
+   end
+   read qold from svf, qn then
+      if qold # qrec then
+         close svf
+         msg = 'SDSYS holds a VOC entry called ' : qn : ' that this page did not make: it is not changed'
+         return
+      end
+   end
+   write qrec on svf, qn on error
+      close svf
+      msg = 'the VOC of SDSYS refused the pointer ' : qn
+      return
+   end
+   close svf
+   dfl = (if efl = '' then '' else 'dict')
+   open dfl, qn to tf else
+      gosub drop.pointer
+      msg = 'SD cannot follow the pointer into ' : ea : ' (is the account suspended?)'
+      return
+   end
+   rp = fileinfo(tf, FL$PATH)
+   rt = fileinfo(tf, FL$TYPE)
+   close tf
+   * What the kernel opened must lie inside the account, and so must the two subfiles of the hashed file it is (finding 2: the check of a directory says nothing of a link inside it,
+   * and the subfiles are opened without refusing a link).  A file that is not a hashed file is not handed over at all.
+   in.ok = kernel(K$PATH.IN, ap.f : @fm : rp)
+   if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')
+   if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')
+   if rt # FL$TYPE.DH then
+      gosub drop.pointer
+      msg = 'the ' : (if efl = '' then 'VOC' else 'dictionary of ' : efl) : ' of ' : ea : ' is not a hashed file: the page does not hand it to the editor'
+      return
+   end
+   if not(in.ok) then
+      gosub drop.pointer
+      msg = 'the pointer into ' : ea : ' opens a file outside the account: it is edited in the account it lives in, not from here (' : rp : ')'
+      return
+   end
+   void kernel(K$AUDIT, 'master edit account=' : ea : ' kind=' : (if efl = '' then 'voc' else 'dict') : ' file=' : qf : ' id=' : eid : ' new=' : enw)
+   sent = 'ide ' : (if efl = '' then '' else 'dict ') : qn : ' ' : eid
+   keep.k = (if efl = '' then eid else efl : '*' : eid)
+   keep.ec = ec
+   gosub hand.over
+   return
+
+* At the start: a pointer this user number left in SDSYS's VOC when a session ended inside the IDE (the page takes its pointer away when the IDE returns; a session that is killed
+* cannot).  A zm<user number>.* entry that is an F or a Q record is the page's own name and is taken away (finding 4).
+sweep.pointers:
+   sw.pre = 'zm' : @userno : '.'
+   open 'voc' to svf then
+      select svf to 8
+      loop
+         readnext sw.id from 8 else exit
+         if sw.id[1, len(sw.pre)] = sw.pre then
+            read sw.r from svf, sw.id then
+               if sw.r<1> = 'F' or sw.r<1> = 'Q' then
+                  delete svf, sw.id
+               end
+            end
+         end
+      repeat
+      close svf
+   end
+   return
+
+* The pointer qn is taken out of SDSYS's VOC, if it is the one the page made
+drop.pointer:
+   open 'voc' to svf then
+      read qold from svf, qn then
+         if qold = qrec then
+            delete svf, qn
+         end
+      end
+      close svf
+   end
+   return
+
+* The terminal goes to the IDE and comes back: the pointer is taken away as soon as the IDE has ended, then the page is taken again and what it lists is read again.  Only the IDE can get here.
+hand.over:
+   if field(sent, ' ', 1) # 'ide' then
+      gosub drop.pointer
+      msg = 'the page does not run ' : field(sent, ' ', 1)
+      return
+   end
+   call $tk_close(ctx)
+   execute sent
+   gosub drop.pointer
+   crt
+   crt sysmsg(11865) :                                         ;* Press Enter to return
+   input junk
+   if junk = char(1) then null                                 ;* any answer goes back; the answer itself is not used
+   call $tk_open('tool.entries', '', ctx, err)
+   if err # '' then
+      display err
+      done = 1
+      return
+   end
+   call $tk_aipage('again', ctx, keys, '', '', aout)            ;* the new context has no AI line yet
+   gosub declare.layout                                         ;* it is laid out for the window as it is now
+   gen += 1
+   ctx<TK.C.GEN> = gen
+   gosub read.all
+   if fnd = '' then
+      locate keep.k in ekey<1> setting ep2 then ec = ep2
+   end else
+      ec = keep.ec
+      if ec > hn then ec = hn
+      if ec < 1 then ec = 1
+   end
+   gosub keep.tops
+   gosub draw.all
+   msg = 'back from the editor: the list shows ' : (if kind = 1 then 'the VOC' else 'the dictionary') : ' as it is now'
    return
 
 * /: keep the entries of the account whose id holds a text (a dictionary item: its id or its heading)

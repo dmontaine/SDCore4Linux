@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 #
-# sandbox-tool-entries.py - the master files page, first stage (S.96 M1a): TOOL.ENTRIES, the VOC entries of every account by pointer, read only.  A private SD, no install, no sudo.
+# sandbox-tool-entries.py - the master files page (S.96 M1a-M2): TOOL.ENTRIES, the VOC entries, dictionary items and programs of every account by pointer, read only until E10 (E and N edit
+# the record in its own account).  A private SD, no install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-entries.py <dir> [--build] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-entries.py <dir> [--build] [--only=read|edit] [--mutant=NAME]
+#
+# --only (the owner's rule of 3 Nov 26: anything over five minutes has a section selector): `read` is E0-E9 (one chain on one page), `edit` is E10 (a page of its own; it changes the
+# fixture accounts' files, so it runs after `read` when both run).  The build and the fixtures always run.  A mutant runs only its own group.
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row
 # failed, 2 it could not run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of the page and exit 0 means the rows that had to fail failed and no others (MUTANTS).
@@ -19,11 +23,20 @@
 #   E5   F finds an id in the VOC of every account; Enter on a hit goes to that entry in its account
 #   E6   the page READ ONLY: no VOC changed, the audit trail holds the start line and nothing else
 #   E7   F1 and the [?]; a window under 140 by 43 gets no page; Ctrl-Q leaves
+#   E8   K: the dictionary items, / by id or heading, F across accounts, the > mark of the pointer rule     E9  K again: the programs, built or not
+#   E10  (M2, S.96) E and N hand the record to the IDE IN ITS OWN ACCOUNT - the VOC entry as text, a pointer record included, a new VOC entry, an account with every gate off, the
+#        dictionary item as the form, a new item - each judged by the account's own file read by a SEPARATE session, SDSYS's VOC holding the page's temporary pointer only while the IDE
+#        is open; THE POINTER RULE: an item of a dictionary that lies outside the account (a pointer written ../other/.., a LINK to another account's dictionary, a shipped system
+#        dictionary) is refused for E and N with its reason, before a pointer is made, and the audit trail has a 'master edit' line for every edit that reached the IDE and none for a
+#        refusal; the programs are refused, N while a find is on is refused; a dictionary directory of the account's own whose SUBFILES are links to another account's is refused by the
+#        second test (E10z); a pointer left by a killed session is swept at the next start, and only this user number's (E10y).  The files are read ONCE at the start and ONCE at the
+#        end, one separate session per account (snap).  Runs LAST.  Mutants: no-outside-test, no-subfile-test, pointer-left.
 # NOT HELD: SDSYS in the group (a sandbox has no sdsys user: the column can only say no or n/a here), the help text itself (sandbox-docs.py).
 import importlib.util
 import os
 import re
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TREE = os.path.dirname(HERE)
@@ -60,6 +73,10 @@ MUTANTS = {
     "heading": (" or index(upcase(dhead), upcase(pat), 1) > 0)", ")", ["E8"], "E8"),
     "never-built": ("locate downcase(pid) in onames<1> setting op3 then built = 'yes'", "locate downcase(pid) in onames<1> setting op3 then built = '-'", ["E9"], "E9"),
     "text-prefix": ("is.out = (if kernel(K$PATH.IN, apath<ca> : @fm : tp) then 0 else 1)", "is.out = (if tp[1, len(apath<ca>)] = apath<ca> then 0 else 1)", ["E8"], "E8"),
+    # M2: the rule's test before any pointer is written, the test of the subfiles of what the pointer opens, the pointer taken away again
+    "no-outside-test": ("   if not(kernel(K$PATH.IN, ap.f : @fm : tp)) then\n", "   if 0 then\n", ["E10"], "E10"),
+    "no-subfile-test": ("   if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')\n   if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')\n", "", ["E10"], "E10"),
+    "pointer-left": ("   execute sent\n   gosub drop.pointer\n", "   execute sent\n", ["E10"], "E10"),
 }
 
 
@@ -195,7 +212,7 @@ class Page:
 
     def on(self):
         """The account the Entries box is titled with."""
-        m = re.search(r"(?:VOC|Dictionary items|Programs) of (\S+)", self.text())
+        m = re.search(r"(?:VOC|Dictionary items|Programs) of ([^\s,]+)", self.text())       # a filter adds ', matching "..."' to the title
         return m.group(1) if m else None
 
     def walk_to(self, name, n=40):
@@ -443,6 +460,365 @@ def section_e9(p):
          repr((sorted(set(tree_state("ze1").items()) ^ set(before1.items()))[:3],)))
 
 
+# The records E10 judges, by account: (kind, file, id).  ONE separate session per account reads them all (the owner's rule of 3 Nov 26: a pass must not cost what it need not; a
+# session costs about 8 s, and one per row made E10 several minutes long).
+TRACK = {
+    "ze1": [("voc", "voc", "zzonly1"), ("voc", "voc", "zeq"), ("voc", "voc", "zznew1"), ("voc", "voc", "zzonly2"), ("dict", "zecust", "zqalias"), ("dict", "zecust", "zqnew1")],
+    "ze2": [("voc", "voc", "zzonly1"), ("voc", "voc", "zeq"), ("voc", "voc", "zznew1"), ("voc", "voc", "zzonly2"), ("dict", "zecust2", "zqother"), ("dict", "zecust2", "zqfirst"),
+            ("dict", "zecust2", "zqnew1"), ("dict", "zecust2", "zqpoison")],
+    "sdsys": [("voc", "voc", "zzonly1"), ("voc", "voc", "zznew1"), ("voc", "voc", "zzonly2")],
+}
+
+ER_SRC = "\n".join([
+    "program zzerd",
+    "   n = dcount(@sentence, ' ')",
+    "   for i = 4 to n step 3",
+    "      kd = field(@sentence, ' ', i)",
+    "      fl = field(@sentence, ' ', i + 1)",
+    "      rid = field(@sentence, ' ', i + 2)",
+    "      ok = 1",
+    "      if kd = 'dict' then",
+    "         open 'dict', fl to f else ok = 0",
+    "      end else",
+    "         open 'voc' to f else ok = 0",
+    "      end",
+    "      if ok then",
+    "         read r from f, rid then",
+    "            crt 'ER|' : kd : '|' : fl : '|' : rid : '|' : convert(@fm, '|', r)",
+    "         end else",
+    "            crt 'ER|' : kd : '|' : fl : '|' : rid : '|NONE'",
+    "         end",
+    "         close f",
+    "      end else",
+    "         crt 'ER|' : kd : '|' : fl : '|' : rid : '|NOFILE'",
+    "      end",
+    "   next i",
+    "end", ""])
+
+
+def snap():
+    """Every record in TRACK as the account's own file holds it (fields joined by |, NONE when it is not there), read by ONE separate session per account, and SDSYS's zm pointers."""
+    out = {}
+    for acct, keys in TRACK.items():
+        res = g.adm((["LOGTO %s" % acct] if acct != "sdsys" else []) + ["RUN bp zzerd " + " ".join("%s %s %s" % k for k in keys)])
+        for ln in res:
+            if ln.startswith("ER|"):
+                parts = ln.rstrip().split("|", 4)
+                if len(parts) == 5:
+                    out[(acct, parts[1], parts[2], parts[3])] = parts[4]
+        missing = [k for k in keys if (acct,) + k not in out]
+        if missing:
+            bail("the reader in %s did not answer for %s:\n%s" % (acct, missing, "\n".join(res[-6:])))
+    out["zm"] = sys_zm()
+    return out
+
+
+def sys_zm():
+    """The ids in SDSYS's VOC that start zm (the page's temporary pointers), read by a SEPARATE administrator session."""
+    g.put(os.path.join(sh.SYS, "bp", "zzzm"), "\n".join(["$internal", "   openpath @sdsys:@ds:'voc' to v else crt 'ZM no voc' ; stop", "   select v to 9", "   n = 0", "   loop",
+                                                          "      readnext id from 9 else exit", "      if id[1, 2] = 'zm' then", "         crt 'ZMID ' : id", "         n += 1", "      end", "   repeat",
+                                                          "   crt 'ZMEND ' : n", "end", ""]))
+    out = g.adm(["BASIC bp zzzm", "RUN bp zzzm"], internal=True)
+    if not [ln for ln in out if ln.startswith("ZMEND ")]:
+        bail("the reader of SDSYS's zm pointers did not answer:\n" + "\n".join(out[-6:]))
+    return sorted(ln.split(" ", 1)[1].strip() for ln in out if ln.startswith("ZMID "))
+
+
+def wait_for(h, pred, secs=12.0):
+    """Pump the terminal until pred(text) is true; True when it came."""
+    end = time.time() + secs
+    while time.time() < end:
+        if pred(h.text()):
+            return True
+        h.s._pump(0.3)
+    return pred(h.text())
+
+
+def ide_up(x):
+    """The IDE is on the screen: its menu bar on the first row, or the dictionary item form it opens.  x is the screen's text or the session (wait_for gives the text)."""
+    t = x if isinstance(x, str) else x.text()
+    first = t.split("\n", 1)[0]
+    return ("File" in first and "Search" in first) or ("Type:" in t and "Accept" in t and "Cancel" in t)
+
+
+def to_page(p):
+    """Ctrl-Q leaves the IDE, Enter takes the page back."""
+    p.h.typed("\x11", idle=1.5)
+    if not wait_for(p.h, lambda t: "Press Enter" in t, 6):
+        p.h.typed("n", idle=1.0)
+    wait_for(p.h, lambda t: "Press Enter" in t, 6)
+    p.h.key("enter", idle=2.0)
+    wait_for(p.h, lambda t: "What this means" in t and "Press Enter" not in t, 10)
+
+
+def ide_open(p, key, ask=None):
+    """Press the key (and answer the id box if there is one); True when the IDE came up."""
+    p.h.typed(key, idle=1.2)
+    if ask is not None:
+        p.h.typed(ask + "\r", idle=2.5)
+    return wait_for(p.h, ide_up, 12)
+
+
+def section_e10():
+    say("\n--- E10: E and N edit the record in its own account; the pointer rule refuses what lies outside it (S.96 M2)")
+    for acct in ("ze1", "ze2"):
+        g.put(os.path.join(apath(acct), "bp", "zzerd"), ER_SRC)
+        out = g.adm(["LOGTO %s" % acct, "BASIC bp zzerd"])
+        if not has(out, r"^Compiled 1 program\(s\) with no errors"):
+            bail("the reader zzerd was not compiled in %s:\n%s" % (acct, "\n".join(out[-6:])))
+    g.put(os.path.join(sh.SYS, "bp", "zzerd"), ER_SRC)
+    out = g.adm(["BASIC bp zzerd"])
+    if not has(out, r"^Compiled 1 program\(s\) with no errors"):
+        bail("the reader zzerd was not compiled in SDSYS:\n" + "\n".join(out[-6:]))
+    reset_e10()
+    # a LINK: ze1's zelnk.dic IS ze2's zecust2.dic.  Its text starts with ze1's own directory; only the kernel's geometry (realpath) sees where it leads.
+    os.symlink(os.path.join(apath("ze2"), "zecust2.dic"), os.path.join(apath("ze1"), "zelnk.dic"))
+    # LINKS INSIDE a dictionary (the review of 3 Nov 26, finding 2): ze1's zesub.dic is a real directory of ze1's, so the directory passes the first test; its subfiles are links to
+    # ze2's.  Only the test of what the pointer opens, subfiles included, sees it.
+    sub = os.path.join(apath("ze1"), "zesub.dic")
+    os.makedirs(sub)
+    src2 = os.path.join(apath("ze2"), "zecust2.dic")
+    for f in os.listdir(src2):
+        os.symlink(os.path.join(src2, f), os.path.join(sub, f))
+    _section_e10_body(sub)
+
+
+def reset_e10():
+    """What E10 adds and changes is put back as the fixture made it (at its start, for a REUSED sandbox, and at its end, so that a later `read` run on the same sandbox sees the fixture):
+    the records E10 edits, the records it makes, its two extra file pointers and their links."""
+    import shutil
+    lnk = os.path.join(apath("ze1"), "zelnk.dic")
+    if os.path.islink(lnk):
+        os.remove(lnk)
+    sub = os.path.join(apath("ze1"), "zesub.dic")
+    if os.path.isdir(sub) and not os.path.islink(sub):
+        shutil.rmtree(sub)            # only links inside: rmtree removes the links, never what they point at
+    reset = ["$internal"]
+    for i, (acct, f) in enumerate((("ze1", "voc"), ("ze2", "voc"), ("ze1", "zecust.dic"), ("ze2", "zecust2.dic"))):
+        reset.append("   openpath '%s/%s' to f%d else crt 'RST no %s %s' ; stop" % (apath(acct), f, i, acct, f))
+    reset += ["   write 'X' : @fm : 'text one' on f0, 'zzonly1'", "   write 'Q' : @fm : 'ze2' : @fm : 'zecust2' on f0, 'zeq'", "   delete f0, 'zznew1'", "   delete f0, 'zzonly2'",
+              "   delete f0, 'zelnk'", "   delete f0, 'zesub'",
+              "   write 'X' : @fm : 'text two' on f1, 'zzonly2'", "   delete f1, 'zzonly1'", "   delete f1, 'zeq'", "   delete f1, 'zznew1'",
+              "   write 'D' : @fm : '3' : @fm : '' : @fm : 'Nickname' : @fm : '10L' : @fm : 'S' on f2, 'zqalias'", "   delete f2, 'zqnew1'",
+              "   delete f3, 'zqnew1'", "   delete f3, 'zqpoison'",
+              "   openpath @sdsys:@ds:'voc' to s else crt 'RST no sdsys voc' ; stop", "   delete s, 'zzonly1'", "   delete s, 'zznew1'", "   delete s, 'zzonly2'",
+              "   crt 'RST done'", "end", ""]
+    g.put(os.path.join(sh.SYS, "bp", "zzerst"), "\n".join(reset))
+    out = g.adm(["BASIC bp zzerst", "RUN bp zzerst"], internal=True)
+    if not has(out, r"^RST done$"):
+        bail("the E10 fixture records were not put back:\n" + "\n".join(out[-6:]))
+
+
+def _section_e10_body(sub):
+    voc_write("zzelnk", [("ze1", "zelnk", ["F", "zelnk", "zelnk.dic"]), ("ze1", "zesub", ["F", "zesub", "zesub.dic"])])
+    B = snap()
+    a0 = audit_off()
+    p = Page()
+    p.walk_to("ze1")
+    p.key("tab", 0.6)
+    p.key("/", 1.0)
+    p.h.typed("zzonly1\r", idle=1.5)
+    T = p.text()
+    arow("E10a", "control: the entries of ze1 are filtered to zzonly1, the cursor is in Entries, and the files hold what the fixture wrote (ze1's zzonly1 is X / text one, ze2 and SDSYS have none)",
+         'matching "zzonly1"' in T and B[("ze1", "voc", "voc", "zzonly1")] == "X|text one" and B[("ze2", "voc", "voc", "zzonly1")] == "NONE" and B[("sdsys", "voc", "voc", "zzonly1")] == "NONE"
+         and B[("ze1", "voc", "voc", "zeq")] == "Q|ze2|zecust2", repr((T[:300], B)))
+
+    say("  E on a VOC entry")
+    up = ide_open(p, "e")
+    T = p.text()
+    zm_now = sys_zm()
+    arow("E10b", "E on zzonly1 gives the screen to the IDE, which has the record open (its text is on the screen; the page is not), and SDSYS's VOC holds ONE temporary pointer for ze1's VOC while it is open",
+         up and "text one" in T and "What this means" not in T and len(zm_now) == len(B["zm"]) + 1 and any(re.match(r"zm\d+\.ze1\.voc$", z) for z in zm_now), repr((up, zm_now, T[:300])))
+    p.h.key("down", idle=0.3)
+    p.h.key("end", idle=0.3)
+    p.h.typed(" edited", idle=0.5)
+    p.h.typed("\x13", idle=1.8)                        # Ctrl-S: the IDE's only save key (F2 is the debugger's)
+    to_page(p)
+    T = p.text()
+    arow("E10d", "Ctrl-Q and Enter bring the page back on the same entry and the status line says it came back from the editor",
+         "What this means" in T and "zzonly1" in T and "back from the editor" in norm(p.st()), repr(p.st()))
+
+    say("  the POINTER RECORD itself is editable although its target is in another account")
+    p.key("/", 1.0)
+    p.h.typed("zeq\r", idle=1.5)
+    up_q = ide_open(p, "e")
+    p.h.key("down", idle=0.3)
+    p.h.key("down", idle=0.3)
+    p.h.key("end", idle=0.3)
+    p.h.typed("x", idle=0.5)
+    p.h.typed("\x13", idle=1.8)
+    to_page(p)
+
+    say("  N on the VOC")
+    p.h.typed("n", idle=1.2)
+    T = p.text()
+    arow("E10g", "N asks the id first: 'Id of the new VOC entry in ze1'", "Id of the new VOC entry in ze1" in T, T[:400])
+    p.h.typed("zznew1\r", idle=2.5)
+    up_n = wait_for(p.h, ide_up, 12)
+    p.h.typed("X\rmade by n", idle=0.8)
+    p.h.typed("\x13", idle=1.8)
+    to_page(p)
+
+    say("  an account with every edit gate off")
+    p.key("tab", 0.6)
+    arrived2 = p.walk_to("ze2")
+    p.key("tab", 0.6)
+    p.key("/", 1.0)
+    p.h.typed("zzonly2\r", idle=1.5)
+    up2 = ide_open(p, "e")
+    p.h.key("down", idle=0.3)
+    p.h.key("end", idle=0.3)
+    p.h.typed(" edited", idle=0.5)
+    p.h.typed("\x13", idle=1.8)
+    to_page(p)
+
+    say("  E and N on the dictionary items")
+    p.key("tab", 0.6)
+    p.walk_to("ze1")
+    p.key("tab", 0.6)
+    p.key("k", 1.2)
+    p.key("/", 1.0)
+    p.h.typed("zqalias\r", idle=1.5)
+    up = ide_open(p, "e")
+    form = wait_for(p.h, lambda t: "Type:" in t and "Accept" in t and "Cancel" in t, 10)
+    arow("E10j", "E on the item zqalias of ze1's zecust opens the dictionary item FORM (the default face of a dictionary item); the page is not on the screen", up and form and "Column Heading:" in p.h.text()
+         and "What this means" not in p.h.text(), p.h.text()[:300])
+    for _ in range(3):
+        p.h.key("tab", idle=0.3)
+    p.h.typed("\x15", idle=0.3)
+    p.h.typed("Alias name", idle=0.4)
+    p.h.key("enter", idle=2.5)
+    to_page(p)
+    st_k = norm(p.st())
+    p.h.typed("n", idle=1.2)
+    T = p.text()
+    arow("E10l", "N on an item asks for the id and names the file and the account: 'Id of the new item in the dictionary of zecust (ze1)'", "Id of the new item in the dictionary of zecust (ze1)" in T, T[:400])
+    p.h.typed("zqnew1\r", idle=2.5)
+    up_dn = wait_for(p.h, ide_up, 12)
+    form_dn = wait_for(p.h, lambda t: "Type:" in t and "Accept" in t, 10)
+    p.h.typed("D", idle=0.4)
+    p.h.key("tab", idle=1.8)
+    wait_for(p.h, lambda t: "Field #:" in t, 8)
+    p.h.typed("3", idle=0.4)
+    p.h.key("enter", idle=2.5)
+    to_page(p)
+
+    say("  THE POINTER RULE: what lies outside the account is refused, before a pointer is made and with the reason")
+    p.key("/", 1.0)
+    p.h.typed("zqother\r", idle=1.5)
+    T = p.text()
+    arow("E10n", "control: ze1's dictionary view lists ze2's item zqother under TWO of ze1's pointers, zeesc (written ../ze2/zecust2.dic) and zelnk (a LINK to ze2's dictionary), both marked >",
+         re.search(r"zeesc > zqother D Other", T) is not None and re.search(r"zelnk > zqother D Other", T) is not None, T[:900])
+    p.h.typed("e", idle=1.5)
+    T = p.text()
+    arow("E10o", "E on zeesc zqother (the pointer is written ../ze2/zecust2.dic, which STARTS with ze1's directory as text) is refused with the reason, the page stays, no IDE", not ide_up(p.h) and "What this means" in T
+         and "zeesc lies outside ze1" in norm(p.st()) and "edited in the account it lives in" in norm(p.st()), repr(p.st()))
+    p.key("down", 0.6)
+    p.h.typed("e", idle=1.5)
+    T = p.text()
+    arow("E10p", "E on zelnk zqother (the dictionary is a LINK to ze2's, its text starts with ze1's directory and only realpath sees where it leads) is refused the same way", not ide_up(p.h) and "What this means" in T
+         and "zelnk lies outside ze1" in norm(p.st()), repr(p.st()))
+    p.key("down", 0.6)
+    p.h.typed("e", idle=2.0)
+    T = p.text()
+    arow("E10z", "E on zesub zqother (ze1's OWN directory zesub.dic, whose subfiles are LINKS to ze2's: the directory passes the first test) is refused by the test of what the pointer opens, "
+         "subfiles included - and the pointer it wrote for that test is taken away again", not ide_up(p.h) and "What this means" in T and "opens a file outside the account" in norm(p.st()), repr(p.st()))
+    p.key("up", 0.6)
+    p.h.typed("n", idle=1.2)
+    p.h.typed("zqpoison\r", idle=2.0)
+    T = p.text()
+    arow("E10q", "N on the zelnk row asks the id and is refused the same way (what it would have made in ze2's dictionary is judged at the end)", not ide_up(p.h) and "What this means" in T
+         and "lies outside ze1" in norm(p.st()), repr(p.st()))
+    p.key("esc", 1.2)
+    p.key("home", 0.6)
+    lines = p.h.lines()
+    hi = next((i for i, ln in enumerate(lines) if "Heading" in ln[50:] and "File" in ln[50:]), None)
+    top = [w for w in (lines[hi + 1][50:].split() if hi is not None and hi + 1 < len(lines) else []) if w != "|"]     # the box's own border is not a word of the row
+    if len(top) >= 2 and top[1] == ">":                # the precondition: the top row is an item of a system dictionary, marked >; E is pressed only then
+        p.h.typed("e", idle=1.5)
+        T = p.text()
+        arow("E10s", "E on the top row of the dictionary view - an item of a SHIPPED system dictionary (the pointer leads to @SDSYS/...) - is refused: it is edited in the SDSYS account", not ide_up(p.h)
+             and "What this means" in T and "lies outside ze1" in norm(p.st()), repr((p.st(), top)))
+    else:
+        arow("E10s", "E on the top row of the dictionary view - an item of a SHIPPED system dictionary - is refused (PRECONDITION NOT MET: the top row is not marked >, so E was not pressed)", False, repr(top))
+
+    say("  the programs, a find, an account that is suspended")
+    p.key("k", 1.2)
+    p.h.typed("e", idle=1.0)
+    arow("E10t", "E on the programs says they are not edited from this page yet (M4)", "not edited from this page yet" in norm(p.st()) and not ide_up(p.h), repr(p.st()))
+    p.key("k", 1.2)                                    # round to the VOC
+    p.key("f", 1.0)
+    p.h.typed("zz\r", idle=2.5)
+    p.h.typed("n", idle=1.2)
+    arow("E10u", "N while a find is on is refused: 'Esc takes the find off first'", "Esc takes the find off first" in norm(p.st()) and not ide_up(p.h), repr(p.st()))
+    p.key("esc", 1.2)
+    p.key("tab", 0.6)
+    arrived = p.walk_to("ze5")
+    p.key("tab", 0.6)
+    p.key("/", 1.0)
+    p.h.typed("zzqc\r", idle=1.5)
+    p.h.typed("e", idle=3.0)
+    followed = wait_for(p.h, ide_up, 6)
+    said = norm(p.st())
+    if followed:
+        to_page(p)
+    say("  [measured] E on an entry of the SUSPENDED account ze5: %s (status: %s)" % ("the IDE opened" if followed else "refused", said))
+    arow("E10v", "whatever SD does for a suspended account, the page ends back on its own screen (its pointer is judged at the end)", arrived and "What this means" in p.text(), repr((arrived, said)))
+    p.quit()
+
+    say("  the files, read once at the end by a separate session in each account (the oracle)")
+    S = snap()
+
+    def k(a, kd, fl, i):
+        return S[(a, kd, fl, i)]
+
+    def kb(a, kd, fl, i):
+        return B[(a, kd, fl, i)]
+    arow("E10c", "E's save wrote the record into ze1's own VOC: X / text one edited", k("ze1", "voc", "voc", "zzonly1") == "X|text one edited", repr(k("ze1", "voc", "voc", "zzonly1")))
+    arow("E10e", "SDSYS's own VOC and ze2's have no zzonly1: the record went to ze1 and nowhere else", k("sdsys", "voc", "voc", "zzonly1") == "NONE" and k("ze2", "voc", "voc", "zzonly1") == "NONE")
+    arow("E10f", "zeq (a Q-pointer to ze2's zecust2, marked >) was edited like any record of ze1: Q / ze2 / zecust2 became Q / ze2 / zecust2x; ze2 is as it was (its dictionary items, no zeq in its VOC)",
+         up_q and kb("ze1", "voc", "voc", "zeq") == "Q|ze2|zecust2" and k("ze1", "voc", "voc", "zeq") == "Q|ze2|zecust2x" and k("ze2", "dict", "zecust2", "zqother") == kb("ze2", "dict", "zecust2", "zqother")
+         and k("ze2", "dict", "zecust2", "zqfirst") == kb("ze2", "dict", "zecust2", "zqfirst") and k("ze2", "voc", "voc", "zeq") == "NONE", repr((up_q, k("ze1", "voc", "voc", "zeq"))))
+    arow("E10h", "N made zznew1 in ze1's VOC (X / made by n), and SDSYS's VOC and ze2's do not have it", up_n and k("ze1", "voc", "voc", "zznew1") == "X|made by n"
+         and k("sdsys", "voc", "voc", "zznew1") == "NONE" and k("ze2", "voc", "voc", "zznew1") == "NONE", repr((up_n, k("ze1", "voc", "voc", "zznew1"))))
+    arow("E10i", "ze2 holds voc-edit, dict-edit and bp-edit OFF: the administrator edited its zzonly2 all the same (X / text two edited), and ze1's VOC and SDSYS's have no zzonly2",
+         arrived2 and up2 and k("ze2", "voc", "voc", "zzonly2") == "X|text two edited" and k("ze1", "voc", "voc", "zzonly2") == "NONE" and k("sdsys", "voc", "voc", "zzonly2") == "NONE",
+         repr((arrived2, up2, k("ze2", "voc", "voc", "zzonly2"))))
+    arow("E10k", "the form's Accept wrote the item into ze1's own zecust dictionary: D / 3 / / Alias name / 10L / S, and the page came back", k("ze1", "dict", "zecust", "zqalias") == "D|3||Alias name|10L|S"
+         and "back from the editor" in st_k, repr((k("ze1", "dict", "zecust", "zqalias"), st_k)))
+    arow("E10m", "N made the item zqnew1 in ze1's zecust (D / 3 / / / 10L / S) through the form, and ze2's zecust2 does not have it", up_dn and form_dn and k("ze1", "dict", "zecust", "zqnew1") == "D|3|||10L|S"
+         and k("ze2", "dict", "zecust2", "zqnew1") == "NONE", repr((up_dn, form_dn, k("ze1", "dict", "zecust", "zqnew1"))))
+    arow("E10r", "after the refusals ze2's dictionary is as it was (zqother, zqfirst) and has no zqpoison", k("ze2", "dict", "zecust2", "zqother") == kb("ze2", "dict", "zecust2", "zqother")
+         and k("ze2", "dict", "zecust2", "zqfirst") == kb("ze2", "dict", "zecust2", "zqfirst") and k("ze2", "dict", "zecust2", "zqpoison") == "NONE")
+    arow("E10x", "SDSYS's VOC holds none of the page's temporary pointers at the end: every one was taken away (after each edit, after each refusal that had written one, and for the suspended account)",
+         S["zm"] == B["zm"], repr((B["zm"], S["zm"])))
+
+    say("  the audit trail")
+    lines = [ln for ln in audit_new(a0).splitlines() if "master edit" in ln]
+    want = [r"master edit account=ze1 kind=voc file=voc id=zzonly1 new=0", r"master edit account=ze1 kind=voc file=voc id=zeq new=0", r"master edit account=ze1 kind=voc file=voc id=zznew1 new=1",
+            r"master edit account=ze2 kind=voc file=voc id=zzonly2 new=0", r"master edit account=ze1 kind=dict file=zecust id=zqalias new=0", r"master edit account=ze1 kind=dict file=zecust id=zqnew1 new=1"]
+    arow("E10w", "each edit that reached the IDE is one 'master edit' line in the audit trail, in lower case, and a refused one (zeesc, zelnk, zesub, zqpoison, the system dictionary) leaves none",
+         all(len([ln for ln in lines if re.search(w, ln)]) == 1 for w in want) and not [ln for ln in lines if re.search(r"zeesc|zelnk|zesub|zqpoison|zqother", ln)]
+         and len(lines) == len(want) + (1 if followed else 0), repr(lines[-8:]))
+
+    say("  a pointer left by a session killed inside the IDE is swept at the page's next start (the review of 3 Nov 26, finding 4)")
+    g.put(os.path.join(sh.SYS, "bp", "zzstale"), "\n".join(["$internal", "   openpath @sdsys:@ds:'voc' to v else crt 'ST no voc' ; stop", "   for n = 1 to 300",
+                                                             "      write 'F' : @fm : '/nonexistent' on v, 'zm' : n : '.zzstale.voc'", "   next n", "   crt 'ST done'", "end", ""]))
+    out = g.adm(["BASIC bp zzstale", "RUN bp zzstale"], internal=True)
+    if not has(out, r"^ST done$"):
+        bail("the stale pointers were not planted:\n" + "\n".join(out[-5:]))
+    p2 = Page()
+    started = "What this means" in p2.text()
+    p2.quit()
+    left = [z for z in sys_zm() if z.endswith(".zzstale.voc")]
+    arow("E10y", "300 dead pointers planted under zm1. to zm300.: the page's start took away exactly ONE, its own user number's, and left the other 299 (they are other sessions' names)",
+         started and len(left) == 299, repr((started, len(left))))
+    g.put(os.path.join(sh.SYS, "bp", "zzstale"), "\n".join(["$internal", "   openpath @sdsys:@ds:'voc' to v else crt 'ST no voc' ; stop", "   for n = 1 to 300",
+                                                             "      delete v, 'zm' : n : '.zzstale.voc'", "   next n", "   crt 'ST done'", "end", ""]))
+    g.adm(["BASIC bp zzstale", "RUN bp zzstale"], internal=True)
+    reset_e10()                        # the sandbox as the fixture made it, for a later run on it without --build
+
+
 def section_e6(n1, n2):
     say("\n--- E6: the page reads and writes nothing")
     arow("E6a", "the VOC of ze1 and of ze2 have the same number of entries after everything the page did", count_voc("ze1") == n1 and count_voc("ze2") == n2, repr((n1, n2)))
@@ -465,42 +841,53 @@ def section_e7(p, a0):
     h.end()
 
 
+GROUPS = ("read", "edit")       # --only=read: E0-E9 (one chain on one page: each section leaves the page where the next starts); --only=edit: E10 (a page of its own)
+
+
 def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
-    if mutant is not None and mutant not in MUTANTS:
-        bail("usage: sandbox-tool-entries.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
+    only = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only=")), None)
+    groups = set(only.split(",")) if only else set(GROUPS)
+    if (mutant is not None and mutant not in MUTANTS) or groups - set(GROUPS) or not groups:
+        bail("usage: sandbox-tool-entries.py <dir> [--build] [--only=%s] [--mutant=%s]" % (",".join(GROUPS), "|".join(MUTANTS)))
     last = MUTANTS[mutant][3] if mutant else "E7"
+    if mutant is not None:
+        groups = {"edit"} if last == "E10" else {"read"}
+    say("sandbox-tool-entries: sections %s" % ", ".join(g2 for g2 in GROUPS if g2 in groups))
     try:
         sh.setup("sandbox-tool-entries.py")
         setup_page()
         if mutant is not None:
             mutate(mutant)
             say("sandbox-tool-entries: MUTANT %s: the rows that must fail, and nothing else: %s" % (mutant, ", ".join(MUTANTS[mutant][2])))
-        if mutant is None:
-            section_e0()
-        a0 = audit_off()
-        p = section_e1()
-        if mutant is None or last in ("E5a", "E7", "E8", "E9"):
-            n1, n2 = section_e2(p)
-            section_e3(p)
-            section_e4(p, n1)
-        if mutant is None or last in ("E5a", "E8", "E9"):
-            section_e5(p)
-        if mutant is None or last in ("E8", "E9"):
-            section_e8(p)
-        if mutant is None or last == "E9":
-            section_e9(p)
-        if mutant is None:
-            section_e6(n1, n2)
-            section_e7(p, a0)
-        else:
-            p.quit()
+        if "read" in groups:
+            if mutant is None:
+                section_e0()
+            a0 = audit_off()
+            p = section_e1()
+            if mutant is None or last in ("E5a", "E7", "E8", "E9"):
+                n1, n2 = section_e2(p)
+                section_e3(p)
+                section_e4(p, n1)
+            if mutant is None or last in ("E5a", "E8", "E9"):
+                section_e5(p)
+            if mutant is None or last in ("E8", "E9"):
+                section_e8(p)
+            if mutant is None or last == "E9":
+                section_e9(p)
+            if mutant is None:
+                section_e6(n1, n2)
+                section_e7(p, a0)
+            else:
+                p.quit()
+        if "edit" in groups:
+            section_e10()
     finally:
         sh.teardown()
     say("\nsandbox-tool-entries: %d passed, %d failed" % (sh.tkb.passed, sh.tkb.failed))
     if mutant is not None:
         want = sorted(set(MUTANTS[mutant][2]))
-        got = sorted({re.match(r"E\d", i).group(0) for i in FAILED_IDS})
+        got = sorted({re.match(r"E\d+", i).group(0) for i in FAILED_IDS})
         ok = want == got
         say("sandbox-tool-entries: MUTANT %s: the rows that failed are %s; they had to be exactly %s -> %s" % (mutant, got, want, "KILLED BY ITS OWN ROWS" if ok else "NOT AS EXPECTED"))
         return 0 if ok else 1

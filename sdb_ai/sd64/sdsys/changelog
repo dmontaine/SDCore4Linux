@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   TOOL.ENTRIES: E EDITS AND N MAKES A VOC ENTRY OR A DICTIONARY ITEM, IN THE ACCOUNT IT BELONGS TO.
+
+             What        - On the master files page, E gives the terminal to the IDE on the VOC entry or dictionary item under the cursor (an item opens as the item form)
+                           and N makes a new one after asking its id; the page comes back when the IDE ends. The record is edited in the account it belongs to, also
+                           when that account's voc-edit or dict-edit gate is off. The IDE reaches the account's file through a temporary file pointer in SDSYS's VOC,
+                           named zm<user number>.<account>.<file>, that holds the path the page checked; it is taken away when the IDE ends, and one left by a session
+                           killed inside the IDE is taken away the next time the page starts. Each edit writes one "master edit" line to the audit trail.
+             Why         - The owner's master files: the administrator manages the VOC entries and dictionaries of accounts that are locked out of their own files.
+                           His rule for pointers: a pointer record is edited like any record of its account, but what it points at is never edited from another account.
+             Does NOT    - Edit anything outside the account: a dictionary that lies outside it (a pointer written ../other/..., a link to another account's directory,
+                           a directory whose files are links, the shipped system dictionaries) is refused with the reason before anything is written. It does not edit
+                           programs yet.
+
 3 Nov 26   TOOL.ENTRIES: THE PROGRAMS OF EVERY ACCOUNT.
 
              What        - The master files page gains a third kind of entry: pressing K after the dictionary items shows the programs, the records of the account's program

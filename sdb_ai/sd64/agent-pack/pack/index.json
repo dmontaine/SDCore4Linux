@@ -11660,7 +11660,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 15
+"words": 16
 },
 "msg:11866": {
 "kind": "message",
@@ -28495,7 +28495,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 102
+"words": 116
 },
 "tcl:tool.files": {
 "kind": "tcl.verb",

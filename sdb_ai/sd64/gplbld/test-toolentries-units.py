@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""test-toolentries-units.py - TOOL.ENTRIES, the master files page (S.96 M1a), as invariants read off the source.
+"""test-toolentries-units.py - TOOL.ENTRIES, the master files page (S.96 M1a-M2), as invariants read off the source.
 
   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolentries-units.py
   python3 .../test-toolentries-units.py --selftest
@@ -8,9 +8,11 @@ No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it co
 
 ***WHAT THIS IS AND WHAT IT IS NOT.*** It reads sdsys/gpl.bp/tool_entries, the VOC record and the two help records as TEXT.  IT CANNOT SAY THE PAGE SHOWS THE RIGHT GATES OR THE RIGHT
 ENTRIES: that is sandbox-tool-entries.py.  What it holds is the shape the design depends on and a hand edit could break unnoticed: the page is the administrator's and asks for that
-first; it is READ ONLY (no write, delete, execute, command, confirm box or master-file operation anywhere in it); the only files it opens are the register and, by the pathname the
-register gives, an account's VOC; an account's VOC is read when the cursor comes to it and every VOC is read only by the find the person asks for; the gates are the three register
-fields in the order v d b; SDSYS is not in the list; the long lists are cut at MAXV.
+first; it changes no record itself (since M2 the ONLY write is the temporary Q-pointer in SDSYS's VOC that lets the IDE reach an account's file, the ONLY delete takes that pointer away
+and the ONLY execute gives the terminal to the IDE; no command, confirm box or master-file operation anywhere in it); THE OWNER'S POINTER RULE for E and N (3 Nov 26): the file to be edited
+is judged by the kernel's geometry, from a register and an account VOC read afresh, BEFORE the pointer is written, and what the pointer opens is judged again before the IDE is given it;
+the only files it opens are the register and, by the pathname the register gives, an account's VOC; an account's VOC is read when the cursor comes to it and every VOC is read only by
+the find the person asks for; the gates are the three register fields in the order v d b; SDSYS is not in the list; the long lists are cut at MAXV.
 
 ***AND THE CHECKS ARE THEMSELVES CHECKED.*** --selftest makes the changes that would plausibly break the page and requires each to be CAUGHT.
 """
@@ -78,16 +80,26 @@ def checks(src, voc, helps):
     refused = next((n for n, s in lines if n > (adm or 0) and s == "stop"), None)
     ck("T3 it opens the toolkit for the ADMINISTRATOR first and stops on a refusal, before any file is opened",
        adm is not None and refused is not None and adm < refused < first_open, "admin %s stop %s first openpath %s" % (adm, refused, first_open))
-    forbidden = [(n, s) for n, s in lines if re.search(r"(^|[\s;(])(write|writev|writeu|delete|deletes|execute|chain|perform|osexecute|os\.execute)\s", unquote(s) + " ")
+    forbidden = [(n, s) for n, s in lines if re.search(r"(^|[\s;(])(writev|writeu|deletes|chain|perform|osexecute|os\.execute)\s", unquote(s) + " ")
                  or re.search(r"\$tk_run|\$tk_confirm|K\$MASTERS|!acc_|sd-elevate|modify\.account|set\.batch|run\.in", unquote(s))]
-    ck("T4 READ ONLY: no write, delete, execute, command runner, confirm box, master-file operation or account verb anywhere in the page", not forbidden, "%s" % forbidden[:3])
+    writes = [s for n, s in lines if re.search(r"(^|[\s;(])write\s", unquote(s) + " ")]
+    deletes = [s for n, s in lines if re.search(r"(^|[\s;(])delete\s", unquote(s) + " ")]
+    execs = [s for n, s in lines if re.search(r"(^|[\s;(])execute\s", unquote(s) + " ")]
+    ck("T4 WHAT IT MAY CHANGE (M2): no record is written but the temporary pointer in SDSYS's VOC (ONE write, `write qrec on svf, qn on error`), the only deletes take that pointer away "
+       "(`delete svf, qn`) and sweep the user number's own leftovers at the start (`delete svf, sw.id`), the only execute is the one that gives the terminal to the IDE (`execute sent`); no chain, perform, OS command, command runner, confirm box, master-file "
+       "operation or account verb anywhere in the page",
+       not forbidden and writes == ["write qrec on svf, qn on error"] and deletes == ["delete svf, sw.id", "delete svf, qn"] and execs == ["execute sent"],
+       "%s %s %s %s" % (forbidden[:3], writes, deletes, execs))
     opens = [s for n, s in lines if re.search(r"\bopenpath\b", s)]
-    kinds = sorted(set("register" if "@sdsys:@ds:'accounts'" in s else ("voc" if re.search(r"apath<[a-z0-9]+>:@ds:'voc'", s) else ("dict" if re.match(r"openpath dp to df2? then", s)
+    kinds = sorted(set("register" if "@sdsys:@ds:'accounts'" in s else ("voc" if re.search(r"(apath<[a-z0-9]+>|ap\.f) ?:@ds ?: ?'voc'", s.replace(" : ", ":")) else ("dict" if re.match(r"openpath dp to df2? then", s)
                        else ("prog" if re.match(r"openpath (op2 to ofv|pp to pfv|pp2 to pf2) then", s) else s))) for s in opens))
-    ck("T5 the only files it opens are the register, an account's VOC by the pathname the register gives and, by a path of one of that VOC's file pointers, a dictionary, a program file or the "
-       ".out file beside it (ten opens: the list; the VOC, the dictionaries, the .out file and the program files in collect.account; the entry under the cursor in the VOC, in a dictionary "
-       "and in a program file)",
-       kinds == ["dict", "prog", "register", "voc"] and len(opens) == 10 and txt.count("close ") >= 10, "%s %d" % (kinds, len(opens)))
+    ck("T5 the only files it opens by pathname are the register, an account's VOC by the pathname the register gives and, by a path of one of that VOC's file pointers, a dictionary, a program "
+       "file or the .out file beside it (twelve opens: the list; the VOC, the dictionaries, the .out file and the program files in collect.account; the entry under the cursor in the VOC, in "
+       "a dictionary and in a program file; and the register and the account's VOC again in edit.record, for E and N); the other opens are SDSYS's own VOC (the pointer) and the file "
+       "that pointer leads to, which is judged before the IDE is given it",
+       kinds == ["dict", "prog", "register", "voc"] and len(opens) == 12 and txt.count("close ") >= 12
+       and len(re.findall(r"^open 'voc' to svf else$", txt, re.M)) == 1 and len(re.findall(r"^open 'voc' to svf then$", txt, re.M)) == 2
+       and len(re.findall(r"^open dfl, qn to tf else$", txt, re.M)) == 1, "%s %d" % (kinds, len(opens)))
     cap = "\n".join(s for n, s in section(lines, "collect.account:", "dclassify:"))
     ck("T5b a dictionary path that is not absolute is made from the ACCOUNT's directory, never the current one; the dictionaries are those the VOC's file pointers name (field 3); an item matches in its id OR its heading",
        "dp = parse.pathname.tokens(dpaths<fi>)" in cap and "if dp[1, 1] # '/' then dp = apath<ca> : @ds : dp" in cap and "upcase(trim(r<1>))[1, 1] = 'F' and trim(r<3>) # ''" in cap
@@ -124,8 +136,49 @@ def checks(src, voc, helps):
     ck("T9 the filter and the find ask with screen ask, take the AI's argument as the default, and each clears the other",
        txt.count("screen ask ptxt width 40 value ai.arg") == 2 and txt.count("value ai.arg") == 2 and "filt = trim(ft)\nfnd = ''" in txt and "fnd = trim(ft)\nfilt = ''" in txt)
     keyrows = re.findall(r"call \$tk_keys\('add', keys, '([^']+)'", txt)
-    ck("T10 nine key rows: f1 enter tab / f k f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh)",
-       keyrows == ["f1", "enter", "tab", "/", "f", "k", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
+    ck("T10 eleven key rows: f1 enter tab / f k e n f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh), never an edit",
+       keyrows == ["f1", "enter", "tab", "/", "f", "k", "e", "n", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
+    er = "\n".join(s for n, s in section(lines, "edit.record:", "sweep.pointers:"))
+    ho = "\n".join(s for n, s in section(lines, "hand.over:", "do.filter:"))
+    de = "\n".join(s for n, s in section(lines, "do.edit:", "do.new:"))
+    dn = "\n".join(s for n, s in section(lines, "do.new:", "edit.record:"))
+
+    def at(t, s=er):
+        return s.find(t)
+    i_ck, i_guard, i_w = at("if not(kernel(K$PATH.IN, ap.f : @fm : tp)) then"), at("if qold # qrec then"), at("write qrec on svf, qn on error")
+    i_open, i_ck2, i_aud, i_hand = at("open dfl, qn to tf else"), at("in.ok = kernel(K$PATH.IN, ap.f : @fm : rp)"), at("void kernel(K$AUDIT, 'master edit account="), at("gosub hand.over")
+    ck("T14 THE POINTER RULE for E and N (owner, 3 Nov 26): the register and the account's VOC are read AGAIN in edit.record; the file to be edited is judged by the kernel's geometry "
+       "(the VOC file of the account, or the DICTIONARY path of the file pointer with its tokens expanded and made the account's when relative) BEFORE any pointer is written; an entry "
+       "SDSYS's VOC already holds under that name that the page did not make is never overwritten; what the pointer opens is judged again (FL$PATH) before the IDE is given it; both refusals "
+       "take the pointer away again; the audit line comes after both tests and before the hand-over",
+       0 <= i_ck < i_guard < i_w < i_open < i_ck2 < i_aud < i_hand and "read arec from acc.f, ea else arec = ''" in er and "openpath ap.f : @ds : 'voc' to rvf else" in er
+       and "tp = ap.f : @ds : 'voc'" in er and "tp = parse.pathname.tokens(trim(fr<3>))" in er and "if tp[1, 1] # '/' then tp = ap.f : @ds : tp" in er
+       and "rp = fileinfo(tf, FL$PATH)" in er and er.count("gosub drop.pointer") == 3 and "if upcase(trim(fr<1>))[1, 1] # 'F' or trim(fr<3>) = '' then" in er
+       and "in.ok = kernel(K$PATH.IN, ap.f : @fm : rp)" in er and "if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')" in er
+       and "if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')" in er and "rt = fileinfo(tf, FL$TYPE)" in er and "if rt # FL$TYPE.DH then" in er
+       and at("if rt # FL$TYPE.DH then", er) < i_aud and at("if not(in.ok) then", er) < i_aud
+       and at("read arec from acc.f", er) < i_ck and "ap.f = parse.pathname.tokens(arec<1>)" in er and i_ck < at("gosub check.word") < i_w,
+       "ck %d guard %d write %d open %d ck2 %d audit %d hand %d" % (i_ck, i_guard, i_w, i_open, i_ck2, i_aud, i_hand))
+    ck("T15 the pointer and the sentence: the pointer is an F pointer holding THE PATH THAT WAS CHECKED (never a Q-pointer into the account's VOC, which is followed again at every open, "
+       "after the check: the review of 3 Nov 26), both parts the dictionary for an item and no dictionary part for the VOC, named zm<user number>.<account>.<file> from words that passed "
+       "check.word (a-z 0-9 . _ -, 1 to 63; and not creating.seqkey, which the IDE reads as a keyword); the sentence is 'ide' (with dict for an item) and the pointer's name and the id; "
+       "hand.over refuses any other first word, takes the pointer away straight after the IDE ends and takes it away only if it is the one the page made",
+       "qrec = 'F' : @fm : tp : @fm : (if efl = '' then '' else tp)" in er and "qn = 'zm' : @userno : '.' : ea : '.' : qf" in er and "ok2 = (okname and eid # 'creating.seqkey')" in er
+       and "'Q'" not in er and "good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'" in txt
+       and "okname = (len(cw) > 0 and len(cw) <= 63)" in txt and er.count("gosub check.word") == 3 and "if not(ok1 and ok2 and okname) then" in er
+       and "sent = 'ide ' : (if efl = '' then '' else 'dict ') : qn : ' ' : eid" in er
+       and "if field(sent, ' ', 1) # 'ide' then" in ho and ho.find("execute sent\ngosub drop.pointer") > ho.find("if field(sent, ' ', 1) # 'ide' then")
+       and "if qold = qrec then\ndelete svf, qn\nend" in txt)
+    ck("T16 E and N keys: E edits the row under the cursor (a hit in the account it was found in), only from Entries; N refuses while a find is on and asks the id first; the programs "
+       "are refused by both; a new item needs a row to take the dictionary's file from; the id is lower-cased and trimmed",
+       "if pane # 2 then" in de and "if kind = 3 then" in de and "ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>" in de and "ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>" in de and "enw = 0" in de
+       and "if kind = 3 then" in dn and "if fnd # '' then" in dn and "efl = efile<ec>" in dn and "eid = downcase(trim(nt))" in dn and "enw = 1" in dn
+       and "case nm = 'e'\ngosub do.edit" in txt and "case nm = 'n'\ngosub do.new" in txt)
+    sw = "\n".join(s for n, s in section(lines, "sweep.pointers:", "drop.pointer:"))
+    ck("T17 a pointer left by a session killed inside the IDE is swept when the page starts: right after the start's audit line, before anything is read, only names that begin "
+       "zm<this user number>. and only an F or a Q record",
+       "void kernel(K$AUDIT, 'tool start app=tool.entries')\ngosub sweep.pointers\n" in txt and txt.find("gosub sweep.pointers") < txt.find("gosub read.all")
+       and "sw.pre = 'zm' : @userno : '.'" in sw and "if sw.id[1, len(sw.pre)] = sw.pre then" in sw and "if sw.r<1> = 'F' or sw.r<1> = 'Q' then" in sw)
     ck("T11 four panes declared once (accounts, entries, means, help), the two lists named as the boxes that take the focus, and each list has its [?]",
        txt.count("call $tk_layout('declare'") == 1 and all(("d<%d> = '%s'" % (i + 1, nm)) in txt for i, nm in enumerate(("accounts", "entries", "means", "help")))
        and "ctx<TK.C.FOCI> = 'accounts' : @sm : 'Accounts' : @vm : 'entries' : @sm : 'Entries'" in txt and txt.count("call $tk_help('mark'") == 2)
@@ -163,7 +216,7 @@ MUTANTS = [
     ("the dict gate reads the programs field", "src", "gset := (if upcase(trim(arec<ACC$DICT.EDIT>)) = 'YES' then 'd' else '-')", "gset := (if upcase(trim(arec<ACC$BP.EDIT>)) = 'YES' then 'd' else '-')"),
     ("SDSYS is listed", "src", "         if id # 'sdsys' then", "         if id # '' then"),
     ("the find is not cut", "src", "            if hn >= MAXV then", "            if 0 then"),
-    ("another key row", "src", "   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)\n", "   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)\n   call $tk_keys('add', keys, 'e', 'edit', 'edit', '', 1)\n"),
+    ("another key row", "src", "   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)\n", "   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)\n   call $tk_keys('add', keys, 'd', 'delete', 'delete', '', 1)\n"),
     ("a third file is opened", "src", "   openpath @sdsys:@ds:'accounts' to acc.f then\n", "   openpath @sdsys:@ds:'batch.jobs' to bj.f then\n      close bj.f\n   end\n   openpath @sdsys:@ds:'accounts' to acc.f then\n"),
     ("a dictionary item is matched by its id only", "src", " or index(upcase(dhead), upcase(pat), 1) > 0)", ")"),
     ("a relative dictionary path is not made from the account", "src", "      if dp[1, 1] # '/' then dp = apath<ca> : @ds : dp\n", ""),
@@ -181,6 +234,27 @@ MUTANTS = [
     ("a program file that is not a directory is read", "src", "            if fileinfo(pfv, FL$TYPE) = FL$TYPE.DIR then\n", "            if 1 then\n"),
     ("a program file outside the account is not marked", "src", "                           ins poutf before cout<lp>\n", "                           ins 0 before cout<lp>\n"),
     ("a dictionary is written", "src", "                  read dr from df2, eid then\n", "                  read dr from df2, eid then\n                     write dr to df2, eid\n"),
+    ("the outside test of E is lost", "src", "   if not(kernel(K$PATH.IN, ap.f : @fm : tp)) then\n", "   if 0 then\n"),
+    ("the outside test of E is a text prefix", "src", "   if not(kernel(K$PATH.IN, ap.f : @fm : tp)) then\n", "   if tp[1, len(ap.f)] # ap.f then\n"),
+    ("the pointer's target is not judged again", "src", "   in.ok = kernel(K$PATH.IN, ap.f : @fm : rp)\n", "   in.ok = 1\n"),
+    ("the subfiles are not judged", "src", "   if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')\n", ""),
+    ("a file that is not hashed is handed over", "src", "   if rt # FL$TYPE.DH then\n", "   if 0 then\n"),
+    ("the pointer is a Q-pointer into the account's VOC again", "src", "qrec = 'F' : @fm : tp : @fm : (if efl = '' then '' else tp)", "qrec = 'Q' : @fm : ea : @fm : qf"),
+    ("creating.seqkey is handed to the IDE", "src", "   ok2 = (okname and eid # 'creating.seqkey')", "   ok2 = okname"),
+    ("no sweep at the start", "src", "   gosub sweep.pointers\n", ""),
+    ("the sweep takes every user's pointers", "src", "   sw.pre = 'zm' : @userno : '.'\n", "   sw.pre = 'zm'\n"),
+    ("a foreign entry of SDSYS's VOC is overwritten", "src", "      if qold # qrec then\n", "      if 0 then\n"),
+    ("the pointer is left after the IDE", "src", "   execute sent\n   gosub drop.pointer\n", "   execute sent\n"),
+    ("the page runs anything", "src", "   if field(sent, ' ', 1) # 'ide' then\n", "   if 0 then\n"),
+    ("the data path is judged for an item", "src", "      tp = parse.pathname.tokens(trim(fr<3>))\n", "      tp = parse.pathname.tokens(trim(fr<2>))\n"),
+    ("a program is edited", "src", "   if kind = 3 then\n      msg = 'the programs are not edited from this page yet'\n      return\n   end\n   nrows = ", "   nrows = "),
+    ("N works during a find", "src", "   if fnd # '' then\n      msg = 'Esc takes the find off first: a new record is made in the account selected in Accounts'\n      return\n   end\n", ""),
+    ("the register is not read again", "src", "   read arec from acc.f, ea else arec = ''\n", "   arec = 'x'\n"),
+    ("the pointer holds an unchecked path", "src", "qrec = 'F' : @fm : tp : @fm : (if efl = '' then '' else tp)", "qrec = 'F' : @fm : ap.f : @fm : (if efl = '' then '' else tp)"),
+    ("the audit line is lost", "src", "   void kernel(K$AUDIT, 'master edit account=' : ea : ' kind=' : (if efl = '' then 'voc' else 'dict') : ' file=' : qf : ' id=' : eid : ' new=' : enw)\n", ""),
+    ("a slash is a word character", "src", "   good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'\n   for cwq", "   good = 'abcdefghijklmnopqrstuvwxyz0123456789._-/'\n   for cwq"),
+    ("E works in Accounts", "src", "   if pane # 2 then\n      msg = 'Tab to the entries first, then E'\n      return\n   end\n", ""),
+    ("the pointer is left when SD cannot follow it", "src", "   open dfl, qn to tf else\n      gosub drop.pointer\n", "   open dfl, qn to tf else\n"),
     ("the voc record is in newvoc form", "voc", "V\nCA\n$tool_entries\n", "V\nCA\n$tool_jobs\n"),
     ("a help record loses its document", "help", "19-the-master-files", "00-nothing"),
 ]

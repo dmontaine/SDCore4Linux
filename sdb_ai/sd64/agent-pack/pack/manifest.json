@@ -80,7 +80,7 @@
   },
   "message": {
    "chunks": 2861,
-   "sha256": "513edf9ce3fb50693486a86aae3b158ed0eaf74de34e0e88f271aab460148753"
+   "sha256": "209d46a977e70a13cfb9455ff024f33be0d8e2e6d43577f346733a707466d418"
   },
   "sys.keys": {
    "chunks": 41,
@@ -108,7 +108,7 @@
   },
   "tcl.verb": {
    "chunks": 210,
-   "sha256": "6a738798e805c8cc5c780d86cb901a426f7d26fbfbe026d0ac215a0a35168ff8"
+   "sha256": "8393aea289193a12dbffdd95dd5826ce84ecb8f495869518a7efd1fcc90731b0"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -150,7 +150,7 @@
    "words": 569
   },
   "index.json": {
-   "sha256": "33c95c0e55eccec9a033c9a8e763db5af7bd5453e17fef199e308d54a75eeebc"
+   "sha256": "30e6fc9f050364c9ef41e6378e6cc0e8d66c69474682ecfc1afa27fb9d237be3"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
@@ -174,8 +174,8 @@
   },
   "reference/messages.md": {
    "chunks": 2861,
-   "sha256": "a34c907ab7a8061d72f415a8e2819887da8b336386ddc66f9b84c6113536d882",
-   "words": 37699
+   "sha256": "a38d36cdaffcfe932707c14dc93f8dbb99ea387f85842f9d806b8055e6460658",
+   "words": 37700
   },
   "reference/system-keys.md": {
    "chunks": 41,
@@ -194,8 +194,8 @@
   },
   "reference/tcl-verbs.md": {
    "chunks": 214,
-   "sha256": "a80200bc02154d11fe2c69f76b4eaa2c5851e886304f5cd1c8c27b463946ce2a",
-   "words": 9969
+   "sha256": "5690a9c4bcbe111a709d33d16802db4b2408262af946b0f8a275a7d78d8e2aac",
+   "words": 9983
   },
   "reference/voc.md": {
    "chunks": 12,
