@@ -2146,7 +2146,8 @@ RA_SAVED=""
 ufw_rule_present() { command -v ufw >/dev/null 2>&1 && ufw show added 2>/dev/null | grep -Eq "^ufw allow (in )?$1( |\$)"; }
 # 4 Oct 26 - S.55: THE FIREWALL IS ufw OR firewalld, chosen as sd-elevate's fw_kind chooses it (an active ufw, then a
 #   running firewalld, then an installed ufw, then an installed firewalld), so these checks measure the same rules the
-#   product wrote.  Until now every H check asked ufw, and on the two Fedora 44 VMs H8b failed although "Remote ssh access
+#   product wrote.  Until now every H check asked ufw, and on the two Fedora 44 VMs (Fedora was supported until S.105,
+#   2 Nov 2026; firewalld stays, Debian and Ubuntu package it) H8b failed although "Remote ssh access
 #   is now ON" and `22/tcp` was in firewalld's list.  fw_rule_present is the EXACT entry SD owns (what SD adds and removes;
 #   firewalld's own ranges, such as Workstation's 1025-65535, are not SD's and never count); fw_port_allowed is
 #   REACHABILITY (SD's entry or a range that covers the port: on Workstation SD's add of 4247 is a no-op, S.55).

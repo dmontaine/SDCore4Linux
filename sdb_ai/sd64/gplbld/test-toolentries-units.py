@@ -26,6 +26,8 @@ SD64 = os.path.abspath(os.path.join(HERE, os.pardir))
 PAGE = os.path.join(SD64, "sdsys", "gpl.bp", "tool_entries")
 VOCREC = os.path.join(SD64, "sdsys", "voc_template", "tool.entries")
 HELP = os.path.join(SD64, "sdsys", "helptext")
+IDE = os.path.join(SD64, "sdsys", "gpl.bp", "ide")
+OPSH = os.path.join(SD64, "gplsrc", "op_sh.c")
 REGRESS = os.path.join(HERE, "regress.sh")
 RMAP = os.path.join(HERE, "regress-map.txt")
 
@@ -86,11 +88,11 @@ def checks(src, voc, helps):
     writes = [s for n, s in lines if re.search(r"(^|[\s;(])write\s", unquote(s) + " ")]
     deletes = [s for n, s in lines if re.search(r"(^|[\s;(])delete\s", unquote(s) + " ")]
     execs = [s for n, s in lines if re.search(r"(^|[\s;(])execute\s", unquote(s) + " ")]
-    ck("T4 WHAT IT MAY CHANGE (M2, M3): no record is written but the temporary pointer in SDSYS's VOC (ONE write, `write qrec on svf, qn on error`), the deletes take that pointer away "
-       "(`delete svf, qn`), sweep the user number's own leftovers at the start (`delete svf, sw.id`) and delete D's one record through the file edit.record judged (`delete tf, eid`), the only "
-       "execute is the one that gives the terminal to the IDE (`execute sent`); no chain, perform, OS command, command runner, master-file operation or account verb anywhere in the page, "
+    ck("T4 WHAT IT MAY CHANGE (M2, M3, M4): no record is written but the temporary pointer in SDSYS's VOC (ONE write, `write qrec on svf, qn on error`), the deletes take that pointer away "
+       "(`delete svf, qn`), sweep the user number's own leftovers at the start (`delete svf, sw.id`) and delete D's one record through the file edit.record judged (`delete tf, eid`), the two "
+       "executes give the terminal to the IDE (`execute sent`) and compile through run.in (`execute csent capturing cout`); no chain, perform, OS command, command runner, master-file operation or account verb anywhere in the page, "
        "and no confirm box but D's",
-       not forbidden and writes == ["write qrec on svf, qn on error"] and deletes == ["delete svf, sw.id", "delete svf, qn", "delete tf, eid on error delok = @false"] and execs == ["execute sent"],
+       not forbidden and writes == ["write qrec on svf, qn on error"] and deletes == ["delete svf, sw.id", "delete svf, qn", "delete tf, eid on error delok = @false"] and execs == ["execute csent capturing cout", "execute sent"],
        "%s %s %s %s" % (forbidden[:3], writes, deletes, execs))
     opens = [s for n, s in lines if re.search(r"\bopenpath\b", s)]
     kinds = sorted(set("register" if "@sdsys:@ds:'accounts'" in s else ("voc" if re.search(r"(apath<[a-z0-9]+>|ap\.f) ?:@ds ?: ?'voc'", s.replace(" : ", ":")) else ("dict" if re.match(r"openpath dp to df2? then", s)
@@ -138,13 +140,15 @@ def checks(src, voc, helps):
     ck("T9 the filter and the find ask with screen ask, take the AI's argument as the default, and each clears the other",
        txt.count("screen ask ptxt width 40 value ai.arg") == 2 and txt.count("value ai.arg") == 2 and "filt = trim(ft)\nfnd = ''" in txt and "fnd = trim(ft)\nfilt = ''" in txt)
     keyrows = re.findall(r"call \$tk_keys\('add', keys, '([^']+)'", txt)
-    ck("T10 twelve key rows: f1 enter tab / f k e n d f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh), never an edit or a delete",
-       keyrows == ["f1", "enter", "tab", "/", "f", "k", "e", "n", "d", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
+    ck("T10 thirteen key rows: f1 enter tab / f k e n d c f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh), never an edit, a delete or a compile",
+       keyrows == ["f1", "enter", "tab", "/", "f", "k", "e", "n", "d", "c", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
     er = "\n".join(s for n, s in section(lines, "edit.record:", "sweep.pointers:"))
     ho = "\n".join(s for n, s in section(lines, "hand.over:", "do.filter:"))
     de = "\n".join(s for n, s in section(lines, "do.edit:", "do.delete:"))
-    dd = "\n".join(s for n, s in section(lines, "do.delete:", "do.new:"))
-    dr = "\n".join(s for n, s in section(lines, "delete.reached:", "hand.over:"))
+    dd = "\n".join(s for n, s in section(lines, "do.delete:", "do.build:"))
+    db = "\n".join(s for n, s in section(lines, "do.build:", "do.new:"))
+    dr = "\n".join(s for n, s in section(lines, "delete.reached:", "compile.reached:"))
+    cr = "\n".join(s for n, s in section(lines, "compile.reached:", "hand.over:"))
     dn = "\n".join(s for n, s in section(lines, "do.new:", "edit.record:"))
 
     def at(t, s=er):
@@ -157,10 +161,10 @@ def checks(src, voc, helps):
        "take the pointer away again; the audit line comes after both tests and before the hand-over",
        0 <= i_ck < i_guard < i_w < i_open < i_ck2 < i_aud < i_hand and "read arec from acc.f, ea else arec = ''" in er and "openpath ap.f : @ds : 'voc' to rvf else" in er
        and "tp = ap.f : @ds : 'voc'" in er and "tp = parse.pathname.tokens(trim(fr<3>))" in er and "if tp[1, 1] # '/' then tp = ap.f : @ds : tp" in er
-       and "rp = fileinfo(tf, FL$PATH)" in er and er.count("gosub drop.pointer") == 3 and "if upcase(trim(fr<1>))[1, 1] # 'F' or trim(fr<3>) = '' then" in er
+       and "rp = fileinfo(tf, FL$PATH)" in er and er.count("gosub drop.pointer") == 4 and "if upcase(trim(fr<1>))[1, 1] # 'F' or trim(fr<3>) = '' then" in er
        and "in.ok = kernel(K$PATH.IN, ap.f : @fm : rp)" in er and "if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')" in er
-       and "if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')" in er and "rt = fileinfo(tf, FL$TYPE)" in er and "if rt # FL$TYPE.DH then" in er
-       and at("if rt # FL$TYPE.DH then", er) < i_aud and at("if not(in.ok) then", er) < i_aud
+       and "if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')" in er and "rt = fileinfo(tf, FL$TYPE)" in er and "if rt # rtw then" in er
+       and "rtw = (if isprog then FL$TYPE.DIR else FL$TYPE.DH)" in er and at("if rt # rtw then", er) < i_aud and at("if not(in.ok) then", er) < i_aud
        and at("read arec from acc.f", er) < i_ck and "ap.f = parse.pathname.tokens(arec<1>)" in er and i_ck < at("gosub check.word") < i_w,
        "ck %d guard %d write %d open %d ck2 %d audit %d hand %d" % (i_ck, i_guard, i_w, i_open, i_ck2, i_aud, i_hand))
     ck("T15 the pointer and the sentence: the pointer is an F pointer holding THE PATH THAT WAS CHECKED (never a Q-pointer into the account's VOC, which is followed again at every open, "
@@ -173,9 +177,9 @@ def checks(src, voc, helps):
        and "sent = 'ide ' : (if efl = '' then '' else 'dict ') : qn : ' ' : eid" in er
        and "if field(sent, ' ', 1) # 'ide' then" in ho and ho.find("execute sent\ngosub drop.pointer") > ho.find("if field(sent, ' ', 1) # 'ide' then")
        and "if qold = qrec then\ndelete svf, qn\nend" in txt)
-    ck("T16 E and N keys: E edits the row under the cursor (a hit in the account it was found in), only from Entries; N refuses while a find is on and asks the id first; the programs "
-       "are refused by both; a new item needs a row to take the dictionary's file from; the id is lower-cased and trimmed",
-       "if pane # 2 then" in de and "if kind = 3 then" in de and "ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>" in de and "ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>" in de and "enw = 0" in de
+    ck("T16 E and N keys: E edits the row under the cursor (a hit in the account it was found in), only from Entries; N refuses while a find is on and asks the id first; "
+       "a new item or program needs a row to take the file from; the id is lower-cased and trimmed",
+       "if pane # 2 then" in de and "if kind = 3 then" not in de and "ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>" in de and "ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>" in de and "enw = 0" in de
        and "if kind = 3 then" in dn and "if fnd # '' then" in dn and "efl = efile<ec>" in dn and "eid = downcase(trim(nt))" in dn and "enw = 1" in dn
        and "case nm = 'e'\ngosub do.edit" in txt and "case nm = 'n'\ngosub do.new" in txt)
     def at2(t):
@@ -189,11 +193,40 @@ def checks(src, voc, helps):
        "through tf, gives the pointer back on each of its four ways out, and writes 'master delete' only after a delete that worked",
        "if pane # 2 then" in dd and "if kind = 3 then" in dd and "ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>" in dd and "ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>" in dd
        and "emode = 'delete'\ngosub edit.record" in dd and "emode = 'edit'\ngosub edit.record" in de and "emode = 'edit'\ngosub edit.record" in dn
-       and at("if not(in.ok) then") < i_branch < i_aud and at("if rt # FL$TYPE.DH then") < i_branch and "if emode # 'delete' then close tf" in er and "\nclose tf\n" not in er
+       and at("if not(in.ok) then") < i_branch < i_aud and at("if rt # rtw then") < i_branch and "if emode # 'delete' then close tf" in er and "\nclose tf\n" not in er
        and 0 <= i_lk < i_cf < i_cancel < i_del < i_bad < i_daud and dr.count("gosub drop.pointer") == 4 and dr.count("close tf") == 4
        and 0 <= at2("dmsg = 'deleted ' : eid : ' from ' : dwhere") < at2("gosub read.all") and "msg = dmsg" in dr
        and "case nm = 'd'\ngosub do.delete" in txt and "call $tk_keys('menu', keys, 'delete', '&Entry', '&Delete the record', '', '')" in txt,
        "branch %d audit %d lock %d confirm %d cancel %d delete %d bad %d daudit %d" % (i_branch, i_aud, i_lk, i_cf, i_cancel, i_del, i_bad, i_daud))
+    ide = code(helps.get("__ide__", ""))
+    itxt = "\n".join(s for n, s in ide)
+    imb = "\n".join(s for n, s in section(ide, "master.build:", "catalog.verified:"))
+    idc = "\n".join(s for n, s in section(ide, "do.compile:", "master.build:"))
+    irc = "\n".join(s for n, s in section(ide, "run.cmd:", "case cmd = 'menu'"))
+    ck("T19 THE PROGRAMS (M4; the owner's mechanism C of 2 Nov 26: what must run inside an account goes through run.in).  The page: E and N take a program (no refusal of kind 3), "
+       "edit.record judges the program file's DATA path (field 2) by the pointer rule, makes a data-only pointer, wants a DIRECTORY file, judges the program's own file and refuses a "
+       "name that is a link leading nowhere, all before the compile branch and the audit; the IDE's sentence ends /in=account,file; C (do.build, programs only) goes through edit.record "
+       "with emode 'compile', which gives the pointer back and calls compile.reached; that builds `run.in <account> basic <file> <id>` from checked words only, judges the compiler's "
+       "success line, then audits 'master compile'.  The IDE: /in= is taken off the sentence and names the pointer file; do.compile of a tab of it runs run.in in the account and "
+       "judges the success line, any other tab still runs basic; run.cmd sends Catalog, Run and Debug of such a tab to master.build BEFORE its case, which catalogues through run.in "
+       "and refuses Run and Debug",
+       "isprog = (kind = 3)" in er and "tp = parse.pathname.tokens(trim(fr<2>))" in er and "if isprog then qrec = 'F' : @fm : tp" in er and "if isprog then dfl = ''" in er
+       and "if isprog and in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : eid)" in er
+       and 0 <= at("if not(in.ok) then") < at("if emode = 'compile' then") < i_aud
+       and re.search(r"if \(realpath\(work, resolved\) != NULL\)\s*break;\s*(/\*.*?\*/\s*)?if \(\(lstat\(work, &lst\) == 0\) && S_ISLNK\(lst\.st_mode\)\)\s*return FALSE;",
+                     helps.get("__opsh__", ""), re.S) is not None
+       and "if emode = 'compile' then\ngosub drop.pointer\ngosub compile.reached\nreturn\nend" in er
+       and "if isprog then sent = 'ide ' : qn : ' ' : eid : ' /in=' : ea : ',' : efl" in er
+       and "if kind # 3 then" in db and "emode = 'compile'\ngosub edit.record" in db and "ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>" in db and "case nm = 'c'\ngosub do.build" in txt
+       and "csent = 'run.in ' : ea : ' basic ' : efl : ' ' : eid" in cr and "cok = (index(cout, 'Compiled 1 program(s) with no errors', 1) > 0)" in cr
+       and 0 <= cr.find("execute csent capturing cout") < cr.find("void kernel(K$AUDIT, 'master compile account=")
+       and "if downcase(in.last[1, 4]) = '/in=' then" in itxt and "in.ptr = downcase(field(sent.in, ' ', 2))" in itxt
+       and "if in.good and convert('abcdefghijklmnopqrstuvwxyz0123456789._-', '', in.acct : in.file) # '' then in.good = @false" in itxt
+       and "if in.ptr # '' and c.file = in.ptr then" in idc and "execute 'run.in ' : in.acct : ' basic ' : in.file : ' ' : c.id : c.opt capturing c.out" in idc
+       and "c.ok = (index(c.out, 'Compiled 1 program(s) with no errors', 1) > 0)" in idc and "execute 'basic ' : qp.f : ' ' : qp.i : c.opt capturing c.out" in idc
+       and "if bn<cb> = in.ptr and (cmd = 'catalog' or cmd = 'run' or cmd = 'debug' or cmd = 'debug1') then\ngosub master.build\nreturn" in irc
+       and "execute 'run.in ' : in.acct : ' catalog ' : in.file : ' ' : c.id capturing co" in imb and "if cmd = 'run' then" in imb and "execute 'catalog" not in imb,
+       "ide %d chars, mb %d, dc %d, rc %d" % (len(itxt), len(imb), len(idc), len(irc)))
     sw = "\n".join(s for n, s in section(lines, "sweep.pointers:", "drop.pointer:"))
     ck("T17 a pointer left by a session killed inside the IDE is swept when the page starts: right after the start's audit line, before anything is read, only names that begin "
        "zm<this user number>. and only an F or a Q record",
@@ -225,6 +258,10 @@ def load():
     for k in ("tool.entries.accounts", "tool.entries.entries"):
         p = os.path.join(HELP, k)
         helps[k] = open(p, encoding="utf-8").read() if os.path.isfile(p) else ""
+    with open(IDE, encoding="utf-8", errors="replace") as f:
+        helps["__ide__"] = f.read()          # M4: the IDE's half of the hand-over (T19); a mutant of kind "ide" changes it
+    with open(OPSH, encoding="utf-8", errors="replace") as f:
+        helps["__opsh__"] = f.read()         # M4: the kernel's resolve_name refuses a link that leads nowhere (T19); kind "opsh"
     return src, voc, helps
 
 
@@ -258,7 +295,8 @@ MUTANTS = [
     ("the outside test of E is a text prefix", "src", "   if not(kernel(K$PATH.IN, ap.f : @fm : tp)) then\n", "   if tp[1, len(ap.f)] # ap.f then\n"),
     ("the pointer's target is not judged again", "src", "   in.ok = kernel(K$PATH.IN, ap.f : @fm : rp)\n", "   in.ok = 1\n"),
     ("the subfiles are not judged", "src", "   if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')\n", ""),
-    ("a file that is not hashed is handed over", "src", "   if rt # FL$TYPE.DH then\n", "   if 0 then\n"),
+    ("a file that is not hashed is handed over", "src", "   if rt # rtw then\n", "   if 0 then\n"),
+    ("a program file need not be a directory file", "src", "   rtw = (if isprog then FL$TYPE.DIR else FL$TYPE.DH)", "   rtw = (if isprog then rt else FL$TYPE.DH)"),
     ("the pointer is a Q-pointer into the account's VOC again", "src", "qrec = 'F' : @fm : tp : @fm : (if efl = '' then '' else tp)", "qrec = 'Q' : @fm : ea : @fm : qf"),
     ("creating.seqkey is handed to the IDE", "src", "   ok2 = (okname and eid # 'creating.seqkey')", "   ok2 = okname"),
     ("no sweep at the start", "src", "   gosub sweep.pointers\n", ""),
@@ -267,11 +305,21 @@ MUTANTS = [
     ("the pointer is left after the IDE", "src", "   execute sent\n   gosub drop.pointer\n", "   execute sent\n"),
     ("the page runs anything", "src", "   if field(sent, ' ', 1) # 'ide' then\n", "   if 0 then\n"),
     ("the data path is judged for an item", "src", "      tp = parse.pathname.tokens(trim(fr<3>))\n", "      tp = parse.pathname.tokens(trim(fr<2>))\n"),
-    ("a program is edited", "src", "   if kind = 3 then\n      msg = 'the programs are not edited from this page yet'\n      return\n   end\n   nrows = ", "   nrows = "),
+    ("E refuses the programs again", "src", "   if pane # 2 then\n      msg = 'Tab to the entries first, then E'\n      return\n   end\n",
+     "   if pane # 2 then\n      msg = 'Tab to the entries first, then E'\n      return\n   end\n   if kind = 3 then\n      return\n   end\n"),
+    ("a program's own file is not judged", "src", "   if isprog and in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : eid)", "   in.ok = in.ok"),
+    ("a link that leads nowhere is judged a new name (kernel)", "opsh", "    if ((lstat(work, &lst) == 0) && S_ISLNK(lst.st_mode))\n      return FALSE;\n", ""),
+    ("the program pointer reaches a dictionary", "src", "   if isprog then qrec = 'F' : @fm : tp ", "   if isprog then qrec = qrec "),
+    ("C compiles without the checks", "src", "   emode = 'compile'\n   gosub edit.record\n", "   gosub compile.reached\n"),
+    ("C is judged on nothing", "src", "   cok = (index(cout, 'Compiled 1 program(s) with no errors', 1) > 0)", "   cok = 1"),
+    ("the IDE compiles a master tab here in SDSYS", "ide", "   if in.ptr # '' and c.file = in.ptr then\n", "   if 0 then\n"),
+    ("the IDE runs a master tab", "ide", "(cmd = 'catalog' or cmd = 'run' or cmd = 'debug' or cmd = 'debug1')", "(cmd = 'catalog')"),
+    ("the IDE catalogues a master tab here in SDSYS", "ide", "execute 'run.in ' : in.acct : ' catalog ' : in.file : ' ' : c.id capturing co", "execute 'catalog ' : in.file : ' ' : c.id capturing co"),
+    ("the IDE takes an account name with any character", "ide", "      if in.good and convert('abcdefghijklmnopqrstuvwxyz0123456789._-', '', in.acct : in.file) # '' then in.good = @false\n", ""),
     ("N works during a find", "src", "   if fnd # '' then\n      msg = 'Esc takes the find off first: a new record is made in the account selected in Accounts'\n      return\n   end\n", ""),
     ("the register is not read again", "src", "   read arec from acc.f, ea else arec = ''\n", "   arec = 'x'\n"),
     ("the pointer holds an unchecked path", "src", "qrec = 'F' : @fm : tp : @fm : (if efl = '' then '' else tp)", "qrec = 'F' : @fm : ap.f : @fm : (if efl = '' then '' else tp)"),
-    ("the audit line is lost", "src", "   void kernel(K$AUDIT, 'master edit account=' : ea : ' kind=' : (if efl = '' then 'voc' else 'dict') : ' file=' : qf : ' id=' : eid : ' new=' : enw)\n", ""),
+    ("the audit line is lost", "src", "   void kernel(K$AUDIT, 'master edit account=' : ea : ' kind=' : akind : ' file=' : qf : ' id=' : eid : ' new=' : enw)\n", ""),
     ("a slash is a word character", "src", "   good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'\n   for cwq", "   good = 'abcdefghijklmnopqrstuvwxyz0123456789._-/'\n   for cwq"),
     ("E works in Accounts", "src", "   if pane # 2 then\n      msg = 'Tab to the entries first, then E'\n      return\n   end\n", ""),
     ("the pointer is left when SD cannot follow it", "src", "   open dfl, qn to tf else\n      gosub drop.pointer\n", "   open dfl, qn to tf else\n"),
@@ -304,6 +352,13 @@ def selftest():
             s = s.replace(old, new)
         elif kind == "voc":
             v = v.replace(old, new)
+        elif kind in ("ide", "opsh"):
+            key = "__%s__" % kind
+            if h[key].count(old) != 1:
+                print("  [CANNOT] %-48s the text occurs %d times in %s" % (name, h[key].count(old), kind))
+                missed += 1
+                continue
+            h[key] = h[key].replace(old, new)
         else:
             h["tool.entries.accounts"] = h["tool.entries.accounts"].replace(old, new)
         caught = [n for n, ok, _ in checks(s, v, h) if not ok]

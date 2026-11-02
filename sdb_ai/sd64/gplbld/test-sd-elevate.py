@@ -1081,7 +1081,7 @@ PWUNSET_MUTANTS = [
     ("pwunset: any hash is accepted", "    *) die \"'$user' already has a Linux password", "    *) : \"'$user' already has a Linux password"),
     ("pwunset: a locked hash is taken as no password", "    ''|'*'|'!'|'!!'|'!*') : ;;", "    ''|'*'|'!'|'!!'|'!*'|'!'*) : ;;"),
     ("pwunset: the empty field is refused", "    ''|'*'|'!'|'!!'|'!*') : ;;", "    '*'|'!'|'!!'|'!*') : ;;"),
-    ("pwunset: !! is refused (Fedora's spelling)", "    ''|'*'|'!'|'!!'|'!*') : ;;", "    ''|'*'|'!'|'!*') : ;;"),
+    ("pwunset: !! is refused (a no-password entry locked again by usermod -L)", "    ''|'*'|'!'|'!!'|'!*') : ;;", "    ''|'*'|'!'|'!*') : ;;"),
     ("pwunset: an entry that cannot be read passes", 'ent=$(getent shadow "$user" 2>/dev/null) || die "cannot read the shadow entry', 'ent=$(getent shadow "$user" 2>/dev/null) || : "cannot read the shadow entry'),
     ("pwunset: the wrong field is read", "| cut -d: -f2)\n  case $hash in", "| cut -d: -f3)\n  case $hash in"),
     ("pwunset: asked after the password is read and judged", _PU + _PWL, _PWL + _PU),
@@ -1640,7 +1640,7 @@ CASES = [
     (REFUSE, ["userdel-home", "don"],       "an existing SD user without the stamp: its home is never removed"),
     (REFUSE, ["userdel-home", "sdprobe_nonexistent"], "no such user"),
     (REFUSE, ["addgroup", "don", "sudo"],   "add yourself to sudo - the classic"),
-    (REFUSE, ["addgroup", "don", "wheel"],  "the RHEL/Arch spelling of the same"),
+    (REFUSE, ["addgroup", "don", "wheel"],  "an administrator group by another name"),
     (REFUSE, ["addgroup", "don", "docker"], "docker group is root-equivalent"),
     (REFUSE, ["addgroup", "don", "lxd"],    "lxd group is root-equivalent"),
     (REFUSE, ["addgroup", "don", "adm"],    "log-reading group, still not SD's"),
@@ -2036,8 +2036,8 @@ def main():
             f.write("#!/bin/bash\n"
                     "case \"$*\" in\n"
                     "  --state) if [ \"$FAKE_FWD\" = running ]; then echo running; else echo 'not running'; exit 252; fi ;;\n"
-                    "  --get-default-zone) echo FedoraServer ;;\n"
-                    "  '--permanent --zone=FedoraServer --get-target') echo \"${FAKE_TARGET:-default}\" ;;\n"
+                    "  --get-default-zone) echo public ;;\n"
+                    "  '--permanent --zone=public --get-target') echo \"${FAKE_TARGET:-default}\" ;;\n"
                     "  '--permanent --query-port=4247/tcp'|'--permanent --query-service=ssh') [ \"$FAKE_FWD\" = running ] ;;\n"
                     "  '--permanent --list-ports') [ \"$FAKE_FWD\" = running ] || exit 252\n"
                     "     if [ \"${FAKE_RANGE:-}\" = 1 ]; then echo '1025-65535/tcp 1025-65535/udp'; else echo '4247/tcp 4251/tcp'; fi ;;\n"
@@ -2066,8 +2066,9 @@ def main():
             ("F7 running: 4247/tcp read with --permanent", "fwd_has_allow 4247/tcp", 0, None, "running", True),
             ("F8 fw_kind: no ufw, firewalld running -> firewalld", "fw_kind", 0, "firewalld", "running", True),
             ("F9 fw_kind: neither installed -> none", "fw_kind", 0, "none", "stopped", False),
-            # 4 Oct 26: Fedora Workstation's zone carries 1025-65535/tcp.  ALLOWED is
-            # not SD'S RULE: removing 4247 there split the distro's range (measured).
+            # 4 Oct 26: a zone can carry a range such as 1025-65535/tcp (measured on Fedora
+            # Workstation, supported then).  ALLOWED is not SD'S RULE: removing 4247 there
+            # split the distro's range.  Kept by S.105: firewalld is packaged on Debian and Ubuntu.
             ("F10 Workstation range: 4247 allowed", "FAKE_RANGE=1 fwd_has_allow 4247/tcp", 0, None, "running", True),
             ("F11 Workstation range: but no SD rule to remove", "FAKE_RANGE=1 fwd_has_rule 4247/tcp", 1, None, "running", True),
             ("F12 SD's exact 4247/tcp entry is SD's rule", "fwd_has_rule 4247/tcp", 0, None, "running", True),

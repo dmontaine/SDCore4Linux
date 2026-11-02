@@ -1,6 +1,32 @@
 Next release - in progress
 --------------------------
 
+2 Nov 26   FEDORA IS NO LONGER SUPPORTED. THIS RELEASE INSTALLS ON DEBIAN AND UBUNTU ONLY.
+
+             What        - The installer reads /etc/os-release and refuses any computer that is not Debian, Ubuntu or one of their common derivatives (such as Linux
+                           Mint), before it asks a question, uses sudo or changes anything. Fedora is refused now, as RHEL and its clones (Rocky, Alma), Arch, openSUSE
+                           and a computer with no /etc/os-release already were. The installer's Fedora package step (dnf) and its SELinux labelling step are gone, and
+                           MICRO, when micro is not installed, names "sudo apt install micro" only where apt-get exists and otherwise says to use the
+                           distribution's package manager.
+             Why         - The owner's decision for this release (2 Nov 2026): "remove Fedora support for this release", and the Fedora code is taken out rather
+                           than left in place.
+             Does NOT    - Touch a computer already running SD Core on Fedora: nothing there is changed or removed, but this release cannot be installed over it, and
+                           the uninstaller of this release may leave behind a Fedora-only setting the earlier installer made (an include line in nano's settings).
+                           Firewall rules still work with firewalld as well as ufw, because Debian and Ubuntu package firewalld too.
+
+2 Nov 26   TOOL.ENTRIES: THE PROGRAMS OF EVERY ACCOUNT ARE EDITED AND COMPILED IN THEIR OWN ACCOUNT.
+
+             What        - On the master files page, in the programs view, E opens the program under the cursor in the IDE and N makes a new one in the same program
+                           file; C compiles the program under the cursor and shows what the compiler said. The IDE's Compile (F8) and Compile and catalogue (F9) on a
+                           program opened this way run run.in in the program's account, as C does, so the compiled program goes into that account's own .out file,
+                           a $catalog line in the source is not acted on, and a catalogue entry is the account's. Run and Debug of such a program are refused in
+                           the IDE. Each edit writes "master edit ... kind=bp" and each C "master compile" to the audit trail.
+             Why         - The owner's master files manage the programs of accounts that are locked out of their own program files, and his rule that compiling
+                           and debugging take place in the program's own account, seamlessly for the administrator (run.in).
+             Does NOT    - Edit or compile a program outside the account: a program file reached through a pointer to another account, a program that is a link
+                           to a file elsewhere and a name that is a link leading nowhere are refused before anything is written or compiled. It does not run,
+                           debug or delete programs yet.
+
 2 Nov 26   TOOL.ENTRIES: D DELETES A VOC ENTRY OR A DICTIONARY ITEM, IN THE ACCOUNT IT BELONGS TO.
 
              What        - On the master files page, D deletes the VOC entry or dictionary item under the cursor from the account's own file. A box titled "Delete

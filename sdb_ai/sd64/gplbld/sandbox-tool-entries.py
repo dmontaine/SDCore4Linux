@@ -35,6 +35,11 @@
 #        with every gate off; Cancel and a wrong id delete nothing; a record another LIVE session holds with READU is refused and kept; the POINTER RULE refuses D on an item that lies
 #        outside the account (../other, a link, a directory of links) with no box; the programs are refused; one 'master delete' line per delete that worked and none otherwise;
 #        SDSYS's VOC holds no zm pointer after.  The files read once at the start and once at the end (snap).  Mutants: no-typed-id, no-lock.
+#   E12  (M4, S.96; --only=programs) the programs: C compiles the program under the cursor IN ITS OWN ACCOUNT through run.in (the object in ze1's bp.out, none in SDSYS or the global
+#        catalogue), a syntax error shown and no object; E opens it in the IDE through a pointer, whose F8 compiles and F9 catalogues through run.in in ze1 (no zm...out made in
+#        SDSYS; ze1's private catalogue), F5 and F7 refused; N makes a program; the pointer rule: ze2's zpother through ze1's ze2.bp refused for E and C, a record that is a LINK
+#        to ze2's file refused, a LINK that leads nowhere refused for N (the kernel's resolve_name, 2 Nov 26: red on the tree before, the IDE opened it as a new record), and nothing of ze2 changed; the audit lines.  The disk is the oracle (a program is a file).
+#        Mutants: ide-compiles-here, no-record-test.  setup_page copies and compiles the tree's ide too.
 # NOT HELD: SDSYS in the group (a sandbox has no sdsys user: the column can only say no or n/a here), the help text itself (sandbox-docs.py).
 import importlib.util
 import os
@@ -88,7 +93,12 @@ MUTANTS = {
     "no-lock": ("   readu dold from tf, eid locked\n      dlu = status()\n      close tf\n      gosub drop.pointer\n"
                 "      msg = eid : ' in ' : dwhere : ' is locked by user ' : dlu : ' (an editor holds it): it is not deleted'\n      return\n   end else\n",
                 "   read dold from tf, eid else\n", ["E11"], "E11"),
+    # M4: the IDE compiles a tab of the pointer HERE (BASIC in SDSYS) instead of through run.in; the test of the program's own file is lost
+    "ide-compiles-here": ("   if in.ptr # '' and c.file = in.ptr then\n", "   if 0 then\n", ["E12"], "E12"),
+    "no-record-test": ("   if isprog and in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : eid)", "   in.ok = in.ok", ["E12"], "E12"),
 }
+MUTANT_PROG = {"ide-compiles-here": "ide"}          # the program a mutant changes, when it is not the page; setup_page copies both from the tree first, so a mutant does not outlive its run
+KEY_F5, KEY_F7, KEY_F8, KEY_F9 = "\x1b[[E", "\x1b[18~", "\x1b[19~", "\x1b[20~"     # the console's codes (the sandbox's terminal is linux, as sh.KEYS)
 
 
 def arow(rid, name, ok, detail=""):
@@ -144,12 +154,12 @@ def count_voc(acct):
 
 
 def setup_page():
-    prog = "tool_entries"
     import shutil
-    shutil.copyfile(os.path.join(TREE, "sdsys", "gpl.bp", prog), os.path.join(sh.SYS, "gpl.bp", prog))
-    out = g.adm(["BASIC gpl.bp %s" % prog], internal=True)
-    if not has(out, r"^Compiled 1 program\(s\) with no errors"):
-        bail("%s did not compile in the sandbox:\n%s" % (prog, "\n".join(out[-8:])))
+    for prog in ("tool_entries", "ide"):              # M4: the IDE's half too, so a reused sandbox runs the tree's and an IDE mutant does not outlive its run
+        shutil.copyfile(os.path.join(TREE, "sdsys", "gpl.bp", prog), os.path.join(sh.SYS, "gpl.bp", prog))
+        out = g.adm(["BASIC gpl.bp %s" % prog], internal=True)
+        if not has(out, r"^Compiled 1 program\(s\) with no errors"):
+            bail("%s did not compile in the sandbox:\n%s" % (prog, "\n".join(out[-8:])))
     # the VOC record that makes the verb (SDSYS's VOC only: voc_template)
     g.put(os.path.join(sh.SYS, "bp", "zzevoc"), "\n".join(["$internal", "   openpath @sdsys:@ds:'voc' to v else crt 'EVOC no voc' ; stop",
                                                           "   write 'V':@fm:'CA':@fm:'$tool_entries' to v, 'tool.entries'", "   crt 'EVOC done'", "end", ""]))
@@ -194,12 +204,13 @@ def setup_page():
 
 def mutate(name):
     old, new, _kills, _last = MUTANTS[name]
-    path = os.path.join(sh.SYS, "gpl.bp", "tool_entries")
+    prog = MUTANT_PROG.get(name, "tool_entries")
+    path = os.path.join(sh.SYS, "gpl.bp", prog)
     src = open(path, encoding="utf-8", errors="replace").read()
     if src.count(old) != 1:
         bail("mutant %s: the text to change is found %d times, not once" % (name, src.count(old)))
     g.put(path, src.replace(old, new))
-    out = g.adm(["BASIC gpl.bp tool_entries"], internal=True)
+    out = g.adm(["BASIC gpl.bp %s" % prog], internal=True)
     if not has(out, r"^Compiled 1 program\(s\) with no errors"):
         bail("the mutant page did not compile:\n" + "\n".join(out[-8:]))
 
@@ -760,9 +771,9 @@ def _section_e10_body(sub):
         arow("E10s", "E on the top row of the dictionary view - an item of a SHIPPED system dictionary - is refused (PRECONDITION NOT MET: the top row is not marked >, so E was not pressed)", False, repr(top))
 
     say("  the programs, a find, an account that is suspended")
+    p.h.typed("c", idle=1.0)
+    arow("E10t", "C in the dictionary view says C compiles a program and K shows them (M4: E on the programs is E12's)", "C compiles a program" in norm(p.st()) and not ide_up(p.h), repr(p.st()))
     p.key("k", 1.2)
-    p.h.typed("e", idle=1.0)
-    arow("E10t", "E on the programs says they are not edited from this page yet (M4)", "not edited from this page yet" in norm(p.st()) and not ide_up(p.h), repr(p.st()))
     p.key("k", 1.2)                                    # round to the VOC
     p.key("f", 1.0)
     p.h.typed("zz\r", idle=2.5)
@@ -999,6 +1010,180 @@ def section_e11():
     reset_e10()                        # the links and E10's records, as section_e10 leaves them
 
 
+def zw_fixture():
+    """E12's programs in ze1's bp, written as files (a directory file's records ARE files), their objects and catalogue entries taken away, and two links: zwlink to ze2's
+    zpother (a file outside ze1) and zwdang to a name in ze2's bp that does not exist (a link that leads nowhere).  Written over each time, so a reused sandbox starts the same."""
+    bp1, bp2 = os.path.join(apath("ze1"), "bp"), os.path.join(apath("ze2"), "bp")
+    srcs = {"zwedit": "program zwedit\n   crt 'ZW one'\nend\n", "zwbad": "program zwbad\n   crt 'ZW bad'\n   x = (1 +\nend\n"}     # an ERROR, not a warning (a missing END only warns and compiles)
+    for pid, text in srcs.items():
+        g.put(os.path.join(bp1, pid), text)
+    for d, pid in ((os.path.join(apath("ze1"), "bp.out"), "zwedit"), (os.path.join(apath("ze1"), "bp.out"), "zwbad"), (bp1, "zwnew"), (os.path.join(apath("ze1"), "bp.out"), "zwnew")):
+        if os.path.lexists(os.path.join(d, pid)):
+            os.remove(os.path.join(d, pid))
+    for nm in ("zwlink", "zwdang"):
+        if os.path.lexists(os.path.join(bp1, nm)):
+            os.remove(os.path.join(bp1, nm))
+    os.symlink(os.path.join(bp2, "zpother"), os.path.join(bp1, "zwlink"))
+    os.symlink(os.path.join(bp2, "zwnowhere"), os.path.join(bp1, "zwdang"))
+    if os.path.lexists(os.path.join(bp2, "zwnowhere")):
+        os.remove(os.path.join(bp2, "zwnowhere"))
+
+
+def zw_read(acct, *parts):
+    p = os.path.join(apath(acct), *parts)
+    if not os.path.exists(p):
+        return None
+    with open(p, encoding="latin-1") as f:
+        return f.read()
+
+
+def zw_mtime(path):
+    return os.stat(path).st_mtime_ns if os.path.exists(path) else None
+
+
+def in_cat(d, name):
+    return os.path.isdir(d) and any(f.lower().startswith(name) for f in os.listdir(d))
+
+
+def section_e12():
+    say("\n--- E12: the programs - E and N in the IDE in their own account, C and the IDE's compile and catalogue through run.in, the pointer rule (S.96 M4)")
+    zw_fixture()
+    obj1, obj2 = os.path.join(apath("ze1"), "bp.out"), os.path.join(apath("ze2"), "bp.out")
+    other_m0 = zw_mtime(os.path.join(obj2, "zpother"))
+    other_s0 = zw_read("ze2", "bp", "zpother")
+    zm0 = sys_zm()
+    a0 = audit_off()
+    p = Page()
+    p.walk_to("ze1")
+    p.key("tab", 0.6)
+    p.key("k", 1.2)
+    p.key("k", 1.2)
+    p.key("/", 1.0)
+    p.h.typed("zw\r", idle=1.5)
+    T = p.text()
+    arow("E12a", "control: the programs of ze1 filtered to zw - zwbad and zwedit are listed, not built (-), and neither has an object on the disk",
+         re.search(r"\bbp zwbad - ", T) is not None and re.search(r"\bbp zwedit - ", T) is not None and not os.path.exists(os.path.join(obj1, "zwedit")), T[:700])
+
+    say("  C compiles in the account, through run.in")
+    p.key("/", 1.0)
+    p.h.typed("zwedit\r", idle=1.5)
+    p.h.typed("c", idle=6.0)
+    box = p.text()
+    p.key("enter", 2.0)
+    st_c = norm(p.st())
+    m_c = zw_mtime(os.path.join(obj1, "zwedit"))
+    arow("E12b", "C on zwedit: the box 'Compile zwedit in ze1' shows the compiler's success line, the status line says it was compiled in ze1, and the object is in ze1's bp.out - not in "
+         "SDSYS's bp.out and not in the global catalogue",
+         "Compile zwedit in ze1" in box and "Compiled 1 program(s) with no errors" in box and "compiled zwedit in ze1" in st_c and m_c is not None
+         and not os.path.exists(os.path.join(sh.SYS, "bp.out", "zwedit")) and not in_cat(os.path.join(sh.SYS, "gcat"), "zwedit"), repr((box[box.find("Compile"):][:300], st_c, m_c)))
+    p.key("/", 1.0)
+    p.h.typed("zwbad\r", idle=1.5)
+    p.h.typed("c", idle=6.0)
+    box = p.text()
+    p.key("enter", 2.0)
+    st_b = norm(p.st())
+    arow("E12c", "C on zwbad (a syntax error): the box shows the compiler's words without its success line, the status line says it did not compile, and there is no object",
+         "Compile zwbad in ze1" in box and "Compiled 1 program(s) with no errors" not in box and "did not compile" in st_b and not os.path.exists(os.path.join(obj1, "zwbad")),
+         repr((box[box.find("Compile"):][:300], st_b)))
+
+    say("  E: the IDE in the account; its F8, F9, F5 and F7")
+    p.key("/", 1.0)
+    p.h.typed("zwedit\r", idle=1.5)
+    up = ide_open(p, "e")
+    T = p.h.text()
+    zm_open = sys_zm()
+    arow("E12d", "E on zwedit gives the screen to the IDE with the program open, and SDSYS's VOC holds one temporary pointer to ze1's bp while it is open",
+         up and "ZW one" in T and len(zm_open) == len(zm0) + 1 and any(re.match(r"zm\d+\.ze1\.bp$", z) for z in zm_open), repr((up, zm_open, T[:300])))
+    p.h.key("down", idle=0.3)
+    p.h.key("end", idle=0.3)
+    p.h.typed(" : ' two'", idle=0.5)
+    p.h.typed("\x13", idle=1.8)
+    time.sleep(1.1)                                    # the object's time must be able to move
+    p.h.typed(KEY_F8, idle=6.0)
+    st8 = p.h.text()
+    m_8 = zw_mtime(os.path.join(obj1, "zwedit"))
+    sys_out = sorted(f for f in os.listdir(sh.SYS) if f.startswith("zm"))
+    arow("E12e", "the IDE's F8 on that tab compiled IN ze1 through run.in: the IDE says compiled with no errors, ze1's object is newer, and SDSYS has no zm...out file or directory "
+         "(BASIC was not run on the pointer here)", "with no errors" in st8 and m_8 is not None and m_c is not None and m_8 > m_c and not sys_out, repr((m_c, m_8, sys_out, st8[-400:])))
+    p.h.typed(KEY_F9, idle=7.0)
+    st9 = p.h.text()
+    arow("E12f", "F9 (compile and catalogue) catalogues through run.in in ze1: the IDE says Catalogued, ze1's private catalogue has zwedit and the global catalogue does not",
+         "Catalogued" in st9 and in_cat(os.path.join(apath("ze1"), "cat"), "zwedit") and not in_cat(os.path.join(sh.SYS, "gcat"), "zwedit"), st9[-400:])
+    p.h.typed(KEY_F5, idle=2.0)
+    st5 = p.h.text()
+    p.h.typed(KEY_F7, idle=2.0)
+    st7 = p.h.text()
+    arow("E12g", "F5 (run) and F7 (debug) on that tab are refused in words, and the IDE is still on the screen", "is not run from here" in st5 and "not debugged from here" in st7 and ide_up(p.h),
+         repr((st5[-300:], st7[-300:])))
+    to_page(p)
+    src_now = zw_read("ze1", "bp", "zwedit")
+    arow("E12h", "the edit was written into ze1's own bp (the disk), and the page came back saying so", src_now is not None and "' two'" in src_now
+         and "back from the editor: the list shows the programs" in norm(p.st()), repr((src_now, p.st())))
+
+    say("  N: a new program in the same file")
+    p.h.typed("n", idle=1.2)
+    T = p.text()
+    asked = "Id of the new program in bp (ze1)" in T
+    p.h.typed("zwnew\r", idle=2.5)
+    up_n = wait_for(p.h, ide_up, 12)
+    p.h.typed("program zwnew\rcrt 'ZW new'\rend", idle=0.8)
+    p.h.typed("\x13", idle=1.8)
+    to_page(p)
+    arow("E12i", "N asks 'Id of the new program in bp (ze1)', the IDE opens it, and the saved program is in ze1's bp on the disk", asked and up_n and "ZW new" in (zw_read("ze1", "bp", "zwnew") or ""),
+         repr((asked, up_n, zw_read("ze1", "bp", "zwnew"))))
+
+    say("  THE POINTER RULE for programs: refused before anything is written or compiled")
+    p.key("/", 1.0)
+    p.h.typed("zpother\r", idle=1.5)
+    rows = norm(p.text())
+    p.h.typed("e", idle=1.5)
+    st_e = norm(p.st())
+    up_e = ide_up(p.h)
+    p.h.typed("c", idle=2.5)
+    st_c2 = norm(p.st())
+    arow("E12j", "control: ze1's pointer ze2.bp lists ze2's zpother marked >; E and C on it are each refused with 'lies outside ze1', no editor, no box",
+         re.search(r"ze2\.bp > zpother", rows) is not None and "lies outside ze1" in st_e and not up_e and "lies outside ze1" in st_c2 and "Compile zpother" not in norm(p.text()),
+         repr((st_e, st_c2)))
+    p.key("/", 1.0)
+    p.h.typed("zwlink\r", idle=1.5)
+    p.h.typed("e", idle=1.5)
+    st_l = norm(p.st())
+    up_l = ide_up(p.h)
+    p.h.typed("c", idle=2.5)
+    st_l2 = norm(p.st())
+    arow("E12k", "zwlink, ze1's own bp record that is a LINK to ze2's zpother: E and C are refused by the test of the program's own file ('opens a file outside the account')",
+         "opens a file outside the account" in st_l and not up_l and "opens a file outside the account" in st_l2, repr((st_l, st_l2)))
+    p.key("/", 1.0)
+    p.h.typed("zw\r", idle=1.5)
+    p.h.typed("n", idle=1.2)
+    p.h.typed("zwdang\r", idle=2.5)
+    st_d = norm(p.st())
+    up_d = ide_up(p.h)
+    if up_d:
+        to_page(p)
+    arow("E12l", "N with the id zwdang, a LINK in ze1's bp that leads to a name in ze2's bp that does not exist, is refused by the kernel's test of the program's own file "
+         "('opens a file outside the account': op_sh.c's resolve_name no longer takes such a link for a new name), no editor",
+         "opens a file outside the account" in st_d and not up_d, repr((st_d, up_d)))
+    p.h.typed("d", idle=1.0)
+    arow("E12m", "D on a program says the programs are not deleted from this page yet", "not deleted from this page yet" in norm(p.st()), repr(p.st()))
+    p.quit()
+
+    say("  the disk and the audit trail at the end")
+    arow("E12n", "nothing of ze2 changed: zpother's source and object are as they were, and nothing was made at the end of zwdang's link",
+         zw_read("ze2", "bp", "zpother") == other_s0 and zw_mtime(os.path.join(obj2, "zpother")) == other_m0 and not os.path.lexists(os.path.join(apath("ze2"), "bp", "zwnowhere")),
+         repr((zw_mtime(os.path.join(obj2, "zpother")), other_m0)))
+    arow("E12o", "SDSYS's VOC holds none of the page's pointers at the end", sys_zm() == zm0, repr((zm0, sys_zm())))
+    lines = [ln for ln in audit_new(a0).splitlines() if "master " in ln]
+    want = ["master compile account=ze1 file=bp id=zwedit result=ok", "master compile account=ze1 file=bp id=zwbad result=failed",
+            "master edit account=ze1 kind=bp file=bp id=zwedit new=0", "master edit account=ze1 kind=bp file=bp id=zwnew new=1"]
+    runin = [ln for ln in audit_new(a0).splitlines() if "run.in begin account=ze1" in ln]
+    arow("E12p", "the audit trail: one line each for the two compiles and the two edits, none for zpother, zwlink or zwdang, and run.in's own begin lines for the page's two "
+         "compiles and the IDE's F8 and F9 (at least four)", all(len([ln for ln in lines if w in ln]) == 1 for w in want) and len(lines) == 4 and len(runin) >= 4,
+         repr((lines[-6:], len(runin))))
+    for nm in ("zwlink", "zwdang"):
+        os.remove(os.path.join(apath("ze1"), "bp", nm))     # the read section lists ze1's programs: it must not meet them
+
+
 def section_e6(n1, n2):
     say("\n--- E6: the page reads and writes nothing")
     arow("E6a", "the VOC of ze1 and of ze2 have the same number of entries after everything the page did", count_voc("ze1") == n1 and count_voc("ze2") == n2, repr((n1, n2)))
@@ -1021,8 +1206,8 @@ def section_e7(p, a0):
     h.end()
 
 
-GROUPS = ("read", "edit", "delete")       # --only=read: E0-E9 (one chain on one page: each section leaves the page where the next starts); edit: E10; delete: E11 (each a page of its own)
-LAST_GROUP = {"E10": "edit", "E11": "delete"}                        # a mutant runs the group of its last section; any other last section is in read
+GROUPS = ("read", "edit", "delete", "programs")       # --only=read: E0-E9 (one chain on one page); edit: E10; delete: E11; programs: E12 (each a page of its own)
+LAST_GROUP = {"E10": "edit", "E11": "delete", "E12": "programs"}                        # a mutant runs the group of its last section; any other last section is in read
 
 
 def main():
@@ -1065,6 +1250,8 @@ def main():
             section_e10()
         if "delete" in groups:
             section_e11()
+        if "programs" in groups:
+            section_e12()
     finally:
         sh.teardown()
     say("\nsandbox-tool-entries: %d passed, %d failed" % (sh.tkb.passed, sh.tkb.failed))

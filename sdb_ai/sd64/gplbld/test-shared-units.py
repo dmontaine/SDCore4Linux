@@ -554,10 +554,10 @@ def checks(srcs):
     i_fi = ins.find("\nfi\n", i_sudo)
     i_call = ins.find("if ! shared_preflight; then")
     i_apt = ins.find("sudo apt-get")
-    i_dnf = ins.find("sudo dnf")
-    ck("I2 the preflight is CALLED right after the sudo -v check's closing fi, before the first package install (apt-get or dnf) or any other change to the machine, and the caller exits (it needs "
+    # 2 Nov 26, S.105: dnf is gone with Fedora; apt-get is the only package install.
+    ck("I2 the preflight is CALLED right after the sudo -v check's closing fi, before the first package install (apt-get) or any other change to the machine, and the caller exits (it needs "
        "sudo, which is warm by then)",
-       0 <= i_sudo < i_fi < i_call < min(p for p in (i_apt, i_dnf) if p >= 0) and re.search(r"if ! shared_preflight; then\s*exit 1\s*fi", ins) is not None and ins.find("shared_preflight() {") < i_call, "")
+       0 <= i_sudo < i_fi < i_call < i_apt and re.search(r"if ! shared_preflight; then\s*exit 1\s*fi", ins) is not None and ins.find("shared_preflight() {") < i_call, "")
     rawblk = strip_sh(between(srcs["sh:installsdcore.sh"], "# SHARED-CREATE-BEGIN", "# SHARED-CREATE-END"))
     ck("I3 the creation block sits AFTER the installing user's account block and BEFORE the accounts_kept test (so UPDATE.ACCOUNTS ALL brings shared's VOC forward in an upgrade); a registered account "
        "is kept and bin/sd is not run, a directory without a register is a warning that touches nothing, otherwise the one-shot marker is made, bin/sd -internal create-account GROUP shared is run "

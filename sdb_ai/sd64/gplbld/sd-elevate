@@ -3,6 +3,9 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 02 Nov 26 dm S.105 (owner, 2 Nov 2026: "remove Fedora support for this release", "Take it out"): comments that named Fedora, RHEL or Arch as
+#               distributions this helper serves now say Debian and Ubuntu.  No code changed: firewalld, the "!!" shadow spelling and gpasswd -d
+#               all serve Debian and Ubuntu as well (firewalld is packaged there and fw_kind chooses by what is installed, not by distribution).
 # 02 Nov 26 dm S.102 stage 2 (the owner, 1-2 Nov 2026: a scheduled-jobs page in SD, admin jobs in its first version, "do s.102 stage 2 with systemd timers"): job-set, job-delete and job-list.  The
 #               DEFINITIONS of the administrator's scheduled jobs, in /etc/sdcore/jobs.d: the command is one of four ids the helper owns (backup-all, check-masters, sync-masters, update-accounts), the
 #               schedule is one of five shapes turned into systemd's OnCalendar here, the name is 1 to 32 plain characters, and the file is written through the open directory without following a
@@ -142,7 +145,7 @@
 set -uo pipefail
 
 # 26 Oct 26 dm - F12e.  THE HELPER RUNS AS ROOT AND CALLS getent, id, stat, realpath, python3, useradd and the rest BY NAME, so the caller's PATH must not decide which ones.  sudo resets PATH to its
-# secure_path on Debian, Ubuntu and Fedora, but that is the distribution's setting and not ours (Arch's sudoers has none); this line makes it ours.  A free test that needs stand-in commands
+# secure_path on Debian and Ubuntu, but that is the distribution's setting and not ours (a sudoers without one is possible); this line makes it ours.  A free test that needs stand-in commands
 # in front of these puts them in SD_PATH_PREPEND, which is read only where trust_fixtures says (main, below).
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
@@ -163,7 +166,7 @@ SD_JOBS_DIR=${SD_JOBS_DIR:-$SD_JOBS_DIR_REAL}
 
 # Below this, an account is a system account and out of reach.  Read from
 # /etc/login.defs when it is there rather than assumed, because distributions
-# differ (1000 on Debian/Ubuntu/Arch, 1000 on modern RHEL, 500 on old ones).
+# and an administrator may differ (1000 on Debian and Ubuntu as shipped).
 uid_min() {
   local v
   v=$(awk '/^[[:space:]]*UID_MIN[[:space:]]/ {print $2; exit}' /etc/login.defs 2>/dev/null)
@@ -382,7 +385,8 @@ ufw_add_allow() {   # $1 port/proto
   step ufw allow "$1"
 }
 
-# 04 Oct 26 dm - FIREWALLD, Fedora's and openSUSE's front end (owner, 4 Oct 2026).
+# 04 Oct 26 dm - FIREWALLD, the other front end besides ufw (owner, 4 Oct 2026); Debian and Ubuntu package it, so it
+# stays when Fedora support went (S.105, 2 Nov 2026): fw_kind chooses by what is installed, not by distribution.
 # The same four answers as ufw_state, from firewalld: not installed, not running,
 # running with the default zone refusing what it does not allow (its target is
 # "default", REJECT or DROP), or accepting everything (ACCEPT).  ***RULES ARE READ
@@ -411,7 +415,7 @@ fwd_has_allow() {   # $1 port/proto; true if the saved default zone ALLOWS it (a
   fwd_perm --query-port="$1" >/dev/null 2>&1
 }
 
-# 04 Oct 26 dm - "ALLOWED" IS NOT "SD'S RULE".  Measured on a Fedora 44 Workstation VM:
+# 04 Oct 26 dm - "ALLOWED" IS NOT "SD'S RULE".  Measured on a firewalld VM (Fedora 44, then supported):
 # its zone carries 1025-65535/tcp, --query-port answers yes for 4247 with no entry
 # of SD's, and --remove-port=4247/tcp then SPLIT the distribution's range into
 # 1025-4246/tcp and 4248-65535/tcp - a hole cut in a rule SD never made.  So a
@@ -698,7 +702,7 @@ require_sd_stamp() {   # require_sd_stamp USER CONSEQUENCE
 }
 
 # 26 Oct 26 dm - F12c.  setpw SETS A FIRST PASSWORD AND NEVER RESETS ONE.  Its one caller (create.account, through set_passwd) sets the password of the user it has just made, whose shadow entry
-# holds none: useradd leaves "!" (Debian, Ubuntu) or "!!" (Fedora); "*", "!*" and an empty field are the other spellings of "no password".  A user with a hash - an SD user whose login works, over ssh
+# holds none: useradd leaves "!" (Debian, Ubuntu), and "!!" is the same entry locked once more (`usermod -L`); "*", "!*" and an empty field are the other spellings of "no password".  A user with a hash - an SD user whose login works, over ssh
 # or at the console - is refused in the helper's words, so a stolen sdsys login cannot reset it.  (A retry after a failed set_passwd is still a first password: the failed attempt changed nothing.)
 # The entry is read with `getent shadow`, which only root can read: a real run is root; a dry run by an ordinary user cannot read it and is REFUSED too, rather than passed as if it had been
 # judged (a test gives it a getent that answers).  Call after require_sd_stamp.
@@ -2305,8 +2309,8 @@ case $verb in
     require_sd_user "$1"
     require_sd_group "$2"
     getent group "$2" >/dev/null 2>&1 || die "group '$2' does not exist"
-    # gpasswd -d, not deluser: deluser is Debian-only and the installer serves
-    # Arch and RHEL too, where the existing MODIFYA:131 call cannot work.
+    # gpasswd -d, not deluser: gpasswd is shadow-utils' own command (the passwd
+    # package on Debian and Ubuntu), while deluser is a separate adduser wrapper.
     cmd=(gpasswd -d "$1" "$2")
     ;;
 

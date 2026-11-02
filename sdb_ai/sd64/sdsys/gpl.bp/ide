@@ -6,6 +6,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 2 Nov 26 dm  S.96 M4: a last word /in=account,file (from tool.entries) marks the file the sentence names as a temporary pointer to another account's program file: Compile and
+*              Catalog of its tabs go through run.in in that account (never BASIC in SDSYS: a $catalog would act as the administrator), Run and Debug of them are refused.
 * 1 Nov 26 dm  S.98 H2: BREAKPOINTS IN THE EDITOR'S GUTTER, HANDED TO THE DEBUGGER.  Shift-F7 (Build / Toggle breakpoint) sets or clears a mark on the cursor's line of a program tab and a click in the editor's
 *               gutter does the same on the line clicked; the gutter has one cell more for the mark (the memo's opt-in bpon, set here and never by SCREEN MEMO).  Marks belong to the open tab, like its cursor
 *               (bx b / j; nothing is written anywhere) and move with the text: the memo follows its own edits and Replace, Format, Import and an AI edit (ed.set), and the tab's marks are moved by the
@@ -194,6 +196,25 @@ $include idebrk.h
    sent.in = @sentence
    form0 = @false
    text0 = @false
+   * 2 Nov 26 (S.96 M4): a last word /in=account,file comes from the master files page (tool.entries), which opens a program of ANOTHER account through a temporary pointer in
+   *   SDSYS's VOC.  The file named on the sentence is that pointer; Compile and Catalog of a tab of it go through run.in into the account (its VOC, its bp.out, its catalogue,
+   *   NO.CATALOG on the compile: the owner's mechanism C of 2 Nov 26), never BASIC here in SDSYS; Run and Debug of such a tab are refused (run.in has no run; debugging is M5).
+   *   Taken off the sentence like /form.  The account and file names are plain words (the page checks them; they are checked again here).
+   in.ptr = '' ; in.acct = '' ; in.file = ''
+   in.last = field(trim(sent.in), ' ', dcount(trim(sent.in), ' '))
+   if downcase(in.last[1, 4]) = '/in=' then
+      sent.in = trimb(trim(sent.in)[1, len(trim(sent.in)) - len(in.last)])
+      in.w = downcase(in.last[5, 999])
+      in.acct = field(in.w, ',', 1)
+      in.file = field(in.w, ',', 2)
+      in.good = (in.acct # '' and in.file # '' and dcount(in.w, ',') = 2)
+      if in.good and convert('abcdefghijklmnopqrstuvwxyz0123456789._-', '', in.acct : in.file) # '' then in.good = @false
+      if in.good then
+         in.ptr = downcase(field(sent.in, ' ', 2))         ;* the pointer: the file the sentence names
+      end else
+         in.acct = '' ; in.file = ''
+      end
+   end
    if upcase(field(sent.in, ' ', 2)[1, 5]) # 'PATH:' and dcount(sent.in, ' ') > 2 then
       sw.last = upcase(field(sent.in, ' ', dcount(sent.in, ' ')))
       if sw.last = '/FORM' or sw.last = '/TEXT' then
@@ -2581,6 +2602,12 @@ do.key:
    return
 
 run.cmd:
+   if in.ptr # '' and nbuf > 0 then
+      if bn<cb> = in.ptr and (cmd = 'catalog' or cmd = 'run' or cmd = 'debug' or cmd = 'debug1') then
+         gosub master.build
+         return
+      end
+   end
    begin case
       case cmd = 'menu'
          mk = menu.click
@@ -3519,8 +3546,14 @@ do.compile:
       return
    end
    qp.file = c.file ; qp.id = c.id ; gosub quote.pair
-   execute 'basic ' : qp.f : ' ' : qp.i : c.opt capturing c.out
-   c.ok = (@system.return.code # 0)
+   if in.ptr # '' and c.file = in.ptr then
+      * 2 Nov 26 (S.96 M4): a program of another account, opened from the master files page, is compiled IN that account by run.in, judged on the compiler's own success line
+      execute 'run.in ' : in.acct : ' basic ' : in.file : ' ' : c.id : c.opt capturing c.out
+      c.ok = (index(c.out, 'Compiled 1 program(s) with no errors', 1) > 0)
+   end else
+      execute 'basic ' : qp.f : ' ' : qp.i : c.opt capturing c.out
+      c.ok = (@system.return.code # 0)
+   end
    err.rows = ''
    err.lines = ''
    nerr = 0
@@ -3556,6 +3589,25 @@ do.compile:
             exit
          end
       next q
+   end
+   return
+
+* 2 Nov 26 (S.96 M4): Catalog, Run and Debug of a tab the master files page opened (in.ptr: a program of another account).  Catalog compiles (through run.in, in do.compile) and
+* then catalogues through run.in in that account; Run is refused, because run.in runs no program; Debug is refused until the master files page's stage M5.
+master.build:
+   if cmd = 'catalog' then
+      c.opt = ''
+      gosub do.compile
+      if c.ok then
+         execute 'run.in ' : in.acct : ' catalog ' : in.file : ' ' : c.id capturing co
+         gosub catalog.verified
+      end
+      return
+   end
+   if cmd = 'run' then
+      msg = 'a program of the account ' : in.acct : ' is not run from here: compile it (it is compiled in ' : in.acct : ') and run it in that account'
+   end else
+      msg = 'a program of the account ' : in.acct : ' is not debugged from here yet (the master files page, stage M5)'
    end
    return
 

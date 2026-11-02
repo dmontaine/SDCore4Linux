@@ -43,12 +43,12 @@ account    required     pam_nologin.so
 @include common-account
 session [success=ok ignore=ignore module_unknown=ignore default=bad]        pam_selinux.so close
 """
-FEDORA_PAM = """#%PAM-1.0
-auth       substack     password-auth
-auth       include      postlogin
-account    required     pam_sepermit.so
+# 2 Nov 26 - S.105: the Fedora sample (auth substack password-auth) went with Fedora support.  This is an administrator's own Debian file in its place: a '#%PAM-1.0' header and
+# an explicit "auth" line instead of "@include common-auth", the other branch of the fence's first-auth-line test, which no other row reaches.
+CUSTOM_PAM = """#%PAM-1.0
+auth       required     pam_unix.so
 account    required     pam_nologin.so
-account    include      password-auth
+account    required     pam_unix.so
 """
 BASE_CONFIG = """# an ordinary sshd_config
 Port 22
@@ -199,12 +199,12 @@ def rows_for(ctx):
         code, out = e.run("--remove")
         row("... and a second --remove is a clean no-op", code == 0, out.strip()[:100])
 
-        e = env(pam=FEDORA_PAM)
+        e = env(pam=CUSTOM_PAM)
         e.run("--install")
         code, out = e.run("--open-sdsys")
         lines = rd(e.pamf).splitlines()
-        row("a Fedora-style PAM file (first line auth substack password-auth): the fence goes above that line and the '#%PAM-1.0' line stays first",
-            code == 0 and lines[0] == "#%PAM-1.0" and lines[1].startswith("# --- BEGIN SD sdsys") and lines[4].startswith("# --- END SD sdsys") and lines[5].startswith("auth       substack"), "\n".join(lines[:7]))
+        row("an administrator's PAM file whose first auth line is a plain 'auth required pam_unix.so': the fence goes above that line and the '#%PAM-1.0' line stays first",
+            code == 0 and lines[0] == "#%PAM-1.0" and lines[1].startswith("# --- BEGIN SD sdsys") and lines[4].startswith("# --- END SD sdsys") and lines[5].startswith("auth       required     pam_unix.so"), "\n".join(lines[:7]))
 
         # ---------------------------------------------------------------- refusals: both files exactly as they were
         def refused(label, e, mode="--open-sdsys", words=None, **kw):

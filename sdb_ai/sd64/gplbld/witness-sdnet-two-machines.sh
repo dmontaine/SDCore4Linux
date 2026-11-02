@@ -10,7 +10,7 @@
 # (On the second machine the path is wherever that machine's checkout is; the script names itself by absolute path in every command it prints, so copy those.)
 #
 # ***NEEDS sudo*** on both machines, from the owner's login (SUDO_USER must name a person).  BOTH machines need a full SD Core for Linux install of the CURRENT build (the plan's
-# candidates are the Debian 13, Fedora 44 and Ubuntu 26 VMs; the Solo VMs are not Core), on a host-only or internal network, set up from VMs that are STOPPED (the
+# candidates are the Debian 13 and Ubuntu 26 VMs - Fedora is not supported since S.105, 2 Nov 2026; the Solo VMs are not Core), on a host-only or internal network, set up from VMs that are STOPPED (the
 # systemd-run recipe in the memory file; never run VBoxManage from the app shell with no VM running).  Linux Solo with Linux Solo is a separate, later witness.
 #
 # WHAT ONLY TWO MACHINES ADD (every earlier real-install run was ONE machine talking to itself on 127.0.0.1:4247 - the S.65 row, K6e):

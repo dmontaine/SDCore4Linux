@@ -15,6 +15,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 02 Nov 26 dm  S.105 (owner: Fedora support taken out): find.pkg.mgr asks for apt-get only; the dnf,
+*               pacman and zypper branches went with the distributions they served.
 * 27 Oct 26 dm  S.87 batch 14: the NANO verb is gone; micro is the one external editor (editor.exe is always micro), and nano's syntax file and installer step are gone.
 * 17 Oct 26 dm  S.64: the record's file is asked (edit_guard) before the editor is started, so a person without voc.edit, dict.edit or
 *               bp.edit does not edit a copy and lose it at the save.
@@ -415,15 +417,14 @@ find.editor:
 return
 
 * ---------------------------------------------------------------------------
-* find.pkg.mgr  -  ask the shell which of the four package managers this
-* machine has, once, so the missing-editor message names the real install
-* command instead of assuming Debian's.
+* find.pkg.mgr  -  ask the shell whether this machine has apt, so the
+* missing-editor message names the install command only when it exists.
 *
-* 22 Sep 2026 - installsdcore.sh installs on Arch, Fedora, RHEL and openSUSE as
-* well as Debian and Ubuntu now (the multi-distribution restore); this message
-* had stayed apt-only, which told a Fedora user to run a command that does not
-* exist on their machine.  Same "command -v, absolute path or refuse" check
-* find.editor already uses, run once per manager, first match wins.
+* 2 Nov 2026 - S.105: Debian and Ubuntu are the only supported distributions
+* (the owner took Fedora support out), so apt is the one manager asked; the
+* dnf, pacman and zypper probes of 22 Sep 2026 are gone.  Without apt-get the
+* message names no command and says to use the distribution's package manager.
+* Same "command -v, absolute path or refuse" check find.editor already uses.
 * ---------------------------------------------------------------------------
 find.pkg.mgr:
    pkg.install = ''
@@ -431,21 +432,6 @@ find.pkg.mgr:
    os.execute 'command -v apt-get' capturing probe.out
    if probe.out[1, 1] = '/' then
       pkg.install = 'sudo apt install ' : editor.exe
-   end else
-      os.execute 'command -v dnf' capturing probe.out
-      if probe.out[1, 1] = '/' then
-         pkg.install = 'sudo dnf install ' : editor.exe
-      end else
-         os.execute 'command -v pacman' capturing probe.out
-         if probe.out[1, 1] = '/' then
-            pkg.install = 'sudo pacman -S ' : editor.exe
-         end else
-            os.execute 'command -v zypper' capturing probe.out
-            if probe.out[1, 1] = '/' then
-               pkg.install = 'sudo zypper install ' : editor.exe
-            end
-         end
-      end
    end
 return
 

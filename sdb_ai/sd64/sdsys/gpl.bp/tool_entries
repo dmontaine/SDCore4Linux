@@ -4,6 +4,11 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 2 Nov 26 dm  S.96 M4: the programs.  E and N open a program in the IDE in its own account (edit.record, isprog: the program file's DATA path is judged by the pointer rule, the
+*              temporary pointer is a data-only F pointer, the opened file must be a directory file, the program's own file must lie inside the account and a name that is a link
+*              leading nowhere is refused); the sentence ends /in=account,file so that the IDE compiles and catalogues the tab through run.in IN THAT ACCOUNT (the owner's
+*              mechanism C of 2 Nov 26) and refuses Run and Debug.  C compiles the program under the cursor the same way (compile.reached), shows what the compiler said and
+*              writes "master compile".  Delete of a program is not offered yet.
 * 2 Nov 26 dm  S.96 M3: D deletes the record under the cursor, in its own account.  It goes the whole of E's way (edit.record, emode 'delete'): the register and the account's VOC read
 *              again, THE POINTER RULE, the F pointer holding the checked path, the opened file and its two subfiles judged again; then the record is read with its update lock (one held
 *              by another session, an editor's, refuses), the administrator types its id in the confirm box (11953, Cancel the default), and the page deletes that one record through the
@@ -39,7 +44,7 @@
 *   VOC of EVERY account (this reads them all and is asked for by name); the boxes then list the hits with their accounts, and Enter on a hit goes to that entry in its account.
 *
 *   Keys: Up and Down, PgUp and PgDn move in the box, Tab changes box, Enter in Accounts goes to its entries (and on a hit goes to the entry in its account), / filters the entries of the
-*   account by a part of the id, F finds an id in every account, K changes the kind, E edits the record under the cursor in the IDE, N makes a new record (its id asked first), D deletes the record under the cursor (its id typed to confirm), Esc takes the
+*   account by a part of the id, F finds an id in every account, K changes the kind, E edits the record under the cursor in the IDE, N makes a new record (its id asked first), D deletes the record under the cursor (its id typed to confirm), C compiles the program under the cursor in its own account (run.in), Esc takes the
 *   find and the filter off, F5 reads again, F1 or ? or a click on a [?] explains the box, Ctrl-Q leaves.  Esc or F10 (or a click on the top row) opens the menu bar when there is nothing
 *   to take off.
 *
@@ -86,6 +91,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    call $tk_keys('add', keys, 'e', 'edit', 'edit', '', 1)
    call $tk_keys('add', keys, 'n', 'new', 'new', '', 1)
    call $tk_keys('add', keys, 'd', 'delete', 'delete', '', 1)
+   call $tk_keys('add', keys, 'c', 'compile', 'compile', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* Esc takes the find and the filter off first, else opens the menu bar
@@ -93,6 +99,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    call $tk_keys('menu', keys, 'edit', '&Entry', '&Edit the record in the editor', '', '')
    call $tk_keys('menu', keys, 'new', '&Entry', '&New record', '', '')
    call $tk_keys('menu', keys, 'delete', '&Entry', '&Delete the record', '', '')
+   call $tk_keys('menu', keys, 'compile', '&Entry', '&Compile the program (in its account)', '', '')
    call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the entries by id', '', '')
    call $tk_keys('menu', keys, 'find', '&View', 'F&ind an id in every account', '', '')
@@ -717,7 +724,7 @@ draw.effect:
             lines<-1> = 'The dictionary items are read, when the cursor comes to the account, from the dictionary of each file its VOC points at (field 3 of the file pointer); nothing is copied.  An item matches a text in its id or in its column heading.  E edits the item under the cursor as the form, N makes a new one in the dictionary of the file under the cursor and D deletes it: only dictionary items.'
             lines<-1> = ">: the item lives in a dictionary outside this account (SDSYS's, which every account's pointer to it shares, or another account's) and is only read through this account's pointer.  It is edited in the account it lives in, never from here: E and N refuse it."
          case 1
-            lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  The programs are not edited from this page yet."
+            lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  E edits the program under the cursor in the editor and N makes a new one in the same program file, in the account it belongs to; C compiles it IN THAT ACCOUNT (run.in), and the editor's own Compile and Catalog do the same."
             lines<-1> = ">: the program file lies outside this account (SDSYS's or another account's) and is only read through this account's pointer.  Its programs are edited, compiled and run in the account it lives in, never from here."
       end case
    end
@@ -874,7 +881,7 @@ wrap.lines:
 draw.help:
    screen text 'Up and Down move, PgUp and PgDn a page.  Tab changes box.  Enter in Accounts goes to its entries.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
    screen text '/ filters by a part of an id (of a heading too, in dictionaries).  F finds it in every account (Enter on a hit goes to it).  Esc takes them off.' at h.x + 2,h.y + 2 width h.tw
-   screen text 'K changes the kind.  E edits the record under the cursor, N makes a new one, D deletes it.  F5 reads again.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
+   screen text 'K changes the kind.  E edits the record under the cursor, N makes a new one, D deletes it, C compiles a program.  F5 reads again.  Ctrl-Q leaves.' at h.x + 2,h.y + 3 width h.tw
    return
 
 * ------------------------------------------------------------------------------------------------- keys and mouse
@@ -947,6 +954,8 @@ on.key:
          gosub do.new
       case nm = 'd'
          gosub do.delete
+      case nm = 'c'
+         gosub do.build
       case nm = 'f1' or nm = '?'
          gosub help.here
       case nm = 'f5'
@@ -1025,10 +1034,6 @@ do.edit:
       msg = 'Tab to the entries first, then E'
       return
    end
-   if kind = 3 then
-      msg = 'the programs are not edited from this page yet'
-      return
-   end
    nrows = (if fnd # '' then hn else en)
    if ec < 1 or ec > nrows then
       msg = 'there is no entry here to edit: N makes a new one'
@@ -1070,14 +1075,36 @@ do.delete:
    gosub edit.record
    return
 
+* C: the program under the cursor is compiled IN ITS OWN ACCOUNT by run.in (the owner's mechanism C of 2 Nov 26: its VOC, its bp.out, its catalogue, and NO.CATALOG, so a $catalog in the
+* source does not act as the administrator).  It goes E's way through edit.record first, so the pointer rule refuses a program file that lies outside the account before anything runs.
+do.build:
+   if pane # 2 then
+      msg = 'Tab to the entries first, then C'
+      return
+   end
+   if kind # 3 then
+      msg = 'C compiles a program: K shows the programs'
+      return
+   end
+   nrows = (if fnd # '' then hn else en)
+   if ec < 1 or ec > nrows then
+      msg = 'there is no program here to compile'
+      return
+   end
+   if fnd # '' then
+      ea = hacc<ec> ; eid = hid<ec> ; efl = hfile<ec>
+   end else
+      ea = anm<ac> ; eid = enm<ec> ; efl = efile<ec>
+   end
+   enw = 0
+   emode = 'compile'
+   gosub edit.record
+   return
+
 * N: a new record in the account under the cursor (a new item: in the dictionary of the file the row under the cursor belongs to).  Its id is asked first.  Not while a find is on: a hit
 * belongs to an account the Accounts box does not show.
 do.new:
    if an < 1 then return
-   if kind = 3 then
-      msg = 'the programs are not edited from this page yet'
-      return
-   end
    if fnd # '' then
       msg = 'Esc takes the find off first: a new record is made in the account selected in Accounts'
       return
@@ -1091,6 +1118,14 @@ do.new:
       end
       efl = efile<ec>
       ptxt = 'Id of the new item in the dictionary of ' : efl : ' (' : anm<ac> : ')'
+   end
+   if kind = 3 then
+      if ec < 1 or ec > en or pane # 2 then
+         msg = 'put the cursor on a program of the file the new program belongs to (Tab to the entries)'
+         return
+      end
+      efl = efile<ec>
+      ptxt = 'Id of the new program in ' : efl : ' (' : anm<ac> : ')'
    end
    screen ask ptxt width 40 value '' title 'New' returning nt then got = 1 else got = 0
    if not(got) then return
@@ -1119,6 +1154,7 @@ edit.record:
    end
    ap.f = parse.pathname.tokens(arec<1>)
    tp = ap.f : @ds : 'voc'
+   isprog = (kind = 3)                                           ;* M4: a program; efl is its program file, whose DATA path (field 2) is the file edited
    if efl # '' then
       openpath ap.f : @ds : 'voc' to rvf else
          msg = 'the VOC of ' : ea : ' cannot be opened'
@@ -1126,15 +1162,24 @@ edit.record:
       end
       read fr from rvf, efl else fr = ''
       close rvf
-      if upcase(trim(fr<1>))[1, 1] # 'F' or trim(fr<3>) = '' then
-         msg = efl : ' is not a file of ' : ea : ' that has a dictionary'
-         return
+      if isprog then
+         if upcase(trim(fr<1>))[1, 1] # 'F' or trim(fr<2>) = '' then
+            msg = efl : ' is not a program file of ' : ea
+            return
+         end
+         tp = parse.pathname.tokens(trim(fr<2>))
+      end else
+         if upcase(trim(fr<1>))[1, 1] # 'F' or trim(fr<3>) = '' then
+            msg = efl : ' is not a file of ' : ea : ' that has a dictionary'
+            return
+         end
+         tp = parse.pathname.tokens(trim(fr<3>))
       end
-      tp = parse.pathname.tokens(trim(fr<3>))
       if tp[1, 1] # '/' then tp = ap.f : @ds : tp
    end
    if not(kernel(K$PATH.IN, ap.f : @fm : tp)) then
       msg = (if efl = '' then 'the VOC file of ' : ea : ' lies outside the account' else 'the dictionary of ' : efl : ' lies outside ' : ea : ': it is edited in the account it lives in, not from here (' : tp : ')')
+      if isprog then msg = 'the program file ' : efl : ' lies outside ' : ea : ': its programs are edited and compiled in the account they live in, not from here (' : tp : ')'
       return
    end
    * The words that go into the pointer's name and the IDE's sentence: asked AFTER the rule, so that a file outside the account ($map's dictionary in SDSYS) is refused for the reason
@@ -1161,6 +1206,7 @@ edit.record:
       return
    end
    qrec = 'F' : @fm : tp : @fm : (if efl = '' then '' else tp)
+   if isprog then qrec = 'F' : @fm : tp                          ;* a program file: the data part only (no dictionary is reached through it)
    open 'voc' to svf else
       msg = "the VOC of SDSYS cannot be opened"
       return
@@ -1179,6 +1225,7 @@ edit.record:
    end
    close svf
    dfl = (if efl = '' then '' else 'dict')
+   if isprog then dfl = ''
    open dfl, qn to tf else
       gosub drop.pointer
       msg = 'SD cannot follow the pointer into ' : ea : ' (is the account suspended?)'
@@ -1186,15 +1233,21 @@ edit.record:
    end
    rp = fileinfo(tf, FL$PATH)
    rt = fileinfo(tf, FL$TYPE)
+   rtw = (if isprog then FL$TYPE.DIR else FL$TYPE.DH)            ;* a program file is a directory file; the VOC and a dictionary are hashed files
+   * M4: a program is a file of its own in the directory.  SD writes a directory file's record by opening that name (without SAFEDIR), so a LINK in its place would be followed.
+   * The kernel's test of the record's own path (below) refuses both kinds: a link to a file outside the account (realpath), and a link that leads NOWHERE (op_sh.c's
+   * resolve_name, 2 Nov 26: such a name used to be judged a new file inside; SD's SELECT of a directory file does not even list it, so the page could not see it itself).
    if emode # 'delete' then close tf                            ;* D deletes through THIS open, the one judged below, not a second one
    * What the kernel opened must lie inside the account, and so must the two subfiles of the hashed file it is (finding 2: the check of a directory says nothing of a link inside it,
    * and the subfiles are opened without refusing a link).  A file that is not a hashed file is not handed over at all.
    in.ok = kernel(K$PATH.IN, ap.f : @fm : rp)
    if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')
    if in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')
-   if rt # FL$TYPE.DH then
+   if isprog and in.ok then in.ok = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : eid)     ;* the program's own file: a link in its place to a file outside is caught here
+   if rt # rtw then
       gosub drop.pointer
       msg = 'the ' : (if efl = '' then 'VOC' else 'dictionary of ' : efl) : ' of ' : ea : ' is not a hashed file: the page does not hand it to the editor'
+      if isprog then msg = 'the program file ' : efl : ' of ' : ea : ' is not a directory file: the page does not hand it to the editor'
       return
    end
    if not(in.ok) then
@@ -1206,8 +1259,16 @@ edit.record:
       gosub delete.reached
       return
    end
-   void kernel(K$AUDIT, 'master edit account=' : ea : ' kind=' : (if efl = '' then 'voc' else 'dict') : ' file=' : qf : ' id=' : eid : ' new=' : enw)
+   if emode = 'compile' then
+      gosub drop.pointer                                        ;* run.in reaches the file through the account's own VOC, not through the pointer
+      gosub compile.reached
+      return
+   end
+   akind = (if efl = '' then 'voc' else 'dict')
+   if isprog then akind = 'bp'
+   void kernel(K$AUDIT, 'master edit account=' : ea : ' kind=' : akind : ' file=' : qf : ' id=' : eid : ' new=' : enw)
    sent = 'ide ' : (if efl = '' then '' else 'dict ') : qn : ' ' : eid
+   if isprog then sent = 'ide ' : qn : ' ' : eid : ' /in=' : ea : ',' : efl     ;* the IDE compiles and catalogues a tab of qn through run.in in ea
    keep.k = (if efl = '' then eid else efl : '*' : eid)
    keep.ec = ec
    gosub hand.over
@@ -1301,6 +1362,35 @@ delete.reached:
    msg = dmsg
    return
 
+* C, after edit.record judged the program file and the program (the pointer is already given back): run.in compiles it in its own account and the page shows what the compiler said.
+* The verdict is the compiler's own success line, not a return code (run.in's answer is about run.in).  run.in writes its own audit lines; the page adds "master compile".
+compile.reached:
+   csent = 'run.in ' : ea : ' basic ' : efl : ' ' : eid
+   execute csent capturing cout
+   cok = (index(cout, 'Compiled 1 program(s) with no errors', 1) > 0)
+   void kernel(K$AUDIT, 'master compile account=' : ea : ' file=' : efl : ' id=' : eid : ' result=' : (if cok then 'ok' else 'failed'))
+   cmsg = (if cok then 'compiled ' : eid : ' in ' : ea : ' (in its own account, by run.in)' else eid : ' in ' : ea : ' did not compile: the compiler said why')
+   cbody = ''
+   cn2 = dcount(cout, @fm)
+   for cq = 1 to cn2
+      cl = trimb(convert(char(13), '', cout<cq>))
+      if cl # '' then cbody<-1> = cl[1, 110]
+   next cq
+   if dcount(cbody, @fm) > 30 then cbody = field(cbody, @fm, dcount(cbody, @fm) - 29, 30)     ;* the last 30 lines: the errors and the verdict are at the end
+   if cbody = '' then cbody = '(the compiler printed nothing)'
+   ctitle = 'Compile ' : eid : ' in ' : ea
+   screen msgbox cbody title ctitle buttons '&OK' default 1 returning cb2 else cb2 = 0
+   keep.ec = ec
+   gosub read.all                                               ;* Built changes
+   ec = keep.ec
+   nrows = (if fnd # '' then hn else en)
+   if ec > nrows then ec = nrows
+   if ec < 1 then ec = 1
+   gosub keep.tops
+   gosub draw.all
+   msg = cmsg
+   return
+
 * The terminal goes to the IDE and comes back: the pointer is taken away as soon as the IDE has ended, then the page is taken again and what it lists is read again.  Only the IDE can get here.
 hand.over:
    if field(sent, ' ', 1) # 'ide' then
@@ -1336,6 +1426,7 @@ hand.over:
    gosub keep.tops
    gosub draw.all
    msg = 'back from the editor: the list shows ' : (if kind = 1 then 'the VOC' else 'the dictionary') : ' as it is now'
+   if kind = 3 then msg = 'back from the editor: the list shows the programs as they are now'
    return
 
 * /: keep the entries of the account whose id holds a text (a dictionary item: its id or its heading)

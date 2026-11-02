@@ -22,6 +22,10 @@
 #   openSUSE are served by the upstream sdb64 installer until this one is
 #   stable.
 #
+#   02 Nov 2026 - S.105: Fedora support removed for 2.0-0 (owner, 2 Nov 2026).
+#   Debian and Ubuntu only, and every other distribution is refused before the
+#   banner and the first sudo (detect_distro, below).
+#
 #   10 Sep 2026 - two changes on the owner's ruling of that day.  The
 #   installing user is registered as an SD ADMINISTRATOR (the ADMINISTRATOR
 #   keyword on create-account) instead of a STANDARD account, so a fresh
@@ -486,17 +490,37 @@ sdsys_groups_default() {   # sdsys_groups_default MARKER
 #   And S.49 with it: RHEL and its clones (Rocky, Alma) list "fedora" in ID_LIKE
 #   too, so "rhel" no longer matches and a "rhel" in the list turns a non-Fedora
 #   ID away - Solo's detect_distro, owner's ruling of 30 Sep 2026.
+# 02 Nov 2026 - S.105: DEBIAN AND UBUNTU ONLY (owner, 2 Nov 2026: "remove Fedora
+#   support for this release", and of delete-or-dormant: "Take it out").  The
+#   Fedora branch and the RHEL guard are gone; git keeps them.  And the test
+#   REFUSES HERE, itself, and is called beside net_preflight - before the banner,
+#   the questions, the first sudo and the first change to the machine.  Until
+#   now it ran after sudo -v, shared_preflight's sudo reads and the removal of
+#   an old download, so an unsupported machine was refused only after those.
+#   Reading /etc/os-release needs no sudo.  A machine is accepted when ID or
+#   ID_LIKE names debian or ubuntu as a whole word (Debian, Ubuntu, Mint,
+#   Pop!_OS); Fedora, RHEL and its clones, Arch, openSUSE, anything else and a
+#   machine with no /etc/os-release are refused, exit 1, nothing changed.
+#   test-install-distro.sh runs this function on fake os-release files.
 detect_distro() {
-  is_debian=0
-  is_fedora=0
+  local ids=""
   if [ -f /etc/os-release ]; then
     # shellcheck disable=SC1091
     . /etc/os-release
     ids=" ${ID:-} ${ID_LIKE:-} "
-    case "$ids" in *" debian "*|*" ubuntu "*) is_debian=1 ;; esac
-    case "$ids" in *" fedora "*) is_fedora=1 ;; esac
-    case "$ids" in *" rhel "*) [ "${ID:-}" = fedora ] || is_fedora=0 ;; esac
   fi
+  case "$ids" in *" debian "*|*" ubuntu "*) return 0 ;; esac
+  printf "%b\n" "$RED"
+  if [ -f /etc/os-release ]; then
+    echo "This distribution is not supported (read from /etc/os-release: ${ID:-unknown})."
+  else
+    echo "This distribution is not supported (there is no /etc/os-release to read)."
+  fi
+  echo "This installer supports Debian and Ubuntu (and their common derivatives) only."
+  echo "Fedora, RHEL and RHEL's clones, Arch and openSUSE are not supported."
+  echo "Nothing has been changed."
+  printf "%b\n" "$NC"
+  exit 1
 }
 # --------------------
  
@@ -601,6 +625,9 @@ sd_install_start() {
 
 #
 # 04 Oct 26 - S.57: before the banner, the questions and the first sudo.
+# 02 Nov 26 - S.105: the distribution as well, first (no network test for a
+#            machine that would be refused anyway).
+detect_distro
 net_preflight github.com 443
 clear
 printf "%bSD installer%b\n" "$RED" "$NC"
@@ -764,21 +791,16 @@ sudo rm -fr "${dflt_git_folder}"
 # --------------------
 printf "%b\n" "$NC"
 #
-# Ask for distribution type
-# Modified by Composer AI - 2026/06/10.
-# Try auto-detection first; fall back to the manual menu when unknown.
-# is_arch=0
-# is_debian=0
-# is_fedora=0
-# is_suse=0
-# printf "%bChoose your distribution.\n" "$GREEN"
-detect_distro
+# 02 Nov 26 - S.105: detect_distro is no longer called here: it runs, and refuses,
+#            before the banner (beside net_preflight).  Only Debian and Ubuntu reach
+#            this point, so the packages below are apt-get's alone.
 # 22 Sep 2026 - ARCH, FEDORA AND OPENSUSE RESTORED (owner, 22 Sep 2026).  They
 #            were removed 09 Sep 26 "deliberately and temporarily" while the
 #            Debian/Ubuntu branch was stabilised, on the understanding they
 #            would return once it was; that day has come.  The manual a/d/f/s
 #            distribution menu stays gone - detect_distro() decides, or the
-#            refusal below fires.
+#            refusal fires (since 02 Nov 26, S.105, inside detect_distro(),
+#            which is called above, before the banner).
 #
 # NOTE the pre-09-Sep Arch branch also START-ed and ENABLE-d sshd, which no
 # other branch did.  That asymmetry is deliberately NOT restored here: whether
@@ -800,60 +822,47 @@ detect_distro
 # 1 Nov 2026: "the appropriate pam package should be added to the list of packages
 # installed during the installation process").  SD's own PAM module, which asks
 # for the authenticator code when sdsys logs in over ssh (stage 2), is built from
-# the clone and wants <security/pam_modules.h>: libpam0g-dev on Debian and Ubuntu,
-# pam-devel on Fedora.  The library itself is on every one of these systems.
+# the clone and wants <security/pam_modules.h>: libpam0g-dev on Debian and Ubuntu.
+# The library itself is on every one of these systems.
 #
 # 04 Oct 26 - the Arch and openSUSE branches are removed (owner, 4 Oct 2026; see
-# detect_distro): Debian, Ubuntu and Fedora only.
-if [ "$is_debian" -eq 1 ]; then
-    echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
-    # 04 Oct 26 - "openssl" (the command, sd-elevate tls-show) added to both lists:
-    #   Fedora Workstation ships without it (measured on a VM: Solo's installer refused).
-    if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev libpam0g-dev openssl openssh-server python3-dev; then
-        printf "%b\n" "$RED"
-        echo "Package installation using apt-get failed.  Exiting script."
-        echo "Verify your internet connection and then try again."
-        printf "%b\n" "$NC"
-        exit 1
-    fi
-    # run this along as only required on Ubuntu 26.04 and
-    # don't want to abort if not found on earlier distributions
-    sudo apt-get -y --ignore-missing install libcrypt-dev || true
-elif [ "$is_fedora" -eq 1 ]; then
-    echo "Detected Fedora from /etc/os-release."
-    if ! sudo dnf -y install git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl openssl-devel pam-devel openssh-server python3-devel; then
-        printf "%b\n" "$RED"
-        echo "Package installation using dnf failed.  Exiting script."
-        echo "Verify your internet connection and then try again."
-        printf "%b\n" "$NC"
-        exit 1
-    fi
-else
+# detect_distro).
+# 02 Nov 26 - S.105: the Fedora (dnf) branch is removed too, and the refusal of an
+# unknown distribution moved up into detect_distro, before the banner.  What is
+# left is the apt-get install, unconditionally.
+echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
+# 04 Oct 26 - "openssl" (the command, sd-elevate tls-show runs it) is on the list
+#   because a machine can lack it; the package stays for that reason.
+if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev libpam0g-dev openssl openssh-server python3-dev; then
     printf "%b\n" "$RED"
-    echo "This distribution is not supported (read from /etc/os-release: ${ID:-unknown})."
-    echo "This installer supports Debian, Ubuntu (and their common derivatives) and"
-    echo "Fedora.  Arch, openSUSE, RHEL and RHEL's clones are not supported."
+    echo "Package installation using apt-get failed.  Exiting script."
+    echo "Verify your internet connection and then try again."
     printf "%b\n" "$NC"
     exit 1
 fi
+# run this along as only required on Ubuntu 26.04 and
+# don't want to abort if not found on earlier distributions
+sudo apt-get -y --ignore-missing install libcrypt-dev || true
 #
 # 22 Sep 2026 - have_ufw computed once, here, rather than re-probed at each of
 #   the two call sites and again in the closing summary.  ufw is Debian/
-#   Ubuntu's firewall front-end; Fedora and openSUSE ship firewalld and Arch
-#   ships no firewall by default, so a machine from any of the three restored
-#   branches normally has no ufw at all.  Both call sites already no-op safely
-#   without it (command -v guarded); what did not follow was the closing
-#   summary, which claimed a rule was added unconditionally - see below.
+#   Ubuntu's usual firewall front-end, but a machine may have none.  Both call
+#   sites already no-op safely without it (command -v guarded); what did not
+#   follow was the closing summary, which claimed a rule was added
+#   unconditionally - see below.
 # 04 Oct 2026 - firewalld as well as ufw (owner, 4 Oct 2026: "yes - for both sd
-#   core and sd solo", after SD Core Solo's "open" on a Fedora VM got no rule and
-#   timed out at firewalld).  The front end is chosen as sd-elevate's fw_kind
+#   core and sd solo").  The front end is chosen as sd-elevate's fw_kind
 #   chooses it, so the installer and REMOTE.API/REMOTE.SSH touch the same rules:
 #   an active one first, then an installed one (ufw before firewalld).  A stopped
 #   firewalld gets the rule in its saved configuration (firewall-offline-cmd), as
 #   an inactive ufw does, so starting it later does not shut SD out.
 #   "Running" is asked of systemd, not of "firewall-cmd --state": polkit refuses
-#   that to an ordinary user (measured on Fedora 44, "Authorization failed"), so a
-#   running firewalld read as stopped and got no live rule.
+#   that to an ordinary user ("Authorization failed"), so a running firewalld
+#   read as stopped and got no live rule.
+# 02 Nov 26 - S.105: firewalld STAYS with Fedora gone.  Debian and Ubuntu package
+#   it (apt install firewalld) and the choice above is by what is installed and
+#   running, not by distribution; without it REMOTE.SSH / REMOTE.API would say
+#   "no firewall" on a Debian machine that runs firewalld, and add no rule.
 fwd_up() { systemctl is-active --quiet firewalld 2>/dev/null; }
 fw_tool=none
 if command -v ufw >/dev/null 2>&1 && sudo ufw status 2>/dev/null | grep -q '^Status: active'; then fw_tool=ufw
@@ -984,7 +993,7 @@ if [ ! -x bin/sd ]; then
 fi
 
 # 01 Nov 26  S.95 (remote sdsys over ssh): SD's OWN PAM MODULE, built here as the calling user like everything else (it needs the PAM headers, which the package step above
-#            installs: libpam0g-dev, pam-devel).  NOT PART OF `make`'s default target on purpose (a developer's machine without the headers must still build SD), so it is built
+#            installs: libpam0g-dev).  NOT PART OF `make`'s default target on purpose (a developer's machine without the headers must still build SD), so it is built
 #            as a step of its own, and a failure here is a WARNING and not the end of the install: SD works without it, the ssh door of sdsys simply cannot be opened.  It is
 #            installed below, outside the sealed bin, as /usr/local/lib/sd/pam_sdtotp.so.  test-install-sdsystotp.sh runs the blocks of this feature.
 pam_module_built=0
@@ -995,7 +1004,7 @@ if make pam_sdtotp.so && [ -f bin/pam_sdtotp.so ]; then
 else
     printf "%b\n" "$YELLOW"
     echo "WARNING: SD's PAM module (pam_sdtotp.so) could not be built, so sdsys cannot be let in over ssh."
-    echo "SD itself is built and the install goes on.  Install the PAM development package (libpam0g-dev, or pam-devel)"
+    echo "SD itself is built and the install goes on.  Install the PAM development package (libpam0g-dev)"
     echo "and run this installer again to get it."
     printf "%b\n" "$NC"
 fi
@@ -1205,8 +1214,8 @@ fi
 echo "Installing ssh-boundary helper: /usr/local/sbin/ssh-forcecommand."
 sudo install -o root -g root -m 0755 gplbld/ssh-forcecommand.sh /usr/local/sbin/ssh-forcecommand
 # 01 Nov 26  S.95: the PAM module, root's, outside /usr/local/sdsys (which the sdsys user owns) and written by nobody but root.  sshd loads it by this path, and
-#            ssh-forcecommand --open-sdsys refuses to put it in the PAM stack unless it is a plain file, root's, not writable by group or other.  restorecon where SELinux
-#            is: a module sshd may not load would fail the sign-in of sdsys alone (the PAM line is guarded to that user).
+#            ssh-forcecommand --open-sdsys refuses to put it in the PAM stack unless it is a plain file, root's, not writable by group or other.
+# 02 Nov 26  S.105: the restorecon line (Fedora's SELinux label) is removed with Fedora; Debian and Ubuntu use AppArmor and ship no restorecon.
 # PAMMODULE-BEGIN
 if [ "$pam_module_built" = 1 ]; then
     echo "Installing SD's PAM module: /usr/local/lib/sd/pam_sdtotp.so."
@@ -1214,7 +1223,6 @@ if [ "$pam_module_built" = 1 ]; then
     sudo install -d -o root -g root -m 0755 /etc/sdcore          # sd-totp makes /etc/sdcore/totp (0700) itself, and only that last directory
     if sudo install -o root -g root -m 0644 bin/pam_sdtotp.so /usr/local/lib/sd/pam_sdtotp.so; then
         pam_module_installed=1
-        if command -v restorecon >/dev/null 2>&1; then sudo restorecon -R /usr/local/lib/sd >/dev/null 2>&1 || true; fi
     else
         echo "WARNING: could not install /usr/local/lib/sd/pam_sdtotp.so; sdsys cannot be let in over ssh."
     fi
@@ -2902,6 +2910,8 @@ fi
 #   even though the ufw call itself was already safely guarded.  $have_ufw was
 #   computed once, earlier, alongside the package install.
 #   04 Oct 2026: the rule may be firewalld's now; $fw_tool names which.
+#   02 Nov 2026 - S.105: Debian and Ubuntu only now; the messages stand, since
+#   either may have ufw, firewalld or no firewall at all.
 if [ "$allow_ssh" = "y" ]; then
     if [ "$fw_tool" != none ]; then
         echo "ssh access: ENABLED - sshd runs at boot; a $fw_tool allow rule for 22 was added."

@@ -348,14 +348,10 @@ fi
 sudo rm -f /usr/share/nano/sdbasic.nanorc
 echo "Removed /usr/share/nano/sdbasic.nanorc."
 
-# 22 Sep 2026 - the include line the installer appends to /etc/nanorc on a
-#   distribution whose own copy does not already glob /usr/share/nano the way
-#   Debian's does (Arch, Fedora, openSUSE).  Exact-line match only, same as
-#   what was written; a line the machine's owner added themselves is untouched.
-if [ -f /etc/nanorc ] && grep -qxF 'include "/usr/share/nano/sdbasic.nanorc"' /etc/nanorc; then
-    sudo sed -i '\#^include "/usr/share/nano/sdbasic\.nanorc"$#d' /etc/nanorc
-    echo "Removed the sdbasic.nanorc include line from /etc/nanorc."
-fi
+# 02 Nov 2026 - S.105: the block that removed the /etc/nanorc include line (22 Sep
+#   2026) is gone with Fedora.  Older installers wrote that line only on a
+#   distribution whose nanorc does not glob /usr/share/nano as Debian's does
+#   (Arch, Fedora, openSUSE), none of which this release supports; git keeps it.
 
 # --------------------
 # 02 Oct 26  THE API FIREWALL RULE (owner, 2 Oct 2026: the API port is 4247,
@@ -375,16 +371,18 @@ if command -v ufw >/dev/null 2>&1; then
     fi
 fi
 # 04 Oct 26  THE SAME FOR FIREWALLD (owner, 4 Oct 2026), which the installer and
-#            REMOTE.API use where it is the firewall (Fedora, openSUSE).  Read
+#            REMOTE.API use where it is the firewall.  Read
 #            from the saved configuration, as sd-elevate reads it: --permanent,
 #            or firewall-offline-cmd while firewalld is stopped.
+# 02 Nov 26  S.105: kept with Fedora gone - Debian and Ubuntu package firewalld,
+#            and the installer chooses it by what is installed, not by distribution.
 if command -v firewall-cmd >/dev/null 2>&1 || command -v firewall-offline-cmd >/dev/null 2>&1; then
     # Running is asked of systemd: "firewall-cmd --state" is refused by polkit to an
-    # ordinary user (Fedora 44), which would read a running firewalld as stopped.
+    # ordinary user, which would read a running firewalld as stopped.
     if systemctl is-active --quiet firewalld 2>/dev/null; then fwd_live=1; fwd_saved() { sudo firewall-cmd --permanent "$@"; }
     else fwd_live=0; fwd_saved() { sudo firewall-offline-cmd "$@"; }; fi
-    # The EXACT entry, not --query-port: on Fedora Workstation the zone's own
-    # 1025-65535/tcp answers yes for 4247, and removing 4247 then split that range
+    # The EXACT entry, not --query-port: a zone with its own range (Fedora
+    # Workstation's 1025-65535/tcp, measured 4 Oct 2026) answers yes for 4247, and removing 4247 then split that range
     # (measured, 4 Oct 2026) - a hole in a rule SD did not make.
     fwd_rule() { fwd_saved --list-ports 2>/dev/null | tr ' ' '\n' | grep -qx -- "$1"; }
     if fwd_rule 4247/tcp; then

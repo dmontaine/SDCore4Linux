@@ -7,7 +7,7 @@
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsystotp.py [--selftest]
 #
 # NOT MEASURED HERE: that make builds the module on a machine that has the PAM headers (the build is `make pam_sdtotp.so`, shown by test-pam-sdtotp.py), that the real
-# sd-elevate verbs do what the stubs say (test-sd-elevate.py, test-totp-store.py), that restorecon gives the module a context sshd may load (Fedora, the VM), and what a
+# sd-elevate verbs do what the stubs say (test-sd-elevate.py, test-totp-store.py), and what a
 # real terminal shows.  Exit 0 every row passed (or every mutant killed), 1 a row failed, 2 it could not run.
 
 import os

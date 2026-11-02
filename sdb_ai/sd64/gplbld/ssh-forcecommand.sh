@@ -3,6 +3,8 @@
 # ssh-forcecommand.sh - the ssh half of the SD boundary for SD Core for Linux.
 #
 # START-HISTORY:
+# 02 Nov 26 dm S.105 (owner, 2 Nov 2026: Fedora support taken out): comments only; the ssh/sshd unit loop
+#           and the PAM fence are unchanged, both serve Debian and Ubuntu.
 # 01 Nov 26 dm S.95 stage 2b (remote sdsys over ssh; the owner's rulings and the Opus review are in .claude/plan-s95-remote-sdsys.md).  THE sdsys ARM HAS TWO FORMS.  CLOSED (as
 #           ever, and what an install writes): "Match User sdsys / DenyUsers sdsys".  OPEN: a Match User sdsys arm that sets EVERY keyword itself - keyboard-interactive only (the
 #           code, then the password, both through sshd's PAM stack), no password, key, host-based or GSSAPI route, no authorized_keys file, three tries, every kind of forwarding
@@ -92,12 +94,12 @@
 # second half of the door (CPROC and LOGIN refuse a non-local sdsys session,
 # W.6) still holds.
 #
-# NOTHING HERE IS DISTRIBUTION-SPECIFIC, deliberately: the other three distro
-# families come back (owner, 10 Sep 26).  /etc/ssh/sshd_config is the universal
-# OpenSSH path on Linux; the sshd_config.d drop-in directory is NOT universal, so
-# it is not used.  The sshd binary is discovered rather than assumed, and the
-# service is reloaded under both the "ssh" (Debian/Ubuntu) and "sshd"
-# (Arch/Fedora/openSUSE) unit names.
+# NOTHING HERE IS DISTRIBUTION-SPECIFIC, deliberately (Debian and Ubuntu are the
+# supported distributions since S.105, 2 Nov 26).  /etc/ssh/sshd_config is the
+# universal OpenSSH path on Linux; the sshd_config.d drop-in directory is not
+# used.  The sshd binary is discovered rather than assumed, and the service is
+# reloaded under both the "ssh" unit name and the "sshd" alias that Debian's
+# openssh-server also ships.
 #
 # LOCK-OUT-SENSITIVE, so three rules are not optional:
 #   1. A candidate file is validated with `sshd -t -f` BEFORE it replaces the
@@ -331,8 +333,8 @@ validate() {
 reload_sshd() {
   # Only on the real path.  Reload, not restart: existing sessions keep running
   # (so this cannot drop the administrator who is running the install), and new
-  # connections pick up the block.  Both unit names, because the service is
-  # "ssh" on Debian/Ubuntu and "sshd" elsewhere.
+  # connections pick up the block.  Both unit names: the service is "ssh" on
+  # Debian and Ubuntu, and "sshd" is the alias an administrator may know it by.
   local unit
   for unit in ssh sshd; do
     if systemctl is-active --quiet "$unit" 2>/dev/null; then

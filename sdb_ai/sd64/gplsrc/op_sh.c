@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Nov 26 dm  S.96 M4: resolve_name() refuses a name that is a link whose target does not exist (it used to be taken as a new name and judged
+ *               inside the directory, so a write through it created a file wherever the link pointed).  K$PATH.IN and the OS gate both ask it.
  * 24 Oct 26 dm  W.11 F9: every privilege and gate test reads the process's own words (MY_ADMIN, MY_PRIV, MY_GATE: sysseg.h), not the user table entry;
  *               the register and the shared account are under sd_sysdir().
  * 18 Oct 26 dm S.66: the shared account.  shared_root_get() (the account's directory from its register record, a hit kept, a miss retried once a
@@ -210,8 +212,15 @@ Private bool resolve_name(const char *cwd, const char *name, char *resolved) {
      may not contain ".." because there is nothing to resolve it against. */
   tail[0] = '\0';
   for (;;) {
+    struct stat lst;
+
     if (realpath(work, resolved) != NULL)
       break;
+    /* 2 Nov 26 (S.96 M4): a name that is a LINK whose target is not there is not "a file about to be created": a write through it creates
+       the target wherever the link points.  It cannot be judged, so it is refused (the master files page's suite found SD writing a new
+       program through one into another account; the per-account OS gate asks this same function). */
+    if ((lstat(work, &lst) == 0) && S_ISLNK(lst.st_mode))
+      return FALSE;
     p = strrchr(work, '/');
     if (p == NULL)
       return FALSE;
