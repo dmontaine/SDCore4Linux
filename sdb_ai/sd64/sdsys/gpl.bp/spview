@@ -18,6 +18,14 @@
 * 
 * 
 * START-HISTORY:
+* 2 Nov 26 dm   S.99 (the owner, 2 Nov 26: "sp.view yes ed no"): the record view has the full-screen pages' look on a window of at least 140 by 43
+*               (a bigger one is used whole): the bar on row 0 with the file and the record at the left and "sp.view  user@account" at the right,
+*               the record's lines from row 1, then the prompt line, the status line (reverse), a border and a function-key row made from a key
+*               table by $tk_keys and $tk_fkeys (as the debugger's foot is), all drawn by $sl_put in the site's theme (SCREENTHEME, else classic;
+*               mono on a terminal with no colour), which is given back when the record is left.  The keys, the prompts, the spool form and the
+*               pick list are as they were; a smaller window, or no terminal, keeps the old layout exactly.  On a terminal the window is looked
+*               at once a second while a key is awaited, and the page is laid out again when it changes (look.able, get.key, set.look).  A
+*               control character in a record is shown, not sent, in the new layout ($sl_put).
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 27 Oct 26 dm  S.87 batch 16: BY field NO.CASE no longer switches on OPTION QUERY.SORT.NO.CASE (the option is gone); sort.list.no.case sorts the
 *               selected list again on the upper-cased value of the field.  NOT RUN when written (testing was suspended): sandbox-oq2.py has the rows.
@@ -52,6 +60,11 @@ $include err.h
 $include int$keys.h
 $include keys.h
 $include keyin.h
+$include sl.h
+$include tk.h
+
+$define LAY.WIDTH    140         ;* 2 Nov 26 (S.99): the record view has the pages' look on a window this wide ...
+$define LAY.DEPTH     43         ;* ... and this deep, or bigger (used whole); below it, the old layout
 
    deffun edit_msg(emk) calling '!edit_msg'       ;* 18 Oct 26 dm, S.66
 
@@ -63,6 +76,16 @@ $include keyin.h
    prompt.line = @crthigh - 1
    info.line = @crthigh - 2
    info.fmt = (@crtwide - 1) : 'L'
+
+   * 2 Nov 26 dm (S.99): the pages' look needs a terminal whose size the kernel can read (not a pipe, a phantom or the API) and that can
+   * address a cell.  Without one, everything is as it was.
+   look.able = (kernel(K$WINSIZE, '') # '' and terminfo('cup') # '')
+   look = @false
+   themed = @false
+   view.w = @crtwide
+   data.row = 0
+   last.w = -1
+   last.h = -1
 
    call @parser(PARSER$RESET, 0, @sentence, 0)
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword) ;* Verb
@@ -277,6 +300,9 @@ show.item:
 
    num.lines = dcount(rec, @fm)
 
+   if look.able then gosub theme.in       ;* 2 Nov 26 (S.99): the site's theme while a record is shown (given back below)
+   gosub set.look
+
    data.offset = 0
    pan = 1
    gosub show.data.page
@@ -292,18 +318,27 @@ show.item:
       if more.right then data.prompt := 'Right/'
       data.prompt := 'Top/Bottom/Spool/X-delete/Quit: '
 
-      display @(0, info.line) : @(-13) : fmt(info.text, info.fmt) :
-      display @(0,prompt.line) : fmt(data.prompt, info.fmt) : @(-14) :
+      if look then
+         call $sl_put(scr, 0, info.line, fmt(info.text[1, lay.w], lay.w : 'L'), rev.attr)   ;* the status line
+         call $sl_put(scr, 0, prompt.line, fmt(data.prompt[1, lay.w], lay.w : 'L'), bar.attr)
+      end else
+         display @(0, info.line) : @(-13) : fmt(info.text, info.fmt) :
+         display @(0,prompt.line) : fmt(data.prompt, info.fmt) : @(-14) :
+      end
       display @(len(data.prompt), prompt.line) :
 
-      c = upcase(keycode())
+      gosub get.key
+      if k.relaid then                     ;* the window changed: laid out again for its new size, and drawn
+         gosub show.data.page
+         continue
+      end
+      c = upcase(c)
       gosub map.keys
 
       begin case
          case c = 'Q'
             prompt.text = sysmsg(7136) ;* Press return to quit, any other key to continue
-            display @(0,prompt.line) : @(-13) : fmt(prompt.text, info.fmt) : @(-14) :
-            display @(len(prompt.text), prompt.line) :
+            gosub say.prompt
             if seq(keycode()) = K$RETURN then exit
 
          case (c = 'P' or c = 'U') and data.offset > 0
@@ -323,11 +358,11 @@ show.item:
             gosub show.data.page
 
          case c = 'R' and more.right
-            pan += @crtwide - 20
+            pan += view.w - 20
             gosub show.data.page
 
          case c = 'L' and pan > 1
-            pan -= @crtwide - 20
+            pan -= view.w - 20
             if (pan < 1) then pan = 1
             gosub show.data.page
 
@@ -345,6 +380,135 @@ show.item:
       end case
    repeat
 
+   if themed or look then gosub theme.out   ;* 2 Nov 26 (S.99): the theme given back, and a plain screen for the pick list or TCL
+
+   return
+
+* ======================================================================
+* 2 Nov 26 dm (S.99) - SET.LOOK  -  The layout for the window as it is now.  look: the pages' look, on a window of at least LAY.WIDTH by
+*   LAY.DEPTH (a bigger one is used whole): row 0 the bar, the record's lines from row 1 (data.row), then the prompt line, the status line, the
+*   border and the key row.  Otherwise the layout SP.VIEW always had: the lines from row 0, the status line and the prompt line at the foot of
+*   the display SD has (@CRTWIDE by @CRTHIGH), in reverse video.
+
+set.look:
+   call $sl_window(win.w, win.h)
+   last.w = win.w
+   last.h = win.h
+   look = (look.able and win.w >= LAY.WIDTH and win.h >= LAY.DEPTH)
+   if look then
+      lay.w = win.w
+      lay.h = win.h
+      view.w = lay.w
+      data.row = 1
+      data.lines.per.page = lay.h - 5
+      prompt.line = lay.h - 4
+      info.line = lay.h - 3
+      border.line = lay.h - 2
+      key.line = lay.h - 1
+      call $sl_scr('get', scr)          ;* a context of this program's own, the size of the display; the library's own is not written back
+      scr<SL.S.CLIP> = ''
+   end else
+      view.w = @crtwide
+      data.row = 0
+      data.lines.per.page = @crthigh - 4
+      prompt.line = @crthigh - 1
+      info.line = @crthigh - 2
+      info.fmt = (@crtwide - 1) : 'L'
+   end
+   return
+
+* GET.KEY  -  One key, in c.  On a terminal the window is looked at once a second while the key is awaited: when its size has changed, the
+*   page is laid out for the new size (set.look), k.relaid is true and c is null, and the caller draws the page again.
+get.key:
+   k.relaid = @false
+   if not(look.able) then
+      c = keycode()
+      return
+   end
+   loop
+      c = keycode(1)
+      k.st = status()
+   until c # '' or k.st # ER$TIMEOUT
+      call $sl_window(win.w, win.h)
+      if win.w # last.w or win.h # last.h then
+         gosub set.look
+         display @(-1) :
+         k.relaid = @true
+         return
+      end
+   repeat
+   return
+
+* THEME.IN / THEME.OUT  -  The screen library's theme while a record is shown, chosen as the debugger chooses its own: the theme in force is
+*   kept unless it is mono (as it is at TCL); then the site's theme (SCREENTHEME in sd.conf), and if that names none, or is mono, or this
+*   terminal cannot show it, the classic theme; a terminal with no colour keeps mono.  THEME.OUT puts the theme back and clears the screen in
+*   the plain style, for the pick list and for TCL.
+theme.in:
+   call $sl_theme('name', '', '', '', '', old.theme)
+   themed = @false
+   if old.theme = '' or old.theme = 'mono' then
+      site.theme = downcase(trim(config('SCREENTHEME')))
+      th.r = 2
+      if site.theme # '' and site.theme # 'mono' then call $sl_theme('set', site.theme, '', '', '', th.r)
+      if th.r # 0 then call $sl_theme('set', 'classic', '', '', '', th.r)
+      if th.r = 0 then themed = @true
+   end
+   bar.attr = 'a'                        ;* bar: the bar, the prompt line and the key row
+   text.attr = 't'                       ;* text: the record's lines and the border
+   call $sl_theme('code', 'reverse', '', '', '', rev.attr)      ;* the status line
+   return
+
+theme.out:
+   if themed then
+      call $sl_theme('set', old.theme, '', '', '', th.r)
+      if old.theme = '' or th.r # 0 then call $sl_theme('set', 'mono', '', '', '', th.r)
+      themed = @false
+   end
+   call $sl_sgr('n', sq)
+   display sq : @(-1) :
+   look = @false
+   return
+
+* PAINT.FRAME  -  The bar (row 0) and the foot (the border and the key row) in the pages' look.  The status line and the prompt line are the
+*   command loop's.  The key row is made from a key table by $tk_keys and $tk_fkeys, as the debugger's foot is; its table lists only keys the
+*   command loop acts on (map.keys and the case c = lines).
+paint.frame:
+   pf.app = 'sp.view  ' : @logname : '@' : @who : ' '
+   pf.left = file.name : '  ' : item.name
+   pf.w = lay.w - len(pf.app)
+   call $sl_put(scr, 0, 0, fmt(pf.left[1, pf.w - 1], pf.w : 'L'), bar.attr)
+   call $sl_put(scr, pf.w, 0, pf.app[1, len(pf.app)], bar.attr)    ;* a copy: $sl_put cuts the text it is given
+   call $sl_line('h', 0, pf.hc)
+   call $sl_put(scr, 0, border.line, str(pf.hc, lay.w), text.attr)
+   kr.keys = ''
+   call $tk_keys('add', kr.keys, 'pgdn', 'next', 'next', '', '')
+   call $tk_keys('add', kr.keys, 'pgup', 'previous', 'previous', '', '')
+   call $tk_keys('add', kr.keys, 'home', 'top', 'top', '', '')
+   call $tk_keys('add', kr.keys, 'end', 'bottom', 'bottom', '', '')
+   call $tk_keys('add', kr.keys, 'left', 'scroll left', 'left', '', '')
+   call $tk_keys('add', kr.keys, 'right', 'scroll right', 'right', '', '')
+   call $tk_keys('add', kr.keys, 's', 'spool', 'spool', '', '')
+   call $tk_keys('add', kr.keys, 'x', 'delete', 'delete', '', '')
+   call $tk_keys('add', kr.keys, 'q', 'quit', 'quit', '', '')
+   kr.ctx = ''
+   kr.ctx<TK.C.W> = lay.w
+   call $tk_fkeys(kr.ctx, kr.keys, '', key.row)
+   call $sl_put(scr, 0, key.line, key.row, bar.attr)
+   return
+
+* SAY.PROMPT / SAY.NOTE  -  prompt.text on the prompt line (in reverse video, or in the bar style in the pages' look); SAY.PROMPT puts the
+*   cursor after it.
+say.prompt:
+   gosub say.note
+   display @(len(prompt.text), prompt.line) :
+   return
+
+say.note:
+   if look then
+      call $sl_put(scr, 0, prompt.line, fmt(prompt.text[1, lay.w], lay.w : 'L'), bar.attr)
+   end else
+      display @(0,prompt.line) : @(-13) : fmt(prompt.text, info.fmt) : @(-14) :
+   end
    return
 
 * ======================================================================
@@ -361,26 +525,25 @@ delete.item:
    if not(kernel(K$EDIT.OK, edit.p)) then
       edit.kind = kernel(K$EDIT.KIND, edit.p)
       prompt.text = edit_msg(edit.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file, 11513 shared record, 11514 shared structure
-      display @(0,prompt.line) : @(-13) : fmt(prompt.text, info.fmt) : @(-14) :
+      gosub say.note
       c = keycode()
       return
    end
 
    prompt.text = sysmsg(11105, item.name, file.name) ;* Delete xx from xx (Y/N)?
-   display @(0,prompt.line) : @(-13) : fmt(prompt.text, info.fmt) : @(-14) :
-   display @(len(prompt.text), prompt.line) :
+   gosub say.prompt
    if upcase(keycode()) # 'Y' then return
 
    readvu dummy from data.f, item.name, 0 locked
       prompt.text = sysmsg(11073, item.name) ;* Record 'xx' is locked by another user and was not deleted
-      display @(0,prompt.line) : @(-13) : fmt(prompt.text, info.fmt) : @(-14) :
+      gosub say.note
       c = keycode()
       return
    end then
       delete data.f, item.name
       on error
          prompt.text = sysmsg(3222, status(), item.name) ;* Error xx deleting record xx
-         display @(0,prompt.line) : @(-13) : fmt(prompt.text, info.fmt) : @(-14) :
+         gosub say.note
          release data.f, item.name
          c = keycode()
          return
@@ -398,6 +561,21 @@ delete.item:
 
 show.data.page:
    more.right = @false
+   if look then                    ;* 2 Nov 26 (S.99): the pages' look - the bar, the lines from row 1 in the text style, the foot
+      gosub paint.frame
+      for i = 1 to data.lines.per.page
+         j = i + data.offset
+         s = ''
+         if j <= num.lines then
+            s = rec<j>
+            if len(s) >= pan + view.w then more.right = @true
+            s = s[pan, view.w]
+         end
+         call $sl_put(scr, 0, data.row + i - 1, s : space(view.w - len(s)), text.attr)
+      next i
+      return
+   end
+
    for i = 1 to data.lines.per.page
       display @(0,i-1) : @(-4) :
       j = i + data.offset

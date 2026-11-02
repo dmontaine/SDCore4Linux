@@ -180,7 +180,6 @@ MUTANTS = [
     ("sd-accounts-from-entry", "op_sh.c", "return MY_PRIV(USR_SD_ACCOUNTS) &&", "return (my_uptr->flags & USR_SD_ACCOUNTS) &&"),
     ("net-gate-from-entry", "netfiles.c", "return MY_ADMIN() || MY_GATE(UG_NET);", "return ((my_uptr->flags & USR_ADMIN) != 0) || MY_GATE(UG_NET);"),
     ("object-admin-from-entry", "object.c", "!(flags & OBJ_GLOBAL) && !MY_ADMIN())", "!(flags & OBJ_GLOBAL) && !(my_uptr->flags & USR_ADMIN))"),
-    ("masters-admin-from-entry", "masters.c", "bool admin = (my_uptr != NULL) && MY_ADMIN();", "bool admin = (my_uptr != NULL) && ((my_uptr->flags & USR_ADMIN) != 0);"),
     ("sh-setter-only-segment", "op_kernel.c", "SET_MY_PRIV(USR_SH, n > 0);", "if (n > 0) my_uptr->flags |= USR_SH; else my_uptr->flags &= ~USR_SH;"),
     ("os-getter-from-entry", "op_kernel.c", "result.data.value = MY_PRIV(USR_OS_EXEC);", "result.data.value = (my_uptr->flags & USR_OS_EXEC) != 0;"),
     ("net-getter-from-entry", "op_kernel.c", "        result.data.value = MY_GATE(UG_NET);\n        break;", "        result.data.value = (my_uptr->gates & UG_NET) != 0;\n        break;"),

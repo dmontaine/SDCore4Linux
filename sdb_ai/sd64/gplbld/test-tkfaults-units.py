@@ -181,7 +181,8 @@ def checks(raw):
        and cf.count("boxtitle") == 4 and ordered(cf, "ttl = sysmsg(11812)", "if not(unassigned(boxtitle)) then if boxtitle # '' then ttl = boxtitle end", "screen msgbox body title ttl buttons", "tt = ttl", "screen ask pr width fw title tt")
        and cf.count("sysmsg(11812)") == 1 and "title sysmsg(11812)" not in cf and " and boxtitle" not in cf and " or boxtitle" not in cf, "")
     want = {("tool_query", "do.save"): ["sysmsg(11952)", "sysmsg(11952)"], ("tool_query", "delete.selected"): ["sysmsg(11953)"],
-            ("tool_bulk", "do.apply"): ["sysmsg(11954)"], ("tool_bulk", "do.undo"): ["sysmsg(11955)"]}
+            ("tool_bulk", "do.apply"): ["sysmsg(11954)"], ("tool_bulk", "do.undo"): ["sysmsg(11955)"],
+            ("tool_entries", "delete.reached"): ["sysmsg(11953)"]}      # S.96 M3 (2 Nov 26): D deletes the record itself, after the id is typed
     got = {}
     bad_count = []
     for page, text in (("tool_dict", td), ("tool_query", tq), ("tool_bulk", tb)):

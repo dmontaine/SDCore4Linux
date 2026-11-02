@@ -27,6 +27,9 @@
 *               the header tiles on the last two columns, and the resize made by $tk_layout 'refresh' in place of the page's own copy of the frame's rules.  At 140 by 43
 *               every cell is where it was.
 * 29 Oct 26 dm  S.88 g-P1: the Record editor tile (ced) is gone with the verb; the fields of a record are the IDE's F12.  The Tools group keeps Editor and IDE.
+* 02 Nov 26 dm  S.102: a Scheduled jobs tile (tool.jobs) in People and access, the fourth there, so the band keeps its two rows (test-home-units H28).
+* 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired.  The Master files tile opens tool.entries (every account's entries by pointer), in place of
+*               tool.masters, and has no live line (it asked the kernel's master-file journal, which is gone).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -306,11 +309,12 @@ build.page:
       id = 'accounts' ; grp = g ; label = 'Accounts' ; glyph = '(@)' ; sub = 'create and manage' ; act = 'cmd:tool.accounts' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       id = 'sessions' ; grp = g ; label = 'Sessions and locks' ; glyph = '[~]' ; sub = 'who is on' ; act = 'cmd:tool.sessions' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       id = 'gates' ; grp = g ; label = 'Gates' ; glyph = '[#]' ; sub = 'what accounts may do' ; act = 'cmd:tool.gates' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      id = 'jobs' ; grp = g ; label = 'Scheduled jobs' ; glyph = '[:]' ; sub = 'what runs when' ; act = 'cmd:tool.jobs' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       * the data copies, the doors to other machines, and the AI
       g += 1
       gr<g> = 'Data, network and AI' : @vm : bnd : @vm : 2
       id = 'backups' ; grp = g ; label = 'Backups' ; glyph = '[<]' ; sub = 'save and restore' ; act = 'cmd:tool.backups' ; pal = 'blue' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
-      id = 'masters' ; grp = g ; label = 'Master files' ; glyph = '[M]' ; sub = 'shared copies' ; act = 'cmd:tool.masters' ; pal = 'blue' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      id = 'entries' ; grp = g ; label = 'Master files' ; glyph = '[M]' ; sub = 'every account' ; act = 'cmd:tool.entries' ; pal = 'blue' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       id = 'remote' ; grp = g ; label = 'Remote servers' ; glyph = '[>]' ; sub = 'doors and files' ; act = 'cmd:tool.remote' ; pal = 'blue' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       id = 'ai' ; grp = g ; label = 'AI' ; glyph = '(*)' ; sub = 'model and key' ; act = 'cmd:tool.ai' ; pal = 'violet' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    end
@@ -694,7 +698,7 @@ draw.clock:
 * ------------------------------------------------------------------------------------------------- live lines
 
 * A tile may carry one short live line in place of its sub line (plan 13.1).  Only the administrator's page has any: how many accounts there are, how many sessions are
-* signed on, what the master files' journal holds.  Each is a question the page could ask on its own screen and each only reads.  They are read when the page is built
+* signed on.  Each is a question the page could ask on its own screen and each only reads.  They are read when the page is built
 * (the first time and on F5) and when the key wait runs out (30 seconds); live.chg holds the tiles whose line is not the one it was.
 live.read:
    live.chg = ''
@@ -708,8 +712,6 @@ live.read:
             gosub live.accounts
          case lid = 'sessions'
             gosub live.sessions
-         case lid = 'masters'
-            gosub live.masters
       end case
       if txt # tl<i, HT.LIVE> then
          tl<i, HT.LIVE> = txt
@@ -737,20 +739,6 @@ live.sessions:
    txt = n : ' signed on'
    call !sdsysn(sdn, sdids, sdmine, sdtty)                      ;* S.76: SDSYS on a terminal in more than one place is said on the tile (the tile is 19 characters wide)
    if sdn > 1 then txt = n : ' signed, ' : sdn : ' sdsys'
-   return
-
-live.masters:
-   ans = kernel(K$MASTERS, 'ready')
-   if ans<2> # 1 then
-      txt = 'not set up'
-   end else
-      ans = kernel(K$MASTERS, 'pending')
-      if ans<1> = 0 and ans<4> > 0 then
-         txt = ans<4> : (if ans<4> = 1 then ' line pending' else ' lines pending')
-      end else
-         txt = 'nothing pending'
-      end
-   end
    return
 
 * The key wait ran out: read the lines again and draw only the tiles whose line changed

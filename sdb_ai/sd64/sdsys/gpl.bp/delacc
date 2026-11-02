@@ -18,6 +18,7 @@
 *
 *
 * START-HISTORY:
+* 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; the account's copies are no longer dropped (there are none).
 * 28 Oct 26 dm  S.87: multifiles are gone; the cross-reference scan looks at the first value of field 2 of an F record and not at every value.
 * 19 Oct 26 dm  S.67 stage 1: after the register delete the account's master copies are dropped (kernel(K$MASTERS, 'drop')).
 * 18 Oct 26 dm  S.66: DELETE.ACCOUNT shared is refused (11517), after the SDSYS test and before anything else is read or asked.
@@ -453,10 +454,6 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   only a deletion that completed is recorded.
 * 07 Oct 26 dm - PAL-24: the command word is lower case.
    void kernel(K$AUDIT, 'delete.account account=' : acc.name)
-
-*  19 Oct 26 dm - S.67 stage 1: the account's copies in voc_master, dict_master and master_state go with it.  After the register delete, like the
-*  audit line, so that only a deletion that completed is followed; a system whose master files are not set up answers status 1 and nothing is done.
-   void kernel(K$MASTERS, 'drop' : @fm : downcase(acc.name))
 
    @system.return.code = 0
    return

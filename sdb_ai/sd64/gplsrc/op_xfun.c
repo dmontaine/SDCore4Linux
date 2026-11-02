@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; x_ospath() key 5 no longer calls masters_note_name() (gone with masters.c).
  * 30 Oct 26 dm  S.66: OSPATH() keys 5, 13 and 14 (delete, make a directory, make a path) inside the shared account are refused for anybody but SDSYS, as the $internal OSPATH has
  *               done since 18 Oct (an account that holds os-on was not stopped by anything else).
  * 28 Oct 26 dm  S.87: the PMATRIX descriptor type is gone.
@@ -1054,7 +1055,6 @@ Private void x_ospath() {
         value = (rmdir(path) == 0);
       else
         value = (unlink(path) == 0);
-      masters_note_name(path, 'x'); /* 19 Oct 26 S.67: an (empty) dictionary directory removed; the path need not exist any more */
       break;
 
     case 6: /* Is it open in SD? */

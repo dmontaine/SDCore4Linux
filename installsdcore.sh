@@ -2330,8 +2330,7 @@ fi
 
 # 1 Nov 26 dm - S.103 (the owner's ruling, reversing the F6 ruling of 26 Oct): THE sdsys USER IS IN THE GROUP OF EVERY USER ACCOUNT AS DELIVERED.  sdsys_groups_default (above)
 #            puts it in the group of the accounts that are already there, once, and records that in the marker /home/sd/$sdsys.access; a new account gets it from create.account.
-#            It says what it did, and warns without stopping the install.  It runs before the master files are filled so that the first CHECK.MASTERS counts the accounts
-#            whose master edits are on.
+#            It says what it did, and warns without stopping the install.  (Until 2 Nov 26 it ran before the master files were filled; S.96 M6 retired them.)
 echo
 echo "Putting the sdsys user in the groups of the user accounts."
 sdsys_groups_default "$ACCT_PATH/\$sdsys.access"
@@ -2341,26 +2340,26 @@ if [ "${open_gates:-n}" = y ] && [ -d "/home/sd/user_accounts/${tuser_lc}" ]; th
     open_installer_sdsys "$tuser" "$tuser_lc"
 fi
 
-# 19 Oct 26 dm - S.67 stage 1 (owner, 17 Oct 2026).  THE MASTER FILES ARE SET UP AND FILLED, every install, kept accounts or not.  voc_master and
-#            dict_master (in the SDSYS account) hold a copy of every account's VOC records and dictionary records, master_state their checksums, and
-#            $master.journal is where the file-change hook writes the keys of what changed until SDSYS next opens a master file.  upgrade_masters makes
-#            them (!masters_setup), sets their modes (0700 and 0600, owned by the sdsys user alone) and copies every registered account into them.  It runs here, as the
-#            root session of the install, after the accounts have been brought forward (the copy then holds the finished VOCs) and before the register is
-#            handed to sdsys.  It prints COMPLETE on a line of its own when every account was copied; a run that did not is reported and the install goes
-#            on, because nothing else depends on the master files and the next install, or SYNC.MASTERS as SDSYS, does it again.
-echo
-echo "Setting up the master files and copying every account's VOC and dictionaries into them."
-om_rc=0
-om_out=$(sudo "$sdsysdir/bin/sd" -internal RUN gpl.bp upgrade_masters 2>&1) || om_rc=$?
-printf '%s\n' "$om_out"
-om_plain=$(printf '%s\n' "$om_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')
-if [ "$om_rc" -ne 0 ] || ! printf '%s\n' "$om_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
-    printf "%b\n" "$RED"
-    echo "WARNING: the master files were not all set up or filled."
-    echo "  Nothing else is affected.  Run this installer again, or sign on as sdsys and run:"
-    echo "      sync.masters"
-    printf "%b\n" "$NC"
+# 2 Nov 26 dm - S.96 M6 (owner, 2 Nov 2026: "retire").  THE MASTER-FILE COPIES OF S.67 ARE RETIRED: tool.entries edits every account's own records in place, and nothing
+#            makes or fills voc_master, dict_master, master_state or $master.journal any more.  An upgrade (deletesdcore.sh, then this installer) already starts from an
+#            empty SDSYS directory, so the files are normally gone; this block removes whatever of them is still there under the exact names, never following a link
+#            (rm -rf of a link removes the link), and says so.  Nothing else is touched.  test-install-retiredmasters.sh holds it to that.
+# RETIREDMASTERS-BEGIN
+retired_masters_dir="$sdsysdir"
+retired_masters_gone=0
+for retired_masters_name in voc_master voc_master.dic dict_master dict_master.dic master_state master_state.dic '$master.journal'; do
+    if sudo test -e "$retired_masters_dir/$retired_masters_name" || sudo test -L "$retired_masters_dir/$retired_masters_name"; then
+        if sudo rm -rf -- "$retired_masters_dir/$retired_masters_name"; then
+            retired_masters_gone=$((retired_masters_gone + 1))
+        else
+            echo "WARNING: could not remove $retired_masters_dir/$retired_masters_name (the retired master files); remove it by hand."
+        fi
+    fi
+done
+if [ "$retired_masters_gone" -gt 0 ]; then
+    echo "Removed $retired_masters_gone file(s) of the retired master-file copies from $retired_masters_dir."
 fi
+# RETIREDMASTERS-END
 
 # 18 Sep 26 dm - TEARDOWN (S.26).  THE REGISTER BELONGS TO THE ADMINISTRATOR.
 #            Records are sdsys:sdusers 644: a local sdsys session writes them

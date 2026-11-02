@@ -18,6 +18,8 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; the journal note of a new VOC or dictionary goes with masters.c, and the group
+ *               write that masters_fix_modes gave a new VOC or dictionary is KEPT, moved here as acct_group_modes() (tool.entries needs it).
  * 19 Oct 26 dm  S.67 stage 2: and calls masters_fix_modes() (a new VOC or dictionary is given its group's write bit where the account's directory has it).
  * 19 Oct 26 dm  S.67 stage 1: a created VOC or dictionary calls masters_note_name() (journalled for the master files).
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
@@ -33,6 +35,20 @@
 
 #include "sd.h"
 #include "dh_int.h"
+
+#include <ctype.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <grp.h>
+#include <limits.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <string.h>
+#include <strings.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+Private void acct_group_modes(const char *path);
 
 /* ====================================================================== */
 
@@ -225,12 +241,10 @@ bool dh_create_file(char path[],
 
   status = TRUE;
 
-  /* 19 Oct 26 S.67: a VOC or a dictionary was made (any other file is none of the master files' business) */
-  masters_note_name(path, 'n');
-
-  /* 19 Oct 26 S.67 stage 2: and the group of the account may write it, where the account's own directory lets that group write (whatever the UMASK
-     of this session): SDSYS, a member of the group, writes master edits into the VOC and the dictionaries.  Never an error. */
-  masters_fix_modes(path);
+  /* 19 Oct 26 S.67 stage 2, kept by S.96 M6 (2 Nov 26): the group of the account may write a new VOC or dictionary, where the account's own directory
+     lets that group write (whatever the UMASK of this session): SDSYS, a member of the group, edits the account's VOC and dictionaries in place
+     (tool.entries).  Never an error. */
+  acct_group_modes(path);
 
 exit_dh_create_file:
   if (status == FALSE) {
@@ -245,6 +259,148 @@ exit_dh_create_file:
   }
 
   return status;
+}
+
+/* ======================================================================
+   THE MODES OF A NEW VOC OR DICTIONARY (S.67 stage 2, masters_fix_modes; moved here unchanged in what it does by S.96 M6, 2 Nov 26, when masters.c
+   was retired: tool.entries writes into an account's own VOC and dictionaries as SDSYS, a member of the account's group, and needs what this gives).
+
+   A VOC or a dictionary that has just been made is given group write - the directory g+rwx and setgid, %0 and %1 g+rw - where the account's directory
+   has it, so that SDSYS (a member of the group) can write into it whatever the UMASK of the session that made it.  Only the GROUP bits are added,
+   nothing is taken away and the other bits are not touched.  The rule is the account directory's own: if its group may write there, the group may
+   write the VOC and the dictionaries, which it could already delete and make again; if the group may not (a directory of 755), nothing is added.
+   Done on descriptors opened with O_NOFOLLOW and fchmod, so a link put in the place of the new directory by somebody else cannot aim the chmod at
+   another file; only what this process made (owner = the effective user) and what has the account directory's group is changed.  And only where
+   the sdsys user is in the account directory's group (F6, C2).  A refusal changes nothing and is not an error.  The account of the path is the
+   registered account whose directory is the nearest prefix of it (the register, <sysdir>/accounts/<name>, line 1 the path), read at each call:
+   a VOC or a dictionary is made seldom.                                                                                                       */
+
+#define ACCT_SDSYS_USER "sdsys"
+
+/* is the sdsys user in the group GID - its own primary group, or a name in the group's member list?  TRUE when there is no sdsys user on the machine
+   (a sandbox on a machine with no install) */
+Private bool acct_sdsys_in_group(gid_t gid) {
+  struct passwd *pw = getpwnam(ACCT_SDSYS_USER);
+  struct group *gr;
+  char **m;
+
+  if (pw == NULL)
+    return TRUE;
+  if (pw->pw_gid == gid)
+    return TRUE;
+  if ((gr = getgrgid(gid)) == NULL)
+    return FALSE;
+  for (m = gr->gr_mem; (m != NULL) && (*m != NULL); m++) {
+    if (strcmp(*m, ACCT_SDSYS_USER) == 0)
+      return TRUE;
+  }
+  return FALSE;
+}
+
+Private bool acct_valid_name(const char *n) {
+  size_t i, len = strlen(n);
+
+  if ((len == 0) || (len > MAX_ACCOUNT_NAME_LEN))
+    return FALSE;
+  for (i = 0; i < len; i++) {
+    unsigned char c = (unsigned char)n[i];
+
+    if (!(((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) || ((c >= '0') && (c <= '9')) || (c == '.') || (c == '_') || (c == '-')))
+      return FALSE;
+  }
+  return TRUE;
+}
+
+/* the directory (as the OS resolves it) of the registered account that holds CANON, the nearest one, into ROOT; REL is set to the part of CANON
+   below it.  FALSE when no registered account holds it. */
+Private bool acct_root_for_path(const char *canon, char *root, size_t rootsz, const char **rel) {
+  char regdir[MAX_PATHNAME_LEN + 1];
+  char recpath[MAX_PATHNAME_LEN * 2 + 2];
+  char body[4096];
+  char real[PATH_MAX + 1];
+  DIR *d;
+  struct dirent *ent;
+  FILE *fp;
+  size_t got, n, best = 0;
+  char *p;
+
+  if ((sysseg == NULL) || (snprintf(regdir, sizeof(regdir), "%s%c%s", sd_sysdir(), DS, "accounts") >= (int)sizeof(regdir)))
+    return FALSE;
+  if ((d = opendir(regdir)) == NULL)
+    return FALSE;
+  while ((ent = readdir(d)) != NULL) {
+    if ((ent->d_name[0] == '.') || (ent->d_name[0] == '%') || (strchr(ent->d_name, '/') != NULL) || !acct_valid_name(ent->d_name))
+      continue;
+    if (snprintf(recpath, sizeof(recpath), "%s%c%s", regdir, DS, ent->d_name) >= (int)sizeof(recpath))
+      continue;
+    if ((fp = fopen(recpath, "r")) == NULL)
+      continue;
+    got = fread(body, 1, sizeof(body) - 1, fp);
+    fclose(fp);
+    body[got] = '\0';
+    if ((p = strchr(body, '\n')) != NULL)
+      *p = '\0';
+    n = strlen(body);
+    while ((n > 0) && ((body[n - 1] == '\r') || (body[n - 1] == ' ')))
+      body[--n] = '\0';
+    if ((body[0] != '/') || (n > PATH_MAX) || (realpath(body, real) == NULL))
+      continue;
+    n = strlen(real);
+    while ((n > 1) && (real[n - 1] == '/'))
+      real[--n] = '\0';
+    if ((n <= 1) || (n > MAX_PATHNAME_LEN) || (n >= rootsz) || (n <= best))
+      continue;
+    if ((strncmp(canon, real, n) == 0) && ((canon[n] == '/') || (canon[n] == '\0'))) {
+      memcpy(root, real, n + 1);
+      best = n;
+    }
+  }
+  closedir(d);
+  if (best == 0)
+    return FALSE;
+  *rel = canon + best + ((canon[best] == '/') ? 1 : 0);
+  return TRUE;
+}
+
+Private void acct_group_modes(const char *path) {
+  char full[PATH_MAX + 1];
+  char root[MAX_PATHNAME_LEN + 1];
+  const char *rel, *base;
+  struct stat ra, ds, fs;
+  size_t n;
+  int dfd, ffd, i;
+  static const char *subs[2] = {"%0", "%1"};
+
+  if ((path == NULL) || ((n = strlen(path)) < 3) || (n > MAX_PATHNAME_LEN))
+    return;
+  if (!(((n > 4) && (strcasecmp(path + n - 4, ".dic") == 0)) || (strcasecmp(path + n - 3, "voc") == 0)))
+    return;
+  if (!fullpath(full, (char *)path) || !acct_root_for_path(full, root, sizeof(root), &rel))
+    return;
+  base = strrchr(rel, '/');
+  base = (base == NULL) ? rel : base + 1;
+  n = strlen(base);
+  if (!((strcmp(rel, "voc") == 0) || ((n > 4) && (strcasecmp(base + n - 4, ".dic") == 0))))
+    return;
+  if ((stat(root, &ra) != 0) || !(ra.st_mode & S_IWGRP))
+    return;
+  if (!acct_sdsys_in_group(ra.st_gid)) /* F6 (C2): group write is forced only where the sdsys user is in the group */
+    return;
+  if ((dfd = open(full, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)) < 0)
+    return;
+  if ((fstat(dfd, &ds) != 0) || !S_ISDIR(ds.st_mode) || (ds.st_uid != geteuid()) || (ds.st_gid != ra.st_gid)) {
+    close(dfd);
+    return;
+  }
+  (void)fchmod(dfd, (mode_t)((ds.st_mode & 07777) | S_IRWXG | S_ISGID));
+  for (i = 0; i < 2; i++) {
+    if ((ffd = openat(dfd, subs[i], O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)) < 0)
+      continue;
+    if ((fstat(ffd, &fs) == 0) && S_ISREG(fs.st_mode) && (fs.st_uid == geteuid()) && (fs.st_gid == ra.st_gid))
+      (void)fchmod(ffd, (mode_t)((fs.st_mode & 07777) | S_IRGRP | S_IWGRP));
+    close(ffd);
+  }
+  close(dfd);
 }
 
 /* END-CODE */

@@ -127,7 +127,8 @@ def checks(raw):
        and "if gerr = '' and ainfo<1> = 'USER' then" in block(pg, "read.accounts") and "if cell.api = 'no' and cell.files = 'yes' then" in rl and "bitand(flg, USR$SDNET)" in sl and "bitand(flg, USR$SDVBSRVR)" in sl and "bitand(flg, USR$PHANTOM)" in sl and "inapi = (l[1, 5] = '[api]')" in ra, "")
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
     ck("RM12", "the key table has exactly: help, doors, routes, servers, connected, tls, login, api, ssh, delete, new, codeon, recovery, codeoff, refresh, quit - and the Esc row that opens the menu bar (S.88 U4; it runs nothing); A and S act on the doors view only, X and N on the servers view only, O R F on the login view only",
-       acts == sorted(["help", "doors", "routes", "servers", "connected", "tls", "login", "api", "ssh", "delete", "new", "codeon", "recovery", "codeoff", "refresh", "quit", "menu"]) and "case nm = 'a' and view = 1" in pg and "case nm = 's' and view = 1" in pg and "case nm = 'x' and view = 3" in pg
+       acts == sorted(["help", "doors", "routes", "servers", "connected", "tls", "login", "api", "ssh", "delete", "new", "codeon", "recovery", "codeoff", "refresh", "quit", "menu",
+                       "console"])      # console: L, the console code on / off (S.101 stage D, 2 Nov 26) and "case nm = 'a' and view = 1" in pg and "case nm = 's' and view = 1" in pg and "case nm = 'x' and view = 3" in pg
        and "case nm = 'n' and view = 3" in pg and "case (nm = 'o' or nm = 'r' or nm = 'f') and view = 6" in pg and "case nm >= '1' and nm <= '6' and len(nm) = 1" in pg and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
     dsd = block(pg, "do.sdsys")
     ck("RM16", "S.95 stage 1b, the login view: the three sentences are FIXED words (nothing typed reaches them); ON wants OPEN typed and, like RECOVERY, gives the terminal to the verb (the secret and the codes are shown there and never pass "

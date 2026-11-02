@@ -4,12 +4,17 @@
 #                  release notes give none (owner: "implement the functionality as much as possible - the method or
 #                  syntax can be different than in openQM").  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-oq2.py <dir> [--build]
+#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-oq2.py <dir> [--build] [--only=items,verbs,capture]
+#
+# SECTIONS (--only=, 2 Nov 26): items (the CASES programs), verbs (the commands and subroutines), capture (EXECUTE / OS.EXECUTE ... CAPTURING, op_capture()).  Without
+# --only all three run.
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (needs a `make`d bin/sd).  With --build it is built first from
 # THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 2 Nov 26 dm   The review of S.102 stage 4: section capture (op_capture(): one empty line, and every length that can put the trailing newline alone in a chunk, through
+#               OS.EXECUTE and EXECUTE ... CAPTURING, the session alive after it), and --only= with the sections items, verbs and capture.
 # 30 Oct 26 dm  S.88 A1 (the second Opus review of E2): rows 485e-f.  The same refusal in the OPENSEQ file,record form (a record that is a link to nothing: the ELSE, STATUS() 6032,
 #               the target not made) and for the create that a WRITESEQ makes on the first write of a name the OPENSEQ found to be a link to nothing (the target not made).
 # 30 Oct 26 dm  S.88 stage E2: rows 485b-d next to row 485.  OPENSEQ ... CREATING is exclusive (a dangling link: the ELSE, STATUS() 6032, the target not made), a free name and a
@@ -38,6 +43,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 passed = failed = 0
+SECTIONS = ("items", "verbs", "capture")     # --only=: the CASES programs, the commands and subroutines (run_verbs), and op_capture (run_capture, 2 Nov 26)
 
 CASES = [
     ("CONTROL: a name with one underscore", {}, "a_b = 5\nx = a_b", "5"),
@@ -155,8 +161,11 @@ def write(path, text):
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    if len(args) != 1:
-        bail("usage: sandbox-oq2.py <dir> [--build]")
+    only = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only=")), ",".join(SECTIONS))
+    sections = [s for s in only.split(",") if s]
+    if len(args) != 1 or not sections or any(s not in SECTIONS for s in sections):
+        bail("usage: sandbox-oq2.py <dir> [--build] [--only=%s]" % ",".join(SECTIONS))
+    say("sandbox-oq2: sections %s" % ", ".join(sections))
     box = os.path.abspath(args[0])
     sysd = os.path.join(box, "sys")
     bp = os.path.join(sysd, "bp")
@@ -175,10 +184,11 @@ def main():
 
     # The $BASIC.OPTIONS record is read from the source file of the program being compiled, so a case that has one
     # gets its own source file (a directory file under the account); the others compile from bp.
-    say("\n--- the items -----------------------------------------------------------------")
+    if "items" in sections:
+        say("\n--- the items -----------------------------------------------------------------")
     made = []
     try:
-        for i, (label, files, body, want) in enumerate(CASES + [ERRCASE]):
+        for i, (label, files, body, want) in enumerate((CASES + [ERRCASE]) if "items" in sections else []):
             iserr = (label == ERRCASE[0])
             dirname = "zzoqd%02d" % i if files else None
             if dirname:
@@ -208,7 +218,8 @@ def main():
                 row("%s: wanted %r" % (label, want), got == want, "got %r" % got if m else "no output")
     finally:
         # the VOC pointers of the scratch directory files
-        sess(box, *["DELETE.FILE zzoqd%02d" % i for i in range(len(CASES) + 1)], "DELETE.FILE zzoqlk")
+        if "items" in sections:
+            sess(box, *["DELETE.FILE zzoqd%02d" % i for i in range(len(CASES) + 1)], "DELETE.FILE zzoqlk")
         for p in made:
             if os.path.isdir(p):
                 shutil.rmtree(p)
@@ -220,10 +231,58 @@ def main():
             if f.startswith("zzoq"):
                 os.remove(os.path.join(sysd, "bp.out", f))
 
-    run_verbs(box, sysd, bp)
+    if "verbs" in sections:
+        run_verbs(box, sysd, bp)
+    if "capture" in sections:
+        run_capture(box, bp)
 
     say("\nsandbox-oq2: %d passed, %d failed" % (passed, failed))
     sys.exit(0 if failed == 0 else 1)
+
+
+def run_capture(box, bp):
+    """2 Nov 26 (the review of S.102 stage 4): op_capture() in op_exec.c, which turns what EXECUTE ... CAPTURING and OS.EXECUTE ... CAPTURING caught into fields and takes off
+    the one trailing field mark.  It freed the chunk it took the last field mark from while the chunk BEFORE it still pointed at it (its `prev` was the last chunk itself):
+    the process died when the whole output was one empty line, and memory was used after it was freed when the output filled a chunk (16358 bytes) and the trailing newline
+    began a new one.  Both kinds of capture are run, over every length from 16340 to 16380 bytes and a newline, so one of them puts the newline alone in a chunk; the
+    session must still be there to print its last line."""
+    say("\n--- capture: EXECUTE / OS.EXECUTE ... CAPTURING, one empty line and a newline alone in a chunk ------")
+    w = os.path.join(bp, "zzoqcapw")
+    d = os.path.join(bp, "zzoqcap1")
+    write(w, "   n = field(trim(@sentence), ' ', 4)\n   crt str('a', n)\nend\n")
+    write(d, ("   os.execute 'echo' capturing x\n"
+              "   crt 'K1[':len(x):'/':dcount(x, @fm):']'\n"
+              "   execute 'RUN bp zzoqcapw 0' capturing y\n"
+              "   crt 'K2[':len(y):'/':dcount(y, @fm):']'\n"
+              "   os.execute 'echo one; echo; echo three' capturing z\n"
+              "   crt 'K5[':change(z, @fm, '|'):']'\n"
+              "   bad1 = '' ; bad2 = ''\n"
+              "   for n = 16340 to 16380\n"
+              "      os.execute \"printf '%\":n:\"s\\n' '' | tr ' ' a\" capturing x\n"
+              "      if x # str('a', n) then bad1 := ' ' : n\n"
+              "      execute 'RUN bp zzoqcapw ':n capturing y\n"
+              "      if y # str('a', n) then bad2 := ' ' : n\n"
+              "   next n\n"
+              "   crt 'K3[':trim(bad1):']'\n"
+              "   crt 'K4[':trim(bad2):']'\n"
+              "   crt 'K9[ALIVE]'\n"
+              "end\n"))
+    try:
+        out = sess(box, "BASIC bp zzoqcapw", "BASIC bp zzoqcap1", "RUN bp zzoqcap1")
+        compiled = len(re.findall(r"Compiled 1 program\(s\) with no errors", out)) == 2
+        row("capture: the two probe programs compiled", compiled, out[-300:])
+        row("capture: os.execute of a command that prints one empty line gives an empty value, no field", has(out, r"^K1\[0/0\]\s*$"), out[-300:])
+        row("capture: execute of an SD command that prints one empty line gives an empty value, no field", has(out, r"^K2\[0/0\]\s*$"), out[-300:])
+        row("capture CONTROL: three lines, the middle one empty, are three fields with no trailing mark", has(out, r"^K5\[one\|\|three\]\s*$"), out[-300:])
+        row("capture: os.execute of 16340 to 16380 characters and a newline gives exactly those characters every time (one length puts the newline alone in a chunk)",
+            has(out, r"^K3\[\]\s*$"), out[-300:])
+        row("capture: the same through execute of an SD command", has(out, r"^K4\[\]\s*$"), out[-300:])
+        row("capture: the session is still there after all of it, and no allocator error was printed",
+            has(out, r"^K9\[ALIVE\]\s*$") and not re.search(r"double free|corruption|free\(\)|Segmentation", out), out[-300:])
+    finally:
+        for p in (w, d, os.path.join(bp + ".out", "zzoqcapw"), os.path.join(bp + ".out", "zzoqcap1")):
+            if os.path.exists(p):
+                os.remove(p)
 
 
 def has(out, pat):

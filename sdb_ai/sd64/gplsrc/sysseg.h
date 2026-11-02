@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Nov 26 dm  S.96 M6: the last three fields (masters_flags, masters_failed, masters_dropped) are gone with the master-file copies (S.67).
  * 24 Oct 26 dm  W.11 F9: my_priv_flags, my_priv_gates and their macros (the session's privileges held by the process), sd_sysdir() and
  *               sd_sysdir_trust().  No change of layout.
  * 18 Oct 26 dm  S.66: UG_SHARED_READ (0x0010) and UG_SHARED_WRITE (0x0020) in the gates word, the shared-account gates.  No change of layout.
@@ -126,13 +127,8 @@ struct SYSSEG {
    int16_t phantoms_base;       /* PHANTOMS: lowest user number kept for PHANTOM USER n... */
    int16_t phantoms_range;      /*           ...and how many; 0 = none kept */
    int16_t lock_trace;          /* LOCK.TRACER: 1 while every lock taken or let go is added to the file locktrace */
-   /* 19 Oct 26 dm - S.67 stage 1, the master files (masters.c).  Last, so no offset moves (a segment made by an older build has none of them, which is why
-      they are read only after the restart the installer makes).  Set by any session whose journal write failed, read by SDSYS's verbs. */
-   u_int16_t masters_flags;      /* MST_F_STALE: a journal append failed;  MST_F_RESYNC: the journal was at its size limit and entries were dropped */
-      #define MST_F_STALE   0x0001
-      #define MST_F_RESYNC  0x0002
-   u_int32_t masters_failed;     /* journal appends that failed since SD started */
-   u_int32_t masters_dropped;    /* journal appends dropped because the journal was at its limit */
+   /* 2 Nov 26 dm - S.96 M6: the three fields of S.67's master files (masters_flags, masters_failed, masters_dropped) that were last are gone with
+      masters.c.  Nothing came after them, so no other offset moves. */
 };
 
 Public SYSSEG * sysseg init(NULL);   /* 0234 */

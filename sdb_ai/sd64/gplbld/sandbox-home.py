@@ -340,8 +340,8 @@ def main():
         row("the administrator's first screen has a tile for each of the eleven administrator pages, in the groups System, People and access and Data, network and AI, and Tools and Everyone are on it too (no scrolling)",
             all(l in T for l in adm_labels) and all(t in T for t in ("System", "People and access", "Data, network and AI", "Tools", "Everyone", "My programs", "Editor", "Terminal")), repr([l for l in adm_labels if l not in T]))
         nacc = len([a for a in os.listdir(os.path.join(SYS, "accounts")) if a != "sdsys"])
-        row("the live lines: Accounts says how many accounts there are (%d on the disk, SDSYS not counted), Sessions and locks how many are signed on (the one session), Master files that nothing is set up; each in place of the tile's static line" % nacc,
-            ("%d accounts" % nacc) in T and "1 signed on" in T and "not set up" in T and "create and manage" not in T and "who is on" not in T and "shared copies" not in T, repr(re.findall(r"\d+ accounts|\d+ signed on|not set up|nothing pending", T)))
+        row("the live lines: Accounts says how many accounts there are (%d on the disk, SDSYS not counted), Sessions and locks how many are signed on (the one session); each in place of the tile's static line.  Master files (tool.entries since S.96 M6, 2 Nov 26) has no live line and shows its static line, every account" % nacc,
+            ("%d accounts" % nacc) in T and "1 signed on" in T and "every account" in T and "not set up" not in T and "create and manage" not in T and "who is on" not in T and "shared copies" not in T, repr(re.findall(r"\d+ accounts|\d+ signed on|every account|not set up|nothing pending", T)))
         h2 = H(admin=True)
         h.key("f5", idle=2.0)
         row("a second administrator session signs on and F5 reads the lines again: Sessions and locks now says 2 signed, 2 sdsys (S.76: SDSYS on a terminal in two places is said on the tile; with one it says 1 signed on)",

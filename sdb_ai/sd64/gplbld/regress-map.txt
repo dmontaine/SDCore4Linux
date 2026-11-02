@@ -24,7 +24,7 @@
 # Any kernel or BASIC source with no rule of its own selects these.
 @core = oq2 coll gates q4 func-q1 stmt-q3 mode-q16 bcomp-a1 nocase list-q2
 # the pseudo-terminal suites (a terminal, keys, the screen library)
-@pty = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport sed-small ide-small ide-sed winsize eofkeys idedraw recarr
+@pty = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport sed-small ide-small ide-sed winsize eofkeys idedraw recarr spview
 # the debugger
 @debugger = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase idebrk dbgmain
 # select lists and everything that makes or reads one
@@ -47,7 +47,7 @@
 @editors = cmd-a9 collfile edbug edseqkey option-a4
 # the full-screen toolkit's pages and the home screen (S.88 phase 0, 28 Oct 26: a change of the shared base - tk_*, tk.h, tk_open, sl_*, sl.h, screen_*, sl_key - was verified
 # without one page running, so a green targeted run proved nothing about them; plan T1)
-@pages = home home2 l2-home l2-files tk-faults tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-jobs tool-entries tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test l2-cfg l2-admin l2-misc
+@pages = home home2 l2-home l2-files tk-faults tool-ai tool-gates tool-mygates tool-sessions tool-jobs tool-entries tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test l2-cfg l2-admin l2-misc
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE TEST FILES THEMSELVES.
@@ -84,6 +84,11 @@ gplbld/sandbox-callfile.py   : none
 gplbld/sandbox-tk-base.py    : @self tk-keys @pages ai-line autologout docs ide-fresh lockids menus termsafe tk-layout tk-resize
 gplbld/sandbox-home.py       : @self @pages ai-line autologout docs ide-fresh lockids menus termsafe tk-layout tk-resize
 gplbld/sudo-stub.sh          : @pages ai-line autologout docs ide-fresh lockids menus termsafe tk-base tk-keys tk-layout tk-resize
+# 2 Nov 26 (S.96 M6): the two suites of S.67's master files were deleted with them; a change that deletes or brings back either is this rule's
+gplbld/sandbox-masters.py    : none
+gplbld/sandbox-tool-masters.py : none
+# 2 Nov 26 (S.96 M6): the runtime rows of dh_creat.c's acct_group_modes (the modes of a new VOC or dictionary in a registered account)
+gplbld/sandbox-acctmodes.py  : @self
 gplbld/sandbox-*.py          : @self
 # S.88 L1 (28 Oct 26): sandbox-tk-layout.py takes its expected rectangles from this free check's model of $tk_layout
 gplbld/test-tklayout-units.py : tk-layout l2-files l2-home l2-admin
@@ -111,7 +116,8 @@ gplbld/witness-*             : none
 # gplbld/* and chose the ten @core suites for a change they cannot see.
 # 26 Oct 26 (F12 review): the sandbox suites that call the REAL helper's dry run through the shim of sandbox-filesgrp.py (a fake getent for the groups only an install makes) are the
 # ones a change of the helper's environment handling (SD_PATH_PREPEND, trust_fixtures) can break without a free check seeing it.
-gplbld/sd-elevate            : filesgrp aigate tool-ai tool-gates
+# 2 Nov 26 (S.102 stage 4): tool-jobs' section admin calls the real helper's job-set, job-delete, job-list and job-run dry runs through its own shim.
+gplbld/sd-elevate            : filesgrp aigate tool-ai tool-gates tool-jobs
 gplbld/FILES_DICTS/voc.dic^* : dictfold misc-a9 qproc-a3 nocase
 gplbld/FILES_DICTS/*         : dictfold misc-a9 upgradenocase nocase fixes-b12
 gplbld/pcode_bld.py          : @core
@@ -121,7 +127,8 @@ gplbld/sandbox-gcatmode.py   : @self
 gplbld/sandbox-shmmode.py    : @self
 gplbld/sandbox-segtrust.py   : @self
 # 24 Oct 26 (W.11 F9): sandbox-segtrust loads sandbox-gates (its fixture accounts, ZZKF, prepare()), so a change to that one runs this one too.
-gplbld/sandbox-gates.py      : @self segtrust auditjournal auditwriter
+# 2 Nov 26 (S.99): sandbox-spview's gate section loads it too (prepare(), build_account()).
+gplbld/sandbox-gates.py      : @self segtrust auditjournal auditwriter spview
 # 24 Oct 26 (W.11 F4, C1): sandbox-auditwriter loads sandbox-auditjournal (its journal reader), so a change to that one runs this one too.
 gplbld/sandbox-auditjournal.py : @self auditwriter
 # 1 Nov 26: the AI helper's rules were below the catch-all `gplbld/*` of this block and never matched (a change of `sd-ai` chose the ten @core suites and none of the AI ones); here they come first.
@@ -141,23 +148,23 @@ gplbld/*                     : @core
 # 18 Oct 26, slice 3e (writes and locks on a remote file): op_sh.c (edit_kind_of_net_name), op_kernel.c (K_EDIT_OK of a file variable, K_NET -2), cproc (kernel(K$NET, -2))
 # and edit_guard (the remote branch) select the netfile suite too, as netfiles.c, op_dio3.c, op_lock.c, op_dio2.c, sd.h and descr.h already do.
 gplsrc/netfiles.c            : netfile
-# S.67 stage 1 (19 Oct 26): the master files.  masters.c is theirs; the DH layer's write, delete, clear and create, OSPATH and OSRENAME, open_file and K_MASTERS call it.
-gplsrc/masters.c             : masters tool-masters @files
+# S.67's master files (19 Oct 26) were retired 2 Nov 26 (S.96 M6): masters.c, its suites masters and tool-masters and their rules are gone.
 # 30 Oct 26 (S.88 stage E2): op_dio4.c's DIR() tells a file from a directory with S_ISREG / S_ISDIR (the IDE's operating system tree lists through it), and op_seqio.c's plain CREATING is exclusive
 #   (ER_EXISTS 6032; oq2 rows 485b-d and the ide-path rows of making a file): both select ide-path.
 gplsrc/op_dio4.c             : @lists fixes-b12 netfile ide-path
-gplsrc/op_dio3.c             : @files @seq prof lockown editgates netfile shared masters
-gplsrc/op_dio2.c             : @files fixes-b12 sys-b2 netfile shared masters
-gplsrc/op_dio1.c             : @files  prof lockown netfile shared masters
+gplsrc/op_dio3.c             : @files @seq prof lockown editgates netfile shared
+gplsrc/op_dio2.c             : @files fixes-b12 sys-b2 netfile shared
+gplsrc/op_dio1.c             : @files prof lockown netfile shared
 gplsrc/dh_ak.c               : @files netfile shared
 gplsrc/dh_misc.c             : @files netfile shared
 gplsrc/analyse.c             : fixes-b12 misc-a9 netfile
 gplsrc/dh_split.c            : @files splitfull
-gplsrc/dh_*.c                : @files masters
+gplsrc/dh_creat.c            : @files acctmodes
+gplsrc/dh_*.c                : @files
 gplsrc/dh_*.h                : @files
-gplsrc/dh.h                  : @files masters
+gplsrc/dh.h                  : @files
 gplsrc/reccache.c            : @files
-gplsrc/txn.c : trans-b43 txnstatus coll collfile sysexc masters @core
+gplsrc/txn.c : trans-b43 txnstatus coll collfile sysexc @core
 gplsrc/sdfix.c               : sdfixseq akcase fixes-b12 tools
 gplsrc/sdidx.c               : akcase idx-nocase tools
 gplsrc/sdconv.c              : nocase upgradenocase
@@ -171,7 +178,7 @@ gplsrc/op_str5.c             : @functions csvb
 gplsrc/op_array.c            : coll list-q2 @core
 # 20 Oct 26 (S.73 item 2, the silent server): READ.SOCKET's TLS read and the handshake bound are timed by netfile (section timeout) and net (set.netlogin).
 gplsrc/op_skt.c              : opensock gates qmclient oq2 netfile net
-gplsrc/op_xfun.c             : @functions getdev ospath masters csvb jsonx xmlx
+gplsrc/op_xfun.c             : @functions getdev ospath csvb jsonx xmlx
 gplsrc/op_str[1-5].c         : @functions
 gplsrc/op_mvfun.c            : @functions list-q2
 gplsrc/op_iconv.c            : @functions crypt
@@ -184,7 +191,7 @@ gplsrc/op_btree.c            : @functions
 gplsrc/op_arith.c            : @functions
 gplsrc/op_logic.c            : @functions lang-b45 partial
 gplsrc/op_misc.c             : @functions epoch txnstatus
-gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1  @files netfile masters lockids tool-sessions
+gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1 @files netfile lockids tool-sessions
 gplsrc/locks.h               : lock-b6 listu-a5 conf-b1
 # S.71 (20 Oct 26): the API server's input path (keyin, read_socket, keyready in linuxio.c; the two packet readers in op_tio.c; the length test in apipkt.h)
 # is run by the apispin suite: a real `sd -n -q` behind the real TLS relay, and a `sd -Q -C` over pipes, with a client that goes away.
@@ -219,9 +226,9 @@ gplsrc/sddefs.h              : @core auditwriter auditjournal gpm
 # 24 Oct 26 (W.11 F4, C2): the rotation shared by "sd -start" (k_error.c) and the audit daemon; compiled into sd through gpl.src and into sdlnxd by the Makefile
 gplsrc/audit_rot.c           : @core auditwriter
 gplsrc/sdsem.c               : shmmode @core
-gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters shmmode segtrust auditwriter @core
+gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared shmmode segtrust auditwriter @core
 gplsrc/profiler.c            : prof lockids
-gpl.src                      : @core prof netfile masters gpm
+gpl.src                      : @core prof netfile gpm
 gplsrc/kernel.c : @core csvb q5 listu-a5 inhibit-q8  prof resetall  classinit sysexc try editgates apispin segtrust ipc lockids q4
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
@@ -230,9 +237,9 @@ sdsys/messages/11930         : gcatmode
 # 27 Oct 26 (S.87): the VOC deletion list's messages, 11900-11918
 sdsys/messages/1190?         : vocremoved
 sdsys/messages/1191?         : vocremoved
-gplsrc/k_error.c             : sysexc try @core netfile masters segtrust auditjournal auditwriter
+gplsrc/k_error.c             : sysexc try @core netfile segtrust auditjournal auditwriter
 gplsrc/messages.c            : sysexc @core segtrust
-gplsrc/sd.h                  : sysexc try editgates @core netfile shared masters
+gplsrc/sd.h                  : sysexc try editgates @core netfile shared
 gplsrc/k_funcs.c             : @core
 gplsrc/options.h             : option-a4 option-q17 mode-q16 conf-b1
 gplsrc/clopts.c              : conf-b1 sys-q18
@@ -254,7 +261,7 @@ gplsrc/sdclient.h            : qmclient
 gplsrc/sdclient.c            : qmclient
 gplsrc/sd_encrypt_sodium.c   : qmclient crypt
 gplsrc/sd_keyring.c          : crypt
-gplsrc/op_exec.c : @core cmd-a9 stacklist  prof csvb
+gplsrc/op_exec.c : @core cmd-a9 stacklist  prof csvb tool-jobs
 gplsrc/op_sh.c               : gates sdaccts editgates netfile shared segtrust
 gplsrc/to_file.c             : editgates gates @core
 gplsrc/op_sdext.c            : gates crypt recovery
@@ -266,11 +273,11 @@ gplsrc/descr.h               : restricted classas nameindex @core netfile
 gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared masters segtrust ipc lockids
+gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared segtrust ipc lockids
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
-gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net shared masters csvb jsonx xmlx ipc
+gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net shared csvb jsonx xmlx ipc
 gplsrc/sd.c                  : @core fixes-b12 segtrust auditwriter
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
@@ -355,7 +362,7 @@ sdsys/gpl.bp/bcomp ~ *              : @compiler
 sdsys/gpl.bp/bcomp.h         : @compiler
 sdsys/gpl.bp/tokens.h        : @compiler
 sdsys/gpl.bp/opcodes.h       : @compiler
-sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared winsize masters ipc
+sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared winsize ipc
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
@@ -364,10 +371,10 @@ sdsys/gpl.bp/tk_aipage       : ai-pages tk-base tk-keys tool-voc tool-files
 sdsys/messages/1194[34]      : ai-pages
 sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults @pages tk-resize tk-layout ai-pages
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
-sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
-sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
-sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-masters tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test tk-faults
-sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-masters tool-accounts tool-remote tool-files tool-voc tool-dict tool-catalog tool-test
+sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
+sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
+sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test tk-faults
+sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-accounts tool-remote tool-files tool-voc tool-dict tool-catalog tool-test
 # 23 Oct 26 (S.69 step 2): the AI choice page, tool.ai - its own routine for set.ai's words, the gate table (the ai gate is a row of it) and the gate reader
 sdsys/gpl.bp/tk_runx         : tk-base tool-ai tool-backups tool-accounts
 sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
@@ -390,7 +397,7 @@ sdsys/gpl.bp/tk_aidocs       : aidocs ai-line
 sdsys/messages/1192[0-2]     : aidocs
 gplbld/sandbox-aidocs.py     : @self
 sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys tk-resize ai-pages aidocs
-sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout ai-pages
+sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout ai-pages spview
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
 sdsys/gpl.bp/tool_keys       : tk-keys l2-misc themeroles
@@ -499,11 +506,7 @@ gplbld/sandbox-tool-sessions.py : @self
 sdsys/gpl.bp/tool_sessions   : tool-sessions l2-admin ai-pages
 sdsys/voc_template/tool.sessions : tool-sessions
 sdsys/helptext/tool.sessions.* : docs tool-sessions
-# 24 Oct 26 (S.75 A7): the master files page runs the real sync.masters and reads the kernel's master-file operations; the verbs' program and the set-up select it too
-gplbld/sandbox-tool-masters.py : @self
-sdsys/gpl.bp/tool_masters    : tool-masters l2-admin ai-pages
-sdsys/voc_template/tool.masters : tool-masters
-sdsys/helptext/tool.masters.* : docs tool-masters
+# 24 Oct 26 (S.75 A7): the old master files page (tool.masters) was retired 2 Nov 26 with the copies (S.96 M6); tool.entries' rules are below.
 # 2 Nov 26 (S.102 stage 1): the scheduled jobs page and its verb set.batch, which writes @SDSYS/batch.jobs; the login's batch gate reads that file
 gplbld/sandbox-tool-jobs.py  : @self
 sdsys/gpl.bp/tool_jobs       : tool-jobs
@@ -511,6 +514,18 @@ sdsys/gpl.bp/set_batch       : tool-jobs
 sdsys/voc_template/tool.jobs : tool-jobs
 sdsys/voc_template/set.batch : tool-jobs
 sdsys/helptext/tool.jobs.*   : docs tool-jobs
+# 2 Nov 26 (S.102 stage 4): the page's administrator half and its verb set.job, which asks the root helper; the verb's messages
+sdsys/gpl.bp/set_job         : tool-jobs
+sdsys/voc_template/set.job   : tool-jobs
+sdsys/messages/11191         : tool-jobs
+sdsys/messages/11224         : tool-jobs
+sdsys/messages/11246         : tool-jobs
+sdsys/messages/11250         : tool-jobs
+sdsys/messages/11302         : tool-jobs
+sdsys/messages/11319         : tool-jobs
+sdsys/messages/11332         : tool-jobs
+sdsys/messages/11789         : tool-jobs
+sdsys/messages/11792         : tool-jobs
 # 3 Nov 26 (S.96 M1a): the master files page, the VOC entries of every account by pointer (read only)
 sdsys/gpl.bp/tool_entries    : tool-entries
 sdsys/voc_template/tool.entries : tool-entries
@@ -612,7 +627,7 @@ sdsys/voc_template/set.ai    : aigate
 sdsys/messages/1160[6-9]     : aigate
 sdsys/messages/1161*         : aigate
 sdsys/messages/1162[0-2]     : aigate
-sdsys/gpl.bp/sl_theme       : screen sed-menu syntax viewport ide ced dbgui tk-base tk-keys home themeroles
+sdsys/gpl.bp/sl_theme       : screen sed-menu syntax viewport ide ced dbgui tk-base tk-keys home themeroles spview
 # 28 Oct 26 (S.88 phase 0): sl.h stood AFTER the *.h rule below, so it never matched and a change of the screen library's header ran the compiler suites; first match wins
 sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages themeroles
 sdsys/gpl.bp/*.h             : @compiler @core
@@ -631,7 +646,7 @@ sdsys/gpl.bp/sl_guard        : sed-small ide-small sed-menu dbgui tk-resize auto
 sdsys/gpl.bp/sl_memo         : memoundo escdata screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe recarr idebrk
 # S.94 (31 Oct 26): sl_mouse's on and off ask the kernel for the console's mouse (gpm); the stand-in daemon's suite and the key tester's are what judge it
 sdsys/gpl.bp/sl_mouse        : gpm realkeys screen viewport tk-keys ide ide-small tk-resize
-sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout
+sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout spview
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps gates
 sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds tool-voc tool-dict ide-path ide-edit ide-fields dictform idebrk
 # S.88 d2b (29 Oct 26): FORMAT's quiet mode, used by the IDE's Format command (named COMMON /fmtq/); the free check is test-fmtquiet-units.py
@@ -690,7 +705,7 @@ sdsys/messages/1198[89]      : recarr
 sdsys/messages/1199[12]      : recarr
 sdsys/messages/11990         : recarr
 # 19 Oct 26: ed selects eofkeys too (ED's command prompt, record-name prompt, list of ids and the LOAD / UNLOAD line-number prompts end when piped input ends)
-sdsys/gpl.bp/ed              : @editors edext editgates eofkeys masters
+sdsys/gpl.bp/ed              : @editors edext editgates eofkeys
 sdsys/gpl.bp/edit            : @editors editgates
 sdsys/gpl.bp/edit_guard      : editgates @editors netfile shared
 sdsys/gpl.bp/clearfl         : editgates @files
@@ -699,7 +714,7 @@ sdsys/gpl.bp/deletef         : editgates @files shared
 sdsys/gpl.bp/copy            : editgates @files
 sdsys/gpl.bp/copyp           : editgates @files
 sdsys/gpl.bp/cname           : editgates @files shared
-sdsys/gpl.bp/restorea        : editgates net shared masters tool-backups @system
+sdsys/gpl.bp/restorea        : editgates net shared tool-backups @system
 sdsys/gpl.bp/backupa         : tool-backups @core
 sdsys/gpl.bp/acc_archive     : tool-backups @core
 # 26 Oct 26: acc_os_place calls the root helper (no sandbox can run it); its group choice for the shared account is held by test-restoreshared-units.py, and the compile by the suites below
@@ -765,7 +780,6 @@ sdsys/gpl.bp/sort*           : @lists @functions
 sdsys/gpl.bp/_sort*          : @lists @functions
 sdsys/gpl.bp/_multisort      : @lists @functions
 sdsys/gpl.bp/write_install_dicts : dictfold nocase upgradenocase
-sdsys/gpl.bp/upgrade_masters : masters
 sdsys/gpl.bp/upgrade_*       : upgradenocase nocase gates editgates
 sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16   lockown
 sdsys/gpl.bp/_option         : option-a4 option-q17 mode-q16
@@ -811,8 +825,8 @@ sdsys/gpl.bp/remotesdsys     : tool-remote
 sdsys/voc_template/remote.sdsys : tool-remote
 sdsys/gpl.bp/cred_*          : gates qmclient
 # 26 Oct 26 (F6 and the home work): create.account no longer puts the sdsys user into the account's group, and takes the start and pins words
-sdsys/gpl.bp/create_account  : masters gates editgates shared tool-accounts home2 @core
-sdsys/gpl.bp/createa         : masters gates editgates shared tool-accounts home2 @system
+sdsys/gpl.bp/create_account  : gates editgates shared tool-accounts home2 @core
+sdsys/gpl.bp/createa         : gates editgates shared tool-accounts home2 @system
 sdsys/gpl.bp/create*         : @files gates @system editgates net shared
 sdsys/gpl.bp/config*         : @files conf-b1 sys-b2 q5
 sdsys/gpl.bp/phantom         : q5 q4 listu-a5 ipc
@@ -820,15 +834,15 @@ sdsys/gpl.bp/ipc_seal        : ipc
 sdsys/gpl.bp/set*            : gates sys-b2 conf-b1 stmt-q3
 sdsys/gpl.bp/py_*            : gates
 sdsys/gpl.bp/acc*            : gates @system editgates net shared
-sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared filesgrp home aigate tool-gates tool-accounts masters
+sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared filesgrp home aigate tool-gates tool-accounts
 # 19 Oct 26 (K4a): the program that filesgrp runs reads these two lookups; it makes its own copies, but a change to the originals is a change to what it copies.
 sdsys/gpl.bp/is_grp_member   : filesgrp net gates tool-mygates
 sdsys/gpl.bp/is_group        : filesgrp net gates
 sdsys/gpl.bp/oswrite         : gates
 sdsys/gpl.bp/osread          : gates
 sdsys/gpl.bp/osdelete        : gates
-sdsys/gpl.bp/_ioscopy        : gates oq2 editgates masters
-sdsys/gpl.bp/_oscopy         : gates oq2 editgates masters
+sdsys/gpl.bp/_ioscopy        : gates oq2 editgates
+sdsys/gpl.bp/_oscopy         : gates oq2 editgates
 sdsys/gpl.bp/oscopya         : gates oq2
 sdsys/gpl.bp/catalog         : callcase bcomp-a1 misc-a9 fixes-b12 editgates tool-catalog
 sdsys/gpl.bp/delcat          : callcase misc-a9 fixes-b12 editgates tool-catalog
@@ -841,10 +855,8 @@ sdsys/gpl.bp/basic           : bcomp-a1 callcase misc-a9 lang-a15 mode-q16 editg
 sdsys/gpl.bp/shared_ref      : shared @core
 sdsys/gpl.bp/edit_msg        : shared editgates
 sdsys/gpl.bp/listshared      : shared
-sdsys/gpl.bp/delacc          : shared gates masters tool-accounts @system
-sdsys/gpl.bp/masters         : masters tool-masters
-sdsys/gpl.bp/masters_setup   : masters tool-masters
-sdsys/gpl.bp/spview          : shared editgates @core
+sdsys/gpl.bp/delacc          : shared gates tool-accounts @system
+sdsys/gpl.bp/spview          : spview shared editgates @core
 sdsys/gpl.bp/*               : @core
 
 # ---------------------------------------------------------------------------------------------------------------------------
@@ -865,9 +877,6 @@ sdsys/voc_template/set.server    : net
 sdsys/voc_template/delete.server : net
 sdsys/voc_template/list.servers  : net
 sdsys/voc_template/list.shared   : shared
-sdsys/voc_template/sync.masters  : masters
-sdsys/voc_template/check.masters : masters
-sdsys/voc_template/list.master.pending : masters
 sdsys/voc_template/encrypt.key   : crypt
 sdsys/voc_template/import.*      : xmlx
 sdsys/voc_template/convert.data  : xmlx
@@ -922,10 +931,6 @@ sdsys/messages/1188[7-9]     : docs
 sdsys/messages/1189[0-9]     : docs
 sdsys/messages/1183[0-9]     : docs menus
 sdsys/messages/1184[0-9]     : docs
-sdsys/messages/1156[0-9]     : masters
-sdsys/messages/1157[0-9]     : masters
-sdsys/messages/1158[0-9]     : masters
-sdsys/messages/1159[0-6]     : masters
 sdsys/messages/118[0-4][0-9] : tk-base       # the toolkit's block 11800-11849 (S.75)
 # 26 Oct 26: 11931-11937 are set.config's (A6), 11946-11947 the phantom seal's (F10), 11951-11955 the toolkit faults batch's, 11956-11962 the home work's, 11976-11982 are F6's
 sdsys/messages/1193[1-7]     : tool-config
@@ -933,8 +938,9 @@ sdsys/messages/1194[67]      : ipc
 sdsys/messages/1195[1-5]     : tk-faults
 sdsys/messages/1195[6-9]     : home2 menus
 sdsys/messages/1196[0-2]     : home2 menus
-sdsys/messages/1197[6-9]     : masters gates tool-accounts
-sdsys/messages/1198[0-2]     : masters tool-masters gates
+sdsys/messages/11579         : gates tool-accounts       # create.account's failed join (S.103); the other master-file messages went with S.96 M6
+sdsys/messages/1197[7-9]     : gates tool-accounts
+sdsys/messages/11980         : gates
 sdsys/messages/*             : none
 sdsys/changelog              : none
 sdsys/licence*               : none

@@ -45,7 +45,7 @@ def rows_for(exe, base):
 
     n = [0]
 
-    def scene(defn="name=nightly\ncommand=check.masters\n", dmode=0o644, cg=UNIT, jmode=0o755, pmode=0o755, dname="nightly"):
+    def scene(defn="name=nightly\ncommand=update.accounts all\n", dmode=0o644, cg=UNIT, jmode=0o755, pmode=0o755, dname="nightly"):
         n[0] += 1
         d = os.path.join(base, "s%d" % n[0])
         etc = os.path.join(d, "etc")
@@ -63,15 +63,15 @@ def rows_for(exe, base):
             fh.write(cg)
         return cgf, jd
 
-    def ask(cgf, jd, command="check.masters"):
+    def ask(cgf, jd, command="update.accounts all"):
         p = subprocess.run([exe, cgf, jd, command], capture_output=True, text=True)
         return p.returncode, p.stdout.strip()
 
     cgf, jd = scene()
     rc, out = ask(cgf, jd)
     row("ALLOW: the cgroup of sdcore-job-nightly.service, a closed definitions directory, a definition naming nightly and this very command: job=nightly", rc == 0 and out == "job=nightly", out)
-    for command, why in (("check.masters ", "with a trailing space"), ("CHECK.MASTERS", "in capitals"), ("check.masters; sync.masters", "with a second command"),
-                         ("sync.masters", "another job's command"), ("", "empty")):
+    for command, why in (("update.accounts all ", "with a trailing space"), ("UPDATE.ACCOUNTS ALL", "in capitals"), ("update.accounts all; backup.account all", "with a second command"),
+                         ("backup.account all", "another job's command"), ("", "empty")):
         rc, out = ask(cgf, jd, command)
         row("REFUSE: the session's command is %s: no job" % why, rc == 1 and out == "job=", out)
     for cg, why in (("0::/system.slice/sdcore-job-other.service\n", "another job's unit (no definition by that name)"),
@@ -88,15 +88,15 @@ def rows_for(exe, base):
         c2, j2 = scene(cg=cg)
         rc, out = ask(c2, j2)
         row("REFUSE: the cgroup is %s: no job" % why, rc == 1 and out == "job=", repr(cg[:60]) + " " + out)
-    for defn, dmode, why in (("name=nightly\ncommand=check.masters\n", 0o664, "writable by its group"),
-                             ("name=nightly\ncommand=check.masters\n", 0o646, "writable by others"),
-                             ("name=other\ncommand=check.masters\n", 0o644, "naming another job"),
-                             ("command=check.masters\n", 0o644, "with no name line"),
+    for defn, dmode, why in (("name=nightly\ncommand=update.accounts all\n", 0o664, "writable by its group"),
+                             ("name=nightly\ncommand=update.accounts all\n", 0o646, "writable by others"),
+                             ("name=other\ncommand=update.accounts all\n", 0o644, "naming another job"),
+                             ("command=update.accounts all\n", 0o644, "with no name line"),
                              ("name=nightly\n", 0o644, "with no command line"),
-                             ("name=nightly\ncommand=check.masters\ncommand=sync.masters\n", 0o644, "with two command lines"),
-                             ("name=nightly\nname=nightly\ncommand=check.masters\n", 0o644, "with two name lines"),
-                             (b"name=nightly\ncommand=check.masters\x00x\n", 0o644, "holding a NUL byte"),
-                             ("name=nightly\ncommand=check.masters\n" + "#" * 5000 + "\n", 0o644, "over 4 KB")):
+                             ("name=nightly\ncommand=update.accounts all\ncommand=backup.account all\n", 0o644, "with two command lines"),
+                             ("name=nightly\nname=nightly\ncommand=update.accounts all\n", 0o644, "with two name lines"),
+                             (b"name=nightly\ncommand=update.accounts all\x00x\n", 0o644, "holding a NUL byte"),
+                             ("name=nightly\ncommand=update.accounts all\n" + "#" * 5000 + "\n", 0o644, "over 4 KB")):
         c2, j2 = scene(defn=defn, dmode=dmode)
         rc, out = ask(c2, j2)
         row("REFUSE: the definition is %s: no job" % why, rc == 1 and out == "job=", out)
@@ -125,7 +125,7 @@ def rows_for(exe, base):
     os.symlink(real, j2)
     rc, out = ask(c2, j2)
     row("REFUSE: the definitions' directory is a link: no job", rc == 1 and out == "job=", out)
-    c2, j2 = scene(defn="name=nightly-\ncommand=check.masters\n", cg="0::/system.slice/sdcore-job-nightly-.service\n", dname="nightly-")
+    c2, j2 = scene(defn="name=nightly-\ncommand=update.accounts all\n", cg="0::/system.slice/sdcore-job-nightly-.service\n", dname="nightly-")
     rc, out = ask(c2, j2)
     row("REFUSE: a unit and a definition both named 'nightly-' (a name may not end in a dash): no job", rc == 1 and out == "job=", out)
     c2, j2 = scene(defn="name=nightly\ncommand=backup.account all\n")

@@ -1,6 +1,79 @@
 Next release - in progress
 --------------------------
 
+2 Nov 26   SP.VIEW SHOWS A RECORD IN THE SAME FRAME AS THE OTHER FULL-SCREEN PAGES.
+
+             What        - On a terminal window of at least 140 by 43 (a bigger one is used whole), sp.view's record view has the look of
+                           the toolkit pages, the IDE, SED and the debugger: the top row is a bar with the file and the record at the left
+                           and "sp.view  name@account" at the right; the record starts on the row below it; the bottom four rows are the
+                           prompt, a status line (the record, its number of lines, the top line and the left column) in reverse video, a
+                           border, and a row of the keys sp.view acts on (PgDn next, PgUp previous, Home top, End bottom, Left and Right
+                           to scroll, S spool, X delete, Q quit). It is drawn in the site's theme (SCREENTHEME in sd.conf, or the
+                           classic theme when that names none or names mono, as the debugger does; plain on a terminal with no colour),
+                           which is given back when the record is left. When the window is resized the view is laid out again within a
+                           second. A page of the record is five lines shorter than the window (it was four), so N, P and B stop on
+                           different lines than before. A control character in a record is shown as a letter in reverse video instead of
+                           being sent to the terminal: a held report with printer escapes, form feeds or tabs is shown, not obeyed, in
+                           this layout, so it looks different from before.
+             Why         - The owner's decision, 2 Nov 2026 ("sp.view yes ed no"): every full-screen screen of SD should look alike.
+             Does NOT    - Change a key, a prompt, the record's text, the spool form or the list of records you choose from.
+                           A smaller window, or a session with no terminal, keeps the older layout (the record from the top row, the
+                           status and prompt lines at the foot); nothing is refused there. ED keeps its line-editor look.
+
+2 Nov 26   CAPTURED OUTPUT ENDING IN A NEWLINE OF ITS OWN NO LONGER DAMAGES OR ENDS THE SESSION.
+
+             What        - execute ... capturing and os.execute ... capturing both take off the newline that ends the output. When
+                           that newline was all there was (a command that printed one empty line), the SD process ended with
+                           "double free or corruption"; when the output filled a whole internal block of about 16 KB and the newline
+                           began the next one, the captured value went on into memory that had been freed, which could give a
+                           wrong value or end the process later. Both now give the right value: empty for one empty line, the
+                           text without its newline otherwise.
+             Why         - The routine that turns the captured lines into fields took the last block of output for the one
+                           before it, and freed a block that the one before still pointed at. Found when set.job asked systemd
+                           for a job that had never run.
+             Does NOT    - Change what is captured from any other output: newlines still become field marks and one trailing field
+                           mark is still taken off.
+
+2 Nov 26   THE SCHEDULED JOBS PAGE NOW SCHEDULES THE ADMINISTRATOR'S OWN JOBS, AND A NEW VERB, set.job, DOES IT AT THE PROMPT.
+
+             What        - tool.jobs has a second view, Jobs (J; A goes back to the account commands). It lists the administrator's
+                           scheduled jobs - name, schedule, command, next run and how the last run ended - and N makes one, C changes
+                           its job or schedule, D deletes it (its name is typed in the box) and R starts it now. Each change is shown
+                           as its set.job command, with the job's command and the schedule in words, and runs only when you answer
+                           Run. set.job add|change NAME JOB SCHEDULE, set.job delete|run NAME and set.job alone (the list) do the same
+                           at the prompt, for SDSYS only; each change is written to the audit trail with its result. The root helper
+                           has a new verb, "sd-elevate job-run NAME", which starts the job's own service now, exactly as its timer
+                           would, and returns without waiting for it.
+             Why         - The owner's scheduled-jobs page (1 Nov 2026: "a cron management admin pane - so that cron can be managed
+                           from within SD"). Until now an administrator's job could be set up only with sudo sd-elevate at a shell.
+             Does NOT    - Write anything itself: the page runs set.job, and set.job asks the root helper, which checks the name,
+                           the job and the schedule again and alone writes the definition and the timer. Offer any command but the
+                           four fixed jobs, or any schedule but the five shapes; rename a job (make the new one and delete the old);
+                           run a damaged definition (set.job and the root helper both refuse it); wait for a job it starts (F5
+                           shows the last run when it has finished); keep two administrator sessions changing one name at the same
+                           moment apart (add and change are checked against the list just before the helper is asked); or
+                           schedule anything as delivered. An account's own job is still scheduled in its user's crontab or timer.
+
+2 Nov 26   THE MASTER-FILE COPIES ARE RETIRED: SYNC.MASTERS, CHECK.MASTERS, LIST.MASTER.PENDING AND TOOL.MASTERS ARE GONE.  USE TOOL.ENTRIES.
+
+             What        - The copies of every account's VOC and dictionary records that SD kept in the SDSYS account (voc_master,
+                           dict_master, master_state and the journal $master.journal), the kernel's hook that noted every VOC and
+                           dictionary change for them, and the four verbs that read or managed them are removed. The administrator's
+                           Master files tile on the home screen now opens tool.entries, which lists every account's VOC entries,
+                           dictionary items and programs and edits, deletes, compiles and debugs each one in its own account. Each
+                           account's next update (UPDATE.ACCOUNTS, or the sign-on update) takes the four verbs out of SDSYS's VOC, through
+                           the VOC deletion list (list.voc.removed shows them; restore.voc can put a copy back). The installer removes any
+                           of the old files it still finds in the SDSYS directory and says so. The scheduled-job ids check-masters and
+                           sync-masters went with the verbs they ran: "sd-elevate job-set" now offers backup-all and update-accounts, and a
+                           job defined with one of the old ids is listed as damaged by job-list.
+             Why         - The owner's decision, 2 Nov 2026 ("retire"). tool.entries edits the real records in place, so the copies had
+                           nothing left to do, and the hook cost a test on every write of a record.
+             Does NOT    - Change who may write into an account: the sdsys user is still put in each user account's group (create.account,
+                           modify.account sdsys-on and sdsys-off, the installer), a new VOC or dictionary is still made writable by the
+                           account's group where the account's directory is, and the edit gates (voc-edit, dict-edit, bp-edit) still lock
+                           an account out of its own files. Nothing in an account's own VOC, dictionaries or programs is touched. Kernel key
+                           150 (K$MASTERS) and the status 8910 are retired, not given to anything else.
+
 2 Nov 26   THE SDSYS USER MAY NOT USE CRON OR AT.  SD'S SCHEDULED JOBS ARE ROOT'S TIMERS INSTEAD.
 
              What        - The installer puts sdsys in /etc/cron.deny (root:crontab 0640) and, where at is installed, in /etc/at.deny
@@ -30,8 +103,8 @@ Next release - in progress
                            status file /etc/sdcore/totp.public, which a delete used to leave behind.
              Why         - The owner's scheduled-jobs page: administrator jobs that work across accounts, run unattended, without a
                            second administrator and without trusting anything the sdsys user can edit.
-             Does NOT    - Schedule anything as delivered, let a job run any command but the four the helper owns (backup-all,
-                           check-masters, sync-masters, update-accounts), or change how a job in sdsys's own crontab is treated: that is
+             Does NOT    - Schedule anything as delivered, let a job run any command but the ones the helper owns (backup-all and
+                           update-accounts; check-masters and sync-masters went with the master-file copies), or change how a job in sdsys's own crontab is treated: that is
                            still an ordinary sdsys login (cron sets the login), refused only when the console's authenticator code is on.
                            The page's half (listing jobs, run now) is still to come.
 

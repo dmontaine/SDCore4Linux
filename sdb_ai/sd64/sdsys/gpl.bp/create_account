@@ -17,6 +17,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 02 Nov 26 dm S.96 M6: the master-file copies (S.67) are retired; a new account is no longer copied into them.  The sdsys user still joins a user
+*              account's group (join.sdsys, S.103): tool.entries writes into the account's own files.
 * 28 Oct 26 dm S.88 plan 2.9 (D2): CA$RECOVERY (exactly 1) writes ACC$RECOVERY 'yes' for a user account ('no' otherwise, written explicitly like the gates) and is said with 11770;
 *              a group or other account is refused (11771) before anything is made.
 * 26 Oct 26 dm S.75, home: CA$START (menu, terminal or blank) is written to ACC$START and CA$PINS (exactly 1) to ACC$PINS 'yes', for every type of account, and said with 11868 and 11885; a start
@@ -662,10 +664,6 @@ PW.TRY.AGAIN:
 
    write acc.rec to acc.f, acc.name
    locked = @false
-*  19 Oct 26 dm - S.67 stage 1: the new account's VOC and dictionaries are copied to the master files, now that the register says where they are.  Until
-*  then the hook could not tell whose they were.  The answer is not looked at: status 1 is a system whose master files are not set up (nothing to do), and
-*  anything else is found by CHECK.MASTERS.
-   void kernel(K$MASTERS, 'sync' : @fm : downcase(acc.name))
    if acc.type = "USER" then
      crt sysmsg(10102, acc.name, acc.rec<ACC$SH>, acc.rec<ACC$OS.EXEC>)  ;* Account %1 has SH %2, OS.EXECUTE %3
      crt sysmsg(11409, acc.name, acc.rec<ACC$VOC.EDIT>, acc.rec<ACC$BP.EDIT>, acc.rec<ACC$DICT.EDIT>)  ;* Account %1 has VOC.EDIT %2, BP.EDIT %3, DICT.EDIT %4

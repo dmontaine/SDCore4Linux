@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; a restored account is no longer synced into them.
 * 28 Oct 26 dm  S.88 plan 2.9 (D2): the manifest key recovery (acc_os_info) is read and handed to !create_account (CA$RECOVERY) when it is exactly 1; a manifest that has none restores
 *               the account with its editors keeping no recovery copy.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
@@ -391,10 +392,6 @@ $include createacc.h
          zip.leaf = field(zip.leaf, @ds, dcount(zip.leaf, @ds))
 * 07 Oct 26 dm - PAL-24: the command word is lower case.
          void kernel(K$AUDIT, 'restore.account account=' : acc.name : ' archive=' : zip.leaf)
-* 19 Oct 26 dm - S.67 stage 1: the restored tree replaced the account's VOC and dictionaries by a copy at the operating system level, which the
-*   hook cannot see; the master copies are made to match.  NOT IN THE WINDOWS COPY (it has no master files yet): this program is no longer
-*   byte for byte the Windows one, and the Windows carry of S.67 owes it.  Status 1 (master files not set up) does nothing.
-         void kernel(K$MASTERS, 'sync' : @fm : downcase(acc.name))
       end else
          failed += 1
          display sysmsg(13037, acc.name) ;* was not restored

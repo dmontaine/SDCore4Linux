@@ -4,6 +4,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 2 Nov 26 dm  An account whose VOC cannot be opened shows its register path WRAPPED at the box's width (up to six lines): a long path was cut at the edge, so the
+*              account's own name, at its end, was lost (sandbox-tool-entries.py E3 failed under regress.sh's longer sandbox directory).
 * 2 Nov 26 dm  S.96 M6a: D deletes a PROGRAM too, the way it deletes a VOC entry (edit.record, emode 'delete', then delete.reached: the update lock, the id typed, the delete through
 *              the file judged, "master delete ... kind=bp"), and with it its compiled program: the record of the same name, lower case, in the .out file found by NAME as the list
 *              finds it (the <file>.out the account's VOC names, read again at the keypress, else the one beside the program file).  THE POINTER RULE holds for the .out file as for
@@ -677,8 +679,13 @@ draw.entries:
             null
          case vfail
             s = "This account's VOC cannot be opened from here."
-            s2 = 'Its path in the register: ' : apath<ac>                    ;* on a line of its own: a long path would be cut at the edge of the box, with the account's name in the part that is lost
-            screen text s2 at c.x + 2,c.y + 4 width tw
+            s2 = 'Its path in the register: ' : apath<ac>                    ;* on lines of its own, WRAPPED at the box's width (2 Nov 26): cut at the edge, the account's name was in the part that was lost
+            pr = 0
+            loop
+               screen text s2[1, tw] at c.x + 2,c.y + 4 + pr width tw
+               s2 = s2[tw + 1, len(s2)]
+               pr += 1
+            while s2 # '' and pr < 6 repeat
          case en = 0 and filt # '' and kind = 1
             s = 'No entry has "' : filt : '" in its id.'
          case en = 0 and filt # '' and kind = 2

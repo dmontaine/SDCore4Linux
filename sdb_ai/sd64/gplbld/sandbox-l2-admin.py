@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-l2-admin.py - the five dense administrator pages on the layout service (S.88 stage L2): TOOL.GATES, TOOL.SESSIONS, TOOL.MASTERS, TOOL.AUDIT and TOOL.ACCOUNTS drawn at 140 by 43,
+# sandbox-l2-admin.py - the four dense administrator pages on the layout service (S.88 stage L2): TOOL.GATES, TOOL.SESSIONS, TOOL.AUDIT and TOOL.ACCOUNTS drawn at 140 by 43,
 # grown to 180 by 55 while they run, and started at 200 by 60, on a PSEUDO-TERMINAL.  No install, no sudo.
 #
 #   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-l2-admin.py <dir> [--build]
@@ -10,6 +10,7 @@
 #
 # START-HISTORY:
 # 28 Oct 26 dm  New (S.88 L2, the administrator pages).
+# 02 Nov 26 dm  TOOL.MASTERS taken out with the page (S.96 M6: the master-file copies of S.67 are retired).
 # END-HISTORY
 #
 # THE INSTRUMENT.  The expected rectangles are not typed here: they are the declaration each page makes, read out of the page's own `declare.layout` by test-l2-admin-units.py and laid out by that
@@ -58,8 +59,6 @@ ANCH = {
     "tool_sessions": [("sessions", ("t", 1), 2, r"\s*User\s+Pid\s+Logged in\s+Kind\s+Login user\s+Account\s+Where from\s+State", (2, 3)), ("sessions", ("t", 1), ("r", 5), r"\[\?\]", (2, 134)),
                       ("sessions", ("b", 2), 2, r"\d+ sessions: ", (14, 3)), ("locks", ("t", 1), 2, r"User\s+File\s+Path\s+Type\s+Record id\s+Since\s+Holder", (17, 3)),
                       ("row", ("b", 2), 2, r"L asks the selected session to end\.", (38, 3))],
-    "tool_masters": [("master", ("t", 1), 2, r"\S", (2, 3)), ("master", ("t", 1), ("r", 5), r"\[\?\]", (2, 134)), ("accounts", ("t", 1), 2, r"Account\s+State\s+First difference", (10, 3)),
-                     ("accounts", ("b", 2), 2, r"(Nothing to compare yet\.|\d+ accounts? listed\.)", (22, 3)), ("detail", ("b", 2), 2, r"S syncs every account\.", (38, 3))],
     "tool_audit": [("trail", ("t", 1), 2, r"File: ", (2, 3)), ("trail", ("t", 2), 2, r"From: ", (3, 3)), ("trail", ("t", 3), 2, r"Event: ", (4, 3)), ("trail", ("t", 4), 2, r"F filters", (5, 3)),
                    ("trail", ("t", 1), ("r", 5), r"\[\?\]", (2, 134)), ("lines", ("t", 1), 2, r"Time\s+User\s+Event\s+Details", (8, 3))],
     "tool_accounts": [("counts", ("t", 1), 2, r"\d+ accounts?: ", (2, 3)), ("counts", ("t", 2), 2, r"SDSYS, the administrator", (3, 3)), ("counts", ("t", 3), 2, r"C creates an account\.", (4, 3)),

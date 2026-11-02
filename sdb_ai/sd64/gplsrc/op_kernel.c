@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; the K_MASTERS (150) case is gone with masters.c.  The number is not reused.
  * 02 Nov 26 dm  S.102 stage 3: K_JOB_MARK (172) - the scheduled administrator job this process is (sd_jobmark.c), kept for the audit trail.
  * 02 Nov 26 dm  S.101 stage B: K_LOGIN_MARK (171) - may this sdsys login be made administrator as far as the authenticator code goes (the public
  *               status file /etc/sdcore/totp.public and the PAM module's marker in /run/sdcore/marks for this boot and session).
@@ -1014,16 +1015,6 @@ void op_kernel() {
       shared_name[0] = '\0';
       (void)k_get_c_string(descr, shared_name, MAX_PATHNAME_LEN);
       result.data.value = shared_once(shared_name) ? 1 : 0;
-    } break;
-
-    /* 19 Oct 26 dm - S.67 stage 1: the master files.  The request is an op, then a field mark and its argument; the answer is a string whose first
-       field is the status.  masters.c decides who may ask what (the administrator for everything but "ready" and "note"); see keys.h. */
-    case K_MASTERS: {
-      char masters_req[(2 * MAX_PATHNAME_LEN) + 64];
-
-      masters_req[0] = '\0';
-      (void)k_get_c_string(descr, masters_req, (int)sizeof(masters_req) - 1);
-      masters_request(masters_req, &result);
     } break;
 
     /* 28 Oct 26 dm - S.88 phase 2: K_SHOW_SAFE, the text with every byte of the one rule as '?' (show_ts_safe(), op_lock.c), chunk by chunk,

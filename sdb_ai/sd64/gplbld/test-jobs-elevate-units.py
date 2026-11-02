@@ -21,7 +21,11 @@ one (a stray key, a missing key, a name that is not the file's, a command or a c
 order job_check, need_root, job_caller, the write; SD_JOBS_DIR is reset in main unless a dry run or a non-root process; sudoers gives these verbs to nobody new; the deleter removes
 /etc/sdcore/jobs.d before it removes /etc/sdcore.
 
---selftest breaks the helper and the deleter 24 ways and requires a named check to go red for each one.  Exit 0 every check passed, 1 a check failed, 2 it could not measure.
+(7) (S.102 stage 4, 2 Nov 26) JOB-RUN, the page's "run now": the dry run and its refusals, need_root, and as text the order name, root, caller, the definition and the service as
+plain files, then `systemctl start --no-block` of the job's own service and nothing else.  (2 Nov 26, the review) before the plain-file test, job_run_state applies job-list's
+own agreement test: a definition the list would show as damaged is refused and no unit is started (R6 runs it on the scratch definitions of (5)).
+
+--selftest breaks the helper and the deleter 40 ways and requires a named check to go red for each one.  Exit 0 every check passed, 1 a check failed, 2 it could not measure.
 """
 
 import os
@@ -41,7 +45,7 @@ DELETER = os.path.join(ROOT, "deletesdcore.sh")
 BEGIN = "# BEGIN jobs_functions"
 END = "# END jobs_functions"
 
-IDS = {"backup-all": "backup.account all", "check-masters": "check.masters", "sync-masters": "sync.masters", "update-accounts": "update.accounts all"}
+IDS = {"backup-all": "backup.account all", "update-accounts": "update.accounts all"}   # check-masters and sync-masters went with S.96 M6 (2 Nov 26)
 GOOD_SCHED = [
     (["every", "5", "minutes"], "every 5 minutes", "*-*-* *:0/5:00"), (["every", "10", "minutes"], "every 10 minutes", "*-*-* *:0/10:00"),
     (["every", "15", "minutes"], "every 15 minutes", "*-*-* *:0/15:00"), (["every", "20", "minutes"], "every 20 minutes", "*-*-* *:0/20:00"),
@@ -64,7 +68,7 @@ BAD_SCHED = [
 ]
 GOOD_NAMES = ["a", "z9", "nightly-backup", "a1b2", "a" + "b" * 30 + "c", "x" * 32]
 BAD_NAMES = ["", "A", "1a", "-a", "a-", "a_b", "a.b", "a b", "a/b", "../x", "a\nb", "é", "x" * 33, "a--", "Ab", ".hidden", "a;ls"]
-BAD_IDS = ["", "rm", "backup.account all", "BACKUP-ALL", "backup-all ", "backup-all;ls", "backup", "check.masters", "sync-masters sync-masters", "$(id)"]
+BAD_IDS = ["", "rm", "backup.account all", "BACKUP-ALL", "backup-all ", "backup-all;ls", "backup", "check.masters", "update-accounts update-accounts", "$(id)", "check-masters", "sync-masters"]   # the last two: retired by S.96 M6, refused now
 
 
 def block_of(text):
@@ -227,15 +231,15 @@ def checks(elev, deleter, sudoers):
         ck("W10 the worker re-checks the name itself", rc != 0 and "Bad" not in os.listdir(d), repr((rc, e)))
 
         # ---- (5) the list
-        run_worker(py, "set", d, "good", "# t\nname=good\njob=check-masters\ncommand=check.masters\nschedule=hourly\noncalendar=*-*-* *:00:00\n", "32")
+        run_worker(py, "set", d, "good", "# t\nname=good\njob=update-accounts\ncommand=update.accounts all\nschedule=hourly\noncalendar=*-*-* *:00:00\n", "32")
         variants = {
-            "extrakey": "# t\nname=extrakey\njob=check-masters\ncommand=check.masters\nschedule=hourly\noncalendar=*-*-* *:00:00\nextra=1\n",
-            "missing": "# t\nname=missing\njob=check-masters\ncommand=check.masters\nschedule=hourly\n",
-            "othername": "# t\nname=zzz\njob=check-masters\ncommand=check.masters\nschedule=hourly\noncalendar=*-*-* *:00:00\n",
-            "badcmd": "# t\nname=badcmd\njob=check-masters\ncommand=rm -rf /\nschedule=hourly\noncalendar=*-*-* *:00:00\n",
-            "badcal": "# t\nname=badcal\njob=check-masters\ncommand=check.masters\nschedule=hourly\noncalendar=*-*-* *:07:00\n",
+            "extrakey": "# t\nname=extrakey\njob=update-accounts\ncommand=update.accounts all\nschedule=hourly\noncalendar=*-*-* *:00:00\nextra=1\n",
+            "missing": "# t\nname=missing\njob=update-accounts\ncommand=update.accounts all\nschedule=hourly\n",
+            "othername": "# t\nname=zzz\njob=update-accounts\ncommand=update.accounts all\nschedule=hourly\noncalendar=*-*-* *:00:00\n",
+            "badcmd": "# t\nname=badcmd\njob=update-accounts\ncommand=rm -rf /\nschedule=hourly\noncalendar=*-*-* *:00:00\n",
+            "badcal": "# t\nname=badcal\njob=update-accounts\ncommand=update.accounts all\nschedule=hourly\noncalendar=*-*-* *:07:00\n",
             "badid": "# t\nname=badid\njob=evil\ncommand=check.masters\nschedule=hourly\noncalendar=*-*-* *:00:00\n",
-            "dupkey": "# t\nname=dupkey\nname=dupkey\njob=check-masters\ncommand=check.masters\nschedule=hourly\noncalendar=*-*-* *:00:00\n",
+            "dupkey": "# t\nname=dupkey\nname=dupkey\njob=update-accounts\ncommand=update.accounts all\nschedule=hourly\noncalendar=*-*-* *:00:00\n",
             "big": "# " + "x" * 5000 + "\nname=big\n",
         }
         for n, t in variants.items():
@@ -253,19 +257,30 @@ def checks(elev, deleter, sudoers):
         lines = {ln.split(":")[0].split(" ", 1)[1]: ln for ln in shown.splitlines() if ln.startswith(("job ", "damaged "))}
         good_line = lines.get("good", "")
         damaged = [n for n in list(variants) + ["Stray", "linked"] if not lines.get(n, "").startswith("damaged ")]
-        ck("L1 a good definition is shown as one 'job' line with its schedule, its sentence and its id", good_line == "job good: hourly: check.masters (check-masters)", repr(good_line))
+        ck("L1 a good definition is shown as one 'job' line with its schedule, its sentence and its id", good_line == "job good: hourly: update.accounts all (update-accounts)", repr(good_line))
         ck("L2 every damaged definition (a stray or missing or doubled key, another name, a command or a calendar that is not the helper's, an unknown id, over 4 KB), a stray file and a link is 'damaged', never a job",
            not damaged and "linked" in kinds and kinds.get("linked") == "BAD", repr((damaged, kinds, serr[:200])))
         ck("L3 a dotfile (the worker's temp file) is not listed", ".new.123" not in kinds and ".new.123" not in shown, repr(shown[:200]))
+
+        # ---- (7b) 2 Nov 26 (the review of stage 4): job_run_state, job-run's own use of the list's agreement test, on the same scratch directory
+        names = ["good"] + list(variants) + ["linked", "nosuch"]
+        rs = HEAD + blk + '\nfor n in ' + " ".join(names) + '; do if job_run_state "$n"; then printf "%s=%s\\n" "$n" "$JB_RUN"; else printf "%s=FAIL\\n" "$n"; fi; done\n'
+        _rc, rso, rse = bash(rs, env=dict(os.environ, SD_JOBS_DIR=d))
+        got = dict(ln.split("=", 1) for ln in rso.splitlines() if "=" in ln)
+        want = dict([("good", "job"), ("nosuch", "absent"), ("linked", "damaged")] + [(n, "damaged") for n in variants])
+        _rc, rso2, _ = bash(HEAD + blk + '\njob_run_state good && printf "%s" "$JB_RUN"', env=dict(os.environ, SD_JOBS_DIR=os.path.join(tmp, "none")))
+        _rc3, rso3, _ = bash(HEAD + blk + '\njob_run_state good || printf "FAIL"', env=dict(os.environ, SD_JOBS_DIR=link))
+        ck("R6 job_run_state says job for a definition job-list shows as a job, damaged for every one it shows as damaged (and a link), absent for no file or no directory, "
+           "and fails when the list cannot be read (a directory that is a link)", got == want and rso2 == "absent" and rso3 == "FAIL", repr((got, rso2, rso3, rse[:200])))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
     # ---- (5b) S.102 stage 3: the units job_units makes (2 Nov 26)
-    rc, uout, err = bash(HEAD + blk + '\nSD_SYS_ROOT_REAL=/usr/local/sdsys\njob_check nightly check-masters daily 02:30 && job_units nightly && printf "%s\\x1e%s" "$JB_SERVICE" "$JB_TIMER"')
+    rc, uout, err = bash(HEAD + blk + '\nSD_SYS_ROOT_REAL=/usr/local/sdsys\njob_check nightly update-accounts daily 02:30 && job_units nightly && printf "%s\\x1e%s" "$JB_SERVICE" "$JB_TIMER"')
     svc, _, tmr = uout.partition("\x1e")
     head = "# an SD scheduled job, written by sd-elevate job-set; changed only by sd-elevate job-set and job-delete\n"
-    want_svc = (head + "[Unit]\nDescription=SD scheduled job nightly: check.masters\nAfter=sd.service\n\n[Service]\nType=oneshot\nUser=sdsys\nGroup=sdusers\n"
-                "WorkingDirectory=/usr/local/sdsys\nExecStart=/usr/local/sdsys/bin/sd \"check.masters\"\n")
+    want_svc = (head + "[Unit]\nDescription=SD scheduled job nightly: update.accounts all\nAfter=sd.service\n\n[Service]\nType=oneshot\nUser=sdsys\nGroup=sdusers\n"
+                "WorkingDirectory=/usr/local/sdsys\nExecStart=/usr/local/sdsys/bin/sd \"update.accounts all\"\n")
     want_tmr = (head + "[Unit]\nDescription=SD scheduled job nightly: daily 02:30\n\n[Timer]\nOnCalendar=*-*-* 02:30:00\nPersistent=false\nUnit=sdcore-job-nightly.service\n\n"
                 "[Install]\nWantedBy=timers.target\n")
     ck("T1 the service runs the job's one fixed command as sdsys (group sdusers) from the SDSYS directory, oneshot, after sd.service - and nothing else",
@@ -345,12 +360,32 @@ def checks(elev, deleter, sudoers):
            "printf '%s: job %s %s\\n' \"$PROG\" \"$JB_NAME\" \"$js_how\"" in verb and "no job named %s; nothing was changed" in verb, "")
         ck("V8 SD_JOBS_DIR is the real directory unless a dry run or a non-root process (reset in main next to the other knobs), and is /etc/sdcore/jobs.d",
            re.search(r"else\n(?:  SD_[A-Z_]+=\$SD_[A-Z_]+_REAL\n)*  SD_JOBS_DIR=\$SD_JOBS_DIR_REAL\n(?:  SD_[A-Z_]+=\$SD_[A-Z_]+_REAL\n)*fi", elev) is not None and "SD_JOBS_DIR_REAL=/etc/sdcore/jobs.d" in elev, "")
-        ck("V9 the worker is only ever given the helper's own directory variable and a name that job_check passed (no verb passes a caller's path)", len(re.findall(r'JOBS_PY" (set|delete|list) "\$SD_JOBS_DIR"', elev)) == 3, "")
+        ck("V9 the worker is only ever given the helper's own directory variable and a name that job_check passed (no verb passes a caller's path; job-list and job_run_state list)",
+           len(re.findall(r'JOBS_PY" (set|delete|list) "\$SD_JOBS_DIR"', elev)) == 4 and len(re.findall(r'JOBS_PY"', elev)) == 4, "")
+        # 2 Nov 26 - S.102 stage 4: job-run, the page's "run now"
+        rc, o = run("--dry-run", "job-run", "nightly")
+        bad_r = [a for a in (["job-run"], ["job-run", "a", "b"], ["job-run", "A"], ["job-run", "../x"], ["job-run", "a-"], ["job-run", "x;id"]) if run("--dry-run", *a)[0] == 0]
+        ck("R1 job-run --dry-run names the service it would start and touches nothing; no name, two names and a bad name are refused",
+           rc == 0 and "systemctl start --no-block sdcore-job-nightly.service" in o and not bad_r and not os.path.exists(os.path.dirname(jd)), repr((o, bad_r)))
+        rc, o = run("job-run", "nightly")
+        ck("R2 a real job-run as an ordinary user dies at need_root, before it looks at anything", rc != 0 and "must run as root" in o, repr(o))
+        vr = elev[elev.find("  job-run)"):elev.find("  totp-status|totp-begin")]
+        r1, r2, r3, r4, r5 = (vr.find(p) for p in ("job_name_ok", "need_root", "job_caller", "! -L $SD_JOBS_DIR/$1 && -f $SD_JOBS_DIR/$1",
+                                                    'systemctl start --no-block "sdcore-job-$1.service"'))
+        r6, r7 = vr.find('job_run_state "$1" || die'), vr.find('[[ $JB_RUN != damaged ]] || die "job $1 is damaged; nothing was started')
+        ck("R3 job-run: the name, need_root, the caller, then the list's agreement test (a damaged definition is refused, only a job is started), then the definition and the service "
+           "must be plain files (no link), then systemctl start --no-block of the job's own service",
+           0 <= r1 < r2 < r3 < r6 < r7 < r4 < r5 and "if [[ $JB_RUN == job && " in vr
+           and "! -L $SD_UNIT_DIR/sdcore-job-$1.service && -f $SD_UNIT_DIR/sdcore-job-$1.service" in vr and "! -L $SD_JOBS_DIR &&" in vr, repr((r1, r2, r3, r6, r7, r4, r5)))
+        ck("R4 job-run runs no command and writes nothing: its only systemctl is the start, it calls no python worker itself (job_run_state reads the list), no rm, no write",
+           sum(ln.count("systemctl") for ln in vr.splitlines() if "printf" not in ln) == 1 and "JOBS_PY" not in vr and "rm " not in vr and ">" not in vr.replace(">&2", "").replace("2>/dev/null", ""), "")
+        ck("R5 the success line the page anchors on is 'job NAME started'; a missing job is 'no job named NAME; nothing was started'",
+           "printf '%s: job %s started\\n' \"$PROG\" \"$1\"" in vr and "no job named %s; nothing was started" in vr, "")
     finally:
         shutil.rmtree(td, ignore_errors=True)
 
     ck("U1 sudoers gives the job verbs to nobody new: no line names job-set, job-delete or job-list, and %sdusers' lines are not widened", "job-" not in sudoers, "")
-    ck("U2 the usage text lists the three verbs", all(("sd-elevate [--dry-run] %s" % v) in elev for v in ("job-set", "job-delete", "job-list")), "")
+    ck("U2 the usage text lists the four verbs", all(("sd-elevate [--dry-run] %s" % v) in elev for v in ("job-set", "job-delete", "job-list", "job-run")), "")
     jr = deleter.find("rm -rf /etc/sdcore/jobs.d")
     rd = deleter.find("rmdir /etc/sdcore ")
     ck("U3 the deleter removes /etc/sdcore/jobs.d before it removes /etc/sdcore (rmdir), and says so", 0 <= jr < rd and "jobs.d" in deleter[jr:rd + 200], repr((jr, rd)))
@@ -375,7 +410,8 @@ def mutants(elev, deleter, sudoers):
     mut("N1 a trailing dash is allowed", "elev", "^[a-z]([a-z0-9-]{0,30}[a-z0-9])?$", "^[a-z]([a-z0-9-]{0,31})?$")
     mut("N1 an upper case letter is allowed", "elev", "^[a-z]([a-z0-9-]{0,30}[a-z0-9])?$", "^[A-Za-z]([A-Za-z0-9-]{0,30}[a-z0-9])?$")
     mut("N2 the sentence is accepted as an id", "elev", "    *) JB_SENTENCE=; return 1 ;;", "    'backup.account all') JB_SENTENCE='backup.account all' ;;\n    *) JB_SENTENCE=; return 1 ;;")
-    mut("N2 an id gets another sentence", "elev", "sync-masters)    JB_SENTENCE='sync.masters' ;;", "sync-masters)    JB_SENTENCE='sync.masters now' ;;")
+    mut("N2 an id gets another sentence", "elev", "update-accounts) JB_SENTENCE='update.accounts all' ;;", "update-accounts) JB_SENTENCE='update.accounts all now' ;;")
+    mut("N2 a retired id is owned again (S.96 M6)", "elev", "    update-accounts) JB_SENTENCE='update.accounts all' ;;", "    update-accounts) JB_SENTENCE='update.accounts all' ;;\n    sync-masters)    JB_SENTENCE='sync.masters' ;;")
     mut("S1 a 7-minute interval is allowed", "elev", "$2 =~ ^(5|10|15|20|30)$", "$2 =~ ^([0-9]|[1-5][0-9])$")
     mut("S1 daily 24:00 is allowed", "elev", "^([01][0-9]|2[0-3]):([0-5][0-9])$", "^([01][0-9]|2[0-4]):([0-5][0-9])$")
     mut("S1 monthly 31 is allowed", "elev", "^([1-9]|1[0-9]|2[0-8])$", "^([1-9]|[12][0-9]|3[01])$")
@@ -400,6 +436,15 @@ def mutants(elev, deleter, sudoers):
     mut("T6 a link in the unit directory is written through", "elev", '  [[ ! -L $f && ( ! -e $f || -f $f ) ]] ||', '  true ||')
     mut("T7 SD_UNIT_DIR is never reset", "elev", "  SD_UNIT_DIR=$SD_UNIT_DIR_REAL\nfi", "fi")
     mut("V8 SD_JOBS_DIR is never reset", "elev", "  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\n  SD_UNIT_DIR", "  SD_UNIT_DIR")
+    mut("R3 job-run does not ask the caller", "elev", "    job_caller\n    # The list's own agreement test", "    # The list's own agreement test")
+    mut("R3 job-run follows a link at the definition", "elev", "! -L $SD_JOBS_DIR/$1 && -f $SD_JOBS_DIR/$1", "-f $SD_JOBS_DIR/$1")
+    mut("R3 job-run waits for the job", "elev", 'systemctl start --no-block "sdcore-job-$1.service"', 'systemctl start "sdcore-job-$1.service"')
+    mut("R1 job-run takes any name", "elev", '    job_name_ok "$1" || die "a job name is 1 to 32 characters: a lower case letter first, then lower case letters, digits and dashes, not ending in a dash"\n    printf \'%s: job-run', "    printf '%s: job-run")
+    mut("R5 job-run says nothing on success", "elev", "      printf '%s: job %s started\\n' \"$PROG\" \"$1\"\n", "")
+    # 2 Nov 26, the review of stage 4: job-run and a damaged definition (mutants from M_REVIEW on)
+    mut("R6 job-run does not ask whether the job is damaged", "elev", '    [[ $JB_RUN != damaged ]] || die "job $1 is damaged', '    true || die "job $1 is damaged')
+    mut("R6 a damaged definition counts as a job", "elev", 'if [[ $line == "job $1: "* ]]; then JB_RUN=job; else JB_RUN=damaged; fi', "JB_RUN=job")
+    mut("R6 a list that cannot be read counts as no job", "elev", 'rows=$(python3 -I -c "$JOBS_PY" list "$SD_JOBS_DIR") || return 1', 'rows=$(python3 -I -c "$JOBS_PY" list "$SD_JOBS_DIR") || return 0')
     mut("U1 sudoers names a job verb", "sudo", "ALL=(root)", "ALL=(root) /usr/local/sbin/sd-elevate job-set *, ", 1)
     mut("U3 the deleter keeps the jobs", "del", "rm -rf /etc/sdcore/jobs.d", "true")
     mut("U4 the deleter leaves the timers", "del", "sudo rm -f /etc/systemd/system/sdcore-job-*.timer /etc/systemd/system/sdcore-job-*.service", "true")

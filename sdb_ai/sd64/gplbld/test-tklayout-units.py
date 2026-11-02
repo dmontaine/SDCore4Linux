@@ -280,7 +280,6 @@ DECLS = {
     "tool_remote": (TOP_LIST_DETAIL, None),
     "tool_gates": ([P("matrix", 1, 19, v=True), P("cell", 2, 11), P("reach", 3, 9, w=68, col=1, hwt=1), P("sessions", 3, 9, w=69, col=2, gap=1, hwt=1)], None),
     "tool_sessions": ([P("sessions", 1, 15, v=True), P("locks", 2, 14, v=True), P("row", 3, 10)], None),
-    "tool_masters": ([P("masters", 1, 8), P("accounts", 2, 15, v=True), P("detail", 3, 16)], None),
     "tool_bulk": ([P("file", 1, 4), P("which", 2, 9), P("what", 3, 13), P("result", 4, 13, v=True)], None),
     "tool_ai": ([P("choice", 1, 9), P("models", 2, 13, v=True), P("key", 3, 10), P("note", 4, 6)], None),
     "tool_mygates": ([P("gates", 1, 21, v=True), P("cell", 2, 12), P("note", 3, 6)], None),

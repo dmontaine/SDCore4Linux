@@ -50,8 +50,7 @@ def load():
     src["tool_gates"] = read(os.path.join(GPL, "tool_gates"))     # 24 Oct 26, S.75 A2: the gate matrix asks for tool.gates.matrix
     src["tool_mygates"] = read(os.path.join(GPL, "tool_mygates"))     # 24 Oct 26, S.75 A2: the holder's page asks for tool.gates.mine
     src["tool_sessions"] = read(os.path.join(GPL, "tool_sessions"))   # 24 Oct 26, S.75 A4: the sessions and locks page asks for tool.sessions.page
-    src["tool_masters"] = read(os.path.join(GPL, "tool_masters"))     # 24 Oct 26, S.75 A7: the master files page asks for tool.masters.page
-    src["tool_jobs"] = read(os.path.join(GPL, "tool_jobs"))           # 2 Nov 26, S.102 stage 1: the scheduled jobs page asks for tool.jobs.accounts and .commands
+    src["tool_jobs"] = read(os.path.join(GPL, "tool_jobs"))           # 2 Nov 26, S.102 stage 1: the scheduled jobs page asks for tool.jobs.accounts and .commands (and .jobs, stage 4)
     src["tool_entries"] = read(os.path.join(GPL, "tool_entries"))     # 3 Nov 26, S.96 M1a: the entries page asks for tool.entries.accounts and .entries
     src["tool_audit"] = read(os.path.join(GPL, "tool_audit"))         # 25 Oct 26, S.75 A5: the audit trail page asks for tool.audit.page
     src["tool_config"] = read(os.path.join(GPL, "tool_config"))       # 25 Oct 26, S.75 A6: the configuration page asks for tool.config.page
@@ -157,7 +156,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|masters|jobs|entries|audit|config|backups|accounts|remote|files|voc|dict|query|bulk|catalog|test|home)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_jobs"]) + "\n" + strip(s["tool_entries"]) + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_masters"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"]) + "\n" + strip(s["tool_files"]) + "\n" + strip(s["tool_voc"]) + "".join("\n" + strip(s["tool_" + a]) for a in ("dict", "query", "bulk", "catalog", "test", "home"))))
+    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|jobs|entries|audit|config|backups|accounts|remote|files|voc|dict|query|bulk|catalog|test|home)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_jobs"]) + "\n" + strip(s["tool_entries"]) + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"]) + "\n" + strip(s["tool_files"]) + "\n" + strip(s["tool_voc"]) + "".join("\n" + strip(s["tool_" + a]) for a in ("dict", "query", "bulk", "catalog", "test", "home"))))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 13 and not (asked - set(hts)), repr(sorted(asked - set(hts))))
@@ -189,11 +188,7 @@ def checks(s):
        "call $tk_help('mark', ssn.x + ssn.w - 5, ssn.y + 1, 0, 0)" in tsn and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.sessions.page', hm, 0, 0)" in tsn and "call $tk_help('hit', mev, ssn.x + ssn.w - 5, ssn.y + 1, hit.m)" in tsn
        and "allow = 'logout unlock inhibit.login'" in tsn and tsn.count("allow = ") == 1 and "tool.sessions.page" in hts and "call $tk_wrap(lines<wi>, rtw, pieces)" in tsn and "rest[cut" not in tsn)
 
-    tma = strip(s["tool_masters"])
-    ck("P17e tool.masters: a [?] at the end of the first box, F1 and ? and a click show its help, it runs only sync.masters, and it wraps with $tk_wrap",
-       "call $tk_help('mark', top.x + top.w - 5, top.y + 1, 0, 0)" in tma and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.masters.page', hm, 0, 0)" in tma and "call $tk_help('hit', mev, top.x + top.w - 5, top.y + 1, hit.m)" in tma
-       and "allow = 'sync.masters'" in tma and tma.count("allow = ") == 1 and "tool.masters.page" in hts and "call $tk_wrap(lines<wi>, dtw, pieces)" in tma and "rest[cut" not in tma)
-
+    # P17e (tool.masters, S.75 A7) went with the page on 2 Nov 26 (S.96 M6: the master-file copies are retired; tool.entries' help keys are in P13 / P14).
     tau = strip(s["tool_audit"])
     ck("P17f tool.audit: a [?] at the end of the first box, F1 and ? and a click show its help, it runs no command (no allow list, no $tk_run), and it wraps with $tk_wrap",
        "call $tk_help('mark', top.x + top.w - 5, top.y + 1, 0, 0)" in tau and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.audit.page', hm, 0, 0)" in tau and "call $tk_help('hit', mev, top.x + top.w - 5, top.y + 1, hit.m)" in tau
@@ -256,7 +251,7 @@ def checks(s):
     ck("P18b $tk_confirm wraps the lines of the explanation like the sentence, an empty line stays empty, and does not append them raw (the box CUTS a long line at its edge: the tail of the ai gate's 150-character sentence never showed, 24 Oct 26)",
        "call $tk_wrap(lines<li>, wrapw, pieces)" in tc and "for li = 1 to dcount(lines, @fm)" in tc and "if lines<li> = '' then" in tc and "body := @fm : lines" not in tc)
 
-    every =th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tma + "\n" + tau + "\n" + tcf + "\n" + tbk + "\n" + tac + "\n" + trm + "\n" + tfl + "\n" + tvc + "\n" + tdi + "\n" + tqy + "\n" + tbl + "\n" + tcg + "\n" + tts
+    every =th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tau + "\n" + tcf + "\n" + tbk + "\n" + tac + "\n" + trm + "\n" + tfl + "\n" + tvc + "\n" + tdi + "\n" + tqy + "\n" + tbl + "\n" + tcg + "\n" + tts
     want ={"$tk_help": (5,), "$tk_wrap": (3,), "!viewlist": (4,), "$tk_run": (5,), "$tk_confirm": (5, 6)}       # $tk_confirm is VAR.ARGS since 26 Oct 26 (faults): a sixth argument, the title, may be left out
     wrong = {k: [n for n in arg_counts(every, k) if n not in v] for k, v in want.items()}
     seen = {k: len(arg_counts(every, k)) for k in want}
@@ -309,12 +304,9 @@ MUTANTS = [
     ("tool.viewers can run another command", "tool_viewers", "allow = 'set.viewer'", "allow = 'set.viewer sh'"),
     ("tool.viewers loses a [?]", "tool_viewers", "   call $tk_help('mark', a.x + a.w - 5, a.y + 1, 0, 0)\n", ""),
     ("tool.gates loses its [?]", "tool_gates", "   call $tk_help('mark', mat.x + mat.w - 5, mat.y + 1, 0, 0)\n", ""),
-    ("tool.masters loses its [?]", "tool_masters", "   call $tk_help('mark', top.x + top.w - 5, top.y + 1, 0, 0)\n", ""),
-    ("tool.masters calls $tk_help with too few arguments", "tool_masters", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.masters.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.masters.page', hm)"),
-    ("tool.masters can run another command", "tool_masters", "allow = 'sync.masters'", "allow = 'sync.masters sh'"),
     ("tool.audit loses its [?]", "tool_audit", "   call $tk_help('mark', top.x + top.w - 5, top.y + 1, 0, 0)\n", ""),
     ("tool.audit calls $tk_help with too few arguments", "tool_audit", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.audit.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.audit.page', hm)"),
-    ("tool.audit gains a command to run", "tool_audit", "   keys = ''\n", "   allow = 'sync.masters'\n   keys = ''\n"),
+    ("tool.audit gains a command to run", "tool_audit", "   keys = ''\n", "   allow = 'logout'\n   keys = ''\n"),
     ("tool.config loses its [?]", "tool_config", "   call $tk_help('mark', mk.x, mk.y, 0, 0)\n", ""),
     ("tool.config calls $tk_help with too few arguments", "tool_config", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.config.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.config.page', hm)"),
     ("tool.config can run another command", "tool_config", "allow = 'set.config'", "allow = 'set.config sh'"),

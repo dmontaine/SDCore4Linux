@@ -127,10 +127,8 @@ def part_a():
     for kf in ("sdsys/gpl.bp/sl_key", "sdsys/gpl.bp/_keycode", "sdsys/newvoc/login", "sdsys/syscom/keyin.h"):
         sel, un, _ = pick([p + kf])
         row("%s selects the key suite (realkeys)" % kf, "realkeys" in sel and not un, repr(sel))
-    for kf in ("gplsrc/op_dio3.c", "sdsys/gpl.bp/ed", "gplsrc/op_lock.c", "gplsrc/txn.c", "gplsrc/k_error.c"):
-        sel, un, _ = pick([p + kf])
-        row("%s selects the master files' suite (S.67: its transaction refusal, its 8910 text, the read note, the lock the save takes, the audit line - tested by that suite alone)" % kf,
-            "masters" in sel and not un, repr(sel))
+    # 2 Nov 26 (S.96 M6): the rows that held op_dio3.c, ed, op_lock.c, txn.c and k_error.c to the master files' suite went with that suite (S.67's copies are retired);
+    # what is left of them is that no rule names a suite regress.sh no longer has, which the rows above already hold.
     bc = p + "sdsys/gpl.bp/bcomp"
     sel, _, _ = pick([bc], ["st.input.common"])
     row("bcomp, a hunk under st.input.common: the INPUT suites, not the select-list ones", "inputtrap" in sel and "sselectv" not in sel, repr(sel))

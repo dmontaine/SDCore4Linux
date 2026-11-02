@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; WRITE and DELETE inside a transaction, the read note and the 8910 refusal text no
+ *               longer call into masters.c (gone).
  * 28 Oct 26 dm  S.87: net_pre_change_lock() can no longer ask a caller to wait (that was AUTOLOCK's): NETL_WAIT, its two arms and the retry_pc of op_write and op_delete are gone.
  * 28 Oct 26 dm  S.87: the PMATRIX descriptor type is gone.
  * 27 Oct 26 dm  S.87 batch 17: $MODE PICK.READ (op_pickread, P_PICKREAD), AUTOLOCK (P_AUTOLOCK, also in net_pre_change_lock) and WRITE.DELETE.THEN.ELSE (P_THEN_ELSE) are gone:
@@ -660,11 +662,7 @@ void op_delete() {
       }
 
       if (txn_id != 0) {
-        /* 19 Oct 26 S.67 stage 2: not a master record inside a transaction (see op_write) */
-        if (masters_txn_refusal(dh_file, id, id_len) != 0)
-          process.status = -DHE_MASTER_REFUSED;
-        else
-          txn_delete(fvar, id, id_len);
+        txn_delete(fvar, id, id_len);
       } else {
         if ((!dh_delete(dh_file, id, id_len)) && (dh_err != DHE_RECORD_NOT_FOUND)) {
           process.status = -dh_err;
@@ -763,10 +761,7 @@ exit_op_delete:
       unlock_record(fvar, id, id_len);
     }
   } else if (!(op_flags & P_ON_ERROR)) {
-    if (process.status == -DHE_MASTER_REFUSED)
-      k_error("%s", masters_refusal_text()); /* 19 Oct 26 S.67 stage 2: a master record is not deleted from here; the reason is in plain words */
-    else
-      k_error(sysmsg(1405), process.status);
+    k_error(sysmsg(1405), process.status);
   }
 }
 
@@ -1392,12 +1387,6 @@ void op_write() {
 
       str = src_descr->data.str.saddr;
       if (txn_id != 0) {
-        /* 19 Oct 26 S.67 stage 2: a master record is not saved inside a transaction (the DH layer sees the write at COMMIT, half way through the
-           transaction's other writes, where a refusal could not be undone) */
-        if (masters_txn_refusal(dh_file, id, id_len) != 0) {
-          process.status = -DHE_MASTER_REFUSED;
-          goto exit_op_write;
-        }
         if (!txn_write(fvar, id, id_len, str))
           goto exit_op_write;
       } else {
@@ -1497,8 +1486,6 @@ exit_op_write:
       k_error(sysmsg(10151), -process.status);
     else if ((process.status == -ER_NDYN) && (op_flags & P_SEQKEY))
       k_error(sysmsg(11348)); /* CREATING.SEQKEY needs a hashed file */
-    else if (process.status == -DHE_MASTER_REFUSED)
-      k_error("%s", masters_refusal_text()); /* 19 Oct 26 S.67 stage 2: SDSYS's save of a master record was refused; the reason is in plain words */
     else
       k_error(sysmsg(1407), -process.status, process.os_error);
   }
@@ -1813,9 +1800,6 @@ Private void read_record(bool matread) {
       if (matread && (dh_file->flags & DHF_COLLECTION))
         k_error(sysmsg(11127)); /* MATREAD makes no sense for a data collection */
       str = dh_read(dh_file, id, id_len, actual_id);
-      /* 19 Oct 26 S.67 (verifier F3): a read of voc_master or dict_master is remembered, so that a later save is judged against the record that was READ (masters.c) */
-      if (!(dh_file->flags & DHF_MST_NOMASTER))
-        masters_note_read(dh_file, id, id_len, str, dh_err);
       switch (dh_err) {
         case 0:
           str_descr->data.str.saddr = str;

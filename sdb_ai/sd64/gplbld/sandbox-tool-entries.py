@@ -328,7 +328,21 @@ def section_e3(p):
     say("\n--- E3: a VOC that cannot be opened")
     p.walk_to(BAD)
     T = p.text()
-    ok3 = "VOC cannot be opened from here." in T and ("Its path in the register: " + apath(BAD)) in T       # the path on a line of its own, whole (it was cut at the box edge on a long one)
+    # the path on lines of its own, WRAPPED at the box's width (2 Nov 26: under regress.sh's long sandbox directory it was cut at the edge, the account's name lost):
+    # the wrapped text is joined back from the column the label starts in to the box's right border, line by line, until a blank line
+    wrapped = ""
+    L = p.h.lines()
+    for i, ln in enumerate(L):
+        x0 = ln.find("Its path in the register: ")
+        if x0 >= 0:
+            for ln2 in L[i:i + 6]:
+                rb = ln2.find("|", x0)
+                seg = (ln2[x0:rb] if rb > x0 else ln2[x0:]).rstrip()
+                if not seg:
+                    break
+                wrapped += seg if not wrapped else seg.strip()
+            break
+    ok3 = "VOC cannot be opened from here." in T and ("Its path in the register: " + apath(BAD)) in wrapped
     arow("E3", "%s: the Entries box says its VOC cannot be opened from here, with its path" % BAD, ok3, T[:600])
     if not ok3:
         dump(p.h)

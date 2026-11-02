@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; OSPATH OS_DELETE and OSRENAME no longer call masters_note_name() (gone with masters.c).
  * 27 Oct 26 dm  S.87 batch 5: the five CASE_INSENSITIVE_FILE_SYSTEM blocks (op_ospath, op_osrename: upper-casing a path on a case-blind file system) are gone; a Linux build never compiled them.
  * 24 Oct 26 dm  W.11 F9: SYSDIR answers sd_sysdir() (the configuration file's); the administrator tests are MY_ADMIN().
  * 19 Oct 26 dm  S.67 stage 1: OSPATH OS_DELETE and OSRENAME call masters_note_name() for the paths they remove, move and make (a VOC or dictionary
@@ -1010,7 +1011,6 @@ void op_ospath() {
     case OS_DELETE:
       flush_dh_cache();
       status = (int32_t)delete_path(path);
-      masters_note_name(path, 'x'); /* 19 Oct 26 S.67: a dictionary (or what is in one) removed; the path need not exist any more */
       break;
 
     case OS_CWD:
@@ -1247,10 +1247,6 @@ void op_osrename() {
     process.status = ER_FAILED;
     goto exit_osrename;
   }
-
-  /* 19 Oct 26 S.67: a VOC or dictionary moved away from its name and to another: the master copies of both are made to match */
-  masters_note_name(old_path, 'x');
-  masters_note_name(new_path, 'n');
 
 exit_osrename:
   k_dismiss();

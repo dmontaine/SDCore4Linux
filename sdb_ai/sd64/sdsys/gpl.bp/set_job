@@ -1,0 +1,302 @@
+* SET_JOB
+* SET.JOB verb: the administrator's scheduled jobs (S.102 stage 4), defined, changed, deleted and started through the root helper.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 2 Nov 26 dm  New (S.102 stage 4; the owner, 1 Nov: "a cron management admin pane - so that cron can be managed from within SD", admin jobs in its first version).
+*              Until now a job was set up only with sudo /usr/local/sbin/sd-elevate job-set at a shell; this verb is what the scheduled jobs page runs.
+* 2 Nov 26 dm  The review: RUN refuses a job the list shows as damaged (11333) before job-run is asked; the helper's description lines are not shown, only what it did;
+*              the next and last run are read with ONE systemctl show a job (it was four); a non-administrator gets -ER$PERM.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   SET.JOB                                   lists the jobs the root helper holds, each with its next run and its last run
+*   SET.JOB ADD name job schedule             defines a new job (refused when a job of that name exists)
+*   SET.JOB CHANGE name job schedule          changes an existing job (refused when there is none)
+*   SET.JOB DELETE name                       stops and removes a job
+*   SET.JOB RUN name                          starts a job now, exactly as its timer would (refused for a damaged definition)
+*
+*     name       1 to 32 characters: a lower case letter first, then lower case letters, digits and dashes, not ending in a dash
+*     job        backup-all or update-accounts: an id from the helper's own list, never a command line
+*     schedule   every 5|10|15|20|30 minutes, hourly, daily hh:mm, weekly mon..sun hh:mm, monthly 1..28 hh:mm (the machine's time).  A time may be written
+*                hh.mm as well (the scheduled jobs page sends it so: $tk_run lets no colon through); it is given to the helper as hh:mm.
+*
+*   The administrator's verb (in SDSYS's VOC only).  NOTHING IS SCHEDULED AS DELIVERED.  This program writes no file: every change is made by the root helper
+*   (sudo -n /usr/local/sbin/sd-elevate job-set | job-delete | job-run, and job-list for the list), which checks the name, the job and the schedule again and
+*   owns the definitions in /etc/sdcore/jobs.d and the systemd units.  What the helper printed is shown; the change is judged on the helper's own success line
+*   ("job NAME is scheduled", "job NAME deleted", "job NAME started"), never on its exit status alone.  The next run and the last run are read with
+*   systemctl show, which needs no privilege and changes nothing.  Every change asked for is written to the audit trail with its result.
+*   ADD refusing an existing name and CHANGE a missing one are checked against the list just before job-set, which itself creates or replaces: ADVISORY, not enforced
+*   by root, so two administrator sessions acting on one name at the same moment are not kept apart.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program set.job
+$catalog $set_job
+
+$include int$keys.h
+$include keys.h
+$include err.h
+
+$define HELPER     'sudo -n /usr/local/sbin/sd-elevate'
+$define SYSTEMCTL  'LC_ALL=C /usr/bin/systemctl'
+
+   @system.return.code = -ER$ARGS
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      @system.return.code = -ER$PERM                            ;* not a command format error
+      stop sysmsg(2001) ;* Command requires administrator privileges
+   end
+
+   words = downcase(trim(@sentence))
+   n.words = dcount(words, ' ')
+
+   if n.words = 1 then
+      gosub list.jobs
+      @system.return.code = (if lrc = 0 then 0 else -ER$FAILED)
+      stop
+   end
+
+   action = field(words, ' ', 2)
+   jname = field(words, ' ', 3)
+   job = ''
+   sched = ''
+   ok.form = @false
+   if (action = 'delete' or action = 'run') and n.words = 3 then ok.form = @true
+   if (action = 'add' or action = 'change') and n.words >= 5 and n.words <= 7 then ok.form = @true
+   if not(ok.form) then stop sysmsg(11191)                      ;* set.job {add | change} name job schedule; ...
+
+   gosub name.ok
+   if not(ok) then stop sysmsg(11224, jname[1, 40])             ;* %1 is not a job name
+
+   if action = 'add' or action = 'change' then
+      job = field(words, ' ', 4)
+      if job # 'backup-all' and job # 'update-accounts' then   ;* the root helper's ids (check-masters and sync-masters went with S.96 M6, 2 Nov 26)
+         stop sysmsg(11246, job[1, 40])                          ;* %1 is not a job
+      end
+      sched = field(words, ' ', 5, 3)
+      gosub sched.ok
+      if not(ok) then stop sysmsg(11250)                         ;* The schedule is none of: ...
+      gosub read.list
+      if lrc # 0 then
+         @system.return.code = -ER$FAILED
+         gosub show.out
+         stop sysmsg(11332, lrc)                                 ;* The root helper did not do it (status %1)
+      end
+      locate jname in lnames<1> setting lp then there = @true else there = @false
+      if action = 'add' and there then
+         @system.return.code = -ER$FAILED
+         stop sysmsg(11302, jname)                               ;* A job named %1 already exists; nothing was changed
+      end
+      if action = 'change' and not(there) then
+         @system.return.code = -ER$FAILED
+         stop sysmsg(11319, jname)                               ;* No job is named %1; nothing was changed
+      end
+      cmd = HELPER : ' job-set ' : jname : ' ' : job : ' ' : sched
+      want = 'sd-elevate: job ' : jname : ' is scheduled: '
+   end
+   if action = 'delete' then
+      cmd = HELPER : ' job-delete ' : jname
+      want = 'sd-elevate: job ' : jname : ' deleted'
+   end
+   if action = 'run' then
+      gosub read.list                                            ;* a damaged definition is refused here, as the page refuses it; the helper refuses it again
+      if lrc # 0 then
+         @system.return.code = -ER$FAILED
+         gosub show.out
+         stop sysmsg(11332, lrc)                                 ;* The root helper did not do it (status %1)
+      end
+      locate jname in lnames<1> setting lp then
+         if llines<lp>[1, 8] = 'damaged ' then
+            @system.return.code = -ER$FAILED
+            stop sysmsg(11333, jname)                            ;* Job %1 is damaged; nothing was started ...
+         end
+      end
+      cmd = HELPER : ' job-run ' : jname
+      want = 'sd-elevate: job ' : jname : ' started'
+   end
+
+   gosub run.cmd
+   gosub show.out
+   done = @false
+   for i = 1 to dcount(out, @fm)
+      if out<i>[1, len(want)] = want then done = @true            ;* the helper's own success line, and nothing it prints on a refusal
+   next i
+   if rc # 0 then done = @false
+   if not(done) then crt sysmsg(11332, rc)
+
+   aud = 'set.job ' : action : ' name=' : jname
+   if job # '' then aud := ' job=' : job
+   aud := ' result=' : (if done then 'done' else 'failed status=' : rc)
+   if sched # '' then aud := ' schedule=' : sched
+   void kernel(K$AUDIT, aud)
+   @system.return.code = (if done then 0 else -ER$FAILED)
+   stop
+
+* ------------------------------------------------------------------------------------------------- the checks the helper makes again
+
+* jname in; ok out.  The helper's rule, so that a wrong name is said before anything is asked of root.
+name.ok:
+   ok = @false
+   if len(jname) < 1 or len(jname) > 32 then return
+   if index('abcdefghijklmnopqrstuvwxyz', jname[1, 1], 1) = 0 then return
+   if jname[len(jname), 1] = '-' then return
+   if convert('abcdefghijklmnopqrstuvwxyz0123456789-', '', jname) # '' then return
+   ok = @true
+   return
+
+* sched in (the words after the job); sched out with hh.mm made hh:mm; ok out.  One of the helper's five shapes, so a wrong one is said here; the helper decides.
+sched.ok:
+   ok = @false
+   sched = change(sched, '.', ':')
+   if convert('abcdefghijklmnopqrstuvwxyz0123456789: ', '', sched) # '' then return
+   ns = dcount(sched, ' ')
+   s1 = field(sched, ' ', 1)
+   s2 = field(sched, ' ', 2)
+   s3 = field(sched, ' ', 3)
+   begin case
+      case s1 = 'every'
+         ok = (ns = 3 and s3 = 'minutes' and (s2 = '5' or s2 = '10' or s2 = '15' or s2 = '20' or s2 = '30'))
+      case s1 = 'hourly'
+         ok = (ns = 1)
+      case s1 = 'daily'
+         tm = s2
+         gosub time.ok
+         ok = (ns = 2 and tok)
+      case s1 = 'weekly'
+         tm = s3
+         gosub time.ok
+         ok = (ns = 3 and tok and index(' mon tue wed thu fri sat sun ', ' ' : s2 : ' ', 1) > 0 and len(s2) = 3)
+      case s1 = 'monthly'
+         tm = s3
+         gosub time.ok
+         dd = (if s2 matches '1N' or s2 matches '2N' then s2 else '')
+         ok = (ns = 3 and tok and dd # '' and dd[1, 1] # '0')
+         if ok then ok = (dd >= 1 and dd <= 28)
+   end case
+   return
+
+* tm in; tok out: hh:mm, 00:00 to 23:59
+time.ok:
+   tok = @false
+   if len(tm) # 5 or tm[3, 1] # ':' then return
+   hh = tm[1, 2]
+   mm = tm[4, 2]
+   if not(hh matches '2N') or not(mm matches '2N') then return
+   if hh > 23 or mm > 59 then return
+   tok = @true
+   return
+
+* ------------------------------------------------------------------------------------------------- the list
+
+* lrc, lnames (one job a field) and llines (the helper's line for it) out.  A damaged definition counts as a job of that name.
+read.list:
+   cmd = HELPER : ' job-list'
+   gosub run.cmd
+   lrc = rc
+   lnames = ''
+   llines = ''
+   if lrc # 0 then return
+   for i = 1 to dcount(out, @fm)
+      ln = out<i>
+      ln.name = ''
+      if ln[1, 4] = 'job ' then ln.name = field(ln[5, len(ln)], ':', 1)
+      if ln[1, 8] = 'damaged ' then ln.name = field(ln[9, len(ln)], ':', 1)
+      if ln.name # '' then
+         lnames<-1> = ln.name
+         llines<-1> = ln
+      end
+   next i
+   return
+
+list.jobs:
+   gosub read.list
+   if lrc # 0 then
+      gosub show.out
+      crt sysmsg(11332, lrc)
+      return
+   end
+   if lnames = '' then
+      crt sysmsg(11792)                                          ;* No scheduled job is defined
+      return
+   end
+   for li = 1 to dcount(llines, @fm)
+      crt llines<li>
+      if llines<li>[1, 4] = 'job ' then
+         jname = lnames<li>
+         gosub name.ok
+         if ok then
+            gosub job.state
+            crt '   ' : sysmsg(11789, nx, lr)                     ;* next run: %1; last run: %2
+         end
+      end
+   next li
+   return
+
+* jname in (checked by name.ok); nx and lr out: what systemd says of the timer and the service.  Read only; a unit systemd does not know says not scheduled / never.
+* ONE systemctl a job (it was four): systemctl show prints the timer's properties as NAME=VALUE lines, a blank line, then the service's; each is taken by its name from
+* its own unit's block (the timer has an ActiveState and a Result of its own), and a property systemctl leaves out is simply not set.
+job.state:
+   cmd = SYSTEMCTL : ' show -p NextElapseUSecRealtime -p ActiveState -p ExecMainExitTimestamp -p Result sdcore-job-' : jname : '.timer sdcore-job-' : jname : '.service'
+   gosub run.cmd
+   nx = '' ; act = '' ; ts = '' ; res = ''
+   unit = 1
+   for si = 1 to dcount(out, @fm)
+      ln = trim(out<si>)
+      if ln = '' then
+         if si > 1 then unit = 2
+      end else
+         pn = field(ln, '=', 1)
+         pv = trim(ln[len(pn) + 2, len(ln)])
+         if unit = 1 and pn = 'NextElapseUSecRealtime' then nx = pv
+         if unit = 2 and pn = 'ActiveState' then act = pv
+         if unit = 2 and pn = 'ExecMainExitTimestamp' then ts = pv
+         if unit = 2 and pn = 'Result' then res = pv
+      end
+   next si
+   if nx = '' or nx = 'n/a' or nx = '0' then nx = 'not scheduled'
+   begin case
+      case act = 'activating' or act = 'active'
+         lr = 'running now'
+      case ts = '' or ts = 'n/a'
+         lr = 'never'
+      case 1
+         lr = ts : ' (' : res : ')'
+   end case
+   return
+
+* ------------------------------------------------------------------------------------------------- helpers
+
+* cmd in; out (fields) and rc out.  Built only from words this program checked: a job name, a job id, schedule words of a-z, 0-9 and the colon.
+run.cmd:
+   out = ''
+   os.execute cmd : ' 2>&1' capturing out
+   rc = os.error()
+   out = change(change(out, char(13) : char(10), @fm), char(13), '')
+   if out[len(out), 1] = @fm then out = out[1, len(out) - 1]
+   return
+
+* out in.  The helper's own lines but its description of what it is about to do (job-set NAME: ..., then: ..., job-delete NAME: ..., job-run NAME: ...,
+* job-list: ...), which it prints before it acts and which say nothing about the outcome.
+show.out:
+   for i = 1 to dcount(out, @fm)
+      ln = out<i>
+      skip = (ln = '')
+      if ln[1, 12] = 'sd-elevate: ' then
+         w2 = field(ln[13, len(ln)], ' ', 1)
+         w3 = field(ln[13, len(ln)], ' ', 2)
+         if w2 = 'then:' or w2 = 'job-list:' then skip = @true
+         if (w2 = 'job-set' or w2 = 'job-delete' or w2 = 'job-run') and w3[len(w3), 1] = ':' then skip = @true
+      end
+      if not(skip) then crt ln
+   next i
+   return
+
+end
+
+* END-CODE

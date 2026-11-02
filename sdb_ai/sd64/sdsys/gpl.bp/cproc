@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 2 Nov 26 dm  S.96 security fix: RUN.IN's common is /$runin/, not /runin/.  Any program could declare /runin/, set ri.active and ri.sw and ABORT, and the abort
+*              branch then put SH, OS.EXECUTE, SD.ACCOUNTS, NET and the shared gates ON for that session (shown on a real install by probe-runin-forge.py).
+*              A $ name is taken by the compiler only in internal mode, and the kernel now refuses one to any other program (op_common, message 11598).
 * 2 Nov 26 dm  S.102 stage 3: a scheduled administrator job (kernel(K$JOB.MARK)) is granted the administrator in the local arm, before the login
 *              questions, and joins at elevation.done; audited 'elevation granted reason=scheduled job' (the kernel adds job=<name>).
 * 2 Nov 26 dm  S.101 stage B: both arms of the sdsys grant ask kernel(K$LOGIN.MARK) for a login that is sdsys's own - the authenticator code's marker,
@@ -308,7 +311,8 @@ $define max.elements 500
 * 3 Nov 26 dm - S.96.  RUN.IN's way back.  A named common, because an abort discards the command processor levels above the bottom one and calls it again: what the verb
 *   saved must outlive the level that saved it.  ri.active is 0 until RUN.IN has entered an account and 0 again once revert.account has put everything back; ri.sw holds the six
 *   account-scoped switches, in the order load.account.switches sets them.
-   common /runin/ ri.active, ri.path, ri.account.path, ri.who, ri.sw, ri.account
+*   A $ name (2 Nov 26): only an internal program can declare it or join it, so no user program can forge ri.active or ri.sw and ABORT into revert.account.
+   common /$runin/ ri.active, ri.path, ri.account.path, ri.who, ri.sw, ri.account
 
 * rev 0.9.0 define commands requiring admin (root) privilege 
    privileged_commands = ''
@@ -3141,7 +3145,7 @@ load.account.switches:
 * (it would run with the administrator's rights) and nobody is asked a question.  Not the administrator's own account, and never a path: the account must have a register record.
 *
 * THE WAY BACK is revert.account, from two places: the end of this routine, and the top of the abort branch (a break, a run-time error, ABORT or a forced logout abandons this
-* routine's frame, and the bottom command processor is called again).  /runin/ holds what is needed; ri.active says a run is in progress.  It is audited on the way in and the way out
+* routine's frame, and the bottom command processor is called again).  /$runin/ holds what is needed; ri.active says a run is in progress.  It is audited on the way in and the way out
 * (run.in begin ... / run.in end ... / run.in revert ... reason=abort).
 
 int.runin:
@@ -3331,7 +3335,7 @@ ri.plain.word:
 *****************************************************************************
 * REVERT.ACCOUNT  -  Go back to the account RUN.IN left  (3 Nov 26, S.96)
 *
-* Called at the end of int.runin and from the abort branch.  It is LOGTO's own change undone from what int.runin kept in /runin/, and it asks for nothing LOGTO asked for: the process was
+* Called at the end of int.runin and from the abort branch.  It is LOGTO's own change undone from what int.runin kept in /$runin/, and it asks for nothing LOGTO asked for: the process was
 * in that account already, so it is no new entry (no membership test, no ON.LOGTO, no LOGIN), and the account-scoped switches go back to what that account's entry had set, so the account
 * the command visited keeps nothing it granted.  ri.active goes to 0 FIRST: a failure below must not run this twice.  A directory that cannot be entered again is fatal, as in LOGTO.
 

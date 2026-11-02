@@ -103,8 +103,8 @@ def checks(s):
     ck("H3b ...it is a user app (audience null: the page differs, nobody is refused) and the administrator's page is the kernel's answer, not a name",
        "call $tk_open('home', '', ctx, err)" in th and "is.admin = kernel(K$ADMINISTRATOR, -1)" in th and "if is.admin then ctx<TK.C.AUD> = sysmsg(11803)" in th)
     cmds = re.findall(r"act = '(cmd:[^']*|menu:[^']*|terminal|switch|signout|back)' ; pal", th)       # the rows of the table (the case lines of start.tile also say act = ...)
-    ADMIN_TILES = {"menus": "tool.menus", "viewers": "tool.viewers", "audit": "tool.audit", "config": "tool.config", "backups": "tool.backups", "masters": "tool.masters",
-                   "accounts": "tool.accounts", "sessions": "tool.sessions", "gates": "tool.gates", "remote": "tool.remote", "ai": "tool.ai"}
+    ADMIN_TILES = {"menus": "tool.menus", "viewers": "tool.viewers", "audit": "tool.audit", "config": "tool.config", "backups": "tool.backups", "entries": "tool.entries",
+                   "accounts": "tool.accounts", "sessions": "tool.sessions", "gates": "tool.gates", "jobs": "tool.jobs", "remote": "tool.remote", "ai": "tool.ai"}   # jobs: S.102 (2 Nov 26)
     DEV_TILES = {"files": "tool.files", "voc": "tool.voc", "dict": "tool.dict", "query": "tool.query", "bulk": "tool.bulk", "catalog": "tool.catalog", "test": "tool.test"}            # the development apps (DV), for every account; each adds its tile in the commit that builds it (plan 13.2)
     ck("H4 tool_home: every tile of the table has a fixed action (cmd:sed, ide, tool.keys, my.menu, the development apps and the eleven administrator pages), terminal, switch, signout or back (the Back tile of a sub-menu page); the ONLY other action is a person's own program (H25); and no tile of the delivered page opens a sub-menu (no menu:<name>)",
        sorted(cmds) == sorted(["cmd:sed", "cmd:ide", "terminal", "cmd:tool.keys", "switch", "signout", "back", "cmd:my.menu"] + ["cmd:" + v for v in ADMIN_TILES.values()] + ["cmd:" + v for v in DEV_TILES.values()]), repr(cmds))
@@ -265,9 +265,9 @@ def checks(s):
        "sent = 'modify.account ' : acct : ' pins-' : want" in tm and "want = (if apins<ai> then 'off' else 'on')" in tm and "gosub change.pins" in tm
        and "allow = 'modify.account set.tile set.start.default'" in tm)
     live = between(th, "\nlive.read:\n", "\ndraw.panel:")
-    ck("H29 live lines (plan 13.1): only the administrator's page has any (the guard comes before the first tile is looked at), and each line is a question that only reads - the kernel's master-file 'ready' and 'pending', the session list and the register's names; nothing is written, executed or audited",
+    ck("H29 live lines (plan 13.1): only the administrator's page has any (the guard comes before the first tile is looked at), and each line is a question that only reads - the session list and the register's names (the master files' line went with S.67's copies, 2 Nov 26, S.96 M6: no kernel question is left); nothing is written, executed or audited",
        0 < live.find("if not(is.admin) then return") < live.find("for i = 1 to nt")
-       and re.findall(r"kernel\(([^)]*)\)", live) == ["K$MASTERS, 'ready'", "K$MASTERS, 'pending'"]
+       and re.findall(r"kernel\(([^)]*)\)", live) == []
        and "call !listu(ludata)" in live and "openpath @sdsys : @ds : 'accounts' to lf then" in live
        and not re.search(r"\b(write|writev|delete|execute|void)\b", live), repr(re.findall(r"kernel\(([^)]*)\)", live)))
     ck("H29b ...they are read when the page is built (the first time and on F5, before the styles) and again whenever the 30 seconds' key wait runs out, which draws only the tiles whose line changed; a tile shows its live line where the sub line was, unless it is dimmed",
@@ -455,7 +455,7 @@ MUTANTS = [
     ("the Develop group moves to a band of its own before Everyone", "tool_home", "   gr<g> = 'Everyone' : @vm : bnd : @vm : 6", "   gr<g> = 'Develop' : @vm : bnd : @vm : 6"),
     ("the Gates tile is moved out of its group name", "tool_home", "gr<g> = 'People and access'", "gr<g> = 'People'"),
     ("a live line is read for an account holder too", "tool_home", "live.chg = ''\n   if not(is.admin) then return", "live.chg = ''"),
-    ("a live line drains the master files' journal", "tool_home", "ans = kernel(K$MASTERS, 'pending')", "ans = kernel(K$MASTERS, 'drain')"),
+    ("a live line writes to the audit trail", "tool_home", "   call !listu(ludata)\n", "   call !listu(ludata)\n   void kernel(K$AUDIT, 'home live')\n"),
     ("the key wait no longer reads the live lines again", "tool_home", "gosub draw.clock\n            gosub live.draw", "gosub draw.clock"),
     ("the live line is written over the dimmed reason", "tool_home", "s = '  ' : (if tl<di, HT.WHY> # '' then tl<di, HT.WHY> else (if tl<di, HT.LIVE> # '' then tl<di, HT.LIVE> else tl<di, HT.SUB>))", "s = '  ' : (if tl<di, HT.LIVE> # '' then tl<di, HT.LIVE> else tl<di, HT.SUB>)"),
     ("MENU runs another program for every account", "menu.n", "$tool_home", "$exit"),

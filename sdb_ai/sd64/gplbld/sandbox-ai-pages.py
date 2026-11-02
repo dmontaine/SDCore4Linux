@@ -61,7 +61,7 @@ FAILED_IDS = []
 SCREEN = [None]
 PROGS = ("tk_ai", "tk_aipage", "tk_frame", "tk_keys", "tk_layout", "tool_voc", "tool_files",
          "tool_catalog", "tool_mygates", "tool_dict", "tool_test", "tool_query", "tool_bulk",     # 1 Nov 26: the pages of S.97 stage 2
-         "tool_accounts", "tool_audit", "tool_backups", "tool_config", "tool_gates", "tool_masters", "tool_remote", "tool_sessions", "tool_viewers", "tool_ai",
+         "tool_accounts", "tool_audit", "tool_backups", "tool_config", "tool_gates", "tool_remote", "tool_sessions", "tool_viewers", "tool_ai",
          "tool_menus", "mymenu")                                                                  # group B and stage 3
 
 # 1 Nov 26 (S.97 stage 2): the pages that got the line in stage 2, each with the ids it offers the model and one id it has and must NOT offer (an action that does
@@ -333,7 +333,6 @@ ADMIN_MORE = (("tool.accounts", ["refresh"], "delete"),
               ("tool.backups", ["refresh"], "restore"),
               ("tool.config", ["parameters", "refresh"], "edit"),
               ("tool.gates", ["filter", "refresh"], "queue"),
-              ("tool.masters", ["journal", "refresh"], "syncall"),
               ("tool.remote", ["doors", "routes", "refresh"], "ssh"),
               ("tool.sessions", ["switch", "output", "refresh"], "logout"),
               ("tool.viewers", ["pane", "output", "refresh"], "change"),

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Nov 26 dm  S.96 M6: K_MASTERS (150) retired with the master-file copies (S.67); the number is not reused.
  * 28 Oct 26 dm  S.88: SD_USER_HOME (112), the SDEXT test of the effective user's home and a directory below it (the recovery store).
  * 28 Oct 26 dm  S.88 phase 2: K_SHOW_SAFE (151), the kernel's one rule for showing another session's text, for BASIC (PSTAT, PROFILER, HSM).
  * 27 Oct 26 dm  S.87 batch 16: K_KEEP_SELECT (107) is gone; the number stays reserved.
@@ -429,14 +430,7 @@
 #define K_SHARED_ONCE        131
 #define K_PROFILER           116
 #define K_PROFILER_USER      117
-/* 19 Oct 26 dm - S.67 stage 1 (the master files, masters.c).  K_MASTERS: the argument is an op, then a field mark and its argument; the answer is a
-   string whose first field is the status (0 done, 1 the master files are not set up, 2 refused - not the administrator, 3 bad argument, 4 the
-   account is not registered, 5 error).  Only "ready" (is it set up?) and "note" (add a journal line for a path: !OSCOPY) are open to any $internal
-   program; every other op needs the administrator (USR_ADMIN) and is refused otherwise, changing nothing.  Ops: init, pending, peek n, drain, sync
-   account, syncbegin, syncend position, drop account, check {account}, accounts, and (stage 2, 19 Oct 26) refusal: why the last save of a master
-   record in this session was refused, field 2 (empty if it was not).  Number 150, apart from the 121-131 block of the gates, because
-   another lane was adding keys at 132 and up (merge safety only).  GPL.BP/INT$KEYS.H carries the same number. */
-#define K_MASTERS            150
+/* 150 was K_MASTERS (S.67, the master-file copies) - retired 2 Nov 26 (S.96 M6) with masters.c; do not reuse */
 /* 28 Oct 26 dm - S.88 phase 2 (the readers of $IPC).  K_SHOW_SAFE: the argument is any text; the answer is that text with every byte of
    THE ONE RULE (op_lock.c show_unsafe_byte(): 0-31, 127, 128-159, 248-255) made '?', the same length.  It reads and changes nothing else and
    any program may ask.  It is how a BASIC program that prints another session's text (PSTAT, PROFILER DISPLAY, HSM USER n, which print the

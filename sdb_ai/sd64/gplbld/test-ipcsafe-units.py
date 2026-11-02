@@ -245,7 +245,7 @@ def mutants(files):
        "        { int k; for (k = 0; k < safe_chunk->bytes; k++) ts_copy_byte(((u_char)safe_chunk->data[k] < 32) ? '?' : safe_chunk->data[k]); }")
     cx("op_kernel", "the K_SHOW_SAFE case is gone", "    case K_SHOW_SAFE: {", "    case K_SHOW_SAFE_GONE: {")
     cx("intkeys", "int$keys.h gives K$SHOW.SAFE another number", "$define K$SHOW.SAFE       151", "$define K$SHOW.SAFE       152")
-    cx("keys_h", "keys.h gives K_SHOW_SAFE the number of K_MASTERS", "#define K_SHOW_SAFE          151", "#define K_SHOW_SAFE          150")
+    cx("keys_h", "keys.h gives K_SHOW_SAFE the number of K_AI_START", "#define K_SHOW_SAFE          151", "#define K_SHOW_SAFE          160")   # K_MASTERS (150) was the neighbour until S.96 M6 (2 Nov 26) retired it
     cx("pstat", "pstat prints @PSTAT raw through another variable", "kernel(K$SHOW.SAFE, rec<6>)", "rec<6>")
     cx("pstat", "pstat filters by hand instead of asking the kernel", "kernel(K$SHOW.SAFE, rec<5>)", "convert(char(27), '?', rec<5>)")
     cx("hsm", "hsm shows the name without the rule", "display kernel(K$SHOW.SAFE, ss<1, 1>)", "display ss<1, 1>")

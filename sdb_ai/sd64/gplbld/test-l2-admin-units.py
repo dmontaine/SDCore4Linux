@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""test-l2-admin-units.py - the five dense administrator pages on the layout service (S.88 stage L2): TOOL.GATES, TOOL.SESSIONS, TOOL.MASTERS, TOOL.AUDIT, TOOL.ACCOUNTS.  Free: no install, no sudo, no sd.
+"""test-l2-admin-units.py - the four dense administrator pages on the layout service (S.88 stage L2): TOOL.GATES, TOOL.SESSIONS, TOOL.AUDIT, TOOL.ACCOUNTS (TOOL.MASTERS, the fifth, went with S.67's copies on 2 Nov 26, S.96 M6).  Free: no install, no sudo, no sd.
 
     python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-l2-admin-units.py [--selftest]
 
@@ -8,7 +8,7 @@ model of test-tklayout-units.py (a copy of $tk_layout's equations; that file is 
 NOTHING, SO IT CANNOT SAY THAT A PAGE IS DRAWN IN A BIGGER WINDOW***: that is `sandbox-l2-admin.py`, which opens each page on a pseudo-terminal at 140 by 43, 180 by 55 and 200 by 60 and reads
 the boxes off the screen against this file's expected rectangles.  What a text check is for:
 
-  L2-0  NULL CASE: the model loaded, the five pages and their declarations were found.
+  L2-0  NULL CASE: the model loaded, the four pages and their declarations were found.
   L2-1  every declaration is accepted by the model's version of $tk_layout 'declare' (ids, bands, sizes, the reference body).
   L2-2  AT 140 BY 43 THE DECLARATION GIVES EXACTLY THE BOXES THE PAGE DREW BEFORE L2 (REF below, the literal `screen box at x,y size w,h` of each page at the commit before L2), every pane shown,
         mode full; and the declared sizes are those boxes.  L2-2b: while the committed page still holds the literal boxes, REF equals them.
@@ -38,7 +38,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GPL = os.path.normpath(os.path.join(HERE, "..", "sdsys", "gpl.bp"))
-PAGE_NAMES = ["tool_gates", "tool_sessions", "tool_masters", "tool_audit", "tool_accounts"]
+PAGE_NAMES = ["tool_gates", "tool_sessions", "tool_audit", "tool_accounts"]
 SIZES = [(150, 45), (180, 55), (200, 60), (233, 71), (500, 300)]
 
 # The boxes each page drew at 140 by 43 before L2 (x, y, w, h), in the order the page declares its panes, with the title the box carries.
@@ -46,7 +46,6 @@ REF = {
     "tool_gates": [("matrix", "Gates by account", (1, 1, 138, 19)), ("cell", "The cell under the cursor", (1, 20, 138, 11)),
                    ("reach", "Who can reach the operating system", (1, 31, 68, 9)), ("sessions", "Sessions of the account under the cursor", (70, 31, 69, 9))],
     "tool_sessions": [("sessions", "Sessions", (1, 1, 138, 15)), ("locks", "Locks", (1, 16, 138, 14)), ("row", "The row under the cursor", (1, 30, 138, 10))],
-    "tool_masters": [("master", "Master files", (1, 1, 138, 8)), ("accounts", "Accounts", (1, 9, 138, 15)), ("detail", "The account under the cursor", (1, 24, 138, 16))],
     "tool_audit": [("trail", "Audit trail", (1, 1, 138, 6)), ("lines", "Lines", (1, 7, 138, 20)), ("detail", "The line under the cursor", (1, 27, 138, 13))],
     "tool_accounts": [("counts", "Accounts", (1, 1, 138, 6)), ("list", "Every account", (1, 7, 138, 20)), ("detail", "The account under the cursor", (1, 27, 138, 13))],
 }
@@ -54,7 +53,6 @@ REF = {
 PREFIX = {
     "tool_gates": {"matrix": "mat", "cell": "cel", "reach": "rea", "sessions": "ses"},
     "tool_sessions": {"sessions": "ssn", "locks": "lck", "row": "rwb"},
-    "tool_masters": {"master": "top", "accounts": "acc", "detail": "det"},
     "tool_audit": {"trail": "top", "lines": "lst", "detail": "det"},
     "tool_accounts": {"counts": "top", "list": "lst", "detail": "det"},
 }
@@ -62,7 +60,6 @@ PREFIX = {
 CONSTS = {
     "tool_gates": [("VIS", 14), ("CL", 9), ("RW", 7), ("X0", 29), ("mtw", 134), ("ctw", 134), ("rtw", 64), ("stw", 65)],
     "tool_sessions": [("VS", 11), ("VL", 10), ("VR", 7), ("stw", 134), ("ltw", 134), ("rtw", 134)],
-    "tool_masters": [("VA", 11), ("VD", 5), ("VW", 7), ("ttw", 134), ("atw", 134), ("dtw", 134)],
     "tool_audit": [("VL", 17), ("DR", 11), ("ttw", 134), ("ltw", 134), ("dtw", 134)],
     "tool_accounts": [("VA", 17), ("DR", 11), ("ttw", 134), ("ltw", 134), ("dtw", 134)],
 }
@@ -79,11 +76,6 @@ EXPRS = {
                       ("lck.x + 2", "lck", "x", None, 3), ("lck.y + 1", "lck", "y", None, 17), ("lck.y + 1 + r", "lck", "y", "VL", 18), ("lck.y + 2", "lck", "y", None, 18),
                       ("lck.y + lck.h - 2", "lck", "y", None, 28), ("lck.y + 1 + VL", "lck", "y", None, 27), ("rwb.x + 2", "rwb", "x", None, 3), ("rwb.y + r", "rwb", "y", "VR", 31),
                       ("rwb.y + rwb.h - 2", "rwb", "y", None, 38)],
-    "tool_masters": [("top.x + 2", "top", "x", None, 3), ("top.y + 1", "top", "y", None, 2), ("top.y + 2", "top", "y", None, 3), ("top.y + 3", "top", "y", None, 4), ("top.y + 4", "top", "y", None, 5),
-                     ("top.y + 5", "top", "y", None, 6), ("top.y + 6", "top", "y", None, 7), ("top.x + top.w - 5", "top", "x", None, 134), ("acc.x + 2", "acc", "x", None, 3),
-                     ("acc.y + 1", "acc", "y", None, 10), ("acc.y + 1 + r", "acc", "y", "VA", 11), ("acc.y + acc.h - 2", "acc", "y", None, 22), ("acc.y + 2", "acc", "y", None, 11),
-                     ("acc.y + 1 + VA", "acc", "y", None, 21), ("acc.x + acc.w - 3", "acc", "x", None, 136), ("det.x + 2", "det", "x", None, 3), ("det.y + r", "det", "y", "VD", 25),
-                     ("det.y + VD + 1 + r", "det", "y", "VW", 31), ("det.y + det.h - 2", "det", "y", None, 38), ("det.h - 3", "det", "n", None, 13)],
     "tool_audit": [("top.x + 2", "top", "x", None, 3), ("top.y + 1", "top", "y", None, 2), ("top.y + 2", "top", "y", None, 3), ("top.y + 3", "top", "y", None, 4), ("top.y + 4", "top", "y", None, 5),
                    ("top.x + top.w - 5", "top", "x", None, 134), ("ttw - 6", "top", "n", None, 128), ("lst.x + 2", "lst", "x", None, 3), ("lst.y + 1", "lst", "y", None, 8),
                    ("lst.y + 1 + r", "lst", "y", "VL", 9), ("lst.y + 2", "lst", "y", None, 9), ("lst.y + 1 + VL", "lst", "y", None, 25), ("lst.x + lst.w - 3", "lst", "x", None, 136),
@@ -97,7 +89,6 @@ EXPRS = {
 WORKED = {
     "tool_gates": [(1, 1, 178, 27), (1, 28, 178, 11), (1, 39, 88, 13), (90, 39, 89, 13)],
     "tool_sessions": [(1, 1, 178, 21), (1, 22, 178, 20), (1, 42, 178, 10)],
-    "tool_masters": [(1, 1, 178, 8), (1, 9, 178, 23), (1, 32, 178, 20)],
     "tool_audit": [(1, 1, 178, 6), (1, 7, 178, 28), (1, 35, 178, 17)],
     "tool_accounts": [(1, 1, 178, 6), (1, 7, 178, 28), (1, 35, 178, 17)],
 }
@@ -105,7 +96,6 @@ WORKED = {
 TIED = {
     "tool_gates": {"VIS": ("mat", "h"), "CL": ("cel", "h"), "RW": ("rea", "h"), "mtw": ("mat", "w"), "ctw": ("cel", "w"), "rtw": ("rea", "w"), "stw": ("ses", "w")},
     "tool_sessions": {"VS": ("ssn", "h"), "VL": ("lck", "h"), "VR": ("rwb", "h"), "stw": ("ssn", "w"), "ltw": ("lck", "w"), "rtw": ("rwb", "w")},
-    "tool_masters": {"VA": ("acc", "h"), "VD": ("det", "h"), "ttw": ("top", "w"), "atw": ("acc", "w"), "dtw": ("det", "w")},
     "tool_audit": {"VL": ("lst", "h"), "DR": ("det", "h"), "ttw": ("top", "w"), "ltw": ("lst", "w"), "dtw": ("det", "w")},
     "tool_accounts": {"VA": ("lst", "h"), "DR": ("det", "h"), "ttw": ("top", "w"), "ltw": ("lst", "w"), "dtw": ("det", "w")},
 }
@@ -251,7 +241,7 @@ def checks(raw, model=None, head=True):
     code = {n: strip_bas(raw[n]) for n in PAGE_NAMES}
     decl = {n: parse_decl(code[n]) for n in PAGE_NAMES}
 
-    ck("L2-0", "NULL CASE: the model of $tk_layout loaded, the five pages were found with a declaration of 3 or 4 panes each, and the tables here know every page",
+    ck("L2-0", "NULL CASE: the model of $tk_layout loaded, the four pages were found with a declaration of 3 or 4 panes each, and the tables here know every page",
        hasattr(T, "Model") and all(len(raw[n]) > 8000 for n in PAGE_NAMES) and all(decl[n] and len(decl[n]) == len(REF[n]) for n in PAGE_NAMES)
        and all(set(PREFIX[n]) == {r[0] for r in REF[n]} for n in PAGE_NAMES),
        " ".join("%s:%s" % (n, len(decl[n]) if decl[n] else None) for n in PAGE_NAMES))
@@ -473,28 +463,22 @@ MUTANTS = [
     ("a pane one row too tall (the gate matrix)", "L2-1", sub("tool_gates", "ld<1> = 'matrix' : @vm : 1 : @vm : 1 : @vm : 19", "ld<1> = 'matrix' : @vm : 1 : @vm : 1 : @vm : 20")),
     ("a pane one row too short (the sessions)", "L2-2", sub("tool_sessions", "ld<1> = 'sessions' : @vm : 1 : @vm : 1 : @vm : 15", "ld<1> = 'sessions' : @vm : 1 : @vm : 1 : @vm : 14")),
     ("the gap between the two lower gate panes is lost", "L2-2", sub("tool_gates", "@vm : 69 : @vm : 1 : @vm : 'stretch'", "@vm : 69 : @vm : '' : @vm : 'stretch'")),
-    ("a declaration of another page's id", "L2-2", sub("tool_masters", "ld<1> = 'master' :", "ld<1> = 'masters' :")),
-    ("a weight changed (the accounts list of the master files)", "L2-4b", sub("tool_masters", "@vm : 'stretch' : @vm : 2 : @vm : 'stretch' : @vm : 1\n   ld<3>", "@vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1\n   ld<3>")),
     ("the sessions list no longer stretches", "L2-4b", sub("tool_sessions", "ld<2> = 'locks' : @vm : 2 : @vm : 1 : @vm : 14 : @vm : 138 : @vm : '' : @vm : 'stretch'", "ld<2> = 'locks' : @vm : 2 : @vm : 1 : @vm : 14 : @vm : 138 : @vm : '' : @vm : ''")),
     ("the account rows counted one short", "L2-3", sub("tool_gates", "VIS = mat.h - 5", "VIS = mat.h - 4")),
     ("the counts line one row too low", "L2-3", sub("tool_gates", "at mat.x + 2,mat.y + mat.h - 3 attr 'bold'", "at mat.x + 2,mat.y + mat.h - 2 attr 'bold'")),
     ("the hint of the row box on the border", "L2-3", sub("tool_sessions", "rwb.y + rwb.h - 2", "rwb.y + rwb.h - 1")),
     ("the first cell's column wrong", "L2-3", sub("tool_gates", "X0 = mat.x + 28", "X0 = mat.x + 29")),
     ("the detail rows counted from the wrong constant", "L2-3", sub("tool_audit", "DR = det.h - 2", "DR = det.h - 1")),
-    ("the words of the master page start on the last difference row", "L2-3", sub("tool_masters", "det.y + VD + 1 + r", "det.y + VD + r")),
     ("a text drawn past the box's right edge at a bigger window (a column fixed to the reference)", "L2-4", sub("tool_accounts", "dtw = det.w - 4", "dtw = det.w + 4")),
     ("the list rows of the audit fixed at the reference", "L2-4", sub("tool_audit", "VL = lst.h - 3", "VL = 17")),
-    ("a pane is not asked for", "L2-5", sub("tool_masters", "   call $tk_layout('pane', ctx, 'detail', lrc)\n   det.x = lrc<1, 1> ; det.y = lrc<1, 2> ; det.w = lrc<1, 3> ; det.h = lrc<1, 4>\n", "")),
     ("a rectangle taken without its height", "L2-5", sub("tool_audit", "lst.h = lrc<1, 4>", "lst.h = lrc<1, 3>")),
     ("a box is not drawn from its rectangle", "L2-5", sub("tool_gates", "screen box at rea.x,rea.y size rea.w,rea.h", "screen box at 1,31 size rea.w,rea.h")),
     ("the layout is never declared (the sessions)", "L2-6", sub("tool_sessions", "   gosub declare.layout\n\n   keys = ''", "\n   keys = ''")),
-    ("the layout is declared before the open (the masters)", "L2-6", sub("tool_masters", "   call $tk_open('tool.masters', 'admin', ctx, err)", "   gosub declare.layout\n   call $tk_open('tool.masters', 'admin', ctx, err)")),
     ("a refused declaration goes on (the gates)", "L2-6", sub("tool_gates", "      call $tk_close(ctx)\n      display perr\n      stop\n", "      null\n")),
     ("the resize key does not refresh (the sessions)", "L2-6", sub("tool_sessions", "            call $tk_layout('refresh', ctx, '', lchg)\n", "")),
     ("the resize key does not take the rectangles (the audit)", "L2-6", sub("tool_audit", "            call $tk_layout('refresh', ctx, '', lchg)\n            gosub get.rects\n", "            call $tk_layout('refresh', ctx, '', lchg)\n")),
     ("the resize key does not keep the rows in view (the accounts)", "L2-6", sub("tool_accounts", "            gosub keep.in.view\n", "")),
     ("the layout is not declared again after a verb had the terminal", "L2-6", sub("tool_accounts", "   gosub declare.layout                                         ;* the new $tk_open has no panes\n", "")),
-    ("a literal width is left (the masters)", "L2-7", sub("tool_masters", "at top.x + 2,top.y + 4 width ttw", "at top.x + 2,top.y + 4 width 134")),
     ("a literal row is left (the audit)", "L2-7", sub("tool_audit", "at lst.x + 2,lst.y + 1 attr 'header' width ltw", "at 3,8 attr 'header' width ltw")),
     ("a mouse limit is left (the gates)", "L2-7", sub("tool_gates", "mx <= mat.x + mat.w - 3", "mx <= 136")),
     ("a loop of a fixed number of rows (the sessions)", "L2-7", sub("tool_sessions", "for r = 1 to VR", "for r = 1 to 7")),

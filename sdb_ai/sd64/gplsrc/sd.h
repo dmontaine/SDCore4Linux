@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Nov 26 dm  S.96 M6: the prototypes of masters.c, masters_cas_on and DHE_MASTER_REFUSED (8910) are gone: the master-file copies (S.67) are retired.
  * 28 Oct 26 dm  S.88 phase 2: the comment of the one rule names its new users (profiler.c, object.c hsm_dump(), op_kernel.c K_SHOW_SAFE).
  * 28 Oct 26 dm  S.88 phase 2 review: prototypes of show_unsafe_byte(), show_safe_text() and show_ts_safe() (op_lock.c), the one
  *               rule for showing another session's text; kernel.c's dump_status() uses it.
@@ -503,29 +504,8 @@ bool edit_ok_for_path(const char * path);
 int edit_os_path_refusal(const char * name, bool include_leaf);
 bool edit_leaf_counts(const char * name);
 
-/* MASTERS.C  (19 Oct 26, S.67 stage 1): the file-change hook and the master files */
-void masters_note_record(DH_FILE * dh, char op, const char * id, int id_len); /* op w (written) or d (deleted); called by dh_write and dh_delete */
-void masters_note_dh(DH_FILE * dh, char op);                                  /* op c (cleared); called by dh_clear */
-void masters_note_name(const char * name, char op);                           /* op n (made) x (removed) or r (renamed) for a path; dh_create_file, OSPATH, OSRENAME */
-void masters_open_hook(const char * canon);                                   /* the administrator opening a master file drains the journal first */
-void masters_request(const char * req, DESCRIPTOR * result);                   /* K_MASTERS */
-/* S.67 stage 2 (19 Oct 26), master to account: SDSYS saves a record of voc_master or dict_master and the kernel writes it into the account's own file
-   at once.  dh_write and dh_delete ask first and fail with DHE_MASTER_REFUSED (the reason is masters_refusal_text()); op_write and op_delete ask for a
-   write or delete inside a transaction; dh_create_file gives a new VOC or dictionary its group's write bit.  The status is kept out of err.h, which is
-   generated into SYSCOM/ERR.H: it is the status of a refusal that has a message, and a program sees it as -8910. */
-#define DHE_MASTER_REFUSED 8910
-int masters_before_write(DH_FILE * dh, char * id, int id_len, STRING_CHUNK * data); /* 0: go on; else DHE_MASTER_REFUSED, nothing has been changed */
-int masters_before_delete(DH_FILE * dh, char * id, int id_len);                       /* 0: go on; else DHE_MASTER_REFUSED */
-int masters_txn_refusal(DH_FILE * dh, char * id, int id_len);                         /* 0: go on; else DHE_MASTER_REFUSED (a master record is not changed inside a transaction) */
-const char * masters_refusal_text(void);                                              /* the plain sentence for the last refusal */
-void masters_fix_modes(const char * path);                                            /* a VOC or dictionary was just made: its group may write it where the account's group may write the account */
-/* 19 Oct 26, the verifier's findings F3 and F4.  masters_note_read: op_read tells masters.c of every read of a DYNAMIC file, so that a save of a master record is
-   judged against the record the session READ (err is dh_err: 0, or DHE_RECORD_NOT_FOUND).  masters_cas_on / masters_cas_check: while SDSYS's save is writing the
-   account's own file, dh_write asks - with the record's group locked and the old record found, or found absent - whether the account's record is still the one the
-   save was accepted against; 0 to go on, else DHE_MASTER_REFUSED with nothing changed. */
-void masters_note_read(DH_FILE * dh, const char * id, int id_len, STRING_CHUNK * rec, int err);
-extern int masters_cas_on;
-int masters_cas_check(DH_FILE * dh, const char * id, int id_len, STRING_CHUNK * current, bool found);
+/* MASTERS.C was retired on 2 Nov 26 (S.96 M6) with the master-file copies (S.67).  Its status DHE_MASTER_REFUSED (8910) is no longer given;
+   the number is not reused.  The group write of a new VOC or dictionary is dh_creat.c's (acct_group_modes). */
 
 /* OP_DIO2.C */
 bool delete_path(char * path);

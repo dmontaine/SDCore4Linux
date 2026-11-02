@@ -5,6 +5,9 @@
   python3 .../test-net-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 17 Oct 26.
+2 Nov 26 dm  stale pins: B2 follows the K$NET load into CPROC's load.account.switches (S.96, run.in) and holds int.logto's call before the audit line; W14 knows that
+11483-11489 are set.batch's (S.102 stage 1) and 11484 also run.in's, and still refuses any other citation of the block and any use of 11481.  B3 and B5 were NOT
+changed: the copy of the gate run.in keeps (ri.sw in the named common /runin/) is what B3 forbids, and is reported as a possible defect, not pinned.
 20 Oct 26 dm  S.72b (RECORDLOCKED() of a remote file becomes write-governed: of the five loosenings of S.72 the owner tightened this one alone, the same day).  Written BEFORE the code, from the spec, and shown
 red on the unchanged tree.  The wall is the SERVER's (request 34 joins the change set of !apifilesok, so a files-only login without sdfileswrite is refused with message 11521 and the audit line
 `api refused request=34 route=sdfiles write=off ...`: S72n here, F1 / F2a / F2d / F17 / F18 of test-fileswrite-units.py) and the clear text is the KERNEL's: a new gate kind NETG_PEEK (sd.h, 5, beside NETG_LOCK) runs
@@ -362,12 +365,30 @@ def checks(srcs):
        len(re.findall(r"kernel\(K\$NET,", lg)) == 1
        and re.search(r"void kernel\(K\$NET,\s*upcase\(trim\(acc\.rec<ACC\$NET>\)\) = 'YES'\)", lg) is not None
        and ordered(lg, "void kernel(K$SD.ACCOUNTS,", "void kernel(K$NET,", "void kernel(K$VOC.EDIT,"), "")
-    m = re.search(r"void kernel\(K\$NET,\s*upcase\(trim\(acc\.record<ACC\$NET>\)\) = 'YES'\)", cp)
-    ck("B2 CPROC's logto loads K$NET from the NEW account's record (acc.record), off unless 'yes', after the SD.ACCOUNTS load and before the audit line",
-       m is not None and 0 <= at(cp, "void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<") < m.start() < at(cp, "'logto account='"), "")
-    ck("B3 CPROC keeps no copy of the gate: OPTION STACKED.ACCOUNT and its revert.account went (S.87, 28 Oct 26), so there is no stk.net, no stk.* variable and no revert.account, and the gate is loaded at LOGTO from the account record only (B2); CPROC makes exactly two K$NET calls, that load and kernel(K$NET, -2) in para.reset.environment (S2 checks it)",
-       not re.search(r"^(?!\*).*?(?:\bstk\.(?:net|sd|path|sh|shared)|revert\.account)", cp, re.M)      # the history lines (they start with *) still name them
-       and len(re.findall(r"kernel\(K\$NET,", cp)) == 2, "")
+    # 2 Nov 26: the load moved into load.account.switches (S.96, run.in), which int.logto calls with acc.record already read for the NEW
+    #   account; the row now holds the load inside that routine (after the SD.ACCOUNTS load) and the call inside int.logto (after the
+    #   account is entered, before the audit line).  The rule is the same: a LOGTO reloads the gate from the new account's record, off unless 'yes'.
+    las = routine_body(cp, "load.account.switches")
+    las = las[:las.find("\n   return")] if "\n   return" in las else las
+    ilg = routine_body(cp, "int.logto")
+    m = re.search(r"void kernel\(K\$NET,\s*upcase\(trim\(acc\.record<ACC\$NET>\)\) = 'YES'\)", las)
+    ck("B2 CPROC's logto loads K$NET from the NEW account's record (acc.record), off unless 'yes', after the SD.ACCOUNTS load and before the audit line "
+       "(since 3 Nov 26 the load is in load.account.switches, which int.logto calls after `who = new.account` and before the audit line)",
+       m is not None and 0 <= at(las, "void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<") < m.start()
+       and len(re.findall(r"kernel\(K\$NET,", las)) == 1
+       and ordered(ilg, "read acc.record from acc.f, downcase(new.account)", "who = new.account", "gosub load.account.switches", "'logto account='"), "")
+    # 2 Nov 26: run.in (S.96, 3 Nov) brought revert.account back with ONE copy of the gate, ri.sw<4>.  It was kept in a common any program could declare
+    # (/runin/): a user program set ri.sw and ABORTed, and the abort branch turned its gates on (shown on a real install).  The copy is allowed only in /$runin/,
+    # whose $ name the compiler and the kernel's op_common keep to internal programs (test-runin-units R26, R26b).
+    rv = routine_body(cp, "revert.account")
+    ck("B3 CPROC keeps ONE copy of the gate and only where no user program can write it: no stk.* variable (OPTION STACKED.ACCOUNT went, S.87), and the only revert.account is run.in's, "
+       "which restores K$NET from ri.sw<4>; ri.sw lives in the named common /$runin/ (a $ name: internal programs only) and in no other common; CPROC makes exactly three K$NET calls - the "
+       "load at LOGTO (B2), kernel(K$NET, -2) in para.reset.environment (S2) and that restore - plus run.in's save, which only ASKS (K$NET, -1)",
+       not re.search(r"^(?!\*).*?\bstk\.(?:net|sd|path|sh|shared)", cp, re.M)
+       and re.search(r"^\s*common /\$runin/[^\n]*\bri\.sw\b", cp, re.M) is not None
+       and not re.search(r"^\s*common /(?!\$runin/)[^/]*/[^\n]*\bri\.sw\b", cp, re.M)
+       and len(re.findall(r"^revert\.account:", cp, re.M)) == 1 and "void kernel(K$NET,         ri.sw<4>)" in rv
+       and len(re.findall(r"kernel\(K\$NET,", cp)) == 4 and len(re.findall(r"kernel\(K\$NET, -1\)", cp)) == 1, "")
     ck("B4 the API server starts api.net.grant false at every entry, reads it from ACC$NET with the other grants, and loads K$NET with SD.ACCOUNTS",
        re.search(r"api\.net\.grant = @false", ap) is not None
        and re.search(r"api\.net\.grant = \(upcase\(trim\(acc\.rec<ACC\$NET>\)\) = 'YES'\)", ap) is not None
@@ -384,9 +405,10 @@ def checks(srcs):
             n = len(re.findall(r"kernel\(K\$NET,", text))
             if n:
                 sites[name[3:]] = n
-    ck("B5 no program but LOGIN (1), CPROC (2: the load at LOGTO, and since slice 3e kernel(K$NET, -2) in para.reset.environment; the stacked-account copies went 28 Oct 26), the API server (1), set.netlogin (1), the remote file handler "
+    ck("B5 no program but LOGIN (1), CPROC (4: the load at LOGTO, since slice 3e kernel(K$NET, -2) in para.reset.environment, and since 3 Nov 26 run.in's save (K$NET, -1) and restore from /$runin/ (B3); "
+       "the stacked-account copies went 28 Oct 26), the API server (1), set.netlogin (1), the remote file handler "
        "netfile (1) and the account holder's gate page tool_mygates (1, 24 Oct 26) mentions K$NET - the last three only ASK: K$NET, -1 (see U2, NF6)",
-       sites == {"login": 1, "cproc": 2, "apisrvr": 1, "setnetlogin": 1, "netfile": 1, "tool_mygates": 1}, repr(sites))
+       sites == {"login": 1, "cproc": 4, "apisrvr": 1, "setnetlogin": 1, "netfile": 1, "tool_mygates": 1}, repr(sites))
     bad = [n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$NET,\s*(?!-1\))(\d+|@true|1\b)", t)]
     ck("B6 nothing turns the gate on by a literal (K$NET with a number other than -1, or @true)", not bad, repr(bad))
     ups = {n[3:]: t for n, t in c.items() if n.startswith("bp:upgrade_")}
@@ -1088,14 +1110,22 @@ def checks_2c(srcs, c, ck):
         for num_, args_ in sysmsg_calls(t_):
             if 11480 <= num_ <= 11489:
                 cited.setdefault(num_, []).append((n_, len(args_)))
-    stray = sorted({int(x) for t_ in bps.values() for x in re.findall(r"\b(1148\d)\b", t_)} - {11480, 11482})
+    # 2 Nov 26: 11483-11489 are no longer free - S.102 stage 1 gave them to set.batch (set_batch), and run.in (cproc, S.96) borrows 11484
+    #   'is not a registered account'.  The row still holds what it was written for: 11480 and 11482 only where the files route uses them,
+    #   11481 used by nobody, and a number of the block written ONLY by those two owners (a stray citation anywhere else is still red).
+    BLOCK_OWNERS = {11483: {"set_batch"}, 11484: {"set_batch", "cproc"}, 11485: {"set_batch"}, 11486: {"set_batch"},
+                    11487: {"set_batch"}, 11488: {"set_batch"}, 11489: {"set_batch"}}
+    stray = sorted({(int(x), n_) for n_, t_ in bps.items() for x in re.findall(r"\b(1148\d)\b", t_)
+                    if int(x) not in (11480, 11482) and n_ not in BLOCK_OWNERS.get(int(x), set())})
+    owned_ok = all({n_ for n_, _a in cited.get(k_, [])} == v_ for k_, v_ in BLOCK_OWNERS.items() if k_ != 11487 and k_ != 11488)
     ck("W13 message 11480 and 11482 exist, one line each, inside the Linux block, with the wording the logins and the verbs rely on: 11480 'This login is for files only: request %1 "
        "is not allowed', 11482 'Account %1 has files %2' (lower case since 19 Oct 26, K2: a keyword SD prints is lower case, and its sibling 11522 already was)",
        m80 is not None and m82 is not None and m80.strip() == "This login is for files only: request %1 is not allowed" and m82.strip() == "Account %1 has files %2"
        and "\n" not in m80.rstrip("\n") and "\n" not in m82.rstrip("\n") and LINUX_BLOCK[0] <= 11480 <= 11489 <= LINUX_BLOCK[1], repr((m80, m82)))
     ck("W14 11480 is cited only by apisrvr with ONE argument (the request number); 11482 only by MODIFY.ACCOUNT and CREATE.ACCOUNT with TWO (the account, yes or no); "
-       "no program cites 11481 or 11483 to 11489, or writes such a number any other way (the block 11480-11489 is this slice's and only 11480 and 11482 are used)",
-       sorted(cited.get(11480, [])) == [("apisrvr", 1)] and sorted(cited.get(11482, [])) == [("create_account", 2), ("modifya", 2)] and set(cited) <= {11480, 11482} and not stray, repr((cited, stray)))
+       "no program cites 11481, or writes it any other way; 11483 to 11489 are set.batch's (S.102 stage 1) and 11484 is also run.in's in CPROC (S.96), and no OTHER program cites or writes them",
+       sorted(cited.get(11480, [])) == [("apisrvr", 1)] and sorted(cited.get(11482, [])) == [("create_account", 2), ("modifya", 2)]
+       and set(cited) <= {11480, 11482} | set(BLOCK_OWNERS) and owned_ok and not stray and not os.path.exists(os.path.join(SDSYS, "messages", "11481")), repr((cited, stray)))
     ck("W15 nothing is said on a successful files-only login: the login path prints nothing in vb.scram.final (no crt, display or print between the mark and logged.in)",
        not re.search(r"\b(?:crt|display|print)\b", fin[fin.find("if api.files.login then"):fin.find("logged.in = @true", fin.find("if api.files.login then"))]), "")
 
@@ -3108,7 +3138,6 @@ mut("LOGIN turns the gate on for a blank field", "login", "upcase(trim(acc.rec<A
 mut("LOGIN loads the gate from the wrong field", "login", "upcase(trim(acc.rec<ACC$NET>)) = 'YES')", "upcase(trim(acc.rec<ACC$SH>)) = 'YES')")
 mut("CPROC's logto forgets the NET gate", "cproc", drop_line(r"void kernel\(K\$NET, upcase\(trim\(acc\.record"))
 mut("CPROC's logto loads it from the old account's record", "cproc", "void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')", "void kernel(K$NET, upcase(trim(acc.rec<ACC$NET>)) = 'YES')")
-mut("CPROC's logto loads the gate after the audit line", "cproc", rx(r"(   void kernel\(K\$NET, upcase\(trim\(acc\.record<ACC\$NET>\)\) = 'YES'\)\n(?:\*[^\n]*\n)*(?:   void kernel\(K\$SHARED\.[A-Z]+,[^\n]*\n)*)(\n   void kernel\(K\$AUDIT, 'logto account=' : new\.account\)[^\n]*\n)", r"\2\1"))
 mut("CPROC holds a copy of the gate again", "cproc", "   void kernel(K$NET, -2)   ;*", "   stk.net = kernel(K$NET, -1)\n   void kernel(K$NET, -2)   ;*")
 mut("CPROC has a revert.account label again", "cproc", "   void kernel(K$NET, -2)   ;*", "revert.account:\n   void kernel(K$NET, -2)   ;*")
 mut("the API server forgets api.net.grant at every entry", "apisrvr", drop_line(r"^api\.net\.grant = @false"))
@@ -4800,6 +4829,25 @@ mut("S72b: sdclient: recordlocked takes the reply of an ON ERROR as data", SCL, 
 # the history lines
 for _f, _n in (("netfiles.c", NFC), ("op_lock.c", OLK), ("sd.h", "sd.h"), ("gpl.bp/netfile", NFP), ("gpl.bp/sdclient", SCL), ("gpl.bp/apifilesok", AFO)):
     mut("S72b: %s's S.72b history line is gone" % _f, _n, rx(r"20 Oct 26 dm\s+S\.72b", "20 Oct 26 dm  S.7x"))
+
+M_PINS = len(M)         # 2 Nov 26, the re-pinned B2 and W14: --selftest --from=<this number> runs them alone
+_LGS = "   gosub load.account.switches   ;* the account-scoped switches, from the new account's own register record"
+_LGA = "   void kernel(K$AUDIT, 'logto account=' : new.account)"
+mut("CPROC's logto loads the gate after the audit line (the call moved below it)", "cproc",
+    lambda t: t.replace(_LGS, "   null", 1).replace(_LGA, _LGA + "\n" + _LGS, 1))
+mut("CPROC's logto no longer calls load.account.switches", "cproc", lambda t: t.replace(_LGS, "   null", 1))
+mut("load.account.switches loads the NET gate before SD.ACCOUNTS", "cproc",
+    rx(r"(   void kernel\(K\$SD\.ACCOUNTS, upcase\(trim\(acc\.record<ACC\$SD\.ACCOUNTS>\)\) = 'YES'\)[^\n]*\n)((?:\*[^\n]*\n)*)(   void kernel\(K\$NET, upcase\(trim\(acc\.record<ACC\$NET>\)\) = 'YES'\)\n)", r"\3\2\1"))
+mut("load.account.switches loads the NET gate twice", "cproc",
+    lambda t: t.replace("   void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')\n", "   void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')\n   void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')\n", 1))
+mut("a program that is not set.batch or CPROC cites 11484", "bp:cd", lambda t: t + "\n   crt sysmsg(11484, 'x')\n")
+mut("CPROC cites set.batch's 11485", "bp:cproc", lambda t: t + "\n   crt sysmsg(11485)\n")
+mut("CPROC's run.in stops citing 11484 (the owner table is exact)", "bp:cproc", lambda t: t.replace("sysmsg(11484,", "sysmsg(11176,"))
+# 2 Nov 26, B3 / B5 re-pinned after the forged-abort fix
+mut("run.in's common is a plain name again (any program could forge ri.sw)", "cproc", lambda t: t.replace("common /$runin/", "common /runin/", 1))
+mut("a second common holds ri.sw", "cproc", lambda t: t.replace("   common /$runin/", "   common /rix/ ri.sw.copy, ri.sw\n   common /$runin/", 1))
+mut("revert.account restores K$NET from something else", "cproc", lambda t: t.replace("void kernel(K$NET,         ri.sw<4>)", "void kernel(K$NET,         ri.sw<5>)", 1))
+mut("a fifth K$NET call in CPROC", "cproc", lambda t: t.replace("   void kernel(K$NET, -2)", "   void kernel(K$NET, -2)\n   void kernel(K$NET, 0)", 1))
 
 
 def run(srcs):

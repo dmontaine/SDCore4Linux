@@ -43,6 +43,7 @@ KW_NEWVOC = os.path.join(SD64, "sdsys", "newvoc", "no.catalog")
 KW_TEMPLATE = os.path.join(SD64, "sdsys", "voc_template", "no.catalog")
 KW_NUMBER = 239
 NOCATALOG_MESSAGE = 11245
+OPARRAY = os.path.join(SD64, "gplsrc", "op_array.c")      # 2 Nov 26: op_common keeps $ / _ named commons to internal programs (R26b)
 
 
 def code(src):
@@ -190,10 +191,17 @@ def checks(src, voc_text, newvoc_names, extra=None):
        "display sysmsg(11242, ri.account)" in ntxt and "'run.in revert account=' : ri.account : ' reason=abort'" in ntxt)
     ck("R25 the test is the flag and nothing else, and it comes before the first 'case' of the branch",
        a_n is not None and b_n is not None and next((n for n, s in lines if n > a_n and s.startswith("case ")), 10 ** 9) > b_n)
-    commons = [s for n, s in lines if s.startswith("common /runin/")]
-    ck("R26 the common /runin/ is declared once, ri.active first, with everything the way back needs",
-       len(commons) == 1 and re.match(r"common /runin/ ri\.active,", commons[0]) and all(v in commons[0] for v in ("ri.path", "ri.account.path", "ri.who", "ri.sw", "ri.account")),
+    commons = [s for n, s in lines if re.match(r"common /\$?runin/", s)]
+    ck("R26 the common /$runin/ is declared once, ri.active first, with everything the way back needs - and its name starts with $ (2 Nov 26: a plain /runin/ "
+       "could be declared by any program, which then set ri.sw and ABORTed into revert.account with every gate on)",
+       len(commons) == 1 and re.match(r"common /\$runin/ ri\.active,", commons[0]) and all(v in commons[0] for v in ("ri.path", "ri.account.path", "ri.who", "ri.sw", "ri.account")),
        "%s" % commons)
+    opa = (extra or {}).get("op_array.c", "")
+    body = opa[opa.find("void op_common()"):opa.find("void op_delcom()")]
+    chk = body.find("k_error(sysmsg(11598))")
+    ck("R26b the kernel refuses a $ or _ named common to a program that is not internal (op_common, message 11598), before the block is looked up or made",
+       chk > 0 and re.search(r"\(\*block_name == '\$'\)\s*\|\|\s*\(\*block_name == '_'\)", body[:chk]) is not None and "!(process.program.flags & HDR_INTERNAL)" in body[:chk]
+       and chk < body.find("process.named_common") and os.path.exists(os.path.join(MESSAGES, "11598")), "check at %d" % chk)
 
     # ---- audit and messages ---------------------------------------------------------------------------------------------
     audits = re.findall(r"K\$AUDIT, '([^']*)'", "\n".join(s for n, s in run + rev + net))
@@ -266,7 +274,7 @@ def load():
         voc = f.read()
     names = set(os.listdir(NEWVOC)) if os.path.isdir(NEWVOC) else set()
     extra = {}
-    for key, path in (("basic", BASIC), ("parser.h", PARSERH), ("kw.newvoc", KW_NEWVOC), ("kw.template", KW_TEMPLATE)):
+    for key, path in (("basic", BASIC), ("parser.h", PARSERH), ("kw.newvoc", KW_NEWVOC), ("kw.template", KW_TEMPLATE), ("op_array.c", OPARRAY)):
         with open(path, encoding="utf-8", errors="replace") as f:
             extra[key] = f.read()
     return src, voc, names, extra
@@ -312,6 +320,10 @@ MUTANTS = [
     ("the template record has another number", "kw.template", "K\n239\n", "K\n240\n"),
     ("the newvoc record has another number", "kw.newvoc", "\n239\n", "\n241\n"),
     ("parser.h has another number", "parser.h", "KW$NO.CATALOG     239", "KW$NO.CATALOG     240"),
+    # 2 Nov 26: the forged-abort defect (probe-runin-forge.py on a real install)
+    ("the common is a plain name again", "cproc", "   common /$runin/ ri.active,", "   common /runin/ ri.active,"),
+    ("the kernel lets any program join a $ common", "op_array.c", "      !(process.program.flags & HDR_INTERNAL))\n    k_error(sysmsg(11598));", "      0)\n    k_error(sysmsg(11598));"),
+    ("the kernel guards only $, not _", "op_array.c", "((*block_name == '$') || (*block_name == '_'))", "(*block_name == '$')"),
 ]
 
 

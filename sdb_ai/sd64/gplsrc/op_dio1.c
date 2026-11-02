@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; open_file() no longer calls masters_open_hook() (gone with masters.c).
  * 27 Oct 26 dm  S.87 batch 9: $MODE OPEN.FAIL.ZERO.FVAR is gone; the file variable of a failed open stays as the open left it (unassigned).
  * 27 Oct 26 dm  S.87 batch 5: the comment about a name containing ';' no longer being a network file reference is gone with the code it described (_voc_ref no longer builds such a name).
  * 24 Oct 26 dm  W.11 F9: the administrator test is MY_ADMIN() (the process's own word), not the user table entry.
@@ -842,10 +843,6 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   }
 
   fullpath(pathname, mapped_name);
-
-  /* 19 Oct 26 S.67: the administrator opening voc_master, dict_master or master_state, by name or by path, finds the journal applied first.
-     One flag test for everybody else; the drain is idempotent and does not touch the file being opened (masters.c). */
-  masters_open_hook(pathname);
 
   /* 13 Oct 26 S.63: OPENPATH names an OS path directly, which is "a file external to SD".  An account that has
      not been given OS.EXECUTE reaches only paths inside its own directory (a $internal program is trusted, and

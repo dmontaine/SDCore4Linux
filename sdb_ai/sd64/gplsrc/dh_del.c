@@ -18,6 +18,8 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired - the refusal to delete a master record and the journal note after a delete are
+ *               gone with masters.c.  tool.entries deletes the account's own record.
  * 19 Oct 26 dm  S.67 stage 2: dh_delete asks masters_before_delete() first (a record of voc_master or dict_master is not deleted: DHE_MASTER_REFUSED).
  * 19 Oct 26 dm  S.67 stage 1: a successful delete calls masters_note_record() (a VOC or dictionary record is journalled for the master files).
  * 11 Oct 26 dm  The index routine is given the id of the record as STORED, not an
@@ -78,18 +80,6 @@ bool dh_delete(DH_FILE* dh_file, /* File descriptor */
   int32_t fwd;
   char stored_id[MAX_ID_LEN]; /* Id as the record is stored */
   char* store_id = id;        /* Id to give the index */
-
-  /* 19 Oct 26 S.67 stage 2: a record of voc_master or dict_master is not deleted from here (deleting a copy is not deleting the account's record, and the
-     plan says SDSYS SAVES).  Nothing is changed; the failure is DHE_MASTER_REFUSED and masters_refusal_text() says why. */
-  if (!(dh_file->flags & DHF_MST_NOMASTER)) {
-    int master_refusal = masters_before_delete(dh_file, id, id_len);
-
-    if (master_refusal != 0) {
-      dh_err = master_refusal;
-      process.os_error = 0;
-      return FALSE;
-    }
-  }
 
   dh_err = 0;
   process.os_error = 0;
@@ -390,14 +380,8 @@ exit_dh_delete:
   }
   /* -------------------- */
 
-  if (dh_err == 0) {
+  if (dh_err == 0)
     dh_forced_write(dh_file); /* a file in forced write mode (Fixes item 102) */
-
-    /* 19 Oct 26 S.67: a VOC or dictionary record has been deleted.  This function succeeds for a record that was not there (it only does not
-       count it), and that changed nothing, so only a record that WAS found is journalled.  See the call in dh_write.c. */
-    if (found)
-      masters_note_record(dh_file, 'd', id, id_len);
-  }
 
   return (dh_err == 0);
 }

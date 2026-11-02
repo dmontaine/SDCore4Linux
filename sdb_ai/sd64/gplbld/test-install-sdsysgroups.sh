@@ -29,7 +29,7 @@
 #   sdg_team   a group account's group, lists sdsys   -> NEVER touched (sdsys owns the files of a group account)
 #   sdusers    lists sdsys          -> never touched (not an account's group)
 #
-# NOT MEASURED HERE, and said so: that sd-elevate really puts a user in a group (test-sd-elevate.py measures its rules; the real change is witness-masters.sh's); that the
+# NOT MEASURED HERE, and said so: that sd-elevate really puts a user in a group (test-sd-elevate.py measures its rules; the real change was witness-masters.sh's, retired 2 Nov 26 with the master files: a VM witness of it is owed); that the
 # marker is where a kept install keeps it, which is the position of /home/sd in a delete that keeps the accounts (the VM); that sudo works.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -72,7 +72,7 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant function-exits                "$F s/^        echo \"  The sdsys user was put in the group of /        exit 1; echo \"  The sdsys user was put in the group of /"
   mutant function-never-called         's/^sdsys_groups_default "\$ACCT_PATH\/\\$sdsys.access"$/true/'
   mutant marker-in-the-sdsys-directory 's/^sdsys_groups_default "\$ACCT_PATH\/\\$sdsys.access"/sdsys_groups_default "$sdsysdir\/\\$sdsys.access"/'
-  mutant called-after-the-masters      '/^sdsys_groups_default "\$ACCT_PATH\/\\$sdsys.access"$/d;/^echo "account register: /a sdsys_groups_default "$ACCT_PATH/\\$sdsys.access"'
+  mutant called-after-the-register     '/^sdsys_groups_default "\$ACCT_PATH\/\\$sdsys.access"$/d;/^echo "account register: /a sdsys_groups_default "$ACCT_PATH/\\$sdsys.access"'
   mutant the-old-question-is-back      's/^printf "%b\\n" "\$NC"$/read -r -p "Keep the sdsys user in the groups? (y\/N) " sdsys_ans; printf "%b\\n" "$NC"/'
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$caught" -eq "$total" ] && [ "$missed" -eq 0 ]
@@ -231,10 +231,10 @@ CALL='sdsys_groups_default "$ACCT_PATH/\$sdsys.access"'
 CALLS_N=$(grep -c -x -F "$CALL" "$INST")
 LINE_CALL=$(grep -n -x -F "$CALL" "$INST" | cut -d: -f1)
 LINE_EDIT=$(grep -n 'RUN gpl.bp upgrade_editgates' "$INST" | head -1 | cut -d: -f1)
-LINE_MASTERS=$(grep -n 'RUN gpl.bp upgrade_masters' "$INST" | head -1 | cut -d: -f1)
+LINE_REG=$(grep -n -x -F 'sudo chown -R sdsys:sdusers "$sdsysdir/accounts"' "$INST" | head -1 | cut -d: -f1)   # 2 Nov 26 (S.96 M6): the master files it ran before are retired
 LINE_NOTE=$(grep -n -x 'echo "Putting the sdsys user in the groups of the user accounts."' "$INST" | cut -d: -f1)
-row "S4 it is called once, with the marker in /home/sd (ACCT_PATH), after the edit gates are kept and BEFORE the master files are filled" \
-    "$(ok "$([ "$CALLS_N" = 1 ] && [ -n "$LINE_CALL" ] && [ -n "$LINE_EDIT" ] && [ -n "$LINE_MASTERS" ] && [ "$LINE_EDIT" -lt "$LINE_CALL" ] && [ "$LINE_CALL" -lt "$LINE_MASTERS" ] && [ -n "$LINE_NOTE" ] && [ "$LINE_NOTE" -lt "$LINE_CALL" ] && echo yes)")" "calls=$CALLS_N edit=$LINE_EDIT call=$LINE_CALL masters=$LINE_MASTERS note=$LINE_NOTE"
+row "S4 it is called once, with the marker in /home/sd (ACCT_PATH), after the edit gates are kept and BEFORE the register is handed to sdsys" \
+    "$(ok "$([ "$CALLS_N" = 1 ] && [ -n "$LINE_CALL" ] && [ -n "$LINE_EDIT" ] && [ -n "$LINE_REG" ] && [ "$LINE_EDIT" -lt "$LINE_CALL" ] && [ "$LINE_CALL" -lt "$LINE_REG" ] && [ -n "$LINE_NOTE" ] && [ "$LINE_NOTE" -lt "$LINE_CALL" ] && echo yes)")" "calls=$CALLS_N edit=$LINE_EDIT call=$LINE_CALL masters=$LINE_MASTERS note=$LINE_NOTE"
 row "S5 the marker is NOT in the sdsys directory (deletesdcore.sh removes that directory on every cycle, which would lose the ruling) and is not the F6 marker" \
     "$(ok "$(! grep -v '^ *#' "$INST" | grep -q -F 'sdsysdir/\$sdsys.access' && ! grep -v '^ *#' "$INST" | grep -q -F '$groups.ruled' && echo yes)")" ""
 

@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; a write error no longer asks the kernel why a master record was refused
+*               (status 8910 is no longer given), and the two write-error sites say STATUS() as they did before S.67.
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 27 Oct 26 dm  S.87 batch 8: OPTION NO.SEL.LIST.QUERY is gone; the question "Use active select list?" is skipped by NO.QUERY alone.
 * 19 Oct 26 dm  S.67 stage 2: a write that failed with status 8910 (SDSYS's save of a record of voc_master or dict_master was refused) says why, in the
@@ -115,7 +117,6 @@ $define COMMAND.STACK.DEPTH 99
    pp.len = 21                     ;* Default length for PP command
    r.text = ''                     ;* Default string for R command
    wildchar = ''                   ;* No wildcard character
-   write.status = 0                ;* 19 Oct 26 S.67: STATUS() of the write that failed (8910: a save of a master record was refused)
 
    printing.chars = ''
    for i = 32 to 126
@@ -2735,10 +2736,8 @@ u:
          * A data collection file takes the lines as JSON text, and refuses text that is not
          if fileinfo(n.file, FL$COLLECTION) then s = convert(@fm, char(10), s)
          write s to n.file, new.record on error
-            write.status = status()
-            message = sysmsg(6598, write.status, os.error()) ;* Write error %1 - Data not saved
+            message = sysmsg(6598, status(), os.error()) ;* Write error %1 - Data not saved
             gosub error
-            gosub master.refusal
             goto abort.unload
          end
          display sysmsg(6586, n.lines, new.file, new.record)
@@ -3628,10 +3627,8 @@ save.record:
             message = sysmsg(3007, @trigger.return.code) ;* Data validation error: xx
             gosub error
          end else
-            write.status = status()
-            message = sysmsg(6598, write.status, os.error()) ;* Write error %1 - Data not saved
+            message = sysmsg(6598, status(), os.error()) ;* Write error %1 - Data not saved
             gosub error
-            gosub master.refusal
          end
       end
    end else
@@ -3902,16 +3899,6 @@ error:
       display message
    end
 
-   return
-
-* ======================================================================
-* master.refusal - 19 Oct 26 dm, S.67 stage 2.  The write that failed (write.status) was a save of a record of voc_master or dict_master that the
-*   kernel refused (8910).  The kernel keeps the reason as a sentence for the session; the editor stays open with the text, so it can be saved again.
-master.refusal:
-   if write.status = 8910 then
-      refusal.reply = kernel(K$MASTERS, 'refusal')
-      if refusal.reply<2> # '' then display refusal.reply<2>
-   end
    return
 
 * ======================================================================

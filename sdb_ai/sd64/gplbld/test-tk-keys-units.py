@@ -37,9 +37,11 @@ MSG = os.path.join(SDSYS, "messages")
 # entry); the page's own source has the case, which test-aipage-units.py holds.
 # $debug (S.98 H1, 1 Nov 26) is in the list as well: it builds a nine-row table (F1 F2 F3 F4 F5 F7 F8 ^F7 ^F8) only to NAME the keys of its foot; its own command loop acts on them (K$F1 ... ),
 # and test-dbgdisplay-units.py holds that the table and the loop name the same keys.  It has no quit of a page and F2 is ABORT there, which the page rules (Ctrl-Q, F2 reserved) would refuse.
-FOOT_ONLY = ("dict_form", "tk_aipage", "debug")
-EXPECT_PROGRAMS = 29          # + tool_entries (S.96 M1a, 3 Nov 26); tool_jobs (S.102 stage 1, 2 Nov 26)
-EXPECT_ADD_ROWS = 309         # 308 + tool_remote's L row (S.101 stage D, 2 Nov 26, local branch s101-ab); 307 + tool_entries' B row (S.96 M5, 2 Nov 26); 306 + tool_entries' C row (S.96 M4, 2 Nov 26); 305 + tool_entries' D row (S.96 M3, 2 Nov 26); 303 + tool_entries' E and N rows (S.96 M2, 3 Nov 26); 302 + tool_entries' K row (S.96 M1b, 3 Nov 26); 294 + tool_entries' eight rows (S.96 M1a, 3 Nov 26); 287 + tool_jobs' seven rows (S.102 stage 1, 2 Nov 26); 286 + the IDE's Shift-F7 row (S.98 H2, 2 Nov 26); 277 + the nine foot rows of debug (S.98 H1, 1 Nov 26); 266 + the 4 foot rows of dict_form, 1 Nov 26, + tk_aipage's F6 row; + tool_remote's 6, O, R, F rows (S.95 stage 1b, 1 Nov 26); + tool_gates' A and N (all on, all off, 1 Nov 26)
+# $spview (S.99, 2 Nov 26) is in the list for the debugger's reason: its nine rows (PgDn PgUp Home End Left Right S X Q) only NAME the keys of its foot; its own command loop
+# (map.keys and the case c = lines) acts on them, and test-spview-units.py V12 holds that the row and the loop name the same keys.  It is no page: Q quits after asking, as it always has.
+FOOT_ONLY = ("dict_form", "tk_aipage", "debug", "spview")
+EXPECT_PROGRAMS = 29          # - tool_masters (S.96 M6, 2 Nov 26: the master-file copies are retired); + spview (S.99, 2 Nov 26); + tool_entries (S.96 M1a, 3 Nov 26); tool_jobs (S.102 stage 1, 2 Nov 26)
+EXPECT_ADD_ROWS = 317         # 324 - tool_masters' 7 rows (S.96 M6, 2 Nov 26); 318 + tool_jobs' J, A, N, C, D and R rows (S.102 stage 4, 2 Nov 26); 309 + the nine foot rows of spview (S.99, 2 Nov 26); 308 +tool_remote's L row (S.101 stage D, 2 Nov 26, local branch s101-ab); 307 + tool_entries' B row (S.96 M5, 2 Nov 26); 306 + tool_entries' C row (S.96 M4, 2 Nov 26); 305 + tool_entries' D row (S.96 M3, 2 Nov 26); 303 + tool_entries' E and N rows (S.96 M2, 3 Nov 26); 302 + tool_entries' K row (S.96 M1b, 3 Nov 26); 294 + tool_entries' eight rows (S.96 M1a, 3 Nov 26); 287 + tool_jobs' seven rows (S.102 stage 1, 2 Nov 26); 286 + the IDE's Shift-F7 row (S.98 H2, 2 Nov 26); 277 + the nine foot rows of debug (S.98 H1, 1 Nov 26); 266 + the 4 foot rows of dict_form, 1 Nov 26, + tk_aipage's F6 row; + tool_remote's 6, O, R, F rows (S.95 stage 1b, 1 Nov 26); + tool_gates' A and N (all on, all off, 1 Nov 26)
 # earlier counts: (266 with the IDE's eight rows of the pane "fields", 31 Oct 26; 256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 258 with tool_test's Ctrl-O row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
@@ -104,7 +106,7 @@ def strip_bas(src):
 ESC_LEDGER = {
     "tool_dict": "pi = 3",                 # the Indices pane goes back to the items; the Files and Items panes have a name filter
     "tool_query": "cur.pane = 'File'",     # the file filter belongs to the File pane alone
-    "tool_test": "filt #", "tool_masters": "view = 2", "tool_config": "view # 1", "tool_files": "filt #", "tool_audit": "flt #", "tool_catalog": "filt #",
+    "tool_test": "filt #", "tool_config": "view # 1", "tool_files": "filt #", "tool_audit": "flt #", "tool_catalog": "filt #",
     "tool_remote": "view # 1", "tool_gates": "flt #", "tool_voc": "filt #", "tool_entries": "filt #",
     "tool_sessions": "outopen", "tool_viewers": "outopen", "tool_jobs": "outopen",     # the output pane, passed as BUSY itself
 }

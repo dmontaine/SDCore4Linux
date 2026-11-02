@@ -3,6 +3,12 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 02 Nov 26 dm - S.102 stage 4 (review): job-run refuses a definition that job-list would show as damaged (job_run_state, the list's own agreement test), before
+#                systemd is asked; the kernel's K$JOB.MARK refused such a run anyway, and now root starts no unit for it.
+# 02 Nov 26 dm - S.102 stage 4: job-run <name> starts a defined job's service now (systemctl start --no-block), for the jobs page's "run now"; it checks the
+#                definition and the service unit are plain files first and runs nothing itself.
+# 02 Nov 26 dm - S.96 M6: the master-file copies (S.67) are retired: the job ids check-masters and sync-masters are gone with the verbs they ran
+#                (job_command knows backup-all and update-accounts); a definition naming one of them is now shown as damaged.
 # 02 Nov 26 dm - S.102 stage 3: job-set also writes /etc/systemd/system/sdcore-job-<name>.service and .timer (root 0644, one rename each) and enables the timer;
 #                job-delete disables the timer first and removes the units, then the definition; sdsys_login_gate admits a caller with no login uid only when
 #                sdsys_job_gate finds it in a job unit's cgroup with a root-owned definition (sudo keeps the cgroup: measured on Debian 13).
@@ -231,15 +237,17 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
                                   (changes one tuning parameter of /etc/sd.conf, such as CLEANUP 600: only the parameters on
                                   the helper's list, only inside the range SD itself enforces; the old file is kept as sd.conf.bak)
   sd-elevate [--dry-run] job-set <name> <job> <schedule words>
-                                  (defines or replaces a scheduled administrator job in /etc/sdcore/jobs.d: <job> is backup-all, check-masters, sync-masters or
+                                  (defines or replaces a scheduled administrator job in /etc/sdcore/jobs.d: <job> is backup-all or
                                   update-accounts; the schedule is every 5|10|15|20|30 minutes, hourly, daily HH:MM, weekly mon..sun HH:MM or monthly 1..28 HH:MM.
                                   It writes the definition, then the timer and service units sdcore-job-<name>, and enables the timer)
   sd-elevate [--dry-run] job-delete <name>
                                   (stops and removes the job's timer and units, then the definition)
   sd-elevate [--dry-run] job-list (the defined jobs, one line each)
+  sd-elevate [--dry-run] job-run <name>
+                                  (starts the job's service now, exactly as its timer would)
   sd-elevate [--dry-run] sdsys-join <sdu_ group>
                                   (puts the user sdsys, and no other user, into the group of an SD
-                                  user's account, so that a master edit can be written into it)
+                                  user's account, so that the administrator can write into its files)
   sd-elevate [--dry-run] sdsys-leave <sdu_ group>
                                   (takes the user sdsys, and no other user, out of the group of an SD
                                   user's account; a group that does not list sdsys is left as it is)
@@ -1992,8 +2000,8 @@ conf_set() {   # conf_set FILE KEY VALUE - after confset_check: FILE's KEY= line
 # 2 Nov 26 dm - THE DEFINITIONS OF THE JOBS THE ADMINISTRATOR SCHEDULES, and nothing else: job-set NAME JOB SCHEDULE..., job-delete NAME and job-list.  (The owner, 1 Nov 2026: a cron
 #   management pane in SD, admin jobs in its first version, a job "as sdsys" only through a root-owned definition; 2 Nov: "do s.102 stage 2 with systemd timers".)  A definition is a plain
 #   file in /etc/sdcore/jobs.d, owned by root, that the sdsys user cannot write: what a job runs is root's record and not a file the administrator's own account can change from outside SD.
-#   THE COMMAND IS CHOSEN FROM A LIST THE HELPER OWNS (job_command), by an id, and is never text a caller supplies: backup-all (backup.account all), check-masters (check.masters),
-#   sync-masters (sync.masters) and update-accounts (update.accounts all).  A command that takes an account name or a path is not on the list; adding one is a change to this file.
+#   THE COMMAND IS CHOSEN FROM A LIST THE HELPER OWNS (job_command), by an id, and is never text a caller supplies: backup-all (backup.account all) and
+#   update-accounts (update.accounts all) (check-masters and sync-masters went with the master-file copies, S.96 M6, 2 Nov 26).  A command that takes an account name or a path is not on the list; adding one is a change to this file.
 #   THE SCHEDULE IS ONE OF FIVE SHAPES (job_schedule) turned into systemd's OnCalendar by the helper, so no calendar text comes from a caller: every 5|10|15|20|30 minutes, hourly,
 #   daily HH:MM, weekly mon|tue|wed|thu|fri|sat|sun HH:MM, monthly D HH:MM (D 1 to 28: every month has the day).  The time zone is the machine's.
 #   THE NAME is 1 to 32 characters, a lower case letter first, then lower case letters, digits and dashes, not ending in a dash; at most 32 jobs.
@@ -2011,8 +2019,6 @@ JOB_MAX=32
 job_command() {   # job_command ID - sets JB_SENTENCE to the SD command line the job id stands for; false for any other id
   case $1 in
     backup-all)      JB_SENTENCE='backup.account all' ;;
-    check-masters)   JB_SENTENCE='check.masters' ;;
-    sync-masters)    JB_SENTENCE='sync.masters' ;;
     update-accounts) JB_SENTENCE='update.accounts all' ;;
     *) JB_SENTENCE=; return 1 ;;
   esac
@@ -2064,8 +2070,8 @@ job_check() {   # job_check NAME ID WORD... - dies unless the name, the job id a
   local n=$1 id=$2
   [[ -n $n ]] || die "no job name was given"
   job_name_ok "$n" || die "a job name is 1 to 32 characters: a lower case letter first, then lower case letters, digits and dashes, not ending in a dash"
-  [[ -n $id ]] || die "no command was given for the job (backup-all, check-masters, sync-masters or update-accounts)"
-  job_command "$id" || die "the command of a job is one of backup-all, check-masters, sync-masters and update-accounts; it is not text a caller supplies"
+  [[ -n $id ]] || die "no command was given for the job (backup-all or update-accounts)"
+  job_command "$id" || die "the command of a job is one of backup-all and update-accounts; it is not text a caller supplies"
   shift 2
   [[ $# -gt 0 ]] || die "no schedule was given"
   job_schedule "$@" || die "$JB_WHY"
@@ -2213,6 +2219,18 @@ job_list_line() {   # job_list_line KIND NAME ... - one line of job-list, from a
   else
     printf 'damaged %s: the definition does not agree with the helper\n' "$n"
   fi
+}
+job_run_state() {   # job_run_state NAME - sets JB_RUN to job (job-list shows the definition as a job), damaged (it shows it as damaged) or absent; false when the list cannot be read
+  local rows k a b c d e f line
+  JB_RUN=absent
+  [[ -d $SD_JOBS_DIR ]] || return 0
+  rows=$(python3 -I -c "$JOBS_PY" list "$SD_JOBS_DIR") || return 1
+  while IFS=$'\t' read -r k a b c d e f; do
+    [[ -n $k && $a == "$1" ]] || continue
+    line=$(job_list_line "$k" "$a" "$b" "$c" "$d" "$e" "$f")
+    if [[ $line == "job $1: "* ]]; then JB_RUN=job; else JB_RUN=damaged; fi
+  done <<<"$rows"
+  return 0
 }
 # END jobs_functions
 
@@ -2703,7 +2721,7 @@ case $verb in
     LOG_LINE="sdsys-leave: the user sdsys is no longer in $1"
     ;;
 
-  # The work is the python3 text GW_PY; the account is checked here first.  The result line is the one witness-masters.sh anchors on.
+  # The work is the python3 text GW_PY; the account is checked here first.  The result line is the one witness-masters.sh anchored on (retired 2 Nov 26 with the master files, S.96 M6); keep its wording for the witness that replaces it.
   group-write)
     [[ $# -eq 1 ]] || usage
     require_group_write_target "$1"
@@ -2812,6 +2830,33 @@ case $verb in
       js_n=$((js_n + 1))
     done <<<"$js_rows"
     [[ $js_n -gt 0 ]] || printf '%s: no job is defined\n' "$PROG"
+    exit 0
+    ;;
+
+  # 2 Nov 26 dm - S.102 stage 4: "run now" for the jobs page.  It starts the job's own service, which runs exactly as the timer runs it (the same unit, the same
+  # cgroup, the same K$JOB.MARK test); it never runs a command itself.  --no-block: the page is not held while backup.account all runs.  The success line the
+  # page and set.job anchor on is "job NAME started"; a name with no definition or no service is "no job named NAME; nothing was started", exit 0, as job-delete.
+  job-run)
+    [[ $# -eq 1 ]] || die "job-run takes the name of one job"
+    job_name_ok "$1" || die "a job name is 1 to 32 characters: a lower case letter first, then lower case letters, digits and dashes, not ending in a dash"
+    printf '%s: job-run %s: systemctl start --no-block sdcore-job-%s.service, only when %s/%s and the service unit are plain files\n' "$PROG" "$1" "$1" "$SD_JOBS_DIR" "$1"
+    [[ $DRY -eq 1 ]] && exit 0
+    need_root
+    job_caller
+    # The list's own agreement test, as job-list shows it: a damaged definition is refused here and not left to the kernel's K$JOB.MARK at the run.
+    job_run_state "$1" || die "the definitions in $SD_JOBS_DIR could not be read; nothing was started"
+    [[ $JB_RUN != damaged ]] || die "job $1 is damaged; nothing was started (job-set writes it again, job-delete removes it)"
+    if [[ $JB_RUN == job && ! -L $SD_JOBS_DIR && -d $SD_JOBS_DIR && ! -L $SD_JOBS_DIR/$1 && -f $SD_JOBS_DIR/$1 \
+          && ! -L $SD_UNIT_DIR/sdcore-job-$1.service && -f $SD_UNIT_DIR/sdcore-job-$1.service ]]; then
+      if ! systemctl start --no-block "sdcore-job-$1.service"; then
+        printf '%s: systemd did not start job %s\n' "$PROG" "$1" >&2
+        exit 3
+      fi
+      logger -t sd-elevate "job-run: job $1 started" 2>/dev/null || true
+      printf '%s: job %s started\n' "$PROG" "$1"
+    else
+      printf '%s: no job named %s; nothing was started\n' "$PROG" "$1"
+    fi
     exit 0
     ;;
 
