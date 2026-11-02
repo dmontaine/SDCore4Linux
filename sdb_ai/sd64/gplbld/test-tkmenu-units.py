@@ -133,8 +133,8 @@ def checks(s):
 
     slots = re.findall(r"\$define TK\.C\.([A-Z0-9]+)\s+(\d+)", th)
     nums = [int(n) for _, n in slots]
-    ck("M10 tk.h: TK.C.BAR is slot 27, slots 1 to 26 are defined once each, in place, and nothing else uses 27 (TK.C.AIROW is slot 28, 1 Nov 26)", dict(slots).get("BAR") == "27" and dict(slots).get("AIROW") == "28"
-       and sorted(nums) == list(range(1, 29)), repr(slots[-4:]))
+    ck("M10 tk.h: TK.C.BAR is slot 27, slots 1 to 26 are defined once each, in place, and nothing else uses 27 (TK.C.AIROW is slot 28, 1 Nov 26; TK.C.FOCI is slot 29, S.99 1 Nov 26)", dict(slots).get("BAR") == "27" and dict(slots).get("AIROW") == "28"
+       and dict(slots).get("FOCI") == "29" and sorted(nums) == list(range(1, 30)), repr(slots[-4:]))
 
     ck("M11 F1's list of keys: $tk_frame keeps keys, pane and epoch in common /tkreg/ before it draws; $tk_close clears all three; $tk_help declares the same block, asks 'keylist' only while an app is drawing "
        "(epoch) and shows message 11244 and the lines above the page's text, each cut to the box",

@@ -81,9 +81,9 @@ def checks(src):
                "wr.out<-1> = (if wr.k = 1 then wr.p1 else wr.p2) : wr.text[wr.k, wr.w]", "next wr.k", "return"), we)
     ask = code(section(ai, "run.ask"))
     pv = ask.split("body<-1> = sysmsg(11641, n.acts, len(alist))")[1].split("body<-1> = sysmsg(11643, len(req))")[0] if "body<-1> = sysmsg(11641, n.acts, len(alist))" in ask else ""
-    ck("W3 the preview: the page's actions, the page's text, the text being worked on and the selection are each put through wrap.exact (4 uses), at the box width less the two blanks of the indent",
-       pv.count("gosub wrap.exact") == 4 and "wr.w = wrapw - 2" in pv and "wr.text = acts<1, i>" in pv and "wr.text = field(ptext, nl, p)" in pv and "wr.text = field(tbm, nl, p)" in pv
-       and "wr.text = field(selm, nl, p)" in pv, pv[:300])
+    ck("W3 the preview: the page's actions, the page's text, the text being worked on, the selection and (since S.100, 1 Nov 26) the documentation passages are each put through wrap.exact (5 uses), at the box width less the two blanks of the indent",
+       pv.count("gosub wrap.exact") == 5 and "wr.w = wrapw - 2" in pv and "wr.text = acts<1, i>" in pv and "wr.text = field(ptext, nl, p)" in pv and "wr.text = field(tbm, nl, p)" in pv
+       and "wr.text = field(selm, nl, p)" in pv and "wr.text = field(dres<4, i>, nl, p)" in pv, pv[:300])
     ed = code(section(ai, "read.edits"))
     ck("W4 the diff: every old line and every new line goes through wrap.exact at the box width less six, behind the sign and a hanging indent, and the rows are appended as they come",
        ordered(ed, "wr.w = wrapw - 6", "wr.p1 = '- ' ; wr.p2 = '  '", "wr.text = field(eo, nl, j)", "gosub wrap.exact", "diff.lines<-1> = wr.out", "wr.p1 = '+ ' ; wr.p2 = '  '",

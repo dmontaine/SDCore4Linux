@@ -117,7 +117,7 @@ def checks(src, others):
     ck("I1 do.dform refuses an empty editor, a tab that is not a dictionary item (11949) and a read-only tab, and keeps the editor's text first",
        ordered(d, "if nbuf = 0 then", "if bx{k} # 'dict' then", "msg = sysmsg(11949)", "gosub ro.check", "if not(ro.ok) then", "gosub stash.current", "df.rec = bx{k}"), "")
     ck("I2 it calls the form once, redraws, says why an item stays text (11950), and for save or text puts the record in the tab as the token form",
-       d.count("call $dict_form(") == 1 and ordered(d, "call $dict_form(df.rec", "gosub redraw", "screen menubar menus row 0 draw", "df.res = 'cannot'", "sysmsg(11950, ", "df.res = 'save' or df.res = 'text'",
+       d.count("call $dict_form(") == 1 and ordered(d, "call $dict_form(df.rec", "gosub redraw", "gosub draw.bar", "df.res = 'cannot'", "sysmsg(11950, ", "df.res = 'save' or df.res = 'text'",
                                                     "bx{k} = df.new", "gosub set.token.mode", "gosub load.current"), "")
     ck("I3 only `save` is written, by the IDE's own save, AFTER the text is in the tab; `text` and `cancel` write nothing",
        ordered(d, "gosub load.current", "if df.res = 'save' then", "gosub save.one") and d.count("gosub save.one") == 1 and d.count("save.current") == 0, "")

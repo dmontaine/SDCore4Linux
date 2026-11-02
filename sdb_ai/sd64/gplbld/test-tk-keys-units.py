@@ -35,9 +35,11 @@ MSG = os.path.join(SDSYS, "messages")
 # button, Tab the focus), it has no help and no quit of a page, so the page rules (handler, F1, Ctrl-Q) do not apply to it; it is still parsed and counted.
 # $tk_aipage (S.97 stage 1, 1 Nov 26) is in the same list for another reason: it is not a page but adds ONE row, F6 for the action ai, to the table of the page that calls it (and the AI menu
 # entry); the page's own source has the case, which test-aipage-units.py holds.
-FOOT_ONLY = ("dict_form", "tk_aipage")
-EXPECT_PROGRAMS = 26
-EXPECT_ADD_ROWS = 277         # 266 + the 4 foot rows of dict_form, 1 Nov 26, + tk_aipage's F6 row; + tool_remote's 6, O, R, F rows (S.95 stage 1b, 1 Nov 26); + tool_gates' A and N (all on, all off, 1 Nov 26)
+# $debug (S.98 H1, 1 Nov 26) is in the list as well: it builds a nine-row table (F1 F2 F3 F4 F5 F7 F8 ^F7 ^F8) only to NAME the keys of its foot; its own command loop acts on them (K$F1 ... ),
+# and test-dbgdisplay-units.py holds that the table and the loop name the same keys.  It has no quit of a page and F2 is ABORT there, which the page rules (Ctrl-Q, F2 reserved) would refuse.
+FOOT_ONLY = ("dict_form", "tk_aipage", "debug")
+EXPECT_PROGRAMS = 27
+EXPECT_ADD_ROWS = 286         # 277 + the nine foot rows of debug (S.98 H1, 1 Nov 26); 266 + the 4 foot rows of dict_form, 1 Nov 26, + tk_aipage's F6 row; + tool_remote's 6, O, R, F rows (S.95 stage 1b, 1 Nov 26); + tool_gates' A and N (all on, all off, 1 Nov 26)
 # earlier counts: (266 with the IDE's eight rows of the pane "fields", 31 Oct 26; 256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 258 with tool_test's Ctrl-O row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
@@ -359,7 +361,7 @@ def run_a(raw, rows):
     res["reserved"] = []
     for prog, rs in byprog.items():
         for r in rs:
-            if r["key"] in RESERVED and r["act"] not in RESERVED_OK.get(r["key"], set()):
+            if r["key"] in RESERVED and r["act"] not in RESERVED_OK.get(r["key"], set()) and prog != "debug":     # the debugger's F2 is ABORT, its own key since 2004 (S.98 H1: the foot names it)
                 res["reserved"].append("%s:%s" % (prog, r["key"]))
             if prog == "mymenu" and r["key"] in MYMENU_MOVED:      # owner answer 20: mymenu's own keys give way to Ctrl-N, Del and u / d in Phase 5
                 res["reserved"].append("%s:%s" % (prog, r["key"]))
