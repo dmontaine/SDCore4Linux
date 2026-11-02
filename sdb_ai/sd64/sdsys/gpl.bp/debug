@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 2 Nov 26 dm  S.98 H3: the full-screen display on a terminal with no alternate screen (the Linux console, vt100, vt220, ansi ...): full.screen needs cup and clear, not smcup and rmcup
+*               (alt.able says which); the main screen is taken at a stop that is shown (take.main) and given back as the program had it (give.main: an owned library screen drawn
+*               again from its shadow, else a clear screen), F4 / V repaint an owned screen or say there is none (message 11597), and LINE.MODE in $debug.options keeps line mode.
 * 2 Nov 26 dm  S.98 H2: a run the IDE armed starts the debugger afresh (debug.initialised cleared, as CPROC does before each TCL command): in an IDE session the second and later
 *               runs skipped initialise and a breakpoint set by the run-on never stopped the program.
 * 1 Nov 26 dm  S.98 H2 (the IDE hands its breakpoints over): when the IDE armed the named common /idebrk/ (idebrk.h) for this run and the first program stopped in is the one it compiled (the same source
@@ -102,11 +105,15 @@ $define GUTTER.W               2       ;* the source's gutter: a mark (* a break
    * On a terminal that has an ALTERNATE screen the debugger takes the whole of it: the program's own screen is kept
    * by the terminal and comes back when the debugger lets go.  alt.on is true between the two (initialise enters it
    * itself the first time, to paint on it).  A terminal without one, or a session with no terminal, gets line mode.
+   * 2 Nov 26 (S.98 H3): a terminal with none but with cup and clear gets the same display on the MAIN screen (main.on between take.main and give.main): the program's own text is
+   *   cleared when the debugger comes up and what the screen library knows of the program's screen is drawn again when it lets go.  The screen is taken only once this stop is known
+   *   to be shown (after the IDE's hand-over and a conditional WATCH may have sent the program straight on).
    alt.on = @false
+   main.on = @false
    if ibk.mode + 0 = IBK.K.ARMED then debug.initialised = @false     ;* 2 Nov 26 (S.98 H2): CPROC does this before each command; an IDE session never passes through it, and a run-on in the 2nd run of a session ran to the end
    if not(debug.initialised) then gosub initialise
 
-   alt.screen = full.screen and not(phantom)
+   alt.screen = full.screen and not(phantom) and alt.able
    if alt.screen and not(alt.on) then
       display terminfo('smcup') : @(-1) :
       alt.on = @true
@@ -134,8 +141,8 @@ found.program:
       if ib.run then goto exit.debug            ;* the run goes on to the first breakpoint without showing anything, as a WATCH whose condition is not met does
    end
 
-   if full.screen then gosub theme.in          ;* the library's styles for what follows (given back at exit.debug)
-   if alt.screen then                          ;* a fresh alternate screen: the frame is drawn and the messages of the last stop are shown again
+   if alt.screen then gosub theme.in           ;* the library's styles for what follows (given back at exit.debug)
+   if alt.screen then                         ;* a fresh alternate screen: the frame is drawn and the messages of the last stop are shown again
       gosub paint.layout
       gosub paint.data.area
    end
@@ -149,6 +156,13 @@ found.program:
          gosub dbg.breakpoint(BRK$RUN, 0)
          goto exit.debug
       end
+   end
+
+   if full.screen and not(alt.able) then       ;* S.98 H3: this stop is to be shown: the main screen is taken (the library's styles after it, so that the program's are still the ones in force when it reads them)
+      gosub take.main
+      gosub theme.in
+      gosub paint.layout
+      gosub paint.data.area
    end
 
    * ------------------------------------------------------------
@@ -590,7 +604,7 @@ error:
 
 exit.debug:
    if full.screen then gosub theme.out
-   gosub leave.alt
+   gosub leave.screen
 
 exit.loop:
    return to exit.loop
@@ -640,6 +654,40 @@ leave.alt:
       display terminfo('rmcup') :
       alt.on = @false
       ibk.alt = 0
+   end
+   return
+
+* ----------------------------------------------------------------------
+* LEAVE.SCREEN  -  give the terminal back: the alternate screen, or the main screen as the program had it (S.98 H3).  After theme.out, so that the program's theme is the one in force
+* when its screen is drawn again.
+
+leave.screen:
+   gosub leave.alt
+   if main.on then gosub give.main
+   return
+
+* TAKE.MAIN  -  a terminal with no alternate screen: the main screen is cleared for the debugger.  Nothing of the program's is lost that the screen library holds: the debugger draws
+* on a copy of the library's context (scr.in) and never writes it back, so the program's shadow, cursor, theme and mouse are as they were when give.main reads them again.  What the
+* program PRINTed, and what was on the screen before, is not held by anyone, and goes.
+take.main:
+   main.on = @true
+   call $sl_sgr('n', sq)
+   display sq : @(-1) :
+   return
+
+* GIVE.MAIN  -  the screen of a program that owns the library's screen is drawn again from its shadow ($sl_repaint clears first and sets SL.S.SYNC, so that the program's next form
+* writes what it believes is not shown), and the context is put back (that places the cursor, shown or hidden as the program left it).  Any other program gets a clear screen with the
+* cursor on and the plain style: its PRINT output cannot be asked of the terminal.  The kept context is read again here, not remembered from take.main: the window may have been
+* resized while the debugger was up.
+give.main:
+   main.on = @false
+   call $sl_scr('get', ps)
+   if ps<SL.S.OWNED> then
+      call $sl_repaint(ps)
+      call $sl_scr('put', ps)
+   end else
+      call $sl_sgr('n', sq)
+      display @(-31) : sq : @(-1) :
    end
    return
 
@@ -1030,9 +1078,16 @@ initialise:
    * Full screen: a real terminal (the kernel can read its window size) that has an alternate screen.  (Until
    * 13 Oct 26 it was a terminal with the AccuTerm 'sreg' capability, which kept screen images, a mouse and key
    * rebinding of its own; all of that has been removed.)
+   * 2 Nov 26 (S.98 H3): any terminal that can address a cell and clear itself, not only one with an alternate screen.  With an alternate screen (alt.able) the program's own screen
+   *   is kept by the terminal and comes back; without one (the Linux console, vt100, vt220, ansi, ...) the debugger takes the main screen for the length of a stop, and what the
+   *   library knows of the program's screen is drawn again when it lets go (take.main, give.main).  dumb, unknown and null have no cup and stay in line mode.
    full.screen = @false
+   alt.able = @false
    if not(phantom) then
-      if kernel(K$WINSIZE, '') # '' and terminfo('smcup') # '' and terminfo('rmcup') # '' then full.screen = @true
+      if kernel(K$WINSIZE, '') # '' and terminfo('cup') # '' and terminfo('clear') # '' then
+         full.screen = @true
+         alt.able = (terminfo('smcup') # '' and terminfo('rmcup') # '')
+      end
    end
 
    * Display attributes: the style codes of the screen library (set at every entry, theme.in, because the theme
@@ -1072,6 +1127,7 @@ initialise:
             n = field(trim(init.options<i>), ' ', 2)
             if n matches '1N0N' and n >= 5 and n <= MAX.DATA.AREA.LINES then data.lines = n + 0
          end
+         if field(trim(init.options<i>), ' ', 1) = 'LINE.MODE' then full.screen = @false     ;* 2 Nov 26 (S.98 H3): the way back to line mode on a terminal that would otherwise get the full screen
       next i
       gosub set.geometry
    end
@@ -1091,9 +1147,9 @@ initialise:
    ai.ok = 0
    if full.screen then call $tk_ai('usable', '', ai.ok, ai.pm)
 
-   if full.screen then
+   if full.screen and alt.able then
       * Set up initial display and save screen image: the title bar, the source area, the data area and the
-      * command line, in the library's styles
+      * command line, in the library's styles.  (S.98 H3: only on an alternate screen; on the main screen the entry takes the screen and paints, once it is known that this stop is to be shown)
       gosub theme.in
       if not(phantom) then
          display terminfo('smcup') :             ;* the alternate screen, before anything is drawn
@@ -1667,6 +1723,25 @@ view:
       gosub display.source
       gosub refresh.panes
    end
+   if main.on then
+      * S.98 H3: there is no second screen.  A program that owns the library's screen has it drawn again from its shadow, in its own theme, until a key; any other program's screen is not
+      * kept by anybody, and the debugger says so.
+      call $sl_scr('get', ps)
+      if ps<SL.S.OWNED> then
+         gosub theme.out
+         call $sl_repaint(ps)
+         s = keycode()
+         gosub theme.in
+         gosub paint.layout
+         gosub paint.data.area
+         src.line = line
+         gosub display.source
+         gosub refresh.panes
+      end else
+         message = sysmsg(11597)
+         gosub emit.msg
+      end
+   end
    return
 
 * ======================================================================
@@ -1675,7 +1750,7 @@ view:
 abort.debug:
    gosub ibk.sync                       ;* S.98 H2: these two end the program and never reach the loop's end
    if full.screen then gosub theme.out
-   gosub leave.alt
+   gosub leave.screen
    gosub dbg.stop(6716) ;* ABORT : Debugging terminated
    return
 
@@ -1685,7 +1760,7 @@ abort.debug:
 stop.debug:
    gosub ibk.sync
    if full.screen then gosub theme.out
-   gosub leave.alt
+   gosub leave.screen
    gosub dbg.stop(6715) ;* STOP : Debugging terminated
    return
 

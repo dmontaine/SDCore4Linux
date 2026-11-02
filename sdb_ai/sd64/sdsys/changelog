@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+2 Nov 26   THE DEBUGGER'S FULL-SCREEN DISPLAY NOW WORKS ON THE LINUX TEXT CONSOLE AND OTHER TERMINALS THAT HAVE NO ALTERNATE SCREEN.
+
+             What        - Until now only a terminal with an alternate screen (xterm and its kin) got the full-screen debugger; the Linux console, vt100, vt220, ansi and
+                           every other terminal got the line-by-line one. It is now given to any terminal that can address a cell and clear itself, in a window of 140
+                           by 43 or more. With no alternate screen the debugger clears the screen when it comes up and clears it again when it lets the program go; a
+                           program that opened the screen library's screen (SCREEN OPEN) has everything the library knows drawn again - its forms, cursor and theme. F4
+                           (or v) shows that screen again until a key is pressed, and says there is none for any other program. LINE.MODE on a line of the VOC record
+                           $debug.options of the account keeps the line-by-line debugger on a terminal that would otherwise get the full screen.
+             Why         - The owner asked for the full-screen tools to work on a bare console. The debugger was the one that did not, and it is the one entered in the
+                           middle of a program.
+             Does NOT    - Give back what the program printed with PRINT or CRT, or what was on the screen before the debugger started: a terminal cannot be asked what it
+                           shows, and the line-by-line debugger, which clears nothing, keeps that text. It does not change dumb, unknown or null terminals, a window
+                           smaller than 140 by 43, a phantom or a piped session, which stay line by line. A debugger that is killed or fails in the middle of a stop can
+                           leave the debugger's picture and colours on the screen.
+
 2 Nov 26   BREAKPOINTS SET IN THE IDE'S EDITOR, HANDED TO THE DEBUGGER.
 
              What        - In a program tab, Shift-F7 (or Build, Toggle breakpoint, or a click in the gutter) sets or clears a mark on a line, shown as * in front of its line

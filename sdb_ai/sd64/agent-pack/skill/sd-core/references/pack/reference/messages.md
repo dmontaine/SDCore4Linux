@@ -6099,6 +6099,15 @@ Master record %s not saved: no lock could be taken on the account's record (the 
 Master record %s not saved: this session has not read it, and the account has a record of that name. Read the record first, then save it. Nothing was changed
 ```
 
+### msg:11597
+> kind=message tier=reference since=- src=sdsys/messages/11597:1#bb1ca89d
+
+```
+There is no second screen to show on this terminal: the program's own screen is not kept
+```
+
+cited by: `debug`
+
 ### msg:11600
 > kind=message tier=reference since=- src=sdsys/messages/11600:1#64ada5ed
 

@@ -111,7 +111,8 @@ $define MAX.DATA.AREA.LINES   15
                    rev.attr,
                    num.attr,
                    auto.here,                   ;* ...and the stops the Autos pane keys on, as program index:line: this one and the one before (0 when there is none)
-                   auto.prev
+                   auto.prev,
+                   alt.able                     ;* 2 Nov 26 (S.98 H3): the terminal has an alternate screen (smcup and rmcup); set once, in initialise. Without one a full-screen debugger takes the main screen for the length of a stop
 
 * Event codes (additive)
 

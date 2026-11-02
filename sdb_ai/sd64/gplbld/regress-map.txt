@@ -26,7 +26,7 @@
 # the pseudo-terminal suites (a terminal, keys, the screen library)
 @pty = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport sed-small ide-small ide-sed winsize eofkeys idedraw recarr
 # the debugger
-@debugger = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase idebrk
+@debugger = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase idebrk dbgmain
 # select lists and everything that makes or reads one
 @lists = sselectv stacklist list-q2 list-a7 verbs-q8 mode-q16 q4
 # files: directory and hashed file i/o, indices, triggers, the record id rules, transactions
@@ -205,6 +205,7 @@ gplsrc/ti_names.h            : @pty terminfo-ext
 gplsrc/op_debug.c            : @debugger
 # 2 Nov 26 (S.98 H2): the IDE's breakpoints handed to the debugger - the common both sides include (above the *.h rule: the first match wins)
 gplbld/sandbox-idebrk.py     : @self
+gplbld/sandbox-dbgmain.py    : @self
 sdsys/gpl.bp/idebrk.h        : idebrk @debugger ide
 gplsrc/debug*.h              : @debugger
 gplsrc/pdump.c               : @debugger listu-a5 netfile
