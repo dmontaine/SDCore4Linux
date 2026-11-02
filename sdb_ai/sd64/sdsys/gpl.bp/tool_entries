@@ -93,7 +93,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    ec = 1 ; etop = 1                                             ;* the same in Entries (the hits, in a find)
    an = 0 ; anm = '' ; en = 0 ; enm = '' ; hn = 0               ;* read.all reads both before it fills them (BASIC does not short-circuit)
    ekey = '' ; efile = '' ; hfile = '' ; eout = '' ; hout = '' ; vfail = 0 ; dfail = 0
-   kind = 1                                                      ;* 1 the VOC entries, 2 the dictionary items of the account's files
+   kind = 1                                                      ;* 1 the VOC entries, 2 the dictionary items of the account's files, 3 the programs of its program files
    filt = '' ; fnd = ''
    ai.arg = ''
    gen = 0
@@ -260,6 +260,86 @@ collect.account:
          end
       repeat
       close vf
+      return
+   end
+   if kind = 3 then
+      * programs: the program files of this VOC, found as tool.catalog finds them (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it, where BASIC
+      * puts the compiled programs), then the records of each; a program is built when its compiled program is in the .out file under the same name
+      pfiles = '' ; ppaths = '' ; popaths = ''
+      loop
+         readnext id from 9 else exit
+         read r from vf, id then
+            if upcase(trim(r<1>))[1, 1] = 'F' then
+               tl = downcase(id)
+               isp = 0
+               orr = ''
+               if not(len(tl) > 4 and tl[len(tl) - 3, 4] = '.out') then
+                  if tl = 'bp' then isp = 1
+                  if len(tl) > 3 and tl[len(tl) - 2, 3] = '.bp' then isp = 1
+                  read orr from vf, id : '.out' else orr = ''
+                  if not(isp) and upcase(trim(orr<1>))[1, 1] = 'F' then isp = 1
+               end
+               if isp then
+                  locate id in pfiles<1> by 'AL' setting lp else
+                     ins id before pfiles<lp>
+                     ins trim(r<2>) before ppaths<lp>
+                     ins (if upcase(trim(orr<1>))[1, 1] = 'F' then trim(orr<2>) else '') before popaths<lp>
+                  end
+               end
+            end
+         end
+      repeat
+      close vf
+      for fi = 1 to dcount(pfiles, @fm)
+         pp = parse.pathname.tokens(ppaths<fi>)
+         if pp[1, 1] # '/' then pp = apath<ca> : @ds : pp
+         tp = pp
+         gosub out.test                                              ;* a program file outside this account is not this account's to edit
+         poutf = is.out
+         onames = ''
+         if popaths<fi> # '' then
+            op2 = parse.pathname.tokens(popaths<fi>)
+            if op2[1, 1] # '/' then op2 = apath<ca> : @ds : op2
+         end else
+            op2 = pp : '.out'                                        ;* this VOC names no .out file (a program file reached by a pointer from another account's VOC has none): the one BASIC makes BESIDE the program file
+         end
+         openpath op2 to ofv then
+            select ofv to 9
+            readlist onames from 9 else onames = ''
+            close ofv
+         end
+         onames = downcase(onames)
+         openpath pp to pfv then
+            if fileinfo(pfv, FL$TYPE) = FL$TYPE.DIR then
+               select pfv to 9
+               loop
+                  readnext pid from 9 else exit
+                  rcount += 1
+                  if pat = '' or index(upcase(pid), upcase(pat), 1) > 0 then
+                     if cn >= MAXV then
+                        ctrunc = 1
+                     end else
+                        pk = pfiles<fi> : '*' : pid
+                        locate pk in ckey<1> by 'AL' setting lp else
+                           built = '-'
+                           locate downcase(pid) in onames<1> setting op3 then built = 'yes'
+                           ins pk before ckey<lp>
+                           ins pid before cid<lp>
+                           ins pfiles<fi> before cfile<lp>
+                           ins built before cty2<lp>
+                           ins pp before csm2<lp>
+                           ins poutf before cout<lp>
+                           cn += 1
+                        end
+                     end
+                  end
+               repeat
+            end
+            close pfv
+         end else
+            cdfail += 1
+         end
+      next fi
       return
    end
    * dictionaries: the files of this VOC that have one (field 3 of the file pointer), then the items of each
@@ -460,7 +540,7 @@ get.rects:
 draw.all:
    screen clear at 0,ctx<TK.C.YBODY> size ctx<TK.C.W>,ctx<TK.C.BODYH>
    screen box at a.x,a.y size a.w,a.h title 'Accounts'
-   kw1 = (if kind = 1 then 'VOC' else 'Dictionary items')
+   kw1 = (if kind = 1 then 'VOC' else (if kind = 2 then 'Dictionary items' else 'Programs'))
    if fnd # '' then
       ttl = kw1 : ' with "' : fnd : '" in every account'
    end else
@@ -496,7 +576,7 @@ draw.entries:
       if kind = 1 then
          s = fmt('Account', '16L') : fmt('Id', (24 + ex) : 'L') : fmt('>', '2L') : fmt('Type', '6L') : 'Points at'
       end else
-         s = fmt('Account', '14L') : fmt('File', '12L') : fmt('>', '2L') : fmt('Id', (18 + ex) : 'L') : fmt('Type', '5L') : 'Heading'
+         s = fmt('Account', '14L') : fmt('File', '12L') : fmt('>', '2L') : fmt('Id', (18 + ex) : 'L') : fmt((if kind = 2 then 'Type' else 'Built'), '5L') : (if kind = 2 then 'Heading' else 'Source file')
       end
       screen text s at c.x + 2,c.y + 1 attr 'header' width tw
       for r = 1 to VIS
@@ -512,11 +592,14 @@ draw.entries:
          screen text s at c.x + 2,c.y + 1 + r attr (if k = ec and k <= hn then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
       next r
       if hn = 0 then
-         if kind = 1 then
-            s = 'No VOC has an id with "' : fnd : '" in it (' : hseen : ' VOCs read).'
-         end else
-            s = 'No dictionary item has "' : fnd : '" in its id or its heading (' : hseen : ' accounts read).'
-         end
+         begin case
+            case kind = 1
+               s = 'No VOC has an id with "' : fnd : '" in it (' : hseen : ' VOCs read).'
+            case kind = 2
+               s = 'No dictionary item has "' : fnd : '" in its id or its heading (' : hseen : ' accounts read).'
+            case 1
+               s = 'No program has "' : fnd : '" in its id (' : hseen : ' accounts read).'
+         end case
          screen text s at c.x + 2,c.y + 3 width tw
       end
       s = hn : (if hn = 1 then ' hit' else ' hits') : ' in ' : hseen
@@ -532,7 +615,7 @@ draw.entries:
       if kind = 1 then
          s = fmt('Id', (30 + ex) : 'L') : fmt('>', '2L') : fmt('Type', '6L') : 'Points at'
       end else
-         s = fmt('File', '13L') : fmt('>', '2L') : fmt('Id', (22 + ex) : 'L') : fmt('Type', '5L') : 'Heading'
+         s = fmt('File', '13L') : fmt('>', '2L') : fmt('Id', (22 + ex) : 'L') : fmt((if kind = 2 then 'Type' else 'Built'), '5L') : (if kind = 2 then 'Heading' else 'Source file')
       end
       screen text s at c.x + 2,c.y + 1 attr 'header' width tw
       for r = 1 to VIS
@@ -542,7 +625,7 @@ draw.entries:
             if kind = 1 then
                s = fmt(enm<k>[1, 28 + ex], (30 + ex) : 'L') : fmt((if eout<k> then '>' else ''), '2L') : fmt(ety<k>, '6L') : esm<k>
             end else
-               s = fmt(efile<k>[1, 11], '13L') : fmt((if eout<k> then '>' else ''), '2L') : fmt(enm<k>[1, 20 + ex], (22 + ex) : 'L') : fmt(ety<k>, '5L') : esm<k>
+               s = fmt(efile<k>[1, 11], '13L') : fmt((if eout<k> then '>' else ''), '2L') : fmt(enm<k>[1, 20 + ex], (22 + ex) : 'L') : fmt(ety<k>, '5L') : esm<k>      ;* a dictionary item: its type and heading; a program: built or not, and the directory of its file
             end
          end
          screen text s at c.x + 2,c.y + 1 + r attr (if k = ec and k <= en then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
@@ -557,23 +640,30 @@ draw.entries:
             screen text s2 at c.x + 2,c.y + 4 width tw
          case en = 0 and filt # '' and kind = 1
             s = 'No entry has "' : filt : '" in its id.'
-         case en = 0 and filt # ''
+         case en = 0 and filt # '' and kind = 2
             s = 'No dictionary item has "' : filt : '" in its id or its heading.'
+         case en = 0 and filt # ''
+            s = 'No program has "' : filt : '" in its id.'
          case en = 0 and kind = 1
             s = 'The VOC of this account is empty.'
-         case en = 0
+         case en = 0 and kind = 2
             s = 'No file of this account has a dictionary with an item in it.'
+         case en = 0
+            s = 'This account has no program file (a directory file named bp, or ending .bp, or with a .out file beside it) with a program in it.'
       end case
       if s # '' then screen text s at c.x + 2,c.y + 3 width tw
       if an > 0 and not(vfail) then
-         if kind = 1 then
-            s = en : ' of ' : eall : (if eall = 1 then ' entry' else ' entries')
-         end else
-            s = en : ' of ' : eall : (if eall = 1 then ' item' else ' items')
-         end
+         begin case
+            case kind = 1
+               s = en : ' of ' : eall : (if eall = 1 then ' entry' else ' entries')
+            case kind = 2
+               s = en : ' of ' : eall : (if eall = 1 then ' item' else ' items')
+            case 1
+               s = en : ' of ' : eall : (if eall = 1 then ' program' else ' programs')
+         end case
          if filt # '' then s := ' hold "' : filt : '"'
          if etrunc then s := '; only the first ' : MAXV : ' are listed'
-         if dfail > 0 then s := '; ' : dfail : (if dfail = 1 then ' dictionary' else ' dictionaries') : ' could not be opened'
+         if dfail > 0 then s := '; ' : dfail : (if kind = 2 then (if dfail = 1 then ' dictionary' else ' dictionaries') else (if dfail = 1 then ' program file' else ' program files')) : ' could not be opened'
          s := '.'
          screen text s at c.x + 2,c.y + c.h - 2 attr 'bold' width tw
       end
@@ -597,16 +687,17 @@ draw.effect:
             lines<-1> = 'The account has no group in the register.'
       end case
       if asus<ac> # '' then lines<-1> = 'The account is suspended.'
-      if kind = 1 then
-         lines<-1> = 'The entries are read from the account' : "'s own VOC file when the cursor comes to the account; nothing is copied.  This stage only reads: no entry is changed from here."
-      end else
-         lines<-1> = 'The dictionary items are read, when the cursor comes to the account, from the dictionary of each file its VOC points at (field 3 of the file pointer); nothing is copied.  An item matches a text in its id or in its column heading.  This stage only reads.'
-      end
-      if kind = 1 then
-         lines<-1> = ">: the entry is a pointer whose target lies outside this account (in SDSYS, as @SDSYS/voc.dic does, or in another account).  The pointer is this account's own record, edited like any VOC entry; what it points at belongs to the account it lies in and is never edited from this page."
-      end else
-         lines<-1> = ">: the item lives in a dictionary outside this account (SDSYS's, which every account's pointer to it shares, or another account's) and is only read through this account's pointer.  It is edited in the account it lives in, never from here."
-      end
+      begin case
+         case kind = 1
+            lines<-1> = 'The entries are read from the account' : "'s own VOC file when the cursor comes to the account; nothing is copied.  This stage only reads: no entry is changed from here."
+            lines<-1> = ">: the entry is a pointer whose target lies outside this account (in SDSYS, as @SDSYS/voc.dic does, or in another account).  The pointer is this account's own record, edited like any VOC entry; what it points at belongs to the account it lies in and is never edited from this page."
+         case kind = 2
+            lines<-1> = 'The dictionary items are read, when the cursor comes to the account, from the dictionary of each file its VOC points at (field 3 of the file pointer); nothing is copied.  An item matches a text in its id or in its column heading.  This stage only reads.'
+            lines<-1> = ">: the item lives in a dictionary outside this account (SDSYS's, which every account's pointer to it shares, or another account's) and is only read through this account's pointer.  It is edited in the account it lives in, never from here."
+         case 1
+            lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  This stage only reads."
+            lines<-1> = ">: the program file lies outside this account (SDSYS's or another account's) and is only read through this account's pointer.  Its programs are edited, compiled and run in the account it lives in, never from here."
+      end case
    end
    lines<-1> = ''
    gosub entry.lines
@@ -630,6 +721,10 @@ entry.lines:
       gosub dict.item.lines
       return
    end
+   if kind = 3 then
+      gosub prog.item.lines
+      return
+   end
    gosub type.word
    lines<-1> = eid : ' in ' : eacct : '  -  ' : tword
    locate eacct in anm<1> setting ap1 then
@@ -641,6 +736,32 @@ entry.lines:
                lines<-1> = fmt(q, '3R') : '  ' : convert(@vm, ' | ', convert(@sm, ' / ', dr<q>))
             next q
             if dcount(dr, @fm) > 9 then lines<-1> = '     (and ' : dcount(dr, @fm) - 9 : ' more fields)'
+         end
+         close vf2
+      end
+   end
+   return
+
+* The program under the cursor: eid in the program file efl of the account eacct, the first lines of its source (up to nine), found by the file's pointer in that account's VOC; whether
+* it is built is ety1 ('yes' or '-')
+prog.item.lines:
+   lines<-1> = eid : ' in ' : efl : ' of ' : eacct : '  -  ' : (if ety1 = 'yes' then 'built (its compiled program is in the .out file)' else 'not built (no compiled program of that name in the .out file)')
+   locate eacct in anm<1> setting ap1 then
+      openpath apath<ap1>:@ds:'voc' to vf2 then
+         read fr from vf2, efl then
+            pp2 = parse.pathname.tokens(trim(fr<2>))
+            if pp2[1, 1] # '/' then pp2 = apath<ap1> : @ds : pp2
+            openpath pp2 to pf2 then
+               read psrc from pf2, eid then
+                  nfld = dcount(psrc, @fm)
+                  if nfld > 9 then nfld = 9
+                  for q = 1 to nfld
+                     lines<-1> = fmt(q, '3R') : '  ' : psrc<q>
+                  next q
+                  if dcount(psrc, @fm) > 9 then lines<-1> = '     (and ' : dcount(psrc, @fm) - 9 : ' more lines)'
+               end
+               close pf2
+            end
          end
          close vf2
       end
@@ -863,6 +984,7 @@ open.entry:
 do.filter:
    ptxt = 'Part of an id (empty shows every entry)'
    if kind = 2 then ptxt = 'Part of an item id or heading (empty shows every item)'
+   if kind = 3 then ptxt = 'Part of a program id (empty shows every program)'
    screen ask ptxt width 40 value ai.arg title 'Filter' returning ft then got = 1 else got = 0
    if not(got) then return
    filt = trim(ft)
@@ -877,6 +999,7 @@ do.filter:
 do.find:
    ptxt = 'Part of an id, searched in the VOC of every account'
    if kind = 2 then ptxt = 'Part of an item id or heading, searched in the dictionaries of every account'
+   if kind = 3 then ptxt = 'Part of a program id, searched in the program files of every account'
    screen ask ptxt width 40 value ai.arg title 'Find' returning ft then got = 1 else got = 0
    if not(got) then return
    fnd = trim(ft)
@@ -896,12 +1019,20 @@ do.find:
 
 * K: the other kind of entry.  What was filtered or found is taken off, because a filter that means an id in the VOC means an id or a heading in a dictionary
 do.kind:
-   kind = 3 - kind
+   kind += 1
+   if kind > 3 then kind = 1
    fnd = '' ; filt = ''
    ec = 1 ; etop = 1
    gosub read.entries
    gosub draw.all
-   msg = (if kind = 1 then 'the VOC entries' else 'the dictionary items')
+   begin case
+      case kind = 1
+         msg = 'the VOC entries'
+      case kind = 2
+         msg = 'the dictionary items'
+      case 1
+         msg = 'the programs'
+   end case
    return
 
 on.mouse:

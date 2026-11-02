@@ -58,6 +58,7 @@ MUTANTS = {
     "gates": ("gset := (if upcase(trim(arec<ACC$DICT.EDIT>)) = 'YES' then 'd' else '-')", "gset := (if upcase(trim(arec<ACC$BP.EDIT>)) = 'YES' then 'd' else '-')", ["E1"], "E1"),
     "find-one": ("   for a = 1 to an\n      ca = a\n", "   for a = 1 to 1\n      ca = a\n", ["E5"], "E5a"),
     "heading": (" or index(upcase(dhead), upcase(pat), 1) > 0)", ")", ["E8"], "E8"),
+    "never-built": ("locate downcase(pid) in onames<1> setting op3 then built = 'yes'", "locate downcase(pid) in onames<1> setting op3 then built = '-'", ["E9"], "E9"),
     "text-prefix": ("is.out = (if kernel(K$PATH.IN, apath<ca> : @fm : tp) then 0 else 1)", "is.out = (if tp[1, len(apath<ca>)] = apath<ca> then 0 else 1)", ["E8"], "E8"),
 }
 
@@ -136,9 +137,19 @@ def setup_page():
     g.reg_write(BAD, [apath(BAD), "", g.GROUP, "", "", "", "no", "no", "", "no", "no", "no"])
     # THE OWNER'S RULE (3 Nov 26): a pointer whose target lies outside the account is marked >.  zeq is a Q-pointer to another account; zeesc is a file pointer written as ../ze2/zecust2, which
     # STARTS with ze1's own directory as text and lives in ze2's (the kernel's geometry resolves .. and sees it; a text prefix does not).
-    voc_write("zzeptr", [("ze1", "zeq", ["Q", "ze2", "zecust2"]), ("ze1", "zeesc", ["F", "../ze2/zecust2", "../ze2/zecust2.dic"])])
+    voc_write("zzeptr", [("ze1", "zeq", ["Q", "ze2", "zecust2"]), ("ze1", "zeesc", ["F", "../ze2/zecust2", "../ze2/zecust2.dic"]),
+                         ("ze1", "ze2.bp", ["F", "../ze2/bp"])])      # a PROGRAM file (the name ends .bp) that is another account's: its programs are marked > (M1c)
     voc_write("zzefix", [("ze1", "zzqa", ["PA", "DISPLAY QA1"]), ("ze1", "zzqb", ["V", "CA", "$zzkf"]), ("ze1", "zzonly1", ["X", "text one"]),
                          ("ze2", "zzqa", ["PA", "DISPLAY QA2"]), ("ze2", "zzonly2", ["X", "text two"]), ("ze5", "zzqc", ["PA", "DISPLAY QC"])])
+    # M1c: programs.  zpbuilt is compiled in ze1 (its object is in ze1's bp.out), zpsrc is source only; ze2 has zpother, compiled.  The compile is done by an administrator session in the
+    # account (LOGTO, then BASIC), so bp.out is what BASIC made, not something this suite wrote.
+    for acct, progs in (("ze1", ("zpbuilt", "zpsrc")), ("ze2", ("zpother",))):
+        for pid in progs:
+            g.put(os.path.join(apath(acct), "bp", pid), "program %s\n   crt '%s ran'\nend\n" % (pid, pid.upper()))
+    for acct, pid in (("ze1", "zpbuilt"), ("ze2", "zpother")):
+        out = g.adm(["LOGTO %s" % acct, "BASIC bp %s" % pid])
+        if not has(out, r"^Compiled 1 program\(s\) with no errors"):
+            bail("the program %s was not compiled in %s:\n%s" % (pid, acct, "\n".join(out[-6:])))
     # M1b: a data file with a dictionary in two accounts, made by an administrator session in the account (CREATE.FILE makes the pointer, the data and the dictionary) and a program
     # that writes the items.  zqalias has a heading that its id does not hold; zqfirst is in both accounts under the same heading.
     for acct, fname, items in (("ze1", "zecust", [("zqfirst", "D", "1", "First Name"), ("zqgiven", "D", "2", "Given Name"), ("zqalias", "D", "3", "Nickname"), ("zqdbl", "I", "@ID * 2", "Double")]),
@@ -184,7 +195,7 @@ class Page:
 
     def on(self):
         """The account the Entries box is titled with."""
-        m = re.search(r"(?:VOC|Dictionary items) of (\S+)", self.text())
+        m = re.search(r"(?:VOC|Dictionary items|Programs) of (\S+)", self.text())
         return m.group(1) if m else None
 
     def walk_to(self, name, n=40):
@@ -380,10 +391,56 @@ def section_e8(p):
     arow("E8e", "Enter on the hit 'ze2 zecust2 zqfirst' goes to it: 'Dictionary items of ze2', the find off, the item shown field by field (First Name, 10L)",
          p.on() == "ze2" and "Dictionary items of ze2" in T and "zqfirst in ze2" in norm(p.st()) and "First Name" in T and "Ids with" not in T and "Dictionary items with" not in T, repr((p.on(), p.st())))
     p.key("k", 1.2)
+    p.key("k", 1.2)                    # the dictionary items, then the programs, then round to the VOC entries
     T = p.text()
-    arow("E8f", "K again: back to the VOC entries of ze2 (the title says 'VOC of ze2'), the filter off", "VOC of ze2" in T and "Dictionary items" not in T, T[:300])
+    arow("E8f", "K twice more: past the programs, round to the VOC entries of ze2 (the title says 'VOC of ze2'), the filter off", "VOC of ze2" in T and "Dictionary items" not in T and "Programs" not in T, T[:300])
     arow("E8g", "the dictionary of ze1's zecust (%d items) and ze2's zecust2 (%d), the one ze1's pointers reach, have the same number of items after everything the page did (COUNT DICT)" % (nd1, nd2),
          dcount_items("ze1", "zecust") == nd1 and dcount_items("ze2", "zecust2") == nd2 and nd1 >= 4 and nd2 >= 2)
+
+
+def tree_state(acct):
+    """The files of an account's bp and bp.out with their modification times: the evidence that nothing was changed."""
+    st = {}
+    for sub in ("bp", "bp.out"):
+        d = os.path.join(apath(acct), sub)
+        if os.path.isdir(d):
+            for f in sorted(os.listdir(d)):
+                st[sub + "/" + f] = os.stat(os.path.join(d, f)).st_mtime_ns
+    return st
+
+
+def section_e9(p):
+    say("\n--- E9: the programs (K, K)")
+    before1, before2 = tree_state("ze1"), tree_state("ze2")
+    obj1 = os.path.join(apath("ze1"), "bp.out")
+    p.key("tab", 0.6)                  # the focus may be in the Entries box after E8: the walk below is in Accounts
+    p.walk_to("ze1")
+    p.key("k", 1.2)
+    p.key("k", 1.2)
+    T = p.text()
+    arow("E9a", "K twice from the VOC: the box is titled 'Programs of ze1' and the status line says the programs", "Programs of ze1" in T and "the programs" in norm(p.st()), repr((p.st(), T[:400])))
+    p.key("/", 1.0)
+    p.h.typed("zp\r", idle=1.5)
+    T = p.text()
+    arow("E9b", "/ zp: ze1's own programs - zpbuilt BUILT (yes), zpsrc source only (-), checked against the disk (the object is in ze1's bp.out for the first and not for the second) - and, "
+         "marked > and built (ze1's VOC names no .out file for ze2.bp: the page finds the one beside the program file), zpother of ze2 read through ze1's pointer ze2.bp",
+         os.path.isfile(os.path.join(obj1, "zpbuilt")) and not os.path.exists(os.path.join(obj1, "zpsrc"))
+         and re.search(r"\bbp zpbuilt yes\b", T) is not None and re.search(r"\bbp zpsrc - ", T) is not None and re.search(r"ze2\.bp > zpother yes\b", T) is not None, T[:900])
+    arow("E9c", "...the count line says 3 hold zp, and the means box shows the first lines of the program under the cursor (zpbuilt)",
+         re.search(r'\b3 of \d+ programs hold "zp"\.', T) is not None and re.search(r"1 program zpbuilt", T) is not None, T[-900:])
+    p.key("esc", 1.2)
+    p.key("f", 1.0)
+    p.h.typed("zpother\r", idle=2.5)
+    T = p.text()
+    nacc = len([f for f in os.listdir(os.path.join(sh.SYS, "accounts")) if f != "sdsys"])
+    arow("E9d", "F zpother: two hits - ze1's pointer ze2.bp (marked >) and ze2's own bp (no >) - from the %d accounts whose VOC opens" % (nacc - 1),
+         re.search(r"ze1 ze2\.bp > zpother yes\b", T) is not None and re.search(r"ze2 bp zpother yes\b", T) is not None and re.search(r"\b2 hits in %d accounts read\." % (nacc - 1), T) is not None, T[:900])
+    p.key("esc", 1.2)
+    p.key("k", 1.2)
+    T = p.text()
+    arow("E9e", "K once more: round to the VOC entries of ze1 ('VOC of ze1')", "VOC of ze1" in T and "Programs" not in T, T[:300])
+    arow("E9f", "nothing was changed: the files of ze1's and ze2's bp and bp.out, with their modification times, are as they were", tree_state("ze1") == before1 and tree_state("ze2") == before2,
+         repr((sorted(set(tree_state("ze1").items()) ^ set(before1.items()))[:3],)))
 
 
 def section_e6(n1, n2):
@@ -423,14 +480,16 @@ def main():
             section_e0()
         a0 = audit_off()
         p = section_e1()
-        if mutant is None or last in ("E5a", "E7", "E8"):
+        if mutant is None or last in ("E5a", "E7", "E8", "E9"):
             n1, n2 = section_e2(p)
             section_e3(p)
             section_e4(p, n1)
-        if mutant is None or last in ("E5a", "E8"):
+        if mutant is None or last in ("E5a", "E8", "E9"):
             section_e5(p)
-        if mutant is None or last == "E8":
+        if mutant is None or last in ("E8", "E9"):
             section_e8(p)
+        if mutant is None or last == "E9":
+            section_e9(p)
         if mutant is None:
             section_e6(n1, n2)
             section_e7(p, a0)

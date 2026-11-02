@@ -82,16 +82,26 @@ def checks(src, voc, helps):
                  or re.search(r"\$tk_run|\$tk_confirm|K\$MASTERS|!acc_|sd-elevate|modify\.account|set\.batch|run\.in", unquote(s))]
     ck("T4 READ ONLY: no write, delete, execute, command runner, confirm box, master-file operation or account verb anywhere in the page", not forbidden, "%s" % forbidden[:3])
     opens = [s for n, s in lines if re.search(r"\bopenpath\b", s)]
-    kinds = sorted(set("register" if "@sdsys:@ds:'accounts'" in s else ("voc" if re.search(r"apath<[a-z0-9]+>:@ds:'voc'", s) else ("dict" if re.match(r"openpath dp to df2? then", s) else s)) for s in opens))
-    ck("T5 the only files it opens are the register, an account's VOC by the pathname the register gives and, by the dictionary path of one of that VOC's file pointers, a dictionary (six opens: "
-       "the list; the VOC and the dictionaries in collect.account; the entry under the cursor in the VOC and in the dictionary)",
-       kinds == ["dict", "register", "voc"] and len(opens) == 6 and txt.count("close ") >= 6, "%s %d" % (kinds, len(opens)))
+    kinds = sorted(set("register" if "@sdsys:@ds:'accounts'" in s else ("voc" if re.search(r"apath<[a-z0-9]+>:@ds:'voc'", s) else ("dict" if re.match(r"openpath dp to df2? then", s)
+                       else ("prog" if re.match(r"openpath (op2 to ofv|pp to pfv|pp2 to pf2) then", s) else s))) for s in opens))
+    ck("T5 the only files it opens are the register, an account's VOC by the pathname the register gives and, by a path of one of that VOC's file pointers, a dictionary, a program file or the "
+       ".out file beside it (ten opens: the list; the VOC, the dictionaries, the .out file and the program files in collect.account; the entry under the cursor in the VOC, in a dictionary "
+       "and in a program file)",
+       kinds == ["dict", "prog", "register", "voc"] and len(opens) == 10 and txt.count("close ") >= 10, "%s %d" % (kinds, len(opens)))
     cap = "\n".join(s for n, s in section(lines, "collect.account:", "dclassify:"))
     ck("T5b a dictionary path that is not absolute is made from the ACCOUNT's directory, never the current one; the dictionaries are those the VOC's file pointers name (field 3); an item matches in its id OR its heading",
        "dp = parse.pathname.tokens(dpaths<fi>)" in cap and "if dp[1, 1] # '/' then dp = apath<ca> : @ds : dp" in cap and "upcase(trim(r<1>))[1, 1] = 'F' and trim(r<3>) # ''" in cap
        and "index(upcase(did), upcase(pat), 1) > 0 or index(upcase(dhead), upcase(pat), 1) > 0" in cap and "kind = 1 then" in cap)
     kd = "\n".join(s for n, s in section(lines, "do.kind:", "on.mouse:"))
-    ck("T5c K switches the kind (1 and 2 only) and takes the filter and the find off", "kind = 3 - kind" in kd and "fnd = '' ; filt = ''" in kd and re.search(r"^kind = 1$", txt, re.M) is not None)
+    ck("T5c K cycles the kind (1, 2, 3 and round to 1) and takes the filter and the find off", "kind += 1\nif kind > 3 then kind = 1" in kd and "fnd = '' ; filt = ''" in kd and re.search(r"^kind = 1$", txt, re.M) is not None)
+    ck("T5e the programs (M1c): a program file is found as tool.catalog finds it - a directory file named bp, or ending .bp, or with an F entry of the same name and .out beside it, and never a "
+       "file whose name ends .out itself; its path has its tokens expanded and is the account's when relative; it must be a DIRECTORY file; a program is built when its lower-case id is among the "
+       "ids of the .out file; the file's own path is asked for the > mark",
+       "if not(len(tl) > 4 and tl[len(tl) - 3, 4] = '.out') then" in cap and "if tl = 'bp' then isp = 1" in cap and "if len(tl) > 3 and tl[len(tl) - 2, 3] = '.bp' then isp = 1" in cap
+       and "read orr from vf, id : '.out' else orr = ''" in cap and "pp = parse.pathname.tokens(ppaths<fi>)" in cap and "if pp[1, 1] # '/' then pp = apath<ca> : @ds : pp" in cap
+       and "if fileinfo(pfv, FL$TYPE) = FL$TYPE.DIR then" in cap and "onames = downcase(onames)" in cap and "locate downcase(pid) in onames<1> setting op3 then built = 'yes'" in cap
+       and "op2 = pp : '.out'" in cap and "if popaths<fi> # '' then" in cap
+       and "poutf = is.out" in cap and "ins poutf before cout<lp>" in cap)
     ck("T5d THE OWNER'S RULE (3 Nov 26): no pointer may lead the master to edit something in one account from another.  A target OUTSIDE the account being listed (asked of the kernel's own "
        "geometry, K$PATH.IN, which resolves .. and links; tokens expanded and the path made absolute from the account) is marked > - for a dictionary item that the ITEM lives elsewhere, "
        "for a VOC file pointer, a Q-pointer to another account or a remote item that the POINTER leads elsewhere - in a column of its own in every list; the pointer record itself stays an "
@@ -110,7 +120,7 @@ def checks(src, voc, helps):
        "if id # 'sdsys' then" in txt
        and re.search(r"gset = \(if upcase\(trim\(arec<ACC\$VOC\.EDIT>\)\) = 'YES' then 'v' else '-'\)\s+gset := \(if upcase\(trim\(arec<ACC\$DICT\.EDIT>\)\) = 'YES' then 'd' else '-'\)\s+gset := \(if upcase\(trim\(arec<ACC\$BP\.EDIT>\)\) = 'YES' then 'b' else '-'\)", txt)
        and "if trim(arec<ACC$GROUP>) # '' then" in txt and "is_grp_member('sdsys', trim(arec<ACC$GROUP>))" in txt)
-    ck("T8 both long reads are cut at MAXV (the entries and the hits) and the page says so", txt.count(">= MAXV") == 3 and txt.count("only the first ' : MAXV : ' are listed") == 3)       # collect.account's two reads and the find; the entries' foot, the hits' foot and the status line of a find
+    ck("T8 both long reads are cut at MAXV (the entries and the hits) and the page says so", txt.count(">= MAXV") == 4 and txt.count("only the first ' : MAXV : ' are listed") == 3)       # collect.account's three reads and the find; the entries' foot, the hits' foot and the status line of a find
     ck("T9 the filter and the find ask with screen ask, take the AI's argument as the default, and each clears the other",
        txt.count("screen ask ptxt width 40 value ai.arg") == 2 and txt.count("value ai.arg") == 2 and "filt = trim(ft)\nfnd = ''" in txt and "fnd = trim(ft)\nfilt = ''" in txt)
     keyrows = re.findall(r"call \$tk_keys\('add', keys, '([^']+)'", txt)
@@ -163,7 +173,13 @@ MUTANTS = [
     ("dictionary items are not marked", "src", "                        ins doutf before cout<lp>\n", ""),
     ("a Q-pointer to another account is not marked", "src", "         coutf = (if downcase(trim(r<2>)) = downcase(anm<ca>) then 0 else 1)\n", "         coutf = 0\n"),
     ("a remote item is not marked", "src", "      case cty = 'R'\n         coutf = 1\n", ""),
-    ("K keeps the filter", "src", "   kind = 3 - kind\n   fnd = '' ; filt = ''\n", "   kind = 3 - kind\n"),
+    ("K keeps the filter", "src", "   if kind > 3 then kind = 1\n   fnd = '' ; filt = ''\n", "   if kind > 3 then kind = 1\n"),
+    ("K stops at the dictionaries", "src", "   if kind > 3 then kind = 1\n", "   if kind > 2 then kind = 1\n"),
+    ("a .out file is a program file", "src", "               if not(len(tl) > 4 and tl[len(tl) - 3, 4] = '.out') then\n", "               if 1 then\n"),
+    ("the .out file beside a program file is not looked for", "src", "            op2 = pp : '.out'", "            op2 = ''"),
+    ("a program is built only if its case matches", "src", "         onames = downcase(onames)\n", ""),
+    ("a program file that is not a directory is read", "src", "            if fileinfo(pfv, FL$TYPE) = FL$TYPE.DIR then\n", "            if 1 then\n"),
+    ("a program file outside the account is not marked", "src", "                           ins poutf before cout<lp>\n", "                           ins 0 before cout<lp>\n"),
     ("a dictionary is written", "src", "                  read dr from df2, eid then\n", "                  read dr from df2, eid then\n                     write dr to df2, eid\n"),
     ("the voc record is in newvoc form", "voc", "V\nCA\n$tool_entries\n", "V\nCA\n$tool_jobs\n"),
     ("a help record loses its document", "help", "19-the-master-files", "00-nothing"),

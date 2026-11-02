@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   TOOL.ENTRIES: THE PROGRAMS OF EVERY ACCOUNT.
+
+             What        - The master files page gains a third kind of entry: pressing K after the dictionary items shows the programs, the records of the account's program
+                           files (a directory file named bp, or ending .bp, or with a .out file beside it - the files TOOL.CATALOG finds), listed with file, id, whether the
+                           program is built and the directory of its source. Built says yes when the compiled program is in the .out file under the same name and - when it
+                           is not; the .out file is the one the account's VOC names, or else the one beside the program file (a program file reached by a pointer from
+                           another account's VOC has no .out entry there). / and F match a program by its id, in one account or in all of them. A program file that lies
+                           outside the account (SDSYS's or another account's, reached by a pointer) is marked with > and only read; a third K is back at the VOC.
+             Why         - The owner's list of master pages is the VOC, the dictionaries and the programs of every account, read by pointer and not copied.
+             Does NOT    - Edit, compile or run anything: this stage still only reads. A program is edited, compiled and run in the account it lives in.
+
 3 Nov 26   TOOL.ENTRIES: THE DICTIONARY ITEMS OF EVERY ACCOUNT, AND A > FOR EVERY POINTER THAT LEADS OUT OF THE ACCOUNT.
 
              What        - The master files page gains a second kind of entry: K switches from the VOC entries to the dictionary items of the files the account's VOC

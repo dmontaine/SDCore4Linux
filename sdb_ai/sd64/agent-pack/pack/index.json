@@ -28495,7 +28495,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 100
+"words": 102
 },
 "tcl:tool.files": {
 "kind": "tcl.verb",
