@@ -708,7 +708,7 @@ mut("tool_mygates", "   call $tk_keys('menu', keys, 'refresh', '&View', '&Refres
 mut("tool_mygates", "      if mr<1> # '' then nm = mr<4>\n", "", "the bar's answer is not taken in the loop", "samehandler")
 mut("tool_mygates", "      nm = mr<4>\n      if nm # '' then gosub on.key", "      nm = mr<2>\n      if nm # '' then gosub on.key", "a click on the bar is dispatched on the action id, not the name", "samehandler")
 mut("tool_mygates", "      call $tk_menubar('draw', ctx, keys, 'My gates', '', '', mr)", "      call $tk_frame(ctx, keys, 'My gates', msg)\n      call $tk_menubar('draw', ctx, keys, 'My gates', '', '', mr)", "the bar is drawn after the frame", "samehandler")
-mut("tool_mygates", "      if nm # '' then call $tk_menubar('key', ctx, keys, 'My gates', nm, 0, mr)", "      if nm # '' then mr = ''", "the Esc row has no bar to take it", "handler")
+mut("tool_mygates", "      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, 'My gates', nm, 0, mr)", "      if nm # '' and ao<1> = '' then mr = ''", "the Esc row has no bar to take it", "handler")
 # 29 Oct 26 (the Opus reviews of the page fan-out, findings 1, 2, 5 and 13) - the first of these is marker M_FANOUT for --from=
 M_FANOUT = len(M)
 mut("tool_query", "call $tk_menubar('key', ctx, keys, cur.pane, nm, busy, mr)", "call $tk_menubar('key', ctx, keys, cur.pane, nm, 0, mr)", "a page with an Esc case of its own gives the bar no busy", "handler")
