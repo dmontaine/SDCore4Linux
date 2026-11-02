@@ -446,8 +446,10 @@ fi
 #            and belong to nothing once the fence is out); the module goes only when the fences are known to be out, because a PAM line naming a missing module would fail
 #            the sign-in of sdsys (the line is guarded to that user, nobody else's).  A reinstall starts with the sdsys ssh door shut until a code is enrolled again.
 sudo rm -rf /etc/sdcore/totp
+# 02 Nov 26 dm - S.102 stage 2: the definitions of the administrator's scheduled jobs (sd-elevate job-set) are SD's and belong to nothing once SD is gone.
+sudo rm -rf /etc/sdcore/jobs.d
 sudo rmdir /etc/sdcore 2>/dev/null || true
-echo "Removed /etc/sdcore/totp (the sdsys authenticator secret and recovery codes)."
+echo "Removed /etc/sdcore/totp (the sdsys authenticator secret and recovery codes) and /etc/sdcore/jobs.d (the scheduled jobs' definitions)."
 if [ "$ssh_fences_out" = 1 ]; then
     sudo rm -rf /usr/local/lib/sd
     echo "Removed /usr/local/lib/sd (SD's PAM module)."

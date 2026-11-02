@@ -984,7 +984,7 @@ def ownedby_rows(helper=None):
         rows.append(("TEXT: the real run chowns through the worker when FC_PATH is set (path, owner, group, user - the order the worker reads them), sets the setgid bit through its own when SG_PATH is set, and runs the command otherwise", tail in src, ""))
         rows.append(("TEXT: every python3 the helper runs from a string is run with -I (sudo keeps the caller's current directory, and `python3 -c` would import a planted grp.py from it as root); "
                      "none without; and the worker refuses, rather than skips the link check, when /proc cannot be read",
-                     src.count("python3 -c") == 0 and src.count("python3 -I -c") == 4 and 'refuse("cannot tell where the open file is' in src and "here = path" not in src,
+                     src.count("python3 -c") == 0 and src.count("python3 -I -c") == 7 and 'refuse("cannot tell where the open file is' in src and "here = path" not in src,
                      f"python3 -c: {src.count('python3 -c')}, python3 -I -c: {src.count('python3 -I -c')}"))
         root_case = src[src.find("    root)\n      [[ $group == sdusers ]]"):src.find("    sdsys)\n      require_sd_chown_path")]
         sdsys_case = src[src.find("    sdsys)\n      require_sd_chown_path"):src.find("    *)\n      require_sd_user \"$user\"")]
@@ -1129,7 +1129,7 @@ def envtrust_rows(helper=None):
             rows.append((f"{'REFUSE' if want else 'ALLOW'}: trust_fixtures({dry}, {euid}) - {why} - says {'no' if want else 'yes'}", p.returncode == want, f"exit {p.returncode}"))
         # ---- main: the block, in its place
         block = ('if trust_fixtures "$DRY" "${EUID:-$(id -u)}"; then\n  [[ -z ${SD_PATH_PREPEND:-} ]] || PATH=$SD_PATH_PREPEND:$PATH\nelse\n'
-                 '  SD_ACCT_ROOT=$SD_ACCT_ROOT_REAL\n  SD_ACCARCHIVE=$SD_ACCARCHIVE_REAL\n  SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL\nfi\n')
+                 '  SD_ACCT_ROOT=$SD_ACCT_ROOT_REAL\n  SD_ACCARCHIVE=$SD_ACCARCHIVE_REAL\n  SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL\n  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\nfi\n')       # 2 Nov 26: + SD_JOBS_DIR (S.102 stage 2)
         dryword = src.find("if [[ ${1:-} == --dry-run ]]; then DRY=1; shift; fi")
         rows.append(("TEXT: main reads SD_PATH_PREPEND only where trust_fixtures says yes, and puts the real accounts root and the real archiver back where it says no - right after the dry-run word and before the verb",
                      block in src and 0 < dryword < src.find(block) < src.find("\nverb=${1:-}"), ""))
@@ -1168,14 +1168,15 @@ def envtrust_rows(helper=None):
 
 
 _TB = ('if trust_fixtures "$DRY" "${EUID:-$(id -u)}"; then\n  [[ -z ${SD_PATH_PREPEND:-} ]] || PATH=$SD_PATH_PREPEND:$PATH\nelse\n'
-       '  SD_ACCT_ROOT=$SD_ACCT_ROOT_REAL\n  SD_ACCARCHIVE=$SD_ACCARCHIVE_REAL\n  SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL\nfi\n')
+       '  SD_ACCT_ROOT=$SD_ACCT_ROOT_REAL\n  SD_ACCARCHIVE=$SD_ACCARCHIVE_REAL\n  SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL\n  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\nfi\n')
 ENVTRUST_MUTANTS = [
     ("envtrust: PATH is not fixed", "\nPATH=/usr/sbin:/usr/bin:/sbin:/bin\nexport PATH\n", "\n"),
     ("envtrust: PATH is fixed with /usr/local/bin first", "\nPATH=/usr/sbin:/usr/bin:/sbin:/bin\nexport PATH\n", "\nPATH=/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nexport PATH\n"),
     ("envtrust: trust_fixtures always says yes", "  [[ $1 -eq 1 || $2 -ne 0 ]]\n", "  true\n"),
     ("envtrust: trust_fixtures wants a dry run AND a non-root process", "  [[ $1 -eq 1 || $2 -ne 0 ]]\n", "  [[ $1 -eq 1 && $2 -ne 0 ]]\n"),
     ("envtrust: a real run as root still reads SD_ACCARCHIVE", "  SD_ACCARCHIVE=$SD_ACCARCHIVE_REAL\n", ""),
-    ("envtrust: a real run as root still reads SD_SOCKET_UNIT (remote-api reads its ListenStream as root)", "  SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL\nfi\n", "fi\n"),
+    ("envtrust: a real run as root still reads SD_SOCKET_UNIT (remote-api reads its ListenStream as root)", "  SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL\n  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\nfi\n", "  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\nfi\n"),
+    ("envtrust: a real run as root still reads SD_JOBS_DIR (the jobs' definitions are written as root; S.102 stage 2)", "  SD_JOBS_DIR=$SD_JOBS_DIR_REAL\nfi\n", "fi\n"),
     ("envtrust: a real run as root still reads SD_ACCT_ROOT", "  SD_ACCT_ROOT=$SD_ACCT_ROOT_REAL\n", ""),
     ("envtrust: SD_PATH_PREPEND is read whatever trust_fixtures says", _TB.split("else\n")[0],
      '[[ -z ${SD_PATH_PREPEND:-} ]] || PATH=$SD_PATH_PREPEND:$PATH\nif trust_fixtures "$DRY" "${EUID:-$(id -u)}"; then\n  :\n'),

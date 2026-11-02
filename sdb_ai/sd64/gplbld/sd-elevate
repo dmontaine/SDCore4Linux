@@ -3,6 +3,10 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 02 Nov 26 dm S.102 stage 2 (the owner, 1-2 Nov 2026: a scheduled-jobs page in SD, admin jobs in its first version, "do s.102 stage 2 with systemd timers"): job-set, job-delete and job-list.  The
+#               DEFINITIONS of the administrator's scheduled jobs, in /etc/sdcore/jobs.d: the command is one of four ids the helper owns (backup-all, check-masters, sync-masters, update-accounts), the
+#               schedule is one of five shapes turned into systemd's OnCalendar here, the name is 1 to 32 plain characters, and the file is written through the open directory without following a
+#               link.  No timer, service or run is made by these verbs (stage 3 does that, with the marker that lets the run in).
 # 01 Nov 26 dm S.95 (owner, 1 Nov 2026: "sd-elevate, refuse unless caller logged in as sdsys"; found by the Opus review of the remote-sdsys design): sdsys_login_gate, run once before any verb looks at its
 #               arguments.  When sudo says the caller is the user sdsys (SUDO_USER, or SUDO_UID equal to sdsys's uid) the helper refuses unless /proc/self/loginuid is sdsys's own uid.  `su sdsys` and
 #               `sudo -u sdsys` and a service run as sdsys keep the login of whoever started them, so they no longer reach the root verbs that the sudoers rule gives sdsys with any argument; cproc
@@ -154,6 +158,8 @@ PROG=${0##*/}
 # 26 Oct 26 dm - F12e: the environment's SD_ACCT_ROOT is a TEST knob, read only where trust_fixtures says (a dry run, or a process that is not root); a root run through sudo uses /home/sd.
 SD_ACCT_ROOT_REAL=/home/sd
 SD_ACCT_ROOT=${SD_ACCT_ROOT:-$SD_ACCT_ROOT_REAL}
+SD_JOBS_DIR_REAL=/etc/sdcore/jobs.d                     # 2 Nov 26 dm - S.102 stage 2: where the scheduled jobs' definitions are; a test knob like SD_ACCT_ROOT
+SD_JOBS_DIR=${SD_JOBS_DIR:-$SD_JOBS_DIR_REAL}
 
 # Below this, an account is a system account and out of reach.  Read from
 # /etc/login.defs when it is there rather than assumed, because distributions
@@ -213,6 +219,13 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] conf-set <PARAMETER> <whole number>
                                   (changes one tuning parameter of /etc/sd.conf, such as CLEANUP 600: only the parameters on
                                   the helper's list, only inside the range SD itself enforces; the old file is kept as sd.conf.bak)
+  sd-elevate [--dry-run] job-set <name> <job> <schedule words>
+                                  (defines or replaces a scheduled administrator job in /etc/sdcore/jobs.d: <job> is backup-all, check-masters, sync-masters or
+                                  update-accounts; the schedule is every 5|10|15|20|30 minutes, hourly, daily HH:MM, weekly mon..sun HH:MM or monthly 1..28 HH:MM.
+                                  It writes the definition only: no timer is made and nothing is run)
+  sd-elevate [--dry-run] job-delete <name>
+                                  (removes the definition of that job)
+  sd-elevate [--dry-run] job-list (the defined jobs, one line each)
   sd-elevate [--dry-run] sdsys-join <sdu_ group>
                                   (puts the user sdsys, and no other user, into the group of an SD
                                   user's account, so that a master edit can be written into it)
@@ -1799,6 +1812,214 @@ conf_set() {   # conf_set FILE KEY VALUE - after confset_check: FILE's KEY= line
 }
 # END confset_functions
 
+# ------------------------------------------- scheduled administrator jobs (S.102 stage 2)
+#
+# 2 Nov 26 dm - THE DEFINITIONS OF THE JOBS THE ADMINISTRATOR SCHEDULES, and nothing else: job-set NAME JOB SCHEDULE..., job-delete NAME and job-list.  (The owner, 1 Nov 2026: a cron
+#   management pane in SD, admin jobs in its first version, a job "as sdsys" only through a root-owned definition; 2 Nov: "do s.102 stage 2 with systemd timers".)  A definition is a plain
+#   file in /etc/sdcore/jobs.d, owned by root, that the sdsys user cannot write: what a job runs is root's record and not a file the administrator's own account can change from outside SD.
+#   THE COMMAND IS CHOSEN FROM A LIST THE HELPER OWNS (job_command), by an id, and is never text a caller supplies: backup-all (backup.account all), check-masters (check.masters),
+#   sync-masters (sync.masters) and update-accounts (update.accounts all).  A command that takes an account name or a path is not on the list; adding one is a change to this file.
+#   THE SCHEDULE IS ONE OF FIVE SHAPES (job_schedule) turned into systemd's OnCalendar by the helper, so no calendar text comes from a caller: every 5|10|15|20|30 minutes, hourly,
+#   daily HH:MM, weekly mon|tue|wed|thu|fri|sat|sun HH:MM, monthly D HH:MM (D 1 to 28: every month has the day).  The time zone is the machine's.
+#   THE NAME is 1 to 32 characters, a lower case letter first, then lower case letters, digits and dashes, not ending in a dash; at most 32 jobs.
+#   THE WRITE (JOBS_PY, python3 -I) opens the directory without following a link, requires it to be the caller's (root's) and not writable by group or other, makes the new file beside the
+#   old by O_EXCL | O_NOFOLLOW through the open directory, and renames it into place; a name that is a link or anything but a plain file is refused, nothing is read through a link.
+#   NOTHING IS SCHEDULED BY THIS: it writes no timer and no service (stage 3 makes them, with the marker that lets the run in), and a job that is defined is not yet run by anybody.
+#   THE CALLER.  As conf-set: only sdsys (sudo's SUDO_USER) or a root run with no sudo.
+#
+# gplbld/test-jobs-elevate-units.py cuts the functions between the markers out of this file and runs them on scratch files, as test-confset-elevate-units.py does; keep the code between them
+# free of anything but die().
+
+# BEGIN jobs_functions
+JOB_MAX=32
+
+job_command() {   # job_command ID - sets JB_SENTENCE to the SD command line the job id stands for; false for any other id
+  case $1 in
+    backup-all)      JB_SENTENCE='backup.account all' ;;
+    check-masters)   JB_SENTENCE='check.masters' ;;
+    sync-masters)    JB_SENTENCE='sync.masters' ;;
+    update-accounts) JB_SENTENCE='update.accounts all' ;;
+    *) JB_SENTENCE=; return 1 ;;
+  esac
+}
+
+job_name_ok() {   # job_name_ok NAME - 1 to 32 characters, a lower case letter first, then lower case letters, digits and dashes, not ending in a dash
+  local LC_ALL=C
+  [[ $1 =~ ^[a-z]([a-z0-9-]{0,30}[a-z0-9])?$ ]]
+}
+
+job_time() {   # job_time HH:MM - sets JB_HM (the same, for OnCalendar); false unless it is two digits, a colon and two digits, 00:00 to 23:59
+  local LC_ALL=C
+  [[ $1 =~ ^([01][0-9]|2[0-3]):([0-5][0-9])$ ]] || return 1
+  JB_HM=$1
+}
+
+job_schedule() {   # job_schedule WORD... - sets JB_SCHED (the schedule in its one spelling) and JB_CAL (systemd's OnCalendar for it); false, with JB_WHY, for anything else
+  local LC_ALL=C d=
+  JB_SCHED=; JB_CAL=; JB_WHY='the schedule is none of: every 5|10|15|20|30 minutes, hourly, daily HH:MM, weekly mon|tue|wed|thu|fri|sat|sun HH:MM, monthly D HH:MM (D 1 to 28)'
+  case ${1:-} in
+    every)
+      [[ $# -eq 3 && $3 == minutes && $2 =~ ^(5|10|15|20|30)$ ]] || return 1
+      JB_SCHED="every $2 minutes"; JB_CAL="*-*-* *:0/$2:00" ;;
+    hourly)
+      [[ $# -eq 1 ]] || return 1
+      JB_SCHED=hourly; JB_CAL='*-*-* *:00:00' ;;
+    daily)
+      [[ $# -eq 2 ]] && job_time "$2" || return 1
+      JB_SCHED="daily $JB_HM"; JB_CAL="*-*-* $JB_HM:00" ;;
+    weekly)
+      [[ $# -eq 3 ]] || return 1
+      case $2 in mon) d=Mon ;; tue) d=Tue ;; wed) d=Wed ;; thu) d=Thu ;; fri) d=Fri ;; sat) d=Sat ;; sun) d=Sun ;; *) return 1 ;; esac
+      job_time "$3" || return 1
+      JB_SCHED="weekly $2 $JB_HM"; JB_CAL="$d *-*-* $JB_HM:00" ;;
+    monthly)
+      [[ $# -eq 3 && $2 =~ ^([1-9]|1[0-9]|2[0-8])$ ]] || return 1
+      job_time "$3" || return 1
+      JB_SCHED="monthly $2 $JB_HM"; JB_CAL="*-*-$2 $JB_HM:00" ;;
+    *) return 1 ;;
+  esac
+  JB_WHY=
+}
+
+job_text() {   # job_text NAME ID - sets JB_TEXT to the definition file after job_command and job_schedule have set their variables
+  JB_TEXT="# an SD scheduled job, written by sd-elevate job-set; changed only by sd-elevate job-set and job-delete"$'\n'"name=$1"$'\n'"job=$2"$'\n'"command=$JB_SENTENCE"$'\n'"schedule=$JB_SCHED"$'\n'"oncalendar=$JB_CAL"$'\n'
+}
+
+job_check() {   # job_check NAME ID WORD... - dies unless the name, the job id and the schedule are all allowed; sets JB_NAME, JB_ID, JB_SENTENCE, JB_SCHED, JB_CAL and JB_TEXT
+  local n=$1 id=$2
+  [[ -n $n ]] || die "no job name was given"
+  job_name_ok "$n" || die "a job name is 1 to 32 characters: a lower case letter first, then lower case letters, digits and dashes, not ending in a dash"
+  [[ -n $id ]] || die "no command was given for the job (backup-all, check-masters, sync-masters or update-accounts)"
+  job_command "$id" || die "the command of a job is one of backup-all, check-masters, sync-masters and update-accounts; it is not text a caller supplies"
+  shift 2
+  [[ $# -gt 0 ]] || die "no schedule was given"
+  job_schedule "$@" || die "$JB_WHY"
+  JB_NAME=$n; JB_ID=$id
+  job_text "$n" "$id"
+}
+
+job_caller() {   # job_caller - dies unless sudo says the caller is sdsys; a run by root with no sudo (SUDO_USER unset) is not asked
+  [[ -z ${SUDO_USER:-} || ${SUDO_USER:-} == sdsys ]] || die "the scheduled jobs are the administrator's (the user sdsys); sudo says they were asked for by another user"
+}
+
+JOBS_PY='
+import os, re, stat, sys
+op, d = sys.argv[1], sys.argv[2]
+NAME = re.compile(r"^[a-z]([a-z0-9-]{0,30}[a-z0-9])?$")
+KEYS = ["name", "job", "command", "schedule", "oncalendar"]
+
+def die(m):
+    sys.stderr.write("sd-elevate: " + m + "\n")
+    sys.exit(1)
+
+def plain_dir(p, st):
+    if not stat.S_ISDIR(st.st_mode):
+        die(p + " is not a directory (a link is not followed)")
+    if st.st_uid != os.geteuid() or (st.st_mode & 0o022):
+        die(p + " is not owned by the caller or is writable by group or other")
+
+try:
+    if op == "set":
+        for p in (os.path.dirname(d), d):
+            try:
+                os.mkdir(p, 0o755)
+                os.chmod(p, 0o755)
+            except FileExistsError:
+                pass
+            plain_dir(p, os.lstat(p))
+    fd = os.open(d, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    plain_dir(d, os.fstat(fd))
+    names = sorted(n for n in os.listdir(fd) if not n.startswith("."))
+    if op == "set":
+        name, text = sys.argv[3], sys.argv[4].encode()
+        if not NAME.match(name):
+            die("not a job name")
+        try:
+            old = os.stat(name, dir_fd=fd, follow_symlinks=False)
+            if not stat.S_ISREG(old.st_mode):
+                die(name + " is not a plain file; it was left as it is")
+            existed = True
+        except FileNotFoundError:
+            existed = False
+        if not existed and len([n for n in names if NAME.match(n)]) >= int(sys.argv[5]):
+            die("there are already " + sys.argv[5] + " jobs; delete one first")
+        tmp = ".new.%d" % os.getpid()
+        f = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644, dir_fd=fd)
+        try:
+            os.write(f, text)
+            os.fchmod(f, 0o644)
+            os.fsync(f)
+        except OSError:
+            os.close(f)
+            os.unlink(tmp, dir_fd=fd)
+            raise
+        os.close(f)
+        os.rename(tmp, name, src_dir_fd=fd, dst_dir_fd=fd)
+        os.fsync(fd)
+        print("replaced" if existed else "created")
+    elif op == "delete":
+        name = sys.argv[3]
+        if not NAME.match(name):
+            die("not a job name")
+        try:
+            old = os.stat(name, dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            print("absent")
+            sys.exit(0)
+        if not stat.S_ISREG(old.st_mode):
+            die(name + " is not a plain file; it was left as it is")
+        os.unlink(name, dir_fd=fd)
+        os.fsync(fd)
+        print("deleted")
+    elif op == "list":
+        for n in names:
+            if not NAME.match(n):
+                print("BAD\t" + n + "\tnot a job name")
+                continue
+            try:
+                g = os.open(n, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)
+            except OSError:
+                print("BAD\t" + n + "\tnot a plain file")
+                continue
+            try:
+                if not stat.S_ISREG(os.fstat(g).st_mode):
+                    print("BAD\t" + n + "\tnot a plain file")
+                    continue
+                raw = os.read(g, 4097)
+            finally:
+                os.close(g)
+            rows = {}
+            ok = len(raw) <= 4096
+            for line in raw.decode("ascii", "replace").splitlines():
+                if line.startswith("#") or not line:
+                    continue
+                k, eq, v = line.partition("=")
+                if not eq or k not in KEYS or k in rows or "\t" in v:
+                    ok = False
+                rows[k] = v
+            if not ok or sorted(rows) != sorted(KEYS):
+                print("BAD\t" + n + "\tdamaged")
+            else:
+                print("JOB\t" + n + "\t" + "\t".join(rows[k] for k in KEYS))
+    else:
+        die("unknown operation")
+except OSError as e:
+    die("%s: %s" % (d, e.strerror))
+'
+
+job_list_line() {   # job_list_line KIND NAME ... - one line of job-list, from a row of JOBS_PY's list; a definition that does not agree with the helper's own tables is shown as damaged
+  local kind=$1 n=$2 f_name f_job f_cmd f_sched f_cal w=()
+  if [[ $kind == BAD ]]; then printf 'damaged %s: %s\n' "$n" "$3"; return 0; fi
+  f_name=$3 f_job=$4 f_cmd=$5 f_sched=$6 f_cal=$7
+  read -ra w <<<"$f_sched"                       # split on blanks only: a stray * in a damaged file is not a pattern
+  if [[ $f_name == "$n" ]] && job_command "$f_job" && [[ $f_cmd == "$JB_SENTENCE" ]] && job_schedule "${w[@]}" && [[ $f_sched == "$JB_SCHED" && $f_cal == "$JB_CAL" ]]; then
+    printf 'job %s: %s: %s (%s)\n' "$n" "$f_sched" "$f_cmd" "$f_job"
+  else
+    printf 'damaged %s: the definition does not agree with the helper\n' "$n"
+  fi
+}
+# END jobs_functions
+
 # ------------------------------------------- the sdsys user in the account groups (S.67 stage 2, D7)
 #
 # 19 Oct 26 dm - THE OWNER'S DECISION OF 17 OCT 2026 (D7), TAKEN WITH THE WIDER OF TWO OPTIONS AND WARNED: SDSYS WRITES A MASTER EDIT INTO THE ACCOUNT'S
@@ -1967,6 +2188,7 @@ else
   SD_ACCT_ROOT=$SD_ACCT_ROOT_REAL
   SD_ACCARCHIVE=$SD_ACCARCHIVE_REAL
   SD_SOCKET_UNIT=$SD_SOCKET_UNIT_REAL
+  SD_JOBS_DIR=$SD_JOBS_DIR_REAL
 fi
 
 verb=${1:-}
@@ -2322,6 +2544,59 @@ case $verb in
     [[ $CS_CHANGED -eq 1 ]] || cs_note=' (it already was; nothing was written)'
     logger -t sd-elevate "conf-set: $1 is now $2 in $SD_CONF$cs_note" 2>/dev/null || true
     printf '%s: %s is now %s in %s%s; takes effect: %s\n' "$PROG" "$1" "$2" "$SD_CONF" "$cs_note" "$CS_EFFECT"
+    exit 0
+    ;;
+
+  # 2 Nov 26 dm - S.102 stage 2.  See "scheduled administrator jobs" above.  The success lines are the ones the jobs page will anchor on: "job NAME created|replaced|deleted" and
+  # "no job named NAME; nothing was changed"; the dry run stops before them and every refusal is a die.  The directory is /etc/sdcore/jobs.d and nothing a caller passes moves it.
+  job-set)
+    [[ $# -ge 3 ]] || die "job-set takes a name, a job and a schedule: job-set NAME JOB every 15 minutes | hourly | daily 02:30 | weekly sun 03:00 | monthly 1 04:00"
+    job_check "$@"
+    printf '%s: job-set %s: runs "%s" (%s) %s, OnCalendar=%s, definition in %s/%s\n' "$PROG" "$JB_NAME" "$JB_SENTENCE" "$JB_ID" "$JB_SCHED" "$JB_CAL" "$SD_JOBS_DIR" "$JB_NAME"
+    [[ $DRY -eq 1 ]] && exit 0
+    need_root
+    job_caller
+    js_how=$(python3 -I -c "$JOBS_PY" set "$SD_JOBS_DIR" "$JB_NAME" "$JB_TEXT" "$JOB_MAX") || exit $?
+    logger -t sd-elevate "job-set: job $JB_NAME $js_how ($JB_ID, $JB_SCHED)" 2>/dev/null || true
+    printf '%s: job %s %s\n' "$PROG" "$JB_NAME" "$js_how"
+    exit 0
+    ;;
+
+  job-delete)
+    [[ $# -eq 1 ]] || die "job-delete takes the name of one job"
+    job_name_ok "$1" || die "a job name is 1 to 32 characters: a lower case letter first, then lower case letters, digits and dashes, not ending in a dash"
+    printf '%s: job-delete %s: removes %s/%s\n' "$PROG" "$1" "$SD_JOBS_DIR" "$1"
+    [[ $DRY -eq 1 ]] && exit 0
+    need_root
+    job_caller
+    js_how=$(python3 -I -c "$JOBS_PY" delete "$SD_JOBS_DIR" "$1") || exit $?
+    if [[ $js_how == absent ]]; then
+      printf '%s: no job named %s; nothing was changed\n' "$PROG" "$1"
+    else
+      logger -t sd-elevate "job-delete: job $1 deleted" 2>/dev/null || true
+      printf '%s: job %s %s\n' "$PROG" "$1" "$js_how"
+    fi
+    exit 0
+    ;;
+
+  job-list)
+    [[ $# -eq 0 ]] || usage
+    printf '%s: job-list: the definitions in %s\n' "$PROG" "$SD_JOBS_DIR"
+    [[ $DRY -eq 1 ]] && exit 0
+    need_root
+    job_caller
+    if [[ -d $SD_JOBS_DIR ]]; then
+      js_rows=$(python3 -I -c "$JOBS_PY" list "$SD_JOBS_DIR") || exit $?
+    else
+      js_rows=
+    fi
+    js_n=0
+    while IFS=$'\t' read -r js_k js_a js_b js_c js_d js_e js_f; do
+      [[ -n $js_k ]] || continue
+      job_list_line "$js_k" "$js_a" "$js_b" "$js_c" "$js_d" "$js_e" "$js_f"
+      js_n=$((js_n + 1))
+    done <<<"$js_rows"
+    [[ $js_n -gt 0 ]] || printf '%s: no job is defined\n' "$PROG"
     exit 0
     ;;
 
