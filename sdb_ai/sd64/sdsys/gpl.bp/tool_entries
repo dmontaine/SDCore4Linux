@@ -1,0 +1,729 @@
+* TOOL_ENTRIES
+* The master files as the owner meant them, first stage (S.96, M1a): the VOC entries of every account by pointer, read from each account's own file.  An administrator app.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 3 Nov 26 dm  New (S.96 M1a; owner, 31 Oct 2026: "pointers seem to me to be a good way to do it").  The VOC kind only, READ ONLY; dictionaries and programs, and the editing, are later
+*              stages.  Made from tool_jobs (its Accounts and list boxes) and tool_voc (the entry's type and what it points at).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   TOOL.ENTRIES
+*
+*   For the administrator only (it is refused, before anything is read, for anyone else; it is in SDSYS's VOC only).  A full-screen page, in the toolkit's frame (140 columns by 43
+*   lines at least).  Nothing is copied: every list is read from the account's own file by its pathname when it is asked for.
+*
+*     Accounts   every registered account but SDSYS with the edit gates it holds (voc-edit, dict-edit, bp-edit, shown as v d b or a dash), whether the sdsys user is in its group, and
+*                whether it is suspended
+*     Entries    the VOC of the account under the cursor: each entry's id, its type and what it points at, in name order
+*
+*   The VOC of an account is read when the cursor comes to the account, not at the start: a system with many accounts is not read as a whole.  F finds an id, or a part of one, in the
+*   VOC of EVERY account (this reads them all and is asked for by name); the boxes then list the hits with their accounts, and Enter on a hit goes to that entry in its account.
+*
+*   Keys: Up and Down, PgUp and PgDn move in the box, Tab changes box, Enter in Accounts goes to its entries (and on a hit goes to the entry in its account), / filters the entries of the
+*   account by a part of the id, F finds an id in every account, Esc takes the find and the filter off, F5 reads again, F1 or ? or a click on a [?] explains the box, Ctrl-Q leaves.
+*   Esc or F10 (or a click on the top row) opens the menu bar when there is nothing to take off.
+*
+*   THIS STAGE ONLY READS.  The page changes no record and runs no command.  An administrator passes the edit gates; they are shown because they are what locks the account out of its
+*   own files.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $tool_entries
+$catalog $tool_entries
+
+$include keys.h
+$include int$keys.h
+$include err.h
+$include sl.h
+$include tk.h
+
+deffun is_grp_member(user,group) calling '!is_grp_member'
+
+   prompt ''
+
+   MAXV = 3000                                                   ;* entries read for one account, or hits kept in a find: a VOC is a few hundred; more are not listed, and the page says so
+
+   call $tk_open('tool.entries', 'admin', ctx, err)
+   if err # '' then
+      display err
+      stop
+   end
+   void kernel(K$AUDIT, 'tool start app=tool.entries')
+
+   keys = ''
+   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
+   call $tk_keys('add', keys, 'enter', 'open', 'open', '', 1)
+   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)
+   call $tk_keys('add', keys, '/', 'filter', 'filter', '', 1)
+   call $tk_keys('add', keys, 'f', 'find', 'find', '', 1)
+   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
+   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* Esc takes the find and the filter off first, else opens the menu bar
+   call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
+   call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
+   call $tk_keys('menu', keys, 'filter', '&View', '&Filter the entries by id', '', '')
+   call $tk_keys('menu', keys, 'find', '&View', 'F&ind an id in every account', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
+   * The AI line: offered the actions that only change what is shown; a proposal is carried out by the page's own key, and its argument is the DEFAULT of the page's own prompt.
+   call $tk_keys('ai', keys, 'pane', '', '', '', '')
+   call $tk_keys('ai', keys, 'filter', '', '', '', '')
+   call $tk_keys('ai', keys, 'find', '', '', '', '')
+   call $tk_keys('ai', keys, 'refresh', '', '', '', '')
+   call $tk_aipage('init', ctx, keys, '', '', aout)
+
+   pnames = 'Accounts' : @fm : 'Entries'
+
+   VIS = 10                                                      ;* rows in a list (the list pane's height less 4: set by get.rects)
+   pane = 1
+   ac = 1 ; atop = 1                                             ;* the row selected in Accounts, and the first row shown
+   ec = 1 ; etop = 1                                             ;* the same in Entries (the hits, in a find)
+   an = 0 ; anm = '' ; en = 0 ; enm = '' ; hn = 0               ;* read.all reads both before it fills them (BASIC does not short-circuit)
+   filt = '' ; fnd = ''
+   ai.arg = ''
+   gen = 0
+   msg = ''
+   done = 0
+
+   perr = ''
+   gosub declare.layout
+   gosub read.all
+   gosub draw.all
+
+   loop
+      call $tk_menubar('draw', ctx, keys, pnames<pane>, '', '', mr)
+      call $tk_frame(ctx, keys, pnames<pane>, msg)
+      call $sl_curat(0, ctx<TK.C.YSTAT>)
+      nm = ''
+      screen key returning nm
+      mr = ''
+      ao = ''
+      if nm # '' then call $tk_aipage('key', ctx, keys, pnames<pane>, nm, ao)
+      ai.arg = ''
+      if ao<1> = 'replay' then nm = ao<2>
+      if ao<1> = 'replay' then ai.arg = ao<5>
+      if ao<1> # '' then msg = ao<4>
+      busy = (if filt # '' or fnd # '' then 1 else 0)
+      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, pnames<pane>, nm, busy, mr)
+      if mr<1> # '' then nm = mr<4>
+      begin case
+         case ao<1> = 'taken'
+            if ao<3> then
+               gen += 1
+               ctx<TK.C.GEN> = gen
+               gosub draw.all
+            end
+         case nm = ''
+            if status() = ER$EOF then exit
+         case nm = 'guardquit'
+            exit
+         case nm = 'resize'
+            call $tk_layout('refresh', ctx, '', chg)
+            gosub get.rects
+            gen += 1
+            ctx<TK.C.GEN> = gen
+            gosub draw.all
+         case nm = 'mouse'
+            gosub on.mouse
+         case 1
+            gosub on.key
+      end case
+      if done then exit
+   repeat
+
+   call $tk_close(ctx)
+   stop
+
+* ------------------------------------------------------------------------------------------------- what the system says
+
+* Every registered account but SDSYS by name, with its path, the edit gates it holds, whether the sdsys user is in its group and whether it is suspended; then the VOC of the
+* selected account.  The selection is kept by name through a refresh.  The account's own record is the only thing read for the list: no VOC is opened here.
+read.all:
+   old.acct = (if ac >= 1 and ac <= an then anm<ac> else '')
+   names = ''
+   apath = ''
+   agate = ''
+   asds = ''
+   asus = ''
+   openpath @sdsys:@ds:'accounts' to acc.f then
+      select acc.f to 9
+      loop
+         readnext id from 9 else exit
+         if id # 'sdsys' then
+            read arec from acc.f, id then
+               locate id in names<1> by 'AL' setting lp else
+                  ins id before names<lp>
+                  ins arec<1> before apath<lp>
+                  gset = (if upcase(trim(arec<ACC$VOC.EDIT>)) = 'YES' then 'v' else '-')
+                  gset := (if upcase(trim(arec<ACC$DICT.EDIT>)) = 'YES' then 'd' else '-')
+                  gset := (if upcase(trim(arec<ACC$BP.EDIT>)) = 'YES' then 'b' else '-')
+                  ins gset before agate<lp>
+                  sdw = 'n/a'
+                  if trim(arec<ACC$GROUP>) # '' then
+                     sdw = 'no'
+                     if is_grp_member('sdsys', trim(arec<ACC$GROUP>)) then sdw = 'yes'
+                  end
+                  ins sdw before asds<lp>
+                  stw = ''
+                  if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then stw = 'suspended'
+                  ins stw before asus<lp>
+               end
+            end
+         end
+      repeat
+      close acc.f
+   end
+   an = dcount(names, @fm)
+   anm = names
+   ac = 1
+   if old.acct # '' then
+      locate old.acct in anm<1> setting op then ac = op
+   end
+   if ac > an then ac = an
+   if ac < 1 then ac = 1
+   if fnd # '' then gosub run.find
+   gosub read.entries
+   return
+
+* The selected account's VOC, read by the pathname the register gives, in name order: enm, ety (the type word), esm (what it points at), en; filt, if set, keeps the ids that hold it.
+* vfail is 1 when the account's VOC could not be opened; etrunc when MAXV entries were listed and there were more; eall is the number of entries read.
+read.entries:
+   old.e = (if ec >= 1 and ec <= en and fnd = '' then enm<ec> else '')
+   enm = '' ; ety = '' ; esm = ''
+   en = 0 ; eall = 0 ; etrunc = 0 ; vfail = 0
+   if an > 0 then
+      openpath apath<ac>:@ds:'voc' to vf then
+         select vf to 9
+         loop
+            readnext id from 9 else exit
+            eall += 1
+            if filt = '' or index(upcase(id), upcase(filt), 1) > 0 then
+               if en >= MAXV then
+                  etrunc = 1
+               end else
+                  read r from vf, id then
+                     gosub classify
+                     locate id in enm<1> by 'AL' setting lp else
+                        ins id before enm<lp>
+                        ins cty before ety<lp>
+                        ins csm before esm<lp>
+                        en += 1
+                     end
+                  end
+               end
+            end
+         repeat
+         close vf
+      end else
+         vfail = 1
+      end
+   end
+   if fnd = '' then
+      ec = 1
+      if old.e # '' then
+         locate old.e in enm<1> setting op then ec = op
+      end
+      if ec > en then ec = en
+      if ec < 1 then ec = 1
+   end
+   gosub keep.tops
+   return
+
+* F: the id (or a part of it) in the VOC of EVERY account.  The hits are kept in name order of account and id: hacc, hid, hty, hsm, hn; htrunc when there were more than MAXV; hseen is the
+* number of VOCs that could be opened.  This reads every VOC; it is run only when it is asked for, and again by F5.
+run.find:
+   hacc = '' ; hid = '' ; hty = '' ; hsm = '' ; hkey = '' ; hn = 0 ; htrunc = 0 ; hseen = 0
+   for a = 1 to an
+      openpath apath<a>:@ds:'voc' to vf then
+         hseen += 1
+         select vf to 9
+         loop
+            readnext id from 9 else exit
+            if index(upcase(id), upcase(fnd), 1) > 0 then
+               if hn >= MAXV then
+                  htrunc = 1
+               end else
+                  read r from vf, id then
+                     gosub classify
+                     k = anm<a> : '*' : id
+                     locate k in hkey<1> by 'AL' setting lp else
+                        ins k before hkey<lp>
+                        ins anm<a> before hacc<lp>
+                        ins id before hid<lp>
+                        ins cty before hty<lp>
+                        ins csm before hsm<lp>
+                        hn += 1
+                     end
+                  end
+               end
+            end
+         repeat
+         close vf
+      end
+   next a
+   ec = 1 ; etop = 1
+   return
+
+* In: r (the record).  Out: cty (the type word), csm (what it points at, on one line)
+classify:
+   t1 = upcase(trim(r<1>))
+   cty = t1[1, 1]
+   if t1[1, 2] = 'PA' or t1[1, 2] = 'PH' or t1[1, 2] = 'PQ' then cty = t1[1, 2]
+   begin case
+      case cty = 'V'
+         csm = r<2> : ' ' : r<3>
+      case cty = 'K'
+         csm = 'a query keyword'
+      case cty = 'F'
+         csm = 'data ' : r<2> : (if r<3> # '' then '  dict ' : r<3> else '')
+      case cty = 'Q'
+         csm = 'file ' : r<3> : ' in the account ' : r<2>
+      case cty = 'R'
+         csm = 'record ' : r<3> : ' of ' : r<2>
+      case 1
+         csm = r<2>
+   end case
+   csm = convert(@vm, ' ', convert(@sm, ' ', csm))
+   return
+
+* The first row shown in each box follows the selection
+keep.tops:
+   if ac < atop then atop = ac
+   if ac > atop + VIS - 1 then atop = ac - VIS + 1
+   if atop < 1 then atop = 1
+   if ec < etop then etop = ec
+   if ec > etop + VIS - 1 then etop = ec - VIS + 1
+   if etop < 1 then etop = 1
+   return
+
+* ------------------------------------------------------------------------------------------------- drawing
+
+* The layout: the two lists side by side in the first band, the explanation in the second and the help in the third, at 140 by 43 the sizes tool.jobs has.
+* Out: a.x a.y a.w a.h (Accounts), c.x c.y c.w c.h (Entries), m.x m.y m.w m.h (What this means), h.x h.y h.w h.h (Help), VIS.
+declare.layout:
+   d = ''
+   d<1> = 'accounts' : @vm : 1 : @vm : 1 : @vm : 14 : @vm : 50 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<2> = 'entries' : @vm : 1 : @vm : 2 : @vm : 14 : @vm : 87 : @vm : 1 : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<3> = 'means' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
+   d<4> = 'help' : @vm : 3 : @vm : 1 : @vm : 5 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' : @vm : 'stretch' : @vm : 1
+   ctx<TK.C.FOCI> = 'accounts' : @sm : 'Accounts' : @vm : 'entries' : @sm : 'Entries'   ;* the boxes that take the focus, for $tk_frame's [*] / [-]
+   call $tk_layout('declare', ctx, d, perr)
+   if perr # '' then
+      call $tk_close(ctx)
+      display perr
+      stop
+   end
+   gosub get.rects
+   return
+
+get.rects:
+   call $tk_layout('pane', ctx, 'accounts', rc)
+   a.x = rc<1, 1> ; a.y = rc<1, 2> ; a.w = rc<1, 3> ; a.h = rc<1, 4>
+   call $tk_layout('pane', ctx, 'entries', rc)
+   c.x = rc<1, 1> ; c.y = rc<1, 2> ; c.w = rc<1, 3> ; c.h = rc<1, 4>
+   call $tk_layout('pane', ctx, 'means', rc)
+   m.x = rc<1, 1> ; m.y = rc<1, 2> ; m.w = rc<1, 3> ; m.h = rc<1, 4>
+   call $tk_layout('pane', ctx, 'help', rc)
+   h.x = rc<1, 1> ; h.y = rc<1, 2> ; h.w = rc<1, 3> ; h.h = rc<1, 4>
+   m.tw = m.w - 4
+   h.tw = h.w - 4
+   VIS = a.h - 4                                                 ;* the header row, the rows, a blank row and the border
+   gosub keep.tops
+   return
+
+draw.all:
+   screen clear at 0,ctx<TK.C.YBODY> size ctx<TK.C.W>,ctx<TK.C.BODYH>
+   screen box at a.x,a.y size a.w,a.h title 'Accounts'
+   if fnd # '' then
+      ttl = 'Ids with "' : fnd : '" in every account'
+   end else
+      ttl = 'VOC' : (if an > 0 then ' of ' : anm<ac> else '') : (if filt # '' then ', ids with "' : filt : '"' else '')
+   end
+   screen box at c.x,c.y size c.w,c.h title ttl
+   screen box at m.x,m.y size m.w,m.h title 'What this means'
+   screen box at h.x,h.y size h.w,h.h title 'Help'
+   gosub draw.accounts
+   gosub draw.entries
+   gosub draw.effect
+   gosub draw.help
+   return
+
+draw.accounts:
+   tw = a.w - 8
+   ex = a.w - 50
+   screen text fmt('Account', (20 + ex) : 'L') : fmt('Gates', '7L') : fmt('SDSYS', '6L') : 'State' at a.x + 2,a.y + 1 attr 'header' width tw      ;* 20 + 7 + 6 + 'suspended' (9) = the 42 columns of the box at 140 by 43
+   for r = 1 to VIS
+      k = atop + r - 1
+      s = ''
+      if k <= an then s = fmt(anm<k>[1, 18 + ex], (20 + ex) : 'L') : fmt(agate<k>, '7L') : fmt(asds<k>, '6L') : asus<k>
+      screen text s at a.x + 2,a.y + 1 + r attr (if k = ac and k <= an then (if pane = 1 then 'highlight' else 'bold') else 'normal') width tw
+   next r
+   if an = 0 then screen text 'No account is registered but SDSYS.' at a.x + 2,a.y + 3 width tw
+   call $tk_help('mark', a.x + a.w - 5, a.y + 1, 0, 0)
+   return
+
+draw.entries:
+   tw = c.w - 8
+   ex = c.w - 87
+   if fnd # '' then
+      screen text fmt('Account', '16L') : fmt('Id', (26 + ex) : 'L') : fmt('Type', '6L') : 'Points at' at c.x + 2,c.y + 1 attr 'header' width tw
+      for r = 1 to VIS
+         k = etop + r - 1
+         s = ''
+         if k <= hn then s = fmt(hacc<k>[1, 14], '16L') : fmt(hid<k>[1, 24 + ex], (26 + ex) : 'L') : fmt(hty<k>, '6L') : hsm<k>
+         screen text s at c.x + 2,c.y + 1 + r attr (if k = ec and k <= hn then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
+      next r
+      if hn = 0 then
+         s = 'No VOC has an id with "' : fnd : '" in it (' : hseen : ' VOCs read).'
+         screen text s at c.x + 2,c.y + 3 width tw
+      end
+      s = hn : (if hn = 1 then ' hit' else ' hits') : ' in ' : hseen : (if hseen = 1 then ' VOC' else ' VOCs') : ' read'
+      if htrunc then s := '; only the first ' : MAXV : ' are listed'
+      s := '.'
+      screen text s at c.x + 2,c.y + c.h - 2 attr 'bold' width tw
+   end else
+      screen text fmt('Id', (32 + ex) : 'L') : fmt('Type', '6L') : 'Points at' at c.x + 2,c.y + 1 attr 'header' width tw
+      for r = 1 to VIS
+         k = etop + r - 1
+         s = ''
+         if k <= en then s = fmt(enm<k>[1, 30 + ex], (32 + ex) : 'L') : fmt(ety<k>, '6L') : esm<k>
+         screen text s at c.x + 2,c.y + 1 + r attr (if k = ec and k <= en then (if pane = 2 then 'highlight' else 'bold') else 'normal') width tw
+      next r
+      s = ''
+      begin case
+         case an = 0
+            null
+         case vfail
+            s = "This account's VOC cannot be opened from here (" : apath<ac> : ').'
+         case en = 0 and filt # ''
+            s = 'No entry has "' : filt : '" in its id.'
+         case en = 0
+            s = 'The VOC of this account is empty.'
+      end case
+      if s # '' then screen text s at c.x + 2,c.y + 3 width tw
+      if an > 0 and not(vfail) then
+         s = en : ' of ' : eall : (if eall = 1 then ' entry' else ' entries')
+         if filt # '' then s := ' hold "' : filt : '"'
+         if etrunc then s := '; only the first ' : MAXV : ' are listed'
+         s := '.'
+         screen text s at c.x + 2,c.y + c.h - 2 attr 'bold' width tw
+      end
+   end
+   call $tk_help('mark', c.x + c.w - 5, c.y + 1, 0, 0)
+   return
+
+* In plain sentences, for what is selected; then the entry under the cursor field by field
+draw.effect:
+   lines = ''
+   if an = 0 then
+      lines<-1> = 'There is no registered account but SDSYS, so there is nothing to list.'
+   end else
+      lines<-1> = anm<ac> : ': the gates ' : agate<ac> : ' are the right to save a change to its VOC (v, voc-edit), its dictionaries (d, dict-edit) and its programs (b, bp-edit); a dash means the account is locked out of that.  An administrator is not held to them.'
+      begin case
+         case asds<ac> = 'yes'
+            lines<-1> = "The sdsys user is in the account's group, so SDSYS can write inside its directories from outside SD."
+         case asds<ac> = 'no'
+            lines<-1> = "The sdsys user is NOT in the account's group: SDSYS cannot write inside it from outside SD (modify.account " : anm<ac> : ' sdsys-on puts it in).'
+         case 1
+            lines<-1> = 'The account has no group in the register.'
+      end case
+      if asus<ac> # '' then lines<-1> = 'The account is suspended.'
+      lines<-1> = 'The entries are read from the account' : "'s own VOC file when the cursor comes to the account; nothing is copied.  This stage only reads: no entry is changed from here."
+   end
+   lines<-1> = ''
+   gosub entry.lines
+   gosub wrap.lines
+   for r = 1 to m.h - 3
+      screen text lines<r> at m.x + 2,m.y + 1 + r width m.tw
+   next r
+   return
+
+* The entry under the cursor field by field (up to nine fields), read from its account's VOC; the type in words first
+entry.lines:
+   eacct = '' ; eid = ''
+   if fnd # '' and hn > 0 and ec >= 1 and ec <= hn then
+      eacct = hacc<ec> ; eid = hid<ec> ; ety1 = hty<ec>
+   end
+   if fnd = '' and en > 0 and ec >= 1 and ec <= en then
+      eacct = anm<ac> ; eid = enm<ec> ; ety1 = ety<ec>
+   end
+   if eid = '' then return
+   gosub type.word
+   lines<-1> = eid : ' in ' : eacct : '  -  ' : tword
+   locate eacct in anm<1> setting ap1 then
+      openpath apath<ap1>:@ds:'voc' to vf2 then
+         read dr from vf2, eid then
+            nfld = dcount(dr, @fm)
+            if nfld > 9 then nfld = 9
+            for q = 1 to nfld
+               lines<-1> = fmt(q, '3R') : '  ' : convert(@vm, ' | ', convert(@sm, ' / ', dr<q>))
+            next q
+            if dcount(dr, @fm) > 9 then lines<-1> = '     (and ' : dcount(dr, @fm) - 9 : ' more fields)'
+         end
+         close vf2
+      end
+   end
+   return
+
+* In: ety1.  Out: tword, the type in words
+type.word:
+   begin case
+      case ety1 = 'V'
+         tword = 'a verb'
+      case ety1 = 'K'
+         tword = 'a keyword of the query processor'
+      case ety1 = 'F'
+         tword = 'a file'
+      case ety1 = 'Q'
+         tword = 'a pointer to a file in another account'
+      case ety1 = 'R'
+         tword = 'a pointer to a record in another file'
+      case ety1 = 'PA' or ety1 = 'PH'
+         tword = 'a paragraph'
+      case ety1 = 'PQ'
+         tword = 'a PROC (not supported here)'
+      case ety1 = 'S'
+         tword = 'a stored sentence'
+      case ety1 = 'X'
+         tword = 'text, not a command'
+      case ety1 = 'D'
+         tword = 'a data descriptor'
+      case ety1 = 'M'
+         tword = 'a menu'
+      case 1
+         tword = 'an entry of type ' : ety1
+   end case
+   return
+
+wrap.lines:
+   wrapped = ''
+   for wi = 1 to dcount(lines, @fm)
+      if lines<wi> = '' then
+         wrapped<-1> = ''
+      end else
+         call $tk_wrap(lines<wi>, m.tw, pieces)
+         wrapped<-1> = pieces
+      end
+   next wi
+   lines = wrapped
+   return
+
+draw.help:
+   screen text 'Up and Down move, PgUp and PgDn a page.  Tab changes box.  Enter in Accounts goes to its entries.  F1 or ? explains the box.' at h.x + 2,h.y + 1 width h.tw
+   screen text '/ filters the entries by a part of the id.  F finds an id in the VOC of every account (Enter on a hit goes to it).  Esc takes them off.' at h.x + 2,h.y + 2 width h.tw
+   screen text 'F5 reads again.  Ctrl-Q leaves.  This stage only reads.' at h.x + 2,h.y + 3 width h.tw
+   return
+
+* ------------------------------------------------------------------------------------------------- keys and mouse
+
+on.key:
+   msg = ''
+   if len(nm) = 1 then nm = downcase(nm)
+   nrows = (if fnd # '' then hn else en)
+   begin case
+      case nm = 'up'
+         if pane = 1 and ac > 1 then
+            ac -= 1
+            gosub new.account
+         end
+         if pane = 2 and ec > 1 then
+            ec -= 1
+            gosub redraw
+         end
+      case nm = 'down'
+         if pane = 1 and ac < an then
+            ac += 1
+            gosub new.account
+         end
+         if pane = 2 and ec < nrows then
+            ec += 1
+            gosub redraw
+         end
+      case nm = 'pgup' or nm = 'pgdn'
+         stp = (if nm = 'pgup' then 0 - VIS else VIS)
+         if pane = 1 and an > 0 then
+            ac = ac + stp
+            if ac < 1 then ac = 1
+            if ac > an then ac = an
+            gosub new.account
+         end
+         if pane = 2 and nrows > 0 then
+            ec = ec + stp
+            if ec < 1 then ec = 1
+            if ec > nrows then ec = nrows
+            gosub redraw
+         end
+      case nm = 'home' or nm = 'end'
+         if pane = 1 and an > 0 then
+            ac = (if nm = 'home' then 1 else an)
+            gosub new.account
+         end
+         if pane = 2 and nrows > 0 then
+            ec = (if nm = 'home' then 1 else nrows)
+            gosub redraw
+         end
+      case nm = 'tab' or nm = 'right' or nm = 'btab' or nm = 'left'
+         pane = (if pane = 1 then 2 else 1)
+         gosub redraw
+      case nm = 'enter' or nm = ' '
+         if pane = 1 then
+            pane = 2
+            gosub redraw
+         end else
+            gosub open.entry
+         end
+      case nm = 'f11' or nm = '/'
+         gosub do.filter
+      case nm = 'f'
+         gosub do.find
+      case nm = 'f1' or nm = '?'
+         gosub help.here
+      case nm = 'f5'
+         gosub read.all
+         gosub draw.all
+         msg = 'read again'
+      case nm = 'f6'
+         call $tk_aipage('open', ctx, keys, pnames<pane>, '', ap)
+         if ap # '' then msg = ap
+      case nm = 'ctrl-q'
+         done = 1
+      case nm = 'esc'
+         if fnd # '' or filt # '' then
+            fnd = '' ; filt = ''
+            ec = 1 ; etop = 1
+            gosub read.entries
+            gosub draw.all
+            msg = 'every entry of the account'
+         end
+   end case
+   return
+
+* Another account selected: its VOC is read and the box is drawn again under its new title
+new.account:
+   if fnd = '' then
+      ec = 1
+      etop = 1
+      gosub read.entries
+      gosub draw.all
+   end else
+      gosub redraw
+   end
+   return
+
+redraw:
+   gosub keep.tops
+   gosub draw.accounts
+   gosub draw.entries
+   gosub draw.effect
+   return
+
+* Enter in Entries: on a hit of a find it goes to that entry in its account; otherwise this stage only reads
+open.entry:
+   if fnd # '' and hn > 0 and ec >= 1 and ec <= hn then
+      want.acct = hacc<ec>
+      want.id = hid<ec>
+      fnd = ''
+      locate want.acct in anm<1> setting ap2 then ac = ap2
+      filt = ''
+      ec = 1 ; etop = 1
+      gosub read.entries
+      locate want.id in enm<1> setting ep2 then ec = ep2
+      gosub keep.tops
+      gosub draw.all
+      msg = want.id : ' in ' : want.acct
+   end else
+      msg = 'this stage only reads: the entry is not changed from here'
+   end
+   return
+
+* /: keep the entries of the account whose id holds a text
+do.filter:
+   screen ask 'Part of an id (empty shows every entry)' width 40 value ai.arg title 'Filter' returning ft then got = 1 else got = 0
+   if not(got) then return
+   filt = trim(ft)
+   fnd = ''
+   ec = 1 ; etop = 1
+   gosub read.entries
+   gosub draw.all
+   msg = (if filt = '' then 'every entry' else en : ' with "' : filt : '"')
+   return
+
+* F: an id, or a part of one, in the VOC of every account
+do.find:
+   screen ask 'Part of an id, searched in the VOC of every account' width 40 value ai.arg title 'Find' returning ft then got = 1 else got = 0
+   if not(got) then return
+   fnd = trim(ft)
+   filt = ''
+   if fnd = '' then
+      ec = 1 ; etop = 1
+      gosub read.entries
+      gosub draw.all
+      msg = 'every entry of the account'
+      return
+   end
+   gosub run.find
+   pane = 2
+   gosub draw.all
+   msg = hn : ' hit' : (if hn = 1 then '' else 's') : ' in ' : hseen : ' VOCs' : (if htrunc then '; only the first ' : MAXV : ' are listed' else '')
+   return
+
+on.mouse:
+   screen mouse returning mev else mev = ''
+   if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, pnames<pane>, mev, '', mr)
+   if mr<1> # '' then
+      nm = mr<4>
+      if nm # '' then gosub on.key
+      return
+   end
+   call $tk_aipage('mouse', ctx, keys, pnames<pane>, mev, ap)
+   if ap # '' then
+      msg = ap
+      return
+   end
+   call $tk_help('hit', mev, a.x + a.w - 5, a.y + 1, hit.accounts)
+   call $tk_help('hit', mev, c.x + c.w - 5, c.y + 1, hit.entries)
+   if hit.accounts or hit.entries then
+      pane = (if hit.accounts then 1 else 2)
+      gosub redraw
+      gosub help.here
+      return
+   end
+   if mev<1> = 'press' and mev<2> = 1 then
+      mx = mev<3>
+      my = mev<4>
+      nrows = (if fnd # '' then hn else en)
+      begin case
+         case mx >= a.x + 1 and mx <= a.x + a.w - 2 and my >= a.y + 2 and my <= a.y + 1 + VIS
+            k = atop + my - a.y - 2
+            pane = 1
+            if k <= an and k # ac then
+               ac = k
+               gosub new.account
+            end else
+               gosub redraw
+            end
+         case mx >= c.x + 1 and mx <= c.x + c.w - 2 and my >= c.y + 2 and my <= c.y + 1 + VIS
+            k = etop + my - c.y - 2
+            if k <= nrows then ec = k
+            pane = 2
+            gosub redraw
+      end case
+   end
+   return
+
+help.here:
+   call $tk_help('box', (if pane = 1 then 'tool.entries.accounts' else 'tool.entries.entries'), hm, 0, 0)
+   if hm # '' then msg = hm
+   return
+
+end
+
+* END-CODE

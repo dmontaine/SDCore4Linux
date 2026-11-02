@@ -1,0 +1,5 @@
+The VOC entries of an account
+19-the-master-files
+The entries of the VOC of the account under the cursor in Accounts, in name order, each with its type (V verb, K keyword, F file, Q pointer to a file in another account, R pointer to a record, PA or PH paragraph, S stored sentence, X text) and what it points at. The box under the lists shows the entry under the cursor field by field.
+/ keeps the entries whose id holds a part you type. F finds an id, or a part of one, in the VOC of every account: it reads them all, so it is run only when you ask, and the box then lists the hits with their accounts. Enter on a hit goes to that entry in its account. Esc takes the find and the filter off. F5 reads again.
+This stage only reads: the page changes no record and runs no command.

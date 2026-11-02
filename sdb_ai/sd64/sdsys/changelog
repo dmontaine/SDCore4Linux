@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   TOOL.ENTRIES: THE MASTER FILES PAGE, FIRST STAGE - THE VOC OF EVERY ACCOUNT, READ FROM THE ACCOUNT'S OWN FILE.
+
+             What        - New full-screen page, administrator only (in the SDSYS VOC only): tool.entries. The left box lists every registered account but SDSYS with the
+                           edit gates it holds (v d b, or a dash: voc-edit, dict-edit, bp-edit), whether the sdsys user is in its group, and whether it is suspended. The
+                           right box lists the VOC of the account under the cursor, read from the account's own file when the cursor comes to it, with each entry's type and
+                           what it points at; / keeps the entries whose id holds a text you type, F finds an id in the VOC of every account (it reads them all, so only when
+                           asked) and Enter on a hit goes to that entry in its account. F1 explains each box; the AI line works as on the other pages.
+             Why         - The owner asked for master pages that show the dictionary, VOC and program entries of every account by pointer, not as copies, so that an
+                           administrator can see what an account that is locked out of its own files holds. This is the first stage and the VOC kind only.
+             Does NOT    - Change anything: it writes no record and runs no command, and its only audit line is "tool start app=tool.entries". Dictionaries, programs and
+                           editing an entry from the page are the later stages. It does not replace tool.masters, which still shows the master copies.
+
 3 Nov 26   BASIC ... NO.CATALOG: COMPILE AND CATALOGUE NOTHING.
 
              What        - New option of the BASIC command: BASIC bp prog NO.CATALOG compiles the program and runs no catalog directive - not a $CATALOG line in the

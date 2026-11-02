@@ -47,7 +47,7 @@
 @editors = cmd-a9 collfile edbug edseqkey option-a4
 # the full-screen toolkit's pages and the home screen (S.88 phase 0, 28 Oct 26: a change of the shared base - tk_*, tk.h, tk_open, sl_*, sl.h, screen_*, sl_key - was verified
 # without one page running, so a green targeted run proved nothing about them; plan T1)
-@pages = home home2 l2-home l2-files tk-faults tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-jobs tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test l2-cfg l2-admin l2-misc
+@pages = home home2 l2-home l2-files tk-faults tool-ai tool-gates tool-mygates tool-sessions tool-masters tool-jobs tool-entries tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test l2-cfg l2-admin l2-misc
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE TEST FILES THEMSELVES.
@@ -507,6 +507,11 @@ sdsys/gpl.bp/set_batch       : tool-jobs
 sdsys/voc_template/tool.jobs : tool-jobs
 sdsys/voc_template/set.batch : tool-jobs
 sdsys/helptext/tool.jobs.*   : docs tool-jobs
+# 3 Nov 26 (S.96 M1a): the master files page, the VOC entries of every account by pointer (read only)
+sdsys/gpl.bp/tool_entries    : tool-entries
+sdsys/voc_template/tool.entries : tool-entries
+sdsys/helptext/tool.entries.* : docs tool-entries
+gplbld/sandbox-tool-entries.py : @self
 # 25 Oct 26 (S.75 A5): the audit trail page and its reader (a fixture audit file, the lines read back from the disk)
 gplbld/sandbox-tool-audit.py : @self
 sdsys/gpl.bp/tool_audit      : tool-audit l2-admin ai-pages

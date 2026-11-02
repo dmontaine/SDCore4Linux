@@ -1,5 +1,5 @@
 {
- "chunk_count": 4138,
+ "chunk_count": 4139,
  "development": "the changelog's 'Next release - in progress' section is part of this tree",
  "gaps": {
   "basic_names_without_a_docs_syntax_line": []
@@ -107,8 +107,8 @@
    "sha256": "afc04646ec25cab8250f0d9d3deff74934f4f5fea4f1c1363cc874f0660d0250"
   },
   "tcl.verb": {
-   "chunks": 209,
-   "sha256": "b76d19f5e4879ad53fdc737c2d88f0f5bd1c6876e6164f0efc48d005854e0b6b"
+   "chunks": 210,
+   "sha256": "905cb8ecb99b443f00be631b3dde5612040c0c88996522127e8740b9c6e32f7f"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -120,7 +120,7 @@
   },
   "voc.layer": {
    "chunks": 2,
-   "sha256": "6ca9ec9af518cd86737f80c2bba159f502f92aaed72fb7d126e29ea157f9de9f"
+   "sha256": "d3fb77b688bc914542e2024fc1ec07d0fb4112a2977502c965de77bc14cac0d2"
   },
   "voc.type": {
    "chunks": 9,
@@ -150,7 +150,7 @@
    "words": 569
   },
   "index.json": {
-   "sha256": "e63cf3efc8435ea431260cafe747f69dd4192d7dd0b2233016224f675979453b"
+   "sha256": "508414e71ed80f66e60e80fc548b6c8041d34f9a192b7d7f614e61a536593f43"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
@@ -193,14 +193,14 @@
    "words": 10206
   },
   "reference/tcl-verbs.md": {
-   "chunks": 213,
-   "sha256": "ad24464eded6c0e86570689e653a9324233dbc094a1b7210060a8fd64d2df47c",
-   "words": 9867
+   "chunks": 214,
+   "sha256": "8503e113c3364e1a4b62373eefd2e7e2c9f18d8466dfc83da25ab40fa38dadc0",
+   "words": 9952
   },
   "reference/voc.md": {
    "chunks": 12,
-   "sha256": "710729329e60975f905c4f142ba1181089cf547d26cc45a5b8d21ede84841165",
-   "words": 1924
+   "sha256": "203c202824180c3c08bc27f20740bc7375d67e9b83cc25746f3abafb9665c03a",
+   "words": 1925
   }
  },
  "product": "SD Core for Linux",

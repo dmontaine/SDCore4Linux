@@ -23,7 +23,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GP = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys", "gpl.bp"))
-PAGES = ["tool_sessions", "tool_menus", "tool_ai", "tool_viewers", "tool_bulk", "tool_query", "tool_test", "tool_jobs"]
+PAGES = ["tool_sessions", "tool_menus", "tool_ai", "tool_viewers", "tool_bulk", "tool_query", "tool_test", "tool_jobs", "tool_entries"]
 
 
 def code(src):
