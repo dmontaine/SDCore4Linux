@@ -475,16 +475,18 @@ def checks(srcs):
        "K$NET and before the logto audit line",
        re.search(r"void kernel\(K\$SHARED\.READ,\s*\(acc\.record<ACC\$PATH> # ''\) and \(" + rd % r"acc\.record" + r"\)\)", cp) is not None
        and re.search(r"void kernel\(K\$SHARED\.WRITE,\s*\(acc\.record<ACC\$PATH> # ''\) and \(upcase\(trim\(acc\.record<ACC\$SHARED\.WRITE>\)\) = 'YES'\)\)", cp) is not None
-       and ordered(cp, "void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')", "void kernel(K$SHARED.READ,  (acc.record<ACC$PATH>", "void kernel(K$SHARED.WRITE, (acc.record<ACC$PATH>", "'logto account='"), "")
+       # 3 Nov 26 (S.96): the loads are the routine load.account.switches (NET, then read, then write); int.logto calls it before its audit line
+       and ordered(cp, "void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')", "void kernel(K$SHARED.READ,  (acc.record<ACC$PATH>", "void kernel(K$SHARED.WRITE, (acc.record<ACC$PATH>")
+       and ordered(cp, "gosub load.account.switches", "'logto account='"), "")
     ck("G1e ...CPROC clears acc.record BEFORE it reads the register (a failed openpath would otherwise leave the previous LOGTO's record in the variable and the gates would be read from it), and "
-       "holds nothing of the starting account: OPTION STACKED.ACCOUNT is gone (S.87), so no stk.shared.* variable and no revert.account, and an EXECUTEd LOGTO stays in the account it went to",
+       "holds nothing of the starting account: OPTION STACKED.ACCOUNT is gone (S.87), so no stk.shared.* variable, and an EXECUTEd LOGTO stays in the account it went to (3 Nov 26: RUN.IN keeps the two gates in the /runin/ common, ri.sw, and is the only thing that puts them back)",
        ordered(cp, "acc.record = ''", "openpath @sdsys:@ds:'accounts' to acc.f then", "read acc.record from acc.f, downcase(new.account) then")
-       and "stk.shared" not in cp and "revert.account" not in cp and "stk.net" not in cp, "")
+       and "stk.shared" not in cp and "OPT.STACKED.ACCOUNT" not in cp and "stk.net" not in cp, "")
     setters = sorted(n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$SHARED\.(READ|WRITE),\s*(?!-1\))\S", t))
     lits = sorted(n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$SHARED\.(READ|WRITE),\s*(1\b|@true)", t))
     askers = sorted(n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$SHARED\.(READ|WRITE),\s*-1\)", t))
     ck("G2 only LOGIN, CPROC and the API server SET the shared gates; _voc_ref, !shared_ref and list.shared only ASK (CPROC no longer holds them: S.87); and nothing turns a gate on by a literal",
-       setters == ["apisrvr", "cproc", "login"] and not lits and set(askers) == {"_voc_ref", "shared_ref", "listshared", "tool_mygates"},      # tool_mygates (24 Oct 26): the account holder's gate page only asks
+       setters == ["apisrvr", "cproc", "login"] and not lits and set(askers) == {"_voc_ref", "shared_ref", "listshared", "tool_mygates", "cproc"},      # tool_mygates (24 Oct 26): the account holder's gate page only asks; cproc (3 Nov 26, S.96): RUN.IN asks both to keep them
        repr(setters) + repr(lits) + repr(askers))
     ai = B("acc_os_info")
     mo = B("modifya")
@@ -745,7 +747,7 @@ MUTANTS = [
     ("LOGTO loads read without the PATH guard (a path-attached account reads)", "bp:cproc", "void kernel(K$SHARED.READ,  (acc.record<ACC$PATH> # '') and (", "void kernel(K$SHARED.READ,  (@true) and ("),
     ("LOGTO does not clear the record first", "bp:cproc", "   acc.record = ''\n   openpath @sdsys:@ds:'accounts' to acc.f then", "   openpath @sdsys:@ds:'accounts' to acc.f then"),
     ("LOGTO holds the shared gates again (the stacked-account hold, S.87)", "bp:cproc", "   acc.record = ''\n   openpath @sdsys:@ds:'accounts' to acc.f then", "   acc.record = ''\n   stk.shared.read = kernel(K$SHARED.READ, -1)\n   openpath @sdsys:@ds:'accounts' to acc.f then"),
-    ("LOGTO has a revert.account label again", "bp:cproc", "   acc.record = ''\n   openpath @sdsys:@ds:'accounts' to acc.f then", "   acc.record = ''\nrevert.account:\n   openpath @sdsys:@ds:'accounts' to acc.f then"),
+    ("LOGTO holds the NET gate again (3 Nov 26: revert.account is RUN.IN's now, so the old label mutant went; this is the other stk.* variable G1e names)", "bp:cproc", "   acc.record = ''\n   openpath @sdsys:@ds:'accounts' to acc.f then", "   acc.record = ''\n   stk.net = kernel(K$NET, -1)\n   openpath @sdsys:@ds:'accounts' to acc.f then"),
     ("the manifest says read is 1 only for yes", "bp:acc_os_info", "upcase(trim(acc.rec<ACC$SHARED.READ>)) # 'NO' then 1 else 0", "upcase(trim(acc.rec<ACC$SHARED.READ>)) = 'YES' then 1 else 0"),
     ("the manifest drops shared.write", "bp:acc_os_info", "         info<-1> = 'shared.write: ':(if upcase(trim(acc.rec<ACC$SHARED.WRITE>)) = 'YES' then 1 else 0)\n", ""),
     ("restorea withdraws read from a manifest that has no key", "bp:restorea", "(if m.shared.read = '0' then 1 else '')", "(if m.shared.read = '1' then '' else 1)"),

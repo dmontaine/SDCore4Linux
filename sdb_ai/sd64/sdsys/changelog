@@ -1,6 +1,36 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   BASIC ... NO.CATALOG: COMPILE AND CATALOGUE NOTHING.
+
+             What        - New option of the BASIC command: BASIC bp prog NO.CATALOG compiles the program and runs no catalog directive - not a $CATALOG line in the
+                           source or in a file it includes, not a CATALOG line in the $BASIC.OPTIONS record. The compile says "prog compiled; its catalog directive
+                           was not run (no.catalog)" so the omission is seen. A program with no directive prints nothing extra, and without the option nothing changes.
+             Why         - run.in (the entry below) compiles an account's source as the administrator, and a "$catalog global" in that source would put the account's
+                           code in the global catalogue, which every account runs from. A scan of the source could not stop it (the same directive comes from an
+                           included file and from $BASIC.OPTIONS), so the option skips the one place the catalogue step is run, and run.in always gives it to BASIC.
+             Does NOT    - Change a BASIC command that does not say NO.CATALOG, or stop an administrator who types a plain BASIC after a LOGTO from cataloguing.
+             The new word is a reserved keyword: a program or file called no.catalog can no longer be named on a BASIC command line.
+
+3 Nov 26   RUN.IN: THE ADMINISTRATOR RUNS ONE COMMAND INSIDE ANOTHER ACCOUNT AND IS ALWAYS BACK IN SDSYS.
+
+             What        - New verb, in the SDSYS VOC only:  run.in account command ...  It runs basic, catalog, decatalog, delete.catalog, debug or compile.dict inside
+                           the named account (its VOC, its private catalogue, the files its I-types translate through) and returns to SDSYS when the command ends. It
+                           also returns when the command aborts - a break, a run-time error in a program being debugged, ABORT - and says so: "run.in: the command did
+                           not finish; the session is back in account acme". The account and every name must be one plain word, each option must be on the command's own
+                           list, and the first name of basic, catalog, debug and compile.dict must be a file in that account's VOC; the command SD runs is built from
+                           those words and is never the text typed. The account's LOGIN does not run. Entry and return are audited (run.in begin / end / revert,
+                           and run.in refused with the reason).
+             Why         - The master files pages that manage every account's programs, VOC entries and dictionary items need to compile, catalogue and debug a program
+                           in its own account, including an account that is locked out of its own programs. LOGTO SDSYS is refused for everybody, so an administrator
+                           who went into an account by LOGTO and then hit an ABORT stayed there for the rest of the session (measured 3 Nov 26).
+             Does NOT    - Give anyone authority they did not have: the administrator can already LOGTO into any registered account. It is not in any other account's
+                           VOC, and a copy of the record in one is refused by the verb. It does not run a command that is not on the list, does not nest, and does not
+                           accept an account that is not registered or is SDSYS itself.
+
+             Internal: the six switches LOGTO loads from the account's register record (SH, OS.EXECUTE, SD.ACCOUNTS, NET, the two shared gates) are one routine
+             now, used by LOGTO and by run.in; LOGTO's behaviour is unchanged.
+
 2 Nov 26   THE DEBUGGER'S FULL-SCREEN DISPLAY NOW WORKS ON THE LINUX TEXT CONSOLE AND OTHER TERMINALS THAT HAVE NO ALTERNATE SCREEN.
 
              What        - Until now only a terminal with an alternate screen (xterm and its kin) got the full-screen debugger; the Linux console, vt100, vt220, ansi and

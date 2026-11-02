@@ -782,7 +782,17 @@ sdsys/gpl.bp/_sdsysn         : tool-sessions home
 gplbld/test-sdsysvis-units.py : none
 sdsys/gpl.bp/term            : @core winsize
 sdsys/gpl.bp/classmain       : classinit
-sdsys/gpl.bp/cproc           : @system @core cmd-a9   gates sdaccts resetall classinit net netfile shared home tool-sessions ipc
+sdsys/gpl.bp/cproc           : @system @core cmd-a9   gates sdaccts resetall classinit net netfile shared home tool-sessions ipc runin
+# 3 Nov 26 (S.96): RUN.IN, the administrator's account-scoped run - its suite, its VOC record (SDSYS's VOC only) and its eight messages (before the coarse rules below)
+gplbld/sandbox-runin.py      : @self
+sdsys/voc_template/run.in    : runin
+sdsys/messages/1144[7-9]     : runin
+sdsys/messages/1117[6-8]     : runin
+sdsys/messages/1124[12]      : runin
+# 3 Nov 26 (S.96): BASIC ... NO.CATALOG - the keyword records (the number is the same in parser.h, newvoc and the template), message 11245; basic itself and parser.h also select runin (below)
+sdsys/newvoc/no.catalog      : runin bcomp-a1 misc-a9
+sdsys/voc_template/no.catalog : runin bcomp-a1 misc-a9
+sdsys/messages/11245         : runin
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29 apispin fileadmin netindex
 sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient tool-remote
@@ -817,7 +827,7 @@ sdsys/gpl.bp/setfile         : fixes-b12
 sdsys/gpl.bp/configf         : fixes-b12 nocase upgradenocase
 sdsys/gpl.bp/dirinfo         : fixes-b12
 sdsys/gpl.bp/decat           : callcase misc-a9 editgates tool-catalog
-sdsys/gpl.bp/basic           : bcomp-a1 callcase misc-a9 lang-a15 mode-q16 editgates shared @core tool-catalog tool-test
+sdsys/gpl.bp/basic           : bcomp-a1 callcase misc-a9 lang-a15 mode-q16 editgates shared @core tool-catalog tool-test runin
 # S.66 (18 Oct 26): the shared account.  The three new programs, the verb that lists it, DELETE.ACCOUNT's refusal and SP.VIEW's edit-gate message.
 sdsys/gpl.bp/shared_ref      : shared @core
 sdsys/gpl.bp/edit_msg        : shared editgates
@@ -832,7 +842,7 @@ sdsys/gpl.bp/*               : @core
 # THE REST OF WHAT SHIPS.
 sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient ospath editgates net shared csvb jsonx xmlx home
 sdsys/syscom/createacc.h     : editgates net shared @system home2
-sdsys/syscom/parser.h        : @query @core jsonx
+sdsys/syscom/parser.h        : @query @core jsonx runin
 sdsys/syscom/sdclient.*      : qmclient
 sdsys/syscom/sdclilib*       : qmclient
 sdsys/syscom/*               : @compiler @core

@@ -2703,6 +2703,33 @@ That action is not available now.
 
 cited by: `sl_palette`
 
+### msg:11176
+> kind=message tier=reference since=- src=sdsys/messages/11176:1#df081086
+
+```
+%1 is not a file in account %2
+```
+
+cited by: `cproc`
+
+### msg:11177
+> kind=message tier=reference since=- src=sdsys/messages/11177:1#e25b2aaa
+
+```
+%1 is not an option run.in gives to %2 (allowed: %3), or it was given twice
+```
+
+cited by: `cproc`
+
+### msg:11178
+> kind=message tier=reference since=- src=sdsys/messages/11178:1#90c49ebb
+
+```
+run.in is already running a command; it does not nest
+```
+
+cited by: `cproc`
+
 ### msg:11179
 > kind=message tier=reference since=- src=sdsys/messages/11179:1#4bed3361
 
@@ -3249,6 +3276,24 @@ Messages
 
 cited by: `ide`
 
+### msg:11241
+> kind=message tier=reference since=- src=sdsys/messages/11241:1#91cbd356
+
+```
+run.in works in the other accounts; the administrator's own commands are typed at the SDSYS prompt
+```
+
+cited by: `cproc`
+
+### msg:11242
+> kind=message tier=reference since=- src=sdsys/messages/11242:1#21da0903
+
+```
+run.in: the command did not finish; the session is back in account %1
+```
+
+cited by: `cproc`
+
 ### msg:11243
 > kind=message tier=reference since=- src=sdsys/messages/11243:1#1c97aafe
 
@@ -3266,6 +3311,15 @@ Keys in this pane
 ```
 
 cited by: `tk_help`
+
+### msg:11245
+> kind=message tier=reference since=- src=sdsys/messages/11245:1#e42edd93
+
+```
+%1 compiled; its catalog directive was not run (no.catalog)
+```
+
+cited by: `basic`
 
 ### msg:11247
 > kind=message tier=reference since=- src=sdsys/messages/11247:1#797fd618
@@ -4910,6 +4964,33 @@ cited by: `setserver`
 
 cited by: `setserver`
 
+### msg:11447
+> kind=message tier=reference since=- src=sdsys/messages/11447:1#eb329ff5
+
+```
+run.in account command name ...; the commands are basic, catalog, decatalog, delete.catalog, debug and compile.dict
+```
+
+cited by: `cproc`
+
+### msg:11448
+> kind=message tier=reference since=- src=sdsys/messages/11448:1#312a4fb5
+
+```
+%1 is not a command run.in runs (it runs basic, catalog, decatalog, delete.catalog, debug and compile.dict)
+```
+
+cited by: `cproc`
+
+### msg:11449
+> kind=message tier=reference since=- src=sdsys/messages/11449:1#8bf50d4e
+
+```
+%1 cannot be given to a command by run.in (a name is a-z, 0-9, dot, dash and underscore, starts with a letter or digit, and is not an SD keyword)
+```
+
+cited by: `cproc`
+
 ### msg:11450
 > kind=message tier=reference since=- src=sdsys/messages/11450:1#17fdc305
 
@@ -5184,7 +5265,7 @@ cited by: `set_batch`
 %1 is not a registered account
 ```
 
-cited by: `set_batch`
+cited by: `cproc`, `set_batch`
 
 ### msg:11485
 > kind=message tier=reference since=- src=sdsys/messages/11485:1#b78183e8

@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 3 Nov 26 dm  S.96: RUN.IN (internal verb 42, SDSYS's VOC only), the administrator's account-scoped run of one command from a fixed list (basic, catalog, decatalog, delete.catalog, debug, compile.dict)
+*              in a registered account, and ALWAYS back.  The way back is the safety net (revert.account, the /runin/ common): it runs at the end of the command and, if the command aborted, at the
+*              top of the abort branch, so a break, a run-time error or an ABORT cannot leave the administrator in the account (LOGTO SDSYS is refused, so there is no way back by hand).
+*              The six account-scoped switches LOGTO loads are one routine now, load.account.switches, used by LOGTO and RUN.IN.  RUN.IN's BASIC always has the NO.CATALOG option (see basic).
 * 1 Nov 26 dm  S.95: the ssh arm's notice is 11795 ("signed in over ssh from <address> with its password and an authenticator code"); it showed 10916, which says "a local session".
 * 1 Nov 26 dm  S.95: an sdsys session that arrived over ssh (SSH_CONNECTION or SSH_TTY set) is granted when the login behind it is sdsys's own, as a local one is, and refused with 10195 when it is not (su sdsys keeps the variables); it used to be refused outright (10191, now unused).
 * 1 Nov 26 dm  The hyphen form is back (owner: "restore the hyphen option"): an unknown verb is retried with its hyphens changed to dots, lower case then upper case.
@@ -295,6 +299,11 @@ $define max.elements 500
 *   is named, so its flag is 0 until $sl_scr sets it, and the call is never made on a system or a pass in which the
 *   library is not in use (the bootstrap passes, before $sl_cleanup is catalogued).  Same three names, same order, as $sl_scr.
    common /slscr/ sl.ctx, sl.open, sl.resized
+
+* 3 Nov 26 dm - S.96.  RUN.IN's way back.  A named common, because an abort discards the command processor levels above the bottom one and calls it again: what the verb
+*   saved must outlive the level that saved it.  ri.active is 0 until RUN.IN has entered an account and 0 again once revert.account has put everything back; ri.sw holds the six
+*   account-scoped switches, in the order load.account.switches sets them.
+   common /runin/ ri.active, ri.path, ri.account.path, ri.who, ri.sw, ri.account
 
 * rev 0.9.0 define commands requiring admin (root) privilege 
    privileged_commands = ''
@@ -671,6 +680,16 @@ $endif
          abort.code = n
          xeq.command = ''    ;* 1.2-17 Clear any pending executed command
          mat proc.fvar = 0     ;* Ensure all PROC files are closed
+
+* 3 Nov 26 dm - S.96.  THE SAFETY NET OF RUN.IN.  A command it ran in another account was aborted (a break, a run-time error, ABORT, a forced logout): the session goes back to the
+*   account it left before anything else happens, whatever the cause and at whatever level the abort was caught.  Without this the administrator would stay in that account for the
+*   rest of the session, and LOGTO SDSYS is refused for everybody.
+         if ri.active then
+            gosub revert.account
+            display sysmsg(11242, ri.account)   ;* run.in: the command did not finish; the session is back in account %1
+            void kernel(K$AUDIT, 'run.in revert account=' : ri.account : ' reason=abort')
+            ri.active = 0
+         end
 
          begin case
             case abort.code = K$RESET.ALL.CODE   ;* LOGTO ... RESET ALL (16 Oct 26, Fixes item 30)
@@ -2035,7 +2054,8 @@ $endif
                      int.clear.abort,            ;* 38  CLEAR.ABORT
                      int.set.exit.status,        ;* 39  SET.EXIT.STATUS
                      int.report.style,           ;* 40  REPORT.STYLE
-                     int.logmsg                  ;* 41  LOGMSG
+                     int.logmsg,                 ;* 41  LOGMSG
+                     int.runin                   ;* 42  RUN.IN (3 Nov 26, S.96)
 
                case dispatch.mode = "OS"  ;* OS command
                   gosub os.command
@@ -2985,23 +3005,7 @@ int.logto:
    void kernel(K$SET.ACCOUNT, who)   ;* 14 Oct 26 - the user table's account (LISTU, sheet 24 and 29)
    voc = new.voc ; new.voc = 0   ;* Dereference temporary VOC file var
 
-* 13 Oct 26 dm - S.63.  The per-account OS-access gates are loaded here as LOGIN loads them at sign-on:
-*   SH and OS.EXECUTE are OFF unless the account's register record says 'yes' (SDSYS switches them with
-*   MODIFY.ACCOUNT SH-ON / OS-ON).  acc.record is the register record for a named account; a path-attached
-*   account has none, so its fields read blank and it is denied - the safe default.  The administrator
-*   needs no grant: USR_ADMIN already passes the gate.  Account-scoped: a LOGTO to another account reloads
-*   from that account's own record, so one account's grant is never carried into another.
-   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')
-   void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')
-   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')   ;* 16 Oct 26: the SD.ACCOUNTS gate, off unless 'yes'
-* 17 Oct 26 dm - S.65 slice 1: the NET gate (SDNet remote files) is account-scoped like SD.ACCOUNTS: reloaded here from the new account's own
-*   record, off unless 'yes'.  It takes effect for the remote-file slices that follow and does nothing yet.
-   void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')
-* 18 Oct 26 dm - S.66: the shared-account gates, account-scoped like NET.  Read is ON unless the record says 'no' (a blank field is on), but ONLY
-*   for an account that has a register record: a path-attached LOGTO has none (acc.record is blank, so is its path field) and reads OFF, as does
-*   write.  Fail closed.  new.account cannot tell the two cases apart (it is reassigned from the path above); the record's path field can.
-   void kernel(K$SHARED.READ,  (acc.record<ACC$PATH> # '') and (upcase(trim(acc.record<ACC$SHARED.READ>)) # 'NO'))
-   void kernel(K$SHARED.WRITE, (acc.record<ACC$PATH> # '') and (upcase(trim(acc.record<ACC$SHARED.WRITE>)) = 'YES'))
+   gosub load.account.switches   ;* the account-scoped switches, from the new account's own register record (3 Nov 26: one routine, shared with RUN.IN)
 
    void kernel(K$AUDIT, 'logto account=' : new.account)  ;* 11 Sep 26 - PORT_ADOPTION 13; lower case 07 Oct 26 PAL-24
 
@@ -3050,6 +3054,269 @@ logto.unwind:
 *   by a program (the command processor is not the bottom one) and for the one the home screen runs itself.
    if @tty[1, 5] = '/dev/' then call !home_entry('logto')
 
+   return
+
+*****************************************************************************
+* LOAD.ACCOUNT.SWITCHES  -  the account-scoped switches, from the register record in acc.record  (3 Nov 26: moved here from int.logto unchanged, so that RUN.IN loads them
+*   in the same way)
+
+* 13 Oct 26 dm - S.63.  The per-account OS-access gates are loaded here as LOGIN loads them at sign-on:
+*   SH and OS.EXECUTE are OFF unless the account's register record says 'yes' (SDSYS switches them with
+*   MODIFY.ACCOUNT SH-ON / OS-ON).  acc.record is the register record for a named account; a path-attached
+*   account has none, so its fields read blank and it is denied - the safe default.  The administrator
+*   needs no grant: USR_ADMIN already passes the gate.  Account-scoped: a LOGTO to another account reloads
+*   from that account's own record, so one account's grant is never carried into another.
+load.account.switches:
+   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')
+   void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')
+   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')   ;* 16 Oct 26: the SD.ACCOUNTS gate, off unless 'yes'
+* 17 Oct 26 dm - S.65 slice 1: the NET gate (SDNet remote files) is account-scoped like SD.ACCOUNTS: reloaded here from the new account's own
+*   record, off unless 'yes'.  It takes effect for the remote-file slices that follow and does nothing yet.
+   void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')
+* 18 Oct 26 dm - S.66: the shared-account gates, account-scoped like NET.  Read is ON unless the record says 'no' (a blank field is on), but ONLY
+*   for an account that has a register record: a path-attached LOGTO has none (acc.record is blank, so is its path field) and reads OFF, as does
+*   write.  Fail closed.  new.account cannot tell the two cases apart (it is reassigned from the path above); the record's path field can.
+   void kernel(K$SHARED.READ,  (acc.record<ACC$PATH> # '') and (upcase(trim(acc.record<ACC$SHARED.READ>)) # 'NO'))
+   void kernel(K$SHARED.WRITE, (acc.record<ACC$PATH> # '') and (upcase(trim(acc.record<ACC$SHARED.WRITE>)) = 'YES'))
+   return
+
+*****************************************************************************
+* INT.RUNIN  -  RUN.IN account command name ...  (Internal verb 42; 3 Nov 26, S.96; owner, 2 Nov 26)
+*
+* The administrator's account-scoped run: ONE command from a fixed list, in a registered account, and ALWAYS back.  It exists because the master files pages manage the VOC,
+* dictionaries and programs of accounts that may be locked out of their own (voc-off, dict-off, bp-off), and a program is compiled, catalogued and debugged in its own account:
+* its VOC, its private catalogue, the files its I-types translate through.  Nothing here is new authority: the administrator can type LOGTO into any registered account.  What it adds
+* is the way back and a narrower list.
+*
+*   run.in account basic file program [debugging] [no.query]      run.in account catalog file program [local] [no.query]
+*   run.in account decatalog program                              run.in account delete.catalog program [local]
+*   run.in account debug file program                             run.in account compile.dict file item
+*
+* THE COMMAND IS BUILT HERE FROM CHECKED WORDS AND IS NEVER THE TEXT THAT WAS TYPED: the account and every name are one plain word (a-z, 0-9, dot, dash, underscore; a letter or digit
+* first; not an SD keyword; at most 64 characters), each option is on the command's own list, a file is a file in that account's VOC.  Not LOGTO: the account's LOGIN paragraph is NOT run
+* (it would run with the administrator's rights) and nobody is asked a question.  Not the administrator's own account, and never a path: the account must have a register record.
+*
+* THE WAY BACK is revert.account, from two places: the end of this routine, and the top of the abort branch (a break, a run-time error, ABORT or a forced logout abandons this
+* routine's frame, and the bottom command processor is called again).  /runin/ holds what is needed; ri.active says a run is in progress.  It is audited on the way in and the way out
+* (run.in begin ... / run.in end ... / run.in revert ... reason=abort).
+
+int.runin:
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      display sysmsg(2001)   ;* Command requires administrator privileges
+      void kernel(K$AUDIT, 'run.in refused reason=not the administrator')
+      unwinding = 2
+      return
+   end
+   if ri.active then
+      display sysmsg(11178)   ;* run.in is already running a command; it does not nest
+      void kernel(K$AUDIT, 'run.in refused reason=nested')
+      unwinding = 2
+      return
+   end
+
+   ri.kwords = 'local global pcode no.query no.catalog noxref no.xref xref relative all changed debugging listing'
+   call @parser(PARSER$GET.REST, token.type, ri.rest, keyword)
+   ri.rest = downcase(trim(ri.rest))
+   ri.nwords = dcount(ri.rest, ' ')
+   if ri.rest = '' or ri.nwords < 3 or ri.nwords > 8 then
+      display sysmsg(11447)   ;* run.in account command name ...
+      unwinding = 2
+      return
+   end
+
+   ri.acct = field(ri.rest, ' ', 1)
+   ri.cmd = field(ri.rest, ' ', 2)
+
+* the command's shape: how many names follow it and which option words it takes
+   ri.n.names = 0 ; ri.opts = ''
+   begin case
+      case ri.cmd = 'basic'
+         ri.n.names = 2 ; ri.opts = 'debugging no.query'
+      case ri.cmd = 'catalog'
+         ri.n.names = 2 ; ri.opts = 'local no.query'
+      case ri.cmd = 'decatalog'
+         ri.n.names = 1
+      case ri.cmd = 'delete.catalog'
+         ri.n.names = 1 ; ri.opts = 'local'
+      case ri.cmd = 'debug'
+         ri.n.names = 2
+      case ri.cmd = 'compile.dict'
+         ri.n.names = 2
+   end case
+   if ri.n.names = 0 then
+      display sysmsg(11448, ri.cmd[1, 40])   ;* %1 is not a command run.in runs
+      void kernel(K$AUDIT, 'run.in refused account=' : ri.acct[1, 40] : ' reason=command not on the list')
+      unwinding = 2
+      return
+   end
+   if ri.nwords < 2 + ri.n.names then
+      display sysmsg(11447)
+      unwinding = 2
+      return
+   end
+
+* every word: the account, the names, then the options (each on this command's list, none twice)
+   ri.sentence = ri.cmd
+   ri.bad = ''
+   for ri.w = 1 to ri.nwords
+      if ri.w # 2 then
+         ri.word = field(ri.rest, ' ', ri.w)
+         if ri.w > 2 + ri.n.names then
+            if not(index(' ' : ri.opts : ' ', ' ' : ri.word : ' ', 1)) or index(' ' : ri.sentence : ' ', ' ' : ri.word : ' ', 1) then
+               if ri.bad = '' then ri.bad = ri.word ; ri.bad.opt = 1
+            end
+         end else
+            gosub ri.plain.word
+            if not(ri.ok) and ri.bad = '' then ri.bad = ri.word ; ri.bad.opt = 0
+         end
+         if ri.w > 1 then ri.sentence := ' ' : ri.word
+      end
+   next ri.w
+   if ri.bad # '' then
+      if ri.bad.opt then
+         display sysmsg(11177, ri.bad[1, 40], ri.cmd, (if ri.opts = '' then 'none' else ri.opts))   ;* %1 is not an option run.in gives to %2 (allowed: %3)
+      end else
+         display sysmsg(11449, ri.bad[1, 40])   ;* %1 cannot be given to a command by run.in
+      end
+      void kernel(K$AUDIT, 'run.in refused account=' : ri.acct[1, 40] : ' reason=a word the command does not take')
+      unwinding = 2
+      return
+   end
+
+* BASIC always runs with NO.CATALOG (owner, 3 Nov 26: "compile option").  A $CATALOG directive in the account's source, in a file it includes or in the account's $BASIC.OPTIONS would
+*   otherwise make this compile catalogue the account's code - in the GLOBAL catalogue if the directive says so - as the administrator.  It is added here, after the typed words are
+*   checked, and it is not on the list a person may give: typed, it is refused above like any other word the command does not take.
+   if ri.cmd = 'basic' then ri.sentence := ' no.catalog'
+
+   if ri.acct = 'sdsys' then
+      display sysmsg(11241)   ;* run.in works in other accounts
+      void kernel(K$AUDIT, 'run.in refused account=sdsys reason=the administrator account')
+      unwinding = 2
+      return
+   end
+
+* a registered account, and only that: the register's own record gives the directory
+   acc.record = ''
+   openpath @sdsys:@ds:'accounts' to acc.f then
+      read acc.record from acc.f, ri.acct else acc.record = ''
+      close acc.f
+   end
+   if acc.record<ACC$PATH> = '' then
+      display sysmsg(11484, ri.acct[1, 40])   ;* %1 is not a registered account
+      void kernel(K$AUDIT, 'run.in refused account=' : ri.acct[1, 40] : ' reason=not registered')
+      unwinding = 2
+      return
+   end
+   acc.rec = parse.pathname.tokens(acc.record<ACC$PATH>)
+
+* what is needed to come back, kept in the common BEFORE anything changes
+   ri.path = ospath('', os$cwd)
+   ri.account.path = account.path
+   ri.who = who
+   ri.sw = kernel(K$SH, -1) : @fm : kernel(K$OS.EXEC, -1) : @fm : kernel(K$SD.ACCOUNTS, -1) : @fm : kernel(K$NET, -1) : @fm : kernel(K$SHARED.READ, -1) : @fm : kernel(K$SHARED.WRITE, -1)
+   ri.account = ri.acct
+   ri.active = 1
+   void kernel(K$AUDIT, 'run.in begin account=' : ri.acct : ' command=' : ri.sentence)
+
+   if not(ospath(acc.rec, OS$CD)) then
+      display sysmsg(5161)   ;* Unable to change to new directory
+      gosub revert.account
+      void kernel(K$AUDIT, 'run.in end account=' : ri.acct : ' reason=cannot change to the account directory')
+      unwinding = 2
+      return
+   end
+   openpath 'voc' to new.voc else
+      display sysmsg(5163)   ;* Directory is not a SD account
+      gosub revert.account
+      void kernel(K$AUDIT, 'run.in end account=' : ri.acct : ' reason=not an SD account directory')
+      unwinding = 2
+      return
+   end
+   call !EUID_SET('sdsys', rstat)
+   i = ospath('', os$flush.cache)
+   account.path = ospath('', os$cwd)
+   who = ri.acct
+   void kernel(K$SET.ACCOUNT, who)
+   voc = new.voc ; new.voc = 0
+   gosub load.account.switches
+   i = kernel(K$INVALIDATE.OBJECT, 0)
+   gosub find.private.catalogue
+
+* a file the command names must be a file in THIS account's VOC (the first name of every command but the two that take a program only)
+   ri.file.ok = @true
+   if ri.n.names = 2 then
+      ri.file = field(ri.rest, ' ', 3)
+      read ri.vrec from voc, ri.file else
+         read ri.vrec from voc, upcase(ri.file) else ri.vrec = ''
+      end
+      if upcase(ri.vrec[1, 1]) # 'F' then ri.file.ok = @false
+   end
+
+   if ri.file.ok then
+      new.sentence = ri.sentence
+      ri.in.paragraph = in.paragraph
+      unwinding = 0
+      gosub proc.sentence
+      in.paragraph = ri.in.paragraph
+   end else
+      display sysmsg(11176, ri.file[1, 40], ri.acct)   ;* %1 is not a file in account %2
+      unwinding = 2
+   end
+
+   gosub revert.account
+   void kernel(K$AUDIT, 'run.in end account=' : ri.acct)
+   return
+
+* One plain word: in ri.word, answer in ri.ok.  No early return from the loop.
+ri.plain.word:
+   ri.ok = @true
+   if ri.word = '' or len(ri.word) > 64 then ri.ok = @false
+   if ri.ok then
+      if not(index('abcdefghijklmnopqrstuvwxyz0123456789', ri.word[1, 1], 1)) then ri.ok = @false
+   end
+   if ri.ok then
+      for ri.i = 1 to len(ri.word)
+         if not(index('abcdefghijklmnopqrstuvwxyz0123456789._-', ri.word[ri.i, 1], 1)) then ri.ok = @false
+      next ri.i
+   end
+   if ri.ok then
+      if index(' ' : ri.kwords : ' ', ' ' : ri.word : ' ', 1) then ri.ok = @false
+   end
+   return
+
+*****************************************************************************
+* REVERT.ACCOUNT  -  Go back to the account RUN.IN left  (3 Nov 26, S.96)
+*
+* Called at the end of int.runin and from the abort branch.  It is LOGTO's own change undone from what int.runin kept in /runin/, and it asks for nothing LOGTO asked for: the process was
+* in that account already, so it is no new entry (no membership test, no ON.LOGTO, no LOGIN), and the account-scoped switches go back to what that account's entry had set, so the account
+* the command visited keeps nothing it granted.  ri.active goes to 0 FIRST: a failure below must not run this twice.  A directory that cannot be entered again is fatal, as in LOGTO.
+
+revert.account:
+   ri.active = 0
+   if not(ospath(ri.path, OS$CD)) then
+      display sysmsg(5162)   ;* Fatal error : Cannot return to previous account
+      return to abort.cproc
+   end
+   openpath 'voc' to new.voc else
+      display sysmsg(5163)   ;* Directory is not a SD account
+      display sysmsg(5162)
+      return to abort.cproc
+   end
+   call !EUID_SET('sdsys', rstat)
+   i = ospath('', os$flush.cache)
+   account.path = ri.account.path
+   who = ri.who
+   void kernel(K$SET.ACCOUNT, who)
+   voc = new.voc ; new.voc = 0
+   void kernel(K$SH,          ri.sw<1>)
+   void kernel(K$OS.EXEC,     ri.sw<2>)
+   void kernel(K$SD.ACCOUNTS, ri.sw<3>)
+   void kernel(K$NET,         ri.sw<4>)
+   void kernel(K$SHARED.READ, ri.sw<5>)
+   void kernel(K$SHARED.WRITE, ri.sw<6>)
+   void kernel(K$AUDIT, 'logto revert account=' : who)
+   i = kernel(K$INVALIDATE.OBJECT, 0)
+   gosub find.private.catalogue
    return
 
 *****************************************************************************

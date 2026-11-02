@@ -60,7 +60,7 @@ $include header.h
    prompt ''
 
    allow = 'basic catalog decatalog delete.catalog'                 ;* the commands this page may run, through $tk_run, after a box
-   kwords = ' local global pcode no.query noxref no.xref xref relative all changed debugging listing '    ;* words the verbs read as options: never given as a name
+   kwords = ' local global pcode no.query no.catalog noxref no.xref xref relative all changed debugging listing '    ;* words the verbs read as options: never given as a name
 
    call $tk_open('tool.catalog', '', ctx, err)
    if err # '' then
