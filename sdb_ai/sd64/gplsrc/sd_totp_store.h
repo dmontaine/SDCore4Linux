@@ -147,7 +147,8 @@ int sd_totps_attempt_lock(const char *dir, uint64_t now, const char *src, int *s
  * SD_TOTPS_NOTHING when there was none.  The PAM module's session stage takes it before it writes the login's marker. */
 int sd_totps_take_grant(const char *dir, uint64_t now, const char *src);
 
-/* 1 when the code is asked everywhere (the scope file is absent, or says anything but "remote", or the store cannot be read), 0 when only over ssh. */
+/* 1 when the code is asked everywhere (the scope file says "all", or anything but "remote", or the store cannot be read), 0 when only over ssh (no
+ * scope file, the delivered default: the console's code is opt-in, owner 2 Nov 26, or "remote"). */
 int sd_totps_scope_all(const char *dir);
 
 #endif

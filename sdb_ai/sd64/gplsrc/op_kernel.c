@@ -251,8 +251,8 @@ Private bool login_mark_ok(const char *kind) {
     return absent;                                       /* no status file: no code enrolled; an unsafe one: no */
   if (strstr(pub, "\nenrolled yes\n") == NULL)
     return (strncmp(pub, "sdtotp 1\n", 9) == 0);          /* not enrolled: nothing to ask (a file that is not ours at all: no) */
-  if ((strcmp(kind, "local") == 0) && (strstr(pub, "\nscope remote\n") != NULL))
-    return TRUE;                                          /* the administrator's `local off`: a console login needs no code */
+  if ((strcmp(kind, "local") == 0) && (strstr(pub, "\nscope all\n") == NULL))
+    return TRUE;                                          /* the console's code is opt-in (owner, 2 Nov 26): asked only after the administrator's `local on` */
   if (!login_proc_word("/proc/sys/kernel/random/boot_id", boot, sizeof(boot)) || !login_proc_word("/proc/self/sessionid", sid, sizeof(sid))
       || !login_proc_word("/proc/self/loginuid", luid, sizeof(luid)) || (strcmp(sid, "4294967295") == 0) || (strcmp(luid, "4294967295") == 0))
     return FALSE;

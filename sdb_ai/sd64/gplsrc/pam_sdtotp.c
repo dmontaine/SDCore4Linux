@@ -244,7 +244,7 @@ SD_EXPORT PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int 
         if (o.local) return PAM_IGNORE;             /* S.101: no code enrolled, nothing to ask at the console (a restore with no store must not lock it) */
         return refuse(pamh, &o, 0, src, "not enrolled");
     }
-    if (o.local && !sd_totps_scope_all(o.dir)) return PAM_IGNORE;      /* S.101: the administrator's `local off`: the code is asked only over ssh */
+    if (o.local && !sd_totps_scope_all(o.dir)) return PAM_IGNORE;      /* S.101: the console's code is opt-in (owner, 2 Nov 26): asked only after the administrator's `local on` */
 
     r = sd_totps_attempt_lock(o.dir, now, src, &slow, o.local ? SD_TOTPS_LOCK_LOCAL_SECS : SD_TOTPS_LOCK_SECS);
     if (r == SD_TOTPS_LOCKED) return refuse(pamh, &o, slow, src, "locked");

@@ -76,6 +76,8 @@ def rows_for(path, bp_dir):
         "and an absent status file (no code enrolled) is the only absence that answers yes",
         "O_RDONLY | O_NOFOLLOW | O_CLOEXEC" in opk and "(st.st_uid != 0) || ((st.st_mode & 022) != 0)" in opk
         and "return absent;" in opk and 'snprintf(want, sizeof(want), "uid=%s ", luid);' in opk, "")
+    row("S.101: the console's code is opt-in (owner, 2 Nov 26) - the kernel asks a local login for its marker only when the status file says 'scope all'",
+        '(strcmp(kind, "local") == 0) && (strstr(pub, "\\nscope all\\n") == NULL)' in opk and "scope remote" not in opk, "")
     row("the grant is audited AFTER the administrator bit is set (a trail must not record rights not yet given)", g < arm.find("elevation granted"), "")
     row("the old refusal 10191 is used nowhere in CPROC any more", "10191" not in code, "")
     m11795 = os.path.join(os.path.dirname(bp_dir), "messages", "11795")

@@ -395,9 +395,12 @@ def rows_for(ctx):
         r = sc.run("10.4.1.1", [])
         row("... the control: an ssh line with no code enrolled still refuses (S.95)", r["authenticate"] == PAM_AUTH_ERR and r["prompts"] == [], r["raw"])
         sc = scene(extra="delay_ms=0 local")
+        r = sc.run("-", [], tty="/dev/tty1")
+        row("S.101 opt-in (owner, 2 Nov 26): a code enrolled and NO scope file - a console line asks nothing (remote only is the delivered default)",
+            r["authenticate"] == PAM_SUCCESS and r["prompts"] == [], r["raw"])
         sc.put_store_file("scope", "sdtotp 1\nremote\n")
         r = sc.run("-", [], tty="/dev/tty1")
-        row("S.101 local off: with the scope 'remote' a console line asks nothing", r["authenticate"] == PAM_SUCCESS and r["prompts"] == [], r["raw"])
+        row("... with the scope 'remote' a console line asks nothing", r["authenticate"] == PAM_SUCCESS and r["prompts"] == [], r["raw"])
         sc.put_store_file("scope", "sdtotp 1\nall\n")
         r = sc.run("-", [sc.wrong()], tty="/dev/tty1")
         row("... with the scope 'all' it asks, refuses a wrong code and counts it as the source local:sdtest:tty1, audited as a LOCAL login",
@@ -409,6 +412,7 @@ def rows_for(ctx):
 
         now = int(time.time())
         sc = scene(extra="delay_ms=0 local")
+        sc.put_store_file("scope", "sdtotp 1\nall\n")
         sc.write_fail("sdtotp 1\nall 10 %d\nsrc local:sdtest:tty1 5 %d 0\n" % (now, now - 70))
         r = sc.run("-", [sc.wrong()], tty="/dev/tty1")
         row("S.101 a console source's lock lasts 60 s: five failures 70 s ago no longer lock it (the code is asked)", r["prompts"] == [PROMPT], r["raw"])
@@ -426,6 +430,7 @@ def rows_for(ctx):
             row("S.101 SESSION: CANNOT ANSWER - this process has no kernel session id, so no marker can be named (run it from a login session)", False, "")
         else:
             sc = scene(extra="delay_ms=0 local", session=True)
+            sc.put_store_file("scope", "sdtotp 1\nall\n")
             r = sc.run("-", [sc.code()], mode="session", tty="/dev/tty1")
             path = os.path.join(sc.marks, mn)
             txt = open(path).read() if os.path.exists(path) else ""
@@ -503,6 +508,7 @@ MUTANTS = [
     ("a stale grant is taken", "sd_totp_store.c", "if (now >= g.at[i] && now - g.at[i] <= SD_TOTPS_OK_SECS) rc = SD_TOTPS_OK;", "rc = SD_TOTPS_OK;"),
     ("the marker directory is not checked", "pam_sdtotp.c", " || st.st_uid != geteuid() || (st.st_mode & 022) != 0", ""),
     ("the marker is not removed at the end", "pam_sdtotp.c", "    (void)unlinkat(dfd, name, 0);\n    close(dfd);\n    return PAM_SUCCESS;", "    close(dfd);\n    return PAM_SUCCESS;"),
+    ("no scope file means everywhere (the console's code would not be opt-in)", "sd_totp_store.c", "    if (rc == LOAD_ABSENT) return 0;\n", ""),
     ("a scope file that says anything else means remote", "sd_totp_store.c", 'return strcmp(buf, MAGIC "\\nremote\\n") == 0 ? 0 : 1;', 'return strcmp(buf, MAGIC "\\nall\\n") == 0 ? 1 : 0;'),
     ("a locked source is not refused as locked", "pam_sdtotp.c", '    if (r == SD_TOTPS_LOCKED) return refuse(pamh, &o, slow, src, "locked");\n', ""),
     ("the right code forgets the failures at once", "pam_sdtotp.c", "(void)sd_totps_ok(o.dir, now, src);", "(void)sd_totps_ok(o.dir, now, src);\n        (void)sd_totps_clear(o.dir, now, src);"),

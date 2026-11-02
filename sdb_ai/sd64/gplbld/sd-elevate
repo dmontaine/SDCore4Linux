@@ -344,8 +344,9 @@ sdsys_login_gate() {
 # 02 Nov 26 dm - S.101 stage B (the Opus review of 1 Nov: "the real wall is sd-elevate, which is root-owned" - cproc is sdsys's own BASIC and sdsys can change it).  A caller whose login IS sdsys's
 # must also have given the authenticator code when one is enrolled: the PAM module's session stage wrote <marks>/<boot_id>.<sessionid> naming the login's uid.  sudo runs no pam_loginuid, so the
 # session id the helper sees is the caller's.  This closes `su sdsys` + `crontab -e` and every service with no line of the module (a cron job, fingerprint, autologin): none writes a marker.
-# The public status file (enrolled yes|no, scope all|remote; written by totp-confirm / totp-off / totp-local, root-owned, 0644) decides: absent or "enrolled no" asks nothing; "scope remote" asks
-# nothing EITHER, because the helper cannot tell an ssh login from a console one (sudo resets the environment) - cproc's ssh arm still asks then.  The delivered scope is all, which always asks.
+# The public status file (enrolled yes|no, scope all|remote; written by totp-confirm / totp-off / totp-local, root-owned, 0644) decides: absent or "enrolled no" asks nothing; any scope but
+# "all" asks nothing EITHER, because the helper cannot tell an ssh login from a console one (sudo resets the environment) - an ssh login cannot happen without the code (sshd's PAM line) and
+# cproc's ssh arm still asks.  The delivered scope is remote (owner, 2 Nov 26: the console's code is opt-in); "scope all", the administrator's `local on`, always asks.
 # A file that is a link, not the helper's own (root), or writable by group or others answers no.  A dry run asks only when SD_MARK_FIXTURE_DIR names a test's files (with SD_BOOT_FIXTURE,
 # SD_SESSION_FIXTURE and SD_LOGINUID_FIXTURE); a real run reads /etc/sdcore/totp.public, /run/sdcore/marks and /proc and ignores every fixture.
 mark_safe_file() {   # FILE - a regular file, not a link, the helper's own, not writable by group or others
@@ -373,7 +374,7 @@ sdsys_mark_gate() {   # LOGINUID (the caller's login, already shown to be sdsys'
   [[ -e $pubf || -L $pubf ]] || return 0                                    # no code enrolled: nothing to ask
   mark_safe_file "$pubf" || die "the authenticator code's status file $pubf is not as it must be (a link, not root's, or writable by others), so this sdsys login cannot be shown to have given the code. Nothing was done."
   grep -qx 'enrolled yes' -- "$pubf" || return 0
-  grep -qx 'scope remote' -- "$pubf" && return 0
+  grep -qx 'scope all' -- "$pubf" || return 0
   m=$marks/$boot.$sid
   if [[ $sid =~ ^[0-9]+$ && $sid != 4294967295 && $boot =~ ^[0-9a-f-]+$ ]] && mark_safe_file "$m" && [[ $(head -c 64 -- "$m") == "uid=$lu "* ]]; then
     return 0

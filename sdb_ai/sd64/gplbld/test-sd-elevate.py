@@ -1485,8 +1485,11 @@ def mark_rows(helper=None):
         os.remove(mk)
         put(pub, "sdtotp 1\nenrolled yes\nscope remote\n")
         code, out = go(env())
-        rows.append(("ALLOW: 'scope remote' (the administrator's local off) asks no marker of the helper (it cannot tell ssh from a console; cproc's ssh arm still asks)",
+        rows.append(("ALLOW: 'scope remote' (the delivered default: the console's code is opt-in, owner 2 Nov 26) asks no marker of the helper (it cannot tell ssh from a console; cproc's ssh arm still asks)",
                      accepted(code, out), detail(code, out)))
+        put(pub, "sdtotp 1\nenrolled yes\n")
+        code, out = go(env())
+        rows.append(("ALLOW: enrolled with no scope line at all asks no marker either (only 'scope all', the administrator's local on, does)", accepted(code, out), detail(code, out)))
         put(pub, "sdtotp 1\nenrolled yes\nscope all\n", 0o666)
         code, out = go(env())
         rows.append(("REFUSE: a status file writable by others is not believed (fail closed), and the refusal names the status file",
@@ -1524,6 +1527,7 @@ MARK_MUTANTS = [
     ("mark: enrolled is not read", "  grep -qx 'enrolled yes' -- \"$pubf\" || return 0\n", "  return 0\n"),
     ("mark: the link test is lost", '  [[ -f $f && ! -L $f ]] || return 1', '  [[ -f $f ]] || return 1'),
     ("mark: the unset session counts", ' && $sid != 4294967295', ''),
+    ("mark: scope all is not needed (the console's code is no longer opt-in)", "  grep -qx 'scope all' -- \"$pubf\" || return 0\n", ''),
 ]
 
 

@@ -20,6 +20,8 @@
  * START-HISTORY:
  * 01 Nov 26 dm  S.95 stage 1 - written.  See sd_totp_store.h for what the
  *               functions promise and gplbld/test-totp-store.py for the check.
+ * 02 Nov 26 dm  S.101: the console's code is opt-in (owner) - no scope file
+ *               now means remote only; "all" turns the console on.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -1086,8 +1088,10 @@ int sd_totps_take_grant(const char *dir, uint64_t now, const char *src)
     return rc;
 }
 
-/* The scope word kept beside the store (NAME_SCOPE): "remote" means the code is asked only over ssh; anything else, and no file, means everywhere
-   (the delivered default is the tighter one).  Answers 1 for everywhere, 0 for remote only, and 1 for a store that cannot be read (fail closed). */
+/* The scope word kept beside the store (NAME_SCOPE): "all" means the code is asked at the console too; no file, or "remote", means only over ssh.
+   The owner, 2 Nov 26: remote administration always needs the code, the console's is opt-in ("local is already protected by physical presence ...
+   and two passwords").  Answers 1 for everywhere, 0 for remote only, and 1 for a store that cannot be read or a scope file that is neither word
+   (fail closed). */
 int sd_totps_scope_all(const char *dir)
 {
     char buf[64];
@@ -1098,6 +1102,7 @@ int sd_totps_scope_all(const char *dir)
     if (dfd < 0) return 1;
     rc = read_file(dfd, NAME_SCOPE, buf, sizeof buf);
     close(dfd);
+    if (rc == LOAD_ABSENT) return 0;
     if (rc != 0) return 1;
     return strcmp(buf, MAGIC "\nremote\n") == 0 ? 0 : 1;
 }
