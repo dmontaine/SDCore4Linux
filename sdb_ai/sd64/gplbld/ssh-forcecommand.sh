@@ -3,6 +3,11 @@
 # ssh-forcecommand.sh - the ssh half of the SD boundary for SD Core for Linux.
 #
 # START-HISTORY:
+# 02 Nov 26 dm S.101 stage C (the authenticator code at the console; the owner made the console's code opt-in the same day).  A SECOND PAM fence, the module's session line
+#           that writes the login marker, goes directly after the file's "session ... pam_loginuid.so" line (the marker is named by the session id pam_loginuid sets);
+#           --open-sdsys now writes both fences into /etc/pam.d/sshd and refuses a file with no pam_loginuid session line.  New modes --open-local / --close-local /
+#           --local-state put both fences, with the module's "local" word, into login and each display manager whose file exists (gdm-password, lightdm, sddm; never
+#           common-*); every file is made before any is written, one that cannot take the lines refuses the whole run.  --remove takes the console fences out too.
 # 02 Nov 26 dm S.105 (owner, 2 Nov 2026: Fedora support taken out): comments only; the ssh/sshd unit loop
 #           and the PAM fence are unchanged, both serve Debian and Ubuntu.
 # 01 Nov 26 dm S.95 stage 2b (remote sdsys over ssh; the owner's rulings and the Opus review are in .claude/plan-s95-remote-sdsys.md).  THE sdsys ARM HAS TWO FORMS.  CLOSED (as
@@ -169,6 +174,18 @@ PAM_BACKUP="$PAM_FILE.before-sd"
 PAM_MODULE=${SD_TOTP_MODULE:-/usr/local/lib/sd/pam_sdtotp.so}
 PAM_BEGIN='# --- BEGIN SD sdsys authenticator code (S.95) - do not edit within this fence ---'
 PAM_END='# --- END SD sdsys authenticator code ---'
+# S.101 stage C.  The second fence: the module's SESSION line, which writes the login marker cproc and sd-elevate look for.  It goes directly AFTER the file's own
+# "session ... pam_loginuid.so" line (the marker is named by the kernel session id, which pam_loginuid sets), so it cannot sit in the auth fence above the first auth line.
+PAMS_BEGIN='# --- BEGIN SD sdsys login marker (S.101) - do not edit within this fence ---'
+PAMS_END='# --- END SD sdsys login marker ---'
+# The console services (--open-local): the text console and the display managers, each only when its file exists; never common-auth or common-session, which su and sudo
+# share.  Overridable for the test like the sshd PAM file; a run against a scratch sshd_config never reaches the real directory.
+LOCAL_SERVICES=(login gdm-password lightdm sddm)
+REAL_PAM_DIR=/etc/pam.d
+if [[ -n ${SD_PAM_DIR:-} ]]; then PAM_DIR=$SD_PAM_DIR
+elif [[ $CONFIG == "$REAL_CONFIG" ]]; then PAM_DIR=$REAL_PAM_DIR
+else PAM_DIR="$CONFIG.pam.d"
+fi
 # The form of the sdsys arm block_lines writes: closed (DenyUsers) or open (the keywords below).  Set by the mode that is run.
 SDSYS_MODE=closed
 # The connection sshd -T is asked about: the user, and a documentation address (192.0.2.0/24) that no Match Address of an administrator's names.
@@ -377,48 +394,93 @@ sdsys_mode_now() {
   fi
 }
 
-pam_has_block() { [[ -f $PAM_FILE ]] && grep -qxF "$PAM_END" "$PAM_FILE"; }
+pam_has_block() { local f=${1:-$PAM_FILE}; [[ -f $f ]] && grep -qxF "$PAM_END" "$f"; }
+pam_has_session() { local f=${1:-$PAM_FILE}; [[ -f $f ]] && grep -qxF "$PAMS_END" "$f"; }
 
+# The module named on a line, with OPTS after it ("local" on a console service, nothing for sshd).
 pam_block_lines() {
+  local opts=${1:-}
   printf '%s\n' "$PAM_BEGIN" \
     "auth [success=1 default=ignore] pam_succeed_if.so quiet user notin sdsys" \
-    "auth required $PAM_MODULE" \
+    "auth required $PAM_MODULE${opts:+ $opts}" \
     "$PAM_END"
 }
 
-# The PAM file with any earlier fence of ours taken out (BEGIN through END inclusive, nothing else).
-pam_strip() {
-  awk -v b="$PAM_BEGIN" -v e="$PAM_END" '
-    $0 == b { drop = 1; next }
-    $0 == e { drop = 0; next }
-    !drop   { print }
-  ' "$PAM_FILE"
+# S.101 stage C.  The session stage never refuses a login (optional): it only turns the right code's grant into a marker.  The guard keeps every other user's session away from it.
+pam_session_lines() {
+  local opts=${1:-}
+  printf '%s\n' "$PAMS_BEGIN" \
+    "session [success=1 default=ignore] pam_succeed_if.so quiet user notin sdsys" \
+    "session optional $PAM_MODULE${opts:+ $opts}" \
+    "$PAMS_END"
 }
 
-# The PAM file with our fence put in ABOVE ITS FIRST auth LINE (or its first @include of something called ...auth...): the code is asked before the password.  Exits 3, printing
-# nothing useful, when the file has no such line - it is then not a file this knows how to put a line in front of.
+# The PAM file FILE (default the sshd one) with every fence of ours taken out (BEGIN through END inclusive, both kinds, nothing else).
+pam_strip() {
+  awk -v b="$PAM_BEGIN" -v e="$PAM_END" -v sb="$PAMS_BEGIN" -v se="$PAMS_END" '
+    $0 == b || $0 == sb { drop = 1; next }
+    $0 == e || $0 == se { drop = 0; next }
+    !drop   { print }
+  ' "${1:-$PAM_FILE}"
+}
+
+# The PAM file FILE (default the sshd one) with the auth fence put in ABOVE ITS FIRST auth LINE (or its first @include of something called ...auth...), so the code is asked
+# before the password, and the session fence directly AFTER its first "session ... pam_loginuid.so" line.  OPTS go on both module lines.  Exits 3 when the file has no auth line,
+# 5 when it has no pam_loginuid session line - it is then not a file this knows where to put the lines in - printing nothing useful either way.
 pam_with_block() {
-  local blk
+  local f=${1:-$PAM_FILE} opts=${2:-} blk sblk
   blk=$(mktemp) || return 4
-  pam_block_lines > "$blk"
-  pam_strip | awk -v blk="$blk" '
+  sblk=$(mktemp) || { rm -f "$blk"; return 4; }
+  pam_block_lines "$opts" > "$blk"
+  pam_session_lines "$opts" > "$sblk"
+  pam_strip "$f" | awk -v blk="$blk" -v sblk="$sblk" '
     !done && (/^[[:space:]]*-?auth[[:space:]]/ || /^[[:space:]]*@include[[:space:]]+[^[:space:]]*auth/) {
       while ((getline line < blk) > 0) print line
       close(blk)
       done = 1
     }
     { print }
-    END { exit (done ? 0 : 3) }
+    !sdone && /^[[:space:]]*-?session[[:space:]]+[^#]*pam_loginuid\.so/ {
+      while ((getline line < sblk) > 0) print line
+      close(sblk)
+      sdone = 1
+    }
+    END { exit (!done ? 3 : (!sdone ? 5 : 0)) }
   '
   local rc=$?
-  rm -f "$blk"
+  rm -f "$blk" "$sblk"
   return $rc
 }
 
 pam_commit_file() {
-  local src=$1
-  [[ -f $PAM_BACKUP ]] || cp -- "$PAM_FILE" "$PAM_BACKUP"
-  cp -- "$src" "$PAM_FILE"
+  local src=$1 f=${2:-$PAM_FILE}
+  [[ -f $f.before-sd ]] || cp -- "$f" "$f.before-sd"
+  cp -- "$src" "$f"
+}
+
+# S.101 stage C.  The console services' PAM files that exist, one path a line.
+local_files() {
+  local s
+  for s in "${LOCAL_SERVICES[@]}"; do
+    [[ -e $PAM_DIR/$s || -L $PAM_DIR/$s ]] && printf '%s\n' "$PAM_DIR/$s"
+  done
+  return 0
+}
+
+# Take both fences out of every console file that has one (the deleter's --remove and --close-local).  Prints what it did; fails if a fence is still there afterwards.
+local_remove_all() {
+  local f ltmp
+  while IFS= read -r f; do
+    [[ -f $f && ! -L $f ]] || continue
+    pam_has_block "$f" || pam_has_session "$f" || continue
+    ltmp=$(mktemp) || fail "could not create a temp file"
+    pam_strip "$f" > "$ltmp"
+    pam_commit_file "$ltmp" "$f"
+    rm -f "$ltmp"
+    { pam_has_block "$f" || pam_has_session "$f"; } && fail "removal did not take - a fence is still in $f"
+    say "REMOVED - the authenticator code lines are out of $f"
+  done < <(local_files)
+  return 0
 }
 
 # The module the PAM lines name must be a plain file (not a link), root's on a real machine and the runner's own in the test, and closed to anyone else's writing.
@@ -565,7 +627,7 @@ print_block() {
 # ------------------------------------------------------------------------ main
 
 MODE=${1:-}
-[[ -n $MODE ]] || die "no mode; want --check, --install, --remove, --refuse, --open-sdsys, --close-sdsys or --sdsys-state"
+[[ -n $MODE ]] || die "no mode; want --check, --install, --remove, --refuse, --open-sdsys, --close-sdsys, --sdsys-state, --open-local, --close-local or --local-state"
 
 case $MODE in
 
@@ -600,11 +662,13 @@ case $MODE in
       die "must run as root to edit $CONFIG"
     fi
     if [[ ! -f $CONFIG ]]; then
-      say "no $CONFIG present, nothing to remove"
+      local_remove_all                                   # S.101 stage C: a machine with no sshd can still have the console's fences
+      say "no $CONFIG present, nothing else to remove"
       exit 0
     fi
     if ! has_block; then
       pam_has_block && remove_pam_block
+      local_remove_all                                   # S.101 stage C: the console services' fences go with the rest
       say "no SD block present, nothing removed"
       exit 0
     fi
@@ -620,6 +684,7 @@ case $MODE in
     say "REMOVED - SD ssh-only block is out of $CONFIG"
     production && reload_sshd
     pam_has_block && remove_pam_block                    # the door is shut and sshd has the new config before the lines that ask for the code go
+    local_remove_all                                     # S.101 stage C: the console services' fences go with the rest
     exit 0
     ;;
 
@@ -676,6 +741,70 @@ case $MODE in
   --sdsys-state)
     printf 'sdsys-arm=%s\n' "$(sdsys_mode_now)"
     if pam_has_block; then printf 'pam=present\n'; else printf 'pam=absent\n'; fi
+    if pam_has_session; then printf 'pam-session=present\n'; else printf 'pam-session=absent\n'; fi
+    exit 0
+    ;;
+
+  # S.101 stage C.  The console services: each file that exists says present (both fences), partial (one) or absent; a service with no file says none.  No root wanted.
+  --local-state)
+    for s in "${LOCAL_SERVICES[@]}"; do
+      f=$PAM_DIR/$s
+      if [[ ! -e $f && ! -L $f ]]; then st=none
+      elif pam_has_block "$f" && pam_has_session "$f"; then st=present
+      elif pam_has_block "$f" || pam_has_session "$f"; then st=partial
+      else st=absent
+      fi
+      printf 'local-%s=%s\n' "$s" "$st"
+    done
+    exit 0
+    ;;
+
+  # S.101 stage C.  Put the authenticator code, with the module's "local" word, in front of the password of the text console and of each display manager whose file exists, and
+  # its session line after pam_loginuid.  EVERY file is checked and its new text made BEFORE any file changes; a file this cannot place the lines in refuses the whole run and
+  # changes nothing.  The lines ask for the code only when the administrator's scope says all (the console's code is opt-in, owner 2 Nov 26); with the delivered scope remote,
+  # and with no code enrolled, they ask nothing.  login must exist; a display manager that is not installed is passed over.
+  --open-local)
+    if [[ $PAM_DIR == "$REAL_PAM_DIR" && ${EUID:-$(id -u)} -ne 0 ]]; then
+      die "must run as root to edit the files in $PAM_DIR"
+    fi
+    module_ok || die "$PAM_MODULE is not a plain file (not a link), owned by root, closed to anyone else's writing, with a plain path; not putting it in the PAM stack"
+    [[ -f $PAM_DIR/login && ! -L $PAM_DIR/login ]] || die "no $PAM_DIR/login (or it is not a plain file) - the text console has no PAM stack to put the authenticator code in; nothing changed"
+    work=$(mktemp -d) || fail "could not create a temp directory"
+    trap 'rm -rf "$work"' EXIT
+    files=()
+    while IFS= read -r f; do
+      [[ -f $f && ! -L $f ]] || die "$f is not a plain file (a link?); not editing it, and nothing changed"
+      s=${f##*/}
+      pam_with_block "$f" local > "$work/$s.new"
+      case $? in
+        0) ;;
+        3) die "$f has no auth line to put the authenticator code in front of; not guessing where it goes, and nothing changed" ;;
+        5) die "$f has no 'session ... pam_loginuid.so' line to put the login marker after; not guessing where it goes, and nothing changed" ;;
+        *) fail "could not make the new $f; nothing changed" ;;
+      esac
+      cp -- "$f" "$work/$s.prev"
+      files+=("$f")
+    done < <(local_files)
+    say "opening the console: the authenticator code lines go into ${files[*]}"
+    for f in "${files[@]}"; do
+      pam_commit_file "$work/${f##*/}.new" "$f"
+    done
+    for f in "${files[@]}"; do
+      if ! { pam_has_block "$f" && pam_has_session "$f"; }; then
+        for g in "${files[@]}"; do cp -- "$work/${g##*/}.prev" "$g"; done
+        fail "NOT OPENED - $f does not hold both fences after the write; every file is back as it was"
+      fi
+    done
+    say "OPENED - the console asks sdsys for the authenticator code when one is enrolled and the scope is all (sd-elevate totp-local on); otherwise these lines ask nothing"
+    exit 0
+    ;;
+
+  --close-local)
+    if [[ $PAM_DIR == "$REAL_PAM_DIR" && ${EUID:-$(id -u)} -ne 0 ]]; then
+      die "must run as root to edit the files in $PAM_DIR"
+    fi
+    local_remove_all
+    say "CLOSED - no console service names the authenticator code module"
     exit 0
     ;;
 
@@ -703,7 +832,13 @@ case $MODE in
     if ! out=$(validate "$sshd" "$tmp"); then
       fail "sshd -t rejected the open arm (the live config is untouched). sshd said: ${out:-<nothing>}"
     fi
-    pam_with_block > "$ptmp" || die "$PAM_FILE has no auth line to put the authenticator code in front of; not guessing where it goes"
+    pam_with_block > "$ptmp"
+    case $? in
+      0) ;;
+      3) die "$PAM_FILE has no auth line to put the authenticator code in front of; not guessing where it goes" ;;
+      5) die "$PAM_FILE has no 'session ... pam_loginuid.so' line to put the login marker after (S.101: without the marker SD refuses the sdsys login); not guessing where it goes" ;;
+      *) fail "could not make the new $PAM_FILE" ;;
+    esac
     say "opening the sdsys arm: PAM lines in $PAM_FILE, then the open arm in $CONFIG, then asking $sshd what it does with sdsys"
     pam_commit_file "$ptmp"
     commit_file "$tmp"
@@ -712,7 +847,7 @@ case $MODE in
       cp -- "$pprev" "$PAM_FILE"
       fail "NOT OPENED - both files are back as they were. $why"
     fi
-    pam_has_block && [[ $(sdsys_mode_now) == open ]] || fail "the open arm was validated but is not in place after the write"
+    pam_has_block && pam_has_session && [[ $(sdsys_mode_now) == open ]] || fail "the open arm was validated but is not in place after the write"
     say "OPENED - sdsys is let in over ssh: the authenticator code first, then its password; every kind of forwarding is shut; the session is sd"
     say "originals kept at $BACKUP and $PAM_BACKUP"
     production && reload_sshd
@@ -746,6 +881,6 @@ case $MODE in
     ;;
 
   *)
-    die "unknown mode '$MODE'; want --check, --install, --remove, --refuse, --open-sdsys, --close-sdsys or --sdsys-state"
+    die "unknown mode '$MODE'; want --check, --install, --remove, --refuse, --open-sdsys, --close-sdsys, --sdsys-state, --open-local, --close-local or --local-state"
     ;;
 esac
