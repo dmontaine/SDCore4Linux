@@ -48,7 +48,7 @@
   },
   "dict.conv.code": {
    "chunks": 23,
-   "sha256": "b5babe65378dd74fb1b64b525a9a3e756472910e1220f7b2a35069be27f1a38c"
+   "sha256": "16e67c3e9ce5fc703180ff5dd84fd3442e28c8dc7a12ccbd0965867836324c00"
   },
   "dict.correlative": {
    "chunks": 1,
@@ -150,7 +150,7 @@
    "words": 569
   },
   "index.json": {
-   "sha256": "96107a3caeb200d2d6afa3aadffad90b8f1294b8a8ab66e783184156e97f1b85"
+   "sha256": "7524e48ca6992e8636a1fec34099522fe84de5b2bdb6870fe3a76524414379f6"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
@@ -169,8 +169,8 @@
   },
   "reference/dictionaries.md": {
    "chunks": 50,
-   "sha256": "f318ec6e6b9da8a7611fe7dcfb9495d9018719fb5975e8185bf150e148f3d8c1",
-   "words": 5601
+   "sha256": "3fb20698f40ddc41c335ce17e1b9c79b01d6340c61885e4ec5b0e2507217405d",
+   "words": 5620
   },
   "reference/messages.md": {
    "chunks": 2841,

@@ -29,7 +29,7 @@ chained with value marks, and each is applied in turn.
 
 
 ### dict:conv:B
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:143#ce228eab
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:144#ce228eab
 
 **Boolean conversion — B**
 
@@ -44,7 +44,7 @@ becomes `0`.
 
 
 ### dict:conv:B64
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:233#a3aa4efd
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:234#a3aa4efd
 
 **Base64 — B64**
 
@@ -58,7 +58,7 @@ string back to binary.
 
 
 ### dict:conv:C
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:190#766d3b28
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:191#766d3b28
 
 **Concatenation — C**
 
@@ -123,7 +123,7 @@ European date order.
 
 
 ### dict:conv:G
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:208#06ef4145
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:209#06ef4145
 
 **Group conversion — G**
 
@@ -138,7 +138,7 @@ per group.
 
 
 ### dict:conv:IF
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:218#f0060b7e
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:219#f0060b7e
 
 **Binary conversions — IF, IL, IS**
 
@@ -158,17 +158,17 @@ machine's native byte order.
 
 
 ### dict:conv:IL
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:218#f0060b7e
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:219#f0060b7e
 
 Conversion code `IL` is described with the codes of **Binary conversions — IF, IL, IS**: see dict:conv:IF.
 
 ### dict:conv:IS
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:218#f0060b7e
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:219#f0060b7e
 
 Conversion code `IS` is described with the codes of **Binary conversions — IF, IL, IS**: see dict:conv:IF.
 
 ### dict:conv:L
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:153#84be0cbb
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:154#84be0cbb
 
 **Length conversion — L**
 
@@ -280,15 +280,16 @@ MX        MO
 |---|---|
 | `MX` | decimal to hexadecimal |
 | `MO` | decimal to octal |
+| `MCDX` | the same as `MX`, both ways; a second name kept for programs written for openQM |
 
-(`MCD`, `MCDX`, `MCX` and `MCXD`, which were second spellings of `MX`, were removed in 2.0-0: they are an invalid conversion code now, STATUS 2.)
+(`MCD`, `MCX` and `MCXD`, which were other second spellings of `MX`, were removed in 2.0-0: they are an invalid conversion code now, STATUS 2.)
 
 `MX0C` converts a hexadecimal string to characters. `MB0C` and `MO0C`
 do the same for binary and octal.
 
 
 ### dict:conv:P
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:162#4c4ef8b0
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:163#4c4ef8b0
 
 **Pattern matching — P**
 
@@ -303,7 +304,7 @@ count. `P(3N2A)` matches three digits followed by two letters.
 
 
 ### dict:conv:R
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:172#3e9fc355
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:173#3e9fc355
 
 **Range test — R**
 
@@ -317,7 +318,7 @@ true if the value is between 1 and 10 or between 20 and 30.
 
 
 ### dict:conv:S
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:199#6def0c4a
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:200#6def0c4a
 
 **Substitution — S**
 
@@ -331,7 +332,7 @@ the value is `1`, `N` if it is `2`.
 
 
 ### dict:conv:T
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:181#a3078125
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:182#a3078125
 
 **Substring extraction — T**
 
@@ -345,7 +346,7 @@ shorthand for the first 5 characters.
 
 
 ### dict:conv:TRANS
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:255#272d64ba
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:256#272d64ba
 
 **TRANS — T**
 
@@ -361,7 +362,7 @@ display data from another file.
 
 
 ### dict:conv:XE
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:242#99be5b10
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:243#99be5b10
 
 **Encrypted value — XE**
 
@@ -379,7 +380,7 @@ query does with an encrypted field are on SD Basic - Encrypting Data.
 
 
 ### dict:conv:field-extraction-angle-brackets
-> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:266#db40137e
+> kind=dict.conv.code tier=reference since=- src=docs:User/markdown/34-sd-dicts-conversions.md:267#db40137e
 
 **Field extraction — angle brackets**
 

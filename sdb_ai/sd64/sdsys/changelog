@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   THE MCDX CONVERSION IS BACK, AS A SECOND NAME OF MX.
+
+             What        - OCONV(x, 'MCDX') gives the hexadecimal form of a number and ICONV(x, 'MCDX') the number of a
+                           hexadecimal text, exactly as MX does: OCONV(255, 'MCDX') is FF. It works in a dictionary item as in a
+                           program, in upper or lower case.
+             Why         - Programs moved from openQM use MCDX, often in many places. It had been removed earlier in this release
+                           with the other second spellings of MX, which made such programs fail with STATUS 2; before that, in
+                           L1.1-3, OCONV with MCDX returned the number unchanged.
+             Does NOT    - Bring back MCD, MCX or MCXD: they stay invalid codes (STATUS 2). Change what MX does.
+
 3 Nov 26   TOOL.SESSIONS SHOWS THE RIGHT LOGIN TIME.
 
              What        - The "Logged in" column of tool.sessions, and "signed on" in the box under it, showed a time that was
