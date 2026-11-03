@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 12 Oct 26 dm  New.
 * 28 Oct 26 dm  S.88 phase 2 (S1): a control character in the string is shown (reverse, one cell), never sent: $sl_put does it.
+* 3 Nov 26 dm  S.113: the context is taken with $sl_scr 'draw' (a page of the toolkit draws by difference; any other program as before).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -40,7 +41,7 @@ $include sl.h
    ret = ''
    status = 1
    if system(25) then return                  ;* a phantom has no terminal: nothing is drawn
-   call $sl_scr('get', scr)
+   call $sl_scr('draw', scr)                  ;* S.113: on a page of the toolkit only the cells the terminal does not show already are written
 
    if x = '' then x = scr<SL.S.CUR, 1>
    if y = '' then y = scr<SL.S.CUR, 2>

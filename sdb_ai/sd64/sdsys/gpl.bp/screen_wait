@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 12 Oct 26 dm  New.
+* 3 Nov 26 dm  S.113: the screen is flushed before the form waits ($sl_scr 'flush'): a repaint that is owed is made, and a page's pending cells written.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -56,6 +57,7 @@ $include sl.h
       return
    end
    if jtype(f) # 'collection' then return
+   call $sl_scr('flush', '')                      ;* S.113: the program's own wait: the terminal is brought up to the library's picture first
    call $sl_scr('get', scr)
 
    call $sl_form('wait', f, scr, timeout, r)

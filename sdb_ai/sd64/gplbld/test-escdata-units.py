@@ -114,9 +114,10 @@ def checks(src, dcounts):
     ck("C2 the scrub: the tab becomes a blank, the rest is converted through the table, and ONLY IF something changed the style of the changed cells is set to reverse one by one and the text replaced",
        ordered(put, "text = convert(char(9), ' ', text)", "safe = convert(ctl.from, ctl.to, text)", "if compare(safe, text) # 0 then", "for ci = 1 to n",
                "if compare(safe[ci, 1], text[ci, 1]) # 0 then cells = cells[1, ci - 1] : 'r' : cells[ci + 1, n]", "next ci", "text = safe"), "")
-    ck("C3 the order in $sl_put: the cells are made, the marks become dots, THEN the scrub, THEN the clip, the DIFF comparison, the shadow and the terminal",
+    # 3 Nov 26 (S.113): the shadow is written before the DIFF comparison now (which is against the terminal's picture); both stay after the scrub and the clip
+    ck("C3 the order in $sl_put: the cells are made, the marks become dots, THEN the scrub, THEN the clip, the shadow, the DIFF comparison and the terminal",
        ordered(put, "cells = attr : str('n', n)", "text = convert(@fm : @vm : @sm : @tm : char(255), '.....', text)", "safe = convert(ctl.from, ctl.to, text)", "x0 = 0 ; x1 = sw - 1",
-               "if scr<SL.S.DIFF> then", "scr<SL.S.SHADOW, y + 1> =", "display out :"), "")
+               "scr<SL.S.SHADOW, y + 1> =", "if dmode = 1 and has.term then", "display out :"), "")
     ck("C4 one cell for one character: n is not recomputed by the scrub and no character is added or removed (no CHANGE, no insert, no delete in the scrub's lines)",
        "n = len(text)" in put and put.count("n = len(text)") == 2 and "change(safe" not in put and "safe[" in put, "")
     ck("C5 the stand-ins of $sl_line stay (the glyph path): 14-22 are still turned into line characters or + - | # ^ v below, and the scrub's table excludes them",

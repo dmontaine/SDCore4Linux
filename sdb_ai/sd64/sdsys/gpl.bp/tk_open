@@ -9,6 +9,7 @@
 * 28 Oct 26 dm  S.88 phase 2 (D4): the break setting is also kept by $tk_brk, so that $sl_cleanup can give it back when the app is aborted before $tk_close.
 * 28 Oct 26 dm  S.88 L1: VAR.ARGS, the app's floor as the optional fifth and sixth arguments (TK.MINW by TK.MINH when left out, so every existing call is
 *               unchanged); the frame, the body and the cursor lock come from $tk_layout 'open'; a new frame-cache epoch for $tk_frame (F1).
+* 3 Nov 26 dm  S.113 (owner: "All pages"): the screen it takes is marked the toolkit's ($sl_scr 'toolkit'): every page draws by difference.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -30,6 +31,9 @@
 *   setting is saved and the break key turned off (Ctrl-C and the terminal's break are keys of the app), the screen is taken with
 *   line-drawing borders when the terminal says UTF-8, and $tk_layout 'open' lays out the frame and the body and asks for the cursor lock in
 *   its layout mode (the keys are not the app's while the window is smaller than the floor).  $tk_close gives it all back.
+*
+*   The screen is marked the toolkit's (S.113, $sl_scr 'toolkit'): SCREEN TEXT, BOX and CLEAR on it write only the cells the terminal does
+*   not already show, a cleared rectangle reaches the terminal at the page's next wait, and F5, Ctrl-L and a resize repaint it whole once.
 *
 * END-DESCRIPTION
 *
@@ -122,6 +126,7 @@ $include tk.h
       err = sysmsg(11802, app)
       return
    end
+   call $sl_scr('toolkit', '')                      ;* S.113: the page draws by difference (SCREEN TEXT, BOX, CLEAR write only what changed) and its waits flush
 
    ctx<TK.C.UTF8> = (if utf8 then 1 else 0)
    ctx<TK.C.TRAP> = saved.trap
