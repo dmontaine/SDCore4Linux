@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   AN UPGRADE NOW BRINGS THE SYSTEMD UNITS UP TO DATE.
+
+             What        - Installing over an existing system used to keep the systemd units it already had: they were copied only
+                           when sd.service was not there yet. The installer now compares sd.service, sd-lnxd.service and
+                           sdclient@.service with this release's copies and puts in place each one that differs (owned by root, mode
+                           644), naming it, and reloads systemd once. This is how an upgraded machine gets the per-connection API
+                           server's protective settings (ProtectKernelTunables= and the others) that a fresh install already has.
+             Why         - An upgrade ran with the units of the release it was first installed from, so a fix made in a unit never
+                           reached it.
+             Does NOT    - Touch sdclient.socket, which the installer edits for the API listener and the socket mode (an
+                           administrator's SocketMode= is kept as before), or any drop-in under /etc/systemd/system: a local change
+                           made with "systemctl edit" survives. A change made by editing the files in /usr/lib/systemd/system
+                           directly is replaced.
+
 3 Nov 26   SELECT, LIST AND THE OTHER QUERY VERBS PUT RECORDS WITH EQUAL SORT KEYS IN RECORD-ID ORDER.
 
              What        - A BY or BY.DSND clause on SELECT, LIST, COUNT, SUM, REFORMAT and the label verbs now ends with the record

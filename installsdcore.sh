@@ -1578,6 +1578,28 @@ if [ -f "$SYSTEMDPATH/sd.service" ] && ! grep -q 'sd-lnxd\.service' "$SYSTEMDPAT
 fi
 # LNXDUNIT-END
 #
+# UNITREFRESH-BEGIN
+# 03 Nov 26 dm - the first-install copy above runs only when there is no sd.service, so an upgrade kept every unit it had, and a unit this release changed
+#            never reached it (sdclient@.service's sandbox settings of W.11 F5, ProtectKernelTunables= and the rest, 30 Oct 26, are the case: an
+#            upgraded machine ran the per-connection server without them).  The three units SD owns whole - sd.service, sd-lnxd.service and sdclient@.service - are put in place whenever the installed copy
+#            differs from this release's, root:root 0644, and systemd is reloaded once.  sdclient.socket is NOT among them: the installer edits it in
+#            place (SOCKETMODE below, the API listener), so it keeps its own blocks.  A local change belongs in a drop-in under /etc/systemd/system
+#            (systemctl edit), which this does not touch.  test-install-unitrefresh.sh runs this block.
+if [ -f "$SYSTEMDPATH/sd.service" ]; then
+    units_refreshed=0
+    for unit_name in sd.service sd-lnxd.service sdclient@.service; do
+        if ! cmp -s "usr/lib/systemd/system/$unit_name" "$SYSTEMDPATH/$unit_name"; then
+            echo "Refreshing the systemd unit $unit_name to this release's copy."
+            sudo install -o root -g root -m 0644 "usr/lib/systemd/system/$unit_name" "$SYSTEMDPATH/$unit_name"
+            units_refreshed=1
+        fi
+    done
+    if [ "$units_refreshed" = 1 ]; then
+        sudo systemctl daemon-reload || true
+    fi
+fi
+# UNITREFRESH-END
+#
 # SOCKETMODE-BEGIN
 # 24 Oct 26 dm - W.11 F5 (security-model evaluation).  The units above are copied only on a first install, so an install made before this release keeps a
 #            sdclient.socket with SocketGroup=sdusers and NO SocketMode=; systemd then makes the Unix socket 0666 and the group restricts nothing.  The
