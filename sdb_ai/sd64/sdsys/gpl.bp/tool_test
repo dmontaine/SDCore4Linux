@@ -13,6 +13,8 @@
 * 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the other [-], as the IDE does.
 * 1 Nov 26 dm  S.97 stage 2: the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI, in both panes; filter, refresh and the output pane of the runs are offered to
 *              the model (running a test is not), and a proposal is carried out by the page's own key.  An account without the AI sees the page as it was.
+* 3 Nov 26 dm  S.88 "Tab panes": Tab and Shift-Tab move the focus between the two boxes, as on every page with two: from Tests to the Output of the test under the cursor (as Enter
+*              does), from Output back to Tests (as Esc does).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -86,6 +88,7 @@ $include tk.h
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-o', 'runs', 'runspane', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)                ;* S.88 "Tab panes": the other box (Shift-Tab too); last on the row, so the rows of each pane begin as they did
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', 'Tests', 1)           ;* S.88 U7: in the Tests pane Esc takes the name filter off first, else opens the menu bar (in Output it is 'back')
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
    call $tk_keys('menu', keys, 'run', '&Tests', '&Run this test', '', '')
@@ -658,8 +661,8 @@ on.key:
          gosub do.many
       case nm = 'b'
          gosub do.compile
-      case nm = 'enter'
-         gosub show.output
+      case nm = 'enter' or nm = 'tab' or nm = 'btab'
+         gosub show.output                                       ;* Tab and Shift-Tab: the focus to the Output box (S.88 "Tab panes")
       case nm = 'f11' or nm = '/'
          gosub do.filter
       case nm = 'f1' or nm = '?'
@@ -686,8 +689,8 @@ out.key:
    ozmax = nv - VISO
    if ozmax < 0 then ozmax = 0
    begin case
-      case nm = 'esc'
-         pn = 'Tests'
+      case nm = 'esc' or nm = 'tab' or nm = 'btab'
+         pn = 'Tests'                                            ;* Tab and Shift-Tab: the focus back to the Tests box (S.88 "Tab panes")
          gosub draw.all
       case nm = 'up'
          if ot > 0 then ot -= 1

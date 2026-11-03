@@ -24,7 +24,7 @@
 # Any kernel or BASIC source with no rule of its own selects these.
 @core = oq2 coll gates q4 func-q1 stmt-q3 mode-q16 bcomp-a1 nocase list-q2
 # the pseudo-terminal suites (a terminal, keys, the screen library)
-@pty = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport sed-small ide-small ide-sed winsize eofkeys idedraw recarr spview ide-resize memokeys
+@pty = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport sed-small ide-small ide-sed winsize eofkeys idedraw recarr spview ide-resize memokeys ide-tools
 # the debugger
 @debugger = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase idebrk dbgmain
 # select lists and everything that makes or reads one
@@ -88,7 +88,7 @@ gplbld/sandbox-tool-masters.py : none
 # 2 Nov 26 (S.96 M6): the runtime rows of dh_creat.c's acct_group_modes (the modes of a new VOC or dictionary in a registered account)
 gplbld/sandbox-acctmodes.py  : @self
 # 2 Nov 26 (S.88 p3.3a): sandbox-ide-resize.py drives the IDE with sandbox-ide.py's Ide class, as sandbox-idedraw.py does
-gplbld/sandbox-ide.py        : @self idedraw ide-resize memokeys
+gplbld/sandbox-ide.py        : @self idedraw ide-resize memokeys ide-tools
 gplbld/sandbox-*.py          : @self
 # S.88 L1 (28 Oct 26): sandbox-tk-layout.py takes its expected rectangles from this free check's model of $tk_layout
 gplbld/test-tklayout-units.py : tk-layout l2-files l2-home l2-admin
@@ -392,7 +392,7 @@ sdsys/messages/1192[0-2]     : aidocs
 gplbld/sandbox-aidocs.py     : @self
 sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys tk-resize ai-pages aidocs
 # S.88 U9 (2 Nov 26): $tk_pickrec's mode 'list' is the home screen's type-to-find (above tk_*: the first rule that matches wins; it was below and never fired)
-sdsys/gpl.bp/tk_pickrec      : tk-base tk-widgets home
+sdsys/gpl.bp/tk_pickrec      : tk-base tk-widgets home tool-query
 sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout ai-pages spview
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
@@ -632,10 +632,11 @@ sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedra
 # S.88 phase 3.10B (29 Oct 26): the output pane widget; it has no caller yet, its suite is tk-widgets (before the coarse sl_* rule below)
 sdsys/gpl.bp/sl_out          : tk-widgets
 # S.75 (22 Oct 26): the pick window is used by the toolkit only (tktest); no other screen suite draws it.
-sdsys/gpl.bp/sl_pickwin      : tk-base tk-widgets
-# S.88 3.10A (29 Oct 26): the action palette and the record picker, both on the pick window; their suite is tk-widgets (written, not run)
-sdsys/gpl.bp/sl_palette      : tk-base tk-widgets
-sdsys/gpl.bp/sl_picker       : tk-base tk-widgets
+sdsys/gpl.bp/sl_pickwin      : tk-base tk-widgets tool-query home
+# S.88 3.10A (29 Oct 26): the action palette and the record picker, both on the pick window; their suite is tk-widgets (written, not run).  3 Nov 26: the finder (F2) of every
+# page and tool.query's saved list (the picker's list mode, which the home screen's type-to-find also uses) are run by tool-query's section q14
+sdsys/gpl.bp/sl_palette      : tk-base tk-widgets tool-query
+sdsys/gpl.bp/sl_picker       : tk-base tk-widgets tool-query home
 # S.88 phase 2 (28 Oct 26): the cursor lock of a window smaller than the layout; used by SED, the debugger and $sl_key's guard mode; its AUTOLOGOUT work-around is gone
 sdsys/gpl.bp/sl_guard        : sed-small ide-small sed-menu dbgui tk-resize autologout tk-layout tk-keys
 # S.88 phase 2 (28 Oct 26): the memo's undo steps (D3) and the control-character scrub of $sl_put (S1); any sl_ program draws through $sl_put, so escdata, and the memo is every editor's text area
@@ -648,7 +649,7 @@ sdsys/gpl.bp/sl_tree         : screen sed-menu sed-edit syntax viewport sed-smal
 sdsys/gpl.bp/sl_mouse        : gpm realkeys screen viewport tk-keys ide ide-small tk-resize
 sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout spview
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps gates
-sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds tool-voc tool-dict ide-path ide-edit ide-fields dictform idebrk ide-resize memokeys
+sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds tool-voc tool-dict ide-path ide-edit ide-fields dictform idebrk ide-resize memokeys ide-tools
 # S.88 d2b (29 Oct 26): FORMAT's quiet mode, used by the IDE's Format command (named COMMON /fmtq/); the free check is test-fmtquiet-units.py
 sdsys/gpl.bp/fmtsub          : ide-edit
 # The editor merge, stage B (28 Oct 26): the IDE's record kinds and locks - messages 11684-11698 (11215 and 11226 changed too), and its suite
@@ -945,6 +946,8 @@ sdsys/messages/11980         : gates
 sdsys/messages/11981         : tool-entries              # 2 Nov 26: tool.entries refuses E N D C B for an account whose group this session does not hold (relog)
 sdsys/messages/11982         : gates                     # 2 Nov 26: set.sdsys's failed group lookup (was 10081)
 sdsys/messages/11976         : gates                     # 2 Nov 26: set.sdsys's register group that is not a valid name (was 10081)
+sdsys/messages/1158[6-9]     : tool-query tk-keys tk-base   # 3 Nov 26 (S.88 K7/K8): the finder's title, the context menu's last entry, F1's lines for F2 and Shift-F10
+sdsys/messages/1159[01]      : ide-tools ide ide-small   # 3 Nov 26 (S.75 DV10): the IDE's Tools menu and its "Back from" line
 sdsys/messages/*             : none
 sdsys/changelog              : none
 sdsys/licence*               : none

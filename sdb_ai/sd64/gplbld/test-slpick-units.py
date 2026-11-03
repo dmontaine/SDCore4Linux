@@ -13,6 +13,10 @@ $sl_pickwin, and is ADVISORY (owner's answer 25, 29 Oct): it runs nothing, it op
 entry is not disabled.  $sl_picker lists the files with the IDE's own filter, opens the chosen file for reading only, goes back to the files on Esc, and answers
 'new' on Ctrl-N with the typed text; it never writes.  The messages 11171-11175 exist and the programs cite no other new number.
 
+3 Nov 26 ("Extend the picker", owner 2 Nov): $sl_pickwin takes two more optional arguments, cols (headings and widths of the caller's columns, for a list in
+items, never with the paged source) and hotcur (the entry the cursor was on when a hot key ended the window: it only NAMES it); Q17 holds them, Q1/Q2/Q4/Q13
+follow the new signature, the hot.entry step and the list mode that moved into $sl_picker.
+
 ***IT READS SOURCE AS TEXT AND RUNS NOTHING***: that the windows draw and the keys do what is said is a sandbox suite's job (tk-widgets), not run yet.
 
 --selftest runs every check on the real files and then on a copy with one deliberate fault at a time: each must make a check fail.
@@ -108,21 +112,22 @@ def checks(raw):
     # ---- $sl_pickwin ----
     add("Q1", "$sl_pickwin: the two trailing arguments are optional (var.args); hot is read only when it was given; filtout is cleared before the phantom return and "
         "set from the filter after the window is put back; an 8-argument call is still valid",
-        "subroutine sl_pickwin(items, title, multi, default, ret, status, src, opts, hot, filtout) var.args" in pw
-        and "if not(unassigned(hot)) then hotl = hot" in pw and pw.count("unassigned(") == 1
-        and ordered(pw, "filtout = ''", "if system(25) then return")
+        "subroutine sl_pickwin(items, title, multi, default, ret, status, src, opts, hot, filtout, cols, hotcur) var.args" in pw
+        and "if not(unassigned(hot)) then hotl = hot" in pw and "if not(unassigned(cols)) then colv = cols" in pw and pw.count("unassigned(") == 2
+        and ordered(pw, "filtout = ''", "hotcur = ''", "if system(25) then return")
         and ordered(pw, "call $sl_region('restore'", "call $sl_scr('put', scr)", "if st = 'hot' then status = 2", "filtout = filt")
         and pw.count("filtout =") == 2, "")
     add("Q2", "$sl_pickwin: a hot key is tested after the mouse and the resize and before every other key, answers the key's name, ends the window as 'hot' and gives status 2; "
         "the loop ends on it",
-        ordered(pw, "case k = 'mouse'", "case k = 'resize'", "case hotl # '' and index(@vm : hotl : @vm, @vm : k : @vm, 1) > 0 ret = k st = 'hot' case k = 'esc'")
+        ordered(pw, "case k = 'mouse'", "case k = 'resize'", "case hotl # '' and index(@vm : hotl : @vm, @vm : k : @vm, 1) > 0 ret = k st = 'hot' gosub hot.entry case k = 'esc'")
         and "until st = 'done' or st = 'cancel' or st = 'hot'" in pw and pw.count("st = 'hot'") == 3 + 0 and "status = 2" in pw, "")
     if "tool_tktest" in raw:
         cnt = call_args(code["tool_tktest"], "call $sl_pickwin(")
         add("Q3", "the %d calls of $sl_pickwin in tool_tktest still give 8 arguments" % len(cnt), len(cnt) >= 4 and all(c == 8 for c in cnt), repr(cnt))
     pal_calls = call_args(code["sl_palette"], "call $sl_pickwin(")
     pick_calls = call_args(code["sl_picker"], "call $sl_pickwin(")
-    add("Q4", "the palette gives $sl_pickwin 8 arguments and the picker 8 (stage 1) and 10 (stage 2, with the hot key and the filter text)", pal_calls == [8] and pick_calls == [8, 10], "%r %r" % (pal_calls, pick_calls))
+    add("Q4", "the palette gives $sl_pickwin 8 arguments and the picker 8 (stage 1), 10 (stage 2, with the hot key and the filter text) and 12 (the list mode, with the columns and the entry under the cursor)",
+        pal_calls == [8] and pick_calls == [8, 10, 12], "%r %r" % (pal_calls, pick_calls))
 
     # ---- $sl_palette ----
     add("Q5", "$sl_palette: internal, catalogued under its own name, a session with no terminal returns at once with status 1 and nothing chosen, and the first thing it does "
@@ -163,7 +168,17 @@ def checks(raw):
         "(and ends the picker in mode 'record'); Esc in the files cancels; mode 'file' stops after the file",
         ordered(pk, "case ps = 0 id = pr res = 'ok' return", "case ps = 2 newtext = typed res = 'new' return", "case mode = 'record' return", "case 1 stage = 1")
         and "if ps # 0 then return file = fl<pr, 1>" in pk and "if mode = 'file' then res = 'ok' return end stage = 2" in pk and "if mode = 'record' then stage = 2" in pk
-        and pk.count("res = 'ok'") == 2 and pk.count("res = 'new'") == 1 and "if fl = '' then return" in pk, "")
+        and pk.count("res = 'ok'") == 3 and pk.count("res = 'new'") == 1 and "if fl = '' then return" in pk, "")      # 3: the file, the record, and the list mode (3 Nov 26)
+    # 3 Nov 26 ("Extend the picker"): the caller's columns and the entry a hot key ended on
+    add("Q17", "$sl_pickwin's columns are the caller's for a list only (never with the paged source), at most PW.MAXCOL besides the name, each width a number from 1 to 80 (12 when it is "
+        "not one); the heading row is drawn only with columns; the filter matches every column; a hot key names the entry the cursor was on (its number, with src its id; 0 when none "
+        "is shown) and changes nothing",
+        ordered(pw, "col.setup: ncol = 0", "hdr = 0 if colv = '' or fmode then return", "if ncol > PW.MAXCOL + 1 then ncol = PW.MAXCOL + 1", "if not(num(w)) or w = '' then w = 12",
+                "if w < 1 then w = 1 if w > 80 then w = 80", "if ncol > 0 then hdr = 1 return")
+        and "equate PW.MAXCOL to 6" in pw and "if hdr then call $sl_attr('header', hc)" in pw
+        and "convert(@sm, ' ', items<i, 2>)), uf, 1) then vis<1, -1> = i" in pw
+        and ordered(pw, "hot.entry: hotcur = 0 if cur >= 1 and cur <= nvis then i = cur gosub orig hotcur = oi if fmode then hotcur = items<oi, 1> end return")
+        and pw.count("gosub hot.entry") == 1, "")
 
     # ---- messages ----
     miss = [m for m in MSGS if ("msg%d" % m) not in raw]
@@ -247,6 +262,12 @@ MUT = [
     ("sl_picker", "mode file goes on to the records", "         if mode = 'file' then", "         if 0 then"),
     ("sl_picker", "the typed text is not handed on", "               newtext = typed", "               newtext = ''"),
     ("msg11175", "the reason message is empty", "That action is not available now.", ""),
+    # 3 Nov 26 ("Extend the picker")
+    ("sl_pickwin", "the columns are used with the paged source", "   if colv = '' or fmode then return\n", "   if colv = '' then return\n"),
+    ("sl_pickwin", "the number of columns has no bound", "   if ncol > PW.MAXCOL + 1 then ncol = PW.MAXCOL + 1\n", ""),
+    ("sl_pickwin", "the filter does not see the columns", "convert(@sm, ' ', items<i, 2>)), uf, 1)", "items<i, 2>), uf, 1)"),
+    ("sl_pickwin", "a hot key names no entry", "            gosub hot.entry\n", ""),
+    ("sl_pickwin", "a hot key names an entry when none is shown", "   if cur >= 1 and cur <= nvis then\n      i = cur\n      gosub orig\n      hotcur = oi", "   if 1 then\n      i = cur\n      gosub orig\n      hotcur = oi"),
 ]
 
 

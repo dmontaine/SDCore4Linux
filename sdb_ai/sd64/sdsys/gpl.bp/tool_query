@@ -20,6 +20,10 @@
 *               are each asked on the toolkit's form ($tk_form) through one routine, ask.form, with the explanation in the form; an answer the page refuses is said IN the form, which
 *               stays with the text typed so it can be put right (Esc leaves it as before), where it used to close and say so on the status line.  The checks are the same routines
 *               (q.value, check.sample, check.sentence, check.name), asked by one place, af.check.  The saved queries stay the page's own list (L).
+* 3 Nov 26 dm  The picker extended (owner, 2 Nov: "Extend the picker"): L shows the saved queries in the toolkit's pick window ($tk_pickrec 'list' with the columns file, report
+*              and sentence; typing narrows it) in place of the page's own Saved queries view; Enter loads as before, Del returns to the page, which asks its own box with the
+*              name typed (Cancel the default) and deletes only on that name.  The list is the one read.saved makes, with check.name on every id, as before.  The Saved view,
+*              its keys (Enter, X, Esc) and its menu are gone; after a load, a refusal or a delete the page is shown with what happened on the status line.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -32,8 +36,8 @@
 *   and footing; leave out the record id or the detail lines; no pause between screens; only the first n records).  Tab moves between the boxes.
 *
 *   THE SENTENCE is always on the screen, in a box of its own.  R runs it and shows what it printed in a box of its own (the output goes nowhere else; 2000 lines are kept, and the box says
-*   how many there were); E edits it as text; S saves the query in the file &QUERIES& of the account (made when the first query is saved, after a box that shows the command); L lists the
-*   saved queries, loads one, or deletes one (X, with its name typed).  The page changes nothing but that one file.
+*   how many there were); E edits it as text; S saves the query in the file &QUERIES& of the account (made when the first query is saved, after a box that shows the command); L shows the
+*   saved queries in the pick window (typing narrows it), Enter loads one, Del deletes one (with its name typed).  The page changes nothing but that one file.
 *
 *   INJECTION SAFETY is the core of the page.  A sentence it runs is made of: a first word that is one of LIST, SORT, COUNT or SUM; the chosen file's name; words from a fixed list (with and or
 *   by by.dsnd break.on total id.sup det.sup heading footing no.page sample and a few more); operators from a fixed list; the item names of the file's dictionary; numbers; and values in
@@ -78,7 +82,7 @@ $include tk.h
    pane.names = 'File' : @fm : 'Columns' : @fm : 'Conditions' : @fm : 'Sort' : @fm : 'Options'
    qsent = 'create.file &queries& dynamic'                       ;* the one command the page runs besides the query itself; $tk_run refuses the ampersands, so it is run here, after its box
 
-   VISF = 16 ; VISC = 16 ; RVIS = 33 ; SVIS = 32                 ;* rows of files, of columns, of results and of saved queries on the screen (set from the panes by get.rects)
+   VISF = 16 ; VISC = 16 ; RVIS = 33                             ;* rows of files, of columns and of results on the screen (set from the panes by get.rects)
    perr = '' ; lay.view = ''
    MAXCOND = 6 ; MAXSORT = 4 ; MAXC = 20 ; MAXSENT = 600 ; MAXVAL = 200 ; MAXLINES = 2000 ; MAXSAVED = 100 ; MAXITEMS = 500
 
@@ -121,11 +125,9 @@ $include tk.h
    call $tk_keys('add', keys, 'f5', 'read', 'reread', panes, 1)
    call $tk_keys('add', keys, 'up', 'scroll', 'scroll', 'Results', 1)
    call $tk_keys('add', keys, 'r', 'again', 'again', 'Results', 1)
-   call $tk_keys('add', keys, 'esc', 'back', 'back', 'Results' : @sm : 'Saved', 1)
-   call $tk_keys('add', keys, 'enter', 'load', 'loadsel', 'Saved', 1)
-   call $tk_keys('add', keys, 'x', 'delete', 'delsel', 'Saved', 1)
+   call $tk_keys('add', keys, 'esc', 'back', 'back', 'Results', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
-   call $tk_keys('add', keys, 'esc', 'menu', 'menu', panes, 1)             ;* S.88 U6: in the editing panes Esc takes the name filter off first, else opens the menu bar (in Results and Saved it is 'back')
+   call $tk_keys('add', keys, 'esc', 'menu', 'menu', panes, 1)             ;* S.88 U6: in the editing panes Esc takes the name filter off first, else opens the menu bar (in Results it is 'back')
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
    call $tk_keys('menu', keys, 'choose', '&Query', '&Choose the file', '', '')
    call $tk_keys('menu', keys, 'run', '&Query', '&Run the query', '', '')
@@ -146,8 +148,6 @@ $include tk.h
    call $tk_keys('menu', keys, 'option', '&Options', '&Change the option', '', '')
    call $tk_keys('menu', keys, 'back', '&Results', '&Back to the query', '', '')
    call $tk_keys('menu', keys, 'again', '&Results', 'Run &again', '', '')
-   call $tk_keys('menu', keys, 'loadsel', 'Sa&ved', '&Load it', '', '')
-   call $tk_keys('menu', keys, 'delsel', 'Sa&ved', '&Delete it', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
    * S.97 stage 2: the AI line.  The page offers the AI only the actions that change what is shown - the file filter and reading the files again (the owner: opt-in, off by
    * default; running, saving, loading and editing the query are not offered); a proposal is carried out by the page's own key.  Where the AI is not usable for the account
@@ -166,7 +166,7 @@ $include tk.h
    focus = 1
    view = 'build'
    rl = '' ; rl.cnt = 0 ; rl.n = 0 ; rl.sent = '' ; rl.note = '' ; rtop = 0 ; rx = 0
-   sv.ids = '' ; sv.info = '' ; nsv = 0 ; svc = 1 ; svt = 0 ; sv.note = ''
+   sv.ids = '' ; sv.info = '' ; nsv = 0 ; svc = 1 ; sv.note = ''
    gen = 0
    done = 0
    dropped = 0 ; dict.ok = 0
@@ -204,7 +204,7 @@ $include tk.h
       if ao<1> = 'replay' then nm = ao<2>                                            ;* an action the AI proposed and the person accepted: this page's own key for it
       if ao<1> # '' then msg = ao<4>
       busy = (if cur.pane = 'File' and filt # '' then 1 else 0)
-      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, cur.pane, nm, busy, mr)       ;* the Esc rule: the file filter (it belongs to the File pane alone, the only pane with an Esc case for it) is taken off before the bar opens (Results and Saved have their own 'back')
+      if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, cur.pane, nm, busy, mr)       ;* the Esc rule: the file filter (it belongs to the File pane alone, the only pane with an Esc case for it) is taken off before the bar opens (Results has its own 'back')
       if mr<1> # '' then nm = mr<4>
       begin case
          case ao<1> = 'taken'
@@ -252,8 +252,6 @@ set.pane:
    begin case
       case view = 'results'
          cur.pane = 'Results'
-      case view = 'saved'
-         cur.pane = 'Saved'
       case 1
          cur.pane = pane.names<focus>
    end case
@@ -641,8 +639,8 @@ changed:
 * The layout (S.88 L2).  Two declarations, one for each kind of view, in the sizes of the reference layout (140 by 43, the body 138 by 39); the layout service holds the one the view needs:
 *   build    band 1: File (28 wide), Columns (44) and Conditions (the rest), 19 rows, all three stretch in height, Conditions in width;
 *            band 2: Sort (46 wide, fixed) and Options (the rest), 11 rows, fixed in height; band 3: The sentence, 9 rows.  A taller window gives every row to band 1.
-*   whole    the Results and the Saved queries boxes: one pane, the whole body.
-* Out: fb.* (File), cb.* (Columns), nb.* (Conditions), sb.* (Sort), ob.* (Options), tb.* (The sentence) or wb.* (whole), each x y w h; VISF VISC RVIS SVIS.
+*   whole    the Results box: one pane, the whole body (the saved queries are the toolkit's pick window since 3 Nov 26, no view of the page's).
+* Out: fb.* (File), cb.* (Columns), nb.* (Conditions), sb.* (Sort), ob.* (Options), tb.* (The sentence) or wb.* (whole), each x y w h; VISF VISC RVIS.
 declare.layout:
    lay.view = want.view
    dcl = ''
@@ -656,7 +654,7 @@ declare.layout:
    end else
       dcl<1> = 'whole' : @vm : 1 : @vm : 1 : @vm : 39 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 : @vm : 'stretch' : @vm : 1
    end
-   * S.99: the boxes that take the focus, for $tk_frame's [*] / [-]; the whole view (Results, Saved) has one box and so no marks
+   * S.99: the boxes that take the focus, for $tk_frame's [*] / [-]; the whole view (Results) has one box and so no marks
    ctx<TK.C.FOCI> = 'files' : @sm : 'File' : @vm : 'columns' : @sm : 'Columns' : @vm : 'conds' : @sm : 'Conditions' : @vm : 'sorts' : @sm : 'Sort' : @vm : 'options' : @sm : 'Options'
    call $tk_layout('declare', ctx, dcl, perr)
    gosub get.rects
@@ -682,7 +680,6 @@ get.rects:
       call $tk_layout('pane', ctx, 'whole', rc)
       wb.x = rc<1, 1> ; wb.y = rc<1, 2> ; wb.w = rc<1, 3> ; wb.h = rc<1, 4>
       RVIS = wb.h - 6                                            ;* the border, the three lines of the sentence, the header row and the border: 33 of 39
-      SVIS = wb.h - 7                                            ;* the header row, a blank row, the three lines at the foot and the borders: 32 of 39
    end
    return
 
@@ -700,8 +697,6 @@ clamp.tops:
    if ct < 0 then ct = 0
    if rtop > rl.cnt - RVIS then rtop = rl.cnt - RVIS
    if rtop < 0 then rtop = 0
-   if svt > nsv - SVIS then svt = nsv - SVIS
-   if svt < 0 then svt = 0
    return
 
 * In: nt.par, the paragraphs of a note (one to a field), nt.ref, the same note in the lines it has always been broken into for the reference width; nt.w the width of the box.
@@ -725,8 +720,6 @@ draw.all:
    begin case
       case view = 'results'
          gosub draw.results
-      case view = 'saved'
-         gosub draw.saved
       case 1
          gosub draw.build
    end case
@@ -940,31 +933,6 @@ draw.results:
    call $tk_help('mark', hx, hy, 0, 0)
    return
 
-draw.saved:
-   tw = wb.w - 4
-   screen box at wb.x,wb.y size wb.w,wb.h title 'Saved queries'
-   screen text fmt('Name', '30L') : fmt('File', '26L') : fmt('Report', '8L') : 'The sentence when it was saved' at wb.x + 2,wb.y + 1 attr 'header' width tw - 6
-   if svc <= svt then svt = svc - 1
-   if svc > svt + SVIS then svt = svc - SVIS
-   if svt < 0 then svt = 0
-   for dr = 1 to SVIS
-      kk = svt + dr
-      s = ''
-      if kk <= nsv then
-         s = fmt(sv.ids<kk>, '30L') : fmt(sv.info<kk, 1>, '26L') : fmt(sv.info<kk, 2>, '8L') : sv.info<kk, 3>
-      end
-      ra.cur = (if kk = svc and kk <= nsv then 1 else 0)
-      ra.foc = 1
-      ra.dim = 0
-      gosub row.attr
-      screen text fmt(s, tw : 'L') at wb.x + 2,wb.y + 1 + dr attr ra width tw
-   next dr
-   screen text fmt(sv.note, tw : 'L') at wb.x + 2,wb.y + wb.h - 4 attr 'bold' width tw
-   screen text fmt('Enter loads the query under the cursor.  X deletes it (its name is typed first).  Esc goes back to the boxes.', tw : 'L') at wb.x + 2,wb.y + wb.h - 3 width tw
-   screen text fmt('The file is &queries& in your account.  Only this page and the commands you type write to it.', tw : 'L') at wb.x + 2,wb.y + wb.h - 2 attr 'disabled' width tw
-   hx = wb.x + wb.w - 7 ; hy = wb.y + 1
-   call $tk_help('mark', hx, hy, 0, 0)
-   return
 
 * ------------------------------------------------------------------------------------------------- keys and mouse
 
@@ -989,8 +957,6 @@ on.key:
    begin case
       case view = 'results'
          gosub keys.results
-      case view = 'saved'
-         gosub keys.saved
       case 1
          gosub keys.build
    end case
@@ -1184,31 +1150,6 @@ keys.results:
    end case
    return
 
-keys.saved:
-   begin case
-      case nm = 'esc'
-         view = 'build'
-      case nm = 'up'
-         if svc > 1 then svc -= 1
-      case nm = 'down'
-         if svc < nsv then svc += 1
-      case nm = 'pgup'
-         svc -= SVIS
-         if svc < 1 then svc = 1
-      case nm = 'pgdn'
-         svc += SVIS
-         if svc > nsv then svc = nsv
-      case nm = 'home'
-         svc = 1
-      case nm = 'end'
-         if nsv > 0 then svc = nsv
-      case nm = 'enter'
-         gosub load.selected
-      case nm = 'x'
-         gosub delete.selected
-   end case
-   return
-
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
@@ -1233,12 +1174,6 @@ on.mouse:
    if mev<1> # 'press' or mev<2> # 1 then return
    mx = mev<3>
    my = mev<4>
-   if view = 'saved' then
-      if mx >= wb.x + 2 and mx <= wb.x + wb.w - 3 and my >= wb.y + 2 and my <= wb.y + 1 + SVIS then
-         if svt + my - (wb.y + 1) <= nsv then svc = svt + my - (wb.y + 1)
-      end
-      return
-   end
    if view # 'build' then return
    begin case
       case mx >= fb.x and mx <= fb.x + fb.w - 1 and my >= fb.y and my <= fb.y + fb.h - 1
@@ -1607,15 +1542,39 @@ strip.esc:
 
 * ------------------------------------------------------------------------------------------------- saved queries: the file &queries& of the account, and nothing else
 
-* L: the saved queries (up to 100, in name order)
+* L: the saved queries (up to 100, in name order) in the toolkit's pick window (3 Nov 26, "Extend the picker"): the columns file, report and the sentence when it was saved; typing
+* narrows the list.  Enter loads the query (load.selected, every part checked as before); Del names one for delete.selected, which asks its own box with the name typed.  THE WINDOW
+* CHANGES NOTHING.  After either, or Esc, the page is shown again with what happened on the status line (L opens the list again).
 do.list.saved:
    gosub read.saved
-   if sv.have = 0 then
+   if sv.have = 0 or nsv = 0 then
       msg = 'no query has been saved yet: S saves the one on the screen'
+      if sv.note # '' then msg = trim(sv.note)
       return
    end
-   svc = 1 ; svt = 0
-   view = 'saved'
+   pk.items = ''
+   for rq = 1 to nsv
+      pk.items<rq, 1> = sv.ids<rq>
+      pk.items<rq, 2> = sv.info<rq, 1> : @sm : sv.info<rq, 2> : @sm : sv.info<rq, 3>
+      pk.items<rq, 3> = sv.info<rq, 3>
+   next rq
+   pk.mode = 'list'
+   pk.mode<2> = 'Name' : @vm : 'File' : @vm : 'Report' : @vm : 'The sentence when it was saved'
+   pk.mode<3> = 30 : @vm : 26 : @vm : 8 : @vm : 70
+   pk.mode<4> = 'delete'
+   pk.id = 'Saved queries: Enter loads, Del deletes'
+   pk.start = 1
+   call $tk_pickrec(ctx, pk.mode, pk.items, pk.id, pk.res, pk.start)
+   begin case
+      case pk.res = 'ok' and pk.id >= 1 and pk.id <= nsv
+         svc = pk.id
+         gosub load.selected
+      case pk.res = 'delete' and pk.id >= 1 and pk.id <= nsv
+         svc = pk.id
+         gosub delete.selected
+      case 1
+         if sv.note # '' then msg = trim(sv.note)
+   end case
    return
 
 read.saved:
@@ -1991,7 +1950,7 @@ check.delete:
    end
    return
 
-* X in the list: the record is deleted from &queries& after a box, with its name typed
+* Del in the list (the pick window): the record is deleted from &queries& after a box, with its name typed
 delete.selected:
    if nsv < 1 then return
    lname = sv.ids<svc>
@@ -2018,11 +1977,7 @@ delete.selected:
    delok = @true
    delete qf, lname on error delok = @false
    close qf
-   gosub read.saved
-   if svc > nsv then svc = nsv
-   if svc < 1 then svc = 1
    msg = (if delok then 'deleted ' : lname else 'could not delete ' : lname)
-   if nsv = 0 then view = 'build'
    return
 
 end

@@ -7,7 +7,7 @@
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.
 
 WHAT IT HOLDS.  The document's rows parse and carry one of the four tags; a PLANNED row names a marker that does NOT occur in the code of sdsys/gpl.bp (so the row
-must move to BUILT in the commit that builds it); a BUILT row names a check that exists; the document cites no private path.  Against the tree: the 140 by 43 floor
+must move to BUILT in the commit that builds it; since 3 Nov 26, when K7 and K8 were built, the document may have no PLANNED row at all); a BUILT row names a check that exists; the document cites no private path.  Against the tree: the 140 by 43 floor
 (tk.h, the IDE) and the 140 by 42 default of a session with no answer (gplsrc/tio.h) are what the document says; the page table is exactly the tool_* programs, with
 their audience; every page on the common rules opens and draws through the toolkit, has the toolkit's menu bar (draw, key and click once each, drawn before the
 frame), F1 help, Ctrl-Q, and F6 to the AI line; no page builds a SCREEN MENUBAR of its own and none binds F10 or F11, except the test app; every page that runs a
@@ -34,7 +34,7 @@ MSG = os.path.join(SD64, "sdsys", "messages")
 DOC = os.path.join(SD64, "tui-design.md")
 TAGS = ("BUILT", "PLANNED", "DROPPED", "EXCEPTION", "OPEN")   # OPEN (2 Nov 26 review): put to the owner, not decided - F2's 140x42 default was wrongly called his ruling
 EXEMPT = {"tool_keys": "E1", "tool_tktest": "E2", "tool_home": "E6"}
-IDE_MENUS = (11225, 11226, 11227, 11228, 11229, 11230, 11654)
+IDE_MENUS = (11225, 11226, 11227, 11228, 11229, 11230, 11654, 11590)      # 11590: the Tools menu (S.75 DV10, 3 Nov 26)
 PRIVATE = (".claude", "/home/", "PROJECT_STATUS", "Opus_TUI", "pCloud", "sdcore-mail")
 
 
@@ -130,7 +130,7 @@ def checks(s):
             pbad.append("%s names no marker" % r[0])
         elif m.group(1) in s["code"]:
             pbad.append("%s: the marker %s is in the code now - the row must move to BUILT" % (r[0], m.group(1)))
-    ck("D1 every PLANNED row names a marker, and no marker occurs in the code of sdsys/gpl.bp (comments left out)", planned and not pbad, "; ".join(pbad))
+    ck("D1 every PLANNED row names a marker, and no marker occurs in the code of sdsys/gpl.bp (comments left out)", not pbad, "; ".join(pbad))      # 3 Nov 26: none may be left (K7, K8 built)
     ebad = []
     for r in rr:
         if r[2] == "BUILT":
@@ -226,8 +226,9 @@ def checks(s):
     ck("T9 the exceptions are the document's section 7 and the page table's Rules column alike, every other page is 'all', and each exception still holds (an exempt page that gains the rule fails)",
        not xbad, "; ".join(xbad))
     titles = [s["msg:%d" % n].split("|")[0].replace("&", "").strip() for n in IDE_MENUS]
-    ck("T10 the IDE's menus (messages 11225-11230, 11654) are File Go Search Build View Help and AI, with no Edit menu, as E5 says (AI is put before Help)",
-       titles == ["File", "Go", "Search", "Build", "View", "Help", "AI"] and "File, Go, Search, Build, View, AI, Help (there is no Edit menu)" in doc, repr(titles))
+    ck("T10 the IDE's menus (messages 11225-11230, 11654, 11590) are File Go Search Build View Help, AI and Tools, with no Edit menu, as E5 says (Tools and AI are put before Help)",
+       titles == ["File", "Go", "Search", "Build", "View", "Help", "AI", "Tools"] and "File, Go, Search, Build, View, Tools, AI, Help (there is no Edit menu)" in doc
+       and "if j = 11230 then\n         m = change(sysmsg(11590), '|', @vm)" in s["ide"], repr(titles))
     codes = re.search(r"\$define SL\.CODES\s+'([^']+)'", s["sl.h"])
     ck("T11 the theme: SL.CODES holds the role letters f U V W X Y, the shipped sd.conf says SCREENTHEME=blue, and the document says the same (T1, T2)",
        codes and all(c in codes.group(1) for c in "fUVWXY") and re.search(r"^SCREENTHEME=blue\s*$", s["sd.conf"], re.M)
@@ -238,11 +239,14 @@ def checks(s):
 M_P7A = 0
 MUTANTS = [
     # (what, the text to change, old, new, the check that must go red)
-    ("a row with no tag", "doc", "| BUILT | test-focusmarks-units.py |", "| DONE | test-focusmarks-units.py |", "D0"),
-    ("a PLANNED feature is built and the row is not moved", "pages:tool_voc", "   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)\n",
-     "   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)\n   call $tk_keys('add', keys, 'f2', 'find', 'palette', '', 1)\n", "D1"),
-    ("a PLANNED row names no marker", "doc", "| PLANNED | marker: `'palette'` |", "| PLANNED | the palette |", "D1"),
-    ("a BUILT row cites a check that does not exist", "doc", "| BUILT | test-focusmarks-units.py |", "| BUILT | test-focusmarkers-units.py |", "D2"),
+    ("a row with no tag", "doc", "| BUILT | test-tk-keys-units.py |", "| DONE | test-tk-keys-units.py |", "D0"),      # 3 Nov 26: F6's evidence grew, K1's row is the anchor
+    # 3 Nov 26: K7 and K8 are BUILT, so no PLANNED row is left to break; a planned row is ADDED whose feature is already in the code ('palette' is, in $tk_menubar), or with no marker
+    ("a PLANNED feature is built and the row is not moved", "doc", "| K9 | F11 is bound by no page.",
+     "| K10 | A palette of every action. | PLANNED | marker: `'palette'` |\n| K9 | F11 is bound by no page.", "D1"),
+    ("a PLANNED row names no marker", "doc", "| K9 | F11 is bound by no page.", "| K10 | A palette of every action. | PLANNED | the palette |\n| K9 | F11 is bound by no page.", "D1"),
+    ("K7 goes back to PLANNED while the finder is built", "doc", "with its key, typing narrows the list, Enter chooses. It answers exactly as the bar does (the action's key, replayed through the page's own case); an entry that cannot be used now says why in a box and is never answered. No page binds F2 (a page that did would win in its pane). | BUILT | test-tk-keys-units.py (finder, reserved), sandbox-tool-query.py q14 |",
+     "with its key, typing narrows the list, Enter chooses. | PLANNED | marker: `$sl_palette(menus` |", "D1"),
+    ("a BUILT row cites a check that does not exist", "doc", "| BUILT | test-tk-keys-units.py |", "| BUILT | test-tk-keyz-units.py |", "D2"),
     ("the document cites a private path", "doc", "Written 2 Nov 2026 (S.88 step p7A)", "Written 2 Nov 2026 (S.88 step p7A, .claude/plan-tui-opus.txt)", "D3"),
     ("the floor becomes 42 rows", "tk.h", "$define TK.MINH        43", "$define TK.MINH        42", "T1"),
     ("the document says the default depth is 42 again", "doc", "`DEFAULT_WIDTH 140`, `DEFAULT_DEPTH 43`", "`DEFAULT_WIDTH 140`, `DEFAULT_DEPTH 42`", "T8"),

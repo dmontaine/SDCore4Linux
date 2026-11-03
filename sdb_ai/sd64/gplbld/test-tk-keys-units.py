@@ -41,17 +41,18 @@ MSG = os.path.join(SDSYS, "messages")
 # (map.keys and the case c = lines) acts on them, and test-spview-units.py V12 holds that the row and the loop name the same keys.  It is no page: Q quits after asking, as it always has.
 FOOT_ONLY = ("dict_form", "tk_aipage", "debug", "spview")
 EXPECT_PROGRAMS = 29          # - tool_masters (S.96 M6, 2 Nov 26: the master-file copies are retired); + spview (S.99, 2 Nov 26); + tool_entries (S.96 M1a, 3 Nov 26); tool_jobs (S.102 stage 1, 2 Nov 26)
-EXPECT_ADD_ROWS = 322         # 2 Nov 26, S.106: tool_remote lost R and L (the recovery codes and the console code), 324 - 2.  Before that: 318 +tool_home's six (S.88 U9, 2 Nov 26: Backspace, Ctrl-T, Ctrl-W, /, Ctrl-R, F6 and Ctrl-K added, the F10 row gone, so that every menu entry has a key); 317 + mymenu's F1 row (S.88 U4, 2 Nov 26); 324 - tool_masters' 7 rows (S.96 M6, 2 Nov 26); 318 + tool_jobs' J, A, N, C, D and R rows (S.102 stage 4, 2 Nov 26); 309 + the nine foot rows of spview (S.99, 2 Nov 26); 308 +tool_remote's L row (S.101 stage D, 2 Nov 26, local branch s101-ab); 307 + tool_entries' B row (S.96 M5, 2 Nov 26); 306 + tool_entries' C row (S.96 M4, 2 Nov 26); 305 + tool_entries' D row (S.96 M3, 2 Nov 26); 303 + tool_entries' E and N rows (S.96 M2, 3 Nov 26); 302 + tool_entries' K row (S.96 M1b, 3 Nov 26); 294 + tool_entries' eight rows (S.96 M1a, 3 Nov 26); 287 + tool_jobs' seven rows (S.102 stage 1, 2 Nov 26); 286 + the IDE's Shift-F7 row (S.98 H2, 2 Nov 26); 277 + the nine foot rows of debug (S.98 H1, 1 Nov 26); 266 + the 4 foot rows of dict_form, 1 Nov 26, + tk_aipage's F6 row; + tool_remote's 6, O, R, F rows (S.95 stage 1b, 1 Nov 26); + tool_gates' A and N (all on, all off, 1 Nov 26)
+EXPECT_ADD_ROWS = 321         # 3 Nov 26: tool_test's Tab row (S.88 "Tab panes") + 1, tool_query's Saved-view rows Enter and X - 2 ("Extend the picker"): 322 + 1 - 2.  2 Nov 26, S.106: tool_remote lost R and L (the recovery codes and the console code), 324 - 2.  Before that: 318 +tool_home's six (S.88 U9, 2 Nov 26: Backspace, Ctrl-T, Ctrl-W, /, Ctrl-R, F6 and Ctrl-K added, the F10 row gone, so that every menu entry has a key); 317 + mymenu's F1 row (S.88 U4, 2 Nov 26); 324 - tool_masters' 7 rows (S.96 M6, 2 Nov 26); 318 + tool_jobs' J, A, N, C, D and R rows (S.102 stage 4, 2 Nov 26); 309 + the nine foot rows of spview (S.99, 2 Nov 26); 308 +tool_remote's L row (S.101 stage D, 2 Nov 26, local branch s101-ab); 307 + tool_entries' B row (S.96 M5, 2 Nov 26); 306 + tool_entries' C row (S.96 M4, 2 Nov 26); 305 + tool_entries' D row (S.96 M3, 2 Nov 26); 303 + tool_entries' E and N rows (S.96 M2, 3 Nov 26); 302 + tool_entries' K row (S.96 M1b, 3 Nov 26); 294 + tool_entries' eight rows (S.96 M1a, 3 Nov 26); 287 + tool_jobs' seven rows (S.102 stage 1, 2 Nov 26); 286 + the IDE's Shift-F7 row (S.98 H2, 2 Nov 26); 277 + the nine foot rows of debug (S.98 H1, 1 Nov 26); 266 + the 4 foot rows of dict_form, 1 Nov 26, + tk_aipage's F6 row; + tool_remote's 6, O, R, F rows (S.95 stage 1b, 1 Nov 26); + tool_gates' A and N (all on, all off, 1 Nov 26)
 # earlier counts: (266 with the IDE's eight rows of the pane "fields", 31 Oct 26; 256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 258 with tool_test's Ctrl-O row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
 # an action that has two keys on purpose (the second is for a terminal that keeps the first for itself)
 # 2 Nov 26 (S.88 U9): the home screen goes back one sub-menu page on Esc (a row only on a sub-menu page: on the top page Esc is the bar's) and on Backspace (off the key row)
 TWO_KEYS = {("tool_home", "back"): {"esc", "bs"}}
-RESERVED = ("f2", "f6", "f10", "f11")
+RESERVED = ("f2", "f6", "f10", "f11", "shift-f10")
 # the action a reserved key may stand for (plan 5.2 / K8: F2 find an action, F6 the next pane, F10 the menu is NOT a page key, F11 gone)
 # 1 Nov 26 (the owner accepted Opus's review): F6 is the AI line on every page - "ai"; the IDE keeps F6 as its next pane until its panes are decided (S.99)
-RESERVED_OK = {"f2": {"palette", "find"}, "f6": {"nextpane", "ai"}}
+# 3 Nov 26 (S.88 K7/K8 built): F2 and Shift-F10 are answered by the bar itself ($tk_menubar: the finder and the context menu), so no page binds them (an F2 row of a page would win)
+RESERVED_OK = {"f6": {"nextpane", "ai"}}
 MYMENU_MOVED = ("f2", "f3", "f4", "f6")
 
 LEDGER = {
@@ -83,7 +84,7 @@ LEDGER = {
     },
 }
 
-IDE_MENU_MESSAGES = (11225, 11226, 11227, 11228, 11229, 11230, 11654)
+IDE_MENU_MESSAGES = (11225, 11226, 11227, 11228, 11229, 11230, 11654, 11590)      # 11590: the Tools menu (S.75 DV10, 3 Nov 26)
 
 
 # ---------------------------------------------------------------------------------------------------------------------- reading
@@ -420,7 +421,7 @@ A_TEXT = {
     "quitkey": "quit is Ctrl-Q and nothing else is, in every page",
     "helpkey": "help is F1 and nothing else is, in every page",
     "handler": "every key a page registers is acted on in that page's source (an act = 'x' case or the key's literal in a case)",
-    "reserved": "the keys the plan reserves (F2 find an action, F6 next pane, F10, F11) are bound only to those actions - the rest is the ledger",
+    "reserved": "the keys the plan reserves (F2 and Shift-F10, the bar's finder and context menu; F6 next pane or the AI line; F10; F11) are bound by no page except as allowed - the rest is the ledger",
     "mnemonic": "the IDE's menus: one & in every entry, no letter twice in a menu or among the titles - the rest is the ledger",
 }
 
@@ -629,6 +630,28 @@ def run_b(raw):
                        ("the bar is drawn on row 0", "screen menubar menus row 0 draw else null")):
         if text not in appn:
             res["pilot"].append("tool_tktest lacks: " + what)
+    # 3 Nov 26 (S.88 K7/K8): the finder (F2) and the context menu (Shift-F10, a right press) are the bar's, made from the same menus, and answer as the bar does: the action's KEY, which the
+    # page replays through its own case.  A disabled entry is never answered, the context menu lists only what the pane uses, and the page's own binding of the key wins.
+    res["finder"] = []
+    mb = norm(strip_bas(raw.get("tk_menubar", "")))
+    for what, text in (("F2 is the finder", "case nm = 'f2' start = -1"), ("Shift-F10 is the context menu", "case nm = 'shift-f10' start = -2"),
+                       ("the page's own binding of the key wins", "if start # 0 then call $tk_keys('action', keys, nm, pane, pa, '', '') if pa # '' and pa # 'menu' then start = 0 end"),
+                       ("a right press opens the context menu at the pointer", "case op = 'click' and a<1> = 'press' and a<2> = 3 cx = a<3> + 0 ; cy = a<4> + 0 gosub run.context"),
+                       ("the finder lists the bar's own menus", "call $sl_palette(menus, sysmsg(11586), pr, ps, pw)"),
+                       ("a disabled entry is answered with its reason and nothing chosen", "case ps = 2 screen msgbox pw returning bn else bn = 0 gosub no.answer"),
+                       ("an answer is the action's key, as the bar's", "answer.act: call $tk_keys('keyof', keys, pr, pane, kn, '', '') c = 'act' : @fm : pr : @fm : kn : @fm : (if kn = '' then 'act:' : pr else kn)"),
+                       ("the context menu leaves out File and Help", "if tt = 'File' or tt = 'Help' or tt[1, 1] = '>' then continue"),
+                       ("the context menu lists only what the pane uses, with the bar's flags", "gosub pane.uses if uses then citems<1, -1> = menus<k, v, 1> : @sm : menus<k, v, 2> : @sm : fa : @sm : menus<k, v, 4>"),
+                       ("the pane test is the key table's", "if pl = '' or index(@sm : pl : @sm, @sm : pane : @sm, 1) then"),
+                       ("the context menu ends with the finder, under a code that is not a submenu's (>)", "citems<1, -1> = sysmsg(11587) : @sm : 'F2' : @sm : 'tk:palette'")):
+        if text not in mb:
+            res["finder"].append("tk_menubar lacks: " + what)
+    mbq = re.sub(r"'[^']*'", "''", mb)          # the op names ('open', 'draw' ...) are quoted texts, not statements
+    for w in ("execute", "perform", "chain", "write", "delete", "open", "@sentence", "kernel("):
+        if re.search(r"\b%s\b" % re.escape(w) if w[0].isalpha() and w[-1].isalpha() else re.escape(w), mbq):
+            res["finder"].append("tk_menubar contains '%s': the bar, the finder and the context menu run nothing" % w)
+    if mb.count("gosub answer.act") != 2:
+        res["finder"].append("the finder and the context menu answer through answer.act (twice), found %d" % mb.count("gosub answer.act"))
     return res
 
 
@@ -646,6 +669,7 @@ B_TEXT = {
     "samehandler": "OWNER ANSWER 25: in a page that puts actions in a menu, every such action has exactly one `case act` handler and the menu answer is used only as `act = answer`, before that case",
     "regmenu": "the registry's own menus: one & in every title and entry, no letter twice in a menu or among the titles",
     "pilot": "tool_tktest's pilot: only with the word menubar, Esc off the key row, Save as with no key and a reason, the bar made by 'menus' and drawn on row 0",
+    "finder": "S.88 K7/K8: F2 (the finder) and Shift-F10 or a right press (the context menu of the pane) are the bar's, made from its menus, answered as the bar answers (the action's key), never a disabled entry, a page's own binding winning; the bar runs nothing",
 }
 # ---- PART B ENDS ----
 
@@ -727,6 +751,19 @@ mut("tool_home", "   call $tk_keys('add', keys, 'ctrl-k', 'keys', 'keys', '', 1)
 mut("tool_home", "      if mr<1> # '' then nm = mr<4>\n", "", "the home screen's loop drops the bar's answer", "samehandler")
 mut("tool_home", "      case nm = '/'\n", "      case nm = '?'\n", "the home screen binds / and acts on another key", "handler")
 mut("tool_home", "   call $tk_keys('add', keys, 'ctrl-w', 'switch', 'switch', '', 1)\n", "   call $tk_keys('add', keys, 'ctrl-t', 'switch', 'switch', '', 1)\n", "Ctrl-T is Terminal and Switch account on the home screen", "conflict")
+# 3 Nov 26 (S.88 K7/K8 and "Tab panes"): the first of these is marker M_K78 for --from=
+M_K78 = len(M)
+mut("tk_menubar", "            case nm = 'f2'\n               start = -1", "            case nm = 'f3'\n               start = -1", "the finder is on another key", "finder")
+mut("tk_menubar", "            if pa # '' and pa # 'menu' then start = 0\n", "", "the bar takes F2 from a page that binds it", "finder")
+mut("tk_menubar", "      case ps = 2\n         screen msgbox pw returning bn else bn = 0\n         gosub no.answer", "      case ps = 2\n         gosub answer.act", "a disabled entry of the finder is answered", "finder")
+mut("tk_menubar", "         if uses then citems<1, -1>", "         citems<1, -1>", "the context menu lists every action, not the pane's", "finder")
+mut("tk_menubar", "      if tt = 'File' or tt = 'Help' or tt[1, 1] = '>' then continue", "      if tt[1, 1] = '>' then continue", "the context menu holds File and Help", "finder")
+mut("tk_menubar", "      case 1\n         gosub answer.act\n   end case", "      case 1\n         execute pr\n   end case", "the context menu runs its answer", "finder")
+mut("tk_menubar", "      case op = 'click' and a<1> = 'press' and a<2> = 3\n", "      case op = 'click' and a<1> = 'press' and a<2> = 1\n", "a left press opens the context menu", "finder")
+mut("tool_test", "   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)", "   call $tk_keys('add', keys, 'f2', 'pane', 'pane', '', 1)", "a page binds F2 (the finder's key)", "reserved")
+mut("tool_test", "   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)", "   call $tk_keys('add', keys, 'shift-f10', 'pane', 'pane', '', 1)", "a page binds Shift-F10 (the context menu's key)", "reserved")
+mut("msg:11590", "&Programs~~tool.catalog", "&Queries again~~tool.catalog", "a duplicate mnemonic in the IDE's Tools menu", "mnemonic")
+mut("msg:11590", "&Tools|", "&File tools|", "the Tools menu's title takes File's letter", "mnemonic")
 # ---- PART B MUTANTS END ----
 
 

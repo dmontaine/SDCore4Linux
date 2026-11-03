@@ -5,6 +5,8 @@
 *
 * START-HISTORY:
 * 29 Oct 26 dm  New (S.88 3.10A).
+* 3 Nov 26 dm  The picker extended (owner, 2 Nov: "Extend the picker"): mode 'list', a pick from a list the caller gives, moved here from $tk_pickrec (S.88 U9) so that the
+*              facade is the library again, and given optional columns (headings and widths) and an optional delete action that the CALLER confirms (res 'delete').
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -25,6 +27,16 @@
 *   goes back to the list of files.  THE PICKER NEVER WRITES: it opens the file for reading, takes no lock and creates, changes and deletes nothing.  What the
 *   caller does with the answer, and whether it may, is the caller's.
 *
+*   MODE 'LIST' (field 1 of mode): a pick from a LIST THE CALLER GIVES, not from a file.  file = the entries, one to a field (value 1 the name, value 2 a description shown
+*   beside it - or, with columns, the column texts as subvalues - and value 3 the help shown on ?); id = the window's title on the way in and the number of the entry chosen
+*   (in file) on the way out; newtext = the number of the entry the window starts on, on the way in, and null on the way out.  Typing narrows the list to the entries that
+*   hold the text in the name, the description or a column.  Nothing is opened, read or written.  Optional, in the other fields of mode:
+*     mode<2>  the column headings, one value to a column, the first for the name (null: no columns, the window as it always was)
+*     mode<3>  the column widths, the same way (a width that is not a number is 12)
+*     mode<4>  'delete': the Del key ends the window with res 'delete' and id the number of the entry the cursor was on.  THE PICKER DELETES NOTHING: the caller asks its
+*              own question (a box with the name typed, say) and deletes, or not; it may open the picker again on the same entry (newtext).
+*   res is 'ok' (Enter chose), 'delete' (Del, with mode<4> 'delete', on an entry) or 'cancel' (Esc, a session with no terminal, an empty list).
+*
 * END-DESCRIPTION
 *
 * START-CODE
@@ -32,6 +44,11 @@
 $internal
 subroutine sl_picker(mode, file, id, res, newtext)
 $catalog $sl_picker
+
+   if mode<1> = 'list' then
+      gosub pick.list
+      return
+   end
 
    res = 'cancel'
    id = ''
@@ -92,6 +109,32 @@ list.files:
       next i
       close vocf
    end
+   return
+
+* Mode 'list': the library's pick window on the caller's entries, one entry chosen (or, with mode<4> 'delete', named for the caller to delete); its number returned
+pick.list:
+   res = 'cancel'
+   ltitle = id
+   ldef = newtext
+   id = ''
+   newtext = ''
+   if system(25) or file = '' then return               ;* a phantom has no terminal; an empty list has nothing to choose
+   if not(num(ldef)) or ldef < 1 then ldef = 1
+   lhot = ''
+   if mode<4> = 'delete' then lhot = 'del'
+   lcols = ''
+   if mode<2> # '' then lcols = mode<2> : @fm : mode<3>
+   ltyped = ''
+   lcur = ''
+   call $sl_pickwin(file, ltitle, 0, ldef, pr, ps, '', '', lhot, ltyped, lcols, lcur)
+   begin case
+      case ps = 0 and pr > 0
+         id = pr
+         res = 'ok'
+      case ps = 2 and pr = 'del' and lcur > 0
+         id = lcur
+         res = 'delete'                                    ;* the caller confirms and deletes, or not: nothing is changed here
+   end case
    return
 end
 

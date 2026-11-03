@@ -184,8 +184,17 @@ def checks(raw):
                    "if naq >= MAXSAVED then", "call $tk_confirm(wsent, lines, qname, res, cmsg, sysmsg(11952))", "call $tk_confirm(wsent, lines, '', res, cmsg, sysmsg(11952))",
                    "if res # 'run' then\n      msg = cmsg\n      close qf\n      return\n   end\n   gosub check.qfile", "gosub pack.record", "write wrec to qf, qname") and sav.count("qname = ") == 1, repr((wr, dl, sorted(set(opens)))))
     dsel = block(pg, "delete.selected")
-    ck("TQ14", "X: a saved query is deleted only after a box that asks its name typed, and the only record deleted is the one named in the list",
+    ck("TQ14", "Del in the saved list: a saved query is deleted only after a box that asks its name typed, and the only record deleted is the one named in the list",
        ordered(dsel, "lname = sv.ids<svc>", "call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "if res # 'run' then\n      msg = cmsg\n      return\n   end", "gosub check.delete", "delete qf, lname on error delok = @false"), "")
+    # 3 Nov 26 ("Extend the picker"): L is the toolkit's pick window; the window only NAMES an entry, the page's own routines load or delete it
+    dls = block(pg, "do.list.saved")
+    ck("TQ14d", "L shows the saved queries in the toolkit's pick window ($tk_pickrec 'list' with the columns and Del offered), built from read.saved's list only; Enter's answer goes to load.selected and Del's to "
+       "delete.selected (its box with the name typed), each only for a number inside the list; the page has no Saved view of its own and no other path to either routine",
+       ordered(dls, "gosub read.saved", "if sv.have = 0 or nsv = 0 then", "pk.items<rq, 1> = sv.ids<rq>", "pk.mode = 'list'", "pk.mode<4> = 'delete'",
+               "call $tk_pickrec(ctx, pk.mode, pk.items, pk.id, pk.res, pk.start)", "case pk.res = 'ok' and pk.id >= 1 and pk.id <= nsv", "svc = pk.id", "gosub load.selected",
+               "case pk.res = 'delete' and pk.id >= 1 and pk.id <= nsv", "svc = pk.id", "gosub delete.selected")
+       and pg.count("gosub load.selected") == 1 and pg.count("gosub delete.selected") == 1 and "view = 'saved'" not in pg and "'Saved'" not in pg
+       and "delete " not in re.sub(r"pk\.mode<4> = 'delete'|pk\.res = 'delete'", "", dls), "")
     # 28 Oct 26, S.88 phase 2 (plan 2.2, defect S2): the page is $internal, which the kernel's edit gates let through, so it asks for itself before it writes or deletes
     cq = block(pg, "check.qfile")
     cdl = block(pg, "check.delete")
@@ -227,7 +236,7 @@ def checks(raw):
                              "dcl<4> = 'sorts' : @vm : 2 : @vm : 1 : @vm : 11 : @vm : 46 :", "dcl<5> = 'options' : @vm : 2 : @vm : 2 : @vm : 11 : @vm : 92 :", "dcl<6> = 'sentence' : @vm : 3 : @vm : 1 : @vm : 9 : @vm : 138 :",
                              "dcl<1> = 'whole' : @vm : 1 : @vm : 1 : @vm : 39 : @vm : 138 :",
                              "screen box at fb.x,fb.y size fb.w,fb.h", "screen box at cb.x,cb.y size cb.w,cb.h", "screen box at nb.x,nb.y size nb.w,nb.h", "screen box at sb.x,sb.y size sb.w,sb.h",
-                             "screen box at ob.x,ob.y size ob.w,ob.h", "screen box at tb.x,tb.y size tb.w,tb.h", "VISF = fb.h - 3", "VISC = cb.h - 3", "RVIS = wb.h - 6", "SVIS = wb.h - 7",
+                             "screen box at ob.x,ob.y size ob.w,ob.h", "screen box at tb.x,tb.y size tb.w,tb.h", "VISF = fb.h - 3", "VISC = cb.h - 3", "RVIS = wb.h - 6",
                              "hx = nb.x + nb.w - 5 ; hy = nb.y + 1", "at fb.x + 1,fb.y + dr attr ra width fb.w - 2", "at cb.x + 1,cb.y + 1 + dr attr ra width cb.w - 2", "at nb.x + 1,nb.y + 1 + dr attr ra width nb.w - 4",
                              "at sb.x + 1,sb.y + 1 + dr attr ra width sb.w - 2", "at ob.x + 1,ob.y + dr attr ra width ob.w - 2", "for dr = 1 to 5", "at tb.x + 2,tb.y + dr attr"))
        and "chh = ctx<TK.C.H> - 4" in pg, "")
@@ -368,6 +377,11 @@ MUTANTS = [
     ("the help button asks for another record", "TQ21", sub("page", "      call $tk_help('box', 'tool.query.page', hm, 0, 0)\n      if hm # '' then msg = hm\n      return\n   end\n   if mev<1>", "      call $tk_help('box', 'tool.query.nopage', hm, 0, 0)\n      if hm # '' then msg = hm\n      return\n   end\n   if mev<1>")),
     ("the sentence may be longer", "TQ22", sub("page", "MAXSENT = 600", "MAXSENT = 6000")),
     ("the sort comes after the columns", "TQ23", sub("page", "      if nso > 0 then verb = 'sort'\n", "")),
+    # 3 Nov 26 ("Extend the picker"): the saved queries in the toolkit's pick window
+    ("Del is not offered in the saved list", "TQ14d", sub("page", "   pk.mode<4> = 'delete'\n", "")),
+    ("the list's answer is used out of range", "TQ14d", sub("page", "      case pk.res = 'ok' and pk.id >= 1 and pk.id <= nsv\n", "      case pk.res = 'ok'\n")),
+    ("Del deletes without the page's box", "TQ14d", sub("page", "         svc = pk.id\n         gosub delete.selected\n", "         svc = pk.id\n         lname = sv.ids<svc>\n         open '&queries&' to qf then delete qf, lname\n")),
+    ("an Enter in the list loads without the checks", "TQ14d", sub("page", "         svc = pk.id\n         gosub load.selected\n", "         svc = pk.id\n         fname = sv.info<svc, 1>\n")),
     ("an ordinary account has no verb", "TQ1", setkey("newvoc", "")),
     ("SDSYS's verb runs another program", "TQ1", sub("voc", "$tool_query", "$tool_keys")),
 ]

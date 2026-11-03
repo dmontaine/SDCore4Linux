@@ -2,7 +2,7 @@
 #
 # sandbox-tool-test.py - TOOL.TEST, the test runner of the account ($tool_test, S.75 DV7), driven on a PSEUDO-TERMINAL as ORDINARY sessions on a private SD.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-test.py <dir> [--build] [--mutants | --mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-test.py <dir> [--build] [--only=list,...,tab] [--mutants | --mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Without --build the page is copied
 # from the tree into the built sandbox and compiled there first.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  With --mutant=NAME (or --mutants for all of them) one
@@ -10,6 +10,8 @@
 #
 # START-HISTORY:
 # 25 Oct 26 dm  New (S.75 DV7).
+# 3 Nov 26 dm  S.88 "Tab panes": section tab (T13), Tab and Shift-Tab move the focus between the two boxes, read from the [*] / [-] marks, the lower box's title and the function-key
+#              row; and --only=NAME[,NAME] chooses sections (the build and the fixture tests always run).  The mutant tab-not-acted takes the page's Tab case out (T13a and T13c must fail).
 # END-HISTORY
 #
 # WHAT RUNS.  Two fixture accounts with their register records written by hand: zztl1 with the edit gates (voc, bp, dict) ON and zztl2 with them OFF.  In zztl1 a program file bp and a
@@ -91,6 +93,8 @@ MUTANTS = {
     "name-guard-off": ("      case tok<ri> = 0\n         msg = 'this name has a character the page does not give to a command: type run '",
                        "      case tok<ri> = 99\n         msg = 'this name has a character the page does not give to a command: type run '", ["T8a"], ["names"]),
     "break-not-enabled": ("   void pterm(PT$BREAK, @true)\n   break on\n   t0 = time()", "   t0 = time()", ["T11b", "T11c", "T11d", "T11e"], ["break"]),
+    # 3 Nov 26 (S.88 "Tab panes"): the page as it was - Tab and Shift-Tab do nothing in the Tests box
+    "tab-not-acted": ("      case nm = 'enter' or nm = 'tab' or nm = 'btab'\n", "      case nm = 'enter'\n", ["T13a", "T13c"], ["tab"]),      # T13b and T13d (back on Tests) hold when Tab never left it (measured 3 Nov 26)
 }
 
 
@@ -658,11 +662,38 @@ def section_other():
     h.end()
 
 
+def marks(h):
+    """the focus marks at the top right of the two boxes (S.99: the box's x + w - 4 on its top border): the Tests box's top is row 1, the lower box's row 23"""
+    return h.line(1)[135:138], h.line(23)[135:138]
+
+
+def section_tab():
+    say("\n--- T13: Tab and Shift-Tab move the focus between the two boxes (S.88 \"Tab panes\", 3 Nov 26)")
+    h = page(A1)
+    arow("T13ctl", "the control: the page opens with the focus on the Tests box ([*] on it, [-] on the lower box) and the lower box is the test under the cursor", marks(h) == ("[*]", "[-]") and "The test under the cursor" in h.line(23), repr((marks(h), h.line(23)[:50])))
+    row_, _B, _S = run_one(h, "test.a.pass")
+    arow("T13ctl2", "test.a.pass was run (its Result is pass), so it has an output to show", row_ is not None and row_[2] == "pass", repr(row_))
+    h.key("tab", idle=1.0)
+    until(h, lambda t: "Output of test.a.pass" in h.line(23), 10)
+    arow("T13a", "Tab: the focus is on the lower box ([-] on Tests, [*] on it), which shows the Output of test.a.pass, and the function-key row is the Output pane's (Esc tests)",
+         "Output of test.a.pass" in h.line(23) and marks(h) == ("[-]", "[*]") and h.line(42).startswith("F1 help  Esc tests"), repr((h.line(23)[:60], marks(h), h.line(42)[:50])))
+    h.key("tab", idle=1.0)
+    arow("T13b", "Tab again: the focus is back on the Tests box ([*] on it), the lower box is the test under the cursor again and the row is the Tests pane's (R run)",
+         "The test under the cursor" in h.line(23) and marks(h) == ("[*]", "[-]") and h.line(42).startswith("F1 help  R run"), repr((h.line(23)[:60], marks(h), h.line(42)[:50])))
+    h.key("btab", idle=1.0)
+    arow("T13c", "Shift-Tab: the focus goes to the Output box as well", "Output of test.a.pass" in h.line(23) and marks(h) == ("[-]", "[*]"), repr((h.line(23)[:60], marks(h))))
+    h.key("btab", idle=1.0)
+    arow("T13d", "Shift-Tab again: back on the Tests box, and the test's result is still pass (Tab ran nothing)",
+         "The test under the cursor" in h.line(23) and marks(h) == ("[*]", "[-]") and result_of(h, "test.a.pass") == "pass", repr((h.line(23)[:60], marks(h), result_of(h, "test.a.pass"))))
+    h.key("ctrl-q", idle=1.2)
+    h.end()
+
+
 SECTIONS = {
     "list": section_list, "verdicts": section_verdicts, "all": section_all, "failed": lambda: None, "compile": section_compile, "names": section_names,
-    "refresh": section_refresh, "stop": section_stop, "break": section_break, "other": section_other,
+    "refresh": section_refresh, "stop": section_stop, "break": section_break, "other": section_other, "tab": section_tab,
 }
-ORDER = ["list", "verdicts", "all", "compile", "names", "refresh", "stop", "break", "other"]
+ORDER = ["list", "verdicts", "all", "compile", "names", "refresh", "stop", "break", "other", "tab"]
 
 
 def run_mutant(name):
@@ -687,13 +718,18 @@ def main():
     all_m = "--mutants" in sys.argv[1:]
     if arg_m is not None and arg_m not in MUTANTS:
         bail("usage: sandbox-tool-test.py <dir> [--build] [--mutants | --mutant=%s]" % "|".join(MUTANTS))
+    # 3 Nov 26: a section selector (the owner's rule of 3 Nov for a suite over five minutes); the build and the fixture tests always run, and every section starts its own page
+    only = next((a.split("=", 1)[1].split(",") for a in sys.argv[1:] if a.startswith("--only=")), None)
+    if only is not None and (not only or any(s not in ORDER for s in only)):
+        bail("--only takes section names from: %s" % ",".join(ORDER))
     rc = 0
     try:
         sh.setup("sandbox-tool-test.py")
         setup_tests()
         if arg_m is None and not all_m:
             for s in ORDER:
-                SECTIONS[s]()
+                if only is None or s in only:
+                    SECTIONS[s]()
         else:
             results = [run_mutant(m) for m in (list(MUTANTS) if all_m else [arg_m])]
             rc = 0 if all(results) else 1

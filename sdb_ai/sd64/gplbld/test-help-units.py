@@ -64,6 +64,9 @@ def load():
         src["tool_" + app] = read(os.path.join(GPL, "tool_" + app))   # 26 Oct 26, S.75 DV2, DV4-DV7: each page asks for its tool.<app>.page
     src["mymenu"] = read(os.path.join(GPL, "mymenu"))                 # 2 Nov 26, S.88 U4: MY.MENU asks for tool.menus.mine
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
+    for n in (11588, 11589):                                          # 3 Nov 26, S.88 K7/K8: F1's lines for the bar's own keys
+        p = os.path.join(SDSYS, "messages", str(n))
+        src["msg.%d" % n] = read(p) if os.path.exists(p) else None
     for name in sorted(os.listdir(HELP)):
         src["ht." + name] = read(os.path.join(HELP, name))
     return src
@@ -99,6 +102,16 @@ def docs_pages():
         if os.path.isdir(p):
             pages |= {f[:-3] for f in os.listdir(p) if f.endswith(".md")}
     return pages
+
+
+def ordered(text, *needles):
+    """each needle is found after the one before it (3 Nov 26, for P21)"""
+    pos = -1
+    for n in needles:
+        pos = text.find(n, pos + 1)
+        if pos < 0:
+            return False
+    return True
 
 
 def checks(s):
@@ -232,8 +245,8 @@ def checks(s):
     ck("P17m tool.dict: a [?], F1 and ? and a click show its help (tool.dict.page); it runs delete, compile.dict, create.index, build.index and delete.index through $tk_run, hands the terminal to ide and list.index only, and has the one execute statement of that hand-over",
        "call $tk_help('mark', lx + lw - 5, ly + 1, 0, 0)" in tdi and tdi.count("call $tk_help('box', 'tool.dict.page', hm, 0, 0)") == 2 and "call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)" in tdi and "tool.dict.page" in hts
        and "   allow = 'delete compile.dict create.index build.index delete.index'" in tdi and "show.allow = 'ide list.index'" in tdi and tdi.count("allow = ") == 2 and tdi.count("execute sent") == 1 and "call $tk_run(allow, sent, out, stat, rerr)" in tdi, "")
-    ck("P17n tool.query: a [?] in each of its three views, F1 and ? and a click show its help (tool.query.page); it does not use $tk_run (a query value needs the double quote $tk_run refuses) and has exactly two execute statements, the query after check.sentence and the make of its own file",
-       tqy.count("call $tk_help('mark', hx, hy, 0, 0)") == 3 and tqy.count("call $tk_help('box', 'tool.query.page', hm, 0, 0)") == 2 and "call $tk_help('hit', mev, hx, hy, hit.m)" in tqy and "tool.query.page" in hts
+    ck("P17n tool.query: a [?] in each of its two views (3 Nov 26: the Saved view became the toolkit's pick window), F1 and ? and a click show its help (tool.query.page); it does not use $tk_run (a query value needs the double quote $tk_run refuses) and has exactly two execute statements, the query after check.sentence and the make of its own file",
+       tqy.count("call $tk_help('mark', hx, hy, 0, 0)") == 2 and tqy.count("call $tk_help('box', 'tool.query.page', hm, 0, 0)") == 2 and "call $tk_help('hit', mev, hx, hy, hit.m)" in tqy and "tool.query.page" in hts
        and "$tk_run" not in tqy and tqy.count("execute run.s trapping aborts capturing out") == 1 and tqy.count("execute qsent trapping aborts capturing mk") == 1 and len(re.findall(r"^\s*execute\b", tqy, re.M)) == 2, "")
     ck("P17o tool.bulk: a [?], F1 and ? and a click show its help (tool.bulk.page); it does not use $tk_run and has exactly two execute statements, the select of its own words and the make of its undo file",
        "call $tk_help('mark', fx + fw - 5, fy + 1, 0, 0)" in tbl and tbl.count("call $tk_help('box', 'tool.bulk.page', hm, 0, 0)") == 2 and "call $tk_help('hit', mev, fx + fw - 5, fy + 1, hit.m)" in tbl and "tool.bulk.page" in hts
@@ -269,6 +282,12 @@ def checks(s):
     m = s["msgs"]
     ck("P19 messages 11830 to 11832 and 11835 to 11841 exist, each one line, none with a capital command word",
        all(m[n] and m[n].count("\n") == 1 for n in MSGS) and "load.help" in (m["11832"] or "") and "context.help" in (m["11831"] or ""), repr([n for n in MSGS if not m[n] or m[n].count("\n") != 1]))
+    # 3 Nov 26 (S.88 K7/K8): F1's key list ends with the bar's own keys, F2 and Shift-F10, on a page that has a bar (they are in no page's key table)
+    k78 = [s.get("msg.%d" % n) for n in (11588, 11589)]
+    ck("P21 F1's list of keys ends with F2 (find an action) and Shift-F10 (the actions of this pane) only on a page whose key table makes a menu bar; messages 11588 and 11589 are one line each and name those keys",
+       ordered(th, "call $tk_keys('keylist', reg.keys, reg.pane, rg, '', '', '')", "if rg # '' then", "call $tk_keys('menus', reg.keys, '', bm, reg.pane, '', '')", "if bm # '' then",
+               "kb<-1> = '  ' : sysmsg(11588)[1, wrapw - 2]", "kb<-1> = '  ' : sysmsg(11589)[1, wrapw - 2]", "end", "kb<-1> = ''")
+       and all(t and t.count("\n") == 1 for t in k78) and (k78[0] or "").startswith("F2 ") and (k78[1] or "").startswith("Shift-F10 "), repr(k78))
     return rows
 
 
@@ -298,6 +317,8 @@ MUTANTS = [
     ("tool.menus loses a [?] on the Menu rows", "tool_menus", "      call $tk_help('mark', mk.mx, mnu.y + r, 0, 0)", "      null"),
     ("tool.menus calls $tk_help with too few arguments (a runtime stop in SD BASIC)", "tool_menus", "call $tk_help('mark', mk.dx, mk.dy, 0, 0)", "call $tk_help('mark', mk.dx, mk.dy)"),
     ("tool.viewers calls $tk_help with too few arguments", "tool_viewers", "hm, 0, 0)", "hm)"),
+    ("F1 lists F2 and Shift-F10 on a page with no bar", "tk_help", "      if bm # '' then\n", "      if 1 then\n"),
+    ("F1 leaves out the context menu's key", "tk_help", "         kb<-1> = '  ' : sysmsg(11589)[1, wrapw - 2]\n", ""),
     ("tool.viewers calls $tk_wrap with too many arguments", "tool_viewers", "call $tk_wrap(lines<wi>, m.tw, pieces)", "call $tk_wrap(lines<wi>, m.tw, pieces, 0)"),
     ("tool.menus loses F1", "tool_menus", "      case nm = 'f1' or nm = '?'\n         gosub help.here\n", ""),
     ("tool.menus loses the click", "tool_menus", "call $tk_help('hit', mev, mk.mx, mnu.y + hr, hit.now)", "hit.now = 0"),

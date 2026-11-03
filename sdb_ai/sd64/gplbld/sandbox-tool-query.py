@@ -14,6 +14,10 @@
 # 2 Nov 26 dm  S.88 U6: the page asks its seven questions on the toolkit's form, and a refused answer is said IN the form (formtext reads it), which stays until Esc: Q6a-m and Q7a-e
 #               read the refusal there and press Esc; Q4s (a sample that is not a number); the mutant edit-unchecked follows the check into af.check (NOT run since).  --only=q4,q6
 #               chooses sections (the build and the fixtures always run).
+# 3 Nov 26 dm  "Extend the picker" (owner, 2 Nov): L is the toolkit's pick window with columns, and Del (not X) names the query to delete; Q9, Q12 and Q13 open the list again with L
+#               after a load or a refusal (the page is shown with what happened) and press Del.  NEW section q14: the pick window's columns and filter, and S.88 K7 / K8 on this page -
+#               F2 the finder (an entry chosen runs through the page's own key; a disabled one says why), a right click and Shift-F10 the context menu of the focused pane.  Mutants
+#               page-binds-f2 (a page's own F2 wins: Q14b-Q14e fail) and list-no-delete (Del offered nowhere: Q12a-Q12c fail).
 # END-HISTORY
 #
 # WHAT RUNS.  Two fixture accounts, zzqa and zzqb, each with the files zq (eight records and a dictionary with a column of every kind and four names the page must not put in a sentence),
@@ -42,6 +46,9 @@
 #           X on one are refused (the bp record is read from the DISK, unchanged) with no box; zzqd has a proper &queries& holding a record that is not a saved query (field 1 is junk): S over it and X on
 #           it are refused, a proper saved query is written and deleted as before (the controls).  WRITTEN, NOT RUN (28 Oct 26: the owner ruled that no suite runs until all the phases are in).  Runtime
 #           mutants: ownfile-skipped (Q13a, Q13b), record-write-over (Q13c) and record-delete (Q13d).
+#   Q14     (3 Nov 26) the saved list is the pick window: its heading row, its columns, typing narrows it, Esc loads nothing; F2 opens the finder of every action ("Menu > Entry"), typing narrows
+#           it, Enter on Run the query runs it as R does, an entry the pane cannot use says why and changes nothing; a right click and Shift-F10 open the context menu of the focused pane
+#           (the Columns box: its own entries and the Query entries it uses, not File's or Help's), its letter M marks the column as Space does, its last entry opens the finder.
 import importlib.util
 import os
 import re
@@ -65,6 +72,8 @@ sh = _load("sandbox_home_for_query", "sandbox-home.py")
 say, row, bail, has, dump, adm, H, g = sh.say, sh.row, sh.bail, sh.has, sh.dump, sh.adm, sh.H, sh.g
 sh.KEYS["f1"] = "\x1b[[A"
 sh.KEYS.setdefault("esc", "\x1b")
+sh.KEYS["del"] = "\x1b[3~"              # 3 Nov 26: Del in the pick window (terminfo linux kdch1)
+sh.KEYS["shift-f10"] = "\x1b[21;2~"     # 3 Nov 26: the context menu's key (an xterm's modified F10, which _keycode names shift-f10)
 FAILED_IDS = []
 A1, A2 = "zzqa", "zzqb"
 ME = os.environ.get("USER") or os.getlogin()
@@ -99,6 +108,10 @@ MUTANTS = {
     "record-write-over": ("      if xrec<1> # 'query1' then", "      if 0 then", ["Q13c"], ["q13"]),
     "record-delete": ("   if qdrec<1> # 'query1' then", "   if 0 then", ["Q13d"], ["q13"]),
     "delete-no-typed-name": ("   call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "   call $tk_confirm(dsent, lines, '', res, cmsg, sysmsg(11953))", ["Q12b", "Q12c"], ["q12"]),      # 26 Oct 26: the sixth argument (the box title) since the faults batch
+    # 3 Nov 26: S.88 K7 - a page that binds F2 itself keeps it (the bar's rule), so the finder never opens on it; "Extend the picker" - Del offered nowhere
+    "page-binds-f2": ("   call $tk_keys('add', keys, 'f5', 'read', 'reread', panes, 1)\n", "   call $tk_keys('add', keys, 'f5', 'read', 'reread', panes, 1)\n   call $tk_keys('add', keys, 'f2', 'mine', 'mine', panes, 1)\n",
+                      ["Q14b", "Q14c", "Q14d"], ["q14"]),
+    "list-no-delete": ("   pk.mode<4> = 'delete'\n", "", ["Q12a", "Q12c"], ["q12"]),       # Q12b (a wrong name deletes nothing) holds either way
 }
 
 
@@ -853,10 +866,11 @@ def section_q9():
     key(h, "down", 1)
     h.key("enter", idle=1.5)
     arow("Q9e", "evil2 names a file that is not one of the account's files: nothing is loaded and the status line says so", "is not one of your files with a dictionary: nothing was loaded" in st(h), repr(st(h)))
-    key(h, "down", 2)
+    tp(h, "l", 1.5)                                  # 3 Nov 26: after a refusal the page is shown (the pick window closed): L opens the list again, at its first entry
+    key(h, "down", 3)
     h.key("enter", idle=1.5)
     arow("Q9f", "evil4 does not say it is a query: refused", "evil4 is not a query this page saved" in st(h), repr(st(h)))
-    h.key("home", idle=0.4)
+    tp(h, "l", 1.5)
     key(h, "down", 2)
     h.key("enter", idle=1.8)
     arow("Q9g", "evil3 holds good boxes and an edited sentence with a semicolon: the boxes load, the sentence is dropped (1 part) and rebuilt from the boxes; the state line does not say edited, and no zzinj5 directory was made",
@@ -996,9 +1010,9 @@ def section_q12():
     arow("Q12", "fill01 is a saved query before the delete", read_rec(A1, "fill01") is not None and read_rec(A1, "fill01").startswith("query1"), repr(read_rec(A1, "fill01")))
     tp(h, "l", 1.5)
     key(h, "down", 5)                               # evil1 .. evil5, then fill01
-    tp(h, "x", 1.5)
+    h.key("del", idle=1.5)                          # 3 Nov 26: Del in the pick window (X typed there would only narrow the list)
     T = boxtext(h)
-    arow("Q12a", "X shows the box: delete fill01 from &queries&, not a command, with Run and Cancel", "delete fill01 from &queries&" in T and "not a command" in T, T[-400:])
+    arow("Q12a", "Del in the list shows the box: delete fill01 from &queries&, not a command, with Run and Cancel", "delete fill01 from &queries&" in T and "not a command" in T, T[-400:])
     tp(h, "r", 1.2)
     tp(h, "wrong\r", 1.8)
     rec = read_rec(A1, "fill01")
@@ -1006,7 +1020,7 @@ def section_q12():
     if "Saved queries" not in h.text():
         tp(h, "l", 1.5)
         key(h, "down", 5)
-    tp(h, "x", 1.5)
+    h.key("del", idle=1.5)
     tp(h, "r", 1.2)
     tp(h, "fill01\r", 2.0)
     arow("Q12c", "the right name typed deletes it: the record is gone and 99 remain; the others are untouched (fill02 and evil1 are still there)",
@@ -1099,7 +1113,7 @@ def section_q13():
     listed = "aa-sent" in h.text()
     arow("Q13ctl3", "L lists the bp record aa-sent through the pointer (the instrument reaches the record X has to refuse)", listed, h.text()[-300:])
     if listed:
-        tp(h, "x", 1.2)
+        h.key("del", idle=1.2)                                  # 3 Nov 26: Del in the pick window names the entry; the page asks its own questions
         box = until(h, lambda t: "Deletes the saved query" in t, 2.5)
         if box:
             tp(h, "r", 1.5)
@@ -1109,8 +1123,7 @@ def section_q13():
              (not box) and now == SENT and "nothing was deleted" in st(h), repr((box, (now or "")[:40], st(h))))
     else:
         arow("Q13b", "X on aa-sent: (the list did not show the record, so X could not be pressed)", False, h.text()[-300:])
-    h.key("esc", idle=1.0)
-    h.key("ctrl-q", idle=1.2)
+    h.key("ctrl-q", idle=1.2)                                   # 3 Nov 26: the pick window is closed (the page is shown after the refusal): no Esc first, which would open the bar
     h.end()
 
     # --- zzqd: a proper &queries& with a record that is not a saved query
@@ -1127,29 +1140,98 @@ def section_q13():
     tp(h, "l", 1.5)
     arow("Q13ctl6", "L lists qa-one and zz-other", "qa-one" in h.text() and "zz-other" in h.text(), h.text()[-300:])
     h.key("down", idle=0.6)                                     # the cursor goes from qa-one to zz-other
-    tp(h, "x", 1.2)
+    h.key("del", idle=1.2)
     box = until(h, lambda t: "Deletes the saved query" in t, 2.5)
     if box:
         tp(h, "r", 1.5)
         tp(h, "zz-other\r", 2.0)
     junk2 = read_rec(A4, "zz-other")
-    arow("Q13d", "X on zz-other (not a saved query): refused before any box, nothing was deleted, and the record is as it was",
+    arow("Q13d", "Del on zz-other (not a saved query): refused before any box, nothing was deleted, and the record is as it was",
          (not box) and junk2 == junk0 and "it was not changed" in st(h), repr((box, junk2, st(h))))
-    h.key("up", idle=0.6)
-    tp(h, "x", 1.2)
+    tp(h, "l", 1.5)                                             # 3 Nov 26: the refusal shows the page; L opens the list again on its first entry, qa-one
+    h.key("del", idle=1.2)
     box = until(h, lambda t: "Deletes the saved query" in t, 2.5)
     if box:
         tp(h, "r", 1.5)
         tp(h, "qa-one\r", 2.0)
     gone = read_rec(A4, "qa-one")
-    arow("Q13ctl7", "the control: X on qa-one, a saved query, offers its box and Run with the name typed deletes it (read back: no record)", box and gone == "norecord", repr((box, gone)))
-    h.key("esc", idle=1.0)
+    arow("Q13ctl7", "the control: Del on qa-one, a saved query, offers its box and Run with the name typed deletes it (read back: no record)", box and gone == "norecord", repr((box, gone)))
+    h.key("ctrl-q", idle=1.2)
+    h.end()
+
+
+# ------------------------------------------------------------------------------------------------- Q14 (3 Nov 26): the pick window of the saved queries, the finder (F2), the context menu
+def rclick(h, col, rw, idle=1.2):
+    """a right press and release at a cell (SGR: button 2 is the right one)"""
+    h.typed("\x1b[<2;%d;%dM\x1b[<2;%d;%dm" % (col + 1, rw + 1, col + 1, rw + 1), idle=idle)
+
+
+def section_q14():
+    say("\n--- Q14: the saved queries in the pick window; F2 the finder; the context menu (a right click, Shift-F10)")
+    h = page(A1)
+    choose(h, "zq")
+    arow("Q14ctl", "the page is up on zq with the Columns box focused (the sentence is list zq)", sentence(h) == "list zq" and "[*] Columns" in h.text(), repr(sentence(h)))
+    # the pick window
+    tp(h, "l", 1.5)
+    T = h.text()
+    arow("Q14a", "L: the pick window titled Saved queries, a heading row Name / File / Report / The sentence when it was saved, and each query in its columns (fill01, zq, list)",
+         "Saved queries" in T and re.search(r"Name\s+File\s+Report\s+The sentence when it was saved", T) is not None and re.search(r"fill02\s+zq\s+list", T) is not None, T[:900])      # fill01 is gone when q12 ran first
+    tp(h, "evil", 1.2)
+    T = h.text()
+    arow("Q14a2", "typing evil narrows the list to the five evil records (fill02 is no longer shown)", all(n in T for n in ("evil1", "evil5")) and "fill02" not in T, T[:900])
+    h.key("esc", idle=1.2)
+    arow("Q14a3", "Esc closes the window and loads nothing: the sentence is still list zq and the status line says nothing was loaded", "Saved queries" not in h.text() and sentence(h) == "list zq" and "loaded" not in st(h),
+         repr((sentence(h), st(h))))
+    # F2: the finder
+    h.key("f2", idle=1.5)
+    T = h.text()
+    pal = "Find an action" in T
+    arow("Q14b", "F2 opens the finder: every entry of the bar as Menu > Entry (Query > Run the query, Columns > Mark the column, Help > Help on this page)",
+         pal and "Query > Run the query" in T and "Columns > Mark the column" in T and "Help > Help on this page" in T, T[:900])
+    ok = False
+    if pal:
+        tp(h, "run the", 1.2)
+        T = h.text()
+        narrowed = "Query > Run the query" in T and "Columns > Mark the column" not in T
+        h.key("enter", idle=1.5)
+        ran = until(h, lambda t: "Ran:" in t, 20)
+        ok = narrowed and ran
+    arow("Q14c", "typing narrows the finder to Run the query, and Enter runs it as R does (the Results show Ran:)", ok, h.text()[:600])
+    if "Ran:" in h.text():
+        h.key("esc", idle=1.2)                              # Results: Esc is back to the query
+    ok = False
+    h.key("f2", idle=1.5)
+    if "Find an action" in h.text():
+        tp(h, "back to", 1.2)
+        notnow = "(not now)" in h.text()
+        h.key("enter", idle=1.5)
+        said = "That action is not available now." in re.sub(r"[|\s]+", " ", h.text())
+        h.key("enter", idle=1.2)
+        ok = notnow and said and "Ran:" not in h.text() and sentence(h) == "list zq"
+    arow("Q14d", "an entry this pane cannot use (Results > Back to the query) is shown (not now); Enter on it says why in a box and changes nothing", ok, h.text()[:600])
+    # the context menu: a right click, then Shift-F10
+    key(h, "home", idle=0.3)
+    key(h, "down", POS["name"] - 1, idle=0.25)
+    rclick(h, 50, 10)
+    T = h.text()
+    arow("Q14e", "a right click opens the context menu of the focused pane (Columns): its entries and the Query entries it uses, the finder last; not File's Quit, the File box's Choose the file, or Help",
+         "Mark the column" in T and "Total it" in T and "Run the query" in T and "Find an action..." in T and "Choose the file" not in T and "Help on this page" not in T, T[:900])
+    tp(h, "m", 1.2)
+    arow("Q14e2", "M in the context menu marks the column under the cursor as Space does: the sentence is list zq name", sentence(h) == "list zq name", repr(sentence(h)))
+    h.key("shift-f10", idle=1.5)
+    T = h.text()
+    arow("Q14f", "Shift-F10 opens the same context menu from the keyboard", "Mark the column" in T and "Find an action..." in T, T[:900])
+    tp(h, "f", 1.5)
+    T = h.text()
+    arow("Q14f2", "its last entry, Find an action..., opens the finder; Esc leaves it and nothing changed (the sentence is still list zq name)", "Query > Run the query" in T, T[:600])
+    h.key("esc", idle=1.2)
+    arow("Q14f3", "...after Esc the sentence is still list zq name", sentence(h) == "list zq name", repr(sentence(h)))
     h.key("ctrl-q", idle=1.2)
     h.end()
 
 
 SECTIONS = [("q1", section_q1), ("q2", section_q2), ("q3", section_q3), ("q4", section_q4), ("q5", section_q5), ("q6", section_q6), ("q7", section_q7), ("q8", section_q8),
-            ("q9", section_q9), ("q10", section_q10), ("q11", section_q11), ("q12", section_q12), ("q13", section_q13)]
+            ("q9", section_q9), ("q10", section_q10), ("q11", section_q11), ("q12", section_q12), ("q13", section_q13), ("q14", section_q14)]
 
 
 def main():

@@ -6,6 +6,8 @@
 * START-HISTORY:
 * 23 Oct 26 dm  New (S.75, plan section 14.5).
 * 30 Oct 26 dm  S.88 F0a: the box shows "Keys in this pane" (message 11244) above the page's help text, a list made from the key table $tk_frame kept; no page's F1 line changes.
+* 3 Nov 26 dm  S.88 K7/K8: on a page that has a menu bar the list ends with F2 (find an action) and Shift-F10 (the actions of this pane), which the bar itself
+*              answers ($tk_menubar) and which are therefore in no page's key table (messages 11588, 11589).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -118,6 +120,13 @@ show.box:
       for p = 1 to dcount(rg, @fm)
          kb<-1> = '  ' : rg<p>[1, wrapw - 2]
       next p
+      * S.88 K7/K8: a page with a menu bar has the finder and the context menu too (the bar's own keys, in no page's table)
+      bm = ''
+      call $tk_keys('menus', reg.keys, '', bm, reg.pane, '', '')
+      if bm # '' then
+         kb<-1> = '  ' : sysmsg(11588)[1, wrapw - 2]
+         kb<-1> = '  ' : sysmsg(11589)[1, wrapw - 2]
+      end
       kb<-1> = ''
    end
    for p = 1 to dcount(lines, @fm)

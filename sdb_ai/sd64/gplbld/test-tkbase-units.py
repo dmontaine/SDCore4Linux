@@ -178,7 +178,7 @@ def checks(raw):
         and "ret = cur" not in pw and "picked<1, -1> = cur" not in pw, "")
     add("T28", "$sl_pickwin filters on the name and the description together, without regard to case; Backspace and Ctrl-U widen it; ? is the help line and is never part of the filter; "
         "in a multi window the space picks; a printable character is added to the filter only after those cases",
-        "if index(upcase(items<i, 1> : ' ' : items<i, 2>), uf, 1) then vis<1, -1> = i" in pw and pw.count("uf = upcase(filt)") == 2
+        "if index(upcase(items<i, 1> : ' ' : convert(@sm, ' ', items<i, 2>)), uf, 1) then vis<1, -1> = i" in pw and pw.count("uf = upcase(filt)") == 2      # 3 Nov 26: the columns (subvalues of the description) are matched too
         and ordered(pw, "case k = 'bs'", "case k = 'ctrl-u'", "case k = '?'", "case k = ' ' and multi", "case len(k) = 1 and seq(k) >= 32 and seq(k) < 127"), "")
     add("T29", "$sl_pickwin only draws and reads keys, and with a file reads ids and records: it runs, writes, locks and opens nothing",
         not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|kernel|os\.execute|crt|display)\b", re.sub(r"'[^']*'", "''", pw)) and pw.count("read rec from src, id then") == 1
@@ -417,7 +417,7 @@ MUT = [
     ("sl_pickwin", "Esc does not cancel", "         case k = 'esc'\n            st = 'cancel'", "         case k = 'esc'\n            st = ''"),
     ("sl_pickwin", "Enter answers the place", "         ret = oi\n         if fmode then ret = items<oi, 1>", "         ret = cur\n         if fmode then ret = items<oi, 1>"),
     ("sl_pickwin", "a pick is kept by place", "         picked<1, -1> = pk\n      end\n   end\n   return", "         picked<1, -1> = cur\n      end\n   end\n   return"),
-    ("sl_pickwin", "the filter ignores the description", "upcase(items<i, 1> : ' ' : items<i, 2>)", "upcase(items<i, 1>)"),
+    ("sl_pickwin", "the filter ignores the description", "upcase(items<i, 1> : ' ' : convert(@sm, ' ', items<i, 2>))", "upcase(items<i, 1>)"),
     ("sl_pickwin", "the filter is case sensitive", "      uf = upcase(filt)\n      for i = 1 to n", "      uf = filt\n      for i = 1 to n"),
     ("sl_pickwin", "the paged filter is case sensitive", "   uf = upcase(filt)\n   loop while got < page", "   uf = filt\n   loop while got < page"),
     ("sl_pickwin", "a read ignores the scan number", "loop while got < page and scanned < scancap and n < cachecap do", "loop while got < page and n < cachecap do"),

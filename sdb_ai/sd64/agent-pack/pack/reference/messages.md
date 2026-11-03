@@ -3070,10 +3070,10 @@ F4               Next error or result\nF5               Run\nF7               De
 cited by: `ide`
 
 ### msg:11216
-> kind=message tier=reference since=- src=sdsys/messages/11216:1#2f4830b0
+> kind=message tier=reference since=- src=sdsys/messages/11216:1#f8a42077
 
 ```
-Ctrl-F, Ctrl-B   Find forward, backward   F3, Shift-F3  The next, the previous (Return in the question finds the next)   Ctrl-R  Replace\nEsc, F10        The menus (Files and records is in the Go menu)\nCtrl-Q           Quit\nF1               This screen\nCtrl-A           Select all   Ctrl-D  Duplicate the line   Ctrl-K  Cut the line\nCtrl-P, Ctrl-U   A word back, on (Ctrl-Left, Right too)   Ctrl-Home, Ctrl-End  Text start, end   Ctrl-Del  Delete word   Ins  Overwrite\nSearch menu      List matching lines (the lines that hold a text, in the table), Query replace (Yes, No, All, Quit), Find options (C = match case, W = whole words), Upcase and Downcase the selection (Ctrl-G sets the mark), Import a record here, Export the selection to a record\nBuild menu       Run a command: what it prints is in the table. Format the program lays it out again, indenting by the tab width\nGo to line       A line; line,column; or field,value,subvalue in a record shown with :@vm: marks\nView menu        Refresh draws the screen again; Overwrite mode, Auto-indent (Return keeps the indent), Tab width
+Ctrl-F, Ctrl-B   Find forward, backward   F3, Shift-F3  The next, the previous (Return in the question finds the next)   Ctrl-R  Replace\nEsc, F10        The menus (Files and records is in the Go menu)\nCtrl-Q           Quit\nF1               This screen\nCtrl-A           Select all   Ctrl-D  Duplicate the line   Ctrl-K  Cut the line\nCtrl-P, Ctrl-U   A word back, on (Ctrl-Left, Right too)   Ctrl-Home, Ctrl-End  Text start, end   Ctrl-Del  Delete word   Ins  Overwrite\nSearch menu      List matching lines (the lines that hold a text, in the table), Query replace (Yes, No, All, Quit), Find options (C = match case, W = whole words), Upcase and Downcase the selection (Ctrl-G sets the mark), Import a record here, Export the selection to a record\nBuild menu       Run a command: what it prints is in the table. Format the program lays it out again, indenting by the tab width\nGo to line       A line; line,column; or field,value,subvalue in a record shown with :@vm: marks\nView menu        Refresh draws the screen again; Overwrite mode, Auto-indent (Return keeps the indent), Tab width\nTools menu       The development pages: Files, Dictionary, Vocabulary, Queries, Bulk update, Programs, Tests. Leaving the page (Ctrl-Q) and pressing Return comes back here
 ```
 
 cited by: `ide`
@@ -5952,6 +5952,60 @@ Account %1: the sdsys user is not in its group %2, so SDSYS cannot write inside 
 ```
 
 cited by: `create_account`
+
+### msg:11586
+> kind=message tier=reference since=- src=sdsys/messages/11586:1#7f56d213
+
+```
+Find an action
+```
+
+cited by: `tk_menubar`
+
+### msg:11587
+> kind=message tier=reference since=- src=sdsys/messages/11587:1#b20bc12d
+
+```
+&Find an action...
+```
+
+cited by: `tk_menubar`
+
+### msg:11588
+> kind=message tier=reference since=- src=sdsys/messages/11588:1#6296c3a1
+
+```
+F2  Find an action by name (every menu's entries)
+```
+
+cited by: `tk_help`
+
+### msg:11589
+> kind=message tier=reference since=- src=sdsys/messages/11589:1#d434f0c1
+
+```
+Shift-F10  The actions of this pane (a right click opens them at the pointer)
+```
+
+cited by: `tk_help`
+
+### msg:11590
+> kind=message tier=reference since=- src=sdsys/messages/11590:1#49720df6
+
+```
+&Tools|&Files~~tool.files|&Dictionary~~tool.dict|&Vocabulary~~tool.voc|&Queries~~tool.query|&Bulk update~~tool.bulk|&Programs~~tool.catalog|&Tests~~tool.test
+```
+
+cited by: `ide`
+
+### msg:11591
+> kind=message tier=reference since=- src=sdsys/messages/11591:1#9719728f
+
+```
+Back from %1: the tabs are as they were (a record that page changed is not read again)
+```
+
+cited by: `ide`
 
 ### msg:11597
 > kind=message tier=reference since=- src=sdsys/messages/11597:1#bb1ca89d
