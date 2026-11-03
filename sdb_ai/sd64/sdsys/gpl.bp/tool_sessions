@@ -12,6 +12,9 @@
 * 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the other [-], as the IDE does.
 * 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the list switch, the output pane and refresh are offered; no logout,
 *              unlock or inhibit.
+* 3 Nov 26 dm  S.137: the login time was read as a lock time (UTC seconds since 1970), but it is the kernel's sdtime(), local seconds from SD's day 0: the zone offset and the
+*              732 days were added to it again, and a session that signed on at 22:44 on 2 Nov showed "03 Nov 14:44" (two years on, the year not shown).  login.stamp.of
+*              formats it as it is; both feed one routine, stamp.local.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -206,13 +209,25 @@ timed.refresh:
    end
    return
 
-* The login time of a session or the time a lock was taken: day, month, hh:mm in the administrator's zone (as LIST.READU DETAIL does)
+* The time a lock was taken (GETLOCKS: seconds since 1 Jan 1970 UTC): day, month, hh:mm in the administrator's zone (as LIST.READU DETAIL does)
 stamp.of:
+   sdsec = ''
+   if tsec > 0 then sdsec = tsec + system(1019) + 732 * 86400
+   gosub stamp.local
+   return
+
+* The login time of a session (!listu value 8, the kernel's sdtime(): seconds of LOCAL time from SD's day 0, 31 Dec 1967, as LISTU shows it): no zone or day offset to add
+login.stamp.of:
+   sdsec = tsec
+   gosub stamp.local
+   return
+
+* sdsec, seconds of local time from SD's day 0, as day, month, hh:mm
+stamp.local:
    stampout = ''
-   if tsec > 0 then
-      loc = tsec + system(1019)
-      d = int(loc / 86400) + 732
-      stampout = oconv(d, 'DD') : ' ' : oconv(oconv(d, 'DMA'), 'MCT')[1, 3] : ' ' : oconv(rem(loc, 86400), 'MT')
+   if sdsec > 0 then
+      d = int(sdsec / 86400)
+      stampout = oconv(d, 'DD') : ' ' : oconv(oconv(d, 'DMA'), 'MCT')[1, 3] : ' ' : oconv(rem(sdsec, 86400), 'MT')
    end
    return
 
@@ -316,7 +331,7 @@ session.line:
    if nsd > 1 and index(@fm : sduids : @fm, @fm : v<1, 1> : @fm, 1) > 0 then stt := (if stt = '' then '' else ' ') : 'sdsys x' : nsd
    if bitand(flg, USR$LOGOUT) then stt := (if stt = '' then '' else ' ') : '(logout pending)'
    tsec = v<1, 8>
-   gosub stamp.of
+   gosub login.stamp.of
    org = v<1, 3>
    if v<1, 7> # '' then org := (if org = '' then '' else ' ') : v<1, 7>
    sline = fmt((if v<1, 1> = @userno then '*' else ''), '2L') : fmt(v<1, 1>, '5R') : '  ' : fmt(v<1, 2>, '8R') : '  ' : fmt(stampout, '12L') : ' ' : fmt(kind, '8L')
@@ -437,7 +452,7 @@ row.session:
    flg = v<1, 4>
    uid = v<1, 1>
    tsec = v<1, 8>
-   gosub stamp.of
+   gosub login.stamp.of
    lines<-1> = 'User ' : uid : ', process ' : v<1, 2> : ', login user ' : v<1, 6> : (if v<1, 9> = '' then ', not in an account yet' else ', in the account ' : v<1, 9>) : (if stampout = '' then '' else ', signed on ' : stampout) : '.'
    begin case
       case bitand(flg, USR$PHANTOM)

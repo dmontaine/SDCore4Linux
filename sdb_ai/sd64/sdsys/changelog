@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   TOOL.SESSIONS SHOWS THE RIGHT LOGIN TIME.
+
+             What        - The "Logged in" column of tool.sessions, and "signed on" in the box under it, showed a time that was
+                           wrong by the time zone's offset and two years (the year is not shown): a session that signed on at
+                           22:44 on 2 November, on a machine eight hours west of Greenwich, showed "03 Nov 14:44". It now shows
+                           the time the session signed on, in the machine's zone, as LISTU does.
+             Why         - The page read the login time as if it were a lock time. SD keeps the two differently (a lock's time is
+                           seconds since 1970 in UTC, a login time is local seconds counted from SD's own day 0), and the page
+                           converted the login time a second time.
+             Does NOT    - Change the lock list's "Since" column, which was right, or LISTU and its DETAIL, which read the login
+                           time correctly.
+
 3 Nov 26   A PUBLIC TOOLKIT LIBRARY: YOUR OWN PROGRAMS CAN BUILD THE FULL-SCREEN PAGES THE TOOLS USE.
 
              What        - Eleven new routines, !tkopen, !tkclose, !tkkeys, !tkframe, !tkmenubar, !tklayout, !tkconfirm, !tkform,

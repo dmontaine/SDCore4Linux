@@ -17,7 +17,8 @@
 # login.inhibit, a new ordinary session asking to sign in, and the audit file.  A page that drew a row, or said it ran a command, is not taken to have done it.
 #
 #   S0   an ordinary account has no tool.sessions
-#   S1   the page opens: one audit line; the boxes; the headings; the sessions that are signed on (read from LISTU and LIST.READU) and the locks (from LIST.READU), both in the lists
+#   S1   the page opens: one audit line; the boxes; the headings; the sessions that are signed on (read from LISTU and LIST.READU) and the locks (from LIST.READU), both in the lists;
+#        S1i (S.137, 3 Nov 26) the Logged in time against this machine's clock, mutant login-as-lock
 #   S2   the explanation under the row: a waiting row is not a lock and U refuses it; a record lock shows its command; a file lock shows 'filelock'
 #   S3   the session the page runs in is not offered for logout
 #   S4   logout: Esc runs nothing; a wrong number runs nothing; the number runs it - the process ends, the locks are released and B gets the lock it was waiting for
@@ -26,6 +27,7 @@
 #   S7   inhibit.login: on and off through the box; the file; a new ordinary session is refused while it is on; the audit lines
 #   S8   the mouse, F5, F1, Tab; a window under 140 by 43 gets no page; the page ends when its input ends
 # NOT HELD: a lock whose holder has no session (a sandbox cannot make one), a real install, the help text itself (sandbox-docs.py).
+import datetime
 import getpass
 import importlib.util
 import os
@@ -98,6 +100,8 @@ MUTANTS = {
     # S.76: a mark on every row of SDSYS, whatever the count (page); a second-session line for the first session too (login, the sandbox's own copy)
     "sdsys-mark-always": ("if nsd > 1 and index(@fm : sduids : @fm, @fm : v<1, 1> : @fm, 1) > 0 then stt", "if index(@fm : sduids : @fm, @fm : v<1, 1> : @fm, 1) > 0 then stt", ["S11"], "S11"),
     "audit-no-tty-check": ("if sd.tty and sd.n - sd.mine > 0 then", "if sd.n - sd.mine > 0 then", ["S11"], "S11"),
+    # S.137: the login time formatted as a lock time again (the zone offset and 732 days added a second time); S1 only
+    "login-as-lock": ("   tsec = v<1, 8>\n   gosub login.stamp.of\n   org", "   tsec = v<1, 8>\n   gosub stamp.of\n   org", ["S1"], "S1"),
 }
 MUTPROG = {"audit-no-tty-check": "login"}                        # the program a mutant changes: tool_sessions unless it is named here
 
@@ -401,6 +405,21 @@ def section_s1(a, b, ua, ub):
     arow("S1g", "the lock list has A's two record locks and B's waiting row, each with its file number and a holder 'signed on'", types == want and all(r["holder"] == "signed on" and r["file"].isdigit() for r in L), repr(L))
     arow("S1h", "the counts line names the number of sessions and says logins are allowed; the lock limit line is there", re.search(r"\d+ sessions: \d+ users, \d+ phantoms, \d+ API\.", p.line(14)) is not None and "Logins are allowed" in p.line(14)
          and "Record lock limit" in p.line(28), repr((p.line(14)[:120], p.line(28)[:100])))
+    # S.137 (3 Nov 26): the Logged in column, judged against THIS machine's clock in its own zone (the sessions were started by this suite a few minutes ago): the
+    # page used to add the zone offset and SD's 732 days to the kernel's login time a second time, "03 Nov 14:44" for a session that signed on 02 Nov 22:44
+    now = datetime.datetime.now().replace(second=0, microsecond=0)
+    seen = {}
+    for u in [x for x in (mine[0] if mine else None, ua, ub) if x is not None]:
+        ln = p.line(S[u]["row"]) if u in S else ""
+        seen[u] = ln[22:34].strip()
+    def recent(stamp):
+        try:
+            t = datetime.datetime.strptime("%d %s" % (now.year, stamp), "%Y %d %b %H:%M")
+        except ValueError:
+            return False
+        return datetime.timedelta(0) <= now - t <= datetime.timedelta(minutes=20)
+    arow("S1i", "the Logged in time of this session, A and B is today's date and a time in the last 20 minutes, in this machine's zone (now %s)" % now.strftime("%d %b %H:%M"),
+         len(seen) == 3 and all(recent(v) for v in seen.values()), repr(seen))
     return p
 
 
