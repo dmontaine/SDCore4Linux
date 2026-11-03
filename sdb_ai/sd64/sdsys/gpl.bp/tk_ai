@@ -27,6 +27,8 @@
 *               request of the same app only (res<1> 'follow'; the library's line says "AI follow-up>").  That request's preview shows the earlier exchanges in full and counts them;
 *               their questions pass the wall's screen again before the preview; they go to the helper as earlier messages (K$AI.START maxtokens VM n).  Dropped: at 'init', on any
 *               ask (a follow-up is used once), after 10 minutes, when the account or the app changes.  At most the last 3 exchanges are carried.  An ordinary request carries nothing.
+* 3 Nov 26 dm  S.123: the form proposal's box text, the Follow up status and the "left out" note are messages 14008-14010
+*               (Linux's second block); what is SENT to the model stays literal, as the form's field text does.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -706,7 +708,7 @@ run.ask:
          * S.97 (3 Nov 26): every proposed value in full, a key to a row and its value in rows of exactly its characters under it; the app checks each by its own rules before it fills
          *   a row, and saves nothing
          body<-1> = ''
-         call $tk_wrap('The AI proposes these values for the form. The form checks each one by its own rules and fills only the rows that pass, and only if you choose Accept; nothing is saved:', wrapw, pieces)
+         call $tk_wrap(sysmsg(14008), wrapw, pieces)    ;* 3 Nov 26 (S.123): a message
          body<-1> = pieces
          wr.w = wrapw - 6
          wr.p1 = '    ' ; wr.p2 = '    '
@@ -745,7 +747,7 @@ run.ask:
    begin case
       case bn = fu.bn
          gosub follow.keep
-         b = 'follow' : @fm : '' : @fm : '' : @fm : say : @fm : 'Follow-up: your next request here goes with this question and answer (its preview shows them). Nothing was applied.'
+         b = 'follow' : @fm : '' : @fm : '' : @fm : say : @fm : sysmsg(14009)
       case pk = 'fields' and bn = 1
          b = 'fields' : @fm : fl.keys : @fm : fl.vals : @fm : say : @fm : ''
       case pk # '' and bn = 1
@@ -899,7 +901,7 @@ read.fields:
          fl.skip<1, -1> = fk[1, 20]
       end
    next fi
-   if fl.skip # '' then note.p = 'Left out (not a field of this form, or not text): ' : change(fl.skip, @vm, ', ')[1, 200]
+   if fl.skip # '' then note.p = sysmsg(14010, change(fl.skip, @vm, ', ')[1, 200])
    if fl.n > 0 then pk = 'fields'
    return
 

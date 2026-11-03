@@ -3,6 +3,7 @@
 * Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 * START-HISTORY:
+* 3 Nov 26 dm   S.123: the AI line's hint and the "no Type" refusal are messages 14006 and 14007 (Linux's second block).
 * 3 Nov 26 dm   S.97, THE FORM'S AI LINE (the owner's D4a of 20 Oct: "a one line ai entry field at the bottom of each form"; 1 Nov: build dictionary items from a prompt): when the AI is
 *               usable for the account ($tk_ai 'usable') the form has an AI> row at its foot, reached by F6, Tab or a click; Return in it asks $tk_ai, which shows everything that
 *               will be sent first (Cancel the default).  The model is offered the form's fields (actx<14>) and may propose values; they are shown in full with Accept and Reject
@@ -393,7 +394,7 @@ hint.for:
       case hn = 'text'
          hint = 'The text, one line to a field.  A phrase is one line.'
       case hn = 'ai'
-         hint = 'Say what the item should be (a date in field 3 headed Joined) and press Return.  Everything sent is shown first; values come back for you to Accept or Reject.'
+         hint = sysmsg(14006)                          ;* 3 Nov 26 (S.123): the form's AI hint, a message
    end case
    return
 
@@ -526,7 +527,7 @@ apply.fields:
       end
    next i
    if ty.new = '' then
-      if an > a.ok then a.bad<-1> = 'no Type, so no other row'
+      if an > a.ok then a.bad<-1> = sysmsg(14007)
    end else
       call !dict_item('layout', ty.new, lr, '', xd)
       for i = 1 to an

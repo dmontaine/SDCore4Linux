@@ -10068,12 +10068,57 @@ Back from %1: the tabs are as they were (a record that page changed is not read 
 
 cited by: `ide`
 
+### msg:14006
+> kind=message tier=reference since=- src=sdsys/messages/14006:1#37aface0
+
+```
+Say what the item should be (a date in field 3 headed Joined) and press Return.  Everything sent is shown first; values come back for you to Accept or Reject.
+```
+
+cited by: `dict_form`
+
+### msg:14007
+> kind=message tier=reference since=- src=sdsys/messages/14007:1#a036b165
+
+```
+no Type, so no other row
+```
+
+cited by: `dict_form`
+
+### msg:14008
+> kind=message tier=reference since=- src=sdsys/messages/14008:1#5c0cfafa
+
+```
+The AI proposes these values for the form. The form checks each one by its own rules and fills only the rows that pass, and only if you choose Accept; nothing is saved:
+```
+
+cited by: `tk_ai`
+
+### msg:14009
+> kind=message tier=reference since=- src=sdsys/messages/14009:1#f4b317e9
+
+```
+Follow-up: your next request here goes with this question and answer (its preview shows them). Nothing was applied.
+```
+
+cited by: `tk_ai`
+
 ### msg:1401
 > kind=message tier=reference since=- src=sdsys/messages/1401:1#8951197f
 
 ```
 Error %d creating file
 ```
+
+### msg:14010
+> kind=message tier=reference since=- src=sdsys/messages/14010:1#953e7ecf
+
+```
+Left out (not a field of this form, or not text): %1
+```
+
+cited by: `tk_ai`
 
 ### msg:1402
 > kind=message tier=reference since=- src=sdsys/messages/1402:1#3f084312

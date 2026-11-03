@@ -19,6 +19,9 @@
 #           Ctrl-S saves; an edit that would leave invalid JSON is ignored; the AI's last change is undone from the menu; explain the selected element sends the element
 #   D0-D3   the debugger: ai is not a command with the AI off; on, ai shows the program, the stack and the source round the stop in the preview; Send answers in words; the
 #           debugger's screen is whole again (source, command line) and goes on working
+#   S11a-c, C8a-c, D5a-c  (3 Nov 26, S.107, section follow) Follow up in each app: the answer's box offers it; the next request's preview shows the earlier question; Send
+#           carries the earlier question and answer as the user's and assistant's messages (read at the fake) and the audit line says followup=1
+#   --only=SECTION[,SECTION]  sedoff sed cedoff ced dbg follow (independent of one another; the build and the fixtures always run)
 # NOT HELD: the end of the input during the wait, a record over 24000 bytes, SED's split window, a real provider.
 import importlib.util
 import json
@@ -328,8 +331,61 @@ def sec_dbg():
     e.end()
 
 
+def follow_check(e, rid, app, ask_again):
+    """3 Nov 26 (S.107): after an answer, Follow up; the next request must carry the earlier question and answer.
+    Read from the fake's log (what left the machine) and the audit file, never from the screen alone."""
+    fm = ai.STATE["fm"]
+    T = ai.wait_popup(e)
+    arow(rid + "a", "%s: the answer's box has Follow up beside Close" % app, "Follow up" in T and "Close" in T, T[-500:])
+    e.keys("f")
+    time.sleep(1.0)
+    e.s.settle(0.6)
+    n0, a0 = len(fm.log), ai.audit_off()
+    T = ask_again()
+    arow(rid + "b", "%s: the follow-up's preview shows the earlier question; nothing is sent yet" % app,
+         "earlier exchange" in T and "first question [[sayonly]]" in T and len(fm.log) == n0, T[-1200:])
+    e.keys("s")
+    ai.wait_popup(e)
+    rq = ai.requests()
+    body = rq[-1][2] if len(rq) > n0 else {}
+    msgs = body.get("messages", []) if body else []
+    rl = ai.req_lines(ai.audit_new(a0))
+    arow(rid + "c", "%s: Send carries the earlier question and answer as the user's and the assistant's messages before the request, and the audit line says followup=1" % app,
+         len(msgs) == 3 and msgs[0].get("role") == "user" and msgs[0].get("content") == "first question [[sayonly]]" and msgs[1].get("role") == "assistant"
+         and str(msgs[2].get("content", "")).endswith("second question [[plain]]") and len(rl) == 1 and "followup=1" in rl[0],
+         repr(([(m.get("role"), str(m.get("content"))[:60]) for m in msgs], rl)))
+    e.keys(RET)
+
+
+def sec_follow():
+    """3 Nov 26 (S.107): Follow up in SED, the collection editor and the debugger (the IDE's rows are sandbox-ai-ide.py F1-F5)."""
+    say("\n--- Follow up in SED, CED and the debugger")
+    e = sed_open(ai.OK_REC)
+    sed_ask(e, "first question [[sayonly]]")
+    e.keys("s")
+    follow_check(e, "S11", "SED", lambda: sed_ask(e, "second question [[plain]]"))
+    e.end()
+    make_json_record()
+    e = ai.AccIde(ai.box(), cmd="CED bp %s" % CED_REC)
+    ced_ask(e, "first question [[sayonly]]")
+    e.keys("s")
+    follow_check(e, "C8", "CED", lambda: ced_ask(e, "second question [[plain]]"))
+    e.end()
+    e = ai.AccIde(ai.box(), cmd="RUN bp %s" % DBG_PROG)
+    e.keys("ai first question [[sayonly]]", RET)
+    e.keys("s")
+    follow_check(e, "D5", "the debugger", lambda: (e.keys("ai second question [[plain]]", RET), e.text())[1])   # e.keys returns the screen's LINES: take the text
+    e.end()
+
+
+SECTIONS = {"sedoff": "sec_sed_off", "sed": "sec_sed", "cedoff": "sec_ced_off", "ced": "sec_ced", "dbg": "sec_dbg", "follow": "sec_follow"}
+
+
 def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
+    only = next((a.split("=", 1)[1].split(",") for a in sys.argv[1:] if a.startswith("--only=")), None)
+    if only is not None and not set(only) <= set(SECTIONS):
+        ids.bail("usage: sandbox-ai-apps.py <dir> [--build] [--only=%s]" % ",".join(SECTIONS))
     if mutant is not None and mutant not in MUTANTS:
         ids.bail("usage: sandbox-ai-apps.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -364,11 +420,8 @@ def main():
         make_json_record()
         make_debug_program()
         if mutant is None:
-            sec_sed_off()
-            sec_sed()
-            sec_ced_off()
-            sec_ced()
-            sec_dbg()
+            for name in (only or list(SECTIONS)):           # 3 Nov 26: --only=SECTION[,SECTION] (CLAUDE.md testing rule 7); the build and fixtures always run
+                globals()[SECTIONS[name]]()
         else:
             {"sed": sec_sed, "ced": sec_ced, "dbg": sec_dbg}[MUTANT_SECTIONS[mutant]]()
     finally:

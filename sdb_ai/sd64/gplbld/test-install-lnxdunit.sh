@@ -34,7 +34,11 @@ if [ "${1:-}" = "--selftest" ]; then
   }
   inst_mutant() {   # name, sed expression applied to the installer
     local f="$T/$1.sh"
-    sed -e "$2" "$TREE/installsdcore.sh" > "$f"
+    # 3 Nov 26 (S.119): an invalid sed expression wrote an empty file, the check then failed on it and the mutant was
+    # counted as caught; a mutant whose sed fails is now MISSED, by name
+    if ! sed -e "$2" "$TREE/installsdcore.sh" > "$f" 2> "$T/$1.sed"; then
+      echo "  [MISSED] $1: the mutation is not a valid sed expression ($(head -1 "$T/$1.sed"))"; missed=$((missed+1)); total=$((total+1)); return
+    fi
     if cmp -s "$TREE/installsdcore.sh" "$f"; then echo "  [MISSED] $1: the mutation changed nothing"; missed=$((missed+1)); total=$((total+1)); return; fi
     INSTALLER="$f" bash "$THIS" > "$T/$1.out" 2>&1; judge "$1" $?
   }
@@ -44,9 +48,9 @@ if [ "${1:-}" = "--selftest" ]; then
   B='/^# LNXDUNIT-BEGIN/,/^# LNXDUNIT-END/'
   inst_mutant block-always            "$B s/ \&\& ! grep -q 'sd-lnxd\\\\.service' \"\$SYSTEMDPATH\/sd.service\"//"
   inst_mutant block-never             "$B s/if \[ -f \"\$SYSTEMDPATH\/sd.service\" \] \&\& /if false \&\& /"
-  inst_mutant block-no-unit-copy      "$B /sd-lnxd.service \"\$SYSTEMDPATH\/sd-lnxd.service\"\$/d"
-  inst_mutant block-no-service-copy   "$B /usr\/lib\/systemd\/system\/sd.service \"\$SYSTEMDPATH\/sd.service\"\$/d"
-  inst_mutant block-no-reload         "$B /systemctl daemon-reload/d"
+  inst_mutant block-no-unit-copy      "$B{/sd-lnxd.service \"\$SYSTEMDPATH\/sd-lnxd.service\"\$/d;}"
+  inst_mutant block-no-service-copy   "$B{/usr\/lib\/systemd\/system\/sd.service \"\$SYSTEMDPATH\/sd.service\"\$/d;}"
+  inst_mutant block-no-reload         "$B{/systemctl daemon-reload/d;}"
   inst_mutant block-mode-0666         "$B s/-m 0644/-m 0666/"
   inst_mutant block-owner-sdsys       "$B s/-o root -g root/-o sdsys -g sdusers/"
   inst_mutant block-wrong-grep-file   "$B s/grep -q 'sd-lnxd\\\\.service' \"\$SYSTEMDPATH\/sd.service\"/grep -q 'sd-lnxd\\\\.service' \"\$SYSTEMDPATH\/sdclient.socket\"/"
