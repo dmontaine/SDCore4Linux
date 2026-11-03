@@ -126,7 +126,7 @@
   },
   "voc.type": {
    "chunks": 9,
-   "sha256": "408b406f40a98c9cd5ec95df511d5a8fa866a47d089c1df1718ee78038d298b5"
+   "sha256": "db34fa7334cd33febe37d98d0bf5b77e31a41f59fd42d6563de0c582e7cc81df"
   },
   "voc.types": {
    "chunks": 1,
@@ -201,7 +201,7 @@
   },
   "reference/voc.md": {
    "chunks": 12,
-   "sha256": "55f6df7dc6b56742b306dc98a43809d8f034c579131c817a7c50eae38215cc6d",
+   "sha256": "4f78a013ceed7aeae09b5f8ac1c9e9a0ac93927676cf3b4580fa5917a95afac2",
    "words": 1922
   }
  },
