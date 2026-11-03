@@ -433,7 +433,7 @@ def checks(raw):
                   "py0 = prect<1, 2>", "pnw = prect<1, 3>", "ph = prect<1, 4>", "py1 = py0 + ph - 1", "call $tk_layout('pane', ctx, 'hint', prect)", "hny = prect<1, 2>", "gosub columns")
        and "call $tk_layout('declare', ctx, pd, perr)" in sq, gm[:300])
     ck("T8", "the hint row, its text, the AI line's click and the scroll bar use the rectangles and the layout's width: at 0,hny; at hnx + 2,hny; my = hny; at lw - 1,py0 + r - 1",
-       "screen text '' at 0,hny width lw" in sq and "at hnx + 2,hny attr 'disabled'" in sq and "ctx<TK.C.AI> and my = hny" in sq and "at lw - 1,py0 + r - 1 attr 'scroll'" in sq, "")
+       "screen text '' at 0,hny width lw" in sq and "at hnx + 2,hny attr 'desktop'" in sq and "ctx<TK.C.AI> and my = hny" in sq and "at lw - 1,py0 + r - 1 attr 'scroll'" in sq, "")
     ph_ = TL.squeeze(block(src, "place.header"))
     ck("T9", "the header is the model's: place.header puts Switch account on xcol<ncol - 1>, Sign out on xcol<ncol>, Back on xcol<1>, on the header's row, tw.n wide; draw.header clears up to "
        "xcol<ncol - 1> - 1; set.title puts the identity on xcol<2> on a sub-menu page and xcol<1> otherwise",

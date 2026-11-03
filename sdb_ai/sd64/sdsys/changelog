@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   THE HOME SCREEN'S HINT ROW AND DATE LINE, AND THE AI ROW'S HINT, ARE DRAWN IN THE PAGE'S OWN COLOURS.
+
+             What        - The line "arrows move - Enter starts - ..." at the foot of the home screen, the date line under the name,
+                           and the label and hint of the AI row when it does not have the keyboard are drawn in the page's own
+                           colours (the theme's desktop role), as the rest of the page is.
+             Why         - They were drawn as disabled entries, which in the blue theme paints the terminal's palette blue behind
+                           cyan text. A terminal whose palette shows that blue as light blue (one of the owner's GNOME Terminal
+                           profiles) made both lines pale on light blue and unreadable; the default palettes of GNOME Terminal and
+                           LXTerminal were fine.
+             Does NOT    - Change the themes, or how disabled menu entries and tiles look. A terminal palette that redefines the
+                           sixteen basic colours can still change how every page looks.
+
 3 Nov 26   THE INSTALLER PUTS THE DOCUMENTATION PDFS OF A RELEASE PACKAGE IN THE SHARED ACCOUNT.
 
              What        - A release package holds a folder named pdf beside installsdcore.sh, with one PDF for each chapter of the

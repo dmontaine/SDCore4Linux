@@ -467,7 +467,16 @@ def rows(env, fm):
     data = a.recv(65536)
     a.close()
     r = json.loads(data.decode()) if data else {}
-    row("run as a program with the default gate group sdaiusers (the test user is not in it): exit 0 and a nogate reply, one stderr line", p.returncode == 0 and r.get("code") == "nogate" and p.stderr.count(b"\n") == 1, repr((p.returncode, r, p.stderr)))
+    # 3 Nov 26: the row needs a runner who is NOT in sdaiusers; on a machine whose installing user had every gate opened, it is, and the helper rightly answers.
+    import grp, pwd
+    try:
+        in_ai = pwd.getpwuid(os.getuid()).pw_name in grp.getgrnam("sdaiusers").gr_mem
+    except KeyError:
+        in_ai = False
+    if in_ai:
+        say("  [SKIPPED, not counted] run as a program with the default gate group sdaiusers: the user running this check is in sdaiusers here, so the refusal cannot be measured (it answered %r)" % r.get("t"))
+    else:
+        row("run as a program with the default gate group sdaiusers (the test user is not in it): exit 0 and a nogate reply, one stderr line", p.returncode == 0 and r.get("code") == "nogate" and p.stderr.count(b"\n") == 1, repr((p.returncode, r, p.stderr)))
     p = subprocess.run([sys.executable, env.helper_path, "--bogus"], capture_output=True, timeout=30)
     row("an argument it does not know is a usage message and exit 2", p.returncode == 2 and b"usage" in p.stderr, repr(p))
 

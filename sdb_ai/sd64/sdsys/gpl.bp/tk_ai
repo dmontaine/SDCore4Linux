@@ -29,6 +29,8 @@
 *               ask (a follow-up is used once), after 10 minutes, when the account or the app changes.  At most the last 3 exchanges are carried.  An ordinary request carries nothing.
 * 3 Nov 26 dm  S.123: the form proposal's box text, the Follow up status and the "left out" note are messages 14008-14010
 *               (Linux's second block); what is SENT to the model stays literal, as the form's field text does.
+* 03 Nov 26 dm  The AI row's label (unfocused) and its hint are drawn in the role desktop, the page's own, not disabled: the blue theme's disabled
+*               paints the palette's blue behind the text, which a terminal palette may show light (the owner's GNOME Terminal: unreadable).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -334,9 +336,9 @@ paint:
    keep.cur = ''
    call $sl_curat('get', keep.cur)
    screen text '' at 0,y width lw
-   screen text ai.label at 3,y attr (if ai.focus then 'bold' else 'disabled')
+   screen text ai.label at 3,y attr (if ai.focus then 'bold' else 'desktop')
    if ai.w{'value'} = '' and not(ai.focus) then
-      screen text sysmsg((if ctx<TK.C.AIROW> then 11943 else 11637))[1, lw - 3 - len(ai.label) - 3] at ai.w{'ax'},y attr 'disabled'     ;* a page of the toolkit has no Tab ring: its hint says F6 (S.97 stage 1)
+      screen text sysmsg((if ctx<TK.C.AIROW> then 11943 else 11637))[1, lw - 3 - len(ai.label) - 3] at ai.w{'ax'},y attr 'desktop'     ;* a page of the toolkit has no Tab ring: its hint says F6 (S.97 stage 1)
    end else
       ai.w{'focused'} = (if ai.focus then 1 else 0)
       call $sl_scr('get', scr)
