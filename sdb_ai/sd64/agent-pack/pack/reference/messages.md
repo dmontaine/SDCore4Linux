@@ -5981,10 +5981,10 @@ F2  Find an action by name (every menu's entries)
 cited by: `tk_help`
 
 ### msg:11589
-> kind=message tier=reference since=- src=sdsys/messages/11589:1#d434f0c1
+> kind=message tier=reference since=- src=sdsys/messages/11589:1#98d0d1da
 
 ```
-Shift-F10  The actions of this pane (a right click opens them at the pointer)
+Shift-F10  The actions of this pane (a right click on a box gives it the keyboard and opens its actions at the pointer)
 ```
 
 cited by: `tk_help`

@@ -636,7 +636,13 @@ def run_b(raw):
     mb = norm(strip_bas(raw.get("tk_menubar", "")))
     for what, text in (("F2 is the finder", "case nm = 'f2' start = -1"), ("Shift-F10 is the context menu", "case nm = 'shift-f10' start = -2"),
                        ("the page's own binding of the key wins", "if start # 0 then call $tk_keys('action', keys, nm, pane, pa, '', '') if pa # '' and pa # 'menu' then start = 0 end"),
-                       ("a right press opens the context menu at the pointer", "case op = 'click' and a<1> = 'press' and a<2> = 3 cx = a<3> + 0 ; cy = a<4> + 0 gosub run.context"),
+                       ("a right press opens the context menu at the pointer", "case op = 'click' and a<1> = 'press' and a<2> = 3 cx = a<3> + 0 ; cy = a<4> + 0 gosub box.at"),
+                       # 3 Nov 26 (owner: "Move focus first"): on a focus box that has not the focus, the page's own left press first, the menu on the next draw
+                       ("a right press on another focus box is the page's left press, and the menu waits for the draw",
+                        "if bx.name # '' and bx.name # pane then rc.state = 'ctx' ; rc.x = cx ; rc.y = cy ; rc.epoch = ctx<TK.C.EPOCH> a<2> = 1 end else gosub run.context end"),
+                       ("the draw opens the waiting menu once, for this open of the page, and leaves the choice for the next SCREEN KEY",
+                        "if rc.state = 'ctx' and rc.epoch = ctx<TK.C.EPOCH> then rc.state = '' cx = rc.x ; cy = rc.y gosub run.context if c<1> = 'act' and c<4> # '' then kp.name = 'kp:' : c<4> c = '' end"),
+                       ("the box under the pointer is a shown focus box's", "if rr<1, 1, 5> and cx >= rr<1, 1, 1> and cx < rr<1, 1, 1> + rr<1, 1, 3> and cy >= rr<1, 1, 2> and cy < rr<1, 1, 2> + rr<1, 1, 4> then bx.name = fo<1, fi, 2>"),
                        ("the finder lists the bar's own menus", "call $sl_palette(menus, sysmsg(11586), pr, ps, pw)"),
                        ("a disabled entry is answered with its reason and nothing chosen", "case ps = 2 screen msgbox pw returning bn else bn = 0 gosub no.answer"),
                        ("an answer is the action's key, as the bar's", "answer.act: call $tk_keys('keyof', keys, pr, pane, kn, '', '') c = 'act' : @fm : pr : @fm : kn : @fm : (if kn = '' then 'act:' : pr else kn)"),
@@ -652,6 +658,9 @@ def run_b(raw):
             res["finder"].append("tk_menubar contains '%s': the bar, the finder and the context menu run nothing" % w)
     if mb.count("gosub answer.act") != 2:
         res["finder"].append("the finder and the context menu answer through answer.act (twice), found %d" % mb.count("gosub answer.act"))
+    sk = norm(strip_bas(raw.get("screen_key", "")))
+    if "if kp.name[1, 3] = 'kp:' then ret = kp.name[4, 999] kp.name = '' status = 0 return end" not in sk or "kp.name = 'kp:'" in sk:
+        res["finder"].append("!screen_key does not give the menu bar's left key once (marked kp:, then cleared), or sets one itself")
     return res
 
 
@@ -764,6 +773,10 @@ mut("tool_test", "   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)", 
 mut("tool_test", "   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)", "   call $tk_keys('add', keys, 'shift-f10', 'pane', 'pane', '', 1)", "a page binds Shift-F10 (the context menu's key)", "reserved")
 mut("msg:11590", "&Programs~~tool.catalog", "&Queries again~~tool.catalog", "a duplicate mnemonic in the IDE's Tools menu", "mnemonic")
 mut("msg:11590", "&Tools|", "&File tools|", "the Tools menu's title takes File's letter", "mnemonic")
+# 3 Nov 26 (owner: "Move focus first")
+mut("tk_menubar", "            a<2> = 1\n", "", "the right press on another box does not become the page's left press", "finder")
+mut("tk_menubar", "            rc.state = ''\n            cx = rc.x", "            cx = rc.x", "the waiting menu opens on every draw", "finder")
+mut("screen_key", "      kp.name = ''\n", "", "SCREEN KEY gives the left key for ever", "finder")
 # ---- PART B MUTANTS END ----
 
 

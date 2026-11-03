@@ -112,6 +112,8 @@ MUTANTS = {
     "page-binds-f2": ("   call $tk_keys('add', keys, 'f5', 'read', 'reread', panes, 1)\n", "   call $tk_keys('add', keys, 'f5', 'read', 'reread', panes, 1)\n   call $tk_keys('add', keys, 'f2', 'mine', 'mine', panes, 1)\n",
                       ["Q14b", "Q14c", "Q14d"], ["q14"]),
     "list-no-delete": ("   pk.mode<4> = 'delete'\n", "", ["Q12a", "Q12c"], ["q12"]),       # Q12b (a wrong name deletes nothing) holds either way
+    # 3 Nov 26 (owner: "Move focus first"): the right click no longer moves the focus to the box under it (the menu is the focused box's, as before the answer)
+    "rclick-no-focus": ("         if bx.name # '' and bx.name # pane then\n", "         if 0 then\n", ["Q14g"], ["q14"], "tk_menubar"),
 }
 
 
@@ -146,13 +148,19 @@ def compile_page():
 
 
 def mutate(name):
-    old, new, _kills, _sections = MUTANTS[name]
-    path = os.path.join(sh.SYS, "gpl.bp", "tool_query")
+    old, new, _kills, _sections = MUTANTS[name][:4]
+    prog = MUTANTS[name][4] if len(MUTANTS[name]) > 4 else "tool_query"          # 3 Nov 26: a mutant of the toolkit's menu bar ($tk_menubar) names its program
+    path = os.path.join(sh.SYS, "gpl.bp", prog)
     src = open(path, encoding="utf-8", errors="replace").read()
     if src.count(old) != 1:
         bail("mutant %s: the text to change is found %d times, not once" % (name, src.count(old)))
     g.put(path, src.replace(old, new))
-    compile_page()
+    if prog == "tool_query":
+        compile_page()
+    else:
+        out = adm("BASIC gpl.bp " + prog)
+        if not has(out, r"^Compiled 1 program\(s\) with no errors"):
+            bail("%s did not compile in the sandbox:\n%s" % (prog, "\n".join(out[-8:])))
 
 
 POPULATE = "\n".join([
@@ -1226,6 +1234,17 @@ def section_q14():
     arow("Q14f2", "its last entry, Find an action..., opens the finder; Esc leaves it and nothing changed (the sentence is still list zq name)", "Query > Run the query" in T, T[:600])
     h.key("esc", idle=1.2)
     arow("Q14f3", "...after Esc the sentence is still list zq name", sentence(h) == "list zq name", repr(sentence(h)))
+    # 3 Nov 26 (owner: "Move focus first"): a right click on a box that has not the focus moves the focus there and opens THAT box's menu
+    rclick(h, 100, 6, idle=1.8)
+    T = h.text()
+    arow("Q14g", "a right click on the Conditions box (the focus is on Columns) moves the focus there ([*] Conditions) and opens the Conditions menu (Edit the row, And / or), not the Columns one (no Mark the column)",
+         "[*] Conditions" in T and "Edit the row" in T and "And / or" in T and "Mark the column" not in T, T[:1200])
+    h.key("esc", idle=1.2)
+    rclick(h, 50, 5, idle=1.8)                              # the Columns row of name (marked): the focus goes back to Columns and its menu opens
+    T = h.text()
+    tp(h, "m", 1.5)
+    arow("Q14h", "a right click on the Columns box moves the focus back ([*] Columns, its menu: Mark the column), and M there is that pane's key: the name column is unmarked (the sentence is list zq)",
+         "[*] Columns" in T and "Mark the column" in T and sentence(h) == "list zq", repr((sentence(h), T[:600])))
     h.key("ctrl-q", idle=1.2)
     h.end()
 

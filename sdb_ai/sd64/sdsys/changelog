@@ -5,9 +5,10 @@ Next release - in progress
 
              What        - On every full-screen page that has a menu bar (the administrator's pages, the development pages, the home
                            screen and my.menu) F2 opens a list of every entry of the page's menus, written "Menu > Entry" with its key.
-                           Typing narrows the list, Enter chooses. A right click anywhere on the page opens a small menu at the pointer
-                           with the actions of the box that has the keyboard (the one marked [*]), and Shift-F10 opens the same menu
-                           from the keyboard; its last entry, Find an action..., opens the F2 list. F1's list of keys names both.
+                           Typing narrows the list, Enter chooses. A right click on a box opens a small menu at the pointer with that
+                           box's actions; a box that did not have the keyboard is given it first, as a click gives it. A right click
+                           outside the boxes, and Shift-F10 from the keyboard, open the menu of the box that has the keyboard (the one
+                           marked [*]); its last entry, Find an action..., opens the F2 list. F1's list of keys names both.
                            tool.test now moves between its two boxes with Tab and Shift-Tab, as the other pages with two boxes do: from
                            the list to what the test under the cursor printed, and back.
              Why         - An action that is only in a menu had to be looked for menu by menu; the F2 list finds it by a word of its
@@ -15,8 +16,8 @@ Next release - in progress
                            page with two boxes that Tab did not move between.
              Does NOT    - Add any action or any access: an entry chosen in either list does exactly what its key does, through the
                            page's own checks and boxes, and an entry the page cannot do now is shown "(not now)" and only says why.
-                           The right-click menu is the menu of the box that has the keyboard, not of the box under the pointer (click
-                           the box first). The Menu key of a PC keyboard is not read (use Shift-F10). The IDE, SED, the debugger and
+                           A right click on a box does what a left click there does first (on a list it may move the cursor to the row
+                           under the pointer). The Menu key of a PC keyboard is not read (use Shift-F10). The IDE, SED, the debugger and
                            tool.keys are unchanged: they have their own keys.
 
 3 Nov 26   TOOL.QUERY'S SAVED QUERIES ARE A LIST YOU CAN TYPE INTO, WITH COLUMNS, AND DEL DELETES ONE.
