@@ -13,10 +13,13 @@
 # 15 Oct 26 dm  Written with the CREATING.SEQKEY option of ED and SED (openQM 4: "Use of CREATING.SEQKEY instead of a
 #               record id automatically generates the next sequential key for the file"), gpl.bp/seqkey.
 # 18 Oct 26 dm  SED is 140 by 42 (terminal 140x42, phase 2): the window here is 140 by 42.
+# 3 Nov 26 dm   SED is 140 by 43 since 1 Nov (S.99, sed SED.ROWS 43) and refuses 140 by 42: the window here is 140 by 43.  Five rows
+#               had read the typed command line ("SED <file> CREATING.SEQKEY") off the screen after the refusal and taken its
+#               last word for the id SED showed; sed_id now skips that echoed line, so a refused SED reads as no id at all.
 # END-HISTORY
 #
 # HOW IT DRIVES THE EDITORS.  ED, the line editor, is driven through a pipe, one command to a line, as sandbox-collfile.py
-# does.  SED is driven on a PSEUDO-TERMINAL (ptydrive.py) at 140 by 42, its one size, and its screen is read from the
+# does.  SED is driven on a PSEUDO-TERMINAL (ptydrive.py) at 140 by 43, its one size, and its screen is read from the
 # emulator in termscreen.py.  What each editor DID is read from the disk afterwards by a BASIC probe (the counter, from
 # FILEINFO(f, 1031), and every record of the data part, the dictionary part, a directory file and a collection file), not
 # from what the editor printed; what the editor printed is read for the id it showed and for the words of a refusal.
@@ -83,7 +86,7 @@ def sess(box, *cmds):
 class Term:
     """One run of a command on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd, cols=140, rows=42):          # SED is 140 by 42 always (18 Oct 26; 120 by 36 before), and refuses a smaller window
+    def __init__(self, box, cmd, cols=140, rows=43):          # SED is 140 by 43 always (1 Nov 26; 140 by 42 from 18 Oct, 120 by 36 before), and refuses a smaller window
         self.cols = cols
         self.rows = rows
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm")
@@ -170,8 +173,10 @@ def shown_id(out, name):
 
 
 def sed_id(e, name):
-    """The id SED shows on its file line, by the file name."""
-    m = re.search(re.escape(name) + r" (\S+)", "\n".join(e.lines()))
+    """The id SED shows on its file line, by the file name.  The typed command line (SED [DICT] <name> <id>) is not SED's
+    screen: it stays on view when SED refuses to start, so it is skipped and a refused SED gives None."""
+    shown = [l for l in e.lines() if not re.search(r"\bSED\s+(DICT\s+)?" + re.escape(name) + r"\b", l)]
+    m = re.search(re.escape(name) + r" (\S+)", "\n".join(shown))
     return m.group(1) if m else None
 
 

@@ -13,6 +13,7 @@
 # THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 3 Nov 26 dm   Row 466 TERM DEFAULT expects 140 x 43: DEFAULT.DEPTH has been 43 since 1d587a48 (the row still wanted 42; S.106's targeted regression).
 # 2 Nov 26 dm   The review of S.102 stage 4: section capture (op_capture(): one empty line, and every length that can put the trailing newline alone in a chunk, through
 #               OS.EXECUTE and EXECUTE ... CAPTURING, the session alive after it), and --only= with the sections items, verbs and capture.
 # 30 Oct 26 dm  S.88 A1 (the second Opus review of E2): rows 485e-f.  The same refusal in the OPENSEQ file,record form (a record that is a link to nothing: the ELSE, STATUS() 6032,
@@ -1422,8 +1423,8 @@ def run_verbs(box, sysd, bp):
         text = sess(box, "TERM 130,45,110,60", "TERM")
         row("466: all four at once", term_state(text) == (130, 45, 110, 60), "%r %s" % (term_state(text), text[-300:]))
         text = sess(box, "TERM ,,100,40", "TERM DEFAULT", "TERM")
-        row("466: TERM DEFAULT puts the screen back to 140 x 42 (SD's default, not 80 x 24) and leaves the printer alone",
-            term_state(text) == (140, 42, 100, 40), "%r %s" % (term_state(text), text[-300:]))
+        row("466: TERM DEFAULT puts the screen back to 140 x 43 (SD's default, not 80 x 24) and leaves the printer alone",
+            term_state(text) == (140, 43, 100, 40), "%r %s" % (term_state(text), text[-300:]))
         text = sess(box, "TERM ,,19")
         row("466: a printer width under 20 is refused", has(text, r"Width must be in range 20 to 32767"), text[-300:])
         text = sess(box, "TERM ,,,9")

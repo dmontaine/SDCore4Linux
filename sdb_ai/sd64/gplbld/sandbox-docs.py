@@ -10,6 +10,8 @@
 #
 # START-HISTORY:
 # 23 Oct 26 dm  New (S.75, plan section 14).
+# 3 Nov 26 dm   tool.gates.matrix's words: "drops" (U drops them) for "everything", which left the record with its sentence "There is no key that
+#               queues everything ON" when A and N were added (427cfa0d, 1 Nov); the click and F1 rows failed on a correct record.
 # END-HISTORY
 #
 # THE SHARED ACCOUNT HERE.  The sandbox cannot make Linux groups, so shared is a hand-made register record  <path>\n...\nsdg_shared, the directory <sandbox>/group_accounts/shared with a
@@ -549,7 +551,7 @@ def main():
         row("a [?] at the end of the matrix box", h.line(2)[134:137] == "[?]", repr(h.line(2)[130:139]))
         h.click(135, 2, idle=1.4)
         T = re.sub(r"[|\s]+", " ", h.text())                     # the box wraps its text and draws its border between the lines
-        words = ("queues", "everything", "modify.account", "Cancel", "files-write")          # single words: the box wraps its text, and a phrase cut at a line end has the rest of that screen row between its halves
+        words = ("queues", "drops", "modify.account", "Cancel", "files-write")          # single words: the box wraps its text, and a phrase cut at a line end has the rest of that screen row between its halves
         row("a click on the [?] shows the record of tool.gates.matrix: its title and words of its three paragraphs", "The gate matrix" in T and all(w in T for w in words), T[-700:])
         h.key("esc", idle=0.8)
         h.key("f1", idle=1.4)
