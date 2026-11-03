@@ -204,6 +204,16 @@ Next release - in progress
                            prompt. A record a page changes while it is open in an IDE tab is not read again (close the tab and open it
                            again). The menu entries have no keys.
 
+2 Nov 26   THE DEFAULT TERMINAL IS NOW 140 COLUMNS BY 43 LINES (it was 140 by 42 from 19 October, and 120 by 36 before).
+
+             What        - A session that has no terminal to ask (a phantom, a piped script, a service, the API) starts with a display
+                           140 columns wide and 43 lines deep, and a LIST fills 42 lines before it pauses. term default puts a session
+                           back to 140 by 43. The terminfo entries that name a width and depth say 140 and 43.
+             Why         - 140 by 43 is the smallest window the full-screen pages, SED, the IDE and the debugger work in, so a session
+                           that starts at the default can open every one of them.
+             Does NOT    - Change a real terminal: it still decides its own size, and term w,h still sets any size exactly as typed.
+                           To get the previous default for a session, type term 140,42.
+
 2 Nov 26   THE HOME SCREEN HAS THE SAME MENU BAR AS THE OTHER PAGES, A KEY FOR EVERY MENU ENTRY, AND / TO FIND A TILE.
 
              What        - The home screen's menu bar is now made the way every other full-screen page's is, from the page's own
