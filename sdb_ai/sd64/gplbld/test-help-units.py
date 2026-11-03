@@ -64,7 +64,7 @@ def load():
         src["tool_" + app] = read(os.path.join(GPL, "tool_" + app))   # 26 Oct 26, S.75 DV2, DV4-DV7: each page asks for its tool.<app>.page
     src["mymenu"] = read(os.path.join(GPL, "mymenu"))                 # 2 Nov 26, S.88 U4: MY.MENU asks for tool.menus.mine
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
-    for n in (11588, 11589):                                          # 3 Nov 26, S.88 K7/K8: F1's lines for the bar's own keys
+    for n in (14002, 14003):                                          # 3 Nov 26, S.88 K7/K8: F1's lines for the bar's own keys
         p = os.path.join(SDSYS, "messages", str(n))
         src["msg.%d" % n] = read(p) if os.path.exists(p) else None
     for name in sorted(os.listdir(HELP)):
@@ -283,10 +283,10 @@ def checks(s):
     ck("P19 messages 11830 to 11832 and 11835 to 11841 exist, each one line, none with a capital command word",
        all(m[n] and m[n].count("\n") == 1 for n in MSGS) and "load.help" in (m["11832"] or "") and "context.help" in (m["11831"] or ""), repr([n for n in MSGS if not m[n] or m[n].count("\n") != 1]))
     # 3 Nov 26 (S.88 K7/K8): F1's key list ends with the bar's own keys, F2 and Shift-F10, on a page that has a bar (they are in no page's key table)
-    k78 = [s.get("msg.%d" % n) for n in (11588, 11589)]
-    ck("P21 F1's list of keys ends with F2 (find an action) and Shift-F10 (the actions of this pane) only on a page whose key table makes a menu bar; messages 11588 and 11589 are one line each and name those keys",
+    k78 = [s.get("msg.%d" % n) for n in (14002, 14003)]
+    ck("P21 F1's list of keys ends with F2 (find an action) and Shift-F10 (the actions of this pane) only on a page whose key table makes a menu bar; messages 14002 and 14003 are one line each and name those keys",
        ordered(th, "call $tk_keys('keylist', reg.keys, reg.pane, rg, '', '', '')", "if rg # '' then", "call $tk_keys('menus', reg.keys, '', bm, reg.pane, '', '')", "if bm # '' then",
-               "kb<-1> = '  ' : sysmsg(11588)[1, wrapw - 2]", "kb<-1> = '  ' : sysmsg(11589)[1, wrapw - 2]", "end", "kb<-1> = ''")
+               "kb<-1> = '  ' : sysmsg(14002)[1, wrapw - 2]", "kb<-1> = '  ' : sysmsg(14003)[1, wrapw - 2]", "end", "kb<-1> = ''")
        and all(t and t.count("\n") == 1 for t in k78) and (k78[0] or "").startswith("F2 ") and (k78[1] or "").startswith("Shift-F10 "), repr(k78))
     return rows
 
@@ -318,7 +318,7 @@ MUTANTS = [
     ("tool.menus calls $tk_help with too few arguments (a runtime stop in SD BASIC)", "tool_menus", "call $tk_help('mark', mk.dx, mk.dy, 0, 0)", "call $tk_help('mark', mk.dx, mk.dy)"),
     ("tool.viewers calls $tk_help with too few arguments", "tool_viewers", "hm, 0, 0)", "hm)"),
     ("F1 lists F2 and Shift-F10 on a page with no bar", "tk_help", "      if bm # '' then\n", "      if 1 then\n"),
-    ("F1 leaves out the context menu's key", "tk_help", "         kb<-1> = '  ' : sysmsg(11589)[1, wrapw - 2]\n", ""),
+    ("F1 leaves out the context menu's key", "tk_help", "         kb<-1> = '  ' : sysmsg(14003)[1, wrapw - 2]\n", ""),
     ("tool.viewers calls $tk_wrap with too many arguments", "tool_viewers", "call $tk_wrap(lines<wi>, m.tw, pieces)", "call $tk_wrap(lines<wi>, m.tw, pieces, 0)"),
     ("tool.menus loses F1", "tool_menus", "      case nm = 'f1' or nm = '?'\n         gosub help.here\n", ""),
     ("tool.menus loses the click", "tool_menus", "call $tk_help('hit', mev, mk.mx, mnu.y + hr, hit.now)", "hit.now = 0"),

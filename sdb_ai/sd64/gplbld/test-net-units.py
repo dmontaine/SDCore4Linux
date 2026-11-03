@@ -2846,8 +2846,11 @@ def checks_s72(srcs, c, ck):
        "(`if (file_id == NO_LOCAL_FILE) { lo = 1; hi = 0; }` is the FIRST arm of the block that sets lo and hi, so the loop runs no time) BEFORE the `UMap(user)` read of the last arm - the user number "
        "asked for is nobody's business for a remote file, and getlocks(f, 12345) of one faulted the process (measured: Fault type 11) when UMap() was indexed with it",
        re.search(r"#define\s+NO_LOCAL_FILE\s+0\b", lk) is not None and lk.count("NO_LOCAL_FILE") == 3 and ogl != "" and "for (i = 1, fptr = FPtr(1); i <= sysseg->used_files; i++, fptr++)" in ogl
-       and re.search(r"if \(file_id == NO_LOCAL_FILE\) \{\s*lo = 1;\s*hi = 0;\s*\} else if \(user == 0\) \{\s*lo = 1;\s*hi = sysseg->max_users;\s*\} else \{\s*lo = hi = \*\(UMap\(user\)\);\s*\}", ogl) is not None
-       and 0 <= ogl.find("file_id == NO_LOCAL_FILE") < ogl.find("UMap(user)") and ogl.count("UMap(") == 1 and ogl.count("for (i = lo; i <= hi; i++)") == 1
+       # 3 Nov 26 (S.72, track E): a fourth arm before the last refuses a local user number outside the table or held by
+       # nobody (`user < 0`, map entry 0) as no waiter, so the last arm's UMap() read is reached only for a real user
+       and re.search(r"if \(file_id == NO_LOCAL_FILE\) \{\s*lo = 1;\s*hi = 0;\s*\} else if \(user == 0\) \{\s*lo = 1;\s*hi = sysseg->max_users;\s*\} "
+                     r"else if \(\(user < 0\) \|\| \(\*\(UMap\(user\)\) == 0\)\) \{\s*(?:/\*.*?\*/\s*)?lo = 1;\s*hi = 0;\s*\} else \{\s*lo = hi = \*\(UMap\(user\)\);\s*\}", ogl, re.S) is not None
+       and 0 <= ogl.find("file_id == NO_LOCAL_FILE") < ogl.find("UMap(user)") and ogl.count("UMap(") == 2 and ogl.count("for (i = lo; i <= hi; i++)") == 1
        and re.search(r"if \(descr->data\.fvar->type == NET_FILE\)\s*file_id = NO_LOCAL_FILE;\s*else\s*file_id = descr->data\.fvar->file_id;", ogl) is not None
        and ogl.find("NET_FILE") < ogl.find("descr->data.fvar->file_id") and not re.search(r"\bnet_\w+\(", ogl) and "file_id = -1;" in ogl
        and ordered(ogl, "ts_printf(\"%d\\xfd%d\\xfd%d\", sysseg->numlocks, sysseg->rl_count,", "sysseg->rl_peak);"), "")

@@ -183,7 +183,10 @@ def checks(raw):
        and cf.count("sysmsg(11812)") == 1 and "title sysmsg(11812)" not in cf and " and boxtitle" not in cf and " or boxtitle" not in cf, "")
     want = {("tool_query", "do.save"): ["sysmsg(11952)", "sysmsg(11952)"], ("tool_query", "delete.selected"): ["sysmsg(11953)"],
             ("tool_bulk", "do.apply"): ["sysmsg(11954)"], ("tool_bulk", "do.undo"): ["sysmsg(11955)"],
-            ("tool_entries", "delete.reached"): ["sysmsg(11953)"]}      # S.96 M3 (2 Nov 26): D deletes the record itself, after the id is typed
+            ("tool_entries", "delete.reached"): ["sysmsg(11953)"],      # S.96 M3 (2 Nov 26): D deletes the record itself, after the id is typed
+            # 3 Nov 26 (S.108, track C): G writes the records itself (Update these records?) and U puts them back (Put these
+            # records back?), titled as tool.bulk's apply and undo; U's create.file box stays a five-argument command box
+            ("tool_entries", "do.global"): ["sysmsg(11954)"], ("tool_entries", "do.undo"): ["sysmsg(11955)"]}
     # 2 Nov 26 (S.88 P10): the one call with SEVEN arguments, the buttons, is tool.gates's leave question, Cancel last; it has a title of its own, which is not a record title
     want7 = {("tool_gates", "leave.ask"): [("'Leave the gate matrix?'", "'&Run the changes,&Leave without them,&Cancel'")]}
     got = {}

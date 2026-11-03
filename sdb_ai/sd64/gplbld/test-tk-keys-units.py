@@ -84,7 +84,7 @@ LEDGER = {
     },
 }
 
-IDE_MENU_MESSAGES = (11225, 11226, 11227, 11228, 11229, 11230, 11654, 11590)      # 11590: the Tools menu (S.75 DV10, 3 Nov 26)
+IDE_MENU_MESSAGES = (11225, 11226, 11227, 11228, 11229, 11230, 11654, 14004)      # 14004: the Tools menu (S.75 DV10, 3 Nov 26)
 
 
 # ---------------------------------------------------------------------------------------------------------------------- reading
@@ -643,13 +643,13 @@ def run_b(raw):
                        ("the draw opens the waiting menu once, for this open of the page, and leaves the choice for the next SCREEN KEY",
                         "if rc.state = 'ctx' and rc.epoch = ctx<TK.C.EPOCH> then rc.state = '' cx = rc.x ; cy = rc.y gosub run.context if c<1> = 'act' and c<4> # '' then kp.name = 'kp:' : c<4> c = '' end"),
                        ("the box under the pointer is a shown focus box's", "if rr<1, 1, 5> and cx >= rr<1, 1, 1> and cx < rr<1, 1, 1> + rr<1, 1, 3> and cy >= rr<1, 1, 2> and cy < rr<1, 1, 2> + rr<1, 1, 4> then bx.name = fo<1, fi, 2>"),
-                       ("the finder lists the bar's own menus", "call $sl_palette(menus, sysmsg(11586), pr, ps, pw)"),
+                       ("the finder lists the bar's own menus", "call $sl_palette(menus, sysmsg(14000), pr, ps, pw)"),
                        ("a disabled entry is answered with its reason and nothing chosen", "case ps = 2 screen msgbox pw returning bn else bn = 0 gosub no.answer"),
                        ("an answer is the action's key, as the bar's", "answer.act: call $tk_keys('keyof', keys, pr, pane, kn, '', '') c = 'act' : @fm : pr : @fm : kn : @fm : (if kn = '' then 'act:' : pr else kn)"),
                        ("the context menu leaves out File and Help", "if tt = 'File' or tt = 'Help' or tt[1, 1] = '>' then continue"),
                        ("the context menu lists only what the pane uses, with the bar's flags", "gosub pane.uses if uses then citems<1, -1> = menus<k, v, 1> : @sm : menus<k, v, 2> : @sm : fa : @sm : menus<k, v, 4>"),
                        ("the pane test is the key table's", "if pl = '' or index(@sm : pl : @sm, @sm : pane : @sm, 1) then"),
-                       ("the context menu ends with the finder, under a code that is not a submenu's (>)", "citems<1, -1> = sysmsg(11587) : @sm : 'F2' : @sm : 'tk:palette'")):
+                       ("the context menu ends with the finder, under a code that is not a submenu's (>)", "citems<1, -1> = sysmsg(14001) : @sm : 'F2' : @sm : 'tk:palette'")):
         if text not in mb:
             res["finder"].append("tk_menubar lacks: " + what)
     mbq = re.sub(r"'[^']*'", "''", mb)          # the op names ('open', 'draw' ...) are quoted texts, not statements
@@ -771,8 +771,8 @@ mut("tk_menubar", "      case 1\n         gosub answer.act\n   end case", "     
 mut("tk_menubar", "      case op = 'click' and a<1> = 'press' and a<2> = 3\n", "      case op = 'click' and a<1> = 'press' and a<2> = 1\n", "a left press opens the context menu", "finder")
 mut("tool_test", "   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)", "   call $tk_keys('add', keys, 'f2', 'pane', 'pane', '', 1)", "a page binds F2 (the finder's key)", "reserved")
 mut("tool_test", "   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)", "   call $tk_keys('add', keys, 'shift-f10', 'pane', 'pane', '', 1)", "a page binds Shift-F10 (the context menu's key)", "reserved")
-mut("msg:11590", "&Programs~~tool.catalog", "&Queries again~~tool.catalog", "a duplicate mnemonic in the IDE's Tools menu", "mnemonic")
-mut("msg:11590", "&Tools|", "&File tools|", "the Tools menu's title takes File's letter", "mnemonic")
+mut("msg:14004", "&Programs~~tool.catalog", "&Queries again~~tool.catalog", "a duplicate mnemonic in the IDE's Tools menu", "mnemonic")
+mut("msg:14004", "&Tools|", "&File tools|", "the Tools menu's title takes File's letter", "mnemonic")
 # 3 Nov 26 (owner: "Move focus first")
 mut("tk_menubar", "            a<2> = 1\n", "", "the right press on another box does not become the page's left press", "finder")
 mut("tk_menubar", "            rc.state = ''\n            cx = rc.x", "            cx = rc.x", "the waiting menu opens on every draw", "finder")

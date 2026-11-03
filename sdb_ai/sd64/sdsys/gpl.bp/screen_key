@@ -7,7 +7,7 @@
 * 12 Oct 26 dm  New.
 * 28 Oct 26 dm  S.88 L1 (R-a): a resize that a dialogue read (and the program never saw) is the key this statement gives first, before it waits;
 *               a resize it reads itself clears the note, so that it is given once.
-* 3 Nov 26 dm  A key name the toolkit's menu bar left for the program (common /slkpush/: the choice made in a box's right-click menu that opened after the click moved the
+* 3 Nov 26 dm  A key name the toolkit's menu bar left for the program (common /$slkpush/: the choice made in a box's right-click menu that opened after the click moved the
 *               focus, $tk_menubar) is given first, once, before any pending resize and before the keyboard is read.  It is a name the program would get for that key.
 * END-HISTORY
 *
@@ -37,7 +37,7 @@ $internal
 subroutine screen_key(timeout, ret, status)
 $catalog !screen_key
 
-   common /slkpush/ kp.name                        ;* 'kp:' and a key name the toolkit's menu bar left for this wait (a common starts as 0, so the prefix marks a real one)
+   common /$slkpush/ kp.name                       ;* 3 Nov 26: a $ name, so no user program can declare it (CLAUDE.md: a common SD trusts has a $ name); 'kp:' and a key name the toolkit's menu bar left for this wait (a common starts as 0, so the prefix marks a real one)
 
    ret = ''
    if kp.name[1, 3] = 'kp:' then

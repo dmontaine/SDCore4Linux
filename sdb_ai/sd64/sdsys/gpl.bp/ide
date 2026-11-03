@@ -143,7 +143,7 @@
 *               over 256 characters is refused (11552); Export asks the non-ASCII test and writes the record; Import's collection refusal is 11557; Go to line finds tokens in any case.
 * 1 Nov 26 dm  S.99 (look only; the owner, 1 Nov 26: "all panes need to share the same look and feel if possible"): the IDE's name and the person (ide  name@account) at the right
 *               end of row 0, as the toolkit pages and SED have them.  The menu bar and the name are drawn by draw.bar, at each place the bar was drawn and after a menu closes.
-* 3 Nov 26 dm  S.75 DV10 (Opus decision 12c): a Tools menu (message 11590, before AI and Help) opens the development pages - Files, Dictionary, Vocabulary, Queries, Bulk
+* 3 Nov 26 dm  S.75 DV10 (Opus decision 12c): a Tools menu (message 14004, before AI and Help) opens the development pages - Files, Dictionary, Vocabulary, Queries, Bulk
 *               update, Programs, Tests - each through the IDE's terminal hand-over as Run does (do.tool: the current text kept, the copies kept, the screen given back, the
 *               verb run with aborts trapped, the screen and the locks taken back), never through do.xeq, whose captured output would break a full-screen page.  Only the
 *               seven verbs named in do.tool are run; each page asks its own gates, as when its verb is typed.
@@ -391,7 +391,7 @@ $include idebrk.h
    menus = ''
    for j = 11225 to 11230
       if j = 11230 then
-         m = change(sysmsg(11590), '|', @vm)             ;* 3 Nov 26 (S.75 DV10): the Tools menu, the development pages, before AI and Help
+         m = change(sysmsg(14004), '|', @vm)             ;* 3 Nov 26 (S.75 DV10): the Tools menu, the development pages, before AI and Help
          m = change(m, '~', @sm)
          menus<-1> = m
       end
@@ -5544,7 +5544,7 @@ do.tool:
    gosub leave.screen
    execute tl.verb trapping aborts
    gosub retake.screen
-   msg = sysmsg(11591, tl.verb)
+   msg = sysmsg(14005, tl.verb)
    return
 
 * View / Refresh: the screen is drawn again from what the IDE holds (a program or the terminal may have written over it)

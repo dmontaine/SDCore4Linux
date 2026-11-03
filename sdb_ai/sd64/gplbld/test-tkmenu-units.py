@@ -98,9 +98,12 @@ def checks(s):
     ck("M2 it runs nothing: no execute, kernel call, file statement, $tk_run or $tk_confirm - the page's own handler does the work (owner decision 25)", not bad, repr(bad))
 
     names = set(re.findall(r"'([a-z0-9-]+)'", mb))
-    ck("M3 the menus come from $tk_keys 'menus' and the key of the chosen action from $tk_keys 'keyof'; the key names it knows are f10, esc and alt-",
+    # 3 Nov 26 (S.88 K7/K8, track D): the bar also answers F2 (the finder) and Shift-F10 (the context menu) - the owner's
+    # "Tab panes, F2 finder" - and no other key of a page's; a page that binds either itself still wins (M5)
+    ck("M3 the menus come from $tk_keys 'menus' and the key of the chosen action from $tk_keys 'keyof'; the key names it knows are f10, esc, alt-, f2 and shift-f10",
        "call $tk_keys('menus', keys, '', menus, pane, '', '')" in mb and "call $tk_keys('keyof', keys, r, pane, kn, '', '')" in mb
-       and "nm = 'f10'" in mb and "nm = 'esc'" in mb and "nm[1, 4] = 'alt-'" in mb and not (names & {"ctrl-q", "f1", "f2", "enter", "tab", "ctrl-s"}), repr(sorted(names)))
+       and "nm = 'f10'" in mb and "nm = 'esc'" in mb and "nm[1, 4] = 'alt-'" in mb and "nm = 'f2'" in mb and "nm = 'shift-f10'" in mb
+       and not (names & {"ctrl-q", "f1", "enter", "tab", "ctrl-s"}), repr(sorted(names)))
 
     ck("M4 a page with no menu rows returns before it draws or reads a key (after the phantom test, before the op is chosen)",
        ordered(mb, "c = ''", "if system(25) then return", "gosub make.menus", "if nmenu = 0 then return", "begin case", "case op = 'draw'"), mb[:300])
@@ -108,8 +111,12 @@ def checks(s):
     ok = label(mb, "run.bar")
     kb = re.search(r"case op = 'key'\n(.*?)case op = 'click'", mb, re.S)
     kb = kb.group(1) if kb else ""
-    ck("M5 op key: F10 starts on the first menu, Alt and a letter on the menu it marks, Esc on the first menu only when busy is off; anything else leaves start 0 and takes nothing",
-       ordered(kb, "start = 0", "case nm = 'f10'", "start = 1", "case nm = 'esc'", "if not(busy) then", "gosub skip.quit", "case len(nm) = 5 and nm[1, 4] = 'alt-'", "gosub find.title", "if start > 0 then gosub run.bar"), kb[:300])
+    ck("M5 op key: F10 starts on the first menu, Alt and a letter on the menu it marks, Esc on the first menu only when busy is off, F2 the finder, "
+       "Shift-F10 the context menu; a key the page binds to an action of its own in this pane wins over all of them; anything else leaves start 0 and takes nothing",
+       ordered(kb, "start = 0", "case nm = 'f10'", "start = 1", "case nm = 'esc'", "if not(busy) then", "gosub skip.quit", "case len(nm) = 5 and nm[1, 4] = 'alt-'",
+               "gosub find.title", "case nm = 'f2'", "start = -1", "case nm = 'shift-f10'", "start = -2", "if start # 0 then",
+               "call $tk_keys('action', keys, nm, pane, pa, '', '')", "if pa # '' and pa # 'menu' then start = 0",
+               "case start > 0", "gosub run.bar", "case start = -1", "gosub run.palette", "case start = -2", "gosub run.context"), kb[:300])
 
     pb = label(mb, "paint.bar")
     sq = label(mb, "skip.quit")

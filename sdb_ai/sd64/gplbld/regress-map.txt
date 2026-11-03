@@ -948,8 +948,8 @@ sdsys/messages/11980         : gates
 sdsys/messages/11981         : tool-entries              # 2 Nov 26: tool.entries refuses E N D C B for an account whose group this session does not hold (relog)
 sdsys/messages/11982         : gates                     # 2 Nov 26: set.sdsys's failed group lookup (was 10081)
 sdsys/messages/11976         : gates                     # 2 Nov 26: set.sdsys's register group that is not a valid name (was 10081)
-sdsys/messages/1158[6-9]     : tool-query tk-keys tk-base   # 3 Nov 26 (S.88 K7/K8): the finder's title, the context menu's last entry, F1's lines for F2 and Shift-F10
-sdsys/messages/1159[01]      : ide-tools ide ide-small   # 3 Nov 26 (S.75 DV10): the IDE's Tools menu and its "Back from" line
+sdsys/messages/1400[0-3]     : tool-query tk-keys tk-base   # 3 Nov 26 (S.88 K7/K8): the finder's title, the context menu's last entry, F1's lines for F2 and Shift-F10
+sdsys/messages/1400[45]      : ide-tools ide ide-small   # 3 Nov 26 (S.75 DV10): the IDE's Tools menu and its "Back from" line
 sdsys/messages/*             : none
 sdsys/changelog              : none
 sdsys/licence*               : none

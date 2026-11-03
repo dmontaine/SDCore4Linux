@@ -40,7 +40,7 @@
 *                                            right press anywhere on the screen.  A RIGHT PRESS ON A BOX THAT CAN TAKE THE FOCUS AND HAS NOT GOT IT (ctx<TK.C.FOCI>; the owner,
 *                                            3 Nov 2026: "Move focus first") is first the page's own left press there - the click op changes the event in place and takes nothing, so
 *                                            the page moves its focus as a click does - and the next 'draw', with the box's pane, opens that box's menu at the pointer; what is
-*                                            chosen is given to the page by its next SCREEN KEY (common /slkpush/, !screen_key) as the key it is bound to in that pane.
+*                                            chosen is given to the page by its next SCREEN KEY (common /$slkpush/, !screen_key) as the key it is bound to in that pane.
 *
 *   F2 and Shift-F10 are the bar's only when the page binds no action of its own to them in this pane (as for F10 and Esc); test-tk-keys-units.py keeps every page off F2.
 *
@@ -69,7 +69,7 @@ $include tk.h
 
    common /tkframe/ last.stat, last.keys, last.bord, last.top, last.gen, last.geo      ;* $tk_frame's cache: only last.top is touched, to have the right end of row 0 written again
    common /tkrclick/ rc.state, rc.x, rc.y, rc.epoch    ;* 3 Nov 26: a right click on a box that has not the focus, waiting for the page to move the focus there (rc.state 'ctx')
-   common /slkpush/ kp.name                            ;* 3 Nov 26: a name the page's next SCREEN KEY gives ('kp:' and the name; !screen_key)
+   common /$slkpush/ kp.name                           ;* 3 Nov 26: a name the page's next SCREEN KEY gives ('kp:' and the name; !screen_key)
 
    c = ''
    if system(25) then return                           ;* a phantom has no terminal
@@ -274,7 +274,7 @@ answer.act:
 
 * S.88 K7, F2: the finder.  Every entry of the bar in one list; an entry that cannot be used now says why in a box and answers nothing
 run.palette:
-   call $sl_palette(menus, sysmsg(11586), pr, ps, pw)
+   call $sl_palette(menus, sysmsg(14000), pr, ps, pw)
    begin case
       case ps = 0 and pr # ''
          gosub answer.act
@@ -303,7 +303,7 @@ run.context:
       next v
    next k
    if citems # '' then citems<1, -1> = '-'
-   citems<1, -1> = sysmsg(11587) : @sm : 'F2' : @sm : 'tk:palette'          ;* not '>...': $sl_menu takes a code that begins with > for a submenu (found by sandbox-tool-query Q14f2)
+   citems<1, -1> = sysmsg(14001) : @sm : 'F2' : @sm : 'tk:palette'          ;* not '>...': $sl_menu takes a code that begins with > for a submenu (found by sandbox-tool-query Q14f2)
    call !screen_menu(citems, cx, cy, '', pr, ps)
    begin case
       case ps # 0 or pr = ''

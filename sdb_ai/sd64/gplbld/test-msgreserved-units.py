@@ -27,6 +27,12 @@ side noticing three of them were deliberate and the fourth was not:
                  this script can actually check FROM HERE: nothing in this
                  tree may use a number that belongs to their block, because
                  that is the collision the convention exists to rule out.
+    14000-14999  this port's SECOND block (3 Nov 26, agreed by mail
+                 2026-11-03T0410 / T0500): 11000-11999 is used to 11999 and a
+                 deleted number is never reused, so new messages take their
+                 next number from here.
+    15000-15999  the Windows port's second block, refused here like 12000-12999.
+                 Anything at 16000 or above is nobody's block and is refused.
 
 WHAT THIS DOES NOT DO.  It cannot see the Windows tree, so it cannot confirm
 their side keeps out of 11000-11999 - that is their own
@@ -50,9 +56,11 @@ OUR_BLOCK = range(11000, 12000)
 WINDOWS_BLOCK = range(12000, 13000)
 # 01 Oct 26 - SHARED NEW (agreed by mail 2026-10-01T1100 / 1115, S.50): messages
 # used by verbs both ports take byte for byte.  This port allocates them and
-# ships the files; the Windows port copies them.  Anything at 14000 or above is
-# still nobody's block and is refused.
+# ships the files; the Windows port copies them.
 SHARED_NEW = range(13000, 14000)
+# 3 Nov 26 - the second blocks (agreed by mail 2026-11-03T0410 / T0500).
+OUR_SECOND_BLOCK = range(14000, 15000)
+WINDOWS_SECOND_BLOCK = range(15000, 16000)
 
 
 def message_ids(messages_dir):
@@ -81,7 +89,8 @@ def main():
 
     counts = {"upstream (0-10029)": 0, "shared legacy (10030-10999)": 0,
               "this port's block (11000-11999)": 0,
-              "shared new (13000-13999)": 0}
+              "shared new (13000-13999)": 0,
+              "this port's second block (14000-14999)": 0}
     violations = []
     for num, path in ids:
         if num in UPSTREAM:
@@ -90,12 +99,14 @@ def main():
             counts["shared legacy (10030-10999)"] += 1
         elif num in OUR_BLOCK:
             counts["this port's block (11000-11999)"] += 1
-        elif num in WINDOWS_BLOCK:
+        elif num in WINDOWS_BLOCK or num in WINDOWS_SECOND_BLOCK:
             violations.append((num, path))
         elif num in SHARED_NEW:
             counts["shared new (13000-13999)"] += 1
+        elif num in OUR_SECOND_BLOCK:
+            counts["this port's second block (14000-14999)"] += 1
         else:
-            violations.append((num, path))  # 14000 and above - nobody's block yet
+            violations.append((num, path))  # 16000 and above - nobody's block
 
     for label, n in counts.items():
         print(f"  {label}: {n}")
@@ -104,13 +115,14 @@ def main():
         print(f"\n[FAIL] {len(violations)} message(s) outside the agreed ranges:",
               file=sys.stderr)
         for num, path in violations:
-            where = ("the Windows port's reserved block (12000-12999)"
-                     if num in WINDOWS_BLOCK else "above any agreed block (14000+)")
+            where = ("the Windows port's reserved block (12000-12999)" if num in WINDOWS_BLOCK
+                     else "the Windows port's second block (15000-15999)" if num in WINDOWS_SECOND_BLOCK
+                     else "above any agreed block (16000+)")
             print(f"  {num} ({path}) - in {where}", file=sys.stderr)
         return 1
 
     print(f"\n[PASS] all {len(ids)} messages sit inside the agreed ranges; "
-          f"none in the Windows port's block (12000-12999)")
+          f"none in the Windows port's blocks (12000-12999, 15000-15999)")
     return 0
 
 

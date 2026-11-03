@@ -5953,60 +5953,6 @@ Account %1: the sdsys user is not in its group %2, so SDSYS cannot write inside 
 
 cited by: `create_account`
 
-### msg:11586
-> kind=message tier=reference since=- src=sdsys/messages/11586:1#7f56d213
-
-```
-Find an action
-```
-
-cited by: `tk_menubar`
-
-### msg:11587
-> kind=message tier=reference since=- src=sdsys/messages/11587:1#b20bc12d
-
-```
-&Find an action...
-```
-
-cited by: `tk_menubar`
-
-### msg:11588
-> kind=message tier=reference since=- src=sdsys/messages/11588:1#6296c3a1
-
-```
-F2  Find an action by name (every menu's entries)
-```
-
-cited by: `tk_help`
-
-### msg:11589
-> kind=message tier=reference since=- src=sdsys/messages/11589:1#98d0d1da
-
-```
-Shift-F10  The actions of this pane (a right click on a box gives it the keyboard and opens its actions at the pointer)
-```
-
-cited by: `tk_help`
-
-### msg:11590
-> kind=message tier=reference since=- src=sdsys/messages/11590:1#49720df6
-
-```
-&Tools|&Files~~tool.files|&Dictionary~~tool.dict|&Vocabulary~~tool.voc|&Queries~~tool.query|&Bulk update~~tool.bulk|&Programs~~tool.catalog|&Tests~~tool.test
-```
-
-cited by: `ide`
-
-### msg:11591
-> kind=message tier=reference since=- src=sdsys/messages/11591:1#9719728f
-
-```
-Back from %1: the tabs are as they were (a record that page changed is not read again)
-```
-
-cited by: `ide`
-
 ### msg:11597
 > kind=message tier=reference since=- src=sdsys/messages/11597:1#bb1ca89d
 
@@ -10067,6 +10013,60 @@ cited by: `pdebug`
 ```
 Cannot reconfigure a read-only file
 ```
+
+### msg:14000
+> kind=message tier=reference since=- src=sdsys/messages/14000:1#7f56d213
+
+```
+Find an action
+```
+
+cited by: `tk_menubar`
+
+### msg:14001
+> kind=message tier=reference since=- src=sdsys/messages/14001:1#b20bc12d
+
+```
+&Find an action...
+```
+
+cited by: `tk_menubar`
+
+### msg:14002
+> kind=message tier=reference since=- src=sdsys/messages/14002:1#6296c3a1
+
+```
+F2  Find an action by name (every menu's entries)
+```
+
+cited by: `tk_help`
+
+### msg:14003
+> kind=message tier=reference since=- src=sdsys/messages/14003:1#98d0d1da
+
+```
+Shift-F10  The actions of this pane (a right click on a box gives it the keyboard and opens its actions at the pointer)
+```
+
+cited by: `tk_help`
+
+### msg:14004
+> kind=message tier=reference since=- src=sdsys/messages/14004:1#49720df6
+
+```
+&Tools|&Files~~tool.files|&Dictionary~~tool.dict|&Vocabulary~~tool.voc|&Queries~~tool.query|&Bulk update~~tool.bulk|&Programs~~tool.catalog|&Tests~~tool.test
+```
+
+cited by: `ide`
+
+### msg:14005
+> kind=message tier=reference since=- src=sdsys/messages/14005:1#9719728f
+
+```
+Back from %1: the tabs are as they were (a record that page changed is not read again)
+```
+
+cited by: `ide`
 
 ### msg:1401
 > kind=message tier=reference since=- src=sdsys/messages/1401:1#8951197f
