@@ -4,6 +4,8 @@
   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolentries-units.py
   python3 .../test-toolentries-units.py --selftest
   python3 .../test-toolentries-units.py --selftest --from=86      (only the mutants from M_RELOG on: the relog state, 2 Nov 26)
+  python3 .../test-toolentries-units.py --selftest --from=125     (only the mutants from M_FIELD1 on: field 1 on one record only, 3 Nov 26; T24b)
+  python3 .../test-toolentries-units.py --selftest --from=96     (only the mutants from M_GLOBAL on: G, the global change, and U, its undo, 3 Nov 26; T24-T28)
 
 No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it could not run.  Written 3 Nov 26.
 
@@ -88,25 +90,38 @@ def checks(src, voc, helps):
        adm is not None and refused is not None and adm < refused < first_open, "admin %s stop %s first openpath %s" % (adm, refused, first_open))
     forbidden = [(n, s) for n, s in lines if re.search(r"(^|[\s;(])(writev|writeu|deletes|chain|perform|osexecute|os\.execute)\s", unquote(s) + " ")
                  or re.search(r"\$tk_run|\$tk_confirm|K\$MASTERS|!acc_|sd-elevate|modify\.account|set\.batch|run\.in", unquote(s))]
-    forbidden = [(n, s) for n, s in forbidden if s != "call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))"]   # M3: D's one confirm box, held by T18
+    GC_ALLOWED = ("call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))",          # M3: D's one confirm box, held by T18
+                  "call $tk_confirm(gsent, glines, '', res, cmsg, sysmsg(11954))",           # G's preview (T24)
+                  "call $tk_confirm(usent, ulines, '', res, cmsg)",                          # the box that shows create.file of the undo file
+                  "call $tk_confirm(usent, ulines, '', res, cmsg, sysmsg(11955))",           # U's box (T27)
+                  "writeu gnew on gf, eid on error",                                         # G's one data write (T26)
+                  "writeu ur on gf, uid on error")                                           # U's one put-back (T27)
+    forbidden = [(n, s) for n, s in forbidden if s not in GC_ALLOWED]
     writes = [s for n, s in lines if re.search(r"(^|[\s;(])write\s", unquote(s) + " ")]
     deletes = [s for n, s in lines if re.search(r"(^|[\s;(])delete\s", unquote(s) + " ")]
     execs = [s for n, s in lines if re.search(r"(^|[\s;(])execute\s", unquote(s) + " ")]
-    ck("T4 WHAT IT MAY CHANGE (M2, M3, M4): no record is written but the temporary pointer in SDSYS's VOC (ONE write, `write qrec on svf, qn on error`), the deletes take that pointer away "
-       "(`delete svf, qn`), sweep the user number's own leftovers at the start (`delete svf, sw.id`) and delete D's one record through the file edit.record judged (`delete tf, eid`) and, "
-       "for a program, its compiled program through the .out file object.judge judged (`delete dof, doid`, M6a), the two "
-       "executes give the terminal to the IDE (`execute sent`) and compile through run.in (`execute csent capturing cout`); no chain, perform, OS command, command runner, master-file operation or account verb anywhere in the page, "
-       "and no confirm box but D's",
-       not forbidden and writes == ["write qrec on svf, qn on error"] and deletes == ["delete svf, sw.id", "delete svf, qn", "delete tf, eid on error delok = @false", "delete dof, doid on error dores = 'failed'"] and execs == ["execute csent capturing cout", "execute dbsent", "execute sent"],
+    ck("T4 WHAT IT MAY CHANGE (M2, M3, M4; G and U of 3 Nov 26): the writes are the temporary pointer in SDSYS's VOC (`write qrec on svf, qn on error`) and the undo file's (its header twice "
+       "in a run and once in an undo, the record as it was before each change, the restored marker); the data writes are G's WRITEU and U's WRITEU, nothing else; the deletes take the pointer away "
+       "(`delete svf, qn`), sweep the user number's own leftovers at the start (`delete svf, sw.id`), delete D's one record through the file edit.record judged (`delete tf, eid`) and, "
+       "for a program, its compiled program through the .out file object.judge judged (`delete dof, doid`, M6a), and drop the undo record of a write that failed; the "
+       "executes give the terminal to the IDE (`execute sent`), compile through run.in (`execute csent capturing cout`), debug through it and make the undo file (`execute MKUNDO`); "
+       "no chain, perform, OS command, command runner, master-file operation or account verb anywhere in the page, and no confirm box but D's, G's, U's and the undo file's",
+       not forbidden and writes == ["write qrec on svf, qn on error", "write ghdr on uf, 'last' on error", "write ghdr on uf, 'last' on error null",
+                                    "write ea : @fm : gkw : @fm : (if efl = '' then 'voc' else efl) : @fm : eid : @fm : digest(gnew, 0, 'MD5') : @fm : grec on uf, gun on error",
+                                    "write ur2 on uf, un.i on error null", "write uh on uf, 'last' on error null"]
+       and deletes == ["delete svf, sw.id", "delete svf, qn", "delete tf, eid on error delok = @false", "delete dof, doid on error dores = 'failed'", "delete uf, gun"]
+       and execs == ["execute csent capturing cout", "execute dbsent", "execute sent", "execute MKUNDO trapping aborts capturing mkout"]
+       and len([s for n, s in lines if re.search(r"(^|[\s;(])writeu\s", unquote(s) + " ")]) == 2,
        "%s %s %s %s" % (forbidden[:3], writes, deletes, execs))
     opens = [s for n, s in lines if re.search(r"\bopenpath\b", s)]
     kinds = sorted(set("register" if "@sdsys:@ds:'accounts'" in s else ("voc" if re.search(r"(apath<[a-z0-9]+>|ap\.f) ?:@ds ?: ?'voc'", s.replace(" : ", ":")) else ("dict" if re.match(r"openpath dp to df2? then", s)
-                       else ("prog" if re.match(r"openpath (op2 to ofv|pp to pfv|pp2 to pf2) then", s) or s == "openpath dop to dof else return" else s))) for s in opens))
+                       else ("prog" if re.match(r"openpath (op2 to ofv|pp to pfv|pp2 to pf2) then", s) or s == "openpath dop to dof else return"
+                             else ("global" if s == "openpath tp to gf else" else s)))) for s in opens))
     ck("T5 the only files it opens by pathname are the register, an account's VOC by the pathname the register gives and, by a path of one of that VOC's file pointers, a dictionary, a program "
        "file or the .out file beside it (thirteen opens: the list; the VOC, the dictionaries, the .out file and the program files in collect.account; the entry under the cursor in the VOC, in "
        "a dictionary and in a program file; the register and the account's VOC again in edit.record, for E and N; and D's .out file of a program, M6a); the other opens are SDSYS's own VOC (the pointer) and the file "
        "that pointer leads to, which is judged before the IDE is given it",
-       kinds == ["dict", "prog", "register", "voc"] and len(opens) == 13 and txt.count("close ") >= 13
+       kinds == ["dict", "global", "prog", "register", "voc"] and len(opens) == 16 and txt.count("close ") >= 16      # G (3 Nov 26): the register and the VOC again in gc.account / gc.file, and the file gc.file judged (T25)
        and len(re.findall(r"^open 'voc' to svf else$", txt, re.M)) == 1 and len(re.findall(r"^open 'voc' to svf then$", txt, re.M)) == 2
        and len(re.findall(r"^open dfl, qn to tf else$", txt, re.M)) == 1, "%s %d" % (kinds, len(opens)))
     cap = "\n".join(s for n, s in section(lines, "collect.account:", "dclassify:"))
@@ -145,8 +160,8 @@ def checks(src, voc, helps):
     ck("T9 the filter and the find ask with screen ask, take the AI's argument as the default, and each clears the other",
        txt.count("screen ask ptxt width 40 value ai.arg") == 2 and txt.count("value ai.arg") == 2 and "filt = trim(ft)\nfnd = ''" in txt and "fnd = trim(ft)\nfilt = ''" in txt)
     keyrows = re.findall(r"call \$tk_keys\('add', keys, '([^']+)'", txt)
-    ck("T10 fourteen key rows: f1 enter tab / f k e n d c b f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh), never an edit, a delete, a compile or a debug",
-       keyrows == ["f1", "enter", "tab", "/", "f", "k", "e", "n", "d", "c", "b", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
+    ck("T10 sixteen key rows: f1 enter tab / f k e n d c b g u f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh), never an edit, a delete, a compile, a debug, a global change or its undo",
+       keyrows == ["f1", "enter", "tab", "/", "f", "k", "e", "n", "d", "c", "b", "g", "u", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
     er = "\n".join(s for n, s in section(lines, "edit.record:", "sweep.pointers:"))
     ho = "\n".join(s for n, s in section(lines, "hand.over:", "do.filter:"))
     de = "\n".join(s for n, s in section(lines, "do.edit:", "do.delete:"))
@@ -314,19 +329,94 @@ def checks(src, voc, helps):
        "AND the kernel says this session holds the group (K$IN.GROUP: the process's own groups), and relog when /etc/group lists it but the session does not hold it; read.all and "
        "edit.record both ask it",
        ordered(st, "sdw = 'n/a'", "if sg.grp # '' then", "sdw = 'no'", "if is_grp_member('sdsys', sg.grp) then", "sdw = 'yes'", "if not(kernel(K$IN.GROUP, sg.grp)) then sdw = 'relog'", "return")
-       and txt.count("gosub sdsys.state") == 2 and "is_grp_member(" not in txt.replace(st, "").replace("deffun is_grp_member(user,group) calling '!is_grp_member'", ""),
+       and txt.count("gosub sdsys.state") == 3 and "is_grp_member(" not in txt.replace(st, "").replace("deffun is_grp_member(user,group) calling '!is_grp_member'", ""),
        st[:120])
     ck("T23b ...E, N, D, C and B refuse an account in the relog state with 11981 (the account and its group), from the register edit.record has just read again, AFTER the pointer rule "
        "and BEFORE the pointer is written, a record is deleted or anything is run; the refusal returns",
        ordered(er, "read arec from acc.f, ea else arec = ''", "if not(kernel(K$PATH.IN, ap.f : @fm : tp)) then", "sg.grp = trim(arec<ACC$GROUP>)\ngosub sdsys.state\nif sdw = 'relog' then\n"
                "msg = sysmsg(11981, ea, sg.grp)\nreturn\nend", "write qrec on svf, qn on error", "gosub delete.reached", "gosub compile.reached", "gosub debug.reached", "gosub hand.over")
-       and er.count("sysmsg(11981") == 1 and txt.count("sysmsg(11981") == 1
+       and er.count("sysmsg(11981") == 1 and txt.count("sysmsg(11981") == 2        # the second is G's and U's (gc.account, T25)
        and all("emode = '%s'\ngosub edit.record" % m in txt for m in ("edit", "delete", "compile", "debug")), "")
     m11981 = helps.get("__msg11981__", "")
     ck("T23c ...the page says what relog means and what to do (draw.effect), 11981 is one line with %1 and %2 that says to sign on again as SDSYS, and the accounts help explains relog",
        "case asds<ac> = 'relog'" in txt and "Sign on again as SDSYS; until then E, N, D, C and B refuse it." in src
        and m11981.count("\n") == 1 and "%1" in m11981 and "%2" in m11981 and "Sign on again as SDSYS" in m11981 and "%s" not in m11981
        and "relog" in helps.get("tool.entries.accounts", "") and re.search(r"^sdsys/messages/11981\s*:.*tool-entries", rmap, re.M) is not None, repr(m11981[:60]))
+
+    # ---- 3 Nov 26, S.97 / S.96: G, the global change, and U, its undo (the owner's answers of 3 Nov 26, then "Yes, add undo")
+    dgl = "\n".join(s for n, s in section(lines, "do.global:", "after.global:"))
+    gp = "\n".join(s for n, s in section(lines, "gc.pass:", "gc.audit:"))
+    ga = "\n".join(s for n, s in section(lines, "gc.account:", "gc.file:"))
+    gfi = "\n".join(s for n, s in section(lines, "gc.file:", "gc.prog:"))
+    gpr = "\n".join(s for n, s in section(lines, "gc.prog:", "gc.row:"))
+    grw = "\n".join(s for n, s in section(lines, "gc.row:", "gc.new:"))
+    gnw = "\n".join(s for n, s in section(lines, "gc.new:", "check.undo:"))
+    duf = "\n".join(s for n, s in section(lines, "undo.file:", "read.undo.info:"))
+    dun = "\n".join(s for n, s in section(lines, "do.undo:", "undo.audit:"))
+    bk = "\n".join(s for n, s in section(lines, "build.keys:", "read.all:"))
+    hent = helps.get("tool.entries.entries", "")
+    ck("T24 G (3 Nov 26): the set is EXACTLY the rows shown - a filter or a find must be on, a list cut at MAXV is refused, the rows are the hits (account, file, id) or the filtered "
+       "entries of the account; the field is a number 1 to GMAXF or, for a dictionary item, heading; set or replace; the texts printable ASCII; ONE preview box with no name typed and "
+       "the title 11954; the undo file is made or checked AFTER Run and BEFORE anything is written, and cleared for this run only; the key is g and U's row is enabled only while "
+       "a run has not been undone; neither is offered to the AI; the help explains both",
+       ordered(dgl, "if fnd = '' and filt = '' then", "return", "if gtr then", "return", "gacc<gi> = hacc<gi>", "gfl<gi> = hfile<gi>", "gid<gi> = hid<gi>",
+               "gacc<gi> = anm<ac>", "gfl<gi> = efile<gi>", "gid<gi> = enm<gi>", "gw = 0\ngosub gc.pass", "call $tk_confirm(gsent, glines, '', res, cmsg, sysmsg(11954))",
+               "if res # 'run' then", "gosub undo.file\nif not(uok) then", "clearfile uf", "write ghdr on uf, 'last' on error", "gw = 1\ngosub gc.pass")
+       and "case kind = 2 and ft = 'heading'" in dgl and "if gfld < 1 or gfld > GMAXF then" in dgl and dgl.count("gosub check.print") == 3
+       and "if pc < 32 or pc > 126 then pok = 0" in txt and "gtr = htrunc" in dgl and "gtr = etrunc" in dgl
+       and "case nm = 'g'\ngosub do.global" in txt and "case nm = 'u'\ngosub do.undo" in txt
+       and "call $tk_keys('add', keys, 'u', 'undo', 'undo', '', (if un.have and un.state # 'undone' then 1 else 0))" in bk
+       and "'global'" not in "".join(re.findall(r"call \$tk_keys\('ai'[^\n]*", txt)) and "'undo'" not in "".join(re.findall(r"call \$tk_keys\('ai'[^\n]*", txt))
+       and "UNDOF = '&entries.undo&'" in txt and "MKUNDO = 'create.file &entries.undo&'" in txt and "call $tk_ownfile(uf, UNDOF, uck, ucw)" in txt
+       and ordered(duf, "open UNDOF to uf then", "gosub check.undo", "call $tk_confirm(usent, ulines, '', res, cmsg)", "if res # 'run' then", "execute MKUNDO", "gosub check.undo")
+       and "G " in hent and "&entries.undo&" in hent and "U " in hent, dgl[:100])
+    ck("T24b FIELD 1, the type (owner, 3 Nov 26: \"Exclude field 1 from batch actions, allow it on a single item with a confirm warning\"): G refuses field 1 when more than one "
+       "record is shown, with its own words and BEFORE the preview; on one record the preview keeps the old and new value of field 1 and the box carries a WARNING line naming them "
+       "before Run is asked; the help says so",
+       ordered(dgl, "if gfld = 1 and gn > 1 then", "msg = 'field 1 is the type of the record: G changes it on one record only", "return", "end",
+               "gw = 0\ngosub gc.pass", "if gfld = 1 then", "WARNING: this changes the TYPE of ' : gid<1> : ' (field 1): \"' : g1old : '\" -> \"' : g1new : '\"",
+               "call $tk_confirm(gsent, glines, '', res, cmsg, sysmsg(11954))")
+       and ordered(grw, "if not(gw) then", "g1old = grec<1>", "g1new = gnew<1>", "gdig<gi> = digest(grec, 0, 'MD5')")
+       and "field 1" in hent, "")
+    adm = txt.find("call $tk_open('tool.entries', 'admin', ctx, err)")
+    ck("T28 THE ADMINISTRATOR COMES FIRST: the page's administrator check (and its stop) comes before the undo file is read, the key table built or anything is written; G and U are "
+       "reached only through on.key of the page that passed it",
+       0 <= adm < txt.find("\nstop\n", adm) < txt.find("gosub read.undo.info") < txt.find("gosub build.keys") and txt.find("open UNDOF") > adm
+       and txt.count("gosub do.global") == 1 and txt.count("gosub do.undo") == 1, "")
+    ck("T25 THE POINTER RULE for G and U (owner, 3 Nov 26): each account is judged afresh (the register read again, the relog state refused with 11981) and each file BEFORE it is "
+       "opened for writing: the path (tokens expanded, made the account's) by K$PATH.IN, then what the kernel opened (FL$PATH) and, for a hashed file, its two subfiles, then its "
+       "type; a row is reached only through a file that passed (gfok); a program's own file is judged too and its words checked before run.in; U goes the same way (gc.account, "
+       "gc.file, gc.prog) before its READU; a refusal is counted and the pass goes on (no exit in the pass)",
+       ordered(ga, "read arec from acc.f, gcura else arec = ''", "ap.f = parse.pathname.tokens(arec<1>)", "gosub sdsys.state", "if sdw = 'relog' then", "gawhy = sysmsg(11981, gcura, sg.grp)", "return", "gaok = 1")
+       and ordered(gfi, "tp = parse.pathname.tokens(trim(fr<2>))", "tp = parse.pathname.tokens(trim(fr<3>))", "if tp[1, 1] # '/' then tp = ap.f : @ds : tp",
+                   "gin = kernel(K$PATH.IN, ap.f : @fm : tp)", "if gin then", "openpath tp to gf else", "rp = fileinfo(gf, FL$PATH)", "gin = kernel(K$PATH.IN, ap.f : @fm : rp)",
+                   "if gin then gin = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')", "if gin then gin = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')",
+                   "if not(gin) then", "return", "if rt # (if gkd = 3 then FL$TYPE.DIR else FL$TYPE.DH) then", "return", "gfok = 1")
+       and ordered(gp, "gosub gc.account", "if not(gaok) then", "gosub gc.file", "if gfok then\ngosub gc.row") and re.search(r"\bexit\b", gp) is None
+       and ordered(gpr, "gosub check.word", "gosub check.word", "gosub check.word", "if not(ok1 and ok2 and okname) then", "return",
+                   "if not(kernel(K$PATH.IN, ap.f : @fm : rp : @ds : eid)) then", "return", "gpok = 1")
+       and ordered(grw, "if gkd = 3 then\ngosub gc.prog\nif not(gpok) then") and grw.find("gosub gc.prog") < grw.find("readu")
+       and ordered(dun, "gosub gc.account", "if not(gaok) then", "gosub gc.file", "if not(gfok) then", "gosub gc.prog", "if not(gpok) then", "readu cur from gf, uid locked"), "")
+    ck("T26 THE ORDER OF A WRITE: the preview reads (READ, never READU) and returns before anything is written; the run takes the record with READU (another session's lock refuses), works "
+       "the change out, refuses a record that is no longer what the preview read (its digest), writes the record AS IT WAS to the undo file FIRST, then WRITEU, drops that undo record "
+       "if the WRITEU failed, releases the lock, and only then compiles a program by run.in (judged on the compiler's success line); one 'master global' audit line per account",
+       ordered(grw, "if gw then\nreadu grec from gf, eid locked", "end else\nread grec from gf, eid then ghave = 1", "if glk then", "gosub gc.new", "if not(gw) then",
+               "gdig<gi> = digest(grec, 0, 'MD5')", "return", "if ('S' : digest(grec, 0, 'MD5')) # ('S' : gdig<gi>) then", "release gf, eid", "return",
+               "gun += 1", "on uf, gun on error", "writeu gnew on gf, eid on error", "delete uf, gun", "release gf, eid", "if grs = 'failed' then return", "if gkd = 3 then",
+               "gosub compile.in.account", "if not(cok) then")
+       and "digest(gnew, 0, 'MD5') : @fm : grec on uf, gun on error" in grw
+       and "void kernel(K$AUDIT, 'master global account=' : gan<gk> : ' kind=' : gkw : ' changed=' : gnc<gk> : ' refused=' : gnr<gk> : ' failed=' : gnf<gk>)" in txt
+       and gp.count("gosub gc.audit") == 2 and "gnew = change(grec, gfrom, gto)" in gnw and "gfno = 4" in gnw, "")
+    ck("T27 U: offered only for a run not undone (read.undo.info reads the header this page wrote); the box is Run / Cancel titled 11955; a record is put back only if it is STILL "
+       "byte for byte what the run wrote (its digest), else it is left and counted, never overwritten; READU, a held one left; the restored marker stops a second U putting it back; "
+       "a program put back is compiled again by run.in; one 'entries undo' audit line per account; the header says undone only when nothing was held, refused or failed",
+       ordered(dun, "gosub read.undo.info", "if not(un.have) then", "return", "if un.state = 'undone' then", "return", "gosub check.undo",
+               "call $tk_confirm(usent, ulines, '', res, cmsg, sysmsg(11955))", "if res # 'run' then", "if uemd = 'restored' then", "readu cur from gf, uid locked",
+               "case lk", "case not(got)", "case ('S' : digest(cur, 0, 'MD5')) # ('S' : uemd)", "u.since += 1", "release gf, uid", "case 1", "writeu ur on gf, uid on error",
+               "release gf, uid", "write ur2 on uf, un.i on error null", "gosub compile.in.account", "if u.any then gosub undo.audit",
+               "if u.lock = 0 and u.err = 0 and u.ref = 0 then", "uh<7> = 'undone'")
+       and "void kernel(K$AUDIT, 'entries undo account=' : gcura : ' records=' : u.acct)" in txt
+       and "if uh<1> = 'entries-undo' then" in txt and "if gkd = 3 then\ncopt = ''\ngosub compile.in.account" in dun and "'entries-undo' : @fm : date()" in dgl, "")
     return out
 
 
@@ -467,8 +557,53 @@ MUTANTS = [
     ("the page does not say what relog means", "src", "         case asds<ac> = 'relog'\n", "         case 0\n"),
     ("11981 does not name the group", "msg", "%2", "the group"),
     ("the help does not explain relog", "help", "It says relog when", "It says when"),
+    # ---- 3 Nov 26, S.97 / S.96: G and U.  THE FIRST NEW MUTANT IS M_GLOBAL (--selftest --from=96)
+    ("G changes every row of the account with no filter", "src", "   if fnd = '' and filt = '' then\n      msg = 'G changes", "   if 0 then\n      msg = 'G changes"),
+    ("G takes a list cut at MAXV", "src", "   if gtr then\n", "   if 0 then\n"),
+    ("G is offered to the AI", "src", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n   call $tk_keys('ai', keys, 'global', '', '', '', '')\n"),
+    ("G asks for a typed name", "src", "call $tk_confirm(gsent, glines, '', res, cmsg, sysmsg(11954))", "call $tk_confirm(gsent, glines, 'yes', res, cmsg, sysmsg(11954))"),
+    ("G writes with no undo file", "src", "   gosub undo.file\n   if not(uok) then\n", "   uok = 1\n   if not(uok) then\n"),
+    ("the pointer rule of G is lost", "src", "   if not(gin) then\n", "   if 0 then\n"),
+    ("what G opened is not judged", "src", "      gin = kernel(K$PATH.IN, ap.f : @fm : rp)\n", "      gin = 1\n"),
+    ("the subfiles G opened are not judged", "src", "         if gin then gin = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')\n", ""),
+    ("G's path is judged as text", "src", "   gin = kernel(K$PATH.IN, ap.f : @fm : tp)\n", "   gin = (tp[1, len(ap.f)] = ap.f)\n"),
+    ("a program's own file is not judged by G", "src", "   if not(kernel(K$PATH.IN, ap.f : @fm : rp : @ds : eid)) then\n      gpw", "   if 0 then\n      gpw"),
+    ("G stops at the first account with a refusal", "src", "         if gk > 0 and gw then gosub gc.audit\n", "         if gk > 0 and gw then gosub gc.audit\n         if gk > 0 and gnr<gk> + gnf<gk> > 0 then exit\n"),
+    ("G's relog test is lost", "src", "   if sdw = 'relog' then\n      gawhy", "   if 0 then\n      gawhy"),
+    ("G ignores another session's lock", "src", "      readu grec from gf, eid locked\n", "      read grec from gf, eid locked\n"),
+    ("G writes a record that changed since the preview", "src", "   if ('S' : digest(grec, 0, 'MD5')) # ('S' : gdig<gi>) then\n", "   if 0 then\n"),
+    ("G writes the data before the undo record", "src",
+     "   gun += 1\n   write ea : @fm : gkw : @fm : (if efl = '' then 'voc' else efl) : @fm : eid : @fm : digest(gnew, 0, 'MD5') : @fm : grec on uf, gun on error\n"
+     "      gun -= 1\n      release gf, eid\n      grs = 'failed'\n      grw = 'the undo file could not be written (status ' : status() : ')'\n      return\n   end\n"
+     "   writeu gnew on gf, eid on error\n      grs = 'failed'\n      grw = 'the file refused the write (status ' : status() : ')'\n      delete uf, gun                                            ;* the old record of a write that did not happen is not kept\n      gun -= 1\n   end\n",
+     "   writeu gnew on gf, eid on error\n      grs = 'failed'\n      grw = 'the file refused the write (status ' : status() : ')'\n   end\n"
+     "   gun += 1\n   write ea : @fm : gkw : @fm : (if efl = '' then 'voc' else efl) : @fm : eid : @fm : digest(gnew, 0, 'MD5') : @fm : grec on uf, gun on error\n"
+     "      gun -= 1\n   end\n"),
+    ("the undo keeps the new record", "src", "digest(gnew, 0, 'MD5') : @fm : grec on uf, gun on error", "digest(gnew, 0, 'MD5') : @fm : gnew on uf, gun on error"),
+    ("a changed program is not compiled", "src", "   grs = 'done'\n   if gkd = 3 then\n", "   grs = 'done'\n   if 0 then\n"),
+    ("G has no audit line", "src", "   void kernel(K$AUDIT, 'master global account=' : gan<gk>", "   void kernel(K$AUDIT, 'master x account=' : gan<gk>"),
+    ("U puts back a record changed since the run", "src", "         case ('S' : digest(cur, 0, 'MD5')) # ('S' : uemd)\n", "         case 0\n"),
+    ("U ignores another session's lock", "src", "      readu cur from gf, uid locked\n", "      read cur from gf, uid locked\n"),
+    ("U skips the pointer rule", "src", "      if not(gfok) then\n         u.ref += 1\n", "      if 0 then\n         u.ref += 1\n"),
+    ("U is offered after the run was undone", "src", "(if un.have and un.state # 'undone' then 1 else 0)", "(if un.have then 1 else 0)"),
+    ("a second U puts a record back again", "src", "      if uemd = 'restored' then\n", "      if 0 then\n"),
+    ("U never marks the run undone", "src", "         uh<7> = 'undone'\n", ""),
+    ("U has no audit line", "src", "   void kernel(K$AUDIT, 'entries undo account='", "   void kernel(K$AUDIT, 'entries x account='"),
+    ("a program put back is not compiled", "src", "               if gkd = 3 then\n                  copt = ''\n", "               if 0 then\n                  copt = ''\n"),
+    ("the undo file is not asked of $tk_ownfile", "src", "   call $tk_ownfile(uf, UNDOF, uck, ucw)\n", "   uck = 1\n"),
+    ("the undo file is read before the administrator check", "src", "   call $tk_open('tool.entries', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n",
+     "   gosub read.undo.info\n   call $tk_open('tool.entries', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n"),
+    ("the help does not explain G", "helpe", "&entries.undo&", "the undo file"),
+    # ---- 3 Nov 26, the owner's field 1 answer: THE FIRST IS M_FIELD1 (--selftest --from=125)
+    ("G changes field 1 on many records", "src", "   if gfld = 1 and gn > 1 then\n", "   if 0 then\n"),
+    ("G's field 1 test comes after the preview", "src", "      if gfld = 1 and gn > 1 then\n", "      if gfld = 1 and gn > 1 and gw = 1 then\n"),
+    ("field 1 on one record has no warning", "src", "   if gfld = 1 then\n      glines<-1> = ''\n", "   if 0 then\n      glines<-1> = ''\n"),
+    ("the warning does not say the old value", "src", "g1old = grec<1>", "g1old = ''"),
+    ("the help does not explain field 1", "helpe", "field 1", "the type"),
 ]
+M_FIELD1 = 125
 M_RELOG = 86
+M_GLOBAL = 96
 
 
 def selftest():
@@ -508,6 +643,8 @@ def selftest():
                 missed += 1
                 continue
             h["__msg11981__"] = h["__msg11981__"].replace(old, new)
+        elif kind == "helpe":
+            h["tool.entries.entries"] = h["tool.entries.entries"].replace(old, new)
         else:
             h["tool.entries.accounts"] = h["tool.entries.accounts"].replace(old, new)
         caught = [n for n, ok, _ in checks(s, v, h) if not ok]
