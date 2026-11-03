@@ -133,6 +133,12 @@ for book in "User:user" "Administrator:administrator" "GettingStarted:gettingsta
         echo "WARNING: some $dir markdown is newer than the newest $dir PDF - the PDFs may be stale (S.23 rebuilds them)."
     fi
     for p in "$DOCS/$dir/pdf/"*.pdf; do
+        name=$(basename "$p" .pdf)
+        [ "$name" != index ] || continue          # the set's index page is not a chapter
+        if [ ! -f "$DOCS/$dir/markdown/$name.md" ]; then
+            echo "NOTE: $dir/pdf/$name.pdf has no markdown page of that name (left over from an earlier build); not packaged."
+            continue
+        fi
         b="$pre-$(basename "$p")"
         [[ "$b" =~ ^[a-z0-9][a-z0-9._-]{0,79}$ ]] || fail "the PDF name $b is not one docs.install takes (lower case letters, digits . _ -, up to 80)"
         [ ! -e "$stage/pdf/$b" ] || fail "two PDFs are named $b"
