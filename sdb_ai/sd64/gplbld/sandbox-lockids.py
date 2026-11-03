@@ -9,6 +9,8 @@
 # passed, 1 a row failed, 2 it could not run.  --strict counts a row of a phase that has not landed as FAILED (tuirows.py).
 #
 # START-HISTORY:
+# 03 Nov 26 dm  S.72 left-over: rows GU-ctl, GU2-GU7 - GETLOCKS('', n) of the local path for a user number nobody can hold (12345, hi_user_no + 1, 65537, -5) or
+#               nobody holds (hi_user_no): the counters and no lock line, and the program goes on (op_lock.c indexed UMap() / UPtr() unchecked).
 # 28 Oct 26 dm  New (S.88 phase 2, S1).  Written with the kernel change (op_lock.c: lock_safe_text, getlocks_line); NOT RUN yet - the owner's rule of 28 Oct defers every sandbox
 #               run to the one complete run at the end of the full-screen phases.
 # 28 Oct 26 dm  S.88 phase 2 review: rows LK6-LK9, PSTAT of a SECOND ordinary session (the waiter) that waits for the planted lock after it EXECUTEd a DISPLAY sentence
@@ -385,6 +387,51 @@ def plant_rows(waiter, user):
     R.row("PL8 the planter removed F%s" % PL_FUSER, any(("ZZPL removed " + PL_FUSER) in ln for ln in out), " | ".join(out[-6:]))
 
 
+# 3 Nov 26 (S.72 left-over): GETLOCKS(file, user) of a LOCAL file with a user number nobody can hold.  The waiter's own number is the control
+# (it must give the WAIT line); then 12345 and hi_user_no + 1 (past the user map: the remote path faulted on 12345, Fault type 11, 20 Oct),
+# 65537 (it was cast to 16 bits and became user 1), -5, and hi_user_no itself (in range, but held by nobody in a sandbox: map entry 0
+# made the waiter loop read UPtr(0), the bytes before the user table).  Each must answer with the counters and no lock line, and the
+# program must go on to its last line.
+ZZGU = """$internal
+   hi = system(1053)
+   nos = '%s':@fm:'12345':@fm:(hi + 1):@fm:'65537':@fm:'-5':@fm:hi
+   for k = 1 to dcount(nos, @fm)
+      l = getlocks('', nos<k>)
+      t = ''
+      for i = 2 to dcount(l, @fm)
+         t := l<i, 4> : ','
+      next i
+      crt 'ZZGU ' : k : ' ' : nos<k> : ' n=' : dcount(l, @fm) : ' c=' : dcount(l<1>, @vm) : ' t=' : t
+   next k
+   crt 'ZZGU end'
+end
+"""
+
+
+def getlocks_user_rows(wno):
+    g.put(os.path.join(sh.SYS, "bp", "zzgu"), ZZGU % wno)
+    out = g.adm(["BASIC bp zzgu", "RUN bp zzgu"], internal=True)
+    say("  [GU] the administrator's $internal zzgu, getlocks('', n) for n = %s 12345 hi+1 65537 -5 hi:" % wno)
+    rows = {}
+    for ln in out:
+        m = re.match(r"^ZZGU (\d) (\S+) n=(\d+) c=(\d+) t=(\S*)$", ln.strip())
+        if m:
+            rows[int(m.group(1))] = (m.group(2), int(m.group(3)), int(m.group(4)), m.group(5))
+            say("    " + ln.strip())
+    ended = any(ln.strip() == "ZZGU end" for ln in out)
+    if not ended:
+        say("    the program did not reach its last line: " + " | ".join(out[-6:]))
+    c = rows.get(1)
+    R.row("GU-ctl the waiter's own number (%s) gives the counters and its WAIT line" % wno,
+          c is not None and c[2] == 3 and "WAIT" in c[3].split(","), repr(c))
+    for k, what in ((2, "12345 (past the user map)"), (3, "hi_user_no + 1 (one past the map)"), (4, "65537 (16 bits would make it user 1)"),
+                    (5, "-5"), (6, "hi_user_no (in range, held by nobody)")):
+        r = rows.get(k)
+        R.row("GU%d getlocks('', %s) answers with the three counters and no lock line" % (k, what),
+              r is not None and r[1] == 1 and r[2] == 3 and r[3] == "", repr(r))
+    R.row("GU7 the program went on to its last line after all six (no fault)", ended, " | ".join(out[-6:]))
+
+
 def main():
     say("sandbox-lockids: S.88 phase 2 (S1 kernel half) - lock ids of another session.  strict=%s SDBOX_KEYSET=%s" % ("--strict" in sys.argv, os.environ.get("SDBOX_KEYSET", "(unset)")))
     hold = None
@@ -471,6 +518,8 @@ def main():
               want.upper() in psu, "not in output", phase=2 if ctl else None)
         R.row("LK9 the @PSTAT line is %r: control bytes '?', byte 200 kept, the value mark a space (sheet 492)" % PSTAT_TEXT,
               PSTAT_TEXT in ps, "not in output", phase=2 if ctl else None)
+
+        getlocks_user_rows(mu.group(1).decode())
 
         # 28 Oct 26: records PLANTED in $IPC under the waiter's number (and F9999), read by PSTAT, HSM and PROFILER DISPLAY
         plant_rows(waiter, mu.group(1).decode())
