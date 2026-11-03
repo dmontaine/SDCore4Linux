@@ -9,6 +9,9 @@ kernel for the administrator, reads no directory but the two, takes no file name
 the wall has screened the request, puts them in the preview as well as in the request, and says what they are in the instruction - and an edit that breaks one still compiles.
 
 --selftest breaks each invariant in the way an edit plausibly would and requires a check to notice; a mutant that nothing catches is a failure of the self-test.
+
+HISTORY: 3 Nov 26 dm  AD13 and its mutant anchor on `call $tk_wrap(sysmsg(11920, ...), wrapw, pieces)` and `body<-1> = pieces<p>`: 1d587a48 wraps the 11920 line (it ran over the box at 140
+columns), so the old anchor `body<-1> = sysmsg(11920, ...)` was gone and AD13 failed on a correct tk_ai.
 """
 
 import os
@@ -97,7 +100,7 @@ def checks(raw):
     ck("AD12", "the passages are in the REQUEST (each with its id in brackets, before the typed request, which stays last) and the instruction says what they are, only when there are some",
        "if n.doc > 0 then sysx := ' ' : sysmsg(11922)" in ai and ai.count("'Request: '") == 1 and ordered(ai, "for i = 1 to n.doc\n      prompt := nl : nl : 'Documentation passage [' : dres<2, i> : '] ' : dres<3, i> : ':' : nl : dres<4, i>", "prompt := nl : nl : 'Request: ' : req"), "")
     ck("AD13", "the passages are in the PREVIEW, before the person's own request: their number and size, each one's id and size, its first lines, and a count of the rest; Send and Cancel are asked after",
-       ordered(ai, "body<-1> = sysmsg(11920, n.doc, doc.bytes)", "body<-1> = sysmsg(11921, dres<2, i>", "body<-1> = sysmsg(11643, len(req))", "screen msgbox body title sysmsg(11639) buttons '&Send,&Cancel' default 2"), "")
+       ordered(ai, "call $tk_wrap(sysmsg(11920, n.doc, doc.bytes), wrapw, pieces)", "body<-1> = pieces<p>", "body<-1> = sysmsg(11921, dres<2, i>", "body<-1> = sysmsg(11643, len(req))", "screen msgbox body title sysmsg(11639) buttons '&Send,&Cancel' default 2"), "")
     ck("AD14", "the passage text sent is the passage the preview counts: the byte count the preview shows is the sum of the lengths of dres<4, i>",
        "doc.bytes += len(dres<4, i>)" in ai and "for i = 1 to n.doc" in ai, "")
     m20, m21, m22 = (raw[k].rstrip("\n") for k in ("m20", "m21", "m22"))
@@ -139,7 +142,7 @@ MUTANTS = [
     ("the passages are asked for before the wall", "AD11", sub("ai", "   call $tk_aiwall('request', req, why)\n   if why # '' then", "   call $tk_aidocs('find', req, dres)\n   call $tk_aiwall('request', req, why)\n   if why # '' then")),
     ("the instruction does not say what the passages are", "AD12", sub("ai", "   if n.doc > 0 then sysx := ' ' : sysmsg(11922)", "   if 0 then sysx := ' ' : sysmsg(11922)")),
     ("the passages come after the typed request", "AD12", sub("ai", "   for i = 1 to n.doc\n      prompt := nl", "   prompt := nl : nl : 'Request: ' : req\n   for i = 1 to n.doc\n      prompt := nl")),
-    ("the preview does not show the passages", "AD13", sub("ai", "      body<-1> = sysmsg(11920, n.doc, doc.bytes)", "      body<-1> = ''")),
+    ("the preview does not show the passages", "AD13", sub("ai", "      call $tk_wrap(sysmsg(11920, n.doc, doc.bytes), wrapw, pieces)", "      pieces = ''")),
     ("the preview counts something else", "AD14", sub("ai", "doc.bytes += len(dres<4, i>)", "doc.bytes += 1")),
     ("the installer takes the source repository's docs", "AD16", sub("inst", 'DOCS_URL="https://github.com/dmontaine/SDCore4LinuxDocs"', 'DOCS_URL="https://github.com/dmontaine/SDCore4Linux"')),
     ("the administrator's pages are readable by everyone", "AD16", sub("inst", 'chmod 700 "$sdsysdir/docs/admin"', 'chmod 755 "$sdsysdir/docs/admin"')),

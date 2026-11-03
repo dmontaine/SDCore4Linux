@@ -10,6 +10,7 @@
 # Accounts list has rows).
 #
 # START-HISTORY:
+# 3 Nov 26 dm   tool_remote's anchor is "1 doors  2 routes" (two spaces): the page's key line has had two since e97da00a (S.95 1b); the rows B3, G3, Rz3 wanted three.
 # 28 Oct 26 dm  New (S.88 L2, the group of tool.config, tool.remote, tool.backups, tool.ai and tool.menus).  WRITTEN, NOT RUN (the owner's rule of 28 Oct: one complete run when the
 #               full-screen stages are done).  Its expected rectangles are the MODEL's (test-tklayout-units.py) laid out from the declaration read off each page's own source, and the
 #               model was checked against the real $tk_layout once by hand in L1; test-l2-cfg-units.py holds the declarations to the boxes the pages drew before the service.
@@ -79,8 +80,8 @@ ANCH = {
         (180, 55): [("File: ", 3, 2), ("P parameters", 3, 5), ("[?]", 174, 2), ("Parameter", 5, 8)],
     },
     "tool_remote": {
-        (140, 43): [("API: ", 3, 2), ("ssh: ", 3, 3), ("1 doors   2 routes", 3, 5), ("[?]", 134, 2), ("What the machine says", 3, 8), ("ON listens on port 4247", 3, 28)],
-        (180, 55): [("API: ", 3, 2), ("ssh: ", 3, 3), ("1 doors   2 routes", 3, 5), ("[?]", 174, 2), ("What the machine says", 3, 8), ("ON listens on port 4247", 3, 40)],
+        (140, 43): [("API: ", 3, 2), ("ssh: ", 3, 3), ("1 doors  2 routes", 3, 5), ("[?]", 134, 2), ("What the machine says", 3, 8), ("ON listens on port 4247", 3, 28)],
+        (180, 55): [("API: ", 3, 2), ("ssh: ", 3, 3), ("1 doors  2 routes", 3, 5), ("[?]", 174, 2), ("What the machine says", 3, 8), ("ON listens on port 4247", 3, 40)],
     },
     "tool_backups": {
         (140, 43): [("A backup and a restore both run only when every other session", 3, 4), ("B backs every account up", 3, 5), ("[?]", 134, 2), ("Made", 3, 8), ("~director", 28)],

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 3 Nov 26 dm   The TERM DEFAULT help line is back to the established "(140 x 43; ...)" form, without "since 2 Nov 26" (sandbox-winsize.py reads it).
 * 18 Oct 26 dm  TERM DEFAULT gives 140 x 42 (DEFAULT.WIDTH and DEFAULT.DEPTH, were 120 x 36).
 * 2 Nov 26 dm   TERM DEFAULT gives 140 x 43: DEFAULT.DEPTH is 43 (owner: "Change to 43"), the full-screen floor.
 * 12 Oct 26 dm  1.2-0 openQM 466: prt.cols and prt.lines set the default printer's
@@ -32,7 +33,7 @@
 *    TERM {width} {, lines} {, prt.cols} {, prt.lines} { type}
 *                                    Set to given values
 *    TERM COLOUR {bgc}{,fgc}         Set display colour
-*    TERM DEFAULT                    Set to defaults (140 x 43 since 2 Nov 26; the printer is not touched)
+*    TERM DEFAULT                    Set to defaults (140 x 43; the printer is not touched)
 *    TERM DISPLAY                    Display terminfo bindings
 *
 * @SYSTEM.RETURN.CODE
