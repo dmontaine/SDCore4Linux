@@ -386,7 +386,7 @@ def checks(srcs):
     fb = "if allow.shared and not(vr.admin) then"
     fbb = between(vr, fb, "parse.as.q.pointer:")
     ck("L1 _voc_ref has a fifth argument, deffun shared_ref calling !shared_ref, and the fallback is in the else of the account's own first VOC read: AFTER the three folds "
-       "(the account's own entry always wins; the PATH: / Account:File forms are gone, S.87), guarded by allow.shared, not the administrator and the session's K$SHARED.READ, BEFORE the final ER$NVR; "
+       "(the account's own entry always wins; the Account:File form is tried before it, 3 Nov 26; the PATH: form is gone, S.87), guarded by allow.shared, not the administrator and the session's K$SHARED.READ, BEFORE the final ER$NVR; "
        "on an answer it sets pathname and vflags and returns status 0",
        "subroutine voc_ref(filename, is.dict, pathname, vflags, allow.shared)" in vr and "deffun shared_ref(name, fno, quiet) calling '!shared_ref'" in vr
        and ordered(vr, "read voc.rec from voc,voc.id else", "read voc.rec from voc,downcase(voc.id) then", "read voc.rec from voc,upcase(voc.id) then", fb)

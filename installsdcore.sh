@@ -622,6 +622,44 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 #
 NC='\033[0m' # No Color (reset)
+#
+# 03 Nov 26 dm - S.144 (owner, 3 Nov 2026: "for this version the source code will be included in the installer zip so that it does not need to be
+#            downloaded during install").  THE RELEASE PACKAGE CARRIES THE SOURCE.  When the folder this script is in holds source/sdb_ai/sd64, the
+#            install builds from it: no GitHub check, no clone, and the AI line's documentation comes from source/docs.  The package is checked first,
+#            before any question: every file under source/ must be listed in SHA256SUMS and match it, and source/SDCORE-RELEASE must name the commit
+#            and branch it was made from.  A mismatch stops the install, because a damaged or changed source tree is not something to compile as root.
+#            (The sums find damage; they cannot stop someone who rewrites both.)  Without source/ the install is what it always was: a clone of
+#            REPO_BRANCH from REPO_URL.  The build packages still come from the distribution (apt-get), so the machine still needs its package mirror.
+#            gplbld/mkrelease.sh makes the package; test-install-package.sh runs this block.
+# PACKAGE-SOURCE-BEGIN
+pkg_source=""
+pkg_commit=""
+pkg_branch=""
+if [ -n "$installer_dir" ] && [ -d "$installer_dir/source/sdb_ai/sd64" ] && [ ! -L "$installer_dir/source" ]; then
+    pkg_bad=""
+    if [ ! -f "$installer_dir/SHA256SUMS" ] || [ -L "$installer_dir/SHA256SUMS" ]; then
+        pkg_bad="it has no SHA256SUMS"
+    elif ! (cd "$installer_dir" && sha256sum --quiet --strict -c SHA256SUMS >/dev/null 2>&1); then
+        pkg_bad="a file under source/ does not match SHA256SUMS"
+    elif [ "$(cd "$installer_dir" && find source -type f | wc -l)" != "$(grep -c '' "$installer_dir/SHA256SUMS" || true)" ]; then
+        pkg_bad="source/ holds files that SHA256SUMS does not list"
+    elif [ -n "$(cd "$installer_dir" && find source ! -type f ! -type d | head -1)" ]; then
+        pkg_bad="source/ holds something that is neither a file nor a directory"
+    else
+        pkg_commit=$(sed -n 's/^commit=\([0-9a-f]\{40\}\)$/\1/p' "$installer_dir/source/SDCORE-RELEASE" 2>/dev/null | head -1 || true)
+        pkg_branch=$(sed -n 's/^branch=\([A-Za-z0-9._-]\{1,40\}\)$/\1/p' "$installer_dir/source/SDCORE-RELEASE" 2>/dev/null | head -1 || true)
+        if [ -z "$pkg_commit" ] || [ -z "$pkg_branch" ]; then pkg_bad="source/SDCORE-RELEASE does not name a commit and a branch"; fi
+    fi
+    if [ -n "$pkg_bad" ]; then
+        printf "%b\n" "$RED"
+        echo "This release package cannot be installed: ${pkg_bad}."
+        echo "Download the package again, unpack it into an empty folder and run the installer from there."
+        printf "%b\n" "$NC"
+        exit 1
+    fi
+    pkg_source="$installer_dir/source"
+fi
+# PACKAGE-SOURCE-END
 
 # Modified by Composer AI - 2026/06/10.
 # sd -start and sd -stop return non-zero when already in the target state.
@@ -688,7 +726,7 @@ sd_install_start() {
 # 02 Nov 26 - S.105: the distribution as well, first (no network test for a
 #            machine that would be refused anyway).
 detect_distro
-net_preflight github.com 443
+if [ -z "$pkg_source" ]; then net_preflight github.com 443; fi   # S.144: a release package carries the source, nothing is fetched from GitHub
 clear
 printf "%bSD installer%b\n" "$RED" "$NC"
 echo -----------------------
@@ -716,10 +754,17 @@ echo
 # 10 Oct 26  Named "the main branch" whatever REPO_BRANCH was, so the copy a release
 #            zip carries (pinned to a tag) said main while it installed the tag.
 #            It now says what it will clone.
-echo "This script will download the SD source code (${REPO_BRANCH}) from"
-echo "${REPO_URL}, compile it and install SD."
-echo
-echo "The download is temporary and is removed when the install finishes."
+if [ -n "$pkg_source" ]; then
+    echo "This script will compile the SD source code in this package (${pkg_branch}, commit ${pkg_commit:0:12})"
+    echo "and install SD."
+    echo
+    echo "The build copy is temporary and is removed when the install finishes."
+else
+    echo "This script will download the SD source code (${REPO_BRANCH}) from"
+    echo "${REPO_URL}, compile it and install SD."
+    echo
+    echo "The download is temporary and is removed when the install finishes."
+fi
 echo
 #
 printf "%b\n" "$YELLOW"
@@ -790,6 +835,22 @@ if [ -n "$allow_viewer_name" ]; then
     case $yn_viewer in [yY]|[yY][eE][sS] ) allow_viewer=y;; esac
 fi
 # VIEWER-ASK-END
+# 03 Nov 26 dm  WHERE A SESSION STARTS (owner, 3 Nov 2026: "Can that be a question asked during the install?", then "the home/prompt question").  The
+#            home screen as delivered; the command prompt on p.  An upgrade that kept the accounts offers what the site had (deletesdcore.sh kept
+#            start.default as /home/sd/start.default.saved), so it does not quietly go back to the home screen.  The answer is applied by the
+#            START-SET block below with set.start.default; an account with a start word of its own (modify.account) keeps it.  test-install-start.sh.
+# START-ASK-BEGIN
+start_choice=menu
+if [ "$(head -1 /home/sd/start.default.saved 2>/dev/null | tr -d '[:space:]' | tr 'A-Z' 'a-z' || true)" = terminal ]; then start_choice=terminal; fi
+echo
+if [ "$start_choice" = terminal ]; then
+    read -r -p "Start new sessions at the home screen or at the command prompt? (h/P) " yn_start
+    case $yn_start in [hH]|[hH][oO][mM][eE] ) start_choice=menu;; esac
+else
+    read -r -p "Start new sessions at the home screen or at the command prompt? (H/p) " yn_start
+    case $yn_start in [pP]|[pP][rR][oO][mM][pP][tT] ) start_choice=terminal;; esac
+fi
+# START-ASK-END
 # 1 Nov 26  S.103: the question that was here (whether to keep the sdsys user in the group of the accounts an earlier release had put it in; the F6 ruling of 26 Oct) is
 #            gone with the ruling: the sdsys user is in the group of every user account as delivered (sdsys_groups_default, below).
 printf "%b\n" "$NC"
@@ -952,9 +1013,18 @@ echo
 #            something to hand an end user, and the local-repository option
 #            installed whatever happened to be sitting in ./sdb_ai, which is not
 #            a decision an installer should offer either.
-echo "Installing ${REPO_BRANCH} from: ${REPO_URL}"
-repo_available
-git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$dflt_git_folder"
+# 03 Nov 26 dm - S.144: from a release package, the source is copied (the package itself is never written: the build makes root-owned files).
+if [ -n "$pkg_source" ]; then
+    echo "Installing ${pkg_branch} from the package: ${installer_dir}"
+    mkdir -p "$dflt_git_folder"
+    cp -a "$pkg_source/." "$dflt_git_folder/"
+    REPO_BRANCH="$pkg_branch"
+    REPO_URL="package:${installer_dir}"
+else
+    echo "Installing ${REPO_BRANCH} from: ${REPO_URL}"
+    repo_available
+    git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$dflt_git_folder"
+fi
 
 # 09 Sep 26 dm - PRE_RELEASE 8.  RECORD WHICH COMMIT THIS INSTALL IS, so that
 # assert-current.py can answer exactly instead of guessing from timestamps.
@@ -966,7 +1036,11 @@ git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$dflt_git_folder"
 # only moment the answer is known for certain, and --depth 1 means HEAD is the
 # one commit there is.  Written to the installed tree further down, once
 # $sdsysdir exists.
-sdcore_commit=$(git -C "$dflt_git_folder" rev-parse HEAD 2>/dev/null || echo unknown)
+if [ -n "$pkg_source" ]; then
+    sdcore_commit="$pkg_commit"                    # S.144: the package has no .git; SDCORE-RELEASE was checked against SHA256SUMS above
+else
+    sdcore_commit=$(git -C "$dflt_git_folder" rev-parse HEAD 2>/dev/null || echo unknown)
+fi
 echo "Installing commit ${sdcore_commit}"
 
 # The source tree is one level down in this repository - see repo_src_subdir.
@@ -1431,14 +1505,23 @@ fi
 #            looks.  SKIPPED WITH A NOTE, NEVER AN ERROR: no network to the documentation, no clone, a clone without the two directories, or no mktemp leaves the AI line working as it
 #            did, without passages; an older install's docs are replaced only when the new ones are complete.  test-install-aidocs.sh runs these two blocks.
 # DOCS-CORPUS-BEGIN
+# 03 Nov 26 dm - S.144: a release package carries the two markdown folders in source/docs; only without a package are they cloned.
 docs_tmp=$(mktemp -d 2>/dev/null) || docs_tmp=""
-if [ -n "$docs_tmp" ] && GIT_TERMINAL_PROMPT=0 git clone --quiet --branch "$REPO_BRANCH" --depth 1 "$DOCS_URL" "$docs_tmp/docs" >/dev/null 2>&1 \
+docs_from=""
+if [ -n "$pkg_source" ] && [ -d "$pkg_source/docs/User/markdown" ] && [ -d "$pkg_source/docs/Administrator/markdown" ]; then
+    docs_from="$pkg_source/docs"
+elif [ -z "$pkg_source" ] && [ -n "$docs_tmp" ] && GIT_TERMINAL_PROMPT=0 git clone --quiet --branch "$REPO_BRANCH" --depth 1 "$DOCS_URL" "$docs_tmp/docs" >/dev/null 2>&1 \
    && [ -d "$docs_tmp/docs/User/markdown" ] && [ -d "$docs_tmp/docs/Administrator/markdown" ]; then
+    docs_from="$docs_tmp/docs"
+fi
+if [ -n "$docs_from" ]; then
     sudo rm -rf "$sdsysdir/docs"
     sudo mkdir -p "$sdsysdir/docs/user" "$sdsysdir/docs/admin"
-    sudo cp "$docs_tmp"/docs/User/markdown/*.md "$sdsysdir/docs/user/"
-    sudo cp "$docs_tmp"/docs/Administrator/markdown/*.md "$sdsysdir/docs/admin/"
+    sudo cp "$docs_from"/User/markdown/*.md "$sdsysdir/docs/user/"
+    sudo cp "$docs_from"/Administrator/markdown/*.md "$sdsysdir/docs/admin/"
     echo "Installed the documentation the AI line draws on: $sdsysdir/docs"
+elif [ -n "$pkg_source" ]; then
+    echo "Note: the package holds no documentation for the AI line (source/docs), so it will answer without passages of it."
 else
     echo "Note: the documentation could not be fetched from ${DOCS_URL}, so the AI line will answer without passages of it."
 fi
@@ -2312,6 +2395,23 @@ else
     echo "The documentation PDFs were not installed: there is no shared account or no pdf directory in it."
 fi
 # MANUALS-PDF-END
+#
+# 03 Nov 26 dm - the answer to the START-ASK question, applied with SD's own verb and judged on the file it writes, not on sd's exit code.
+# START-SET-BEGIN
+if [ "$start_choice" = terminal ]; then
+    sudo bin/sd -internal set.start.default terminal < /dev/null > /dev/null 2>&1 || true
+    if sudo grep -qsx 'terminal' "$sdsysdir/start.default"; then
+        echo "New sessions start at the command prompt (set.start.default terminal)."
+    else
+        printf "%b\n" "$RED"
+        echo "WARNING: the start setting was not written.  Signed in as sdsys, run:  set.start.default terminal"
+        printf "%b\n" "$NC"
+    fi
+else
+    echo "New sessions start at the home screen."
+fi
+sudo rm -f /home/sd/start.default.saved
+# START-SET-END
 
 # 11 Sep 26  AN UPGRADE BRINGS EVERY ACCOUNT'S VOC FORWARD (PORT_ADOPTION 16,
 #            port PRE_RELEASE_FIXES 70).  Replacing NEWVOC and VOC_TEMPLATE on

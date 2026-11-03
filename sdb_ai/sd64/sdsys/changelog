@@ -1,6 +1,31 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   THE INSTALLER ASKS WHERE NEW SESSIONS START: THE HOME SCREEN OR THE COMMAND PROMPT. AN UPGRADE KEEPS WHAT THE SYSTEM HAD.
+
+             What        - "Start new sessions at the home screen or at the command prompt? (H/p)" is asked with the other questions.
+                           A new installation offers the home screen; p sets the prompt (the installer runs set.start.default
+                           terminal and checks what it wrote). An upgrade that keeps the accounts offers what the system had:
+                           deletesdcore.sh saves the setting when it removes the old install, and an install from before the home
+                           screen (L1.1-3 and earlier, where every session started at the prompt) is saved as the prompt, so Enter
+                           keeps it.
+             Why         - The setting lived only in the system directory, which an upgrade removes, so an upgrade quietly went back
+                           to the home screen; and an upgrade from L1.1-3 would have moved every account from the prompt to it.
+             Does NOT    - Change an account that has a start setting of its own (modify.account ... start-terminal / start-menu).
+                           An older deletesdcore.sh, from a release before this one, does not save the setting.
+
+3 Nov 26   OPEN 'ACCOUNT:FILE' WORKS AGAIN, ALWAYS, WITH THE CHECKS OF A Q-POINTER.
+
+             What        - A file name that is in no VOC record and has one colon, such as OPEN 'SALES:ORDERS', opens that account's
+                           file. No sd.conf setting is needed: the FILERULE parameter stays removed. The name is read as a Q-pointer
+                           to that account and file, so it meets every check a Q-pointer meets: the account is registered, the
+                           person may LOGTO it, and it is not suspended.
+             Why         - Programs moved from openQM name other accounts' files this way, a production web server among them, and
+                           a Q-pointer in the VOC for each file is a second thing to keep in step.
+             Does NOT    - Reach anything a Q-pointer could not, or bring back the PATH:pathname or SYSTEM:ACCOUNT:FILE forms. A name
+                           that is in the VOC is opened through its VOC record first, as always. Multifiles stay removed, so
+                           'ACCOUNT:FILE,PART' does not open a part of a multifile.
+
 3 Nov 26   THE HOME SCREEN'S HINT ROW AND DATE LINE, AND THE AI ROW'S HINT, ARE DRAWN IN THE PAGE'S OWN COLOURS.
 
              What        - The line "arrows move - Enter starts - ..." at the foot of the home screen, the date line under the name,

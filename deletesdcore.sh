@@ -272,6 +272,24 @@ if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/newvoc.mods" ]; then
     echo "Saved the local VOC modifications file (newvoc.mods)"
 fi
 
+# 03 Nov 26 dm - where a session starts (set.start.default writes start.default in the sdsys directory, which this script removes): kept across a
+# keep cycle as start.default.saved, so the installer's question offers it as the answer and an upgrade does not quietly change it.  An install from
+# before the home screen (no gpl.bp/tool_home: L1.1-3 and earlier) started every session at the prompt, so it is saved as terminal (owner, 3 Nov 2026:
+# "for existing users where all installs go to the prompt by default ... that will be retained on upgrade").
+# START-SAVE-BEGIN
+if [ "$keep_accts" != "DELETE" ]; then
+    if sudo test -f "$sdsysdir/start.default"; then
+        sudo cp "$sdsysdir/start.default" "$acct_path/start.default.saved"
+        sudo chmod 644 "$acct_path/start.default.saved"
+        echo "Saved where sessions start (start.default)"
+    elif sudo test -d "$sdsysdir/gpl.bp" && ! sudo test -e "$sdsysdir/gpl.bp/tool_home"; then
+        echo terminal | sudo tee "$acct_path/start.default.saved" > /dev/null
+        sudo chmod 644 "$acct_path/start.default.saved"
+        echo "Saved where sessions start: at the prompt (this install is from before the home screen)"
+    fi
+fi
+# START-SAVE-END
+
 # 27 Oct 26 dm - S.87 (the VOC deletion list): the copies of the VOC records an update removed, which RESTORE.VOC puts back, are kept across a keep cycle like
 # newvoc.mods; DELETE removes them with the accounts they came from.
 if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/voc_removed.saved" ]; then

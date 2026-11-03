@@ -102,7 +102,7 @@
   },
   "sys.word": {
    "chunks": 43,
-   "sha256": "f476edda03dc0cf850365861a7ad64ad241443430b44eee1b69e44ac51778d24"
+   "sha256": "c5bf371e416dd71407f7885ea3c7f4aa4dfcc519dac931b033d40b3142d7f05a"
   },
   "tcl.keyword": {
    "chunks": 214,
@@ -186,7 +186,7 @@
   },
   "reference/system.md": {
    "chunks": 95,
-   "sha256": "013caa11ab0dc9bc90c97897daa865415e4e8db4e949285414a965f50e96ec0e",
+   "sha256": "a950efdb7ed3c3e0c439429f8872f4fc7c60f904b2a6af3f7929057fa85e6399",
    "words": 3007
   },
   "reference/tcl-keywords.md": {

@@ -956,7 +956,7 @@ def main():
     vp_prog = "\n".join([
         "   crt 'V begin'",
         "   names = 'outptr':@fm:'qok':@fm:'qnolog':@fm:'qsusp':@fm:'qraw':@fm:'newptr':@fm:'sd.accounts':@fm:'syscom'"
-        ":@fm:'$map':@fm:'bp'",
+        ":@fm:'$map':@fm:'bp':@fm:'zzon:bp':@fm:'zznolog:bp':@fm:'zzsusp:bp'",
         "   for i = 1 to dcount(names, @fm)",
         "      nm = names<i>",
         "      open nm to f then",
@@ -982,6 +982,14 @@ def main():
         "      end",
         "      close g2",
         "   end",
+        "   open 'zzon:bp' to g3 then",
+        "      read r3 from g3, 'qprobe' then",
+        "         crt 'V af-read ':r3<1>",
+        "      end else",
+        "         crt 'V af-read NONE'",
+        "      end",
+        "      close g3",
+        "   end",
         "   crt 'V end'", "end", ""])
 
     def vp_states(lines):
@@ -990,7 +998,7 @@ def main():
             m = re.match(r"^V (\S+) (OPENED|REFUSED \d+)$", ln)
             if m:
                 got[m.group(1)] = m.group(2)
-            m = re.match(r"^V (outptr-read|qok-read) (.*)$", ln)
+            m = re.match(r"^V (outptr-read|qok-read|af-read) (.*)$", ln)
             if m:
                 got[m.group(1)] = m.group(2)
         return got
@@ -1021,6 +1029,11 @@ def main():
             got.get("qnolog") == refused, "qnolog=%r" % (got.get("qnolog"),))
         row("D3: %s is refused a Q-pointer into a SUSPENDED account (3035), as LOGTO would" % name,
             got.get("qsusp") == refused, "qsusp=%r" % (got.get("qsusp"),))
+        # 3 Nov 26: the Account:File form (back, always on) is a Q-pointer the program names: the same three answers, with no VOC entry at all
+        row("D3: %s opens zzon:bp (Account:File, an account it could LOGTO) and reads zzon's record, as the Q-pointer does" % name,
+            got.get("zzon:bp") == "OPENED" and got.get("af-read") == "hello-from-zzon", "zzon:bp=%r read=%r" % (got.get("zzon:bp"), got.get("af-read")))
+        row("D3: %s is refused zznolog:bp and zzsusp:bp (Account:File into an account it could not LOGTO, and a suspended one): 3035, as the Q-pointers are" % name,
+            got.get("zznolog:bp") == refused and got.get("zzsusp:bp") == refused, "zznolog:bp=%r zzsusp:bp=%r" % (got.get("zznolog:bp"), got.get("zzsusp:bp")))
         if osx:
             row("D3: %s (os-on) opens an F-pointer to a directory outside the account, reads its record, and opens the pointer "
                 "CREATE.FILE ... PATHNAME made" % name,
@@ -1041,6 +1054,9 @@ def main():
     row("D3: the administrator opens every pointer: the one into an account nobody could LOGTO, the suspended one, the outside directory",
         adm_got.get("qnolog") == "OPENED" and adm_got.get("qsusp") == "OPENED" and adm_got.get("outptr") == "OPENED",
         "%r" % ({k: adm_got.get(k) for k in ("qnolog", "qsusp", "outptr")},))
+    row("D3: the administrator opens the Account:File names too (zznolog:bp, zzsusp:bp): the form is refused only where a Q-pointer is",
+        adm_got.get("zznolog:bp") == "OPENED" and adm_got.get("zzsusp:bp") == "OPENED",
+        "%r" % ({k: adm_got.get(k) for k in ("zznolog:bp", "zzsusp:bp")},))
     for name, got in states.items():
         row("D3: %s opens sd.accounts (the stock Q-pointer into SDSYS, an account it could not LOGTO) exactly as the administrator does: %s"
             % (name, adm_got.get("sd.accounts")), got.get("sd.accounts") == adm_got.get("sd.accounts") and adm_got.get("sd.accounts") is not None,

@@ -33,6 +33,8 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INSTALLER = os.path.abspath(os.path.join(HERE, os.pardir, os.pardir, os.pardir, "installsdcore.sh"))
+# the call, bare or (S.144, 3 Nov 26) skipped only when a release package carries the source
+CALL_RE = r'^(?:if \[ -z "\$pkg_source" \]; then )?net_preflight\s+(\S+)\s+(\S+?);?(?=\s|$)'
 PROXY_VARS = ("https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", "SD_SKIP_NET_CHECK")
 
 
@@ -131,9 +133,12 @@ def checks(src):
     listener.close()
 
     # The call: position and arguments.
-    call = code_line(src, r"^net_preflight\s+\S+\s+\S+")
+    # 3 Nov 26 (S.144): the call is skipped when a release package carries the source, and only then: if [ -z "$pkg_source" ]; then net_preflight ...; fi
+    call = code_line(src, CALL_RE)
     ck("the installer calls net_preflight", call is not None, "line %s" % call)
-    m = re.search(r"^net_preflight\s+(\S+)\s+(\S+)", src, re.M)
+    m = re.search(CALL_RE, src, re.M)
+    ck("it is skipped only when a release package carries the source (pkg_source set), never otherwise",
+       bool(m) and (m.group(0).startswith('if [ -z "$pkg_source" ]; then ') or m.group(0).startswith("net_preflight")), m.group(0) if m else "")
     ck("the call names github.com and 443", bool(m) and (m.group(1), m.group(2)) == ("github.com", "443"),
        str(m.groups() if m else None))
     gate = code_line(src, r'^if \[ -f\s+"/usr/local/sdsys/bin/sd" \]')
@@ -161,10 +166,14 @@ def mutants(src):
     res.append(("a closed port is no longer a refusal", src.replace('elif ! timeout 8 bash -c', 'elif false && ! timeout 8 bash -c')))
     res.append(("a name that does not resolve is no longer a refusal", src.replace('if ! getent hosts "$host"', 'if false && ! getent hosts "$host"')))
     res.append(("it refuses everything", src.replace("  else\n    return 0\n  fi\n  printf", "  fi\n  printf")))
-    res.append(("the call moves after the first sudo",
-                src.replace("net_preflight github.com 443\n", "", 1).replace("if ! sudo -v; then", "net_preflight github.com 443\nif ! sudo -v; then", 1)))
-    res.append(("the call is deleted", src.replace("net_preflight github.com 443\n", "", 1)))
+    cm = re.search(CALL_RE + r"[^\n]*\n", src, re.M)
+    if cm:
+        line = cm.group(0)
+        res.append(("the call moves after the first sudo",
+                    src.replace(line, "", 1).replace("if ! sudo -v; then", line + "if ! sudo -v; then", 1)))
+        res.append(("the call is deleted", src.replace(line, "", 1)))
     res.append(("the call tests the wrong port", src.replace("net_preflight github.com 443", "net_preflight github.com 80", 1)))
+    res.append(("the call is skipped without a package too", src.replace('if [ -z "$pkg_source" ]; then net_preflight', 'if [ -n "$pkg_source" ]; then net_preflight', 1)))
     return res
 
 

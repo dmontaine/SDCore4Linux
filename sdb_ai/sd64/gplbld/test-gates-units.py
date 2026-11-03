@@ -417,6 +417,12 @@ def checks(srcs, messages_dir):
     ck("B27 the PATH: form (FILERULE) is gone (28 Oct 26, S.87), and an absolute Q-pointer target is remembered as qroot",
        "case upcase(x1) = 'PATH'" not in vr and "config('FILERULE')" not in vr
        and "if qpath[1,1] = @ds then qroot = qpath" in vr)
+    afi = vr.find("if dcount(voc.id, ':') = 2")
+    afb = vr[afi:vr.find("\n      end\n", afi)] if afi >= 0 else ""
+    ck("B27b the Account:File form (back 3 Nov 26, always on) only builds a Q record and goes to parse.as.q.pointer, so every Q-pointer check applies: "
+       "it opens nothing and sets no pathname itself",
+       "voc.rec = 'Q' : @fm : field(voc.id, ':', 1) : @fm : field(voc.id, ':', 2)" in afb and "goto parse.as.q.pointer" in afb
+       and "pathname" not in afb and "openpath" not in afb.lower(), afb[:200])
     spt = c["setptr"]
     sp0 = at(spt, "ospath(file.name, OS$PATHNAME)")
     sp1 = at(spt, "kernel(K$PATH.OK, file.name)")
@@ -593,7 +599,9 @@ MUTANTS = [
     ("the API server grants everybody OS.EXECUTE", sub("apisrvr", "void kernel(K$OS.EXEC, api.os.grant)", "void kernel(K$OS.EXEC, 1)")),
     ("the API server's switches carry over from the previous call", sub("apisrvr", "api.sh.grant = @false\napi.os.grant = @false\n", "")),
     ("the API server loads the switches before the account has been entered", swap("apisrvr", "void kernel(K$SH,      api.sh.grant)\nvoid kernel(K$OS.EXEC, api.os.grant)\n", "if not(ospath(account.path, OS$CD)) then")),
-    ("a Q-pointer into any account is followed again", sub("_voc_ref", "               if not(vr.admin) then\n                  gosub check.q.hop", "               if @false then\n                  gosub check.q.hop")),
+    ("the Account:File form sets the path itself, past the Q-pointer checks", sub("_voc_ref", "         voc.rec = 'Q' : @fm : field(voc.id, ':', 1) : @fm : field(voc.id, ':', 2)\n         goto parse.as.q.pointer",
+                                                                                     "         pathname = field(voc.id, ':', 2)\n         set.status 0\n         return")),
+    ("a Q-pointer into any account is followed again",sub("_voc_ref", "               if not(vr.admin) then\n                  gosub check.q.hop", "               if @false then\n                  gosub check.q.hop")),
     ("a Q-pointer into a registered account asks nothing of an account that holds os-on", sub("_voc_ref", "q.ok = is_grp_member(@logname, q.group)", "q.ok = vr.free or is_grp_member(@logname, q.group)")),
     ("a Q-pointer into a suspended account is followed", sub("_voc_ref", "if upcase(trim(q.susp)) # 'SUSPENDED' then", "if @true then")),
     ("a Q-pointer into an account the user is not a member of is followed", sub("_voc_ref", "q.ok = is_grp_member(@logname, q.group)", "q.ok = @true")),
