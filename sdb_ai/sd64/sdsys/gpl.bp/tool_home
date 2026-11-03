@@ -134,7 +134,7 @@ $define H.TILE.OFF 'turned off for this account by the administrator'     ;* why
 $define H.AI.OFF   'the AI is not on for this account'                    ;* why F6 and AI > Ask the AI do nothing here
 $define H.TOP.PAGE 'this is the top page'                                 ;* why Go > Back cannot be chosen on the top page
 
-   common /tkhome/ hflag, hlogto
+   common /tkhome/ hflag, hlogto, hstart
 
    prompt ''
 
@@ -143,6 +143,8 @@ $define H.TOP.PAGE 'this is the top page'                                 ;* why
       stop
    end
    hlogto = 0
+   menu.session = hstart + 0                            ;* 3 Nov 26: 1 when !home_entry (the account starts in the menu) or EXIT (back from the Terminal tile) started this screen, 0 when the person typed HOME at the prompt
+   hstart = 0                                           ;* taken: a later HOME typed at the prompt the screen gave is typed
 
    call $tk_open('home', '', ctx, err)
    if err # '' then
@@ -164,6 +166,10 @@ $define H.TOP.PAGE 'this is the top page'                                 ;* why
    crumb = ''
    gosub geometry
    gosub set.title                                        ;* the path, and the column of the identity (it moves right of the Back tile in a sub-menu)
+   * 3 Nov 26 (owner: "make ctrl+q leave for the prompt when you typed home"): a screen typed at the prompt is left for the prompt by Ctrl-Q, and Sign out moves to Ctrl-X, the menu and the tile;
+   * a screen the session started in (or came back to by EXIT) keeps Ctrl-Q as Sign out.  An account whose Terminal tile is off has no prompt to leave for: Ctrl-Q signs out, as before.
+   call !home_off(@who, off.list)
+   leave.ok = (not(menu.session) and not(index(' ' : off.list : ' ', ' terminal ', 1)))
    gosub make.keys
 
    gen = 0
@@ -243,6 +249,8 @@ finish:
       case outcome = 'signout'
          call $tk_close(ctx)
          execute 'quit'
+      case outcome = 'leave'
+         call $tk_close(ctx)                              ;* typed at the prompt, so the prompt it was typed at is where Ctrl-Q goes back to (hflag stays as it was: EXIT still ends the session)
       case 1
          call $tk_close(ctx)
    end case
@@ -1056,6 +1064,13 @@ on.key:
             msg = H.AI.OFF
          end
       case nm = 'ctrl-q'
+         if leave.ok then
+            outcome = 'leave'
+            done = 1
+         end else
+            gosub do.signout
+         end
+      case nm = 'ctrl-x' and leave.ok
          gosub do.signout
       case nm = 'ctrl-t'
          if terminal.off then
@@ -1375,7 +1390,11 @@ make.keys:
    gosub off.row
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
-   call $tk_keys('add', keys, 'ctrl-q', 'sign out', 'signout', '', 1)
+   if leave.ok then
+      call $tk_keys('add', keys, 'ctrl-q', 'prompt', 'leave', '', 1)
+   end else
+      call $tk_keys('add', keys, 'ctrl-q', 'sign out', 'signout', '', 1)
+   end
    call $tk_keys('add', keys, 'ctrl-t', 'terminal', 'terminal', '', 1)
    gosub off.row
    call $tk_keys('add', keys, 'ctrl-w', 'switch', 'switch', '', 1)
@@ -1386,6 +1405,10 @@ make.keys:
    call $tk_keys('add', keys, 'f6', 'ai', 'ai', '', 1)
    call $tk_keys('add', keys, 'ctrl-k', 'keys', 'keys', '', 1)
    gosub off.row
+   if leave.ok then
+      call $tk_keys('add', keys, 'ctrl-x', 'sign out', 'signout', '', 1)       ;* Ctrl-Q left the screen for the prompt: Sign out has this key (the menu and the tile as well)
+      gosub off.row
+   end
    return
 
 * The row just added stays bound and in the menus, but is not written on the function-key row
@@ -1485,6 +1508,7 @@ relayout:
 * turned off for this account has no entry that can be chosen either, Back is only on a sub-menu page (on the top page Esc opens this bar, so the dimmed entry shows no key),
 * and Ask the AI follows the AI (the line works when the provider is on).  Called last by build.page, after make.keys, so F5 and Switch account see a change.
 make.menus:
+   if leave.ok then call $tk_keys('menu', keys, 'leave', '&File', '&Back to the prompt', '', '')
    call $tk_keys('menu', keys, 'signout', '&File', '&Sign out', '', '')
    call $tk_keys('menu', keys, 'back', '&Go', '&Back', '', '')
    call $tk_keys('menu', keys, 'terminal', '&Go', '&Terminal', '', '')

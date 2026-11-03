@@ -303,14 +303,14 @@ def sec_dialog_open():
     c = R.row("R4c home at 140x43 is up (footer on rows 41-43)", f0["ok"], repr(f0), phase=None)
     before = w.lines()
     w.send(F10, 1.0)
-    opened = any(("Sign out" in l and "^Q" in l) for l in w.lines()[1:9])
-    c2 = R.row("R4c2 F10 opens the File menu (an entry 'Sign out  ^Q' appears in the rows under the menu bar)", opened, "\n".join(l for l in w.lines()[:9] if l.strip()), phase=None)
+    opened = any(("Sign out" in l and ("^Q" in l or "^X" in l)) for l in w.lines()[1:9])      # 3 Nov 26 (S.149): `home` is typed at the prompt here, so Sign out has ^X and ^Q is Back to the prompt
+    c2 = R.row("R4c2 F10 opens the File menu (an entry 'Sign out  ^X' appears in the rows under the menu bar)", opened, "\n".join(l for l in w.lines()[:9] if l.strip()), phase=None)
     off = w.resize(180, 55, 1.5)
     w.send(ESC, 1.0)
     w.pump(2.5)
     fr = w.fresh(off)
     f = foot(fr.lines(), 180, 55)
-    closed = not any(("Sign out" in l and "^Q" in l) for l in w.lines()[1:9])
+    closed = not any(("Sign out" in l and ("^Q" in l or "^X" in l)) for l in w.lines()[1:9])
     R.row("R4c3 home: the menu is closed by Esc after the resize", closed, "\n".join(l for l in w.lines()[:9] if l.strip()), phase=None) if (c and c2) else None
     row("R4a", "home: resized to 180x55 while the F10 menu was open, after Esc the program writes the footer on rows 53-55 (the border on the new last-but-two row)", f["ok"],
         "%r; %s; bytes since the resize: %d" % (f, where([l.rstrip() for l in fr.lines()]), len(w.post(off))), phase=3, ctrl=c and c2)

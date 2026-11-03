@@ -3,7 +3,7 @@
 # sandbox-home.py - the home screen and where an account starts (S.75, plan .claude/plan-fullscreen-toolkit.md section 13: H1 the screen, H2 the start), on a pseudo-terminal.
 # No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-home.py <dir> [--build] [--only=base,u9]
+#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-home.py <dir> [--build] [--only=base,u9,leave]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could
 # not run.  ORDINARY sessions are `sd -a<account>` in a fixture account, made with sandbox-gates.py's own functions (the suite stops with exit 2 if its first ordinary session is
@@ -13,6 +13,7 @@
 # 22 Oct 26 dm  New (S.75, H1 and H2).
 # 2 Nov 26 dm   S.88 U9: section u9 (the toolkit's menu bar and type-to-find, rows U9a-U9p) and --only=base,u9 (base: every row before it); the foot row's expected keys follow the table
 #               (F10 left the row, / find joined it).  u9 WRITTEN AND RUN ONCE with --only=u9; base NOT rerun.
+# 3 Nov 26 dm   S.149: section leave (--only=leave, rows S149a-l): Ctrl-Q on a screen typed at the prompt goes back to the prompt, Ctrl-X signs out there, and a session's own screen keeps Ctrl-Q as Sign out.
 # 28 Oct 26 dm  S.85: setup() runs sandbox-tk-base.py's sudo_null_case() before anything else: every suite built on this setup (the page suites and docs) runs with the stub `sudo` first in PATH,
 #               and stops (exit 2) if a child shell or an SD session finds another.  WRITTEN, NOT RUN when added (the owner's rule of 28 Oct).
 # END-HISTORY
@@ -46,7 +47,7 @@ say, row, bail, TOOL = tkb.say, tkb.row, tkb.bail, tkb.TOOL
 E = "\x1b"
 # the keys of terminfo's linux entry: every account's LOGIN paragraph (newvoc/login) says TERM LINUX, and it runs before the home screen starts, whatever TERM the terminal had
 KEYS = {"up": E + "[A", "down": E + "[B", "right": E + "[C", "left": E + "[D", "home": E + "[1~", "end": E + "[4~", "pgup": E + "[5~", "pgdn": E + "[6~", "tab": "\t",
-        "btab": E + "[Z", "f2": E + "[[B", "f3": E + "[[C", "f4": E + "[[D", "f5": E + "[[E", "f6": E + "[17~", "f10": E + "[21~", "enter": "\r", "esc": E, "ctrl-q": "\x11", "bs": "\x7f"}
+        "btab": E + "[Z", "f2": E + "[[B", "f3": E + "[[C", "f4": E + "[[D", "f5": E + "[[E", "f6": E + "[17~", "f10": E + "[21~", "enter": "\r", "esc": E, "ctrl-q": "\x11", "ctrl-x": "\x18", "bs": "\x7f"}
 # a cell inside each tile, on the row of its label, found by the layout of the first screen (13.10): the Tools group at the top, Everyone under it, the header tiles
 TILE = {"Editor": (10, 5), "IDE": (10, 27), "Terminal": (17, 5), "Keys": (17, 51), "Files": (24, 5), "Vocabulary": (24, 27), "Dictionary": (24, 51), "Queries": (24, 73), "Bulk update": (24, 97), "Programs": (24, 119), "Tests": (30, 5), "Switch account": (2, 100), "Sign out": (2, 122)}
 BOX = SYS = None
@@ -218,7 +219,7 @@ def summary(name):
     sys.exit(0 if tkb.failed == 0 and tkb.passed > 0 else 1)
 
 
-SECTIONS = ("base", "u9")
+SECTIONS = ("base", "u9", "leave")
 
 
 def only():
@@ -295,12 +296,59 @@ def u9_rows():
     h.end()
 
 
+def leave_rows():
+    """3 Nov 26 (S.149; owner: "make ctrl+q leave for the prompt when you typed home"): zzht starts at the prompt, so HOME typed there is a visit and Ctrl-Q goes back to the prompt; zzhm is
+    started by the account's own setting, which is the session's own screen, and keeps Ctrl-Q as Sign out.  EXIT after the Terminal tile makes a typed screen the session's own again."""
+    say("\n--- Ctrl-Q on a screen typed at the prompt (S.149)")
+    h = H("zzht")
+    h.typed("home\r", idle=1.5)
+    row("S149a the key row of a screen typed at the prompt says ^Q prompt, where a session's own screen says ^Q sign out", h.home() and h.line(42) == "Enter start  F1 help  F5 refresh  ^Q prompt  / find", repr(h.line(42)))
+    h.key("ctrl-q", idle=1.3)
+    row("S149b Ctrl-Q goes back to the prompt it was typed at: no question, no tiles, the session is alive", h.prompt() and not h.home() and "Sign out of SD?" not in h.text() and h.alive(), h.text()[-300:])
+    h.typed("who.am.i\r", idle=1.2)
+    row("S149c ...and it is the ordinary prompt of the same account (WHO.AM.I answers zzht)", re.search(r"Account\s*:\s*zzht", h.text()) is not None, h.text()[-300:])
+    h.typed("exit\r", idle=2.0)
+    row("S149d ...and EXIT there ends the session as QUIT does: leaving did not set the flag that brings the screen back", not h.alive(), h.text()[-200:])
+    h.end()
+    h = H("zzht")
+    h.typed("home\r", idle=1.5)
+    h.key("f10", idle=0.8)
+    drop = " ".join(h.line(r) for r in range(1, 8))
+    row("S149e F10 opens File: Back to the prompt with ^Q, and Sign out with ^X", "Back to the prompt" in drop and "Sign out" in drop and "^Q" in drop and "^X" in drop, repr(drop[:220]))
+    h.key("esc", idle=0.6)
+    h.key("ctrl-x", idle=0.9)
+    row("S149f Ctrl-X asks 'Sign out of SD?' with Sign out and Cancel (Cancel is the default)", "Sign out of SD?" in h.text() and "Cancel" in h.text(), h.text()[-300:])
+    h.key("enter", idle=0.8)
+    row("S149g Enter takes Cancel: the box closes, the screen is whole and the session is alive", h.home() and "Sign out of SD?" not in h.text() and h.alive(), "")
+    h.key("ctrl-x", idle=0.9)
+    h.typed("s", idle=2.0)
+    row("S149h the letter S takes Sign out: the session ends", not h.alive(), h.text()[-200:])
+    h.end()
+    h = H("zzht")
+    h.typed("home\r", idle=1.5)
+    h.key("down")
+    h.key("enter", idle=1.5)
+    h.typed("exit\r", idle=1.8)
+    row("S149i a screen that EXIT brought back after the Terminal tile is the session's own again: its row says ^Q sign out", h.home() and h.line(42) == "Enter start  F1 help  F5 refresh  ^Q sign out  / find", repr(h.line(42)))
+    h.key("ctrl-q", idle=0.9)
+    row("S149j ...and Ctrl-Q asks 'Sign out of SD?' there", "Sign out of SD?" in h.text() and h.alive(), h.text()[-200:])
+    h.end()
+    h = H("zzhm")
+    h.key("ctrl-x", idle=0.9)
+    row("S149k a session's own screen (zzhm) has no Ctrl-X: nothing is asked and the screen is whole", h.home() and "Sign out of SD?" not in h.text() and h.alive(), h.text()[-200:])
+    h.key("ctrl-q", idle=0.9)
+    row("S149l ...and its Ctrl-Q still asks 'Sign out of SD?'", "Sign out of SD?" in h.text(), h.text()[-200:])
+    h.end()
+
+
 def main():
     want = only()
     try:
         setup("sandbox-home.py")
         if "u9" in want:
             u9_rows()
+        if "leave" in want:
+            leave_rows()
         if "base" not in want:
             teardown()
             summary("sandbox-home")
@@ -538,6 +586,7 @@ def main():
         h.key("enter", idle=1.5)
         row("its Terminal tile gives the prompt back", h.prompt() and not h.home(), "")
         h.end()
+
 
         say("\n--- the mouse")
         h = H("zzhm")

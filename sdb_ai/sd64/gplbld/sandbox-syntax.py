@@ -14,6 +14,7 @@
 # 1 Nov 26 dm   THE DEFAULT IS ON (owner: "turn syntax on by default"): the first section holds the default, SYNTAX OFF and the bare SYNTAX in both directions, a new section holds NO.SYNTAX
 #               in &sed.options&, and the vt100 rows hold a silent start and the bare SYNTAX's message.
 # 1 Nov 26 dm   S.99: SED is 140 by 43 (the key row): the window here is 140 by 43.
+# 3 Nov 26 dm   Line numbers are ON by default in SED: the fixture and the option records carry NO.LNUM, so the columns the colour rows read are the ones they were written for.
 # END-HISTORY
 #
 # HOW IT DRIVES SED.  On a PSEUDO-TERMINAL (ptydrive.py), the screen read from the emulator in termscreen.py, whose
@@ -153,13 +154,14 @@ def main():
     prog = "   execute 'DELETE.FILE %s' capturing j0\n   execute 'CREATE.FILE %s' capturing j1\n   open '%s' to f else stop 'no file'\n" % (F, F, F)
     for rid, lines in (("demo.c", C_SRC), ("open.c", OPEN_C), ("prog.b", BAS), ("note.txt", ["plain text", "int main"])):
         prog += "   rec = %s\n   write rec on f, '%s'\n" % (" : @fm : ".join(lit(l) for l in lines), rid)
-    prog += "   crt 'FIXTURE DONE'\nend\n"
+    # 3 Nov 26: line numbers are on by default and move every column the colour rows read, so this suite runs with NO.LNUM in &sed.options& (sandbox-sed-edit.py part "lnum" holds the default)
+    prog += "   write 'X' : @fm : 'NO.LNUM' on @voc, '&sed.options&'\n   crt 'FIXTURE DONE'\nend\n"
     with open(os.path.join(sysd, "bp", "zzsyfix"), "w") as fh:
         fh.write(prog)
     with open(os.path.join(sysd, "bp", "zzsyopt"), "w") as fh:
-        fh.write("   write 'X' : @fm : 'NO.SYNTAX' on @voc, '&sed.options&'\n   crt 'OPT DONE'\nend\n")
+        fh.write("   write 'X' : @fm : 'NO.SYNTAX NO.LNUM' on @voc, '&sed.options&'\n   crt 'OPT DONE'\nend\n")
     with open(os.path.join(sysd, "bp", "zzsyopt0"), "w") as fh:
-        fh.write("   delete @voc, '&sed.options&'\n   crt 'OPT GONE'\nend\n")
+        fh.write("   write 'X' : @fm : 'NO.LNUM' on @voc, '&sed.options&'\n   crt 'OPT GONE'\nend\n")
     try:
         say("\n--- fixture --------------------------------------------------------------------------------------")
         out = sess(box, "BASIC bp zzsyfix", "RUN bp zzsyfix")

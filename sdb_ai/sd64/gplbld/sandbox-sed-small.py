@@ -558,6 +558,7 @@ def main():
    execute 'CREATE.FILE %(f)s' capturing j1
    open '%(f)s' to f else stop 'no file'
    write %(rec)s on f, 'r1'
+   write 'X' : @fm : 'NO.LNUM' on @voc, '&sed.options&'
    crt 'FIXTURE DONE'
 end
 """ % {"f": F, "rec": " : @fm : ".join("'%s'" % x for x in RECORD)}

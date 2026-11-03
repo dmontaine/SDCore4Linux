@@ -23,9 +23,10 @@ $internal
 program $exit
 $catalog $exit
 
-   common /tkhome/ hflag, hlogto
+   common /tkhome/ hflag, hlogto, hstart
 
    if hflag and @tty[1, 5] = '/dev/' then
+      hstart = 1                               ;* 3 Nov 26: back from the Terminal tile, the screen is the session's own again (Ctrl-Q signs out), as it was before the tile was used
       execute 'home'
    end else
       execute 'quit'

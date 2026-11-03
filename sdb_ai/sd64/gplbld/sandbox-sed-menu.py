@@ -658,6 +658,7 @@ def main():
    rec = %(rec)s
    write rec on f, 'r1'
    write rec on f, 'r2'
+   write 'X' : @fm : 'NO.LNUM' on @voc, '&sed.options&'
    crt 'FIXTURE DONE'
 end
 """ % {"f": F, "rec": " : @fm : ".join("'%s'" % x for x in RECORD)}
@@ -673,11 +674,12 @@ end
    next n
 end
 """ % {"f": F}
-    emacs = """   write 'X' : @fm : '' : @fm : 'EMACS' on @voc, '&sed.options&'
+    # 3 Nov 26: line numbers are on by default and move every column below, so this suite runs with NO.LNUM in &sed.options& (the fixture writes it; sandbox-sed-edit.py part "lnum" holds the default)
+    emacs = """   write 'X' : @fm : 'NO.LNUM' : @fm : 'EMACS' on @voc, '&sed.options&'
    crt 'EMACS DONE'
 end
 """
-    emacs0 = """   delete @voc, '&sed.options&'
+    emacs0 = """   write 'X' : @fm : 'NO.LNUM' on @voc, '&sed.options&'
    crt 'EMACS GONE'
 end
 """

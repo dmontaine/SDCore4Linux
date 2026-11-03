@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   CTRL-Q ON A HOME SCREEN TYPED AT THE PROMPT GOES BACK TO THE PROMPT; SIGN OUT THERE IS CTRL-X.
+
+             What        - When you type HOME at the prompt, Ctrl-Q leaves the screen for that prompt (no question; the key row says
+                           ^Q prompt) and the session goes on. Sign out is then Ctrl-X, File > Sign out, or the Sign out tile, and asks
+                           first as before. A screen the session started in (the account's start setting is the home screen), or came
+                           back to with EXIT after the Terminal tile, is the session's own: Ctrl-Q still signs out.
+             Why         - Ctrl-Q was the only way out on the key row and it ended the whole session, so a visit to the home screen
+                           from the prompt had no visible way back (Ctrl-T, the Terminal tile, did, but only F1 and the menus said so).
+             Does NOT    - Change an account whose Terminal tile the administrator turned off (it has no prompt to go back to, so
+                           Ctrl-Q signs out), or what EXIT does at a prompt that never came from the home screen (it still ends the session).
+
+3 Nov 26   SED SHOWS LINE NUMBERS WHEN A RECORD IS OPENED, AND TOOLS > LINE NUMBERS TURNS THEM ON AND OFF.
+
+             What        - Every record SED opens has the line number field (0001: and so on) unless &sed.options& says no.lnum. The
+                           Tools menu has a Line numbers item, checked while the numbers are on; the LNUM command does the same. This
+                           includes the SED that Ctrl-E starts from the IDE, whose own editor shows the numbers.
+             Why         - Line numbers were off until LNUM was typed, so Ctrl-E from the IDE came up without the numbers the IDE had
+                           just been showing, and nothing in the menus said how to get them.
+             Does NOT    - Change the record (the numbers are drawn, not stored), or the setting a buffer has once it has been shown
+                           (switching buffers keeps each one's own). A site that wants them off as before puts no.lnum in &sed.options&.
+
 3 Nov 26   THE INSTALLER OFFERS TO INSTALL A PDF READER WHEN THE MACHINE HAS NONE AND THE INSTALL IS RUN IN A DESKTOP SESSION.
 
              What        - "Install evince as the PDF reader? (y/N)" is asked when no known reader (evince, okular, zathura, atril,

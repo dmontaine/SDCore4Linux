@@ -97,7 +97,7 @@ def checks(s):
     ck("H1 the register field: ACC$START is field 16, and no other ACC$ name uses 16", re.search(r"\$define ACC\$START\s+16\b", kh) is not None
        and len(re.findall(r"\$define ACC\$[A-Z.]+\s+16\b", kh)) == 1)
 
-    common = "common /tkhome/ hflag, hlogto"
+    common = "common /tkhome/ hflag, hlogto, hstart"
     ck("H2 tool_home, home_entry and exit declare the named common alike: " + common, all(common in x for x in (th, he, ex)))
 
     ck("H3 tool_home: a session with no terminal is refused BEFORE the screen is asked for (@tty must begin /dev/, message 11863), and hlogto starts at 0",
@@ -149,7 +149,7 @@ def checks(s):
        "   if logto.reset then goto restart.cproc\n\n   if @tty[1, 5] = '/dev/' then call !home_entry('logto')\n\n   return" in cp)
     ck("H11d ...and these are the only two calls", cp.count("call !home_entry(") == 2)
 
-    ck("H12 EXIT: with the flag and a terminal it starts HOME, otherwise it does what QUIT does", "if hflag and @tty[1, 5] = '/dev/' then\n      execute 'home'\n   end else\n      execute 'quit'\n   end" in ex)
+    ck("H12 EXIT: with the flag and a terminal it starts HOME (saying first that the screen is the session's own again: hstart = 1), otherwise it does what QUIT does", "if hflag and @tty[1, 5] = '/dev/' then\n      hstart = 1\n      execute 'home'\n   end else\n      execute 'quit'\n   end" in ex)
     ck("H13 SET.START.DEFAULT asks for the administrator first (2001), takes only menu or terminal, writes only the one file, audits it, and says what it is without a word",
        0 < ss.find("kernel(K$ADMINISTRATOR, -1)") < ss.find("stop sysmsg(2001)") < ss.find("openseq path overwrite to df else null") and "openseq path readonly to df then" in ss and "want = 'menu' or want = 'terminal'" in ss
        and "path = @sdsys : @ds : 'start.default'" in ss and "K$AUDIT, 'set.start.default ' : want" in ss and "case want = ''" in ss)
@@ -391,10 +391,11 @@ def checks(s):
     keyed = re.findall(r"call \$tk_keys\('add', keys, '([^']*)', '[^']*', '([^']*)', '', 1\)", mk9)
     menued = re.findall(r"call \$tk_keys\('menu', keys, '([^']*)'", mkm)
     ck("H82 ...every action on the bar has a key in the table (the bar replays the key through the page's own case), F10 has no row (it is the bar's), and the keys that are not on the function-key row are taken "
-       "off it right after their row (Backspace, Ctrl-T, Ctrl-W, Ctrl-R, Ctrl-K)",
-       set(menued) <= {a for k, a in keyed if k} and not any(k == "f10" for k, a in keyed) and len(menued) == 10
+       "off it right after their row (Backspace, Ctrl-T, Ctrl-W, Ctrl-R, Ctrl-K, and Ctrl-X when Ctrl-Q leaves for the prompt)",
+       set(menued) <= {a for k, a in keyed if k} and not any(k == "f10" for k, a in keyed) and len(menued) == 11
        and all(re.search(r"call \$tk_keys\('add', keys, '%s', [^\n]*\)\n   gosub off\.row\n" % k, mk9) for k in ("bs", "ctrl-t", "ctrl-w", "ctrl-r", "ctrl-k"))
-       and mk9.count("gosub off.row") == 5 and "keys<dcount(keys, @fm), TK.K.ROW> = 0" in th, repr((keyed, menued)))
+       and re.search(r"call \$tk_keys\('add', keys, 'ctrl-x', [^\n]*\)\n      gosub off\.row\n", mk9)
+       and mk9.count("gosub off.row") == 6 and "keys<dcount(keys, @fm), TK.K.ROW> = 0" in th, repr((keyed, menued)))
     oky = between(th, "\non.key:\n", "\non.mouse:\n")
     ck("H83 ...a key of a tile that is off does nothing but say so, whether pressed or chosen from the bar: Ctrl-T asks terminal.off before it leaves for the Terminal, Ctrl-W and Ctrl-K ask the off list before "
        "Switch account and tool.keys, Ctrl-R goes through toggle.recent (which refuses itself, 11961)",
@@ -416,6 +417,27 @@ def checks(s):
        "or the Terminal tile adds its id to it; ai.more - not a constant - is the twelfth field of what the AI is told, so that Enter alone accepts a delivered tile and rejects a pin or the Terminal tile",
        ordered(aia, "ai.nav = 1", "ai.more = ''", "if tl<i, HT.ID>[1, 3] = 'pin' or ta = 'terminal' then ai.more<1, -1> = tl<i, HT.ID>") and "acts : @fm : ai.nav" in th and "acts : @fm : 1" not in th
        and "actx<12> = ai.more" in th and "ai.nav = 0" not in th, aia)
+
+    # ---- 3 Nov 26 (S.149; owner: "make ctrl+q leave for the prompt when you typed home") --------------------------------------------------------------------
+    fin = between(th, "\nfinish:\n", "\n   return\n")
+    mkk = between(th, "\nmake.keys:\n", "\noff.row:\n")
+    ck("H85 the screen takes the flag that says whose it is BEFORE it asks for the terminal (menu.session = hstart, then hstart = 0), and Ctrl-Q may leave only when the screen was typed (not menu.session) "
+       "and the Terminal tile is not off, worked out before the key table is made",
+       ordered(th, "common /tkhome/ hflag, hlogto, hstart", "hlogto = 0", "menu.session = hstart + 0", "hstart = 0", "call $tk_open('home', '', ctx, err)")
+       and ordered(th, "call !home_off(@who, off.list)", "leave.ok = (not(menu.session) and not(index(' ' : off.list : ' ', ' terminal ', 1)))", "gosub make.keys"), th[:200])
+    ck("H85b ...when it may, Ctrl-Q is 'prompt' (leave) and Ctrl-X is Sign out, off the key row, and the File menu has Back to the prompt before Sign out; when it may not, Ctrl-Q is Sign out as before; "
+       "the loop leaves on Ctrl-Q (outcome leave) and signs out on Ctrl-X only when leave.ok",
+       "if leave.ok then\n      call $tk_keys('add', keys, 'ctrl-q', 'prompt', 'leave', '', 1)\n   end else\n      call $tk_keys('add', keys, 'ctrl-q', 'sign out', 'signout', '', 1)\n   end" in mkk
+       and "if leave.ok then\n      call $tk_keys('add', keys, 'ctrl-x', 'sign out', 'signout', '', 1)\n      gosub off.row\n   end" in mkk
+       and ordered(mkm, "if leave.ok then call $tk_keys('menu', keys, 'leave', '&File', '&Back to the prompt', '', '')", "call $tk_keys('menu', keys, 'signout', '&File', '&Sign out', '', '')")
+       and "case nm = 'ctrl-q'\n         if leave.ok then\n            outcome = 'leave'\n            done = 1\n         end else\n            gosub do.signout\n         end\n      case nm = 'ctrl-x' and leave.ok\n         gosub do.signout" in oky,
+       mkk[:300])
+    leave_case = between(fin, "case outcome = 'leave'", "case 1")
+    ck("H85c ...leaving closes the screen and nothing else (no QUIT, hflag untouched, so EXIT still ends the session), after the wall for an account whose Terminal tile is off; !home_entry and EXIT say "
+       "hstart = 1 immediately before they start HOME",
+       "call $tk_close(ctx)" in leave_case and "quit" not in leave_case and "hflag" not in leave_case
+       and fin.find("case terminal.off and outcome # 'signout'") < fin.find("case outcome = 'leave'")
+       and "hstart = 1\n   execute 'home'" in he and "hstart = 1\n      execute 'home'" in ex, repr(leave_case))
     return rows
 
 
@@ -567,8 +589,18 @@ MUTANTS = [
     ("the found tile is started at once", "tool_home", "      gosub set.focus\n      msg = tl<fi, HT.LABEL> : ': Enter starts it'", "      gosub set.focus\n      gosub start.tile"),
     ("a cancelled find moves the focus", "tool_home", "   if fres = 'ok' then\n      j = fmap<fsel>", "   if 1 then\n      j = fmap<fsel>"),
     ("/ jumps to a tile that begins with it", "tool_home", "      case nm = '/'\n         gosub find.tile\n", ""),
+    # 3 Nov 26, S.149: Ctrl-Q leaves for the prompt when HOME was typed there
+    ("Ctrl-Q signs out of a screen typed at the prompt", "tool_home", "      case nm = 'ctrl-q'\n         if leave.ok then", "      case nm = 'ctrl-q'\n         if 0 then"),
+    ("Ctrl-Q leaves a screen the session started in", "tool_home", "leave.ok = (not(menu.session) and not(index(' ' : off.list : ' ', ' terminal ', 1)))", "leave.ok = (not(index(' ' : off.list : ' ', ' terminal ', 1)))"),
+    ("Ctrl-Q leaves an account whose Terminal tile is off", "tool_home", "leave.ok = (not(menu.session) and not(index(' ' : off.list : ' ', ' terminal ', 1)))", "leave.ok = (not(menu.session))"),
+    ("Sign out has no key when Ctrl-Q leaves", "tool_home", "      call $tk_keys('add', keys, 'ctrl-x', 'sign out', 'signout', '', 1)       ;* Ctrl-Q left the screen for the prompt: Sign out has this key (the menu and the tile as well)\n", ""),
+    ("the flag that says whose the screen is is never taken", "tool_home", "   hstart = 0                                           ;* taken: a later HOME typed at the prompt the screen gave is typed\n", ""),
+    ("!home_entry does not say the screen is the session's own", "home_entry", "   hstart = 1                                  ;* 3 Nov 26: this screen is the session's own (the account starts in the menu), not one typed at the prompt: Ctrl-Q signs out\n", ""),
+    ("EXIT does not say the screen is the session's own again", "exit", "      hstart = 1                               ;* 3 Nov 26: back from the Terminal tile, the screen is the session's own again (Ctrl-Q signs out), as it was before the tile was used\n", ""),
+    ("leaving signs out", "tool_home", "      case outcome = 'leave'\n         call $tk_close(ctx)", "      case outcome = 'leave'\n         execute 'quit'\n         call $tk_close(ctx)"),
 ]
-M_U9 = len(MUTANTS) - 16
+M_U9 = len(MUTANTS) - 16 - 8
+M_LEAVE = len(MUTANTS) - 8
 
 
 def selftest(first=0):

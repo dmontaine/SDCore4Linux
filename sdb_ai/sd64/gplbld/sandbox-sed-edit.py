@@ -16,6 +16,8 @@
 # 26 Oct 26 dm  S.82: part "opts" (--only=opts) - SCROLL1 (sheet 463), NO.CASE.EXPLORE (376), SPLIT.UP / SPLIT.DOWN (578) and VIEW (138).
 # 1 Nov 26 dm   S.99: SED is 140 by 43 (the key row): the window here is 140 by 43; the text rows, the file line and the status line are
 #               the rows they were, so no other row changed.
+# 3 Nov 26 dm   Line numbers are ON by default in SED (owner: "line number should be on by default, and it should be an option in the sed menu"): part "lnum" (--only=lnum) holds the default,
+#               Tools > Line numbers, LNUM and NO.LNUM; the other parts run with NO.LNUM in &sed.options& (their columns were written without the number field).
 # END-HISTORY
 #
 # HOW IT DRIVES SED.  On a PSEUDO-TERMINAL (ptydrive.py), as sandbox-sed-menu.py does, and reads the screen from the emulator
@@ -375,6 +377,51 @@ PAGE_DOWN = (F10, RIGHT, RIGHT, "d")                  # Search menu, "Page down"
 WINDOW = (F10, RIGHT, RIGHT, RIGHT, RIGHT)            # the Window menu: s split, u unsplit, p move split up, d move split down
 SEARCH = (F10, RIGHT, RIGHT)                          # the Search menu: v View lines...
 COMMAND = (F10, RIGHT, RIGHT, RIGHT, RIGHT, RIGHT, "n")   # the Tools menu, "Command..."
+TOOLS = (F10, RIGHT, RIGHT, RIGHT, RIGHT, RIGHT)          # the Tools menu: e Line numbers
+
+
+def part_lnum(box):
+    """3 Nov 26: line numbers are ON by default (owner: "line number should be on by default, and it should be an option in the sed menu"), Tools > Line numbers
+    toggles them, LNUM does the same, and NO.LNUM in &sed.options& is the way back.  They are display only: the record on disk is the record as written."""
+    say("\n--- SED: line numbers on by default, Tools > Line numbers, LNUM and NO.LNUM -----------------------------------------")
+    out = sess(box, "RUN bp zzselndef")
+    row("setup: no &sed.options& record (the defaults)", "OPT GONE" in out, out[-200:])
+    numbered = lambda L: [l for l in L if re.match(r"^\s*000[1-5]: (alpha|bravo|charlie|delta|echo) one", l)]       # noqa: E731
+    bare = lambda L: [l for l in L if re.match(r"^\s*(alpha|bravo|charlie|delta|echo) one", l)]                       # noqa: E731
+    item = lambda L: [l for l in L if "Line numbers" in l]                                                           # noqa: E731
+    e = Term(box, "SED %s r1" % F)
+    L = e.lines()
+    row("DEFAULT: a record opened with no option set shows its five lines numbered 0001: to 0005:", len(numbered(L)) == 5 and not bare(L), "\n".join(L[:9]))
+    L = e.keys(*TOOLS)
+    it = item(L)
+    row("MENU: the Tools menu has a Line numbers item, and it is checked while the numbers are on",
+        len(it) == 1 and "*" in it[0].split("Line numbers")[0][-4:], "\n".join(L[:22]))
+    L = e.keys("e", idle=1.0)
+    row("MENU: choosing it takes the numbers off (five bare lines, none numbered)", len(bare(L)) == 5 and not numbered(L), "\n".join(L[:9]))
+    L = e.keys(*TOOLS)
+    it = item(L)
+    row("MENU: and the item is then unchecked", len(it) == 1 and "*" not in it[0].split("Line numbers")[0][-4:], "\n".join(L[:22]))
+    L = e.keys("e", idle=1.0)
+    row("MENU: choosing it again puts them back", len(numbered(L)) == 5 and not bare(L), "\n".join(L[:9]))
+    L = e.keys(*COMMAND, "LNUM", RET, idle=1.0)
+    row("COMMAND: LNUM takes them off", len(bare(L)) == 5 and not numbered(L), "\n".join(L[:9]))
+    L = e.keys(*COMMAND, "LNUM ON", RET, idle=1.0)
+    row("COMMAND: LNUM ON puts them on", len(numbered(L)) == 5 and not bare(L), "\n".join(L[:9]))
+    quit_asking(e)
+    row("DISK: the numbers are display only - the record on disk is as written", rec(box, "r1") == RECORD, repr(rec(box, "r1")))
+
+    out = sess(box, "RUN bp zzseopt0")            # NO.LNUM
+    row("setup: &sed.options& says NO.LNUM", "OPT GONE" in out, out[-200:])
+    e = Term(box, "SED %s r1" % F)
+    L = e.lines()
+    row("NO.LNUM: a record opened shows five bare lines", len(bare(L)) == 5 and not numbered(L), "\n".join(L[:9]))
+    L = e.keys(*TOOLS)
+    it = item(L)
+    row("NO.LNUM: and the menu item is unchecked", len(it) == 1 and "*" not in it[0].split("Line numbers")[0][-4:], "\n".join(L[:22]))
+    L = e.keys("e", idle=1.0)
+    row("NO.LNUM: the menu item still puts them on for this buffer", len(numbered(L)) == 5 and not bare(L), "\n".join(L[:9]))
+    quit_asking(e)
+    sess(box, "RUN bp zzselndef")
 
 
 def part_opts(box):
@@ -493,7 +540,7 @@ def part_opts(box):
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
-        bail("usage: sandbox-sed-edit.py <dir> [--build] [--only=undo|mouse|opts]")
+        bail("usage: sandbox-sed-edit.py <dir> [--build] [--only=undo|mouse|opts|lnum]")
     box = os.path.abspath(args[0])
     sysd = os.path.join(box, "sys")
     say("sandbox-sed-edit: sandbox %s" % box)
@@ -529,11 +576,17 @@ end
    next n
 end
 """ % {"f": F}
-    opt = """   write 'X' : @fm : 'NO.MOUSE' on @voc, '&sed.options&'
+    # 3 Nov 26: line numbers are on by default, which moves every column the undo, mouse and opts rows were written for; so the BASELINE of those parts is NO.LNUM (zzseopt0) and each
+    # option record below carries it too.  Part "lnum" is the one that runs with the default (zzselndef takes the record away).
+    opt = """   write 'X' : @fm : 'NO.MOUSE NO.LNUM' on @voc, '&sed.options&'
    crt 'OPT DONE'
 end
 """
-    opt0 = """   delete @voc, '&sed.options&'
+    opt0 = """   write 'X' : @fm : 'NO.LNUM' on @voc, '&sed.options&'
+   crt 'OPT GONE'
+end
+"""
+    lndef = """   delete @voc, '&sed.options&'
    crt 'OPT GONE'
 end
 """
@@ -550,15 +603,15 @@ end
    crt 'FIXTURE2 DONE'
 end
 """ % {"f": F}
-    opts1 = """   write 'X' : @fm : 'SCROLL1' on @voc, '&sed.options&'
+    opts1 = """   write 'X' : @fm : 'SCROLL1 NO.LNUM' on @voc, '&sed.options&'
    crt 'OPT DONE'
 end
 """
-    opts2 = """   write 'X' : @fm : 'NO.CASE.EXPLORE' on @voc, '&sed.options&'
+    opts2 = """   write 'X' : @fm : 'NO.CASE.EXPLORE NO.LNUM' on @voc, '&sed.options&'
    crt 'OPT DONE'
 end
 """
-    progs = {"zzsefix": fixture, "zzseprobe": probe, "zzseopt": opt, "zzseopt0": opt0, "zzsefix2": fixture2, "zzseopts1": opts1, "zzseopts2": opts2}
+    progs = {"zzsefix": fixture, "zzseprobe": probe, "zzseopt": opt, "zzseopt0": opt0, "zzselndef": lndef, "zzsefix2": fixture2, "zzseopts1": opts1, "zzseopts2": opts2}
     for nm, body in progs.items():
         with open(os.path.join(sysd, "bp", nm), "w") as fh:
             fh.write(body)
@@ -570,13 +623,17 @@ end
         if "FIXTURE DONE" not in out:
             bail("the fixture was not made:\n" + out[-800:])
         row("setup: control - the record is as written", rec(box, "r1") == RECORD, repr(rec(box, "r1")))
-        only = [a[7:] for a in sys.argv if a.startswith("--only=")]       # --only=undo, --only=mouse or --only=opts; none: all three
+        base = sess(box, "RUN bp zzseopt0")                                 # the baseline of the undo, mouse and opts parts: NO.LNUM (see above)
+        row("setup: the baseline &sed.options& (NO.LNUM) was written", "OPT GONE" in base, base[-200:])
+        only = [a[7:] for a in sys.argv if a.startswith("--only=")]       # --only=undo, --only=mouse, --only=opts or --only=lnum; none: all four
         if not only or "undo" in only:
             part_undo(box)
         if not only or "mouse" in only:
             part_mouse(box)
         if not only or "opts" in only:
             part_opts(box)
+        if not only or "lnum" in only:
+            part_lnum(box)
     finally:
         say("\n--- cleanup ---------------------------------------------------------------------------------------")
         sess(box, "RUN bp zzseopt0", "DELETE.FILE %s" % F)

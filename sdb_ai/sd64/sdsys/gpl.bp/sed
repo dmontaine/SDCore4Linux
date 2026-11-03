@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 3 Nov 26 dm   LINE NUMBERS ARE ON BY DEFAULT, and Tools > Line numbers toggles them (owner, 3 Nov 26: "line number should be on by default, and it should be an option in the sed menu", after
+*               Ctrl-E from the IDE, whose editor shows them, came up without): lnum.all starts true, so every record opened gets the number field; no.lnum in &sed.options& (or LNUM OFF ALL) is the way
+*               back, LNUM and the menu item toggle the buffer on screen, and a buffer keeps its own setting when another is shown.  The item is checked while the numbers are on (lcol).
 * 1 Nov 26 dm   S.99, LOOK ONLY (owner, 1 Nov 26: "all panes need to share the same look and feel if possible", "Yes, look only"; the 28 Oct freeze is lifted for the look and for nothing else): SED is
 *               laid out for 140 by 43 (SED.ROWS 43; a window of 140 by 42 is refused in words, as a smaller one is).  The 43rd row is a KEY ROW (key.line) in the toolkit pages' style: about ten
 *               actions, each with the key SED's own table gives it NOW (get.key.bindings, fmt.key: a rebound key shows, an action with no key in the layout drops off).  The application's name and
@@ -377,7 +380,7 @@ $include sl.h
    file.line = displayed.lines
    status.line = displayed.lines + 1
    key.line = displayed.lines + 2             ;* S.99: the key row, the last row of the layout (terminal row key.line + 1)
-   lnum.all = @false
+   lnum.all = @true     ;* line numbers are ON for every record opened (3 Nov 26); NO.LNUM in &sed.options& or LNUM OFF ALL turns them off
    lcol = 0    ;* Width of line number field
    lcol.fmt = ''
    gosub set.one.window
@@ -653,6 +656,9 @@ $include sl.h
 
                   case token = 'LNUM'
                      lnum.all = @true
+
+                  case token = 'NO.LNUM'
+                     lnum.all = @false
 
                   case token = 'NO.CASE.EXPLORE'
                      explore.nocase = @true
@@ -7475,6 +7481,7 @@ build.menu.defs:
    ml = '&Stamp' ; mc = 'c:STAMP' ; gosub add.item
    mf = (if syn.on then 'C' else '') ; ml = 'Syntax &colour' ; mc = 'c:SYNTAX' ; gosub add.item
    mf = (if mouse.want then 'C' else '') ; ml = 'M&ouse' ; mc = 'c:MOUSE' ; gosub add.item
+   mf = (if lcol then 'C' else '') ; ml = 'Line numb&ers' ; mc = 'c:LNUM' ; gosub add.item
    ml = 'Release &lock' ; mc = 'c:RELEASE' ; gosub add.item
    ml = '&Keys in use' ; mc = 'c:KEYS' ; gosub add.item
    ml = '-' ; mc = 'x:' ; gosub add.item

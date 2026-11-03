@@ -38,7 +38,7 @@ $catalog !home_entry
 $include keys.h
 $include int$keys.h
 
-   common /tkhome/ hflag, hlogto
+   common /tkhome/ hflag, hlogto, hstart
 
    if @tty[1, 5] # '/dev/' then return
    if kernel(K$IS.SDAPISRVR, 0) then return
@@ -73,6 +73,7 @@ $include int$keys.h
    close vf
    if vrec = '' then return
 
+   hstart = 1                                  ;* 3 Nov 26: this screen is the session's own (the account starts in the menu), not one typed at the prompt: Ctrl-Q signs out
    execute 'home'
 
 * An account whose Terminal tile the administrator has turned off is not given the prompt that the screen was the way out of: whatever ended the screen (a window too
