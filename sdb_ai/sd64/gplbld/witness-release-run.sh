@@ -13,6 +13,10 @@
 #           no account alone (V10d).  No row of this script expected sdsys OUT
 #           of a group (F6, 26 Oct - 1 Nov); these rows are added, none changed.
 #           NOT YET RUN.
+#     W.11  (3 Nov 26) the hardened sdclient@.service: embedded Python and sudo inside an
+#           API session (13n).  S.64: the API server's own edit guard, and DELETE,
+#           CLEAR.FILE and ED refused with the gates off (13o; probe api-fileop-probe.py).
+#           S.66: the shared account's API door (13p).  WRITTEN, NOT RUN.
 #     Q.22  logtoaccess: the administrator keeps its access across LOGTOs (2b)
 #     S.10  RUN folds the program name (3b)
 #     W.2   Enter at 2050 means N (5b; W.3, 6133, went with multifiles)
@@ -1674,6 +1678,170 @@ else
         ck_says "K6 OS-OFF is reported (10102)" "Account $ACC has SH no, OS.EXECUTE no" "$OUT"
         ck "K6b and the register is back to no / no" "no no" "$(k_gates)"
     fi
+fi
+
+# ==========================================================================
+# 3 Nov 26 (track G, the testing phase) - 13n, 13o and 13p: three rows the task table owed a real install and no script had.  WRITTEN, NOT RUN.
+#   13n W.11: the per-connection server's unit is the hardened one (e5a63a36: RestrictNamespaces= and the rest, NOT NoNewPrivileges), and under it an API session still
+#       runs EMBEDDED PYTHON (an os-on account; refused with os-off, the control) and SUDO from inside that session (the helper's cred-own query answers, which it could
+#       not under NoNewPrivileges).  The evidence is two files the session's Python writes, read here as root; the echoed program text proves nothing.
+#   13o S.64: the API server's OWN guard (apisrvr check.edit: the program is $internal, which the kernel's edit test lets through) refuses SDWrite / SDDelete to the
+#       VOC (11405), a program file (11407) and a dictionary (11406) of an account whose gate is off, and the record on the disk is unchanged; and a LOCAL session of
+#       that account is refused DELETE (11405), CLEAR.FILE of a dictionary (11406) and of a program file (11407), and ED of a program (11407).  Gates put back after.
+#   13p S.66: the shared account's API door: a file of `shared` opened BY NAME over the API and read (shared.read is blank, which is ON); a write refused in
+#       11513's words and the record on the disk unchanged; after SHARED-WRITE-ON a NEW session writes it; after SHARED-READ-OFF the open is refused.  Put back after.
+FPROBE="$(dirname "$SELF")/api-fileop-probe.py"
+fprobe() {   # $1 title, then api-fileop-probe arguments; the password from PROBE_PW
+    say "  --- api-fileop-probe: $1 ---" >&2
+    say "      > api-fileop-probe.py ${*:2}" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
+    local out
+    out=$(SD_PROBE_PASSWORD="$PROBE_PW" timeout 60 python3 "$FPROBE" "${@:2}" 2>&1)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    printf '%s' "$out"
+}
+GATES_REPORT() { run_sd sdsys "MODIFY.ACCOUNT $ACC $1" "MODIFY.ACCOUNT $ACC $1"; }
+
+head2 "13n. W.11 - the hardened sdclient@.service still runs embedded Python and sudo inside an API session"
+UNIT=/usr/lib/systemd/system/sdclient@.service
+SENT_PY="/tmp/zzrel-api-py.$$"
+SENT_SU="/tmp/zzrel-api-sudo.$$"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$PROBE_PW" ] || [ ! -f "$PROBE" ]; }; then
+    say "  needs $ACC adopted, the SD password and $PROBE"
+    for r in "N0 the unit is the hardened one" "N1 Python refused with os-off" "N2 Python runs over the API with os-on" "N3 sudo runs inside the API session" \
+             "N4 OS-OFF puts the register back"; do not_reached "$r"; done
+else
+    if [ "$COMMIT" -eq 1 ]; then
+        say "  $UNIT:"; sed -e 's/^/      | /' "$UNIT"
+        ck "N0 the installed unit sets RestrictNamespaces=yes and ProtectKernelTunables=yes and has no NoNewPrivileges= line" "yes yes no" \
+           "$(grep -qx 'RestrictNamespaces=yes' "$UNIT" && echo yes || echo no) $(grep -qx 'ProtectKernelTunables=yes' "$UNIT" && echo yes || echo no) $(grep -q '^NoNewPrivileges=' "$UNIT" && echo yes || echo no)"
+        ck "N0b and systemd reads it so (systemctl show of an instance)" "RestrictNamespaces=yes" \
+           "$(systemctl show 'sdclient@zzrel.service' -p RestrictNamespaces 2>&1 | head -1)"
+        rm -f "$SENT_PY" "$SENT_SU"
+        cat > "$ADIR/bp/zzpy" <<EOF
+\$include syscom sdpyfunc.h
+   x = py_initialize()
+   crt 'PY init=[':x:']'
+   y = py_runstring("open('$SENT_PY','w').write('ran')")
+   crt 'PY run=[':y:']'
+   z = py_runstring("import subprocess; r = subprocess.run(['sudo','-n','/usr/local/sbin/sd-elevate','cred-own','query'], capture_output=True, text=True); open('$SENT_SU','w').write(str(r.returncode) + ' ' + r.stdout + r.stderr)")
+   crt 'PY sudo=[':z:']'
+   crt 'PY end'
+end
+EOF
+        chown "$ACC:$(id -gn "$ACC")" "$ADIR/bp/zzpy"
+        say "  wrote $ADIR/bp/zzpy:"; sed -e 's/^/      | /' "$ADIR/bp/zzpy"
+    fi
+    OUT=$(run_sd "$ACC" "compile zzpy" "BASIC BP zzpy")
+    [ "$COMMIT" -eq 1 ] && ck_says "N0c zzpy compiled" "no errors" "$(printf '%s' "$OUT" | tr 'A-Z' 'a-z')"
+    OUT=$(probe "N1 Python over the API, os-off (the control)" --user "$ACC" --account "$ACC" "RUN BP zzpy")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "N1 refused: py_initialize returns null with OS.EXECUTE off" "PY init=[]" "$OUT"
+        ck "N1b and nothing ran (no sentinel)" no "$(yesno_file "$SENT_PY")"
+    fi
+    OUT=$(GATES_REPORT OS-ON)
+    [ "$COMMIT" -eq 1 ] && ck_says "N2a OS-ON is reported (10102)" "Account $ACC has SH no, OS.EXECUTE yes" "$OUT"
+    OUT=$(probe "N2 Python over the API, os-on (a NEW session)" --user "$ACC" --account "$ACC" "RUN BP zzpy")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "N2 py_initialize answers 0 over the API" "PY init=[0]" "$OUT"
+        ck "N2b THE ROW: the session's Python wrote its file, as the account's user" "yes $ACC" "$(yesno_file "$SENT_PY") $(stat -c %U "$SENT_PY" 2>/dev/null)"
+        say "  $SENT_SU: $(cat "$SENT_SU" 2>/dev/null || echo '(absent)')"
+        case "$(cat "$SENT_SU" 2>/dev/null)" in
+            "0 none"*|"0 salt "*) ck "N3 THE ROW: sudo inside the API session ran the helper as root (cred-own query answered, exit 0)" yes yes ;;
+            *) ck "N3 THE ROW: sudo inside the API session ran the helper as root (cred-own query answered, exit 0)" "0 none|salt ..." "$(cat "$SENT_SU" 2>/dev/null || echo absent)" ;;
+        esac
+        ck_absent "N3b and sudo did not meet the no-new-privileges flag" "no new privileges" "$(cat "$SENT_SU" 2>/dev/null)"
+    fi
+    OUT=$(GATES_REPORT OS-OFF)
+    [ "$COMMIT" -eq 1 ] && ck_says "N4 OS-OFF puts the register back (10102)" "Account $ACC has SH no, OS.EXECUTE no" "$OUT"
+    rm -f "$SENT_PY" "$SENT_SU"
+fi
+
+head2 "13o. S.64 - the API server's own edit guard, and DELETE, CLEAR.FILE and ED refused, on a real install"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$PROBE_PW" ] || [ ! -f "$FPROBE" ]; }; then
+    say "  needs $ACC adopted, the SD password and $FPROBE"
+    for r in "O0 setup" "O1 API write to the VOC refused (11405)" "O2 API delete in the VOC refused" "O3 API write to bp refused (11407)" "O4 API write to a dictionary refused (11406)" \
+             "O5 DELETE refused" "O6 CLEAR.FILE DICT refused" "O7 CLEAR.FILE BP refused" "O8 ED refused" "O9 gates back"; do not_reached "$r"; done
+else
+    OUT=$(run_sd "$ACC" "setup with every gate on: a file zzrelcf (its dictionary gets an item below)" "CREATE.FILE zzrelcf")
+    # the VOC record and the dictionary item are written by the API itself while the gates are ON (the control: the probe's write path works)
+    OUT=$(fprobe "O0 control: write VOC zzrelg1 with voc.edit on" --user "$ACC" --account "$ACC" --file VOC "write:zzrelg1=X" "read:zzrelg1")
+    [ "$COMMIT" -eq 1 ] && ck_says "O0 the control: with voc.edit on the API writes the VOC record and reads it back" "SDRead(zzrelg1) err 0" "$OUT"
+    [ "$COMMIT" -eq 1 ] && ck_says "O0b and its value is X" "record: [X]" "$OUT"
+    OUT=$(fprobe "O0c control: write DICT zzrelcf item zzrelitem with dict.edit on" --user "$ACC" --account "$ACC" --file "DICT zzrelcf" "write:zzrelitem=D")
+    [ "$COMMIT" -eq 1 ] && ck_says "O0c the control: the dictionary item is written (status 0)" "SDWrite(zzrelitem) status 0" "$OUT"
+    OUT=$(GATES_REPORT "VOC-OFF BP-OFF DICT-OFF")
+    [ "$COMMIT" -eq 1 ] && ck_says "O0d the three gates are off (11409)" "Account $ACC has VOC.EDIT no, BP.EDIT no, DICT.EDIT no" "$OUT"
+    # the oracle is a LOCAL session's CT, another route than the API's own read: X when field 1 reads X, else what CT printed
+    vocval() {
+        local ct; ct=$(run_sd "$ACC" "the VOC record zzrelg1, read by a local session" "CT VOC zzrelg1")
+        if printf '%s\n' "$ct" | grep -Eq '^[[:space:]]*0*1:?[[:space:]]+X[[:space:]]*$'; then echo X; else echo "not X: $(printf '%s' "$ct" | tail -3 | tr '\n' ' ')"; fi
+    }
+    OUT=$(fprobe "O1 write VOC zzrelg1 with voc.edit off" --user "$ACC" --account "$ACC" --file VOC "write:zzrelg1=CHANGED" "delete:zzrelg1")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "O1 THE ROW: the API write to the VOC is refused in 11405's words" "The VOC can only be changed by an account that has voc.edit" "$OUT"
+        ck_says "O2 and the API delete too (the same words, SDDelete's line)" "SDDelete(zzrelg1) status" "$(printf '%s' "$OUT" | grep -F 'SDDelete(zzrelg1)' | grep -F 'voc.edit')"
+        ck "O2b the record on the disk is unchanged (a local session reads X)" X "$(vocval)"
+    fi
+    OUT=$(fprobe "O3 write BP zzrelbp with bp.edit off" --user "$ACC" --account "$ACC" --file BP "write:zzrelbp=crt 1")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "O3 THE ROW: the API write to a program file is refused in 11407's words" "A program file can only be changed by an account that has bp.edit" "$OUT"
+        ck "O3b and no file was made on the disk" no "$(yesno_file "$ADIR/bp/zzrelbp")"
+    fi
+    OUT=$(fprobe "O4 write DICT zzrelcf zzrelitem with dict.edit off" --user "$ACC" --account "$ACC" --file "DICT zzrelcf" "write:zzrelitem=CHANGED" "read:zzrelitem")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "O4 THE ROW: the API write to a dictionary is refused in 11406's words" "A dictionary can only be changed by an account that has dict.edit" "$OUT"
+        ck_says "O4b and the item still reads D" "record: [D]" "$OUT"
+    fi
+    BP_SUM0=$(sha256sum "$ADIR/bp/zzshow" 2>/dev/null | cut -c1-64)
+    # ED last: if it is (wrongly) let in, Q leaves it; if it is refused, Q ends the session, which is the end anyway
+    OUT=$(run_sd "$ACC" "O5-O8 the verbs with the gates off" "DELETE VOC zzrelg1" "CLEAR.FILE DICT zzrelcf" "CLEAR.FILE BP" "ED BP zzshow" "Q")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "O5 DELETE VOC is refused in 11405's words" "The VOC can only be changed by an account that has voc.edit" "$OUT"
+        ck "O5b and the VOC record is still there (X)" X "$(vocval)"
+        ck_says "O6 CLEAR.FILE of a dictionary is refused in 11406's words" "A dictionary can only be changed by an account that has dict.edit" "$OUT"
+        ck_says "O7 CLEAR.FILE BP and ED BP are refused in 11407's words" "A program file can only be changed by an account that has bp.edit" "$OUT"
+        ck "O7b the programs are still in bp (zzrel and zzshow)" "yes yes" "$(yesno_file "$ADIR/bp/zzrel") $(yesno_file "$ADIR/bp/zzshow")"
+        ck "O8 and ED changed nothing (zzshow's sha256)" "$BP_SUM0" "$(sha256sum "$ADIR/bp/zzshow" 2>/dev/null | cut -c1-64)"
+    fi
+    OUT=$(GATES_REPORT "VOC-ON BP-ON DICT-ON")
+    [ "$COMMIT" -eq 1 ] && ck_says "O9 the gates are back on (11409)" "Account $ACC has VOC.EDIT yes, BP.EDIT yes, DICT.EDIT yes" "$OUT"
+fi
+
+head2 "13p. S.66 - the shared account's API door"
+SHDIR=/home/sd/group_accounts/shared
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$PROBE_PW" ] || [ ! -f "$FPROBE" ] || [ ! -d "$SHDIR" ]; }; then
+    say "  needs $ACC adopted, the SD password, $FPROBE and $SHDIR (the install makes the shared account)"
+    for r in "P0 a file in shared" "P1 opened and read by name over the API" "P2 a write refused (11513)" "P3 SHARED-WRITE-ON" "P4 a new session writes" \
+             "P5 SHARED-READ-OFF refuses the open" "P6 put back"; do not_reached "$r"; done
+else
+    OUT=$(run_sd sdsys "P0 a directory file zzshr in shared, made by SDSYS at a local session" "LOGTO shared" "CREATE.FILE zzshr DIRECTORY")
+    if [ "$COMMIT" -eq 1 ]; then
+        printf 'ORIGINAL' > "$SHDIR/zzshr/rec1" && chown --reference="$SHDIR/zzshr" "$SHDIR/zzshr/rec1" && chmod 664 "$SHDIR/zzshr/rec1"
+        ck "P0 the record file is there: $SHDIR/zzshr/rec1" ORIGINAL "$(cat "$SHDIR/zzshr/rec1" 2>/dev/null)"
+        say "  $ACC's shared gates before (register fields 13 and 14): '$(sed -n '13p' "$REGISTER/$ACC")' '$(sed -n '14p' "$REGISTER/$ACC")'"
+    fi
+    OUT=$(fprobe "P1/P2 open zzshr BY NAME as $ACC, read, write" --user "$ACC" --account "$ACC" --file zzshr "read:rec1" "write:rec1=CHANGED")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "P1 THE ROW: the shared file is opened by name over the API and read (shared.read blank = on)" "SDRead(rec1) err 0  status 0  record: [ORIGINAL]" "$OUT"
+        ck_says "P2 THE ROW: the write is refused in 11513's words" "A file in the shared account can only be changed by an account that has shared.write" "$OUT"
+        ck "P2b the record on the disk is unchanged" ORIGINAL "$(cat "$SHDIR/zzshr/rec1" 2>/dev/null)"
+    fi
+    OUT=$(GATES_REPORT SHARED-WRITE-ON)
+    [ "$COMMIT" -eq 1 ] && ck_says "P3 SHARED-WRITE-ON is reported (11515)" "shared.write yes" "$OUT"
+    OUT=$(fprobe "P4 a NEW session writes it" --user "$ACC" --account "$ACC" --file zzshr "write:rec1=CHANGED")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_absent "P4 not refused" "can only be changed by an account that has shared.write" "$OUT"
+        ck "P4b THE ROW: the record on the disk is now CHANGED" CHANGED "$(cat "$SHDIR/zzshr/rec1" 2>/dev/null)"
+    fi
+    OUT=$(GATES_REPORT SHARED-READ-OFF)
+    [ "$COMMIT" -eq 1 ] && ck_says "P5a SHARED-READ-OFF is reported (11515)" "shared.read no" "$OUT"
+    OUT=$(fprobe "P5 open zzshr with shared.read off" --user "$ACC" --account "$ACC" --file zzshr "read:rec1")
+    [ "$COMMIT" -eq 1 ] && ck_says "P5 THE ROW: the open is refused (SDOpen returned 0)" "SDOpen(zzshr) returned 0" "$OUT"
+    OUT=$(GATES_REPORT SHARED-READ-ON); OUT=$(GATES_REPORT SHARED-WRITE-OFF)
+    [ "$COMMIT" -eq 1 ] && ck_says "P6 the gates are put back (read on, write off)" "shared.read yes, shared.write no" "$OUT"
+    OUT=$(run_sd sdsys "P6b remove zzshr from shared" "LOGTO shared" "DELETE.FILE zzshr NO.QUERY")
+    [ "$COMMIT" -eq 1 ] && ck "P6b zzshr is gone from shared" no "$(yesno_dir "$SHDIR/zzshr")"
 fi
 
 # ==========================================================================
