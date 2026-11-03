@@ -6309,7 +6309,7 @@ cited by: `tk_ai`
 AI>
 ```
 
-cited by: `ced_core`, `ide`, `sed`, `tk_ai`
+cited by: `ced_core`, `dict_form`, `ide`, `sed`, `tk_ai`
 
 ### msg:11637
 > kind=message tier=reference since=- src=sdsys/messages/11637:1#78c91c62

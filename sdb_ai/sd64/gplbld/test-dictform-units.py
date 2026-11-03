@@ -11,6 +11,9 @@ START-HISTORY:
 31 Oct 26 dm  The form is the DEFAULT face of a dictionary item (the owner's word): I5 reads /text too, I8-I10 hold dform.default (the start, the tree, silent for a tab it cannot or must not
               show) and 8 mutants of the sitting.
 1 Nov 26 dm   F8 pins the order tl.ty = cv, gosub collect, vals{'type'} = tl.ty (the old pin held the order that lost the Type) and a mutant that restores the defect.
+3 Nov 26 dm   S.97, THE FORM'S AI LINE: F1 reads the fifth argument (org); AI1-AI7 and their mutants (--selftest --from=N runs from mutant N; M_S97 marks this sitting's first): the
+              line only when the AI is usable, Return in it asks rather than accepts, the request says where the item is (fail shut when the caller did not), no command, the
+              fields offered, and every accepted value goes through !dict_item before it is in a row; the form still writes nothing.  The IDE passes ai.origin to the form.
 END-HISTORY
 
 WHAT IT HOLDS.  $dict_form is the screen over !dict_item: it opens nothing, writes nothing and makes no record of its own (every record comes from the engine's 'build'); it
@@ -70,8 +73,8 @@ def checks(src, others):
 
     form, ide = strip(src["form"]), strip(src["ide"])
     ck("F0 NULL CASE: the reader sees the form (over 5 KB of code) and the IDE (over 100 KB)", len(form) > 5000 and len(ide) > 100000, repr((len(form), len(ide))))
-    ck("F1 the form is $internal, `subroutine dict_form(rec, title, newrec, res)`, catalogued as $dict_form, and no other program takes the name",
-       form.lstrip().startswith("$internal") and re.search(r"^subroutine dict_form\(rec, title, newrec, res\)$", form, re.M) is not None and "$catalog $dict_form" in form
+    ck("F1 the form is $internal, `subroutine dict_form(rec, title, newrec, res, org)`, catalogued as $dict_form, and no other program takes the name",
+       form.lstrip().startswith("$internal") and re.search(r"^subroutine dict_form\(rec, title, newrec, res, org\)$", form, re.M) is not None and "$catalog $dict_form" in form
        and not any(re.search(r"^\$catalog\s+\$dict_form\b", strip(t), re.M | re.I) for t in others.values()), "")
     bad = re.findall(r"\b(openseq|openpath|open|write|writev|writeu|delete|execute|perform|chain|kernel|oscopy|osopen)\b", form, re.I)
     ck("F2 it opens nothing, writes nothing and runs nothing", not bad, repr(bad[:5]))
@@ -139,6 +142,30 @@ def checks(src, others):
        and ide.count("dform.default") == 3, repr((ide.count("gosub dform.default"), ide.count("dform.default"))))
     ck("I7 message 11949 says the tab is not a dictionary item; 11950 takes the item and the reason",
        "dictionary item" in src["m1"] and "%1" in src["m2"] and "%2" in src["m2"], "")
+
+    # 3 Nov 26 (S.97): the form's AI line
+    ask = between(form, "\nask.ai:", "\napply.fields:")
+    app = between(form, "\napply.fields:", "\nend")
+    ck("AI1 the AI line is there only when the AI is usable for the account ($tk_ai 'usable'): the entry, its label and its F6 key are each made under ai.on",
+       "call $tk_ai('usable', '', ai.on, ai.pm)" in form and "if ai.on then\n      screen label f, 'ailab'" in form and ordered(form, "screen label f, 'ailab'", "screen entry f, 'ai' at 26,y.ai", "end")
+       and "if ai.on then call $tk_keys('add', fm.keys, 'f6', 'ask ai', 'ai', '', 1)" in form and "case ev<1> = 'key' and ev<3> = 'f6' and ai.on" in form, "")
+    ck("AI2 Return in the AI line (the default button pressed while the line has the focus) asks the AI and does NOT accept the form: on.button looks at the focused widget first and returns",
+       ordered(form, "on.button:", "if bt = 'accept' and ai.on then", "fq.i = f{'focus'} + 0", "if fq.w{'id'} = 'ai' then", "gosub ask.ai", "return", "if bt = 'accept' then", "gosub type.left"), "")
+    ck("AI3 THE WALL: the request says where the item is (actx<13> from the caller's org), and a caller that gave none makes it 'unknown', which the wall refuses (fail shut); the IDE passes ai.origin",
+       ordered(ask, "ai.org = org", "if ai.org = '' then ai.org = 'unknown'", "actx<13> = ai.org", "call $tk_ai('ask', ai.ctx, actx, ai.res)")
+       and ordered(between(ide, "\ndo.dform:", "\nfields.enter:"), "gosub ai.origin", "call $dict_form(df.rec, bf.name : ' ' : bf.id, df.new, df.res, ai.org)"), "")
+    ck("AI4 the form offers its fields (actx<14>, the Type first, every row key of every type and the one Len & Just key) and no command (nocmd), and asks through $tk_ai only, once",
+       ordered(ask, "flds = 'type:", "'loc:", "'path:", "'expr:", "'idexpr:", "'file:", "'fexpr:", "'conv:", "'head:", "'fmt:", "'sm:", "'assoc:", "'user:", "'text:", "actx<11> = 'nocmd'", "actx<14> = flds")
+       and form.count("call $tk_ai('ask'") == 1 and "'width:" not in ask and "'just:" not in ask, "")
+    ck("AI5 ONLY ACCEPTED VALUES, ONLY THROUGH THE FORM'S OWN RULES: the values are taken only when $tk_ai answered 'fields' (the person's Accept); the Type is checked first, a key must be a row of "
+       "the item's type, Len & Just goes through fmtsplit, a one-line row through !dict_item check, and a refused value is said and not put in vals",
+       ordered(ask, "case ai.res<1> = 'fields'", "gosub apply.fields") and ordered(app, "call !dict_item('check', 'D', 'type', cv, ce)", "if ce = '' then", "ty.new = cv", "call !dict_item('layout', ty.new, lr, '', xd)")
+       and ordered(app, "apply.one:", "case lp = 0", "a.bad<-1>", "case key = 'fmt'", "call !dict_item('fmtsplit', cv, fw, '', ce)", "case lr<lp, 3> = 'memo'", "case index(cv, char(10), 1)", "case 1",
+                   "call !dict_item('check', ty.new, key, cv, ce)", "if ce = '' then", "vals{key} = cv", "end else", "a.bad<-1>"), "")
+    ck("AI6 the AI line writes nothing and ends nothing: after an ask the form is made again (act 'ai', the loop goes on) with the focus on the line, and res is never set there",
+       "until act # 'type' and act # 'ai' repeat" in form and ordered(ask, "focus.ai = 1", "act = 'ai'") and "res = " not in ask.replace("ai.res = ", "") and "res = " not in app, "")
+    ck("AI7 what the AI line has to say goes on the err row of the next form made (fm.note), and the request is kept in the line unless values were accepted or a follow-up was chosen",
+       ordered(form, "if fm.note # '' then", "screen set f, 'err' text fm.note") and ordered(ask, "ai.keep = ai.req", "fm.note = ai.res<5>", "ai.keep = ''", "ai.keep = ''"), "")
     return rows
 
 
@@ -217,16 +244,30 @@ MUTANTS = [
     ("ide", "dform.default takes a read-only tab", "   gosub ro.check\n   if not(ro.ok) then return\n   gosub redraw", "   gosub redraw"),
     ("ide", "a search list's row opens the form", "      gosub open.record\n      gl.n = sln<k2> + 0", "      gosub open.record\n      gosub dform.default\n      gl.n = sln<k2> + 0"),
 ]
+M_S97 = len(MUTANTS)            # 3 Nov 26 (S.97, the form's AI line): the first mutant of the sitting, for --selftest --from=M_S97
+MUTANTS += [
+    ("form", "the AI line is made without the AI", "   if ai.on then\n      * 3 Nov 26 (S.97): the AI line", "   if 1 then\n      * 3 Nov 26 (S.97): the AI line"),
+    ("form", "Return in the AI line accepts the form", "         if fq.w{'id'} = 'ai' then\n            gosub ask.ai", "         if 0 then\n            gosub ask.ai"),
+    ("form", "the request does not say where the item is", "   actx<13> = ai.org\n", "   actx<13> = 'none'\n"),
+    ("form", "a caller with no origin is let through", "   if ai.org = '' then ai.org = 'unknown'", "   if ai.org = '' then ai.org = 'none'"),
+    ("form", "the form lets a command through", "   actx<11> = 'nocmd' ", "   actx<11> = '' "),
+    ("form", "a value is put in a row without the form's check", "         call !dict_item('check', ty.new, key, cv, ce)\n         if ce = '' then", "         ce = ''\n         if ce = '' then"),
+    ("form", "a key that is no row of the type is filled", "      case lp = 0 or key = 'width'", "      case key = 'width'"),
+    ("form", "the AI's Type is taken unchecked", "         call !dict_item('check', 'D', 'type', cv, ce)\n         if ce = '' then\n            ty.new = cv", "         ce = ''\n         if ce = '' then\n            ty.new = cv"),
+    ("form", "values are taken whatever the person answered", "      case ai.res<1> = 'fields'\n", "      case ai.res<1> # ''\n"),
+    ("form", "the AI line ends the form", "   focus.ai = 1\n   act = 'ai'", "   focus.ai = 1\n   act = 'done'"),
+    ("ide", "the IDE does not tell the form where the item is", "df.new, df.res, ai.org)", "df.new, df.res, '')"),
+]
 
 
-def selftest():
+def selftest(first=0):
     src, others = load()
     if any(not ok for _, ok, _ in checks(src, others)):
         print("REFUSING - the unmutated source already fails", file=sys.stderr)
         return 2
     holes = 0
     print("--- self-test: each mutation must be CAUGHT and match its text once ---")
-    for fk, name, old, new in MUTANTS:
+    for fk, name, old, new in MUTANTS[first:]:
         n = src[fk].count(old)
         if n != 1:
             print("  [FAIL] %s: the text matches %d times in %s, not once" % (name, n, fk))
@@ -242,7 +283,7 @@ def selftest():
     caught = [x.split(" ")[0] for x, ok, _ in checks(src, o2) if not ok]
     print("  [%s] another program takes the catalogue name%s" % ("pass" if caught else "FAIL", ": caught by " + ", ".join(caught) if caught else ": NOT CAUGHT"))
     holes += 0 if caught else 1
-    total = len(MUTANTS) + 1
+    total = len(MUTANTS[first:]) + 1
     print("\n%d of %d mutants caught, %d missed" % (total - holes, total, holes))
     return 1 if holes else 0
 
@@ -253,7 +294,8 @@ def main():
         print("test-dictform-units: CANNOT RUN - not readable: %s" % missing, file=sys.stderr)
         return 2
     if "--selftest" in sys.argv[1:]:
-        return selftest()
+        first = next((int(a.split("=", 1)[1]) for a in sys.argv[1:] if a.startswith("--from=")), 0)
+        return selftest(first)
     src, others = load()
     rows = checks(src, others)
     bad = report(rows)

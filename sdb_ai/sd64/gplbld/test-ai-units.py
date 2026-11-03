@@ -20,6 +20,7 @@
 # a length) and never holds the text; the request that can be built is an ask and nothing else; the kernel opens a Unix socket and nothing else; a request has a deadline and a
 # size limit and is always closed; the ai verb gives an earlier request up, asks the helper for its status, tests the gate, the model and the key, SHOWS the text, asks, and only
 # then starts the request, with the fixed sentence and the person's text and nothing of the account; it only displays the answer; the VOC entries and messages 11623-11634.
+# (3 Nov 26, group C) a follow-up's earlier exchanges in K$AI.START: counted, bounded at 3, cut off before the prompt, escaped, and named in the audit line by count (mutants from M_E).
 # GROUP D, the AI choice page (tool.ai): administrator first; it runs only set.ai (through $tk_runx) and modify.account (through $tk_run), every command shown in the confirm box
 # before it runs; the names typed (the provider, the account for a gate ON, custom, ca); every word checked against set.ai's own list before a sentence is built, and that list is
 # $tk_runx's; the one direct EXECUTE is the hand-over of the terminal to set.ai key, after the confirm, with a sentence made of a fixed text and a name from the fixed four; the page
@@ -272,6 +273,14 @@ def check_c(t):
         ordered(st, "system = arg;", "maxt = p + 1;", "prompt = p + 1;", "maxtokens = atoi(maxt);"), "")
     row("a byte above 127 goes out as ? and a control character is escaped (English only; nothing but plain ASCII is sent)", re.search(r"else if \(c >= 128\) \{\s*out\[pos\+\+\] = '\?';", o) is not None
         and "c < 32 || c == 127" in o, "")
+    # 3 Nov 26: a follow-up (the owner: "Add, shown in preview")
+    row("A FOLLOW-UP is maxtokens VM n with n from 1 to AI_HIST_MAX (3), else ERR bad; the 2n earlier fields are cut off BEFORE the prompt, which stays last, and a missing one is ERR bad; all of it is read before the audit line",
+        re.search(r"#define AI_HIST_MAX 3\b", o) is not None and ordered(st, "maxtokens = atoi(maxt);", "p = strchr(maxt, VALUE_MARK);", "nhist = atoi(p + 1);", "if (nhist < 1 || nhist > AI_HIST_MAX) {",
+                                                                        '"bad"', "for (i = 0; i < 2 * nhist; i++) {", "hist[i] = prompt;", "p = strchr(prompt, FIELD_MARK);", "if (p == NULL) {", '"bad"', "prompt = p + 1;", "audit_message(audit);"), "")
+    row("a follow-up's audit line counts its earlier exchanges in bytes.out and says followup=n, still never the text; they go to the helper as \"history\" of {q, a}, each escaped like the prompt",
+        'snprintf(audit, sizeof(audit), "ai request account=%s program=%s bytes.out=%d followup=%d", account(), pname, (int)(strlen(system) + strlen(prompt) + hbytes), nhist);' in st
+        and ordered(st, '",\\"history\\":["', '"%s{\\"q\\":"', "ai_json_string(req, pos, hist[2 * i]", '",\\"a\\":"', "ai_json_string(req, pos, hist[2 * i + 1]", "req[pos++] = ']';", '",\\"maxtokens\\":%d}\\n"')
+        and "cap = (6 * (strlen(system) + strlen(prompt) + hbytes)) + 256 + (32 * nhist);" in st, "")
     row("the kernel talks to a Unix socket and nothing else: AF_UNIX only, no AF_INET, no host name lookup, no TLS, no program started", "AF_UNIX" in o
         and not re.search(r"AF_INET|netinet|getaddrinfo|gethostbyname|SSL_|\bsystem\s*\(|popen|\bexec[lv]", o), "")
     row("the socket is /run/sd-ai/sock, or the SD_AI_SOCKET of the session's environment (the tests); nothing else names a path", o.count('"/run/sd-ai/sock"') == 1 and o.count("getenv(") == 1
@@ -472,13 +481,23 @@ def run_all(t):
     check_d(t)
 
 
+M_E = M_D + len(GROUP_D_MUTANTS)                           # the first mutant of 3 Nov 26 (a follow-up's history in op_ai.c): --from=M_E runs only these
+GROUP_E_MUTANTS = [
+    ("op_ai", "any number of earlier exchanges is taken", "    if (nhist < 1 || nhist > AI_HIST_MAX) {", "    if (nhist < 1) {"),
+    ("op_ai", "a missing earlier field is not refused", "      p = strchr(prompt, FIELD_MARK);\n      if (p == NULL) {\n        free(arg);\n        ai_answer(\"ERR\", \"bad\", result);\n        return;\n      }\n      *p = '\\0';\n      hbytes",
+     "      p = strchr(prompt, FIELD_MARK);\n      if (p == NULL)\n        break;\n      *p = '\\0';\n      hbytes"),
+    ("op_ai", "the earlier exchanges are not counted in the audit line", "(int)(strlen(system) + strlen(prompt) + hbytes), nhist);", "(int)(strlen(system) + strlen(prompt)), nhist);"),
+    ("op_ai", "the answers are sent unescaped", "      pos = ai_json_string(req, pos, hist[2 * i + 1], strlen(hist[2 * i + 1]));", "      pos += (size_t)sprintf(req + pos, \"\\\"%s\\\"\", hist[2 * i + 1]);"),
+]
+
+
 def selftest(first):
     import contextlib
     import io
     global passed, failed
     base = load()
     bad = 0
-    for i, (key, name, old, new) in enumerate(GROUP_A_MUTANTS + GROUP_B_MUTANTS + GROUP_C_MUTANTS + GROUP_D_MUTANTS):
+    for i, (key, name, old, new) in enumerate(GROUP_A_MUTANTS + GROUP_B_MUTANTS + GROUP_C_MUTANTS + GROUP_D_MUTANTS + GROUP_E_MUTANTS):
         if i < first:
             continue
         if base[key].count(old) != 1:

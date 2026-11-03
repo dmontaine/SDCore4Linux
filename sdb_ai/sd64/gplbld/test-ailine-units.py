@@ -86,8 +86,9 @@ def checks(s):
     ck("A10 a parsed JSON object is never compared with a string (that raises 'Value not found' and the error is swallowed: the answer popup never came, 23 Oct): a flag says whether obj holds one",
        not re.search(r"\bobj\s*(=|#)\s*''", ai) and not re.search(r"\bhj\s*(=|#)\s*''", ai), "")
     au = [l for l in ai.split("\n") if not l.lstrip().startswith("*") and "audit" in l.lower()]
-    ck("A11 the audit line of a request that goes is the kernel's (K$AI.START): this file writes only the two audit lines of a REFUSAL (S.97 stage 0, pinned by test-aiwall-units A3) and no other",
-       len(au) == 2 and all("kernel(K$AUDIT, 'ai refused why=" in l for l in au), "")
+    ck("A11 the audit line of a request that goes is the kernel's (K$AI.START): this file writes only the three audit lines of a REFUSAL (S.97 stage 0 and a follow-up's earlier question, "
+       "pinned by test-aiwall-units A3 and A5) and no other",
+       len(au) == 3 and all("kernel(K$AUDIT, 'ai refused why=" in l for l in au), "")
     ck("A12 the app's words are cleaned like the person's: every offered action line goes through clean before the preview or the prompt", ordered(ask, "for i = 1 to dcount(a<4>, @vm)", "gosub clean", "acts<1, i> = ", "sysx = sysmsg(11635, app)"), "")
     ck("A13 the line is not drawn at all when the AI is not usable (the gate, a provider, a model and a key): read.status sets ai.on only after all four tests, and the other ops do nothing when it is 0",
        ordered(ai, "read.status:", "if not(hj{'gate'}) then return", "hj{'provider'} = ''", "if not(hj{'key'}) then return", "ai.on = 1") and ai.count("if ai.on then") >= 6, "")
@@ -176,6 +177,39 @@ def checks(s):
     ck("X6 the debugger offers the command AI only in the full-screen display and when the AI is usable (ai.ok is set only under full.screen), sends no text to edit (so no edit is asked for), ignores a command, and draws the screen again after",
        ordered(dbg, "ai.ok = 0", "if full.screen then call $tk_ai('usable', '', ai.ok, ai.pm)") and "case action = 'AI' and ai.ok" in dbg and ": @fm : '' : @fm : 1 : @fm : '' : @fm : 'nocmd'" in dbg_ai
        and ordered(dbg_ai, "call $tk_ai('ask'", "gosub relayout") and "'edit'" not in dbg_ai, "")
+
+    # 3 Nov 26 (S.97): a form's fields, and the follow-up
+    fields = ai[ai.find("read.fields:"):ai.find("read.edits:")]
+    keep = ai[ai.find("follow.keep:"):ai.find("follow.drop:")]
+    ck("FD1 a form's fields (actx<14>) are cleaned as the actions are and are in the instruction, the prompt and the preview (with their count and size) only when the app gave some",
+       ordered(ask, "for i = 1 to dcount(a<14>, @vm)", "gosub clean", "flds<1, i> = trim(clean.out)[1, 120]", "n.flds = dcount(flds, @vm)", "if n.flds > 0 then", "This page is a form.",
+               "if n.flds > 0 then prompt := 'Fields of this form", "if n.flds > 0 then", "The form's fields (", "wr.text = flds<1, i>", "screen msgbox body"), "")
+    ck("FD2 \"fields\" is read only when the app offered fields and nothing else was proposed; a name is used only when it is EXACTLY one of the keys offered (the cleaning changed nothing) and once; "
+       "a value that is not text or a number is left out; each is cleaned to ASCII with its line feeds and cut at 2000; what is left out is said",
+       "if pk = '' and n.flds > 0 then gosub read.fields" in prop and ordered(fields, "if jtype(obj{'fields'}) # 'collection' then return", "fnames = enumerate(fo)",
+               "trim(field(flds<1, j>, ':', 1)) = fk", "if offered and fk = fnm then", "index(@vm : fl.keys : @vm, @vm : fk : @vm, 1)", "if offered then ft = jtype(fo{fnm})",
+               "if ft = 'string' or ft = 'number' then", "gosub clean.nl", "fl.vals<1, fl.n> = clean.out[1, 2000]", "fl.skip<1, -1>", "note.p = ", "if fl.n > 0 then pk = 'fields'")
+       and fields.count("offered = 1") == 1 and ordered(fields, "offered = 0", "for j = 1 to n.flds", "offered = 1", "next j"), "")
+    ck("FD3 proposed values are shown in full (every line of every value, in rows of exactly its characters) with Accept and Reject, and Reject is the default; only Accept returns them, as "
+       "'fields', the keys and the values; the library fills nothing",
+       re.search(r"case pk = 'fields'.*?for j = 1 to dcount\(fv, nl\).*?gosub wrap\.exact.*?btn = '&Accept,&Reject'\s*\n\s*dflt = 2", ask, re.S) is not None
+       and "case pk = 'fields' and bn = 1" in ask and "b = 'fields' : @fm : fl.keys : @fm : fl.vals : @fm : say : @fm : ''" in ask, "")
+    ck("FU1 FOLLOW UP is the LAST button of every answer's box and never its default (the person's choice, each time); choosing it applies nothing and returns 'follow'",
+       ordered(ask, "fu.bn = dcount(btn, ',') + 1", "btn := ',&Follow up'", "buttons btn default dflt", "case bn = fu.bn", "gosub follow.keep", "b = 'follow' : @fm : '' : @fm : '' : @fm : say")
+       and ask.find("case bn = fu.bn") < ask.find("case pk = 'fields' and bn = 1") and "default fu.bn" not in ask and "dflt = fu.bn" not in ask, "")
+    ck("FU2 a follow-up is taken only for the SAME app, the same account and within 10 minutes, and is dropped at once (used once) whatever happens to the request; 'init' drops it too",
+       ordered(ask, "h.q = '' ; h.a = '' ; h.n = 0", "if ai.fq # '' then", "if ai.fapp = app and ai.fwho = @who and (date() * 86400 + time()) - ai.ft <= 600 then", "h.q = ai.fq", "gosub follow.drop",
+               "call $tk_aiwall('request', req, why)")
+       and ordered(ai, "case op = 'init'", "gosub read.status", "gosub follow.drop", "ai.line = ai.on"), "")
+    ck("FU3 the preview shows every earlier question and answer IN FULL (wrap.exact, no line limit) before the request, and its size counts them; the earlier exchanges go to K$AI.START as "
+       "maxtokens VM n then the questions and answers, the prompt last, and there is still ONE call of it",
+       ordered(ask, "size = len(sysx) + len(prompt) + h.bytes", "if h.n > 0 then", "A follow-up: ", "wr.text = h.q<i>", "gosub wrap.exact", "wr.text = h.a<i>", "gosub wrap.exact", "sysmsg(11643, len(req))",
+               "ks = sysx : @fm : 600", "ks := @vm : h.n", "ks := @fm : h.q<i> : @fm : h.a<i>", "ks := @fm : prompt", "rq = kernel(K$AI.START, ks)") and ai.count("K$AI.START") == 1, "")
+    ck("FU4 what is kept: this request and the AI's answer after the exchanges this one carried, the last 3 at most, with the app, the account and the time",
+       ordered(keep, "nq = h.q ; na = h.a", "nq<h.n + 1> = req", "na<h.n + 1> = atext[1, 2000]", "while dcount(nq, @fm) > 3", "nq = field(nq, @fm, 2, 999)", "ai.fq = nq", "ai.fapp = app",
+               "ai.ft = date() * 86400 + time()", "ai.fwho = @who"), "")
+    ck("FU5 the library's line says so while a follow-up is kept (its label, and the 'show' signature has the flag so that it is drawn again)", "ai.label = (if ai.fq # '' then 'AI follow-up>' else sysmsg(11636)) : ' '" in ai
+       and "ai.w{'pan'} : '/' : (ai.fq # '')" in ai and ordered(ai, "paint:", "gosub place.widget"), "")
     return rows
 
 
@@ -225,6 +259,19 @@ MUTANTS = [
 ]
 M_STAGE2 = 10
 M_STAGE3 = 18
+M_S97 = len(MUTANTS)            # 3 Nov 26 (S.97, the form's fields and the follow-up): the first mutant of the sitting, for --selftest --from=M_S97
+MUTANTS += [
+    ("a field name that was not offered is used", "tk_ai", "      if offered and fk = fnm then", "      offered = 1\n      if offered and fk = fnm then", "FD2"),
+    ("a value that is not text is used", "tk_ai", "      if ft = 'string' or ft = 'number' then", "      if ft # '' then", "FD2"),
+    ("Enter accepts proposed values", "tk_ai", "         dflt = 2                                         ;* a form is never filled by Enter alone", "         dflt = 1", "FD3"),
+    ("the values are returned whatever was chosen", "tk_ai", "      case pk = 'fields' and bn = 1", "      case pk = 'fields'", "FD3"),
+    ("Follow up is the default button", "tk_ai", "   screen msgbox body title sysmsg(11639) buttons btn default dflt returning bn else bn = 0\n   begin case",
+     "   dflt = fu.bn\n   screen msgbox body title sysmsg(11639) buttons btn default dflt returning bn else bn = 0\n   begin case", "FU1"),
+    ("a follow-up is used again and again", "tk_ai", "         h.n = dcount(h.q, @fm)\n      end\n      gosub follow.drop", "         h.n = dcount(h.q, @fm)\n      end", "FU2"),
+    ("a follow-up never times out", "tk_ai", " and (date() * 86400 + time()) - ai.ft <= 600 then", " then", "FU2"),
+    ("the preview does not show the earlier answers", "tk_ai", "         wr.text = h.a<i>\n", "         wr.text = ''\n", "FU3"),
+    ("more than 3 exchanges are kept", "tk_ai", "   while dcount(nq, @fm) > 3\n", "   while dcount(nq, @fm) > 9\n", "FU4"),
+]
 
 
 def run(over=None):

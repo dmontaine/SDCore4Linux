@@ -67,6 +67,39 @@ Next release - in progress
                            as E, N and D refuse it. A record another session holds, or one that changed after the box, is
                            refused. The AI line is not offered G or U. Only the last change can be put back.
 
+3 Nov 26   THE DICTIONARY FORM HAS AN AI LINE: SAY WHAT THE ITEM SHOULD BE, AND ACCEPT THE VALUES YOU WANT.
+
+             What        - When the AI is on for the account, the IDE's dictionary item form has an AI> line at its foot (F6, Tab or
+                           a click). Type what the item should be - "a date in field 3 headed Joined" - and press Return there.
+                           As everywhere else, everything that will be sent is shown first and Cancel is the default: the form's
+                           list of fields, the item's values as they are on the screen, and the request. The answer shows every
+                           value the AI proposes, in full, with Accept and Reject, and Reject is the default. Accept puts each
+                           value into its row only if it passes the form's own check (the same check as a value typed by hand),
+                           a Type first, and the line near the foot names every value that was not taken and why. Nothing is
+                           written: the person looks at the rows, accepts the form, and the IDE's own save writes the item.
+             Why         - Building a dictionary item from a sentence was one of the things the owner asked the AI line to do
+                           in the editing screens; the form is where an item is made.
+             Does NOT    - Write, compile or save anything, offer a command, or let a value past the form's rules. An item of the
+                           dictionary of one of SD's own files is never sent: SD asks where the item is first and refuses, as it
+                           does in the editors. Return in the AI line asks the AI; it does not accept the form. Without the AI the
+                           form is exactly as it was.
+
+3 Nov 26   EVERY AI ANSWER HAS A FOLLOW UP BUTTON.
+
+             What        - The box with the AI's answer, on the home screen, the pages, the IDE, SED, the collection editor, the
+                           debugger and the dictionary form, has a Follow up button after its own buttons. It applies nothing.
+                           The next request from the same place carries that question and the AI's answer with it: its preview
+                           shows them in full before the request (and counts them in the size), and they are sent to the
+                           provider as the earlier turns of a conversation, so a question about the answer need not repeat
+                           everything. Choosing Follow up again carries the exchanges before it too, the last three at most.
+                           On the home screen and the pages the line says "AI follow-up>" while one is waiting.
+             Why         - The owner chose to add follow-up questions "shown in preview": a person can ask about an answer, and
+                           still sees every word that will leave the machine before it does.
+             Does NOT    - Make a follow-up the default, or keep one by itself: it is the person's choice each time, it is used
+                           by the next request whether that is sent or cancelled, and it is dropped after ten minutes, in another
+                           account, on another page and in another program. The audit trail says a request was a follow-up and
+                           how many exchanges it carried, never what they said. The ai verb at the command line is unchanged.
+
 2 Nov 26   THE HOME SCREEN HAS THE SAME MENU BAR AS THE OTHER PAGES, A KEY FOR EVERY MENU ENTRY, AND / TO FIND A TILE.
 
              What        - The home screen's menu bar is now made the way every other full-screen page's is, from the page's own

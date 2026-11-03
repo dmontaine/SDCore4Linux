@@ -9,6 +9,7 @@
 #   sd-ai [--state DIR] [--providers FILE]        (the unit gives neither; the defaults below are the installed places)
 #
 # REQUEST (one line, UTF-8 JSON):  {"v":1,"op":"ask","system":"...","prompt":"...","maxtokens":1024}      or  {"v":1,"op":"status"}
+#                   an ask may also carry "history": [{"q":"...","a":"..."}, ...] (at most 3; a follow-up the person chose and saw in SD's preview)
 # REPLY, one line:  {"t":"ok","text":"...","in":N,"out":N,"provider":"anthropic","truncated":false,"replaced":N}
 #                   {"t":"err","code":"nogate|noadmin|disabled|nomodel|nokey|toobig|limit|net|timeout|refused|busy|declined|badreply|badreq|badconf","msg":"..."}
 #                   {"t":"status", ...}      (status: provider, model, key set, gate; the connection details only for sdsys and root)
@@ -32,6 +33,9 @@
 # program writes, to stderr (the journal), has the uid, the provider, the status and the sizes - never the text, never the key.
 #
 # START-HISTORY:
+# 3 Nov 26 dm   Follow-up questions (the owner: "Add, shown in preview"): an ask may carry "history", a list of at most 3 earlier exchanges {"q": question, "a": answer}, which SD
+#               sends ONLY when the person chose Follow up (and showed in the preview).  They go to the provider as earlier user / assistant messages before the request, in
+#               both wire formats (Custom speaks one of the two, so it takes them the same way); the bytes-request limit counts them.  A history of another shape is badreq.
 # 1 Nov 26 dm   Google is a shipped provider (its OpenAI-compatible endpoint), and every shipped provider has a STARTING model (model= in the providers file): the model asked for is
 #               the administrator's (set model) or, while there is none, that one; a status for sdsys and root carries both ("model" the set one, "default" the starting one), and
 #               the status's own "model" is the one that will be asked for.  Custom has no starting model.  The owner: "pre-filled in except for the key ... an option for a user
@@ -313,8 +317,35 @@ def hygiene(text):
 
 # ---------------------------------------------------------------------------------------------------- the provider call
 
-def build_request(name, p, key, model, system, prompt, maxtokens):
-    """(path, headers, body bytes) for the provider's wire format."""
+HISTORY_MAX = 3                   # earlier exchanges a follow-up may carry (SD keeps no more)
+
+
+def read_history(req):
+    """The earlier exchanges of a follow-up as a list of (question, answer); [] when the request has none.  Refuse(badreq) for any other shape."""
+    h = req.get("history")
+    if h is None:
+        return []
+    if not isinstance(h, list) or len(h) > HISTORY_MAX:
+        raise Refuse("badreq", "history is a list of at most %d exchanges" % HISTORY_MAX)
+    out = []
+    for e in h:
+        if not isinstance(e, dict) or set(e) != {"q", "a"} or not isinstance(e["q"], str) or not isinstance(e["a"], str) or not e["q"].strip():
+            raise Refuse("badreq", "an exchange of the history is {\"q\": text, \"a\": text}")
+        out.append((e["q"], e["a"]))
+    return out
+
+
+def history_messages(history):
+    """The earlier exchanges as messages, oldest first: the question as the user's, the answer as the assistant's."""
+    msgs = []
+    for q, a in history:
+        msgs.append({"role": "user", "content": q})
+        msgs.append({"role": "assistant", "content": a if a.strip() else "(no answer)"})
+    return msgs
+
+
+def build_request(name, p, key, model, system, prompt, maxtokens, history=()):
+    """(path, headers, body bytes) for the provider's wire format.  history (a follow-up): earlier (question, answer) pairs, sent as messages before the prompt."""
     url = urllib.parse.urlsplit(p["url"])
     path = url.path or "/"
     if url.query:
@@ -326,7 +357,7 @@ def build_request(name, p, key, model, system, prompt, maxtokens):
         headers["x-api-key"] = key
     if p["format"] == "anthropic":
         headers["anthropic-version"] = p.get("version") or "2023-06-01"
-        body = {"model": model, p["maxparam"]: maxtokens, "messages": [{"role": "user", "content": prompt}]}
+        body = {"model": model, p["maxparam"]: maxtokens, "messages": history_messages(history) + [{"role": "user", "content": prompt}]}
         if system:
             blk = {"type": "text", "text": system}
             if len(system) >= 4096:
@@ -336,6 +367,7 @@ def build_request(name, p, key, model, system, prompt, maxtokens):
         msgs = []
         if system:
             msgs.append({"role": "system", "content": system})
+        msgs.extend(history_messages(history))
         msgs.append({"role": "user", "content": prompt})
         body = {"model": model, p["maxparam"]: maxtokens, "messages": msgs}
     return path, headers, json.dumps(body).encode("utf-8")
@@ -396,9 +428,9 @@ def https_post(p, path, headers, body, ca_file, timeout):
         conn.close()
 
 
-def ask(state, conf, name, p, model, key, system, prompt, maxtokens, limits):
+def ask(state, conf, name, p, model, key, system, prompt, maxtokens, limits, history=()):
     """The call, with one bounded retry on 429 and 5xx.  Returns (text, tin, tout, truncated)."""
-    path, headers, body = build_request(name, p, key, model, system, prompt, maxtokens)
+    path, headers, body = build_request(name, p, key, model, system, prompt, maxtokens, history)
     ca = conf.get("ca-file", "") or None
     if ca and not plain_path(ca):
         raise Refuse("badconf", "ca-file is not a plain absolute path")
@@ -604,7 +636,9 @@ def handle(line, fd, state, providers_path):
         system = req.get("system", "")
         if not isinstance(prompt, str) or not prompt.strip() or not isinstance(system, str):
             raise Refuse("badreq", "a prompt is required")
-        if len(prompt.encode("utf-8")) + len(system.encode("utf-8")) > limits["bytes-request"]:
+        history = read_history(req)
+        hbytes = sum(len(q.encode("utf-8")) + len(a.encode("utf-8")) for q, a in history)        # a follow-up's earlier exchanges count towards the limit
+        if len(prompt.encode("utf-8")) + len(system.encode("utf-8")) + hbytes > limits["bytes-request"]:
             raise Refuse("toobig", "the request is over %d bytes" % limits["bytes-request"])
         try:
             maxtokens = int(req.get("maxtokens", limits["max-tokens"]))
@@ -612,7 +646,7 @@ def handle(line, fd, state, providers_path):
             raise Refuse("badreq", "maxtokens is not a number")
         maxtokens = max(1, min(maxtokens, limits["max-tokens"]))
         counters(state, uid, time.time(), limits, count=True)
-        text, tin, tout, trunc = ask(state, conf, name, p, model, key, system, prompt, maxtokens, limits)
+        text, tin, tout, trunc = ask(state, conf, name, p, model, key, system, prompt, maxtokens, limits, history)
         counters(state, uid, time.time(), limits, add_tokens=tin + tout)
         text, replaced = hygiene(text)
         if len(text.encode("ascii")) > limits["bytes-reply"]:

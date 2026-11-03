@@ -95,8 +95,9 @@ def checks(raw):
        and "convert(odd.bytes, str('?', len(odd.bytes)), s.title(bi))" in fp, "")
     ck("AD10", "a # inside a fenced block does not start a section: the fence state is toggled by the count of ``` in each piece and a heading is taken only when it is not inside one",
        ordered(label(d, "split.sections"), "if not(inside) then", "is.head = 1", "if mod(count(seg, '```'), 2) = 1 then inside = 1 - inside"), "")
-    ck("AD11", "TK_AI ASKS FOR THE PASSAGES AFTER THE WALL: the request screen and the origin check come first, then $tk_aidocs 'find' with the typed request",
-       ai.count("$tk_aidocs(") == 1 and ai.count("$tk_aiwall('request'") == 1 and ordered(ai, "call $tk_aiwall('request', req, why)", "call $tk_aiwall('origin', origin, why)", "call $tk_aidocs('find', req, dres)", "sysx = sysmsg(11635, app)"), "")
+    ck("AD11", "TK_AI ASKS FOR THE PASSAGES AFTER THE WALL: the request screen and the origin check come first (and, 3 Nov 26, the screen of a follow-up's earlier questions), then $tk_aidocs 'find' with the typed request",
+       ai.count("$tk_aidocs(") == 1 and ai.count("$tk_aiwall('request'") == 2 and ordered(ai, "call $tk_aiwall('request', req, why)", "call $tk_aiwall('origin', origin, why)",
+                                                                                      "call $tk_aiwall('request', h.q<hi>, why)", "call $tk_aidocs('find', req, dres)", "sysx = sysmsg(11635, app)"), "")
     ck("AD12", "the passages are in the REQUEST (each with its id in brackets, before the typed request, which stays last) and the instruction says what they are, only when there are some",
        "if n.doc > 0 then sysx := ' ' : sysmsg(11922)" in ai and ai.count("'Request: '") == 1 and ordered(ai, "for i = 1 to n.doc\n      prompt := nl : nl : 'Documentation passage [' : dres<2, i> : '] ' : dres<3, i> : ':' : nl : dres<4, i>", "prompt := nl : nl : 'Request: ' : req"), "")
     ck("AD13", "the passages are in the PREVIEW, before the person's own request: their number and size, each one's id and size, its first lines, and a count of the rest; Send and Cancel are asked after",

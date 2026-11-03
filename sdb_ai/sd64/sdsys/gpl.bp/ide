@@ -6,6 +6,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 3 Nov 26 dm  S.97: the dictionary form has an AI line; do.dform tells it where the item is (ai.origin, the fifth argument of $dict_form) so that the AI's wall can judge it.
 * 2 Nov 26 dm  S.88 p3.3a-ide: A RESIZE NO LONGER LOSES THE EDITOR'S STATE.  relayout moved every widget by making the whole form again, and the text area made again had
 *              lost its undo and redo steps, its selection mark, its find text and its view (the messages table its row, the tree its open nodes, the AI entry its text).
 *              It now moves and sizes the widgets the form has (move.form, through $sl_widget_move) to exactly where new.form puts them; the separator gains or loses a
@@ -4025,7 +4026,8 @@ do.dform:
    df.rec = bx{k}
    i = cb
    gosub buf.label
-   call $dict_form(df.rec, bf.name : ' ' : bf.id, df.new, df.res)
+   gosub ai.origin                                         ;* 3 Nov 26 (S.97): the form's AI line sends the item's values; the wall asks where the item is
+   call $dict_form(df.rec, bf.name : ' ' : bf.id, df.new, df.res, ai.org)
    last.status = char(1)
    gosub redraw
    gosub draw.bar                                          ;* 1 Nov 26: the form drew its own bar on row 0 and the IDE's menu bar is no widget of the form, so redraw leaves the form's bar there

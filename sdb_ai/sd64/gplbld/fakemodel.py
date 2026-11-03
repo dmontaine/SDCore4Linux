@@ -20,6 +20,7 @@
 #
 # START-HISTORY:
 # 23 Oct 26 dm  New.
+# 3 Nov 26 dm   [[fields_ok]] and [[fields_bad]]: values for the dictionary form's fields (S.97).
 # END-HISTORY
 
 import http.server
@@ -72,6 +73,10 @@ JSON_REPLIES = {
     # CED's edits (AI line stage 3): the record is {"name":"widget","size":3,"tags":["a","b"]} and CED shows it as indented JSON, one element to a line
     "ced_ok": '{"say": "I raised the size.", "action": "none", "arg": "", "command": "", "edits": [{"old": "\\"size\\": 3", "new": "\\"size\\": 4"}]}',
     "ced_bad": '{"say": "A broken change.", "action": "none", "arg": "", "command": "", "edits": [{"old": "\\"size\\": 3", "new": "\\"size\\": ["}]}',
+    # 3 Nov 26 (S.97, the dictionary form's AI line): values for the form's fields.  fields_ok is a whole D item; fields_bad has a Field # that is not a number (the form's own check
+    # refuses it), a key the form did not offer (the library leaves it out) and a heading that is good
+    "fields_ok": '{"say": "A date field.", "action": "none", "arg": "", "command": "", "fields": {"type": "D", "loc": "3", "conv": "D2", "head": "Joined", "fmt": "10 R"}}',
+    "fields_bad": '{"say": "Some values.", "action": "none", "arg": "", "command": "", "fields": {"type": "D", "loc": "abc", "nosuch": "x", "head": "Named"}}',
 }
 
 

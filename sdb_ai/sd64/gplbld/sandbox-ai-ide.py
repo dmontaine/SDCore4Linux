@@ -23,6 +23,16 @@
 #          is said and none is offered; the buffer is as it was
 #   I11-I12 Explain the error (the table's row; the message is in the request) and Explain the selection (the mark to the cursor; with no mark the status line says so, nothing is sent)
 #   I13    Esc during the wait gives the request up
+#   D1-D8  (3 Nov 26, S.97, section dform) THE DICTIONARY FORM'S AI LINE: an AI> row at the form's foot; Return in it shows the preview with the form's fields and sends nothing;
+#          Send carries the instruction about "fields", the fields' list and the request; the values are shown in full with Accept, Reject (the default) and Follow up;
+#          Reject fills nothing; Accept fills the rows and writes NOTHING (the disk has no item) until the form's Accept and the IDE's save, which write a D item with those
+#          values; a value the form's own check refuses (a Field # that is no number) is not filled and is said, and a key the form did not offer is left out and said; an
+#          item of the dictionary of dict.dict (dict.dic in the system directory) is refused by the wall and nothing reaches the fake
+#   F1-F5  (3 Nov 26, section follow) A FOLLOW-UP in the IDE: the answer's box has Follow up; choosing it applies nothing and says so; the next request's preview shows the earlier
+#          question and answer in full; Send sends them as earlier messages (user, assistant) before the request, and the audit line says followup=1; the request after that
+#          carries nothing (used once)
+#   --only=SECTION[,SECTION]  runs only those sections (off on preview edits refused wide explain wait dform follow; preview and edits depend on each other: name both); the build,
+#          the fixture account and the helper always run
 # 28 Oct 26: Tab indents in the IDE's editor now (the owner's approval of 28 Oct), so ask() and focus_entry() walk the ring of panes with F6; the loops that come
 # BACK to the editor still press Tab, which moves through the AI line, the tree and the tabs as before.  Not run since.
 # NOT HELD: the buffer changing while the AI answers (the wait loop is modal, so no key can reach the editor: the fit test in ai.apply is held only as text, by
@@ -59,6 +69,7 @@ TAB, RET, ESC, F8, F10 = ids.TAB, ids.RET, ids.ESC, ids.F8, ids.F10      # F8 is
 F6 = ids.F6                                                                 # 28 Oct 26: the next pane; Tab indents in the editor now, so the ring is walked with F6
 CTRL_G, CTRL_Z = "\x07", "\x1a"
 DOWN = "\x1bOB"
+PGDN = "\x1b[6~"                          # 3 Nov 26: a preview taller than the screen scrolls (the message box)
 RIGHT = "\x1bOC"
 AI_MENU = RIGHT * 5                       # F10 opens File; the AI menu is the sixth title (File Go Search Build View AI Help)
 KEY = "test-key-0123456789"
@@ -562,8 +573,180 @@ def sec_wait():
     e.end()
 
 
+DF = "zzaidf" + RUN                       # 3 Nov 26: the data file whose dictionary the form's rows work on (made in the fixture account)
+
+
+def dict_item(item):
+    """The dictionary item as the disk has it, through a pipe session (CT DICT); '' when it is not there."""
+    out = gt.plain(ACC, ["CT DICT %s %s" % (DF, item)])
+    return "\n".join(out)
+
+
+def form_line(e, label):
+    for ln in e.lines():
+        if label in ln:
+            return ln.rstrip()
+    return ""
+
+
+def wait_for(e, needle, secs=10.0):
+    end = time.time() + secs
+    while time.time() < end:
+        if needle in e.text():
+            return True
+        e.s.settle(0.4)
+    return needle in e.text()
+
+
+def form_ide(item, fname=None):
+    e = AccIde(box(), cmd="IDE DICT %s %s /form" % (fname or DF, item))
+    wait_for(e, "Accept")
+    return e
+
+
+def sec_dform():
+    """3 Nov 26 (S.97): the dictionary form's AI line."""
+    say("\n--- the dictionary form's AI line")
+    fm = STATE["fm"]
+    out = "\n".join(gt.plain(ACC, ["CREATE.FILE %s" % DF]))
+    e = form_ide("zzj")
+    T = e.text()
+    arow("D1", "the form of a new item is up (only the Type row) and has the AI> row at its foot, under the buttons", "Type:" in T and "Accept" in T and "Field #:" not in T and form_line(e, "AI>") != ""
+         and T.find("AI>") > T.find("Accept"), repr((out[-200:], T[-600:])))
+    n0, a0 = len(fm.log), audit_off()
+    e.keys(F6)
+    e.keys("a joined date [[fields_ok]]")
+    e.keys(RET)
+    T = e.text()
+    e.keys(PGDN, PGDN)                        # the preview may be taller than the screen: its foot (the request) is a page or two down
+    T2 = e.text()
+    arow("D2", "F6 and Return in the AI line: the preview names dict.form, lists the form's fields (14 of them, the Type's first) and the request; nothing is sent yet",
+         "This will be sent to anthropic" in T and "dict.form" in T and "The form's fields (14" in T and "type: D a data field" in T and "a joined date [[fields_ok]]" in T + T2
+         and len(fm.log) == n0, T[-1500:] + "\n----\n" + T2[-600:])
+    e.keys("s")
+    T = wait_popup(e)
+    rq = requests()
+    body = rq[-1][2] if len(rq) > n0 else {}
+    pr = prompt_of(body) if body and body.get("messages") else ""
+    try:
+        sysx = body["system"][0]["text"]
+    except (KeyError, IndexError, TypeError):
+        sysx = ""
+    arow("D3a", "Send: ONE request, whose instruction says the page is a form and how to give \"fields\", whose prompt lists the fields and ends with the request",
+         len(fm.log) == n0 + 1 and "This page is a form." in sysx and "Fields of this form (key: what it holds):" in pr and "fmt: Len & Just" in pr
+         and pr.endswith("Request: a joined date [[fields_ok]]"), repr((len(fm.log) - n0, sysx[-300:], pr[-300:])))
+    arow("D3b", "the popup shows every proposed value (Field # 3, Conversion D2, heading Joined, Len & Just 10 R) with Accept, Reject and Follow up",
+         "The AI proposes these values" in T and "loc:" in T and "Joined" in T and "10 R" in T and "D2" in T and "Accept" in T and "Reject" in T and "Follow up" in T, T[-1200:])
+    e.keys(RET)
+    wait_for(e, "Type:")
+    T = e.text()
+    arow("D4", "Enter alone is Reject: the form is as it was (only the Type row, nothing filled)", "Joined" not in T and "Field #:" not in T and "Type:" in T, T[-800:])
+    e.keys(RET)                               # the request is still in the line: Return asks again
+    e.keys("s")
+    wait_popup(e)
+    e.keys("a")
+    wait_for(e, "Field #:")
+    T = e.text()
+    arow("D5a", "Accept: the form is made as a D item with the values in its rows (Field # 3, Conversion Cd D2, Column Heading Joined, Len & Just 10 R) and says the AI filled 5 rows",
+         re.search(r"Type:\s+D\b", form_line(e, "Type:")) is not None and re.search(r"Field #:\s+3\b", form_line(e, "Field #:")) is not None and "D2" in form_line(e, "Conversion Cd:")
+         and "Joined" in form_line(e, "Column Heading:") and re.search(r"Len & Just:\s+10 R\b", form_line(e, "Len & Just:")) is not None and "The AI filled 5 rows" in T,
+         repr([form_line(e, w) for w in ("Type:", "Field #:", "Conversion Cd:", "Column Heading:", "Len & Just:")] + [T[-300:]]))
+    arow("D5b", "...and NOTHING is written: the dictionary has no item zzj", "Joined" not in dict_item("zzj"), dict_item("zzj")[-200:])
+    e.keys(TAB)                               # from the AI line round to the Type row, then Return: the form's Accept, and the IDE's save
+    e.keys(RET)
+    time.sleep(2.0)
+    d = dict_item("zzj")
+    arow("D6", "the form's Accept and the IDE's save write the item: D, field 3, D2, Joined, 10R", all(w in d for w in ("Joined", "D2", "10R")) and re.search(r"^\s*\d+:?\s*D\s*$", d, re.M) is not None, d[-300:])
+    e.end()
+    e = form_ide("zzk")
+    n0 = len(fm.log)
+    e.keys(F6)
+    e.keys("some values [[fields_bad]]")
+    e.keys(RET)
+    e.keys("s")
+    T = wait_popup(e)
+    arow("D7a", "a key the form did not offer (nosuch) is left out of the proposal and said; the others are shown", "Left out" in T and "nosuch" in T and "Named" in T and "abc" in T, T[-900:])
+    e.keys("a")
+    wait_for(e, "Field #:")
+    T = e.text()
+    arow("D7b", "Accept: the heading that passes is filled, the Field # that is not a number is NOT (its row is empty) and the err row says why", "Named" in form_line(e, "Column Heading:")
+         and "abc" not in form_line(e, "Field #:") and "Not filled: Field #" in T and "The AI filled 2 rows" in T, repr((form_line(e, "Field #:"), T[-400:])))
+    e.keys(ESC)
+    e.keys("d")
+    e.end()
+    n0, a0 = len(fm.log), audit_off()
+    e = form_ide("zzaiw", fname="dict.dict")      # the VOC's dict.dict: its dictionary is dict.dic in the system directory
+    up = "AI>" in e.text()
+    e.keys(F6)
+    e.keys("a field [[fields_ok]]")
+    e.keys(RET)
+    time.sleep(1.0)
+    T = e.text()
+    arow("D8", "an item of the dictionary of dict.dict (dict.dic, SD's own file): the wall refuses before any preview, nothing reaches the fake, and one refusal is in the audit trail",
+         up and "This will be sent" not in T and len(fm.log) == n0 and "ai refused why=origin app=dict.form" in audit_new(a0), repr((up, len(fm.log) - n0, T[-500:], audit_new(a0)[-300:])))
+    e.keys(ESC)
+    e.end()
+
+
+def sec_follow():
+    """3 Nov 26: a follow-up in the IDE."""
+    say("\n--- a follow-up")
+    fm = STATE["fm"]
+    reset_record()
+    e = ide(OK_REC)
+    focus_entry(e)
+    e.keys("what does this do [[sayonly]]")
+    e.keys(RET)
+    e.keys("s")
+    T = wait_popup(e)
+    arow("F1", "the answer's box has Follow up beside Close", "Follow up" in T and "Close" in T, T[-500:])
+    e.keys("f")
+    time.sleep(1.0)
+    arow("F2", "Follow up applies nothing and the status line says the next request goes with this exchange", "Follow-up:" in e.status() and " *" not in e.status(), repr(e.status()[:120]))
+    focus_entry(e)
+    n0, a0 = len(fm.log), audit_off()
+    e.keys("and the next line [[plain]]")
+    e.keys(RET)
+    T = e.text()
+    e.keys(PGDN, PGDN)
+    T = T + "\n" + e.text()
+    arow("F3", "the follow-up's preview shows the earlier question and the AI's answer in full, before the request; nothing is sent yet",
+         "A follow-up: 1 earlier exchange" in T and "Earlier question 1:" in T and "what does this do [[sayonly]]" in T and "Nothing to do here" in T and len(fm.log) == n0, T[-1500:])
+    e.keys("s")
+    wait_popup(e)
+    rq = requests()
+    body = rq[-1][2] if len(rq) > n0 else {}
+    msgs = body.get("messages", []) if body else []
+    rl = req_lines(audit_new(a0))
+    arow("F4", "Send: the earlier question and answer go as the user's and the assistant's messages before the request, and the audit line says followup=1",
+         len(msgs) == 3 and msgs[0].get("role") == "user" and msgs[0].get("content") == "what does this do [[sayonly]]" and msgs[1].get("role") == "assistant"
+         and "Nothing to do here" in str(msgs[1].get("content")) and msgs[2]["content"].endswith("Request: and the next line [[plain]]") and len(rl) == 1 and "followup=1" in rl[0],
+         repr(([(m.get("role"), str(m.get("content"))[:60]) for m in msgs], rl)))
+    e.keys(RET)
+    focus_entry(e)
+    n0 = len(fm.log)
+    e.keys("once more [[plain]]")
+    e.keys(RET)
+    T = e.text()
+    e.keys("s")
+    wait_popup(e)
+    rq = requests()
+    body = rq[-1][2] if len(rq) > n0 else {}
+    arow("F5", "a follow-up is used once: the next request's preview has no earlier exchange and it is sent alone", "A follow-up" not in T and bool(body) and len(body.get("messages", [])) == 1,
+         repr((T[-400:], body and len(body.get("messages", [])))))
+    e.keys(RET)
+    e.end()
+
+
+SECTIONS = {"off": sec_off, "on": sec_on, "preview": sec_preview, "edits": sec_edits, "refused": sec_refused, "wide": sec_wide, "explain": sec_explain, "wait": sec_wait,
+            "dform": sec_dform, "follow": sec_follow}
+
+
 def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
+    only = next((a.split("=", 1)[1].split(",") for a in sys.argv[1:] if a.startswith("--only=")), None)
+    if only is not None and [s for s in only if s not in SECTIONS]:
+        ids.bail("usage: --only=%s" % ",".join(SECTIONS))
     if mutant is not None and mutant not in MUTANTS:
         ids.bail("usage: sandbox-ai-ide.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -594,14 +777,9 @@ def main():
         configure()
         make_records()
         if mutant is None:
-            sec_off()
-            sec_on()
-            sec_preview()
-            sec_edits()
-            sec_refused()
-            sec_wide()
-            sec_explain()
-            sec_wait()
+            for name in SECTIONS:
+                if only is None or name in only:
+                    SECTIONS[name]()
         else:
             sec = MUTANT_SECTIONS[mutant]
             if sec == "edits":
