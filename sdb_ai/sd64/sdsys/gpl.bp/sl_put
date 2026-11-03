@@ -8,6 +8,8 @@
 * 19 Oct 26 dm  SL.S.DIFF (sl.h): text the terminal already shows in the same styles is not written again.
 * 28 Oct 26 dm  S.88 phase 2 (S1): a control character in the text is never sent to the terminal (see the description).
 * 28 Oct 26 dm  S.88 phase 2 (S1, review): the C1 controls too - bytes 128 to 159 on a terminal that is not in UTF-8 mode, C2 80 to C2 9F in UTF-8 mode.
+* 3 Nov 26 dm  S.113 (owner: "All pages"): every write keeps the terminal's picture (SL.S.TERM, SL.S.TATTR); DIFF 1 compares against it and writes only the runs of
+*              cells that differ; DIFF 2 changes the shadow alone (the next flush writes it).  The shadow is changed first, whatever is written.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -39,9 +41,10 @@
 *   Anything outside the screen, or outside SL.S.CLIP if the context has one, is not drawn and not
 *   recorded.  The terminal is left in style n afterwards.  The cursor is left after the text, and
 *   the context's own cursor (SL.S.CUR) is not touched: that is the program's, and the commands put
-*   it back when they have finished.  When scr has SL.S.DIFF set (only $sl_form sets it, on a screen whose
-*   terminal is known to match the shadow) and the cells already hold this text in these styles, nothing is
-*   written at all and the cursor is where it was.
+*   it back when they have finished.  SL.S.DIFF (sl.h) 1, on a screen whose terminal is known to match the library's picture of it:
+*   only the runs of cells the terminal does not already show in these styles are written, and when there are none nothing is written
+*   and the cursor is where it was.  SL.S.DIFF 2: only the shadow changes; the next flush ($sl_scr) writes it.  Every write keeps the
+*   terminal's picture (SL.S.TERM, SL.S.TATTR) of a screen the library owns, so that what is compared is what the terminal shows.
 *
 * END-DESCRIPTION
 *
@@ -164,18 +167,7 @@ $include sl.h
    end
    if n < 1 then return
 
-   * 19 Oct 26: a form is drawing on a screen whose terminal is known to match its shadow (SL.S.DIFF): the same text in the same styles
-   *   is already there, so nothing is written (the owner saw the whole screen flash each time a record or file was chosen: every widget
-   *   was written again, the tree three times, where a handful of its rows had changed).  COMPARE, not =, which would take 007 for 7.0.
-   if scr<SL.S.DIFF> then
-      row = scr<SL.S.SHADOW, y + 1>
-      ar = scr<SL.S.ATTRS, y + 1>
-      if len(row) >= x + n and len(ar) >= x + n then
-         if compare(row[x + 1, n], text) = 0 and compare(ar[x + 1, n], cells) = 0 then return
-      end
-   end
-
-   * The shadow
+   * The shadow: what the program has drawn, whatever reaches the terminal below
    row = scr<SL.S.SHADOW, y + 1>
    if len(row) < sw then row := space(sw - len(row))
    scr<SL.S.SHADOW, y + 1> = row[1, x] : text : row[x + n + 1, sw]
@@ -185,14 +177,88 @@ $include sl.h
       scr<SL.S.ATTRS, y + 1> = ar[1, x] : cells : ar[x + n + 1, sw]
    end
 
-   * The terminal: the cell, then each run of one style
-   out = @(x, y)
+   * S.113 (3 Nov 26): the terminal's own picture of this row (TERM, TATTR), kept on a screen the library owns
+   has.term = (scr<SL.S.TATTR, y + 1> # '')
+   dmode = scr<SL.S.DIFF> + 0
+   if dmode = 2 then return                         ;* the screen is being drawn again for a flush that repaints or compares it: nothing is written now
+
+   * 19 Oct 26: a form is drawing on a screen whose terminal is known to match (SL.S.DIFF 1): the same text in the same styles is already there,
+   *   so it is not written again (the owner saw the whole screen flash each time a record or file was chosen: every widget was written again,
+   *   the tree three times, where a handful of its rows had changed).  S.113 (3 Nov 26, owner: "All pages"): judged against the TERMINAL's
+   *   picture, not the shadow, and cell by cell: only the runs of cells that differ are written, two runs being one when fewer than eight
+   *   cells that agree lie between them (a cursor position costs about that).  A page of the toolkit that draws its whole body again for a
+   *   cursor key writes the two rows that changed.  COMPARE, not =, which would take 007 for 7.0.
+   runs = 1 : @sm : n
+   if dmode = 1 and has.term then
+      tr = scr<SL.S.TERM, y + 1>
+      ta = scr<SL.S.TATTR, y + 1>
+      if len(tr) >= x + n and len(ta) >= x + n then
+         ot = tr[x + 1, n]
+         oa = ta[x + 1, n]
+         if compare(ot, text) = 0 and compare(oa, cells) = 0 then return
+         gosub diff.runs
+      end
+   end
+
+   * The terminal: for each run, the cell, then each run of one style
+   out = ''
+   for rk = 1 to dcount(runs, @vm)
+      r0 = runs<1, rk, 1>
+      r1 = runs<1, rk, 2>
+      out := @(x + r0 - 1, y)
+      gosub emit.run
+   next rk
+   display out :
+   gosub keep.term                                    ;* MUTANT-POINT term
+   return
+
+* The runs of cells, r0 to r1 (from 1), whose text or style is not what the terminal shows (ot, oa); runs closer than eight cells are one
+diff.runs:
+   runs = ''
+   di = 1
+   loop while di <= n do
+      if compare(ot[di, 1], text[di, 1]) = 0 and compare(oa[di, 1], cells[di, 1]) = 0 then
+         di += 1
+      end else
+         dj = di
+         dgap = 0
+         dk = di + 1
+         loop while dk <= n do
+            if compare(ot[dk, 1], text[dk, 1]) = 0 and compare(oa[dk, 1], cells[dk, 1]) = 0 then
+               dgap += 1
+               if dgap >= 8 then exit
+            end else
+               dj = dk
+               dgap = 0
+            end
+            dk += 1
+         repeat
+         runs<1, -1> = di : @sm : dj
+         di = dj + 1
+      end
+   repeat
+   return
+
+* The terminal shows text and cells from x on now (the cells of them that were not written showed them already)
+keep.term:
+   if has.term then
+      tr = scr<SL.S.TERM, y + 1>
+      if len(tr) < sw then tr := space(sw - len(tr))
+      scr<SL.S.TERM, y + 1> = tr[1, x] : text : tr[x + n + 1, sw]
+      ta = scr<SL.S.TATTR, y + 1>
+      if len(ta) < sw then ta := str('n', sw - len(ta))
+      scr<SL.S.TATTR, y + 1> = ta[1, x] : cells : ta[x + n + 1, sw]
+   end
+   return
+
+* One run, cells r0 to r1 of text: each part of one style, in its own style, and the style n after it
+emit.run:
    last = 'n'
-   i = 1
-   loop while i <= n do
+   i = r0
+   loop while i <= r1 do
       c = cells[i, 1]
       j = i
-      loop while j < n and cells[j + 1, 1] = c do j += 1 repeat
+      loop while j < r1 and cells[j + 1, 1] = c do j += 1 repeat
       call $sl_sgr(c, sq)
       seg = text[i, j - i + 1]
       * the stand-ins of $sl_line become the bytes of a line-drawing character (or + - | if that is off)
@@ -219,8 +285,6 @@ $include sl.h
       call $sl_sgr('n', sq)
       out := sq
    end
-   display out :
-
    return
 end
 

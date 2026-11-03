@@ -9,6 +9,8 @@
 *               a resize it reads itself clears the note, so that it is given once.
 * 3 Nov 26 dm  A key name the toolkit's menu bar left for the program (common /$slkpush/: the choice made in a box's right-click menu that opened after the click moved the
 *               focus, $tk_menubar) is given first, once, before any pending resize and before the keyboard is read.  It is a name the program would get for that key.
+* 3 Nov 26 dm  S.113: the screen is flushed before the keyboard is read ($sl_scr 'flush'); F5 and Ctrl-L mark a page of the toolkit for a whole repaint at its
+*               next wait ($sl_scr 'refresh'); after a resize the kept picture is taken with peek, so that a page is repainted once, after it has drawn its new layout.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -28,6 +30,9 @@
 *              a message box, SCREEN ASK ...) was open, which then had the key: the program is given it at its next
 *              SCREEN KEY, at once and before any key typed since.
 *     status   0 a key; 1 the time ran out or the input has ended (ELSE)
+*
+*   Before it waits, what the program drew is brought onto the terminal ($sl_scr 'flush').  On a screen that $tk_open took, F5 and Ctrl-L
+*   are given to the program as always and also make its next wait repaint the whole screen from the library's picture (S.113).
 *
 * END-DESCRIPTION
 *
@@ -50,11 +55,13 @@ $catalog !screen_key
    if pend then
       ret = 'resize'
    end else
+      call $sl_scr('flush', '')                    ;* S.113: what the program drew since its last wait is on the terminal before it waits (a page of the toolkit draws by difference)
       call $sl_key(timeout, ret)
       if ret = 'resize' then call $sl_scr('pending', pend)    ;* delivered here: the note is not left for the next call
+      if ret = 'f5' or ret = 'ctrl-l' then call $sl_scr('refresh', '')    ;* S.113: on a page of the toolkit the refresh keys repaint the whole screen at the next wait
    end
    if ret = 'resize' then
-      call $sl_scr('get', scr)                 ;* makes the kept picture the terminal's size and draws it again
+      call $sl_scr('peek', scr)                ;* makes the kept picture the terminal's size and draws it again (a page of the toolkit: at its next flush, after it has drawn its layout)
       call $sl_scr('put', scr)
    end
    status = if ret = '' then 1 else 0

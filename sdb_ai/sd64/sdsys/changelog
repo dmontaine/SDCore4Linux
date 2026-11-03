@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   THE FULL-SCREEN PAGES WRITE ONLY WHAT CHANGED; CTRL-L REDRAWS A PAGE.
+
+             What        - Every page of the toolkit (the tools, the administrator's pages and the home screen) used to send the whole
+                           screen to the terminal for each cursor key: about 14.7 KB for a Down in the list of tool.files at 140 by 43.
+                           The screen library now keeps a picture of what the terminal shows, and on these pages it writes only the cells
+                           that differ from it: a Down in that list is under 2 KB. F5 and Ctrl-L on a page clear the terminal and draw the
+                           whole page again, and so does the next key after the window is resized.
+             Why         - Over ssh or a slow link every arrow key waited for a full screen, and a terminal that draws slowly flickered.
+             Does NOT    - Change what a page shows, or a user's own SCREEN program: there SCREEN TEXT, BOX and CLEAR still write what
+                           they are told, because the program may have printed over its text. A page that prints over its own screen
+                           with PRINT is put right by Ctrl-L, not by itself.
+
 3 Nov 26   THE INSTALLER INSTALLS GPM, SO THE MOUSE WORKS ON A BARE LINUX CONSOLE.
 
              What        - gpm, the console mouse daemon, is now one of the packages the installer installs with apt-get, beside

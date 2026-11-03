@@ -114,9 +114,10 @@ def checks(src, dcounts):
     ck("C2 the scrub: the tab becomes a blank, the rest is converted through the table, and ONLY IF something changed the style of the changed cells is set to reverse one by one and the text replaced",
        ordered(put, "text = convert(char(9), ' ', text)", "safe = convert(ctl.from, ctl.to, text)", "if compare(safe, text) # 0 then", "for ci = 1 to n",
                "if compare(safe[ci, 1], text[ci, 1]) # 0 then cells = cells[1, ci - 1] : 'r' : cells[ci + 1, n]", "next ci", "text = safe"), "")
-    ck("C3 the order in $sl_put: the cells are made, the marks become dots, THEN the scrub, THEN the clip, the DIFF comparison, the shadow and the terminal",
+    # 3 Nov 26 (S.113): the shadow is written before the DIFF comparison now (which is against the terminal's picture); both stay after the scrub and the clip
+    ck("C3 the order in $sl_put: the cells are made, the marks become dots, THEN the scrub, THEN the clip, the shadow, the DIFF comparison and the terminal",
        ordered(put, "cells = attr : str('n', n)", "text = convert(@fm : @vm : @sm : @tm : char(255), '.....', text)", "safe = convert(ctl.from, ctl.to, text)", "x0 = 0 ; x1 = sw - 1",
-               "if scr<SL.S.DIFF> then", "scr<SL.S.SHADOW, y + 1> =", "display out :"), "")
+               "scr<SL.S.SHADOW, y + 1> =", "if dmode = 1 and has.term then", "display out :"), "")
     ck("C4 one cell for one character: n is not recomputed by the scrub and no character is added or removed (no CHANGE, no insert, no delete in the scrub's lines)",
        "n = len(text)" in put and put.count("n = len(text)") == 2 and "change(safe" not in put and "safe[" in put, "")
     ck("C5 the stand-ins of $sl_line stay (the glyph path): 14-22 are still turned into line characters or + - | # ^ v below, and the scrub's table excludes them",
@@ -141,7 +142,8 @@ def checks(src, dcounts):
     ck("C13 UTF-8: only the pair C2 80 to C2 9F is replaced - the lead byte is looked for (CHAR(194)), the byte after it must exist (p < n) and be 128 to 159, the pair becomes '.' and the letter 64 below (two "
        "bytes for two), and the search moves on (k += 1) ONLY when nothing was replaced, so no loop can stand still and no other sequence is touched",
        ordered(put, "if loc.mode = 1 or ln.on = 1 then", "k = 1", "p = index(safe, char(194), k)", "while p > 0 do", "c2 = 0", "if p < n then c2 = seq(safe[p + 1, 1])",
-               "if c2 >= 128 and c2 <= 159 then", "safe = safe[1, p - 1] : '.' : char(c2 - 64) : safe[p + 2, n]", "end else", "k += 1", "end", "repeat", "end else"), "")
+               "if c2 >= 128 and c2 <= 159 then", "safe = safe[1, p - 1] : '.' : char(c2 - 64) : safe[p + 2, n]", "end else", "\nk += 1", "end", "repeat", "end else"), "")
+    # 3 Nov 26 (S.113): "k += 1" at the start of its line (code() strips the lines) - $sl_put's run search counts with dk, and "dk += 1" must not stand in for the scrub's own step
     # the model
     rng = random.Random(20261028)
     for utf8 in (False, True):

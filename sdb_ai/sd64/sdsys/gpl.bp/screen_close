@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 12 Oct 26 dm  New.
 * 18 Oct 26 dm  Takes the cursor lock off ($sl_guardmode), so that it never reaches the next program.
+* 3 Nov 26 dm  S.113: the context is taken with $sl_scr 'peek' (no flush of a screen that is being given back).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -34,7 +35,7 @@ $include sl.h
    ret = ''
    status = 0
    if system(25) then return                  ;* a phantom has no terminal: nothing was drawn, nothing to give back
-   call $sl_scr('get', scr)
+   call $sl_scr('peek', scr)                  ;* S.113: not get, which would bring the terminal up to a screen that is being given back
    if scr<SL.S.OWNED> and scr<SL.S.MOUSE> then
       call $sl_mouse('off', mseq)
       display mseq :                                  ;* the terminal stops reporting the mouse

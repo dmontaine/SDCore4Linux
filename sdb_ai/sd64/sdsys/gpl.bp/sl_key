@@ -13,6 +13,7 @@
 *               R-a: every 'resize' handed out is noted (common /slpend/) until the program's own wait (SCREEN KEY, SCREEN WAIT) has delivered one;
 *               a dialogue that read it ($sl_menu, $sl_msgbox, SCREEN ASK, $sl_pickwin, $tk_confirm's and $tk_ai's boxes, the IDE's name box) leaves
 *               it noted, and the program's next wait delivers it ($sl_scr 'pending').
+* 3 Nov 26 dm  S.113: after $sl_guard has drawn its warning the screen is marked unsynced ($sl_scr 'unsync'), so that the next flush repaints it whole.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -178,6 +179,7 @@ guard.cursor:
       if cu.x < gw and cu.y < gh then return
       call $sl_guard(g.name, g.minw, g.minh, cu.x, cu.y, gres)
    end
+   call $sl_scr('unsync', '')               ;* S.113: the guard cleared the terminal and drew its warning: the library's picture of it is not true now
    if gres = 'quit' then
       g.quit = 1
    end else
