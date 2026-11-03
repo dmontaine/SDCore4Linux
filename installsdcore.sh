@@ -879,13 +879,22 @@ printf "%b\n" "$NC"
 echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
 # 04 Oct 26 - "openssl" (the command, sd-elevate tls-show runs it) is on the list
 #   because a machine can lack it; the package stays for that reason.
-if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev openssl openssh-server python3-dev; then
+# 03 Nov 26 - S.94: "gpm" (the console mouse daemon) is on the list (owner, 3 Nov 2026: "the decision was the the installer
+#   installs gpm, not mentions it"), so the full-screen tools have a mouse on a bare Linux console out of the box: SD talks to
+#   /dev/gpmctl itself (gplsrc/gpmmouse.c, no libgpm).  The installer neither enables nor starts gpm.service: the Debian and
+#   Ubuntu package's own postinst enables it on a new installation and starts it (deb-systemd-helper enable, deb-systemd-invoke
+#   start), and a machine where the administrator disabled it stays as he left it.  It does nothing in a desktop terminal or
+#   over ssh (SD asks it only for the terminal type linux).  deletesdcore.sh leaves it installed, as it leaves git and lynx.
+#   test-install-packages.sh runs this block.
+# PACKAGES-BEGIN
+if ! sudo apt-get -y install git build-essential micro lynx gpm libsodium-dev libssl-dev openssl openssh-server python3-dev; then
     printf "%b\n" "$RED"
     echo "Package installation using apt-get failed.  Exiting script."
     echo "Verify your internet connection and then try again."
     printf "%b\n" "$NC"
     exit 1
 fi
+# PACKAGES-END
 # run this along as only required on Ubuntu 26.04 and
 # don't want to abort if not found on earlier distributions
 sudo apt-get -y --ignore-missing install libcrypt-dev || true

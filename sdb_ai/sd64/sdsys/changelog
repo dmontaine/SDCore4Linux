@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   THE INSTALLER INSTALLS GPM, SO THE MOUSE WORKS ON A BARE LINUX CONSOLE.
+
+             What        - gpm, the console mouse daemon, is now one of the packages the installer installs with apt-get, beside
+                           git, micro and the rest. On Debian and Ubuntu the package enables and starts the daemon itself, so after an
+                           install the full-screen pages, the IDE and the home screen take the mouse on a text console with no
+                           desktop, as they already did when gpm had been installed by hand.
+             Why         - SD has talked to gpm on the console since 31 Oct 26, but nothing put gpm on the machine, so the mouse
+                           was missing unless the administrator knew to add the package.
+             Does NOT    - Start, enable or configure gpm itself: a machine where the administrator turned the service off keeps it
+                           off. It changes nothing in a desktop terminal, over ssh or in tmux (SD asks gpm only for the terminal type
+                           linux on a text console). Removing SD leaves the gpm package installed, as it leaves git and lynx. A
+                           failure to install it stops the installer with the same message as any other package.
+
 3 Nov 26   AN UPGRADE NOW BRINGS THE SYSTEMD UNITS UP TO DATE.
 
              What        - Installing over an existing system used to keep the systemd units it already had: they were copied only
