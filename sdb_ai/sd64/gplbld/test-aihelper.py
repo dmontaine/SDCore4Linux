@@ -17,7 +17,7 @@
 # shape, a refusal, a redirect that is NOT followed); the reply cut to ASCII; an oversize reply and request; the clamp of maxtokens; the hourly and
 # daily limits; the certificate of another name and one no CA vouches for, and the system store refusing the test CA unless ca-file names it;
 # a timeout; `status` for a member and for the administrator; and the canaries - a string in the environment and in a decoy file never reaches the
-# provider, and the key is in no reply and no log line.  NOT HELD: a real provider (witness-ai-live.sh is the owner's), systemd's socket, the
+# provider, and the key is in no reply and no log line; (3 Nov 26) a follow-up's history in both formats, its shape refused otherwise and counted in the size.  NOT HELD: a real provider (witness-ai-live.sh is the owner's), systemd's socket, the
 # helper running as the user sdai, OpenAI's own endpoint.
 import grp
 import importlib.machinery
@@ -326,6 +326,35 @@ def rows(env, fm):
     n0 = len(fm.log)
     r = env.ask("hello", maxtokens=999999)
     row("maxtokens is clamped to the limit (1024): the provider is asked for 1024", r["t"] == "ok" and json.loads(fm.log[n0]["body"])["max_tokens"] == 1024, repr(r))
+
+    say("\n--- a follow-up (3 Nov 26): the earlier exchanges the person chose to carry")
+    env.reset_counters()
+    hist = [{"q": "first question", "a": "first answer"}, {"q": "second question", "a": ""}]
+    for name, path in (("anthropic", "/v1/messages"), ("openai", "/v1/chat/completions")):
+        env.conf(**{"provider": name, "model__" + name: M})
+        env.key(name)
+        n0 = len(fm.log)
+        r = env.ask("third question", system="Be brief.", history=hist)
+        body = json.loads(fm.log[n0]["body"]) if len(fm.log) > n0 else {}
+        msgs = [m for m in body.get("messages", []) if m.get("role") != "system"]
+        row("%s: the history goes as the user's and the assistant's messages, oldest first, BEFORE the request (an empty answer is sent as '(no answer)'), and the system text stays where the format puts it" % name,
+            r["t"] == "ok" and msgs == [{"role": "user", "content": "first question"}, {"role": "assistant", "content": "first answer"}, {"role": "user", "content": "second question"},
+                                        {"role": "assistant", "content": "(no answer)"}, {"role": "user", "content": "third question"}]
+            and ((body.get("system") or [{}])[0].get("text") == "Be brief." if name == "anthropic" else body["messages"][0] == {"role": "system", "content": "Be brief."}),
+            repr((r, body.get("messages"))))
+    env.conf(provider="anthropic", model__anthropic=M)
+    env.key("anthropic")
+    n0 = len(fm.log)
+    r = env.ask("hello")
+    row("an ordinary request carries no history: one message", r["t"] == "ok" and len(json.loads(fm.log[n0]["body"])["messages"]) == 1, repr(r))
+    for what, h in (("four exchanges (the most is 3)", [{"q": "q", "a": "a"}] * 4), ("an exchange with another key", [{"q": "q", "a": "a", "x": "y"}]),
+                    ("an exchange whose question is empty", [{"q": " ", "a": "a"}]), ("an answer that is not text", [{"q": "q", "a": 3}]), ("a history that is not a list", {"q": "q", "a": "a"})):
+        n0 = len(fm.log)
+        r = env.ask("hello", history=h)
+        row("a history of %s is badreq and nothing is sent" % what, r.get("code") == "badreq" and len(fm.log) == n0, repr(r))
+    n0 = len(fm.log)
+    r = env.ask("hello", history=[{"q": "q", "a": "x" * 70000}])
+    row("the history counts towards the request's byte limit: a small request with a 70,000 byte answer in its history is toobig, and nothing is sent", r.get("code") == "toobig" and len(fm.log) == n0, repr(r)[:200])
 
     say("\n--- limits")
     env.reset_counters()
@@ -659,7 +688,7 @@ MUTANTS = [
     ("maxtokens is not clamped", "        maxtokens = max(1, min(maxtokens, limits[\"max-tokens\"]))\n", "        pass\n"),
     ("a redirect is treated as an answer to parse", "        if 300 <= status < 400:\n", "        if False:\n"),
     ("the model name is not checked", "        if not MODEL_RE.match(model):\n", "        if False:\n"),
-    ("the request size is not checked", "        if len(prompt.encode(\"utf-8\")) + len(system.encode(\"utf-8\")) > limits[\"bytes-request\"]:", "        if False:"),
+    ("the request size is not checked", "        if len(prompt.encode(\"utf-8\")) + len(system.encode(\"utf-8\")) + hbytes > limits[\"bytes-request\"]:", "        if False:"),
     ("a refusal by the model is not recognised (anthropic)", '            if j.get("stop_reason") == "refusal":', '            if False:'),
     ("the settings are open to every caller", '        if uid is None or not is_admin(uid):\n            return {"t": "err", "code": "noadmin"', '        if False:\n            return {"t": "err", "code": "noadmin"'),
     ("a setting is not checked as a whole before it is written", "        selected(new, table)", "        pass  #"),
@@ -669,6 +698,13 @@ MUTANTS = [
     ("the range of a limit is not checked when it is set", "        for k in LIMITS:\n            int_setting(new, k)\n        write_conf(state, new)", "        write_conf(state, new)"),
     ("a ca-file that is not there is accepted", " or not os.path.isfile(v) or not os.access(v, os.R_OK)", ""),
     ("a damaged ai.conf is skipped over", '                    raise Refuse("badconf", "%s line %d has no =" % (os.path.basename(path), n))', "                    continue"),
+]
+M_FOLLOW = len(MUTANTS)         # 3 Nov 26 (a follow-up's history): the first mutant of the sitting, for --selftest --from=M_FOLLOW
+MUTANTS += [
+    ("the history is dropped", "    msgs = []\n    for q, a in history:", "    msgs = []\n    for q, a in []:"),
+    ("the history is not counted in the size", "        hbytes = sum(len(q.encode(\"utf-8\")) + len(a.encode(\"utf-8\")) for q, a in history)", "        hbytes = 0"),
+    ("any length of history is taken", "    if not isinstance(h, list) or len(h) > HISTORY_MAX:", "    if not isinstance(h, list):"),
+    ("an exchange of any shape is taken", " or set(e) != {\"q\", \"a\"} or not isinstance(e[\"q\"], str)", " or not isinstance(e[\"q\"], str)"),
 ]
 
 

@@ -5,11 +5,15 @@
  *
  * START-HISTORY:
  * 23 Oct 26 dm  New.
+ * 3 Nov 26 dm   Follow-up questions (the owner: "Add, shown in preview"): K$AI.START takes  system : FM : maxtokens : VM : n : FM : q1 : FM : a1 ... : FM : prompt, the n (1 to 3)
+ *               earlier exchanges the person chose to carry; they go to the helper as "history" and count in bytes.out, and the audit line then says followup=n.
  * END-HISTORY
  *
  * START-DESCRIPTION:
  *
  * KERNEL(K$AI.START, system : FM : maxtokens : FM : prompt)   sends one request to the helper (gplbld/sd-ai) on its Unix socket and returns at once.
+ *   A FOLLOW-UP (3 Nov 26) is  system : FM : maxtokens : VM : n : FM : q1 : FM : a1 : ... : FM : qn : FM : an : FM : prompt  with n from 1 to 3: the earlier questions and answers, sent
+ *   as "history" before the prompt.  Only $tk_ai builds one, after the person chose Follow up and saw all of it in the preview.
  * KERNEL(K$AI.POLL, 0)       asks whether the answer is in.
  * KERNEL(K$AI.CANCEL, 0)     gives the request up.
  * KERNEL(K$AI.STATUS, 0)     asks the helper for its status line (provider, model, key set, whether THIS caller's uid is in the AI group) and waits at most two seconds.
@@ -51,6 +55,7 @@
 #define AI_REPLY_MAX 524288
 #define AI_DEADLINE 340 /* seconds, from the start of a request */
 #define AI_CONNECT_MS 2000
+#define AI_HIST_MAX 3 /* earlier exchanges a follow-up may carry (the helper takes no more) */
 
 Private struct {
   int fd;
@@ -189,6 +194,10 @@ Private void ai_start(DESCRIPTOR* descr, DESCRIPTOR* result) {
   size_t pos;
   int n;
   int maxtokens = 0;
+  int nhist;
+  int i;
+  size_t hbytes;
+  char* hist[2 * AI_HIST_MAX];
   char audit[200];
 
   if (ai.active) {
@@ -230,6 +239,30 @@ Private void ai_start(DESCRIPTOR* descr, DESCRIPTOR* result) {
     maxtokens = 1;
   if (maxtokens > 100000)
     maxtokens = 100000;
+  /* A follow-up: maxtokens VM n, then n questions and n answers, each a field, before the prompt (which stays last: a mark in it moves nothing) */
+  nhist = 0;
+  hbytes = 0;
+  p = strchr(maxt, VALUE_MARK);
+  if (p != NULL) {
+    nhist = atoi(p + 1);
+    if (nhist < 1 || nhist > AI_HIST_MAX) {
+      free(arg);
+      ai_answer("ERR", "bad", result);
+      return;
+    }
+    for (i = 0; i < 2 * nhist; i++) {
+      hist[i] = prompt;
+      p = strchr(prompt, FIELD_MARK);
+      if (p == NULL) {
+        free(arg);
+        ai_answer("ERR", "bad", result);
+        return;
+      }
+      *p = '\0';
+      hbytes += strlen(hist[i]);
+      prompt = p + 1;
+    }
+  }
 
   /* THE AUDIT LINE: before anything is sent, from the kernel's own state.  It names the account and the program that called, and the size; never the text. */
   /* The audit line gives the name a person knows: a catalogued program is named $name and one run from a file by its whole path, so the $ and the directory are left off. */
@@ -238,10 +271,13 @@ Private void ai_start(DESCRIPTOR* descr, DESCRIPTOR* result) {
     pname = strrchr(pname, '/') + 1;
   if (*pname == '$')
     pname++;
-  snprintf(audit, sizeof(audit), "ai request account=%s program=%s bytes.out=%d", account(), pname, (int)(strlen(system) + strlen(prompt)));
+  if (nhist > 0)
+    snprintf(audit, sizeof(audit), "ai request account=%s program=%s bytes.out=%d followup=%d", account(), pname, (int)(strlen(system) + strlen(prompt) + hbytes), nhist);
+  else
+    snprintf(audit, sizeof(audit), "ai request account=%s program=%s bytes.out=%d", account(), pname, (int)(strlen(system) + strlen(prompt)));
   audit_message(audit);
 
-  cap = (6 * (strlen(system) + strlen(prompt))) + 256;
+  cap = (6 * (strlen(system) + strlen(prompt) + hbytes)) + 256 + (32 * nhist);
   req = (char*)malloc(cap);
   if (req == NULL) {
     free(arg);
@@ -253,6 +289,17 @@ Private void ai_start(DESCRIPTOR* descr, DESCRIPTOR* result) {
   pos = ai_json_string(req, pos, system, strlen(system));
   pos += (size_t)sprintf(req + pos, ",\"prompt\":");
   pos = ai_json_string(req, pos, prompt, strlen(prompt));
+  if (nhist > 0) {
+    pos += (size_t)sprintf(req + pos, ",\"history\":[");
+    for (i = 0; i < nhist; i++) {
+      pos += (size_t)sprintf(req + pos, "%s{\"q\":", (i == 0) ? "" : ",");
+      pos = ai_json_string(req, pos, hist[2 * i], strlen(hist[2 * i]));
+      pos += (size_t)sprintf(req + pos, ",\"a\":");
+      pos = ai_json_string(req, pos, hist[2 * i + 1], strlen(hist[2 * i + 1]));
+      req[pos++] = '}';
+    }
+    req[pos++] = ']';
+  }
   pos += (size_t)sprintf(req + pos, ",\"maxtokens\":%d}\n", maxtokens);
   free(arg);
 

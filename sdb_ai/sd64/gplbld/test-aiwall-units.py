@@ -8,6 +8,8 @@ No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it c
 
 START-HISTORY:
 1 Nov 26 dm  New with the wall (CLAUDE.md "THE AI BOUNDARY"; .claude/plan-common-look-1nov.md, S.97 stage 0).
+3 Nov 26 dm  S.97: the dictionary form is a caller (its origin is the caller's org, fail shut when none: C8); a follow-up's earlier questions are screened again with their own audit
+             line (A5), so tk_ai has three audit lines and two 11941 results; --selftest --from=N runs from mutant N (M_S97 marks this sitting's first).
 END-HISTORY
 
 WHAT IT HOLDS.  The owner's rule: the AI field never reaches the C and GPL.BP code or any other system information, and no question about SD's own code or build is taken to the AI from
@@ -29,11 +31,12 @@ SDSYS = os.path.join(HERE, os.pardir, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 FILES = {k: os.path.join(GPL, v) for k, v in (("wall", "tk_aiwall"), ("ai", "tk_ai"), ("ide", "ide"), ("sed", "sed"), ("core", "ced_core"), ("cedit", "ced_edit"), ("dbg", "debug"),
-                                                ("dbgh", "debug.h"), ("home", "tool_home"), ("verb", "ai"), ("aipage", "tk_aipage"))}
+                                                ("dbgh", "debug.h"), ("home", "tool_home"), ("verb", "ai"), ("aipage", "tk_aipage"), ("dform", "dict_form"))}
 FILES.update({"m40": os.path.join(MSG, "11940"), "m41": os.path.join(MSG, "11941"), "m42": os.path.join(MSG, "11942")})
 # the programs that call $tk_ai('ask' and how each says where its text comes from
 CALLERS = {"ide": "@fm : '' : @fm : ai.org", "sed": "@fm : '' : @fm : ai.org", "ced_core": "@fm : '' : @fm : st{'origin'}", "debug": "@fm : '' : @fm : ai.org", "tool_home": "actx<13> = 'none'",
-           "tk_aipage": "actx<13> = 'none'"}      # 1 Nov 26 (S.97 stage 1): the AI line on a page of the toolkit sends no text of any file, only what the page is and what it offers
+           "tk_aipage": "actx<13> = 'none'",      # 1 Nov 26 (S.97 stage 1): the AI line on a page of the toolkit sends no text of any file, only what the page is and what it offers
+           "dict_form": "actx<13> = ai.org"}      # 3 Nov 26 (S.97): the dictionary form sends the item's values; where the item is comes from its caller (the IDE)
 PROVIDER_WORDS = ("anthropic", "openai", "google", "gemini", "deepseek", "custom", "sonnet", "gpt")      # ("claude" is not here: CLAUDE.md is a file this program's header names)
 
 
@@ -71,7 +74,7 @@ def checks(src, tree_calls):
     def ck(name, ok, detail=""):
         rows.append((name, bool(ok), detail))
 
-    wall, ai, ide, sed, core, cedit, dbg, dbgh, home, verb, aipage = (strip(src[k]) for k in ("wall", "ai", "ide", "sed", "core", "cedit", "dbg", "dbgh", "home", "verb", "aipage"))
+    wall, ai, ide, sed, core, cedit, dbg, dbgh, home, verb, aipage, dform = (strip(src[k]) for k in ("wall", "ai", "ide", "sed", "core", "cedit", "dbg", "dbgh", "home", "verb", "aipage", "dform"))
     ck("N0 NULL CASE: the reader sees the wall (over 2 KB of code), $tk_ai (over 15 KB), the IDE (over 100 KB) and SED (over 100 KB)", len(wall) > 2000 and len(ai) > 15000 and len(ide) > 100000 and len(sed) > 100000,
        repr((len(wall), len(ai), len(ide), len(sed))))
     ck("W1 the wall is $internal, `subroutine tk_aiwall(op, a, why)`, catalogued as $tk_aiwall, and no other program takes the name",
@@ -109,13 +112,19 @@ def checks(src, tree_calls):
     ck("A3 each refusal is a message in words and ONE audit line that names why and the app and never the text: request (the name found), origin (the kind and the reason)",
        "void kernel(K$AUDIT, 'ai refused why=request app=' : downcase(app) : ' name=' : why)" in ai and "sysmsg(11941, why)" in ai
        and "void kernel(K$AUDIT, 'ai refused why=origin app=' : downcase(app) : ' kind=' : origin<1, 1> : ' reason=' : why)" in ai and "sysmsg(11940)" in ai and "sysmsg(11942)" in ai
-       and ai.count("K$AUDIT") == 2, "")
-    ck("A4 the refusal result is a result of 'none' with the message on res<5>, the line the apps show on their status rows", ai.count("b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : sysmsg(11941, why)") == 1
+       and ai.count("K$AUDIT") == 3, "")
+    ck("A4 the refusal result is a result of 'none' with the message on res<5>, the line the apps show on their status rows (the typed request's and a follow-up's earlier question's)",
+       ai.count("b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : sysmsg(11941, why)") == 2
        and ai.count("(if why = 'system' then sysmsg(11940) else sysmsg(11942))") == 1, "")
+    ck("A5 A FOLLOW-UP (3 Nov 26): the earlier questions it carries are screened again, after the origin and BEFORE anything is built for the preview; a refusal is the typed request's (11941), with "
+       "one audit line that names the follow-up and never the text, and returns",
+       ordered(ai, "call $tk_aiwall('origin', origin, why)", "for hi = 1 to h.n", "call $tk_aiwall('request', h.q<hi>, why)", "if why # '' then",
+               "void kernel(K$AUDIT, 'ai refused why=request app=' : downcase(app) : ' name=' : why : ' followup=' : hi)", "sysmsg(11941, why)", "return", "next hi", "sysx = sysmsg(11635, app)")
+       and ordered(ai, "h.q = '' ; h.a = '' ; h.n = 0", "if ai.fapp = app and ai.fwho = @who", "gosub follow.drop", "call $tk_aiwall('request', req, why)"), "")
     sites = tree_calls["ask"]
     ck("C1 EVERY PROGRAM THAT CALLS $tk_ai('ask' IS ON THE LIST HERE and says where its text comes from: %s (a new caller is refused by this check until it is added with its origin)" % ", ".join(sorted(CALLERS)),
        sorted(sites) == sorted(CALLERS), repr(sorted(sites)))
-    ok = {"ide": ide, "sed": sed, "ced_core": core, "debug": dbg, "tool_home": home, "tk_aipage": aipage}
+    ok = {"ide": ide, "sed": sed, "ced_core": core, "debug": dbg, "tool_home": home, "tk_aipage": aipage, "dict_form": dform}
     ck("C2 each of them has its origin in the request it builds", all(CALLERS[k] in ok[k] for k in CALLERS), repr([k for k in CALLERS if CALLERS[k] not in ok[k]]))
     d = between(ide, "ai.origin:", "* The fields view")
     ck("C3 the IDE's origin: untitled when there is no record yet, path (the operating system pathname) for a path: tab, a record with its file, its id and the dictionary flag otherwise; the fields view gets the same",
@@ -127,6 +136,9 @@ def checks(src, tree_calls):
     ck("C6 the debugger's page text holds the program's SOURCE, so its origin is the source record's pathname, kept for each program in debug.h's common block when the program is first seen",
        "program.src(INITIAL.PROGRAMS)" in dbgh and "program.src(idx) = source.path" in dbg and ordered(dbg, "ai.org = 'path' : @vm : '' : @vm : program.src(src.idx)", "ai.actx = 'debugger'"), "")
     ck("C7 the home screen sends no text of a file and says so", "actx<13> = 'none'" in home, "")
+    ck("C8 the dictionary form (3 Nov 26) sends the item's values, so its origin is where the item is, as its caller (the IDE's ai.origin) said; with none it is 'unknown', which the wall refuses",
+       ordered(dform, "ai.org = org", "if ai.org = '' then ai.org = 'unknown'", "actx<13> = ai.org", "call $tk_ai('ask'")
+       and ordered(ide, "gosub ai.origin", "call $dict_form(df.rec, bf.name : ' ' : bf.id, df.new, df.res, ai.org)"), "")
     ck("V1 THE ai VERB takes the same screen on the typed question, BEFORE it asks the helper anything: refused with 11941, one audit line, a failure code", ordered(verb, "if question = '' then stop sysmsg(11623)",
        "call $tk_aiwall('request', question, why)", "void kernel(K$AUDIT, 'ai refused why=request app=ai name=' : why)", "stop sysmsg(11941, why)", "reply = kernel(K$AI.STATUS, 0)"), "")
     mm = {k: src[k] for k in ("m40", "m41", "m42")}
@@ -194,9 +206,18 @@ MUTANTS = [
     ("home", "the home screen no longer says none", "   actx<13> = 'none' ", "   actx<14> = 'none' "),
     ("verb", "the ai verb is not screened", "   call $tk_aiwall('request', question, why)\n   if why # '' then", "   why = ''\n   if why # '' then"),
 ]
+M_S97 = len(MUTANTS)            # 3 Nov 26: the first mutant of the sitting (the dictionary form, the follow-up), for --selftest --from=M_S97
+MUTANTS += [
+    ("dform", "the dictionary form does not say where the item is", "   actx<13> = ai.org\n", "   actx<13> = 'none'\n"),
+    ("dform", "the dictionary form lets a caller with no origin through", "   if ai.org = '' then ai.org = 'unknown'", "   if ai.org = '' then ai.org = 'none'"),
+    ("ide", "the IDE gives the form no origin", "df.new, df.res, ai.org)", "df.new, df.res, '')"),
+    ("ai", "a follow-up's earlier questions are not screened", "      call $tk_aiwall('request', h.q<hi>, why)\n", "      why = ''\n"),
+    ("ai", "a follow-up's refusal does not return", "sysmsg(11941, why)          ;* the same refusal as the typed request's\n         return", "sysmsg(11941, why)          ;* the same refusal as the typed request's"),
+    ("ai", "a follow-up is kept for any app", "      if ai.fapp = app and ai.fwho = @who and", "      if ai.fwho = @who and"),
+]
 
 
-def selftest():
+def selftest(first=0):
     src = load()
     tc = calls_of(src)
     if any(not ok for _, ok, _ in checks(src, tc)):
@@ -204,7 +225,7 @@ def selftest():
         return 2
     holes = 0
     print("--- self-test: each mutation must be CAUGHT and match its text once ---")
-    for fk, name, old, new in MUTANTS:
+    for fk, name, old, new in MUTANTS[first:]:
         n = src[fk].count(old)
         if n != 1:
             print("  [FAIL] %s: the text matches %d times in %s, not once" % (name, n, fk))
@@ -225,7 +246,7 @@ def selftest():
     caught = [x.split(" ")[0] for x, ok, _ in checks(src, t3) if not ok]
     print("  [%s] another program takes the catalogue name%s" % ("pass" if caught else "FAIL", ": caught by " + ", ".join(caught) if caught else ": NOT CAUGHT"))
     holes += 0 if caught else 1
-    total = len(MUTANTS) + 2
+    total = len(MUTANTS[first:]) + 2
     print("\n%d of %d mutants caught, %d missed" % (total - holes, total, holes))
     return 1 if holes else 0
 
@@ -236,7 +257,8 @@ def main():
         print("test-aiwall-units: CANNOT RUN - not readable: %s" % missing, file=sys.stderr)
         return 2
     if "--selftest" in sys.argv[1:]:
-        return selftest()
+        first = next((int(a.split("=", 1)[1]) for a in sys.argv[1:] if a.startswith("--from=")), 0)
+        return selftest(first)
     src = load()
     rows = checks(src, calls_of(src))
     bad = report(rows)
