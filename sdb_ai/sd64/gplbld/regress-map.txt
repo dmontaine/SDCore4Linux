@@ -856,7 +856,9 @@ sdsys/gpl.bp/shared_ref      : shared @core
 sdsys/gpl.bp/edit_msg        : shared editgates
 sdsys/gpl.bp/listshared      : shared
 sdsys/gpl.bp/delacc          : shared gates tool-accounts @system
-sdsys/gpl.bp/spview          : spview shared editgates @core
+sdsys/gpl.bp/spview          : spview shared editgates eofkeys @core
+# 2 Nov 26: !PICK, sp.view's pick list; its end of input is a row of eofkeys
+sdsys/gpl.bp/pick            : spview eofkeys @core
 sdsys/gpl.bp/*               : @core
 
 # ---------------------------------------------------------------------------------------------------------------------------
@@ -941,6 +943,9 @@ sdsys/messages/1196[0-2]     : home2 menus
 sdsys/messages/11579         : gates tool-accounts       # create.account's failed join (S.103); the other master-file messages went with S.96 M6
 sdsys/messages/1197[7-9]     : gates tool-accounts
 sdsys/messages/11980         : gates
+sdsys/messages/11981         : tool-entries              # 2 Nov 26: tool.entries refuses E N D C B for an account whose group this session does not hold (relog)
+sdsys/messages/11982         : gates                     # 2 Nov 26: set.sdsys's failed group lookup (was 10081)
+sdsys/messages/11976         : gates                     # 2 Nov 26: set.sdsys's register group that is not a valid name (was 10081)
 sdsys/messages/*             : none
 sdsys/changelog              : none
 sdsys/licence*               : none

@@ -24,10 +24,23 @@
 #   sdu_bob    lists sdsys          -> never touched
 #   sdu_carol  does not, the helper refuses the join   -> counted, named in the WARNING, the walk goes on, the marker is NOT written
 #   sdu_dave   root,dave            -> joined, repaired
-#   sdu_eve    lists "sdsys2"       -> not sdsys: JOINED (a whole name, not a prefix), no account directory: no group-write
+#   sdu_eve    lists "sdsys2"       -> not sdsys: JOINED (a whole name, not a prefix), no account directory: no group-write (named as "does not exist" since 2 Nov 26)
 #   sdu_fred   lists "xsdsys"       -> not sdsys: JOINED, repaired
 #   sdg_team   a group account's group, lists sdsys   -> NEVER touched (sdsys owns the files of a group account)
 #   sdusers    lists sdsys          -> never touched (not an account's group)
+# alice, carol, dave, eve and fred (and, adversarially, a record named sdg_ops) are in the fixture register ($T/sdsys/accounts/<name>: line 1 the path, line 3 the group), each at user_accounts/<name>.
+#
+# SCENARIO E (2 Nov 26, PROJECT_STATUS (95) follow-ups 2 and 3: only REGISTERED accounts' groups are joined, the modes are repaired at the REGISTERED path, and
+# sd-elevate group-write is never handed a path outside the places it accepts):
+#   sdu_gus   no register record                         -> left alone, never joined; named in ONE line
+#   sdu_hal   a record whose line 3 is another group     -> left alone, never joined; named in the same line
+#   sdu_ivy   registered at $T/elsewhere/ivy (a directory that exists)   -> joined; NOT handed to group-write; named as not repaired, with why
+#   sdu_jan   registered at user_accounts/janet          -> joined; group-write on .../janet, NOT on .../jan (which exists too)
+#   sdu_kim   registered at user_accounts/kim/           -> joined; group-write on .../kim (the trailing / taken off)
+#   sdu_lou   registered at user_accounts/x/lou (nested, exists) -> joined; not repaired, named
+#   sdu_max   registered with an empty path              -> joined; not repaired, named ("has no path")
+#   sdu_ned   registered at user_accounts/ned, which does not exist -> joined; not repaired, named ("does not exist") - it used to be skipped without a word
+#   no join failed, so the marker IS written: the four not repaired could not be repaired by running the installer again.
 #
 # NOT MEASURED HERE, and said so: that sd-elevate really puts a user in a group (test-sd-elevate.py measures its rules; the real change was witness-masters.sh's, retired 2 Nov 26 with the master files: a VM witness of it is owed); that the
 # marker is where a kept install keeps it, which is the position of /home/sd in a delete that keeps the accounts (the VM); that sudo works.
@@ -63,7 +76,8 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant join-failure-aborts           "$F s/sdsys-join \"\\\$group\" 2>&1) || rc=\\\$?/sdsys-join \"\$group\" 2>\\&1)/"
   mutant no-group-write                "$F s#out=\$(sudo /usr/local/sbin/sd-elevate group-write \"\$dir\" 2>&1) || rc=\$?#out=\"sd-elevate: group-write: \"#"
   mutant group-write-unjudged          "$F s#0:\\*\"sd-elevate: group-write: \"\\*) ;;#*) ;;#"
-  mutant group-write-without-a-dir     "$F s/^                if \[ -d \"\$dir\" \]; then\$/                if true; then/"
+  mutant group-write-without-a-dir     "$F s/^                if \[ -n \"\$dir\" \]; then\$/                if true; then/"
+  mutant absent-dir-said-nothing       "$F s/^                if \[ -n \"\$dir\" \] && \[ ! -d \"\$dir\" \]; then\$/                if false; then/"
   mutant warning-never                 "$F s/^    if \[ \"\\\$n_fail\" -gt 0 \]; then\$/    if false; then/"
   mutant marker-after-a-failure        "$F { /^        return 0\$/{x;s/^/x/;/^xx/{x;d;};x;}; }"
   mutant marker-never-written          "$F { /^    sudo touch \"\\\$marker\"\$/d; }"
@@ -73,7 +87,15 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant function-never-called         's/^sdsys_groups_default "\$ACCT_PATH\/\\$sdsys.access"$/true/'
   mutant marker-in-the-sdsys-directory 's/^sdsys_groups_default "\$ACCT_PATH\/\\$sdsys.access"/sdsys_groups_default "$sdsysdir\/\\$sdsys.access"/'
   mutant called-after-the-register     '/^sdsys_groups_default "\$ACCT_PATH\/\\$sdsys.access"$/d;/^echo "account register: /a sdsys_groups_default "$ACCT_PATH/\\$sdsys.access"'
-  mutant the-old-question-is-back      's/^printf "%b\\n" "\$NC"$/read -r -p "Keep the sdsys user in the groups? (y\/N) " sdsys_ans; printf "%b\\n" "$NC"/'
+  mutant joins-unregistered            "$F s/^        if \[ \"\$rgroup\" != \"\$group\" \]; then\$/        if false; then/"
+  mutant wrong-register-line           "$F s/sed -n '3p' \"\$reg\"/sed -n '2p' \"\$reg\"/"
+  mutant dir-from-the-name             "$F s#^                dir=\"\\\${dir%/}\"\$#                dir=\"/home/sd/user_accounts/\${name}\"#"
+  mutant nested-path-handed-over       "$F s|case \"\\\${dir#/home/sd/\\*_accounts/}\" in|case \"x\" in|"
+  mutant outside-path-handed-over      "$F s/^                        dir=\"\"\$/                        :/"
+  mutant unowned-said-nothing          "$F s/^        echo \"  Left alone, no registered.*\$/        :/"
+  mutant outside-warning-never         "$F s/^    if \[ -n \"\$outside\" \]; then\$/    if false; then/"
+  mutant outside-holds-the-marker      "$F s/^    if \[ \"\\\$n_fail\" -gt 0 \]; then\$/    if [ \"\$n_fail\" -gt 0 ] || [ -n \"\$outside\" ]; then/"
+  mutant the-old-question-is-back     's/^printf "%b\\n" "\$NC"$/read -r -p "Keep the sdsys user in the groups? (y\/N) " sdsys_ans; printf "%b\\n" "$NC"/'
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$caught" -eq "$total" ] && [ "$missed" -eq 0 ]
   exit $?
@@ -129,12 +151,30 @@ chmod +x "$T/bin/sd-elevate"
 # ---- the fixture ---------------------------------------------------------------------------------------------------------
 MARKER="$T/home/sd/\$sdsys.access"
 GROUPS_MAIN='sdusers:x:100:root,sdsys,alice,bob\nsdu_alice:x:2001:alice\nsdu_bob:x:2002:bob,sdsys\nsdu_carol:x:2003:carol\nsdu_dave:x:2004:root,dave\nsdu_eve:x:2005:eve,sdsys2\nsdu_fred:x:2006:xsdsys\nsdg_team:x:2007:sdsys,root\nsdg_ops:x:2008:root\n'
-build() {   # build SCENARIO: main | clean | allin | empty
-  rm -rf "$T/home" "$T/etc" "$T/calls.log" "$T/chown.log" "$T"/stub-*
-  mkdir -p "$T/home/sd/user_accounts" "$T/etc"
+regrec() {   # regrec NAME PATH GROUP - a register record as CREATE.ACCOUNT writes it: line 1 the path, line 2 the description, line 3 the group
+  printf '%s\n\n%s\n' "$2" "$3" > "$T/sdsys/accounts/$1"
+}
+build() {   # build SCENARIO: main | clean | allin | empty | reg
+  rm -rf "$T/home" "$T/etc" "$T/sdsys" "$T/elsewhere" "$T/calls.log" "$T/chown.log" "$T"/stub-*
+  mkdir -p "$T/home/sd/user_accounts" "$T/etc" "$T/sdsys/accounts"
   : > "$T/calls.log"; : > "$T/chown.log"
   for a in alice carol dave fred; do mkdir -p "$T/home/sd/user_accounts/$a"; done
+  for a in alice carol dave eve fred; do regrec "$a" "$T/home/sd/user_accounts/$a" "sdu_$a"; done
+  # adversarial: a record NAMED after a group account's group, which says it owns that group.  Only the awk filter (sdu_ groups only) keeps sdg_ops out of the walk;
+  # without this record the register lookup would hide a mutant of that filter (counts-group-accounts).
+  regrec sdg_ops "$T/home/sd/group_accounts/ops" sdg_ops
   case "$1" in
+    reg)
+      printf 'sdusers:x:100:root,sdsys\nsdu_gus:x:2010:gus\nsdu_hal:x:2011:hal\nsdu_ivy:x:2012:ivy\nsdu_jan:x:2013:jan\nsdu_kim:x:2014:kim\nsdu_lou:x:2015:lou\nsdu_max:x:2016:max\nsdu_ned:x:2017:ned\n' > "$T/etc/group"
+      mkdir -p "$T/elsewhere/ivy" "$T/home/sd/user_accounts/janet" "$T/home/sd/user_accounts/jan" "$T/home/sd/user_accounts/kim" "$T/home/sd/user_accounts/x/lou"
+      regrec hal "$T/home/sd/user_accounts/hal" sdu_other
+      regrec ivy "$T/elsewhere/ivy" sdu_ivy
+      regrec jan "$T/home/sd/user_accounts/janet" sdu_jan
+      regrec kim "$T/home/sd/user_accounts/kim/" sdu_kim
+      regrec lou "$T/home/sd/user_accounts/x/lou" sdu_lou
+      regrec max "" sdu_max
+      regrec ned "$T/home/sd/user_accounts/ned" sdu_ned      # registered inside user_accounts, but the directory is not there
+      ;;
     empty) : > "$T/etc/group" ;;
     main)  printf "$GROUPS_MAIN" > "$T/etc/group"; printf '%s\n' "sdu_carol" > "$T/stub-join-fail" ;;
     clean) printf "$GROUPS_MAIN" > "$T/etc/group" ;;
@@ -145,6 +185,7 @@ HARNESS='
       eval "$OPTS"
       eval "$IFSL"
       RED=; NC=
+      sdsysdir="$T/sdsys"
       sudo() { "$@"; }
       getent() { if [ "$1" = group ]; then if [ -n "${2:-}" ]; then grep -m1 "^$2:" "$T/etc/group" || return 2; else cat "$T/etc/group"; fi; else return 2; fi; }
       chown() { { printf "chown"; printf " %s" "$@"; echo; } >> "$T/chown.log"; }     # not "$*": under the installer'"'"'s IFS that joins with a newline
@@ -185,8 +226,8 @@ row "A7 the groups that were not joined are as they were (carol, the group accou
 echo "--- B: no failure: the marker"
 build clean
 OUTB=$(run_fn)
-row "B1 every group joined, no WARNING, the marker is written (a LATER sdsys-off stands), handed to sdsys:sdusers, mode 644, and it says where" \
-    "$(ok "$([ -e "$MARKER" ] && [ "$(marker_mode)" = 644 ] && grep -q "^chown sdsys:sdusers $MARKER\$" "$T/chown.log" && ! printf '%s' "$OUTB" | grep -q WARNING && printf '%s' "$OUTB" | grep -q 'put in the group of 5 of 5 account(s)' && printf '%s' "$OUTB" | grep -q 'Recorded in' && printf '%s' "$OUTB" | grep -q '^AFTER rc=0$' && echo yes)")" "$OUTB / mode=$(marker_mode) / $(cat "$T/chown.log")"
+row "B1 every group joined, no 'not right yet' WARNING (only eve's absent directory named, 2 Nov 26), the marker is written (a LATER sdsys-off stands), handed to sdsys:sdusers, mode 644, and it says where" \
+    "$(ok "$([ -e "$MARKER" ] && [ "$(marker_mode)" = 644 ] && grep -q "^chown sdsys:sdusers $MARKER\$" "$T/chown.log" && ! printf '%s' "$OUTB" | grep -q 'not right yet' && [ "$(printf '%s\n' "$OUTB" | grep 'WARNING' | grep -c -v 'does not exist: eve$')" = 0 ] && printf '%s' "$OUTB" | grep -q 'put in the group of 5 of 5 account(s)' && printf '%s' "$OUTB" | grep -q 'Recorded in' && printf '%s' "$OUTB" | grep -q '^AFTER rc=0$' && echo yes)")" "$OUTB / mode=$(marker_mode) / $(cat "$T/chown.log")"
 OUTB2=$(run_fn)
 row "B2 a second run with the marker present does NOTHING (no call, no change): an administrator's sdsys-off after the first run is not undone" \
     "$(ok "$(n=$(calls | wc -l); [ "$n" -eq 9 ] && printf '%s' "$OUTB2" | grep -q 'settled at an earlier install' && printf '%s' "$OUTB2" | grep -q '^AFTER rc=0$' && echo yes)")" "calls=$(calls | wc -l) $OUTB2"
@@ -220,8 +261,31 @@ row "D3 a group-write that exits 0 and says nothing (fred) is not 'repaired' eit
 row "D4 three failures: the WARNING counts them, names the three groups, and there is no marker" \
     "$(ok "$(printf '%s' "$OUTD" | grep -q 'WARNING: 3 account(s) are not right yet: sdu_alice sdu_dave sdu_fred' && [ ! -e "$MARKER" ] && echo yes)")" "$OUTD"
 
+echo "--- E: the register decides (only registered accounts, at their registered path; group-write never handed a path it would not accept)"
+build reg
+OUTE=$(run_fn)
+printf '%s\n' "$OUTE" | sed -e 's/^/      /'
+row "E1 only the groups of REGISTERED accounts are joined: ivy jan kim lou max ned, in that order, each once; gus (no record) and hal (its record names another group) never, and their groups are as they were" \
+    "$(ok "$([ "$(calls | grep '^sdsys-join' | tr '\n' ' ')" = 'sdsys-join sdu_ivy sdsys-join sdu_jan sdsys-join sdu_kim sdsys-join sdu_lou sdsys-join sdu_max sdsys-join sdu_ned ' ] && [ "$(no_call_with 'sdu_gus')" = yes ] && [ "$(no_call_with 'sdu_hal')" = yes ] && [ "$(members sdu_gus)" = gus ] && [ "$(members sdu_hal)" = hal ] && echo yes)")" "$(calls)"
+row "E2 the groups no registered account owns are named in ONE line, and only there" \
+    "$(ok "$([ "$(printf '%s\n' "$OUTE" | grep -c 'sdu_gus')" = 1 ] && [ "$(printf '%s\n' "$OUTE" | grep -c 'sdu_hal')" = 1 ] && printf '%s\n' "$OUTE" | grep -q -x '  Left alone, no registered SD account owns them: sdu_gus sdu_hal' && echo yes)")" "$OUTE"
+row "E3 group-write is called on the REGISTERED paths that are directly inside user_accounts: .../janet (not .../jan, which exists) and .../kim (trailing / taken off); nothing else" \
+    "$(ok "$([ "$(calls | grep '^group-write' | tr '\n' ' ')" = "group-write $D/janet group-write $D/kim " ] && echo yes)")" "$(calls)"
+row "E4 ivy (outside), lou (nested), max (no path) and ned (a path that does not exist) are joined, NOT handed to group-write, each named as not repaired with why, and listed in a WARNING" \
+    "$(ok "$([ "$(no_call_with "group-write $T/elsewhere")" = yes ] && [ "$(no_call_with "group-write $D/x")" = yes ] && [ "$(no_call_with "group-write $D/ned")" = yes ] \
+            && printf '%s\n' "$OUTE" | grep -q "the modes of account ivy were not repaired: its registered path '$T/elsewhere/ivy' is not directly inside" \
+            && printf '%s\n' "$OUTE" | grep -q "the modes of account lou were not repaired: its registered path '$D/x/lou' is not directly inside" \
+            && printf '%s\n' "$OUTE" | grep -q "the modes of account max were not repaired: its register record has no path (line 1)" \
+            && printf '%s\n' "$OUTE" | grep -q "the modes of account ned were not repaired: its registered path '$D/ned' does not exist" \
+            && printf '%s\n' "$OUTE" | grep -q -F 'WARNING: the modes of these account(s) were not repaired - registered outside the account directories, with no path, or at a path that does not exist: ivy lou max ned' \
+            && [ "$(members sdu_ivy)" = ivy,sdsys ] && [ "$(members sdu_max)" = max,sdsys ] && echo yes)")" "$OUTE"
+row "E5 no join failed: 6 of 6, no 'not right yet' WARNING, the marker IS written (running again could not repair a path that is outside), AFTER rc=0" \
+    "$(ok "$(printf '%s' "$OUTE" | grep -q 'put in the group of 6 of 6 account(s)' && ! printf '%s' "$OUTE" | grep -q 'not right yet' && [ -e "$MARKER" ] && printf '%s' "$OUTE" | grep -q '^AFTER rc=0$' && echo yes)")" "$OUTE / marker=$([ -e "$MARKER" ] && echo yes || echo no)"
+
 # ---- static ----------------------------------------------------------------------------------------------------------------------
 echo "--- S: static"
+row "S6 the account directory comes from the register (\${sdsysdir}/accounts, line 1), never from the group's name; and sd-elevate is not touched by this change (the function never builds a path from the group)" \
+    "$(ok "$(printf '%s\n' "$FUNC" | grep -q -F 'register="${sdsysdir}/accounts"' && printf '%s\n' "$FUNC" | grep -q -F "dir=\$(sudo sed -n '1p' \"\$reg\"" && ! printf '%s\n' "$FUNC" | grep -v '^ *#' | grep -q -E 'user_accounts/\$\{(group|name)' && echo yes)")" ""
 row "S1 the function calls sd-elevate with TWO verbs only, sdsys-join and group-write, by their full path; never sdsys-leave" \
     "$(ok "$(printf '%s\n' "$FUNC" | grep -o 'sbin/sd-elevate [a-z-]*' | sort -u | tr '\n' ' ' | grep -q -x -F 'sbin/sd-elevate group-write sbin/sd-elevate sdsys-join ' && echo yes)")" "$(printf '%s\n' "$FUNC" | grep -o 'sbin/sd-elevate [a-z-]*' | sort -u | tr '\n' ' ')"
 row "S2 the function asks nobody anything (no read), and the installer has no question about the sdsys user's groups any more" \

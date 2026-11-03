@@ -19,6 +19,9 @@
 * 
 *
 * START-HISTORY:
+* 2 Nov 26 dm Follow-ups (4) and (5) of PROJECT_STATUS entry (95): 11977 / 11978 no longer speak of master edits (the S.67 copies are retired) but of what sdsys-on / sdsys-off do, the
+*           sdsys user's group access to the account; set.sdsys says a group lookup it could not make with its own 11982 (account, group, status), not 10081, which is about remote access;
+*           and a register group that is not a valid name with 11976 (the account only: the bad value is not echoed to the terminal).
 * 28 Oct 26 dm S.88 plan 2.9 (D2; owner's answer to Q2: "Build it, ship it off"): RECOVERY-ON / RECOVERY-OFF, whether the account's editors keep a recovery copy of unsaved text
 *           (register field 19, ACC$RECOVERY; off as delivered), through os.set like PINS-ON.  A USER account only: a group or other account is refused with 11771 (the copy is
 *           kept in the account's directory, which every member of a group account can rename entries in).  Slot RC; 11770 is the line os.set prints; the audit line is os.set's.
@@ -1320,7 +1323,7 @@ set.sdsys:
    sdsys.group = group.name
    if not(valid_os_name(sdsys.group)) then
       @system.return.code = -ER$FAILED
-      crt sysmsg(10081, acc.name, 2)  ;* Unable to change remote access for %1, status: %2
+      crt sysmsg(11976, acc.name)  ;* Account %1: the account register does not name a valid group for it; nothing was changed (the bad name is not echoed)
       return
    end
 
@@ -1328,7 +1331,7 @@ set.sdsys:
    sdsys.stat = status()
    if sdsys.stat # 0 then
       @system.return.code = -ER$FAILED
-      crt sysmsg(10081, acc.name, sdsys.stat)
+      crt sysmsg(11982, acc.name, sdsys.group, sdsys.stat)
       return
    end
    if not(sdsys.want) and not(has.sdsys) then

@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 2 Nov 26 dm  S.102 stage 5 (the docs review): a damaged file whose name is not a job name is said to be removed by root by hand (rm /etc/sdcore/jobs.d/<file>);
+*              the page used to advise set.job delete, which refuses such a name.  The help record now points at the Administrator page 23-scheduled-jobs.
 * 2 Nov 26 dm  New (S.102 stage 1, account jobs only: the batch gate's list; the schedules themselves are a later stage).  Made from tool_viewers.
 * 2 Nov 26 dm  S.102 stage 4, the administrator's half: a second view, Jobs (J; A goes back), lists the jobs the root helper holds with their next and last runs,
 *              and N, C, D and R make, change, delete and start one through SET.JOB, each after a box that shows the whole sentence and the schedule in words.
@@ -27,7 +29,7 @@
 *     Commands   the paragraphs and sentences of the selected account's VOC (the only kinds the gate lets run), each allowed or not, and any listed name that is
 *                no longer one
 *
-*   JOBS (J): the administrator's scheduled jobs, each a systemd timer only root can set that runs one of four fixed commands as the administrator: its name, its
+*   JOBS (J): the administrator's scheduled jobs, each a systemd timer only root can set that runs one of two fixed commands as the administrator: its name, its
 *   schedule, its command, when it runs next and how its last run ended (SET.JOB's list, which asks the root helper and systemd).  N makes a job, C changes the
 *   selected one's command or schedule, D deletes it (its name is typed in the box) and R starts it now.  A damaged definition is shown so; it can be changed or
 *   deleted, not started.
@@ -900,7 +902,7 @@ job.change:
    jname = fname
    gosub name.ok
    if not(nok) then                                             ;* a damaged file whose name is not a job name: the form could never pass
-      msg = 'This name cannot be sent from the page: at the prompt, set.job delete ' : fname
+      msg = 'This file is not a job: neither the page nor set.job can remove it; as root, rm /etc/sdcore/jobs.d/' : fname
       return
    end
    spec = 'Change the job ' : fname : @fm : '&Next' : @fm : ''
@@ -1001,7 +1003,7 @@ job.delete:
    jname = fname
    gosub name.ok
    if not(nok) then
-      msg = 'This name cannot be sent from the page: at the prompt, set.job delete ' : fname
+      msg = 'This file is not a job: neither the page nor set.job can remove it; as root, rm /etc/sdcore/jobs.d/' : fname
       return
    end
    sent = 'set.job delete ' : fname

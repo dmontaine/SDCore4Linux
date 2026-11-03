@@ -3,6 +3,7 @@
 
   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolentries-units.py
   python3 .../test-toolentries-units.py --selftest
+  python3 .../test-toolentries-units.py --selftest --from=86      (only the mutants from M_RELOG on: the relog state, 2 Nov 26)
 
 No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it could not run.  Written 3 Nov 26.
 
@@ -139,7 +140,7 @@ def checks(src, voc, helps):
     ck("T7 SDSYS is not in the list; the gates are the register's voc-edit, dict-edit, bp-edit in the order v d b (each 'YES' after trim and upcase); the sdsys column asks is_grp_member only for a group",
        "if id # 'sdsys' then" in txt
        and re.search(r"gset = \(if upcase\(trim\(arec<ACC\$VOC\.EDIT>\)\) = 'YES' then 'v' else '-'\)\s+gset := \(if upcase\(trim\(arec<ACC\$DICT\.EDIT>\)\) = 'YES' then 'd' else '-'\)\s+gset := \(if upcase\(trim\(arec<ACC\$BP\.EDIT>\)\) = 'YES' then 'b' else '-'\)", txt)
-       and "if trim(arec<ACC$GROUP>) # '' then" in txt and "is_grp_member('sdsys', trim(arec<ACC$GROUP>))" in txt)
+       and "sg.grp = trim(arec<ACC$GROUP>)\ngosub sdsys.state\nins sdw before asds<lp>" in txt and "if sg.grp # '' then" in txt and "if is_grp_member('sdsys', sg.grp) then" in txt)
     ck("T8 both long reads are cut at MAXV (the entries and the hits) and the page says so", txt.count(">= MAXV") == 4 and txt.count("only the first ' : MAXV : ' are listed") == 3)       # collect.account's three reads and the find; the entries' foot, the hits' foot and the status line of a find
     ck("T9 the filter and the find ask with screen ask, take the AI's argument as the default, and each clears the other",
        txt.count("screen ask ptxt width 40 value ai.arg") == 2 and txt.count("value ai.arg") == 2 and "filt = trim(ft)\nfnd = ''" in txt and "fnd = trim(ft)\nfilt = ''" in txt)
@@ -306,7 +307,38 @@ def checks(src, voc, helps):
        bool(suites) and "tool-entries" in suites.group(1).split() and re.search(r"^sdsys/gpl\.bp/tool_entries\s*:\s*tool-entries", rmap, re.M) is not None
        and re.search(r"^sdsys/voc_template/tool\.entries\s*:\s*tool-entries", rmap, re.M) is not None and re.search(r"^sdsys/helptext/tool\.entries\.\*\s*:.*tool-entries", rmap, re.M) is not None
        and re.search(r"^gplbld/sandbox-tool-entries\.py\s*:\s*@self", rmap, re.M) is not None)
+    # 2 Nov 26, follow-up (1) of PROJECT_STATUS entry (95): the SDSYS column said "yes" from /etc/group alone, so a session of SDSYS older than the account's join was told it could
+    # write and its edit then failed with error 3018 (a process keeps the groups it started with)
+    st = "\n".join(s for n, s in section(lines, "sdsys.state:", "draw.accounts:"))
+    ck("T23 THE SDSYS COLUMN IS THE RUNNING SESSION'S: sdsys.state (the one place) answers n/a with no group, no when /etc/group does not list the sdsys user in it, yes only when it does "
+       "AND the kernel says this session holds the group (K$IN.GROUP: the process's own groups), and relog when /etc/group lists it but the session does not hold it; read.all and "
+       "edit.record both ask it",
+       ordered(st, "sdw = 'n/a'", "if sg.grp # '' then", "sdw = 'no'", "if is_grp_member('sdsys', sg.grp) then", "sdw = 'yes'", "if not(kernel(K$IN.GROUP, sg.grp)) then sdw = 'relog'", "return")
+       and txt.count("gosub sdsys.state") == 2 and "is_grp_member(" not in txt.replace(st, "").replace("deffun is_grp_member(user,group) calling '!is_grp_member'", ""),
+       st[:120])
+    ck("T23b ...E, N, D, C and B refuse an account in the relog state with 11981 (the account and its group), from the register edit.record has just read again, AFTER the pointer rule "
+       "and BEFORE the pointer is written, a record is deleted or anything is run; the refusal returns",
+       ordered(er, "read arec from acc.f, ea else arec = ''", "if not(kernel(K$PATH.IN, ap.f : @fm : tp)) then", "sg.grp = trim(arec<ACC$GROUP>)\ngosub sdsys.state\nif sdw = 'relog' then\n"
+               "msg = sysmsg(11981, ea, sg.grp)\nreturn\nend", "write qrec on svf, qn on error", "gosub delete.reached", "gosub compile.reached", "gosub debug.reached", "gosub hand.over")
+       and er.count("sysmsg(11981") == 1 and txt.count("sysmsg(11981") == 1
+       and all("emode = '%s'\ngosub edit.record" % m in txt for m in ("edit", "delete", "compile", "debug")), "")
+    m11981 = helps.get("__msg11981__", "")
+    ck("T23c ...the page says what relog means and what to do (draw.effect), 11981 is one line with %1 and %2 that says to sign on again as SDSYS, and the accounts help explains relog",
+       "case asds<ac> = 'relog'" in txt and "Sign on again as SDSYS; until then E, N, D, C and B refuse it." in src
+       and m11981.count("\n") == 1 and "%1" in m11981 and "%2" in m11981 and "Sign on again as SDSYS" in m11981 and "%s" not in m11981
+       and "relog" in helps.get("tool.entries.accounts", "") and re.search(r"^sdsys/messages/11981\s*:.*tool-entries", rmap, re.M) is not None, repr(m11981[:60]))
     return out
+
+
+def ordered(text, *needles):
+    """Every needle found, each after the one before it."""
+    pos = -1
+    for nd in needles:
+        p = text.find(nd, pos + 1)
+        if p < 0:
+            return False
+        pos = p
+    return True
 
 
 def load():
@@ -322,6 +354,8 @@ def load():
         helps["__ide__"] = f.read()          # M4: the IDE's half of the hand-over (T19); a mutant of kind "ide" changes it
     with open(OPSH, encoding="utf-8", errors="replace") as f:
         helps["__opsh__"] = f.read()         # M4: the kernel's resolve_name refuses a link that leads nowhere (T19); kind "opsh"
+    p = os.path.join(SD64, "sdsys", "messages", "11981")
+    helps["__msg11981__"] = open(p, encoding="utf-8").read() if os.path.isfile(p) else ""     # T23c: the refusal of an account in the relog state; kind "msg"
     for key, path in (("__cproc__", CPROC), ("__basic__", BASIC), ("__opdio1__", OPDIO1)):
         with open(path, encoding="utf-8", errors="replace") as f:
             helps[key] = f.read()            # M6a T22: run.in keeps /idebrk/, the compiler and the IDE name the source by FL$PATH, the kernel makes it real; kinds "cproc" "basic" "opdio1"
@@ -421,7 +455,20 @@ MUTANTS = [
     ("the IDE debugs a master tab here in SDSYS", "ide", "execute 'run.in ' : in.acct : ' debug ' : in.file : ' ' : c.id trapping aborts", "execute 'debug ' : in.file : ' ' : c.id trapping aborts"),
     ("the voc record is in newvoc form", "voc", "V\nCA\n$tool_entries\n", "V\nCA\n$tool_jobs\n"),
     ("a help record loses its document", "help", "19-the-master-files", "00-nothing"),
+    # ---- 2 Nov 26, follow-up (1) of entry (95), the relog state: THE FIRST NEW MUTANT IS M_RELOG (--selftest --from=86)
+    ("the column trusts /etc/group alone again", "src", "         if not(kernel(K$IN.GROUP, sg.grp)) then sdw = 'relog'\n", ""),
+    ("the session's groups are asked of /etc/group", "src", "if not(kernel(K$IN.GROUP, sg.grp)) then sdw = 'relog'", "if not(is_grp_member(@logname, sg.grp)) then sdw = 'relog'"),
+    ("relog is shown as yes", "src", "then sdw = 'relog'", "then sdw = 'yes'"),
+    ("E goes on for an account in the relog state", "src", "   if sdw = 'relog' then\n      msg = sysmsg(11981, ea, sg.grp)", "   if 0 then\n      msg = sysmsg(11981, ea, sg.grp)"),
+    ("the refusal does not return", "src", "      msg = sysmsg(11981, ea, sg.grp)    ;* SDSYS cannot write inside %1 from this session: the sdsys user joined its group %2 after the session began. Sign on again as SDSYS\n      return\n",
+     "      msg = sysmsg(11981, ea, sg.grp)    ;* SDSYS cannot write inside %1 from this session: the sdsys user joined its group %2 after the session began. Sign on again as SDSYS\n"),
+    ("the refusal is asked of the old list", "src", "   sg.grp = trim(arec<ACC$GROUP>)\n   gosub sdsys.state\n   if sdw = 'relog' then", "   sdw = asds<ac>\n   if sdw = 'relog' then"),
+    ("read.all keeps its own test", "src", "                  sg.grp = trim(arec<ACC$GROUP>)\n                  gosub sdsys.state\n", "                  sdw = 'n/a'\n                  if is_grp_member('sdsys', trim(arec<ACC$GROUP>)) then sdw = 'yes'\n"),
+    ("the page does not say what relog means", "src", "         case asds<ac> = 'relog'\n", "         case 0\n"),
+    ("11981 does not name the group", "msg", "%2", "the group"),
+    ("the help does not explain relog", "help", "It says relog when", "It says when"),
 ]
+M_RELOG = 86
 
 
 def selftest():
@@ -430,7 +477,15 @@ def selftest():
         print("selftest: the unmutated source already fails; fix that first")
         return 1
     missed = 0
-    for name, kind, old, new in MUTANTS:
+    start = 0                                    # --from=N runs the mutants from number N on (M_RELOG is the first of 2 Nov 26)
+    for a in sys.argv[1:]:
+        if a.startswith("--from="):
+            start = int(a.split("=", 1)[1])
+    ran = 0
+    for i, (name, kind, old, new) in enumerate(MUTANTS):
+        if i < start:
+            continue
+        ran += 1
         s, v, h = src, voc, dict(helps)
         if kind == "src":
             if s.count(old) != 1:
@@ -447,6 +502,12 @@ def selftest():
                 missed += 1
                 continue
             h[key] = h[key].replace(old, new)
+        elif kind == "msg":
+            if h["__msg11981__"].count(old) != 1:
+                print("  [CANNOT] %-48s the text occurs %d times in 11981" % (name, h["__msg11981__"].count(old)))
+                missed += 1
+                continue
+            h["__msg11981__"] = h["__msg11981__"].replace(old, new)
         else:
             h["tool.entries.accounts"] = h["tool.entries.accounts"].replace(old, new)
         caught = [n for n, ok, _ in checks(s, v, h) if not ok]
@@ -455,8 +516,8 @@ def selftest():
         else:
             print("  [MISSED] %-48s" % name)
             missed += 1
-    print("selftest: %d mutants, %d missed or not applied" % (len(MUTANTS), missed))
-    return 0 if missed == 0 else 1
+    print("selftest: %d mutants run (from %d of %d), %d missed or not applied" % (ran, start, len(MUTANTS), missed))
+    return 0 if missed == 0 and ran > 0 else 1
 
 
 def main():

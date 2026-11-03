@@ -18,6 +18,12 @@
 * 
 * 
 * START-HISTORY:
+* 2 Nov 26 dm   The end of the input leaves SP.VIEW (PROJECT_STATUS (95) follow-up 7).  On a pipe that has ended, or a terminal that has gone,
+*               KEYCODE() gives the null key; the command loop took it for an unknown key and rang the bell for ever, at full CPU.  get.key
+*               now sets input.ended when the null key is not a timeout (with no terminal every null key is the end, since no timeout is
+*               asked; on one it is a null key whose STATUS() is not ER$TIMEOUT), show.item leaves its loop and the pick list loop stops;
+*               the spool form's three INPUTs return when STATUS() is ER$EOF (they asked again for ever: an ended INPUT gives '', which
+*               is neither Y nor N, so nothing was ever printed - the form simply never ended).  !PICK ends the same way.  No real key does anything new.  Rows: sandbox-eofkeys.py, the sp.view rows.
 * 2 Nov 26 dm   S.99 (the owner, 2 Nov 26: "sp.view yes ed no"): the record view has the full-screen pages' look on a window of at least 140 by 43
 *               (a bigger one is used whole): the bar on row 0 with the file and the record at the left and "sp.view  user@account" at the right,
 *               the record's lines from row 1, then the prompt line, the status line (reverse), a border and a function-key row made from a key
@@ -86,6 +92,7 @@ $define LAY.DEPTH     43         ;* ... and this deep, or bigger (used whole); b
    data.row = 0
    last.w = -1
    last.h = -1
+   input.ended = @false          ;* 2 Nov 26: the input has ended (get.key), so no key will ever come
 
    call @parser(PARSER$RESET, 0, @sentence, 0)
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword) ;* Verb
@@ -228,6 +235,7 @@ $define LAY.DEPTH     43         ;* ... and this deep, or bigger (used whole); b
       until item.name = ''
          item.deleted = @false
          gosub show.item
+         if input.ended then exit          ;* 2 Nov 26: nobody is there to choose another
 
          if item.deleted then
             * Take it off the list, and keep the cursor about where it was
@@ -328,7 +336,8 @@ show.item:
       display @(len(data.prompt), prompt.line) :
 
       gosub get.key
-      if k.relaid then                     ;* the window changed: laid out again for its new size, and drawn
+      if input.ended then exit             ;* 2 Nov 26: the input has ended (a pipe used up, a terminal gone)
+      if k.relaid then                    ;* the window changed: laid out again for its new size, and drawn
          gosub show.data.page
          continue
       end
@@ -419,10 +428,13 @@ set.look:
 
 * GET.KEY  -  One key, in c.  On a terminal the window is looked at once a second while the key is awaited: when its size has changed, the
 *   page is laid out for the new size (set.look), k.relaid is true and c is null, and the caller draws the page again.
+*   2 Nov 26: input.ended is set when the input has ended - a null key that is not a timeout.  With no terminal no timeout is asked, so
+*   every null key is the end; on a terminal it is a null key whose STATUS() is not ER$TIMEOUT.
 get.key:
    k.relaid = @false
    if not(look.able) then
       c = keycode()
+      if c = '' then input.ended = @true
       return
    end
    loop
@@ -437,6 +449,7 @@ get.key:
          return
       end
    repeat
+   if c = '' then input.ended = @true      ;* (k.st is not ER$TIMEOUT: the loop above ends on a null key only then)
    return
 
 * THEME.IN / THEME.OUT  -  The screen library's theme while a record is shown, chosen as the debugger chooses its own: the theme in force is
@@ -606,6 +619,7 @@ spool.item:
 
       loop
          input @(col,4) : lptr, 3_:
+         if status() = ER$EOF then return      ;* 2 Nov 26: the input has ended; nothing is printed
       until lptr matches '1-3N' and lptr <= LPTR$HIGH.PRINT.UNIT
          inputerr sysmsg(2053) ;* Invalid printer number
       repeat
@@ -617,6 +631,7 @@ spool.item:
       loop
          s = oconv(numbering, 'B')
          input @(col,14) : s, 1_:
+         if status() = ER$EOF then return      ;* 2 Nov 26: as above
          s = iconv(s, 'B')
       until status() = 0
          inputerr sysmsg(7142) ;* Y or N only
@@ -629,6 +644,7 @@ spool.item:
       display @(0,16) : sysmsg(7143) :  ;* 'Ok to print (Y/N/Q/?)? '
       loop
          input @(23,16) : yn, 1_:
+         if status() = ER$EOF then return      ;* 2 Nov 26: the input has ended; leave the form (it used to ask again for ever)
          yn = upcase(yn)
          if yn = 'Q' then return
       until yn = 'Y' or yn = 'N'

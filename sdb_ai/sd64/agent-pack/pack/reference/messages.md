@@ -3343,10 +3343,10 @@ cited by: `tk_help`
 cited by: `basic`
 
 ### msg:11246
-> kind=message tier=reference since=- src=sdsys/messages/11246:1#b5cfba21
+> kind=message tier=reference since=- src=sdsys/messages/11246:1#76895a2d
 
 ```
-%1 is not a job: a job is backup-all, check-masters, sync-masters or update-accounts
+%1 is not a job: a job is backup-all or update-accounts
 ```
 
 cited by: `set_job`
@@ -5957,10 +5957,10 @@ Cannot be imported into the text: %1 %2 holds value marks, subvalue marks, text 
 cited by: `ide`
 
 ### msg:11579
-> kind=message tier=reference since=- src=sdsys/messages/11579:1#57318c51
+> kind=message tier=reference since=- src=sdsys/messages/11579:1#a0f0410e
 
 ```
-Master edits cannot be written into account %1 until the sdsys user is in the group %2. From the sdsys login run  sudo /usr/local/sbin/sd-elevate sdsys-join %2  then sign on again
+Account %1: the sdsys user is not in its group %2, so SDSYS cannot write inside it from outside SD; the account is made all the same. modify.account %1 sdsys-on puts it in; then sign on again as SDSYS
 ```
 
 cited by: `create_account`
@@ -9275,20 +9275,29 @@ Type the name of a file
 
 cited by: `ide_name`
 
-### msg:11977
-> kind=message tier=reference since=- src=sdsys/messages/11977:1#5dd5f305
+### msg:11976
+> kind=message tier=reference since=- src=sdsys/messages/11976:1#00a7425e
 
 ```
-Account %1: master edits are on. The sdsys user is in the group of the account and can write everything that group may write. Sign on again as SDSYS; a session already running does not have it
+Account %1: the account register does not name a valid group for it; nothing was changed
+```
+
+cited by: `modifya`
+
+### msg:11977
+> kind=message tier=reference since=- src=sdsys/messages/11977:1#c8c57b26
+
+```
+Account %1: sdsys-on done. The sdsys user is in the group of the account, so SDSYS can write everything that group may write. Sign on again as SDSYS; a session already running does not have it
 ```
 
 cited by: `modifya`
 
 ### msg:11978
-> kind=message tier=reference since=- src=sdsys/messages/11978:1#0fb12834
+> kind=message tier=reference since=- src=sdsys/messages/11978:1#7ed822f5
 
 ```
-Account %1: master edits are off. The sdsys user is no longer in the group of the account. A session of SDSYS that is already running keeps its groups until it ends
+Account %1: sdsys-off done. The sdsys user is no longer in the group of the account, so SDSYS cannot write inside it from outside SD. A session of SDSYS that is already running keeps its groups until it ends
 ```
 
 cited by: `modifya`
@@ -9307,6 +9316,24 @@ cited by: `modifya`
 
 ```
 Account %1: %2 failed, status %3
+```
+
+cited by: `modifya`
+
+### msg:11981
+> kind=message tier=reference since=- src=sdsys/messages/11981:1#615eed7d
+
+```
+SDSYS cannot write inside %1 from this session: the sdsys user joined its group %2 after the session began. Sign on again as SDSYS
+```
+
+cited by: `tool_entries`
+
+### msg:11982
+> kind=message tier=reference since=- src=sdsys/messages/11982:1#0b380483
+
+```
+Account %1: the members of the group %2 could not be read (status %3); nothing was changed
 ```
 
 cited by: `modifya`

@@ -316,13 +316,13 @@ open_installer_gates() {   # open_installer_gates LINUX_USER ACCOUNT REGISTER_RE
         printf "%b\n" "$NC"
     fi
 }
-# The last gate of a y, sdsys-on: the sdsys user in the account's own group (master edits of its files).  Given after sdsys_groups_default (a repair now: S.103 puts the sdsys user in every account's group), and read back from the group.
+# The last gate of a y, sdsys-on: the sdsys user in the account's own group (SDSYS writes inside its files; the master-file copies are retired, S.96 M6).  Given after sdsys_groups_default (a repair now: S.103 puts the sdsys user in every account's group), and read back from the group.
 open_installer_sdsys() {   # open_installer_sdsys LINUX_USER ACCOUNT
     local user="$1" acct="$2" sdsys_members
     sudo bin/sd -internal modify.account "$acct" sdsys-on < /dev/null || true
     sdsys_members=$(getent group "sdu_${acct}" 2>/dev/null | cut -d: -f4) || sdsys_members=""
     case ",${sdsys_members}," in
-        *",sdsys,"*) echo "  The sdsys user is in the group of ${user}'s account (sdsys-on), as you asked: master edits reach its files." ;;
+        *",sdsys,"*) echo "  The sdsys user is in the group of ${user}'s account (sdsys-on), as you asked: SDSYS can write inside its files." ;;
         *)
             printf "%b\n" "$RED"
             echo "WARNING: the sdsys user is NOT in the group sdu_${acct}: sdsys-on was not carried out."
@@ -415,16 +415,44 @@ repair_group_account_files() {   # repair_group_account_files ACCOUNTS_ROOT
 #            across installs.  It is a different file from the marker of the F6 ruling ($groups.ruled, left alone), so that an install made under that ruling gets this
 #            default once too.  The marker is in /home/sd, outside the sdsys directory on purpose: deletesdcore.sh removes the sdsys directory on every cycle, and a
 #            marker there would be lost by a delete that keeps the accounts.  /home/sd is kept with the accounts and removed with them.
-#            Nothing here stops the install: a group the helper could not join, or an account whose modes it could not repair, is reported with the command that
-#            repairs it, and the marker is NOT written then, so running this installer again tries again.  It prints what it did.  test-install-sdsysgroups.sh runs this.
-sdsys_groups_default() {   # sdsys_groups_default MARKER
-    local marker="$1" missing group dir out rc n_all=0 n_done=0 n_fail=0 failed=""
+#            Nothing here stops the install: a group the helper could not join, or an account whose modes the helper refused to repair, is reported with the command
+#            that repairs it, and the marker is NOT written then, so running this installer again tries again (since 2 Nov 26 an account whose registered place
+#            the helper is never given - outside the account directories, no path, a path that does not exist - is reported but does not hold back the marker: below).  It prints what it did.  test-install-sdsysgroups.sh runs this.
+# 2 Nov 26   PROJECT_STATUS (95) follow-ups 2 and 3, TIGHTER.  (2) Only the group of a REGISTERED user account is joined: an sdu_ group is walked only when the register
+#            (${sdsysdir}/accounts/<name>, read with sudo, the way shared_preflight reads it) holds a record for <name> whose line 3 is that same group.  An sdu_ group
+#            that no registered account owns is left alone - it may be an account deleted with its group kept, or a group someone else made - and the install says so in
+#            one line; that is not a failure and does not hold back the marker.  (3) The modes are repaired at the account's REGISTERED path (line 1), not at
+#            /home/sd/user_accounts/<name>.  sd-elevate group-write is NOT widened: it accepts only a canonical directory directly inside /home/sd/user_accounts or
+#            /home/sd/group_accounts.  A registered path outside those is not handed to it at all; the account is named as not repaired and why, in a WARNING of its own,
+#            and the marker is still written (running the installer again could not repair it: the place is the reason).  A path inside them is handed over as
+#            the register gives it (only a trailing / taken off), so the helper's own refusal of a link or a non-canonical path is what the install reports.
+#            After the review the same day: a record with no path, and a path inside them that does not exist, are named with their own reason (the second used to be
+#            skipped without a word), in the same WARNING.
+sdsys_groups_default() {   # sdsys_groups_default MARKER    (the register is ${sdsysdir}/accounts, as shared_preflight reads it)
+    local marker="$1" register="${sdsysdir}/accounts" missing group name reg rgroup dir out rc n_all=0 n_done=0 n_fail=0 failed="" unowned="" outside=""
     if [ -e "$marker" ]; then
         echo "  The place of the sdsys user in the account groups was settled at an earlier install ($marker); nothing is changed."
         return 0
     fi
     missing=$(getent group 2>/dev/null | awk -F: '$1 ~ /^sdu_./ && ("," $4 ",") !~ /,sdsys,/ { print $1 }' | LC_ALL=C sort || true)
     for group in $missing; do
+        name="${group#sdu_}"
+        rgroup=""
+        dir=""
+        case "$name" in
+            */*|.|..|'') ;;
+            *)
+                reg="$register/$name"
+                if sudo test -f "$reg"; then
+                    rgroup=$(sudo sed -n '3p' "$reg" 2>/dev/null || true)
+                    dir=$(sudo sed -n '1p' "$reg" 2>/dev/null || true)
+                fi
+                ;;
+        esac
+        if [ "$rgroup" != "$group" ]; then
+            unowned="${unowned} ${group}"
+            continue
+        fi
         n_all=$((n_all+1))
         rc=0
         out=$(sudo /usr/local/sbin/sd-elevate sdsys-join "$group" 2>&1) || rc=$?
@@ -433,8 +461,31 @@ sdsys_groups_default() {   # sdsys_groups_default MARKER
             0:*"usermod -aG ${group} -- sdsys"*)
                 n_done=$((n_done+1))
                 echo "  the sdsys user is now in the group ${group}"
-                dir="/home/sd/user_accounts/${group#sdu_}"
-                if [ -d "$dir" ]; then
+                dir="${dir%/}"
+                case "$dir" in
+                    /home/sd/user_accounts/?*|/home/sd/group_accounts/?*)
+                        case "${dir#/home/sd/*_accounts/}" in
+                            */*) outside="${outside} ${name}"
+                                 echo "  the modes of account ${name} were not repaired: its registered path '${dir}' is not directly inside /home/sd/user_accounts or /home/sd/group_accounts, the only places sd-elevate group-write repairs"
+                                 dir="" ;;
+                        esac
+                        ;;
+                    '')
+                        outside="${outside} ${name}"
+                        echo "  the modes of account ${name} were not repaired: its register record has no path (line 1)"
+                        ;;
+                    *)
+                        outside="${outside} ${name}"
+                        echo "  the modes of account ${name} were not repaired: its registered path '${dir}' is not directly inside /home/sd/user_accounts or /home/sd/group_accounts, the only places sd-elevate group-write repairs"
+                        dir=""
+                        ;;
+                esac
+                if [ -n "$dir" ] && [ ! -d "$dir" ]; then
+                    outside="${outside} ${name}"
+                    echo "  the modes of account ${name} were not repaired: its registered path '${dir}' does not exist"
+                    dir=""
+                fi
+                if [ -n "$dir" ]; then
                     rc=0
                     out=$(sudo /usr/local/sbin/sd-elevate group-write "$dir" 2>&1) || rc=$?
                     case "$rc:$out" in
@@ -458,6 +509,15 @@ sdsys_groups_default() {   # sdsys_groups_default MARKER
         echo "  The sdsys user is in the group of every user account already."
     else
         echo "  The sdsys user was put in the group of ${n_done} of ${n_all} account(s)."
+    fi
+    if [ -n "$unowned" ]; then
+        echo "  Left alone, no registered SD account owns them:${unowned}"
+    fi
+    if [ -n "$outside" ]; then
+        printf "%b\n" "$RED"
+        echo "WARNING: the modes of these account(s) were not repaired - registered outside the account directories, with no path, or at a path that does not exist:${outside}"
+        echo "  The sdsys user is in their groups; make their VOC and dictionaries writable by the account's group by hand (chmod g+rw, setgid on the directories)."
+        printf "%b\n" "$NC"
     fi
     if [ "$n_fail" -gt 0 ]; then
         printf "%b\n" "$RED"

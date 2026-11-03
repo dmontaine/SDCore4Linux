@@ -2420,7 +2420,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 11
+"words": 16
 },
 "basic:stmt:dparse": {
 "kind": "basic.statement",
@@ -7509,7 +7509,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 18
+"words": 16
 },
 "msg:11247": {
 "kind": "message",
@@ -9644,7 +9644,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 35
+"words": 44
 },
 "msg:11597": {
 "kind": "message",
@@ -12250,19 +12250,26 @@
 "tier": "reference",
 "words": 11
 },
+"msg:11976": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 21
+},
 "msg:11977": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 42
+"words": 41
 },
 "msg:11978": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 37
+"words": 44
 },
 "msg:11979": {
 "kind": "message",
@@ -12277,6 +12284,20 @@
 "since": "-",
 "tier": "reference",
 "words": 11
+},
+"msg:11981": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 29
+},
+"msg:11982": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 22
 },
 "msg:11983": {
 "kind": "message",
@@ -27914,7 +27935,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 62
+"words": 69
 },
 "tcl:set.config": {
 "kind": "tcl.verb",
@@ -27949,7 +27970,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 83
+"words": 88
 },
 "tcl:set.mode": {
 "kind": "tcl.verb",

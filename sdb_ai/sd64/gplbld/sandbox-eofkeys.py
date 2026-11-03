@@ -29,6 +29,11 @@
 #               --mutant=NAME added (nine mutants of the ED change, each killed by its own rows, below).  A session that is still there at
 #               the deadline is hung up before it is killed (the first mutant runs killed ~60 sessions and the next ones could not start:
 #               "User limit reached").
+# 2 Nov 26 dm   SP.VIEW added (PROJECT_STATUS (95) follow-up 7: it rang the bell for ever when its input ended, KEYCODE()'s null key taken
+#               for an unknown key): the record, the pick list, the pick list then a record, and the spool form (nothing printed), each
+#               on a pipe that then ends.  --mutant=spview takes the fix out of the sandbox's spview and pick and runs the sp.view rows
+#               only.  put_ed became put_prog.  The pages' look of sp.view (a terminal) is not reached on a pipe: its branch is
+#               test-spview-units.py V23.
 # END-HISTORY
 #
 # THE INSTRUMENT.  Each session is the sandbox's `sd` started as a child with a PIPE for its input: the lines, then the pipe is CLOSED, so
@@ -230,15 +235,16 @@ def internal(box, *cmds):
     return ANSI.sub("", p.stdout + p.stderr)
 
 
-def put_ed(box, changes):
-    """Make the sandbox's `ed` the tree's copy of it with these changes (none: as it was built) and compile it, unless it already is that."""
-    orig = os.path.join(box, "tree", "sdsys", "gpl.bp", "ed")
-    path = os.path.join(box, "sys", "gpl.bp", "ed")
+def put_prog(box, name, changes):
+    """Make the sandbox's gpl.bp program `name` the tree's copy of it with these changes (none: as it was built) and compile it, unless it
+    already is that.  (2 Nov 26: was put_ed, for `ed` only; sp.view's mutant changes `spview` and `pick`.)"""
+    orig = os.path.join(box, "tree", "sdsys", "gpl.bp", name)
+    path = os.path.join(box, "sys", "gpl.bp", name)
     with open(orig, encoding="utf-8", errors="replace") as fh:
         text = fh.read()
     for old, new in changes:
         if text.count(old) != 1:
-            bail("a change to ED is in %d places in the sandbox's copy of ed, not 1:\n%s" % (text.count(old), old))
+            bail("a change to %s is in %d places in the sandbox's copy of it, not 1:\n%s" % (name, text.count(old), old))
         text = text.replace(old, new)
     with open(path, encoding="utf-8", errors="replace") as fh:
         now = fh.read()
@@ -246,10 +252,76 @@ def put_ed(box, changes):
         return False
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(text)
-    out = internal(box, "BASIC gpl.bp ed")
+    out = internal(box, "BASIC gpl.bp " + name)
     if "Compiled 1 program(s) with no errors" not in out:
-        bail("ed did not compile after the change:\n" + out[-600:])
+        bail("%s did not compile after the change:\n%s" % (name, out[-600:]))
     return True
+
+
+def put_ed(box, changes):
+    return put_prog(box, "ed", changes)
+
+
+# 2 Nov 26 (PROJECT_STATUS (95) follow-up 7): SP.VIEW rang the bell for ever when its input ended.  The fix, taken out of the sandbox's
+# copies of `spview` and `pick` by --mutant=spview (each old text occurs once); the rows that must FAIL are the sp.view rows that end.
+SPV_FIX = {
+    "spview": [("      c = keycode()\n      if c = '' then input.ended = @true\n", "      c = keycode()\n"),
+               ("   repeat\n   if c = '' then input.ended = @true", "   repeat\n   if 0 then input.ended = @true"),
+               ("      if input.ended then exit             ;*", "      if 0 then exit             ;*"),
+               ("         if input.ended then exit          ;*", "         if 0 then exit          ;*"),
+               ("         if status() = ER$EOF then return      ;* 2 Nov 26: the input has ended; nothing is printed",
+                "         null ;* 2 Nov 26: the input has ended; nothing is printed"),
+               ("         if status() = ER$EOF then return      ;* 2 Nov 26: as above", "         null ;* 2 Nov 26: as above"),
+               ("         if status() = ER$EOF then return      ;* 2 Nov 26: the input has ended; leave the form (it used to ask again for ever)",
+                "         null ;* 2 Nov 26: the input has ended; leave the form (it used to ask again for ever)")],
+    "pick": [("      if c = '' then                 ;* 2 Nov 26", "      if 0 then                 ;* 2 Nov 26")],
+}
+SPV_MUTANTS = {
+    "spview": "every sp.view row that judges 'it ended by itself' (the record, the pick list, the pick list then a record, the spool form); "
+              "the 'started' rows and the setup stay green",
+}
+
+# The record SP.VIEW is run on, written by a program (not by the thing under test).
+PROGV = (
+    "   open 'zzeof' to f else\n      crt 'VOPENFAILED'\n      stop\n   end\n"
+    "   write 'alpha':@fm:'beta':@fm:'gamma' to f, 'sv1%(t)s'\n"
+    "   crt 'VWROTE'\n"
+    "end\n")
+
+
+def spview_rows(box, sysd, made):
+    """SP.VIEW on a pipe: the record view, the pick list, the pick list then a record, and the spool form, each with the input then ended.
+    With no terminal SP.VIEW keeps its old layout; the pages' look (a terminal of 140 by 43) waits with keycode(1), and its end is the same
+    null key whose STATUS() is not ER$TIMEOUT - a pseudo-terminal's end is a hang-up, which ends SD anyway, so that branch is held as text
+    by test-spview-units.py V23 and not here."""
+    R = rid
+    say("\n  SP.VIEW: KEYCODE() gives the null key when the input has ended (it rang the bell for ever)")
+    with open(os.path.join(sysd, "bp", "zzeofv"), "w") as fh:
+        fh.write(PROGV % {"t": TAG})
+    made.append("zzeofv")
+    _e, _w, _c, text = pipe_session(box, "svsetup", "basic bp zzeofv", "run bp zzeofv")
+    row("SP.VIEW setup: the record sv1 of three lines was written", "Compiled 1 program(s) with no errors" in text and "VWROTE" in text
+        and "VOPENFAILED" not in text, repr(text[-300:]))
+
+    say("\n  SP.VIEW, a record named")
+    res = pipe_session(box, "sv1", "sp.view zzeof " + R("sv1"))
+    judge("SP.VIEW, a record", r"%s \(3 lines, top = 1" % re.escape(R("sv1")), res)
+
+    say("\n  SP.VIEW, the pick list (no record named)")
+    res = pipe_session(box, "sv2", "sp.view zzeof")
+    judge("SP.VIEW, the pick list", r"zzeof\s+\d+ items", res)
+
+    say("\n  SP.VIEW, the pick list, Return (the first record is shown), then the input ends")
+    res = pipe_session(box, "sv3", "sp.view zzeof", "")
+    judge("SP.VIEW, the pick list then a record", r"lines, top = 1, left = 1", res)
+
+    say("\n  SP.VIEW, S (the spool form), then the input ends: nothing is printed")
+    res = pipe_session(box, "sv4", "sp.view zzeof " + R("sv1"), "s")
+    judge("SP.VIEW, the spool form", r"Preparing to print zzeof", res)
+    # The real evidence is res[0], the session ended: the old form asked again for ever and never printed either, so the "Printing item" half is a guard
+    # for a future change, not a second check (review, 2 Nov 26).
+    row("SP.VIEW, the spool form: the session ended (and nothing was printed)",
+        res[0] and "Printing item" not in res[3], "ended=%s %s" % (res[0], repr(res[3][-300:])))
 
 
 def record_state(box, label, rec):
@@ -413,8 +485,8 @@ def main():
     if len(args) != 1:
         bail("usage: sandbox-eofkeys.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
-    if mutant is not None and mutant not in MUTANTS:
-        bail("no mutant %s (%s)" % (mutant, ", ".join(MUTANTS)))
+    if mutant is not None and mutant not in MUTANTS and mutant not in SPV_MUTANTS:
+        bail("no mutant %s (%s)" % (mutant, ", ".join(list(MUTANTS) + list(SPV_MUTANTS))))
     box = os.path.abspath(args[0])
     sysd = os.path.join(box, "sys")
     say("sandbox-eofkeys: sandbox %s" % box)
@@ -431,11 +503,19 @@ def main():
     if not cedverb.install(box):
         bail("the VOC record ced could not be written; the CONTROL row that types ced would be red for that reason")
 
-    # `ed` as the tree has it (a mutant run changes it in the sandbox's copy; the next run puts it back before it starts)
-    if mutant is None:
-        if put_ed(box, []):
-            say("sandbox-eofkeys: the sandbox's ed was put back as the tree has it")
-    else:
+    # `ed`, `spview` and `pick` as the tree has them (a mutant run changes them in the sandbox's copy; the next run puts them back first)
+    for nm in ("ed", "spview", "pick"):
+        if mutant in SPV_MUTANTS and nm in SPV_FIX:
+            continue
+        if put_prog(box, nm, []):
+            say("sandbox-eofkeys: the sandbox's %s was put back as the tree has it" % nm)
+    if mutant in SPV_MUTANTS:
+        for nm, changes in SPV_FIX.items():
+            put_prog(box, nm, changes)
+        TAG = "_" + mutant
+        say("sandbox-eofkeys: MUTANT %s: the end-of-input fix taken out of the sandbox's spview and pick; sp.view rows only, record ids "
+            "tagged %s.\n  Rows that must FAIL: %s" % (mutant, TAG, SPV_MUTANTS[mutant]))
+    elif mutant is not None:
         changes, rows = MUTANTS[mutant]
         put_ed(box, changes)
         TAG = "_" + mutant
@@ -447,7 +527,10 @@ def main():
         if mutant is not None:
             ended, wall, cpu, text = pipe_session(box, "setup", "create.file zzeof")
             row("setup: the file zzeof was made", "Created DATA part as zzeof" in text and ended, repr(text[-300:]))
-            ed_rows(box, sysd, made)
+            if mutant in SPV_MUTANTS:
+                spview_rows(box, sysd, made)
+            else:
+                ed_rows(box, sysd, made)
             say("\nsandbox-eofkeys: mutant %s: %d rows passed, %d failed (the failed ones are the rows it breaks)" % (mutant, passed, failed))
             return 0
         with open(os.path.join(sysd, "bp", "zzeofu"), "w") as fh:
@@ -489,6 +572,8 @@ def main():
             "ended=%s wall=%.1f cpu=%.1f" % (ended, wall, cpu))
 
         ed_rows(box, sysd, made)
+
+        spview_rows(box, sysd, made)
 
         say("\n  CONTROL: CED already ended at the end of input")
         res = pipe_session(box, "ced", "ced zzeof c1")

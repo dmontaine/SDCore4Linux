@@ -13,6 +13,8 @@ status line, the border and the key row at the bottom; otherwise the layout it a
 The key row is made from a key table by $tk_keys and $tk_fkeys, and every key on it is one the command loop acts on.  The theme is the
 site's (SCREENTHEME) while a record is shown and is given back when it is left.  The old layout's display statements are unchanged.  The
 app name is given to $sl_put as a copy ($sl_put cuts the text it is given: SED's tag was emptied that way, 1 Nov 26).
+2 Nov 26, V23-V25: the end of the input leaves SP.VIEW and its pick list (!PICK, `sdsys/gpl.bp/pick`, also read here) - a null key that
+is not a timeout - and the spool form's INPUTs return on ER$EOF; it rang the bell for ever.  The runtime rows are sandbox-eofkeys.py's.
 
 ***WHAT THIS IS NOT.***  It cannot say the screen is right: that is sandbox-spview.py (a pseudo-terminal, the cells' colours, every old
 key, a resize).  --selftest mutates the source and requires each mutant to be caught; --from=N runs the mutants from number N on.
@@ -25,6 +27,8 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 GPL = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys", "gpl.bp"))
 SPVIEW = os.path.join(GPL, "spview")
+PICK = os.path.join(GPL, "pick")          # 2 Nov 26: !PICK, SP.VIEW's pick list (V25)
+PICK_SRC = None
 
 # each key of the key row and what in the command loop acts on it: a K$ name in map.keys, or the letter of a case c = line
 ROW_KEYS = {"pgdn": "K$PAGE.DOWN", "pgup": "K$PAGE.UP", "home": "K$HOME", "end": "K$END", "left": "K$LEFT", "right": "K$RIGHT",
@@ -154,6 +158,20 @@ def checks(src):
        0 <= at(di, "edit.p = fileinfo(data.f, FL$PATH)") < at(di, "if not(kernel(K$EDIT.OK, edit.p)) then")
        < at(di, "prompt.text = edit_msg(edit.kind)") < at(di, "gosub say.note") < at(di, "return")
        < at(di, "prompt.text = sysmsg(11105, item.name, file.name)") < at(di, "gosub say.prompt") < at(di, "readvu dummy from data.f"))
+    # 2 Nov 26 (PROJECT_STATUS (95) follow-up 7): the end of the input leaves SP.VIEW; it rang the bell for ever at full CPU.
+    ck("V23 the end of the input: get.key sets input.ended on a null key with no terminal (no timeout asked) and after the timeout loop on one; "
+       "show.item leaves its loop before anything else looks at the key, and the pick list loop stops",
+       re.search(r"c = keycode\(\)\n\s*if c = '' then input\.ended = @true\n\s*return", gk)
+       and 0 <= at(gk, "until c # '' or k.st # ER$TIMEOUT") < at(gk, "repeat\n   if c = '' then input.ended = @true")
+       and 0 <= at(si, "gosub get.key") < at(si, "if input.ended then exit") < at(si, "if k.relaid then")
+       and re.search(r"gosub show\.item\n\s*if input\.ended then exit", c)
+       and "input.ended = @false" in c)
+    sp = routine(c, "spool.item") or ""
+    ck("V24 the spool form's three INPUTs return when STATUS() is ER$EOF, before their value is used (an ended input used to loop there for ever)",
+       len(re.findall(r"input @\([^)]*\) : (lptr|s|yn), \d_:\n\s*if status\(\) = ER\$EOF then return", sp)) == 3)
+    pk = code(PICK_SRC) if PICK_SRC is not None else ""
+    ck("V25 !PICK, SP.VIEW's pick list, ends with a null item on a null key (the end of the input), before map.keys",
+       re.search(r"c = upcase\(keycode\(\)\)\n\s*if c = '' then\n\s*item = ''\n[^\n]*\n\s*exit\n\s*end\n\s*gosub map\.keys", pk))
     return out
 
 
@@ -192,6 +210,16 @@ def mutants(src):
     sub("a toolkit app opened", "   kr.ctx = ''\n", "   kr.ctx = ''\n   call $tk_open('sp.view', '', kr.ctx, kr.err)\n")
     sub("the lines not cut to the window", "            s = s[pan, view.w]\n", "")
     sub("X deletes without asking the edit gate", "   if not(kernel(K$EDIT.OK, edit.p)) then", "   if 0 then")      # 2 Nov 26: V22
+    # 2 Nov 26: the end of the input (V23 - V25)
+    sub("no terminal: the null key not taken for the end", "      c = keycode()\n      if c = '' then input.ended = @true\n", "      c = keycode()\n")
+    sub("a terminal: the null key after the loop not taken for the end", "   repeat\n   if c = '' then input.ended = @true", "   repeat\n   if 0 then input.ended = @true")
+    sub("show.item does not leave on the end", "      if input.ended then exit             ;*", "      if 0 then exit             ;*")
+    sub("the pick list loop goes on after the end", "         if input.ended then exit          ;*", "         if 0 then exit          ;*")
+    sub("an ended input loops at Ok to print", "         if status() = ER$EOF then return      ;* 2 Nov 26: the input has ended; leave the form (it used to ask again for ever)", "         null ;* 2 Nov 26: the input has ended; leave the form (it used to ask again for ever)")
+    if PICK_SRC is not None:
+        old = "      if c = '' then                 ;* 2 Nov 26"
+        res.append(("!PICK rings on at the end of the input", ("pick", PICK_SRC.replace(old, "      if 0 then                 ;* 2 Nov 26"))
+                    if PICK_SRC.count(old) == 1 else None))
     return res
 
 
@@ -200,6 +228,11 @@ def main():
         print("test-spview-units: CANNOT RUN - no %s" % SPVIEW)
         return 2
     src = open(SPVIEW, errors="replace").read()
+    global PICK_SRC
+    if not os.path.isfile(PICK):
+        print("test-spview-units: CANNOT RUN - no %s" % PICK)
+        return 2
+    PICK_SRC = open(PICK, errors="replace").read()
     if "--selftest" in sys.argv:
         frm = 1
         for a in sys.argv[1:]:
@@ -223,7 +256,12 @@ def main():
                 print("  [NOT APPLIED] %d %s" % (k, name))
                 bad += 1
                 continue
-            caught = [n for n, ok, _ in checks(msrc) if not ok]
+            if isinstance(msrc, tuple):           # a mutant of !PICK: the spview source as it is, PICK_SRC mutated for this one
+                keep, PICK_SRC = PICK_SRC, msrc[1]
+                caught = [n for n, ok, _ in checks(src) if not ok]
+                PICK_SRC = keep
+            else:
+                caught = [n for n, ok, _ in checks(msrc) if not ok]
             if caught:
                 print("  [caught] %d %s  (%s)" % (k, name, caught[0][:40]))
             else:

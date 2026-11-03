@@ -141,7 +141,7 @@ def checks(raw):
     ai = re.findall(r"\$tk_keys\('ai', keys, '([a-z]+)'", page)
     ck("P12 the AI line is offered only the pane switch, the output pane and refresh: no job action", sorted(ai) == ["output", "pane", "refresh"], ai)
     hm = raw["help"].split("\n")
-    ck("P13 the page asks for tool.jobs.jobs in the Jobs view and the help record has a title and the page 04-scheduled-jobs", "hkey = 'tool.jobs.jobs'" in page and len(hm) >= 3 and hm[0].strip() and hm[1] == "04-scheduled-jobs", hm[:2])
+    ck("P13 the page asks for tool.jobs.jobs in the Jobs view and the help record has a title and the page 23-scheduled-jobs (the Administrator page, 2 Nov 26)", "hkey = 'tool.jobs.jobs'" in page and len(hm) >= 3 and hm[0].strip() and hm[1] == "23-scheduled-jobs", hm[:2])
     nk = block(page, "name.ok")
     ck("P14 the page's name rule is the helper's: 1 to 32, a letter first, a-z 0-9 and the dash, no dash at the end",
        all(s in nk for s in ("len(jname) < 1 or len(jname) > 32", "index('abcdefghijklmnopqrstuvwxyz', jname[1, 1], 1) = 0", "jname[len(jname), 1] = '-'", "convert('abcdefghijklmnopqrstuvwxyz0123456789-', '', jname)"))
@@ -196,7 +196,7 @@ def checks(raw):
     jcb = block(page, "job.change")
     nm_, fm_ = jcb.find("gosub name.ok"), jcb.find("gosub job.form")
     ck("P15 C refuses a job whose name is not a job name before the form (a damaged file of any name is listed; the form could never pass)",
-       0 <= nm_ < fm_ and re.search(r"if not\(nok\) then[^\n]*\n\s*msg = 'This name cannot be sent from the page: at the prompt, set\.job delete ' : fname\s*\n\s*return", jcb[nm_:fm_]) is not None, (nm_, fm_))
+       0 <= nm_ < fm_ and re.search(r"if not\(nok\) then[^\n]*\n\s*msg = 'This file is not a job: neither the page nor set\.job can remove it; as root, rm /etc/sdcore/jobs\.d/' : fname\s*\n\s*return", jcb[nm_:fm_]) is not None, (nm_, fm_))
     ck("P16 the Command menu's 'Allow or stop allowing' (the change action) belongs to the account view's two panes, not to Jobs",
        re.search(r"\$tk_keys\('add', keys, 'enter', 'change', 'change', 'Accounts' : @sm : 'Commands', 1\)", page) is not None
        and len(re.findall(r"\$tk_keys\('add', keys, '[^']*', '[^']*', 'change',", page)) == 1, "")

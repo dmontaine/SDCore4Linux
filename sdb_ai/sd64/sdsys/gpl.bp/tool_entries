@@ -4,6 +4,10 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 2 Nov 26 dm  The SDSYS column tells the truth for the RUNNING session (follow-up (1) of PROJECT_STATUS entry (95)): it said "yes" from /etc/group alone, so a session of SDSYS that
+*              began before the account's group gained the sdsys user was told it could write and an edit then failed with error 3018.  sdsys.state (the one place) asks the
+*              kernel too (K$IN.GROUP: this process's own groups) and shows "relog" when the sdsys user is in the group and this session does not hold it; edit.record refuses
+*              E, N, D, C and B on such an account with 11981 after the register is read again and before anything is written.  The pointer rule and every check are unchanged.
 * 2 Nov 26 dm  An account whose VOC cannot be opened shows its register path WRAPPED at the box's width (up to six lines): a long path was cut at the edge, so the
 *              account's own name, at its end, was lost (sandbox-tool-entries.py E3 failed under regress.sh's longer sandbox directory).
 * 2 Nov 26 dm  S.96 M6a: D deletes a PROGRAM too, the way it deletes a VOC entry (edit.record, emode 'delete', then delete.reached: the update lock, the id typed, the delete through
@@ -216,11 +220,8 @@ read.all:
                   gset := (if upcase(trim(arec<ACC$DICT.EDIT>)) = 'YES' then 'd' else '-')
                   gset := (if upcase(trim(arec<ACC$BP.EDIT>)) = 'YES' then 'b' else '-')
                   ins gset before agate<lp>
-                  sdw = 'n/a'
-                  if trim(arec<ACC$GROUP>) # '' then
-                     sdw = 'no'
-                     if is_grp_member('sdsys', trim(arec<ACC$GROUP>)) then sdw = 'yes'
-                  end
+                  sg.grp = trim(arec<ACC$GROUP>)
+                  gosub sdsys.state
                   ins sdw before asds<lp>
                   stw = ''
                   if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then stw = 'suspended'
@@ -598,6 +599,21 @@ draw.all:
    gosub draw.help
    return
 
+* The SDSYS column for the account group sg.grp, and the test E, N, D, C and B ask (2 Nov 26).  Out: sdw.  'n/a' when the account has no group in the register; 'no' when /etc/group
+* does not list the sdsys user in it; 'yes' when it does AND this session holds the group; 'relog' when it does but this session does not.  A process keeps the groups it started with,
+* so a session of SDSYS that began before the sdsys user joined the group cannot write inside the account (error 3018) until SDSYS signs on again.  The session's own groups are
+* the kernel's answer (K$IN.GROUP: the process's effective and supplementary groups, compared with the group's number), not a reading of /etc/group.
+sdsys.state:
+   sdw = 'n/a'
+   if sg.grp # '' then
+      sdw = 'no'
+      if is_grp_member('sdsys', sg.grp) then
+         sdw = 'yes'
+         if not(kernel(K$IN.GROUP, sg.grp)) then sdw = 'relog'
+      end
+   end
+   return
+
 draw.accounts:
    tw = a.w - 8
    ex = a.w - 50
@@ -728,7 +744,9 @@ draw.effect:
       lines<-1> = anm<ac> : ': the gates ' : agate<ac> : ' are the right to save a change to its VOC (v, voc-edit), its dictionaries (d, dict-edit) and its programs (b, bp-edit); a dash means the account is locked out of that.  An administrator is not held to them.'
       begin case
          case asds<ac> = 'yes'
-            lines<-1> = "The sdsys user is in the account's group, so SDSYS can write inside its directories from outside SD."
+            lines<-1> = "The sdsys user is in the account's group and this session holds the group, so SDSYS can write inside its directories from outside SD."
+         case asds<ac> = 'relog'
+            lines<-1> = "The sdsys user is in the account's group, but this session of SDSYS began before it joined and does not hold the group: it cannot write inside the account.  Sign on again as SDSYS; until then E, N, D, C and B refuse it."
          case asds<ac> = 'no'
             lines<-1> = "The sdsys user is NOT in the account's group: SDSYS cannot write inside it from outside SD (modify.account " : anm<ac> : ' sdsys-on puts it in).'
          case 1
@@ -1238,6 +1256,14 @@ edit.record:
    gosub check.word
    if not(ok1 and ok2 and okname) then
       msg = 'an account, file or id with a character the page does not handle: work on it in that account (' : (if emode = 'delete' then 'delete' else 'ide') : ')'
+      return
+   end
+   * 2 Nov 26: a session that does not hold the account's group cannot write inside the account (error 3018), so E, N, D, C and B are refused here, from the register just read,
+   * after the pointer rule and before the pointer is written or anything is run.  Only the 'relog' state is refused: the others are as before.
+   sg.grp = trim(arec<ACC$GROUP>)
+   gosub sdsys.state
+   if sdw = 'relog' then
+      msg = sysmsg(11981, ea, sg.grp)    ;* SDSYS cannot write inside %1 from this session: the sdsys user joined its group %2 after the session began. Sign on again as SDSYS
       return
    end
    * The pointer SDSYS's VOC holds for the length of the edit is an F pointer that holds THE PATH JUST CHECKED (review of 3 Nov 26, finding 1): a Q-pointer would send the IDE back to

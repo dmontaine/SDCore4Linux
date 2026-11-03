@@ -617,8 +617,8 @@ def section_k11_k12(p):
     p.key("c", 1.5)
     T = p.text()
     found = "Zbad" in T
-    arow("K11b", "C on a damaged file named Zbad (not a job name) opens no form: the status line names the prompt command set.job delete Zbad, and the helper is asked nothing",
-         found and "set.job delete Zbad" in norm(p.st()) and "Change the job Zbad" not in T and not box_open(T) and calls()[c0:] == [], repr((found, p.st(), calls()[c0:])))
+    arow("K11b", "C on a damaged file named Zbad (not a job name) opens no form: the status line says root removes it (rm /etc/sdcore/jobs.d/Zbad), and the helper is asked nothing",
+         found and "rm /etc/sdcore/jobs.d/Zbad" in norm(p.st()) and "Change the job Zbad" not in T and not box_open(T) and calls()[c0:] == [], repr((found, p.st(), calls()[c0:])))
     if "Change the job Zbad" in T:
         p.key("esc", 1.0)
     os.remove(os.path.join(JOBS, "state", "Zbad.damaged"))

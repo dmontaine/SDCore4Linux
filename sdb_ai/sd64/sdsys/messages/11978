@@ -1,1 +1,1 @@
-Account %1: master edits are off. The sdsys user is no longer in the group of the account. A session of SDSYS that is already running keeps its groups until it ends
+Account %1: sdsys-off done. The sdsys user is no longer in the group of the account, so SDSYS cannot write inside it from outside SD. A session of SDSYS that is already running keeps its groups until it ends

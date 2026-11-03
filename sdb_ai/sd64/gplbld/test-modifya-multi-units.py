@@ -227,11 +227,13 @@ def checks(src, msgs):
     ck("M10c ...and 11790, 11791, 11793 and 11794 are cited by modifya alone (no other program has taken the number), except that createa says 11791 for two start words", not cited, "%s" % cited)
     # ---- 26 Oct 26, F6: the four lines of set.sdsys
     f6 = {n: msgs.get(n) for n in NEW_F6}
-    ck("M15 messages 11977 to 11980 (F6) exist, end in a newline, are one line each and carry their %n: 11977 and 11978 say master edits are on or off and name the sdsys user (11977 also says to sign "
+    ck("M15 messages 11977 to 11980 (F6) exist, end in a newline, are one line each and carry their %n: 11977 and 11978 say sdsys-on or sdsys-off was done (never master edits) and name the sdsys user (11977 also says to sign "
        "on again), 11979 says it is not a user account and that nothing was changed, 11980 has the account, the step that failed and the status",
        all(f6[n] is not None and f6[n].endswith("\n") and f6[n].count("\n") == 1 and "%1" in f6[n] for n in NEW_F6)
-       and "master edits are on" in (f6["11977"] or "") and "sdsys" in (f6["11977"] or "") and "Sign on again" in (f6["11977"] or "")
-       and "master edits are off" in (f6["11978"] or "") and "sdsys" in (f6["11978"] or "")
+       # 2 Nov 26 (follow-up (4) of PROJECT_STATUS entry (95)): the master-file copies are retired, so 11977 / 11978 say which word was done, not "master edits are on / off"
+       and "sdsys-on done" in (f6["11977"] or "") and "sdsys" in (f6["11977"] or "") and "Sign on again" in (f6["11977"] or "")
+       and "sdsys-off done" in (f6["11978"] or "") and "sdsys" in (f6["11978"] or "")
+       and not any("master edit" in (f6[n] or "").lower() for n in NEW_F6)
        and "is not a user account" in (f6["11979"] or "") and "Nothing was changed" in (f6["11979"] or "")
        and all(x in (f6["11980"] or "") for x in ("%1", "%2", "%3")),
        "%s" % {n: (f6[n] or "MISSING")[:50] for n in NEW_F6})
@@ -333,7 +335,7 @@ F6_MUTANTS = [
     ("the register is written", "src", None, "   if sdsys.want then crt sysmsg(11977", "   write acc.rec to acc.f, acc.name\n   if sdsys.want then crt sysmsg(11977"),
     ("a sdsys-on that joined and then failed leaves no audit line", "src", None, "      if sdsys.joined then void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' incomplete account=' : acc.name)\n", ""),
     ("message 11977 forgets to say sign on again", "msg", "11977", "Sign on again as SDSYS", "Remember it"),
-    ("message 11978 says on", "msg", "11978", "master edits are off", "master edits are on"),
+    ("message 11978 says on", "msg", "11978", "sdsys-off done", "sdsys-on done"),
     ("message 11979 forgets that nothing was changed", "msg", "11979", " Nothing was changed", ""),
     ("message 11980 loses the status", "msg", "11980", "status %3", "status"),
     ("message 11980 has a capital command", "msg", "11980", "failed, status", "failed, MODIFY.ACCOUNT status"),

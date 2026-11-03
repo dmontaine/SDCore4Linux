@@ -118,7 +118,7 @@ def load():
     get("sh:installsdcore.sh", os.path.join(ROOT, "installsdcore.sh"))
     get("sh:sd-elevate", os.path.join(HERE, "sd-elevate"))
     get("txt:regress-map.txt", os.path.join(HERE, "regress-map.txt"))
-    for n in (11579, 11977, 11978, 11979, 11980):
+    for n in (11579, 11976, 11977, 11978, 11979, 11980, 11982):
         get("msg:%d" % n, os.path.join(MSGDIR, str(n)))
     p = os.path.join(HERE, "test-install-sdsysgroups.sh")
     srcs["file:test-install-sdsysgroups.sh"] = open(p, encoding="utf-8", errors="replace").read() if os.path.exists(p) else None
@@ -132,19 +132,35 @@ def checks(srcs):
         rows.append((i, bool(ok), detail))
 
     c = {name: code(name, text) for name, text in srcs.items() if isinstance(text, str)}
-    t2 = {n: srcs["msg:%d" % n] for n in (11579, 11977, 11978, 11979, 11980)}
+    t2 = {n: srcs["msg:%d" % n] for n in (11579, 11976, 11977, 11978, 11979, 11980, 11982)}
     md = c["bp:modifya"]
 
     # ---- the messages of modify.account's sdsys-on / sdsys-off and of create.account's join
-    ck("S3b 11977 to 11980 are written for BASIC (%1 and the like, never a %s) and are one line each: 11977 and 11978 say master edits are on or off, 11979 says it is not a user "
-       "account, 11980 has the account, the step and the status; modify.account cites each of them; 11579 (%1 and %2, the verb that repairs it) is cited once, by create_account's join.sdsys",
+    # 2 Nov 26 (follow-up (4) of entry (95)): the master-file copies are retired, so none of these speaks of "master edits" any more; 11977 / 11978 say which word was done and what
+    # it means (the sdsys user's group access to the account), and 11579 names the verb that repairs a failed join (modify.account <name> sdsys-on), never a sudo command to type
+    ck("S3b 11977 to 11980 are written for BASIC (%1 and the like, never a %s) and are one line each: 11977 and 11978 say sdsys-on or sdsys-off was done and what it means for SDSYS, 11979 says it is not a user "
+       "account, 11980 has the account, the step and the status; modify.account cites each of them; 11579 (%1 and %2, the verb that repairs it, no sudo command) is cited once, by "
+       "create_account's join.sdsys; none of them speaks of master edits",
        all(t2.get(n) and t2[n].count("\n") == 1 and "%s" not in t2[n] for n in (11579, 11977, 11978, 11979, 11980))
-       and "%1" in t2[11977] and "master edits are on" in t2[11977] and "master edits are off" in t2[11978] and "%1" in t2[11978]
+       and "%1" in t2[11977] and "sdsys-on done" in t2[11977] and "SDSYS can write" in t2[11977] and "Sign on again" in t2[11977]
+       and "sdsys-off done" in t2[11978] and "SDSYS cannot write" in t2[11978] and "%1" in t2[11978]
        and "is not a user account" in t2[11979] and "%1" in t2[11979] and all(x in t2[11980] for x in ("%1", "%2", "%3"))
-       and "%1" in t2[11579] and "%2" in t2[11579] and "sdsys-join" in t2[11579]
+       and "%1" in t2[11579] and "%2" in t2[11579] and "modify.account %1 sdsys-on" in t2[11579] and "sudo" not in t2[11579] and "sd-elevate" not in t2[11579]
+       and not any("master edit" in (t2.get(n) or "").lower() for n in (11579, 11977, 11978))
        and all(("sysmsg(%d" % n) in md for n in (11977, 11978, 11979, 11980))
        and c["bp:create_account"].count("sysmsg(11579") == 1,
        repr({n: (t2.get(n) or "MISSING")[:40] for n in t2}))
+    # 2 Nov 26 (follow-up (5) of entry (95)): set.sdsys said a group lookup it could not make with 10081, which is about remote access; 11982 is its own, with the group named
+    ss = md[md.find("set.sdsys:"):md.find("sdsys.group.write:")] if "set.sdsys:" in md else ""
+    # The review the same day: a group name the register gives that valid_os_name() refuses was nothing READ; it has 11976, which does not echo the bad value.
+    ck("S3c set.sdsys says a membership it cannot read with 11982 (the account, the GROUP and the status; one line, nothing changed), and a group name it cannot use with 11976"
+       " (the account only: the register's bad value is not echoed); never 10081",
+       ss != "" and ss.count("sysmsg(11982, acc.name, sdsys.group, ") == 1 and ss.count("sysmsg(11976, acc.name)") == 1 and "10081" not in ss
+       and ordered(ss, "if not(valid_os_name(sdsys.group)) then", "sysmsg(11976, acc.name)", "has.sdsys = is_grp_member('sdsys', sdsys.group)", "sdsys.stat = status()",
+                   "sysmsg(11982, acc.name, sdsys.group, sdsys.stat)")
+       and t2.get(11982) is not None and t2[11982].count("\n") == 1 and all(x in t2[11982] for x in ("%1", "%2", "%3", "group", "nothing was changed")) and "%s" not in t2[11982]
+       and t2.get(11976) is not None and t2[11976].count("\n") == 1 and "%1" in t2[11976] and "%2" not in t2[11976] and "nothing was changed" in t2[11976],
+       repr((t2.get(11982) or "MISSING")[:60]) + " / " + repr((t2.get(11976) or "MISSING")[:60]))
 
     # ---- the group write of a new VOC or dictionary (masters_fix_modes until 2 Nov 26; dh_creat.c's acct_group_modes since)
     dc = c["c:dh_creat.c"]
@@ -243,10 +259,10 @@ def mutate(srcs, name, a, b, count=1):
 # (label, source, old, new)
 MUTANTS = [
     # ---- the messages
-    ("11977 forgets to say master edits are on", "msg:11977", "master edits are on", "it is done"),
+    ("11977 forgets to say sdsys-on was done", "msg:11977", "sdsys-on done", "it is done"),
     ("11979 takes a %s", "msg:11979", "%1 is not a user account", "%s is not a user account"),
     ("11980 loses the status", "msg:11980", ", status %3", ""),
-    ("11579 no longer names the verb that repairs it", "msg:11579", "sdsys-join", "usermod"),
+    ("11579 no longer names the verb that repairs it", "msg:11579", "modify.account %1 sdsys-on", "usermod"),
     ("modify.account stops saying it is off", "bp:modifya", "sysmsg(11978", "sysmsg(11977"),
     # ---- the modes of what SD makes
     ("the other bits are added too", "c:dh_creat.c", "(ds.st_mode & 07777) | S_IRWXG | S_ISGID", "(ds.st_mode & 07777) | S_IRWXG | S_ISGID | S_IRWXO"),
@@ -293,7 +309,15 @@ MUTANTS = [
     # ---- 2 Nov 26, the M6 review: S18c and S18d
     ("the OUTER account wins (a shorter match replaces a longer one)", "c:dh_creat.c", "(n <= best))", "(0))"),
     ("no sdsys user means not in the group", "c:dh_creat.c", "if (pw == NULL)\n    return TRUE;", "if (pw == NULL)\n    return FALSE;"),
+    # ---- 2 Nov 26, follow-ups (4) and (5) of entry (95): FIRST NEW MUTANT IS NUMBER 43 (--selftest --from=43)
+    ("11978 speaks of master edits again", "msg:11978", "sdsys-off done", "master edits are off"),
+    ("11579 tells the administrator to type a sudo command", "msg:11579", "modify.account %1 sdsys-on puts it in", "modify.account %1 sdsys-on, or sudo /usr/local/sbin/sd-elevate sdsys-join %2, puts it in"),
+    ("set.sdsys says a failed lookup with 10081 again", "bp:modifya", "crt sysmsg(11982, acc.name, sdsys.group, sdsys.stat)", "crt sysmsg(10081, acc.name, sdsys.stat)"),
+    ("set.sdsys says a bad group name with 10081 again", "bp:modifya", "crt sysmsg(11976, acc.name)", "crt sysmsg(10081, acc.name, 2)"),
+    ("set.sdsys echoes the bad group name", "bp:modifya", "crt sysmsg(11976, acc.name)", "crt sysmsg(11982, acc.name, sdsys.group, 2)"),
+    ("11982 does not name the group", "msg:11982", "the group %2", "the group"),
 ]
+M_FOLLOWUP95 = 43      # the number of the first mutant above (S3b's message rows and S3c)
 
 
 def main():

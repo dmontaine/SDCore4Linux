@@ -1,6 +1,56 @@
 Next release - in progress
 --------------------------
 
+<<<<<<< ours
+2 Nov 26   TOOL.ENTRIES TELLS AN OLD SDSYS SESSION THAT IT CANNOT WRITE AN ACCOUNT, AND THE SDSYS-ON / SDSYS-OFF MESSAGES SAY WHAT THEY MEAN.
+
+             What        - tool.entries' SDSYS column now speaks for the session you are in. It said "yes" whenever the sdsys user was in
+                           the account's group, but a session keeps the groups it started with: a session of SDSYS that began before the
+                           sdsys user joined the group (a new account, or modify.account <name> sdsys-on) cannot write inside the account,
+                           and an edit there failed with error 3018. The column now says "relog" in that case, the page explains it, and
+                           E, N, D, C and B refuse such an account at once with a message that says to sign on again as SDSYS.
+                           The lines modify.account sdsys-on and sdsys-off print, and the line create.account prints when it could not
+                           put the sdsys user in a new account's group, no longer speak of "master edits" (the master-file copies are
+                           gone); they say that SDSYS can, or cannot, write inside the account, and create.account's line names
+                           modify.account <name> sdsys-on as the repair instead of a sudo command to type. sdsys-on and sdsys-off
+                           now say a group they could not look up in a message of their own that names the group; they used a
+                           message about remote access.
+             Why         - The page told an administrator "yes" and the edit then failed; the old wording described a feature that
+                           no longer exists.
+             Does NOT    - Change who may write where: the groups, the pointer rule and every other check of tool.entries are as
+                           before. Signing on again as SDSYS is still what gives a session a group it joined later.
+
+2 Nov 26   THE INSTALLER PUTS THE sdsys USER ONLY IN THE GROUPS OF REGISTERED ACCOUNTS, AND REPAIRS EACH AT ITS REGISTERED PLACE.
+
+             What        - When an install puts the sdsys user in the groups of the user accounts that are already there (once, as the
+                           delivered system has it), it now takes only a group that belongs to an account in SD's account register:
+                           the register must hold a record for the account whose group is that same sdu_ group. An sdu_ group that no
+                           registered account owns - left behind by an account deleted without its group, or made by someone else - is
+                           left alone, and the install names such groups in one line. The account's VOC and dictionaries are then made
+                           writable by its group in the directory the register gives for the account, not in /home/sd/user_accounts/
+                           followed by the account's name. An account registered anywhere but directly inside /home/sd/user_accounts
+                           or /home/sd/group_accounts is named in a warning as not repaired, with the reason; the sdsys user is still
+                           put in its group, and the modes are left for the administrator to set by hand.
+             Why         - The install used to join every group whose name began sdu_, whether or not an SD account owned it, which
+                           gave the sdsys user more than the delivered system needs; and an account kept somewhere other than the usual
+                           place was quietly not repaired.
+             Does NOT    - Widen what the root helper (sd-elevate group-write) will change: it still accepts only a directory directly
+                           inside /home/sd/user_accounts or /home/sd/group_accounts, and the installer does not hand it any other.
+                           It does not change an install where the place of the sdsys user was settled before (the /home/sd/$sdsys.access
+                           marker), nor create.account or modify.account sdsys-on and sdsys-off.
+
+2 Nov 26   SP.VIEW ENDS WHEN ITS INPUT ENDS, INSTEAD OF RINGING THE BELL FOR EVER.
+
+             What        - When sp.view's input came to an end - a session whose commands were piped in - sp.view took the end for
+                           an unknown key, rang the bell and asked again, for ever, using a whole processor until the session was
+                           killed. It now leaves the record view, and the list of records to choose from, as Q would. If the input
+                           ends while the spool form is asking for the printer, the numbering or "Ok to print", the form is left and
+                           nothing is printed (it used to ask again for ever). The full-screen layout is mended the same way; that
+                           case was checked by reading the code, not by a run.
+             Why         - The same fault was mended in SED, the IDE and ED in October; sp.view, given the full-screen look on
+                           2 Nov 2026, had kept it.
+             Does NOT    - Change what any key does at a terminal, the layout, the spool form or the list of records.
+
 2 Nov 26   SP.VIEW SHOWS A RECORD IN THE SAME FRAME AS THE OTHER FULL-SCREEN PAGES.
 
              What        - On a terminal window of at least 140 by 43 (a bigger one is used whole), sp.view's record view has the look of

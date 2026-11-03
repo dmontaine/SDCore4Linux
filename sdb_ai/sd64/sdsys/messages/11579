@@ -1,1 +1,1 @@
-Master edits cannot be written into account %1 until the sdsys user is in the group %2. From the sdsys login run  sudo /usr/local/sbin/sd-elevate sdsys-join %2  then sign on again
+Account %1: the sdsys user is not in its group %2, so SDSYS cannot write inside it from outside SD; the account is made all the same. modify.account %1 sdsys-on puts it in; then sign on again as SDSYS
