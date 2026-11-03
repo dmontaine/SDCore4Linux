@@ -96,13 +96,21 @@ else
   say "  (6 skipped: no repository tree given as an argument)"
 fi
 # 7
+# 3 Nov 26 (track G, S.78) - row 7 is what S.78 owes on a VM install, so it may no longer pass by skipping: no verify-sysperms.py beside this script is a FAIL.
+#   On a VM installed from a bundle (vm-branch-install-prep.sh) assert-current cannot answer (the clone has no origin/main), and verify-sysperms.py then refuses
+#   (exit 2) before measuring anything.  AGENTPACK_ALLOW_STALE=1 passes its own --allow-stale and says so; the install's commit is then the stamp printed at the top,
+#   to be compared by hand with the commit under test.
 vs="$HERE/verify-sysperms.py"
+vs_args=()
+[ "${AGENTPACK_ALLOW_STALE:-0}" = 1 ] && vs_args=(--allow-stale)
 if [ -f "$vs" ]; then
-  out=$(python3 "$vs" 2>&1); rc=$?
+  say "      > python3 $vs ${vs_args[*]}"
+  out=$(python3 "$vs" "${vs_args[@]}" 2>&1); rc=$?
   say "      verify-sysperms.py exit $rc: $(printf '%s' "$out" | tail -2 | tr '\n' ' ' | cut -c1-200)"
+  [ "${#vs_args[@]}" -gt 0 ] && say "      (--allow-stale: assert-current was NOT enforced; the install is $(sed -n 's/^commit=//p' "$SYSD/.sdcore-install" 2>/dev/null | cut -c1-12))"
   [ "$rc" -eq 0 ] && pass "7 verify-sysperms.py passes on this install (its read-only set is derived, so agent-pack is covered)" || fail "7 verify-sysperms.py exit $rc"
 else
-  say "  (7 skipped: no verify-sysperms.py beside this script)"
+  fail "7 NOT REACHED: no verify-sysperms.py beside this script ($vs), so nothing was measured"
 fi
 
 say "witness-agentpack: $PASS passed, $FAIL failed (log: $LOG)"
