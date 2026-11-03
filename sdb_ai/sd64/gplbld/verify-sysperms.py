@@ -110,7 +110,7 @@ EXPECT_WRITABLE = {
 # port's verify-pcodeacl, and the file list is this tree's bin.
 BIN_FILES = ("pcode", "sd", "libsdcli.so")
 
-MSG_SDSYS_GATE = "SDSYS Account access is restricted to privileged users"
+MSG_SDSYS_GATE = "The SDSYS account is entered only by running SD as the sdsys OS user"      # message 10002 as the teardown (S.25-S.28) left it
 # Message 2001, printed by the verb itself once it has started - so seeing it
 # means the verb RAN and refused, not that it was missing.
 MSG_PRIV = "Command requires administrator privileges"

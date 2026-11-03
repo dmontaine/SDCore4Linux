@@ -232,7 +232,7 @@ fxsamples() {
   printf '%s\n' "$1" | awk -v want="$2" -v none="$(wl_msg 6450)" '
     function finish() { if (type != "" && index(path "/", "/" want "/") > 0) { n++; u = (u == "" ? user : u "," user) } type = "" }
     function flush() { finish(); if (have) print sec, n, (u == "" ? "-" : u), ans; have = 0 }
-    $0 ~ /^[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9] [A-Za-z]+ [0-9][0-9][0-9][0-9]$/ { flush(); split($1, a, ":"); sec = a[1] * 3600 + a[2] * 60 + a[3]; have = 1; n = 0; u = ""; ans = 0; cont = 0; next }
+    $0 ~ /^[0-9][0-9]:[0-9][0-9]:[0-9][0-9] +[0-9]+ [A-Za-z]+ [0-9][0-9][0-9][0-9]$/ { flush(); split($1, a, ":"); sec = a[1] * 3600 + a[2] * 60 + a[3]; have = 1; n = 0; u = ""; ans = 0; cont = 0; next }
     !have { next }
     $0 ~ /^User +File +Path/ { ans = 1; next }
     none != "" && index($0, none) == 1 { ans = 1; next }
