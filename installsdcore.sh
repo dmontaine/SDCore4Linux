@@ -879,13 +879,22 @@ printf "%b\n" "$NC"
 echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
 # 04 Oct 26 - "openssl" (the command, sd-elevate tls-show runs it) is on the list
 #   because a machine can lack it; the package stays for that reason.
-if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev openssl openssh-server python3-dev; then
+# 03 Nov 26 - S.94: "gpm" (the console mouse daemon) is on the list (owner, 3 Nov 2026: "the decision was the the installer
+#   installs gpm, not mentions it"), so the full-screen tools have a mouse on a bare Linux console out of the box: SD talks to
+#   /dev/gpmctl itself (gplsrc/gpmmouse.c, no libgpm).  The installer neither enables nor starts gpm.service: the Debian and
+#   Ubuntu package's own postinst enables it on a new installation and starts it (deb-systemd-helper enable, deb-systemd-invoke
+#   start), and a machine where the administrator disabled it stays as he left it.  It does nothing in a desktop terminal or
+#   over ssh (SD asks it only for the terminal type linux).  deletesdcore.sh leaves it installed, as it leaves git and lynx.
+#   test-install-packages.sh runs this block.
+# PACKAGES-BEGIN
+if ! sudo apt-get -y install git build-essential micro lynx gpm libsodium-dev libssl-dev openssl openssh-server python3-dev; then
     printf "%b\n" "$RED"
     echo "Package installation using apt-get failed.  Exiting script."
     echo "Verify your internet connection and then try again."
     printf "%b\n" "$NC"
     exit 1
 fi
+# PACKAGES-END
 # run this along as only required on Ubuntu 26.04 and
 # don't want to abort if not found on earlier distributions
 sudo apt-get -y --ignore-missing install libcrypt-dev || true
@@ -1438,6 +1447,16 @@ if [ -n "$docs_tmp" ]; then rm -rf "$docs_tmp"; fi
 #
 sudo chown -R sdsys:sdusers "$sdsysdir"
 sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"
+# 03 Nov 26 dm - W.11 F11, the install-time window (Opus's decision 3e, 30 Oct 26).  The line above makes bin the sdsys user's, and the ROOTBIN block far
+#            below takes it back, so for the whole bootstrap the files root runs were sdsys's: a process of that user could change bin/sd before root ran it.
+#            bin is root's from here on.  Every later write under bin is a root session (SECOND.COMPILE's bin/pcode and bin/pcode.old, through sudo), and
+#            root writes into a root-owned directory; ROOTBIN still re-asserts owner and modes (pcode.old is made 664) and adds chattr +i.  An install
+#            never meets a sealed bin here: it refuses to run over an install, so bin is the fresh copy made above.  test-install-rootbin.sh (E rows)
+#            runs this block; test-rootbin-units.py (B8) holds its place.  NOT YET MEASURED on a VM delete and install.
+# ROOTBIN-EARLY-BEGIN
+sudo chown -R root:root "$sdsysdir/bin"
+sudo chmod -R go-w "$sdsysdir/bin"
+# ROOTBIN-EARLY-END
 
 sudo cp sd.conf /etc/sd.conf
 sudo chmod 644 /etc/sd.conf
@@ -1577,6 +1596,28 @@ if [ -f "$SYSTEMDPATH/sd.service" ] && ! grep -q 'sd-lnxd\.service' "$SYSTEMDPAT
     sudo systemctl daemon-reload || true
 fi
 # LNXDUNIT-END
+#
+# UNITREFRESH-BEGIN
+# 03 Nov 26 dm - the first-install copy above runs only when there is no sd.service, so an upgrade kept every unit it had, and a unit this release changed
+#            never reached it (sdclient@.service's sandbox settings of W.11 F5, ProtectKernelTunables= and the rest, 30 Oct 26, are the case: an
+#            upgraded machine ran the per-connection server without them).  The three units SD owns whole - sd.service, sd-lnxd.service and sdclient@.service - are put in place whenever the installed copy
+#            differs from this release's, root:root 0644, and systemd is reloaded once.  sdclient.socket is NOT among them: the installer edits it in
+#            place (SOCKETMODE below, the API listener), so it keeps its own blocks.  A local change belongs in a drop-in under /etc/systemd/system
+#            (systemctl edit), which this does not touch.  test-install-unitrefresh.sh runs this block.
+if [ -f "$SYSTEMDPATH/sd.service" ]; then
+    units_refreshed=0
+    for unit_name in sd.service sd-lnxd.service sdclient@.service; do
+        if ! cmp -s "usr/lib/systemd/system/$unit_name" "$SYSTEMDPATH/$unit_name"; then
+            echo "Refreshing the systemd unit $unit_name to this release's copy."
+            sudo install -o root -g root -m 0644 "usr/lib/systemd/system/$unit_name" "$SYSTEMDPATH/$unit_name"
+            units_refreshed=1
+        fi
+    done
+    if [ "$units_refreshed" = 1 ]; then
+        sudo systemctl daemon-reload || true
+    fi
+fi
+# UNITREFRESH-END
 #
 # SOCKETMODE-BEGIN
 # 24 Oct 26 dm - W.11 F5 (security-model evaluation).  The units above are copied only on a first install, so an install made before this release keeps a
@@ -2462,6 +2503,8 @@ echo
 #            under bin (SECOND.COMPILE rewrites bin/pcode and makes bin/pcode.old as a root session, mode 664, and an immutable directory takes no new entry) and before
 #            the passwords, which a person can abandon.  Nothing is written under bin after it; deletesdcore.sh lifts the attribute first.  A bin that holds anything but
 #            plain files (a link, say) is NOT sealed and the block says so; a file system that will not keep the attribute is said so, and the files are still root's.
+#            Since 3 Nov 26 the ROOTBIN-EARLY block (right after that chown) has made bin root's already; the chown and chmod here stay, for what the bootstrap
+#            wrote since (pcode.old, 664) and as a check that costs nothing.
 #            test-install-rootbin.sh runs this block; test-rootbin-units.py holds rootbin_files to what the units, the helper and the kernel really run.
 # ROOTBIN-BEGIN
 rootbin="$sdsysdir/bin"

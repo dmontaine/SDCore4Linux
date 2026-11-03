@@ -1,6 +1,45 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   THE INSTALLER INSTALLS GPM, SO THE MOUSE WORKS ON A BARE LINUX CONSOLE.
+
+             What        - gpm, the console mouse daemon, is now one of the packages the installer installs with apt-get, beside
+                           git, micro and the rest. On Debian and Ubuntu the package enables and starts the daemon itself, so after an
+                           install the full-screen pages, the IDE and the home screen take the mouse on a text console with no
+                           desktop, as they already did when gpm had been installed by hand.
+             Why         - SD has talked to gpm on the console since 31 Oct 26, but nothing put gpm on the machine, so the mouse
+                           was missing unless the administrator knew to add the package.
+             Does NOT    - Start, enable or configure gpm itself: a machine where the administrator turned the service off keeps it
+                           off. It changes nothing in a desktop terminal, over ssh or in tmux (SD asks gpm only for the terminal type
+                           linux on a text console). Removing SD leaves the gpm package installed, as it leaves git and lynx. A
+                           failure to install it stops the installer with the same message as any other package.
+
+3 Nov 26   AN UPGRADE NOW BRINGS THE SYSTEMD UNITS UP TO DATE.
+
+             What        - Installing over an existing system used to keep the systemd units it already had: they were copied only
+                           when sd.service was not there yet. The installer now compares sd.service, sd-lnxd.service and
+                           sdclient@.service with this release's copies and puts in place each one that differs (owned by root, mode
+                           644), naming it, and reloads systemd once. This is how an upgraded machine gets the per-connection API
+                           server's protective settings (ProtectKernelTunables= and the others) that a fresh install already has.
+             Why         - An upgrade ran with the units of the release it was first installed from, so a fix made in a unit never
+                           reached it.
+             Does NOT    - Touch sdclient.socket, which the installer edits for the API listener and the socket mode (an
+                           administrator's SocketMode= is kept as before), or any drop-in under /etc/systemd/system: a local change
+                           made with "systemctl edit" survives. A change made by editing the files in /usr/lib/systemd/system
+                           directly is replaced.
+
+3 Nov 26   SELECT, LIST AND THE OTHER QUERY VERBS PUT RECORDS WITH EQUAL SORT KEYS IN RECORD-ID ORDER.
+
+             What        - A BY or BY.DSND clause on SELECT, LIST, COUNT, SUM, REFORMAT and the label verbs now ends with the record
+                           id as one more sort key, ascending, as SORT, SSELECT and the other S verbs always had it. Records whose BY
+                           values are equal come out in record-id order (r1 r2 r3), also under BY.DSND, where only the BY values are
+                           turned over. Before, they came out in an order that depended on where the records sat in the file.
+             Why         - The same sentence could give a different order on two systems holding the same data, or on one system
+                           after a file was resized, and a program that read a select list made with BY could not rely on it.
+             Does NOT    - Change a sort whose keys differ, the S verbs (already in this order), or a SELECT with SAVING UNIQUE, whose
+                           last key stays the field being made unique. A sentence with no BY is not sorted at all, as before. It
+                           costs one more key per record in the sort.
+
 2 Nov 26   THE HOME SCREEN HAS THE SAME MENU BAR AS THE OTHER PAGES, A KEY FOR EVERY MENU ENTRY, AND / TO FIND A TILE.
 
              What        - The home screen's menu bar is now made the way every other full-screen page's is, from the page's own

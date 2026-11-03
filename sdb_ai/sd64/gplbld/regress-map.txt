@@ -174,6 +174,8 @@ gplsrc/op_coll.c             : coll collfile dbgcoll jsonx
 gplsrc/op_csv.c              : csv-b5 csvb csvq xml func-b4
 gplsrc/op_json.c             : coll jsonx
 gplsrc/op_xml.c              : xmlx jsonx
+# 3 Nov 26 (S.74): the three files' limits and escaping as text (a free check: --changed runs it anyway)
+gplbld/test-csvjsonxml-units.py : none
 gplsrc/op_str5.c             : @functions csvb
 gplsrc/op_array.c            : coll list-q2 @core
 # 20 Oct 26 (S.73 item 2, the silent server): READ.SOCKET's TLS read and the handshake bound are timed by netfile (section timeout) and net (set.netlogin).

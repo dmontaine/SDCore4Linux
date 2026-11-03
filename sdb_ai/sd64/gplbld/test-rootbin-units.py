@@ -31,6 +31,9 @@
 #   B6  its guards, in order: a link or a missing bin is refused before anything is changed; entries that are not plain files are refused before the chown; the attribute is lifted before
 #       the chown and set after the chmod; the verdict reads lsattr and the success line needs the owner/mode check, the missing-file check and the attribute
 #   B7  the closing summary: rootbin_sealed starts 0, is set to 1 once on the success path only, and the summary after the block says NOT sealed when it is not 1
+#   B8  (3 Nov 26, Opus 3e) the install-time window: ONE ROOTBIN-EARLY block straight after the chown -R to sdsys (only the terminfo chown between), exactly
+#       chown -R root:root and chmod -R go-w on bin, before the first bootstrap or compile command; between it and ROOTBIN no chown/chmod gives bin or the whole
+#       system directory to sdsys/sdusers or a group/other write mode
 #   D1  deletesdcore.sh lifts the attribute (chattr -i on bin) once, after the services are stopped and before the removal of the system directory, and sets no attribute itself
 #   D2  the upgrade path is unchanged: an upgrade is a delete (accounts kept) and a fresh install, so the installer still refuses to run over an install and copies bin and chowns
 #       before the block; the block never meets a bin it sealed earlier
@@ -348,6 +351,27 @@ def run():
         and len(summ) == 1 and "NOT sealed" in summ_text,
         "sets %s; summary %s" % (seal_sets, summ))
 
+    # ---- B8 (3 Nov 26, Opus 3e: F11's install-time window) ------------------------------------------------------------------------------------------------
+    nbe = [i for i, l in enumerate(lines) if l == "# ROOTBIN-EARLY-BEGIN"]
+    nee = [i for i, l in enumerate(lines) if l == "# ROOTBIN-EARLY-END"]
+    eok, edet = False, "markers %d/%d" % (len(nbe), len(nee))
+    if len(nbe) == 1 and len(nee) == 1 and nbe[0] < nee[0]:
+        eb, ee = nbe[0], nee[0]
+        ecmds = [l.strip() for l in lines[eb + 1:ee] if l.strip() and not l.lstrip().startswith("#")]
+        gap = [l.strip() for i, l in code_lines(inst) if chown_main is not None and chown_main < i < eb]
+        boot1 = first(lambda l: l.strip() == 'echo "Bootstrap pass 1."')      # (anchors also match functions defined near the top and called later)
+        first_anchor = min([a for a in anchors if boot1 is not None and a > boot1], default=None)
+        first_anchor = boot1 if first_anchor is not None else None
+        win_re = re.compile(r"\b(chown|chmod|chgrp)\b[^#\n]*(\"\$\{?sdsysdir\}?\"(\s|$)|\$\{?sdsysdir\}?/bin\b)")
+        give_re = re.compile(r"\+w|\b[0-7]?[0-7][2367][0-7]\b|\b[0-7]?[0-7][0-7][2367]\b")
+        window = ["%d: %s" % (i + 1, l.strip()[:70]) for i, l in code_lines(inst) if ee < i < bi and win_re.search(l)
+                  and (re.search(r"\b(sdsys|sdusers)\b", l.replace("$sdsysdir", "")) or give_re.search(l))]
+        eok = (ecmds == ['sudo chown -R root:root "$sdsysdir/bin"', 'sudo chmod -R go-w "$sdsysdir/bin"'] and gap == ['sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"']
+               and first_anchor is not None and ee < first_anchor and not window)
+        edet = "commands %s; between the chown and it %s; first bootstrap/compile line %s; window lines that give bin or the tree back: %s" % (ecmds, gap, first_anchor and first_anchor + 1, window)
+    row("B8 ONE ROOTBIN-EARLY block straight after the chown -R to sdsys (only the terminfo chown between), its two commands chown -R root:root and chmod -R go-w on bin, before the "
+        "first bootstrap or compile command, and between it and ROOTBIN nothing gives bin or the system directory back to sdsys or the group", eok, edet)
+
     # ---- D1 -----------------------------------------------------------------------------------------------------------------------------------------------
     dl_ = deleter.split("\n")
 
@@ -483,6 +507,14 @@ def selftest():
     text_mutant("block-after-passwords", "B2", "inst", lambda s: move_block(s, '\necho "PASSWORDS."\n', True), "INSTALLER")
     text_mutant("block-before-last-compile", "B2", "inst", lambda s: move_block(s, '\nfix_gcat_modes\n#\necho\necho Compiling terminfo database\n', False), "INSTALLER")
     inst("block-marker-gone", "B1", "# ROOTBIN-BEGIN", "# rootbin-begin")
+    # the install-time window (3 Nov 26, Opus 3e)
+    inst("early-gone", "B8", "# ROOTBIN-EARLY-BEGIN\n", "# rootbin-early-begin\n")
+    inst("early-chowns-sdsys", "B8", 'sudo chown -R root:root "$sdsysdir/bin"\nsudo chmod -R go-w "$sdsysdir/bin"', 'sudo chown -R sdsys:sdusers "$sdsysdir/bin"\nsudo chmod -R go-w "$sdsysdir/bin"')
+    inst("early-no-chmod", "B8", 'sudo chmod -R go-w "$sdsysdir/bin"\n# ROOTBIN-EARLY-END', '# ROOTBIN-EARLY-END')
+    inst("early-later", "B8", 'sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"\n', 'sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"\nsudo cp sd.conf /etc/sd.conf\n')
+    inst("window-rechown-tree", "B8", '\necho "Bootstrap pass 1."\n', '\nsudo chown -R sdsys:sdusers "$sdsysdir"\necho "Bootstrap pass 1."\n')
+    inst("window-bin-group-write", "B8", '\necho "Bootstrap pass 1."\n', '\nsudo chmod -R 775 "$sdsysdir/bin"\necho "Bootstrap pass 1."\n')
+    inst("window-tree-group-write", "B8", 'sudo chmod -R 755 "$sdsysdir"\n', 'sudo chmod -R 775 "$sdsysdir"\n')
     text_mutant("block-twice", "B1", "inst", lambda s: s.replace("# ROOTBIN-END\n", "# ROOTBIN-END\n# ROOTBIN-BEGIN\n:\n# ROOTBIN-END\n", 1), "INSTALLER")
     inst("rootbin-elsewhere", "B1", 'rootbin="$sdsysdir/bin"', 'rootbin="$sdsysdir/bin/"')
     # the list
