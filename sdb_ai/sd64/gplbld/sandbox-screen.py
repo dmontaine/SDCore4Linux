@@ -9,6 +9,7 @@
 # machine (shared memory keys 0x53434c91/92): stop the sandbox afterwards with sandbox-fromtree.py <dir> stop.
 #
 # START-HISTORY:
+# 2 Nov 26 dm   zzsclong: a message box taller than the screen keeps its buttons on it and scrolls its lines (PgDn / Home), Cancel stays the default.
 # 12 Oct 26 dm  Written with the spike: SCREEN MSGBOX compiled by bcomp's ST.SCREEN into a call of !screen_msgbox.
 # 28 Oct 26 dm  The memo's keys of the owner's D31 (S.88 Phase 4): Ctrl-A selects all (Home is the row's start), Ctrl-O is not a copy
 #               key (Ctrl-C copies; the programs that copy run with the break key off, memo_program), F3 finds the next (Ctrl-N did),
@@ -39,6 +40,7 @@ passed = failed = 0
 
 UP, DOWN, LEFT, RIGHT = "\x1bOA", "\x1bOB", "\x1bOD", "\x1bOC"
 ESC, RET = "\x1b", "\r"
+PGDN_K, HOME_K = "\x1b[6~", "\x1b[1~"     # 2 Nov 26: the long message box rows (the HOME/PGDN names below are defined later in the file)
 CTRL_A = "\x01"
 CTRL_U_KEY = "\x15"
 
@@ -199,6 +201,15 @@ end
     # a line of text is ended by a field mark; RETURNING left out
     "zzsclin": BG + """   screen msgbox 'First line':@fm:'Second line' title 'Two'
    crt @(0, 20) : 'AFTER'
+end
+""",
+    # 2 Nov 26: a text of 40 lines on a 30-row terminal - the box is not taller than the screen; the lines scroll (PgUp / PgDn / Home / End)
+    "zzsclong": BG + """   t = ''
+   for i = 1 to 40
+      t<i> = 'Line ' : fmt(i, 'R%2')
+   next i
+   screen msgbox t title 'Long' buttons '&OK,&Cancel' default 2 returning n
+   crt @(0, 20) : 'LONG ' : n : '|'
 end
 """,
     # names the statement uses as words are still variables: SCREEN, TITLE, BUTTONS, DEFAULT, RETURNING
@@ -2974,6 +2985,22 @@ def main():
         L = t.keys()
         row("a field mark ends a line of the text: two lines and the title", any("First line" in l for l in L) and any("Second line" in l for l in L) and any("Two" in l for l in L), "\n".join(L[8:20]))
         t.keys(RET)
+        t.end()
+
+        say("\n--- a text taller than the screen (2 Nov 26: the AI preview ran off the screen with its buttons) ------------")
+        t = Term(box, "RUN bp zzsclong")       # 100 by 30: 40 lines cannot fit
+        L = t.keys()
+        sc = "\n".join(L)
+        row("a 40-line text on a 30-row terminal: the buttons are ON the screen, line 1 is shown, line 40 is not, and the border says 'lines 1-24 of 40'",
+            "[ OK ]" in sc and "[ Cancel ]" in sc and "Line 01" in sc and "Line 40" not in sc and "lines 1-24 of 40" in sc, sc[-1500:])
+        L = t.keys(PGDN_K)
+        sc = "\n".join(L)
+        row("PgDn scrolls: lines 25 on are shown, line 1 is not, the buttons stay", "Line 25" in sc and "Line 01" not in sc and "[ OK ]" in sc and "lines 17-40 of 40" in sc, sc[-1500:])
+        L = t.keys(HOME_K)
+        sc = "\n".join(L)
+        row("Home goes back to line 1; the default button is still Cancel: Return answers 2", "Line 01" in sc and "lines 1-24 of 40" in sc, sc[-1500:])
+        L = t.keys(RET)
+        row("...Return closes it with the default, Cancel: LONG 2", result(L, "LONG") == "2|", repr(result(L, "LONG")))
         t.end()
 
         say("\n--- words of the statement stay usable as variables ---------------------------------------------------")

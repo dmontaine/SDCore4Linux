@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 30 Oct 26 dm  New (S.88 F0b).
+* 2 Nov 26 dm  S.88 U9: mode 'list', a pick from a list the page gives ($sl_pickwin, the same window), for the home screen's type-to-find of a tile.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -17,6 +18,11 @@
 *   from, or a file that cannot be opened).  THE PICKER NEVER WRITES: it opens the file for reading, takes no lock and creates, changes and deletes nothing; what the page does with
 *   the answer, and whether it may, is the page's.  The window puts the screen back under it, so the page needs no redraw of its own.
 *
+*   mode 'list' (S.88 U9): a pick from a LIST THE PAGE GIVES, not from a file.  file = the entries, one to a field (value 1 the name, value 2 a description shown beside it);
+*   id = the window's title on the way in and the number of the entry chosen (in file) on the way out; newtext = the number of the entry the window starts on, on the way
+*   in, and null on the way out.  res is 'ok' (Enter chose) or 'cancel' (Esc, a session with no terminal, an empty list).  Typing narrows the list to the entries that hold
+*   the text in the name or the description.  Nothing is opened, read or written.
+*
 * END-DESCRIPTION
 *
 * START-CODE
@@ -25,7 +31,27 @@ $internal
 subroutine tk_pickrec(ctx, mode, file, id, res, newtext)
 $catalog $tk_pickrec
 
+   if mode = 'list' then
+      gosub pick.list
+      return
+   end
    call $sl_picker(mode, file, id, res, newtext)
+   return
+
+* A list the page gives: the library's pick window, one entry chosen, its number returned
+pick.list:
+   res = 'cancel'
+   ltitle = id
+   ldef = newtext
+   id = ''
+   newtext = ''
+   if system(25) or file = '' then return               ;* a phantom has no terminal; an empty list has nothing to choose
+   if not(num(ldef)) or ldef < 1 then ldef = 1
+   call $sl_pickwin(file, ltitle, 0, ldef, pr, ps, '', '')
+   if ps = 0 and pr > 0 then
+      id = pr
+      res = 'ok'
+   end
    return
 end
 

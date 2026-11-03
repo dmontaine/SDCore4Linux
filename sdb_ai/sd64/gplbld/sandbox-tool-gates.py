@@ -3,7 +3,11 @@
 # sandbox-tool-gates.py - the gate matrix, TOOL.GATES, driven on a PSEUDO-TERMINAL on a private SD (S.75, administrator app A2; plan .claude/plan-fullscreen-toolkit.md section 5).
 # No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-gates.py <dir> [--build] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-gates.py <dir> [--build] [--mutant=NAME] [--only=NAME[,NAME]]
+#
+# --only (2 Nov 26) runs the named sections: cell queue run several route needs tighten filter who mouse refresh group small allon leave.  The set-up and G0-G1 (opening the page)
+# always run.  The sections up to group were written to run in that order on one page and some read what an earlier one left (G13a reads the gates G9 and G10 turned off, which a fresh
+# sandbox also has off); only `leave` has been run alone.
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row
 # failed, 2 it could not run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of the page and exit 0 means the rows that had to fail failed and no others (MUTANTS).
@@ -31,6 +35,9 @@
 #   G13      who can reach the operating system; the live sessions of the account under the cursor
 #   G14-G16  the mouse; F1; F5 reads the machine again and keeps the queue; the null case (no account)
 #   G17      sh and os for a group account are refused in words; a window under 140 by 43 gets no page
+#   G19      (2 Nov 26, S.88 P10, section leave) Ctrl-Q with nothing queued leaves at once; with a change queued it asks in $tk_confirm's box (Run the changes, Leave without them,
+#            Cancel): Enter is Cancel, File > Quit asks too, Esc on the page opens the bar and does not leave, Leave without them runs nothing, Run the changes goes through R's own
+#            box (Esc there keeps the page and the queue; Run and the name run it, and the page closes).  Whether the page has gone is judged by DISPLAY at the TCL prompt.
 # NOT HELD: the installer, the real systemd, sudo and the real /etc/group (the route and files groups change through the stand-in), the help text itself (test-help-units.py).
 import getpass
 import importlib.util
@@ -76,11 +83,21 @@ def arow(rid, name, ok, detail=""):
 MUTANTS = {
     # name: (old text of the sandbox's tool_gates, new text, the row ids that must fail and no others)
     "no-typed-name": ("      typed = anm<av>\n   end\n   el<-1> = 'A running session", "      typed = ''\n   end\n   el<-1> = 'A running session", ["G5"]),
-    "route-both-wrong": ("         case fin<rs> = 1 and fin<ra> = 1\n            rw = 'both'", "         case fin<rs> = 1 and fin<ra> = 1\n            rw = 'ssh'", ["G8"]),
+    "route-both-wrong": ("         case fin<rs> = 1 and fin<ra> = 1\n            rword = 'both'", "         case fin<rs> = 1 and fin<ra> = 1\n            rword = 'ssh'", ["G8"]),   # rword since the rw/RW clash fix (2 Nov 26 review: rw was found 0 times)
     "tighten-queues-on": ("         aq<av, k> = 0\n         n.q += 1", "         aq<av, k> = 1\n         n.q += 1", ["G10"]),
     "needs-not-checked": ("      if fin<fw> = 1 and fin<fi> # 1 then bad =", "      if @false then bad =", ["G9"]),
     "all-on-skips-test": ("      gosub cell.why\n      if why = '' then\n         aq<av, k> = (if ast<av, k> = tv", "      why = ''\n      if why = '' then\n         aq<av, k> = (if ast<av, k> = tv", ["G18"]),
+    # 2 Nov 26, S.88 P10: the leave question
+    "leave-at-once": ("      case nm = 'ctrl-q'\n         gosub leave.ask\n", "      case nm = 'ctrl-q'\n         done = 1\n", ["G19"]),
+    "leave-default": ("'&Run the changes,&Leave without them,&Cancel'", "'&Run the changes,&Cancel,&Leave without them'", ["G19"]),
 }
+SECTIONS = ("cell", "queue", "run", "several", "route", "needs", "tighten", "filter", "who", "mouse", "refresh", "group", "small", "allon", "leave")
+ONLY = None
+
+
+def chosen(name):
+    """Is section NAME to run (--only)?  Not called want: main() has a local of that name in the mutant mode."""
+    return ONLY is None or name in ONLY
 
 
 def box():
@@ -726,14 +743,94 @@ def section_all_on():
     p.quit()
 
 
+def left(p):
+    """Has the page gone?  DISPLAY at the TCL prompt prints its text on a line of its own (the echoed command line starts with the prompt); on the page the keys would be the page's."""
+    if "Gates by account" in p.text():                 # 2 Nov 26 review: never type the probe into a page that is still there (its keys would queue gates)
+        p.s.settle(1.0)
+        if "Gates by account" in p.text():
+            return False
+    p.typed("display ZZ.LEFT\r", idle=1.5)
+    return "Gates by account" not in p.text() and any(l.strip() == "ZZ.LEFT" for l in p.h.lines())
+
+
+def section_leave():
+    say("\n--- G19: leaving the page with changes queued (S.88 P10)")
+
+    def shc(p):
+        """the sh cell of the sandbox user's row, or None when the page (and so the row) is gone: a page that left must fail a row, not stop the suite"""
+        return p.rows().get(ME, (None, [None] * len(IDS), None))[1][IDS.index("sh")]
+
+    snap = snapshot()
+    a0 = fg.audit_off()
+    p = open_page()
+    p.key("ctrl-q", idle=1.5)
+    T = p.text()
+    arow("G19a", "nothing queued: Ctrl-Q leaves at once, with no question", "Leave the gate matrix?" not in T and left(p), T[-400:])
+    p.end()
+    p = open_page()
+    p.to(ME, "sh")
+    p.key("enter")
+    p.key("ctrl-q", idle=1.5)
+    T = re.sub(r"[|\s]+", " ", p.text())
+    arow("G19b", "a change queued: Ctrl-Q opens the question - its title, the three buttons, the command the queue would be, how much is queued - and nothing has run",
+         all(w in T for w in ("Leave the gate matrix?", "Run the changes", "Leave without them", "Cancel", "modify.account %s sh-on" % ME, "1 queued change of 1 account not run yet")) and snapshot() == snap, T[-900:])
+    p.key("enter", idle=1.2)
+    arow("G19c", "Enter is Cancel: the page is still there, the cell is still ON*, the status line says the changes are still here, nothing ran",
+         "Gates by account" in p.text() and "Leave the gate matrix?" not in p.text() and shc(p) == "ON*" and "queued changes are still here" in st(p.h) and snapshot() == snap, repr((shc(p), st(p.h))))
+    p.key("f10", idle=1.0)
+    p.key("enter", idle=1.5)
+    asked = "Leave the gate matrix?" in p.text()
+    p.key("esc", idle=1.2)
+    arow("G19d", "File > Quit (F10, Enter) asks the same question, and Esc in the box is Cancel: the page and the queue are still there",
+         asked and "Gates by account" in p.text() and "Leave the gate matrix?" not in p.text() and shc(p) == "ON*" and snapshot() == snap, repr((asked, shc(p), st(p.h))))
+    p.key("esc", idle=1.0)
+    asked = "Leave the gate matrix?" in p.text()
+    p.key("esc", idle=1.0)
+    arow("G19e", "Esc on the page does not leave (the Esc rule opens the menu bar), asks nothing, and a second Esc closes the bar: the page and the queue are still there",
+         not asked and "Gates by account" in p.text() and shc(p) == "ON*", repr((asked, shc(p), st(p.h))))
+    p.key("ctrl-q", idle=1.5)
+    p.typed("l", idle=1.5)
+    gone = left(p)
+    arow("G19f", "Leave without them (l): the page closes and nothing ran - every register record, the group file and the helper's calls as before, no modify.account line in the audit trail",
+         gone and snapshot() == snap and "modify.account" not in (fg.audit_new(a0) or ""), repr((gone, fg.audit_new(a0))))
+    p.end()
+    p = open_page()
+    p.to(ME, "sh")
+    p.key("enter")
+    p.key("ctrl-q", idle=1.5)
+    p.typed("r", idle=1.6)
+    T = re.sub(r"[|\s]+", " ", p.text())
+    box_ok = "Run this command?" in T and ("modify.account %s sh-on" % ME) in T and "so the account name has to be typed" in T
+    p.key("esc", idle=1.5)
+    arow("G19g", "Run the changes (r) shows R's own box for the account - its title, the command, the name to be typed; Esc there runs nothing, and the page stays and says the change was not run",
+         box_ok and "Gates by account" in p.text() and shc(p) == "ON*" and "not run, so the page stays" in st(p.h) and snapshot() == snap, repr((box_ok, T[-600:], st(p.h))))
+    p.key("ctrl-q", idle=1.5)
+    p.typed("r", idle=1.6)
+    p.typed("r", idle=1.3)
+    p.typed(ME + "\r", idle=3.0)
+    new = fg.audit_new(a0) or ""
+    gone = left(p)
+    arow("G19", "Run the changes, Run and the account's name: the register's field 7 says yes (read from the disk), the audit trail has the verb's line, and with nothing left the page closes",
+         field(ME, 7) == "yes" and re.search(r"modify\.account sh-on account=%s$" % re.escape(ME), new, re.M) is not None and gone, repr((field(ME, 7), new[-200:], gone)))
+    p.end()
+    rec = regf(ME)
+    rec[7 - 1] = "no"                            # put sh back as the other sections expect it
+    g.put(os.path.join(sh.SYS, "accounts", ME), "\n".join(rec[:18]) + "\n")
+
+
 STOP_AFTER_G5 = False
 
 
 def main():
-    global STOP_AFTER_G5
+    global STOP_AFTER_G5, ONLY
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
     if mutant is not None and mutant not in MUTANTS:
-        bail("usage: sandbox-tool-gates.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
+        bail("usage: sandbox-tool-gates.py <dir> [--build] [--mutant=%s] [--only=%s]" % ("|".join(MUTANTS), ",".join(SECTIONS)))
+    only = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only=")), None)
+    if only is not None:
+        ONLY = [s.strip() for s in only.split(",") if s.strip()]
+        if not ONLY or any(s not in SECTIONS for s in ONLY):
+            bail("--only takes section names from: %s" % " ".join(SECTIONS))
     try:
         sh.setup("sandbox-tool-gates.py")
         setup_gates()
@@ -742,29 +839,36 @@ def main():
             compile_page()
             STOP_AFTER_G5 = (mutant == "no-typed-name")
             say("sandbox-tool-gates: MUTANT %s: the rows that must fail, and nothing else: %s" % (mutant, ", ".join(MUTANTS[mutant][2])))
+        if ONLY is not None:
+            say("sandbox-tool-gates: --only %s" % ",".join(ONLY))
         p = section_open()
         if mutant is None:
-            section_cell(p)
-            section_queue(p)
-        section_run_on(p) if mutant in (None, "no-typed-name") else None
+            if chosen("cell"):
+                section_cell(p)
+            if chosen("queue"):
+                section_queue(p)
+        if mutant in (None, "no-typed-name") and chosen("run"):
+            section_run_on(p)
         if mutant in (None, "route-both-wrong"):
-            section_several(p) if mutant is None else None
-            section_route(p)
-        if mutant in (None, "needs-not-checked"):
+            if mutant is None and chosen("several"):
+                section_several(p)
+            if chosen("route"):
+                section_route(p)
+        if mutant in (None, "needs-not-checked") and chosen("needs"):
             section_needs(p)
-        if mutant in (None, "tighten-queues-on"):
+        if mutant in (None, "tighten-queues-on") and chosen("tighten"):
             section_tighten(p)
         if mutant is None:
-            section_filter(p)
-            section_who(p)
-            section_mouse(p)
-            section_refresh(p)
-            section_group_account(p)
+            for nm, fn in (("filter", section_filter), ("who", section_who), ("mouse", section_mouse), ("refresh", section_refresh), ("group", section_group_account)):
+                if chosen(nm):
+                    fn(p)
         p.quit()
-        if mutant is None:
+        if mutant is None and chosen("small"):
             section_null_and_small()
-        if mutant in (None, "all-on-skips-test"):
+        if mutant in (None, "all-on-skips-test") and chosen("allon"):
             section_all_on()
+        if mutant in (None, "leave-at-once", "leave-default") and chosen("leave"):
+            section_leave()
     finally:
         restore_home_fixtures()
         sh.teardown()

@@ -1,7 +1,82 @@
 Next release - in progress
 --------------------------
 
-<<<<<<< ours
+2 Nov 26   THE HOME SCREEN HAS THE SAME MENU BAR AS THE OTHER PAGES, A KEY FOR EVERY MENU ENTRY, AND / TO FIND A TILE.
+
+             What        - The home screen's menu bar is now made the way every other full-screen page's is, from the page's own
+                           table of keys, so the bar, the row of keys at the foot and F1's list of keys always agree. Every menu entry
+                           now shows a key and does exactly what that key does: Ctrl-T the Terminal, Ctrl-W Switch account, Ctrl-R the
+                           Recent group on or off, Ctrl-K Keys, F6 the AI line, Backspace back one page (these are in the menus and in
+                           F1's list, not on the row at the foot). The bar opens with F10, with Alt and a title's letter, with a click
+                           on the top row, and with Esc on the top page; F10 is no longer on the row at the foot. Go has a new entry,
+                           Find a tile, and Help a new entry, Help on this page. / opens a window of the page's tiles: typing narrows
+                           it to the tiles whose name or group holds what was typed, and Enter moves to the tile (Enter on the page
+                           then starts it). An entry whose tile the administrator turned off is dimmed and its key does nothing but
+                           say so; Ask the AI is dimmed when the AI is not on for the account.
+             Why         - The home screen was the last page with a menu bar of its own, so its keys and its menus could disagree,
+                           and some of its entries could only be reached with the mouse or the bar. A letter only jumps to a tile that
+                           begins with it; / finds a tile by any part of its name.
+             Does NOT    - Change the tiles, what any tile starts, the pins, the Recent group, the sub-menu pages or the AI line itself;
+                           a letter still jumps to the next tile that begins with it, and Ctrl-Q still signs out after asking. The new
+                           keys start nothing a tile could not start, and a tile that is off stays off whichever way it is asked for.
+
+2 Nov 26   THE IDE KEEPS WHAT YOU WERE DOING WHEN THE WINDOW CHANGES SIZE, AND OPENS IN THE SITE'S THEME.
+
+             What        - Making the terminal window bigger or smaller while the IDE is open used to build the whole screen
+                           again, and the editor came back with its undo history gone (Ctrl-Z did nothing for what was typed
+                           before), the selection gone, and the text to find forgotten (F3 asked for it again); the messages
+                           table lost its current row and the tree closed its open files. The IDE now moves and resizes the
+                           parts it has, so all of that is kept: undo and redo, the selection, the find text, the cursor and
+                           the view, the messages table's row, the tree's open nodes and a half-typed AI request.
+                           The IDE also starts in the theme the administrator chose for the site (SCREENTHEME in sd.conf), as
+                           the toolkit pages, SED and the debugger already did; it starts in blue, as before, when the site
+                           names none or names a theme that does not exist, and in plain reverse video on a terminal that
+                           cannot show colour. The Theme entry of the View menu now goes through the themes in the same
+                           order as every other page (blue, classic, dark, light, mono) and skips the ones the terminal
+                           cannot show.
+             Why         - A resize is an ordinary thing to do and cost the person their undo history; and the IDE was the one
+                           full-screen program that ignored the site's theme.
+             Does NOT    - Change what the IDE does when it takes the screen back from a program it ran (Run, Debug, SED):
+                           that still builds the screen again, as before. It does not change the layout itself (still at
+                           least 140 by 43, a bigger window used whole), add a theme, or remember a theme chosen with the
+                           Theme entry after the IDE ends. The program's own SCREEN MOVE statement is unchanged.
+
+2 Nov 26   TOOL.GATES ASKS BEFORE IT DROPS CHANGES YOU QUEUED AND DID NOT RUN.
+
+             What        - In the gate matrix (tool.gates, the administrator's page), Ctrl-Q and File > Quit used to close the page at once,
+                           and every change you had queued with Enter, A, N or T and not yet run with R was lost without a word. Now, when
+                           anything is queued, a box asks first. It shows the modify.account command each account's queue would be and
+                           offers three buttons: Run the changes, Leave without them, and Cancel. Cancel is the default, so Enter alone
+                           neither leaves nor runs anything, and Esc is Cancel too. Run the changes goes through exactly what R does, one
+                           account at a time: its own box with the command, and the account's name to type where a gate reaches beyond SD;
+                           the page closes only when nothing is left queued, and otherwise stays and says how much was not run. With
+                           nothing queued, Ctrl-Q leaves at once as before.
+             Why         - A queue that took several keys to build disappeared on one key, and the page had not said so.
+             Does NOT    - Run anything without the box R shows, change which gates the page may queue, or make Esc leave the page: Esc
+                           still takes the filter off or opens the menu bar. A session whose input ends still leaves without asking
+                           (there is no one to answer), and so does leaving from the "window too small" screen, whose own Ctrl-Q and y
+                           are already a question.
+
+2 Nov 26   TOOL.QUERY ASKS ITS QUESTIONS ON A FORM; MY.MENU GROWS WITH THE WINDOW AND HAS F1 HELP.
+
+             What        - tool.query's seven questions (the file filter, a condition's value, the heading, the footing, the
+                           sample, the sentence edited by hand, and the name a query is saved under) are each asked on the
+                           toolkit's form: a box with the question explained inside it, the entry, a button that does what the
+                           question is for (Filter, Set, Use it or Save) and Cancel. When the page refuses an answer (a value with a quote or a semicolon, a sample that is not a
+                           whole number, a sentence that sends its output elsewhere, a name with a capital), it now says why
+                           INSIDE the form and keeps the form open with what you typed, so you can put it right; Esc or Cancel
+                           leaves it as before. It used to close the question and put the reason on the status line.
+                           my.menu (your own programs on the home screen) draws its list in a box that takes the whole window:
+                           at 140 by 43 it is exactly where it was, and in a bigger window the list shows more rows and a wider
+                           command column. F1, ? or a click on the [?] at the end of the header row explains the page, and the
+                           menu bar has Help > Help on this page.
+             Why         - A refused answer had to be typed again from the start; and my.menu was the one full-screen page
+                           that kept a fixed-size box and had no help.
+             Does NOT    - Change what either page accepts, runs or writes: the checks on every answer are the same ones, the
+                           query still only reads, and my.menu still changes only your own list. The saved queries are still
+                           listed, loaded and deleted on tool.query's own page (L). tool.dict is unchanged: its N already asks
+                           only the new item's id and hands the item to the IDE's dictionary form.
+
 2 Nov 26   TOOL.ENTRIES TELLS AN OLD SDSYS SESSION THAT IT CANNOT WRITE AN ACCOUNT, AND THE SDSYS-ON / SDSYS-OFF MESSAGES SAY WHAT THEY MEAN.
 
              What        - tool.entries' SDSYS column now speaks for the session you are in. It said "yes" whenever the sdsys user was in

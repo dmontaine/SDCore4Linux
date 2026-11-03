@@ -3,7 +3,7 @@
 # sandbox-home.py - the home screen and where an account starts (S.75, plan .claude/plan-fullscreen-toolkit.md section 13: H1 the screen, H2 the start), on a pseudo-terminal.
 # No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-home.py <dir> [--build]
+#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-home.py <dir> [--build] [--only=base,u9]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could
 # not run.  ORDINARY sessions are `sd -a<account>` in a fixture account, made with sandbox-gates.py's own functions (the suite stops with exit 2 if its first ordinary session is
@@ -11,6 +11,8 @@
 #
 # START-HISTORY:
 # 22 Oct 26 dm  New (S.75, H1 and H2).
+# 2 Nov 26 dm   S.88 U9: section u9 (the toolkit's menu bar and type-to-find, rows U9a-U9p) and --only=base,u9 (base: every row before it); the foot row's expected keys follow the table
+#               (F10 left the row, / find joined it).  u9 WRITTEN AND RUN ONCE with --only=u9; base NOT rerun.
 # 28 Oct 26 dm  S.85: setup() runs sandbox-tk-base.py's sudo_null_case() before anything else: every suite built on this setup (the page suites and docs) runs with the stub `sudo` first in PATH,
 #               and stops (exit 2) if a child shell or an SD session finds another.  WRITTEN, NOT RUN when added (the owner's rule of 28 Oct).
 # END-HISTORY
@@ -216,9 +218,92 @@ def summary(name):
     sys.exit(0 if tkb.failed == 0 and tkb.passed > 0 else 1)
 
 
+SECTIONS = ("base", "u9")
+
+
+def only():
+    """The sections asked for with --only=NAME[,NAME] (base: every row before 2 Nov 26; u9: the toolkit's menu bar and type-to-find); all of them without it"""
+    for a in sys.argv[1:]:
+        if a.startswith("--only="):
+            want = [w for w in a[len("--only="):].split(",") if w]
+            bad = [w for w in want if w not in SECTIONS]
+            if bad or not want:
+                bail("--only takes %s, not %r" % (",".join(SECTIONS), a))
+            return set(want)
+    return set(SECTIONS)
+
+
+def u9_rows():
+    """2 Nov 26 (S.88 U9): the home screen on the toolkit's menu bar ($tk_menubar, made from the key table) and type-to-find through $tk_pickrec 'list'.  An ordinary account (zzhm, its
+    own word is menu) at 140 by 43; every row reads the emulated screen.  The AI is not on in a sandbox, so its rows are the 'off' half only."""
+    say("\n--- U9: the toolkit's menu bar, the keys in the menus, type-to-find")
+    h = H("zzhm")
+    if not h.home():
+        dump(h)
+        bail("the home screen never drew for zzhm, so no U9 row can be believed")
+    row("U9a the function-key row is the key table's: Enter start  F1 help  F5 refresh  ^Q sign out  / find - F10 is the bar's and not on the row, and the keys that are only in the menus are not on it",
+        h.line(42) == "Enter start  F1 help  F5 refresh  ^Q sign out  / find", repr(h.line(42)))
+    row("U9b row 0 is the bar made by $tk_menubar: File Go View AI Help at the left, 'home  don@zzhm' at the right (the frame wrote it after the bar)",
+        h.line(0).startswith(" File  Go  View  AI  Help") and h.line(0).endswith("home  don@zzhm"), repr(h.line(0)))
+    h.key("f10", idle=0.8)
+    drop = " ".join(h.line(r) for r in range(1, 8))
+    row("U9c F10 opens File: Sign out with the key the table gives it (^Q)", "Sign out" in drop and "^Q" in drop, repr(drop[:200]))
+    h.key("right", idle=0.6)
+    drop = " ".join(h.line(r) for r in range(1, 9))
+    row("U9d ...Right: Go, whose entries show their keys from the table: Back, Terminal ^T, Switch account ^W, Find a tile /",
+        all(w in drop for w in ("Back", "Terminal", "^T", "Switch account", "^W", "Find a tile")), repr(drop[:300]))
+    h.key("right", idle=0.5)
+    h.key("right", idle=0.5)
+    h.key("right", idle=0.6)
+    drop = " ".join(h.line(r) for r in range(1, 8))
+    row("U9e ...Right three times: Help, with Help on this page (F1) and Keys (^K)", "Help on this page" in drop and "F1" in drop and "Keys" in drop and "^K" in drop, repr(drop[:300]))
+    h.key("esc", idle=0.7)
+    row("U9f Esc closes the menu and the page is whole again", h.home() and "Sign out" not in h.line(1) and h.focus() == ["Editor"], repr((h.line(1)[:60], h.focus())))
+    h.key("esc", idle=0.8)
+    drop = " ".join(h.line(r) for r in range(1, 8))
+    row("U9g Esc on the top page opens the bar (the Esc rule: File's Sign out drops down)", "Sign out" in drop and h.alive(), repr(drop[:200]))
+    h.key("esc", idle=0.7)
+    row("U9h ...and Esc again closes it: the page is whole, the session alive", h.home() and "Sign out" not in h.line(1) and h.alive(), repr(h.line(1)[:60]))
+    h.key("f6", idle=0.6)
+    row("U9i F6 with the AI not on for the account changes nothing and says so on the status line", "the AI is not on for this account" in h.line(40) and h.focus() == ["Editor"], repr(h.line(40)))
+    h.typed("/", idle=1.0)
+    T = h.text()
+    row("U9j / opens the pick window of the page's tiles, titled Find a tile, with its filter line ('filter:' and 'n of m', the window's own words)",
+        "Find a tile" in T and "filter:" in T and re.search(r"\d+ of \d+", T) is not None, T[-400:])
+    h.typed("voc", idle=1.0)
+    h.key("enter", idle=1.0)
+    T = h.text()
+    row("U9k ...typing narrows it (voc) and Enter MOVES the focus to the tile (Vocabulary) without starting it: the window is gone, the page whole, the status line says Enter starts it",
+        h.focus() == ["Vocabulary"] and "Find a tile" not in T and h.home() and "Vocabulary: Enter starts it" in h.line(40), repr((h.focus(), h.line(40))))
+    h.typed("/", idle=1.0)
+    h.typed("ter", idle=0.8)
+    h.key("esc", idle=1.0)
+    T = h.text()
+    row("U9l ...Esc in the window leaves the focus where it was (Vocabulary) and the page whole", h.focus() == ["Vocabulary"] and "Find a tile" not in T and h.home(), repr(h.focus()))
+    h.click(7, 0, idle=1.0)
+    drop = " ".join(h.line(r) for r in range(1, 8))
+    row("U9m a click on Go on row 0 opens Go", "Terminal" in drop and "Find a tile" in drop, repr(drop[:300]))
+    h.typed("f", idle=1.2)
+    T = h.text()
+    row("U9n ...its letter f chooses Find a tile, and the bar's answer runs the page's own case for / : the pick window opens (its filter line, which no menu has)",
+        "Find a tile" in T and "filter:" in T and re.search(r"\d+ of \d+", T) is not None, T[-400:])
+    h.key("esc", idle=1.0)
+    h.typed("\x0b", idle=2.5)
+    row("U9o Ctrl-K (Help > Keys) starts tool.keys: its name is at the right end of row 0", h.line(0).endswith("tool.keys  don@zzhm"), repr(h.line(0)[-40:]))
+    h.typed("\x11", idle=2.0)
+    row("U9p ...and its Ctrl-Q brings the home screen back with the same tile selected (Vocabulary)", h.home() and h.focus() == ["Vocabulary"], repr((h.line(0)[-30:], h.focus())))
+    h.end()
+
+
 def main():
+    want = only()
     try:
         setup("sandbox-home.py")
+        if "u9" in want:
+            u9_rows()
+        if "base" not in want:
+            teardown()
+            summary("sandbox-home")
 
         say("\n--- where a session starts: the system default, the account's own word, a piped session")
         set_default(None)
@@ -294,8 +379,8 @@ def main():
             all(w in T for w in ("My tools", "Editor", "IDE", "Everyone", "Terminal", "Keys", "Switch account", "Sign out")), "")
         row("the identity (row 2) and the date and time (row 3): 'don @ zzhm' and a line like 'Thursday 22 Oct 2026  -  18:52'",
             h.line(2).strip().startswith("don @ zzhm") and re.match(r"^\s+[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2} \d{4}  -  \d\d:\d\d", h.line(3)) is not None, repr((h.line(2)[:40], h.line(3)[:50])))
-        row("the foot: the hint line (row 39), the status line [Home] (row 40), the border (row 41), the function keys (row 42: Enter start, F1 help, F5 refresh, F10 menu, ^Q sign out)",
-            "arrows move" in h.line(39) and h.line(40).startswith("[Home]") and set(h.line(41)) == {"-"} and h.line(42) == "Enter start  F1 help  F5 refresh  F10 menu  ^Q sign out", repr((h.line(39)[:30], h.line(40), h.line(42))))
+        row("the foot: the hint line (row 39), the status line [Home] (row 40), the border (row 41), the function keys (row 42: Enter start, F1 help, F5 refresh, ^Q sign out, / find; F10 left the row with S.88 U9, 2 Nov 26)",
+            "arrows move" in h.line(39) and h.line(40).startswith("[Home]") and set(h.line(41)) == {"-"} and h.line(42) == "Enter start  F1 help  F5 refresh  ^Q sign out  / find", repr((h.line(39)[:30], h.line(40), h.line(42))))
         row("row 0: the menu bar File Go View AI Help at the left, 'home  don@zzhm' at the right", h.line(0).startswith(" File  Go  View  AI  Help") and h.line(0).endswith("home  don@zzhm"), repr(h.line(0)))
         row("the focus starts on the first tile of the page (Editor): one tile in reverse video", h.focus() == ["Editor"], repr(h.focus()))
         # Vocabulary (24,27) is the only tile in IDE's columns below it, so Down from IDE goes to it (a tile that shares columns comes before one that does not: Terminal is narrower than two columns)

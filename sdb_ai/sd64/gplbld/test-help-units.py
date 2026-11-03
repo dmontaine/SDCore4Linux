@@ -62,6 +62,7 @@ def load():
     src["tool_voc"] = read(os.path.join(GPL, "tool_voc"))           # 26 Oct 26, S.75 DV3: the VOC page asks for tool.voc.page
     for app in ("dict", "query", "bulk", "catalog", "test"):
         src["tool_" + app] = read(os.path.join(GPL, "tool_" + app))   # 26 Oct 26, S.75 DV2, DV4-DV7: each page asks for its tool.<app>.page
+    src["mymenu"] = read(os.path.join(GPL, "mymenu"))                 # 2 Nov 26, S.88 U4: MY.MENU asks for tool.menus.mine
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
     for name in sorted(os.listdir(HELP)):
         src["ht." + name] = read(os.path.join(HELP, name))
@@ -156,7 +157,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|jobs|entries|audit|config|backups|accounts|remote|files|voc|dict|query|bulk|catalog|test|home)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_jobs"]) + "\n" + strip(s["tool_entries"]) + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"]) + "\n" + strip(s["tool_files"]) + "\n" + strip(s["tool_voc"]) + "".join("\n" + strip(s["tool_" + a]) for a in ("dict", "query", "bulk", "catalog", "test", "home"))))
+    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|jobs|entries|audit|config|backups|accounts|remote|files|voc|dict|query|bulk|catalog|test|home)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_jobs"]) + "\n" + strip(s["tool_entries"]) + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"]) + "\n" + strip(s["tool_files"]) + "\n" + strip(s["tool_voc"]) + "".join("\n" + strip(s["tool_" + a]) for a in ("dict", "query", "bulk", "catalog", "test", "home")) + "\n" + strip(s["mymenu"])))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 13 and not (asked - set(hts)), repr(sorted(asked - set(hts))))
@@ -244,6 +245,13 @@ def checks(s):
        "call $tk_help('mark', lx + lw - 5, ly + 1, 0, 0)" in tts and tts.count("call $tk_help('box', 'tool.test.page', hm, 0, 0)") == 3 and "call $tk_help('hit', mev, lx + lw - 5, ly + 1, hit.m)" in tts and "tool.test.page" in hts
        and "   allow = 'run basic'" in tts and tts.count("allow = ") == 1 and tts.count("call $tk_run(allow, sent, out, stat, rerr)") == 2 and not re.search(r"^\s*execute\b", tts, re.M), "")
 
+    tmy = strip(s["mymenu"])
+    ck("P17r my.menu (2 Nov 26, S.88 U4): a [?] at the end of the box's header row, F1 and ? and a click show its help (tool.menus.mine), F1 is in the key table with a Help menu entry, and the page still runs only create.file",
+       "call $tk_help('mark', l.x + l.w - 5, l.y + 1, 0, 0)" in tmy and "case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.menus.mine', hm, 0, 0)" in tmy
+       and "call $tk_help('hit', mev, l.x + l.w - 5, l.y + 1, hit.m)" in tmy and tmy.count("call $tk_help('box', 'tool.menus.mine', hm, 0, 0)") == 2
+       and "call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)" in tmy and "call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')" in tmy
+       and "tool.menus.mine" in hts and "$tk_run" not in tmy and tmy.count("execute") == 1, "")
+
     # one wrapping loop
     ck("P18 the wrapping loop is $tk_wrap and nowhere else: $tk_confirm, tool.menus and tool.viewers call it and none has the loop (a SCREEN TEXT longer than its width is cut, not wrapped)",
        "rest[cut, 1] # ' '" in tw and "call $tk_wrap(sentence, wrapw, pieces)" in tc and "call $tk_wrap(lines<wi>, ww, pieces)" in tm and "call $tk_wrap(lines<wi>, m.tw, pieces)" in tv
@@ -251,11 +259,11 @@ def checks(s):
     ck("P18b $tk_confirm wraps the lines of the explanation like the sentence, an empty line stays empty, and does not append them raw (the box CUTS a long line at its edge: the tail of the ai gate's 150-character sentence never showed, 24 Oct 26)",
        "call $tk_wrap(lines<li>, wrapw, pieces)" in tc and "for li = 1 to dcount(lines, @fm)" in tc and "if lines<li> = '' then" in tc and "body := @fm : lines" not in tc)
 
-    every =th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tau + "\n" + tcf + "\n" + tbk + "\n" + tac + "\n" + trm + "\n" + tfl + "\n" + tvc + "\n" + tdi + "\n" + tqy + "\n" + tbl + "\n" + tcg + "\n" + tts
-    want ={"$tk_help": (5,), "$tk_wrap": (3,), "!viewlist": (4,), "$tk_run": (5,), "$tk_confirm": (5, 6)}       # $tk_confirm is VAR.ARGS since 26 Oct 26 (faults): a sixth argument, the title, may be left out
+    every =th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tau + "\n" + tcf + "\n" + tbk + "\n" + tac + "\n" + trm + "\n" + tfl + "\n" + tvc + "\n" + tdi + "\n" + tqy + "\n" + tbl + "\n" + tcg + "\n" + tts + "\n" + tmy
+    want ={"$tk_help": (5,), "$tk_wrap": (3,), "!viewlist": (4,), "$tk_run": (5,), "$tk_confirm": (5, 6, 7)}       # $tk_confirm is VAR.ARGS since 26 Oct 26 (faults): a sixth argument, the title, may be left out; a seventh, the buttons, since 2 Nov 26 (S.88 P10)
     wrong = {k: [n for n in arg_counts(every, k) if n not in v] for k, v in want.items()}
     seen = {k: len(arg_counts(every, k)) for k in want}
-    ck("P20 every call of $tk_help (5 arguments), $tk_wrap (3), !viewlist (4), $tk_run (5) and $tk_confirm (5, or 6 with a title) has the number of arguments the subroutine takes (the null case: each is called at least once)",
+    ck("P20 every call of $tk_help (5 arguments), $tk_wrap (3), !viewlist (4), $tk_run (5) and $tk_confirm (5, 6 with a title, 7 with buttons) has the number of arguments the subroutine takes (the null case: each is called at least once)",
        not any(wrong.values()) and seen["$tk_help"] >= 12 and seen["$tk_wrap"] >= 3 and seen["!viewlist"] >= 3 and seen["$tk_run"] >= 2 and seen["$tk_confirm"] >= 2, repr((wrong, seen)))
 
     m = s["msgs"]
@@ -346,6 +354,10 @@ MUTANTS = [
     ("the holder's gate page calls $tk_help with too few arguments", "tool_mygates", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.mine', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.gates.mine', hm)"),
     ("the holder's gate page loses the click", "tool_mygates", "call $tk_help('hit', mev, g.x + g.w - 5, g.y + 1, hit.m)", "hit.m = 0"),
     ("the holder's gate page runs a command", "tool_mygates", "         msg = 'asked the system again'", "         call $tk_run(allow, sent, out, stat, err)\n         msg = 'asked the system again'"),
+    ("my.menu loses its [?]", "mymenu", "   call $tk_help('mark', l.x + l.w - 5, l.y + 1, 0, 0)\n", ""),
+    ("my.menu calls $tk_help with too few arguments", "mymenu", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.menus.mine', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.menus.mine', hm)"),
+    ("my.menu asks for another record on F1", "mymenu", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.menus.mine', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.menus.pins', hm, 0, 0)"),
+    ("my.menu has no F1 in its key table", "mymenu", "   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)", "   null"),
     ("a help record names a page that is not there", "ht.tool.menus.pins", "01-accounts-and-security", "no-such-page"),
     ("a help record has no title", "ht.tool.menus.pins", "Programs of the account's own\n", "\n"),
     ("a help record has a tab in it", "ht.tool.menus.default", "Applies to every account", "\tApplies to every account"),

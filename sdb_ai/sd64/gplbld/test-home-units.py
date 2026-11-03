@@ -10,6 +10,8 @@ WHAT IT HOLDS.  The sign-on hook is called only on a terminal (a piped session m
 two places the plan names, and the routine itself refuses in the order the plan gives; the three programs that share the named common /TKHOME/ declare it alike; the Terminal tile
 leaves the screen and sets the flag EXIT reads; EXIT does what QUIT does without the flag; SET.START.DEFAULT asks for the administrator first; MODIFY.ACCOUNT's three words, the
 register field, the messages and the VOC entries are all there; the sandbox starts at the terminal; the panel draws only its own rows; the scroll bar's style is dark grey.
+Since 2 Nov 26 (S.88 U9, H81-H84): the menu bar is the toolkit's ($tk_menubar, from the key table), every menu action has a key, a tile that is off has a reason, and / finds a
+tile through $tk_pickrec 'list' without starting it.  `--selftest --from=N` runs the mutants from N on (M_U9 is the first of U9's).
 
 ***IT READS THE SOURCE AS TEXT AND DOES NOT RUN BASIC.***  That the screen appears, the keys move the focus, EXIT comes back and a session starts where it should is
 sandbox-home.py.  A green run here is evidence that nothing has deleted or reordered the code that makes those rows true.
@@ -189,9 +191,15 @@ def checks(s):
     ck("H21 tool_home: the off list is asked for the account the session is in BEFORE any tile is added, a tile that is off is not added (and a header tile that was not added is not placed), a group with no tile has no heading",
        0 < th.find("call !home_off(@who, off.list)") < th.find("id = 'editor'") and "if index(off.set, ' ' : id : ' ', 1) then return" in th
        and "gosub add.tile\n   if not(added) then return" in th and "if gr<k, HG.BAND> = b and gtiles<k> > 0 then\n            gcols = gcw<k>" in th and "if gk > 0 then gtiles<gk> = gtiles<gk> + 1" in th and "if gy # '' then" in th)
-    ck("H21b ...the menus are made by build.page (so F5 and Switch account see the change), and the Terminal, Switch account and Keys entries carry the D flag when their tile is off",
-       "gosub alloc.styles\n   gosub make.menus\n   return" in th and "'&Go|&Terminal~~terminal~' : tflag : '|S&witch account~~switch~' : sflag" in th
-       and "'&Help|&Keys~~keys~' : kflag" in th and "tflag = (if terminal.off then 'D' else '')" in th)
+    mkm = between(th, "\nmake.menus:\n", "\nfind.tile:\n")
+    ck("H21b ...the menus are made by build.page (so F5 and Switch account see the change), and the Terminal, Switch account, Keys and Recent group entries are given a reason - dimmed, "
+       "not choosable, their keys out of use - when their tile is off (S.88 U9: through the key table, $tk_keys 'why')",
+       "gosub alloc.styles\n   gosub make.menus\n   return" in th and "call $tk_keys('menu', keys, 'terminal', '&Go', '&Terminal', '', '')" in mkm
+       and "call $tk_keys('menu', keys, 'switch', '&Go', 'S&witch account', '', '')" in mkm and "call $tk_keys('menu', keys, 'keys', '&Help', '&Keys', '', '')" in mkm
+       and "if terminal.off then call $tk_keys('why', keys, 'terminal', H.TILE.OFF, '', '', '')" in mkm
+       and "if index(off.set, ' switch ', 1) then call $tk_keys('why', keys, 'switch', H.TILE.OFF, '', '', '')" in mkm
+       and "if index(off.set, ' keys ', 1) then call $tk_keys('why', keys, 'keys', H.TILE.OFF, '', '', '')" in mkm
+       and "if index(off.set, ' recent ', 1) then call $tk_keys('why', keys, 'recent', H.TILE.OFF, '', '', '')" in mkm, mkm[:400])
     ck("H22 !home_entry: when the screen ends and the account's Terminal tile is off, the person is signed out (QUIT) and not left at the prompt",
        he.find("execute 'home'") > 0 and he.find("call !home_off(@who, off)") > he.find("execute 'home'")
        and "if index(' ' : off : ' ', ' terminal ', 1) then\n      sleep 2\n      execute 'quit'\n   end" in he)
@@ -287,7 +295,8 @@ def checks(s):
     st_tile = between(th, "\nstart.tile:\n", "\nnote.recent:\n")
     ck("H30c ...a folder tile and the Back tile are started like any tile (Enter, the space bar, a click, the AI line), Esc (inside a folder; on the top page Esc opens the menu bar, S.88 U9) and Backspace and the Go menu's Back entry do the same, and a tile that runs a command notes it for the Recent group before it runs",
        ordered(st_tile, "case act[1, 4] = 'cmd:'", "gosub note.recent", "gosub run.command", "case act[1, 5] = 'menu:'\n         gosub open.menu", "case act = 'back'\n         gosub close.menu")
-       and "case nm = 'esc' or nm = 'bs'\n         if nm = 'esc' and cur.menu = '' then\n            gosub run.menu" in th and "end else\n            gosub close.menu" in th and "case cmd = 'back'\n         gosub close.menu" in th, st_tile)
+       and "case nm = 'esc' or nm = 'bs'\n         gosub close.menu" in th and "busy = (cur.menu # '')" in th
+       and "call $tk_keys('menu', keys, 'back', '&Go', '&Back', '', '')" in th and "if cur.menu = '' then call $tk_keys('why', keys, 'back', H.TOP.PAGE, '', '', '')" in th, st_tile)
     bp_ = between(th, "\nbuild.page:\n", "\nadd.recent:\n")
     plh = between(th, "\nplace.header:\n", "\nalloc.styles:\n")
     ck("H30d ...the Back tile is built only on a sub-menu page, at the left end of the header (the first tile column, column 3 at 140 by 43, the header's first row), as a header tile, after the Switch account and Sign out tiles; "
@@ -329,9 +338,10 @@ def checks(s):
     ck("H31c ...the screen asks !home_recent for get, add, on and off and nothing else",
        sorted(re.findall(r"call !home_recent\('(\w+)'", th)) == ["add", "get", "off", "on"], repr(re.findall(r"call !home_recent\('(\w+)'", th)))
     tr = between(th, "\ntoggle.recent:\n", "\nrelayout:\n")
-    ck("H31d ...the View menu's entry turns the group on and off, the administrator's SET.TILE ... recent off wins (11961, before the routine is asked), and the entry carries the D flag then; on says 11958, off 11959 and a failure 11960",
+    ck("H31d ...the View menu's entry (and Ctrl-R) turns the group on and off, the administrator's SET.TILE ... recent off wins (11961, before the routine is asked), and the entry is given a reason then; on says 11958, off 11959 and a failure 11960",
        ordered(tr, "if index(off.set, ' recent ', 1) then\n      msg = sysmsg(11961)\n      return", "call !home_recent('off', rok, junk)", "rmsg = 11959", "call !home_recent('on', rok, junk)", "rmsg = (if rok then 11958 else 11960)", "gosub rebuild", "msg = sysmsg(rmsg)")
-       and "rflag = (if index(off.set, ' recent ', 1) then 'D' else '')" in th and "'|Recent &group (' : (if rc.on then 'on' else 'off') : ')~~recent~' : rflag" in th and "case cmd = 'recent'\n         gosub toggle.recent" in th, tr)
+       and "call $tk_keys('menu', keys, 'recent', '&View', 'Recent &group on or off', '', '')" in th
+       and "if index(off.set, ' recent ', 1) then call $tk_keys('why', keys, 'recent', H.TILE.OFF, '', '', '')" in th and "case nm = 'ctrl-r'\n         gosub toggle.recent" in th, tr)
     hr = strip(s["home_recent"])
     rg = between(hr, "\nrc.get:\n", "\nrc.add:\n")
     ra = between(hr, "\nrc.add:\n", "\nrc.on:\n")
@@ -362,9 +372,41 @@ def checks(s):
        "(@abort.code is 0 again when the command processor returns, so it is not used), that is read BEFORE $sl_cleanup, and an aborted command waits for a key (wait.key) before the screen is taken again, as a tile with a pause does",
        ordered(rcm, "gosub set.sentinel", "execute sentence trapping aborts", "aborted = (@abort.message # sentinel)", "call $sl_cleanup", "if pause or aborted then gosub wait.key", "gosub reopen")
        and "@abort.code" not in rcm and "sentv = 1 / zero" in rcm and "catch sys.program.div_zero" in rcm and ordered(rcm, "sentinel = ''", "try", "sentinel = @abort.message", "if sentv # 0 then sentinel = ''"), rcm)
-    ck("H80 F1 shows tool.home.page (a key row f1/help, the case before F5) and the AI menu entry follows the AI: 'Ask the AI' (enabled, action ai) when ctx<TK.C.AI> is set, 'AI is off' dimmed otherwise, and the action moves the focus to the AI line (S.88 U9; an Opus review of 29 Oct found no guard for it)",
+    ck("H80 F1 shows tool.home.page (a key row f1/help, the case before F5) and the AI menu entry follows the AI: 'Ask the AI' (action ai, on F6) is enabled when ctx<TK.C.AI> is set and dimmed with a reason otherwise, and F6 moves the focus to the AI line only when it is there (S.88 U9; an Opus review of 29 Oct found no guard for it)",
        "call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)" in th and "case nm = 'f1'\n         call $tk_help('box', 'tool.home.page', hm, 0, 0)" in th
-       and "if ctx<TK.C.AI> then m = '&AI|&Ask the AI~~ai' else m = '&AI|AI is off~~ai~D'" in th and "case cmd = 'ai'\n         gosub ai.focus.on" in th)
+       and "call $tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')" in th and "if not(ctx<TK.C.AI>) then call $tk_keys('why', keys, 'ai', H.AI.OFF, '', '', '')" in th
+       and "case nm = 'f6'\n         if ctx<TK.C.AI> then\n            gosub ai.focus.on" in th)
+
+    # ---------------------------------------------------------------------------------------------------------------- 2 Nov 26, S.88 U9: the toolkit's menu bar and type-to-find
+    lp = between(th, "\n   loop\n", "\n   gosub finish\n")
+    mk9 = between(th, "\nmake.keys:\n", "\noff.row:\n")
+    ft = between(th, "\nfind.tile:\n", "\nend\n")
+    om9 = between(th, "\non.mouse:\n", "\n   kind = mev<1>\n")
+    ck("H81 the home screen builds no menu array of its own: no SCREEN MENUBAR at all; the loop draws $tk_menubar BEFORE $tk_frame, gives the bar a key only when the AI line does not have the focus, "
+       "with busy = (cur.menu # '') (the Esc rule), and takes its answer as the key it stands for (nm = mr<4>); a click is the bar's first, and a choice made while the AI line had the focus takes the focus back first",
+       "screen menubar" not in th and ordered(lp, "call $tk_menubar('draw', ctx, keys, ttl, '', '', mr)", "call $tk_frame(ctx, keys, ttl, msg)", "screen key timeout 30 returning nm", "mr = ''",
+                                                "if nm # '' and not(aif) then", "busy = (cur.menu # '')", "call $tk_menubar('key', ctx, keys, ttl, nm, busy, mr)", "if mr<1> # '' then nm = mr<4>", "begin case")
+       and ordered(om9, "call $tk_menubar('click', ctx, keys, ttl, mev, '', mr)", "if mr<1> # '' then", "nm = mr<4>", "if nm # '' then", "if aif then gosub ai.leave", "gosub on.key", "return")
+       and th.count("$tk_menubar(") == 3, lp[:300])
+    keyed = re.findall(r"call \$tk_keys\('add', keys, '([^']*)', '[^']*', '([^']*)', '', 1\)", mk9)
+    menued = re.findall(r"call \$tk_keys\('menu', keys, '([^']*)'", mkm)
+    ck("H82 ...every action on the bar has a key in the table (the bar replays the key through the page's own case), F10 has no row (it is the bar's), and the keys that are not on the function-key row are taken "
+       "off it right after their row (Backspace, Ctrl-T, Ctrl-W, Ctrl-R, Ctrl-K)",
+       set(menued) <= {a for k, a in keyed if k} and not any(k == "f10" for k, a in keyed) and len(menued) == 10
+       and all(re.search(r"call \$tk_keys\('add', keys, '%s', [^\n]*\)\n   gosub off\.row\n" % k, mk9) for k in ("bs", "ctrl-t", "ctrl-w", "ctrl-r", "ctrl-k"))
+       and mk9.count("gosub off.row") == 5 and "keys<dcount(keys, @fm), TK.K.ROW> = 0" in th, repr((keyed, menued)))
+    oky = between(th, "\non.key:\n", "\non.mouse:\n")
+    ck("H83 ...a key of a tile that is off does nothing but say so, whether pressed or chosen from the bar: Ctrl-T asks terminal.off before it leaves for the Terminal, Ctrl-W and Ctrl-K ask the off list before "
+       "Switch account and tool.keys, Ctrl-R goes through toggle.recent (which refuses itself, 11961)",
+       ordered(oky, "case nm = 'ctrl-t'", "if terminal.off then", "msg = H.TILE.OFF", "outcome = 'terminal'")
+       and "case nm = 'ctrl-w'\n         if index(off.set, ' switch ', 1) then msg = H.TILE.OFF else gosub switch.account" in oky
+       and ordered(oky, "case nm = 'ctrl-k'", "if index(off.set, ' keys ', 1) then", "msg = H.TILE.OFF", "sentence = 'tool.keys'", "gosub run.command")
+       and "case nm = 'ctrl-r'\n         gosub toggle.recent" in oky and ordered(between(th, "\ntoggle.recent:\n", "\nrelayout:\n"), "if index(off.set, ' recent ', 1) then", "msg = sysmsg(11961)", "return"), oky[:300])
+    ck("H84 type-to-find (/, Go > Find a tile): the tiles of the page (no Recent copy twice) go to $tk_pickrec 'list', the window starts on the tile that has the focus, and a choice only MOVES the focus "
+       "(set.focus, never start.tile: Enter on the page starts it); a cancel changes nothing; the case for / comes before the letter jump",
+       ordered(ft, "for i = 1 to nt", "if tl<i, HT.ID>[1, 2] # 'r:' then", "fitems<-1> = tl<i, HT.LABEL>", "fmap<-1> = i", "if i = fi then fdef = dcount(fmap, @fm)",
+               "fstart = fdef", "call $tk_pickrec(ctx, 'list', fitems, fsel, fres, fstart)", "if fres = 'ok' then", "j = fmap<fsel>", "gosub set.focus")
+       and "start.tile" not in ft and ordered(oky, "case nm = '/'\n         gosub find.tile", "case len(nm) = 1 and nm > ' '\n         gosub jump.letter"), ft[:300])
     ck("H34d the AI is told there is nowhere to run a command ('nocmd', field 11) when the Terminal tile is off for the account, BEFORE it is asked, and a 'command' answer is refused with a message and never reaches run.command in that case (TUI phase 2 review, b: the Terminal tile off "
        "means no command prompt through the AI either; this tightens a default)",
        ordered(th, "if terminal.off then actx<11> = 'nocmd'", "call $tk_ai('ask', ctx, actx, res)", "case res<1> = 'command' and terminal.off", "case res<1> = 'command'\n         sentence = res<2>")
@@ -383,7 +425,7 @@ MUTANTS = [
     ("a header tile that is off is placed on the previous tile", "tool_home", "   gosub add.tile\n   if not(added) then return\n", "   gosub add.tile\n"),
     ("a tile that is off is added", "tool_home", "   if index(off.set, ' ' : id : ' ', 1) then return        ;* turned off by the administrator: not on the page at all\n", ""),
     ("the menus are made once, at the start", "tool_home", "   gosub alloc.styles\n   gosub make.menus\n   return", "   gosub alloc.styles\n   return"),
-    ("the Terminal entry stays choosable", "tool_home", "tflag = (if terminal.off then 'D' else '')", "tflag = ''"),
+    ("the Terminal entry stays choosable", "tool_home", "   if terminal.off then call $tk_keys('why', keys, 'terminal', H.TILE.OFF, '', '', '')\n", ""),
     ("an empty group still has a heading", "tool_home", "      for k = 1 to ng\n         if gr<k, HG.BAND> = b and gtiles<k> > 0 then", "      for k = 1 to ng\n         if gr<k, HG.BAND> = b then"),
     ("home_off forgets the account's own list", "home_off", "read arec from af, downcase(acct) then off = arec<ACC$TILES.OFF>", "read arec from af, downcase(acct) then null"),
     ("home_off reads another account's list", "home_off", "read arec from af, downcase(acct) then", "read arec from af, 'sdsys' then"),
@@ -507,10 +549,29 @@ MUTANTS = [
     ("the menu management page does not list recent", "tool_menus", "'test' : @fm : 'recent'\n", "'test'\n"),
     ("a development tile has an id the lists do not know", "tool_home", "id = 'test' ; grp = g ;", "id = 'tests' ; grp = g ;"),
     ("the menu management page loses a label", "tool_menus", "'Programs' : @fm : 'Tests'", "'Programs'"),
+    # ---- 2 Nov 26 (S.88 U9): the toolkit's menu bar and type-to-find - the first of these is marker M_U9 for --from=
+    ("the page draws a SCREEN MENUBAR of its own again", "tool_home", "   ctx<TK.C.BAR> = ''", "   screen menubar menus row 0 draw else null"),
+    ("the bar is drawn after the frame", "tool_home", "      call $tk_menubar('draw', ctx, keys, ttl, '', '', mr)  ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end\n      call $tk_frame(ctx, keys, ttl, msg)\n",
+     "      call $tk_frame(ctx, keys, ttl, msg)\n      call $tk_menubar('draw', ctx, keys, ttl, '', '', mr)\n"),
+    ("the bar takes keys while the AI line has the focus", "tool_home", "      if nm # '' and not(aif) then\n", "      if nm # '' then\n"),
+    ("Esc in a sub-menu opens the bar instead of going back", "tool_home", "         busy = (cur.menu # '')", "         busy = 0"),
+    ("a click on the bar while the AI line has the focus is typed into the line", "tool_home", "         if aif then gosub ai.leave\n         gosub on.key", "         gosub on.key"),
+    ("F10 is a row of the page again", "tool_home", "   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)\n", "   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)\n   call $tk_keys('add', keys, 'f10', 'menu', 'menu', '', 1)\n"),
+    ("a menu action has no key", "tool_home", "   call $tk_keys('add', keys, 'ctrl-r', 'recent', 'recent', '', 1)\n", ""),
+    ("Ctrl-K stays on the function-key row", "tool_home", "   call $tk_keys('add', keys, 'ctrl-k', 'keys', 'keys', '', 1)\n   gosub off.row\n", "   call $tk_keys('add', keys, 'ctrl-k', 'keys', 'keys', '', 1)\n"),
+    ("the Keys entry stays choosable when its tile is off", "tool_home", "   if index(off.set, ' keys ', 1) then call $tk_keys('why', keys, 'keys', H.TILE.OFF, '', '', '')\n", ""),
+    ("Ctrl-T leaves for the Terminal when the tile is off", "tool_home", "         if terminal.off then\n            msg = H.TILE.OFF", "         if 0 then\n            msg = H.TILE.OFF"),
+    ("Ctrl-K starts tool.keys when the tile is off", "tool_home", "         if index(off.set, ' keys ', 1) then\n            msg = H.TILE.OFF", "         if 0 then\n            msg = H.TILE.OFF"),
+    ("F6 gives the focus to a line that is not there", "tool_home", "      case nm = 'f6'\n         if ctx<TK.C.AI> then", "      case nm = 'f6'\n         if 1 then"),
+    ("Ask the AI is choosable when the AI is off", "tool_home", "   if not(ctx<TK.C.AI>) then call $tk_keys('why', keys, 'ai', H.AI.OFF, '', '', '')\n", ""),
+    ("the found tile is started at once", "tool_home", "      gosub set.focus\n      msg = tl<fi, HT.LABEL> : ': Enter starts it'", "      gosub set.focus\n      gosub start.tile"),
+    ("a cancelled find moves the focus", "tool_home", "   if fres = 'ok' then\n      j = fmap<fsel>", "   if 1 then\n      j = fmap<fsel>"),
+    ("/ jumps to a tile that begins with it", "tool_home", "      case nm = '/'\n         gosub find.tile\n", ""),
 ]
+M_U9 = len(MUTANTS) - 16
 
 
-def selftest():
+def selftest(first=0):
     s = load()
     base = [n for n, ok, _ in checks(s) if not ok]
     if base:
@@ -518,7 +579,7 @@ def selftest():
         return 2
     holes = 0
     print("--- self-test: the unmutated source passes; each mutation must be CAUGHT and match its text once ---")
-    for name, which, old, new in MUTANTS:
+    for name, which, old, new in MUTANTS[first:]:
         if s[which].count(old) != 1:
             print("  [FAIL] %s: the text to mutate matches %d times in %s, not once" % (name, s[which].count(old), which))
             holes += 1
@@ -531,13 +592,17 @@ def selftest():
         else:
             print("  [FAIL] %s: NOT CAUGHT by any check" % name)
             holes += 1
-    print("self-test: %d mutants, %d not caught" % (len(MUTANTS), holes))
+    print("self-test: %d mutants (from %d; M_U9 = %d), %d not caught" % (len(MUTANTS) - first, first, M_U9, holes))
     return 1 if holes else 0
 
 
 def main():
     if "--selftest" in sys.argv:
-        sys.exit(selftest())
+        first = 0
+        for a in sys.argv:
+            if a.startswith("--from="):
+                first = int(a[len("--from="):])
+        sys.exit(selftest(first))
     s = load()
     rows = checks(s)
     bad = 0

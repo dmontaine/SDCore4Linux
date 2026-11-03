@@ -152,9 +152,21 @@ def checks(raw):
        "if t1 = 'F' or t1[1, 5] = 'FILE ' then" in rf and "if pft = FL$TYPE.DH then pf.t = 'dyn'" in pf and "if pft = FL$TYPE.DIR then pf.t = 'dir'" in pf and "open 'DICT', pfn to pdv then" in pf
        and "good = '%s'" % SAFE in cn and "okname = (len(fn) > 0 and len(fn) <= 63)" in cn and "okname = @false" in cn and ordered(cf, "fn = fshown<fc>", "gosub check.name", "if not(okname) then", "fname = fn", "gosub read.dict") and cf.count("fname = fn") == 1, "")
     de = block(pg, "do.edit")
-    ck("TQ11", "E: the text typed is read by check.sentence before it becomes the sentence, a refusal leaves the sentence as it was, and edited is set only after the check passed",
-       ordered(de, "chk.s = trimf(trimb(es))", "gosub check.sentence", "if chk.err # '' then\n      msg = 'not accepted: ' : chk.err\n      return\n   end", "sent = chk.out", "edited = 1")
+    afc, afm = block(pg, "af.check"), block(pg, "ask.form")
+    afcase = lambda k: afc[afc.find("case af.kind = '%s'" % k):][:400] if "case af.kind = '%s'" % k in afc else ""
+    # 2 Nov 26 (S.88 U6): the text is asked on the form (ask.form) and read by check.sentence in af.check, which passes it back only as chk.out; a refusal stays in the form
+    ck("TQ11", "E: the text typed is read by check.sentence (in af.check, the sentence branch) before it becomes the sentence, a refusal leaves the sentence as it was, and edited is set only after the check passed",
+       ordered(afcase("sentence"), "chk.s = trimf(trimb(af.in))", "gosub check.sentence", "if chk.err # '' then af.err = 'not accepted: ' : chk.err else af.out = chk.out")
+       and ordered(de, "af.kind = 'sentence'", "gosub ask.form", "if not(af.ok) then", "return", "sent = af.out", "edited = 1")
        and len(re.findall(r"^\s*sent = ", de, re.M)) == 1 and de.count("edited = 1") == 1, "")
+    ck("TQ25", "S.88 U6: the page's seven questions are each one $tk_form through ask.form (no SCREEN ASK is left): the form is opened, the person's text is read by af.check, a refusal is said IN the form "
+               "and the form runs again, and af.ok is set only after the form was closed on an answer that passed; every way out closes the form; the seven callers are the ones the page has",
+       "screen ask" not in code and ordered(afm, "call $tk_form('open', ctx, spec, fv, fo)", "if fo = 'no' then", "call $tk_form('say', ctx, af.note, '', '')", "loop", "call $tk_form('run', ctx, fans, fv, fid)",
+                                             "if fans # 'ok' then\n         call $tk_form('close', ctx, '', '', '')\n         return", "gosub af.check", "if af.err = '' then exit", "call $tk_form('say', ctx, af.err : @fm : af.note, 'answer', '')",
+                                             "repeat", "call $tk_form('close', ctx, '', '', '')", "af.ok = 1")
+       and afm.count("af.ok = 1") == 1 and pg.count("call $tk_form(") == 6 and pg.count("gosub ask.form") == 7
+       and all("gosub ask.form" in block(pg, b) for b in ("do.filter", "edit.cond", "edit.option", "do.edit", "do.save"))
+       and all(afcase(k) for k in ("filter", "value", "sample", "sentence", "name")), repr((pg.count("call $tk_form("), pg.count("gosub ask.form"))))
     chg = block(pg, "changed")
     handlers = {"mark.column": 1, "flag.column": 1, "edit.cond": 1, "edit.sort": 1, "edit.option": 7, "keys.conds": 2, "keys.sorts": 2, "keys.columns": 1}
     ck("TQ12", "a change in a box writes the sentence again and gives up a hand edit: `changed` clears edited before it builds, and every routine that changes a box calls it (as many times as it has places that change one)",
@@ -167,9 +179,10 @@ def checks(raw):
        "(a-z 0-9 dot dash underscore, at most 40), the cap of 100, shows a box (the file's creation; the write, with the name typed to replace one) and writes only when the box answered Run",
        wr == ["write wrec to qf, qname on error writeok = @false"] and dl == ["delete qf, lname on error delok = @false"] and set(opens) <= allowed and "'&queries&'" in opens
        and all(re.search(r"^\s*open\s+'&queries&'\s+to\s+qf\b", l) for l in pg.split("\n") if re.search(r"\bto qf\b", l) and l.strip().startswith("open"))
-       and ordered(sav, "gosub check.name", "if not(okname) or len(fn) > 40 then", "qname = fn", "call $tk_confirm(qsent, lines, '', res, cmsg)", "if res # 'run' then", "execute qsent trapping aborts capturing mk",
+       and ordered(afcase("name"), "fn = downcase(trim(af.in))", "gosub check.name", "if not(okname) or len(fn) > 40 then af.err = ", "else af.out = fn")
+       and ordered(sav, "af.kind = 'name'", "gosub ask.form", "if not(af.ok) then", "qname = af.out", "call $tk_confirm(qsent, lines, '', res, cmsg)", "if res # 'run' then", "execute qsent trapping aborts capturing mk",
                    "if naq >= MAXSAVED then", "call $tk_confirm(wsent, lines, qname, res, cmsg, sysmsg(11952))", "call $tk_confirm(wsent, lines, '', res, cmsg, sysmsg(11952))",
-                   "if res # 'run' then\n      msg = cmsg\n      close qf\n      return\n   end\n   gosub check.qfile", "gosub pack.record", "write wrec to qf, qname") and "fn = downcase(trim(nn))" in sav, repr((wr, dl, sorted(set(opens)))))
+                   "if res # 'run' then\n      msg = cmsg\n      close qf\n      return\n   end\n   gosub check.qfile", "gosub pack.record", "write wrec to qf, qname") and sav.count("qname = ") == 1, repr((wr, dl, sorted(set(opens)))))
     dsel = block(pg, "delete.selected")
     ck("TQ14", "X: a saved query is deleted only after a box that asks its name typed, and the only record deleted is the one named in the list",
        ordered(dsel, "lname = sv.ids<svc>", "call $tk_confirm(dsent, lines, lname, res, cmsg, sysmsg(11953))", "if res # 'run' then\n      msg = cmsg\n      return\n   end", "gosub check.delete", "delete qf, lname on error delok = @false"), "")
@@ -197,7 +210,9 @@ def checks(raw):
     ck("TQ16", "validate.panes keeps only what passes: a column that is an item the page uses (once, at most 20), a condition whose item is one, whose operator is in the table and whose value q.value accepts, a sort item that is one, a heading and a footing that q.value accepts, a sample of 1 to 99999 digits",
        "if dok<vdp> = 1 then\n            vn += 1" in vp and "locate vop in ops<1> setting vpo else vpo = 0" in vp and "if vdp > 0 and vpo > 0 and qv.err = '' then" in vp and "vn < MAXC" in vp and "not(dupe)" in vp
        and vp.count("gosub q.value") == 3 and "smp.in = opt.sample\n      gosub check.sample" in vp and ordered(block(pg, "check.sample"), "if smp.in matches \"1N0N\" then", "if len(smp.in) <= 5 then", "smp.out = smp.in + 0", "if smp.out >= 1 then smp.ok = 1")
-       and "gosub check.sample" in block(pg, "edit.option") and ordered(vp, "if vdp > 0 then\n            if dok<vdp> = 1 then\n               ns2<vi> = vid"), "")
+       and ordered(afcase("sample"), "smp.in = trim(af.in)", "if smp.in # '' then", "gosub check.sample", "if smp.ok then af.out = smp.out else af.err = ")
+       and "af.kind = 'sample'" in block(pg, "edit.option") and block(pg, "edit.option").count("af.kind = 'value'") == 2
+       and ordered(afcase("value"), "qv.in = trimf(trimb(af.in))", "gosub q.value", "if qv.err # '' then af.err = 'not accepted: ' : qv.err else af.out = qv.in") and ordered(vp, "if vdp > 0 then\n            if dok<vdp> = 1 then\n               ns2<vi> = vid"), "")
     ck("TQ17", "what the query printed is cut into lines, every escape sequence is taken out and every other control and non-ASCII character is made a dot BEFORE a line is kept; at most 2000 lines are kept and the page says how many there were",
        ordered(run, "rl.n = dcount(out, @fm)", "if rl.cnt > MAXLINES then rl.cnt = MAXLINES", "gosub strip.esc", "rl<ri> = convert(ctl, dots, ln)[1, 400]", "out = ''")
        and "for k0 = 1 to 31" in pg and "for k0 = 127 to 255" in pg and "info := ', the first ' : rl.cnt : ' are kept'" in block(pg, "draw.results") and not re.search(r"screen text[^\n]*\bout\b", code), "")
@@ -287,15 +302,20 @@ MUTANTS = [
     ("a command goes through $tk_run", "TQ4", sub("page", "      execute qsent trapping aborts capturing mk\n", "      call $tk_run('create.file', qsent, mk, mst, mer)\n")),
     ("the boxes' sentence is kept without a check", "TQ8", sub("page", "   gosub check.sentence\n   if chk.err # '' then\n      senterr = 'The boxes made a sentence the page will not run: ' : chk.err\n      return\n   end\n   sent = chk.out", "   sent = chk.s")),
     ("a refused value does not end the build", "TQ8", sub("page", "senterr = 'condition ' : gi : ': ' : qv.err\n            exit", "senterr = 'condition ' : gi : ': ' : qv.err")),
-    ("an edited sentence is taken unchecked", "TQ11", sub("page", "   chk.s = trimf(trimb(es))\n   gosub check.sentence\n   if chk.err # '' then\n      msg = 'not accepted: ' : chk.err\n      return\n   end\n   sent = chk.out", "   sent = trimf(trimb(es))")),
-    ("an edit is marked before it is checked", "TQ11", sub("page", "   chk.s = trimf(trimb(es))\n   gosub check.sentence", "   edited = 1\n   chk.s = trimf(trimb(es))\n   gosub check.sentence")),
+    ("an edited sentence is taken unchecked", "TQ11", sub("page", "         chk.s = trimf(trimb(af.in))\n         gosub check.sentence\n         if chk.err # '' then af.err = 'not accepted: ' : chk.err else af.out = chk.out", "         af.out = trimf(trimb(af.in))")),
+    ("an edit is marked before it is checked", "TQ11", sub("page", "   af.kind = 'sentence'", "   edited = 1\n   af.kind = 'sentence'")),
+    ("the edit takes the text whatever the form answered", "TQ11", sub("page", "   if not(af.ok) then\n      msg = (if af.why # '' then af.why else 'the sentence was not changed')\n      return\n   end\n", "")),
+    ("a question is asked with SCREEN ASK again", "TQ25", sub("page", "   gosub ask.form\n   if af.why # '' then msg = af.why\n   if not(af.ok) then return\n   filt = af.out", "   screen ask 'Filter' width 40 returning flt then af.ok = 1 else af.ok = 0\n   if not(af.ok) then return\n   filt = trim(flt)")),
+    ("a refused answer closes the form and is taken", "TQ25", sub("page", "      if af.err = '' then exit\n      call $tk_form('say', ctx, af.err : @fm : af.note, 'answer', '')", "      exit")),
+    ("the form is left open on Cancel", "TQ25", sub("page", "      if fans # 'ok' then\n         call $tk_form('close', ctx, '', '', '')\n         return", "      if fans # 'ok' then\n         return")),
+    ("an answer is taken before the form is closed", "TQ25", sub("page", "   call $tk_form('close', ctx, '', '', '')\n   af.ok = 1", "   af.ok = 1\n   call $tk_form('close', ctx, '', '', '')")),
     ("a change does not give up a hand edit", "TQ12", sub("page", "   if edited then\n      edited = 0\n      msg = 'the sentence was written again from the boxes'\n   end\n   gosub gen.sentence", "   gosub gen.sentence")),
     ("marking a column does not write the sentence again", "TQ12", sub("page", "      cols<-1> = mcol\n   end\n   gosub changed\n   return", "      cols<-1> = mcol\n   end\n   return")),
     ("a second record is written", "TQ13", sub("page", "   wrec<19> = sent\n   return", "   wrec<19> = sent\n   write wrec to qf, 'zz'\n   return")),
     ("the save writes without waiting for the box", "TQ13", sub("page", "   if res # 'run' then\n      msg = cmsg\n      close qf\n      return\n   end\n   gosub check.qfile ", "   gosub check.qfile ")),
     ("a record is replaced without its name typed", "TQ13", sub("page", "call $tk_confirm(wsent, lines, qname, res, cmsg, sysmsg(11952))", "call $tk_confirm(wsent, lines, '', res, cmsg, sysmsg(11952))")),
     ("the cap of saved queries is not looked at", "TQ13", sub("page", "      if naq >= MAXSAVED then", "      if naq >= 999999 then")),
-    ("a name is not checked", "TQ13", sub("page", "   if not(okname) or len(fn) > 40 then", "   if len(fn) > 40 then")),
+    ("a name is not checked", "TQ13", sub("page", "         if not(okname) or len(fn) > 40 then af.err", "         if len(fn) > 40 then af.err")),
     ("another file is opened", "TQ13", sub("page", "set.pane:\n   begin case", "set.pane:\n   open 'bp' to xbp then close xbp\n   begin case")),
     ("the file the page creates is made without its box", "TQ13", sub("page", "      call $tk_confirm(qsent, lines, '', res, cmsg)\n      if res # 'run' then\n         msg = cmsg\n         return\n      end\n", "")),
     # 28 Oct 26, S.88 phase 2 (S2)
@@ -321,7 +341,8 @@ MUTANTS = [
     ("the sample is added to before it is known to be digits (BASIC does not short-circuit: a non-number aborts the page)", "TQ16",
      sub("page", "   if smp.in matches \"1N0N\" then\n      if len(smp.in) <= 5 then\n         smp.out = smp.in + 0\n         if smp.out >= 1 then smp.ok = 1\n      end\n   end",
          "   smp.out = smp.in + 0\n   if smp.in matches \"1N0N\" and len(smp.in) <= 5 and smp.out >= 1 then smp.ok = 1")),
-    ("the sample box takes any text", "TQ16", sub("page", "               smp.in = vv\n               gosub check.sample\n               if smp.ok then\n                  opt.sample = smp.out", "               if 1 then\n                  opt.sample = vv")),
+    ("the sample box takes any text", "TQ16", sub("page", "            gosub check.sample\n            if smp.ok then af.out = smp.out else af.err = ", "            smp.ok = 1\n            if smp.ok then af.out = smp.in else af.err = ")),
+    ("a condition value is taken unquoted-checked from the form", "TQ16", sub("page", "         qv.in = trimf(trimb(af.in))\n         gosub q.value\n         if qv.err # '' then af.err = 'not accepted: ' : qv.err else af.out = qv.in", "         af.out = af.in")),
     ("escape sequences are not taken out of the output", "TQ17", sub("page", "      gosub strip.esc\n", "")),
     ("the output is not cut at 2000 lines", "TQ17", sub("page", "   if rl.cnt > MAXLINES then rl.cnt = MAXLINES\n", "")),
     ("the page does not say how many lines were cut", "TQ17", sub("page", "if rl.n > rl.cnt then info := ', the first ' : rl.cnt : ' are kept'", "info := ''")),
@@ -330,7 +351,7 @@ MUTANTS = [
     ("a VOC keyword may be an item in a sentence", "TQ9", sub("page", "if upcase(dkr<1>)[1, 1] = 'K' then ck.ok = 0", "if upcase(dkr<1>)[1, 1] = 'Z' then ck.ok = 0")),
     ("@id is not the first item", "TQ9", sub("page", "   ditem<1> = '@id'\n", "")),
     ("an item name may hold a semicolon", "TQ9", sub("page", "okc = 'abcdefghijklmnopqrstuvwxyz0123456789._-'", "okc = 'abcdefghijklmnopqrstuvwxyz0123456789._-;'")),
-    ("a link item is listed as a column", "TQ9", sub("page", "index('DEICAS', tc, 1) = 0", "index('DEICASL', tc, 1) = 0")),
+    ("a link item is listed as a column", "TQ9", sub("page", "index('DEI', tc, 1) = 0", "index('DEIL', tc, 1) = 0")),   # 2 Nov 26: 'DEICAS' went with the A/S types (31 Oct); the mutant found nothing
     ("a file name may hold a dollar", "TQ10", sub("page", "good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'\n   for q = 1", "good = 'abcdefghijklmnopqrstuvwxyz0123456789._-$'\n   for q = 1")),
     ("a file is chosen before its name is checked", "TQ10", sub("page", "   fn = fshown<fc>\n   gosub check.name\n   if not(okname) then\n      msg = 'this file name has", "   fn = fshown<fc>\n   fname = fn\n   gosub check.name\n   if not(okname) then\n      msg = 'this file name has")),
     ("a sequential file is offered", "TQ10", sub("page", "      if pft = FL$TYPE.DIR then pf.t = 'dir'", "      if pft = FL$TYPE.SEQ then pf.t = 'seq'")),

@@ -19,6 +19,8 @@
 *               forms of user programs (SCREEN MEMO) keep Tab for moving between their controls.
 * 2 Nov 26 dm  bpon (S.98 H2: breakpoints in the IDE's editor): an optional mark cell in front of the gutter, the lines in w{'bp'}, ops bptoggle, bpclear and bpfollow, and a click in the
 *               gutter toggles the line's mark; the marks follow the text when a key or a click changes the number of lines (bp.follow).  Opt in: SCREEN MEMO never sets it.
+* 2 Nov 26 dm  S.88 p3.3a: the op 'size' (a new width and height for the area, everything it holds kept), for $sl_widget_move; the rectangle is worked out in one
+*              place (geom), read at every call as before and again by 'size'.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -83,6 +85,8 @@
 *             function key, and up on the first row and down on the last, so that a form can go on to the
 *             widget before or after.  A readonly area moves: Return and every character are 'unhandled'.
 *     mouse   a click puts the cursor on the character under it, the wheel scrolls three rows
+*     size    key<1> a new width, key<2> a new height ('' keeps one; 2 Nov 26, for $sl_widget_move): the text, the cursor, the selection, the find text and the undo
+*             and redo steps are kept, the view follows the cursor; nothing is drawn, scr may be ''
 *     snap    the text and the cursor as they are go on the undo steps as a step of their own, and redo is forgotten; for a program that is
 *             about to change the value itself (28 Oct 26).  The steps are kept as they are: lines holding value, subvalue or text marks come back from an undo whole.
 *     close   nothing to undo: the caller repaints what is under it
@@ -105,10 +109,6 @@ $include sl.h
    common /slclip/ clip.has, clip.text
 
    ret = ''
-   mw = w{'w'} + 0
-   mh = w{'h'} + 0
-   if mw < 3 then mw = 3
-   if mh < 1 then mh = 1
    ro = w{'readonly'} + 0
    ti = w{'tabindent'} + 0                       ;* 28 Oct 26: the indent width Tab and Shift-Tab use (0: they are not the area's keys)
    if ti < 0 then ti = 0
@@ -116,29 +116,12 @@ $include sl.h
    ov = w{'over'} + 0                            ;* 29 Oct 26 (S.88 D2): overwrite mode (with edkeys, Ins toggles it; the program reads w{'over'} to show it): a typed character replaces the one under the cursor
    ai = w{'autoindent'} + 0                      ;* 29 Oct 26 (S.88 D2): Return copies the blanks the line begins with (up to the cursor) onto the new line; set by the program
    wrap = w{'wrap'} + 0
-   * 18 Oct 26: hbar (1) puts a horizontal scroll bar in the last row of the area, and the text has one row less.  Opt in: a program that
-   * does not set it (SCREEN MEMO) is drawn as it always was.  There is none when the text wraps (nothing to scroll sideways) or the area is
-   * under three rows high.
-   hb = 0
-   if w{'hbar'} + 0 and not(wrap) and mh >= 3 then
-      hb = 1
-      mh -= 1
-   end
    lines = w{'value'}
    lnum = w{'lnum'} + 0                          ;* 13 Oct 26: line numbers down the left (gut cells: the digits and a blank)
    syl = w{'synlang'} + 0                        ;* 13 Oct 26: the number of the language the text is coloured as (0: none)
-   gut = 0
-   if lnum then
-      gut = len(max(dcount(lines, @fm), 1)) + 1
-      if gut > mw - 4 then gut = 0               ;* an area too narrow for them has none
-   end
-   gn = gut                                      ;* 2 Nov 26 (S.98 H2): the width of the line numbers; the mark cell of bpon is in front of them
-   bpon = w{'bpon'} + 0
-   if mw < 12 then bpon = 0
    bpl = w{'bp'}
    ob0 = lines                                   ;* the text the marks are kept for: store moves them when the number of lines is not the same as at the end of this call
-   if bpon then gut += 1
-   tw = mw - 1 - gut                            ;* the width of the text: the last column is the scroll bar
+   gosub geom
    cx = w{'cx'} + 0
    cy = w{'cy'} + 0
    top = w{'top'} + 0
@@ -190,6 +173,19 @@ $include sl.h
          gosub count
          gosub click
 
+      case op = 'size'
+         * 2 Nov 26 (S.88 p3.3a): key<1> the new width, key<2> the new height ('' keeps one), from $sl_widget_move.  The text, the cursor, the selection, the find
+         * text and the undo and redo steps stay as they are; the view follows the cursor into the new rectangle.  Nothing is drawn and init is not run.
+         if key<1> # '' then w{'w'} = key<1> + 0
+         if key<2> # '' then w{'h'} = key<2> + 0
+         gosub geom
+         w{'w'} = mw
+         w{'h'} = mh + hb
+         gosub count
+         gosub scroll
+         gosub store
+         ret = 'handled'
+
       case op = 'bptoggle'
          gosub count
          bl = key<1> + 0
@@ -211,6 +207,33 @@ $include sl.h
          gosub bp.follow
    end case
 
+   return
+
+* The area's rectangle from w{'w'} and w{'h'} (2 Nov 26: one place, read at every call and again by 'size'): mw mh (the text's rows), hb (the horizontal bar), gut (the
+* gutter: the line numbers gn and the mark cell of bpon) and tw (the width of the text).  In: wrap, lnum, lines.
+geom:
+   mw = w{'w'} + 0
+   mh = w{'h'} + 0
+   if mw < 3 then mw = 3
+   if mh < 1 then mh = 1
+   * 18 Oct 26: hbar (1) puts a horizontal scroll bar in the last row of the area, and the text has one row less.  Opt in: a program that
+   * does not set it (SCREEN MEMO) is drawn as it always was.  There is none when the text wraps (nothing to scroll sideways) or the area is
+   * under three rows high.
+   hb = 0
+   if w{'hbar'} + 0 and not(wrap) and mh >= 3 then
+      hb = 1
+      mh -= 1
+   end
+   gut = 0
+   if lnum then
+      gut = len(max(dcount(lines, @fm), 1)) + 1
+      if gut > mw - 4 then gut = 0               ;* an area too narrow for them has none
+   end
+   gn = gut                                      ;* 2 Nov 26 (S.98 H2): the width of the line numbers; the mark cell of bpon is in front of them
+   bpon = w{'bpon'} + 0
+   if mw < 12 then bpon = 0
+   if bpon then gut += 1
+   tw = mw - 1 - gut                            ;* the width of the text: the last column is the scroll bar
    return
 
 * A click puts the cursor on the character under it (after the last one of a shorter row, on the last row if it

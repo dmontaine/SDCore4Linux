@@ -41,12 +41,13 @@ MSG = os.path.join(SDSYS, "messages")
 # (map.keys and the case c = lines) acts on them, and test-spview-units.py V12 holds that the row and the loop name the same keys.  It is no page: Q quits after asking, as it always has.
 FOOT_ONLY = ("dict_form", "tk_aipage", "debug", "spview")
 EXPECT_PROGRAMS = 29          # - tool_masters (S.96 M6, 2 Nov 26: the master-file copies are retired); + spview (S.99, 2 Nov 26); + tool_entries (S.96 M1a, 3 Nov 26); tool_jobs (S.102 stage 1, 2 Nov 26)
-EXPECT_ADD_ROWS = 317         # 324 - tool_masters' 7 rows (S.96 M6, 2 Nov 26); 318 + tool_jobs' J, A, N, C, D and R rows (S.102 stage 4, 2 Nov 26); 309 + the nine foot rows of spview (S.99, 2 Nov 26); 308 +tool_remote's L row (S.101 stage D, 2 Nov 26, local branch s101-ab); 307 + tool_entries' B row (S.96 M5, 2 Nov 26); 306 + tool_entries' C row (S.96 M4, 2 Nov 26); 305 + tool_entries' D row (S.96 M3, 2 Nov 26); 303 + tool_entries' E and N rows (S.96 M2, 3 Nov 26); 302 + tool_entries' K row (S.96 M1b, 3 Nov 26); 294 + tool_entries' eight rows (S.96 M1a, 3 Nov 26); 287 + tool_jobs' seven rows (S.102 stage 1, 2 Nov 26); 286 + the IDE's Shift-F7 row (S.98 H2, 2 Nov 26); 277 + the nine foot rows of debug (S.98 H1, 1 Nov 26); 266 + the 4 foot rows of dict_form, 1 Nov 26, + tk_aipage's F6 row; + tool_remote's 6, O, R, F rows (S.95 stage 1b, 1 Nov 26); + tool_gates' A and N (all on, all off, 1 Nov 26)
+EXPECT_ADD_ROWS = 324         # 318 + tool_home's six (S.88 U9, 2 Nov 26: Backspace, Ctrl-T, Ctrl-W, /, Ctrl-R, F6 and Ctrl-K added, the F10 row gone, so that every menu entry has a key); 317 + mymenu's F1 row (S.88 U4, 2 Nov 26); 324 - tool_masters' 7 rows (S.96 M6, 2 Nov 26); 318 + tool_jobs' J, A, N, C, D and R rows (S.102 stage 4, 2 Nov 26); 309 + the nine foot rows of spview (S.99, 2 Nov 26); 308 +tool_remote's L row (S.101 stage D, 2 Nov 26, local branch s101-ab); 307 + tool_entries' B row (S.96 M5, 2 Nov 26); 306 + tool_entries' C row (S.96 M4, 2 Nov 26); 305 + tool_entries' D row (S.96 M3, 2 Nov 26); 303 + tool_entries' E and N rows (S.96 M2, 3 Nov 26); 302 + tool_entries' K row (S.96 M1b, 3 Nov 26); 294 + tool_entries' eight rows (S.96 M1a, 3 Nov 26); 287 + tool_jobs' seven rows (S.102 stage 1, 2 Nov 26); 286 + the IDE's Shift-F7 row (S.98 H2, 2 Nov 26); 277 + the nine foot rows of debug (S.98 H1, 1 Nov 26); 266 + the 4 foot rows of dict_form, 1 Nov 26, + tk_aipage's F6 row; + tool_remote's 6, O, R, F rows (S.95 stage 1b, 1 Nov 26); + tool_gates' A and N (all on, all off, 1 Nov 26)
 # earlier counts: (266 with the IDE's eight rows of the pane "fields", 31 Oct 26; 256 with tool_sessions' Ctrl-O row, 257 with tool_home's F1 row, 258 with tool_test's Ctrl-O row, 29 Oct 26) after the 30 Oct 26 page fan-out: the 232 rows of the tree before 29 Oct 26, tool_tktest's pilot, and the Esc, menu and bar rows the pages on $tk_menubar added
 KNOWN_OPS_S0 = {"add", "name", "action"}
 
 # an action that has two keys on purpose (the second is for a terminal that keeps the first for itself)
-TWO_KEYS = {}
+# 2 Nov 26 (S.88 U9): the home screen goes back one sub-menu page on Esc (a row only on a sub-menu page: on the top page Esc is the bar's) and on Backspace (off the key row)
+TWO_KEYS = {("tool_home", "back"): {"esc", "bs"}}
 RESERVED = ("f2", "f6", "f10", "f11")
 # the action a reserved key may stand for (plan 5.2 / K8: F2 find an action, F6 the next pane, F10 the menu is NOT a page key, F11 gone)
 # 1 Nov 26 (the owner accepted Opus's review): F6 is the AI line on every page - "ai"; the IDE keeps F6 as its next pane until its panes are decided (S.99)
@@ -58,7 +59,6 @@ LEDGER = {
         "tool_tktest:f11": "the throw-away test app's pick-a-file key; it goes with the app",
         "tool_tktest:f6": "the throw-away test app's table refresh; it goes with the app",
         "tool_tktest:f10": "the throw-away test app's multi-pick key; it goes with the app",
-        "tool_home:f10": "tool_home binds F10 for its menu without Esc first (K8)",
     },
     "mnemonic": {
     },
@@ -76,7 +76,6 @@ LEDGER = {
         "tool_home:has no quit": "(as above)",
     },
     "helpkey": {
-        "mymenu:has no help": "mymenu registers no F1 (Phase 5 converts it)",
         "tool_keys:has no help": "tool.keys is exempt (owner answer 18: it is the page that shows keys)",
     },
     "twokeys": {
@@ -679,7 +678,7 @@ mut("tool_keys", "call $tk_keys('add', keys, 'ctrl-l', 'clear', 'clear', '', 1)"
 mut("tool_keys", "call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)", "call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)\n   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)", "a row more than the table has", "parse")
 mut("msg:11654", "&Ask about this record", "&Explain about this record", "a duplicate mnemonic in the AI menu", "mnemonic")
 mut("msg:11654", "&Ask about this record", "Ask about this record", "an entry with no mnemonic", "mnemonic")
-mut("tool_home", "call $tk_keys('add', keys, 'f10', 'menu', 'menu', '', 1)", "call $tk_keys('add', keys, 'f9', 'menu', 'menu', '', 1)","tool_home's F10 moved: the ledger entry no longer fires", "reserved")
+mut("tool_home", "call $tk_keys('add', keys, 'f6', 'ai', 'ai', '', 1)", "call $tk_keys('add', keys, 'f6', 'ai', 'askai', '', 1)", "tool_home's F6 bound to another action than the AI line", "reserved")
 
 # ---- PART B MUTANTS BEGIN ----
 M_P39B = len(M)
@@ -722,6 +721,12 @@ mut("tk_keys", "if fa = 'quit' then qent = ent else m<1, -1> = ent", "m<1, -1> =
 M_S86 = len(M)
 mut("ide", "call $tk_keys('add', ide.keys, 'ctrl-v', 'paste', 'paste', 'fields', 1)", "call $tk_keys('add', ide.keys, 'ctrl-9', 'paste', 'paste', 'fields', 1)", "a key of the pane that the engine has no case for", "handler")
 mut("ide", "call $tk_keys('add', ide.keys, 'ctrl-c', 'copy', 'copy', 'fields', 1)", "call $tk_keys('add', ide.keys, 'ctrl-t', 'copy', 'copy', 'fields', 1)", "Ctrl-T bound to two actions in the pane", "conflict")
+# 2 Nov 26 (S.88 U9): the home screen on $tk_menubar - the first of these is marker M_U9 for --from=
+M_U9 = len(M)
+mut("tool_home", "   call $tk_keys('add', keys, 'ctrl-k', 'keys', 'keys', '', 1)\n", "", "the home screen's Help > Keys entry has no key", "samehandler")
+mut("tool_home", "      if mr<1> # '' then nm = mr<4>\n", "", "the home screen's loop drops the bar's answer", "samehandler")
+mut("tool_home", "      case nm = '/'\n", "      case nm = '?'\n", "the home screen binds / and acts on another key", "handler")
+mut("tool_home", "   call $tk_keys('add', keys, 'ctrl-w', 'switch', 'switch', '', 1)\n", "   call $tk_keys('add', keys, 'ctrl-t', 'switch', 'switch', '', 1)\n", "Ctrl-T is Terminal and Switch account on the home screen", "conflict")
 # ---- PART B MUTANTS END ----
 
 

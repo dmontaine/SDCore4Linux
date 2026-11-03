@@ -8,11 +8,13 @@
 * 23 Oct 26 dm  The wrapping loop is $tk_wrap now (the same algorithm, moved; the menu management page and the help box use it too).
 * 24 Oct 26 dm  The lines of the explanation are wrapped like the sentence: the box cut a line at its edge, and the tail of the ai gate's 150-character sentence (tool.gates) never showed.
 * 26 Oct 26 dm  faults: an optional sixth argument, the title ("Run this command?" read over writes that are not commands); VAR.ARGS, so no existing call changes.
+* 2 Nov 26 dm  S.88 P10: an optional seventh argument, the buttons (two or three; the last is Cancel and the default, the middle one of three answers 'alt'), for tool.gates's
+*              leave question.  No existing call changes.
 * END-HISTORY
 *
 * START-DESCRIPTION:
 *
-*   call $tk_confirm(sentence, lines, typed, res, msg {, boxtitle})
+*   call $tk_confirm(sentence, lines, typed, res, msg {, boxtitle {, btns}})
 *
 *     sentence  the command exactly as the tool will give it to $tk_run (the caller passes the same variable to both)
 *     lines     the explanation under it, one to a field ($tk_explain makes it); may be null.  A line longer than the box is wrapped at spaces; an empty line stays empty
@@ -23,6 +25,9 @@
 *     msg       returned: null for 'run'; else the line for the status bar (11821 nothing was run, or 11810 naming the name asked for)
 *     boxtitle  OPTIONAL (the routine is VAR.ARGS, so every call with five arguments is as it was): the title of the box and of the box that asks for the name.  Left out or null it is
 *               "Run this command?" (11812).  A page that is about to write or delete a record of its own, which is no command, gives a title that says so (11952 to 11955).
+*     btns      OPTIONAL (2 Nov 26, S.88 P10): the buttons, a comma list of two or three labels in SCREEN MSGBOX's form.  Left out, null, or not two or three labels, they are
+*               '&Run,&Cancel'.  THE LAST BUTTON IS CANCEL AND IS THE DEFAULT, whatever it is called.  The first is Run (res 'run', after the name when one is asked for); the middle one
+*               of three returns res 'alt' and msg null, and asks for no name.  tool.gates's leave question is the one caller: Run the changes, Leave without them, Cancel.
 *
 *   THE DEFAULT BUTTON IS CANCEL: Enter alone never runs a command.  Run is chosen by its letter (r) or by moving to it.  The sentence is shown wrapped at
 *   spaces, never cut, and never altered.  A session with no terminal cannot answer, so nothing runs ('cancel').  The typed name is compared as typed
@@ -34,7 +39,7 @@
 * START-CODE
 
 $internal
-subroutine tk_confirm(sentence, lines, typed, res, msg, boxtitle) var.args
+subroutine tk_confirm(sentence, lines, typed, res, msg, boxtitle, btns) var.args
 $catalog $tk_confirm
 
 $include sl.h
@@ -76,7 +81,26 @@ $include tk.h
       if boxtitle # '' then ttl = boxtitle
    end
 
-   screen msgbox body title ttl buttons '&Run,&Cancel' default 2 returning b else b = 0
+*  2 Nov 26: the buttons are the seventh argument, which a caller may leave out: Run and Cancel, or a list of its own whose LAST entry is Cancel and the default (tool.gates's leave
+*  question: Run the changes, Leave without them, Cancel).  The middle one of three answers 'alt' and is not followed by the name.
+   bl = '&Run,&Cancel'
+   if not(unassigned(btns)) then
+      if btns # '' then bl = btns
+   end
+   nb = dcount(bl, ',')
+   if nb < 2 or nb > 3 then
+      bl = '&Run,&Cancel'
+      nb = 2
+   end
+
+   screen msgbox body title ttl buttons bl default nb returning b else b = 0
+   if nb = 3 then
+      if b = 2 then
+         res = 'alt'
+         msg = ''
+         return
+      end
+   end
    if b # 1 then return
 
    if typed # '' then

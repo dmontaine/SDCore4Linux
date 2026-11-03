@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 * 
 * START-HISTORY:
+* 02 Nov 26 dm  SD_REV_STAMP L2.0-0 (owner, 2 Nov 2026: "go ahead and change the version stamp now"; before the release is cut, so a Dev install reports L2.0-0)
 * 02 Oct 26 dm  SD_REV_STAMP L1.1-3 (owner, 2 Oct 2026: "version should be 1.1-3 on both full and solo")
 * 29 Sep 26 dm  SD_REV_STAMP L1.1-1 (English-only release)
 * rev 1.0-2 see sdsys/changelog
@@ -89,7 +90,7 @@
 $define MAJOR.REV      1
 $define MINOR.REV      0
 $define BUILD          2
-$define SD.REV.STAMP   "L1.1-3"
+$define SD.REV.STAMP   "L2.0-0"
 
 $define SD.COPYRIGHT.YEAR "2007"
 

@@ -7,8 +7,8 @@
 #   K4  Ctrl-Del is one undo step of the kind 'delword' (snap.push BEFORE the lines change), deletes the selection if there is one, the blanks and the word at the cursor otherwise,
 #       joins the next line at the end of a line, and ends with want = cx and the mark cleared
 #   K5  without the flag these keys are not the area's: the final `case 1` answers 'unhandled'
-# The behaviour on a screen is sandbox-memokeys.py's (NOT WRITTEN: the first run of the complete test shows whether the terminal sends these keys at all; sandbox-realkeys.py is the
-# decoding row).
+# The behaviour on a screen is sandbox-memokeys.py's (written and run 2 Nov 26: green 11 of 11 under xterm's sequences; never run red, the keys predate it); sandbox-realkeys.py is
+# the decoding row.
 #
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-memokeys-units.py
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-memokeys-units.py --selftest

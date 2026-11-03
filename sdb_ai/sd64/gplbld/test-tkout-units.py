@@ -7,7 +7,7 @@
 #   O4  $tk_out draws only an open pane whose layout pane is shown, in the rectangle $tk_layout 'pane' gives, and makes the library widget again only when that rectangle changed
 #   O5  $tk_out never closes the pane itself: the op key answers 'handled' only when the library did and no op but open, close and toggle changes the state; the progress total comes from the
 #       argument saved before c was cleared
-#   O6  $tk_pickrec is $sl_picker with the same five arguments and nothing else
+#   O6  $tk_pickrec is $sl_picker with the same five arguments and nothing else; its mode 'list' (2 Nov 26, S.88 U9: the home screen's type-to-find) is $sl_pickwin on the page's list
 #   O7  $tk_form open: a phantom returns first, a form left open is put away, the form is refused (c 'no') when the window is too small, the entries are SCREEN ENTRYs (masked ones with
 #       MASK), three message rows, the default button 'ok', the cancel button 'cancel', and tf.open is 1 only at the end
 #   O8  $tk_form run: waits for the form's events, a button 'ok' is 'ok' and anything else (the cancel button, Esc, the input ending) is 'cancel', every entry's text is read with SCREEN GET,
@@ -122,7 +122,11 @@ def checks(s):
        not changers and ordered(ok_, "c = 'unhandled'", "if out.w{'open'} + 0 then", "call $sl_out('key', out.w, scr, a, r)", "if r<1> = 'handled' then c = 'handled'")
        and "(if a = '' then '' else a : @fm : b : @fm : tot)" in op(out, "progress"), repr(changers))
 
-    ck("O6 $tk_pickrec is $sl_picker with the same five arguments and nothing else", re.sub(r"\s+", " ", pk) == "$internal subroutine tk_pickrec(ctx, mode, file, id, res, newtext) $catalog $tk_pickrec call $sl_picker(mode, file, id, res, newtext) return end", pk)
+    ck("O6 $tk_pickrec is $sl_picker with the same five arguments and nothing else; mode 'list' (2 Nov 26, S.88 U9) is $sl_pickwin on the list the page gives, with no file source, cancel unless Enter chose, "
+       "the title in and the entry's number out, and nothing opened",
+       re.sub(r"\s+", " ", pk) == "$internal subroutine tk_pickrec(ctx, mode, file, id, res, newtext) $catalog $tk_pickrec if mode = 'list' then gosub pick.list return end "
+       "call $sl_picker(mode, file, id, res, newtext) return pick.list: res = 'cancel' ltitle = id ldef = newtext id = '' newtext = '' if system(25) or file = '' then return "
+       "if not(num(ldef)) or ldef < 1 then ldef = 1 call $sl_pickwin(file, ltitle, 0, ldef, pr, ps, '', '') if ps = 0 and pr > 0 then id = pr res = 'ok' end return end", pk)
 
     of = label(fm, "open.form")
     ck("O7 $tk_form open: a phantom returns first, a form left open is put away, the form is refused when the window is too small, the entries are SCREEN ENTRYs (a masked one with MASK), three message rows, "
@@ -202,7 +206,11 @@ MUTANTS = [
     ("a refusal is not kept", "tool_viewers", "         call $tk_out('add', ctx, 'refuse', sent : '  ' : err, '')", "         null", "V2"),
     ("the bar is not told the pane is open", "tool_viewers", "nm, outopen, mr)", "nm, 0, mr)", "V2"),
     ("PgUp scrolls a pane that is not open", "tool_viewers", "case (nm = 'pgup' or nm = 'pgdn') and outopen", "case nm = 'pgup' or nm = 'pgdn'", "V2"),
+    # 2 Nov 26 (S.88 U9): the list mode of $tk_pickrec - marker M_U9 for --from= (the first of these)
+    ("a list pick answers ok on Esc", "tk_pickrec", "   if ps = 0 and pr > 0 then\n", "   if pr > 0 then\n", "O6"),
+    ("a list pick is given a file to read", "tk_pickrec", "call $sl_pickwin(file, ltitle, 0, ldef, pr, ps, '', '')", "call $sl_pickwin('', ltitle, 0, ldef, pr, ps, file, '')", "O6"),
 ]
+M_U9 = len(MUTANTS) - 2
 
 
 def run(over=None):

@@ -30,6 +30,12 @@
 * 02 Nov 26 dm  S.102: a Scheduled jobs tile (tool.jobs) in People and access, the fourth there, so the band keeps its two rows (test-home-units H28).
 * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired.  The Master files tile opens tool.entries (every account's entries by pointer), in place of
 *               tool.masters, and has no live line (it asked the kernel's master-file journal, which is gone).
+* 2 Nov 26 dm  S.88 U9: the menu bar is the toolkit's ($tk_menubar), made from the page's key table (/tkreg/) like every other page's: the page no longer builds a SCREEN MENUBAR
+*               array of its own, so the bar, the function-key row and F1's list of keys cannot disagree.  Every menu entry has a key and is the same action as the key (the bar runs
+*               nothing; the page's own case does): Ctrl-T Terminal, Ctrl-W Switch account, Ctrl-R Recent group, Ctrl-K Keys, F6 the AI line (the owner's rule: F6 reaches the AI line
+*               on every page), Backspace back - off the function-key row, shown in the menus and in F1's list.  F10 and Alt and a letter are the bar's (the F10 row is gone), Esc on
+*               the top page opens the bar (the Esc rule), a click on row 0 opens the menu under it.  An entry whose tile is off is dimmed with the reason.  Type-to-find: / opens
+*               a pick window of the page's tiles ($tk_pickrec 'list'); typing narrows it and Enter moves the focus to the tile chosen.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -62,8 +68,11 @@
 *
 *   The panel under the header scrolls: the page is laid out at its full height and the rows that fit are drawn, with a scroll bar in the last column.  Keys:
 *   the arrow keys move to the nearest tile, Tab and Back-tab go in reading order, Home and End to the first and last, Page Up and Page Down by group, a letter
-*   to the next tile that begins with it, Enter or the space bar starts the tile, F5 builds the page again, F10 opens the menu bar, Ctrl-Q signs out.  A click
-*   starts a tile, the wheel scrolls three rows.  The end of the input ends the program.
+*   to the next tile that begins with it, / a window that finds a tile by any part of its name (typing narrows the list; Enter moves the focus to the tile), Enter or the space
+*   bar starts the tile, F5 builds the page again, F6 the AI line, Ctrl-Q signs out, Ctrl-T the Terminal, Ctrl-W Switch account, Ctrl-R the Recent group on or off, Ctrl-K Keys.
+*   THE MENU BAR is the toolkit's ($tk_menubar): it is made from the key table (make.keys, then make.menus), so every entry is a key's action and runs through the key's case;
+*   F10, Alt and a title's letter, a click on row 0, and Esc on the top page (the Esc rule: in a sub-menu Esc goes back) open it.  A click starts a tile, the wheel scrolls three
+*   rows.  The end of the input ends the program.
 *
 *   THE AI LINE (only when the AI is on for the account: the gate, a provider, a model and a key; else there is no row and nothing below applies).  It takes the row that holds the
 *   hint, after the last tile in the Tab ring (Tab from the last tile, Back-tab from the first), or a click.  Enter on a request shows everything that will be sent and sends nothing
@@ -119,6 +128,10 @@ $define HT.PGAP    3       ;* the columns between two pairs
 $define HT.BASECOLS 6      ;* the tile columns of the 140 by 43 panel: a panel with no more than these gives every group exactly its HG.COLS (band.cols), as the page was drawn before the service
 $define HM.DEPTH   8       ;* sub-menu pages open at most this many levels deep (MAX.DEPTH is int$keys.h's)
 
+$define H.TILE.OFF 'turned off for this account by the administrator'     ;* why a key and its menu entry cannot be used when the tile is off (S.88 U9)
+$define H.AI.OFF   'the AI is not on for this account'                    ;* why F6 and AI > Ask the AI do nothing here
+$define H.TOP.PAGE 'this is the top page'                                 ;* why Go > Back cannot be chosen on the top page
+
    common /tkhome/ hflag, hlogto
 
    prompt ''
@@ -171,6 +184,7 @@ $define HM.DEPTH   8       ;* sub-menu pages open at most this many levels deep 
    gosub draw.all
 
    loop
+      call $tk_menubar('draw', ctx, keys, ttl, '', '', mr)  ;* the bar first: it writes row 0 whole, and the frame then writes the app name at its right end
       call $tk_frame(ctx, keys, ttl, msg)
       if aif then
          call $tk_ai('draw', ctx, 1, '')                     ;* the cursor is in the AI line while it has the focus
@@ -179,6 +193,12 @@ $define HM.DEPTH   8       ;* sub-menu pages open at most this many levels deep 
       end
       nm = ''
       screen key timeout 30 returning nm
+      mr = ''
+      if nm # '' and not(aif) then
+         busy = (cur.menu # '')                           ;* the Esc rule: in a sub-menu Esc is the page's (back one page; the key table binds it), on the top page the bar's
+         call $tk_menubar('key', ctx, keys, ttl, nm, busy, mr)     ;* F10, Alt and a letter, Esc on the top page: the bar; a choice comes back as the key it has
+      end
+      if mr<1> # '' then nm = mr<4>
       begin case
          case nm = ''
             if status() = ER$EOF then exit
@@ -655,12 +675,12 @@ draw.all:
    screen clear at 0,py0 size lw,ph
    gosub draw.header
    gosub draw.panel
-   screen menubar menus row 0 draw else null
+   ctx<TK.C.BAR> = ''                                     ;* the menu bar is drawn again by the loop's $tk_menubar 'draw' (its menus may have changed with the page)
    if ctx<TK.C.AI> then
       call $tk_ai('draw', ctx, aif, '')
    end else
       screen text '' at 0,hny width lw
-      screen text 'arrows move  -  Enter starts  -  type to find  -  PgDn next group' at hnx + 2,hny attr 'disabled'
+      screen text 'arrows move  -  Enter starts  -  a letter jumps  -  / finds a tile  -  PgDn next group' at hnx + 2,hny attr 'disabled'
    end
    return
 
@@ -1021,20 +1041,41 @@ on.key:
       case nm = 'enter' or nm = ' '
          gosub start.tile
       case nm = 'esc' or nm = 'bs'
-         if nm = 'esc' and cur.menu = '' then
-            gosub run.menu                                 ;* S.88 U9, the Esc rule: on the top page there is nothing to go back to, so Esc opens the menu bar (as F10 does)
-         end else
-            gosub close.menu                               ;* back one page
-         end
+         gosub close.menu                                  ;* back one page (S.88 U9, the Esc rule: on the top page the bar takes Esc and opens; Backspace there does nothing)
       case nm = 'f1'
          call $tk_help('box', 'tool.home.page', hm, 0, 0)
          if hm # '' then msg = hm
       case nm = 'f5'
          gosub rebuild
-      case nm = 'f10'
-         gosub run.menu
+      case nm = 'f6'
+         if ctx<TK.C.AI> then
+            gosub ai.focus.on                              ;* F6 or AI > Ask the AI: the focus goes to the line
+         end else
+            msg = H.AI.OFF
+         end
       case nm = 'ctrl-q'
          gosub do.signout
+      case nm = 'ctrl-t'
+         if terminal.off then
+            msg = H.TILE.OFF                               ;* the Terminal tile is off for this account: its key and its menu entry are too
+         end else
+            outcome = 'terminal'
+            done = 1
+         end
+      case nm = 'ctrl-w'
+         if index(off.set, ' switch ', 1) then msg = H.TILE.OFF else gosub switch.account
+      case nm = 'ctrl-r'
+         gosub toggle.recent                               ;* it refuses itself when the administrator has turned the group off (11961)
+      case nm = 'ctrl-k'
+         if index(off.set, ' keys ', 1) then
+            msg = H.TILE.OFF
+         end else
+            sentence = 'tool.keys'
+            pause = 0
+            gosub run.command
+         end
+      case nm = '/'
+         gosub find.tile
       case len(nm) = 1 and nm > ' '
          gosub jump.letter
    end case
@@ -1043,6 +1084,16 @@ on.key:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   mr = ''
+   call $tk_menubar('click', ctx, keys, ttl, mev, '', mr)        ;* a click on the bar on row 0
+   if mr<1> # '' then
+      nm = mr<4>
+      if nm # '' then                                     ;* a bar left with nothing chosen has no name: the status message stays
+         if aif then gosub ai.leave
+         gosub on.key
+      end
+      return
+   end
    kind = mev<1>
    mx = mev<3>
    my = mev<4>
@@ -1059,25 +1110,18 @@ on.mouse:
       case kind = 'press' and mev<2> = 1 and ctx<TK.C.AI> and my = hny
          gosub ai.focus.on                                 ;* a click on the AI line gives it the focus
       case kind = 'press' and mev<2> = 1
-         if my = 0 then
-            screen menubar menus click mx returning mc then
-               cmd = mc
-               gosub run.cmd
+         for j = 1 to nt
+            tx = tl<j, HT.X>
+            ty = tl<j, HT.Y>
+            if tl<j, HT.FIXED> = 0 then ty = py0 + ty - top
+            in.rows = (my >= ty and my < ty + tl<j, HT.H>)
+            if tl<j, HT.FIXED> = 0 then in.rows = (in.rows and my >= py0 and my <= py1)
+            if in.rows and mx >= tx and mx < tx + tl<j, HT.W> then
+               gosub set.focus
+               gosub start.tile
+               exit
             end
-         end else
-            for j = 1 to nt
-               tx = tl<j, HT.X>
-               ty = tl<j, HT.Y>
-               if tl<j, HT.FIXED> = 0 then ty = py0 + ty - top
-               in.rows = (my >= ty and my < ty + tl<j, HT.H>)
-               if tl<j, HT.FIXED> = 0 then in.rows = (in.rows and my >= py0 and my <= py1)
-               if in.rows and mx >= tx and mx < tx + tl<j, HT.W> then
-                  gosub set.focus
-                  gosub start.tile
-                  exit
-               end
-            next j
-         end
+         next j
    end case
    return
 
@@ -1095,6 +1139,13 @@ ai.focus.on:
 ai.tile.back:
    di = fi
    gosub draw.tile
+   return
+
+* The AI line gives the focus up because the person chose something on the menu bar with the mouse: the key that entry stands for is then the page's, not the line's
+ai.leave:
+   aif = 0
+   call $tk_ai('focus', ctx, 0, '')
+   gosub ai.tile.back
    return
 
 * A key while the AI line has the focus: the line edits it; Esc, Tab, Back-tab, Up and Down give the focus back, and Enter on a request asks
@@ -1311,15 +1362,33 @@ enter.level:
    gosub draw.all
    return
 
-* The key table: a sub-menu page also has Esc (back)
+* The key table (the registry, /tkreg/ once $tk_frame has drawn it): the function-key row, F1's list of keys and the menu bar are all made from it.  A sub-menu page also has
+* Esc (back).  Every action on the menu bar has a key, so the bar's answer is replayed through the page's own case for that key; the keys that are not on the function-key row
+* (off.row: the row would be too long to read) are in the menus and in F1's list.  F10 and Alt and a letter are the bar's own and have no row.
 make.keys:
    keys = ''
    call $tk_keys('add', keys, 'enter', 'start', 'start', '', 1)
    if cur.menu # '' then call $tk_keys('add', keys, 'esc', 'back', 'back', '', 1)
+   call $tk_keys('add', keys, 'bs', 'back', 'back', '', 1)
+   gosub off.row
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
-   call $tk_keys('add', keys, 'f10', 'menu', 'menu', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'sign out', 'signout', '', 1)
+   call $tk_keys('add', keys, 'ctrl-t', 'terminal', 'terminal', '', 1)
+   gosub off.row
+   call $tk_keys('add', keys, 'ctrl-w', 'switch', 'switch', '', 1)
+   gosub off.row
+   call $tk_keys('add', keys, '/', 'find', 'find', '', 1)
+   call $tk_keys('add', keys, 'ctrl-r', 'recent', 'recent', '', 1)
+   gosub off.row
+   call $tk_keys('add', keys, 'f6', 'ai', 'ai', '', 1)
+   call $tk_keys('add', keys, 'ctrl-k', 'keys', 'keys', '', 1)
+   gosub off.row
+   return
+
+* The row just added stays bound and in the menus, but is not written on the function-key row
+off.row:
+   keys<dcount(keys, @fm), TK.K.ROW> = 0
    return
 
 * The status line's pane is the path of the page (Home > Develop), and the identity stands right of the Back tile on a sub-menu page
@@ -1409,63 +1478,52 @@ relayout:
 
 * ------------------------------------------------------------------------------------------------- the menu bar
 
+* The menus, put into the key table (S.88 U9: $tk_menubar draws and runs the bar from it; the page builds no menu array of its own).  The key an entry shows is the table's.
+* An action that cannot be used now is given a reason ($tk_keys 'why'): its entry is dimmed and cannot be chosen, and its key is out of the row - a tile the administrator
+* turned off for this account has no entry that can be chosen either, Back is only on a sub-menu page (on the top page Esc opens this bar, so the dimmed entry shows no key),
+* and Ask the AI follows the AI (the line works when the provider is on).  Called last by build.page, after make.keys, so F5 and Switch account see a change.
 make.menus:
-   menus = ''
-   m = '&File|&Sign out~^Q~signout'
-   gosub add.menu
-   tflag = (if terminal.off then 'D' else '')                ;* D: the entry cannot be chosen (a tile that is off has no menu entry either)
-   sflag = (if index(off.set, ' switch ', 1) then 'D' else '')
-   kflag = (if index(off.set, ' keys ', 1) then 'D' else '')
-   bflag = (if cur.menu = '' then 'D' else '')               ;* Back: only on a sub-menu page
-   rflag = (if index(off.set, ' recent ', 1) then 'D' else '')
-   m = '&Go|&Terminal~~terminal~' : tflag : '|S&witch account~~switch~' : sflag
-   m := '|&Back~' : (if cur.menu = '' then '' else 'Esc') : '~back~' : bflag     ;* on the top page Esc opens this bar, so the dimmed entry does not show it as its key
-   gosub add.menu
-   m = '&View|&Refresh~F5~refresh'
-   m := '|Recent &group (' : (if rc.on then 'on' else 'off') : ')~~recent~' : rflag
-   gosub add.menu
-   if ctx<TK.C.AI> then m = '&AI|&Ask the AI~~ai' else m = '&AI|AI is off~~ai~D'     ;* the line works when the provider is on (S.88 U9: the entry used to say off whatever the state was)
-   gosub add.menu
-   m = '&Help|&Keys~~keys~' : kflag
-   gosub add.menu
+   call $tk_keys('menu', keys, 'signout', '&File', '&Sign out', '', '')
+   call $tk_keys('menu', keys, 'back', '&Go', '&Back', '', '')
+   call $tk_keys('menu', keys, 'terminal', '&Go', '&Terminal', '', '')
+   call $tk_keys('menu', keys, 'switch', '&Go', 'S&witch account', '', '')
+   call $tk_keys('menu', keys, 'find', '&Go', '&Find a tile', '', '')
+   call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'recent', '&View', 'Recent &group on or off', '', '')     ;* a literal, as every registry entry is (test-tk-keys-units regmenu); the status line says which it became
+   call $tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')
+   call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   call $tk_keys('menu', keys, 'keys', '&Help', '&Keys', '', '')
+   if terminal.off then call $tk_keys('why', keys, 'terminal', H.TILE.OFF, '', '', '')
+   if index(off.set, ' switch ', 1) then call $tk_keys('why', keys, 'switch', H.TILE.OFF, '', '', '')
+   if index(off.set, ' keys ', 1) then call $tk_keys('why', keys, 'keys', H.TILE.OFF, '', '', '')
+   if index(off.set, ' recent ', 1) then call $tk_keys('why', keys, 'recent', H.TILE.OFF, '', '', '')
+   if cur.menu = '' then call $tk_keys('why', keys, 'back', H.TOP.PAGE, '', '', '')
+   if not(ctx<TK.C.AI>) then call $tk_keys('why', keys, 'ai', H.AI.OFF, '', '', '')
    return
 
-add.menu:
-   m = change(m, '|', @vm)
-   m = change(m, '~', @sm)
-   menus<-1> = m
-   return
-
-run.menu:
-   screen menubar menus returning mc then
-      cmd = mc
-      gosub run.cmd
+* / (or Go > Find a tile): a window of the page's tiles ($tk_pickrec 'list', the toolkit's pick window): typing narrows the list to the tiles that hold the text in their name or
+* their group, Enter moves the focus to the tile chosen (it does not start it: Enter on the page does), Esc leaves the focus where it was.  A Recent copy is not listed twice.
+find.tile:
+   fitems = ''
+   fmap = ''
+   fdef = 1
+   for i = 1 to nt
+      if tl<i, HT.ID>[1, 2] # 'r:' then
+         fg = tl<i, HT.GROUP>
+         fitems<-1> = tl<i, HT.LABEL> : @vm : (if fg > 0 then gr<fg, HG.NAME> else 'header')
+         fmap<-1> = i
+         if i = fi then fdef = dcount(fmap, @fm)
+      end
+   next i
+   fsel = 'Find a tile'                                    ;* in: the window's title; out: the number of the entry chosen
+   fstart = fdef                                           ;* in: the entry the window starts on (the tile that has the focus)
+   call $tk_pickrec(ctx, 'list', fitems, fsel, fres, fstart)
+   if fres = 'ok' then
+      j = fmap<fsel>
+      if aif then gosub ai.leave
+      gosub set.focus
+      msg = tl<fi, HT.LABEL> : ': Enter starts it'
    end
-   return
-
-* A menu entry does what its tile does
-run.cmd:
-   begin case
-      case cmd = 'signout'
-         gosub do.signout
-      case cmd = 'terminal'
-         outcome = 'terminal'
-         done = 1
-      case cmd = 'switch'
-         gosub switch.account
-      case cmd = 'refresh'
-         gosub rebuild
-      case cmd = 'back'
-         gosub close.menu
-      case cmd = 'ai'
-         gosub ai.focus.on                                  ;* AI > Ask the AI: the focus goes to the line (the entry cannot be chosen when the line is off)
-      case cmd = 'recent'
-         gosub toggle.recent
-      case cmd = 'keys'
-         sentence = 'tool.keys'
-         pause = 0
-         gosub run.command
-   end case
    return
 
 * ------------------------------------------------------------------------------------------------- sign out and switch account

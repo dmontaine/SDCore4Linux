@@ -150,8 +150,8 @@ def checks(raw):
         "if gi<TK.G.DEFAULT> = 'on' then state = (if raw # 'NO' then 1 else 0) end else state = (if raw = 'YES' then 1 else 0) end" in tg
         and "if atype = 'USER' then state = (if is_grp_member(user, gi<TK.G.GROUP>) then 1 else 0) end else state = 'na' end" in tg, "")
     cf = sq.get("tk_confirm", "")
-    optadd("tk_confirm", "T23", "ORDER in $tk_confirm: the answer starts as 'cancel' and a session with no terminal returns at once; the box starts on Cancel (default 2); anything but Run returns BEFORE the name is asked for; a name that is not the one asked for, or an Esc at the name, never reaches 'run'; 'run' is set last",
-        ordered(cf, "res = 'cancel'", "if system(25) then return", "default 2 returning b else b = 0", "if b # 1 then return", "returning ans then got = 1 else got = 0", "if not(got) then return",
+    optadd("tk_confirm", "T23", "ORDER in $tk_confirm: the answer starts as 'cancel' and a session with no terminal returns at once; the box starts on Cancel (the LAST button: default 2 of Run / Cancel, and of a caller's own list since 2 Nov 26, S.88 P10); anything but Run returns BEFORE the name is asked for; a name that is not the one asked for, or an Esc at the name, never reaches 'run'; 'run' is set last",
+        ordered(cf, "res = 'cancel'", "if system(25) then return", "bl = '&Run,&Cancel'", "nb = dcount(bl, ',')", "default nb returning b else b = 0", "if b # 1 then return", "returning ans then got = 1 else got = 0", "if not(got) then return",
                 "if trim(ans) # typed then res = 'wrong'", "res = 'run'") and cf.count("res = 'run'") == 1, "")
     optadd("tk_confirm", "T24", "$tk_confirm shows the sentence wrapped at spaces but whole (a hard cut only when a word is longer than the line), wraps the lines the caller gave the same way (24 Oct 26: the box cut a long line at its edge; an empty line stays empty), and runs, reads and writes nothing",
         "wrapw" in cf and "call $tk_wrap(sentence, wrapw, pieces)" in cf and "body<-1> = ' ' : pieces<p>" in cf and "call $tk_wrap(lines<li>, wrapw, pieces)" in cf and "body := @fm : lines" not in cf and "rest[cut" not in cf and not re.search(r"\b(execute|write|writev|readu|delete|kernel|os\.execute|crt|display)\b", cf), "")
@@ -398,7 +398,7 @@ MUT = [
     ("tk_gates", "the register is written", "   close acc.f\n\n   grp = rec<ACC$GROUP>", "   close acc.f\n   write rec to acc.f, name\n\n   grp = rec<ACC$GROUP>"),
     ("tk_confirm", "the answer starts as run", "   res = 'cancel'\n   msg = sysmsg(11821)", "   res = 'run'\n   msg = sysmsg(11821)"),
     ("tk_confirm", "a session with no terminal is asked", "if system(25) then return", "if 0 then return"),
-    ("tk_confirm", "the box starts on Run", "default 2 returning b else b = 0", "default 1 returning b else b = 0"),
+    ("tk_confirm", "the box starts on Run", "default nb returning b else b = 0", "default 1 returning b else b = 0"),
     ("tk_confirm", "Cancel does not return", "if b # 1 then return", "if 0 then return"),
     ("tk_confirm", "an Esc at the name goes on", "if not(got) then return", "if 0 then return"),
     ("tk_confirm", "the name is not compared", "if trim(ans) # typed then", "if 0 then"),

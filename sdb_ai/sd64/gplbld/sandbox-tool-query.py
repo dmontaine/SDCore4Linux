@@ -2,7 +2,7 @@
 #
 # sandbox-tool-query.py - TOOL.QUERY, the query and report builder ($tool_query, S.75 DV4), driven on a PSEUDO-TERMINAL as ORDINARY sessions on a private SD.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-query.py <dir> [--build] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-query.py <dir> [--build] [--only=q1,...,q13] [--mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 every row passed, 1 a row
 # failed, 2 it could not run.  With --mutant=NAME one change is made to the SANDBOX'S OWN COPY of the page and exit 0 means the rows that had to fail failed and no others (MUTANTS).
@@ -11,6 +11,9 @@
 # 31 Oct 26 dm  The A and S dictionary item types are gone: the fixture item rega (an A item) is removed with its place in the lists and the count of items (8 now).
 # 25 Oct 26 dm  New (S.75, DV4).
 # 28 Oct 26 dm  S.88 phase 2 (S2): section Q13 and its three runtime mutants (written, not run); the sandbox copy of the page is compiled together with $tk_ownfile.
+# 2 Nov 26 dm  S.88 U6: the page asks its seven questions on the toolkit's form, and a refused answer is said IN the form (formtext reads it), which stays until Esc: Q6a-m and Q7a-e
+#               read the refusal there and press Esc; Q4s (a sample that is not a number); the mutant edit-unchecked follows the check into af.check (NOT run since).  --only=q4,q6
+#               chooses sections (the build and the fixtures always run).
 # END-HISTORY
 #
 # WHAT RUNS.  Two fixture accounts, zzqa and zzqb, each with the files zq (eight records and a dictionary with a column of every kind and four names the page must not put in a sentence),
@@ -84,8 +87,9 @@ def arow(rid, name, ok, detail=""):
 
 MUTANTS = {
     # name: (old text of the sandbox's tool_query, new text, the row ids that must fail and no others, the sections that run)
-    "edit-unchecked": ("   chk.s = trimf(trimb(es))\n   gosub check.sentence\n   if chk.err # '' then\n      msg = 'not accepted: ' : chk.err\n      return\n   end\n   sent = chk.out",
-                       "   sent = trimf(trimb(es))",
+    # 2 Nov 26 (S.88 U6): the check of a hand edit is af.check's sentence branch (the question is asked on the form)
+    "edit-unchecked": ("         chk.s = trimf(trimb(af.in))\n         gosub check.sentence\n         if chk.err # '' then af.err = 'not accepted: ' : chk.err else af.out = chk.out",
+                       "         af.out = trimf(trimb(af.in))",
                        ["Q6a", "Q6b", "Q6c", "Q6d", "Q6e", "Q6f", "Q6g", "Q6h", "Q6i", "Q6j", "Q6k", "Q6l", "Q6m"], ["q6"]),
     "load-unchecked": ("   gosub validate.panes\n   gosub gen.sentence\n   * a sentence that was edited",
                        "   gosub gen.sentence\n   * a sentence that was edited",
@@ -421,6 +425,26 @@ def boxtext(h):
     return re.sub(r"[|\s]+", " ", " ".join(inner))
 
 
+def formtext(h, title):
+    """2 Nov 26 (S.88 U6): the words inside the toolkit's form ($tk_form) titled TITLE, one line, its wrapped rows joined; '' when no such form is on the screen.  The borders are
+    found from the title outwards, so the page drawn left and right of the form is not read."""
+    rows = [h.line(n) for n in range(43)]
+    for n, ln in enumerate(rows):
+        i = ln.find(" " + title + " ")
+        if i < 0:
+            continue
+        s0, s1 = ln.rfind("+", 0, i), ln.find("+", i + len(title) + 1)
+        if s0 < 0 or s1 < 0:
+            continue
+        inner = []
+        for m in range(n + 1, 43):
+            if rows[m][s0:s0 + 1] == "+":
+                break
+            inner.append(rows[m][s0 + 1:s1])
+        return re.sub(r"[|\s]+", " ", " ".join(inner))
+    return ""
+
+
 def edit_sentence(h, text):
     """E: the ask box holds the sentence; it is wiped and the text typed"""
     tp(h, "e", 1.0)
@@ -590,7 +614,11 @@ def section_q4():
     tp(h, " ", 0.7)                    # row 6: no.page
     key(h, "down", 1)
     h.key("enter", idle=1.0)           # row 7: sample
-    tp(h, "5\r", 1.2)
+    tp(h, "x9\r", 1.2)                 # 2 Nov 26 (S.88 U6): a refused answer is said IN the form, which stays with the text typed
+    ft = formtext(h, "Sample")
+    arow("Q4s", "S.88 U6: a sample that is not a whole number is refused IN the form, which stays on the screen with the text typed (x9) and says why; the sentence is unchanged",
+         "a whole number from 1 to 99999" in ft and "x9" in ft and "sample" not in sentence(h), repr((ft[-200:], sentence(h))))
+    tp(h, "\x7f\x7f5\r", 1.2)
     key(h, "home", idle=0.3)
     key(h, "down", 1)
     h.key("enter", idle=1.0)           # row 2: heading
@@ -672,9 +700,12 @@ def section_q6():
     base = sentence(h)
     for rid, text, why in ATTACKS:
         edit_sentence(h, text)
+        ft = formtext(h, "Edit the sentence")      # 2 Nov 26 (S.88 U6): the refusal is said IN the form, which stays; Esc leaves it
+        if ft:                                      # 2 Nov 26 (review): Esc only when the form is there - on the page it would open the menu bar and take the next keys
+            h.key("esc", idle=1.0)
         s = st(h)
-        arow(rid, "E with  %s  is refused (the status line says why: %s) and the sentence is still %s" % (text[:44], why, base),
-             "not accepted" in s and why in s and sentence(h) == base and "Edited by hand" not in state_line(h), repr((s, sentence(h))))
+        arow(rid, "E with  %s  is refused IN the form (it says why: %s), and Esc leaves the form: the status line says the sentence was not changed and it is still %s" % (text[:44], why, base),
+             "not accepted" in ft and why in ft and "the sentence was not changed" in s and sentence(h) == base and "Edited by hand" not in state_line(h), repr((ft[-240:], s, sentence(h))))
         tp(h, "r", 1.8)                                 # whatever the page holds is run: a defence in depth - the run checks again
         if "Ran:" in h.text():
             h.key("esc", idle=1.0)
@@ -712,8 +743,10 @@ def section_q7():
     h.key("tab", idle=0.7)
     for rid, val, why in VALUE_ATTACKS:
         cond_set(h, 1, "name", 0, val)
-        arow(rid, "the value  %s  is refused ('not accepted', %s): the row stays empty and the sentence is still list zq name" % (val, why),
-             "not accepted" in st(h) and why in st(h) and cond_row(h, 1)[1] == "" and sentence(h) == "list zq name", repr((st(h), cond_row(h, 1), sentence(h))))
+        ft = formtext(h, "Condition 1")             # 2 Nov 26 (S.88 U6): the refusal is said IN the form, which stays; Esc leaves it
+        h.key("esc", idle=1.0)
+        arow(rid, "the value  %s  is refused IN the form ('not accepted', %s), and after Esc the row stays empty and the sentence is still list zq name" % (val, why),
+             "not accepted" in ft and why in ft and cond_row(h, 1)[1] == "" and sentence(h) == "list zq name", repr((ft[-240:], cond_row(h, 1), sentence(h))))
     cond_set(h, 1, "name", 0, "Eve Jones")
     arow("Q7f", "a value with a space is accepted and quoted: with name = \"Eve Jones\"", sentence(h) == 'list zq with name = "Eve Jones" name', sentence(h))
     tp(h, "r", 1.0)
@@ -1122,11 +1155,17 @@ SECTIONS = [("q1", section_q1), ("q2", section_q2), ("q3", section_q3), ("q4", s
 def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
     if mutant is not None and mutant not in MUTANTS:
-        bail("usage: sandbox-tool-query.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
+        bail("usage: sandbox-tool-query.py <dir> [--build] [--only=q1,q2,...] [--mutant=%s]" % "|".join(MUTANTS))
+    # 2 Nov 26 (S.88 U6): a section selector (the owner's rule of 3 Nov for a suite over five minutes); the build and the fixtures always run, and every section starts its own page
+    only = next((a.split("=", 1)[1].split(",") for a in sys.argv[1:] if a.startswith("--only=")), None)
+    if only is not None and (not only or any(s not in [x for x, _f in SECTIONS] for s in only)):
+        bail("--only takes section names from: %s" % ",".join(x for x, _f in SECTIONS))
     try:
         sh.setup("sandbox-tool-query.py")
         setup_query()
         run = [s for s, _f in SECTIONS]
+        if only is not None:
+            run = only
         if mutant is not None:
             mutate(mutant)
             run = MUTANTS[mutant][3]

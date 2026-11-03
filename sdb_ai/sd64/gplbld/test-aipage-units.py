@@ -121,8 +121,8 @@ def checks(raw):
     # what it offers the model, whether it lays itself out BEFORE its key table (then the panes are declared again right after 'init'), and whether it makes its key table anew
     # (tool.bulk: the line's rows are put back by $tk_aipage 'keys' at the end of build.keys).  Only actions that change what is shown are offered.
     # 1 Nov 26 (S.97 stage 2 group B and stage 3): the administrator's pages, tool.menus and my.menu join; the last field is the page's layout routine (declare.layout or
-    # lay.declare; my.menu has none: its one box leaves the line's row free).  The administrator's pages offer navigation only (the owner's default: nothing that changes an
-    # account, a gate, a session, a door, a setting or a backup); my.menu offers nothing at all.
+    # lay.declare; my.menu had none until 2 Nov 26, S.88 U4: its one box is now a pane, declared after 'init' like the others).  The administrator's pages offer navigation only
+    # (the owner's default: nothing that changes an account, a gate, a session, a door, a setting or a backup); my.menu offers nothing at all.
     PAGES = (("a", voc, "'VOC'", ["type", "state", "filter", "refresh"], "tool.voc", 0, 0, "declare.layout"),
              ("b", fil, "'Files'", ["filter", "refresh"], "tool.files", 0, 0, "declare.layout"),
              ("c", strip_bas(raw["catalog"]), "'Programs'", ["filter", "refresh"], "tool.catalog", 0, 0, "declare.layout"),
@@ -141,7 +141,7 @@ def checks(raw):
              ("q", strip_bas(raw["viewers"]), "pnames<pane>", ["pane", "output", "refresh"], "tool.viewers", 0, 0, "declare.layout"),
              ("r", strip_bas(raw["aipg"]), "pnames<pane>", ["pane", "refresh"], "tool.ai", 0, 0, "lay.declare"),
              ("s", strip_bas(raw["menus"]), "pnames<pane>", ["pane", "refresh"], "tool.menus", 0, 0, "lay.declare"),
-             ("t", strip_bas(raw["mymenu"]), "'My programs'", [], "my.menu", 0, 0, None))
+             ("t", strip_bas(raw["mymenu"]), "'My programs'", [], "my.menu", 0, 0, "declare.layout"))
     for letter, pg, nm, opts, name, lay_first, rebuilt, lay in PAGES:
         lay_call = "gosub " + (lay or "no.layout.here")
         got = re.findall(r"\$tk_keys\('ai', keys, '([a-z.]+)', '', '', '', ''\)", pg)

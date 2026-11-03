@@ -18,6 +18,7 @@
   	  * 
   	  * 
 	  * START-HISTORY:
+	  * 2 Nov 26 dm  DEFAULT.DEPTH 43 (was 42), with gplsrc/tio.h DEFAULT_DEPTH (owner: "Change to 43").
 	  * 27 Oct 26 dm S.87 batch 13: $define for OS$OPEN, as # no longer starts a directive.
 	  * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 	  * 29 Sep 26 dm  K$SET.LANGUAGE (38) retired: SD is English only.
@@ -46,7 +47,7 @@
       $define DEFAULT.WIDTH      140
       $define MAX.WIDTH        32767
       $define MIN.DEPTH           10
-      $define DEFAULT.DEPTH       42
+      $define DEFAULT.DEPTH       43
       $define MAX.DEPTH        32767
 
 

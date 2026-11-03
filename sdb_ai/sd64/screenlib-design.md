@@ -1,5 +1,9 @@
 # screen library (sl_), stage 2 first cut - design note
 
+> **2 Nov 2026: for the common rules of the full-screen pages (the 140 by 43 frame, the menu bar, keys, the Esc rule, F1, F6, confirm boxes,
+> the theme roles and the allowed exceptions) `tui-design.md` is the authority.** Where this note disagrees with it, `tui-design.md` wins;
+> this note stays as the library's own design history.
+
 12 Oct 2026; updated 13 Oct 2026 (see the 13 Oct sections) and 18 Oct 2026 (containers and viewports). Written before the menu, kept to what SED needs plus the obvious next widgets.
 Background: PROJECT_STATUS.md S.1 (stage 1: a pure BASIC renderer is fast enough).
 First users: SED's menu bar and quit box. Tests: gplbld/sandbox-sed-menu.py.

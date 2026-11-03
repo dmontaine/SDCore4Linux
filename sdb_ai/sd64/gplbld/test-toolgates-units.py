@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """test-toolgates-units.py - the gate matrix, TOOL.GATES (`gpl.bp/tool_gates`), as invariants read off the source (S.75, administrator app A2).  Free: no install, no sudo, no sd.
 
-    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolgates-units.py [--selftest]
+    python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolgates-units.py [--selftest [--from=N]]
+
+TG18-TG20 (2 Nov 26, S.88 p5-U2b P10): Ctrl-Q asks before it drops a queue; the first of their mutants is M_P10 (37), so --selftest --from=37 runs only those.
 
 WHAT THIS IS, AND WHAT IT IS NOT.  It reads the page's BASIC as text, with comments removed.  ***IT RUNS NOTHING, SO IT CANNOT SAY THAT A CELL CHANGES OR THAT THE VERB ACCEPTS WHAT THE PAGE
 SENDS***: that is `sandbox-tool-gates.py` (a private SD, the real modify.account, the disk as the evidence).  What a text check is for: the properties that make the page a FRONT END and
@@ -121,6 +123,26 @@ def checks(raw):
        "X0 = mat.x + 28" in pg and "CW = 6" in pg and "fmt('Account', '20L') : fmt('Kind', '6L')" in pg and 26 + 6 * n <= 134 and len(set(heads.values())) == len(heads) and all(len(h) <= 5 for h in heads.values()) and len(heads) == n, repr(heads))
     ck("TG16", "the filter has three modes and names them; the sessions are read with !listu and shown only for the account under the cursor", "flt = mod(flt + 1, 3)" in pg and pg.count("accounts of persons") == 1 and "call !listu(udata)" in pg and "if v<1, 9> = anm<av> then" in pg)
     ck("TG17", "the matrix has a [?] and F1, ? and a click show tool.gates.matrix, whose record exists", "call $tk_help('box', 'tool.gates.matrix', hm, 0, 0)" in pg and pg.count("tool.gates.matrix") == 2 and "call $tk_help('mark', mat.x + mat.w - 5, mat.y + 1, 0, 0)" in pg and raw["help"].split("\n")[0].strip() != "")
+    # S.88 p5-U2b P10 (2 Nov 26): Ctrl-Q dropped the queue without a word
+    la = block(pg, "leave.ask")
+    ra = block(pg, "run.all")
+    sets_done = [m.start() for m in re.finditer(r"^\s*done = 1\s*$", pg, re.M)]
+    in_leave = [i for i in sets_done if (pg.find("leave.ask:") <= i < pg.find("leave.ask:") + len(la)) or (pg.find("run.all:") <= i < pg.find("run.all:") + len(ra))]
+    ck("TG18", "Ctrl-Q (and File > Quit, which the bar gives as ctrl-q) asks leave.ask, and nothing else ends the page by setting done: leave.ask counts the queue of EVERY account (for av = 1 to an, final.of) and leaves at once only when none has one",
+       re.search(r"case nm = 'ctrl-q'\s*\n\s*gosub leave\.ask\s*\n", pg) is not None and "call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)" in pg and len(sets_done) == 3 and in_leave == sets_done
+       and re.search(r"for av = 1 to an\s*\n\s*gosub final\.of\s*\n\s*if qn > 0 then", la) is not None and re.search(r"if lq\.n = 0 then\s*\n\s*done = 1\s*\n\s*return", la) is not None
+       and la.find("next av") < la.find("if lq.n = 0 then"), repr((len(sets_done), len(in_leave))))
+    ck("TG19", "with something queued the question is $tk_confirm's box with three buttons, Cancel LAST (the last is the default, so Enter alone neither leaves nor runs); only 'alt' (Leave without them) leaves, "
+               "'run' goes to run.all, anything else stays with the queue kept",
+       la.count("call $tk_confirm(") == 1 and re.search(r"call \$tk_confirm\([^\n]*, '', lq\.res, lq\.msg, '[^']+', '&Run the changes,&Leave without them,&Cancel'\)", la) is not None
+       and re.search(r"case lq\.res = 'alt'\s*\n\s*done = 1\s*\n\s*case lq\.res = 'run'\s*\n\s*gosub run\.all\s*\n\s*case 1\s*\n\s*msg = ", la) is not None
+       and not re.search(r"\$tk_run|execute|aq<", la), la[-400:])
+    ck("TG20", "Run the changes runs nothing itself: run.all only hands each account with a queue to run.queue (R's own path: check.needs, the box, the name, $tk_run), once each by name, "
+               "and leaves only when no cell is queued afterwards; R's handler names the cursor's account before run.queue, which no longer reads the cursor",
+       not re.search(r"\$tk_run|\$tk_confirm|execute|aq<", ra) and ra.count("gosub run.queue") == 1 and "lq.tried<-1> = anm<av>" in ra and "locate anm<lq.i> in lq.tried<1> setting lq.p else" in ra
+       and re.search(r"case lq\.fail > 0\s*\n\s*msg = [^\n]*\n\s*case lq\.left = 0\s*\n\s*done = 1", ra) is not None and ra.find("gosub run.queue") < ra.find("lq.left = 0")
+       and "if rq.ran and not(rq.ok) then" in ra and "rq.ok = (err = '' and stat >= 0)" in rq   # 2 Nov 26 review: a refused or failed command keeps the page
+       and re.search(r"case nm = 'r'\s*\n\s*if nv > 0 then\s*\n\s*av = view<ci>\s*\n\s*gosub run\.queue", pg) is not None and "view<ci>" not in rq, ra[-300:])
     return rows
 
 
@@ -173,6 +195,19 @@ MUTANTS = [
     ("the filter has a fourth mode", "TG16", sub("page", "flt = mod(flt + 1, 3)", "flt = mod(flt + 1, 4)")),
     ("the matrix has no [?]", "TG17", sub("page", "   call $tk_help('mark', mat.x + mat.w - 5, mat.y + 1, 0, 0)\n", "")),
 ]
+M_P10 = len(MUTANTS)          # S.88 p5-U2b P10 (2 Nov 26): the leave question.  --selftest --from=M_P10 runs these alone
+MUTANTS += [
+    ("Ctrl-Q leaves at once again, dropping the queue", "TG18", sub("page", "      case nm = 'ctrl-q'\n         gosub leave.ask\n", "      case nm = 'ctrl-q'\n         done = 1\n")),
+    ("only the cursor's account is counted", "TG18", sub("page", "   for av = 1 to an\n      gosub final.of\n      if qn > 0 then\n         lq.n += 1", "   for av = view<ci> to view<ci>\n      gosub final.of\n      if qn > 0 then\n         lq.n += 1")),
+    ("Leave is the default button", "TG19", sub("page", "'&Run the changes,&Leave without them,&Cancel'", "'&Run the changes,&Cancel,&Leave without them'")),
+    ("Cancel leaves too", "TG19", sub("page", "      case 1\n         msg = 'nothing was run; the queued changes", "      case 1\n         done = 1\n         msg = 'nothing was run; the queued changes")),
+    ("the leave box runs the commands itself", "TG19", sub("page", "      case lq.res = 'run'\n         gosub run.all\n", "      case lq.res = 'run'\n         call $tk_run(allow, lq.sent, out, stat, err)\n")),
+    ("Run the changes leaves although a queue is left", "TG20", sub("page", "      case lq.left = 0\n         done = 1", "      case 1\n         done = 1")),
+    ("Run the changes leaves although a command failed", "TG20", sub("page", "      case lq.fail > 0\n", "      case @false\n")),
+    ("a refused command counts as success", "TG20", sub("page", "      rq.ok = (err = '' and stat >= 0)", "      rq.ok = 1")),
+    ("run.all runs the queue past R's box", "TG20", sub("page", "      lq.tried<-1> = anm<av>\n      gosub run.queue\n", "      lq.tried<-1> = anm<av>\n      gosub make.sentence\n      call $tk_run(allow, sent, out, stat, err)\n")),
+    ("R's handler leaves the account unnamed", "TG20", sub("page", "         if nv > 0 then\n            av = view<ci>\n            gosub run.queue\n", "         if nv > 0 then\n            gosub run.queue\n")),
+]
 
 
 def load():
@@ -194,13 +229,15 @@ def report(rows):
     return bad
 
 
-def selftest(raw):
+def selftest(raw, start=0):
     base = [r[0] for r in checks(raw) if not r[2]]
     if base:
         print("selftest: the unchanged tree fails %s, so a mutant's own failure cannot be told from the tree's; run the plain check first" % base)
         return 1
     holes = 0
-    for name, want, mut in MUTANTS:
+    if start:
+        print("selftest: from mutant %d of %d (--from)" % (start, len(MUTANTS)))
+    for name, want, mut in MUTANTS[start:]:
         try:
             m = mut(raw)
         except KeyError as exc:
@@ -211,7 +248,7 @@ def selftest(raw):
         hit = want in failed
         print("  [%s] selftest: %s is caught by %s (failed: %s)" % ("PASS" if hit else "FAIL", name, want, " ".join(failed) or "none"))
         holes += 0 if hit else 1
-    print("selftest: %d mutants, %d not caught" % (len(MUTANTS), holes))
+    print("selftest: %d mutants, %d not caught" % (len(MUTANTS) - start, holes))
     return 1 if holes else 0
 
 
@@ -226,7 +263,8 @@ def main(argv):
     print("\ntest-toolgates-units: %d passed, %d failed" % (len(rows) - bad, bad))
     rc = 1 if bad else 0
     if "--selftest" in argv:
-        rc = (selftest(raw) or rc)
+        start = next((int(a.split("=", 1)[1]) for a in argv if a.startswith("--from=")), 0)
+        rc = (selftest(raw, start) or rc)
     return rc
 
 

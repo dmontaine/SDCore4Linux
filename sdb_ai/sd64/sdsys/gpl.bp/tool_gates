@@ -11,6 +11,12 @@
 *              the one key this page never had, then: "just a convenience feature ... set all on, and then turn some off").  They QUEUE; R's box is still the question.  The
 *              test of whether a cell can be queued is now one routine, cell.why, used by Enter, A and N.
 * 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the filter and refresh are offered to the model, nothing that changes a gate.
+* 2 Nov 26 dm  S.88 p5-U2b P10: Ctrl-Q (and File > Quit, which the bar gives as Ctrl-Q) dropped every queued change without a word.  With anything queued it now asks first, in
+*              $tk_confirm's box: Run the changes (each account's queue goes the way R takes it, its own box and, where a gate reaches beyond SD, the name typed; the page closes only
+*              when nothing is left), Leave without them, or Cancel (the default: Enter alone never leaves).  With nothing queued it leaves at once, as before.  R's handler now
+*              names the account (av) before run.queue, so that the leave question can run the queue of an account that is not under the cursor.
+*              After the review: run.queue says whether its command ran without a refusal or an error (rq.ok); Run the changes keeps the page open and shows the
+*              failing account's message when any did not succeed (run.queue clears a queue once the box said Run, so "nothing left" alone was not success).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -30,7 +36,8 @@
 *
 *   Keys: arrows move over the cells, Enter or the space bar queues the opposite state for the cell (and again takes it back), R runs the queued changes of the account on the
 *   cursor's row, U drops them, T queues OFF for every gate of that account that is off as delivered and on now (it does not touch a gate whose delivered state is on), F
-*   changes which accounts are shown, F5 reads the machine again, F1 or ? or a click on a [?] explains the matrix, Ctrl-Q leaves.  A (all on) and N (all off) queue every gate
+*   changes which accounts are shown, F5 reads the machine again, F1 or ? or a click on a [?] explains the matrix, Ctrl-Q leaves (asking first when anything is queued: run the
+*   changes, leave without them, or cancel, which is the default).  A (all on) and N (all off) queue every gate
 *   of the cursor's account that can change to end ON or off (the owner's convenience, 1 Nov 2026: set all on, then turn some off); they only queue, as Enter does.
 *
 *   THE PAGE WRITES NOTHING ITSELF.  The queued changes of one account become ONE command, MODIFY.ACCOUNT name word word ..., which validates every word before it changes anything
@@ -539,7 +546,10 @@ on.key:
       case nm = 'enter' or nm = ' '
          gosub queue.cell
       case nm = 'r'
-         gosub run.queue
+         if nv > 0 then
+            av = view<ci>
+            gosub run.queue
+         end
       case nm = 'u'
          gosub drop.queue
       case nm = 't'
@@ -568,7 +578,7 @@ on.key:
          call $tk_aipage('open', ctx, keys, 'Gates', '', ap)                ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
          if ap # '' then msg = ap
       case nm = 'ctrl-q'
-         done = 1
+         gosub leave.ask
       case nm = 'esc'
          if flt # 0 then
             flt = 0
@@ -705,10 +715,11 @@ tighten:
    msg = (if n.q = 0 then anm<av> : ' has no gate on that is off as delivered' else 'queued OFF for ' : n.q : ' gate' : (if n.q = 1 then '' else 's') : ' of ' : anm<av> : '; R runs them')
    return
 
-* R: the queued changes of the account on the cursor's row, as one MODIFY.ACCOUNT command, its effect, Run or Cancel, then the machine's answer
+* R: the queued changes of account av (R's handler gives the cursor's row; run.all gives each account in turn), as one MODIFY.ACCOUNT command, its effect, Run or Cancel, then the
+* machine's answer
 run.queue:
-   if nv = 0 then return
-   av = view<ci>
+   rq.ok = 0                                                     ;* 2 Nov 26 (review): 1 only when the box said Run and the command ran without a refusal or an error
+   rq.ran = 0
    gosub final.of
    if qn = 0 then
       msg = 'nothing is queued for ' : anm<av>
@@ -723,6 +734,8 @@ run.queue:
    call $tk_confirm(sent, el, typed, res, cmsg)
    if res = 'run' then
       call $tk_run(allow, sent, out, stat, err)
+      rq.ran = 1
+      rq.ok = (err = '' and stat >= 0)                           ;* modify.account's failures are negative codes ($tk_run: the command's @system.return.code)
       if err # '' then
          msg = err
       end else
@@ -823,6 +836,82 @@ make.sentence:
       typed = anm<av>
    end
    el<-1> = 'A running session is not changed.  A change reaches the person: ' : change(whens, @fm, '; ') : '.'
+   return
+
+* ------------------------------------------------------------------------------------------------- leaving
+
+* Ctrl-Q, and File > Quit (the bar gives its quit entry as ctrl-q): the page leaves at once when no account has anything queued.  When one has, $tk_confirm asks first (S.88 p5-U2b
+* P10, 2 Nov 26; until then the queue was dropped without a word): Run the changes, Leave without them, or Cancel, which is the last button and so the default (Enter alone never
+* leaves and never runs).  The box shows the command each account's queue would be; nothing is run here: Run the changes is run.all, which is R for each account in turn.
+leave.ask:
+   lq.sent = ''
+   lq.n = 0
+   lq.cells = 0
+   for av = 1 to an
+      gosub final.of
+      if qn > 0 then
+         lq.n += 1
+         lq.cells += qn
+         gosub make.sentence
+         lq.sent<-1> = sent
+      end
+   next av
+   if lq.n = 0 then
+      done = 1
+      return
+   end
+   lq.lines = lq.cells : ' queued change' : (if lq.cells = 1 then '' else 's') : ' of ' : lq.n : ' account' : (if lq.n = 1 then '' else 's') : ' not run yet.  Leaving the page drops them.'
+   lq.lines<-1> = 'Run the changes shows the box R shows for each account in turn (its command, and its name to type where a gate reaches beyond SD); the page closes only when nothing is left.'
+   lq.lines<-1> = 'Leave without them closes the page and changes nothing.  Cancel goes back to the page.'
+   call $tk_confirm(change(lq.sent, @fm, '; '), lq.lines, '', lq.res, lq.msg, 'Leave the gate matrix?', '&Run the changes,&Leave without them,&Cancel')
+   begin case
+      case lq.res = 'alt'
+         done = 1
+      case lq.res = 'run'
+         gosub run.all
+      case 1
+         msg = 'nothing was run; the queued changes are still here'
+   end case
+   return
+
+* Run the changes: each account with a queue goes through run.queue once (its own box; a Cancel or a refusal there leaves its queue), found again by name after every command,
+* since run.queue reads the machine again.  The page leaves only when no queue is left.
+run.all:
+   lq.tried = ''
+   lq.fail = 0 ; lq.failmsg = ''                                 ;* 2 Nov 26 (review): a refused or failed command keeps the page open and its message is shown
+   loop
+      lq.av = 0
+      for lq.i = 1 to an
+         if lq.av = 0 then
+            locate anm<lq.i> in lq.tried<1> setting lq.p else
+               av = lq.i
+               gosub final.of
+               if qn > 0 then lq.av = lq.i
+            end
+         end
+      next lq.i
+   while lq.av > 0 do
+      av = lq.av
+      lq.tried<-1> = anm<av>
+      gosub run.queue
+      if rq.ran and not(rq.ok) then
+         lq.fail += 1
+         lq.failmsg = anm<av> : ': ' : msg
+      end
+   repeat
+   lq.left = 0
+   for av = 1 to an
+      gosub final.of
+      lq.left += qn
+   next av
+   begin case
+      case lq.fail > 0
+         msg = lq.fail : ' command' : (if lq.fail = 1 then '' else 's') : ' did not succeed, so the page stays: ' : lq.failmsg
+      case lq.left = 0
+         done = 1
+      case 1
+         msg = lq.left : ' queued change' : (if lq.left = 1 then '' else 's') : ' not run, so the page stays: ' : msg
+   end case
    return
 
 end

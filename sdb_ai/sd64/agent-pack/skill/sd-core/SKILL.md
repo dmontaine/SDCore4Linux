@@ -31,7 +31,7 @@ Every item is a chunk with an id. `grep -n -A14 '^### <id>$' references/pack/ref
 | a message (and who prints it) | `msg:<number>` | `pack/reference/messages.md` |
 | an account word, an `sd.conf` setting, a key constant | `sys:word:<word>`, `sys:param:<name>`, `sys:keys:<prefix>` | `pack/reference/system.md`, `system-keys.md` |
 
-`since=next` on a chunk means the item belongs to the release in progress (1.2-0) and may be missing from an older install. `since=-` does not mean old: the changelog just does not name it in a title.
+`since=next` on a chunk means the item belongs to the release in progress (2.0-0) and may be missing from an older install. `since=-` does not mean old: the changelog just does not name it in a title.
 
 ## The rules
 

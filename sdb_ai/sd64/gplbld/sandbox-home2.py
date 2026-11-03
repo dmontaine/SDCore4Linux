@@ -12,6 +12,7 @@
 #
 # START-HISTORY:
 # 26 Oct 26 dm  New (S.75, home).
+# 2 Nov 26 dm   S.88 U9: C2c's expected function-key row follows the key table (F10 is the bar's and left the row; / find joined it).  NOT RUN after the change.
 # END-HISTORY
 #
 #   C  SUB-MENUS.  The delivered page has no folder tile, so the rows run on the sandbox's COPY of tool_home with one declared (the Develop group becomes the menu develop, a tile Develop in
@@ -272,7 +273,8 @@ def c_sub():
       repr((h.line(40), focus_label(h))))
     R("C2b", "...the Back tile is at the left of the header and the identity has moved right of it; Switch account and Sign out are still there",
       "Back" in h.line(2)[3:24] and h.line(2)[25:].strip().startswith("don @ zzhm") and "Switch account" in T and "Sign out" in T, repr(h.line(2)[:60]))
-    R("C2c", "...and the function-key row names Esc (Enter start  Esc back  F1 help  F5 refresh  F10 menu  ^Q sign out)", h.line(42) == "Enter start  Esc back  F1 help  F5 refresh  F10 menu  ^Q sign out", repr(h.line(42)))
+    R("C2c", "...and the function-key row names Esc (Enter start  Esc back  F1 help  F5 refresh  ^Q sign out  / find; F10 is the bar's since S.88 U9, 2 Nov 26)",
+      h.line(42) == "Enter start  Esc back  F1 help  F5 refresh  ^Q sign out  / find", repr(h.line(42)))
     h.key("enter", idle=2.5)
     started = "The file under the cursor" in h.text()
     h.typed("\x11", idle=1.6)
@@ -510,7 +512,7 @@ def a_basic():
     T = h.text()
     R("A1", "as delivered the group is OFF: no Recent heading on the page and no file &menus& in the account", is_top(h) and "Recent" not in T and menus_dir(a) is None, repr((menus_dir(a), h.line(6)[:40])))
     view_menu(h)
-    R("A2", "the View menu offers 'Recent group (off)'", "Recent group (off)" in h.text(), repr(h.text()[:400]))
+    R("A2", "the View menu offers 'Recent group on or off' (until S.88 U9, 2 Nov 26, 'Recent group (off)': a registry entry is a literal)", "Recent group on or off" in h.text(), repr(h.text()[:400]))
     h.typed("g", idle=1.3)
     R("A3", "choosing it turns the group on (11958 on the status line); the file &menus& is made in the person's own account and the record RECENT is the one word on",
       "The Recent group is on" in h.line(40) and menus_dir(a) is not None and rc_read(a) == "on", repr((h.line(40), menus_dir(a), rc_read(a))))

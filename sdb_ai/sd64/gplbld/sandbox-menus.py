@@ -10,6 +10,7 @@
 #
 # START-HISTORY:
 # 22 Oct 26 dm  New (S.75: tiles off per account, the Terminal tile off as a wall, tool.menus).
+# 2 Nov 26 dm  S.88 U4: MY.MENU on the layout service (its box where it always was) and its F1 help: three rows after the page is first shown.
 # END-HISTORY
 #
 # WHAT IS HELD.  SET.TILE (one account at a time; no setting for every account; Sign out refused; names and accounts checked; an ordinary account cannot run it), the home screen
@@ -274,6 +275,16 @@ def main():
         T = h.text()
         row("Enter on it starts MY.MENU: the page 'My programs' with the empty-list line, and the keys Ctrl-N add, Enter change, Del remove, U up, D down",
             "You have not added a program yet" in T and h.line(42).startswith("^N add  ^Q quit"), repr(h.line(42)))
+        # 2 Nov 26 (S.88 U4): the box is a pane of the layout service at its old place (the rows above and below read it there) and the page has F1 help ($tk_help, tool.menus.mine)
+        row("S.88 U4: the box is where it always was at 140 by 43 (its top border on row 1, the header on row 2, the note on its bottom border, row 34) and a [?] ends the header row",
+            h.line(1)[1:3] == "+-" and "My programs" in h.line(1) and "Label" in h.line(2) and "this list is only yours" in h.line(34) and h.line(2)[134:137] == "[?]", repr((h.line(1)[:20], h.line(2)[128:140], h.line(34)[:60])))
+        h.typed("?", idle=1.5)                         # the page's ? is its F1 (sandbox-home's key table has no F1; the key table row is test-help-units P17r)
+        HT = re.sub(r"[|\s]+", " ", h.text())
+        row("S.88 U4: ? (the page's F1) opens the page's help box ($tk_help: the record tool.menus.mine, or the words that help is not installed here, where the sandbox has no shared account)",
+            "Help is not installed here" in HT or "My programs on the home screen" in HT, HT[-400:])
+        h.key("esc", idle=1.2)
+        HT = re.sub(r"[|\s]+", " ", h.text())
+        row("...Esc closes it and the page is still there", "Help is not installed here" not in HT and "My programs on the home screen" not in HT and "You have not added a program yet" in h.text(), HT[-300:])
         h.typed("\x0e", idle=0.8)                      # Ctrl-N (it was F2; owner answer 20, 29 Oct 26)
         # S.88: one form (label, command, glyph, wait): Tab between the entries, Return in an entry presses Save; the wait entry starts as y
         h.typed("Orders\twho.am.i\r", idle=1.2)

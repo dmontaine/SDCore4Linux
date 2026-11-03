@@ -11,6 +11,8 @@
 #   R5  tool.keys has no list of its own and asks the library for the next theme
 #   R6  CONFIG() reads a name of up to 16 characters (the setter's buffer is not touched) and SCREEN OPEN asks for SCREENTHEME, refusals ignored
 #   R7  the shipped sd.conf has SCREENTHEME=blue once, in [sd], and the table row no longer says it cannot be read
+#   R8  (2 Nov 26, S.88 p3.7b) the IDE has no list of its own: it starts in SCREENTHEME (blue when blank), falls back to blue then to what the library kept, cycles with
+#       $sl_theme('next') and puts the theme on again when it takes the screen back.  That it OPENS in the site's theme on a screen is sandbox-ide-resize.py section theme.
 # NOT SAID HERE: that a role is drawn as it says, that a program compiled against the new list works, or that CONFIG() answers - that is sandbox-themeroles.py, and it has not been run.
 import os
 import re
@@ -21,7 +23,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.normpath(os.path.join(HERE, ".."))
 BP = os.path.join(SD64, "sdsys", "gpl.bp")
-F = {"sl.h": os.path.join(BP, "sl.h"), "sl_theme": os.path.join(BP, "sl_theme"), "tool_keys": os.path.join(BP, "tool_keys"), "sl_sgr": os.path.join(BP, "sl_sgr"),
+F = {"sl.h": os.path.join(BP, "sl.h"), "sl_theme": os.path.join(BP, "sl_theme"), "tool_keys": os.path.join(BP, "tool_keys"), "sl_sgr": os.path.join(BP, "sl_sgr"), "ide": os.path.join(BP, "ide"),
      "opconfig": os.path.join(SD64, "gplsrc", "op_config.c"), "sd.conf": os.path.join(SD64, "sd.conf"), "table": os.path.join(SD64, "sdsys", "config.table")}
 for k in F:
     F[k] = os.environ.get("TR_" + re.sub(r"\W", "_", k).upper(), F[k])
@@ -155,6 +157,22 @@ def run():
     row("R5 ... and takes the next theme from $sl_theme, saying so when there is none but mono",
         "call $sl_theme('next', thn, '', '', '', thx) if thx = thn then msg = 'this terminal cannot show colour: no theme but mono'" in ftk and "screen theme thx returning thn else" in ftk)
 
+    ide = bas("ide")
+    fide = flat(ide)
+    first_apply = ide.find("gosub apply.theme")
+    head = flat(ide[:first_apply]) if first_apply > 0 else ""
+    ap = flat(label_block(ide, "apply.theme") or "").strip()
+    m = re.search(r"case cmd = 'theme'\n(.*?)\n\s*end case", ide, re.S)
+    tc = flat(m.group(1)).strip() if m else ""
+    row("R8 the IDE has no list of themes of its own (2 Nov 26, S.88 p3.7b)", not re.search(r"\bthemes\s*=", ide) and "theme.n" not in ide and "themes<" not in ide)
+    row("R8 ... it starts in the site's theme: th.want is CONFIG('SCREENTHEME'), blue when blank, before the first apply.theme",
+        "th.want = downcase(trim(config('SCREENTHEME'))) if th.want = '' then th.want = 'blue'" in head, head[-300:])
+    row("R8 ... apply.theme asks for th.want, falls back to blue, and keeps in th.want the theme in force",
+        ap.startswith("screen theme th.want returning th else if th.want # 'blue' then screen theme 'blue' returning th else null end call $sl_theme('name', '', '', '', '', th.want) end"), ap)
+    row("R8 ... the Theme command takes the next theme from $sl_theme and applies it",
+        tc.startswith("call $sl_theme('name', '', '', '', '', th.cur) call $sl_theme('next', th.cur, '', '', '', th.want) gosub apply.theme"), tc)
+    row("R8 ... and the screen taken back puts th.want on again (retake.quiet)", "gosub open.screen gosub apply.theme" in flat(label_block(ide, "retake.quiet") or ""))
+
     oc = ccode("opconfig")
     cfg = oc[:oc.find("op_pconfig")] if "op_pconfig" in oc else oc
     row("R6 CONFIG() has a 16 character name buffer and limit, and no 8 left in it", "char param[16 + 1];" in cfg and "k_get_c_string(descr, param, 16) < 1" in cfg and "k_get_c_string(descr, param, 8)" not in cfg)
@@ -231,6 +249,10 @@ def selftest():
     mutant("the default theme is not asked of the configuration", "sl_theme", "dn = downcase(trim(config('SCREENTHEME')))", "dn = ''")
     mutant("tool.keys keeps its own list", "tool_keys", "   snames = 'normal'", "   themes = 'mono' : @fm : 'classic' : @fm : 'blue'\n   snames = 'normal'")
     mutant("tool.keys does not ask the library", "tool_keys", "call $sl_theme('next', thn, '', '', '', thx)", "thx = thn")
+    mutant("the IDE starts in blue whatever the site says", "ide", "   th.want = downcase(trim(config('SCREENTHEME')))\n", "   th.want = ''\n")
+    mutant("the IDE keeps a list of its own", "ide", "   if th.want = '' then th.want = 'blue'\n", "   if th.want = '' then th.want = 'blue'\n   themes = 'blue' : @fm : 'mono'\n")
+    mutant("the IDE's theme command cycles nothing", "ide", "call $sl_theme('next', th.cur, '', '', '', th.want)", "th.want = th.cur")
+    mutant("the IDE has no fallback to blue", "ide", "         screen theme 'blue' returning th else null\n", "")
     mutant("CONFIG() buffer back to eight", "opconfig", "char param[16 + 1];", "char param[8 + 1];")
     mutant("CONFIG() limit back to eight", "opconfig", "k_get_c_string(descr, param, 16) < 1", "k_get_c_string(descr, param, 8) < 1")
     mutant("the setter widened", "opconfig", "  char param[8 + 1];\n", "  char param[16 + 1];\n")

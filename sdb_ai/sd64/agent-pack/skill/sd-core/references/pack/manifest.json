@@ -32,7 +32,7 @@
   },
   "basic.statement": {
    "chunks": 203,
-   "sha256": "4cf8b3b75cbbde1065b32eb252ea462b18921bc4f1539ea7fdfa1b7062f2c976"
+   "sha256": "21e6bdbad2a5e5610cffbec82e6fb3da23766e31170780b86b4585c6afa5f9b7"
   },
   "core.digest": {
    "chunks": 5,
@@ -108,7 +108,7 @@
   },
   "tcl.verb": {
    "chunks": 207,
-   "sha256": "793b8e9c7df7269f863445a7a8904affcdc4ac980e18da54eb9bc90da1cc7844"
+   "sha256": "0ffd49b45b5d51375702c1f55752fb35c2079757cf3d904e3f754b2cd29b334e"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -116,7 +116,7 @@
   },
   "voc.entry": {
    "chunks": 21,
-   "sha256": "dc33c60d86e456a164ad4372358e87a7c4d3c0e31b28c8b044be1b0bc32a2ec1"
+   "sha256": "6eb7596a019862f9107c90339609000bd7070d5f6648d26e4c601bb8ab7b95e8"
   },
   "voc.layer": {
    "chunks": 2,
@@ -146,7 +146,7 @@
   },
   "examples/voc-entries.md": {
    "chunks": 21,
-   "sha256": "3c738637cdaa64427022ab54170f5206ddd1905fb544591f0e447f3c052d006f",
+   "sha256": "ae9c7fd7000d087bb68767eac0e0e8e9c8831871eaef951671589ce5cd77c718",
    "words": 569
   },
   "index.json": {
@@ -164,7 +164,7 @@
   },
   "reference/basic-statements.md": {
    "chunks": 269,
-   "sha256": "191617dd809666703cdb5e8eec34c7aff6b572fd043976d3467f77fda8923125",
+   "sha256": "839b9f637f0b679ad0a90c4bd8666359ca2e5b0da24cc893f14ea62dbc7e6573",
    "words": 5900
   },
   "reference/dictionaries.md": {
@@ -194,7 +194,7 @@
   },
   "reference/tcl-verbs.md": {
    "chunks": 211,
-   "sha256": "562b8d69e7ca46387ff558f9333b305d75abfb9d4913664a5f9d630e79da8363",
+   "sha256": "9d2883ddf578565f7cf512c4433ce0db83730e91b89b03833b41a4938179c681",
    "words": 9943
   },
   "reference/voc.md": {
@@ -205,7 +205,7 @@
  },
  "product": "SD Core for Linux",
  "regenerate": "python3 agent-pack/mkpack.py --write",
- "release_record": "L1.1-3",
- "rev_stamp": "L1.1-3",
+ "release_record": "L2.0-0",
+ "rev_stamp": "L2.0-0",
  "since_rule": "the oldest changelog section whose entry titles name the item; only names that cannot be plain English count; '-' = not found"
 }

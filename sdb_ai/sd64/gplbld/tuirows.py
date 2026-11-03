@@ -16,13 +16,16 @@
 #
 # START-HISTORY:
 # 28 Oct 26 dm  New (S.88, Phase 0).
+# 2 Nov 26 dm  LANDED gains 3 (wave 8): 3.3a-home, p3.5 and p3.6 have all landed.
 # END-HISTORY
 import os
 import sys
 
 # The phases of the plan whose change has landed (S.88).  Phase 1 (the input layer) landed 28 Oct 26; Phase 4 (the IDE: untitled buffer, name form, save under a lock) landed 28 Oct 26
 # BEFORE phases 2 and 3 on the owner's word, so this is a set and not "the last phase": a failing row of phase 2 or 3 is still pending.  A phase's commit adds its number here.
-LANDED = (1, 2, 4)                # Phase 2 (data loss and terminal safety) built 28 Oct 26, its suites written and NOT yet run (the owner's rule: one complete run when all the full-screen phases are done)
+LANDED = (1, 2, 3, 4)             # Phase 2 (data loss and terminal safety) built 28 Oct 26, its suites written and NOT yet run (the owner's rule: one complete run when all the full-screen phases are done)
+                                  # Phase 3 added 2 Nov 26 (wave 8): its three pieces the phase=3 rows wait for have landed - 3.3a-home ($tk_ai 'move', tool_home relayout), p3.5
+                                  # (screen_set's 12 parameters) and p3.6 (sl_form fix.focus).  sandbox-tk-resize's R rows and sandbox-termsafe's F3 rows now count as failures if red.
 
 STRICT = ("--strict" in sys.argv) or os.environ.get("SDTUI_STRICT") == "1"
 

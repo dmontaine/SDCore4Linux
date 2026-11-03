@@ -47,7 +47,7 @@ MKPROG = "zzwm" + RUN               # makes the file LIST pages
 LF = "zzwl" + RUN                   # the file
 passed = failed = 0
 
-DEF_W, DEF_H = 140, 42
+DEF_W, DEF_H = 140, 43     # 2 Nov 26: 43 (owner: "Change to 43"; tio.h, int$keys.h, terminfo.src)
 SIZE_RE = re.compile(r"(?m)^SIZE wide=(\d+) high=(\d+) winsize=<([^>]*)> pulen=(\d+) puwid=(\d+)")
 
 

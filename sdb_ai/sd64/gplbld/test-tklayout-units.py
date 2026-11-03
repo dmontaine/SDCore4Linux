@@ -32,6 +32,7 @@ START-HISTORY:
               still wanted the line before it and failed on every tree since.  A mutant holds the allowance to the AI row only.  And the "a page's box
               moves a row" mutant changes the page's source before L2, which M2 compares with (it changed the working copy, which has no literal boxes since
               L2, and raised a KeyError on every self-test).
+2 Nov 26 dm   S.88 U4: mymenu's one pane (list, 1,34, stretching) in DECLS, compared by M2 with the pre-L2 box.
 END-HISTORY
 """
 
@@ -283,6 +284,7 @@ DECLS = {
     "tool_bulk": ([P("file", 1, 4), P("which", 2, 9), P("what", 3, 13), P("result", 4, 13, v=True)], None),
     "tool_ai": ([P("choice", 1, 9), P("models", 2, 13, v=True), P("key", 3, 10), P("note", 4, 6)], None),
     "tool_mygates": ([P("gates", 1, 21, v=True), P("cell", 2, 12), P("note", 3, 6)], None),
+    "mymenu": ([P("list", 1, 34, v=True)], None),                    # 2 Nov 26, S.88 U4: MY.MENU's one box
     "tool_query": ([P("files", 1, 19, w=28, col=1, v=True, hz=False), P("fields", 1, 19, w=44, col=2, v=True, hz=False), P("sentence", 1, 19, w=66, col=3, v=True),
                     P("options", 2, 11, w=46, col=1, hz=False), P("preview", 2, 11, w=92, col=2), P("result", 3, 9)], [0, 1, 2, 3, 4, 5]),
     "tool_query#whole": ([P("whole", 1, 39, v=True)], [6]),

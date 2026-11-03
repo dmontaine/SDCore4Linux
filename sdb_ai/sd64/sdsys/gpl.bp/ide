@@ -6,6 +6,14 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 2 Nov 26 dm  S.88 p3.3a-ide: A RESIZE NO LONGER LOSES THE EDITOR'S STATE.  relayout moved every widget by making the whole form again, and the text area made again had
+*              lost its undo and redo steps, its selection mark, its find text and its view (the messages table its row, the tree its open nodes, the AI entry its text).
+*              It now moves and sizes the widgets the form has (move.form, through $sl_widget_move) to exactly where new.form puts them; the separator gains or loses a
+*              label per row.  retake.quiet (the screen taken back from a program) still makes the form again.  After the review: a move refused by
+*              $sl_widget_move is counted (mv.bad) and the form is then made again (new.form), so no widget is ever left at its old place without notice.
+* 2 Nov 26 dm  S.88 p3.7b: the IDE starts in the site's theme (SCREENTHEME in sd.conf), as the pages, SED and the debugger do, and blue when the site names none (its
+*              look until now); a name that is no theme falls back to blue, a terminal with no colour to mono.  The Theme command takes the next theme from the library
+*              ($sl_theme 'next', the pages' order: blue classic dark light mono, only those this terminal can show); the IDE's own list of themes is gone.
 * 2 Nov 26 dm  S.88 A5: a directory of the tree that the account may reach but the operating system will not open (DIR() says ER.PERM for both) says so (11599), not "no OS access".
 * 2 Nov 26 dm  S.96 M5: Debug of such a tab (F7 and Debug from the first line) compiles for the debugger and runs the debugger IN the account, both through run.in.
 * 2 Nov 26 dm  S.96 M4: a last word /in=account,file (from tool.entries) marks the file the sentence names as a temporary pointer to another account's program file: Compile and
@@ -366,10 +374,12 @@ $include idebrk.h
    w = scr<SL.S.W> + 0
    h = scr<SL.S.H> + 0
 
-   * blue first: in classic the bar and the window are the same black on white, so the menu bar and its
-   * drop-downs do not stand out from the form under them
-   themes = 'blue' : @fm : 'classic' : @fm : 'dark' : @fm : 'light' : @fm : 'mono'
-   theme.n = 1
+   * 2 Nov 26 (S.88 p3.7b): the site's theme (SCREENTHEME in sd.conf), as the toolkit pages, SED and the debugger have it; blue when the site names none (the
+   *   IDE's look until now: in classic the bar and the window are the same black on white, so the menu bar and its drop-downs do not stand out from the form).
+   *   apply.theme falls back to blue for a name that is no theme, and to mono on a terminal with no colour.  The Theme command takes the next theme from the
+   *   library ($sl_theme 'next'), in the one order every page shows them; th.want is the theme asked for, put on again when the screen is taken back.
+   th.want = downcase(trim(config('SCREENTHEME')))
+   if th.want = '' then th.want = 'blue'
    gosub apply.theme
 
    * The menus: one message each, entries separated by | and the parts of an entry by ~
@@ -589,8 +599,13 @@ $include idebrk.h
 * Themes
 
 apply.theme:
-   screen theme themes<theme.n> returning th else
-      th = ''
+   screen theme th.want returning th else
+      * refused: no theme of that name (a site's sd.conf may name one that is not), or this terminal cannot show colour.  The IDE's own blue next, then
+      * whatever the library could keep (mono on a terminal with no colour); th.want is what is in force, so that the Theme command goes on from it
+      if th.want # 'blue' then
+         screen theme 'blue' returning th else null
+      end
+      call $sl_theme('name', '', '', '', '', th.want)
    end
    return
 
@@ -2773,8 +2788,8 @@ run.cmd:
             msg = sysmsg(11655)
          end
       case cmd = 'theme'
-         theme.n += 1
-         if theme.n > dcount(themes, @fm) then theme.n = 1
+         call $sl_theme('name', '', '', '', '', th.cur)
+         call $sl_theme('next', th.cur, '', '', '', th.want)      ;* 2 Nov 26 (S.88 p3.7b): the library's list and order, and only the themes this terminal can show
          gosub apply.theme
          screen refresh
          last.status = char(1)          ;* everything was drawn again, the status line too
@@ -4472,16 +4487,90 @@ fields.show:
    gosub redraw
    return
 
-* The window changed size: the form is made again at the new size from the state
+* The window changed size.  2 Nov 26 (S.88 p3.3a): the form's widgets are MOVED and SIZED to the new layout (move.form), not made again, so that the editor keeps its undo and
+* redo steps, its selection mark, its find text and its view, the messages table its row, the tree its open nodes and the AI entry what was typed in it.  Before a form exists
+* (and when the screen is taken back from a program, retake.quiet) the form is made from the state, as it always was.
 relayout:
    gosub stash.current
    if have.form then
       call $sl_form('find', f, '', 'ed', en)
       ow = f{'widgets', en}
-      ed.over = ow{'over'} + 0                      ;* Ins in the area toggles it there: the new form is given what the old one had
+      ed.over = ow{'over'} + 0                      ;* Ins in the area toggles it there: a form made again later (retake.quiet) is given what this one has
    end
    screen clear
-   gosub new.form
+   mv.bad = 0                            ;* set here too: BASIC does not short-circuit, and new.form's path never sets it
+   if have.form then
+      gosub move.form
+   end else
+      gosub new.form
+   end
+   if have.form and mv.bad > 0 then      ;* 2 Nov 26 (review): move.form was refused for a widget - the form is made again rather than left half moved
+      mv.bad = 0
+      screen clear
+      gosub new.form
+   end
+   return
+
+* The form that is there, moved and sized to the layout for the window as it is now: every widget is where new.form would put it (test-widgetmove-units.py holds the two
+* in step).  The screen was cleared, so what the form saved from under it is stale: it is taken off (f{'shown'} 0, nothing put back) and the next SCREEN WAIT draws it whole.
+move.form:
+   last.status = char(1)                ;* the status line and the foot are written again (status.line forgets last.foot then)
+   call $sl_scr('get', scr)
+   w = scr<SL.S.W> + 0
+   h = scr<SL.S.H> + 0
+   call $sl_window(ww0, wh0)
+   if ww0 < w then w = ww0
+   if wh0 < h then h = wh0
+   gosub size.layout
+   f{'shown'} = 0
+   f{'under'} = ''
+   f{'w'} = fw
+   f{'h'} = fh
+   mv.bad = 0                           ;* 2 Nov 26 (review): a move refused leaves that widget where it was; any refusal sends relayout back to new.form
+
+   call $sl_widget_move(f, 'tree', 1, 1, (tw - 1) : @vm : ih, r) ; mv.bad += r
+   * the separator, one label to a row of the form's inside: rows the form gained get a label, rows it lost lose theirs
+   call $sl_line('v', '', vch)
+   for r = 1 to ih
+      call $sl_form('find', f, '', 'sep' : r, sn)
+      if sn = 0 then
+         screen label f, 'sep' : r, vch at tw,r width 1 attr 'window'
+      end else
+         call $sl_widget_move(f, 'sep' : r, tw, r, '', mr) ; mv.bad += mr
+      end
+   next r
+   r = ih + 1
+   loop
+      call $sl_form('find', f, '', 'sep' : r, sn)
+   while sn > 0
+      call $sl_form('delete', f, scr, 'sep' : r, dn)
+      r += 1
+   repeat
+
+   call $sl_widget_move(f, 'tabbar', ex, 1, ew : @vm : 1, r) ; mv.bad += r
+   call $sl_widget_move(f, 'tabs', ex, 1, '', r) ; mv.bad += r
+   call $sl_widget_move(f, 'ed', ex, 2, ew : @vm : mh, r) ; mv.bad += r
+   call $sl_widget_move(f, 'errbar', ex, err.y, ew : @vm : 1, r) ; mv.bad += r
+   call $sl_form('find', f, '', 'err', tn)
+   tbw = f{'widgets', tn}
+   tbw{'cols'} = sysmsg(11221) : @sm : '6R' : @vm : sysmsg(11222) : @sm : (ew - 11) : 'L'
+   call $sl_widget_move(f, 'err', ex, err.y + 1, ew : @vm : (eh - 1 - ai.rows), r) ; mv.bad += r
+   if ai.on then
+      call $sl_widget_move(f, 'ailab', ex, ai.y, '', r) ; mv.bad += r
+      call $sl_widget_move(f, 'ai', ex + 4, ai.y, (ew - 4) : @vm : 1, r) ; mv.bad += r
+   end
+   call $sl_form('find', f, '', 'fld', tn)
+   tbw = f{'widgets', tn}
+   tbw{'cols'} = sysmsg(11133) : @sm : '10L' : @vm : sysmsg(11134) : @sm : '10L' : @vm : sysmsg(11135) : @sm : (ew - 26) : 'L'
+   call $sl_widget_move(f, 'fld', ex, 2, ew : @vm : (mh - 1), r) ; mv.bad += r
+   call $sl_widget_move(f, 'fpath', ex, mh + 1, ew : @vm : 1, r) ; mv.bad += r
+   call $sl_widget_move(f, 'ixtree', tw - 4, 0, '', r) ; mv.bad += r
+   call $sl_widget_move(f, 'ixtabs', ex + ew - 3, 1, '', r) ; mv.bad += r
+   call $sl_widget_move(f, 'ixed', ex + ew - 4, 0, '', r) ; mv.bad += r
+   call $sl_widget_move(f, 'ixerr', ex + ew - 3, err.y, '', r) ; mv.bad += r
+   if mv.bad > 0 then return            ;* a widget the move refused: relayout builds the screen again (the text is kept: it stashed it first)
+   call $sl_form('layout', f, scr, '', r)
+   gosub draw.bar
    return
 
 * ======================================================================

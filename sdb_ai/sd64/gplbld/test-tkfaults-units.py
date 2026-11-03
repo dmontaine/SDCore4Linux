@@ -12,7 +12,8 @@ is for here: the ORDER and the ABSENCE that an edit can move without a compile e
          BEFORE it takes the screen, after the minimum and the audience have been asked (a person who may not run an administrator page is told that at any size); message 11951 says it
          in the shape of 11197.
   F4-F5  $tk_confirm's optional sixth argument (the title): VAR.ARGS, tested through UNASSIGNED before it is used, the default "Run this command?" (11812) for both boxes it shows, and exactly
-         the six places that write or delete a record instead of running a command pass one (11952 to 11955); every other call has five arguments, as before.
+         the six places that write or delete a record instead of running a command pass one (11952 to 11955); every other call has five arguments, as before.  F5b (2 Nov 26, S.88 P10):
+         the optional seventh argument, the buttons, read through UNASSIGNED, the last button the default; its one caller is tool.gates's leave question (F5 holds that).
   F6     message 11865 ("Press Enter to return") is true after the page's own writes and after the home screen's: it names no screen.
   F7-F9  the review's low-severity defects that were plain: tool.query refuses the names . and .. and counts the lines a command printed without the one after its last line break; tool.bulk shows a VOC id
          through the control-character filter; the hints of tool.query and tool.test fit the width they are drawn into (F8); a new item id of tool.dict starts with a letter or a digit (F9).
@@ -177,29 +178,41 @@ def checks(raw):
     # ---- $tk_confirm's title
     ck("F4", "$tk_confirm is VAR.ARGS with a sixth argument that is only ever read after UNASSIGNED() has been tested, in a nested IF (BASIC does not short-circuit): the default is message 11812 and "
              "the one title is given to BOTH boxes the routine shows (the Run / Cancel box and the box that asks for the name typed)",
-       "subroutine tk_confirm(sentence, lines, typed, res, msg, boxtitle) var.args" in cf
+       "subroutine tk_confirm(sentence, lines, typed, res, msg, boxtitle, btns) var.args" in cf      # 2 Nov 26 (S.88 P10): a seventh, the buttons, for tool.gates's leave question
        and cf.count("boxtitle") == 4 and ordered(cf, "ttl = sysmsg(11812)", "if not(unassigned(boxtitle)) then if boxtitle # '' then ttl = boxtitle end", "screen msgbox body title ttl buttons", "tt = ttl", "screen ask pr width fw title tt")
        and cf.count("sysmsg(11812)") == 1 and "title sysmsg(11812)" not in cf and " and boxtitle" not in cf and " or boxtitle" not in cf, "")
     want = {("tool_query", "do.save"): ["sysmsg(11952)", "sysmsg(11952)"], ("tool_query", "delete.selected"): ["sysmsg(11953)"],
             ("tool_bulk", "do.apply"): ["sysmsg(11954)"], ("tool_bulk", "do.undo"): ["sysmsg(11955)"],
             ("tool_entries", "delete.reached"): ["sysmsg(11953)"]}      # S.96 M3 (2 Nov 26): D deletes the record itself, after the id is typed
+    # 2 Nov 26 (S.88 P10): the one call with SEVEN arguments, the buttons, is tool.gates's leave question, Cancel last; it has a title of its own, which is not a record title
+    want7 = {("tool_gates", "leave.ask"): [("'Leave the gate matrix?'", "'&Run the changes,&Leave without them,&Cancel'")]}
     got = {}
+    got7 = {}
     bad_count = []
     for page, text in (("tool_dict", td), ("tool_query", tq), ("tool_bulk", tb)):
         for args, lab in arg_lists(text, "$tk_confirm"):
             if len(args) == 6:
                 got.setdefault((page, lab), []).append(args[5])
+            elif len(args) == 7:
+                got7.setdefault((page, lab), []).append((args[5], args[6]))
             elif len(args) != 5:
                 bad_count.append((page, lab, len(args)))
     for page, text in raw["pages"].items():
         for args, lab in arg_lists(strip_bas(text), "$tk_confirm"):
             if len(args) == 6:
                 got.setdefault((page, lab), []).append(args[5])
+            elif len(args) == 7:
+                got7.setdefault((page, lab), []).append((args[5], args[6]))
             elif len(args) != 5:
                 bad_count.append((page, lab, len(args)))
     ck("F5", "EXACTLY the places that write or delete a record instead of running a command pass the title - tool.query S twice (11952; tool.dict N is the IDE's since S.90 stage 3) and X (11953), tool.bulk apply (11954) "
              "and undo (11955) - and every other call of $tk_confirm in the toolkit has five arguments, as before (the null case: all the other pages were read)",
-       got == want and not bad_count, repr((got, bad_count)))
+       got == want and not bad_count and got7 == want7, repr((got, got7, bad_count)))
+    ck("F5b", "$tk_confirm's seventh argument (2 Nov 26): read only after UNASSIGNED() in a nested IF, the default '&Run,&Cancel' kept when it is left out, null or not two or three labels, the LAST button "
+              "the default, and the middle one of three answers 'alt' with no name asked",
+       ordered(cf, "bl = '&Run,&Cancel'", "if not(unassigned(btns)) then if btns # '' then bl = btns end", "nb = dcount(bl, ',')", "if nb < 2 or nb > 3 then bl = '&Run,&Cancel' nb = 2 end",
+               "screen msgbox body title ttl buttons bl default nb returning b else b = 0", "if nb = 3 then if b = 2 then res = 'alt' msg = '' return end end", "if b # 1 then return", "if typed # '' then")
+       and " and btns" not in cf and " or btns" not in cf and cf.count("default ") == 1, "")
 
     # ---- 11865
     ck("F6", "message 11865 is \"Press Enter to return\" and names no screen: the pages that hand the terminal over come back to THEIR page, the home screen to the home screen; message 11864, the "
@@ -278,7 +291,11 @@ MUTANTS = [
     ("the message says at least", "F3", sub("m11951", "at most", "at least")),
     ("the limit is raised in tk.h", "F1", sub("tk.h", "$define TK.MAXH        300", "$define TK.MAXH        9999")),
     ("the limit is lower than the minimum", "F1", sub("tk.h", "$define TK.MAXW        500", "$define TK.MAXW        100")),
-    ("$tk_confirm is not VAR.ARGS", "F4", sub("tk_confirm", "boxtitle) var.args", "boxtitle)")),
+    ("$tk_confirm is not VAR.ARGS", "F4", sub("tk_confirm", "boxtitle, btns) var.args", "boxtitle, btns)")),
+    ("the buttons are read without asking whether they are there", "F5b", sub("tk_confirm", "   if not(unassigned(btns)) then\n      if btns # '' then bl = btns\n   end", "   if btns # '' then bl = btns")),
+    ("the first of the given buttons is the default", "F5b", sub("tk_confirm", "buttons bl default nb returning", "buttons bl default 1 returning")),
+    ("the middle button asks for the name and runs", "F5b", sub("tk_confirm", "      if b = 2 then\n         res = 'alt'", "      if b = 2 then\n         b = 1\n      end\n      if b = 99 then\n         res = 'alt'")),
+    ("tool.gates's leave question has Leave as the default", "F5", lambda raw: dict(raw, pages=dict(raw["pages"], tool_gates=raw["pages"]["tool_gates"].replace("'&Run the changes,&Leave without them,&Cancel'", "'&Run the changes,&Cancel,&Leave without them'", 1)))),
     ("the title is read without asking whether it is there", "F4", sub("tk_confirm", "   if not(unassigned(boxtitle)) then\n      if boxtitle # '' then ttl = boxtitle\n   end", "   if boxtitle # '' then ttl = boxtitle")),
     ("the unassigned test and the read are one condition", "F4", sub("tk_confirm", "   if not(unassigned(boxtitle)) then\n      if boxtitle # '' then ttl = boxtitle\n   end",
                                                                         "   if not(unassigned(boxtitle)) and boxtitle # '' then\n      ttl = boxtitle\n   end")),

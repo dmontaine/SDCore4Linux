@@ -17,6 +17,8 @@
 *               inside SD, for every provider): 'ask' first screens the typed request ($tk_aiwall 'request') and then asks where the text comes from (actx<13>, $tk_aiwall 'origin'), and sends
 *               nothing, not even a preview, when the request names SD's own code or build, when the text is of SD's own files, or when its origin cannot be told.  Every app now passes <13>.
 * 1 Nov 26 dm   S.97 stage 1: the ops 'show' (the line drawn by $tk_frame on a page that has given it a row, written only when it changed) and 'focused'.
+* 2 Nov 26 dm   The preview's documentation line (11920) is wrapped through $tk_wrap: at 140 columns it ran over the box's right border (console witness).
+*               The box itself now scrolls when the preview is taller than the screen ($sl_msgbox).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -478,7 +480,10 @@ run.ask:
       if n.sel > 6 then body<-1> = '  ' : sysmsg(11644, n.sel - 6)
    end
    if n.doc > 0 then
-      body<-1> = sysmsg(11920, n.doc, doc.bytes)
+      call $tk_wrap(sysmsg(11920, n.doc, doc.bytes), wrapw, pieces)   ;* 2 Nov 26: wrapped (it ran over the box's right border at 140 columns)
+      for p = 1 to dcount(pieces, @fm)
+         body<-1> = pieces<p>
+      next p
       for i = 1 to n.doc
          body<-1> = sysmsg(11921, dres<2, i>, len(dres<4, i>) : ' bytes')
          n.dl = dcount(dres<4, i>, nl)

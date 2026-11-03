@@ -16,6 +16,10 @@
 * 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the others [-], as the IDE does.
 * 1 Nov 26 dm  S.97 stage 2: the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI, from every view; the file filter and reading the files again are offered to
 *              the model (running, saving, loading and editing are not), and a proposal is carried out by the page's own key.  An account without the AI sees the page as it was.
+* 2 Nov 26 dm  S.88 U6: the page's seven questions (the file filter, a condition's value, the heading, the footing, the sample, the sentence by hand, the name a query is saved under)
+*               are each asked on the toolkit's form ($tk_form) through one routine, ask.form, with the explanation in the form; an answer the page refuses is said IN the form, which
+*               stays with the text typed so it can be put right (Esc leaves it as before), where it used to close and say so on the status line.  The checks are the same routines
+*               (q.value, check.sample, check.sentence, check.name), asked by one place, af.check.  The saved queries stay the page's own list (L).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -1280,9 +1284,12 @@ choose.file:
    return
 
 do.filter:
-   screen ask 'Part of a file name (empty shows every file)' width 40 title 'Filter' returning flt then got = 1 else got = 0
-   if not(got) then return
-   filt = trim(flt)
+   af.kind = 'filter' ; af.ttl = 'Filter' ; af.lab = 'File name has' ; af.btn = '&Filter' ; af.val = '' ; af.w = 40 ; af.max = 100
+   af.note = 'Part of a file name: the File box lists the files whose name holds it.  Empty shows every file.'
+   gosub ask.form
+   if af.why # '' then msg = af.why
+   if not(af.ok) then return
+   filt = af.out
    gosub apply.filter
    fc = 1 ; ft = 0
    msg = (if filt = '' then 'every file' else nfs : ' with "' : convert(ctl, dots, filt)[1, 30] : '"')
@@ -1365,19 +1372,14 @@ edit.cond:
    screen pick ops title ttl returning pko else pko = 0
    if pko = 0 then return
    cur.v = (if cnd.item<kc> = cit and cnd.op<kc> = ops<pko> then cnd.val<kc> else '')
-   pr = 'Value for ' : cit : ' ' : ops<pko> : ' (' : opdesc<pko> : ')'
-   ttl = 'Condition ' : kc
-   screen ask pr width 60 value cur.v title ttl returning vv then got = 1 else got = 0
-   if not(got) then return
-   qv.in = trimf(trimb(vv))
-   gosub q.value
-   if qv.err # '' then
-      msg = 'not accepted: ' : qv.err
-      return
-   end
+   af.kind = 'value' ; af.ttl = 'Condition ' : kc ; af.lab = 'Value' ; af.btn = '&Set' ; af.val = cur.v ; af.w = '' ; af.max = MAXVAL
+   af.note = 'The value for ' : cit : ' ' : ops<pko> : ' (' : opdesc<pko> : ').  Plain text: no quote, backslash, backquote or semicolon.'
+   gosub ask.form
+   if af.why # '' then msg = af.why
+   if not(af.ok) then return
    cnd.item<kc> = cit
    cnd.op<kc> = ops<pko>
-   cnd.val<kc> = qv.in
+   cnd.val<kc> = af.out
    if kc > 1 and cnd.join<kc> = '' then cnd.join<kc> = 'and'
    gosub changed
    return
@@ -1425,28 +1427,22 @@ edit.option:
          opt.kind = (if opt.kind = 'list' then 'count' else (if opt.kind = 'count' then 'sum' else 'list'))
          gosub changed
       case oc = 2
-         screen ask 'Heading (plain text; empty for the default)' width 60 value opt.head title 'Heading' returning vv then got = 1 else got = 0
-         if got then
-            qv.in = trimf(trimb(vv))
-            gosub q.value
-            if qv.err # '' then
-               msg = 'not accepted: ' : qv.err
-            end else
-               opt.head = qv.in
-               gosub changed
-            end
+         af.kind = 'value' ; af.ttl = 'Heading' ; af.lab = 'Heading' ; af.btn = '&Set' ; af.val = opt.head ; af.w = '' ; af.max = MAXVAL
+         af.note = 'The heading printed at the top of each page.  Plain text; empty for the default.'
+         gosub ask.form
+         if af.why # '' then msg = af.why
+         if af.ok then
+            opt.head = af.out
+            gosub changed
          end
       case oc = 3
-         screen ask 'Footing (plain text; empty for none)' width 60 value opt.foot title 'Footing' returning vv then got = 1 else got = 0
-         if got then
-            qv.in = trimf(trimb(vv))
-            gosub q.value
-            if qv.err # '' then
-               msg = 'not accepted: ' : qv.err
-            end else
-               opt.foot = qv.in
-               gosub changed
-            end
+         af.kind = 'value' ; af.ttl = 'Footing' ; af.lab = 'Footing' ; af.btn = '&Set' ; af.val = opt.foot ; af.w = '' ; af.max = MAXVAL
+         af.note = 'The footing printed at the foot of each page.  Plain text; empty for none.'
+         gosub ask.form
+         if af.why # '' then msg = af.why
+         if af.ok then
+            opt.foot = af.out
+            gosub changed
          end
       case oc = 4
          opt.idsup = (if opt.idsup then 0 else 1)
@@ -1458,23 +1454,76 @@ edit.option:
          opt.nopage = (if opt.nopage then 0 else 1)
          gosub changed
       case oc = 7
-         screen ask 'Only the first n records (a whole number from 1 to 99999; empty for all)' width 10 value opt.sample title 'Sample' returning vv then got = 1 else got = 0
-         if got then
-            vv = trim(vv)
-            if vv = '' then
-               opt.sample = ''
-               gosub changed
-            end else
-               smp.in = vv
-               gosub check.sample
-               if smp.ok then
-                  opt.sample = smp.out
-                  gosub changed
-               end else
-                  msg = 'a whole number from 1 to 99999'
-               end
-            end
+         af.kind = 'sample' ; af.ttl = 'Sample' ; af.lab = 'Records' ; af.btn = '&Set' ; af.val = opt.sample ; af.w = 10 ; af.max = 10
+         af.note = 'Only the first n records: a whole number from 1 to 99999.  Empty for all.'
+         gosub ask.form
+         if af.why # '' then msg = af.why
+         if af.ok then
+            opt.sample = af.out
+            gosub changed
          end
+   end case
+   return
+
+* ------------------------------------------------------------------------------------------------- the questions (S.88 U6, 2 Nov 26)
+
+* One question of the page, on the toolkit's form ($tk_form): the explanation in the form's message rows, the answer checked by af.check, and a refusal said IN the form, which stays
+* with what was typed until it passes or the person leaves it (Esc or Cancel).  THE FORM CHECKS NOTHING: af.check does, with the page's own routines.
+* In: af.kind (filter, value, sample, sentence, name), af.ttl, af.lab, af.btn (the default button, with its & mark), af.val (the starting text), af.w (the entry's width; null as wide as
+* the form allows), af.max (the longest text), af.note.  Out: af.ok (1 when an answer passed), af.out (the answer as the page keeps it), af.why (null, or why no form was drawn).
+ask.form:
+   af.ok = 0
+   af.out = ''
+   af.why = ''
+   spec = af.ttl : @fm : af.btn : @fm : ''
+   spec<-1> = 'answer' : @vm : af.lab : @vm : af.w : @vm : af.max
+   fv = af.val
+   call $tk_form('open', ctx, spec, fv, fo)
+   if fo = 'no' then
+      af.why = 'the form does not fit this window: nothing was changed'
+      return
+   end
+   call $tk_form('say', ctx, af.note, '', '')
+   loop
+      call $tk_form('run', ctx, fans, fv, fid)
+      if fans # 'ok' then
+         call $tk_form('close', ctx, '', '', '')
+         return
+      end
+      af.in = fv<1>
+      gosub af.check
+      if af.err = '' then exit
+      call $tk_form('say', ctx, af.err : @fm : af.note, 'answer', '')   ;* 2 Nov 26 (review): the explanation stays under the reason, when it is most needed
+   repeat
+   call $tk_form('close', ctx, '', '', '')
+   af.ok = 1
+   return
+
+* In: af.kind, af.in (the text as typed).  Out: af.err (null when it passes, else what to say in the form), af.out.  The same checks the page has always made, in one place.
+af.check:
+   af.err = ''
+   af.out = ''
+   begin case
+      case af.kind = 'filter'
+         af.out = trim(af.in)
+      case af.kind = 'value'
+         qv.in = trimf(trimb(af.in))
+         gosub q.value
+         if qv.err # '' then af.err = 'not accepted: ' : qv.err else af.out = qv.in
+      case af.kind = 'sample'
+         smp.in = trim(af.in)
+         if smp.in # '' then
+            gosub check.sample
+            if smp.ok then af.out = smp.out else af.err = 'a whole number from 1 to 99999 (empty for all)'
+         end
+      case af.kind = 'sentence'
+         chk.s = trimf(trimb(af.in))
+         gosub check.sentence
+         if chk.err # '' then af.err = 'not accepted: ' : chk.err else af.out = chk.out
+      case af.kind = 'name'
+         fn = downcase(trim(af.in))
+         gosub check.name
+         if not(okname) or len(fn) > 40 then af.err = 'a name of letters a-z, digits, dot, dash and underscore only, at most 40' else af.out = fn
    end case
    return
 
@@ -1486,18 +1535,14 @@ do.edit:
       msg = (if senterr # '' then senterr else 'there is no sentence yet')
       return
    end
-   screen ask 'The sentence (it is checked again before it can run)' width 120 value sent title 'Edit the sentence' returning es then got = 1 else got = 0
-   if not(got) then
-      msg = 'the sentence was not changed'
+   af.kind = 'sentence' ; af.ttl = 'Edit the sentence' ; af.lab = 'Sentence' ; af.btn = '&Use it' ; af.val = sent ; af.w = '' ; af.max = MAXSENT
+   af.note = 'The sentence as text.  It is checked now, and again before it can run.'
+   gosub ask.form
+   if not(af.ok) then
+      msg = (if af.why # '' then af.why else 'the sentence was not changed')
       return
    end
-   chk.s = trimf(trimb(es))
-   gosub check.sentence
-   if chk.err # '' then
-      msg = 'not accepted: ' : chk.err
-      return
-   end
-   sent = chk.out
+   sent = af.out
    edited = 1
    senterr = ''
    msg = 'the sentence is edited by hand; a change in any box writes it again from the boxes'
@@ -1811,18 +1856,14 @@ do.save:
       msg = 'nothing to save: ' : (if senterr # '' then senterr else 'there is no sentence')
       return
    end
-   screen ask 'Name for the query (a-z, 0-9, dot, dash and underscore; at most 40 characters)' width 44 title 'Save the query' returning nn then got = 1 else got = 0
-   if not(got) then
-      msg = 'nothing was saved'
+   af.kind = 'name' ; af.ttl = 'Save the query' ; af.lab = 'Name' ; af.btn = '&Save' ; af.val = '' ; af.w = 44 ; af.max = 60
+   af.note = 'The name the query is saved under: a-z, 0-9, dot, dash and underscore; at most 40 characters.'
+   gosub ask.form
+   if not(af.ok) then
+      msg = (if af.why # '' then af.why else 'nothing was saved')
       return
    end
-   fn = downcase(trim(nn))
-   gosub check.name
-   if not(okname) or len(fn) > 40 then
-      msg = 'a name of letters a-z, digits, dot, dash and underscore only, at most 40: nothing was saved'
-      return
-   end
-   qname = fn
+   qname = af.out
    have.q = 0
    open '&queries&' to qf then have.q = 1
    if not(have.q) then

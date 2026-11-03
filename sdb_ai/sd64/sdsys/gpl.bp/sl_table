@@ -12,6 +12,7 @@
 *               are one subroutine, order.rows.
 * 30 Oct 26 dm  stay (CED in the IDE, stage 2b): a table with w{'stay'} keeps Up on the first row and Down on the last where they are, as $sl_memo's area does, so that the form does not move
 *               the focus to the next pane (the IDE's fields table).  Off unless the program that owns the table sets it.
+* 2 Nov 26 dm  S.88 p3.3a: the op 'size' (a new width and height, everything the table holds kept), for $sl_widget_move.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -62,6 +63,8 @@
 *             stay (30 Oct 26): with w{'stay'} set, up on the first row and down on the last are 'handled' and nothing moves)
 *     mouse   a click on a row makes it current (with multi it also marks or unmarks it); a second click on the same row
 *             is Return; a click on a heading makes that column current and sorts by it (as f3); the wheel moves three rows
+*     size    key<1> a new width, key<2> a new height ('' keeps one; 2 Nov 26, for $sl_widget_move): the rows, the current row, the order, the filter, the
+*             marks and the column widths are kept
 *     close   nothing to undo
 *
 * END-DESCRIPTION
@@ -143,6 +146,19 @@ $include sl.h
          gosub widths
          th = w{'h'} + 0 - 1
          gosub click
+
+      case op = 'size'
+         * 2 Nov 26 (S.88 p3.3a): key<1> the new width, key<2> the new height ('' keeps one), from $sl_widget_move.  The rows, the current row, the order, the
+         * filter, the marks and the column widths a person set stay; the window over the rows follows the current one.  Nothing is drawn and init is not run.
+         if key<1> # '' then w{'w'} = key<1> + 0
+         if key<2> # '' then w{'h'} = key<2> + 0
+         if w{'w'} + 0 < 4 then w{'w'} = 4
+         if w{'h'} + 0 < 2 then w{'h'} = 2
+         gosub widths
+         th = w{'h'} + 0 - 1
+         gosub scroll
+         gosub store
+         ret = 'handled'
 
       case op = 'filter'                         ;* the program changed the element filter
          gosub widths
