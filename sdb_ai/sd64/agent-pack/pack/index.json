@@ -3570,6 +3570,13 @@
 "tier": "reference",
 "words": 30
 },
+"basic:stmt:silent": {
+"kind": "basic.clause",
+"part": "reference/basic-statements.md",
+"since": "-",
+"tier": "reference",
+"words": 28
+},
 "basic:stmt:sleep": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
