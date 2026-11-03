@@ -36,6 +36,8 @@
 #   R9  a chown that did not take on one file: that file is named under "Not root's", no success line
 #   R10 rootbin_sealed (the flag the closing summary reads) is 1 after the all-good runs and 0 after every run that printed a WARNING
 #   S1  static: the block gives nothing to the group or others (no chmod but go-w) and mentions sdsys only as the variable $sdsysdir
+#   E0-E2 (3 Nov 26, Opus 3e) the ROOTBIN-EARLY block: its two commands exactly; run under the installer's set and IFS it chowns all of bin to root once and
+#       leaves no group or other write; it sits straight after the chown -R to sdsys (only the terminfo chown between) and before bootstrap pass 1
 # ANCHORED ON THE DISK AND ON THE SUCCESS WORDING: "Root-run files are root's" is printed only on the all-good path; every failure path says "NOT".
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -88,6 +90,14 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant begin-marker-gone    "s|^# ROOTBIN-BEGIN|# rootbin-begin|"
   mutant end-marker-gone      "s|^# ROOTBIN-END|# rootbin-end|"
   mutant block-twice          "s|^# ROOTBIN-END\$|# ROOTBIN-END\n# ROOTBIN-BEGIN\n:\n# ROOTBIN-END|"
+  E='/^# ROOTBIN-EARLY-BEGIN/,/^# ROOTBIN-EARLY-END/'
+  mutant early-chown-removed  "$E{/^sudo chown -R root:root/d;}"
+  mutant early-chown-sdsys    "$E s|^sudo chown -R root:root|sudo chown -R sdsys:sdusers|"
+  mutant early-chmod-removed  "$E{/^sudo chmod -R go-w/d;}"
+  mutant early-not-recursive  "$E s|^sudo chown -R root:root|sudo chown root:root|"
+  mutant early-marker-gone    "s|^# ROOTBIN-EARLY-BEGIN|# rootbin-early-begin|"
+  mutant early-after-boot     "/^# ROOTBIN-EARLY-BEGIN/,/^# ROOTBIN-EARLY-END/d;s|^echo \"Bootstrap pass 1.\"\$|# ROOTBIN-EARLY-BEGIN\nsudo chown -R root:root \"\$sdsysdir/bin\"\nsudo chmod -R go-w \"\$sdsysdir/bin\"\n# ROOTBIN-EARLY-END\necho \"Bootstrap pass 1.\"|"
+  mutant early-before-chown   "/^# ROOTBIN-EARLY-BEGIN/,/^# ROOTBIN-EARLY-END/d;s|^sudo chown -R sdsys:sdusers \"\$sdsysdir\"\$|# ROOTBIN-EARLY-BEGIN\nsudo chown -R root:root \"\$sdsysdir/bin\"\nsudo chmod -R go-w \"\$sdsysdir/bin\"\n# ROOTBIN-EARLY-END\nsudo chown -R sdsys:sdusers \"\$sdsysdir\"|"
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$missed" -eq 0 ]
   exit $?
@@ -283,6 +293,41 @@ row "S1 the only chown in the block is -R to root:root on bin" "$([ -z "$bad" ] 
 bad=$(printf '%s\n' "$code" | sed 's/\$sdsysdir//g' | grep -w -E 'sdsys|sdusers' || true)
 row "S1 no command of the block names sdsys or sdusers (the messages may)" "$([ -z "$bad" ] && echo 0 || echo 1)" "$bad"
 row "S1 exactly one ROOTBIN block in the installer" "$([ "$NBEGIN" = 1 ] && [ "$(grep -c '^# ROOTBIN-END$' "$INST" || true)" = 1 ] && echo 0 || echo 1)" "begin markers: $NBEGIN"
+
+# ---- E: the ROOTBIN-EARLY block (3 Nov 26, Opus 3e): bin root's straight after the chown -R to sdsys, for the whole bootstrap -------------------------------
+EARLY=$(awk '/^# ROOTBIN-EARLY-BEGIN$/{f=1;next} /^# ROOTBIN-EARLY-END$/{f=0} f{print}' "$INST")
+NEARLY=$(grep -c '^# ROOTBIN-EARLY-BEGIN$' "$INST" || true)
+ecode=$(printf '%s\n' "$EARLY" | grep -v -E '^\s*#' | grep -v -E '^\s*$' || true)
+row "E0 exactly one ROOTBIN-EARLY block, and its commands are exactly: sudo chown -R root:root \"\$sdsysdir/bin\", then sudo chmod -R go-w \"\$sdsysdir/bin\"" \
+    "$([ "$NEARLY" = 1 ] && [ "$(grep -c '^# ROOTBIN-EARLY-END$' "$INST" || true)" = 1 ] && [ "$ecode" = "$(printf '%s\n%s' 'sudo chown -R root:root "$sdsysdir/bin"' 'sudo chmod -R go-w "$sdsysdir/bin"')" ] && echo 0 || echo 1)" \
+    "markers $NEARLY; commands: $(printf '%s' "$ecode" | tr '\n' ';')"
+E1="$T/early"; mkbin "$E1"; : > "$E1.owned"; : > "$E1.calls"
+eout=$(OPTS="$OPTS" IFSL="$IFSL" BLOCK="$EARLY" SD="$E1" bash -c '
+      eval "$OPTS"; eval "$IFSL"
+      sudo() { "$@"; }
+      chown() {
+        local rec=0 p
+        if [ "$1" = -R ]; then rec=1; shift; fi
+        printf "chown %s %s%s\n" "$1" "$2" "$([ "$rec" = 1 ] && echo " (recursive)")" >> "$SD.calls"
+        if [ "$1" = root:root ]; then { printf "%s\n" "$2"; if [ "$rec" = 1 ]; then command find "$2" -mindepth 1 -print; fi; } >> "$SD.owned"; fi
+        return 0
+      }
+      sdsysdir="$SD"
+      eval "$BLOCK"
+      echo REACHED-END' 2>&1)
+eall=$(find "$E1/bin" -mindepth 0 | wc -l)
+eown=$(LC_ALL=C sort -u "$E1.owned" | grep -c . || true)
+echo "  E1 calls: $(tr '\n' ';' < "$E1.calls")  entries in bin $eall, recorded root:root $eown, group/other-writable left $(gow "$E1/bin")"
+row "E1 under the installer's set and IFS the block reaches its end, makes ONE recursive chown to root:root of bin (every one of its $eall entries), and leaves nothing in bin writable by the group or others" \
+    "$([ "$(reached "$eout")" = 0 ] && [ "$(grep -c . "$E1.calls")" = 1 ] && grep -Fxq "chown root:root $E1/bin (recursive)" "$E1.calls" && [ "$eown" = "$eall" ] && [ "$(gow "$E1/bin")" = 0 ] && echo 0 || echo 1)" \
+    "out: $eout"
+ln_early=$(grep -n '^# ROOTBIN-EARLY-BEGIN$' "$INST" | cut -d: -f1)
+ln_chown=$(grep -n '^sudo chown -R sdsys:sdusers "\$sdsysdir"$' "$INST" | cut -d: -f1)
+ln_boot=$(grep -n -m1 -E '^echo "Bootstrap pass 1\."$' "$INST" | cut -d: -f1)
+between=$(awk -v a="${ln_chown:-0}" -v b="${ln_early:-0}" 'NR>a && NR<b && !/^ *#/ && NF' "$INST")
+row "E2 the block follows the chown -R to sdsys (line $ln_chown) with only the terminfo chown between, and comes before bootstrap pass 1 (line $ln_boot)" \
+    "$([ -n "$ln_early" ] && [ -n "$ln_chown" ] && [ -n "$ln_boot" ] && [ "$ln_chown" -lt "$ln_early" ] && [ "$ln_early" -lt "$ln_boot" ] && [ "$between" = 'sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"' ] && echo 0 || echo 1)" \
+    "early $ln_early chown $ln_chown boot $ln_boot between: $between"
 
 echo "test-install-rootbin: $pass passed, $fail failed"
 [ "$pass" -eq 0 ] && { echo "test-install-rootbin: NOTHING RAN"; exit 2; }

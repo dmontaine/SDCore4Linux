@@ -1447,6 +1447,16 @@ if [ -n "$docs_tmp" ]; then rm -rf "$docs_tmp"; fi
 #
 sudo chown -R sdsys:sdusers "$sdsysdir"
 sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"
+# 03 Nov 26 dm - W.11 F11, the install-time window (Opus's decision 3e, 30 Oct 26).  The line above makes bin the sdsys user's, and the ROOTBIN block far
+#            below takes it back, so for the whole bootstrap the files root runs were sdsys's: a process of that user could change bin/sd before root ran it.
+#            bin is root's from here on.  Every later write under bin is a root session (SECOND.COMPILE's bin/pcode and bin/pcode.old, through sudo), and
+#            root writes into a root-owned directory; ROOTBIN still re-asserts owner and modes (pcode.old is made 664) and adds chattr +i.  An install
+#            never meets a sealed bin here: it refuses to run over an install, so bin is the fresh copy made above.  test-install-rootbin.sh (E rows)
+#            runs this block; test-rootbin-units.py (B8) holds its place.  NOT YET MEASURED on a VM delete and install.
+# ROOTBIN-EARLY-BEGIN
+sudo chown -R root:root "$sdsysdir/bin"
+sudo chmod -R go-w "$sdsysdir/bin"
+# ROOTBIN-EARLY-END
 
 sudo cp sd.conf /etc/sd.conf
 sudo chmod 644 /etc/sd.conf
@@ -2493,6 +2503,8 @@ echo
 #            under bin (SECOND.COMPILE rewrites bin/pcode and makes bin/pcode.old as a root session, mode 664, and an immutable directory takes no new entry) and before
 #            the passwords, which a person can abandon.  Nothing is written under bin after it; deletesdcore.sh lifts the attribute first.  A bin that holds anything but
 #            plain files (a link, say) is NOT sealed and the block says so; a file system that will not keep the attribute is said so, and the files are still root's.
+#            Since 3 Nov 26 the ROOTBIN-EARLY block (right after that chown) has made bin root's already; the chown and chmod here stay, for what the bootstrap
+#            wrote since (pcode.old, 664) and as a check that costs nothing.
 #            test-install-rootbin.sh runs this block; test-rootbin-units.py holds rootbin_files to what the units, the helper and the kernel really run.
 # ROOTBIN-BEGIN
 rootbin="$sdsysdir/bin"
