@@ -593,8 +593,10 @@ def checks(raw):
        and ordered(sc, "case op = 'open'", "rz.pending = 0", "case op = 'resized'") and ordered(sc, "case op = 'close'", "rz.pending = 0", "end case")
        and "common /slscr/ ctx, ctx.open, ctx.resized" in sc, "")
     ck("W10", "R-a: SCREEN KEY asks the note BEFORE it reads a key and gives resize first; when it reads a resize itself it clears the note (delivered once); then the kept picture is made the size",
-       ordered(sk, "call $sl_scr('pending', pend)", "if pend then ret = 'resize' end else", "call $sl_key(timeout, ret)", "if ret = 'resize' then call $sl_scr('pending', pend)",
-               "if ret = 'resize' then call $sl_scr('get', scr)"), "")
+       # 3 Nov 26 (S.113): the if is a block, the screen is flushed before the key is read, and the kept picture is made the
+       # terminal's size with 'peek' (drawn whole at the page's next flush, after it has laid itself out) - the order is unchanged
+       ordered(sk, "call $sl_scr('pending', pend)", "if pend then", "ret = 'resize'", "end else", "call $sl_scr('flush', '')", "call $sl_key(timeout, ret)",
+               "if ret = 'resize' then call $sl_scr('pending', pend)", "if ret = 'resize' then", "call $sl_scr('peek', scr)", "call $sl_scr('put', scr)"), "")
     we = label(fm, "wait.event")
     ck("W11", "R-a: SCREEN WAIT's wait asks the note before EVERY key (an open list of the form may read a resize too), takes resize as the key, and clears the note when it reads one itself; "
               "the modal run (a dialogue) does not ask",
