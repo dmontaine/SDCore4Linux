@@ -11,6 +11,7 @@
 #   --docs-ref REF the same for the documentation repository (default: the same name as REF, which must exist there)
 #   --readme FILE  README.txt for the package (the owner reads it before anything is distributed; this script does not write one)
 #   --clients DIR  a folder copied to clients/Linux64 (libsdcli.so and sdclilib.so: built files, not in the repository)
+#   --books DIR    the book PDFs SD-Core-for-Linux-VERSION-*.pdf of this version, copied to documentation/ (built by tools/mkbook.py and mkbookpdf.py in the docs repository)
 #   --force        replace an existing staging folder and zip of this version
 #   --allow-dev    build from a branch other than main or a v* tag (a TEST package for the VM install; never distribute it)
 #   --label LABEL  names a release candidate: SDCore-L2.0-0-rc1.zip, from the tag v2.0-rc1 (the installer says "pre-release" when the tag ends -rcN; the version stamp is unchanged)
@@ -45,13 +46,14 @@ DOCS="${DOCS_REPO:-$PROJECTS/SDCore4LinuxDocs}"
 STAGING="${STAGING_DIR:-$PROJECTS/Project_Staging}"
 ZIPS="${ZIPS_DIR:-$PROJECTS/Project_Zips}"
 
-version=""; ref=""; docs_ref=""; readme=""; clients=""; force=0; allow_dev=0; label=""
+version=""; ref=""; docs_ref=""; readme=""; clients=""; books=""; force=0; allow_dev=0; label=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --ref)      [ $# -ge 2 ] || die "--ref needs a value"; ref="$2"; shift 2 ;;
         --docs-ref) [ $# -ge 2 ] || die "--docs-ref needs a value"; docs_ref="$2"; shift 2 ;;
         --readme)   [ $# -ge 2 ] || die "--readme needs a value"; readme="$2"; shift 2 ;;
         --clients)  [ $# -ge 2 ] || die "--clients needs a value"; clients="$2"; shift 2 ;;
+        --books)    [ $# -ge 2 ] || die "--books needs a value"; books="$2"; shift 2 ;;
         --force)    force=1; shift ;;
         --allow-dev) allow_dev=1; shift ;;
         --label)    [ $# -ge 2 ] || die "--label needs a value"; label="$2"; shift 2 ;;
@@ -83,6 +85,7 @@ esac
 docs_commit=$(git -C "$DOCS" rev-parse --verify -q "${docs_ref}^{commit}") || die "no such ref in $DOCS: $docs_ref (--docs-ref)"
 [ -z "$readme" ] || [ -f "$readme" ] || die "no README file $readme"
 [ -z "$clients" ] || [ -d "$clients" ] || die "no clients folder $clients"
+[ -z "$books" ] || ls "$books"/SD-Core-for-Linux-"$version"-*.pdf >/dev/null 2>&1 || die "no SD-Core-for-Linux-$version-*.pdf in $books (--books DIR: the book PDFs of THIS version)"
 
 if [ -n "$(git -C "$REPO" status --porcelain --untracked-files=no)" ]; then
     echo "NOTE: $REPO has uncommitted changes to tracked files; they are NOT in the package (it is made from $ref, ${commit:0:12})."
@@ -154,6 +157,13 @@ done
 
 [ -z "$readme" ]  || cp -p "$readme" "$stage/README.txt"
 [ -z "$clients" ] || { mkdir -p "$stage/clients/Linux64"; cp -p "$clients"/* "$stage/clients/Linux64/"; }
+if [ -n "$books" ]; then      # the books of this version only (an old L1.1-3 book in the same folder is never packaged), each a PDF
+    mkdir -p "$stage/documentation"
+    for b in "$books"/SD-Core-for-Linux-"$version"-*.pdf; do
+        head -c5 "$b" | grep -q '^%PDF-' || fail "$b is not a PDF"
+        cp -p "$b" "$stage/documentation/"
+    done
+fi
 
 # SHA256SUMS: every file under source/, nothing else, paths relative to the package folder
 (cd "$stage" && find source -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > SHA256SUMS)
@@ -181,6 +191,7 @@ echo
 echo "Made $zipf"
 echo "  source files $nsrc, per-chapter PDFs $npdf, commit $commit, branch $ref"
 [ -n "$readme" ]  || echo "  NOT INCLUDED: README.txt (--readme FILE; the owner reads it before anything is distributed)"
+[ -n "$books" ]   || echo "  NOT INCLUDED: documentation/ (--books DIR; the book PDFs of this version, made by mkbook.py and mkbookpdf.py)"
 [ -n "$clients" ] || echo "  NOT INCLUDED: clients/Linux64 (--clients DIR; libsdcli.so and sdclilib.so are built files, not in the repository)"
 echo "  sha256 for the README:"
 echo "    installsdcore.sh  $(sha256sum < "$stage/installsdcore.sh" | cut -d' ' -f1)"
