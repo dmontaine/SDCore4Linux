@@ -3,7 +3,7 @@
 # sandbox-tool-entries.py - the master files page (S.96 M1a-M2): TOOL.ENTRIES, the VOC entries, dictionary items and programs of every account by pointer, read only until E10 (E and N edit
 # the record in its own account).  A private SD, no install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-entries.py <dir> [--build] [--only=read,edit,delete,programs,debug] [--mutant=NAME]
+#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tool-entries.py <dir> [--build] [--only=read,edit,delete,programs,debug,global] [--mutant=NAME]
 #
 # --only (the owner's rule of 3 Nov 26: anything over five minutes has a section selector): `read` is E0-E9 (one chain on one page), `edit` is E10 (a page of its own; it changes the
 # fixture accounts' files, so it runs after `read` when both run), `delete` is E11 (a page of its own, its own records, after `edit`).  The build and the fixtures always run.  A mutant runs only its own group.
@@ -47,6 +47,12 @@
 #        and 'master debug'.  E13e (M6a): the editor's breakpoints handed to the debugger run through run.in - a CLICK in the IDE's gutter marks a line (the harness has no
 #        Shift-F7 for the console terminal type), F7 stops ON it in ze1, and the mark comes back.
 #        Mutants: page-debug-here, ide-debug-here.
+#   E14  (S.97 / S.96, 3 Nov 26; --only=global) G, the global change of every row shown, and U, its undo: a find across accounts; ONE preview box per account with its count, first ids
+#        and refusals (a phrase has no heading; ze2's item through ze1's pointer and ze6's item that ONLY ze1's pointer reaches are refused by the pointer rule); Cancel writes nothing;
+#        Run writes each record in its own account (the disk is the oracle), one undo record per write and none for a refused or failed row; U puts back what is still as the run
+#        left it and LEAVES a record edited since; a second U is not offered; the VOC kind with a record a LIVE session holds (refused, the next account done all the same); the
+#        programs replaced in the source and compiled again in each account by run.in (objects newer), a read-only source failed with no undo record, U compiling again; the audit lines.
+#        Mutants: global-no-rule, global-stops, undo-no-digest, undo-after-write.
 # NOT HELD: SDSYS in the group (a sandbox has no sdsys user: the column can only say no or n/a here), the help text itself (sandbox-docs.py).
 import importlib.util
 import os
@@ -84,6 +90,11 @@ ACCOUNTS = {
 }
 BAD = "ze6"                                              # registered, its directory holds no VOC
 
+GC_RULE = ("   gin = kernel(K$PATH.IN, ap.f : @fm : tp)\n   rt = ''\n   if gin then\n      openpath tp to gf else\n         gfwhy = 'the file cannot be opened (' : tp : ')'\n"
+           "         return\n      end\n      gfopen = 1\n      rp = fileinfo(gf, FL$PATH)\n      rt = fileinfo(gf, FL$TYPE)\n      gin = kernel(K$PATH.IN, ap.f : @fm : rp)\n"
+           "      if gkd # 3 then\n         if gin then gin = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')\n         if gin then gin = kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')\n"
+           "      end\n   end\n")                    # gc.file's pointer rule for G and U, as tool_entries has it (the global-no-rule mutant answers each question "inside")
+
 MUTANTS = {
     # name: (old text of the sandbox's tool_entries, new text, the row ids that must fail and no others, the last section run)
     "gates": ("gset := (if upcase(trim(arec<ACC$DICT.EDIT>)) = 'YES' then 'd' else '-')", "gset := (if upcase(trim(arec<ACC$BP.EDIT>)) = 'YES' then 'd' else '-')", ["E1"], "E1"),
@@ -106,6 +117,21 @@ MUTANTS = {
     # M5: the page's B and the IDE's F7 run the debugger here in SDSYS instead of through run.in in the account
     "page-debug-here": ("   dbsent = 'run.in ' : ea : ' debug ' : efl : ' ' : eid", "   dbsent = 'debug ' : efl : ' ' : eid", ["E13"], "E13"),
     "ide-debug-here": ("execute 'run.in ' : in.acct : ' debug ' : in.file : ' ' : c.id trapping aborts", "execute 'debug ' : in.file : ' ' : c.id trapping aborts", ["E13"], "E13"),
+    # G and U (3 Nov 26): the pointer rule of a global change lost; the run stops at the first account with a refusal; U puts back a record changed since the run; the record as
+    # it was is kept AFTER the write (so a write that failed leaves an undo record for a record never changed)
+    # global-no-rule: EVERY question of the rule answered "inside" (the path, what was opened, its two subfiles).  Its first two forms survived, each for a good reason: the
+    # refusal's IF alone taken away left an unopened file to fail the type test, and the path and FL$PATH alone left the subfiles' test to refuse it (3 Nov 26)
+    "global-no-rule": (GC_RULE, GC_RULE.replace("kernel(K$PATH.IN, ap.f : @fm : tp)", "1").replace("kernel(K$PATH.IN, ap.f : @fm : rp)", "1")
+                       .replace("kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')", "1").replace("kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')", "1"), ["E14"], "E14"),
+    "global-stops": ("         if gk > 0 and gw then gosub gc.audit\n", "         if gk > 0 and gw then gosub gc.audit\n         if gk > 0 and gnr<gk> + gnf<gk> > 0 then exit\n", ["E14"], "E14"),
+    "undo-no-digest": ("         case ('S' : digest(cur, 0, 'MD5')) # ('S' : uemd)\n", "         case 0\n", ["E14"], "E14"),
+    "undo-after-write": ("   gun += 1\n   write ea : @fm : gkw : @fm : (if efl = '' then 'voc' else efl) : @fm : eid : @fm : digest(gnew, 0, 'MD5') : @fm : grec on uf, gun on error\n"
+                         "      gun -= 1\n      release gf, eid\n      grs = 'failed'\n      grw = 'the undo file could not be written (status ' : status() : ')'\n      return\n   end\n"
+                         "   writeu gnew on gf, eid on error\n      grs = 'failed'\n      grw = 'the file refused the write (status ' : status() : ')'\n"
+                         "      delete uf, gun                                            ;* the old record of a write that did not happen is not kept\n      gun -= 1\n   end\n",
+                         "   writeu gnew on gf, eid on error\n      grs = 'failed'\n      grw = 'the file refused the write (status ' : status() : ')'\n   end\n"
+                         "   gun += 1\n   write ea : @fm : gkw : @fm : (if efl = '' then 'voc' else efl) : @fm : eid : @fm : digest(gnew, 0, 'MD5') : @fm : grec on uf, gun on error\n"
+                         "      gun -= 1\n   end\n", ["E14"], "E14"),
 }
 MUTANT_PROG = {"ide-compiles-here": "ide", "ide-debug-here": "ide"}          # the program a mutant changes, when it is not the page; setup_page copies both from the tree first, so a mutant does not outlive its run
 KEY_F5, KEY_F7, KEY_F8, KEY_F9 = "\x1b[[E", "\x1b[18~", "\x1b[19~", "\x1b[20~"     # the console's codes (the sandbox's terminal is linux, as sh.KEYS)
@@ -893,15 +919,15 @@ def e11_records(plant):
 
 
 class Holder:
-    """A LIVE administrator session that holds ze1's VOC record zzdel3 with READU and waits on INPUT (its input stays open); release() ends it, and the lock with it."""
-    def __init__(self):
+    """A LIVE administrator session that holds ze1's VOC record rid (zzdel3 for E11, zgvheld for E14) with READU and waits on INPUT (its input stays open); release() ends it, and the lock with it."""
+    def __init__(self, rid="zzdel3"):
         g.put(os.path.join(sh.SYS, "bp", "zzhold"), "\n".join(["$internal", "   openpath '%s/voc' to v else crt 'HOLD no voc' ; stop" % apath("ze1"),
-                                                                "   readu r from v, 'zzdel3' locked", "      crt 'HOLD locked'", "      stop", "   end else", "      null", "   end",
+                                                                "   readu r from v, '%s' locked" % rid, "      crt 'HOLD locked'", "      stop", "   end else", "      null", "   end",
                                                                 "   crt 'HOLD held'", "   input x", "   crt 'HOLD released'", "end", ""]))
         out = g.adm(["BASIC bp zzhold"], internal=True)
         if not has(out, r"^Compiled 1 program\(s\) with no errors"):
             bail("zzhold was not compiled:\n" + "\n".join(out[-6:]))
-        say("    > [admin] [internal] in sys, LIVE: RUN bp zzhold (holds ze1 voc zzdel3 until its input is answered)")
+        say("    > [admin] [internal] in sys, LIVE: RUN bp zzhold (holds ze1 voc %s until its input is answered)" % rid)
         self.buf = []
         self.p = subprocess.Popen([g.SD, "-internal"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=sh.SYS, env=g.env(True))
         threading.Thread(target=self._read, daemon=True).start()
@@ -1385,6 +1411,209 @@ def section_e13():
          "the page's pointers at the end", len(begins) == 3 and len(mdbg) == 1 and sys_zm() == zm0, repr((len(begins), mdbg, sys_zm())))
 
 
+ZG_DICT = [("zgf1", "D", "1", "Old Head"), ("zgf2", "I", "@ID", "Old Head"), ("zgf4", "D", "1", "Old Head"), ("zgf5", "D", "1", "Old Head")]
+ZG_SRC = "program %s\n   crt 'ZG old'\nend\n"
+
+
+def zg_paths():
+    """label -> (the file's path, the record id): what E14 judges on the disk."""
+    return {"zgf1": (os.path.join(apath("ze1"), "zecust.dic"), "zgf1"), "zgf2": (os.path.join(apath("ze1"), "zecust.dic"), "zgf2"),
+            "zgf3": (os.path.join(apath("ze1"), "zecust.dic"), "zgf3"), "zgf4": (os.path.join(apath("ze2"), "zecust2.dic"), "zgf4"),
+            "zgf5": (os.path.join(apath(BAD), "zgout.dic"), "zgf5"),
+            "zgv1": (os.path.join(apath("ze1"), "voc"), "zgv1"), "zgvheld": (os.path.join(apath("ze1"), "voc"), "zgvheld"), "zgv2": (os.path.join(apath("ze2"), "voc"), "zgv2")}
+
+
+def zg_fixture():
+    """E14's records, written over each time (a reused sandbox starts the same): dictionary items in ze1's zecust (zgf1 D, zgf2 I, zgf3 a phrase, which has no heading), in ze2's
+    zecust2 (zgf4, also seen from ze1 through its pointer zeesc, written ../ze2/..) and in a dictionary in ze6's directory (zgf5, which only ze1's pointer zgout reaches: ze6 has no VOC,
+    so nothing but the pointer rule keeps it unchanged); VOC entries zgv1, zgvheld (ze1) and zgv2 (ze2); programs zgp1 and zgpro (ze1, zgpro READ ONLY on the disk so that its write
+    fails) and zgp2 (ze2, also seen from ze1 through ze2.bp), each compiled in its account.  The undo file of an earlier run is emptied."""
+    import shutil
+    out_dic = os.path.join(apath(BAD), "zgout.dic")
+    if os.path.isdir(out_dic):
+        shutil.rmtree(out_dic)
+    shutil.copytree(os.path.join(apath("ze2"), "zecust2.dic"), out_dic)       # a hashed file of its own, cleared below
+    body = ["$internal", "   openpath '%s/zecust.dic' to d1 else crt 'ZG no d1' ; stop" % apath("ze1"), "   openpath '%s/zecust2.dic' to d2 else crt 'ZG no d2' ; stop" % apath("ze2"),
+            "   openpath '%s' to d5 else crt 'ZG no d5' ; stop" % out_dic, "   clearfile d5",
+            "   openpath '%s/voc' to v1 else crt 'ZG no v1' ; stop" % apath("ze1"), "   openpath '%s/voc' to v2 else crt 'ZG no v2' ; stop" % apath("ze2")]
+    for iid, ity, f2, head in ZG_DICT:
+        fv = {"zgf1": "d1", "zgf2": "d1", "zgf4": "d2", "zgf5": "d5"}[iid]
+        body.append("   write '%s':@fm:'%s':@fm:'':@fm:'%s':@fm:'10L':@fm:'S' on %s, '%s'" % (ity, f2, head, fv, iid))
+    body += ["   write 'PH':@fm:'ZGF1 ZGF2' on d1, 'zgf3'",
+             "   write 'F':@fm:'../ze6/zgout':@fm:'../ze6/zgout.dic' on v1, 'zgout'",
+             "   write 'X':@fm:'old text' on v1, 'zgv1'", "   write 'X':@fm:'old text' on v1, 'zgvheld'", "   write 'X':@fm:'old text' on v2, 'zgv2'",
+             "   open '&entries.undo&' to u then clearfile u",
+             "   crt 'ZG done'", "end", ""]
+    g.put(os.path.join(sh.SYS, "bp", "zzgfix"), "\n".join(body))
+    out = g.adm(["BASIC bp zzgfix", "RUN bp zzgfix"], internal=True)
+    if not has(out, r"^ZG done$"):
+        bail("E14's records were not written:\n" + "\n".join(out[-8:]))
+    for acct, pids in (("ze1", ("zgp1", "zgpro")), ("ze2", ("zgp2",))):
+        for pid in pids:
+            path = os.path.join(apath(acct), "bp", pid)
+            if os.path.exists(path):
+                os.chmod(path, 0o644)
+            g.put(path, ZG_SRC % pid)
+        out = g.adm(["LOGTO %s" % acct] + ["BASIC bp %s" % pid for pid in pids])
+        if len([ln for ln in out if re.match(r"^Compiled 1 program\(s\) with no errors", ln)]) != len(pids):
+            bail("E14's programs were not compiled in %s:\n%s" % (acct, "\n".join(out[-8:])))
+    os.chmod(os.path.join(apath("ze1"), "bp", "zgpro"), 0o444)                 # its WRITE fails (SD writes a directory file's record in place: SAFEDIR is off)
+
+
+def zg_read(labels=None):
+    """The records E14 judges, read by ONE separate administrator session by their paths (fields joined by |, NONE when not there), and the undo file's records (UN|account|id)."""
+    paths = zg_paths()
+    labels = labels or sorted(paths)
+    files = sorted({paths[l][0] for l in labels})
+    body = ["$internal"]
+    for i, f in enumerate(files):
+        body.append("   openpath '%s' to f%d else crt 'ZGR no %s' ; stop" % (f, i, f))
+    for l in labels:
+        body.append("   read r from f%d, '%s' then crt 'ZGR|%s|' : convert(@fm, '|', r) else crt 'ZGR|%s|NONE'" % (files.index(paths[l][0]), paths[l][1], l, l))
+    body += ["   open '&entries.undo&' to u then", "      select u to 9", "      loop", "         readnext uid from 9 else exit", "         if uid # 'last' then",
+             "            read ur from u, uid then crt 'UN|' : ur<1> : '|' : ur<4> : '|' : ur<5>", "         end", "      repeat", "   end", "   crt 'ZGR end'", "end", ""]
+    g.put(os.path.join(sh.SYS, "bp", "zzgrd"), "\n".join(body))
+    out = g.adm(["BASIC bp zzgrd", "RUN bp zzgrd"], internal=True)
+    if not has(out, r"^ZGR end$"):
+        bail("E14's reader did not answer:\n" + "\n".join(out[-8:]))
+    res = {}
+    for ln in out:
+        if ln.startswith("ZGR|"):
+            _, l, rest = ln.rstrip().split("|", 2)
+            res[l] = rest
+    res["undo"] = sorted(ln.rstrip()[3:] for ln in out if ln.startswith("UN|"))
+    return res
+
+
+def zg_src(acct, pid):
+    with open(os.path.join(apath(acct), "bp", pid)) as f:
+        return f.read()
+
+
+def zg_obj(acct, pid):
+    p = os.path.join(apath(acct), "bp.out", pid)
+    return os.stat(p).st_mtime_ns if os.path.exists(p) else None
+
+
+def zg_global(p, answers, wait=15.0):
+    """G, then the answers to its prompts; returns the preview box's text (or the status line when no box came)."""
+    p.h.typed("g", idle=1.2)
+    for a in answers:
+        p.h.typed(a + "\r", idle=1.2)
+    wait_for(p.h, lambda t: "Update these records?" in t, wait)
+    return p.text()
+
+
+def zg_run(p, title, wait=40.0):
+    """Run in the box on the screen (and in the box that makes the undo file, if it comes); returns the summary box's text, which is then closed."""
+    p.h.typed("r", idle=2.0)
+    if "create.file &entries.undo&" in p.text():
+        p.h.typed("r", idle=3.0)
+    wait_for(p.h, lambda t: title in t, wait)
+    T = p.text()
+    p.key("enter", 2.0)
+    return T
+
+
+def section_e14():
+    say("\n--- E14: G, the global change of every row shown, in all accounts, and U, its undo (S.97 / S.96, 3 Nov 26)")
+    zg_fixture()
+    B = zg_read()
+    o1, o2 = zg_obj("ze1", "zgp1"), zg_obj("ze2", "zgp2")
+    a0 = audit_off()
+    arow("E14a", "control: the fixture's records are on the disk (zgf1 zgf2 zgf4 zgf5 with the heading Old Head, zgf3 a phrase, the VOC entries old text), the programs compiled, no undo record",
+         all(B[l].split("|")[3] == "Old Head" for l in ("zgf1", "zgf2", "zgf4", "zgf5")) and B["zgf3"].startswith("PH|") and all(B[l] == "X|old text" for l in ("zgv1", "zgvheld", "zgv2"))
+         and o1 and o2 and B["undo"] == [], repr(B))
+    p = Page()
+    p.key("k", 1.2)                                            # the dictionary items
+    p.key("f", 1.0)
+    p.h.typed("zgf\r", idle=2.5)
+    box = norm(zg_global(p, ["heading", "s", "New Head"]))
+    p.key("esc", 1.5)
+    st_cancel = norm(p.st())
+    arow("E14b", "G on the find 'zgf' (every account), heading set to New Head: ONE box titled 'Update these records?' lists ze1 with 2 to change (zecust zgf1, zecust zgf2) and 3 refused "
+         "(the phrase has no heading; ze2's zgf4 through zeesc and ze6's zgf5 through zgout lie outside ze1: the pointer rule) and ze2 with 1 to change; Esc cancels",
+         "Update these records?" in box and "ze1: 2 to change (zecust zgf1 zecust zgf2)" in box and "3 refused" in box and "ze2: 1 to change (zecust2 zgf4)" in box
+         and "zecust zgf3: it has no" in box and "heading (not a D, I, E or L item)" in box and "nothing was run" in st_cancel,      # the box wraps after "no" (first run, 3 Nov 26)
+         repr((box[box.find("Update"):][:1500], st_cancel)))
+    C = zg_read()
+    arow("E14c", "Cancel wrote nothing: every record as the fixture made it", all(C[l] == B[l] for l in zg_paths()) and C["undo"] == [], repr(C))
+    zg_global(p, ["heading", "s", "New Head"])
+    summ = norm(zg_run(p, "Global change:"))
+    D = zg_read()
+    arow("E14d", "Run: zgf1 and zgf2 (ze1) and zgf4 (ze2, in its own account) have the heading New Head; zgf3 (no heading) and ze6's zgf5 (reached only through ze1's pointer) are UNCHANGED "
+         "on the disk; the summary says ze1 2 changed 3 refused, ze2 1 changed",
+         all(D[l].split("|")[3] == "New Head" for l in ("zgf1", "zgf2", "zgf4")) and D["zgf3"] == B["zgf3"] and D["zgf5"] == B["zgf5"]
+         and "ze1: 2 changed, 3 refused, 0 failed" in summ and "ze2: 1 changed, 0 refused, 0 failed" in summ, repr((D, summ[:900])))
+    arow("E14e", "the undo file holds one record for each record written - ze1 zgf1, ze1 zgf2, ze2 zgf4 - each with the digest of what was written, and none for a refused row",
+         sorted(u.rsplit("|", 1)[0] for u in D["undo"]) == ["ze1|zgf1", "ze1|zgf2", "ze2|zgf4"] and all(len(u.rsplit("|", 1)[1]) == 32 for u in D["undo"]), repr(D["undo"]))
+    # a record edited between the run and the undo: it must be LEFT, never overwritten
+    g.put(os.path.join(sh.SYS, "bp", "zzgedit"), "\n".join(["$internal", "   openpath '%s/zecust.dic' to d else crt 'ZGE no' ; stop" % apath("ze1"),
+                                                            "   read r from d, 'zgf2' else r = ''", "   r<4> = 'Edited Since'", "   write r on d, 'zgf2'", "   crt 'ZGE done'", "end", ""]))
+    out = g.adm(["BASIC bp zzgedit", "RUN bp zzgedit"], internal=True)
+    if not has(out, r"^ZGE done$"):
+        bail("zgf2 was not edited:\n" + "\n".join(out[-6:]))
+    p.h.typed("u", idle=1.5)
+    ubox = norm(p.text())
+    usum = norm(zg_run(p, "Undo of the global change"))
+    p.h.typed("u", idle=1.5)
+    st_again = norm(p.st())
+    U = zg_read()
+    arow("E14f", "U (the box 'Put these records back?') puts back zgf1 and zgf4 as the fixture made them; zgf2, edited since the run, is LEFT as edited and counted; the disk is the oracle",
+         "Put these records back?" in ubox and U["zgf1"] == B["zgf1"] and U["zgf4"] == B["zgf4"] and U["zgf2"].split("|")[3] == "Edited Since"
+         and "2 put back, 1 left (changed since the run)" in usum, repr((U, usum[:600])))
+    arow("E14g", "a second U is not offered: it says the change has been put back already, and nothing moves", "put back already" in st_again and zg_read(["zgf2"])["zgf2"] == U["zgf2"],
+         repr(st_again))
+
+    say("  the VOC kind: a field replaced, a record another live session holds")
+    p.key("k", 1.2)
+    p.key("k", 1.2)                                            # round to the VOC
+    hold = Holder("zgvheld")
+    try:
+        p.key("f", 1.0)
+        p.h.typed("zgv\r", idle=2.5)
+        zg_global(p, ["2", "r", "old", "new"])
+        vsum = norm(zg_run(p, "Global change:"))
+    finally:
+        hold.release()
+    V = zg_read()
+    arow("E14h", "field 2 of the VOC entries: ze1's zgv1 and ze2's zgv2 say new text; zgvheld, which a LIVE session holds with READU, is refused and unchanged, and ze2 is done "
+         "all the same (a refusal in one account does not stop the others)",
+         hold.held and V["zgv1"] == "X|new text" and V["zgv2"] == "X|new text" and V["zgvheld"] == "X|old text"
+         and "ze1: 1 changed, 1 refused" in vsum and "another session holds it" in vsum and "ze2: 1 changed, 0 refused" in vsum, repr((hold.held, V, vsum[:600])))
+
+    say("  the programs: a text replaced in the source, compiled again in each account by run.in")
+    p.key("k", 1.2)
+    p.key("k", 1.2)                                            # VOC -> dictionary items -> programs
+    p.key("f", 1.0)
+    p.h.typed("zgp\r", idle=2.5)
+    pbox = norm(zg_global(p, ["ZG old", "ZG new"]))
+    psum = norm(zg_run(p, "Global change:", wait=60.0))
+    P = zg_read([])
+    q1, q2 = zg_obj("ze1", "zgp1"), zg_obj("ze2", "zgp2")
+    arow("E14i", "the box: ze1 has zgp1 and zgpro to change and ze2's zgp2 through ze2.bp refused (the pointer rule); ze2 has its own zgp2 to change",
+         "ze1: 2 to change (bp zgp1 bp zgpro)" in pbox and "1 refused" in pbox and "ze2: 1 to change (bp zgp2)" in pbox, repr(pbox[pbox.find("Update"):][:1200]))
+    arow("E14j", "Run: zgp1 (ze1) and zgp2 (ze2) say ZG new on the disk and each is compiled again IN ITS ACCOUNT (its object in that account's bp.out is newer); zgpro, whose file refuses "
+         "the write, is failed and unchanged, and ze2 is done all the same; the undo file holds zgp1 and zgp2 and NOTHING for zgpro (the old record is kept BEFORE the write and dropped when the write fails)",
+         "ZG new" in zg_src("ze1", "zgp1") and "ZG new" in zg_src("ze2", "zgp2") and "ZG old" in zg_src("ze1", "zgpro") and q1 and q2 and q1 > o1 and q2 > o2
+         and "ze1: 1 changed, 1 refused, 1 failed" in psum and "ze2: 1 changed, 0 refused, 0 failed" in psum
+         and sorted(u.rsplit("|", 1)[0] for u in P["undo"]) == ["ze1|zgp1", "ze2|zgp2"], repr((psum[:700], P["undo"], q1, o1, q2, o2)))
+    p.h.typed("u", idle=1.5)
+    zg_run(p, "Undo of the global change", wait=60.0)
+    r1, r2 = zg_obj("ze1", "zgp1"), zg_obj("ze2", "zgp2")
+    arow("E14k", "U puts the two programs back (ZG old on the disk) and compiles each again in its account (its object newer than after the run)",
+         "ZG old" in zg_src("ze1", "zgp1") and "ZG old" in zg_src("ze2", "zgp2") and r1 and r2 and r1 > q1 and r2 > q2, repr((r1, q1, r2, q2)))
+    p.quit()
+    lines = [ln for ln in audit_new(a0).splitlines() if re.search(r"master global|entries undo", ln)]
+    want = [("master global account=ze1 kind=dict changed=2 refused=3 failed=0", 1), ("master global account=ze2 kind=dict changed=1 refused=0 failed=0", 1),
+            ("entries undo account=ze1 records=1", 2), ("entries undo account=ze2 records=1", 2),            # the dictionary items' undo and the programs'
+            ("master global account=ze1 kind=voc changed=1 refused=1 failed=0", 1), ("master global account=ze2 kind=voc changed=1 refused=0 failed=0", 1),
+            ("master global account=ze1 kind=bp changed=1 refused=1 failed=1", 1), ("master global account=ze2 kind=bp changed=1 refused=0 failed=0", 1)]
+    arow("E14l", "the audit trail: one 'master global' line per account per run and one 'entries undo' line per account per undo, lower case, and none for the Cancel",
+         all(len([ln for ln in lines if w in ln]) == n for w, n in want) and len(lines) == 10, repr(lines))
+    os.chmod(os.path.join(apath("ze1"), "bp", "zgpro"), 0o644)
+
+
 def section_e6(n1, n2):
     say("\n--- E6: the page reads and writes nothing")
     arow("E6a", "the VOC of ze1 and of ze2 have the same number of entries after everything the page did", count_voc("ze1") == n1 and count_voc("ze2") == n2, repr((n1, n2)))
@@ -1407,8 +1636,8 @@ def section_e7(p, a0):
     h.end()
 
 
-GROUPS = ("read", "edit", "delete", "programs", "debug")       # --only=read: E0-E9 (one chain on one page); edit: E10; delete: E11; programs: E12; debug: E13 (each a page of its own)
-LAST_GROUP = {"E10": "edit", "E11": "delete", "E12": "programs", "E13": "debug"}                        # a mutant runs the group of its last section; any other last section is in read
+GROUPS = ("read", "edit", "delete", "programs", "debug", "global")       # --only=read: E0-E9 (one chain on one page); edit: E10; delete: E11; programs: E12; debug: E13; global: E14 (each a page of its own)
+LAST_GROUP = {"E10": "edit", "E11": "delete", "E12": "programs", "E13": "debug", "E14": "global"}       # a mutant runs the group of its last section; any other last section is in read
 
 
 def main():
@@ -1455,6 +1684,8 @@ def main():
             section_e12()
         if "debug" in groups:
             section_e13()
+        if "global" in groups:
+            section_e14()
     finally:
         sh.teardown()
     say("\nsandbox-tool-entries: %d passed, %d failed" % (sh.tkb.passed, sh.tkb.failed))

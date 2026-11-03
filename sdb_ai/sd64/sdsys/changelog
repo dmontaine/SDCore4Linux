@@ -1,6 +1,31 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   TOOL.ENTRIES CAN CHANGE EVERY ROW IT SHOWS AT ONCE (G), IN EVERY ACCOUNT, AND PUT THE CHANGE BACK (U).
+
+             What        - On the administrator's master files page, G makes one change to every row the page shows: the hits
+                           of a find (F, every account) or the rows a filter (/) keeps. It works on all three kinds: a field of
+                           a VOC entry or a dictionary item (by its number, or "heading" for a D, I, E or L item) is set to a
+                           value or has a text in it replaced; for programs a text is replaced in the source and each program
+                           changed is compiled again in its own account through run.in. One box shows every account with how
+                           many records would change, the first ids, and what would be refused; Run (Cancel is the default)
+                           then writes each record in the account it lives in, account by account, and a box says what was
+                           changed, refused and failed in each. A refusal or a failure in one account does not stop the others.
+                           The records as they were are kept in &entries.undo&, a file of SDSYS made the first time through a
+                           box that shows the create.file command; U puts back the last change, a record only if it is still
+                           exactly what the change wrote (one edited since is left alone and counted), and compiles a program
+                           put back again in its account. Each account writes a "master global" line to the audit trail, and
+                           each account of an undo an "entries undo" line.
+             Why         - The owner asked for a global change over what the master screens show ("display all dictionary
+                           items with the name First Name" and change them), in all accounts in one run, and then for an undo.
+             Looser      - By the owner's choice (3 Nov 26, given after the warning that it is looser): the box asks for Run or
+                           Cancel only, not a typed name or count, and one run reaches every account the find shows.
+             Does NOT    - Work on more than the rows shown: a filter or a find must be on, and a list cut short at its limit is
+                           refused. It never writes the target of a pointer: a row whose file lies outside its account (in
+                           SDSYS, in another account, through .. or a link) is refused in the box and again before the write,
+                           as E, N and D refuse it. A record another session holds, or one that changed after the box, is
+                           refused. The AI line is not offered G or U. Only the last change can be put back.
+
 2 Nov 26   THE HOME SCREEN HAS THE SAME MENU BAR AS THE OTHER PAGES, A KEY FOR EVERY MENU ENTRY, AND / TO FIND A TILE.
 
              What        - The home screen's menu bar is now made the way every other full-screen page's is, from the page's own
