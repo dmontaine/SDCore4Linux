@@ -20,6 +20,8 @@ WHAT THIS IS, AND WHAT IT IS NOT.  ***IT RUNS NO SD, SO IT CANNOT SAY THAT A PAG
 
 START-HISTORY:
 28 Oct 26 dm  New (S.88 L2, the pages tool_files, tool_catalog, tool_test, tool_bulk, tool_query).
+3 Nov 26 dm  tool.query's Saved queries view is gone ("Extend the picker": the saved queries are the toolkit's pick window): its seven expressions (SVIS, the header, the rows, the two
+             foot lines, the [?], the mouse rows), the svt clamp of S3 and their two mutants are taken out.
 END-HISTORY
 """
 
@@ -116,16 +118,9 @@ ENTRIES = {
         ("at tb.x + 2,tb.y + tb.h - 2 attr 'disabled' width tw", "sentence", lambda x, y, w, h: y + h - 2, 38),
         ("call $tk_wrap(sent, tw - 4, pieces)", "sentence", lambda x, y, w, h: w - 4 - 4, 130),
         ("RVIS = wb.h - 6", "whole", lambda x, y, w, h: h - 6, 33),
-        ("SVIS = wb.h - 7", "whole", lambda x, y, w, h: h - 7, 32),
         ("at wb.x + 2,wb.y + 4 attr 'header' width tw - 6", "whole", lambda x, y, w, h: (x + 2, y + 4, w - 4 - 6), (3, 5, 128)),
         ("at wb.x + 2,wb.y + 4 + dr width tw", "whole", lambda x, y, w, h: y + 4 + 1, 6),
         ("hx = wb.x + wb.w - 7 ; hy = wb.y + 4", "whole", lambda x, y, w, h: (x + w - 7, y + 4), (132, 5)),
-        ("at wb.x + 2,wb.y + 1 attr 'header' width tw - 6", "whole", lambda x, y, w, h: (x + 2, y + 1, w - 4 - 6), (3, 2, 128)),
-        ("at wb.x + 2,wb.y + 1 + dr attr ra width tw", "whole", lambda x, y, w, h: y + 1 + 1, 3),
-        ("at wb.x + 2,wb.y + wb.h - 4 attr 'bold' width tw", "whole", lambda x, y, w, h: y + h - 4, 36),
-        ("at wb.x + 2,wb.y + wb.h - 3 width tw", "whole", lambda x, y, w, h: y + h - 3, 37),
-        ("hx = wb.x + wb.w - 7 ; hy = wb.y + 1", "whole", lambda x, y, w, h: (x + w - 7, y + 1), (132, 2)),
-        ("mx >= wb.x + 2 and mx <= wb.x + wb.w - 3 and my >= wb.y + 2 and my <= wb.y + 1 + SVIS", "whole", lambda x, y, w, h: (x + 2, x + w - 3, y + 2), (3, 136, 3)),
         ("mx >= fb.x and mx <= fb.x + fb.w - 1 and my >= fb.y and my <= fb.y + fb.h - 1", "files", lambda x, y, w, h: (x, x + w - 1, y, y + h - 1), (1, 28, 1, 19)),
         ("mx >= cb.x and mx <= cb.x + cb.w - 1 and my >= cb.y and my <= cb.y + cb.h - 1", "columns", lambda x, y, w, h: (x, x + w - 1, y, y + h - 1), (29, 72, 1, 19)),
         ("mx >= nb.x and mx <= nb.x + nb.w - 1 and my >= nb.y and my <= nb.y + nb.h - 1", "conds", lambda x, y, w, h: (x, x + w - 1, y, y + h - 1), (73, 138, 1, 19)),
@@ -288,7 +283,7 @@ def checks(raw):
             if got != want:
                 bad.append("%s %r: %r, the page had %r" % (p, snip[:50], got, want))
     ck("A1", "every number the pages derived from a box is now written from the pane's rectangle, found in the source and evaluated on the 140 by 43 rectangle: %d expressions, each gives what the page had before" % n,
-       not bad and n >= 85, "; ".join(bad[:6]))
+       not bad and n >= 78, "; ".join(bad[:6]))           # 85 until 3 Nov 26: tool.query's Saved view (seven) is gone
     bad = []
     for p in PAGES:
         lits = re.findall(r"screen box at \d", code[p])
@@ -318,7 +313,7 @@ def checks(raw):
             and "declare.layout: lay.view = want.view" in q and "if lay.view = 'build' then" in q):
         bad.append("tool_query declares by view")
     ck("S1", "the key resize takes the layout again (REFRESH, then the rectangles, then the generation, then the drawing); each page declares its panes after $tk_open and before the first drawing; "
-             "tool.query declares the view it draws (the build view, or the whole-body pane of the Results and the Saved queries) from draw.all", not bad, "; ".join(bad))
+             "tool.query declares the view it draws (the build view, or the whole-body pane of the Results) from draw.all", not bad, "; ".join(bad))
     f = sq["tool_files"]
     ds = re.search(r"do\.show: (.*?) do\.new:", f)
     ds = ds.group(1) if ds else ""
@@ -327,7 +322,7 @@ def checks(raw):
     ck("S3", "the lists keep their cursor in view after a resize: the tops of the lists are held to what is listed now (tool.files, tool.catalog, tool.test: ta; tool.test: ot; tool.bulk: ra; tool.query: clamp.tops)",
        all("if ta > ns - VIS then ta = ns - VIS" in sq[p] for p in ("tool_files", "tool_catalog", "tool_test")) and "if ot > nv - VISO then ot = nv - VISO" in sq["tool_test"]
        and "if ra > npv - VP + 1 then ra = npv - VP + 1" in sq["tool_bulk"] and all(s in q for s in ("if ft > nfs - VISF then ft = nfs - VISF", "if ct > nd - VISC then ct = nd - VISC",
-                                                                                                  "if rtop > rl.cnt - RVIS then rtop = rl.cnt - RVIS", "if svt > nsv - SVIS then svt = nsv - SVIS")), "")
+                                                                                                  "if rtop > rl.cnt - RVIS then rtop = rl.cnt - RVIS")), "")
     ck("S4", "text longer than its box is wrapped when the box is wider than it was and cut as it always was at the reference width: tool.files, tool.catalog and tool.test wrap the detail lines and the foot note "
              "only when tw > rtw (rtw = TK.MINW - 2 * TK.XBODY - 4) with $tk_wrap; tool.query wraps the sentence and the Results header at the box's width and the Conditions notes (the paragraphs) only when the box is wider than 62",
        all(("dlines = lines if tw > rtw then dlines = ''" in sq[p] and "call $tk_wrap(lines<q>, tw, " in sq[p] and "rtw = TK.MINW - 2 * TK.XBODY - 4" in sq[p]
@@ -380,7 +375,6 @@ MUTANTS = [
     ("the mouse of tool.bulk reads the conditions a row early", "A1", sub("tool_bulk", "my >= sy + 3 and my <= sy + 2 + NCOND", "my >= sy + 2 and my <= sy + 2 + NCOND")),
     ("the preview rows of tool.bulk are the Result height less 5", "A1", sub("tool_bulk", "VP = rh - 6", "VP = rh - 5")),
     ("the Sort notes of tool.query are a row lower", "A1", sub("tool_query", "at sb.x + 2,sb.y + sb.h - 4 width sb.w - 4", "at sb.x + 2,sb.y + sb.h - 3 width sb.w - 4")),
-    ("the Saved rows of tool.query are the whole height less 6", "A1", sub("tool_query", "SVIS = wb.h - 7", "SVIS = wb.h - 6")),
     ("the sentence of tool.query wraps at the box's width", "A1", sub("tool_query", "call $tk_wrap(sent, tw - 4, pieces)", "call $tk_wrap(sent, tw, pieces)")),
     ("a box of tool.files is drawn at a literal place again", "A2", sub("tool_files", "screen box at dx,dy size dw,dh title 'The file under the cursor'", "screen box at 1,23 size dw,dh title 'The file under the cursor'")),
     ("tool.query keeps a 138 outside its declaration", "A2", sub("tool_query", "hx = wb.x + wb.w - 7 ; hy = wb.y + 4", "hx = 132 ; hy = wb.y + 4 ; gw = 138")),
@@ -391,7 +385,6 @@ MUTANTS = [
     ("tool.files forgets its panes after a report", "S2", sub("tool_files", "   gosub declare.layout                                          ;* the new context has no panes\n", "")),
     ("tool.test lets the top of the list pass the end after a resize", "S3", sub("tool_test", "            if ta > ns - VIS then ta = ns - VIS\n", "")),
     ("tool.bulk lets the preview top pass the end", "S3", sub("tool_bulk", "            if ra > npv - VP + 1 then ra = npv - VP + 1\n", "")),
-    ("tool.query forgets to clamp the saved list", "S3", sub("tool_query", "   if svt > nsv - SVIS then svt = nsv - SVIS\n", "")),
     ("tool.files wraps at the reference width too", "S4", sub("tool_files", "   if tw > rtw then\n      dlines = ''", "   if tw > 0 then\n      dlines = ''")),
     ("tool.query wraps the notes at the reference width", "S4", sub("tool_query", "   if nt.w > nt.rw then", "   if nt.w > 0 then")),
     ("a note of tool.query loses a word", "S5", sub("tool_query", "nt.par<3> = 'A value is plain text, typed as the query processor reads it for the item", "nt.par<3> = 'A value is plain text, typed as the processor reads it for the item")),

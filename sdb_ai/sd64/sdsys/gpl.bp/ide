@@ -143,6 +143,10 @@
 *               over 256 characters is refused (11552); Export asks the non-ASCII test and writes the record; Import's collection refusal is 11557; Go to line finds tokens in any case.
 * 1 Nov 26 dm  S.99 (look only; the owner, 1 Nov 26: "all panes need to share the same look and feel if possible"): the IDE's name and the person (ide  name@account) at the right
 *               end of row 0, as the toolkit pages and SED have them.  The menu bar and the name are drawn by draw.bar, at each place the bar was drawn and after a menu closes.
+* 3 Nov 26 dm  S.75 DV10 (Opus decision 12c): a Tools menu (message 11590, before AI and Help) opens the development pages - Files, Dictionary, Vocabulary, Queries, Bulk
+*               update, Programs, Tests - each through the IDE's terminal hand-over as Run does (do.tool: the current text kept, the copies kept, the screen given back, the
+*               verb run with aborts trapped, the screen and the locks taken back), never through do.xeq, whose captured output would break a full-screen page.  Only the
+*               seven verbs named in do.tool are run; each page asks its own gates, as when its verb is typed.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -386,6 +390,11 @@ $include idebrk.h
    * The menus: one message each, entries separated by | and the parts of an entry by ~
    menus = ''
    for j = 11225 to 11230
+      if j = 11230 then
+         m = change(sysmsg(11590), '|', @vm)             ;* 3 Nov 26 (S.75 DV10): the Tools menu, the development pages, before AI and Help
+         m = change(m, '~', @sm)
+         menus<-1> = m
+      end
       if j = 11230 and ai.on then
          m = change(sysmsg(11654), '|', @vm)             ;* the AI menu, before Help
          m = change(m, '~', @sm)
@@ -2764,6 +2773,8 @@ run.cmd:
          gosub do.export
       case cmd = 'xeq'
          gosub do.xeq
+      case cmd[1, 5] = 'tool.'
+         gosub do.tool                    ;* 3 Nov 26 (S.75 DV10): Tools > a development page, through the terminal hand-over
       case cmd = 'overwrite'
          gosub do.overwrite
       case cmd = 'autoindent'
@@ -5519,6 +5530,21 @@ do.xeq:
    out.dict = ''
    gosub err.load
    msg = sysmsg(11555, xq.n, xq.cmd)
+   return
+
+* Tools / a development page (3 Nov 26, S.75 DV10; Opus decision 12c): the page is a full-screen program of its own, so it is given the TERMINAL as Run gives it a program -
+*   the text in the editor is kept with its tab, the recovery copies are kept (the page may end the session), the screen and the break key are given back (leave.screen),
+*   the verb runs with its aborts trapped, and the screen, the break key, the form and the locks the tabs hold are taken back (retake.screen, with Run's pause, so that what a
+*   page printed when it refused to open can be read).  NOT do.xeq: that captures what is printed, and a full-screen page writes to the terminal.  Only these seven verbs;
+*   each page asks its own gates, exactly as when its verb is typed at the prompt.  An open tab's text is not read again: a record the page changed is shown as the tab had it.
+do.tool:
+   tl.verb = cmd
+   if index(' tool.files tool.dict tool.voc tool.query tool.bulk tool.catalog tool.test ', ' ' : tl.verb : ' ', 1) = 0 then return
+   gosub stash.current
+   gosub leave.screen
+   execute tl.verb trapping aborts
+   gosub retake.screen
+   msg = sysmsg(11591, tl.verb)
    return
 
 * View / Refresh: the screen is drawn again from what the IDE holds (a program or the terminal may have written over it)

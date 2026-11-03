@@ -25,6 +25,11 @@ owner's keys of 20 Oct are not rebound) between Previous pane and Edit in SED; I
 28 Oct 26 (approved by the owner): Tab indents in the IDE's editor.  IK25-IK27 hold the memo's opt-in tabindent (Tab / Shift-Tab are the area's keys only
 with it, never in a viewer), indent.in / indent.out (one undo step, blanks only, to the stop; no step for nothing), and that the IDE alone sets it to 3 and its
 help says so; 12 mutants from M_TAB.  That a Tab typed on a screen indents is sandbox-ide.py section TAB.
+
+3 Nov 26 (S.75 DV10, Opus decision 12c): the Tools menu (message 11590) opens the seven development pages.  IK28 holds that it is put before AI and Help, that
+its entries are exactly the seven verbs with no key, that run.cmd sends a tool. word to do.tool only, and that do.tool runs ONLY those seven, through the
+terminal hand-over as Run does (the text kept, leave.screen, an execute with TRAPPING ABORTS and no CAPTURING, retake.screen) and never through do.xeq; mutants
+from M_DV10.  That a page opens and the IDE comes back is sandbox-ide-tools.py.
 """
 
 import os
@@ -41,7 +46,7 @@ FILES = {
     "memo": os.path.join(GPL, "sl_memo"),
     "sed": os.path.join(GPL, "sed"),
 }
-for _n in (11204, 11207, 11214, 11215, 11216, 11225, 11226, 11227, 11228, 11683):
+for _n in (11204, 11207, 11214, 11215, 11216, 11225, 11226, 11227, 11228, 11683, 11590):
     FILES["m%d" % _n] = os.path.join(MSG, str(_n))
 
 # the key map, as the owner settled it: key name -> command word
@@ -294,6 +299,18 @@ def checks(raw):
        ti_sets == ["ed.tab", "ed.tab"] and ide.count("ed.tab = 3") == 1 and ordered(block(ide, "new.form"), "mw{'stay'} = 1", "mw{'tabindent'} = ed.tab", "mw{'softcur'} = 1")
        and re.search(r"Tab, Shift-Tab\s+In the editor: indent, outdent", help_text(raw["m11214"])) is not None
        and not re.search(r"Tab, Shift-Tab\s+Next / previous pane", help_text(raw["m11214"])), repr(ti_sets))
+    # 3 Nov 26 (S.75 DV10): Tools > a development page, through the terminal hand-over as Run does
+    tools = menu_entries(raw["m11590"])
+    dt = block(ide, "do.tool")
+    seven = ["tool.files", "tool.dict", "tool.voc", "tool.query", "tool.bulk", "tool.catalog", "tool.test"]
+    ck("IK28", "the Tools menu (11590) is put before AI and Help and offers exactly the seven development pages, none with a key; run.cmd sends a tool. word to do.tool and nothing else does; do.tool runs only "
+       "those seven, keeping the editor's text, through leave.screen, an execute with trapping aborts and NO capturing, and retake.screen (Run's hand-over), never do.xeq",
+       [c for _, _, c in tools] == seven and all(not s for _, s, _ in tools) and raw["m11590"].startswith("&Tools|")
+       and ordered(ide, "for j = 11225 to 11230", "if j = 11230 then", "m = change(sysmsg(11590), '|', @vm)", "if j = 11230 and ai.on then")
+       and "case cmd[1, 5] = 'tool.'\n         gosub do.tool" in rc and ide.count("gosub do.tool") == 1
+       and ordered(dt, "tl.verb = cmd", "if index(' " + " ".join(seven) + " ', ' ' : tl.verb : ' ', 1) = 0 then return", "gosub stash.current", "gosub leave.screen",
+                   "execute tl.verb trapping aborts", "gosub retake.screen")
+       and "capturing" not in dt and "do.xeq" not in dt and dt.count("execute") == 1, repr(([c for _, _, c in tools], dt[:160])))
     return rows
 
 
@@ -402,6 +419,15 @@ MUTANTS += [
     ("the IDE does not set the option (Tab moves the focus again)", "IK27", sub("ide", "   mw{'tabindent'} = ed.tab", "   mw{'tabindent'} = 0")),
     ("the IDE's tab width starts at another number", "IK27", sub("ide", "   ed.tab = 3\n", "   ed.tab = 4\n")),
     ("the help still says Tab is the next pane", "IK27", sub("m11214", "Tab, Shift-Tab   In the editor: indent, outdent", "Tab, Shift-Tab   Next / previous pane; in the editor: indent, outdent")),
+]
+M_DV10 = len(MUTANTS)
+MUTANTS += [
+    ("a Tools entry runs another verb", "IK28", sub("m11590", "&Tests~~tool.test", "&Tests~~tool.test.all")),
+    ("do.tool runs any tool. word", "IK28", sub("ide", "   if index(' tool.files tool.dict tool.voc tool.query tool.bulk tool.catalog tool.test ', ' ' : tl.verb : ' ', 1) = 0 then return\n", "")),
+    ("do.tool captures the page's output (do.xeq's way)", "IK28", sub("ide", "   execute tl.verb trapping aborts\n", "   execute tl.verb trapping aborts capturing tl.out\n")),
+    ("do.tool keeps the screen while the page runs", "IK28", sub("ide", "   gosub stash.current\n   gosub leave.screen\n   execute tl.verb", "   gosub stash.current\n   execute tl.verb")),
+    ("do.tool loses the editor's text", "IK28", sub("ide", "   gosub stash.current\n   gosub leave.screen\n   execute tl.verb", "   gosub leave.screen\n   execute tl.verb")),
+    ("the Tools menu is not on the bar", "IK28", sub("ide", "         m = change(sysmsg(11590), '|', @vm)", "         m = ''")),
 ]
 
 

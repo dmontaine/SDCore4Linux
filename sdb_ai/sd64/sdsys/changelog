@@ -100,6 +100,50 @@ Next release - in progress
                            account, on another page and in another program. The audit trail says a request was a follow-up and
                            how many exchanges it carried, never what they said. The ai verb at the command line is unchanged.
 
+3 Nov 26   F2 FINDS AN ACTION AND A RIGHT CLICK OPENS THE MENU OF THE BOX ON EVERY FULL-SCREEN PAGE; TAB MOVES BETWEEN THE BOXES OF TOOL.TEST.
+
+             What        - On every full-screen page that has a menu bar (the administrator's pages, the development pages, the home
+                           screen and my.menu) F2 opens a list of every entry of the page's menus, written "Menu > Entry" with its key.
+                           Typing narrows the list, Enter chooses. A right click on a box opens a small menu at the pointer with that
+                           box's actions; a box that did not have the keyboard is given it first, as a click gives it. A right click
+                           outside the boxes, and Shift-F10 from the keyboard, open the menu of the box that has the keyboard (the one
+                           marked [*]); its last entry, Find an action..., opens the F2 list. F1's list of keys names both.
+                           tool.test now moves between its two boxes with Tab and Shift-Tab, as the other pages with two boxes do: from
+                           the list to what the test under the cursor printed, and back.
+             Why         - An action that is only in a menu had to be looked for menu by menu; the F2 list finds it by a word of its
+                           name, and the right-click menu offers only what makes sense in the box you are in. tool.test was the one
+                           page with two boxes that Tab did not move between.
+             Does NOT    - Add any action or any access: an entry chosen in either list does exactly what its key does, through the
+                           page's own checks and boxes, and an entry the page cannot do now is shown "(not now)" and only says why.
+                           A right click on a box does what a left click there does first (on a list it may move the cursor to the row
+                           under the pointer). The Menu key of a PC keyboard is not read (use Shift-F10). The IDE, SED, the debugger and
+                           tool.keys are unchanged: they have their own keys.
+
+3 Nov 26   TOOL.QUERY'S SAVED QUERIES ARE A LIST YOU CAN TYPE INTO, WITH COLUMNS, AND DEL DELETES ONE.
+
+             What        - L in tool.query shows the saved queries in the toolkit's pick window: a heading row and, for each query, its
+                           name, its file, its kind (list, count or sum) and the sentence it was saved with. Typing narrows the list to
+                           the queries that hold the text in any column. Enter loads the query under the cursor as before; Del deletes
+                           it, after the same box that asks its name typed (Cancel is the default); Esc closes the list. After a load,
+                           a refusal or a delete the page is shown again with what happened on the status line.
+             Why         - The page had a list of its own that could not be searched; with 100 saved queries the one wanted had to be
+                           found by scrolling. The window is the one the rest of the toolkit uses to pick from a list.
+             Does NOT    - Change what a saved query is, how it is checked when it is loaded, the limit of 100, or the checks before a
+                           delete (the file must be your own &queries&, the record a saved query, its name typed). X no longer deletes
+                           from the list (a letter typed there narrows it).
+
+3 Nov 26   THE IDE HAS A TOOLS MENU THAT OPENS THE DEVELOPMENT PAGES.
+
+             What        - The IDE's menu bar has a new menu, Tools, between View and Help: Files, Dictionary, Vocabulary, Queries, Bulk
+                           update, Programs and Tests open tool.files, tool.dict, tool.voc, tool.query, tool.bulk, tool.catalog and
+                           tool.test. The IDE gives the terminal to the page as Run gives it to a program; when you leave the page and
+                           press Return the IDE is back with its tabs, and what you had typed and not saved is still there.
+             Why         - Moving between writing a program and looking at its files, dictionaries, catalogue or tests meant leaving
+                           the IDE.
+             Does NOT    - Give the page any access the account does not have: it asks the same gates as when its name is typed at the
+                           prompt. A record a page changes while it is open in an IDE tab is not read again (close the tab and open it
+                           again). The menu entries have no keys.
+
 2 Nov 26   THE HOME SCREEN HAS THE SAME MENU BAR AS THE OTHER PAGES, A KEY FOR EVERY MENU ENTRY, AND / TO FIND A TILE.
 
              What        - The home screen's menu bar is now made the way every other full-screen page's is, from the page's own

@@ -15,6 +15,11 @@ that is what this refuses, page by page.
 
 ***WHAT THIS IS AND IS NOT.***  It reads the programs as text.  It cannot say a mark is drawn where the box is, or moves with the
 focus: those are sandbox-tool-sessions.py rows S8c1 and S8c2.  --selftest mutates the sources and requires each mutant caught.
+
+TAB PANES (S.88, owner 2 Nov 2026: "Build now", keys "Tab panes, F2 finder"; added 3 Nov 26): a page that names two or more focus
+boxes moves the focus between them with Tab and Shift-Tab - its key table binds tab and its source acts on tab and on btab (the key
+Shift-Tab arrives as).  tool.test was the one page that named two boxes and reached the second only by Enter (sandbox-tool-test.py
+section tab shows the keys move the focus).
 """
 
 import os
@@ -51,6 +56,8 @@ def page_checks(name, src, ck):
     ck("%s: every name is one the page gives $tk_frame" % name, not badn, "never given: %s; given %s" % (badn, sorted(given)))
     decl = [mm.start() for mm in re.finditer(r"\$tk_layout\('declare'", c)]
     ck("%s: the names are set before the page's first layout declaration" % name, decl and m.start() < decl[0], (m.start(), decl[:1]))
+    ck("%s: Tab panes - the key table binds Tab, and the page acts on Tab and on Shift-Tab (btab)" % name,
+       re.search(r"call \$tk_keys\('add', keys, 'tab',", c) is not None and re.search(r"nm = 'tab'", c) is not None and re.search(r"nm = 'btab'", c) is not None)
 
 
 def frame_checks(tk_h, tk_frame, ck):
@@ -97,6 +104,9 @@ def mutants(srcs):
         "   ctx<TK.C.FOCI> = 'list' : @sm : 'Tests' : @vm : 'detail' : @sm : 'Output'        ;* S.99: the boxes that take the focus (Output scrolls in the lower box), for $tk_frame's [*] / [-]\n   call $tk_layout('declare', ctx, d, perr)",
         "   call $tk_layout('declare', ctx, d, perr)\n   ctx<TK.C.FOCI> = 'list' : @sm : 'Tests' : @vm : 'detail' : @sm : 'Output'")
     mut("tk.h: the slot is the AI row's", "tk.h", "$define TK.C.FOCI      29", "$define TK.C.FOCI      28")
+    mut("test: Tab not in the key table (Tab panes)", "tool_test", "   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)", "   null")
+    mut("jobs: Shift-Tab not acted on (Tab panes)", "tool_jobs", "nm = 'btab'", "nm = 'xtab'")
+    mut("menus: Shift-Tab not acted on (Tab panes)", "tool_menus", "nm = 'btab'", "nm = 'xtab'")
     mut("tk_frame: marks for a single box", "tk_frame", "if mk.n < 2 or not(mk.any) then mk = ''", "if mk.n < 1 then mk = ''")
     mut("tk_frame: written every time, not against the shadow", "tk_frame",
         "if mk.scr<SL.S.SHADOW, my + 1>[mx + 1, 3] # mk<1, mj, 3> then mk.out", "mk.out")

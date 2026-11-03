@@ -7,7 +7,8 @@
 #   O4  $tk_out draws only an open pane whose layout pane is shown, in the rectangle $tk_layout 'pane' gives, and makes the library widget again only when that rectangle changed
 #   O5  $tk_out never closes the pane itself: the op key answers 'handled' only when the library did and no op but open, close and toggle changes the state; the progress total comes from the
 #       argument saved before c was cleared
-#   O6  $tk_pickrec is $sl_picker with the same five arguments and nothing else; its mode 'list' (2 Nov 26, S.88 U9: the home screen's type-to-find) is $sl_pickwin on the page's list
+#   O6  $tk_pickrec is $sl_picker with the same five arguments and nothing else; its mode 'list' (2 Nov 26, S.88 U9: the home screen's type-to-find) is $sl_pickwin on the page's list,
+#       in $sl_picker since 3 Nov 26 ("Extend the picker"): optional columns, and a Del that only NAMES the entry (res 'delete'; the page confirms and deletes)
 #   O7  $tk_form open: a phantom returns first, a form left open is put away, the form is refused (c 'no') when the window is too small, the entries are SCREEN ENTRYs (masked ones with
 #       MASK), three message rows, the default button 'ok', the cancel button 'cancel', and tf.open is 1 only at the end
 #   O8  $tk_form run: waits for the form's events, a button 'ok' is 'ok' and anything else (the cancel button, Esc, the input ending) is 'cancel', every entry's text is read with SCREEN GET,
@@ -75,6 +76,7 @@ def op(src, name):
 def load():
     s = {n: read(os.path.join(BP, n)) for n in NAMES}
     s["tool_viewers"] = read(os.path.join(BP, "tool_viewers"))
+    s["sl_picker"] = read(os.path.join(BP, "sl_picker"))
     s["calls"] = {os.path.basename(p): code(read(p)) for p in glob.glob(os.path.join(BP, "*")) if os.path.isfile(p) and not p.endswith(".h")}
     for n in ("11248", "11249"):
         p = os.path.join(MSG, n)
@@ -122,11 +124,15 @@ def checks(s):
        not changers and ordered(ok_, "c = 'unhandled'", "if out.w{'open'} + 0 then", "call $sl_out('key', out.w, scr, a, r)", "if r<1> = 'handled' then c = 'handled'")
        and "(if a = '' then '' else a : @fm : b : @fm : tot)" in op(out, "progress"), repr(changers))
 
-    ck("O6 $tk_pickrec is $sl_picker with the same five arguments and nothing else; mode 'list' (2 Nov 26, S.88 U9) is $sl_pickwin on the list the page gives, with no file source, cancel unless Enter chose, "
-       "the title in and the entry's number out, and nothing opened",
-       re.sub(r"\s+", " ", pk) == "$internal subroutine tk_pickrec(ctx, mode, file, id, res, newtext) $catalog $tk_pickrec if mode = 'list' then gosub pick.list return end "
-       "call $sl_picker(mode, file, id, res, newtext) return pick.list: res = 'cancel' ltitle = id ldef = newtext id = '' newtext = '' if system(25) or file = '' then return "
-       "if not(num(ldef)) or ldef < 1 then ldef = 1 call $sl_pickwin(file, ltitle, 0, ldef, pr, ps, '', '') if ps = 0 and pr > 0 then id = pr res = 'ok' end return end", pk)
+    spk = re.sub(r"\s+", " ", label(code(s["sl_picker"]), "pick.list"))
+    ck("O6 $tk_pickrec is $sl_picker with the same five arguments and nothing else; mode 'list' (S.88 U9, in $sl_picker since 3 Nov 26) is $sl_pickwin on the list the page gives, with no file "
+       "source, cancel unless Enter chose or Del named an entry, the title in and the entry's number out, Del only with mode<4> 'delete', columns only from mode<2> and <3>, and nothing opened",
+       re.sub(r"\s+", " ", pk) == "$internal subroutine tk_pickrec(ctx, mode, file, id, res, newtext) $catalog $tk_pickrec call $sl_picker(mode, file, id, res, newtext) return end"
+       and "if mode<1> = 'list' then gosub pick.list return end" in re.sub(r"\s+", " ", code(s["sl_picker"]))
+       and spk.strip() == "res = 'cancel' ltitle = id ldef = newtext id = '' newtext = '' if system(25) or file = '' then return if not(num(ldef)) or ldef < 1 then ldef = 1 "
+       "lhot = '' if mode<4> = 'delete' then lhot = 'del' lcols = '' if mode<2> # '' then lcols = mode<2> : @fm : mode<3> ltyped = '' lcur = '' "
+       "call $sl_pickwin(file, ltitle, 0, ldef, pr, ps, '', '', lhot, ltyped, lcols, lcur) begin case case ps = 0 and pr > 0 id = pr res = 'ok' "
+       "case ps = 2 and pr = 'del' and lcur > 0 id = lcur res = 'delete' end case return", pk + " || " + spk)
 
     of = label(fm, "open.form")
     ck("O7 $tk_form open: a phantom returns first, a form left open is put away, the form is refused when the window is too small, the entries are SCREEN ENTRYs (a masked one with MASK), three message rows, "
@@ -207,10 +213,15 @@ MUTANTS = [
     ("the bar is not told the pane is open", "tool_viewers", "nm, outopen, mr)", "nm, 0, mr)", "V2"),
     ("PgUp scrolls a pane that is not open", "tool_viewers", "case (nm = 'pgup' or nm = 'pgdn') and outopen", "case nm = 'pgup' or nm = 'pgdn'", "V2"),
     # 2 Nov 26 (S.88 U9): the list mode of $tk_pickrec - marker M_U9 for --from= (the first of these)
-    ("a list pick answers ok on Esc", "tk_pickrec", "   if ps = 0 and pr > 0 then\n", "   if pr > 0 then\n", "O6"),
-    ("a list pick is given a file to read", "tk_pickrec", "call $sl_pickwin(file, ltitle, 0, ldef, pr, ps, '', '')", "call $sl_pickwin('', ltitle, 0, ldef, pr, ps, file, '')", "O6"),
+    # 3 Nov 26 ("Extend the picker"): the list mode moved into $sl_picker; the same two mutants there, and three for Del and the facade - M_PICK is the first of these
+    ("a list pick answers ok on Esc", "sl_picker", "      case ps = 0 and pr > 0\n", "      case pr > 0\n", "O6"),
+    ("a list pick is given a file to read", "sl_picker", "call $sl_pickwin(file, ltitle, 0, ldef, pr, ps, '', '', lhot, ltyped, lcols, lcur)", "call $sl_pickwin('', ltitle, 0, ldef, pr, ps, file, '', lhot, ltyped, lcols, lcur)", "O6"),
+    ("Del is offered to every list", "sl_picker", "   if mode<4> = 'delete' then lhot = 'del'\n", "   lhot = 'del'\n", "O6"),
+    ("Del answers an entry when none is shown", "sl_picker", "      case ps = 2 and pr = 'del' and lcur > 0\n", "      case ps = 2 and pr = 'del'\n", "O6"),
+    ("the list mode is left in the facade", "tk_pickrec", "   call $sl_picker(mode, file, id, res, newtext)\n   return\n", "   if mode = 'list' then return\n   call $sl_picker(mode, file, id, res, newtext)\n   return\n", "O6"),
 ]
-M_U9 = len(MUTANTS) - 2
+M_U9 = len(MUTANTS) - 5
+M_PICK = M_U9
 
 
 def run(over=None):
