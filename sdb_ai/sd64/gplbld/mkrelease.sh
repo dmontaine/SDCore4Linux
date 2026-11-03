@@ -13,6 +13,7 @@
 #   --clients DIR  a folder copied to clients/Linux64 (libsdcli.so and sdclilib.so: built files, not in the repository)
 #   --force        replace an existing staging folder and zip of this version
 #   --allow-dev    build from a branch other than main or a v* tag (a TEST package for the VM install; never distribute it)
+#   --label LABEL  names a release candidate: SDCore-L2.0-0-rc1.zip, from the tag v2.0-rc1 (the installer says "pre-release" when the tag ends -rcN; the version stamp is unchanged)
 #
 # MAKES, beside the repositories:  Project_Staging/SDCore-VERSION/  and  Project_Zips/SDCore-VERSION.zip
 #
@@ -44,7 +45,7 @@ DOCS="${DOCS_REPO:-$PROJECTS/SDCore4LinuxDocs}"
 STAGING="${STAGING_DIR:-$PROJECTS/Project_Staging}"
 ZIPS="${ZIPS_DIR:-$PROJECTS/Project_Zips}"
 
-version=""; ref=""; docs_ref=""; readme=""; clients=""; force=0; allow_dev=0
+version=""; ref=""; docs_ref=""; readme=""; clients=""; force=0; allow_dev=0; label=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --ref)      [ $# -ge 2 ] || die "--ref needs a value"; ref="$2"; shift 2 ;;
@@ -53,6 +54,7 @@ while [ $# -gt 0 ]; do
         --clients)  [ $# -ge 2 ] || die "--clients needs a value"; clients="$2"; shift 2 ;;
         --force)    force=1; shift ;;
         --allow-dev) allow_dev=1; shift ;;
+        --label)    [ $# -ge 2 ] || die "--label needs a value"; label="$2"; shift 2 ;;
         -h|--help)  sed -n '3,36p' "$0"; exit 0 ;;
         -*)         die "unknown option $1" ;;
         *)          [ -z "$version" ] || die "one VERSION only"; version="$1"; shift ;;
@@ -60,6 +62,8 @@ while [ $# -gt 0 ]; do
 done
 [[ "$version" =~ ^L[0-9]+\.[0-9]+-[0-9]+$ ]] || die "VERSION looks like L2.0-0"
 lcver=$(printf '%s' "$version" | tr 'L' 'l')      # lower case, as the installer's name pattern needs it
+[[ -z "$label" || "$label" =~ ^[a-z0-9]{1,12}$ ]] || die "--label is lower case letters and digits, up to 12 (rc1)"
+name="SDCore-$version${label:+-$label}"           # SDCore-L2.0-0-rc1: a release candidate is not mistaken for the release (the version stamp inside is the same)
 
 git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 || die "$REPO is not a git repository"
 git -C "$DOCS" rev-parse --git-dir >/dev/null 2>&1 || die "no documentation repository at $DOCS (DOCS_REPO=...)"
@@ -92,8 +96,8 @@ if git -C "$REPO" ls-tree -r --name-only -z "$commit" | tr '\0' '\n' | grep -q '
     fail "$ref holds a file name with a backslash"
 fi
 
-stage="$STAGING/SDCore-$version"
-zipf="$ZIPS/SDCore-$version.zip"
+stage="$STAGING/$name"
+zipf="$ZIPS/$name.zip"
 if [ -e "$stage" ] || [ -e "$zipf" ]; then
     [ "$force" -eq 1 ] || die "$stage or $zipf exists (--force replaces both)"
     rm -rf -- "$stage"; rm -f -- "$zipf"
@@ -108,7 +112,7 @@ git -C "$DOCS" archive "$docs_commit" User/markdown Administrator/markdown | tar
 for d in User Administrator; do
     ls "$stage/source/docs/$d/markdown"/*.md >/dev/null 2>&1 || fail "the documentation repository has no $d/markdown/*.md at $docs_ref"
 done
-printf 'commit=%s\nbranch=%s\nversion=%s\ndocs_commit=%s\n' "$commit" "$ref" "$version" "$docs_commit" > "$stage/source/SDCORE-RELEASE"
+printf 'commit=%s\nbranch=%s\nversion=%s\ndocs_commit=%s\nlabel=%s\n' "$commit" "$ref" "$version" "$docs_commit" "$label" > "$stage/source/SDCORE-RELEASE"
 
 # the installers sit beside source/, the same bytes as in it
 for f in installsdcore.sh deletesdcore.sh; do
@@ -154,12 +158,12 @@ done
 # SHA256SUMS: every file under source/, nothing else, paths relative to the package folder
 (cd "$stage" && find source -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > SHA256SUMS)
 
-(cd "$STAGING" && zip -q -r -X "$zipf" "SDCore-$version")
+(cd "$STAGING" && zip -q -r -X "$zipf" "$name")
 
 # CHECK THE ZIP AS THE INSTALLER WILL FIND IT
 rm_zip() { rm -f -- "$zipf"; }
 unzip -q "$zipf" -d "$scratch"
-u="$scratch/SDCore-$version"
+u="$scratch/$name"
 [ -d "$u/source/sdb_ai/sd64" ] || { rm_zip; fail "the unpacked zip has no source/sdb_ai/sd64"; }
 (cd "$u" && sha256sum --quiet --strict -c SHA256SUMS >/dev/null 2>&1) || { rm_zip; fail "SHA256SUMS does not match the unpacked zip"; }
 [ "$(cd "$u" && find source -type f | wc -l)" = "$(grep -c '' "$u/SHA256SUMS")" ] || { rm_zip; fail "SHA256SUMS and source/ list different files"; }
