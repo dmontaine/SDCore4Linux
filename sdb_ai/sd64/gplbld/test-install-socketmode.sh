@@ -36,13 +36,14 @@ if [ "${1:-}" = "--selftest" ]; then
   }
   inst_mutant() {   # name, sed expression applied to the installer
     local f="$T/$1.sh"
-    sed -e "$2" "$TREE/installsdcore.sh" > "$f"
+    # 3 Nov 26 (S.128): an invalid sed expression writes an empty file that then "fails" the check: refuse it by name instead
+    if ! sed -e "$2" "$TREE/installsdcore.sh" > "$f"; then echo "  [MISSED] $1: the sed expression did not apply"; missed=$((missed+1)); total=$((total+1)); return; fi
     if cmp -s "$TREE/installsdcore.sh" "$f"; then echo "  [MISSED] $1: the mutation changed nothing"; missed=$((missed+1)); total=$((total+1)); return; fi
     INSTALLER="$f" bash "$THIS" > "$T/$1.out" 2>&1; judge "$1" $?
   }
   unit_mutant() {   # name, sed expression applied to the unit
     local f="$T/$1.socket"
-    sed -e "$2" "$UNIT" > "$f"
+    if ! sed -e "$2" "$UNIT" > "$f"; then echo "  [MISSED] $1: the sed expression did not apply"; missed=$((missed+1)); total=$((total+1)); return; fi
     if cmp -s "$UNIT" "$f"; then echo "  [MISSED] $1: the mutation changed nothing"; missed=$((missed+1)); total=$((total+1)); return; fi
     UNIT="$f" bash "$THIS" > "$T/$1.out" 2>&1; judge "$1" $?
   }
