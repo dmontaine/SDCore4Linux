@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# witness-sdnet-s73.sh - S.73 items 1 and 2 on a REAL install, ONE machine (3 Nov 2026, track G).  WRITTEN, NOT RUN: bash -n only.
+# witness-sdnet-s73.sh - S.73 items 1 and 2 on a REAL install, ONE machine (3 Nov 2026, track G).  First run on the VM 3 Nov 2026: A and H1 as written; H2 / H3 and the hang server's start fixed after it.
 #
 #   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-s73.sh [--only=A,H] [--client ACCOUNT]
 #   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-s73.sh --selftest        (no sudo, no sd: the shared helpers on known texts)
@@ -14,9 +14,10 @@
 #      outside one opens; NETFILES=0 (as delivered) is not tested here (sandbox-req29.py has it).
 #   H  ITEM 2 - a server that hangs after the handshake, at the hello and mid-record, timed with NETWAIT=2 / NETREPLY=3 (witness-sdnet-hang.py serves netfake.py's servers on
 #      127.0.0.1).  H1 silent at the hello: SET.SERVER ... connect gives 11445 "The TLS handshake with 127.0.0.1:<p> did not complete" about NETWAIT seconds after the control;
-#      H2 half a record for the Ack: SET.NETLOGIN gives "No acknowledgement from 127.0.0.1:<p> at the start of the session" about NETREPLY seconds after it; H3 half a record
-#      for the reply to client-first: "No reply from 127.0.0.1:<p> during the login".  The control is the same session against a closed port (refused at once), so the session's own
-#      cost is taken off; every time is printed.  The sandbox figures were 2.0, 3.0 and 3.0 s (sandbox-netfile.py section timeout).
+#      H2 half a record for the Ack: SET.NETLOGIN gives 11472 "The connection to 127.0.0.1:<p> failed or timed out at the start of the session" about 15 s after it (its own
+#      login exchange waits NET.READ.MS, a constant; NETREPLY is the wait of a FILE request, which sdclient makes and sandbox-netfile.py section timeout times at 3.0 s); H3 half a
+#      record for the reply to client-first: 11472 "... at the server's first reply", about 15 s.  The control is the same session against a closed port (refused at once), so the
+#      session's own cost is taken off; every time is printed.
 #
 # WHAT IT CHANGES (and puts back): /etc/sd.conf (saved first, put back byte for byte, owner and mode, SD restarted); the account zzs73 with its Linux user (made, deleted);
 # /var/tmp/witness-s73-out (a directory file outside every account, made and removed); the client account's register record (saved, put back: NET-ON for SET.NETLOGIN); the
@@ -86,7 +87,7 @@ cleanup() {
   [ "$CLEANED" -eq 0 ] || return 0
   CLEANED=1; trap - EXIT
   say ""; say "== Z. putting back =="
-  [ -n "$HANG_PID" ] && kill "$HANG_PID" 2>/dev/null
+  [ -n "$HANG_PID" ] && { pkill -P "$HANG_PID" 2>/dev/null; kill "$HANG_PID" 2>/dev/null; }
   [ "$MADE_SRV" -eq 1 ] && wl_sd_admin "delete.server $SRV" "DELETE.SERVER $SRV" >/dev/null
   if [ "$MADE_ACC" -eq 1 ]; then
     wl_sd_admin "delete.account $ACC" "DELETE.ACCOUNT $ACC" "y" >/dev/null
@@ -165,15 +166,17 @@ if want H; then
   chmod 644 "$ST/hang.key" "$ST/hang.crt"; chmod 711 "$ST"
   PIN=$(openssl x509 -in "$ST/hang.crt" -pubkey -noout | openssl pkey -pubin -outform DER | openssl dgst -sha256 | grep -o -E '[0-9a-f]{64}$')
   say "  the throw-away server key's pin: $PIN"
+  # 3 Nov 26 (its first run): the server is not given a state file - it ran as the owner and could not create one in $ST (root's, 711), died, and every H row
+  # then measured a closed port; its PORT line is read from its output.  The subshell's own output goes to /dev/null and stop_hang ends the subshell's children
+  # too: a `sleep 600` left behind held the log's pipe, and the script could not end for ten minutes.
   start_hang() {   # $1 mode -> HANG_PID, HPORT
-    rm -f "$ST/hang.port"
-    ( sleep 600 | sudo -u "$SUDO_USER" python3 "$HANG" "$@" "$ST/hang.port.tmp" > "$ST/hang-$1.out" 2>&1 ) &
+    ( sleep 600 | sudo -u "$SUDO_USER" python3 "$HANG" "$@" > "$ST/hang-$1.out" 2>&1 ) > /dev/null 2>&1 < /dev/null &
     HANG_PID=$!
     local i; for i in $(seq 1 40); do [ -s "$ST/hang-$1.out" ] && grep -q '^PORT ' "$ST/hang-$1.out" && break; sleep 0.25; done
     HPORT=$(sed -n 's/^PORT //p' "$ST/hang-$1.out" | head -1)
     say "  witness-sdnet-hang.py $1 on 127.0.0.1:${HPORT:-<none>}"
   }
-  stop_hang() { pkill -f "witness-sdnet-hang.py $1" 2>/dev/null; sleep 1; HANG_PID=""; say "  what the hanging server saw:"; sed -e 's/^/      | /' "$ST/hang-$1.out"; }
+  stop_hang() { pkill -f "witness-sdnet-hang.py $1" 2>/dev/null; [ -n "$HANG_PID" ] && pkill -P "$HANG_PID" 2>/dev/null; sleep 1; HANG_PID=""; say "  what the hanging server saw:"; sed -e 's/^/      | /' "$ST/hang-$1.out"; }
   timed() {   # runs the rest as a command; prints the seconds on the last line
     local t0 t1 out; t0=$(date +%s.%N); out=$("$@"); t1=$(date +%s.%N)
     printf '%s\nSECONDS %s\n' "$out" "$(echo "$t1 - $t0" | bc)"
@@ -202,12 +205,17 @@ if want H; then
     expect_re "H-$mode the definition holds the throw-away pin" "$O" "^$SRV +127\.0\.0\.1:$HPORT +$ACC"
     O=$(timed wl_sd_user "$CUSER" "set.netlogin $SRV against the half-record server ($mode)" "SET.NETLOGIN $SRV" "$ACC" "$PWS")
     T=$(secs "$O"); W=$(echo "$T - $CT" | bc); say "  [timing] $mode took $T s, $W s more than the control"
+    # 3 Nov 26 (its first run): SET.NETLOGIN is setnetlogin's own exchange, not sdclient's: it says 11472 and waits NET.READ.MS (15 s, a constant since K8d,
+    # 19 Oct) for each read - NETREPLY is the wait of a file request (sdclient), which sandbox-netfile.py section timeout times.  The rows ask for what
+    # SET.NETLOGIN does; the server holds the connection 60 s, so a bound near 15 shows the command gave up on its own.
     if [ "$mode" = ack ]; then
-      expect_has "H2 THE ROW: half a record for the Ack is given up on" "$O" "No acknowledgement from 127.0.0.1:$HPORT at the start of the session"
+      ROWN="H2 THE ROW: half a record for the Ack is given up on"; M=$(wl_msg 11472 127.0.0.1 "$HPORT" 'the start of the session')
     else
-      expect_has "H3 THE ROW: half a record for the reply to client-first is given up on" "$O" "No reply from 127.0.0.1:$HPORT during the login"
+      ROWN="H3 THE ROW: half a record for the reply to client-first is given up on"; M=$(wl_msg 11472 127.0.0.1 "$HPORT" "the server's first reply")
     fi
-    within "$W" 1.5 5.5 && pass "H-$mode bounded by NETREPLY=3: $W s over the control (1.5 to 5.5; the server holds the connection 60)" || fail "H-$mode $W s over the control is not 1.5 to 5.5"
+    # an unreadable message 11472 would make the wanted text empty, which every output contains
+    if [ -n "$M" ]; then expect_has "$ROWN" "$O" "$M"; else fail "$ROWN - message 11472 could not be read, so there is nothing to look for"; fi
+    within "$W" 13.5 17.5 && pass "H-$mode bounded by SET.NETLOGIN's 15 s read wait: $W s over the control (13.5 to 17.5; the server holds the connection 60)" || fail "H-$mode $W s over the control is not 13.5 to 17.5"
     expect_lacks "H-$mode and no login was stored" "$O" "$(wl_msg 11477 "$SRV" "$ACC")"
     stop_hang "$mode"
     wl_sd_admin "delete.server $SRV" "DELETE.SERVER $SRV" >/dev/null; MADE_SRV=0
