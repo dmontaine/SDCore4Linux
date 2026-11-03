@@ -932,6 +932,22 @@ def main():
     reg_write("zzsusp", rec)
     for name in ("zzon", "zznolog", "zzsusp"):
         put(os.path.join(BOX, "user_accounts", name, "bp", "qprobe"), "hello-from-%s\n" % name)
+        # 3 Nov 26: bp gets a dictionary part (field 3 of its VOC entry, written below) so that OPEN 'DICT', 'account:bp' can be judged
+        os.makedirs(os.path.join(BOX, "user_accounts", name, "bp.dic"), exist_ok=True)
+        put(os.path.join(BOX, "user_accounts", name, "bp.dic", "dprobe"), "dict-of-%s\n" % name)
+    put(os.path.join(SYS, "bp", "zzdic3"), "\n".join([
+        "$internal",
+        "   accts = 'zzon':@fm:'zznolog':@fm:'zzsusp'",
+        "   for i = 1 to dcount(accts, @fm)",
+        "      openpath '%s/user_accounts/':accts<i>:'/voc' to v else crt 'DIC3 no voc ':accts<i> ; stop" % BOX,
+        "      write 'F':@fm:'bp':@fm:'bp.dic' to v, 'bp'",
+        "      close v",
+        "   next i",
+        "   crt 'DIC3 done'",
+        "end", ""]))
+    out = adm(["BASIC bp zzdic3", "RUN bp zzdic3"], internal=True)
+    if not has(out, r"^DIC3 done$"):
+        bail("the D3 dictionary fixture was not written:\n" + "\n".join(out[-6:]))
     put(os.path.join(SYS, "bp", "zzvoc3"), "\n".join([
         "$internal",
         "   accts = 'zzoff':@fm:'zzsh':@fm:'zzon':@fm:'zzos'",
@@ -990,6 +1006,17 @@ def main():
         "      end",
         "      close g3",
         "   end",
+        "   dn = 'qdict':@fm:'afdict':@fm:'afdictno':@fm:'afdictsu'",
+        "   dt = 'qok':@fm:'zzon:bp':@fm:'zznolog:bp':@fm:'zzsusp:bp'",
+        "   for i = 1 to 4",
+        "      open 'dict', dt<i> to g4 then",
+        "         read r4 from g4, 'dprobe' then crt 'V ':dn<i>:'-read ':r4<1> else crt 'V ':dn<i>:'-read NONE'",
+        "         crt 'V ':dn<i>:' OPENED'",
+        "         close g4",
+        "      end else",
+        "         crt 'V ':dn<i>:' REFUSED ':status()",
+        "      end",
+        "   next i",
         "   crt 'V end'", "end", ""])
 
     def vp_states(lines):
@@ -998,7 +1025,7 @@ def main():
             m = re.match(r"^V (\S+) (OPENED|REFUSED \d+)$", ln)
             if m:
                 got[m.group(1)] = m.group(2)
-            m = re.match(r"^V (outptr-read|qok-read|af-read) (.*)$", ln)
+            m = re.match(r"^V (outptr-read|qok-read|af-read|qdict-read|afdict-read) (.*)$", ln)
             if m:
                 got[m.group(1)] = m.group(2)
         return got
@@ -1034,6 +1061,12 @@ def main():
             got.get("zzon:bp") == "OPENED" and got.get("af-read") == "hello-from-zzon", "zzon:bp=%r read=%r" % (got.get("zzon:bp"), got.get("af-read")))
         row("D3: %s is refused zznolog:bp and zzsusp:bp (Account:File into an account it could not LOGTO, and a suspended one): 3035, as the Q-pointers are" % name,
             got.get("zznolog:bp") == refused and got.get("zzsusp:bp") == refused, "zznolog:bp=%r zzsusp:bp=%r" % (got.get("zznolog:bp"), got.get("zzsusp:bp")))
+        # 3 Nov 26: OPEN 'DICT', 'account:file' (openQM's way to name the dictionary part) - the control is the same OPEN through the Q-pointer qok
+        row("D3: %s OPEN 'DICT', 'zzon:bp' opens zzon's dictionary of bp and reads its record, as OPEN 'DICT', 'qok' does" % name,
+            got.get("afdict") == "OPENED" and got.get("afdict-read") == "dict-of-zzon" and got.get("qdict") == "OPENED" and got.get("qdict-read") == "dict-of-zzon",
+            "afdict=%r read=%r  qdict=%r read=%r" % (got.get("afdict"), got.get("afdict-read"), got.get("qdict"), got.get("qdict-read")))
+        row("D3: %s OPEN 'DICT' of zznolog:bp and zzsusp:bp is refused (3035), as the data part is" % name,
+            got.get("afdictno") == refused and got.get("afdictsu") == refused, "afdictno=%r afdictsu=%r" % (got.get("afdictno"), got.get("afdictsu")))
         if osx:
             row("D3: %s (os-on) opens an F-pointer to a directory outside the account, reads its record, and opens the pointer "
                 "CREATE.FILE ... PATHNAME made" % name,
@@ -1055,8 +1088,8 @@ def main():
         adm_got.get("qnolog") == "OPENED" and adm_got.get("qsusp") == "OPENED" and adm_got.get("outptr") == "OPENED",
         "%r" % ({k: adm_got.get(k) for k in ("qnolog", "qsusp", "outptr")},))
     row("D3: the administrator opens the Account:File names too (zznolog:bp, zzsusp:bp): the form is refused only where a Q-pointer is",
-        adm_got.get("zznolog:bp") == "OPENED" and adm_got.get("zzsusp:bp") == "OPENED",
-        "%r" % ({k: adm_got.get(k) for k in ("zznolog:bp", "zzsusp:bp")},))
+        adm_got.get("zznolog:bp") == "OPENED" and adm_got.get("zzsusp:bp") == "OPENED" and adm_got.get("afdictno") == "OPENED",
+        "%r" % ({k: adm_got.get(k) for k in ("zznolog:bp", "zzsusp:bp", "afdictno")},))
     for name, got in states.items():
         row("D3: %s opens sd.accounts (the stock Q-pointer into SDSYS, an account it could not LOGTO) exactly as the administrator does: %s"
             % (name, adm_got.get("sd.accounts")), got.get("sd.accounts") == adm_got.get("sd.accounts") and adm_got.get("sd.accounts") is not None,
