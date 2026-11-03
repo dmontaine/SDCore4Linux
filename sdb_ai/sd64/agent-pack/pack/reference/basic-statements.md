@@ -407,7 +407,7 @@ clause of `execute` — run at the current command level ***(clause word)***
 `del` *arr*`<`*f* {, *v* {, *sv*}}`>`
 
 - a statement of SD BASIC
-- docs: `User/markdown/04a-sd-basic-string-matching.md` line 320
+- docs: `User/markdown/04a-sd-basic-string-matching.md` line 340
 
 ### basic:stmt:delete
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:406#724c0dca src2=docs:tools/syntax-shapes.txt:59#78d4677d
@@ -501,7 +501,7 @@ clause of `execute` — run at the current command level ***(clause word)***
 `dparse` *string*, *delimiter*, *var*, …
 
 - a statement of SD BASIC
-- docs: `User/markdown/04a-sd-basic-string-matching.md` line 316
+- docs: `User/markdown/04a-sd-basic-string-matching.md` line 336
 
 ### basic:stmt:dparse.csv
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:409#c137eb53 src2=docs:tools/syntax-shapes.txt:70#d077af81
@@ -509,7 +509,7 @@ clause of `execute` — run at the current command level ***(clause word)***
 `dparse.csv` *line*, *delimiter*, *var*, …
 
 - a statement of SD BASIC
-- docs: `User/markdown/04a-sd-basic-string-matching.md` line 317
+- docs: `User/markdown/04a-sd-basic-string-matching.md` line 337
 
 ### basic:stmt:echo
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:410#0af24887 src2=docs:tools/syntax-shapes.txt:72#1324173f
@@ -829,7 +829,7 @@ clause of `find`, `findstr` and `locate`
 `ins` *value* `before` *arr*`<`*f* {, *v* {, *sv*}}`>`
 
 - a statement of SD BASIC
-- docs: `User/markdown/04a-sd-basic-string-matching.md` line 320
+- docs: `User/markdown/04a-sd-basic-string-matching.md` line 340
 
 ### basic:stmt:keyboard.input
 > kind=basic.restricted tier=reference since=- src=sdsys/gpl.bp/bcomp:482#ed1cebda src2=docs:tools/syntax-shapes.txt:113#cab05e90
@@ -874,7 +874,7 @@ clause of `find`, `findstr` and `locate`
 `locate` *x* `in` *arr*`<`*f* {, *v*}`>` {`by` *order*} `setting` *pos* `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `User/markdown/04a-sd-basic-string-matching.md` line 321
+- docs: `User/markdown/04a-sd-basic-string-matching.md` line 341
 
 ### basic:stmt:lock
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:422#ae1c50d9 src2=docs:tools/syntax-shapes.txt:123#99ca3337
@@ -1189,7 +1189,7 @@ clause of `execute` — the select list held in a variable becomes the command's
 `pdump`
 
 - a statement of SD BASIC
-- docs: `User/markdown/30-sd-tcl-processes-and-phantoms.md` line 7
+- docs: `User/markdown/17-sd-basic-debugging.md` line 528
 
 ### basic:stmt:phantom
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:430#ea8544c2
@@ -1411,6 +1411,7 @@ clause of `open`, `openpath` and `openseq`
 `redim` *name*`(`*rows* {, *cols*}`)` — changes the size of a matrix passed in as an argument
 
 - a statement of SD BASIC
+- docs: `User/markdown/01-sd-basic-program-structure.md` line 393
 
 ### basic:stmt:release
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:437#7b3b0f28 src2=docs:tools/syntax-shapes.txt:180#a5d13057
@@ -1442,7 +1443,7 @@ clause of `open`, `openpath` and `openseq`
 `remove` *value* `from` *arr* `setting` *delimiter.code*
 
 - a statement of SD BASIC
-- docs: `User/markdown/04a-sd-basic-string-matching.md` line 321
+- docs: `User/markdown/04a-sd-basic-string-matching.md` line 341
 
 ### basic:stmt:remove.break.handler
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:438#9358ddcd src2=docs:tools/syntax-shapes.txt:183#beab93f2
@@ -1884,7 +1885,7 @@ clause of `for`: `for` *v* `=` *a* `to` *b* `step` *n*
 `subroutine` *name*`(`*arg*, …`)`
 
 - a statement of SD BASIC
-- docs: `User/markdown/18-sd-basic-modern-program-structure.md` line 145
+- docs: `User/markdown/01-sd-basic-program-structure.md` line 411
 
 ### basic:stmt:sync
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:11546#6fdf4d31 src2=docs:tools/syntax-shapes.txt:368#9c0e46a7
@@ -1996,7 +1997,7 @@ clause of `loop`: `loop` … `until` *condition* … `repeat`
 `varset` *var*, *value*
 
 - a RESTRICTED statement: it compiles only in a program with `$internal`, which an ordinary account cannot make; an ordinary program is told "Unrecognised statement"
-- docs: `User/markdown/01-sd-basic-program-structure.md` line 397
+- docs: `User/markdown/01-sd-basic-program-structure.md` line 418
 
 ### basic:stmt:void
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:450#aac0767c src2=docs:tools/syntax-shapes.txt:243#90e71409
