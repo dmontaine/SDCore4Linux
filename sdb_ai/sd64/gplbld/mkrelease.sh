@@ -63,7 +63,7 @@ done
 [[ "$version" =~ ^L[0-9]+\.[0-9]+-[0-9]+$ ]] || die "VERSION looks like L2.0-0"
 lcver=$(printf '%s' "$version" | tr 'L' 'l')      # lower case, as the installer's name pattern needs it
 [[ -z "$label" || "$label" =~ ^[a-z0-9]{1,12}$ ]] || die "--label is lower case letters and digits, up to 12 (rc1)"
-name="SDCore-$version${label:+-$label}"           # SDCore-L2.0-0-rc1: a release candidate is not mistaken for the release (the version stamp inside is the same)
+pkgname="SDCore-$version${label:+-$label}"        # SDCore-L2.0-0-rc1: a release candidate is not mistaken for the release (the version stamp inside is the same)
 
 git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 || die "$REPO is not a git repository"
 git -C "$DOCS" rev-parse --git-dir >/dev/null 2>&1 || die "no documentation repository at $DOCS (DOCS_REPO=...)"
@@ -96,8 +96,8 @@ if git -C "$REPO" ls-tree -r --name-only -z "$commit" | tr '\0' '\n' | grep -q '
     fail "$ref holds a file name with a backslash"
 fi
 
-stage="$STAGING/$name"
-zipf="$ZIPS/$name.zip"
+stage="$STAGING/$pkgname"
+zipf="$ZIPS/$pkgname.zip"
 if [ -e "$stage" ] || [ -e "$zipf" ]; then
     [ "$force" -eq 1 ] || die "$stage or $zipf exists (--force replaces both)"
     rm -rf -- "$stage"; rm -f -- "$zipf"
@@ -158,12 +158,12 @@ done
 # SHA256SUMS: every file under source/, nothing else, paths relative to the package folder
 (cd "$stage" && find source -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > SHA256SUMS)
 
-(cd "$STAGING" && zip -q -r -X "$zipf" "$name")
+(cd "$STAGING" && zip -q -r -X "$zipf" "$pkgname")
 
 # CHECK THE ZIP AS THE INSTALLER WILL FIND IT
 rm_zip() { rm -f -- "$zipf"; }
 unzip -q "$zipf" -d "$scratch"
-u="$scratch/$name"
+u="$scratch/$pkgname"
 [ -d "$u/source/sdb_ai/sd64" ] || { rm_zip; fail "the unpacked zip has no source/sdb_ai/sd64"; }
 (cd "$u" && sha256sum --quiet --strict -c SHA256SUMS >/dev/null 2>&1) || { rm_zip; fail "SHA256SUMS does not match the unpacked zip"; }
 [ "$(cd "$u" && find source -type f | wc -l)" = "$(grep -c '' "$u/SHA256SUMS")" ] || { rm_zip; fail "SHA256SUMS and source/ list different files"; }
