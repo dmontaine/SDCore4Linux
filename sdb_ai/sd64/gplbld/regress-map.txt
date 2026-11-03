@@ -103,6 +103,9 @@ gplbld/test-l2-cfg-units.py  : l2-cfg
 # S.88 L2 (28 Oct 26): sandbox-l2-misc.py reads the five pages' declarations with this free check's functions and takes its old boxes from its table
 gplbld/test-l2-misc-units.py : l2-misc
 gplbld/test-*.py             : none
+# S.130 (3 Nov 26): the public full-screen toolkit, the !tk wrappers over the $tk_* routines and their header; sandbox-tk-public.py is the suite (rule `gplbld/sandbox-*.py` above)
+sdsys/gpl.bp/tk[a-z]*        : tk-public
+sdsys/syscom/tkpub.h         : tk-public
 gplbld/regress.sh            : none
 gplbld/regress-map.txt       : none
 gplbld/regress-changed.py    : none
@@ -365,10 +368,10 @@ sdsys/gpl.bp/header.h        : @compiler @core
 # S.97 stage 1 (1 Nov 26): the AI line on a page of the toolkit ($tk_aipage; pilot tool.voc and tool.files) - its suite ai-pages joins every rule of a program it runs through
 sdsys/gpl.bp/tk_aipage       : ai-pages tk-base tk-keys tool-voc tool-files
 sdsys/messages/1194[34]      : ai-pages
-sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults @pages tk-resize tk-layout ai-pages
+sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults @pages tk-resize tk-layout ai-pages tk-public
 # 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
 sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
-sdsys/gpl.bp/tk_wrap         : tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
+sdsys/gpl.bp/tk_wrap         : tk-public tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
 sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test tk-faults
 sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-accounts tool-remote tool-files tool-voc tool-dict tool-catalog tool-test
 # 23 Oct 26 (S.69 step 2): the AI choice page, tool.ai - its own routine for set.ai's words, the gate table (the ai gate is a row of it) and the gate reader
@@ -381,9 +384,9 @@ sdsys/gpl.bp/tk_ownfile      : tool-query tool-bulk termsafe
 sdsys/gpl.bp/tk_word         : tool-voc tool-files termsafe
 sdsys/gpl.bp/tk_brk          : tk-base tk-keys @pages tk-resize termsafe sed-menu
 # 26 Oct 26 (task faults): the window cap is in $tk_open, the sixth argument of $tk_confirm and message 11865 are the faults suite's
-sdsys/gpl.bp/tk_open         : tk-base tk-keys tk-faults @pages tk-resize termsafe tk-layout
+sdsys/gpl.bp/tk_open         : tk-base tk-keys tk-faults @pages tk-resize termsafe tk-layout tk-public
 # S.88 L1 (28 Oct 26): the layout service, its messages 11540 (the cursor lock's layout mode, which tool.keys' suite reads) and 11541-11542 (a declaration refused)
-sdsys/gpl.bp/tk_layout       : tk-layout tk-base tk-keys @pages tk-resize termsafe ai-pages
+sdsys/gpl.bp/tk_layout       : tk-layout tk-base tk-keys @pages tk-resize termsafe ai-pages tk-public
 sdsys/messages/1154[0-2]     : tk-layout tk-keys tk-resize
 # 1 Nov 26 (S.97 stage 0): the AI's wall; above the `tk_*` rule below, which would otherwise take it first
 sdsys/gpl.bp/tk_aiwall       : ai-boundary ai-line ai-ide ai-apps ai-verb
@@ -394,8 +397,8 @@ sdsys/messages/1192[0-2]     : aidocs
 gplbld/sandbox-aidocs.py     : @self
 sdsys/gpl.bp/tk_ai           : ai-line home ai-ide ai-apps tk-base tk-keys tk-resize ai-pages aidocs
 # S.88 U9 (2 Nov 26): $tk_pickrec's mode 'list' is the home screen's type-to-find (above tk_*: the first rule that matches wins; it was below and never fired)
-sdsys/gpl.bp/tk_pickrec      : tk-base tk-widgets home tool-query
-sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout ai-pages spview
+sdsys/gpl.bp/tk_pickrec      : tk-base tk-widgets home tool-query tk-public
+sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layout ai-pages spview tk-public
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
 sdsys/gpl.bp/tool_keys       : tk-keys l2-misc themeroles
@@ -897,11 +900,11 @@ sdsys/messages/11760         : tool-query termsafe
 sdsys/messages/1118[6-9]     : tk-base tk-keys
 sdsys/messages/1117[1-5]     : tk-base tk-widgets
 # S.88 F0a (30 Oct 26): the menu bar made from the key table ($tk_menubar) has no page yet, so no page suite runs it; the pilot's suites are tk-base and tk-keys.  11244 is F1's "Keys in this pane" (tk_help)
-sdsys/gpl.bp/tk_menubar      : tk-base tk-keys
+sdsys/gpl.bp/tk_menubar      : tk-base tk-keys tk-public
 sdsys/messages/11244         : tk-base tk-keys @pages
 # S.88 F0b (30 Oct 26): the output pane, record picker and labelled form facades ($tk_out, $tk_pickrec, $tk_form) have no page yet; 11248 and 11249 are the form's hint and Cancel button
-sdsys/gpl.bp/tk_out          : tk-base tk-widgets
-sdsys/gpl.bp/tk_form         : tk-base
+sdsys/gpl.bp/tk_out          : tk-base tk-widgets tk-public
+sdsys/gpl.bp/tk_form         : tk-base tk-public
 sdsys/messages/1124[89]      : tk-base
 # S.88 phase 3.10B (29 Oct 26): the output pane's messages 11179 and 11181-11185 (11180 is another program's; before the 117* line)
 sdsys/messages/11179         : tk-widgets

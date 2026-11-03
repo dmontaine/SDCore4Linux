@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   A PUBLIC TOOLKIT LIBRARY: YOUR OWN PROGRAMS CAN BUILD THE FULL-SCREEN PAGES THE TOOLS USE.
+
+             What        - Eleven new routines, !tkopen, !tkclose, !tkkeys, !tkframe, !tkmenubar, !tklayout, !tkconfirm, !tkform,
+                           !tkpickrec, !tkout and !tkwrap, and the header tkpub.h ($include tkpub.h). With them an ordinary BASIC
+                           program draws the frame (menu bar, status line, function-key row), takes a key table that makes the
+                           function-key row, the menus and the F2 finder from one list, asks Run or Cancel in a confirm box, asks
+                           several questions on one form, picks a record or an entry of a list, and keeps an output pane. Each is
+                           called with the number of arguments its header shows, or the program stops with "Argument count mismatch".
+             Why         - The pages of the tools were the only programs that could use these parts; a program of your own had only
+                           the SCREEN statement and had to rebuild them.
+             Does NOT    - Give a program any right. It runs with the rights and the gates of the account that runs it: it runs no
+                           command, writes no record and opens no file for writing, and the picker opens only what the account's own
+                           OPEN may. The administrator's pages cannot be opened with it (the page is always the user's), and the AI
+                           line is not part of it. The pages' own routines (the ones whose names begin with $) stay closed.
+
 3 Nov 26   THE FULL-SCREEN PAGES WRITE ONLY WHAT CHANGED; CTRL-L REDRAWS A PAGE.
 
              What        - Every page of the toolkit (the tools, the administrator's pages and the home screen) used to send the whole
