@@ -87,7 +87,7 @@ def in_sed(L):
 
 
 def in_ide(L):
-    return re.search(r"File\s+Go\s+Search\s+Build\s+View\s+Help", L[0]) is not None
+    return re.search(r"File\s+Go\s+Search\s+Build\s+View\s+Tools\s+Help", L[0]) is not None
 
 
 def wait(e, secs=2.2):

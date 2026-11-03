@@ -377,8 +377,8 @@ def section_t():
     SCREEN[0] = h
     h.typed("tool.query cust\r", idle=3.5)
     h.typed("l", idle=1.5)
-    h.typed("x", idle=1.5)
-    arow("T10", "tool.query X (delete a saved query): the box is titled \"Delete this record?\" and says it is not a command", has_title(h, "Delete this record?") and not has_title(h, "Run this command?")
+    h.typed("\x1b[3~", idle=1.5)                # Del.  S.88: a letter types into the saved queries' filter; Del (or D) deletes
+    arow("T10", "tool.query Del (delete a saved query): the box is titled \"Delete this record?\" and says it is not a command", has_title(h, "Delete this record?") and not has_title(h, "Run this command?")
          and "delete zzq1 from &queries&" in td.boxtext(h), repr((title_rows(h), td.boxtext(h)[:160])))
     h.key("esc", idle=1.2)
     h.key("ctrl-q", idle=1.2)

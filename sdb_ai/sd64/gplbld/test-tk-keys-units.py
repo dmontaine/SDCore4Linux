@@ -292,6 +292,8 @@ def run_a(raw, rows):
         for no, op, args, line in calls_in(strip_bas(raw[prog])):
             if len(args) != 7:
                 res["args"].append("%s:%d $tk_keys has %d arguments, not 7" % (prog, no, len(args)))
+            if prog == "tkkeys" and op == "op":
+                continue                                    # S.130: the public wrapper !tkkeys passes its caller's op through to $tk_keys
             if op not in implemented:
                 res["args"].append("%s:%d $tk_keys op '%s' is not one tk_keys implements" % (prog, no, op))
     good = [r for r in rows if r["nargs"] == 7 and not r["bad"]]

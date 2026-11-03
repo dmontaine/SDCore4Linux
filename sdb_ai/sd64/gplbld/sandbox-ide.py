@@ -378,7 +378,7 @@ end
         say("\n--- the start -------------------------------------------------------------------------------------")
         e = Ide(box)
         L = e.lines()
-        row("the menu bar is on the top row", re.search(r"File\s+Go\s+Search\s+Build\s+View\s+Help", L[0]) is not None, L[0])
+        row("the menu bar is on the top row", re.search(r"File\s+Go\s+Search\s+Build\s+View\s+Tools\s+Help", L[0]) is not None, L[0])
         row("S.99: the IDE's name and the person are at the right end of row 0 (ide  user@account), within 140 columns",
             re.search(r"ide  \S+@\S+$", L[0].rstrip()) is not None and len(L[0].rstrip()) <= 140, repr(L[0].rstrip()[-40:]))
         st, sb = e.s.screen.style(0, len(L[0].rstrip()) - 2), e.s.screen.style(0, 100)

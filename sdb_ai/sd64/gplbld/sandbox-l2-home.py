@@ -146,7 +146,11 @@ def old_source():
         bail("git show %s:%s did not give the page before L2: %s" % (OLD_COMMIT, REL, r.stderr.strip()[:200]))
     if "X.COL" not in r.stdout:
         bail("the page at %s already has no X.COL: it is not the page before L2" % OLD_COMMIT)
-    return r.stdout
+    # K$MASTERS (150) was retired with the master files (S.96 M6): the old page's live line asks nothing and says 'not set up'
+    ask = "ans = kernel(K$MASTERS, 'ready')"
+    if ask not in r.stdout:
+        bail("the page at %s has no %s to retire" % (OLD_COMMIT, ask))
+    return r.stdout.replace(ask, "ans = ''")
 
 
 def snapshot(w):

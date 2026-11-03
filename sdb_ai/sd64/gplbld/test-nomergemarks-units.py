@@ -37,7 +37,9 @@ def scan(paths, base):
 
 
 def tracked():
-    r = subprocess.run(["git", "-C", ROOT, "ls-files", "-z"], capture_output=True)
+    # regress.sh --snapshot copies the tree without .git and names the repository in SDREGRESS_REPO: the list comes from it, the files from the copy
+    src = ROOT if os.path.exists(os.path.join(ROOT, ".git")) else os.environ.get("SDREGRESS_REPO", ROOT)
+    r = subprocess.run(["git", "-C", src, "ls-files", "-z"], capture_output=True)
     if r.returncode != 0:
         return None
     return [x for x in r.stdout.decode("utf-8", "replace").split("\0") if x]

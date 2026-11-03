@@ -419,7 +419,7 @@ def main():
         say("mutant %s: failed rows %s, expected %s: %s" % (mutant, FAILED_IDS, exp, "CAUGHT EXACTLY BY ITS ROWS" if sorted(FAILED_IDS) == sorted(exp)
                                                              else ("caught, but not by exactly its rows" if FAILED_IDS else "NOT CAUGHT")))
     say("%d skipped (not counted)" % skipped)
-    say("%d passed, %d failed" % (passed, failed))
+    say("sandbox-acctmodes: %d passed, %d failed" % (passed, failed))         # the form regress.sh takes as the verdict
     if passed + failed == 0:
         say("sandbox-acctmodes: NO ROW WAS ASKED - refusing the null case")
         return 2

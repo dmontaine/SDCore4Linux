@@ -143,6 +143,9 @@ def go(admin, text, send):
     n0 = len(fm.log)
     al.ask(h, text)
     prev = h.text()
+    for _ in range(2):                          # 3 Nov 26: a preview taller than the window scrolls; the administrator's is (its page tells more about itself)
+        h.key("pgdn", idle=0.8)
+        prev += "\n" + h.text()
     prompt = system = None
     if send:
         h.typed("s", idle=4.0)

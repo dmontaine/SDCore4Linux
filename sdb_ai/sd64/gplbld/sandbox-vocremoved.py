@@ -237,8 +237,8 @@ def main():
     say("\n--- L. LIST.VOC.REMOVED: the list, and what an update would do in one account, changing nothing -------------------")
     out = g.adm(["LIST.VOC.REMOVED"])
     row("L1: without an account it prints the header with the count of the whole list and a line for each shipped id",
-        g.has(out, r"^%d VOC record\(s\) that SD no longer ships:" % len(listed)) and g.has(out, r"^margin\s+1\.2-0\s+left\.margin")
-        and g.has(out, r"^supp\s+1\.2-0\s+hdr\.sup"), "\n".join(out[:6]))
+        g.has(out, r"^%d VOC record\(s\) that SD no longer ships:" % len(listed)) and g.has(out, r"^margin\s+2\.0-0\s+left\.margin")
+        and g.has(out, r"^supp\s+2\.0-0\s+hdr\.sup"), "\n".join(out[:6]))
     before = readback("zzvrb")
     out = g.adm(["LIST.VOC.REMOVED zzvrb"])
     row("L2: with an account each plant is judged as the update would judge it: removed, removed (a locked verb), kept (not the shipped record), kept (locked), absent",
