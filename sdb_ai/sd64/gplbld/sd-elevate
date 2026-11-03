@@ -12,8 +12,9 @@
 # 02 Nov 26 dm - S.102 stage 3: job-set also writes /etc/systemd/system/sdcore-job-<name>.service and .timer (root 0644, one rename each) and enables the timer;
 #                job-delete disables the timer first and removes the units, then the definition; sdsys_login_gate admits a caller with no login uid only when
 #                sdsys_job_gate finds it in a job unit's cgroup with a root-owned definition (sudo keeps the cgroup: measured on Debian 13).
-# 02 Nov 26 dm - S.101 stage D: totp-local on|off (the console's code; off, the delivered default, by the owner's ruling of 2 Nov 26) and the public status file
-#                /etc/sdcore/totp.public that SD's doors read: published by totp-confirm (after the marker lines are in place), totp-off (enrolled no, FIRST) and totp-local.
+# 02 Nov 26 dm - S.106: the authenticator code is removed (owner: password only for this release).  The totp-* verbs, the public status file, the login-marker gate and sd-totp are gone;
+#                the new verb sdsys-ssh on|off|status opens, shuts or reports the sdsys arm of sshd through ssh-forcecommand (shut as delivered).
+# 02 Nov 26 dm - S.101 stage D (withdrawn by S.106): totp-local on|off and the public status file /etc/sdcore/totp.public.
 # 02 Nov 26 dm S.105 (owner, 2 Nov 2026: "remove Fedora support for this release", "Take it out"): comments that named Fedora, RHEL or Arch as
 #               distributions this helper serves now say Debian and Ubuntu.  No code changed: firewalld, the "!!" shadow spelling and gpasswd -d
 #               all serve Debian and Ubuntu as well (firewalld is packaged there and fw_kind chooses by what is installed, not by distribution).
@@ -211,9 +212,8 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate --dry-run   pw-check          (SD's password rule, one line on stdin)
   sd-elevate [--dry-run] remote-api on | local | off | show
   sd-elevate [--dry-run] remote-ssh on | off | show
-  sd-elevate [--dry-run] totp-status | totp-begin | totp-confirm | totp-recovery | totp-off
-                                  (the second factor of the remote sdsys login, run through sd-totp; totp-confirm reads one code on stdin)
-  sd-elevate [--dry-run] totp-local on | off   (the same code asked at the console too, or not; off is the delivered default)
+  sd-elevate [--dry-run] sdsys-ssh on | off | status
+                                  (the sdsys arm of sshd, shut as delivered; on opens it for sdsys's password, through ssh-forcecommand)
   sd-elevate [--dry-run] cred-own query | verify | set   (the caller's own SD
                                   password; verify reads 1 line, set 7, on stdin)
   sd-elevate [--dry-run] netcred-dir            (makes the caller's own /var/lib/sd-net/<user>, mode 0700, for
@@ -350,7 +350,6 @@ sdsys_login_gate() {
   fi
   [[ $who == sdsys || ( -n $want && $suid == "$want" ) ]] || return 0
   if [[ $want =~ ^[1-9][0-9]*$ && $lu == "$want" ]]; then
-    sdsys_mark_gate "$lu"                       # S.101: the login is sdsys's own; did it give the authenticator code?
     return 0
   fi
   if [[ $lu == 4294967295 ]] && sdsys_job_gate; then   # S.102 stage 3: no login at all, and systemd started this as an SD scheduled job
@@ -360,14 +359,6 @@ sdsys_login_gate() {
   die "the caller is the user sdsys but did not log in as sdsys: the login behind this session is uid ${lu:-unknown}, not sdsys's (${want:-unknown}). su, sudo -u and a service keep the login of whoever started them; log in as sdsys itself and run it from there. Nothing was done."
 }
 
-# 02 Nov 26 dm - S.101 stage B (the Opus review of 1 Nov: "the real wall is sd-elevate, which is root-owned" - cproc is sdsys's own BASIC and sdsys can change it).  A caller whose login IS sdsys's
-# must also have given the authenticator code when one is enrolled: the PAM module's session stage wrote <marks>/<boot_id>.<sessionid> naming the login's uid.  sudo runs no pam_loginuid, so the
-# session id the helper sees is the caller's.  This closes `su sdsys` + `crontab -e` and every service with no line of the module (a cron job, fingerprint, autologin): none writes a marker.
-# The public status file (enrolled yes|no, scope all|remote; written by totp-confirm / totp-off / totp-local, root-owned, 0644) decides: absent or "enrolled no" asks nothing; any scope but
-# "all" asks nothing EITHER, because the helper cannot tell an ssh login from a console one (sudo resets the environment) - an ssh login cannot happen without the code (sshd's PAM line) and
-# cproc's ssh arm still asks.  The delivered scope is remote (owner, 2 Nov 26: the console's code is opt-in); "scope all", the administrator's `local on`, always asks.
-# A file that is a link, not the helper's own (root), or writable by group or others answers no.  A dry run asks only when SD_MARK_FIXTURE_DIR names a test's files (with SD_BOOT_FIXTURE,
-# SD_SESSION_FIXTURE and SD_LOGINUID_FIXTURE); a real run reads /etc/sdcore/totp.public, /run/sdcore/marks and /proc and ignores every fixture.
 # 02 Nov 26 dm - S.102 stage 3.  A SCHEDULED ADMINISTRATOR JOB runs as sdsys with no login uid (a systemd unit sets none), so the test above cannot admit it.
 # It is admitted when the helper's own cgroup (sudo does not move it out of the unit's: measured 2 Nov 26 on Debian 13) is exactly one line
 # "0::/system.slice/sdcore-job-<name>.service" - systemd put the job there, and the sdsys user can neither move a process there nor start a system unit - and
@@ -407,32 +398,6 @@ mark_safe_file() {   # FILE - a regular file, not a link, the helper's own, not 
   [[ $(stat -c %u -- "$f" 2>/dev/null) == "${EUID:-$(id -u)}" ]] || return 1
   m=$(stat -c %a -- "$f" 2>/dev/null) || return 1
   (( (8#$m & 8#022) == 0 ))
-}
-
-sdsys_mark_gate() {   # LOGINUID (the caller's login, already shown to be sdsys's)
-  local lu=$1 pubf marks boot sid m
-  if [[ $DRY -eq 1 ]]; then
-    [[ -n ${SD_MARK_FIXTURE_DIR:-} ]] || return 0
-    pubf=$SD_MARK_FIXTURE_DIR/totp.public
-    marks=$SD_MARK_FIXTURE_DIR/marks
-    boot=${SD_BOOT_FIXTURE:-}
-    sid=${SD_SESSION_FIXTURE:-}
-  else
-    pubf=/etc/sdcore/totp.public
-    marks=/run/sdcore/marks
-    boot=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null) || boot=
-    sid=$(cat /proc/self/sessionid 2>/dev/null) || sid=
-  fi
-  [[ -e $pubf || -L $pubf ]] || return 0                                    # no code enrolled: nothing to ask
-  mark_safe_file "$pubf" || die "the authenticator code's status file $pubf is not as it must be (a link, not root's, or writable by others), so this sdsys login cannot be shown to have given the code. Nothing was done."
-  grep -qx 'enrolled yes' -- "$pubf" || return 0
-  grep -qx 'scope all' -- "$pubf" || return 0
-  m=$marks/$boot.$sid
-  if [[ $sid =~ ^[0-9]+$ && $sid != 4294967295 && $boot =~ ^[0-9a-f-]+$ ]] && mark_safe_file "$m" && [[ $(head -c 64 -- "$m") == "uid=$lu "* ]]; then
-    return 0
-  fi
-  [[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller logged in as sdsys but gave no authenticator code (no marker for session ${sid:-unknown})" 2>/dev/null || true
-  die "this sdsys login did not give the authenticator code (no marker for this session in $marks). A cron job, su, and a login service the code is not set up on all lack one. Log in as sdsys again and give the code. Nothing was done."
 }
 
 ufw_state() {   # absent | inactive | active-deny | active-allow  (root only)
@@ -670,173 +635,28 @@ remote_ssh() {
   return 0
 }
 
-# 01 Nov 26 dm - S.95 stage 1.  THE SECOND FACTOR OF THE REMOTE SDSYS LOGIN is kept by sd-totp, a root-owned file in the sealed bin (gplsrc/sd_totp_cmd.c); these five verbs only run it.  What matters is
-# what they do NOT do: the code is on standard input and never an argument (so it is not in a process list or in the line this helper prints), the system log gets the verb and the exit status and
-# nothing sd-totp printed (the secret, the link and the recovery codes go to the caller once and nowhere else), and the account text for the authenticator app is built from the short host name cut
-# to letters, digits, dots and hyphens, so a host name cannot put anything else into the link.  Like every verb here it is asked of the caller sudo names, and sudo names sdsys: sdsys_login_gate has
-# already refused an sdsys that did not log in.
-TOTP_ISSUER="SD Core"
-SSH_FC=/usr/local/sbin/ssh-forcecommand       # the installed ssh-forcecommand.sh: totp-confirm opens the sdsys arm of sshd with it, totp-off closes it (S.95 stage 2b)
-totp_account() {
-  local h
-  h=$(hostname -s 2>/dev/null) || h=
-  h=${h//[^A-Za-z0-9.-]/}
-  [[ -n $h ]] || h=localhost
-  printf 'sdsys@%s' "${h:0:48}"
-}
-
-# 02 Nov 26 dm - S.101 stage D.  THE PUBLIC STATUS FILE (/etc/sdcore/totp.public, root 0644) is what cproc's K$LOGIN.MARK and sdsys_mark_gate above read: "enrolled yes" makes
-# SD's own doors want the login marker of an sdsys login (over ssh always; at the console only with "scope all").  So it is published only when the lines that write a marker are
-# in place for what it asks (totp_publish_safe), and "enrolled no" is published BEFORE anything is taken away.  The scope is the administrator's: remote (the delivered default,
-# the owner's ruling of 2 Nov 26: the console's code is opt-in) or all (totp-local on).
-TOTP_PUBLIC=/etc/sdcore/totp.public
-totp_scope() {   # all | remote, from the store; a store sd-totp cannot read answers all (fail closed)
-  local s
-  s=$("$SD_SYS_ROOT_REAL/bin/sd-totp" scope 2>/dev/null) || s=
-  case $s in scope=remote) printf 'remote' ;; *) printf 'all' ;; esac
-}
-totp_enrolled() {   # yes | no
-  "$SD_SYS_ROOT_REAL/bin/sd-totp" status 2>/dev/null | grep -qx 'active=yes' && printf 'yes' || printf 'no'
-}
-totp_public_text() {   # ENROLLED SCOPE - the file's whole text
-  printf 'sdtotp 1\nenrolled %s\nscope %s\n' "$1" "$2"
-}
-totp_publish() {   # ENROLLED(yes|no) SCOPE(all|remote) - writes the file root 0644 by one rename; 1 when it could not
-  local dir=${TOTP_PUBLIC%/*} tmp
-  [[ ( $1 == yes || $1 == no ) && ( $2 == all || $2 == remote ) ]] || return 1
-  if [[ ! -e $dir ]]; then mkdir -m 0755 -- "$dir" || return 1; fi
-  [[ -d $dir && ! -L $dir ]] || return 1
-  tmp=$(mktemp "$dir/.totp.public.XXXXXX") || return 1
-  if totp_public_text "$1" "$2" > "$tmp" && chown root:root -- "$tmp" && chmod 0644 -- "$tmp" && mv -f -T -- "$tmp" "$TOTP_PUBLIC"; then
-    logger -t sd-elevate "published $TOTP_PUBLIC: enrolled $1 scope $2" 2>/dev/null || true
-    return 0
+# 02 Nov 26 dm - S.106.  THE SDSYS ARM OF sshd.  The authenticator code that once also guarded it is gone (owner, 2 Nov 2026: "we will depend on just password authentication for
+# this release"); what is left is the door, which the installed ssh-forcecommand.sh keeps in sshd's configuration: shut as delivered, "on" opens it for the sdsys user's password
+# (no forwarding, ForceCommand sd), "off" shuts it, "status" reports it.  Like every verb here it is asked of the caller sudo names, and sudo names sdsys: sdsys_login_gate has already
+# refused an sdsys that did not log in.  The system log gets the verb and the exit status.
+SSH_FC=/usr/local/sbin/ssh-forcecommand       # the installed ssh-forcecommand.sh
+sdsys_ssh() {   # sdsys_ssh on|off|status - runs ssh-forcecommand for it and exits with its status
+  local want=$1 rc=0 arg
+  case $want in
+    on)     arg=--open-sdsys ;;
+    off)    arg=--close-sdsys ;;
+    status) arg=--sdsys-state ;;
+    *) die "internal: no sdsys-ssh word '$want'" ;;
+  esac
+  if [[ $DRY -eq 1 ]]; then
+    printf '%s: %s %s\n' "$PROG" "$SSH_FC" "$arg"
+    exit 0
   fi
-  rm -f -- "$tmp"
-  return 1
-}
-totp_publish_safe() {   # ENROLLED SCOPE - first puts the marker lines where what is published will ask for them, then publishes; 1 (nothing published) when it cannot
-  local st
-  if [[ $1 == yes ]]; then
-    st=$("$SSH_FC" --sdsys-state 2>/dev/null) || st=
-    if [[ $st == *"sdsys-arm=open"* && $st != *"pam-session=present"* ]]; then
-      "$SSH_FC" --open-sdsys || { printf '%s: the sshd arm for sdsys is open without the login marker line, and it could not be added; not publishing\n' "$PROG" >&2; return 1; }
-    fi
-    if [[ $2 == all ]]; then
-      "$SSH_FC" --open-local || { printf '%s: the console services could not take the authenticator code lines; not publishing scope all\n' "$PROG" >&2; return 1; }
-    fi
-  fi
-  totp_publish "$1" "$2"
-}
-
-# totp-local on: the console's lines first, then the scope word, then the publish.  totp-local off: the word and the publish first (SD's doors stop asking the console for a
-# marker), the lines after.  Exit 0 done, 3 the scope changed but the file was not published (SD acts on what it said before), 1 nothing changed.
-totp_local() {
-  local want=$1 tool=${SD_SYS_ROOT_REAL}/bin/sd-totp en rc
-  if [[ $want == on ]]; then
-    printf '%s: %s --open-local\n%s: then: %s scope all\n%s: then: publish %s\n' "$PROG" "$SSH_FC" "$PROG" "$tool" "$PROG" "$TOTP_PUBLIC"
-  else
-    printf '%s: %s scope remote\n%s: then: publish %s\n%s: then: %s --close-local\n' "$PROG" "$tool" "$PROG" "$TOTP_PUBLIC" "$PROG" "$SSH_FC"
-  fi
-  [[ $DRY -eq 1 ]] && exit 0
   need_root
   [[ -x $SSH_FC ]] || die "$SSH_FC is not installed"
-  [[ -x $tool ]] || die "$tool (sd-totp) is not installed"
-  if [[ $want == on ]]; then
-    "$SSH_FC" --open-local || { logger -t sd-elevate "totp-local on: ssh-forcecommand --open-local failed" 2>/dev/null || true; exit 1; }
-    "$tool" scope all || exit 1
-  else
-    "$tool" scope remote || exit 1
-  fi
-  en=$(totp_enrolled)
-  rc=0
-  if [[ $want == on ]]; then totp_publish_safe "$en" all || rc=3; else totp_publish "$en" remote || rc=3; fi
-  [[ $rc -eq 0 ]] || printf '%s: the scope is changed but %s was NOT published; SD keeps acting on what it said before\n' "$PROG" "$TOTP_PUBLIC" >&2
-  if [[ $want == off && $rc -eq 0 ]]; then "$SSH_FC" --close-local || rc=3; fi
-  logger -t sd-elevate "totp-local $want: exit $rc (enrolled $en)" 2>/dev/null || true
+  "$SSH_FC" "$arg" || rc=$?
+  [[ $want == status ]] || logger -t sd-elevate "sdsys-ssh $want: ssh-forcecommand $arg exited $rc" 2>/dev/null || true
   exit $rc
-}
-
-totp_verb() {   # totp_verb VERB - runs sd-totp for it and exits with its status
-  local v=$1 tool=$SD_SYS_ROOT_REAL/bin/sd-totp rc orc
-  local -a args=()
-  case $v in
-    totp-status)   args=(status) ;;
-    totp-begin)    args=(begin "$TOTP_ISSUER" "$(totp_account)") ;;
-    totp-confirm)  args=(confirm) ;;
-    totp-recovery) args=(recovery) ;;
-    totp-off)      args=(off) ;;
-    *) die "internal: no sd-totp command for '$v'" ;;
-  esac
-  case $v in
-    totp-off)     printf '%s: first: publish %s saying enrolled no\n' "$PROG" "$TOTP_PUBLIC"
-                  printf '%s: %s --close-sdsys\n' "$PROG" "$SSH_FC"
-                  printf '%s: then: %s %s\n' "$PROG" "$tool" "${args[*]}" ;;
-    totp-confirm) printf '%s: %s %s\n' "$PROG" "$tool" "${args[*]}"
-                  printf '%s: then, only if the code was right: %s --open-sdsys\n' "$PROG" "$SSH_FC"
-                  printf '%s: then: publish %s saying enrolled yes and the scope\n' "$PROG" "$TOTP_PUBLIC" ;;
-    totp-status)  printf '%s: %s %s\n' "$PROG" "$tool" "${args[*]}"
-                  printf '%s: then: %s --sdsys-state\n' "$PROG" "$SSH_FC" ;;
-    *)            printf '%s: %s %s\n' "$PROG" "$tool" "${args[*]}" ;;
-  esac
-  [[ $DRY -eq 1 ]] && exit 0
-  need_root
-  [[ -x $tool ]] || die "$tool is not installed"
-  case $v in totp-confirm|totp-off) [[ -x $SSH_FC ]] || die "$SSH_FC is not installed" ;; esac
-  case $v in
-    # S.95 stage 2b.  THE ORDER IS THE SAFETY.  Switching off shuts the door FIRST (the arm back to DenyUsers) and removes the factor second, so there is never a moment with the
-    # door open and no code to ask; if the door cannot be shut the factor is removed all the same (the PAM module refuses sdsys while nothing is enrolled) and the caller is told.
-    totp-off)
-      # S.101 stage D: the published status says "enrolled no" BEFORE anything is removed, so SD's own doors never want a marker no login can get any more.  The console's
-      # lines stay where they are: with nothing enrolled the module answers PAM_IGNORE, and taking them out would leave a later enrolment with scope all and no line.
-      totp_publish no "$(totp_scope)" || printf '%s: could not publish %s (enrolled no); it says what it said before\n' "$PROG" "$TOTP_PUBLIC" >&2
-      "$SSH_FC" --close-sdsys
-      orc=$?
-      "$tool" "${args[@]}"
-      rc=$?
-      logger -t sd-elevate "$v: ssh-forcecommand --close-sdsys exited $orc, sd-totp exited $rc" 2>/dev/null || true
-      if [[ $orc -ne 0 ]]; then
-        printf '%s: the second factor is off, but the sshd arm for sdsys could NOT be put back to closed (status %d): the PAM module refuses sdsys while no code is enrolled, but close the arm by hand\n' "$PROG" "$orc" >&2
-        [[ $rc -ne 0 ]] || rc=3
-      fi
-      exit $rc
-      ;;
-    # Enrolling opens the door only when the code was right (sd-totp exits 0 only then).  The recovery codes have already been printed when the door is tried, and are good whether
-    # or not it opens: a door that will not open is exit 3, with the reason on standard error, and the factor stays enrolled.
-    totp-confirm)
-      "$tool" "${args[@]}"
-      rc=$?
-      if [[ $rc -eq 0 ]]; then
-        "$SSH_FC" --open-sdsys
-        orc=$?
-        logger -t sd-elevate "$v: sd-totp exited $rc, ssh-forcecommand --open-sdsys exited $orc" 2>/dev/null || true
-        if [[ $orc -ne 0 ]]; then
-          printf '%s: the second factor is ENROLLED (the recovery codes above are good), but the sshd arm for sdsys was NOT opened (status %d); nothing can log in as sdsys over ssh until it is\n' "$PROG" "$orc" >&2
-          rc=3
-        fi
-        if ! totp_publish_safe yes "$(totp_scope)"; then
-          printf '%s: the second factor is ENROLLED, but %s was NOT brought up to date; SD keeps acting on what it said before\n' "$PROG" "$TOTP_PUBLIC" >&2
-          rc=3
-        fi
-      else
-        logger -t sd-elevate "$v: sd-totp exited $rc" 2>/dev/null || true
-      fi
-      exit $rc
-      ;;
-    totp-status)
-      "$tool" "${args[@]}"
-      rc=$?
-      [[ ! -x $SSH_FC ]] || "$SSH_FC" --sdsys-state || true
-      [[ ! -x $SSH_FC ]] || "$SSH_FC" --local-state || true
-      printf 'scope=%s\n' "$(totp_scope)"
-      exit $rc
-      ;;
-    *)
-      "$tool" "${args[@]}"
-      rc=$?
-      logger -t sd-elevate "$v: sd-totp exited $rc" 2>/dev/null || true
-      exit $rc
-      ;;
-  esac
 }
 
 # ---------------------------------------------------------------- validation
@@ -2860,15 +2680,10 @@ case $verb in
     exit 0
     ;;
 
-  totp-status|totp-begin|totp-confirm|totp-recovery|totp-off)
-    [[ $# -eq 0 ]] || usage
-    totp_verb "$verb"
-    ;;
-
-  totp-local)
+  sdsys-ssh)
     [[ $# -eq 1 ]] || usage
-    case $1 in on|off) ;; *) die "totp-local takes on or off - not '$1'" ;; esac
-    totp_local "$1"
+    case $1 in on|off|status) ;; *) die "sdsys-ssh takes on, off or status - not '$1'" ;; esac
+    sdsys_ssh "$1"
     ;;
 
   *)

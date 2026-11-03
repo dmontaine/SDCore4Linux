@@ -24,9 +24,9 @@
 #   R5   N: every field is checked and refused in words at the first that is wrong; a good set shows the set.server sentence and says the terminal is given to the verb; Esc defines nothing
 #   R6   the connected view: a second session is listed with its account, as LISTU gives; the counts line
 #   R7   the TLS view is a view of text and never shows a private key; the mouse, F1, a small window, an input that ends
-#   R8   (S.95 stage 1b, run before R7, which ends the page) REMOTE.SDSYS: not an ordinary account's verb; a bad keyword gets the usage; ON and RECOVERY refuse while COMO records the session;
-#        view 6 lists the verb's report; O, F and R show their boxes and Esc runs nothing.  NOT HELD: a code set up (sudo; the VM).  ON is never run without COMO here: on a machine where
-#        the sandbox user could sudo the helper it would make a real pending secret
+#   R8   (S.95 stage 1b, S.106; run before R7, which ends the page) REMOTE.SDSYS: not an ordinary account's verb; a bad keyword (recovery and local too) gets the usage; view 6 lists the
+#        verb's report; O and F show their boxes, R and L open none, and Esc runs nothing.  NOT HELD: ssh opened or shut for sdsys (sudo; the VM).  ON and OFF are never run here: on a machine
+#        where the sandbox user could sudo the helper they would really open or shut ssh for sdsys
 # NOT HELD: a door opened or closed, a key trusted, the terminal handed to set.server (the VM), the help text itself (sandbox-docs.py).
 import getpass
 import importlib.util
@@ -415,53 +415,41 @@ def section_r6(p):
 
 
 def section_r8(p):
-    say("\n--- R8: the sdsys login view and REMOTE.SDSYS (S.95 stage 1b)")
+    say("\n--- R8: the sdsys login view and REMOTE.SDSYS (S.95 stage 1b, S.106)")
     out = g.plain(ACC, ["remote.sdsys"])
     T = norm(" ".join(out))
-    arow("R8a", "an ordinary account has no remote.sdsys (SDSYS's VOC alone has the verb): no report and no usage", len(out) > 0 and "active=" not in T and "remote.sdsys on recovery off" not in T and "authenticator code" not in T, T[:300])
+    arow("R8a", "an ordinary account has no remote.sdsys (SDSYS's VOC alone has the verb): no report and no usage", len(out) > 0 and "sdsys-arm" not in T and "remote.sdsys on off" not in T and "opens ssh for sdsys" not in T, T[:300])
     a0 = len(audit_lines())
-    out = g.adm(["REMOTE.SDSYS BOGUS", "REMOTE.SDSYS ON EXTRA"])
+    out = g.adm(["REMOTE.SDSYS BOGUS", "REMOTE.SDSYS ON EXTRA", "REMOTE.SDSYS RECOVERY", "REMOTE.SDSYS LOCAL ON"])
     T = norm(" ".join(out))
-    arow("R8b", "a keyword that is not on, recovery or off, and a second word after one, each get the usage (11923) and run nothing: twice the usage, no audit line", T.count("remote.sdsys on recovery off local on local off ON a new secret") == 2                  # norm() makes the bars spaces
+    arow("R8b", "a keyword that is not on or off (recovery and local went with the authenticator code), and a second word after one, each get the usage (11923) and run nothing: four times the usage, no audit line",
+         T.count("remote.sdsys on off ON opens ssh for sdsys") == 4                  # norm() makes the bars spaces
          and not [ln for ln in audit_lines()[a0:] if "remote.sdsys" in ln], T[:300])
-    como_dirs = [os.path.join(sh.SYS, d) for d in ("$COMO", "$como")]
-    for d in como_dirs:
-        for f in ("zzrsd", "ZZRSD"):
-            if os.path.exists(os.path.join(d, f)):
-                os.remove(os.path.join(d, f))
-    out = g.adm(["COMO ON zzrsd", "REMOTE.SDSYS ON", "REMOTE.SDSYS RECOVERY", "COMO OFF"])
-    T = norm(" ".join(out))
-    como_txt = ""
-    for d in como_dirs:
-        for f in ("zzrsd", "ZZRSD"):
-            if os.path.exists(os.path.join(d, f)):
-                como_txt += open(os.path.join(d, f), "rb").read().decode("latin-1")
-    arow("R8c", "while a COMO file records the session, ON and RECOVERY each refuse with 11925 before the root helper is asked: twice the refusal, no secret, no code prompt, no helper words, no audit line; "
-         "the COMO file exists (the null case: COMO really was on) and holds no secret either",
-         T.count("A COMO file is recording this session") == 2 and "Secret:" not in T and "Code from the app" not in T and "did not succeed" not in T and "sudo" not in T.lower()
-         and como_txt != "" and "Secret:" not in como_txt and not [ln for ln in audit_lines()[a0:] if "remote.sdsys" in ln], repr((T[:300], como_txt[:200])))
+    # ON and OFF are NEVER run here: on a machine where the sandbox user could sudo the helper they would really open or shut ssh for sdsys (the VM witness's rows)
     rep = [norm(x) for x in g.adm(["REMOTE.SDSYS"]) if x.strip()]
     p.key("6", 4.0)
     p.key("f5", 4.0)
     T = p.text()
     rows = [norm(r) for r in p.rows() if r.strip()]
-    arow("R8d", "key 6 shows the sdsys login view (its box title and header) and its rows are what REMOTE.SDSYS printed for a separate administrator session (a sandbox cannot reach the root helper, so that is "
+    arow("R8c", "key 6 shows the sdsys login view (its box title and header) and its rows are what REMOTE.SDSYS printed for a separate administrator session (a sandbox cannot reach the root helper, so that is "
          "its refusal; any other row is the helper's own 'sudo:' line)",
          "The sdsys login over ssh" in T and "REMOTE.SDSYS, with no keyword" in T and len(rep) >= 1 and len(rows) >= 1
          and all(any(x.startswith(r) or r.startswith(x[:134]) for x in rep) or r.startswith("sudo:") for r in rows), repr((rows[:4], rep[:4])))
     a0 = len(audit_lines())
     p.key("o", 1.5)
     T = norm(p.text())
-    arow("R8e", "O shows 'remote.sdsys on' in a box that says the secret is shown ONCE on the terminal and wants a word typed", box_open(p) and "remote.sdsys on" in T and "ONCE" in T, T[-500:])
+    arow("R8d", "O shows 'remote.sdsys on' in a box that says sdsys can then sign in with its password, that nothing else stands between the network and the administrator, and wants a word typed",
+         box_open(p) and "remote.sdsys on" in T and "password" in T and "OPEN" in T, T[-500:])
     p.key("esc", 1.2)
     p.key("f", 1.5)
     T = norm(p.text())
-    arow("R8f", "F shows 'remote.sdsys off' in a box that says sshd is closed to sdsys first", box_open(p) and "remote.sdsys off" in T and "closed to sdsys first" in T, T[-500:])
+    arow("R8e", "F shows 'remote.sdsys off' in a box that says sshd is shut to sdsys", box_open(p) and "remote.sdsys off" in T and "shut to sdsys" in T, T[-500:])
     p.key("esc", 1.2)
     p.key("r", 1.5)
     T = norm(p.text())
-    arow("R8g", "R shows 'remote.sdsys recovery' in a box", box_open(p) and "remote.sdsys recovery" in T, T[-500:])
-    p.key("esc", 1.2)
+    arow("R8f", "R opens no box any more (the recovery codes went with the authenticator code), and neither does L", not box_open(p) and "recovery" not in T.lower(), T[-300:])
+    p.key("l", 1.5)
+    arow("R8g", "L opens no box either", not box_open(p), st(p))
     p.key("1", 3.0)
     p.key("o", 1.5)
     arow("R8h", "Esc ran nothing (no remote.sdsys audit line), and O on the doors view opens no box", not box_open(p) and not [ln for ln in audit_lines()[a0:] if "remote.sdsys" in ln], st(p))

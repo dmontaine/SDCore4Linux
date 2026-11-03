@@ -126,17 +126,16 @@ def checks(raw):
        "case view = 1" in br and "case view = 2" in br and "case view = 3" in br and "case view = 4" in br and "pn[1, 16] : '...'" in br and "if gid = 'ssh' or gid = 'api' or gid = 'files' or gid = 'files-write' or gid = 'files-admin' or gid = 'net' then" in block(pg, "read.accounts")
        and "if gerr = '' and ainfo<1> = 'USER' then" in block(pg, "read.accounts") and "if cell.api = 'no' and cell.files = 'yes' then" in rl and "bitand(flg, USR$SDNET)" in sl and "bitand(flg, USR$SDVBSRVR)" in sl and "bitand(flg, USR$PHANTOM)" in sl and "inapi = (l[1, 5] = '[api]')" in ra, "")
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
-    ck("RM12", "the key table has exactly: help, doors, routes, servers, connected, tls, login, api, ssh, delete, new, codeon, recovery, codeoff, refresh, quit - and the Esc row that opens the menu bar (S.88 U4; it runs nothing); A and S act on the doors view only, X and N on the servers view only, O R F on the login view only",
-       acts == sorted(["help", "doors", "routes", "servers", "connected", "tls", "login", "api", "ssh", "delete", "new", "codeon", "recovery", "codeoff", "refresh", "quit", "menu",
-                       "console"])      # console: L, the console code on / off (S.101 stage D, 2 Nov 26) and "case nm = 'a' and view = 1" in pg and "case nm = 's' and view = 1" in pg and "case nm = 'x' and view = 3" in pg
-       and "case nm = 'n' and view = 3" in pg and "case (nm = 'o' or nm = 'r' or nm = 'f') and view = 6" in pg and "case nm >= '1' and nm <= '6' and len(nm) = 1" in pg and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
+    ck("RM12", "the key table has exactly: help, doors, routes, servers, connected, tls, login, api, ssh, delete, new, sdsyson, sdsysoff, refresh, quit - and the Esc row that opens the menu bar (S.88 U4; it runs nothing); A and S act on the doors view only, X and N on the servers view only, O and F on the login view only (S.106: R and L went with the authenticator code)",
+       acts == sorted(["help", "doors", "routes", "servers", "connected", "tls", "login", "api", "ssh", "delete", "new", "sdsyson", "sdsysoff", "refresh", "quit", "menu"])
+       and "case nm = 'a' and view = 1" in pg and "case nm = 's' and view = 1" in pg and "case nm = 'x' and view = 3" in pg
+       and "case nm = 'n' and view = 3" in pg and "case (nm = 'o' or nm = 'f') and view = 6" in pg and "case nm >= '1' and nm <= '6' and len(nm) = 1" in pg and "case nm = 'f1' or nm = '?'" in pg, " ".join(acts))
     dsd = block(pg, "do.sdsys")
-    ck("RM16", "S.95 stage 1b, the login view: the three sentences are FIXED words (nothing typed reaches them); ON wants OPEN typed and, like RECOVERY, gives the terminal to the verb (the secret and the codes are shown there and never pass "
-       "through the page); OFF tightens and runs through the routine after its box; the page never parses a secret= or recovery= line",
-       sorted(re.findall(r"sent = '([^']*)'", dsd)) == ["remote.sdsys off", "remote.sdsys on", "remote.sdsys recovery"] and dsd.count("sent = ") == 3 and dsd.count("typed = 'OPEN'") == 1
-       and re.search(r"sent = 'remote.sdsys on'\s*\n\s*typed = 'OPEN'", dsd) is not None and dsd.count("gosub confirm.and.hand.over") == 2 and dsd.count("gosub confirm.and.run") == 1
-       and re.search(r"sent = 'remote.sdsys off'[^\n]*\n(?:[^\n]*\n){0,3}?\s*gosub confirm.and.run", dsd) is not None
-       and not re.search(r"secret=|recovery=", pg), dsd[:200])
+    ck("RM16", "S.106, the login view: the two sentences are FIXED words (nothing typed reaches them); ON, which loosens, wants OPEN typed; both run through the routine after their box and the terminal "
+       "is never handed over for them (nothing secret passes any more); the page parses no secret=, recovery= or authenticator line",
+       sorted(re.findall(r"sent = '([^']*)'", dsd)) == ["remote.sdsys off", "remote.sdsys on"] and dsd.count("sent = ") == 2 and dsd.count("typed = 'OPEN'") == 1
+       and re.search(r"sent = 'remote.sdsys on'\s*\n\s*typed = 'OPEN'", dsd) is not None and dsd.count("gosub confirm.and.hand.over") == 0 and dsd.count("gosub confirm.and.run") == 1
+       and not re.search(r"secret=|recovery=|authenticator", pg.lower()), dsd[:200])
     ck("RM13", "the page waits for a key with no timeout and reads again only when it opens, on F5 and after a command or a hand-over",
        "screen key returning nm" in pg and "timeout" not in pg and pg.count("gosub read.all") == 4, "read.all x%d" % pg.count("gosub read.all"))
     ck("RM14", "the page has a [?] and F1, ? and a click show tool.remote.page, whose record exists with a title, the remote access page of the administrator guide (which has a section on tool.remote) and a body",
@@ -208,12 +207,13 @@ MUTANTS = [
     ("an other account is listed in the routes", "RM11", sub("page", "if gerr = '' and ainfo<1> = 'USER' then", "if gerr = '' then")),
     ("a key is added to the table", "RM12", sub("page", "   call $tk_keys('add', keys, 'n', 'new', 'new', 'Servers', 1)\n", "   call $tk_keys('add', keys, 'n', 'new', 'new', 'Servers', 1)\n   call $tk_keys('add', keys, 'k', 'kill', 'kill', '', 1)\n")),
     ("A acts on every view", "RM12", sub("page", "      case nm = 'a' and view = 1\n", "      case nm = 'a'\n")),
-    ("O R F act on every view", "RM12", sub("page", "      case (nm = 'o' or nm = 'r' or nm = 'f') and view = 6\n", "      case (nm = 'o' or nm = 'r' or nm = 'f')\n")),
-    ("the code is switched on with no typed word", "RM16", sub("page", "         sent = 'remote.sdsys on'\n         typed = 'OPEN'\n", "         sent = 'remote.sdsys on'\n         typed = ''\n")),
-    ("ON runs through the routine, so the secret comes back to the page", "RM16", sub("page", "         typed = 'OPEN'\n         el<-1> = 'A new secret", "         typed = 'OPEN'\n         gosub confirm.and.run\n         el<-1> = 'A new secret")),
-    ("RECOVERY runs through the routine", "RM16", sub("page", "         sent = 'remote.sdsys recovery'\n", "         sent = 'remote.sdsys recovery'\n         gosub confirm.and.run\n")),
+    ("O and F act on every view", "RM12", sub("page", "      case (nm = 'o' or nm = 'f') and view = 6\n", "      case (nm = 'o' or nm = 'f')\n")),
+    ("the recovery key comes back", "RM12", sub("page", "   call $tk_keys('add', keys, 'f', 'ssh off', 'sdsysoff', 'Login', 1)\n", "   call $tk_keys('add', keys, 'f', 'ssh off', 'sdsysoff', 'Login', 1)\n   call $tk_keys('add', keys, 'r', 'recovery', 'recovery', 'Login', 1)\n")),
+    ("ssh is opened for sdsys with no typed word", "RM16", sub("page", "      sent = 'remote.sdsys on'\n      typed = 'OPEN'\n", "      sent = 'remote.sdsys on'\n      typed = ''\n")),
+    ("ON is handed the terminal", "RM16", sub("page", "      typed = 'OPEN'\n      el<-1> = \"sshd is opened", "      typed = 'OPEN'\n      gosub confirm.and.hand.over\n      el<-1> = \"sshd is opened")),
+    ("a recovery sentence comes back", "RM16", sub("page", "      sent = 'remote.sdsys off'\n", "      sent = 'remote.sdsys recovery'\n")),
     ("the page reads the secret", "RM16", sub("page", "   sd.out = rep\n", "   sd.out = rep\n   if index(rep, 'secret=', 1) then msg = 'x'\n")),
-    ("the sentence takes a typed word", "RM16", sub("page", "         sent = 'remote.sdsys off'\n", "         sent = 'remote.sdsys ' : sw\n")),
+    ("the sentence takes a typed word", "RM16", sub("page", "      sent = 'remote.sdsys off'\n", "      sent = 'remote.sdsys ' : sw\n")),
     ("the page reads on a timer", "RM13", sub("page", "      screen key returning nm\n", "      screen key timeout 3 returning nm\n")),
     ("the help key names a record that does not exist", "RM14", sub("page", "call $tk_help('box', 'tool.remote.page', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'", "call $tk_help('box', 'tool.remote.nopage', hm, 0, 0)\n         if hm # '' then msg = hm\n      case nm = 'f6'")),     # 1 Nov 26: F6 (the AI line) is the case after help
     ("the help record names no page", "RM14", sub("help", "05-remote-access-and-the-machine", "")),

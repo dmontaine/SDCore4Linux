@@ -166,10 +166,7 @@
 *   port's K$OS.ELEVATED is 65.  See gplsrc/keys.h.  The binary and GPL.BP are
 *   one unit: a binary that still says 65 refuses this program's KERNEL call.
       $define K$LOGIN.UID      91       ;* Session's loginuid belongs to user?
-* 02 Nov 26 dm - S.101.  kernel(K$LOGIN.MARK, 'ssh' | 'local') answers 1 when the authenticator code lets this sdsys login be made
-*   administrator (no code enrolled; or a local login while the scope is remote; or the PAM module's marker for this boot and session,
-*   naming this loginuid).  Must match gplsrc/keys.h.
-      $define K$LOGIN.MARK     171      ;* The authenticator code allows this login?
+* 171 was K$LOGIN.MARK (S.101, the authenticator code) - retired 2 Nov 26 (S.106); do not reuse.  Must match gplsrc/keys.h.
 * 02 Nov 26 dm - S.102 stage 3.  kernel(K$JOB.MARK, 0) answers the name of the scheduled administrator job this process is (systemd's
 *   cgroup, a root-owned definition whose command is this session's own command line), or ''.  Must match gplsrc/keys.h.
       $define K$JOB.MARK       172      ;* The scheduled job this session is, or ''

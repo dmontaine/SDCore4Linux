@@ -1,1 +1,1 @@
-The code is on: sdsys can sign in over ssh with its password and a code from\nthe app.
+ssh is open for sdsys: it can sign in from other computers with its password,\nand nothing else stands between the network and the administrator.  Shut it\nagain with remote.sdsys off.

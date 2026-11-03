@@ -19,8 +19,7 @@
  * START-HISTORY:
  * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; the K_MASTERS (150) case is gone with masters.c.  The number is not reused.
  * 02 Nov 26 dm  S.102 stage 3: K_JOB_MARK (172) - the scheduled administrator job this process is (sd_jobmark.c), kept for the audit trail.
- * 02 Nov 26 dm  S.101 stage B: K_LOGIN_MARK (171) - may this sdsys login be made administrator as far as the authenticator code goes (the public
- *               status file /etc/sdcore/totp.public and the PAM module's marker in /run/sdcore/marks for this boot and session).
+ * 02 Nov 26 dm  S.106: K_LOGIN_MARK (171) and its helpers are gone with the authenticator code (S.101 stage B); the number is not reused.
  * 28 Oct 26 dm  S.88 review of L2: kernel(K$AUTOLOGOUT, -2) returns the inactivity clock (keyin_idle_ms()) instead of the period, for the IDE's countdown.
  * 28 Oct 26 dm  S.88 phase 2: K_SHOW_SAFE (151), another session's text made safe to print by the kernel's one rule (show_ts_safe()), for PSTAT,
  *               PROFILER DISPLAY and HSM USER n, which print the $IPC records S<n>, F<n> and H<n> that any SD user can write.
@@ -188,89 +187,6 @@ Private char **phantom_child_environment(const char *nonce, char *buf, size_t bu
 Private char input_null_char = '\0';               /* INPUTNULL (sheet item 408): '\0' for none */
 Private char *reset_all_command = NULL;            /* LOGTO ... RESET ALL (item 30): the command the bottom command processor is to run */
 Private bool run_exe(char *exe_name, char *cmd_line);
-
-/* ======================================================================
-   S.101 (2 Nov 26): K_LOGIN_MARK.  May THIS sdsys login be made administrator, as far as the authenticator code goes?  The public status
-   file (written by sd-elevate, root-owned, not writable by group or others) says whether a code is enrolled and its scope; the PAM module
-   wrote a marker for this login (boot id and kernel session id) when a right code was given.  Absent status file: no code enrolled, nothing
-   to ask.  A status file or marker that is not as it must be: no (fail closed).                                                       */
-
-#define LOGIN_PUBLIC_FILE  "/etc/sdcore/totp.public"
-#define LOGIN_MARKS_DIR    "/run/sdcore/marks"
-
-Private bool login_safe_file(const char *path, char *buf, size_t sz, bool *absent) {
-  int fd;
-  struct stat st;
-  ssize_t n;
-
-  *absent = FALSE;
-  fd = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
-  if (fd < 0) {
-    *absent = (errno == ENOENT);
-    return FALSE;
-  }
-  if ((fstat(fd, &st) != 0) || !S_ISREG(st.st_mode) || (st.st_uid != 0) || ((st.st_mode & 022) != 0) || (st.st_size >= (off_t)sz)) {
-    close(fd);
-    return FALSE;
-  }
-  n = read(fd, buf, sz - 1);
-  close(fd);
-  if (n < 0)
-    return FALSE;
-  buf[n] = '\0';
-  return TRUE;
-}
-
-Private bool login_proc_word(const char *path, char *buf, size_t sz) {
-  FILE *f = fopen(path, "r");
-  bool ok = FALSE;
-  size_t n;
-
-  if (f != NULL) {
-    if (fgets(buf, (int)sz, f) != NULL) {
-      n = strlen(buf);
-      while ((n > 0) && ((buf[n - 1] == '\n') || (buf[n - 1] == ' ')))
-        buf[--n] = '\0';
-      ok = (n > 0);
-    }
-    fclose(f);
-  }
-  return ok;
-}
-
-/* KIND is "ssh" or "local" (the caller knows: SSH_CONNECTION / SSH_TTY).  TRUE when the login may be granted. */
-Private bool login_mark_ok(const char *kind) {
-  char pub[256];
-  char mark[256];
-  char boot[64];
-  char sid[32];
-  char luid[32];
-  char path[sizeof(LOGIN_MARKS_DIR) + 120];
-  char want[48];
-  bool absent;
-  char *p;
-
-  if (!login_safe_file(LOGIN_PUBLIC_FILE, pub, sizeof(pub), &absent))
-    return absent;                                       /* no status file: no code enrolled; an unsafe one: no */
-  if (strstr(pub, "\nenrolled yes\n") == NULL)
-    return (strncmp(pub, "sdtotp 1\n", 9) == 0);          /* not enrolled: nothing to ask (a file that is not ours at all: no) */
-  if ((strcmp(kind, "local") == 0) && (strstr(pub, "\nscope all\n") == NULL))
-    return TRUE;                                          /* the console's code is opt-in (owner, 2 Nov 26): asked only after the administrator's `local on` */
-  if (!login_proc_word("/proc/sys/kernel/random/boot_id", boot, sizeof(boot)) || !login_proc_word("/proc/self/sessionid", sid, sizeof(sid))
-      || !login_proc_word("/proc/self/loginuid", luid, sizeof(luid)) || (strcmp(sid, "4294967295") == 0) || (strcmp(luid, "4294967295") == 0))
-    return FALSE;
-  for (p = boot; *p; p++)
-    if (!(isxdigit((unsigned char)*p) || (*p == '-')))
-      return FALSE;
-  for (p = sid; *p; p++)
-    if (!isdigit((unsigned char)*p))
-      return FALSE;
-  snprintf(path, sizeof(path), "%s/%s.%s", LOGIN_MARKS_DIR, boot, sid);
-  if (!login_safe_file(path, mark, sizeof(mark), &absent))
-    return FALSE;
-  snprintf(want, sizeof(want), "uid=%s ", luid);
-  return (strncmp(mark, want, strlen(want)) == 0);
-}
 
 /* ======================================================================
    op_kernel()  -  KERNEL()  -  Miscellaneous kernel functions            */
@@ -585,18 +501,6 @@ void op_kernel() {
           }
           fclose(f);
         }
-      }
-      break;
-
-    /* S.101 (2 Nov 26): kernel(K$LOGIN.MARK, 'ssh' | 'local') - 1 when the authenticator code lets this login be made administrator (see
-       login_mark_ok above), 0 otherwise.  CPROC's administrator grant asks it after K$LOGIN.UID; sd-elevate asks the same in shell.      */
-    case K_LOGIN_MARK:
-      {
-        char kind[8];
-
-        result.data.value = 0;
-        if (k_get_c_string(descr, kind, sizeof(kind) - 1) > 0 && ((strcmp(kind, "ssh") == 0) || (strcmp(kind, "local") == 0)))
-          result.data.value = login_mark_ok(kind) ? 1 : 0;
       }
       break;
 

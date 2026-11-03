@@ -442,7 +442,8 @@ if [ -x /usr/local/sbin/ssh-forcecommand ]; then
 fi
 # 01 Nov 26 dm - S.95: --remove above took out BOTH fences, the sshd block first and the two PAM lines after it.  The secret and the recovery codes go always (they are SD's
 #            and belong to nothing once the fence is out); the module goes only when the fences are known to be out, because a PAM line naming a missing module would fail
-#            the sign-in of sdsys (the line is guarded to that user, nobody else's).  A reinstall starts with the sdsys ssh door shut until a code is enrolled again.
+#            the sign-in of sdsys (the line is guarded to that user, nobody else's).  A reinstall starts with the sdsys ssh door shut.
+# 02 Nov 26 dm - S.106: the authenticator code itself is gone from SD; these removals stay only for a machine an older dev install put it on.
 sudo rm -rf /etc/sdcore/totp
 # 02 Nov 26 dm - S.101: the published status of the code (enrolled, scope) goes with the code.  Found by the S.102 VM witness: a delete left
 #            "enrolled yes", and the next install started out claiming a code that no longer existed.

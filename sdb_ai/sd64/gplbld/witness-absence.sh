@@ -500,15 +500,16 @@ fi
 if [ -f /etc/ssh/sshd_config ]; then
   SSC=$(cat /etc/ssh/sshd_config)
   ck_says "M7f sshd forces every sdusers member into sd" "Match Group sdusers,!sdsys" "$SSC"
-  # 01 Nov 26 dm - S.95: DenyUsers sdsys is the CLOSED arm, the state until an authenticator code is enrolled.  Once one is (totp-confirm opens the arm), the
-  #   arm is a Match User sdsys block forced into sd with keyboard-interactive only; which one is expected is the helper's own word (--sdsys-state).
-  #   Found by the S.95 VM witness, where this row failed on an install that had enrolled a code at the installer's question.
+  # 01 Nov 26 dm - S.95: DenyUsers sdsys is the CLOSED arm, the state as delivered.  Once the administrator opens it (remote.sdsys on, S.106: no authenticator code any more), the
+  #   arm is a Match User sdsys block forced into sd with the password alone; which one is expected is the helper's own word (--sdsys-state).
+  #   Found by the S.95 VM witness, where this row failed on an install whose arm had been opened.
   ARM=$(/usr/local/sbin/ssh-forcecommand --sdsys-state 2>/dev/null | sed -n 's/^sdsys-arm=//p')
   if [ "$ARM" = open ]; then
-    ck_says "M7g the sdsys arm is OPEN (a code is enrolled): a Match User sdsys block" "Match User sdsys" "$SSC"
-    ck_says "M7g' and it allows keyboard-interactive only" "AuthenticationMethods keyboard-interactive" "$SSC"
+    ck_says "M7g the sdsys arm is OPEN (remote.sdsys on): a Match User sdsys block" "Match User sdsys" "$SSC"
+    ck_says "M7g' and it allows the password only" "AuthenticationMethods password" "$SSC"
+    ck_absent "M7g'' and no longer asks for the retired authenticator code" "keyboard-interactive" "$SSC"
   else
-    ck_says "M7g and denies sdsys network login (no code enrolled: the arm is closed)" "DenyUsers sdsys" "$SSC"
+    ck_says "M7g and denies sdsys network login (as delivered: the arm is closed)" "DenyUsers sdsys" "$SSC"
   fi
   ck_absent "M7h and not the sdadmin exemption" "sdusers,!sdadmin" "$SSC"
 # 20 Sep 26 - S.29 part 3: THE ssh ROUTE IS READ BY sshd, AND THE ORDER IS THE
@@ -581,8 +582,8 @@ fi
 # ==========================================================================
 # 1 Nov 26 dm - S.95: THIS ROW WAS REWRITTEN.  It was M12, "SDSYS HAS NO REMOTE ACCESS" (19 Sep
 # 2026): CPROC refused a sdsys session that carried SSH_CONNECTION or SSH_TTY (10191).  The owner
-# then ruled that sdsys may sign in over ssh with an authenticator code (31 Oct, 1 Nov), the wall
-# became sshd's and the PAM module's, and CPROC now asks of such a session what it asks of a local
+# then ruled that sdsys may sign in over ssh (31 Oct, 1 Nov; with an authenticator code then, with its
+# password alone since S.106), the wall became sshd's, and CPROC now asks of such a session what it asks of a local
 # one: is the LOGIN sdsys's own?  Yes: granted, audited with the client address.  No (su sdsys
 # keeps the variables): 10195.  UNRUN since the rewrite: owed the next real-install cycle.
 # What follows is the 19 Sep text, still true of the limit it names.

@@ -242,11 +242,7 @@
    number is compiled into every BASIC program that calls KERNEL, so the binary
    and GPL.BP are one unit: install the commit, do not mix.                   */
 #define K_LOGIN_UID          91
-/* 02 Nov 26 dm - S.101 (Linux Core only, as S.95).  kernel(K$LOGIN.MARK, 'ssh' | 'local') answers 1 when the authenticator code lets this
-   sdsys login be made administrator: no code is enrolled, or the scope is remote and the login local, or the PAM module left a marker for
-   this boot and session that names this loginuid (op_kernel.c login_mark_ok).  171: free in this tree (its keys run to 170) and in the
-   Windows tree (none above 139).  GPL.BP/INT$KEYS.H carries the same number.                                                        */
-#define K_LOGIN_MARK         171
+/* 171 was K_LOGIN_MARK (S.101, the authenticator code) - retired 2 Nov 26 (S.106) with it; do not reuse */
 /* 02 Nov 26 dm - S.102 stage 3 (Linux Core only).  kernel(K$JOB.MARK, 0) answers the name of the scheduled administrator job this process IS
    (systemd's cgroup sdcore-job-<name>.service, a root-owned /etc/sdcore/jobs.d/<name> whose command= is this session's own command line), or ''
    (sd_jobmark.c).  172: free in this tree and in the Windows tree.  GPL.BP/INT$KEYS.H carries the same number.                        */

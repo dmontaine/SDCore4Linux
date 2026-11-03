@@ -23,11 +23,11 @@
 #
 #   R0  the block is there once and runs to its end under the installer's set and IFS
 #   R1  a fresh tree: ONE chown -R root:root on bin; no entry of bin (hidden files, the directory, a 775 library, the 664 pcode.old included) has group or other
-#       write afterwards; the executables keep their execute bits; chattr -i then chattr +i on bin, in that order; the five files are listed root:root; the success
+#       write afterwards; the executables keep their execute bits; chattr -i then chattr +i on bin, in that order; the four files are listed root:root; the success
 #       line is printed and no WARNING
 #   R2  a second run over the result (bin already immutable): it still seals - the stub chown refuses an immutable path, so this fails if `chattr -i` is not first
 #   R3  an OPTIONAL file missing (sdfix, pcode.old): sealed, success line
-#   R3b each of the five files missing in turn: a WARNING naming it, no success line, the rest still sealed
+#   R3b each of the four files missing in turn: a WARNING naming it, no success line, the rest still sealed
 #   R4  a symlink in bin (where sd should be): everything LEFT EXACTLY AS IT WAS (no chown, no chattr, the modes unchanged), a WARNING naming it, no success line
 #   R5  bin itself a symlink: refused the same way
 #   R6  bin absent (the null case): refused, no call at all, no success line
@@ -78,11 +78,10 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant success-ignores-miss "$B s#\[ -z \"\$rootbin_miss\" \] && ##"
   mutant verify-blind         "$B s|^    rootbin_bad=\$(.*|    rootbin_bad=\"\"|"
   mutant verify-no-glob       "$B s|\"\$rootbin\" \"\$rootbin\"/\* 2>|\"\$rootbin\" 2>|"
-  mutant list-lost-sdidx      "$B s|^rootbin_files=(sd sdlnxd sdidx pcode sd-totp)|rootbin_files=(sd sdlnxd pcode sd-totp)|"
-  mutant list-lost-pcode      "$B s|^rootbin_files=(sd sdlnxd sdidx pcode sd-totp)|rootbin_files=(sd sdlnxd sdidx sd-totp)|"
-  mutant list-lost-sdlnxd     "$B s|^rootbin_files=(sd sdlnxd sdidx pcode sd-totp)|rootbin_files=(sd sdidx pcode sd-totp)|"
-  mutant list-lost-sd         "$B s|^rootbin_files=(sd sdlnxd sdidx pcode sd-totp)|rootbin_files=(sdlnxd sdidx pcode sd-totp)|"
-  mutant list-lost-sd-totp    "$B s|^rootbin_files=(sd sdlnxd sdidx pcode sd-totp)|rootbin_files=(sd sdlnxd sdidx pcode)|"
+  mutant list-lost-sdidx      "$B s|^rootbin_files=(sd sdlnxd sdidx pcode)|rootbin_files=(sd sdlnxd pcode)|"
+  mutant list-lost-pcode      "$B s|^rootbin_files=(sd sdlnxd sdidx pcode)|rootbin_files=(sd sdlnxd sdidx)|"
+  mutant list-lost-sdlnxd     "$B s|^rootbin_files=(sd sdlnxd sdidx pcode)|rootbin_files=(sd sdidx pcode)|"
+  mutant list-lost-sd         "$B s|^rootbin_files=(sd sdlnxd sdidx pcode)|rootbin_files=(sdlnxd sdidx pcode)|"
   mutant miss-test-gone       "$B s#^        \[ -f \"\$rootbin/\$f\" \] || rootbin_miss=.*#        :#"
   mutant sealed-never-set     "$B{/^        rootbin_sealed=1\$/d;}"
   mutant sealed-set-at-start  "$B s|^rootbin_sealed=0\$|rootbin_sealed=1|"
@@ -114,7 +113,7 @@ row() {   # name, ok(0/1), detail
 mkbin() {   # $1 = scratch system directory
   local d="$1/bin" f
   mkdir -p "$d"
-  for f in sd sdlnxd sdidx sd-totp sdfix sdconv sdtic sdclilib.so libsdcli.so pcode README; do printf 'x %s\n' "$f" > "$d/$f"; chmod 755 "$d/$f"; done
+  for f in sd sdlnxd sdidx sdfix sdconv sdtic sdclilib.so libsdcli.so pcode README; do printf 'x %s\n' "$f" > "$d/$f"; chmod 755 "$d/$f"; done
   printf 'old\n' > "$d/pcode.old"; chmod 664 "$d/pcode.old"
   printf 'h\n' > "$d/.hidden"; chmod 666 "$d/.hidden"
   chmod 775 "$d/libsdcli.so"
@@ -201,10 +200,10 @@ seq_ok=1
 row "R1 chattr -i then chattr +i, on bin and nothing else (so a re-run can chown)" "$seq_ok" "calls: $(grep '^chattr ' "$R1.calls" | tr '\n' ';')"
 row "R1 bin is immutable in the table the stub keeps" "$(grep -Fxq "$R1/bin" "$R1.imm" && echo 0 || echo 1)" "table: $(tr '\n' ' ' < "$R1.imm")"
 four=0
-for f in sd sdlnxd sdidx pcode sd-totp; do
+for f in sd sdlnxd sdidx pcode; do
   case "$out" in *"bin/$f root:root "*) ;; *) four=1 ;; esac
 done
-row "R1 the five root-run files are listed root:root, each with its mode (the printed line, read from what the stub's stat reports)" "$four" "$out"
+row "R1 the four root-run files are listed root:root, each with its mode (the printed line, read from what the stub's stat reports)" "$four" "$out"
 row "R1 the success line is printed" "$(okline "$out")" "$out"
 row "R1 and no WARNING" "$([ "$(warned "$out")" = 1 ] && echo 0 || echo 1)" "$out"
 
@@ -219,7 +218,7 @@ out=$(runblock "$R3")
 row "R3 sdfix and pcode.old missing (not root-run): sealed, success line, no WARNING" "$([ "$(okline "$out")" = 0 ] && [ "$(warned "$out")" = 1 ] && [ "$(gow "$R3/bin")" = 0 ] && echo 0 || echo 1)" "$out"
 
 # ---- R3b each root-run file missing in turn -----------------------------------------------------------------------------------------------------------------
-for f in sd sdlnxd sdidx pcode sd-totp; do
+for f in sd sdlnxd sdidx pcode; do
   d="$T/miss-$f"; mkbin "$d"; rm -f "$d/bin/$f"
   out=$(runblock "$d")
   ok=1

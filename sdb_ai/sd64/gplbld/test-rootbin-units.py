@@ -486,10 +486,11 @@ def selftest():
     text_mutant("block-twice", "B1", "inst", lambda s: s.replace("# ROOTBIN-END\n", "# ROOTBIN-END\n# ROOTBIN-BEGIN\n:\n# ROOTBIN-END\n", 1), "INSTALLER")
     inst("rootbin-elsewhere", "B1", 'rootbin="$sdsysdir/bin"', 'rootbin="$sdsysdir/bin/"')
     # the list
-    inst("list-lost-sdidx", "B4", "rootbin_files=(sd sdlnxd sdidx pcode sd-totp)", "rootbin_files=(sd sdlnxd pcode sd-totp)")
-    inst("list-lost-pcode", "B4", "rootbin_files=(sd sdlnxd sdidx pcode sd-totp)", "rootbin_files=(sd sdlnxd sdidx sd-totp)")
-    inst("list-lost-sd-totp", "B4", "rootbin_files=(sd sdlnxd sdidx pcode sd-totp)", "rootbin_files=(sd sdlnxd sdidx pcode)")
-    inst("list-extra-sdfix", "B4", "rootbin_files=(sd sdlnxd sdidx pcode sd-totp)", "rootbin_files=(sd sdlnxd sdidx pcode sd-totp sdfix)")
+    inst("list-lost-sdidx", "B4", "rootbin_files=(sd sdlnxd sdidx pcode)", "rootbin_files=(sd sdlnxd pcode)")
+    inst("list-lost-pcode", "B4", "rootbin_files=(sd sdlnxd sdidx pcode)", "rootbin_files=(sd sdlnxd sdidx)")
+    inst("list-lost-sdlnxd", "B4", "rootbin_files=(sd sdlnxd sdidx pcode)", "rootbin_files=(sd sdidx pcode)")
+    inst("list-extra-sdfix", "B4", "rootbin_files=(sd sdlnxd sdidx pcode)", "rootbin_files=(sd sdlnxd sdidx pcode sdfix)")
+    inst("list-brings-back-sd-totp", "B4", "rootbin_files=(sd sdlnxd sdidx pcode)", "rootbin_files=(sd sdlnxd sdidx pcode sd-totp)")      # S.106: sd-totp is gone, and nothing runs it
     dir_mutant("unit-new-daemon", "B4", "u", "sd-lnxd.service", "ExecStart=/usr/local/sdsys/bin/sdlnxd", "ExecStart=/usr/local/sdsys/bin/sdnewd", "UNITDIR")
     dir_mutant("unit-new-prestart", "B4", "u", "sd.service", "ExecStart=/usr/local/sdsys/bin/sd -start -nodaemon", "ExecStartPre=/usr/local/sdsys/bin/sdprep\nExecStart=/usr/local/sdsys/bin/sd -start -nodaemon", "UNITDIR")
     dir_mutant("unit-prefixed-exec", "B4", "u", "sd.service", "ExecStop=/usr/local/sdsys/bin/sd -stop", "ExecStop=-/usr/local/sdsys/bin/sdstopper -stop", "UNITDIR")

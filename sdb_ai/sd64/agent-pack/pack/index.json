@@ -7091,13 +7091,6 @@
 "tier": "reference",
 "words": 8
 },
-"msg:11190": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 47
-},
 "msg:11191": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -11023,7 +11016,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 27
+"words": 23
 },
 "msg:11796": {
 "kind": "message",
@@ -11884,49 +11877,21 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 90
+"words": 39
 },
 "msg:11924": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 63
-},
-"msg:11925": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 32
-},
-"msg:11926": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 35
-},
-"msg:11927": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
-"msg:11928": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 10
+"words": 39
 },
 "msg:11929": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 23
+"words": 34
 },
 "msg:11930": {
 "kind": "message",
@@ -11991,13 +11956,6 @@
 "tier": "reference",
 "words": 25
 },
-"msg:11939": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 37
-},
 "msg:11940": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -12032,13 +11990,6 @@
 "since": "-",
 "tier": "reference",
 "words": 19
-},
-"msg:11945": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
 },
 "msg:11946": {
 "kind": "message",
@@ -24701,7 +24652,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 1722
+"words": 1711
 },
 "sys:ikeys:lgn$": {
 "kind": "sys.keys",
@@ -27704,7 +27655,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 42
+"words": 34
 },
 "tcl:remote.ssh": {
 "kind": "tcl.verb",
@@ -28362,7 +28313,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "next",
 "tier": "reference",
-"words": 103
+"words": 102
 },
 "tcl:tool.sessions": {
 "kind": "tcl.verb",

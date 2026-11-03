@@ -3,6 +3,9 @@
 
 Written 09 Sep 26 for PRE_RELEASE 14.
 
+02 Nov 26 dm S.106 (the authenticator code is removed): the `mark` and `totp` families are gone with the marker gate and the totp-* verbs; the new `sdsys-ssh` family (sdsyssh_rows, SDSYSSH_MUTANTS)
+holds the one verb that replaced them.  `--selftest --only=sdsys-ssh` runs just it.
+
 01 Nov 26 dm S.95 (owner: "sd-elevate, refuse unless caller logged in as sdsys"): the `login` family (login_rows, LOGIN_MUTANTS) - a caller sudo says is sdsys is refused unless the audit loginuid is
 sdsys's own uid; played on a dry run with SD_LOGINUID_FIXTURE, SD_SDSYS_UID_FIXTURE and SUDO_USER / SUDO_UID, the real run driven once to show it ignores them.  `--selftest --only=login` runs just it.
 
@@ -62,8 +65,8 @@ def run(args, helper=None, env=None, dry=True, stdin=None):
     e = dict(os.environ)
     for k in ("SD_GROUP_FIXTURE", "SD_GW_GROUP_FIXTURE", "STUB_GROUPS", "STUB_MEMBERS", "STUB_PW_USER", "STUB_PW_GECOS", "STUB_LOG", "STUB_SHADOW_HASH", "STUB_SHADOW_SET",
               "STUB_SHADOW_FAIL", "SD_PATH_PREPEND", "SD_SDSYS_UID_FIXTURE", "SD_ACCARCHIVE", "SD_LOGINUID_FIXTURE", "SUDO_USER", "SUDO_UID",
-              "SD_MARK_FIXTURE_DIR", "SD_BOOT_FIXTURE", "SD_SESSION_FIXTURE"):
-        e.pop(k, None)                      # nothing leaks in; a row sets what it needs
+              "SD_CGROUP_FIXTURE", "SD_JOBS_FIXTURE_DIR", "SD_SSH_FC"):
+        e.pop(k, None)                     # nothing leaks in; a row sets what it needs
     e.update(env or {})
     p = subprocess.run(
         ["bash", helper or HELPER] + (["--dry-run"] if dry else []) + args,
@@ -1466,132 +1469,6 @@ def login_rows(helper=None):
     return rows, skipped
 
 
-def mark_rows(helper=None):
-    """S.101 stage B (2 Nov 26): a caller whose login IS sdsys's must also have given the authenticator code when one is enrolled - the PAM module's marker for this
-    boot and session, naming the login.  Played on a dry run with SD_MARK_FIXTURE_DIR (a scratch totp.public and marks directory, owned by whoever runs the test, as the
-    helper's own files are root's), SD_BOOT_FIXTURE and SD_SESSION_FIXTURE, on top of the login fixtures.  Returns (rows, skipped)."""
-    rows = []
-    skipped = []
-    hp = helper or HELPER
-    src = open(hp, encoding="utf-8").read()
-    sds = "979"
-    boot = "0f1e2d3c-aaaa-bbbb-cccc-1234567890ab"
-    sid = "42"
-    probe = ["useradd", "sdprobe_nonexistent"]
-    d = tempfile.mkdtemp(prefix="sdmark-")
-    marks = os.path.join(d, "marks")
-    os.makedirs(marks)
-    pub = os.path.join(d, "totp.public")
-    mk = os.path.join(marks, "%s.%s" % (boot, sid))
-
-    def put(path, text, mode=0o644):
-        if os.path.lexists(path):
-            os.remove(path)
-        with open(path, "w") as f:
-            f.write(text)
-        os.chmod(path, mode)
-
-    def env(**kw):
-        e = {"SUDO_USER": "sdsys", "SUDO_UID": sds, "SD_SDSYS_UID_FIXTURE": sds, "SD_LOGINUID_FIXTURE": sds,
-             "SD_MARK_FIXTURE_DIR": d, "SD_BOOT_FIXTURE": boot, "SD_SESSION_FIXTURE": sid}
-        e.update(kw)
-        return e
-
-    def go(e, dry=True):
-        return run(probe, helper, e, dry=dry)
-
-    def marked(out):
-        return "did not give the authenticator code" in out or "status file" in out
-
-    def accepted(code, out):
-        return code == 0 and "SD account" in out and not marked(out)
-
-    def refused(code, out):
-        return code == 2 and marked(out) and "SD account" not in out
-
-    def detail(code, out):
-        return f"exit {code}: {out.strip()[:110]}"
-
-    try:
-        code, out = go(env())
-        rows.append(("ALLOW: no status file (no code enrolled): an sdsys login is not asked for a marker", accepted(code, out), detail(code, out)))
-        put(pub, "sdtotp 1\nenrolled no\nscope all\n")
-        code, out = go(env())
-        rows.append(("ALLOW: 'enrolled no': nothing is asked", accepted(code, out), detail(code, out)))
-        put(pub, "sdtotp 1\nenrolled yes\nscope all\n")
-        code, out = go(env())
-        rows.append(("REFUSE: a code is enrolled, scope all, and this session has no marker: refused in the helper's words, nothing done", refused(code, out), detail(code, out)))
-        put(mk, "uid=%s service=login kind=local time=1\n" % sds)
-        code, out = go(env())
-        rows.append(("ALLOW: ...the marker for this boot and session names this login: the verb goes through", accepted(code, out), detail(code, out)))
-        code, out = go(env(SD_SESSION_FIXTURE="43"))
-        rows.append(("REFUSE: ...the same marker does not serve another session of the same boot", refused(code, out), detail(code, out)))
-        unset_mk = os.path.join(marks, "%s.4294967295" % boot)
-        put(unset_mk, "uid=%s service=login kind=local time=1\n" % sds)          # a right-looking marker even under the unset id: the id itself must refuse
-        code, out = go(env(SD_SESSION_FIXTURE="4294967295"))
-        os.remove(unset_mk)
-        rows.append(("REFUSE: ...a session with no kernel session id (a service) is never served, even by a marker filed under that id", refused(code, out), detail(code, out)))
-        put(mk, "uid=1000 service=login kind=local time=1\n")
-        code, out = go(env())
-        rows.append(("REFUSE: a marker that names another login (uid 1000) is not this login's", refused(code, out), detail(code, out)))
-        put(mk, "uid=%s service=login kind=local time=1\n" % sds, 0o666)
-        code, out = go(env())
-        rows.append(("REFUSE: a marker writable by others is not believed", refused(code, out), detail(code, out)))
-        other = os.path.join(d, "elsewhere")
-        put(other, "uid=%s service=login kind=local time=1\n" % sds)
-        os.remove(mk)
-        os.symlink(other, mk)
-        code, out = go(env())
-        rows.append(("REFUSE: a marker that is a LINK (to a right-looking file) is not believed", refused(code, out), detail(code, out)))
-        os.remove(mk)
-        put(pub, "sdtotp 1\nenrolled yes\nscope remote\n")
-        code, out = go(env())
-        rows.append(("ALLOW: 'scope remote' (the delivered default: the console's code is opt-in, owner 2 Nov 26) asks no marker of the helper (it cannot tell ssh from a console; cproc's ssh arm still asks)",
-                     accepted(code, out), detail(code, out)))
-        put(pub, "sdtotp 1\nenrolled yes\n")
-        code, out = go(env())
-        rows.append(("ALLOW: enrolled with no scope line at all asks no marker either (only 'scope all', the administrator's local on, does)", accepted(code, out), detail(code, out)))
-        put(pub, "sdtotp 1\nenrolled yes\nscope all\n", 0o666)
-        code, out = go(env())
-        rows.append(("REFUSE: a status file writable by others is not believed (fail closed), and the refusal names the status file",
-                     refused(code, out) and "status file" in out, detail(code, out)))
-        put(pub, "sdtotp 1\nenrolled yes\nscope all\n")
-        code, out = go(env(SD_LOGINUID_FIXTURE="1000"))
-        rows.append(("REFUSE: a login that is NOT sdsys's is refused by the login gate first, in its own words (su sdsys keeps that answer)",
-                     code == 2 and "did not log in as sdsys" in out and not marked(out), detail(code, out)))
-        code, out = go({"SD_MARK_FIXTURE_DIR": d})
-        rows.append(("ALLOW: root with no sudo (the installer, a service) is asked about neither the login nor a marker", accepted(code, out), detail(code, out)))
-        # ---- the text
-        fn = src[src.find("sdsys_mark_gate() {"):]
-        fn = fn[:fn.find("\n}\n") + 3] if "\n}\n" in fn else ""
-        dry_part, _, real_part = fn.partition("\n  else\n")
-        rows.append(("TEXT: the marker gate is called only from the login gate, once the login is shown to be sdsys's",
-                     src.count('sdsys_mark_gate "$lu"') == 1 and src.find('sdsys_mark_gate "$lu"') > src.find("sdsys_login_gate() {") > 0
-                     and src.find('sdsys_mark_gate "$lu"') < src.find('[[ $DRY -eq 1 ]] || logger -t sd-elevate "refused: the caller is sdsys'), ""))
-        rows.append(("TEXT: a file that is a link is refused by its own test (stat answers 777 for any link, so the mode test refuses one too: two walls, held here as text)",
-                     "[[ -f $f && ! -L $f ]] || return 1" in src, ""))
-        rows.append(("TEXT: the fixtures are read only in the dry-run branch; the real branch reads /etc/sdcore/totp.public, /run/sdcore/marks and /proc",
-                     bool(fn) and "SD_MARK_FIXTURE_DIR" in dry_part and "SD_MARK_FIXTURE_DIR" not in real_part and "SD_SESSION_FIXTURE" not in real_part
-                     and "/etc/sdcore/totp.public" in real_part and "/run/sdcore/marks" in real_part and "/proc/self/sessionid" in real_part, ""))
-    finally:
-        shutil.rmtree(d, ignore_errors=True)
-    return rows, skipped
-
-
-MARK_MUTANTS = [
-    ("mark: never called", '    sdsys_mark_gate "$lu"                       # S.101', '    true                       # S.101'),
-    ("mark: no marker needed", '  if [[ $sid =~ ^[0-9]+$ && $sid != 4294967295 && $boot =~ ^[0-9a-f-]+$ ]] && mark_safe_file "$m" && [[ $(head -c 64 -- "$m") == "uid=$lu "* ]]; then',
-     '  if true; then'),
-    ("mark: any login's marker serves", ' && [[ $(head -c 64 -- "$m") == "uid=$lu "* ]]; then', '; then'),
-    ("mark: an unsafe marker is believed", ' && mark_safe_file "$m" && [[', ' && [[ -e $m ]] && [['),
-    ("mark: an unsafe status file is believed", '  mark_safe_file "$pubf" || die "the authenticator', '  true || die "the authenticator'),
-    ("mark: enrolled is not read", "  grep -qx 'enrolled yes' -- \"$pubf\" || return 0\n", "  return 0\n"),
-    ("mark: the link test is lost", '  [[ -f $f && ! -L $f ]] || return 1', '  [[ -f $f ]] || return 1'),
-    ("mark: the unset session counts", ' && $sid != 4294967295', ''),
-    ("mark: scope all is not needed (the console's code is no longer opt-in)", "  grep -qx 'scope all' -- \"$pubf\" || return 0\n", ''),
-]
-
-
 LOGIN_MUTANTS = [
     ("login: any login is accepted", '  if [[ $want =~ ^[1-9][0-9]*$ && $lu == "$want" ]]; then\n', '  if true; then\n'),
     ("login: only the sudo name is looked at", '  [[ $who == sdsys || ( -n $want && $suid == "$want" ) ]] || return 0\n', '  [[ $who == sdsys ]] || return 0\n'),
@@ -1616,173 +1493,77 @@ LOGIN_MUTANTS = [
 ]
 
 
-def totp_rows(helper=None):
-    """S.95 stage 1 (1 Nov 26).  The five verbs that run sd-totp (totp-status, -begin, -confirm, -recovery, -off): what each prints on a dry run (the resolved command, the code never in it), the account text
-    built from the host name (a `hostname` stub put first by SD_PATH_PREPEND), an extra argument refused, a real run refused for lack of root, the tool path that no fixture moves, and the text rules that
-    say what the verbs do NOT do.  sd-totp itself is test-totp-store.py's.  Returns (rows, skipped)."""
+def sdsyssh_rows(helper=None):
+    """S.106 (2 Nov 26).  The verb sdsys-ssh on | off | status, which replaced the authenticator code's totp-* verbs: what each prints on a dry run (the one ssh-forcecommand mode it
+    resolves to and nothing else), a word that is not on, off or status, a missing or extra argument, a real run refused for lack of root, the installed path no fixture moves, and the text rules
+    (the system log gets on and off and not status; the helper's status is the verb's; nothing of the authenticator code is left in the helper).  Returns (rows, skipped)."""
     rows = []
     skipped = []
     hp = helper or HELPER
     src = open(hp, encoding="utf-8").read()
-    tool = "/usr/local/sdsys/bin/sd-totp"
-    td = tempfile.mkdtemp(prefix="sdelev-totp-")
+    fc = "/usr/local/sbin/ssh-forcecommand"
+
+    def go(argv, dry=True, extra=None):
+        return run(argv, helper, dict(extra or {}), dry=dry)
+
+    def detail(code, out):
+        return f"exit {code}: {out.strip()[:120]}"
+
+    for word, arg in (("on", "--open-sdsys"), ("off", "--close-sdsys"), ("status", "--sdsys-state")):
+        code, out = go(["sdsys-ssh", word])
+        # the helper's name in front of each line is its file's name (a mutated copy has another), so the lines are matched without it
+        got = [ln.split(": ", 1)[1] if ": " in ln else ln for ln in out.splitlines()]
+        rows.append((f"ALLOW: sdsys-ssh {word} on a dry run prints the one command it resolves to ({fc} {arg}) and nothing else", code == 0 and got == [f"{fc} {arg}"], detail(code, out)))
+    for argv in (["sdsys-ssh"], ["sdsys-ssh", "maybe"], ["sdsys-ssh", "ON"], ["sdsys-ssh", "on", "x"], ["sdsys-ssh", "--open-sdsys"]):
+        code, out = go(argv)
+        rows.append((f"REFUSE: {' '.join(argv)} - a usage error or a refusal (exit 2), no command printed", code == 2 and fc not in out, detail(code, out)))
+    for word in ("on", "off", "status"):
+        code, out = go(["sdsys-ssh", word], dry=False)
+        rows.append((f"REFUSE: a real sdsys-ssh {word} as an ordinary user stops at 'must run as root' and runs nothing", code == 2 and "must run as root" in out, detail(code, out)))
+    code, out = go(["sdsys-ssh", "on"], extra={"SD_SYS_ROOT_FIXTURE": "/tmp/evil", "SD_SSH_FC": "/tmp/evil"})
+    rows.append(("REFUSE: no fixture moves the ssh-forcecommand path: the line still names the installed one", code == 0 and fc in out and "/tmp/evil" not in out, detail(code, out)))
+    for gone in ("totp-status", "totp-begin", "totp-confirm", "totp-recovery", "totp-off", "totp-local"):
+        code, out = go([gone])
+        rows.append((f"REFUSE: {gone} no longer exists: an unknown verb (exit 2)", code == 2 and "unknown verb" in out, detail(code, out)))
+    # ---- the text
+    fn = src[src.find("sdsys_ssh() {"):]
+    fn = fn[:fn.find("\n}\n") + 3] if "\n}\n" in fn else ""
+    rows.append(("TEXT: usage and the case branch name the verb and its three words",
+                 "sdsys-ssh on | off | status" in src[src.find("usage() {"):src.find("\nEOF\n", src.find("usage() {"))]
+                 and "  sdsys-ssh)\n    [[ $# -eq 1 ]] || usage\n    case $1 in on|off|status) ;; *) die" in src and '    sdsys_ssh "$1"\n' in src, ""))
+    rows.append(("TEXT: on is --open-sdsys, off is --close-sdsys, status is --sdsys-state, and nothing else is run",
+                 "    on)     arg=--open-sdsys ;;" in fn and "    off)    arg=--close-sdsys ;;" in fn and "    status) arg=--sdsys-state ;;" in fn and fn.count('"$SSH_FC" "$arg" ||') == 1, fn[:80]))
+    rows.append(("TEXT: the dry run ends before need_root and need_root comes before the helper is looked for or run",
+                 0 < fn.find("[[ $DRY -eq 1 ]]") < fn.find("exit 0") < fn.find("  need_root\n") < fn.find("[[ -x $SSH_FC ]]") < fn.find('"$SSH_FC" "$arg" ||'), ""))
+    rows.append(("TEXT: the ssh-forcecommand is the installed one at a fixed path, never a fixture, and the verb ends with ITS exit status",
+                 "SSH_FC=/usr/local/sbin/ssh-forcecommand" in src and "SSH_FC_FIXTURE" not in src and '"$SSH_FC" "$arg" || rc=$?' in fn and fn.rstrip().endswith("exit $rc\n}".rstrip()), ""))
+    loggers = [ln.strip() for ln in fn.splitlines() if "logger" in ln]
+    rows.append(("TEXT: the system log gets the word and the exit status of on and off, and nothing for status",
+                 len(loggers) == 1 and loggers[0].startswith("[[ $want == status ]] || logger -t sd-elevate") and loggers[0].endswith("2>/dev/null || true"), "%s" % loggers))
+    code_only = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))          # the history comments name what went
+    rows.append(("TEXT S.106: nothing of the authenticator code is left in the helper's code (no totp verb, no marker gate, no status file, no fixture of theirs)",
+                 not any(w in code_only for w in ("\n  totp-", "totp_verb", "totp_local", "totp_publish", "TOTP_PUBLIC", "sdsys_mark_gate", "SD_MARK_FIXTURE_DIR", "SD_BOOT_FIXTURE", "SD_SESSION_FIXTURE", "sd-totp")), ""))
+    sudoers = os.path.join(HERE, "sdcore.sudoers")
     try:
-        stub = os.path.join(td, "stub")
-        os.makedirs(stub)
-        with open(os.path.join(stub, "hostname"), "w", encoding="utf-8") as f:
-            f.write('#!/bin/bash\n[[ -z ${STUB_HOST_FAIL:-} ]] || exit 1\nprintf "%s\\n" "${STUB_HOST:-}"\n')
-        os.chmod(os.path.join(stub, "hostname"), 0o755)
-
-        def go(argv, host="web01", dry=True, extra=None, stdin=None):
-            env = {"SD_PATH_PREPEND": stub, "STUB_HOST": host}
-            env.update(extra or {})
-            return run(argv, helper, env, dry=dry, stdin=stdin)
-
-        def detail(code, out):
-            return f"exit {code}: {out.strip()[:120]}"
-
-        fc = "/usr/local/sbin/ssh-forcecommand"
-        for verb, want in (("totp-status", [f"{tool} status", f"then: {fc} --sdsys-state"]), ("totp-begin", [f"{tool} begin SD Core sdsys@web01"]),
-                           ("totp-confirm", [f"{tool} confirm", f"then, only if the code was right: {fc} --open-sdsys", "then: publish /etc/sdcore/totp.public saying enrolled yes and the scope"]),
-                           ("totp-recovery", [f"{tool} recovery"]),
-                           ("totp-off", ["first: publish /etc/sdcore/totp.public saying enrolled no", f"{fc} --close-sdsys", f"then: {tool} off"]),
-                           ("totp-local on", [f"{fc} --open-local", f"then: {tool} scope all", "then: publish /etc/sdcore/totp.public"]),
-                           ("totp-local off", [f"{tool} scope remote", "then: publish /etc/sdcore/totp.public", f"then: {fc} --close-local"])):
-            code, out = go(verb.split())
-            # the helper's name in front of each line is its file's name (a mutated copy has another), so the lines are matched without it
-            got = [ln.split(": ", 1)[1] if ": " in ln else ln for ln in out.splitlines()]
-            rows.append((f"ALLOW: {verb} on a dry run prints the resolved command(s) and nothing else", code == 0 and got == want, detail(code, out)))
-        for argv in (["totp-local"], ["totp-local", "maybe"], ["totp-local", "on", "x"]):
-            code, out = go(argv)
-            rows.append((f"REFUSE: {' '.join(argv)} - a usage error or a refusal (exit 2), no command printed", code == 2 and tool not in out, detail(code, out)))
-        code, out = go(["totp-local", "on"], dry=False)
-        rows.append(("REFUSE: a real totp-local on as an ordinary user stops at 'must run as root' and runs nothing", code == 2 and "must run as root" in out, detail(code, out)))
-        for what, host, want in (("a host name with a space, an underscore and a mark", "Web 01!_x", "sdsys@Web01x"), ("a host name with shell characters", "a;b`c`$(d)", "sdsys@abcd"),
-                                 ("an empty host name", "", "sdsys@localhost"), ("a host name of 60 letters", "a" * 60, "sdsys@" + "a" * 48), ("dots and hyphens", "db-1.prod", "sdsys@db-1.prod")):
-            code, out = go(["totp-begin"], host=host)
-            rows.append((f"ALLOW: totp-begin builds the account text from {what}: {want}", code == 0 and f"begin SD Core {want}\n" in out, detail(code, out)))
-        code, out = go(["totp-begin"], extra={"STUB_HOST_FAIL": "1"})
-        rows.append(("ALLOW: ... and from a `hostname` that fails: sdsys@localhost", code == 0 and "begin SD Core sdsys@localhost\n" in out, detail(code, out)))
-        for verb in ("totp-status", "totp-begin", "totp-confirm", "totp-recovery", "totp-off"):
-            code, out = go([verb, "x"])
-            rows.append((f"REFUSE: {verb} with a stray argument is a usage error (exit 2, the usage text, no command printed)", code == 2 and "privileged helper" in out and tool not in out, detail(code, out)))
-        code, out = go(["totp-confirm"], stdin="123456\n")
-        rows.append(("REFUSE: totp-confirm on a dry run does not take the code into its output (it is on standard input, never in the line)", code == 0 and "123456" not in out, detail(code, out)))
-        for verb in ("totp-status", "totp-begin", "totp-confirm", "totp-recovery", "totp-off"):
-            code, out = go([verb], dry=False)
-            rows.append((f"REFUSE: a real {verb} as an ordinary user stops at 'must run as root' and runs nothing", code == 2 and "must run as root" in out, detail(code, out)))
-        code, out = go(["totp-status"], extra={"SD_SYS_ROOT_FIXTURE": "/tmp/evil"})
-        rows.append(("REFUSE: SD_SYS_ROOT_FIXTURE does not move the tool: the line still names the real path", code == 0 and tool in out and "/tmp/evil" not in out, detail(code, out)))
-        # ---- a real run as root, played by a user namespace: the tool is not there, so the helper says so (127 would mean it ran a thing that does not exist)
-        try:
-            ok_ns = subprocess.run(["unshare", "-Ur", "true"], capture_output=True).returncode == 0
-        except OSError:
-            ok_ns = False
-        if not ok_ns or os.path.exists(tool):
-            skipped.append("totp: no `unshare -Ur` here, or sd-totp is installed on this machine, so the 'tool is not installed' row is left out")
-        else:
-            p = subprocess.run(["unshare", "-Ur", "bash", hp, "totp-status"], capture_output=True, text=True, env=dict(os.environ, SD_PATH_PREPEND=stub))
-            o = (p.stdout or "") + (p.stderr or "")
-            rows.append(("REFUSE: as 'root' (a user namespace) a real totp-status with no sd-totp installed says it is not installed (exit 2)", p.returncode == 2 and "is not installed" in o, detail(p.returncode, o)))
-        # ---- the text: what the verbs must not do
-        fn = src[src.find("totp_verb() {"):]
-        fn = fn[:fn.find("\n}\n") + 3] if "\n}\n" in fn else ""
-        rows.append(("TEXT: usage and the case branch name the same five verbs",
-                     all(v in src[src.find("usage() {"):src.find("\nEOF\n", src.find("usage() {"))] for v in ("totp-status", "totp-begin", "totp-confirm", "totp-recovery", "totp-off"))
-                     and "  totp-status|totp-begin|totp-confirm|totp-recovery|totp-off)\n    [[ $# -eq 0 ]] || usage\n    totp_verb \"$verb\"\n" in src, ""))
-        rows.append(("TEXT: the code is not an argument: totp-confirm runs `sd-totp confirm` and nothing more", "    totp-confirm)  args=(confirm) ;;\n" in fn, ""))
-        runs = [ln.strip() for ln in fn.splitlines() if '"$tool"' in ln and "[[ -x" not in ln and "printf" not in ln]
-        loggers = [ln.strip() for ln in fn.splitlines() if "logger" in ln]
-        rows.append(("TEXT: sd-totp is run as a bare line, in each of the four branches - its output is not piped, redirected, captured or logged",
-                     len(runs) == 4 and all(r == '"$tool" "${args[@]}"' for r in runs) and all("$(" not in l and "| logger" not in l and "tee" not in l for l in loggers), "%s" % runs))
-        status_body = fn[fn.find("    totp-status)\n      \"$tool\""):]
-        status_body = status_body[:status_body.find(";;")]
-        rows.append(("TEXT: the system log gets the verb and the exit statuses (sd-totp's, and the door's), and nothing for totp-status",
-                     len(loggers) == 4 and all(l.startswith('logger -t sd-elevate "$v: ') and l.endswith("2>/dev/null || true") for l in loggers)
-                     and "logger" not in status_body and status_body != "", "%s" % loggers))
-        rows.append(("TEXT: the dry run ends before need_root and need_root comes before the tool is looked for or run",
-                     0 < fn.find("[[ $DRY -eq 1 ]] && exit 0") < fn.find("  need_root\n") < fn.find("[[ -x $tool ]]") < fn.find('"$tool" "${args[@]}"'), ""))
-        rows.append(("TEXT: the tool is under SD_SYS_ROOT_REAL (the sealed bin), never a fixture; every branch ends with `exit $rc`",
-                     "tool=$SD_SYS_ROOT_REAL/bin/sd-totp" in fn and "SD_SYS_ROOT_FIXTURE" not in fn and fn.count("      exit $rc\n      ;;") == 4, ""))
-        off_body = fn[fn.find("    totp-off)\n      # S.101"):]
-        off_body = off_body[:off_body.find(";;")]
-        conf_body = fn[fn.find("    totp-confirm)\n      \"$tool\""):]
-        conf_body = conf_body[:conf_body.find(";;")]
-        loc = src[src.find("totp_local() {"):]
-        loc = loc[:loc.find("\n}\n") + 3]
-        pub = src[src.find("totp_publish() {"):]
-        pub = pub[:pub.find("\n}\n") + 3]
-        safe = src[src.find("totp_publish_safe() {"):]
-        safe = safe[:safe.find("\n}\n") + 3]
-        rows.append(("TEXT S.101 D: switching off publishes 'enrolled no' FIRST, before the sshd arm is closed and before the factor is removed",
-                     0 < off_body.find("totp_publish no") < off_body.find('"$SSH_FC" --close-sdsys') < off_body.find('"$tool" "${args[@]}"'), off_body[:80]))
-        rows.append(("TEXT S.101 D: enrolling publishes 'enrolled yes' only through totp_publish_safe, after the code was right and the arm was opened",
-                     0 < conf_body.find('"$SSH_FC" --open-sdsys') < conf_body.find("totp_publish_safe yes") and "totp_publish yes" not in src, ""))
-        rows.append(("TEXT S.101 D: totp_publish_safe, for 'enrolled yes', re-opens an sshd arm that has no session fence and puts the console lines in for scope all, BEFORE it publishes; "
-                     "a failure publishes nothing",
-                     0 < safe.find('"pam-session=present"') < safe.find('"$SSH_FC" --open-sdsys') < safe.find('"$SSH_FC" --open-local') < safe.find('totp_publish "$1" "$2"')
-                     and safe.count("return 1") == 2 and 'if [[ $2 == all ]]; then\n      "$SSH_FC" --open-local' in safe
-                     and 'if [[ $st == *"sdsys-arm=open"* && $st != *"pam-session=present"* ]]; then' in safe, safe[:80]))
-        rows.append(("TEXT S.101 D: the status file is written by one rename of a root:root 0644 temp file in its own directory, and its text is exactly the three lines the kernel reads",
-                     "mktemp \"$dir/.totp.public.XXXXXX\"" in pub and "chown root:root" in pub and "chmod 0644" in pub and 'mv -f -T -- "$tmp" "$TOTP_PUBLIC"' in pub
-                     and "printf 'sdtotp 1\\nenrolled %s\\nscope %s\\n'" in src and "TOTP_PUBLIC=/etc/sdcore/totp.public" in src, pub[:80]))
-        rows.append(("TEXT S.101 D: totp-local on puts the console lines in BEFORE it writes the scope; off writes the scope and publishes BEFORE it takes the lines out (and only when the publish worked)",
-                     0 < loc.find('"$SSH_FC" --open-local ||') < loc.find('"$tool" scope all') and 0 < loc.find('"$tool" scope remote') < loc.find('totp_publish "$en" remote') < loc.find('"$SSH_FC" --close-local')
-                     and 'if [[ $want == off && $rc -eq 0 ]]' in loc, loc[:80]))
-        rows.append(("TEXT S.101 D: a store sd-totp cannot read gives the scope all (fail closed)", "case $s in scope=remote) printf 'remote' ;; *) printf 'all' ;; esac" in src, ""))
-        conf_body = fn[fn.find("    totp-confirm)\n      \"$tool\""):]
-        conf_body = conf_body[:conf_body.find(";;")]
-        rows.append(("TEXT: switching off closes the sshd arm BEFORE it removes the factor, still removes the factor if the door will not close, and says so (exit 3 only when sd-totp itself was fine)",
-                     0 < off_body.find('"$SSH_FC" --close-sdsys') < off_body.find('"$tool" "${args[@]}"') and "could NOT be put back" in off_body and "rc=3" in off_body, off_body[:60]))
-        rows.append(("TEXT: enrolling opens the sshd arm ONLY when sd-totp said the code was right, and a door that will not open is exit 3 with the factor left enrolled",
-                     0 < conf_body.find('"$tool" "${args[@]}"') < conf_body.find("if [[ $rc -eq 0 ]]; then") < conf_body.find('"$SSH_FC" --open-sdsys')
-                     and "until it is\\n' \"$PROG\" \"$orc\" >&2\n          rc=3\n" in conf_body and "ENROLLED" in conf_body, conf_body[:60]))
-        rows.append(("TEXT: the installed ssh-forcecommand is the one run (a fixed path, no fixture), and it must be there for totp-confirm and totp-off",
-                     "SSH_FC=/usr/local/sbin/ssh-forcecommand" in src and 'case $v in totp-confirm|totp-off) [[ -x $SSH_FC ]] || die' in fn and "SSH_FC_FIXTURE" not in src, ""))
-        rows.append(("TEXT: the host name is cut to letters, digits, dots and hyphens, to 48 characters, with localhost for none",
-                     "h=${h//[^A-Za-z0-9.-]/}" in src and '"${h:0:48}"' in src and "[[ -n $h ]] || h=localhost" in src, ""))
-        sudoers = os.path.join(HERE, "sdcore.sudoers")
-        try:
-            sd_text = open(sudoers, encoding="utf-8").read()
-        except OSError:
-            sd_text = None
-        rows.append(("TEXT: the sudoers file gives an ordinary SD user none of these verbs (only sdsys's any-argument rule reaches them)",
-                     sd_text is not None and "totp" not in sd_text, "sdcore.sudoers not read" if sd_text is None else ""))
-    finally:
-        shutil.rmtree(td, ignore_errors=True)
+        sd_text = open(sudoers, encoding="utf-8").read()
+    except OSError:
+        sd_text = None
+    rows.append(("TEXT: the sudoers file gives an ordinary SD user none of these verbs (only sdsys's any-argument rule reaches them)",
+                 sd_text is not None and "sdsys-ssh" not in sd_text and "totp" not in sd_text, "sdcore.sudoers not read" if sd_text is None else ""))
     return rows, skipped
 
 
-TOTP_MUTANTS = [
-    ("totp: the code is read into an argument", '    totp-confirm)  args=(confirm) ;;\n', '    totp-confirm)  args=(confirm "$(cat)") ;;\n'),
-    ("totp: a real run does not need root", '  need_root\n  [[ -x $tool ]]', '  [[ -x $tool ]]'),
-    ("totp: the tool path follows the fixture", 'tool=$SD_SYS_ROOT_REAL/bin/sd-totp', 'tool=$SD_SYS_ROOT/bin/sd-totp'),
-    ("totp: the host name is not cut", 'h=${h//[^A-Za-z0-9.-]/}', ':'),
-    ("totp: the host name is not shortened", '"${h:0:48}"', '"$h"'),
-    ("totp: no fallback name", '[[ -n $h ]] || h=localhost', ':'),
-    ("totp: off runs status", '    totp-off)      args=(off) ;;\n', '    totp-off)      args=(status) ;;\n'),
-    ("totp: begin leaves out the issuer", 'args=(begin "$TOTP_ISSUER" "$(totp_account)")', 'args=(begin "" "$(totp_account)")'),
-    ("totp: a stray argument is allowed", '    [[ $# -eq 0 ]] || usage\n    totp_verb "$verb"', '    totp_verb "$verb"'),
-    ("totp: the exit status is lost", '      exit $rc\n      ;;\n  esac\n}', '      exit 0\n      ;;\n  esac\n}'),
-    ("totp: sd-totp's output goes to the system log", '    *)\n      "$tool" "${args[@]}"\n      rc=$?', '    *)\n      "$tool" "${args[@]}" | logger -t sd-elevate\n      rc=$?'),
-    ("totp: enrolling opens the door whatever the code was", '      if [[ $rc -eq 0 ]]; then\n        "$SSH_FC" --open-sdsys', '      if true; then\n        "$SSH_FC" --open-sdsys'),
-    ("totp: switching off removes the factor before it closes the door", '      "$SSH_FC" --close-sdsys\n      orc=$?\n      "$tool" "${args[@]}"\n      rc=$?',
-     '      "$tool" "${args[@]}"\n      rc=$?\n      "$SSH_FC" --close-sdsys\n      orc=$?'),
-    ("totp: a door that will not open is not reported", '          rc=3\n        fi\n        if ! totp_publish_safe', '        fi\n        if ! totp_publish_safe'),
-    ("totp: off publishes after it closes", '      totp_publish no "$(totp_scope)" || printf', '      : || printf'),
-    ("totp: enrolling publishes nothing", '        if ! totp_publish_safe yes "$(totp_scope)"; then', '        if false; then'),
-    ("totp: safe publish does not re-open a fenceless arm", '    if [[ $st == *"sdsys-arm=open"* && $st != *"pam-session=present"* ]]; then', '    if false; then'),
-    ("totp: scope all publishes without the console lines", '    if [[ $2 == all ]]; then\n      "$SSH_FC" --open-local', '    if false; then\n      "$SSH_FC" --open-local'),
-    ("totp: an unreadable store reads as remote", "case $s in scope=remote) printf 'remote' ;; *) printf 'all' ;; esac", "case $s in scope=all) printf 'all' ;; *) printf 'remote' ;; esac"),
-    ("totp: local on writes the scope before the lines", '    "$SSH_FC" --open-local || { logger -t sd-elevate "totp-local on: ssh-forcecommand --open-local failed" 2>/dev/null || true; exit 1; }\n    "$tool" scope all || exit 1',
-     '    "$tool" scope all || exit 1\n    "$SSH_FC" --open-local || { logger -t sd-elevate "totp-local on: ssh-forcecommand --open-local failed" 2>/dev/null || true; exit 1; }'),
-    ("totp: local off takes the lines out before it publishes", '  if [[ $want == off && $rc -eq 0 ]]; then "$SSH_FC" --close-local || rc=3; fi', '  if [[ $want == off ]]; then "$SSH_FC" --close-local || rc=3; fi'),
-    ("totp: local takes any word", '    case $1 in on|off) ;; *) die "totp-local takes on or off', '    case $1 in *) ;; *) die "totp-local takes on or off'),
-    ("totp: the status file is group-writable", 'chmod 0644 -- "$tmp"', 'chmod 0664 -- "$tmp"'),
-    ("totp: a door that will not close is not reported", "        [[ $rc -ne 0 ]] || rc=3\n", ""),
-    ("totp: a missing tool is not noticed", '  [[ -x $tool ]] || die "$tool is not installed"\n', ''),
-    ("totp: the dry run goes on to the tool", '  [[ $DRY -eq 1 ]] && exit 0\n  need_root\n  [[ -x $tool ]]', '  need_root\n  [[ -x $tool ]]'),
-    ("totp: status is logged too", '    totp-status)\n      "$tool" "${args[@]}"\n      rc=$?\n', '    totp-status)\n      "$tool" "${args[@]}"\n      rc=$?\n      logger -t sd-elevate "$v: sd-totp exited $rc" 2>/dev/null || true\n'),
+SDSYSSH_MUTANTS = [
+    ("sdsys-ssh: on opens nothing (runs status)", '    on)     arg=--open-sdsys ;;', '    on)     arg=--sdsys-state ;;'),
+    ("sdsys-ssh: off runs the open mode", '    off)    arg=--close-sdsys ;;', '    off)    arg=--open-sdsys ;;'),
+    ("sdsys-ssh: any word is taken", '    case $1 in on|off|status) ;; *) die "sdsys-ssh takes', '    case $1 in *) ;; *) die "sdsys-ssh takes'),
+    ("sdsys-ssh: a stray argument is allowed", '  sdsys-ssh)\n    [[ $# -eq 1 ]] || usage\n', '  sdsys-ssh)\n'),
+    ("sdsys-ssh: a real run does not need root", '  need_root\n  [[ -x $SSH_FC ]]', '  [[ -x $SSH_FC ]]'),
+    ("sdsys-ssh: the dry run goes on to the helper", '    printf \'%s: %s %s\\n\' "$PROG" "$SSH_FC" "$arg"\n    exit 0\n', '    printf \'%s: %s %s\\n\' "$PROG" "$SSH_FC" "$arg"\n'),
+    ("sdsys-ssh: the exit status is lost", '  exit $rc\n}\n\n# ----', '  exit 0\n}\n\n# ----'),
+    ("sdsys-ssh: a missing helper is not noticed", '  [[ -x $SSH_FC ]] || die "$SSH_FC is not installed"\n', ''),
+    ("sdsys-ssh: status is logged too", '  [[ $want == status ]] || logger -t sd-elevate', '  logger -t sd-elevate'),
+    ("sdsys-ssh: the helper path follows a fixture", 'SSH_FC=/usr/local/sbin/ssh-forcecommand ', 'SSH_FC=${SD_SSH_FC:-/usr/local/sbin/ssh-forcecommand} '),
 ]
 
 
@@ -1804,8 +1585,8 @@ def selftest():
                                      ("sdsys-join", sdsys_rows, SDSYS_MUTANTS), ("sdsys-leave", leave_rows, LEAVE_MUTANTS), ("log", log_rows, LOG_MUTANTS),
                                      ("stamp", stamp_rows, STAMP_MUTANTS), ("chown-group", chowngrp_rows, CHOWNGRP_MUTANTS), ("groupadd", groupadd_rows, GROUPADD_MUTANTS),
                                      ("ownedby", ownedby_rows, OWNEDBY_MUTANTS), ("pwunset", pwunset_rows, PWUNSET_MUTANTS), ("envtrust", envtrust_rows, ENVTRUST_MUTANTS),
-                                     ("fdworkers", fdworkers_rows, FDWORKERS_MUTANTS), ("login", login_rows, LOGIN_MUTANTS), ("mark", mark_rows, MARK_MUTANTS),
-                                     ("totp", totp_rows, TOTP_MUTANTS)):
+                                     ("fdworkers", fdworkers_rows, FDWORKERS_MUTANTS), ("login", login_rows, LOGIN_MUTANTS),
+                                     ("sdsys-ssh", sdsyssh_rows, SDSYSSH_MUTANTS)):
         if only and family not in only:
             continue
         rows, skipped = rows_fn()
@@ -2156,8 +1937,8 @@ def main():
     # ---- 26 Oct 26, F6: sdsys-leave (leave_rows) and the log lines (log_rows).  The rows that expect the verb to go through are the controls.
     # 26 Oct 26, F12: the stamp, chown-group and groupadd families (their labels begin ALLOW: or REFUSE:).
     for family, rows_fn in (("sdsys-leave", leave_rows), ("log", log_rows), ("stamp", stamp_rows), ("chown-group", chowngrp_rows), ("groupadd", groupadd_rows),
-                            ("ownedby", ownedby_rows), ("pwunset", pwunset_rows), ("envtrust", envtrust_rows), ("fdworkers", fdworkers_rows), ("login", login_rows), ("mark", mark_rows),
-                            ("totp", totp_rows)):
+                            ("ownedby", ownedby_rows), ("pwunset", pwunset_rows), ("envtrust", envtrust_rows), ("fdworkers", fdworkers_rows), ("login", login_rows),
+                            ("sdsys-ssh", sdsyssh_rows)):
         lrows, lskipped = rows_fn()
         for s in lskipped:
             print(f"  SKIPPED {s}")
@@ -2165,7 +1946,7 @@ def main():
             print(f"  [{'PASS' if ok else 'FAIL'}] {family.upper():11} {label:52} | {detail}")
             if ok:
                 passed += 1
-                if family in ("stamp", "chown-group", "groupadd", "ownedby", "pwunset", "envtrust", "fdworkers", "login", "mark", "totp"):
+                if family in ("stamp", "chown-group", "groupadd", "ownedby", "pwunset", "envtrust", "fdworkers", "login", "sdsys-ssh"):
                     if label.startswith("ALLOW:"):
                         n_allow += 1
                     else:

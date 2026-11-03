@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-# test-sshd-sdsys.py - the sshd side of the remote sdsys login (S.95 stage 2b): gplbld/ssh-forcecommand.sh --open-sdsys, --close-sdsys, --sdsys-state, and --install /
-# --remove with the sdsys arm in its two forms and the fenced PAM lines.  The oracle is the REAL sshd of this machine (sshd -t, and sshd -T -C user=sdsys,...) on a scratch
-# sshd_config with a throwaway host key, and a scratch PAM file - no root, no running sshd.  Written 1 Nov 2026.  test-ssh-forcecommand.py (34 rows) holds the older modes.
+# test-sshd-sdsys.py - the sshd side of the remote sdsys login (S.95 stage 2b, rewritten for S.106): gplbld/ssh-forcecommand.sh --open-sdsys, --close-sdsys, --sdsys-state,
+# --clean-legacy, and --install / --remove with the sdsys arm in its forms (closed, open with the sdsys PASSWORD, and the LEGACY arm of the authenticator code that an older dev
+# install wrote, together with its PAM fences).  The oracle is the REAL sshd of this machine (sshd -t, and sshd -T -C user=sdsys,...) on a scratch sshd_config with a
+# throwaway host key, and scratch PAM files - no root, no running sshd.  Written 1 Nov 2026.  test-ssh-forcecommand.py (34 rows) holds the older modes.
 #
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sshd-sdsys.py
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-sshd-sdsys.py --selftest
 #
-# THE REFUSAL ROWS COMPARE BYTES: a refused --open-sdsys must leave the sshd_config AND the PAM file exactly as they were (the script puts both back when sshd's own answer is not
-# the open arm's), and a row that only looked at the exit status would pass a script that refused and still left a half-open door.  The administrator's own settings that defeat
-# the arm are real ones: UsePAM off, a Match Address block above ours, an Include that sets a keyword first, a DenyUsers, an AllowUsers / AllowGroups that leaves sdsys out.
+# 2 Nov 26 dm S.106 (owner: "remove the authenticator from both local and remote logins, we will depend on just password authentication for this release"): the open arm is
+# password authentication alone and no PAM line is written; the rows of the code's PAM fences, its module and its login marker are gone, and the LEGACY rows take their place: an
+# older install's arm and fences are written closed and taken out, in every mode that should, and byte for byte.
 #
-# WHAT THIS CANNOT SHOW (the VM witness's): that a real client is asked for the code and then the password, a root-owned module (and one owned by ANOTHER user, which a non-root run
-# cannot make), and the reload of a running sshd.  There is no mutant for the explicit "not a link" test of the module: stat reports a link's own mode (0777), so the write-bit test
-# refuses a link anyway - the explicit test is belt and braces, and its row (a module that is a link is refused) still runs.
+# THE REFUSAL ROWS COMPARE BYTES: a refused --open-sdsys must leave the sshd_config exactly as it was (the script puts it back when sshd's own answer is not the open arm's), and a
+# row that only looked at the exit status would pass a script that refused and still left a half-open door.  The administrator's own settings that defeat the arm are real ones: a
+# Match Address block above ours, an Include that sets a keyword first, a DenyUsers, an AllowUsers / AllowGroups that leaves sdsys out.
+#
+# WHAT THIS CANNOT SHOW (the VM witness's): that a real client is asked for the password and gets sd, and the reload of a running sshd.
 # Exit 0 every row passed, 1 a row failed (or a mutant survived), 2 it could not run (no sshd or ssh-keygen).  THE NULL CASE IS REFUSED: fewer than 40 rows is a failure.
 
 import os
@@ -27,11 +30,18 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HELPER_REAL = os.path.join(HERE, "ssh-forcecommand.sh")
 
 ARM_KEYWORDS = [
-    ("AuthenticationMethods", "keyboard-interactive"), ("KbdInteractiveAuthentication", "yes"), ("PasswordAuthentication", "no"), ("PubkeyAuthentication", "no"),
+    ("AuthenticationMethods", "password"), ("KbdInteractiveAuthentication", "no"), ("PasswordAuthentication", "yes"), ("PubkeyAuthentication", "no"),
     ("HostbasedAuthentication", "no"), ("GSSAPIAuthentication", "no"), ("AuthorizedKeysFile", "none"), ("MaxAuthTries", "3"), ("DisableForwarding", "yes"),
     ("X11Forwarding", "no"), ("AllowAgentForwarding", "no"), ("AllowTcpForwarding", "no"), ("AllowStreamLocalForwarding", "no"), ("PermitTunnel", "no"),
     ("PermitUserRC", "no"), ("PermitTTY", "yes"),
 ]
+# What an older dev install wrote as the open arm: the authenticator code, then the password, both through sshd's PAM stack.
+LEGACY_KEYWORDS = [("AuthenticationMethods", "keyboard-interactive"), ("KbdInteractiveAuthentication", "yes"), ("PasswordAuthentication", "no")] + ARM_KEYWORDS[3:]
+
+PAM_BEGIN = "# --- BEGIN SD sdsys authenticator code (S.95) - do not edit within this fence ---"
+PAM_END = "# --- END SD sdsys authenticator code ---"
+PAMS_BEGIN = "# --- BEGIN SD sdsys login marker (S.101) - do not edit within this fence ---"
+PAMS_END = "# --- END SD sdsys login marker ---"
 
 DEBIAN_PAM = """# PAM configuration for the Secure Shell service
 
@@ -48,14 +58,12 @@ session    required     pam_loginuid.so
 
 @include common-session
 """
-# 2 Nov 26 - S.105: the Fedora sample (auth substack password-auth) went with Fedora support.  This is an administrator's own Debian file in its place: a '#%PAM-1.0' header and
-# an explicit "auth" line instead of "@include common-auth", the other branch of the fence's first-auth-line test, which no other row reaches.
-CUSTOM_PAM = """#%PAM-1.0
-auth       required     pam_unix.so
-account    required     pam_nologin.so
-account    required     pam_unix.so
-session    required     pam_loginuid.so
-session    required     pam_unix.so
+CONSOLE_PAM = """#%PAM-1.0
+auth       requisite  pam_nologin.so
+auth       required   pam_unix.so
+account    required   pam_unix.so
+session    required   pam_loginuid.so
+session    required   pam_unix.so
 """
 BASE_CONFIG = """# an ordinary sshd_config
 Port 22
@@ -63,6 +71,7 @@ UsePAM yes
 PermitRootLogin prohibit-password
 Subsystem sftp /usr/lib/openssh/sftp-server
 """
+CONSOLE_FILES = ("login", "gdm-password")
 
 
 def say(text=""):
@@ -91,10 +100,27 @@ def effective(sshd, cfg, user="sdsys"):
     return p.returncode, d
 
 
-class Env:
-    """A scratch machine: an sshd_config with a host key, a PAM file, a module file, stub sd and refusal commands."""
+def fenced(text, module="/usr/local/lib/sd/pam_sdtotp.so", opts=""):
+    """The PAM text as an older install left it: the auth fence above the first auth line, the session fence directly after the pam_loginuid session line."""
+    auth = [PAM_BEGIN, "auth [success=1 default=ignore] pam_succeed_if.so quiet user notin sdsys", "auth required %s%s" % (module, opts), PAM_END]
+    sess = [PAMS_BEGIN, "session [success=1 default=ignore] pam_succeed_if.so quiet user notin sdsys", "session optional %s%s" % (module, opts), PAMS_END]
+    out, did_a, did_s = [], False, False
+    for line in text.splitlines():
+        if not did_a and (re.match(r"^\s*-?auth\s", line) or re.match(r"^\s*@include\s+\S*auth", line)):
+            out += auth
+            did_a = True
+        out.append(line)
+        if not did_s and re.match(r"^\s*-?session\s+[^#]*pam_loginuid\.so", line):
+            out += sess
+            did_s = True
+    assert did_a and did_s, "the sample PAM text has no place for the fences"
+    return "\n".join(out) + "\n"
 
-    def __init__(self, base, n, ctx, config_extra="", pam=DEBIAN_PAM, groups="sdusers"):
+
+class Env:
+    """A scratch machine: an sshd_config with a host key, a PAM file for sshd and a directory of console PAM files, stub sd and refusal commands."""
+
+    def __init__(self, base, n, ctx, config_extra="", groups="sdusers"):
         self.ctx = ctx
         self.d = os.path.join(base, "e%d" % n)
         os.makedirs(self.d)
@@ -102,20 +128,22 @@ class Env:
         subprocess.run([ctx["keygen"], "-q", "-t", "ed25519", "-N", "", "-f", self.hostkey], check=True, capture_output=True)
         self.cfg = os.path.join(self.d, "sshd_config")
         self.pamf = os.path.join(self.d, "pam_sshd")
-        self.module = os.path.join(self.d, "pam_sdtotp.so")
+        self.pamd = os.path.join(self.d, "pam.d")
+        os.makedirs(self.pamd)
         self.sd = os.path.join(self.d, "sd")
         self.ref = os.path.join(self.d, "ssh-forcecommand")
         wr(self.sd, "#!/bin/sh\nexit 0\n", 0o755)
         wr(self.ref, "#!/bin/sh\nexit 0\n", 0o755)
-        wr(self.module, "not really a module\n", 0o644)
         self.base_cfg = "HostKey %s\n%s%s" % (self.hostkey, config_extra, BASE_CONFIG)
         wr(self.cfg, self.base_cfg)
-        self.pam_text = pam
-        wr(self.pamf, pam)
+        self.pam_text = DEBIAN_PAM
+        wr(self.pamf, DEBIAN_PAM)
+        for name in CONSOLE_FILES:
+            wr(os.path.join(self.pamd, name), CONSOLE_PAM)
         self.groups = groups
 
     def run(self, mode, **env):
-        e = dict(os.environ, SD_SSHD_CONFIG=self.cfg, SD_PAM_SSHD=self.pamf, SD_TOTP_MODULE=self.module, SD_SSHD_BIN=self.ctx["sshd"],
+        e = dict(os.environ, SD_SSHD_CONFIG=self.cfg, SD_PAM_SSHD=self.pamf, SD_PAM_DIR=self.pamd, SD_SSHD_BIN=self.ctx["sshd"],
                  SD_SSH_FORCECOMMAND=self.sd, SD_SSH_REFUSE_BIN=self.ref, SD_SDSYS_GROUPS=self.groups)
         e.update(env)
         p = subprocess.run(["bash", self.ctx["helper"], mode], capture_output=True, text=True, env=e)
@@ -138,7 +166,22 @@ class Env:
         return dict(l.split("=", 1) for l in out.splitlines() if "=" in l)
 
     def snap(self):
-        return (rd(self.cfg), rd(self.pamf))
+        return (rd(self.cfg), rd(self.pamf), tuple(rd(os.path.join(self.pamd, n)) for n in CONSOLE_FILES))
+
+    def pristine_pam(self):
+        return (rd(self.pamf) == DEBIAN_PAM) and all(rd(os.path.join(self.pamd, n)) == CONSOLE_PAM for n in CONSOLE_FILES)
+
+    def make_legacy(self):
+        """What an older dev install left: the open arm of the authenticator code and its fences in sshd's PAM file and in each console service."""
+        self.run("--install")
+        t = rd(self.cfg)
+        closed = "Match User sdsys\n    DenyUsers sdsys\n"
+        assert closed in t
+        arm = "Match User sdsys\n" + "".join("    %s %s\n" % kv for kv in LEGACY_KEYWORDS) + "    ForceCommand %s\n" % self.sd
+        wr(self.cfg, t.replace(closed, arm))
+        wr(self.pamf, fenced(DEBIAN_PAM))
+        for name in CONSOLE_FILES:
+            wr(os.path.join(self.pamd, name), fenced(CONSOLE_PAM, opts=" local"))
 
 
 def rows_for(ctx):
@@ -157,89 +200,60 @@ def rows_for(ctx):
     try:
         # ---------------------------------------------------------------- the ordinary path
         e = env()
-        pam0 = e.pam_text
         code, out = e.run("--install")
-        row("install into a pristine config writes the CLOSED arm and leaves the PAM file alone (byte for byte, no backup of it)",
-            code == 0 and e.arm() == ["Match User sdsys", "    DenyUsers sdsys"] and rd(e.pamf) == pam0 and not os.path.exists(e.pamf + ".before-sd"), out.strip()[:120])
-        row("--sdsys-state: closed, no PAM fence", e.state() == {"sdsys-arm": "closed", "pam": "absent", "pam-session": "absent"}, "%s" % e.state())
+        row("install into a pristine config writes the CLOSED arm and leaves every PAM file alone (byte for byte, no backup of them)",
+            code == 0 and e.arm() == ["Match User sdsys", "    DenyUsers sdsys"] and e.pristine_pam() and not os.path.exists(e.pamf + ".before-sd"), out.strip()[:120])
+        row("--sdsys-state: closed", e.state() == {"sdsys-arm": "closed"}, "%s" % e.state())
         cfg_closed = rd(e.cfg)
         rc, alice_before = effective(ctx["sshd"], e.cfg, "alice")
         code, out = e.run("--open-sdsys")
         row("--open-sdsys on an installed block: exit 0", code == 0 and "OPENED" in out, out.strip()[:200])
         want = ["Match User sdsys"] + ["    %s %s" % kv for kv in ARM_KEYWORDS] + ["    ForceCommand %s" % e.sd]
-        row("... the sdsys arm is exactly the 17 lines of the open arm (this test's own list)", e.arm() == want, "\n".join(e.arm()))
-        row("... --sdsys-state: open, PAM fence and session fence present", e.state() == {"sdsys-arm": "open", "pam": "present", "pam-session": "present"}, "%s" % e.state())
+        row("... the sdsys arm is exactly the 17 lines of the open arm (this test's own list: the password alone)", e.arm() == want, "\n".join(e.arm()))
+        row("... --sdsys-state: open", e.state() == {"sdsys-arm": "open"}, "%s" % e.state())
         rc, eff = effective(ctx["sshd"], e.cfg)
         # a build of sshd without GSSAPI does not print that keyword at all; where it does print it, it must say no
         bad = [(k, eff.get(k.lower()), v) for k, v in ARM_KEYWORDS if eff.get(k.lower(), "").lower() != v and not (k == "GSSAPIAuthentication" and k.lower() not in eff)] + \
               ([("forcecommand", eff.get("forcecommand"), e.sd)] if eff.get("forcecommand") != e.sd else [])
-        row("... the REAL sshd, asked about sdsys, gives every one of those values (and UsePAM yes)", rc == 0 and not bad and eff.get("usepam", "").lower() == "yes", "%s" % bad)
+        row("... the REAL sshd, asked about sdsys, gives every one of those values", rc == 0 and not bad, "%s" % bad)
         rc, alice_after = effective(ctx["sshd"], e.cfg, "alice")
         row("... and gives another user exactly what it gave before: the arm touches nobody else", rc == 0 and alice_before == alice_after, "")
-        pam1 = rd(e.pamf)
-        lines = pam1.splitlines()
-        i = lines.index("@include common-auth")
-        row("... the PAM fence is the two lines, the guard first, directly above the first auth line (@include common-auth)",
-            lines[i - 4].startswith("# --- BEGIN SD sdsys authenticator code")
-            and lines[i - 3] == "auth [success=1 default=ignore] pam_succeed_if.so quiet user notin sdsys"
-            and lines[i - 2] == "auth required %s" % e.module
-            and lines[i - 1] == "# --- END SD sdsys authenticator code ---", "\n".join(lines[max(0, i - 5):i + 1]))
-        j = lines.index("session    required     pam_loginuid.so")
-        row("... S.101: the session fence is the two lines, the guard first, DIRECTLY AFTER the pam_loginuid session line (the marker is named by the session id it sets)",
-            lines[j + 1] == "# --- BEGIN SD sdsys login marker (S.101) - do not edit within this fence ---"
-            and lines[j + 2] == "session [success=1 default=ignore] pam_succeed_if.so quiet user notin sdsys"
-            and lines[j + 3] == "session optional %s" % e.module
-            and lines[j + 4] == "# --- END SD sdsys login marker ---", "\n".join(lines[j:j + 6]))
-        row("... nothing else in the PAM file changed (take both fences out and it is the original, byte for byte)",
-            re.sub(r"# --- BEGIN SD sdsys login marker.*?# --- END SD sdsys login marker ---\n", "",
-                   re.sub(r"# --- BEGIN SD sdsys authenticator.*?# --- END SD sdsys authenticator code ---\n", "", pam1, flags=re.S), flags=re.S) == pam0, "")
-        row("... the originals are kept once (sshd_config.before-sd holds the pristine config)", rd(e.cfg + ".before-sd") == e.base_cfg and rd(e.pamf + ".before-sd") == pam0, "")
+        row("... NO PAM line was written: sshd's PAM file and the console files are the originals, and no PAM backup was made",
+            e.pristine_pam() and not os.path.exists(e.pamf + ".before-sd"), "")
+        row("... the original config is kept once (sshd_config.before-sd holds the pristine config)", rd(e.cfg + ".before-sd") == e.base_cfg, "")
         s_open = e.snap()
         code, out = e.run("--open-sdsys")
-        row("a second --open-sdsys changes nothing (one block, one fence, the same bytes)", code == 0 and e.snap() == s_open and s_open[0].count("# --- END SD ssh-only model ---") == 1, "")
+        row("a second --open-sdsys changes nothing (one block, the same bytes)", code == 0 and e.snap() == s_open and s_open[0].count("# --- END SD ssh-only model ---") == 1, "")
         code, out = e.run("--install")
         row("--install over the open arm keeps it open (and one block)", code == 0 and e.state()["sdsys-arm"] == "open" and rd(e.cfg).count("# --- END SD ssh-only model ---") == 1, out.strip()[:120])
         code, out = e.run("--check")
-        row("--check reports the form and the fence, and prints the block it would write for that form",
-            code == 0 and "sdsys arm         open" in out and "PAM fence         yes" in out and "AuthenticationMethods keyboard-interactive" in out, out.strip()[:100])
+        row("--check reports the form, and prints the block it would write for that form (the password, never keyboard-interactive)",
+            code == 0 and "sdsys arm         open" in out and "AuthenticationMethods password" in out and "keyboard-interactive" not in out, out.strip()[:100])
         code, out = e.run("--close-sdsys")
-        row("--close-sdsys: the arm is closed again (the same bytes as the first install) and the PAM fence STAYS",
-            code == 0 and rd(e.cfg) == cfg_closed and e.state() == {"sdsys-arm": "closed", "pam": "present", "pam-session": "present"}, out.strip()[:120])
+        row("--close-sdsys: the arm is closed again (the same bytes as the first install)", code == 0 and rd(e.cfg) == cfg_closed and e.state() == {"sdsys-arm": "closed"}, out.strip()[:120])
         rc, eff = effective(ctx["sshd"], e.cfg)
         row("... and the REAL sshd now denies sdsys network login", rc == 0 and "sdsys" in eff.get("denyusers", "").split(), "%s" % eff.get("denyusers"))
         e.run("--open-sdsys")
         code, out = e.run("--remove")
-        row("--remove takes BOTH fences out and gives back the pristine files, byte for byte", code == 0 and rd(e.cfg) == e.base_cfg and rd(e.pamf) == pam0, out.strip()[:140])
+        row("--remove gives back the pristine files, byte for byte", code == 0 and rd(e.cfg) == e.base_cfg and e.pristine_pam(), out.strip()[:140])
         code, out = e.run("--remove")
         row("... and a second --remove is a clean no-op", code == 0, out.strip()[:100])
 
-        e = env(pam=CUSTOM_PAM)
-        e.run("--install")
-        code, out = e.run("--open-sdsys")
-        lines = rd(e.pamf).splitlines()
-        row("an administrator's PAM file whose first auth line is a plain 'auth required pam_unix.so': the fence goes above that line and the '#%PAM-1.0' line stays first",
-            code == 0 and lines[0] == "#%PAM-1.0" and lines[1].startswith("# --- BEGIN SD sdsys") and lines[4].startswith("# --- END SD sdsys") and lines[5].startswith("auth       required     pam_unix.so"), "\n".join(lines[:7]))
-
-        # ---------------------------------------------------------------- refusals: both files exactly as they were
+        # ---------------------------------------------------------------- refusals: the config exactly as it was
         def refused(label, e, mode="--open-sdsys", words=None, **kw):
             before = e.snap()
-            existed = os.path.exists(e.pamf + ".before-sd")
             code, out = e.run(mode, **kw)
             same = e.snap() == before
-            row("REFUSE: " + label + " - exit non-zero, sshd_config and PAM file byte for byte as they were",
+            row("REFUSE: " + label + " - exit non-zero, sshd_config and the PAM files byte for byte as they were",
                 code != 0 and same and (words is None or words in out), "exit %d, %s: %s" % (code, "same" if same else "CHANGED", out.strip()[:200]))
 
         e = env()
         refused("--open-sdsys with no SD block in the config", e, words="--install first")
-        e.run("--install")
-        wr(e.cfg, rd(e.cfg).replace("UsePAM yes", "UsePAM no"))
-        refused("UsePAM is off", e, words="UsePAM")
-
         e = env()
         e.run("--install")
         t = rd(e.cfg)
         i = t.index("# --- BEGIN SD ssh-only model")
-        wr(e.cfg, t[:i] + "Match Address 192.0.2.0/24\n    PasswordAuthentication yes\n" + t[i:])
+        wr(e.cfg, t[:i] + "Match Address 192.0.2.0/24\n    PasswordAuthentication no\n" + t[i:])
         refused("an administrator's Match Address block ABOVE ours sets PasswordAuthentication first", e, words="passwordauthentication")
 
         e = env()
@@ -250,12 +264,18 @@ def rows_for(ctx):
         refused("an Include at the top brings a Match block that sets AuthenticationMethods first", e, words="authenticationmethods")
         e = env()
         extra = os.path.join(e.d, "extra.conf")
-        wr(extra, "AuthenticationMethods publickey\nPasswordAuthentication yes\n")
+        wr(extra, "AuthenticationMethods publickey\nPasswordAuthentication no\n")
         e.run("--install")
         wr(e.cfg, "Include %s\n" % extra + rd(e.cfg))
         code, out = e.run("--open-sdsys")
         row("ALLOW: an Include that sets the same keywords GLOBALLY is no obstacle (a Match block overrides the global value; the real sshd says so)",
             code == 0 and e.state()["sdsys-arm"] == "open", out.strip()[:140])
+
+        e = env()
+        e.run("--install")
+        wr(e.cfg, rd(e.cfg).replace("UsePAM yes", "UsePAM no"))
+        code, out = e.run("--open-sdsys")
+        row("ALLOW: UsePAM off is no obstacle any more (sshd checks the password itself; there is no PAM line to ask for a code)", code == 0 and e.state()["sdsys-arm"] == "open", out.strip()[:140])
 
         e = env()
         e.run("--install")
@@ -279,33 +299,6 @@ def rows_for(ctx):
         e.run("--install")
         wr(e.cfg, "AllowGroups sdusers\n" + rd(e.cfg))
         refused("an AllowGroups when sdsys's groups cannot be read", e, words="cannot be read")
-
-        for what, mk in (("no module file", lambda e: os.unlink(e.module)),
-                         ("a module that is a link", lambda e: (os.unlink(e.module), os.symlink(e.sd, e.module))),
-                         ("a module others can write (0666)", lambda e: os.chmod(e.module, 0o666)),
-                         ("a module group can write (0664)", lambda e: os.chmod(e.module, 0o664))):
-            e = env()
-            e.run("--install")
-            mk(e)
-            refused("%s" % what, e, words="PAM")
-        e = env()
-        e.run("--install")
-        spaced = os.path.join(e.d, "with space")
-        os.makedirs(spaced)
-        shutil.copy(e.module, os.path.join(spaced, "m.so"))
-        refused("a module path with a space in it (it would split the PAM line)", e, SD_TOTP_MODULE=os.path.join(spaced, "m.so"))
-        e = env(pam="# a PAM file with no auth line\naccount required pam_permit.so\n")
-        e.run("--install")
-        refused("a PAM file with no auth line (not guessing where the code goes)", e, words="no auth line")
-        e = env(pam=DEBIAN_PAM.replace("session    required     pam_loginuid.so\n", ""))
-        e.run("--install")
-        refused("S.101: a PAM file with no pam_loginuid session line (the login marker would have no session to be named by)", e, words="pam_loginuid")
-        e = env()
-        e.run("--install")
-        os.unlink(e.pamf)
-        before = rd(e.cfg)
-        code, out = e.run("--open-sdsys")
-        row("REFUSE: no PAM file at all - exit non-zero and the sshd_config untouched", code != 0 and rd(e.cfg) == before, out.strip()[:140])
         e = env()
         e.run("--install")
         refused("no sshd found to ask", e, SD_SSHD_BIN="")
@@ -327,7 +320,7 @@ def rows_for(ctx):
         e.run("--open-sdsys")
         refused("--close-sdsys when sshd -T cannot read the result", e, mode="--close-sdsys", words="NOT CLOSED", SD_SSHD_BIN=stub, STUB_T_FAIL="1")
 
-        # ---------------------------------------------------------------- a control: the refusals above are about the settings, not about everything
+        # ---------------------------------------------------------------- controls: the refusals above are about the settings, not about everything
         e = env()
         e.run("--install")
         wr(e.cfg, "AllowUsers sdsys alice\n" + rd(e.cfg))
@@ -339,51 +332,110 @@ def rows_for(ctx):
         code, out = e.run("--open-sdsys")
         row("ALLOW: an AllowGroups that names one of sdsys's groups is no obstacle", code == 0 and e.state()["sdsys-arm"] == "open", out.strip()[:140])
         e = env()
-        os.chmod(e.module, 0o755)
         e.run("--install")
+        os.unlink(e.pamf)
         code, out = e.run("--open-sdsys")
-        row("ALLOW: a module at 0755 is fine", code == 0, out.strip()[:100])
+        row("ALLOW: no PAM file at all is no obstacle (nothing here writes one)", code == 0 and e.state()["sdsys-arm"] == "open" and not os.path.exists(e.pamf), out.strip()[:140])
+        e = env()
+        e.run("--install")
         code, out = e.run("--sdsys-state")
-        row("--sdsys-state needs no root and changes nothing", code == 0 and e.snap()[0] == rd(e.cfg), out.strip()[:100])
+        row("--sdsys-state needs no root and changes nothing", code == 0 and rd(e.cfg) == e.snap()[0], out.strip()[:100])
+
+        # ---------------------------------------------------------------- S.106: what an older dev install left (the arm of the authenticator code and its PAM fences)
+        e = env()
+        e.make_legacy()
+        row("LEGACY: an open arm of keyboard-interactive is told apart from both other forms", e.state() == {"sdsys-arm": "legacy"}, "%s" % e.state())
+        before = e.snap()
+        code, out = e.run("--clean-legacy")
+        row("LEGACY: --clean-legacy REFUSES while the arm is still the code's, and changes no file (the lines are what keep that arm asking for the code)",
+            code != 0 and e.snap() == before and "authenticator" in out, "exit %d: %s" % (code, out.strip()[:140]))
+        code, out = e.run("--install")
+        row("LEGACY: --install writes the arm CLOSED, not open, and takes every fence out of sshd's PAM file and the console files, leaving the originals byte for byte",
+            code == 0 and e.arm() == ["Match User sdsys", "    DenyUsers sdsys"] and e.pristine_pam(), out.strip()[:140])
+        e = env()
+        e.make_legacy()
+        code, out = e.run("--close-sdsys")
+        row("LEGACY: --close-sdsys closes the arm and takes every fence out", code == 0 and e.state() == {"sdsys-arm": "closed"} and e.pristine_pam(), out.strip()[:140])
+        e = env()
+        e.make_legacy()
+        code, out = e.run("--open-sdsys")
+        rc, eff = effective(ctx["sshd"], e.cfg)
+        row("LEGACY: --open-sdsys writes the password arm over it, takes every fence out, and the REAL sshd gives the password arm",
+            code == 0 and e.state() == {"sdsys-arm": "open"} and e.pristine_pam() and eff.get("authenticationmethods") == "password", out.strip()[:140])
+        e = env()
+        e.make_legacy()
+        code, out = e.run("--remove")
+        row("LEGACY: --remove gives back the pristine config and PAM files, byte for byte", code == 0 and rd(e.cfg) == e.base_cfg and e.pristine_pam(), out.strip()[:140])
+        # a machine whose arm is already right but whose fences were left (a failed earlier cleanup): --clean-legacy takes them out
+        e = env()
+        e.make_legacy()
+        e.run("--install")
+        wr(e.pamf, fenced(DEBIAN_PAM))
+        for name in CONSOLE_FILES:
+            wr(os.path.join(e.pamd, name), fenced(CONSOLE_PAM, opts=" local"))
+        cfg_before = rd(e.cfg)
+        code, out = e.run("--clean-legacy")
+        row("LEGACY: --clean-legacy with the arm closed takes every fence out of sshd's PAM file and the console files, byte for byte, and leaves the config alone",
+            code == 0 and e.pristine_pam() and rd(e.cfg) == cfg_before, out.strip()[:140])
+        s1 = e.snap()
+        code, out = e.run("--clean-legacy")
+        row("LEGACY: ... and a second --clean-legacy changes nothing (the null case: nothing to clean is exit 0)", code == 0 and e.snap() == s1, out.strip()[:100])
+        e = env()
+        e.run("--install")
+        e.run("--open-sdsys")
+        s2 = e.snap()
+        code, out = e.run("--clean-legacy")
+        row("LEGACY: --clean-legacy on an arm that is open with the password changes nothing", code == 0 and e.snap() == s2 and e.state() == {"sdsys-arm": "open"}, out.strip()[:100])
+        e = env()
+        e.make_legacy()
+        os.unlink(os.path.join(e.pamd, "gdm-password"))
+        code, out = e.run("--install")
+        row("LEGACY: a console service whose file is not there is passed over, and the others are cleaned",
+            code == 0 and rd(os.path.join(e.pamd, "login")) == CONSOLE_PAM and rd(e.pamf) == DEBIAN_PAM, out.strip()[:140])
 
         # ---------------------------------------------------------------- the script's own text
         src = rd(ctx["helper"])
         arm = src[src.find("sdsys_arm_lines() {"):src.find("block_lines() {")]
-        row("TEXT: the open arm and the closed arm are the only two forms, and the closed one is exactly 'Match User sdsys' / 'DenyUsers sdsys'",
+        row("TEXT: the open arm and the closed arm are the only two forms written, and the closed one is exactly 'Match User sdsys' / 'DenyUsers sdsys'",
             '"Match User sdsys" \\\n      "    DenyUsers sdsys"' in arm and arm.count("Match User sdsys") == 2, "")
         op = src[src.find("  --open-sdsys)"):src.find("  --close-sdsys)")]
-        row("TEXT: --open-sdsys takes its copies before it writes, writes the PAM file, then the config, asks sshd, and puts both back on a bad answer",
-            0 < op.find('cp -- "$CONFIG" "$prev"') < op.find('pam_commit_file "$ptmp"') < op.find('commit_file "$tmp"') < op.find('verify_open "$sshd"') < op.find('cp -- "$pprev" "$PAM_FILE"'), "")
+        row("TEXT: --open-sdsys takes its copy before it writes, writes the config, asks sshd, and puts the config back on a bad answer",
+            0 < op.find('cp -- "$CONFIG" "$prev"') < op.find('commit_file "$tmp"') < op.find('verify_open "$sshd"') < op.find('cp -- "$prev" "$CONFIG"'), "")
+        code_only = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))          # the history comments name what went
+        row("TEXT S.106: nothing writes a PAM line or names the module any more (the code, not the history comments)",
+            not any(w in code_only for w in ("pam_with_block", "pam_block_lines", "pam_session_lines", "module_ok", "PAM_MODULE", "SD_TOTP_MODULE", "--open-local", "--close-local", "--local-state")), "")
     finally:
         shutil.rmtree(base, ignore_errors=True)
     return rows
 
 
 MUTANTS = [
-    ("the guard line is left out", "    \"auth [success=1 default=ignore] pam_succeed_if.so quiet user notin sdsys\" \\\n", ""),
+    ("the open arm asks for keyboard-interactive again", '"    AuthenticationMethods password" \\', '"    AuthenticationMethods keyboard-interactive" \\'),
+    ("the open arm leaves password authentication off", '"    PasswordAuthentication yes" \\', '"    PasswordAuthentication no" \\'),
     ("the open arm leaves PubkeyAuthentication on", '"    PubkeyAuthentication no" \\', '"    PubkeyAuthentication yes" \\'),
     ("the open arm leaves out GSSAPIAuthentication", '      "    GSSAPIAuthentication no" \\\n', ""),
     ("the open arm leaves out the ForceCommand", '      "    PermitTTY yes" \\\n      "    ForceCommand $SD_BIN"', '      "    PermitTTY yes"'),
     ("the open arm leaves out DisableForwarding", '      "    DisableForwarding yes" \\\n', ""),
     ("sshd is not asked after the write", 'if ! why=$(verify_open "$sshd"); then', "if false; then"),
-    ("the config is not put back", '      cp -- "$prev" "$CONFIG"\n      cp -- "$pprev" "$PAM_FILE"\n      fail "NOT OPENED', '      cp -- "$pprev" "$PAM_FILE"\n      fail "NOT OPENED'),
-    ("the PAM file is not put back", '      cp -- "$prev" "$CONFIG"\n      cp -- "$pprev" "$PAM_FILE"\n      fail "NOT OPENED', '      cp -- "$prev" "$CONFIG"\n      fail "NOT OPENED'),
+    ("the config is not put back", '      cp -- "$prev" "$CONFIG"\n      fail "NOT OPENED', '      fail "NOT OPENED'),
     ("an AllowUsers that leaves sdsys out is not noticed", 'if [[ -n ${EFF[allowusers]-} ]] && ! list_admits user "${EFF[allowusers]}"; then', "if false; then"),
     ("an AllowGroups is not noticed", "  if [[ -n ${EFF[allowgroups]-} ]]; then\n", "  if false; then\n"),
     ("a DenyUsers is not noticed", 'if [[ -n ${EFF[denyusers]-} ]] && list_admits user "${EFF[denyusers]}"; then      # "admits" here means: the list names sdsys', "if false; then"),
     ("a DenyGroups is not noticed", "  if [[ -n ${EFF[denygroups]-} ]]; then\n", "  if false; then\n"),
-    ("a module others can write is accepted", "(( (8#$mode & 8#022) == 0 ))", "true"),
-    ("a module path with a space is accepted", "  [[ $PAM_MODULE =~ ^/[A-Za-z0-9._/-]+$ ]] || return 1\n", ""),
     ("--open-sdsys works without a block", '    has_block || die "the SD block is not in $CONFIG: run --install first"\n', ""),
-    ("--install forgets that the arm was open", "    [[ $(sdsys_mode_now) == open ]] && SDSYS_MODE=open     # an install over an open arm keeps it open: the form is changed only by --open-sdsys and --close-sdsys\n", ""),
-    ("--remove leaves the PAM fence", "    pam_has_block && remove_pam_block                    # the door is shut and sshd has the new config before the lines that ask for the code go\n", ""),
+    ("--install forgets that the arm was open", "    [[ $(sdsys_mode_now) == open ]] && SDSYS_MODE=open     # an install over an open arm keeps it open", "    # an install over an open arm keeps it open"),
+    ("--remove leaves the PAM fence", "    pam_has_block && remove_pam_block                    # the door is shut", "    # the door is shut"),
     ("the closed arm is not read back", 'if ! why=$(verify_closed "$sshd"); then', "if false; then"),
-    # S.101 stage C (2 Nov 26)
-    ("a file with no pam_loginuid line is accepted", "    END { exit (!done ? 3 : (!sdone ? 5 : 0)) }", "    END { exit (!done ? 3 : 0) }"),
-    ("the session fence goes above pam_loginuid", "    { print }\n    !sdone && /^[[:space:]]*-?session[[:space:]]+[^#]*pam_loginuid\\.so/ {",
-     "    !sdone && /^[[:space:]]*-?session[[:space:]]+[^#]*pam_loginuid\\.so/ {"),
-    ("--sdsys-state does not see the session fence", "    if pam_has_session; then printf 'pam-session=present\\n'; else", "    if false; then printf 'pam-session=present\\n'; else"),
-    ("the fence goes below the first auth line", "      while ((getline line < blk) > 0) print line\n      close(blk)\n      done = 1\n    }\n    { print }", "      done = 1\n    }\n    { print }\n    done == 1 && !wrote { while ((getline line < blk) > 0) print line; close(blk); wrote = 1 }"),
+    # S.106: the legacy arm and its fences
+    ("the legacy arm reads as closed", 'found = "legacy"', 'found = "closed"'),
+    ("--clean-legacy does not refuse while the arm is the code's", '[[ $(sdsys_mode_now) != legacy ]] || die "the sdsys arm in', 'true || die "the sdsys arm in'),
+    ("--clean-legacy leaves the console files", '    { pam_has_block || pam_has_session; } && remove_pam_block\n    local_remove_all\n    say "CLEAN', '    { pam_has_block || pam_has_session; } && remove_pam_block\n    say "CLEAN'),
+    ("--clean-legacy leaves sshd's PAM file", '    { pam_has_block || pam_has_session; } && remove_pam_block\n    local_remove_all\n    say "CLEAN', '    local_remove_all\n    say "CLEAN'),
+    ("--install leaves the fences", "    pam_has_block && remove_pam_block                      # S.106: the door is as it should be", "    # S.106: the door is as it should be"),
+    ("--install leaves the console files' fences", "    local_remove_all                                       # and the console services' lines\n", ""),
+    ("--close-sdsys leaves the console files' fences", "# S.106: an older install's PAM fences go, now that the door is shut\n    local_remove_all\n", "# S.106: an older install's PAM fences go, now that the door is shut\n"),
+    ("--open-sdsys leaves the fences", "    pam_has_block && remove_pam_block\n    local_remove_all\n    exit 0\n    ;;\n\n  --close-sdsys)", "    exit 0\n    ;;\n\n  --close-sdsys)"),
+    ("the fence stripper takes the session fence's text", '    $0 == b || $0 == sb { drop = 1; next }', '    $0 == b { drop = 1; next }'),
 ]
 
 

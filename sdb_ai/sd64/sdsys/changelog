@@ -224,13 +224,12 @@ Next release - in progress
                            job's root-owned definition names exactly the command the session was started with. Only then is it granted
                            the administrator ("elevation granted reason=scheduled job"), and every audit line of the run ends job=NAME.
                            The root helper admits the job's own calls the same way. A run missed while the machine was off is not made
-                           up. The uninstaller now stops and removes the jobs' timers and units, and also removes the authenticator code's
-                           status file /etc/sdcore/totp.public, which a delete used to leave behind.
+                           up. The uninstaller now stops and removes the jobs' timers and units.
              Why         - The owner's scheduled-jobs page: administrator jobs that work across accounts, run unattended, without a
                            second administrator and without trusting anything the sdsys user can edit.
              Does NOT    - Schedule anything as delivered, let a job run any command but the ones the helper owns (backup-all and
                            update-accounts; check-masters and sync-masters went with the master-file copies), or change how a job in sdsys's own crontab is treated: that is
-                           still an ordinary sdsys login (cron sets the login), refused only when the console's authenticator code is on.
+                           still an ordinary sdsys login (cron sets the login).
                            The page's half (listing jobs, run now) is still to come.
 
 2 Nov 26   TOOL.ENTRIES: D DELETES A PROGRAM WITH ITS COMPILED PROGRAM; THE EDITOR'S BREAKPOINTS REACH A DEBUGGER RUN IN THE ACCOUNT.
@@ -259,25 +258,6 @@ Next release - in progress
                            tell the user to look for it. The tree's message blamed the account's gate for what was the operating system's permission.
              Does NOT    - Change what OPENSEQ does when the name is free or the file is there, what SHARED appends to, or which directories an account may list.
                            A create that ends in an error after the file was made (a shortage of memory) may still leave an empty file, and the IDE still says so.
-
-2 Nov 26   THE SDSYS AUTHENTICATOR CODE CAN BE ASKED AT THE MACHINE'S OWN CONSOLE TOO. OFF AS DELIVERED.
-
-             What        - "remote.sdsys local on" (or "sudo /usr/local/sbin/sd-elevate totp-local on", or L on the sdsys view of
-                           tool.remote) has the code that the sdsys sign-in over ssh asks for asked at the text console and at each
-                           desktop sign-in screen that is installed (GDM, LightDM, SDDM) as well, before the password. "local off" goes
-                           back to ssh only. With it on, a sign-in that did not give the code - an automatic sign-in, a fingerprint, a
-                           scheduled job - is refused SDSYS's rights with message 11190, both by SD and by its root helper. Failures at
-                           a console are counted for that console, and five lock it for one minute, not ten. Every right code leaves a
-                           mark for that one sign-in under /run/sdcore/marks; /etc/sdcore/totp.public, readable by all and holding no
-                           secret, tells SD whether a code is enrolled and whether the console asks it.
-             Why         - The owner's ruling: sign-in to the administrator from another computer always needs the code, but at the
-                           console it is the administrator's choice, because the people who run SD are mostly small organisations with
-                           a consultant rather than IT staff, and a console already needs someone at the machine and two passwords.
-                           A remote-desktop or remote-console tool (TeamViewer, VNC, iLO, IPMI) makes a console sign-in a remote one:
-                           on such a machine, switch it on.
-             Does NOT    - Ask anything at the console as delivered, change the sign-in of any user but sdsys, or touch the files that
-                           su and sudo share (common-auth, common-session). On a machine already set up for the ssh code, nothing
-                           changes until one of the code's commands is run again.
 
 2 Nov 26   TOOL.ENTRIES: A PROGRAM OF ANY ACCOUNT IS DEBUGGED IN ITS OWN ACCOUNT.
 
@@ -455,7 +435,7 @@ Next release - in progress
              Why         - The owner's ruling: sdsys always has read/write access to the /home/sd tree, and how much further protection the machine needs is the administrator's to
                            decide; the system must stay simple for the people who run it. It also lets SDSYS compile, catalogue and debug the programs of an account whose bp-edit
                            gate is off. This reverses the 26 Oct change that made the membership off as delivered.
-             Does NOT    - Reach the network (sdsys has no API access, and ssh only with an authenticator code), make sdsys root (it is in no sudo group; the root helper is
+             Does NOT    - Reach the network (sdsys has no API access, and ssh only when the administrator opens that door), make sdsys root (it is in no sudo group; the root helper is
                            still limited verb by verb), or change group accounts (SDSYS owns their files). A session of SDSYS that was already running keeps the groups it started
                            with: sign on again. Files an account's user makes outside SD under a strict umask may not be group-writable until sdsys-on is given again.
 
@@ -492,28 +472,20 @@ Next release - in progress
                            beyond SD is turned on) is still the question. It skips a gate that is not built, one that does not apply to the kind of account, and sh and os
                            for an account that is not a person. It acts on one account, not on every account shown.
 
-1 Nov 26   THE AUTHENTICATOR CODE FOR SDSYS'S SSH SIGN-IN CAN BE SET UP, RENEWED AND SWITCHED OFF FROM INSIDE SD: REMOTE.SDSYS, AND A SIXTH VIEW OF TOOL.REMOTE.
+1 Nov 26   SDSYS CAN SIGN IN OVER ssh FROM ANOTHER COMPUTER WITH ITS PASSWORD, WHEN THE ADMINISTRATOR OPENS THAT DOOR (SD CORE FOR LINUX ONLY). IT HAD NO REMOTE ROUTE AT ALL.
 
-             What        - remote.sdsys with no keyword says whether the code is on, how many recovery codes are left and whether ssh lets sdsys in. remote.sdsys on shows a new
-                           secret and its link once, then asks for a code from the app (three tries); a right code switches it on, shows the eight recovery codes and opens ssh
-                           for sdsys. remote.sdsys recovery makes eight new recovery codes. remote.sdsys off shuts ssh to sdsys first and then removes the code. tool.remote has a
-                           view 6, "sdsys login", which shows the same report; O, R and F run on, recovery and off after a box, and on asks for the word OPEN to be typed.
-             Why         - Until now the code could only be set up by the installer or by "sudo sd-elevate totp-begin" from a Linux shell. An administrator signed in at the machine
-                           as sdsys can now do it without leaving SD.
-             Does NOT    - Show the secret or the recovery codes anywhere but the terminal: they are not written to a file, the audit trail (which records only the keyword and the
-                           result) or the error log, the screen is cleared after Enter, and on and recovery refuse while a COMO file is recording the session. The code typed is
-                           never put on a command line. It cannot clear the terminal program's own scroll-back. Available to SDSYS only.
-
-1 Nov 26   SDSYS CAN SIGN IN OVER ssh FROM ANOTHER COMPUTER, WITH AN AUTHENTICATOR CODE AND ITS PASSWORD (SD CORE FOR LINUX ONLY). IT HAD NO REMOTE ROUTE AT ALL.
-
-             What        - The administrator can now be reached over ssh, for a server that has no screen or keyboard. The door stays shut until an authenticator code is enrolled
-                           (sudo sd-elevate totp-begin, then totp-confirm with the first six digits). After that an ssh sign-in as sdsys asks for the code first and the password second,
-                           and lands in an SD session with no shell, no forwarding and no keys. Eight single-use recovery codes are given at enrolment. Wrong codes are counted for each
-                           source address: five lock that address for ten minutes. Every attempt is written to the audit trail and the system log. sd-elevate totp-off shuts the door again.
-             Why         - A server in a data centre cannot always be reached at a console. A code from a phone as well as the password keeps a stolen password from being enough.
-             Does NOT    - Open the API to sdsys from another computer (it stays closed), accept an ssh key or a push approval, let "su sdsys" or "sudo -u sdsys" in, or change any other
-                           account. Turning it on asks sshd itself what it would do with sdsys and puts the files back, saying why, if sshd's own answer is not the one SD wrote (UsePAM off,
-                           an earlier Match block, an AllowUsers that leaves sdsys out). The installer also installs the PAM development package (libpam0g-dev, pam-devel on Fedora).
+             What        - The administrator can now be reached over ssh, for a server that has no screen or keyboard. The door is shut as delivered. remote.sdsys on opens it (or
+                           "sudo /usr/local/sbin/sd-elevate sdsys-ssh on", or O on the sdsys login view of tool.remote, which asks for the word OPEN to be typed); remote.sdsys off
+                           shuts it again; remote.sdsys with no keyword says whether sshd lets sdsys in. While it is open an ssh sign-in as sdsys asks for the sdsys password
+                           and lands in an SD session with no shell, no forwarding and no keys. Turning it on asks sshd itself what it would do with sdsys and puts the file back,
+                           saying why, if sshd's own answer is not the one SD wrote (an earlier Match block, an AllowUsers that leaves sdsys out). A machine that an earlier test
+                           version had set up with an authenticator code is cleaned by the installer: the door is written shut, the code's lines are taken out of the PAM files and
+                           its files are removed.
+             Why         - A server in a data centre cannot always be reached at a console. The owner's ruling, 2 Nov 26: this release depends on the password alone ("it is too
+                           much security for our intended audience"); the earlier design, which also asked for a code from a phone, is not part of it.
+             Does NOT    - Open the API to sdsys from another computer (it stays closed), accept an ssh key, let "su sdsys" or "sudo -u sdsys" in, or change any other account.
+                           It is a looser door than a code would have made it: with it open, nothing but the sdsys password stands between the network and the administrator, so
+                           open it only on a machine whose sdsys password is long and used nowhere else, and shut it when it is not needed.
 
 1 Nov 26   THE ROOT HELPER ANSWERS THE USER SDSYS ONLY WHEN SDSYS HAS LOGGED IN. "su sdsys" AND "sudo -u sdsys" FROM ANOTHER USER'S SESSION NO LONGER REACH IT.
 

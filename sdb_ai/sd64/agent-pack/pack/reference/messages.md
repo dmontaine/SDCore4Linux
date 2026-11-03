@@ -2832,18 +2832,6 @@ cited by: `tool_tktest`
 File operation not allowed in transaction
 ```
 
-### msg:11190
-> kind=message tier=reference since=- src=sdsys/messages/11190:1#d743a231
-
-```
-This sdsys login did not give the authenticator code, so it is not the
-administrator. Log in as sdsys again and give the code when it is asked
-for; an administrator of the machine can see the state with
-sudo /usr/local/sbin/sd-elevate totp-status
-```
-
-cited by: `cproc`
-
 ### msg:11191
 > kind=message tier=reference since=- src=sdsys/messages/11191:1#13b20cea
 
@@ -7724,10 +7712,10 @@ Account %1: NOT every action was carried out. Done: %2. Not done: %3
 cited by: `modifya`
 
 ### msg:11795
-> kind=message tier=reference since=- src=sdsys/messages/11795:1#580a67ce
+> kind=message tier=reference since=- src=sdsys/messages/11795:1#34f35510
 
 ```
-SD administration granted: this session is the sdsys OS user, signed in over ssh\nfrom %1 with its password and an authenticator code
+SD administration granted: this session is the sdsys OS user, signed in over ssh\nfrom %1 with its password
 ```
 
 cited by: `cproc`
@@ -8809,64 +8797,28 @@ Passages of SD's own documentation follow, each with its id in brackets. Use the
 cited by: `tk_ai`
 
 ### msg:11923
-> kind=message tier=reference since=- src=sdsys/messages/11923:1#65e54e77
+> kind=message tier=reference since=- src=sdsys/messages/11923:1#d7b2d81f
 
 ```
-remote.sdsys on | recovery | off | local on | local off\n\nON        a new secret for the authenticator app, shown once, then a code from\n          the app; a right code switches the code on and opens ssh for sdsys.\nRECOVERY  eight new recovery codes; the old ones stop working.\nOFF       closes ssh for sdsys, then removes the code.\nLOCAL ON  the same code at this machine's console and desktop login too.\nLOCAL OFF the code over ssh only, as delivered.\n\nWith no keyword it reports the state and changes nothing.
+remote.sdsys on | off\n\nON        opens ssh for sdsys: it can sign in from other computers with its\n          password.\nOFF       shuts ssh for sdsys again, as delivered.\n\nWith no keyword it reports the state and changes nothing.
 ```
 
 cited by: `remotesdsys`
 
 ### msg:11924
-> kind=message tier=reference since=- src=sdsys/messages/11924:1#3b0ff3de
+> kind=message tier=reference since=- src=sdsys/messages/11924:1#6999e6ee
 
 ```
-The sdsys authenticator code: %1 did not succeed (status %2).\n\nStatus 1: refused - the code was wrong, already used or not typed, or there is\nnothing to do this to; nothing was switched on.  Status 2: the helper refused\nor could not run.  Status 3: the code is on, but ssh was not opened for sdsys;\nthe lines above say why.
-```
-
-cited by: `remotesdsys`
-
-### msg:11925
-> kind=message tier=reference since=- src=sdsys/messages/11925:1#799b75d8
-
-```
-A COMO file is recording this session, and it would keep the secret and the\nrecovery codes.  Close it with COMO OFF and try again.  Nothing was changed.
-```
-
-cited by: `remotesdsys`
-
-### msg:11926
-> kind=message tier=reference since=- src=sdsys/messages/11926:1#d83a1ad8
-
-```
-Put the secret into your authenticator app: type it, or open the link where the\napp can read it.  It is shown this once.  Then type the digits the app shows.
-```
-
-cited by: `remotesdsys`
-
-### msg:11927
-> kind=message tier=reference since=- src=sdsys/messages/11927:1#76765072
-
-```
-  Code from the app (Enter to stop):
-```
-
-cited by: `remotesdsys`
-
-### msg:11928
-> kind=message tier=reference since=- src=sdsys/messages/11928:1#57474159
-
-```
-  That code was not accepted.
+remote.sdsys %1 did not succeed (status %2); the lines above say why.\n\nStatus 2: the helper refused or could not run.  Status 3: sshd could not be\nchanged, and its state is as it was before.
 ```
 
 cited by: `remotesdsys`
 
 ### msg:11929
-> kind=message tier=reference since=- src=sdsys/messages/11929:1#8a369bbf
+> kind=message tier=reference since=- src=sdsys/messages/11929:1#e4ce49a5
 
 ```
-The code is on: sdsys can sign in over ssh with its password and a code from\nthe app.
+ssh is open for sdsys: it can sign in from other computers with its password,\nand nothing else stands between the network and the administrator.  Shut it\nagain with remote.sdsys off.
 ```
 
 cited by: `remotesdsys`
@@ -8950,15 +8902,6 @@ A or S type dictionary item %1 is not compiled: write it as a D-type or an I-typ
 
 cited by: `cd`, `dcomp`, `mkindx`
 
-### msg:11939
-> kind=message tier=reference since=- src=sdsys/messages/11939:1#66a3345d
-
-```
-Write the recovery codes down now, somewhere that is not the phone: each signs\nin once in place of a code, and they are not shown again.  Any older recovery\ncodes no longer work.
-```
-
-cited by: `remotesdsys`
-
 ### msg:11940
 > kind=message tier=reference since=- src=sdsys/messages/11940:1#c06cef8b
 
@@ -9001,15 +8944,6 @@ The AI proposed %1, which this page has no key for.  Nothing was done
 ```
 
 cited by: `tk_aipage`
-
-### msg:11945
-> kind=message tier=reference since=- src=sdsys/messages/11945:1#4f0de4c4
-
-```
-Press Enter to clear the screen
-```
-
-cited by: `remotesdsys`
 
 ### msg:11946
 > kind=message tier=reference since=- src=sdsys/messages/11946:1#ce2f5d0f

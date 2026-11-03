@@ -1,1 +1,1 @@
-The sdsys authenticator code: %1 did not succeed (status %2).\n\nStatus 1: refused - the code was wrong, already used or not typed, or there is\nnothing to do this to; nothing was switched on.  Status 2: the helper refused\nor could not run.  Status 3: the code is on, but ssh was not opened for sdsys;\nthe lines above say why.
+remote.sdsys %1 did not succeed (status %2); the lines above say why.\n\nStatus 2: the helper refused or could not run.  Status 3: sshd could not be\nchanged, and its state is as it was before.

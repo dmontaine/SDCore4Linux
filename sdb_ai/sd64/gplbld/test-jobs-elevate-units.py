@@ -350,7 +350,7 @@ def checks(elev, deleter, sudoers):
         rc3, o3 = run("job-list")
         ck("V4 a real run as an ordinary user dies at need_root, before anything is made", rc != 0 and rc2 != 0 and rc3 != 0 and "must run as root" in o and "must run as root" in o2 and "must run as root" in o3 and not os.path.exists(os.path.dirname(jd)), repr((o, o2, o3)))
 
-        verb = elev[elev.find("  job-set)"):elev.find("  totp-status|totp-begin")]
+        verb = elev[elev.find("  job-set)"):elev.find("  job-run)")]
         a, b, c, e_ = (verb.find(p) for p in ("job_check", "need_root", "job_caller", "python3 -I -c \"$JOBS_PY\" set"))
         ck("V5 job-set: the checks, then need_root, then the caller, then the write; the worker runs under python3 -I", 0 <= a < b < c < e_, repr((a, b, c, e_)))
         d1, d2 = verb.find("job_name_ok"), verb.find("python3 -I -c \"$JOBS_PY\" delete")
@@ -369,7 +369,7 @@ def checks(elev, deleter, sudoers):
            rc == 0 and "systemctl start --no-block sdcore-job-nightly.service" in o and not bad_r and not os.path.exists(os.path.dirname(jd)), repr((o, bad_r)))
         rc, o = run("job-run", "nightly")
         ck("R2 a real job-run as an ordinary user dies at need_root, before it looks at anything", rc != 0 and "must run as root" in o, repr(o))
-        vr = elev[elev.find("  job-run)"):elev.find("  totp-status|totp-begin")]
+        vr = elev[elev.find("  job-run)"):elev.find("  sdsys-ssh)")]
         r1, r2, r3, r4, r5 = (vr.find(p) for p in ("job_name_ok", "need_root", "job_caller", "! -L $SD_JOBS_DIR/$1 && -f $SD_JOBS_DIR/$1",
                                                     'systemctl start --no-block "sdcore-job-$1.service"'))
         r6, r7 = vr.find('job_run_state "$1" || die'), vr.find('[[ $JB_RUN != damaged ]] || die "job $1 is damaged; nothing was started')
