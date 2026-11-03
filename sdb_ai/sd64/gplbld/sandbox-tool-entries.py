@@ -52,7 +52,8 @@
 #        Run writes each record in its own account (the disk is the oracle), one undo record per write and none for a refused or failed row; U puts back what is still as the run
 #        left it and LEAVES a record edited since; a second U is not offered; the VOC kind with a record a LIVE session holds (refused, the next account done all the same); the
 #        programs replaced in the source and compiled again in each account by run.in (objects newer), a read-only source failed with no undo record, U compiling again; the audit lines.
-#        Mutants: global-no-rule, global-stops, undo-no-digest, undo-after-write.
+#        Field 1 (the type; the owner, 3 Nov 26): refused on three records before any box, the disk unchanged; on one record the box warns "X" -> "PA", Run changes it, U puts it back.
+#        Mutants: global-no-rule, global-stops, undo-no-digest, undo-after-write, field1-any-count.
 # NOT HELD: SDSYS in the group (a sandbox has no sdsys user: the column can only say no or n/a here), the help text itself (sandbox-docs.py).
 import importlib.util
 import os
@@ -123,6 +124,7 @@ MUTANTS = {
     # refusal's IF alone taken away left an unopened file to fail the type test, and the path and FL$PATH alone left the subfiles' test to refuse it (3 Nov 26)
     "global-no-rule": (GC_RULE, GC_RULE.replace("kernel(K$PATH.IN, ap.f : @fm : tp)", "1").replace("kernel(K$PATH.IN, ap.f : @fm : rp)", "1")
                        .replace("kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%0')", "1").replace("kernel(K$PATH.IN, ap.f : @fm : rp : @ds : '%1')", "1"), ["E14"], "E14"),
+    "field1-any-count": ("      if gfld = 1 and gn > 1 then\n", "      if 0 then\n", ["E14"], "E14"),      # the owner's field 1 answer: the count test dropped
     "global-stops": ("         if gk > 0 and gw then gosub gc.audit\n", "         if gk > 0 and gw then gosub gc.audit\n         if gk > 0 and gnr<gk> + gnf<gk> > 0 then exit\n", ["E14"], "E14"),
     "undo-no-digest": ("         case ('S' : digest(cur, 0, 'MD5')) # ('S' : uemd)\n", "         case 0\n", ["E14"], "E14"),
     "undo-after-write": ("   gun += 1\n   write ea : @fm : gkw : @fm : (if efl = '' then 'voc' else efl) : @fm : eid : @fm : digest(gnew, 0, 'MD5') : @fm : grec on uf, gun on error\n"
@@ -1420,7 +1422,8 @@ def zg_paths():
     return {"zgf1": (os.path.join(apath("ze1"), "zecust.dic"), "zgf1"), "zgf2": (os.path.join(apath("ze1"), "zecust.dic"), "zgf2"),
             "zgf3": (os.path.join(apath("ze1"), "zecust.dic"), "zgf3"), "zgf4": (os.path.join(apath("ze2"), "zecust2.dic"), "zgf4"),
             "zgf5": (os.path.join(apath(BAD), "zgout.dic"), "zgf5"),
-            "zgv1": (os.path.join(apath("ze1"), "voc"), "zgv1"), "zgvheld": (os.path.join(apath("ze1"), "voc"), "zgvheld"), "zgv2": (os.path.join(apath("ze2"), "voc"), "zgv2")}
+            "zgv1": (os.path.join(apath("ze1"), "voc"), "zgv1"), "zgvheld": (os.path.join(apath("ze1"), "voc"), "zgvheld"), "zgv2": (os.path.join(apath("ze2"), "voc"), "zgv2"),
+            "zg1a": (os.path.join(apath("ze1"), "voc"), "zg1a"), "zg1b": (os.path.join(apath("ze1"), "voc"), "zg1b"), "zg1one": (os.path.join(apath("ze1"), "voc"), "zg1one")}
 
 
 def zg_fixture():
@@ -1442,6 +1445,7 @@ def zg_fixture():
     body += ["   write 'PH':@fm:'ZGF1 ZGF2' on d1, 'zgf3'",
              "   write 'F':@fm:'../ze6/zgout':@fm:'../ze6/zgout.dic' on v1, 'zgout'",
              "   write 'X':@fm:'old text' on v1, 'zgv1'", "   write 'X':@fm:'old text' on v1, 'zgvheld'", "   write 'X':@fm:'old text' on v2, 'zgv2'",
+             "   write 'X':@fm:'one a' on v1, 'zg1a'", "   write 'X':@fm:'one b' on v1, 'zg1b'", "   write 'X':@fm:'just one' on v1, 'zg1one'",     # field 1 (the owner's answer of 3 Nov 26)
              "   open '&entries.undo&' to u then clearfile u",
              "   crt 'ZG done'", "end", ""]
     g.put(os.path.join(sh.SYS, "bp", "zzgfix"), "\n".join(body))
@@ -1582,6 +1586,31 @@ def section_e14():
          hold.held and V["zgv1"] == "X|new text" and V["zgv2"] == "X|new text" and V["zgvheld"] == "X|old text"
          and "ze1: 1 changed, 1 refused" in vsum and "another session holds it" in vsum and "ze2: 1 changed, 0 refused" in vsum, repr((hold.held, V, vsum[:600])))
 
+    say("  field 1, the type: refused on a set of more than one record, allowed with a warning on one (the owner, 3 Nov 26)")
+    p.key("f", 1.0)
+    p.h.typed("zg1\r", idle=2.5)                               # zg1a, zg1b, zg1one: three records
+    p.h.typed("g", idle=1.2)
+    p.h.typed("1\r", idle=1.5)
+    st_f1 = norm(p.st())
+    asked = "S sets the field" in p.text()
+    p.key("esc", 1.2)                                          # closes the next prompt if one came (a page that did not refuse)
+    F = zg_read(["zg1a", "zg1b", "zg1one"])
+    arow("E14m", "G on field 1 with THREE records shown is refused before any box, in its own words, and asks nothing more; the disk is unchanged",
+         "field 1 is the type of the record: G changes it on one record only, and 3 are shown" in st_f1 and not asked
+         and F["zg1a"] == B["zg1a"] and F["zg1b"] == B["zg1b"] and F["zg1one"] == B["zg1one"], repr((st_f1, asked, F)))
+    p.key("f", 1.0)
+    p.h.typed("zg1one\r", idle=2.5)                            # one record
+    f1box = norm(zg_global(p, ["1", "s", "PA"]))
+    f1sum = norm(zg_run(p, "Global change:"))
+    F2 = zg_read(["zg1one"])
+    arow("E14n", "G on field 1 with ONE record shown: the box warns that the TYPE of zg1one changes, \"X\" -> \"PA\", and Run changes it on the disk",
+         "WARNING: this changes the TYPE of zg1one (field 1)" in f1box and '"X" -> "PA"' in f1box and F2["zg1one"] == "PA|just one" and "ze1: 1 changed" in f1sum,
+         repr((f1box[f1box.find("WARNING"):][:400], F2, f1sum[:300])))
+    p.h.typed("u", idle=1.5)
+    zg_run(p, "Undo of the global change")
+    F3 = zg_read(["zg1one"])
+    arow("E14o", "U puts field 1 back like any field: zg1one is X again on the disk", F3["zg1one"] == B["zg1one"], repr(F3))
+
     say("  the programs: a text replaced in the source, compiled again in each account by run.in")
     p.key("k", 1.2)
     p.key("k", 1.2)                                            # VOC -> dictionary items -> programs
@@ -1606,11 +1635,12 @@ def section_e14():
     p.quit()
     lines = [ln for ln in audit_new(a0).splitlines() if re.search(r"master global|entries undo", ln)]
     want = [("master global account=ze1 kind=dict changed=2 refused=3 failed=0", 1), ("master global account=ze2 kind=dict changed=1 refused=0 failed=0", 1),
-            ("entries undo account=ze1 records=1", 2), ("entries undo account=ze2 records=1", 2),            # the dictionary items' undo and the programs'
+            ("entries undo account=ze1 records=1", 3), ("entries undo account=ze2 records=1", 2),            # the dictionary items' undo, field 1's (ze1 only) and the programs'
             ("master global account=ze1 kind=voc changed=1 refused=1 failed=0", 1), ("master global account=ze2 kind=voc changed=1 refused=0 failed=0", 1),
+            ("master global account=ze1 kind=voc changed=1 refused=0 failed=0", 1),                          # field 1 on one record
             ("master global account=ze1 kind=bp changed=1 refused=1 failed=1", 1), ("master global account=ze2 kind=bp changed=1 refused=0 failed=0", 1)]
     arow("E14l", "the audit trail: one 'master global' line per account per run and one 'entries undo' line per account per undo, lower case, and none for the Cancel",
-         all(len([ln for ln in lines if w in ln]) == n for w, n in want) and len(lines) == 10, repr(lines))
+         all(len([ln for ln in lines if w in ln]) == n for w, n in want) and len(lines) == 12, repr(lines))
     os.chmod(os.path.join(apath("ze1"), "bp", "zgpro"), 0o644)
 
 

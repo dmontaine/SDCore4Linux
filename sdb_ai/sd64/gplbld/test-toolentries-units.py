@@ -4,7 +4,8 @@
   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-toolentries-units.py
   python3 .../test-toolentries-units.py --selftest
   python3 .../test-toolentries-units.py --selftest --from=86      (only the mutants from M_RELOG on: the relog state, 2 Nov 26)
-  python3 .../test-toolentries-units.py --selftest --from=96      (only the mutants from M_GLOBAL on: G, the global change, and U, its undo, 3 Nov 26; T24-T28)
+  python3 .../test-toolentries-units.py --selftest --from=125     (only the mutants from M_FIELD1 on: field 1 on one record only, 3 Nov 26; T24b)
+  python3 .../test-toolentries-units.py --selftest --from=96     (only the mutants from M_GLOBAL on: G, the global change, and U, its undo, 3 Nov 26; T24-T28)
 
 No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it could not run.  Written 3 Nov 26.
 
@@ -369,6 +370,14 @@ def checks(src, voc, helps):
        and "UNDOF = '&entries.undo&'" in txt and "MKUNDO = 'create.file &entries.undo&'" in txt and "call $tk_ownfile(uf, UNDOF, uck, ucw)" in txt
        and ordered(duf, "open UNDOF to uf then", "gosub check.undo", "call $tk_confirm(usent, ulines, '', res, cmsg)", "if res # 'run' then", "execute MKUNDO", "gosub check.undo")
        and "G " in hent and "&entries.undo&" in hent and "U " in hent, dgl[:100])
+    ck("T24b FIELD 1, the type (owner, 3 Nov 26: \"Exclude field 1 from batch actions, allow it on a single item with a confirm warning\"): G refuses field 1 when more than one "
+       "record is shown, with its own words and BEFORE the preview; on one record the preview keeps the old and new value of field 1 and the box carries a WARNING line naming them "
+       "before Run is asked; the help says so",
+       ordered(dgl, "if gfld = 1 and gn > 1 then", "msg = 'field 1 is the type of the record: G changes it on one record only", "return", "end",
+               "gw = 0\ngosub gc.pass", "if gfld = 1 then", "WARNING: this changes the TYPE of ' : gid<1> : ' (field 1): \"' : g1old : '\" -> \"' : g1new : '\"",
+               "call $tk_confirm(gsent, glines, '', res, cmsg, sysmsg(11954))")
+       and ordered(grw, "if not(gw) then", "g1old = grec<1>", "g1new = gnew<1>", "gdig<gi> = digest(grec, 0, 'MD5')")
+       and "field 1" in hent, "")
     adm = txt.find("call $tk_open('tool.entries', 'admin', ctx, err)")
     ck("T28 THE ADMINISTRATOR COMES FIRST: the page's administrator check (and its stop) comes before the undo file is read, the key table built or anything is written; G and U are "
        "reached only through on.key of the page that passed it",
@@ -585,7 +594,14 @@ MUTANTS = [
     ("the undo file is read before the administrator check", "src", "   call $tk_open('tool.entries', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n",
      "   gosub read.undo.info\n   call $tk_open('tool.entries', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop\n   end\n"),
     ("the help does not explain G", "helpe", "&entries.undo&", "the undo file"),
+    # ---- 3 Nov 26, the owner's field 1 answer: THE FIRST IS M_FIELD1 (--selftest --from=125)
+    ("G changes field 1 on many records", "src", "   if gfld = 1 and gn > 1 then\n", "   if 0 then\n"),
+    ("G's field 1 test comes after the preview", "src", "      if gfld = 1 and gn > 1 then\n", "      if gfld = 1 and gn > 1 and gw = 1 then\n"),
+    ("field 1 on one record has no warning", "src", "   if gfld = 1 then\n      glines<-1> = ''\n", "   if 0 then\n      glines<-1> = ''\n"),
+    ("the warning does not say the old value", "src", "g1old = grec<1>", "g1old = ''"),
+    ("the help does not explain field 1", "helpe", "field 1", "the type"),
 ]
+M_FIELD1 = 125
 M_RELOG = 86
 M_GLOBAL = 96
 

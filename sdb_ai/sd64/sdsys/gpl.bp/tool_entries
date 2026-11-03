@@ -15,6 +15,8 @@
 *              last run back from &entries.undo& (a file of SDSYS's own account, made on demand through a box that shows create.file, as tool.bulk's &bulk.undo&; the last
 *              run only): a record only if it is still byte for byte what the run wrote, under the same pointer rule and READU; a program put back is compiled again by
 *              run.in; one audit line per account (entries undo ...).  The AI line is NOT offered G or U (no destructive action on an administrator page without his word).
+*              Field 1 (the type of a VOC entry or a dictionary item; the owner: "Exclude field 1 from batch actions, allow it on a single item with a confirm warning") is refused
+*              before the preview when more than one record is shown; on one record the box warns that its type changes (old -> new).  U puts it back like any field.
 * 2 Nov 26 dm  The SDSYS column tells the truth for the RUNNING session (follow-up (1) of PROJECT_STATUS entry (95)): it said "yes" from /etc/group alone, so a session of SDSYS that
 *              began before the account's group gained the sdsys user was told it could write and an edit then failed with error 3018.  sdsys.state (the one place) asks the
 *              kernel too (K$IN.GROUP: this process's own groups) and shows "relog" when the sdsys user is in the group and this session does not hold it; edit.record refuses
@@ -84,7 +86,7 @@
 *   a program's source has no field) and set or replace, then shows ONE box with every account, its count, its first ids and what will be refused; Run writes, account by
 *   account, each record in the file it lives in (never a pointer's target: the pointer rule refuses it in the box and again at the write), and a changed program is compiled
 *   again in its account by run.in.  There is no name to type (the owner's choice).  The records as they were go to &entries.undo& in SDSYS's account first; U puts back those
-*   still exactly as the run left them.  A refusal or a failure in one account does not stop the others.  Audit: master global ... per account; entries undo ... per account.
+*   still exactly as the run left them.  Field 1, the type, is changed on ONE record only, with a warning in the box.  A refusal or a failure in one account does not stop the others.  Audit: master global ... per account; entries undo ... per account.
 *
 * END-DESCRIPTION
 *
@@ -1735,7 +1737,7 @@ do.global:
       msg = 'the page lists only the first ' : MAXV : ' rows: narrow the filter or the find until every row is shown'
       return
    end
-   gacc = '' ; gfl = '' ; gid = '' ; gdig = ''
+   gacc = '' ; gfl = '' ; gid = '' ; gdig = '' ; g1old = '' ; g1new = ''
    for gi = 1 to gn
       if fnd # '' then
          gacc<gi> = hacc<gi>
@@ -1768,6 +1770,12 @@ do.global:
             msg = 'the field is a number from 1 to ' : GMAXF : (if kind = 2 then ', or the word heading' else '') : ': nothing was changed'
             return
       end case
+      * Field 1 is the TYPE of a VOC entry or a dictionary item (the owner, 3 Nov 26: "Exclude field 1 from batch actions, allow it on a single item with a confirm warning"):
+      * refused here, before the preview, when more than one record is shown; on ONE record the box carries a warning line
+      if gfld = 1 and gn > 1 then
+         msg = 'field 1 is the type of the record: G changes it on one record only, and ' : gn : ' are shown (narrow the filter or the find to that record): nothing was changed'
+         return
+      end
       screen ask 'S sets the field to a value, R replaces a text in it' width 40 value '' title 'Global change' returning ft then got = 1 else got = 0
       if not(got) then return
       ft = downcase(trim(ft))
@@ -1834,6 +1842,10 @@ do.global:
    glines<-1> = 'The page writes each record itself, account by account, in the file it lives in.' : (if kind = 3 then '  Each program changed is compiled again IN ITS OWN ACCOUNT by run.in.' else '  Nothing is run.')
    glines<-1> = 'A row whose file lies outside its account (the pointer rule), one another session holds, and one that has changed since this preview are refused and left as they are; the run goes on with the rest.'
    glines<-1> = 'The records as they were are kept in ' : UNDOF : ' (this run only): U puts back those still exactly as the run left them.'
+   if gfld = 1 then
+      glines<-1> = ''
+      glines<-1> = 'WARNING: this changes the TYPE of ' : gid<1> : ' (field 1): "' : g1old : '" -> "' : g1new : '".  A pointer (F, Q, R), a verb (V) or a dictionary item given another type becomes something else, and what used it no longer works as it did.'
+   end
    glines<-1> = ''
    for gq = 1 to gk
       if gq <= 12 then
@@ -2150,6 +2162,8 @@ gc.row:
       return
    end
    if not(gw) then
+      g1old = grec<1>                                           ;* for the field 1 warning of the box (a set of one record only)
+      g1new = gnew<1>
       gdig<gi> = digest(grec, 0, 'MD5')
       grs = 'change'
       return

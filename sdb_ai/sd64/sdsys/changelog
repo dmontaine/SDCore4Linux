@@ -6,7 +6,9 @@ Next release - in progress
              What        - On the administrator's master files page, G makes one change to every row the page shows: the hits
                            of a find (F, every account) or the rows a filter (/) keeps. It works on all three kinds: a field of
                            a VOC entry or a dictionary item (by its number, or "heading" for a D, I, E or L item) is set to a
-                           value or has a text in it replaced; for programs a text is replaced in the source and each program
+                           value or has a text in it replaced (field 1, the record's type, only when ONE record is shown, and
+                           the box then warns that the type changes, old value to new: a pointer or a verb becomes something
+                           else); for programs a text is replaced in the source and each program
                            changed is compiled again in its own account through run.in. One box shows every account with how
                            many records would change, the first ids, and what would be refused; Run (Cancel is the default)
                            then writes each record in the account it lives in, account by account, and a box says what was
