@@ -25,6 +25,9 @@
 #   L10    a command is shown; Enter alone rejects it; Run runs it as the Terminal would; a command with a tab, or of 300 characters, is not shown
 #   L11-L14 a code fence round the object, words that are not JSON, a say with no proposal, an argument with characters the line does not allow, a say that gives orders
 #   L15    Esc during the wait gives the request up and the screen is the home screen again
+#   L16a-d (3 Nov 26, S.107, section follow) Follow up on the home screen: offered in the answer's box, applies nothing and the AI line says a follow-up waits;
+#          the next preview shows the earlier question; Send gives the fake the earlier question and answer before the request, and the audit line says followup=1
+#   --only=SECTION[,SECTION]  off ring preview send proposals wait admin follow (3 Nov 26); the build and the fixtures always run
 #   L16    the administrator's page has the line too, with the administrator's tiles in the list
 # NOT HELD: the IDE, SED, CED and the debugger (later stages), the AI menu item, a window under 140 by 43 (the toolkit's one size check), the end of the input during the wait.
 import importlib.util
@@ -324,6 +327,39 @@ def sec_send():
     h.end()
 
 
+def sec_follow():
+    """3 Nov 26 (S.107): Follow up on the home screen; the earlier exchange is read where it arrives (the fake) and in the audit file."""
+    say("\n--- Follow up on the home screen")
+    fm = STATE["fm"]
+    h = home()
+    ask(h, "first question [[sayonly]]")
+    h.typed("s", idle=4.0)
+    T = h.text()
+    arow("L16a", "the answer's box has Follow up beside Close", "Follow up" in T and "Close" in T, T[-500:])
+    h.typed("f", idle=1.5)
+    arow("L16b", "Follow up applies nothing: the home screen is back and the AI line says a follow-up is waiting", h.home() and "follow-up" in line_row(h).lower(), repr(line_row(h)[:80]))
+    n0, a0 = len(fm.log), audit_off()
+    ask(h, "second question [[plain]]")
+    T = h.text()
+    arow("L16c", "the follow-up's preview shows the earlier question; nothing is sent yet", "earlier exchange" in T and "first question [[sayonly]]" in T and len(fm.log) == n0, T[-1200:])
+    h.typed("s", idle=4.0)
+    rq = requests()
+    body = rq[-1][2] if len(rq) > n0 else {}
+    msgs = body.get("messages", []) if body else []
+    rl = req_lines(audit_new(a0))
+    arow("L16d", "Send carries the earlier question and answer as the user's and the assistant's messages before the request, and the audit line says followup=1",
+         len(msgs) == 3 and msgs[0].get("role") == "user" and msgs[0].get("content") == "first question [[sayonly]]" and msgs[1].get("role") == "assistant"
+         and str(msgs[2].get("content", "")).endswith("second question [[plain]]") and len(rl) == 1 and "followup=1" in rl[0],
+         repr(([(m.get("role"), str(m.get("content"))[:60]) for m in msgs], rl)))
+    h.key("enter", idle=1.5)
+    h.key("ctrl-q", idle=1.5)
+    h.end()
+
+
+SECTIONS = {"off": "sec_off", "ring": "sec_ring", "preview": "sec_preview", "send": "sec_send", "proposals": "sec_proposals",
+            "wait": "sec_wait", "admin": "sec_admin", "follow": "sec_follow"}
+
+
 def reply(text, reject=False, close=False, wait=4.0):
     """Ask with a marker, Send, and return the home object and the screen text of the popup."""
     h = home()
@@ -451,22 +487,29 @@ def main():
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
     if mutant is not None and mutant not in MUTANTS:
         bail("usage: sandbox-ai-line.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
+    only = next((a.split("=", 1)[1].split(",") for a in sys.argv[1:] if a.startswith("--only=")), None)   # 3 Nov 26: testing rule 7
+    if only is not None and not set(only) <= set(SECTIONS):
+        bail("usage: sandbox-ai-line.py <dir> [--build] [--only=%s]" % ",".join(SECTIONS))
     try:
         sh.setup("sandbox-ai-line.py")
         setup_ai(mutant)
         configure()
-        if mutant is None:
+        if mutant is None and only is not None:
+            for name in only:                        # the sections asked for, in that order; the build and the fixtures always run
+                globals()[SECTIONS[name]]()
+        elif mutant is None:
             sec_off()
             sec_ring()
             sec_preview()
             sec_send()
         if mutant == "no-preview":
             sec_preview()                    # the row that holds Cancel (L6) is in this section
-        else:
+        elif mutant is not None or only is None:
             sec_proposals()
-        if mutant is None:
+        if mutant is None and only is None:
             sec_wait()
             sec_admin()
+            sec_follow()
     finally:
         stop_runner()
         if "fm" in STATE:
