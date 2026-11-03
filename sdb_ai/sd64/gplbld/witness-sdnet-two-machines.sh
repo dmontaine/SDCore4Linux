@@ -20,12 +20,13 @@
 #   * the SCRAM login with its channel binding across a real network (the loopback runs showed the positive case only; netfake.py does not check the binding, so the
 #     NEGATIVE case - a client talking to a machine that is not the one pinned - is shown by the wrong-pin row, not by the binding);
 #   * two clocks: both epochs are printed and the skew is shown.  It is information, not a verdict: SD pins a key, it does not check a certificate's dates.
+#   * (3 Nov 26, S.72) the lock statements on the other machine's file: FILELOCK, RECORDLOCKED(), FILEUNLOCK, READU and RELEASE (C9, a fourth program zzwtlk).  WRITTEN, NOT RUN.
 #
 # WHAT EACH ROLE CHANGES (and puts back):
 #   server-setup    MAKES the SD account NAME (default zzwtwo) with its Linux user, the files route AND the write group, and a file zzwfile of three records; writes the account's
 #                   password to /var/tmp/witness-sdnet-two-machines.pw (mode 0600, yours) for you to carry to the client by scp - the script never prints it.
 #   client          DEFINES the server zzremote, the client's stored login and one VOC pointer, turns on the client account's NET, VOC and BP gates (it saves the register
-#                   record first) and writes three programs zzwt* into the client's bp.  At the end it takes ALL of that away and puts the register record back.
+#                   record first) and writes four programs zzwt* into the client's bp.  At the end it takes ALL of that away and puts the register record back.
 #   server-check    reads what the client did to the server (the record the client wrote, the audit lines) - read only.
 #   server-teardown DELETES the account (DELETE.ACCOUNT, userdel -r, its home) and the password file.
 # It does not install and does not uninstall.
@@ -210,7 +211,7 @@ CDIR=$(wl_account_path "$CLIENT")
 OUT=$(wl_sd_admin "list.servers (is $SRV free?)" "LIST.SERVERS")
 [ -n "$OUT" ] || need "LIST.SERVERS printed nothing: an sd session as sdsys does not work here (is sd.service running?)"
 printf '%s\n' "$OUT" | grep -a -q -E "^$SRV[[:space:]]" && need "a server named $SRV is already defined: this script will not touch state it did not create"
-PROGS="zzwtmk zzwtrw zzwtcl"
+PROGS="zzwtmk zzwtrw zzwtcl zzwtlk"
 for p in $PROGS; do [ -e "$CDIR/bp/$p" ] && need "$CDIR/bp/$p exists: this script will not touch state it did not create"; done
 BK=$WL_TMP/witness-sdnet-two-machines-$STAMP.d
 wl_mkdir_new "$BK" 755
@@ -331,6 +332,50 @@ expect_re "C7 T1: a READ works (record 'Smith/100')" "$OUT" '^T1 READ t1 branch=
 expect_re "C7 T2: the WRITE succeeded over the network (the server's write group is on)" "$OUT" '^T2 WRITE t4 branch=then STATUS\(\)=0'
 expect_re "C7 T3: the record reads back as written" "$OUT" '^T3 READ t4 branch=then STATUS\(\)=0 record=\[from the client\]'
 expect_has "C7 the program ran to its end" "$OUT" "TZ done"
+
+# 3 Nov 26 (track G) - C9, THE S.72 STATEMENTS BETWEEN TWO MACHINES.  Every S.72 row so far ran on ONE machine over 127.0.0.1 (witness-sdnet-files-route.sh B4 Y8-Y12,
+#   B11, B12); this is the same FILELOCK / RECORDLOCKED() / FILEUNLOCK sequence, and a RELEASE of a READU and of the whole file, through the pointer to the OTHER machine, with the
+#   values B4 expects (3 while this session holds the file lock and STATUS() a user number ON THE SERVER, 0 once given back, 3012 for an unlock nobody holds, 2 for our own READU).
+#   GETLOCKS() is not here: it is internal-only (an ordinary program cannot compile it), and its 3 Nov fix (b6182d89, a LOCAL file's user number out of range) has no caller a
+#   witness can drive with such a number on a real install; sandbox-lockids.py GU-ctl, GU2-GU7 hold it.  CLEARFILE is not here either: it would empty zzwfile, which server-check reads.
+sudo -u "$CUSER" tee "$CDIR/bp/zzwtlk" >/dev/null <<'EOP'
+   open 'zzrt' to f else crt 'OPEN FAILED st=':status() ; stop
+   oc = 'then' ; filelock f on error oc = 'error' locked oc = 'locked'
+   crt 'L1 FILELOCK branch=':oc:' STATUS()=':status()
+   x = recordlocked(f, 't1')
+   crt 'L2 RECORDLOCKED t1 (we hold the file lock) x=':x:' STATUS()=':status()
+   oc = 'then' ; fileunlock f on error oc = 'error'
+   crt 'L3 FILEUNLOCK branch=':oc:' STATUS()=':status()
+   x = recordlocked(f, 't1')
+   crt 'L4 RECORDLOCKED t1 (given back) x=':x:' STATUS()=':status()
+   oc = 'then' ; fileunlock f on error oc = 'error'
+   crt 'L5 FILEUNLOCK again (nobody holds it) branch=':oc:' STATUS()=':status()
+   oc = 'then' ; readu r from f, 't1' on error oc = 'error' locked oc = 'locked' else oc = 'else'
+   x = recordlocked(f, 't1')
+   crt 'L6 READU t1 branch=':oc:' RECORDLOCKED x=':x
+   release f, 't1'
+   x = recordlocked(f, 't1')
+   crt 'L7 RELEASE t1 x=':x:' STATUS()=':status()
+   oc = 'then' ; filelock f on error oc = 'error' locked oc = 'locked'
+   release f
+   x = recordlocked(f, 't1')
+   crt 'L8 FILELOCK branch=':oc:' then RELEASE f x=':x:' STATUS()=':status()
+   close f
+   crt 'LZ done'
+end
+EOP
+say ""; say "== C9. S.72: the lock statements on the OTHER machine's file =="
+OUT=$(wl_sd_user "$CUSER" "compile and run zzwtlk" "BASIC bp zzwtlk" "RUN bp zzwtlk")
+expect_re "C9 zzwtlk compiled" "$OUT" '^0 error\(s\)'
+expect_re "C9 L1 FILELOCK of the remote file succeeds" "$OUT" '^L1 FILELOCK branch=then STATUS\(\)=0( |$)'
+expect_re "C9 L2 RECORDLOCKED() says 3 (this session holds the file lock) and STATUS() is a user number on the server" "$OUT" '^L2 RECORDLOCKED t1 \(we hold the file lock\) x=3 STATUS\(\)=[1-9][0-9]*( |$)'
+expect_re "C9 L3 FILEUNLOCK of our own lock leaves STATUS() 0" "$OUT" '^L3 FILEUNLOCK branch=then STATUS\(\)=0( |$)'
+expect_re "C9 L4 RECORDLOCKED() says 0 once given back" "$OUT" '^L4 RECORDLOCKED t1 \(given back\) x=0 STATUS\(\)=0( |$)'
+expect_re "C9 L5 a second FILEUNLOCK leaves STATUS() 3012 (nobody holds it) and is not an error" "$OUT" '^L5 FILEUNLOCK again \(nobody holds it\) branch=then STATUS\(\)=3012( |$)'
+expect_re "C9 L6 READU takes the record lock on the server: RECORDLOCKED() 2" "$OUT" '^L6 READU t1 branch=then RECORDLOCKED x=2( |$)'
+expect_re "C9 L7 RELEASE f, 't1' gives it back: RECORDLOCKED() 0" "$OUT" '^L7 RELEASE t1 x=0 '
+expect_re "C9 L8 RELEASE f (the whole file) gives the file lock back" "$OUT" '^L8 FILELOCK branch=then then RELEASE f x=0 '
+expect_has "C9 the program ran to its end" "$OUT" "LZ done"
 
 say ""; say "== C8. two clocks (information, not a verdict: SD pins a key, it does not check certificate dates) =="
 LOCAL_EPOCH=$(date -u +%s)

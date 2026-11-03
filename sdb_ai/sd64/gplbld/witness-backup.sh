@@ -729,6 +729,34 @@ else
     ck "5d10 $A2 was not touched" "$S2" "$(sig "$A2")"
     ck "5d11 no zip was written or lost" "$ZN_BEFORE" "$(ls -1 "$BAK" | wc -l)"
     ck "5d12 no staging directory or hold is left" "no no" "$(ls -d /home/sd/.sdrestore.* >/dev/null 2>&1 && echo yes || echo no) $(yesno_file "$SDSYS/login.hold")"
+    # 3 Nov 26 (track G) - S.114: THE SETGID WALK AS ROOT, measured on the whole tree, not the top only (5d8).  RESTORE.ACCOUNT places the tree through
+    #   sudo sd-elevate restore-place, whose fd worker (SW_PY, os.fwalk) sets the setgid bit on EVERY directory of the restored tree so that what the account
+    #   makes later belongs to its group.  The BEFORE is the archive: how many of the account's directories carry the setgid bit IN THE ZIP (python's zipfile,
+    #   the mode in the top 16 bits of external_attr).  If the zip already carried it on every directory, the walk is not what put it there, and 5d13 says so
+    #   (NOT REACHED as a measurement of the walk), whatever the disk shows.
+    ZSG=$(python3 -I - "$BAK/$BARE_A1" "$A1" <<'PYEOF'
+import sys, zipfile
+z = zipfile.ZipFile(sys.argv[1])
+p = [i for i in z.infolist() if i.filename.split("/")[:2] == ["accounts", sys.argv[2]]]
+d = [i for i in p if i.is_dir() or (i.external_attr >> 16) & 0o170000 == 0o040000]
+print(len(p), len(d), sum(1 for i in d if (i.external_attr >> 16) & 0o2000))
+PYEOF
+)
+    # ZSG = members of accounts/<A1>/ in the zip, how many are directory entries, how many of those carry the setgid bit.  A zip that stores no directory
+    #   entry (the directories are made by the extraction, without the bit) is a valid before: the walk is then the only thing that can set it.
+    say "  the archive accounts/$A1/: members, directory entries, directory entries with the setgid bit: ${ZSG:-<could not read the zip>}"
+    DIRS_ALL=$(find "$ACCOUNTS_ROOT/$A1" -type d | wc -l)
+    DIRS_BAD=$(find "$ACCOUNTS_ROOT/$A1" -type d \( ! -perm -2000 -o ! -group "sdu_$A1" \) -printf '%m %g %p\n' | head -8)
+    say "  on the disk after the restore: $DIRS_ALL directories; without the setgid bit or not group sdu_$A1: ${DIRS_BAD:-none}"
+    ZSG_N=$(echo "$ZSG" | cut -d' ' -f1); ZSG_D=$(echo "$ZSG" | cut -d' ' -f2); ZSG_S=$(echo "$ZSG" | cut -d' ' -f3)
+    if [ -z "$ZSG" ] || [ "${ZSG_N:-0}" = 0 ]; then
+        not_reached "5d13 the archive holds nothing under accounts/$A1/ (or could not be read), so the walk's work cannot be told from the zip's"
+    elif [ "$ZSG_D" != 0 ] && [ "$ZSG_D" = "$ZSG_S" ]; then
+        not_reached "5d13 every directory already carries the setgid bit IN THE ZIP ($ZSG), so the disk cannot show what the walk did"
+    else
+        ck "5d13 THE ROW: every one of the $DIRS_ALL directories of $A1 has the setgid bit and the group sdu_$A1 after the restore (the zip had it on $ZSG_S of $ZSG_D directory entries)" "" "$DIRS_BAD"
+    fi
+    ck "5d14 and at least one directory below the top was measured (the null case)" yes "$([ "$DIRS_ALL" -gt 1 ] && echo yes || echo no)"
     S1=$(sig "$A1")
     note_state "after 5d"
 
