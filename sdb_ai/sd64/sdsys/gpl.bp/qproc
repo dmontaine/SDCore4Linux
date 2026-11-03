@@ -18,6 +18,7 @@
 * 
 *  
 * START-HISTORY:
+* 03 Nov 26 dm  Opus 10c: SELECT / LIST / COUNT ... BY end with the record id as the last ascending key, as SORT always had it, so equal keys come out in id order and not in the order the file gave them; not with SAVING UNIQUE (its last key must stay the one made unique).
 * 31 Oct 26 dm  The A and S dictionary item types are gone: such an item is 'unexpected type' (7275) like a C one, and an index made from one is never used, so a query on its field scans.
 * 28 Oct 26 dm  S.87: multifiles are gone; the parser key PARSER$MFILE is retired and this program asks for PARSER$GET.TOKEN.
 * 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
@@ -1418,13 +1419,20 @@ template.found:
 
    if show.command and no.of.sort.items = 0 and not(sort.sup) then implicit.id.sort = @true
 
+* 03 Nov 26 (Opus 10c): a BY clause on SELECT, LIST and the other verbs
+* ties on the record id, ascending, as SORT always has (the block below).
+* Not with SAVING UNIQUE: BT.UNIQUE goes on the LAST key, which must stay
+* the field being made unique.
+
+   if len(sort.item.list) and not(saving.unique) then implicit.id.sort = @true
+
 * 0080 Moved the following code from inside the if len(sort.item.list)
 * block just below. Previously, SORT with an active select list did not
 * end up doing the id sort.
 
    if implicit.id.sort then
-      * Doing a SORT or SSELECT verb. Add the record id to the end of the
-      * sort list.
+      * Doing a SORT or SSELECT verb, or a BY clause (above). Add the
+      * record id to the end of the sort list.
 
       token = "@ID"
       gosub add.field.by.name
