@@ -817,20 +817,32 @@ fi
 #            front with the others; the answer is NO unless y or yes is typed.  It is asked only when a known PDF reader is installed in /usr/bin,
 #            /usr/local/bin or /bin and the list (/usr/local/sdsys/viewers, which an upgrade keeps) has no pdf line yet.  Nothing is allowed here: the
 #            SHARED-CONTENT block below runs set.viewer, which makes its own test of the program.  test-install-docs.sh runs this block.
+# 03 Nov 26 dm  INSTALLING A READER (owner, 3 Nov 2026: "Yes, add it" to an opt-in question).  With no known reader installed, no pdf line in the list and a graphical
+#            session (DISPLAY or WAYLAND_DISPLAY: a reader needs a display, so over ssh or on the console the question is not asked), the installer offers evince, default No.
+#            A yes only INSTALLS it, in the READER-INSTALL block after the packages; the allow question below then follows with the same default, because installing a
+#            reader and letting the documentation use it are two decisions.
 # VIEWER-ASK-BEGIN
 allow_viewer=n
 allow_viewer_name=""
+install_reader=n
 if ! grep -qs '^pdf ' "${sdsysdir}/viewers"; then
     for v in evince okular zathura atril xreader mupdf qpdfview xpdf; do
         for d in /usr/bin /usr/local/bin /bin; do
             if [ -x "${d}/${v}" ] && [ -z "$allow_viewer_name" ]; then allow_viewer_name="$v"; fi
         done
     done
+    if [ -z "$allow_viewer_name" ] && { [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; }; then
+        echo
+        echo "The pdf verb shows the documentation in a PDF reader, and none is installed here."
+        read -r -p "Install evince as the PDF reader? (y/N) " yn_reader
+        case $yn_reader in [yY]|[yY][eE][sS] ) install_reader=y; allow_viewer_name=evince;; esac
+    fi
 fi
 if [ -n "$allow_viewer_name" ]; then
     echo
     echo "The pdf verb shows the documentation in a PDF reader for every account, even one that is not allowed to run programs."
-    echo "It starts only a reader that SDSYS has allowed, and nothing is allowed as delivered.  ${allow_viewer_name} is installed here."
+    if [ "$install_reader" = y ]; then reader_state="will be installed"; else reader_state="is installed here"; fi
+    echo "It starts only a reader that SDSYS has allowed, and nothing is allowed as delivered.  ${allow_viewer_name} ${reader_state}."
     read -r -p "Allow ${allow_viewer_name} to show the documentation for every account? (y/N) " yn_viewer
     case $yn_viewer in [yY]|[yY][eE][sS] ) allow_viewer=y;; esac
 fi
@@ -959,6 +971,20 @@ fi
 # run this along as only required on Ubuntu 26.04 and
 # don't want to abort if not found on earlier distributions
 sudo apt-get -y --ignore-missing install libcrypt-dev || true
+# 03 Nov 26 dm  The PDF reader the installer was told to install (VIEWER-ASK above).  A failure does not stop the install: the documentation PDFs are copied
+#            either way and the reader is a package away, so the question to allow it is withdrawn and the warning names the command.  test-install-docs.sh.
+# READER-INSTALL-BEGIN
+if [ "$install_reader" = y ] && [ -n "$allow_viewer_name" ]; then
+    if sudo apt-get -y install "$allow_viewer_name"; then
+        echo "Installed the PDF reader ${allow_viewer_name}."
+    else
+        printf "%b\n" "$RED"
+        echo "WARNING: ${allow_viewer_name} could not be installed.  Install a PDF reader, then signed in as sdsys:  set.viewer add pdf <reader>"
+        printf "%b\n" "$NC"
+        allow_viewer=n
+    fi
+fi
+# READER-INSTALL-END
 #
 # 22 Sep 2026 - have_ufw computed once, here, rather than re-probed at each of
 #   the two call sites and again in the closing summary.  ufw is Debian/

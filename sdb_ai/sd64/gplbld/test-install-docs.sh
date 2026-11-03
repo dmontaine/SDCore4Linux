@@ -15,6 +15,10 @@
 # (the first real install of a function that used a for list failed under that IFS and not under set alone, 19 Oct 2026), with sudo replaced by a function that logs the call and
 # bin/sd a stub that does what the real set.viewer and load.help do on success - and that, like the real sd, EXITS 0 when it refuses.
 #
+#   R  installing a reader (3 Nov 26, the READER-INSTALL block and the first question of VIEWER-ASK): with no reader installed, no pdf line and a display (DISPLAY or WAYLAND_DISPLAY) the
+#      installer asks "Install evince as the PDF reader? (y/N)" - default No - and a yes only marks it for installation; the allow question follows, with its own default No.  Not asked
+#      with no display, with a reader installed or with a pdf line already in the list.  The block after the packages runs apt-get for the reader only after a yes; a failure warns and
+#      withdraws the allow, and never stops the install.
 #   Q  the question: y, Y, yes, YES, Yes allow; Enter, n, N, no and anything else do not (DEFAULT NO); it is asked exactly once, naming the reader and (y/N); it is NOT asked
 #      when the list already has a pdf line (an upgrade keeps what the administrator chose) or when no known reader is installed; the first reader of the list is the one offered.
 #   C  the content: with the shared account registered, the pdf directory is made, owned sdsys:sdusers, mode 755; load.help is run once with input from /dev/null and cannot stop
@@ -65,6 +69,18 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant viewer-failure-aborts      '/^# SHARED-CONTENT-BEGIN/,/^# SHARED-CONTENT-END/ s/set.viewer add pdf "\$allow_viewer_name" < \/dev\/null || true/set.viewer add pdf "$allow_viewer_name" < \/dev\/null/'
   mutant viewer-success-unjudged    '/^# SHARED-CONTENT-BEGIN/,/^# SHARED-CONTENT-END/ s/^        if sudo grep -qs .*; then$/        if true; then/'
   mutant content-without-shared     '/^# SHARED-CONTENT-BEGIN/,/^# SHARED-CONTENT-END/ s/^if sudo test -f "\$shared_reg" \&\& sudo test -d "\$shared_dir"; then$/if true; then/'
+  A='/^# VIEWER-ASK-BEGIN/,/^# VIEWER-ASK-END/'
+  I='/^# READER-INSTALL-BEGIN/,/^# READER-INSTALL-END/'
+  mutant reader-asked-without-display   "$A s/ \&\& { \[ -n \"\\\${DISPLAY:-}\" \] || \[ -n \"\\\${WAYLAND_DISPLAY:-}\" \]; }//"
+  mutant reader-asked-with-one-installed "$A s/if \[ -z \"\\\$allow_viewer_name\" \] \&\& { /if { /"
+  mutant reader-install-implies-allow   "$A s/install_reader=y; allow_viewer_name=evince/install_reader=y; allow_viewer=y; allow_viewer_name=evince/"
+  mutant reader-install-default-yes     "$A s/^install_reader=n\$/install_reader=y/"
+  mutant reader-never-reads             "$A s/^        read -r -p \"Install evince.*\$/        yn_reader=n/"
+  mutant reader-wrong-name              "$A s/allow_viewer_name=evince;;/allow_viewer_name=okular;;/"
+  mutant reader-never-installs          "$I s/if sudo apt-get -y install .*; then/if true; then/"
+  mutant reader-installs-without-a-yes  "$I s/^if \[ \"\\\$install_reader\" = y \] \&\& /if /"
+  mutant reader-failure-aborts          "$I s/^        allow_viewer=n\$/        exit 1/"
+  mutant reader-failure-still-allows    "$I {/^        allow_viewer=n\$/d}"
   echo "selftest: $caught of $total mutants caught, $missed missed"
   [ "$caught" -eq "$total" ] && [ "$missed" -eq 0 ]
   exit $?
@@ -100,12 +116,13 @@ run_ask() {   # run_ask ANSWER [readers...]   - prints the output, then ALLOW=y|
   rm -rf "$T/b1" "$T/b2" "$T/b3" "$T/sdsys"; mkdir -p "$T/b1" "$T/b2" "$T/b3" "$T/sdsys"
   local r; for r in "$@"; do case "$r" in alreadyallowed) printf 'pdf /usr/bin/evince\n' > "$T/sdsys/viewers";; *:*) : > "$T/${r%%:*}/${r##*:}"; chmod +x "$T/${r%%:*}/${r##*:}";; esac; done
   : > "$T/read.log"
-  OPTS="$OPTS" ASK_T="$ASK_T" T="$T" bash -c '
+  DISPLAY="${DISPLAY_T:-}" WAYLAND_DISPLAY="${WAYLAND_T:-}" OPTS="$OPTS" ASK_T="$ASK_T" T="$T" bash -c '
       eval "$OPTS"
       sdsysdir="$T/sdsys"
       read() { ( IFS=" "; printf "%s\n" "$*" ) >> "$T/read.log"; builtin read "$@"; }
       eval "$ASK_T"
-      echo "ALLOW=$allow_viewer NAME=$allow_viewer_name"' <<< "$ans" 2>&1
+      echo "ALLOW=$allow_viewer NAME=$allow_viewer_name"
+      echo "INSTALL=$install_reader"' <<< "$ans" 2>&1
 }
 
 echo "--- Q: the question"
@@ -207,6 +224,60 @@ row "C12 no shared account: nothing is run or made (no sd call, no pdf directory
     "$(ok "$([ "$(sdcalls)" -eq 0 ] && [ ! -d "$T/home/sd/group_accounts/shared/pdf" ] && ! grep -q -E '^(mkdir|chown|chmod)' "$T/sudo.log" && printf '%s' "$OUT" | grep -q 'The shared account is not there' && printf '%s' "$OUT" | grep -q '^RC=0$' && echo yes)")" "calls $(sdcalls); $OUT"
 
 # ---- S. static --------------------------------------------------------------------------------------------------------
+# ---- R. installing a reader ---------------------------------------------------------------------------------------------
+RD=$(awk '/^# READER-INSTALL-BEGIN/{f=1;next} /^# READER-INSTALL-END/{f=0} f{print}' "$INST")
+[ -z "$RD" ] && { echo "test-install-docs: CANNOT RUN - no block between READER-INSTALL-BEGIN and READER-INSTALL-END (nothing to check)"; exit 2; }
+echo "--- R: installing a reader (the question, then the block that runs apt-get)"
+OUT=$(DISPLAY_T=:0 run_ask $'y\ny')
+nread=$(wc -l < "$T/read.log")
+row "R1 no reader, a display, y then y: INSTALL=y, evince is the reader, and the allow question was asked as well (two reads)" \
+    "$(ok "$(printf '%s' "$OUT" | grep -q '^ALLOW=y NAME=evince$' && printf '%s' "$OUT" | grep -q '^INSTALL=y$' && [ "$nread" -eq 2 ] && echo yes)")" "reads: $nread; $OUT"
+row "R1b ...the first prompt names evince and (y/N), and the allow text says it will be installed, not that it is" \
+    "$(ok "$(head -1 "$T/read.log" | grep -q -F 'Install evince' && head -1 "$T/read.log" | grep -q -F '(y/N)' && printf '%s' "$OUT" | grep -q 'evince will be installed' && ! printf '%s' "$OUT" | grep -q 'evince is installed here' && echo yes)")" "read.log: $(cat "$T/read.log"); $OUT"
+OUT=$(DISPLAY_T=:0 run_ask $'y\nn')
+row "R2 y then n: the reader is installed but NOT allowed (two decisions: INSTALL=y, ALLOW=n)" "$(ok "$(printf '%s' "$OUT" | grep -q '^ALLOW=n NAME=evince$' && printf '%s' "$OUT" | grep -q '^INSTALL=y$' && echo yes)")" "$OUT"
+for ans in y Y yes YES Yes; do
+  OUT=$(DISPLAY_T=:0 run_ask "$ans"$'\nn')
+  row "R3 the answer '$ans' to the install question installs" "$(ok "$(printf '%s' "$OUT" | grep -q '^INSTALL=y$' && echo yes)")" "$OUT"
+done
+for ans in "" n N no NO x yy nope 1; do
+  OUT=$(DISPLAY_T=:0 run_ask "$ans")
+  nread=$(wc -l < "$T/read.log")
+  row "R4 the answer '$ans' does NOT install (default No): INSTALL=n, no reader, one read, no allow question" "$(ok "$(printf '%s' "$OUT" | grep -q '^INSTALL=n$' && printf '%s' "$OUT" | grep -q '^ALLOW=n NAME=$' && [ "$nread" -eq 1 ] && echo yes)")" "reads: $nread; $OUT"
+done
+OUT=$(run_ask y)
+nread=$(wc -l < "$T/read.log")
+row "R5 no display (ssh, a console): not asked, nothing installed" "$(ok "$([ "$nread" -eq 0 ] && printf '%s' "$OUT" | grep -q '^INSTALL=n$' && printf '%s' "$OUT" | grep -q '^ALLOW=n NAME=$' && echo yes)")" "reads: $nread; $OUT"
+OUT=$(WAYLAND_T=wayland-0 run_ask $'y\nn')
+row "R6 a Wayland display alone is a display: asked, y installs" "$(ok "$(printf '%s' "$OUT" | grep -q '^INSTALL=y$' && echo yes)")" "$OUT"
+OUT=$(DISPLAY_T=:0 run_ask y b2:evince)
+nread=$(wc -l < "$T/read.log")
+row "R7 a reader is installed and there is a display: NOT asked to install (one read: the allow question), INSTALL=n" \
+    "$(ok "$([ "$nread" -eq 1 ] && grep -q -F 'Allow evince' "$T/read.log" && printf '%s' "$OUT" | grep -q '^INSTALL=n$' && printf '%s' "$OUT" | grep -q '^ALLOW=y NAME=evince$' && echo yes)")" "reads: $nread; $OUT"
+OUT=$(DISPLAY_T=:0 run_ask y alreadyallowed)
+nread=$(wc -l < "$T/read.log")
+row "R8 the list already has a pdf line, no reader on the machine, a display: not asked (an upgrade keeps what the administrator chose)" "$(ok "$([ "$nread" -eq 0 ] && printf '%s' "$OUT" | grep -q '^INSTALL=n$' && echo yes)")" "reads: $nread; $OUT"
+
+run_rd() {   # run_rd INSTALL NAME [fail]  - the block after the packages, with sudo a logging function; prints its output, ALLOW and RC=0
+  : > "$T/sudo.log"
+  OPTS="$OPTS" RD="$RD" T="$T" FAILAPT="${3:-}" bash -c '
+      eval "$OPTS"; RED=; NC=
+      install_reader="$1"; allow_viewer_name="$2"; allow_viewer=y
+      sudo() { ( IFS=" "; printf "%s\n" "$*" ) >> "$T/sudo.log"; if [ -n "$FAILAPT" ]; then return 1; fi; return 0; }
+      eval "$RD"
+      echo "ALLOW=$allow_viewer"; echo "RC=0"' _ "$1" "$2" 2>&1
+}
+OUT=$(run_rd y evince)
+row "R9 a yes: apt-get -y install evince is run once and the install says so; the allow stays (the question already answered it)" \
+    "$(ok "$([ "$(cat "$T/sudo.log")" = 'apt-get -y install evince' ] && printf '%s' "$OUT" | grep -q 'Installed the PDF reader evince' && printf '%s' "$OUT" | grep -q '^ALLOW=y$' && printf '%s' "$OUT" | grep -q '^RC=0$' && echo yes)")" "sudo.log: $(cat "$T/sudo.log"); $OUT"
+OUT=$(run_rd y evince fail)
+row "R10 apt-get fails: the install goes on (RC=0), a WARNING names the command to give by hand, the allow is withdrawn (ALLOW=n), no 'Installed' line" \
+    "$(ok "$(printf '%s' "$OUT" | grep -q '^RC=0$' && printf '%s' "$OUT" | grep -q 'WARNING: evince could not be installed' && printf '%s' "$OUT" | grep -q 'set.viewer add pdf' && printf '%s' "$OUT" | grep -q '^ALLOW=n$' && ! printf '%s' "$OUT" | grep -q 'Installed the PDF reader' && echo yes)")" "$OUT"
+OUT=$(run_rd n evince)
+row "R11 no yes: apt-get is not run (the null case: a block that always installs fails here)" "$(ok "$([ ! -s "$T/sudo.log" ] && printf '%s' "$OUT" | grep -q '^ALLOW=y$' && echo yes)")" "sudo.log: $(cat "$T/sudo.log"); $OUT"
+OUT=$(run_rd y "")
+row "R12 a yes but no reader name: apt-get is not run" "$(ok "$([ ! -s "$T/sudo.log" ] && echo yes)")" "sudo.log: $(cat "$T/sudo.log"); $OUT"
+
 echo "--- S: the places"
 ln_gates=$(grep -n '^read -r -p "Allow API access from other computers?' "$INST" | head -1 | cut -d: -f1)       # 26 Oct 26: the gates question is gone; the reader question follows the API question
 ln_ask=$(grep -n '^# VIEWER-ASK-BEGIN' "$INST" | head -1 | cut -d: -f1)
@@ -218,6 +289,10 @@ ln_walk=$(grep -n "AN UPGRADE BRINGS EVERY ACCOUNT'S VOC FORWARD" "$INST" | head
 row "S1 the reader question comes after the API question and before the colour reset that ends the questions" "$(ok "$([ "${ln_gates:-0}" -gt 0 ] && [ "$ln_gates" -lt "${ln_ask:-0}" ] && [ "${ln_ask:-0}" -lt "${ln_nc:-0}" ] && echo yes)")" "API question $ln_gates, ask $ln_ask, reset ${ln_nc:-none}"
 row "S2 the content block comes after the shared account is made and before the walk that brings every account's VOC forward" "$(ok "$([ "${ln_cr:-0}" -gt 0 ] && [ "$ln_cr" -lt "${ln_ct:-0}" ] && [ "${ln_ct:-0}" -lt "${ln_walk:-0}" ] && echo yes)")" "create-end $ln_cr, content $ln_ct, walk ${ln_walk:-none}"
 
+echo
+ln_pk=$(grep -n '^# PACKAGES-END' "$INST" | head -1 | cut -d: -f1)
+ln_rd=$(grep -n '^# READER-INSTALL-BEGIN' "$INST" | head -1 | cut -d: -f1)
+row "S3 the reader is installed after the packages (so apt has its lists) and after the question, and before the shared account's content block" "$(ok "$([ "${ln_ask:-0}" -gt 0 ] && [ "${ln_pk:-0}" -gt 0 ] && [ "${ln_rd:-0}" -gt "$ln_pk" ] && [ "$ln_rd" -gt "$ln_ask" ] && [ "$ln_rd" -lt "${ln_ct:-0}" ] && echo yes)")" "ask $ln_ask, packages end $ln_pk, reader $ln_rd, content $ln_ct"
 echo
 echo "test-install-docs: $pass passed, $fail failed"
 [ "$fail" -eq 0 ] && [ "$pass" -gt 0 ]

@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   THE INSTALLER OFFERS TO INSTALL A PDF READER WHEN THE MACHINE HAS NONE AND THE INSTALL IS RUN IN A DESKTOP SESSION.
+
+             What        - "Install evince as the PDF reader? (y/N)" is asked when no known reader (evince, okular, zathura, atril,
+                           xreader, mupdf, qpdfview, xpdf) is installed, SDSYS has no pdf reader allowed yet, and DISPLAY or
+                           WAYLAND_DISPLAY is set. A y installs the package with apt-get after the other packages; the existing question
+                           "Allow evince to show the documentation for every account? (y/N)" then follows.
+             Why         - The documentation PDFs are copied into the shared account, but the pdf verb could show none of them on a
+                           machine without a reader, and the installer only ever asked about a reader it found.
+             Does NOT    - Allow the reader (that is the second question, no unless y), ask over ssh or on the console where there is no
+                           display, ask on an upgrade that already has a reader allowed, or stop the install when the package cannot be
+                           installed (it warns and allows nothing).
+
 3 Nov 26   THE INSTALLER ASKS WHERE NEW SESSIONS START: THE HOME SCREEN OR THE COMMAND PROMPT. AN UPGRADE KEEPS WHAT THE SYSTEM HAD.
 
              What        - "Start new sessions at the home screen or at the command prompt? (H/p)" is asked with the other questions.
