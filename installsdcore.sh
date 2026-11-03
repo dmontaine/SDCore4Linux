@@ -2248,7 +2248,10 @@ if [ -n "$installer_dir" ] && sudo test -f "$shared_reg" && sudo test -d "${shar
         [ -f "$changes_f" ] && [ ! -L "$changes_f" ] || continue
         changes_b=$(basename "$changes_f")
         # the pdf verb opens only a name of a-z 0-9 dot dash underscore, not starting with a dot, up to 80 characters
-        [[ "$changes_b" =~ ^[a-z0-9][a-z0-9._-]{0,79}$ ]] || continue
+        if ! [[ "$changes_b" =~ ^[a-z0-9][a-z0-9._-]{0,79}$ ]]; then
+            echo "Note: ${changes_b} was not copied: the name must be lower case letters, digits and . _ - (rename it and run:  docs.install <directory>)."
+            continue
+        fi
         changes_seen=$((changes_seen+1))
         if sudo install -o sdsys -g sdusers -m 644 "$changes_f" "${shared_dir}/pdf/${changes_b}"; then
             changes_copied=$((changes_copied+1))
@@ -2269,6 +2272,46 @@ else
     echo "No changes document was copied (not run from a release package, or no shared account)."
 fi
 # CHANGES-DOC-END
+#
+# 03 Nov 26 dm - S.143 (owner, 3 Nov 2026: "Yes, installer copies them"): THE DOCUMENTATION PDFS TRAVEL WITH THE INSTALLER TOO.  A release package holds,
+#            beside this script, a folder pdf/ with the per-chapter PDFs of the User, Administrator and Getting Started documents (the names the help
+#            pages' Documentation buttons open).  They are put in the shared account by SD's own docs.install, which judges every file (a lower case
+#            plain name, contents beginning %PDF-, a regular file) and writes the audit line; run as root, it leaves the copies root's, so they are
+#            given to sdsys:sdusers like the rest of the folder.  The result is judged file by file on the shared folder, not on sd's exit code.
+#            Nothing here stops the install: no folder (a clone from GitHub has none), no shared account or a refusal each print a note or a
+#            WARNING that says what to run.  test-install-manuals.sh runs this block.
+# MANUALS-PDF-BEGIN
+manuals_n=0
+manuals_ok=0
+if [ -n "$installer_dir" ] && [ -d "$installer_dir/pdf" ] && [ ! -L "$installer_dir/pdf" ]; then
+    for manuals_f in "$installer_dir"/pdf/*.pdf; do
+        if [ -f "$manuals_f" ] && [ ! -L "$manuals_f" ]; then manuals_n=$((manuals_n+1)); fi
+    done
+fi
+if [ "$manuals_n" -eq 0 ]; then
+    echo "No documentation PDFs beside the installer (the pdf folder of a release package), so none were installed."
+    echo "  Signed in as sdsys:  docs.install <directory of PDFs>"
+elif sudo test -f "$shared_reg" && sudo test -d "${shared_dir}/pdf"; then
+    sudo bin/sd -internal docs.install "$installer_dir/pdf" < /dev/null || true
+    sudo find "${shared_dir}/pdf" -maxdepth 1 -type f -name '*.pdf' -user root -exec chown sdsys:sdusers {} + || true
+    for manuals_f in "$installer_dir"/pdf/*.pdf; do
+        [ -f "$manuals_f" ] && [ ! -L "$manuals_f" ] || continue
+        if sudo cmp -s "$manuals_f" "${shared_dir}/pdf/$(basename "$manuals_f")"; then
+            manuals_ok=$((manuals_ok+1))
+        fi
+    done
+    if [ "$manuals_ok" -eq "$manuals_n" ]; then
+        echo "Installed the documentation PDFs (${manuals_ok}) into the shared account:  ${shared_dir}/pdf   (pdf lists them)"
+    else
+        printf "%b\n" "$RED"
+        echo "WARNING: ${manuals_ok} of ${manuals_n} documentation PDFs were installed (docs.install says why above)."
+        echo "  Signed in as sdsys:  docs.install ${installer_dir}/pdf"
+        printf "%b\n" "$NC"
+    fi
+else
+    echo "The documentation PDFs were not installed: there is no shared account or no pdf directory in it."
+fi
+# MANUALS-PDF-END
 
 # 11 Sep 26  AN UPGRADE BRINGS EVERY ACCOUNT'S VOC FORWARD (PORT_ADOPTION 16,
 #            port PRE_RELEASE_FIXES 70).  Replacing NEWVOC and VOC_TEMPLATE on

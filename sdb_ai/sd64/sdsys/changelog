@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+3 Nov 26   THE INSTALLER PUTS THE DOCUMENTATION PDFS OF A RELEASE PACKAGE IN THE SHARED ACCOUNT.
+
+             What        - A release package holds a folder named pdf beside installsdcore.sh, with one PDF for each chapter of the
+                           User, Administrator and Getting Started documents. The installer runs docs.install on that folder, so
+                           every account's pdf command lists the documents and the Documentation button of a help page opens its
+                           chapter. Each document is checked on the shared folder afterwards; when one did not arrive, the install
+                           says how many did and prints the docs.install command to run. A changes document beside the installer
+                           whose name is not all lower case is no longer passed over in silence: the install names it.
+             Why         - Before, only the changes document was installed, and the chapters waited for the administrator to run
+                           docs.install by hand, so a new system's pdf command listed one document.
+             Does NOT    - Allow a PDF reader (that is still the installer's question, or set.viewer), or install anything when the
+                           installer was not run from a package. docs.install's own rules are unchanged: a lower case plain name,
+                           contents beginning %PDF-, a regular file.
+
 3 Nov 26   EXECUTE AND OS.EXECUTE TAKE SILENT.
 
              What        - EXECUTE command SILENT, PHANTOM command SILENT and OS.EXECUTE command SILENT run the command and throw
