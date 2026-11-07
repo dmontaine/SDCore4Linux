@@ -17,6 +17,11 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 07 Nov 26 dm S.125: the redeclaration of k_error() with __attribute__((noreturn)) is gone.  k_error() RETURNS for a
+ *           message beginning '!' (the three SOCKET_DEBUG connect messages of op_openskt), and at -O2 the compiler took the
+ *           attribute at its word: it left out everything after those calls, so a refused connect printed both messages
+ *           and ran off the end of op_openskt into op_setskt (Fault type 11; sandbox-qmclient.py O1).  -O0 had ignored it.
+ *           test-noreturn-units.py now refuses a '!' call in any file that makes the promise.
  * 20 Oct 26 dm S.73 item 2, THE SILENT SERVER.  (1) READ.SOCKET on a TLS socket gave up after its timeout only while the descriptor held nothing: the session tickets a
  *           TLS 1.3 server sends after the handshake, or half of a record, made the descriptor readable, and the blocking SSL_read behind it then waited for the rest with
  *           no limit (5.0 s against a test server that closes a silent connection after 5, with NETREPLY=3).  The read is now non-blocking and the wait is on the
@@ -88,11 +93,8 @@
  * START-CODE
  */
 
-/* Modified by Composer AI - 2026/06/10.
-   k_error() never returns, but the analyzer cannot see that across
-   translation units. */
-void k_error(char msg[], ...) __attribute__((noreturn));
-/* -------------------- */
+/* 07 Nov 26 (S.125): NO noreturn redeclaration of k_error() here.  This file calls it with '!' messages, which
+   return; see the history above and gplbld/test-noreturn-units.py. */
 
 #include "sd.h"
 #include "header.h" /* HDR_INTERNAL: the edit gates of SKT$INFO.TRACE (17 Oct 26, S.64) */
@@ -465,7 +467,7 @@ void op_openskt() {
   char server[80 + 1];
   char server_addr[80];
 
-  SOCKET skt;
+  SOCKET skt = -1; /* 07 Nov 26 (S.125): set before every use; -1 tells -O2's flow analysis so (closesocket below) */
   DESCRIPTOR result_descr;
   SOCKVAR* sock;
 
