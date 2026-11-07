@@ -3,6 +3,7 @@
 # ssh-forcecommand.sh - the ssh half of the SD boundary for SD Core for Linux.
 #
 # START-HISTORY:
+# 07 Nov 26 dm S.162: validate() makes /run/sshd (root, 0755) when it is missing, as Debian's unit does: on a socket-activated ssh `sshd -t` failed without it.
 # 07 Nov 26 dm S.157: both Match Group arms end "User *,!root", so root's ssh is the machine's own again (root is in sdusers; see "ROOT IS NAMED OUT").
 # 02 Nov 26 dm S.106 (owner, 2 Nov 2026: "remove the authenticator from both local and remote logins, we will depend on just password authentication for this release").  THE
 #           AUTHENTICATOR CODE IS GONE.  The OPEN sdsys arm is now password authentication alone: AuthenticationMethods password, PasswordAuthentication yes, KbdInteractive no, and
@@ -354,8 +355,18 @@ existing_conflict() {
 
 # Validate a candidate file with sshd -t -f.  Returns 0 / non-zero and leaves
 # the reason on stdout for the caller to surface.
+#
+# 7 Nov 26 (S.162): `sshd -t` refuses every file with "Missing privilege separation directory: /run/sshd"
+# when that directory is absent, and it is absent whenever ssh.service is not running - on a machine
+# whose ssh is socket-activated (the test VPS) it exists only while the service runs.  Debian's own
+# unit makes it (RuntimeDirectory=sshd, mode 0755) before its own `sshd -t`; this does the same, as
+# root only and only when it is missing.  Without it the validation failed and the open arm was
+# never written, whatever the file said.
 validate() {
   local sshd=$1 file=$2
+  if [ ! -d /run/sshd ] && [ "$(id -u)" = 0 ]; then
+    install -d -m 0755 -o root -g root /run/sshd 2>/dev/null || true
+  fi
   "$sshd" -t -f "$file" 2>&1
 }
 

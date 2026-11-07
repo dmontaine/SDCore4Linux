@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+7 Nov 26   INSTALLING OVER ssh IN A CONTAINER (A VPS) NOW SETS THE SD PASSWORDS AND CAN OPEN ssh FOR sdsys.
+
+             What        - On a VPS that is an unprivileged container, installed over ssh, the installer could not set the
+                           installing user's SD password or sdsys's: every attempt was refused with "This session runs as
+                           sdsys but the machine was not logged in as sdsys", and the install still ended as installed. The
+                           installer now runs that step in a session started by systemd when the first way is refused, and
+                           the passwords are set. Answering y to "Let sdsys sign in over ssh" failed on the same kind of
+                           machine with "Missing privilege separation directory: /run/sshd"; the check of the new ssh
+                           settings now makes that directory first, as the ssh service itself does.
+             Why         - Found on the first install on a test VPS, the kind of machine many people will install on. The
+                           virtual machines used until now always had the rights these steps assumed.
+             Does NOT    - Change who may set a password: only the install, running as root, takes either route, and the
+                           password is still typed at a hidden prompt. Make the root-run files immutable in a container that
+                           cannot keep the attribute: that warning stays.
+
 7 Nov 26   A STANDING TEXT FOR THE AI: A FEW LINES OF THE ADMINISTRATOR'S SENT WITH EVERY AI REQUEST.
 
              What        - Every AI request, from the ai verb and from the AI line of every page, begins with a standing text:

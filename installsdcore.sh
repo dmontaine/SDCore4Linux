@@ -2985,6 +2985,25 @@ echo ---------------------------------------------------------------
 #            (the witnesses' bridge, granted by M8d on the 19 Sep cycle).  It
 #            grants nothing to anyone not already root; if the write fails the
 #            session is refused (10195) and the $cred check says "not set".
+# 07 Nov 26 dm - S.161: THE BRIDGE NEEDS A LOGIN ID IT MAY CHANGE.  The kernel lets a process set its
+#   loginuid freely only while it is UNSET; once a login has set it (ssh does), changing it needs
+#   CAP_AUDIT_CONTROL, which root in an unprivileged container does not have.  So on the test VPS (an
+#   LXC container, installed over ssh) the write failed, every attempt was refused 10195, and no SD
+#   password was set at all.  A process systemd starts has an unset loginuid, and root may set it
+#   there even in a container (measured on the VPS: 4294967295, then 1003).  So: try the write
+#   where we are; if it is refused, run the same step in a transient unit with the terminal passed
+#   through (--pty), where it is allowed.  Nothing new is granted - only root reaches either route,
+#   and the session is still exactly the one sdsys process tree that sets one password.
+#   MODIFY.PASSWORD still asks for the password itself, hidden, in both routes.
+sd_pw_session() {
+    local acct=$1
+    if sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid' 2>/dev/null; then
+        ( cd "$sdsysdir" && sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1" -QUIET MODIFY.PASSWORD "$2"' sd-pw "$sdsysdir/bin/sd" "$acct" </dev/tty ) || true
+    else
+        sudo systemd-run --quiet --pty --wait --collect --working-directory="$sdsysdir" --setenv=TERM="${TERM:-xterm}" \
+            sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1" -QUIET MODIFY.PASSWORD "$2"' sd-pw "$sdsysdir/bin/sd" "$acct" </dev/tty || true
+    fi
+}
 sd_pw_state="not set"
 # 20 Sep 26 dm - THE RULED BLOCK ANNOUNCES THE STEP (owner, 20 Sep: "The blocks
 #   ... should announce each password block not be at the end").  It used to be
@@ -3018,7 +3037,7 @@ else
     pw_try=1
     while [ "$pw_try" -le 3 ]; do
         echo
-        ( cd "$sdsysdir" && sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1" -QUIET MODIFY.PASSWORD "$2"' sd-pw "$sdsysdir/bin/sd" "$tuser_lc" </dev/tty ) || true
+        sd_pw_session "$tuser_lc"
         if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
             sd_pw_state="set"
             break
@@ -3157,7 +3176,7 @@ else
     pw_try=1
     while [ "$pw_try" -le 3 ]; do
         echo
-        ( cd "$sdsysdir" && sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1" -QUIET MODIFY.PASSWORD sdsys' sd-pw "$sdsysdir/bin/sd" </dev/tty ) || true
+        sd_pw_session sdsys
         if sudo test -f "$sdsysdir/\$cred/sdsys"; then
             sdsys_sd_pw_state="set"
             break
