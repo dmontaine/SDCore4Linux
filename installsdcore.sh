@@ -2688,6 +2688,24 @@ sudo "${inst_folder}/sd64/bin/sdtic" -v "${inst_folder}/sd64/terminfo.src"
 echo Terminfo compilation complete
 sudo cp "${inst_folder}/sd64/terminfo.src" "$sdsysdir"
 echo
+# 07 Nov 26 dm - S.158: ROOT LEAVES sdusers ONCE THE INSTALL NO LONGER NEEDS IT (owner, 7 Nov 2026: "Yes, remove at the end").  Root joins sdusers far above
+#            (usermod -a -G sdusers root) because every "sudo bin/sd ..." step runs a session that $LOGIN refuses (5009) unless @logname, root, is a member.  Those
+#            steps end with the final CPROC compile: the shipped CPROC refuses a root session (10190) before $LOGIN asks about the group, and every SD command the
+#            installer runs after it runs as sdsys.  sd -start and sd -stop open no session, and the API server's group tests are on the client's name.  So root's
+#            membership is used by nothing after this point; it is taken out so that a finished install leaves root in no SD route (S.157 found the ssh rules
+#            catching it).  A failure is a warning: SD works either way.  An upgrade puts root back for its own steps and takes it out here again.
+#            test-install-rootgroup.sh runs this block.
+# ROOT-SDUSERS-BEGIN
+if getent group sdusers | awk -F: '{print $4}' | tr ',' '\n' | grep -qx root; then
+    if sudo gpasswd -d root sdusers > /dev/null; then
+        echo "root is no longer in sdusers (it was needed only while installing)."
+    else
+        printf "%b\n" "$YELLOW"
+        echo "WARNING: root could not be taken out of sdusers.  It does no harm; to do it by hand:  sudo gpasswd -d root sdusers"
+        printf "%b\n" "$NC"
+    fi
+fi
+# ROOT-SDUSERS-END
 
 # 26 Oct 26 dm - W.11 F11 (security-model evaluation).  THE FILES ROOT RUNS ARE ROOT'S, NOT THE sdsys USER'S.  sd.service runs bin/sd (-start and -stop) as root,
 #            sd-lnxd.service runs bin/sdlnxd as root, sdclient@.service runs bin/sd -n -q with no User=, sd-elevate's akpath-set runs bin/sdidx as root, and every session

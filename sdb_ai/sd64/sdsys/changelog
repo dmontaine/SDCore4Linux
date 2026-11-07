@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+7 Nov 26   A FINISHED INSTALL LEAVES ROOT OUT OF THE SDUSERS GROUP.
+
+             What        - The installer still adds root to sdusers, because its own steps run SD as root and SD admits only
+                           members of sdusers. Once the last of those steps is done, it takes root out again.
+             Why         - After the install nothing uses the membership: SD refuses a root session outright, before it asks
+                           about the group. Left in, it only made root look like an SD user to anything that asks about sdusers,
+                           as SD's ssh rules did.
+             Does NOT    - Change what root can do on the machine, or anything for SD accounts or sdsys. An upgrade adds root for
+                           its own steps and takes it out again. If root cannot be taken out, the install warns and goes on.
+
 7 Nov 26   ROOT IS NO LONGER REFUSED OVER SSH: SD'S SSH RULES LEAVE ROOT TO THE SSH SERVER'S OWN SETTINGS.
 
              What        - The two rules SD writes into /etc/ssh/sshd_config now end "User *,!root". root's ssh sign-in is
