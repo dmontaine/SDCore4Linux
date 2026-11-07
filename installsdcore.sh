@@ -1423,6 +1423,7 @@ sudo install -d -o root -g root -m 0755 /usr/local/lib/sd-ai
 sudo install -o root -g root -m 0755 gplbld/sd-ai /usr/local/lib/sd-ai/sd-ai
 sudo install -o root -g root -m 0755 gplbld/sd-ai-ctl /usr/local/lib/sd-ai/sd-ai-ctl
 sudo install -o root -g root -m 0644 gplbld/ai-providers /usr/local/lib/sd-ai/ai-providers
+sudo install -o root -g root -m 0644 gplbld/ai-context /usr/local/lib/sd-ai/ai-context      # S.160: the shipped standing text (the administrator's own is in /var/lib/sd-ai)
 if getent passwd sdai &>/dev/null; then
   sudo install -d -o sdai -g sdai -m 0750 /var/lib/sd-ai
   sudo install -d -o sdai -g sdai -m 0700 /var/lib/sd-ai/keys /var/lib/sd-ai/state

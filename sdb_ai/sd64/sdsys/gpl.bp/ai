@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 23 Oct 26 dm  New.
+* 7 Nov 26 dm   S.160: the standing text goes first in the system text, after the wall's screen; it is not shown in the preview.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -90,8 +91,30 @@ $include err.h
 
 *  The preview
    system.text = 'You are answering a question typed at the terminal of SD Core for Linux, a multivalue database. Answer briefly, in plain text without markup.'
+*  7 Nov 26 S.160: the standing text (the administrator's, or the shipped default), first, put to the same screen as the question; not shown in the preview (its size is counted)
+   ctext = st{'context'}
+   if ctext # '' then
+      ok.c = ''
+      for i = 1 to len(ctext)
+         sq = seq(ctext[i, 1])
+         if sq = 10 or (sq >= 32 and sq <= 126) then ok.c := ctext[i, 1]
+      next i
+      ctext = trimb(trimf(ok.c))
+   end
+   if ctext # '' then
+      call $tk_aiwall('request', ctext, why)
+      if why # '' then
+         void kernel(K$AUDIT, 'ai refused why=context app=ai name=' : why)
+         @system.return.code = -ER$FAILED
+         stop sysmsg(14013, why)                                                ;* The standing text names SD's own code or build (%1) ...
+      end
+   end
+   fixed.text = system.text
+   c.send = ''
+   if ctext # '' then c.send = 'Standing information from the administrator of this SD system:' : char(10) : ctext : char(10) : char(10)
+   system.text = c.send : fixed.text
    display sysmsg(11628, prov, model, len(question) + len(system.text))
-   display system.text
+   display fixed.text                                                           ;* the standing text is not shown (the owner, 7 Nov 26: "invisible to the user")
    display question
    crt sysmsg(11629) : ' ' :
    input ans

@@ -9735,7 +9735,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 36
+"words": 42
 },
 "msg:11610": {
 "kind": "message",
@@ -12951,6 +12951,34 @@
 "words": 6
 },
 "msg:14010": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 17
+},
+"msg:14011": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 19
+},
+"msg:14012": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 18
+},
+"msg:14013": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 26
+},
+"msg:14014": {
 "kind": "message",
 "part": "reference/messages.md",
 "since": "-",
@@ -27956,7 +27984,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "-",
 "tier": "reference",
-"words": 92
+"words": 100
 },
 "tcl:set.backup.directory": {
 "kind": "tcl.verb",

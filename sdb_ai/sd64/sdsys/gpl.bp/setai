@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 7 Nov 26 dm   S.160: SET.AI CONTEXT hex | - (the standing text), put to the wall's screen before the helper keeps it.
 * 23 Oct 26 dm  New (S.69 step 2; the owner: "an ai choice page ... a checkbox for the currently selected provider ... the same model needs to be used by all accounts").
 * END-HISTORY
 *
@@ -19,6 +20,7 @@
 *   SET.AI CUSTOM CLEAR                      forgets the custom connection (not while it is the selected provider)
 *   SET.AI CA path | -                       the file of certificate authorities for a private CA (- is the system store)
 *   SET.AI LIMIT name number                 requests-hour tokens-day timeout bytes-request bytes-reply max-tokens
+*   SET.AI CONTEXT hex | -                   (S.160) the standing text sent with every request, as hexadecimal ASCII (tool.ai's T builds it); - is the shipped default
 *
 *   The administrator's verb (the AI choice page, tool.ai, runs it).  It changes nothing itself: the settings live in the AI helper's own directory, and the helper
 *   (sd-ai) makes the change, after asking who is calling by the uid it reads from the connection - this verb runs the helper's client, sd-ai-ctl, as the administrator.
@@ -162,6 +164,40 @@ $include err.h
          gosub need.ok
          void kernel(K$AUDIT, 'set.ai limit name=' : lname : ' value=' : lvalue)
          display sysmsg(11621, lname, lvalue)                                             ;* The limit %1 is now %2
+         @system.return.code = 0
+
+      case sub = 'context' and n.words = 3
+*        7 Nov 26 S.160: the standing text sent with every request, as ONE word of hexadecimal ASCII (a text of several lines is carried whole that way; tool.ai builds it), or - for
+*        the shipped default.  The text is decoded here and put to the wall's screen BEFORE the helper is asked: a standing text that names SD's own code would go with every request,
+*        so it is never kept.  The helper checks it again (printable ASCII and line feeds, 4000 characters).  The audit line has the size, never the text.
+         hx = field(words, ' ', 3)
+         if hx = '-' then
+            qargs = "'context' '-'"
+            gosub run.ctl
+            gosub need.ok
+            void kernel(K$AUDIT, 'set.ai context=default')
+            display sysmsg(14012)                                                         ;* ... is the shipped default again
+            @system.return.code = 0
+            stop
+         end
+         hx = downcase(hx)
+         if len(hx) = 0 or mod(len(hx), 2) or len(hx) > 8000 or convert('0123456789abcdef', '', hx) # '' then stop sysmsg(14014)
+         ctext = iconv(hx, 'MX0C')
+         if status() or len(ctext) * 2 # len(hx) then stop sysmsg(14014)
+         for i = 1 to len(ctext)
+            cc = seq(ctext[i, 1])
+            if cc # 10 and (cc < 32 or cc > 126) then stop sysmsg(14014)
+         next i
+         call $tk_aiwall('request', ctext, why)
+         if why # '' then
+            void kernel(K$AUDIT, 'set.ai context refused name=' : why)
+            stop sysmsg(14013, why)                                                       ;* ... names SD's own code or build (%1) and is not kept
+         end
+         qargs = "'context' '" : hx : "'"
+         gosub run.ctl
+         gosub need.ok
+         void kernel(K$AUDIT, 'set.ai context bytes=' : len(ctext))
+         display sysmsg(14011, len(ctext))                                                ;* ... is now the administrator's (%1 characters)
          @system.return.code = 0
 
       case 1

@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+7 Nov 26   A STANDING TEXT FOR THE AI: A FEW LINES OF THE ADMINISTRATOR'S SENT WITH EVERY AI REQUEST.
+
+             What        - Every AI request, from the ai verb and from the AI line of every page, begins with a standing text:
+                           what SD is, that command words are lower case, which gates there are, and where SD's help is (F1
+                           and the [?] buttons, the pdf command, the SD BASIC guide and the knowledge pack under
+                           /usr/local/sdsys/agent-pack, the documentation on the web). SD ships a default. The administrator
+                           edits it on tool.ai: T opens it in a box, Save keeps the edited text, Shipped default goes back.
+                           At the prompt it is set.ai context (the text as hexadecimal) and set.ai context - .
+             Why         - An AI that does not know it is answering for SD answers for some other multivalue product, with
+                           commands SD does not have. A few lines up front fix most of that, and a site can add its own facts.
+             Does NOT    - Show the text to the person asking or change their question: it is the administrator's, and the
+                           preview leaves it out (its size is counted). Keep a text that names SD's own code: such a text is
+                           refused, and one written into the helper's file by hand stops every request until it is put right.
+                           Hold anything but plain ASCII and new lines, or more than 4000 characters. Turn the AI on: it is
+                           still off until the administrator chooses a provider, a key and the accounts.
+
 7 Nov 26   SEVEN FAULTS IN THE C CODE FIXED, FOUND BY AN OUTSIDE CODE REVIEW.
 
              What        - Deleting a directory (DELETE.ACCOUNT, DELETE.FILE of a directory file, and the other places that

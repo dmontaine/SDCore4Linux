@@ -12,12 +12,14 @@
 #   sd-ai-ctl [--socket PATH] limit NAME NUMBER               (requests-hour tokens-day timeout bytes-request bytes-reply max-tokens)
 #   sd-ai-ctl [--socket PATH] key PROVIDER                    (the key is read from the terminal and not shown; from stdin when it is not a terminal)
 #   sd-ai-ctl [--socket PATH] key-clear PROVIDER
+#   sd-ai-ctl [--socket PATH] context HEX | -                 (S.160: the standing text sent with every request, hexadecimal ASCII; - the shipped default)
 #
 # THE KEY IS NEVER AN ARGUMENT (an argument is in the process list and the shell's history) and never printed.  SD's set.ai.key verb runs this program
 # with the terminal handed to it, so the key is typed here and never passes through SD.  Exit 0 done, 1 the helper refused (its code and words are
 # printed), 2 the helper could not be reached or the command line is wrong.
 #
 # START-HISTORY:
+# 7 Nov 26 dm   S.160: context HEX | - (the standing text); show says whose it is and its length.
 # 23 Oct 26 dm  New.
 # END-HISTORY
 
@@ -33,7 +35,7 @@ PROVIDERS = ("anthropic", "openai", "google", "deepseek", "custom")
 
 def usage():
     sys.stderr.write("usage: sd-ai-ctl [--socket PATH] show [--json] | provider NAME|none | model PROVIDER NAME|- | custom NAME URL FORMAT AUTH VERSION|- MAXPARAM |\n"
-                     "                 custom-clear | ca PATH|- | limit NAME NUMBER | key PROVIDER | key-clear PROVIDER\n")
+                     "                 custom-clear | ca PATH|- | limit NAME NUMBER | key PROVIDER | key-clear PROVIDER | context HEX|-\n")
     return 2
 
 
@@ -72,6 +74,8 @@ def show(reply, as_json):
         print("      model: %s   key: %s" % (p["model"] or (("%s (default)" % p["default"]) if p.get("default") else "(not set)"), "set" if p["key"] else "(not set)"))
     print("  ca-file: %s" % (reply.get("ca-file") or "(the system store)"))
     print("  limits: " + ", ".join("%s=%s" % (k, v) for k, v in sorted(reply.get("limits", {}).items())))
+    print("  standing text: %s, %d characters" % ({"own": "the administrator's", "default": "the shipped default", "none": "none", "bad": "unusable (none is sent)"}
+                                                   .get(reply.get("context-from"), "unknown"), len(reply.get("context", ""))))
 
 
 def main(argv):
@@ -97,6 +101,17 @@ def main(argv):
         req = {"v": 1, "op": "set", "what": "ca", "value": "" if rest[0] == "-" else rest[0]}
     elif cmd == "limit" and len(rest) == 2:
         req = {"v": 1, "op": "set", "what": "limit", "name": rest[0], "value": rest[1]}
+    elif cmd == "context" and len(rest) == 1:
+        # S.160: the standing text, as HEX (one word that a command line carries whole: SD's set.ai context gives it so), or - for the shipped default
+        if rest[0] == "-":
+            text = ""
+        else:
+            try:
+                text = bytes.fromhex(rest[0]).decode("ascii")
+            except (ValueError, UnicodeDecodeError):
+                sys.stderr.write("sd-ai-ctl: the standing text is given as hexadecimal ASCII\n")
+                return 2
+        req = {"v": 1, "op": "set", "what": "context", "value": text}
     elif cmd == "key-clear" and len(rest) == 1:
         req = {"v": 1, "op": "keyclear", "provider": rest[0]}
     elif cmd == "key" and len(rest) == 1:

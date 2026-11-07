@@ -112,7 +112,8 @@ def checks(src, tree_calls):
     ck("A3 each refusal is a message in words and ONE audit line that names why and the app and never the text: request (the name found), origin (the kind and the reason)",
        "void kernel(K$AUDIT, 'ai refused why=request app=' : downcase(app) : ' name=' : why)" in ai and "sysmsg(11941, why)" in ai
        and "void kernel(K$AUDIT, 'ai refused why=origin app=' : downcase(app) : ' kind=' : origin<1, 1> : ' reason=' : why)" in ai and "sysmsg(11940)" in ai and "sysmsg(11942)" in ai
-       and ai.count("K$AUDIT") == 3, "")
+       and "void kernel(K$AUDIT, 'ai refused why=context app=' : downcase(app) : ' name=' : why)" in ai and "sysmsg(14013, why)" in ai      # S.160: the standing text
+       and ai.count("K$AUDIT") == 4, "")
     ck("A4 the refusal result is a result of 'none' with the message on res<5>, the line the apps show on their status rows (the typed request's and a follow-up's earlier question's)",
        ai.count("b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : sysmsg(11941, why)") == 2
        and ai.count("(if why = 'system' then sysmsg(11940) else sysmsg(11942))") == 1, "")

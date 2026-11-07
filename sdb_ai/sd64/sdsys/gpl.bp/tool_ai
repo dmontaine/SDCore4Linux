@@ -7,6 +7,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 7 Nov 26 dm   S.160: T opens the standing text (the text sent first with every AI request) in a box with an editor: Save, Shipped default, Cancel; SET.AI CONTEXT keeps it.
 * 1 Nov 26 dm   GOOGLE IS A ROW (Anthropic, OpenAI, Google, DeepSeek, Custom: five rows, the Provider box one row taller) AND EVERY NAMED PROVIDER HAS A DEFAULT MODEL (the owner, 1 Nov 2026:
 *               "pre-filled in except for the key ... an option for a user specified model"): the table and the summary show the model that will be asked, a default marked (default), the
 *               detail says which it is, M starts at it and a dash returns to it; the helper's status carries it as providers/NAME/default.  Custom is still all the administrator's.
@@ -32,7 +33,8 @@
 *                anything to the provider.
 *
 *   Keys: Up and Down move, Tab changes box, Enter selects or deselects the provider (Provider) or turns the gate on or off (Accounts), M the model, K the key, X clears the key,
-*   C fills in Custom, D removes it, A the file of certificate authorities, L a limit, F5 reads the machine again, F1 or ? or a click on a [?] explains the box, Ctrl-Q leaves.
+*   C fills in Custom, D removes it, A the file of certificate authorities, L a limit, T the standing text sent with every request (S.160), F5 reads the machine again, F1 or ?
+*   or a click on a [?] explains the box, Ctrl-Q leaves.
 *
 *   THE PAGE WRITES NOTHING ITSELF AND KNOWS NO KEY.  What it shows it reads from the AI helper (KERNEL(K$AI.STATUS): the connection details, the models, whether a key is set,
 *   the limits - never a key) and from the register (the gates, through $tk_gates).  Every change is a SET.AI or MODIFY.ACCOUNT sentence shown with its effect in a box answered
@@ -78,6 +80,8 @@ $include tk.h
    call $tk_keys('add', keys, 'd', 'drop custom', 'dropcustom', 'Provider', 1)
    call $tk_keys('add', keys, 'a', 'ca file', 'ca', 'Provider', 1)
    call $tk_keys('add', keys, 'l', 'limit', 'limit', 'Provider', 1)
+   call $tk_keys('add', keys, 't', 'standing text', 'context', '', 1)      ;* S.160: the text sent with every request, in a box (either box has it)
+   keys<dcount(keys, @fm), TK.K.ROW> = 0                                   ;* bound and in the Provider menu, NOT on the key row: the row was 135 of 140 columns before it
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U3: Esc opens the menu bar (this page holds nothing of its own that Esc closes first)
@@ -90,6 +94,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'dropcustom', '&Provider', '&Drop custom provider', '', '')
    call $tk_keys('menu', keys, 'ca', '&Provider', 'CA &file', '', '')
    call $tk_keys('menu', keys, 'limit', '&Provider', '&Limit', '', '')
+   call $tk_keys('menu', keys, 'context', '&Provider', 'S&tanding text', '', '')
    call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
@@ -502,6 +507,8 @@ on.key:
          if ap # '' then msg = ap
       case nm = 'ctrl-q'
          done = 1
+      case nm = 't'
+         if helper.ok then gosub do.context else msg = sysmsg(11607)
       case nm = 'm' or nm = 'k' or nm = 'x' or nm = 'c' or nm = 'd' or nm = 'a' or nm = 'l'
          if pane # 1 then
             msg = 'Move to the Provider box (Tab) for that key'
@@ -735,6 +742,134 @@ do.key:
    crt sysmsg(11865) :                                         ;* Press Enter to return
    input junk
    gosub reopen
+   return
+
+* T (S.160; the owner, 7 Nov 26: "a standard text that will be included with every AI query describing where the default agent help text is located along any other
+* information that will help the AI.  It can be accessed in a popup using a shortcut key on the AI selection pane.  It should be editable but supplied with the default
+* text").  The text the helper keeps is shown in a box with an editor; Save puts it in place of the one in use, Shipped default takes the administrator's text away so that
+* the default beside the helper is sent again.  The page checks the text as the helper and SET.AI will (printable ASCII and line feeds, 4000 characters) only to say so
+* in the box; SET.AI CONTEXT decides, and puts it to the wall's screen.  THE SENTENCE IS RUN HERE, NOT BY $tk_runx: its one word is the text in hexadecimal, up to 8000
+* characters, and $tk_runx takes 500.  The verb is fixed and the word is checked to be hexadecimal before it is run, so the sentence can hold nothing else.  The Run / Cancel
+* box names the sentence with the word described, since the text itself was on the screen a moment before.
+do.context:
+   cx.cur = hj{'context'}
+   cx.from = hj{'context-from'}
+   call $sl_window(cx.scrw, cx.scrh)
+   cx.w = cx.scrw - 8
+   if cx.w > 120 then cx.w = 120
+   cx.h = cx.scrh - 6
+   if cx.h > 36 then cx.h = 36
+   cx.x = int((cx.scrw - cx.w) / 2)
+   cx.y = int((cx.scrh - cx.h) / 2)
+   begin case
+      case cx.from = 'own'
+         cx.whose = "the administrator's own"
+      case cx.from = 'default'
+         cx.whose = 'the shipped default'
+      case cx.from = 'bad'
+         cx.whose = 'the kept text cannot be used, so none is sent'
+      case 1
+         cx.whose = 'none'
+   end case
+   screen form title 'Standing text sent with every AI request' at cx.x,cx.y size cx.w,cx.h returning cf
+   screen label cf, 'l1', 'Sent first with every AI request; the person asking never sees it.  Now: ' : cx.whose : '.' at 2,1 width cx.w - 6
+   screen label cf, 'l2', 'Plain English, 4000 characters at most.  Enter: new line.  Tab: the buttons.  Kept only after Save and Run.' at 2,2 width cx.w - 6
+   screen memo cf, 'txt', convert(char(10), @fm, cx.cur) at 2,4 size cx.w - 6,cx.h - 10
+   screen set cf, 'txt' wrap 1                                 ;* a long line is SHOWN on several rows; the text is not changed
+   screen label cf, 'note', ' ' at 2,cx.h - 5 width cx.w - 6
+   screen button cf, 'save', '&Save' at 2,cx.h - 3 default
+   screen button cf, 'dflt', 'Shipped &default' at 14,cx.h - 3
+   screen button cf, 'cancel', '&Cancel' at 36,cx.h - 3 cancel
+   cx.act = ''
+   loop
+      screen wait cf returning cx.ev then                     ;* cx.ev, NOT ev: names fold case, and EV is the page's explanation rows
+         if cx.ev<1> = 'button' then
+            begin case
+               case cx.ev<2> = 'cancel'
+                  cx.act = 'cancel'
+               case cx.ev<2> = 'dflt'
+                  cx.act = 'default'
+               case cx.ev<2> = 'save'
+                  screen get cf, 'txt' returning cx.new
+                  cx.new = trimb(convert(@fm, char(10), cx.new))
+                  loop
+                  while len(cx.new) > 0 and cx.new[len(cx.new), 1] = char(10) do
+                     cx.new = cx.new[1, len(cx.new) - 1]
+                  repeat
+                  gosub context.check
+                  if cx.bad # '' then
+                     screen set cf, 'note' text cx.bad
+                  end else
+                     cx.act = 'save'
+                  end
+            end case
+         end
+      end else
+         cx.act = 'cancel'                                     ;* Esc, or an input that ended
+      end
+   until cx.act # ''
+   repeat
+   screen hide cf
+   gen += 1
+   ctx<TK.C.GEN> = gen
+   gosub draw.all
+   begin case
+      case cx.act = 'cancel'
+         msg = 'the standing text is unchanged'
+         return
+      case cx.act = 'default'
+         if cx.from = 'default' then
+            msg = 'the standing text is already the shipped default'
+            return
+         end
+         cx.sent = 'set.ai context -'
+         cx.show = cx.sent
+         el = ''
+         el<-1> = "The administrator's standing text is removed, and the default shipped with SD is sent with every AI request from now on."
+      case 1
+         if cx.new = cx.cur and cx.from # 'bad' then
+            msg = 'the standing text is unchanged'
+            return
+         end
+         cx.sent = 'set.ai context ' : oconv(cx.new, 'MX0C')
+         cx.show = 'set.ai context <the text above, ' : len(cx.new) : ' characters, as hexadecimal>'
+         el = ''
+         el<-1> = 'Every AI request from every account will begin with this text (' : len(cx.new) : ' characters), shown in each preview.'
+         el<-1> = 'A text that names SD' : "'" : 's own code or build is refused.'
+   end case
+   call $tk_confirm(cx.show, el, '', res, cmsg)
+   if res # 'run' then
+      msg = cmsg
+      return
+   end
+   if downcase(field(cx.sent, ' ', 1)) # 'set.ai' or field(cx.sent, ' ', 2) # 'context' or dcount(cx.sent, ' ') # 3 then return
+   cx.word = field(cx.sent, ' ', 3)
+   if cx.word # '-' and convert('0123456789ABCDEFabcdef', '', cx.word) # '' then return       ;* the one word is hexadecimal (or -) and nothing else
+   execute cx.sent trapping aborts capturing out
+   said = trim(change(out, @fm, ' '))
+   msg = (if said # '' then said[1, 130] else 'ran, status ' : @system.return.code)
+   gosub read.all
+   gosub draw.all
+   return
+
+* In: cx.new.  Out: cx.bad, null when the helper would take it, else what is wrong (said in the box)
+context.check:
+   cx.bad = ''
+   if cx.new = '' then
+      cx.bad = 'The text is empty.  To send the default again, choose Shipped default.'
+      return
+   end
+   if len(cx.new) > 4000 then
+      cx.bad = 'The text has ' : len(cx.new) : ' characters; at most 4000 are kept.'
+      return
+   end
+   for cx.i = 1 to len(cx.new)
+      cx.c = seq(cx.new[cx.i, 1])
+      if cx.c # 10 and (cx.c < 32 or cx.c > 126) then
+         cx.bad = 'Character ' : cx.i : ' is not plain text (only printable ASCII and new lines are kept).'
+         return
+      end
+   next cx.i
    return
 
 * Take the screen again after the terminal was given away; the window may have changed

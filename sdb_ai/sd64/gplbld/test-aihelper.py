@@ -683,6 +683,109 @@ def rows_ctl(env, fm):
         p2.wait(timeout=10)
 
 
+def rows_context(env, fm):
+    """S.160 (7 Nov 26): the standing text.  The shipped default beside the providers file, the administrator's own in the state directory, who is told it, what is refused."""
+    say("\n--- the standing text (S.160)")
+    M = "claude-test-model"
+    shipped = os.path.join(HERE, "ai-context")
+    dflt = os.path.join(os.path.dirname(env.providers), "ai-context")
+    own = os.path.join(env.state, "context")
+    for p in (dflt, own):
+        if os.path.lexists(p):
+            os.remove(p)
+    env.conf(provider="openai", model__openai=M)
+    env.key("openai")
+    env.member(True)
+    env.admin(False)
+    r = env.ask(op="status")
+    row("no default file and no text of the administrator's: status says context-from none and an empty text", r.get("context") == "" and r.get("context-from") == "none", repr(r))
+    shutil.copyfile(shipped, dflt)
+    with open(shipped) as f:
+        stext = f.read().rstrip("\n")
+    r = env.ask(op="status")
+    row("the shipped gplbld/ai-context beside the providers file: a member's status carries it whole, context-from default  [%d bytes]" % len(stext),
+        r.get("context") == stext and r.get("context-from") == "default" and len(stext) > 200, repr(r)[:200])
+    row("the shipped text is printable ASCII and line feeds, at most 4000 characters, and names the agent guide's place",
+        env.mod.CONTEXT_RE.match(stext) is not None and len(stext) <= 4000 and "/usr/local/sdsys/agent-pack/guide/sd-basic-guide.md" in stext, "")
+    env.member(False)
+    r = env.ask(op="status")
+    row("a stranger (not in the AI group, not the administrator) is not given the text", "context" not in r and r.get("gate") is False, repr(r)[:200])
+    env.member(True)
+    mine = "Line one of ours.\nLine two: use lower case."
+    env.admin(False)
+    r = env.ask(raw=json.dumps({"v": 1, "op": "set", "what": "context", "value": mine}).encode() + b"\n")
+    row("a member who is not the administrator may not set it: noadmin, no file made", r.get("code") == "noadmin" and not os.path.exists(own), repr(r))
+    env.admin(True)
+    r = env.ask(raw=json.dumps({"v": 1, "op": "set", "what": "context", "value": mine + "\n\n"}).encode() + b"\n")
+    st = os.stat(own) if os.path.exists(own) else None
+    row("the administrator sets it: ok own, the file holds the text with ONE closing line feed, mode 0640, no temporary file left",
+        r.get("context") == "own" and st is not None and open(own).read() == mine + "\n" and stat.S_IMODE(st.st_mode) == 0o640 and not os.path.exists(own + ".new"), repr(r))
+    env.admin(False)
+    r = env.ask(op="status")
+    row("...and a member's status now carries the administrator's text, context-from own", r.get("context") == mine and r.get("context-from") == "own", repr(r)[:200])
+    env.admin(True)
+    for bad, what in (("x" * 4001, "4001 characters"), ("tab\there", "a tab"), ("café", "a byte that is not ASCII"), ("bell\x07", "a control character"), (5, "a number")):
+        r = env.ask(raw=json.dumps({"v": 1, "op": "set", "what": "context", "value": bad}).encode() + b"\n")
+        row("a text with %s is badreq and the kept text is unchanged" % what, r.get("code") == "badreq" and open(own).read() == mine + "\n", repr(r)[:150])
+    r = env.ask(raw=json.dumps({"v": 1, "op": "set", "what": "context", "value": "y" * 4000}).encode() + b"\n")
+    row("exactly 4000 characters is kept", r.get("context") == "own" and open(own).read() == "y" * 4000 + "\n", repr(r)[:150])
+    with open(own, "w") as f:
+        f.write("ok\x01not\n")
+    r = env.ask(op="status")
+    row("a kept file that has become unusable (a control byte) gives context-from bad and NO text - not the default it replaced", r.get("context") == "" and r.get("context-from") == "bad", repr(r)[:200])
+    os.remove(own)
+    os.symlink(dflt, own)
+    r = env.ask(op="status")
+    row("a kept file that is a symbolic link is not followed: context-from bad", r.get("context-from") == "bad" and r.get("context") == "", repr(r)[:200])
+    os.remove(own)
+    with open(own, "w") as f:
+        f.write(mine + "\n")
+    r = env.ask(raw=b'{"v":1,"op":"set","what":"context","value":""}\n')
+    r2 = env.ask(op="status")
+    row("an empty value removes the administrator's text and the shipped default is given again", r.get("context") == "default" and not os.path.exists(own)
+        and r2.get("context-from") == "default" and r2.get("context") == stext, repr((r, r2.get("context-from"))))
+    r = env.ask(raw=b'{"v":1,"op":"set","what":"context","value":""}\n')
+    row("removing it again when there is none is still ok", r.get("context") == "default", repr(r))
+    env.reset_counters()
+    n0 = len(fm.log)
+    r = env.ask("Q", system="SYS")
+    body = fm.log[n0]["body"] if len(fm.log) > n0 else b""
+    body = body.decode("utf-8", "replace") if isinstance(body, bytes) else body
+    row("the helper adds nothing itself: what SD sends as the system text reaches the provider as it was sent (SD puts the standing text in it)",
+        r.get("t") == "ok" and "SYS" in body and "agent-pack" not in body, body[:200])
+    # the administrator's client
+    ctl = os.path.join(HERE, "sd-ai-ctl")
+    runner = os.path.join(HERE, "ai-runner.py")
+    sock = os.path.join(env.tmp, "sock-ctx")
+    me = __import__("pwd").getpwuid(os.getuid()).pw_name
+    p = subprocess.Popen([sys.executable, runner, "--socket", sock, "--state", env.state, "--providers", env.providers, "--admin-user", me, "--gate-group", env.mygroup,
+                          "--helper", env.helper_path], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    try:
+        if p.stdout.readline().strip() != "ready":
+            row("the test runner started", False, "")
+            return
+
+        def run(*a):
+            q = subprocess.run([sys.executable, ctl, "--socket", sock] + list(a), capture_output=True, text=True, timeout=60)
+            return q.returncode, q.stdout, q.stderr
+
+        hx = mine.encode("ascii").hex().upper()
+        rc, out, err = run("context", hx)
+        row("sd-ai-ctl context HEX (upper case, as SD's MX0C gives it): ok, and the file holds the decoded text", rc == 0 and out.strip() == "ok" and open(own).read() == mine + "\n", repr((rc, out, err)))
+        rc, out, err = run("show")
+        row("show says the standing text is the administrator's and its length", rc == 0 and "standing text: the administrator's, %d characters" % len(mine) in out, repr(out[-200:]))
+        rc, out, err = run("context", "zz")
+        row("a word that is not hexadecimal: exit 2 and a sentence, the kept text unchanged", rc == 2 and "hexadecimal" in err and open(own).read() == mine + "\n", repr((rc, err)))
+        rc, out, err = run("context", "c3a9")
+        row("hexadecimal of a byte that is not ASCII: exit 2, unchanged", rc == 2 and open(own).read() == mine + "\n", repr((rc, out, err)))
+        rc, out, err = run("context", "-")
+        row("context - : ok, the administrator's text is gone and show names the shipped default", rc == 0 and not os.path.exists(own) and "the shipped default" in run("show")[1], repr((rc, out, err)))
+    finally:
+        p.terminate()
+        p.wait(timeout=10)
+    env.admin(False)
+
+
 MUTANTS = [
     ("the gate is not asked", "    if uid is None or not in_group(uid, GATE_GROUP):\n", "    if False:\n"),
     ("certificate verification off", "    ctx.check_hostname = True\n    ctx.verify_mode = ssl.CERT_REQUIRED\n", "    ctx.check_hostname = False\n    ctx.verify_mode = ssl.CERT_NONE\n"),
@@ -714,6 +817,15 @@ MUTANTS += [
     ("the history is not counted in the size", "        hbytes = sum(len(q.encode(\"utf-8\")) + len(a.encode(\"utf-8\")) for q, a in history)", "        hbytes = 0"),
     ("any length of history is taken", "    if not isinstance(h, list) or len(h) > HISTORY_MAX:", "    if not isinstance(h, list):"),
     ("an exchange of any shape is taken", " or set(e) != {\"q\", \"a\"} or not isinstance(e[\"q\"], str)", " or not isinstance(e[\"q\"], str)"),
+]
+M_S160 = len(MUTANTS)           # 7 Nov 26 (the standing text): --selftest --from=M_S160
+MUTANTS += [
+    ("the standing text is given to every caller", '    if out["gate"] or (uid is not None and is_admin(uid)):\n        out["context"]', '    if True:\n        out["context"]'),
+    ("any standing text is kept", "    if len(v) > CONTEXT_MAX or not CONTEXT_RE.match(v):\n        raise Refuse", "    if False:\n        raise Refuse"),
+    ("a bad kept text falls back to the default", '            return "", "bad"\n        return text, whose', '            continue\n        return text, whose'),
+    ("a link is followed to the kept text", "            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)", "            fd = os.open(path, os.O_RDONLY)"),
+    ("an empty value does not put the default back", "        try:\n            os.remove(path)\n        except FileNotFoundError:\n            pass\n        return {\"t\": \"ok\", \"context\": \"default\"}",
+     "        return {\"t\": \"ok\", \"context\": \"default\"}"),
 ]
 
 
@@ -773,6 +885,7 @@ def main():
         rows(env, fm)
         rows_settings(env, fm)
         rows_ctl(env, fm)
+        rows_context(env, fm)
     finally:
         if fm:
             fm.stop()

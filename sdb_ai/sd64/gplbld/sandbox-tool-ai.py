@@ -30,6 +30,9 @@
 #   T15-T16 L: a limit (and a name that is none); A: the file of certificate authorities, with the word ca typed
 #   T17-T19 Accounts: only USER accounts, their gates read from the scratch group file; Enter asks for the name before turning a gate ON and runs modify.account; OFF needs none;
 #           the Provider keys are refused in this box
+#   T30-T38 (S.160, 7 Nov 26; --only=context runs them alone) T, the standing text: the box shows the shipped default, Esc changes nothing, Save shows a Run / Cancel box and Cancel
+#           writes nothing, Run keeps the edited text in the helper's file with one audit line, a text naming gpl.bp is refused by set.ai, the ai verb's preview shows nothing of
+#           the text and what arrives at the provider carries it, Shipped default removes the administrator's file
 #   T20-T22 the helper not running (words, no crash); a window under 140 by 43 gets no page
 # NOT HELD: the installer, the real systemd socket, a real provider, the real /etc/group and sudo, the help text itself (test-help-units.py reads it as text), the end of input during a
 # dialog.
@@ -396,6 +399,98 @@ def accounts_section():
     h.end()
 
 
+def ctx_file():
+    return os.path.join(box(), "ai", "state", "context")
+
+
+def ctx_text():
+    try:
+        return open(ctx_file()).read()
+    except OSError:
+        return None
+
+
+def context_section():
+    """S.160 (7 Nov 26): T, the standing text.  The shipped default is put beside the providers file, as the installer puts it beside the installed one.  Every outcome is the helper's
+    file (box/ai/state/context), the audit trail, or what the ai verb's preview printed."""
+    say("\n--- T, the standing text sent with every request (S.160)")
+    shipped = open(os.path.join(HERE, "ai-context")).read().rstrip("\n")
+    first = shipped.split("\n")[0]
+    shutil.copyfile(os.path.join(HERE, "ai-context"), os.path.join(os.path.dirname(STATE["providers"]), "ai-context"))
+    if os.path.exists(ctx_file()):
+        os.remove(ctx_file())
+    h = page()
+    h.typed("t", idle=1.5)
+    T = h.text()
+    arow("T30", "T opens a box titled 'Standing text sent with every AI request' that says the text in use is the shipped default and shows its first line",
+         "Standing text sent with every AI request" in T and "Now: the shipped default." in T and first[:60] in T, T[:600])
+    a0 = fg.audit_off()
+    h.key("esc", idle=1.5)
+    arow("T31", "Esc closes it: the page is back, the status says unchanged, no file was made and nothing was audited",
+         "What this means" in h.text() and "unchanged" in st(h) and ctx_text() is None and not (fg.audit_new(a0) or "").strip(), repr((st(h), fg.audit_new(a0))))
+    h.typed("t", idle=1.5)
+    h.typed("Site note: ZQX7 is our test account.\r", idle=0.8)
+    h.key("tab", idle=0.6)
+    h.key("enter", idle=1.5)
+    T = h.text()
+    arow("T32", "typing a line at the top and Save shows the Run / Cancel box naming set.ai context and the size; Cancel is the default",
+         "set.ai context <the text above," in T and "as hexadecimal>" in T, T[:800])
+    h.key("esc", idle=1.5)
+    arow("T33", "Cancel in that box runs nothing: no file, the status says nothing was run", ctx_text() is None, repr((st(h), ctx_text())))
+    a1 = fg.audit_off()
+    h.typed("t", idle=1.5)
+    h.typed("Site note: ZQX7 is our test account.\r", idle=0.8)
+    h.key("tab", idle=0.6)
+    h.key("enter", idle=1.5)
+    h.typed("r", idle=3.0)
+    want = "Site note: ZQX7 is our test account.\n" + shipped + "\n"
+    got = ctx_text()
+    aud = fg.audit_new(a1) or ""
+    arow("T34", "Run: the helper's file holds the typed line followed by the default, whole; one audit line 'set.ai context bytes=N' (N the text's length) and no text in it",
+         got == want and len(re.findall(r"set\.ai context bytes=%d$" % (len(want) - 1), aud, re.M)) == 1 and "ZQX7" not in aud,
+         repr((got[:120] if got else got, len(want) - 1, aud[-300:])))
+    arow("T34b", "the status line says the standing text is now the administrator's (14011)", "now the administrator's" in st(h), repr(st(h)))
+    h.typed("t", idle=1.5)
+    arow("T35", "T again says the text in use is the administrator's own and shows the typed line", "Now: the administrator's own." in h.text() and "ZQX7" in h.text(), h.text()[:500])
+    h.key("esc", idle=1.5)
+    a2 = fg.audit_off()
+    h.typed("t", idle=1.5)
+    h.typed("Explain gpl.bp to me.\r", idle=0.8)
+    h.key("tab", idle=0.6)
+    h.key("enter", idle=1.5)
+    h.typed("r", idle=3.0)
+    aud = fg.audit_new(a2) or ""
+    arow("T36", "a text that names SD's own code (gpl.bp) is refused by set.ai: the kept text is unchanged and the trail says 'set.ai context refused name=gpl.bp'",
+         ctx_text() == want and "set.ai context refused name=gpl.bp" in aud and "names SD's own code" in st(h), repr((st(h), aud[-200:])))
+    # what an ordinary request now sends: the ai verb's preview, answered n (nothing is sent)
+    g.put(os.path.join(box(), "ai", "state", "ai.conf"), "# test\nprovider=openai\nmodel.openai=%s\nca-file=%s\n" % (MODEL, STATE["ca"]))
+    g.put(keyfile("openai"), KEY + "\n")
+    os.chmod(keyfile("openai"), 0o600)
+    n0 = len(STATE["fm"].log)
+    out = adm('ai "what is a select list"', "n")
+    blob = "\n".join(out)
+    arow("T37", "the ai verb's preview shows NOTHING of the standing text, only the fixed sentence and the question; nothing is sent on n",
+         "ZQX7" not in blob and "Standing" not in blob and "You are answering" in blob and "what is a select list" in blob and len(STATE["fm"].log) == n0, repr(out[-12:]))
+    n0 = len(STATE["fm"].log)
+    out = adm('ai "what is a select list [[plain]]"', "y")
+    rq = STATE["fm"].log[n0:] if len(STATE["fm"].log) > n0 else []
+    bodyb = rq[-1].get("body", b"") if rq else b""
+    bodys = bodyb.decode("utf-8", "replace") if isinstance(bodyb, bytes) else str(bodyb)
+    arow("T37b", "answered y: what arrives carries the administrator's standing text (ZQX7) before the fixed sentence, and the question as typed",
+         len(rq) == 1 and "ZQX7" in bodys and bodys.index("ZQX7") < bodys.index("You are answering") and "what is a select list [[plain]]" in bodys, bodys[:300])
+    h.typed("t", idle=1.5)
+    h.key("tab", idle=0.6)
+    h.key("tab", idle=0.6)
+    h.key("enter", idle=1.5)
+    a3 = fg.audit_off()
+    h.typed("r", idle=3.0)
+    aud = fg.audit_new(a3) or ""
+    arow("T38", "Shipped default, Run: the administrator's file is gone, one audit line 'set.ai context=default', and the status says the default is back (14012)",
+         ctx_text() is None and len(re.findall(r"set\.ai context=default$", aud, re.M)) == 1 and "shipped default again" in st(h), repr((st(h), aud[-200:])))
+    h.key("ctrl-q", idle=1.5)
+    h.end()
+
+
 def tail_section():
     say("\n--- the helper not running, a small window")
     h = page()
@@ -422,6 +517,9 @@ MUTANT_ONLY_ACCOUNTS = False
 def main():
     global MUTANT_ONLY_PROVIDER_SELECT, MUTANT_ONLY_ACCOUNTS
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
+    only = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only=")), None)     # 7 Nov 26: provider | accounts | context
+    if only not in (None, "provider", "accounts", "context"):
+        bail("usage: sandbox-tool-ai.py <dir> [--build] [--only=provider|accounts|context] [--mutant=NAME]")
     if mutant is not None and mutant not in MUTANTS:
         bail("usage: sandbox-tool-ai.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
     try:
@@ -433,9 +531,13 @@ def main():
             MUTANT_ONLY_PROVIDER_SELECT = True
             MUTANT_ONLY_ACCOUNTS = True
             say("sandbox-tool-ai: MUTANT %s: the rows that must fail, and nothing else: %s" % (mutant, ", ".join(MUTANTS[mutant][2])))
-        provider_section()
-        accounts_section()
-        if mutant is None:
+        if only in (None, "provider"):
+            provider_section()
+        if only in (None, "accounts"):
+            accounts_section()
+        if mutant is None and only in (None, "context"):
+            context_section()
+        if mutant is None and only is None:
             tail_section()
     finally:
         try:

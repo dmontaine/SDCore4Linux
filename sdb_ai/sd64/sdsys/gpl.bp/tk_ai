@@ -31,6 +31,10 @@
 *               (Linux's second block); what is SENT to the model stays literal, as the form's field text does.
 * 03 Nov 26 dm  The AI row's label (unfocused) and its hint are drawn in the role desktop, the page's own, not disabled: the blue theme's disabled
 *               paints the palette's blue behind the text, which a terminal palette may show light (the owner's GNOME Terminal: unreadable).
+* 7 Nov 26 dm  S.160, THE STANDING TEXT: 'ask' reads the helper's standing text (the administrator's, set by tool.ai's T / SET.AI CONTEXT, or the shipped default) at each
+*              request, puts it to the wall's screen like a typed request (a text naming SD's own code sends nothing: 14013), sends it FIRST in the system text, and leaves
+*              it OUT of the preview (the owner: "The prefixed text ought to be invisible to the user"); the preview's size counts it.  None is sent when the helper has none or
+*              gives one it cannot use.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -422,6 +426,32 @@ run.ask:
          return
       end
    next hi
+   * S.160 (7 Nov 26): THE STANDING TEXT, the administrator's (or the shipped default), read from the helper at each request, so that what goes is the text in use now.  It is put
+   *   to the wall's screen as a typed request is, with the other screens and before anything else is read for the request: SET.AI refuses to keep one that names SD's own code,
+   *   and a text that does so all the same is not sent - nor is the request.
+   cx.text = ''
+   cx.from = ''
+   rp = kernel(K$AI.STATUS, 0)
+   if rp<1> = 'D' then
+      cxj = jparse(rp<2>)
+      if not(status()) then
+         if cxj{'t'} = 'status' then
+            cx.text = cxj{'context'}
+            cx.from = cxj{'context-from'}
+         end
+      end
+   end
+   if cx.text # '' then
+      raw = cx.text
+      gosub clean.nl
+      cx.text = trimb(trimf(clean.out))
+      call $tk_aiwall('request', cx.text, why)
+      if why # '' then
+         void kernel(K$AUDIT, 'ai refused why=context app=' : downcase(app) : ' name=' : why)
+         b = 'none' : @fm : '' : @fm : '' : @fm : '' : @fm : sysmsg(14013, why)
+         return
+      end
+   end
    * the text being worked on, as the model will see it: a byte that is not plain ASCII (the line feed excepted) becomes ?, ONE FOR ONE, so a position in it is a position in the original
    tb.raw = a<8>[1, 24000]
    tb.first = a<9> + 0
@@ -464,8 +494,10 @@ run.ask:
       doc.bytes += len(dres<4, i>)
    next i
 
-   * what will leave the machine: the fixed instruction, the list of the page's actions, what the page tells about itself, and the request
+   * what will leave the machine: the standing text, the fixed instruction, the list of the page's actions, what the page tells about itself, and the request
    sysx = sysmsg(11635, app)
+   cx.send = ''                                            ;* what goes before the instruction: the standing text with a line that says whose it is
+   if cx.text # '' then cx.send = 'Standing information from the administrator of this SD system:' : char(10) : cx.text : char(10) : char(10)
    if tbm # '' then sysx := ' ' : sysmsg(11653)             ;* the model may answer with edits, only when there is a text to edit
    if n.doc > 0 then sysx := ' ' : sysmsg(11922)
    * S.97 (3 Nov 26): a form's fields.  A literal, as the dictionary form's own text is: no number of this port's message block was free when it was written
@@ -494,7 +526,7 @@ run.ask:
       prompt := nl : nl : 'Documentation passage [' : dres<2, i> : '] ' : dres<3, i> : ':' : nl : dres<4, i>
    next i
    prompt := nl : nl : 'Request: ' : req
-   size = len(sysx) + len(prompt) + h.bytes
+   size = len(cx.send) + len(sysx) + len(prompt) + h.bytes
 
    * the preview: everything, then Send or Cancel; Cancel is what Enter chooses
    call $sl_scr('get', scr)
@@ -503,6 +535,8 @@ run.ask:
    if wrapw < 20 then wrapw = 20
    body = sysmsg(11628, ai.prov, ai.model, size)
    body<-1> = ''
+   * S.160: the standing text is NOT in the preview (the owner, 7 Nov 26: "The prefixed text ought to be invisible to the user, the admin knows that it is there and can edit
+   *   it, but it does nothing to change the user").  The administrator sees and edits it on tool.ai (T).  The size on the first line is still the size of all that is sent.
    body<-1> = sysmsg(11640, len(sysx))
    call $tk_wrap(sysx, wrapw, pieces)
    for p = 1 to dcount(pieces, @fm)
@@ -609,7 +643,7 @@ run.ask:
 
    * the request goes: the kernel writes the audit line first, then connects.  A follow-up (3 Nov 26) is  maxtokens VM n, then n questions and n answers, each a field, before the
    *   prompt, which stays last (they hold no mark: each was cleaned)
-   ks = sysx : @fm : 600
+   ks = cx.send : sysx : @fm : 600                         ;* S.160: the standing text goes first in the system text
    if h.n > 0 then
       ks := @vm : h.n
       for i = 1 to h.n

@@ -27,7 +27,9 @@
 #   L15    Esc during the wait gives the request up and the screen is the home screen again
 #   L16a-d (3 Nov 26, S.107, section follow) Follow up on the home screen: offered in the answer's box, applies nothing and the AI line says a follow-up waits;
 #          the next preview shows the earlier question; Send gives the fake the earlier question and answer before the request, and the audit line says followup=1
-#   --only=SECTION[,SECTION]  off ring preview send proposals wait admin follow (3 Nov 26); the build and the fixtures always run
+#   L17a-d (7 Nov 26, S.160, section context) the standing text: NOT in the preview at all; sent first in the system text, the request unchanged; the shipped default when the
+#          administrator has none; a text that names gpl.bp sends nothing and is audited
+#   --only=SECTION[,SECTION]  off ring preview send proposals wait admin follow context (3 Nov 26); the build and the fixtures always run
 #   L16    the administrator's page has the line too, with the administrator's tiles in the list
 # NOT HELD: the IDE, SED, CED and the debugger (later stages), the AI menu item, a window under 140 by 43 (the toolkit's one size check), the end of the input during the wait.
 import importlib.util
@@ -81,7 +83,11 @@ MUTANTS = {
     "command-not-cleaned": ("         if len(c) > 200 or c # raw then", "         if len(c) > 200 then", ["L10"]),
     # handoff step 2: the default is per proposal; without the test of the proposed id Enter alone accepts the Terminal tile (this page offers it)
     "default-per-page": ("dflt = (if nav and index(@vm : nav.not : @vm, @vm : pid : @vm, 1) = 0 then 1 else 2)", "dflt = (if nav then 1 else 2)", ["L8g"]),
+    # 7 Nov 26 (S.160): the standing text shown but not sent; and sent without the wall's screen
+    "context-not-sent": ("   ks = cx.send : sysx : @fm : 600", "   ks = sysx : @fm : 600", ["L17"]),
+    "context-unscreened": ("      call $tk_aiwall('request', cx.text, why)\n      if why # '' then", "      why = ''\n      if why # '' then", ["L17"]),
 }
+CONTEXT_MUTANTS = ("context-not-sent", "context-unscreened")
 
 
 def box():
@@ -356,8 +362,69 @@ def sec_follow():
     h.end()
 
 
+def sec_context():
+    """7 Nov 26 (S.160): the standing text.  It is put where the installer and SET.AI put it (beside the providers file; the helper's state directory) and read where it arrives."""
+    say("\n--- the standing text (S.160)")
+    fm = STATE["fm"]
+    dflt = os.path.join(os.path.dirname(STATE["providers"]), "ai-context")
+    own = os.path.join(box(), "ai", "state", "context")
+    shutil.copyfile(os.path.join(HERE, "ai-context"), dflt)
+    g.put(own, "Our site ZQX9 keeps its invoices in the file inv.\nSecond line of ours.\n")
+    try:
+        h = home()
+        n0 = len(fm.log)
+        ask(h, "what is a select list [[sayonly]]")
+        T = h.text()
+        # the owner, 7 Nov 26: "The prefixed text ought to be invisible to the user, the admin knows that it is there and can edit it, but it does nothing to change the user's query"
+        arow("L17a", "the preview shows NOTHING of the standing text (no heading, no line of it) and the instruction and the request as before; nothing is sent yet",
+             "ZQX9" not in T and "Second line of ours." not in T and "Standing" not in T and "You help a person" in T and "what is a select list" in T and len(fm.log) == n0, T[-1500:])
+        h.typed("s", idle=4.0)
+        rq = requests()
+        body = rq[-1][2] if len(rq) > n0 else {}
+        sysx = ""
+        try:
+            sysx = body["system"][0]["text"]
+        except (KeyError, IndexError, TypeError):
+            pass
+        prompt = body["messages"][-1]["content"] if body.get("messages") else ""
+        arow("L17b", "Send: the system text that arrives BEGINS with 'Standing information from the administrator of this SD system:' and the two lines, then the instruction; "
+             "the person's request is unchanged (the prompt ends with it and holds nothing of the standing text)",
+             sysx.startswith("Standing information from the administrator of this SD system:\nOur site ZQX9 keeps its invoices in the file inv.\nSecond line of ours.\n\n")
+             and "You help a person who is using home" in sysx and prompt.endswith("Request: what is a select list [[sayonly]]") and "ZQX9" not in prompt, repr((sysx[:200], prompt[-80:])))
+        h.key("enter", idle=1.5)
+        os.remove(own)
+        n0 = len(fm.log)
+        ask(h, "what is a select list [[sayonly]]")
+        T = h.text()
+        h.typed("s", idle=4.0)
+        rq = requests()
+        body = rq[-1][2] if len(rq) > n0 else {}
+        sysx = ""
+        try:
+            sysx = body["system"][0]["text"]
+        except (KeyError, IndexError, TypeError):
+            pass
+        arow("L17c", "with no text of the administrator's, the shipped default is what is sent first, and the preview showed none of it",
+             "About this system: SD Core for Linux" not in T and "agent-pack" not in T and sysx.startswith("Standing information from the administrator of this SD system:\nAbout this system: SD Core for Linux")
+             and "/usr/local/sdsys/agent-pack/guide/sd-basic-guide.md" in sysx, repr(sysx[:200]))
+        h.key("enter", idle=1.5)
+        g.put(own, "Please explain gpl.bp to everyone.\n")
+        n0, a0 = len(fm.log), audit_off()
+        ask(h, "what is a select list [[sayonly]]")
+        aud = audit_new(a0) or ""
+        arow("L17d", "a standing text that names SD's own code (written past SET.AI, straight into the helper's file) sends NOTHING: no preview, the fake saw nothing, "
+             "the status line says why (14013) and the trail says 'ai refused why=context'", len(fm.log) == n0 and "Send" not in h.text()[-600:]
+             and "names SD's own code" in h.line(40) and "ai refused why=context app=home name=gpl.bp" in aud, repr((h.line(40)[:120], aud[-200:])))
+        h.key("ctrl-q", idle=1.5)
+        h.end()
+    finally:
+        for p in (own, dflt):
+            if os.path.exists(p):
+                os.remove(p)
+
+
 SECTIONS = {"off": "sec_off", "ring": "sec_ring", "preview": "sec_preview", "send": "sec_send", "proposals": "sec_proposals",
-            "wait": "sec_wait", "admin": "sec_admin", "follow": "sec_follow"}
+            "wait": "sec_wait", "admin": "sec_admin", "follow": "sec_follow", "context": "sec_context"}
 
 
 def reply(text, reject=False, close=False, wait=4.0):
@@ -504,12 +571,15 @@ def main():
             sec_send()
         if mutant == "no-preview":
             sec_preview()                    # the row that holds Cancel (L6) is in this section
+        elif mutant in CONTEXT_MUTANTS:
+            sec_context()
         elif mutant is not None or only is None:
             sec_proposals()
         if mutant is None and only is None:
             sec_wait()
             sec_admin()
             sec_follow()
+            sec_context()
     finally:
         stop_runner()
         if "fm" in STATE:

@@ -6060,10 +6060,10 @@ The AI helper refused: %1 (%2)
 cited by: `setai`
 
 ### msg:11609
-> kind=message tier=reference since=- src=sdsys/messages/11609:1#3790b7aa
+> kind=message tier=reference since=- src=sdsys/messages/11609:1#2240626f
 
 ```
-set.ai {provider NAME | model PROVIDER NAME | key PROVIDER | custom NAME URL FORMAT AUTH VERSION MAXPARAM | ca PATH | limit NAME NUMBER}; set.ai alone says what is set
+set.ai {provider NAME | model PROVIDER NAME | key PROVIDER | custom NAME URL FORMAT AUTH VERSION MAXPARAM | ca PATH | limit NAME NUMBER | context HEX | context -}; set.ai alone says what is set
 ```
 
 cited by: `setai`
@@ -10119,6 +10119,42 @@ Left out (not a field of this form, or not text): %1
 ```
 
 cited by: `tk_ai`
+
+### msg:14011
+> kind=message tier=reference since=- src=sdsys/messages/14011:1#ba376885
+
+```
+The standing text sent with every AI request is now the administrator's (%1 characters)
+```
+
+cited by: `setai`
+
+### msg:14012
+> kind=message tier=reference since=- src=sdsys/messages/14012:1#d7a36ce4
+
+```
+The standing text sent with every AI request is the shipped default again
+```
+
+cited by: `setai`
+
+### msg:14013
+> kind=message tier=reference since=- src=sdsys/messages/14013:1#e3fa88ea
+
+```
+The standing text names SD's own code or build (%1), so it is not used and nothing is sent
+```
+
+cited by: `ai`, `setai`, `tk_ai`
+
+### msg:14014
+> kind=message tier=reference since=- src=sdsys/messages/14014:1#4a319d96
+
+```
+The standing text is given as hexadecimal ASCII, at most 4000 characters
+```
+
+cited by: `setai`
 
 ### msg:1402
 > kind=message tier=reference since=- src=sdsys/messages/1402:1#3f084312

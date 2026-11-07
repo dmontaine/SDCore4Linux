@@ -139,6 +139,8 @@ gplbld/sandbox-auditjournal.py : @self auditwriter
 gplbld/sd-ai                 : aigate ai-verb ai-line ai-ide ai-apps tool-ai
 gplbld/sd-ai-ctl             : aigate tool-ai
 gplbld/ai-providers          : aigate ai-verb ai-line ai-ide ai-apps tool-ai
+# 7 Nov 26 (S.160): the shipped standing text; the line and the page put it beside the providers file in their sections (ai-line context, tool-ai context)
+gplbld/ai-context            : ai-line tool-ai
 gplbld/*.py                  : none
 gplbld/*.sh                  : none
 gplbld/*.md                  : none

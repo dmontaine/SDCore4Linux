@@ -220,8 +220,15 @@ def check_b(t):
         ordered(sa, "case sub = 'key' and n.words = 3", "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' 2>&1\"", "qargs = \"'show'\"", "gosub run.ctl", "gosub check.key", "if not(key.found) then")
         and not re.search(r"os\.execute[^\n]*'key'[^\n]*capturing", sa) and not re.search(r"\binput\b|readline", sa), "")
     audits = re.findall(r"kernel\(K\$AUDIT, ([^\n]*)\)", sa)
-    row("every audit line of set.ai is lower case, has no key (no 'key=' and no variable named key) and names a host, never a whole URL", len(audits) == 9 and all(a.lstrip().startswith("'set.ai ") for a in audits)
-        and not any(re.search(r"key=|: key\b|curl\b|cpath\b.*curl", a) for a in audits) and not any("curl" in a for a in audits) and any("host=' : chost" in a for a in audits), repr(audits))
+    row("every audit line of set.ai is lower case, has no key (no 'key=' and no variable named key) and names a host, never a whole URL; (S.160) the standing text's three lines carry its size or the "
+        "name the wall found, never the text", len(audits) == 12 and all(a.lstrip().startswith("'set.ai ") for a in audits)
+        and not any(re.search(r"key=|: key\b|curl\b|cpath\b.*curl", a) for a in audits) and not any("curl" in a for a in audits) and any("host=' : chost" in a for a in audits)
+        and "'set.ai context bytes=' : len(ctext)" in audits and "'set.ai context=default'" in audits and "'set.ai context refused name=' : why" in audits
+        and not any(re.search(r"\b(ctext|hx)\b", a.replace("len(ctext)", "")) for a in audits), repr(audits))
+    row("(S.160) set.ai context: the hex word is checked (even length, hexadecimal, 8000 at most), decoded, every byte printable ASCII or a line feed, put to the wall's screen BEFORE the helper is asked, "
+        "and a refusal stops before the client runs",
+        ordered(sa, "case sub = 'context' and n.words = 3", "if len(hx) = 0 or mod(len(hx), 2) or len(hx) > 8000", "ctext = iconv(hx, 'MX0C')", "if cc # 10 and (cc < 32 or cc > 126) then stop sysmsg(14014)",
+                "call $tk_aiwall('request', ctext, why)", "stop sysmsg(14013, why)", "qargs = \"'context' '\" : hx : \"'\"", "gosub run.ctl"), "")
     row("set.ai finds its client at /usr/local/lib/sd-ai/sd-ai-ctl, not in the SD system directory (the program that holds the key is root-owned); SD_AI_CTL overrides it for the tests only",
         "ctl = '/usr/local/lib/sd-ai/sd-ai-ctl'" in sa and "env('SD_AI_CTL')" in sa and "@sdsys" not in sa, "")
     row("set.ai is in SDSYS's VOC only: voc_template has it as a verb for $setai and newvoc has no set.ai", t["voc_template"].split("\n")[:3] == ["V", "CA", "$setai"]
@@ -293,9 +300,15 @@ def check_c(t):
     row("the order in the verb: an earlier request is given up, the helper's status is read, the text is shown, the person is asked, a no stops it, and ONLY THEN is the request started (START appears once)",
         ordered(v, "kernel(K$AI.CANCEL, 0)", "kernel(K$AI.STATUS, 0)", "display sysmsg(11628", "display question", "input ans", "if ans # 'y' and ans # 'yes' then", "stop sysmsg(11630)", "kernel(K$AI.START")
         and v.count("K$AI.START") == 1 and v.count("input ") == 1, "")
-    row("what is sent is the fixed sentence and the person's text and nothing of the account: the sentence is assigned once from a literal, and the START argument is exactly it, the limit and the text",
-        len(re.findall(r"^\s*system\.text = '[^']*'\s*$", v, re.M)) == 1 and len(re.findall(r"system\.text\s*=", v)) == 1
-        and "reply = kernel(K$AI.START, system.text : @fm : 1024 : @fm : question)" in v, "")
+    row("what is sent is the administrator's standing text (S.160), the fixed sentence and the person's text, and nothing of the account: the sentence is assigned once from a literal, the standing "
+        "text comes only from the helper's status after the wall's screen, the question is unchanged, and the START argument is exactly that, the limit and the text",
+        len(re.findall(r"^\s*system\.text = '[^']*'\s*$", v, re.M)) == 1 and len(re.findall(r"system\.text\s*=", v)) == 2
+        and ordered(v, "ctext = st{'context'}", "call $tk_aiwall('request', ctext, why)", "stop sysmsg(14013, why)", "fixed.text = system.text",
+                    "if ctext # '' then c.send = 'Standing information from the administrator of this SD system:' : char(10) : ctext", "system.text = c.send : fixed.text")
+        and "reply = kernel(K$AI.START, system.text : @fm : 1024 : @fm : question)" in v and not re.search(r"question\s*=[^\n]*ctext", v), "")
+    row("(S.160) the standing text is INVISIBLE to the person asking (the owner, 7 Nov 26): the preview displays the fixed sentence and the question, never system.text, c.send or ctext",
+        "display fixed.text" in v and not any(re.search(r"\b(system\.text|c\.send|ctext)\b", l.replace("len(system.text)", ""))
+                                              for l in v.split("\n") if l.strip().startswith(("display", "crt", "print"))), "")
     row("the gate, the model and the key are read from the helper's status BEFORE anything is shown: provider empty, gate false, model empty and key false each stop with their own message",
         ordered(v, "prov = st{'provider'}", "if prov = '' then", "stop sysmsg(11624)", "if not(st{'gate'}) then", "stop sysmsg(11625, @who)", "if model = '' then", "stop sysmsg(11626, prov, 'model')",
                 "if not(st{'key'}) then", "stop sysmsg(11626, prov, 'key')", "display sysmsg(11628"), "")
@@ -332,8 +345,14 @@ def check_d(t):
         and len(re.findall(r"call \$tk_run", v)) == 2, "")
     row("every command is shown in the confirm box BEFORE it runs: in confirm.and.run the box comes first, a result other than run runs nothing, and both run sites follow it; no other site calls $tk_run or $tk_runx",
         ordered(v, "confirm.and.run: call $tk_confirm(sent, el, typed, res, cmsg) if res = 'run' then if use.x then call $tk_runx(", "call $tk_run(allow.acc", "end else msg = cmsg end return") and v.count("call $tk_confirm(sent, el, typed") == 1, "")
-    row("the one direct EXECUTE is the hand-over of the terminal to SET.AI KEY: the name is tested against the fixed four, the sentence is a fixed text and that name, the confirm box comes first and anything but run returns, then the screen is given back",
-        len(re.findall(r"\bexecute\b", v)) == 1 and not re.search(r"\b(os\.execute|perform|chain|sh)\b", v)
+    row("(S.160) the second direct EXECUTE is SET.AI CONTEXT: the sentence is 'set.ai context ' and the text as MX0C hexadecimal (or -), after the confirm box, and before it runs the verb, the "
+        "word count and a word of hexadecimal or - only are checked again",
+        len(re.findall(r"\bexecute\b", v)) == 2
+        and ordered(v, "do.context:", "cx.sent = 'set.ai context -'", "cx.sent = 'set.ai context ' : oconv(cx.new, 'MX0C')", "call $tk_confirm(cx.show, el, '', res, cmsg) if res # 'run' then msg = cmsg return end",
+                    "if downcase(field(cx.sent, ' ', 1)) # 'set.ai' or field(cx.sent, ' ', 2) # 'context' or dcount(cx.sent, ' ') # 3 then return",
+                    "if cx.word # '-' and convert('0123456789ABCDEFabcdef', '', cx.word) # '' then return", "execute cx.sent trapping aborts capturing out"), "")
+    row("the one direct EXECUTE besides SET.AI CONTEXT is the hand-over of the terminal to SET.AI KEY: the name is tested against the fixed four, the sentence is a fixed text and that name, the confirm box comes first and anything but run returns, then the screen is given back",
+        len(re.findall(r"\bexecute\b", v)) == 2 and not re.search(r"\b(os\.execute|perform|chain|sh)\b", v)
         and ordered(v, "do.key: p = provs<pi> if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return", "sent = 'set.ai key ' : p", "call $tk_confirm(sent, el, '', res, cmsg) if res # 'run' then msg = cmsg return end",
                     "call $tk_close(ctx) execute sent", "gosub reopen"), "")
     row("THE KEY IS NOT HANDLED: the page reads nothing at the terminal but the Enter that ends the hand-over (one INPUT, into a variable called junk), has no hidden or masked entry and no GETPASS, and builds no sentence that holds a key",
