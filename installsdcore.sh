@@ -816,7 +816,18 @@ if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
 fi
 # GATES-ASK-END
 # 02 Nov 26  S.106: the question about the authenticator code for SDSYS over ssh (S.95) is gone with the code (owner: password only for this release).  SDSYS over ssh stays
-#            shut as delivered; the administrator opens it later with remote.sdsys on.
+#            shut as delivered.
+# 07 Nov 26  S.155: THE QUESTION WHETHER TO OPEN SDSYS OVER SSH (owner, 7 Nov 2026, after an install on a headless container: "If sd is being installed on a headless
+#            server there is no way to give the remote access without these additional steps which are not documented"; he chose "Summary + question").  The answer is
+#            NO unless y or yes is typed, so a plain install is still delivered shut; a y runs ssh-forcecommand --open-sdsys in the SDSYS-SSH-OPEN block, after the
+#            sdsys password, and the closing summary reports the state read back from the helper.  test-install-sdsysssh.sh runs both blocks.
+# SDSYS-SSH-ASK-BEGIN
+open_sdsys_ssh=n
+echo
+echo "sdsys, the administrator, cannot sign in over ssh unless that is opened.  On a server with no screen it is how SD is administered."
+read -r -p "Let sdsys sign in over ssh with its password? (y/N) " yn_sdsys_ssh || yn_sdsys_ssh=""
+case $yn_sdsys_ssh in [yY]|[yY][eE][sS] ) open_sdsys_ssh=y;; esac
+# SDSYS-SSH-ASK-END
 # 23 Oct 26  THE QUESTION ABOUT A PDF READER (owner, 23 Oct 2026: the pdf verb "should be available even if os.execute is not allowed for the account
 #            as a system bypass").  That is a looser default, so the list of readers it may start is EMPTY as delivered and the installer asks once, up
 #            front with the others; the answer is NO unless y or yes is typed.  It is asked only when a known PDF reader is installed in /usr/bin,
@@ -3067,6 +3078,22 @@ else
     sdsys_p1=""; sdsys_p2=""
 fi
 #
+# 07 Nov 26  S.155: SDSYS OVER SSH, OPENED ONLY ON A y TO THE SDSYS-SSH-ASK QUESTION.  After the sdsys password, so the door is not opened before there is a password
+#            behind it (with none, sshd refuses the locked account anyway).  Only when the ssh boundary went in (--open-sdsys needs its block).  A failure warns: SD is
+#            installed and working, and the door stays shut.  The state for the closing summary is read back from the helper whatever the answer was.
+# SDSYS-SSH-OPEN-BEGIN
+if [ "$open_sdsys_ssh" = y ]; then
+    if [ "$ssh_boundary_ok" = 1 ] && sudo /usr/local/sbin/ssh-forcecommand --open-sdsys; then
+        echo "sdsys can now sign in over ssh with its password."
+    else
+        printf "%b\n" "$RED"
+        echo "WARNING: sdsys over ssh could not be opened.  Once the cause is resolved:  sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
+        printf "%b\n" "$NC"
+    fi
+fi
+sdsys_ssh_state=$(sudo /usr/local/sbin/ssh-forcecommand --sdsys-state 2>/dev/null || true)
+# SDSYS-SSH-OPEN-END
+#
 # 19 Sep 26 dm - AND SDSYS'S SD PASSWORD, WHICH THIS INSTALLER USED TO WITHHOLD.
 #            REVERSES THE 15 Sep RULING ABOVE, on the owner's decision of 19 Sep
 #            2026: "I have no problem with the user having to enter two
@@ -3245,12 +3272,26 @@ esac
 echo
 echo "SD is administered ONLY by logging in as sdsys (its own password) and"
 echo "running sd - that session has every admin verb.  There is no sudo or"
-echo "su route into it.  sdsys cannot log in over ssh until the administrator opens"
-echo "that door (remote.sdsys on, then its password alone is enough), and the API"
-echo "admits sdsys only from a process running as sdsys on this machine, never from"
-echo "another computer.  A desktop-sharing view of the console (VNC, TeamViewer) is"
-echo "a local login and works."
-echo "SDSYS over ssh: shut (open it with  remote.sdsys on  at the SD prompt)."
+echo "su route into it.  sdsys signs in over ssh only while that door is open (its"
+echo "password alone is then enough), and the API admits sdsys only from a process"
+echo "running as sdsys on this machine, never from another computer.  A desktop-"
+echo "sharing view of the console (VNC, TeamViewer) is a local login and works."
+# 07 Nov 26  S.155: the state read back in SDSYS-SSH-OPEN, and how to change it from an ordinary ssh login (a server with no screen has no local sdsys login).
+# SDSYS-SSH-SUMMARY-BEGIN
+case "$sdsys_ssh_state" in
+    *sdsys-arm=open*)
+        echo "SDSYS over ssh: open.  To shut it:  sudo /usr/local/sbin/sd-elevate sdsys-ssh off"
+        case "$sdsys_pw_state" in
+            set|kept*) ;;
+            *) echo "  sdsys has no Linux password yet, so ssh cannot let it in until one is set:  sudo passwd sdsys" ;;
+        esac ;;
+    *sdsys-arm=closed*)
+        echo "SDSYS over ssh: shut.  To open it from any login with sudo:  sudo /usr/local/sbin/sd-elevate sdsys-ssh on"
+        echo "  (or  remote.sdsys on  at the SD prompt as sdsys)" ;;
+    *)
+        echo "SDSYS over ssh: not known.  To see it:  sudo /usr/local/sbin/sd-elevate sdsys-ssh status" ;;
+esac
+# SDSYS-SSH-SUMMARY-END
 echo
 if [ "$sd_running_state" = running ]; then
     echo "SD is running now."

@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+7 Nov 26   THE INSTALLER ASKS WHETHER SDSYS MAY SIGN IN OVER SSH, SO A SERVER WITH NO SCREEN CAN BE ADMINISTERED.
+
+             What        - A new question, "Let sdsys sign in over ssh with its password? (y/N)", asked with the other questions
+                           at the start. A y opens the door for sdsys after its Linux password has been set at the end of the
+                           install, so ssh sdsys@host then asks for that password and lands at the SD prompt. The closing summary
+                           says whether the door is open or shut, read back from the ssh settings, and gives the command that
+                           changes it from any login with sudo: sudo /usr/local/sbin/sd-elevate sdsys-ssh on (or off).
+             Why         - The summary used to say only "open it with remote.sdsys on at the SD prompt", which needs sdsys signed
+                           in at the machine itself. On a headless server or a container there is no such login, so the door
+                           could not be opened by following what the installer said.
+             Does NOT    - Change the default: Enter, n or anything but y or yes leaves the door shut, as before. It does not
+                           open the door when the ssh boundary could not be applied (it warns instead), and a failure to open it
+                           does not stop the install. With no sdsys password set, the door may be open but nobody can sign in
+                           until sudo passwd sdsys sets one; the summary says so.
+
 6 Nov 26   CODE THAT NOTHING COULD RUN IS REMOVED FROM THE C SOURCE, INCLUDING SDCONV'S OLD HASHED-FILE CONVERTER.
 
              What        - Eighteen C functions that no part of SD could reach are gone: a few unused error helpers, wrappers and
