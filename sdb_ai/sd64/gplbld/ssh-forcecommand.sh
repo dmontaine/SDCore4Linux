@@ -3,6 +3,7 @@
 # ssh-forcecommand.sh - the ssh half of the SD boundary for SD Core for Linux.
 #
 # START-HISTORY:
+# 07 Nov 26 dm S.157: both Match Group arms end "User *,!root", so root's ssh is the machine's own again (root is in sdusers; see "ROOT IS NAMED OUT").
 # 02 Nov 26 dm S.106 (owner, 2 Nov 2026: "remove the authenticator from both local and remote logins, we will depend on just password authentication for this release").  THE
 #           AUTHENTICATOR CODE IS GONE.  The OPEN sdsys arm is now password authentication alone: AuthenticationMethods password, PasswordAuthentication yes, KbdInteractive no, and
 #           every other keyword as before (no key, host-based or GSSAPI route, no authorized_keys file, three tries, every kind of forwarding shut, a tty, ForceCommand into sd);
@@ -89,7 +90,13 @@
 # non-local sdsys session (W.6, the SSH_CONNECTION/SSH_TTY test), but a real
 # login shell on the sdsys OS account would still be a remote shell on the
 # administrator account - so sshd denies it first, and SD's own gates are the
-# second half of the door.  root is not in sdusers, so root ssh is untouched.
+# second half of the door.
+#
+# ROOT IS NAMED OUT OF BOTH Match Group ARMS (7 Nov 26, S.157).  The installer puts root in sdusers (`usermod -a -G sdusers root`,
+# from upstream) and sd-elevate puts it in every sdu_<user> group, so "root is not in sdusers" was never true and the refusal arm
+# caught root: "root is not permitted to reach SD over ssh" on a server whose own sshd permits root (the owner, on an RC1 install).
+# "User *,!root" on each arm leaves root's ssh to the machine's own settings (PermitRootLogin), which is what this block always
+# meant to do.  The owner chose this after being warned it is looser than what SD did by accident ("Yes, exclude root").
 #
 # WHY ForceCommand AND NOT AllowGroups.  AllowGroups decides who may AUTHENTICATE
 # and locks everyone out if its group is empty or misnamed - the port's sharpest
@@ -277,13 +284,13 @@ block_lines() {
   printf '%s\n' "$BEGIN"
   sdsys_arm_lines
   printf '%s\n' \
-    "Match Group sdusers,!sdsys,!sdssh" \
+    "Match Group sdusers,!sdsys,!sdssh User *,!root" \
     "    ForceCommand $REFUSE_BIN --refuse" \
     "    AllowTcpForwarding no" \
     "    AllowStreamLocalForwarding no" \
     "    AllowAgentForwarding no" \
     "    PermitTunnel no" \
-    "Match Group sdusers,!sdsys" \
+    "Match Group sdusers,!sdsys User *,!root" \
     "    ForceCommand $SD_BIN" \
     "$END"
 }

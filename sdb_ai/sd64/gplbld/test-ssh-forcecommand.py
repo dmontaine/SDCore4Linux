@@ -47,8 +47,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HELPER = os.path.join(HERE, "ssh-forcecommand.sh")
 MESSAGES = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys", "messages"))
 END_MARKER = "# --- END SD ssh-only model ---"
-NARROW_ARM = "Match Group sdusers,!sdsys,!sdssh"
-GENERAL_ARM = "Match Group sdusers,!sdsys"
+NARROW_ARM = "Match Group sdusers,!sdsys,!sdssh User *,!root"     # 7 Nov 26 S.157: root is in sdusers, and named out
+GENERAL_ARM = "Match Group sdusers,!sdsys User *,!root"
 
 # A stub sshd: `sshd -t -f FILE`.  Exits 0, or 1 when STUB_FAIL=1, so the
 # rollback path can be driven without a config sshd would genuinely reject.

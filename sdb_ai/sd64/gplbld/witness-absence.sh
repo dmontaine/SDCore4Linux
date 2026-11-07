@@ -518,8 +518,9 @@ if [ -f /etc/ssh/sshd_config ]; then
 #   ABOVE the general one.  Both line numbers are taken from the live file and
 #   compared; M7i2 fails rather than passes if either arm is missing, because
 #   two empty answers would otherwise compare equal.
-  SSH_ARM_NARROW=$(grep -n '^Match Group sdusers,!sdsys,!sdssh$' /etc/ssh/sshd_config | head -1 | cut -d: -f1)
-  SSH_ARM_GEN=$(grep -n '^Match Group sdusers,!sdsys$' /etc/ssh/sshd_config | head -1 | cut -d: -f1)
+  # 07 Nov 26 S.157: each arm ends "User *,!root" (root is in sdusers and is left to the machine's own sshd settings).
+  SSH_ARM_NARROW=$(grep -n '^Match Group sdusers,!sdsys,!sdssh User \*,!root$' /etc/ssh/sshd_config | head -1 | cut -d: -f1)
+  SSH_ARM_GEN=$(grep -n '^Match Group sdusers,!sdsys User \*,!root$' /etc/ssh/sshd_config | head -1 | cut -d: -f1)
   say "  sshd arms: no-sdssh at line ${SSH_ARM_NARROW:-<absent>}, general at line ${SSH_ARM_GEN:-<absent>}"
   ck_says "M7i sshd refuses an SD account without the sdssh route" \
           "Match Group sdusers,!sdsys,!sdssh" "$SSC"

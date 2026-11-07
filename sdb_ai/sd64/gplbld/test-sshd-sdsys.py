@@ -18,6 +18,7 @@
 # WHAT THIS CANNOT SHOW (the VM witness's): that a real client is asked for the password and gets sd, and the reload of a running sshd.
 # Exit 0 every row passed, 1 a row failed (or a mutant survived), 2 it could not run (no sshd or ssh-keygen).  THE NULL CASE IS REFUSED: fewer than 40 rows is a failure.
 
+import grp
 import os
 import re
 import shutil
@@ -204,6 +205,24 @@ def rows_for(ctx):
         row("install into a pristine config writes the CLOSED arm and leaves every PAM file alone (byte for byte, no backup of them)",
             code == 0 and e.arm() == ["Match User sdsys", "    DenyUsers sdsys"] and e.pristine_pam() and not os.path.exists(e.pamf + ".before-sd"), out.strip()[:120])
         row("--sdsys-state: closed", e.state() == {"sdsys-arm": "closed"}, "%s" % e.state())
+        # 7 Nov 26 (S.157): root is in sdusers (the installer puts it there), so without "User *,!root" the refusal arm caught it.  The real
+        # sshd, asked about root, must give NO ForceCommand; asked about a member of sdusers and sdssh, the sd command.  Both need this
+        # machine's groups: root in sdusers and outside sdssh (else the root row proves nothing), and a user in both.
+        try:
+            su_members = grp.getgrnam("sdusers").gr_mem
+            ssh_members = grp.getgrnam("sdssh").gr_mem
+        except KeyError:
+            su_members, ssh_members = [], []
+        both = sorted(u for u in su_members if u in ssh_members and u not in ("root", "sdsys"))
+        if "root" not in su_members or "root" in ssh_members or not both:
+            row("S.157 CANNOT RUN: needs root in sdusers and not in sdssh, and a user in both (sdusers=%s sdssh=%s)" % (su_members, ssh_members), False)
+        else:
+            rc, eff = effective(ctx["sshd"], e.cfg, "root")
+            row("S.157 the REAL sshd gives root (in sdusers, not in sdssh) no ForceCommand: root's ssh is the machine's own",
+                rc == 0 and eff.get("forcecommand", "none") == "none", "forcecommand=%r" % eff.get("forcecommand"))
+            rc, eff = effective(ctx["sshd"], e.cfg, both[0])
+            row("S.157 ... and still forces %s (in sdusers and sdssh) into sd" % both[0], rc == 0 and eff.get("forcecommand") == e.sd,
+                "forcecommand=%r" % eff.get("forcecommand"))
         cfg_closed = rd(e.cfg)
         rc, alice_before = effective(ctx["sshd"], e.cfg, "alice")
         code, out = e.run("--open-sdsys")
@@ -435,6 +454,8 @@ MUTANTS = [
     ("--install leaves the console files' fences", "    local_remove_all                                       # and the console services' lines\n", ""),
     ("--close-sdsys leaves the console files' fences", "# S.106: an older install's PAM fences go, now that the door is shut\n    local_remove_all\n", "# S.106: an older install's PAM fences go, now that the door is shut\n"),
     ("--open-sdsys leaves the fences", "    pam_has_block && remove_pam_block\n    local_remove_all\n    exit 0\n    ;;\n\n  --close-sdsys)", "    exit 0\n    ;;\n\n  --close-sdsys)"),
+    # S.157: root out of the Match Group arms
+    ("the refusal arm catches root again", '"Match Group sdusers,!sdsys,!sdssh User *,!root"', '"Match Group sdusers,!sdsys,!sdssh"'),
     ("the fence stripper takes the session fence's text", '    $0 == b || $0 == sb { drop = 1; next }', '    $0 == b { drop = 1; next }'),
 ]
 

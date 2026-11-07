@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+7 Nov 26   ROOT IS NO LONGER REFUSED OVER SSH: SD'S SSH RULES LEAVE ROOT TO THE SSH SERVER'S OWN SETTINGS.
+
+             What        - The two rules SD writes into /etc/ssh/sshd_config now end "User *,!root". root's ssh sign-in is
+                           decided by the ssh server's own PermitRootLogin, as it was before SD was installed.
+             Why         - The installer puts root in the sdusers group, and SD's rule sends every sdusers member without the
+                           ssh gate to a refusal, so root got "root is not permitted to reach SD over ssh" even on a server set
+                           up to allow root. On a server with no screen that could leave no way in for administration.
+             Does NOT    - Let root in where the ssh server does not already allow it, or change anything for SD accounts or
+                           sdsys. The new rules are written by the next install or upgrade; an existing server keeps its old
+                           rules until then.
+
 7 Nov 26   SH WITH NO COMMAND STARTS A SHELL AGAIN.
 
              What        - Typing sh on its own at the SD prompt starts the interactive operating system shell, for the
