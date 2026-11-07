@@ -98,8 +98,19 @@ all: check-includes sd
 # every use of the flag; do not install one.  See gplsrc/sd.c, PRE_RELEASE 21.
 EXTRA_C_FLAGS ?=
 
+# 06 Nov 26 dm  S.125: SD was built with no -O at all.  OPT_FLAGS is the optimised build:
+#   -O2                   x1.06 to x3.4 measured on 6 Nov (.claude baseline, S.125)
+#   -fwrapv               signed overflow wraps, as the arithmetic opcodes' overflow tests
+#                         (op_arith.c, op_mul and its kin) assume; plain -O2 may delete those tests
+#   -fno-strict-aliasing  the 2007 code reads one type through a pointer to another
+#   -U/-D_FORTIFY_SOURCE=3, -fstack-protector-strong  run-time buffer checks that only work
+#                         with optimisation on (Ubuntu's gcc already sets some; -U avoids a
+#                         redefinition warning there)
+# No -march: x86-64-v3 measured no gain and would refuse older processors.
+OPT_FLAGS := -O2 -fwrapv -fno-strict-aliasing -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-protector-strong
+
 sd: ARCH :=
-sd: C_FLAGS  :=  -std=gnu17 -Wall -Wformat=2 -Wno-format-nonliteral -DLINUX -D_FILE_OFFSET_BITS=64 -I$(GPLSRC) $(PY_HDRS) -DEMBED_PYTHON -DGPL -g $(ARCH) -fPIE $(EXTRA_C_FLAGS)
+sd: C_FLAGS  :=  -std=gnu17 -Wall -Wformat=2 -Wno-format-nonliteral -DLINUX -D_FILE_OFFSET_BITS=64 -I$(GPLSRC) $(PY_HDRS) -DEMBED_PYTHON -DGPL -g $(OPT_FLAGS) $(ARCH) -fPIE $(EXTRA_C_FLAGS)
 sd: $(SDOBJS) sdclilib.so sdtic sdfix sdconv sdidx sdlnxd terminfo
 	@echo Linking $@
 	@cd $(GPLOBJ) && $(COMP) $(ARCH) $(L_FLAGS) $(SDOBJSD) -o $(GPLBIN)sd

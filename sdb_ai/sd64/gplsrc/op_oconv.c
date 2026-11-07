@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 06 Nov 26 dm  S.125: time_conversion()'s buffer was 12 bytes; a large negative time (OCONV(-360000000, 'MTS') gives
+ *               "-34464:00:00", 13 with the terminator) wrote past it.  Now 40; what MT prints is unchanged.
  * 03 Nov 26 dm  MCDX is back, as a second name of MX (owner: "Restore MCDX only", for programs moved from openQM); MCD, MCX and MCXD stay invalid.
  * 27 Oct 26 dm  S.87 batch 7: OPTION PICK.ML.CONV.MASK is gone; ML and MR read a left bracket as the round bracket negative style, as they did with it off.
  * 27 Oct 26 dm  S.87 batch 3: the conversions MCD, MCDX, MCX and MCXD (second spellings of MX) and conv_dtx() / conv_xtd() are gone.
@@ -2497,7 +2499,7 @@ Private int32_t time_conversion(char* p) {
   int16_t hours;
   int16_t mins;
   int32_t secs;
-  char s[11 + 1];
+  char s[40]; /* 06 Nov 26 S.125: hours, minutes and seconds may each be negative and hours up to 6 characters */
 
   s[0] = '\0';
 

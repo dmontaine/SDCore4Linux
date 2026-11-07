@@ -31,6 +31,9 @@
  *               two a file variable: shared_structure_refusal).  AKWRITE and AKDELETE, which maintain an index on every WRITE, are not asked.
  * 17 Oct 26 dm  S.65 slice 3d: INDICES (both forms) of a NET_FILE is the null string, no longer a refusal: the query processor asks it of every file.
  * 17 Oct 26 dm  S.65 slice 3c: AKDELETE, AKREAD, AKWRITE, CLEAR.AK, AKENABLE, AKMAP, INDICES (both), SELECTINDEX (both), SELECTRIGHT/LEFT and SETRIGHT/LEFT refuse a NET_FILE (net_refuse) before touching access.dh
+ * 06 Nov 26 dm  S.125: create_ak() and delete_ak() built "<path>/%0" with sprintf() into a 256-byte buffer, which a data
+ *               path of 253 characters or more overran; now snprintf(), and a name that would not fit is "file not found"
+ *               with the OS error ENAMETOOLONG.
  * 15 Oct 26 dm  create_ak() and delete_ak() write DH_HEADER_SHARED_SIZE bytes of the primary header, not the whole of it, so that
  *               they cannot put an old sequential id counter (CREATING.SEQKEY) over a newer one.
  * 31 Dec 23 SD launch - prior history suppressed
@@ -1984,7 +1987,11 @@ Private int16_t create_ak(char *data_path,          /* Data file path name */
   /* Open primary subfile.  We do this outside of the file sharing mechanism
      to guarantee that we are the only user of the file.                     */
 /* rev 0.9.0 */
-  sprintf(path, "%s%c%%0", data_path, DS);
+  if (snprintf(path, sizeof(path), "%s%c%%0", data_path, DS) >= (int)sizeof(path)) {
+    dh_err = DHE_FILE_NOT_FOUND; /* 06 Nov 26 S.125: the name would not fit; it used to overrun path */
+    process.os_error = ENAMETOOLONG;
+    goto exit_create_ak;
+  }
   fu = dio_open(path, DIO_UPDATE);
   if (!ValidFileHandle(fu)) {
     dh_err = DHE_FILE_NOT_FOUND;
@@ -2190,7 +2197,11 @@ Private bool delete_ak(char *pathname, /* File path name */
   /* Open primary subfile.  We do this outside of the file sharing mechanism
      to guarantee that we are the only user of the file.                     */
 /* rev 0.9.0 */
-  sprintf(path, "%s%c%%0", pathname, DS);
+  if (snprintf(path, sizeof(path), "%s%c%%0", pathname, DS) >= (int)sizeof(path)) {
+    dh_err = DHE_FILE_NOT_FOUND; /* 06 Nov 26 S.125: the name would not fit; it used to overrun path */
+    process.os_error = ENAMETOOLONG;
+    goto exit_delete_ak;
+  }
   fu = dio_open(path, DIO_UPDATE);
   if (!ValidFileHandle(fu)) {
     dh_err = DHE_FILE_NOT_FOUND;

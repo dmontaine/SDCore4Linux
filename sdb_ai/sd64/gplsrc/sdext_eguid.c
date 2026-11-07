@@ -29,6 +29,9 @@
  * 14 Sep 26 dm  SD_EUID_SET reloads root's supplementary groups before the
  *               drop, so a session sees account groups created since it
  *               started (PROJECT_STATUS S.2).
+ * 06 Nov 26 dm  S.125: the user name copied into process.username is now
+ *               always terminated (strncpy with the full size left none
+ *               for a name of MAX_USERNAME_LEN + 1 characters or more).
   * START-DESCRIPTION:
  *
  *
@@ -99,7 +102,8 @@ void sdext_eguid_set(int key, char* Arg){
       if (pwd != NULL) {
         /* got user, now set effective UID and GID to whats defined for user */
         if ((setegid(pwd->pw_gid) == 0) && (seteuid(pwd->pw_uid) == 0)){
-          strncpy(process.username, Arg, MAX_USERNAME_LEN+1);   // worked, change sd process user name to match
+          strncpy(process.username, Arg, MAX_USERNAME_LEN);   // worked, change sd process user name to match
+          process.username[MAX_USERNAME_LEN] = '\0';           // 06 Nov 26 S.125: always terminated
         }else{
           myResult =  SD_EUID_SET_Err; // Couldn't set proess to uid / gid of user 
           process.status = errno;      // return os error in status()
