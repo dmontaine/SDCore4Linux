@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+7 Nov 26   SH WITH NO COMMAND STARTS A SHELL AGAIN.
+
+             What        - Typing sh on its own at the SD prompt starts the interactive operating system shell, for the
+                           administrator and for any account SDSYS has given the shell gate; exit returns to SD.
+             Why         - A filter added in June 2026 to refuse shell metacharacters in a command also refused an empty
+                           command, so a bare sh printed "Error 2 executing operating system command" for everybody, whatever
+                           gates were open.
+             Does NOT    - Open the shell to an account without the shell gate: that is still refused first, with "<name> is
+                           not permitted to use the operating system shell". A command typed after sh is still filtered as
+                           before. The ! verb stays removed; use sh.
+
 7 Nov 26   THE INSTALLER ASKS WHETHER SDSYS MAY SIGN IN OVER SSH, SO A SERVER WITH NO SCREEN CAN BE ADMINISTERED.
 
              What        - A new question, "Let sdsys sign in over ssh with its password? (y/N)", asked with the other questions

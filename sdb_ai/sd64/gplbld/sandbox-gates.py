@@ -144,6 +144,25 @@ def sed_path_screen(acct, name):
     return lines
 
 
+def sh_bare_screen(acct, sentinel):
+    """7 Nov 26 (S.156).  An ORDINARY session of <acct> on a pseudo-terminal types SH with no command, then, to whatever is reading,
+    'touch <sentinel>' and 'exit', then OFF.  Returns the screen's lines.  Says its inputs."""
+    from ptydrive import PtySession
+    say("    > [pty] -a%s: SH | touch %s | exit | OFF" % (acct, os.path.relpath(sentinel, BOX)))
+    e = env(False)
+    e["TERM"] = "xterm"
+    s = PtySession([SD, "-a" + acct], os.path.join(BOX, "user_accounts", acct), e, 140, 43)
+    s.settle(1.0)
+    s.type("TERM xterm\r")
+    s.type("SH\r", idle=1.5)
+    s.type("touch %s\r" % sentinel, idle=1.0)
+    s.type("exit\r", idle=1.0)
+    lines = list(s.screen.lines())
+    s.type("OFF\r", idle=0.5)
+    s.finish()
+    return lines
+
+
 def put(path, text):
     with open(path, "w", encoding="ascii") as f:
         f.write(text)
@@ -370,6 +389,23 @@ def main():
     out = sd(os.path.join(BOX, "user_accounts", "zzoff"), ["SH touch " + sent], admin=True, account="zzoff")
     row("B: control - an administrator in zzoff is not refused (the gate does not bind SDSYS)", os.path.exists(sent),
         "output=%r" % (out[-3:],))
+    # 7 Nov 26 (S.156): SH with NO command is the interactive shell.  !valid_shell_cmd refused an empty command, so a bare SH printed
+    # "Error 2 executing operating system command" for every account (found on an RC1 container install).  Driven on a pseudo-terminal:
+    # through a pipe SD may read ahead the lines meant for the shell.  The evidence is a file the SHELL made from a typed line.
+    for name, ok_expected in (("zzsh", True), ("zzoff", False)):
+        sent = os.path.join(BOX, "user_accounts", name, "b2.sentinel")
+        if os.path.exists(sent):
+            os.remove(sent)
+        lines = sh_bare_screen(name, sent)
+        made = os.path.exists(sent)
+        err2 = any("Error 2 executing operating system command" in ln for ln in lines)
+        refused = any(refusal in ln for ln in lines)
+        if ok_expected:
+            row("B2: %s, a bare SH starts the shell: a line typed to it made the file, and no Error 2" % name, made and not err2 and not refused,
+                "made=%s error2=%s refused=%s screen=%r" % (made, err2, refused, [ln for ln in lines if ln.strip()][-6:]))
+        else:
+            row("B2: %s, a bare SH is refused with 10053 and no shell ran the typed line" % name, refused and not made,
+                "made=%s refused=%s screen=%r" % (made, refused, [ln for ln in lines if ln.strip()][-6:]))
 
     # --- C. OS.EXECUTE from a user program ------------------------------------------------------------------
     say("\n--- C. OS.EXECUTE in a user's BASIC program: refused without the grant, independent of SH ----------------------")

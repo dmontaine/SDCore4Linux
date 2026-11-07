@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 7 Nov 26 dm  S.156: SH with no command starts the interactive shell again.  The metacharacter filter (!valid_shell_cmd, June 2026) refuses an empty
+*              command, so a bare SH printed "Error 2 executing operating system command" for every account, the administrator and an account given
+*              the SH gate included (found on an RC1 container install).  The gate test still comes first; a typed command is still filtered.
 * 2 Nov 26 dm  S.96 security fix: RUN.IN's common is /$runin/, not /runin/.  Any program could declare /runin/, set ri.active and ri.sw and ABORT, and the abort
 *              branch then put SH, OS.EXECUTE, SD.ACCOUNTS, NET and the shared gates ON for that session (shown on a real install by probe-runin-forge.py).
 *              A $ name is taken by the compiler only in internal mode, and the kernel now refuses one to any other program (op_common, message 11598).
@@ -4149,9 +4152,13 @@ os.command:
       display sysmsg(10053, @logname) ;* %1 is not permitted to use the operating system shell
       return
    end
-   if not(valid_shell_cmd(os.command.text)) then
-      display sysmsg(5240, 2) ;* Error xx executing operating system command
-      return
+* 7 Nov 26 dm - S.156: an empty command is the interactive shell (op_sh.c sh(), the SH config line), not a command to filter; the
+*   filter refuses an empty one, which had made a bare SH fail for everybody.
+   if os.command.text # '' then
+      if not(valid_shell_cmd(os.command.text)) then
+         display sysmsg(5240, 2) ;* Error xx executing operating system command
+         return
+      end
    end
    os.execute os.command.text
    * --------------------
