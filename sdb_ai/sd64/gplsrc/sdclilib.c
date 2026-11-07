@@ -9,6 +9,7 @@
  *    http://www.gnu.org/licenses/gpl.html
  *
  * START-HISTORY
+ * 07 Nov 26 dm S.159 (Kimi review): sysdir() refuses a configuration section header with no ']' or too long for section[50].
  * 18 Oct 26 dm SDChecksum(): the QMChecksum equivalent, evaluated on the client with the algorithm of BASIC's CHECKSUM().
  * 31 Dec 23 SD launch - prior history suppressed
  * 20240219  mab Major update to use AF_UNIX socket to talk to sd
@@ -4738,8 +4739,16 @@ Private char* sysdir() {
       continue;
 
     if (rec[0] == '[') {
-      if ((p = strchr(rec, ']')) != NULL)
-        *p = '\0';
+      /* 7 Nov 26 S.159 (Kimi review, finding 5): the name was strcpy()'d into
+         section[50] whatever its length (a line holds 199).  A header with no
+         closing bracket or a name too long for any section SD reads is not a
+         section: what follows it belongs to none, so it is not read as [sd]. */
+      p = strchr(rec, ']');
+      if ((p == NULL) || ((size_t)(p - (rec + 1)) >= sizeof(section))) {
+        section[0] = '\0';
+        continue;
+      }
+      *p = '\0';
       strcpy(section, rec + 1);
 
       for (p = section; *p != '\0'; p++)

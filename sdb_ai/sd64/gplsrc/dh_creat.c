@@ -18,6 +18,7 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 07 Nov 26 dm  S.159: acct_group_modes() calls fullpath_n() with its PATH_MAX buffer (fullpath() now stops at 256 bytes).
  * 02 Nov 26 dm  S.96 M6: the master-file copies (S.67) are retired; the journal note of a new VOC or dictionary goes with masters.c, and the group
  *               write that masters_fix_modes gave a new VOC or dictionary is KEPT, moved here as acct_group_modes() (tool.entries needs it).
  * 19 Oct 26 dm  S.67 stage 2: and calls masters_fix_modes() (a new VOC or dictionary is given its group's write bit where the account's directory has it).
@@ -375,7 +376,7 @@ Private void acct_group_modes(const char *path) {
     return;
   if (!(((n > 4) && (strcasecmp(path + n - 4, ".dic") == 0)) || (strcasecmp(path + n - 3, "voc") == 0)))
     return;
-  if (!fullpath(full, (char *)path) || !acct_root_for_path(full, root, sizeof(root), &rel))
+  if (!fullpath_n(full, (char *)path, sizeof(full)) || !acct_root_for_path(full, root, sizeof(root), &rel))
     return;
   base = strrchr(rel, '/');
   base = (base == NULL) ? rel : base + 1;

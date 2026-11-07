@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 07 Nov 26 dm  S.159: sdrealpath() reads a symlink's target as part of the
+ *               path (its . and .. and nested links), not copied unresolved.
  * 14 Sep 26 dm  S.18: <crypt.h> dropped - nothing here calls crypt(), and the
  *               one caller (linuxio.c login_user) is removed.
  * 10 Sep 26 dm  Parity audit: sdrealpath() keeps resolving . and .. after a
@@ -133,6 +135,10 @@ char* sdrealpath(char* inpath,  /* Supplied path */
   int n;
   int link_depth = 0;
   char link_buf[PATH_MAX + 1];
+  /* 7 Nov 26 S.159: what is still to be read once a link has been met - its target, then the rest of the input */
+  char pending[2 * PATH_MAX + 2];
+  char splice[2 * PATH_MAX + 2];
+  size_t rest_len;
 
   switch (inpath[0]) {
     case '/': /* Absolute pathname */
@@ -221,22 +227,31 @@ char* sdrealpath(char* inpath,  /* Supplied path */
 
         link_buf[n] = '\0';
 
-        if (link_buf[0] == '/') /* It's an absolute symlink */
+        /* 7 Nov 26 S.159 (Kimi review, finding 6): the target was copied into
+           the result as it stood and never read again, so a/link -> ../outside
+           came back as .../a/../outside, and a link inside the target was not
+           followed.  The target is now put in front of what is left of the
+           input (q: the terminator or "/rest") and read like any other part. */
+        rest_len = strlen(q);
+        if ((size_t)n + rest_len + 1 > sizeof(splice))
+          return NULL;
+        memcpy(splice, link_buf, n);
+        memcpy(splice + n, q, rest_len + 1); /* q may point into pending */
+        memcpy(pending, splice, n + rest_len + 1);
+
+        if (link_buf[0] == '/') /* It's an absolute symlink: start again at the root */
         {
-          strcpy(outpath, link_buf);
-          tgt = outpath + n;
+          outpath[0] = '/';
+          tgt = outpath + 1;
         } else {
-          /* Back up one level unless already at root directory */
+          /* Take the link's own name off again; its target is relative to its directory */
           if (tgt > outpath + 1)
             while (*((--tgt) - 1) != '/') {
             }
-
-          if (tgt + n - outpath >= PATH_MAX)
-            return NULL;
-
-          strcpy(tgt, link_buf);
-          tgt += n;
         }
+        *tgt = '\0';
+        p = pending;
+        continue;
       }
     }
 

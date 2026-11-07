@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 07 Nov 26 dm  S.159 (Kimi review): a rotation whose new trail cannot be made with the old one's owner and mode is undone and
+ *               returns -1, not 1 (the trail used to stay absent).
  * 24 Oct 26 dm  W.11 F4, option C2: moved out of k_error.c audit_rotate() so that the audit daemon (sdlnxd.c), which is now the trail's writer, rotates by size with the
  *               same code that "sd -start" uses.  The caller holds ERRLOG_SEM.  One change to the body: a rotation whose new name is already taken is refused, not
  *               done (rename() replaced the file there; the sandbox suite saw two rotations in one second leave one rotated file).
@@ -45,7 +47,8 @@
 /* ======================================================================
    audit_rotate_file()  -  Start a new audit file if the current one has reached limit bytes
 
-   Returns 1 when the file was rotated, 0 when there was nothing to do, -1 when it should have been and could not (the attribute would not lift, the rename failed, or a rotated file of that second is already there).
+   Returns 1 when the file was rotated, 0 when there was nothing to do, -1 when it should have been and could not (the attribute would not lift, the rename failed, a rotated file of that second is already there, or the new trail could not be made
+   with the old one's owner and mode - then the rename is undone).
 
    Called with ERRLOG_SEM held, by the kernel at "sd -start" (k_error.c audit_rotate(), root, no session running) and by the audit daemon as it writes (sdlnxd.c): only
    root can lift the append-only attribute a rename needs, and a rotation under an append is the other thing to avoid.  A machine whose daemon is not running rotates only
@@ -98,18 +101,33 @@ int audit_rotate_file(const char* path, long limit) {
         }
 
         if (rename(path, rotated) == 0) {
-          result = 1;
+          /* 7 Nov 26 S.159 (Kimi review, finding 4): result was 1 as soon as the
+             rename worked, so a new trail that could not be made (or not given
+             the old one's owner and mode) was reported as a rotation; every
+             later append opens without O_CREAT, and the size test no longer
+             matched a missing file, so the trail stayed absent.  Success now
+             needs the new file made with the owner and mode; otherwise the old
+             trail is renamed back over it, and the caller is told -1
+             (the daemon tries again in a minute).  The append attribute is
+             still best effort, as it is on the rotated file.                  */
           newfd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
                        statbuf.st_mode & 07777);
-          if (newfd >= 0) {
-            if (fchown(newfd, statbuf.st_uid, statbuf.st_gid) == 0)
-              (void)fchmod(newfd, statbuf.st_mode & 07777);
+          if ((newfd >= 0) && (fchown(newfd, statbuf.st_uid, statbuf.st_gid) == 0) &&
+              (fchmod(newfd, statbuf.st_mode & 07777) == 0)) {
+            result = 1;
             if (had_append && (ioctl(newfd, FS_IOC_GETFLAGS, &newflags) == 0)) {
               newflags |= FS_APPEND_FL;
               (void)ioctl(newfd, FS_IOC_SETFLAGS, &newflags);
             }
-            close(newfd);
+          } else {
+            result = -1;
+            /* The old trail back in its place.  When the open worked, the rename replaces the empty file it made in
+               one step (nothing is unlinked: test-auditwriter-units.py R9); when it did not, only into an empty name. */
+            if ((newfd >= 0) || ((lstat(path, &existing) != 0) && (errno == ENOENT)))
+              (void)rename(rotated, path);
           }
+          if (newfd >= 0)
+            close(newfd);
         } else {
           result = -1;
         }

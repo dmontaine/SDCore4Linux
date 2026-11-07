@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+7 Nov 26   SEVEN FAULTS IN THE C CODE FIXED, FOUND BY AN OUTSIDE CODE REVIEW.
+
+             What        - Deleting a directory (DELETE.ACCOUNT, DELETE.FILE of a directory file, and the other places that
+                           delete a whole tree) removes a symbolic link inside it as a link and no longer deletes what the link
+                           points at. A full pathname that resolves to more than 255 characters through a symbolic link is
+                           refused instead of being written past the end of SD's buffer, and so is making a directory path of
+                           exactly 255 characters (it wrote two bytes too many). A symbolic link's own "." and ".." and
+                           further links are now resolved, so FULLPATH and the "is this file already open" test see the real
+                           path. An audit file rotation whose new file cannot be made is undone and tried again a minute
+                           later, instead of leaving no audit file. DELETE.INDEX checks properly that the index exists. The
+                           client library refuses an over-long section name in sd.conf.
+             Why         - The first could let a link an account holder planted turn the administrator's delete of that
+                           account onto files elsewhere that sdsys may write. The others could crash a session, lose the
+                           audit file (the copy in the system journal was kept) or confuse a path comparison.
+             Does NOT    - Change what a user may reach: the access checks already resolved paths with the system's own
+                           routine. An existing link in an account is not touched until something deletes it.
+
 7 Nov 26   A FINISHED INSTALL LEAVES ROOT OUT OF THE SDUSERS GROUP.
 
              What        - The installer still adds root to sdusers, because its own steps run SD as root and SD admits only

@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY):
+ * 07 Nov 26 dm  S.159 (Kimi review): delete_ak() tests the index map with & (it was &&, under a pragma that silenced the warning) after a range
+ *               check of the number, and clears the bit rather than flipping it.
  * 25 Oct 26 dm  update_internal_node(): removing the LAST child of an internal node that has others left no longer takes the node out of its parent too (the parent was told "no key",
  *               which it reads as "remove this child", so a live subtree went missing from every lookup; found by the Kimi / DeepSeek audit and measured with a 120,000 key index: sandbox-akdeep.py).
  *               The parent is now given the node's new maximum key.  A node left with one child is still replaced by it, and when that child is a terminal node its two neighbours are
@@ -2216,23 +2218,19 @@ Private bool delete_ak(char *pathname, /* File path name */
   }
 
   /* Check this AK exists */
-  /* the (1 << akno) code in the if statement below is triggering a warning
-   * "warning: ‘<<’ in boolean context, did you mean ‘<’ ? [-Wint-in-bool-context]"
-   * Based on how it's used later (header.ak_map ^= (1 << akno)) in the code, it's
-   * my belief that the code is correct as written.  As such, I'm going to turn off
-   * the warning for this single instance.  -gwb 22Feb20
-   */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wint-in-bool-context"
-  if ((header.ak_map && (1 << akno)) == 0) {
-#pragma GCC diagnostic pop
+  /* 7 Nov 26 S.159 (Kimi review, finding 7): the test was written with && and
+     a pragma silenced the compiler's "<< in boolean context" warning, which was
+     right: while the file had ANY index the test passed for every number, and
+     with a stale subfile for a number whose bit was clear the ^= below SET that
+     bit.  A bitwise test, the number checked first, and the bit cleared.    */
+  if ((akno < 0) || (akno >= MAX_INDICES) || ((header.ak_map & (1u << akno)) == 0)) {
     dh_err = DHE_NO_SUCH_AK;
     goto exit_delete_ak;
   }
 
   /* Clear AK map flag */
 
-  header.ak_map ^= (1 << akno);
+  header.ak_map &= ~(1u << akno);
 
   /* Does this file use relocated indices? */
 
