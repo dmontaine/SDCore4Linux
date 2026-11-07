@@ -58,8 +58,11 @@ def checks(raw):
        and raw["tmpl"].split("\n")[:3] == ["V", "CA", "$tool_gates"], repr((raw["newvoc"][:60], raw["tmpl"][:30])))
     ck("MG2", "it asks the base for a USER app (no audience word) and shows the base's error and stops when it refuses (a window under 140 by 43)",
        "call $tk_open('tool.gates', '', ctx, err)" in pg and "'admin'" not in pg and re.search(r"call \$tk_open\('tool\.gates', '', ctx, err\)\s*\n\s*if err # '' then\s*\n\s*display err\s*\n\s*stop\s*\n\s*end", pg) is not None)
-    ck("MG3", "THE PAGE CHANGES NOTHING: it has no write, delete, execute, perform or chain, runs no command ($tk_run, $tk_runx), opens no confirm box, writes no audit line and opens no file (not the register, not the group file)",
-       not re.search(r"^\s*(?:execute|os\.execute|perform|chain|write[uv]?|delete[uv]?|matwrite|openpath|open|openseq|readu?|readv)\s", pg, re.M) and "$tk_run" not in pg and "$tk_confirm" not in pg and "K$AUDIT" not in pg and "$tk_runx" not in pg)
+    # 7 Nov 26 S.166: ONE exception, the home gate - no kernel key says where the account starts, so the page reads its own register record's ACC$START, once, with no lock.
+    pg3 = pg.replace("            openpath @sdsys : @ds : 'accounts' to st.f then\n               read st.rec from st.f, downcase(@who) then st.word = st.rec<ACC$START>\n", "", 1)
+    ck("MG3", "THE PAGE CHANGES NOTHING: it has no write, delete, execute, perform or chain, runs no command ($tk_run, $tk_runx), opens no confirm box, writes no audit line and opens no file "
+       "(not the group file; the register only for the home gate's start field, read with no lock, S.166)",
+       pg3 != pg and not re.search(r"^\s*(?:execute|os\.execute|perform|chain|write[uv]?|delete[uv]?|matwrite|openpath|open|openseq|readu?|readv)\s", pg3, re.M) and "$tk_run" not in pg and "$tk_confirm" not in pg and "K$AUDIT" not in pg and "$tk_runx" not in pg)
     used = set(re.findall(r"kernel\((K\$[A-Z.]+), -1\)", pg))
     want_keys = {"K$SH", "K$OS.EXEC", "K$SD.ACCOUNTS", "K$VOC.EDIT", "K$BP.EDIT", "K$DICT.EDIT", "K$NET", "K$SHARED.READ", "K$SHARED.WRITE"}
     ck("MG4", "every register gate is what the SESSION holds - the kernel's own answer for that gate, asked with -1 - and the page asks for exactly the nine and for nothing else of the kernel", used == want_keys and len(re.findall(r"kernel\(", pg)) == len(want_keys), repr(sorted(used ^ want_keys)))
@@ -82,7 +85,7 @@ def checks(raw):
        and "call $tk_help('hit', mev, g.x + g.w - 5, g.y + 1, hit.m)" in pg and raw["help"].split("\n")[0].strip() != "" and all(len(re.split(r",(?![^()]*\))", m)) == 5 for m in re.findall(r"call \$tk_help\(([^\n]*)\)", pg)))
     n = len(info_rows)
     ck("MG11", "the page shows all the gates of the table on one screen: VIS (the rows on the screen) is at least the number of gates, the box and the text starts are where the draw routines put them",
-       re.search(r"VIS = (\d+)", pg) is not None and int(re.search(r"VIS = (\d+)", pg).group(1)) >= n and "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 21 : @vm : 138 :" in pg and "VIS = g.h - 5" in pg
+       re.search(r"VIS = (\d+)", pg) is not None and int(re.search(r"VIS = (\d+)", pg).group(1)) >= n and "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 :" in pg and "VIS = g.h - 5" in pg
        and "screen box at g.x,g.y size g.w,g.h title 'What this account may do'" in pg and "for r = 1 to VIS" in pg, "%d gates" % n)
     ck("MG12", "the page starts from the system's answers on every F5 (read.all is called again) and not from a copy it kept", "case nm = 'f5'\n         gosub read.all\n         gosub draw.all" in pg and "gst = ''" in pg)
     ck("MG13", "THE MENU BAR (S.88 F0a pilot): drawn before the frame in the loop, a key goes to $tk_menubar with busy 0 (the page holds nothing Esc closes first) before the page's own case and a bar answer replaces the key by the name to dispatch on, "

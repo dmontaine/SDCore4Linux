@@ -380,6 +380,8 @@ sdsys/gpl.bp/tk_run          : tk-base tool-ai tool-gates tool-sessions tool-acc
 sdsys/gpl.bp/tk_runx         : tk-base tool-ai tool-backups tool-accounts
 sdsys/gpl.bp/tk_gate_info    : tk-base tk-keys tool-ai tool-gates tool-mygates
 sdsys/gpl.bp/tk_gates        : tk-base tk-keys tool-ai tool-gates tool-accounts
+# 7 Nov 26 (S.166): the home gate's state, read by $tk_gates and tool_mygates
+sdsys/gpl.bp/tk_startof      : tool-gates tool-mygates tool-accounts
 # S.88 phase 2 (28 Oct 26): the toolkit's shared guards.  $tk_ownfile is asked by tool.query (&queries&, S2) and tool.bulk (its undo file); $tk_word by tool.voc and tool.files (S4); $tk_brk keeps and
 # gives back the break setting (D4: tk_open, tk_close, sl_cleanup, SED, home).  test-tkguards-units.py holds all three as text.
 sdsys/gpl.bp/tk_ownfile      : tool-query tool-bulk termsafe

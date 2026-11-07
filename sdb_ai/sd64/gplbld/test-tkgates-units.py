@@ -30,7 +30,8 @@ FILES = {
     "gates": os.path.join(SDSYS, "gpl.bp", "tk_gates"),
 }
 FIELDS = ["id", "title", "on", "off", "kind", "field", "group", "key", "when", "default", "slot", "allows", "still", "beyond", "status"]
-NOT_GATE_WORDS = {"BOTH", "SUSPENDED", "UNSUSPENDED", "START-MENU", "START-TERMINAL", "START-DEFAULT", "PINS-ON", "PINS-OFF", "SDSYS-ON", "SDSYS-OFF",
+# 7 Nov 26 (S.166): START-MENU and START-TERMINAL are the home gate's words now; START-DEFAULT (back to the system's default) is still not a gate word.
+NOT_GATE_WORDS = {"BOTH", "SUSPENDED", "UNSUSPENDED", "START-DEFAULT", "PINS-ON", "PINS-OFF", "SDSYS-ON", "SDSYS-OFF",
                   "RECOVERY-ON", "RECOVERY-OFF"}      # 28 Oct 26 (S.88 plan 2.9, D2): the editors' recovery copy, ACC$RECOVERY - a convenience the administrator switches, not a wall, and not yet a row of the gate matrix (a follow-up); 26 Oct 26 (F6): SDSYS-ON / SDSYS-OFF are the sdsys user's membership of the account's group, state in /etc/group, no register field and no row of the gate matrix; words of modify.account that are not one gate's on or off word (22 Oct 26: the three START words are one three-state setting, ACC$START, and PINS-ON / PINS-OFF the permission to add one's own programs to the home screen, ACC$PINS; both are managed on the menu management page, tool.menus, not on tool.gates)
 
 
@@ -63,7 +64,7 @@ def checks(raw):
     built = [r for r in rows if len(r) == len(FIELDS) and r[14] == "built"]
     planned = [r for r in rows if len(r) == len(FIELDS) and r[14] == "planned"]
     add("G2", "a built gate has both words, a kind, a slot and two sentences; a planned gate has no word, no field, no group and no key (it shows as not yet built)",
-        all(r[2] and r[3] and r[4] in ("register", "group") and r[10] and r[11] and r[12] for r in built) and all(not (r[2] or r[3] or r[5] or r[6] or r[7]) for r in planned),
+        all(r[2] and r[3] and r[4] in ("register", "group", "start") and r[10] and r[11] and r[12] for r in built) and all(not (r[2] or r[3] or r[5] or r[6] or r[7]) for r in planned),
         [r[0] for r in built if not (r[2] and r[3] and r[10])])
 
     hdr = re.search(r"^\* id\|(\S+)$", raw["info"], re.M)
@@ -102,8 +103,15 @@ def checks(raw):
     gcreated = set(re.findall(r"gate_grp (\w+) ", raw["installer"]))
     add("G9", "a group gate names a Linux group that modifya puts the person in or out of, and that the installer creates or opens (sdfilesadmin is named in modifya; the installer's open-gates list is its own)",
         all(r[6] and r[6] in raw["modifya"] and r[5] == "" and r[7] == "" for r in grp) and all(r[6] in raw["installer"] for r in grp), [r[0] for r in grp if r[6] not in raw["installer"]])
-    add("G10", "a gate that is on by delivery is exactly shared-read (keys.h: blank means yes for field 13 and for no other gate)",
-        {r[0] for r in rows if r[9] == "on"} == {"shared-read"} and re.search(r"FIELD 13 IS THE ONE GATE WHOSE BLANK MEANS YES", raw["keys"]) is not None, [r[0] for r in rows if r[9] == "on"])
+    add("G10", "a gate that is on by delivery is exactly shared-read (keys.h: blank means yes for field 13 and for no other yes/no gate) and home (the installer's question's default)",
+        {r[0] for r in rows if r[9] == "on"} == {"shared-read", "home"} and re.search(r"FIELD 13 IS THE ONE GATE WHOSE BLANK MEANS YES", raw["keys"]) is not None, [r[0] for r in rows if r[9] == "on"])
+    st = [r for r in built if r[4] == "start"]
+    keys_defs_all = dict(re.findall(r"\$define (ACC\$[A-Z.]+)\s+(\d+)", raw["keys"]))
+    add("G14", "S.166: the one 'start' gate is home: its field is ACC$START (defined in keys.h), it has no group and no kernel key, its words are start-menu / start-terminal in slot ST, "
+        "and $tk_gates reads it through $tk_startof",
+        [r[0] for r in st] == ["home"] and st[0][5] == "ACC$START" and "ACC$START" in keys_defs_all and st[0][6] == "" and st[0][7] == ""
+        and (st[0][2], st[0][3], st[0][10]) == ("start-menu", "start-terminal", "ST")
+        and "case gi<TK.G.KIND> = 'start'" in raw["gates"] and "call $tk_startof(rec<ACC$START>, state)" in raw["gates"], [r[0] for r in st])
     add("G11", "a gate that reaches beyond SD is marked as one wherever the operating system, the network or another server is reached: sh os sd net ssh api files files-write files-admin sockets",
         {r[0] for r in rows if r[13] == "1"} == {"sh", "os", "sd", "net", "ssh", "api", "files", "files-write", "files-admin", "ai", "sockets"}, sorted(r[0] for r in rows if r[13] == "1"))
     add("G12", "no sentence is empty, holds an escape or ends in a full stop (the screens add their own punctuation), and none starts with a capital (they continue 'on allows ...')",

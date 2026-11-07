@@ -17,6 +17,8 @@
 *              names the account (av) before run.queue, so that the leave question can run the queue of an account that is not under the cursor.
 *              After the review: run.queue says whether its command ran without a refusal or an error (rq.ok); Run the changes keeps the page open and shows the
 *              failing account's message when any did not succeed (run.queue clears a queue once the box said Run, so "nothing left" alone was not success).
+* 7 Nov 26 dm  S.166: the home gate is a column (ON the home screen, off the command prompt; words start-menu and start-terminal).  A and N leave it alone: which of the two is
+*              the tighter is not "off", so "all on" and "all off" do not decide where a person starts.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -373,7 +375,7 @@ draw.matrix:
             gosub cell.text
             s := fmt(ct, CW : 'L')
          next k
-         if asu<av> then s := ' suspended'
+         if asu<av> then s := ' susp'                    ;* S.166: seventeen cells leave five columns (the cell box below says "suspended" in full)
       end
       screen text s at mat.x + 2,mat.y + 1 + r attr (if kk = ci and kk <= nv then 'bold' else 'normal') width mtw
    next r
@@ -672,6 +674,7 @@ queue.all:
    n.q = 0
    for k = 1 to NG
       gosub cell.why
+      if gids<k> = 'home' then why = 'where the account starts is not changed by all on or all off'     ;* S.166
       if why = '' then
          aq<av, k> = (if ast<av, k> = tv then '' else tv)
          if aq<av, k> # '' then n.q += 1

@@ -153,7 +153,7 @@ def page(account, cols=140, rows=43):
 def table(h):
     """{gate title: (now, delivered, beyond, when)} from the rows on the screen."""
     out = {}
-    for n in range(3, 19):
+    for n in range(3, 3 + NGATES):              # S.166: 17 gate rows (the gates box is 22 rows tall now)
         l = h.line(n)
         title = l[3:27].strip()
         if title:
@@ -161,8 +161,12 @@ def table(h):
     return out
 
 
+NGATES = 17                                     # S.166: the home gate is the seventeenth
+SUMROW = 3 + NGATES                             # the line that says who is signed on (row 20)
+
+
 def boxb(h):
-    return [h.line(n)[3:138].rstrip() for n in range(23, 33)]
+    return [h.line(n)[3:138].rstrip() for n in range(SUMROW + 4, 33)]     # the box under the gates starts one row lower than before S.166
 
 
 def snapshot():
@@ -201,12 +205,13 @@ def section_page():
          and "tool start" not in (fg.audit_new(a0) or ""), repr((h.line(0)[100:], fg.audit_new(a0))))
     tb = table(h)
     titles = [t for _g, t, _s in gate_titles()]
-    arow("M2", "the sixteen gates, in the table's order, for an account with every register gate off: shared-read ON as delivered, ssh and files ON from the groups, sockets plan",
+    arow("M2", "the seventeen gates, in the table's order (home off: the sandbox's default is the prompt), for an account with every register gate off: shared-read ON as delivered, ssh and files ON from the groups, sockets plan",
          list(tb) == titles and {k: v[0] for k, v in tb.items()} == expected({"shared-read"}, {"ssh", "files"}), repr({k: v[0] for k, v in tb.items()}))
     arow("M2b", "each row says how the gate is delivered and whether it reaches beyond SD, from the table", tb[titles[2]][1] == "off" and tb[titles[2]][2] == "yes" and tb[titles[5]][2] == "no" and tb[titles[9]][1] == "on",
          repr((tb[titles[2]], tb[titles[5]], tb[titles[9]])))
-    L19 = h.line(19)[3:138].rstrip()
-    arow("M4", "the line that says who is signed on, in which account, and how many gates are on for the session", L19.startswith("Signed on as %s in the account %s.  3 of 16 gates are on" % (ME, A1)), repr(L19))
+    L19 = h.line(SUMROW)[3:138].rstrip()
+    arow("M4", "the line that says who is signed on, in which account, and how many gates are on for the session (home off: the sandbox's default is the prompt)",
+         L19.startswith("Signed on as %s in the account %s.  3 of %d gates are on" % (ME, A1, NGATES)), repr(L19))
     B = boxb(h)
     arow("M5a", "the first row (ssh, ON for the person): 'ON for you', what it lets you do, what you still can, the withdrawing word, and that it is about you as a person",
          "Remote terminal [ssh]" in B[0] and "ON for you.  You can sign in to SD over ssh" in B[0] and any("modify.account %s none" % A1 in x for x in B) and any("membership of the Linux group sdssh by your login name, %s" % ME in x for x in B), repr(B[:6]))
@@ -229,8 +234,8 @@ def section_page():
     tb = table(h)
     arow("M3", "an account with sh, sd, voc and net on, os off and shared-read withdrawn: exactly those are ON in the session (what the session holds), and the route gates are the same person's",
          {k: v[0] for k, v in tb.items()} == expected({"sh", "sd", "voc", "net"}, {"ssh", "files"}), repr({k: v[0] for k, v in tb.items()}))
-    L19 = h.line(19)[3:138].rstrip()
-    arow("M4b", "...and the count says 6 of 16", "6 of 16 gates are on" in L19, repr(L19))
+    L19 = h.line(SUMROW)[3:138].rstrip()
+    arow("M4b", "...and the count says 6 of %d" % NGATES, "6 of %d gates are on" % NGATES in L19, repr(L19))
     h.key("ctrl-q", idle=1.2)
     h.end()
 

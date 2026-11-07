@@ -67,8 +67,9 @@ sh.KEYS["f1"] = "\x1b[[A"
 ME = fg.ME
 FAILED_IDS = []
 
-HEAD = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "net", "sh-rd", "sh-wr", "files", "f-wr", "f-adm", "ai", "sock"]
-IDS = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "net", "shared-read", "shared-write", "files", "files-write", "files-admin", "ai", "sockets"]
+HEAD = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "net", "sh-rd", "sh-wr", "files", "f-wr", "f-adm", "ai", "home", "sock"]     # 7 Nov 26 S.166: home
+IDS = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "net", "shared-read", "shared-write", "files", "files-write", "files-admin", "ai", "home", "sockets"]
+NC = len(IDS)
 G2, G3, GG, GO = "zzg2", "zzg3", "zzgg", "zzgo"
 NAMES = [ME, G2, G3, GG, GO]
 
@@ -91,7 +92,7 @@ MUTANTS = {
     "leave-at-once": ("      case nm = 'ctrl-q'\n         gosub leave.ask\n", "      case nm = 'ctrl-q'\n         done = 1\n", ["G19"]),
     "leave-default": ("'&Run the changes,&Leave without them,&Cancel'", "'&Run the changes,&Cancel,&Leave without them'", ["G19"]),
 }
-SECTIONS = ("cell", "queue", "run", "several", "route", "needs", "tighten", "filter", "who", "mouse", "refresh", "group", "small", "allon", "leave")
+SECTIONS = ("cell", "queue", "run", "several", "route", "needs", "tighten", "filter", "who", "mouse", "refresh", "group", "home", "small", "allon", "leave")
 ONLY = None
 
 
@@ -257,7 +258,7 @@ class Page:
             nm = line[3:23].strip()
             if not nm:
                 continue
-            out[nm] = (line[23:29].strip(), [line[29 + 6 * i:35 + 6 * i].strip() for i in range(16)], line[125:138].strip())
+            out[nm] = (line[23:29].strip(), [line[29 + 6 * i:35 + 6 * i].strip() for i in range(NC)], line[29 + 6 * NC:138].strip())
         return out
 
     def cell(self, name, gate):
@@ -285,10 +286,21 @@ def open_page():
     return p
 
 
+def home_default():
+    """S.166: the home cell of an account whose start field is blank: off when SDSYS's start.default says terminal, else ON (no file is the home screen)"""
+    try:
+        with open(os.path.join(sh.SYS, "start.default"), encoding="latin-1") as f:
+            word = f.readline().strip().lower()
+    except OSError:
+        word = ""
+    return "off" if word == "terminal" else "ON"
+
+
 def expect_cells(me_overrides=None):
     """What the five rows should say with the register and groups as they are at the start."""
-    me = ["off"] * 16
+    me = ["off"] * NC
     me[IDS.index("shared-read")] = "ON"
+    me[IDS.index("home")] = home_default()       # S.166: the register's start field is blank, so the cell is the system's default (the sandbox's set-up writes terminal)
     me[IDS.index("sockets")] = "plan"
     z2 = list(me)
     for k in ("ssh", "sh", "os", "sd"):
@@ -347,14 +359,14 @@ def section_open():
          len(re.findall(r"tool start app=tool\.gates$", new, re.M)) == 1 and snapshot() == snap, repr((new[-160:], snapshot() == snap)))
     T = p.text()
     arow("G1a", "the four boxes", all(w in T for w in ("Gates by account", "The cell under the cursor", "Who can reach the operating system", "Sessions of the account under the cursor")), T[:300])
-    head = [p.line(2)[29 + 6 * i:35 + 6 * i].strip() for i in range(16)]
-    arow("G1b", "the sixteen column headings, in the order modify.account carries them out", head == HEAD and p.line(2)[3:9] == "Accoun", repr(head))
+    head = [p.line(2)[29 + 6 * i:35 + 6 * i].strip() for i in range(NC)]
+    arow("G1b", "the seventeen column headings, in the order modify.account carries them out", head == HEAD and p.line(2)[3:9] == "Accoun", repr(head))
     rows = p.rows()
     exp = expect_cells()
     ok = sorted(rows) == sorted(NAMES) and all(rows[n][0] == exp[n][0] and rows[n][1] == exp[n][1] for n in NAMES)
     arow("G1c", "five rows, SDSYS not among them, by name: each with its kind and its sixteen cells read from the register and the scratch groups (ON, off, a dash for a route on a group or "
          "other account, plan for sockets, shared-read ON as delivered)", ok, repr({n: (rows[n][0], rows[n][1]) for n in rows}))
-    arow("G1d", "the suspended account says so at the end of its row", rows[G3][2] == "suspended" and rows[G2][2] == "" , repr((rows[G3][2], rows[G2][2])))
+    arow("G1d", "the suspended account says so at the end of its row (susp: seventeen cells leave five columns)", rows[G3][2] == "susp" and rows[G2][2] == "" , repr((rows[G3][2], rows[G2][2])))
     c1, c2 = p.counts()
     arow("G1e", "the counts: all accounts, 5 of 5, one with a gate on that reaches beyond SD (zzg2; zzgg has sd on, which is also beyond SD: two)", c1.startswith("all accounts: 5 of 5 accounts.  2 with a gate on"), repr(c1))
     arow("G1f", "nothing is queued yet", c2.startswith("Nothing queued for"), repr(c2))
@@ -688,6 +700,40 @@ def section_group_account(p):
     p.typed("u", idle=0.8)
 
 
+def section_home(p):
+    """7 Nov 26 S.166 (owner: "make home vs TCL a gate that can be selected on the gates pane on means home display off means tcl"): the home column, read from register field 16
+    (ACC$START, blank following the system default), switched with modify.account's start words, the register the evidence."""
+    say("\n--- G20: the home gate (ON the home screen, off the command prompt)")
+    p.to(ME, "home")
+    was = field(ME, 16)
+    dflt = home_default()
+    arow("G20a", "the home cell of %s follows the system's default while its start field is blank (start.default here gives %s)" % (ME, dflt),
+         was == "" and p.cell(ME, "home") == dflt, repr((was, dflt, p.cell(ME, "home"))))
+    # The first switch is to the state the default does NOT give, so that the register must change; the second goes back the other way.
+    first_word, first_cell, first_field = ("start-menu", "ON", "menu") if dflt == "off" else ("start-terminal", "off", "terminal")
+    second_word, second_cell, second_field = ("start-terminal", "off", "terminal") if first_cell == "ON" else ("start-menu", "ON", "menu")
+    a1 = fg.audit_off()
+    p.key("enter")
+    arow("G20b", "Enter queues the other state: the cell says %s*" % first_cell, p.cell(ME, "home") == first_cell + "*", repr(p.cell(ME, "home")))
+    p.typed("r", idle=1.5)
+    T = p.text()
+    arow("G20c", "R shows modify.account NAME %s and asks for no name (where a person starts reaches nothing beyond SD)" % first_word,
+         "modify.account %s %s" % (ME, first_word) in T and "so the account name has to be typed" not in T, T[-600:])
+    p.typed("r", idle=2.5)
+    new = fg.audit_new(a1) or ""
+    arow("G20d", "Run: the register's start field is %s, the cell %s, and the audit trail has the verb's line" % (first_field, first_cell),
+         field(ME, 16) == first_field and p.cell(ME, "home") == first_cell and re.search(r"modify\.account %s account=%s$" % (first_word, re.escape(ME)), new, re.M) is not None,
+         repr((field(ME, 16), p.cell(ME, "home"), new[-200:])))
+    p.key("enter")
+    p.typed("r", idle=1.5)
+    T2 = p.text()
+    p.typed("r", idle=2.5)
+    arow("G20e", "Enter, R (modify.account NAME %s), Run again: the field is %s and the cell %s" % (second_word, second_field, second_cell),
+         "modify.account %s %s" % (ME, second_word) in T2 and field(ME, 16) == second_field and p.cell(ME, "home") == second_cell, repr((field(ME, 16), p.cell(ME, "home"))))
+    GG_home = p.cell(GG, "home")
+    arow("G20f", "a group account has the gate too (it applies to every kind of account): its cell is the default, %s, not a dash" % dflt, GG_home == dflt, repr(GG_home))
+
+
 def section_null_and_small():
     say("\n--- G16: the null case, a small window")
     hold = os.path.join(box(), "hold-accounts")
@@ -721,7 +767,7 @@ def section_all_on():
     before = p.rows()[ME][1]
     p.typed("a", idle=1.2)
     cells = p.rows()[ME][1]
-    fixed = [i for i, x in enumerate(before) if x in ("-", "plan")]
+    fixed = [i for i, x in enumerate(before) if x in ("-", "plan")] + [IDS.index("home")]      # S.166: A and N leave where the account starts alone
     arow("G18a", "A: every cell of %s that can change ends ON (ON* where it was off, ON where it was on already), a '-' or 'plan' cell is left alone, at least one was queued, and NOTHING ran (the register, the group file and the helper's calls as before)" % ME,
          all(cells[i] == before[i] for i in fixed) and all(x in ("ON", "ON*") for i, x in enumerate(cells) if i not in fixed) and "ON*" in cells and snapshot() == snap and "R runs them" in st(p.h), repr((before, cells, st(p.h))))
     i_sh = IDS.index("sh")
@@ -859,7 +905,7 @@ def main():
         if mutant in (None, "tighten-queues-on") and chosen("tighten"):
             section_tighten(p)
         if mutant is None:
-            for nm, fn in (("filter", section_filter), ("who", section_who), ("mouse", section_mouse), ("refresh", section_refresh), ("group", section_group_account)):
+            for nm, fn in (("filter", section_filter), ("who", section_who), ("mouse", section_mouse), ("refresh", section_refresh), ("group", section_group_account), ("home", section_home)):
                 if chosen(nm):
                     fn(p)
         p.quit()

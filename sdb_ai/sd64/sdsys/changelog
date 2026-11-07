@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+7 Nov 26   WHERE AN ACCOUNT STARTS - THE HOME SCREEN OR THE COMMAND PROMPT - IS A GATE ON THE GATES PAGE.
+
+             What        - tool.gates has a home column: ON means the account's sessions start at the home screen, off at the
+                           command prompt. Enter on the cell and R switch it, with modify.account NAME start-menu or
+                           start-terminal. An account given neither follows the system's default, which is the installer's
+                           answer to "Start new sessions at the home screen or at the command prompt?" (set.start.default
+                           changes it, modify.account NAME start-default puts an account back on it). The account holder's
+                           own gates page shows the same row.
+             Why         - Where a person starts belongs with the other per-account switches, where the administrator looks.
+             Does NOT    - Change what the Terminal tile does: an account that starts at the home screen still reaches the
+                           prompt only through that tile. A (all on) and N (all off) do not change it.
+
 7 Nov 26   A WINDOW TOO SMALL FOR THE HOME SCREEN SIGNS OUT AN ACCOUNT THAT STARTS THERE.
 
              What        - When an account starts in the home screen and the window is under 140 by 43 (or the screen cannot
