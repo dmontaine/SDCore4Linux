@@ -183,8 +183,10 @@ Next release - in progress
                            was missing unless the administrator knew to add the package.
              Does NOT    - Start, enable or configure gpm itself: a machine where the administrator turned the service off keeps it
                            off. It changes nothing in a desktop terminal, over ssh or in tmux (SD asks gpm only for the terminal type
-                           linux on a text console). Removing SD leaves the gpm package installed, as it leaves git and lynx. A
-                           failure to install it stops the installer with the same message as any other package.
+                           linux on a text console). Removing SD leaves the gpm package installed, as it leaves git and lynx. Stop
+                           the install when gpm cannot be installed (in a container, for example): since 7 Nov 26 gpm has an
+                           apt-get call of its own, a failure prints a warning naming the command to add it later, removes what
+                           was half installed, and the install goes on. SD runs without gpm; there is only no mouse on a console.
 
 3 Nov 26   AN UPGRADE NOW BRINGS THE SYSTEMD UNITS UP TO DATE.
 

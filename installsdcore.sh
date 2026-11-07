@@ -964,13 +964,23 @@ echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
 #   start), and a machine where the administrator disabled it stays as he left it.  It does nothing in a desktop terminal or
 #   over ssh (SD asks it only for the terminal type linux).  deletesdcore.sh leaves it installed, as it leaves git and lynx.
 #   test-install-packages.sh runs this block.
+# 07 Nov 26 - gpm has an apt-get call of its own after the required one, and its failure is a warning, not the end of the install
+#   (owner, 7 Nov 2026: in a container "gpm couldn't be installed and the installation failed ... a gpm installation failure
+#   doesn't kill the install").  SD runs without gpm: there is simply no mouse on a bare console.  A failed install is removed
+#   again (best effort), so that a package dpkg left half-configured does not make every later apt-get on the machine fail.
 # PACKAGES-BEGIN
-if ! sudo apt-get -y install git build-essential micro lynx gpm libsodium-dev libssl-dev openssl openssh-server python3-dev; then
+if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev openssl openssh-server python3-dev; then
     printf "%b\n" "$RED"
     echo "Package installation using apt-get failed.  Exiting script."
     echo "Verify your internet connection and then try again."
     printf "%b\n" "$NC"
     exit 1
+fi
+if ! sudo apt-get -y install gpm; then
+    sudo apt-get -y remove gpm > /dev/null 2>&1 || true
+    printf "%b\n" "$RED"
+    echo "WARNING: gpm could not be installed; the install goes on without a mouse on the Linux console.  To add it later:  sudo apt-get install gpm"
+    printf "%b\n" "$NC"
 fi
 # PACKAGES-END
 # run this along as only required on Ubuntu 26.04 and
