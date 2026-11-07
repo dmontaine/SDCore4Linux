@@ -170,7 +170,7 @@ gplsrc/reccache.c            : @files
 gplsrc/txn.c : trans-b43 txnstatus coll collfile sysexc @core
 gplsrc/sdfix.c               : sdfixseq akcase fixes-b12 tools
 gplsrc/sdidx.c               : akcase idx-nocase tools
-gplsrc/sdconv.c              : nocase upgradenocase
+gplsrc/sdconv.c              : nocase upgradenocase tools
 gplsrc/op_seqio.c            : @seq prof getdev editgates ide-path
 gplsrc/op_coll.c             : coll collfile dbgcoll jsonx
 # 20 Oct 26 (the CSV / JSON / XML task): op_csv.c is FORMCSV and the CSV intrinsics, op_json.c is merge / patch / path / validate, op_xml.c is XPARSE / XBUILD / XPATH.

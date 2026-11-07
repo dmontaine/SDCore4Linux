@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 06 Nov 26 dm  S.152: fatal() and dump() are gone (nothing called them; found by linking with --gc-sections), and with
+ *               fatal() the only longjmp to sd_exit, so its setjmp "disaster exit" and <setjmp.h> go too.
  * 27 Oct 26 dm  S.87 batch 5: the -l option (apply a new licence: it set a flag nothing read) is gone; "sd -l" is an unrecognised option like any other.
  * 26 Oct 26 dm  clean_stop() ends with sd_tls_relay_finish(): an API server waits for its TLS relay to deliver the last reply before it exits (sd_tlssrv.c).
  * 25 Oct 26 dm  "sd -start -nodaemon": start SD without forking sdlnxd, which its own service unit (sd-lnxd.service) starts and restarts.  start_sd() takes the choice.
@@ -75,7 +77,6 @@
  * START-CODE
  */
 
-#include <setjmp.h>
 #include <time.h>
 #include <stdarg.h>
 /* 20240126 mab add syslog */
@@ -114,8 +115,6 @@ void dump_sysseg(bool dump_config);
 void show_users(void);
 void show_status(void);
 void kill_user(char *user);
-
-Private jmp_buf sd_exit;
 
 Private void sd_init(int argc, char *argv[]);
 Private void check_admin(void);
@@ -192,12 +191,6 @@ int main(int argc, char *argv[]) {
         puptr->puid = 0;
       }
     }
-    clean_stop();
-    return status; /* TODO: add a custom return value for this failure. */
-  }
-
-  /* Disaster exit */
-  if (setjmp(sd_exit)) {
     clean_stop();
     return status; /* TODO: add a custom return value for this failure. */
   }
@@ -604,53 +597,6 @@ help:
   fprintf(stderr, "      -start      Start system (-start -nodaemon: without sdlnxd, which its service unit starts)\n");
   fprintf(stderr, "      -stop       Stop system\n");
   return FALSE;
-}
-
-/* ======================================================================
-   Fatal error handler                                                    */
-
-void fatal() {
-  longjmp(sd_exit, 1);
-}
-
-/* ======================================================================
-   dump()  -  General purpose memory dump function                        */
-
-void dump(u_char *addr, int32_t bytes) {
-  int32_t i;
-  int16_t j;
-  u_char c;
-
-  for (i = 0; i < bytes; i += 16) {
-    /* Offset */
-
-    printf("%08X: ", i);  // was lX -Wformat=2 issue
-
-    /* Hex */
-
-    for (j = 0; j < 16; j++) {
-      if (i + j < bytes)
-        printf("%02X", addr[i + j]);
-      else
-        printf("  ");
-      if ((j % 4) == 3)
-        printf(" ");
-    }
-
-    printf(" | ");
-
-    /* Character */
-
-    for (j = 0; (j < 16) && (i + j < bytes); j++) {
-      c = *(addr + i + j);
-      printf("%c", (c < 32) ? '.' : c);
-    }
-
-    printf("\n");
-  }
-
-  if (bytes % 16 != 0)
-    printf("\n");
 }
 
 /* ======================================================================

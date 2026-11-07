@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 06 Nov 26 dm  S.152: removed what nothing called (found by linking with --gc-sections): op_illegal2 (no dispatch table
+ *               names it) and the DescrError helpers k_dh_error, k_null_id and k_strnum_len; the DescrError list is one
+ *               entry per line now.
  * 02 Nov 26 dm  S.102 stage 3: audit_message() ends every record of a scheduled job's run with " job=<name>" (sd_job_active, set by K_JOB_MARK).
  * 27 Oct 26 dm  S.87 batch 16: k_unassigned_zero/_null, k_div_zero_warning and k_non_numeric_warning (messages 1109 to 1112) are gone with OPTION UNASS.WARNING,
  *               DIV.ZERO.WARNING and NON.NUMERIC.WARNING: an unassigned variable, a divide by zero and a non-numeric value are always errors.
@@ -277,28 +280,24 @@ void op_illegal() {
   k_error("Illegal opcode x%02X", (unsigned int)(*(pc - 1)));
 }
 
-void op_illegal2() {
-  k_error("Illegal opcode x%02X%02X", (unsigned int)(*(pc - 2)),
-          (unsigned int)(*(pc - 1)));
-}
-
 /* ======================================================================
    General descriptor based message handler                               */
 
 #define DescrError(msg_no, name) \
   void name(DESCRIPTOR* descr) { k_descr_error(msg_no, descr); }
 
-DescrError(1100, k_index_error) DescrError(1101, k_dh_error)
-    DescrError(1102, k_not_array_error) DescrError(1103, k_value_error)
-        DescrError(1104, k_non_numeric_error) DescrError(1105, k_unassigned)
-            DescrError(1106, k_null_id) DescrError(1107, k_illegal_id)
-                DescrError(1108, k_div_zero_error)
-                    DescrError(1113, k_data_type)
-                        DescrError(1137, k_strnum_len)
-                            DescrError(1138, k_not_socket)
+/* 06 Nov 26 S.152: one per line; k_dh_error (1101), k_null_id (1106) and k_strnum_len (1137) are gone, nothing raised them */
+DescrError(1100, k_index_error)
+DescrError(1102, k_not_array_error)
+DescrError(1103, k_value_error)
+DescrError(1104, k_non_numeric_error)
+DescrError(1105, k_unassigned)
+DescrError(1107, k_illegal_id)
+DescrError(1108, k_div_zero_error)
+DescrError(1113, k_data_type)
+DescrError(1138, k_not_socket)
 
-                                                Private
-    void k_descr_error(int16_t msg_no, DESCRIPTOR* descr) {
+Private void k_descr_error(int16_t msg_no, DESCRIPTOR* descr) {
   char* var;
   char message[80 + 1];
   char* p;

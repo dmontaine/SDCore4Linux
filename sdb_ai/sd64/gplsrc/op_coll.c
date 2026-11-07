@@ -8,6 +8,7 @@
  * same collection and COLLECTION(c) makes an independent copy.
  *
  * START-HISTORY:
+ * 06 Nov 26 dm  S.152: the wrappers coll_json_build, coll_fill_entry and coll_value_of are gone; nothing called them.
  * 28 Oct 26 dm  S.87: the PMATRIX descriptor type and AH_PICK_STYLE are gone: matrix_span() has the one case.
  * 13 Oct 26 dm  New. COLLECTION(), element get, set and delete, ELEMENT.EXISTS()
  *               and ENUMERATE().
@@ -2001,18 +2002,6 @@ int32_t coll_number_len(unsigned char* s, int32_t len, bool* is_int) {
 
 DESCRIPTOR coll_json_parse(char* text, int32_t len, int mode) {
   return json_parse(text, len, mode);
-}
-
-DESCRIPTOR coll_json_build(COLL_HEADER* root, int mode) {
-  return json_build(root, mode);
-}
-
-void coll_fill_entry(COLL_ENTRY* ent, DESCRIPTOR* v) {
-  fill_entry(ent, v);
-}
-
-DESCRIPTOR coll_value_of(COLL_ENTRY* e) {
-  return value_of(e);
 }
 
 /* END-CODE */

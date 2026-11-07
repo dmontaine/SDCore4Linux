@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+6 Nov 26   CODE THAT NOTHING COULD RUN IS REMOVED FROM THE C SOURCE, INCLUDING SDCONV'S OLD HASHED-FILE CONVERTER.
+
+             What        - Eighteen C functions that no part of SD could reach are gone: a few unused error helpers, wrappers and
+                           a memory-dump routine, and the seven functions (545 lines) that converted hashed files between byte
+                           orders, which sdconv has not been able to call since it began refusing hashed files on 18 Oct.
+             Why         - Code that cannot run still has to be read, reviewed and kept compiling. The hashed-file converter also
+                           read past the end of an array, a fault that could never show only because the code never ran.
+             Does NOT    - Change anything SD does: every removed function was unreachable, found by linking every program with the
+                           linker's unused-code removal and then checking each name in the source. sdconv still converts compiled
+                           programs and still refuses a hashed file with the same message.
+
 6 Nov 26   SD IS COMPILED WITH OPTIMISATION, AND FIVE MEMORY FAULTS THE COMPILER THEN REPORTED ARE FIXED.
 
              What        - The C is built with -O2 (with -fwrapv and -fno-strict-aliasing) and with the run-time buffer checks

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 06 Nov 26 dm  S.152: os_sd_accounts_open() is gone; nothing called it (found by linking with --gc-sections).
  * 02 Nov 26 dm  S.96 M4: resolve_name() refuses a name that is a link whose target does not exist (it used to be taken as a new name and judged
  *               inside the directory, so a write through it created a file wherever the link pointed).  K$PATH.IN and the OS gate both ask it.
  * 24 Oct 26 dm  W.11 F9: every privilege and gate test reads the process's own words (MY_ADMIN, MY_PRIV, MY_GATE: sysseg.h), not the user table entry;
@@ -310,10 +311,6 @@ Private bool user_in_group(const char *group) {
       return TRUE;
   }
   return FALSE;
-}
-
-bool os_sd_accounts_open(void) {
-  return MY_PRIV(USR_ADMIN | USR_OS_EXEC | USR_SD_ACCOUNTS);
 }
 
 Private bool path_in_enterable_account(const char *name) {

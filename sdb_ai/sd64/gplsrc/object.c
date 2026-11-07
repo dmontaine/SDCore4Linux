@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 06 Nov 26 dm  S.152: is_global() is gone; nothing called it (found by linking with --gc-sections).
  * 28 Oct 26 dm  S.88 phase 2: hsm_dump() writes each program name by the kernel's one rule (show_ts_safe(), op_lock.c: 0-31, 127, 128-159,
  *               248-255 as '?'); it went out raw into the $IPC record H<n> that HSM USER n prints, and into kernel(K$HSM, 2).
  * 28 Oct 26 dm  S.87: OPTION FORCE.RELOAD is gone: stale_objects(), object_is_stale(), refresh_subr_object() and OBJ_STALE are removed.
@@ -412,13 +413,6 @@ exit_op_loaded:
 
 void op_unload() {
   unload_all();
-}
-
-/* ======================================================================
-   is_global() - Is object code from global catalogue?                    */
-
-bool is_global(void* obj_hdr) {
-  return (((OBJECT*)(((char*)obj_hdr) - OBJHDRSIZE))->flags & OBJ_GLOBAL) != 0;
 }
 
 /* ======================================================================
