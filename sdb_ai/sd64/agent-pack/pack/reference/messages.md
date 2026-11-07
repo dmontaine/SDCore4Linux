@@ -10156,6 +10156,15 @@ The standing text is given as hexadecimal ASCII, at most 4000 characters
 
 cited by: `setai`
 
+### msg:14015
+> kind=message tier=reference since=- src=sdsys/messages/14015:1#27affe50
+
+```
+This account starts at the home screen, which could not open, so the session is signed out
+```
+
+cited by: `home_entry`
+
 ### msg:1402
 > kind=message tier=reference since=- src=sdsys/messages/1402:1#3f084312
 

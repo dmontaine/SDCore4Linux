@@ -38,6 +38,8 @@
 *               a pick window of the page's tiles ($tk_pickrec 'list'); typing narrows it and Enter moves the focus to the tile chosen.
 * 03 Nov 26 dm  The hint row and the date line are drawn in the role desktop, the page's own, not disabled: the blue theme's disabled paints the
 *               palette's blue behind the text, which a terminal palette may show light (the owner's GNOME Terminal: pale text on light blue, "unreadable").
+* 7 Nov 26 dm   S.164: /tkhome/ gains hrefused, set when $tk_open refuses at the start, so !home_entry signs the session out.  A window made too small during a
+*               command is NOT signed out: the reopen holds it behind $sl_guard's size lock until it is big enough (the owner: "lock user input until it is the right size").
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -134,7 +136,7 @@ $define H.TILE.OFF 'turned off for this account by the administrator'     ;* why
 $define H.AI.OFF   'the AI is not on for this account'                    ;* why F6 and AI > Ask the AI do nothing here
 $define H.TOP.PAGE 'this is the top page'                                 ;* why Go > Back cannot be chosen on the top page
 
-   common /tkhome/ hflag, hlogto, hstart
+   common /tkhome/ hflag, hlogto, hstart, hrefused     ;* S.164: hrefused is set when the screen could not open, for !home_entry to sign the session out
 
    prompt ''
 
@@ -143,11 +145,12 @@ $define H.TOP.PAGE 'this is the top page'                                 ;* why
       stop
    end
    hlogto = 0
-   menu.session = hstart + 0                            ;* 3 Nov 26: 1 when !home_entry (the account starts in the menu) or EXIT (back from the Terminal tile) started this screen, 0 when the person typed HOME at the prompt
+   menu.session = hstart + 0                           ;* 3 Nov 26: 1 when !home_entry (the account starts in the menu) or EXIT (back from the Terminal tile) started this screen, 0 when the person typed HOME at the prompt
    hstart = 0                                           ;* taken: a later HOME typed at the prompt the screen gave is typed
 
    call $tk_open('home', '', ctx, err)
    if err # '' then
+      hrefused = 1                                      ;* S.164: read by !home_entry after the EXECUTE
       display err
       stop
    end
@@ -1317,8 +1320,23 @@ wait.key:
 
 * Take the screen again after a command (or a LOGTO) and draw the page; the window may have changed, and the account may be another
 reopen:
+* S.164 (the owner, 7 Nov 26: "if the window is shrunk the default is to show only a portion of the home screen and lock user input until it is the right size, not
+*   log the person out"): a window made too small during a command is held behind the library's size lock, as a window shrunk with the screen up is, until it is big
+*   enough again.  Only Ctrl-Q then y in the lock (or input that ended) leaves: a session's own screen signs out, a screen typed at the prompt goes back to it.
+   loop
+      call $sl_need('home', TK.MINW, TK.MINH, need.msg, '')
+   while need.msg # '' do
+      call $sl_guard('home', TK.MINW, TK.MINH, TK.MINW - 1, TK.MINH - 1, guard.res, 'layout')
+      if guard.res = 'quit' then
+         if menu.session then hrefused = 1
+         outcome = 'closed'
+         done = 1
+         return
+      end
+   repeat
    call $tk_open('home', '', ctx, err)
    if err # '' then
+      if menu.session then hrefused = 1                 ;* S.164: a session's own screen that cannot open again is not a way to the prompt
       display err
       outcome = 'closed'
       done = 1

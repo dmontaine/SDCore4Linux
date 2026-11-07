@@ -36,6 +36,8 @@
 # program writes, to stderr (the journal), has the uid, the provider, the status and the sizes - never the text, never the key.
 #
 # START-HISTORY:
+# 7 Nov 26 dm   S.163 (the owner: "it is impossible to give ai access to sdsys, it should be available to sdsys"): may_ask() - the administrator (sdsys, root) may
+#               ask without the sdaiusers gate, which sdsys could never be given (modify.account refuses the name); status's "gate" says the same.
 # 7 Nov 26 dm   S.160, the standing text (the owner: "a standard text that will be included with every AI query ... editable but supplied with the default text"):
 #               set what=context keeps the administrator's text in the state directory, status hands it (or the shipped default) to a gate member and the administrator.
 # 3 Nov 26 dm   Follow-up questions (the owner: "Add, shown in preview"): an ask may carry "history", a list of at most 3 earlier exchanges {"q": question, "a": answer}, which SD
@@ -246,6 +248,13 @@ def is_admin(uid):
         return pwd.getpwnam(ADMIN_USER).pw_uid == uid
     except KeyError:
         return False
+
+
+def may_ask(uid):
+    """S.163: the administrator may always ask; anyone else only as a member of the gate group.  sdsys cannot be given the gate (modify.account
+    refuses the account name sdsys, 2202), and the administrator is the one who turns the AI on at all (provider, model, key), so asking
+    the gate of it only made the AI unreachable from SDSYS."""
+    return uid is not None and (is_admin(uid) or in_group(uid, GATE_GROUP))
 
 
 # ---------------------------------------------------------------------------------------------------- key, limits
@@ -516,7 +525,7 @@ def status_reply(state, conf, table, uid, providers_path=DEFAULT_PROVIDERS):
         sel = selected(conf, table)
     except Refuse as e:
         return {"t": "err", "code": e.code, "msg": e.msg}
-    out = {"t": "status", "provider": sel[0] if sel else "", "model": sel[2] if sel else "", "gate": in_group(uid, GATE_GROUP) if uid is not None else False}
+    out = {"t": "status", "provider": sel[0] if sel else "", "model": sel[2] if sel else "", "gate": may_ask(uid)}
     out["key"] = bool(sel) and os.path.isfile(os.path.join(state, "keys", sel[0]))
     if out["gate"] or (uid is not None and is_admin(uid)):
         out["context"], out["context-from"] = read_context(state, providers_path)        # S.160: sent by SD with every request, shown in its preview
@@ -679,7 +688,7 @@ def handle(line, fd, state, providers_path):
             return admin_op(state, providers_path, req), "-"
         except Refuse as e:
             return {"t": "err", "code": e.code, "msg": e.msg}, "-"
-    if uid is None or not in_group(uid, GATE_GROUP):
+    if not may_ask(uid):
         if req["op"] == "ask" or uid is None:
             return {"t": "err", "code": "nogate", "msg": "this account may not use the AI"}, "-"
     try:

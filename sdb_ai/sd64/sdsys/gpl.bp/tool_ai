@@ -7,6 +7,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 7 Nov 26 dm   S.163: the Accounts box's header and the explanation say that SDSYS, the administrator, may always use the AI and has no gate.
 * 7 Nov 26 dm   S.160: T opens the standing text (the text sent first with every AI request) in a box with an editor: Save, Shipped default, Cancel; SET.AI CONTEXT keeps it.
 * 1 Nov 26 dm   GOOGLE IS A ROW (Anthropic, OpenAI, Google, DeepSeek, Custom: five rows, the Provider box one row taller) AND EVERY NAMED PROVIDER HAS A DEFAULT MODEL (the owner, 1 Nov 2026:
 *               "pre-filled in except for the key ... an option for a user specified model"): the table and the summary show the model that will be asked, a default marked (default), the
@@ -397,7 +398,8 @@ draw.detail:
    return
 
 draw.accounts:
-   screen text fmt('Account', '24L') : fmt('Linux user', '24L') : 'AI gate' at tx,ac.y + 1 attr 'header' width tw
+* 7 Nov 26 S.163: the header says that SDSYS needs no gate (the owner: "The ai setup pane needs to indicate that the sdsys user always has access to the ai").
+   screen text fmt('Account', '24L') : fmt('Linux user', '24L') : fmt('AI gate', '12L') : 'SDSYS, the administrator, may always use the AI and has no gate.' at tx,ac.y + 1 attr 'header' width tw
    if ci <= ta then ta = ci - 1
    if ci > ta + VISA then ta = ci - VISA
    if ta < 0 then ta = 0
@@ -425,7 +427,7 @@ draw.accounts:
 * In plain sentences
 draw.effect:
    lines = ''
-   lines<-1> = 'One provider and one model serve every account.  The AI is off as delivered: it needs a provider, its key (a default model comes with each named provider) and an account whose ai gate is on.'
+   lines<-1> = 'One provider and one model serve every account.  The AI is off as delivered: it needs a provider, its key (a default model comes with each named provider) and an account whose ai gate is on; SDSYS needs no gate.'
    lines<-1> = "The key is typed at the AI helper's own prompt and kept for the helper only; it does not pass through SD and this page never shows it.  What an account sends leaves this machine for the provider checked above, over https with the certificate checked."
    if pane = 1 then
       p = provs<pi>

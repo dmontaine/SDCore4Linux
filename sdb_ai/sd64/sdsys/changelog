@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+7 Nov 26   A WINDOW TOO SMALL FOR THE HOME SCREEN SIGNS OUT AN ACCOUNT THAT STARTS THERE.
+
+             What        - When an account starts in the home screen and the window is under 140 by 43 (or the screen cannot
+                           open for another reason), the session now says so and is signed out. It used to be left at the
+                           command prompt whenever the account's Terminal tile was on. The same holds when the window is
+                           made too small while a command run from the home screen is under way.
+             Why         - The prompt should be reached through the Terminal tile, not by shrinking a window.
+             Does NOT    - Change anything for an account that starts at the prompt, or for home typed at the prompt: that
+                           stays at the prompt. Change what happens when a screen that did open is ended: that still follows
+                           the Terminal tile.
+
+7 Nov 26   SDSYS MAY USE THE AI.
+
+             What        - The administrator may now ask the AI, from the ai verb and from the AI line of every page, once a
+                           provider, a model and a key are set. Every other account still needs its ai gate.
+             Why         - The AI asked every caller for the ai gate, and SDSYS could never be given it: modify.account
+                           refuses the account sdsys. So the person who chooses the provider and pays for the key was the
+                           one who could not use it.
+             Does NOT    - Open the AI to any other account, or turn the AI on: it stays off until the administrator sets a
+                           provider and a key. Let the AI see SD's own code or system files from SDSYS: that wall is unchanged.
+
 7 Nov 26   INSTALLING OVER ssh IN A CONTAINER (A VPS) NOW SETS THE SD PASSWORDS AND CAN OPEN ssh FOR sdsys.
 
              What        - On a VPS that is an unprivileged container, installed over ssh, the installer could not set the

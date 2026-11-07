@@ -97,8 +97,19 @@ def checks(s):
     ck("H1 the register field: ACC$START is field 16, and no other ACC$ name uses 16", re.search(r"\$define ACC\$START\s+16\b", kh) is not None
        and len(re.findall(r"\$define ACC\$[A-Z.]+\s+16\b", kh)) == 1)
 
-    common = "common /tkhome/ hflag, hlogto, hstart"
+    common = "common /tkhome/ hflag, hlogto, hstart, hrefused"
     ck("H2 tool_home, home_entry and exit declare the named common alike: " + common, all(common in x for x in (th, he, ex)))
+    # 7 Nov 26 S.164 (owner: "Yes, always sign out"): a home screen that could not OPEN signs a menu-start session out, whatever the Terminal tile says.
+    ck("H2b S.164: tool_home sets hrefused when $tk_open refuses at the START, and home_entry clears it before the EXECUTE and, after it, "
+       "signs out with 14015 when it is set - BEFORE the Terminal tile is asked",
+       th.count("call $tk_open('home', '', ctx, err)\n   if err # '' then\n      hrefused = 1") == 1
+       and ordered(he, "hrefused = 0", "execute 'home'", "if hrefused then", "display sysmsg(14015)", "execute 'quit'", "call !home_off(@who, off)"))
+    rop = between(th, "\nreopen:\n", "\n   return\n")
+    ck("H2c S.164: a reopen after a command does NOT sign out on a small window: it waits in $sl_guard's size lock while $sl_need says the window is too small, "
+       "and only the lock's quit leaves (signing out a session's own screen), all before $tk_open is asked",
+       ordered(rop, "loop\n      call $sl_need('home', TK.MINW, TK.MINH, need.msg, '')", "while need.msg # '' do",
+               "call $sl_guard('home', TK.MINW, TK.MINH, TK.MINW - 1, TK.MINH - 1, guard.res, 'layout')", "if guard.res = 'quit' then",
+               "if menu.session then hrefused = 1", "call $tk_open('home', '', ctx, err)"), rop[:300])
 
     ck("H3 tool_home: a session with no terminal is refused BEFORE the screen is asked for (@tty must begin /dev/, message 11863), and hlogto starts at 0",
        0 < th.find("if @tty[1, 5] # '/dev/' then") < th.find("sysmsg(11863)") < th.find("call $tk_open('home', '', ctx, err)") and "hlogto = 0" in th)

@@ -641,11 +641,13 @@ def main():
         say("\n--- a window that is too small")
         set_default("menu")
         h = H("zzhm", cols=100, rows=30)
+        h.s._pump(3.5)                                  # home_entry sleeps 2 s after the message before it signs out
         T = h.text()
-        row("a 100 by 30 window on a start-menu account is not handed to the screen: no tile is drawn, the library's size message is shown and the prompt is there",
-            not h.home() and h.prompt() and re.search(r"140", T) is not None, T[-400:])
-        h.typed("who.am.i\r", idle=1.2)
-        row("...and the session works", re.search(r"Account\s*:\s*zzhm", h.text()) is not None, h.text()[-200:])
+        # 7 Nov 26 S.164 (owner: "Yes, always sign out"): the prompt is no longer the way out of a screen that could not open.  zzhm's Terminal tile is ON,
+        #   which is the case that used to give the prompt; with it off the session was signed out already.
+        row("S164a a 100 by 30 window on a start-menu account is not handed to the screen: no tile is drawn, the library's size message and 14015 are shown",
+            not h.home() and re.search(r"140", T) is not None and "which could not open, so the session is signed out" in T, T[-400:])
+        row("S164b ...and the session is SIGNED OUT, not left at the prompt, although the account's Terminal tile is on", not h.alive(), T[-300:])
         h.end()
 
         say("\n--- the panel scrolls (the sandbox's copy of tool_home with thirty extra tiles in the table)")
@@ -701,6 +703,34 @@ def main():
         T = h.text()
         row("...Enter brings the screen back as it was left: the header and a filler tile are there, the question is gone, and the filler tile is still the one selected (the page keeps its scroll, so the heading 'My tools' may be off the top)",
             "Switch account" in T and "Filler" in T and "Press Enter to return" not in T and any("r" in h.style(r, c)[2] for r in range(6, 38) for c in (5, 27, 51, 73, 97, 119)), T[-300:])
+        # 7 Nov 26 S.164 (owner: "if the window is shrunk the default is to show only a portion of the home screen and lock user input until it is the right size, not log the person out"):
+        #   the window made too small while a tile's command is running is held in the size lock when the screen comes back, and the session is NOT signed out.
+        h.key("enter", idle=1.8)
+        row("S164c SETUP: the filler tile runs again and asks for Enter", re.search(r"Press Enter to return\s*$", h.text(), re.M) is not None, h.text()[-200:])
+        h.s.resize(100, 30, idle=0.8)
+        h.typed("\r", idle=2.5)
+        T = h.text()
+        row("S164c the window made 100 by 30 during the command: the screen comes back behind the size lock (its warning, which names Ctrl-Q), no tile, and NOT the sign-out message",
+            "Ctrl-Q" in T and "140 by 43" in T and not h.home() and "which could not open, so the session is signed out" not in T, T[-400:])
+        row("S164d ...and the session is still there, not signed out", h.alive(), "")
+        h.typed("x", idle=0.8)
+        row("S164e a key in the lock is ignored: the warning is still there and the session alive", "Ctrl-Q" in h.text() and h.alive() and not h.home(), h.text()[-200:])
+        h.s.resize(140, 43, idle=0.8)
+        page = lambda: "Switch account" in h.line(2) and h.line(40).startswith("[Home]")     # the scrolled page: "Everyone" may be off the panel
+        for _ in range(8):                              # the lock looks at the window about once a second
+            h.s._pump(1.0)
+            if page():
+                break
+        drawn_alone = page()
+        say("    (S164f: the page drew by itself after the resize: %s)" % drawn_alone)
+        # S.165: it does not - the page stays blank until a key (F5 draws it whole).  A repaint in the reopen and on the next resize did not help (7 Nov), so the
+        #   row asks what S.164 promises (the lock lets go, the session lives, a key brings the page) and S.165 holds the blank page.
+        if not drawn_alone:
+            h.key("f5", idle=1.5)
+        ok = page() and h.alive()
+        if not ok:
+            dump(h, 45)
+        row("S164f the window made 140 by 43 again: the lock lets go and the session is at its home screen", ok, repr(h.text()[-300:]))
         h.end()
     finally:
         teardown()

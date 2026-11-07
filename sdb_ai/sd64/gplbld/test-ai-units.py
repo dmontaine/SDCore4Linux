@@ -132,7 +132,10 @@ def check_a(t):
     row("it never prints to stdout (the one reply is written with os.write on the connection)", not re.search(r"\bprint\(|sys\.stdout", c), "")
     row("the gate group is sdaiusers and the administrator user for the settings and for status is sdsys", 'GATE_GROUP = "sdaiusers"' in c and 'ADMIN_USER = "sdsys"' in c, "")
     h = c[c.index("def handle("):c.index("def serve(")]
-    row("in handle() the gate is asked BEFORE the settings are read (in_group comes before parse_kv)", h.index("in_group(uid, GATE_GROUP)") < h.index("parse_kv("), "")
+    row("in handle() the gate is asked BEFORE the settings are read (may_ask comes before parse_kv)", h.index("if not may_ask(uid):") < h.index("parse_kv("), "")
+    m = c[c.index("def may_ask("):c.index("def ", c.index("def may_ask(") + 4)]
+    row("may_ask (S.163): the administrator OR a member of the gate group, and nobody else; no uid is never let through",
+        "return uid is not None and (is_admin(uid) or in_group(uid, GATE_GROUP))" in m and m.count("return") == 1, "")
     row("in handle() the key is read after the model and before the request is checked, the limits are counted before the call, and the call is last", h.index("selected(conf, table)") < h.index("read_key(")
         < h.index("counters(state, uid, time.time(), limits, count=True)") < h.index("ask(state, conf"), "")
     row("in handle() set, keyset and keyclear reach admin_op only for the administrator: is_admin is asked first, and a caller who is not gets noadmin", ordered(h, 'req["op"] in ("set", "keyset", "keyclear")',

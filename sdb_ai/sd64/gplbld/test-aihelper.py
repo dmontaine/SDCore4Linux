@@ -194,6 +194,17 @@ def rows(env, fm):
     env.member(True)
     r = env.ask()
     row("a member is let through: an ok reply with the text, the token counts and the provider", r["t"] == "ok" and r["text"] == fakemodel.PLAIN_TEXT and r["in"] == 11 and r["out"] == 7 and r["provider"] == "anthropic", repr(r))
+    # S.163 (7 Nov 26): the administrator is never in the gate group (modify.account refuses the name sdsys), and may ask all the same.
+    env.member(False)
+    env.admin(True)
+    r = env.ask()
+    row("the administrator, NOT in the group, is let through all the same (S.163)", r["t"] == "ok" and r["text"] == fakemodel.PLAIN_TEXT, repr(r))
+    r = env.ask(op="status")
+    row("and the administrator's status says the gate is on (S.163)", r["t"] == "status" and r["gate"] is True, repr(r)[:200])
+    env.admin(False)
+    r = env.ask()
+    row("the same caller, no longer the administrator and not in the group, is refused again: the grant is the administrator's alone", r["t"] == "err" and r.get("code") == "nogate", repr(r))
+    env.member(True)
     rp, wp = os.pipe()
     r = env.ask(fd=(rp, wp))
     row("a connection that is not a socket (a pipe) is refused: the uid cannot be known, so fail closed", r["t"] == "err" and r.get("code") == "nogate", repr(r))
@@ -787,7 +798,7 @@ def rows_context(env, fm):
 
 
 MUTANTS = [
-    ("the gate is not asked", "    if uid is None or not in_group(uid, GATE_GROUP):\n", "    if False:\n"),
+    ("the gate is not asked", "    if not may_ask(uid):\n", "    if False:\n"),
     ("certificate verification off", "    ctx.check_hostname = True\n    ctx.verify_mode = ssl.CERT_REQUIRED\n", "    ctx.check_hostname = False\n    ctx.verify_mode = ssl.CERT_NONE\n"),
     ("host name not checked", "    ctx.check_hostname = True\n", "    ctx.check_hostname = False\n"),
     ("the reply is not cut to ASCII", "        text, replaced = hygiene(text)\n", "        replaced = 0\n"),
@@ -826,6 +837,11 @@ MUTANTS += [
     ("a link is followed to the kept text", "            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)", "            fd = os.open(path, os.O_RDONLY)"),
     ("an empty value does not put the default back", "        try:\n            os.remove(path)\n        except FileNotFoundError:\n            pass\n        return {\"t\": \"ok\", \"context\": \"default\"}",
      "        return {\"t\": \"ok\", \"context\": \"default\"}"),
+]
+M_S163 = len(MUTANTS)           # 7 Nov 26 (the administrator may ask): --selftest --from=M_S163
+MUTANTS += [
+    ("the administrator needs the gate like anyone", "    return uid is not None and (is_admin(uid) or in_group(uid, GATE_GROUP))", "    return uid is not None and in_group(uid, GATE_GROUP)"),
+    ("anyone at all may ask", "    return uid is not None and (is_admin(uid) or in_group(uid, GATE_GROUP))", "    return uid is not None"),
 ]
 
 
