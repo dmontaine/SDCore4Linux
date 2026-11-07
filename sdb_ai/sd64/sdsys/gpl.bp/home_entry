@@ -4,6 +4,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 7 Nov 26 dm   S.167 (the owner: "Exempt sdsys"): the administrator is left at the prompt when the home screen could not open, not signed out.
 * 7 Nov 26 dm   S.164 (the owner: "where the default is to open an account in home, the user should not be able to get to the TCL prompt by just having a window
 *               that is too small"; asked whether to sign out even when the Terminal tile is on: "Yes, always sign out"): when the home screen could not OPEN
 *               (hrefused, set by tool_home: a window too small, or no screen), the session is signed out with message 14015 whatever the tiles say.
@@ -82,7 +83,10 @@ $include int$keys.h
 
 * S.164: a screen that could not OPEN (a window too small, no screen) is never the way to the prompt for an account that starts in the menu, whatever its tiles:
 *   the person is signed out, and says so.  Only the opening counts: what ends a screen that did open is decided below, by the Terminal tile, as before.
+* S.167 (the owner, 7 Nov 26: "Exempt sdsys"): the administrator is not signed out.  SDSYS follows the system's default and modify.account refuses the account,
+*   so on a machine reached only by ssh a small terminal was no way in at all; the administrator is left at the prompt, which it may use anyway.
    if hrefused then
+      if kernel(K$ADMINISTRATOR, -1) then return
       display sysmsg(14015)                    ;* This account starts at the home screen, which could not open, so the session is signed out
       sleep 2
       execute 'quit'

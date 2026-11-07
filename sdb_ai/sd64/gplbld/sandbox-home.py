@@ -649,6 +649,15 @@ def main():
             not h.home() and re.search(r"140", T) is not None and "which could not open, so the session is signed out" in T, T[-400:])
         row("S164b ...and the session is SIGNED OUT, not left at the prompt, although the account's Terminal tile is on", not h.alive(), T[-300:])
         h.end()
+        # 7 Nov 26 S.167 (owner: "Exempt sdsys"): the administrator at the same small window is left at the prompt.
+        h = H(None, admin=True, cols=100, rows=30)
+        h.s._pump(3.5)
+        T = h.text()
+        row("S167a the administrator at 100 by 30: the size message, no 14015, the prompt, and the session alive",
+            re.search(r"140", T) is not None and "which could not open, so the session is signed out" not in T and h.prompt() and h.alive(), T[-400:])
+        h.typed("who.am.i\r", idle=1.2)
+        row("S167b ...and the prompt works (WHO.AM.I answers)", re.search(r"Admin\?\s*:\s*Yes", h.text()) is not None or "Account" in h.text(), h.text()[-300:])
+        h.end()
 
         say("\n--- the panel scrolls (the sandbox's copy of tool_home with thirty extra tiles in the table)")
         src = open(os.path.join(SYS, "gpl.bp", "tool_home"), encoding="latin-1").read()

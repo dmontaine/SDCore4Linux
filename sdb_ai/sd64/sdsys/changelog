@@ -20,7 +20,8 @@ Next release - in progress
                            command prompt whenever the account's Terminal tile was on. The same holds when the window is
                            made too small while a command run from the home screen is under way.
              Why         - The prompt should be reached through the Terminal tile, not by shrinking a window.
-             Does NOT    - Change anything for an account that starts at the prompt, or for home typed at the prompt: that
+             Does NOT    - Sign out SDSYS: the administrator is left at the prompt, so a small terminal over ssh is still a way
+                           in. Change anything for an account that starts at the prompt, or for home typed at the prompt: that
                            stays at the prompt. Change what happens when a screen that did open is ended: that still follows
                            the Terminal tile.
 
