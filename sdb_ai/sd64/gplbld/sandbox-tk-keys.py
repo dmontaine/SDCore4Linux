@@ -9,6 +9,7 @@
 #
 # START-HISTORY:
 # 22 Oct 26 dm  New (S.75, TK-1).
+# 8 Nov 26 dm   S.172: the Ctrl-T cycle has seven themes (night and paper after mono): mono night paper blue classic dark light mono.
 # END-HISTORY
 #
 # WHAT IS HELD.  The screen is read from the emulator (termscreen.py) after the bytes a terminal of each type sends for a key were typed (the sequences are those of
@@ -190,18 +191,16 @@ def main():
         say("\n--- the theme (Ctrl-T) and a terminal with no colour")
         t = Term(box, "tool.keys")
         press(t, "\x14")
-        # 29 Oct 26 (S.88 3.7a): the order is the library's ($sl_theme 'next'): blue classic dark light mono; the sandbox's sd.conf has no SCREENTHEME, so the page starts in mono
-        row("Ctrl-T on xterm from mono: the theme is blue (the Terminal box and the keys' message)", "Theme       blue" in text(t), repr(t.line(40)))
+        # 29 Oct 26 (S.88 3.7a): the order is the library's ($sl_theme 'next'); 8 Nov 26 (S.172): blue classic dark light mono night paper, so from mono the next is night.
+        # The sandbox's sd.conf has no SCREENTHEME, so the page starts in mono.
+        row("Ctrl-T on xterm from mono: the theme is night (the Terminal box and the keys' message)", "Theme       night" in text(t), repr(t.line(40)))
         sc = t.s.screen
         rw, cw = next(((r_, l_.find("window       sample")) for r_, l_ in enumerate(t.lines()) if "window       sample" in l_), (0, 0))
-        say("    [measured] blue window style: %r" % (sc.style(rw, cw + 14),))
+        say("    [measured] night window style: %r" % (sc.style(rw, cw + 14),))
         row("...and the Styles box is drawn in it: the window style has colours now", sc.style(rw, cw + 14)[0] is not None or sc.style(rw, cw + 14)[1] is not None, repr(sc.style(rw, cw + 14)))
-        press(t, "\x14")
-        row("Ctrl-T again: classic", "Theme       classic" in text(t), repr(t.line(40)))
-        press(t, "\x14")
-        row("Ctrl-T again: dark", "Theme       dark" in text(t), repr(t.line(40)))
-        press(t, "\x14")
-        row("Ctrl-T again: light", "Theme       light" in text(t), repr(t.line(40)))
+        for want in ("paper", "blue", "classic", "dark", "light"):
+            press(t, "\x14")
+            row("Ctrl-T again: %s" % want, "Theme       %s" % want in text(t), repr(t.line(40)))
         press(t, "\x14")
         row("Ctrl-T once more: mono again", "Theme       mono" in text(t), repr(t.line(40)))
         t.end()
