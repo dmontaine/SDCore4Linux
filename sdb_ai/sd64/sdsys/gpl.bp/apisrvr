@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 8 Nov 26 dm   Kimi's review: request 70 operation 9 (delete.file) forgot the file number even when the verb refused (the file still on the disk, the number
+*               dead).  The file is now opened again under its number after every operation, a delete included, and the number is forgotten only when it
+*               does not open - what is on the disk decides, not the verb's return code (which said 0 for "Data part is open" until deletef was fixed).
 * 28 Oct 26 dm  S.87: QMEvaluate and QMEvalConv refuse a C item with message 11342, whose text no longer lists C (the type list in vb.evaluate is DASI).
 * 28 Oct 26 dm  S.87: the C dictionary item type is gone: dcomp says message 11993 and makes no object code; the other programs no longer treat a C item as an I-type.
 * 28 Oct 26 dm  S.87: CLOSESEQ and EQU are gone as statements: this program says CLOSE and EQUATE.
@@ -3014,15 +3017,13 @@ if fa.op = 8 or fa.op = 9 then fa.cmd := ' no.query'
 if fa.names.file then close files(fno)
 execute fa.cmd capturing response
 st = @system.return.code
+* 8 Nov 26: ONE reopen for every operation.  A delete that worked leaves nothing to open, so the number is forgotten; a delete the verb refused leaves the file,
+*   which opens again under the same number, and the client's handle stays good.
 if fa.names.file then
-   if fa.op = 9 then
-      file.names<fno> = ''
+   if upcase(fa.name[1,5]) = 'DICT ' then
+      open 'DICT', trim(fa.name[6,9999]) to files(fno) else file.names<fno> = ''
    end else
-      if upcase(fa.name[1,5]) = 'DICT ' then
-         open 'DICT', trim(fa.name[6,9999]) to files(fno) else file.names<fno> = ''
-      end else
-         open fa.name to files(fno) else file.names<fno> = ''
-      end
+      open fa.name to files(fno) else file.names<fno> = ''
    end
 end
 return to return.status.set

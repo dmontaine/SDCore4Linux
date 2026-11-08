@@ -104,7 +104,7 @@ PINS = {
                      "if mx >= tx and mx <= tx + tw - 1 and my >= lst.y + 2 and my <= lst.y + 1 + VA then", "ci = ta + my - (lst.y + 1)", "if dcount(lines, @fm) > DV then", "na - (DV - 4)"],
     "tool_ai": ["call $tk_layout('refresh', ctx, '', lay.chg)\n            gosub lay.get", "screen box at pr.x,pr.y size pr.w,pr.h", "screen box at dt.x,dt.y size dt.w,dt.h", "screen box at ac.x,ac.y size ac.w,ac.h",
                 "screen box at ef.x,ef.y size ef.w,ef.h", "call $tk_help('mark', mk.px, mk.py, 0, 0)", "call $tk_help('mark', mk.ax, mk.ay, 0, 0)", "call $tk_help('hit', mev, mk.px, mk.py, hit.prov)",
-                "call $tk_help('hit', mev, mk.ax, mk.ay, hit.acc)", "case mx >= pr.x + 1 and mx <= pr.x + pr.w - 2 and my >= pr.y + 2 and my <= pr.y + 5", "pi = my - (pr.y + 1)",
+                "call $tk_help('hit', mev, mk.ax, mk.ay, hit.acc)", "case mx >= pr.x + 1 and mx <= pr.x + pr.w - 2 and my >= pr.y + 2 and my <= pr.y + 1 + nprov", "pi = my - (pr.y + 1)",   # 8 Nov 26: was pr.y + 5, one row short of Custom (Kimi's review)
                 "case mx >= ac.x + 1 and mx <= ac.x + ac.w - 2 and my >= ac.y + 2 and my <= ac.y + 1 + VISA", "if ta + my - (ac.y + 1) <= an then ci = ta + my - (ac.y + 1)",
                 "call $tk_wrap(lines<wi>, tw, pieces)", "for r = 1 to DV", "for r = 1 to EV", "at tx,pr.y + pr.h - 2 attr 'bold' width tw", "at tx,ac.y + ac.h - 2 attr 'bold' width tw", "mk.py = pr.y + 1", "mk.ay = ac.y + 1"],
     "tool_menus": ["call $tk_layout('refresh', ctx, '', lay.chg)\n            gosub lay.get", "screen box at acl.x,acl.y size acl.w,acl.h", "screen box at mnu.x,mnu.y size mnu.w,mnu.h", "screen box at wat.x,wat.y size wat.w,wat.h",

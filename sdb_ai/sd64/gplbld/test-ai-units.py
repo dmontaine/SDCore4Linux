@@ -387,7 +387,7 @@ def check_d(t):
     ids = [ln.split("|")[0] for ln in re.findall(r'rows<-1> = "([^"]*)"', t["tk_gate_info"])]
     row("the gate table has one 'ai' row: group sdaiusers, words ai-on and ai-off, off as delivered, reaching beyond SD, built, listed after files-admin and before the planned sockets",
         len(cols) == 15 and cols[2:4] == ["ai-on", "ai-off"] and cols[4] == "group" and cols[6] == "sdaiusers" and cols[9] == "off" and cols[13] == "1" and cols[14] == "built"
-        and ids.index("ai") == ids.index("files-admin") + 1 and ids.index("sockets") == ids.index("ai") + 1, repr(gi))
+        and ids.index("ai") == ids.index("files-admin") + 1 and ids.index("sockets") > ids.index("ai"), repr(gi))   # 8 Nov 26: S.166 put the home row between ai and sockets
 
 
 GROUP_A_MUTANTS = [

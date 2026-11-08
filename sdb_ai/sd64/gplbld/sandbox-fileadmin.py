@@ -30,6 +30,7 @@ import re
 import struct
 import subprocess
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -263,6 +264,20 @@ def main():
         r("V6 create.file zznew MINIMUM.MODULUS 3 (operation 8, no file number): OK, an ordinary session counts it (0 records), and the session can OPEN it by name",
           v8 is not None and v8[0] == 0 and cnt == 0 and op4[0] is not None, repr((v8, cnt, op4)))
         if op4[0] is not None:
+            # 8 Nov 26 (Kimi's review): a delete the VERB refuses.  H holds zznew open, so delete.file stops with "Data part ... is open"; the server used to forget
+            # the number all the same (the file on the disk, the handle dead), and the verb's return code said 0.  The holder is a session of its own, Z, which is ENDED
+            # afterwards: closing the file number is not enough, the server process keeps the file in its cache and DELETE.FILE still finds it open.
+            Z = Wire("FZ")
+            zl = Z.login(ACC)
+            hz = Z.open4("zznew")[0] if zl[0] == 0 else None
+            v9r = fileadmin(A, 9, op4[0]) if hz is not None else None
+            r("V7a delete.file (operation 9) on zznew while H holds it open: the verb refuses - reply OK, STATUS() non-zero, the words 'is open' come back - and the file is still there (an ordinary session counts it)",
+              hz is not None and v9r is not None and v9r[0] == 0 and v9r[1] != 0 and b"is open" in v9r[2] and count_records("zznew") == 0, repr((hz, v9r[:3] if v9r else v9r)))
+            a9 = fileadmin(A, 1, op4[0])
+            r("V7b ...and the number it was opened under still works: analyse.file through it is served and names zznew (it used to be 'Invalid file number')",
+              a9 is not None and a9[0] == 0 and b"zznew" in a9[2], repr(a9))
+            Z.close()
+            time.sleep(1.0)                  # the server process of Z ends when its pipes close
             v9 = fileadmin(A, 9, op4[0])
             op5 = A.open4("zznew")
             r("V7 delete.file (operation 9) on zznew, through the number it was opened under: OK, and the file is gone - the name no longer opens (ELSE), an ordinary session cannot count it",
@@ -342,7 +357,9 @@ def main():
                 "refused request=70 route=sdfiles write=on admin=off", "refused request=71 route=sdfiles write=on admin=off", "refused request=68 route=sdfiles write=on admin=off",
                 "admin request=70 op=analyse.file file=zzh", "admin request=70 op=configure.file file=zzh", "admin request=70 op=create.index file=zzh", "admin request=70 op=build.index file=zzh",
                 "admin request=70 op=build.index file=zzh",                     # V2a (the verb refused) and V3 (it ran): the audit line is written before the command, whatever the verb says
-                "admin request=70 op=disable.index file=zzh", "admin request=70 op=delete.index file=zzh", "admin request=70 op=create.file file=zznew", "admin request=70 op=delete.file file=zznew",
+                "admin request=70 op=disable.index file=zzh", "admin request=70 op=delete.index file=zzh", "admin request=70 op=create.file file=zznew",
+                "admin request=70 op=delete.file file=zznew", "admin request=70 op=analyse.file file=zznew",      # V7a (the verb refused: zznew held open by Z) and V7b
+                "admin request=70 op=delete.file file=zznew",
                 "admin request=70 op=create.file file=zzdirx", "admin request=70 op=delete.file file=zzdirx", "refused request=72 route=sdfiles write=on admin=on",
                 "admin request=70 op=analyse.file file=dict zzh"]      # E1: the name the file was opened under, a dictionary as 'dict zzh'
         r("U1 the 'api refused ... admin=' and 'api admin ...' lines of the whole run are exactly these %d, in this order, all user=%s (refusals first, then every verb that ran; nothing for the "

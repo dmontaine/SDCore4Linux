@@ -7,6 +7,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 8 Nov 26 dm   Kimi's review: a click on the fifth provider row (Custom) was ignored - the hit box stopped at pr.y + 5, the size before Google; it now follows nprov.
+*               The standing text's Save box said the text is "shown in each preview"; it is not shown there (S.160), and the box now says so.
 * 7 Nov 26 dm   S.163: the Accounts box's header and the explanation say that SDSYS, the administrator, may always use the AI and has no gate.
 * 7 Nov 26 dm   S.160: T opens the standing text (the text sent first with every AI request) in a box with an editor: Save, Shipped default, Cancel; SET.AI CONTEXT keeps it.
 * 1 Nov 26 dm   GOOGLE IS A ROW (Anthropic, OpenAI, Google, DeepSeek, Custom: five rows, the Provider box one row taller) AND EVERY NAMED PROVIDER HAS A DEFAULT MODEL (the owner, 1 Nov 2026:
@@ -573,7 +575,7 @@ on.mouse:
       mx = mev<3>
       my = mev<4>
       begin case
-         case mx >= pr.x + 1 and mx <= pr.x + pr.w - 2 and my >= pr.y + 2 and my <= pr.y + 5
+         case mx >= pr.x + 1 and mx <= pr.x + pr.w - 2 and my >= pr.y + 2 and my <= pr.y + 1 + nprov
             pi = my - (pr.y + 1)
             pane = 1
             gosub redraw
@@ -836,7 +838,7 @@ do.context:
          cx.sent = 'set.ai context ' : oconv(cx.new, 'MX0C')
          cx.show = 'set.ai context <the text above, ' : len(cx.new) : ' characters, as hexadecimal>'
          el = ''
-         el<-1> = 'Every AI request from every account will begin with this text (' : len(cx.new) : ' characters), shown in each preview.'
+         el<-1> = 'Every AI request from every account will begin with this text (' : len(cx.new) : ' characters); it is not shown in the preview.'
          el<-1> = 'A text that names SD' : "'" : 's own code or build is refused.'
    end case
    call $tk_confirm(cx.show, el, '', res, cmsg)

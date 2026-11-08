@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+8 Nov 26   THREE FIXES FROM A REVIEW OF THE BASIC CODE: A REFUSED REMOTE DELETE.FILE, A CLICK ON CUSTOM, A WRONG SENTENCE.
+
+             What        - A client's DELETE.FILE through the API (file administration, request 70) that the verb refused - the
+                           file open in another session, say - left the file on the disk but the file number dead, and was
+                           reported with status 0. The number now stays good and the status is the verb's (-3021, no exclusive
+                           access). DELETE.FILE itself now returns that code when it stops because the data or dictionary part
+                           is open. On the AI page (tool.ai) a click on the Custom provider row now selects it. The box that
+                           saves the standing text no longer says the text is shown in each preview: it is not.
+             Why         - Found by a review of the Dev branch. A client had to reopen a file that had not gone; Custom could
+                           be reached only from the keyboard; the sentence contradicted what the preview does.
+             Does NOT    - Change a delete that works (the number is forgotten, as before), or show the standing text anywhere.
+
 7 Nov 26   SDSYS ALWAYS STARTS AT THE COMMAND PROMPT.
 
              What        - A session of SDSYS, the administrator, now starts at the prompt (and stays there after a

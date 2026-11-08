@@ -204,6 +204,14 @@ def provider_section():
     arow("T1d", "the summary says the AI is off (no provider is selected)", h.line(9)[3:].startswith("The AI is OFF: no provider is selected."), repr(h.line(9)[3:80]))
     arow("T2", "a [?] at the end of the Provider box and of the Accounts box", h.line(2)[134:137] == "[?]" and h.line(25)[134:137] == "[?]", repr((h.line(2)[130:139], h.line(25)[130:139])))
     arow("T1e", "the row under the cursor is described: the Anthropic request layout, the x-api-key header and the version header", all(w in h.text() for w in ("anthropic  (the Messages API)", "x-api-key: <key>", "2023-06-01", "max_tokens")), h.text()[1500:2600])
+    # ------------------------------------------------------------------------------------------ the mouse on the provider rows (8 Nov 26, Kimi's review: the hit box stopped one row short of Custom)
+    hl = lambda r_: "r" in h.style(r_, 5)[2]             # the row under the cursor is drawn highlighted (reverse)
+    h.click(10, 6)
+    arow("T1f", "CONTROL: a click on the DeepSeek row (the fourth) puts the cursor there", hl(6) and not hl(3), repr([hl(r_) for r_ in range(3, 8)]))
+    h.click(10, 7)
+    arow("T1g", "a click on the Custom row (the fifth, the last) puts the cursor there", hl(7) and not hl(6), repr([hl(r_) for r_ in range(3, 8)]))
+    h.click(10, 3)
+    arow("T1h", "a click on the Anthropic row puts the cursor back on the first row", hl(3) and not hl(7), repr([hl(r_) for r_ in range(3, 8)]))
     # ------------------------------------------------------------------------------------------ select a provider
     say("\n--- Enter on a provider")
     a0 = fg.audit_off()
@@ -435,6 +443,11 @@ def context_section():
     T = h.text()
     arow("T32", "typing a line at the top and Save shows the Run / Cancel box naming set.ai context and the size; Cancel is the default",
          "set.ai context <the text above," in T and "as hexadecimal>" in T, T[:800])
+    # the sentence wraps inside the box, and the page's own boxes show beside it on the same screen rows, so the two halves are matched on consecutive rows
+    TL = T.split("\n")
+    wrapped = any("it is not shown in" in TL[i] and "the preview." in TL[i + 1] for i in range(len(TL) - 1)) or any("it is not shown in the preview." in l for l in TL)
+    arow("T32b", "the box says the text is NOT shown in the preview (8 Nov 26, Kimi's review: it said 'shown in each preview', which the preview does not do)",
+         wrapped and "shown in each" not in T, repr([l for l in TL if "preview" in l or "begin with" in l]))
     h.key("esc", idle=1.5)
     arow("T33", "Cancel in that box runs nothing: no file, the status says nothing was run", ctx_text() is None, repr((st(h), ctx_text())))
     a1 = fg.audit_off()
