@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+8 Nov 26   THE AI PAGE SETS THE KEY AND THE MODEL IN ONE FORM, AND CHECKS THE MODEL AGAINST THE PROVIDER'S OWN LIST.
+
+             What        - On tool.ai, K opens one form with the model and the key; the key is shown as * as it is typed or
+                           pasted, and left empty it keeps the key already set. Save sets the key, asks the provider for its
+                           list of models with it, and refuses in the form a name the list does not hold, naming the one that
+                           differs only in capitals. M picks the model from that list once a key is set. At the prompt,
+                           set.ai models PROVIDER prints the list and set.ai model warns about a name the provider does not
+                           list. A refused AI request now shows the provider's own reason after the HTTP status ("HTTP 400:
+                           Model Not Exist"), with any copy of the key taken out. DeepSeek's default model is now
+                           deepseek-flash.
+             Why         - A model typed as Deepseek-V4-Pro (the name is deepseek-v4-pro) came back as a bare "HTTP 400", and
+                           DeepSeek had retired the shipped default, deepseek-chat, so a new setup failed the same way.
+             Does NOT    - Keep the key out of SD when it is entered in the form: it passes through SD's memory and a file only
+                           sdsys can reach, removed at once (never a command line or the audit trail). set.ai key PROVIDER at
+                           the prompt still keeps it out of SD altogether. A provider with no list (a Custom server) is not
+                           checked.
+
 8 Nov 26   THREE FIXES FROM A REVIEW OF THE BASIC CODE: A REFUSED REMOTE DELETE.FILE, A CLICK ON CUSTOM, A WRONG SENTENCE.
 
              What        - A client's DELETE.FILE through the API (file administration, request 70) that the verb refused - the

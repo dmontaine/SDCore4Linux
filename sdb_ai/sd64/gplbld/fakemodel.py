@@ -21,6 +21,8 @@
 # START-HISTORY:
 # 23 Oct 26 dm  New.
 # 3 Nov 26 dm   [[fields_ok]] and [[fields_bad]]: values for the dictionary form's fields (S.97).
+# 8 Nov 26 dm   S.170: GET <base>/models (the list of models, MODELS or the test's own, None for a 404); [[err400]] (DeepSeek's "Model Not Exist") and [[err400key]]
+#               (words that repeat the key and hold an escape sequence).
 # END-HISTORY
 
 import http.server
@@ -35,6 +37,8 @@ import threading
 import time
 
 PLAIN_TEXT = "The answer is forty-two."
+# 8 Nov 26 (S.170): the models GET .../models lists (Google lists its own as models/<name>; one such here, and one name the helper must drop)
+MODELS = ["fake-large", "fake-small", "claude-test", "claude-test-model", "deepseek-v4-pro", "models/gemini-fake", "bad name with spaces"]
 # [[name]] in the LAST line of the prompt picks one of these (the toolkit's AI line asks for ONE JSON object: say, action, arg, command).  act_ide / act_terminal name an action the home
 # screen offers; act_bad one it does not; cmd_list a command; cmd_tab a command with a tab in it (not shown: the line cleans it to a space, so it differs from what was sent); cmd_long
 # one of 300 characters; both an action AND a command; fenced the object inside a code fence with words round it; notjson plain words; sayonly no proposal; argbad an argument with a
@@ -110,6 +114,7 @@ class FakeModel:
 
     def __init__(self, pki, key="test-key-0123456789", cert="server", host="127.0.0.1"):
         self.pki, self.key, self.log, self.count = pki, key, [], {}
+        self.models = list(MODELS)          # S.170: what GET .../models lists; None answers 404 (a server with no list); a test may change it
         fake = self
 
         class H(http.server.BaseHTTPRequestHandler):
@@ -128,6 +133,17 @@ class FakeModel:
                 self.send_header("Content-Length", str(len(out)))
                 for k, v in extra.items():
                     self.send_header(k, v)
+                self.end_headers()
+                self.wfile.write(out)
+
+            def do_GET(self):
+                # 8 Nov 26 (S.170): the list of models, GET <base>/models (the path a request path becomes); an Anthropic-style caller sends x-api-key
+                h = {k.lower(): v for k, v in self.headers.items()}
+                fake.log.append({"path": self.path, "headers": h, "body": b"", "method": "GET"})
+                status, ctype, out, extra = fake.models_answer(self.path, h)
+                self.send_response(status)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(len(out)))
                 self.end_headers()
                 self.wfile.write(out)
 
@@ -162,7 +178,7 @@ class FakeModel:
             prompt = self.user_text(anth, req)
         except (ValueError, KeyError, IndexError, TypeError):
             return self.fail(anth, 400, "bad request")
-        marks = [w for w in ("plain", "err429always", "err429", "err500", "err401", "badjson", "shape", "refuse", "ctrl", "big", "slow", "redirect",
+        marks = [w for w in ("plain", "err429always", "err429", "err500", "err401", "err400key", "err400", "badjson", "shape", "refuse", "ctrl", "big", "slow", "redirect",
                              "trunc", "echo") if "[[%s]]" % w in prompt]
         jmark = [w for w in JSON_REPLIES if "[[%s]]" % w in prompt]          # 23 Oct 26, AI line: replies in the form the toolkit's AI line asks for
         mark = marks[0] if marks else (jmark[0] if jmark else "plain")
@@ -174,6 +190,10 @@ class FakeModel:
             return self.fail(anth, 500, "server error")
         if mark == "err401":
             return self.fail(anth, 401, "invalid key")
+        if mark == "err400":                       # S.170: DeepSeek's answer to a model it does not have; the words must reach the person
+            return self.fail(anth, 400, "Model Not Exist")
+        if mark == "err400key":                    # S.170: a provider that repeats the key in its words: the helper must not pass it on
+            return self.fail(anth, 400, "Bad request for key %s \x1b[31mhere" % self.key)
         if mark == "badjson":
             return 200, "application/json", b"{this is not json", {}
         if mark == "shape":
@@ -195,6 +215,17 @@ class FakeModel:
         if mark == "refuse":
             stop = "refusal"
         return self.ok(anth, req, text, stop)
+
+    def models_answer(self, path, h):
+        """GET .../models: the key checked as for a request (x-api-key when sent, else the bearer token), then {"data": [{"id": ...}]}; 404 when self.models is None."""
+        anth = "x-api-key" in h
+        ok_key = h.get("x-api-key") == self.key if anth else h.get("authorization") == "Bearer " + self.key
+        if not ok_key:
+            return self.fail(anth, 401, "invalid key")
+        if self.models is None or not path.split("?", 1)[0].endswith("/models"):
+            return self.fail(anth, 404, "not found")
+        out = {"data": [{"id": m, "object": "model", "type": "model"} for m in self.models], "has_more": False}
+        return 200, "application/json", json.dumps(out).encode("utf-8"), {}
 
     @staticmethod
     def user_text(anth, req):

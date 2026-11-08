@@ -5,6 +5,11 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 8 Nov 26 dm   S.170 (the owner: "is there any way to verify the model name entry, or provide a dropdown list of valid models", then "Instead of entering the model and key
+*               separately is there any way to do that in a single dialog with the key field displaying asterisks"; warned that the key would then pass through SD, he chose
+*               the single form): SET.AI MODELS provider lists the provider's own model names; SET.AI MODEL warns (14016, 14018) when the provider does not list the name;
+*               SET.AI KEY provider HANDOVER takes the key from the AI page's hand-over file (a directory only sdsys may enter) and removes the file whatever happens.
+*               run.ctl no longer takes a helper's refusal whose words hold "not found" (a provider's "model not found") for an unreachable helper.
 * 7 Nov 26 dm   S.160: SET.AI CONTEXT hex | - (the standing text), put to the wall's screen before the helper keeps it.
 * 23 Oct 26 dm  New (S.69 step 2; the owner: "an ai choice page ... a checkbox for the currently selected provider ... the same model needs to be used by all accounts").
 * END-HISTORY
@@ -16,6 +21,9 @@
 *   SET.AI MODEL provider name | -           the model for a provider (- clears it: the provider's starting model is used again; Custom has none)
 *   SET.AI KEY provider                      asks for the key at the terminal, not shown, and keeps it for the helper only
 *   SET.AI KEY provider CLEAR                removes it
+*   SET.AI KEY provider HANDOVER             (S.170) the key the AI page's form wrote to its hand-over file ($aikey/key in the sdsys directory, a directory of mode 0700); the
+*                                            file is removed after the helper has read it, and when it could not
+*   SET.AI MODELS provider                   (S.170) the provider's own list of model names, asked with its key
 *   SET.AI CUSTOM name url format auth version | - maxparam     the fourth choice, where everything is the administrator's (format anthropic | openai, auth bearer | x-api-key)
 *   SET.AI CUSTOM CLEAR                      forgets the custom connection (not while it is the selected provider)
 *   SET.AI CA path | -                       the file of certificate authorities for a private CA (- is the system store)
@@ -24,7 +32,8 @@
 *
 *   The administrator's verb (the AI choice page, tool.ai, runs it).  It changes nothing itself: the settings live in the AI helper's own directory, and the helper
 *   (sd-ai) makes the change, after asking who is calling by the uid it reads from the connection - this verb runs the helper's client, sd-ai-ctl, as the administrator.
-*   THE KEY NEVER PASSES THROUGH SD: SET.AI KEY hands the terminal to sd-ai-ctl, which reads the key itself without echo.  One provider and one model serve every account;
+*   SET.AI KEY hands the terminal to sd-ai-ctl, which reads the key itself without echo: that key never passes through SD.  The AI page's form (S.170, the owner's choice
+*   after a warning) reads the key in SD and hands it over in a file only sdsys can reach; neither form puts the key on a command line or in the audit trail.  One provider and one model serve every account;
 *   whether an ACCOUNT may use it is the account's own gate (modify.account name ai-on).  Nothing is selected, no model or key is set and no account has the gate as delivered,
 *   so the AI is off until the administrator has done all of that.  A URL for custom is https only, with no query string.  Every change is audited in lower case, with
 *   no key in it.
@@ -95,7 +104,53 @@ $include err.h
          end else
             void kernel(K$AUDIT, 'set.ai model provider=' : prov : ' model=' : model)
             display sysmsg(11613, prov, model)                                            ;* The model for %1 is now %2
+*           S.170: the name is kept either way (a provider's list is not always complete), but a name the provider does not list is said, with the one it lists that differs
+*           only in case (the owner's "Deepseek-V4-Pro" for deepseek-v4-pro).  No list (no key yet, a provider with none, the network) says nothing.
+            gosub list.models
+            if ml.ok and ml.n > 0 then
+               gosub find.model
+               if not(fm.found) then
+                  display sysmsg(14016, prov, model)                                      ;* %1 does not list a model named %2; requests may be refused
+                  if fm.near # '' then display sysmsg(14018, fm.near)                     ;* It lists %1
+               end
+            end
          end
+         @system.return.code = 0
+
+      case sub = 'models' and n.words = 3
+         prov = downcase(field(words, ' ', 3))
+         if index(providers, ' ' : prov : ' ', 1) = 0 then stop sysmsg(11610, prov[1, 40])
+         gosub list.models
+         if not(ml.ok) then
+            @system.return.code = -ER$FAILED
+            stop sysmsg(11608, ml.code, ml.words[1, 120])                                 ;* The AI helper refused: %1 (%2)
+         end
+         display sysmsg(14017, prov, ml.n)                                                ;* %1 lists %2 models:
+         for i = 1 to ml.n
+            display '  ' : ml.list<i>
+         next i
+         @system.return.code = 0
+
+      case sub = 'key' and n.words = 4 and downcase(field(words, ' ', 4)) = 'handover'
+         prov = downcase(field(words, ' ', 3))
+         hand.f = @sdsys : @ds : '$aikey' : @ds : 'key'
+         if index(providers, ' ' : prov : ' ', 1) = 0 then
+            gosub drop.handover
+            stop sysmsg(11610, prov[1, 40])
+         end
+*        The helper's client reads the key from its standard input when that is not a terminal; the file is ITS input, so the key is on no command line.  The file is
+*        removed whatever the client said, and what happened is read back from the helper, as for the typed key.
+         os.execute "'" : ctl : "' 'key' '" : prov : "' < '" : hand.f : "' > /dev/null 2>&1"
+         gosub drop.handover
+         qargs = "'show'"
+         gosub run.ctl
+         gosub check.key
+         if not(key.found) then
+            @system.return.code = -ER$FAILED
+            stop sysmsg(11608, 'nokey', 'the key was not set')                             ;* The AI helper refused: %1 (%2)
+         end
+         void kernel(K$AUDIT, 'set.ai key set provider=' : prov : ' from=page')
+         display sysmsg(11615, prov)                                                      ;* The key for %1 is set
          @system.return.code = 0
 
       case sub = 'key' and n.words = 4 and downcase(field(words, ' ', 4)) = 'clear'
@@ -210,7 +265,8 @@ $include err.h
 run.ctl:
    out = ''
    os.execute "'" : ctl : "' " : qargs : " 2>&1" capturing out
-   if trim(out) = '' or index(out, 'could not be reached', 1) or index(out, 'not found', 1) or index(out, 'No such file', 1) or index(out, 'Permission denied', 1) then
+*  8 Nov 26: a refusal of the helper's (error: ...) is not an unreachable helper, whatever its words hold: a provider's "model not found" passes through it now
+   if trim(out) = '' or (trim(out<1>)[1, 7] # 'error: ' and (index(out, 'could not be reached', 1) or index(out, 'not found', 1) or index(out, 'No such file', 1) or index(out, 'Permission denied', 1))) then
       @system.return.code = -ER$FAILED
       stop sysmsg(11607)                                                                  ;* The AI helper could not be reached ...
    end
@@ -230,6 +286,50 @@ need.ok:
       @system.return.code = -ER$FAILED
       stop sysmsg(11608, 'badreply', first[1, 70])
    end
+   return
+
+* S.170: the provider's own list of model names (prov).  ml.ok 1 with ml.list (one to a field) and ml.n; ml.ok 0 with the helper's ml.code and ml.words.  run.ctl's
+* stops still apply (a helper that cannot be reached ends the verb).
+list.models:
+   qargs = "'models' '" : prov : "'"
+   gosub run.ctl
+   ml.ok = 0 ; ml.list = '' ; ml.n = 0 ; ml.code = '' ; ml.words = ''
+   first = trim(out<1>)
+   if first[1, 7] = 'error: ' then
+      rest = first[8, 999]
+      ml.code = field(rest, ':', 1)
+      ml.words = trim(rest[index(rest, ':', 1) + 1, 999])
+      return
+   end
+   if first[1, 8] # 'models: ' then
+      ml.code = 'badreply'
+      ml.words = first[1, 70]
+      return
+   end
+   ml.ok = 1
+   for i = 2 to dcount(out, @fm)
+      w = trim(out<i>)
+      if w # '' then
+         ml.n += 1
+         ml.list<ml.n> = w
+      end
+   next i
+   return
+
+* fm.found 1 when model is in ml.list exactly; fm.near the listed name that differs from it only in case
+find.model:
+   fm.found = 0
+   fm.near = ''
+   for i = 1 to ml.n
+      if ml.list<i> = model then fm.found = 1
+      if fm.near = '' and downcase(ml.list<i>) = downcase(model) then fm.near = ml.list<i>
+   next i
+   if fm.found then fm.near = ''
+   return
+
+* S.170: the hand-over file goes, whatever happened
+drop.handover:
+   os.execute "rm -f '" : hand.f : "'"
    return
 
 * Whether the show listing (in out) says a key is set for the provider: its block is the line that names it and the line after it

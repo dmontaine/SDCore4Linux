@@ -797,6 +797,92 @@ def rows_context(env, fm):
     env.admin(False)
 
 
+def rows_models(env, fm):
+    """S.170 (8 Nov 26): the provider's list of models (op models, the administrator's), and a refusal that carries the provider's own words."""
+    say("\n--- the list of models and the provider's own words (S.170)")
+    env.reset_counters()
+    env.admin(True)
+    env.member(True)
+    env.conf(provider="deepseek")
+    for f in os.listdir(os.path.join(env.state, "keys")):           # an earlier section's keys (openai's) must not answer for "no key" below
+        os.remove(os.path.join(env.state, "keys", f))
+    env.key("deepseek")
+    env.key("anthropic")
+    fm.models = list(fakemodel.MODELS)
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"deepseek"}\n')
+    got = fm.log[n0] if len(fm.log) > n0 else {}
+    want = sorted(["fake-large", "fake-small", "claude-test", "claude-test-model", "deepseek-v4-pro", "gemini-fake"])
+    row("models for deepseek (the administrator): the provider's names, sorted; Google's models/ prefix taken off; a name with spaces left out",
+        r.get("t") == "models" and r.get("provider") == "deepseek" and r.get("models") == want, repr(r))
+    row("...ONE GET to <base>/models with the key as a bearer token, and no body: nothing of anybody's text goes",
+        len(fm.log) - n0 == 1 and got.get("method") == "GET" and got.get("path") == "/models" and got["headers"].get("authorization") == "Bearer " + KEY and got.get("body") == b"",
+        repr({k: v for k, v in got.items() if k != "headers"}))
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"anthropic"}\n')
+    got = fm.log[n0] if len(fm.log) > n0 else {}
+    row("models for anthropic (not the selected provider): GET /v1/models?limit=1000 with x-api-key and anthropic-version; the same list",
+        r.get("t") == "models" and r.get("models") == want and got.get("path") == "/v1/models?limit=1000" and got["headers"].get("x-api-key") == KEY and got["headers"].get("anthropic-version"),
+        repr((r, got.get("path"))))
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models"}\n')
+    row("models with no provider named asks the selected one (deepseek)", r.get("t") == "models" and r.get("provider") == "deepseek" and fm.log[n0]["path"] == "/models", repr(r))
+    env.admin(False)
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"deepseek"}\n')
+    row("a gate member who is not the administrator is refused (noadmin) and nothing is sent", r.get("code") == "noadmin" and len(fm.log) == n0, repr(r))
+    env.admin(True)
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"openai"}\n')
+    row("a provider with no key: nokey, and nothing is sent", r.get("code") == "nokey" and len(fm.log) == n0, repr(r))
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"martian"}\n')
+    row("a provider that is none of the five: badreq", r.get("code") == "badreq", repr(r))
+    fm.models = None
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"deepseek"}\n')
+    row("a provider that answers 404 (no list): nolist, saying to type the name", r.get("code") == "nolist" and "type" in r.get("msg", ""), repr(r))
+    fm.models = list(fakemodel.MODELS)
+    base = "https://127.0.0.1:%d" % fm.port
+    env.conf(provider="custom", **{"custom.name": "Mine", "custom.url": base + "/generate", "custom.format": "openai", "custom.auth": "bearer", "custom.maxparam": "max_tokens"})
+    env.key("custom")
+    n0 = len(fm.log)
+    r = env.ask(raw=b'{"v":1,"op":"models","provider":"custom"}\n')
+    row("Custom whose address does not end in /chat/completions or /messages: nolist and NOTHING is sent (the list's address cannot be known)", r.get("code") == "nolist" and len(fm.log) == n0, repr(r))
+    # the provider's own words
+    env.conf(provider="deepseek", model__deepseek="Deepseek-V4-Pro")
+    env.reset_counters()
+    r = env.ask("[[err400]]")
+    row("a 400 carries the provider's words: 'the provider refused the request (HTTP 400): Model Not Exist'", r.get("code") == "refused" and r.get("msg") == "the provider refused the request (HTTP 400): Model Not Exist", repr(r))
+    r = env.ask("[[err400key]]")
+    row("words that repeat the key: the key is replaced by <key>, the escape sequence is gone, and the reply holds no key",
+        r.get("code") == "refused" and "<key>" in r.get("msg", "") and KEY not in json.dumps(r) and "\x1b" not in r.get("msg", ""), repr(r))
+    r = env.ask("[[err401]]")
+    row("a 401 says the key was not accepted and NOT the provider's words (a provider may quote part of the key there)",
+        r.get("msg") == "the provider did not accept the key", repr(r))
+    r = env.ask("[[err500]]")
+    row("a 500 (after its one retry) carries the words too: busy ... (HTTP 500): server error", r.get("code") == "busy" and r.get("msg", "").endswith("(HTTP 500): server error"), repr(r))
+    # the administrator's client
+    ctl = os.path.join(HERE, "sd-ai-ctl")
+    runner = os.path.join(HERE, "ai-runner.py")
+    sock = os.path.join(env.tmp, "sock-models")
+    me = __import__("pwd").getpwuid(os.getuid()).pw_name
+    p = subprocess.Popen([sys.executable, runner, "--socket", sock, "--state", env.state, "--providers", env.providers, "--admin-user", me, "--gate-group", env.mygroup,
+                          "--helper", env.helper_path], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    try:
+        if p.stdout.readline().strip() != "ready":
+            row("the test runner started", False, "")
+            return
+        q = subprocess.run([sys.executable, ctl, "--socket", sock, "models", "deepseek"], capture_output=True, text=True, timeout=60)
+        lines = q.stdout.splitlines()
+        row("sd-ai-ctl models deepseek: exit 0, 'models: 6', then one name to a line, indented two spaces", q.returncode == 0 and lines[:1] == ["models: 6"] and [l[2:] for l in lines[1:]] == want
+            and all(l.startswith("  ") for l in lines[1:]), repr((q.returncode, q.stdout, q.stderr)))
+        q = subprocess.run([sys.executable, ctl, "--socket", sock, "models", "openai"], capture_output=True, text=True, timeout=60)
+        row("sd-ai-ctl models openai (no key): exit 1, error: nokey: ...", q.returncode == 1 and q.stdout.startswith("error: nokey:"), repr((q.returncode, q.stdout)))
+    finally:
+        p.terminate()
+        p.wait(timeout=10)
+    env.admin(False)
+
+
 MUTANTS = [
     ("the gate is not asked", "    if not may_ask(uid):\n", "    if False:\n"),
     ("certificate verification off", "    ctx.check_hostname = True\n    ctx.verify_mode = ssl.CERT_REQUIRED\n", "    ctx.check_hostname = False\n    ctx.verify_mode = ssl.CERT_NONE\n"),
@@ -842,6 +928,18 @@ M_S163 = len(MUTANTS)           # 7 Nov 26 (the administrator may ask): --selfte
 MUTANTS += [
     ("the administrator needs the gate like anyone", "    return uid is not None and (is_admin(uid) or in_group(uid, GATE_GROUP))", "    return uid is not None and in_group(uid, GATE_GROUP)"),
     ("anyone at all may ask", "    return uid is not None and (is_admin(uid) or in_group(uid, GATE_GROUP))", "    return uid is not None"),
+]
+M_S170 = len(MUTANTS)           # 8 Nov 26 (the list of models, the provider's words): --selftest --from=M_S170
+MUTANTS += [
+    ("anyone may ask for the list of models", '        if uid is None or not is_admin(uid):\n            return {"t": "err", "code": "noadmin", "msg": "only the administrator may ask for the list',
+     '        if False:\n            return {"t": "err", "code": "noadmin", "msg": "only the administrator may ask for the list'),
+    ("the key is not taken out of the provider's words", '        msg = msg.replace(key, "<key>")', "        pass"),
+    ("the provider's words are not made plain", '    msg, _ = hygiene(msg)\n    msg = " ".join', '    msg = " ".join'),
+    ("the provider's words are given for a 401 too", '    if status in (401, 403):\n        raise Refuse("refused", "the provider did not accept the key")\n    words',
+     '    words'),
+    ("Google's models/ prefix is kept", '            m = m[len("models/"):]', "            pass"),
+    ("a name the helper would refuse is listed", "        if MODEL_RE.match(m):\n            out.add(m)", "        out.add(m)"),
+    ("an unknown Custom address is guessed", "    return None\n\n\ndef list_models", '    return path.rstrip("/") + "/models"\n\n\ndef list_models'),
 ]
 
 
@@ -902,6 +1000,7 @@ def main():
         rows_settings(env, fm)
         rows_ctl(env, fm)
         rows_context(env, fm)
+        rows_models(env, fm)
     finally:
         if fm:
             fm.stop()

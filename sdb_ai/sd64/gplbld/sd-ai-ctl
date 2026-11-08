@@ -19,6 +19,7 @@
 # printed), 2 the helper could not be reached or the command line is wrong.
 #
 # START-HISTORY:
+# 8 Nov 26 dm   S.170: models PROVIDER, the provider's own list of model names ("models: N", then one name to a line, indented).
 # 7 Nov 26 dm   S.160: context HEX | - (the standing text); show says whose it is and its length.
 # 23 Oct 26 dm  New.
 # END-HISTORY
@@ -35,7 +36,7 @@ PROVIDERS = ("anthropic", "openai", "google", "deepseek", "custom")
 
 def usage():
     sys.stderr.write("usage: sd-ai-ctl [--socket PATH] show [--json] | provider NAME|none | model PROVIDER NAME|- | custom NAME URL FORMAT AUTH VERSION|- MAXPARAM |\n"
-                     "                 custom-clear | ca PATH|- | limit NAME NUMBER | key PROVIDER | key-clear PROVIDER | context HEX|-\n")
+                     "                 custom-clear | ca PATH|- | limit NAME NUMBER | key PROVIDER | key-clear PROVIDER | context HEX|- | models PROVIDER\n")
     return 2
 
 
@@ -112,6 +113,8 @@ def main(argv):
                 sys.stderr.write("sd-ai-ctl: the standing text is given as hexadecimal ASCII\n")
                 return 2
         req = {"v": 1, "op": "set", "what": "context", "value": text}
+    elif cmd == "models" and len(rest) == 1:
+        req = {"v": 1, "op": "models", "provider": rest[0]}          # 8 Nov 26 (S.170): the provider's own list, one name to a line
     elif cmd == "key-clear" and len(rest) == 1:
         req = {"v": 1, "op": "keyclear", "provider": rest[0]}
     elif cmd == "key" and len(rest) == 1:
@@ -135,6 +138,10 @@ def main(argv):
         return 1
     if cmd == "show":
         show(reply, rest == ["--json"])
+    elif cmd == "models":
+        print("models: %d" % len(reply.get("models", [])))
+        for m in reply.get("models", []):
+            print("  " + m)
     elif cmd == "key":
         print("The key for %s is set." % rest[0])
     elif cmd == "key-clear":

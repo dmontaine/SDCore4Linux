@@ -11,12 +11,13 @@
 # REQUEST (one line, UTF-8 JSON):  {"v":1,"op":"ask","system":"...","prompt":"...","maxtokens":1024}      or  {"v":1,"op":"status"}
 #                   an ask may also carry "history": [{"q":"...","a":"..."}, ...] (at most 3; a follow-up the person chose and saw in SD's preview)
 # REPLY, one line:  {"t":"ok","text":"...","in":N,"out":N,"provider":"anthropic","truncated":false,"replaced":N}
-#                   {"t":"err","code":"nogate|noadmin|disabled|nomodel|nokey|toobig|limit|net|timeout|refused|busy|declined|badreply|badreq|badconf","msg":"..."}
+#                   {"t":"err","code":"nogate|noadmin|disabled|nomodel|nokey|nolist|toobig|limit|net|timeout|refused|busy|declined|badreply|badreq|badconf","msg":"..."}
 #                   {"t":"status", ...}      (status: provider, model, key set, gate; the connection details only for sdsys and root)
 # THE SETTINGS are changed through the same socket, by sdsys and root ONLY (the caller's uid from SO_PEERCRED, nothing the caller wrote):
 #   {"v":1,"op":"set","what":"provider","value":"openai"}  {"what":"model","provider":"openai","value":"..."}  {"what":"custom","name":..,"url":..,"format":..,"auth":..,
 #   "version":..,"maxparam":..}  {"what":"custom-clear"}  {"what":"ca","value":"/path"}  {"what":"limit","name":"tokens-day","value":"100000"}
 #   {"v":1,"op":"keyset","provider":"openai","key":"..."}   {"v":1,"op":"keyclear","provider":"openai"}
+#   {"v":1,"op":"models","provider":"deepseek"}  -> {"t":"models","provider":..,"models":["...", ...]}: the provider's own list of model names (8 Nov 26), sdsys and root only
 #   {"what":"context","value":"..."} the standing text (S.160; "" puts the shipped default back).  status gives it to a gate member and the administrator as
 #   "context" with "context-from" own | default | none | bad; SD sends it with every request and shows it in the preview.  The default is ai-context beside the
 #   providers file (root-owned, with this program).
@@ -36,6 +37,10 @@
 # program writes, to stderr (the journal), has the uid, the provider, the status and the sizes - never the text, never the key.
 #
 # START-HISTORY:
+# 8 Nov 26 dm   S.170 (the owner, after "Deepseek-V4-Pro" came back as a bare HTTP 400: "is there any way to verify the model name entry, or provide a dropdown list of valid models"):
+#               op models, the administrator's, asks the provider for its list of models (GET .../models with the same key and certificate rules; nothing of anyone's text is
+#               sent); a refusal now carries the provider's own words (cut, ASCII, the key replaced; none for 401 / 403); https_post became https_call, and the network
+#               refusals and the status rules are call_once and check_status, shared by ask and the list.
 # 7 Nov 26 dm   S.163 (the owner: "it is impossible to give ai access to sdsys, it should be available to sdsys"): may_ask() - the administrator (sdsys, root) may
 #               ask without the sdaiusers gate, which sdsys could never be given (modify.account refuses the name); status's "gate" says the same.
 # 7 Nov 26 dm   S.160, the standing text (the owner: "a standard text that will be included with every AI query ... editable but supplied with the default text"):
@@ -82,6 +87,8 @@ MAXPARAMS = ("max_tokens", "max_completion_tokens")
 LIMITS = {"requests-hour": 20, "tokens-day": 100000, "timeout": 30, "bytes-request": 65536, "bytes-reply": 65536, "max-tokens": 1024}
 CONNECT_TIMEOUT = 5
 RAW_CAP = 4 * 1024 * 1024           # the most of a provider's answer that is read at all
+MODELS_MAX = 500                    # the most model names a list gives back
+ERRTEXT_MAX = 160                   # the most of a provider's own error words passed on
 MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,99}$")
 # 7 Nov 26 S.160: the standing text SD sends with every request (the administrator's, or the shipped default beside the providers file)
 CONTEXT_MAX = 4000
@@ -426,8 +433,8 @@ def parse_reply(fmt, raw):
     return text, tin, tout, trunc
 
 
-def https_post(p, path, headers, body, ca_file, timeout):
-    """One POST.  Returns (status, headers, raw).  The context verifies the certificate and the host name; there is no way to turn that off."""
+def https_call(p, method, path, headers, body, ca_file, timeout):
+    """One request (POST or GET).  Returns (status, headers, raw).  The context verifies the certificate and the host name; there is no way to turn that off."""
     ctx = ssl.create_default_context(cafile=ca_file or None)
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.check_hostname = True
@@ -437,7 +444,7 @@ def https_post(p, path, headers, body, ca_file, timeout):
     try:
         conn.connect()
         conn.sock.settimeout(timeout)
-        conn.request("POST", path, body=body, headers=headers)
+        conn.request(method, path, body=body, headers=headers)
         r = conn.getresponse()
         raw = r.read(RAW_CAP + 1)
         return r.status, dict(r.getheaders()), raw
@@ -445,29 +452,74 @@ def https_post(p, path, headers, body, ca_file, timeout):
         conn.close()
 
 
+def call_once(p, method, path, headers, body, ca, left, limits):
+    """https_call with the network failures turned into refusals, and an answer that is far too large refused."""
+    try:
+        status, rh, raw = https_call(p, method, path, headers, body, ca, left)
+    except ssl.SSLCertVerificationError:
+        raise Refuse("net", "the provider's certificate was not accepted")
+    except ssl.SSLError:
+        raise Refuse("net", "the TLS connection failed")
+    except socket.timeout:
+        raise Refuse("timeout", "no answer in %d seconds" % limits["timeout"])
+    except (OSError, http.client.HTTPException):
+        raise Refuse("net", "the provider could not be reached")
+    if len(raw) > RAW_CAP:
+        raise Refuse("badreply", "the provider's answer is far too large")
+    return status, rh, raw
+
+
+def provider_words(raw, key):
+    """8 Nov 26: a short, safe excerpt of the provider's own explanation of a refusal (DeepSeek's 400 says the model does not exist; the helper used to say only "HTTP 400").
+    The message of the error object both formats use; the key, if the provider repeated it, replaced; ASCII only (hygiene), one line, ERRTEXT_MAX characters.  '' when the
+    answer holds no such message.  It goes back to the person who asked, never to a provider."""
+    try:
+        j = json.loads(raw.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return ""
+    msg = ""
+    if isinstance(j, dict):
+        e = j.get("error")
+        if isinstance(e, dict):
+            msg = e.get("message", "")
+        elif isinstance(e, str):
+            msg = e
+        if not msg and isinstance(j.get("message"), str):
+            msg = j["message"]
+    if not isinstance(msg, str):
+        return ""
+    if key:
+        msg = msg.replace(key, "<key>")
+    msg, _ = hygiene(msg)
+    msg = " ".join(msg.split())
+    return msg[:ERRTEXT_MAX]
+
+
+def check_status(status, raw, key):
+    """The refusal for an answer that is not 200 (a redirect, the key, busy, any other), with the provider's own words where it gave some.  The words are left out for
+    401 and 403: a provider may quote part of the key there."""
+    if 300 <= status < 400:
+        raise Refuse("refused", "the provider answered with a redirect, which is not followed")
+    if status in (401, 403):
+        raise Refuse("refused", "the provider did not accept the key")
+    words = provider_words(raw, key)
+    tail = (": " + words) if words else ""
+    if status == 429 or status >= 500:
+        raise Refuse("busy", "the provider is busy or failing (HTTP %d)%s" % (status, tail))
+    if status != 200:
+        raise Refuse("refused", "the provider refused the request (HTTP %d)%s" % (status, tail))
+
+
 def ask(state, conf, name, p, model, key, system, prompt, maxtokens, limits, history=()):
     """The call, with one bounded retry on 429 and 5xx.  Returns (text, tin, tout, truncated)."""
     path, headers, body = build_request(name, p, key, model, system, prompt, maxtokens, history)
-    ca = conf.get("ca-file", "") or None
-    if ca and not plain_path(ca):
-        raise Refuse("badconf", "ca-file is not a plain absolute path")
+    ca = ca_file(conf)
     deadline = time.time() + limits["timeout"]
     for attempt in (1, 2):
         left = deadline - time.time()
         if left <= 0:
             raise Refuse("timeout", "no answer in %d seconds" % limits["timeout"])
-        try:
-            status, rh, raw = https_post(p, path, headers, body, ca, left)
-        except ssl.SSLCertVerificationError:
-            raise Refuse("net", "the provider's certificate was not accepted")
-        except ssl.SSLError:
-            raise Refuse("net", "the TLS connection failed")
-        except socket.timeout:
-            raise Refuse("timeout", "no answer in %d seconds" % limits["timeout"])
-        except (OSError, http.client.HTTPException):
-            raise Refuse("net", "the provider could not be reached")
-        if len(raw) > RAW_CAP:
-            raise Refuse("badreply", "the provider's answer is far too large")
+        status, rh, raw = call_once(p, "POST", path, headers, body, ca, left, limits)
         if status in (429, 500, 502, 503, 504) and attempt == 1:
             try:
                 wait = min(5.0, max(0.5, float(rh.get("Retry-After", "1"))))
@@ -476,16 +528,61 @@ def ask(state, conf, name, p, model, key, system, prompt, maxtokens, limits, his
             if time.time() + wait < deadline:
                 time.sleep(wait)
                 continue
-        if 300 <= status < 400:
-            raise Refuse("refused", "the provider answered with a redirect, which is not followed")
-        if status in (401, 403):
-            raise Refuse("refused", "the provider did not accept the key")
-        if status == 429 or status >= 500:
-            raise Refuse("busy", "the provider is busy or failing (HTTP %d)" % status)
-        if status != 200:
-            raise Refuse("refused", "the provider refused the request (HTTP %d)" % status)
+        check_status(status, raw, key)
         return parse_reply(p["format"], raw)
     raise Refuse("busy", "the provider is busy")
+
+
+def ca_file(conf):
+    ca = conf.get("ca-file", "") or None
+    if ca and not plain_path(ca):
+        raise Refuse("badconf", "ca-file is not a plain absolute path")
+    return ca
+
+
+# ---------------------------------------------------------------------------------------------------- the provider's list of models (8 Nov 26)
+
+def models_path(p):
+    """The path of the provider's list of models, made from its request path: .../chat/completions becomes .../models (OpenAI, DeepSeek, Google's compatible endpoint and
+    the servers that copy them), .../messages becomes .../models (Anthropic).  None for a path that ends otherwise: a Custom server whose layout is not known."""
+    path = urllib.parse.urlsplit(p["url"]).path or "/"
+    for tail in ("/chat/completions", "/messages"):
+        if path.endswith(tail):
+            return path[: -len(tail)] + "/models"
+    return None
+
+
+def list_models(conf, name, p, key, limits):
+    """The model names the provider offers this key, sorted, at most MODELS_MAX, each one a name the helper accepts (MODEL_RE).  One GET to the same host as the requests,
+    with the same key and the same certificate rules; nothing of anybody's text is sent.  Refuse(nolist) when the provider has no list SD knows how to ask for."""
+    path = models_path(p)
+    if path is None:
+        raise Refuse("nolist", "%s has no list of models this helper knows how to ask for: type the model's name" % p.get("name", name))
+    headers = {"Accept": "application/json", "User-Agent": "sd-ai/1"}
+    if p["auth"] == "bearer":
+        headers["Authorization"] = "Bearer " + key
+    else:
+        headers["x-api-key"] = key
+    if p["format"] == "anthropic":
+        headers["anthropic-version"] = p.get("version") or "2023-06-01"
+        path += "?limit=1000"                                         # Anthropic pages its list (20 by default)
+    status, rh, raw = call_once(p, "GET", path, headers, None, ca_file(conf), limits["timeout"], limits)
+    if status == 404:
+        raise Refuse("nolist", "%s gives no list of models: type the model's name" % p.get("name", name))
+    check_status(status, raw, key)
+    try:
+        j = json.loads(raw.decode("utf-8"))
+        data = j["data"]
+        ids = [d["id"] for d in data if isinstance(d, dict) and isinstance(d.get("id"), str)]
+    except (ValueError, UnicodeDecodeError, KeyError, TypeError):
+        raise Refuse("badreply", "the provider's list of models has a shape this helper does not know")
+    out = set()
+    for m in ids:
+        if m.startswith("models/"):                                   # Google names its models models/<name>; requests take the name alone
+            m = m[len("models/"):]
+        if MODEL_RE.match(m):
+            out.add(m)
+    return sorted(out)[:MODELS_MAX]
 
 
 # ---------------------------------------------------------------------------------------------------- one request
@@ -676,11 +773,28 @@ def handle(line, fd, state, providers_path):
     """One request line to one reply dict.  fd is the connection (for the caller's uid)."""
     try:
         req = json.loads(line.decode("utf-8"))
-        if not isinstance(req, dict) or req.get("v") != VERSION or req.get("op") not in ("ask", "status", "set", "keyset", "keyclear"):
+        if not isinstance(req, dict) or req.get("v") != VERSION or req.get("op") not in ("ask", "status", "set", "keyset", "keyclear", "models"):
             raise ValueError
     except (ValueError, UnicodeDecodeError):
         return {"t": "err", "code": "badreq", "msg": "not a request this helper understands"}, "-"
     uid = peer_uid(fd)
+    if req["op"] == "models":
+        # 8 Nov 26: the provider's list of models, for the administrator choosing one (the AI page's M, set.ai models).  The administrator's alone, as the settings are:
+        # it spends the key, and the names are the administrator's choice to make.  Any provider with a key may be asked, not only the selected one.
+        if uid is None or not is_admin(uid):
+            return {"t": "err", "code": "noadmin", "msg": "only the administrator may ask for the list of models"}, "-"
+        try:
+            conf = parse_kv(os.path.join(state, "ai.conf"))
+            table = read_providers(providers_path)
+            name = req.get("provider") or conf.get("provider", "")
+            if name not in PROVIDERS:
+                raise Refuse("badreq", "provider must be one of %s" % ", ".join(PROVIDERS))
+            _n, p, _m = selected(dict(conf, provider=name), table)
+            key = read_key(state, name)
+            limits = {k: int_setting(conf, k) for k in LIMITS}
+            return {"t": "models", "provider": name, "models": list_models(conf, name, p, key, limits)}, name
+        except Refuse as e:
+            return {"t": "err", "code": e.code, "msg": e.msg}, "-"
     if req["op"] in ("set", "keyset", "keyclear"):
         if uid is None or not is_admin(uid):
             return {"t": "err", "code": "noadmin", "msg": "only the administrator may change the AI settings"}, "-"

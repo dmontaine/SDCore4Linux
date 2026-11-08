@@ -131,7 +131,12 @@ def check_a(t):
     row("it starts no program and runs no text: no subprocess, os.system, os.popen, eval, exec, pickle", not re.search(r"\bsubprocess\b|os\.system|os\.popen|\beval\(|\bexec\(|\bpickle\b", c), "")
     row("it never prints to stdout (the one reply is written with os.write on the connection)", not re.search(r"\bprint\(|sys\.stdout", c), "")
     row("the gate group is sdaiusers and the administrator user for the settings and for status is sdsys", 'GATE_GROUP = "sdaiusers"' in c and 'ADMIN_USER = "sdsys"' in c, "")
-    h = c[c.index("def handle("):c.index("def serve(")]
+    hall = c[c.index("def handle("):c.index("def serve(")]
+    # 8 Nov 26 (S.170): the administrator's models branch comes first and reads the settings after its own is_admin test; the ask / status path is the rest
+    mb = between(hall, 'if req["op"] == "models":', 'if req["op"] in ("set", "keyset", "keyclear"):')
+    row("(S.170) in handle() the models request is the administrator's: is_admin is asked BEFORE the settings or the key are read, a caller who is not gets noadmin, and the list is asked last",
+        ordered(mb, "not is_admin(uid)", '"code": "noadmin"', "parse_kv(", "read_key(state, name)", "list_models(conf, name, p, key, limits)"), "")
+    h = hall[hall.index('if req["op"] in ("set", "keyset", "keyclear"):'):]
     row("in handle() the gate is asked BEFORE the settings are read (may_ask comes before parse_kv)", h.index("if not may_ask(uid):") < h.index("parse_kv("), "")
     m = c[c.index("def may_ask("):c.index("def ", c.index("def may_ask(") + 4)]
     row("may_ask (S.163): the administrator OR a member of the gate group, and nobody else; no uid is never let through",
@@ -214,7 +219,14 @@ def check_b(t):
         and "m.route.ai = ''" in rs and "if m.route.ai = '1' then settings<CA$AI> = 1" in rs and bas(rs).count("CA$AI") == 1, "")
     sa = bas(t["setai"])
     row("set.ai asks for the administrator FIRST (before any word is read or any command built), then checks every word against the allowed characters, then builds the command", ordered(sa, "kernel(K$ADMINISTRATOR, -1)",
-        "stop sysmsg(2001)", "words = trim(@sentence)", "convert(okc, space(len(okc)), w)", "stop sysmsg(11622", "begin case") and sa.count("os.execute") == 2, "")
+        "stop sysmsg(2001)", "words = trim(@sentence)", "convert(okc, space(len(okc)), w)", "stop sysmsg(11622", "begin case") and sa.count("os.execute") == 4, "")
+    hb = between(sa, "case sub = 'key' and n.words = 4 and downcase(field(words, ' ', 4)) = 'handover'", "case sub = 'key' and n.words = 4 and downcase(field(words, ' ', 4)) = 'clear'") or \
+        between(sa, "case sub = 'key' and n.words = 4 and downcase(field(words, ' ', 4)) = 'handover'", "case sub = 'key' and n.words = 3")
+    row("(S.170) set.ai key p handover: the file is FIXED (the hand-over directory in the sdsys directory, not a word of the sentence); it is the client's standard input, nothing is captured, the "
+        "file is removed after the client ran and on a refused provider, and the key is read back, not assumed; SD never reads the file itself",
+        ordered(hb, "hand.f = @sdsys : @ds : '$aikey' : @ds : 'key'", "gosub drop.handover", "stop sysmsg(11610",
+                "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' < '\" : hand.f : \"' > /dev/null 2>&1\"", "gosub drop.handover", "gosub check.key", "if not(key.found) then")
+        and "drop.handover: os.execute \"rm -f '\" : hand.f : \"'\" return" in re.sub(r"\s+", " ", sa) and not re.search(r"\b(openseq|readseq|readblk|osread)\b", sa), "")
     safe = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:/@+,-")
     row("set.ai quotes every word it passes to the client in single quotes and allows only letters, digits and . _ : / @ + , - (no quote, space, $, ; or backquote)",
         set(re.search(r"okc = '([^']*)'", sa).group(1)) == safe and sa.count("qargs") >= 8
@@ -222,9 +234,11 @@ def check_b(t):
     row("set.ai key: the terminal is handed to the client (os.execute, no capturing), the key is never in a variable of SD's, and the result is read back from the client's listing, not assumed",
         ordered(sa, "case sub = 'key' and n.words = 3", "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' 2>&1\"", "qargs = \"'show'\"", "gosub run.ctl", "gosub check.key", "if not(key.found) then")
         and not re.search(r"os\.execute[^\n]*'key'[^\n]*capturing", sa) and not re.search(r"\binput\b|readline", sa), "")
+    row("(S.170) run.ctl takes a reply for an unreachable helper only when its first line is not the helper's refusal ('error: '): a provider's 'model not found' passes through as a refusal",
+        "if trim(out) = '' or (trim(out<1>)[1, 7] # 'error: ' and (index(out, 'could not be reached', 1) or index(out, 'not found', 1)" in sa, "")
     audits = re.findall(r"kernel\(K\$AUDIT, ([^\n]*)\)", sa)
     row("every audit line of set.ai is lower case, has no key (no 'key=' and no variable named key) and names a host, never a whole URL; (S.160) the standing text's three lines carry its size or the "
-        "name the wall found, never the text", len(audits) == 12 and all(a.lstrip().startswith("'set.ai ") for a in audits)
+        "name the wall found, never the text", len(audits) == 13 and all(a.lstrip().startswith("'set.ai ") for a in audits)
         and not any(re.search(r"key=|: key\b|curl\b|cpath\b.*curl", a) for a in audits) and not any("curl" in a for a in audits) and any("host=' : chost" in a for a in audits)
         and "'set.ai context bytes=' : len(ctext)" in audits and "'set.ai context=default'" in audits and "'set.ai context refused name=' : why" in audits
         and not any(re.search(r"\b(ctext|hx)\b", a.replace("len(ctext)", "")) for a in audits), repr(audits))
@@ -233,7 +247,7 @@ def check_b(t):
         ordered(sa, "case sub = 'context' and n.words = 3", "if len(hx) = 0 or mod(len(hx), 2) or len(hx) > 8000", "ctext = iconv(hx, 'MX0C')", "if cc # 10 and (cc < 32 or cc > 126) then stop sysmsg(14014)",
                 "call $tk_aiwall('request', ctext, why)", "stop sysmsg(14013, why)", "qargs = \"'context' '\" : hx : \"'\"", "gosub run.ctl"), "")
     row("set.ai finds its client at /usr/local/lib/sd-ai/sd-ai-ctl, not in the SD system directory (the program that holds the key is root-owned); SD_AI_CTL overrides it for the tests only",
-        "ctl = '/usr/local/lib/sd-ai/sd-ai-ctl'" in sa and "env('SD_AI_CTL')" in sa and "@sdsys" not in sa, "")
+        "ctl = '/usr/local/lib/sd-ai/sd-ai-ctl'" in sa and "env('SD_AI_CTL')" in sa and not re.search(r"ctl\s*=[^\n]*@sdsys", sa) and sa.count("@sdsys") == 1, "")   # 8 Nov 26: the one @sdsys is the hand-over file
     row("set.ai is in SDSYS's VOC only: voc_template has it as a verb for $setai and newvoc has no set.ai", t["voc_template"].split("\n")[:3] == ["V", "CA", "$setai"]
         and not os.path.exists(os.path.join(SD64, "sdsys", "newvoc", "set.ai")), "")
     need = [str(n) for n in range(11606, 11623)]
@@ -345,25 +359,38 @@ def check_d(t):
         and ordered(v, "call $tk_open('tool.ai', 'admin', ctx, err) if err # '' then display err stop end", "kernel(K$AUDIT, 'tool start app=tool.ai')", "gosub read.all", "reply = kernel(K$AI.STATUS, 0)"), "")
     row("it may run SET.AI (through $tk_runx) and MODIFY.ACCOUNT (through $tk_run) and nothing else: each list is assigned once and each routine called once, with its own list",
         v.count("allow.set = 'set.ai'") == 1 and v.count("allow.acc = 'modify.account'") == 1 and v.count("call $tk_runx(allow.set, sent, out, st, err)") == 1 and v.count("call $tk_run(allow.acc, sent, out, st, err)") == 1
-        and len(re.findall(r"call \$tk_run", v)) == 2, "")
+        and len(re.findall(r"call \$tk_runx?\((?!allow\.set|allow\.acc)", v)) == 0, "")
     row("every command is shown in the confirm box BEFORE it runs: in confirm.and.run the box comes first, a result other than run runs nothing, and both run sites follow it; no other site calls $tk_run or $tk_runx",
         ordered(v, "confirm.and.run: call $tk_confirm(sent, el, typed, res, cmsg) if res = 'run' then if use.x then call $tk_runx(", "call $tk_run(allow.acc", "end else msg = cmsg end return") and v.count("call $tk_confirm(sent, el, typed") == 1, "")
     row("(S.160) the second direct EXECUTE is SET.AI CONTEXT: the sentence is 'set.ai context ' and the text as MX0C hexadecimal (or -), after the confirm box, and before it runs the verb, the "
         "word count and a word of hexadecimal or - only are checked again",
-        len(re.findall(r"\bexecute\b", v)) == 2
+        len(re.findall(r"(?<!os\.)\bexecute\b", v)) == 1                    # 8 Nov 26 (S.170): the SET.AI KEY hand-over of the terminal is gone; os.execute is counted below
         and ordered(v, "do.context:", "cx.sent = 'set.ai context -'", "cx.sent = 'set.ai context ' : oconv(cx.new, 'MX0C')", "call $tk_confirm(cx.show, el, '', res, cmsg) if res # 'run' then msg = cmsg return end",
                     "if downcase(field(cx.sent, ' ', 1)) # 'set.ai' or field(cx.sent, ' ', 2) # 'context' or dcount(cx.sent, ' ') # 3 then return",
                     "if cx.word # '-' and convert('0123456789ABCDEFabcdef', '', cx.word) # '' then return", "execute cx.sent trapping aborts capturing out"), "")
-    row("the one direct EXECUTE besides SET.AI CONTEXT is the hand-over of the terminal to SET.AI KEY: the name is tested against the fixed four, the sentence is a fixed text and that name, the confirm box comes first and anything but run returns, then the screen is given back",
-        len(re.findall(r"\bexecute\b", v)) == 2 and not re.search(r"\b(os\.execute|perform|chain|sh)\b", v)
-        and ordered(v, "do.key: p = provs<pi> if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return", "sent = 'set.ai key ' : p", "call $tk_confirm(sent, el, '', res, cmsg) if res # 'run' then msg = cmsg return end",
-                    "call $tk_close(ctx) execute sent", "gosub reopen"), "")
-    row("THE KEY IS NOT HANDLED: the page reads nothing at the terminal but the Enter that ends the hand-over (one INPUT, into a variable called junk), has no hidden or masked entry and no GETPASS, and builds no sentence that holds a key",
-        v.count("input ") == 1 and "input junk" in v and not re.search(r"getpass|\bmask\b|keyin|rawkey", v, re.I) and "sent = 'set.ai key ' : p el = ''" in v and "sent = 'set.ai key ' : p : ' clear'" in v
-        and len(re.findall(r"sent = 'set\.ai key '", v)) == 2, "")
-    row("the page starts no request and reads no secret: no K$AI.START and no K$AI.POLL, the only kernel AI call is K$AI.STATUS, the only file opened is the register (one OPENPATH), and no key file is named",
+    # 8 Nov 26 (S.170; the owner chose ONE form with the key masked, warned that the key then passes through SD): the key is held to the form and the hand-over
+    row("(S.170) the one direct EXECUTE besides SET.AI CONTEXT is gone: the page runs SET.AI only through $tk_runx, and its OS.EXECUTEs are the hand-over directory and file only (made 0700, the file removed)",
+        len(re.findall(r"(?<!os\.)\bexecute\b", v)) == 1 and not re.search(r"\b(perform|chain)\b", v) and v.count("os.execute") == 2
+        and "os.execute \"umask 077; mkdir -p '\" : hdir : \"' && chmod 700 '\" : hdir : \"' && rm -f '\" : hf : \"'\"" in v and "os.execute \"rm -f '\" : hf : \"'\" return" in v, "")
+    k = between(v, "do.key:", "key.word:")
+    row("(S.170) K is for the fixed five providers only", k.startswith("do.key: p = provs<pi> if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return"), k[:160])
+    hk = between(v, "hand.key:", "fetch.models:")
+    row("(S.170) K is one form, the model and the key MASKED; the key is read only from the form (kv = trim(fv<2>)) and the form's copy is emptied at once; a cancelled form clears kv; the key is checked as a word "
+        "of 8 to 512 characters from ! to ~ before anything is done with it",
+        ordered(k, "spec<-1> = 'model' : @vm : 'Model'", "spec<-1> = 'key' : @vm : 'Key' : @vm : 60 : @vm : 512 : @vm : 1", "call $tk_form('open', ctx, spec, fv, fo)", "call $tk_form('run', ctx, fans, fv, fid)",
+                "kv = trim(fv<2>) fv<2> = ''", "if fans # 'ok' then kv = ''", "gosub key.word", "gosub hand.key") and len(re.findall(r"\bkv\s*=\s*trim\(", v)) == 1, "")
+    row("(S.170) THE KEY GOES NOWHERE BUT THE HAND-OVER FILE: kv is written only by WRITESEQ to hf, in the directory made 0700 first; kv is cleared on every path of hand.key; no sentence, message, "
+        "audit line or display holds kv; SET.AI is told 'handover', never the key",
+        ordered(hk, "hdir = @sdsys : @ds : '$aikey'", "hf = hdir : @ds : 'key'", "umask 077; mkdir -p", "openseq hf to kf", "writeseq kv to kf", "close kf kv = ''", "call $tk_runx(allow.set, 'set.ai key ' : p : ' handover', out, st, err)",
+                "os.execute \"rm -f '\" : hf : \"'\"") and v.count("writeseq") == 1 and len(re.findall(r"\bkv\b", hk)) >= 3
+        and not any(re.search(r"(^\s*|\bthen\s+|\belse\s+)(sent|msg|bad|el<-1>|cmsg|hint|spec|fv(<\d+>)?)\s*:?=.*\bkv\b|(display|crt|kernel\(K\$AUDIT|\$tk_runx?\(|\$tk_confirm\(|\$tk_form\('say').*\bkv\b", ln)
+                    for ln in bas(t["tool_ai"]).split("\n")), "")
+    row("(S.170) the model typed in the form is checked against the provider's own list, asked AFTER the key was handed over, and refused in the form (the focus on Model) when the list does not hold it",
+        ordered(k, "gosub hand.key", "gosub fetch.models", "if lm.ok and lm.n > 0 then", "if lm.list<i> = mv then found = 1", "fid = 'model'", "call $tk_form('say', ctx, bad, fid, '')"), "")
+    row("the page starts no request and reads no secret: no K$AI.START and no K$AI.POLL, the only kernel AI call is K$AI.STATUS, the only file opened is the register (one OPENPATH), no key file of the "
+        "helper's is named and nothing is READ by OPENSEQ (S.170: the one OPENSEQ writes the hand-over file)",
         "K$AI.START" not in v and "K$AI.POLL" not in v and "K$AI.CANCEL" not in v and v.count("K$AI.STATUS") == 1 and v.count("openpath") == 1 and "@sdsys:@ds:'accounts'" in v
-        and not re.search(r"/var/lib|keys/|openseq|readseq", v), "")
+        and not re.search(r"/var/lib|keys/|readseq|readblk", v) and v.count("openseq") == 1, "")
     row("the names typed: selecting a provider asks for its name (and deselecting asks for none), turning an account's gate ON asks for the account's name (OFF none), Custom asks for 'custom' and a certificate file for 'ca'",
         "sent = 'set.ai provider none' typed = ''" in v and "sent = 'set.ai provider ' : p typed = p" in v and "end else typed = an.name lpid = sel" in v
         and "sent = 'modify.account ' : an.name : ' ' : (if on.now then 'ai-off' else 'ai-on') el = '' typed = '' if on.now then" in v
@@ -475,11 +502,11 @@ GROUP_D_MUTANTS = [
     ("tool_ai", "a semicolon is an allowed character", "0123456789._:/@+,-'", "0123456789._:/@+,-;'"),
     ("tool_ai", "the page may run sh", "allow.set = 'set.ai'", "allow.set = 'set.ai sh'"),
     ("tool_ai", "the key hand-over is not guarded by the fixed four", "   if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return\n", ""),
-    ("tool_ai", "the key is put in the sentence", "   sent = 'set.ai key ' : p\n   el = ''\n", "   sent = 'set.ai key ' : p : ' ' : kv\n   el = ''\n"),
+    ("tool_ai", "the key is put in the sentence", "call $tk_runx(allow.set, 'set.ai key ' : p : ' handover', out, st, err)", "call $tk_runx(allow.set, 'set.ai key ' : p : ' ' : kv, out, st, err)"),
     ("tool_ai", "the model is not checked", "   vmax = 80\n   gosub valid.word\n", "   vmax = 80\n   vw.ok = 1\n"),
     ("tool_ai", "the page is opened for anyone", "   call $tk_open('tool.ai', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop", "   call $tk_open('tool.ai', '', ctx, err)\n   if err # '' then\n      display err\n      stop"),
     ("tool_ai", "the page starts a request", "   reply = kernel(K$AI.STATUS, 0)\n   if reply<1> = 'D' then", "   void kernel(K$AI.START, 'x')\n   reply = kernel(K$AI.STATUS, 0)\n   if reply<1> = 'D' then"),
-    ("tool_ai", "the page asks for a key itself", "   crt sysmsg(11865) :", "   input kv\n   crt sysmsg(11865) :"),
+    ("tool_ai", "the key is shown in the form's message", "      if key.done then bad = 'The key is set.  ' : bad\n", "      if key.done then bad = 'The key is set.  ' : bad : kv\n"),
     ("tool_ai", "an account that is not a person is listed", "if gerr = '' and ainfo<1> = 'USER' then", "if gerr = '' then"),
     ("voc_tool_ai", "tool.ai is another program", "$tool_ai", "$tool_viewers"),
     ("tk_gate_info", "the ai gate is on as delivered", "|ai-on|ai-off|group||sdaiusers||at the next request|off|AI|", "|ai-on|ai-off|group||sdaiusers||at the next request|on|AI|"),
@@ -511,6 +538,18 @@ GROUP_E_MUTANTS = [
     ("op_ai", "the earlier exchanges are not counted in the audit line", "(int)(strlen(system) + strlen(prompt) + hbytes), nhist);", "(int)(strlen(system) + strlen(prompt)), nhist);"),
     ("op_ai", "the answers are sent unescaped", "      pos = ai_json_string(req, pos, hist[2 * i + 1], strlen(hist[2 * i + 1]));", "      pos += (size_t)sprintf(req + pos, \"\\\"%s\\\"\", hist[2 * i + 1]);"),
 ]
+M_F = M_E + len(GROUP_E_MUTANTS)                           # 8 Nov 26 (S.170: one form for the key and the model, the list of models): --from=M_F
+GROUP_F_MUTANTS = [
+    ("tool_ai", "the key field is not masked", "spec<-1> = 'key' : @vm : 'Key' : @vm : 60 : @vm : 512 : @vm : 1\n", "spec<-1> = 'key' : @vm : 'Key' : @vm : 60 : @vm : 512\n"),
+    ("tool_ai", "the key is kept after the hand-over", "   close kf\n   kv = ''\n", "   close kf\n"),
+    ("tool_ai", "the hand-over file is left behind", "   os.execute \"rm -f '\" : hf : \"'\"\n   return", "   return"),
+    ("tool_ai", "the hand-over directory is not made private", "umask 077; mkdir -p '\" : hdir : \"' && chmod 700 '", "mkdir -p '\" : hdir : \"' && chmod 755 '"),
+    ("tool_ai", "the model is not checked against the list", "               if lm.list<i> = mv then found = 1\n", "               found = 1\n"),
+    ("tool_ai", "the list is asked before the key is handed over", "      kv = ''\n      if bad = '' then\n         gosub fetch.models", "      kv = ''\n      if bad = '' then\n         lm.ok = 0"),
+    ("setai", "the hand-over file is kept", "drop.handover:\n   os.execute \"rm -f '\" : hand.f : \"'\"\n", "drop.handover:\n"),
+    ("setai", "the hand-over file is a word of the sentence", "         hand.f = @sdsys : @ds : '$aikey' : @ds : 'key'\n", "         hand.f = field(words, ' ', 5)\n"),
+    ("setai", "a refusal that says not found is taken for an unreachable helper", "(trim(out<1>)[1, 7] # 'error: ' and (", "(1 and ("),
+]
 
 
 def selftest(first):
@@ -519,7 +558,7 @@ def selftest(first):
     global passed, failed
     base = load()
     bad = 0
-    for i, (key, name, old, new) in enumerate(GROUP_A_MUTANTS + GROUP_B_MUTANTS + GROUP_C_MUTANTS + GROUP_D_MUTANTS + GROUP_E_MUTANTS):
+    for i, (key, name, old, new) in enumerate(GROUP_A_MUTANTS + GROUP_B_MUTANTS + GROUP_C_MUTANTS + GROUP_D_MUTANTS + GROUP_E_MUTANTS + GROUP_F_MUTANTS):
         if i < first:
             continue
         if base[key].count(old) != 1:

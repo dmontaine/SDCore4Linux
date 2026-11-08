@@ -66,7 +66,6 @@ ALLOWED = {
     ("setmode", "11314"): "the way to give OS access: Core modify.account os-on, Solo set.os.access os on (PAL-32; carried to Solo with the OS-path programs, carry 18, 24 Oct 26)",
     # 26 Oct 26, task faults: Core's 11865 reads "Press Enter to return" (the pages come back to THEIR page; only the home screen comes back to the home screen); Solo's reads
     # "... to the home screen" until the correction is carried (sequential order: Core first, Solo when the owner says).  The two entries go when the carry makes the texts the same.
-    ("tool_ai", "11865"): "Core 'Press Enter to return' (26 Oct 26, the page is what Enter returns to), Solo 'Press Enter to return to the home screen' until the carry",
     ("tool_home", "11865"): "Core 'Press Enter to return' (26 Oct 26, the page is what Enter returns to), Solo 'Press Enter to return to the home screen' until the carry",
     # 26 Oct 26, the one-editor plan stage 1: the IDE's help in Core names F12 (Edit as fields: CED's data mode); Solo's IDE has no F12 until the owner says to carry it (Core only)
     ("cproc", "10149"): "F1 at an empty prompt: Core names list voc with type = \"V\" (28 Oct 26, S.87 C-020: the listv sentence is gone with sd.voclib); Solo still says listv until the carry",

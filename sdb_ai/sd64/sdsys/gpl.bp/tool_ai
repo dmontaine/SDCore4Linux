@@ -7,6 +7,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 8 Nov 26 dm   S.170: K is ONE form, the model and the key (masked), the key handed over by file and the model refused in the form when the provider's own list (asked with
+*               that key) does not hold it, naming the one that differs only in case; M offers the provider's list in a pick window when a key is set.  The owner: "is there
+*               any way to verify the model name entry, or provide a dropdown list of valid models", then the single dialog (warned once: the key passes through SD).
 * 8 Nov 26 dm   Kimi's review: a click on the fifth provider row (Custom) was ignored - the hit box stopped at pr.y + 5, the size before Google; it now follows nprov.
 *               The standing text's Save box said the text is "shown in each preview"; it is not shown there (S.160), and the box now says so.
 * 7 Nov 26 dm   S.163: the Accounts box's header and the explanation say that SDSYS, the administrator, may always use the AI and has no gate.
@@ -35,15 +38,16 @@
 *     Accounts   The accounts that belong to a person, with the state of each one's ai gate (modify.account NAME ai-on | ai-off): only an account whose gate is on can send
 *                anything to the provider.
 *
-*   Keys: Up and Down move, Tab changes box, Enter selects or deselects the provider (Provider) or turns the gate on or off (Accounts), M the model, K the key, X clears the key,
+*   Keys: Up and Down move, Tab changes box, Enter selects or deselects the provider (Provider) or turns the gate on or off (Accounts), M the model (picked from the provider's own list when a key is set), K the key and the model in one form, X clears the key,
 *   C fills in Custom, D removes it, A the file of certificate authorities, L a limit, T the standing text sent with every request (S.160), F5 reads the machine again, F1 or ?
 *   or a click on a [?] explains the box, Ctrl-Q leaves.
 *
-*   THE PAGE WRITES NOTHING ITSELF AND KNOWS NO KEY.  What it shows it reads from the AI helper (KERNEL(K$AI.STATUS): the connection details, the models, whether a key is set,
+*   THE PAGE KEEPS NOTHING ITSELF AND SHOWS NO KEY.  What it shows it reads from the AI helper (KERNEL(K$AI.STATUS): the connection details, the models, whether a key is set,
 *   the limits - never a key) and from the register (the gates, through $tk_gates).  Every change is a SET.AI or MODIFY.ACCOUNT sentence shown with its effect in a box answered
 *   Run or Cancel (Cancel is what Enter chooses) and run by $tk_runx / $tk_run; selecting a provider, turning an account's gate on, a certificate file and Custom ask for a
-*   name to be typed, as turning on any switch that reaches beyond SD does.  THE KEY IS NOT TYPED HERE: the page gives the terminal to SET.AI KEY, whose prompt is the AI
-*   helper's own and shows nothing, then takes the screen again.  Nothing is turned on by opening the page.
+*   name to be typed, as turning on any switch that reaches beyond SD does.  THE KEY IS TYPED OR PASTED IN K's FORM, shown as * (S.170, the owner's choice after a warning
+*   that the key then passes through SD): it goes to the helper through SET.AI KEY p HANDOVER and a file in a directory only sdsys may enter, removed at once; it is on no
+*   command line and in no audit line, and the variable is cleared.  SET.AI KEY at the prompt still keeps it out of SD altogether.  Nothing is turned on by opening the page.
 *
 * END-DESCRIPTION
 *
@@ -430,7 +434,7 @@ draw.accounts:
 draw.effect:
    lines = ''
    lines<-1> = 'One provider and one model serve every account.  The AI is off as delivered: it needs a provider, its key (a default model comes with each named provider) and an account whose ai gate is on; SDSYS needs no gate.'
-   lines<-1> = "The key is typed at the AI helper's own prompt and kept for the helper only; it does not pass through SD and this page never shows it.  What an account sends leaves this machine for the provider checked above, over https with the certificate checked."
+   lines<-1> = "K takes the key (shown as *) and the model in one form; the key is kept for the AI helper only and this page never shows it (set.ai key at the prompt keeps it out of SD altogether).  What an account sends leaves this machine for the provider checked above, over https with the certificate checked."
    if pane = 1 then
       p = provs<pi>
       if p = sel then
@@ -688,8 +692,31 @@ do.model:
    if nm.s = '' then nm.s = 'Custom'
    cur = pmod<pi>
    if cur = '' then cur = pdef<pi>
+   * S.170: with a key set, the provider's own list to pick from (typing narrows it), and a last entry to type a name instead; no key, or no list, goes straight to typing
+   mv = ''
+   if pkey<pi> then
+      gosub fetch.models
+      if lm.ok and lm.n > 0 then
+         items = lm.list
+         items<lm.n + 1> = '(type a name that is not in this list)'
+         pdf = 1
+         for i = 1 to lm.n
+            if lm.list<i> = cur then pdf = i
+         next i
+         call $sl_pickwin(items, 'Models ' : nm.s : ' offers', 0, pdf, pret, pst, '', '')
+         if pst # 0 then
+            msg = 'nothing was changed'
+            return
+         end
+         if pret >= 1 and pret <= lm.n then mv = lm.list<pret>
+      end else
+         msg = nm.s : ' gave no list of models: ' : (if lm.why = '' then 'none was returned' else lm.why)
+      end
+   end
    * the model in use is named in the prompt and the entry starts EMPTY, so that typing a name replaces it (an entry that starts full takes what is typed after it); Enter on nothing changes nothing
-   screen ask 'Model for ' : nm.s : ' (' : (if cur = '' then 'none yet' else 'now ' : cur) : (if pdef<pi> = '' then '; - clears it)' else '; - = default)') width 60 title 'AI model' returning mv else return
+   if mv = '' then
+      screen ask 'Model for ' : nm.s : ' (' : (if cur = '' then 'none yet' else 'now ' : cur) : (if pdef<pi> = '' then '; - clears it)' else '; - = default)') width 60 title 'AI model' returning mv else return
+   end
    mv = trim(mv)
    if mv = '' then return
    if mv # '-' and mv = pdef<pi> and pmod<pi> = '' then
@@ -719,33 +746,172 @@ do.model:
    gosub confirm.and.run
    return
 
-* K: the key.  The terminal is given to SET.AI KEY, whose prompt is the helper's own and shows nothing; nothing typed there reaches SD, this page or the audit trail
+* K (S.170; the owner, 8 Nov 26: "Instead of entering the model and key separately is there any way to do that in a single dialog with the key field displaying asterisks when a
+* key is entered or pasted in?" - warned that the key then passes through SD, he chose this form over the helper's own prompt): ONE form, the model and the key, the key shown
+* as *.  An empty key keeps the key now set.  Save sets the key first (SET.AI KEY p HANDOVER: the key goes to the helper in a file of a directory only sdsys may enter, never
+* on a command line or in the audit trail, and the file is removed), then asks the provider for its list of models WITH that key and refuses, in the form, a model the list
+* does not hold (naming the one that differs only in case); a provider with no list, or one that cannot be reached, leaves the name to the administrator.
 do.key:
    p = provs<pi>
    if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return
    nm.s = pnm<pi>
    if nm.s = '' then nm.s = 'Custom'
-   sent = 'set.ai key ' : p
-   el = ''
-   el<-1> = "The terminal is given to the AI helper's own prompt.  Type the key (nothing is shown) and press Enter.  Then you come back to this page."
-   el<-1> = 'The key is kept for the helper only.  It does not pass through SD, this page or the audit trail.'
+   cur = pmod<pi>
+   if cur = '' then cur = pdef<pi>
    host = field(purl<pi>, '/', 3)
-   if host # '' then
-      el<-1> = 'It is sent only to ' : host : ' over https, with the certificate checked.'
-   end else
-      el<-1> = nm.s : ' has no address yet: the key is kept, but nothing can use it until the address is filled in (press C).'
-   end
-   call $tk_confirm(sent, el, '', res, cmsg)
-   if res # 'run' then
-      msg = cmsg
+   if host = '' then
+      msg = nm.s : ' has no address yet: fill it in first (press C)'
       return
    end
-   call $tk_close(ctx)
-   execute sent
-   crt
-   crt sysmsg(11865) :                                         ;* Press Enter to return
-   input junk
-   gosub reopen
+   hint = 'The key is shown as *.  ' : (if pkey<pi> then 'Leave it empty to keep the key now set.  ' else '') : 'It is sent only to ' : host : ' over https.'
+   spec = 'Key and model for ' : nm.s : @fm : '&Save' : @fm : hint
+   spec<-1> = 'model' : @vm : 'Model' : @vm : 60 : @vm : 80
+   spec<-1> = 'key' : @vm : 'Key' : @vm : 60 : @vm : 512 : @vm : 1
+   fv = cur : @fm : ''
+   call $tk_form('open', ctx, spec, fv, fo)
+   if fo = 'no' then
+      msg = 'the form does not fit this window: nothing was changed'
+      return
+   end
+   key.done = 0
+   loop
+      call $tk_form('run', ctx, fans, fv, fid)
+      kv = trim(fv<2>)
+      fv<2> = ''
+      if fans # 'ok' then
+         kv = ''
+         call $tk_form('close', ctx, '', '', '')
+         msg = (if key.done then 'the key is set; the model was not changed' else 'nothing was changed')
+         gosub read.all
+         gosub draw.all
+         return
+      end
+      mv = trim(fv<1>)
+      bad = '' ; fid = ''
+      vw = mv ; vmax = 80 ; gosub valid.word
+      if not(vw.ok) or mv = '-' then
+         bad = 'A model name has 1 to 80 letters, digits and . _ : / @ + , -' ; fid = 'model'
+      end
+      if bad = '' and kv = '' and not(pkey<pi>) and not(key.done) then
+         bad = 'No key is set for ' : nm.s : ': paste or type it' ; fid = 'key'
+      end
+      if bad = '' and kv # '' then
+         gosub key.word
+         if not(kw.ok) then
+            bad = 'A key is 8 to 512 characters with no space and nothing outside plain ASCII' ; fid = 'key'
+         end
+      end
+      if bad = '' and kv # '' then
+         gosub hand.key                                         ;* kv is cleared there, whatever happens
+         if hk.err # '' then
+            bad = 'The key was not set: ' : hk.err ; fid = 'key'
+         end else
+            key.done = 1
+         end
+      end
+      kv = ''
+      if bad = '' then
+         gosub fetch.models
+         if lm.ok and lm.n > 0 then
+            found = 0 ; near = ''
+            for i = 1 to lm.n
+               if lm.list<i> = mv then found = 1
+               if near = '' and downcase(lm.list<i>) = downcase(mv) then near = lm.list<i>
+            next i
+            if not(found) then
+               bad = nm.s : ' does not list a model named ' : mv : '.  '
+               if near # '' then
+                  bad := 'It lists ' : near : ' (model names are case-sensitive).'
+               end else
+                  bad := 'It lists ' : lm.n : ', for example ' : change(field(lm.list, @fm, 1, 4), @fm, ', ') : '.  M shows them all.'
+               end
+               fid = 'model'
+            end
+         end
+      end
+      if bad = '' then exit
+      if key.done then bad = 'The key is set.  ' : bad
+      call $tk_form('say', ctx, bad, fid, '')
+   repeat
+   call $tk_form('close', ctx, '', '', '')
+   msg = (if key.done then 'The key for ' : nm.s : ' is set' else 'The key is unchanged')
+   if mv # cur then                                            ;* cur is the model in use (the administrator's, else the default)
+      call $tk_runx(allow.set, 'set.ai model ' : p : ' ' : mv, out, st, err)
+      if err # '' then
+         msg := '; the model was not set: ' : err
+      end else
+         msg := '; ' : trim(change(out, @fm, ' '))[1, 100]
+      end
+   end else
+      msg := '; the model stays ' : mv
+   end
+   if not(lm.ok) then msg := ' (' : nm.s : ' gave no list to check the name against)'
+   gosub read.all
+   gosub draw.all
+   return
+
+* kw.ok 1 when kv is a word the helper takes as a key: 8 to 512 characters from ! to ~
+key.word:
+   kw.ok = (len(kv) >= 8 and len(kv) <= 512)
+   if kw.ok then
+      for kw.i = 1 to len(kv)
+         kw.c = seq(kv[kw.i, 1])
+         if kw.c < 33 or kw.c > 126 then
+            kw.ok = 0
+            exit
+         end
+      next kw.i
+   end
+   return
+
+* The key in kv to the helper, through the hand-over file SET.AI KEY p HANDOVER reads and removes.  The directory is made 0700 (sdsys's alone) before the file is written in
+* it, and the file is removed here as well, whatever SET.AI did.  kv is cleared.  hk.err is null when the helper has the key, otherwise what went wrong.
+hand.key:
+   hk.err = ''
+   hdir = @sdsys : @ds : '$aikey'
+   hf = hdir : @ds : 'key'
+   os.execute "umask 077; mkdir -p '" : hdir : "' && chmod 700 '" : hdir : "' && rm -f '" : hf : "'"
+   openseq hf to kf else
+      if status() then
+         hk.err = 'the hand-over file could not be made'
+         kv = ''
+         if not(unassigned(kf)) then close kf
+         return
+      end
+   end
+   writeseq kv to kf else hk.err = 'the hand-over file could not be written'
+   close kf
+   kv = ''
+   if hk.err = '' then
+      call $tk_runx(allow.set, 'set.ai key ' : p : ' handover', out, st, err)
+      if err # '' then
+         hk.err = err
+      end else
+         if st # 0 then hk.err = trim(change(out, @fm, ' '))[1, 100]
+      end
+   end
+   os.execute "rm -f '" : hf : "'"
+   return
+
+* The provider's list of model names (p), asked through SET.AI MODELS: lm.ok 1 with lm.list (one to a field) and lm.n; lm.ok 0 when there is none (lm.why says why)
+fetch.models:
+   lm.ok = 0 ; lm.list = '' ; lm.n = 0 ; lm.why = ''
+   call $tk_runx(allow.set, 'set.ai models ' : p, out, st, err)
+   if err # '' then
+      lm.why = err
+      return
+   end
+   if st # 0 then
+      lm.why = trim(change(out, @fm, ' '))[1, 120]
+      return
+   end
+   lm.ok = 1
+   for i = 1 to dcount(out, @fm)
+      if out<i>[1, 2] = '  ' and trim(out<i>) # '' then
+         lm.n += 1
+         lm.list<lm.n> = trim(out<i>)
+      end
+   next i
    return
 
 * T (S.160; the owner, 7 Nov 26: "a standard text that will be included with every AI query describing where the default agent help text is located along any other

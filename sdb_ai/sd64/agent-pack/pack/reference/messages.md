@@ -8317,7 +8317,7 @@ cited by: `tool_home`
 Press Enter to return
 ```
 
-cited by: `tool_accounts`, `tool_ai`, `tool_dict`, `tool_entries`, `tool_files`, `tool_home`, `tool_remote`, `tool_voc`
+cited by: `tool_accounts`, `tool_dict`, `tool_entries`, `tool_files`, `tool_home`, `tool_remote`, `tool_voc`
 
 ### msg:11866
 > kind=message tier=reference since=- src=sdsys/messages/11866:1#40549194
@@ -10164,6 +10164,33 @@ This account starts at the home screen, which could not open, so the session is 
 ```
 
 cited by: `home_entry`
+
+### msg:14016
+> kind=message tier=reference since=- src=sdsys/messages/14016:1#4cfb6252
+
+```
+%1 does not list a model named %2, so requests may be refused
+```
+
+cited by: `setai`
+
+### msg:14017
+> kind=message tier=reference since=- src=sdsys/messages/14017:1#98766085
+
+```
+%1 lists %2 models:
+```
+
+cited by: `setai`
+
+### msg:14018
+> kind=message tier=reference since=- src=sdsys/messages/14018:1#abb71575
+
+```
+It lists %1 (model names are case-sensitive)
+```
+
+cited by: `setai`
 
 ### msg:1402
 > kind=message tier=reference since=- src=sdsys/messages/1402:1#3f084312
