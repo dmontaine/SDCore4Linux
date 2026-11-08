@@ -40,7 +40,9 @@
 *               palette's blue behind the text, which a terminal palette may show light (the owner's GNOME Terminal: pale text on light blue, "unreadable").
 * 7 Nov 26 dm   S.164: /tkhome/ gains hrefused, set when $tk_open refuses at the start, so !home_entry signs the session out.  A window made too small during a
 *               command is NOT signed out: the reopen holds it behind $sl_guard's size lock until it is big enough (the owner: "lock user input until it is the right size").
-* 8 Nov 26 dm   S.172: in the themes paper and night the tiles are boxed in the window colours, the focus in highlight (alloc.styles), not coloured blocks.
+* 8 Nov 26 dm   S.172: in the themes paper and night the tiles are boxed in the window colours, the focus in highlight (alloc.styles), not coloured blocks.  A boxed
+*               row (boxed.line) is the bar, one space and the text cut to tw - 3 inside the box: two spaces and fmt(.., 'nL') overran the tile and the cut lost the
+*               right bar ("Switch accou.", owner on sdtest).  Three captions shortened to fit 18: who may do what, edit many records, run, judge tests.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -342,7 +344,7 @@ build.page:
       gr<g> = 'People and access' : @vm : bnd : @vm : 2
       id = 'accounts' ; grp = g ; label = 'Accounts' ; glyph = '(@)' ; sub = 'create and manage' ; act = 'cmd:tool.accounts' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       id = 'sessions' ; grp = g ; label = 'Sessions and locks' ; glyph = '[~]' ; sub = 'who is on' ; act = 'cmd:tool.sessions' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
-      id = 'gates' ; grp = g ; label = 'Gates' ; glyph = '[#]' ; sub = 'what accounts may do' ; act = 'cmd:tool.gates' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      id = 'gates' ; grp = g ; label = 'Gates' ; glyph = '[#]' ; sub = 'who may do what' ; act = 'cmd:tool.gates' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       id = 'jobs' ; grp = g ; label = 'Scheduled jobs' ; glyph = '[:]' ; sub = 'what runs when' ; act = 'cmd:tool.jobs' ; pal = 'amber' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       * the data copies, the doors to other machines, and the AI
       g += 1
@@ -383,9 +385,9 @@ build.page:
    id = 'voc' ; grp = g ; label = 'Vocabulary' ; glyph = '[V]' ; sub = 'verbs and pointers' ; act = 'cmd:tool.voc' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'dict' ; grp = g ; label = 'Dictionary' ; glyph = '[D]' ; sub = 'items and indices' ; act = 'cmd:tool.dict' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'query' ; grp = g ; label = 'Queries' ; glyph = '[Q]' ; sub = 'build a report' ; act = 'cmd:tool.query' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
-   id = 'bulk' ; grp = g ; label = 'Bulk update' ; glyph = '[B]' ; sub = 'change many records' ; act = 'cmd:tool.bulk' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   id = 'bulk' ; grp = g ; label = 'Bulk update' ; glyph = '[B]' ; sub = 'edit many records' ; act = 'cmd:tool.bulk' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'catalog' ; grp = g ; label = 'Programs' ; glyph = '[P]' ; sub = 'compile, catalogue' ; act = 'cmd:tool.catalog' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
-   id = 'test' ; grp = g ; label = 'Tests' ; glyph = '[T]' ; sub = 'run and judge tests' ; act = 'cmd:tool.test' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   id = 'test' ; grp = g ; label = 'Tests' ; glyph = '[T]' ; sub = 'run, judge tests' ; act = 'cmd:tool.test' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    * the header: two small tiles at the right, on the header's first three rows (place.header puts them on the last two tile columns)
    id = 'switch' ; grp = 0 ; label = 'Switch account' ; glyph = '<> ' ; sub = '' ; act = 'switch' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header
    id = 'signout' ; grp = 0 ; label = 'Sign out' ; glyph = '-> ' ; sub = '' ; act = 'signout' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header
@@ -868,18 +870,29 @@ draw.tile:
                   call $sl_line('br', 0, c2)
                   s = c1 : str(hc, tw - 2) : c2
                case th = 3
-                  s = vc : fmt('  ' : tl<di, HT.GLYPH> : '  ' : tl<di, HT.LABEL>, (tw - 2) : 'L') : vc
+                  btxt = tl<di, HT.GLYPH> : tl<di, HT.LABEL>      ;* the glyph keeps its own trailing space: " <> Switch account" is 18
+                  gosub boxed.line
                case r = 1
-                  s = vc : fmt('  ' : tl<di, HT.GLYPH>, (tw - 2) : 'L') : vc
+                  btxt = tl<di, HT.GLYPH>
+                  gosub boxed.line
                case r = 2
-                  s = vc : fmt('  ' : tl<di, HT.LABEL>, (tw - 2) : 'L') : vc
+                  btxt = tl<di, HT.LABEL>
+                  gosub boxed.line
                case 1
-                  s = vc : fmt('  ' : (if tl<di, HT.WHY> # '' then tl<di, HT.WHY> else (if tl<di, HT.LIVE> # '' then tl<di, HT.LIVE> else tl<di, HT.SUB>)), (tw - 2) : 'L') : vc
+                  btxt = (if tl<di, HT.WHY> # '' then tl<di, HT.WHY> else (if tl<di, HT.LIVE> # '' then tl<di, HT.LIVE> else tl<di, HT.SUB>))
+                  gosub boxed.line
             end case
          end
          screen text s at tx,sy attr sty width tw
       end
    next r
+   return
+
+* One text row of a boxed tile: s = the bar, one space, btxt cut to what fits (tw - 3), padded, the bar.  8 Nov 26 (S.172): it was two spaces and fmt(.., 'nL'),
+* which does not cut a longer text: the row ran past the tile and the screen's cut took the right bar and ended the caption in '.' ("Switch accou.").
+boxed.line:
+   btxt = btxt[1, tw - 3]
+   s = vc : ' ' : btxt : space(tw - 3 - len(btxt)) : vc
    return
 
 * The scroll bar in the last column, in the library's scroll style (dark grey in the colour themes), only when the page is taller than the panel

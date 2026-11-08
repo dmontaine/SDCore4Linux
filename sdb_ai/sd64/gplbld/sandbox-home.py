@@ -3,7 +3,7 @@
 # sandbox-home.py - the home screen and where an account starts (S.75, plan .claude/plan-fullscreen-toolkit.md section 13: H1 the screen, H2 the start), on a pseudo-terminal.
 # No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-home.py <dir> [--build] [--only=base,u9,leave]
+#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-home.py <dir> [--build] [--only=base,u9,leave,cut]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could
 # not run.  ORDINARY sessions are `sd -a<account>` in a fixture account, made with sandbox-gates.py's own functions (the suite stops with exit 2 if its first ordinary session is
@@ -14,6 +14,8 @@
 # 2 Nov 26 dm   S.88 U9: section u9 (the toolkit's menu bar and type-to-find, rows U9a-U9p) and --only=base,u9 (base: every row before it); the foot row's expected keys follow the table
 #               (F10 left the row, / find joined it).  u9 WRITTEN AND RUN ONCE with --only=u9; base NOT rerun.
 # 3 Nov 26 dm   S.149: section leave (--only=leave, rows S149a-l): Ctrl-Q on a screen typed at the prompt goes back to the prompt, Ctrl-X signs out there, and a session's own screen keeps Ctrl-Q as Sign out.
+# 8 Nov 26 dm   S.172: section cut (--only=cut): in paper and night, at 140 by 43, 172 by 43 and 200 by 50, the administrator's page and zzhm's: no caption ends in the cut mark
+#               and the long captions are whole (the owner on sdtest: "The boxes are cutting off the text").
 # 28 Oct 26 dm  S.85: setup() runs sandbox-tk-base.py's sudo_null_case() before anything else: every suite built on this setup (the page suites and docs) runs with the stub `sudo` first in PATH,
 #               and stops (exit 2) if a child shell or an SD session finds another.  WRITTEN, NOT RUN when added (the owner's rule of 28 Oct).
 # END-HISTORY
@@ -219,7 +221,7 @@ def summary(name):
     sys.exit(0 if tkb.failed == 0 and tkb.passed > 0 else 1)
 
 
-SECTIONS = ("base", "u9", "leave")
+SECTIONS = ("base", "u9", "leave", "cut")
 
 
 def only():
@@ -341,10 +343,62 @@ def leave_rows():
     h.end()
 
 
+CUT = re.compile(r"[A-Za-z]\.(?=[ |+]|$)")      # a word ended by the cut mark: the screen library ends a text that did not fit with '.'
+
+
+def cut_rows():
+    """8 Nov 26 (S.172, the owner on sdtest: "The boxes are cutting off the text"): in the themes paper and night every tile is BOXED, and a caption that filled the tile ran past it,
+    so the screen cut the row and ended it in '.' ("Switch accou.", "programs and file.").  For both themes, at 140 by 43 and two wider windows, the administrator's page and an
+    ordinary account's (zzhm): no word on the page above the hint row ends in the cut mark, every boxed tile row still ends in its right bar, and the long captions are whole.
+    The theme is written to the sandbox's sd.conf for this section only; the bar's colours are the evidence that the theme was in force (the null case)."""
+    say("\n--- cut: no tile or button caption is cut in the boxed themes (paper, night)")
+    conf = os.path.join(BOX, "sd.conf")
+    with open(conf) as fh:
+        original = fh.read()
+    base = re.sub(r"(?m)^SCREENTHEME=.*\n?", "", original)
+    bar = {"paper": (7, 0), "night": (0, 7)}             # ANSI numbers of the menu bar: paper light grey on black, night black on light grey
+    whole = {"admin": ["Switch account", "Sign out", "Sessions and locks", "who may do what", "test your keyboard"],
+             "zzhm": ["programs and files", "verbs and pointers", "edit many records", "compile, catalogue", "run, judge tests", "test your keyboard"]}
+    try:
+        for theme in ("paper", "night"):
+            with open(conf, "w") as fh:
+                fh.write(base.rstrip("\n") + "\nSCREENTHEME=%s\n" % theme)
+            for cols, rows_ in ((140, 43), (172, 43), (200, 50)):
+                for who in ("admin", "zzhm"):
+                    if who == "admin":
+                        h = H(admin=True, cols=cols, rows=rows_)
+                        h.typed("home\r", idle=2.5)
+                    else:
+                        h = H("zzhm", cols=cols, rows=rows_)
+                    L = h.lines()
+                    tag = "CUT %s %dx%d %s" % (theme, cols, rows_, who)
+                    if not h.home():
+                        row(tag + ": the home screen is up", False, "\n".join(l.rstrip() for l in L if l.strip())[-600:])
+                        h.end()
+                        continue
+                    gap = re.search(r"\S  ", L[0])                 # a blank cell of the bar between two menu names: the bar's own style, not a mnemonic's
+                    st = h.style(0, gap.start() + 1) if gap else (None, None, "")
+                    hint = next((i for i, l in enumerate(L) if "arrows move" in l), len(L) - 3)
+                    cuts = ["%d: %s" % (i, m.group(0)) for i in range(1, hint) for m in CUT.finditer(L[i])]
+                    T = h.text()
+                    missing = [w for w in whole[who] if w not in T]
+                    row(tag + ": the theme is in force (the menu bar's colours), so the tiles are boxed", st[:2] == bar[theme], repr(st))
+                    row(tag + ": no word above the hint row ends in the cut mark", not cuts, repr(cuts[:6]))
+                    row(tag + ": the long captions are whole (%s)" % ", ".join(whole[who]), not missing, repr(missing))
+                    if cuts or missing:
+                        dump(h)
+                    h.end()
+    finally:
+        with open(conf, "w") as fh:
+            fh.write(original)
+
+
 def main():
     want = only()
     try:
         setup("sandbox-home.py")
+        if "cut" in want:
+            cut_rows()
         if "u9" in want:
             u9_rows()
         if "leave" in want:
@@ -507,7 +561,7 @@ def main():
         h = H("zzhv", term="vt100")
         T = h.text()
         row("on a terminal with no colour every tile is boxed: the corners and the lines are on the screen (LC_ALL=C: + - |), and the focused tile (Editor) is in reverse video",
-            h.home() and "+-------------------+" in T and "|  [=]" in T and "r" in h.style(10, 5)[2], repr((h.line(7)[:30], h.style(10, 5))))
+            h.home() and "+-------------------+" in T and "| [=]" in T and "r" in h.style(10, 5)[2], repr((h.line(7)[:30], h.style(10, 5))))      # one space inside the bar since S.172
         h.end()
 
         say("\n--- the tiles start commands, and the screen comes back")
