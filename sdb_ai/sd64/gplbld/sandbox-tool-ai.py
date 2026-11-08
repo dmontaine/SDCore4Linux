@@ -517,8 +517,8 @@ def context_section():
     n0 = len(STATE["fm"].log)
     out = adm('ai "what is a select list"', "n")
     blob = "\n".join(out)
-    arow("T37", "the ai verb's preview shows NOTHING of the standing text, only the fixed sentence and the question; nothing is sent on n",
-         "ZQX7" not in blob and "Standing" not in blob and "You are answering" in blob and "what is a select list" in blob and len(STATE["fm"].log) == n0, repr(out[-12:]))
+    arow("T37", "the ai verb's preview shows none of SD's own text (S.175: neither the standing text nor the fixed sentence), only the question; nothing is sent on n",
+         "ZQX7" not in blob and "Standing" not in blob and "You are answering" not in blob and "what is a select list" in blob and len(STATE["fm"].log) == n0, repr(out[-12:]))
     n0 = len(STATE["fm"].log)
     out = adm('ai "what is a select list [[plain]]"', "y")
     rq = STATE["fm"].log[n0:] if len(STATE["fm"].log) > n0 else []

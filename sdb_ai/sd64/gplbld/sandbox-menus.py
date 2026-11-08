@@ -104,7 +104,8 @@ def main():
             not h.alive() and re.search(r"140", h.text()) is not None and not h.prompt(), h.text()[-300:])
         h.end()
         h = H("zzhd", cols=100, rows=30)
-        row("an account that has the Terminal tile (zzhd) is left at the prompt in the same window, as before", h.alive() and h.prompt(), h.text()[-200:])
+        row("S.164: an account that starts in the home screen (zzhd follows the default, menu) is signed out at the same small window whatever its tiles - Terminal on makes no difference (14015)",
+            not h.alive() and "which could not open, so the session is signed out" in h.text() and not h.prompt(), h.text()[-300:])
         h.end()
         adm("set.tile zzht terminal off")
         h = H("zzht")
@@ -336,6 +337,7 @@ def main():
         adm("modify.account zzhd start-default")
         set_default("menu")
         h = H(admin=True)
+        h.typed("home\r", idle=2.5)          # S.168 (8 Nov 26): the administrator always starts at the prompt; HOME opens the home screen
         T = h.text()
         h2 = H("zzhm")
         T2 = h2.text()
