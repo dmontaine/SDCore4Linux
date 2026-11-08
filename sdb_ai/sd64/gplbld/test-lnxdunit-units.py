@@ -111,7 +111,8 @@ def run():
     d = code("sd.c")
     row("D1 '-nodaemon' is read after -start only, as that exact word (stricmp, the next argument), and start_sd() is given the answer",
         "bool with_daemon = !((arg + 1 < argc) && !stricmp(argv[arg + 1], \"-NODAEMON\"));" in d and "start_sd(with_daemon)" in d and d.count("-NODAEMON") == 1, "")
-    row("D2 -restart still starts the daemon itself (start_sd(TRUE))", "stop_sd() && start_sd(TRUE)" in d, "")
+    # 8 Nov 26 (S.177): -restart stops through stop_sd_ex(TRUE), which ends what outlives SIGTERM
+    row("D2 -restart still starts the daemon itself (start_sd(TRUE))", "stop_sd_ex(TRUE) && start_sd(TRUE)" in d, "")
 
     z = code("sdlnxd.c")
     ag = func(z, "static bool another_daemon_runs(void)")
@@ -167,7 +168,7 @@ MUTANTS = [   # name, file, old, new
     ("sysseg-startup-only-with-daemon", "sysseg.c", "  /* Run startup command, if defined */\n\n  if (sysseg->startup[0] != '\\0') {", "  /* Run startup command, if defined */\n\n  if (with_daemon && sysseg->startup[0] != '\\0') {"),
     ("sd-h-old-prototype", "sd.h", "bool start_sd(bool with_daemon);", "bool start_sd(void);"),
     ("sd-nodaemon-misspelt", "sd.c", '!stricmp(argv[arg + 1], "-NODAEMON")', '!stricmp(argv[arg + 1], "-NODAEMOX")'),
-    ("sd-restart-without-daemon", "sd.c", "stop_sd() && start_sd(TRUE)", "stop_sd() && start_sd(FALSE)"),
+    ("sd-restart-without-daemon", "sd.c", "stop_sd_ex(TRUE) && start_sd(TRUE)", "stop_sd_ex(TRUE) && start_sd(FALSE)"),
     ("sd-start-ignores-the-option", "sd.c", "if (start_sd(with_daemon)) {", "if (start_sd(TRUE)) {"),
     ("guard-off", "sdlnxd.c", "if (another_daemon_runs()) {", "if (FALSE) {"),
     ("guard-no-executable-check", "sdlnxd.c", "return memcmp(other, mine, (size_t)n_mine) == 0;", "return TRUE;"),
