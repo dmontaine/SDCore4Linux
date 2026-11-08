@@ -643,6 +643,7 @@ bool attach_shared_memory(void);
 void unbind_sysseg(void);
 bool start_sd(bool with_daemon); /* 25 Oct 26: FALSE leaves sdlnxd to its service unit (sd -start -nodaemon) */
 bool stop_sd(void);
+bool stop_sd_ex(bool kill_survivors); /* 8 Nov 26 S.177: TRUE for sd -stop / -restart - SIGKILL what is still attached after the wait */
 
 
 /* WIN.C / LINUXIO.C */

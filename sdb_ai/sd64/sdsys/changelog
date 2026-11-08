@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+8 Nov 26   SD -STOP NO LONGER LEAVES SESSIONS BEHIND, AND A SESSION THAT LOSES SD ENDS INSTEAD OF SPINNING.
+
+             What        - sd -stop and sd -restart (and so a service stop, a restart and a reinstall) still send every
+                           session the termination signal and wait ten seconds. Any process still attached to SD after
+                           that is now ended with SIGKILL before SD's shared memory and semaphores are removed, and the
+                           stop prints how many it ended; each is written to syslog. A session that does find its
+                           semaphores gone ends at once, saying so in syslog and on its terminal ("SD process N ended:
+                           its semaphores were removed ...").
+             Why         - A session waiting at its prompt does not leave on the termination signal, so every idle
+                           session outlived a stop. When it next needed a lock - often when its terminal was later
+                           closed - it found SD gone and retried for ever: four such sessions on a test server ran at
+                           84-92% of a processor for 8 to 10 hours and could only be ended with kill -9.
+             Does NOT    - Touch any process that is not attached to SD's shared memory. Change a stop that every
+                           session leaves within the ten seconds. Let a session ended with SIGKILL run its own logout.
+                           Make an idle session leave gracefully on the termination signal; that is still to do.
+
 8 Nov 26   THE AI PREVIEW SHOWS YOUR REQUEST, NOT SD'S OWN TEXT; tool.ai NO LONGER SAYS THE HELPER IS DOWN ON A SLOW SERVER.
 
              What        - Before a request is sent, the preview now shows the provider, the model, the size of all that will

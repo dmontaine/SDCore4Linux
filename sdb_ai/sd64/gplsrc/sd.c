@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 08 Nov 26 dm  S.177: -stop and -restart call stop_sd_ex(TRUE), which ends with SIGKILL what is still attached after the wait.
  * 06 Nov 26 dm  S.152: fatal() and dump() are gone (nothing called them; found by linking with --gc-sections), and with
  *               fatal() the only longjmp to sd_exit, so its setjmp "disaster exit" and <setjmp.h> go too.
  * 27 Oct 26 dm  S.87 batch 5: the -l option (apply a new licence: it set a flag nothing read) is gone; "sd -l" is an unrecognised option like any other.
@@ -453,7 +454,7 @@ Private bool comlin(int argc, char *argv[]) {
 
           if (stricmp(argv[arg], "-RESTART") == 0) {
             check_admin();
-            if (stop_sd() && start_sd(TRUE)) {
+            if (stop_sd_ex(TRUE) && start_sd(TRUE)) {
               printf("SD has been restarted\n");
               exit(0);
             }
@@ -490,7 +491,7 @@ Private bool comlin(int argc, char *argv[]) {
 
           if (stricmp(argv[arg], "-STOP") == 0) {
             check_admin();
-            if (stop_sd()) {
+            if (stop_sd_ex(TRUE)) {
               printf("SD (%s) has been shut down\n", BUILD_TARGET);
               exit(0);
             }
