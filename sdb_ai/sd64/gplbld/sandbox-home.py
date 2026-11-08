@@ -466,8 +466,9 @@ def main():
 
         say("\n--- the administrator's page")
         h = H(admin=True)
+        h.typed("home\r", idle=2.5)                     # S.168: the administrator starts at the prompt always; HOME opens the page
         T = h.text()
-        row("the administrator is given the home screen too (the system default is menu): group 'Tools' (not 'My tools'), the identity 'administrator', the right end of row 0 'home  administrator'",
+        row("the administrator's home screen, opened with HOME at the prompt (S.168): group 'Tools' (not 'My tools'), the identity 'administrator', the right end of row 0 'home  administrator'",
             h.home() and "Tools" in T and "My tools" not in T and h.line(2).strip().startswith("administrator") and h.line(0).endswith("home  administrator"), repr((h.line(0)[-24:], h.line(2)[:30])))
         adm_labels = ["Menu management", "Bypass programs", "Audit trail", "Configuration", "Backups", "Master files", "Accounts", "Sessions and locks", "Gates", "Remote servers", "AI"]
         row("the administrator's first screen has a tile for each of the eleven administrator pages, in the groups System, People and access and Data, network and AI, and Tools and Everyone are on it too (no scrolling)",
@@ -492,6 +493,7 @@ def main():
             repr((seen, "second session exited=%s killed=%s" % (h2.s.exited, getattr(h2.s, "killed", None)), [l for l in adm("LISTU") if "sdsys" in l])))
         h.end()
         h = H(admin=True)
+        h.typed("home\r", idle=2.5)                     # S.168
         h.typed("s", idle=0.4)
         h.key("enter", idle=2.5)
         T = h.text()
@@ -649,14 +651,21 @@ def main():
             not h.home() and re.search(r"140", T) is not None and "which could not open, so the session is signed out" in T, T[-400:])
         row("S164b ...and the session is SIGNED OUT, not left at the prompt, although the account's Terminal tile is on", not h.alive(), T[-300:])
         h.end()
-        # 7 Nov 26 S.167 (owner: "Exempt sdsys"): the administrator at the same small window is left at the prompt.
+        # 7 Nov 26 S.168 (owner: "sdsys should start at the prompt always", after S.167's "Exempt sdsys"): the administrator never starts at the home screen, so at the
+        #   same small window there is no screen to refuse - no size message, no 14015 - and at a full-size window it starts at the prompt too (the system default is menu here).
         h = H(None, admin=True, cols=100, rows=30)
         h.s._pump(3.5)
         T = h.text()
-        row("S167a the administrator at 100 by 30: the size message, no 14015, the prompt, and the session alive",
-            re.search(r"140", T) is not None and "which could not open, so the session is signed out" not in T and h.prompt() and h.alive(), T[-400:])
+        row("S168a the administrator at 100 by 30, the system default menu: no home screen was tried (no size message), no 14015, the prompt, and the session alive",
+            "needs a window of at least" not in T and "which could not open, so the session is signed out" not in T and h.prompt() and h.alive(), T[-400:])
         h.typed("who.am.i\r", idle=1.2)
-        row("S167b ...and the prompt works (WHO.AM.I answers)", re.search(r"Admin\?\s*:\s*Yes", h.text()) is not None or "Account" in h.text(), h.text()[-300:])
+        row("S168b ...and the prompt works (WHO.AM.I answers)", "Account" in h.text(), h.text()[-300:])
+        h.end()
+        h = H(None, admin=True)
+        T = h.text()
+        row("S168c the administrator at 140 by 43, the system default menu: the prompt, not the home screen", not h.home() and h.prompt() and h.alive(), T[-300:])
+        h.typed("home\r", idle=2.5)
+        row("S168d ...and HOME typed there opens the home screen", h.home(), h.text()[-300:])
         h.end()
 
         say("\n--- the panel scrolls (the sandbox's copy of tool_home with thirty extra tiles in the table)")

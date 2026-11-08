@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+7 Nov 26   SDSYS ALWAYS STARTS AT THE COMMAND PROMPT.
+
+             What        - A session of SDSYS, the administrator, now starts at the prompt (and stays there after a
+                           LOGTO) whatever the system's default says. Typing home at the prompt still opens the home screen.
+             Why         - The administrator signing in with the default set to the home screen was put in the home screen,
+                           which is not where the administrator works.
+             Does NOT    - Change where any other account starts, or what home typed at the prompt does.
+
 7 Nov 26   WHERE AN ACCOUNT STARTS - THE HOME SCREEN OR THE COMMAND PROMPT - IS A GATE ON THE GATES PAGE.
 
              What        - tool.gates has a home column: ON means the account's sessions start at the home screen, off at the
@@ -20,8 +28,8 @@ Next release - in progress
                            command prompt whenever the account's Terminal tile was on. The same holds when the window is
                            made too small while a command run from the home screen is under way.
              Why         - The prompt should be reached through the Terminal tile, not by shrinking a window.
-             Does NOT    - Sign out SDSYS: the administrator is left at the prompt, so a small terminal over ssh is still a way
-                           in. Change anything for an account that starts at the prompt, or for home typed at the prompt: that
+             Does NOT    - Sign out SDSYS: the administrator always starts at the prompt, so a small terminal over ssh is
+                           still a way in. Change anything for an account that starts at the prompt, or for home typed at the prompt: that
                            stays at the prompt. Change what happens when a screen that did open is ended: that still follows
                            the Terminal tile.
 

@@ -652,9 +652,11 @@ def a_two():
     started at the home screen kept an update lock on start.default for its whole life and the next session waited at sign-on.  Two administrator sessions one after the other, no file:
     the second must reach its home screen, and LIST.READU must show no lock on start.default."""
     sh.set_default(None)
-    h1 = H(admin=True)
+    # 7 Nov 26 S.168: the administrator no longer reads start.default (it always starts at the prompt), so the two sessions are of zzhd, sandbox-home.py's account
+    #   with a blank start field, which reads the file exactly as the administrator did.
+    h1 = H("zzhd")
     up1 = h1.home()
-    h2 = H(admin=True, settle=3.0)
+    h2 = H("zzhd", settle=3.0)
     t_end = time.time() + 30
     while time.time() < t_end and not h2.home():
         h2.s._pump(0.5)
@@ -664,7 +666,7 @@ def a_two():
     h2.end()
     h1.end()
     sh.set_default("menu")
-    R("A_TWO", "two sessions of the administrator start at the home screen one after the other with NO start.default file: the second reaches its home screen (it is not left waiting at sign-on) and LIST.READU shows no lock on start.default",
+    R("A_TWO", "two sessions of an account that follows the default (zzhd; S.168: the administrator no longer does) start at the home screen one after the other with NO start.default file: the second reaches its home screen (it is not left waiting at sign-on) and LIST.READU shows no lock on start.default",
       up1 and up2 and not leak, repr((up1, up2, leak)))
 
 
@@ -673,7 +675,8 @@ def a_adminrec():
     page grows by the Recent band and must stay whole - the heading on row 6, the started tile first, the page still the top page - and turning the group off puts it back."""
     sh.set_default("menu")                              # the administrator starts where the system default says; sandbox-home.py sets it the same way before its administrator rows
     h = H(admin=True)
-    page0 = [l[:70] for l in h.lines()[:14]]            # kept for the detail of a failure: what the administrator's top page looked like before anything was done
+    h.typed("home\r", idle=2.5)                         # S.168: the administrator starts at the prompt always; HOME opens its page
+    page0 = [l[:70] for l in h.lines()[:14]]           # kept for the detail of a failure: what the administrator's top page looked like before anything was done
     turn_group(h)
     st_on = h.line(40)
     first = focus_label(h)

@@ -103,12 +103,13 @@ def checks(s):
     ck("H2b S.164: tool_home sets hrefused when $tk_open refuses at the START, and home_entry clears it before the EXECUTE and, after it, "
        "signs out with 14015 when it is set - BEFORE the Terminal tile is asked",
        th.count("call $tk_open('home', '', ctx, err)\n   if err # '' then\n      hrefused = 1") == 1
-       and ordered(he, "hrefused = 0", "execute 'home'", "if hrefused then", "if kernel(K$ADMINISTRATOR, -1) then return", "display sysmsg(14015)", "execute 'quit'", "call !home_off(@who, off)"))
-    # 7 Nov 26 S.167 (owner: "Exempt sdsys"): the administrator is the one session the small window does not sign out; nothing else is exempt.
-    i_blk = he.find("   if hrefused then\n")
-    blk = he[i_blk:he.find("execute 'quit'", i_blk)] if i_blk >= 0 else ""
-    ck("H2d S.167: inside the sign-out block the administrator (K$ADMINISTRATOR, nothing else) returns to the prompt BEFORE the message and the quit",
-       blk.count("return") == 1 and "   if hrefused then\n      if kernel(K$ADMINISTRATOR, -1) then return\n      display sysmsg(14015)" in blk, blk[:200])
+       and ordered(he, "hrefused = 0", "execute 'home'", "if hrefused then\n      display sysmsg(14015)", "execute 'quit'", "call !home_off(@who, off)"))
+    # 7 Nov 26 S.168 (owner: "sdsys should start at the prompt always"): the administrator returns BEFORE the start setting is read, so no start word, default or
+    #   window decides for it; it is the only session that does, and nothing else in the entry is asked first but the terminal, the API server and the LOGTO tests.
+    ck("H2d S.168: home_entry returns for the administrator (K$ADMINISTRATOR) after the terminal / API / LOGTO tests and BEFORE it reads the register or start.default, "
+       "and the administrator is asked nowhere else in it",
+       ordered(he, "if why = 'logto' then", "if kernel(K$ADMINISTRATOR, -1) then return", "start = ''", "openpath @sdsys : @ds : 'accounts' to acc.f then", "openseq @sdsys : @ds : 'start.default'")
+       and he.count("K$ADMINISTRATOR") == 1)
     rop = between(th, "\nreopen:\n", "\n   return\n")
     ck("H2c S.164: a reopen after a command does NOT sign out on a small window: it waits in $sl_guard's size lock while $sl_need says the window is too small, "
        "and only the lock's quit leaves (signing out a session's own screen), all before $tk_open is asked",
