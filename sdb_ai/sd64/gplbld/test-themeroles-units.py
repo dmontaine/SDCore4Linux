@@ -7,11 +7,14 @@
 #   R1  SL.CODES: 51 different letters, the five roles UVWXY after the scroll bar (B) and before the sixteen user styles, Z the only letter left; the old list is nowhere in gpl.bp
 #   R2  $sl_theme names the styles in the order of the codes: the roles are warning success readonly busy focus, error is code f, the user styles still come last
 #   R3  every theme gives every role a look: mono (flags only, no dim, six looks different from each other and from plain), classic and blue (both colours), dark and light (a colour and flags)
-#   R4  'list' answers blue classic dark light mono; 'next' takes the next one this terminal can show, wraps, and answers mono alone when there is no colour or no terminal
+#   R9  (8 Nov 26, S.172) paper and night: every style has both colours, the body / bar / selection / mnemonic / header pairs are the readable ones (black or dark blue on
+#       light grey, white or yellow on black), the menu bar the inverse of the page with its letter underlined and no red on it, nothing on the light grey bold, the four
+#       raw styles in the theme's own colours
+#   R4  'list' answers blue classic dark light mono night paper; 'next' takes the next one this terminal can show, wraps, and answers mono alone when there is no colour or no terminal
 #   R5  tool.keys has no list of its own and asks the library for the next theme
 #   R6  CONFIG() reads a name of up to 16 characters (the setter's buffer is not touched) and SCREEN OPEN asks for SCREENTHEME, refusals ignored
-#   R7  the shipped sd.conf has SCREENTHEME=blue once, in [sd], and the table row no longer says it cannot be read
-#   R8  (2 Nov 26, S.88 p3.7b) the IDE has no list of its own: it starts in SCREENTHEME (blue when blank), falls back to blue then to what the library kept, cycles with
+#   R7  the shipped sd.conf has SCREENTHEME=paper once, in [sd], and the table row no longer says it cannot be read
+#   R8  (2 Nov 26, S.88 p3.7b) the IDE has no list of its own: it starts in SCREENTHEME (paper when blank), falls back to paper then to what the library kept, cycles with
 #       $sl_theme('next') and puts the theme on again when it takes the screen back.  That it OPENS in the site's theme on a screen is sandbox-ide-resize.py section theme.
 # NOT SAID HERE: that a role is drawn as it says, that a program compiled against the new list works, or that CONFIG() answers - that is sandbox-themeroles.py, and it has not been run.
 import os
@@ -89,7 +92,8 @@ def theme_case(th, name, nxt):
 def theme_looks(th):
     """the style definitions each theme ends with: its own case plus the subroutines it gosubs"""
     cases = {"mono": theme_case(th, "mono", "nm = 'classic'"), "classic": theme_case(th, "classic", "nm = 'dark'"), "dark": theme_case(th, "dark", "nm = 'light'"),
-             "light": theme_case(th, "light", "nm = 'blue'"), "blue": theme_case(th, "blue", "1")}
+             "light": theme_case(th, "light", "nm = 'blue'"), "blue": theme_case(th, "blue", "nm = 'paper'"),
+             "paper": theme_case(th, "paper", "nm = 'night'"), "night": theme_case(th, "night", "1")}
     out = {}
     for name, body in cases.items():
         d = specs(body)
@@ -130,15 +134,42 @@ def run():
     row("R3 mono: flags only, no colour", all(mono[r][0] == "" and mono[r][1] == "" for r in mflags), repr(mono))
     row("R3 mono: no dim (SD's xterm entry has none)", all("dim" not in f for f in mflags.values()), repr(mflags))
     row("R3 mono: the six roles look different from one another and from plain", len(set(mflags.values())) == 6 and () not in mflags.values() and len(mflags) == 6, repr(mflags))
-    row("R3 classic and blue: a role has both colours, as a style replaces the whole attribute set",
-        all(looks[t][r][0] and looks[t][r][1] for t in ("classic", "blue") for r in ROLES), repr({t: {r: looks[t][r] for r in ROLES} for t in ("classic", "blue")}))
+    row("R3 classic, blue, paper and night: a role has both colours, as a style replaces the whole attribute set",
+        all(looks[t][r][0] and looks[t][r][1] for t in ("classic", "blue", "paper", "night") for r in ROLES),
+        repr({t: {r: looks[t][r] for r in ROLES} for t in ("classic", "blue", "paper", "night")}))
     row("R3 dark and light: a colour and at least one flag, no background (the terminal's own)",
         all(looks[t][r][0] and looks[t][r][1] == "" and looks[t][r][2] for t in ("dark", "light") for r in ROLES), repr({t: {r: looks[t][r] for r in ROLES} for t in ("dark", "light")}))
-    row("R3 the colour themes keep error white on red, bold (the syntax colour)", all(looks[t]["error"] == ("white", "red", ("bold",)) for t in ("classic", "dark", "light", "blue")))
+    row("R3 the colour themes keep error white on red, bold (the syntax colour)", all(looks[t]["error"] == ("white", "red", ("bold",)) for t in ("classic", "dark", "light", "blue", "paper", "night")))
+
+    # R9 (8 Nov 26, S.172): paper and night are the readable themes the owner asked for ("black or dark blue on light grey or white or yellow on black")
+    bg_of = {"paper": "white", "night": "black"}
+    allpairs = {r for t in ("paper", "night") for r in looks[t]}
+    row("R9 paper and night: every style they define has BOTH colours (a foreground alone would show the terminal's background in a light or black window)",
+        all(looks[t][s][0] and looks[t][s][1] for t in ("paper", "night") for s in looks[t]),
+        repr({t: [s for s in looks[t] if not (looks[t][s][0] and looks[t][s][1])] for t in ("paper", "night")}))
+    readable = {("black", "white"), ("blue", "white"), ("white", "black"), ("brown", "black")}
+    body = ["desktop", "window", "text", "pane", "field", "bar", "barsel", "highlight", "hotkey", "hotkey.bar", "header", "tab"]
+    row("R9 ... the body, the bar, the selection, the mnemonic letters and the headers are one of the readable pairs (black or dark blue on light grey, white or yellow on black)",
+        all(s in looks[t] and looks[t][s][:2] in readable for t in ("paper", "night") for s in body),
+        repr({t: {s: looks[t].get(s) for s in body if s not in looks[t] or looks[t][s][:2] not in readable} for t in ("paper", "night")}))
+    row("R9 ... the menu bar is the inverse of the page (paper light grey on black, night black on light grey), its letter underlined on the bar's background, no red on it",
+        all(looks[t]["bar"][:2] == (looks[t]["window"][1], looks[t]["window"][0]) and "underline" in looks[t]["hotkey.bar"][2]
+            and looks[t]["hotkey.bar"][1] == looks[t]["bar"][1] and looks[t]["barsel"][1] == looks[t]["bar"][0]
+            and "red" not in looks[t]["hotkey.bar"][:2] and "red" not in looks[t]["barsel"][:2] for t in ("paper", "night")),
+        repr({t: (looks[t].get("bar"), looks[t].get("hotkey.bar"), looks[t].get("barsel")) for t in ("paper", "night")}))
+    row("R9 ... nothing on the light grey is bold (most terminals make bold text bright, and bright black or blue on light grey is pale: the first capture)",
+        all("bold" not in looks[t][s][2] for t in ("paper", "night") for s in looks[t] if looks[t][s][1] == "white"),
+        repr({t: [s for s in looks[t] if looks[t][s][1] == "white" and "bold" in looks[t][s][2]] for t in ("paper", "night")}))
+    row("R9 ... the four raw styles take the theme's two colours (a page's list in normal is not in the terminal's own colours), reverse still reverse",
+        all(looks[t][s][:2] == looks[t]["window"][:2] for t in ("paper", "night") for s in ("normal", "reverse", "underline", "both"))
+        and all(looks[t]["reverse"][2] == ("reverse",) and looks[t]["underline"][2] == ("underline",) for t in ("paper", "night")),
+        repr({t: {s: looks[t].get(s) for s in ("normal", "reverse", "underline", "both")} for t in ("paper", "night")}))
+    row("R9 ... the window, the text and the desktop are on the theme's own background (light grey for paper, black for night)",
+        all(looks[t][s][1] == bg_of[t] for t in ("paper", "night") for s in ("window", "text", "desktop", "pane")) and len(allpairs) > 20)
 
     fl = flat(th)
-    row("R4 'list' answers blue classic dark light mono, in that order, from one place",
-        "thorder = 'blue' : @fm : 'classic' : @fm : 'dark' : @fm : 'light' : @fm : 'mono'" in fl and fl.count("thorder = '") == 1 and "case op = 'list' gosub theme.order ret = thorder" in fl)
+    row("R4 'list' answers blue classic dark light mono night paper, in that order, from one place",
+        "thorder = 'blue' : @fm : 'classic' : @fm : 'dark' : @fm : 'light' : @fm : 'mono' : @fm : 'night' : @fm : 'paper'" in fl and fl.count("thorder = '") == 1 and "case op = 'list' gosub theme.order ret = thorder" in fl)
     nt = flat(label_block(th, "next.theme")).strip()
     i_col = nt.find("system(25)")
     i_37 = nt.find("@(-37, 7) = ''")
@@ -165,10 +196,10 @@ def run():
     m = re.search(r"case cmd = 'theme'\n(.*?)\n\s*end case", ide, re.S)
     tc = flat(m.group(1)).strip() if m else ""
     row("R8 the IDE has no list of themes of its own (2 Nov 26, S.88 p3.7b)", not re.search(r"\bthemes\s*=", ide) and "theme.n" not in ide and "themes<" not in ide)
-    row("R8 ... it starts in the site's theme: th.want is CONFIG('SCREENTHEME'), blue when blank, before the first apply.theme",
-        "th.want = downcase(trim(config('SCREENTHEME'))) if th.want = '' then th.want = 'blue'" in head, head[-300:])
-    row("R8 ... apply.theme asks for th.want, falls back to blue, and keeps in th.want the theme in force",
-        ap.startswith("screen theme th.want returning th else if th.want # 'blue' then screen theme 'blue' returning th else null end call $sl_theme('name', '', '', '', '', th.want) end"), ap)
+    row("R8 ... it starts in the site's theme: th.want is CONFIG('SCREENTHEME'), paper when blank, before the first apply.theme",
+        "th.want = downcase(trim(config('SCREENTHEME'))) if th.want = '' then th.want = 'paper'" in head, head[-300:])
+    row("R8 ... apply.theme asks for th.want, falls back to paper, and keeps in th.want the theme in force",
+        ap.startswith("screen theme th.want returning th else if th.want # 'paper' then screen theme 'paper' returning th else null end call $sl_theme('name', '', '', '', '', th.want) end"), ap)
     row("R8 ... the Theme command takes the next theme from $sl_theme and applies it",
         tc.startswith("call $sl_theme('name', '', '', '', '', th.cur) call $sl_theme('next', th.cur, '', '', '', th.want) gosub apply.theme"), tc)
     row("R8 ... and the screen taken back puts th.want on again (retake.quiet)", "gosub open.screen gosub apply.theme" in flat(label_block(ide, "retake.quiet") or ""))
@@ -187,13 +218,13 @@ def run():
     for ln in conf.split("\n"):
         if ln.startswith("["):
             sec = ln.strip().lower()
-        if ln.strip() == "SCREENTHEME=blue":
+        if ln.strip() == "SCREENTHEME=paper":
             n_all += 1
             n_sd += 1 if sec == "[sd]" else 0
-    row("R7 the shipped sd.conf has SCREENTHEME=blue once, in [sd]", n_sd == 1 and n_all == 1 and len(re.findall(r"^SCREENTHEME=", conf, re.M)) == 1, "in [sd] %d, all %d" % (n_sd, n_all))
+    row("R7 the shipped sd.conf has SCREENTHEME=paper once, in [sd]", n_sd == 1 and n_all == 1 and len(re.findall(r"^SCREENTHEME=", conf, re.M)) == 1, "in [sd] %d, all %d" % (n_sd, n_all))
     tr = [ln for ln in raw("table").split("\n") if ln.startswith("SCREENTHEME|")]
-    row("R7 the table has one SCREENTHEME row, which says blank is mono and that the shipped file sets blue, and no longer says it cannot be read",
-        len(tr) == 1 and "Not readable" not in tr[0] and "Blank means mono" in tr[0] and "sets blue" in tr[0], repr(tr))
+    row("R7 the table has one SCREENTHEME row, which says blank is mono and that the shipped file sets paper, and no longer says it cannot be read",
+        len(tr) == 1 and "Not readable" not in tr[0] and "Blank means mono" in tr[0] and "sets paper" in tr[0], repr(tr))
     print("test-themeroles-units: %d passed, %d failed" % (passed, failed))
     return 0 if failed == 0 else 1
 
@@ -249,16 +280,27 @@ def selftest():
     mutant("the default theme is not asked of the configuration", "sl_theme", "dn = downcase(trim(config('SCREENTHEME')))", "dn = ''")
     mutant("tool.keys keeps its own list", "tool_keys", "   snames = 'normal'", "   themes = 'mono' : @fm : 'classic' : @fm : 'blue'\n   snames = 'normal'")
     mutant("tool.keys does not ask the library", "tool_keys", "call $sl_theme('next', thn, '', '', '', thx)", "thx = thn")
-    mutant("the IDE starts in blue whatever the site says", "ide", "   th.want = downcase(trim(config('SCREENTHEME')))\n", "   th.want = ''\n")
-    mutant("the IDE keeps a list of its own", "ide", "   if th.want = '' then th.want = 'blue'\n", "   if th.want = '' then th.want = 'blue'\n   themes = 'blue' : @fm : 'mono'\n")
+    mutant("the IDE starts in paper whatever the site says", "ide", "   th.want = downcase(trim(config('SCREENTHEME')))\n", "   th.want = ''\n")
+    mutant("the IDE keeps a list of its own", "ide", "   if th.want = '' then th.want = 'paper'\n", "   if th.want = '' then th.want = 'paper'\n   themes = 'blue' : @fm : 'mono'\n")
     mutant("the IDE's theme command cycles nothing", "ide", "call $sl_theme('next', th.cur, '', '', '', th.want)", "th.want = th.cur")
-    mutant("the IDE has no fallback to blue", "ide", "         screen theme 'blue' returning th else null\n", "")
+    mutant("the IDE has no fallback to paper", "ide", "         screen theme 'paper' returning th else null\n", "")
+    mutant("the IDE falls back to blue again", "ide", "   if th.want = '' then th.want = 'paper'\n", "   if th.want = '' then th.want = 'blue'\n")
+    mutant("paper's menu bar back to black on cyan", "sl_theme", "         spec<-1> = 'bar=white,black,'", "         spec<-1> = 'bar=black,cyan,'")
+    mutant("paper's menus the page's colours (no edge)", "sl_theme", "         spec<-1> = 'bar=white,black,'", "         spec<-1> = 'bar=black,white,'")
+    mutant("paper's bar letter red again", "sl_theme", "         spec<-1> = 'hotkey.bar=brown,black,bold underline'", "         spec<-1> = 'hotkey.bar=red,black,'")
+    mutant("paper's header bold again", "sl_theme", "         spec<-1> = 'header=black,white,underline'", "         spec<-1> = 'header=black,white,bold underline'")
+    mutant("paper's normal is the terminal's own", "sl_theme", "         spec<-1> = 'normal=black,white,'\n", "")
+    mutant("night's reverse loses reverse", "sl_theme", "         spec<-1> = 'reverse=white,black,reverse'", "         spec<-1> = 'reverse=white,black,'")
+    mutant("night's text has no background", "sl_theme", "         spec<-1> = 'text=white,black,'\n         spec<-1> = 'header=brown,black,bold underline'", "         spec<-1> = 'text=white,,'\n         spec<-1> = 'header=brown,black,bold underline'")
+    mutant("paper's syntax comment loses its background", "sl_theme", "   spec<-1> = 'comment=magenta,white,'", "   spec<-1> = 'comment=magenta,,'")
+    mutant("night is not in the list", "sl_theme", " : @fm : 'night' : @fm : 'paper'", " : @fm : 'paper'")
+    mutant("paper gives no roles", "sl_theme", "         spec<-1> = 'focus=white,blue,bold'\n         gosub syntax.paper", "         gosub syntax.paper")
     mutant("CONFIG() buffer back to eight", "opconfig", "char param[16 + 1];", "char param[8 + 1];")
     mutant("CONFIG() limit back to eight", "opconfig", "k_get_c_string(descr, param, 16) < 1", "k_get_c_string(descr, param, 8) < 1")
     mutant("the setter widened", "opconfig", "  char param[8 + 1];\n", "  char param[16 + 1];\n")
     mutant("SCREENTHEME has no branch", "opconfig", 'strcmp(param, "SCREENTHEME")', 'strcmp(param, "SCREENTHEMX")')
-    mutant("the shipped sd.conf has no theme", "sd.conf", "SCREENTHEME=blue\n", "")
-    mutant("the shipped sd.conf says mono", "sd.conf", "SCREENTHEME=blue", "SCREENTHEME=mono")
+    mutant("the shipped sd.conf has no theme", "sd.conf", "SCREENTHEME=paper\n", "")
+    mutant("the shipped sd.conf says blue again", "sd.conf", "SCREENTHEME=paper", "SCREENTHEME=blue")
     mutant("the table says unreadable again", "table", "whatever this says.|no|", "whatever this says. Not readable with the CONFIG function.|no|")
     shutil.rmtree(t, ignore_errors=True)
     print("selftest: %d of %d mutants caught, %d missed" % (caught, caught + missed, missed))

@@ -1957,14 +1957,22 @@ fi
 echo "Process dumps: $(sudo stat -c '%U:%G %a' "$sdsysdir/dumps") $sdsysdir/dumps, $(grep '^DUMPDIR=' /etc/sd.conf)"
 # SCREENTHEME-BEGIN
 #
-# 29 Oct 26 dm - S.88 3.7a (owner's yes, same day).  THE DELIVERED SCREEN THEME IS BLUE.  The shipped sd.conf has
-# SCREENTHEME=blue, and a keep-configuration install restores a file written before the line existed, so the same
-# line is added to a restored file that has none, the way DUMPDIR is above.  ANY SCREENTHEME line is left alone, an
-# explicit SCREENTHEME=mono included: the administrator's choice stands, and a terminal with no colour shows mono
+# 8 Nov 26 dm - S.172 (owner: "Change the default theme to more monochrome so that the text is always readable").
+# THE DELIVERED SCREEN THEME IS PAPER (black and dark blue on light grey).  The shipped sd.conf has SCREENTHEME=paper,
+# and a keep-configuration install restores an older file, so: a restored file with no SCREENTHEME line gets
+# SCREENTHEME=paper, the way DUMPDIR is above; a restored SCREENTHEME=blue (the delivered default from 29 Oct 26, not a
+# choice) is changed to paper ONCE - the change leaves the comment line SCREENTHEME_MARK in the file, and a file that has
+# it is not changed again, so an administrator who sets blue afterwards keeps it.  Any other line (mono, classic, dark,
+# light, night, paper) is left alone: the administrator's choice stands, and a terminal with no colour shows mono
 # whatever the line says.  gplbld/test-install-screentheme.sh runs this block.
+SCREENTHEME_MARK='# SCREENTHEME blue was changed to paper by the installer (S.172); set it back to blue to keep the old look'
 if ! grep -q '^SCREENTHEME=' /etc/sd.conf; then
-    echo "SCREENTHEME=blue" | sudo tee -a /etc/sd.conf >/dev/null
-    echo "Added SCREENTHEME=blue to /etc/sd.conf (the restored file did not have it; set it to mono, classic, dark or light to change the look)."
+    echo "SCREENTHEME=paper" | sudo tee -a /etc/sd.conf >/dev/null
+    echo "Added SCREENTHEME=paper to /etc/sd.conf (the restored file did not have it; set it to night, mono, blue, classic, dark or light to change the look)."
+elif grep -q '^SCREENTHEME=blue[[:space:]]*$' /etc/sd.conf && ! grep -qxF "$SCREENTHEME_MARK" /etc/sd.conf; then
+    sudo sed -i 's/^SCREENTHEME=blue[[:space:]]*$/SCREENTHEME=paper/' /etc/sd.conf
+    echo "$SCREENTHEME_MARK" | sudo tee -a /etc/sd.conf >/dev/null
+    echo "Changed SCREENTHEME=blue to SCREENTHEME=paper in /etc/sd.conf (the new delivered look)."
 fi
 # SCREENTHEME-END
 #

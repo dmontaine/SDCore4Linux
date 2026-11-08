@@ -11,6 +11,7 @@
 #
 # START-HISTORY:
 # 29 Oct 26 dm  New (S.88 3.7a).
+# 8 Nov 26 dm  S.172: seven themes (night and paper); D also opens with SCREENTHEME=paper.
 # END-HISTORY
 #
 # WHAT IT MEASURES.
@@ -18,7 +19,7 @@
 #      (a new session reads the file), 'mono' for an explicit mono; BACKUPDIR and SDSYS and a 17-character name stay 'not found' (status # 0); the 11-character name is the one
 #      that never worked
 #   L  $sl_theme 'list' is five names in the one order; 'next' on a pipe (no terminal) is mono whatever it is asked
-#   P  on a pseudo-terminal (xterm, then linux, which has dim; then vt100, which has no colour): 'next' walks mono blue classic dark light mono, a vt100 never leaves mono; the
+#   P  on a pseudo-terminal (xterm, then linux, which has dim; then vt100, which has no colour): 'next' walks mono night paper blue classic dark light mono night, a vt100 never leaves mono; the
 #      escape sequence of every role in every theme ($sl_sgr) is printed with control characters as <n>; in mono the six role sequences differ from one another and from normal, hold no
 #      dim sequence (linux), and in every colour theme the roles differ from one another and from normal
 #   D  SCREEN OPEN's default (an internal probe, since the theme name is read with $sl_theme): with SCREENTHEME=blue in sd.conf a program that opens a screen and asks for nothing is in
@@ -43,7 +44,7 @@ PSEQ = "zzts" + RUN       # the list, 'next', the sequences
 PDEF = "zztd" + RUN       # SCREEN OPEN with nothing asked
 passed = failed = 0
 ROLES = ["warning", "success", "readonly", "busy", "focus", "error"]
-THEMES = ["mono", "blue", "classic", "dark", "light"]
+THEMES = ["mono", "blue", "classic", "dark", "light", "night", "paper"]      # 8 Nov 26, S.172: night and paper
 
 SRC_CFG = """$internal
    names = 'SCREENTHEME' : @fm : 'BACKUPDIR' : @fm : 'SDSYS' : @fm : 'ABCDEFGHIJKLMNOPQ' : @fm : 'NOSUCHKEY' : @fm : 'GRPSIZE'
@@ -60,7 +61,7 @@ $include gpl.bp sl.h
    crt 'LST ' : change(l, @fm, ',')
    call $sl_theme('name', '', '', '', '', cur)
    crt 'NXT start=' : cur
-   for i = 1 to 6
+   for i = 1 to 8
       call $sl_theme('next', cur, '', '', '', nx)
       crt 'NXT ' : cur : '->' : nx
       call $sl_theme('set', nx, '', '', '', r)
@@ -68,8 +69,8 @@ $include gpl.bp sl.h
       cur = nx
    next i
    names = 'normal' : @fm : 'warning' : @fm : 'success' : @fm : 'readonly' : @fm : 'busy' : @fm : 'focus' : @fm : 'error'
-   themes = 'mono' : @fm : 'blue' : @fm : 'classic' : @fm : 'dark' : @fm : 'light'
-   for t = 1 to 5
+   themes = 'mono' : @fm : 'blue' : @fm : 'classic' : @fm : 'dark' : @fm : 'light' : @fm : 'night' : @fm : 'paper'
+   for t = 1 to 7
       call $sl_theme('set', themes<t>, '', '', '', r)
       if r # 0 then
          crt 'SEQ ' : themes<t> : ' refused ret=' : r
@@ -152,8 +153,8 @@ def isess(box, *cmds, term=None):
 
 
 def pty_internal(box, term, cmds):
-    """INTERNAL mode on a pseudo-terminal of 140 by 60 (room for every probe line); returns the screen's lines"""
-    s = PtySession([os.path.join(box, "sys", "bin", "sd"), "-internal"], os.path.join(box, "sys"), sdenv(box, term), 140, 60)
+    """INTERNAL mode on a pseudo-terminal of 140 by 100 (room for every probe line: seven themes since S.172 print about 70); returns the screen's lines"""
+    s = PtySession([os.path.join(box, "sys", "bin", "sd"), "-internal"], os.path.join(box, "sys"), sdenv(box, term), 140, 100)
     s.settle(1.0)
     s.type("TERM %s\r" % term)
     for c in cmds:
@@ -253,7 +254,7 @@ def main():
         #   xterm walked blue, classic, dark, light).  So the pipe is given a terminal type with no colour.
         out = isess(box, "RUN bp " + PSEQ, term="vt100")
         lst = tagged(out, "LST")
-        row("$sl_theme 'list' is blue,classic,dark,light,mono", lst == ["LST blue,classic,dark,light,mono"], repr(lst))
+        row("$sl_theme 'list' is blue,classic,dark,light,mono,night,paper", lst == ["LST blue,classic,dark,light,mono,night,paper"], repr(lst))
         nx = tagged(out, "NXT")
         row("on a pipe whose terminal type (vt100) has no colour 'next' is mono whatever it is asked, and mono is the theme the program starts in",
             nx and nx[0] == "NXT start=mono" and all(re.match(r"NXT (mono->mono|set mono ret=0)$", x) for x in nx[1:]), repr(nx))
@@ -263,10 +264,10 @@ def main():
             lines = pty_internal(box, term, ["RUN bp " + PSEQ])
             nx = [x for x in tagged(lines, "NXT") if "->" in x]
             walk = [re.match(r"NXT (\S+)->(\S+)$", x).groups() for x in nx]
-            row("%s: 'next' walks mono -> blue -> classic -> dark -> light -> mono -> blue" % term,
-                [b for _, b in walk] == ["blue", "classic", "dark", "light", "mono", "blue"], repr(walk))
+            row("%s: 'next' walks mono -> night -> paper -> blue -> classic -> dark -> light -> mono -> night" % term,
+                [b for _, b in walk] == ["night", "paper", "blue", "classic", "dark", "light", "mono", "night"], repr(walk))
             sq = seqs(lines)
-            row("%s: the probe printed the sequences of all five themes and all seven styles" % term, sorted(sq) == sorted(THEMES) and all(len(v) == 7 for v in sq.values()), repr({k: len(v) for k, v in sq.items()}))
+            row("%s: the probe printed the sequences of all seven themes and all seven styles" % term, sorted(sq) == sorted(THEMES) and all(len(v) == 7 for v in sq.values()), repr({k: len(v) for k, v in sq.items()}))
             if not sq:
                 continue
             dim = (tagged(lines, "SEQ dim") or ["SEQ dim "])[0][len("SEQ dim "):]
@@ -288,6 +289,7 @@ def main():
         say("\n--- D: SCREEN OPEN with nothing asked -------------------------------------------------------------------")
         for conf, want, why in ((original, "mono", "no SCREENTHEME line: a user program keeps the library's unset default"),
                                 (original.rstrip("\n") + "\nSCREENTHEME=blue\n", "blue", "SCREENTHEME=blue"),
+                                (original.rstrip("\n") + "\nSCREENTHEME=paper\n", "paper", "SCREENTHEME=paper (S.172, the shipped value)"),
                                 (original.rstrip("\n") + "\nSCREENTHEME=mono\n", "mono", "an explicit SCREENTHEME=mono")):
             write_conf(box, conf)
             lines = pty_internal(box, "xterm", ["RUN bp " + PDEF])

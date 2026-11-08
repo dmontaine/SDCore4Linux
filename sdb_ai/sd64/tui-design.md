@@ -58,7 +58,7 @@ against the tree is `gplbld/test-tuidesign-units.py` (no install, no sd; `--self
 | Id | Rule | Tag | Evidence |
 |----|------|-----|----------|
 | T1 | The library draws with styles; a theme says how each looks. The codes are `SL.CODES` in `sl.h`; the roles are error `f`, warning `U`, success `V`, readonly `W`, busy `X`, focus `Y`, and every theme gives each a look (mono with flags only). | BUILT | test-themeroles-units.py; sandbox-themeroles.py (WRITTEN, NOT RUN) |
-| T2 | The site's theme is `SCREENTHEME` in `sd.conf` (shipped `blue`); the installer adds `SCREENTHEME=blue` to a restored `sd.conf` that has no such line. A program that asks for no theme, with a blank or unknown name, gets `mono`. | BUILT | test-themeroles-units.py R6-R7, test-install-screentheme.sh |
+| T2 | The site's theme is `SCREENTHEME` in `sd.conf` (shipped `paper`, near-monochrome, S.172); the installer adds `SCREENTHEME=paper` to a restored `sd.conf` that has no such line and changes a restored `SCREENTHEME=blue` to `paper` once. A program that asks for no theme, with a blank or unknown name, gets `mono`. | BUILT | test-themeroles-units.py R6-R7, test-install-screentheme.sh |
 | T3 | A page offers no theme choice of its own; Keys (tool.keys) shows the next theme the terminal can show. | BUILT | test-themeroles-units.py R5 |
 
 ## 5. Pages on the frame

@@ -230,9 +230,9 @@ def checks(s):
        titles == ["File", "Go", "Search", "Build", "View", "Help", "AI", "Tools"] and "File, Go, Search, Build, View, Tools, AI, Help (there is no Edit menu)" in doc
        and "if j = 11230 then\n         m = change(sysmsg(14004), '|', @vm)" in s["ide"], repr(titles))
     codes = re.search(r"\$define SL\.CODES\s+'([^']+)'", s["sl.h"])
-    ck("T11 the theme: SL.CODES holds the role letters f U V W X Y, the shipped sd.conf says SCREENTHEME=blue, and the document says the same (T1, T2)",
-       codes and all(c in codes.group(1) for c in "fUVWXY") and re.search(r"^SCREENTHEME=blue\s*$", s["sd.conf"], re.M)
-       and "error `f`, warning `U`, success `V`, readonly `W`, busy `X`, focus `Y`" in doc and "(shipped `blue`)" in doc, "")
+    ck("T11 the theme: SL.CODES holds the role letters f U V W X Y, the shipped sd.conf says SCREENTHEME=paper (S.172), and the document says the same (T1, T2)",
+       codes and all(c in codes.group(1) for c in "fUVWXY") and re.search(r"^SCREENTHEME=paper\s*$", s["sd.conf"], re.M)
+       and "error `f`, warning `U`, success `V`, readonly `W`, busy `X`, focus `Y`" in doc and "(shipped `paper`" in doc, "")
     return rows
 
 
@@ -266,7 +266,7 @@ MUTANTS = [
      "   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)\n   call $tk_menubar('draw', ctx, keys, '', '', '', mr)\n", "T9"),
     ("a page is marked exempt in the table only", "doc", "| `tool_jobs` | tool.jobs | administrator | all |", "| `tool_jobs` | tool.jobs | administrator | E1 |", "T9"),
     ("the IDE gains an Edit menu in the document", "doc", "File, Go, Search, Build, View, AI, Help (there is no Edit menu)", "File, Edit, Go, Search, Build, View, AI, Help", "T10"),
-    ("the shipped theme is mono", "sd.conf", "SCREENTHEME=blue", "SCREENTHEME=mono", "T11"),
+    ("the shipped theme is blue again", "sd.conf", "SCREENTHEME=paper", "SCREENTHEME=blue", "T11"),
 ]
 
 

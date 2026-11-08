@@ -13,6 +13,15 @@
 *               one another, and the words on the screen carry the meaning.
 * 1 Nov 26 dm  S.99: the op 'syntax' (the nine syntax styles of the dark or the light kind put on the theme in force, nothing else changed), so that SED can be in the
 *               site's theme (the pages' colours) and still have SYNTAX LIGHT.  Every other op is as it was.
+* 8 Nov 26 dm  S.172: two near-monochrome themes, paper (black and dark blue on light grey; the shipped SCREENTHEME) and night (white and yellow on black), the owner
+*               having found blue's menu bar (black and red on cyan) and its text hard to read.  Every style of both has an explicit background (a style with only a
+*               foreground would show the terminal's own background inside a light window), the mnemonic letters are underlined as well as coloured, and the
+*               syntax styles have their own set for each.  The menu bar and the menus are the inverse of the page.  Nothing on the light grey is bold (a
+*               terminal makes bold text bright, and bright black or blue is pale on grey), and the four raw styles take the theme's two colours, as two
+*               dozen pages draw their lists in normal.  The list is blue classic dark light mono night paper.  A readability review (Fable 5.1, WCAG 2
+*               ratios in the xterm and GNOME Tango palettes) found nothing below 3:1; below 4.5 only blue (Tango 4.06), red (4.03) and magenta (xterm
+*               3.72) on the light grey - every colour but black is between 3 and 4.5 there without bold, the cost of syntax colour in a light 8-colour
+*               theme - and paper's focus and error rely on bold being made bright for 4.5.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -28,7 +37,7 @@
 *
 *     style       code  mono looks like       what it is for
 *     normal      n     the terminal's own    the program's own output
-*     reverse     r     reverse video         (raw: the same in every theme)
+*     reverse     r     reverse video         (raw: the same in every theme but paper and night, which give the four the theme's two colours)
 *     underline   u     underline             (raw)
 *     both        x     reverse and underline (raw)
 *     bold        b     bold                  bold text on the desktop: it keeps the desktop's colours (a theme may change it)
@@ -53,7 +62,7 @@
 *     focus       Y     reverse               the thing that has the keyboard, where highlight is not enough
 *
 *   op   'code'   a = a style name, or a code itself; ret = the code, n for a name it does not know
-*         'set'    a = the name of a theme: mono, classic or blue.  ret 0 done; 1 refused, because the
+*         'set'    a = the name of a theme: mono, classic, dark, light, blue, night or paper.  ret 0 done; 1 refused, because the
 *                  terminal has no colour (or there is no terminal) and the theme needs it - the theme in
 *                  force is left as it was; 2 no theme of that name.  a = '' builds the sequences again for
 *                  the terminal type now in force.
@@ -63,7 +72,7 @@
 *                  blue, green, cyan, red, magenta, brown (or yellow), white, or empty for the terminal's
 *                  own; the flags are any of bold, dim, reverse and underline, separated by spaces or +.
 *         'name'   ret = the name of the theme in force
-*         'list'   ret = the names of the themes, one to a field, in the one order every program shows them: blue, classic, dark, light, mono
+*         'list'   ret = the names of the themes, one to a field, in the one order every program shows them: blue, classic, dark, light, mono, night, paper
 *         'next'   a = the name of a theme ('' for the one in force); ret = the next one in that order that THIS terminal can show, wrapping.  A
 *                  terminal with no colour (or no terminal) can show mono only, so ret is mono whatever a was.
 *         'default' (SCREEN OPEN) takes the theme SCREENTHEME names in sd.conf, unless the program asked for one; a blank or unknown name, or a
@@ -273,6 +282,70 @@ set.theme:
          spec<-1> = 'busy=white,magenta,bold'
          spec<-1> = 'focus=white,cyan,bold'
          gosub syntax.dark
+      case nm = 'paper'
+         * 8 Nov 26 (S.172): near-monochrome, dark text on light grey (white without bold is light grey on the eight-colour terminals); what is selected is bright
+         * white on black, a mnemonic letter dark blue and underlined.  The shipped SCREENTHEME.  NO BOLD ON THE LIGHT BACKGROUND: most terminals make bold text
+         * bright, and bright black or bright blue on light grey is the pale text the owner could not read (measured in the first capture: grey and light blue).
+         * The four raw styles take the theme's two colours here, unlike every other theme: two dozen pages draw their lists in normal, which would otherwise show
+         * the terminal's own colours inside the grey page; reverse is still reverse (white on black), underline still underline.
+         spec<-1> = 'normal=black,white,'
+         spec<-1> = 'reverse=black,white,reverse'
+         spec<-1> = 'underline=black,white,underline'
+         spec<-1> = 'both=black,white,reverse underline'
+         spec<-1> = 'desktop=black,white,'
+         spec<-1> = 'bold=black,white,underline'        ;* not blue: blue on grey is disabled and read-only only (readability review, Fable 5.1)
+         spec<-1> = 'window=black,white,'
+         spec<-1> = 'highlight=white,black,bold'
+         * the menu bar and the menus are the INVERSE of the page (light grey on black, the letter yellow): a menu the same colours as the page under it had no edge
+         spec<-1> = 'bar=white,black,'
+         spec<-1> = 'barsel=black,white,'
+         spec<-1> = 'hotkey=blue,white,underline'
+         spec<-1> = 'hotkey.bar=brown,black,bold underline'
+         spec<-1> = 'field=black,white,underline'
+         spec<-1> = 'disabled=blue,white,'
+         spec<-1> = 'text=black,white,'
+         spec<-1> = 'header=black,white,underline'
+         spec<-1> = 'bar.disabled=cyan,black,'
+         spec<-1> = 'gutter=blue,white,'
+         spec<-1> = 'pane=black,white,'
+         spec<-1> = 'tab=black,white,'
+         spec<-1> = 'scroll=white,black,'
+         spec<-1> = 'warning=black,brown,'
+         spec<-1> = 'success=black,green,'
+         spec<-1> = 'readonly=blue,white,'
+         spec<-1> = 'busy=white,magenta,bold'
+         spec<-1> = 'focus=white,blue,bold'
+         gosub syntax.paper
+      case nm = 'night'
+         * 8 Nov 26 (S.172): the dark kind of paper, white on black with yellow (bold brown) for what stands out; the bar and the menus are the inverse of the
+         * page, black on light grey, as paper's are; like paper no style on the light grey is bold; the four raw styles take the theme's colours
+         spec<-1> = 'normal=white,black,'
+         spec<-1> = 'reverse=white,black,reverse'
+         spec<-1> = 'underline=white,black,underline'
+         spec<-1> = 'both=white,black,reverse underline'
+         spec<-1> = 'desktop=white,black,'
+         spec<-1> = 'bold=brown,black,bold'
+         spec<-1> = 'window=white,black,'
+         spec<-1> = 'highlight=black,white,'
+         spec<-1> = 'bar=black,white,'
+         spec<-1> = 'barsel=brown,black,bold'
+         spec<-1> = 'hotkey=brown,black,bold underline'
+         spec<-1> = 'hotkey.bar=blue,white,underline'
+         spec<-1> = 'field=white,black,underline'
+         spec<-1> = 'disabled=cyan,black,'
+         spec<-1> = 'text=white,black,'
+         spec<-1> = 'header=brown,black,bold underline'
+         spec<-1> = 'bar.disabled=blue,white,'
+         spec<-1> = 'gutter=cyan,black,'
+         spec<-1> = 'pane=white,black,'
+         spec<-1> = 'tab=black,white,'
+         spec<-1> = 'scroll=black,white,'
+         spec<-1> = 'warning=black,brown,'
+         spec<-1> = 'success=black,green,'
+         spec<-1> = 'readonly=cyan,black,'
+         spec<-1> = 'busy=white,magenta,bold'
+         spec<-1> = 'focus=black,white,'
+         gosub syntax.night
       case 1
          ret = 2
          return
@@ -370,6 +443,31 @@ syntax.light:
    spec<-1> = 'todo=black,brown,'
    return
 
+* 8 Nov 26 (S.172): the syntax styles of paper and night carry the theme's background, so that a coloured word sits in the same light (or black) window as the rest
+syntax.paper:
+   spec<-1> = 'comment=magenta,white,'
+   spec<-1> = 'string=red,white,'
+   spec<-1> = 'constant=red,white,'
+   spec<-1> = 'keyword=blue,white,'
+   spec<-1> = 'type=blue,white,underline'
+   spec<-1> = 'preproc=magenta,white,underline'
+   spec<-1> = 'special=black,white,underline'
+   spec<-1> = 'error=white,red,bold'
+   spec<-1> = 'todo=black,brown,'
+   return
+
+syntax.night:
+   spec<-1> = 'comment=cyan,black,'
+   spec<-1> = 'string=green,black,bold'
+   spec<-1> = 'constant=green,black,'                 ;* bold magenta is 3.2:1 where bold is not made bright (GNOME's default); green is 5.9 or more
+   spec<-1> = 'keyword=brown,black,bold'
+   spec<-1> = 'type=cyan,black,bold'
+   spec<-1> = 'preproc=red,black,bold'
+   spec<-1> = 'special=white,black,bold'
+   spec<-1> = 'error=white,red,bold'
+   spec<-1> = 'todo=black,brown,'
+   return
+
 * The roles of 29 Oct 26 (S.88 3.7a).  Six looks of flags only in mono (no dim: the xterm entry has none), pairwise different; a colour theme keeps the flags where
 * the colour is only a foreground, so the role still reads on a terminal that loses the colour
 roles.mono:
@@ -399,7 +497,7 @@ roles.light:
 
 * The one order the themes are shown in
 theme.order:
-   thorder = 'blue' : @fm : 'classic' : @fm : 'dark' : @fm : 'light' : @fm : 'mono'
+   thorder = 'blue' : @fm : 'classic' : @fm : 'dark' : @fm : 'light' : @fm : 'mono' : @fm : 'night' : @fm : 'paper'
    return
 
 * ret = the theme after a (or after the one in force) that this terminal can show; mono alone when it has no colour

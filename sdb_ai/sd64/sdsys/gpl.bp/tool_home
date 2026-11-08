@@ -40,6 +40,7 @@
 *               palette's blue behind the text, which a terminal palette may show light (the owner's GNOME Terminal: pale text on light blue, "unreadable").
 * 7 Nov 26 dm   S.164: /tkhome/ gains hrefused, set when $tk_open refuses at the start, so !home_entry signs the session out.  A window made too small during a
 *               command is NOT signed out: the reopen holds it behind $sl_guard's size lock until it is big enough (the owner: "lock user input until it is the right size").
+* 8 Nov 26 dm   S.172: in the themes paper and night the tiles are boxed in the window colours, the focus in highlight (alloc.styles), not coloured blocks.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -522,6 +523,17 @@ alloc.styles:
    pnames = ''
    pcode = ''
    pfocus = ''
+   tile.plain = 'normal'
+   tile.focus = 'reverse'
+   * 8 Nov 26 (S.172): the near-monochrome themes paper and night have no coloured tiles: every tile is boxed in the theme's window colours and the one with the
+   * focus in its highlight, so that all text is the theme's own high-contrast pair
+   call $sl_theme('name', '', '', '', '', thn)
+   if thn = 'paper' or thn = 'night' then
+      colour = 0
+      tile.plain = 'window'
+      tile.focus = 'highlight'
+      return
+   end
    for i = 1 to nt
       p = tl<i, HT.PAL>
       locate p in pnames<1> setting k else
@@ -821,9 +833,9 @@ draw.tile:
       case colour
          sty = pcode<pk>
       case focused
-         sty = 'reverse'
+         sty = tile.focus
       case 1
-         sty = 'normal'
+         sty = tile.plain
    end case
    for r = 0 to th - 1
       sy = ty + r

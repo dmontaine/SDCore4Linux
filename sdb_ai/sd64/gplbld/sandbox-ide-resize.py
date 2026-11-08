@@ -10,6 +10,7 @@
 #
 # START-HISTORY:
 # 2 Nov 26 dm  New (S.88 p3.3a and p3.7b).
+# 8 Nov 26 dm  S.172: the IDE's default is paper (its bar light grey on black); T1 measures blue; the rows compare both colours of the bar.
 # END-HISTORY
 #
 #   resize (about 40 s)  a record is opened, ZZQ typed on line 1, Ctrl-F finds "needle" (line 2, selected); the window goes to 160 by 50 and back to 140 by 43; then
@@ -19,11 +20,11 @@
 #     Z4  THE MARK: Ctrl-X cuts the selection the find made before the resize - "needle" goes from line 2
 #     Z5  THE UNDO STEPS: Ctrl-Z twice puts back the cut and takes away the typing (line 1 is alpha again)
 #     Z6  THE FIND TEXT: from line 3, F3 finds the next "needle" (line 4) without asking for it again
-#   theme (about 25 s)  the colour of the menu bar's background, read from the emulated screen's cells: blue's bar is black on cyan (6), classic's black on white (7)
-#     T0  control: the sandbox's sd.conf names no SCREENTHEME: the IDE is blue, as it always was
-#     T1  SCREENTHEME=classic: the IDE opens in classic (red on the IDE that started blue whatever the site said)
-#     T2  SCREENTHEME=nosuch (no theme of that name): the IDE falls back to blue, not to mono
-# Mutants (each is run against its own section): rebuild (relayout makes the form again: Z4 Z5 Z6), blue-first (the IDE ignores SCREENTHEME: T1).
+#   theme (about 25 s)  the colours of the menu bar, read from the emulated screen's cells (ANSI numbers): blue's bar is black on cyan (0, 6), paper's light grey on black (7, 0)
+#     T0  control: the sandbox's sd.conf names no SCREENTHEME: the IDE is paper, the delivered theme (S.172)
+#     T1  SCREENTHEME=blue: the IDE opens in blue (red on an IDE that started in paper whatever the site said)
+#     T2  SCREENTHEME=nosuch (no theme of that name): the IDE falls back to paper, not to mono
+# Mutants (each is run against its own section): rebuild (relayout makes the form again: Z4 Z5 Z6), paper-first (the IDE ignores SCREENTHEME: T1).
 import importlib.util
 import os
 import re
@@ -47,7 +48,7 @@ FAILED = []
 MUTANTS = {
     # name: (section, old text of the sandbox's ide, new text, the rows that must fail and no others)
     "rebuild": ("resize", "   if have.form then\n      gosub move.form\n", "   if have.form then\n      gosub new.form\n", ["Z4", "Z5", "Z6"]),
-    "blue-first": ("theme", "   th.want = downcase(trim(config('SCREENTHEME')))\n", "   th.want = ''\n", ["T1"]),
+    "paper-first": ("theme", "   th.want = downcase(trim(config('SCREENTHEME')))\n", "   th.want = ''\n", ["T1"]),
 }
 
 
@@ -162,14 +163,14 @@ def section_theme(box):
         original = fh.read()
     base = re.sub(r"(?m)^SCREENTHEME=.*\n?", "", original)
     try:
-        for rid, line, want, what in (("T0", None, 6, "control: no SCREENTHEME line - blue (black on cyan), as the IDE always was"),
-                                      ("T1", "classic", 7, "SCREENTHEME=classic - the IDE opens in classic (black on white)"),
-                                      ("T2", "nosuch", 6, "SCREENTHEME=nosuch (no such theme) - the IDE falls back to blue, not mono")):
+        for rid, line, want, what in (("T0", None, (7, 0), "control: no SCREENTHEME line - paper (its bar light grey on black), the delivered theme (S.172)"),
+                                      ("T1", "blue", (0, 6), "SCREENTHEME=blue - the IDE opens in blue (black on cyan)"),
+                                      ("T2", "nosuch", (7, 0), "SCREENTHEME=nosuch (no such theme) - the IDE falls back to paper, not mono")):
             with open(conf, "w") as fh:
                 fh.write(base.rstrip("\n") + "\n" + ("SCREENTHEME=%s\n" % line if line else ""))
             e = sb.Ide(box, "IDE")
             st, top = bar_style(e)
-            row(rid, what, st is not None and st[:2] == (0, want) and "File" in top, repr((st, top[:60])))
+            row(rid, what, st is not None and st[:2] == want and "File" in top, repr((st, top[:60])))
             e.s.finish()
     finally:
         with open(conf, "w") as fh:

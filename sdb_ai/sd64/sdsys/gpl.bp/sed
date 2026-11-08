@@ -66,6 +66,8 @@
 *               preview shows everything that is sent; edits the AI proposes are shown as a diff and, if accepted, go into the buffer as one undo step; nothing is saved.
 * 26 Oct 26 dm  S.82, openQM sheet items 463 and 376: the options SCROLL1 (page up and page down move one line less than a page, so one line of the old page stays on the screen)
 *               and NO.CASE.EXPLORE (the record explore list is in case insensitive order, through SORT() with SRT$NOCASE) in &sed.options&.
+* 8 Nov 26 dm  S.172: a site theme of paper or night (paper is the delivered SCREENTHEME) puts SED in that theme, as blue and classic do, with the theme's own
+*               syntax colours.
 * END-HISTORY
 *
 *
@@ -4848,13 +4850,14 @@ syn.start:
    mat simage = '' ; mat syn.end = 0
    return
 
-* The theme colour is shown in (syn.r 0 when it is in force).  1 Nov 26 (S.99, look only): a site whose theme is blue or classic (SCREENTHEME in sd.conf, blue as delivered) has SED in THAT theme, so that
-* the bar, the key row, the menus and the boxes are the toolkit pages' colours; the syntax colours are the same ones the dark theme has, and SYNTAX LIGHT puts the light ones on it ($sl_theme 'syntax').
+* The theme colour is shown in (syn.r 0 when it is in force).  1 Nov 26 (S.99, look only): a site whose theme is paper, night, blue or classic (SCREENTHEME in sd.conf, paper as delivered since 8 Nov 26,
+* S.172) has SED in THAT theme, so that the bar, the key row, the menus and the boxes are the toolkit pages' colours; the syntax colours are the theme's own (paper's and night's carry the theme's
+* background; blue and classic have the dark theme's), and SYNTAX LIGHT puts the light ones on it ($sl_theme 'syntax').
 * Any other site theme (none, mono, dark, light) leaves SED as it was: the dark or the light theme.  A terminal that cannot show colour refuses both and SED stays in mono.
 syn.theme:
    syn.r = 1
    syn.site = downcase(trim(config('SCREENTHEME')))
-   if syn.site = 'blue' or syn.site = 'classic' then
+   if syn.site = 'blue' or syn.site = 'classic' or syn.site = 'paper' or syn.site = 'night' then
       call $sl_theme('set', syn.site, '', '', '', syn.r)
       if syn.r = 0 and syn.light then call $sl_theme('syntax', 'light', '', '', '', syn.r2)
    end

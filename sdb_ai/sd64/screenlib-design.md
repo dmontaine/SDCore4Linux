@@ -457,9 +457,9 @@ white): eight colours, bold for bright, because xterm's `setf` is right for 0-7 
 - *29 Oct 26 (S.88 3.7a):* `SL.CODES` is 51 letters now. Five ROLE styles - `warning` `success` `readonly` `busy` `focus`, codes `U V W X Y` - sit
   before the sixteen user styles (so the user styles are still the last sixteen), and `error` (code `f`) has a look in mono. A role has a
   look in every theme: mono by flags only (no `dim`; six different looks), `classic` and `blue` with both colours, `dark` and `light` with a
-  colour and flags. `$sl_theme('list')` is the one list (blue classic dark light mono) and `$sl_theme('next', name)` the next theme this
+  colour and flags. `$sl_theme('list')` is the one list (blue classic dark light mono night paper) and `$sl_theme('next', name)` the next theme this
   terminal can show (mono alone on a terminal with no colour). `SCREENTHEME` in `sd.conf` is read by `CONFIG()` now (the name buffer was 8
-  characters, so the 11-character name was never found and the site theme never applied); the shipped `sd.conf` says `blue`, and a
+  characters, so the 11-character name was never found and the site theme never applied); the shipped `sd.conf` says `paper` (8 Nov 26, S.172: `paper` and `night` are near-monochrome, black or dark blue on light grey and white or yellow on black), and a
   program with no line still gets mono.
 - *30 Oct 26 (S.88 p3.6, the focus service):* the form's focus is always on a widget that `can.focus` (takes keys, not disabled, no disabled container,
   on the page, not hidden) or on none. `fix.focus` repairs it: nothing when it is right; else the next widget that can have it round the ring, else
@@ -650,7 +650,7 @@ from a self-scrolling child that is at its limit to the viewport round it; `SCRE
    `@crtwide` for every session, which is why it is yours to say.
 9. **A default theme.** A program that never calls `screen theme` gets `mono`. Should an administrator be able to set
    another default for the site (a setting in `sd.conf` or a VOC record) so that colour terminals get colour without
-   every program asking? Not proposed until you say. *(Answered and built: `SCREENTHEME` in `sd.conf`; the shipped file says `blue`, and see the 29 Oct 26 note under Themes.)*
+   every program asking? Not proposed until you say. *(Answered and built: `SCREENTHEME` in `sd.conf`; the shipped file says `paper`, and see the 29 Oct 26 note under Themes.)*
 
 ## Decisions taken 13 Oct 2026 on the open questions
 
