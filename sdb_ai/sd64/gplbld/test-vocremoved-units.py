@@ -211,7 +211,10 @@ def checks(t, old_newvoc=None, old_template=None):
 
 def selftest():
     t = read_tree()
-    base = checks(t)
+    # 8 Nov 26 (the Windows agent's finding, mail T1100): read the release tag's files ONCE and give them to every check; each checks() used to read
+    # the tag again (some 800 git processes per mutant), for the same answer
+    old_nv, old_tp = git_tag_files("newvoc"), git_tag_files("voc_template")
+    base = checks(t, old_nv, old_tp)
     bad = [n for n, ok, _ in base if not ok]
     if bad:
         print("selftest: the real tree already fails: %s" % bad)
@@ -280,7 +283,7 @@ def selftest():
     ]
     ok = True
     for name, c, want in mutants:
-        res = checks(c)
+        res = checks(c, old_nv, old_tp)
         failed = [n.split()[0] for n, passed, _ in res if not passed]
         caught = want in failed
         print("  [%s] selftest: %s%s" % ("PASS" if caught else "FAIL", name, "" if caught else " (NOT CAUGHT; failed: %s)" % failed))
