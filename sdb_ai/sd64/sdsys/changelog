@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+8 Nov 26   THE AI PREVIEW SHOWS YOUR REQUEST, NOT SD'S OWN TEXT; tool.ai NO LONGER SAYS THE HELPER IS DOWN ON A SLOW SERVER.
+
+             What        - Before a request is sent, the preview now shows the provider, the model, the size of all that will
+                           be sent and what is yours: the request, a record's lines or a selection the page sends, earlier
+                           questions of a follow-up. SD's own text - its fixed instruction, the page's list of actions and
+                           description, the documentation passages, the administrator's standing text - is still sent and
+                           counted in the size, but is no longer shown. The ai verb shows only your question. SD now waits up
+                           to 8 seconds, not 2, for the AI helper's status, so tool.ai no longer reports the helper as not
+                           running on a server where it is slow to start. The text at the foot of tool.ai fits its box.
+             Why         - The owner: "When i sent a AI request it is showing the standard prefix text, it is not supposed
+                           to." On the test VPS the helper took 2.7 seconds to answer a status, past the old limit.
+             Does NOT    - Send less: what goes to the provider is unchanged. Hide anything of yours that is sent.
+
 8 Nov 26   THE DELIVERED SCREEN THEME IS NOW PAPER: DARK TEXT ON LIGHT GREY, NEAR-MONOCHROME AND READABLE.
 
              What        - The full-screen pages, the home screen, the IDE, SED and the debugger now use a new theme, paper:

@@ -130,8 +130,11 @@ def start_runner(gate_group=None):
     b = box()
     stop_runner()
     mygroup = gate_group or subprocess.run(["id", "-gn"], capture_output=True, text=True).stdout.strip()
+    # 8 Nov 26: since S.163 the administrator may always ask, so a runner that is told the gate is closed (gate_group given: the AI-off sections) must not also be
+    # told that the test's own user is the administrator, or the AI is on after all (sandbox-ai-pages P0, P7 went red that way)
+    admin_user = "zz-no-such-admin" if gate_group else ME
     p = subprocess.Popen([sys.executable, os.path.join(HERE, "ai-runner.py"), "--socket", os.path.join(b, "ai", "sock"), "--state", os.path.join(b, "ai", "state"),
-                          "--providers", STATE["providers"], "--admin-user", ME, "--gate-group", mygroup], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                          "--providers", STATE["providers"], "--admin-user", admin_user, "--gate-group", mygroup], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     if p.stdout.readline().strip() != "ready":
         bail("the AI helper's runner did not start")
     STATE["runner"] = p
@@ -204,6 +207,8 @@ def configure(provider=True, model=True, key=True, custom=False):
 def home(admin=False):
     sh.set_default("menu")
     h = H(None if admin else ACCT, admin=admin)
+    if admin:
+        h.typed("home\r", idle=2.5)          # S.168 (8 Nov 26): the administrator always starts at the prompt; HOME opens the home screen
     if not h.home():
         h.s.settle(2.0)
     return h
@@ -287,10 +292,12 @@ def sec_preview():
     n0, a0 = len(fm.log), audit_off()
     ask(h, "open the ide [[act_ide]]")
     T = h.text()
-    arow("L5a", "Enter shows the preview: the provider, the model and the size, the fixed instruction, the page's actions and the request, and nothing has been sent",
-         msg(11628, "anthropic", MODEL, "").split("%")[0][:30] in T and "You help a person who is using home" in T and "ide:IDE" in T and "open the ide [[act_ide]]" in T
-         and "Send" in T and "Cancel" in T and len(fm.log) == n0, T[-1200:])
-    arow("L5b", "the preview lists the page's actions with what each does, and says what the page tells about itself", "terminal:Terminal" in T and "keys:Keys" in T and "the home screen of the SD database system" in T, T[-900:])
+    # S.175 (the owner, 8 Nov 26: "it is showing the standard prefix text, it is not supposed to"): SD's own text is sent but not shown
+    arow("L5a", "Enter shows the preview: the provider, the model and the size, and the request, and nothing has been sent",
+         msg(11628, "anthropic", MODEL, "").split("%")[0][:30] in T and "open the ide [[act_ide]]" in T and "Send" in T and "Cancel" in T and len(fm.log) == n0, T[-1200:])
+    arow("L5b", "(S.175) the preview does NOT show SD's own text: no fixed instruction, no list of the page's actions, nothing of what the page says about itself",
+         "You help a person who is using home" not in T and "ide:IDE" not in T and "terminal:Terminal" not in T and "the home screen of the SD database system" not in T
+         and "The fixed instruction" not in T, T[-900:])
     h.key("enter", idle=1.5)
     arow("L6", "Enter on the default button is Cancel: nothing was sent (the fake's log and the audit file agree) and the status line says so",
          len(fm.log) == n0 and not req_lines(audit_new(a0)) and msg(11630) in h.line(40) and h.home(), repr((len(fm.log) - n0, h.line(40)[:80])))
@@ -376,8 +383,8 @@ def sec_context():
         ask(h, "what is a select list [[sayonly]]")
         T = h.text()
         # the owner, 7 Nov 26: "The prefixed text ought to be invisible to the user, the admin knows that it is there and can edit it, but it does nothing to change the user's query"
-        arow("L17a", "the preview shows NOTHING of the standing text (no heading, no line of it) and the instruction and the request as before; nothing is sent yet",
-             "ZQX9" not in T and "Second line of ours." not in T and "Standing" not in T and "You help a person" in T and "what is a select list" in T and len(fm.log) == n0, T[-1500:])
+        arow("L17a", "the preview shows NOTHING of the standing text (no heading, no line of it) nor (S.175) the instruction; the request is shown; nothing is sent yet",
+             "ZQX9" not in T and "Second line of ours." not in T and "Standing" not in T and "You help a person" not in T and "what is a select list" in T and len(fm.log) == n0, T[-1500:])
         h.typed("s", idle=4.0)
         rq = requests()
         body = rq[-1][2] if len(rq) > n0 else {}
@@ -533,8 +540,11 @@ def sec_wait():
 def sec_admin():
     say("\n--- the administrator's page")
     fm = STATE["fm"]
+    configure()
+    start_runner()                           # a section before may have left the runner with the gate closed and no administrator
     sh.set_default("menu")
     h = H(None, admin=True)
+    h.typed("home\r", idle=2.5)              # S.168: the administrator starts at the prompt
     if not h.home():
         h.s.settle(2.0)
     arow("L16a", "the administrator's page has the AI line too", line_row(h).lstrip().startswith("AI>"), repr(line_row(h)[:80]))

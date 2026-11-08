@@ -135,8 +135,8 @@ def sec_sed():
     arow("S1", "the Tools menu lists Ask the AI... and Explain the selection", tools_has(e, "Ask the AI...") and tools_has(e, "Explain the selecti"), e.text()[:300])
     n0, a0 = len(fm.log), ai.audit_off()
     T = sed_ask(e, "make the greeting longer [[edit_ok]]")
-    arow("S2", "Enter on the request shows EVERYTHING that will be sent (the provider, the instruction naming SED, the record's lines, the request), Send and Cancel, and sends nothing",
-         "This will be sent to anthropic" in T and "who is using SED" in T and "crt 'hello'" in T and "x = 1" in T and "make the greeting longer [[edit_ok]]" in T
+    arow("S2", "Enter on the request shows the provider, the record's lines and the request - (S.175) NOT SD's instruction, which is sent - Send and Cancel, and sends nothing",
+         "This will be sent to anthropic" in T and "who is using SED" not in T and "crt 'hello'" in T and "x = 1" in T and "make the greeting longer [[edit_ok]]" in T
          and "Send" in T and "Cancel" in T and len(fm.log) == n0, T[-1500:])
     e.keys(RET)
     arow("S3", "Enter on the default button is Cancel: nothing was sent (the fake's log and the audit file agree)", len(fm.log) == n0 and not ai.req_lines(ai.audit_new(a0)), repr((len(fm.log) - n0)))
@@ -236,7 +236,7 @@ def sec_ced():
     e.keys(ESC)
     n0 = len(fm.log)
     T = ced_ask(e, "raise the size [[ced_ok]]")
-    arow("C2", "Ask: the preview shows the record as indented JSON, one element to a line, and the request; Send and Cancel; nothing sent", "This will be sent to anthropic" in T and "who is using CED" in T
+    arow("C2", "Ask: the preview shows the record as indented JSON, one element to a line, and the request ((S.175) not SD's instruction); Send and Cancel; nothing sent", "This will be sent to anthropic" in T and "who is using CED" not in T
          and '"size": 3' in T and '"name": "widget"' in T and "raise the size [[ced_ok]]" in T and len(fm.log) == n0, T[-1400:])
     e.keys("s")
     T = ai.wait_popup(e)
@@ -302,8 +302,8 @@ def sec_dbg():
     n0, a0 = len(fm.log), ai.audit_off()
     e.keys("ai what is y [[sayonly]]", RET)
     T = e.text()
-    arow("D1", "ai: the preview names the program and line, the source round the stop and the request; nothing sent yet", "This will be sent to anthropic" in T and "who is using debugger" in T
-         and DBG_PROG in T and "debug" in T and "what is y [[sayonly]]" in T and len(fm.log) == n0, T[-1400:])
+    arow("D1", "ai: the preview shows the request and (S.175) NOT SD's instruction (the program, line and source are sent: D2 reads the request); nothing sent yet",
+         "This will be sent to anthropic" in T and "who is using debugger" not in T and "what is y [[sayonly]]" in T and len(fm.log) == n0, T[-1400:])
     e.keys("s")
     T = ai.wait_popup(e)
     rq = ai.requests()

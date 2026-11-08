@@ -35,6 +35,8 @@
 *              request, puts it to the wall's screen like a typed request (a text naming SD's own code sends nothing: 14013), sends it FIRST in the system text, and leaves
 *              it OUT of the preview (the owner: "The prefixed text ought to be invisible to the user"); the preview's size counts it.  None is sent when the helper has none or
 *              gives one it cannot use.
+* 8 Nov 26 dm   S.175 (the owner: "it is showing the standard prefix text, it is not supposed to"): the preview no longer shows SD's own text (the fixed instruction,
+*               the actions, the form's fields, the page's description, the documentation passages); the size still counts it; the person's data and request are shown.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -537,38 +539,45 @@ run.ask:
    body<-1> = ''
    * S.160: the standing text is NOT in the preview (the owner, 7 Nov 26: "The prefixed text ought to be invisible to the user, the admin knows that it is there and can edit
    *   it, but it does nothing to change the user").  The administrator sees and edits it on tool.ai (T).  The size on the first line is still the size of all that is sent.
-   body<-1> = sysmsg(11640, len(sysx))
-   call $tk_wrap(sysx, wrapw, pieces)
-   for p = 1 to dcount(pieces, @fm)
-      body<-1> = '  ' : pieces<p>
-   next p
-   body<-1> = sysmsg(11641, n.acts, len(alist))
+   * S.175 (the owner, 8 Nov 26: "When i sent a AI request it is showing the standard prefix text, it is not supposed to", with a picture of the IDE's preview):
+   *   NONE OF SD'S OWN TEXT IS SHOWN - the fixed instruction, the page's actions, the form's fields, what the page says about itself, the documentation passages.
+   *   It is all still sent, and the size on the first line counts it.  What is shown is the person's: the rows and selection the page sends, the earlier
+   *   exchanges of a follow-up, the request.  show.sd puts SD's text back (0 as delivered; kept for a reader of this code who wants to see it).
+   show.sd = 0
    * 28 Oct 26 (S5): a line that is wider than the box goes on in the next rows (wrap.exact), not cut: what is shown is all of it
    wr.w = wrapw - 2
    wr.p1 = '  ' ; wr.p2 = '  '
-   for i = 1 to n.acts
-      wr.text = acts<1, i>
-      gosub wrap.exact
-      body<-1> = wr.out
-   next i
-   if n.flds > 0 then
-      body<-1> = "The form's fields (" : n.flds : ', ' : len(flist) : ' bytes):'
-      for i = 1 to n.flds
-         wr.text = flds<1, i>
+   if show.sd then
+      body<-1> = sysmsg(11640, len(sysx))
+      call $tk_wrap(sysx, wrapw, pieces)
+      for p = 1 to dcount(pieces, @fm)
+         body<-1> = '  ' : pieces<p>
+      next p
+      body<-1> = sysmsg(11641, n.acts, len(alist))
+      for i = 1 to n.acts
+         wr.text = acts<1, i>
          gosub wrap.exact
          body<-1> = wr.out
       next i
-   end
-   body<-1> = sysmsg(11642, len(ptext))
-   n.shown = dcount(ptext, nl)
-   for p = 1 to n.shown
-      if p <= 8 then
-         wr.text = field(ptext, nl, p)
-         gosub wrap.exact
-         body<-1> = wr.out
+      if n.flds > 0 then
+         body<-1> = "The form's fields (" : n.flds : ', ' : len(flist) : ' bytes):'
+         for i = 1 to n.flds
+            wr.text = flds<1, i>
+            gosub wrap.exact
+            body<-1> = wr.out
+         next i
       end
-   next p
-   if n.shown > 8 then body<-1> = '  ' : sysmsg(11644, n.shown - 8)
+      body<-1> = sysmsg(11642, len(ptext))
+      n.shown = dcount(ptext, nl)
+      for p = 1 to n.shown
+         if p <= 8 then
+            wr.text = field(ptext, nl, p)
+            gosub wrap.exact
+            body<-1> = wr.out
+         end
+      next p
+      if n.shown > 8 then body<-1> = '  ' : sysmsg(11644, n.shown - 8)
+   end
    if tbm # '' then
       n.tb = dcount(tbm, nl)
       body<-1> = sysmsg(11668, n.tb, len(tbm), tb.first)
@@ -593,7 +602,7 @@ run.ask:
       next p
       if n.sel > 6 then body<-1> = '  ' : sysmsg(11644, n.sel - 6)
    end
-   if n.doc > 0 then
+   if show.sd and n.doc > 0 then
       call $tk_wrap(sysmsg(11920, n.doc, doc.bytes), wrapw, pieces)   ;* 2 Nov 26: wrapped (it ran over the box's right border at 140 columns)
       for p = 1 to dcount(pieces, @fm)
          body<-1> = pieces<p>

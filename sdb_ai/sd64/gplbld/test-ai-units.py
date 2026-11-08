@@ -323,8 +323,9 @@ def check_c(t):
         and ordered(v, "ctext = st{'context'}", "call $tk_aiwall('request', ctext, why)", "stop sysmsg(14013, why)", "fixed.text = system.text",
                     "if ctext # '' then c.send = 'Standing information from the administrator of this SD system:' : char(10) : ctext", "system.text = c.send : fixed.text")
         and "reply = kernel(K$AI.START, system.text : @fm : 1024 : @fm : question)" in v and not re.search(r"question\s*=[^\n]*ctext", v), "")
-    row("(S.160) the standing text is INVISIBLE to the person asking (the owner, 7 Nov 26): the preview displays the fixed sentence and the question, never system.text, c.send or ctext",
-        "display fixed.text" in v and not any(re.search(r"\b(system\.text|c\.send|ctext)\b", l.replace("len(system.text)", ""))
+    row("(S.160, S.175) SD's own text is INVISIBLE to the person asking (the owner, 7 Nov 26 and 8 Nov 26: \"it is showing the standard prefix text, it is not supposed to\"): the preview "
+        "displays the question only, never system.text, fixed.text, c.send or ctext",
+        "display question" in v and not any(re.search(r"\b(system\.text|fixed\.text|c\.send|ctext)\b", l.replace("len(system.text)", ""))
                                               for l in v.split("\n") if l.strip().startswith(("display", "crt", "print"))), "")
     row("the gate, the model and the key are read from the helper's status BEFORE anything is shown: provider empty, gate false, model empty and key false each stop with their own message",
         ordered(v, "prov = st{'provider'}", "if prov = '' then", "stop sysmsg(11624)", "if not(st{'gate'}) then", "stop sysmsg(11625, @who)", "if model = '' then", "stop sysmsg(11626, prov, 'model')",

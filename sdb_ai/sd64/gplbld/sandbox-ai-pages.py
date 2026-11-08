@@ -210,9 +210,10 @@ def sec_preview():
     n0, a0 = len(fm.log), al.audit_off()
     ask(h, "read it again [[act_refresh]]")
     T = h.text()
-    arow("P3a", "Enter shows the preview: the page's actions - type, state, filter, refresh - and NOT edit, delete, quit, help or the AI itself; the page says what it is; nothing has been sent",
-         "  type:Type shown" in T and "  state:State shown" in T and "  filter:Filter by name" in T and "  refresh:Refresh" in T and "  edit:" not in T and "  delete:" not in T
-         and "  quit:" not in T and "  help:" not in T and "  ai:" not in T and "the page tool.voc of the SD database system" in T and "read it again [[act_refresh]]" in T and len(fm.log) == n0, T[-1100:])
+    # S.175 (the owner, 8 Nov 26: "it is showing the standard prefix text, it is not supposed to"): the action list and the page's description are SD's own text: sent (P4a reads them
+    # in the request), not shown
+    arow("P3a", "Enter shows the preview: the request, and (S.175) NOT the page's action list or what the page says about itself; nothing has been sent",
+         "read it again [[act_refresh]]" in T and "  refresh:Refresh" not in T and "  type:Type shown" not in T and "the page tool.voc of the SD database system" not in T and len(fm.log) == n0, T[-1100:])
     arow("P3b", "...with Send and Cancel", "Send" in T and "Cancel" in T, T[-500:])
     h.key("enter", idle=1.5)
     arow("P3c", "Enter on the default button is Cancel: nothing was sent (the fake's log and the audit file agree), the status line says so and the page is whole",
@@ -232,9 +233,12 @@ def sec_send():
     last = rq[-1] if len(rq) > n0 else (None, {}, None)
     body = last[2] or {}
     prompt = body["messages"][-1]["content"] if body.get("messages") else ""
-    arow("P4a", "Send: ONE request at the fake, with the key and the model; the prompt lists the offered actions and ends with the typed request",
-         len(fm.log) == n0 + 1 and last[1].get("x-api-key") == KEY and body.get("model") == MODEL and "  refresh:Refresh" in prompt and "  delete:" not in prompt
-         and prompt.endswith("Request: read it again [[act_refresh]]"), repr((len(fm.log) - n0, prompt[-120:])))
+    arow("P4a", "Send: ONE request at the fake, with the key and the model; the prompt lists the offered actions - type, state, filter, refresh - and NOT edit, delete, quit, help or "
+         "the AI itself, says what the page is (moved here from P3a by S.175), and ends with the typed request",
+         len(fm.log) == n0 + 1 and last[1].get("x-api-key") == KEY and body.get("model") == MODEL and "  refresh:Refresh" in prompt and "  type:Type shown" in prompt
+         and "  state:State shown" in prompt and "  filter:Filter by name" in prompt and "  edit:" not in prompt and "  delete:" not in prompt and "  quit:" not in prompt
+         and "  help:" not in prompt and "  ai:" not in prompt and "the page tool.voc of the SD database system" in prompt
+         and prompt.endswith("Request: read it again [[act_refresh]]"), repr((len(fm.log) - n0, prompt[-400:])))
     rl = al.req_lines(al.audit_new(a0))
     arow("P4b", "ONE audit line from the kernel before the request: the account, the program (tk_ai); neither the request nor the key is in the audit trail",
          len(rl) == 1 and re.search(r"ai request account=%s program=tk_ai bytes\.out=\d+$" % ACCT, rl[0]) is not None and "read it again" not in al.audit_new(a0) and KEY not in al.audit_new(a0), repr(rl))
@@ -263,10 +267,14 @@ def sec_send():
 def sec_files():
     say("\n--- P6: tool.files")
     h = page("tool.files")
+    n6 = len(al.STATE["fm"].log)
     ask(h, "read it again [[act_refresh]]")
-    T = h.text()
-    arow("P6a", "tool.files offers filter, refresh and (S.97 stage 4) new, and not delete or clear", "  refresh:Refresh" in T and "  filter:Filter the names" in T and "  new:" in T and "  delete:" not in T and "  clear:" not in T, T[-900:])
     h.typed("s", idle=4.0)
+    rq = requests()
+    p6 = rq[-1][2]["messages"][-1]["content"] if len(rq) > n6 and rq[-1][2] and rq[-1][2].get("messages") else ""
+    # S.175: the action list is read in the REQUEST, the preview no longer shows it
+    arow("P6a", "tool.files offers filter, refresh and (S.97 stage 4) new, and not delete or clear (read in the request sent)", "  refresh:Refresh" in p6 and "  filter:Filter the names" in p6
+         and "  new:" in p6 and "  delete:" not in p6 and "  clear:" not in p6, p6[-900:])
     h.key("enter", idle=3.0)
     arow("P6b", "a proposal of refresh is carried out by the page's own F5: it read the files again", "read the files again" in h.line(40), repr(h.line(40)[:90]))
     # S.97 stage 4: an EDITING action (new) with an argument.  Enter alone rejects it; Accept opens the page's own N prompt with the argument as its default; Esc there makes nothing.
@@ -318,12 +326,16 @@ def sec_more_on():
         n0 = len(fm.log)
         ask(h, "what can I do here [[act_refresh]]")
         T = h.text()
-        arow("P8" + L + "2", "%s: the preview offers %s and NOT %s, and nothing has been sent" % (verb, ", ".join(offers), notoff),
-             all(("  %s:" % o) in T for o in offers) and ("  %s:" % notoff) not in T and "  ai:" not in T and ("the page %s of the SD database system" % verb) in T and len(fm.log) == n0,
-             T[-900:])
-        h.key("enter", idle=1.5)
-        arow("P8" + L + "3", "%s: Enter on the default button is Cancel: nothing was sent and the page is drawn again" % verb,
-             len(fm.log) == n0 and msg(11630) in h.line(40) and "File" in h.line(0), repr((len(fm.log) - n0, h.line(40)[:80])))
+        # S.175 (8 Nov 26): the action list is SD's own text - not in the preview; what the page offers is read in the request after Send (P8x3)
+        arow("P8" + L + "2", "%s: the preview shows the request and (S.175) NOT the action list; nothing has been sent" % verb,
+             "what can I do here [[act_refresh]]" in T and "  refresh:" not in T and ("the page %s of the SD database system" % verb) not in T and len(fm.log) == n0, T[-900:])
+        h.typed("s", idle=4.0)
+        rq = requests()
+        p8 = rq[-1][2]["messages"][-1]["content"] if len(rq) > n0 and rq[-1][2] and rq[-1][2].get("messages") else ""
+        arow("P8" + L + "3", "%s: Send: the request offers %s and NOT %s, nor the AI itself, and says what the page is" % (verb, ", ".join(offers), notoff),
+             len(fm.log) == n0 + 1 and all(("  %s:" % o) in p8 for o in offers) and ("  %s:" % notoff) not in p8 and "  ai:" not in p8
+             and ("the page %s of the SD database system" % verb) in p8, p8[-900:])
+        h.key("enter", idle=2.0)                     # the proposal's box: Enter is Reject
         h.key("ctrl-q", idle=1.5)
         h.end()
 
@@ -379,13 +391,17 @@ def sec_admin_pages():
         n0 = len(fm.log)
         ask(h, "what can I do here [[act_refresh]]")
         T = h.text()
-        flat = dialog_text(h)                     # the preview is a box: a sentence wraps across its rows and a long line is cut inside a word at the box's edge
-        arow("P9" + L + "2", "%s: the preview offers %s and NOT %s, says the person is the administrator, and nothing has been sent" % (verb, ", ".join(offers), notoff),
-             all(("  %s:" % o) in T for o in offers) and ("  %s:" % notoff) not in T and "  ai:" not in T and ("thepage%softheSDdatabasesystem" % verb) in flat
-             and "Thepersonistheadministrator." in flat and len(fm.log) == n0, T[-900:])
-        h.key("enter", idle=1.5)
-        arow("P9" + L + "3", "%s: Enter on the default button is Cancel: nothing was sent and the page is drawn again" % verb,
-             len(fm.log) == n0 and msg(11630) in h.line(40) and "File" in h.line(0), repr((len(fm.log) - n0, h.line(40)[:80])))
+        # S.175 (8 Nov 26): the action list and the page's description are SD's own text - not in the preview; they are read in the request after Send (P9x3)
+        arow("P9" + L + "2", "%s: the preview shows the request and (S.175) NOT the action list; nothing has been sent" % verb,
+             "what can I do here [[act_refresh]]" in T and "  refresh:" not in T and len(fm.log) == n0, T[-900:])
+        h.typed("s", idle=4.0)
+        rq = requests()
+        p9 = rq[-1][2]["messages"][-1]["content"] if len(rq) > n0 and rq[-1][2] and rq[-1][2].get("messages") else ""
+        f9 = re.sub(r"\s+", "", p9)
+        arow("P9" + L + "3", "%s: Send: the request offers %s and NOT %s, nor the AI itself, and says the page and that the person is the administrator" % (verb, ", ".join(offers), notoff),
+             len(fm.log) == n0 + 1 and all(("  %s:" % o) in p9 for o in offers) and ("  %s:" % notoff) not in p9 and "  ai:" not in p9
+             and ("thepage%softheSDdatabasesystem" % verb) in f9 and "Thepersonistheadministrator." in f9, p9[-900:])
+        h.key("enter", idle=2.0)                     # the proposal's box: Enter is Reject
         h.key("ctrl-q", idle=1.5)
         h.end()
 

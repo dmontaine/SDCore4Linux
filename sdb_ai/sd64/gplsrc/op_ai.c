@@ -4,6 +4,8 @@
  * it under the terms of the GNU General Public License, version 3 or later.
  *
  * START-HISTORY:
+ * 8 Nov 26 dm   A status reply is waited for up to AI_STATUS_MS (8 s), not 2 s: on the test VPS the helper's new process took 2.7 s to answer an administrator's
+ *               status, SD had hung up (the helper's BrokenPipeError in the journal) and tool.ai said the helper was not running.
  * 23 Oct 26 dm  New.
  * 3 Nov 26 dm   Follow-up questions (the owner: "Add, shown in preview"): K$AI.START takes  system : FM : maxtokens : VM : n : FM : q1 : FM : a1 ... : FM : prompt, the n (1 to 3)
  *               earlier exchanges the person chose to carry; they go to the helper as "history" and count in bytes.out, and the audit line then says followup=n.
@@ -55,6 +57,7 @@
 #define AI_REPLY_MAX 524288
 #define AI_DEADLINE 340 /* seconds, from the start of a request */
 #define AI_CONNECT_MS 2000
+#define AI_STATUS_MS 8000 /* the most a status reply is waited for: the helper is a new Python process per request (8 Nov 26: 2.7 s on a small VPS, past the old 2 s) */
 #define AI_HIST_MAX 3 /* earlier exchanges a follow-up may carry (the helper takes no more) */
 
 Private struct {
@@ -414,7 +417,7 @@ Private void ai_status(DESCRIPTOR* result) {
     ai_answer("E", "nohelper", result);
     return;
   }
-  while (waited < 2000 && len < sizeof(buf) - 1) {
+  while (waited < AI_STATUS_MS && len < sizeof(buf) - 1) {
     pfd.fd = fd;
     pfd.events = POLLIN;
     pfd.revents = 0;

@@ -366,8 +366,8 @@ def sec_preview():
     e.keys("make the greeting longer [[edit_ok]]")
     e.keys(RET)
     T = e.text()
-    arow("I3a", "Enter shows the preview: the provider and model, the instruction naming the IDE, the text being worked on from line 1 (its lines are there), the request, Send and Cancel",
-         "This will be sent to anthropic" in T and "who is using IDE" in T and msg(11668, 4, 0, 1).split("0")[0][:25] in T and "crt 'hello'" in T and "x = 1" in T
+    arow("I3a", "Enter shows the preview: the provider and model, (S.175) NOT the instruction, the text being worked on from line 1 (its lines are there), the request, Send and Cancel",
+         "This will be sent to anthropic" in T and "who is using IDE" not in T and msg(11668, 4, 0, 1).split("0")[0][:25] in T and "crt 'hello'" in T and "x = 1" in T
          and "make the greeting longer [[edit_ok]]" in T and "Send" in T and "Cancel" in T, T[-1400:])
     arow("I3b", "nothing has been sent yet", len(fm.log) == n0, repr(len(fm.log) - n0))
     e.keys(RET)
@@ -620,8 +620,8 @@ def sec_dform():
     T = e.text()
     e.keys(PGDN, PGDN)                        # the preview may be taller than the screen: its foot (the request) is a page or two down
     T2 = e.text()
-    arow("D2", "F6 and Return in the AI line: the preview names dict.form, lists the form's fields (14 of them, the Type's first) and the request; nothing is sent yet",
-         "This will be sent to anthropic" in T and "dict.form" in T and "The form's fields (14" in T and "type: D a data field" in T and "a joined date [[fields_ok]]" in T + T2
+    arow("D2", "F6 and Return in the AI line: the preview shows the request and (S.175) NOT SD's own text - the form's field list - which is sent (D3 reads it in the request); nothing is sent yet",
+         "This will be sent to anthropic" in T and "The form's fields (14" not in T + T2 and "type: D a data field" not in T + T2 and "a joined date [[fields_ok]]" in T + T2
          and len(fm.log) == n0, T[-1500:] + "\n----\n" + T2[-600:])
     e.keys("s")
     T = wait_popup(e)

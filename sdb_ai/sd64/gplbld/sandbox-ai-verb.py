@@ -90,10 +90,12 @@ MUTANTS = {
 }
 
 
-def start_runner(box, providers, gate_group):
+def start_runner(box, providers, gate_group, admin_user=None):
+    """admin_user: the Linux user the helper takes for the administrator (default this one).  8 Nov 26: since S.163 the administrator may always ask, so a
+    caller-outside-the-group row must also name no administrator (P2, V12 went red that way)."""
     state = os.path.join(box, "ai", "state")
     sock = os.path.join(box, "ai", "sock")
-    p = subprocess.Popen([sys.executable, os.path.join(HERE, "ai-runner.py"), "--socket", sock, "--state", state, "--providers", providers, "--admin-user", ME,
+    p = subprocess.Popen([sys.executable, os.path.join(HERE, "ai-runner.py"), "--socket", sock, "--state", state, "--providers", providers, "--admin-user", admin_user or ME,
                           "--gate-group", gate_group], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     if p.stdout.readline().strip() != "ready":
         q3.bail("the AI helper's runner did not start")
@@ -174,7 +176,7 @@ def verb_rows(fm, box, providers):
     last = rq[-1] if rq else (None, {}, None)
     body = last[2] or {}
     size = len(q) + len(sysx)
-    row("V4a the preview names the provider, the model and the size, then shows the fixed sentence and the text, then asks", msg(11628, "anthropic", MODEL, size) in out and sysx in out and q in out
+    row("V4a the preview names the provider, the model and the size, then shows the text and (S.175) NOT the fixed sentence, then asks", msg(11628, "anthropic", MODEL, size) in out and sysx not in out and q in out
         and any(ln.startswith(msg(11629)) for ln in out), repr(out[:8]))
     row("V4b the answer is printed as text, with the token line (11634) and no failure line", fakemodel.PLAIN_TEXT in out and msg(11634, 11, 7, "anthropic") in out
         and not any(ln.startswith("The AI did not answer") for ln in out), repr(out[-6:]))
@@ -272,7 +274,7 @@ def probes(fm, box, providers, runner_cell):
 
     # the helper refuses a caller outside the group, whatever the verb said: restart the runner with a group the person is not in
     stop_runner(runner_cell[0])
-    runner_cell[0] = start_runner(box, providers, "zzaiv-no-such-group")
+    runner_cell[0] = start_runner(box, providers, "zzaiv-no-such-group", admin_user="zzaiv-no-such-admin")
     out, n, aud = ask(["RUN gpl.bp zzaip"], "P2", fm, who="internal")
     poll = [ln for ln in out if ln.startswith("AIP poll=D|")]
     row("P2 the verb is skipped and the kernel is called directly by a caller outside the group: the HELPER refuses (nogate), nothing reaches the provider",

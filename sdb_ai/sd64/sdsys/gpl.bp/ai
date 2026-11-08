@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 23 Oct 26 dm  New.
 * 7 Nov 26 dm   S.160: the standing text goes first in the system text, after the wall's screen; it is not shown in the preview.
+* 8 Nov 26 dm   S.175 (the owner: "it is showing the standard prefix text, it is not supposed to"): the fixed sentence is not shown either; the preview is the question.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -114,7 +115,8 @@ $include err.h
    if ctext # '' then c.send = 'Standing information from the administrator of this SD system:' : char(10) : ctext : char(10) : char(10)
    system.text = c.send : fixed.text
    display sysmsg(11628, prov, model, len(question) + len(system.text))
-   display fixed.text                                                           ;* the standing text is not shown (the owner, 7 Nov 26: "invisible to the user")
+*  8 Nov 26 (the owner: "When i sent a AI request it is showing the standard prefix text, it is not supposed to"): SD's own text - the standing text and the fixed
+*  sentence - is not shown; the preview is the person's question, and the size counts all of it
    display question
    crt sysmsg(11629) : ' ' :
    input ans

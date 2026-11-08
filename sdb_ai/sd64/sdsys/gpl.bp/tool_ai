@@ -435,7 +435,8 @@ draw.accounts:
 draw.effect:
    lines = ''
    lines<-1> = 'One provider and one model serve every account.  The AI is off as delivered: it needs a provider, its key (a default model comes with each named provider) and an account whose ai gate is on; SDSYS needs no gate.'
-   lines<-1> = "S sets up the provider under the cursor: the key (shown as *) and the model, chosen from the provider's own list; the key is kept for the AI helper only and this page never shows it (set.ai key at the prompt keeps it out of SD altogether).  What an account sends leaves this machine for the provider checked above, over https with the certificate checked."
+   * 8 Nov 26: two rows at 140 columns, so that the box (four rows at 140 by 43) shows all of it; the longer sentence before was cut at its last row
+   lines<-1> = "S sets up the provider under the cursor: its key (shown as *) and its model, from the provider's own list.  The key is kept by the AI helper; what an account sends goes only to the provider checked above, over https."
    if pane = 1 then
       p = provs<pi>
       if p = sel then

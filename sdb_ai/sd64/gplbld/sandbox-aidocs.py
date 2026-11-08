@@ -162,8 +162,9 @@ def go(admin, text, send):
 def sec_user():
     say("\n--- D1: an ordinary account, a word in a user page")
     prev, _p, _s, sent = go(False, "how do I zzfrobnicate a record", False)
-    arow("D1a", "the preview says how many passages and shows the id of the page and section", re.search(r"The documentation: 1 passages", prev) is not None and "[user/zzuser.md#working-with-zzfrobnicate]" in prev, prev[-900:])
-    arow("D1b", "...shows the section's first lines and counts the rest (the preview shows four, the request carries all)", "To zzfrobnicate a record" in prev and "A third line" not in prev and re.search(r"more lines", prev) is not None, prev[-900:])
+    # S.175 (the owner, 8 Nov 26: "it is showing the standard prefix text, it is not supposed to"): the passages are SD's own text: sent (D1d), not shown
+    arow("D1a", "(S.175) the preview does NOT show the documentation passages (SD's own text): no count, no id, no lines; the request is shown", "The documentation:" not in prev
+         and "zzuser.md" not in prev and "To zzfrobnicate a record" not in prev and "how do I zzfrobnicate a record" in prev, prev[-900:])
     arow("D1c", "Cancel is the default: nothing was sent", sent == 0, repr(sent))
     prev, prompt, system, sent = go(False, "how do I zzfrobnicate a record", True)
     arow("D1d", "Send: ONE request holds the passage with its id and ALL its lines, and the instruction holds the documentation sentence",
@@ -177,7 +178,7 @@ def sec_admin_words():
     arow("D2a", "an ordinary account asking about the administrator's word: no passage in the preview", "The documentation:" not in prev and "zzadmin.md" not in prev, prev[-700:])
     arow("D2b", "...and none in the request", sent == 1 and "zzadmin.md" not in (prompt or "") and "Documentation passage" not in (prompt or ""), repr((sent, (prompt or "")[-300:])))
     prev, prompt, system, sent = go(True, "how do I set the zzgrommet", True)
-    arow("D3a", "the administrator: the passage from docs/admin is in the preview", "The documentation: 1 passages" in prev and "[admin/zzadmin.md#tuning-the-zzgrommet]" in prev, prev[-900:])
+    arow("D3a", "(S.175) the administrator: the passage from docs/admin is not shown in the preview either (it is sent: D3b)", "The documentation:" not in prev and "zzadmin.md" not in prev, prev[-900:])
     arow("D3b", "...and in the request, with the text of the section", sent == 1 and "Documentation passage [admin/zzadmin.md#tuning-the-zzgrommet]" in (prompt or "") and "zzgrommet.show" in (prompt or ""), repr((sent, (prompt or "")[-400:])))
 
 
