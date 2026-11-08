@@ -7,6 +7,9 @@
 * 12 Oct 26 dm  New.
 * 18 Oct 26 dm  Takes the cursor lock off ($sl_guardmode), so that it never reaches the next program.
 * 3 Nov 26 dm  S.113: the context is taken with $sl_scr 'peek' (no flush of a screen that is being given back).
+* 8 Nov 26 dm  S.172: the theme is put back to mono BEFORE the normal style is sent and the screen cleared.  paper and night give normal the theme's two
+*               colours, so the old order left the prompt black on grey and the clear painted the whole terminal grey (owner: "The color scheme is retained
+*               after exiting from the full screen view").
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -40,16 +43,16 @@ $include sl.h
       call $sl_mouse('off', mseq)
       display mseq :                                  ;* the terminal stops reporting the mouse
    end
-   call $sl_attr('desktop', dc)
-   call $sl_sgr('n', sq)
+   call $sl_attr('desktop', dc)                       ;* asked of the program's theme, before it is put back
+   call $sl_theme('reset', '', '', '', '', r)         ;* the next program starts from mono, having asked for nothing - and this FIRST: see below
+   call $sl_line('on', 0, r)                          ;* and from plain borders
+   call $sl_sgr('n', sq)                              ;* mono's normal: the terminal's own colours
    display @(-31) : sq :
    if dc # 'n' then display @(-1) :                   ;* a coloured desktop is not left behind
    display @(0, @crthigh - 1) :
    scr = ''
    call $sl_scr('close', scr)
    call $sl_guardmode('', 0, 0)                       ;* the cursor lock belongs to the program that asked for it
-   call $sl_theme('reset', '', '', '', '', r)         ;* the next program starts from mono, having asked for nothing
-   call $sl_line('on', 0, r)                          ;* and from plain borders
 
    return
 end

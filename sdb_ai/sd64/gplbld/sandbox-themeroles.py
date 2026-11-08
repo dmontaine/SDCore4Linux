@@ -11,7 +11,8 @@
 #
 # START-HISTORY:
 # 29 Oct 26 dm  New (S.88 3.7a).
-# 8 Nov 26 dm  S.172: seven themes (night and paper); D also opens with SCREENTHEME=paper.
+# 8 Nov 26 dm  S.172: seven themes (night and paper); D also opens with SCREENTHEME=paper.  Section X: after SCREEN CLOSE in paper and night (blue the control) a line
+#               printed at the prompt is in the terminal's own colours (the owner: "The color scheme is retained after exiting from the full screen view").
 # END-HISTORY
 #
 # WHAT IT MEASURES.
@@ -42,6 +43,7 @@ RUN = "%05d" % (os.getpid() % 100000)
 PCFG = "zztc" + RUN       # CONFIG() of several names
 PSEQ = "zzts" + RUN       # the list, 'next', the sequences
 PDEF = "zztd" + RUN       # SCREEN OPEN with nothing asked
+PEXT = "zztx" + RUN       # S.172: SCREEN OPEN, CLEAR, a text, SCREEN CLOSE, then a line printed at the prompt
 passed = failed = 0
 ROLES = ["warning", "success", "readonly", "busy", "focus", "error"]
 THEMES = ["mono", "blue", "classic", "dark", "light", "night", "paper"]      # 8 Nov 26, S.172: night and paper
@@ -95,6 +97,17 @@ $include gpl.bp sl.h
       if seq(c) < 32 then out := '<' : seq(c) : '>' else out := c
    next j
    crt 'SEQ dim ' : out
+end
+"""
+
+SRC_EXT = """$internal
+   screen open
+   screen clear
+   screen text 'inside the page' at 2,2
+   call $sl_theme('name', '', '', '', '', n1)
+   screen close
+   crt 'EXTAFTER the prompt line'
+   crt 'EXTTHEME ' : n1
 end
 """
 
@@ -152,7 +165,7 @@ def isess(box, *cmds, term=None):
     return ANSI.sub("", p.stdout + p.stderr)
 
 
-def pty_internal(box, term, cmds):
+def pty_internal(box, term, cmds, screen=False):
     """INTERNAL mode on a pseudo-terminal of 140 by 100 (room for every probe line: seven themes since S.172 print about 70); returns the screen's lines"""
     s = PtySession([os.path.join(box, "sys", "bin", "sd"), "-internal"], os.path.join(box, "sys"), sdenv(box, term), 140, 100)
     s.settle(1.0)
@@ -160,9 +173,10 @@ def pty_internal(box, term, cmds):
     for c in cmds:
         s.type(c + "\r", idle=1.0)
     lines = s.screen.lines()
+    scr = s.screen
     s.type("\rOFF\r", idle=0.5)
     s.finish()
-    return lines
+    return scr if screen else lines
 
 
 def tagged(text, tag):
@@ -224,15 +238,15 @@ def main():
     original = read_conf(box)
     if re.search(r"(?m)^SCREENTHEME=", original):
         bail("the sandbox's sd.conf already has a SCREENTHEME line, so the 'unset' rows cannot be measured")
-    for nm, body in ((PCFG, SRC_CFG), (PSEQ, SRC_SEQ), (PDEF, SRC_DEF)):
+    for nm, body in ((PCFG, SRC_CFG), (PSEQ, SRC_SEQ), (PDEF, SRC_DEF), (PEXT, SRC_EXT)):
         with open(os.path.join(sysd, "bp", nm), "w") as fh:
             fh.write(body)
     try:
         say("\n--- setup ---------------------------------------------------------------------------------------")
-        iout = isess(box, "BASIC bp " + PCFG, "BASIC bp " + PSEQ, "BASIC bp " + PDEF)
+        iout = isess(box, "BASIC bp " + PCFG, "BASIC bp " + PSEQ, "BASIC bp " + PDEF, "BASIC bp " + PEXT)
         uout = ""
-        row("setup: the three probes (all internal: a user program cannot call $sl_theme) compiled with no errors", len(re.findall(r"(?m)^Compiled 1 program\(s\) with no errors", iout + uout)) == 3, (iout + uout)[-600:])
-        if len(re.findall(r"(?m)^Compiled 1 program\(s\) with no errors", iout + uout)) != 3:
+        row("setup: the four probes (all internal: a user program cannot call $sl_theme) compiled with no errors", len(re.findall(r"(?m)^Compiled 1 program\(s\) with no errors", iout + uout)) == 4, (iout + uout)[-600:])
+        if len(re.findall(r"(?m)^Compiled 1 program\(s\) with no errors", iout + uout)) != 4:
             bail("the probes did not compile:\n" + (iout + uout)[-800:])
 
         say("\n--- C: CONFIG() of SCREENTHEME ----------------------------------------------------------------------")
@@ -299,6 +313,24 @@ def main():
         lines = pty_internal(box, "vt100", ["RUN bp " + PDEF])
         d = tagged(lines, "DEF")
         row("vt100 with SCREENTHEME=blue: no colour, so the program is in mono", len(d) == 2 and d[0] == "DEF open theme=mono", repr(d))
+
+        say("\n--- X: SCREEN CLOSE gives the terminal back in its own colours (S.172) -----------------------------------")
+        # 8 Nov 26, the owner: "The color scheme is retained after exiting from the full screen view".  A program opens a screen in the site's theme, clears it, writes a text
+        # and closes it, then prints EXTAFTER at the prompt; every cell of that line must be in the terminal's own colours (None, None).  paper and night give the raw normal
+        # style the theme's colours, so a close that sends normal before the theme is put back leaves the line black on grey; blue is the control (its normal has no colours).
+        # The emulator erases without a background, so a clear in the theme's grey is seen only through the text written after it.
+        for theme in ("paper", "night", "blue"):
+            write_conf(box, original.rstrip("\n") + "\nSCREENTHEME=%s\n" % theme)
+            scr = pty_internal(box, "xterm", ["RUN bp " + PEXT], screen=True)
+            L = scr.lines()
+            r_ext = next((i for i, l in enumerate(L) if l.startswith("EXTAFTER")), None)
+            th = tagged(L, "EXTTHEME")
+            if r_ext is None:
+                row("X %s: the probe printed its line after SCREEN CLOSE" % theme, False, "\n".join(l for l in L if l.strip())[-400:])
+                continue
+            looks = {scr.style(r_ext, c) for c in range(len("EXTAFTER the prompt line"))}
+            row("X %s: the page was in the theme (the null case: the probe read the theme's name before SCREEN CLOSE)" % theme, th == ["EXTTHEME " + theme], repr(th))
+            row("X %s: the line printed at the prompt after SCREEN CLOSE is in the terminal's own colours, no flags" % theme, looks == {(None, None, "")}, repr(looks))
     finally:
         write_conf(box, original)
         subprocess.run([sys.executable, TOOL, box, "stop"], capture_output=True, text=True, errors="replace", timeout=120)

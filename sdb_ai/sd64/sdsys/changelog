@@ -10,10 +10,11 @@ Next release - in progress
                            light grey. Neither puts bold text on the light grey, and plain text on a page is in the theme's
                            colours, never the terminal's own. In both, the home screen's tiles are boxes in the page's
                            colours, the selected one inverted, and no caption is cut by its box (three captions are worded
-                           shorter: "who may do what", "edit many records", "run, judge tests"). The shipped sd.conf says
-                           SCREENTHEME=paper. An upgrade that
-                           keeps the configuration gets SCREENTHEME=paper added if its sd.conf has no such line, and a
-                           SCREENTHEME=blue line is changed to paper once, with a comment line saying so.
+                           shorter: "who may do what", "edit many records", "run, judge tests"). Leaving a page, the home
+                           screen or the IDE gives the terminal back in its own colours. The shipped sd.conf says
+                           SCREENTHEME=paper. An upgrade that keeps the configuration gets SCREENTHEME=paper added if its
+                           sd.conf has no such line, and a SCREENTHEME=blue line is changed to paper once, with a comment
+                           line saying so.
              Why         - The blue theme's text, and its menu bar (black and red letters on cyan), were hard to read.
              Does NOT    - Remove blue or any other theme: SCREENTHEME=blue (or classic, mono, dark, light) set after the
                            upgrade stays, and a later install leaves it. A terminal with no colour still shows mono, and a
