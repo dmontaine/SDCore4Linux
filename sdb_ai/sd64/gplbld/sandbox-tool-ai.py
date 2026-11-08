@@ -404,8 +404,10 @@ def accounts_section():
     say("\n--- the Accounts box")
     h = page()
     h.key("tab", idle=0.8)
+    arow("T17a0", "S.176: Tab does not move to the Accounts box (the status line still names Provider)", st(h).startswith("[Provider]"), repr(st(h)))
+    h.key("f6", idle=0.8)
     T = h.text()
-    arow("T17a", "Tab moves to the Accounts box (the status line names it)", st(h).startswith("[Accounts]"), repr(st(h)))
+    arow("T17a", "F6 moves to the Accounts box (the status line names it)", st(h).startswith("[Accounts]"), repr(st(h)))
     rows = [cell(h, r) for r in range(26, 31)]
     arow("T17b", "only the USER accounts are listed, by name, each with its gate read from the scratch group file: zzai1 off, zzai2 off, zzai3 off and suspended; no group account, no fixture",
          re.match(r"^zzai1\s+%s\s+off$" % re.escape(ME), rows[0]) is not None and re.match(r"^zzai2\s+zzother2\s+off$", rows[1]) is not None

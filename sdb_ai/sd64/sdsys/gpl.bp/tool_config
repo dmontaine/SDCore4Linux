@@ -18,6 +18,7 @@
 *               up and the foot box showed another parameter's range on the first rows (found by the write half's own check of the range E validates against).
 * 27 Oct 26 dm  S.87 batch 15: no parameter is inert or retired any more (the eleven that were are gone from sd.conf), so the 'inert' sentence at the foot is gone; the other parameters number 37.
 * 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the three views, the differ filter and refresh are offered to the model.
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the view to the AI line and back; AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -641,9 +642,9 @@ on.key:
       case nm = 'f1' or nm = '?'
          call $tk_help('box', 'tool.config.page', hm, 0, 0)
          if hm # '' then msg = hm
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, panes<view>, '', ap)            ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, 1, nm : @fm : 1, ap)            ;* S.176: F6 / Shift-F6 go round the boxes (one here: the view shown) and the AI line; AI > Ask the AI goes to the line
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
       case nm = 'esc'

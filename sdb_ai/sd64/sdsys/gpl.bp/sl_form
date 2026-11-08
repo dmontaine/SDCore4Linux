@@ -23,6 +23,8 @@
 *               or to none: f{'nofocus'}), run by 'redraw' and the new op 'recheck'; the op 'focus' refuses a target that cannot have the focus on a shown form (ret 1);
 *               set.focus does not draw a widget that is hidden or off the page (fpaint 0: flags only); route.key swallows a key (a bell) while the focus is stale, apart
 *               from Tab, Shift-Tab, Up, Down and Esc; park.cursor hides the cursor when nothing can have the focus; route.mouse asks can.focus.
+* 8 Nov 26 dm  S.176: f{'tabkeys'} = 1: Tab and Shift-Tab that no widget took come back to the program as keys instead of moving the focus (the IDE, whose
+*               panes are boxes: F6 and Shift-F6 move between them on every page; the owner, 8 Nov 26, "F6 for boxes is fine").
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -689,6 +691,8 @@ default.action:
 * A key the focused widget had no use for (k2) or said done with a non-button
 other.key:
    begin case
+      case (k2 = 'tab' or k2 = 'btab') and f{'tabkeys'} + 0 = 1
+         ret = 'unhandled' : @fm : k2                 ;* S.176: the program's (the IDE's boxes are moved by F6, not Tab)
       case k2 = 'tab' or k2 = 'down'
          step = 1
          gosub move.focus

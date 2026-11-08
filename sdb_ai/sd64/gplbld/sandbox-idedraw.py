@@ -342,11 +342,11 @@ end
         e.quiet()
         nh = sum(1 for cc in range(28, 138) for rr in range(3, 30) if scr.style(rr, cc) == here)        # (row 2 is the tab strip, which has its own look)
         row("with the focus on the tree the editor has no highlighted cursor (%d cells in the style)" % nh, nh == 0, repr(nh))
-        L = e.keys(sb.TAB)
+        L = e.keys(sb.F6)                                    # S.176: F6, not Tab, moves between the panes
         e.quiet()
-        L = e.keys(sb.TAB)
+        L = e.keys(sb.F6)
         e.quiet()
-        row("Tab back to the editor: it is highlighted again, with the hardware cursor there too and shown",
+        row("F6 back to the editor: it is highlighted again, with the hardware cursor there too and shown",
             cursor_cell() == here and scr.cursor_visible, repr((scr.r, scr.c, cursor_cell(), scr.cursor_visible)))
         e.end()
 

@@ -75,6 +75,7 @@ F10, F12 = E + "[21~", E + "[24~"
 F8, F9 = E + "[19~", E + "[20~"          # compile, build (compile and catalogue): the owner's keys of 20 Oct, S.88 Phase 4 (F7 is debug now)
 X_F2 = E + "OQ"                          # F2 in terminfo's xterm: it saved before Phase 4 and does nothing now (Ctrl-S is the only save key)
 RET, TAB, ESC = "\r", "\t", E
+F6 = E + "[17~"                     # 8 Nov 26 (S.176): the box key of every page; Tab no longer moves between the IDE's panes
 CTRL_Q, CTRL_S, CTRL_N, CTRL_W = "\x11", "\x13", "\x0e", "\x17"
 DOWN_SAVEAS, DOWN_COPY = 3, 4            # File menu: New record, Open record, Save, Save as, Write a copy, Close record, Quit - Down this many times from New record
 A1, A2 = "zzfl1", "zzfl2"
@@ -256,14 +257,14 @@ def section_bare():
     before = s.editor()
     s.type("hello", wait=1.2, show="'hello' (typed with the focus where the IDE put it)")
     e1 = s.editor()
-    s.type(TAB, wait=0.8)
-    s.type(TAB, wait=0.8)
-    s.type("abc", wait=1.2, show="'abc' (after Tab Tab)")
+    s.type(F6, wait=0.8)
+    s.type(F6, wait=0.8)
+    s.type("abc", wait=1.2, show="'abc' (after F6 F6)")
     e2 = s.editor()
-    s.show("after hello, Tab Tab, abc")
+    s.show("after hello, F6 F6, abc")
     R.row("I2 control: the instrument saw the editor part of the screen before and after (the page is there to type into)", s.in_ide() and "File" in s.row(0), "row1=%r" % s.row(1)[:60])
     ok = ("hello" in e2) or ("abc" in e2)
-    R.row("I2 a bare IDE has an editable buffer: 'hello' typed at the start or 'abc' typed after Tab Tab shows in the editor (today the letters are tree jumps and the editor is silent)",
+    R.row("I2 a bare IDE has an editable buffer: 'hello' typed at the start or 'abc' typed after F6 F6 shows in the editor (today the letters are tree jumps and the editor is silent)",
           ok, "editor before=%r after=%r status=%r" % (before.strip()[:60], e2.strip()[:100], s.status()[:100]), phase=4)
     s.end()
 

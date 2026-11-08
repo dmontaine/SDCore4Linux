@@ -43,6 +43,8 @@
 * 8 Nov 26 dm   S.172: in the themes paper and night the tiles are boxed in the window colours, the focus in highlight (alloc.styles), not coloured blocks.  A boxed
 *               row (boxed.line) is the bar, one space and the text cut to tw - 3 inside the box: two spaces and fmt(.., 'nL') overran the tile and the cut lost the
 *               right bar ("Switch accou.", owner on sdtest).  Three captions shortened to fit 18: who may do what, edit many records, run, judge tests.
+* 8 Nov 26 dm  S.176 (the owner: one box key on every page, "F6 for boxes is fine"): F6 and Shift-F6 go from the tiles to the AI line and back (ai.key); Tab and
+*               Back-tab go round the tiles only and no longer step onto the line.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -1045,18 +1047,10 @@ on.key:
          gosub move.focus
       case nm = 'tab'
          dir = 1
-         if ctx<TK.C.AI> and fi = nt then
-            gosub ai.focus.on                              ;* the AI line is the last stop of the ring
-         end else
-            gosub next.tile
-         end
+         gosub next.tile                                   ;* S.176: round the tiles only; F6 is the way to the AI line, as on every page
       case nm = 'btab'
          dir = -1
-         if ctx<TK.C.AI> and fi = 1 then
-            gosub ai.focus.on
-         end else
-            gosub next.tile
-         end
+         gosub next.tile
       case nm = 'home'
          gosub find.first
          j = fb
@@ -1085,9 +1079,9 @@ on.key:
          if hm # '' then msg = hm
       case nm = 'f5'
          gosub rebuild
-      case nm = 'f6'
+      case nm = 'f6' or nm = 'shift-f6'
          if ctx<TK.C.AI> then
-            gosub ai.focus.on                              ;* F6 or AI > Ask the AI: the focus goes to the line
+            gosub ai.focus.on                              ;* F6, Shift-F6 or AI > Ask the AI: the focus goes to the line (S.176: the tiles and the line are the two stops of the box ring)
          end else
             msg = H.AI.OFF
          end
@@ -1194,7 +1188,13 @@ ai.leave:
    return
 
 * A key while the AI line has the focus: the line edits it; Esc, Tab, Back-tab, Up and Down give the focus back, and Enter on a request asks
+* S.176: F6 and Shift-F6 give it back too, to the tile that had it (the line and the tiles are the box ring of every page)
 ai.key:
+   if nm = 'f6' or nm = 'shift-f6' then
+      gosub ai.leave
+      msg = ''
+      return
+   end
    call $tk_ai('key', ctx, nm, out)
    begin case
       case out = 'leave'

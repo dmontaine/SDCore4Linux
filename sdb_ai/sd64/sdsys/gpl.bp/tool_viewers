@@ -12,6 +12,8 @@
 *               more rows and are wider, the explanation is wider, and a resize is $tk_layout 'refresh' and all of it drawn again.
 * 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the other [-], as the IDE does.
 * 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the pane switch, the output pane and refresh are offered.
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the boxes
+*              (Left and Right still do).  AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -63,7 +65,7 @@ $include tk.h
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)
-   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)
+   call $tk_keys('add', keys, 'f6', 'box', 'pane', '', 1)                 ;* S.176: F6 / Shift-F6 move between the boxes on every page (Tab does not)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'ctrl-o', 'output', 'output', '', 1)
@@ -333,7 +335,7 @@ on.key:
             fi += 1
             gosub redraw
          end
-      case nm = 'tab' or nm = 'right' or nm = 'btab' or nm = 'left'
+      case nm = 'right' or nm = 'left'
          pane = (if pane = 1 then 2 else 1)
          gosub redraw
       case nm = 'enter' or nm = ' '
@@ -344,9 +346,13 @@ on.key:
          gosub read.all
          gosub draw.all
          msg = 'read the machine again'
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, pnames<pane>, '', ap)           ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, pane, nm : @fm : 2, ap)         ;* S.176: F6 / Shift-F6 go round the two boxes and the AI line; AI > Ask the AI goes to the line
+         if ap<1> > 0 and ap<1> # pane then
+            pane = ap<1>
+            gosub redraw
+         end
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
       case nm = 'ctrl-o'

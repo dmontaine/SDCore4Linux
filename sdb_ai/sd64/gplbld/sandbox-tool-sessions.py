@@ -54,6 +54,7 @@ def _load(name, fname):
 sh = _load("sandbox_home_for_toolsessions", "sandbox-home.py")
 say, row, bail, has, dump, adm, H, g = sh.say, sh.row, sh.bail, sh.has, sh.dump, sh.adm, sh.H, sh.g
 sh.KEYS["f1"] = "\x1b[[A"
+SHIFT_F6 = "\x1b[17;2~"         # S.176: Shift-F6 in xterm's modifier form (the harness's TERM; _keycode names it shift-f6 - the console's [32~ is named only for TERM linux)
 ME = getpass.getuser()
 FAILED_IDS = []
 LIVES = []
@@ -320,7 +321,7 @@ class Page:
 
     def focus(self, pane):
         if self.pane() != pane:
-            self.key("tab", 0.8)
+            self.key("f6", 0.8)                    # S.176: F6 is the box key of every page (the sandbox has no AI line, so two stops)
 
     def to_session(self, uid):
         """Cursor to the session of this user number; the list is read every 3 seconds, so a session that signed on a moment ago may take that long to show."""
@@ -618,18 +619,25 @@ def section_s8(p):
     if L:
         p.h.click(20, L[0]["row"])
         arow("S8b", "a click on a lock row puts the cursor there and the focus on the locks list", p.pane() == "Locks" and ("User %d" % L[0]["uid"]) in p.detail(), repr((p.pane(), p.detail()[:120])))
+    # S.176 (the owner, 8 Nov 26: one key moves between the boxes on every page, "F6 for boxes is fine"): Tab moves no box; F6 and Shift-F6 do
     p.key("tab", 0.8)
-    arow("S8c", "Tab changes the list", p.pane() == "Sessions", p.pane())
+    arow("S8c0", "S.176: Tab does NOT change the list (the focus stays on the locks list)", p.pane() == "Locks", p.pane())
+    p.h.typed(SHIFT_F6, idle=0.8)
+    arow("S8c00", "S.176: Shift-F6 changes the list (to the sessions list: two boxes and no AI line in a sandbox)", p.pane() == "Sessions", p.pane())
+    p.key("f6", 0.8)
+    arow("S8c01", "S.176: F6 changes it back (to the locks list)", p.pane() == "Locks", p.pane())
+    p.key("f6", 0.8)
+    arow("S8c", "F6 changes the list", p.pane() == "Sessions", p.pane())
     # S.99 (1 Nov 26): the focus marks, as the IDE has them - [*] at the top right of the box with the focus, [-] on the other box that can take it, none on the
     # box under them (it never has the focus).  The boxes are 138 wide from column 1, so the mark is columns 135 to 137 of each box's top border.
     m1, m2, m3 = p.line(1)[135:138], p.line(16)[135:138], p.line(30)[135:138]
     arow("S8c1", "S.99: the focus on the sessions list: [*] on its box, [-] on the locks box, no mark on the box under them",
          (m1, m2) == ("[*]", "[-]") and m3 not in ("[*]", "[-]"), repr((m1, m2, m3)))
-    p.key("tab", 0.8)
+    p.key("f6", 0.8)
     m1, m2 = p.line(1)[135:138], p.line(16)[135:138]
-    arow("S8c2", "S.99: ...Tab to the locks list moves them: [-] on the sessions box, [*] on the locks box", p.pane() == "Locks" and (m1, m2) == ("[-]", "[*]"),
+    arow("S8c2", "S.99: ...F6 to the locks list moves them: [-] on the sessions box, [*] on the locks box", p.pane() == "Locks" and (m1, m2) == ("[-]", "[*]"),
          repr((p.pane(), m1, m2)))
-    p.key("tab", 0.8)
+    p.key("f6", 0.8)
     p.key("f5", 1.5)
     arow("S8d", "F5 reads again and says so", "asked the system again" in st(p.h), st(p.h))
     p.h.click(135, 2)

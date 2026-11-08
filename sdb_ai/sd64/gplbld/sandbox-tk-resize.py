@@ -373,9 +373,9 @@ def sec_ai_line():
     w = Win("R5-ai", h.s, 140, 43)
     say("   home started for %s: pty 140x43, TERM=xterm, LC_ALL=C (sandbox-home.H); home drawn: %s" % (al.ACCT, h.home()))
     c = R.row("R5c the ordinary home screen is up and row 40 holds the AI line (AI> ...)", h.home() and "AI>" in h.line(39), repr(h.line(39)[:90]), phase=None)
-    h.key("btab", idle=0.8)
+    h.key("f6", idle=0.8)                            # S.176: F6, not Back-tab, takes the focus from the tiles to the AI line
     h.typed(TEXT, idle=0.8)
-    c2 = R.row("R5c2 Back-tab focuses the line and the request is typed there (not sent): row 40 reads 'AI> %s'" % TEXT, "AI>" in h.line(39) and TEXT in h.line(39), repr(h.line(39)[:90]), phase=None)
+    c2 = R.row("R5c2 F6 focuses the line and the request is typed there (not sent): row 40 reads 'AI> %s'" % TEXT, "AI>" in h.line(39) and TEXT in h.line(39), repr(h.line(39)[:90]), phase=None)
     off = w.resize(180, 55, 2.0)
     fr = w.fresh(off)
     ai_row = fr.lines()[51].rstrip() if len(fr.lines()) > 51 else ""

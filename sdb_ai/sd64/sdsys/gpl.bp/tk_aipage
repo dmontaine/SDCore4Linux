@@ -9,6 +9,9 @@
 * 1 Nov 26 dm  S.97 stage 2: the op 'keys', for a page that makes its key table anew (tool.bulk): the line's two rows are put back when the page has a line; the rows are one
 *              internal subroutine, add.rows, which 'init' calls too.
 * 1 Nov 26 dm  S.97 stage 4 (the owner's editing actions): the ids a page marked 'edit' go to $tk_ai in actx<12> (Enter alone rejects them) and a replay carries the argument in out<5>.
+* 8 Nov 26 dm  S.176 (the owner, 8 Nov 26: one key moves between the boxes on every page, "F6 for boxes is fine"): the op 'ring', F6 / Shift-F6 round a page's boxes with
+*              the AI line as the stop after the last; 'key' leaves F6 and Shift-F6 to the page while the line has the focus; the rows are a menu-only AI > Ask the AI (the
+*              page sees it as act:ai) and an F6 'box' row for a page that has no F6 row of its own ($tk_fkeys shows a key once).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -22,12 +25,17 @@
 *   again  (ctx, keys -> out)   the same for a context made anew by $tk_open after the page handed the terminal over (the key table is kept, so no row is added again).
 *   keys   (ctx, keys)          a page that made its key table anew: F6 and AI > Ask the AI are added again when the page has a line (nothing is asked, nothing laid out).
 *   key    (ctx, keys, pane, a -> out)   a = the key name.  Call it for every key BEFORE the menu bar sees it.  While the line has the focus it takes the keys: the person's text goes
-*                               into the line, Esc, Tab, Back-tab, Up and Down give the focus back, and Enter on a request asks.  out is null when the key is not the line's;
+*                               into the line, Esc, Tab, Back-tab, Up and Down give the focus back, and Enter on a request asks; F6 and Shift-F6 are the page's (its ring
+*                               gives the focus on).  out is null when the key is not the line's;
 *                               'taken' (the line used it) with <3> 1 when the screen was covered (the preview, the wait and the answer) and the page must draw all of itself again,
 *                               and <4> a message for the status line; 'replay' when the AI proposed an action: <2> is the key of that action in this pane, and the page runs its own
 *                               handler for that key exactly as if the person had pressed it; <5> the argument the model gave with it (S.97 stage 4), which the page may offer as the
 *                               DEFAULT of its own prompt (the person still answers that prompt, and every box after it).
-*   open  (ctx, keys, pane -> out)   the page's own case on F6 (or the menu entry): the line takes the focus; out is the message for the status line.  Nothing when there is no line.
+*   open  (ctx, keys, pane -> out)   the line takes the focus; out is the message for the status line.  Nothing when there is no line.
+*   ring  (ctx, keys, pane, a -> out)   S.176, the page's case on F6, Shift-F6 and act:ai (the menu entry AI > Ask the AI).  pane = the NUMBER of the box that has the focus;
+*                               a<1> = the key, a<2> = how many boxes the page (or its view) has.  The boxes and then the AI line, where the page has one, are a ring: F6 is the
+*                               next stop, Shift-F6 the one before, act:ai the line itself.  The line is focused or given up here; out<1> is the box that is to have the focus
+*                               (0: the line has it) and out<2> the status line's message.  A page with one box and no line gets its own box back.
 *   mouse  (ctx, keys, pane, a -> out)   a = the event of SCREEN MOUSE: a left press on the line gives it the focus; out is then its message, else null.
 *
 *   WHAT IS OFFERED TO THE MODEL is the page's key table, not a list typed again: the actions the page opted in ($tk_keys 'ai') that are available now for the pane and have a key.  The
@@ -71,6 +79,9 @@ $include tk.h
             out = sysmsg(11638)
          end
 
+      case op = 'ring'
+         gosub ring
+
       case op = 'mouse'
          if ctx<TK.C.AIROW> and ctx<TK.C.AI> then
             call $tk_ai('mouse', ctx, a, mo)
@@ -85,7 +96,7 @@ $include tk.h
          foc = 0
          if ctx<TK.C.AIROW> and ctx<TK.C.AI> then call $tk_ai('focused', ctx, foc, '')
          * a key that is not a key of the line (the end of the input, a resize, the mouse, the cursor lock's guard) is the page's whatever the focus
-         if foc and nm # '' and nm # 'resize' and nm # 'mouse' and nm # 'guardquit' then
+         if foc and nm # '' and nm # 'resize' and nm # 'mouse' and nm # 'guardquit' and nm # 'f6' and nm # 'shift-f6' then     ;* S.176: F6 / Shift-F6 go to the page's ring
             call $tk_ai('key', ctx, nm, ko)
             out = 'taken' : @fm : '' : @fm : '' : @fm : sysmsg(11638)          ;* the status line keeps saying how to use the line while it has the focus
             begin case
@@ -126,10 +137,43 @@ ask:
    end
    return
 
-* The line's own rows in the key table: F6, and the menu entry AI > Ask the AI
+* S.176: F6 / Shift-F6 round the page's boxes (1 to rg.n) and the line (rg.n + 1, when the page has one); act:ai to the line.  In: pane (the box with the focus), a.
+ring:
+   rg.n = a<2> + 0
+   if rg.n < 1 then rg.n = 1
+   rg.at = pane + 0
+   if rg.at < 1 or rg.at > rg.n then rg.at = 1
+   rg.line = 0
+   if ctx<TK.C.AIROW> and ctx<TK.C.AI> then rg.line = 1
+   rg.foc = 0
+   if rg.line then call $tk_ai('focused', ctx, rg.foc, '')
+   if rg.foc then rg.at = rg.n + 1                                          ;* the line is the stop after the last box
+   rg.stops = rg.n + rg.line
+   begin case
+      case a<1> = 'act:ai'
+         rg.to = (if rg.line then rg.n + 1 else rg.at)
+      case a<1> = 'shift-f6'
+         rg.to = rg.at - 1
+         if rg.to < 1 then rg.to = rg.stops
+      case 1
+         rg.to = rg.at + 1
+         if rg.to > rg.stops then rg.to = 1
+   end case
+   if rg.line and rg.to = rg.n + 1 then
+      if not(rg.foc) then call $tk_ai('focus', ctx, 1, '')
+      out = 0 : @fm : sysmsg(11638)
+   end else
+      if rg.foc then call $tk_ai('focus', ctx, 0, '')
+      out = rg.to : @fm : ''
+   end
+   return
+
+* The line's own rows in the key table: the menu entry AI > Ask the AI, an action with no key (the page sees act:ai), and F6 for a page that has no F6 row of its own
+*   (S.176: F6 is the box key of every page, the line one of its stops; a page's own F6 row comes first and $tk_fkeys shows a key once)
 add.rows:
-   call $tk_keys('add', keys, 'f6', 'ask ai', 'ai', '', 1)
+   call $tk_keys('add', keys, '', 'ask ai', 'ai', '', 1)
    call $tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')
+   call $tk_keys('add', keys, 'f6', 'box', 'nextpane', '', 1)
    return
 
 end

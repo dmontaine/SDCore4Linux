@@ -17,6 +17,26 @@ Next release - in progress
                            session leaves within the ten seconds. Let a session ended with SIGKILL run its own logout.
                            Make an idle session leave gracefully on the termination signal; that is still to do.
 
+8 Nov 26   F6 AND SHIFT-F6 MOVE BETWEEN THE BOXES ON EVERY FULL-SCREEN PAGE; TAB NO LONGER DOES.
+
+             What        - On every full-screen page and in the IDE, F6 moves the focus to the next box and Shift-F6 to the
+                           one before, round and round. Where the AI is on for your account, the AI line at the foot of the
+                           page is one of the stops, after the last box; AI > Ask the AI in the menu bar, or a click on
+                           the line, still goes straight to it. Tab and Shift-Tab no longer move between boxes anywhere:
+                           in the IDE they indent and outdent in the editor and do nothing in the file list, the tabs, the
+                           messages or the fields; on tool.sessions, tool.bulk, tool.query, tool.test, tool.dict,
+                           tool.entries, tool.jobs, tool.viewers and tool.menus they no longer switch the box (Left and
+                           Right still do on the pages that had them). In a dialog or a form Tab still goes from field to
+                           field, and on tool.gates it still moves between the matrix's columns. On the home screen Tab
+                           and Back-tab go round the tiles only, and F6 and Shift-F6 go to the AI line and back. The key
+                           row shows F6 box.
+             Why         - The owner: "The key strokes need to be consistent between various panes tab can't be valid to
+                           move between panes in some places and not in others." In the IDE, Tab left the file list but
+                           indented in the editor, so the editor could only be left with F6.
+             Does NOT    - Change SED (frozen) or the debugger. Change what Tab does in a dialog
+                           or a form. Ctrl-Tab and Alt-Tab are not used: most terminals send a plain Tab for Ctrl-Tab and
+                           the desktop takes Alt-Tab.
+
 8 Nov 26   THE AI PREVIEW SHOWS YOUR REQUEST, NOT SD'S OWN TEXT; tool.ai NO LONGER SAYS THE HELPER IS DOWN ON A SLOW SERVER.
 
              What        - Before a request is sent, the preview now shows the provider, the model, the size of all that will

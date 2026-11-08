@@ -109,13 +109,22 @@ def checks(raw):
        re.search(r"\$internal\s*\nsubroutine tk_aipage\(op, ctx, keys, pane, a, out\)\s*\n\$catalog \$tk_aipage\b", ap) is not None
        and ordered(ap, "case op = 'init' or op = 'again'", "ctx<TK.C.AIROW> = ''", "if ctx<TK.C.AI> then", "ctx<TK.C.AIROW> = 1", "if op = 'init' then gosub add.rows", "$tk_layout('refresh'",
                   "case op = 'keys'", "if ctx<TK.C.AIROW> then gosub add.rows")
-       and ordered(ap, "add.rows:", "$tk_keys('add', keys, 'f6', 'ask ai', 'ai', '', 1)", "$tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')", "return"), "")
+       and ordered(ap, "add.rows:", "$tk_keys('add', keys, '', 'ask ai', 'ai', '', 1)", "$tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')",
+                   "$tk_keys('add', keys, 'f6', 'box', 'nextpane', '', 1)", "return"), "")
+    # 8 Nov 26 (S.176, the owner: one box key on every page, "F6 for boxes is fine"): the ring.  F6 the next stop, Shift-F6 the one before, both round; the line is the stop after
+    # the last box and only where the page has one; act:ai (the menu-only Ask the AI) goes to the line; the line is focused or given up HERE, and out<1> 0 means the line has it
+    ck("AP15", "$tk_aipage 'ring': the boxes and then the AI line are one ring for F6 / Shift-F6 (round both ways), the line counts only where the page has one, a focused line is the stop after the last box, act:ai goes to the line, and the line's focus is set here",
+       "case op = 'ring'" in ap and ordered(ap, "ring:", "rg.n = a<2> + 0", "if ctx<TK.C.AIROW> and ctx<TK.C.AI> then rg.line = 1", "$tk_ai('focused', ctx, rg.foc, '')",
+                                            "if rg.foc then rg.at = rg.n + 1", "rg.stops = rg.n + rg.line", "case a<1> = 'act:ai'", "rg.to = (if rg.line then rg.n + 1 else rg.at)",
+                                            "case a<1> = 'shift-f6'", "if rg.to < 1 then rg.to = rg.stops", "if rg.to > rg.stops then rg.to = 1",
+                                            "if rg.line and rg.to = rg.n + 1 then", "$tk_ai('focus', ctx, 1, '')", "out = 0 : @fm : sysmsg(11638)", "if rg.foc then call $tk_ai('focus', ctx, 0, '')",
+                                            "out = rg.to : @fm : ''", "return"), "")
     ck("AP9", "WHAT IS OFFERED is the page's table (aiacts); <5> 1 with the actions that do more than navigate in <12> (S.97 stage 4: Enter alone REJECTS a proposal of one of them), a command is ignored ('nocmd'), no file's text is sent (<13> 'none'), ONE ask, an accepted action is carried out only through the key the table gives for it (keyof), and its argument is handed to the page in out<5>",
        ap.count("$tk_ai('ask'") == 1 and "$tk_keys('aiacts', keys, pane, acts, ai.edits, '', '')" in ap and "acts : @fm : 1" in ap and "actx<11> = 'nocmd'" in ap and "actx<13> = 'none'" in ap
        and "actx<12> = ai.edits" in ap and 0 < ap.find("$tk_keys('aiacts'") < ap.find("actx<12> = ai.edits") < ap.find("$tk_ai('ask'")
        and "$tk_keys('keyof', keys, res<2>, pane, kk, '', '')" in ap and "out = 'replay' : @fm : kk : @fm : 1 : @fm : res<5> : @fm : res<3>" in ap, "")
-    ck("AP10", "the line takes a key only while it has the focus, and never the end of the input, a resize, the mouse or the cursor lock's guard; Esc, Tab, Back-tab, Up and Down give the focus back and clear the message",
-       "$tk_ai('focused', ctx, foc, '')" in ap and "if foc and nm # '' and nm # 'resize' and nm # 'mouse' and nm # 'guardquit' then" in ap
+    ck("AP10", "the line takes a key only while it has the focus, and never the end of the input, a resize, the mouse, the cursor lock's guard or F6 / Shift-F6 (the page's ring, S.176); Esc, Tab, Back-tab, Up and Down give the focus back and clear the message",
+       "$tk_ai('focused', ctx, foc, '')" in ap and "if foc and nm # '' and nm # 'resize' and nm # 'mouse' and nm # 'guardquit' and nm # 'f6' and nm # 'shift-f6' then" in ap
        and "case ko = 'leave' or ko = 'tab' or ko = 'btab' or ko = 'up' or ko = 'down'" in ap, "")
     # 1 Nov 26 (S.97 stage 2): every page that has the line, as one table: its id letter, its source, the pane argument it gives the library (a literal in quotes or a variable),
     # what it offers the model, whether it lays itself out BEFORE its key table (then the panes are declared again right after 'init'), and whether it makes its key table anew
@@ -123,6 +132,8 @@ def checks(raw):
     # 1 Nov 26 (S.97 stage 2 group B and stage 3): the administrator's pages, tool.menus and my.menu join; the last field is the page's layout routine (declare.layout or
     # lay.declare; my.menu had none until 2 Nov 26, S.88 U4: its one box is now a pane, declared after 'init' like the others).  The administrator's pages offer navigation only
     # (the owner's default: nothing that changes an account, a gate, a session, a door, a setting or a backup); my.menu offers nothing at all.
+    # 8 Nov 26 (S.176): F6, Shift-F6 and act:ai (the menu's Ask the AI) are ONE case of the page, which asks the ring (directly, or through the page's own box.ring)
+    RING_CASE = r"(?:case|if) nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'(?: then)?\s*\n(?:[^\n]*\n){0,4}?\s*(?:call \$tk_aipage\('ring', ctx, keys, |gosub box\.ring)"
     PAGES = (("a", voc, "'VOC'", ["type", "state", "filter", "refresh"], "tool.voc", 0, 0, "declare.layout"),
              ("b", fil, "'Files'", ["filter", "refresh"], "tool.files", 0, 0, "declare.layout"),
              ("c", strip_bas(raw["catalog"]), "'Programs'", ["filter", "refresh"], "tool.catalog", 0, 0, "declare.layout"),
@@ -181,7 +192,7 @@ def checks(raw):
         reopen = (hand < 0 and again < 0) or (0 < hand < again < decl2)
         ck("AP12" + letter, "%s: the hook sees every key BEFORE the menu bar and the bar is not given a key the line used; an accepted proposal is replayed as the page's own key; the status line follows the answer; 'taken' is the first case; F6 and a click on the line reach it; a new context after a hand-over is given its row before its layout" % name,
            ordered(pg, "call $tk_aipage('key', ctx, keys, %s, nm, ao)" % nm, "if ao<1> = 'replay' then nm = ao<2>", "if ao<1> # '' then msg = ao<4>", "if nm # '' and ao<1> = '' then call $tk_menubar('key', ctx, keys, %s" % nm,
-                    "case ao<1> = 'taken'", "case nm = ''") and re.search(r"(?:case|if) nm = 'f6'(?: then)?\s*\n\s*call \$tk_aipage\('open', ctx, keys, %s, '', ap\)" % re.escape(nm), pg) is not None
+                    "case ao<1> = 'taken'", "case nm = ''") and re.search(RING_CASE, pg) is not None
            and (ordered(pg, "call $tk_aipage('mouse', ctx, keys, %s, mev, ap)" % nm, "call $tk_help('hit'") if "$tk_help('hit'" in pg
                 else "call $tk_aipage('mouse', ctx, keys, %s, mev, ap)" % nm in pg) and reopen, repr((hand, again, decl2)))
     m43 = raw["m43"].rstrip("\n")
@@ -232,15 +243,22 @@ MUTANTS = [
     ("tool.voc gives the row after the layout", "AP11a", sub("voc", "   call $tk_aipage('init', ctx, keys, '', '', aout)\n\n   VIS = 16 ", "\n   VIS = 16 ")),
     ("tool.voc's bar sees a key the line used", "AP12a", sub("voc", "if nm # '' and ao<1> = '' then call $tk_menubar('key'", "if nm # '' then call $tk_menubar('key'")),
     ("tool.files does not replay a proposal", "AP12b", sub("files", "if ao<1> = 'replay' then nm = ao<2>", "if @false then nm = ao<2>")),
-    ("tool.files has no F6", "AP12b", sub("files", "      case nm = 'f6'\n         call $tk_aipage('open', ctx, keys, 'Files', '', ap)", "      case nm = 'zz6'\n         call $tk_aipage('open', ctx, keys, 'Files', '', ap)")),
+    ("tool.files has no F6", "AP12b", sub("files", "      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'\n", "      case nm = 'zz6'\n")),
+    ("tool.files opens the line on F6 instead of the ring", "AP12b", sub("files", "call $tk_aipage('ring', ctx, keys, 1, nm : @fm : 1, ap)", "call $tk_aipage('open', ctx, keys, 'Files', '', ap)")),
+    # 8 Nov 26 (S.176): the ring
+    ("the line takes F6 while it has the focus", "AP10", sub("page", " and nm # 'f6' and nm # 'shift-f6' then", " then")),
+    ("Shift-F6 does not go round", "AP15", sub("page", "         if rg.to < 1 then rg.to = rg.stops\n", "         if rg.to < 1 then rg.to = 1\n")),
+    ("the line is a stop on a page without one", "AP15", sub("page", "   rg.stops = rg.n + rg.line\n", "   rg.stops = rg.n + 1\n")),
+    ("leaving the line keeps its focus", "AP15", sub("page", "      if rg.foc then call $tk_ai('focus', ctx, 0, '')\n", "")),
+    ("the F6 row of the line comes first", "AP8", sub("page", "   call $tk_keys('add', keys, '', 'ask ai', 'ai', '', 1)\n", "   call $tk_keys('add', keys, 'f6', 'ask ai', 'ai', '', 1)\n")),
     ("tool.voc forgets the row after the IDE", "AP12a", sub("voc", "   call $tk_aipage('again', ctx, keys, '', '', aout)", "   aout = 0")),
-    ("the hint does not say F6", "AP13", sub("m43", "press F6, ", "press Tab, ")),
+    ("the hint does not say F6", "AP13", sub("m43", "press F6 until", "press Tab until")),
     # 1 Nov 26 (S.97 stage 2)
     ("tool.catalog offers compile to the AI", "AP11c", sub("catalog", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n   call $tk_keys('ai', keys, 'compile', '', '', '', '')\n")),
     ("tool.test does not lay out again after the line took a row", "AP11f", sub("test", "   if aout then gosub declare.layout\n", "")),
     ("tool.bulk's new key table loses the line's rows", "AP11h", sub("bulk", "   call $tk_aipage('keys', ctx, keys, '', '', aout)\n", "")),
     ("tool.dict forgets the row after the hand-over", "AP12e", sub("dict", "   call $tk_aipage('again', ctx, keys, '', '', aout)", "   aout = 0")),
-    ("tool.query has no F6", "AP12g", sub("query", "   if nm = 'f6' then\n", "   if nm = 'zz6' then\n")),
+    ("tool.query has no F6", "AP12g", sub("query", "   if nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai' then\n", "   if nm = 'zz6' then\n")),
     ("tool.mygates' bar sees a key the line used", "AP12d", sub("mygates", "if nm # '' and ao<1> = '' then call $tk_menubar('key'", "if nm # '' then call $tk_menubar('key'")),
     # 1 Nov 26 (S.97 stage 2 group B, stage 3): the administrator's pages hold to navigation only
     ("tool.gates offers queue to the AI", "AP11m", sub("gates", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n", "   call $tk_keys('ai', keys, 'refresh', '', '', '', '')\n   call $tk_keys('ai', keys, 'queue', '', '', '', '')\n")),

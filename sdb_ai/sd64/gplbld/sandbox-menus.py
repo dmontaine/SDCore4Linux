@@ -131,8 +131,8 @@ def main():
         if "What this means" not in T:
             dump(h)
             bail("tool.menus never drew its page, so no row below can be believed")
-        row("the page: boxes Accounts, Menu, What this means, System default and Help; the function keys 'F1 help  Enter change  Tab pane  F5 refresh  ^Q quit'",
-            all(w in T for w in ("Accounts", "Menu", "What this means", "System default", "Help")) and h.line(42).startswith("F1 help  Enter change  Tab pane  F5 refresh  ^Q quit"), repr(h.line(42)))        # (the bar adds "Esc menu" at the end, 29 Oct 26)
+        row("the page: boxes Accounts, Menu, What this means, System default and Help; the function keys 'F1 help  Enter change  F6 box  F5 refresh  ^Q quit' (S.176)",
+            all(w in T for w in ("Accounts", "Menu", "What this means", "System default", "Help")) and h.line(42).startswith("F1 help  Enter change  F6 box  F5 refresh  ^Q quit"), repr(h.line(42)))        # (the bar adds "Esc menu" at the end, 29 Oct 26)
         row("the accounts, in order, without SDSYS: zzhd zzhm zzhs zzht zzhv (zzhs is marked suspended), each with where it starts (own word, or 'default (terminal)')",
             all(re.search(p, h.line(r)) for p, r in ((r"zzhd\s+OTHER\s+default \(terminal\)", 3), (r"zzhm\s+OTHER\s+menu", 4), (r"zzhs\s+OTHER \(s\)\s+menu", 5), (r"zzht\s+OTHER\s+terminal", 6), (r"zzhv\s+OTHER\s+menu", 7)))
             and "sdsys" not in T.replace("administrator", ""), repr([h.line(r)[:60] for r in range(2, 9)]))
@@ -142,7 +142,9 @@ def main():
         row("Down selects the next account (zzhm): its row is in reverse video and zzhd's is not", "r" in h.style(4, 5)[2] and "r" not in h.style(3, 5)[2], repr((h.style(3, 5), h.style(4, 5))))
         h.key("up")
         h.key("tab")
-        row("Tab goes to the Menu pane: the status line says [Menu] and the 'Starts in' row is selected", h.line(40).startswith("[Menu]") and "r" in h.style(2, 75)[2], repr((h.line(40), h.style(2, 75))))
+        row("S.176: Tab does not leave the Accounts pane (the status line still says [Accounts])", h.line(40).startswith("[Accounts]"), repr(h.line(40)[:40]))
+        h.key("f6")
+        row("F6 goes to the Menu pane: the status line says [Menu] and the 'Starts in' row is selected", h.line(40).startswith("[Menu]") and "r" in h.style(2, 75)[2], repr((h.line(40), h.style(2, 75))))
         h.key("down")
         h.key("down")
         h.key("down")
@@ -209,7 +211,7 @@ def main():
         f16 = g.reg_read("zzhd")[15]
         row("Run: field 16 is terminal on the disk and the answer is 'Account zzhd starts at: terminal'", f16 == "terminal" and "Account zzhd starts at: terminal" in h.line(40), repr((f16, h.line(40))))
         row("...the list shows it as zzhd's own word", re.search(r"zzhd\s+OTHER\s+terminal\s+no\s+ide terminal", h.line(3)) is not None, h.line(3)[:80])
-        h.key("tab")
+        h.key("f6")
         h.key("enter", idle=1.0)
         T = h.text()
         row("the Default pane: Enter offers menu and terminal", "Where an account with no setting of its own starts" in T and "menu (the home screen)" in T, T[-400:])
@@ -223,8 +225,8 @@ def main():
         h.key("f5", idle=1.0)
         row("F5 reads the register again", "read the register again" in h.line(40), repr(h.line(40)))
         # 26 Oct 26 (S.75, home): the seven development tiles and the Recent group have rows of their own
-        h.key("tab", idle=0.5)
-        h.key("tab", idle=0.5)
+        h.key("f6", idle=0.5)
+        h.key("f6", idle=0.5)
         T = h.text()
         row("the Menu box has a row for each standard id - Files, Vocabulary, Dictionary, Queries, Bulk update, Programs, Tests and the Recent group after the six it had (S.88 g-P1 took the Record editor row away): 16 rows, the last on row 17 with its [?]; the explanation starts under the box (row 22) and the key hints are one line under the system default (row 37)",
             all(re.search(p, T) for p in (r"\[x\] Files\s+files", r"\[x\] Vocabulary\s+voc", r"\[x\] Dictionary\s+dict", r"\[x\] Queries\s+query", r"\[x\] Bulk update\s+bulk", r"\[x\] Programs\s+catalog", r"\[x\] Tests\s+test", r"\[x\] Recent group\s+recent"))

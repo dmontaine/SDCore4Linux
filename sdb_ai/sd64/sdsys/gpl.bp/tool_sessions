@@ -15,6 +15,8 @@
 * 3 Nov 26 dm  S.137: the login time was read as a lock time (UTC seconds since 1970), but it is the kernel's sdtime(), local seconds from SD's day 0: the zone offset and the
 *              732 days were added to it again, and a session that signed on at 22:44 on 2 Nov showed "03 Nov 14:44" (two years on, the year not shown).  login.stamp.of
 *              formats it as it is; both feed one routine, stamp.local.
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the lists.
+*              AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -65,7 +67,7 @@ $include tk.h
 
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
-   call $tk_keys('add', keys, 'tab', 'list', 'switch', '', 1)
+   call $tk_keys('add', keys, 'f6', 'box', 'switch', '', 1)               ;* S.176: F6 / Shift-F6 move between the boxes on every page (Tab does not)
    call $tk_keys('add', keys, 'l', 'logout', 'logout', 'Sessions', 1)
    call $tk_keys('add', keys, 'u', 'unlock', 'unlock', 'Locks', 1)
    call $tk_keys('add', keys, 'i', 'logins', 'inhibit', '', 1)
@@ -575,9 +577,6 @@ on.key:
             if nl > 0 then cl = nl
          end
          gosub redraw
-      case nm = 'tab' or nm = 'btab'
-         pane = (if pane = 1 then 2 else 1)
-         gosub redraw
       case nm = 'l' and pane = 1
          gosub do.logout
       case nm = 'u' and pane = 2
@@ -591,9 +590,13 @@ on.key:
          gosub read.all
          gosub draw.all
          msg = 'asked the system again'
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, panes<pane>, '', ap)            ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, pane, nm : @fm : 2, ap)         ;* S.176: F6 / Shift-F6 go round the two lists and the AI line (Tab no longer switches); AI > Ask the AI goes to the line
+         if ap<1> > 0 and ap<1> # pane then
+            pane = ap<1>
+            gosub redraw
+         end
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
       case nm = 'ctrl-o'

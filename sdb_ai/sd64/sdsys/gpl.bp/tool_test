@@ -15,6 +15,8 @@
 *              the model (running a test is not), and a proposal is carried out by the page's own key.  An account without the AI sees the page as it was.
 * 3 Nov 26 dm  S.88 "Tab panes": Tab and Shift-Tab move the focus between the two boxes, as on every page with two: from Tests to the Output of the test under the cursor (as Enter
 *              does), from Output back to Tests (as Esc does).
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page (box.ring, $tk_aipage 'ring': Tests, Output, the AI line); Tab and Shift-Tab no longer move between
+*              the boxes.  Enter still opens the Output box and Esc leaves it.  AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -88,7 +90,7 @@ $include tk.h
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-o', 'runs', 'runspane', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
-   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)                ;* S.88 "Tab panes": the other box (Shift-Tab too); last on the row, so the rows of each pane begin as they did
+   call $tk_keys('add', keys, 'f6', 'box', 'pane', '', 1)                  ;* S.176: F6 / Shift-F6 the other box and the AI line, as on every page (Tab does not); last on the row, so the rows of each pane begin as they did
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', 'Tests', 1)           ;* S.88 U7: in the Tests pane Esc takes the name filter off first, else opens the menu bar (in Output it is 'back')
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
    call $tk_keys('menu', keys, 'run', '&Tests', '&Run this test', '', '')
@@ -661,8 +663,8 @@ on.key:
          gosub do.many
       case nm = 'b'
          gosub do.compile
-      case nm = 'enter' or nm = 'tab' or nm = 'btab'
-         gosub show.output                                       ;* Tab and Shift-Tab: the focus to the Output box (S.88 "Tab panes")
+      case nm = 'enter'
+         gosub show.output
       case nm = 'f11' or nm = '/'
          gosub do.filter
       case nm = 'f1' or nm = '?'
@@ -672,11 +674,31 @@ on.key:
          gosub read.all
          gosub draw.all
          msg = 'read the program files again; the results are kept'
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, pn, '', ap)                     ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         gosub box.ring
       case nm = 'ctrl-q'
          done = 1
+   end case
+   return
+
+* S.176: F6 / Shift-F6 go round the boxes (Tests, Output) and the AI line, from either box; AI > Ask the AI goes to the line.  The Output box opens only for a test that has
+*   been run (show.output says so): then the ring goes on past it.
+box.ring:
+   rg.at = (if pn = 'Output' then 2 else 1)
+   call $tk_aipage('ring', ctx, keys, rg.at, nm : @fm : 2, ap)
+   msg = ap<2>
+   begin case
+      case ap<1> = 2 and pn # 'Output'
+         gosub show.output
+         if pn # 'Output' then
+            rg.msg = msg
+            call $tk_aipage('ring', ctx, keys, 2, nm : @fm : 2, ap)          ;* nothing to show: on to the next stop
+            msg = (if ap<2> # '' then ap<2> else rg.msg)
+            if ap<1> = 1 then gosub draw.all
+         end
+      case ap<1> = 1 and pn = 'Output'
+         pn = 'Tests'
+         gosub draw.all
    end case
    return
 
@@ -689,8 +711,8 @@ out.key:
    ozmax = nv - VISO
    if ozmax < 0 then ozmax = 0
    begin case
-      case nm = 'esc' or nm = 'tab' or nm = 'btab'
-         pn = 'Tests'                                            ;* Tab and Shift-Tab: the focus back to the Tests box (S.88 "Tab panes")
+      case nm = 'esc'
+         pn = 'Tests'                                            ;* the focus back to the Tests box (F6 / Shift-F6 too: box.ring)
          gosub draw.all
       case nm = 'up'
          if ot > 0 then ot -= 1
@@ -720,9 +742,8 @@ out.key:
          pn = 'Tests'
          gosub draw.all
          msg = 'read the program files again; the results are kept'
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, pn, '', ap)                     ;* S.97 stage 2: the AI line from the Output pane too
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         gosub box.ring                                          ;* S.176: from the Output box too
       case nm = 'ctrl-q'
          done = 1
    end case

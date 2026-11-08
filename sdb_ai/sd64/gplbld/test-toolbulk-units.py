@@ -189,7 +189,7 @@ def checks(raw):
        and "gosub safe.text" in block(pg, "draw.sel") and "gosub safe.text" in block(pg, "read.undo.info"), "")
     bk = block(pg, "build.keys")
     ck("TB19", "every key the page acts on has a place in the key table (the function-key row shows exactly the keys it uses), and A is on the row only while a dry run stands and U only while there is a run to put back",
-       all(("call $tk_keys('add', keys, '%s'," % k) in bk for k in ("f1", "tab", "f", "m", "j", "l", "n", "e", "x", "r", "a", "u", "f5", "ctrl-q")) and "'apply', 'apply', '', (if dr.valid then 1 else 0))" in bk
+       all(("call $tk_keys('add', keys, '%s'," % k) in bk for k in ("f1", "f6", "f", "m", "j", "l", "n", "e", "x", "r", "a", "u", "f5", "ctrl-q")) and "'apply', 'apply', '', (if dr.valid then 1 else 0))" in bk
        and "'undo', 'undo', '', (if un.have and un.state # 'undone' then 1 else 0))" in bk and "if len(nm) = 1 then nm = downcase(nm)" in pg, "")
     ck("TB20", "the layout fits the 140 by 43 frame (S.88 L2: the four boxes are the layout service's panes, declared 4, 9, 13 and 13 rows by 138 and drawn from their rectangles; the numbers at 140 by 43 are "
                "test-l2-files-units.py's): four boxes (rows 1-4, 5-13, 14-26, 27-39), 4 condition rows at the Which box's y + 3, 10 operation rows at the What box's y + 2, 7 preview rows (the Result box's height less 6) at its y + 5; "

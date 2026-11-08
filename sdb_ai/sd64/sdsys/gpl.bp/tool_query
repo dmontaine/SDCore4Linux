@@ -24,6 +24,8 @@
 *              and sentence; typing narrows it) in place of the page's own Saved queries view; Enter loads as before, Del returns to the page, which asks its own box with the
 *              name typed (Cancel the default) and deletes only on that name.  The list is the one read.saved makes, with check.name on every id, as before.  The Saved view,
 *              its keys (Enter, X, Esc) and its menu are gone; after a load, a refusal or a delete the page is shown with what happened on the status line.
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring': the five boxes and the AI line); Tab and Shift-Tab no longer move between the
+*              boxes.  AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -104,7 +106,7 @@ $include tk.h
    panes = 'File' : @sm : 'Columns' : @sm : 'Conditions' : @sm : 'Sort' : @sm : 'Options'
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
-   call $tk_keys('add', keys, 'tab', 'next', 'next', panes, 1)
+   call $tk_keys('add', keys, 'f6', 'box', 'next', panes, 1)                ;* S.176: F6 / Shift-F6 move between the boxes on every page (Tab does not)
    call $tk_keys('add', keys, 'enter', 'choose', 'choose', 'File', 1)
    call $tk_keys('add', keys, 'space', 'mark', 'mark', 'Columns', 1)
    call $tk_keys('add', keys, 'b', 'break', 'break', 'Columns', 1)
@@ -949,9 +951,15 @@ on.key:
       if hm # '' then msg = hm
       return
    end
-   if nm = 'f6' then
-      call $tk_aipage('open', ctx, keys, cur.pane, '', ap)                  ;* S.97 stage 2: the cursor goes to the AI line, from every view (nothing happens where the AI is not on)
-      if ap # '' then msg = ap
+   if nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai' then
+      * S.176: F6 / Shift-F6 go round the boxes and the AI line, from every view (the builder's five boxes; the results are one); AI > Ask the AI goes to the line
+      if view = 'results' then
+         call $tk_aipage('ring', ctx, keys, 1, nm : @fm : 1, ap)
+      end else
+         call $tk_aipage('ring', ctx, keys, focus, nm : @fm : 5, ap)
+         if ap<1> > 0 then focus = ap<1>
+      end
+      msg = ap<2>
       return
    end
    begin case
@@ -964,12 +972,6 @@ on.key:
 
 keys.build:
    begin case
-      case nm = 'tab'
-         focus += 1
-         if focus > 5 then focus = 1
-      case nm = 'btab'
-         focus -= 1
-         if focus < 1 then focus = 5
       case nm = 'r'
          gosub do.run
       case nm = 'e'

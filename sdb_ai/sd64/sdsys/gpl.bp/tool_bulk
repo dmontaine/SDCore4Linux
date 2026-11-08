@@ -15,6 +15,8 @@
 * 1 Nov 26 dm  S.97 stage 2: the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the list switch and refresh are offered to the model (a dry run, apply, undo
 *              and the edits are not), a proposal is carried out by the page's own key, and build.keys puts the line's rows back ($tk_aipage 'keys').  An account without the AI
 *              sees the page as it was.
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the boxes.
+*              AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -164,7 +166,7 @@ $include tk.h
 build.keys:
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
-   call $tk_keys('add', keys, 'tab', 'list', 'switch', '', 1)
+   call $tk_keys('add', keys, 'f6', 'box', 'switch', '', 1)               ;* S.176: F6 / Shift-F6 move between the boxes on every page (Tab does not)
    call $tk_keys('add', keys, 'f', 'file', 'file', '', 1)
    call $tk_keys('add', keys, 'm', 'how', 'how', 'Selection', 1)
    call $tk_keys('add', keys, 'j', 'all/any', 'join', 'Selection', 1)
@@ -1640,14 +1642,6 @@ on.key:
    msg = ''
    if len(nm) = 1 then nm = downcase(nm)                        ;* N and n are one key
    begin case
-      case nm = 'tab'
-         pane = pane + 1
-         if pane > 3 then pane = 1
-         gosub draw.all
-      case nm = 'btab'
-         pane = pane - 1
-         if pane < 1 then pane = 3
-         gosub draw.all
       case nm = 'up' or nm = 'down' or nm = 'pgup' or nm = 'pgdn' or nm = 'home' or nm = 'end'
          gosub on.move
       case nm = 'f'
@@ -1685,9 +1679,13 @@ on.key:
          if hm # '' then msg = hm
       case nm = 'f5'
          gosub refresh
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, panes<pane>, '', ap)            ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, pane, nm : @fm : 3, ap)         ;* S.176: F6 / Shift-F6 go round the three boxes and the AI line (Tab no longer switches); AI > Ask the AI goes to the line
+         if ap<1> > 0 and ap<1> # pane then
+            pane = ap<1>
+            gosub draw.all
+         end
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
    end case

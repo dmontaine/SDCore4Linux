@@ -54,6 +54,8 @@
 *              items with the name First Name"; which of the two he meant is his to say, so both).
 * 3 Nov 26 dm  New (S.96 M1a; owner, 31 Oct 2026: "pointers seem to me to be a good way to do it").  The VOC kind only, READ ONLY; programs, and the editing, are later
 *              stages.  Made from tool_jobs (its Accounts and list boxes) and tool_voc (the entry's type and what it points at).
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the boxes
+*              (Left and Right still do).  AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -193,7 +195,7 @@ build.keys:
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'enter', 'open', 'open', '', 1)
-   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)
+   call $tk_keys('add', keys, 'f6', 'box', 'pane', '', 1)                 ;* S.176: F6 / Shift-F6 move between the boxes on every page (Tab does not)
    call $tk_keys('add', keys, '/', 'filter', 'filter', '', 1)
    call $tk_keys('add', keys, 'f', 'find', 'find', '', 1)
    call $tk_keys('add', keys, 'k', 'kind', 'kind', '', 1)
@@ -1003,7 +1005,7 @@ on.key:
             ec = (if nm = 'home' then 1 else nrows)
             gosub redraw
          end
-      case nm = 'tab' or nm = 'right' or nm = 'btab' or nm = 'left'
+      case nm = 'right' or nm = 'left'
          pane = (if pane = 1 then 2 else 1)
          gosub redraw
       case nm = 'enter' or nm = ' '
@@ -1039,9 +1041,13 @@ on.key:
          gosub read.all
          gosub draw.all
          msg = 'read again'
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, pnames<pane>, '', ap)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, pane, nm : @fm : 2, ap)         ;* S.176: F6 / Shift-F6 go round the two boxes and the AI line; AI > Ask the AI goes to the line
+         if ap<1> > 0 and ap<1> # pane then
+            pane = ap<1>
+            gosub redraw
+         end
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
       case nm = 'esc'

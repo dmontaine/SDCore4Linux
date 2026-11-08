@@ -392,7 +392,7 @@ def checks(s):
     ck("H80 F1 shows tool.home.page (a key row f1/help, the case before F5) and the AI menu entry follows the AI: 'Ask the AI' (action ai, on F6) is enabled when ctx<TK.C.AI> is set and dimmed with a reason otherwise, and F6 moves the focus to the AI line only when it is there (S.88 U9; an Opus review of 29 Oct found no guard for it)",
        "call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)" in th and "case nm = 'f1'\n         call $tk_help('box', 'tool.home.page', hm, 0, 0)" in th
        and "call $tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')" in th and "if not(ctx<TK.C.AI>) then call $tk_keys('why', keys, 'ai', H.AI.OFF, '', '', '')" in th
-       and "case nm = 'f6'\n         if ctx<TK.C.AI> then\n            gosub ai.focus.on" in th)
+       and "case nm = 'f6' or nm = 'shift-f6'\n         if ctx<TK.C.AI> then\n            gosub ai.focus.on" in th)
 
     # ---------------------------------------------------------------------------------------------------------------- 2 Nov 26, S.88 U9: the toolkit's menu bar and type-to-find
     lp = between(th, "\n   loop\n", "\n   gosub finish\n")

@@ -431,7 +431,7 @@ def main():
         h.key("esc", idle=0.8)
         T = h.text()
         row("Esc closes it: the box is gone and the page is as it was", "The accounts list" not in T and "What this means" in T and "Accounts" in T, T[-300:])
-        h.key("tab", idle=0.6)
+        h.key("f6", idle=0.6)                       # S.176: F6 is the box key of every page
         h.typed("?", idle=1.2)
         T = h.text()
         row("'?' on the first row of the Menu box (where the account starts) shows that setting's help", "Where an account starts" in T and "start-menu, start-terminal or start-default" in T, T[-500:])
@@ -497,7 +497,7 @@ def main():
         h.key("esc", idle=0.8)
         row("...and a click on a [?] selects its box (the status line names it)", h.line(40).startswith("[Allowed]"), repr(h.line(40)))
         if h.line(40).startswith("[Allowed]"):
-            h.key("tab", idle=0.6)                  # back to Found, where the allow rows start
+            h.key("f6", idle=0.6)                   # back to Found, where the allow rows start (S.176: F6, not Tab)
         if cand is None:
             say("  [SKIPPED] no known PDF reader in /usr/bin, /usr/local/bin or /bin on this machine: the allow rows of the page are not run")
         else:
@@ -524,7 +524,7 @@ def main():
                 vf = viewers_file() or ""
                 row("the right name runs it: the list holds the reader, and the line under the page is the verb's own answer", re.search(r"^pdf /\S*/" + re.escape(cand) + r"$", vf, re.M) is not None and "is now allowed for pdf" in h.line(40), repr((vf, h.line(40))))
                 row("...and the Found box says allowed", re.search(re.escape(cand) + r"\s+yes\s+yes", h.line(rr)[73:]) is not None, repr(h.line(rr)[73:110]))
-                h.key("tab", idle=0.6)
+                h.key("f6", idle=0.6)
                 h.key("down", idle=0.5)
                 h.key("enter", idle=1.2)
                 T = h.text()
@@ -532,7 +532,7 @@ def main():
                 h.typed("r", idle=2.0)
                 row("Run removes it: the list is just touch again", viewers_file() == "pdf /usr/bin/touch\n" and "is no longer allowed for pdf" in h.line(40), repr((viewers_file(), h.line(40))))
         if h.line(40).startswith("[Found]"):
-            h.key("tab", idle=0.6)                  # to Allowed
+            h.key("f6", idle=0.6)                   # to Allowed (S.176: F6, not Tab)
         h.key("enter", idle=1.2)
         T = h.text()
         row("Enter on /usr/bin/touch in the Allowed box shows set.viewer remove pdf touch", "set.viewer remove pdf touch" in T and "pdf will no longer start /usr/bin/touch" in T, T[-600:])

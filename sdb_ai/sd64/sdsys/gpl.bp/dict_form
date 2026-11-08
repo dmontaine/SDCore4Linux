@@ -16,6 +16,7 @@
 *               Width, Justification and Decimals; the buttons are Accept and Cancel and nothing else (Edit as text is gone: Cancel leaves the item as text in its tab).  The first
 *               build had a radio row for the Type, numbered rows, three format rows and a third button.
 * 31 Oct 26 dm  New (S.90, plan .claude/plan-s90-dict-form.md).  The rules are !dict_item's; this program is the screen.
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 go from the rows to the AI line and back (the box keys of every page); Tab still moves from row to row.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -53,6 +54,8 @@ $include tk.h
    call $tk_ai('usable', '', ai.on, ai.pm)
    ai.keep = ''                            ;* the request typed in the line, kept across a form made again
    fm.note = ''                            ;* what the AI line has to say on the err row of the next form made
+   fm.lastrow = ''                         ;* S.176: the row that had the focus before F6 took it to the AI line
+   hn = ''                                 ;* the row with the focus (F6 may come before the first focus event)
 
    * the foot's keys: the form's own, as the IDE and the pages name theirs (the row is made by $tk_fkeys from this table)
    fm.keys = ''
@@ -60,7 +63,7 @@ $include tk.h
    call $tk_keys('add', fm.keys, 'esc', 'cancel', 'cancel', '', 1)
    call $tk_keys('add', fm.keys, 'tab', 'next row', 'next', '', 1)
    call $tk_keys('add', fm.keys, 'shift-tab', 'previous row', 'previous', '', 1)
-   if ai.on then call $tk_keys('add', fm.keys, 'f6', 'ask ai', 'ai', '', 1)
+   if ai.on then call $tk_keys('add', fm.keys, 'f6', 'box', 'nextpane', '', 1)    ;* S.176: the rows and the AI line, F6 / Shift-F6 as on every page
 
    res = 'cancel'
    newrec = rec
@@ -235,9 +238,17 @@ run.form:
                gosub on.focus
             case ev<1> = 'button'
                gosub on.button
-            case ev<1> = 'key' and ev<3> = 'f6' and ai.on
-               screen focus f, 'ai' else null              ;* 3 Nov 26: F6 to the AI line, as on the pages (a move the program makes is no focus event)
-               hn = 'ai'
+            case ev<1> = 'key' and (ev<3> = 'f6' or ev<3> = 'shift-f6') and ai.on
+               * S.176: F6 / Shift-F6 are the box keys of every page: the form's rows are one box and the AI line the other (a move the program makes is no
+               *   focus event, so hn is set here); Tab still goes from row to row
+               if hn = 'ai' then
+                  if fm.lastrow = '' then fm.lastrow = 'type'
+                  screen focus f, fm.lastrow else null
+                  hn = fm.lastrow
+               end else
+                  screen focus f, 'ai' else null
+                  hn = 'ai'
+               end
                hint = ''
                gosub hint.for
                screen set f, 'hint' text hint
@@ -305,6 +316,7 @@ ask.discard:
 on.focus:
    lfk = ev<3>
    hn = ev<2>
+   if hn # 'ai' then fm.lastrow = hn                 ;* S.176: the row F6 comes back to from the AI line
    if lfk = 'type' then
       gosub type.left
    end else

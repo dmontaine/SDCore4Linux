@@ -264,13 +264,19 @@ def section_tab(box, T):
     e.keys(F6)
     e.quiet()
     row("TAB9 F6 moves the focus out of the editor to the messages", e.status().startswith("[Messages]"), e.status())
-    e.keys(SHIFT_F6, SHIFT_F6, SHIFT_F6)                    # messages, editor, tabs, tree
+    e.keys(SHIFT_F6)
+    e.quiet()
+    row("TAB9b S.176: Shift-F6 brings the focus back from the messages to the editor, the same record", e.status().startswith("[Editor]"), e.status())
+    e.keys(SHIFT_F6, SHIFT_F6)                              # editor, tabs, tree
     e.quiet()
     st0 = e.status()
     e.keys(TAB)
     e.quiet()
-    row("TAB10 control: in the tree Tab still moves to the next control (the tabs), as in every form", st0.startswith("[Files]") and e.status().startswith("[Tabs]"),
-        st0 + " | " + e.status())
+    row("TAB10 S.176 (the owner, 8 Nov 26: one box key on every page, \"F6 for boxes is fine\"): in the tree Tab no longer moves the focus to the tabs - it stays in the tree",
+        st0.startswith("[Files]") and e.status().startswith("[Files]"), st0 + " | " + e.status())
+    e.keys(F6)
+    e.quiet()
+    row("TAB10b ...and F6 does: the tree to the tabs", e.status().startswith("[Tabs]"), e.status())
     e.keys(CTRL_Q)
     e.quiet()
     e.end()
@@ -485,9 +491,9 @@ end
         L = e.keys(*GOTO_TREE)
         e.quiet()
         row("GOTO_TREE (Shift-F6 twice from the editor) reaches the tree: [Files]", e.status().startswith("[Files]"), e.status())
-        L = e.keys(TAB, TAB)
+        L = e.keys(F6, F6)
         e.quiet()
-        row("...and Tab, Tab goes back to the editor, where the next section starts", e.status().startswith("[Editor]") and ("bp %s" % B) in e.status(), e.status())
+        row("...and F6, F6 goes back to the editor, where the next section starts", e.status().startswith("[Editor]") and ("bp %s" % B) in e.status(), e.status())
 
         # ---- go to a line -----------------------------------------------------------------------------------
         say("\n--- go to a line, the keys that are not the editor's ---------------------------------------------------")
@@ -546,9 +552,9 @@ end
         e.quiet()
         row("Go, Files and records moves the focus to the tree: the status line says [Files] and the record is the same one",
             e.status().startswith("[Files]") and ("bp %s" % A) in e.status() and "Go to line" not in e.text(), e.status() + "\n" + e.text()[:300])
-        L = e.keys(TAB, TAB)                                # tree, tabs, editor: back to where the next section types
+        L = e.keys(F6, F6)                                  # tree, tabs, editor: back to where the next section types (S.176: F6, not Tab)
         e.quiet()
-        row("...and Tab, Tab brings the focus back to the editor", e.status().startswith("[Editor]"), e.status())
+        row("...and F6, F6 brings the focus back to the editor", e.status().startswith("[Editor]"), e.status())
 
         # ---- F3 and Shift-F3 are the editor's find next and find previous ---------------------------------------------------
         say("\n--- F3 finds the next one, Shift-F3 the previous one; F3 does not go to the tree any more -------------------------")
@@ -784,7 +790,7 @@ end
         e.keys(CTRL_L)
         e.keys("1", RET)
         row("the cursor is moved to line 1", "Line 1," in e.status(), e.status())
-        e.keys(*GOTO_TREE, TAB, TAB, F6)                # tree, tabs, editor (Tab moves through the tree and the tabs), table (F6: Tab indents in the editor, 28 Oct 26)
+        e.keys(*GOTO_TREE, F6, F6, F6)                  # tree, tabs, editor, table (S.176: F6 is the only box key; Tab indents in the editor)
         L = e.keys(RET)
         row("Return on a row of the table goes to its line (2)", "Line 2," in e.status(), e.status())
         L = e.keys(*GOTO_TREE)                          # the tree is on bp, the file the IDE was started on (the focus is in the editor again after the jump)

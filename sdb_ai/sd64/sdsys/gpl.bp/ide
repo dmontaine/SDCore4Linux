@@ -148,6 +148,8 @@
 *               verb run with aborts trapped, the screen and the locks taken back), never through do.xeq, whose captured output would break a full-screen page.  Only the
 *               seven verbs named in do.tool are run; each page asks its own gates, as when its verb is typed.
 * 8 Nov 26 dm  S.172: paper, not blue, when the site names no theme and as the fall-back for a name that is no theme (paper is the delivered SCREENTHEME).
+* 8 Nov 26 dm  S.176 (the owner: one key moves between the boxes on every page, "F6 for boxes is fine"): Tab and Shift-Tab no longer move the focus out of the
+*               file list, the tabs, the messages or the fields (f{'tabkeys'}); F6 / Shift-F6 are the only box keys, as on every page.  In the editor Tab still indents.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -865,6 +867,7 @@ new.form:
    * Return in the tree and in the table is an event of its own (activate), not the press of a default button
    f{'activate'} = 1
    f{'bgclick'} = 1                     ;* a left click on no widget (the menu bar) comes back as the key mouse: the bar is the IDE's, not a widget
+   f{'tabkeys'} = 1                     ;* S.176: Tab and Shift-Tab do not move between the panes (F6 / Shift-F6 do, as on every page); the editor's Tab indents
 
    * 19 Oct 26 dm - the owner: "a small visual indicator in the top right corner of each pane to indicate that it is active, [-] for off, [*] for on".
    *   One three-cell label to a pane that can have the focus, added last so that it is drawn over the pane's own top edge: the files on the form's top
@@ -2680,7 +2683,7 @@ run.cmd:
             gosub switch.to
          end
       case cmd = 'nextpane' or cmd = 'prevpane'
-         * F6 and Shift-F6: the focus goes round the panes in the order the status line and the [*] marks name them (Tab does the same inside the form)
+         * F6 and Shift-F6: the focus goes round the panes in the order the status line and the [*] marks name them (S.176: the only box keys; Tab does not move the focus)
          gosub fields.is.on
          pane.ring = 'tree' : @fm : 'tabs' : @fm : (if fv.on then 'fld' else 'ed') : @fm : 'err'      ;* 30 Oct 26 (stage 2b): the editor pane is the fields table while the tab shows its fields
          if ai.on then pane.ring<-1> = 'ai'
@@ -4363,7 +4366,7 @@ fields.esc:
 * One key for the engine, from do.key (the keys the IDE has no use of) or the table's Return.  The IDE's keys never get here, so Ctrl-S is the IDE's save of the tab's text and Ctrl-Q the IDE's quit.
 fields.key:
    fz.k = fz.key
-   if fz.k = 'mouse' or fz.k = 'tab' or fz.k = 'shift-tab' or fz.k = 'f2' or fz.k = 'resize' or fz.k = 'guardquit' then return
+   if fz.k = 'mouse' or fz.k = 'tab' or fz.k = 'btab' or fz.k = 'f2' or fz.k = 'resize' or fz.k = 'guardquit' then return
    if upcase(fz.k) = 'Q' then return                       ;* the engine's Q leaves a CED: this view is left with F12
    if fz.k = 'ctrl-t' then fz.k = 'f4'                      ;* the engine's change of type (F4 is the IDE's next problem)
    if fz.k = 'left' or fz.k = 'bs' then fz.k = 'esc'              ;* Backspace is 'bs' to the key reader ($sl_key)

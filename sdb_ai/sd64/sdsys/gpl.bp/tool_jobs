@@ -13,6 +13,8 @@
 *              The page still writes nothing itself; SET.JOB asks the root helper (sd-elevate job-set | job-delete | job-run).
 * 2 Nov 26 dm  The review: C refuses a damaged file whose name is not a job name before the form (the form could never be sent), as D and R do; the Command menu's
 *              "Allow or stop allowing" belongs to the account view's panes only and is dim in the Jobs view, where Enter is C.
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the boxes
+*              (Left and Right still do).  AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -76,7 +78,7 @@ $include tk.h
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'enter', 'change', 'change', 'Accounts' : @sm : 'Commands', 1)   ;* the Jobs view's Enter is its own (C); the menu entry is dim there
-   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)
+   call $tk_keys('add', keys, 'f6', 'box', 'pane', '', 1)                 ;* S.176: F6 / Shift-F6 move between the boxes on every page (Tab does not)
    call $tk_keys('add', keys, 'j', 'jobs', 'jobs', '', 1)
    call $tk_keys('add', keys, 'a', 'account commands', 'accounts', '', 1)
    call $tk_keys('add', keys, 'n', 'new job', 'jnew', 'Jobs', 1)
@@ -642,7 +644,7 @@ on.key:
             if ci > cn then ci = cn
             gosub redraw
          end
-      case nm = 'tab' or nm = 'right' or nm = 'btab' or nm = 'left'
+      case nm = 'right' or nm = 'left'
          pane = (if pane = 1 then 2 else 1)
          gosub redraw
       case nm = 'enter' or nm = ' '
@@ -660,9 +662,13 @@ on.key:
          gosub read.all
          gosub draw.all
          msg = 'read the lists again'
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, pnames<pane>, '', ap)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, pane, nm : @fm : 2, ap)         ;* S.176: F6 / Shift-F6 go round the two boxes and the AI line; AI > Ask the AI goes to the line
+         if ap<1> > 0 and ap<1> # pane then
+            pane = ap<1>
+            gosub redraw
+         end
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
       case nm = 'ctrl-o'
@@ -711,9 +717,9 @@ jobs.key:
          gosub read.jobs
          gosub draw.all
          msg = 'read the jobs again'
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, pnames<pane>, '', ap)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, 1, nm : @fm : 1, ap)            ;* S.176: the Jobs view is one box: F6 / Shift-F6 go to the AI line and back
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
       case nm = 'ctrl-o'

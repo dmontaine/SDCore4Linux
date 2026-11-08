@@ -62,6 +62,7 @@ def _load(name, fname):
 sh = _load("sandbox_home_for_test", "sandbox-home.py")
 say, row, bail, has, dump, adm, H, g = sh.say, sh.row, sh.bail, sh.has, sh.dump, sh.adm, sh.H, sh.g
 sh.KEYS["f1"] = "\x1b[[A"
+sh.KEYS["shift-f6"] = "\x1b[17;2~"      # 8 Nov 26 (S.176): Shift-F6 in xterm's modifier form, the harness's TERM (the box keys are F6 / Shift-F6)
 sh.KEYS.setdefault("esc", "\x1b")
 FAILED_IDS = []
 A1, A2 = "zztl1", "zztl2"
@@ -93,8 +94,10 @@ MUTANTS = {
     "name-guard-off": ("      case tok<ri> = 0\n         msg = 'this name has a character the page does not give to a command: type run '",
                        "      case tok<ri> = 99\n         msg = 'this name has a character the page does not give to a command: type run '", ["T8a"], ["names"]),
     "break-not-enabled": ("   void pterm(PT$BREAK, @true)\n   break on\n   t0 = time()", "   t0 = time()", ["T11b", "T11c", "T11d", "T11e"], ["break"]),
-    # 3 Nov 26 (S.88 "Tab panes"): the page as it was - Tab and Shift-Tab do nothing in the Tests box
-    "tab-not-acted": ("      case nm = 'enter' or nm = 'tab' or nm = 'btab'\n", "      case nm = 'enter'\n", ["T13a", "T13c"], ["tab"]),      # T13b and T13d (back on Tests) hold when Tab never left it (measured 3 Nov 26)
+    # 8 Nov 26 (S.176, F6 the box key of every page): F6 and Shift-F6 do nothing in the Tests box - T13b and T13d (back on Tests) hold when the focus never left it
+    "f6-not-acted": ("         gosub box.ring\n      case nm = 'ctrl-q'\n         done = 1\n   end case\n   return\n\n* S.176", "         null\n      case nm = 'ctrl-q'\n         done = 1\n   end case\n   return\n\n* S.176", ["T13a", "T13c"], ["tab"]),
+    # ...and Tab still moves the box, as before S.176
+    "tab-still-moves": ("      case nm = 'enter'\n         gosub show.output\n", "      case nm = 'enter' or nm = 'tab'\n         gosub show.output\n", ["T13e"], ["tab"]),
 }
 
 
@@ -668,22 +671,25 @@ def marks(h):
 
 
 def section_tab():
-    say("\n--- T13: Tab and Shift-Tab move the focus between the two boxes (S.88 \"Tab panes\", 3 Nov 26)")
+    say("\n--- T13: F6 and Shift-F6 move the focus between the two boxes, and Tab does not (S.176, 8 Nov 26: one box key on every page; the sandbox has no AI line, so two stops)")
     h = page(A1)
     arow("T13ctl", "the control: the page opens with the focus on the Tests box ([*] on it, [-] on the lower box) and the lower box is the test under the cursor", marks(h) == ("[*]", "[-]") and "The test under the cursor" in h.line(23), repr((marks(h), h.line(23)[:50])))
     row_, _B, _S = run_one(h, "test.a.pass")
     arow("T13ctl2", "test.a.pass was run (its Result is pass), so it has an output to show", row_ is not None and row_[2] == "pass", repr(row_))
     h.key("tab", idle=1.0)
+    arow("T13e", "S.176: Tab does not move the focus: still on the Tests box ([*] on it) and the lower box is the test under the cursor",
+         "The test under the cursor" in h.line(23) and marks(h) == ("[*]", "[-]"), repr((h.line(23)[:60], marks(h))))
+    h.key("f6", idle=1.0)
     until(h, lambda t: "Output of test.a.pass" in h.line(23), 10)
-    arow("T13a", "Tab: the focus is on the lower box ([-] on Tests, [*] on it), which shows the Output of test.a.pass, and the function-key row is the Output pane's (Esc tests)",
+    arow("T13a", "F6: the focus is on the lower box ([-] on Tests, [*] on it), which shows the Output of test.a.pass, and the function-key row is the Output pane's (Esc tests)",
          "Output of test.a.pass" in h.line(23) and marks(h) == ("[-]", "[*]") and h.line(42).startswith("F1 help  Esc tests"), repr((h.line(23)[:60], marks(h), h.line(42)[:50])))
-    h.key("tab", idle=1.0)
-    arow("T13b", "Tab again: the focus is back on the Tests box ([*] on it), the lower box is the test under the cursor again and the row is the Tests pane's (R run)",
+    h.key("f6", idle=1.0)
+    arow("T13b", "F6 again: the focus is back on the Tests box ([*] on it), the lower box is the test under the cursor again and the row is the Tests pane's (R run)",
          "The test under the cursor" in h.line(23) and marks(h) == ("[*]", "[-]") and h.line(42).startswith("F1 help  R run"), repr((h.line(23)[:60], marks(h), h.line(42)[:50])))
-    h.key("btab", idle=1.0)
-    arow("T13c", "Shift-Tab: the focus goes to the Output box as well", "Output of test.a.pass" in h.line(23) and marks(h) == ("[-]", "[*]"), repr((h.line(23)[:60], marks(h))))
-    h.key("btab", idle=1.0)
-    arow("T13d", "Shift-Tab again: back on the Tests box, and the test's result is still pass (Tab ran nothing)",
+    h.key("shift-f6", idle=1.0)
+    arow("T13c", "Shift-F6: the focus goes to the Output box as well", "Output of test.a.pass" in h.line(23) and marks(h) == ("[-]", "[*]"), repr((h.line(23)[:60], marks(h))))
+    h.key("shift-f6", idle=1.0)
+    arow("T13d", "Shift-F6 again: back on the Tests box, and the test's result is still pass (the box keys ran nothing)",
          "The test under the cursor" in h.line(23) and marks(h) == ("[*]", "[-]") and result_of(h, "test.a.pass") == "pass", repr((h.line(23)[:60], marks(h), result_of(h, "test.a.pass"))))
     h.key("ctrl-q", idle=1.2)
     h.end()

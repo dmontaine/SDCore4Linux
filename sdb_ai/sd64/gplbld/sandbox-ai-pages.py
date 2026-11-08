@@ -134,8 +134,13 @@ def whole(h, title):
 
 
 def ask(h, text):
-    """F6, the request typed, Enter: the preview."""
-    h.key("f6", idle=0.8)
+    """Shift-F6 from the first box (S.176: the AI line is the stop after the last box, so one step back reaches it and the page keeps its first box,
+    whose actions the request offers), the request typed, Enter: the preview."""
+    h.key("shift-f6", idle=0.8)
+    for _ in range(7):
+        if msg(11638) in h.line(40):
+            break
+        h.key("f6", idle=0.8)
     h.typed(text, idle=0.6)
     h.key("enter", idle=1.5)
 
@@ -171,7 +176,7 @@ def sec_on():
     al.start_runner()
     h = page("tool.voc")
     arow("P1a", "tool.voc, AI on: the AI row is on row 39 with the dim hint that says F6", h.line(39).lstrip().startswith("AI>") and msg(11943) in h.line(39), repr(h.line(39)[:90]))
-    arow("P1b", "...the key row has F6 and the menu bar has AI between View and Help", "F6 ask ai" in h.line(42) and re.search(r"File\s+Entry\s+View\s+AI\s+Help", h.line(0)) is not None,
+    arow("P1b", "...the key row has F6 and the menu bar has AI between View and Help", "F6 box" in h.line(42) and re.search(r"File\s+Entry\s+View\s+AI\s+Help", h.line(0)) is not None,
          repr((h.line(42)[:110], h.line(0)[:50])))
     arow("P1c", "...the list pane is ONE row shorter (its foot on row 18) and the detail box is on rows 22 to 38, the AI row under it",
          "entries," in h.line(18) and "The entry under the cursor" in h.line(22) and corner(h, 21) and corner(h, 38), repr((h.line(18)[:40], h.line(21)[:6], h.line(22)[:40], h.line(38)[:6])))
@@ -182,7 +187,7 @@ def sec_on():
     h.end()
     h = page("tool.files")
     arow("P1e", "tool.files, AI on: the AI row on row 39, F6 on the key row, AI in the menu bar, the detail box ends on row 38 and the list is above it",
-         h.line(39).lstrip().startswith("AI>") and "F6 ask ai" in h.line(42) and re.search(r"File\s+\S+\s+View\s+AI\s+Help|AI\s+Help", h.line(0)) is not None and corner(h, 38), repr((h.line(39)[:50], h.line(42)[:110], h.line(0)[:60])))
+         h.line(39).lstrip().startswith("AI>") and "F6 box" in h.line(42) and re.search(r"File\s+\S+\s+View\s+AI\s+Help|AI\s+Help", h.line(0)) is not None and corner(h, 38), repr((h.line(39)[:50], h.line(42)[:110], h.line(0)[:60])))
     h.key("ctrl-q", idle=1.5)
     h.end()
 
@@ -320,8 +325,8 @@ def sec_more_on():
     for i, (verb, offers, notoff) in enumerate(MORE):
         L = "abcdef"[i]
         h = page(verb)
-        arow("P8" + L + "1", "%s, AI on: the AI row on row 39, F6 ask ai on the key row and AI in the menu bar" % verb,
-             h.line(39).lstrip().startswith("AI>") and "F6 ask ai" in h.line(42) and re.search(r"\bAI\s+Help", h.line(0)) is not None,
+        arow("P8" + L + "1", "%s, AI on: the AI row on row 39, F6 box on the key row (S.176) and AI in the menu bar" % verb,
+             h.line(39).lstrip().startswith("AI>") and "F6 box" in h.line(42) and re.search(r"\bAI\s+Help", h.line(0)) is not None,
              repr((h.line(0)[:80], h.line(39)[:50], h.line(42)[:110])))
         n0 = len(fm.log)
         ask(h, "what can I do here [[act_refresh]]")
@@ -385,8 +390,8 @@ def sec_admin_pages():
         h.typed(verb + "\r", idle=3.5)
         # (tool.ai's key row was full before the line came - it is cut at "F5 r" - so F6 cannot show there; a FULL row is accepted, said in the row's name)
         kr = h.line(42).rstrip()
-        arow("P9" + L + "1", "%s (administrator, AI on): the AI row on row 39, AI in the menu bar, and F6 ask ai on the key row (or the row is full to the edge)" % verb,
-             h.line(39).lstrip().startswith("AI>") and ("F6 ask ai" in kr or len(kr) >= 138) and re.search(r"\bAI\s+Help", h.line(0)) is not None,
+        arow("P9" + L + "1", "%s (administrator, AI on): the AI row on row 39, AI in the menu bar, and F6 box on the key row, S.176 (or the row is full to the edge)" % verb,
+             h.line(39).lstrip().startswith("AI>") and ("F6 box" in kr or len(kr) >= 138) and re.search(r"\bAI\s+Help", h.line(0)) is not None,
              repr((h.line(0)[:80], h.line(39)[:50], kr[:110], len(kr))))
         n0 = len(fm.log)
         ask(h, "what can I do here [[act_refresh]]")

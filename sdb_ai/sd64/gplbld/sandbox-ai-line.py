@@ -17,7 +17,7 @@
 # "a command ran" by the output of the command; a row that needs a request counts one arriving at the fake first.
 #
 #   L0-L3  the line is NOT DRAWN when the AI is off: no provider, no model, no key, the gate off; the old hint is there instead; with everything set the line replaces the hint
-#   L4     the Tab ring: Back-tab from the first tile, Tab from Sign out, Esc, a click
+#   L4     the F6 ring (S.176): F6 from the first tile, Tab from Sign out round the tiles only, Esc, Shift-F6, F6 back, a click
 #   L5-L6  Enter shows everything that will leave the machine (the fixed instruction, the list of the page's actions, what the page says, the request) and the provider and model;
 #          Cancel is the default; Enter on it sends nothing (the fake and the audit file agree)
 #   L7     Send: ONE request at the fake with the key, the instruction, the actions of THIS page and the typed request as the last line; ONE audit line from the kernel
@@ -60,6 +60,7 @@ fg, q3 = ag.fg, ag.q3
 import fakemodel  # noqa: E402
 
 say, bail, has, dump, adm, H, g = sh.say, sh.bail, sh.has, sh.dump, sh.adm, sh.H, sh.g
+sh.KEYS["shift-f6"] = "\x1b[17;2~"      # 8 Nov 26 (S.176): Shift-F6 in xterm's modifier form (the harness's TERM): the box keys are F6 / Shift-F6
 ME = ag.ME
 KEY = ag.KEY
 MODEL = "claude-test"
@@ -215,8 +216,8 @@ def home(admin=False):
 
 
 def ask(h, text, send=True, label=""):
-    """Focus the line (Back-tab from the first tile), type the request, Enter: the preview.  Returns after Send (s) or Cancel (Enter)."""
-    h.key("btab", idle=0.8)
+    """Focus the line (F6 from the tiles; S.176), type the request, Enter: the preview.  Returns after Send (s) or Cancel (Enter)."""
+    h.key("f6", idle=0.8)
     h.typed(text, idle=0.6)
     h.key("enter", idle=1.5)
 
@@ -255,17 +256,17 @@ def sec_off():
     start_runner()
     h = home()
     arow("L1", "everything set and the gate on: the AI row replaces the hint, with the dim sentence that says how to reach it",
-         line_row(h).lstrip().startswith("AI>") and "Ask the AI: press Tab" in line_row(h) and "arrows move" not in line_row(h), repr(line_row(h)[:100]))
+         line_row(h).lstrip().startswith("AI>") and "Ask the AI: press F6" in line_row(h) and "arrows move" not in line_row(h), repr(line_row(h)[:100]))
     h.key("ctrl-q", idle=1.5)
     h.end()
 
 
 def sec_ring():
-    say("\n--- the Tab ring")
+    say("\n--- the F6 ring (S.176: the tiles and the line; Tab goes round the tiles only)")
     h = home()
     first = h.focus()
-    h.key("btab", idle=0.8)
-    arow("L4a", "Back-tab from the first tile gives the focus to the AI line: no tile has it, the row shows the label bold and the status line says how to use it",
+    h.key("f6", idle=0.8)
+    arow("L4a", "F6 from the first tile gives the focus to the AI line: no tile has it, the row shows the label bold and the status line says how to use it",
          h.focus() == [] and msg(11638) in h.line(40) and "AI>" in line_row(h), repr((h.focus(), h.line(40)[:90])))
     h.typed("abc", idle=0.5)
     arow("L4b", "what is typed is in the line", "abc" in line_row(h), repr(line_row(h)[:60]))
@@ -276,9 +277,13 @@ def sec_ring():
         if "Sign out" in h.focus():
             break
     h.key("tab", idle=0.8)
-    arow("L4d", "Tab from Sign out (the last tile) gives the focus to the AI line", h.focus() == [] and msg(11638) in h.line(40), repr((h.focus(), h.line(40)[:80])))
-    h.key("tab", idle=0.8)
-    arow("L4e", "Tab in the line goes on round the ring to the first tile", h.focus() == first, repr((h.focus(), first)))
+    arow("L4d", "S.176: Tab from Sign out (the last tile) goes round the tiles to the first one, NOT to the AI line", h.focus() == first and msg(11638) not in h.line(40),
+         repr((h.focus(), first, h.line(40)[:80])))
+    h.key("shift-f6", idle=0.8)
+    arow("L4e", "S.176: Shift-F6 gives the focus to the AI line too", h.focus() == [] and msg(11638) in h.line(40), repr((h.focus(), h.line(40)[:80])))
+    h.key("f6", idle=0.8)
+    arow("L4e2", "S.176: F6 in the line gives the focus back to the tile it came from (the first), and is not typed into the line", h.focus() == first and "abc" in line_row(h)
+         and "abc\x1b" not in line_row(h), repr((h.focus(), first, line_row(h)[:60])))
     h.click(40, 39, idle=1.0)                                    # (an Esc here would open the top page's menu bar since S.88 U9, and the click would only close it)
     arow("L4f", "a click on the AI row gives it the focus", h.focus() == [] and msg(11638) in h.line(40), repr((h.focus(), h.line(40)[:80])))
     h.key("ctrl-q", idle=1.5)

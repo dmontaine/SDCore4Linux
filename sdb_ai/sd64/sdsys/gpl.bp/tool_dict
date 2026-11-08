@@ -22,6 +22,8 @@
 *               to the model, and a proposal is carried out by the page's own key.  An account without the AI sees the page as it was.
 * 1 Nov 26 dm  S.97 stage 4 (the owner's editing actions): New and Compile are offered too, marked 'edit' (Enter alone rejects the proposal); the AI's argument is the DEFAULT of the
 *               page's own prompt (the new item's id, a filter's text), checked as a typed answer, and every box after it applies.
+* 8 Nov 26 dm   S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): Items, Indices and the AI line (the Files view and the AI line); Tab no longer
+*               takes the focus to the Indices box (I still does).  AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -96,6 +98,7 @@ $include dictdict.h
    call $tk_keys('add', keys, 'i', 'items', 'items', 'Indices', 1)
    call $tk_keys('add', keys, '/', 'filter', 'filter', 'Files' : @sm : 'Items', 1)
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
+   call $tk_keys('add', keys, 'f6', 'box', 'nextpane', 'Items' : @sm : 'Indices', 1)     ;* S.176: F6 / Shift-F6 move between the boxes on every page (the Files view has one: the AI line's own row names F6 there)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', 'Files' : @sm : 'Items', 1)       ;* S.88 U8: Esc takes the name filter of the pane off first, else opens the menu bar (in Indices it goes back to the items)
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
@@ -886,9 +889,21 @@ on.key:
          gosub reread
          gosub draw.all
          msg = 'read again'
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, pnames<pi>, '', ap)             ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         * S.176: F6 / Shift-F6 go round the boxes and the AI line: the Files view is one box; Items and Indices are two (Indices is where I and Tab used to take the focus)
+         rg.n = (if pi = 1 then 1 else 2)
+         rg.at = (if pi = 3 then 2 else 1)
+         call $tk_aipage('ring', ctx, keys, rg.at, nm : @fm : rg.n, ap)
+         msg = ap<2>
+         begin case
+            case rg.n = 1
+               null                                                        ;* one box: the line took or gave back the focus, nothing of the page moves
+            case ap<1> = 2 and pi = 2
+               gosub to.indices
+            case ap<1> = 1 and pi = 3
+               pi = 2
+               gosub draw.all
+         end case
       case nm = 'ctrl-q'
          done = 1
       case pi = 1
@@ -978,7 +993,7 @@ key.items:
          gosub do.compile
       case nm = 't'
          gosub do.test
-      case nm = 'i' or nm = 'tab'
+      case nm = 'i'
          gosub to.indices
       case nm = 'f'
          pi = 1
@@ -998,7 +1013,7 @@ key.items:
 
 key.indices:
    begin case
-      case nm = 'i' or nm = 'tab' or nm = 'esc'
+      case nm = 'i' or nm = 'esc'
          pi = 2
          gosub draw.all
       case nm = 'n'

@@ -15,6 +15,7 @@
 * 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the five views and refresh are offered, nothing that opens a door.
 * 1 Nov 26 dm  S.95 stage 1b: a sixth view, the sdsys login over ssh: REMOTE.SDSYS's report, and O, R and F give the terminal to REMOTE.SDSYS ON, RECOVERY and OFF after a box
 *              (the secret and the recovery codes are shown by the verb on the plain terminal and never pass through this page).
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the view to the AI line and back; AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -545,9 +546,9 @@ on.key:
       case nm = 'f1' or nm = '?'
          call $tk_help('box', 'tool.remote.page', hm, 0, 0)
          if hm # '' then msg = hm
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, panes<view>, '', ap)            ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, 1, nm : @fm : 1, ap)            ;* S.176: F6 / Shift-F6 go round the boxes (one here: the view shown) and the AI line; AI > Ask the AI goes to the line
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
       case nm = 'esc'

@@ -6,6 +6,8 @@
 * START-HISTORY:
 * 22 Oct 26 dm  New (S.75, TK-0.1).
 * 29 Oct 26 dm  S.88 phase 3.9: a row with no key (a menu-only action) and a row whose ROW value is 0 (a second key for an action) are left off the row.
+* 8 Nov 26 dm  S.176: a key is shown once, by the first row in force for the pane - the row the key loop acts on ($tk_keys 'action' takes the first too); the AI line's
+*              F6 row, added after a page's own, is shown only on a page or pane that has none.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -32,14 +34,18 @@ $include tk.h
 
    lw = ctx<TK.C.W>
    text = ''
+   shown = ''                                    ;* S.176: the keys already on the row
    n = dcount(keys, @fm)
    for i = 1 to n
       on = keys<i, TK.K.ON>
       panes = keys<i, TK.K.PANES>
       if on # '0' and keys<i, TK.K.ROW> # '0' and keys<i, TK.K.KEY> # '' then
          if panes = '' or index(@sm : panes : @sm, @sm : pane : @sm, 1) then
-            call $tk_keys('name', keys, keys<i, TK.K.KEY>, nm, '', '', '')
-            text := nm : ' ' : keys<i, TK.K.LABEL> : '  '
+            locate keys<i, TK.K.KEY> in shown<1> setting sp else
+               shown<-1> = keys<i, TK.K.KEY>
+               call $tk_keys('name', keys, keys<i, TK.K.KEY>, nm, '', '', '')
+               text := nm : ' ' : keys<i, TK.K.LABEL> : '  '
+            end
          end
       end
    next i

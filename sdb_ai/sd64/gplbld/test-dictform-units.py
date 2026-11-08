@@ -148,7 +148,11 @@ def checks(src, others):
     app = between(form, "\napply.fields:", "\nend")
     ck("AI1 the AI line is there only when the AI is usable for the account ($tk_ai 'usable'): the entry, its label and its F6 key are each made under ai.on",
        "call $tk_ai('usable', '', ai.on, ai.pm)" in form and "if ai.on then\n      screen label f, 'ailab'" in form and ordered(form, "screen label f, 'ailab'", "screen entry f, 'ai' at 26,y.ai", "end")
-       and "if ai.on then call $tk_keys('add', fm.keys, 'f6', 'ask ai', 'ai', '', 1)" in form and "case ev<1> = 'key' and ev<3> = 'f6' and ai.on" in form, "")
+       and "if ai.on then call $tk_keys('add', fm.keys, 'f6', 'box', 'nextpane', '', 1)" in form and "case ev<1> = 'key' and (ev<3> = 'f6' or ev<3> = 'shift-f6') and ai.on" in form, "")
+    # 8 Nov 26 (S.176): F6 / Shift-F6 are the box keys of every page: from the rows to the line and back to the row that had the focus (on.focus keeps it)
+    ck("AI1b F6 and Shift-F6 go from the rows to the AI line and from the line back to the row that had the focus last (kept by on.focus, never the line itself)",
+       ordered(form, "if hn = 'ai' then", "screen focus f, fm.lastrow else null", "hn = fm.lastrow", "end else", "screen focus f, 'ai' else null", "hn = 'ai'")
+       and "if hn # 'ai' then fm.lastrow = hn" in form and "fm.lastrow = ''" in form, "")
     ck("AI2 Return in the AI line (the default button pressed while the line has the focus) asks the AI and does NOT accept the form: on.button looks at the focused widget first and returns",
        ordered(form, "on.button:", "if bt = 'accept' and ai.on then", "fq.i = f{'focus'} + 0", "if fq.w{'id'} = 'ai' then", "gosub ask.ai", "return", "if bt = 'accept' then", "gosub type.left"), "")
     ck("AI3 THE WALL: the request says where the item is (actx<13> from the caller's org), and a caller that gave none makes it 'unknown', which the wall refuses (fail shut); the IDE passes ai.origin",
@@ -257,6 +261,11 @@ MUTANTS += [
     ("form", "values are taken whatever the person answered", "      case ai.res<1> = 'fields'\n", "      case ai.res<1> # ''\n"),
     ("form", "the AI line ends the form", "   focus.ai = 1\n   act = 'ai'", "   focus.ai = 1\n   act = 'done'"),
     ("ide", "the IDE does not tell the form where the item is", "df.new, df.res, ai.org)", "df.new, df.res, '')"),
+]
+M_S176 = len(MUTANTS)           # 8 Nov 26 (S.176, F6 / Shift-F6 the box keys of every page): --selftest --from=M_S176
+MUTANTS += [
+    ("form", "F6 in the AI line does not come back to the rows", "               if hn = 'ai' then\n", "               if 0 then\n"),
+    ("form", "the row F6 comes back to is the line itself", "   if hn # 'ai' then fm.lastrow = hn", "   fm.lastrow = hn"),
 ]
 
 

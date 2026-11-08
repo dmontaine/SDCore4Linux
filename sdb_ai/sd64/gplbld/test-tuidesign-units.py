@@ -193,12 +193,14 @@ def checks(s):
         code = strip_bas(pages[p])
         if p == "tool_home":
             if not ("call $tk_ai('init', ctx, '', '')" in code and "call $tk_keys('add', keys, 'f6', 'ai', 'ai', '', 1)" in code
-                    and re.search(r"case nm = 'f6'\n\s*if ctx<TK\.C\.AI> then\n\s*gosub ai\.focus\.on", code)):
+                    and re.search(r"case nm = 'f6' or nm = 'shift-f6'\n\s*if ctx<TK\.C\.AI> then\n\s*gosub ai\.focus\.on", code)):
                 abad.append("tool_home: no F6 row or case to its AI line")
             continue
-        if "call $tk_aipage('init'" not in code or not re.search(r"(?:case|if) nm = 'f6'(?: then)?\n\s*call \$tk_aipage\('open'", code):
-            abad.append("%s: no $tk_aipage 'init' or no F6 case that opens the line" % p)
-    ck("T5 F6 reaches the AI line on every page on the common rules: $tk_aipage 'init' and a case for F6 that opens the line (the home screen: its own F6 row and case, $tk_ai, E6)", not abad, "; ".join(abad))
+        # 8 Nov 26 (S.176): F6 is the box key of every page and the AI line one stop of its ring ($tk_aipage 'ring')
+        ring = re.search(r"(?:case|if) nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'(?: then)?\n(?:[^\n]*\n){0,4}?\s*(?:call \$tk_aipage\('ring'|gosub box\.ring)", code)
+        if "call $tk_aipage('init'" not in code or not ring:
+            abad.append("%s: no $tk_aipage 'init' or no F6 / Shift-F6 case that goes round the ring" % p)
+    ck("T5 F6 reaches the AI line on every page on the common rules: $tk_aipage 'init' and one case for F6, Shift-F6 and the menu's act:ai that goes round the ring of boxes and the line (the home screen: its own F6 row and case, $tk_ai, E6)", not abad, "; ".join(abad))
     cbad = [p for p in pages if "call $tk_run(" in strip_bas(pages[p]) and "call $tk_confirm(" not in strip_bas(pages[p])]
     ck("T6 the confirm box's default is Cancel (buttons '&Run,&Cancel' default 2) and every page that runs a command with $tk_run asks $tk_confirm",
        ("buttons '&Run,&Cancel' default 2" in strip_bas(s["tk_confirm"])
@@ -258,8 +260,9 @@ MUTANTS = [
     ("a page binds F10", "pages:tool_files", "   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)\n", "   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)\n   call $tk_keys('add', keys, 'f10', 'menu', 'menu', '', 1)\n", "T3"),
     ("a page loses its F1 row", "pages:tool_catalog", "   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)\n", "", "T4"),
     ("a page quits on Ctrl-X", "pages:tool_sessions", "call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)", "call $tk_keys('add', keys, 'ctrl-x', 'quit', 'quit', '', 1)", "T4"),
-    ("a page's F6 does not open the AI line", "pages:tool_voc", "      case nm = 'f6'\n", "      case nm = 'f16'\n", "T5"),
-    ("the home screen's F6 opens a line that is not there", "pages:tool_home", "      case nm = 'f6'\n         if ctx<TK.C.AI> then", "      case nm = 'f6'\n         if 1 then", "T5"),
+    ("a page's F6 does not open the AI line", "pages:tool_voc", "      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'\n", "      case nm = 'f16'\n", "T5"),
+    ("a page's F6 opens the line instead of going round the boxes", "pages:tool_sessions", "call $tk_aipage('ring', ctx, keys, pane, nm : @fm : 2, ap)", "call $tk_aipage('open', ctx, keys, pane, '', ap)", "T5"),
+    ("the home screen's F6 opens a line that is not there", "pages:tool_home", "      case nm = 'f6' or nm = 'shift-f6'\n         if ctx<TK.C.AI> then", "      case nm = 'f6' or nm = 'shift-f6'\n         if 1 then", "T5"),
     ("the confirm box defaults to Run", "tk_confirm", "buttons bl default nb", "buttons bl default 1", "T6"),   # 2 Nov 26: the buttons are a variable since S.88 P10
     ("tool_masters comes back", "pages:tool_masters", None, "* TOOL_MASTERS\n   call $tk_open('tool.masters', 'admin', ctx, err)\n", "T7"),
     ("tool.keys gains a menu bar while it is still listed as exempt", "pages:tool_keys", "   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)\n",

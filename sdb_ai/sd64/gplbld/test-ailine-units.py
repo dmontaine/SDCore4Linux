@@ -114,7 +114,11 @@ def checks(s):
        and "actx<12> = ai.more" in home and "then ai.nav = 0" not in home, "")
     ck("H3 an accepted action is looked up by id among the page's own tiles and started through start.tile, as a click would; a command goes through run.command, as the Terminal's prompt would",
        ordered(home, "case res<1> = 'action'", "tl<i, HT.ID> = res<2>", "gosub start.tile", "case res<1> = 'command'", "gosub run.command"), "")
-    ck("H4 the AI line is the last stop of the Tab ring and the first of Back-tab, and without the AI the old keys are unchanged (the tests ask ctx<TK.C.AI>)", "if ctx<TK.C.AI> and fi = nt then" in home and "if ctx<TK.C.AI> and fi = 1 then" in home, "")
+    # 8 Nov 26 (S.176, the owner: one box key on every page, "F6 for boxes is fine"): the tiles and the line are the two stops of the F6 ring; Tab goes round the tiles only
+    ck("H4 F6 and Shift-F6 move between the tiles and the AI line both ways (ai.key gives the line up on them before $tk_ai sees the key), and Tab / Back-tab go round the tiles only, never onto the line",
+       "case nm = 'f6' or nm = 'shift-f6'\n         if ctx<TK.C.AI> then\n            gosub ai.focus.on" in home
+       and ordered(home, "ai.key:", "if nm = 'f6' or nm = 'shift-f6' then", "gosub ai.leave", "return", "call $tk_ai('key', ctx, nm, out)")
+       and "if ctx<TK.C.AI> and fi = nt then" not in home and "if ctx<TK.C.AI> and fi = 1 then" not in home, "")
     ck("H5 the hint row is drawn only when there is no AI line, the AI line is made again in a new session and on F5 (three init calls), and a resize only MOVES it (p3.3a: the request typed in it and its focus aif are kept, and the resize no longer sets aif = 0)",
        home.count("call $tk_ai('init', ctx, '', '')") == 3 and home.count("call $tk_ai('move', ctx, '', '')") == 1 and "if ctx<TK.C.AI> then\n      call $tk_ai('draw', ctx, aif, '')" in home
        and re.search(r"gen \+= 1\n   ctx<TK\.C\.GEN> = gen\n   lastmin = ''\n   call \$tk_ai\('move', ctx, '', ''\)", home) is not None, "")
@@ -283,6 +287,12 @@ MUTANTS += [
     ("the standing text is shown in the preview", "tk_ai", "   body<-1> = sysmsg(11640, len(sysx))", "   body<-1> = cx.text\n   body<-1> = sysmsg(11640, len(sysx))", "CX1"),
     ("the standing text is not screened", "tk_ai", "      call $tk_aiwall('request', cx.text, why)\n", "      why = ''\n", "CX1"),
     ("the standing text is not sent", "tk_ai", "   ks = cx.send : sysx : @fm : 600", "   ks = sysx : @fm : 600", "CX1"),
+]
+M_S176 = len(MUTANTS)           # 8 Nov 26 (S.176, F6 the box key of every page): --selftest --from=M_S176
+MUTANTS += [
+    ("F6 typed in the AI line goes into the line", "tool_home", "   if nm = 'f6' or nm = 'shift-f6' then\n      gosub ai.leave", "   if 0 then\n      gosub ai.leave", "H4"),
+    ("Tab steps onto the AI line again", "tool_home", "      case nm = 'tab'\n         dir = 1\n         gosub next.tile",
+     "      case nm = 'tab'\n         dir = 1\n         if ctx<TK.C.AI> and fi = nt then gosub ai.focus.on else gosub next.tile", "H4"),
 ]
 
 

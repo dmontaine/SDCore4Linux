@@ -17,6 +17,8 @@
 * 29 Oct 26 dm  S.88 g-P1: the Record editor entry (ced) is gone with the verb, so the Menu box is 16 rows (nmenu is counted from tids).
 * 1 Nov 26 dm  S.99 (look only): names its focus boxes (ctx<TK.C.FOCI>), so $tk_frame marks the one with the focus [*] and the others [-], as the IDE does.
 * 1 Nov 26 dm  S.97 stage 3: the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the pane switch and refresh are offered, none of the settings.
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the boxes
+*              (Left and Right still do).  AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -68,7 +70,7 @@ $include tk.h
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)
-   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)
+   call $tk_keys('add', keys, 'f6', 'box', 'pane', '', 1)                 ;* S.176: F6 / Shift-F6 move between the boxes on every page (Tab does not)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U4: Esc opens the menu bar (this page holds nothing of its own that Esc closes first)
@@ -415,11 +417,11 @@ on.key:
          if ai > na then ai = na
          if ai < 1 then ai = 1
          gosub redraw.account
-      case nm = 'tab' or nm = 'right'
+      case nm = 'right'
          pane = pane + 1
          if pane > 3 then pane = 1
          gosub redraw.panes
-      case nm = 'btab' or nm = 'left'
+      case nm = 'left'
          pane = pane - 1
          if pane < 1 then pane = 3
          gosub redraw.panes
@@ -431,9 +433,13 @@ on.key:
          gosub read.all
          gosub draw.all
          msg = 'read the register again'
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, pnames<pane>, '', ap)           ;* S.97 stage 3: the cursor goes to the AI line (nothing happens where the AI is not on)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, pane, nm : @fm : 3, ap)         ;* S.176: F6 / Shift-F6 go round the three boxes and the AI line; AI > Ask the AI goes to the line
+         if ap<1> > 0 and ap<1> # pane then
+            pane = ap<1>
+            gosub redraw.panes
+         end
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
    end case

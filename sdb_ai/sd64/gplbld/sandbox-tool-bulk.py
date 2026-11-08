@@ -432,7 +432,7 @@ class Page:
         for _ in range(4):
             if self.pane() == pane:
                 return
-            self.key("tab", 0.7)
+            self.key("f6", 0.7)                # S.176: F6 is the box key of every page (Tab no longer moves the focus)
 
     def choose_file(self, name):
         self.typed("f", idle=1.5)

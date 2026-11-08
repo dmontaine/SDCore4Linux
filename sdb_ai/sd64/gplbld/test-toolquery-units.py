@@ -225,8 +225,8 @@ def checks(raw):
     ck("TQ17", "what the query printed is cut into lines, every escape sequence is taken out and every other control and non-ASCII character is made a dot BEFORE a line is kept; at most 2000 lines are kept and the page says how many there were",
        ordered(run, "rl.n = dcount(out, @fm)", "if rl.cnt > MAXLINES then rl.cnt = MAXLINES", "gosub strip.esc", "rl<ri> = convert(ctl, dots, ln)[1, 400]", "out = ''")
        and "for k0 = 1 to 31" in pg and "for k0 = 127 to 255" in pg and "info := ', the first ' : rl.cnt : ' are kept'" in block(pg, "draw.results") and not re.search(r"screen text[^\n]*\bout\b", code), "")
-    need_keys = ["f1", "tab", "enter", "space", "b", "t", "x", "j", "d", "/", "r", "e", "s", "l", "f5", "up", "esc", "ctrl-q"]
-    acts = ["nm = 'f1'", "nm = 'tab'", "nm = 'enter'", "nm = 'space'", "nm = 'b'", "nm = 't'", "nm = 'x'", "nm = 'j'", "nm = 'd'", "nm = '/'", "nm = 'r'", "nm = 'e'", "nm = 's'", "nm = 'l'", "nm = 'f5'", "nm = 'up'", "nm = 'esc'", "nm = 'ctrl-q'"]
+    need_keys = ["f1", "f6", "enter", "space", "b", "t", "x", "j", "d", "/", "r", "e", "s", "l", "f5", "up", "esc", "ctrl-q"]
+    acts = ["nm = 'f1'", "nm = 'f6'", "nm = 'enter'", "nm = 'space'", "nm = 'b'", "nm = 't'", "nm = 'x'", "nm = 'j'", "nm = 'd'", "nm = '/'", "nm = 'r'", "nm = 'e'", "nm = 's'", "nm = 'l'", "nm = 'f5'", "nm = 'up'", "nm = 'esc'", "nm = 'ctrl-q'"]
     ck("TQ18", "a letter is the same key in either case, a space is the key `space`, and every key the page acts on has a place in the key table (the function-key row shows exactly the keys it uses)",
        "if len(nm) = 1 then nm = downcase(nm)" in pg and "if nm = ' ' then nm = 'space'" in pg and all(("call $tk_keys('add', keys, '%s'," % k) in pg for k in need_keys) and all(a in pg for a in acts), "")
     ck("TQ19", "the layout fits the 140 by 43 frame (S.88 L2: the boxes are the layout service's panes, declared for the build view (28, 44 and 66 by 19, 46 and 92 by 11, 138 by 9) and for the whole-body views (138 by 39) "

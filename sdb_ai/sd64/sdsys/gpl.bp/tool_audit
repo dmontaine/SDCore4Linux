@@ -11,6 +11,7 @@
 *               layout again.
 * 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the filter, clearing it, going to a time, following the file and
 *               refresh are offered to the model (export is not).  An administrator without the AI sees the page as it was.
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the list to the AI line and back; AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -474,9 +475,9 @@ on.key:
          gosub draw.filter
          gosub redraw
          if msg = '' then msg = (if newn = 0 then 'read again: no new line' else newn : ' new line' : (if newn = 1 then '' else 's'))
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, 'Audit', '', ap)                ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, 1, nm : @fm : 1, ap)            ;* S.176: F6 / Shift-F6 go round the boxes (one here) and the AI line; AI > Ask the AI goes to the line
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
    end case

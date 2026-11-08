@@ -160,8 +160,8 @@ def checks(src, voc, helps):
     ck("T9 the filter and the find ask with screen ask, take the AI's argument as the default, and each clears the other",
        txt.count("screen ask ptxt width 40 value ai.arg") == 2 and txt.count("value ai.arg") == 2 and "filt = trim(ft)\nfnd = ''" in txt and "fnd = trim(ft)\nfilt = ''" in txt)
     keyrows = re.findall(r"call \$tk_keys\('add', keys, '([^']+)'", txt)
-    ck("T10 sixteen key rows: f1 enter tab / f k e n d c b g u f5 ctrl-q esc, and the AI is offered only what changes what is shown (pane filter find kind refresh), never an edit, a delete, a compile, a debug, a global change or its undo",
-       keyrows == ["f1", "enter", "tab", "/", "f", "k", "e", "n", "d", "c", "b", "g", "u", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
+    ck("T10 sixteen key rows: f1 enter f6 / f k e n d c b g u f5 ctrl-q esc (F6 the box key since S.176, where Tab was), and the AI is offered only what changes what is shown (pane filter find kind refresh), never an edit, a delete, a compile, a debug, a global change or its undo",
+       keyrows == ["f1", "enter", "f6", "/", "f", "k", "e", "n", "d", "c", "b", "g", "u", "f5", "ctrl-q", "esc"] and re.findall(r"call \$tk_keys\('ai', keys, '([^']+)'", txt) == ["pane", "filter", "find", "kind", "refresh"], "%s" % keyrows)
     er = "\n".join(s for n, s in section(lines, "edit.record:", "sweep.pointers:"))
     ho = "\n".join(s for n, s in section(lines, "hand.over:", "do.filter:"))
     de = "\n".join(s for n, s in section(lines, "do.edit:", "do.delete:"))

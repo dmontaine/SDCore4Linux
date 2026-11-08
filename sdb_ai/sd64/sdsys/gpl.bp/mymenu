@@ -11,6 +11,7 @@
 * 2 Nov 26 dm  S.88 U4 (the L2 half): the box is a pane of the layout service ($tk_layout), declared at its old size (1,1 138 by 34): at 140 by 43 exactly the box the page has always
 *               drawn, in a bigger window it is taller (more rows of the list) and wider (a wider command column); a resize is $tk_layout 'refresh' and all of it drawn again.  F1, ? or a
 *               click on the [?] at the end of the header row explains the page ($tk_help, the record tool.menus.mine; Help > Help on this page).
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the list to the AI line and back; AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -232,9 +233,9 @@ on.key:
       case nm = 'f1' or nm = '?'
          call $tk_help('box', 'tool.menus.mine', hm, 0, 0)                  ;* 2 Nov 26 (S.88 U4): the page's help
          if hm # '' then msg = hm
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, 'My programs', '', ap)          ;* S.97 stage 3: the cursor goes to the AI line (nothing happens where the AI is not on)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, 1, nm : @fm : 1, ap)            ;* S.176: F6 / Shift-F6 go round the boxes (one here) and the AI line; AI > Ask the AI goes to the line
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
    end case

@@ -57,7 +57,7 @@ say, row, bail, has, dump, adm, H, g = sh.say, sh.row, sh.bail, sh.has, sh.dump,
 A1 = tf.A1
 
 # xterm's keys (every session below types TERM xterm before the page starts, whatever its LOGIN paragraph said)
-K = {"down": "\x1bOB", "up": "\x1bOA", "right": "\x1bOC", "left": "\x1bOD", "pgdn": "\x1b[6~", "tab": "\t", "f1": "\x1bOP", "f5": "\x1b[15~", "f10": "\x1b[21~",
+K = {"down": "\x1bOB", "up": "\x1bOA", "right": "\x1bOC", "left": "\x1bOD", "pgdn": "\x1b[6~", "tab": "\t", "f1": "\x1bOP", "f5": "\x1b[15~", "f6": "\x1b[17~", "f10": "\x1b[21~",
      "esc": "\x1b", "ctrl-l": "\x0c", "ctrl-q": "\x11"}
 
 SECTIONS = ("files", "query", "home", "admin", "user")
@@ -262,8 +262,8 @@ def section_query():
     say("    (first open: %d bytes)" % first)
     small("Q1", "Down in the list of files", act(h, "down"), 2048)
     consistent(h, "Q1c", "after Down")
-    small("Q2", "Tab (the focus to the next pane)", act(h, "tab"), 2048)
-    consistent(h, "Q2c", "after Tab")
+    small("Q2", "F6 (the focus to the next box; S.176: Tab no longer moves it)", act(h, "f6"), 2048)
+    consistent(h, "Q2c", "after F6")
     full("Q3", "F5", act(h, "f5"), h)
     consistent(h, "Q3c", "after F5")
     leave(h)

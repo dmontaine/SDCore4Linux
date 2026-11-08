@@ -425,11 +425,11 @@ def sec_edits():
     e.keys(ESC)
     e.keys(ESC)
     e.keys("\x1b" if False else "")
-    # back to the editor: Shift-Tab is not needed, Tab round the ring
+    # back to the editor: F6 round the ring (S.176: Tab no longer moves between the panes)
     for _ in range(6):
         if "[Editor]" in e.status() or "[Edit" in e.status():
             break
-        e.keys(TAB)
+        e.keys(F6)
     e.keys(CTRL_Z)
     t = e.quiet()
     arow("I7c", "one Ctrl-Z takes the change back: the old line is in the editor and the record is no longer marked changed", "crt 'hello'" in "\n".join(t) and "hello world" not in "\n".join(t) and " *" not in e.status(), repr(e.status()[:100]))
@@ -450,7 +450,7 @@ def sec_edits():
     for _ in range(6):
         if "[Edit" in e.status():
             break
-        e.keys(TAB)
+        e.keys(F6)                            # S.176: F6 round the ring
     e.keys(CTRL_Z)
     t = "\n".join(e.quiet())
     arow("I8c", "ONE Ctrl-Z takes both back", "x = 1" in t and "crt 'bye'" in t and "goodbye" not in t and "see you" not in t, t[:600])

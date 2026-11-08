@@ -11,6 +11,7 @@
 *               and so does the return from a verb that was given the terminal (the new $tk_open has no panes).
 * 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; refresh is the one action offered to the model (an administrator's
 *               page: nothing that changes an account is offered).  An administrator without the AI sees the page as it was.
+* 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the list to the AI line and back; AI > Ask the AI is a menu entry of its own.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -384,9 +385,9 @@ on.key:
       case nm = 'f1' or nm = '?'
          call $tk_help('box', 'tool.accounts.page', hm, 0, 0)
          if hm # '' then msg = hm
-      case nm = 'f6'
-         call $tk_aipage('open', ctx, keys, 'Accounts', '', ap)             ;* S.97 stage 2: the cursor goes to the AI line (nothing happens where the AI is not on)
-         if ap # '' then msg = ap
+      case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
+         call $tk_aipage('ring', ctx, keys, 1, nm : @fm : 1, ap)            ;* S.176: F6 / Shift-F6 go round the boxes (one here) and the AI line; AI > Ask the AI goes to the line
+         msg = ap<2>
       case nm = 'ctrl-q'
          done = 1
    end case
