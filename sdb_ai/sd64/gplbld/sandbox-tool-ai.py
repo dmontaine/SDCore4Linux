@@ -240,47 +240,10 @@ def provider_section():
         h.key("ctrl-q", idle=1.0)
         h.end()
         return
-    # ------------------------------------------------------------------------------------------ the model
-    say("\n--- M: the model")
-    h.typed("m", idle=1.2)
-    T = h.text()
-    arow("T5a", "M asks for the model name of the row under the cursor, naming the default in use", "Model for Anthropic (now " + STATE["defaults"][0] in re.sub(r"\s+", " ", T), T[-500:])
-    h.typed(MODEL + "\r", idle=1.5)
-    T = h.text()
-    arow("T5b", "the sentence and its effect are shown before anything runs", "set.ai model anthropic " + MODEL in T and "will ask model " + MODEL in T, T[-700:])
-    h.typed("r", idle=2.0)
-    arow("T5c", "Run: ai.conf holds the model, the row shows it, the verb's own words are on the status line", ("model.anthropic=" + MODEL) in conf() and MODEL in h.line(3) and ("The model for anthropic is now " + MODEL) in st(h), repr((conf(), h.line(3)[3:100], st(h))))
-    a1 = fg.audit_off()
-    before = list(conf())
-    h.typed("m", idle=1.0)
-    h.typed("a;b\r", idle=1.5)
-    arow("T6", "a model name with a semicolon is refused by the page (words), nothing is run, nothing is audited", "A model name has 1 to 80 letters" in st(h) and conf() == before and "set.ai" not in (fg.audit_new(a1) or ""),
-         repr((st(h), fg.audit_new(a1))))
-    h.key("down", idle=0.6)
-    h.typed("m", idle=1.0)
-    h.typed("GPT-Test:1\r", idle=1.5)
-    h.typed("r", idle=2.0)
-    arow("T7", "capitals and a colon in a model name go through $tk_runx (the OpenAI row)", "model.openai=GPT-Test:1" in conf() and "GPT-Test:1" in h.line(4), repr((conf(), h.line(4)[3:100], st(h))))
-    h.typed("m", idle=1.0)
-    arow("T7a", "M names the model in use in its prompt, and says a dash is the default", "Model for OpenAI (now GPT-Test:1; - = default)" in re.sub(r"\s+", " ", h.text()), h.text()[-500:])
-    h.typed("-\r", idle=1.5)
-    T = h.text()
-    arow("T7b", "a dash says the model goes back to its default (the table's, named) and shows the sentence", "set.ai model openai -" in T and ("goes back to its default, " + STATE["defaults"][1]) in re.sub(r"\s+", " ", T), T[-700:])
-    h.typed("r", idle=2.0)
-    arow("T7c", "Run: the row shows the default again, marked default, and ai.conf no longer holds the administrator's model",
-         (STATE["defaults"][1] + " (default)") in h.line(4) and "model.openai=GPT-Test:1" not in conf(), repr((h.line(4)[3:100], conf(), st(h))))
-    h.key("down", idle=0.6)
-    a4 = fg.audit_off()
-    before = list(conf())
-    h.typed("m", idle=1.0)
-    h.typed(STATE["defaults"][2] + "\r", idle=1.5)
-    arow("T7d", "M on the Google row, naming the default it already uses: the page says so and runs nothing",
-         ("already uses its default model, " + STATE["defaults"][2]) in st(h) and conf() == before and "set.ai" not in (fg.audit_new(a4) or ""), repr((st(h), fg.audit_new(a4))))
-    h.key("up", idle=0.6)
-    h.key("up", idle=0.6)
-    # ------------------------------------------------------------------------------------------ the key
-    # S.170 (8 Nov 26; the owner: one dialog for the model and the key, the key shown as *): K is ONE form; the key goes to the helper through the hand-over file
-    say("\n--- K: the key and the model in one form (S.170)")
+    # ------------------------------------------------------------------------------------------ S, the one setup dialog
+    # S.170 (8 Nov 26; the owner: "There should be only S for a setup dialog that looks the same no matter if the model and key has been selected previously.  If there are already
+    # values they should be displayed.  The model should be selected from a list.  The key in a password type field.")  K and M are gone.
+    say("\n--- S: the one setup dialog (S.170)")
     # the list of models is a real request to the fake provider, whose certificate only the test CA vouches for: set it first with the page's own A (T16 does it again later)
     h.typed("a", idle=1.0)
     h.typed(STATE["ca"] + "\r", idle=1.5)
@@ -288,62 +251,88 @@ def provider_section():
     h.typed("ca\r", idle=2.0)
     if ("ca-file=" + STATE["ca"]) not in conf():
         bail("the test CA could not be set with A, so the list of models cannot be fetched: %r" % (conf(),))
-    a2 = fg.audit_off()
     hdir = os.path.join(sh.SYS, "$aikey")
-    h.typed("k", idle=1.4)
+    kp = keyfile("anthropic")
+    fl = lambda: [l for l in h.text().split("\n") if any(w in l for w in ("AI setup", "Key", "Model", "Other", "list", "set", "fake", "claude", "Save"))]
+    gone = lambda: "AI setup:" not in h.text()
+    for k_ in ("m", "k"):
+        h.typed(k_, idle=1.0)
+    arow("T5", "K and M do nothing any more: no dialog opens", gone() and "Key and model" not in h.text() and "Models Anthropic" not in h.text(), repr(st(h)))
+    # a provider that has never had a key (the owner's Google)
+    a1 = fg.audit_off()
+    h.typed("s", idle=1.5)
     T = h.text()
-    arow("T8a", "K opens ONE form 'Key and model for Anthropic' with the model in use (claude-test) in its Model entry, a Key entry, and a hint naming the host the key goes to",
-         "Key and model for Anthropic" in T and "claude-test" in T and "Key" in T and "127.0.0.1" in T, T[-900:])
-    h.key("tab", idle=0.6)
+    arow("T5a", "S on a provider with NO key: 'AI setup: Anthropic' with an EMPTY Key entry, the Model list saying the key comes first, Other name, Save and Cancel",
+         "AI setup: Anthropic" in T and "set the key first" in T and "Other name" in T and "Save" in T and "No key is set for Anthropic yet" in re.sub(r"\s+", " ", T) and "*****" not in T, repr(fl()))
+    h.typed("\r", idle=1.5)
+    arow("T5b", "Save with no key is refused in the dialog, which stays; nothing is run", "AI setup: Anthropic" in h.text() and "type or paste it first" in re.sub(r"\s+", " ", h.text())
+         and "set.ai" not in (fg.audit_new(a1) or ""), repr(fl()))
     h.typed(KEY, idle=0.8)
     T = h.text()
-    arow("T8b", "the key typed into the Key entry is shown as * and not as itself", KEY not in T and ("*" * 10) in T, T[-500:])
-    h.typed("\r", idle=4.0)
+    arow("T6a", "the key typed into the Key entry is shown as * and not as itself", KEY not in T and ("*" * 10) in T, repr(fl()))
+    a2 = fg.audit_off()
+    h.key("tab", idle=4.0)
+    T = h.text()
+    TS = re.sub(r"\s+", " ", T)
     new = fg.audit_new(a2) or ""
-    kp = keyfile("anthropic")
-    arow("T8c", "Save: the form is gone, the page says the key is set and the model stays claude-test (the provider lists it, so the name was accepted)",
-         "Key and model for" not in h.text() and "The key for Anthropic is set" in st(h) and "stays claude-test" in st(h), repr(st(h)))
-    arow("T8d", "the hand-over file is gone and its directory is sdsys's alone (mode 0700)", not os.path.exists(os.path.join(hdir, "key")) and os.path.isdir(hdir) and (os.stat(hdir).st_mode & 0o777) == 0o700,
-         repr((os.path.exists(os.path.join(hdir, "key")), oct(os.stat(hdir).st_mode) if os.path.isdir(hdir) else None)))
+    arow("T6b", "Tab out of the Key entry hands the key over and fills the Model list from the provider WITH it; the dialog stays and says the key is set",
+         "AI setup: Anthropic" in T and "fake-small" in T and "deepseek-v4-pro" in T and "The key for Anthropic is set" in TS and "set the key first" not in T, repr(fl()))
+    arow("T6c", "the key file is the helper's (0600, the key); the audit trail has 'set.ai key set provider=anthropic from=page' and no key; the hand-over file is gone, its directory 0700",
+         os.path.exists(kp) and open(kp).read().strip() == KEY and (os.stat(kp).st_mode & 0o777) == 0o600 and re.search(r"set\.ai key set provider=anthropic from=page$", new, re.M) is not None
+         and KEY not in new and not os.path.exists(os.path.join(hdir, "key")) and (os.stat(hdir).st_mode & 0o777) == 0o700, repr((os.path.exists(kp), new[-200:])))
+    arow("T6d", "the model in use (the default, " + STATE["defaults"][0] + ") is not in the fake's list, and the dialog says so", ("The model now set, " + STATE["defaults"][0] + ", is not in") in TS, repr(fl()))
+    # the list is sorted: claude-test, claude-test-model, deepseek-v4-pro, fake-large, fake-small, gemini-fake; the first is chosen; Tab Tab reaches Save
+    h.key("tab", idle=0.5)
+    h.key("tab", idle=0.5)
+    h.key("enter", idle=3.0)
+    arow("T6e", "Save: the dialog is gone, ai.conf holds model.anthropic=claude-test (the entry chosen), and the page says the key is set and the model is now claude-test",
+         gone() and ("model.anthropic=" + MODEL) in conf() and "The key for Anthropic is set" in st(h) and ("now " + MODEL) in st(h), repr((st(h), conf())))
     arow("T9a", "back on the page: the row shows the key set, the summary no longer says it cannot be used", re.search(r"claude-test\s+set$", cell(h, 3)) is not None
          and "In use: Anthropic, model claude-test, key set" in h.line(9) and "cannot be used" not in h.line(9), repr((cell(h, 3), cell(h, 9))))
-    arow("T9b", "the key file is the helper's: mode 0600, holds the key; the audit trail has 'set.ai key set provider=anthropic from=page' and no key", os.path.exists(kp) and open(kp).read().strip() == KEY
-         and (os.stat(kp).st_mode & 0o777) == 0o600 and re.search(r"set\.ai key set provider=anthropic from=page$", new, re.M) is not None and KEY not in new, repr((os.path.exists(kp), new[-200:])))
     arow("T9c", "the key sentinel is in NO byte the terminal received, and on no screen line", KEY.encode() not in h.s.raw and KEY not in h.text(), "")
+    # the SAME dialog with values already set: the keep-stars, the list with the model in use chosen
+    h.typed("s", idle=3.0)
+    T = h.text()
+    arow("T7a", "S again: the same dialog, the Key entry shows the keep-stars (twelve *), the list is there at once and says the model in use, claude-test, is chosen",
+         "AI setup: Anthropic" in T and "************" in T and "fake-small" in T and "the one in use, claude-test, is chosen" in re.sub(r"\s+", " ", T), repr(fl()))
+    h.key("tab", idle=0.5)
+    for _ in range(4):
+        h.key("down", idle=0.3)
+    h.key("tab", idle=0.4)
+    h.key("tab", idle=0.4)
+    h.key("enter", idle=3.0)
+    arow("T7b", "four rows down the list (fake-small) and Save, the keep-stars left alone: the model is fake-small and the key is unchanged (no new key line in the audit trail)",
+         gone() and "model.anthropic=fake-small" in conf() and "The key is unchanged" in st(h) and open(kp).read().strip() == KEY, repr((st(h), conf())))
+    # Other name: checked against the list
     a5 = fg.audit_off()
     before = list(conf())
-    h.typed("k", idle=1.4)
-    h.typed("\x15Claude-Test\r", idle=4.0)               # Ctrl-U empties the entry; the key left empty keeps the key now set
+    h.typed("s", idle=3.0)
+    h.key("tab", idle=0.4)
+    h.key("tab", idle=0.4)
+    h.typed("Claude-Test", idle=0.5)
+    h.key("enter", idle=1.5)
     TL = h.text().split("\n")
-    T = re.sub(r"\s+", " ", h.text())
-    seen = [l for l in TL if "list" in l or "Claude-Test" in l or "case-sensitive" in l]
-    # the form wraps its message into the rows under the entries, beside the page's own boxes: the pieces are looked for, not one run of words
-    arow("T8e", "a model the provider does not list (Claude-Test, the case wrong) is refused IN the form, which names the listed one; the key left empty is kept; nothing changed",
-         any("does not list" in l for l in TL) and "Claude-Test" in T and "claude-test" in T and any("case-sensitive" in l for l in TL)
-         and conf() == before and "set.ai model" not in (fg.audit_new(a5) or ""), repr(seen))
+    TS = re.sub(r"\s+", " ", h.text())
+    arow("T7c", "Other name Claude-Test (the case wrong) is refused IN the dialog, which names claude-test; nothing changed",
+         "AI setup:" in h.text() and any("does not list a model named Claude-Test" in l for l in TL) and "claude-test" in TS and "case-sensitive" in TS
+         and conf() == before and "set.ai model" not in (fg.audit_new(a5) or ""), repr(fl()))
+    h.typed("\x15a;b", idle=0.5)
+    h.key("enter", idle=1.5)
+    arow("T7d", "Other name with a semicolon is refused by the dialog's own word check", "A model name has 1 to 80 letters" in re.sub(r"\s+", " ", h.text()) and conf() == before, repr(fl()))
     h.key("esc", idle=1.2)
-    arow("T8f", "Esc leaves the form: nothing was changed, the key is still there", "nothing was changed" in st(h) and os.path.exists(kp), repr(st(h)))
-    # M with a key set: the provider's own list in a pick window (typing narrows it)
-    h.typed("m", idle=3.0)
-    T = h.text()
-    arow("T8g", "M with the key set opens the list the provider gives ('Models Anthropic offers'), its names and the entry to type another",
-         "Models Anthropic offers" in T and "fake-small" in T and "type a name" in T, repr([l for l in T.split("\n") if "Models" in l or "fake" in l or "type a" in l]))
-    h.typed("small", idle=1.0)
-    h.typed("\r", idle=1.5)
-    T = h.text()
-    arow("T8h", "typing 'small' and Enter picks fake-small: the sentence set.ai model anthropic fake-small is shown before it runs", "set.ai model anthropic fake-small" in T, T[-700:])
-    h.typed("r", idle=2.5)
-    arow("T8i", "Run: ai.conf holds model.anthropic=fake-small", "model.anthropic=fake-small" in conf(), repr(conf()))
-    h.typed("m", idle=3.0)
-    h.key("esc", idle=1.0)
-    arow("T8j", "Esc in the list changes nothing (the page says so)", "nothing was changed" in st(h), repr(st(h)))
-    # put the model the later rows expect back, through the typed entry of the list
-    h.typed("m", idle=3.0)
-    h.typed("type a name", idle=0.8)
-    h.typed("\r", idle=1.2)
-    h.typed(MODEL + "\r", idle=1.5)
-    h.typed("r", idle=2.5)
-    arow("T8k", "the list's last entry asks for a typed name: claude-test typed there is set again", ("model.anthropic=" + MODEL) in conf(), repr(conf()))
+    arow("T7e", "Esc closes the dialog: nothing was changed", gone() and "nothing was changed" in st(h) and conf() == before, repr(st(h)))
+    # the owner's DeepSeek: a model set with the wrong capitals, from the prompt; the dialog says so and chooses the listed one
+    adm("set.ai model anthropic Claude-Test")
+    h.key("f5", idle=1.5)
+    h.typed("s", idle=3.0)
+    TS = re.sub(r"\s+", " ", h.text())
+    arow("T8a", "a model set with the wrong capitals (Claude-Test): S says it is not in the list (case-sensitive) and chooses claude-test",
+         "The model now set, Claude-Test, is not in Anthropic's list (model names are case-sensitive)" in TS and "claude-test is chosen" in TS, repr(fl()))
+    h.key("tab", idle=0.4)
+    h.key("tab", idle=0.4)
+    h.key("tab", idle=0.4)
+    h.key("enter", idle=3.0)
+    arow("T8b", "Save puts claude-test in its place", gone() and ("model.anthropic=" + MODEL) in conf(), repr((st(h), conf())))
     h.typed("x", idle=1.2)
     T = h.text()
     arow("T9d", "X shows set.ai key anthropic clear", "set.ai key anthropic clear" in T and "will be removed from the AI helper" in T, T[-600:])
@@ -445,7 +434,7 @@ def accounts_section():
     arow("T19a", "Enter again shows ai-off, and no name is asked for turning a gate OFF", "modify.account zzai1 ai-off" in T and "no longer be able" in T, T[-600:])
     h.typed("r", idle=2.5)
     arow("T19b", "Run: the gate is off in the scratch group file and the row says off", ME not in fg.read_group().get("sdaiusers", []) and "off" in h.line(26)[3:], repr((fg.read_group().get("sdaiusers"), h.line(26)[3:80])))
-    h.typed("m", idle=0.9)
+    h.typed("s", idle=0.9)
     arow("T19c", "a Provider key in the Accounts box is refused in words", "Move to the Provider box" in st(h), repr(st(h)))
     h.key("ctrl-q", idle=1.5)
     h.end()
@@ -555,8 +544,8 @@ def tail_section():
     STATE["runner"].wait(timeout=10)
     h.key("f5", idle=2.0)
     arow("T20a", "the helper is not running: the summary says so in words and the rows are blank", h.line(9)[3:].startswith("The AI helper is not running"), repr(h.line(9)[3:100]))
-    h.typed("m", idle=1.0)
-    arow("T20b", "M then says the helper could not be reached (11607); the page is still there", "The AI helper could not be reached" in st(h) and "What this means" in h.text(), repr(st(h)))
+    h.typed("s", idle=1.0)
+    arow("T20b", "S then says the helper could not be reached (11607); the page is still there", "The AI helper could not be reached" in st(h) and "What this means" in h.text(), repr(st(h)))
     h.key("enter", idle=1.0)
     arow("T20c", "Enter on a provider says the same and opens no box", "The AI helper could not be reached" in st(h) and "set.ai provider" not in h.text(), repr(st(h)))
     h.key("ctrl-q", idle=1.5)

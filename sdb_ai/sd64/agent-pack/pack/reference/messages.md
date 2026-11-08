@@ -3364,7 +3364,7 @@ cited by: `tk_form`
 Cancel
 ```
 
-cited by: `tk_form`
+cited by: `tk_form`, `tool_ai`
 
 ### msg:1125
 > kind=message tier=reference since=- src=sdsys/messages/1125:1#6958e706

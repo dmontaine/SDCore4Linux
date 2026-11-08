@@ -372,21 +372,33 @@ def check_d(t):
     row("(S.170) the one direct EXECUTE besides SET.AI CONTEXT is gone: the page runs SET.AI only through $tk_runx, and its OS.EXECUTEs are the hand-over directory and file only (made 0700, the file removed)",
         len(re.findall(r"(?<!os\.)\bexecute\b", v)) == 1 and not re.search(r"\b(perform|chain)\b", v) and v.count("os.execute") == 2
         and "os.execute \"umask 077; mkdir -p '\" : hdir : \"' && chmod 700 '\" : hdir : \"' && rm -f '\" : hf : \"'\"" in v and "os.execute \"rm -f '\" : hf : \"'\" return" in v, "")
-    k = between(v, "do.key:", "key.word:")
-    row("(S.170) K is for the fixed five providers only", k.startswith("do.key: p = provs<pi> if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return"), k[:160])
+    k = between(v, "do.setup:", "setup.items:")
+    tk = between(v, "setup.takekey:", "setup.save:")
+    sv = between(v, "setup.save:", "key.word:")
+    row("(S.170) S is the one setup dialog, for the fixed five providers only; K and M are gone (no do.key, no do.model, no 'k' or 'm' key)",
+        k.startswith("do.setup: p = provs<pi> if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return") and "do.key:" not in v and "do.model:" not in v
+        and "call $tk_keys('add', keys, 's', 'setup', 'setup', 'Provider', 1)" in v and "'k', 'key'" not in v and "'m', 'model'" not in v, k[:160])
     hk = between(v, "hand.key:", "fetch.models:")
-    row("(S.170) K is one form, the model and the key MASKED; the key is read only from the form (kv = trim(fv<2>)) and the form's copy is emptied at once; a cancelled form clears kv; the key is checked as a word "
-        "of 8 to 512 characters from ! to ~ before anything is done with it",
-        ordered(k, "spec<-1> = 'model' : @vm : 'Model'", "spec<-1> = 'key' : @vm : 'Key' : @vm : 60 : @vm : 512 : @vm : 1", "call $tk_form('open', ctx, spec, fv, fo)", "call $tk_form('run', ctx, fans, fv, fid)",
-                "kv = trim(fv<2>) fv<2> = ''", "if fans # 'ok' then kv = ''", "gosub key.word", "gosub hand.key") and len(re.findall(r"\bkv\s*=\s*trim\(", v)) == 1, "")
+    row("(S.170) the dialog is always the same: a MASKED Key entry (the keep-stars when a key is set), the Model LIST, Other name, Save and Cancel; the list is asked for when it opens if a key is set",
+        ordered(k, "if pkey<pi> then gosub fetch.models", "gosub setup.items", "screen form title su.title", "screen entry sf, 'key' at 2 + su.lw,2 width 70 value su.kini mask maxlen 600",
+                "screen list sf, 'model', su.items", "screen entry sf, 'other'", "screen button sf, 'ok', '&Save'", "screen button sf, 'cancel', sysmsg(11249)", "screen wait sf returning su.ev then")
+        and not re.search(r"(?<![\w.])ev\b", k, re.I)        # names fold case: ev is the page's EV (the explanation rows)
+        and "if pkey<pi> then su.kini = su.keep" in k and k.count("screen entry") == 2, "")
+    row("(S.170) the key is read only from the Key entry (kv = trim of SCREEN GET 'key'), the keep-stars and an empty entry hand nothing over, it is checked as a word of 8 to 512 characters from ! to ~ "
+        "before anything is done with it, kv is cleared after the dialog, and only after the hand-over is the list asked WITH it and shown",
+        ordered(tk, "screen get sf, 'key' returning kv", "kv = trim(kv)", "if kv = su.keep or kv = '' then kv = '' return", "gosub key.word", "gosub hand.key", "key.done = 1",
+                "screen set sf, 'key' value su.keep", "gosub fetch.models", "gosub setup.items", "screen set sf, 'model' items su.items")
+        and len(re.findall(r"\bkv\s*=\s*trim\(", v)) == 1 and "screen hide sf" in k and k.index("kv = ''") < k.index("screen hide sf"), "")
     row("(S.170) THE KEY GOES NOWHERE BUT THE HAND-OVER FILE: kv is written only by WRITESEQ to hf, in the directory made 0700 first; kv is cleared on every path of hand.key; no sentence, message, "
         "audit line or display holds kv; SET.AI is told 'handover', never the key",
         ordered(hk, "hdir = @sdsys : @ds : '$aikey'", "hf = hdir : @ds : 'key'", "umask 077; mkdir -p", "openseq hf to kf", "writeseq kv to kf", "close kf kv = ''", "call $tk_runx(allow.set, 'set.ai key ' : p : ' handover', out, st, err)",
                 "os.execute \"rm -f '\" : hf : \"'\"") and v.count("writeseq") == 1 and len(re.findall(r"\bkv\b", hk)) >= 3
         and not any(re.search(r"(^\s*|\bthen\s+|\belse\s+)(sent|msg|bad|el<-1>|cmsg|hint|spec|fv(<\d+>)?)\s*:?=.*\bkv\b|(display|crt|kernel\(K\$AUDIT|\$tk_runx?\(|\$tk_confirm\(|\$tk_form\('say').*\bkv\b", ln)
                     for ln in bas(t["tool_ai"]).split("\n")), "")
-    row("(S.170) the model typed in the form is checked against the provider's own list, asked AFTER the key was handed over, and refused in the form (the focus on Model) when the list does not hold it",
-        ordered(k, "gosub hand.key", "gosub fetch.models", "if lm.ok and lm.n > 0 then", "if lm.list<i> = mv then found = 1", "fid = 'model'", "call $tk_form('say', ctx, bad, fid, '')"), "")
+    row("(S.170) Save takes the model from the LIST, or from Other name only when the list holds it (or there is no list); a Save with no key is refused; a list that has only just come is shown, not saved over",
+        ordered(sv, "if not(pkey<pi>) and not(key.done) then", "screen get sf, 'other' returning ov", "gosub valid.word", "if lm.ok and lm.n > 0 then", "if lm.list<i> = ov then found = 1",
+                "if not(found) then", "mv = ov", "screen get sf, 'model' returning li", "mv = lm.list<li>", "su.done = 1")
+        and "gosub setup.takekey if not(su.fetched) then gosub setup.save" in k, "")
     row("the page starts no request and reads no secret: no K$AI.START and no K$AI.POLL, the only kernel AI call is K$AI.STATUS, the only file opened is the register (one OPENPATH), no key file of the "
         "helper's is named and nothing is READ by OPENSEQ (S.170: the one OPENSEQ writes the hand-over file)",
         "K$AI.START" not in v and "K$AI.POLL" not in v and "K$AI.CANCEL" not in v and v.count("K$AI.STATUS") == 1 and v.count("openpath") == 1 and "@sdsys:@ds:'accounts'" in v
@@ -396,7 +408,7 @@ def check_d(t):
         and "sent = 'modify.account ' : an.name : ' ' : (if on.now then 'ai-off' else 'ai-on') el = '' typed = '' if on.now then" in v
         and v.count("typed = 'custom'") == 1 and v.count("typed = 'ca'") == 1, "")
     row("every word that is typed is checked against SET.AI's own list before the sentence is built: the model (1 to 80), the four fields and the address of Custom (https:// first), the certificate file, and a limit's name and digits",
-        ordered(v, "do.model:", "vmax = 80 gosub valid.word if not(vw.ok) then", "sent = 'set.ai model '") and ordered(v, "do.custom:", "vmax = 40 ; vw = v1 ; gosub valid.word", "vmax = 300 ; vw = v2 ; gosub valid.word", "v2[1, 8] # 'https://'",
+        ordered(v, "setup.save:", "vw = ov vmax = 80 gosub valid.word if not(vw.ok) then", "mv = ov") and ordered(v, "do.custom:", "vmax = 40 ; vw = v1 ; gosub valid.word", "vmax = 300 ; vw = v2 ; gosub valid.word", "v2[1, 8] # 'https://'",
         "vmax = 40 ; vw = v5 ; gosub valid.word", "vmax = 60 ; vw = v6 ; gosub valid.word", "call $tk_form('say'", "call $tk_form('close'", "sent = 'set.ai custom '") and ordered(v, "do.ca:", "vmax = 300 gosub valid.word if not(vw.ok) then", "sent = 'set.ai ca '")
         and ordered(v, "do.limit:", "locate ln in lnames<1> setting lk else", "convert('0123456789', space(10), lv)) # ''", "sent = 'set.ai limit '"), "")
     okc_page = re.search(r"\bokc = '([^']*)'", bas(t["tool_ai"]))
@@ -503,10 +515,10 @@ GROUP_D_MUTANTS = [
     ("tool_ai", "the page may run sh", "allow.set = 'set.ai'", "allow.set = 'set.ai sh'"),
     ("tool_ai", "the key hand-over is not guarded by the fixed four", "   if index(' anthropic openai google deepseek custom ', ' ' : p : ' ', 1) = 0 then return\n", ""),
     ("tool_ai", "the key is put in the sentence", "call $tk_runx(allow.set, 'set.ai key ' : p : ' handover', out, st, err)", "call $tk_runx(allow.set, 'set.ai key ' : p : ' ' : kv, out, st, err)"),
-    ("tool_ai", "the model is not checked", "   vmax = 80\n   gosub valid.word\n", "   vmax = 80\n   vw.ok = 1\n"),
+    ("tool_ai", "the model is not checked", "      vmax = 80\n      gosub valid.word\n", "      vmax = 80\n      vw.ok = 1\n"),
     ("tool_ai", "the page is opened for anyone", "   call $tk_open('tool.ai', 'admin', ctx, err)\n   if err # '' then\n      display err\n      stop", "   call $tk_open('tool.ai', '', ctx, err)\n   if err # '' then\n      display err\n      stop"),
     ("tool_ai", "the page starts a request", "   reply = kernel(K$AI.STATUS, 0)\n   if reply<1> = 'D' then", "   void kernel(K$AI.START, 'x')\n   reply = kernel(K$AI.STATUS, 0)\n   if reply<1> = 'D' then"),
-    ("tool_ai", "the key is shown in the form's message", "      if key.done then bad = 'The key is set.  ' : bad\n", "      if key.done then bad = 'The key is set.  ' : bad : kv\n"),
+    ("tool_ai", "the key is shown in the dialog's message", "      su.say = 'The key was not set: ' : hk.err\n", "      su.say = 'The key was not set: ' : hk.err : kv\n"),
     ("tool_ai", "an account that is not a person is listed", "if gerr = '' and ainfo<1> = 'USER' then", "if gerr = '' then"),
     ("voc_tool_ai", "tool.ai is another program", "$tool_ai", "$tool_viewers"),
     ("tk_gate_info", "the ai gate is on as delivered", "|ai-on|ai-off|group||sdaiusers||at the next request|off|AI|", "|ai-on|ai-off|group||sdaiusers||at the next request|on|AI|"),
@@ -540,12 +552,14 @@ GROUP_E_MUTANTS = [
 ]
 M_F = M_E + len(GROUP_E_MUTANTS)                           # 8 Nov 26 (S.170: one form for the key and the model, the list of models): --from=M_F
 GROUP_F_MUTANTS = [
-    ("tool_ai", "the key field is not masked", "spec<-1> = 'key' : @vm : 'Key' : @vm : 60 : @vm : 512 : @vm : 1\n", "spec<-1> = 'key' : @vm : 'Key' : @vm : 60 : @vm : 512\n"),
+    ("tool_ai", "the key field is not masked", "   screen entry sf, 'key' at 2 + su.lw,2 width 70 value su.kini mask maxlen 600\n", "   screen entry sf, 'key' at 2 + su.lw,2 width 70 value su.kini maxlen 600\n"),
     ("tool_ai", "the key is kept after the hand-over", "   close kf\n   kv = ''\n", "   close kf\n"),
     ("tool_ai", "the hand-over file is left behind", "   os.execute \"rm -f '\" : hf : \"'\"\n   return", "   return"),
     ("tool_ai", "the hand-over directory is not made private", "umask 077; mkdir -p '\" : hdir : \"' && chmod 700 '", "mkdir -p '\" : hdir : \"' && chmod 755 '"),
-    ("tool_ai", "the model is not checked against the list", "               if lm.list<i> = mv then found = 1\n", "               found = 1\n"),
-    ("tool_ai", "the list is asked before the key is handed over", "      kv = ''\n      if bad = '' then\n         gosub fetch.models", "      kv = ''\n      if bad = '' then\n         lm.ok = 0"),
+    ("tool_ai", "a typed name is not checked against the list", "            if lm.list<i> = ov then found = 1\n", "            found = 1\n"),
+    ("tool_ai", "the list is not asked again with a new key", "   screen set sf, 'key' value su.keep\n   gosub fetch.models\n", "   screen set sf, 'key' value su.keep\n"),
+    ("tool_ai", "Save goes over a list that has only just come", "               if not(su.fetched) then gosub setup.save", "               gosub setup.save"),
+    ("tool_ai", "the keep-stars are handed over as a key", "   if kv = su.keep or kv = '' then\n", "   if kv = '' then\n"),
     ("setai", "the hand-over file is kept", "drop.handover:\n   os.execute \"rm -f '\" : hand.f : \"'\"\n", "drop.handover:\n"),
     ("setai", "the hand-over file is a word of the sentence", "         hand.f = @sdsys : @ds : '$aikey' : @ds : 'key'\n", "         hand.f = field(words, ' ', 5)\n"),
     ("setai", "a refusal that says not found is taken for an unreachable helper", "(trim(out<1>)[1, 7] # 'error: ' and (", "(1 and ("),
