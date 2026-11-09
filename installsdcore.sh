@@ -828,41 +828,6 @@ echo "sdsys, the administrator, cannot sign in over ssh unless that is opened.  
 read -r -p "Let sdsys sign in over ssh with its password? (y/N) " yn_sdsys_ssh || yn_sdsys_ssh=""
 case $yn_sdsys_ssh in [yY]|[yY][eE][sS] ) open_sdsys_ssh=y;; esac
 # SDSYS-SSH-ASK-END
-# 23 Oct 26  THE QUESTION ABOUT A PDF READER (owner, 23 Oct 2026: the pdf verb "should be available even if os.execute is not allowed for the account
-#            as a system bypass").  That is a looser default, so the list of readers it may start is EMPTY as delivered and the installer asks once, up
-#            front with the others; the answer is NO unless y or yes is typed.  It is asked only when a known PDF reader is installed in /usr/bin,
-#            /usr/local/bin or /bin and the list (/usr/local/sdsys/viewers, which an upgrade keeps) has no pdf line yet.  Nothing is allowed here: the
-#            SHARED-CONTENT block below runs set.viewer, which makes its own test of the program.  test-install-docs.sh runs this block.
-# 03 Nov 26 dm  INSTALLING A READER (owner, 3 Nov 2026: "Yes, add it" to an opt-in question).  With no known reader installed, no pdf line in the list and a graphical
-#            session (DISPLAY or WAYLAND_DISPLAY: a reader needs a display, so over ssh or on the console the question is not asked), the installer offers evince, default No.
-#            A yes only INSTALLS it, in the READER-INSTALL block after the packages; the allow question below then follows with the same default, because installing a
-#            reader and letting the documentation use it are two decisions.
-# VIEWER-ASK-BEGIN
-allow_viewer=n
-allow_viewer_name=""
-install_reader=n
-if ! grep -qs '^pdf ' "${sdsysdir}/viewers"; then
-    for v in evince okular zathura atril xreader mupdf qpdfview xpdf; do
-        for d in /usr/bin /usr/local/bin /bin; do
-            if [ -x "${d}/${v}" ] && [ -z "$allow_viewer_name" ]; then allow_viewer_name="$v"; fi
-        done
-    done
-    if [ -z "$allow_viewer_name" ] && { [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; }; then
-        echo
-        echo "The pdf verb shows the documentation in a PDF reader, and none is installed here."
-        read -r -p "Install evince as the PDF reader? (y/N) " yn_reader
-        case $yn_reader in [yY]|[yY][eE][sS] ) install_reader=y; allow_viewer_name=evince;; esac
-    fi
-fi
-if [ -n "$allow_viewer_name" ]; then
-    echo
-    echo "The pdf verb shows the documentation in a PDF reader for every account, even one that is not allowed to run programs."
-    if [ "$install_reader" = y ]; then reader_state="will be installed"; else reader_state="is installed here"; fi
-    echo "It starts only a reader that SDSYS has allowed, and nothing is allowed as delivered.  ${allow_viewer_name} ${reader_state}."
-    read -r -p "Allow ${allow_viewer_name} to show the documentation for every account? (y/N) " yn_viewer
-    case $yn_viewer in [yY]|[yY][eE][sS] ) allow_viewer=y;; esac
-fi
-# VIEWER-ASK-END
 # 03 Nov 26 dm  WHERE A SESSION STARTS (owner, 3 Nov 2026: "Can that be a question asked during the install?", then "the home/prompt question").  The
 #            home screen as delivered; the command prompt on p.  An upgrade that kept the accounts offers what the site had (deletesdcore.sh kept
 #            start.default as /home/sd/start.default.saved), so it does not quietly go back to the home screen.  The answer is applied by the
@@ -997,20 +962,6 @@ fi
 # run this along as only required on Ubuntu 26.04 and
 # don't want to abort if not found on earlier distributions
 sudo apt-get -y --ignore-missing install libcrypt-dev || true
-# 03 Nov 26 dm  The PDF reader the installer was told to install (VIEWER-ASK above).  A failure does not stop the install: the documentation PDFs are copied
-#            either way and the reader is a package away, so the question to allow it is withdrawn and the warning names the command.  test-install-docs.sh.
-# READER-INSTALL-BEGIN
-if [ "$install_reader" = y ] && [ -n "$allow_viewer_name" ]; then
-    if sudo apt-get -y install "$allow_viewer_name"; then
-        echo "Installed the PDF reader ${allow_viewer_name}."
-    else
-        printf "%b\n" "$RED"
-        echo "WARNING: ${allow_viewer_name} could not be installed.  Install a PDF reader, then signed in as sdsys:  set.viewer add pdf <reader>"
-        printf "%b\n" "$NC"
-        allow_viewer=n
-    fi
-fi
-# READER-INSTALL-END
 #
 # 22 Sep 2026 - have_ufw computed once, here, rather than re-probed at each of
 #   the two call sites and again in the closing summary.  ufw is Debian/
@@ -2341,10 +2292,11 @@ fi
 
 # 23 Oct 26 dm - S.75: THE SHARED ACCOUNT'S DOCUMENTATION.  The context help the [?] buttons show (the file context.help of the shared account,
 #            loaded from /usr/local/sdsys/helptext by load.help: idempotent, so an upgrade refreshes it and keeps what the administrator added) and the
-#            directory the pdf verb reads (pdf in the shared directory: owner sdsys, group sdusers, mode 755, so no SD user can add a document; the PDFs
-#            themselves are put there by docs.install, they are generated and not part of the source).  Then the reader the person said yes to above is
-#            allowed, with set.viewer, which tests the program; the result is judged on the list, not on sd's exit code (sd exits 0 when it refused).
+#            directory of the documentation PDFs (pdf in the shared directory: owner sdsys, group sdusers, mode 755, so no SD user can add a document;
+#            the PDFs themselves are put there by docs.install, they are generated and not part of the source, and are files a person copies to read).
 #            None of this stops the install: a failure prints a WARNING and says what to run.  test-install-docs.sh runs this block.
+# 9 Nov 26 dm   S.187 (owner, 9 Nov 2026, told the pdf verb only works at the machine's own display: "remove"): the pdf verb, set.viewer and the reader
+#            questions are gone.  The list of readers it could start (viewers in the system directory) is removed on an upgrade: nothing reads it now.
 # SHARED-CONTENT-BEGIN
 if sudo test -f "$shared_reg" && sudo test -d "$shared_dir"; then
     sudo mkdir -p "${shared_dir}/pdf"
@@ -2361,27 +2313,17 @@ if sudo test -f "$shared_reg" && sudo test -d "$shared_dir"; then
         echo "  Signed in as sdsys, run:  load.help"
         printf "%b\n" "$NC"
     fi
-    if [ "$allow_viewer" = y ] && [ -n "$allow_viewer_name" ]; then
-        sudo bin/sd -internal set.viewer add pdf "$allow_viewer_name" < /dev/null || true
-        if sudo grep -qs '^pdf ' "${sdsysdir}/viewers"; then
-            echo "Allowed ${allow_viewer_name} to show the documentation (pdf)."
-            echo "  The PDFs go in ${shared_dir}/pdf :  docs.install <directory of PDFs>  (signed in as sdsys)."
-        else
-            printf "%b\n" "$RED"
-            echo "WARNING: ${allow_viewer_name} was not allowed.  Signed in as sdsys, run:  set.viewer add pdf ${allow_viewer_name}"
-            printf "%b\n" "$NC"
-        fi
-    fi
 else
     echo "The shared account is not there, so its help text and documentation directory were not set up."
 fi
+sudo rm -f "${sdsysdir}/viewers"
 # SHARED-CONTENT-END
 
 # 24 Oct 26 dm  THE CHANGES DOCUMENT TRAVELS WITH THE INSTALLER AND IS COPIED INTO THE SHARED ACCOUNT (owner, 24 Oct 2026: "included with the installer as an
 #            additional document and upon installation also copied into the 'shared' directory").  A release package holds, beside this script, the
-#            document in three forms named sd-core-for-linux-<version>-changes.pdf / .html / .md (lower case, so that the pdf verb will list and open the
-#            pdf).  Each regular file of that name is put in the shared account's pdf directory, owner sdsys, group sdusers, mode 644: no SD user can add
-#            or change one, every account can read it, and "pdf" lists the PDF.  A file that is a link, or whose name is not plain lower case, is left.
+#            document in three forms named sd-core-for-linux-<version>-changes.pdf / .html / .md (lower case, the names docs.install takes).  Each
+#            regular file of that name is put in the shared account's pdf directory, owner sdsys, group sdusers, mode 644: no SD user can add or change
+#            one, every account can read it.  A file that is a link, or whose name is not plain lower case, is left.
 #            Nothing is needed for the install to go on: no files (a clone from GitHub has none), no shared account, a failed copy each print a note.
 #            test-install-changesdoc.sh runs this block.
 # CHANGES-DOC-BEGIN
@@ -2391,7 +2333,7 @@ if [ -n "$installer_dir" ] && sudo test -f "$shared_reg" && sudo test -d "${shar
     for changes_f in "$installer_dir"/sd-core-for-linux-*-changes.pdf "$installer_dir"/sd-core-for-linux-*-changes.html "$installer_dir"/sd-core-for-linux-*-changes.md; do
         [ -f "$changes_f" ] && [ ! -L "$changes_f" ] || continue
         changes_b=$(basename "$changes_f")
-        # the pdf verb opens only a name of a-z 0-9 dot dash underscore, not starting with a dot, up to 80 characters
+        # docs.install takes only a name of a-z 0-9 dot dash underscore, not starting with a dot, up to 80 characters
         if ! [[ "$changes_b" =~ ^[a-z0-9][a-z0-9._-]{0,79}$ ]]; then
             echo "Note: ${changes_b} was not copied: the name must be lower case letters, digits and . _ - (rename it and run:  docs.install <directory>)."
             continue
@@ -2406,7 +2348,7 @@ if [ -n "$installer_dir" ] && sudo test -f "$shared_reg" && sudo test -d "${shar
         fi
     done
     if [ "$changes_copied" -gt 0 ]; then
-        echo "Copied the changes document (${changes_copied} files) into the shared account:  ${shared_dir}/pdf   (pdf lists it)"
+        echo "Copied the changes document (${changes_copied} files) into the shared account:  ${shared_dir}/pdf"
     elif [ "$changes_seen" -gt 0 ]; then
         echo "The changes document could not be copied into the shared account (see the warnings above)."
     else
@@ -2445,7 +2387,7 @@ elif sudo test -f "$shared_reg" && sudo test -d "${shared_dir}/pdf"; then
         fi
     done
     if [ "$manuals_ok" -eq "$manuals_n" ]; then
-        echo "Installed the documentation PDFs (${manuals_ok}) into the shared account:  ${shared_dir}/pdf   (pdf lists them)"
+        echo "Installed the documentation PDFs (${manuals_ok}) into the shared account:  ${shared_dir}/pdf"
     else
         printf "%b\n" "$RED"
         echo "WARNING: ${manuals_ok} of ${manuals_n} documentation PDFs were installed (docs.install says why above)."

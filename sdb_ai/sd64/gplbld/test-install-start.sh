@@ -16,7 +16,7 @@
 #   S3  menu: the verb is not run, the line says the home screen;  S4  the saved file is removed either way
 #   D1  the deleter, keeping the accounts, saves start.default as start.default.saved, mode 644;  D2  DELETE (accounts removed): nothing saved
 #   D3  no start.default: nothing saved
-#   P   the question is asked after VIEWER-ASK and before the first sudo; START-SET follows MANUALS-PDF; no block has an exit
+#   P   the question is asked after SDSYS-SSH-ASK and before the first sudo; START-SET follows MANUALS-PDF; no block has an exit
 #
 # NOT MEASURED HERE: the real set.start.default (sandbox-home's start rows) and a real install (the VM).
 
@@ -139,9 +139,10 @@ fresh; old_install; run "keep_accts=Y
 $SAVE" > /dev/null; out=$(run "$ASK" "")
 row "U1 an upgrade from L1.1-3, Enter at the question: the prompt is kept" "$(ok "$(printf '%s' "$out" | grep -q 'CHOICE=terminal' && echo yes)")" "$out"
 # ---- P: placement -----------------------------------------------------------------------------------------------------------
-l_v=$(grep -n '^# VIEWER-ASK-END' "$INST" | cut -d: -f1); l_a=$(grep -n '^# START-ASK-BEGIN' "$INST" | cut -d: -f1); l_s=$(grep -n '^if ! sudo -v' "$INST" | head -1 | cut -d: -f1)
+# 9 Nov 26 (S.187): the reader questions (VIEWER-ASK) are gone; the question now follows the sdsys ssh question
+l_v=$(grep -n '^# SDSYS-SSH-ASK-END' "$INST" | cut -d: -f1); l_a=$(grep -n '^# START-ASK-BEGIN' "$INST" | cut -d: -f1); l_s=$(grep -n '^if ! sudo -v' "$INST" | head -1 | cut -d: -f1)
 l_m=$(grep -n '^# MANUALS-PDF-END' "$INST" | cut -d: -f1); l_t=$(grep -n '^# START-SET-BEGIN' "$INST" | cut -d: -f1)
-row "P the question after VIEWER-ASK and before the first sudo; START-SET after MANUALS-PDF" "$(ok "$([ -n "$l_v" ] && [ -n "$l_a" ] && [ -n "$l_s" ] && [ -n "$l_m" ] && [ -n "$l_t" ] && [ "$l_v" -lt "$l_a" ] && [ "$l_a" -lt "$l_s" ] && [ "$l_m" -lt "$l_t" ] && echo yes)")" "lines $l_v $l_a $l_s $l_m $l_t"
+row "P the question after SDSYS-SSH-ASK and before the first sudo; START-SET after MANUALS-PDF" "$(ok "$([ -n "$l_v" ] && [ -n "$l_a" ] && [ -n "$l_s" ] && [ -n "$l_m" ] && [ -n "$l_t" ] && [ "$l_v" -lt "$l_a" ] && [ "$l_a" -lt "$l_s" ] && [ "$l_m" -lt "$l_t" ] && echo yes)")" "lines $l_v $l_a $l_s $l_m $l_t"
 row "P no block has an exit" "$(ok "$(printf '%s\n%s\n%s\n' "$ASK" "$SET" "$SAVE" | grep -q -E '(^|[^a-z_])exit( |$)' && echo no || echo yes)")" "an exit is in a block"
 
 echo "test-install-start: $pass passed, $fail failed"

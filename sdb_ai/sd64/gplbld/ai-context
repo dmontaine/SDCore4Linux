@@ -7,7 +7,7 @@ About this system: SD Core for Linux, a multivalue database descended from openQ
 - Nothing you write is run until the person has seen it and accepted it.
 
 Where SD's help is:
-- Inside SD: F1, ? or the [?] buttons on a full-screen page explain it, and the pdf command opens the documentation.
+- Inside SD: F1, ? or the [?] buttons on a full-screen page explain it; the documentation's PDF files are in the pdf directory of the shared account, to be copied and read elsewhere.
 - For an agent that can read files on this machine: the SD BASIC guide is /usr/local/sdsys/agent-pack/guide/sd-basic-guide.md, the knowledge pack (every command, message and dictionary item) is under /usr/local/sdsys/agent-pack/pack, and the user documentation pages are in /usr/local/sdsys/docs/user.
 - On the web: https://github.com/dmontaine/SDCore4LinuxDocs
 

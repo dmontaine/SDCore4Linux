@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
-# sandbox-docs.py - the shared account's documentation (S.75, plan .claude/plan-fullscreen-toolkit.md section 14): the context help file and its [?] buttons, the pdf verb, the
-# programs allowed to bypass OS.EXECUTE (set.viewer and the Bypass programs page), docs.install and the menu verb, on a private SD.  No install, no sudo.
+# sandbox-docs.py - the shared account's documentation (S.75, plan .claude/plan-fullscreen-toolkit.md section 14): the context help file and its [?] buttons, docs.install and
+# the menu verb, on a private SD.  No install, no sudo.
 #
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-docs.py <dir> [--build]
 #
@@ -12,23 +12,23 @@
 # 23 Oct 26 dm  New (S.75, plan section 14).
 # 3 Nov 26 dm   tool.gates.matrix's words: "drops" (U drops them) for "everything", which left the record with its sentence "There is no key that
 #               queues everything ON" when A and N were added (427cfa0d, 1 Nov); the click and F1 rows failed on a correct record.
+# 9 Nov 26 (S.187): the pdf verb, set.viewer and the Bypass programs page (tool.viewers) were REMOVED from Core (owner: pdf only works at the machine's own display).  Their
+#               sections went with them: pdf (the list, every refusal, the viewer started, the audit line), set.viewer, and tool.viewers.  docs.install's "...and PDF lists it"
+#               row now reads the pdf directory.  The help box has no Documentation button: the F1 row looks for Close and NO Documentation button, and the row that pressed
+#               it now holds that the box's last line names the PDF (message 14046) and that 'd' starts nothing.  The administrator's System group row names Audit trail.
+#               NOT RUN since (the owner's rule for this sitting: free checks only).
 # END-HISTORY
 #
 # THE SHARED ACCOUNT HERE.  The sandbox cannot make Linux groups, so shared is a hand-made register record  <path>\n...\nsdg_shared, the directory <sandbox>/group_accounts/shared with a
 # VOC made from NEWVOC, and a pdf directory with fixture documents.  LOAD.HELP enters the shared account, which the administrator may do only if the sandbox user is in its register
 # group, so the group is set to the user's own for that one command and put back to sdg_shared (the delivered one) before any other row.
 #
-# THE VIEWER.  The viewer must pass !viewlist's test (owned by root, not writable by group or others), so no file the sandbox makes can be one.  /usr/bin/touch does: given one
-# argument it sets that file's modification time, which is the EVIDENCE that pdf started it, with the document it was given and nothing else.  An ordinary session has a DISPLAY
-# only when a row sets one (the harness itself may have none).
+# THE FIXTURE DOCUMENTS.  Each is given an old modification time (OLD); the help box's rows hold that nothing touched them (the box opens no document since S.187).
 #
 # WHAT IS HELD.  The store: nothing before LOAD.HELP, the records equal the shipped files, a second run changes nothing, a changed file is written and an added record is kept, bad
-# names are skipped; $tk_help for SDSYS, for an ordinary account and for one whose shared.read is withdrawn, with a key that is not a key.  PDF: the list (regular, lower case, .pdf),
-# every refusal (no viewer, a viewer that fails the test now, no display, a bad name), the document opened, the audit line.  SET.VIEWER: its refusals and its list.  DOCS.INSTALL.
-# The pages: [?] on every row, F1, ?, a click, the Documentation button (it opens a document) and Close (it does not); the Bypass programs page allows and stops allowing a reader
-# through the confirm box with the name typed.  MENU opens the home screen; the administrator's page has the two tiles of the System group.
-# NOT HELD: the installer's blocks (test-install-docs.sh and a real install), a real PDF reader showing a real document, a real ssh sign-on without a display, the group modes of the
-# files LOAD.HELP makes (one OS user here).
+# names are skipped; $tk_help for SDSYS, for an ordinary account and for one whose shared.read is withdrawn, with a key that is not a key.  DOCS.INSTALL.  The pages: [?] on every
+# row, F1, ?, a click, the one Close button and the last line naming the PDF (14046).  MENU opens the home screen; the administrator's page has the tiles of the System group.
+# NOT HELD: the installer's blocks (test-install-docs.sh and a real install), the group modes of the files LOAD.HELP makes (one OS user here).
 import importlib.util
 import os
 import re
@@ -308,87 +308,8 @@ def main():
         t, d, ls, out = hlook("zzhd", "../etc/passwd")
         row("a key that is not a key (a slash) is not looked up at all: the same words, and no text of any file", t == "No help has been written for this yet" and not any("root:" in l for l in ls) and any("has no record" in l for l in ls), repr((t, ls)))
 
-        # ------------------------------------------------------------------------------------------------------------ pdf
-        say("\n--- pdf: the document list, the viewer list and the bypass")
-        os.environ.pop("DISPLAY", None)
-        os.environ.pop("WAYLAND_DISPLAY", None)
-        out = g.plain("zzhd", ["pdf"])
-        row("PDF alone lists the documents of the pdf directory, sorted and without the .pdf: regular files with a lower case name only (not Upper, notes.txt, the link or the directory)",
-            has(out, r"^Documents \(3\); pdf name opens one:$") and [l.strip() for l in out if l.startswith("  ")] == ["01-accounts-and-security", "guide-one", "guide-two"], repr(out))
-        out = g.plain("zzhd", ["pdf guide-one"])
-        row("with no viewer allowed, PDF says so (11846) and starts nothing", has(out, r"^No viewer has been allowed for documents\.  The administrator names one with set\.viewer\.$") and untouched("guide-one", 1.0), repr(out))
-        out = g.plain("zzhd", ["set.viewer"])
-        row("an ordinary account cannot run SET.VIEWER: not in its VOC", has(out, r"not in your VOC"), repr(out[:3]))
-        out = adm("set.viewer")
-        row("SET.VIEWER alone says nothing is allowed", has(out, r"^No program is allowed to be started without os\.execute$"), repr(out))
-        for cmd, rx in (("set.viewer add pdf nosuchreader", r"^nosuchreader was not found in /usr/bin, /usr/local/bin or /bin$"),
-                        ("set.viewer add pdf /tmp/anything", r"^The viewer /tmp/anything cannot be used: it is under /tmp, which users can write$"),
-                        ("set.viewer add pdf /etc/passwd", r"^The viewer /etc/passwd cannot be used: it is not executable by everyone$"),
-                        ("set.viewer add pdf /usr/bin/../bin/touch", r"^The viewer /usr/bin/\.\./bin/touch cannot be used: its path has \.\. in it$"),
-                        ("set.viewer add pdf relative/touch", r"^relative/touch was not found in /usr/bin, /usr/local/bin or /bin$"),
-                        ("set.viewer add npdf touch", r"^npdf is not a purpose that can be set; only pdf can$"),
-                        ("set.viewer add pdf", r"^set\.viewer \{add \| remove\} pdf program; set\.viewer alone says which programs are allowed$"),
-                        ("set.viewer remove pdf touch", r"^The program touch was not allowed for pdf; nothing changed$")):
-            out = adm(cmd)
-            row("%s: %s" % (cmd, rx.strip("^$")[:70]), has(out, rx), repr(out[-3:]))
-        row("...and none of these wrote the list (it is still empty or absent)", viewers_file() in (None, ""), repr(viewers_file()))
-        if os.path.exists("/usr/bin/sudo") and os.stat("/usr/bin/sudo").st_mode & 0o4000:
-            out = adm("set.viewer add pdf /usr/bin/sudo")
-            row("a setuid program is refused (sudo)", has(out, r"cannot be used: it has the setuid, setgid or sticky bit set"), repr(out[-3:]))
+        # 9 Nov 26 (S.187): the pdf and set.viewer sections went with the verbs (see START-HISTORY)
 
-        a0 = audit_size()
-        out = adm("set.viewer add pdf touch")
-        row("SET.VIEWER add pdf touch finds /usr/bin/touch, tests it and allows it", has(out, r"^The program /usr/bin/touch is now allowed for pdf$"), repr(out[-3:]))
-        row("...the list is the file viewers: one line, 'pdf /usr/bin/touch', mode 0644", viewers_file() == "pdf /usr/bin/touch\n" and (os.stat(os.path.join(sh.SYS, "viewers")).st_mode & 0o777) == 0o644, repr((viewers_file(), oct(os.stat(os.path.join(sh.SYS, "viewers")).st_mode))))
-        row("...and audited:  set.viewer add purpose=pdf program=/usr/bin/touch", "set.viewer add purpose=pdf program=/usr/bin/touch" in audit_tail(a0), repr(audit_tail(a0)[-200:]))
-        out = adm("set.viewer add pdf touch")
-        row("adding it again changes nothing (11893)", has(out, r"^The program /usr/bin/touch was already allowed for pdf; nothing changed$"), repr(out[-3:]))
-        out = adm("set.viewer")
-        row("SET.VIEWER alone lists it", has(out, r"^Allowed for pdf: /usr/bin/touch$"), repr(out))
-
-        reset_times()
-        out = g.plain("zzhd", ["pdf guide-one"])
-        row("an allowed viewer but NO DISPLAY: PDF refuses in words (11847) and starts nothing", has(out, r"^This session has no graphical display") and untouched("guide-one", 1.0), repr(out))
-        os.environ["DISPLAY"] = ":99"
-        a0 = audit_size()
-        flags = g.flags(g.plain("zzhd", ["zzkf"]))
-        out = g.plain("zzhd", ["pdf guide-one"])
-        row("with a DISPLAY, in an ORDINARY account whose os.execute switch is OFF (flags %s): PDF says it opened guide-one with /usr/bin/touch" % (flags,),
-            has(out, r"^Opened guide-one with /usr/bin/touch$") and flags is not None and flags[0] == "0" and flags[2] == "0", repr((out, flags)))
-        row("...and the program REALLY ran, with that document: its modification time moved (the evidence), and the others did not", touched("guide-one") and mtime("guide-two") == OLD and mtime("01-accounts-and-security") == OLD, repr((mtime("guide-one"), mtime("guide-two"))))
-        row("...one audit line:  pdf open file=guide-one viewer=/usr/bin/touch", "pdf open file=guide-one viewer=/usr/bin/touch" in audit_tail(a0), repr(audit_tail(a0)[-200:]))
-        reset_times()
-        for cmd, rx in (("pdf ../etc/hostname", r"^\.\./etc/hostname is not a document name$"), ("pdf x;id", r"^x;id is not a document name$"), ("pdf .hidden", r"^\.hidden is not a document name$"),
-                        ("pdf Upper", r"^There is no document upper; pdf alone lists them$"), ("pdf linked", r"^There is no document linked; pdf alone lists them$"),
-                        ("pdf adir", r"^There is no document adir; pdf alone lists them$"), ("pdf notes", r"^There is no document notes; pdf alone lists them$"),
-                        ("pdf guide-one guide-two", r"^pdf \{name\}; pdf alone lists the documents$")):
-            out = g.plain("zzhd", [cmd])
-            row("%s: %s" % (cmd, rx.strip("^$")[:60]), has(out, rx), repr(out[-3:]))
-        row("...and none of them started a program", untouched("guide-one", 1.0) and untouched("guide-two", 0.1) and untouched("01-accounts-and-security", 0.1), repr([mtime(n) for n in DOCS if n.endswith(".pdf")]))
-        out = g.plain("zzhd", ["pdf guide-two.pdf"])
-        row("a name with .pdf on it is taken as the document (guide-two.pdf opens guide-two)", has(out, r"^Opened guide-two with /usr/bin/touch$") and touched("guide-two"), repr(out))
-        reset_times()
-
-        bad = os.path.join(sh.BOX, "fakeviewer")
-        g.put(bad, "#!/bin/sh\nexit 0\n")
-        os.chmod(bad, 0o755)
-        with open(os.path.join(sh.SYS, "viewers"), "w") as f:
-            f.write("pdf %s\n" % bad)
-        out = g.plain("zzhd", ["pdf guide-one"])
-        row("a list changed by hand to name a program that fails the test (not owned by root, under /tmp): PDF refuses (11849) and starts nothing",
-            has(out, r"^The viewer .*fakeviewer cannot be used: it is under /tmp, which users can write$") and untouched("guide-one", 1.0), repr(out))
-        with open(os.path.join(sh.SYS, "viewers"), "w") as f:
-            f.write("# a comment\n\npdf %s\npdf /usr/bin/touch\n" % bad)
-        out = g.plain("zzhd", ["pdf guide-one"])
-        row("...but the FIRST program on the list that passes is the one started (a bad first line, then touch)", has(out, r"^Opened guide-one with /usr/bin/touch$") and touched("guide-one"), repr(out))
-        with open(os.path.join(sh.SYS, "viewers"), "w") as f:
-            f.write("pdf /usr/bin/touch\n")
-        reset_times()
-        shutil.rmtree(pdfp("adir.pdf"))
-        os.rename(os.path.join(S(), "pdf"), os.path.join(S(), "pdf.away"))
-        out = g.plain("zzhd", ["pdf"])
-        row("no pdf directory: PDF says there are no documents (11888)", has(out, r"^There are no documents: the shared account has no pdf directory, or it holds none$"), repr(out))
-        os.rename(os.path.join(S(), "pdf.away"), os.path.join(S(), "pdf"))
 
         # ------------------------------------------------------------------------------------------------ docs.install
         say("\n--- docs.install")
@@ -405,8 +326,8 @@ def main():
             has(out, r"^Copied 1 document\(s\) into the shared account; skipped 2$") and has(out, r"^Skipped Bad\.pdf: the name is not lower case") and has(out, r"^Skipped fake\.pdf: it does not start with %PDF-$"), repr(out[-4:]))
         row("...the copy is on the disk, the same bytes, mode 0644; the others are not there", os.path.exists(dest) and open(dest, "rb").read() == b"%PDF-1.5\ngood\n" and (os.stat(dest).st_mode & 0o777) == 0o644
             and not os.path.exists(pdfp("fake.pdf")) and not os.path.exists(pdfp("Bad.pdf")) and not os.path.exists(pdfp("text.txt")), repr(sorted(os.listdir(os.path.join(S(), "pdf")))))
-        out = g.plain("zzhd", ["pdf"])
-        row("...and PDF lists it", has(out, r"^  good-one$"), repr(out))
+        row("...and it is a regular file of the pdf directory, beside the fixture documents (the pdf verb that listed them is gone, S.187)",
+            os.path.isfile(dest) and not os.path.islink(dest) and "01-accounts-and-security.pdf" in os.listdir(os.path.join(S(), "pdf")), repr(sorted(os.listdir(os.path.join(S(), "pdf")))))
         out = adm("docs.install /tmp/../etc")
         row("a path with .. in it is refused (11721) and nothing is read", has(out, r"^The directory /tmp/\.\./etc cannot be read, or is not a plain path"), repr(out[-3:]))
         out = adm("docs.install /nonexistent-directory-for-docs")
@@ -426,8 +347,8 @@ def main():
         row("the function-key row says F1 help", "F1 help" in h.line(42), repr(h.line(42)))
         h.key("f1", idle=1.2)
         T = h.text()
-        row("F1 in the Accounts box shows the help: the title, its first paragraph, and the buttons Documentation and Close",
-            "The accounts list" in T and "Every registered account except SDSYS" in T and "Documentation" in T and "Close" in T, T[-700:])
+        row("F1 in the Accounts box shows the help: the title, its first paragraph, the button Close and NO Documentation button (S.187)",
+            "The accounts list" in T and "Every registered account except SDSYS" in T and "Documentation" not in T and "Close" in T, T[-700:])
         h.key("esc", idle=0.8)
         T = h.text()
         row("Esc closes it: the box is gone and the page is as it was", "The accounts list" not in T and "What this means" in T and "Accounts" in T, T[-300:])
@@ -462,84 +383,18 @@ def main():
         h.key("enter", idle=1.4)
         row("Enter in the box chooses Close, the default: the box closes and no program was started", "Where an account with no setting starts" not in h.text() and untouched("01-accounts-and-security", 1.5), h.text()[-300:])
         h.key("f1", idle=1.2)
+        T = h.text()
+        row("the box's last line names the document the record names (message 14046: 01-accounts-and-security.pdf, in the pdf directory of the shared account)",
+            "01-accounts-and-security.pdf" in T and "pdf directory" in T, T[-700:])
         h.typed("d", idle=2.0)
-        row("the Documentation button runs pdf 01-accounts-and-security through the allowed viewer: the status line says it was opened, and the program really ran",
-            "Opened 01-accounts-and-security with /usr/bin/touch" in h.line(40) and touched("01-accounts-and-security"), repr(h.line(40)))
+        row("...and 'd' (the old Documentation button's letter) starts nothing: no document was touched and no 'Opened' on the status line",
+            untouched("01-accounts-and-security", 1.5) and "Opened" not in h.line(40), repr(h.line(40)))
+        h.key("esc", idle=0.8)
         h.key("ctrl-q", idle=1.5)
         h.end()
         reset_times()
 
-        # ----------------------------------------------------------------------------------------------- tool.viewers
-        say("\n--- tool.viewers: the Bypass programs page")
-        out = g.plain("zzhd", ["tool.viewers"])
-        row("an ordinary account cannot reach it: tool.viewers is in SDSYS's VOC only", has(out, r"not in your VOC"), repr(out[:3]))
-        cand = None
-        for nm in ("evince", "okular", "zathura", "atril", "xreader", "mupdf", "qpdfview", "xpdf", "gv", "xdg-open"):
-            for d in ("/usr/bin", "/usr/local/bin", "/bin"):
-                if cand is None and os.path.exists(os.path.join(d, nm)):
-                    cand = nm
-        say("    (a reader on this machine for the Found box: %s)" % cand)
-        h = open_page("tool.viewers")
-        T = h.text()
-        if "What this means" not in T:
-            dump(h)
-            bail("tool.viewers never drew its page, so no row below can be believed")
-        row("the page: the boxes Allowed for pdf, Found on this machine, What this means and Help", all(w in T for w in ("Allowed for pdf", "Found on this machine", "What this means", "Help")), T[:300])
-        row("the Allowed box lists /usr/bin/touch and says it passes the test now", re.search(r"/usr/bin/touch\s+passes", h.line(3)) is not None, repr(h.line(3)[:80]))
-        row("a [?] at the end of each of the two boxes", h.line(2)[66:69] == "[?]" and h.line(2)[134:137] == "[?]", repr((h.line(2)[60:72], h.line(2)[130:139])))
-        h.click(135, 2, idle=1.4)
-        T = h.text()
-        row("a click on the [?] of the Found box shows its help", "PDF readers found on this machine" in T and "set.viewer add pdf name" in T, T[-500:])
-        h.key("esc", idle=0.8)
-        h.click(67, 2, idle=1.4)
-        T = h.text()
-        row("a click on the [?] of the Allowed box shows its help (it is the administrator's to grant)", "Programs allowed to start without os.execute" in T and "yours to grant" in T, T[-600:])
-        h.key("esc", idle=0.8)
-        row("...and a click on a [?] selects its box (the status line names it)", h.line(40).startswith("[Allowed]"), repr(h.line(40)))
-        if h.line(40).startswith("[Allowed]"):
-            h.key("f6", idle=0.6)                   # back to Found, where the allow rows start (S.176: F6, not Tab)
-        if cand is None:
-            say("  [SKIPPED] no known PDF reader in /usr/bin, /usr/local/bin or /bin on this machine: the allow rows of the page are not run")
-        else:
-            rr = None
-            for r in range(3, 13):
-                if re.match(r"^\s*" + re.escape(cand) + r"\s", h.line(r)[73:]):
-                    rr = r
-            row("the Found box lists %s, not allowed, and could be allowed" % cand, rr is not None and re.search(re.escape(cand) + r"\s+no\s+yes", h.line(rr)[73:]) is not None, repr([h.line(r)[73:110] for r in range(3, 6)]))
-            if rr is not None:
-                for _ in range(rr - 3):
-                    h.key("down", idle=0.4)
-                h.key("enter", idle=1.2)
-                T = h.text()
-                row("Enter on it shows the command and its effect: set.viewer add pdf %s, and that pdf will start it for every account" % cand,
-                    ("set.viewer add pdf " + cand) in T and "pdf will start /" in T and "for every account" in T, T[-700:])
-                h.typed("r", idle=1.2)
-                T = h.text()
-                row("Run asks for the program's NAME to be typed before anything runs", cand in T and re.search(r"[Tt]ype", T) is not None, T[-400:])
-                h.typed("nope\r", idle=1.5)
-                row("a name that is not the program's runs nothing: the list is still just touch", viewers_file() == "pdf /usr/bin/touch\n", repr(viewers_file()))
-                h.key("enter", idle=1.2)
-                h.typed("r", idle=1.2)
-                h.typed(cand + "\r", idle=2.0)
-                vf = viewers_file() or ""
-                row("the right name runs it: the list holds the reader, and the line under the page is the verb's own answer", re.search(r"^pdf /\S*/" + re.escape(cand) + r"$", vf, re.M) is not None and "is now allowed for pdf" in h.line(40), repr((vf, h.line(40))))
-                row("...and the Found box says allowed", re.search(re.escape(cand) + r"\s+yes\s+yes", h.line(rr)[73:]) is not None, repr(h.line(rr)[73:110]))
-                h.key("f6", idle=0.6)
-                h.key("down", idle=0.5)
-                h.key("enter", idle=1.2)
-                T = h.text()
-                row("in the Allowed box, Enter on the reader shows set.viewer remove pdf %s (no name to type for removing)" % cand, ("set.viewer remove pdf " + cand) in T, T[-600:])
-                h.typed("r", idle=2.0)
-                row("Run removes it: the list is just touch again", viewers_file() == "pdf /usr/bin/touch\n" and "is no longer allowed for pdf" in h.line(40), repr((viewers_file(), h.line(40))))
-        if h.line(40).startswith("[Found]"):
-            h.key("f6", idle=0.6)                   # to Allowed (S.176: F6, not Tab)
-        h.key("enter", idle=1.2)
-        T = h.text()
-        row("Enter on /usr/bin/touch in the Allowed box shows set.viewer remove pdf touch", "set.viewer remove pdf touch" in T and "pdf will no longer start /usr/bin/touch" in T, T[-600:])
-        h.key("esc", idle=1.0)
-        row("Esc is Cancel: nothing was removed", viewers_file() == "pdf /usr/bin/touch\n" and "nothing was run" in h.line(40), repr((viewers_file(), h.line(40))))
-        h.key("ctrl-q", idle=1.5)
-        h.end()
+        # 9 Nov 26 (S.187): the tool.viewers section (the Bypass programs page) went with the page
 
         # ----------------------------------------------------------------------------------------------- tool.gates (24 Oct 26, S.75 A2): only its help is the docs suite's; the page is sandbox-tool-gates.py's
         say("\n--- tool.gates: the gate matrix's help")
@@ -707,12 +562,13 @@ def main():
         h = H(admin=True)
         h.typed("menu\r", idle=2.5)
         T = h.text()
-        row("MENU in the administrator's session opens the administrator's page, whose System group has Menu management and Bypass programs", "Menu management" in T and "Bypass programs" in T and "administrator" in T, T[:600])
+        row("MENU in the administrator's session opens the administrator's page, whose System group has Menu management and Audit trail (Bypass programs is gone, S.187)",
+            "Menu management" in T and "Audit trail" in T and "Bypass programs" not in T and "administrator" in T, T[:600])   # stale-ok: checks the tile is gone
         h.end()
         h = H("zzhd")
         h.typed("home\r", idle=2.5)
         T = h.text()
-        row("an account holder's page has neither of those tiles", h.home() and "Bypass programs" not in T and "Menu management" not in T, T[:400])
+        row("an account holder's page has neither of those tiles", h.home() and "Audit trail" not in T and "Menu management" not in T, T[:400])
         h.end()
     finally:
         sh.teardown()

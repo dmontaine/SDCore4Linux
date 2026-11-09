@@ -18,6 +18,7 @@
 #               and the long captions are whole (the owner on sdtest: "The boxes are cutting off the text").
 # 28 Oct 26 dm  S.85: setup() runs sandbox-tk-base.py's sudo_null_case() before anything else: every suite built on this setup (the page suites and docs) runs with the stub `sudo` first in PATH,
 #               and stops (exit 2) if a child shell or an SD session finds another.  WRITTEN, NOT RUN when added (the owner's rule of 28 Oct).
+# 9 Nov 26 (S.187): Bypass programs left the administrator's tile labels with tool.viewers and the pdf verb (owner: pdf only works at the machine's own display).
 # END-HISTORY
 #
 # WHAT IS HELD.  The sandbox starts at the terminal (sandbox-fromtree.py writes start.default = terminal, because every pty suite types at the prompt); this suite changes that for its
@@ -528,7 +529,8 @@ def main():
         T = h.text()
         row("the administrator's home screen, opened with HOME at the prompt (S.168): group 'Tools' (not 'My tools'), the identity 'administrator', the right end of row 0 'home  administrator'",
             h.home() and "Tools" in T and "My tools" not in T and h.line(2).strip().startswith("administrator") and h.line(0).endswith("home  administrator"), repr((h.line(0)[-24:], h.line(2)[:30])))
-        adm_labels = ["Menu management", "Bypass programs", "Audit trail", "Configuration", "Backups", "Master files", "Accounts", "Sessions and locks", "Gates", "Remote servers", "AI"]
+        adm_labels = ["Menu management", "Audit trail",          # 9 Nov 26 (S.187): Bypass programs removed with the pdf verb
+                      "Configuration", "Backups", "Master files", "Accounts", "Sessions and locks", "Gates", "Remote servers", "AI"]
         row("the administrator's first screen has a tile for each of the eleven administrator pages, in the groups System, People and access and Data, network and AI, and Tools and Everyone are on it too (no scrolling)",
             all(l in T for l in adm_labels) and all(t in T for t in ("System", "People and access", "Data, network and AI", "Tools", "Everyone", "My programs", "Editor", "Terminal")), repr([l for l in adm_labels if l not in T]))
         nacc = len([a for a in os.listdir(os.path.join(SYS, "accounts")) if a != "sdsys"])

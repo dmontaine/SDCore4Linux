@@ -17,6 +17,10 @@
 #   O10 $tk_form close: hides the form only when it is open, and then tf.open is 0
 #   O11 messages 11248 and 11249 exist, one line each, and the Cancel button has no & mark (the default button has one: two buttons with one letter would shadow the second)
 #
+# 9 Nov 26 (S.187): V1 and V2 (PILOT B, the output pane of tool_viewers: its open layout, the toggle, what $tk_run answered kept in the pane, Esc and PgUp / PgDn) were DROPPED with their six
+# mutants: tool.viewers was removed with the pdf verb (owner: pdf only works at the machine's own display).  They were written against that page's labels and literals; the other pages with
+# an output pane (tool_sessions, tool_jobs, tool_test) are built differently, so re-pointing them is a new check, not an edit.  O1-O11 are unchanged.
+#
 # FREE CHECK: no install, no sd.     python3 .../test-tkout-units.py        python3 .../test-tkout-units.py --selftest [--from=N]
 import glob
 import os
@@ -75,7 +79,6 @@ def op(src, name):
 
 def load():
     s = {n: read(os.path.join(BP, n)) for n in NAMES}
-    s["tool_viewers"] = read(os.path.join(BP, "tool_viewers"))
     s["sl_picker"] = read(os.path.join(BP, "sl_picker"))
     s["calls"] = {os.path.basename(p): code(read(p)) for p in glob.glob(os.path.join(BP, "*")) if os.path.isfile(p) and not p.endswith(".h")}
     for n in ("11248", "11249"):
@@ -153,21 +156,7 @@ def checks(s):
     cf = label(fm, "close.form")
     ck("O10 $tk_form close: hides the form only when it is open, and then tf.open is 0", ordered(cf, "if tf.open + 0 then", "screen hide tf.f", "tf.open = 0"), cf[:200])
 
-    tv = code(s["tool_viewers"])
-    ol = label(tv, "open.layout")
-    to = label(tv, "toggle.out")
-    heights = [int(h) for h in re.findall(r"o<\d+> = '[a-z]+' : @vm : \d+ : @vm : \d+ : @vm : (\d+) :", ol)]
-    closed = [int(h) for h in re.findall(r"d<\d+> = '[a-z]+' : @vm : \d+ : @vm : \d+ : @vm : (\d+) :", label(tv, "declare.layout"))]
-    ck("V1 PILOT B (tool_viewers): the output pane is a pane of an open layout declared in open.layout (o<n> rows: the four panes and 'output', as tall as the closed layout in all), declare.layout adds it only when outopen, "
-       "toggle.out toggles through $tk_out, declares again, raises the generation and draws everything, and the pane is drawn last in draw.all",
-       len(heights) == 5 and sum(heights) == sum(closed) and "'output'" in ol and ordered(tv, "call $tk_layout('declare', ctx, d, perr)", "if outopen then gosub open.layout", "gosub get.rects")
-       and ordered(to, "call $tk_out('toggle', ctx, '', '', oc)", "outopen = oc", "gosub declare.layout", "gen += 1", "ctx<TK.C.GEN> = gen", "gosub draw.all")
-       and ordered(label(tv, "draw.all"), "gosub draw.help", "if outopen then call $tk_out('draw', ctx, 'output', '', oc)", "return"), repr((heights, closed)))
-    ck("V2 PILOT B: what a command answered goes to the pane whether or not it is open (an 'ok' or a 'refuse' after $tk_run, nowhere else), the bar is told the pane is open (the Esc rule) and Esc puts the pane away, "
-       "PgUp and PgDn scroll it only when it is open",
-       ordered(tv, "call $tk_run(allow, sent, out, st, err)", "call $tk_out('add', ctx, 'refuse'", "call $tk_out('add', ctx, 'ok'") and len(re.findall(r"call \$tk_out\('add'", tv)) == 2
-       and "call $tk_menubar('key', ctx, keys, pnames<pane>, nm, outopen, mr)" in tv and "case nm = 'esc'\n         if outopen then gosub toggle.out" in tv
-       and "case (nm = 'pgup' or nm = 'pgdn') and outopen" in tv, "")
+    # V1 and V2 (tool_viewers' output pane) went with the page, 9 Nov 26 (S.187): see the header
 
     m8, m9 = s["m11248"], s["m11249"]
     ck("O11 messages 11248 and 11249 exist, one line each, and the Cancel button has no & mark (the default button has one in its caller: two buttons with one letter would shadow the second)",
@@ -206,12 +195,6 @@ MUTANTS = [
     ("say does not move the focus", "tk_form", "      screen focus tf.f, b else null\n", "      null\n", "O9"),
     ("close hides a form that is not open", "tk_form", "close.form:\n   if tf.open + 0 then\n      screen hide tf.f\n      tf.open = 0\n   end", "close.form:\n   screen hide tf.f\n   tf.open = 0", "O10"),
     ("Cancel has a mnemonic", "m11249", "Cancel", "&Cancel", "O11"),
-    ("the open layout is taller than the closed one", "tool_viewers", "   o<3> = 'means' : @vm : 2 : @vm : 1 : @vm : 11 :", "   o<3> = 'means' : @vm : 2 : @vm : 1 : @vm : 17 :", "V1"),
-    ("the closed layout always has the output pane", "tool_viewers", "   if outopen then gosub open.layout ", "   gosub open.layout ", "V1"),
-    ("the toggle does not draw", "tool_viewers", "   ctx<TK.C.GEN> = gen\n   gosub draw.all\n   return\n\nget.rects:", "   ctx<TK.C.GEN> = gen\n   return\n\nget.rects:", "V1"),
-    ("a refusal is not kept", "tool_viewers", "         call $tk_out('add', ctx, 'refuse', sent : '  ' : err, '')", "         null", "V2"),
-    ("the bar is not told the pane is open", "tool_viewers", "nm, outopen, mr)", "nm, 0, mr)", "V2"),
-    ("PgUp scrolls a pane that is not open", "tool_viewers", "case (nm = 'pgup' or nm = 'pgdn') and outopen", "case nm = 'pgup' or nm = 'pgdn'", "V2"),
     # 2 Nov 26 (S.88 U9): the list mode of $tk_pickrec - marker M_U9 for --from= (the first of these)
     # 3 Nov 26 ("Extend the picker"): the list mode moved into $sl_picker; the same two mutants there, and three for Del and the facade - M_PICK is the first of these
     ("a list pick answers ok on Esc", "sl_picker", "      case ps = 0 and pr > 0\n", "      case pr > 0\n", "O6"),

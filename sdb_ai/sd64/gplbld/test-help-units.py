@@ -7,13 +7,18 @@
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.
 
 WHAT IT HOLDS.  $tk_help looks a key up only after testing its characters, only in the file context.help of the shared account (found with !shared_ref asked QUIETLY, opened by
-path and only read), and runs nothing but pdf <name> through $tk_run; the [?] button answers a left press on its three cells and nothing else; LOAD.HELP asks for the
+path and only read), and runs no command (a document the record names is only named, message 14046); the [?] button answers a left press on its three cells and nothing else; LOAD.HELP asks for the
 administrator before it reads anything, writes only records of that one file, makes only that file and goes back to the account it began in; the shipped text under helptext has
 a title, a document that exists in the documentation checkout, and is used by a program; every key a page asks for has a record; the wrapping loop lives in $tk_wrap.
 
 ***IT READS THE SOURCE AS TEXT AND DOES NOT RUN BASIC.***  That the box shows the text, F1 and a click open it, and LOAD.HELP fills the file is sandbox-help.py.
 
 --selftest mutates the source in the ways this could plausibly be broken and requires each mutation to be CAUGHT and to match its text exactly once.
+
+9 Nov 26 (S.187): the pdf verb, !viewlist and the Bypass programs page (tool.viewers) were REMOVED from Core (owner: pdf only works at the machine's own display).  $tk_help's box
+lost its Documentation button: P2-P4 now hold that it runs no command, has the one Close button, and names the PDF on its last line (message 14046) only when the record names one.
+P17 (tool.viewers' [?], F1, click and set.viewer) was DROPPED with the page, and its two mutants; tool_viewers left PROGS, P0, P13, P18 and P20, and !viewlist left P20.  The
+$tk_wrap argument-count mutant that was on tool.viewers is now on tool.menus.
 """
 
 import os
@@ -25,7 +30,7 @@ SDSYS = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 HELP = os.path.join(SDSYS, "helptext")
 DOCS = "/home/don/Projects/SDCore4LinuxDocs"                    # the documentation checkout: an absolute path, as test-pack-units.py has it
-PROGS = ("tk_help", "loadhelp", "tool_menus", "tool_viewers", "tk_wrap", "tk_confirm")
+PROGS = ("tk_help", "loadhelp", "tool_menus", "tk_wrap", "tk_confirm")
 MSGS = tuple(str(n) for n in list(range(11830, 11833)) + list(range(11835, 11842)))       # 11833, 11834 and 11842 are free
 
 
@@ -64,7 +69,7 @@ def load():
         src["tool_" + app] = read(os.path.join(GPL, "tool_" + app))   # 26 Oct 26, S.75 DV2, DV4-DV7: each page asks for its tool.<app>.page
     src["mymenu"] = read(os.path.join(GPL, "mymenu"))                 # 2 Nov 26, S.88 U4: MY.MENU asks for tool.menus.mine
     src["msgs"] = {n: (read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None) for n in MSGS}
-    for n in (14002, 14003):                                          # 3 Nov 26, S.88 K7/K8: F1's lines for the bar's own keys
+    for n in (14002, 14003, 14046):                                   # 3 Nov 26, S.88 K7/K8: F1's lines for the bar's own keys; 9 Nov 26, S.187: 14046 names the PDF
         p = os.path.join(SDSYS, "messages", str(n))
         src["msg.%d" % n] = read(p) if os.path.exists(p) else None
     for name in sorted(os.listdir(HELP)):
@@ -120,22 +125,23 @@ def checks(s):
     def ck(name, ok, detail=""):
         rows.append((name, bool(ok), detail))
 
-    th, lh, tm, tv, tw, tc = (strip(s[n]) for n in PROGS)
+    th, lh, tm, tw, tc = (strip(s[n]) for n in PROGS)
     hts = {k[3:]: v for k, v in s.items() if k.startswith("ht.")}
 
-    ck("P0 the sources were found (the null case: nothing to compare passes every row)", len(th) > 1500 and len(lh) > 2000 and len(tm) > 8000 and len(tv) > 6000 and len(tw) > 300 and len(hts) >= 12, repr((len(th), len(lh), len(tm), len(tv), len(tw), len(hts))))
+    ck("P0 the sources were found (the null case: nothing to compare passes every row)", len(th) > 1500 and len(lh) > 2000 and len(tm) > 8000 and len(tw) > 300 and len(hts) >= 12, repr((len(th), len(lh), len(tm), len(tw), len(hts))))
 
     i_chars = th.find("if index('abcdefghijklmnopqrstuvwxyz0123456789._-', k[ci, 1], 1) = 0 then ok = 0")
     i_ref = th.find("ans = shared_ref('context.help', 2, @true)")
     i_open = th.find("openpath ans<1> to hf then")
     ck("P1 $tk_help tests the characters of a key (a-z 0-9 . _ -, 1 to 80) BEFORE it asks where the file is, and asks QUIETLY (so SDSYS and an account whose shared.read was withdrawn are answered)",
        0 < i_chars < i_ref < i_open and "len(k) >= 1 and len(k) <= 80" in th, repr((i_chars, i_ref, i_open)))
-    ck("P2 ...it only reads: one OPENPATH, no OPENSEQ, WRITE, DELETE or EXECUTE; the caller supplies a key and never a path",
-       th.count("openpath") == 1 and not re.search(r"\b(openseq|writeseq|write|delete|clearfile|execute|os\.execute)\b", th) and "pdf " in th, "")
-    ck("P3 ...the document it offers is a lower case name from field 2 of the record, and the ONE command it runs is pdf <name> through $tk_run, only when a document is named and the button was chosen",
-       "doc = downcase(trim(rec<2>))" in th and th.count("call $tk_run(") == 1 and "call $tk_run('pdf', 'pdf ' : doc, out, st, err)" in th and "if doc # '' and bn = 1 then" in th)
-    ck("P4 ...the box has a Close button the Enter key chooses (the Documentation button is the other, never the default), and a session with no terminal gets nothing",
-       "btn = '&Documentation,&Close'\n      dflt = 2" in th and "btn = '&Close'\n      dflt = 1" in th and "if system(25) then return" in th)
+    ck("P2 ...it only reads: one OPENPATH, no OPENSEQ, WRITE, DELETE or EXECUTE, and it runs no command through $tk_run (9 Nov 26, S.187: the pdf verb is gone); the caller supplies a key and never a path",
+       th.count("openpath") == 1 and not re.search(r"\b(openseq|writeseq|write|delete|clearfile|execute|os\.execute)\b", th) and "$tk_run" not in th, "")
+    ck("P3 ...the document it names is a lower case name from field 2 of the record, and only when the record names one, the box's last line is message 14046 naming it (one line, %1.pdf in the shared account's pdf directory)",
+       "doc = downcase(trim(rec<2>))" in th and "if doc # '' then body<-1> = '' ; body<-1> = sysmsg(14046, doc)" in th and th.count("sysmsg(14046") == 1
+       and (s.get("msg.14046") or "").count("\n") == 1 and "%1.pdf" in (s.get("msg.14046") or ""), repr(s.get("msg.14046")))
+    ck("P4 ...the box has ONE button, Close, which the Enter key chooses (no Documentation button since 9 Nov 26), and a session with no terminal gets nothing",
+       "buttons '&Close' default 1" in th and "Documentation" not in th and "if system(25) then return" in th)
     ck("P5 ...the [?] button answers a LEFT PRESS on its three cells and nothing else",
        "if a<1> = 'press' and a<2> = 1 and a<4> = c and a<3> >= b and a<3> <= b + 2 then d = 1" in th and "screen text '[?]' at a,b attr 'bold'" in th)
     ck("P6 ...a missing file and a missing record are answered in words (11832, 11831 and the title 11830), not with an error",
@@ -170,7 +176,7 @@ def checks(s):
     # keys asked for by the pages
     tids = re.search(r"tids = ('[a-z]+'(?: : @fm : '[a-z]+')*)", tm)
     tile_ids = re.findall(r"'([a-z]+)'", tids.group(1)) if tids else []
-    asked = set(re.findall(r"'(tool\.(?:menus|viewers|ai|gates|sessions|jobs|entries|audit|config|backups|accounts|remote|files|voc|dict|query|bulk|catalog|test|home)\.[a-z-]+)'", tm + "\n" + tv + "\n" + strip(s["tool_jobs"]) + "\n" + strip(s["tool_entries"]) + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"]) + "\n" + strip(s["tool_files"]) + "\n" + strip(s["tool_voc"]) + "".join("\n" + strip(s["tool_" + a]) for a in ("dict", "query", "bulk", "catalog", "test", "home")) + "\n" + strip(s["mymenu"])))
+    asked = set(re.findall(r"'(tool\.(?:menus|ai|gates|sessions|jobs|entries|audit|config|backups|accounts|remote|files|voc|dict|query|bulk|catalog|test|home)\.[a-z-]+)'", tm + "\n" +strip(s["tool_jobs"]) + "\n" + strip(s["tool_entries"]) + "\n" + strip(s["tool_ai"]) + "\n" + strip(s["tool_gates"]) + "\n" + strip(s["tool_mygates"]) + "\n" + strip(s["tool_sessions"]) + "\n" + strip(s["tool_audit"]) + "\n" + strip(s["tool_config"]) + "\n" + strip(s["tool_backups"]) + "\n" + strip(s["tool_accounts"]) + "\n" + strip(s["tool_remote"]) + "\n" + strip(s["tool_files"]) + "\n" + strip(s["tool_voc"]) + "".join("\n" + strip(s["tool_" + a]) for a in ("dict", "query", "bulk", "catalog", "test", "home")) + "\n" + strip(s["mymenu"])))
     if "'tool.menus.tile.' : tids<si - 2>" in tm:
         asked |= {"tool.menus.tile." + t for t in tile_ids}
     ck("P13 every key a page asks for has a shipped record (%d keys)" % len(asked), len(asked) >= 13 and not (asked - set(hts)), repr(sorted(asked - set(hts))))
@@ -183,9 +189,7 @@ def checks(s):
     ck("P16 ...F1 and ? show the help of the selected row (the key by pane and row), and a left press on a [?] selects its row, then shows it; the loop variable of the click is not the drawing routines'",
        "case nm = 'f1' or nm = '?'" in tm and "call $tk_help('box', hk, hm, 0, 0)" in tm and "call $tk_help('hit', mev, mk.mx, mnu.y + hr, hit.now)" in tm and "for hr = 1 to nmenu" in tm
        and "call $tk_help('hit', mev, mk.dx, mk.dy, hit.default)" in tm and "call $tk_help('hit', mev, mk.acx, mk.acy, hit.accounts)" in tm and "hk = 'tool.menus.tile.' : tids<si - 2>" in tm)
-    ck("P17 tool.viewers: a [?] on each box, F1 and ? and a click show their help, and the page runs only set.viewer",
-       "call $tk_help('mark', a.x + a.w - 5, a.y + 1, 0, 0)" in tv and "call $tk_help('mark', f.x + f.w - 5, f.y + 1, 0, 0)" in tv and "case nm = 'f1' or nm = '?'" in tv and "call $tk_help('hit', mev, a.x + a.w - 5, a.y + 1, hit.allowed)" in tv
-       and "call $tk_help('hit', mev, f.x + f.w - 5, f.y + 1, hit.found)" in tv and "allow = 'set.viewer'" in tv and "tool.viewers.allowed" in tv and "tool.viewers.found" in tv)
+    # P17 (tool.viewers) went with the page on 9 Nov 26 (S.187: the pdf verb and the Bypass programs page are removed).
 
     tg = strip(s["tool_gates"])
     ck("P17b tool.gates: a [?] at the end of the matrix box, F1 and ? and a click show its help, and the page runs only modify.account",
@@ -266,18 +270,18 @@ def checks(s):
        and "tool.menus.mine" in hts and "$tk_run" not in tmy and tmy.count("execute") == 1, "")
 
     # one wrapping loop
-    ck("P18 the wrapping loop is $tk_wrap and nowhere else: $tk_confirm, tool.menus and tool.viewers call it and none has the loop (a SCREEN TEXT longer than its width is cut, not wrapped)",
-       "rest[cut, 1] # ' '" in tw and "call $tk_wrap(sentence, wrapw, pieces)" in tc and "call $tk_wrap(lines<wi>, ww, pieces)" in tm and "call $tk_wrap(lines<wi>, m.tw, pieces)" in tv
-       and "rest[cut" not in tc and "rest[cut" not in tm and "rest[cut" not in tv and "wl[wp" not in tm)
+    ck("P18 the wrapping loop is $tk_wrap and nowhere else: $tk_confirm and tool.menus call it and neither has the loop (a SCREEN TEXT longer than its width is cut, not wrapped)",
+       "rest[cut, 1] # ' '" in tw and "call $tk_wrap(sentence, wrapw, pieces)" in tc and "call $tk_wrap(lines<wi>, ww, pieces)" in tm
+       and "rest[cut" not in tc and "rest[cut" not in tm and "wl[wp" not in tm)
     ck("P18b $tk_confirm wraps the lines of the explanation like the sentence, an empty line stays empty, and does not append them raw (the box CUTS a long line at its edge: the tail of the ai gate's 150-character sentence never showed, 24 Oct 26)",
        "call $tk_wrap(lines<li>, wrapw, pieces)" in tc and "for li = 1 to dcount(lines, @fm)" in tc and "if lines<li> = '' then" in tc and "body := @fm : lines" not in tc)
 
-    every =th + "\n" + lh + "\n" + tm + "\n" + tv + "\n" + tw + "\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tau + "\n" + tcf + "\n" + tbk + "\n" + tac + "\n" + trm + "\n" + tfl + "\n" + tvc + "\n" + tdi + "\n" + tqy + "\n" + tbl + "\n" + tcg + "\n" + tts + "\n" + tmy
-    want ={"$tk_help": (5,), "$tk_wrap": (3,), "!viewlist": (4,), "$tk_run": (5,), "$tk_confirm": (5, 6, 7)}       # $tk_confirm is VAR.ARGS since 26 Oct 26 (faults): a sixth argument, the title, may be left out; a seventh, the buttons, since 2 Nov 26 (S.88 P10)
+    every =th + "\n" + lh + "\n" + tm + "\n" + tw +"\n" + tc + "\n" + tg + "\n" + tmg + "\n" + tsn + "\n" + tau + "\n" + tcf + "\n" + tbk + "\n" + tac + "\n" + trm + "\n" + tfl + "\n" + tvc + "\n" + tdi + "\n" + tqy + "\n" + tbl + "\n" + tcg + "\n" + tts + "\n" + tmy
+    want ={"$tk_help": (5,), "$tk_wrap": (3,), "$tk_run": (5,), "$tk_confirm": (5, 6, 7)}       # $tk_confirm is VAR.ARGS since 26 Oct 26 (faults): a sixth argument, the title, may be left out; a seventh, the buttons, since 2 Nov 26 (S.88 P10)
     wrong = {k: [n for n in arg_counts(every, k) if n not in v] for k, v in want.items()}
     seen = {k: len(arg_counts(every, k)) for k in want}
-    ck("P20 every call of $tk_help (5 arguments), $tk_wrap (3), !viewlist (4), $tk_run (5) and $tk_confirm (5, 6 with a title, 7 with buttons) has the number of arguments the subroutine takes (the null case: each is called at least once)",
-       not any(wrong.values()) and seen["$tk_help"] >= 12 and seen["$tk_wrap"] >= 3 and seen["!viewlist"] >= 3 and seen["$tk_run"] >= 2 and seen["$tk_confirm"] >= 2, repr((wrong, seen)))
+    ck("P20 every call of $tk_help (5 arguments), $tk_wrap (3), $tk_run (5) and $tk_confirm (5, 6 with a title, 7 with buttons) has the number of arguments the subroutine takes (the null case: each is called at least once)",
+       not any(wrong.values()) and seen["$tk_help"] >= 12 and seen["$tk_wrap"] >= 3 and seen["$tk_run"] >= 2 and seen["$tk_confirm"] >= 2, repr((wrong, seen)))
 
     m = s["msgs"]
     ck("P19 messages 11830 to 11832 and 11835 to 11841 exist, each one line, none with a capital command word",
@@ -298,9 +302,11 @@ MUTANTS = [
     ("tk_help opens another file than the one found", "tk_help", "openpath ans<1> to hf then", "openpath 'context.help' to hf then"),
     ("tk_help writes", "tk_help", "            read rec from hf, k else rec = ''\n", "            read rec from hf, k else rec = ''\n            write rec to hf, k\n"),
     ("tk_help takes the document name as it is", "tk_help", "doc = downcase(trim(rec<2>))", "doc = rec<2>"),
-    ("the Documentation button is the default", "tk_help", "      btn = '&Documentation,&Close'\n      dflt = 2", "      btn = '&Documentation,&Close'\n      dflt = 1"),
-    ("the box runs a command of the record", "tk_help", "call $tk_run('pdf', 'pdf ' : doc, out, st, err)", "call $tk_run('pdf', doc, out, st, err)"),
-    ("the box runs pdf with no button", "tk_help", "if doc # '' and bn = 1 then", "if doc # '' then"),
+    # 9 Nov 26 (S.187): the Documentation button's three mutants became these four
+    ("the box has a Documentation button again", "tk_help", "buttons '&Close' default 1", "buttons '&Documentation,&Close' default 2"),
+    ("the box runs pdf again", "tk_help", "   if doc # '' then body<-1> = '' ; body<-1> = sysmsg(14046, doc)\n", "   if doc # '' then body<-1> = '' ; body<-1> = sysmsg(14046, doc)\n   if doc # '' then call $tk_run('pdf', 'pdf ' : doc, out, st, err)\n"),
+    ("the box names a PDF when the record names none", "tk_help", "if doc # '' then body<-1> = '' ; body<-1> = sysmsg(14046, doc)", "body<-1> = '' ; body<-1> = sysmsg(14046, doc)"),
+    ("the box does not name the PDF", "tk_help", "if doc # '' then body<-1> = '' ; body<-1> = sysmsg(14046, doc)", "null"),
     ("a click anywhere on the row counts", "tk_help", "a<4> = c and a<3> >= b and a<3> <= b + 2", "a<4> = c"),
     ("a release counts as a press", "tk_help", "if a<1> = 'press' and a<2> = 1 and", "if a<2> = 1 and"),
     ("a session with no terminal is shown a box", "tk_help", "   if system(25) then return\n   gosub lookup", "   gosub lookup"),
@@ -316,10 +322,9 @@ MUTANTS = [
     ("LOAD.HELP deletes the administrator's records", "loadhelp", "      locate rid in shipped<1> setting p else n.kept += 1", "      locate rid in shipped<1> setting p else delete hf, rid"),
     ("tool.menus loses a [?] on the Menu rows", "tool_menus", "      call $tk_help('mark', mk.mx, mnu.y + r, 0, 0)", "      null"),
     ("tool.menus calls $tk_help with too few arguments (a runtime stop in SD BASIC)", "tool_menus", "call $tk_help('mark', mk.dx, mk.dy, 0, 0)", "call $tk_help('mark', mk.dx, mk.dy)"),
-    ("tool.viewers calls $tk_help with too few arguments", "tool_viewers", "hm, 0, 0)", "hm)"),
     ("F1 lists F2 and Shift-F10 on a page with no bar", "tk_help", "      if bm # '' then\n", "      if 1 then\n"),
     ("F1 leaves out the context menu's key", "tk_help", "         kb<-1> = '  ' : sysmsg(14003)[1, wrapw - 2]\n", ""),
-    ("tool.viewers calls $tk_wrap with too many arguments", "tool_viewers", "call $tk_wrap(lines<wi>, m.tw, pieces)", "call $tk_wrap(lines<wi>, m.tw, pieces, 0)"),
+    ("tool.menus calls $tk_wrap with too many arguments", "tool_menus", "call $tk_wrap(lines<wi>, ww, pieces)", "call $tk_wrap(lines<wi>, ww, pieces, 0)"),
     ("tool.menus loses F1", "tool_menus", "      case nm = 'f1' or nm = '?'\n         gosub help.here\n", ""),
     ("tool.menus loses the click", "tool_menus", "call $tk_help('hit', mev, mk.mx, mnu.y + hr, hit.now)", "hit.now = 0"),
     ("tool.menus uses the drawing loop variable for the click", "tool_menus", "for hr = 1 to nmenu", "for r = 1 to nmenu"),
@@ -330,8 +335,6 @@ MUTANTS = [
     ("$tk_confirm appends the explanation lines unwrapped again", "tk_confirm", "            call $tk_wrap(lines<li>, wrapw, pieces)\n            for p = 1 to dcount(pieces, @fm)\n               body<-1> = pieces<p>\n            next p", "            body<-1> = lines<li>"),
     ("$tk_confirm wraps the explanation at a width the box cuts", "tk_confirm", "call $tk_wrap(lines<li>, wrapw, pieces)", "call $tk_wrap(lines<li>, 200, pieces)"),
     ("$tk_wrap cuts a word at the wrong place", "tk_wrap", "rest[cut, 1] # ' '", "rest[cut, 1] # 'x'"),
-    ("tool.viewers can run another command", "tool_viewers", "allow = 'set.viewer'", "allow = 'set.viewer sh'"),
-    ("tool.viewers loses a [?]", "tool_viewers", "   call $tk_help('mark', a.x + a.w - 5, a.y + 1, 0, 0)\n", ""),
     ("tool.gates loses its [?]", "tool_gates", "   call $tk_help('mark', mat.x + mat.w - 5, mat.y + 1, 0, 0)\n", ""),
     ("tool.audit loses its [?]", "tool_audit", "   call $tk_help('mark', top.x + top.w - 5, top.y + 1, 0, 0)\n", ""),
     ("tool.audit calls $tk_help with too few arguments", "tool_audit", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.audit.page', hm, 0, 0)", "      case nm = 'f1' or nm = '?'\n         call $tk_help('box', 'tool.audit.page', hm)"),

@@ -20,6 +20,7 @@
 # a length) and never holds the text; the request that can be built is an ask and nothing else; the kernel opens a Unix socket and nothing else; a request has a deadline and a
 # size limit and is always closed; the ai verb gives an earlier request up, asks the helper for its status, tests the gate, the model and the key, SHOWS the text, asks, and only
 # then starts the request, with the fixed sentence and the person's text and nothing of the account; it only displays the answer; the VOC entries and messages 11623-11634.
+# 9 Nov 26 (S.187): two mutants named $setviewer and $tool_viewers as "another program"; those programs went with the pdf verb, so they name $setstart and $tool_audit.
 # (3 Nov 26, group C) a follow-up's earlier exchanges in K$AI.START: counted, bounded at 3, cut off before the prompt, escaped, and named in the audit line by count (mutants from M_E).
 # GROUP D, the AI choice page (tool.ai): administrator first; it runs only set.ai (through $tk_runx) and modify.account (through $tk_run), every command shown in the confirm box
 # before it runs; the names typed (the provider, the account for a gate ON, custom, ca); every word checked against set.ai's own list before a sentence is built, and that list is
@@ -480,7 +481,7 @@ GROUP_B_MUTANTS = [
     ("setai", "the key is captured by SD", "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' 2>&1\"", "os.execute \"'\" : ctl : \"' 'key' '\" : prov : \"' 2>&1\" capturing keyout"),
     ("setai", "the whole URL goes to the audit trail", "' host=' : chost)", "' host=' : curl)"),
     ("setai", "the client is looked for in the SD system directory", "if ctl = '' then ctl = '/usr/local/lib/sd-ai/sd-ai-ctl'", "if ctl = '' then ctl = @sdsys : @ds : 'bin' : @ds : 'sd-ai-ctl'"),
-    ("voc_template", "set.ai is a different program", "$setai", "$setviewer"),
+    ("voc_template", "set.ai is a different program", "$setai", "$setstart"),            # 9 Nov 26 (S.187): was $setviewer, removed with the pdf verb
 ]
 M_C = len(GROUP_A_MUTANTS) + len(GROUP_B_MUTANTS)         # the first mutant of group C (23 Oct 26): --from=M_C runs only these
 GROUP_C_MUTANTS = [
@@ -521,7 +522,7 @@ GROUP_D_MUTANTS = [
     ("tool_ai", "the page starts a request", "   reply = kernel(K$AI.STATUS, 0)\n   if reply<1> = 'D' then", "   void kernel(K$AI.START, 'x')\n   reply = kernel(K$AI.STATUS, 0)\n   if reply<1> = 'D' then"),
     ("tool_ai", "the key is shown in the dialog's message", "      su.say = 'The key was not set: ' : hk.err\n", "      su.say = 'The key was not set: ' : hk.err : kv\n"),
     ("tool_ai", "an account that is not a person is listed", "if gerr = '' and ainfo<1> = 'USER' then", "if gerr = '' then"),
-    ("voc_tool_ai", "tool.ai is another program", "$tool_ai", "$tool_viewers"),
+    ("voc_tool_ai", "tool.ai is another program", "$tool_ai", "$tool_audit"),          # 9 Nov 26 (S.187): was $tool_viewers, removed with the pdf verb
     ("tk_gate_info", "the ai gate is on as delivered", "|ai-on|ai-off|group||sdaiusers||at the next request|off|AI|", "|ai-on|ai-off|group||sdaiusers||at the next request|on|AI|"),
     ("tk_gate_info", "the ai gate is another group", "|group||sdaiusers||at the next request|off|AI|", "|group||sdusers||at the next request|off|AI|"),
     ("h_acc", "the help record points at another page", "20-the-ai-helper", "01-accounts-and-security"),

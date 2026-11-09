@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # test-openseq-else-units.py - an OPENSEQ that takes ELSE keeps the name locked until the file variable is closed (26 Oct 2026; found on the VM in home_entry, where the first
 # session at the home screen kept an update lock on the ABSENT start.default for as long as it lived and the next session waited at sign-on).  A program that lives as long as a page
-# or an editor is open must close the variable in the ELSE branch.  home_entry, setstart, tool_menus, viewlist and osread are held by test-home-units.py (H28a); this holds the long-lived
+# or an editor is open must close the variable in the ELSE branch.  home_entry, setstart, tool_menus and osread are held by test-home-units.py (H28a; viewlist went with the pdf verb, 9 Nov 26, S.187); this holds the long-lived
 # programs the audit of the same day added: the configuration page (two reads), the catalogue page (the object a pointer leads to) and SED's open of a file by path.
 # Left alone on purpose: apisrvr - NOT a defect there (measured 26 Oct, S.83): op_openseq takes the ELSE clause for an item that is not there with STATUS() = 0 and a live file variable that
 # holds the lock, vb.openseq treats that as an open file (os.st = 0), and the client's close releases it; sandbox-qmclient.py row P9b holds it - and the short programs that end at once (acc_archive, acc_os_bakdir, netcred, netdefs, locktracer, importdata, ...), whose variable goes with them.

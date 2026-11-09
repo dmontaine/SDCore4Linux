@@ -558,7 +558,8 @@ def sec_admin():
     h.typed("s", idle=4.0)
     rq = requests()
     prompt = rq[-1][2]["messages"][-1]["content"] if len(rq) > n0 else ""
-    arow("L16b", "its list has the administrator's tiles (Menu management, Bypass programs) and says the person is the administrator", "  menus:Menu management" in prompt and "  viewers:Bypass programs" in prompt
+    # 9 Nov 26 (S.187): the second tile named was Bypass programs (viewers), removed with the pdf verb; it is Audit trail now
+    arow("L16b", "its list has the administrator's tiles (Menu management, Audit trail) and says the person is the administrator", "  menus:Menu management" in prompt and "  audit:Audit trail" in prompt
          and "the administrator." in prompt, repr(prompt[:500]))
     h.key("enter", idle=1.5)
     h.key("ctrl-q", idle=1.5)

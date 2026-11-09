@@ -11,6 +11,8 @@ when the page opted it in, a proposal is carried out only by the page's own key,
 compiles.
 
 --selftest breaks each invariant in the way an edit plausibly would and requires a check to notice; a mutant that nothing catches is a failure of the self-test.
+
+9 Nov 26 (S.187): tool.viewers (page "q") was removed with the pdf verb (owner: pdf only works at the machine's own display); its row and file are gone (it had no mutant).
 """
 
 import os
@@ -42,7 +44,6 @@ FILES = {
     "gates": os.path.join(GPL, "tool_gates"),
     "remote": os.path.join(GPL, "tool_remote"),
     "sessions": os.path.join(GPL, "tool_sessions"),
-    "viewers": os.path.join(GPL, "tool_viewers"),
     "aipg": os.path.join(GPL, "tool_ai"),
     "menus": os.path.join(GPL, "tool_menus"),
     "mymenu": os.path.join(GPL, "mymenu"),
@@ -149,7 +150,7 @@ def checks(raw):
              ("m", strip_bas(raw["gates"]), "'Gates'", ["filter", "refresh"], "tool.gates", 1, 0, "declare.layout"),
              ("o", strip_bas(raw["remote"]), "panes<view>", ["doors", "routes", "servers", "connected", "tls", "login", "refresh"], "tool.remote", 0, 0, "lay.declare"),
              ("p", strip_bas(raw["sessions"]), "panes<pane>", ["switch", "output", "refresh"], "tool.sessions", 1, 0, "declare.layout"),
-             ("q", strip_bas(raw["viewers"]), "pnames<pane>", ["pane", "output", "refresh"], "tool.viewers", 0, 0, "declare.layout"),
+             # "q" was tool.viewers, removed with the pdf verb (9 Nov 26, S.187); its letter is not reused
              ("r", strip_bas(raw["aipg"]), "pnames<pane>", ["pane", "refresh"], "tool.ai", 0, 0, "lay.declare"),
              ("s", strip_bas(raw["menus"]), "pnames<pane>", ["pane", "refresh"], "tool.menus", 0, 0, "lay.declare"),
              ("t", strip_bas(raw["mymenu"]), "'My programs'", [], "my.menu", 0, 0, "declare.layout"))

@@ -33,6 +33,8 @@ START-HISTORY:
               moves a row" mutant changes the page's source before L2, which M2 compares with (it changed the working copy, which has no literal boxes since
               L2, and raised a KeyError on every self-test).
 2 Nov 26 dm   S.88 U4: mymenu's one pane (list, 1,34, stretching) in DECLS, compared by M2 with the pre-L2 box.
+9 Nov 26 (S.187): tool_viewers (the Bypass programs page) left DECLS with the pdf verb (owner: pdf only works at the machine's own display); 20 declarations remain,
+              M2's floor.  The model mutant's note names tool.menus alone as the page that leaves rows empty.
 END-HISTORY
 """
 
@@ -294,8 +296,7 @@ DECLS = {
                   [0, 1, 2, 6, 3, 4, 5]),
     "tool_menus": ([P("menus", 1, 30, w=70, col=1, v=True), P("hint", 1, 5, w=70, col=1), P("keys", 1, 3, w=70, col=1),
                     P("items", 1, 21, w=67, col=2, gap=1, v=True), P("detail", 1, 17, w=67, col=2, gap=1)], [0, 3, 4, 1, 2]),
-    "tool_viewers": ([P("list", 1, 14, w=70, col=1), P("detail", 1, 14, w=67, col=2, gap=1), P("body", 2, 17, v=True), P("foot", 3, 5)], None),
-}
+}                                                                    # 9 Nov 26 (S.187): tool_viewers' declaration went with the page (the pdf verb is removed)
 
 
 def page_boxes(src):
@@ -659,7 +660,7 @@ def page(name, old, new):
 
 
 MUTANTS = [
-    ("the model grows from what the panes need, not from the reference (tool.menus and tool.viewers leave rows empty at 140 by 43)", "M2", model(growth_from_reference=False)),
+    ("the model grows from what the panes need, not from the reference (tool.menus leaves rows empty at 140 by 43)", "M2", model(growth_from_reference=False)),
     ("the model's body starts on row 2", "M0", model(ybody=2)),
     ("the model's minimum is 140 by 42", "M0", model(minh=42)),
     ("the model collapses the first of equals", "M8", model(collapse_last_of_equals=False)),

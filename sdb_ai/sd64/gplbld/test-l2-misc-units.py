@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""test-l2-misc-units.py - six toolkit pages on the layout service (S.88 stage L2): TOOL.VIEWERS, the holder's TOOL.GATES ($tool_mygates), TOOL.KEYS, TOOL.VOC, TOOL.DICT and the throw-away TKTEST,
+"""test-l2-misc-units.py - five toolkit pages on the layout service (S.88 stage L2): the holder's TOOL.GATES ($tool_mygates), TOOL.KEYS, TOOL.VOC, TOOL.DICT and the throw-away TKTEST,
 and stage C for TOOL.VOC and TOOL.DICT (E hands the record to the IDE).  Free: no install, no sudo, no sd.
 
     python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-l2-misc-units.py [--selftest]
@@ -9,7 +9,7 @@ test-tklayout-units.py (a copy of $tk_layout's equations; that file is shared an
 THAT A PAGE IS DRAWN IN A BIGGER WINDOW***: that is `sandbox-l2-misc.py`, which opens each page on a pseudo-terminal at 140 by 43, grows it to 180 by 55 while it runs and starts it at 200 by 60, and
 reads the boxes off the screen against this file's rectangles.  What a text check is for:
 
-  L2-0  NULL CASE: the model loaded, the five declaring pages were found with the panes the tables here expect (4, 3, 7, 2, 2), and the tables know every page.
+  L2-0  NULL CASE: the model loaded, the four declaring pages were found with the panes the tables here expect (3, 7, 2, 2), and the tables know every page.
   L2-1  every declaration is accepted by the model's version of $tk_layout 'declare' (ids, bands, columns, sizes, the reference body 138 by 39).
   L2-2  AT 140 BY 43 THE DECLARATION GIVES EXACTLY THE BOXES THE PAGE DREW BEFORE L2 (REF below: the literal `screen box at x,y size w,h` of each page at the commit before L2), in the order declared, every pane
         shown, mode full, the declared sizes being those boxes.  L2-2b: while the committed page still holds the literal boxes, every box of REF is one of them.
@@ -31,6 +31,10 @@ reads the boxes off the screen against this file's rectangles.  What a text chec
 
 START-HISTORY:
 28 Oct 26 dm  New (S.88 L2, TOOL.VIEWERS, TOOL.GATES for the holder, TOOL.KEYS, TOOL.VOC, TOOL.DICT, TKTEST; stage C for TOOL.VOC and TOOL.DICT).
+9 Nov 26 (S.187): TOOL.VIEWERS (the Bypass programs page) was REMOVED from Core with the pdf verb (owner, 9 Nov 2026: pdf only works at the machine's own display), so tool_viewers is gone
+              from every table (REF, RECTVARS, CONSTS, TIED, SPARE, WORKED, EXPRS, MARKS, the $tk_open and resize lists) and its eleven mutants with it.  L2-8's mutant now declares a floor
+              on TOOL.KEYS.  The model mutant ("grows from what the panes need") was DROPPED: only the viewers left rows empty (SPARE 3), so on the four pages left the two growth rules
+              give the same boxes and no check can tell them apart; L2-2 keeps its page mutants.  L2-4b keeps its worked values for the four pages and its TOOL.GATES mutant.
 END-HISTORY
 """
 
@@ -44,13 +48,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 HELP = os.path.join(SDSYS, "helptext")
-PAGE_NAMES = ["tool_viewers", "tool_mygates", "tool_keys", "tool_voc", "tool_dict"]
+PAGE_NAMES = ["tool_mygates","tool_keys", "tool_voc", "tool_dict"]
 SIZES = [(150, 45), (180, 55), (200, 60), (233, 71), (500, 300)]
 RTW = 134                                     # the text width of a pane in the reference layout (140 by 43): 138 less 4
 
 # The boxes each page drew at 140 by 43 before L2 (x, y, w, h), in the order the page declares its panes, with the title the box carries.
 REF = {
-    "tool_viewers": [("allowed", "Allowed for pdf", (1, 1, 70, 14)), ("found", "Found on this machine", (72, 1, 67, 14)), ("means", "What this means", (1, 15, 138, 17)), ("help", "Help", (1, 32, 138, 5))],
     "tool_mygates": [("gates", "What this account may do", (1, 1, 138, 22)), ("cell", "The row under the cursor", (1, 23, 138, 11)), ("note", "Where this comes from", (1, 34, 138, 6))],
     "tool_keys": [("terminal", "Terminal", (1, 1, 45, 12)), ("lastkeys", "Last keys", (1, 13, 45, 27)), ("seen", "Keys seen", (47, 1, 46, 17)), ("styles", "Styles", (47, 18, 46, 22)),
                   ("mouse", "Mouse", (94, 1, 45, 10)), ("boxes", "Box drawing", (94, 11, 45, 14)), ("help", "Help", (94, 25, 45, 15))],
@@ -59,7 +62,6 @@ REF = {
 }
 # The variables a page names a pane's rectangle with: (x, y, w, h), as get.rects writes them
 RECTVARS = {
-    "tool_viewers": {"allowed": ("a.x", "a.y", "a.w", "a.h"), "found": ("f.x", "f.y", "f.w", "f.h"), "means": ("m.x", "m.y", "m.w", "m.h"), "help": ("h.x", "h.y", "h.w", "h.h")},
     "tool_mygates": {"gates": ("g.x", "g.y", "g.w", "g.h"), "cell": ("c.x", "c.y", "c.w", "c.h"), "note": ("s.x", "s.y", "s.w", "s.h")},
     "tool_keys": {"terminal": ("t.x", "t.y", "t.w", "t.h"), "lastkeys": ("k.x", "k.y", "k.w", "k.h"), "seen": ("s.x", "s.y", "s.w", "s.h"), "styles": ("st.x", "st.y", "st.w", "st.h"),
                   "mouse": ("mo.x", "mo.y", "mo.w", "mo.h"), "boxes": ("bx.x", "bx.y", "bx.w", "bx.h"), "help": ("hp.x", "hp.y", "hp.w", "hp.h")},
@@ -68,7 +70,6 @@ RECTVARS = {
 }
 # What the page derives from its rectangles, at 140 by 43, as the literal it used before: (name as the evaluator spells it, value)
 CONSTS = {
-    "tool_viewers": [("VIS", 10), ("m_tw", 134), ("h_tw", 134)],
     "tool_mygates": [("VIS", 17), ("g_tw", 134), ("c_tw", 134), ("s_tw", 134)],
     "tool_keys": [("LOGN", 25), ("t_tw", 41), ("k_tw", 41), ("st_tw", 42), ("mo_tw", 41), ("hp_tw", 41)],
     "tool_voc": [("VIS", 16), ("tw", 134), ("pcol", 58)],
@@ -76,17 +77,15 @@ CONSTS = {
 }
 # The names that follow a box: the rows or the width of text tied to the height or the width of a pane (it grows by what the pane grew by)
 TIED = {
-    "tool_viewers": {"VIS": ("allowed", "h"), "m_tw": ("means", "w"), "h_tw": ("help", "w")},
     "tool_mygates": {"VIS": ("gates", "h"), "g_tw": ("gates", "w"), "c_tw": ("cell", "w"), "s_tw": ("note", "w")},
     "tool_keys": {"LOGN": ("lastkeys", "h"), "t_tw": ("terminal", "w"), "k_tw": ("lastkeys", "w"), "st_tw": ("styles", "w"), "mo_tw": ("mouse", "w"), "hp_tw": ("help", "w")},
     "tool_voc": {"VIS": ("list", "h"), "tw": ("list", "w"), "pcol": ("list", "w")},
     "tool_dict": {"VIS": ("list", "h"), "tw": ("list", "w")},
 }
 # Rows the page has always left empty at the foot of the body at 140 by 43 (they stay empty at every size)
-SPARE = {"tool_viewers": 3, "tool_mygates": 0, "tool_keys": 0, "tool_voc": 0, "tool_dict": 0}
+SPARE = {"tool_mygates": 0, "tool_keys": 0, "tool_voc": 0, "tool_dict": 0}
 # Worked values at 180 by 55 (body 178 by 51: 40 columns and 12 rows more than the reference): the declared weights, in rectangles
 WORKED = {
-    "tool_viewers": [(1, 1, 90, 20), (92, 1, 87, 20), (1, 21, 178, 23), (1, 44, 178, 5)],
     "tool_mygates": [(1, 1, 178, 34), (1, 35, 178, 11), (1, 46, 178, 6)],
     "tool_keys": [(1, 1, 59, 12), (1, 13, 59, 39), (61, 1, 59, 17), (61, 18, 59, 34), (121, 1, 58, 10), (121, 11, 58, 14), (121, 25, 58, 27)],
     "tool_voc": [(1, 1, 178, 34), (1, 35, 178, 17)],
@@ -101,12 +100,6 @@ def X(expr, pane, axis, want, var=None, lo=1, hi=None, span=0):
 
 
 EXPRS = {
-    "tool_viewers": [X("a.x + 2", "allowed", "x", 3), X("a.y + 1", "allowed", "y", 2), X("a.y + 1 + r", "allowed", "y", 3, "r", 1, "VIS"), X("a.y + 3", "allowed", "y", 4),
-                     X("a.x + a.w - 5", "allowed", "x", 66), X("a.x + 1", "allowed", "x", 2), X("a.x + a.w - 2", "allowed", "x", 69), X("a.y + 2", "allowed", "y", 3), X("a.y + 1 + VIS", "allowed", "y", 12),
-                     X("f.x + 2", "found", "x", 74), X("f.y + 1", "found", "y", 2), X("f.y + 1 + r", "found", "y", 3, "r", 1, "VIS"), X("f.y + 3", "found", "y", 4),
-                     X("f.x + f.w - 5", "found", "x", 134), X("f.x + 1", "found", "x", 73), X("f.x + f.w - 2", "found", "x", 137), X("f.y + 2", "found", "y", 3), X("f.y + 1 + VIS", "found", "y", 12),
-                     X("m.x + 2", "means", "x", 3), X("m.y + 1 + r", "means", "y", 17, "r", 1, "m.h - 3"),
-                     X("h.x + 2", "help", "x", 3), X("h.y + 1", "help", "y", 33), X("h.y + 2", "help", "y", 34), X("h.y + 3", "help", "y", 35)],
     "tool_mygates": [X("g.x + 2", "gates", "x", 3), X("g.y + 1", "gates", "y", 2), X("g.y + 1 + r", "gates", "y", 3, "r", 1, "VIS"), X("g.y + g.h - 3", "gates", "y", 20),
                      X("g.y + g.h - 2", "gates", "y", 21), X("g.x + g.w - 5", "gates", "x", 134), X("g.y + 2", "gates", "y", 3), X("g.y + 1 + VIS", "gates", "y", 19), X("g.x + g.w - 3", "gates", "x", 136),
                      X("c.x + 2", "cell", "x", 3), X("c.y + r", "cell", "y", 24, "r", 1, "c.h - 2"), X("s.x + 2", "note", "x", 3), X("s.y + r", "note", "y", 35, "r", 1, "s.h - 2")],
@@ -270,7 +263,7 @@ def pane_of(n, pid):
 
 
 # The panes that carry the [?] button (the help page of the box), in the order the page draws and tests them; at 140 by 43 the button is at the column and row it always was
-MARKS = {"tool_viewers": [("allowed", 66, 2), ("found", 134, 2)], "tool_mygates": [("gates", 134, 2)], "tool_keys": [], "tool_voc": [("list", 134, 2)], "tool_dict": [("list", 134, 2)]}
+MARKS = {"tool_mygates": [("gates", 134, 2)], "tool_keys": [], "tool_voc": [("list", 134, 2)], "tool_dict": [("list", 134, 2)]}
 
 
 def marks_bad(n, code, ids, rects, env, at140):
@@ -307,9 +300,9 @@ def checks(raw, model=None, head=True):
     sq = {n: squeeze(code[n]) for n in code}
     decl = {n: parse_decl(code[n]) for n in PAGE_NAMES}
 
-    ck("L2-0", "NULL CASE: the model of $tk_layout loaded, the five declaring pages and TKTEST were found, each declaration has the panes the tables expect (4, 3, 7, 2, 2) and the tables know every page",
+    ck("L2-0", "NULL CASE: the model of $tk_layout loaded, the four declaring pages and TKTEST were found, each declaration has the panes the tables expect (3, 7, 2, 2) and the tables know every page",
        hasattr(T, "Model") and all(len(raw[n]) > 6000 for n in PAGE_NAMES) and len(raw["tool_tktest"]) > 6000 and len(raw["ide"]) > 20000
-       and all(decl[n] and len(decl[n]) == len(REF[n]) for n in PAGE_NAMES) and [len(REF[n]) for n in PAGE_NAMES] == [4, 3, 7, 2, 2]
+       and all(decl[n] and len(decl[n]) == len(REF[n]) for n in PAGE_NAMES) and [len(REF[n]) for n in PAGE_NAMES] == [3, 7, 2, 2]
        and all(set(RECTVARS[n]) == {r[0] for r in REF[n]} for n in PAGE_NAMES) and all(n in EXPRS and n in CONSTS and n in TIED and n in WORKED and n in SPARE for n in PAGE_NAMES),
        " ".join("%s:%s" % (n, len(decl[n]) if decl[n] else None) for n in PAGE_NAMES))
     if not all(decl[n] for n in PAGE_NAMES):
@@ -453,7 +446,7 @@ def checks(raw, model=None, head=True):
         got = [tuple(r[:4]) for r in rects]
         if got != WORKED[n]:
             bad.append("%s: %r, wanted %r" % (n, got, WORKED[n]))
-    ck("L2-4b", "worked values at 180 by 55 (40 columns, 12 rows more): the viewers' two lists and explanation share the rows and the lists the columns, the holder's gates take the rows in the list, the keys page "
+    ck("L2-4b", "worked values at 180 by 55 (40 columns, 12 rows more): the holder's gates take the rows in the list, the keys page "
        "gives each of its columns a third of the columns and its three tall boxes the rows, the VOC and dictionary lists take the rows", not bad, "; ".join(bad)[:900])
 
     bad = []
@@ -475,11 +468,11 @@ def checks(raw, model=None, head=True):
        "(the keys page cleared nothing: a resize left the old boxes where they were)", not bad, "; ".join(bad)[:700])
 
     bad = []
-    pre = {"tool_viewers": "call $tk_open('tool.viewers', 'admin', ctx, err)", "tool_mygates": "call $tk_open('tool.gates', '', ctx, err)", "tool_keys": "call $tk_open('tool.keys', '', ctx, err)",
+    pre = {"tool_mygates": "call $tk_open('tool.gates', '', ctx, err)", "tool_keys": "call $tk_open('tool.keys', '', ctx, err)",
            "tool_voc": "call $tk_open('tool.voc', '', ctx, err)", "tool_dict": "call $tk_open('tool.dict', '', ctx, err)"}
     for n in PAGE_NAMES:
         c = sq[n]
-        first = {"tool_viewers": "gosub read.all", "tool_mygates": "gosub read.all", "tool_keys": "gosub draw.all", "tool_voc": "gosub read.all", "tool_dict": "gosub read.files"}[n]
+        first = {"tool_mygates": "gosub read.all", "tool_keys": "gosub draw.all", "tool_voc": "gosub read.all", "tool_dict": "gosub read.files"}[n]
         if n == "tool_mygates":
             pass
         p_open = c.find(pre[n])
@@ -490,7 +483,6 @@ def checks(raw, model=None, head=True):
         if c.count("call $tk_layout('declare', ctx, d, perr)") != 1:
             bad.append("%s: declares more or less than once" % n)
     rs = {
-        "tool_viewers": ("case nm = 'resize' call $tk_layout('refresh', ctx, '', chg) gosub get.rects gen += 1 ctx<TK.C.GEN> = gen gosub draw.all", ),
         "tool_mygates": ("case nm = 'resize' call $tk_layout('refresh', ctx, '', chg) gosub get.rects gen += 1 ctx<TK.C.GEN> = gen gosub draw.all", ),
         "tool_keys": ("if nm = 'resize' then call $tk_layout('refresh', ctx, '', chg) gosub get.rects gosub redraw.all", ),
         "tool_voc": ("case nm = 'resize' call $tk_layout('refresh', ctx, '', chg) gosub get.rects if ta > ns - VIS then ta = ns - VIS if ta < 0 then ta = 0 gen += 1 ctx<TK.C.GEN> = gen gosub draw.all", ),
@@ -524,7 +516,7 @@ def checks(raw, model=None, head=True):
             m = re.search(pat, body)
             if m:
                 bad.append("%s: `%s` is left (line %d)" % (n, m.group(0), body[:m.start()].count("\n") + 1))
-    ck("L2-7", "no number that is really the window's is left in the drawing and mouse code of the five pages (no 128, 134, 136, 138 or 139, no `at <number>,`, no `for r = 1 to <number>`, no `ctx<TK.C.H> - 5`, "
+    ck("L2-7", "no number that is really the window's is left in the drawing and mouse code of the four pages (no 128, 134, 136, 138 or 139, no `at <number>,`, no `for r = 1 to <number>`, no `ctx<TK.C.H> - 5`, "
        "no '134L'); the declarations hold the reference sizes and nothing else does", not bad, "; ".join(bad)[:700])
 
     bad = []
@@ -610,19 +602,8 @@ def mk_checks(raw):
 
 
 MUTANTS = [
-    # the model itself: growth counted from what the panes need would give the viewers' three spare rows to the lists at 140 by 43
-    ("the model grows from what the panes need, not from the reference", "L2-2", model(growth_from_reference=False)),
-    # tool_viewers
-    ("viewers: the Allowed box is a row short", "L2-2", sub("tool_viewers", "d<1> = 'allowed' : @vm : 1 : @vm : 1 : @vm : 14 :", "d<1> = 'allowed' : @vm : 1 : @vm : 1 : @vm : 13 :")),
-    ("viewers: the Found box has no gap before it", "L2-2", sub("tool_viewers", "@vm : 67 : @vm : 1 : @vm : 'stretch'", "@vm : 67 : @vm : '' : @vm : 'stretch'")),
-    ("viewers: the explanation no longer stretches", "L2-4b", sub("tool_viewers", "d<3> = 'means' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 : @vm : '' : @vm : 'stretch'", "d<3> = 'means' : @vm : 2 : @vm : 1 : @vm : 17 : @vm : 138 : @vm : '' : @vm : ''")),
-    ("viewers: a row of the list too many", "L2-3", sub("tool_viewers", "VIS = a.h - 4 ", "VIS = a.h - 3 ")),
-    ("viewers: the [?] of Found is a column off", "L2-3", sub("tool_viewers", "call $tk_help('mark', f.x + f.w - 5, f.y + 1, 0, 0)", "call $tk_help('mark', f.x + f.w - 4, f.y + 1, 0, 0)")),
-    ("viewers: the explanation's text width is fixed", "L2-7", sub("tool_viewers", "m.tw = m.w - 4 ", "m.tw = 134 ")),
-    ("viewers: a resize does not ask the layout again", "L2-6", sub("tool_viewers", "            call $tk_layout('refresh', ctx, '', chg)\n            gosub get.rects\n", "            gosub get.rects\n")),
-    ("viewers: the layout is declared after the first read", "L2-6", sub("tool_viewers", "   perr = ''\n   gosub declare.layout\n   gosub read.all\n   gosub draw.all", "   gosub read.all\n   perr = ''\n   gosub declare.layout\n   gosub draw.all")),
-    ("viewers: the screen is not cleared first", "L2-5", sub("tool_viewers", "   screen clear at 0,ctx<TK.C.YBODY> size ctx<TK.C.W>,ctx<TK.C.BODYH>\n", "")),
-    ("viewers: a floor is declared", "L2-8", sub("tool_viewers", "call $tk_open('tool.viewers', 'admin', ctx, err)", "call $tk_open('tool.viewers', 'admin', ctx, err, 100, 30)")),
+    # 9 Nov 26 (S.187): the model mutant and the eleven tool_viewers mutants went with the page (see START-HISTORY); L2-8's mutant is now on tool_keys
+    ("keys: a floor is declared", "L2-8", sub("tool_keys", "call $tk_open('tool.keys', '', ctx, err)", "call $tk_open('tool.keys', '', ctx, err, 100, 30)")),
     # tool_mygates
     ("gates: the matrix box is a row short", "L2-2", sub("tool_mygates", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 22 :", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 21 :")),
     ("gates: no box grows", "L2-4b", sub("tool_mygates", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 :", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' :")),
@@ -635,7 +616,6 @@ MUTANTS = [
     ("keys: Last keys holds a key too many", "L2-3", sub("tool_keys", "LOGN = k.h - 2 ", "LOGN = k.h - 1 ")),
     ("keys: the grid is a column off", "L2-3", sub("tool_keys", "at s.x + 2 + gx * 11,", "at s.x + 3 + gx * 11,")),
     ("keys: a sample box is a column off", "L2-3", sub("tool_keys", "screen box at bx.x + 24,bx.y + 2 size 19,10 title 'x'", "screen box at bx.x + 25,bx.y + 2 size 19,10 title 'x'")),
-    ("viewers: the click on the [?] of Allowed is asked of the Found box", "L2-3", sub("tool_viewers", "call $tk_help('hit', mev, a.x + a.w - 5, a.y + 1, hit.allowed)", "call $tk_help('hit', mev, f.x + f.w - 5, f.y + 1, hit.allowed)")),
     ("voc: the [?] is a row down", "L2-3", sub("tool_voc", "call $tk_help('mark', lx + lw - 5, ly + 1, 0, 0)", "call $tk_help('mark', lx + lw - 5, ly + 2, 0, 0)")),
     ("keys: the screen is not cleared first", "L2-5", sub("tool_keys", "   screen clear at 0,ctx<TK.C.YBODY> size ctx<TK.C.W>,ctx<TK.C.BODYH>\n", "")),
     ("keys: a resize does not ask the layout again", "L2-6", sub("tool_keys", "         call $tk_layout('refresh', ctx, '', chg) ", "         null ")),
@@ -702,8 +682,8 @@ def selftest(raw):
 def main(argv):
     raw = load()
     print("test-l2-misc-units: tree %s" % SDSYS)
-    if not raw["tool_viewers"] or not raw["tool_keys"] or not raw["tool_dict"]:
-        print("test-l2-misc-units: CANNOT RUN - gpl.bp/tool_viewers, tool_keys or tool_dict is not there")
+    if not raw["tool_mygates"] or not raw["tool_keys"] or not raw["tool_dict"]:
+        print("test-l2-misc-units: CANNOT RUN - gpl.bp/tool_mygates, tool_keys or tool_dict is not there")
         return 2
     rows = checks(raw)
     bad = report(rows)

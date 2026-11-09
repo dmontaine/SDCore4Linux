@@ -31,7 +31,9 @@
 #            run, run, apply); Cancel sends nothing
 #   P9x1-x3  (group B and stage 3) the administrator's eleven pages in an administrator's session with the AI on: the line, F6, AI in the bar; the preview offers the page's
 #            navigation and NOT the one action that changes something (delete, export, restore, edit, queue, syncall, ssh, logout, change, key, change); Cancel sends nothing.
-#            my.menu is not here (it needs pins-on); test-aipage-units AP11t/AP12t hold its wiring as text
+#            my.menu is not here (it needs pins-on); test-aipage-units AP11t/AP12t hold its wiring as text.
+#            9 Nov 26 (S.187): tool.viewers left PROGS and ADMIN_MORE with the pdf verb (owner: pdf only works at the machine's own display), so P9 runs ten pages; the rows
+#            after tool.sessions in P9 take the letters one earlier
 # NOT HELD: the IDE hand-over (E on an entry) and the line after it, a window other than 140 by 43, Esc during the wait, a command from the model (none is run: nocmd), a destructive action.
 import importlib.util
 import os
@@ -61,7 +63,7 @@ FAILED_IDS = []
 SCREEN = [None]
 PROGS = ("tk_ai", "tk_aipage", "tk_frame", "tk_keys", "tk_layout", "tool_voc", "tool_files",
          "tool_catalog", "tool_mygates", "tool_dict", "tool_test", "tool_query", "tool_bulk",     # 1 Nov 26: the pages of S.97 stage 2
-         "tool_accounts", "tool_audit", "tool_backups", "tool_config", "tool_gates", "tool_remote", "tool_sessions", "tool_viewers", "tool_ai",
+         "tool_accounts", "tool_audit", "tool_backups", "tool_config", "tool_gates", "tool_remote", "tool_sessions", "tool_ai",
          "tool_menus", "mymenu")                                                                  # group B and stage 3
 
 # 1 Nov 26 (S.97 stage 2): the pages that got the line in stage 2, each with the ids it offers the model and one id it has and must NOT offer (an action that does
@@ -352,7 +354,6 @@ ADMIN_MORE = (("tool.accounts", ["refresh"], "delete"),
               ("tool.gates", ["filter", "refresh"], "queue"),
               ("tool.remote", ["doors", "routes", "refresh"], "ssh"),
               ("tool.sessions", ["switch", "output", "refresh"], "logout"),
-              ("tool.viewers", ["pane", "output", "refresh"], "change"),
               ("tool.ai", ["pane", "refresh"], "key"),
               ("tool.menus", ["pane", "refresh"], "change"))
 

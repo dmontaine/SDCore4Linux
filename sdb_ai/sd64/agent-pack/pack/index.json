@@ -11333,55 +11333,6 @@
 "tier": "reference",
 "words": 12
 },
-"msg:11843": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 12
-},
-"msg:11844": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
-},
-"msg:11845": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 14
-},
-"msg:11846": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 18
-},
-"msg:11847": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 23
-},
-"msg:11848": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 9
-},
-"msg:11849": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 13
-},
 "msg:11850": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -11633,90 +11584,6 @@
 "since": "-",
 "tier": "reference",
 "words": 21
-},
-"msg:11887": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
-},
-"msg:11888": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 20
-},
-"msg:11890": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 18
-},
-"msg:11891": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 10
-},
-"msg:11892": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 11
-},
-"msg:11893": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 15
-},
-"msg:11894": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 15
-},
-"msg:11895": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 9
-},
-"msg:11896": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 14
-},
-"msg:11897": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 17
-},
-"msg:11898": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 14
-},
-"msg:11899": {
-"kind": "message",
-"part": "reference/messages.md",
-"since": "-",
-"tier": "reference",
-"words": 14
 },
 "msg:11900": {
 "kind": "message",
@@ -13222,6 +13089,13 @@
 "since": "-",
 "tier": "reference",
 "words": 13
+},
+"msg:14046": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 18
 },
 "msg:1405": {
 "kind": "message",
@@ -27790,13 +27664,6 @@
 "tier": "reference",
 "words": 33
 },
-"tcl:pdf": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 62
-},
 "tcl:pdump": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -28294,13 +28161,6 @@
 "tier": "reference",
 "words": 35
 },
-"tcl:set.viewer": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "-",
-"tier": "reference",
-"words": 58
-},
 "tcl:setptr": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -28658,13 +28518,6 @@
 "tier": "reference",
 "words": 129
 },
-"tcl:tool.viewers": {
-"kind": "tcl.verb",
-"part": "reference/tcl-verbs.md",
-"since": "next",
-"tier": "reference",
-"words": 47
-},
 "tcl:tool.voc": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
@@ -28992,7 +28845,7 @@
 "part": "reference/voc.md",
 "since": "-",
 "tier": "reference",
-"words": 102
+"words": 100
 },
 "voc:type:F": {
 "kind": "voc.type",

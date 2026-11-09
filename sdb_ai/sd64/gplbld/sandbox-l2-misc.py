@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# sandbox-l2-misc.py - TOOL.VIEWERS, the holder's TOOL.GATES, TOOL.KEYS, TOOL.VOC and TOOL.DICT on the layout service (S.88 stage L2) drawn at 140 by 43, grown to 180 by 55 while they run, and
+# sandbox-l2-misc.py - the holder's TOOL.GATES, TOOL.KEYS, TOOL.VOC and TOOL.DICT on the layout service (S.88 stage L2) drawn at 140 by 43, grown to 180 by 55 while they run, and
 # started at 200 by 60, on a PSEUDO-TERMINAL.  No install, no sudo.
 #
 #   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-l2-misc.py <dir> [--build]
@@ -10,6 +10,7 @@
 #
 # START-HISTORY:
 # 28 Oct 26 dm  New (S.88 L2, TOOL.VIEWERS, TOOL.GATES for the holder, TOOL.KEYS, TOOL.VOC, TOOL.DICT).
+# 9 Nov 26 (S.187): TOOL.VIEWERS (the Bypass programs page) was removed from Core with the pdf verb (owner: pdf only works at the machine's own display); its command, titles and anchors are gone.
 # END-HISTORY
 #
 # THE INSTRUMENT.  Built like sandbox-l2-admin.py.  The expected rectangles are not typed here: they are the declaration each page makes, read out of the page's own `declare.layout` by
@@ -56,9 +57,8 @@ M = l2.load_model().Model()
 CTRL_Q = "\x11"
 
 # What each page is started with: the command typed, and the titles of the boxes on the screen at the start (the page title of TOOL.VOC and TOOL.DICT names the account or the file)
-CMD = {"tool_viewers": "tool.viewers", "tool_mygates": "zzmygates", "tool_keys": "tool.keys", "tool_voc": "tool.voc", "tool_dict": "tool.dict"}
+CMD = {"tool_mygates": "zzmygates", "tool_keys": "tool.keys", "tool_voc": "tool.voc", "tool_dict": "tool.dict"}
 TITLES = {
-    "tool_viewers": ["Allowed for pdf", "Found on this machine", "What this means", "Help"],
     "tool_mygates": ["What this account may do", "The row under the cursor", "Where this comes from"],
     "tool_keys": ["Terminal", "Last keys", "Keys seen", "Styles", "Mouse", "Box drawing", "Help"],
     "tool_voc": ["The VOC of ", "The entry under the cursor"],
@@ -67,9 +67,6 @@ TITLES = {
 # Texts a page places from its rectangles: (pane id, ('t', k) the k-th row from the top of the pane or ('b', k) the k-th from the bottom, dx the columns from the pane's left edge or ('r', k) the
 # k-th from its right edge, a regular expression the text must start with, the (row, column) it was at 140 by 43 before L2).
 ANCH = {
-    "tool_viewers": [("allowed", ("t", 1), 2, r"Program\s+Test now", (2, 3)), ("allowed", ("t", 1), ("r", 5), r"\[\?\]", (2, 66)), ("found", ("t", 1), 2, r"Reader\s+Allowed\s+Could it be allowed", (2, 74)),
-                     ("found", ("t", 1), ("r", 5), r"\[\?\]", (2, 134)), ("means", ("t", 2), 2, r"A program on this list is started by the pdf verb", (17, 3)),
-                     ("help", ("t", 1), 2, r"Up and Down move\.", (33, 3)), ("help", ("t", 3), 2, r"F5 reads the machine again\.", (35, 3))],
     "tool_mygates": [("gates", ("t", 1), 2, r"Gate\s+Now\s+As delivered", (2, 3)), ("gates", ("t", 1), ("r", 5), r"\[\?\]", (2, 134)), ("gates", ("b", 3), 2, r"Signed on as ", (20, 3)),
                      ("gates", ("b", 2), 2, r"Only the administrator can change a gate", (21, 3)), ("cell", ("t", 1), 2, r"\S", (24, 3)), ("note", ("t", 1), 2, r"Gates are the administrator's", (35, 3))],    # 9 Nov 26: rows 20, 21, 24, one lower, the gates box is a row taller (S.182)
     "tool_keys": [("terminal", ("t", 1), 2, r"TERM \(SD\)", (2, 3)), ("terminal", ("t", 3), 2, r"Window\s+\d+ x \d+", (4, 3)), ("seen", ("t", 1), 2, r"\[ \] up", (2, 49)),

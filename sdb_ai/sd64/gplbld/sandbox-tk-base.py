@@ -111,7 +111,7 @@ def install_sudo_stub():
     global SUDO_DIR, SUDO_OWNER
     if not os.path.isfile(SUDO_STUB_SRC):
         bail("%s is missing, so the host's sudo cannot be kept out of the sandbox sessions" % SUDO_STUB_SRC)
-    parts = os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin").split(":")
+    parts = os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin").split(":")   # stale-ok: a PATH default, not SD's output
     d = os.environ.get(SUDO_DIR_VAR, "")
     if d and parts[0] == d and _stub_there(d):
         SUDO_DIR = d

@@ -11,6 +11,7 @@
 # START-HISTORY:
 # 28 Oct 26 dm  New (S.88 L2, the home screen).  WRITTEN, NOT RUN (the owner's rule: one complete run when the full-screen phases are done).  Its expected cells come from
 #               the model in test-l2-home-units.py (the page's own columns, band.cols, layout and place.header copied, over test-tklayout-units.py's model of $tk_layout).
+# 9 Nov 26 (S.187): K's second tile is Audit trail; Bypass programs (viewers) was removed with the pdf verb (owner: pdf only works at the machine's own display).
 # END-HISTORY
 #
 # THE ROWS.
@@ -301,7 +302,7 @@ def sec_keys():
     ex = expect(180, 55, True)
     cell = {c[0]: c for c in ex["cells"]}
     w = launch("K", 180, 55)
-    first, second = cell["menus"], cell["viewers"]
+    first, second = cell["menus"], cell["audit"]          # 9 Nov 26 (S.187): the second tile was Bypass programs (viewers), removed with the pdf verb
 
     def rev(c):
         r = c[1] + 3
@@ -309,7 +310,7 @@ def sec_keys():
     c0 = rev(first) and not rev(second)
     R.row("K0 control: the first tile (Menu management) has the focus at 180x55", c0, "")
     w.send(RIGHT, 0.8)
-    R.row("K1 Right moves the focus to Bypass programs, on its 180 by 55 cell (column %d)" % second[2], c0 and rev(second) and not rev(first), "")
+    R.row("K1 Right moves the focus to Audit trail, on its 180 by 55 cell (column %d)" % second[2], c0 and rev(second) and not rev(first), "")
     # the click lands near the right end of the Keys tile at 180 by 55, in a column the tile did not reach at 140 by 43 (49 to 69): only a hit test on the NEW rectangles finds it
     old_keys = [c for c in expect(140, 43, True)["cells"] if c[0] == "keys"][0]
     keys = cell["keys"]

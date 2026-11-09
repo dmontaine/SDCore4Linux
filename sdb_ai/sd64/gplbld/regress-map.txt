@@ -371,7 +371,7 @@ sdsys/gpl.bp/header.h        : @compiler @core
 sdsys/gpl.bp/tk_aipage       : ai-pages tk-base tk-keys tool-voc tool-files
 sdsys/messages/1194[34]      : ai-pages
 sdsys/gpl.bp/tk.h            : tk-base tk-keys ai-line tk-faults @pages tk-resize tk-layout ai-pages tk-public
-# 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page; the confirm box by both
+# 23 Oct 26 (S.75 plan 14): the help box and the wrapping loop are used by the menu management page and the Bypass programs page (removed 9 Nov 26, S.187); the confirm box by both
 sdsys/gpl.bp/tk_help         : docs menus tk-base tool-ai tool-gates tool-mygates tool-sessions tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
 sdsys/gpl.bp/tk_wrap         : tk-public tk-base tk-keys menus docs tool-ai tool-gates tool-mygates tool-sessions tool-audit tool-config tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test
 sdsys/gpl.bp/tk_confirm      : tk-base tk-keys menus docs tool-ai tool-gates tool-sessions tool-backups tool-accounts tool-remote tool-files tool-voc tool-dict tool-query tool-bulk tool-catalog tool-test tk-faults
@@ -454,6 +454,7 @@ sdsys/gpl.bp/mymenu          : menus ai-pages
 sdsys/newvoc/my.menu         : menus
 sdsys/voc_template/my.menu   : menus
 # 23 Oct 26 (S.75 plan 14): the shared account's documentation - context help (load.help, helptext/), pdf, the programs allowed to bypass os.execute, docs.install
+# 9 Nov 26 (S.187): pdf, viewlist, setviewer, tool_viewers and their VOC records are REMOVED; their rules stay so that a --changed run over the deletion still selects the suites
 sdsys/gpl.bp/loadhelp        : docs
 sdsys/gpl.bp/pdf             : docs
 sdsys/gpl.bp/viewlist        : docs
@@ -957,6 +958,7 @@ sdsys/messages/11982         : gates                     # 2 Nov 26: set.sdsys's
 sdsys/messages/11976         : gates                     # 2 Nov 26: set.sdsys's register group that is not a valid name (was 10081)
 sdsys/messages/1400[0-3]     : tool-query tk-keys tk-base   # 3 Nov 26 (S.88 K7/K8): the finder's title, the context menu's last entry, F1's lines for F2 and Shift-F10
 sdsys/messages/1400[45]      : ide-tools ide ide-small   # 3 Nov 26 (S.75 DV10): the IDE's Tools menu and its "Back from" line
+sdsys/messages/14046         : docs   # 9 Nov 26 (S.187): $tk_help's last line naming the PDF, read by sandbox-docs.py
 sdsys/messages/*             : none
 sdsys/changelog              : none
 sdsys/licence*               : none

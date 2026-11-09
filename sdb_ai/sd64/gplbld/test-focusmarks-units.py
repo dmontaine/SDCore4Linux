@@ -27,7 +27,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GP = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys", "gpl.bp"))
-PAGES = ["tool_sessions", "tool_menus", "tool_ai", "tool_viewers", "tool_bulk", "tool_query", "tool_test", "tool_jobs", "tool_entries"]
+PAGES = ["tool_sessions", "tool_menus", "tool_ai", "tool_bulk", "tool_query", "tool_test", "tool_jobs", "tool_entries"]     # 9 Nov 26 (S.187): tool_viewers removed with the pdf verb
 
 
 def code(src):

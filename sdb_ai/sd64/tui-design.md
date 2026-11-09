@@ -89,7 +89,6 @@ is not there. "Rules" says which of sections 1-4 it follows: `all`, or the excep
 | `tool_sessions` | tool.sessions | administrator | all |
 | `tool_test` | tool.test | everyone | all |
 | `tool_tktest` | tktest (no VOC entry) | test only | E2 |
-| `tool_viewers` | tool.viewers | administrator | all |
 | `tool_voc` | tool.voc | everyone | all |
 
 ## 6. Dropped

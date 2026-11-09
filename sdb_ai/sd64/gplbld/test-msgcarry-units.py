@@ -56,7 +56,7 @@ ALLOWED = {
     ("loadhelp", "11839"): "'Context help:' in Solo, 'Context help in the shared account:' in Core (carry 14, 23 Oct 26)",
     ("tk_help", "11831"): "the file context.help has no record (Solo) against 'of the shared account' (Core): Solo has no shared account (carry 14, 23 Oct 26)",
     ("tk_help", "11832"): "there is no file context.help (Solo) against the shared account has no file (Core): Solo has no shared account (carry 14, 23 Oct 26)",
-    ("pdf", "11888"): "there is no pdf directory in the install directory (Solo) against the shared account has none (Core): Solo has no shared account (carry 14, 23 Oct 26)",
+    # 9 Nov 26 (S.187): the ("pdf", "11888") entry went with Core's pdf verb and message 11888
     # 23 Oct 26, carry 15 (S.69 step 2): Solo's AI gate is a setting of the helper, set.ai gate on | off, where Core's is a Linux group per account (modify.account NAME ai-on)
     ("ai", "11625"): "the way to turn the AI on: Core modify.account NAME ai-on, Solo set.ai gate on (carry 15, 23 Oct 26)",
     ("setai", "11609"): "the usage line: Solo's set.ai has the word gate on|off (carry 15, 23 Oct 26)",
@@ -70,20 +70,6 @@ ALLOWED = {
     ("tool_home", "11865"): "Core 'Press Enter to return' (26 Oct 26, the page is what Enter returns to), Solo 'Press Enter to return to the home screen' until the carry",
     # 26 Oct 26, the one-editor plan stage 1: the IDE's help in Core names F12 (Edit as fields: CED's data mode); Solo's IDE has no F12 until the owner says to carry it (Core only)
     ("ced_edit", "11139"): "Core's !CED() line names ^K keys and ^T theme (9 Nov 26, S.181, the shared keys); Solo's has neither until the carry",
-    ("login", "11900"):"Core's VOC update reports the records its deletion list removed (27 Oct 26, S.87); Solo's 11900 is another message until the carry",
-    # 9 Nov 26, Solo carry 22 in progress: Core's VOC deletion list messages 11900-11918 collide with Solo's OWN 11900-11914 (renumbered there 18 Oct by the
-    # owner's permission); which side moves is put to the owner (S.117).  These entries go when the numbers are settled and the messages carried.
-    ("login", "11901"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
-    ("login", "11902"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
-    ("login", "11903"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
-    ("login", "11904"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
-    ("lstvocrm", "11905"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
-    ("lstvocrm", "11906"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
-    ("lstvocrm", "11912"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
-    ("lstvocrm", "11913"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
-    ("rstvoc", "11912"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
-    ("rstvoc", "11913"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
-    ("rstvoc", "11914"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
     ("login", "11983"):"an UPDATE.ACCOUNTS that cannot write a VOC: Core names sdsys-on, Solo (no sdsys user) names the file permissions (Solo carry 22, 9 Nov 26; a product-shape difference)",
     ("ide", "11209"): "Core's Go to prompt names line,column and field,value,subvalue (29 Oct 26, stage D); Solo's older IDE says 'Line number:' until the carry",
     ("ide", "11215"): "Core's help names F12, Edit as fields (26 Oct 26, one-editor plan stage 1); Solo's does not until the carry",

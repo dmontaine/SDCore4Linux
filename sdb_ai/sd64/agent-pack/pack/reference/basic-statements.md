@@ -1791,7 +1791,7 @@ clause of `find`, `findstr`, `locate`, `remove`, `selectleft`, `selectright`
 `openseq` *path*`,` *id* `shared to` *file.var* `then` … `else` …
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 20
+- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 489
 
 ### basic:stmt:silent
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:8524#8b8e3202

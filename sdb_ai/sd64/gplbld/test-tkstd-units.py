@@ -14,7 +14,7 @@ WHAT IT HOLDS (gpl.bp read as text, comments removed):
   S2  $tk_std 'theme' is $tk_theme with the library's repaint (own 1); 'keylist' asks the registry's keylist and shows it in a box.
   S3  $tk_theme takes $sl_theme's next, sets it as the program's choice, and keeps it for the person ($sl_theme 'save').
   S4  every program that calls $tk_std('keys' handles Ctrl-T through $tk_std('theme' and Ctrl-K through $tk_std('keylist' (by the key or the action).
-  S5  the pages expected to use it do (the 20 tool pages, the home screen, MY.MENU).
+  S5  the pages expected to use it do (the 19 tool pages, the home screen, MY.MENU; 20 until tool.viewers was removed with the pdf verb, 9 Nov 26, S.187).
   S6  only sl_theme reads CONFIG('SCREENTHEME') to choose a theme (the config verb only prints it): everything else asks $sl_theme 'site'.
   S7  $sl_theme 'site' and 'save' keep the choice as the record theme.<login name> of &menus& in the session's account, and nothing outside it.
   S8  SED: Ctrl-T and Ctrl-K are bound in action.list only when free (a layout's or person's own binding wins); kill line Esc K, toggle Esc T,
@@ -33,7 +33,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BP = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys", "gpl.bp"))
 PAGES = ["tool_accounts", "tool_ai", "tool_audit", "tool_backups", "tool_bulk", "tool_catalog", "tool_config", "tool_dict", "tool_entries",
          "tool_files", "tool_gates", "tool_jobs", "tool_menus", "tool_mygates", "tool_query", "tool_remote", "tool_sessions", "tool_test",
-         "tool_viewers", "tool_voc", "tool_home", "mymenu"]
+         "tool_voc", "tool_home", "mymenu"]          # 9 Nov 26 (S.187): tool_viewers removed with the pdf verb, so 19 tool pages
 
 
 def load():
@@ -93,7 +93,7 @@ def checks(src):
             bad.append(p)
     ck("S4 every program that adds the shared keys handles Ctrl-T through $tk_std('theme' and Ctrl-K through $tk_std('keylist'", users and not bad, "%d users, wrong: %s" % (len(users), bad))
     missing = [p for p in PAGES if p not in users]
-    ck("S5 the 20 tool pages, the home screen and MY.MENU add the shared keys", not missing, missing)
+    ck("S5 the 19 tool pages, the home screen and MY.MENU add the shared keys", not missing, missing)
     readers = sorted(k for k, v in c.items() if "config('SCREENTHEME')" in v.replace('"', "'") and k not in ("sl_theme", "config"))
     ck("S6 only sl_theme reads CONFIG('SCREENTHEME') to choose a theme; every other program asks $sl_theme 'site'", not readers, readers)
     slt = c.get("sl_theme", "")
@@ -173,13 +173,13 @@ def checks(src):
        and "$tk_std" not in c.get("tk_menubar", "") and "act:std.mouse" not in c.get("tk_menubar", ""), nomouse)
     # 9 Nov 26 (S.186): Ctrl-O on every page.  The four pages with an output pane of their own keep it; every other page shows the log of the commands
     # $tk_run / $tk_runx ran ($tk_out 'log', kept apart from the pane and before the pane's epoch test, so logging never empties a page's pane)
-    PANE = ("tool_jobs", "tool_sessions", "tool_viewers", "tool_test")
+    PANE = ("tool_jobs", "tool_sessions", "tool_test")          # 9 Nov 26 (S.187): tool_viewers removed with the pdf verb
     noout = [p for p in PAGES if p not in PANE and not re.search(r"case nm = 'ctrl-o'[^\n]*\n\s*call \$tk_std\('output'", c.get(p, ""))]
     own = [p for p in PANE if "call $tk_std('output'" in c.get(p, "")]
     tko = c.get("tk_out", "")
     runs = [r for r in ("tk_run", "tk_runx") if "goto run.done" not in c.get(r, "") or "call $tk_out('log', ''" not in c.get(r, "")
             or re.search(r"^\s*return\s*$", c.get(r, "").split("run.done:")[0], re.M)]
-    ck("S15 Ctrl-O: every page without its own pane shows $tk_std('output' (the four with one keep theirs); $tk_run and $tk_runx log every command, each refusal "
+    ck("S15 Ctrl-O: every page without its own pane shows $tk_std('output' (the three with one keep theirs); $tk_run and $tk_runx log every command, each refusal "
        "through run.done; the log is kept before the pane's epoch test",
        not noout and not own and not runs and "call $tk_keys('add', keys, 'ctrl-o', 'output', 'std.output', '', 1)" in std
        and 0 <= tko.find("if op = 'log' or op = 'loglines' then") < tko.find("if out.epoch # ctx<TK.C.EPOCH>"), repr((noout, own, runs)))

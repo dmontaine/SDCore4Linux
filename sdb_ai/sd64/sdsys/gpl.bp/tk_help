@@ -8,6 +8,8 @@
 * 30 Oct 26 dm  S.88 F0a: the box shows "Keys in this pane" (message 11244) above the page's help text, a list made from the key table $tk_frame kept; no page's F1 line changes.
 * 3 Nov 26 dm  S.88 K7/K8: on a page that has a menu bar the list ends with F2 (find an action) and Shift-F10 (the actions of this pane), which the bar itself
 *              answers ($tk_menubar) and which are therefore in no page's key table (messages 14002, 14003).
+* 9 Nov 26 dm  S.187 (owner, 9 Nov 2026, told the pdf verb only works at the machine's own display: "remove"): the box has no Documentation button; when the
+*              record names a document, its last line says which PDF of the shared account's pdf directory it is (message 14046).  'box' returns b null.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -18,8 +20,8 @@
 *     'box'   a = the key       b = a line for the status bar (null when the person only read it)  - returned.  (30 Oct 26) When an app is drawing its frame, the box
 *                               opens with the heading "Keys in this pane" and the keys of the pane with the focus, one line each ("^S  Save", the reason after a key that is not
 *                               available now), made from the app's key table; then the page's help text.  Shows the help in a box with a
-*                               Close button, and a Documentation button when the record names a document; that button runs  pdf <name>  through
-*                               $tk_run and b is what it printed.  A session with no terminal gets nothing.
+*                               Close button; when the record names a document, a last line names the PDF in the shared account (14046).
+*                               b is returned null.  A session with no terminal gets nothing.
 *     'mark'  a = x, b = y      draws the [?] button
 *     'hit'   a = the event of SCREEN MOUSE, b = x, c = y     d = 1 when the event is a left press on the button drawn by 'mark' at x, y; else 0
 *
@@ -136,18 +138,9 @@ show.box:
    next p
    * the keys go above the text, unless the two together would not fit the screen (the function-key row shows the keys anyway)
    if kb # '' and dcount(kb, @fm) + dcount(body, @fm) <= scr<SL.S.H> - 14 then body = kb : @fm : body
-   if doc # '' then
-      btn = '&Documentation,&Close'
-      dflt = 2
-   end else
-      btn = '&Close'
-      dflt = 1
-   end
-   screen msgbox body title hdr buttons btn default dflt returning bn else bn = 0
-   if doc # '' and bn = 1 then
-      call $tk_run('pdf', 'pdf ' : doc, out, st, err)
-      b = (if err # '' then err else trim(change(out, @fm, ' '))[1, 130])
-   end
+   * S.187: the document is named, not opened - the pdf verb is gone; the file is in the shared account's pdf directory, to be copied and read elsewhere
+   if doc # '' then body<-1> = '' ; body<-1> = sysmsg(14046, doc)
+   screen msgbox body title hdr buttons '&Close' default 1 returning bn else bn = 0
    return
 end
 

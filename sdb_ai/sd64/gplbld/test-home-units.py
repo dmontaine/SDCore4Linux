@@ -12,6 +12,8 @@ leaves the screen and sets the flag EXIT reads; EXIT does what QUIT does without
 register field, the messages and the VOC entries are all there; the sandbox starts at the terminal; the panel draws only its own rows; the scroll bar's style is dark grey.
 Since 2 Nov 26 (S.88 U9, H81-H84): the menu bar is the toolkit's ($tk_menubar, from the key table), every menu action has a key, a tile that is off has a reason, and / finds a
 tile through $tk_pickrec 'list' without starting it.  `--selftest --from=N` runs the mutants from N on (M_U9 is the first of U9's).
+9 Nov 26 (S.187): the Bypass programs tile ('viewers', tool.viewers) was removed from the home screen with the pdf verb (owner: pdf only works at the machine's own display); it is gone
+from ADMIN_TILES, !viewlist is gone from H28a's list, and the mutant that built it for everyone now builds the Audit trail tile for everyone (the check that caught it keeps a mutant).
 
 ***IT READS THE SOURCE AS TEXT AND DOES NOT RUN BASIC.***  That the screen appears, the keys move the focus, EXIT comes back and a session starts where it should is
 sandbox-home.py.  A green run here is evidence that nothing has deleted or reordered the code that makes those rows true.
@@ -122,7 +124,7 @@ def checks(s):
     ck("H3b ...it is a user app (audience null: the page differs, nobody is refused) and the administrator's page is the kernel's answer, not a name",
        "call $tk_open('home', '', ctx, err)" in th and "is.admin = kernel(K$ADMINISTRATOR, -1)" in th and "if is.admin then ctx<TK.C.AUD> = sysmsg(11803)" in th)
     cmds = re.findall(r"act = '(cmd:[^']*|menu:[^']*|terminal|switch|signout|back)' ; pal", th)       # the rows of the table (the case lines of start.tile also say act = ...)
-    ADMIN_TILES = {"menus": "tool.menus", "viewers": "tool.viewers", "audit": "tool.audit", "config": "tool.config", "backups": "tool.backups", "entries": "tool.entries",
+    ADMIN_TILES = {"menus": "tool.menus", "audit": "tool.audit", "config": "tool.config", "backups": "tool.backups", "entries": "tool.entries",
                    "accounts": "tool.accounts", "sessions": "tool.sessions", "gates": "tool.gates", "jobs": "tool.jobs", "remote": "tool.remote", "ai": "tool.ai"}   # jobs: S.102 (2 Nov 26)
     DEV_TILES = {"files": "tool.files", "voc": "tool.voc", "dict": "tool.dict", "query": "tool.query", "bulk": "tool.bulk", "catalog": "tool.catalog", "test": "tool.test"}            # the development apps (DV), for every account; each adds its tile in the commit that builds it (plan 13.2)
     ck("H4 tool_home: every tile of the table has a fixed action (cmd:sed, ide, tool.keys, my.menu, the development apps and the eleven administrator pages), terminal, switch, signout or back (the Back tile of a sub-menu page); the ONLY other action is a person's own program (H25); and no tile of the delivered page opens a sub-menu (no menu:<name>)",
@@ -253,14 +255,14 @@ def checks(s):
     # state has no start.default, so every session that started at the home screen kept an update lock on it for its whole life and the next session waited at sign-on.  Each program that
     # opens a possibly absent file READONLY closes the variable in its ELSE branch.
     leaks = []
-    for prog_, var_ in (("home_entry", "df"), ("setstart", "df"), ("tool_menus", "df"), ("viewlist", "lf"), ("osread", "f")):
+    for prog_, var_ in (("home_entry", "df"), ("setstart", "df"), ("tool_menus", "df"), ("osread", "f")):      # 9 Nov 26 (S.187): !viewlist removed with the pdf verb
         try:
             txt_ = s[prog_] if prog_ in s else open(os.path.join(GPL, prog_), encoding="latin-1").read()      # the mutated text when the self-test mutates this program
         except (OSError, TypeError):
             txt_ = ""
         if not re.search(r"openseq[^\n]* readonly to %s then[\s\S]{0,700}?else[^\n]*\n(?:\s*\*[^\n]*\n)*\s*if not\(unassigned\(%s\)\) then close %s" % (var_, var_, var_), txt_):
             leaks.append(prog_)
-    ck("H28a every program that opens a possibly absent file READONLY (!home_entry, SET.START.DEFAULT, the menu management page, !viewlist, OSREAD) closes the file variable in its ELSE branch, so that an absent start.default does not leave an update lock on it for the life of the session",
+    ck("H28a every program that opens a possibly absent file READONLY (!home_entry, SET.START.DEFAULT, the menu management page, OSREAD) closes the file variable in its ELSE branch, so that an absent start.default does not leave an update lock on it for the life of the session",
        not leaks, repr(leaks))
     ck("H28 every administrator page has a tile (plan 13.2: a new app adds its row in the commit that builds it): each verb of voc_template named tool.* (all of SDSYS's) is the action of a tile, and no tile runs a tool.* verb that has no VOC entry",
        sorted(s["tool.verbs"]) == sorted(set(v for v in ADMIN_TILES.values()) | set(DEV_TILES.values()) | {"tool.keys"}) and all(("act = 'cmd:%s'" % v) in th for v in s["tool.verbs"]), repr(s["tool.verbs"]))
@@ -530,7 +532,7 @@ MUTANTS = [
     ("modify.account writes another field", "modifya", "acc.new<ACC$START> = start.want", "acc.new<ACC$SH> = start.want"),
     ("the register field moves", "keys.h", "$define ACC$START        16 ", "$define ACC$START        15 "),
     ("the scroll bar goes black again in blue", "sl_theme", "'scroll=black,cyan,bold'", "'scroll=black,cyan,'"),
-    ("the Bypass programs tile is built for everyone", "tool_home", "gosub add.tile\n      id = 'viewers' ;", "gosub add.tile\n   end\n   if @true then\n      id = 'viewers' ;"),
+    ("the Audit trail tile is built for everyone", "tool_home", "gosub add.tile\n      id = 'audit' ;", "gosub add.tile\n   end\n   if @true then\n      id = 'audit' ;"),
     ("the Accounts tile is built for everyone", "tool_home", "      id = 'accounts' ; grp = g ;", "   end\n   if @true then\n      id = 'accounts' ; grp = g ;"),
     ("the Audit trail tile runs another page", "tool_home", "act = 'cmd:tool.audit'", "act = 'cmd:tool.config'"),
     ("the Remote servers tile is gone", "tool_home", "      id = 'remote' ; grp = g ;", "      id = 'remoteX' ; grp = g ;"),

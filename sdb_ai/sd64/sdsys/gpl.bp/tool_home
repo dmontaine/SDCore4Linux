@@ -50,6 +50,7 @@
 *               opens tool.keys.  A new theme builds the page again (rebuild), since the tiles take their colours from it.
 * 9 Nov 26 dm  S.186: the description's keys follow S.179 (Ctrl-Q leaves or signs out, Alt-T the Terminal); it still said Ctrl-Q signs out, Ctrl-T the Terminal.
 *               View > Mouse and Ctrl-O, as on every page (act:std.mouse, ctrl-o, $tk_std).
+* 9 Nov 26 dm  S.187: the Bypass programs tile is gone with tool.viewers and the pdf verb (owner, 9 Nov 2026: "remove").
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -343,7 +344,6 @@ build.page:
       g += 1
       gr<g> = 'System' : @vm : bnd : @vm : 2                 ;* the administrator's three groups stand side by side in one band, two tiles wide each, so that the page needs no scrolling
       id = 'menus' ; grp = g ; label = 'Menu management' ; glyph = '[=]' ; sub = 'tiles and start' ; act = 'cmd:tool.menus' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
-      id = 'viewers' ; grp = g ; label = 'Bypass programs' ; glyph = '[!]' ; sub = 'readers for pdf' ; act = 'cmd:tool.viewers' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       id = 'audit' ; grp = g ; label = 'Audit trail' ; glyph = '[*]' ; sub = 'who did what' ; act = 'cmd:tool.audit' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       id = 'config' ; grp = g ; label = 'Configuration' ; glyph = '[%]' ; sub = 'sd.conf and SD' ; act = 'cmd:tool.config' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
       * who may do what, and who is on: the people and access group

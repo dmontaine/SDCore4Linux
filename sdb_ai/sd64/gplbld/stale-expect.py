@@ -10,7 +10,8 @@
 #              "added to local catalogue", "Catalogued" not in the status) passed whatever SD did, because SD no longer printed the text at all.
 #              Same day: SD's text "now" is the messages, the help and the LITERALS of the programs and C files, not their comments ('* Unrecognised
 #              statement' had kept a removed wording alive); and a suite literal SHORTER than a removed text, regex escapes taken out, is found inside
-#              it.  Together they found 21 more stale lines in 12 suites.
+#              it.  Together they found 21 more stale lines in 12 suites.  A line that says "stale-ok" (a comment) is not read: a check that a
+#              removed text is gone, or a string that is not SD's output (a PATH default), names the old wording on purpose (S.187).
 # END-HISTORY
 #
 # WHAT IT DOES.  The text SD prints is in sdsys/messages/*, sdsys/helptext/*, the string literals of sdsys/gpl.bp/* and of gplsrc/*.c.  From the change
@@ -137,8 +138,12 @@ def expectations(path):
                 and isinstance(getattr(node.body[0], "value", None), ast.Constant):
             skip.add(id(node.body[0].value))
     out = []
+    lines = src.split("\n")
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in skip:
+            # a line marked "stale-ok" holds wording on purpose: a check that a removed text is GONE, or a string that is not SD's output
+            if "stale-ok" in lines[node.lineno - 1]:
+                continue
             out.append((node.lineno, node.value))
     return out
 

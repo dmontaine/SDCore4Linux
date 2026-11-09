@@ -63,7 +63,7 @@ $include tk.h
          keys<dcount(keys, @fm), TK.K.ROW> = 0
          call $tk_keys('menu', keys, 'std.mouse', '&View', '&Mouse', '', '')
          * 9 Nov 26 (S.186): Ctrl-O, View > Output: the log of the commands this page ran ($tk_out 'loglines'), on a page that has no output pane of its own
-         *   (a page that binds Ctrl-O itself - tool.jobs, tool.sessions, tool.viewers, tool.test - keeps its pane and gets no second entry)
+         *   (a page that binds Ctrl-O itself - tool.jobs, tool.sessions, tool.test - keeps its pane and gets no second entry)
          std.has.o = (ctx = '')                        ;* !CED()'s host gives no page context: it runs no command and has no menu bar, so no Ctrl-O
          for std.i = 1 to dcount(keys, @fm)
             if keys<std.i, TK.K.KEY> = 'ctrl-o' then std.has.o = @true

@@ -8116,69 +8116,6 @@ Could not write the help record %1
 
 cited by: `loadhelp`
 
-### msg:11843
-> kind=message tier=reference since=- src=sdsys/messages/11843:1#dfadd38c
-
-```
-pdf {name}; pdf alone lists the documents
-```
-
-cited by: `pdf`
-
-### msg:11844
-> kind=message tier=reference since=- src=sdsys/messages/11844:1#6bca02b4
-
-```
-%1 is not a document name
-```
-
-cited by: `pdf`
-
-### msg:11845
-> kind=message tier=reference since=- src=sdsys/messages/11845:1#8ac76c92
-
-```
-There is no document %1; pdf alone lists them
-```
-
-cited by: `pdf`
-
-### msg:11846
-> kind=message tier=reference since=- src=sdsys/messages/11846:1#1e07ab40
-
-```
-No viewer has been allowed for documents.  The administrator names one with set.viewer.
-```
-
-cited by: `pdf`
-
-### msg:11847
-> kind=message tier=reference since=- src=sdsys/messages/11847:1#42ce07ac
-
-```
-This session has no graphical display (DISPLAY and WAYLAND_DISPLAY are empty), so a viewer cannot show the document
-```
-
-cited by: `pdf`
-
-### msg:11848
-> kind=message tier=reference since=- src=sdsys/messages/11848:1#b7ba323d
-
-```
-Opened %1 with %2
-```
-
-cited by: `pdf`
-
-### msg:11849
-> kind=message tier=reference since=- src=sdsys/messages/11849:1#6c44f3bb
-
-```
-The viewer %1 cannot be used: %2
-```
-
-cited by: `pdf`, `setviewer`
-
 ### msg:11850
 > kind=message tier=reference since=- src=sdsys/messages/11850:1#78bdb47e
 
@@ -8494,110 +8431,6 @@ The administrator has not allowed this account to add its own programs to the ho
 ```
 
 cited by: `mymenu`
-
-### msg:11887
-> kind=message tier=reference since=- src=sdsys/messages/11887:1#c66934eb
-
-```
-Documents (%1); pdf name opens one:
-```
-
-cited by: `pdf`
-
-### msg:11888
-> kind=message tier=reference since=- src=sdsys/messages/11888:1#65eb55d5
-
-```
-There are no documents: the shared account has no pdf directory, or it holds none
-```
-
-cited by: `pdf`
-
-### msg:11890
-> kind=message tier=reference since=- src=sdsys/messages/11890:1#4388825a
-
-```
-set.viewer {add | remove} pdf program; set.viewer alone says which programs are allowed
-```
-
-cited by: `setviewer`
-
-### msg:11891
-> kind=message tier=reference since=- src=sdsys/messages/11891:1#1cdbc8d8
-
-```
-The program %1 is now allowed for %2
-```
-
-### msg:11892
-> kind=message tier=reference since=- src=sdsys/messages/11892:1#78f8eedd
-
-```
-The program %1 is no longer allowed for %2
-```
-
-### msg:11893
-> kind=message tier=reference since=- src=sdsys/messages/11893:1#92cc2076
-
-```
-The program %1 was already allowed for %2; nothing changed
-```
-
-cited by: `setviewer`
-
-### msg:11894
-> kind=message tier=reference since=- src=sdsys/messages/11894:1#646e654a
-
-```
-The program %1 was not allowed for %2; nothing changed
-```
-
-cited by: `setviewer`
-
-### msg:11895
-> kind=message tier=reference since=- src=sdsys/messages/11895:1#d6afcbdd
-
-```
-Allowed for %1: %2
-```
-
-cited by: `setviewer`
-
-### msg:11896
-> kind=message tier=reference since=- src=sdsys/messages/11896:1#904741c4
-
-```
-No program is allowed to be started without os.execute
-```
-
-cited by: `setviewer`
-
-### msg:11897
-> kind=message tier=reference since=- src=sdsys/messages/11897:1#22d7f490
-
-```
-%1 is not a purpose that can be set; only pdf can
-```
-
-cited by: `setviewer`
-
-### msg:11898
-> kind=message tier=reference since=- src=sdsys/messages/11898:1#fe5cbe39
-
-```
-The list of allowed programs could not be written
-```
-
-cited by: `setviewer`
-
-### msg:11899
-> kind=message tier=reference since=- src=sdsys/messages/11899:1#008f8e7a
-
-```
-%1 was not found in /usr/bin, /usr/local/bin or /bin
-```
-
-cited by: `setviewer`
 
 ### msg:11900
 > kind=message tier=reference since=- src=sdsys/messages/11900:1#5568a11f
@@ -10456,6 +10289,15 @@ No row holds %1.
 
 cited by: `mymenu`, `tool_accounts`, `tool_gates`, `tool_jobs`, `tool_sessions`
 
+### msg:14046
+> kind=message tier=reference since=- src=sdsys/messages/14046:1#9b307c40
+
+```
+More in the documentation: %1.pdf, in the pdf directory of the shared account.
+```
+
+cited by: `tk_help`
+
 ### msg:1405
 > kind=message tier=reference since=- src=sdsys/messages/1405:1#f5ea60b7
 
@@ -11136,7 +10978,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 23 more
+cited by: `audit_read`, `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver` and 22 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

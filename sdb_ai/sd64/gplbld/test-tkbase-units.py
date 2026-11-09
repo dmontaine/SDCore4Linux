@@ -118,8 +118,9 @@ def checks(raw):
         cited |= set(int(x) for x in re.findall(r"sysmsg\((\d+)", code[n]))
     have = {int(f) for f in os.listdir(os.path.join(SDSYS, "messages")) if f.isdigit()}
     add("T15", "the messages the base cites (%s) are all in the toolkit's block 11800 to 11849 (or are 11951, the largest window $tk_open allows, 26 Oct 26; or 11186 to 11189, the action registry's, 29 Oct 26; "
-        "or 14038 to 14042, S.186's mouse, refusal and command-log texts, 9 Nov 26) and all exist" % sorted(cited),
-        bool(cited) and all((11800 <= m <= 11849 or m == 11951 or 11186 <= m <= 11189 or 14038 <= m <= 14042) and m in have for m in cited), sorted(m for m in cited if m not in have))
+        "or 14038 to 14042, S.186's mouse, refusal and command-log texts, 9 Nov 26; or 14046, $tk_help's line naming the PDF since its Documentation button went with the pdf verb, "
+        "9 Nov 26, S.187) and all exist" % sorted(cited),
+        bool(cited) and all((11800 <= m <= 11849 or m == 11951 or 11186 <= m <= 11189 or 14038 <= m <= 14042 or m == 14046) and m in have for m in cited), sorted(m for m in cited if m not in have))
     rn = sq.get("tk_run", "")
     # 9 Nov 26 (S.186): a bad character is named ($tk_badch of that character, message 14040), and each refusal goes to run.done, which logs it for Ctrl-O and returns:
     # still BEFORE the one EXECUTE, which run.done follows

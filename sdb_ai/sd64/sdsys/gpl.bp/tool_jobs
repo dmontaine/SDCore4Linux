@@ -356,7 +356,7 @@ keep.tops:
 
 * ------------------------------------------------------------------------------------------------- drawing
 
-* The layout: the two lists side by side in the first band, the explanation in the second and the help in the third, at 140 by 43 the sizes tool.viewers has.
+* The layout: the two lists side by side in the first band, the explanation in the second and the help in the third, at 140 by 43 the sizes the retired tool.viewers had.
 * Out: a.x a.y a.w a.h (Accounts), c.x c.y c.w c.h (Commands), m.x m.y m.w m.h (What this means), h.x h.y h.w h.h (Help), VIS.  The Jobs view has its own
 * (jobs.layout), with one box the focus can be in.
 declare.layout:

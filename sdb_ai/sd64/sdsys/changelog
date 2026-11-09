@@ -1,12 +1,27 @@
 Next release - in progress
 --------------------------
 
+9 Nov 26   THE PDF VERB, SET.VIEWER AND THE BYPASS PROGRAMS PAGE ARE REMOVED.
+
+             What        - The pdf verb, which started a PDF reader to show a documentation PDF, is gone, with set.viewer
+                           (the readers it could start), the Bypass programs page (tool.viewers, and its tile on the
+                           administrator's home screen) and the installer's two questions about a PDF reader. A help box
+                           no longer has a Documentation button: its last line names the PDF that says more. The
+                           documentation PDFs are still installed in the pdf directory of the shared account, where every
+                           account can read them; copy one to your own computer to read it. An upgrade removes the three
+                           VOC entries and the list of allowed readers.
+             Why         - A reader can only open on the display of the machine itself, and SD is mostly used over ssh,
+                           where pdf could only say that there was no display. It was also the one place where SD started a
+                           program for an account that may not run programs, so removing it removes that exception.
+             Not changed - docs.install, load.help and the context help; SD Core for Linux Solo keeps pdf, since its user is
+                           normally at the computer.
+
 9 Nov 26   THE FULL-SCREEN PAGES: THE SAME KEYS EVERYWHERE, CLEARER REFUSALS, US SPELLING.
 
              What        - Every page has View > Mouse, which stops the terminal reporting the mouse (so its own selection
                            works) and starts it again; the choice holds for every page and the IDE until you change it.
                            Ctrl-O (View > Output) shows the commands the page ran, with what each printed or why it was
-                           refused; the four pages that had an output pane keep it. The debugger's F2 is Find an action and
+                           refused; the pages that had an output pane keep it. The debugger's F2 is Find an action and
                            Ctrl-Q stops the program and leaves, as on every page; Abort is on its Run menu (F2 still aborts
                            in line mode). A name a page will not put in a command now says which character is wrong ("has a
                            capital letter (A)"). On a terminal without colour the box that has the keyboard no longer looks
