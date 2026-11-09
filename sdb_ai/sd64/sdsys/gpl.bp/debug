@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 9 Nov 26 dm  S.186 (the owner: "QM compatibility is not a focus, consistency within SD is"): in the full screen F2 is Find an action (dbg.find, the
+*               finder every page has, over the menu bar's entries; Help > Find an action) and Ctrl-Q stops the program and leaves, as F3; Abort keeps the
+*               Run menu and the finder and has no key there.  Line mode, which has no menu bar, keeps F2 as Abort.  dbg.menu's dispatch is dbg.code, shared.
 * 8 Nov 26 dm  S.179 / S.180 (the owner: the same keys on every page, the theme under View, every feature on a menu): F5 draws the screen again and F9
 *               runs (F5 ran); Ctrl-T the theme ($tk_theme, kept for the person; the debugger starts in $sl_theme 'site'), Ctrl-K the keys in use, Ctrl-L a
 *               redraw; the command line's delete-to-end and swap are Esc K and Esc T (Alt-K, Alt-T).  A menu bar on the top row (dbg.bar: Run, View,
@@ -853,7 +856,7 @@ paint.foot:
 key.text:
    kr.keys = ''
    call $tk_keys('add', kr.keys, 'f1', 'help', 'help', '', '')
-   call $tk_keys('add', kr.keys, 'f2', 'abort', 'abort', '', '')
+   call $tk_keys('add', kr.keys, 'f2', 'find', 'find', '', '')          ;* 9 Nov 26 (S.186): Find an action, as on every page (Abort is on the Run menu)
    call $tk_keys('add', kr.keys, 'f3', 'stop', 'stop', '', '')
    call $tk_keys('add', kr.keys, 'f4', 'screen', 'screen', '', '')
    call $tk_keys('add', kr.keys, 'f5', 'refresh', 'refresh', '', '')     ;* 8 Nov 26 (S.179): F5 refreshes on every page; run is F9
@@ -1359,6 +1362,19 @@ get.input:
                command = upcase(command)
 
 
+            * 9 Nov 26 (S.186, the owner: "consistency within SD"): F2 is Find an action and Ctrl-Q leaves (Stop, as F3), as on every page, in the full screen.
+            *   Abort is on the Run menu and in the finder.  In line mode, which has no menu bar, F2 is still Abort.
+            case n = K$F2 and full.screen and len(command) = 0
+               gosub dbg.find
+               if dm.cmd # '' then
+                  command = dm.cmd
+                  goto exit.get.input
+               end
+
+            case n = 17 and full.screen and len(command) = 0      ;* Ctrl-Q: stop the program and leave, as F3
+               command = char(K$F3)
+               goto exit.get.input
+
             case len(command) = 0 and n > 127
                command = c
                goto exit.get.input
@@ -1762,8 +1778,8 @@ dbg.bar:
    dm.m<1, -1> = 'Run to the &parent' : @sm : 'Ctrl-F7' : @sm : 'cf7'
    dm.m<1, -1> = 'Run to the parent pr&ogram' : @sm : 'Ctrl-F8' : @sm : 'cf8'
    dm.m<1, -1> = '-'
-   dm.m<1, -1> = 'S&top the program' : @sm : 'F3' : @sm : 'f3'
-   dm.m<1, -1> = '&Abort' : @sm : 'F2' : @sm : 'f2'
+   dm.m<1, -1> = 'S&top the program' : @sm : 'F3 / Ctrl-Q' : @sm : 'f3'
+   dm.m<1, -1> = '&Abort' : @sm : '' : @sm : 'f2'     ;* 9 Nov 26 (S.186): no key in the full screen (F2 is Find an action, as on every page); still F2 in line mode
    dm.bar<20> = dm.m
    dm.m = '&View'
    dm.m<1, -1> = 'The program''s &screen' : @sm : 'F4' : @sm : 'f4'
@@ -1773,6 +1789,7 @@ dbg.bar:
    dm.m = '&Help'
    dm.m<1, -1> = '&Help' : @sm : 'F1' : @sm : 'f1'
    dm.m<1, -1> = '&Keys' : @sm : 'Ctrl-K' : @sm : 'keys'
+   dm.m<1, -1> = '&Find an action' : @sm : 'F2' : @sm : 'find'
    dm.bar<22> = dm.m
    dm.tw = 0
    for dm.i = 20 to 22
@@ -1787,6 +1804,34 @@ dbg.menu:
    gosub dbg.bar
    call $sl_menu('init', dm.bar, scr, '', dm.r)
    call $sl_menu('run', dm.bar, scr, '', dm.code)
+   gosub dbg.code
+   gosub display.source                ;* the bar, with the program's name after the titles
+   return
+
+* DBG.FIND  -  F2, Help > Find an action (9 Nov 26, S.186: the finder every page has on F2): every entry of the menu bar in one list ($sl_palette), typed to narrow
+*   it; the entry chosen is run as the menu runs it (dm.cmd, dbg.code).  The palette draws with the library's context, which is the PROGRAM's while it is debugged: the
+*   debugger's own (scr) is put in its place for the palette and the program's given back after, as the theme does.
+dbg.find:
+   dm.cmd = ''
+   gosub dbg.bar
+   pal.m = dm.bar<20> : @fm : dm.bar<21> : @fm : dm.bar<22>
+   call $sl_scr('get', pal.keep)
+   call $sl_scr('put', scr)
+   call $sl_palette(pal.m, '', dm.code, pal.s, pal.why)
+   call $sl_scr('get', scr)
+   call $sl_scr('put', pal.keep)
+   begin case
+      case pal.s = 0
+         gosub dbg.code
+      case pal.s = 2
+         message = pal.why
+         gosub emit.msg
+   end case
+   gosub display.source
+   return
+
+* DBG.CODE  -  dm.code, an entry of the menu bar or the finder: dm.cmd the key it stands for, or the action done here
+dbg.code:
    begin case
       case dm.code = 'f9' ; dm.cmd = char(K$F9)
       case dm.code = 'f7' ; dm.cmd = char(K$F7)
@@ -1800,8 +1845,8 @@ dbg.menu:
       case dm.code = 'f1' ; dm.cmd = char(K$F1)
       case dm.code = 'theme' ; gosub dbg.theme
       case dm.code = 'keys' ; gosub dbg.keys
+      case dm.code = 'find' ; gosub dbg.find
    end case
-   gosub display.source                ;* the bar, with the program's name after the titles
    return
 
 * DBG.THEME  -  Ctrl-T, View > Theme: the next theme, kept for the person ($tk_theme, as every page has it), the debugger drawn whole in it.
@@ -1821,6 +1866,7 @@ dbg.keys:
    dk.list<-1> = '^T  theme'
    dk.list<-1> = '^K  keys in use'
    dk.list<-1> = '^L  redraw'
+   dk.list<-1> = '^Q  stop the program and leave'
    dk.list<-1> = 'Esc / F10  the menu bar'
    dk.list<-1> = 'Alt-K  delete to the end of the line;  Alt-T  swap two characters'
    for dk.i = 1 to dcount(dk.list, @fm)

@@ -184,7 +184,7 @@ def main():
 
         # --- the stored-id matcher on known text ---------------------------------------
         say("\n--- the stored-id matcher, on known text -------------------------------------")
-        probe = ("zzcl3a added to local catalogue\nZZCL3A deleted from the local catalogue\n"
+        probe = ("zzcl3a added to local catalog\nZZCL3A deleted from the local catalog\n"
                  ':LIST VOC WITH @ID = "zzcl3a"\nZZCL3A               \nzzcl3a')
         hit = stored_ids(probe, "zzcl3a")
         say("  matched: " + " ".join(hit))
@@ -213,7 +213,7 @@ def main():
         cats = sorted(os.listdir(os.path.join(sysd, "cat")))
         say("  cat/ holds: " + " ".join(cats))
         row("D: CATALOG said 'zzcc3ap added to private catalogue' (3031, lower case)",
-            re.search(r"(?m)^zzcc3ap added to private catalogue", out) is not None, "no 3031 line naming zzcc3ap in lower case")
+            re.search(r"(?m)^zzcc3ap added to private catalog", out) is not None, "no 3031 line naming zzcc3ap in lower case")
         row("D: the private catalogue file is named exactly 'zzcc3ap', and there is only one",
             cats.count("zzcc3ap") == 1 and [c for c in cats if c.lower() == "zzcc3ap"] == ["zzcc3ap"], " ".join(cats))
         row("CONTROL C: !USERNAME (typed upper) still answers", re.search(r"(?m)^CTL3A \[\S+\]", out) is not None,
@@ -227,7 +227,7 @@ def main():
         say("\n--- E, F. CATALOG LOCAL, a call typed upper, and a second CATALOG LOCAL -----------")
         out = sess(box, "CATALOG bp zzcl3a zzcc3ap LOCAL", LISTV)
         row("E: CATALOG said 'zzcl3a added to local catalogue' (3029, lower case)",
-            re.search(r"(?m)^zzcl3a added to local catalogue", out) is not None, "no 3029 line naming zzcl3a in lower case")
+            re.search(r"(?m)^zzcl3a added to local catalog", out) is not None, "no 3029 line naming zzcl3a in lower case")
         ids = stored_ids(out, "zzcl3a")
         row("E: the VOC stores 'zzcl3a' and no other spelling", ids == ["zzcl3a"], "stored: " + " ".join(ids))
         out = sess(box, "RUN bp zzlc3a")
@@ -285,16 +285,16 @@ def main():
             ids = stored_ids(out, "zzcl3a")
             row("H2: DELETE.CATALOG zzcl3a LOCAL removed the upper-case entry", ids == [], "stored: " + " ".join(ids))
             row("H2: the refusal wording 3041 ('is not in the local catalogue') did not appear",
-                "is not in the local catalogue" not in out, "DELETE.CATALOG could not find the old entry")
+                "is not in the local catalog" not in out, "DELETE.CATALOG could not find the old entry")
 
         # --- G. DELETE.CATALOG, both catalogues ------------------------------------------------
         say("\n--- G. DELETE.CATALOG, typed upper -----------------------------------------------")
         sess(box, "CATALOG bp zzcl3a zzcc3ap LOCAL")
         out = sess(box, "DELETE.CATALOG ZZCC3AP", "DELETE.CATALOG ZZCL3A LOCAL", LISTV)
         row("G: 3042 names 'zzcc3ap' deleted from the private catalogue",
-            re.search(r"(?m)^zzcc3ap deleted from the private catalogue", out) is not None, "no 3042 line naming zzcc3ap")
+            re.search(r"(?m)^zzcc3ap deleted from the private catalog", out) is not None, "no 3042 line naming zzcc3ap")
         row("G: 3040 names 'zzcl3a' deleted from the local catalogue, typed ZZCL3A",
-            re.search(r"(?m)^zzcl3a deleted from the local catalogue", out) is not None, "no 3040 line naming zzcl3a")
+            re.search(r"(?m)^zzcl3a deleted from the local catalog", out) is not None, "no 3040 line naming zzcl3a")
         row("G: no zzcl3a entry is stored in any case", stored_ids(out, "zzcl3a") == [], "a VOC entry remains")
         row("G: cat/ no longer holds zzcc3ap in any case",
             not [c for c in os.listdir(os.path.join(sysd, "cat")) if c.lower() == "zzcc3ap"], "the private catalogue file remains")

@@ -427,7 +427,7 @@ def run_rows(lives):
             f.write(conf0 + "ZZBOGUS=1\n")
         out = g.plain("zzoff", ["ZZCFG"])
         row("A4b: a bad line in sd.conf refuses a new session with the starter's wording and no program ran",
-            g.has(out, r"Unrecognised configuration parameter 'ZZBOGUS=1'") and one(out, "CFG ") is None, "output %r" % (out[-3:],))
+            g.has(out, r"Unrecognized configuration parameter 'ZZBOGUS=1'") and one(out, "CFG ") is None, "output %r" % (out[-3:],))
         alive = live.ask("ZZKF", r"^KFLAGS admin=(\d) sh=(\d) osx=(\d) user=(\S+)$", 30)
         row("A4c: the refusal did not take SD down: the running session still answers", alive is not None, "")
     finally:

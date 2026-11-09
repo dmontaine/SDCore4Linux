@@ -413,7 +413,7 @@ def run_verbs(box, sysd, bp):
             out = sess(box, "CATALOG bp zzoqgp GLOBAL !")
             row("210 GLOBAL ! puts the prefix on a name that has none",
                 os.path.exists(os.path.join(gdir, "!zzoqgp")) and not os.path.exists(os.path.join(gdir, "zzoqgp"))
-                and has(out, r"added to global catalogue"), out[-300:])
+                and has(out, r"added to global catalog"), out[-300:])
             out = sess(box, "CATALOG bp zzoqgp GLOBAL $")
             row("210 another prefix character, $", os.path.exists(os.path.join(gdir, "$zzoqgp")), out[-300:])
             os.remove(os.path.join(gdir, "$zzoqgp"))
@@ -427,7 +427,7 @@ def run_verbs(box, sysd, bp):
             row("210 a character that is not a prefix is refused and nothing is catalogued",
                 not os.path.exists(os.path.join(gdir, "?zzoqgq")) and not os.path.exists(os.path.join(gdir, "zzoqgq")), out[-300:])
             out = sess(box, "CATALOG bp zzoqgp LOCAL *")
-            row("210 a prefix without GLOBAL is refused", not has(out, r"added to local catalogue"), out[-300:])
+            row("210 a prefix without GLOBAL is refused", not has(out, r"added to local catalog"), out[-300:])
             sess(box, "DELETE.CATALOG zzoqgp LOCAL")
         finally:
             for g in gnames:
@@ -1025,7 +1025,7 @@ def run_verbs(box, sysd, bp):
         t = sess(box, "PTERM DISPLAY")
         row("155: PTERM DISPLAY reports it too", has(t, r"Mark translation: Off"), t[-300:])
         t = sess(box, "PTERM MARK SIDEWAYS")
-        row("155: any other word is refused", has(t, r"Unrecognised option \(SIDEWAYS\)"), t[-300:])
+        row("155: any other word is refused", has(t, r"Unrecognized option \(SIDEWAYS\)"), t[-300:])
         write(probe, "   input s\n   crt 'IN[':change(change(change(s, @sm, '<SM>'), @vm, '<VM>'), @fm, '<FM>'):']'\nend\n")
         t = sess(box, "PTERM MARK ON", "BASIC bp zzoqp1", "RUN bp zzoqp1", "a\x1cb\x1dc\x1ed")
         row("155: INPUT receives the marks as well", has(t, r"IN\[a<SM>b<VM>c<FM>d\]"), t[-300:])
@@ -1070,7 +1070,7 @@ def run_verbs(box, sysd, bp):
         t = sess(box, "PTERM ERASE ^~")
         row("253: ...so is a ^ key that is not a control key", has(t, r"Invalid erase key"), t[-300:])
         t = sess(box, "PTERM ERASE SIDEWAYS")
-        row("253: ...and any other word", has(t, r"Unrecognised option \(SIDEWAYS\)"), t[-300:])
+        row("253: ...and any other word", has(t, r"Unrecognized option \(SIDEWAYS\)"), t[-300:])
         t = sess(box, "PTERM ERASE 127", "PTERM CTRL.FILTER ON", "PTERM DISPLAY")
         row("253: PTERM DISPLAY reports the erase key and the control filter", has(t, r"Erase key: character 127") and has(t, r"Control character filter: On"), t[-600:])
 
@@ -1380,7 +1380,7 @@ def run_verbs(box, sysd, bp):
         text, items = listed(1, "SELECTINDEX zzoqix colour blue TO 1")
         row("119: TO n builds that list instead", items == {"b"} and has(text, r"1 record\(s\) selected to select list 1"), "%r %s" % (items, text[-300:]))
         text = sess(box, "SELECTINDEX zzoqix nosuchindex")
-        row("119: an index that does not exist is reported", has(text, r"Unrecognised index name \(nosuchindex\)"), text[-300:])
+        row("119: an index that does not exist is reported", has(text, r"Unrecognized index name \(nosuchindex\)"), text[-300:])
         text = sess(box, "SELECTINDEX zzoqnone colour")
         row("119: a file that does not exist is reported", has(text, r"File not found"), text[-300:])
         text = sess(box, "SELECTINDEX zzoqix")
@@ -1434,9 +1434,9 @@ def run_verbs(box, sysd, bp):
         text = sess(box, "TERM 100,30,90,40,5")
         row("466: a fifth number is an unexpected token", has(text, r"Unexpected token"), text[-300:])
         text = sess(box, "TERM ,,100,40 zznosuchterm")
-        row("466: a terminal type after four numbers is still read", has(text, r"Unrecognised terminal name"), text[-300:])
+        row("466: a terminal type after four numbers is still read", has(text, r"Unrecognized terminal name"), text[-300:])
         text = sess(box, "TERM 120,36 zznosuchterm")
-        row("466 CONTROL: ...and after two", has(text, r"Unrecognised terminal name"), text[-300:])
+        row("466 CONTROL: ...and after two", has(text, r"Unrecognized terminal name"), text[-300:])
 
         # --- SP.VIEW: X deletes the item shown (450) ---------------------------------------------------------
         write(probe, ("   execute 'CREATE.FILE zzoqsv' capturing j1\n"

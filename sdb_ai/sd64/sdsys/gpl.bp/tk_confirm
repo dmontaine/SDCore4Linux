@@ -10,6 +10,8 @@
 * 26 Oct 26 dm  faults: an optional sixth argument, the title ("Run this command?" read over writes that are not commands); VAR.ARGS, so no existing call changes.
 * 2 Nov 26 dm  S.88 P10: an optional seventh argument, the buttons (two or three; the last is Cancel and the default, the middle one of three answers 'alt'), for tool.gates's
 *              leave question.  No existing call changes.
+* 9 Nov 26 dm  S.186: before the box is drawn, the keys already typed are thrown away and it waits for a third of a second with no key, so that a held R (the
+*              page's command and the box's Run) cannot open the box and answer it by key repeat.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -93,6 +95,16 @@ $include tk.h
       nb = 2
    end
 
+*  9 Nov 26 (S.186, Fable's review): the letter that opens this box on a page (R on tool.gates, tool.jobs, tool.test, tool.catalog) is also Run's letter here, so a key held
+*  down - the terminal repeats it about every 30 ms after half a second - would open the box and answer it.  The keys already typed are thrown away, and the box waits
+*  until no key has come for a third of a second (at most 200 keys, so a key held for ever cannot keep it shut): a held key opens the box once, released; a second
+*  press after that is read by the box as ever.
+   dr.n = 0
+   loop
+      dr.c = keyin(0.35)
+   while dr.c # '' and dr.n < 200 do
+      dr.n += 1
+   repeat
    screen msgbox body title ttl buttons bl default nb returning b else b = 0
    if nb = 3 then
       if b = 2 then

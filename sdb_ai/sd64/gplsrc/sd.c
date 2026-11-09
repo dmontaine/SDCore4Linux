@@ -33,6 +33,7 @@
  * 29 Sep 26 dm  load_language("") is init_messages(): English only.
  * 07 Oct 26 dm  PAL-1 stage 3a: the bootstrap processor is $bbproc and load_pcode
  *           lowers the name it searches for (the Windows port's 14 Sep 26).
+ * 09 Nov 26 dm  S.186 (the owner: US spelling in everything SD prints): "Unrecognized argument".
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -577,7 +578,7 @@ Private bool comlin(int argc, char *argv[]) {
   return TRUE;
 
 unrecognised:
-  fprintf(stderr, "Unrecognised argument '%s'\n", argv[arg]);
+  fprintf(stderr, "Unrecognized argument '%s'\n", argv[arg]);
 help:
   fprintf(stderr, "\nUsage:\n");
   fprintf(stderr, "   sd xxx\n");

@@ -618,7 +618,7 @@ def section_loop():
     s.type(F8, wait=3.0, show="F8 (compile)")
     R.row("L4 a clean compile (F8) says so and names the record", ("Compiled bp %s with no errors" % rid1) in s.status(), s.status()[:120])
     s.type(SHIFT_F9, wait=3.0, show="Shift-F9 (build: compile and catalogue)")
-    R.row("L5 Shift-F9 catalogues and says so only after CATALOG said it did: 'Catalogued bp %s'" % rid1, ("Catalogued bp %s" % rid1) in s.status(), s.status()[:120])
+    R.row("L5 Shift-F9 catalogues and says so only after CATALOG said it did: 'Cataloged bp %s'" % rid1, ("Cataloged bp %s" % rid1) in s.status(), s.status()[:120])
     s.type(CTRL_Q, wait=1.5, show="Ctrl-Q")
     s.end()
     out = g.plain(A1, [rid1])

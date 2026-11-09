@@ -410,7 +410,11 @@ def section_changed():
 def section_notfor():
     say("\n--- N: what does not apply to such a tab ---------------------------------------------------------------------------------")
     rcdir = os.path.expanduser("~/.local/state/sd")
-    before = sorted(os.listdir(rcdir)) if os.path.isdir(rcdir) else None
+    # 9 Nov 26: the store is the real home's, shared with suites run beside this one; sandbox-recovery, home2 and restricted keep their own
+    # zzrc-<run> stores there, so those names are left out of the comparison (a regress --jobs 8 run failed N3 on one of them)
+    def store(d):
+        return sorted(n for n in os.listdir(d) if not n.startswith("zzrc-")) if os.path.isdir(d) else None
+    before = store(rcdir)
     e = sb.Ide(BOX, "IDE path:%s" % fpath("tab"))
     e.quiet()
     e.keys("Q")
@@ -423,7 +427,7 @@ def section_notfor():
     hit, st = says(e, "operating system file")
     row("N2 F8 (compile) says the same and does not save the text", hit and rd(fpath("tab")) == disk0 and disk0 is not None, repr((st[:100], disk0, rd(fpath("tab")))))
     time.sleep(2.5)
-    after = sorted(os.listdir(rcdir)) if os.path.isdir(rcdir) else None
+    after = store(rcdir)
     row("N3 no recovery copy was written for the changed tab (the store in the home is as it was)", before == after, repr((before, after)))
     done(e)
 

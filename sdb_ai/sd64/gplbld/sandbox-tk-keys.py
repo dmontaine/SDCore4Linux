@@ -101,7 +101,7 @@ def main():
         row("the function-key row (row 42) names exactly Ctrl-L, Ctrl-R, Ctrl-T, Ctrl-K (S.179) and Ctrl-Q: '^L clear  ^R raw/names  ^T theme  ^K keys  ^Q quit'", t.line(42) == "^L clear  ^R raw/names  ^T theme  ^K keys  ^Q quit", repr(t.line(42)))
         row("the status line says [Keys] and 'press any key'; row 0 ends with the app's name and the audience (the user, not 'administrator')",
             t.line(40).startswith("[Keys]") and "press any key" in t.line(40) and "tool.keys" in t.line(0) and "administrator" not in t.line(0), repr((t.line(40), t.line(0)[-50:])))
-        for want in ("TERM (SD)   xterm", "TERM (env)  xterm", "Window      140 x 43  (layout 140 x 43)", "Borders     + - | (not UTF-8)", "Colour      yes", "Theme       mono",
+        for want in ("TERM (SD)   xterm", "TERM (env)  xterm", "Window      140 x 43  (layout 140 x 43)", "Borders     + - | (not UTF-8)", "Color       yes", "Theme       mono",
                      "Reading     names ($sl_key)", "Keys seen   0 of 52, 0 pressed", "Mouse       0 events"):
             row("Terminal box: %r" % want, want in L, "")
         row("the grid starts unticked ('[ ] f1', '[ ] ctrl-g', '[ ] mouse') and Last keys is empty", "[ ] f1" in L and "[ ] ctrl-g" in L and "[ ] mouse" in L and newest(t) is None, repr(newest(t)))
@@ -206,7 +206,7 @@ def main():
         t.end()
         t = Term(box, "tool.keys", term="vt100")
         press(t, "\x14")
-        row("Ctrl-T on a vt100 (no colour): the theme stays mono and the status line says why", "Theme       mono" in text(t) and "cannot show colour" in t.line(40) and "Colour      no" in text(t), repr(t.line(40)))
+        row("Ctrl-T on a vt100 (no colour): the theme stays mono and the status line says why", "Theme       mono" in text(t) and "cannot show color" in t.line(40) and "Color       no" in text(t), repr(t.line(40)))
         say("\n--- a key the terminal type does not name")
         before = newest(t)
         press(t, XTERM["end"])

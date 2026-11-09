@@ -10,6 +10,8 @@
 # START-HISTORY:
 # 28 Oct 26 dm  Written for the control-character scrub of gpl.bp/sl_put (plan 2.1, defect S1).
 # 28 Oct 26 dm  The C1 controls (rows C1a-C1h): bytes 128-159 outside UTF-8 mode, C2 80..C2 9F in UTF-8 mode; session_raw takes an environment.
+# 9 Nov 26 dm  S.186: rows U1-U3 - in UTF-8 mode a character of several bytes is written with blanks after it (bytes less its cells), the shadow unchanged;
+#              C1e follows (the curly quotes get two blanks); the first run is LC_ALL=C, so that E5a no longer depends on the locale the suite is run in.
 # END-HISTORY
 #
 # THE DEFECT.  A record, a record id, a lock id, a file name or an answer of the AI is drawn through $sl_put (every widget does, and SCREEN TEXT). An escape sequence in it went to the terminal
@@ -146,6 +148,13 @@ PROG = r"""$internal
       codes := seq(s4[i, 1])
    next i
    crt char(10) : 'SH4[LEN=':len(s4):' CODES=':codes:']'
+   * 9 Nov 26 (S.186): a wide character (E6 97 A5, three bytes, two cells) and a four-byte one (F0 9F 98 80, two cells) between plain letters
+   t5 = 'W' : char(230) : char(151) : char(165) : 'X' : char(240) : char(159) : char(152) : char(128) : 'Y'
+   crt char(10) : 'BEGIN7'
+   call $sl_put(scr, 3, 9, t5, 'n')
+   crt char(10) : 'END7'
+   s5 = scr<4, 10>[4, len(t5)]
+   crt char(10) : 'SH5[SAME=':(if compare(s5, t5) = 0 then 1 else 0):']'
    crt char(10) : 'DONE'
    stop
 end
@@ -185,7 +194,7 @@ def main():
         row("setup: the test program compiles with no errors", "Compiled 1 program(s) with no errors" in out, out[-700:])
         if "Compiled 1 program(s) with no errors" not in out:
             bail("the test program did not compile:\n" + out[-900:])
-        raw = session_raw(box, "RUN bp zzescdata")
+        raw = session_raw(box, "RUN bp zzescdata", LC_ALL="C")       # 9 Nov 26: not UTF-8, whatever locale runs the suite (E5a's bytes depend on it since S.186)
         text = raw.decode("latin-1")
         row("setup: control - the program ran to its end (it printed DONE)", re.search(r"(?m)^DONE\s*$", ANSI.sub("", text)) is not None, ANSI.sub("", text)[-400:])
         r1 = between(raw, b"BEGIN1", b"END1")
@@ -235,6 +244,8 @@ def main():
         t3_c = [80, 91, 50, 74, 64, 95, 160, 233, 81]
         t4_c = [82, 194, 91, 50, 74, 194, 64, 226, 64, 92, 104, 105, 226, 64, 93, 194, 83, 194]
         t4_u = [82, 46, 91, 50, 74, 46, 64, 226, 128, 156, 104, 105, 226, 128, 157, 194, 83, 194]
+        # 9 Nov 26 (S.186): WRITTEN in UTF-8 mode, each whole curly quote (three bytes, one cell) is followed by two blanks; the shadow (t4_u) is unchanged
+        t4_uw = [82, 46, 91, 50, 74, 46, 64, 226, 128, 156, 32, 32, 104, 105, 226, 128, 157, 32, 32, 194, 83, 194]
         r5c, r6c = between(out_c, b"BEGIN5", b"END5"), between(out_c, b"BEGIN6", b"END6")
         r5u, r6u = between(out_u, b"BEGIN5", b"END5"), between(out_u, b"BEGIN6", b"END6")
         row("C1a: NOT UTF-8 - the single bytes 155, 128 and 159 are not in the bytes written (0x9B is CSI there); the bytes 160 and 233 are (null case: %d bytes read)" % len(r5c),
@@ -247,12 +258,23 @@ def main():
             rev(r5c) and not rev(r2), repr(r5c[:80]))
         row("C1e: UTF-8 - the two-byte forms C2 9B and C2 80 are not in the bytes written (C2 followed by 0x80-0x9F), and the shown text reads R.[2J.@ then the curly quote pair and hi intact, "
             "a lone C2 before S and at the end untouched",
-            len(r6u) > 5 and not re.search(rb"\xc2[\x80-\x9f]", r6u) and stripped(out_u, b"BEGIN6", b"END6") == bytes(t4_u), repr((stripped(out_u, b"BEGIN6", b"END6"), r6u[:80])))
+            len(r6u) > 5 and not re.search(rb"\xc2[\x80-\x9f]", r6u) and stripped(out_u, b"BEGIN6", b"END6") == bytes(t4_uw), repr((stripped(out_u, b"BEGIN6", b"END6"), r6u[:80])))
         row("C1f: UTF-8 - the shadow holds the same: the replaced pairs are two cells for two bytes (same length), the curly quotes E2 80 9C and E2 80 9D are there byte for byte (%s)" % (shadow(out_u, "SH4"),),
             shadow(out_u, "SH4") == (len(t4), t4_u), repr(shadow(out_u, "SH4")))
         row("C1g (control): UTF-8 - a LONE byte 155 or 128 is not a C1 control there: the first text passes unchanged, in the bytes written and in the shadow",
             stripped(out_u, b"BEGIN5", b"END5") == bytes(t3) and shadow(out_u, "SH3") == (len(t3), t3), repr((stripped(out_u, b"BEGIN5", b"END5"), shadow(out_u, "SH3"))))
         row("C1h: UTF-8 - the replaced pairs are drawn in reverse; the control run of plain text is not", rev(r6u) and not rev(r2), repr(r6u[:80]))
+        # --- 9 Nov 26 (S.186): a character of several bytes takes as many cells as it has bytes (the shadow's count), so a UTF-8 terminal is given blanks after it
+        u2 = stripped(out_u, b"BEGIN2", b"END2")
+        row("U1: UTF-8 - e acute (C3 A9, one cell) is written with ONE blank after it, so cafe' [ok] takes the cells the shadow gives it; the shadow is still the text",
+            b"caf\xc3\xa9  [ok]" in u2 and re.search(r"(?m)^PLAIN\[SAME=1\]", ANSI.sub("", out_u.decode("latin-1"))) is not None, repr(u2[:40]))
+        u7 = stripped(out_u, b"BEGIN7", b"END7")
+        row("U2: UTF-8 - a wide character (E6 97 A5: three bytes, two cells) gets one blank and a four-byte one (F0 9F 98 80: two cells) two; the shadow is the text",
+            u7 == b"W\xe6\x97\xa5 X\xf0\x9f\x98\x80  Y" and re.search(r"(?m)^SH5\[SAME=1\]", ANSI.sub("", out_u.decode("latin-1"))) is not None, repr(u7))
+        c7 = stripped(out_c, b"BEGIN7", b"END7")
+        # the bytes 0x80-0x9F are C1 controls there and are shown as their 7-bit letter (C1b): 97 as W, 9F as _, 98 as X, 80 as @
+        row("U3 (control): NOT UTF-8 - no blank is added (a byte is a cell there); the bytes 0x80-0x9F are shown as their letters, as C1b says",
+            c7 == b"W\xe6W\xa5X\xf0_X@Y", repr(c7))
     finally:
         for nm in made:
             for d in ("bp", "bp.out"):

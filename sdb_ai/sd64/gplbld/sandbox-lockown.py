@@ -108,7 +108,7 @@ def main():
         say("\n--- $MODE AUTOLOCK -----------------------------------------------------------------------------------")
         out = sess(box, "DELETE.FILE %s" % f, "CREATE.FILE %s" % f, "BASIC bp zzal_off", "BASIC bp zzal_on", "BASIC bp zzal_seed", quiet=True)
         row("setup: the two programs without the mode compiled, and the one with $MODE AUTOLOCK was refused (the mode is gone: 'Unrecognised mode name')",
-            out.count("Compiled 1 program(s) with no errors") == 2 and "Unrecognised mode name" in out, out[-400:])
+            out.count("Compiled 1 program(s) with no errors") == 2 and "Unrecognized mode name" in out, out[-400:])
         o = sess(box, "RUN bp zzal_seed", "RUN bp zzal_off")
         row("CONTROL, no mode: a WRITE in a transaction with no lock held is refused",
             re.search(r"(?m)^WRITE-REFUSED\s*$", o) is not None, o[-400:])

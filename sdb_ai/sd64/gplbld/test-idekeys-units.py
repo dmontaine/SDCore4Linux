@@ -65,7 +65,7 @@ HELP = (
     ("m11214", "Alt-PgDn, PgUp", "own tabs", "alt-pgdn"), ("m11214", "F6, Shift-F6", "previous pane", "shift-f6"),
     ("m11215", "F4", "Next error", "f4"), ("m11215", "F9", "Run", "f9"), ("m11215", "F7", "Debug", "f7"), ("m11215", "F8", "Compile", "f8"),
     ("m11215", "F5, Ctrl-L", "Draw the screen again", "f5"), ("m11215", "Ctrl-T", "theme", "ctrl-t"), ("m11215", "Ctrl-K", "keys", "ctrl-k"),
-    ("m11215", "Shift-F9", "compile and catalogue", "shift-f9"), ("m11215", "Alt-G", "Go to a line", "alt-g"), ("m11215", "Ctrl-E", "fills the screen", "ctrl-e"),
+    ("m11215", "Shift-F9", "compile and catalog", "shift-f9"), ("m11215", "Alt-G", "Go to a line", "alt-g"), ("m11215", "Ctrl-E", "fills the screen", "ctrl-e"),
     ("m11215", "F12", "as fields", "f12"),
     ("m11216", "F3, Shift-F3", "previous", None), ("m11216", "Esc, F10", "menus", "f10"), ("m11216", "Ctrl-Q", "Quit", "ctrl-q"), ("m11216", "F1", "This screen", "f1"),
     ("m11216", "Ctrl-R", "Replace", "ctrl-r"),
@@ -217,7 +217,7 @@ def checks(raw):
        and "execute" not in case_block(rc, "case cmd = 'compile'") and "catalog" not in case_block(rc, "case cmd = 'compile'").replace("case cmd = 'compile'", ""), cat[:200])
     cv = block(ide, "catalog.verified")
     ck("IK10", "'Catalogued file id' (11207) is the status only when CATALOG's own success line (messages 3029 to 3031) was read in its answer; otherwise the answer is shown in a box (11974)",
-       raw["m11207"].startswith("Catalogued ") and re.search(r"for cv\.m = 3029 to 3031\s*\n\s*if index\(upcase\(co\), upcase\(sysmsg\(cv\.m, c\.id\)\), 1\) then cv\.ok = @true", cv) is not None
+       raw["m11207"].startswith("Cataloged ") and re.search(r"for cv\.m = 3029 to 3031\s*\n\s*if index\(upcase\(co\), upcase\(sysmsg\(cv\.m, c\.id\)\), 1\) then cv\.ok = @true", cv) is not None
        and re.search(r"if cv\.ok then\s*\n\s*msg = sysmsg\(11207, c\.file, c\.id\)\s*\n\s*return\s*\n\s*end", cv) is not None and "sysmsg(11974," in cv and "gosub refuse.box" in cv, cv[:200])
     cc = block(ide, "close.current")
     ck("IK11", "Ctrl-W closes the record: a changed one asks Save / Discard / Cancel (11204), Cancel and a refused save leave it open, and the last tab closed makes an Untitled buffer (the editor is never empty)",
@@ -345,13 +345,13 @@ MUTANTS = [
     ("F6 goes to the next tab (the old key)", "IK2", sub("ide", "case edata = 'f6'\n         cmd = 'nextpane'", "case edata = 'f6'\n         cmd = 'nexttab'")),
     ("Ctrl-W writes a copy (the old key)", "IK2", sub("ide", "case edata = 'ctrl-w'\n         cmd = 'close'", "case edata = 'ctrl-w'\n         cmd = 'writeas'")),
     ("Ctrl-PageDown is not the tab key", "IK2", sub("ide", "case edata = 'ctrl-pgdn'", "case edata = 'ctrl-pgdnx'")),
-    ("a menu shows F8 for the catalogue entry", "IK4", sub("m11228", "Compile and cat&alog~F9~catalog", "Compile and cat&alog~F8~catalog")),
+    ("a menu shows F8 for the catalogue entry", "IK4", sub("m11228", "Compile and cat&alog~Shift-F9~catalog", "Compile and cat&alog~F8~catalog")),
     ("a menu carries a word run.cmd does not know", "IK3", sub("m11225", "&New record~^N~new", "&New record~^N~newer")),
     ("run.cmd has no close", "IK3", sub("ide", "      case cmd = 'close'\n         gosub close.current\n", "      case cmd = 'closed'\n         gosub close.current\n")),
     ("Close record moves in the File menu", "IK5", sub("m11225", "|&Close record~^W~close|&Quit~^Q~quit", "|&Quit~^Q~quit|&Close record~^W~close")),
     ("a menu entry has a key the map lacks", "IK4", sub("m11227", "&Find in the records~~find", "&Find in the records~F11~find")),
     ("the help names F2", "IK6", sub("m11214", "Ctrl-S           Save", "F2, Ctrl-S       Save")),
-    ("the help says F7 compiles", "IK6", sub("m11215", "F7               Debug", "F7               Compile")),
+    ("the help says F7 compiles", "IK6", sub("m11215", "F7              Debug", "F7              Compile")),
     ("the help says F6 is the tab key", "IK6", sub("m11214", "F6, Shift-F6     Next / previous pane", "F6, Shift-F6     Next / previous tab")),
     ("F9 stops compiling first", "IK9", sub("ide", "         c.opt = ''\n         gosub do.compile\n         if c.ok then\n            qp.file = c.file ; qp.id = c.id ; gosub quote.pair\n            execute 'catalog '",
                                             "         c.opt = ''\n         c.ok = @true\n         if c.ok then\n            qp.file = c.file ; qp.id = c.id ; gosub quote.pair\n            execute 'catalog '")),

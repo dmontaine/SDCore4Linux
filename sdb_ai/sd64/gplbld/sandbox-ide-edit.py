@@ -413,9 +413,9 @@ def section_s184():
     e.quiet()
     row("T4 Alt-= shows the code of the character at the cursor: char(97) 'a', field 1 value 1 subvalue 1", "char(97) 'a'" in e.status() and "field 1, value 1, subvalue 1" in e.status(), e.status()[:160])
     menu(e, 4, 5)                                                       # View > Syntax colour
-    row("T5 View > Syntax colour switches it off and says so", "Syntax colour is off" in e.status(), e.status()[:120])
+    row("T5 View > Syntax colour switches it off and says so", "Syntax color is off" in e.status(), e.status()[:120])
     menu(e, 4, 5)
-    row("T6 ...and on again", "Syntax colour is on" in e.status(), e.status()[:120])
+    row("T6 ...and on again", "Syntax color is on" in e.status(), e.status()[:120])
     with_n = e.lines()[3][28:40]
     menu(e, 4, 6)                                                       # View > Line numbers
     without_n = e.lines()[3][28:40]

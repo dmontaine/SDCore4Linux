@@ -1189,7 +1189,7 @@ clause of `execute` — the select list held in a variable becomes the command's
 `pdump`
 
 - a statement of SD BASIC
-- docs: `User/markdown/17-sd-basic-debugging.md` line 537
+- docs: `User/markdown/17-sd-basic-debugging.md` line 542
 
 ### basic:stmt:phantom
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:432#ea8544c2

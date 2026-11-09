@@ -114,7 +114,7 @@ def macro(raw, name):
 
 def parser_keys(configc):
     """{key: destination} for every parameter read_config() takes, destination cfg (the shared segment), pcfg (the session's own) or ignored."""
-    m = re.search(r'if \(!strcmp\(section, "SD"\)\) \{(.*?)Unrecognised configuration parameter', configc, re.S)
+    m = re.search(r'if \(!strcmp\(section, "SD"\)\) \{(.*?)Unrecognized configuration parameter', configc, re.S)
     body = m.group(1) if m else ""
     hits = list(re.finditer(r'(?:sscanf\(rec, |strncmp\(rec, )"([A-Z0-9]+)=', body))
     out = {}

@@ -62,6 +62,7 @@
 *                 and a record name holding a single quote is refused, because
 *                 the editor is launched through the shell.
 *               - The working copy is in $HOLD, upper case until SL M.
+* 9 Nov 26 dm  S.186: what the program prints is in US spelling (the owner: "Everything SD prints"); its text only, no change of behaviour.
 * END-HISTORY
 *
 PROGRAM EDIT
@@ -376,7 +377,7 @@ compile.record.query:
       case response = 'G'
          execute 'CATALOG ' : in.file.name : ' ' : in.record.name : ' GLOBAL'
       case response = 'N'
-         crt in.file.name : ' ' : in.record.name : ' not catalogued'
+         crt in.file.name : ' ' : in.record.name : ' not cataloged'
    end case
 return
 

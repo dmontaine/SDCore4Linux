@@ -117,7 +117,7 @@ def checks(raw):
        "screen key timeout 3 returning nm" in pg and "gosub timed.refresh" in pg and "old.sig = sig" in tr and "if sig # old.sig then" in tr and "sig = udata : @fm : locks : @fm : inh" in ra)
     acts = sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg)))
     ck("SS10", "the key table has exactly: help, switch, logout, unlock, inhibit, refresh, quit - and the Esc row that opens the menu bar (S.88 U2; the bar runs nothing, a choice is one of those keys); L belongs to the sessions list and U to the locks list, in the table and in the dispatch",
-       acts == sorted(["help", "switch", "logout", "unlock", "inhibit", "refresh", "quit", "menu", "output"]) and "'l', 'logout', 'logout', 'Sessions'" in pg and "'u', 'unlock', 'unlock', 'Locks'" in pg
+       acts == sorted(["help", "switch", "logout", "unlock", "inhibit", "refresh", "quit", "menu", "output", "find"]) and "'l', 'logout', 'logout', 'Sessions'" in pg and "'u', 'unlock', 'unlock', 'Locks'" in pg
        and "case nm = 'l' and pane = 1" in pg and "case nm = 'u' and pane = 2" in pg, " ".join(acts))
     ck("SS11", "after a command the lists are read again and the whole page is drawn again, and what the status line shows is the verb's own first line",
        len(re.findall(r"call \$tk_run\(allow, sent, out, stat, err\)[\s\S]*?gosub first\.line[\s\S]*?gosub read\.all\s*\n\s*gosub draw\.all", pg)) == 3 and "trim(out<oi>) # ''" in block(pg, "first.line") and "for oi = 1 to dcount(out, @fm)" in block(pg, "first.line"))

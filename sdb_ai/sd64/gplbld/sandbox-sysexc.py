@@ -56,7 +56,7 @@ NAMES = [
     ("1118 select list number out of range", "readlist l from 99 else null", "SYS.SELECT.INVALID_LIST_NO", "", ""),
     ("1133 GOSUBs nested too deeply", "gosub deep", "SYS.PROGRAM.LIMIT.GOSUB_DEPTH", "",
      "goto fin\ndeep: gosub deep\nreturn\nfin: null"),
-    ("1134 a subroutine that is not catalogued", "nm = 'zznosuchsub'\n   call @nm()", "SYS.PROGRAM.NOT_FOUND", "", ""),
+    ("1134 a subroutine that is not cataloged", "nm = 'zznosuchsub'\n   call @nm()", "SYS.PROGRAM.NOT_FOUND", "", ""),
     ("1130 an illegal call name", "nm = 'Bad Name!'\n   call @nm()", "SYS.PROGRAM.INVALID_CALL_NAME", "", ""),
     ("1005 a CALL with the wrong number of arguments", "call zzsx1(1, 2)", "SYS.PROGRAM.INVALID_ARGCT", "", ""),
     ("11121 a collection operation on a string", "q = 'abc'\n   y = q{'x'}", "SYS.PROGRAM.DATATYPE.NOT_COLLECTION", "", ""),

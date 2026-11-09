@@ -208,6 +208,18 @@ def cases(label, script_text):
         rc, out = run(root, ["--list", "--only", "okay,bad", "--skip", "bad"])
         row(label + "--list prints the suites that would run and runs none", rc == 0 and out.split() == ["okay"], "rc %d  %r" % (rc, out))
 
+        # 9 Nov 26 (S.186): the free checks run FIRST, and one that fails stops the run before any suite starts (a minute, not the suites' hour)
+        zf = os.path.join(root, "gplbld", "test-zzfail.py")
+        with open(zf, "w") as f:
+            f.write("import sys\nsys.exit(1)\n")
+        rc, out = run(root, ["--only", "okay", "--free"])
+        row(label + "a free check that fails stops the run BEFORE the suites: STOPPED is said, no suite ran, exit 1",
+            rc == 1 and "STOPPED before the suites" in out and "FAIL test-zzfail.py" in out and verdict(out, "okay") is None, "rc %d  %s" % (rc, out[-300:]))
+        rc, out = run(root, ["--only", "okay", "--free", "--keep-going"])
+        row(label + "...and --keep-going runs the suites anyway: the suite PASSes, the run still exits 1 for the free check",
+            rc == 1 and verdict(out, "okay") == "PASS" and "STOPPED" not in out, "rc %d  %s" % (rc, out[-300:]))
+        os.remove(zf)
+
         # --jobs
         for bad in ("0", "9", "x"):
             rc, out = run(root, ["--only", "okay", "--jobs", bad])

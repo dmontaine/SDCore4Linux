@@ -16,6 +16,8 @@
 *              DEFAULT of the filter's text.
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the list to the AI line and back; AI > Ask the AI is a menu entry of its own.
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
+* 9 Nov 26 dm  S.186: View > Mouse and Ctrl-O (the log of the commands run), the same on every page (act:std.mouse, ctrl-o, $tk_std); a name the page will not give to a command now says why
+*              ($tk_badch for the character; why.bad for a first character or a keyword).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -103,7 +105,7 @@ $include header.h
    perr = ''
    gosub declare.layout
    MAXREC = 2000                                                ;* records read from one program file
-   hl = fmt('File', '14L') : ' ' : fmt('Program', '30L') : fmt('Kind', '12L') : fmt('Compiled', '18L') : ' ' : fmt('Object', '8R') : '  ' : fmt('State', '8L') : 'Catalogued'
+   hl = fmt('File', '14L') : ' ' : fmt('Program', '30L') : fmt('Kind', '12L') : fmt('Compiled', '18L') : ' ' : fmt('Object', '8R') : '  ' : fmt('State', '8L') : 'Cataloged'
 
    rtype = '' ; rfile = '' ; rname = '' ; rlow = '' ; rcls = '' ; rloc = '' ; rpath = '' ; rmeta = '' ; rmc = '' ; nr = 0    ;* every row: type p (a program record) or c (a catalogue entry alone)
    pfn = '' ; pfo = '' ; pfd = '' ; pfq = '' ; pfs = '' ; pfobj = '' ; pfb = '' ; pfc = '' ; npf = 0                       ;* the program files and what is in them
@@ -720,11 +722,11 @@ gate.state:
 draw.foot:
    gosub gate.state
    s = 'Your gate:  bp-edit ' : (if gon then (if gadm then 'on (administrator)' else 'on') else 'off')
-   s := '   ' : nprog : (if nprog = 1 then ' program' else ' programs') : ' in ' : npf : (if npf = 1 then ' file' else ' files') : ', ' : ncomp : ' compiled; ' : npriv : ' private and ' : nlocal : ' local catalogue '
+   s := '   ' : nprog : (if nprog = 1 then ' program' else ' programs') : ' in ' : npf : (if npf = 1 then ' file' else ' files') : ', ' : ncomp : ' compiled; ' : npriv : ' private and ' : nlocal : ' local catalog '
    s := (if npriv + nlocal = 1 then 'entry' else 'entries')
    if filt # '' then s := ', ' : ns : ' shown with "' : filt : '"'
    screen text fmt(s, tw : 'L') at lx + 2,ly + lh - 4 attr 'bold' width tw
-   note = "basic, catalog, decatalog and delete.catalog need bp-edit; what refuses is the verb.  Global cataloguing is the administrator's own command and is not offered here."
+   note = "basic, catalog, decatalog and delete.catalog need bp-edit; what refuses is the verb.  Global cataloging is the administrator's own command and is not offered here."
    wpieces = note
    if tw > rtw then call $tk_wrap(note, tw, wpieces)
    screen text fmt(wpieces<1>, tw : 'L') at lx + 2,ly + lh - 3 width tw
@@ -797,7 +799,7 @@ describe:
       if meta<1, 14> = '' then lines<-1> = 'There is no compiled program in ' : rfile<mk> : '.out for it.'
    end
    lines<-1> = ''
-   lines<-1> = 'Catalogue entries under the call name ' : rn : ' (typing the name runs the program once it is catalogued):'
+   lines<-1> = 'Catalog entries under the call name ' : rn : ' (typing the name runs the program once it is cataloged):'
    pv = meta<1, 5>
    begin case
       case pv = ''
@@ -805,7 +807,7 @@ describe:
       case pv = 'same'
          s = 'yes, the same compile as the compiled program.'
       case pv = 'older'
-         s = 'yes, but from an earlier compile (' : meta<1, 17> : ').  C catalogues the current one.'
+         s = 'yes, but from an earlier compile (' : meta<1, 17> : ').  C catalogs the current one.'
       case pv = 'newer'
          s = 'yes, but from a LATER compile (' : meta<1, 17> : ') than the compiled program in ' : rfile<mk> : '.out.'
       case 1
@@ -823,17 +825,17 @@ describe:
       lines<-1> = "   global   (SDSYS's gcat):  none."
    end
    lines<-1> = ''
-   lines<-1> = 'To run it before it is catalogued:  run ' : rfile<mk> : ' ' : rn
+   lines<-1> = 'To run it before it is cataloged:  run ' : rfile<mk> : ' ' : rn
    return
 
 * In: mk, meta.  Out: lines, for a catalogue entry that no program record accounts for
 describe.entry:
    rn = rname<mk>
    if rfile<mk> = '(private)' then
-      lines<-1> = rn : "  -  an entry in the private catalogue (your account's cat file) that no program record of your program files accounts for."
+      lines<-1> = rn : "  -  an entry in the private catalog (your account's cat file) that no program record of your program files accounts for."
       lines<-1> = 'Typing ' : rn : ' runs it.  D takes the entry out (delete.catalog ' : rn : ').'
    end else
-      lines<-1> = rn : '  -  a local catalogue entry (a VOC entry) that points at ' : rpath<mk>
+      lines<-1> = rn : '  -  a local catalog entry (a VOC entry) that points at ' : rpath<mk>
       lines<-1> = 'No program record of your program files accounts for it.  X takes it out and deletes the object it points at (decatalog).'
       lines<-1> = 'D takes only the entry out (delete.catalog ' : rn : ' local).'
    end
@@ -907,12 +909,17 @@ on.key:
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
          msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
+         msg = std.r<2>
+      case nm = 'ctrl-o'                    ;* S.186: the log of the commands this page ran (View > Output; $tk_std)
+         call $tk_std('output', ctx, keys, '', std.r)
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, 'Programs', std.r)
       case nm = 'f5'
          gosub read.all
          gosub draw.all
-         msg = 'read the programs and the catalogues again'
+         msg = 'read the programs and the catalogs again'
          if capnote # '' then msg = capnote
       case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'
          call $tk_aipage('ring', ctx, keys, 1, nm : @fm : 1, ap)            ;* S.176: F6 / Shift-F6 go round the boxes (one here) and the AI line; AI > Ask the AI goes to the line
@@ -962,6 +969,22 @@ on.mouse:
 * ------------------------------------------------------------------------------------------------- the things the page can run
 
 * A name the page may give to a command: letters a-z, digits, dot, dash and underscore only (what $tk_run lets through)
+* 9 Nov 26 (S.186): why a catalogue entry's name (bad.w) is not given to a command, in words, for the status line: the character ($tk_badch), else the first
+*   character that is not a letter or a digit (the verbs read such a name as a global one), else a keyword's name, else its length
+why.bad:
+   call $tk_badch(bad.w, bad.ch)
+   begin case
+      case bad.ch # ''
+         bad.ch = 'has ' : bad.ch
+      case index('abcdefghijklmnopqrstuvwxyz0123456789', bad.w[1, 1], 1) = 0
+         bad.ch = 'begins with ' : (if bad.w = '' then 'nothing' else bad.w[1, 1])
+      case index(kwords, ' ' : downcase(bad.w) : ' ', 1) > 0
+         bad.ch = 'is a keyword'
+      case 1
+         bad.ch = 'has more than 63 characters'
+   end case
+   return
+
 check.name:
    okname = (len(fn) > 0 and len(fn) <= 63)
    good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'
@@ -977,11 +1000,11 @@ pick.program:
    mk = shown<ci>
    gosub ensure.meta
    if rtype<mk> # 'p' then
-      msg = 'this is a catalogue entry with no program record in your files: X takes a local one out, D a private or a local one'
+      msg = 'this is a catalog entry with no program record in your files: X takes a local one out, D a private or a local one'
       return
    end
    if meta<1, 14> # '' then
-      msg = 'this record is not compiled by itself (an include, a screen definition or the compiler options): nothing to compile or catalogue'
+      msg = 'this record is not compiled by itself (an include, a screen definition or the compiler options): nothing to compile or catalog'
       return
    end
    pfile = rfile<mk>
@@ -992,7 +1015,9 @@ pick.program:
    fn = pname
    gosub check.name
    if not(ok1 and okname) then
-      msg = 'this name has a character the page does not give to a command: type ' : want : ' ' : pfile : ' ' : pname : ' at the prompt'
+      call $tk_badch(pfile : pname, bad.ch)                        ;* 9 Nov 26 (S.186): say which character
+      if bad.ch = '' then bad.ch = 'more than 63 characters'
+      msg = 'this name has ' : bad.ch : ', which the page does not give to a command: type ' : want : ' ' : pfile : ' ' : pname : ' at the prompt'
       return
    end
    if index('abcdefghijklmnopqrstuvwxyz0123456789', pname[1, 1], 1) = 0 or index('abcdefghijklmnopqrstuvwxyz0123456789', pfile[1, 1], 1) = 0 then
@@ -1046,7 +1071,7 @@ do.basic:
    sent = 'basic ' : pfile : ' ' : pname : ' no.query'
    lines = ''
    lines<-1> = 'Compiles ' : pname : ' of the file ' : pfile : ' and writes the result to ' : pfile : ".out.  The compiled program that is there is removed first and is not put back if the compile fails.  The compiler's lines are shown afterwards."
-   lines<-1> = 'no.query keeps the compiler from asking a question the page cannot show: a source with a $catalog line is catalogued by its compile, and an entry of the same name in another catalogue is then replaced without asking.'
+   lines<-1> = 'no.query keeps the compiler from asking a question the page cannot show: a source with a $catalog line is cataloged by its compile, and an entry of the same name in another catalog is then replaced without asking.'
    gosub gate.line
    call $tk_confirm(sent, lines, '', res, cmsg)
    if res # 'run' then
@@ -1096,7 +1121,7 @@ do.cat:
    gosub pick.program
    if not(okp) then return
    if meta<1, 3> = '' then
-      msg = pname : ' is not compiled yet: B compiles it, and then it can be catalogued'
+      msg = pname : ' is not compiled yet: B compiles it, and then it can be cataloged'
       return
    end
    sent = 'catalog ' : pfile : ' ' : pname : (if cmode = 'local' then ' local' else '') : ' no.query'
@@ -1118,15 +1143,15 @@ do.cat:
    end
    lines = ''
    if cmode = '' then
-      lines<-1> = 'Copies the compiled program ' : pname : " into the private catalogue (your account's cat file).  Typing " : downcase(pname) : ' at the prompt then runs it.'
+      lines<-1> = 'Copies the compiled program ' : pname : " into the private catalog (your account's cat file).  Typing " : downcase(pname) : ' at the prompt then runs it.'
       if meta<1, 5> # '' then lines<-1> = 'The private copy that is there is replaced.'
    end else
-      lines<-1> = 'Makes a local catalogue entry: a VOC entry ' : downcase(pname) : ' that points at the compiled program in ' : pfile : '.out.  Typing ' : downcase(pname) : ' runs it, in this account only.'
+      lines<-1> = 'Makes a local catalog entry: a VOC entry ' : downcase(pname) : ' that points at the compiled program in ' : pfile : '.out.  Typing ' : downcase(pname) : ' runs it, in this account only.'
       if lfound then lines<-1> = 'A local entry of that name is already there; it is replaced' : (if lhere then '.' else ', although it points at another program.')
    end
    if others # '' then
       lines<-1> = ''
-      lines<-1> = 'no.query makes catalog take an entry of the same name out of the other catalogues without asking: ' : change(others, @fm, ', ') : '.  That is why the name is asked for.'
+      lines<-1> = 'no.query makes catalog take an entry of the same name out of the other catalogs without asking: ' : change(others, @fm, ', ') : '.  That is why the name is asked for.'
    end
    gosub gate.line
    typed.name = (if others # '' then pname else '')
@@ -1151,13 +1176,15 @@ do.decat:
    gosub ensure.meta
    lid = rloc<mk, 1>
    if lid = '' then
-      msg = 'there is no local catalogue entry for this program: D takes a private one out'
+      msg = 'there is no local catalog entry for this program: D takes a private one out'
       return
    end
    fn = lid
    gosub check.name
    if not(okname) or index('abcdefghijklmnopqrstuvwxyz0123456789', lid[1, 1], 1) = 0 or index(kwords, ' ' : downcase(lid) : ' ', 1) > 0 then
-      msg = 'this entry name has a character the page does not give to a command: type decatalog ' : lid : ' at the prompt'
+      bad.w = lid
+      gosub why.bad
+      msg = 'this entry name ' : bad.ch : ', which the page does not give to a command: type decatalog ' : lid : ' at the prompt'
       return
    end
    * decatalog deletes the object file the entry points at, and the verb does not ask whether this account may reach that path: an entry that leads outside the account is not offered
@@ -1167,7 +1194,7 @@ do.decat:
    end
    sent = 'decatalog ' : lid
    lines = ''
-   lines<-1> = 'Takes the local catalogue entry ' : lid : ' out of the VOC AND deletes the compiled program it points at: ' : (if rtype<mk> = 'p' then meta<1, 12> else rpath<mk>) : '.'
+   lines<-1> = 'Takes the local catalog entry ' : lid : ' out of the VOC AND deletes the compiled program it points at: ' : (if rtype<mk> = 'p' then meta<1, 12> else rpath<mk>) : '.'
    lines<-1> = 'The source is not touched; B compiles the program again, but until then it cannot be run.  D would take only the entry out.'
    gosub gate.line
    call $tk_confirm(sent, lines, lid, res, cmsg)
@@ -1192,13 +1219,13 @@ do.delcat:
    hasp = (meta<1, 5> # '')
    hasl = (rloc<mk, 1> # '')
    if not(hasp) and not(hasl) then
-      msg = "there is no private or local catalogue entry for this program (a global one is the administrator's to take out: delete.catalog name global)"
+      msg = "there is no private or local catalog entry for this program (a global one is the administrator's to take out: delete.catalog name global)"
       return
    end
    which = 0
    begin case
       case hasp and hasl
-         screen msgbox 'Which entry of ' : rname<mk> : '?' : @fm : '' : @fm : 'The private copy, or the local VOC entry.' title 'Take out of the catalogue' buttons '&Private,&Local,&Cancel' default 3 returning which else which = 3
+         screen msgbox 'Which entry of ' : rname<mk> : '?' : @fm : '' : @fm : 'The private copy, or the local VOC entry.' title 'Take out of the catalog' buttons '&Private,&Local,&Cancel' default 3 returning which else which = 3
       case hasp
          which = 1
       case 1
@@ -1212,15 +1239,17 @@ do.delcat:
    fn = cname
    gosub check.name
    if not(okname) or index('abcdefghijklmnopqrstuvwxyz0123456789', cname[1, 1], 1) = 0 or index(kwords, ' ' : downcase(cname) : ' ', 1) > 0 then
-      msg = 'this entry name has a character the page does not give to a command: type delete.catalog ' : cname : (if which = 2 then ' local' else '') : ' at the prompt'
+      bad.w = cname
+      gosub why.bad
+      msg = 'this entry name ' : bad.ch : ', which the page does not give to a command: type delete.catalog ' : cname : (if which = 2 then ' local' else '') : ' at the prompt'
       return
    end
    sent = 'delete.catalog ' : cname : (if which = 2 then ' local' else '')
    lines = ''
    if which = 1 then
-      lines<-1> = 'Takes ' : cname : " out of the private catalogue (your account's cat file).  The compiled program in its .out file stays; C catalogues it again."
+      lines<-1> = 'Takes ' : cname : " out of the private catalog (your account's cat file).  The compiled program in its .out file stays; C catalogs it again."
    end else
-      lines<-1> = 'Takes the local catalogue entry ' : cname : ' (a VOC entry) out.  The compiled program it pointed at stays; X would delete that too.'
+      lines<-1> = 'Takes the local catalog entry ' : cname : ' (a VOC entry) out.  The compiled program it pointed at stays; X would delete that too.'
    end
    gosub gate.line
    call $tk_confirm(sent, lines, cname, res, cmsg)

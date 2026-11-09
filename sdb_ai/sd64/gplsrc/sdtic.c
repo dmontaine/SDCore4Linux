@@ -20,6 +20,7 @@
  * 10 Sep 26 dm  Parity audit: buffers reset for every entry, and sdtic exits 1
  *               when any entry failed (the Windows port's fix; UPSTREAM_FIXES 9).
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.186 (the owner: US spelling in everything SD prints): "Unrecognized capability name".
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -857,7 +858,7 @@ int16_t lookup(char* id, char* names[], int16_t ct) {
   for (i = 0; i < ct; i++)
     if (strcmp(id, names[i]) == 0)
       return i;
-  err("Unrecognised capability name '%s'\n", id);
+  err("Unrecognized capability name '%s'\n", id);
   errors++;
   return -1;
 }

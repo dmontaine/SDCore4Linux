@@ -22,6 +22,7 @@
 * 16 Oct 26 dm  QM4 Fixes 360: STATISTICS also shows a histogram of group utilisation (fields 32 to 42 of ANALYSE()).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 24 0.6.1 SD launch. Earlier history details suppressed.
+* 9 Nov 26 dm  S.186: what the program prints is in US spelling (the owner: "Everything SD prints"); its text only, no change of behaviour.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -195,7 +196,7 @@ $include int$keys.h
          case keyword = KW$LPTR
             lptr = @true
          case 1
-            stop "Unrecognised keyword '" : token : "'"
+            stop "Unrecognized keyword '" : token : "'"
       end case
       call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
    repeat

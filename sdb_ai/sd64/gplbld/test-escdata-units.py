@@ -29,7 +29,8 @@ BP = os.environ.get("BPDIR", os.path.normpath(os.path.join(HERE, "..", "sdsys", 
 
 # program -> number of DISPLAY statements (28 Oct 2026, measured).  Each is a sequence of the library's own (cursor, mode, style, clear, mouse) or a bell, or in sl_guard the
 # library's own message line over the top row.  sl_memo is 1 since 9 Nov 2026 (S.184 stage 2): every bell goes through its ring.bell.
-DISPLAYS = {"sl_cleanup": 2, "sl_desktop": 1, "sl_form": 3,"sl_guard": 3, "sl_memo": 1, "sl_put": 1, "sl_repaint": 1, "sl_scr": 2, "screen_close": 3, "screen_cursor": 2, "screen_open": 1}
+DISPLAYS = {"sl_cleanup": 2, "sl_desktop": 1, "sl_form": 3,"sl_guard": 3, "sl_memo": 1, "sl_put": 1, "sl_repaint": 1, "sl_scr": 2, "screen_close": 3, "screen_cursor": 2, "screen_open": 1,
+            "tk_std": 1}     # 9 Nov 26 (S.186): View > Mouse sends the terminal $sl_mouse's switch sequence (mouse.apply)
 
 
 def read(name):

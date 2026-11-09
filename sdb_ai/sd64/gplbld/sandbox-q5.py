@@ -290,8 +290,8 @@ def main():
         for bad, why in ((("PHANTOMS=0,3",), r"PHANTOMS user numbers must lie between 1 and"),
                          (("PHANTOMS=5,0",), r"PHANTOMS user numbers must lie between 1 and"),
                          (("PHANTOMS=30000,5",), r"PHANTOMS user numbers must lie between 1 and"),
-                         (("FIXUSERS=10,5",), r"Unrecognised configuration parameter"),
-                         (("PORTMAP=9990,10,5",), r"Unrecognised configuration parameter")):
+                         (("FIXUSERS=10,5",), r"Unrecognized configuration parameter"),
+                         (("PORTMAP=9990,10,5",), r"Unrecognized configuration parameter")):
             ok, log = refused(why, *bad)
             row("B9: sd.conf %s: SD does not start and says why" % " ".join(bad), ok, log)
         # USPLIT ignores the kept numbers, but USER n still takes a free one of PHANTOMS' numbers

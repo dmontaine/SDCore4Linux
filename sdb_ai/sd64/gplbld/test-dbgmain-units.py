@@ -93,7 +93,14 @@ def checks(s):
                                                                    r"call \$sl_repaint\(ps\)", r"call \$sl_scr\('put', ps\)", r"display @\(-31\) : sq : @\(-1\)"))
     ck("F7 give.main reads the kept context again, repaints an owned screen then puts it back, and clears any other with the cursor shown (@(-31)) and the plain style",
        0 <= g_off < g_get < g_own < g_rep < g_put < g_clr, repr((g_off, g_get, g_own, g_rep, g_put, g_clr)))
-    ck("F8 the debugger writes the kept context back ($sl_scr 'put') in give.main only", c.count("$sl_scr('put'") == 1 and "$sl_scr('put'" in gm)
+    # 9 Nov 26 (S.186): dbg.find (F2, the finder) puts the debugger's own context in place for $sl_palette and then the kept one back, exactly as it was got:
+    # the only other pair, and it must be get-keep, put-own, palette, get-own, put-keep in that order
+    fd = routine(c, "dbg.find") or ""
+    f_get, f_own, f_pal, f_back, f_keep = (pos(fd, p) for p in (r"call \$sl_scr\('get', pal\.keep\)", r"call \$sl_scr\('put', scr\)", r"call \$sl_palette\(",
+                                                               r"call \$sl_scr\('get', scr\)", r"call \$sl_scr\('put', pal\.keep\)"))
+    ck("F8 the debugger writes the kept context back ($sl_scr 'put') in give.main, and otherwise only dbg.find's pair (its own for the finder, the kept one back after)",
+       c.count("$sl_scr('put'") == 3 and "$sl_scr('put'" in gm and fd.count("$sl_scr('put'") == 2 and 0 <= f_get < f_own < f_pal < f_back < f_keep,
+       repr((c.count("$sl_scr('put'"), f_get, f_own, f_pal, f_back, f_keep)))
     ck("F9 the debugger still calls none of the one-app toolkit routines", not re.search(r"call \$tk_(open|close|frame|menubar|help)\b", c))
 
     tm = routine(c, "take.main") or ""
@@ -156,6 +163,8 @@ def mutants(s):
     mut("F7 give.main skips the repaint", "debug", "      call $sl_repaint(ps)\n      call $sl_scr('put', ps)", "      call $sl_scr('put', ps)")
     mut("F8 the debugger writes the context back elsewhere", "debug", "         gosub theme.in\n         gosub paint.layout\n         gosub paint.data.area\n         src.line = line",
         "         gosub theme.in\n         call $sl_scr('put', scr)\n         gosub paint.layout\n         gosub paint.data.area\n         src.line = line")
+    mut("F8 the finder does not give the kept context back", "debug", "   call $sl_scr('get', scr)\n   call $sl_scr('put', pal.keep)\n", "   call $sl_scr('get', scr)\n")
+    mut("F8 the finder draws on the kept context", "debug", "   call $sl_scr('put', scr)\n   call $sl_palette(", "   call $sl_palette(")
     mut("F9 the debugger opens a toolkit app", "debug", "   gosub take.main\n      gosub theme.in", "   gosub take.main\n      call $tk_open('x', 'y', ctx, err)\n      gosub theme.in")
     mut("F10 take.main does not clear", "debug", "   display sq : @(-1) :\n   return\n\n* GIVE.MAIN", "   return\n\n* GIVE.MAIN")
     mut("F11 main.on is not reset at entry", "debug", "   alt.on = @false\n   main.on = @false\n", "   alt.on = @false\n")

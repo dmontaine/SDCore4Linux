@@ -18,6 +18,7 @@
 *               filter's text, checked as a typed answer, and every box after it applies.
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the list to the AI line and back; AI > Ask the AI is a menu entry of its own.
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
+* 9 Nov 26 dm  S.186: the A key's label is analyze, as its menu entry Analyze is (it said analyse); View > Mouse and Ctrl-O, as on every page (act:std.mouse, ctrl-o).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -70,7 +71,7 @@ $include tk.h
    call $tk_keys('add', keys, 'n', 'new', 'new', '', 1)
    call $tk_keys('add', keys, 'c', 'clear', 'clear', '', 1)
    call $tk_keys('add', keys, 'd', 'delete', 'delete', '', 1)
-   call $tk_keys('add', keys, 'a', 'analyse', 'analyse', '', 1)
+   call $tk_keys('add', keys, 'a', 'analyze', 'analyse', '', 1)          ;* 9 Nov 26 (S.186): the label as the menu has it (US spelling); the action and the verb analyse.file keep their names
    call $tk_keys('add', keys, 'i', 'indices', 'indices', '', 1)
    call $tk_keys('add', keys, 't', 'triggers', 'triggers', '', 1)
    call $tk_keys('add', keys, '/', 'filter', 'filter', '', 1)
@@ -423,7 +424,7 @@ describe:
          lines<-1> = 'Open in other sessions: user ' : meta<1, 10> : ' (a clear or a delete is refused while another session holds it).'
       end
       lines<-1> = ''
-      lines<-1> = "C clears every record of the file.  D deletes the file and its VOC entry.  A analyses its groups.  Clear and Delete ask for the file's name, typed."
+      lines<-1> = "C clears every record of the file.  D deletes the file and its VOC entry.  A analyzes its groups.  Clear and Delete ask for the file's name, typed."
       close fv
    end else
       lines<-1> = fn : '  -  the VOC points at a file this account cannot open now.'
@@ -492,6 +493,11 @@ on.key:
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
          msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
+         msg = std.r<2>
+      case nm = 'ctrl-o'                    ;* S.186: the log of the commands this page ran (View > Output; $tk_std)
+         call $tk_std('output', ctx, keys, '', std.r)
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, 'Files', std.r)
       case nm = 'f5'

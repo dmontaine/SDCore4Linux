@@ -362,7 +362,7 @@ def cut_rows():
     base = re.sub(r"(?m)^SCREENTHEME=.*\n?", "", original)
     bar = {"paper": (7, 0), "night": (0, 7)}             # ANSI numbers of the menu bar: paper light grey on black, night black on light grey
     whole = {"admin": ["Switch account", "Sign out", "Sessions and locks", "who may do what", "test your keyboard"],
-             "zzhm": ["programs and files", "verbs and pointers", "edit many records", "compile, catalogue", "run, judge tests", "test your keyboard"]}
+             "zzhm": ["programs and files", "verbs and pointers", "edit many records", "compile, catalog", "run, judge tests", "test your keyboard"]}
     try:
         for theme in ("paper", "night"):
             with open(conf, "w") as fh:

@@ -43,6 +43,7 @@
 * rev 0.9-3 Nov 25 move voc back to dynamic file
 * 06 Aug 24 comment out "<cr> to install" prompt 
 * 02 Jul 24 add check for install already complete
+* 9 Nov 26 dm  S.186: what the program prints is in US spelling (the owner: "Everything SD prints"); its text only, no change of behaviour.
 * END-HISTORY
 *
 *
@@ -212,8 +213,8 @@ end
 *  note all files must be opend via openpath, open depends on pcode!
 
 openpath @sdsys:@ds:'gcat' to gcat.f else
-  crt 'Cannot open global catalogue directory! ABORT'
-  if logging then writeseq 'Cannot open global catalogue directory! ABORT' to log.f else null
+  crt 'Cannot open global catalog directory! ABORT'
+  if logging then writeseq 'Cannot open global catalog directory! ABORT' to log.f else null
   goto abort.bbproc
 end
    

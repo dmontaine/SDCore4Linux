@@ -398,7 +398,7 @@ def main():
         row("1: it named the twinned file, zzd2, and the pair jack and JACK",
             "zzd2" in out and re.search(r"jack / JACK|JACK / jack", out) is not None, "no twin report for zzd2")
         row("1: it did NOT name zzd1 as a twin", not re.search(r"File: \S*/zzd1\b", out), "zzd1 reported")
-        row("1: it said 2 catalogue names would be made lower case", "2 private catalogue name(s) in" in out and "would be made lower case" in out,
+        row("1: it said 2 catalogue names would be made lower case", "2 private catalog name(s) in" in out and "would be made lower case" in out,
             "no 11031 line with 2")
         row("1: it named both pairs of cat that cannot be renamed (ZZPAIR / zzpair)", "'ZZPAIR' and 'zzpair' both exist" in out, "no 11032 line")
         # the Windows agent's review (mail T0639): a file the VOC names under SDSYS, or (full product) outside the account,

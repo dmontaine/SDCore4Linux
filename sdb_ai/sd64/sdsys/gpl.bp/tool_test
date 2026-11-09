@@ -18,6 +18,7 @@
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page (box.ring, $tk_aipage 'ring': Tests, Output, the AI line); Tab and Shift-Tab no longer move between
 *              the boxes.  Enter still opens the Output box and Esc leaves it.  AI > Ask the AI is a menu entry of its own.
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
+* 9 Nov 26 dm  S.186: View > Mouse, the same on every page (the case act:std.mouse, through $tk_std).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -677,6 +678,9 @@ on.key:
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
          msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
+         msg = std.r<2>
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, pn, std.r)
       case nm = 'f5'
@@ -749,6 +753,9 @@ out.key:
       case nm = 'ctrl-t'                    ;* S.179: the theme, as in the page's other pane ($tk_std)
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
          msg = std.r<2>
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, pn, std.r)

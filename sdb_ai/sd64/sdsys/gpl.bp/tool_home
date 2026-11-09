@@ -48,6 +48,8 @@
 * 8 Nov 26 dm  S.179 (the owner: "The commands need to be consistent across all pages"): Ctrl-T is the theme and Ctrl-K the keys of this page, through $tk_std as on every
 *               page (View > Theme, Help > Keys); the Terminal moves to Alt-T and Sign out to Alt-X (Ctrl-X is cut wherever there is text); the Keys tile still
 *               opens tool.keys.  A new theme builds the page again (rebuild), since the tiles take their colours from it.
+* 9 Nov 26 dm  S.186: the description's keys follow S.179 (Ctrl-Q leaves or signs out, Alt-T the Terminal); it still said Ctrl-Q signs out, Ctrl-T the Terminal.
+*               View > Mouse and Ctrl-O, as on every page (act:std.mouse, ctrl-o, $tk_std).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -81,7 +83,7 @@
 *   The panel under the header scrolls: the page is laid out at its full height and the rows that fit are drawn, with a scroll bar in the last column.  Keys:
 *   the arrow keys move to the nearest tile, Tab and Back-tab go in reading order, Home and End to the first and last, Page Up and Page Down by group, a letter
 *   to the next tile that begins with it, / a window that finds a tile by any part of its name (typing narrows the list; Enter moves the focus to the tile), Enter or the space
-*   bar starts the tile, F5 builds the page again, F6 the AI line, Ctrl-Q signs out, Ctrl-T the Terminal, Ctrl-W Switch account, Ctrl-R the Recent group on or off, Ctrl-K Keys.
+*   bar starts the tile, F5 builds the page again, F6 the AI line, Ctrl-Q leaves to the prompt (signs out in a menu session or when the Terminal tile is off), Alt-T the Terminal (S.179; Ctrl-T is the theme), Ctrl-W Switch account, Ctrl-R the Recent group on or off, Ctrl-K Keys.
 *   THE MENU BAR is the toolkit's ($tk_menubar): it is made from the key table (make.keys, then make.menus), so every entry is a key's action and runs through the key's case;
 *   F10, Alt and a title's letter, a click on row 0, and Esc on the top page (the Esc rule: in a sub-menu Esc goes back) open it.  A click starts a tile, the wheel scrolls three
 *   rows.  The end of the input ends the program.
@@ -391,7 +393,7 @@ build.page:
    id = 'dict' ; grp = g ; label = 'Dictionary' ; glyph = '[D]' ; sub = 'items and indices' ; act = 'cmd:tool.dict' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'query' ; grp = g ; label = 'Queries' ; glyph = '[Q]' ; sub = 'build a report' ; act = 'cmd:tool.query' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'bulk' ; grp = g ; label = 'Bulk update' ; glyph = '[B]' ; sub = 'edit many records' ; act = 'cmd:tool.bulk' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
-   id = 'catalog' ; grp = g ; label = 'Programs' ; glyph = '[P]' ; sub = 'compile, catalogue' ; act = 'cmd:tool.catalog' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+   id = 'catalog' ; grp = g ; label = 'Programs' ; glyph = '[P]' ; sub = 'compile, catalog' ; act = 'cmd:tool.catalog' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    id = 'test' ; grp = g ; label = 'Tests' ; glyph = '[T]' ; sub = 'run, judge tests' ; act = 'cmd:tool.test' ; pal = pal.tools ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    * the header: two small tiles at the right, on the header's first three rows (place.header puts them on the last two tile columns)
    id = 'switch' ; grp = 0 ; label = 'Switch account' ; glyph = '<> ' ; sub = '' ; act = 'switch' ; pal = 'gray' ; size = 's' ; pause = 0 ; why = '' ; gosub add.header
@@ -1101,6 +1103,11 @@ on.key:
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub rebuild                    ;* the tiles' colours come from the theme (alloc.styles): the page is made again
          msg = std.r<2>
+      case nm = 'act:std.mouse'                            ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
+         msg = std.r<2>
+      case nm = 'ctrl-o'                                   ;* S.186: the log of the commands this page ran (View > Output; $tk_std)
+         call $tk_std('output', ctx, keys, '', std.r)
       case nm = 'alt-t'                                    ;* S.179: the Terminal (it had Ctrl-T)
          if terminal.off then
             msg = H.TILE.OFF                               ;* the Terminal tile is off for this account: its key and its menu entry are too

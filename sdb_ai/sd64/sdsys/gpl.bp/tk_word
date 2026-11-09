@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 28 Oct 26 dm  New (S.88 phase 2, S4).  TOOL.DICT's check.word, with its two halves, moved here so that TOOL.VOC and TOOL.FILES ask the same question of the name they build a
 *               command from.
+* 9 Nov 26 dm  S.186: why names the character that is wrong (14040 with $tk_badch); 11806 is left for a name that is empty or longer than 63.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -47,7 +48,12 @@ $catalog $tk_word
          sq = seq(name[q, 1])
          if sq >= 32 and sq <= 126 then shown := name[q, 1] else shown := '?'
       next q
-      why = sysmsg(11806, shown)
+      call $tk_badch(name, bad.ch)                     ;* 9 Nov 26 (S.186): which character, in words
+      if bad.ch = '' then
+         why = sysmsg(11806, shown)                    ;* the length is what is wrong (none, or over 63)
+      end else
+         why = sysmsg(14040, shown, bad.ch)
+      end
       return
    end
 

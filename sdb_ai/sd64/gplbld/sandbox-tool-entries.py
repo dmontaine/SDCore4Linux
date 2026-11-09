@@ -1201,7 +1201,7 @@ def section_e12():
     p.h.typed(KEY_SF9, idle=7.0)
     st9 = p.h.text()
     arow("E12f", "Shift-F9 (compile and catalogue) catalogues through run.in in ze1: the IDE says Catalogued, ze1's private catalogue has zwedit and the global catalogue does not",
-         "Catalogued" in st9 and in_cat(os.path.join(apath("ze1"), "cat"), "zwedit") and not in_cat(os.path.join(sh.SYS, "gcat"), "zwedit"), st9[-400:])
+         "Cataloged" in st9 and in_cat(os.path.join(apath("ze1"), "cat"), "zwedit") and not in_cat(os.path.join(sh.SYS, "gcat"), "zwedit"), st9[-400:])
     p.h.typed(KEY_F9, idle=2.0)
     st5 = p.h.text()
     arow("E12g", "F9 (run, S.179) on that tab is refused in words, and the IDE is still on the screen (F7, debug, is E13's: M5)", "is not run from here" in st5 and ide_up(p.h), st5[-300:])
@@ -1264,7 +1264,7 @@ def section_e12():
     box = d_and_confirm(p, "zwdel")
     st_del = norm(p.st())
     arow("E12m", "D on zwdel (built and catalogued in ze1): the box names the program in ze1's bp and its compiled program, and says a catalogue entry is left; Run with the id typed "
-         "deletes both: the status line says so", "delete zwdel from the program file bp of ze1" in box and "compiled program zwdel" in box and "catalogue entry" in box
+         "deletes both: the status line says so", "delete zwdel from the program file bp of ze1" in box and "compiled program zwdel" in box and "catalog entry" in box
          and "deleted zwdel from the program file bp of ze1 and its compiled program" in st_del, repr((box[box.find("delete zwdel"):][:500], st_del)))
     p.key("/", 1.0)
     p.h.typed("zwob\r", idle=1.5)
@@ -1314,7 +1314,7 @@ def section_e12():
     zw_unfixture()
 
 
-DBG_KEYS = "F1 help  F2 abort  F3 stop  F4 screen  F5 refresh  F7 step  F8 line  F9 run  F10 menu  ^F7 parent  ^F8 program"     # S.179, 8 Nov 26: F5 refresh, F9 run, F10 the menu bar      # the debugger's key row (sandbox-idebrk.py)
+DBG_KEYS = "F1 help  F2 find  F3 stop  F4 screen  F5 refresh  F7 step  F8 line  F9 run  F10 menu  ^F7 parent  ^F8 program"     # S.179, 8 Nov 26: F5 refresh, F9 run, F10 the menu bar      # the debugger's key row (sandbox-idebrk.py)
 
 
 def in_debugger(h):

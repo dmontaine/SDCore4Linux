@@ -225,7 +225,7 @@ def setup_catalog():
     if not has(out, r"^Compiled 8 program\(s\) with no errors"):
         bail("the fixture programs were not compiled:\n" + "\n".join(out[-12:]))
     out = q.plain(A1, ["CATALOG bp zzcur", "CATALOG bp zzolder", "CATALOG bp zzloc LOCAL"])
-    if not (has(out, r"zzcur added to private catalogue") and has(out, r"zzolder added to private catalogue") and has(out, r"zzloc added to local catalogue")):
+    if not (has(out, r"zzcur added to private catalog") and has(out, r"zzolder added to private catalog") and has(out, r"zzloc added to local catalog")):
         bail("the fixture entries were not catalogued:\n" + "\n".join(out[-8:]))
     time.sleep(1.4)                                              # the object header holds seconds: a second compile must be a different second
     out = q.plain(A1, ["BASIC bp zzolder"])
@@ -388,7 +388,7 @@ def section_list():
     h.key("esc", idle=1.0)
     filt(h, "zzolder")
     J = "\n".join(lower(h))
-    arow("C2b", "zzolder: the private copy is from an earlier compile and C catalogues the current one", "from an earlier compile" in J and "C catalogues the current one" in J, J[:500])
+    arow("C2b", "zzolder: the private copy is from an earlier compile and C catalogues the current one", "from an earlier compile" in J and "C catalogs the current one" in J, J[:500])
     h.key("esc", idle=1.0)
     filt(h, "zzboth")
     J = "\n".join(lower(h))
@@ -407,7 +407,7 @@ def section_list():
     arow("C2f", "the local entry nothing accounts for: it points at an object that is not there, and the page says so", "points at" in J and "the object it points at is not there" in J, J[:600])
     h.key("esc", idle=1.0)
     L = h.line(19)[3:138]
-    arow("C2g", "the gate line, asked of the kernel, for an account with the edit gates ON", "bp-edit on" in L and "4 private and 3 local catalogue entries" in L, repr(L))
+    arow("C2g", "the gate line, asked of the kernel, for an account with the edit gates ON", "bp-edit on" in L and "4 private and 3 local catalog entries" in L, repr(L))
     h.key("ctrl-q", idle=1.2)
     h.end()
     h = page(A2)
@@ -462,7 +462,7 @@ def section_cat():
     h.typed("c", idle=1.5)
     T = boxtext(h)
     arow("C4a", "C shows the exact command, says it copies the compiled program into the private catalogue, and asks for no typed name (nothing else is taken out)",
-         "catalog bp zznew no.query" in T and "private catalogue" in T and "Run" in T and "That is why the name is asked for" not in T, T[-500:])
+         "catalog bp zznew no.query" in T and "private catalog" in T and "Run" in T and "That is why the name is asked for" not in T, T[-500:])
     h.key("enter", idle=1.5)
     arow("C4b", "Enter is Cancel: nothing is catalogued (no record in the cat file)", not has_cat(A1, "zznew"), st(h))
     h.typed("c", idle=1.3)
@@ -471,7 +471,7 @@ def section_cat():
     h.s._pump(1.5)
     tb, order = table(h)
     arow("C4c", "Run: the entry is a record of the cat file, the row says private, the status line says it was added, and a SEPARATE session that types zznew runs the program",
-         has_cat(A1, "zznew") and tb.get("bp/zznew", {}).get("cat") == "private" and "added to private catalogue" in st(h) and runs(A1, "zznew", "ZZNEW OK"), repr((tb.get("bp/zznew"), st(h))))
+         has_cat(A1, "zznew") and tb.get("bp/zznew", {}).get("cat") == "private" and "added to private catalog" in st(h) and runs(A1, "zznew", "ZZNEW OK"), repr((tb.get("bp/zznew"), st(h))))
     h.key("esc", idle=1.0)
     filt(h, "zzbad")
     h.typed("c", idle=1.5)
@@ -505,10 +505,10 @@ def section_catothers():
     arow("C5a", "L shows catalog bp zznloc local no.query, says it makes a VOC entry that points at the compiled program, and asks for no name", "catalog bp zznloc local no.query" in T and "VOC entry" in T
          and "That is why the name is asked for" not in T, T[-500:])
     h.typed("r", idle=1.0)
-    until(h, lambda t: "added to local catalogue" in st(h), 15.0)
+    until(h, lambda t: "added to local catalog" in st(h), 15.0)
     v = vocq(A1, ["zznloc"]).get("zznloc")
     arow("C5b", "Run: the VOC holds zznloc as V / CS pointing at the object in bp.out, the status line says it was added, and a SEPARATE session that types zznloc runs the program",
-         v is not None and v[:2] == ("V", "CS") and v[2].endswith("/bp.out/zznloc") and "added to local catalogue" in st(h) and runs(A1, "zznloc", "ZZNLOC OK"), repr((v, st(h))))
+         v is not None and v[:2] == ("V", "CS") and v[2].endswith("/bp.out/zznloc") and "added to local catalog" in st(h) and runs(A1, "zznloc", "ZZNLOC OK"), repr((v, st(h))))
     h.key("esc", idle=1.0)
     filt(h, "zzolder")
     h.typed("l", idle=1.5)
@@ -533,7 +533,7 @@ def section_del():
     filt(h, "zzcur")
     h.typed("d", idle=1.5)
     T = boxtext(h)
-    arow("C6a", "D on a program with a private copy only: the box shows delete.catalog zzcur and says the compiled program stays", "delete.catalog zzcur" in T and "private catalogue" in T and "stays" in T, T[-500:])
+    arow("C6a", "D on a program with a private copy only: the box shows delete.catalog zzcur and says the compiled program stays", "delete.catalog zzcur" in T and "private catalog" in T and "stays" in T, T[-500:])
     h.typed("r", idle=1.3)
     h.typed("wrong\r", idle=2.0)
     arow("C6b", "...the wrong name typed does nothing: the private copy is still a record of the cat file", has_cat(A1, "zzcur"), st(h))
@@ -593,13 +593,13 @@ def section_decat():
     h.s._pump(1.0)
     v = vocq(A1, ["zzloc"]).get("zzloc")
     tb, order = table(h)
-    arow("C7", "the right name typed: the VOC entry is gone AND the compiled program is gone from bp.out, the source stays, and the row says not compiled and not catalogued",
+    arow("C7", "the right name typed: the VOC entry is gone AND the compiled program is gone from bp.out, the source stays, and the row says not compiled and not cataloged",
          v is None and not has_obj(A1, "zzloc") and os.path.exists(os.path.join(acct_dir(A1), "bp", "zzloc")) and tb.get("bp/zzloc", {}).get("comp") == "" and tb.get("bp/zzloc", {}).get("cat") == "",
          repr((v, tb.get("bp/zzloc"), st(h))))
     h.key("esc", idle=1.0)
     filt(h, "zzsub")
     h.typed("x", idle=1.5)
-    arow("C7d", "X on a program with no local entry says so and opens no box", "no local catalogue entry" in st(h) and "Run this command?" not in h.text(), st(h))
+    arow("C7d", "X on a program with no local entry says so and opens no box", "no local catalog entry" in st(h) and "Run this command?" not in h.text(), st(h))
     h.key("esc", idle=1.0)
     filt(h, "zzlorph")
     h.typed("x", idle=1.5)
@@ -765,7 +765,7 @@ def section_other():
     h.key("f5", idle=2.0)
     after = table(h)[0].get("bp/zznloc", {}).get("cat")
     arow("C12h", "F5 reads everything again: zznloc was local, a SEPARATE session took the entry out, and after F5 the row says it is catalogued nowhere",
-         before == "local" and has(out, r"zznloc deleted from the local catalogue") and after == "", repr((before, after, out[-2:])))
+         before == "local" and has(out, r"zznloc deleted from the local catalog") and after == "", repr((before, after, out[-2:])))
     h.key("esc", idle=1.0)
     arow("C12d", "a [?] at the end of the first box", h.line(2)[134:137] == "[?]", repr(h.line(2)[130:139]))
     h.click(135, 2)

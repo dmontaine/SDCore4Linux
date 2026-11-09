@@ -45,13 +45,14 @@ PROG = "zzdu" + "%05d" % (os.getpid() % 100000)
 PROG2 = PROG + "b"
 passed = failed = 0
 RET, F1 = "\r", "\x1bOP"
+F2, ESC, CTRL_Q = "\x1bOQ", "\x1b", "\x11"            # 9 Nov 26 (S.186): F2 is Find an action and Ctrl-Q stops and leaves, as on every page
 
 COLS, ROWS = 140, 43
 CMD, STATUS, BORDER, KEYS = 39, 40, 41, 42           # the command line and the three rows of the foot
 RULE, DATA0, DATA1 = 33, 34, 38                      # the rule above the messages, and the messages (five rows)
 SRC_LAST = 32                                        # the last row of the source and of the Autos pane
 AUTOX = 92                                           # the Autos pane's first column; the rule between it and the source is column 91
-KEYTEXT = "F1 help  F2 abort  F3 stop  F4 screen  F5 refresh  F7 step  F8 line  F9 run  F10 menu  ^F7 parent  ^F8 program"     # S.179, 8 Nov 26: F5 refresh, F9 run, F10 the menu bar
+KEYTEXT = "F1 help  F2 find  F3 stop  F4 screen  F5 refresh  F7 step  F8 line  F9 run  F10 menu  ^F7 parent  ^F8 program"     # S.179, 8 Nov 26: F5 refresh, F9 run, F10 the menu bar
 
 SOURCE = """   s = 'plain' ; t = 'a':char(9):'b'
    n = 5
@@ -272,6 +273,16 @@ def main():
         row("Return closes it: the source, the command line and the foot are back", "[ OK ]" not in "\n".join(L) and L[CMD].startswith(">") and L[KEYS].rstrip() == KEYTEXT and isrule(L[RULE]),
             "\n".join(L[:4] + L[38:43]))
 
+        say("\n--- F2, Find an action (9 Nov 26, S.186) ----------------------------------------------------------------")
+        L = t.keys(F2, idle=1.0)
+        txt = "\n".join(L)
+        row("F2 opens the finder over the debugger: its entries are the menu bar's, Run > Abort and Run > Stop the program among them (F2 aborted until 9 Nov 26)",
+            "Run > Abort" in txt and "Run > Stop the program" in txt and "Help > Find an action" in txt, "\n".join(L[:25]))
+        L = t.keys(ESC, idle=1.5)
+        row("Esc closes it and runs nothing: the debugger is up with the command line, the status line and the foot",
+            "Run > Abort" not in "\n".join(L) and L[CMD].startswith(">") and L[STATUS].startswith("[Command]") and L[KEYS].rstrip() == KEYTEXT,
+            "\n".join(L[:3] + L[38:43]))
+
         say("\n--- leaving ------------------------------------------------------------------------------------------")
         L = t.keys("r", RET, idle=1.0)
         r5 = srcrow(L, 5)
@@ -302,7 +313,9 @@ def main():
         a = autos(L)
         row("at the next stop (line 5, crt b) B is first, then the variables of the line it last stopped at (line 3): B, C, A",
             srcrow(L, 5) is not None and L[srcrow(L, 5)][0] == ">" and a[:4] == ['B = "text"', "C = 3", "A = 1", ""], repr(a[:5]) + "\n" + "\n".join(L[:7]))
-        L = u.keys("r", RET, idle=1.0)
+        L = u.keys(CTRL_Q, idle=1.5)
+        row("Ctrl-Q at that stop stops the program and leaves (9 Nov 26, S.186): the debugger's screen is gone and line 5 never ran (no 'text' on its own line)",
+            not any("[Command]" in l for l in L) and not any(l.strip() == "text" for l in L) and srcrow(L, 5) is None, "\n".join(l for l in L if l.strip())[-300:])
         u.end()
 
         say("\n--- the site's theme (SCREENTHEME=blue in sd.conf) and the colours of SD BASIC ---------------------------")

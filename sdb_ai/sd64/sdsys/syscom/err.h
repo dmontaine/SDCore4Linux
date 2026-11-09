@@ -28,6 +28,9 @@
 *    ERRTEXT.H are regenerated from this file by ERRGEN.
 * 07 Oct 26 dm PAL-1 D2 (the Windows port's RELEASE_1.1 5, 72d4a533): ER_TWIN 3042.
 * 28 Oct 26 dm  S.87: ER_CNF 3031 and ER_MFC 3032 (multifiles) are retired, the numbers stay claimed.
+* 09 Nov 26 dm  S.186 (the owner: US spelling in everything SD prints): the texts say catalog,
+*    initialized, unrecognized.  Linux Core is the template: the Windows port follows.
+*    Regenerated with gplbld/gen_includes.py.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -53,7 +56,7 @@ $define ER$NO.DIR         5    ;* Directory not found
 $define ER$NOT.CREATED    6    ;* Unable to create directory
 $define ER$STOPPED        7    ;* Processing terminated by user action
 $define ER$INVA.PATH      8    ;* Invalid pathname
-$define ER$NOT.CAT        9    ;* Item not in catalogue
+$define ER$NOT.CAT        9    ;* Item not in catalog
 $define ER$PROCESS       10    ;* Unable to start new process
 $define ER$USER.EXISTS   11    ;* User name already in register
 $define ER$UNSUPPORTED   12    ;* This operation is not supported on this platform
@@ -93,7 +96,7 @@ $define ER$MAX.STRING  1900    ;* Max String (record) Size
 * 20xx  Catalog management errors
 
 $define ER$INVA.OBJ    2000    ;* Invalid object code
-$define ER$CFNF        2001    ;* Catalogued function not found
+$define ER$CFNF        2001    ;* Cataloged function not found
 
 * 21xx  Terminfo errors
 
@@ -231,7 +234,7 @@ $define DHE$AK.NOT.FOUND         8109 ;* Cannot open AK subfile
 $define DHE$AK.HDR.READ.ERROR    8110 ;* Error reading AK header
 $define DHE$AK.HDR.FAULT         8111 ;* AK subfile header format error
 $define DHE$AK.ITYPE.ERROR       8112 ;* Format error in AK I-type code
-$define DHE$AK.NODE.ERROR        8113 ;* Unrecognised node type
+$define DHE$AK.NODE.ERROR        8113 ;* Unrecognized node type
 $define DHE$NO.SUCH.AK           8114 ;* Reference to non-existant AK
 $define DHE$AK.DELETE.ERROR      8115 ;* Error deleting AK subfile
 $define DHE$EXCLUSIVE            8116 ;* File is open for exclusive access
@@ -250,7 +253,7 @@ $define DHE$CREATE.DIR.ERR       8207 ;* Cannot create directory (os.error)
 $define DHE$CREATE0.ERR          8208 ;* Cannot create primary subfile (os.error)
 $define DHE$CREATE1.ERR          8209 ;* Cannot create overflow subfile (os.error)
 $define DHE$PSFH.WRITE.ERROR     8210 ;* Failure writing primary subfile header (os.error)
-$define DHE$INIT.DATA.ERROR      8211 ;* Failure initialising data bucket (os.error)
+$define DHE$INIT.DATA.ERROR      8211 ;* Failure initializing data bucket (os.error)
 $define DHE$ILLEGAL.HASH         8212 ;* Invalid hashing algorithm
 $define DHE$OSFH.WRITE.ERROR     8213 ;* Failure writing overflow subfile header (os.error)
 $define DHE$RECORD.NOT.FOUND     8301 ;* Record not in file
@@ -318,7 +321,7 @@ $define SD$EUID.RST.Err  -10402  ;* Couldn't return process to uid / gid of call
 $define SD$EUID.NSET.Err -10403  ;* SD.EUID.RESTORE called before SD.EUID.SET
 
 * Embedded Python Error codes
-$define SD$PyEr.NotInit    -12001    ;* interpreter not initialised
+$define SD$PyEr.NotInit    -12001    ;* interpreter not initialized
 $define SD$PyEr.Dict       -12002    ;* PyDict.New() failed
 $define SD$PyEr.Builtin    -12003    ;* failed to link ..builtins.. into the scope
 $define SD$PyEr.Excpt      -12004    ;* exception while running code

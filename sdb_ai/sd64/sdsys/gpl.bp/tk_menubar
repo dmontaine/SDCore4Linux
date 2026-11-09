@@ -11,6 +11,8 @@
 * 3 Nov 26 dm  The owner's answer "Move focus first": a right click on a box that can take the focus and has not got it moves the focus there (the page's own left press)
 *              and opens THAT box's menu on the next draw; the choice reaches the page as the key of its next SCREEN KEY.  A right click outside every such box, and
 *              Shift-F10, are as before (the focused box's menu).
+* 9 Nov 26 dm  S.186: the context menu leaves out the page-wide View switches the base adds to every page (std.mouse, std.output): they name no pane, so every
+*              pane "used" them, and View > Mouse took the M of a pane's own &Mark (sandbox-tool-query Q14e2).  They stay on the bar and in the finder.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -298,6 +300,7 @@ run.context:
       for v = 2 to nv
          fa = menus<k, v, 3>
          if fa = '' or fa[1, 1] = '>' or menus<k, v, 1> = '-' then continue
+         if fa = 'std.mouse' or fa = 'std.output' then continue    ;* page-wide switches, not a pane's action (S.186)
          gosub pane.uses
          if uses then citems<1, -1> = menus<k, v, 1> : @sm : menus<k, v, 2> : @sm : fa : @sm : menus<k, v, 4>
       next v

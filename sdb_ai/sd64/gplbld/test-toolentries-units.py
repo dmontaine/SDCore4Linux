@@ -284,7 +284,7 @@ def checks(src, voc, helps):
        < at4("do.in = kernel(K$PATH.IN, ap.f : @fm : dorp)") < at4("if do.in then do.in = kernel(K$PATH.IN, ap.f : @fm : dorp : @ds : doid)") < at4("if not(do.in) then") < at4("read dox from dof, doid")
        and "if fileinfo(dof, FL$TYPE) # FL$TYPE.DIR then" in oj
        and 0 <= at3("delete tf, eid on error delok = @false") < at3("if delok then\ndores = 'deleted'\ndelete dof, doid on error dores = 'failed'") < at3("' object=' : dores")
-       and "dkind = 'bp'" in dro and "A catalogue entry of the program is left" in dro
+       and "dkind = 'bp'" in dro and "A catalog entry of the program is left" in dro
        and not re.search(r"run\.in|decatalog|delete\.catalog'", unquote(oj + "\n" + dro)),
        "oj %d dro %d" % (len(oj), len(dro)))
     ibk = "\n".join(s for n, s in section(ide, "bk.arm:", "bk.take:"))
@@ -455,7 +455,7 @@ def load():
 MUTANTS = [
     ("the page writes", "src", "                  gosub classify\n                  locate id in ckey<1> by 'AL' setting lp else\n", "                  gosub classify\n                  delete vf, id\n                  locate id in ckey<1> by 'AL' setting lp else\n"),
     ("the page runs a command", "src", "   void kernel(K$AUDIT, 'tool start app=tool.entries')\n", "   void kernel(K$AUDIT, 'tool start app=tool.entries')\n   execute 'x'\n"),
-    ("the page is not the administrator's", "src", "call $tk_open('tool.entries', 'admin', ctx, err)", "call $tk_open('tool.entries', '', ctx, err)"),
+    ("the page is not the administrator's", "src", "call $tk_open('tool.entries', 'admin', ctx, err)\n", "call $tk_open('tool.entries', '', ctx, err)\n"),     # the start's open (retake.page's has a comment after it, 9 Nov 26)
     ("the find runs at the start", "src", "   if fnd # '' then gosub run.find\n", "   gosub run.find\n"),
     ("the dict gate reads the programs field", "src", "gset := (if upcase(trim(arec<ACC$DICT.EDIT>)) = 'YES' then 'd' else '-')", "gset := (if upcase(trim(arec<ACC$BP.EDIT>)) = 'YES' then 'd' else '-')"),
     ("SDSYS is listed", "src", "         if id # 'sdsys' then", "         if id # '' then"),
@@ -529,7 +529,7 @@ MUTANTS = [
     ("the .out the VOC names is not read", "src", "      if isprog then read dorr from rvf, efl : '.out' else dorr = ''", "      dorr = ''"),
     ("the object's id keeps the case", "src", "   doid = downcase(eid)\n", "   doid = eid\n"),
     ("a program's delete is audited as a dictionary item", "src", "      dkind = 'bp'\n", "      dkind = 'dict'\n"),
-    ("the catalogue entry is not mentioned", "src", "A catalogue entry of the program is left", "The program goes"),
+    ("the catalog entry is not mentioned", "src", "A catalog entry of the program is left", "The program goes"),
     ("D of a program runs DECATALOG", "src", "   dores = 'none'\n", "   dores = 'none'\n   execute 'run.in ' : ea : ' decatalog ' : eid capturing dcx\n"),
     # M6a T22: the editor's breakpoints handed to a debugger run through run.in
     ("a master tab's debug arms nothing", "ide", "         gosub bk.arm\n         bk.first = @false\n         gosub leave.screen\n         execute 'run.in '",

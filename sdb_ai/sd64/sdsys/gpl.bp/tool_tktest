@@ -11,6 +11,7 @@
 *               forms and pick windows stand at the literal places sandbox-tk-base.py measures the library at; a declaration would move what the suite is there to measure.
 * 29 Oct 26 dm  S.88 phase 3.9 (S2): the PILOT of the action registry, only for `tktest menubar`: a menu bar on row 0 made by $tk_keys 'menus' from the key table, Esc opens it in panes A and B,
 *               and Save as is an action with no key and a reason, so the bar lists it disabled and nothing can run it.  A menu answer is put in ACT and goes through the SAME case as a key.
+* 9 Nov 26 dm  S.186: what the program prints is in US spelling (the owner: "Everything SD prints"); its text only, no change of behaviour.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -240,27 +241,27 @@ $include tk.h
          case act = 'pickf'
             if pkopen then
                call $sl_pickwin('', 'Pick a record', 0, 0, pr, ps, pkf, '0' : @fm : pg : @fm : sc)
-               msg = (if ps then 'cancelled' else 'picked ' : pr)
+               msg = (if ps then 'canceled' else 'picked ' : pr)
             end else
                msg = 'no zzpkfile'
             end
          case act = 'pickfm'
             if pkopen then
                call $sl_pickwin('', 'Pick records', 1, 0, pr, ps, pkf, '1' : @fm : pg : @fm : sc)
-               msg = (if ps then 'cancelled' else 'picked ' : convert(@vm, ',', pr))
+               msg = (if ps then 'canceled' else 'picked ' : convert(@vm, ',', pr))
             end else
                msg = 'no zzpkfile'
             end
          case act = 'pick'
             call $sl_pickwin(pitems, 'Pick a command', 0, 0, pr, ps, '', '')
-            msg = (if ps then 'cancelled' else 'picked ' : pr : ' (' : pitems<pr, 1> : ')')
+            msg = (if ps then 'canceled' else 'picked ' : pr : ' (' : pitems<pr, 1> : ')')
          case act = 'pickm'
             call $sl_pickwin(pitems, 'Pick commands', 1, 0, pr, ps, '', '')
             pnames = ''
             for q = 1 to dcount(pr, @vm)
                pnames<1, -1> = pitems<pr<1, q>, 1>
             next q
-            msg = (if ps then 'cancelled' else 'picked ' : convert(@vm, ',', pr) : ' (' : convert(@vm, ',', pnames) : ')')
+            msg = (if ps then 'canceled' else 'picked ' : convert(@vm, ',', pr) : ' (' : convert(@vm, ',', pnames) : ')')
          case pane = 'T' and act = ''
             call $sl_table('key', w, scr, k, tr)
       end case
@@ -336,7 +337,7 @@ ac.run:
    screen check sf, 'ck', '&Verbose' at 3,6
    screen check sf, 'ck2', '&Verbose again' at 3,7
    screen slider sf, 'sl', '&Switch' at 3,8
-   screen selector sf, 'se', '&Colour', 'red':@vm:'green':@vm:'blue' at 3,10
+   screen selector sf, 'se', '&Color', 'red':@vm:'green':@vm:'blue' at 3,10
    screen radio sf, 'rd', 'one':@vm:'two' at 3,12 accel 'f5'
    screen list sf, 'ls', 'first':@vm:'second':@vm:'third' at 40,2 size 20,4 accel 'ctrl-g'
    screen check sf, 'dim', '&Dim' at 3,15
@@ -379,7 +380,7 @@ ac.run:
 sel.run:
    call $tk_frame(ctx, keys, pane, msg)
    screen form title 'Choices' at 30,6 size 70,17 returning sf
-   screen selector sf, 'c', '&Colour', 'blue':@vm:'green':@vm:'red':@vm:'black' at 3,2 value 3
+   screen selector sf, 'c', '&Color', 'blue':@vm:'green':@vm:'red':@vm:'black' at 3,2 value 3
    screen selector sf, 's', 'size', 'small':@vm:'medium':@vm:'large' at 3,4 value 2 attr 'window' place 'right'
    screen selector sf, 'm', 'mode', 'fast':@vm:'slow':@vm:'exact' at 3,6 place 'above'
    screen selector sf, 't', 'tint', 'ex':@vm:'why':@vm:'zed' at 3,9 color 'white','blue'
@@ -425,16 +426,16 @@ sel.run:
 * the colour form: a control of each kind in colours of its own, two of them in the same pair (black on green); the label at the right says the theme
 c.run:
    call $tk_frame(ctx, keys, pane, msg)
-   screen form title 'Colours' at 10,3 size 100,24 returning sf
+   screen form title 'Colors' at 10,3 size 100,24 returning sf
    screen entry sf, 'e1' at 3,2 width 20 value 'black on green' color 'black','green'
    screen entry sf, 'e2' at 3,4 width 20 value 'plain entry'
    screen combo sf, 'cb', 'one':@vm:'two' at 3,6 width 20 color 'white','blue'
-   screen check sf, 'ck', 'colour check' at 3,8 color 'black','cyan'
-   screen slider sf, 'sl', 'colour slider' at 3,10 color 'white','red'
+   screen check sf, 'ck', 'color check' at 3,8 color 'black','cyan'
+   screen slider sf, 'sl', 'color slider' at 3,10 color 'white','red'
    screen radio sf, 'rd', 'red choice':@vm:'blue choice' at 3,12 color 'black','brown'
    screen button sf, 'bt', '&Go' at 3,15 color 'white','magenta'
    screen list sf, 'ls', 'x':@vm:'y':@vm:'z' at 55,2 size 12,3 color 'black','green'
-   screen label sf, 'lb', 'coloured label' at 55,7 width 20 color 'red','white'
+   screen label sf, 'lb', 'colored label' at 55,7 width 20 color 'red','white'
    screen progress sf, 'pg' at 55,9 width 24 value 50 color 'black','cyan'
    screen label sf, 'log', 'theme=mono' at 55,12 width 30
    screen button sf, 'ok', '&OK' at 40,19 default
@@ -455,7 +456,7 @@ c.run:
       end
    repeat
    screen hide sf
-   msg = 'colours pressed=' : spressed
+   msg = 'colors pressed=' : spressed
    return
 
 * the colour pool: sixteen different pairs are taken, the first pair again (shared, taken), a seventeenth different pair (refused) and a name that is no colour (refused)
@@ -477,7 +478,7 @@ cf.run:
    o := 'a'
    screen label sf, 'cbad', 'x' at 2,3 color 'chartreuse','red' else o[len(o), 1] = 'r'
    screen hide sf
-   msg = 'colours ' : o
+   msg = 'colors ' : o
    return
 
 * the placement form: a check box (left column) and a slider (right column) for each place of the label; the label at the foot says the last change

@@ -18,6 +18,8 @@
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the lists.
 *              AI > Ask the AI is a menu entry of its own.
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
+* 9 Nov 26 dm  S.186: View > Mouse, the same on every page (the case act:std.mouse, through $tk_std); '/' finds a row of the list in focus by typing
+*              ($tk_findrow; the owner: "Letters stay, '/' finds").
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -64,6 +66,7 @@ $include tk.h
    end
    void kernel(K$AUDIT, 'tool start app=tool.sessions')
    outopen = 0                                                  ;* the output pane (Ctrl-O): closed until asked for
+   find.last = ''                                               ;* 9 Nov 26 (S.186): the text '/' asked for last
    gosub declare.layout
 
    keys = ''
@@ -72,6 +75,7 @@ $include tk.h
    call $tk_keys('add', keys, 'l', 'logout', 'logout', 'Sessions', 1)
    call $tk_keys('add', keys, 'u', 'unlock', 'unlock', 'Locks', 1)
    call $tk_keys('add', keys, 'i', 'logins', 'inhibit', '', 1)
+   call $tk_keys('add', keys, '/', 'find', 'find', '', 1)                  ;* 9 Nov 26 (S.186): '/' finds a row by typing (letters are this page's commands)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-o', 'output', 'output', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
@@ -82,6 +86,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'inhibit', '&Sessions', '&Inhibit or allow logins', '', '')
    call $tk_keys('menu', keys, 'switch', '&View', '&Switch list', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'find', '&View', '&Find a row', '', '')
    call $tk_keys('menu', keys, 'output', '&View', '&Output of the commands (Ctrl-PgUp, Ctrl-PgDn scroll)', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
    call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
@@ -551,6 +556,15 @@ on.key:
             if cl < nl then cl += 1
          end
          gosub redraw
+      case nm = '/'                         ;* S.186: the next session (or lock, in the locks) that holds the text typed ($tk_findrow)
+         fr.rows = (if pane = 1 then udata else locks)
+         fr.rows = convert(@vm : @sm, '  ', fr.rows)
+         call $tk_findrow(fr.rows, (if pane = 1 then cs else cl), find.last, fpos)
+         if fpos > 0 then
+            if pane = 1 then cs = fpos else cl = fpos
+         end
+         if fpos < 0 then msg = sysmsg(14045, find.last)
+         gosub redraw
       case nm = 'pgup'
          if pane = 1 then
             cs -= VS
@@ -591,6 +605,9 @@ on.key:
       case nm = 'ctrl-t'                    ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
          msg = std.r<2>
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, panes<pane>, std.r)

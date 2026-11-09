@@ -22,6 +22,8 @@
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the matrix to the AI line and back; AI > Ask the AI is a menu entry of its own.
 *              Tab and Shift-Tab still move between the columns, the matrix's own use of them.
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
+* 9 Nov 26 dm  S.186: View > Mouse and Ctrl-O (the log of the commands run), the same on every page (the cases act:std.mouse and ctrl-o, through $tk_std).
+*              '/' finds an account on show by typing ($tk_findrow; the owner: "Letters stay, '/' finds").
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -87,6 +89,7 @@ $include tk.h
    call $tk_keys('add', keys, 'a', 'all on', 'allon', '', 1)
    call $tk_keys('add', keys, 'n', 'all off', 'alloff', '', 1)
    call $tk_keys('add', keys, 'f', 'filter', 'filter', '', 1)
+   call $tk_keys('add', keys, '/', 'find', 'find', '', 1)                  ;* 9 Nov 26 (S.186): '/' finds an account by typing (letters are this page's commands)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U2: Esc takes the filter off first, else opens the menu bar
@@ -98,6 +101,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'allon', '&Gates', '&All gates on', '', '')
    call $tk_keys('menu', keys, 'alloff', '&Gates', 'All gates o&ff', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the accounts', '', '')
+   call $tk_keys('menu', keys, 'find', '&View', 'Find an &account', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
    call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
@@ -114,6 +118,7 @@ $include tk.h
 
    ci = 1                                                        ;* the row under the cursor, among the rows shown
    gc = 1                                                        ;* the column under the cursor
+   find.last = ''                                                ;* 9 Nov 26 (S.186): the text '/' asked for last
    ta = 0                                                        ;* the rows scrolled off the top
    flt = 0
    gen = 0
@@ -566,6 +571,15 @@ on.key:
       case nm = 'n'
          tv = 0
          gosub queue.all
+      case nm = '/'                         ;* S.186: the next account on show whose name holds the text typed ($tk_findrow)
+         fr.rows = ''
+         for fr.r = 1 to nv
+            fr.rows<fr.r> = anm<view<fr.r>>
+         next fr.r
+         call $tk_findrow(fr.rows, ci, find.last, fpos)
+         if fpos < 0 then msg = sysmsg(14045, find.last)
+         if fpos > 0 then ci = fpos
+         gosub draw.all
       case nm = 'f'
          flt = mod(flt + 1, 3)
          ci = 1
@@ -580,6 +594,11 @@ on.key:
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
          msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
+         msg = std.r<2>
+      case nm = 'ctrl-o'                    ;* S.186: the log of the commands this page ran (View > Output; $tk_std)
+         call $tk_std('output', ctx, keys, '', std.r)
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, 'Gates', std.r)
       case nm = 'f5'

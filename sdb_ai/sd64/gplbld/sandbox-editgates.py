@@ -287,7 +287,7 @@ def build(name):
     if not g.has(out, r"^EGFIX done$"):
         bail("the fixture %s was not completed:\n%s" % (name, "\n".join(out[-6:])))
     out = g.sd(path, ["CATALOG bp zzprobe LOCAL"], admin=True, account=name)     # a catalogue entry for the verbs to remove
-    if not g.has(out, r"zzprobe added to local catalogue"):
+    if not g.has(out, r"zzprobe added to local catalog"):
         bail("zzprobe was not catalogued in %s:\n%s" % (name, "\n".join(out[-6:])))
     f = FIELDS[name]
     rec = [path, "", g.GROUP, "", "", "", "no", "yes" if name in EDIT_ACCOUNTS else "no", "", f[0] or "", f[1] or "", f[2] or ""]
@@ -358,7 +358,7 @@ def verbs(voc):
 MESSAGES = {"voc": "The VOC can only be changed by an account that has voc.edit",
             "dict": "A dictionary can only be changed by an account that has dict.edit",
             "bp": "A program file can only be changed by an account that has bp.edit",
-            "compile": "Programs can only be compiled or catalogued by an account that has bp.edit"}
+            "compile": "Programs can only be compiled or cataloged by an account that has bp.edit"}
 
 
 def checks(name):
@@ -835,7 +835,7 @@ def build2(name):
     if not g.has(out, r"^EGFIX2 done$"):
         bail("the part-2 fixture %s was not completed:\n%s" % (name, "\n".join(out[-6:])))
     out = g.sd(path, ["CATALOG bp zztrg LOCAL"], admin=True, account=name)          # SET.TRIGGER wants a catalogued function
-    if not g.has(out, r"zztrg added to local catalogue"):
+    if not g.has(out, r"zztrg added to local catalog"):
         bail("zztrg was not catalogued in %s:\n%s" % (name, "\n".join(out[-6:])))
     return path
 

@@ -89,7 +89,7 @@ def checks(raw):
        and re.search(r"case nm = 'a'\s*\n\s*tv = 1\s*\n\s*gosub queue.all", pg) is not None and re.search(r"case nm = 'n'\s*\n\s*tv = 0\s*\n\s*gosub queue.all", pg) is not None
        and re.search(r"gosub cell\.why\s*\n\s*if gids<k> = 'home' then why = [^\n]*\n\s*if why = '' then\s*\n\s*aq<av, k> = \(if ast<av, k> = tv then '' else tv\)", qa) is not None and qa.count("aq<av, k> =") == 1   # S.166: A and N leave home alone
        and not re.search(r"\$tk_run|\$tk_confirm|execute|gosub run\.queue", qa) and "case gstat<k> # 'built'" in cw and "case ast<av, k> = 'na'" in cw and "case (gids<k> = 'sh' or gids<k> = 'os') and aty<av> # 'USER'" in cw
-       and sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg))) == sorted(["help", "queue", "run", "drop", "tighten", "allon", "alloff", "filter", "refresh", "quit", "menu"]))
+       and sorted(set(re.findall(r"call \$tk_keys\('add', keys, '[^']+', '[^']+', '([a-z]+)'", pg))) == sorted(["help", "queue", "run", "drop", "tighten", "allon", "alloff", "filter", "find", "refresh", "quit", "menu"]))   # find: '/' (S.186, 9 Nov 26)
     th = block(pg, "tighten")
     ck("TG6", "T queues OFF (0) and only for a built gate that is off as delivered and on now, and not sh or os for an account that is not a person",
        "aq<av, k> = 0" in th and "gstat<k> = 'built' and gdef<k> = 'off' and ast<av, k> = 1" in th and "person.only = (gids<k> = 'sh' or gids<k> = 'os')" in th and "not(person.only and aty<av> # 'USER')" in th and th.count("aq<av, k> =") == 1)

@@ -89,7 +89,7 @@ def main():
     say("\n--- 1. a user conversion code reaches only subroutines an ordinary program may CALL ---")
     g.put(os.path.join(g.SYS, "gpl.bp", "zzqint"), "$internal\nsubroutine zzqint(result, src, state, flag)\n$catalog $zzqint\n   crt 'P1 INTERNAL SUBROUTINE RAN'\n   result = 'viaint'\n   state = 0\n   return\nend\n")
     out = g.adm(["BASIC gpl.bp zzqint"], internal=True)
-    row("SETUP: the $internal global subroutine $zzqint compiles and is catalogued", g.has(out, r"^Compiled 1 program\(s\) with no errors") and any("added to global catalogue" in x for x in out), repr(out[-4:]))
+    row("SETUP: the $internal global subroutine $zzqint compiles and is catalogued", g.has(out, r"^Compiled 1 program\(s\) with no errors") and any("added to global catalog" in x for x in out), repr(out[-4:]))
     g.put(os.path.join(paths["zzq"], "bp", "zzqconv"), "subroutine zzqconv(result, src, state, flag)\n   result = 'conv:' : src\n   state = 0\n   return\nend\n")
     g.put(os.path.join(paths["zzq"], "bp", "zzqp1"), "\n".join([
         "   x = oconv('abc', 'U$zzqint')", "   crt 'P1 oconv ':x:' status ':status()",

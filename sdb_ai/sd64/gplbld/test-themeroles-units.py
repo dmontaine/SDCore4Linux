@@ -135,6 +135,9 @@ def run():
     row("R3 mono: flags only, no colour", all(mono[r][0] == "" and mono[r][1] == "" for r in mflags), repr(mono))
     row("R3 mono: no dim (SD's xterm entry has none)", all("dim" not in f for f in mflags.values()), repr(mflags))
     row("R3 mono: the six roles look different from one another and from plain", len(set(mflags.values())) == 6 and () not in mflags.values() and len(mflags) == 6, repr(mflags))
+    hl = [mono.get(s, ("", "", ()))[2] for s in ("highlight", "bar")]
+    row("R3 mono: focus does not look like highlight or the bar (9 Nov 26, S.186: it was plain reverse, so the focused box looked like the selected row)",
+        mflags.get("focus") not in hl and all(hl), repr((mflags.get("focus"), hl)))
     row("R3 classic, blue, paper and night: a role has both colours, as a style replaces the whole attribute set",
         all(looks[t][r][0] and looks[t][r][1] for t in ("classic", "blue", "paper", "night") for r in ROLES),
         repr({t: {r: looks[t][r] for r in ROLES} for t in ("classic", "blue", "paper", "night")}))
@@ -313,7 +316,8 @@ def selftest():
     mutant("night's text has no background", "sl_theme", "         spec<-1> = 'text=white,black,'\n         spec<-1> = 'header=brown,black,bold underline'", "         spec<-1> = 'text=white,,'\n         spec<-1> = 'header=brown,black,bold underline'")
     mutant("paper's syntax comment loses its background", "sl_theme", "   spec<-1> = 'comment=magenta,white,'", "   spec<-1> = 'comment=magenta,,'")
     mutant("night is not in the list", "sl_theme", " : @fm : 'night' : @fm : 'paper'", " : @fm : 'paper'")
-    mutant("paper gives no roles", "sl_theme", "         spec<-1> = 'focus=white,blue,bold'\n         gosub syntax.paper", "         gosub syntax.paper")
+    mutant("mono's focus back to plain reverse (highlight's look)", "sl_theme", "'focus=,,reverse bold underline'", "'focus=,,reverse'")
+    mutant("paper gives no roles", "sl_theme", "         spec<-1> = 'focus=white,blue,bold underline'\n         gosub syntax.paper", "         gosub syntax.paper")
     mutant("CONFIG() buffer back to eight", "opconfig", "char param[16 + 1];", "char param[8 + 1];")
     mutant("CONFIG() limit back to eight", "opconfig", "k_get_c_string(descr, param, 16) < 1", "k_get_c_string(descr, param, 8) < 1")
     mutant("the setter widened", "opconfig", "  char param[8 + 1];\n", "  char param[16 + 1];\n")

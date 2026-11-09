@@ -161,7 +161,7 @@ def main():
         out = g.adm(["BASIC bp zzgcatu", "BASIC bp zzgcatm", "CATALOG bp zzgcatm GLOBAL", "RUN bp zzgcatu"])
         made = os.path.join(sysd, "gcat", "zzgcatm")
         compiled = sum(1 for ln in out if re.match(r"^Compiled 1 program\(s\) with no errors", ln))
-        said = any("added to global catalogue" in ln for ln in out)
+        said = any("added to global catalog" in ln for ln in out)
         row("CONTROL: both programs compiled, the second was catalogued globally (the verb said so) and its object is in gcat", compiled == 2 and said and os.path.isfile(made),
             "compiled %d, said so: %s, object there: %s, output tail %r" % (compiled, said, os.path.isfile(made), out[-5:]))
         if compiled != 2 or not said or not os.path.isfile(made):

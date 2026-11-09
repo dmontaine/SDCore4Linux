@@ -530,7 +530,7 @@ def section_c4(p, rows, kinds, forced_before, orig):
          and "will not start, and no new session will, while the file holds it" in p.detail(), repr((top[:240], seen.get("ZZBAD"), p.detail()[:160])))
     out = g.plain(ACC, ["WHO"])
     T = norm(" ".join(out))
-    arow("C4b", "THE CLAIM IS TRUE: a real new session is refused while the file holds the name, with SD's own words (the null case: some output, and not a sign-on)", len(out) > 0 and "Unrecognised configuration parameter" in T and "ZZBAD" in T, T[:300])
+    arow("C4b", "THE CLAIM IS TRUE: a real new session is refused while the file holds the name, with SD's own words (the null case: some output, and not a sign-on)", len(out) > 0 and "Unrecognized configuration parameter" in T and "ZZBAD" in T, T[:300])
     write_conf(orig)
     p.key("f5", 1.5)
     arow("C4c", "the file put right and F5: the name is gone from the top and from the list, and a new session starts again",
@@ -732,7 +732,7 @@ def section_c10(p, by, names, orig, forced):
     arow("C10a", "E on CLEANUP asks for the new value: the question gives the range %s to %s and says what SD runs with (%s) and that sd.conf says nothing" % (r["min"], r["max"], forced.get("CLEANUP")),
          ok and ask_open(p) and ("a whole number from %s to %s" % (r["min"], r["max"])) in T and ("SD runs with %s" % forced.get("CLEANUP")) in T and "sd.conf says (nothing)" in T, T[-500:])
     p.key("esc", 1.2)
-    arow("C10b", "Esc in the question cancels it: the status line says CLEANUP is unchanged and no question or box is left", "cancelled; CLEANUP is unchanged" in st(p) and not ask_open(p) and not box_open(p), st(p).strip()[:100])
+    arow("C10b", "Esc in the question cancels it: the status line says CLEANUP is unchanged and no question or box is left", "canceled; CLEANUP is unchanged" in st(p) and not ask_open(p) and not box_open(p), st(p).strip()[:100])
     range_msg = "CLEANUP takes a whole number from %s to %s, digits only; nothing was changed" % (r["min"], r["max"])
     empty_msg = "nothing was typed; CLEANUP is unchanged"
     bad = []

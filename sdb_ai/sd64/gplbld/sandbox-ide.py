@@ -507,7 +507,7 @@ end
         L = e.keys(F1)
         row("F1 shows the help", "Next pane" in e.text() or "Tab, Shift-Tab" in e.text(), e.text()[:300])
         row("...and the help names the keys of 28 Oct: F9 builds, Ctrl-PgDn moves along the tabs, Ctrl-W closes the record",
-            "Build: compile and catalogue" in e.text() and "Ctrl-PgDn" in e.text() and "Close the record" in e.text(), e.text()[:600])
+            "Build: compile and catalog" in e.text() and "Ctrl-PgDn" in e.text() and "Close the record" in e.text(), e.text()[:600])
         row("...and the keys of the F3 change: F6 and Shift-F6 go round the panes, Alt-PgDn, PgUp move along the tabs too, F3 and Shift-F3 find, and no line says F3 is the tree",
             "F6, Shift-F6" in e.text() and "Alt-PgDn" in e.text() and "F3, Shift-F3" in e.text()
             and not any("F3" in l and re.search(r"tree|Files", l) for l in e.lines()), e.text()[:700])
@@ -758,10 +758,10 @@ end
         say("\n--- catalogue, debug, theme -------------------------------------------------------------------------------")
         L = e.keys(F8)
         row("F8 compiles and only compiles: the status line says so and does not say Catalogued",
-            ("Compiled bp %s with no errors" % B) in e.status() and "Catalogued" not in e.status(), e.status())
+            ("Compiled bp %s with no errors" % B) in e.status() and "Cataloged" not in e.status(), e.status())
         row("...the program is not catalogued: it does not run from the command prompt by its name (the control is the Shift-F9 rows below)", "IDE-RAN-OK" not in sess(box, B), "")
         L = e.keys(SHIFT_F9)
-        row("Shift-F9 builds (S.179): it compiles and catalogues, and the status line says so", ("Catalogued bp %s" % B) in e.status(), e.status())
+        row("Shift-F9 builds (S.179): it compiles and catalogues, and the status line says so", ("Cataloged bp %s" % B) in e.status(), e.status())
         row("...and the program runs from the command prompt by its name", "IDE-RAN-OK" in sess(box, B), "")
         L = e.keys(F7)
         row("F7 compiles with debugging and gives the terminal to the debugger (the program's source is shown)",

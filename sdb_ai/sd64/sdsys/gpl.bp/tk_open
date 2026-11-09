@@ -10,6 +10,7 @@
 * 28 Oct 26 dm  S.88 L1: VAR.ARGS, the app's floor as the optional fifth and sixth arguments (TK.MINW by TK.MINH when left out, so every existing call is
 *               unchanged); the frame, the body and the cursor lock come from $tk_layout 'open'; a new frame-cache epoch for $tk_frame (F1).
 * 3 Nov 26 dm  S.113 (owner: "All pages"): the screen it takes is marked the toolkit's ($sl_scr 'toolkit'): every page draws by difference.
+* 9 Nov 26 dm  S.186: after SCREEN OPEN, $tk_std 'apply' switches the mouse off again when the person chose View > Mouse off on an earlier page.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -127,6 +128,7 @@ $include tk.h
       return
    end
    call $sl_scr('toolkit', '')                      ;* S.113: the page draws by difference (SCREEN TEXT, BOX, CLEAR write only what changed) and its waits flush
+   call $tk_std('apply', ctx, '', '', std.r)          ;* 9 Nov 26 (S.186): View > Mouse switched off on an earlier page stays off (SCREEN OPEN switched it on)
 
    ctx<TK.C.UTF8> = (if utf8 then 1 else 0)
    ctx<TK.C.TRAP> = saved.trap

@@ -163,6 +163,40 @@ def checks(src):
     moves = {"F.HOME", "F.END", "F.LEFT", "F.RIGHT", "F.UP", "F.DOWN", "F.BACKSPACE", "F.TAB", "F.NEWLINE", "F.CANCEL"}
     sgaps = sorted(set(keyed) - inm - moves)
     ck("S13 SED: every action the default layout gives a key is on a menu (the moves, Return, Tab, Backspace and Cancel aside)", keyed and not sgaps, sgaps)
+    # 9 Nov 26 (S.186): View > Mouse on every page.  The bar runs nothing (S.88 decision 25), so each page with a menu bar answers act:std.mouse itself,
+    # through $tk_std; the switch is the session's ($tk_std's common), $tk_open puts it back after SCREEN OPEN and the IDE uses the same routine
+    nomouse = [p for p in PAGES if not re.search(r"case nm = 'act:std\.mouse'[^\n]*\n\s*call \$tk_std\('mouse'", c.get(p, ""))]
+    ck("S14 View > Mouse: $tk_std adds the entry, every page answers act:std.mouse through $tk_std('mouse', $tk_open applies the switch, the IDE uses it",
+       "call $tk_keys('menu', keys, 'std.mouse', '&View', '&Mouse', '', '')" in std and "common /$tkmouse/ tm.off" in c.get("tk_std", "")
+       and not nomouse and "call $tk_std('apply', ctx, '', '', std.r)" in c.get("tk_open", "")
+       and "call $tk_std('mouse', '', '', '', ms.r)" in ide and "call $tk_std('apply', '', '', '', ms.r)" in ide
+       and "$tk_std" not in c.get("tk_menubar", "") and "act:std.mouse" not in c.get("tk_menubar", ""), nomouse)
+    # 9 Nov 26 (S.186): Ctrl-O on every page.  The four pages with an output pane of their own keep it; every other page shows the log of the commands
+    # $tk_run / $tk_runx ran ($tk_out 'log', kept apart from the pane and before the pane's epoch test, so logging never empties a page's pane)
+    PANE = ("tool_jobs", "tool_sessions", "tool_viewers", "tool_test")
+    noout = [p for p in PAGES if p not in PANE and not re.search(r"case nm = 'ctrl-o'[^\n]*\n\s*call \$tk_std\('output'", c.get(p, ""))]
+    own = [p for p in PANE if "call $tk_std('output'" in c.get(p, "")]
+    tko = c.get("tk_out", "")
+    runs = [r for r in ("tk_run", "tk_runx") if "goto run.done" not in c.get(r, "") or "call $tk_out('log', ''" not in c.get(r, "")
+            or re.search(r"^\s*return\s*$", c.get(r, "").split("run.done:")[0], re.M)]
+    ck("S15 Ctrl-O: every page without its own pane shows $tk_std('output' (the four with one keep theirs); $tk_run and $tk_runx log every command, each refusal "
+       "through run.done; the log is kept before the pane's epoch test",
+       not noout and not own and not runs and "call $tk_keys('add', keys, 'ctrl-o', 'output', 'std.output', '', 1)" in std
+       and 0 <= tko.find("if op = 'log' or op = 'loglines' then") < tko.find("if out.epoch # ctx<TK.C.EPOCH>"), repr((noout, own, runs)))
+    # 9 Nov 26 (S.186, the owner: "Letters stay, '/' finds"): on a page with a list, '/' is the key that finds a row by typing.  These five ask $tk_findrow;
+    # tool.audit's '/' is its filter form; the other pages that had '/' (catalog, dict, entries, files, home, query, test, voc) already filter or find with it
+    FIND = ("tool_accounts", "tool_sessions", "tool_jobs", "tool_gates", "mymenu")
+    nofind = [p for p in FIND if "call $tk_keys('add', keys, '/', 'find', 'find', '', 1)" not in c.get(p, "")
+              or not re.search(r"case nm = '/'[^\n]*\n(?:[^\n]*\n){0,5}?\s*call \$tk_findrow\(", c.get(p, ""))]
+    fr = c.get("tk_findrow", "")
+    ck("S16 '/' finds a row on the five list pages through $tk_findrow, and tool.audit's '/' is its filter; $tk_findrow only asks and answers (no write, no execute)",
+       not nofind and "case nm = 'f' or nm = '/'" in c.get("tool_audit", "")
+       and "screen ask" in fr and not re.search(r"\b(write|writeu|delete|execute|openseq|openpath)\b", fr), repr(nofind))
+    # 9 Nov 26 (S.186): the right-click menu is the focused pane's actions; the base's page-wide View switches name no pane and would sit in every one,
+    # where &Mouse took the M of a pane's &Mark (sandbox-tool-query Q14e2).  run.context skips them before it asks whether the pane uses an entry
+    rc = block(c.get("tk_menubar", ""), "run.context")
+    ck("S17 the context menu leaves out View > Mouse and View > Output (page-wide switches), before its pane test",
+       0 <= rc.find("if fa = 'std.mouse' or fa = 'std.output' then continue") < rc.find("gosub pane.uses"), rc[:200])
     return out
 
 
@@ -190,6 +224,14 @@ def mutants(src):
         m("the IDE's editor keeps Ctrl-T", "ide", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-k'"),
         m("S11: a page's box key is on no menu", "tool_dict", "call $tk_keys('menu', keys, 'nextpane', '&View', '&Next box', '', '')", "null"),
         m("S12: an IDE key runs a command no menu has", "ide", "case edata = 'f4'\n         cmd = 'nexterr'", "case edata = 'f4'\n         cmd = 'nexterrx'"),
+        m("S14: a page does not answer View > Mouse", "tool_gates", "      case nm = 'act:std.mouse'", "      case nm = 'act:std.mousex'"),
+        m("S14: a page's SCREEN OPEN turns the mouse back on", "tk_open", "call $tk_std('apply', ctx, '', '', std.r)", "null"),
+        m("S15: a page has no Ctrl-O", "tool_files", "      case nm = 'ctrl-o'", "      case nm = 'ctrl-ox'"),
+        m("S15: a refusal returns before it is logged", "tk_run", "      err = sysmsg(11805, verb)\n      goto run.done", "      err = sysmsg(11805, verb)\n      return"),
+        m("S15: the log is kept after the pane's epoch test (logging empties the pane)", "tk_out", "   if op = 'log' or op = 'loglines' then", "   if op = 'nolog' then"),
+        m("S16: a page's '/' does not find", "tool_sessions", "         call $tk_findrow(fr.rows", "         call $tk_nofind(fr.rows"),
+        m("S16: tool.audit's '/' is gone", "tool_audit", "      case nm = 'f' or nm = '/'", "      case nm = 'f'"),
+        m("S17: the context menu holds View > Mouse", "tk_menubar", "if fa = 'std.mouse' or fa = 'std.output' then continue", "if fa = 'std.outputx' then continue"),
         m("S13: a SED keyed action is on no menu", "sed", "   ml = 'Insert a control character, &quoted' ; ma = F.QUOTE.CHAR ; gosub add.item\n", ""),
     ]
 

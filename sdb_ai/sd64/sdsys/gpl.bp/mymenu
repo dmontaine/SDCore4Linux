@@ -13,6 +13,8 @@
 *               click on the [?] at the end of the header row explains the page ($tk_help, the record tool.menus.mine; Help > Help on this page).
 * 8 Nov 26 dm  S.179: F5 draws the page again (View > Refresh), Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the list to the AI line and back; AI > Ask theAI is a menu entry of its own.
+* 9 Nov 26 dm  S.186: View > Mouse and Ctrl-O (the log of the commands run), the same on every page (the cases act:std.mouse and ctrl-o, through $tk_std).
+*              '/' finds a program by typing ($tk_findrow; the owner: "Letters stay, '/' finds").
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -63,12 +65,14 @@ $include tk.h
    call $tk_keys('add', keys, 'del', 'remove', 'remove', '', 1)
    call $tk_keys('add', keys, 'u', 'up', 'up', '', 1)
    call $tk_keys('add', keys, 'd', 'down', 'down', '', 1)
+   call $tk_keys('add', keys, '/', 'find', 'find', '', 1)                  ;* 9 Nov 26 (S.186): '/' finds a program by typing (letters are this page's commands)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)                 ;* 2 Nov 26 (S.88 U4): the page's help ($tk_help)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U4: Esc opens the menu bar (this page holds nothing of its own that Esc closes first)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)           ;* S.179: F5 draws the page again, as on every page
    call $tk_keys('menu', keys, 'quit', '&File', '&Quit', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'find', '&View', '&Find a program', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
    call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    call $tk_keys('menu', keys, 'add', '&Program', '&Add a program', '', '')
@@ -84,6 +88,7 @@ $include tk.h
    gosub declare.layout
    sel = 1
    top = 0
+   find.last = ''                                               ;* 9 Nov 26 (S.186): the text '/' asked for last
    gen = 0
    done = 0
    msg = ''
@@ -214,6 +219,11 @@ on.key:
             sel += 1
             gosub draw.all
          end
+      case nm = '/'                         ;* S.186: the next program of the list that holds the text typed ($tk_findrow)
+         call $tk_findrow(convert(@vm : @sm, '  ', its), sel, find.last, fpos)
+         if fpos < 0 then msg = sysmsg(14045, find.last)
+         if fpos > 0 then sel = fpos
+         gosub draw.all
       case nm = 'home'
          sel = 1
          gosub draw.all
@@ -245,6 +255,11 @@ on.key:
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
          msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
+         msg = std.r<2>
+      case nm = 'ctrl-o'                    ;* S.186: the log of the commands this page ran (View > Output; $tk_std)
+         call $tk_std('output', ctx, keys, '', std.r)
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, 'My programs', std.r)
       case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'

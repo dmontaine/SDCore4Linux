@@ -117,13 +117,21 @@ def checks(raw):
     for n in progs:
         cited |= set(int(x) for x in re.findall(r"sysmsg\((\d+)", code[n]))
     have = {int(f) for f in os.listdir(os.path.join(SDSYS, "messages")) if f.isdigit()}
-    add("T15", "the messages the base cites (%s) are all in the toolkit's block 11800 to 11849 (or are 11951, the largest window $tk_open allows, 26 Oct 26; or 11186 to 11189, the action registry's, 29 Oct 26) and all exist" % sorted(cited),
-        bool(cited) and all((11800 <= m <= 11849 or m == 11951 or 11186 <= m <= 11189) and m in have for m in cited), sorted(m for m in cited if m not in have))
+    add("T15", "the messages the base cites (%s) are all in the toolkit's block 11800 to 11849 (or are 11951, the largest window $tk_open allows, 26 Oct 26; or 11186 to 11189, the action registry's, 29 Oct 26; "
+        "or 14038 to 14042, S.186's mouse, refusal and command-log texts, 9 Nov 26) and all exist" % sorted(cited),
+        bool(cited) and all((11800 <= m <= 11849 or m == 11951 or 11186 <= m <= 11189 or 14038 <= m <= 14042) and m in have for m in cited), sorted(m for m in cited if m not in have))
     rn = sq.get("tk_run", "")
-    optadd("tk_run", "T16", "ORDER in $tk_run: an empty sentence, a too long one, a first word outside the tool's list and a bad character are each refused (and return) BEFORE the one EXECUTE",
-        ordered(rn, "sysmsg(11804)", "sysmsg(11807)", "if not(ok.verb) then err = sysmsg(11805, verb)", "if index(good, w[j, 1], 1) = 0 then err = sysmsg(11806, w)",
-                "execute s trapping aborts capturing out")
-        and all(re.search(r"err = sysmsg\(%d[^)]*\) return" % m, rn) for m in (11804, 11805, 11806, 11807)), "")
+    # 9 Nov 26 (S.186): a bad character is named ($tk_badch of that character, message 14040), and each refusal goes to run.done, which logs it for Ctrl-O and returns:
+    # still BEFORE the one EXECUTE, which run.done follows
+    BADCH = "if index(good, w[j, 1], 1) = 0 then call $tk_badch(w[j, 1], bad.ch) err = sysmsg(14040, w, bad.ch)"
+
+    def refuses_then_logs(src):
+        return (all(re.search(r"err = sysmsg\(%d[^)]*\) goto run\.done" % m, src) for m in (11804, 11805, 11807)) and "err = sysmsg(14040, w, bad.ch) goto run.done" in src
+                and 0 <= src.find("execute s trapping aborts capturing out") < src.find("run.done:") < src.find("call $tk_out('log', '', lg.kind, lg.text, '') return"))
+    optadd("tk_run", "T16", "ORDER in $tk_run: an empty sentence, a too long one, a first word outside the tool's list and a bad character (named) are each refused BEFORE the one EXECUTE; "
+           "every way out logs the command and returns (run.done)",
+        ordered(rn, "sysmsg(11804)", "sysmsg(11807)", "if not(ok.verb) then err = sysmsg(11805, verb)", BADCH, "execute s trapping aborts capturing out")
+        and refuses_then_logs(rn), "")
     optadd("tk_run", "T17", "$tk_run runs only the sentence it checked (s), traps aborts, hands back the return code, and writes no audit line and no screen text",
         rn.count("execute ") == 1 and "execute sentence" not in rn and "status = @system.return.code" in rn and "K$AUDIT" not in rn and not re.search(r"\b(crt|display|print|screen)\b", rn), "")
     optadd("tk_run", "T18", "$tk_run allows exactly a-z, 0-9, dot, dash and underscore in a word, and the first word is compared whole against the tool's list, in lower case as typed",
@@ -131,8 +139,8 @@ def checks(raw):
     rx = sq.get("tk_runx", "")
     optadd("tk_runx", "T18b", "$tk_runx (23 Oct 26, tool.ai) is $tk_run for a verb that checks its own words: the same ORDER (an empty sentence, a too long one, a first word outside the tool's list and a bad character are each "
            "refused and return BEFORE the one EXECUTE of the checked sentence), the same trap and return code, no audit line and no screen text, and a word may hold a-z, A-Z, 0-9 and . _ : / @ + , - and nothing more",
-        ordered(rx, "sysmsg(11804)", "sysmsg(11807)", "if not(ok.verb) then err = sysmsg(11805, verb)", "if index(good, w[j, 1], 1) = 0 then err = sysmsg(11806, w)", "execute s trapping aborts capturing out")
-        and all(re.search(r"err = sysmsg\(%d[^)]*\) return" % m, rx) for m in (11804, 11805, 11806, 11807)) and rx.count("execute ") == 1 and "execute sentence" not in rx
+        ordered(rx, "sysmsg(11804)", "sysmsg(11807)", "if not(ok.verb) then err = sysmsg(11805, verb)", BADCH, "execute s trapping aborts capturing out")
+        and refuses_then_logs(rx) and rx.count("execute ") == 1 and "execute sentence" not in rx
         and "status = @system.return.code" in rx and "K$AUDIT" not in rx and not re.search(r"\b(crt|display|print|screen)\b", rx)
         and "good = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._:/@+,-'" in rx and "field(allow, ' ', i) = verb and verb # ''" in rx, "")
     gi = sq.get("tk_gate_info", "")

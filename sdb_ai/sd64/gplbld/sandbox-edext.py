@@ -162,7 +162,7 @@ def main():
         # An unrecognised line is followed by "Did you mean to insert this text (y/<n>)?", which loops until it has Y, N or an empty
         # answer: without the N the session never ends (it did not, 16 Oct 26, 20 minutes).
         out = sess(box, "RUN bp zzedvd", "ED bp zzedr", "WHERE", "N", "Q")
-        row("CONTROL  without the option WHERE is not an ED command: 'Unrecognised command'", "Unrecognised command" in out and "X[file=" not in out,
+        row("CONTROL  without the option WHERE is not an ED command: 'Unrecognized command'", "Unrecognized command" in out and "X[file=" not in out,
             repr(out[-400:]))
 
         say("\n--- the external commands ----------------------------------------------------------------------------------------")

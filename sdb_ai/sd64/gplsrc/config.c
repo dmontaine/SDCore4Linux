@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 09 Nov 26 dm  S.186 (the owner: US spelling in everything SD prints): "Unrecognized configuration parameter", "Global catalog missing or corrupt".
  * 8 Nov 26 dm   S.172: comment only - the SCREENTHEME line names paper (the shipped value) and night.
  * 29 Oct 26 dm  S.88 3.7a: comment only - the SCREENTHEME line of the parameter list; CONFIG('SCREENTHEME') can be read now (op_config.c).
  * 28 Oct 26 dm  S.87: FILERULE is gone, with the Account:File and PATH:pathname forms of file name; the installer strips the line from a restored sd.conf.
@@ -307,7 +308,7 @@ struct CONFIG* read_config(char* errmsg) {
       else if (sscanf(rec, "YEARBASE=%d", &n) == 1)
         pcfg.yearbase = n;
       else {
-        sprintf(errmsg, "Unrecognised configuration parameter '%s'", rec);
+        sprintf(errmsg, "Unrecognized configuration parameter '%s'", rec);
         goto exit_read_config;
       }
     }
@@ -407,7 +408,7 @@ struct CONFIG* read_config(char* errmsg) {
       goto exit_read_config;
   }
   if (access(path, 0)) {
-    sprintf(errmsg, "Global catalogue missing or corrupt.");
+    sprintf(errmsg, "Global catalog missing or corrupt.");
     goto exit_read_config;
   }
 

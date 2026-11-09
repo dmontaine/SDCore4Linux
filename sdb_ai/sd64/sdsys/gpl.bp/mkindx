@@ -30,6 +30,7 @@
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * 11 Sep 26        Exclusive-access refusal names the file and the sessions
 *                  holding it (10168/10169, FL$HOLDERS; port PRE_RELEASE 16).
+* 9 Nov 26 dm  S.186: what the program prints is in US spelling (the owner: "Everything SD prints"); its text only, no change of behaviour.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -330,7 +331,7 @@ have.index.type:
             end
 
          case 1
-            stop 'Internal error - AK type is unrecognised (':type:')'
+            stop 'Internal error - AK type is unrecognized (':type:')'
       end case
 
       if right.justify then ak.flags = bitor(ak.flags, AK$RIGHT)
@@ -537,7 +538,7 @@ build.index:
             itype.code = field(ak.info, @fm, DICT.ITYPE.OBJECT, 99999)
             mv = ak.info<DICT.S.M> = 'M'
          case 1
-            stop 'Internal error: AK type not recognised (:'ak.type:')'
+            stop 'Internal error: AK type not recognized (:'ak.type:')'
       end case
 
       index.nulls = not(ak.info<1,3>)

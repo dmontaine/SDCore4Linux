@@ -323,7 +323,7 @@ def main():
                    "BASIC bp %s" % PV, "SET.TRIGGER %s %s ALL" % (G, TS))
         clean = len(re.findall(r"(?m)^Compiled 1 program\(s\) with no errors", out))
         row("setup: the trigger and its driver compiled, the trigger is catalogued and set on the file",
-            clean == 2 and ("%s added to local catalogue" % TS) in out and "3003" not in out, out[-400:])
+            clean == 2 and ("%s added to local catalog" % TS) in out and "3003" not in out, out[-400:])
         if clean != 2:
             bail("the trigger fixture did not compile:\n" + out[-500:])
         out = sess(box, "RUN bp %s" % PV)

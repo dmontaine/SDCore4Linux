@@ -57,6 +57,8 @@
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the boxes
 *              (Left and Right still do).  AI > Ask the AI is a menu entry of its own.
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
+* 9 Nov 26 dm  S.186 (Fable's review): retake.page takes the page again as 'admin', as the start does; it said '', so after the editor or the debugger the
+*              administrator was not asked again and the bar named the user instead.  View > Mouse and Ctrl-O, as on every page (act:std.mouse, ctrl-o, $tk_std).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -800,7 +802,7 @@ draw.effect:
             lines<-1> = 'The dictionary items are read, when the cursor comes to the account, from the dictionary of each file its VOC points at (field 3 of the file pointer); nothing is copied.  An item matches a text in its id or in its column heading.  E edits the item under the cursor as the form, N makes a new one in the dictionary of the file under the cursor and D deletes it: only dictionary items.'
             lines<-1> = ">: the item lives in a dictionary outside this account (SDSYS's, which every account's pointer to it shares, or another account's) and is only read through this account's pointer.  It is edited in the account it lives in, never from here: E and N refuse it."
          case 1
-            lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  E edits the program under the cursor in the editor and N makes a new one in the same program file, in the account it belongs to; C compiles it IN THAT ACCOUNT (run.in) and B debugs it there, and the editor's own Compile, Catalog and Debug do the same.  D deletes it with its compiled program (a catalogue entry is left: DELETE.CATALOG in the account removes it)."
+            lines<-1> = "The programs are the records of the account's program files (a directory file named bp, or ending .bp, or with a file of the same name and .out beside it), read when the cursor comes to the account; nothing is copied.  Built: yes when the compiled program is in the .out file under the same name, - when it is not (the .out file is the one the VOC names, else the one beside the program file).  E edits the program under the cursor in the editor and N makes a new one in the same program file, in the account it belongs to; C compiles it IN THAT ACCOUNT (run.in) and B debugs it there, and the editor's own Compile, Catalog and Debug do the same.  D deletes it with its compiled program (a catalog entry is left: DELETE.CATALOG in the account removes it)."
             lines<-1> = ">: the program file lies outside this account (SDSYS's or another account's) and is only read through this account's pointer.  Its programs are edited, compiled and run in the account it lives in, never from here."
       end case
    end
@@ -1044,6 +1046,11 @@ on.key:
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
          msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
+         msg = std.r<2>
+      case nm = 'ctrl-o'                    ;* S.186: the log of the commands this page ran (View > Output; $tk_std)
+         call $tk_std('output', ctx, keys, '', std.r)
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, pnames<pane>, std.r)
       case nm = 'f5'
@@ -1479,7 +1486,7 @@ delete.reached:
       end else
          dlines<-1> = 'It has no compiled program (nothing called ' : doid : ' in ' : dop : ').'
       end
-      dlines<-1> = 'A catalogue entry of the program is left: it is the account' : "'" : 's (DELETE.CATALOG in ' : ea : ' removes it).'
+      dlines<-1> = 'A catalog entry of the program is left: it is the account' : "'" : 's (DELETE.CATALOG in ' : ea : ' removes it).'
    end
    dlines<-1> = 'This is not a command: the page deletes ' : (if dohave then 'those two records' else 'that one record') : ' itself.  Type its id to confirm.'
    call $tk_confirm(dsent, dlines, eid, res, cmsg, sysmsg(11953))   ;* Delete this record?
@@ -1515,7 +1522,7 @@ delete.reached:
       void kernel(K$AUDIT, 'master delete account=' : ea : ' kind=' : dkind : ' file=' : qf : ' id=' : eid)
    end
    dmsg = 'deleted ' : eid : ' from ' : dwhere
-   if dores = 'deleted' then dmsg := ' and its compiled program (a catalogue entry is left)'
+   if dores = 'deleted' then dmsg := ' and its compiled program (a catalog entry is left)'
    if dores = 'failed' then dmsg := ': its compiled program in ' : dorp : ' was NOT deleted, the file refused it'
    keep.ec = ec
    gosub read.all
@@ -1650,7 +1657,7 @@ retake.page:
    crt sysmsg(11865) :                                         ;* Press Enter to return
    input junk
    if junk = char(1) then null                                 ;* any answer goes back; the answer itself is not used
-   call $tk_open('tool.entries', '', ctx, err)
+   call $tk_open('tool.entries', 'admin', ctx, err)              ;* 9 Nov 26 (S.186): 'admin', as at the start (it was '': the administrator was not asked again and the bar named the user)
    if err # '' then
       display err
       done = 1

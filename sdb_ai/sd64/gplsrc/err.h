@@ -28,6 +28,9 @@
  *    ERRTEXT.H are regenerated from this file by ERRGEN.
  * 07 Oct 26 dm PAL-1 D2 (the Windows port's RELEASE_1.1 5, 72d4a533): ER_TWIN 3042.
  * 28 Oct 26 dm  S.87: ER_CNF 3031 and ER_MFC 3032 (multifiles) are retired, the numbers stay claimed.
+ * 09 Nov 26 dm  S.186 (the owner: US spelling in everything SD prints): the texts say catalog,
+ *    initialized, unrecognized.  Linux Core is the template: the Windows port follows.
+ *    Regenerated with gplbld/gen_includes.py.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -58,7 +61,7 @@
 #define ER_NOT_CREATED    6    /* Unable to create directory */
 #define ER_STOPPED        7    /* Processing terminated by user action */
 #define ER_INVA_PATH      8    /* Invalid pathname */
-#define ER_NOT_CAT        9    /* Item not in catalogue */
+#define ER_NOT_CAT        9    /* Item not in catalog */
 #define ER_PROCESS       10    /* Unable to start new process */
 #define ER_USER_EXISTS   11    /* User name already in register */
 #define ER_UNSUPPORTED   12    /* This operation is not supported on this platform */
@@ -98,7 +101,7 @@
 /* 20xx  Catalog management errors */
 
 #define ER_INVA_OBJ    2000    /* Invalid object code */
-#define ER_CFNF        2001    /* Catalogued function not found */
+#define ER_CFNF        2001    /* Cataloged function not found */
 
 /* 21xx  Terminfo errors */
 
@@ -239,7 +242,7 @@
 #define DHE_AK_HDR_READ_ERROR    8110 /* Error reading AK header */
 #define DHE_AK_HDR_FAULT         8111 /* AK subfile header format error */
 #define DHE_AK_ITYPE_ERROR       8112 /* Format error in AK I-type code */
-#define DHE_AK_NODE_ERROR        8113 /* Unrecognised node type */
+#define DHE_AK_NODE_ERROR        8113 /* Unrecognized node type */
 #define DHE_NO_SUCH_AK           8114 /* Reference to non-existant AK */
 #define DHE_AK_DELETE_ERROR      8115 /* Error deleting AK subfile */
 #define DHE_EXCLUSIVE            8116 /* File is open for exclusive access */
@@ -259,7 +262,7 @@
 #define DHE_CREATE0_ERR          8208 /* Cannot create primary subfile (os.error) */
 #define DHE_CREATE1_ERR          8209 /* Cannot create overflow subfile (os.error) */
 #define DHE_PSFH_WRITE_ERROR     8210 /* Failure writing primary subfile header (os.error) */
-#define DHE_INIT_DATA_ERROR      8211 /* Failure initialising data bucket (os.error) */
+#define DHE_INIT_DATA_ERROR      8211 /* Failure initializing data bucket (os.error) */
 #define DHE_ILLEGAL_HASH         8212 /* Invalid hashing algorithm */
 #define DHE_OSFH_WRITE_ERROR     8213 /* Failure writing overflow subfile header (os.error) */
 // 83xx  dh_read()
@@ -334,7 +337,7 @@
 #define SD_EUID_NSET_Err -10403  /* SD_EUID_RESTORE called before SD_EUID_SET */
 
 /* Embedded Python Error codes   */
-#define SD_PyEr_NotInit    -12001    /* interpreter not initialised */
+#define SD_PyEr_NotInit    -12001    /* interpreter not initialized */
 #define SD_PyEr_Dict       -12002    /* PyDict_New() failed */
 #define SD_PyEr_Builtin    -12003    /* failed to link __builtins__ into the scope */
 #define SD_PyEr_Excpt      -12004    /* exception while running code */

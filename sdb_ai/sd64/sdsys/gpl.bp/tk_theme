@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 8 Nov 26 dm  New (S.179).  The owner, 8 Nov: "the theme switching capability should be available on every page using the same methodology and
 *              should appear in the menu under view"; Ctrl-T everywhere, the choice kept for the person ("Inside SD (tighter)").
+* 9 Nov 26 dm  S.186: what the program prints is in US spelling (the owner: "Everything SD prints"); its text only, no change of behaviour.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -39,7 +40,7 @@ $include sl.h
    call $sl_theme('name', '', '', '', '', now)
    call $sl_theme('next', now, '', '', '', want)
    if want = now then
-      msg = 'This terminal cannot show colour: the theme stays ' : now : '.'
+      msg = 'This terminal cannot show color: the theme stays ' : now : '.'
       return
    end
    call $sl_theme('set', want, 'asked', '', '', setr)

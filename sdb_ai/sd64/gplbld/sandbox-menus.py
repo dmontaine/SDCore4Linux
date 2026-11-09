@@ -277,7 +277,7 @@ def main():
         h.key("enter", idle=2.0)
         T = h.text()
         row("Enter on it starts MY.MENU: the page 'My programs' with the empty-list line, and the keys Ctrl-N add, Enter change, Del remove, U up, D down",
-            "You have not added a program yet" in T and h.line(42).startswith("^N add  ^Q quit"), repr(h.line(42)))
+            "You have not added a program yet" in T and h.line(42).startswith("^N add  / find  ^Q quit"), repr(h.line(42)))     # / find: S.186, 9 Nov 26
         # 2 Nov 26 (S.88 U4): the box is a pane of the layout service at its old place (the rows above and below read it there) and the page has F1 help ($tk_help, tool.menus.mine)
         row("S.88 U4: the box is where it always was at 140 by 43 (its top border on row 1, the header on row 2, the note on its bottom border, row 34) and a [?] ends the header row",
             h.line(1)[1:3] == "+-" and "My programs" in h.line(1) and "Label" in h.line(2) and "this list is only yours" in h.line(34) and h.line(2)[134:137] == "[?]", repr((h.line(1)[:20], h.line(2)[128:140], h.line(34)[:60])))

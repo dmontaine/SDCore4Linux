@@ -639,7 +639,7 @@ end
 })
 
 BAD = {  # name -> (source, text the compiler must give)
-    "zzscbv": ("   screen frob 'x'\nend\n", "Unrecognised screen verb frob"),
+    "zzscbv": ("   screen frob 'x'\nend\n", "Unrecognized screen verb frob"),
     "zzscnv": ("   screen\nend\n", "The screen statement needs a verb after it"),
     "zzsctw": ("   screen msgbox 'x' title 'a' title 'b'\nend\n", "The title clause appears twice in a screen statement"),
     "zzscnt": ("   screen msgbox 'x' colour 5\nend\n", "The screen msgbox statement does not take colour"),

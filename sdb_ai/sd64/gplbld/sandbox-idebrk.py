@@ -41,7 +41,7 @@ CTRL_HOME = "\x1b[1;5H"
 MARKCOL = 29                      # the gutter's first cell: the editor's border is column 28
 SRC_LAST = 32                     # the debugger's source pane: rows 1 to 32, its mark in column 0, the Autos pane from column 92
 AUTOX = 92
-DBG_KEYS = "F1 help  F2 abort  F3 stop  F4 screen  F5 refresh  F7 step  F8 line  F9 run  F10 menu  ^F7 parent  ^F8 program"     # S.179, 8 Nov 26: F5 refresh, F9 run, F10 the menu bar
+DBG_KEYS = "F1 help  F2 find  F3 stop  F4 screen  F5 refresh  F7 step  F8 line  F9 run  F10 menu  ^F7 parent  ^F8 program"     # S.179, 8 Nov 26: F5 refresh, F9 run, F10 the menu bar
 RUN = "%05d" % (os.getpid() % 100000)
 P, L, E, C = ("zzk%s%s" % (RUN, c) for c in "plec")
 

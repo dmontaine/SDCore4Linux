@@ -25,6 +25,7 @@
  *           it is an identifier, not a catalogue name.  RELEASE_1.1_FIXES.md 5,
  *           stage 3a.
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.186 (the owner: US spelling in everything SD prints): "Unrecognized property/method name".
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -484,7 +485,7 @@ void op_objref() {
        reference this.                                                  */
 
     if (!find_undefined_name_handler(mode, objdata, name, TRUE)) {
-      k_error("Unrecognised property/method name (%s).", name);
+      k_error("Unrecognized property/method name (%s).", name);
     }
   }
 

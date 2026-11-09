@@ -8,7 +8,8 @@
 #   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --skip ced          all but the pseudo-terminal one
 #   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --only coll,try     just those
 #   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --tree DIR          the suites of the sd64 tree DIR, in that tree
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --free              then the gplbld/test-*.py free checks too
+#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --free              the gplbld/test-*.py free checks too, FIRST; a failure stops the run
+#                                                                       before the suites, as stale-expect.py does (--keep-going runs them anyway)
 #   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --list              print the suites and stop
 #   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --changed --snapshot --jobs 8   THE RUN TO USE: only the suites the changed
 #                                                                       files need (gplbld/regress-map.txt), and the free checks; --since REF for a range
@@ -197,6 +198,10 @@
 #               editor's Ctrl-Home / End / Left / Right / Del and Ins on a pseudo-terminal; 11 rows, about 40 s, section keys).
 # 3 Nov 26 dm   ide-tools added (S.75 DV10: the IDE's Tools menu opens tool.files and tool.test through the terminal hand-over and the IDE comes back with
 #               its unsaved text; 7 rows, one section, mutant no-tests).
+# 9 Nov 26 dm   S.186 (the owner: "is there a check that we could add before suites are run to avoid simple failures like spelling"): the free
+#               checks run BEFORE the suites, then stale-expect.py (a suite that still expects wording the change removed); a failure of either
+#               stops the run before any suite starts.  --keep-going runs the suites anyway.  The US spelling sweep had cost a 50-minute run
+#               that failed 20 suites on wording alone.
 # END-HISTORY
 
 set -u
@@ -219,9 +224,10 @@ LIMIT=3000
 JOBS=1
 SNAPSHOT=0
 SNAP=""
+KEEP_GOING=0
 
 usage() {
-  sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -238,6 +244,7 @@ while [ $# -gt 0 ]; do
     --limit) LIMIT=$2; shift 2 ;;
     --jobs) JOBS=$2; shift 2 ;;
     --snapshot) SNAPSHOT=1; shift ;;
+    --keep-going) KEEP_GOING=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "regress: unknown argument '$1' (try --help)" >&2; exit 2 ;;
   esac
@@ -480,6 +487,40 @@ failed_list=""
 notrun_list=""
 T0=$(date +%s)
 
+# 9 Nov 26 (S.186; the owner: "is there a check that we could add before suites are run to avoid simple failures like spelling"): the free checks,
+# and stale-expect.py (a suite that still expects wording SD no longer prints), run FIRST, and a failure stops the run before any suite starts -
+# a minute instead of the hour the suites take.  --keep-going runs the suites anyway.
+free_failed=0
+free_ran=0
+stale_failed=0
+if [ $FREE -eq 1 ]; then
+  echo "regress: free checks  (gplbld/test-*.py, run from $TREE)"
+  for t in "$TREE"/gplbld/test-*.py; do
+    [ -f "$t" ] || continue
+    free_ran=$((free_ran + 1))
+    if ! (cd "$TREE" && timeout 180 python3 "$t" > "$LOGS/$(basename "$t").out" 2>&1); then
+      free_failed=$((free_failed + 1))
+      echo "         FAIL $(basename "$t")   (see $LOGS/$(basename "$t").out)"
+    fi
+  done
+  [ "$free_ran" -gt 0 ] || { echo "         no test-*.py found"; free_failed=$((free_failed + 1)); }
+  echo "regress: free checks  $free_ran run, $free_failed failed"
+fi
+if [ $SUITES_OFF -eq 0 ] && [ -f "$HERE/stale-expect.py" ]; then
+  # the change is read from the live tree (the snapshot is a copy without git); the suites it reads are the ones about to run
+  if ! python3 "$HERE/stale-expect.py" ${SINCE:+--since "$SINCE"} > "$LOGS/stale-expect.out" 2>&1; then
+    stale_failed=1
+    grep -E "STALE|CANNOT" "$LOGS/stale-expect.out" | head -10 | sed 's/^/         /'
+  fi
+  echo "regress: stale     $(tail -1 "$LOGS/stale-expect.out")"
+fi
+if [ $SUITES_OFF -eq 0 ] && [ $KEEP_GOING -eq 0 ] && { [ "$free_failed" -gt 0 ] || [ "$stale_failed" -gt 0 ]; }; then
+  echo "regress: STOPPED before the suites - fix the free checks or the stale expectations above (--keep-going runs the suites anyway)"
+  [ -n "$SNAP" ] && rm -rf "$SNAP"
+  exit 1
+fi
+echo
+
 if [ $SUITES_OFF -eq 0 ]; then
   echo "regress: suites   $count:$(for s in $SUITES; do printf ' %s' "$s"; done)"
   echo "regress: each     python3 $TREE/gplbld/sandbox-<suite>.py <fresh directory> --build   ($JOBS worker$([ "$JOBS" -gt 1 ] && echo s), keysets 0-$((JOBS - 1)))"
@@ -516,23 +557,6 @@ if [ $SUITES_OFF -eq 0 ]; then
   done
 fi
 rm -rf "$CLAIMS"
-
-free_failed=0
-free_ran=0
-if [ $FREE -eq 1 ]; then
-  echo
-  echo "regress: free checks  (gplbld/test-*.py, run from $TREE)"
-  for t in "$TREE"/gplbld/test-*.py; do
-    [ -f "$t" ] || continue
-    free_ran=$((free_ran + 1))
-    if ! (cd "$TREE" && timeout 180 python3 "$t" > "$LOGS/$(basename "$t").out" 2>&1); then
-      free_failed=$((free_failed + 1))
-      echo "         FAIL $(basename "$t")   (see $LOGS/$(basename "$t").out)"
-    fi
-  done
-  [ "$free_ran" -gt 0 ] || { echo "         no test-*.py found"; free_failed=$((free_failed + 1)); }
-  echo "regress: free checks  $free_ran run, $free_failed failed"
-fi
 
 echo
 elapsed=$(( $(date +%s) - T0 ))

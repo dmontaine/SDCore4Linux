@@ -275,13 +275,13 @@ def runtime_rows(box, made):
     row("an id that is not in the table returns nothing", line(r"^GNO \[\]\s*$") is not None, "")
     row("a planned gate shows as planned and has no word to run", line(r"^GSK planned \[\]\s*$") is not None, "")
 
-    NOTALLOWED, CHAR, EMPTY, LONG = "is not one of the commands this tool may run", "has a character that a command word may not have", "there is nothing to run", "the command is too long to run"
+    NOTALLOWED, CHAR, EMPTY, LONG = "is not one of the commands this tool may run", "which a command word may not have", "there is nothing to run", "the command is too long to run"   # 9 Nov 26 (S.186): 14040 names the character
     want = [
         ("T1", "an allowed command runs: who.am.i (no message, it ran, and its own words came back)", lambda e, r: e == "" and r == 1),
         ("T2", "the first word is compared as typed: WHO.AM.I in capitals is refused (11805) and did not run", lambda e, r: NOTALLOWED in e and r == 0),
         ("T3", "a command that is not in the list (sh ls) is refused (11805)", lambda e, r: NOTALLOWED in e and r == 0),
         ("T4", "the first word is compared whole: 'who' is not 'who.am.i'", lambda e, r: NOTALLOWED in e and r == 0),
-        ("T5", "a semicolon in an argument is refused (11806): the command did not run", lambda e, r: CHAR in e and r == 0),
+        ("T5", "a semicolon in an argument is refused (14040), naming the character: the command did not run", lambda e, r: CHAR in e and "the character ;" in e and r == 0),
         ("T6", "a quote in an argument is refused", lambda e, r: CHAR in e and r == 0),
         ("T7", "a tab joins the next word to the first, which is then not in the list", lambda e, r: NOTALLOWED in e and r == 0),
         ("T8", "a value mark in an argument is refused", lambda e, r: CHAR in e and r == 0),
@@ -716,7 +716,7 @@ def pick_rows(box, made):
     t.key("ENTER")
     row("Enter with nothing shown does nothing: the window is still open", "Pick a command" in "\n".join(t.lines()), "")
     t.key("ESC")
-    row("Esc closes it: the status line says cancelled, the screen under the window is back", "cancelled" in t.line(40) and "Pick a command" not in "\n".join(t.lines()) and t.line(42) == F_P, repr((t.line(40), t.line(42))))
+    row("Esc closes it: the status line says cancelled, the screen under the window is back", "canceled" in t.line(40) and "Pick a command" not in "\n".join(t.lines()) and t.line(42) == F_P, repr((t.line(40), t.line(42))))
 
     t.key("F9")
     t.key("DOWN")
@@ -780,7 +780,7 @@ def pick_rows(box, made):
     row("a second click on it is Enter: picked 3 (count)", "picked 3 (count)" in t.line(40) and "Pick a command" not in "\n".join(t.lines()), repr(t.line(40)))
     t.key("F9")
     click(2, 3)
-    row("a click outside the window is Esc: cancelled", "cancelled" in t.line(40) and "Pick a command" not in "\n".join(t.lines()), repr(t.line(40)))
+    row("a click outside the window is Esc: cancelled", "canceled" in t.line(40) and "Pick a command" not in "\n".join(t.lines()), repr(t.line(40)))
     t.end()
 
     # more entries than rows: a scroll bar, End, the last entry
@@ -997,13 +997,13 @@ def accel_rows(box, made):
         say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
         bail("tktest accel never drew its form, so no row below can be believed")
     row("the form is drawn: the & is not shown in any text (Name, Verbose [ ], Verbose again [ ], Switch [OFF | on], Colour [RED | green | blue], (*) one, Dim [ ], [ Go ]) and the log reads ck=0 ck2=0 sl=0 se=1 last=none n=0",
-        all(where(s) is not None for s in ("Name", "Verbose [ ]", "Verbose again [ ]", "Switch [OFF | on]", "Colour [RED | green | blue]", "(*) one", "Dim [ ]", "[ Go ]")) and where("&") is None
+        all(where(s) is not None for s in ("Name", "Verbose [ ]", "Verbose again [ ]", "Switch [OFF | on]", "Color [RED | green | blue]", "(*) one", "Dim [ ]", "[ Go ]")) and where("&") is None
         and logline() == ("0", "0", "0", "1", "none", "0"), repr((logline(), t.line(24)[20:90])))
     # the letter marked with & is drawn in the hotkey style (mono: underline) while its control does not have the focus; the focus is on the first entry here
     say("    [measured] mono, the first entry has the focus: underlined cells  Name %r  Verbose %r  Verbose again %r  Switch %r  Colour %r  Go %r  Dim (disabled) %r  the log label %r" % (
-        ul("Name"), ul("Verbose [ ]"), ul("Verbose again [ ]"), ul("Switch [OFF | on]"), ul("Colour [RED | green | blue]"), ul("[ Go ]"), ul("Dim [ ]"), ul("ck=0 ck2=0 sl=0 se=1 last=none n=0")))
+        ul("Name"), ul("Verbose [ ]"), ul("Verbose again [ ]"), ul("Switch [OFF | on]"), ul("Color [RED | green | blue]"), ul("[ Go ]"), ul("Dim [ ]"), ul("ck=0 ck2=0 sl=0 se=1 last=none n=0")))
     row("the marked letter is underlined, and only it: the check box &Verbose (the V of 'Verbose [ ]', not the other letters, not the box), the slider &Switch (S), the selector &Colour (C)",
-        ul("Verbose [ ]") == [0] and ul("Switch [OFF | on]") == [0] and ul("Colour [RED | green | blue]") == [0], repr((ul("Verbose [ ]"), ul("Switch [OFF | on]"), ul("Colour [RED | green | blue]"))))
+        ul("Verbose [ ]") == [0] and ul("Switch [OFF | on]") == [0] and ul("Color [RED | green | blue]") == [0], repr((ul("Verbose [ ]"), ul("Switch [OFF | on]"), ul("Color [RED | green | blue]"))))
     row("...the button &Go: the G of '[ Go ]', the third cell (the bracket and the space before the label are counted), not the brackets; and the label &Name: the N",
         ul("[ Go ]") == [2] and ul("Name") == [0], repr((ul("[ Go ]"), ul("Name"))))
     row("...the second check box (&Verbose again, whose Alt-letter V went to the first one) is drawn with its marked letter all the same: the V only",
@@ -1022,7 +1022,7 @@ def accel_rows(box, made):
         "ab" in t.line((where("Name") or (0, 0))[0]) and where("abv") is None and where("ab v") is None, repr(t.line((where("Name") or (0, 0))[0])))
     say("    [measured] mono, &Verbose has the focus: underlined cells in 'Verbose [x]' %r, flags of its V %r and of its e %r; Switch %r" % (ul("Verbose [x]"), flags("Verbose [x]", 0), flags("Verbose [x]", 1), ul("Switch [OFF | on]")))
     row("the check box that has the focus (Alt+V gave it the focus) has no underlined letter of its own: all of it is in the focus style (reverse), V included, the same as the letter after it; the other controls keep theirs",
-        ul("Verbose [x]") == [] and flags("Verbose [x]", 0) == flags("Verbose [x]", 1) and "r" in flags("Verbose [x]", 0) and ul("Switch [OFF | on]") == [0] and ul("Colour [RED | green | blue]") == [0],
+        ul("Verbose [x]") == [] and flags("Verbose [x]", 0) == flags("Verbose [x]", 1) and "r" in flags("Verbose [x]", 0) and ul("Switch [OFF | on]") == [0] and ul("Color [RED | green | blue]") == [0],
         repr((ul("Verbose [x]"), flags("Verbose [x]", 0), flags("Verbose [x]", 1))))
     t.key("ALT-V")
     row("Alt+V again unticks it: ck=0, last=change:ck:0, n=4", logline() == ("0", "0", "0", "1", "change:ck:0", "4"), repr(logline()))
@@ -1034,14 +1034,14 @@ def accel_rows(box, made):
     row("the slider that has the focus (Alt+S) has no underlined letter of its own: its S is in the focus style, the same as the letter after it; the check box that lost the focus has its V underlined again",
         ul("Switch [off | ON]") == [] and flags("Switch [off | ON]", 0) == flags("Switch [off | ON]", 1) and "r" in flags("Switch [off | ON]", 0) and ul("Verbose [x]") == [0], repr((ul("Switch [off | ON]"), ul("Verbose [x]"))))
     t.key("ALT-C")
-    row("Alt+C chooses the selector's next word (GREEN): se=2, last=change:se:2, n=7", where("Colour [red | GREEN | blue]") is not None and logline() == ("1", "0", "1", "2", "change:se:2", "7"), repr(logline()))
+    row("Alt+C chooses the selector's next word (GREEN): se=2, last=change:se:2, n=7", where("Color [red | GREEN | blue]") is not None and logline() == ("1", "0", "1", "2", "change:se:2", "7"), repr(logline()))
     t.key("ALT-C")
     t.key("ALT-C")
-    row("...twice more goes round to the first word (RED): se=1, n=9", where("Colour [RED | green | blue]") is not None and logline() == ("1", "0", "1", "1", "change:se:1", "9"), repr(logline()))
-    say("    [measured] mono, &Colour has the focus: underlined cells in 'Colour [RED | green | blue]' %r, flags of its C %r and of its o %r; Switch %r" % (ul("Colour [RED | green | blue]"), flags("Colour [RED | green | blue]", 0), flags("Colour [RED | green | blue]", 1), ul("Switch [off | ON]")))
+    row("...twice more goes round to the first word (RED): se=1, n=9", where("Color [RED | green | blue]") is not None and logline() == ("1", "0", "1", "1", "change:se:1", "9"), repr(logline()))
+    say("    [measured] mono, &Colour has the focus: underlined cells in 'Colour [RED | green | blue]' %r, flags of its C %r and of its o %r; Switch %r" % (ul("Color [RED | green | blue]"), flags("Color [RED | green | blue]", 0), flags("Color [RED | green | blue]", 1), ul("Switch [off | ON]")))
     row("the selector that has the focus (Alt+C) has no underlined letter of its own: its C is in the focus style, the same as the letter after it; the slider that lost the focus has its S underlined again",
-        ul("Colour [RED | green | blue]") == [] and flags("Colour [RED | green | blue]", 0) == flags("Colour [RED | green | blue]", 1) and "r" in flags("Colour [RED | green | blue]", 0) and ul("Switch [off | ON]") == [0],
-        repr((ul("Colour [RED | green | blue]"), ul("Switch [off | ON]"))))
+        ul("Color [RED | green | blue]") == [] and flags("Color [RED | green | blue]", 0) == flags("Color [RED | green | blue]", 1) and "r" in flags("Color [RED | green | blue]", 0) and ul("Switch [off | ON]") == [0],
+        repr((ul("Color [RED | green | blue]"), ul("Switch [off | ON]"))))
     t.key("F5")
     row("ACCEL 'f5' gives the radio group the focus (it has no label): last=focus:rd:se, n=10", logline() == ("1", "0", "1", "1", "focus:rd:se", "10"), repr(logline()))
     t.key("CTRLG")
@@ -1072,7 +1072,7 @@ def accel_rows(box, made):
     t.end()
 
 
-# TK-0.11.  `tktest selector` shows four SCREEN SELECTOR controls: c "Colour [blue | green | RED | black]" (label left by default, VALUE 3), s "[small | MEDIUM | large] size" (place right,
+# TK-0.11.  `tktest selector` shows four SCREEN SELECTOR controls: c "Color [blue | green | RED | black]" (label left by default, VALUE 3), s "[small | MEDIUM | large] size" (place right,
 # ATTR window), m (place above) "mode" over "[FAST | slow | exact]", and t "tint [EX | why | zed]" in white on blue; the label at the foot reads "c=<n> s=<n> m=<n> t=<n> last=<id>=<n> n=<changes>"
 # (n counts the change events of SCREEN WAIT).  F2 sets them from the program: c 9 (brought into range: 4), s 3 and m ITEMS one, two (the first is chosen).
 def selector_rows(box, made):
@@ -1090,19 +1090,19 @@ def selector_rows(box, made):
         m_ = re.search(r"c=(\d+) s=(\d+) m=(\d+) t=(\d+) last=(\S+) n=(\d+)", "\n".join(t.lines()))
         return m_.groups() if m_ else None
 
-    if where("Colour") is None:
+    if where("Color") is None:
         say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
         bail("tktest selector never drew its form, so no row below can be believed")
     C = lambda n: ["[BLUE | green | red | black]", "[blue | GREEN | red | black]", "[blue | green | RED | black]", "[blue | green | red | BLACK]"][n - 1]
     S = lambda n: ["[SMALL | medium | large] size", "[small | MEDIUM | large] size", "[small | medium | LARGE] size"][n - 1]
     row("the form is drawn: 'Colour [blue | green | RED | black]' (VALUE 3, label on the left), '[small | MEDIUM | large] size' (place right), 'mode' with '[FAST | slow | exact]' under it (place above), 'tint [EX | why | zed]'",
-        where("Colour " + C(3)) is not None and where(S(2)) is not None and where("mode") is not None and where("[FAST | slow | exact]") is not None and where("tint [EX | why | zed]") is not None
+        where("Color " + C(3)) is not None and where(S(2)) is not None and where("mode") is not None and where("[FAST | slow | exact]") is not None and where("tint [EX | why | zed]") is not None
         and logline() == ("3", "2", "1", "1", "none", "0"), repr((logline(), t.line(10)[30:100])))
     rm, cm = where("mode") or (0, 0)
     ra, ca = where("[FAST | slow | exact]") or (0, 0)
     row("place above: the label is the row over the control and both start in the same column", ra == rm + 1 and ca == cm, repr(((rm, cm), (ra, ca))))
-    r1, c1 = where("Colour " + C(3)) or (0, 0)
-    row("the first control has the focus: all of it, label included, is in reverse video, and the second's is not", "Colour" in t.rev(r1) and "RED" in t.rev(r1) and "size" not in t.rev(where(S(2))[0] if where(S(2)) else 0),
+    r1, c1 = where("Color " + C(3)) or (0, 0)
+    row("the first control has the focus: all of it, label included, is in reverse video, and the second's is not", "Color" in t.rev(r1) and "RED" in t.rev(r1) and "size" not in t.rev(where(S(2))[0] if where(S(2)) else 0),
         repr(t.rev(r1)))
     sc = t.s.screen
     ro, co = where(S(2)) or (0, 0)
@@ -1116,24 +1116,24 @@ def selector_rows(box, made):
     row("COLOR: the whole control and its label white on blue, the word in force (EX) still in the style bold", sc.style(rt, ct + 1) == (7, 4, "") and sc.style(rt, ct + 13) == (7, 4, "") and "b" in sc.style(rt, ct + 7)[2],
         repr((sc.style(rt, ct + 1), sc.style(rt, ct + 7), sc.style(rt, ct + 13))))
     t.key("RIGHT")
-    row("Right chooses the next word: BLACK ('c=4'), one change event: last=c=4 n=1", where("Colour " + C(4)) is not None and logline() == ("4", "2", "1", "1", "c=4", "1"), repr(logline()))
+    row("Right chooses the next word: BLACK ('c=4'), one change event: last=c=4 n=1", where("Color " + C(4)) is not None and logline() == ("4", "2", "1", "1", "c=4", "1"), repr(logline()))
     t.key("RIGHT")
-    row("Right on the last word changes nothing and reports nothing: still BLACK, n=1", where("Colour " + C(4)) is not None and logline() == ("4", "2", "1", "1", "c=4", "1"), repr(logline()))
+    row("Right on the last word changes nothing and reports nothing: still BLACK, n=1", where("Color " + C(4)) is not None and logline() == ("4", "2", "1", "1", "c=4", "1"), repr(logline()))
     t.key("LEFT")
-    row("Left chooses the previous word: RED, n=2", where("Colour " + C(3)) is not None and logline() == ("3", "2", "1", "1", "c=3", "2"), repr(logline()))
+    row("Left chooses the previous word: RED, n=2", where("Color " + C(3)) is not None and logline() == ("3", "2", "1", "1", "c=3", "2"), repr(logline()))
     t.key("HOME")
-    row("Home chooses the first word: BLUE, n=3", where("Colour " + C(1)) is not None and logline() == ("1", "2", "1", "1", "c=1", "3"), repr(logline()))
+    row("Home chooses the first word: BLUE, n=3", where("Color " + C(1)) is not None and logline() == ("1", "2", "1", "1", "c=1", "3"), repr(logline()))
     t.key("LEFT")
-    row("Left on the first word changes nothing and reports nothing: still BLUE, n=3", where("Colour " + C(1)) is not None and logline() == ("1", "2", "1", "1", "c=1", "3"), repr(logline()))
+    row("Left on the first word changes nothing and reports nothing: still BLUE, n=3", where("Color " + C(1)) is not None and logline() == ("1", "2", "1", "1", "c=1", "3"), repr(logline()))
     t.key("END")
-    row("End chooses the last word: BLACK, n=4", where("Colour " + C(4)) is not None and logline() == ("4", "2", "1", "1", "c=4", "4"), repr(logline()))
+    row("End chooses the last word: BLACK, n=4", where("Color " + C(4)) is not None and logline() == ("4", "2", "1", "1", "c=4", "4"), repr(logline()))
     t.key("SPACE")
-    row("the space bar chooses the next word and, after the last, the first: BLUE, n=5", where("Colour " + C(1)) is not None and logline() == ("1", "2", "1", "1", "c=1", "5"), repr(logline()))
+    row("the space bar chooses the next word and, after the last, the first: BLUE, n=5", where("Color " + C(1)) is not None and logline() == ("1", "2", "1", "1", "c=1", "5"), repr(logline()))
     t.key("SPACE")
-    row("...and the next one: GREEN (c=2), n=6", where("Colour " + C(2)) is not None and logline() == ("2", "2", "1", "1", "c=2", "6"), repr(logline()))
+    row("...and the next one: GREEN (c=2), n=6", where("Color " + C(2)) is not None and logline() == ("2", "2", "1", "1", "c=2", "6"), repr(logline()))
     t.key("TAB")
     r2, c2 = where(S(2)) or (0, 0)
-    row("Tab moves the focus to the second control: it is in reverse video, the first is not, and there is no change event (n=6)", "size" in t.rev(r2) and "Colour" not in t.rev(r1) and logline()[5] == "6",
+    row("Tab moves the focus to the second control: it is in reverse video, the first is not, and there is no change event (n=6)", "size" in t.rev(r2) and "Color" not in t.rev(r1) and logline()[5] == "6",
         repr((t.rev(r2), logline())))
     t.key("RIGHT")
     row("Right on it: LARGE (s=3), n=7", where(S(3)) is not None and logline() == ("2", "3", "1", "1", "s=3", "7"), repr(logline()))
@@ -1145,10 +1145,10 @@ def selector_rows(box, made):
     row("Tab to the third (label above) and Right: SLOW (m=2), 'mode' over '[fast | SLOW | exact]', n=10", where("[fast | SLOW | exact]") is not None and logline() == ("2", "1", "2", "1", "m=2", "10"), repr(logline()))
     t.key("F2")
     row("SCREEN SET from the program: c 9 is brought into range (BLACK, c=4), s is LARGE, m has new words (one, two) and the first is chosen ([ONE | two]); no change event: n is still 10",
-        where("Colour " + C(4)) is not None and where(S(3)) is not None and where("[ONE | two]") is not None and logline() == ("4", "3", "1", "1", "set", "10"), repr(logline()))
+        where("Color " + C(4)) is not None and where(S(3)) is not None and where("[ONE | two]") is not None and logline() == ("4", "3", "1", "1", "set", "10"), repr(logline()))
     t.key("ENTER")
     row("Enter (the control does not take it) presses the form's default button: the form is gone, the status line says selectors c=4 s=3 m=1 t=1 refused=2 pressed=ok (a selector with no words and one with an id in use were refused, as the program's ELSE saw)",
-        "selectors c=4 s=3 m=1 t=1 refused=2 pressed=ok" in t.line(40) and where("Colour") is None, repr(t.line(40)))
+        "selectors c=4 s=3 m=1 t=1 refused=2 pressed=ok" in t.line(40) and where("Color") is None, repr(t.line(40)))
     t.end()
 
     t = Term(box, "tktest selector")
@@ -1158,27 +1158,28 @@ def selector_rows(box, made):
 
     # the mouse, on a fresh form: c has the focus and is RED; the cells of 'Colour [blue | green | RED | black]' are counted from the bracket
     t = Term(box, "tktest selector")
-    r1, c1 = where("Colour " + C(3)) or (0, 0)
-    br = c1 + 7
+    r1, c1 = where("Color " + C(3)) or (0, 0)
+    # the bracket after 'Color ' (the label is six characters with its space since the US spelling, 9 Nov 26)
+    br = c1 + 6
     click = lambda r_, c_: t.s.type("\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (c_ + 1, r_ + 1, c_ + 1, r_ + 1), idle=0.6)
     t.key("TAB")
     click(r1, br + 24)
     row("a click on a word (black) of a control that has not the focus chooses it and gives it the focus: the form reports the FOCUS, so n is still 0 (c=4 in the label)",
-        where("Colour " + C(4)) is not None and logline() == ("4", "2", "1", "1", "none", "0") and "Colour" in t.rev(r1), repr((logline(), t.rev(r1))))
+        where("Color " + C(4)) is not None and logline() == ("4", "2", "1", "1", "none", "0") and "Color" in t.rev(r1), repr((logline(), t.rev(r1))))
     click(r1, br + 10)
-    row("a click on the word green, now that it has the focus, chooses it and is a change event: c=2, n=1", where("Colour " + C(2)) is not None and logline() == ("2", "2", "1", "1", "c=2", "1"), repr(logline()))
+    row("a click on the word green, now that it has the focus, chooses it and is a change event: c=2, n=1", where("Color " + C(2)) is not None and logline() == ("2", "2", "1", "1", "c=2", "1"), repr(logline()))
     click(r1, br + 10)
-    row("a click on the word that is already chosen changes nothing and reports nothing: n is still 1", where("Colour " + C(2)) is not None and logline() == ("2", "2", "1", "1", "c=2", "1"), repr(logline()))
+    row("a click on the word that is already chosen changes nothing and reports nothing: n is still 1", where("Color " + C(2)) is not None and logline() == ("2", "2", "1", "1", "c=2", "1"), repr(logline()))
     click(r1, br + 14)
-    row("a click on the bar between green and red belongs to the word after it: RED (c=3), n=2", where("Colour " + C(3)) is not None and logline() == ("3", "2", "1", "1", "c=3", "2"), repr(logline()))
+    row("a click on the bar between green and red belongs to the word after it: RED (c=3), n=2", where("Color " + C(3)) is not None and logline() == ("3", "2", "1", "1", "c=3", "2"), repr(logline()))
     click(r1, br + 5)
-    row("a click on the space after the word blue chooses blue: c=1, n=3", where("Colour " + C(1)) is not None and logline() == ("1", "2", "1", "1", "c=1", "3"), repr(logline()))
+    row("a click on the space after the word blue chooses blue: c=1, n=3", where("Color " + C(1)) is not None and logline() == ("1", "2", "1", "1", "c=1", "3"), repr(logline()))
     click(r1, br + 27)
-    row("a click on the closing bracket chooses the last word: BLACK, n=4", where("Colour " + C(4)) is not None and logline() == ("4", "2", "1", "1", "c=4", "4"), repr(logline()))
+    row("a click on the closing bracket chooses the last word: BLACK, n=4", where("Color " + C(4)) is not None and logline() == ("4", "2", "1", "1", "c=4", "4"), repr(logline()))
     click(r1, c1 + 2)
-    row("a click on the label chooses the next word, and after the last the first: BLUE, n=5", where("Colour " + C(1)) is not None and logline() == ("1", "2", "1", "1", "c=1", "5"), repr(logline()))
+    row("a click on the label chooses the next word, and after the last the first: BLUE, n=5", where("Color " + C(1)) is not None and logline() == ("1", "2", "1", "1", "c=1", "5"), repr(logline()))
     click(r1, br + 1)
-    row("a click on the first word (it is already chosen) changes nothing: n is still 5", where("Colour " + C(1)) is not None and logline()[5] == "5", repr(logline()))
+    row("a click on the first word (it is already chosen) changes nothing: n is still 5", where("Color " + C(1)) is not None and logline()[5] == "5", repr(logline()))
     ra, ca = where("[FAST | slow | exact]") or (0, 0)
     click(ra, ca + 16)
     row("place above: a click on the word exact (the second row of the control) chooses it and gives the control the focus: m=3 in the label, n is still 5", where("[fast | slow | EXACT]") is not None
@@ -1207,8 +1208,8 @@ def color_rows(box, made):
         say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
         bail("tktest color never drew its form, so no row below can be believed")
     sc = lambda p, dx=0, dy=0: t.s.screen.style(p[0] + dy, p[1] + dx) if p else None
-    e1, e2, arrow, ck, sl, rd, bt = where("black on green"), where("plain entry"), where("[v]"), where("colour check"), where("colour slider"), where("red choice"), where("[ Go ]")
-    ls, lb, pg = where(">x"), where("coloured label"), where("[#")
+    e1, e2, arrow, ck, sl, rd, bt = where("black on green"), where("plain entry"), where("[v]"), where("color check"), where("color slider"), where("red choice"), where("[ Go ]")
+    ls, lb, pg = where(">x"), where("colored label"), where("[#")
     say("    [measured] the cells: e1 %r  combo %r  check %r  slider label %r  radio %r  button %r  list %r  label %r  progress %r" % (sc(e1, 1), sc(arrow, -3), sc(ck, 1), sc(sl, 2), sc(rd, 5), sc(bt, 3),
                                                                                                                                     sc(ls, 1, 1), sc(lb, 1), sc(pg, 2)))
     row("the first entry has the focus and KEEPS its colours: black on green, underlined (the cursor and the underline show where it is)", sc(e1, 1) == (0, 2, "u"), repr(sc(e1, 1)))
@@ -1229,20 +1230,20 @@ def color_rows(box, made):
     row("Tab to the check box: the focus style replaces its colours while it has the focus (reverse in the default theme), as for every control but an entry",
         sc(ck, 1) != (0, 6, "") and "r" in sc(ck, 1)[2], repr(sc(ck, 1)))
     t.key("F2")
-    e1b, lsb, lbb = where("black on green"), where(">x"), where("coloured label")
+    e1b, lsb, lbb = where("black on green"), where(">x"), where("colored label")
     row("a theme change keeps the colours the controls asked for: after F2 (classic) the log says so and the first entry, the list and the label are still black on green, black on green, red on white",
         where("theme=classic") is not None and sc(e1b, 1) == (0, 2, "") and sc(lsb, 1, 1) == (0, 2, "") and sc(lbb, 1) == (1, 7, ""), repr((sc(e1b, 1), sc(lsb, 1, 1), sc(lbb, 1))))
     t.key("ENTER")
-    row("Enter presses the default button; the form is gone, the status line says colours pressed=ok", "colours pressed=ok" in t.line(40), repr(t.line(40)))
+    row("Enter presses the default button; the form is gone, the status line says colours pressed=ok", "colors pressed=ok" in t.line(40), repr(t.line(40)))
     t.end()
 
     t = Term(box, "tktest colorfull")
     row("sixteen different pairs are taken, the first pair again is shared (taken), a seventeenth different pair is refused and so is a name that is no colour: 17 taken, 2 refused",
-        "colours aaaaaaaaaaaaaaaaarr" in t.line(40), repr(t.line(40)))
+        "colors aaaaaaaaaaaaaaaaarr" in t.line(40), repr(t.line(40)))
     t.end()
 
     t = Term(box, "tktest color", term="vt100")
-    e1, ck = where("black on green"), where("colour check")
+    e1, ck = where("black on green"), where("color check")
     row("a terminal with no colour (vt100) ignores the clause and still shows the form: the first entry is as a plain entry (underlined, no colours), so is the check box",
         e1 is not None and sc(e1, 1) in ((None, None, "u"), (None, None, "r")) and ck is not None and sc(ck, 1)[:2] == (None, None), repr((sc(e1, 1), sc(ck, 1))))
     t.end()
@@ -1442,7 +1443,7 @@ def pickfile_rows(box, made):
         tenb = ["rec%05d" % q for q in range(5000, 5010)]
         row("End: '10 shown', rec05000 to rec05009", pfl(t, g).endswith("10 shown") and pkrows(t, g, tenb, bar=False)[0], repr(pfl(t, g)[-30:]))
         t.key("ESC")
-        row("Esc closes it: cancelled, the window gone", "cancelled" in t.line(40) and "Pick a record" not in "\n".join(t.lines()), repr(t.line(40)))
+        row("Esc closes it: cancelled, the window gone", "canceled" in t.line(40) and "Pick a record" not in "\n".join(t.lines()), repr(t.line(40)))
 
         # several, with the first attribute as the description; picks are kept by id across a new read
         gm = pkgeom(True, True, "Pick records")

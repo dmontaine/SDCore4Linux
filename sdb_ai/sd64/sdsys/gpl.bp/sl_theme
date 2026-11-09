@@ -24,6 +24,8 @@
 *               theme - and paper's focus and error rely on bold being made bright for 4.5.
 * 8 Nov 26 dm  S.179: the person's own theme.  The ops 'site' and 'save'; 'default' takes 'site'.  Kept inside SD (the owner: "Inside SD (tighter)"),
 *               as the record theme.<login name> of &menus& in the session's account - the Recent group's file - so no OS gate is crossed.
+* 9 Nov 26 dm  S.186 (Fable's review): mono's focus is reverse, bold and underline (it was reverse, which is highlight's and the bar's look, so on a terminal
+*               with no colour the focused box looked like the selected row); paper's focus is underlined as well as bold, so it does not rely on bold being bright.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -61,7 +63,7 @@
 *     success     V     bold                  something that worked
 *     readonly    W     underline             text that cannot be changed
 *     busy        X     reverse and underline work in progress
-*     focus       Y     reverse               the thing that has the keyboard, where highlight is not enough
+*     focus       Y     reverse, bold, under  the thing that has the keyboard, where highlight is not enough (9 Nov 26: it was reverse, the same as highlight)
 *
 *   op   'code'   a = a style name, or a code itself; ret = the code, n for a name it does not know
 *         'set'    a = the name of a theme: mono, classic, dark, light, blue, night or paper.  ret 0 done; 1 refused, because the
@@ -332,7 +334,7 @@ set.theme:
          spec<-1> = 'success=black,green,'
          spec<-1> = 'readonly=blue,white,'
          spec<-1> = 'busy=white,magenta,bold'
-         spec<-1> = 'focus=white,blue,bold'
+         spec<-1> = 'focus=white,blue,bold underline'
          gosub syntax.paper
       case nm = 'night'
          * 8 Nov 26 (S.172): the dark kind of paper, white on black with yellow (bold brown) for what stands out; the bar and the menus are the inverse of the
@@ -494,7 +496,7 @@ roles.mono:
    spec<-1> = 'success=,,bold'
    spec<-1> = 'readonly=,,underline'
    spec<-1> = 'busy=,,reverse underline'
-   spec<-1> = 'focus=,,reverse'
+   spec<-1> = 'focus=,,reverse bold underline'     ;* 9 Nov 26 (S.186): plain reverse was highlight's and the bar's look; all three is no other style's
    return
 
 roles.dark:

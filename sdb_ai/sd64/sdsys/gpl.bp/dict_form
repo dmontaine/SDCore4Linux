@@ -17,6 +17,7 @@
 *               build had a radio row for the Type, numbered rows, three format rows and a third button.
 * 31 Oct 26 dm  New (S.90, plan .claude/plan-s90-dict-form.md).  The rules are !dict_item's; this program is the screen.
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 go from the rows to the AI line and back (the box keys of every page); Tab still moves from row to row.
+* 9 Nov 26 dm  S.186: what the program prints is in US spelling (the owner: "Everything SD prints"); its text only, no change of behaviour.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -396,7 +397,7 @@ hint.for:
       case hn = 'head'
          hint = 'Optional: the column heading, up to 40 characters.  A backslash prints none.'
       case hn = 'fmt'
-         hint = 'The width of the column, then L left, R right, T text that wraps or C centred, then decimals if any: 30 L or 12 R 2'
+         hint = 'The width of the column, then L left, R right, T text that wraps or C centered, then decimals if any: 30 L or 12 R 2'
       case hn = 'sm'
          hint = 'S for one value in the field, M for many values (multivalued)'
       case hn = 'assoc'

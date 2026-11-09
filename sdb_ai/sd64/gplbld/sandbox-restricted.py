@@ -98,7 +98,7 @@ def main():
                                  ("zzrr4", "HUSH", "a restricted subroutine")):
             out = q3.adm(["RUN bp " + prog])
             row("D2: the main program cannot reach %s: 'Unrecognised property/method name (%s)'" % (what, name),
-                has(out, r"Unrecognised property/method name \(%s\)" % name) and not has(out, r"NOT REFUSED"), repr(out[-3:]))
+                has(out, r"Unrecognized property/method name \(%s\)" % name) and not has(out, r"NOT REFUSED"), repr(out[-3:]))
         out = q3.adm(["RUN bp zzrr5"])
         row("D3: a class that inherits the parent reaches the restricted function, variable (read and write), subroutine and read-only "
             "variable (read) through its parent",
@@ -106,13 +106,13 @@ def main():
             and has(out, r"^R5DONE$"), repr(out[-6:]))
         out = q3.adm(["RUN bp zzrr6"])
         row("D4: the child object does not pass the parent's restricted function on to the main program",
-            has(out, r"Unrecognised property/method name \(SECRET\)") and not has(out, r"NOT REFUSED"), repr(out[-3:]))
+            has(out, r"Unrecognized property/method name \(SECRET\)") and not has(out, r"NOT REFUSED"), repr(out[-3:]))
         out = q3.adm(["RUN bp zzrr7"])
         row("D5: a class with no relation to the parent cannot reach its restricted function either",
-            has(out, r"Unrecognised property/method name \(SECRET\)") and not has(out, r"NOT REFUSED"), repr(out[-3:]))
+            has(out, r"Unrecognized property/method name \(SECRET\)") and not has(out, r"NOT REFUSED"), repr(out[-3:]))
         out = q3.adm(["RUN bp zzrr8"])
         row("D6: READONLY holds for a restricted variable: the child can read it (D3) and cannot assign it",
-            has(out, r"Unrecognised property/method name \(RR\)") and not has(out, r"NOT REFUSED"), repr(out[-3:]))
+            has(out, r"Unrecognized property/method name \(RR\)") and not has(out, r"NOT REFUSED"), repr(out[-3:]))
         # compile errors
         put(os.path.join(SYS, "bp", "zzre1"), "class zzre1\n   public subroutine foo()\n   end\n   restricted function foo()\n      return 1\n   end\nend\n")
         put(os.path.join(SYS, "bp", "zzre2"), "   restricted xvar\n   crt 'X'\nend\n")

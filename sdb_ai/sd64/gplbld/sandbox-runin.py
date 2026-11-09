@@ -278,7 +278,7 @@ def main():
     back(w, p, "C2")
     out, w, p = run(["RUN.IN zzoff catalog bp zzprog"])
     row("C3: catalog puts the program in zzoff's PRIVATE catalogue (the message, and the file in zzoff/cat)",
-        sg.has(out, r"^zzprog added to private catalogue") and os.path.isfile(os.path.join(catdir, "zzprog")), "output %r" % (out,))
+        sg.has(out, r"^zzprog added to private catalog") and os.path.isfile(os.path.join(catdir, "zzprog")), "output %r" % (out,))
     back(w, p, "C3")
     existed = os.path.isfile(os.path.join(catdir, "zzprog"))
     out, w, p = run(["RUN.IN zzoff delete.catalog zzprog"])
@@ -290,12 +290,12 @@ def main():
     back(w, p, "C5")
     # the private entry of C5 first: CATALOG asks "Program is also in private catalogue. Remove (y/<n>)?" otherwise, and the question takes the next input line
     out, w, p = run(["RUN.IN zzoff delete.catalog zzprog", "RUN.IN zzoff catalog bp zzprog local no.query"])
-    row("C5b: catalog with local makes a LOCAL catalogue entry in zzoff (its own wording)", sg.has(out, r"^zzprog added to local catalogue"), "output %r" % (out,))
+    row("C5b: catalog with local makes a LOCAL catalogue entry in zzoff (its own wording)", sg.has(out, r"^zzprog added to local catalog"), "output %r" % (out,))
     back(w, p, "C5b")
     out, w, p = run(["RUN.IN zzoff decatalog zzprog", "RUN.IN zzoff decatalog zzprog"])
     say("    (decatalog twice printed: %r)" % (out,))
     row("C5c: decatalog takes the local entry out: the first run does not say it is absent, the second does (so the first removed it)",
-        len([ln for ln in out if "is not in the local catalogue" in ln]) == 1 and not sg.has(out, r"already running"), "output %r" % (out,))
+        len([ln for ln in out if "is not in the local catalog" in ln]) == 1 and not sg.has(out, r"already running"), "output %r" % (out,))
     back(w, p, "C5c")
     out, w, p = run(["RUN.IN zzoff basic bp zzprog debugging", "RUN.IN zzoff debug bp zzprog", "R"])
     row("C6: debug runs the program UNDER THE DEBUGGER, INSIDE zzoff (its output names the account and its directory)",

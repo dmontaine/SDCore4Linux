@@ -10,6 +10,9 @@
 * 28 Oct 26 dm  S.88 phase 2 (S1, review): the C1 controls too - bytes 128 to 159 on a terminal that is not in UTF-8 mode, C2 80 to C2 9F in UTF-8 mode.
 * 3 Nov 26 dm  S.113 (owner: "All pages"): every write keeps the terminal's picture (SL.S.TERM, SL.S.TATTR); DIFF 1 compares against it and writes only the runs of
 *              cells that differ; DIFF 2 changes the shadow alone (the next flush writes it).  The shadow is changed first, whatever is written.
+* 9 Nov 26 dm  S.186 (Fable's review; the owner: "the most reliable experience for the user"): on a UTF-8 terminal a whole character of two to four bytes is
+*              written with blanks after it for the cells it does not fill (utf8.pad), so that it takes as many cells as the shadow gives it - one to a byte - and
+*              columns stay in line and a write by difference stays true.  The text, the shadow and LEN() are unchanged.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -30,7 +33,9 @@
 *            UTF-8 (UTF-8 or UTF8, as the IDE decides), or when the program opened the screen with LINES.  Not UTF-8: the bytes
 *            128 to 159 are shown like the other controls, as the character 64 below (0x9B as [), reverse, one cell each.  UTF-8: the
 *            two-byte form C2 80 to C2 9F is shown as a dot and that letter, reverse, two cells for the two bytes (the shadow counts
-*            bytes); every other sequence, a curly quote E2 80 9C included, and the bytes 160 up outside UTF-8 mode, pass.
+*            bytes); every other sequence, a curly quote E2 80 9C included, and the bytes 160 up outside UTF-8 mode, pass.  IN UTF-8 MODE A WHOLE
+*            SEQUENCE IS FOLLOWED BY BLANKS (9 Nov 26): the bytes less the cells the terminal gives it (one, two for a wide East Asian character), so that
+*            every character takes as many cells as it has bytes, as the shadow counts them.
 *            What passes unchanged: every printable
 *            ASCII character, the other bytes from 128 up (UTF-8 text, and the bytes of the glyphs a program writes itself) and the
 *            nine stand-ins of $sl_line, CHAR(14) to CHAR(22), which this routine turns into line-drawing characters
@@ -58,6 +63,7 @@ $include sl.h
 
    common /sllin/ ln.on
    common /slctl/ ctl.from, ctl.to, loc.mode, c1.from, c1.to
+   common /slu8/ u8.lead                                  ;* 9 Nov 26 (S.186): the lead bytes of a UTF-8 sequence
 
    * 28 Oct 26 (S1, C1 controls): is the terminal in UTF-8 mode?  Resolved once per process from LC_ALL, then LC_CTYPE, then LANG, as a shell does and as the IDE and $tk_open do (1 = UTF-8, 2 = not).
    *   A program that opened the screen with LINES has said so itself ($sl_line 'on'), and that counts as UTF-8 too.  A block of COMMON starts as 0 in every variable, or unassigned.
@@ -96,6 +102,15 @@ $include sl.h
       for ci = 128 to 159
          c1.from := char(ci)
          c1.to := char(ci - 64)
+      next ci
+   end
+
+   * 9 Nov 26 (S.186): the lead bytes of a UTF-8 sequence (194 to 244), for utf8.pad's quick test; made once per process
+   if unassigned(u8.lead) then u8.lead = ''
+   if len(u8.lead) # 51 then
+      u8.lead = ''
+      for ci = 194 to 244
+         u8.lead := char(ci)
       next ci
    end
 
@@ -261,6 +276,7 @@ emit.run:
       loop while j < r1 and cells[j + 1, 1] = c do j += 1 repeat
       call $sl_sgr(c, sq)
       seg = text[i, j - i + 1]
+      if loc.mode = 1 or ln.on = 1 then gosub utf8.pad       ;* 9 Nov 26 (S.186): a character of several bytes keeps as many cells as it has bytes
       * the stand-ins of $sl_line become the bytes of a line-drawing character (or + - | if that is off)
       if convert(lc.all, str(' ', 9), seg) # seg then
          if ln.on = 1 then
@@ -285,6 +301,62 @@ emit.run:
       call $sl_sgr('n', sq)
       out := sq
    end
+   return
+
+* 9 Nov 26 (S.186, Fable's review; the owner: "the most reliable experience for the user").  THE SHADOW COUNTS BYTES: every widget works out its widths with
+*   LEN() and the library keeps one byte to a cell, so a character of two, three or four bytes that a UTF-8 terminal draws in ONE cell (two for the wide East
+*   Asian ones) would pull the rest of the row to the left of where the library believes it is - columns out of line, and stale cells, since a write by
+*   difference compares the shadow with what is not there.  So the terminal is made to match the shadow, not the other way round: a WHOLE, well-formed
+*   sequence in seg is written followed by blanks for the cells it does not fill (bytes less its width).  A byte that is not part of one (a lone lead or
+*   continuation byte, the bytes 248 to 255) is written as it is: the terminal shows it as one replacement cell, which is one cell for one byte already.  The
+*   text, the shadow and LEN() are unchanged: SD still stores and compares bytes (the owner, 30 Oct 26).  Not UTF-8 mode: nothing to do, a byte is a cell.
+utf8.pad:
+   if convert(u8.lead, '', seg) = seg then return            ;* no lead byte of a sequence: nothing to pad
+   u8.out = ''
+   u8.n = len(seg)
+   u8.i = 1
+   loop while u8.i <= u8.n do
+      u8.b = seq(seg[u8.i, 1])
+      u8.k = 0
+      begin case
+         case u8.b >= 194 and u8.b <= 223 ; u8.k = 2 ; u8.cp = u8.b - 192
+         case u8.b >= 224 and u8.b <= 239 ; u8.k = 3 ; u8.cp = u8.b - 224
+         case u8.b >= 240 and u8.b <= 244 ; u8.k = 4 ; u8.cp = u8.b - 240
+      end case
+      if u8.k > 0 and u8.i + u8.k - 1 <= u8.n then
+         for u8.j = 1 to u8.k - 1
+            u8.c = seq(seg[u8.i + u8.j, 1])
+            if u8.c < 128 or u8.c > 191 then
+               u8.k = 0
+               exit
+            end
+            u8.cp = u8.cp * 64 + (u8.c - 128)
+         next u8.j
+      end else
+         u8.k = 0
+      end
+      if u8.k = 0 then
+         u8.out := seg[u8.i, 1]
+         u8.i += 1
+      end else
+         u8.w = 1
+         begin case
+            case u8.cp >= 4352 and u8.cp <= 4447 ; u8.w = 2          ;* Hangul Jamo
+            case u8.cp >= 11904 and u8.cp <= 42191 and u8.cp # 12351 ; u8.w = 2      ;* CJK radicals to Yi
+            case u8.cp >= 44032 and u8.cp <= 55203 ; u8.w = 2        ;* Hangul syllables
+            case u8.cp >= 63744 and u8.cp <= 64255 ; u8.w = 2        ;* CJK compatibility ideographs
+            case u8.cp >= 65040 and u8.cp <= 65049 ; u8.w = 2        ;* vertical forms
+            case u8.cp >= 65072 and u8.cp <= 65103 ; u8.w = 2        ;* CJK compatibility forms
+            case u8.cp >= 65280 and u8.cp <= 65376 ; u8.w = 2        ;* fullwidth forms
+            case u8.cp >= 65504 and u8.cp <= 65510 ; u8.w = 2
+            case u8.cp >= 127744 and u8.cp <= 129791 ; u8.w = 2      ;* pictographs and emoji
+            case u8.cp >= 131072 and u8.cp <= 262141 ; u8.w = 2      ;* CJK extension planes
+         end case
+         u8.out := seg[u8.i, u8.k] : space(u8.k - u8.w)
+         u8.i += u8.k
+      end
+   repeat
+   seg = u8.out
    return
 end
 

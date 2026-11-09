@@ -13,6 +13,8 @@
 *               refresh are offered to the model (export is not).  An administrator without the AI sees the page as it was.
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the list to the AI line and back; AI > Ask the AI is a menu entry of its own.
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
+* 9 Nov 26 dm  S.186: View > Mouse and Ctrl-O (the log of the commands run), the same on every page (the cases act:std.mouse and ctrl-o, through $tk_std).
+*              '/' opens the filter form as F does: '/' is every page's find key (the owner: "Letters stay, '/' finds").
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -60,6 +62,8 @@ $include tk.h
    keys = ''
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'f', 'filter', 'filter', '', 1)
+   call $tk_keys('add', keys, '/', 'filter', 'filter', '', 1)              ;* 9 Nov 26 (S.186): '/' is the find key of every page; here the filter form, whose last field is text anywhere
+   keys<dcount(keys, @fm), TK.K.ROW> = 0
    call $tk_keys('add', keys, 'c', 'clear', 'clear', '', 1)
    call $tk_keys('add', keys, 'd', 'date', 'goto', '', 1)
    call $tk_keys('add', keys, 'o', 'file', 'file', '', 1)
@@ -451,7 +455,7 @@ on.key:
          if ci < 1 then ci = 1
          gosub draw.filter
          gosub redraw
-      case nm = 'f'
+      case nm = 'f' or nm = '/'
          gosub do.filter
       case nm = 'c' or (nm = 'esc' and flt # '')
          flt = ''
@@ -476,6 +480,11 @@ on.key:
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
          msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
+         msg = std.r<2>
+      case nm = 'ctrl-o'                    ;* S.186: the log of the commands this page ran (View > Output; $tk_std)
+         call $tk_std('output', ctx, keys, '', std.r)
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, 'Audit', std.r)
       case nm = 'f5'

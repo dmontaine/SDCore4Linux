@@ -18,6 +18,8 @@
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * 9 Nov 26 dm  S.185: an account's allowed commands are tested with LOCATE in lst<1,1>, the values; in <1> LOCATE walks the fields, so every command after the
 *              first showed as not allowed and Enter offered to add it again.
+* 9 Nov 26 dm  S.186: View > Mouse, the same on every page (the case act:std.mouse in both panes' handlers, through $tk_std).
+* 9 Nov 26 dm  S.186: '/' finds a row by typing in either view ($tk_findrow; the owner: "Letters stay, '/' finds").
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -88,6 +90,7 @@ $include tk.h
    call $tk_keys('add', keys, 'c', 'change job', 'jchange', 'Jobs', 1)
    call $tk_keys('add', keys, 'd', 'delete job', 'jdelete', 'Jobs', 1)
    call $tk_keys('add', keys, 'r', 'run now', 'jrun', 'Jobs', 1)
+   call $tk_keys('add', keys, '/', 'find', 'find', '', 1)                  ;* 9 Nov 26 (S.186): '/' finds a row by typing (letters are this page's commands)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'ctrl-o', 'output', 'output', '', 1)
@@ -102,6 +105,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'accounts', '&View', '&Account commands', '', '')
    call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'find', '&View', '&Find a row', '', '')
    call $tk_keys('menu', keys, 'output', '&View', '&Output', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
    call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
@@ -120,6 +124,7 @@ $include tk.h
    pane = 1
    ai = 1 ; atop = 1                                             ;* the row selected in Accounts, and the first row shown
    ci = 1 ; ctop = 1                                             ;* the same in Commands
+   find.last = ''                                                ;* 9 Nov 26 (S.186): the text '/' asked for last
    ji = 1 ; jtop = 1                                             ;* the same in Jobs
    an = 0 ; anm = '' ; cn = 0 ; cnm = ''                         ;* read.all reads both before it fills them (BASIC does not short-circuit)
    jn = 0 ; jnm = '' ; jsch = '' ; jcmd = '' ; jid = '' ; jnext = '' ; jlast = '' ; jbad = '' ; jerr = ''
@@ -634,6 +639,17 @@ on.key:
             ci += 1
             gosub redraw
          end
+      case nm = '/'                         ;* S.186: the next account (or command, in Commands) whose name holds the text typed ($tk_findrow)
+         call $tk_findrow((if pane = 1 then anm else cnm), (if pane = 1 then ai else ci), find.last, fpos)
+         if fpos < 0 then msg = sysmsg(14045, find.last)
+         if fpos > 0 and pane = 1 then
+            ai = fpos
+            gosub new.account
+         end
+         if fpos > 0 and pane = 2 then
+            ci = fpos
+            gosub redraw
+         end
       case (nm = 'pgup' or nm = 'pgdn') and not(outopen)
          stp = (if nm = 'pgup' then 0 - VIS else VIS)
          if pane = 1 and an > 0 then
@@ -665,6 +681,9 @@ on.key:
       case nm = 'ctrl-t'                    ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
          msg = std.r<2>
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, pnames<pane>, std.r)
@@ -704,6 +723,13 @@ jobs.key:
             ji += 1
             gosub redraw
          end
+      case nm = '/'                         ;* S.186: the next job whose name holds the text typed ($tk_findrow)
+         call $tk_findrow(jnm, ji, find.last, fpos)
+         if fpos < 0 then msg = sysmsg(14045, find.last)
+         if fpos > 0 then
+            ji = fpos
+            gosub redraw
+         end
       case (nm = 'pgup' or nm = 'pgdn') and not(outopen)
          if jn > 0 then
             ji = ji + (if nm = 'pgup' then 0 - JVIS else JVIS)
@@ -726,6 +752,9 @@ jobs.key:
       case nm = 'ctrl-t'                    ;* S.179: the theme, as in the page's other view ($tk_std)
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
          msg = std.r<2>
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, pnames<pane>, std.r)

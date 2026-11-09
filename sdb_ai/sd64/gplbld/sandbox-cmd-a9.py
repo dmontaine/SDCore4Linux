@@ -272,7 +272,7 @@ def main():
     say("\n--- C. 146: a catalogued program run by its catalogue name ------------------------------------------------")
     out = sd(["CATALOG bp zzcatp", "CATALOG bp zzcatn"])
     row("setup: both programs are in the private catalogue",
-        has(out, r"^zzcatp added to private catalogue") and has(out, r"^zzcatn added to private catalogue"), repr(out[-3:]))
+        has(out, r"^zzcatp added to private catalog") and has(out, r"^zzcatn added to private catalog"), repr(out[-3:]))
     out = sd(["zzcatp"])
     row("CONTROL: run by its catalogue name it prints on the screen", has(out, r"^CATP-OUT$"), repr(out[-3:]))
     out = sd(["SETPTR 0,80,60,0,0,3,AS zzcatout,BRIEF", "zzcatp LPTR", "RUN bp zzholdrd"])
@@ -316,21 +316,21 @@ def main():
     bp1 = os.path.join(SYS, "bp.out", "zzcl1")
     bp2 = os.path.join(SYS, "bp2.out", "zzcl1")
     out = sd(["DELETE.CATALOG zzcl1", "CATALOG bp zzcl1 LOCAL", "RUN bp zzclrd"])
-    row("setup: the first CATALOG LOCAL makes the pointer to bp.out", has(out, r"^zzcl1 added to local catalogue") and (tagged(out, "CLREC") or "").endswith("bp.out/zzcl1"),
+    row("setup: the first CATALOG LOCAL makes the pointer to bp.out", has(out, r"^zzcl1 added to local catalog") and (tagged(out, "CLREC") or "").endswith("bp.out/zzcl1"),
         repr(tagged(out, "CLREC")))
     out = sd(["CATALOG bp zzcl1 LOCAL", "CATALOG bp zzcl1 LOCAL", "RUN bp zzclrd"])
-    row("CONTROL: the same object file again does not ask, and says it is added", not has(out, r"Replace it") and has(out, r"^zzcl1 added to local catalogue"), repr(out[-4:]))
+    row("CONTROL: the same object file again does not ask, and says it is added", not has(out, r"Replace it") and has(out, r"^zzcl1 added to local catalog"), repr(out[-4:]))
     sd(["CATALOG bp zzcl1 LOCAL"])
     out = sd(["CATALOG bp2 zzcl1 LOCAL", "", "RUN bp zzclrd"])
     row("490: another object file asks, naming the pointer's path, and Return (N) leaves the pointer alone",
-        has(out, r"^Local catalogue entry zzcl1 is for .*bp\.out/zzcl1\.\s+Replace it \(y/<n>\)\?") and not has(out, r"^zzcl1 added to local catalogue")
+        has(out, r"^Local catalog entry zzcl1 is for .*bp\.out/zzcl1\.\s+Replace it \(y/<n>\)\?") and not has(out, r"^zzcl1 added to local catalog")
         and (tagged(out, "CLREC") or "").endswith("bp.out/zzcl1"), repr(out[-5:]))
     sd(["CATALOG bp zzcl1 LOCAL"])
     out = sd(["CATALOG bp2 zzcl1 LOCAL", "N", "RUN bp zzclrd"])
     row("... and N the same", (tagged(out, "CLREC") or "").endswith("bp.out/zzcl1") and not has(out, r"^zzcl1 added"), repr(out[-4:]))
     sd(["CATALOG bp zzcl1 LOCAL"])
     out = sd(["CATALOG bp2 zzcl1 LOCAL", "Y", "RUN bp zzclrd"])
-    row("... Y replaces it: the pointer is to bp2.out and the entry is added", has(out, r"^zzcl1 added to local catalogue") and (tagged(out, "CLREC") or "").endswith("bp2.out/zzcl1"),
+    row("... Y replaces it: the pointer is to bp2.out and the entry is added", has(out, r"^zzcl1 added to local catalog") and (tagged(out, "CLREC") or "").endswith("bp2.out/zzcl1"),
         repr(out[-4:]))
     sd(["CATALOG bp zzcl1 LOCAL"])
     out = sd(["CATALOG bp2 zzcl1 LOCAL NO.QUERY", "RUN bp zzclrd"])

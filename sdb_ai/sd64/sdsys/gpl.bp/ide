@@ -167,6 +167,8 @@
 *               Ctrl-Up / Ctrl-Down, SED's nudge); NO.CASE.EXPLORE puts the tree's records in case-blind order (list.ids).  Messages 14037-14039.
 *               Fixed: list.ids and the Edit menu's SED entries located in <1>, which walks FIELDS, so the tree's records were never in order and every
 *               SED entry of the Edit menu sent Alt-Backspace; both now locate in <1,1>.
+* 9 Nov 26 dm  S.186: View > Mouse is the session's switch kept by $tk_std (ops mouse, set, apply), the one every full-screen page has on its View menu, so
+*               the IDE and the pages agree; the IDE's own mouse.apply is gone.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -339,7 +341,7 @@ $include idebrk.h
       stop
    end
 
-   mouse.off = @false                ;* 9 Nov 26 (S.184 stage 3b): View > Mouse switched off (NO.MOUSE in &ide.options&, read below once the screen is taken); open.screen asks it
+   mouse.off = ''                    ;* 9 Nov 26 (S.184 stage 3b): MOUSE (0) or NO.MOUSE (1) in &ide.options&, '' when it says neither; the switch itself is the session's ($tk_std)
    gosub open.screen
    if not(opened) then
       call $tk_brk('close', saved.trap)
@@ -502,7 +504,7 @@ $include idebrk.h
    next wc.i
    ex.nocase = @false                ;* 9 Nov 26 (S.184 stage 3b): the tree's records in case-blind order (NO.CASE.EXPLORE)
    gosub read.options                ;* the account's &ide.options& (or &sed.options&): before any form is made, so the editor's modes are in force from the first one
-   if mouse.off then gosub mouse.apply          ;* NO.MOUSE: the screen was taken with the mouse on
+   if mouse.off # '' then call $tk_std('set', '', '', mouse.off, ms.r)     ;* MOUSE / NO.MOUSE: the session's switch, which every page and the IDE share
 
    * 28 Oct 26 (stage B): a file named with no record and an active select list (SELECT, then IDE file, as SED takes it): its ids are read here, before anything
    *   could use list 0, at most MAXREC of them and without building the rest of a list that is still being made; the list is used up, as SED's is
@@ -672,7 +674,7 @@ open.screen:
          opened = @true
       end
    end
-   if opened and mouse.off then gosub mouse.apply         ;* 9 Nov 26 (S.184 stage 3b): View > Mouse off holds over every screen the IDE takes back
+   if opened then call $tk_std('apply', '', '', '', ms.r)  ;* 9 Nov 26 (S.184 stage 3b, S.186): View > Mouse off - here or on any page - holds over every screen the IDE takes back
    * The window lock (the layout mode of $sl_guardmode, 28 Oct 26): while the WINDOW is smaller than LAYW by LAYH the keys are not the IDE's, wherever its cursor is - the
    *   keyboard is held, the warning names both sizes, and Ctrl-Q then y leaves ('guardquit'); the lock lifts the moment the window is big enough
    if opened then call $sl_guardmode('IDE', LAYW, LAYH, 'layout', LAYW, LAYH)
@@ -5850,9 +5852,10 @@ do.charcode:
 
 do.viewswitch:
    if cmd = 'mouseswitch' then
-      mouse.off = not(mouse.off)
-      gosub mouse.apply
-      msg = (if mouse.off then sysmsg(14039) else sysmsg(14038))
+      * View > Mouse (S.184 stage 3b): the terminal stops or starts reporting the mouse.  S.186: the switch is the session's, kept by $tk_std and shared with every
+      *   full-screen page, so a mouse switched off in the IDE stays off on the pages and the reverse; the keyboard does everything a click does
+      call $tk_std('mouse', '', '', '', ms.r)
+      msg = ms.r<2>
       return
    end
    call $sl_form('find', f, '', 'ed', en)
@@ -5867,16 +5870,6 @@ do.viewswitch:
       msg = (if lnum.off then sysmsg(14035) else sysmsg(14034))
    end
    gosub redraw.editor
-   return
-
-* 9 Nov 26 (S.184 stage 3b): View > Mouse - the terminal told to stop (mouse.off) or start reporting the mouse, and the library's screen told so, so that SCREEN CLOSE
-*   switches off only what is on (SED's MOUSE OFF / ON).  The keyboard does everything a click does.
-mouse.apply:
-   call $sl_scr('get', ms.scr)
-   if mouse.off then call $sl_mouse('off', ms.seq) else call $sl_mouse('on', ms.seq)
-   display ms.seq :
-   ms.scr<SL.S.MOUSE> = (if mouse.off then 0 else 1)
-   call $sl_scr('put', ms.scr)
    return
 
 * 9 Nov 26 (S.184 stage 3b): the account's defaults for the IDE, as SED took its own from &sed.options& - an X record &ide.options& in the VOC (&sed.options& when there is

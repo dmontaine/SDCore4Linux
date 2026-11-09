@@ -1,6 +1,38 @@
 Next release - in progress
 --------------------------
 
+9 Nov 26   THE FULL-SCREEN PAGES: THE SAME KEYS EVERYWHERE, CLEARER REFUSALS, US SPELLING.
+
+             What        - Every page has View > Mouse, which stops the terminal reporting the mouse (so its own selection
+                           works) and starts it again; the choice holds for every page and the IDE until you change it.
+                           Ctrl-O (View > Output) shows the commands the page ran, with what each printed or why it was
+                           refused; the four pages that had an output pane keep it. The debugger's F2 is Find an action and
+                           Ctrl-Q stops the program and leaves, as on every page; Abort is on its Run menu (F2 still aborts
+                           in line mode). A name a page will not put in a command now says which character is wrong ("has a
+                           capital letter (A)"). On a terminal without colour the box that has the keyboard no longer looks
+                           like the selected row. On a UTF-8 terminal a character of two to four bytes is followed by blanks
+                           so that it takes as many cells as it has bytes, and the columns after it stay in line. What SD
+                           prints is in US spelling: catalog, color, analyze, initialize, recognize, license, canceled.
+                           On a page whose letters are commands, / finds a row by typing: tool.accounts, tool.sessions,
+                           tool.jobs, tool.gates and my.menu gained it, and tool.audit's / opens its filter as F does.
+             Why         - A review of the full-screen pages (9 Nov) and the owner: "implement all of fables suggestions";
+                           "QM compatibility is not a focus, consistency within SD is".
+             Not changed - Names keep their spelling: verbs, keywords, options, files and record ids (analyse.index,
+                           OPTION CATALOGUE.LOCAL, the CATALOGUED() function); SD still stores and compares bytes; dated
+                           history in the source is as it was written.
+
+9 Nov 26   HOLDING A PAGE'S RUN KEY NO LONGER ANSWERS THE BOX IT OPENS.
+
+             What        - On tool.gates, tool.jobs, tool.test and tool.catalog, R opens the box that asks whether to run a
+                           command, and R in that box is Run. Holding R down, the terminal's key repeat sent a second R into
+                           the box. The box now throws away keys typed before it appears and waits until no key has come for
+                           a third of a second, so a held key opens it once and answers nothing. Also: tool.entries asks
+                           again that you are the administrator when it comes back from the editor or the debugger, and
+                           shows "administrator" on its bar; tool.files' A key is labelled analyze, as its menu entry is.
+             Why         - A review of the full-screen pages (9 Nov) found the key repeat could answer the box.
+             Not changed - A deliberate second press of R after the box appears still chooses Run; a box that asks for a
+                           name typed still asks for it.
+
 9 Nov 26   TOOL.JOBS SHOWS EVERY COMMAND AN ACCOUNT MAY RUN AS ALLOWED.
 
              What        - On the Jobs page, an account allowed to run two or more commands from the command line showed

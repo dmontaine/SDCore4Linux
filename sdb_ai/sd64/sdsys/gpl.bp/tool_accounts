@@ -13,6 +13,8 @@
 *               page: nothing that changes an account is offered).  An administrator without the AI sees the page as it was.
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the list to the AI line and back; AI > Ask the AI is a menu entry of its own.
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
+* 9 Nov 26 dm  S.186: View > Mouse and Ctrl-O (the log of the commands run), the same on every page (act:std.mouse, ctrl-o, $tk_std); an account name the page will not put in a command
+*              now says which character ($tk_badch).  '/' finds an account by typing ($tk_findrow; the owner: "Letters stay, '/' finds").
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -68,6 +70,7 @@ $include tk.h
    call $tk_keys('add', keys, 'a', 'add person', 'addperson', '', 1)
    call $tk_keys('add', keys, 'r', 'take away', 'delperson', '', 1)
    call $tk_keys('add', keys, 'x', 'delete', 'delete', '', 1)
+   call $tk_keys('add', keys, '/', 'find', 'find', '', 1)                  ;* 9 Nov 26 (S.186): '/' finds an account by typing (letters are this page's commands)
    call $tk_keys('add', keys, 'f5', 'read', 'refresh', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', keys, 'esc', 'menu', 'menu', '', 1)                ;* S.88 U1: Esc opens the menu bar (this page holds nothing of its own that Esc closes first)
@@ -78,6 +81,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'delperson', '&Account', '&Take a person away', '', '')
    call $tk_keys('menu', keys, 'delete', '&Account', '&Delete the account', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'find', '&View', '&Find an account', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
    call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    * S.97 stage 2 (group B): the AI line.  The page offers the AI only refresh (an administrator's page: create, delete, suspend and the people are not offered without the
@@ -92,6 +96,7 @@ $include tk.h
    nusers = 0 ; ngroups = 0 ; nothers = 0 ; nsusp = 0 ; nsess = 0
    udata = ''
    ci = 1 ; ta = 0
+   find.last = ''                                               ;* 9 Nov 26 (S.186): the text '/' asked for last
    gen = 0
    done = 0
    msg = ''
@@ -352,6 +357,11 @@ on.key:
       case nm = 'down'
          if ci < an then ci += 1
          gosub redraw
+      case nm = '/'                         ;* S.186: the next account whose name holds the text typed ($tk_findrow)
+         call $tk_findrow(anm, ci, find.last, fpos)
+         if fpos > 0 then ci = fpos
+         if fpos < 0 then msg = sysmsg(14045, find.last)
+         gosub redraw
       case nm = 'pgup'
          ci -= VA
          if ci < 1 then ci = 1
@@ -384,6 +394,11 @@ on.key:
          call $tk_std('theme', ctx, keys, '', std.r)
          if std.r<1> then gosub draw.all
          msg = std.r<2>
+      case nm = 'act:std.mouse'             ;* S.186: View > Mouse, the same on every page ($tk_std)
+         call $tk_std('mouse', ctx, keys, '', std.r)
+         msg = std.r<2>
+      case nm = 'ctrl-o'                    ;* S.186: the log of the commands this page ran (View > Output; $tk_std)
+         call $tk_std('output', ctx, keys, '', std.r)
       case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
          call $tk_std('keylist', ctx, keys, 'Accounts', std.r)
       case nm = 'f5'
@@ -506,7 +521,9 @@ do.suspend:
    word = anm<ci>
    gosub plain.word
    if not(plain) then
-      msg = 'this account name has characters this page will not put in a command; use modify.account at the prompt'
+      call $tk_badch(word, bad.ch)                   ;* 9 Nov 26 (S.186): say which character
+      if bad.ch = '' then bad.ch = 'more than 32 characters'
+      msg = 'this account name has ' : bad.ch : ', which this page will not put in a command; use modify.account at the prompt'
       return
    end
    use.x = 0
@@ -535,7 +552,9 @@ do.person:
    word = anm<ci>
    gosub plain.word
    if not(plain) then
-      msg = 'this account name has characters this page will not put in a command; use modify.account at the prompt'
+      call $tk_badch(word, bad.ch)                   ;* 9 Nov 26 (S.186): say which character
+      if bad.ch = '' then bad.ch = 'more than 32 characters'
+      msg = 'this account name has ' : bad.ch : ', which this page will not put in a command; use modify.account at the prompt'
       return
    end
    screen ask 'Linux user to ' : (if sub.word = 'add' then 'add to ' else 'take away from ') : anm<ci> : ' (a-z, 0-9, dot, dash and underscore)' width 40 value '' title 'People of a group account' returning pu else return
@@ -645,7 +664,9 @@ do.delete:
    word = anm<ci>
    gosub plain.word
    if not(plain) then
-      msg = 'this account name has characters this page will not put in a command; use delete.account at the prompt'
+      call $tk_badch(word, bad.ch)                   ;* 9 Nov 26 (S.186): say which character
+      if bad.ch = '' then bad.ch = 'more than 32 characters'
+      msg = 'this account name has ' : bad.ch : ', which this page will not put in a command; use delete.account at the prompt'
       return
    end
    sent = 'delete.account ' : anm<ci>

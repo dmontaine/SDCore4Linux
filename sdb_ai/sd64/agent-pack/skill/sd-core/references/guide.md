@@ -12,7 +12,7 @@
 
 ## A1. Programs, compiling, running
 
-A program is a record in a source file, conventionally `bp`. Four TCL verbs are all you need: `basic bp name` compiles `name` into the object directory `bp.out`, `run bp name` runs it, `catalog bp name` makes it callable by its name from your account (the entry goes into a private catalogue, and `delete.catalog name` takes it back out: it says `name deleted from the private catalogue`), and `catalogued(name)` tells a program whether a name can be called. Case never matters in a name; SD folds it.
+A program is a record in a source file, conventionally `bp`. Four TCL verbs are all you need: `basic bp name` compiles `name` into the object directory `bp.out`, `run bp name` runs it, `catalog bp name` makes it callable by its name from your account (the entry goes into a private catalog, and `delete.catalog name` takes it back out: it says `name deleted from the private catalog`), and `catalogued(name)` tells a program whether a name can be called. Case never matters in a name; SD folds it.
 
 ```basic frag run
 crt 'hello'
@@ -29,7 +29,7 @@ zzz 1
 ```
 
 ```error
-Unrecognised statement
+Unrecognized statement
 ```
 
 A program with no `program`, `subroutine` or `function` line is a program, and `end` closes it:
@@ -140,7 +140,7 @@ b
 
 There is no `chr`, `ltrim`, `rtrim`, `mid` or `strlen`; use `char`, `trim(s, ' ', 'L')` and `'T'`, `s[start, length]` and `len`. There is no `left()` or `right()`: write `s[1, n]` and `s[n]` (the last n characters). The table in B6 lists what SD lacks and what to write instead.
 
-**`common` variables start as `0`, not unassigned.** `unassigned(q)` is false for them, so a lazy-initialisation test never runs; test the value.
+**`common` variables start as `0`, not unassigned.** `unassigned(q)` is false for them, so a lazy-initialization test never runs; test the value.
 
 ```basic frag run
 common /gcom/ q
@@ -323,7 +323,7 @@ stopped by the guard at pass 6
 
 ## A6. Subprograms
 
-`subroutine` takes arguments **by reference**: assigning to a parameter changes the caller's variable. Pass an expression (`a + 0`) to force a copy. A subroutine must be catalogued before another program can `call` it.
+`subroutine` takes arguments **by reference**: assigning to a parameter changes the caller's variable. Pass an expression (`a + 0`) to force a copy. A subroutine must be cataloged before another program can `call` it.
 
 ```basic id=gsub1 catalog
 subroutine gsub1(a, b)
@@ -444,7 +444,7 @@ crt 'one ' :
 ```
 
 ```error
-Unrecognised statement
+Unrecognized statement
 ```
 
 [unverified] **A loop on `input` must test for the end of input** or it never ends when the input does: `if x = '' and status() = ER$EOF then exit` (the constant needs `$include syscom err.h`). A program run from a script has a pipe for input, so this matters.
@@ -654,7 +654,7 @@ Variable X has not been declared
 
 ## A13. Class modules and objects
 
-A class module holds state between calls. It is catalogued like any program and instantiated by its catalogue name; `->` reaches its public variables, methods and properties. **Each member ends with its own `end`, and the module ends with one more.** What the class keeps `private` is not a member at all from outside.
+A class module holds state between calls. It is cataloged like any program and instantiated by its catalog name; `->` reaches its public variables, methods and properties. **Each member ends with its own `end`, and the module ends with one more.** What the class keeps `private` is not a member at all from outside.
 
 ```basic id=gacct catalog
 class gacct
@@ -782,7 +782,7 @@ The administrator switches each of the following on **per account**, and **as de
 | sh | the `sh` verb | `sh-on`, `sh-off` |
 | os | `os.execute`, and `openseq` / `openpath` / `dir()` on a path outside the account | `os-on`, `os-off` |
 | sd | opening files in the accounts the user could `logto` | `sd-on`, `sd-off` |
-| voc, bp, dict | saving a change to a VOC; to a program file, **and compiling and cataloguing**; to a dictionary | `voc-on`, `bp-on`, `dict-on` (each with `-off`) |
+| voc, bp, dict | saving a change to a VOC; to a program file, **and compiling and cataloging**; to a dictionary | `voc-on`, `bp-on`, `dict-on` (each with `-off`) |
 | net | opening a file on another SD server | `net-on`, `net-off` |
 | files | a files-only login, and with `files-write-on` writing | `files-on`, `files-write-on` |
 | shared | the shared account's files: read is on by default, write is off | `shared-read-off`, `shared-write-on` |
@@ -809,7 +809,7 @@ crt 1
 ```
 
 ```error
-Programs can only be compiled or catalogued by an account that has bp.edit
+Programs can only be compiled or cataloged by an account that has bp.edit
 ```
 
 An account with `bp-on` and nothing else can compile and run its own programs, and meets these:
@@ -850,14 +850,14 @@ crt out
 <user> is not permitted to use the operating system shell
 ```
 
-The compiler also keeps a set of names for programs that SD itself ships. In an ordinary account the restricted statements are "Unrecognised statement", the `$internal` directive is refused, and an internal-only function is read as a matrix, with an error about a `dim` you never wrote, reported at the last line of the program. **If a function you are sure exists gives that message, it exists and you may not call it.**
+The compiler also keeps a set of names for programs that SD itself ships. In an ordinary account the restricted statements are "Unrecognized statement", the `$internal` directive is refused, and an internal-only function is read as a matrix, with an error about a `dim` you never wrote, reported at the last line of the program. **If a function you are sure exists gives that message, it exists and you may not call it.**
 
 ```basic frag fail as=gdbp
 breakpoint 'x'
 ```
 
 ```error
-Unrecognised statement
+Unrecognized statement
 ```
 
 ```basic fail as=gdbp
@@ -868,7 +868,7 @@ end
 ```
 
 ```error
-Unrecognised compiler directive
+Unrecognized compiler directive
 ```
 
 ```basic frag fail as=gdbp
@@ -896,7 +896,7 @@ voc sd.accounts
 3: accounts
 ```
 
-[unverified] Every ordinary account's VOC is `newvoc` in full; SDSYS's own is `voc_template`, a superset. A catalogued program is a verb too: after `catalog bp name`, typing `name` runs it. To see a program's own errors, compile it from a program and read the text back:
+[unverified] Every ordinary account's VOC is `newvoc` in full; SDSYS's own is `voc_template`, a superset. A cataloged program is a verb too: after `catalog bp name`, typing `name` runs it. To see a program's own errors, compile it from a program and read the text back:
 
 ```basic frag run
 execute 'BASIC bp gsub1' capturing out
@@ -1132,7 +1132,7 @@ SD Core Solo for Linux is the single-user product. It has no account verbs, its 
 2. Write the source as the record `name` of the account's `bp` file. `bp` is a directory file: the record is the operating-system file `<account>/bp/name`, a plain text file. (This is how this guide's own programs were put in front of the compiler.)
 3. Compile with `basic bp name`. Judge on the line `Compiled 1 program(s) with no errors` **and** on there being no `WARNING` line. A message you do not know: read A14, then look up the statement.
 4. Run it against scratch files whose names cannot exist in production, with data you made. A program that writes to a production file is not a test.
-5. Never `catalog` over a name that is already catalogued and never delete a file you did not create. Both are the user's decisions.
+5. Never `catalog` over a name that is already cataloged and never delete a file you did not create. Both are the user's decisions.
 6. When a gate refuses, say which one (B2), say what you were doing, and stop.
 
 ---

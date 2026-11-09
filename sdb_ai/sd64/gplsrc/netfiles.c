@@ -40,6 +40,7 @@
  * 17 Oct 26 dm  S.65 slice 3c: written.  The first netfiles.c (plan G4 removed it, 1,227 lines, ports and passwords of its own) is not this
  *               one: this holds NO socket code.  Every operation goes to the catalogued BASIC handler $netfile (sdsys/gpl.bp/netfile, slice
  *               3b), which holds the connections in named COMMON and speaks the API through the class !sdclient.
+ * 09 Nov 26 dm  S.186 (the owner: US spelling in everything SD prints): "... not in the global catalog".
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -448,7 +449,7 @@ Private bool net_call_core(int op, const char* a, int alen, const char* b, int b
   /* The program is looked for first so that a tree that has not catalogued it says so, rather than stopping the process with "cannot
      find program".  load_object() finds it in its list after the first time. */
   if (load_object("$netfile", FALSE) == NULL) {
-    net_set_message(MSG_HANDLER, "the program $netfile is not in the global catalogue", "", "");
+    net_set_message(MSG_HANDLER, "the program $netfile is not in the global catalog", "", "");
     return FALSE;
   }
 

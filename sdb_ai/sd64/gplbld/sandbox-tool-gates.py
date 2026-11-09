@@ -27,7 +27,8 @@
 #   G3-G4    Enter queues the opposite state (a star), again takes it back; nothing is run or audited; R with nothing queued says so
 #   G5       a gate that is off as delivered: the command and its effect, the tighter-choice sentence, Esc runs nothing, a wrong name runs nothing, the name runs it, the register says yes
 #   G6       turning it OFF needs no name
-#   G7       several cells of one account are ONE command, in the table's order, and the verb's closing line is shown
+#   G7       several cells of one account are ONE command, in the table's order, and the verb's closing line is shown; G7h / G7i (9 Nov 26, S.186): a held R (six
+#            at once) opens the box and does not answer it, and Esc leaves the queue and the register as they were
 #   G8       ssh and api: one word for the pair (ssh, api, both, none), the scratch group file is the evidence
 #   G9       files-write needs files and files-admin needs files-write: refused by the page before the box, nothing runs; both together run
 #   G10-G11  T queues OFF for every gate that is off as delivered and on now and leaves shared-read; U drops what is queued
@@ -479,6 +480,15 @@ def section_several(p):
         p.to(ME, gate)
         p.key("enter")
     arow("G7a", "three cells queued: three stars and the counts line says 3 changes", [p.cell(ME, k) for k in ("sh", "os", "voc")] == ["ON*", "ON*", "ON*"] and p.counts()[1].startswith("Queued for %s: 3 changes." % ME), repr(p.counts()))
+    # 9 Nov 26 (S.186, Fable's review): a HELD R - six r at once, as a terminal's key repeat sends them - opens the box and does not answer it.  R is the page's run key
+    # and the box's Run letter; before $tk_confirm threw away the keys typed ahead, the second r chose Run and the name question was up.
+    p.typed("rrrrrr", idle=1.6)
+    T = re.sub(r"\s+", " ", p.text())
+    arow("G7h", "a held R (six at once) opens the Run/Cancel box showing the command, and no more: not the name question, nothing written",
+         "modify.account %s sh-on os-on voc-on" % ME in T and ("Type %s to run it" % ME) not in T and field(ME, 7) == "no", repr((T[-500:], field(ME, 7))))
+    p.key("esc")
+    arow("G7i", "Esc cancels: the queue is still there (3 changes) and the register is unchanged",
+         p.counts()[1].startswith("Queued for %s: 3 changes." % ME) and field(ME, 7) == "no", repr((p.counts(), field(ME, 7))))
     p.typed("r", idle=1.6)
     T = re.sub(r"\s+", " ", p.text())
     arow("G7b", "ONE command with the words in the table's order: modify.account NAME sh-on os-on voc-on", "modify.account %s sh-on os-on voc-on" % ME in T, T[-800:])

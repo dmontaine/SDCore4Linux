@@ -11,6 +11,7 @@
 * 8 Nov 26 dm  S.179: Ctrl-T is the routine every page uses ($tk_std: kept for the person); Ctrl-K the keys of the page.  Clear stays Ctrl-L (it clears and
 *               draws the page again, as Ctrl-L does on every page): a key tester takes no function key for itself, or that key could not be tested.
 * 29 Oct 26 dm  S.88 3.7a: Ctrl-T takes the library's list of themes ($sl_theme 'next': blue classic dark light mono, the ones this terminal can show) in place of its own mono classic blue.
+* 9 Nov 26 dm  S.186: what the program prints is in US spelling (the owner: "Everything SD prints"); its text only, no change of behaviour.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -358,7 +359,7 @@ draw.info:
    il<-1> = 'Window      ' : @crtwide : ' x ' : @crthigh : '  (layout ' : ctx<TK.C.W> : ' x ' : ctx<TK.C.H> : ')'
    il<-1> = 'Locale      ' : (if loc = '' then '(none set)' else loc)
    il<-1> = 'Borders     ' : (if ctx<TK.C.UTF8> then 'line characters (UTF-8)' else '+ - | (not UTF-8)')
-   il<-1> = 'Colour      ' : colour
+   il<-1> = 'Color       ' : colour
    il<-1> = 'Theme       ' : thn
    il<-1> = 'Mouse       ' : (mp + mr + md + mu + mdn) : ' events'
    il<-1> = 'Reading     ' : (if rawmode then 'raw bytes (KEYIN)' else 'names ($sl_key)')

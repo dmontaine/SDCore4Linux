@@ -35,6 +35,7 @@ CORE = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 SOLO = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
 CITE = re.compile(r"sysmsg\(\s*(\d+)")
 ALLOWED = {
+    ("mapcat", "3046"): "9 Nov 26, S.186: the report heading 'Catalog name' has two more dots so the columns stay where they were; Solo's heading keeps its own until the carry",
     ("login", "10002"): "SDSYS is entered by sudo in Core; Solo has no sdsys and says type admin",
     ("login", "10172"): "update.accounts all: Core says log in as sdsys, Solo says the installer runs it",
     ("backupa", "13006"): "the syntax line: Solo has one account, so no names",
@@ -68,22 +69,29 @@ ALLOWED = {
     # "... to the home screen" until the correction is carried (sequential order: Core first, Solo when the owner says).  The two entries go when the carry makes the texts the same.
     ("tool_home", "11865"): "Core 'Press Enter to return' (26 Oct 26, the page is what Enter returns to), Solo 'Press Enter to return to the home screen' until the carry",
     # 26 Oct 26, the one-editor plan stage 1: the IDE's help in Core names F12 (Edit as fields: CED's data mode); Solo's IDE has no F12 until the owner says to carry it (Core only)
-    ("cproc", "10149"): "F1 at an empty prompt: Core names list voc with type = \"V\" (28 Oct 26, S.87 C-020: the listv sentence is gone with sd.voclib); Solo still says listv until the carry",
-    ("bcomp", "2935"): "Core's ON expression GOSUB or GOTO says so without GO (27 Oct 26, S.87 batch 13); Solo keeps GO until the carry",
-    ("bcomp", "3416"): "Core's says the item is not a D-type dictionary item (31 Oct 26, the A and S dictionary types were removed); Solo's says D, A or S-type until the carry",
     ("ced_edit", "11139"): "Core's !CED() line names ^K keys and ^T theme (9 Nov 26, S.181, the shared keys); Solo's has neither until the carry",
-    ("cd", "2974"):    "Core's says the record is not an I-type (31 Oct 26, the A and S dictionary types were removed; the C type went 28 Oct); Solo's says C or I-type until the carry",
-    ("bcomp", "11394"):"Core's list of constant @-variables lost @AM and @SVM (27 Oct 26, S.87 batch 13); Solo keeps them until the carry",
     ("login", "11900"):"Core's VOC update reports the records its deletion list removed (27 Oct 26, S.87); Solo's 11900 is another message until the carry",
+    # 9 Nov 26, Solo carry 22 in progress: Core's VOC deletion list messages 11900-11918 collide with Solo's OWN 11900-11914 (renumbered there 18 Oct by the
+    # owner's permission); which side moves is put to the owner (S.117).  These entries go when the numbers are settled and the messages carried.
+    ("login", "11901"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
+    ("login", "11902"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
+    ("login", "11903"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
+    ("login", "11904"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
+    ("lstvocrm", "11905"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
+    ("lstvocrm", "11906"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
+    ("lstvocrm", "11912"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
+    ("lstvocrm", "11913"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
+    ("rstvoc", "11912"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
+    ("rstvoc", "11913"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
+    ("rstvoc", "11914"):"the deletion-list numbering clash with Solo's own 11900-11914, waiting on the owner (Solo carry 22, S.117)",
+    ("login", "11983"):"an UPDATE.ACCOUNTS that cannot write a VOC: Core names sdsys-on, Solo (no sdsys user) names the file permissions (Solo carry 22, 9 Nov 26; a product-shape difference)",
     ("ide", "11209"): "Core's Go to prompt names line,column and field,value,subvalue (29 Oct 26, stage D); Solo's older IDE says 'Line number:' until the carry",
     ("ide", "11215"): "Core's help names F12, Edit as fields (26 Oct 26, one-editor plan stage 1); Solo's does not until the carry",
     ("setai", "11610"): "Core's list of providers has Google (1 Nov 26); Solo's does not until the carry (Core only, the owner's 26 Oct rule)",
     ("ide", "11214"): "Core's help names Ctrl-N, New record, and the untitled buffer's first save (28 Oct 26, S.88 Phase 4); Solo's does not until the carry",
     ("ide", "11216"): "Core's help names F3, F10, Ctrl-A, Ctrl-D and Ctrl-K by the owner's keys of 20 Oct (28 Oct 26, S.88 Phase 4); Solo's does not until the carry",
     ("ide", "11219"): "Core's says the file has more records than the bounded list shows (28 Oct 26, the editor merge stage B: the tree stops at 2,000 without reading the whole file); Solo's does not until the carry",
-    ("mkindx", "2613"): "Core's list of dictionary item types lost C (28 Oct 26, S.87 D-019: the C item type is gone); Solo keeps the old text until the carry",
     ("debug", "6712"): "Core's debugger help names F5 refresh, F9 run, F10 the menu bar, Ctrl-T and Ctrl-K (8 Nov 26, S.179); Solo's does not until the carry",
-    ("bcomp", "11274"):"Core reads 'Default argument values need the VAR.ARGS option' (28 Oct 26, S.87: the DEFAULT.UNASS.ARGS mode word was removed); Solo keeps the old text until the carry",
 }
 passed = failed = 0
 
@@ -113,11 +121,34 @@ def cites(path):
     return out
 
 
+# 9 Nov 26 (S.186, the owner: US spelling in everything SD prints): Core's texts were changed to US spelling before the carry to Solo.  A text that differs
+# from Solo's ONLY in spelling (catalogue / catalog, colour / color ...) is the same message, so it is not a finding; any other difference still is.
+UK_US = [("catalogues", "catalogs"), ("catalogued", "cataloged"), ("cataloguing", "cataloging"), ("catalogue", "catalog"), ("colours", "colors"),
+         ("coloured", "colored"), ("colour", "color"), ("analysed", "analyzed"), ("analysing", "analyzing"), ("analyse", "analyze"), ("behaviour", "behavior"),
+         ("centred", "centered"), ("centre", "center"), ("licence", "license"), ("unrecognised", "unrecognized"), ("recognised", "recognized"),
+         ("recognises", "recognizes"), ("recognise", "recognize"), ("initialisation", "initialization"), ("initialised", "initialized"),
+         ("initialising", "initializing"), ("initialise", "initialize"), ("cancelled", "canceled"), ("cancelling", "canceling"), ("honoured", "honored"),
+         ("honours", "honors"), ("honouring", "honoring"), ("honour", "honor"),
+         ("labelled", "labeled"), ("dialogue", "dialog"), ("grey", "gray"), ("spelt", "spelled")]
+UK_RX = re.compile(r"(?<![A-Za-z])(" + "|".join(re.escape(u) for u, _ in UK_US) + r")(?![A-Za-z])", re.I)
+
+
+def us(text):
+    return UK_RX.sub(lambda m: dict(UK_US)[m.group(1).lower()], text.lower())
+
+
+def same_text(p, q):
+    if filecmp.cmp(p, q, shallow=False):
+        return True
+    with open(p, encoding="latin-1") as f1, open(q, encoding="latin-1") as f2:
+        return us(f1.read()) == us(f2.read())
+
+
 def differing(core, solo):
     a = set(os.listdir(os.path.join(core, "messages")))
     b = set(os.listdir(os.path.join(solo, "messages")))
     return {n for n in a & b
-            if not filecmp.cmp(os.path.join(core, "messages", n), os.path.join(solo, "messages", n), shallow=False)}
+            if not same_text(os.path.join(core, "messages", n), os.path.join(solo, "messages", n))}
 
 
 def findings(core, solo):

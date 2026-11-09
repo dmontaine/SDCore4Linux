@@ -7,6 +7,9 @@
 * 29 Oct 26 dm  The last argument may be unassigned on entry (a page's `oc` is never set before its first call): `tot = c` stopped with "Unassigned variable" at Ctrl-O.
 *              Found by sandbox-tk-widgets.py's first probe (run by hand).
 * 30 Oct 26 dm  New (S.88 F0b).
+* 9 Nov 26 dm  S.186 (Fable's review: "the output pane as a toolkit service on every page that runs a command"): the log of commands, ops log and loglines.
+*              $tk_run and $tk_runx log every command they run or refuse, with what it printed or why; $tk_std 'output' shows it on Ctrl-O on a page that has
+*              no output pane of its own.  It is kept apart from the pane (no page's pane gets an entry twice) and in memory, for the page that is open.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -31,6 +34,9 @@
 *     progress (ctx, text, n, total)    the progress line ($sl_out 'progress'); a null text takes it away.  Shown at once
 *     poll    (ctx -> c)                1 when Esc was pressed since the last poll (reads only keys already waiting)
 *     clear   (ctx)                     the history and the progress line are emptied
+*     log     ('', kind, text)          9 Nov 26: $tk_run's and $tk_runx's call: kind ok or refuse, text the sentence then (fields) what it printed or why.  Kept for the
+*                                       open of the app that is in force ($tk_open's count), newest first, cleaned (a control character is ?), at most 2000 lines
+*     loglines (ctx -> c)               the log of this open of the app, one line to a field, null when nothing was run
 *
 * END-DESCRIPTION
 *
@@ -44,6 +50,23 @@ $include sl.h
 $include tk.h
 
    common /tkout/ out.w, out.epoch               ;* the pane of the app that is open: the library's collection, and the open (TK.C.EPOCH) it belongs to
+   common /tkepoch/ ep.next, ep.drawn            ;* 9 Nov 26 (S.186): $tk_open's count of opens, which the log of commands is kept for
+   common /tkrunlog/ rl.text, rl.epoch, rl.n     ;* 9 Nov 26 (S.186): the log of commands $tk_run and $tk_runx ran, newest first, one line to a field, for the open rl.epoch
+
+   * 9 Nov 26 (S.186): the log of commands.  Kept apart from the pane, and BEFORE the pane's epoch test below, because $tk_run has no context to give
+   if op = 'log' or op = 'loglines' then
+      if rl.epoch # ep.next + 0 then
+         rl.text = ''
+         rl.epoch = ep.next + 0
+         rl.n = 0
+      end
+      if op = 'log' then
+         gosub log.add
+      end else
+         c = (if ctx<TK.C.EPOCH> + 0 = rl.epoch then rl.text else '')
+      end
+      return
+   end
 
    if unassigned(c) then tot = '' else tot = c   ;* 'progress' is given the total in c; every other operation is given a variable the caller never set (29 Oct 26: "Unassigned variable" at Ctrl-O)
    c = ''
@@ -120,6 +143,33 @@ $include tk.h
       case op = 'clear'
          call $sl_out('clear', out.w, '', '', r)
    end case
+   return
+
+* 9 Nov 26 (S.186): a = ok or refuse, b = the sentence, then (fields) what it printed or why it was refused.  One entry: a line 'ok  sentence' or '!!  sentence',
+*   the lines under it indented, a blank line; put first.  A control character becomes ? and a mark is shown as ] | [, so nothing in the log is sent to the
+*   terminal as a sequence.  At most 200 lines an entry and 2000 in the log: the oldest go.
+log.add:
+   lg.e = ''
+   lg.n = dcount(b, @fm)
+   if lg.n > 201 then lg.n = 201
+   for lg.i = 1 to lg.n
+      lg.l = b<lg.i>
+      lg.l = convert(@vm : @sm : @tm, ']|[', lg.l)
+      lg.c = ''
+      for lg.j = 1 to len(lg.l)
+         lg.q = seq(lg.l[lg.j, 1])
+         if lg.q < 32 or lg.q = 127 then lg.c := '?' else lg.c := lg.l[lg.j, 1]
+      next lg.j
+      if lg.i = 1 then
+         lg.e = (if a = 'refuse' then '!!  ' else 'ok  ') : lg.c
+      end else
+         lg.e<-1> = '    ' : lg.c
+      end
+   next lg.i
+   lg.e<-1> = ''
+   if rl.text = '' then rl.text = lg.e else rl.text = lg.e : @fm : rl.text
+   rl.n += 1
+   if dcount(rl.text, @fm) > 2000 then rl.text = field(rl.text, @fm, 1, 2000)
    return
 end
 

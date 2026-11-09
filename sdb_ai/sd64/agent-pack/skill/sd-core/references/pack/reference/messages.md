@@ -764,10 +764,10 @@ cited by: `create_account`
 cited by: `login`
 
 ### msg:10166
-> kind=message tier=reference since=- src=sdsys/messages/10166:1#77a872d2
+> kind=message tier=reference since=- src=sdsys/messages/10166:1#62c15c84
 
 ```
-%1 verb(s) marked [locked] were updated anyway: %2\n\nA verb is what SD runs, so holding one back would leave this account calling a program, or an internal routine, that this release has changed. The [locked] marker is honoured on every other kind of VOC record.\n\nIf you need a verb to behave differently, add your own under a name SD does not ship and model it on the system one. update.accounts only ever visits records SD ships, so a verb of your own is safe without a marker.
+%1 verb(s) marked [locked] were updated anyway: %2\n\nA verb is what SD runs, so holding one back would leave this account calling a program, or an internal routine, that this release has changed. The [locked] marker is honored on every other kind of VOC record.\n\nIf you need a verb to behave differently, add your own under a name SD does not ship and model it on the system one. update.accounts only ever visits records SD ships, so a verb of your own is safe without a marker.
 ```
 
 cited by: `login`
@@ -1426,10 +1426,10 @@ Account %1
 cited by: `upgrade_nocase`
 
 ### msg:11031
-> kind=message tier=reference since=- src=sdsys/messages/11031:1#9b118757
+> kind=message tier=reference since=- src=sdsys/messages/11031:1#85313c64
 
 ```
-%1 private catalogue name(s) in %2 would be made lower case.
+%1 private catalog name(s) in %2 would be made lower case.
 ```
 
 cited by: `upgrade_nocase`
@@ -1453,10 +1453,10 @@ cited by: `upgrade_nocase`
 cited by: `upgrade_nocase`
 
 ### msg:11034
-> kind=message tier=reference since=- src=sdsys/messages/11034:1#c4dab48b
+> kind=message tier=reference since=- src=sdsys/messages/11034:1#016f2112
 
 ```
-%1 private catalogue name(s) in %2 were made lower case.
+%1 private catalog name(s) in %2 were made lower case.
 ```
 
 cited by: `upgrade_nocase`
@@ -2616,10 +2616,10 @@ The screen statement needs a verb after it
 cited by: `bcomp`
 
 ### msg:11168
-> kind=message tier=reference since=- src=sdsys/messages/11168:1#70c79518
+> kind=message tier=reference since=- src=sdsys/messages/11168:1#ecebe748
 
 ```
-Unrecognised screen verb %1
+Unrecognized screen verb %1
 ```
 
 cited by: `bcomp`
@@ -2842,10 +2842,10 @@ set.job {add | change} name job schedule; set.job {delete | run} name; set.job a
 cited by: `set_job`
 
 ### msg:11192
-> kind=message tier=reference since=- src=sdsys/messages/11192:1#63e73326
+> kind=message tier=reference since=- src=sdsys/messages/11192:1#1bffda7b
 
 ```
-This terminal cannot show colour
+This terminal cannot show color
 ```
 
 cited by: `sed`
@@ -2982,10 +2982,10 @@ cited by: `ide`
 cited by: `ide`
 
 ### msg:11207
-> kind=message tier=reference since=- src=sdsys/messages/11207:1#caa40654
+> kind=message tier=reference since=- src=sdsys/messages/11207:1#5d48f48a
 
 ```
-Catalogued %1 %2
+Cataloged %1 %2
 ```
 
 cited by: `ide`
@@ -3061,10 +3061,10 @@ The IDE\n\nTab, Shift-Tab   In the editor: indent, outdent the line or the selec
 cited by: `ide`
 
 ### msg:11215
-> kind=message tier=reference since=- src=sdsys/messages/11215:1#d2176ef2
+> kind=message tier=reference since=- src=sdsys/messages/11215:1#43a9ea61
 
 ```
-F4               Next error or result\nF5, Ctrl-L       Draw the screen again (as on every page)\nF9               Run\nF7              Debug (it runs on to the first breakpoint mark; Build / Debug from the first line stops at the first line)\nShift-F7         Set or clear the breakpoint mark of the line (a click in the gutter does the same; Build / Clear breakpoints)\nF8               Compile\nShift-F9         Build: compile and catalogue\nAlt-G            Go to a line\nCtrl-T           The next theme (kept for you; View, Theme)\nCtrl-K           The keys (Help, Keys)\nCtrl-E           Zoom: the editor fills the screen, or the files come back\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A dictionary item's, a VOC record's or a data record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks (a program's never)\nLocks            A record open in a tab is locked; one another session has locked opens read-only\nNot ASCII        A record holding characters outside ASCII (bytes 128 to 247) opens read-only\nIdle             With autologout set, the status line counts down its last 60 seconds; any key stops it\nInclude          Go, Open the include: the record a $include line at the cursor names\nMenus            Save as, Write a copy and Find in the records of the file are in the File and Search menus\n
+F4               Next error or result\nF5, Ctrl-L       Draw the screen again (as on every page)\nF9               Run\nF7              Debug (it runs on to the first breakpoint mark; Build / Debug from the first line stops at the first line)\nShift-F7         Set or clear the breakpoint mark of the line (a click in the gutter does the same; Build / Clear breakpoints)\nF8               Compile\nShift-F9         Build: compile and catalog\nAlt-G            Go to a line\nCtrl-T           The next theme (kept for you; View, Theme)\nCtrl-K           The keys (Help, Keys)\nCtrl-E           Zoom: the editor fills the screen, or the files come back\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A dictionary item's, a VOC record's or a data record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks (a program's never)\nLocks            A record open in a tab is locked; one another session has locked opens read-only\nNot ASCII        A record holding characters outside ASCII (bytes 128 to 247) opens read-only\nIdle             With autologout set, the status line counts down its last 60 seconds; any key stops it\nInclude          Go, Open the include: the record a $include line at the cursor names\nMenus            Save as, Write a copy and Find in the records of the file are in the File and Search menus\n
 ```
 
 cited by: `ide`
@@ -3186,10 +3186,10 @@ cited by: `set_job`
 ```
 
 ### msg:11229
-> kind=message tier=reference since=- src=sdsys/messages/11229:1#5ac775a4
+> kind=message tier=reference since=- src=sdsys/messages/11229:1#f51613ba
 
 ```
-&View|&Theme~^T~theme|&Refresh~F5~refresh|&Overwrite mode~Ins~overwrite|&Auto-indent~~autoindent|Tab &width~~tabwidth|&Syntax colour~~synswitch|&Line numbers~~lnumswitch|Character &code~Alt-=~charcode|&Mouse~~mouseswitch|Scroll the view &up a line~Ctrl-Up~nudgeup|Scroll the view &down a line~Ctrl-Down~nudgedown
+&View|&Theme~^T~theme|&Refresh~F5~refresh|&Overwrite mode~Ins~overwrite|&Auto-indent~~autoindent|Tab &width~~tabwidth|&Syntax color~~synswitch|&Line numbers~~lnumswitch|Character &code~Alt-=~charcode|&Mouse~~mouseswitch|Scroll the view &up a line~Ctrl-Up~nudgeup|Scroll the view &down a line~Ctrl-Down~nudgedown
 ```
 
 ### msg:1123
@@ -3270,10 +3270,10 @@ Editor
 cited by: `ide`
 
 ### msg:1124
-> kind=message tier=reference since=- src=sdsys/messages/1124:1#5e2c82a3
+> kind=message tier=reference since=- src=sdsys/messages/1124:1#4fa238dd
 
 ```
-Locally catalogued subroutine %s not found
+Locally cataloged subroutine %s not found
 ```
 
 ### msg:11240
@@ -3367,10 +3367,10 @@ Cancel
 cited by: `tk_form`, `tool_ai`
 
 ### msg:1125
-> kind=message tier=reference since=- src=sdsys/messages/1125:1#6958e706
+> kind=message tier=reference since=- src=sdsys/messages/1125:1#8fa32ddb
 
 ```
-Subroutine %s is not in the catalogue
+Subroutine %s is not in the catalog
 ```
 
 ### msg:11250
@@ -3453,10 +3453,10 @@ Invalid item (%1)
 cited by: `shwlist`
 
 ### msg:11262
-> kind=message tier=reference since=- src=sdsys/messages/11262:1#47e381cb
+> kind=message tier=reference since=- src=sdsys/messages/11262:1#add0680a
 
 ```
-Local catalogue entry %1 is for %2.  Replace it (y/<n>)?
+Local catalog entry %1 is for %2.  Replace it (y/<n>)?
 ```
 
 cited by: `catalog`
@@ -3619,10 +3619,10 @@ Logins are inhibited by %1 (user %2)
 cited by: `inhibit`, `tool_sessions`
 
 ### msg:11285
-> kind=message tier=reference since=- src=sdsys/messages/11285:1#c5b76206
+> kind=message tier=reference since=- src=sdsys/messages/11285:1#5231f751
 
 ```
-Program is in the %1 catalogue
+Program is in the %1 catalog
 ```
 
 cited by: `findprog`
@@ -3698,10 +3698,10 @@ cited by: `findprog`
 cited by: `findprog`
 
 ### msg:11293
-> kind=message tier=reference since=- src=sdsys/messages/11293:1#e8d398d7
+> kind=message tier=reference since=- src=sdsys/messages/11293:1#0982c534
 
 ```
-%1 is not catalogued
+%1 is not cataloged
 ```
 
 cited by: `findprog`
@@ -4532,19 +4532,19 @@ LOGTO RESET ALL is not available in a client session
 cited by: `cproc`
 
 ### msg:11393
-> kind=message tier=reference since=- src=sdsys/messages/11393:1#15fce10d
+> kind=message tier=reference since=- src=sdsys/messages/11393:1#51cd66bc
 
 ```
-At most 32 initialisation values may be given for an inherited class
+At most 32 initialization values may be given for an inherited class
 ```
 
 cited by: `bcomp`
 
 ### msg:11394
-> kind=message tier=reference since=- src=sdsys/messages/11394:1#5699d3ae
+> kind=message tier=reference since=- src=sdsys/messages/11394:1#f13efbd2
 
 ```
-An initialisation value must be a numeric or string constant, CHAR() of a numeric constant, or a constant @-variable (@FM, @VM, @SM, @TM, @IM, @TRUE, @FALSE)
+An initialization value must be a numeric or string constant, CHAR() of a numeric constant, or a constant @-variable (@FM, @VM, @SM, @TM, @IM, @TRUE, @FALSE)
 ```
 
 cited by: `bcomp`
@@ -4670,10 +4670,10 @@ A program file can only be changed by an account that has bp.edit (SDSYS can giv
 cited by: `edit_msg`
 
 ### msg:11408
-> kind=message tier=reference since=- src=sdsys/messages/11408:1#aadb53ad
+> kind=message tier=reference since=- src=sdsys/messages/11408:1#f9b95375
 
 ```
-Programs can only be compiled or catalogued by an account that has bp.edit (SDSYS can give it: modify.account <account> bp-on)
+Programs can only be compiled or cataloged by an account that has bp.edit (SDSYS can give it: modify.account <account> bp-on)
 ```
 
 cited by: `basic`, `catalog`, `decat`, `delcat`
@@ -7817,7 +7817,7 @@ cited by: `tk_run`, `tk_runx`
 %1 has a character that a command word may not have: use a-z, 0-9, dot, dash or underscore
 ```
 
-cited by: `tk_run`, `tk_runx`, `tk_word`
+cited by: `tk_word`
 
 ### msg:11807
 > kind=message tier=reference since=- src=sdsys/messages/11807:1#c5e7c01d
@@ -8824,10 +8824,10 @@ ssh is open for sdsys: it can sign in from other computers with its password,\na
 cited by: `remotesdsys`
 
 ### msg:11930
-> kind=message tier=reference since=- src=sdsys/messages/11930:1#bfc9f698
+> kind=message tier=reference since=- src=sdsys/messages/11930:1#d565e29f
 
 ```
-%s in the global catalogue can be written by other users, so it was not loaded (chmod go-w it)
+%s in the global catalog can be written by other users, so it was not loaded (chmod go-w it)
 ```
 
 ### msg:11931
@@ -9192,10 +9192,10 @@ cited by: `ide`
 cited by: `ide`
 
 ### msg:11974
-> kind=message tier=reference since=- src=sdsys/messages/11974:1#804bc10f
+> kind=message tier=reference since=- src=sdsys/messages/11974:1#7e126656
 
 ```
-%1 %2 was not catalogued: %3
+%1 %2 was not cataloged: %3
 ```
 
 cited by: `ide`
@@ -9654,10 +9654,10 @@ Subscript error in watch
 cited by: `backupa`, `restorea`, `settingsr`
 
 ### msg:13011
-> kind=message tier=reference since=- src=sdsys/messages/13011:1#c3101ef2
+> kind=message tier=reference since=- src=sdsys/messages/13011:1#64c2c1df
 
 ```
-%1 could not be read, so the globally catalogued programs of %2 from it are not in the backup.
+%1 could not be read, so the globally cataloged programs of %2 from it are not in the backup.
 ```
 
 cited by: `backupa`
@@ -9708,10 +9708,10 @@ Syntax: restore.account archive name [name ...] {no.query}\n        restore.acco
 cited by: `restorea`
 
 ### msg:13017
-> kind=message tier=reference since=- src=sdsys/messages/13017:1#fb9d8a8e
+> kind=message tier=reference since=- src=sdsys/messages/13017:1#9fe615ce
 
 ```
-%1 is already in the global catalogue as a different program, so it was not replaced. Catalogue it by hand if the restored one should win.
+%1 is already in the global catalog as a different program, so it was not replaced. Catalog it by hand if the restored one should win.
 ```
 
 cited by: `restorea`
@@ -9832,10 +9832,10 @@ Syntax: settings.report [directory]
 cited by: `settingsr`
 
 ### msg:13032
-> kind=message tier=reference since=- src=sdsys/messages/13032:1#6101ed2c
+> kind=message tier=reference since=- src=sdsys/messages/13032:1#36131661
 
 ```
-%1 re-catalogued globally from %2 %3
+%1 re-cataloged globally from %2 %3
 ```
 
 cited by: `restorea`
@@ -9868,10 +9868,10 @@ cited by: `restorea`
 cited by: `restorea`
 
 ### msg:13036
-> kind=message tier=reference since=- src=sdsys/messages/13036:1#1a14fb8e
+> kind=message tier=reference since=- src=sdsys/messages/13036:1#035d2bd2
 
 ```
-%1 could not be re-catalogued globally: %2
+%1 could not be re-cataloged globally: %2
 ```
 
 cited by: `restorea`
@@ -10324,19 +10324,19 @@ Line %1, column %2: the end of the line
 cited by: `ide`
 
 ### msg:14032
-> kind=message tier=reference since=- src=sdsys/messages/14032:1#4e246c4b
+> kind=message tier=reference since=- src=sdsys/messages/14032:1#13a858fb
 
 ```
-Syntax colour is on.
+Syntax color is on.
 ```
 
 cited by: `ide`
 
 ### msg:14033
-> kind=message tier=reference since=- src=sdsys/messages/14033:1#e6acbc2d
+> kind=message tier=reference since=- src=sdsys/messages/14033:1#f6eb0f20
 
 ```
-Syntax colour is off (View > Syntax colour puts it back).
+Syntax color is off (View > Syntax color puts it back).
 ```
 
 cited by: `ide`
@@ -10384,7 +10384,7 @@ cited by: `ide`
 The mouse is on.
 ```
 
-cited by: `ide`
+cited by: `tk_std`
 
 ### msg:14039
 > kind=message tier=reference since=- src=sdsys/messages/14039:1#9c2ae2a1
@@ -10393,7 +10393,7 @@ cited by: `ide`
 The mouse is off (View > Mouse puts it back).
 ```
 
-cited by: `ide`
+cited by: `tk_std`
 
 ### msg:1404
 > kind=message tier=reference since=- src=sdsys/messages/1404:1#0bc60524
@@ -10401,6 +10401,60 @@ cited by: `ide`
 ```
 Error %d clearing file
 ```
+
+### msg:14040
+> kind=message tier=reference since=- src=sdsys/messages/14040:1#e2b195fe
+
+```
+%1 has %2, which a command word may not have: use a-z, 0-9, dot, dash or underscore
+```
+
+cited by: `tk_run`, `tk_runx`, `tk_word`
+
+### msg:14041
+> kind=message tier=reference since=- src=sdsys/messages/14041:1#052f8b6a
+
+```
+Nothing has been run on this page yet.
+```
+
+cited by: `tk_std`
+
+### msg:14042
+> kind=message tier=reference since=- src=sdsys/messages/14042:1#637f8b3d
+
+```
+Output of the commands (newest first)
+```
+
+cited by: `tk_std`
+
+### msg:14043
+> kind=message tier=reference since=- src=sdsys/messages/14043:1#3acf74c1
+
+```
+Find the next row that holds:
+```
+
+cited by: `tk_findrow`
+
+### msg:14044
+> kind=message tier=reference since=- src=sdsys/messages/14044:1#df251b06
+
+```
+Find
+```
+
+cited by: `tk_findrow`
+
+### msg:14045
+> kind=message tier=reference since=- src=sdsys/messages/14045:1#315592b9
+
+```
+No row holds %1.
+```
+
+cited by: `mymenu`, `tool_accounts`, `tool_gates`, `tool_jobs`, `tool_sessions`
 
 ### msg:1405
 > kind=message tier=reference since=- src=sdsys/messages/1405:1#f5ea60b7
@@ -10866,10 +10920,10 @@ SDClient requested keyboard input
 ```
 
 ### msg:1703
-> kind=message tier=reference since=- src=sdsys/messages/1703:1#4c930f1e
+> kind=message tier=reference since=- src=sdsys/messages/1703:1#611aaf44
 
 ```
-Unrecognised printer setting key
+Unrecognized printer setting key
 ```
 
 ### msg:1704
@@ -11298,10 +11352,10 @@ cited by: `cname`
 cited by: `fstat`
 
 ### msg:2029
-> kind=message tier=reference since=- src=sdsys/messages/2029:1#de61474e
+> kind=message tier=reference since=- src=sdsys/messages/2029:1#90c0d844
 
 ```
-Unrecognised option (%1)
+Unrecognized option (%1)
 ```
 
 cited by: `pterm`
@@ -11593,10 +11647,10 @@ Cannot open SDSYS NEWVOC
 cited by: `login`
 
 ### msg:2211
-> kind=message tier=reference since=- src=sdsys/messages/2211:1#78826b1a
+> kind=message tier=reference since=- src=sdsys/messages/2211:1#ba11e6e9
 
 ```
-Unable to create private catalogue directory
+Unable to create private catalog directory
 ```
 
 ### msg:2212
@@ -11710,10 +11764,10 @@ File has no indices
 cited by: `analyseidx`, `deletei`, `disablei`, `listi`
 
 ### msg:2604
-> kind=message tier=reference since=- src=sdsys/messages/2604:1#b2523f95
+> kind=message tier=reference since=- src=sdsys/messages/2604:1#92435ff1
 
 ```
-Unrecognised index name (%1)
+Unrecognized index name (%1)
 ```
 
 cited by: `analyseidx`, `deletei`, `disablei`, `listi`, `mkindx`, `selecti`
@@ -12311,10 +12365,10 @@ $ENDIF without $IFDEF or $IFNDEF
 cited by: `bcomp`
 
 ### msg:2831
-> kind=message tier=reference since=- src=sdsys/messages/2831:1#fbcb805d
+> kind=message tier=reference since=- src=sdsys/messages/2831:1#85284825
 
 ```
-Unrecognised statement
+Unrecognized statement
 ```
 
 cited by: `bcomp`
@@ -12356,10 +12410,10 @@ Misformed $%1
 cited by: `bcomp`
 
 ### msg:2836
-> kind=message tier=reference since=- src=sdsys/messages/2836:1#a18b673d
+> kind=message tier=reference since=- src=sdsys/messages/2836:1#b5b6eac4
 
 ```
-Illegal catalogue name
+Illegal catalog name
 ```
 
 cited by: `bcomp`
@@ -12410,28 +12464,28 @@ Mode name required after $MODE
 cited by: `bcomp`
 
 ### msg:2842
-> kind=message tier=reference since=- src=sdsys/messages/2842:1#cb9323a6
+> kind=message tier=reference since=- src=sdsys/messages/2842:1#cab93e31
 
 ```
-Unrecognised mode name
+Unrecognized mode name
 ```
 
 cited by: `bcomp`
 
 ### msg:2843
-> kind=message tier=reference since=- src=sdsys/messages/2843:1#45a68448
+> kind=message tier=reference since=- src=sdsys/messages/2843:1#ba767ef0
 
 ```
-Unrecognised token '%1'
+Unrecognized token '%1'
 ```
 
 cited by: `bcomp`
 
 ### msg:2844
-> kind=message tier=reference since=- src=sdsys/messages/2844:1#e9a4f30a
+> kind=message tier=reference since=- src=sdsys/messages/2844:1#88e46833
 
 ```
-Unrecognised compiler directive
+Unrecognized compiler directive
 ```
 
 cited by: `bcomp`
@@ -12588,10 +12642,10 @@ Expected comma or semicolon
 cited by: `icomp`
 
 ### msg:2862
-> kind=message tier=reference since=- src=sdsys/messages/2862:1#13f2f9d3
+> kind=message tier=reference since=- src=sdsys/messages/2862:1#ec4e28c6
 
 ```
-Unrecognised function '%1'
+Unrecognized function '%1'
 ```
 
 cited by: `icomp`
@@ -13099,10 +13153,10 @@ FUNCTION must appear before any executable statements
 cited by: `bcomp`
 
 ### msg:2919
-> kind=message tier=reference since=- src=sdsys/messages/2919:1#59641a08
+> kind=message tier=reference since=- src=sdsys/messages/2919:1#b6d637e5
 
 ```
-Name has been truncated for cataloguing
+Name has been truncated for cataloging
 ```
 
 cited by: `bcomp`
@@ -13293,10 +13347,10 @@ Return value only allowed in functions
 cited by: `bcomp`
 
 ### msg:2941
-> kind=message tier=reference since=- src=sdsys/messages/2941:1#fac419b3
+> kind=message tier=reference since=- src=sdsys/messages/2941:1#efc810e7
 
 ```
-Default catalogue name differs from record name
+Default catalog name differs from record name
 ```
 
 cited by: `bcomp`
@@ -13401,10 +13455,10 @@ Argument missing in @ function
 cited by: `bcomp`, `icomp`
 
 ### msg:2953
-> kind=message tier=reference since=- src=sdsys/messages/2953:1#05fd47f1
+> kind=message tier=reference since=- src=sdsys/messages/2953:1#1734e181
 
 ```
-Unrecognised @ function
+Unrecognized @ function
 ```
 
 cited by: `bcomp`
@@ -13527,10 +13581,10 @@ IN not found where expected
 cited by: `bcomp`
 
 ### msg:2967
-> kind=message tier=reference since=- src=sdsys/messages/2967:1#b4820f1d
+> kind=message tier=reference since=- src=sdsys/messages/2967:1#67057918
 
 ```
-Unrecognised @ variable
+Unrecognized @ variable
 ```
 
 cited by: `bcomp`, `icomp`
@@ -13831,10 +13885,10 @@ Illegal trigger function name
 cited by: `settrig`
 
 ### msg:3003
-> kind=message tier=reference since=- src=sdsys/messages/3003:1#33e056b0
+> kind=message tier=reference since=- src=sdsys/messages/3003:1#0bd09189
 
 ```
-Trigger function is not catalogued
+Trigger function is not cataloged
 ```
 
 cited by: `settrig`
@@ -13894,28 +13948,28 @@ Program name or select list required
 cited by: `catalog`
 
 ### msg:3021
-> kind=message tier=reference since=- src=sdsys/messages/3021:1#02e6e9e8
+> kind=message tier=reference since=- src=sdsys/messages/3021:1#73545b05
 
 ```
-Incompatible cataloguing modes specified
+Incompatible cataloging modes specified
 ```
 
 cited by: `catalog`, `delcat`
 
 ### msg:3022
-> kind=message tier=reference since=- src=sdsys/messages/3022:1#04933123
+> kind=message tier=reference since=- src=sdsys/messages/3022:1#1a7c8cb6
 
 ```
-Cannot open global catalogue directory
+Cannot open global catalog directory
 ```
 
 cited by: `catalog`, `delcat`, `mapcat`
 
 ### msg:3023
-> kind=message tier=reference since=- src=sdsys/messages/3023:1#aefe9598
+> kind=message tier=reference since=- src=sdsys/messages/3023:1#f558f1dd
 
 ```
-Cannot open private catalogue directory
+Cannot open private catalog directory
 ```
 
 cited by: `catalog`, `delcat`, `mapcat`
@@ -13966,28 +14020,28 @@ VOC already contains a conflicting entry named %1
 cited by: `catalog`
 
 ### msg:3029
-> kind=message tier=reference since=- src=sdsys/messages/3029:1#3f65da48
+> kind=message tier=reference since=- src=sdsys/messages/3029:1#0db4e7a4
 
 ```
-%1 added to local catalogue
+%1 added to local catalog
 ```
 
 cited by: `catalog`
 
 ### msg:3030
-> kind=message tier=reference since=- src=sdsys/messages/3030:1#6c876c20
+> kind=message tier=reference since=- src=sdsys/messages/3030:1#b8f62e3a
 
 ```
-%1 added to global catalogue
+%1 added to global catalog
 ```
 
 cited by: `catalog`, `restorea`
 
 ### msg:3031
-> kind=message tier=reference since=- src=sdsys/messages/3031:1#11afd507
+> kind=message tier=reference since=- src=sdsys/messages/3031:1#2919c500
 
 ```
-%1 added to private catalogue
+%1 added to private catalog
 ```
 
 cited by: `catalog`
@@ -14002,100 +14056,100 @@ Illegal call name (%1)
 cited by: `catalog`
 
 ### msg:3033
-> kind=message tier=reference since=- src=sdsys/messages/3033:1#22568f87
+> kind=message tier=reference since=- src=sdsys/messages/3033:1#cf9dbe7d
 
 ```
-Program is also in local catalogue. Remove (y/<n>)? 
+Program is also in local catalog. Remove (y/<n>)? 
 ```
 
 cited by: `catalog`
 
 ### msg:3034
-> kind=message tier=reference since=- src=sdsys/messages/3034:1#f1494210
+> kind=message tier=reference since=- src=sdsys/messages/3034:1#fb7331f1
 
 ```
-Program is also in private catalogue. Remove (y/<n>)? 
+Program is also in private catalog. Remove (y/<n>)? 
 ```
 
 cited by: `catalog`
 
 ### msg:3035
-> kind=message tier=reference since=- src=sdsys/messages/3035:1#b144313b
+> kind=message tier=reference since=- src=sdsys/messages/3035:1#c25710c2
 
 ```
-Program is also in global catalogue. Remove (y/<n>)? 
+Program is also in global catalog. Remove (y/<n>)? 
 ```
 
 cited by: `catalog`
 
 ### msg:3036
-> kind=message tier=reference since=- src=sdsys/messages/3036:1#cfb4aec2
+> kind=message tier=reference since=- src=sdsys/messages/3036:1#ebeae930
 
 ```
-Catalogue name required
+Catalog name required
 ```
 
 cited by: `decat`, `delcat`
 
 ### msg:3037
-> kind=message tier=reference since=- src=sdsys/messages/3037:1#05a3345f
+> kind=message tier=reference since=- src=sdsys/messages/3037:1#bf86841a
 
 ```
-Null catalogue entry name ignored
+Null catalog entry name ignored
 ```
 
 cited by: `delcat`
 
 ### msg:3038
-> kind=message tier=reference since=- src=sdsys/messages/3038:1#30ac64b4
+> kind=message tier=reference since=- src=sdsys/messages/3038:1#3785970a
 
 ```
-%1 deleted from the global catalogue
+%1 deleted from the global catalog
 ```
 
 cited by: `delcat`
 
 ### msg:3039
-> kind=message tier=reference since=- src=sdsys/messages/3039:1#df1f97b7
+> kind=message tier=reference since=- src=sdsys/messages/3039:1#ea9a138e
 
 ```
-%1 is not in the global catalogue
+%1 is not in the global catalog
 ```
 
 cited by: `delcat`
 
 ### msg:3040
-> kind=message tier=reference since=- src=sdsys/messages/3040:1#4ac9bbe2
+> kind=message tier=reference since=- src=sdsys/messages/3040:1#be388c18
 
 ```
-%1 deleted from the local catalogue
+%1 deleted from the local catalog
 ```
 
 cited by: `decat`, `delcat`
 
 ### msg:3041
-> kind=message tier=reference since=- src=sdsys/messages/3041:1#c54d6f4d
+> kind=message tier=reference since=- src=sdsys/messages/3041:1#6e0c8fb9
 
 ```
-%1 is not in the local catalogue
+%1 is not in the local catalog
 ```
 
 cited by: `decat`, `delcat`
 
 ### msg:3042
-> kind=message tier=reference since=- src=sdsys/messages/3042:1#3f28f92d
+> kind=message tier=reference since=- src=sdsys/messages/3042:1#c81c9890
 
 ```
-%1 deleted from the private catalogue
+%1 deleted from the private catalog
 ```
 
 cited by: `delcat`
 
 ### msg:3043
-> kind=message tier=reference since=- src=sdsys/messages/3043:1#62238bf9
+> kind=message tier=reference since=- src=sdsys/messages/3043:1#7b84b8d0
 
 ```
-%1 is not in the private catalogue
+%1 is not in the private catalog
 ```
 
 cited by: `delcat`
@@ -14119,19 +14173,19 @@ Mapping aborted
 cited by: `mapcat`
 
 ### msg:3046
-> kind=message tier=reference since=- src=sdsys/messages/3046:1#ce050426
+> kind=message tier=reference since=- src=sdsys/messages/3046:1#7cfa7b53
 
 ```
-System catalogue map at %1 on %2 'G'Page 'SLL'  Catalogue name..................  Compiled.  Time....  ...Obj  ..Xref  ..Size
+System catalog map at %1 on %2 'G'Page 'SLL'  Catalog name....................  Compiled.  Time....  ...Obj  ..Xref  ..Size
 ```
 
 cited by: `mapcat`
 
 ### msg:3047
-> kind=message tier=reference since=- src=sdsys/messages/3047:1#298366f2
+> kind=message tier=reference since=- src=sdsys/messages/3047:1#d22a0a5e
 
 ```
-Catalogue is empty
+Catalog is empty
 ```
 
 cited by: `mapcat`
@@ -14164,10 +14218,10 @@ Error %1 clearing file
 cited by: `clearfl`
 
 ### msg:3060
-> kind=message tier=reference since=- src=sdsys/messages/3060:1#a1835a39
+> kind=message tier=reference since=- src=sdsys/messages/3060:1#d52373df
 
 ```
-Unable to open GPL licence
+Unable to open GPL license
 ```
 
 ### msg:3061
@@ -14180,10 +14234,10 @@ Virtual Machine Version Number %1
 cited by: `config`
 
 ### msg:3062
-> kind=message tier=reference since=- src=sdsys/messages/3062:1#c03bf805
+> kind=message tier=reference since=- src=sdsys/messages/3062:1#33988e5e
 
 ```
-Licence number %1, System id %2
+License number %1, System id %2
 ```
 
 ### msg:3063
@@ -14233,10 +14287,10 @@ New parameter value required
 cited by: `config`
 
 ### msg:3069
-> kind=message tier=reference since=- src=sdsys/messages/3069:1#2fc33e43
+> kind=message tier=reference since=- src=sdsys/messages/3069:1#acc455d8
 
 ```
-Not a recognised private configuration parameter name
+Not a recognized private configuration parameter name
 ```
 
 cited by: `config`
@@ -14272,10 +14326,10 @@ Single user mode
 ```
 
 ### msg:3074
-> kind=message tier=reference since=- src=sdsys/messages/3074:1#ad22ba91
+> kind=message tier=reference since=- src=sdsys/messages/3074:1#e0d0bf56
 
 ```
-Licence number %1
+License number %1
 ```
 
 ### msg:3075
@@ -14402,10 +14456,10 @@ The ALL keyword can only be used with OFF
 cited by: `option`
 
 ### msg:3201
-> kind=message tier=reference since=- src=sdsys/messages/3201:1#f65db5e5
+> kind=message tier=reference since=- src=sdsys/messages/3201:1#ffb92b89
 
 ```
-Option name not recognised
+Option name not recognized
 ```
 
 cited by: `option`
@@ -14446,10 +14500,10 @@ Clearing your %1 file...
 ```
 
 ### msg:3215
-> kind=message tier=reference since=- src=sdsys/messages/3215:1#d230e4c0
+> kind=message tier=reference since=- src=sdsys/messages/3215:1#5a2ed4f6
 
 ```
-Unrecognised dispatch information in VOC record
+Unrecognized dispatch information in VOC record
 ```
 
 ### msg:3217
@@ -15761,10 +15815,10 @@ Invalid data
 cited by: `inline`
 
 ### msg:5002
-> kind=message tier=reference since=- src=sdsys/messages/5002:1#cc148a64
+> kind=message tier=reference since=- src=sdsys/messages/5002:1#4223d314
 
 ```
-Unrecognised action keyword (%1)
+Unrecognized action keyword (%1)
 ```
 
 ### msg:5003
@@ -15793,17 +15847,17 @@ Unlicensed software
 ```
 
 ### msg:5006
-> kind=message tier=reference since=- src=sdsys/messages/5006:1#4fb57f63
+> kind=message tier=reference since=- src=sdsys/messages/5006:1#38f86a54
 
 ```
-Your licence has expired
+Your license has expired
 ```
 
 ### msg:5007
-> kind=message tier=reference since=- src=sdsys/messages/5007:1#c3bb65f3
+> kind=message tier=reference since=- src=sdsys/messages/5007:1#90ab5dd0
 
 ```
-WARNING: Your licence expires in %1 day(s)
+WARNING: Your license expires in %1 day(s)
 ```
 
 ### msg:5008
@@ -17117,19 +17171,19 @@ Cannot open SDSYS NEWVOC
 ```
 
 ### msg:6019
-> kind=message tier=reference since=- src=sdsys/messages/6019:1#340ab1fb
+> kind=message tier=reference since=- src=sdsys/messages/6019:1#fc424c53
 
 ```
-Creating private catalogue directory...
+Creating private catalog directory...
 ```
 
 cited by: `create_account`
 
 ### msg:6020
-> kind=message tier=reference since=- src=sdsys/messages/6020:1#78826b1a
+> kind=message tier=reference since=- src=sdsys/messages/6020:1#ba11e6e9
 
 ```
-Unable to create private catalogue directory
+Unable to create private catalog directory
 ```
 
 ### msg:6021
@@ -17436,10 +17490,10 @@ System security is disabled
 ```
 
 ### msg:6090
-> kind=message tier=reference since=- src=sdsys/messages/6090:1#eaf40b4b
+> kind=message tier=reference since=- src=sdsys/messages/6090:1#208f4523
 
 ```
-The user(s) listed above have been recovered.  Any locks held by these\nprocesses will have been released and the licence slot may be used by\na new process.\nDepending on why the process(es) had terminated, there may be data integrity\nor structural problems with files that were open at the time. Some operations\nmay not be possible until sd is restarted.
+The user(s) listed above have been recovered.  Any locks held by these\nprocesses will have been released and the license slot may be used by\na new process.\nDepending on why the process(es) had terminated, there may be data integrity\nor structural problems with files that were open at the time. Some operations\nmay not be possible until sd is restarted.
 ```
 
 ### msg:6091
@@ -18324,10 +18378,10 @@ Record name required after ON keyword
 cited by: `como`
 
 ### msg:6411
-> kind=message tier=reference since=- src=sdsys/messages/6411:1#0072d4ea
+> kind=message tier=reference since=- src=sdsys/messages/6411:1#ccccb5b9
 
 ```
-Unrecognised COMO action
+Unrecognized COMO action
 ```
 
 cited by: `como`
@@ -19421,10 +19475,10 @@ cited by: `ed`
 cited by: `ed`
 
 ### msg:6587
-> kind=message tier=reference since=- src=sdsys/messages/6587:1#b85ef84d
+> kind=message tier=reference since=- src=sdsys/messages/6587:1#b6876791
 
 ```
-Error - Unrecognised command
+Error - Unrecognized command
 ```
 
 cited by: `ed`
@@ -19704,7 +19758,7 @@ Menu changed. Do you really want to quit (Y/N)
 ```
 The Title line
 Every menu has a title to appear on the top line of the screen.  This title
-will be centred in the display device width.  If the text is wider than the
+will be centered in the display device width.  If the text is wider than the
 display, excess characters are discarded.
 ```
 
@@ -19892,10 +19946,10 @@ Tab interval in &SED.OPTIONS& must be in range 1 to 99
 cited by: `sed`
 
 ### msg:6628
-> kind=message tier=reference since=- src=sdsys/messages/6628:1#d90e794a
+> kind=message tier=reference since=- src=sdsys/messages/6628:1#e7843bca
 
 ```
-Unrecognised option keyword in &SED.OPTIONS& (%1)
+Unrecognized option keyword in &SED.OPTIONS& (%1)
 ```
 
 cited by: `sed`
@@ -20455,10 +20509,10 @@ Default (fundamental) key bindings in use
 cited by: `sed`
 
 ### msg:6691
-> kind=message tier=reference since=- src=sdsys/messages/6691:1#2cbaeca1
+> kind=message tier=reference since=- src=sdsys/messages/6691:1#b66e6348
 
 ```
-Unrecognised LNUM option - Expected ON, OFF, ALL, ON ALL or OFF ALL
+Unrecognized LNUM option - Expected ON, OFF, ALL, ON ALL or OFF ALL
 ```
 
 cited by: `sed`
@@ -20613,10 +20667,10 @@ Invalid SRC command
 cited by: `debug`
 
 ### msg:6709
-> kind=message tier=reference since=- src=sdsys/messages/6709:1#95cc32df
+> kind=message tier=reference since=- src=sdsys/messages/6709:1#09afa21a
 
 ```
-Unrecognised command
+Unrecognized command
 ```
 
 cited by: `debug`
@@ -20640,10 +20694,10 @@ Unable to find source record %1
 cited by: `debug`
 
 ### msg:6712
-> kind=message tier=reference since=- src=sdsys/messages/6712:1#97d0e4b4
+> kind=message tier=reference since=- src=sdsys/messages/6712:1#46e066ae
 
 ```
-Key       Command         Action\nF1        HELP            Display this screen\nF2        ABORT or Quit   Abort program\nF3        STOP            Stop program\nF4        View            Show program screen\nF5                        Draw the screen again\nF7        Step .n         Step n debug elements\nCtrl-F7   EXit            Exit subroutine\nF8        Step n          Step n lines\nCtrl-F8   EP              Exit program\nF9        Run {n}         Free run or to line n\nF10, Esc                  The menu bar\nCtrl-T                    The next theme (kept for you)\nCtrl-K                    The keys in use\nPgUp                      Move source window up\nCtrl-PgUp                 Move window to line 1\nPgDn                      Move source window down\nCtrl-PgDn                 Move window to bottom\n          BRK n           Set breakpoint on line n\n          CLR {n}         Clear all or specific breakpoint\n          DUMP var path   Dump variable to given pathname\n          Goto n          Goto line n\n          SET var=value   Set a variable\n          STACK           Show call stack\n          Watch var       Watch for changes to named variable\n          UnWatch         Cancel Watch action
+Key       Command         Action\nF1        HELP            Display this screen\nF2                        Find an action (line mode: abort)\n          ABORT or Quit   Abort program (also the Run menu)\nF3        STOP            Stop program\nCtrl-Q                    Stop program and leave\nF4        View            Show program screen\nF5                        Draw the screen again\nF7        Step .n         Step n debug elements\nCtrl-F7   EXit            Exit subroutine\nF8        Step n          Step n lines\nCtrl-F8   EP              Exit program\nF9        Run {n}         Free run or to line n\nF10, Esc                  The menu bar\nCtrl-T                    The next theme (kept for you)\nCtrl-K                    The keys in use\nPgUp                      Move source window up\nCtrl-PgUp                 Move window to line 1\nPgDn                      Move source window down\nCtrl-PgDn                 Move window to bottom\n          BRK n           Set breakpoint on line n\n          CLR {n}         Clear all or specific breakpoint\n          DUMP var path   Dump variable to given pathname\n          Goto n          Goto line n\n          SET var=value   Set a variable\n          STACK           Show call stack\n          Watch var       Watch for changes to named variable\n          UnWatch         Cancel Watch action
 ```
 
 cited by: `debug`
@@ -20679,10 +20733,10 @@ ABORT : Debugging terminated
 ```
 
 ### msg:6717
-> kind=message tier=reference since=- src=sdsys/messages/6717:1#cedef095
+> kind=message tier=reference since=- src=sdsys/messages/6717:1#3c37f3ea
 
 ```
-Unrecognised @-variable
+Unrecognized @-variable
 ```
 
 cited by: `debug`
@@ -21075,10 +21129,10 @@ Invalid terminal name
 cited by: `term`
 
 ### msg:6853
-> kind=message tier=reference since=- src=sdsys/messages/6853:1#db9cbc54
+> kind=message tier=reference since=- src=sdsys/messages/6853:1#72d885be
 
 ```
-Unrecognised terminal name
+Unrecognized terminal name
 ```
 
 cited by: `term`
@@ -21129,10 +21183,10 @@ Return key mode required
 cited by: `pterm`
 
 ### msg:6859
-> kind=message tier=reference since=- src=sdsys/messages/6859:1#e59b0658
+> kind=message tier=reference since=- src=sdsys/messages/6859:1#2e8fcb57
 
 ```
-Unrecognised colour name (%1)
+Unrecognized color name (%1)
 ```
 
 cited by: `term`
@@ -21318,10 +21372,10 @@ Decimal separator   : '%1'
 cited by: `nls`
 
 ### msg:6903
-> kind=message tier=reference since=- src=sdsys/messages/6903:1#c85d3966
+> kind=message tier=reference since=- src=sdsys/messages/6903:1#a03b1108
 
 ```
-%1 is not a recognised NLS key
+%1 is not a recognized NLS key
 ```
 
 cited by: `nls`
@@ -21390,10 +21444,10 @@ Too many arguments
 cited by: `sed`
 
 ### msg:6917
-> kind=message tier=reference since=- src=sdsys/messages/6917:1#e60fb6aa
+> kind=message tier=reference since=- src=sdsys/messages/6917:1#c3c6310d
 
 ```
-Unrecognised option : %1
+Unrecognized option : %1
 ```
 
 cited by: `sed`
@@ -21615,10 +21669,10 @@ Function returns no value
 cited by: `sed`
 
 ### msg:6942
-> kind=message tier=reference since=- src=sdsys/messages/6942:1#c606a7fc
+> kind=message tier=reference since=- src=sdsys/messages/6942:1#4f61bae8
 
 ```
-Unrecognised system variable : %1
+Unrecognized system variable : %1
 ```
 
 cited by: `sed`
@@ -22151,10 +22205,10 @@ OK to set new parameters (y/<n>)?
 cited by: `setptr`
 
 ### msg:7110
-> kind=message tier=reference since=- src=sdsys/messages/7110:1#fb59ca1a
+> kind=message tier=reference since=- src=sdsys/messages/7110:1#6581381a
 
 ```
-Printer name "%1" is not recognised
+Printer name "%1" is not recognized
 ```
 
 cited by: `setptr`
@@ -22277,10 +22331,10 @@ Printer name required
 cited by: `printer`, `setptr`
 
 ### msg:7124
-> kind=message tier=reference since=- src=sdsys/messages/7124:1#4e9ed7d5
+> kind=message tier=reference since=- src=sdsys/messages/7124:1#d9119bf9
 
 ```
-Printer name not recognised
+Printer name not recognized
 ```
 
 cited by: `printer`
@@ -22545,10 +22599,10 @@ Invalid line number range
 cited by: `spool`
 
 ### msg:7154
-> kind=message tier=reference since=- src=sdsys/messages/7154:1#ea6c383c
+> kind=message tier=reference since=- src=sdsys/messages/7154:1#81179381
 
 ```
-Warning: Overlay subroutine is not catalogued
+Warning: Overlay subroutine is not cataloged
 ```
 
 cited by: `setptr`
@@ -22563,10 +22617,10 @@ Invalid character pitch value
 cited by: `setptr`
 
 ### msg:7156
-> kind=message tier=reference since=- src=sdsys/messages/7156:1#0380a612
+> kind=message tier=reference since=- src=sdsys/messages/7156:1#4150f23f
 
 ```
-Unrecognised paper size
+Unrecognized paper size
 ```
 
 cited by: `setptr`
@@ -22581,19 +22635,19 @@ Invalid line spacing (lines per inch) value
 cited by: `setptr`
 
 ### msg:7158
-> kind=message tier=reference since=- src=sdsys/messages/7158:1#ea64c2f3
+> kind=message tier=reference since=- src=sdsys/messages/7158:1#c2860c04
 
 ```
-Unrecognised symbol set name
+Unrecognized symbol set name
 ```
 
 cited by: `setptr`
 
 ### msg:7159
-> kind=message tier=reference since=- src=sdsys/messages/7159:1#42e13040
+> kind=message tier=reference since=- src=sdsys/messages/7159:1#ce0f865c
 
 ```
-Unrecognised font weight name
+Unrecognized font weight name
 ```
 
 cited by: `setptr`
@@ -23564,10 +23618,10 @@ Overlay subroutine name required
 cited by: `qproc`
 
 ### msg:7297
-> kind=message tier=reference since=- src=sdsys/messages/7297:1#8ca1ed4e
+> kind=message tier=reference since=- src=sdsys/messages/7297:1#ea009754
 
 ```
-Overlay subroutine is not catalogued
+Overlay subroutine is not cataloged
 ```
 
 cited by: `qproc`
