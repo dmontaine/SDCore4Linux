@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+9 Nov 26   AN ACCOUNT CAN SET THE IDE'S DEFAULTS; THE IDE CAN TURN THE MOUSE OFF AND MOVE THE VIEW A LINE.
+
+             What        - An X record &ide.options& in the account's VOC sets what the IDE starts with: words on line 2 such
+                           as INDENT, OVERLAY, TABS 4, CASE_OFF, WORD, NO.LNUM, NO.SYNTAX, NO.MOUSE and NO.CASE.EXPLORE (the
+                           records in the tree in case-blind order). An account with SED's &sed.options& and no &ide.options&
+                           gets the same defaults from that. A word the IDE does not use is named on the status line. View >
+                           Mouse switches the terminal's mouse reports off and on; View > Scroll the view up / down a line
+                           (Ctrl-Up, Ctrl-Down) moves the text without moving the cursor.
+             Why         - The owner, 9 Nov: SED is retired into the IDE once the IDE has all its features. These were SED's
+                           &sed.options&, MOUSE OFF / ON and its nudge keys.
+             Fixed       - The list of records in the IDE's tree was not in order (the ids were put in as they were read,
+                           mostly); it is now sorted. The SED entries of the Edit menu (Word in capitals and the others added
+                           earlier on 9 Nov) all deleted the word before the cursor; each now does what it says.
+             Not changed - The key bindings SED kept in &sed.options& are not read: the IDE's keys cannot be changed (the
+                           owner's ruling). The IDE never writes the record. With the mouse off a click does nothing; every
+                           command still has a key or a menu entry.
+
 9 Nov 26   MORE OF SED'S COMMANDS IN THE IDE: STAMP, EXPAND TABS, RUN WITH ARGUMENTS, THE CHARACTER CODE.
 
              What        - Search > Stamp a history line puts "* Updated by who (login) time and date" above the cursor's line;

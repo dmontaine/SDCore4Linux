@@ -144,7 +144,7 @@ def checks(src):
     ck("K5", "list.ids: SELECT fv TO 9 (made a group at a time) with ON ERROR, READNEXT stopped once MAXREC ids are read (lr.more), the ids put in order, and CLEARSELECT 9 at "
        "the end so a part-read select does not stay on the file",
        ordered(li, "select fv to 9 on error", "clearselect 9", "return", "loop", "readnext lr.id from 9 else exit", "if lr.n >= MAXREC then", "lr.more = @true", "exit",
-               "locate lr.id in lr.ids<1> by 'AL' setting lr.p else null", "ins lr.id before lr.ids<1, lr.p>", "repeat", "clearselect 9")
+               "locate lr.id in lr.ids<1,1> by 'AL' setting lr.p else null", "ins lr.id before lr.ids<1, lr.p>", "repeat", "clearselect 9")   # <1,1>: in <1> LOCATE walks fields (S.185)
        and "sselect" not in li and "readlist" not in li, li[:200])
     ck("K6", "NO SSELECT AND NO READLIST OF A WHOLE FILE ANYWHERE in the IDE but the VOC walk of build.files: the tree (load.file, load.dict) and Find in the records (do.find) "
        "read through list.ids, and say when the list was cut (11219)",

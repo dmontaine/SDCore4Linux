@@ -15,6 +15,10 @@
 #               WRITTEN, NOT RUN.
 # 9 Nov 26 dm  Section T (S.184 stage 3): Stamp, Expand tabs, the character code (Alt-=), the Syntax colour and Line numbers switches, a tab width over 8; the record zze<run>tab
 #               holds a tab.  Not held: Run with arguments (it needs a program and the screen given over).
+# 9 Nov 26 dm  Section O (S.184 stage 3b): &ide.options& (an unknown word named, INDENT, TABS 7, NO.MOUSE, NO.CASE.EXPLORE), View > Mouse read from the bytes sent to the
+#               terminal, the tree's order on a directory file whose ids differ by '_' and 'a', and View > Scroll the view up / down a line on a 60-line record; a
+#               control with no options record.  O1 and O4 hold FOUR ids in order and O15 an Edit menu SED entry: the first run found the IDE's LOCATE in <1>
+#               walking fields, so the tree's records were never in order and every SED entry of the Edit menu sent Alt-Backspace (O12 caught it).
 # END-HISTORY
 #
 # WHAT RUNS.  The IDE on a PSEUDO-TERMINAL at 140 by 43 in the sandbox user's own account (sandbox-ide.py's Ide), on a record of the file bp that this script writes.  EVERY VERDICT ON A RECORD IS READ
@@ -436,6 +440,120 @@ def section_s184():
     row("T11 control: nothing was saved (the record on the disk is as the fixture wrote it)", d.get(REC) == "[%s]" % "^".join(LINES), repr(d.get(REC)))
 
 
+OFILE = "zzo" + RUN                     # a directory file whose two ids sort differently by case-blind order: '_' is between 'Z' and 'a'
+OFIX = """   open 'bp' to p else stop 'OFIX no bp'
+   t = ''
+   for i = 1 to 60
+      t<i> = 'L':i
+   next i
+   write t on p, '%(rec)slong'
+   execute 'create.file %(ofile)s directory' capturing out
+   open '%(ofile)s' to f else stop 'OFIX no file'
+   write 'x' on f, '%(ofile)sc1'
+   write 'x' on f, '%(ofile)s_1'
+   write 'x' on f, '%(ofile)sb1'
+   write 'x' on f, '%(ofile)sa1'
+   crt 'OFIX done'
+end
+"""
+OSET = """   open 'VOC' to v else stop 'OSET no voc'
+   write 'X':@fm:'INDENT TABS 7 NO.MOUSE NO.CASE.EXPLORE BOGUS' on v, '&ide.options&'
+   crt 'OSET done'
+end
+"""
+ODEL = """   open 'VOC' to v else stop 'ODEL no voc'
+   delete v, '&ide.options&'
+   crt 'ODEL done'
+end
+"""
+
+
+def tree_order(e):
+    """The file's four ids in the order the tree (the first 28 columns) shows them, as their suffixes ('_1', 'a1', 'b1', 'c1'); an absent one is left out.
+    Four ids, so that an order that is not sorted cannot pass by luck (the tree's insert walked the fields until 9 Nov 26: 'd b e a c' gave a c b e d)."""
+    t = [l[:28] for l in e.lines()[3:39]]
+    seen = []
+    for l in t:
+        for s in ("_1", "a1", "b1", "c1"):
+            if (OFILE + s) in l and s not in seen:
+                seen.append(s)
+    return seen
+
+
+def mouse_last(raw):
+    """'on' or 'off': which of the terminal's mouse switches the IDE sent last (?1000h asks for reports, ?1000l stops them); '' when neither was sent."""
+    s = raw.decode("latin-1")
+    on, off = s.rfind("\x1b[?1000h"), s.rfind("\x1b[?1000l")
+    return "" if on < 0 and off < 0 else ("on" if on > off else "off")
+
+
+def section_options():
+    """9 Nov 26 (S.184 stage 3b): the account's &ide.options& (an X record, SED's &sed.options& words), View > Mouse, NO.CASE.EXPLORE, and View > Scroll the view
+    up / down a line (SED's nudge).  View: Mouse is the 9th entry, Scroll up the 10th, Scroll down the 11th.  The options record is deleted at the end."""
+    say("\n--- O: the options record, the mouse, case-blind order, the nudge (S.184 stage 3b) ------------------------------------------")
+    SUBS["ofile"] = OFILE
+    put("zzofix" + RUN, OFIX)
+    put("zzoset" + RUN, OSET)
+    put("zzodel" + RUN, ODEL)
+    o = sb.sess(BOX, "BASIC bp zzofix%s zzoset%s zzodel%s" % (RUN, RUN, RUN), "RUN bp zzofix" + RUN, "RUN bp zzodel" + RUN)
+    if not row("O0 setup: the three programs compile, the file and the long record are made", re.search(r"(?m)^Compiled 3 program\(s\) with no errors", o) is not None
+               and "OFIX done" in o and "ODEL done" in o, o[-500:]):
+        return
+    e = sb.Ide(BOX, "IDE " + OFILE)
+    e.quiet()
+    tr = tree_order(e)
+    row("O1 control (no options record): the tree lists the ids in order, _1 a1 b1 c1 ('_' sorts before 'a'), and the mouse was switched on",
+        tr == ["_1", "a1", "b1", "c1"] and mouse_last(e.s.raw) == "on", repr((tr, mouse_last(e.s.raw))))
+    done(e)
+    o = sb.sess(BOX, "RUN bp zzoset" + RUN)
+    row("O2 setup: &ide.options& written", "OSET done" in o, o[-300:])
+    try:
+        e = sb.Ide(BOX, "IDE " + OFILE)
+        e.quiet()
+        tr = tree_order(e)
+        row("O3 the status line names the word the IDE does not use (BOGUS)", "does not use: BOGUS" in e.status(), e.status()[:140])
+        row("O4 NO.CASE.EXPLORE: the ids in case-blind order, a1 b1 c1 _1 ('A' before '_')", tr == ["a1", "b1", "c1", "_1"], repr(tr))
+        row("O5 NO.MOUSE: the last mouse switch the IDE sent stops the reports", mouse_last(e.s.raw) == "off", repr(mouse_last(e.s.raw)))
+        menu(e, 4, 8)                                                   # View > Mouse
+        row("O6 View > Mouse turns it on and says so (it began off), and the terminal is told", "The mouse is on" in e.status() and mouse_last(e.s.raw) == "on",
+            repr((e.status()[:120], mouse_last(e.s.raw))))
+        menu(e, 4, 8)
+        row("O7 ...and off again", "The mouse is off" in e.status() and mouse_last(e.s.raw) == "off", repr((e.status()[:120], mouse_last(e.s.raw))))
+        done(e)
+        e = open_rec()
+        e.keys("   x", RET, "Q")
+        e.quiet()
+        row("O8 INDENT: auto-indent is on from the start - Return after '   x' begins the next line with 3 blanks", "   Qalpha beta" in editor_text(e), repr(editor_text(e)[:120]))
+        done(e)
+        e = open_rec()
+        e.keys(CTRL_HOME, "\t")
+        e.quiet()
+        row("O9 TABS 7: Tab indents by 7 from the start", "1" + " " * 8 + "alpha beta" in editor_text(e) and "1" + " " * 9 + "alpha beta" not in editor_text(e), repr(editor_text(e)[:120]))
+        done(e)
+    finally:
+        o = sb.sess(BOX, "RUN bp zzodel" + RUN)
+        row("O10 setup: &ide.options& deleted", "ODEL done" in o, o[-300:])
+    e = sb.Ide(BOX, "IDE bp %slong" % REC)
+    e.quiet()
+    first = lambda: (editor_text(e).split("\n") or [""])[0]
+    row("O11 control: the long record opens with L1 on the editor's first row", re.search(r"\bL1\b", first()) is not None, repr(first()[:80]))
+    menu(e, 4, 10)                                                      # View > Scroll the view down a line
+    row("O12 View > Scroll the view down a line: L2 is on the first row", re.search(r"\bL2\b", first()) is not None and re.search(r"\bL1\b", first()) is None, repr(first()[:80]))
+    menu(e, 4, 9)                                                       # View > Scroll the view up a line
+    row("O13 View > Scroll the view up a line: L1 is back on the first row", re.search(r"\bL1\b", first()) is not None, repr(first()[:80]))
+    done(e)
+    e = sb.Ide(BOX, "IDE " + OFILE)
+    e.quiet()
+    row("O14 control: with the record gone the IDE names no word on the status line", "does not use" not in e.status(), e.status()[:140])
+    done(e)
+    e = open_rec()
+    e.keys(F10, RIGHT, DOWN * 13, RET)                                  # Edit > Word in capitals (the 14th entry; Edit is the second menu)
+    e.quiet()
+    row("O15 Edit > Word in capitals sends the editor Alt-U: 'alpha' becomes 'ALPHA' (every SED entry of the Edit menu sent Alt-Backspace until 9 Nov 26)",
+        "ALPHA beta" in editor_text(e), repr(editor_text(e)[:120]))
+    done(e)
+
+
 def teardown():
     if BOX:
         subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
@@ -471,6 +589,7 @@ def main():
         section_xeq()
         section_modes()
         section_s184()
+        section_options()
     finally:
         teardown()
     say("\nsandbox-ide-edit: %d passed, %d failed" % (passed, failed))

@@ -3186,10 +3186,10 @@ cited by: `set_job`
 ```
 
 ### msg:11229
-> kind=message tier=reference since=- src=sdsys/messages/11229:1#b033a070
+> kind=message tier=reference since=- src=sdsys/messages/11229:1#5ac775a4
 
 ```
-&View|&Theme~^T~theme|&Refresh~F5~refresh|&Overwrite mode~Ins~overwrite|&Auto-indent~~autoindent|Tab &width~~tabwidth|&Syntax colour~~synswitch|&Line numbers~~lnumswitch|Character &code~Alt-=~charcode
+&View|&Theme~^T~theme|&Refresh~F5~refresh|&Overwrite mode~Ins~overwrite|&Auto-indent~~autoindent|Tab &width~~tabwidth|&Syntax colour~~synswitch|&Line numbers~~lnumswitch|Character &code~Alt-=~charcode|&Mouse~~mouseswitch|Scroll the view &up a line~Ctrl-Up~nudgeup|Scroll the view &down a line~Ctrl-Down~nudgedown
 ```
 
 ### msg:1123
@@ -10364,6 +10364,33 @@ cited by: `ide`
 
 ```
   <field %1, value %2, subvalue %3>
+```
+
+cited by: `ide`
+
+### msg:14037
+> kind=message tier=reference since=- src=sdsys/messages/14037:1#683f35ee
+
+```
+The options record &ide.options& has words the IDE does not use: %1
+```
+
+cited by: `ide`
+
+### msg:14038
+> kind=message tier=reference since=- src=sdsys/messages/14038:1#51107eff
+
+```
+The mouse is on.
+```
+
+cited by: `ide`
+
+### msg:14039
+> kind=message tier=reference since=- src=sdsys/messages/14039:1#9c2ae2a1
+
+```
+The mouse is off (View > Mouse puts it back).
 ```
 
 cited by: `ide`

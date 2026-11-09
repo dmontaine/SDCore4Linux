@@ -162,6 +162,11 @@
 *               compile with errors, a search, a command's output) leaves the zoom so that it can be read.  SED is still on Go > Edit in SED (it was Ctrl-E).
 * 9 Nov 26 dm  S.184 stage 2: the Edit menu has SED's editing commands (message 14019; the keys are the editor's own, sl_memo): delete the word before, cut to the
 *               end of the line, swap two characters, the word's case, close blanks, align with the line above, swap cursor and mark.  Refused in the fields pane (14024).
+* 9 Nov 26 dm  S.184 stage 3b: the account's defaults in an X record &ide.options& (&sed.options& when there is none; field 2's words and field 5's tab width, never
+*               key bindings; read.options); View > Mouse (mouse.apply, held over every screen taken back), View > Scroll the view up / down a line (the memo's
+*               Ctrl-Up / Ctrl-Down, SED's nudge); NO.CASE.EXPLORE puts the tree's records in case-blind order (list.ids).  Messages 14037-14039.
+*               Fixed: list.ids and the Edit menu's SED entries located in <1>, which walks FIELDS, so the tree's records were never in order and every
+*               SED entry of the Edit menu sent Alt-Backspace; both now locate in <1,1>.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -334,6 +339,7 @@ $include idebrk.h
       stop
    end
 
+   mouse.off = @false                ;* 9 Nov 26 (S.184 stage 3b): View > Mouse switched off (NO.MOUSE in &ide.options&, read below once the screen is taken); open.screen asks it
    gosub open.screen
    if not(opened) then
       call $tk_brk('close', saved.trap)
@@ -494,6 +500,9 @@ $include idebrk.h
    for wc.i = 65 to 90
       WORDCH := char(wc.i) : char(wc.i + 32)
    next wc.i
+   ex.nocase = @false                ;* 9 Nov 26 (S.184 stage 3b): the tree's records in case-blind order (NO.CASE.EXPLORE)
+   gosub read.options                ;* the account's &ide.options& (or &sed.options&): before any form is made, so the editor's modes are in force from the first one
+   if mouse.off then gosub mouse.apply          ;* NO.MOUSE: the screen was taken with the mouse on
 
    * 28 Oct 26 (stage B): a file named with no record and an active select list (SELECT, then IDE file, as SED takes it): its ids are read here, before anything
    *   could use list 0, at most MAXREC of them and without building the rest of a list that is still being made; the list is used up, as SED's is
@@ -663,6 +672,7 @@ open.screen:
          opened = @true
       end
    end
+   if opened and mouse.off then gosub mouse.apply         ;* 9 Nov 26 (S.184 stage 3b): View > Mouse off holds over every screen the IDE takes back
    * The window lock (the layout mode of $sl_guardmode, 28 Oct 26): while the WINDOW is smaller than LAYW by LAYH the keys are not the IDE's, wherever its cursor is - the
    *   keyboard is held, the warning names both sizes, and Ctrl-Q then y leaves ('guardquit'); the lock lifts the moment the window is big enough
    if opened then call $sl_guardmode('IDE', LAYW, LAYH, 'layout', LAYW, LAYH)
@@ -749,6 +759,7 @@ load.dict:
 *   file is not read to the end (the SSELECT that was here sorted the whole file first, which hangs the IDE on a big data file).  The ids read are put in order.
 list.ids:
    lr.ids = ''
+   lr.keys = ''                        ;* 9 Nov 26 (S.184 stage 3b): the ids in capitals, the order when ex.nocase (NO.CASE.EXPLORE) asks for case-blind order
    lr.n = 0
    lr.more = @false
    select fv to 9 on error
@@ -762,7 +773,13 @@ list.ids:
          exit
       end
       lr.n += 1
-      locate lr.id in lr.ids<1> by 'AL' setting lr.p else null
+      * 9 Nov 26 (S.184 stage 3b): <1,1>, the values of field 1 - a LOCATE in <1> walks the FIELDS, so the ids were never in order ('d b e a c' gave a c b e d)
+      if ex.nocase then
+         locate upcase(lr.id) in lr.keys<1,1> by 'AL' setting lr.p else null
+         ins upcase(lr.id) before lr.keys<1, lr.p>
+      end else
+         locate lr.id in lr.ids<1,1> by 'AL' setting lr.p else null
+      end
       ins lr.id before lr.ids<1, lr.p>
    repeat
    clearselect 9                       ;* a select left part read keeps the file from splitting and merging: it is ended here
@@ -2790,7 +2807,7 @@ run.cmd:
          gosub do.expandtabs
       case cmd = 'charcode'
          gosub do.charcode
-      case cmd = 'synswitch' or cmd = 'lnumswitch'
+      case cmd = 'synswitch' or cmd = 'lnumswitch' or cmd = 'mouseswitch'
          gosub do.viewswitch
       case cmd = 'debug1'
          * 2 Nov 26 (S.98 H2): "Debug from the first line" stops at the first line as F7 always did; F7 (debug) runs on to the first breakpoint when the tab has marks
@@ -2863,14 +2880,15 @@ run.cmd:
       case cmd = 'undo' or cmd = 'redo' or cmd = 'cut' or cmd = 'copy' or cmd = 'paste' or cmd = 'selall'
          ek.key = (if cmd = 'undo' then 'ctrl-z' else if cmd = 'redo' then 'ctrl-y' else if cmd = 'cut' then 'ctrl-x' else if cmd = 'copy' then 'ctrl-c' else if cmd = 'paste' then 'ctrl-v' else 'ctrl-a')
          gosub do.editkey
-      case cmd = 'wordback' or cmd = 'killend' or cmd = 'transpose' or cmd = 'wordup' or cmd = 'worddown' or cmd = 'wordcap' or cmd = 'closesp' or cmd = 'align' or cmd = 'swapmark'
+      case cmd = 'wordback' or cmd = 'killend' or cmd = 'transpose' or cmd = 'wordup' or cmd = 'worddown' or cmd = 'wordcap' or cmd = 'closesp' or cmd = 'align' or cmd = 'swapmark' or cmd = 'nudgeup' or cmd = 'nudgedown'
          * 9 Nov 26 (S.184 stage 2): SED's editing commands, the editor's own keys (sl_memo sed.edit / sed.move); not the fields pane's, where Alt-T is the type
+         *   (stage 3b: and View > Scroll the view up / down a line, SED's nudge, which the memo has on Ctrl-Up and Ctrl-Down)
          if focus.id = 'fld' then
             msg = sysmsg(14024)
          end else
-            sk.l = 'wordback' : @vm : 'killend' : @vm : 'transpose' : @vm : 'wordup' : @vm : 'worddown' : @vm : 'wordcap' : @vm : 'closesp' : @vm : 'align' : @vm : 'swapmark'
-            locate cmd in sk.l<1> setting sk.i else sk.i = 0
-            ek.key = field('alt-bs,alt-e,alt-t,alt-u,alt-l,alt-c,alt- ,alt-a,alt-m', ',', sk.i)
+            sk.l = 'wordback' : @vm : 'killend' : @vm : 'transpose' : @vm : 'wordup' : @vm : 'worddown' : @vm : 'wordcap' : @vm : 'closesp' : @vm : 'align' : @vm : 'swapmark' : @vm : 'nudgeup' : @vm : 'nudgedown'
+            locate cmd in sk.l<1,1> setting sk.i else sk.i = 0     ;* stage 3b: <1,1>, the values (in <1> it found nothing and every entry sent Alt-Backspace)
+            ek.key = field('alt-bs,alt-e,alt-t,alt-u,alt-l,alt-c,alt- ,alt-a,alt-m,ctrl-up,ctrl-down', ',', sk.i)
             gosub do.editkey
          end
       case cmd = 'finsert' or cmd = 'fdelete' or cmd = 'frename' or cmd = 'ftype'
@@ -5762,7 +5780,8 @@ do.tabwidth:
 *   do.stamp       Search > Stamp a history line: '* Updated by <who> (<login name>) <time and date>' above the cursor's line, as SED's STAMP
 *   do.expandtabs  Search > Expand tabs: every tab character becomes blanks to the next tab stop (the tab width), as SED's EXPAND.TABS
 *   do.charcode    View > Character code (Alt-=): the code of the character at the cursor and where it is in the record's fields, as SED's expand char
-*   do.viewswitch  View > Syntax colour, View > Line numbers: switched off or on for every tab (SED's SYNTAX OFF / ON and LNUM OFF / ON)
+*   do.viewswitch  View > Syntax colour, View > Line numbers: switched off or on for every tab (SED's SYNTAX OFF / ON and LNUM OFF / ON); View > Mouse (stage 3b)
+*   read.options   the account's &ide.options& (stage 3b)
 
 do.stamp:
    gosub ed.get
@@ -5830,6 +5849,12 @@ do.charcode:
    return
 
 do.viewswitch:
+   if cmd = 'mouseswitch' then
+      mouse.off = not(mouse.off)
+      gosub mouse.apply
+      msg = (if mouse.off then sysmsg(14039) else sysmsg(14038))
+      return
+   end
    call $sl_form('find', f, '', 'ed', en)
    vs.mw = f{'widgets', en}
    if cmd = 'synswitch' then
@@ -5842,6 +5867,74 @@ do.viewswitch:
       msg = (if lnum.off then sysmsg(14035) else sysmsg(14034))
    end
    gosub redraw.editor
+   return
+
+* 9 Nov 26 (S.184 stage 3b): View > Mouse - the terminal told to stop (mouse.off) or start reporting the mouse, and the library's screen told so, so that SCREEN CLOSE
+*   switches off only what is on (SED's MOUSE OFF / ON).  The keyboard does everything a click does.
+mouse.apply:
+   call $sl_scr('get', ms.scr)
+   if mouse.off then call $sl_mouse('off', ms.seq) else call $sl_mouse('on', ms.seq)
+   display ms.seq :
+   ms.scr<SL.S.MOUSE> = (if mouse.off then 0 else 1)
+   call $sl_scr('put', ms.scr)
+   return
+
+* 9 Nov 26 (S.184 stage 3b): the account's defaults for the IDE, as SED took its own from &sed.options& - an X record &ide.options& in the VOC (&sed.options& when there is
+*   none, so an account's existing record still counts).  Field 2 holds words: CASE_ON and CASE_OFF (Find options' match case), WORD and BWORD (whole words, a word being
+*   letters, digits and . _ $ %), INDENT, OVERLAY, LNUM, NO.LNUM, SYNTAX, SYNTAX.LIGHT, NO.SYNTAX, MOUSE, NO.MOUSE, NO.CASE.EXPLORE (the tree's records in case-blind order),
+*   TABS n (1 to 99); SCROLL1 is SED's paging and is passed over.  Field 5 is a tab width.  The key bindings of fields 3 and 4 are not read: the IDE has none (the owner,
+*   9 Nov 26).  A word the IDE does not know is named on the status line; nothing in the record is ever written.
+read.options:
+   read ro.rec from @voc, '&ide.options&' else
+      read ro.rec from @voc, '&sed.options&' else ro.rec = ''
+   end
+   if upcase(ro.rec[1, 1]) # 'X' then return
+   ro.bad = ''
+   ro.w = trim(upcase(ro.rec<2>))
+   ro.n = dcount(ro.w, ' ')
+   ro.i = 0
+   loop
+      ro.i += 1
+   while ro.i <= ro.n
+      ro.t = field(ro.w, ' ', ro.i)
+      begin case
+         case ro.t = 'CASE_ON'
+            fo.case = @true
+         case ro.t = 'CASE_OFF'
+            fo.case = @false
+         case ro.t = 'WORD' or ro.t = 'BWORD'
+            fo.word = @true
+         case ro.t = 'INDENT'
+            ed.auto = 1
+         case ro.t = 'OVERLAY'
+            ed.over = 1
+         case ro.t = 'LNUM'
+            lnum.off = 0
+         case ro.t = 'NO.LNUM'
+            lnum.off = 1
+         case ro.t = 'SYNTAX' or ro.t = 'SYNTAX.LIGHT'
+            syn.off = 0
+         case ro.t = 'NO.SYNTAX'
+            syn.off = 1
+         case ro.t = 'MOUSE'
+            mouse.off = @false
+         case ro.t = 'NO.MOUSE'
+            mouse.off = @true
+         case ro.t = 'NO.CASE.EXPLORE'
+            ex.nocase = @true
+         case ro.t = 'SCROLL1'
+            null
+         case ro.t = 'TABS'
+            ro.i += 1
+            ro.v = field(ro.w, ' ', ro.i)
+            if ro.v matches '1-2N' and ro.v > 0 then ed.tab = ro.v + 0 else ro.bad<1, -1> = 'TABS ' : ro.v
+         case 1
+            ro.bad<1, -1> = ro.t
+      end case
+   repeat
+   ro.v = trim(ro.rec<5>)
+   if ro.v matches '1-2N' and ro.v > 0 then ed.tab = ro.v + 0
+   if ro.bad # '' then msg = sysmsg(14037, convert(@vm, ' ', ro.bad))
    return
 
 * Build > Format the program: !format() (the FORMAT verb's routine) lays the program in the tab out again with the tab width as its indent, in QUIET mode (the named common /fmtq/: no dots,
