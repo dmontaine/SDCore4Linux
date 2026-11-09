@@ -68,6 +68,11 @@
 *               and NO.CASE.EXPLORE (the record explore list is in case insensitive order, through SORT() with SRT$NOCASE) in &sed.options&.
 * 8 Nov 26 dm  S.172: a site theme of paper or night (paper is the delivered SCREENTHEME) puts SED in that theme, as blue and classic do, with the theme's own
 *               syntax colours.
+* 8 Nov 26 dm  S.179 (the owner: "The commands need to be consistent across all pages"): in the default layout Ctrl-T is the theme ($tk_theme, kept for the
+*               person; SED starts in $sl_theme 'site'), Ctrl-K the keys in use, F5 and Ctrl-L refresh, F9 compile and run; Kill line moves to Esc K, Toggle
+*               chars to Esc T, Goto line keeps Esc G only.  F.THEME and F.KEYS are internal actions bound like F10 (a layout or person's own binding of the
+*               key wins, so the EMACS layout is as it was).  New View (Theme, Refresh screen) and Help (Keys in use) menus.  fmt.key writes Esc and
+*               one character as Alt-K, Alt-G ..., the way the IDE and the pages write them (it wrote Esc K).
 * END-HISTORY
 *
 *
@@ -287,6 +292,8 @@ $include sl.h
    equate F.BOUND.EXT     to 73  ;* Run bound extension
    equate F.MENU          to 74  ;* Open the menu bar (F10, or Esc on its own)
    equate F.MOUSE         to 75  ;* A mouse report arrived (13 Oct 26)
+   equate F.THEME         to 76  ;* The next theme, kept for the person (8 Nov 26, S.179: Ctrl-T, as on every page)
+   equate F.KEYS          to 77  ;* The keys in use (8 Nov 26, S.179: Ctrl-K, as on every page)
 * !!BINDINGS!!
    * The following names are used as the comments in the key binding record.
    * They are also used with a dot prefix and embedded spaces replaced by dots
@@ -407,7 +414,8 @@ $include sl.h
    bar.w = ''                       ;* The menu bar widget; its items are built when it is opened
    bar.w<SL.W.Y> = 0 ; bar.w<SL.W.W> = screen.width
    bar.titles = '&File' : @fm : '&Edit' : @fm : '&Search' : @fm : '&Buffer' : @fm : '&Window' : @fm : '&Tools'
-   for mz = 1 to 6
+   bar.titles := @fm : '&View' : @fm : '&Help'      ;* 8 Nov 26 (S.179): View (Theme, Refresh screen) and Help (Keys in use), as every page has them
+   for mz = 1 to dcount(bar.titles, @fm)
       bar.w<19 + mz> = bar.titles<mz>
    next mz
 
@@ -1066,6 +1074,17 @@ edit:
       if action = F.MENU then
          gosub run.menu
          if action = 0 then goto skip.function
+      end
+
+      * 8 Nov 26 (S.179): the theme and the keys in use, from their keys or from the View and Help menus, before the bindable actions' dispatch
+      if action = F.THEME then
+         gosub do.theme
+         goto skip.function
+      end
+      if action = F.KEYS then
+         s = 'KEYS' ; suppress.command.cr = @false
+         gosub ext.command
+         goto skip.function
       end
 
       gosub uj.capture                     ;* 13 Oct 26: the state before an action that may change the text
@@ -4856,12 +4875,26 @@ syn.start:
 * Any other site theme (none, mono, dark, light) leaves SED as it was: the dark or the light theme.  A terminal that cannot show colour refuses both and SED stays in mono.
 syn.theme:
    syn.r = 1
-   syn.site = downcase(trim(config('SCREENTHEME')))
+   call $sl_theme('site', '', '', '', '', syn.site)     ;* 8 Nov 26 (S.179): the person's own theme first, then SCREENTHEME
    if syn.site = 'blue' or syn.site = 'classic' or syn.site = 'paper' or syn.site = 'night' then
       call $sl_theme('set', syn.site, '', '', '', syn.r)
       if syn.r = 0 and syn.light then call $sl_theme('syntax', 'light', '', '', '', syn.r2)
    end
    if syn.r # 0 then call $sl_theme('set', (if syn.light then 'light' else 'dark'), '', '', '', syn.r)
+   return
+
+* 8 Nov 26 (S.179) - Ctrl-T and View > Theme: the next theme, kept for the person ($tk_theme, the same routine every page calls), and the
+* screen drawn whole in it.  The light syntax colours go back on when the person asked for SYNTAX LIGHT.
+do.theme:
+   call $tk_theme(0, thm.chg, thm.msg)          ;* 0: SED draws its whole screen itself, below
+   if thm.chg then
+      if syn.on and syn.light then call $sl_theme('syntax', 'light', '', '', '', syn.r2)
+      gosub clear.screen
+      mat simage = ''
+      gosub refresh.all
+      bar.dirty = @true
+   end
+   message = thm.msg
    return
 
 * Put the screen back as it was: the theme to mono, and every row drawn plain
@@ -5222,13 +5255,13 @@ set.default.bindings:
    key.rec<-1> = char(208)             ;* F.PAGE.DOWN
    key.rec<-1> = '@D':@VM:char(212)    ;* F.DELETE
    key.rec<-1> = '@H':@VM:char(127)    ;* F.BACKSPACE
-   key.rec<-1> = '@K'               ;* F.KILL.LINE
+   key.rec<-1> = '@[K'              ;* F.KILL.LINE (8 Nov 26, S.179: Alt-K / Esc K - Ctrl-K is the keys list on every page)
    key.rec<-1> = '@S'               ;* F.SAVE.RECORD
    key.rec<-1> = '@Q'               ;* F.QUIT
    key.rec<-1> = char(211)          ;* F.OVERLAY
    key.rec<-1> = '@I'               ;* F.TAB
-   key.rec<-1> = '@L':@VM:'@[G'           ;* F.GOTO.LINE
-   key.rec<-1> = '@T'               ;* F.TOGGLE
+   key.rec<-1> = '@[G'              ;* F.GOTO.LINE (8 Nov 26, S.179: Alt-G / Esc G only - Ctrl-L redraws on every page)
+   key.rec<-1> = '@[T'              ;* F.TOGGLE (8 Nov 26, S.179: Alt-T / Esc T - Ctrl-T is the theme on every page)
    key.rec<-1> = '@F':@VM:'@[S'           ;* F.FWD.SEARCH
    key.rec<-1> = '@R'               ;* F.REPLACE
    key.rec<-1> = '@[%'              ;* F.QREPLACE
@@ -5256,7 +5289,7 @@ set.default.bindings:
    key.rec<-1> = '@W'               ;* F.DELETE.BUFFER
    key.rec<-1> = ''                 ;* F.UP.TO.PARENT
    key.rec<-1> = '@U'               ;* F.REPEAT
-   key.rec<-1> = ''                 ;* F.REFRESH
+   key.rec<-1> = '@[[15~':@VM:'@[[[E':@VM:'@L'   ;* F.REFRESH (8 Nov 26, S.179: F5 - xterm and the rest, the Linux console - and Ctrl-L, as on every page)
    key.rec<-1> = '@[Q'              ;* F.QUOTE.CHAR
    key.rec<-1> = ''                 ;* F.LIST.BUFFERS
    key.rec<-1> = '@O'               ;* F.FIND.RECORD
@@ -5276,7 +5309,7 @@ set.default.bindings:
    key.rec<-1> = ''                 ;* F.SPLIT.WINDOW
    key.rec<-1> = ''                 ;* F.TOGGLE.WINDOW
    key.rec<-1> = ''                 ;* F.DIVE
-   key.rec<-1> = '@[[15~':@VM:'@[[[E'   ;* F.COMPRUN (F5: xterm and the rest; the Linux console)
+   key.rec<-1> = '@[[20~'           ;* F.COMPRUN (8 Nov 26, S.179: F9 - the same sequence from xterm and the Linux console; F5 is refresh on every page)
    key.rec<-1> = '@Z'               ;* F.UNDO
    key.rec<-1> = '@Y'               ;* F.REDO
 
@@ -5380,6 +5413,11 @@ add.menu.key:
       ins z before keys<i>
       ins F.MOUSE before key.actions<i>
    end
+   * 8 Nov 26 (S.179): Ctrl-T the theme and Ctrl-K the keys in use, as on every page (the owner: "The commands need to be consistent across all
+   * pages").  Like F10 they are not bindable actions; a layout that binds the key itself (EMACS: Ctrl-K kill line, Ctrl-T toggle) or a person's
+   * own binding keeps it.  A single control character is looked up in action.list (parse.key), not in keys.
+   if seq(action.list[20, 1]) = 0 then action.list[20, 1] = char(F.THEME)
+   if seq(action.list[11, 1]) = 0 then action.list[11, 1] = char(F.KEYS)
    return
 
 load.key.bindings:
@@ -5531,7 +5569,7 @@ key.table:
 
    for kb.i = 1 to 255
       kb.n = seq(action.list[kb.i,1])
-      if kb.n and kb.n <= LAST.BINDABLE.ACTION then kb.s<kb.n,-1> = char(kb.i)
+      if kb.n and (kb.n <= LAST.BINDABLE.ACTION or kb.n = F.THEME or kb.n = F.KEYS) then kb.s<kb.n,-1> = char(kb.i)    ;* (8 Nov 26, S.179: the menus show Ctrl-T and Ctrl-K)
    next kb.i
 
    kb.z = dcount(keys, @fm)
@@ -7173,7 +7211,7 @@ do.mouse:
          * A title of the bar
          mc0 = 0
          menu.start = 0
-         for mz = 1 to 6
+         for mz = 1 to dcount(bar.titles, @fm)
             mp = bar.titles<mz>
             mq = index(mp, '&', 1)
             if mq then mp = mp[1, mq - 1] : mp[mq + 1, 99]
@@ -7348,8 +7386,11 @@ add.item:
          ks = s<ma, kv>
          gosub fmt.key
          if ks.named then          ;* (a function key sequence the terminal sends is shown only when fmt.key knows its name)
-            sc = ks.out
-            exit
+            if sc = '' then sc = ks.out
+            if ks.out matches "'F'1N0N" then         ;* 8 Nov 26 (S.179): a function key is shown before a Ctrl key (Refresh screen: F5, as every page shows it)
+               sc = ks.out
+               exit
+            end
          end
       next kv
       if mc = '' then mc = 'a:' : ma
@@ -7371,7 +7412,10 @@ fmt.key:
       case ks = char(27) : '[5;5~' ; ks.out = 'Ctrl-PgUp' ; return
       case ks = char(27) : '[15~' or ks = char(27) : '[[E' ; ks.out = 'F5' ; return
       case ks = char(27) : '[21~' ; ks.out = 'F10' ; return
+      case ks = char(27) : '[20~' ; ks.out = 'F9' ; return          ;* 8 Nov 26 (S.179): compile and run
       case ks[1, 2] = char(27) : '[' or ks[1, 2] = char(27) : 'O' ; ks.named = @false ; return
+      case len(ks) = 2 and ks[1, 1] = char(27) and seq(ks[2, 1]) > 32 and seq(ks[2, 1]) < 127
+         ks.out = 'Alt-' : upcase(ks[2, 1]) ; return              ;* 8 Nov 26 (S.179): Esc and a letter is what Alt and the letter sends, written as every other page writes it
    end case
    for kz = 1 to len(ks)
       kc = seq(ks[kz, 1])
@@ -7396,7 +7440,7 @@ fmt.key:
    return
 
 build.menu.defs:
-   for mz = 1 to 6
+   for mz = 1 to dcount(bar.titles, @fm)
       bar.w<19 + mz> = bar.titles<mz>      ;* Title only: the items are added below
    next mz
    ma = 0 ; mc = '' ; mf = ''
@@ -7435,6 +7479,12 @@ build.menu.defs:
    ml = 'Alig&n text' ; ma = F.ALIGN ; gosub add.item
    ml = 'Toggle c&hars' ; ma = F.TOGGLE ; gosub add.item
    ml = '&Overlay mode' ; ma = F.OVERLAY ; gosub add.item
+   * 8 Nov 26 (S.180, the owner: "all features available on a page need to appear somewhere on the menus"): the keyed actions no menu had
+   ml = '-' ; mc = 'x:' ; gosub add.item
+   ml = 'Delete the word &before' ; ma = F.DEL.BACK.WORD ; gosub add.item
+   ml = 'Insert a control character, &quoted' ; ma = F.QUOTE.CHAR ; gosub add.item
+   ml = 'Show the character''s code (e&xpand)' ; ma = F.EXPAND.CHAR ; gosub add.item
+   ml = 'Repeat &for the next key (a count)' ; ma = F.REPEAT ; gosub add.item
 
    mi = 3
    ml = '&Forward search...' ; ma = F.FWD.SEARCH ; gosub add.item
@@ -7499,6 +7549,14 @@ build.menu.defs:
    ml = 'Start &macro' ; ma = F.START.MACRO ; gosub add.item
    ml = 'End mac&ro' ; ma = F.END.MACRO ; gosub add.item
    ml = 'Execute m&acro' ; ma = F.EXECUTE ; gosub add.item
+
+   * 8 Nov 26 (S.179): View and Help, as on every page (the owner: the theme "should appear in the menu under view")
+   mi = 7
+   ml = '&Theme' ; ma = F.THEME ; gosub add.item
+   ml = '&Refresh screen' ; ma = F.REFRESH ; gosub add.item
+
+   mi = 8
+   ml = '&Keys in use' ; ma = F.KEYS ; gosub add.item
    return
 
 *****************************************************************************

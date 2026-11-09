@@ -8,6 +8,8 @@
 * 28 Oct 26 dm  S.88 L2: the seven boxes are panes of the layout service ($tk_layout), three columns side by side: at 140 by 43 exactly the boxes the page has always drawn, in a bigger
 *               window every column is wider, Last keys, Styles and Help are taller (Last keys holds as many keys as it has rows), and a resize is $tk_layout 'refresh' and all of it
 *               drawn again from the new rectangles (it cleared nothing before: the old boxes stayed where they were).
+* 8 Nov 26 dm  S.179: Ctrl-T is the routine every page uses ($tk_std: kept for the person); Ctrl-K the keys of the page.  Clear stays Ctrl-L (it clears and
+*               draws the page again, as Ctrl-L does on every page): a key tester takes no function key for itself, or that key could not be tested.
 * 29 Oct 26 dm  S.88 3.7a: Ctrl-T takes the library's list of themes ($sl_theme 'next': blue classic dark light mono, the ones this terminal can show) in place of its own mono classic blue.
 * END-HISTORY
 *
@@ -29,8 +31,9 @@
 *     Styles      the library's sixteen styles, each drawn in itself, to see what the theme in force looks like on this terminal
 *     Box         the border characters the library draws with
 *
-*   Every key is shown BEFORE the program acts on it.  The keys the program uses are Ctrl-L (clear what has been seen), Ctrl-R (names or raw bytes),
-*   Ctrl-T (the next theme: blue, classic, dark, light, mono - those this terminal can show) and Ctrl-Q (leave); a key that ends the program can only be tested by leaving.
+*   Every key is shown BEFORE the program acts on it.  The keys the program uses are Ctrl-L (clear what has been seen, and draw the page again), Ctrl-R (names or raw
+*   bytes), Ctrl-T (the next theme, kept for the person, as on every page), Ctrl-K (the keys of the page) and Ctrl-Q (leave); a key that ends the program can only be
+*   tested by leaving.
 *
 *   A key that makes the terminal beep and shows nothing in names mode is one the terminal type does not give a name: press Ctrl-R and press it again to
 *   see its bytes.  An Alt-letter shows as alt-x on a terminal that sends Alt+x as Esc and x.  Make the window smaller to see the cursor lock, and larger
@@ -58,9 +61,10 @@ $include tk.h
    end
 
    keys = ''
-   call $tk_keys('add', keys, 'ctrl-l', 'clear', 'clear', '', 1)
+   call $tk_keys('add', keys, 'ctrl-l', 'clear', 'clear', '', 1)          ;* S.179: Ctrl-L, which clears and redraws here; a key tester takes no function key for itself
    call $tk_keys('add', keys, 'ctrl-r', 'raw/names', 'raw', '', 1)
    call $tk_keys('add', keys, 'ctrl-t', 'theme', 'theme', '', 1)
+   call $tk_keys('add', keys, 'ctrl-k', 'keys', 'keys', '', 1)            ;* S.179: the keys of this page, as on every page
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
    LOGN = 25                                            ;* lines in Last keys (the pane's height less 2: set by get.rects)
@@ -131,17 +135,12 @@ $include tk.h
                   msg = (if rawmode then 'raw bytes: what the terminal sent' else 'names: what the screen library reports')
                   gosub draw.dynamic
                case act = 'theme'
-                  * 29 Oct 26 (S.88 3.7a): the library's own list and order (blue classic dark light mono), and only the themes this terminal can show
-                  call $sl_theme('name', '', '', '', '', thn)
-                  call $sl_theme('next', thn, '', '', '', thx)
-                  if thx = thn then
-                     msg = 'this terminal cannot show colour: no theme but mono'
-                  end else
-                     screen theme thx returning thn else
-                        msg = 'this terminal cannot show colour: no theme but mono'
-                     end
-                  end
+                  * 8 Nov 26 (S.179): the routine every page uses - the library's one list and order, only the themes this terminal can show, and the choice kept for the person
+                  call $tk_std('theme', ctx, keys, '', std.r)
+                  msg = std.r<2>
                   gosub redraw.all
+               case act = 'keys'
+                  call $tk_std('keylist', ctx, keys, pane, std.r)          ;* S.179: the keys of this page, as on every page
             end case
          end
       end
@@ -213,6 +212,7 @@ read.raw:
       if n = 12 then nm = 'ctrl-l'
       if n = 18 then nm = 'ctrl-r'
       if n = 20 then nm = 'ctrl-t'
+      if n = 11 then nm = 'ctrl-k'
    end
    return
 
@@ -325,8 +325,8 @@ draw.static:
    helps := @fm : 'by the terminal type: Ctrl-R, then press it again'
    helps := @fm : 'to see the bytes the terminal sent.'
    helps := @fm : ''
-   helps := @fm : 'Ctrl-L clears, Ctrl-R names or bytes,'
-   helps := @fm : 'Ctrl-T theme, Ctrl-Q leaves.'
+   helps := @fm : 'Ctrl-L clears, Ctrl-R names or bytes, Ctrl-T'
+   helps := @fm : 'theme, Ctrl-K keys, Ctrl-Q leaves.'
    helps := @fm : ''
    helps := @fm : 'Make the window smaller to see the cursor'
    helps := @fm : 'lock, larger again to leave it.'

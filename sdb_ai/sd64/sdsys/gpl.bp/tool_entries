@@ -56,6 +56,7 @@
 *              stages.  Made from tool_jobs (its Accounts and list boxes) and tool_voc (the entry's type and what it points at).
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the boxes
 *              (Left and Right still do).  AI > Ask the AI is a menu entry of its own.
+* 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -217,12 +218,14 @@ build.keys:
    call $tk_keys('menu', keys, 'debug', '&Entry', 'De&bug the program (in its account)', '', '')
    call $tk_keys('menu', keys, 'global', '&Entry', '&Global change of every row shown', '', '')
    call $tk_keys('menu', keys, 'undo', '&Entry', '&Undo the last global change', '', '')
+   call $tk_keys('menu', keys, 'open', '&Entry', '&Open the row', '', '')    ;* S.180: every key's action is on a menu (Enter)
    call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the entries by id', '', '')
    call $tk_keys('menu', keys, 'find', '&View', 'F&ind an id in every account', '', '')
    call $tk_keys('menu', keys, 'kind', '&View', '&Kind: VOC entries or dictionary items', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
+   call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    * The AI line: offered the actions that only change what is shown; a proposal is carried out by the page's own key, and its argument is the DEFAULT of the page's own prompt.
    call $tk_keys('ai', keys, 'pane', '', '', '', '')
    call $tk_keys('ai', keys, 'filter', '', '', '', '')
@@ -1037,6 +1040,12 @@ on.key:
          gosub do.undo
       case nm = 'f1' or nm = '?'
          gosub help.here
+      case nm = 'ctrl-t'                    ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
+         call $tk_std('keylist', ctx, keys, pnames<pane>, std.r)
       case nm = 'f5'
          gosub read.all
          gosub draw.all

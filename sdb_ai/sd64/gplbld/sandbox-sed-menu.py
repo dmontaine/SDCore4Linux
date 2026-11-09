@@ -17,7 +17,7 @@
 # 18 Oct 26 dm  SED is 140 by 42 (terminal 140x42, phase 2): the windows here are 140 by 42 and the refusal rows say 140 by 42; the
 #               file line is row 40 and the status line row 41.  The refusal's message is the library's ($sl_need, 11197).
 # 28 Oct 26 dm  D33 (owner, 20 Oct 26): part_keys - Ctrl-W closes the buffer and asks about a change, Save as is the File menu only, Ctrl-PageUp /
-#               Ctrl-PageDown switch buffers (Esc N / Esc P do not), F5 compiles and runs, the EMACS layout keeps its keys; the shortcut rows
+#               Ctrl-PageDown switch buffers (Esc N / Esc P do not), F5 compiles and runs (F9 since S.179, 8 Nov 26: F5 redraws), the EMACS layout keeps its keys; the shortcut rows
 #               of part_sed show the new keys.  WRITTEN, NOT RUN.
 # 1 Nov 26 dm   S.99 (look only; the floor to 140 by 43, owner 1 Nov 26): the windows here are 140 by 43, a 140 by 42 window is refused, and
 #               rows for the key row (row 42: the default layout's keys, in the bar's look), the application's name at the right of row 0,
@@ -50,7 +50,8 @@ passed = failed = 0
 UP, DOWN, LEFT, RIGHT = "\x1bOA", "\x1bOB", "\x1bOD", "\x1bOC"
 HOME, END = "\x1b[1~", "\x1b[4~"
 F10 = "\x1b[21~"
-F5, F5_LINUX = "\x1b[15~", "\x1b[[E"                 # compile and run (D33, 28 Oct 26): xterm and the rest, the Linux console
+F5, F5_LINUX = "\x1b[15~", "\x1b[[E"                 # refresh since S.179 (8 Nov 26; compile and run before): xterm and the rest, the Linux console
+F9 = "\x1b[20~"                                     # compile and run (S.179: F9 runs on every page)
 CPGDN, CPGUP = "\x1b[6;5~", "\x1b[5;5~"             # Ctrl-PageDown / Ctrl-PageUp: next / previous buffer
 ESC, RET, BS = "\x1b", "\r", "\x7f"
 CTRL = lambda ch: chr(ord(ch.upper()) - 64)         # noqa: E731
@@ -320,6 +321,8 @@ MENUS = {  # menu title -> labels expected in its drop-down
     "Buffer": ["Next buffer", "Previous buffer", "Goto buffer...", "List buffers", "Dive"],
     "Window": ["Split window", "Unsplit window", "Toggle window", "Refresh screen"],
     "Tools": ["Compile", "Compile and run", "Format", "Run extension...", "Command...", "Start macro", "Execute macro"],
+    "View": ["Theme", "Refresh screen"],                       # S.179, 8 Nov 26
+    "Help": ["Keys in use"],
 }
 
 
@@ -350,7 +353,7 @@ def part_sed(box, sysd):
     row("a menu is drawn over the text (the record's first line is cut at the menu's edge)", L[1][:6] != "alpha " , repr(L[1]))
     L = e.keys(ESC, idle=0.9)
     row("Esc closes it and leaves no trace: the screen equals the one before F10, all rows", L == base, "\n".join(l for l, b in zip(L, base) if l != b)[:300])
-    idx = {"Edit": 1, "Search": 2, "Buffer": 3, "Window": 4, "Tools": 5}
+    idx = {"Edit": 1, "Search": 2, "Buffer": 3, "Window": 4, "Tools": 5, "View": 6, "Help": 7}
     e.keys(F10)
     for title, i in idx.items():
         L = e.keys(RIGHT)
@@ -359,17 +362,21 @@ def part_sed(box, sysd):
     L = e.keys(RIGHT)
     row("Right from the last menu wraps to File", any("Save as..." in l for l in L[1:12]), "\n".join(L[:12]))
     L = e.keys(LEFT)
-    row("Left from File wraps to Tools", any("Compile and run" in l for l in L[1:20]), "\n".join(L[:12]))
+    row("Left from File wraps to Help (the last menu since S.179)", any("Keys in use" in l for l in L[1:20]), "\n".join(L[:12]))
     e.keys(ESC, idle=0.9)
 
     say("\n--- SED: shortcuts shown are the real ones --------------------------------------------------------")
-    want = {"Edit": [("Paste", "Ctrl-V"), ("Cut region", "Ctrl-X"), ("Copy region", "Ctrl-C"), ("Kill line", "Ctrl-K"), ("Set mark", "Esc .")],
-            "Search": [("Forward search", "Ctrl-F"), ("Backward search", "Ctrl-B"), ("Replace...", "Ctrl-R"), ("Goto line", "Ctrl-L"), ("Top", "Esc <"), ("Bottom".replace("Bottom", "Botto"), "Esc >")],
+    # S.179, 8 Nov 26: Kill line Alt-K and Goto line Alt-G (Ctrl-K is the keys in use, Ctrl-L redraws), F9 compiles and runs (F5 refreshes), and an Esc
+    # binding of one character is written Alt-x, as the IDE and the pages write it
+    want = {"Edit": [("Paste", "Ctrl-V"), ("Cut region", "Ctrl-X"), ("Copy region", "Ctrl-C"), ("Kill line", "Alt-K"), ("Set mark", "Alt-.")],
+            "Search": [("Forward search", "Ctrl-F"), ("Backward search", "Ctrl-B"), ("Replace...", "Ctrl-R"), ("Goto line", "Alt-G"), ("Top", "Alt-<"), ("Bottom".replace("Bottom", "Botto"), "Alt->")],
             "Buffer": [("Next buffer", "Ctrl-PgDn"), ("Previous buffer", "Ctrl-PgUp"), ("Delete buffer", "Ctrl-W")],     # was Esc N / Esc P and no key; D33, 28 Oct 26
-            "Tools": [("Compile and run", "F5"), ("Command...", "Esc X"), ("Run extension", "Esc E")]}
+            "Tools": [("Compile and run", "F9"), ("Command...", "Alt-X"), ("Run extension", "Alt-E")],
+            "View": [("Theme", "Ctrl-T"), ("Refresh screen", "F5")],
+            "Help": [("Keys in use", "Ctrl-K")]}
     for title, pairs in want.items():
         e.keys(F10)
-        for _ in range(["File", "Edit", "Search", "Buffer", "Window", "Tools"].index(title)):
+        for _ in range(["File", "Edit", "Search", "Buffer", "Window", "Tools", "View", "Help"].index(title)):
             e.keys(RIGHT)
         L = e.keys()
         for label, sc in pairs:
@@ -466,7 +473,7 @@ def part_sed(box, sysd):
         and F in L[40] and "lines" in L[41] and "save" in L[42], "\n".join(l[:60] for l in L[:3]) + "\n...\n" + "\n".join(l[:60] for l in L[39:43]))
     say("\n--- SED: S.99, the key row and the application's name (look only) --------------------------------")
     kr = L[42]
-    want = ["F10 menu", "^S save", "^Q quit", "^O open", "^F find", "^R replace", "^L go to", "^Z undo", "^Y redo", "F5 run"]
+    want = ["F10 menu", "^S save", "^Q quit", "^O open", "^F find", "^R replace", "Alt-G go to", "^Z undo", "^Y redo", "F9 run"]     # S.179, 8 Nov 26
     row("the key row names the default layout's keys, in order: " + "  ".join(want),
         all(w in kr for w in want) and [kr.find(w) for w in want] == sorted(kr.find(w) for w in want), repr(kr.rstrip()))
     row("...and nothing else (no cursor-key sequence, no unnamed key)", re.sub(r"\s+", " ", kr.strip()) == " ".join(want), repr(kr.rstrip()))
@@ -517,8 +524,8 @@ def part_sed(box, sysd):
     e.keys("y")
     e.end()
     e = Term(box, "SED %s r1" % F)
-    L = e.keys(CTRL("l"))
-    row("Ctrl-L asks for a line (Goto line), Esc gives it up", any("Line" in l or "line" in l for l in L[-3:]), "\n".join(L[-3:]))
+    L = e.keys("\x1bg")                                 # Alt-G (S.179; Ctrl-L redraws the screen)
+    row("Alt-G asks for a line (Goto line), Ctrl-G gives it up", any("Line" in l or "line" in l for l in L[-3:]), "\n".join(L[-3:]))
     e.keys(CTRL("g"))
     e.keys(CTRL("f"))
     L = e.lines()
@@ -569,8 +576,14 @@ def part_keys(box, sysd):
     leave(e)
     sess(box, "DELETE %s r9" % F)
 
-    say("\n--- SED: F5 compiles and runs (the Tools > Compile and run action) -----------------------------------------------")
+    say("\n--- SED: F9 compiles and runs (the Tools > Compile and run action); F5 only redraws (S.179) ----------------------------")
     for name, key in (("F5 (ESC [ 15 ~)", F5), ("F5 of the Linux console (ESC [ [ E)", F5_LINUX)):
+        e = Term(box, "SED %s r1" % F)
+        L = e.keys(key, idle=2.0)
+        row("%s redraws and does not hand the screen over: no 'Press RETURN', the bar and the record are there" % name,
+            not any("Press RETURN" in l for l in L) and "File" in L[0] and L[1].startswith("alpha one"), "\n".join(l for l in L if l.strip())[-300:])
+        leave(e)
+    for name, key in (("F9 (ESC [ 20 ~)", F9),):
         e = Term(box, "SED %s r1" % F)
         L = e.lines()
         row("control: before %s the 'Press RETURN' line is not there and the bar is" % name, not any("Press RETURN" in l for l in L) and "File" in L[0], "\n".join(L[:2]))
@@ -597,7 +610,7 @@ def part_keys(box, sysd):
         e.keys(ESC, idle=0.9)
         e.keys(F10, RIGHT, RIGHT, RIGHT)
         L = e.keys()
-        for label, sc in (("Next buffer", "Esc N"), ("Previous buffer", "Esc P"), ("Delete buffer", "Ctrl-X K")):
+        for label, sc in (("Next buffer", "Alt-N"), ("Previous buffer", "Alt-P"), ("Delete buffer", "Ctrl-X K")):     # Esc N / Esc P, written Alt- since S.179
             ok = any(label in l and (sc + " ") in (l + " ") for l in L[1:30])
             row("EMACS: Buffer > %s shows %s" % (label, sc), ok, "\n".join(l for l in L[1:30] if label in l))
         e.keys(ESC, idle=0.9)

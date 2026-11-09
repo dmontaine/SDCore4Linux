@@ -1,6 +1,28 @@
 Next release - in progress
 --------------------------
 
+8 Nov 26   THE SAME KEYS ON EVERY FULL-SCREEN PROGRAM, A THEME OF YOUR OWN, AND EVERY ACTION ON A MENU.
+
+             What        - On every page, the home screen, the IDE, SED, the debugger and SP.VIEW: Ctrl-T takes the next colour
+                           theme and SD keeps your choice (every full-screen program starts in it from then on, in that account and
+                           in later sessions; the site's SCREENTHEME is used until you choose); Ctrl-K shows the keys; F5 and
+                           Ctrl-L draw the screen again; View > Theme and Help > Keys are on every menu bar. To make room, keys
+                           moved: run is F9 in the IDE, SED and the debugger (it was F5), the IDE's compile-and-catalogue is
+                           Shift-F9 (it was F9) and go to a line Alt-G (it was Ctrl-L); the IDE fields pane's change of type is
+                           Alt-T and its editor cuts a line with Alt-K; SED's kill line is Alt-K, toggle characters Alt-T and go
+                           to a line Alt-G (SED's menus now write Esc and a letter as Alt and the letter, as every page does); the
+                           debugger's command line deletes to the end with Alt-K and swaps with Alt-T; the home screen's Terminal
+                           is Alt-T and Sign out (after HOME at the prompt) Alt-X; tool.keys still clears with Ctrl-L, so that no
+                           function key is taken from the key tester.
+                           Every action is now on a menu: the debugger and SP.VIEW have a menu bar (Esc or F10), the IDE an Edit
+                           menu, SED View and Help menus and four more Edit items, and the pages the few entries they lacked.
+             Why         - The owner: "The commands need to be consistent across all pages ... the theme switching capability
+                           should be available on every page using the same methodology and should appear in the menu under
+                           view"; and "all features available on a page need to appear somewhere on the menus".
+             Does NOT    - Change SED's emacs layout or a key you bound yourself in SED. Add a menu bar to tool.keys (it must
+                           show Esc and F10) or to dialogues. Keep the theme outside SD: it is a record of the account's &menus&
+                           file, so no gate is crossed. Change the TCL command line's own editing keys.
+
 8 Nov 26   SD -STOP NO LONGER LEAVES SESSIONS BEHIND, AND A SESSION THAT LOSES SD ENDS INSTEAD OF SPINNING.
 
              What        - sd -stop and sd -restart (and so a service stop, a restart and a reinstall) still send every

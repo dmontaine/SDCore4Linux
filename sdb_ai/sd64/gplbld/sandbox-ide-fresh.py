@@ -72,7 +72,8 @@ E = "\x1b"
 X_UP, X_DOWN = E + "OA", E + "OB"
 L_DOWN = E + "[B"
 F10, F12 = E + "[21~", E + "[24~"
-F8, F9 = E + "[19~", E + "[20~"          # compile, build (compile and catalogue): the owner's keys of 20 Oct, S.88 Phase 4 (F7 is debug now)
+F8, F9 = E + "[19~", E + "[20~"          # compile, run (F9 since S.179, 8 Nov 26; it was build)
+SHIFT_F9 = E + "[20;2~"                  # build (compile and catalogue): Shift-F9 since S.179
 X_F2 = E + "OQ"                          # F2 in terminfo's xterm: it saved before Phase 4 and does nothing now (Ctrl-S is the only save key)
 RET, TAB, ESC = "\r", "\t", E
 F6 = E + "[17~"                     # 8 Nov 26 (S.176): the box key of every page; Tab no longer moves between the IDE's panes
@@ -251,7 +252,7 @@ def section_bare():
     pre = ANSI.sub("", first.split(b"\x1b[2J")[0].decode("latin-1"))
     say("    bytes written before the first clear, escapes removed: %r" % pre[:160])
     R.row("I0 control: a bare IDE asks no question before its page, and the page is drawn (menu bar on row 0, 'IDE:' on row 1)",
-          b"\x1b[2J" in first and "?" not in pre and re.search(r"File\s+Go\s+Search", s.row(0)) is not None and s.in_ide(),
+          b"\x1b[2J" in first and "?" not in pre and re.search(r"File\s+Edit\s+Go\s+Search", s.row(0)) is not None and s.in_ide(),
           "pre=%r row0=%r row1=%r" % (pre[:80], s.row(0)[:60], s.row(1)[:60]))
     s.show("bare IDE", rows=range(0, 8))
     before = s.editor()
@@ -616,8 +617,8 @@ def section_loop():
           "disk=%s status=%r" % (disk(rec), s.status()[:100]))
     s.type(F8, wait=3.0, show="F8 (compile)")
     R.row("L4 a clean compile (F8) says so and names the record", ("Compiled bp %s with no errors" % rid1) in s.status(), s.status()[:120])
-    s.type(F9, wait=3.0, show="F9 (build: compile and catalogue)")
-    R.row("L5 F9 catalogues and says so only after CATALOG said it did: 'Catalogued bp %s'" % rid1, ("Catalogued bp %s" % rid1) in s.status(), s.status()[:120])
+    s.type(SHIFT_F9, wait=3.0, show="Shift-F9 (build: compile and catalogue)")
+    R.row("L5 Shift-F9 catalogues and says so only after CATALOG said it did: 'Catalogued bp %s'" % rid1, ("Catalogued bp %s" % rid1) in s.status(), s.status()[:120])
     s.type(CTRL_Q, wait=1.5, show="Ctrl-Q")
     s.end()
     out = g.plain(A1, [rid1])

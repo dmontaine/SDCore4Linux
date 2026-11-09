@@ -34,7 +34,7 @@ MSG = os.path.join(SD64, "sdsys", "messages")
 DOC = os.path.join(SD64, "tui-design.md")
 TAGS = ("BUILT", "PLANNED", "DROPPED", "EXCEPTION", "OPEN")   # OPEN (2 Nov 26 review): put to the owner, not decided - F2's 140x42 default was wrongly called his ruling
 EXEMPT = {"tool_keys": "E1", "tool_tktest": "E2", "tool_home": "E6"}
-IDE_MENUS = (11225, 11226, 11227, 11228, 11229, 11230, 11654, 14004)      # 14004: the Tools menu (S.75 DV10, 3 Nov 26)
+IDE_MENUS = (11225, 11226, 11227, 11228, 11229, 11230, 11654, 14004, 14019)      # 14004: the Tools menu (S.75 DV10, 3 Nov 26); 14019 the Edit menu (S.180, 8 Nov 26)
 PRIVATE = (".claude", "/home/", "PROJECT_STATUS", "Opus_TUI", "pCloud", "sdcore-mail")
 
 
@@ -228,9 +228,10 @@ def checks(s):
     ck("T9 the exceptions are the document's section 7 and the page table's Rules column alike, every other page is 'all', and each exception still holds (an exempt page that gains the rule fails)",
        not xbad, "; ".join(xbad))
     titles = [s["msg:%d" % n].split("|")[0].replace("&", "").strip() for n in IDE_MENUS]
-    ck("T10 the IDE's menus (messages 11225-11230, 11654, 14004) are File Go Search Build View Help, AI and Tools, with no Edit menu, as E5 says (Tools and AI are put before Help)",
-       titles == ["File", "Go", "Search", "Build", "View", "Help", "AI", "Tools"] and "File, Go, Search, Build, View, Tools, AI, Help (there is no Edit menu)" in doc
-       and "if j = 11230 then\n         m = change(sysmsg(14004), '|', @vm)" in s["ide"], repr(titles))
+    ck("T10 the IDE's menus (messages 11225-11230, 11654, 14004, 14019) are File Go Search Build View Help, AI, Tools and Edit, as E5 says (Edit is put after File, Tools and AI before Help; S.180, 8 Nov 26)",
+       titles == ["File", "Go", "Search", "Build", "View", "Help", "AI", "Tools", "Edit"] and "File, Edit, Go, Search, Build, View, Tools, AI, Help" in doc
+       and "if j = 11230 then\n         m = change(sysmsg(14004), '|', @vm)" in s["ide"]
+       and "if j = 11226 then\n         m = change(sysmsg(14019), '|', @vm)" in s["ide"], repr(titles))
     codes = re.search(r"\$define SL\.CODES\s+'([^']+)'", s["sl.h"])
     ck("T11 the theme: SL.CODES holds the role letters f U V W X Y, the shipped sd.conf says SCREENTHEME=paper (S.172), and the document says the same (T1, T2)",
        codes and all(c in codes.group(1) for c in "fUVWXY") and re.search(r"^SCREENTHEME=paper\s*$", s["sd.conf"], re.M)
@@ -268,7 +269,7 @@ MUTANTS = [
     ("tool.keys gains a menu bar while it is still listed as exempt", "pages:tool_keys", "   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)\n",
      "   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)\n   call $tk_menubar('draw', ctx, keys, '', '', '', mr)\n", "T9"),
     ("a page is marked exempt in the table only", "doc", "| `tool_jobs` | tool.jobs | administrator | all |", "| `tool_jobs` | tool.jobs | administrator | E1 |", "T9"),
-    ("the IDE gains an Edit menu in the document", "doc", "File, Go, Search, Build, View, AI, Help (there is no Edit menu)", "File, Edit, Go, Search, Build, View, AI, Help", "T10"),
+    ("the IDE loses its Edit menu in the document", "doc", "File, Edit, Go, Search, Build, View, Tools, AI, Help", "File, Go, Search, Build, View, Tools, AI, Help (there is no Edit menu)", "T10"),
     ("the shipped theme is blue again", "sd.conf", "SCREENTHEME=paper", "SCREENTHEME=blue", "T11"),
 ]
 

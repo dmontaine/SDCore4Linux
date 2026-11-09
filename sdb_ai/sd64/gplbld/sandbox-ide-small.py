@@ -504,8 +504,8 @@ def part_d():
     say("\n--- D: a question the IDE asks while the window is made smaller: the lock's way out closes it as Esc does --------------")
     e = Term(BOX, "IDE %s r1" % F)
     e.keys(DOWN * 20, idle=0.8)
-    L = e.keys(CTRL("l"), idle=0.8)
-    row("setup: Ctrl-L opens the go-to-line question (its box is on rows 19 to 22)",
+    L = e.keys("\x1bg", idle=0.8)                      # Alt-G since S.179 (8 Nov 26; Ctrl-L redraws)
+    row("setup: Alt-G opens the go-to-line question (its box is on rows 19 to 22)",
         any("Go to (a line" in l for l in L[18:24]), text(L[16:26], 10))        # 29 Oct 26: message 11209 reads "Go to (a line; line,column; ..." ("Line number:" was the first wording)
     e.resize(100, 16)
     L = e.lines()

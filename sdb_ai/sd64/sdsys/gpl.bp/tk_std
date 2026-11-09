@@ -1,0 +1,73 @@
+* TK_STD
+* The full-screen toolkit, shared base: the keys every page has the same (S.179) - Ctrl-T the theme, Ctrl-K the keys of the page.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 8 Nov 26 dm  New (S.179, S.180).  The owner, 8 Nov: "The commands need to be consistent across all pages ... the theme switching capability should be
+*              available on every page using the same methodology and should appear in the menu under view"; "all features available on a page need to
+*              appear somewhere on the menus".
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   call $tk_std(op, ctx, keys, pane, ret)
+*
+*     op keys     adds to the page's key table (keys) the rows every page has - Ctrl-T theme (action theme) and Ctrl-K keys (action keys) - and their
+*                 menu entries, View > Theme and Help > Keys.  A page calls it once in its build of the table, after its own View and Help entries.
+*                 ret is not used.
+*     op theme    the page's handler of Ctrl-T (and of the menu entry, which a page receives as the key): the next theme, kept for the person, and the
+*                 library's screen drawn again in it ($tk_theme 1).  ret<1> 1 when a new theme is in force (the page then draws itself whole, as
+*                 after a resize, so that colours it makes from the theme are made again), ret<2> the line for the status bar.
+*     op keylist  the page's handler of Ctrl-K: the keys of this page that the focused pane (pane) uses, each with what it does and why it is out of
+*                 use when it is, in a box over the page; the box puts back what was under it.  ret<1> 0, ret<2> null.
+*
+*   THE ROUTINE IS NOT THE REGISTRY.  The registry ($tk_keys) runs nothing; a page's own case on Ctrl-T or the action calls this routine, so every page
+*   does the same thing the same way.  F1 help, F5 refresh, F6 / Shift-F6 the boxes, F10 and Esc the menu bar, Ctrl-L a redraw ($screen_key) and Ctrl-Q
+*   leave are the page's own rows, as they were.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+$internal
+subroutine tk_std(op, ctx, keys, pane, ret)
+$catalog $tk_std
+$include sl.h
+$include tk.h
+
+   ret = ''
+   begin case
+      case op = 'keys'
+         * The two rows are bound and in the menus, but not written on the page's function-key row, which is each page's own (as tool_home's off.row)
+         call $tk_keys('add', keys, 'ctrl-t', 'theme', 'theme', '', 1)
+         keys<dcount(keys, @fm), TK.K.ROW> = 0
+         call $tk_keys('add', keys, 'ctrl-k', 'keys', 'keys', '', 1)
+         keys<dcount(keys, @fm), TK.K.ROW> = 0
+         call $tk_keys('menu', keys, 'theme', '&View', '&Theme', '', '')
+         call $tk_keys('menu', keys, 'keys', '&Help', '&Keys', '', '')
+
+      case op = 'theme'
+         call $tk_theme(1, chg, tmsg)
+         ret = chg : @fm : tmsg
+
+      case op = 'keylist'
+         call $tk_keys('keylist', keys, pane, kl, '', '', '')
+         lines = ''
+         for i = 1 to dcount(kl, @fm)
+            lines<1, -1> = kl<i>
+         next i
+         if lines = '' then lines = 'This page has no keys of its own.'
+         call $sl_scr('get', scr)
+         hw = ''
+         hw<SL.W.D> = 'Keys of this page'
+         hw<SL.W.D + 1> = lines
+         hw<SL.W.D + 2> = '&OK'
+         call $sl_msgbox('init', hw, scr, '', hb)       ;* over the page's own picture, which the box puts back cell for cell when it closes
+         call $sl_msgbox('run', hw, scr, '', hb)
+         call $sl_scr('put', scr)
+         ret = 0 : @fm : ''
+   end case
+   return
+end
+
+* END-CODE

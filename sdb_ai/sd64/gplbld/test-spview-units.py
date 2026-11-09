@@ -98,17 +98,18 @@ def checks(src):
        0 <= at(si, "read rec from data.f, item.name") < at(si, "if look.able then gosub theme.in") < at(si, "gosub set.look") < at(si, "gosub show.data.page"))
     ck("V7 the theme is given back when the record is left: theme.out after the command loop of show.item",
        "if themed or look then gosub theme.out" in si and at(si, "repeat") < at(si, "gosub theme.out"))
-    ck("V8 theme.in keeps a theme in force unless it is mono; then SCREENTHEME of sd.conf, else classic; theme.out sets the old one back, else mono, and clears plain",
-       "call $sl_theme('name', '', '', '', '', old.theme)" in ti and "config('SCREENTHEME')" in ti
+    ck("V8 theme.in keeps a theme in force unless it is mono; then the person's or the site's theme ($sl_theme 'site', 8 Nov 26, S.179), else classic; theme.out sets the old one back, else mono, and clears plain",
+       "call $sl_theme('name', '', '', '', '', old.theme)" in ti and "call $sl_theme('site', '', '', '', '', site.theme)" in ti and "config('SCREENTHEME')" not in ti
        and "if old.theme = '' or old.theme = 'mono' then" in ti and "call $sl_theme('set', 'classic', '', '', '', th.r)" in ti
        and "call $sl_theme('set', old.theme, '', '', '', th.r)" in to and "call $sl_theme('set', 'mono', '', '', '', th.r)" in to
        and "call $sl_sgr('n', sq)" in to and "look = @false" in to)
     ck("V9 the styles are the theme's roles: the bar, the prompt and the key row 'a' (bar), the record 't' (text), the status line the reverse role",
        "bar.attr = 'a'" in ti and "text.attr = 't'" in ti and "call $sl_theme('code', 'reverse', '', '', '', rev.attr)" in ti)
-    ck("V10 the bar: the file and the record at the left and 'sp.view  user@account' at the right end of row 0, the tag given as a copy",
-       "pf.app = 'sp.view  ' : @logname : '@' : @who : ' '" in pf and "pf.w = lay.w - len(pf.app)" in pf
-       and "call $sl_put(scr, pf.w, 0, pf.app[1, len(pf.app)], bar.attr)" in pf and "call $sl_put(scr, 0, 0," in pf
-       and "call $sl_put(scr, pf.w, 0, pf.app, " not in pf)
+    ck("V10 the bar: the menu bar's titles (File View Help, S.180) at the left, then the file and the record, and 'sp.view  user@account' at the right end of row 0, the tag given as a copy",
+       "pf.app = 'sp.view  ' : @logname : '@' : @who : ' '" in pf and "pf.w = lay.w - len(pf.app) - sp.tw" in pf
+       and "gosub sp.bar" in pf and "call $sl_menu('draw', sp.w, scr, '', sp.r)" in pf
+       and "call $sl_put(scr, lay.w - len(pf.app), 0, pf.app[1, len(pf.app)], bar.attr)" in pf and "call $sl_put(scr, sp.tw, 0," in pf
+       and "call $sl_put(scr, lay.w - len(pf.app), 0, pf.app, " not in pf)
     adds = re.findall(r"call \$tk_keys\('add', kr\.keys, '([^']*)', '([^']*)', '([^']*)', '', ''\)", pf)
     keys = [a[0] for a in adds]
     ck("V11 the key row is made by $tk_fkeys from a table of $tk_keys rows, as wide as the window, and drawn on the key line in the bar style",
@@ -193,7 +194,7 @@ def mutants(src):
         "   call $sl_need('sp.view', LAY.WIDTH, LAY.DEPTH, need.msg, '')\n   look = (look.able and win.w >= LAY.WIDTH")
     sub("the old status line lost", "         display @(0, info.line) : @(-13) : fmt(info.text, info.fmt) :\n", "")
     sub("the theme never given back", "   if themed or look then gosub theme.out", "   null")
-    sub("the site theme ignored", "      site.theme = downcase(trim(config('SCREENTHEME')))", "      site.theme = ''")
+    sub("the site theme ignored", "      call $sl_theme('site', '', '', '', '', site.theme)", "      site.theme = ''")
     sub("a program's theme replaced", "   if old.theme = '' or old.theme = 'mono' then", "   if 1 then")
     sub("the app tag passed by reference", "call $sl_put(scr, pf.w, 0, pf.app[1, len(pf.app)], bar.attr)", "call $sl_put(scr, pf.w, 0, pf.app, bar.attr)")
     sub("no user@account at the right", "pf.app = 'sp.view  ' : @logname : '@' : @who : ' '", "pf.app = 'sp.view '")

@@ -51,9 +51,11 @@ for _n in (11204, 11207, 11214, 11215, 11216, 11225, 11226, 11227, 11228, 11683,
 
 # the key map, as the owner settled it: key name -> command word
 KEYMAP = {
-    "f1": "help", "ctrl-s": "save", "f4": "nexterr", "f5": "run", "f6": "nextpane", "shift-f6": "prevpane", "f7": "debug", "shift-f7": "bptoggle", "f8": "compile", "f9": "catalog",
+    # 8 Nov 26 (S.179, the owner: the same keys on every page; F5 refresh everywhere, run on F9): F5 and Ctrl-L refresh, F9 run, Shift-F9 catalog, Alt-G goto, Ctrl-T theme, Ctrl-K keys
+    "f1": "help", "ctrl-s": "save", "f4": "nexterr", "f5": "refresh", "ctrl-l": "refresh", "f9": "run", "shift-f9": "catalog", "f6": "nextpane", "shift-f6": "prevpane", "f7": "debug",
+    "shift-f7": "bptoggle", "f8": "compile",
     "ctrl-pgdn": "nexttab", "ctrl-pgup": "prevtab", "alt-pgdn": "nexttab", "alt-pgup": "prevtab", "f10": "menu", "ctrl-q": "quit", "ctrl-w": "close", "ctrl-n": "new", "ctrl-o": "open",
-    "ctrl-e": "sed", "ctrl-l": "goto", "ctrl-r": "replace", "f12": "fields",
+    "ctrl-e": "sed", "alt-g": "goto", "ctrl-r": "replace", "f12": "fields", "ctrl-t": "theme", "ctrl-k": "keys",
 }
 # the help: the line that names a key, a word its description holds, the key name it stands for
 # a key name of None is a key the editor (the memo) owns and the IDE does not bind: only the help's wording is held (the memo's own keys are IK18)
@@ -61,8 +63,9 @@ HELP = (
     ("m11214", "Ctrl-S", "Save", "ctrl-s"), ("m11214", "Ctrl-N", "New record", "ctrl-n"), ("m11214", "Ctrl-O", "Open a record", "ctrl-o"),
     ("m11214", "Ctrl-W", "Close the record", "ctrl-w"), ("m11214", "Ctrl-PgDn, PgUp", "record tab", "ctrl-pgdn"),
     ("m11214", "Alt-PgDn, PgUp", "own tabs", "alt-pgdn"), ("m11214", "F6, Shift-F6", "previous pane", "shift-f6"),
-    ("m11215", "F4", "Next error", "f4"), ("m11215", "F5", "Run", "f5"), ("m11215", "F7", "Debug", "f7"), ("m11215", "F8", "Compile", "f8"),
-    ("m11215", "F9", "compile and catalogue", "f9"), ("m11215", "Ctrl-L", "Go to a line", "ctrl-l"), ("m11215", "Ctrl-E", "SED", "ctrl-e"),
+    ("m11215", "F4", "Next error", "f4"), ("m11215", "F9", "Run", "f9"), ("m11215", "F7", "Debug", "f7"), ("m11215", "F8", "Compile", "f8"),
+    ("m11215", "F5, Ctrl-L", "Draw the screen again", "f5"), ("m11215", "Ctrl-T", "theme", "ctrl-t"), ("m11215", "Ctrl-K", "keys", "ctrl-k"),
+    ("m11215", "Shift-F9", "compile and catalogue", "shift-f9"), ("m11215", "Alt-G", "Go to a line", "alt-g"), ("m11215", "Ctrl-E", "SED", "ctrl-e"),
     ("m11215", "F12", "as fields", "f12"),
     ("m11216", "F3, Shift-F3", "previous", None), ("m11216", "Esc, F10", "menus", "f10"), ("m11216", "Ctrl-Q", "Quit", "ctrl-q"), ("m11216", "F1", "This screen", "f1"),
     ("m11216", "Ctrl-R", "Replace", "ctrl-r"),
@@ -207,7 +210,7 @@ def checks(raw):
        and all(w in allhelp for w in ("Shift-F6", "Shift-F3", "Alt-PgDn"))
        and all(("Ctrl-" + c) in allhelp for c in ("S", "N", "O", "W", "L", "E", "R", "Q", "PgDn")), "")
     ck("IK8", "the menu is the help's key table made of the same words: the entry for each of F5, F7, F8, F9 shows that key (the menu was where F7 compile and F8 compile-and-catalogue stood)",
-       [(c, s) for _, s, c in menus[11228]] == [("compile", "F8"), ("catalog", "F9"), ("run", "F5"), ("debug", "F7"), ("xeq", ""), ("format", ""), ("debug1", ""), ("bptoggle", "Shift-F7"), ("bpclear", "")], repr(menus[11228]))      # (xeq, format, 29 Oct 26: no key; the last three, 2 Nov 26, S.98 H2)
+       [(c, s) for _, s, c in menus[11228]] == [("compile", "F8"), ("catalog", "Shift-F9"), ("run", "F9"), ("debug", "F7"), ("xeq", ""), ("format", ""), ("debug1", ""), ("bptoggle", "Shift-F7"), ("bpclear", "")], repr(menus[11228]))      # (xeq, format, 29 Oct 26: no key; the last three, 2 Nov 26, S.98 H2)
     cat = case_block(rc, "case cmd = 'catalog'")
     ck("IK9", "F9 builds: 'catalog' compiles first (no debugging option), runs CATALOG only when the compile was good, and only then asks catalog.verified; 'compile' catalogues nothing",
        re.search(r"c\.opt = ''\s*\n\s*gosub do\.compile\s*\n\s*if c\.ok then\s*\n.*\n\s*execute 'catalog ' : qp\.f : ' ' : qp\.i capturing co\s*\n\s*gosub catalog\.verified", cat) is not None
@@ -233,8 +236,9 @@ def checks(raw):
     ck("IK14", "the tree lists only files of records and leaves out the names that start with a dollar sign ($acc, $hold, $map, $release): the VOC walk tests the first character",
        re.search(r"if \(t1 = 'F' or t1\[1, 5\] = 'FILE '\) and ids<i>\[1, 1\] # '\$' then fl<-1> = ids<i>", bf) is not None, bf[:120])
     pk = re.search(r"mw\{'passkeys'\} = ('[^']*'(?: : @vm : '[^']*')*)", ide)
-    ck("IK15", "the editor passes exactly Ctrl-E (SED) to the IDE and keeps all the memo's other keys, F3 and Shift-F3 among them; the first buffer of a bare IDE is an untitled one",
-       pk is not None and pk.group(1) == "'ctrl-e'" and "gosub add.untitled" in ide[: ide.find("do.key:")], pk.group(1) if pk else "no passkeys line")
+    ck("IK15", "the editor passes exactly Ctrl-E (SED), Ctrl-T (the theme) and Ctrl-K (the keys) to the IDE (S.179, 8 Nov 26) and keeps all the memo's other keys, F3 and Shift-F3 among them; "
+       "the first buffer of a bare IDE is an untitled one",
+       pk is not None and pk.group(1) == "'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'" and "gosub add.untitled" in ide[: ide.find("do.key:")], pk.group(1) if pk else "no passkeys line")
     # ---- the memo -------------------------------------------------------------------------------------------------------------------------------------------------
     ck("IK16", "the memo: Ctrl-A selects ALL (the mark at the start, the cursor at the end of the last line), it is not the start of the row (Home is)",
        re.search(r"case key = 'ctrl-a'\s*\n\s*my = 1 ; mx = 1\s*\n\s*cy = n\s*\n\s*cx = len\(lines<n>\) \+ 1", case_block(memo, "case key = 'ctrl-a'")) is not None
@@ -248,7 +252,7 @@ def checks(raw):
     ck("IK19", "the memo: Ctrl-D DUPLICATES the line (kind 'dup': an undo step, the copy inserted under the line, the cursor on it) and deletes or joins nothing - Del joins",
        "kind = 'dup'" in cd and "gosub snap.push" in cd and "ins lines<cy> before lines<cy + 1>" in cd and "cy += 1" in cd and "del " not in cd
        and "lines<cy> = ln : lines<cy + 1>" in case_block(memo, "case key = 'del'"), cd[:150])
-    ck_ = case_block(memo, "case key = 'ctrl-k'")
+    ck_ = case_block(memo, "case key = 'ctrl-k' or key = 'alt-k'")      # 8 Nov 26 (S.179): Alt-K as well, for the IDE, which keeps Ctrl-K (the keys)
     ck("IK20", "the memo: Ctrl-K CUTS THE WHOLE LINE into the clipboard (kind 'cutline': an undo step, the line and its end mark in clip.text, the line removed, the cursor at the start of the row below), "
        "an only line is emptied and not deleted",
        "kind = 'cutline'" in ck_ and "gosub snap.push" in ck_ and "clip.text = lines<cy> : @fm" in ck_ and "clip.has = 1" in ck_ and "del lines<cy>" in ck_ and "lines<cy> = ''" in ck_ and "cx = 1" in ck_,
@@ -356,8 +360,9 @@ MUTANTS = [
                                                    "      b = 2\n      begin case\n         case b = 1\n            sv.i = cb")),
     ("the name form lets a dollar file through", "IK13", sub("ide_name", "case ff[1, 1] = '$'", "case ff[1, 1] = '%'")),
     ("the tree lists the dollar entries", "IK14", sub("ide", " and ids<i>[1, 1] # '$' then fl<-1>", " then fl<-1>")),
-    ("the editor passes F3 to the IDE again", "IK15", sub("ide", "mw{'passkeys'} = 'ctrl-e'", "mw{'passkeys'} = 'ctrl-e' : @vm : 'f3'")),
-    ("the editor passes nothing to the IDE", "IK15", sub("ide", "mw{'passkeys'} = 'ctrl-e'", "mw{'passkeys'} = ''")),
+    ("the editor passes F3 to the IDE again", "IK15", sub("ide", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k' : @vm : 'f3'")),
+    ("the editor passes nothing to the IDE", "IK15", sub("ide", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = ''")),
+    ("the editor keeps Ctrl-T for itself (S.179)", "IK15", sub("ide", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-k'")),
     ("Ctrl-A is the start of the row", "IK16", sub("memo", "         my = 1 ; mx = 1\n         cy = n\n         cx = len(lines<n>) + 1\n         want = cx", "         my = 0 ; mx = 0\n         cx = 1\n         want = cx")),
     ("Ctrl-O copies again", "IK17", sub("memo", "case key = 'ctrl-c'", "case key = 'ctrl-c' or key = 'ctrl-o'")),
     ("Ctrl-N finds the next again", "IK17", sub("memo", "case key = 'f3'", "case key = 'f3' or key = 'ctrl-n'")),

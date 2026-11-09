@@ -53,6 +53,7 @@ passed = failed = 0
 COLS, ROWS = 140, 43
 PROMPT, STATUS, BORDER, KEYS = 39, 40, 41, 42
 PER_PAGE = ROWS - 5                                  # 38 lines of the record, rows 1 to 38
+BAR = " File  View  Help "                     # S.180, 8 Nov 26: the menu bar's titles at the left of row 0, before the file and the record
 KEYTEXT = "PgDn next  PgUp previous  Home top  End bottom  Left scroll left  Right scroll right  S spool  X delete  Q quit"
 RET, ESC = "\r", "\x1b"
 PGDN, PGUP, HOME, END = "\x1b[6~", "\x1b[5~", "\x1b[1~", "\x1b[4~"           # xterm's terminfo, as sandbox-ide.py sends them
@@ -160,7 +161,7 @@ def sec_look(box, conf_note):
     t = Term(box, "SP.VIEW %s big" % FILE)
     L = t.lines()
     row("setup: SP.VIEW is up on the record (its status line says top = 1, left = 1)", top(L) == (1, 1), "\n".join(L[-5:]))
-    row("the bar on row 0 names the file and the record at its left", L[0].startswith("%s  big" % FILE), repr(L[0][:40]))
+    row("the bar on row 0 has the menu titles (File View Help) and then names the file and the record at its left", L[0].startswith(BAR + "%s  big" % FILE), repr(L[0][:40]))
     row("...and 'sp.view  user@account' at its right end, as the pages have their app name", re.search(r"sp\.view  \S+@\S+$", L[0]) is not None
         and len(L[0].rstrip()) == COLS - 1, repr(L[0][-40:]))          # the tag ends with a blank, as SED's and the IDE's do
     row("the bar is in the bar style of the classic theme (black on white), at the left and under the tag",
@@ -238,7 +239,7 @@ def sec_keys(box, fdir):
     if onscreen(L, "OK to print") and not onscreen(L, "big (100 lines"):
         L = t.keys(RET, idle=1.0)
     row("...Q leaves it and the frame is drawn again: bar, record, key row", L[1].startswith("line 001 ") and L[KEYS].rstrip() == KEYTEXT
-        and L[0].startswith(FILE), "\n".join(L[:2] + L[-3:]))
+        and L[0].startswith(BAR + FILE), "\n".join(L[:2] + L[-3:]))
 
     L = t.keys("q", idle=0.8)
     row("Q asks first, on the prompt line (Press return to quit)", "return to quit" in L[PROMPT].lower(), repr(L[PROMPT][:60]))
@@ -321,7 +322,7 @@ def sec_resize(box):
     L = t.keys(HOME)
     L = t.resize(COLS, ROWS)
     row("back to 140 by 43: the look again (bar, record from row 1, key row on row 42)",
-        L[0].startswith(FILE) and L[1].startswith("line 001 ") and L[KEYS].rstrip() == KEYTEXT, "\n".join(L[:2] + L[-2:]))
+        L[0].startswith(BAR + FILE) and L[1].startswith("line 001 ") and L[KEYS].rstrip() == KEYTEXT, "\n".join(L[:2] + L[-2:]))
     L = t.keys("q", RET, idle=1.2)
     # 2 Nov 26: the theme is given back after the look was left and taken again by the resizes (theme.out)
     row("...Q and Return after the resizes: SP.VIEW has left, and TCL is in the terminal's own colours (row 0 and a cell mid-screen)",
@@ -358,7 +359,7 @@ def sec_nocolour(box):
     L = t.lines()
     row("setup: SP.VIEW is up on a vt100 (its status line says top = 1, left = 1)", top(L) == (1, 1), "\n".join(L[-5:]))
     row("the look is drawn: the bar on row 0, the record from row 1, the key row on row 42",
-        L[0].startswith("%s  big" % FILE) and L[1].startswith("line 001 ") and L[KEYS].rstrip() == KEYTEXT, "\n".join(L[:2] + L[-2:]))
+        L[0].startswith(BAR + "%s  big" % FILE) and L[1].startswith("line 001 ") and L[KEYS].rstrip() == KEYTEXT, "\n".join(L[:2] + L[-2:]))
     cells = [(0, 2), (1, 2), (PROMPT, 0), (STATUS, 2), (BORDER, 2), (KEYS, 2)]
     row("no cell has a colour (the theme stays mono on a terminal with no colour): the bar, the record, the prompt, the status, the border, the keys",
         all(t.style(r, c)[:2] == (None, None) for r, c in cells), repr([t.style(r, c) for r, c in cells]))

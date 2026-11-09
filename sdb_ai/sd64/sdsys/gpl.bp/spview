@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 8 Nov 26 dm   S.179 / S.180 (the owner: the same keys on every page, every feature on a menu; SP.VIEW "same as debugger"): SP.VIEW starts in $sl_theme 'site'
+*               (the person's own theme, then SCREENTHEME); in the pages' look a menu bar (File, View, Help: sp.bar), opened by Esc or F10, whose entries are
+*               the letters the loop acts on; F5 and Ctrl-L refresh, Ctrl-T the theme ($tk_theme), Ctrl-K and F1 the keys, Ctrl-Q quits.  S, X, Q and the rest
+*               still work.
 * 2 Nov 26 dm   The end of the input leaves SP.VIEW (PROJECT_STATUS (95) follow-up 7).  On a pipe that has ended, or a terminal that has gone,
 *               KEYCODE() gives the null key; the command loop took it for an unknown key and rang the bell for ever, at full CPU.  get.key
 *               now sets input.ended when the null key is not a timeout (with no terminal every null key is the end, since no timeout is
@@ -384,6 +388,45 @@ show.item:
             if item.deleted then exit
             gosub show.data.page
 
+         * 8 Nov 26 (S.179): the keys every page has
+         case c = '#REFRESH'
+            if look then gosub set.look
+            display @(-1) :
+            gosub show.data.page
+
+         case c = '#THEME'
+            themed = @true                      ;* theme.out gives the program's own theme back when the record is left
+            call $tk_theme(0, sp.chg, sp.msg)   ;* 0: SP.VIEW draws its own screen, below
+            if sp.chg then
+               gosub set.look                   ;* the styles of the new theme
+               display @(-1) :
+               gosub show.data.page
+            end
+            prompt.text = sp.msg
+            gosub say.note
+
+         case c = '#KEYS'
+            if look then
+               gosub paint.frame                ;* kr.keys, the table of the key row
+               call $tk_keys('keylist', kr.keys, '', sp.kl, '', '', '')
+               sp.kl<-1> = 'F5   refresh (Ctrl-L too)'
+               sp.kl<-1> = '^T   theme'
+               sp.kl<-1> = '^K   keys (F1 too)'
+               sp.kl<-1> = '^Q   quit'
+               sp.kl<-1> = 'Esc  the menu bar (F10 too)'
+               sp.hw = ''
+               sp.hw<SL.W.D> = 'Keys of SP.VIEW'
+               sp.hw<SL.W.D + 1> = convert(@fm, @vm, sp.kl)
+               sp.hw<SL.W.D + 2> = '&OK'
+               call $sl_msgbox('init', sp.hw, scr, '', sp.hb)     ;* over the picture, which the box puts back when it closes
+               call $sl_msgbox('run', sp.hw, scr, '', sp.hb)
+            end else
+               display @sys.bell :
+            end
+
+         case c = ''
+            null                                ;* a menu left with Esc: nothing chosen
+
          case 1
             display @sys.bell :
       end case
@@ -460,7 +503,7 @@ theme.in:
    call $sl_theme('name', '', '', '', '', old.theme)
    themed = @false
    if old.theme = '' or old.theme = 'mono' then
-      site.theme = downcase(trim(config('SCREENTHEME')))
+      call $sl_theme('site', '', '', '', '', site.theme)     ;* 8 Nov 26 (S.179): the person's own theme first, then SCREENTHEME
       th.r = 2
       if site.theme # '' and site.theme # 'mono' then call $sl_theme('set', site.theme, '', '', '', th.r)
       if th.r # 0 then call $sl_theme('set', 'classic', '', '', '', th.r)
@@ -488,9 +531,13 @@ theme.out:
 paint.frame:
    pf.app = 'sp.view  ' : @logname : '@' : @who : ' '
    pf.left = file.name : '  ' : item.name
-   pf.w = lay.w - len(pf.app)
-   call $sl_put(scr, 0, 0, fmt(pf.left[1, pf.w - 1], pf.w : 'L'), bar.attr)
-   call $sl_put(scr, pf.w, 0, pf.app[1, len(pf.app)], bar.attr)    ;* a copy: $sl_put cuts the text it is given
+   * 8 Nov 26 (S.180): the menu bar's titles first (File View Help: Esc or F10 opens it), then the file and the item
+   gosub sp.bar
+   call $sl_menu('init', sp.w, scr, '', sp.r)
+   call $sl_menu('draw', sp.w, scr, '', sp.r)
+   pf.w = lay.w - len(pf.app) - sp.tw
+   if pf.w > 1 then call $sl_put(scr, sp.tw, 0, fmt(pf.left[1, pf.w - 1], pf.w : 'L'), bar.attr)
+   call $sl_put(scr, lay.w - len(pf.app), 0, pf.app[1, len(pf.app)], bar.attr)    ;* a copy: $sl_put cuts the text it is given
    call $sl_line('h', 0, pf.hc)
    call $sl_put(scr, 0, border.line, str(pf.hc, lay.w), text.attr)
    kr.keys = ''
@@ -740,8 +787,56 @@ map.keys:
       case n = CTRL.P       ; c = 'U'
       case n = CTRL.V       ; c = 'N'
       case n = CTRL.Z       ; c = 'U'
+      * 8 Nov 26 (S.179, S.180): the keys every page has, and the menu bar, in the pages' look
+      case n = K$F5 or n = 12 ; c = '#REFRESH'      ;* F5, Ctrl-L: draw the screen again
+      case n = 20 and look  ; c = '#THEME'           ;* Ctrl-T: the next theme, kept for the person
+      case n = 11           ; c = '#KEYS'            ;* Ctrl-K: the keys
+      case n = K$F1         ; c = '#KEYS'            ;* F1: SP.VIEW's help is its keys
+      case n = 17           ; c = 'Q'                ;* Ctrl-Q: leave, as on every page (Q still does)
+      case (n = 27 or n = K$F10) and look
+         gosub sp.menu                              ;* Esc or F10: the menu bar; c is the letter of what was chosen, or null
    end case
 
+   return
+
+* 8 Nov 26 (S.180, the owner: "all features available on a page need to appear somewhere on the menus") - the menu bar of the pages' look: File, View,
+* Help.  Each entry's code is the letter (or #word) the key loop acts on, so a choice does exactly what its key does.
+sp.bar:
+   sp.w = ''
+   sp.w<SL.W.Y> = 0
+   sp.w<SL.W.W> = lay.w
+   sp.m = '&File'
+   sp.m<1, -1> = '&Spool to a printer' : @sm : 'S' : @sm : 'S'
+   sp.m<1, -1> = '&Delete the item' : @sm : 'X' : @sm : 'X'
+   sp.m<1, -1> = '-'
+   sp.m<1, -1> = '&Quit' : @sm : 'Ctrl-Q' : @sm : 'Q'
+   sp.w<20> = sp.m
+   sp.m = '&View'
+   sp.m<1, -1> = '&Next page' : @sm : 'PgDn' : @sm : 'N'
+   sp.m<1, -1> = '&Previous page' : @sm : 'PgUp' : @sm : 'P'
+   sp.m<1, -1> = '&Top' : @sm : 'Home' : @sm : 'T'
+   sp.m<1, -1> = '&Bottom' : @sm : 'End' : @sm : 'B'
+   sp.m<1, -1> = 'Scroll &left' : @sm : 'Left' : @sm : 'L'
+   sp.m<1, -1> = 'Scroll &right' : @sm : 'Right' : @sm : 'R'
+   sp.m<1, -1> = '-'
+   sp.m<1, -1> = 'T&heme' : @sm : 'Ctrl-T' : @sm : '#THEME'
+   sp.m<1, -1> = 'Re&fresh' : @sm : 'F5' : @sm : '#REFRESH'
+   sp.w<21> = sp.m
+   sp.m = '&Help'
+   sp.m<1, -1> = '&Keys' : @sm : 'Ctrl-K' : @sm : '#KEYS'
+   sp.w<22> = sp.m
+   sp.tw = 0
+   for sp.i = 20 to 22
+      sp.tw += len(convert('&', '', sp.w<sp.i, 1>)) + 2
+   next sp.i
+   return
+
+sp.menu:
+   gosub sp.bar
+   call $sl_menu('init', sp.w, scr, '', sp.r)
+   call $sl_menu('run', sp.w, scr, '', sp.code)
+   c = sp.code
+   gosub paint.frame                  ;* the bar as it is when closed, with the names after the titles
    return
 
 end

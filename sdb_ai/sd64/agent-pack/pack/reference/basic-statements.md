@@ -898,7 +898,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `logmsg` *text*
 
 - a statement of SD BASIC
-- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 481
+- docs: `User/markdown/29-sd-tcl-the-terminal-and-the-session.md` line 482
 
 ### basic:stmt:loop
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:424#ae1c50d9 src2=docs:tools/syntax-shapes.txt:126#13c6f6f2
@@ -1142,7 +1142,7 @@ clause of `input` and `input @` — show nothing of what is typed
 clause of `input` — type over what is already there
 
 - a word that belongs inside another statement's syntax, not a statement of its own
-- docs: `User/markdown/27a-sd-tcl-sed.md` line 248
+- docs: `User/markdown/27a-sd-tcl-sed.md` line 262
 
 ### basic:stmt:overwrite
 > kind=basic.clause tier=reference since=L1.1-0 src=sdsys/gpl.bp/bcomp:11660#58a91974 src2=docs:tools/syntax-shapes.txt:150#83abfd0b
@@ -1189,7 +1189,7 @@ clause of `execute` — the select list held in a variable becomes the command's
 `pdump`
 
 - a statement of SD BASIC
-- docs: `User/markdown/17-sd-basic-debugging.md` line 528
+- docs: `User/markdown/17-sd-basic-debugging.md` line 537
 
 ### basic:stmt:phantom
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:432#ea8544c2

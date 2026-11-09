@@ -21,6 +21,7 @@
 *               gutter toggles the line's mark; the marks follow the text when a key or a click changes the number of lines (bp.follow).  Opt in: SCREEN MEMO never sets it.
 * 2 Nov 26 dm  S.88 p3.3a: the op 'size' (a new width and height for the area, everything it holds kept), for $sl_widget_move; the rectangle is worked out in one
 *              place (geom), read at every call as before and again by 'size'.
+* 8 Nov 26 dm  S.179: Alt-K cuts the line as Ctrl-K does, for a program that keeps Ctrl-K for itself (the IDE: the keys list on every page).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -1132,8 +1133,9 @@ handle.key:
          end
          want = cx
          my = 0 ; mx = 0
-      case key = 'ctrl-k'
+      case key = 'ctrl-k' or key = 'alt-k'
          * 28 Oct 26 (D31): Ctrl-K cuts the whole line into the clipboard (micro and Geany); it cut to the end of the row before.  A paste at the start of a line puts it back above it.
+         * 8 Nov 26 (S.179): and Alt-K, for a program that keeps Ctrl-K for itself (passkeys: the IDE, where Ctrl-K is the keys list as on every page)
          kind = 'cutline'
          gosub snap.push
          clip.text = lines<cy> : @fm

@@ -19,6 +19,7 @@
 * 27 Oct 26 dm  S.87 batch 15: no parameter is inert or retired any more (the eleven that were are gone from sd.conf), so the 'inert' sentence at the foot is gone; the other parameters number 37.
 * 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the three views, the differ filter and refresh are offered to the model.
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the view to the AI line and back; AI > Ask the AI is a menu entry of its own.
+* 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -86,6 +87,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'setonly', '&View', '&Set by the file only', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', 'Re&fresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    panes = 'Parameters' : @fm : 'Backup directory' : @fm : 'Report'
    * S.97 stage 2 (group B): the AI line.  The page offers the AI only what changes what is shown - its three views, the "differ from the default" row filter and refresh (an
    * administrator's page: edit and set-only are not offered); a proposal is carried out by the page's own key.  Where the AI is not usable nothing here adds a key or a line.
@@ -633,6 +635,12 @@ on.key:
          msg = (if only.set then 'only the parameters the file sets' else 'all the rows')
       case nm = 'e'
          gosub edit.param
+      case nm = 'ctrl-t'                    ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
+         call $tk_std('keylist', ctx, keys, panes<view>, std.r)
       case nm = 'f5'
          gosub read.all
          if view = 2 then gosub read.backup

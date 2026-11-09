@@ -81,6 +81,7 @@ ALLOWED = {
     ("ide", "11216"): "Core's help names F3, F10, Ctrl-A, Ctrl-D and Ctrl-K by the owner's keys of 20 Oct (28 Oct 26, S.88 Phase 4); Solo's does not until the carry",
     ("ide", "11219"): "Core's says the file has more records than the bounded list shows (28 Oct 26, the editor merge stage B: the tree stops at 2,000 without reading the whole file); Solo's does not until the carry",
     ("mkindx", "2613"): "Core's list of dictionary item types lost C (28 Oct 26, S.87 D-019: the C item type is gone); Solo keeps the old text until the carry",
+    ("debug", "6712"): "Core's debugger help names F5 refresh, F9 run, F10 the menu bar, Ctrl-T and Ctrl-K (8 Nov 26, S.179); Solo's does not until the carry",
     ("bcomp", "11274"):"Core reads 'Default argument values need the VAR.ARGS option' (28 Oct 26, S.87: the DEFAULT.UNASS.ARGS mode word was removed); Solo keeps the old text until the carry",
 }
 passed = failed = 0

@@ -79,7 +79,8 @@ TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 RUN = "%05d" % (os.getpid() % 100000)
 F10, RIGHT, LEFT, DOWN, RET, ESC = sb.F10, sb.RIGHT, sb.LEFT, sb.DOWN, sb.RET, sb.ESC
 CTRL_Q, CTRL_S, CTRL_W = sb.CTRL_Q, sb.CTRL_S, sb.CTRL_W
-CTRL_K, CTRL_E, F8 = "\x0b", "\x05", "\x1b[19~"
+CTRL_E, F8 = "\x05", "\x1b[19~"
+ALT_K = "\x1bk"                                                    # the editor's whole-line cut in the IDE (S.179, 8 Nov 26)
 TAB, CTRL_U, CTRL_N, CTRL_O, UP, END, ALT_PGUP = sb.TAB, sb.CTRL_U, sb.CTRL_N, sb.CTRL_O, sb.UP, sb.END, sb.ALT_PGUP
 CTRL_G = "\x07"                                                  # sets the mark in the editor (sandbox-ide-edit.py)
 GOTO_TREE = sb.GOTO_TREE
@@ -278,7 +279,7 @@ def section_open_save():
     done(e)
     e = sb.Ide(BOX, "IDE path:%s" % fpath("cut"))
     e.quiet()
-    e.keys(CTRL_K, CTRL_K)                                           # the whole-line cut, twice: alpha and beta go
+    e.keys(ALT_K, ALT_K)                                             # the whole-line cut, twice: alpha and beta go (Alt-K in the IDE since S.179: Ctrl-K lists the keys)
     e.keys(CTRL_S)
     e.quiet()
     row("O7 a save that makes the file SHORTER leaves no tail of the old text behind", rd(fpath("cut")) == b"gamma\n", repr(rd(fpath("cut"))))
@@ -607,8 +608,9 @@ def name_to(e, path):
 
 
 def menu(e, n_right, n_down):
-    """F10, Right n_right times (File is the first menu, Search the third), Down n_down times, Return"""
-    e.keys(F10, RIGHT * n_right, DOWN * n_down, RET)
+    """F10, Right n_right times (File is the first menu, Search the third), Down n_down times, Return.  n_right counts the menus as they were
+    before S.180; the Edit menu (8 Nov 26) is after File, so every menu but File is one Right further."""
+    e.keys(F10, RIGHT * (n_right + 1 if n_right else 0), DOWN * n_down, RET)
     e.quiet()
 
 
@@ -1281,7 +1283,7 @@ def section_gate():
         "bp.edit" in t and "Name of the new record" in t and not os.path.lexists(gated), repr((os.path.lexists(gated), t[-300:])))
     t = pty("zzpg3", p3, "IDE", [CTRL_N, TAB, CTRL_U, "path:" + free, RET])
     row("G9b CONTROL: the same account makes a file that is not below a program file", rd(free) == b"", repr((rd(free), t[-300:])))
-    t = pty("zzpg1", p1, "IDE", [F10, RIGHT, RIGHT, DOWN * 7, RET, TAB, CTRL_U, "path:" + out2, RET])
+    t = pty("zzpg1", p1, "IDE", [F10, RIGHT * 3, DOWN * 7, RET, TAB, CTRL_U, "path:" + out2, RET])
     row("G10 OS gate OFF: Import of a file outside the account is refused (has no OS access), nothing is inserted, and the file is untouched",
         "has no OS access" in t and "outside two" not in t and rd(out2) == b"outside two\n", repr((rd(out2), t[-300:])))
 

@@ -26,6 +26,7 @@
 *              its keys (Enter, X, Esc) and its menu are gone; after a load, a refusal or a delete the page is shown with what happened on the status line.
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring': the five boxes and the AI line); Tab and Shift-Tab no longer move between the
 *              boxes.  AI > Ask the AI is a menu entry of its own.
+* 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -150,7 +151,9 @@ $include tk.h
    call $tk_keys('menu', keys, 'option', '&Options', '&Change the option', '', '')
    call $tk_keys('menu', keys, 'back', '&Results', '&Back to the query', '', '')
    call $tk_keys('menu', keys, 'again', '&Results', 'Run &again', '', '')
+   call $tk_keys('menu', keys, 'next', '&View', '&Next box', '', '')         ;* S.180: every key's action is on a menu (F6)
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    * S.97 stage 2: the AI line.  The page offers the AI only the actions that change what is shown - the file filter and reading the files again (the owner: opt-in, off by
    * default; running, saving, loading and editing the query are not offered); a proposal is carried out by the page's own key.  Where the AI is not usable for the account
    * nothing here adds a key, a row or a line.
@@ -980,6 +983,12 @@ keys.build:
          gosub do.save
       case nm = 'l'
          gosub do.list.saved
+      case nm = 'ctrl-t'                    ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
+         call $tk_std('keylist', ctx, keys, cur.pane, std.r)
       case nm = 'f5'
          gosub do.reread
       case focus = 1

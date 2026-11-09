@@ -51,7 +51,7 @@ CMD, STATUS, BORDER, KEYS = 39, 40, 41, 42           # the command line and the 
 RULE, DATA0, DATA1 = 33, 34, 38                      # the rule above the messages, and the messages (five rows)
 SRC_LAST = 32                                        # the last row of the source and of the Autos pane
 AUTOX = 92                                           # the Autos pane's first column; the rule between it and the source is column 91
-KEYTEXT = "F1 help  F2 abort  F3 stop  F4 screen  F5 run  F7 step  F8 line  ^F7 parent  ^F8 program"
+KEYTEXT = "F1 help  F2 abort  F3 stop  F4 screen  F5 refresh  F7 step  F8 line  F9 run  F10 menu  ^F7 parent  ^F8 program"     # S.179, 8 Nov 26: F5 refresh, F9 run, F10 the menu bar
 
 SOURCE = """   s = 'plain' ; t = 'a':char(9):'b'
    n = 5
@@ -188,8 +188,8 @@ def main():
         r1 = srcrow(L, 1)
         row("setup: the debugger is up, full screen: the source is on the screen with its line numbers",
             r1 is not None and "s = 'plain'" in L[r1], "\n".join(L[:8]))
-        row("the title is on the top row (the program's pathname, cut to the screen: the line number may be off the end)",
-            L[0].strip() != "" and L[0].lstrip().startswith("/"), repr(L[0]))
+        row("S.180: the menu bar's titles (Run View Help) are at the left of the top row, and the title (the program's pathname, cut to the screen: the line number may be off the end) after them",
+            L[0].startswith(" Run  View  Help ") and L[0][len(" Run  View  Help "):].startswith("/"), repr(L[0]))
         fg0, bg0, fl0 = t.style(0, 2)
         row("the title bar is black on white (the 'bar' style of the classic theme the debugger uses while it is up)",
             (fg0, bg0) == (0, 7), repr(t.style(0, 2)))
@@ -220,7 +220,7 @@ def main():
         row("the border (row 41) is a line across the screen", isrule(L[BORDER]) and len(L[BORDER].rstrip()) == COLS, repr(L[BORDER][:30]))
         row("the function-key row (row 42) lists the keys the debugger acts on, in the bar style",
             L[KEYS].rstrip() == KEYTEXT and t.style(KEYS, 3)[:2] == (0, 7), repr(L[KEYS][:100]) + repr(t.style(KEYS, 3)))
-        row("nothing scrolled: the title is still on row 0 after the foot was drawn on the last row", L[0].lstrip().startswith("/") and srcrow(L, 1) == 1, repr(L[0][:30]))
+        row("nothing scrolled: the title is still on row 0 after the foot was drawn on the last row", L[0][len(" Run  View  Help "):].startswith("/") and srcrow(L, 1) == 1, repr(L[0][:30]))
         row("no syntax colour in the classic theme: a string in the source is in the text style (white on blue), the same as the words round it",
             r1 is not None and t.style(r1, L[r1].find("'plain'")) == t.style(r1, L[r1].find("s = ") + 0), repr((t.style(r1 or 0, L[r1 or 1].find("'plain'")), t.style(r1 or 0, L[r1 or 1].find("s = ")))))
 

@@ -98,7 +98,7 @@ def main():
             say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
             bail("tool.keys never drew its screen, so no row below can be believed")
         row("the screen has its seven boxes: Terminal, Last keys, Keys seen, Mouse, Box drawing, Help, Styles", all(s in L for s in ("Terminal", "Last keys", "Keys seen", "Mouse", "Box drawing", "Help", "Styles")), L[:300])
-        row("the function-key row (row 42) names exactly Ctrl-L, Ctrl-R, Ctrl-T and Ctrl-Q: '^L clear  ^R raw/names  ^T theme  ^Q quit'", t.line(42) == "^L clear  ^R raw/names  ^T theme  ^Q quit", repr(t.line(42)))
+        row("the function-key row (row 42) names exactly Ctrl-L, Ctrl-R, Ctrl-T, Ctrl-K (S.179) and Ctrl-Q: '^L clear  ^R raw/names  ^T theme  ^K keys  ^Q quit'", t.line(42) == "^L clear  ^R raw/names  ^T theme  ^K keys  ^Q quit", repr(t.line(42)))
         row("the status line says [Keys] and 'press any key'; row 0 ends with the app's name and the audience (the user, not 'administrator')",
             t.line(40).startswith("[Keys]") and "press any key" in t.line(40) and "tool.keys" in t.line(0) and "administrator" not in t.line(0), repr((t.line(40), t.line(0)[-50:])))
         for want in ("TERM (SD)   xterm", "TERM (env)  xterm", "Window      140 x 43  (layout 140 x 43)", "Borders     + - | (not UTF-8)", "Colour      yes", "Theme       mono",
@@ -240,7 +240,7 @@ def main():
         row("a window made smaller puts the cursor off the screen: the library's cursor lock says the window is 100 by 30 and tool.keys is laid out for 140 by 43", "is laid out for 140 by 43" in text(t), text(t)[-300:])
         t.s.resize(140, 43, idle=1.2)
         L = text(t)
-        row("made larger again, the app is back with everything: the boxes, the function-key row, and the key pressed before (a)", "Last keys" in L and t.line(42) == "^L clear  ^R raw/names  ^T theme  ^Q quit" and newest(t) is not None and newest(t)[1] == "a", repr((t.line(42), newest(t))))
+        row("made larger again, the app is back with everything: the boxes, the function-key row, and the key pressed before (a)", "Last keys" in L and t.line(42) == "^L clear  ^R raw/names  ^T theme  ^K keys  ^Q quit" and newest(t) is not None and newest(t)[1] == "a", repr((t.line(42), newest(t))))
         press(t, "b")
         row("and it takes keys again: b is named b, count 2", newest(t) == (2, "b", "code 98"), repr(newest(t)))
         t.s.resize(100, 30, idle=1.0)

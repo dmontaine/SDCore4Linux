@@ -3052,28 +3052,28 @@ Line %1, column %2
 cited by: `ide`
 
 ### msg:11214
-> kind=message tier=reference since=- src=sdsys/messages/11214:1#84879850
+> kind=message tier=reference since=- src=sdsys/messages/11214:1#3a9cac50
 
 ```
-The IDE\n\nTab, Shift-Tab   In the editor: indent, outdent the line or the selected lines (3 blanks, one undo step); elsewhere the next / previous control\nF6, Shift-F6     Next / previous pane\nReturn           Open the file or record; go to the error\nSpace, Right     Open or close a tree node\nCtrl-S           Save the record (an untitled one asks for its file and name; path:/full/name there makes a file of the operating system)\nCtrl-N           New record (path:/full/name makes an empty file of the operating system and opens it)\nCtrl-O           Open a record by file and name; path:/full/name there opens an operating system file\nCtrl-W           Close the record\nCtrl-PgDn, PgUp  Next / previous record tab (Alt-PgDn, PgUp too: a terminal may keep the Ctrl keys for its own tabs)\n
+The IDE\n\nTab, Shift-Tab   In the editor: indent, outdent the line or the selected lines (3 blanks, one undo step); Tab does not move between the panes\nF6, Shift-F6     Next / previous pane (the same keys move between the boxes of every page)\nReturn           Open the file or record; go to the error\nSpace, Right     Open or close a tree node\nCtrl-S           Save the record (an untitled one asks for its file and name; path:/full/name there makes a file of the operating system)\nCtrl-N           New record (path:/full/name makes an empty file of the operating system and opens it)\nCtrl-O           Open a record by file and name; path:/full/name there opens an operating system file\nCtrl-W           Close the record\nCtrl-PgDn, PgUp  Next / previous record tab (Alt-PgDn, PgUp too: a terminal may keep the Ctrl keys for its own tabs)\n
 ```
 
 cited by: `ide`
 
 ### msg:11215
-> kind=message tier=reference since=- src=sdsys/messages/11215:1#8bcaafa6
+> kind=message tier=reference since=- src=sdsys/messages/11215:1#36d38630
 
 ```
-F4               Next error or result\nF5               Run\nF7               Debug (it runs on to the first breakpoint mark; Build / Debug from the first line stops at the first line)\nShift-F7         Set or clear the breakpoint mark of the line (a click in the gutter does the same; Build / Clear breakpoints)\nF8               Compile\nF9               Build: compile and catalogue\nCtrl-L           Go to a line\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A dictionary item's, a VOC record's or a data record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks (a program's never)\nLocks            A record open in a tab is locked; one another session has locked opens read-only\nNot ASCII        A record holding characters outside ASCII (bytes 128 to 247) opens read-only\nIdle             With autologout set, the status line counts down its last 60 seconds; any key stops it\nInclude          Go, Open the include: the record a $include line at the cursor names\nMenus            Save as, Write a copy and Find in the records of the file are in the File and Search menus\n
+F4               Next error or result\nF5, Ctrl-L       Draw the screen again (as on every page)\nF9               Run\nF7              Debug (it runs on to the first breakpoint mark; Build / Debug from the first line stops at the first line)\nShift-F7         Set or clear the breakpoint mark of the line (a click in the gutter does the same; Build / Clear breakpoints)\nF8               Compile\nShift-F9         Build: compile and catalogue\nAlt-G            Go to a line\nCtrl-T           The next theme (kept for you; View, Theme)\nCtrl-K           The keys (Help, Keys)\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A dictionary item's, a VOC record's or a data record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks (a program's never)\nLocks            A record open in a tab is locked; one another session has locked opens read-only\nNot ASCII        A record holding characters outside ASCII (bytes 128 to 247) opens read-only\nIdle             With autologout set, the status line counts down its last 60 seconds; any key stops it\nInclude          Go, Open the include: the record a $include line at the cursor names\nMenus            Save as, Write a copy and Find in the records of the file are in the File and Search menus\n
 ```
 
 cited by: `ide`
 
 ### msg:11216
-> kind=message tier=reference since=- src=sdsys/messages/11216:1#f8a42077
+> kind=message tier=reference since=- src=sdsys/messages/11216:1#6a111a01
 
 ```
-Ctrl-F, Ctrl-B   Find forward, backward   F3, Shift-F3  The next, the previous (Return in the question finds the next)   Ctrl-R  Replace\nEsc, F10        The menus (Files and records is in the Go menu)\nCtrl-Q           Quit\nF1               This screen\nCtrl-A           Select all   Ctrl-D  Duplicate the line   Ctrl-K  Cut the line\nCtrl-P, Ctrl-U   A word back, on (Ctrl-Left, Right too)   Ctrl-Home, Ctrl-End  Text start, end   Ctrl-Del  Delete word   Ins  Overwrite\nSearch menu      List matching lines (the lines that hold a text, in the table), Query replace (Yes, No, All, Quit), Find options (C = match case, W = whole words), Upcase and Downcase the selection (Ctrl-G sets the mark), Import a record here, Export the selection to a record\nBuild menu       Run a command: what it prints is in the table. Format the program lays it out again, indenting by the tab width\nGo to line       A line; line,column; or field,value,subvalue in a record shown with :@vm: marks\nView menu        Refresh draws the screen again; Overwrite mode, Auto-indent (Return keeps the indent), Tab width\nTools menu       The development pages: Files, Dictionary, Vocabulary, Queries, Bulk update, Programs, Tests. Leaving the page (Ctrl-Q) and pressing Return comes back here
+Ctrl-F, Ctrl-B   Find forward, backward   F3, Shift-F3  The next, the previous (Return in the question finds the next)   Ctrl-R  Replace\nEsc, F10        The menus (Files and records is in the Go menu)\nCtrl-Q           Quit\nF1               This screen\nCtrl-A           Select all   Ctrl-D  Duplicate the line   Alt-K  Cut the line\nCtrl-P, Ctrl-U   A word back, on (Ctrl-Left, Right too)   Ctrl-Home, Ctrl-End  Text start, end   Ctrl-Del  Delete word   Ins  Overwrite\nSearch menu      List matching lines (the lines that hold a text, in the table), Query replace (Yes, No, All, Quit), Find options (C = match case, W = whole words), Upcase and Downcase the selection (Ctrl-G sets the mark), Import a record here, Export the selection to a record\nBuild menu       Run a command: what it prints is in the table. Format the program lays it out again, indenting by the tab width\nGo to line       A line; line,column; or field,value,subvalue in a record shown with :@vm: marks\nView menu        Theme (Ctrl-T), Refresh (F5) draws the screen again; Overwrite mode, Auto-indent (Return keeps the indent), Tab width\nTools menu       The development pages: Files, Dictionary, Vocabulary, Queries, Bulk update, Programs, Tests. Leaving the page (Ctrl-Q) and pressing Return comes back here
 ```
 
 cited by: `ide`
@@ -3165,10 +3165,10 @@ cited by: `set_job`
 ```
 
 ### msg:11226
-> kind=message tier=reference since=- src=sdsys/messages/11226:1#2bd8ff52
+> kind=message tier=reference since=- src=sdsys/messages/11226:1#69e2379c
 
 ```
-&Go|Go to &line~^L~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Open the include~~include|&Edit in SED~^E~sed|Edit as f&ields~F12~fields|Dictionary item as for&m~~dform
+&Go|Go to &line~Alt-G~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Open the include~~include|&Edit in SED~^E~sed|Edit as f&ields~F12~fields|Dictionary item as for&m~~dform
 ```
 
 ### msg:11227
@@ -3179,17 +3179,17 @@ cited by: `set_job`
 ```
 
 ### msg:11228
-> kind=message tier=reference since=- src=sdsys/messages/11228:1#75370c0d
+> kind=message tier=reference since=- src=sdsys/messages/11228:1#4bb5f016
 
 ```
-&Build|&Compile~F8~compile|Compile and cat&alog~F9~catalog|&Run~F5~run|&Debug~F7~debug|Run a co&mmand~~xeq|&Format the program~~format|Debug from the first &line~~debug1|Toggle &breakpoint~Shift-F7~bptoggle|Clear breakpoin&ts~~bpclear
+&Build|&Compile~F8~compile|Compile and cat&alog~Shift-F9~catalog|&Run~F9~run|&Debug~F7~debug|Run a co&mmand~~xeq|&Format the program~~format|Debug from the first &line~~debug1|Toggle &breakpoint~Shift-F7~bptoggle|Clear breakpoin&ts~~bpclear
 ```
 
 ### msg:11229
-> kind=message tier=reference since=- src=sdsys/messages/11229:1#a005f132
+> kind=message tier=reference since=- src=sdsys/messages/11229:1#0329c0b2
 
 ```
-&View|&Theme~~theme|&Refresh~~refresh|&Overwrite mode~Ins~overwrite|&Auto-indent~~autoindent|Tab &width~~tabwidth
+&View|&Theme~^T~theme|&Refresh~F5~refresh|&Overwrite mode~Ins~overwrite|&Auto-indent~~autoindent|Tab &width~~tabwidth
 ```
 
 ### msg:1123
@@ -3200,10 +3200,10 @@ Runfile %s not found
 ```
 
 ### msg:11230
-> kind=message tier=reference since=- src=sdsys/messages/11230:1#ec1bd1bf
+> kind=message tier=reference since=- src=sdsys/messages/11230:1#443c9fd7
 
 ```
-&Help|&Keys~F1~help
+&Help|&Help~F1~help|&Keys~^K~keys
 ```
 
 ### msg:11231
@@ -6312,10 +6312,10 @@ AI>
 cited by: `ced_core`, `dict_form`, `ide`, `sed`, `tk_ai`
 
 ### msg:11637
-> kind=message tier=reference since=- src=sdsys/messages/11637:1#78c91c62
+> kind=message tier=reference since=- src=sdsys/messages/11637:1#3334ecaa
 
 ```
-Ask the AI: press Tab until the cursor is here, type a request and press Enter
+Ask the AI: press F6 until the cursor is here, type a request and press Enter
 ```
 
 ### msg:11638
@@ -8930,10 +8930,10 @@ SD cannot tell where this text comes from, so it is not sent to the AI
 cited by: `tk_ai`
 
 ### msg:11943
-> kind=message tier=reference since=- src=sdsys/messages/11943:1#a1ec8a55
+> kind=message tier=reference since=- src=sdsys/messages/11943:1#3334ecaa
 
 ```
-Ask the AI: press F6, type a request and press Enter
+Ask the AI: press F6 until the cursor is here, type a request and press Enter
 ```
 
 ### msg:11944
@@ -10192,12 +10192,30 @@ It lists %1 (model names are case-sensitive)
 
 cited by: `setai`
 
+### msg:14019
+> kind=message tier=reference since=- src=sdsys/messages/14019:1#f6097595
+
+```
+&Edit|&Undo~^Z~undo|&Redo~^Y~redo|Cu&t~^X~cut|&Copy~^C~copy|&Paste~^V~paste|Select &all~^A~selall|&Insert a field~Ins~finsert|&Delete a field~Del~fdelete|Re&name the field~F3~frename|Change the t&ype~Alt-T~ftype
+```
+
+cited by: `ide`
+
 ### msg:1402
 > kind=message tier=reference since=- src=sdsys/messages/1402:1#3f084312
 
 ```
 Error %d opening file
 ```
+
+### msg:14020
+> kind=message tier=reference since=- src=sdsys/messages/14020:1#d5f8a7d9
+
+```
+The field entries work in the fields pane (F12).
+```
+
+cited by: `ide`
 
 ### msg:1403
 > kind=message tier=reference since=- src=sdsys/messages/1403:1#a8637b41
@@ -20451,10 +20469,10 @@ Unable to find source record %1
 cited by: `debug`
 
 ### msg:6712
-> kind=message tier=reference since=- src=sdsys/messages/6712:1#23a329ec
+> kind=message tier=reference since=- src=sdsys/messages/6712:1#97d0e4b4
 
 ```
-Key       Command         Action\nF1        HELP            Display this screen\nF2        ABORT or Quit   Abort program\nF3        STOP            Stop program\nF4        View            Show program screen\nF5        Run {n}         Free run or to line n\nF7        Step .n         Step n debug elements\nCtrl-F7   EXit            Exit subroutine\nF8        Step n          Step n lines\nCtrl-F8   EP              Exit program\nPgUp                      Move source window up\nCtrl-PgUp                 Move window to line 1\nPgDn                      Move source window down\nCtrl-PgDn                 Move window to bottom\n          BRK n           Set breakpoint on line n\n          CLR {n}         Clear all or specific breakpoint\n          DUMP var path   Dump variable to given pathname\n          Goto n          Goto line n\n          SET var=value   Set a variable\n          STACK           Show call stack\n          Watch var       Watch for changes to named variable\n          UnWatch         Cancel Watch action
+Key       Command         Action\nF1        HELP            Display this screen\nF2        ABORT or Quit   Abort program\nF3        STOP            Stop program\nF4        View            Show program screen\nF5                        Draw the screen again\nF7        Step .n         Step n debug elements\nCtrl-F7   EXit            Exit subroutine\nF8        Step n          Step n lines\nCtrl-F8   EP              Exit program\nF9        Run {n}         Free run or to line n\nF10, Esc                  The menu bar\nCtrl-T                    The next theme (kept for you)\nCtrl-K                    The keys in use\nPgUp                      Move source window up\nCtrl-PgUp                 Move window to line 1\nPgDn                      Move source window down\nCtrl-PgDn                 Move window to bottom\n          BRK n           Set breakpoint on line n\n          CLR {n}         Clear all or specific breakpoint\n          DUMP var path   Dump variable to given pathname\n          Goto n          Goto line n\n          SET var=value   Set a variable\n          STACK           Show call stack\n          Watch var       Watch for changes to named variable\n          UnWatch         Cancel Watch action
 ```
 
 cited by: `debug`

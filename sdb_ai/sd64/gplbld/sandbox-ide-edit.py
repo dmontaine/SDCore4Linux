@@ -51,7 +51,8 @@ sb = _load("sandbox_ide_for_edit", "sandbox-ide.py")
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 RUN = "%05d" % (os.getpid() % 100000)
 F10, RIGHT, LEFT, DOWN, RET, ESC = sb.F10, sb.RIGHT, sb.LEFT, sb.DOWN, sb.RET, sb.ESC
-CTRL_Q, CTRL_S, CTRL_L, CTRL_R = sb.CTRL_Q, sb.CTRL_S, sb.CTRL_L, sb.CTRL_R
+CTRL_Q, CTRL_S, CTRL_R = sb.CTRL_Q, sb.CTRL_S, sb.CTRL_R
+GOTO = sb.ALT_G                                                  # go to a line: Alt-G since S.179 (8 Nov 26; Ctrl-L is redraw)
 CTRL_Z, CTRL_G = "\x1a", "\x07"
 passed = failed = 0
 BOX = SYSD = None
@@ -135,8 +136,9 @@ def open_rec():
 
 
 def menu(e, n_right, n_down):
-    """F10, RIGHT n_right times (File is the first menu), DOWN n_down times, Return"""
-    e.keys(F10, RIGHT * n_right, DOWN * n_down, RET)
+    """F10, RIGHT n_right times (File is the first menu), DOWN n_down times, Return.  n_right counts the menus as they were before S.180 (File Go
+    Search Build View); the Edit menu (8 Nov 26) is after File, so every menu but File is one Right further."""
+    e.keys(F10, RIGHT * (n_right + 1 if n_right else 0), DOWN * n_down, RET)
     e.quiet()
 
 
@@ -268,20 +270,20 @@ def section_xp():
 def section_goto():
     say("\n--- G: Go to ---------------------------------------------------------------------------------------------------------------")
     e = open_rec()
-    e.keys(CTRL_L)
+    e.keys(GOTO)
     e.keys("3,4", RET)
     e.quiet()
     row("G1 'Go to 3,4' puts the cursor on line 3, column 4 (the status line gives both)", re.search(r"\b3\b\D+\b4\b", e.status()) is not None, e.status()[:120])
-    e.keys(CTRL_L)
+    e.keys(GOTO)
     e.keys("0", RET)
     e.quiet()
     row("G2 a zero is not a line: the cursor stays", re.search(r"\b3\b\D+\b4\b", e.status()) is not None, e.status()[:120])
-    e.keys(CTRL_L)
+    e.keys(GOTO)
     e.keys("2", RET)
     e.quiet()
     row("G3 'Go to 2' (a line alone) leaves the IDE up and puts the cursor on line 2 (review R1, 29 Oct 26: gl.p was used before it had a value, so any answer stopped the IDE)",
         "IDE: " in "\n".join(e.lines()[:3]) and re.search(r"\b2\b", e.status()) is not None, e.status()[:120])
-    e.keys(CTRL_L)
+    e.keys(GOTO)
     e.keys("1.5,2.5", RET)
     e.quiet()
     row("G4 'Go to 1.5,2.5' is line 1, column 2 (a line and a column are whole numbers), and the IDE is still up", "IDE: " in "\n".join(e.lines()[:3]) and re.search(r"\b1\b\D+\b2\b", e.status()) is not None, e.status()[:120])

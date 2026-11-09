@@ -49,7 +49,8 @@ say, row, bail, TOOL = tkb.say, tkb.row, tkb.bail, tkb.TOOL
 E = "\x1b"
 # the keys of terminfo's linux entry: every account's LOGIN paragraph (newvoc/login) says TERM LINUX, and it runs before the home screen starts, whatever TERM the terminal had
 KEYS = {"up": E + "[A", "down": E + "[B", "right": E + "[C", "left": E + "[D", "home": E + "[1~", "end": E + "[4~", "pgup": E + "[5~", "pgdn": E + "[6~", "tab": "\t",
-        "btab": E + "[Z", "f2": E + "[[B", "f3": E + "[[C", "f4": E + "[[D", "f5": E + "[[E", "f6": E + "[17~", "f10": E + "[21~", "enter": "\r", "esc": E, "ctrl-q": "\x11", "ctrl-x": "\x18", "bs": "\x7f"}
+        "btab": E + "[Z", "f2": E + "[[B", "f3": E + "[[C", "f4": E + "[[D", "f5": E + "[[E", "f6": E + "[17~", "f10": E + "[21~", "enter": "\r", "esc": E, "ctrl-q": "\x11", "ctrl-x": "\x18", "bs": "\x7f",
+        "alt-x": E + "x", "alt-t": E + "t"}     # S.179, 8 Nov 26: Sign out (after HOME at the prompt) and the Terminal are Alt-X and Alt-T
 # a cell inside each tile, on the row of its label, found by the layout of the first screen (13.10): the Tools group at the top, Everyone under it, the header tiles
 TILE = {"Editor": (10, 5), "IDE": (10, 27), "Terminal": (17, 5), "Keys": (17, 51), "Files": (24, 5), "Vocabulary": (24, 27), "Dictionary": (24, 51), "Queries": (24, 73), "Bulk update": (24, 97), "Programs": (24, 119), "Tests": (30, 5), "Switch account": (2, 100), "Sign out": (2, 122)}
 BOX = SYS = None
@@ -253,8 +254,8 @@ def u9_rows():
     row("U9c F10 opens File: Sign out with the key the table gives it (^Q)", "Sign out" in drop and "^Q" in drop, repr(drop[:200]))
     h.key("right", idle=0.6)
     drop = " ".join(h.line(r) for r in range(1, 9))
-    row("U9d ...Right: Go, whose entries show their keys from the table: Back, Terminal ^T, Switch account ^W, Find a tile /",
-        all(w in drop for w in ("Back", "Terminal", "^T", "Switch account", "^W", "Find a tile")), repr(drop[:300]))
+    row("U9d ...Right: Go, whose entries show their keys from the table: Back, Terminal Alt-T (S.179: Ctrl-T is the theme on every page), Switch account ^W, Find a tile /",
+        all(w in drop for w in ("Back", "Terminal", "Alt-T", "Switch account", "^W", "Find a tile")), repr(drop[:300]))
     h.key("right", idle=0.5)
     h.key("right", idle=0.5)
     h.key("right", idle=0.6)
@@ -292,9 +293,12 @@ def u9_rows():
         "Find a tile" in T and "filter:" in T and re.search(r"\d+ of \d+", T) is not None, T[-400:])
     h.key("esc", idle=1.0)
     h.typed("\x0b", idle=2.5)
-    row("U9o Ctrl-K (Help > Keys) starts tool.keys: its name is at the right end of row 0", h.line(0).endswith("tool.keys  don@zzhm"), repr(h.line(0)[-40:]))
-    h.typed("\x11", idle=2.0)
-    row("U9p ...and its Ctrl-Q brings the home screen back with the same tile selected (Vocabulary)", h.home() and h.focus() == ["Vocabulary"], repr((h.line(0)[-30:], h.focus())))
+    T = h.text()
+    row("U9o Ctrl-K (Help > Keys) lists the keys of this page in a box, as on every page (S.179: it started tool.keys; the Keys tile still does), Ctrl-T the theme among them",
+        "Keys of this page" in T and re.search(r"\^T\s+Theme", T) is not None and h.line(0).endswith("home  don@zzhm"),     # the list writes keys as the key row does (^T)
+        "\n".join(l.strip() for l in T.splitlines() if "|" in l and l.strip("| -+"))[:600])
+    h.key("esc", idle=1.0)
+    row("U9p ...and Esc closes the box: the home screen is whole with the same tile selected (Vocabulary)", h.home() and "Keys of this page" not in h.text() and h.focus() == ["Vocabulary"], repr((h.line(0)[-30:], h.focus())))
     h.end()
 
 
@@ -316,13 +320,13 @@ def leave_rows():
     h.typed("home\r", idle=1.5)
     h.key("f10", idle=0.8)
     drop = " ".join(h.line(r) for r in range(1, 8))
-    row("S149e F10 opens File: Back to the prompt with ^Q, and Sign out with ^X", "Back to the prompt" in drop and "Sign out" in drop and "^Q" in drop and "^X" in drop, repr(drop[:220]))
+    row("S149e F10 opens File: Back to the prompt with ^Q, and Sign out with Alt-X (S.179)", "Back to the prompt" in drop and "Sign out" in drop and "^Q" in drop and "Alt-X" in drop, repr(drop[:220]))
     h.key("esc", idle=0.6)
-    h.key("ctrl-x", idle=0.9)
-    row("S149f Ctrl-X asks 'Sign out of SD?' with Sign out and Cancel (Cancel is the default)", "Sign out of SD?" in h.text() and "Cancel" in h.text(), h.text()[-300:])
+    h.key("alt-x", idle=0.9)
+    row("S149f Alt-X asks 'Sign out of SD?' with Sign out and Cancel (Cancel is the default)", "Sign out of SD?" in h.text() and "Cancel" in h.text(), h.text()[-300:])
     h.key("enter", idle=0.8)
     row("S149g Enter takes Cancel: the box closes, the screen is whole and the session is alive", h.home() and "Sign out of SD?" not in h.text() and h.alive(), "")
-    h.key("ctrl-x", idle=0.9)
+    h.key("alt-x", idle=0.9)
     h.typed("s", idle=2.0)
     row("S149h the letter S takes Sign out: the session ends", not h.alive(), h.text()[-200:])
     h.end()
@@ -336,8 +340,8 @@ def leave_rows():
     row("S149j ...and Ctrl-Q asks 'Sign out of SD?' there", "Sign out of SD?" in h.text() and h.alive(), h.text()[-200:])
     h.end()
     h = H("zzhm")
-    h.key("ctrl-x", idle=0.9)
-    row("S149k a session's own screen (zzhm) has no Ctrl-X: nothing is asked and the screen is whole", h.home() and "Sign out of SD?" not in h.text() and h.alive(), h.text()[-200:])
+    h.key("alt-x", idle=0.9)
+    row("S149k a session's own screen (zzhm) has no Alt-X (S.179; it was Ctrl-X): nothing is asked and the screen is whole", h.home() and "Sign out of SD?" not in h.text() and h.alive(), h.text()[-200:])
     h.key("ctrl-q", idle=0.9)
     row("S149l ...and its Ctrl-Q still asks 'Sign out of SD?'", "Sign out of SD?" in h.text(), h.text()[-200:])
     h.end()

@@ -71,7 +71,7 @@ CTRL_G, CTRL_Z = "\x07", "\x1a"
 DOWN = "\x1bOB"
 PGDN = "\x1b[6~"                          # 3 Nov 26: a preview taller than the screen scrolls (the message box)
 RIGHT = "\x1bOC"
-AI_MENU = RIGHT * 6                       # F10 opens File; the AI menu is the seventh title (File Go Search Build View Tools AI Help; Tools since S.88)
+AI_MENU = RIGHT * 7                       # F10 opens File; the AI menu is the eighth title (File Edit Go Search Build View Tools AI Help; Tools since S.88, Edit since S.180)
 KEY = "test-key-0123456789"
 MODEL = "claude-test"
 FAILED_IDS = []
@@ -339,7 +339,7 @@ def sec_off():
     start_runner()
     e = ide(OK_REC)
     L = e.lines()
-    arow("I0", "no provider: the menu bar is File Go Search Build View Tools Help as ever and there is no AI> row", re.search(r"File\s+Go\s+Search\s+Build\s+View\s+Tools\s+Help", L[0]) is not None
+    arow("I0", "no provider: the menu bar is File Edit Go Search Build View Tools Help as ever (Edit since S.180) and there is no AI> row", re.search(r"File\s+Edit\s+Go\s+Search\s+Build\s+View\s+Tools\s+Help", L[0]) is not None
          and "AI" not in L[0] and ai_row(e)[0] is None, repr(L[0][:80]))
     e.end()
     configure()
@@ -350,7 +350,7 @@ def sec_on():
     say("\n--- the AI is on")
     e = ide(OK_REC)
     L = e.lines()
-    arow("I1a", "the menu bar has the AI menu before Help", re.search(r"File\s+Go\s+Search\s+Build\s+View\s+Tools\s+AI\s+Help", L[0]) is not None, repr(L[0][:90]))
+    arow("I1a", "the menu bar has the AI menu before Help", re.search(r"File\s+Edit\s+Go\s+Search\s+Build\s+View\s+Tools\s+AI\s+Help", L[0]) is not None, repr(L[0][:90]))
     r, line = ai_row(e)
     arow("I1b", "an AI> row under the editor, in the form's last row (the next row down is the form's bottom border, then the status line, the foot's border and the key row)", r is not None and r == len(L) - 5 and "AI>" in line, repr((r, len(L), line[:60])))
     arow("I2", "Tab from the editor goes on round the ring and ends at the AI entry (the status line names it [AI])", focus_entry(e), repr(e.status()))

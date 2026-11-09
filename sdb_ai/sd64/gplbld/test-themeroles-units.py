@@ -27,6 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.normpath(os.path.join(HERE, ".."))
 BP = os.path.join(SD64, "sdsys", "gpl.bp")
 F = {"sl.h": os.path.join(BP, "sl.h"), "sl_theme": os.path.join(BP, "sl_theme"), "tool_keys": os.path.join(BP, "tool_keys"), "sl_sgr": os.path.join(BP, "sl_sgr"), "ide": os.path.join(BP, "ide"),
+     "tk_theme": os.path.join(BP, "tk_theme"),
      "opconfig": os.path.join(SD64, "gplsrc", "op_config.c"), "sd.conf": os.path.join(SD64, "sd.conf"), "table": os.path.join(SD64, "sdsys", "config.table")}
 for k in F:
     F[k] = os.environ.get("TR_" + re.sub(r"\W", "_", k).upper(), F[k])
@@ -185,8 +186,13 @@ def run():
     tk = bas("tool_keys")
     ftk = flat(tk)
     row("R5 tool.keys has no list of themes of its own", not re.search(r"\bthemes\s*=", tk) and "locate thn in themes" not in tk and "'mono' : @fm : 'classic' : @fm : 'blue'" not in tk)
-    row("R5 ... and takes the next theme from $sl_theme, saying so when there is none but mono",
-        "call $sl_theme('next', thn, '', '', '', thx) if thx = thn then msg = 'this terminal cannot show colour: no theme but mono'" in ftk and "screen theme thx returning thn else" in ftk)
+    # 8 Nov 26 (S.179): tool.keys takes the theme the way every page does - $tk_std 'theme', which asks $tk_theme (the library's next, kept for the person)
+    row("R5 ... and takes the next theme the way every page does ($tk_std 'theme'), showing its message",
+        "case act = 'theme' call $tk_std('theme', ctx, keys, '', std.r) msg = std.r<2>" in ftk)
+    tth = flat(bas("tk_theme"))
+    row("R5 ... $tk_theme takes $sl_theme's next, says so when there is none but mono, sets it as the program's choice and keeps it for the person",
+        "call $sl_theme('next', now, '', '', '', want) if want = now then msg =" in tth and "call $sl_theme('set', want, 'asked', '', '', setr)" in tth
+        and "call $sl_theme('save', now, '', '', '', kept)" in tth, tth[:300])
 
     ide = bas("ide")
     fide = flat(ide)
@@ -196,12 +202,12 @@ def run():
     m = re.search(r"case cmd = 'theme'\n(.*?)\n\s*end case", ide, re.S)
     tc = flat(m.group(1)).strip() if m else ""
     row("R8 the IDE has no list of themes of its own (2 Nov 26, S.88 p3.7b)", not re.search(r"\bthemes\s*=", ide) and "theme.n" not in ide and "themes<" not in ide)
-    row("R8 ... it starts in the site's theme: th.want is CONFIG('SCREENTHEME'), paper when blank, before the first apply.theme",
-        "th.want = downcase(trim(config('SCREENTHEME'))) if th.want = '' then th.want = 'paper'" in head, head[-300:])
+    row("R8 ... it starts in the person's or the site's theme: th.want is $sl_theme 'site' (8 Nov 26, S.179), paper when blank, before the first apply.theme",
+        "call $sl_theme('site', '', '', '', '', th.want) if th.want = '' then th.want = 'paper'" in head, head[-300:])
     row("R8 ... apply.theme asks for th.want, falls back to paper, and keeps in th.want the theme in force",
         ap.startswith("screen theme th.want returning th else if th.want # 'paper' then screen theme 'paper' returning th else null end call $sl_theme('name', '', '', '', '', th.want) end"), ap)
-    row("R8 ... the Theme command takes the next theme from $sl_theme and applies it",
-        tc.startswith("call $sl_theme('name', '', '', '', '', th.cur) call $sl_theme('next', th.cur, '', '', '', th.want) gosub apply.theme"), tc)
+    row("R8 ... the Theme command takes the next theme the way every page does ($tk_theme, kept for the person) and keeps it in th.want",
+        tc.startswith("call $tk_theme(1, th.chg, th.msg) call $sl_theme('name', '', '', '', '', th.want)"), tc)
     row("R8 ... and the screen taken back puts th.want on again (retake.quiet)", "gosub open.screen gosub apply.theme" in flat(label_block(ide, "retake.quiet") or ""))
 
     oc = ccode("opconfig")
@@ -209,8 +215,16 @@ def run():
     row("R6 CONFIG() has a 16 character name buffer and limit, and no 8 left in it", "char param[16 + 1];" in cfg and "k_get_c_string(descr, param, 16) < 1" in cfg and "k_get_c_string(descr, param, 8)" not in cfg)
     row("R6 ... the setter's buffer and limit are not touched", "char param[8 + 1];" in oc and "k_get_c_string(descr, param, 8) < 1" in oc, "")
     row("R6 ... SCREENTHEME has its branch", 'strcmp(param, "SCREENTHEME")' in cfg and "k_put_c_string(pcfg.screentheme, &result)" in cfg)
-    row("R6 SCREEN OPEN's default asks CONFIG('SCREENTHEME'), only when the program has not asked, and a refusal is not an error",
-        "if not(th.asked) then dn = downcase(trim(config('SCREENTHEME'))) if dn # '' and dn # downcase(th.name) then a = dn gosub set.theme end end" in fl)
+    # 8 Nov 26 (S.179): the default is the person's own theme (the record theme.<login name> of &menus&), else SCREENTHEME - site.theme says both
+    row("R6 SCREEN OPEN's default asks site.theme, only when the program has not asked, and a refusal is not an error",
+        "if not(th.asked) then gosub site.theme dn = st.name if dn # '' and dn # downcase(th.name) then a = dn gosub set.theme end end" in fl)
+    st = flat(label_block(th, "site.theme") or "")
+    row("R6 ... site.theme takes the person's record theme.<login name> of &menus& when it names a theme, else CONFIG('SCREENTHEME')",
+        "open '&menus&' to st.f then" in st and "locate st.want in thorder<1> setting st.i then st.name = st.want" in st
+        and "if st.name = '' then st.name = downcase(trim(config('SCREENTHEME')))" in st, st[:300])
+    tid = flat(label_block(th, "theme.record.id") or "")
+    row("R6 ... the record is per login name, in the session's own account (nothing outside it is read or written)",
+        "st.id = 'theme.' : downcase(@logname)" in tid and "openpath" not in th.lower() and "openseq" not in th.lower(), tid)
 
     conf = raw("sd.conf")
     sec = None
@@ -277,12 +291,17 @@ def selftest():
     mutant("next does not wrap", "sl_theme", "if nxpos > dcount(thorder, @fm) then nxpos = 1", "if nxpos > dcount(thorder, @fm) then nxpos = 0")
     mutant("next starts from the first theme always", "sl_theme", "nxcur = downcase(trim(a))", "nxcur = 'zz'")
     mutant("the user styles are found by a fixed number", "sl_theme", "ufirst = len(th.codes) - 15                     ;* the user styles", "ufirst = 31                     ;* the user styles")
-    mutant("the default theme is not asked of the configuration", "sl_theme", "dn = downcase(trim(config('SCREENTHEME')))", "dn = ''")
+    mutant("the default theme is not asked of the configuration", "sl_theme", "if st.name = '' then st.name = downcase(trim(config('SCREENTHEME')))", "if st.name = '' then st.name = ''")
+    mutant("the person's own theme is not read (S.179)", "sl_theme", "locate st.want in thorder<1> setting st.i then st.name = st.want", "st.i = 0")
+    mutant("the person's theme is kept per account, not per person (S.179)", "sl_theme", "st.id = 'theme.' : downcase(@logname)", "st.id = 'theme'")
+    mutant("SCREEN OPEN's default goes back to SCREENTHEME alone (S.179)", "sl_theme", "gosub site.theme\n            dn = st.name", "dn = downcase(trim(config('SCREENTHEME')))")
     mutant("tool.keys keeps its own list", "tool_keys", "   snames = 'normal'", "   themes = 'mono' : @fm : 'classic' : @fm : 'blue'\n   snames = 'normal'")
-    mutant("tool.keys does not ask the library", "tool_keys", "call $sl_theme('next', thn, '', '', '', thx)", "thx = thn")
-    mutant("the IDE starts in paper whatever the site says", "ide", "   th.want = downcase(trim(config('SCREENTHEME')))\n", "   th.want = ''\n")
+    mutant("tool.keys does not take the theme the pages' way", "tool_keys", "call $tk_std('theme', ctx, keys, '', std.r)", "std.r = ''")
+    mutant("$tk_theme does not keep the theme for the person", "tk_theme", "call $sl_theme('save', now, '', '', '', kept)", "kept = 1")
+    mutant("$tk_theme cycles nothing", "tk_theme", "call $sl_theme('next', now, '', '', '', want)", "want = now")
+    mutant("the IDE starts in paper whatever the person or the site says", "ide", "   call $sl_theme('site', '', '', '', '', th.want)", "   th.want = ''")
     mutant("the IDE keeps a list of its own", "ide", "   if th.want = '' then th.want = 'paper'\n", "   if th.want = '' then th.want = 'paper'\n   themes = 'blue' : @fm : 'mono'\n")
-    mutant("the IDE's theme command cycles nothing", "ide", "call $sl_theme('next', th.cur, '', '', '', th.want)", "th.want = th.cur")
+    mutant("the IDE's theme command cycles nothing", "ide", "call $tk_theme(1, th.chg, th.msg)", "th.chg = 0")
     mutant("the IDE has no fallback to paper", "ide", "         screen theme 'paper' returning th else null\n", "")
     mutant("the IDE falls back to blue again", "ide", "   if th.want = '' then th.want = 'paper'\n", "   if th.want = '' then th.want = 'blue'\n")
     mutant("paper's menu bar back to black on cyan", "sl_theme", "         spec<-1> = 'bar=white,black,'", "         spec<-1> = 'bar=black,cyan,'")

@@ -288,13 +288,13 @@ def checks(raw):
         and all("w{'amn'} = upcase(t[p + 1, 1])" in squeeze(strip_bas(raw[n])) for n in ("sl_check", "sl_slider", "sl_selector", "screen_label")) and squeeze(strip_bas(raw["sl_button"])).count("w{'amn'} = w{'mn'}") == 1 and "w{'amn'} = '' w{'apos'} = 0 if p and p < len(t) then w{'mn'} = upcase(t[p + 1, 1]) w{'amn'} = w{'mn'}" in squeeze(strip_bas(raw["sl_button"]))
         and "amn" not in raw["sl_label"] and "p = index(t, '&', 1)" in squeeze(strip_bas(raw["screen_label"])), "")
     tk = sq["tool_keys"]
-    add("T40", "tool.keys (TK-1): an app for everyone (audience null), that opens the base first and prints what it refuses; its keys are Ctrl-L, Ctrl-R, Ctrl-T and Ctrl-Q; every key is recorded BEFORE the table acts on it; "
+    add("T40", "tool.keys (TK-1): an app for everyone (audience null), that opens the base first and prints what it refuses; its keys are Ctrl-L (clear), Ctrl-R, Ctrl-T, Ctrl-K and Ctrl-Q; every key is recorded BEFORE the table acts on it; "
         "the end of the input and the cursor lock's own way out end it, in both reading modes, and every way out is $tk_close; names mode reads with SCREEN KEY, raw mode with KEYIN (a second at a time, a burst at 0.05) "
         "and asks the library for the size when the window changed; the cursor waits at the start of the status line (so a smaller window shows the lock); a resize raises the frame's generation; "
         "the grid is 52 keys (ctrl-h, i, j and m are other keys); it reads and writes no file, runs no command and asks no gate",
         "call $tk_open('tool.keys', '', ctx, err) if err # '' then display err stop end" in tk
         and ordered(tk, "call $tk_keys('add', keys, 'ctrl-l', 'clear', 'clear', '', 1)", "call $tk_keys('add', keys, 'ctrl-r', 'raw/names', 'raw', '', 1)", "call $tk_keys('add', keys, 'ctrl-t', 'theme', 'theme', '', 1)",
-                "call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)") and tk.count("call $tk_keys('add'") == 4
+                "call $tk_keys('add', keys, 'ctrl-k', 'keys', 'keys', '', 1)", "call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)") and tk.count("call $tk_keys('add'") == 5   # 8 Nov 26 (S.179): Ctrl-K the keys (clear stays Ctrl-L: a key tester takes no function key)
         and "gosub record call $tk_keys('action', keys, nm, pane, act, '', '')" in tk
         and "repeat call $tk_close(ctx) stop" in tk and "if ended then exit if nm = 'guardquit' then exit" in tk
         and tk.count("if status() = ER$EOF then") == 2 and "if status() = ER$EOF then ended = 1 exit end" in tk

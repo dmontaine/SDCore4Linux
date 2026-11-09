@@ -212,10 +212,11 @@ def checks(s):
     ck("H21b ...the menus are made by build.page (so F5 and Switch account see the change), and the Terminal, Switch account, Keys and Recent group entries are given a reason - dimmed, "
        "not choosable, their keys out of use - when their tile is off (S.88 U9: through the key table, $tk_keys 'why')",
        "gosub alloc.styles\n   gosub make.menus\n   return" in th and "call $tk_keys('menu', keys, 'terminal', '&Go', '&Terminal', '', '')" in mkm
-       and "call $tk_keys('menu', keys, 'switch', '&Go', 'S&witch account', '', '')" in mkm and "call $tk_keys('menu', keys, 'keys', '&Help', '&Keys', '', '')" in mkm
+       and "call $tk_keys('menu', keys, 'switch', '&Go', 'S&witch account', '', '')" in mkm
+       # 8 Nov 26 (S.179): Help > Keys is $tk_std's (Ctrl-K the keys of this page, as on every page), and is never off: the Keys TILE (tool.keys) still is
+       and "call $tk_std('keys', ctx, keys, '', '')" in mkm and "'keys', H.TILE.OFF" not in mkm
        and "if terminal.off then call $tk_keys('why', keys, 'terminal', H.TILE.OFF, '', '', '')" in mkm
        and "if index(off.set, ' switch ', 1) then call $tk_keys('why', keys, 'switch', H.TILE.OFF, '', '', '')" in mkm
-       and "if index(off.set, ' keys ', 1) then call $tk_keys('why', keys, 'keys', H.TILE.OFF, '', '', '')" in mkm
        and "if index(off.set, ' recent ', 1) then call $tk_keys('why', keys, 'recent', H.TILE.OFF, '', '', '')" in mkm, mkm[:400])
     ck("H22 !home_entry: when the screen ends and the account's Terminal tile is off, the person is signed out (QUIT) and not left at the prompt",
        he.find("execute 'home'") > 0 and he.find("call !home_off(@who, off)") > he.find("execute 'home'")
@@ -408,17 +409,19 @@ def checks(s):
     keyed = re.findall(r"call \$tk_keys\('add', keys, '([^']*)', '[^']*', '([^']*)', '', 1\)", mk9)
     menued = re.findall(r"call \$tk_keys\('menu', keys, '([^']*)'", mkm)
     ck("H82 ...every action on the bar has a key in the table (the bar replays the key through the page's own case), F10 has no row (it is the bar's), and the keys that are not on the function-key row are taken "
-       "off it right after their row (Backspace, Ctrl-T, Ctrl-W, Ctrl-R, Ctrl-K, and Ctrl-X when Ctrl-Q leaves for the prompt)",
+       "off it right after their row (Backspace, Alt-T, Ctrl-W, Ctrl-R, and Alt-X when Ctrl-Q leaves for the prompt); 8 Nov 26 (S.179): Ctrl-T (the theme) and Ctrl-K (the keys) and their View and "
+       "Help entries are $tk_std's, off the row too (test-tkstd-units.py), and Go > Start the tile (Enter) is new (S.180), so the page's own menu entries are 11",
        set(menued) <= {a for k, a in keyed if k} and not any(k == "f10" for k, a in keyed) and len(menued) == 11
-       and all(re.search(r"call \$tk_keys\('add', keys, '%s', [^\n]*\)\n   gosub off\.row\n" % k, mk9) for k in ("bs", "ctrl-t", "ctrl-w", "ctrl-r", "ctrl-k"))
-       and re.search(r"call \$tk_keys\('add', keys, 'ctrl-x', [^\n]*\)\n      gosub off\.row\n", mk9)
-       and mk9.count("gosub off.row") == 6 and "keys<dcount(keys, @fm), TK.K.ROW> = 0" in th, repr((keyed, menued)))
+       and all(re.search(r"call \$tk_keys\('add', keys, '%s', [^\n]*\)\n   gosub off\.row\n" % k, mk9) for k in ("bs", "alt-t", "ctrl-w", "ctrl-r"))
+       and re.search(r"call \$tk_keys\('add', keys, 'alt-x', [^\n]*\)\n      gosub off\.row\n", mk9)
+       and mk9.count("gosub off.row") == 5 and "keys<dcount(keys, @fm), TK.K.ROW> = 0" in th, repr((keyed, menued)))
     oky = between(th, "\non.key:\n", "\non.mouse:\n")
-    ck("H83 ...a key of a tile that is off does nothing but say so, whether pressed or chosen from the bar: Ctrl-T asks terminal.off before it leaves for the Terminal, Ctrl-W and Ctrl-K ask the off list before "
-       "Switch account and tool.keys, Ctrl-R goes through toggle.recent (which refuses itself, 11961)",
-       ordered(oky, "case nm = 'ctrl-t'", "if terminal.off then", "msg = H.TILE.OFF", "outcome = 'terminal'")
+    ck("H83 ...a key of a tile that is off does nothing but say so, whether pressed or chosen from the bar: Alt-T (S.179; Ctrl-T before) asks terminal.off before it leaves for the Terminal, Ctrl-W asks the "
+       "off list before Switch account, Ctrl-R goes through toggle.recent (which refuses itself, 11961); Ctrl-T is the theme and Ctrl-K the keys of the page, through $tk_std as on every page",
+       ordered(oky, "case nm = 'alt-t'", "if terminal.off then", "msg = H.TILE.OFF", "outcome = 'terminal'")
        and "case nm = 'ctrl-w'\n         if index(off.set, ' switch ', 1) then msg = H.TILE.OFF else gosub switch.account" in oky
-       and ordered(oky, "case nm = 'ctrl-k'", "if index(off.set, ' keys ', 1) then", "msg = H.TILE.OFF", "sentence = 'tool.keys'", "gosub run.command")
+       and ordered(oky, "case nm = 'ctrl-t'", "call $tk_std('theme', ctx, keys, '', std.r)", "if std.r<1> then gosub rebuild", "msg = std.r<2>")
+       and ordered(oky, "case nm = 'ctrl-k'", "call $tk_std('keylist', ctx, keys, ttl, std.r)")
        and "case nm = 'ctrl-r'\n         gosub toggle.recent" in oky and ordered(between(th, "\ntoggle.recent:\n", "\nrelayout:\n"), "if index(off.set, ' recent ', 1) then", "msg = sysmsg(11961)", "return"), oky[:300])
     ck("H84 type-to-find (/, Go > Find a tile): the tiles of the page (no Recent copy twice) go to $tk_pickrec 'list', the window starts on the tile that has the focus, and a choice only MOVES the focus "
        "(set.focus, never start.tile: Enter on the page starts it); a cancel changes nothing; the case for / comes before the letter jump",
@@ -442,12 +445,12 @@ def checks(s):
        "and the Terminal tile is not off, worked out before the key table is made",
        ordered(th, "common /tkhome/ hflag, hlogto, hstart", "hlogto = 0", "menu.session = hstart + 0", "hstart = 0", "call $tk_open('home', '', ctx, err)")
        and ordered(th, "call !home_off(@who, off.list)", "leave.ok = (not(menu.session) and not(index(' ' : off.list : ' ', ' terminal ', 1)))", "gosub make.keys"), th[:200])
-    ck("H85b ...when it may, Ctrl-Q is 'prompt' (leave) and Ctrl-X is Sign out, off the key row, and the File menu has Back to the prompt before Sign out; when it may not, Ctrl-Q is Sign out as before; "
-       "the loop leaves on Ctrl-Q (outcome leave) and signs out on Ctrl-X only when leave.ok",
+    ck("H85b ...when it may, Ctrl-Q is 'prompt' (leave) and Alt-X (S.179; Ctrl-X before) is Sign out, off the key row, and the File menu has Back to the prompt before Sign out; when it may not, Ctrl-Q "
+       "is Sign out as before; the loop leaves on Ctrl-Q (outcome leave) and signs out on Alt-X only when leave.ok",
        "if leave.ok then\n      call $tk_keys('add', keys, 'ctrl-q', 'prompt', 'leave', '', 1)\n   end else\n      call $tk_keys('add', keys, 'ctrl-q', 'sign out', 'signout', '', 1)\n   end" in mkk
-       and "if leave.ok then\n      call $tk_keys('add', keys, 'ctrl-x', 'sign out', 'signout', '', 1)\n      gosub off.row\n   end" in mkk
+       and "if leave.ok then\n      call $tk_keys('add', keys, 'alt-x', 'sign out', 'signout', '', 1)\n      gosub off.row\n   end" in mkk
        and ordered(mkm, "if leave.ok then call $tk_keys('menu', keys, 'leave', '&File', '&Back to the prompt', '', '')", "call $tk_keys('menu', keys, 'signout', '&File', '&Sign out', '', '')")
-       and "case nm = 'ctrl-q'\n         if leave.ok then\n            outcome = 'leave'\n            done = 1\n         end else\n            gosub do.signout\n         end\n      case nm = 'ctrl-x' and leave.ok\n         gosub do.signout" in oky,
+       and "case nm = 'ctrl-q'\n         if leave.ok then\n            outcome = 'leave'\n            done = 1\n         end else\n            gosub do.signout\n         end\n      case nm = 'alt-x' and leave.ok\n         gosub do.signout" in oky,
        mkk[:300])
     leave_case = between(fin, "case outcome = 'leave'", "case 1")
     ck("H85c ...leaving closes the screen and nothing else (no QUIT, hflag untouched, so EXIT still ends the session), after the wall for an account whose Terminal tile is off; !home_entry and EXIT say "

@@ -30,7 +30,7 @@ DEBUGH = os.path.join(GPL, "debug.h")
 
 # the function keys the command loop acts on that are NOT on the key row, and why: F11 is the internal trace, the paging keys move the source
 NOT_ON_ROW = {"f11", "pgup", "pgdn", "ctrl-pgup", "ctrl-pgdn"}
-LOOP_KEYS = {"K$F1": "f1", "K$F2": "f2", "K$F3": "f3", "K$F4": "f4", "K$F5": "f5", "K$F7": "f7", "K$F8": "f8", "K$F11": "f11",
+LOOP_KEYS = {"K$F1": "f1", "K$F2": "f2", "K$F3": "f3", "K$F4": "f4", "K$F5": "f5", "K$F7": "f7", "K$F8": "f8", "K$F9": "f9", "K$F10": "f10", "K$F11": "f11",
              "K$CTRL.F7": "ctrl-f7", "K$CTRL.F8": "ctrl-f8", "K$PAGE.UP": "pgup", "K$PAGE.DOWN": "pgdn",
              "K$CTRL.PAGE.UP": "ctrl-pgup", "K$CTRL.PAGE.DOWN": "ctrl-pgdn"}
 
@@ -92,8 +92,9 @@ def checks(src, hdr):
     rel = routine(c, "relayout") or ""
     ck("relayout takes the library's context again with scr.in (the cursor lock leaves the screen the lock's)", "gosub scr.in" in rel, rel[:200])
     ti = routine(c, "theme.in") or ""
-    ck("theme.in takes the site's theme (SCREENTHEME) when the program asked for none, and classic when the site names none or the terminal cannot show it",
-       "config('SCREENTHEME')" in ti and "'classic'" in ti and "gosub scr.in" in ti, ti[:300])
+    # 8 Nov 26 (S.179): the person's own theme first - $sl_theme 'site' answers it, else SCREENTHEME - and no direct read of SCREENTHEME is left
+    ck("theme.in takes the person's or the site's theme ($sl_theme 'site') when the program asked for none, and classic when there is none or the terminal cannot show it",
+       "$sl_theme('site'" in ti and "config('SCREENTHEME')" not in ti and "'classic'" in ti and "gosub scr.in" in ti, ti[:300])
     scr = routine(c, "scr.in") or ""
     ck("scr.in sets the styles the new panes use (status line, line numbers, header, messages, Autos) and whether the language's colours apply",
        all(w in scr for w in ("rev.attr", "num.attr", "head.attr", "data.attr", "auto.attr", "syn.on")), scr[:300])
@@ -124,7 +125,7 @@ def checks(src, hdr):
     ck("every key of the table is added with the seven arguments $tk_keys takes", len(table) == len(adds) and len(table) > 0, "%d adds, %d well formed" % (len(adds), len(table)))
     ck("the row is made by $tk_fkeys with its four arguments", re.search(r"call \$tk_fkeys\(kr\.ctx, kr\.keys, '', key\.row\)", kt), kt[-200:])
     loop_cases = set()
-    for m in re.finditer(r"case n = (K\$[A-Z0-9.]+)", c):
+    for m in re.finditer(r"(?:case n = |or n = )(K\$[A-Z0-9.]+)", c):     # 8 Nov 26 (S.180): F10 is acted on by get.input, "case n = 27 or n = K$F10"
         if m.group(1) in LOOP_KEYS:
             loop_cases.add(LOOP_KEYS[m.group(1)])
     keys = {k for k, _, _ in table}

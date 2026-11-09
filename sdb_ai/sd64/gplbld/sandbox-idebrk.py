@@ -33,14 +33,15 @@ Ide, say, bail, RET, F7, DOWN, UP = ide.Ide, ide.say, ide.bail, ide.RET, ide.F7,
 
 SHIFT_F7 = "\x1b[18;2~"          # xterm's kf19
 F10, RIGHT = ide.F10, ide.RIGHT
-# the Build menu (message 11228) is the fourth: F10 opens File, Right three times; its seventh entry is Debug from the first line, its ninth Clear breakpoints
-DEBUG1 = (F10, RIGHT * 3, DOWN * 6, RET)
-BPCLEAR = (F10, RIGHT * 3, DOWN * 8, RET)
+# the Build menu (message 11228) is the fifth since S.180 (File, Edit, Go, Search, Build): F10 opens File, Right four times; its seventh entry is Debug
+# from the first line, its ninth Clear breakpoints
+DEBUG1 = (F10, RIGHT * 4, DOWN * 6, RET)
+BPCLEAR = (F10, RIGHT * 4, DOWN * 8, RET)
 CTRL_HOME = "\x1b[1;5H"
 MARKCOL = 29                      # the gutter's first cell: the editor's border is column 28
 SRC_LAST = 32                     # the debugger's source pane: rows 1 to 32, its mark in column 0, the Autos pane from column 92
 AUTOX = 92
-DBG_KEYS = "F1 help  F2 abort  F3 stop  F4 screen  F5 run  F7 step  F8 line  ^F7 parent  ^F8 program"
+DBG_KEYS = "F1 help  F2 abort  F3 stop  F4 screen  F5 refresh  F7 step  F8 line  F9 run  F10 menu  ^F7 parent  ^F8 program"     # S.179, 8 Nov 26: F5 refresh, F9 run, F10 the menu bar
 RUN = "%05d" % (os.getpid() % 100000)
 P, L, E, C = ("zzk%s%s" % (RUN, c) for c in "plec")
 
@@ -103,7 +104,7 @@ def quit_debugger(e):
     paused = "Press Return to go back to the IDE" in e.text()
     e.keys(RET)
     e.s.settle(1.0)
-    return paused and re.search(r"File\s+Go\s+Search", e.lines()[0]) is not None
+    return paused and re.search(r"File\s+Edit\s+Go\s+Search", e.lines()[0]) is not None
 
 
 def main():

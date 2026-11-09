@@ -27,6 +27,7 @@
 * 1 Nov 26 dm  S.97 stage 2 (group B): the AI line ($tk_aipage), as tool.voc has it: F6 or AI > Ask the AI; the box switch and refresh are offered, none of the settings.
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the boxes
 *              (Left and Right still do).  AI > Ask the AI is a menu entry of its own.
+* 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -108,6 +109,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'pane', '&View', '&Switch box', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
+   call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    * S.97 stage 2 (group B): the AI line.  The page offers the AI only the box switch and refresh (the provider, the model, the key, the limits and an account's AI are NOT
    * offered: they are the administrator's settings); a proposal is carried out by the page's own key.  Where the AI is not usable nothing here adds a key, a row or a line.
    call $tk_keys('ai', keys, 'pane', '', '', '', '')
@@ -510,6 +512,12 @@ on.key:
          if pane = 1 then gosub select.provider else gosub toggle.gate
       case nm = 'f1' or nm = '?'
          gosub help.here
+      case nm = 'ctrl-t'                    ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
+         call $tk_std('keylist', ctx, keys, pnames<pane>, std.r)
       case nm = 'f5'
          gosub read.all
          gosub draw.all

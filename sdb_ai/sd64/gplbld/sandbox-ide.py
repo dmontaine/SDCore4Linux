@@ -63,6 +63,8 @@ CTRL_Q, CTRL_S, CTRL_W, CTRL_L, CTRL_R = "\x11", "\x13", "\x17", "\x0c", "\x12"
 CTRL_F = "\x06"                                                  # the text area's find question
 CTRL_N, CTRL_O, CTRL_U = "\x0e", "\x0f", "\x15"               # new record, open record (the IDE's); Ctrl-U clears an entry of the name form
 CTRL_PGDN, CTRL_PGUP = "\x1b[6;5~", "\x1b[5;5~"               # next / previous record tab (xterm's modifier form; F6 is the next PANE since S.88 Phase 4)
+ALT_G = "\x1bg"                                                  # go to a line (S.179, 8 Nov 26: it was Ctrl-L, which is now redraw as on every page)
+SHIFT_F9 = "\x1b[20;2~"                                          # compile and catalogue (S.179: F9 is run, as on every page; F5 is refresh)
 
 
 def say(s=""):
@@ -384,7 +386,7 @@ end
         say("\n--- the start -------------------------------------------------------------------------------------")
         e = Ide(box)
         L = e.lines()
-        row("the menu bar is on the top row", re.search(r"File\s+Go\s+Search\s+Build\s+View\s+Tools\s+Help", L[0]) is not None, L[0])
+        row("the menu bar is on the top row", re.search(r"File\s+Edit\s+Go\s+Search\s+Build\s+View\s+Tools\s+Help", L[0]) is not None, L[0])
         row("S.99: the IDE's name and the person are at the right end of row 0 (ide  user@account), within 140 columns",
             re.search(r"ide  \S+@\S+$", L[0].rstrip()) is not None and len(L[0].rstrip()) <= 140, repr(L[0].rstrip()[-40:]))
         st, sb = e.s.screen.style(0, len(L[0].rstrip()) - 2), e.s.screen.style(0, 100)
@@ -498,8 +500,8 @@ end
         # ---- go to a line -----------------------------------------------------------------------------------
         say("\n--- go to a line, the keys that are not the editor's ---------------------------------------------------")
         L = e.keys(CTRL_PGDN)                              # to A (four lines)
-        L = e.keys(CTRL_L)
-        row("Ctrl-L asks for a line number", "Go to (a line" in e.text(), e.text()[-300:])       # 29 Oct 26: message 11209's wording
+        L = e.keys(ALT_G)
+        row("Alt-G asks for a line number", "Go to (a line" in e.text(), e.text()[-300:])       # 29 Oct 26: message 11209's wording; Alt-G since S.179
         L = e.keys("3", RET)
         row("the cursor goes to line 3", "Line 3," in e.status(), e.status())
         L = e.keys(F1)
@@ -521,6 +523,10 @@ end
             and any("New record" in l and "^N" in l for l in L[1:12])
             and not any("Save as" in l and "^" in l for l in L[1:12]) and not any("Write a copy" in l and "^" in l for l in L[1:12]), e.text()[:400])
         L = e.keys(RIGHT)
+        row("S.180: Right goes to the Edit menu: Undo ^Z, Redo ^Y, Cut, Copy, Paste, Select all and the fields pane's four",
+            has(L, "Undo", "Redo", "Cut", "Copy", "Paste", "Select all", "Insert a field", "Delete a field", "Rename the field", "Change the type")
+            and any("Undo" in l and "^Z" in l for l in L[1:14]) and any("Change the type" in l and "Alt-T" in l for l in L[1:14]), e.text()[:600])
+        L = e.keys(RIGHT)
         row("Right goes to the next menu (Go)", has(L, "Go to line", "Next error", "Next tab", "Previous tab", "Next pane"), e.text()[:400])
         row("...Next tab carries ^PgDn, Previous tab ^PgUp, Next pane F6 and Previous pane Shift-F6",
             any("Next tab" in l and "^PgDn" in l for l in L[1:14]) and any("Previous tab" in l and "^PgUp" in l for l in L[1:14])
@@ -538,9 +544,9 @@ end
         row("Right again: the Search menu holds Find in the records (no key) and Replace in the record (^R)",
             any("Find in the records" in l and "F11" not in l for l in L[1:12]) and any("Replace in the record" in l and "^R" in l for l in L[1:12]), e.text()[:400])
         L = e.keys(RIGHT)
-        row("...and the Build menu: Compile F8, Compile and catalogue F9, Run F5, Debug F7",
-            any("Compile" in l and "F8" in l for l in L[1:12]) and any("catalog" in l and "F9" in l for l in L[1:12])         # 29 Oct 26: the US spelling since 27 Oct (message 11228)
-            and any("Run" in l and "F5" in l for l in L[1:12]) and any("Debug" in l and "F7" in l for l in L[1:12]), e.text()[:400])
+        row("...and the Build menu: Compile F8, Compile and catalogue Shift-F9, Run F9, Debug F7 (S.179: F9 is run on every page)",
+            any("Compile" in l and "F8" in l for l in L[1:12]) and any("catalog" in l and "Shift-F9" in l for l in L[1:12])         # 29 Oct 26: the US spelling since 27 Oct (message 11228)
+            and any(re.search(r"\bRun\b.*\sF9\b", l) and "Shift" not in l for l in L[1:12]) and any("Debug" in l and "F7" in l for l in L[1:12]), e.text()[:400])
         L = e.keys(ESC)
         row("Esc closes it and the editor is still there", ("bp %s" % A) in e.status(), e.status())
         e.quiet()
@@ -548,7 +554,7 @@ end
         row("S.99: ...and the name is at the right end of row 0 again after the menu closed", re.search(r"ide  \S+@\S+$", L[0].rstrip()) is not None,
             repr(L[0].rstrip()[-40:]))
         row("control: the focus is in the editor before the menu entry is used", e.status().startswith("[Editor]"), e.status())
-        L = e.keys(F10, RIGHT, DOWN * 4, RET)               # Go, Files and records (the fifth entry: Go to line, Next error, Next tab, Previous tab, Files and records)
+        L = e.keys(F10, RIGHT * 2, DOWN * 4, RET)           # Go (after File and Edit), Files and records (the fifth entry: Go to line, Next error, Next tab, Previous tab, Files and records)
         e.quiet()
         row("Go, Files and records moves the focus to the tree: the status line says [Files] and the record is the same one",
             e.status().startswith("[Files]") and ("bp %s" % A) in e.status() and "Go to line" not in e.text(), e.status() + "\n" + e.text()[:300])
@@ -561,7 +567,7 @@ end
         # (the owner's D31: F3 is find next in the text area; the tree is reached by the panes' ring, the Go menu and the mouse.)  The record A is
         # open with four lines: the fixture's 'crt "one"', 'x = = 1', 'crt "three"', 'end', and 'ZZ' typed at the start of the first; 'crt' is in
         # lines 1 and 3 only.
-        L = e.keys(CTRL_L)
+        L = e.keys(ALT_G)
         L = e.keys("1", RET)
         L = e.keys(HOME)
         row("setup: the cursor is at the start of line 1", "Line 1, column 1" in e.status(), e.status())
@@ -621,8 +627,8 @@ end
         say("\n--- find in the records of the file -------------------------------------------------------------------")
         L = e.keys(F11)
         row("F11 does nothing now: no question is asked (find in the records has no key, only the Search menu)",
-            "Find in the records of bp" not in e.text() and re.search(r"File\s+Go\s+Search", e.lines()[0]) is not None, e.text()[-300:])
-        L = e.keys(F10, RIGHT * 2, RET)                     # Search, Find in the records (its first entry)
+            "Find in the records of bp" not in e.text() and re.search(r"File\s+Edit\s+Go\s+Search", e.lines()[0]) is not None, e.text()[-300:])
+        L = e.keys(F10, RIGHT * 3, RET)                     # Search (File, Edit, Go, Search), Find in the records (its first entry)
         row("Search, Find in the records asks for the text to find in the records (the control for F11)", "Find in the records of bp" in e.text(), e.text()[-300:])
         L = e.keys("needle", RET)
         t = "\n".join(L)
@@ -742,31 +748,31 @@ end
         e = Ide(box, "IDE bp %s" % B)
         L = e.lines()
         row("IDE file record opens that record at once", ("bp %s" % B) in e.status() and "[%s]" % B in L[2], e.status() + " | " + L[2])
-        L = e.keys(F5)
-        row("F5 runs the program: its output is on the terminal and the IDE says to press Return",
+        L = e.keys(F9)
+        row("F9 runs the program (S.179; F5 is refresh): its output is on the terminal and the IDE says to press Return",
             "IDE-RAN-OK" in e.text() and "Press Return to go back to the IDE" in e.text(), e.text()[-400:])
         L = e.keys(RET)
-        row("Return gives the IDE back, with the record still open", re.search(r"File\s+Go\s+Search", L[0]) is not None and ("bp %s" % B) in e.status(), L[0] + " | " + e.status())
+        row("Return gives the IDE back, with the record still open", re.search(r"File\s+Edit\s+Go\s+Search", L[0]) is not None and ("bp %s" % B) in e.status(), L[0] + " | " + e.status())
 
         # ---- catalogue and debug ------------------------------------------------------------------------------------
         say("\n--- catalogue, debug, theme -------------------------------------------------------------------------------")
         L = e.keys(F8)
         row("F8 compiles and only compiles: the status line says so and does not say Catalogued",
             ("Compiled bp %s with no errors" % B) in e.status() and "Catalogued" not in e.status(), e.status())
-        row("...the program is not catalogued: it does not run from the command prompt by its name (the control is the F9 rows below)", "IDE-RAN-OK" not in sess(box, B), "")
-        L = e.keys(F9)
-        row("F9 builds: it compiles and catalogues, and the status line says so", ("Catalogued bp %s" % B) in e.status(), e.status())
+        row("...the program is not catalogued: it does not run from the command prompt by its name (the control is the Shift-F9 rows below)", "IDE-RAN-OK" not in sess(box, B), "")
+        L = e.keys(SHIFT_F9)
+        row("Shift-F9 builds (S.179): it compiles and catalogues, and the status line says so", ("Catalogued bp %s" % B) in e.status(), e.status())
         row("...and the program runs from the command prompt by its name", "IDE-RAN-OK" in sess(box, B), "")
         L = e.keys(F7)
         row("F7 compiles with debugging and gives the terminal to the debugger (the program's source is shown)",
-            'crt "IDE-RAN-OK"' in e.text() and not re.search(r"File\s+Go\s+Search", e.lines()[0]), e.text()[:400])
+            'crt "IDE-RAN-OK"' in e.text() and not re.search(r"File\s+Edit\s+Go\s+Search", e.lines()[0]), e.text()[:400])
         L = e.keys("q", RET)
         row("quitting the debugger comes back to the IDE after Return",
             "Press Return to go back to the IDE" in e.text(), e.text()[-300:])
         L = e.keys(RET)
-        row("...with the record still open", re.search(r"File\s+Go\s+Search", L[0]) is not None and ("bp %s" % B) in e.status(), e.status())
-        L = e.keys(F10, RIGHT * 4, RET)
-        row("View, Theme changes the theme and the IDE is still on the screen", re.search(r"File\s+Go\s+Search", e.lines()[0]) is not None and ("bp %s" % B) in e.status(), e.text()[:300])
+        row("...with the record still open", re.search(r"File\s+Edit\s+Go\s+Search", L[0]) is not None and ("bp %s" % B) in e.status(), e.status())
+        L = e.keys(F10, RIGHT * 5, RET)                     # View (File, Edit, Go, Search, Build, View), Theme
+        row("View, Theme changes the theme and the IDE is still on the screen", re.search(r"File\s+Edit\s+Go\s+Search", e.lines()[0]) is not None and ("bp %s" % B) in e.status(), e.text()[:300])
 
         # ---- quitting ----------------------------------------------------------------------------------------------
         say("\n--- quitting ----------------------------------------------------------------------------------------------")
@@ -776,10 +782,10 @@ end
         L = e.keys(CTRL_Q)
         row("Ctrl-Q with a changed record asks", has(L, "has changes", "Save", "Discard", "Cancel"), e.text()[:400])
         L = e.keys(ESC)
-        row("Esc in the question (Cancel) stays in the IDE", re.search(r"File\s+Go\s+Search", L[0]) is not None, L[0])
+        row("Esc in the question (Cancel) stays in the IDE", re.search(r"File\s+Edit\s+Go\s+Search", L[0]) is not None, L[0])
         L = e.keys(CTRL_Q, DOWN, RET)
         row("Discard leaves the IDE: the menu bar is gone and the record is unchanged",
-            not re.search(r"File\s+Go\s+Search", e.lines()[0]) and "xcrt" not in rec_text(box, B), e.text()[:300])
+            not re.search(r"File\s+Edit\s+Go\s+Search", e.lines()[0]) and "xcrt" not in rec_text(box, B), e.text()[:300])
         e.end()
 
         # ---- Return on the table's row, and on a file that is open -------------------------------------------------------
@@ -787,7 +793,7 @@ end
         e = Ide(box, "IDE bp %s" % A)
         e.keys(F8)
         row("setup: the record is open and compiled with its error", ("bp %s" % A) in e.status() and "error(s)" in e.status(), e.status())
-        e.keys(CTRL_L)
+        e.keys(ALT_G)
         e.keys("1", RET)
         row("the cursor is moved to line 1", "Line 1," in e.status(), e.status())
         e.keys(*GOTO_TREE, F6, F6, F6)                  # tree, tabs, editor, table (S.176: F6 is the only box key; Tab indents in the editor)
@@ -850,7 +856,7 @@ end
         e = Ide(box, "IDE", cols=50, rows=12)
         row("a terminal smaller than 140 by 43 is refused with the library's message, and nothing is drawn",
             "".join("IDE needs a window of at least 140 columns by 43 lines; this one is 50 by 12".split()) in "".join(e.text().split())   # the message wraps at column 50
-            and not re.search(r"File\s+Go\s+Search", e.lines()[0]), e.text()[:300])
+            and not re.search(r"File\s+Edit\s+Go\s+Search", e.lines()[0]), e.text()[:300])
         e.end()
 
         # ---- a record somebody else changed ---------------------------------------------------------------------------
@@ -970,7 +976,7 @@ end
         e = Ide(box, "IDE bp %s" % A, term="200,60")
         L = e.lines()
         row("a display of 200 by 60 on a window of 140 by 43 (TERM 200,60): the IDE is laid out for the window - menu bar on row 0, title on row 1, status line three rows above the last",
-            re.search(r"File\s+Go\s+Search", L[0]) is not None and L[1].startswith("+- IDE") and ("bp %s" % A) in L[40],
+            re.search(r"File\s+Edit\s+Go\s+Search", L[0]) is not None and L[1].startswith("+- IDE") and ("bp %s" % A) in L[40],
             "\n".join(l[:70] for l in (L[0], L[1], L[2], L[40], L[41], L[42])))
         e.end()
 

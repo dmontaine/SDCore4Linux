@@ -137,6 +137,7 @@ MUTANTS = {
 }
 MUTANT_PROG = {"ide-compiles-here": "ide", "ide-debug-here": "ide"}          # the program a mutant changes, when it is not the page; setup_page copies both from the tree first, so a mutant does not outlive its run
 KEY_F5, KEY_F7, KEY_F8, KEY_F9 = "\x1b[[E", "\x1b[18~", "\x1b[19~", "\x1b[20~"     # the console's codes (the sandbox's terminal is linux, as sh.KEYS)
+KEY_SF9 = "\x1b[20;2~"            # Shift-F9, the IDE's compile and catalogue since S.179 (8 Nov 26; F9 is run); xterm's form - a real console sends none, its Build menu has it
 
 
 def arow(rid, name, ok, detail=""):
@@ -1197,13 +1198,13 @@ def section_e12():
     arow("E12e", "the IDE's F8 on that tab compiled IN ze1 through run.in: the IDE says compiled with no errors, ze1's object is newer, and SDSYS's directory gained no zm...out file or "
          "directory (BASIC was not run on the pointer here)", "with no errors" in st8 and m_8 is not None and m_c is not None and m_8 > m_c and sys_out == sys_out0,
          repr((m_c, m_8, sys_out0, sys_out, st8[-400:])))
-    p.h.typed(KEY_F9, idle=7.0)
+    p.h.typed(KEY_SF9, idle=7.0)
     st9 = p.h.text()
-    arow("E12f", "F9 (compile and catalogue) catalogues through run.in in ze1: the IDE says Catalogued, ze1's private catalogue has zwedit and the global catalogue does not",
+    arow("E12f", "Shift-F9 (compile and catalogue) catalogues through run.in in ze1: the IDE says Catalogued, ze1's private catalogue has zwedit and the global catalogue does not",
          "Catalogued" in st9 and in_cat(os.path.join(apath("ze1"), "cat"), "zwedit") and not in_cat(os.path.join(sh.SYS, "gcat"), "zwedit"), st9[-400:])
-    p.h.typed(KEY_F5, idle=2.0)
+    p.h.typed(KEY_F9, idle=2.0)
     st5 = p.h.text()
-    arow("E12g", "F5 (run) on that tab is refused in words, and the IDE is still on the screen (F7, debug, is E13's: M5)", "is not run from here" in st5 and ide_up(p.h), st5[-300:])
+    arow("E12g", "F9 (run, S.179) on that tab is refused in words, and the IDE is still on the screen (F7, debug, is E13's: M5)", "is not run from here" in st5 and ide_up(p.h), st5[-300:])
     to_page(p)
     src_now = zw_read("ze1", "bp", "zwedit")
     arow("E12h", "the edit was written into ze1's own bp (the disk), and the page came back saying so", src_now is not None and "' two'" in src_now
@@ -1313,7 +1314,7 @@ def section_e12():
     zw_unfixture()
 
 
-DBG_KEYS = "F1 help  F2 abort  F3 stop  F4 screen  F5 run  F7 step  F8 line  ^F7 parent  ^F8 program"      # the debugger's key row (sandbox-idebrk.py)
+DBG_KEYS = "F1 help  F2 abort  F3 stop  F4 screen  F5 refresh  F7 step  F8 line  F9 run  F10 menu  ^F7 parent  ^F8 program"     # S.179, 8 Nov 26: F5 refresh, F9 run, F10 the menu bar      # the debugger's key row (sandbox-idebrk.py)
 
 
 def in_debugger(h):

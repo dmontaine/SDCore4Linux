@@ -15,6 +15,7 @@
 *              "Allow or stop allowing" belongs to the account view's panes only and is dim in the Jobs view, where Enter is C.
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the boxes
 *              (Left and Right still do).  AI > Ask the AI is a menu entry of its own.
+* 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -101,6 +102,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'output', '&View', '&Output', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this box', '', '')
+   call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    * The AI line: offered only the pane switch, the output pane and refresh (allowing a command and every job action are NOT offered); a proposal is carried
    * out by the page's own key.
    call $tk_keys('ai', keys, 'pane', '', '', '', '')
@@ -658,6 +660,12 @@ on.key:
          gosub switch.view
       case nm = 'f1' or nm = '?'
          gosub help.here
+      case nm = 'ctrl-t'                    ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
+         call $tk_std('keylist', ctx, keys, pnames<pane>, std.r)
       case nm = 'f5'
          gosub read.all
          gosub draw.all
@@ -713,6 +721,12 @@ jobs.key:
          gosub job.run
       case nm = 'f1' or nm = '?'
          gosub help.here
+      case nm = 'ctrl-t'                    ;* S.179: the theme, as in the page's other view ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
+         call $tk_std('keylist', ctx, keys, pnames<pane>, std.r)
       case nm = 'f5'
          gosub read.jobs
          gosub draw.all

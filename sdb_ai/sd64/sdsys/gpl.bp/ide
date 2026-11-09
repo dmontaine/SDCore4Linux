@@ -6,6 +6,12 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 8 Nov 26 dm  S.180 (the owner: "all features available on a page need to appear somewhere on the menus"; "Add an Edit menu"): an Edit menu after File
+*              (message 14019) - Undo, Redo, Cut, Copy, Paste, Select all, and the fields pane's Insert, Delete, Rename and Change the type - each handing the key it
+*              names to the widget that owns it (do.editkey; the field entries say 14020 outside the fields pane).
+* 8 Nov 26 dm  S.179 (the owner: the same keys on every page, F5 refresh everywhere, run on F9): F5 and Ctrl-L draw the screen again, F9 runs, Shift-F9 compiles and
+*              catalogues, Alt-G goes to a line, Ctrl-T is the theme ($tk_theme, kept for the person) and Ctrl-K the keys ($tk_std), the fields pane's change of type
+*              is Alt-T (F2 is reserved for the bar's finder).  The editor leaves Ctrl-T and Ctrl-K to the IDE (passkeys) and cuts a line with Alt-K.  Menus 11226, 11228, 11229, 11230 show the keys.
 * 3 Nov 26 dm  S.97: the dictionary form has an AI line; do.dform tells it where the item is (ai.origin, the fifth argument of $dict_form) so that the AI's wall can judge it.
 * 2 Nov 26 dm  S.88 p3.3a-ide: A RESIZE NO LONGER LOSES THE EDITOR'S STATE.  relayout moved every widget by making the whole form again, and the text area made again had
 *              lost its undo and redo steps, its selection mark, its find text and its view (the messages table its row, the tree its open nodes, the AI entry its text).
@@ -355,12 +361,17 @@ $include idebrk.h
    call $tk_keys('add', ide.keys, 'ctrl-w', 'close', 'close', '', 1)
    call $tk_keys('add', ide.keys, 'ctrl-q', 'quit', 'quit', '', 1)
    call $tk_keys('add', ide.keys, 'f4', 'problem', 'nexterr', '', 1)
-   call $tk_keys('add', ide.keys, 'f5', 'run', 'run', '', 1)
+   call $tk_keys('add', ide.keys, 'f5', 'refresh', 'refresh', '', 1)        ;* 8 Nov 26 (S.179): F5 refreshes on every page; run is F9, build Shift-F9
    call $tk_keys('add', ide.keys, 'f6', 'pane', 'nextpane', '', 1)
    call $tk_keys('add', ide.keys, 'f7', 'debug', 'debug', '', 1)
    call $tk_keys('add', ide.keys, 'f8', 'compile', 'compile', '', 1)
-   call $tk_keys('add', ide.keys, 'f9', 'build', 'catalog', '', 1)
-   call $tk_keys('add', ide.keys, 'ctrl-l', 'go to', 'goto', '', 1)
+   call $tk_keys('add', ide.keys, 'f9', 'run', 'run', '', 1)
+   call $tk_keys('add', ide.keys, 'shift-f9', 'build', 'catalog', '', 1)
+   call $tk_keys('add', ide.keys, 'alt-g', 'go to', 'goto', '', 1)          ;* S.179: Alt-G, as in SED (Ctrl-L redraws on every page)
+   call $tk_keys('add', ide.keys, 'ctrl-t', 'theme', 'theme', '', 1)        ;* S.179: the theme and the keys, as on every page
+   ide.keys<dcount(ide.keys, @fm), TK.K.ROW> = 0
+   call $tk_keys('add', ide.keys, 'ctrl-k', 'keys', 'keys', '', 1)
+   ide.keys<dcount(ide.keys, @fm), TK.K.ROW> = 0
    call $tk_keys('add', ide.keys, 'f12', 'fields', 'fields', '', 1)
    call $tk_keys('add', ide.keys, 'ctrl-n', 'new', 'new', '', 1)
    call $tk_keys('add', ide.keys, 'ctrl-e', 'SED', 'sed', '', 1)
@@ -375,7 +386,7 @@ $include idebrk.h
    call $tk_keys('add', ide.keys, 'ctrl-c', 'copy', 'copy', 'fields', 1)
    call $tk_keys('add', ide.keys, 'ctrl-x', 'cut', 'cut', 'fields', 1)
    call $tk_keys('add', ide.keys, 'ctrl-v', 'paste', 'paste', 'fields', 1)
-   call $tk_keys('add', ide.keys, 'ctrl-t', 'type', 'type', 'fields', 1)
+   call $tk_keys('add', ide.keys, 'alt-t', 'type', 'type', 'fields', 1)       ;* S.179: Alt-T (Ctrl-T is the theme on every page; F2 is reserved for the bar's finder)
    last.foot = ''
 
    call $sl_scr('get', scr)
@@ -386,13 +397,18 @@ $include idebrk.h
    *   (8 Nov 26, S.172: the delivered theme).  apply.theme falls back to paper for a name that is no theme, and to mono on a terminal with no colour.  The
    *   Theme command takes the next theme from the library ($sl_theme 'next'), in the one order every page shows them; th.want is the theme asked for, put on
    *   again when the screen is taken back.
-   th.want = downcase(trim(config('SCREENTHEME')))
+   call $sl_theme('site', '', '', '', '', th.want)     ;* 8 Nov 26 (S.179): the person's own theme first, then SCREENTHEME
    if th.want = '' then th.want = 'paper'
    gosub apply.theme
 
    * The menus: one message each, entries separated by | and the parts of an entry by ~
    menus = ''
    for j = 11225 to 11230
+      if j = 11226 then
+         m = change(sysmsg(14019), '|', @vm)             ;* 8 Nov 26 (S.180): the Edit menu, after File - every editing key of the editor and the fields pane is on a menu
+         m = change(m, '~', @sm)
+         menus<-1> = m
+      end
       if j = 11230 then
          m = change(sysmsg(14004), '|', @vm)             ;* 3 Nov 26 (S.75 DV10): the Tools menu, the development pages, before AI and Help
          m = change(m, '~', @sm)
@@ -836,7 +852,7 @@ new.form:
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    mw{'hbar'} = 1
-   mw{'passkeys'} = 'ctrl-e'                     ;* Ctrl-E hands the record to SED (the area's own meaning of it, end of row, is End); F3 / Shift-F3 are the area's find next / previous (the owner's D31)
+   mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'     ;* Ctrl-E hands the record to SED (the area's own meaning of it, end of row, is End); F3 / Shift-F3 are the area's find next / previous (the owner's D31).  8 Nov 26 (S.179): Ctrl-T (the theme) and Ctrl-K (the keys) are the IDE's, as on every page; the area cuts a line with Alt-K
    mw{'stay'} = 1                                ;* 28 Oct 26 (I3): Up on the first line and Down on the last stay in the editor and do not move the focus to the tabs or the messages
    mw{'edkeys'} = 1                              ;* 29 Oct 26 (S.88 D2): Ctrl-Home / Ctrl-End (start and end of the text), Ctrl-Left / Ctrl-Right (a word) and Ctrl-Del (delete a word)
    mw{'over'} = ed.over
@@ -2581,8 +2597,18 @@ do.key:
          cmd = 'save'
       case edata = 'f4'
          cmd = 'nexterr'
-      case edata = 'f5'
-         cmd = 'run'
+      case edata = 'f5' or edata = 'ctrl-l'
+         cmd = 'refresh'                 ;* 8 Nov 26 (S.179): F5 and Ctrl-L draw the screen again, as on every page (F5 ran, Ctrl-L went to a line)
+      case edata = 'f9'
+         cmd = 'run'                     ;* S.179: F9 (it was F5)
+      case edata = 'shift-f9'
+         cmd = 'catalog'                 ;* S.179: Shift-F9 (it was F9)
+      case edata = 'alt-g'
+         cmd = 'goto'                    ;* S.179: Alt-G, as in SED (it was Ctrl-L)
+      case edata = 'ctrl-t'
+         cmd = 'theme'                   ;* S.179: the theme, kept for the person, as on every page
+      case edata = 'ctrl-k'
+         cmd = 'keys'                    ;* S.179: the keys of the IDE, as on every page
       case edata = 'f6'
          cmd = 'nextpane'
       case edata = 'shift-f6'
@@ -2593,8 +2619,6 @@ do.key:
          cmd = 'bptoggle'                ;* 2 Nov 26 (S.98 H2): the breakpoint mark of the cursor's line
       case edata = 'f8'
          cmd = 'compile'
-      case edata = 'f9'
-         cmd = 'catalog'
       case edata = 'ctrl-pgdn' or edata = 'alt-pgdn'
          cmd = 'nexttab'                 ;* GNOME Terminal keeps Ctrl-PageUp / PageDown for its own tabs: Alt-PageUp / PageDown are the same keys with another modifier (Opus, 28 Oct)
       case edata = 'ctrl-pgup' or edata = 'alt-pgup'
@@ -2611,8 +2635,6 @@ do.key:
          cmd = 'open'
       case edata = 'ctrl-e'
          cmd = 'sed'                     ;* the record goes to SED and comes back (the editor leaves this key to the IDE: passkeys)
-      case edata = 'ctrl-l'
-         cmd = 'goto'
       case edata = 'ctrl-r'
          cmd = 'replace'                 ;* SED's replace
       case edata = 'f12'
@@ -2779,6 +2801,18 @@ run.cmd:
          gosub do.xeq
       case cmd[1, 5] = 'tool.'
          gosub do.tool                    ;* 3 Nov 26 (S.75 DV10): Tools > a development page, through the terminal hand-over
+      * 8 Nov 26 (S.180): the Edit menu.  Each entry hands the key it names to the widget that owns it - the editor, or the fields pane - so a choice
+      *   does exactly what the key does there (the read-only test, the undo steps and the clipboard are the widget's own)
+      case cmd = 'undo' or cmd = 'redo' or cmd = 'cut' or cmd = 'copy' or cmd = 'paste' or cmd = 'selall'
+         ek.key = (if cmd = 'undo' then 'ctrl-z' else if cmd = 'redo' then 'ctrl-y' else if cmd = 'cut' then 'ctrl-x' else if cmd = 'copy' then 'ctrl-c' else if cmd = 'paste' then 'ctrl-v' else 'ctrl-a')
+         gosub do.editkey
+      case cmd = 'finsert' or cmd = 'fdelete' or cmd = 'frename' or cmd = 'ftype'
+         if focus.id = 'fld' then
+            fz.key = (if cmd = 'finsert' then 'ins' else if cmd = 'fdelete' then 'del' else if cmd = 'frename' then 'f3' else 'alt-t')
+            gosub fields.key
+         end else
+            msg = sysmsg(14020)                      ;* The field entries work in the fields pane (F12).
+         end
       case cmd = 'overwrite'
          gosub do.overwrite
       case cmd = 'autoindent'
@@ -2804,11 +2838,14 @@ run.cmd:
             msg = sysmsg(11655)
          end
       case cmd = 'theme'
-         call $sl_theme('name', '', '', '', '', th.cur)
-         call $sl_theme('next', th.cur, '', '', '', th.want)      ;* 2 Nov 26 (S.88 p3.7b): the library's list and order, and only the themes this terminal can show
-         gosub apply.theme
+         * 8 Nov 26 (S.179): the routine every page uses ($tk_theme): the library's list and order, only the themes this terminal can show, kept for the person
+         call $tk_theme(1, th.chg, th.msg)
+         call $sl_theme('name', '', '', '', '', th.want)          ;* what is in force now: retake.quiet puts it on again after SED or a run
          screen refresh
          last.status = char(1)          ;* everything was drawn again, the status line too
+         msg = th.msg
+      case cmd = 'keys'
+         call $tk_std('keylist', '', ide.keys, '', th.kr)         ;* 8 Nov 26 (S.179): the IDE's keys, in a box, as on every page
    end case
    return
 
@@ -4368,7 +4405,7 @@ fields.key:
    fz.k = fz.key
    if fz.k = 'mouse' or fz.k = 'tab' or fz.k = 'btab' or fz.k = 'f2' or fz.k = 'resize' or fz.k = 'guardquit' then return
    if upcase(fz.k) = 'Q' then return                       ;* the engine's Q leaves a CED: this view is left with F12
-   if fz.k = 'ctrl-t' then fz.k = 'f4'                      ;* the engine's change of type (F4 is the IDE's next problem)
+   if fz.k = 'alt-t' then fz.k = 'f4'                       ;* the engine's change of type (F4 is the IDE's next problem); 8 Nov 26 (S.179): Alt-T, Ctrl-T being the theme everywhere and F2 reserved for the bar's finder
    if fz.k = 'left' or fz.k = 'bs' then fz.k = 'esc'              ;* Backspace is 'bs' to the key reader ($sl_key)
    gosub fields.state
    gosub fields.pull
@@ -5565,6 +5602,21 @@ do.refresh:
 * the three in ed.over, ed.auto and ed.tab so that a form made again (a resize) is given them.  None of them changes a record: Save is the person's act.
 
 * View > Overwrite mode (Ins in the area does the same): a typed character replaces the one under the cursor
+* 8 Nov 26 (S.180): an Edit menu entry - ek.key, the key it names - given to the fields pane when it has the focus, else to the editor's text area
+do.editkey:
+   if focus.id = 'fld' then
+      fz.key = ek.key
+      gosub fields.key
+      return
+   end
+   if nbuf = 0 then return
+   call $sl_form('find', f, '', 'ed', en)
+   ek.mw = f{'widgets', en}
+   call $sl_scr('get', ek.scr)
+   call $sl_memo('key', ek.mw, ek.scr, ek.key, ek.r)
+   gosub redraw.editor
+   return
+
 do.overwrite:
    call $sl_form('find', f, '', 'ed', en)
    ed.mw = f{'widgets', en}

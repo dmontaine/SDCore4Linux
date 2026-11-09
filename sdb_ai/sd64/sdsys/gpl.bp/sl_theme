@@ -22,6 +22,8 @@
 *               ratios in the xterm and GNOME Tango palettes) found nothing below 3:1; below 4.5 only blue (Tango 4.06), red (4.03) and magenta (xterm
 *               3.72) on the light grey - every colour but black is between 3 and 4.5 there without bold, the cost of syntax colour in a light 8-colour
 *               theme - and paper's focus and error rely on bold being made bright for 4.5.
+* 8 Nov 26 dm  S.179: the person's own theme.  The ops 'site' and 'save'; 'default' takes 'site'.  Kept inside SD (the owner: "Inside SD (tighter)"),
+*               as the record theme.<login name> of &menus& in the session's account - the Recent group's file - so no OS gate is crossed.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -75,7 +77,13 @@
 *         'list'   ret = the names of the themes, one to a field, in the one order every program shows them: blue, classic, dark, light, mono, night, paper
 *         'next'   a = the name of a theme ('' for the one in force); ret = the next one in that order that THIS terminal can show, wrapping.  A
 *                  terminal with no colour (or no terminal) can show mono only, so ret is mono whatever a was.
-*         'default' (SCREEN OPEN) takes the theme SCREENTHEME names in sd.conf, unless the program asked for one; a blank or unknown name, or a
+*         'site'   ret = the theme a program starts in: the person's own (op save) when they kept one in this account, else the one SCREENTHEME
+*                  names in sd.conf (lower case; '' when it names none).  Programs that choose their theme themselves (the IDE, SED, the
+*                  debugger, SP.VIEW) ask this rather than reading SCREENTHEME, so that all of them start where the pages do.
+*         'save'   a = a theme the person chose (Ctrl-T, View > Theme): kept as the record theme.<login name> of &menus& in the account the
+*                  session is in (made when it is not there), and taken by 'default' and 'site' from then on.  Nothing outside the account is
+*                  touched.  ret 0 kept; 1 not kept (the file could not be made or written: the theme lasts for this session); 2 not a theme.
+*         'default' (SCREEN OPEN) takes the theme 'site' names, unless the program asked for one; a blank or unknown name, or a
 *                  theme this terminal cannot show, leaves the library as it is (mono).
 *         'syntax'  a = dark or light: the nine syntax styles (comment string constant keyword type preproc special error todo) of that kind are put on the
 *                  theme in force and nothing else changes (1 Nov 26, S.99: SED is in the site's blue theme with the light syntax colours when the person asks for
@@ -169,12 +177,22 @@ $include sl.h
       case op = 'syntax'
          gosub set.syntax
 
+      case op = 'site'
+         * 8 Nov 26 (S.179): the theme a program starts in - the person's own choice when they made one, else the site's
+         gosub site.theme
+         ret = st.name
+
+      case op = 'save'
+         * 8 Nov 26 (S.179): keep a = the theme this person chose (Ctrl-T, View > Theme) for their next sessions in this account
+         gosub save.theme
+
       case op = 'default'
-         * SCREEN OPEN: the theme the administrator chose for the site (SCREENTHEME in sd.conf), unless the program has
-         * asked for one itself.  A name that is no theme, or a theme this terminal cannot show (no colour), is not an
-         * error here: the library stays as it is.
+         * SCREEN OPEN: the person's own theme (op save), else the theme the administrator chose for the site (SCREENTHEME in
+         * sd.conf), unless the program has asked for one itself.  A name that is no theme, or a theme this terminal cannot
+         * show (no colour), is not an error here: the library stays as it is.
          if not(th.asked) then
-            dn = downcase(trim(config('SCREENTHEME')))
+            gosub site.theme
+            dn = st.name
             if dn # '' and dn # downcase(th.name) then
                a = dn
                gosub set.theme
@@ -498,6 +516,47 @@ roles.light:
 * The one order the themes are shown in
 theme.order:
    thorder = 'blue' : @fm : 'classic' : @fm : 'dark' : @fm : 'light' : @fm : 'mono' : @fm : 'night' : @fm : 'paper'
+   return
+
+* 8 Nov 26 (S.179) - the person's own theme, kept inside SD (the owner's choice, 8 Nov: "Inside SD (tighter)"), the way the home screen keeps
+* its Recent group: the record theme.<login name> of the file &menus& in the account the session is in.  Nothing is read or written
+* outside the account, so no gate is crossed.  What is kept is a NAME, accepted only when it is one of the themes; anything else in the
+* record is ignored.  st.name = that name, else the site's SCREENTHEME (lower case, trimmed; '' when the site names none).
+site.theme:
+   st.name = ''
+   gosub theme.record.id
+   open '&menus&' to st.f then
+      read st.rec from st.f, st.id then
+         st.want = downcase(trim(st.rec<1>))
+         gosub theme.order
+         locate st.want in thorder<1> setting st.i then st.name = st.want
+      end
+      close st.f
+   end
+   if st.name = '' then st.name = downcase(trim(config('SCREENTHEME')))
+   return
+
+* a = the theme to keep.  ret 0 kept; 1 it could not be kept (the file could not be made or written: it lasts for this session only);
+* 2 a is not a theme.  The file &menus& is made in the account when it is not there, as MY.MENU and the Recent group make it.
+save.theme:
+   ret = 2
+   sv.name = downcase(trim(a))
+   gosub theme.order
+   locate sv.name in thorder<1> setting sv.i else return
+   ret = 1
+   gosub theme.record.id
+   open '&menus&' to sv.f else
+      execute 'create.file &menus& dynamic' capturing sv.out
+      open '&menus&' to sv.f else return
+   end
+   sv.ok = @true
+   write sv.name to sv.f, st.id on error sv.ok = @false
+   close sv.f
+   if sv.ok then ret = 0
+   return
+
+theme.record.id:
+   st.id = 'theme.' : downcase(@logname)
    return
 
 * ret = the theme after a (or after the one in force) that this terminal can show; mono alone when it has no colour

@@ -206,8 +206,8 @@ def part_undo(box):
     e.keys(REDO)
     row("Ctrl-Y makes it again: 6 lines", nlines(e) == 6, repr(nlines(e)))
     e.keys(UNDO)
-    L = e.keys(CTRL("a"), CTRL("k"))
-    row("control: Home, Ctrl-K kills the whole of line 1", L[1].strip() == "" or not L[1].startswith("alpha"), repr(L[1]))
+    L = e.keys(CTRL("a"), "\x1bk")                          # Alt-K kills the line since S.179 (8 Nov 26; Ctrl-K lists the keys)
+    row("control: Home, Alt-K kills the whole of line 1", L[1].strip() == "" or not L[1].startswith("alpha"), repr(L[1]))
     L = e.keys(UNDO)
     row("Ctrl-Z gives the line back", L[1] == base[1], repr(L[1]))
     L = e.keys(CTRL("a"), ESC + ".", CTRL("e"), CTRL("x"), idle=0.8)
@@ -323,8 +323,8 @@ def part_mouse(box):
 
     say("\n--- SED: a prompt takes no mouse report as an answer --------------------------------------------------------")
     e.keys(click(1, 2))
-    e.keys(CTRL("l"))
-    e.keys(click(5, 3))                                    # a report that got to the prompt line
+    e.keys("\x1bg")                                        # Alt-G, Goto line (S.179; Ctrl-L redraws)
+    e.keys(click(5, 3))                                  # a report that got to the prompt line
     L = e.keys("2", RET)
     row("a report at the Goto line prompt is not part of the answer: '2' goes to line 2", at(e) == (2, 1) and not any("0;5" in l for l in e.lines()), repr(at(e)))
     e.keys(CTRL("q"))

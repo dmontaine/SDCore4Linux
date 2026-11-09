@@ -16,6 +16,7 @@
 * 1 Nov 26 dm  S.95 stage 1b: a sixth view, the sdsys login over ssh: REMOTE.SDSYS's report, and O, R and F give the terminal to REMOTE.SDSYS ON, RECOVERY and OFF after a box
 *              (the secret and the recovery codes are shown by the verb on the plain terminal and never pass through this page).
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the view to the AI line and back; AI > Ask the AI is a menu entry of its own.
+* 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -94,6 +95,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'login', '&View', 'sdsys &login', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', 'Re&fresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    panes = 'Doors' : @fm : 'Routes' : @fm : 'Servers' : @fm : 'Connected' : @fm : 'TLS' : @fm : 'Login'
    * S.97 stage 2 (group B): the AI line.  The page offers the AI only its six views and refresh (opening or closing ssh or the API, a new server and deleting one are
    * NOT offered without the owner's word); a proposal is carried out by the page's own key.  Where the AI is not usable nothing here adds a key, a row or a line.
@@ -539,6 +541,12 @@ on.key:
          gosub do.new
       case (nm = 'o' or nm = 'f') and view = 6
          gosub do.sdsys
+      case nm = 'ctrl-t'                    ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
+         call $tk_std('keylist', ctx, keys, panes<view>, std.r)
       case nm = 'f5'
          gosub read.all
          gosub draw.all

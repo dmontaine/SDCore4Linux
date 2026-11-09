@@ -303,8 +303,8 @@ def sec_dialog_open():
     c = R.row("R4c home at 140x43 is up (footer on rows 41-43)", f0["ok"], repr(f0), phase=None)
     before = w.lines()
     w.send(F10, 1.0)
-    opened = any(("Sign out" in l and ("^Q" in l or "^X" in l)) for l in w.lines()[1:9])      # 3 Nov 26 (S.149): `home` is typed at the prompt here, so Sign out has ^X and ^Q is Back to the prompt
-    c2 = R.row("R4c2 F10 opens the File menu (an entry 'Sign out  ^X' appears in the rows under the menu bar)", opened, "\n".join(l for l in w.lines()[:9] if l.strip()), phase=None)
+    opened = any(("Sign out" in l and ("^Q" in l or "Alt-X" in l)) for l in w.lines()[1:9])    # 3 Nov 26 (S.149): `home` is typed at the prompt here, so Sign out has a key of its own (Alt-X since S.179) and ^Q is Back to the prompt
+    c2 = R.row("R4c2 F10 opens the File menu (an entry 'Sign out  Alt-X' appears in the rows under the menu bar)", opened, "\n".join(l for l in w.lines()[:9] if l.strip()), phase=None)
     off = w.resize(180, 55, 1.5)
     w.send(ESC, 1.0)
     w.pump(2.5)
@@ -445,7 +445,7 @@ def sec_ide_undo():
 
 def sec_editors_small():
     say("\n--- R7: below the minimum (120x36) the editors lock with a message like the pages")
-    for key, cmd, mark in (("ide", "IDE bp zzrrec", "File  Go  Search"), ("sed", "SED bp zzrrec", "File  Edit  Search"), ("ced", "CED zzrj j1", "Collection editor")):
+    for key, cmd, mark in (("ide", "IDE bp zzrrec", "File  Edit  Go  Search"), ("sed", "SED bp zzrrec", "File  Edit  Search"), ("ced", "CED zzrj j1", "Collection editor")):
         w = launch("R7-" + key, cmd, 140, 43)
         c = R.row("R7c %s at 140x43 is up (%r on the screen)" % (cmd.split()[0], mark), mark in w.text(), w.text()[:200], phase=None)
         off = w.resize(120, 36, 2.0)

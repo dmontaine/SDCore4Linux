@@ -130,7 +130,7 @@ def section_resize(box):
         L = e.keys(CTRL_Z)
         row("Z5", "the undo steps from before the resize are still there: Ctrl-Z twice gives back the cut and takes the typing away",
             ed_line(L, 1) == "alpha" and ed_line(L, 2).startswith("the needle is here"), repr((ed_line(L, 1), ed_line(L, 2))))
-        e.keys(sb.CTRL_L)
+        e.keys(sb.ALT_G)                                 # go to a line: Alt-G since S.179 (8 Nov 26)
         e.keys("3", sb.RET)
         e.quiet()
         e.keys(sb.F3)

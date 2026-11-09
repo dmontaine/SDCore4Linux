@@ -336,7 +336,8 @@ def run_rows():
     T = h.text()
     row("DF10a5 a last word /text opens the item as text: the editor shows its lines (Name, 10L), no form", not form_up(h) and "dict zzdf1 fld" in T and "Name" in T and "10L" in T, T[:300])
     h.key("esc", idle=1.0)
-    h.key("right", idle=0.8)
+    h.key("right", idle=0.6)                           # Edit (S.180, 8 Nov 26: after File)
+    h.key("right", idle=0.8)                           # Go
     T = h.text()
     row("DF10b the Go menu lists 'Dictionary item as form'", "Dictionary item as form" in T, T[:900])
     h.typed("m", idle=2.0)

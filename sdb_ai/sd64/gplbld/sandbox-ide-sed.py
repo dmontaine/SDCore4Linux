@@ -87,7 +87,7 @@ def in_sed(L):
 
 
 def in_ide(L):
-    return re.search(r"File\s+Go\s+Search\s+Build\s+View\s+Tools\s+Help", L[0]) is not None
+    return re.search(r"File\s+Edit\s+Go\s+Search\s+Build\s+View\s+Tools\s+Help", L[0]) is not None     # Edit since S.180, 8 Nov 26
 
 
 def wait(e, secs=2.2):
@@ -234,7 +234,7 @@ end
 
         say("\n--- the menu entry -------------------------------------------------------------------------------------------")
         e = IdeK(box, "IDE bp %s" % P)
-        L = e.keys(F10, RIGHT)
+        L = e.keys(F10, RIGHT * 2)                          # Go is the third menu since S.180 (File, Edit, Go)
         row("the Go menu lists Edit in SED with its key, ^E", any("Edit in SED" in l and "^E" in l for l in L[1:12]), "\n".join(l[:60] for l in L[:10]))
         L = e.keys(DOWN * 8, RET, idle=0.8)                 # the ninth entry of Go (message 11226): Go to line, Next error, Next tab, Previous tab, Files and records, Next pane, Previous pane, Open the include, Edit in SED (29 Oct 26: Open the include is before it)
         L = wait(e)

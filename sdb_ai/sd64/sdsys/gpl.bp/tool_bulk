@@ -17,6 +17,7 @@
 *              sees the page as it was.
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the boxes.
 *              AI > Ask the AI is a menu entry of its own.
+* 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -194,6 +195,7 @@ build.keys:
    call $tk_keys('menu', keys, 'switch', '&View', '&Switch list', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    * S.97 stage 2: the AI line.  The page offers the AI only the actions that change what is shown - the list switch and refresh (the owner: opt-in, off by default; a dry run,
    * apply, undo and every edit are not offered); a proposal is carried out by the page's own key.  The table is made anew here, so the line's own rows are put back too.
    call $tk_keys('ai', keys, 'switch', '', '', '', '')
@@ -1677,6 +1679,12 @@ on.key:
       case nm = 'f1' or nm = '?'
          call $tk_help('box', 'tool.bulk.page', hm, 0, 0)
          if hm # '' then msg = hm
+      case nm = 'ctrl-t'                    ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
+         call $tk_std('keylist', ctx, keys, panes<pane>, std.r)
       case nm = 'f5'
          gosub refresh
       case nm = 'f6' or nm = 'shift-f6' or nm = 'act:ai'

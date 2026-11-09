@@ -24,6 +24,7 @@
 *               page's own prompt (the new item's id, a filter's text), checked as a typed answer, and every box after it applies.
 * 8 Nov 26 dm   S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): Items, Indices and the AI line (the Files view and the AI line); Tab no longer
 *               takes the focus to the Indices box (I still does).  AI > Ask the AI is a menu entry of its own.
+* 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -117,7 +118,9 @@ $include dictdict.h
    call $tk_keys('menu', keys, 'items', 'In&dex', 'I&tems', '', '')
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter the names', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
+   call $tk_keys('menu', keys, 'nextpane', '&View', '&Next box', '', '')     ;* S.180: every key's action is on a menu (F6)
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    * S.97 stage 2: the AI line.  The page offers the AI only the actions that change what is shown - the Items and Indices views, back to the file, the filter and refresh (the
    * owner: opt-in, off by default); a proposal is carried out by the page's own key.  Where the AI is not usable for the account nothing here adds a key, a row or a line.
    call $tk_keys('ai', keys, 'indices', '', '', '', '')
@@ -885,6 +888,12 @@ on.key:
       case nm = 'f1' or nm = '?'
          call $tk_help('box', 'tool.dict.page', hm, 0, 0)
          if hm # '' then msg = hm
+      case nm = 'ctrl-t'                    ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
+         call $tk_std('keylist', ctx, keys, pnames<pi>, std.r)
       case nm = 'f5'
          gosub reread
          gosub draw.all

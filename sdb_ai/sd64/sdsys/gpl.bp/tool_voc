@@ -15,6 +15,7 @@
 *               carried out by this page's own key for it.  An account without the AI sees no line and no key, and the page is laid out as it always was.
 * 1 Nov 26 dm   S.97 stage 4: the AI's argument with an accepted filter is the DEFAULT of the filter's text.
 * 8 Nov 26 dm   S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring'): from the list to the AI line and back; AI > Ask the AI is a menu entry of its own.
+* 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -74,6 +75,7 @@ $include tk.h
    call $tk_keys('menu', keys, 'filter', '&View', '&Filter by name', '', '')
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
+   call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme, Ctrl-K keys and their View and Help entries, as on every page
    * S.97 stage 1: the AI line.  The page offers the AI the actions that only change what is shown (the owner: opt-in, off by default); a proposal is carried out by the page's own key.
    * Where the AI is not usable for the account nothing here adds a key, a row or a line, and the page is what it always was.
    call $tk_keys('ai', keys, 'type', '', '', '', '')
@@ -508,6 +510,12 @@ on.key:
       case nm = 'f1' or nm = '?'
          call $tk_help('box', 'tool.voc.page', hm, 0, 0)
          if hm # '' then msg = hm
+      case nm = 'ctrl-t'                    ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub draw.all
+         msg = std.r<2>
+      case nm = 'ctrl-k'                    ;* S.179: the keys of this page, in a box
+         call $tk_std('keylist', ctx, keys, 'VOC', std.r)
       case nm = 'f5'
          gosub read.all
          gosub draw.all

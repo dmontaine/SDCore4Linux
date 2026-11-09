@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 8 Nov 26 dm  S.179 / S.180 (the owner: the same keys on every page, the theme under View, every feature on a menu): F5 draws the screen again and F9
+*               runs (F5 ran); Ctrl-T the theme ($tk_theme, kept for the person; the debugger starts in $sl_theme 'site'), Ctrl-K the keys in use, Ctrl-L a
+*               redraw; the command line's delete-to-end and swap are Esc K and Esc T (Alt-K, Alt-T).  A menu bar on the top row (dbg.bar: Run, View,
+*               Help), opened by Esc alone or F10 (dbg.menu), whose function-key items go back to the command loop as the key.  Message 6712 says so.
 * 2 Nov 26 dm  S.98 H3: the full-screen display on a terminal with no alternate screen (the Linux console, vt100, vt220, ansi ...): full.screen needs cup and clear, not smcup and rmcup
 *               (alt.able says which); the main screen is taken at a stop that is shown (take.main) and given back as the program had it (give.main: an owned library screen drawn
 *               again from its shadow, else a clear screen), F4 / V repaint an owned screen or say there is none (message 11597), and LINE.MODE in $debug.options keeps line mode.
@@ -246,7 +250,10 @@ found.program:
                case n = K$F4 and full.screen and not(phantom)  ;* Show user screen
                   gosub view
 
-               case n = K$F5             ;* Free run
+               case n = K$F5 and full.screen   ;* Refresh (8 Nov 26, S.179: F5 refreshes on every page; run is F9)
+                  gosub relayout
+
+               case n = K$F9             ;* Free run (F5 until 8 Nov 26, S.179)
                   gosub dbg.breakpoint(BRK$RUN, 0)
                   done = @true
 
@@ -621,7 +628,7 @@ theme.in:
    dbg.themed = @false
    if dbg.theme = '' or dbg.theme = 'mono' then
       * S.98: the site's theme (SCREENTHEME of sd.conf), as the IDE and the pages have, else the classic one; a name that is no theme, or one this terminal cannot show, leaves classic
-      dbg.site = downcase(trim(config('SCREENTHEME')))
+      call $sl_theme('site', '', '', '', '', dbg.site)     ;* 8 Nov 26 (S.179): the person's own theme first, then SCREENTHEME
       dbg.r = 2
       if dbg.site # '' and dbg.site # 'mono' then call $sl_theme('set', dbg.site, '', '', '', dbg.r)
       if dbg.r # 0 then call $sl_theme('set', 'classic', '', '', '', dbg.r)
@@ -849,9 +856,11 @@ key.text:
    call $tk_keys('add', kr.keys, 'f2', 'abort', 'abort', '', '')
    call $tk_keys('add', kr.keys, 'f3', 'stop', 'stop', '', '')
    call $tk_keys('add', kr.keys, 'f4', 'screen', 'screen', '', '')
-   call $tk_keys('add', kr.keys, 'f5', 'run', 'run', '', '')
+   call $tk_keys('add', kr.keys, 'f5', 'refresh', 'refresh', '', '')     ;* 8 Nov 26 (S.179): F5 refreshes on every page; run is F9
    call $tk_keys('add', kr.keys, 'f7', 'step', 'step', '', '')
    call $tk_keys('add', kr.keys, 'f8', 'line', 'line', '', '')
+   call $tk_keys('add', kr.keys, 'f9', 'run', 'run', '', '')
+   call $tk_keys('add', kr.keys, 'f10', 'menu', 'menu', '', '')
    call $tk_keys('add', kr.keys, 'ctrl-f7', 'parent', 'parent', '', '')
    call $tk_keys('add', kr.keys, 'ctrl-f8', 'program', 'program', '', '')
    kr.ctx = ''
@@ -1283,13 +1292,37 @@ get.input:
                   command = command[1, x - 1] : command[x + 1, 999]
                end
 
-            case n = 11      ;* Ctrl-K
-               command = command[1, x - 1]
+            * 8 Nov 26 (S.179, the owner: the same keys on every page): Ctrl-K the keys in use, Ctrl-T the theme, Ctrl-L a redraw, Esc alone or
+            * F10 the menu bar.  Delete to the end of the line and swap two characters, which had Ctrl-K and Ctrl-T, are Esc K and Esc T (Alt-K,
+            * Alt-T: a terminal sends Esc and the letter).
+            case n = 11      ;* Ctrl-K: the keys in use
+               gosub dbg.keys
 
-            case n = 20      ;* Ctrl-T
-               if x > 1 and x < len(command) then
-                  command[x-1,2] = command[x,1]:command[x-1,1]
-               end
+            case n = 20 and full.screen      ;* Ctrl-T: the theme
+               gosub dbg.theme
+
+            case n = 12 and full.screen      ;* Ctrl-L: a redraw
+               gosub relayout
+
+            case n = 27 or n = K$F10
+               dk.c = ''
+               if n = 27 then dk.c = keyin(0.4)     ;* a letter at once is Alt-letter; nothing is Esc on its own
+               begin case
+                  case upcase(dk.c) = 'K'           ;* Esc K: delete to the end of the line
+                     command = command[1, x - 1]
+                  case upcase(dk.c) = 'T'           ;* Esc T: swap the two characters before the cursor
+                     if x > 1 and x < len(command) then
+                        command[x-1,2] = command[x,1]:command[x-1,1]
+                     end
+                  case dk.c = '' and full.screen    ;* Esc on its own, or F10: the menu bar
+                     gosub dbg.menu
+                     if dm.cmd # '' then
+                        command = dm.cmd
+                        goto exit.get.input
+                     end
+                  case 1
+                     display @sys.bell :
+               end case
 
             case n = K$RETURN
                command = trim(command, ' ', 'B')
@@ -1578,7 +1611,12 @@ display.source:
       else s := src.line
       if kernel(K$ADMINISTRATOR, -1) then ds.aud = sysmsg(11803) else ds.aud = @logname : '@' : @who
       ds.app = 'debugger  ' : ds.aud : ' '
-      call $sl_put(scr, 0, 0, fmt(s[1, lay.w - len(ds.app) - 1], (lay.w - len(ds.app)) : 'L'), title.attr)
+      * 8 Nov 26 (S.180): the menu bar's titles first (Run View Help: Esc or F10 opens it), then the program and its line
+      gosub dbg.bar
+      call $sl_menu('init', dm.bar, scr, '', dm.r)
+      call $sl_menu('draw', dm.bar, scr, '', dm.r)
+      ds.w = lay.w - len(ds.app) - dm.tw
+      if ds.w > 1 then call $sl_put(scr, dm.tw, 0, fmt(s[1, ds.w - 1], ds.w : 'L'), title.attr)
       call $sl_put(scr, lay.w - len(ds.app), 0, ds.app, title.attr)
 
       if unassigned(syn.lang) then call $sl_syntax('index', 'sd.basic', '', '', '', syn.lang)     ;* the colour of SD BASIC; 0 if the library has no such language
@@ -1704,6 +1742,91 @@ help:
       display sysmsg(6714)  ;* Help text
    end
 
+   return
+
+* ======================================================================
+* 8 Nov 26 (S.179, S.180): the menu bar, the theme and the keys in use.  The owner: "all features available on a page need to appear somewhere on
+* the menus"; the theme "should appear in the menu under view".  The bar is drawn on the top row by display.source; the menus hold every key the
+* command loop acts on.  A menu's code is a key: a function key goes back to the command loop as if it had been pressed (dm.cmd), the others
+* are done here.
+
+* DBG.BAR  -  The menu bar widget (sl.h): Run, View and Help.  dm.tw = the width of the titles, where the program's name starts.
+dbg.bar:
+   dm.bar = ''
+   dm.bar<SL.W.Y> = 0
+   dm.bar<SL.W.W> = lay.w
+   dm.m = '&Run'
+   dm.m<1, -1> = '&Run to a breakpoint' : @sm : 'F9' : @sm : 'f9'
+   dm.m<1, -1> = '&Step' : @sm : 'F7' : @sm : 'f7'
+   dm.m<1, -1> = 'Step a &line' : @sm : 'F8' : @sm : 'f8'
+   dm.m<1, -1> = 'Run to the &parent' : @sm : 'Ctrl-F7' : @sm : 'cf7'
+   dm.m<1, -1> = 'Run to the parent pr&ogram' : @sm : 'Ctrl-F8' : @sm : 'cf8'
+   dm.m<1, -1> = '-'
+   dm.m<1, -1> = 'S&top the program' : @sm : 'F3' : @sm : 'f3'
+   dm.m<1, -1> = '&Abort' : @sm : 'F2' : @sm : 'f2'
+   dm.bar<20> = dm.m
+   dm.m = '&View'
+   dm.m<1, -1> = 'The program''s &screen' : @sm : 'F4' : @sm : 'f4'
+   dm.m<1, -1> = '&Theme' : @sm : 'Ctrl-T' : @sm : 'theme'
+   dm.m<1, -1> = '&Refresh' : @sm : 'F5' : @sm : 'f5'
+   dm.bar<21> = dm.m
+   dm.m = '&Help'
+   dm.m<1, -1> = '&Help' : @sm : 'F1' : @sm : 'f1'
+   dm.m<1, -1> = '&Keys' : @sm : 'Ctrl-K' : @sm : 'keys'
+   dm.bar<22> = dm.m
+   dm.tw = 0
+   for dm.i = 20 to 22
+      dm.t = dm.bar<dm.i, 1>
+      dm.tw += len(convert('&', '', dm.t)) + 2
+   next dm.i
+   return
+
+* DBG.MENU  -  Esc on its own or F10: the menu bar.  dm.cmd returned: the key a chosen function-key item stands for, else null.
+dbg.menu:
+   dm.cmd = ''
+   gosub dbg.bar
+   call $sl_menu('init', dm.bar, scr, '', dm.r)
+   call $sl_menu('run', dm.bar, scr, '', dm.code)
+   begin case
+      case dm.code = 'f9' ; dm.cmd = char(K$F9)
+      case dm.code = 'f7' ; dm.cmd = char(K$F7)
+      case dm.code = 'f8' ; dm.cmd = char(K$F8)
+      case dm.code = 'cf7' ; dm.cmd = char(K$CTRL.F7)
+      case dm.code = 'cf8' ; dm.cmd = char(K$CTRL.F8)
+      case dm.code = 'f3' ; dm.cmd = char(K$F3)
+      case dm.code = 'f2' ; dm.cmd = char(K$F2)
+      case dm.code = 'f4' ; dm.cmd = char(K$F4)
+      case dm.code = 'f5' ; dm.cmd = char(K$F5)
+      case dm.code = 'f1' ; dm.cmd = char(K$F1)
+      case dm.code = 'theme' ; gosub dbg.theme
+      case dm.code = 'keys' ; gosub dbg.keys
+   end case
+   gosub display.source                ;* the bar, with the program's name after the titles
+   return
+
+* DBG.THEME  -  Ctrl-T, View > Theme: the next theme, kept for the person ($tk_theme, as every page has it), the debugger drawn whole in it.
+*   The theme in force belongs to the debugged program; theme.out gives the program back its own when the debugger leaves.
+dbg.theme:
+   dbg.themed = @true                  ;* dbg.theme (theme.in) is the program's: theme.out puts it back
+   call $tk_theme(0, dt.chg, dt.msg)   ;* 0: the debugger draws itself (the library's context is the program's)
+   if dt.chg then gosub relayout
+   message = dt.msg
+   gosub emit.msg
+   return
+
+* DBG.KEYS  -  Ctrl-K, Help > Keys: every key the debugger acts on, in the messages.
+dbg.keys:
+   gosub key.text
+   call $tk_keys('keylist', kr.keys, '', dk.list, '', '', '')
+   dk.list<-1> = '^T  theme'
+   dk.list<-1> = '^K  keys in use'
+   dk.list<-1> = '^L  redraw'
+   dk.list<-1> = 'Esc / F10  the menu bar'
+   dk.list<-1> = 'Alt-K  delete to the end of the line;  Alt-T  swap two characters'
+   for dk.i = 1 to dcount(dk.list, @fm)
+      message = dk.list<dk.i>
+      gosub emit.msg
+   next dk.i
    return
 
 * ======================================================================

@@ -45,6 +45,9 @@
 *               right bar ("Switch accou.", owner on sdtest).  Three captions shortened to fit 18: who may do what, edit many records, run, judge tests.
 * 8 Nov 26 dm  S.176 (the owner: one box key on every page, "F6 for boxes is fine"): F6 and Shift-F6 go from the tiles to the AI line and back (ai.key); Tab and
 *               Back-tab go round the tiles only and no longer step onto the line.
+* 8 Nov 26 dm  S.179 (the owner: "The commands need to be consistent across all pages"): Ctrl-T is the theme and Ctrl-K the keys of this page, through $tk_std as on every
+*               page (View > Theme, Help > Keys); the Terminal moves to Alt-T and Sign out to Alt-X (Ctrl-X is cut wherever there is text); the Keys tile still
+*               opens tool.keys.  A new theme builds the page again (rebuild), since the tiles take their colours from it.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -1092,9 +1095,13 @@ on.key:
          end else
             gosub do.signout
          end
-      case nm = 'ctrl-x' and leave.ok
+      case nm = 'alt-x' and leave.ok                       ;* S.179: Alt-X (Ctrl-X is cut wherever there is text)
          gosub do.signout
-      case nm = 'ctrl-t'
+      case nm = 'ctrl-t'                                   ;* S.179: the theme, kept for the person - the same on every page ($tk_std)
+         call $tk_std('theme', ctx, keys, '', std.r)
+         if std.r<1> then gosub rebuild                    ;* the tiles' colours come from the theme (alloc.styles): the page is made again
+         msg = std.r<2>
+      case nm = 'alt-t'                                    ;* S.179: the Terminal (it had Ctrl-T)
          if terminal.off then
             msg = H.TILE.OFF                               ;* the Terminal tile is off for this account: its key and its menu entry are too
          end else
@@ -1105,14 +1112,8 @@ on.key:
          if index(off.set, ' switch ', 1) then msg = H.TILE.OFF else gosub switch.account
       case nm = 'ctrl-r'
          gosub toggle.recent                               ;* it refuses itself when the administrator has turned the group off (11961)
-      case nm = 'ctrl-k'
-         if index(off.set, ' keys ', 1) then
-            msg = H.TILE.OFF
-         end else
-            sentence = 'tool.keys'
-            pause = 0
-            gosub run.command
-         end
+      case nm = 'ctrl-k'                                   ;* S.179: the keys of this page, as on every page (the Keys tile still opens tool.keys)
+         call $tk_std('keylist', ctx, keys, ttl, std.r)
       case nm = '/'
          gosub find.tile
       case len(nm) = 1 and nm > ' '
@@ -1438,7 +1439,7 @@ make.keys:
    end else
       call $tk_keys('add', keys, 'ctrl-q', 'sign out', 'signout', '', 1)
    end
-   call $tk_keys('add', keys, 'ctrl-t', 'terminal', 'terminal', '', 1)
+   call $tk_keys('add', keys, 'alt-t', 'terminal', 'terminal', '', 1)      ;* S.179: Alt-T (Ctrl-T is the theme on every page)
    gosub off.row
    call $tk_keys('add', keys, 'ctrl-w', 'switch', 'switch', '', 1)
    gosub off.row
@@ -1446,10 +1447,8 @@ make.keys:
    call $tk_keys('add', keys, 'ctrl-r', 'recent', 'recent', '', 1)
    gosub off.row
    call $tk_keys('add', keys, 'f6', 'ai', 'ai', '', 1)
-   call $tk_keys('add', keys, 'ctrl-k', 'keys', 'keys', '', 1)
-   gosub off.row
    if leave.ok then
-      call $tk_keys('add', keys, 'ctrl-x', 'sign out', 'signout', '', 1)       ;* Ctrl-Q left the screen for the prompt: Sign out has this key (the menu and the tile as well)
+      call $tk_keys('add', keys, 'alt-x', 'sign out', 'signout', '', 1)        ;* Ctrl-Q left the screen for the prompt: Sign out has this key (the menu and the tile as well); S.179: Alt-X (Ctrl-X is cut wherever there is text)
       gosub off.row
    end
    return
@@ -1557,14 +1556,14 @@ make.menus:
    call $tk_keys('menu', keys, 'terminal', '&Go', '&Terminal', '', '')
    call $tk_keys('menu', keys, 'switch', '&Go', 'S&witch account', '', '')
    call $tk_keys('menu', keys, 'find', '&Go', '&Find a tile', '', '')
+   call $tk_keys('menu', keys, 'start', '&Go', '&Start the tile', '', '')   ;* S.180: every key's action is on a menu (Enter)
    call $tk_keys('menu', keys, 'refresh', '&View', '&Refresh', '', '')
    call $tk_keys('menu', keys, 'recent', '&View', 'Recent &group on or off', '', '')     ;* a literal, as every registry entry is (test-tk-keys-units regmenu); the status line says which it became
    call $tk_keys('menu', keys, 'ai', '&AI', '&Ask the AI', '', '')
    call $tk_keys('menu', keys, 'help', '&Help', '&Help on this page', '', '')
-   call $tk_keys('menu', keys, 'keys', '&Help', '&Keys', '', '')
+   call $tk_std('keys', ctx, keys, '', '')                ;* S.179: Ctrl-T theme (View > Theme), Ctrl-K the keys of this page (Help > Keys), as on every page
    if terminal.off then call $tk_keys('why', keys, 'terminal', H.TILE.OFF, '', '', '')
    if index(off.set, ' switch ', 1) then call $tk_keys('why', keys, 'switch', H.TILE.OFF, '', '', '')
-   if index(off.set, ' keys ', 1) then call $tk_keys('why', keys, 'keys', H.TILE.OFF, '', '', '')
    if index(off.set, ' recent ', 1) then call $tk_keys('why', keys, 'recent', H.TILE.OFF, '', '', '')
    if cur.menu = '' then call $tk_keys('why', keys, 'back', H.TOP.PAGE, '', '', '')
    if not(ctx<TK.C.AI>) then call $tk_keys('why', keys, 'ai', H.AI.OFF, '', '', '')

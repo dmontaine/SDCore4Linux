@@ -171,7 +171,7 @@ end
         row("...and not the Go menu", "Go to line" not in "\n".join(L), e.text()[:300])
         L = e.keys(sb.ESC)
         row("Esc closes it", "New record" not in "\n".join(L), e.text()[:300])
-        L = e.keys(sb.click(7, 0))
+        L = e.keys(sb.click(13, 0))                     # Go is at columns 13-14 since S.180 (File, Edit, Go); column 7 is Edit
         row("a click on Go opens the Go menu (Go to line, Next error, Next tab) - the menu under the click, not the first",
             sb.has(L, "Go to line", "Next error", "Next tab"), e.text()[:300])
         row("...and not the File menu", "Close record" not in "\n".join(L), e.text()[:300])

@@ -116,10 +116,10 @@ def checks(src):
        and ordered(label(ide, "fields.esc"), "if fv.on and focus.id = 'fld' then", "if fz.st{'path'} # '' then", "fz.key = 'esc'", "gosub fields.key", "return", "cmd = 'menu'", "gosub run.cmd")
        and ordered(main, "gosub fields.sync", "gosub status.line", "screen wait f timeout 1 returning ev then", "gosub fields.esc"), "")
 
-    ck("F4", "fields.key: the keys the pane must not give the engine are dropped (the mouse, Tab, F2, a resize, the cursor lock, and Q: the engine's Q leaves a CED), Ctrl-T is the engine's F4, Left and "
-       "Backspace are its Esc; the selection comes from the table before the engine is called and fields.after follows",
+    ck("F4", "fields.key: the keys the pane must not give the engine are dropped (the mouse, Tab, F2, a resize, the cursor lock, and Q: the engine's Q leaves a CED), Alt-T is the engine's F4 (8 Nov 26, "
+       "S.179: Ctrl-T is the theme on every page), Left and Backspace are its Esc; the selection comes from the table before the engine is called and fields.after follows",
        ordered(L["fields.key"], "if fz.k = 'mouse' or fz.k = 'tab' or fz.k = 'btab' or fz.k = 'f2' or fz.k = 'resize' or fz.k = 'guardquit' then return", "if upcase(fz.k) = 'Q' then return",
-               "if fz.k = 'ctrl-t' then fz.k = 'f4'", "if fz.k = 'left' or fz.k = 'bs' then fz.k = 'esc'", "gosub fields.state", "gosub fields.pull", "call $ced_core('key', fz.st, fz.k, fz.out)",
+               "if fz.k = 'alt-t' then fz.k = 'f4'", "if fz.k = 'left' or fz.k = 'bs' then fz.k = 'esc'", "gosub fields.state", "gosub fields.pull", "call $ced_core('key', fz.st, fz.k, fz.out)",
                "gosub fields.after"), "")
 
     ck("F5", "fields.after: the engine has no end of its own here (done, quit.all and req are cleared); the data is written back only when its signature differs from the stamp; a pane that ended "
@@ -248,7 +248,7 @@ mut("the loop does not follow the text", "F3", sub1("      gosub fields.sync    
 mut("Q leaves the pane through the engine", "F4", sub1("   if upcase(fz.k) = 'Q' then return", "   if 0 then return"))
 mut("Tab goes to the engine (an insert)", "F4", sub1("fz.k = 'tab' or fz.k = 'btab' or fz.k = 'f2'", "fz.k = 'btab' or fz.k = 'f2'"))
 mut("Shift-Tab goes to the engine (S.176: the key reader names it btab, not shift-tab)", "F4", sub1("fz.k = 'tab' or fz.k = 'btab' or fz.k = 'f2'", "fz.k = 'tab' or fz.k = 'shift-tab' or fz.k = 'f2'"))
-mut("Ctrl-T is not the type", "F4", sub1("   if fz.k = 'ctrl-t' then fz.k = 'f4'", "   null"))
+mut("Alt-T is not the type", "F4", sub1("   if fz.k = 'alt-t' then fz.k = 'f4'", "   null"))
 mut("Left is not up", "F4", sub1("   if fz.k = 'left' or fz.k = 'bs' then fz.k = 'esc'", "   null"))
 mut("the engine's end is kept", "F5", sub1("   fz.st{'done'} = @false\n   fz.st{'quit.all'} = @false", "   fz.st{'quit.all'} = @false"))
 mut("every key writes back", "F5", sub1("   if (fz.sig : '|') # (fz.st{'h.sig'} : '|') then gosub fields.writeback", "   gosub fields.writeback"))

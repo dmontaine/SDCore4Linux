@@ -17,7 +17,7 @@
 # at once (the status line and the path line mark the tab changed, the disk is as it was), Ctrl-S is the IDE's save and writes what the pane shows, and F12 shows the text again.  The
 # falsifiers: a tab switch with the pane on and Ctrl-S after it must still save the pane's edit (a stash from the hidden text area would write the old text over it); the commands that
 # work on the text refuse while the pane is up (11998, "This works on the text of the record"); a JSON record is edited as the tree it is and saved as JSON; Left, Backspace and Esc go up;
-# Q does not leave; Ctrl-T asks the type; F6 moves the focus round the panes with the table as the editor's pane; leaving gives the text area the new text as one undo step.
+# Q does not leave; Ctrl-T asks the type (Alt-T since S.179); F6 moves the focus round the panes with the table as the editor's pane; leaving gives the text area the new text as one undo step.
 # Fixtures: bp records (a program file: no token form), made by a BASIC program the suite compiles and runs, and read back by a probe on the disk.
 
 import importlib.util
@@ -43,7 +43,8 @@ rc = _load("sandbox_recarr_for_fields", "sandbox-recarr.py")  # the rectangle re
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 RUN = "%05d" % (os.getpid() % 100000)
 F12, INS, CTRL_U = "\x1b[24~", "\x1b[2~", "\x15"
-CTRL_C, CTRL_T, CTRL_Z, CTRL_L = "\x03", "\x14", "\x1a", "\x0c"
+CTRL_C, CTRL_Z = "\x03", "\x1a"
+TYPE_KEY, GOTO_KEY = "\x1bt", "\x1bg"         # S.179, 8 Nov 26: the type is Alt-T (Ctrl-T is the theme on every page), go to a line Alt-G (Ctrl-L redraws)
 BACKSPACE = "\x7f"
 passed = failed = 0
 
@@ -219,9 +220,9 @@ def main():
     row("Q2 the engine's Q does not leave the pane: it is still up at /, with no question and the tab not changed", rc.path_of(L) == "/" and rc.dirty_of(L) is False and len(rc.elements(L)) == 2,
         "%r dirty=%r rows=%r status=%r" % (rc.path_of(L), rc.dirty_of(L), rc.elements(L), e.status()))
     L = e.keys(sb.UP)                                  # Up and Down are the table's: the selection is on field 2 (the array) after the dives above; field 1 is the string
-    L = e.keys(CTRL_T)
+    L = e.keys(TYPE_KEY)
     ch = rc.menu_choices(L)
-    row("Q3 Ctrl-T on a string asks the type (the engine's F4; F4 is the IDE's next problem): a menu is drawn over the table, offering the other type, array (a field in a record is a string or an array)", "1=array" in ch, repr(ch))
+    row("Q3 Alt-T on a string asks the type (the engine's F4; F4 is the IDE's next problem): a menu is drawn over the table, offering the other type, array (a field in a record is a string or an array)", "1=array" in ch, repr(ch))
     L = e.keys(sb.ESC)
     row("Q4 Esc leaves the menu: the pane is as it was and the tab is not changed", rc.path_of(L) == "/" and rc.dirty_of(L) is False, repr(rc.path_of(L)))
     L = e.keys(sb.F6)
@@ -239,7 +240,7 @@ def main():
     e = sb.Ide(box, "IDE bp %s" % rc_)
     e.quiet()
     e.keys(F12)
-    for key, name in ((sb.CTRL_R, "Ctrl-R (Replace)"), (CTRL_L, "Ctrl-L (Go to line)")):
+    for key, name in ((sb.CTRL_R, "Ctrl-R (Replace)"), (GOTO_KEY, "Alt-G (Go to line)")):
         L = e.keys(key)
         e.quiet()
         st = e.status()
@@ -334,12 +335,12 @@ def main():
     L = e.keys(F12)
     row("G1 F12 on the JSON record {} shows the pane at / with no field in it and the tab not changed", rc.path_of(L) == "/" and len(rc.elements(L)) == 0 and rc.dirty_of(L) is False,
         "%r %r" % (rc.path_of(L), rc.elements(L)))
-    L = e.keys(CTRL_T)
-    row("G2 Ctrl-T on the empty top level asks 'collection or array' (the old CED's question: C = collection, A = array, Esc = cancel), not the 'cannot be changed' message",
+    L = e.keys(TYPE_KEY)
+    row("G2 Alt-T on the empty top level asks 'collection or array' (the old CED's question: C = collection, A = array, Esc = cancel), not the 'cannot be changed' message",
         "A = array" in "\n".join(L) and "cannot be changed" not in e.status(), e.status())
     L = e.keys(sb.ESC)
     row("G3 Esc leaves it as it was: the tab is not changed", rc.path_of(L) == "/" and rc.dirty_of(L) is False, repr(rc.dirty_of(L)))
-    e.keys(CTRL_T)
+    e.keys(TYPE_KEY)
     L = e.keys("a")
     row("G4 A makes the record an array: the tab is changed and the disk is still {}", rc.dirty_of(L) is True and disk()["EMPTYREC"] == "{}", "%r %r" % (rc.dirty_of(L), disk()["EMPTYREC"]))
     e.keys(sb.CTRL_S)
