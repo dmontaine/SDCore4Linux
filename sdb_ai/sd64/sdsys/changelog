@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+9 Nov 26   TOOL.JOBS SHOWS EVERY COMMAND AN ACCOUNT MAY RUN AS ALLOWED.
+
+             What        - On the Jobs page, an account allowed to run two or more commands from the command line showed
+                           only the first as allowed; the others said "no", and Enter on one offered to add it again. Each
+                           now shows as it is, and Enter on an allowed one offers to remove it.
+             Why         - The page looked a command up in the account's list in a way that only ever found the first one.
+             Not changed - What an account may run: the list on the disk was always right, and SET.BATCH and the command-line
+                           gate never used the page's view of it.
+
 9 Nov 26   AN ACCOUNT CAN SET THE IDE'S DEFAULTS; THE IDE CAN TURN THE MOUSE OFF AND MOVE THE VIEW A LINE.
 
              What        - An X record &ide.options& in the account's VOC sets what the IDE starts with: words on line 2 such

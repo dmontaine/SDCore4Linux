@@ -16,6 +16,8 @@
 * 8 Nov 26 dm  S.176: F6 / Shift-F6 are the box keys of every page ($tk_aipage 'ring', the AI line one of the stops); Tab and Shift-Tab no longer switch the boxes
 *              (Left and Right still do).  AI > Ask the AI is a menu entry of its own.
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
+* 9 Nov 26 dm  S.185: an account's allowed commands are tested with LOCATE in lst<1,1>, the values; in <1> LOCATE walks the fields, so every command after the
+*              first showed as not allowed and Enter offered to add it again.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -258,7 +260,7 @@ read.commands:
       next j
       cn = dcount(cnm, @fm)
       for j = 1 to cn
-         locate cnm<j> in lst<1> setting kp then con<j> = 1 else con<j> = 0
+         locate cnm<j> in lst<1,1> setting kp then con<j> = 1 else con<j> = 0      ;* <1,1>: lst is the values of one field (in <1> LOCATE walks fields, S.185)
       next j
    end
    ci = 1

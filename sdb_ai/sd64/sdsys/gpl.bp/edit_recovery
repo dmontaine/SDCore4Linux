@@ -23,6 +23,8 @@
 * 28 Oct 26 dm  New (S.88 Phase 2, plan 2.9, D2; the owner's answer to Q2 of 28 Oct: "Build it, ship it off").  A hang-up or an abort lost every unsaved
 *               tab of the IDE silently.  With the account's switch on (register field 19, ACC$RECOVERY; MODIFY.ACCOUNT RECOVERY-ON) the IDE keeps a copy of the
 *               text here, and offers it back the next time the record is opened.  Off as delivered.
+* 9 Nov 26 dm  S.185: list.dir's "an id that is there already once only" LOCATEs in ls.ids<1,1>, the values; in <1> it walked the fields and never matched.
+*               No visible change: a copy's name is made from its id, so one directory cannot hold two untitled copies of one id.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -313,7 +315,7 @@ list.dir:
             gosub parse.copy
             if cp.ok and cp.file = '' then
                if nm = 'c' : downcase(digest('' : @fm : cp.id, 0, 'SHA256'))[1, 62] then          ;* the name slot.name makes for no file and this id (63 characters since 29 Oct 26)
-                  locate cp.id in ls.ids<1> setting ls.pos else
+                  locate cp.id in ls.ids<1,1> setting ls.pos else     ;* <1,1>: ls.ids is values of field 1 (in <1> LOCATE walks fields, S.185)
                      ls.ids<1, -1> = cp.id
                      text<-1> = cp.id : @vm : cp.date : @vm : cp.time
                      res += 1

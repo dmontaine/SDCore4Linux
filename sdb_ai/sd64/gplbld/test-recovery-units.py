@@ -233,7 +233,7 @@ def checks(src, msgs):
     ck("R7j DROP and LIST need rc.mine and a checked directory (the store's); DROP removes only a private file; LIST takes an id once",
        ordered(dr, "if not(rc.mine) then return", "gosub check.dir", "if dir.ok then", "gosub check.file", "if file.ok then", "delete rf, rc.slot")
        and ordered(dl, "if not(rc.mine) then return", "gosub check.dir", "if dir.ok then gosub list.dir")
-       and ordered(ld, "gosub check.file", "if file.ok then", "locate cp.id in ls.ids<1> setting ls.pos else", "ls.ids<1, -1> = cp.id"), "")
+       and ordered(ld, "gosub check.file", "if file.ok then", "locate cp.id in ls.ids<1,1> setting ls.pos else", "ls.ids<1, -1> = cp.id"), "")   # <1,1>: in <1> LOCATE walks fields (S.185)
     ck("R7k the copies are read and written in image mode (MARK.MAPPING OFF) wherever a copy's bytes are read or written",
        "mark.mapping rf, off" in wr and "mark.mapping rf, off" in fd and "mark.mapping rf, off" in ld, "")
 
@@ -380,7 +380,7 @@ MUTANTS = [
     ("edit_recovery", "a made directory is not asked again", "         if SDEXT(md.rel, @FALSE, SD_USER_HOME) # md.path then return\n", ""),
     ("edit_recovery", "the first version's directory is named again", "   rc.dir = ''\n   rc.acct", "   rc.dir = ''\n   rc.old = apath : '/$recovery'\n   rc.acct"),
     ("edit_recovery", "a second write is reached from a path of the account", "   gosub do.write\n", "   gosub do.write\n   gosub do.write\n"),
-    ("edit_recovery", "a list holds an id twice", "                  locate cp.id in ls.ids<1> setting ls.pos else", "                  locate cp.id in ls.none<1> setting ls.pos else"),
+    ("edit_recovery", "a list holds an id twice", "                  locate cp.id in ls.ids<1,1> setting ls.pos else", "                  locate cp.id in ls.ids<1> setting ls.pos else"),
     ("edit_recovery", "the switch is not asked", "   if upcase(trim(arec<ACC$RECOVERY>)) = 'YES' then rc.on = 1\n", "   rc.on = 1\n"),
     ("edit_recovery", "a write does not need the switch", "   res = 'off'\n   if not(rc.on) then return\n", "   res = 'off'\n"),
     ("edit_recovery", "the directory is made with the session's umask", "         rc.um = umask(63)\n         void ospath(md.path, OS$MKDIR)", "         rc.um = umask(-1)\n         void ospath(md.path, OS$MKDIR)"),

@@ -18,6 +18,8 @@
 #   J1   SET.BATCH's refusals and its list, each with the disk unchanged; the command-line session is refused before anything is allowed (the null case of J3)
 #   J2   the page: the audit line, the account with 0, its paragraphs and sentences (a verb is not offered), the box naming the command, Esc runs nothing, Run writes the record
 #   J3   the command-line session now runs the paragraph; the sentence that was not allowed is still refused (the control)
+#   J3x  (9 Nov 26, S.185) a SECOND command allowed: both rows say yes and the count is 2 (the page located in a value list with <1>, which walks fields, and showed every
+#        command after the first as not allowed); then it is taken off again, so that J4 starts from zjrep alone
 #   J4   a listed name whose VOC record has gone is shown so and is taken off; an empty list leaves no record
 #   J5   a name $tk_run cannot pass is not sent: the page names the prompt command and opens no box
 #   J6   F1 and the [?]; a window under 140 by 43 gets no page; Ctrl-Q leaves
@@ -412,6 +414,25 @@ def section_j3():
     arow("J3b", "sd -azjob zjsen, not allowed, is still refused (the control)", "zjsen is not a command that account zjob may run" in out and "ZJSEN RAN" not in out, repr(out[-300:]))
 
 
+def section_j3x(p):
+    say("\n--- J3x: two commands allowed (S.185)")
+    p.walk_to("zjsen")
+    a0 = audit_off()
+    p.key("enter", 1.3)
+    p.key("r", 3.0)
+    T = p.text()
+    arow("J3xa", "Run on zjsen: the record on the disk is zjrep and zjsen", listed() == ["zjrep", "zjsen"], repr((listed(), audit_new(a0)[-200:])))
+    arow("J3xb", "both rows say yes and the account's count is 2 (every command after the first said no before 9 Nov 26)",
+         re.search(r"zjrep PA yes\b", T) is not None and re.search(r"zjsen S yes\b", T) is not None and re.search(r"\b%s 2\b" % ACC, T) is not None, repr(T[:700]))
+    p.walk_to("zjsen")
+    p.key("enter", 1.3)
+    T = p.text()
+    arow("J3xc", "Enter on zjsen, now allowed, offers 'set.batch remove zjob zjsen' (the page knows it is on)", "set.batch remove zjob zjsen" in T and box_open(T), T[-600:])
+    p.key("r", 3.0)
+    arow("J3xd", "Run takes it off: the record is zjrep alone again and zjsen says no", listed() == ["zjrep"] and re.search(r"zjsen S no\b", p.text()) is not None,
+         repr((listed(), p.text()[:600])))
+
+
 def section_j4(p):
     say("\n--- J4: a listed name whose VOC record has gone")
     voc_prog("zzjobdel", ["   delete v, 'zjrep'"])
@@ -685,6 +706,7 @@ def main():
             p = section_j2()
             if mutant is None:
                 section_j3()
+                section_j3x(p)
             if mutant is None or order.index("J4") <= order.index(last):
                 if mutant is None:
                     section_j4(p)
