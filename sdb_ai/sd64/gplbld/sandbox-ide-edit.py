@@ -19,6 +19,10 @@
 #               terminal, the tree's order on a directory file whose ids differ by '_' and 'a', and View > Scroll the view up / down a line on a 60-line record; a
 #               control with no options record.  O1 and O4 hold FOUR ids in order and O15 an Edit menu SED entry: the first run found the IDE's LOCATE in <1>
 #               walking fields, so the tree's records were never in order and every SED entry of the Edit menu sent Alt-Backspace (O12 caught it).
+# 9 Nov 26 dm  Sections K, H, B, W (S.184 stage 3, section_s184c; WRITTEN, NOT RUN): K the active select list asked about (No, Yes) and Go > Next record from the list to the
+#               end of the list, from twelve records made by FORM.LIST; H Up and Down in Open's form, also in the next IDE of the same session (the named common); B View >
+#               List of tabs (Enter goes to the tab, the changed mark, Esc a control); W Build > Run a command at the terminal (the output on the terminal, Press Return,
+#               the unsaved text kept, a command that aborts, nothing saved).
 # END-HISTORY
 #
 # WHAT RUNS.  The IDE on a PSEUDO-TERMINAL at 140 by 43 in the sandbox user's own account (sandbox-ide.py's Ide), on a record of the file bp that this script writes.  EVERY VERDICT ON A RECORD IS READ
@@ -440,6 +444,133 @@ def section_s184():
     row("T11 control: nothing was saved (the record on the disk is as the fixture wrote it)", d.get(REC) == "[%s]" % "^".join(LINES), repr(d.get(REC)))
 
 
+LREC = "zzl" + RUN                      # 9 Nov 26 (S.184 stage 3): the twelve records of the select list are LREC01 .. LREC12; LRECids holds their ids for FORM.LIST
+LFIX = """   open 'bp' to p else stop 'LFIX no bp'
+   ids = ''
+   for i = 1 to 12
+      id = '%(lrec)s':fmt(i, '2"0"R')
+      write 'L':i on p, id
+      ids<i> = id
+   next i
+   write ids on p, '%(lrec)sids'
+   crt 'LFIX done'
+end
+"""
+CTRL_O, CTRL_PGDN, BTAB, UP = sb.CTRL_O, sb.CTRL_PGDN, "\x1b[Z", sb.UP
+
+
+def status_names(e, rec):
+    """the status line names the record rec of bp (the record's id followed by a blank: REC is a prefix of RECimp)"""
+    return re.search(r"bp %s\s" % re.escape(rec), e.status()) is not None
+
+
+def section_s184c():
+    """9 Nov 26 (S.184 stage 3): the select list question and Go > Next record from the list (K), the history in Open's form (H), View > List of tabs (B) and Build > Run a
+    command at the terminal (W).  Go is the second menu after File and Edit (menu 1: 13th entry Next record), View menu 4 (12th entry List of tabs), Build menu 3 (11th entry
+    Run a command at the terminal).  WRITTEN, NOT RUN."""
+    say("\n--- K / H / B / W: the select list, the history, the list of tabs, a command at the terminal (S.184 stage 3) -------------------------")
+    SUBS["lrec"] = LREC
+    put("zzlfix" + RUN, LFIX)
+    o = sb.sess(BOX, "BASIC bp zzlfix" + RUN, "RUN bp zzlfix" + RUN, "BASIC bp zzeabort" + RUN)
+    ok = re.search(r"(?m)^Compiled 1 program\(s\) with no errors", o) is not None and "LFIX done" in o
+    row("K0 setup: the list fixture compiled and wrote its twelve records and the list record", ok, o[-400:])
+    if not ok:
+        return
+    # K: the question, No, Yes, and Go > Next record from the list
+    e = sb.Ide(BOX, "FORM.LIST bp %sids\rIDE bp" % LREC)
+    e.quiet()
+    t = e.text()
+    row("K1 an active select list is asked about first: 'A select list is active: 12 record(s), the first %s01' (the box may wrap it)" % LREC,
+        all(w in t for w in ("A select list is active", "12 record(s)", LREC + "01")) and (LREC + "01") not in tab_row(e), t[-600:])
+    e.keys(RIGHT, RET)                                                  # No
+    e.quiet()
+    row("K2 No opens no record of the list (no tab names %s01) and the IDE is up on the file's tree" % LREC, "IDE: " in "\n".join(e.lines()[:3]) and (LREC + "01") not in tab_row(e)
+        and "select list" not in e.status(), "%r | %r" % (tab_row(e)[:120], e.status()[:120]))
+    menu(e, 1, 12)                                                      # Go > Next record from the list
+    row("K2b ...and the list is not kept: Go > Next record from the list says there is none", "no select list" in e.status(), e.status()[:160])
+    done(e)
+    e = sb.Ide(BOX, "FORM.LIST bp %sids\rIDE bp" % LREC)
+    e.quiet()
+    e.keys(RET)                                                         # Yes (the default)
+    e.quiet()
+    row("K3 Yes opens the first ten in tabs, as before (the first tab is %s01, the status line says 12 listed and 10 open)" % LREC,
+        (LREC + "01") in tab_row(e) and "12 record(s) of the select list" in e.status() and "first 10" in e.status(), "%r | %r" % (tab_row(e)[:120], e.status()[:160]))
+    menu(e, 1, 12)
+    row("K4 Go > Next record from the list opens the 11th record in a tab of its own", status_names(e, LREC + "11") and "Record 11 of 12 of the select list" in e.status(), e.status()[:160])
+    menu(e, 1, 12)
+    row("K5 ...and then the 12th", status_names(e, LREC + "12") and "Record 12 of 12" in e.status(), e.status()[:160])
+    menu(e, 1, 12)
+    row("K6 ...and then says the list is used up (no tab is opened again)", "used up: all 12" in e.status(), e.status()[:160])
+    done(e)
+    # H: Up and Down in Open's form, within one IDE and in the next IDE of the same session
+    e = sb.Ide(BOX, "IDE bp %s %simp" % (REC, REC))
+    e.quiet()
+    e.keys(CTRL_PGDN)
+    e.quiet()
+    row("H0 control: the second tab (%simp) is the one in the editor" % REC, status_names(e, REC + "imp"), e.status()[:160])
+    e.keys(CTRL_O, UP, UP, RET)                                         # the record entry: Up the newest (imp), Up again the one before
+    e.quiet()
+    row("H1 Ctrl-O, Up, Up, Return opens the record opened before the newest (%s)" % REC, status_names(e, REC), e.status()[:160])
+    e.keys(CTRL_O, UP, UP, RET)
+    e.quiet()
+    row("H2 a record opened again moves to the top: after H1 the newest is %s, so Ctrl-O, Up, Up, Return now opens %simp" % (REC, REC), status_names(e, REC + "imp"), e.status()[:160])
+    e.keys(CTRL_Q)
+    e.quiet()
+    e.s.type("IDE\r", idle=1.2)                                         # the next IDE in the same session: the common lasts
+    e.quiet()
+    e.keys(CTRL_O, UP, BTAB, UP, RET)                                   # the record entry Up, the file entry Up
+    e.quiet()
+    row("H3 the next IDE of the session: Ctrl-O, Up in the record, Shift-Tab, Up in the file, Return opens bp %simp (the last one opened)" % REC, status_names(e, REC + "imp"), e.status()[:160])
+    done(e)
+    # B: View > List of tabs
+    e = sb.Ide(BOX, "IDE bp %s %simp" % (REC, REC))
+    e.quiet()
+    menu(e, 4, 11)                                                      # View > List of tabs
+    t = e.text()
+    row("B1 View > List of tabs shows 'The open tabs' with a row for each tab and the columns File, Record, Changed, Lines", all(w in t for w in ("The open tabs", REC + "imp", "Lines", "Changed")), t[-900:])
+    e.keys(DOWN, RET)
+    e.quiet()
+    row("B2 Down, Return goes to the second tab (%simp)" % REC, status_names(e, REC + "imp"), e.status()[:160])
+    e.keys("Q")
+    menu(e, 4, 11)
+    rows_ = [l for l in e.lines() if (REC + "imp") in l]
+    row("B3 the tab with an unsaved change is marked * in its row", any("*" in l.split(REC + "imp", 1)[1] for l in rows_), repr(rows_))
+    e.keys(ESC)
+    e.quiet()
+    row("B4 control: Esc leaves the list and the tab in the editor is still %simp" % REC, status_names(e, REC + "imp") and "The open tabs" not in e.text(), e.status()[:160])
+    done(e)
+    # W: Build > Run a command at the terminal
+    e = open_rec()
+    e.keys("ZZW")
+    menu(e, 3, 10)                                                      # Build > Run a command at the terminal
+    e.keys("RUN bp zzeprobe" + RUN, RET)
+    seen = False
+    end = time.time() + 15
+    while time.time() < end and not seen:
+        e.s._pump(0.3)
+        seen = "Press Return to go back to the IDE" in e.text()
+    t = e.text()
+    row("W1 the command runs on the terminal (its own output EPROBE END is on the screen, not in the table) and Press Return is asked", seen and "EPROBE END" in t, t[-600:])
+    e.keys(RET)
+    e.quiet()
+    row("W2 Return gives the IDE back: Back from the command, and the unsaved text is still in the editor (ZZWalpha)", "Back from" in e.status() and "ZZWalpha" in editor_text(e),
+        "%r | %r" % (e.status()[:140], editor_text(e)[:120]))
+    menu(e, 3, 10)
+    e.keys("RUN bp zzeabort" + RUN, RET)
+    seen = False
+    end = time.time() + 15
+    while time.time() < end and not seen:
+        e.s._pump(0.3)
+        seen = "Press Return to go back to the IDE" in e.text()
+    e.keys(RET)
+    e.quiet()
+    row("W3 a command that aborts gives the IDE back too (the abort is trapped) with the record on the screen", seen and "IDE: " in "\n".join(e.lines()[:3]) and "ZZWalpha" in editor_text(e),
+        "%r | %r" % ("\n".join(e.lines()[:3]), editor_text(e)[:100]))
+    done(e)
+    d = disk()
+    row("W4 control: nothing was saved (the record on the disk is as the fixture wrote it)", d.get(REC) == "[%s]" % "^".join(LINES), repr(d.get(REC)))
+
+
 OFILE = "zzo" + RUN                     # a directory file whose two ids sort differently by case-blind order: '_' is between 'Z' and 'a'
 OFIX = """   open 'bp' to p else stop 'OFIX no bp'
    t = ''
@@ -590,6 +721,7 @@ def main():
         section_modes()
         section_s184()
         section_options()
+        section_s184c()
     finally:
         teardown()
     say("\nsandbox-ide-edit: %d passed, %d failed" % (passed, failed))

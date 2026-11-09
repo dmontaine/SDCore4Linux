@@ -11,6 +11,8 @@ START-HISTORY:
 29 Oct 26 dm  The review's findings (R1-R8): E11 and E12 follow the new code; E14 (Replace on the record), E15 (an element is assigned to a variable that has a value) and E16 (no 99,999 cut, the 256
               limit) are new, with their mutants.
 30 Oct 26 dm  Stage E2: message 11558 is deleted (Import takes an operating system file now): NEWMSG loses it (E13) and its mutant goes; E10's words follow.
+9 Nov 26 dm  S.184 stage 3: E17 (the active select list asked about, Go > Next record from the list), E18 (the files and records history in /idehist/ and Up / Down in Open's
+             form, gpl.bp/ide_name), E19 (View > List of tabs), E20 (Build > Run a command at the terminal), E21 (messages 14047-14054 and the help); 21 mutants from M_S184C.
 END-HISTORY
 
 WHAT IT HOLDS (gpl.bp/ide, the end of the program).  Every command works on the TEXT AREA'S LIVE TEXT (mw{'value'}) and sets it ONCE through ed.set, which puts the old text and cursor on the
@@ -34,7 +36,8 @@ SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
 NEWMSG = [11543, 11544, 11545, 11546, 11547, 11548, 11549, 11550, 11551, 11552, 11553, 11554, 11555, 11556, 11557, 11559]      # 11558 (Import refuses an operating system file) was deleted 30 Oct 26
-CMDS = ["view", "qreplace", "findopts", "upcase", "downcase", "import", "export", "xeq", "refresh"]
+CMDS = ["view", "qreplace", "findopts", "upcase", "downcase", "import", "export", "xeq", "refresh", "xeqterm", "tablist"]      # 9 Nov 26 (S.184 stage 3): Run a command at the terminal, List of tabs
+S184C = [14047, 14048, 14049, 14050, 14051, 14052, 14053, 14054]                                                       # 9 Nov 26 (S.184 stage 3): the select list, the history, the tabs, the terminal
 
 
 def strip(src):
@@ -74,8 +77,8 @@ def read(path):
 
 
 def load():
-    src = {"ide": read(os.path.join(GPL, "ide")), "tk_ai": read(os.path.join(GPL, "tk_ai"))}
-    for n in NEWMSG + [11209, 11216, 11227, 11228, 11229]:
+    src = {"ide": read(os.path.join(GPL, "ide")), "tk_ai": read(os.path.join(GPL, "tk_ai")), "ide_name": read(os.path.join(GPL, "ide_name"))}
+    for n in NEWMSG + S184C + [11209, 11216, 11226, 11227, 11228, 11229]:
         src["m%d" % n] = read(os.path.join(MSG, str(n)))
     return src
 
@@ -198,6 +201,48 @@ def checks(src):
        all(not re.search(r"\b99999\b", L[n]) for n in ("find.in.line", "replace.line", "do.replace", "do.qreplace", "do.view", "do.case", "do.import", "do.goto", "do.export")) and re.search(r"^\s*FINDMAX = 256\b", main, re.M)
        and all(ordered(L[n], "len(%s) > FINDMAX" % v, "sysmsg(11552, FINDMAX)") for n, v in (("do.replace", "rp.old"), ("do.qreplace", "qr.old"), ("do.view", "vw.pat"), ("do.find", "pat")))
        and "t.part = t.ln[t.x1, len(t.ln)]" in strip(src["tk_ai"]) and "t.ln[t.x1, 99999]" not in strip(src["tk_ai"]), "")
+
+    # ---- 9 Nov 26 (S.184 stage 3): the select list, the history, the list of tabs, a command at the terminal ---------------------------------------------------------------
+    S = {n: label(ide, n) for n in ("open.select", "do.nextsel", "open.record", "hist.push", "hist.add", "do.tablist", "do.xeqterm")}
+    nm = strip(src["ide_name"])
+    hr = label(nm, "hist.recall")
+    m26 = src["m11226"].strip()
+    ck("E17", "the active select list: the IDE asks (14047, Yes the default) after it has read and cleared list 0 and before anything else is built; any answer but Yes empties sel0, so the tree "
+       "opens as with no list; open.select keeps the ids and the place after the tabs it opened (lst.next = os.open + 1); Go > Next record from the list (the last entry of Go, no key) takes the "
+       "next id from lst.ids - never a SELECT or READNEXT -, passes over one already in a tab, opens one record in a tab, and says 14048 with no list and 14050 when the list is used up",
+       all(len(v) > 20 for v in S.values())
+       and ordered(main, "clearselect 0", "if sel0 # '' then", "screen msgbox sysmsg(14047, lq.n, sel0<1>) buttons 'Yes,No' default 1", "if lq.b # 1 then", "sel0 = ''", "gosub build.files")
+       and ordered(S["open.select"], "gosub open.record", "lst.ids = sel0", "lst.file = fn0", "lst.dict = dflag0", "lst.next = os.open + 1")
+       and ordered(S["do.nextsel"], "if lst.ids = '' then", "sysmsg(14048)", "ns.id = lst.ids<lst.next>", "lst.next += 1", "gosub tab.find", "if tf.p = 0 then", "gosub open.record", "sysmsg(14050, ns.n)")
+       and not re.search(r"\b(select|sselect|readnext|readlist)\b", re.sub(r"'[^']*'", "''", S["do.nextsel"])) and S["do.nextsel"].count("gosub open.record") == 1
+       and m26.endswith("|Next &record from the list~~nextsel") and "case cmd = 'nextsel'\n         gosub do.nextsel" in L["run.cmd"], "")
+    ck("E18", "the history (SED's stacks): /idehist/ is declared the same in ide and ide_name and set up once (ih.on); open.record pushes the file and the record for a record of a FILE (not a dictionary "
+       "item, od = '') both when it opens a tab and when the record is already in one; hist.add moves a name already there to the top and keeps IH.MAX = 20; ide_name's Up and Down bring them back in "
+       "Open's form only, the file entry from ih.files and the record entry from ih.recs, move the focus when nothing is kept, and never write the common",
+       "common /idehist/ ih.on, ih.files, ih.recs" in ide and "common /idehist/ ih.on, ih.files, ih.recs" in nm and re.search(r"^\s*IH\.MAX = 20\b", main, re.M)
+       and ordered(main, "if ih.on + 0 # 1 then", "ih.files = ''", "ih.recs = ''", "ih.on = 1")
+       and S["open.record"].count("if od = '' then gosub hist.push") == 2
+       and ordered(S["hist.push"], "hp.item = or.file", "hp.list = ih.files", "gosub hist.add", "ih.files = hp.list", "hp.item = or.id", "hp.list = ih.recs", "gosub hist.add", "ih.recs = hp.list")
+       and ordered(S["hist.add"], "if hp.item = '' then return", "locate hp.item in hp.list<1> setting hp.at then del hp.list<hp.at>", "hp.list = hp.item : @fm : hp.list",
+                   "if dcount(hp.list, @fm) > IH.MAX then hp.list = field(hp.list, @fm, 1, IH.MAX)")
+       and "case (nk = 'up' or nk = 'down') and mode = 'open'\n                  gosub hist.recall" in nm
+       and ordered(hr, "if ih.on + 0 = 1 then", "if focus = 1 then hr.list = ih.files else hr.list = ih.recs", "if hr.n = 0 then", "gosub swap.focus")
+       and not re.search(r"^\s*ih\.(on|files|recs)\s*(=|:=|<)", nm, re.M), "")
+    ck("E19", "View > List of tabs (the last entry of View): the text in the editor is kept first (stash.current), one row a tab with its number, file, record, changed mark and lines, in $sl_pickwin "
+       "titled 14051 with the columns of 14052, starting on the current tab; only Enter (status 0) goes to the tab chosen; nothing is read from the disk",
+       ordered(S["do.tablist"], "if nbuf = 0 then return", "gosub stash.current", "tq.items = ''", "for i = 1 to nbuf", "gosub buf.label", "gosub is.dirty", "tq.items<i, 1> = i",
+               "call $sl_pickwin(tq.items, sysmsg(14051), 0, cb, tq.ret, tq.st,", "if tq.st = 0 then", "gosub switch.to")
+       and "change(sysmsg(14052), '|', @vm)" in S["do.tablist"] and not re.search(r"\b(read|readu|open|openpath)\b", S["do.tablist"])
+       and src["m11229"].strip().endswith("|List of ta&bs~~tablist"), "")
+    ck("E20", "Build > Run a command at the terminal (the last entry of Build): asked with 14053, the text kept (stash.current), the screen given over (leave.screen), ONE execute with TRAPPING ABORTS and "
+       "no CAPTURING, and the screen taken back with Run's Press Return (retake.screen: the locks too); do.xeq still captures into the table",
+       ordered(S["do.xeqterm"], "screen ask sysmsg(14053) returning xm.cmd else return", "if xm.cmd = '' then return", "gosub stash.current", "gosub leave.screen",
+               "execute xm.cmd trapping aborts", "gosub retake.screen", "sysmsg(14054, xm.cmd)")
+       and S["do.xeqterm"].count("execute") == 1 and "capturing" not in S["do.xeqterm"] and "retake.quiet" not in S["do.xeqterm"]
+       and "execute xq.cmd trapping aborts capturing xq.out" in L["do.xeq"] and src["m11228"].strip().endswith("|Run a command at the termi&nal~~xeqterm"), "")
+    ck("E21", "the messages 14047-14054 are there and not empty, and the help (11216) names the four: Run a command at the terminal, Next record from the list, Up and Down in Open, List of tabs",
+       all(src["m%d" % n].strip() for n in S184C) and all(w in src["m11216"] for w in ("Run a command at the terminal", "Next record from the list", "Up, Down in the file or the record", "List of tabs")),
+       repr([n for n in S184C if not src["m%d" % n].strip()]))
     return rows
 
 
@@ -322,6 +367,31 @@ MUTANTS = [
     ("the length message is empty", "E13", sub("m11552", "\n", "")),
     ("the Import collection message is empty", "E13", sub("m11557", "\n", "")),
     ("the help forgets the new entries", "E13", sub("m11216", "Query replace", "Query")),
+]
+
+M_S184C = len(MUTANTS)          # 9 Nov 26 (S.184 stage 3): --selftest --from is not taken by this check; the marker says where this sitting's mutants begin
+MUTANTS += [
+    ("the select list is opened without asking", "E17", sub("ide", "         if sel0 # '' then\n            lq.n", "         if 0 then\n            lq.n")),
+    ("No keeps the select list", "E17", sub("ide", "            if lq.b # 1 then\n               sel0 = ''", "            if lq.b = 3 then\n               sel0 = ''")),
+    ("open.select forgets where the tabs ended", "E17", sub("ide", "   lst.next = os.open + 1", "   lst.next = 1")),
+    ("Next record selects again", "E17", sub("ide", "      ns.id = lst.ids<lst.next>", "      readnext ns.id else exit")),
+    ("Next record opens a record already in a tab again", "E17", sub("ide", "      if tf.p = 0 then\n         ns.done = @true", "      if 1 then\n         ns.done = @true")),
+    ("Next record never says the list is used up", "E17", sub("ide", "      msg = sysmsg(14050, ns.n)", "      msg = ''")),
+    ("the history keeps a dictionary item", "E18", sub("ide", "   if od = '' then gosub hist.push          ;*", "   gosub hist.push          ;*")),
+    ("the history keeps a name twice", "E18", sub("ide", "   locate hp.item in hp.list<1> setting hp.at then del hp.list<hp.at>", "   null")),
+    ("the history has no limit", "E18", sub("ide", "   if dcount(hp.list, @fm) > IH.MAX then hp.list = field(hp.list, @fm, 1, IH.MAX)", "   null")),
+    ("Up and Down recall in Save as too", "E18", sub("ide_name", "case (nk = 'up' or nk = 'down') and mode = 'open'", "case (nk = 'up' or nk = 'down')")),
+    ("the record entry recalls files", "E18", sub("ide_name", "if focus = 1 then hr.list = ih.files else hr.list = ih.recs", "hr.list = ih.files")),
+    ("ide_name writes the history", "E18", sub("ide_name", "   hr.n = dcount(hr.list, @fm)", "   ih.recs = ''\n   hr.n = dcount(hr.list, @fm)")),
+    ("ide_name's common is another shape", "E18", sub("ide_name", "common /idehist/ ih.on, ih.files, ih.recs", "common /idehist/ ih.files, ih.recs")),
+    ("List of tabs counts the editor's text as it was", "E19", sub("ide", "   gosub stash.current                           ;* the tab in the editor", "   null                           ;* the tab in the editor")),
+    ("List of tabs goes to a tab on Esc", "E19", sub("ide", "   if tq.st = 0 then\n      new.cb = tq.ret + 0", "   if 1 then\n      new.cb = tq.ret + 0")),
+    ("the terminal command's output is captured", "E20", sub("ide", "   execute xm.cmd trapping aborts\n", "   execute xm.cmd trapping aborts capturing xm.out\n")),
+    ("an abort of the terminal command ends the IDE", "E20", sub("ide", "   execute xm.cmd trapping aborts\n", "   execute xm.cmd\n")),
+    ("the terminal command loses the editor's text", "E20", sub("ide", "   if xm.cmd = '' then return\n   gosub stash.current\n", "   if xm.cmd = '' then return\n")),
+    ("the terminal command's screen comes back with no Press Return", "E20", sub("ide", "   execute xm.cmd trapping aborts\n   gosub retake.screen", "   execute xm.cmd trapping aborts\n   gosub retake.quiet")),
+    ("the select list question is empty", "E21", sub("m14047", "A select list is active: %1 record(s), the first %2.  Open them in tabs?  (No leaves the list unused and clears it.)\n", "\n")),
+    ("the help forgets List of tabs", "E21", sub("m11216", "List of tabs", "the tabs")),
 ]
 
 

@@ -4,6 +4,9 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 9 Nov 26 dm  S.184 stage 3 (SED's file and record history, sed:624-632): in Open's form Up and Down bring back the files (in the file entry) and the records (in the record
+*              entry) opened in the IDE this session, newest first, from the named common /idehist/ that the IDE keeps; Down past the newest gives back what was typed.
+*              An entry with nothing kept, and every other mode, move between the entries on Up and Down as before.
 * 30 Oct 26 dm  S.88 stage E2: every mode takes path:/full/name now. 'open' is as before; New, 'save', 'saveas' and 'copy' name an operating system file to MAKE, and the form asks the
 *               account's OS gate and edit gates for it (K$PATH.OK, K$EDIT.OS.OK) and stays open on a refusal; whether the name is free is the create's to say (!ide_osfile 'create').
 * 28 Oct 26 dm  S.88 stage E: Open takes path:/full/name in the file entry (or path: there and the full name in the record entry) and returns file 'path:' and the name as it was typed;
@@ -27,6 +30,8 @@
 *   that fails is SAID IN THE FORM, which stays open for the person to correct it: the id is not empty, the file opens, the account may change that file
 *   (the kernel's K$EDIT.OK, the gate of the account: bp.edit, dict.edit, voc.edit, shared.write; the reason is !edit_msg's) and no record of that id is there.
 *   Nothing is written here.  Tab, Down, Up and Shift-Tab move between the entries; the focus starts on the record id, the file is already filled in.
+*   In 'open' (9 Nov 26), Up and Down in an entry bring back the files or the records opened in the IDE this session (the named common /idehist/, newest first), and move
+*   between the entries only when there is nothing to bring back; Tab and Shift-Tab always move.
 *
 * END-DESCRIPTION
 *
@@ -41,6 +46,8 @@ $include int$keys.h
 $include sl.h
 
    deffun edit_msg(kind) calling '!edit_msg'
+
+   common /idehist/ ih.on, ih.files, ih.recs        ;* 9 Nov 26 (S.184 stage 3): the IDE's files and records of this session (gpl.bp/ide, hist.push); read only here
 
    res = 'cancel'
    if system(25) then return                  ;* a phantom has no terminal
@@ -96,6 +103,10 @@ $include sl.h
    call $sl_entry('draw', w1, scr, '', r)
    focus = 2
    call $sl_entry('focus', w2, scr, 1, r)
+   h1.at = 0                                  ;* 9 Nov 26 (S.184 stage 3): the place in the history of each entry (0: what was typed, kept in h1.typed / h2.typed)
+   h2.at = 0
+   h1.typed = ''
+   h2.typed = ''
 
    fin = @false
    loop
@@ -120,9 +131,12 @@ $include sl.h
             fin = @true
          case st = 'unhandled'
             nk = r<2>
-            if nk = 'tab' or nk = 'down' or nk = 'btab' or nk = 'up' then
-               gosub swap.focus
-            end
+            begin case
+               case (nk = 'up' or nk = 'down') and mode = 'open'
+                  gosub hist.recall                     ;* 9 Nov 26 (S.184 stage 3)
+               case nk = 'tab' or nk = 'down' or nk = 'btab' or nk = 'up'
+                  gosub swap.focus
+            end case
          case st = 'done'
             gosub try.accept
             if res = 'ok' then fin = @true
@@ -144,6 +158,43 @@ swap.focus:
       call $sl_entry('focus', w2, scr, 0, r)
       focus = 1
       call $sl_entry('focus', w1, scr, 1, r)
+   end
+   return
+
+* 9 Nov 26 (S.184 stage 3) - Up or Down (nk) in an entry of Open's form: the entry shows the next older (Up) or newer (Down) name the IDE kept, and what was typed when Down
+*   comes back past the newest.  Nothing kept for the entry: the focus moves, as Up and Down always did.  Only the entry's text changes; nothing is opened or read.
+hist.recall:
+   hr.list = ''
+   if ih.on + 0 = 1 then
+      if focus = 1 then hr.list = ih.files else hr.list = ih.recs
+   end
+   hr.n = dcount(hr.list, @fm)
+   if hr.n = 0 then
+      gosub swap.focus
+      return
+   end
+   if focus = 1 then hr.at = h1.at else hr.at = h2.at
+   if hr.at = 0 then                          ;* leaving what was typed: it is kept, to come back to
+      if focus = 1 then h1.typed = w1{'value'} else h2.typed = w2{'value'}
+   end
+   if nk = 'up' then hr.at += 1 else hr.at -= 1
+   if hr.at > hr.n then hr.at = hr.n
+   if hr.at < 0 then hr.at = 0
+   if hr.at = 0 then
+      if focus = 1 then hr.text = h1.typed else hr.text = h2.typed
+   end else
+      hr.text = hr.list<hr.at>
+   end
+   if focus = 1 then
+      h1.at = hr.at
+      w1{'value'} = hr.text
+      call $sl_entry('init', w1, scr, '', r)
+      call $sl_entry('focus', w1, scr, 1, r)
+   end else
+      h2.at = hr.at
+      w2{'value'} = hr.text
+      call $sl_entry('init', w2, scr, '', r)
+      call $sl_entry('focus', w2, scr, 1, r)
    end
    return
 

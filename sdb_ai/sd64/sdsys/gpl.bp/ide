@@ -169,6 +169,15 @@
 *               SED entry of the Edit menu sent Alt-Backspace; both now locate in <1,1>.
 * 9 Nov 26 dm  S.186: View > Mouse is the session's switch kept by $tk_std (ops mouse, set, apply), the one every full-screen page has on its View menu, so
 *               the IDE and the pages agree; the IDE's own mouse.apply is gone.
+* 9 Nov 26 dm  S.184 stage 3: the last of SED's small IDE commands.  (1) An active select list at the start is asked about first, as SED asks "use the list?"
+*               (message 14047): Yes opens its first records in tabs as before, No clears the list (so nothing run from the IDE takes it) and the file's tree opens
+*               as with no list; Go > Next record from the list (do.nextsel) opens the next record of the list that is not open yet, in a new tab, from the ids
+*               kept in lst.ids (never a new SELECT), and says when the list is used up.  (2) The files and records opened this session are kept, newest first,
+*               at most 20 each, in the named common /idehist/ (it lasts across IDE runs in one session); Up and Down in Open's form ($ide_name) bring them back.
+*               The "Run a command" question has no history: SCREEN ASK has no use for Up and Down and the IDE has no question loop of its own for it.  (3) View >
+*               List of tabs (do.tablist): one row a tab - number, file, record, changed, lines - in $sl_pickwin; Enter goes to the tab.  (4) Build > Run a command
+*               at the terminal (do.xeqterm): the screen is given to the command as Run gives it a program, "Press Return" is asked, and the IDE comes back; the
+*               command goes through EXECUTE like Run a command, so the prompt's command processor and every gate it asks apply.  Messages 14047-14054.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -223,6 +232,16 @@ $include idebrk.h
    MAXSEL = 10                             ;* 28 Oct 26 (stage B): records of an active select list opened in tabs at the start
    MAXLOCK = 100                           ;* 28 Oct 26 (stage B): tabs that can hold a record lock at one time (file variables kept in tfv)
    MAXBRK = 20                             ;* 1 Nov 26 (S.98 H2): breakpoints a program can have (the debugger's MAX.BREAKPOINTS and the kernel's list)
+   IH.MAX = 20                             ;* 9 Nov 26 (S.184 stage 3): files and records kept in /idehist/ for Open's form, each
+
+   * 9 Nov 26 (S.184 stage 3, SED's history stacks): the files and the records opened this session, newest first, as fields (hist.push).  A named common, so that they
+   *   last from one IDE to the next in the session; $ide_name reads them for Up and Down in Open's form.  A common starts as 0, so ih.on says whether it was set up.
+   common /idehist/ ih.on, ih.files, ih.recs
+   if ih.on + 0 # 1 then
+      ih.files = ''
+      ih.recs = ''
+      ih.on = 1
+   end
    LAYW = 140                              ;* what the layout is made for (the owner's 140 by 43 for every full-screen app): a bigger window is used whole, a smaller one
    LAYH = 43                               ;* is refused at the start and, if it becomes smaller while the IDE runs, the keyboard is held until it is big enough again (layout lock)
 
@@ -477,7 +496,13 @@ $include idebrk.h
    zm = 0                            ;* 9 Nov 26 (S.184 stage 1): 1 while Ctrl-E has the editor filling the screen
    ra.args = ''                      ;* 9 Nov 26 (S.184 stage 3): Run with arguments: the words put after the program's name (' ' and the words), and the last ones typed
    ra.last = ''
-   syn.off = 0                       ;* 9 Nov 26 (S.184 stage 3): View > Syntax colour and View > Line numbers switched off (SED's SYNTAX OFF and LNUM OFF)
+   lst.ids = ''                      ;* 9 Nov 26 (S.184 stage 3): the select list the IDE started with (open.select): its ids as fields, its file and dictionary flag, the next
+   lst.file = ''                     ;*   id Go > Next record from the list looks at, whether ids not on the disk are new records (ids typed on the command line) and
+   lst.dict = ''                     ;*   whether the list was cut at MAXREC.  Never read again from list 0: the IDE used it up at the start
+   lst.next = 1
+   lst.mk = 0
+   lst.more = @false
+   syn.off = 0                      ;* 9 Nov 26 (S.184 stage 3): View > Syntax colour and View > Line numbers switched off (SED's SYNTAX OFF and LNUM OFF)
    lnum.off = 0
    focus.id = 'tree'
    msg = ''
@@ -523,6 +548,16 @@ $include idebrk.h
             sel0<-1> = sel.id
          repeat
          clearselect 0
+         * 9 Nov 26 (S.184 stage 3): SED asks "use the list?" before it takes it, and so does the IDE (the screen is open and in its theme; no form yet).  No (or Esc) leaves
+         *   the list unused: it is cleared as SED clears it, so that nothing run from the IDE (a compile, a command) takes it, and the file's tree opens as with no list
+         if sel0 # '' then
+            lq.n = sel0.n : (if sel0.more then '+' else '')
+            screen msgbox sysmsg(14047, lq.n, sel0<1>) buttons 'Yes,No' default 1 returning lq.b else lq.b = 2
+            if lq.b # 1 then
+               sel0 = ''
+               sel0.more = @false
+            end
+         end
       end
    end
 
@@ -1420,6 +1455,7 @@ open.record:
    if tf.p then
       new.cb = tf.p
       if new.cb # cb then gosub switch.to
+      if od = '' then gosub hist.push        ;* 9 Nov 26 (S.184 stage 3): opened again, so it is the newest
       return
    end
    lk.dict = od
@@ -1517,7 +1553,29 @@ open.record:
    k = 'a' : uid
    if bx{k} then msg = sysmsg(11761, or.name, or.id)                     ;* %1 %2 is open read-only: it holds characters outside ASCII
    cb = nbuf
+   if od = '' then gosub hist.push          ;* 9 Nov 26 (S.184 stage 3): the file and the record for Up and Down in Open's form (a dictionary item is not: the form names no dictionary)
    gosub load.current
+   return
+
+* 9 Nov 26 (S.184 stage 3, SED's file and record history; sed:624-632) - in: or.file, or.id, a record opened in a tab.  Each goes to the top of its list in the named common
+*   /idehist/ (a name already there moves up, it is not kept twice), and a list keeps the IH.MAX newest.  Only names are kept: nothing is read or opened from them here.
+hist.push:
+   hp.item = or.file
+   hp.list = ih.files
+   gosub hist.add
+   ih.files = hp.list
+   hp.item = or.id
+   hp.list = ih.recs
+   gosub hist.add
+   ih.recs = hp.list
+   return
+
+* In: hp.item, hp.list (fields, newest first).  Out: hp.list with hp.item first
+hist.add:
+   if hp.item = '' then return
+   locate hp.item in hp.list<1> setting hp.at then del hp.list<hp.at>      ;* <1> walks the FIELDS (the list's entries)
+   if hp.list = '' then hp.list = hp.item else hp.list = hp.item : @fm : hp.list
+   if dcount(hp.list, @fm) > IH.MAX then hp.list = field(hp.list, @fm, 1, IH.MAX)
    return
 
 * ======================================================================
@@ -2164,6 +2222,53 @@ open.select:
    end else
       msg = sysmsg(11694, os.n, os.open)          ;* %1 records of the select list are listed below; the first %2 are open in tabs
       if sel0.more then msg := '  ' : sysmsg(11219, MAXREC, 'the select list')
+   end
+   * 9 Nov 26 (S.184 stage 3): the list is kept for Go > Next record from the list (do.nextsel), which goes on after the records opened here
+   lst.ids = sel0
+   lst.file = fn0
+   lst.dict = dflag0
+   lst.next = os.open + 1
+   lst.mk = (if sel0.new then 1 else 0)
+   lst.more = sel0.more
+   return
+
+* 9 Nov 26 (S.184 stage 3) - Go > Next record from the list: SED goes from one record of an active select list to the next; the IDE opens the first MAXSEL in tabs at the
+*   start (open.select) and this opens the next one that is not open in a tab yet, in a tab of its own, from the ids kept in lst.ids.  A record already in a tab is passed
+*   over; one that cannot be opened (another session's lock, a record gone) says why and is passed too, so the next choice goes on after it.  When every id has been
+*   looked at the list is used up and the status line says so.  Nothing is selected again: the list was used up when the IDE started, as SED's is.
+do.nextsel:
+   if lst.ids = '' then
+      msg = sysmsg(14048)                         ;* There is no select list: ...
+      return
+   end
+   ns.n = dcount(lst.ids, @fm)
+   ns.done = @false
+   loop
+   while lst.next <= ns.n and not(ns.done)
+      ns.id = lst.ids<lst.next>
+      lst.next += 1
+      tf.dict = lst.dict
+      tf.file = lst.file
+      tf.id = ns.id
+      gosub tab.find
+      if tf.p = 0 then
+         ns.done = @true
+         msg = ''
+         or.dict = lst.dict
+         or.file = lst.file
+         or.id = ns.id
+         or.mknew = lst.mk
+         gosub open.record
+         if nbuf > 0 then
+            ft.id = 'ed'
+            gosub focus.to
+         end
+         if msg = '' then msg = sysmsg(14049, lst.next - 1, ns.n)       ;* Record %1 of %2 of the select list
+      end
+   repeat
+   if not(ns.done) then
+      msg = sysmsg(14050, ns.n)                   ;* The select list is used up: ...
+      if lst.more then msg := '  ' : sysmsg(11219, MAXREC, 'the select list')
    end
    return
 
@@ -2875,6 +2980,12 @@ run.cmd:
          gosub do.export
       case cmd = 'xeq'
          gosub do.xeq
+      case cmd = 'xeqterm'
+         gosub do.xeqterm                 ;* 9 Nov 26 (S.184 stage 3): Build > Run a command at the terminal (SED's command line)
+      case cmd = 'nextsel'
+         gosub do.nextsel                 ;* 9 Nov 26 (S.184 stage 3): Go > Next record from the list
+      case cmd = 'tablist'
+         gosub do.tablist                 ;* 9 Nov 26 (S.184 stage 3): View > List of tabs (SED's list of buffers)
       case cmd[1, 5] = 'tool.'
          gosub do.tool                    ;* 3 Nov 26 (S.75 DV10): Tools > a development page, through the terminal hand-over
       * 8 Nov 26 (S.180): the Edit menu.  Each entry hands the key it names to the widget that owns it - the editor, or the fields pane - so a choice
@@ -5700,6 +5811,48 @@ do.xeq:
    out.dict = ''
    gosub err.load
    msg = sysmsg(11555, xq.n, xq.cmd)
+   return
+
+* 9 Nov 26 (S.184 stage 3) - Build > Run a command at the terminal: SED's command line gave the screen to the command and asked for Return after it (sed:8238-8250), so an
+*   interactive or full-screen command can run.  The same hand-over as Run and the Tools pages: the text in the editor is kept with its tab (stash.current), the recovery
+*   copies are kept and the screen and the break key are given back (leave.screen), the command runs with its aborts trapped, and "Press Return", the screen, the break key,
+*   the form and the locks the tabs hold come back (retake.screen).  The command goes through EXECUTE as do.xeq's does, so it is the prompt's command processor that
+*   runs it and every gate it asks applies exactly as when it is typed at the prompt; nothing here widens what the account may run.  An open tab's text is not read
+*   again: a record the command changed is shown as the tab had it (the overwrite question asks at the next save).
+do.xeqterm:
+   screen ask sysmsg(14053) returning xm.cmd else return
+   xm.cmd = trimf(trimb(xm.cmd))
+   if xm.cmd = '' then return
+   gosub stash.current
+   gosub leave.screen
+   execute xm.cmd trapping aborts
+   gosub retake.screen
+   msg = sysmsg(14054, xm.cmd)                   ;* Back from "%1": the tabs are as they were ...
+   return
+
+* 9 Nov 26 (S.184 stage 3) - View > List of tabs: SED's list of buffers (sed:6809).  One row a tab in $sl_pickwin (typing narrows the list): its number, file, record, *
+*   when it has changes, and its lines.  Enter goes to the tab; Esc leaves everything as it is.  Nothing is read from the disk: the rows are what the tabs hold.
+do.tablist:
+   if nbuf = 0 then return
+   gosub stash.current                           ;* the tab in the editor: its text as it is now, for the changed mark and the count
+   tq.items = ''
+   for i = 1 to nbuf
+      gosub buf.label
+      gosub is.dirty
+      k = 't' : bu<i>
+      tq.n = dcount(bx{k}, @fm)
+      tq.items<i, 1> = i
+      tq.items<i, 2> = bf.name : @sm : bf.id : @sm : (if dirty then '*' else '') : @sm : tq.n
+   next i
+   tq.cols = change(sysmsg(14052), '|', @vm) : @fm : 4 : @vm : 24 : @vm : 44 : @vm : 7 : @vm : 6
+   call $sl_pickwin(tq.items, sysmsg(14051), 0, cb, tq.ret, tq.st, '', '', '', tq.filt, tq.cols, tq.cur)
+   last.status = char(1)
+   if tq.st = 0 then
+      new.cb = tq.ret + 0
+      if new.cb >= 1 and new.cb <= nbuf and new.cb # cb then gosub switch.to
+      ft.id = 'ed'
+      gosub focus.to
+   end
    return
 
 * Tools / a development page (3 Nov 26, S.75 DV10; Opus decision 12c): the page is a full-screen program of its own, so it is given the TERMINAL as Run gives it a program -
