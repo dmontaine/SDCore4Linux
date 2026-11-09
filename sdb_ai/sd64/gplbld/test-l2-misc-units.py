@@ -51,7 +51,7 @@ RTW = 134                                     # the text width of a pane in the 
 # The boxes each page drew at 140 by 43 before L2 (x, y, w, h), in the order the page declares its panes, with the title the box carries.
 REF = {
     "tool_viewers": [("allowed", "Allowed for pdf", (1, 1, 70, 14)), ("found", "Found on this machine", (72, 1, 67, 14)), ("means", "What this means", (1, 15, 138, 17)), ("help", "Help", (1, 32, 138, 5))],
-    "tool_mygates": [("gates", "What this account may do", (1, 1, 138, 21)), ("cell", "The row under the cursor", (1, 22, 138, 12)), ("note", "Where this comes from", (1, 34, 138, 6))],
+    "tool_mygates": [("gates", "What this account may do", (1, 1, 138, 22)), ("cell", "The row under the cursor", (1, 23, 138, 11)), ("note", "Where this comes from", (1, 34, 138, 6))],
     "tool_keys": [("terminal", "Terminal", (1, 1, 45, 12)), ("lastkeys", "Last keys", (1, 13, 45, 27)), ("seen", "Keys seen", (47, 1, 46, 17)), ("styles", "Styles", (47, 18, 46, 22)),
                   ("mouse", "Mouse", (94, 1, 45, 10)), ("boxes", "Box drawing", (94, 11, 45, 14)), ("help", "Help", (94, 25, 45, 15))],
     "tool_voc": [("list", "The VOC of ", (1, 1, 138, 22)), ("detail", "The entry under the cursor", (1, 23, 138, 17))],
@@ -69,7 +69,7 @@ RECTVARS = {
 # What the page derives from its rectangles, at 140 by 43, as the literal it used before: (name as the evaluator spells it, value)
 CONSTS = {
     "tool_viewers": [("VIS", 10), ("m_tw", 134), ("h_tw", 134)],
-    "tool_mygates": [("VIS", 16), ("g_tw", 134), ("c_tw", 134), ("s_tw", 134)],
+    "tool_mygates": [("VIS", 17), ("g_tw", 134), ("c_tw", 134), ("s_tw", 134)],
     "tool_keys": [("LOGN", 25), ("t_tw", 41), ("k_tw", 41), ("st_tw", 42), ("mo_tw", 41), ("hp_tw", 41)],
     "tool_voc": [("VIS", 16), ("tw", 134), ("pcol", 58)],
     "tool_dict": [("VIS", 16), ("tw", 134)],
@@ -87,7 +87,7 @@ SPARE = {"tool_viewers": 3, "tool_mygates": 0, "tool_keys": 0, "tool_voc": 0, "t
 # Worked values at 180 by 55 (body 178 by 51: 40 columns and 12 rows more than the reference): the declared weights, in rectangles
 WORKED = {
     "tool_viewers": [(1, 1, 90, 20), (92, 1, 87, 20), (1, 21, 178, 23), (1, 44, 178, 5)],
-    "tool_mygates": [(1, 1, 178, 33), (1, 34, 178, 12), (1, 46, 178, 6)],
+    "tool_mygates": [(1, 1, 178, 34), (1, 35, 178, 11), (1, 46, 178, 6)],
     "tool_keys": [(1, 1, 59, 12), (1, 13, 59, 39), (61, 1, 59, 17), (61, 18, 59, 34), (121, 1, 58, 10), (121, 11, 58, 14), (121, 25, 58, 27)],
     "tool_voc": [(1, 1, 178, 34), (1, 35, 178, 17)],
     "tool_dict": [(1, 1, 178, 34), (1, 35, 178, 17)],
@@ -107,9 +107,9 @@ EXPRS = {
                      X("f.x + f.w - 5", "found", "x", 134), X("f.x + 1", "found", "x", 73), X("f.x + f.w - 2", "found", "x", 137), X("f.y + 2", "found", "y", 3), X("f.y + 1 + VIS", "found", "y", 12),
                      X("m.x + 2", "means", "x", 3), X("m.y + 1 + r", "means", "y", 17, "r", 1, "m.h - 3"),
                      X("h.x + 2", "help", "x", 3), X("h.y + 1", "help", "y", 33), X("h.y + 2", "help", "y", 34), X("h.y + 3", "help", "y", 35)],
-    "tool_mygates": [X("g.x + 2", "gates", "x", 3), X("g.y + 1", "gates", "y", 2), X("g.y + 1 + r", "gates", "y", 3, "r", 1, "VIS"), X("g.y + g.h - 3", "gates", "y", 19),
-                     X("g.y + g.h - 2", "gates", "y", 20), X("g.x + g.w - 5", "gates", "x", 134), X("g.y + 2", "gates", "y", 3), X("g.y + 1 + VIS", "gates", "y", 18), X("g.x + g.w - 3", "gates", "x", 136),
-                     X("c.x + 2", "cell", "x", 3), X("c.y + r", "cell", "y", 23, "r", 1, "c.h - 2"), X("s.x + 2", "note", "x", 3), X("s.y + r", "note", "y", 35, "r", 1, "s.h - 2")],
+    "tool_mygates": [X("g.x + 2", "gates", "x", 3), X("g.y + 1", "gates", "y", 2), X("g.y + 1 + r", "gates", "y", 3, "r", 1, "VIS"), X("g.y + g.h - 3", "gates", "y", 20),
+                     X("g.y + g.h - 2", "gates", "y", 21), X("g.x + g.w - 5", "gates", "x", 134), X("g.y + 2", "gates", "y", 3), X("g.y + 1 + VIS", "gates", "y", 19), X("g.x + g.w - 3", "gates", "x", 136),
+                     X("c.x + 2", "cell", "x", 3), X("c.y + r", "cell", "y", 24, "r", 1, "c.h - 2"), X("s.x + 2", "note", "x", 3), X("s.y + r", "note", "y", 35, "r", 1, "s.h - 2")],
     "tool_keys": [X("t.x + 2", "terminal", "x", 3), X("t.y + i", "terminal", "y", 2, "i", 1, 10), X("k.x + 2", "lastkeys", "x", 3), X("k.y + i", "lastkeys", "y", 14, "i", 1, "LOGN"),
                   X("s.x + 2 + gx * 11", "seen", "x", 49, "gx", 0, 3, 9), X("s.y + 1 + gy", "seen", "y", 2, "gy", 0, 12),
                   X("st.x + 2", "styles", "x", 49), X("st.y + i", "styles", "y", 19, "i", 1, 16), X("st.y + 18", "styles", "y", 36), X("st.y + 19", "styles", "y", 37),
@@ -624,8 +624,8 @@ MUTANTS = [
     ("viewers: the screen is not cleared first", "L2-5", sub("tool_viewers", "   screen clear at 0,ctx<TK.C.YBODY> size ctx<TK.C.W>,ctx<TK.C.BODYH>\n", "")),
     ("viewers: a floor is declared", "L2-8", sub("tool_viewers", "call $tk_open('tool.viewers', 'admin', ctx, err)", "call $tk_open('tool.viewers', 'admin', ctx, err, 100, 30)")),
     # tool_mygates
-    ("gates: the matrix box is a row short", "L2-2", sub("tool_mygates", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 21 :", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 20 :")),
-    ("gates: no box grows", "L2-4b", sub("tool_mygates", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 21 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 :", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 21 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' :")),
+    ("gates: the matrix box is a row short", "L2-2", sub("tool_mygates", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 22 :", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 21 :")),
+    ("gates: no box grows", "L2-4b", sub("tool_mygates", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 : @vm : '' : @vm : 'stretch' : @vm : 1 :", "d<1> = 'gates' : @vm : 1 : @vm : 1 : @vm : 22 : @vm : 138 : @vm : '' : @vm : '' : @vm : '' :")),
     ("gates: the summary line is a row up", "L2-3", sub("tool_mygates", "at g.x + 2,g.y + g.h - 3 attr", "at g.x + 2,g.y + g.h - 4 attr")),
     ("gates: the click tests the old rows", "L2-3", sub("tool_mygates", "if my >= g.y + 2 and my <= g.y + 1 + VIS", "if my >= 3 and my <= 2 + VIS")),
     ("gates: a taller list is not refilled", "L2-6", sub("tool_mygates", "   if ta > NG - VIS then ta = NG - VIS ", "   null ")),

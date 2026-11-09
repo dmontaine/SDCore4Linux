@@ -124,7 +124,24 @@ def gates_on(fields):
                 out.append(gid)
         elif raw == "YES":
             out.append(gid)
+    if home_on(fields):
+        out.append("home")
     return out
+
+
+def home_on(fields):
+    """S.166's home gate, $tk_startof's rule read independently: field 16 (ACC$START) terminal is off, menu is on, anything else follows
+    the file start.default in the system directory (terminal off, absent or anything else on)."""
+    w = fields[15].strip().lower() if len(fields) >= 16 else ""
+    if w == "terminal":
+        return False
+    if w == "menu":
+        return True
+    try:
+        with open(os.path.join(sh.SYS, "start.default")) as f:
+            return f.readline().strip().lower() != "terminal"
+    except OSError:
+        return True
 
 
 def listu_counts():
