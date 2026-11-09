@@ -3070,10 +3070,10 @@ F4               Next error or result\nF5, Ctrl-L       Draw the screen again (a
 cited by: `ide`
 
 ### msg:11216
-> kind=message tier=reference since=- src=sdsys/messages/11216:1#6a111a01
+> kind=message tier=reference since=- src=sdsys/messages/11216:1#73ea9654
 
 ```
-Ctrl-F, Ctrl-B   Find forward, backward   F3, Shift-F3  The next, the previous (Return in the question finds the next)   Ctrl-R  Replace\nEsc, F10        The menus (Files and records is in the Go menu)\nCtrl-Q           Quit\nF1               This screen\nCtrl-A           Select all   Ctrl-D  Duplicate the line   Alt-K  Cut the line\nCtrl-P, Ctrl-U   A word back, on (Ctrl-Left, Right too)   Ctrl-Home, Ctrl-End  Text start, end   Ctrl-Del  Delete word   Ins  Overwrite\nSearch menu      List matching lines (the lines that hold a text, in the table), Query replace (Yes, No, All, Quit), Find options (C = match case, W = whole words), Upcase and Downcase the selection (Ctrl-G sets the mark), Import a record here, Export the selection to a record\nBuild menu       Run a command: what it prints is in the table. Format the program lays it out again, indenting by the tab width\nGo to line       A line; line,column; or field,value,subvalue in a record shown with :@vm: marks\nView menu        Theme (Ctrl-T), Refresh (F5) draws the screen again; Overwrite mode, Auto-indent (Return keeps the indent), Tab width\nTools menu       The development pages: Files, Dictionary, Vocabulary, Queries, Bulk update, Programs, Tests. Leaving the page (Ctrl-Q) and pressing Return comes back here
+Ctrl-F, Ctrl-B   Find forward, backward   F3, Shift-F3  The next, the previous (Return in the question finds the next)   Ctrl-R  Replace\nEsc, F10        The menus (Files and records is in the Go menu)\nCtrl-Q           Quit\nF1               This screen\nCtrl-A           Select all   Ctrl-D  Duplicate the line   Alt-K  Cut the line\nCtrl-P, Ctrl-U   A word back, on (Ctrl-Left, Right too)   Ctrl-Home, Ctrl-End  Text start, end   Ctrl-Del  Delete word   Ins  Overwrite\nAlt-R, Alt-P     Start or end a keyboard macro, play it\nFile menu        Spool the text prints it as it is now, saved or not: at printer, lnum, region\nSearch menu      List matching lines (the lines that hold a text, in the table), Query replace (Yes, No, All, Quit), Find options (C = match case, W = whole words), Upcase and Downcase the selection (Ctrl-G sets the mark), Import a record here, Export the selection to a record\nBuild menu       Run a command: what it prints is in the table. Run a command at the terminal: the screen is given to it, and Return comes back here. Format the program lays it out again, indenting by the tab width\nGo to line       A line; line,column; or field,value,subvalue in a record shown with :@vm: marks\nGo menu          Next record from the list: the next record of the select list the IDE started with, in a tab of its own. Filter the records: which records the tree lists for a file (abc..., or LIKE or WITH and a query)\nOpen (Ctrl-O)    Up, Down in the file or the record bring back the files and records opened this session\nView menu        Theme (Ctrl-T), Refresh (F5) draws the screen again; Overwrite mode, Auto-indent (Return keeps the indent), Tab width; List of tabs (Return goes to the tab)\nTools menu       The development pages: Files, Dictionary, Vocabulary, Queries, Bulk update, Programs, Tests. Leaving the page (Ctrl-Q) and pressing Return comes back here
 ```
 
 cited by: `ide`
@@ -3158,17 +3158,17 @@ cited by: `ide`
 cited by: `set_job`
 
 ### msg:11225
-> kind=message tier=reference since=- src=sdsys/messages/11225:1#8d1671d5
+> kind=message tier=reference since=- src=sdsys/messages/11225:1#0a74645f
 
 ```
-&File|&New record~^N~new|&Open record~^O~open|&Save~^S~save|Save &as~~saveas|Write a co&py~~writeas|&Close record~^W~close|&Quit~^Q~quit
+&File|&New record~^N~new|&Open record~^O~open|&Save~^S~save|Save &as~~saveas|Write a co&py~~writeas|Spoo&l the text~~spool|&Close record~^W~close|&Quit~^Q~quit
 ```
 
 ### msg:11226
-> kind=message tier=reference since=- src=sdsys/messages/11226:1#f0795d05
+> kind=message tier=reference since=- src=sdsys/messages/11226:1#c76a83ea
 
 ```
-&Go|Go to &line~Alt-G~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Open the include~~include|&Zoom the editor~^E~zoom|Edit in &SED~~sed|Edit as f&ields~F12~fields|Dictionary item as for&m~~dform
+&Go|Go to &line~Alt-G~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Open the include~~include|&Zoom the editor~^E~zoom|Edit in &SED~~sed|Edit as f&ields~F12~fields|Dictionary item as for&m~~dform|Next &record from the list~~nextsel|Filter the r&ecords~~filter
 ```
 
 ### msg:11227
@@ -3179,17 +3179,17 @@ cited by: `set_job`
 ```
 
 ### msg:11228
-> kind=message tier=reference since=- src=sdsys/messages/11228:1#d0a4caec
+> kind=message tier=reference since=- src=sdsys/messages/11228:1#753da367
 
 ```
-&Build|&Compile~F8~compile|Compile and cat&alog~Shift-F9~catalog|&Run~F9~run|&Debug~F7~debug|Run a co&mmand~~xeq|&Format the program~~format|Debug from the first &line~~debug1|Toggle &breakpoint~Shift-F7~bptoggle|Clear breakpoin&ts~~bpclear|Run with ar&guments~~runargs
+&Build|&Compile~F8~compile|Compile and cat&alog~Shift-F9~catalog|&Run~F9~run|&Debug~F7~debug|Run a co&mmand~~xeq|&Format the program~~format|Debug from the first &line~~debug1|Toggle &breakpoint~Shift-F7~bptoggle|Clear breakpoin&ts~~bpclear|Run with ar&guments~~runargs|Run a command at the termi&nal~~xeqterm
 ```
 
 ### msg:11229
-> kind=message tier=reference since=- src=sdsys/messages/11229:1#f51613ba
+> kind=message tier=reference since=- src=sdsys/messages/11229:1#92a3cee9
 
 ```
-&View|&Theme~^T~theme|&Refresh~F5~refresh|&Overwrite mode~Ins~overwrite|&Auto-indent~~autoindent|Tab &width~~tabwidth|&Syntax color~~synswitch|&Line numbers~~lnumswitch|Character &code~Alt-=~charcode|&Mouse~~mouseswitch|Scroll the view &up a line~Ctrl-Up~nudgeup|Scroll the view &down a line~Ctrl-Down~nudgedown
+&View|&Theme~^T~theme|&Refresh~F5~refresh|&Overwrite mode~Ins~overwrite|&Auto-indent~~autoindent|Tab &width~~tabwidth|&Syntax color~~synswitch|&Line numbers~~lnumswitch|Character &code~Alt-=~charcode|&Mouse~~mouseswitch|Scroll the view &up a line~Ctrl-Up~nudgeup|Scroll the view &down a line~Ctrl-Down~nudgedown|List of ta&bs~~tablist
 ```
 
 ### msg:1123
@@ -9130,8 +9130,6 @@ cited by: `login`
 split.up and split.down take a number of lines
 ```
 
-cited by: `sed`
-
 ### msg:11986
 > kind=message tier=reference since=- src=sdsys/messages/11986:1#6deeaca4
 
@@ -10026,10 +10024,10 @@ It lists %1 (model names are case-sensitive)
 cited by: `setai`
 
 ### msg:14019
-> kind=message tier=reference since=- src=sdsys/messages/14019:1#7d880a63
+> kind=message tier=reference since=- src=sdsys/messages/14019:1#de8f17c8
 
 ```
-&Edit|&Undo~^Z~undo|&Redo~^Y~redo|Cu&t~^X~cut|&Copy~^C~copy|&Paste~^V~paste|Select &all~^A~selall|&Insert a field~Ins~finsert|&Delete a field~Del~fdelete|Re&name the field~F3~frename|Change the t&ype~Alt-T~ftype|Delete the &word before~Alt-Bksp~wordback|Cut to the &end of the line~Alt-E~killend|&Swap two characters~Alt-T~transpose|Word in capita&ls~Alt-U~wordup|Word in s&mall letters~Alt-L~worddown|Capital initial o&f the word~Alt-C~wordcap|Close a run of &blanks~Alt-Space~closesp|Align wit&h the line above~Alt-A~align|Swap cursor and mar&k~Alt-M~swapmark
+&Edit|&Undo~^Z~undo|&Redo~^Y~redo|Cu&t~^X~cut|&Copy~^C~copy|&Paste~^V~paste|Select &all~^A~selall|&Insert a field~Ins~finsert|&Delete a field~Del~fdelete|Re&name the field~F3~frename|Change the t&ype~Alt-T~ftype|Delete the &word before~Alt-Bksp~wordback|Cut to the &end of the line~Alt-E~killend|&Swap two characters~Alt-T~transpose|Word in capita&ls~Alt-U~wordup|Word in s&mall letters~Alt-L~worddown|Capital initial o&f the word~Alt-C~wordcap|Close a run of &blanks~Alt-Space~closesp|Align wit&h the line above~Alt-A~align|Swap cursor and mar&k~Alt-M~swapmark|Start or end a macr&o~Alt-R~macrec|E&xecute the macro~Alt-P~macrun
 ```
 
 cited by: `ide`
@@ -10298,6 +10296,33 @@ More in the documentation: %1.pdf, in the pdf directory of the shared account.
 
 cited by: `tk_help`
 
+### msg:14047
+> kind=message tier=reference since=- src=sdsys/messages/14047:1#4ec1b295
+
+```
+A select list is active: %1 record(s), the first %2.  Open them in tabs?  (No leaves the list unused and clears it.)
+```
+
+cited by: `ide`
+
+### msg:14048
+> kind=message tier=reference since=- src=sdsys/messages/14048:1#30dcc765
+
+```
+There is no select list: the IDE was not started with one (SELECT, then IDE and the file)
+```
+
+cited by: `ide`
+
+### msg:14049
+> kind=message tier=reference since=- src=sdsys/messages/14049:1#1d4d840d
+
+```
+Record %1 of %2 of the select list
+```
+
+cited by: `ide`
+
 ### msg:1405
 > kind=message tier=reference since=- src=sdsys/messages/1405:1#f5ea60b7
 
@@ -10305,12 +10330,147 @@ cited by: `tk_help`
 Error %d deleting record
 ```
 
+### msg:14050
+> kind=message tier=reference since=- src=sdsys/messages/14050:1#34e5a82f
+
+```
+The select list is used up: all %1 of its records have been opened
+```
+
+cited by: `ide`
+
+### msg:14051
+> kind=message tier=reference since=- src=sdsys/messages/14051:1#e55621c7
+
+```
+The open tabs
+```
+
+cited by: `ide`
+
+### msg:14052
+> kind=message tier=reference since=- src=sdsys/messages/14052:1#599eb200
+
+```
+Tab|File|Record|Changed|Lines
+```
+
+cited by: `ide`
+
+### msg:14053
+> kind=message tier=reference since=- src=sdsys/messages/14053:1#ecb77cc8
+
+```
+Run which command at the terminal (the screen is given to it)?
+```
+
+cited by: `ide`
+
+### msg:14054
+> kind=message tier=reference since=- src=sdsys/messages/14054:1#b41e43cd
+
+```
+Back from "%1": the tabs are as they were (a record it changed is not read again)
+```
+
+cited by: `ide`
+
+### msg:14055
+> kind=message tier=reference since=- src=sdsys/messages/14055:1#0a30d115
+
+```
+[recording a macro]
+```
+
+cited by: `ide`
+
+### msg:14056
+> kind=message tier=reference since=- src=sdsys/messages/14056:1#fe6b7dc2
+
+```
+Spool the text.  Return, or any of: at printer, lnum, region
+```
+
+cited by: `ide`
+
+### msg:14057
+> kind=message tier=reference since=- src=sdsys/messages/14057:1#adb71f2a
+
+```
+Spool takes at printer, lnum and region: "%1" is none of them
+```
+
+cited by: `ide`
+
+### msg:14058
+> kind=message tier=reference since=- src=sdsys/messages/14058:1#b45dcfa3
+
+```
+%1 line(s) spooled; the record was not saved
+```
+
+cited by: `ide`
+
+### msg:14059
+> kind=message tier=reference since=- src=sdsys/messages/14059:1#906f8f2f
+
+```
+Put the cursor on a file in the tree, or open one of its records, to filter it
+```
+
+cited by: `ide`
+
 ### msg:1406
 > kind=message tier=reference since=- src=sdsys/messages/1406:1#1f51a5eb
 
 ```
 Error %d (o/s %d) reading record
 ```
+
+### msg:14060
+> kind=message tier=reference since=- src=sdsys/messages/14060:1#779357b0
+
+```
+Records of %1: a pattern (abc...), or like or with and a query; empty for all
+```
+
+cited by: `ide`
+
+### msg:14061
+> kind=message tier=reference since=- src=sdsys/messages/14061:1#c9e3e01e
+
+```
+-- next %1 --
+```
+
+cited by: `ide`
+
+### msg:14062
+> kind=message tier=reference since=- src=sdsys/messages/14062:1#4c0cc7b6
+
+```
+-- previous %1 --
+```
+
+cited by: `ide`
+
+### msg:14063
+> kind=message tier=reference since=- src=sdsys/messages/14063:1#ae1ae370
+
+```
+The filter was refused, so nothing is listed: %1
+```
+
+cited by: `ide`
+
+### msg:14064
+> kind=message tier=reference since=- src=sdsys/messages/14064:1#6739e8fa
+
+```
+%1 is filtered: %2
+```
+
+cited by: `ide`
 
 ### msg:1407
 > kind=message tier=reference since=- src=sdsys/messages/1407:1#5f5e6a3b
@@ -19880,8 +20040,6 @@ cited by: `ed`, `sed`
 Extension: 
 ```
 
-cited by: `sed`
-
 ### msg:6639
 > kind=message tier=reference since=- src=sdsys/messages/6639:1#f0c1460c
 
@@ -19934,16 +20092,12 @@ cited by: `sed`
 Extension %1 not found
 ```
 
-cited by: `sed`
-
 ### msg:6645
 > kind=message tier=reference since=- src=sdsys/messages/6645:1#9fc8f58a
 
 ```
 Error %1 running extension
 ```
-
-cited by: `sed`
 
 ### msg:6646
 > kind=message tier=reference since=- src=sdsys/messages/6646:1#dca795f7
@@ -20015,7 +20169,7 @@ cited by: `sed`
 This record may not be written
 ```
 
-cited by: `sed`
+cited by: `ide`, `sed`
 
 ### msg:6654
 > kind=message tier=reference since=- src=sdsys/messages/6654:1#6b7e645e
@@ -20204,7 +20358,7 @@ cited by: `sed`
 Quoted string contains delimiter
 ```
 
-cited by: `sed`
+cited by: `ide`, `sed`
 
 ### msg:6675
 > kind=message tier=reference since=- src=sdsys/messages/6675:1#f9d352b1
@@ -20213,7 +20367,7 @@ cited by: `sed`
 Template string may not contain both single and double quotes
 ```
 
-cited by: `sed`
+cited by: `ide`, `sed`
 
 ### msg:6676
 > kind=message tier=reference since=- src=sdsys/messages/6676:1#270d6a33
@@ -20330,8 +20484,6 @@ cited by: `sed`
 Compiling extension...
 ```
 
-cited by: `sed`
-
 ### msg:6689
 > kind=message tier=reference since=- src=sdsys/messages/6689:1#d198df61
 
@@ -20402,7 +20554,7 @@ cited by: `sed`
 Destination printer name required after %1
 ```
 
-cited by: `sed`
+cited by: `ide`, `sed`
 
 ### msg:6697
 > kind=message tier=reference since=- src=sdsys/messages/6697:1#36eb50d1
@@ -20427,7 +20579,7 @@ cited by: `sed`
 Destination printer not available. Error %1
 ```
 
-cited by: `sed`
+cited by: `ide`, `sed`
 
 ### msg:6700
 > kind=message tier=reference since=- src=sdsys/messages/6700:1#4bd3649a
@@ -21229,7 +21381,7 @@ cited by: `nls`
 (modified)
 ```
 
-cited by: `sed`
+cited by: `ide`, `sed`
 
 ### msg:6911
 > kind=message tier=reference since=- src=sdsys/messages/6911:1#61de5ba7
@@ -21247,16 +21399,12 @@ cited by: `sed`
 Expected PROC or FUNC
 ```
 
-cited by: `sed`
-
 ### msg:6913
 > kind=message tier=reference since=- src=sdsys/messages/6913:1#b5147a7d
 
 ```
 Arguments already defined
 ```
-
-cited by: `sed`
 
 ### msg:6914
 > kind=message tier=reference since=- src=sdsys/messages/6914:1#7d90a9be
@@ -21265,16 +21413,12 @@ cited by: `sed`
 Argument name not found where expected
 ```
 
-cited by: `sed`
-
 ### msg:6915
 > kind=message tier=reference since=- src=sdsys/messages/6915:1#b6763e75
 
 ```
 Duplicated argument name
 ```
-
-cited by: `sed`
 
 ### msg:6916
 > kind=message tier=reference since=- src=sdsys/messages/6916:1#11ffd71b
@@ -21283,16 +21427,12 @@ cited by: `sed`
 Too many arguments
 ```
 
-cited by: `sed`
-
 ### msg:6917
 > kind=message tier=reference since=- src=sdsys/messages/6917:1#c3c6310d
 
 ```
 Unrecognized option : %1
 ```
-
-cited by: `sed`
 
 ### msg:6918
 > kind=message tier=reference since=- src=sdsys/messages/6918:1#d1af1b71
@@ -21301,16 +21441,12 @@ cited by: `sed`
 Expected left bracket before procedure/function body
 ```
 
-cited by: `sed`
-
 ### msg:6919
 > kind=message tier=reference since=- src=sdsys/messages/6919:1#077ab81c
 
 ```
 Expected right bracket
 ```
-
-cited by: `sed`
 
 ### msg:6920
 > kind=message tier=reference since=- src=sdsys/messages/6920:1#a2eb6e76
@@ -21319,16 +21455,12 @@ cited by: `sed`
 Expected name for local PROC/FUNC
 ```
 
-cited by: `sed`
-
 ### msg:6921
 > kind=message tier=reference since=- src=sdsys/messages/6921:1#cf1e63d3
 
 ```
 Duplicate local PROC/FUNC name
 ```
-
-cited by: `sed`
 
 ### msg:6922
 > kind=message tier=reference since=- src=sdsys/messages/6922:1#96a4a019
@@ -21337,16 +21469,12 @@ cited by: `sed`
 Expected end of source
 ```
 
-cited by: `sed`
-
 ### msg:6923
 > kind=message tier=reference since=- src=sdsys/messages/6923:1#722d93d6
 
 ```
 Local PROC %1 used as FUNC
 ```
-
-cited by: `sed`
 
 ### msg:6924
 > kind=message tier=reference since=- src=sdsys/messages/6924:1#d988c277
@@ -21355,16 +21483,12 @@ cited by: `sed`
 Local FUNC %1 used as PROC
 ```
 
-cited by: `sed`
-
 ### msg:6925
 > kind=message tier=reference since=- src=sdsys/messages/6925:1#a268dede
 
 ```
 Argument count mismatch in local PROC/FUNC %1
 ```
-
-cited by: `sed`
 
 ### msg:6926
 > kind=message tier=reference since=- src=sdsys/messages/6926:1#1517481b
@@ -21373,16 +21497,12 @@ cited by: `sed`
 Local PROC not referenced
 ```
 
-cited by: `sed`
-
 ### msg:6927
 > kind=message tier=reference since=- src=sdsys/messages/6927:1#6c43b0d7
 
 ```
 Local FUNC not referenced
 ```
-
-cited by: `sed`
 
 ### msg:6928
 > kind=message tier=reference since=- src=sdsys/messages/6928:1#b711ddc5
@@ -21391,16 +21511,12 @@ cited by: `sed`
 External references:
 ```
 
-cited by: `sed`
-
 ### msg:6929
 > kind=message tier=reference since=- src=sdsys/messages/6929:1#671959bd
 
 ```
 %1 (function, %2 arguments)
 ```
-
-cited by: `sed`
 
 ### msg:6930
 > kind=message tier=reference since=- src=sdsys/messages/6930:1#ad8c77db
@@ -21409,16 +21525,12 @@ cited by: `sed`
 %1 (%2 arguments)
 ```
 
-cited by: `sed`
-
 ### msg:6931
 > kind=message tier=reference since=- src=sdsys/messages/6931:1#e7827dbf
 
 ```
 Procedure has too many local variables
 ```
-
-cited by: `sed`
 
 ### msg:6932
 > kind=message tier=reference since=- src=sdsys/messages/6932:1#0c475dca
@@ -21427,16 +21539,12 @@ cited by: `sed`
 Object code is too large to process
 ```
 
-cited by: `sed`
-
 ### msg:6933
 > kind=message tier=reference since=- src=sdsys/messages/6933:1#181f2c69
 
 ```
 Expected left bracket
 ```
-
-cited by: `sed`
 
 ### msg:6934
 > kind=message tier=reference since=- src=sdsys/messages/6934:1#0b908392
@@ -21445,16 +21553,12 @@ cited by: `sed`
 Misuse of function that returns a value
 ```
 
-cited by: `sed`
-
 ### msg:6935
 > kind=message tier=reference since=- src=sdsys/messages/6935:1#22bab91d
 
 ```
 Expected function name
 ```
-
-cited by: `sed`
 
 ### msg:6936
 > kind=message tier=reference since=- src=sdsys/messages/6936:1#40d3c1b3
@@ -21463,16 +21567,12 @@ cited by: `sed`
 Insufficient arguments in %1 function. Expected %2.
 ```
 
-cited by: `sed`
-
 ### msg:6937
 > kind=message tier=reference since=- src=sdsys/messages/6937:1#fd592c5c
 
 ```
 EXIT not in LOOP
 ```
-
-cited by: `sed`
 
 ### msg:6938
 > kind=message tier=reference since=- src=sdsys/messages/6938:1#b4d522f2
@@ -21481,16 +21581,12 @@ cited by: `sed`
 Expected variable name
 ```
 
-cited by: `sed`
-
 ### msg:6939
 > kind=message tier=reference since=- src=sdsys/messages/6939:1#4e6e8339
 
 ```
 Internal error - Invalid function for proc stack
 ```
-
-cited by: `sed`
 
 ### msg:6940
 > kind=message tier=reference since=- src=sdsys/messages/6940:1#e081469e
@@ -21499,16 +21595,12 @@ cited by: `sed`
 Unexpected end of source program
 ```
 
-cited by: `sed`
-
 ### msg:6941
 > kind=message tier=reference since=- src=sdsys/messages/6941:1#3b6e96fe
 
 ```
 Function returns no value
 ```
-
-cited by: `sed`
 
 ### msg:6942
 > kind=message tier=reference since=- src=sdsys/messages/6942:1#4f61bae8
@@ -21517,8 +21609,6 @@ cited by: `sed`
 Unrecognized system variable : %1
 ```
 
-cited by: `sed`
-
 ### msg:6943
 > kind=message tier=reference since=- src=sdsys/messages/6943:1#5251dc3f
 
@@ -21526,16 +21616,12 @@ cited by: `sed`
 Syntax error
 ```
 
-cited by: `sed`
-
 ### msg:6944
 > kind=message tier=reference since=- src=sdsys/messages/6944:1#fcecc421
 
 ```
 Mark characters not allowed in string literals
 ```
-
-cited by: `sed`
 
 ### msg:6945
 > kind=message tier=reference since=- src=sdsys/messages/6945:1#d9dccf78

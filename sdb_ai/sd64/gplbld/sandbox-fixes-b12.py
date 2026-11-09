@@ -310,7 +310,7 @@ def main():
             return counts, (int(mod.group(1)) if mod else None)
         counts, mod = hist(out)
         say("    group counts: %r, modulus %r" % (counts, mod))
-        row("360: ANALYSE.FILE ... STATISTICS shows a histogram of group utilisation, 11 bars", "Histogram of group utilisation" in out and len(counts) == 11, out[-600:])
+        row("360: ANALYSE.FILE ... STATISTICS shows a histogram of group utilisation, 11 bars", "Histogram of group utilization" in out and len(counts) == 11, out[-600:])
         row("360: its counts add up to the modulus of the file (%s)" % mod, mod is not None and sum(counts.values()) == mod, repr(counts))
         row("360: a file held to 3 groups (NO.RESIZE) with 150000 bytes in it has all three over 100%: each has overflow blocks",
             mod == 3 and counts.get("over 100%") == 3, repr(counts))

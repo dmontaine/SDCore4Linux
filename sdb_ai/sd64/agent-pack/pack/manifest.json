@@ -1,5 +1,5 @@
 {
- "chunk_count": 4131,
+ "chunk_count": 4149,
  "development": "the changelog's 'Next release - in progress' section is part of this tree",
  "gaps": {
   "basic_names_without_a_docs_syntax_line": [
@@ -10,7 +10,7 @@
  "kinds": {
   "basic.clause": {
    "chunks": 33,
-   "sha256": "024c3751aafc19720c67ff2482b6908a16e019948e431c53f5c1d7ca1ac7accf"
+   "sha256": "c8c347e3da481e0bc22e2bb3da10ba1d4947c8ea0fc21e7ff5d2467d2fe52e93"
   },
   "basic.function": {
    "chunks": 230,
@@ -34,7 +34,7 @@
   },
   "basic.statement": {
    "chunks": 203,
-   "sha256": "e95ead4ed4ec45b121262f7769db7529d6eba47df234160c1f5ffba6ad1801be"
+   "sha256": "65ecda07b22e8819e42619f5718ed2f91dd250c8e57bfbc268012eb818303e9e"
   },
   "core.digest": {
    "chunks": 5,
@@ -81,8 +81,8 @@
    "sha256": "f8f7e8bad58d56ed8c8d1f5a500d1e52f99b0733d33a251e1d987471d86fc157"
   },
   "message": {
-   "chunks": 2858,
-   "sha256": "0304f849f021261338bc4f285d1e64c67ef3ec76692d815863575cf3da6a1872"
+   "chunks": 2876,
+   "sha256": "55f93f810ce2c5059e847d1ba7f433d9360db143f5211250eeef89afe37fea36"
   },
   "sys.keys": {
    "chunks": 41,
@@ -152,7 +152,7 @@
    "words": 569
   },
   "index.json": {
-   "sha256": "0c8bed04d0695c7c81c04fba8b77d7f5cae8d3ff15750be22d5da53de282f9ad"
+   "sha256": "9a3a6879f4cc76eb2e8a4d513a481ba91b3999d932aed83d7369c231afe8e259"
   },
   "reference/basic-functions.md": {
    "chunks": 267,
@@ -166,7 +166,7 @@
   },
   "reference/basic-statements.md": {
    "chunks": 270,
-   "sha256": "ed1e1cdc1dad5319445b99e4f52021c3fb37b49c5b265305e70edf610d5a80b4",
+   "sha256": "07afeab7f812094c8ceaa5f0016664e0b02560949ea1814fb3030fcf1c1d3abe",
    "words": 5933
   },
   "reference/dictionaries.md": {
@@ -175,9 +175,9 @@
    "words": 5620
   },
   "reference/messages.md": {
-   "chunks": 2858,
-   "sha256": "8c55624d01f03d8a1795beadc02acd91463e92e2ed1e81538dce999c4c8cdacb",
-   "words": 37669
+   "chunks": 2876,
+   "sha256": "eef8c7938281beb780967cd8bc3b92de92fe759e20ec6419b5aa5016ba9ddf21",
+   "words": 37967
   },
   "reference/system-keys.md": {
    "chunks": 41,

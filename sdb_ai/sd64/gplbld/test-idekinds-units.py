@@ -145,7 +145,7 @@ def checks(src):
        "the end so a part-read select does not stay on the file",
        ordered(li, "select fv to 9 on error", "clearselect 9", "return", "loop", "readnext lr.id from 9 else exit", "if lr.n >= MAXREC then", "lr.more = @true", "exit",
                "locate lr.id in lr.ids<1,1> by 'AL' setting lr.p else null", "ins lr.id before lr.ids<1, lr.p>", "repeat", "clearselect 9")   # <1,1>: in <1> LOCATE walks fields (S.185)
-       and "sselect" not in li and "readlist" not in li, li[:200])
+       and li.count("sselect") == 1 and "execute 'sselect '" in li and "readlist" not in li, li[:200])      # 9 Nov 26: the one sselect is a filter's, which the person asked for (S.184 stage 5)
     ck("K6", "NO SSELECT AND NO READLIST OF A WHOLE FILE ANYWHERE in the IDE but the VOC walk of build.files: the tree (load.file, load.dict) and Find in the records (do.find) "
        "read through list.ids, and say when the list was cut (11219)",
        len(re.findall(r"^\s*sselect\b", ide, re.M)) == 1 and "sselect vocf to 9" in label(ide, "build.files")
@@ -183,8 +183,8 @@ def checks(src):
        ordered(cx, "cv.y = jparse(convert(@fm, char(10), sv.text))", "cv.st = status()", "cv.at = inmat()", "cv.ok = (cv.st = 0)", "jtype(cv.y) = 'collection' or jtype(cv.y) = 'array'", "sysmsg(11743, sv.name, sv.id, cv.at)", "gosub refuse.box")
        and ordered(L["save.one"], "sv.out = sv.text", "if sv.kind = 'coll' then", "gosub coll.value", "if not(cv.ok) then return", "sv.out = cv.y", "readu disk from fv, sv.id locked",
                    "if sv.kind = 'coll' then", "if jtype(disk) = 'collection' or jtype(disk) = 'array' then", "disk = convert(char(10), @fm, jbuild(disk, JB$PRETTY))", "disk = ''",
-                   "if (disk : '|') # (sv.saved : '|') then", "writeu sv.out on fv", "write sv.out on fv", "sv.reload = @false", "if sv.kind = 'coll' then", "sv.shown = sv.text",
-                   "sv.text = convert(char(10), @fm, jbuild(sv.out, JB$PRETTY))", "sv.reload = ((sv.text : '|') # (sv.shown : '|'))",
+                   "if (disk : '|') # (sv.saved : '|') then", "writeu sv.out on fv", "write sv.out on fv", "sv.reload = srcc.update", "if sv.kind = 'coll' then", "sv.shown = sv.text",
+                   "sv.text = convert(char(10), @fm, jbuild(sv.out, JB$PRETTY))", "if (sv.text : '|') # (sv.shown : '|') then sv.reload = @true",
                    "k = 's' : u", "bx{k} = sv.text", "if sv.reload and sv.i = cb then gosub load.current"), "")
     ck("K38", "stage F: a record of a collection file that is not there opens as a NEW record holding {} (an empty collection), in open.record and in New record (add.new.record), unless the person took a copy",
        "if lk.kind = 'coll' and or.new and rc.choice # 'use' then tb.shown = '{}'" in L["open.record"]

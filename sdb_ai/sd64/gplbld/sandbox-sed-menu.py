@@ -319,8 +319,8 @@ MENUS = {  # menu title -> labels expected in its drop-down
     "Edit": ["Set mark", "Swap mark", "Cut region", "Copy region", "Paste", "Delete char", "Kill line", "Overlay mode"],
     "Search": ["Forward search...", "Backward search...", "Replace...", "Goto line...", "Top", "Case on", "Basic word search"],
     "Buffer": ["Next buffer", "Previous buffer", "Goto buffer...", "List buffers", "Dive"],
-    "Window": ["Split window", "Unsplit window", "Toggle window", "Refresh screen"],
-    "Tools": ["Compile", "Compile and run", "Format", "Run extension...", "Command...", "Start macro", "Execute macro"],
+    "Window": ["Refresh screen"],
+    "Tools": ["Compile", "Compile and run", "Format", "Command...", "Start macro", "Execute macro"],
     "View": ["Theme", "Refresh screen"],                       # S.179, 8 Nov 26
     "Help": ["Keys in use"],
 }
@@ -371,7 +371,7 @@ def part_sed(box, sysd):
     want = {"Edit": [("Paste", "Ctrl-V"), ("Cut region", "Ctrl-X"), ("Copy region", "Ctrl-C"), ("Kill line", "Alt-K"), ("Set mark", "Alt-.")],
             "Search": [("Forward search", "Ctrl-F"), ("Backward search", "Ctrl-B"), ("Replace...", "Ctrl-R"), ("Goto line", "Alt-G"), ("Top", "Alt-<"), ("Bottom".replace("Bottom", "Botto"), "Alt->")],
             "Buffer": [("Next buffer", "Ctrl-PgDn"), ("Previous buffer", "Ctrl-PgUp"), ("Delete buffer", "Ctrl-W")],     # was Esc N / Esc P and no key; D33, 28 Oct 26
-            "Tools": [("Compile and run", "F9"), ("Command...", "Alt-X"), ("Run extension", "Alt-E")],
+            "Tools": [("Compile and run", "F9"), ("Command...", "Alt-X")],
             "View": [("Theme", "Ctrl-T"), ("Refresh screen", "F5")],
             "Help": [("Keys in use", "Ctrl-K")]}
     for title, pairs in want.items():

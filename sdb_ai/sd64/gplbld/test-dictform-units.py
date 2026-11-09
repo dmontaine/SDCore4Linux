@@ -124,8 +124,8 @@ def checks(src, others):
                                                     "bx{k} = df.new", "gosub set.token.mode", "gosub load.current"), "")
     ck("I3 only `save` is written, by the IDE's own save, AFTER the text is in the tab; `text` and `cancel` write nothing",
        ordered(d, "gosub load.current", "if df.res = 'save' then", "gosub save.one") and d.count("gosub save.one") == 1 and d.count("save.current") == 0, "")
-    ck("I4 the command dform is a case of run.cmd and the Go menu ends with the entry, which has no key", "case cmd = 'dform'" in ide and "gosub do.dform" in ide
-       and src["go"].strip().endswith("|Dictionary item as for&m~~dform"), repr(src["go"][-60:]))
+    ck("I4 the command dform is a case of run.cmd and the Go menu has the entry, which has no key, before Next record from the list", "case cmd = 'dform'" in ide and "gosub do.dform" in ide
+       and "|Dictionary item as for&m~~dform|Next &record from the list~~nextsel" in src["go"], repr(src["go"][-60:]))
     ck("I5 the start words /form and /text are taken off the sentence before any id is read, and the sentence is read once",
        ordered(ide, "sent.in = @sentence", "text0 = @false", "'/FORM'", "'/TEXT'", "form0 = @true", "text0 = @true", "sent.in = trimb(sent.in[1, len(trimb(sent.in)) - 5])", "fn0 = field(sent.in, ' ', 2)")
        and ide.count("@sentence") == 1, repr(ide.count("@sentence")))

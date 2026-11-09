@@ -1219,6 +1219,7 @@ def section_gate():
         s.settle(2.0)
         s.type("TERM xterm\r")
         s.type("TERM 140,43\r")
+        s.keeps_writing()
         s.type(cmd + "\r", idle=1.5)
         for k in keys:
             s.type(k, idle=0.8)

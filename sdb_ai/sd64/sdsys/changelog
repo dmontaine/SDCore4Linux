@@ -1,6 +1,42 @@
 Next release - in progress
 --------------------------
 
+9 Nov 26   SED NO LONGER HAS AN EXTENSION LANGUAGE OR A SPLIT WINDOW.
+
+             What        - SED's extension language is removed: compiling and running PROC and FUNC extensions, their
+                           files, START.UP, extensions bound to keys or command names, and Tools > Run extension. So is the
+                           split window: Split, Unsplit and Toggle window, and the commands SPLIT.UP and SPLIT.DOWN. The
+                           Window menu now holds Refresh screen alone.
+             Why         - The owner, 9 Nov: SED is to be the same as the IDE's editor, stand alone, and neither is in the
+                           IDE.
+             Not changed - COMPILE still saves and compiles a BASIC program; a record that begins PROC or FUNC is now
+                           compiled as BASIC like any other. Keyboard macros, buffers and the other commands stay.
+
+9 Nov 26   THE IDE ASKS ABOUT A SELECT LIST, RECALLS WHAT YOU OPENED, LISTS ITS TABS AND CAN GIVE A COMMAND THE TERMINAL.
+
+             What        - An active select list at the start of IDE is now asked about: Yes opens the first ten records in
+                           tabs, as before; No clears the list, as SED does. Go > Next record from the list opens the next
+                           record of the list that is not already in a tab, and says when the list is used up. Up and Down
+                           in the Open form bring back the files and records opened in this session (twenty of each).
+                           View > List of tabs shows every tab with its file, record, whether it has changed and its lines;
+                           Enter goes to that tab. Build > Run a command at the terminal gives the screen to the command
+                           and asks for Return before the IDE comes back, for a command that needs the terminal. Up and
+                           Down in either Run a command question bring back this session's commands: SCREEN ASK now takes
+                           HISTORY list, so a program can offer the same. A save in the IDE calls a catalogued
+                           SOURCE.CONTROL before it writes, as SED and ED do; it can refuse the write or change the record.
+                           Alt-R starts and ends recording a keyboard macro in the IDE's editor, Alt-P plays it (both are
+                           on the Edit menu), and any program's SCREEN MEMO has the same two keys unless it keeps them.
+                           File > Spool the text prints the tab's text as it is now, saved or not, with AT printer, LNUM
+                           and REGION as in SED. Go > Filter the records chooses which records the tree lists for a file
+                           or its dictionary (a pattern, or LIKE or WITH and a query), and a file of more than 2,000
+                           records is listed in pages instead of stopping at the first 2,000.
+             Why         - These were still only in SED, and the owner, 9 Nov, wants all of SED's and CED's features in
+                           the full-screen IDE as well.
+             Not changed - Run a command still puts what a command prints in the table. Run a command at the terminal goes
+                           through the same command processor, so every gate is as it was; a record it changes is not read
+                           again by the tab holding it. The recalled names and commands last for the session only and
+                           nothing is written to the account. A SCREEN ASK with MASK recalls nothing.
+
 9 Nov 26   THE PDF VERB, SET.VIEWER AND THE BYPASS PROGRAMS PAGE ARE REMOVED.
 
              What        - The pdf verb, which started a PDF reader to show a documentation PDF, is gone, with set.viewer

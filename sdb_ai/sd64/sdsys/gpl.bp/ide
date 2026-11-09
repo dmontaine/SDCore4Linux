@@ -178,6 +178,9 @@
 *               List of tabs (do.tablist): one row a tab - number, file, record, changed, lines - in $sl_pickwin; Enter goes to the tab.  (4) Build > Run a command
 *               at the terminal (do.xeqterm): the screen is given to the command as Run gives it a program, "Press Return" is asked, and the IDE comes back; the
 *               command goes through EXECUTE like Run a command, so the prompt's command processor and every gate it asks apply.  Messages 14047-14054.
+* 09 Nov 26 dm  S.184 stage 4: a save calls a catalogued source.control before it writes, with the arguments SED and ED give it (dict flag, file, record, the
+*               record's text, 1 for a full screen editor, write allowed, record updated); it can refuse the write (6653) or change the text, which then goes in the tab.
+*               Up and Down in the two Run a command prompts bring back this session's commands (SCREEN ASK ... HISTORY, /idehist/ ih.cmds).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -236,10 +239,11 @@ $include idebrk.h
 
    * 9 Nov 26 (S.184 stage 3, SED's history stacks): the files and the records opened this session, newest first, as fields (hist.push).  A named common, so that they
    *   last from one IDE to the next in the session; $ide_name reads them for Up and Down in Open's form.  A common starts as 0, so ih.on says whether it was set up.
-   common /idehist/ ih.on, ih.files, ih.recs
+   common /idehist/ ih.on, ih.files, ih.recs, ih.cmds
    if ih.on + 0 # 1 then
       ih.files = ''
       ih.recs = ''
+      ih.cmds = ''                         ;* the commands given to Run a command, newest first (do.xeq, do.xeqterm; Up and Down in the prompt)
       ih.on = 1
    end
    LAYW = 140                              ;* what the layout is made for (the owner's 140 by 43 for every full-screen app): a bigger window is used whole, a smaller one
@@ -401,6 +405,10 @@ $include idebrk.h
    call $tk_keys('add', ide.keys, 'f9', 'run', 'run', '', 1)
    call $tk_keys('add', ide.keys, 'shift-f9', 'build', 'catalog', '', 1)
    call $tk_keys('add', ide.keys, 'alt-g', 'go to', 'goto', '', 1)          ;* S.179: Alt-G, as in SED (Ctrl-L redraws on every page)
+   call $tk_keys('add', ide.keys, 'alt-r', 'macro', 'macrec', '', 1)        ;* 9 Nov 26 (S.184 stage 5): the editor's own key, listed by Ctrl-K
+   ide.keys<dcount(ide.keys, @fm), TK.K.ROW> = 0
+   call $tk_keys('add', ide.keys, 'alt-p', 'play macro', 'macrun', '', 1)
+   ide.keys<dcount(ide.keys, @fm), TK.K.ROW> = 0
    call $tk_keys('add', ide.keys, 'alt-=', 'char code', 'charcode', '', 1)  ;* 9 Nov 26 (S.184 stage 3): SED's expand char, Alt-= as in SED; not on the key row
    ide.keys<dcount(ide.keys, @fm), TK.K.ROW> = 0
    call $tk_keys('add', ide.keys, 'ctrl-t', 'theme', 'theme', '', 1)        ;* S.179: the theme and the keys, as on every page
@@ -476,6 +484,11 @@ $include idebrk.h
    fl = ''                           ;* the files of the VOC
    lfiles = ''                       ;* the files whose records are listed in the tree
    lrecs = ''                        ;* their record ids, as values, in step
+   lmore = ''                        ;* 9 Nov 26 (S.184 stage 5): in step: 1 when the list stopped at MAXREC
+   lr.key = ''                       ;*   list.ids's list key: 'F:file' or 'D:file' for the tree, '' for a caller that wants every record
+   lt.keys = ''                      ;*   the lists that have a filter or a page: the key, as fields (do.filter)
+   lt.text = ''                      ;*   in step: the filter, a query clause
+   lt.page = ''                      ;*   in step: the page, from 0
    ldict = ''                        ;* in step: 1 when the file has a dictionary (the tree shows a node for it)
    dfiles = ''                       ;* the files whose DICTIONARY items are listed in the tree (opened by Return on the dictionary node)
    drecs = ''                        ;* their item ids, as values, in step
@@ -513,6 +526,9 @@ $include idebrk.h
    have.form = @false
    done = @false
    untitled = 0                      ;* the number of the last untitled buffer made
+   srcc.name = 'source.control'      ;* 9 Nov 26 (S.184 stage 4): the subroutine a save calls when it is catalogued, as in SED and ED
+   srcc.active = -1                  ;* not yet looked for
+   ed.macro = ''                     ;* 9 Nov 26 (S.184 stage 5): the keyboard macro, kept when the form is made again
    ed.over = 0                       ;* 29 Oct 26 (S.88 D2): the editor's overwrite mode, auto-indent and tab width; the form is made again on a resize, so they live here and are given to it
    ed.auto = 0
    ed.tab = 3
@@ -742,8 +758,12 @@ load.file:
       msg = sysmsg(11200, lf.name)
       return
    end
+   lr.key = 'F:' : lf.name             ;* 9 Nov 26 (S.184 stage 5): this list has a filter and pages of its own (do.filter)
+   lr.sent = lf.name
    gosub list.ids
-   if lr.more then msg = sysmsg(11219, MAXREC, lf.name)
+   lr.key = ''
+   if lr.more and lr.skip = 0 then msg = sysmsg(11219, MAXREC, lf.name)
+   if lr.tmpl # '' and lr.ok then msg = sysmsg(14064, lf.name, lr.tmpl)
    ids = lr.ids
    lf.dict = 0
    open 'DICT', lf.name to lf.dv then lf.dict = 1
@@ -760,9 +780,11 @@ load.file:
       lfiles<-1> = lf.name
       lrecs<-1> = ids
       ldict<dcount(lfiles, @fm)> = lf.dict
+      lmore<dcount(lfiles, @fm)> = lr.more
    end else
       lrecs<lp> = ids
       ldict<lp> = lf.dict
+      lmore<lp> = lr.more
    end
    return
 
@@ -772,8 +794,12 @@ load.dict:
       msg = sysmsg(11200, 'dict ' : ld.name)
       return
    end
+   lr.key = 'D:' : ld.name
+   lr.sent = 'dict ' : ld.name
    gosub list.ids
+   lr.key = ''
    if lr.more then msg = sysmsg(11219, MAXREC, 'dict ' : ld.name)
+   if lr.tmpl # '' and lr.ok then msg = sysmsg(14064, 'dict ' : ld.name, lr.tmpl)
    lp = 0
    nl = dcount(dfiles, @fm)
    if dfiles = '' then nl = 0
@@ -799,10 +825,33 @@ list.ids:
    lr.keys = ''                        ;* 9 Nov 26 (S.184 stage 3b): the ids in capitals, the order when ex.nocase (NO.CASE.EXPLORE) asks for case-blind order
    lr.n = 0
    lr.more = @false
-   select fv to 9 on error
-      clearselect 9
-      return
+   lr.ok = @true
+   lr.skip = 0
+   lr.tmpl = ''
+   if lr.key # '' then
+      locate lr.key in lt.keys<1> setting lr.p then
+         lr.tmpl = lt.text<lr.p>
+         lr.skip = (lt.page<lr.p> + 0) * MAXREC
+      end
    end
+   if lr.tmpl # '' then
+      * 9 Nov 26 (S.184 stage 5): the filter, through the query processor as SED's explore list; what it prints is not for the screen.  It is sorted, so a filter reads the whole file
+      execute 'sselect ' : lr.sent : ' ' : lr.tmpl : ' to 9' trapping aborts capturing lr.cap
+      if @system.return.code < 0 then
+         clearselect 9
+         lr.ok = @false
+         msg = sysmsg(14063, lr.tmpl)
+         return
+      end
+   end else
+      select fv to 9 on error
+         clearselect 9
+         return
+      end
+   end
+   for lr.s = 1 to lr.skip                ;* an earlier page's records
+      readnext lr.id from 9 else exit
+   next lr.s
    loop
       readnext lr.id from 9 else exit
       if lr.n >= MAXREC then
@@ -934,6 +983,7 @@ new.form:
    mw{'edkeys'} = 1                              ;* 29 Oct 26 (S.88 D2): Ctrl-Home / Ctrl-End (start and end of the text), Ctrl-Left / Ctrl-Right (a word) and Ctrl-Del (delete a word)
    mw{'over'} = ed.over
    mw{'autoindent'} = ed.auto
+   mw{'macro'} = ed.macro                ;* 9 Nov 26 (S.184 stage 5): the keyboard macro outlives a form made again (a resize, a program run)
    mw{'tabindent'} = ed.tab                         ;* 28 Oct 26 (approved by the owner): Tab and Shift-Tab indent and outdent here, by the codebase's 3; F6 / Shift-F6 move between the panes
    mw{'softcur'} = 1                             ;* 19 Oct 26: the character under the cursor is highlighted while the editor has the focus
    gosub bk.form                                 ;* 2 Nov 26 (S.98 H2): the mark column and the tab's marks
@@ -1045,6 +1095,16 @@ tree.nodes:
                next j
             end
          end
+         lt.k = 'F:' : nm
+         gosub filter.find
+         if lt.p then
+            if lt.page<lt.p> + 0 then          ;* 9 Nov 26 (S.184 stage 5): a list longer than MAXREC goes by pages
+               nn += 1
+               c2 = 'B:' : nm
+               nodes<-1> = sysmsg(14062, MAXREC) : @sm : 2 : @sm : c2
+               if c2 = cur.code then cur.k = nn
+            end
+         end
          ids = lrecs<lp>
          ni = dcount(ids, @vm)
          if ids = '' then ni = 0
@@ -1054,6 +1114,12 @@ tree.nodes:
             nodes<-1> = ids<1, j> : @sm : 2 : @sm : c2
             if c2 = cur.code then cur.k = nn
          next j
+         if lmore<lp> then
+            nn += 1
+            c2 = 'N:' : nm
+            nodes<-1> = sysmsg(14061, MAXREC) : @sm : 2 : @sm : c2
+            if c2 = cur.code then cur.k = nn
+         end
       end
    next i
    if os.on then gosub tree.os
@@ -1568,6 +1634,13 @@ hist.push:
    hp.list = ih.recs
    gosub hist.add
    ih.recs = hp.list
+   return
+
+* In: hp.item, a command given to Run a command or Run a command at the terminal: the two prompts share one list.
+hist.command:
+   hp.list = ih.cmds
+   gosub hist.add
+   ih.cmds = hp.list
    return
 
 * In: hp.item, hp.list (fields, newest first).  Out: hp.list with hp.item first
@@ -2677,6 +2750,7 @@ status.line:
       end else
          t := '   ' : sysmsg(11213, mw{'cy'}, mw{'cx'})
          if mw{'over'} + 0 then t := '  ' : sysmsg(11766)                  ;* 29 Oct 26 (S.88 D2): [overwrite]
+         if mw{'macrec'} + 0 then t := '  ' : sysmsg(14055)                ;* 9 Nov 26 (S.184 stage 5): [recording a macro]
       end
    end
    if msg # '' then t := '   ' : msg
@@ -2757,6 +2831,10 @@ do.key:
          cmd = 'catalog'                 ;* S.179: Shift-F9 (it was F9)
       case edata = 'alt-g'
          cmd = 'goto'                    ;* S.179: Alt-G, as in SED (it was Ctrl-L)
+      case edata = 'alt-r'
+         cmd = 'macrec'                  ;* 9 Nov 26 (S.184 stage 5): reached only with the focus outside the editor, whose memo acts on these two itself
+      case edata = 'alt-p'
+         cmd = 'macrun'
       case edata = 'alt-='
          cmd = 'charcode'                ;* 9 Nov 26 (S.184 stage 3): SED's expand char
       case edata = 'ctrl-t'
@@ -2958,6 +3036,10 @@ run.cmd:
          gosub do.find
       case cmd = 'writeas'
          gosub do.writeas
+      case cmd = 'spool'
+         gosub do.spool
+      case cmd = 'filter'
+         gosub do.filter
       case cmd = 'saveas'
          gosub do.saveas
       case cmd = 'replace'
@@ -2993,15 +3075,15 @@ run.cmd:
       case cmd = 'undo' or cmd = 'redo' or cmd = 'cut' or cmd = 'copy' or cmd = 'paste' or cmd = 'selall'
          ek.key = (if cmd = 'undo' then 'ctrl-z' else if cmd = 'redo' then 'ctrl-y' else if cmd = 'cut' then 'ctrl-x' else if cmd = 'copy' then 'ctrl-c' else if cmd = 'paste' then 'ctrl-v' else 'ctrl-a')
          gosub do.editkey
-      case cmd = 'wordback' or cmd = 'killend' or cmd = 'transpose' or cmd = 'wordup' or cmd = 'worddown' or cmd = 'wordcap' or cmd = 'closesp' or cmd = 'align' or cmd = 'swapmark' or cmd = 'nudgeup' or cmd = 'nudgedown'
+      case cmd = 'wordback' or cmd = 'killend' or cmd = 'transpose' or cmd = 'wordup' or cmd = 'worddown' or cmd = 'wordcap' or cmd = 'closesp' or cmd = 'align' or cmd = 'swapmark' or cmd = 'nudgeup' or cmd = 'nudgedown' or cmd = 'macrec' or cmd = 'macrun'
          * 9 Nov 26 (S.184 stage 2): SED's editing commands, the editor's own keys (sl_memo sed.edit / sed.move); not the fields pane's, where Alt-T is the type
          *   (stage 3b: and View > Scroll the view up / down a line, SED's nudge, which the memo has on Ctrl-Up and Ctrl-Down)
          if focus.id = 'fld' then
             msg = sysmsg(14024)
          end else
-            sk.l = 'wordback' : @vm : 'killend' : @vm : 'transpose' : @vm : 'wordup' : @vm : 'worddown' : @vm : 'wordcap' : @vm : 'closesp' : @vm : 'align' : @vm : 'swapmark' : @vm : 'nudgeup' : @vm : 'nudgedown'
+            sk.l = 'wordback' : @vm : 'killend' : @vm : 'transpose' : @vm : 'wordup' : @vm : 'worddown' : @vm : 'wordcap' : @vm : 'closesp' : @vm : 'align' : @vm : 'swapmark' : @vm : 'nudgeup' : @vm : 'nudgedown' : @vm : 'macrec' : @vm : 'macrun'
             locate cmd in sk.l<1,1> setting sk.i else sk.i = 0     ;* stage 3b: <1,1>, the values (in <1> it found nothing and every entry sent Alt-Backspace)
-            ek.key = field('alt-bs,alt-e,alt-t,alt-u,alt-l,alt-c,alt- ,alt-a,alt-m,ctrl-up,ctrl-down', ',', sk.i)
+            ek.key = field('alt-bs,alt-e,alt-t,alt-u,alt-l,alt-c,alt- ,alt-a,alt-m,ctrl-up,ctrl-down,alt-r,alt-p', ',', sk.i)
             gosub do.editkey
          end
       case cmd = 'finsert' or cmd = 'fdelete' or cmd = 'frename' or cmd = 'ftype'
@@ -3069,6 +3151,7 @@ do.act:
                   del lfiles<lp>
                   del lrecs<lp>
                   del ldict<lp>
+                  del lmore<lp>
                end else
                   gosub load.file
                end
@@ -3094,6 +3177,17 @@ do.act:
                   gosub load.dict
                end
                cur.code = code
+               gosub tree.apply
+               gosub redraw.tree
+            case code[1, 2] = 'N:' or code[1, 2] = 'B:'
+               * 9 Nov 26 (S.184 stage 5): the next or the previous MAXREC records of the file, in place of those shown
+               lf.name = code[3, 99]
+               lt.k = 'F:' : lf.name
+               gosub filter.slot
+               lt.page<lt.p> = (lt.page<lt.p> + 0) + (if code[1, 2] = 'N:' then 1 else -1)
+               if lt.page<lt.p> < 0 then lt.page<lt.p> = 0
+               gosub load.file
+               cur.code = (if lt.page<lt.p> + 0 then 'B:' else 'F:') : lf.name      ;* the cursor on the new page, which the file's own row may be a screen away from
                gosub tree.apply
                gosub redraw.tree
             case code[1, 2] = 'O:'
@@ -3369,6 +3463,8 @@ save.one:
    end else
       null
    end
+   gosub source.control.hook         ;* 9 Nov 26 (S.184 stage 4): before the write, as SED and ED do: it may refuse the write or change the text
+   if not(srcc.ok) then return
    if sv.slot then
       writeu sv.out on fv, sv.id on error
          sv.err = status()
@@ -3384,14 +3480,14 @@ save.one:
       end
       release fv, sv.id
    end
-   sv.reload = @false
+   sv.reload = srcc.update              ;* source.control changed the text: the editor shows what was written
    if sv.kind = 'coll' then
       * 29 Oct 26 (stage F): the tab keeps the record in the one layout JBUILD gives it, so that the next save compares like with like and the tab is not "changed" because it was typed compact
       sv.shown = sv.text
       sv.text = convert(char(10), @fm, jbuild(sv.out, JB$PRETTY))
       k = 't' : u
       bx{k} = sv.text
-      sv.reload = ((sv.text : '|') # (sv.shown : '|'))        ;* review R8: the editor is loaded again only when the layout changed under the person's hands (its undo steps go with that)
+      if (sv.text : '|') # (sv.shown : '|') then sv.reload = @true        ;* review R8: the editor is loaded again only when the layout changed under the person's hands (its undo steps go with that)
    end
    k = 's' : u
    bx{k} = sv.text
@@ -3407,6 +3503,44 @@ save.one:
       gosub refresh.tree.for                   ;* the record is in the file now: the tree lists it
    end
    if sv.reload and sv.i = cb then gosub load.current              ;* 29 Oct 26 (stage F): the editor shows the layout that was kept
+   return
+
+* In: sv.i, u, sv.dict, sv.id, sv.text, sv.kind, sv.slot, fv (the record's lock is held).  Out: srcc.ok, srcc.update; sv.text, sv.out and the tab's text when the subroutine changed the text.
+*   9 Nov 26 (S.184 stage 4).  Nothing at all happens when no source.control is catalogued.  It may write to the terminal, as under SED, so the screen is drawn again after it.  A collection
+*   file's record is given to it as its JSON text, and text it changes must still parse.
+source.control.hook:
+   srcc.ok = @true
+   srcc.update = @false
+   if srcc.active < 0 then srcc.active = catalogued(srcc.name)
+   if not(srcc.active) then return
+   srcc.allowed = @true
+   call @srcc.name((sv.dict), (bn<sv.i>), (sv.id), sv.text, 1, srcc.allowed, srcc.update)
+   prompt ''
+   screen refresh
+   last.status = char(1)
+   if not(srcc.allowed) then
+      if not(sv.slot) then release fv, sv.id
+      srcc.ok = @false
+      rf.text = sysmsg(6653)
+      msg = rf.text
+      gosub refuse.box
+      return
+   end
+   if srcc.update then
+      k = 't' : u
+      bx{k} = sv.text
+      if sv.kind = 'coll' then
+         gosub coll.value
+         if not(cv.ok) then
+            if not(sv.slot) then release fv, sv.id
+            srcc.ok = @false
+            return
+         end
+         sv.out = cv.y
+      end else
+         sv.out = sv.text
+      end
+   end
    return
 
 * In: sv.text, sv.name, sv.id.  Out: cv.ok, cv.y (the collection or array the text is).  JPARSE answers a null string and STATUS() 1020 (INMAT() the character it gave up at) for text that is
@@ -4785,6 +4919,7 @@ relayout:
    if have.form then
       call $sl_form('find', f, '', 'ed', en)
       ow = f{'widgets', en}
+      ed.macro = ow{'macro'}
       ed.over = ow{'over'} + 0                      ;* Ins in the area toggles it there: a form made again later (retake.quiet) is given what this one has
    end
    screen clear
@@ -5050,6 +5185,179 @@ get.context:
 
 * Ctrl-W, as SED's: the text in the editor is written to a record of the file under another name and the editor goes on
 * with the record it had
+* Go / Filter the records (9 Nov 26, S.184 stage 5), SED's "? template" at the record name: a filter for the list of the file the tree or the editor is on.  A word is an @ID pattern (abc...), a text
+*   in quotes the same, and LIKE or WITH a query clause, as check.template in SED; empty, every record again.  The filter stays until it is changed and the list goes back to its first page.
+do.filter:
+   gosub get.context
+   if ctx.file = '' then
+      msg = sysmsg(14059)
+      return
+   end
+   fx.dict = @false
+   if focus.id = 'tree' then
+      screen get f, 'tree' returning code
+      fx.dict = (code[1, 2] = 'D:' or code[1, 2] = 'Q:')
+   end
+   lt.k = (if fx.dict then 'D:' else 'F:') : ctx.file
+   gosub filter.slot
+   fx.at = lt.p
+   screen ask sysmsg(14060, ctx.file) width 60 value lt.text<fx.at> returning fx.t else return
+   fx.t = trimf(trimb(fx.t))
+   if fx.t # '' and upcase(fx.t[1, 5]) # 'LIKE ' and upcase(fx.t[1, 5]) # 'WITH ' then
+      fx.c = fx.t[1, 1]
+      if index(\'"\, fx.c, 1) then
+         if fx.t[1] # fx.c or len(fx.t) < 2 or index(fx.t, fx.c, 2) # len(fx.t) then
+            msg = sysmsg(6674)
+            return
+         end
+         fx.t = 'with @id like ' : fx.t
+      end else
+         if index(fx.t, '"', 1) then
+            if index(fx.t, "'", 1) then
+               msg = sysmsg(6675)
+               return
+            end
+            fx.t = "with @id like '" : fx.t : "'"
+         end else
+            fx.t = 'with @id like "' : fx.t : '"'
+         end
+      end
+   end
+   lt.text<fx.at> = fx.t
+   lt.page<fx.at> = 0
+   if fx.dict then
+      ld.name = ctx.file
+      gosub load.dict
+   end else
+      lf.name = ctx.file
+      gosub load.file
+   end
+   cur.code = (if fx.dict then 'D:' else 'F:') : ctx.file
+   gosub tree.apply
+   gosub redraw.tree
+   return
+
+* In: lt.k.  Out: lt.p, its place in lt.keys, 0 when it has none.
+filter.find:
+   locate lt.k in lt.keys<1> setting lt.p else lt.p = 0
+   return
+
+* In: lt.k.  Out: lt.p, its place in lt.keys, made when it has none.
+filter.slot:
+   gosub filter.find
+   if lt.p = 0 then
+      lt.keys<-1> = lt.k
+      lt.p = dcount(lt.keys, @fm)
+      lt.text<lt.p> = ''
+      lt.page<lt.p> = 0
+   end
+   return
+
+* File / Spool the text (9 Nov 26, S.184 stage 5): SED's SPOOL.  The tab's text as it is now goes to print unit 0, saved or not, the record is not touched and nothing is compiled.  The words
+*   are SED's: AT printer (for this job only), LNUM (line numbers), REGION (the lines of the selection).  A long line runs on to the next line of paper.
+do.spool:
+   gosub ed.read
+   if not(ed.ok) then return
+   screen ask sysmsg(14056) width 50 returning sp.w else return
+   sp.w = trim(sp.w)
+   sp.at = ''
+   sp.lnum = @false
+   sp.region = @false
+   sp.n = if sp.w = '' then 0 else dcount(sp.w, ' ')
+   sp.i = 0
+   loop
+      sp.i += 1
+   while sp.i <= sp.n
+      sp.c = downcase(field(sp.w, ' ', sp.i))
+      begin case
+         case sp.c = 'at'
+            sp.i += 1
+            sp.at = field(sp.w, ' ', sp.i)
+            if sp.at = '' then
+               msg = sysmsg(6696, sp.c)
+               return
+            end
+         case sp.c = 'lnum'
+            sp.lnum = @true
+         case sp.c = 'region'
+            sp.region = @true
+         case 1
+            msg = sysmsg(14057, sp.c)
+            return
+      end case
+   repeat
+   sp.from = 1
+   sp.to = dcount(ed.t, @fm)
+   if sp.region then
+      gosub sel.range
+      if not(sr.ok) then
+         msg = sysmsg(11551)
+         return
+      end
+      sp.from = sr.y1
+      sp.to = if sr.x2 = 1 then sr.y2 - 1 else sr.y2
+   end
+   gosub stash.current
+   i = cb
+   gosub is.dirty
+   gosub buf.label
+   sp.head = bf.name : ' ' : bi<cb>
+   if dirty then sp.head := ' ' : sysmsg(6910)
+   printer on
+   call !getpu(PU$MODE, 0, sp.mode, sp.code)
+   if sp.mode # 3 then
+      call !getpu(PU$BANNER, 0, sp.banner, sp.code)
+      call !setpu(PU$BANNER, 0, bi<cb>[1, 32], sp.code)
+   end
+   if sp.at # '' then
+      call !getpu(PU$LOCATION, 0, sp.oldat, sp.code)
+      call !setpu(PU$LOCATION, 0, sp.at, sp.code)
+      if sp.code then
+         msg = sysmsg(6699, sp.code)
+         sp.at = ''                           ;* nothing to put back: the location was not changed
+         gosub spool.close
+         return
+      end
+   end
+   heading sp.head : "   'TGSL'"
+   sp.width = @lptrwide
+   sp.nw = 0
+   if sp.lnum then
+      sp.nw = len(sp.to)
+      if sp.nw < 4 then sp.nw = 4
+      sp.width -= sp.nw + 2
+   end
+   if sp.width < 1 then sp.width = 1
+   for sp.ln = sp.from to sp.to
+      sp.l = ed.t<sp.ln>
+      if sp.lnum then print fmt(sp.ln, sp.nw : "'0'R") : ': ' :
+      loop
+         print sp.l[1, sp.width]
+      while len(sp.l) > sp.width
+         sp.l = sp.l[sp.width + 1, len(sp.l)]
+         if sp.lnum then print space(sp.nw + 2) :
+      repeat
+   next sp.ln
+   sp.done = sp.to - sp.from + 1
+   gosub spool.close
+   msg = sysmsg(14058, sp.done)
+   return
+
+* The job is ended and the print unit's banner and location are put back (SED left the printer on when a location was refused).
+spool.close:
+   printer off
+   hush on
+   printer close
+   hush off
+   printer on
+   if sp.mode # 3 then call !setpu(PU$BANNER, 0, sp.banner, sp.code)
+   if sp.at # '' then call !setpu(PU$LOCATION, 0, sp.oldat, sp.code)
+   printer off
+   printer close
+   screen refresh
+   last.status = char(1)
+   return
+
 do.writeas:
    if nbuf = 0 then
       msg = sysmsg(11218)
@@ -5779,9 +6087,11 @@ do.import:
 *   TRAPPING ABORTS (29 Oct 26, review R2): a command that aborts - a program with a run-time error, ABORT, QUIT - is stopped as Run and Debug's are; without it the abort passed up and
 *   cast the IDE off with every unsaved tab.  What it printed before the abort is thrown away (kernel.c), so the table says it printed nothing.
 do.xeq:
-   screen ask sysmsg(11554) returning xq.cmd else return
+   screen ask sysmsg(11554) history ih.cmds returning xq.cmd else return
    xq.cmd = trimf(trimb(xq.cmd))
    if xq.cmd = '' then return
+   hp.item = xq.cmd
+   gosub hist.command
    gosub rc.tick
    xq.out = ''
    execute xq.cmd trapping aborts capturing xq.out
@@ -5820,9 +6130,11 @@ do.xeq:
 *   runs it and every gate it asks applies exactly as when it is typed at the prompt; nothing here widens what the account may run.  An open tab's text is not read
 *   again: a record the command changed is shown as the tab had it (the overwrite question asks at the next save).
 do.xeqterm:
-   screen ask sysmsg(14053) returning xm.cmd else return
+   screen ask sysmsg(14053) history ih.cmds returning xm.cmd else return
    xm.cmd = trimf(trimb(xm.cmd))
    if xm.cmd = '' then return
+   hp.item = xm.cmd
+   gosub hist.command
    gosub stash.current
    gosub leave.screen
    execute xm.cmd trapping aborts

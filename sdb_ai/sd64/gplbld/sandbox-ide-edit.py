@@ -690,6 +690,160 @@ def teardown():
         subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
 
 
+SCTL = """subroutine zzsc(df, fn, id, rec, fs, ok, upd)
+   if index(rec, 'ZZREFUSE', 1) then ok = @false
+   if index(rec, 'ZZUPDATE', 1) then
+      rec := @fm : '* stamped fs=' : fs : ' id=' : id
+      upd = @true
+   end
+   return
+end
+"""
+
+
+def bp_file(name):
+    with open(os.path.join(SYSD, "bp", name), encoding="latin-1") as fh:
+        return fh.read()
+
+
+def new_rec(tag, text):
+    name = "zzs" + tag + RUN
+    with open(os.path.join(SYSD, "bp", name), "w", encoding="latin-1") as fh:
+        fh.write(text)
+    return name
+
+
+def box_text(e):
+    """the middle of the screen, where SCREEN ASK's box is: the status line and the table echo a command, so they are left out"""
+    return "\n".join(e.lines()[17:27])
+
+
+def section_s184d():
+    """9 Nov 26 (S.184 stages 4 and 5, and SCREEN ASK ... HISTORY): source.control before the write (S), Up and Down in Run a command (R), keyboard macros (M), File, Spool the text (P),
+    Go, Filter the records (F).  The disk is the oracle for what a save did.  WRITTEN, NOT YET RUN."""
+    say("\n--- S / R / M / P / F: source control, recall, macros, Spool, the filter (S.184 stages 4 and 5) -----------------------------------")
+    # S: first with no source.control catalogued, the control; then with one
+    a = new_rec("a", "ZZREFUSE one\n")
+    e = sb.Ide(BOX, "IDE bp %s" % a)
+    e.quiet()
+    e.keys("q", CTRL_S)
+    e.quiet()
+    row("S0 control: with no source.control catalogued a save writes, whatever the text says", bp_file(a).startswith("qZZREFUSE"), repr(bp_file(a)[:40]))
+    done(e)
+    put("zzsc" + RUN, SCTL)
+    o = sb.sess(BOX, "BASIC bp zzsc" + RUN, "CATALOG bp source.control zzsc%s LOCAL" % RUN)
+    ok = re.search(r"(?m)^Compiled 1 program\(s\) with no errors", o) is not None
+    row("S1 setup: source.control compiled and catalogued", ok, o[-300:])
+    if ok:
+        b = new_rec("b", "ZZREFUSE two\n")
+        e = sb.Ide(BOX, "IDE bp %s" % b)
+        e.quiet()
+        e.keys("q", CTRL_S)
+        e.quiet()
+        row("S2 source.control refuses: the box says the record may not be written", "may not be written" in e.text(), e.text()[-300:])
+        row("S3 ...and the disk is as it was", bp_file(b) == "ZZREFUSE two\n", repr(bp_file(b)[:40]))
+        e.keys(RET)
+        e.quiet()
+        done(e)
+        c = new_rec("c", "ZZUPDATE three\n")
+        e = sb.Ide(BOX, "IDE bp %s" % c)
+        e.quiet()
+        e.keys("q", CTRL_S)
+        e.quiet()
+        row("S4 source.control changes the text: what it made is what is written, and it was told a full screen editor and the record's name", "* stamped fs=1 id=" + c in bp_file(c), repr(bp_file(c)[:80]))
+        row("S5 ...and the editor shows it", "* stamped fs=1" in editor_text(e), editor_text(e)[:200])
+        done(e)
+        d = new_rec("d", "plain four\n")
+        e = sb.Ide(BOX, "IDE bp %s" % d)
+        e.quiet()
+        e.keys("q", CTRL_S)
+        e.quiet()
+        row("S6 control: with neither word the save is as ever", bp_file(d).startswith("qplain") and "stamped" not in bp_file(d), repr(bp_file(d)[:40]))
+        done(e)
+        sb.sess(BOX, "DELETE.CATALOG source.control LOCAL")
+    # R: the recall
+    e = open_rec()
+    menu(e, 3, 4)
+    e.keys("WHO", RET)
+    e.quiet()
+    menu(e, 3, 4)
+    e.keys("DATE", RET)
+    e.quiet()
+    menu(e, 3, 4)
+    e.keys("XY")
+    e.keys(UP)
+    e.quiet()
+    row("R1 Up shows the newest command", "DATE" in box_text(e) and "XY" not in box_text(e), box_text(e))
+    e.keys(UP)
+    e.quiet()
+    row("R2 Up again shows the one before", "WHO" in box_text(e), box_text(e))
+    e.keys(UP)
+    e.quiet()
+    row("R3 Up at the oldest stays there", "WHO" in box_text(e), box_text(e))
+    e.keys(DOWN, DOWN)
+    e.quiet()
+    row("R4 Down past the newest gives back what had been typed", "XY" in box_text(e) and "DATE" not in box_text(e), box_text(e))
+    e.keys(ESC)
+    e.quiet()
+    done(e)
+    # M: the macro
+    m = new_rec("m", "aa\nbb\ncc\n")
+    e = sb.Ide(BOX, "IDE bp %s" % m)
+    e.quiet()
+    e.keys("\x1br")
+    e.quiet()
+    row("M1 Alt-R: the status line says a macro is being recorded", "recording a macro" in e.status(), e.status()[:160])
+    e.keys("X", DOWN, "\x1br")
+    e.quiet()
+    row("M2 Alt-R again ends it", "recording a macro" not in e.status(), e.status()[:160])
+    row("M3 control: what was typed is in the text once", "Xaa" in editor_text(e) and "bXb" not in editor_text(e), editor_text(e)[:100])
+    e.keys("\x1bp")
+    e.quiet()
+    row("M4 Alt-P plays the keys at the cursor", "bXb" in editor_text(e), editor_text(e)[:100])
+    done(e)
+    row("M5 control: a macro saves nothing by itself (the record on the disk is as it was)", bp_file(m) == "aa\nbb\ncc\n", repr(bp_file(m)))
+    # P: Spool
+    p = new_rec("p", "spool line one\nspool line two\n")
+    hold = "zzsp" + RUN
+    e = sb.Ide(BOX, "SETPTR 0,80,60,0,0,3,AS %s,BRIEF\rIDE bp %s" % (hold, p))
+    e.quiet()
+    e.keys("Z")
+    e.quiet()
+    menu(e, 0, 5)
+    e.keys("nonsense", RET)
+    e.quiet()
+    row("P1 a word Spool does not take is said so", "none of them" in e.status(), e.status()[:160])
+    menu(e, 0, 5)
+    e.keys("region", RET)
+    e.quiet()
+    row("P2 region with nothing selected prints nothing and says why", "spooled" not in e.status(), e.status()[:160])
+    menu(e, 0, 5)
+    e.keys("lnum", RET)
+    e.quiet()
+    row("P3 Spool says how many lines went and that nothing was saved", "line(s) spooled" in e.status(), e.status()[:160])
+    done(e)
+    o = sb.sess(BOX, "CT $HOLD " + hold)
+    row("P4 the spool holds the text as it was on the screen, unsaved change and line numbers included", "Zspool line one" in o and "0001:" in o, o[-300:])
+    row("P5 control: Spool did not save the record", bp_file(p).startswith("spool line one"), repr(bp_file(p)[:40]))
+    # F: the filter
+    e = open_rec()
+    menu(e, 1, 13)
+    e.keys(LREC + "...", RET)
+    e.quiet()
+    tree = "\n".join(l[:28] for l in e.lines()[3:39])
+    row("F1 the filter lists only the records that match", LREC + "01" in tree and REC not in tree, tree[:400])
+    row("F2 ...and the status line says the file is filtered", "is filtered" in e.status(), e.status()[:160])
+    menu(e, 1, 13)
+    e.keys("\x15", "with nosuchname = 1", RET)
+    e.quiet()
+    row("F3 a filter the query processor refuses is said so", "refused" in e.status(), e.status()[:160])
+    menu(e, 1, 13)
+    e.keys("\x15", RET)
+    e.quiet()
+    row("F4 empty lists every record again", "is filtered" not in e.status() and "refused" not in e.status(), e.status()[:160])
+    done(e)
+
+
 def main():
     global BOX, SYSD
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -722,6 +876,7 @@ def main():
         section_s184()
         section_options()
         section_s184c()
+        section_s184d()
     finally:
         teardown()
     say("\nsandbox-ide-edit: %d passed, %d failed" % (passed, failed))

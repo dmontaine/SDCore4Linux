@@ -33,7 +33,7 @@ UK = ["catalogues", "catalogued", "cataloguing", "catalogue", "colours", "colour
       "recognised", "recognising", "recognise", "initialisation", "initialises", "initialised", "initialising", "initialise", "cancelled", "cancelling",
       "honours", "honoured", "honouring", "honour", "labelled", "labelling", "modelled", "travelling", "dialogues", "dialogue", "synchronises",
       "synchronised", "synchronise", "authorised", "authorises", "authorise", "minimised", "minimise", "normalised", "normalises", "normalise",
-      "customised", "customise", "utilised", "utilise", "optimised", "optimise", "favourite", "favour", "neighbours", "neighbour", "greyed", "grey"]
+      "customised", "customise", "utilisation", "utilised", "utilise", "optimised", "optimise", "favourite", "favour", "neighbours", "neighbour", "greyed", "grey"]
 RX = re.compile(r"(?<![A-Za-z0-9_$%/\\])(?<![A-Za-z0-9]\.)(" + "|".join(UK) + r")(?![A-Za-z0-9_$%/\\])(?!\.[A-Za-z0-9])", re.I)
 
 # Names SD keeps: the BASIC keywords and the syntax colour's word list (sl_syndef), a file name ('licence', config), a settings section that is read back

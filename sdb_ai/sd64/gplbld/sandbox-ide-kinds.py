@@ -392,6 +392,22 @@ def section_big():
         "%.1f" % seen if seen is not None else "never"), seen is not None and "IDE: " in "\n".join(e.lines()[:3]), st)
     rows_listed = len([l for l in tree_text(e).split("\n") if re.search(r"\bb\d+\b", l)])
     row("B2 the tree lists records of the file (%d rows of b<n> in the pane)" % rows_listed, rows_listed >= 10, tree_text(e)[:400])
+    # 9 Nov 26 (S.184 stage 5): the list goes by pages: End reaches the last row, Return on it lists the next records with a row to go back
+    e.keys(END)
+    e.quiet()
+    row("B2a the last row of the list goes on to the next 2,000 records", "-- next 2000 --" in tree_text(e), tree_text(e)[-300:])
+    shown = [l[:28] for l in e.lines()[2:39]]                           # End is the last row of the tree: other files and the Operating system files node come after this file's list
+    at_next = [i for i, l in enumerate(shown) if "-- next 2000 --" in l]
+    last = max(i for i, l in enumerate(shown) if l.strip(" |^v#"))
+    if at_next:
+        e.keys(sb.UP * (last - at_next[0]))
+        e.quiet()
+    e.keys(RET)
+    t = time.time()
+    while time.time() - t < 30 and "-- previous 2000 --" not in "\n".join(e.lines()):
+        e.s.settle(0.5)                                                 # a page of 2,000 takes some seconds to read and sort (B1)
+    whole = "\n".join(l[:28] for l in e.lines()[1:39])                  # from row 1: the file's row and the one under it are above tree_text's first row
+    row("B2b Return lists the next page: its first row goes back to the previous 2,000 records", "-- previous 2000 --" in whole and "Only the first" not in e.status(), whole[-1200:] + " | " + e.status()[:120])
     done(e)
     e = sb.Ide(BOX, "IDE %s" % DF)
     e.quiet()
@@ -592,6 +608,8 @@ def section_select():
     e = sb.Ide(BOX, "SELECT %s WITH @ID = \"r1\" \"r2\"" % DF)
     e.keys("IDE %s\r" % DF)
     e.quiet()
+    e.keys("\r")                                                        # Yes (the default) to "A select list is active"
+    e.quiet()
     st, tabs = e.status(), tab_row(e)
     row("SL1 SELECT then `ide file` opens the listed records in tabs (r1 is the shown one, in brackets, and r2 is the other tab) and says so", "[r1]" in tabs and re.search(r"\br2\b", tabs) is not None and "of the select list" in st,
         "%r | %r" % (st, tabs[:100]))
@@ -722,6 +740,7 @@ def section_gate():
         s.settle(2.0)
         s.type("TERM xterm\r")
         s.type("TERM 140,43\r")
+        s.keeps_writing()
         s.type(cmd + "\r", idle=1.5)
         for k in keys:
             s.type(k, idle=0.8)

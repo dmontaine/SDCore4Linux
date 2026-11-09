@@ -333,8 +333,6 @@ def checks(srcs, messages_dir):
     sd = c["sed"]
     ck("G5 SED asks before it saves, exports and deletes a record, and puts the reason in the message line (not a DISPLAY)",
        sd.count("gosub check.edit.file") >= 3 and "message = edit_msg(edit.kind)" in sd and "check.edit.file:" in sd, "")
-    ck("G6 SED leaves its -EXT extension record out of a file the session may not change",
-       sd.count("kernel(K$EDIT.OK, fileinfo(file(current.buffer), FL$PATH))") >= 2, "")
     ide = c["ide"]
     # 28 Oct 26 (the editor merge, stage B): the IDE has more callers of edit.check now (a new record named on the command line, CREATING.SEQKEY), so the count
     #   alone no longer proves that the save and the copy ask: each is held by its own order, from its open of the file to its write

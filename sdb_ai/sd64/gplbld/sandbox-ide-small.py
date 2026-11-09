@@ -139,6 +139,8 @@ class Term:
         self.s.type("TERM xterm\r")
         for p in pre:
             self.s.type(p + "\r", idle=0.6)
+        if cmd.split()[0].upper() == "IDE":
+            self.s.keeps_writing()
         self.s.type(cmd + "\r", idle=idle)
 
     def keys(self, *chunks, idle=0.5):
@@ -534,7 +536,7 @@ def part_d():
     e = Term(BOX, "IDE %s r1" % F)
     e.keys("Z")
     e.keys(F10)
-    L = e.keys(DOWN * 5, RET, idle=0.8)                 # Close record is the sixth entry (New, Open, Save, Save as, Write a copy, Close, Quit; S.88 Phase 4)
+    L = e.keys(DOWN * 6, RET, idle=0.8)                 # Close record is the seventh entry (New, Open, Save, Save as, Write a copy, Spool, Close, Quit)
     row("setup: Close record on a changed record asks 'Save them?' in a box over the editor (its buttons are on row 19)",
         any("[ Save ]" in l for l in L[17:22]), text(L[15:24], 9))
     e.resize(140, 10)
@@ -550,7 +552,7 @@ def part_d():
     e = Term(BOX, "IDE %s r1" % F)
     e.keys("Z")
     e.keys(F10)
-    e.keys(DOWN * 5, RET, idle=0.8)                     # Close record, the sixth entry
+    e.keys(DOWN * 6, RET, idle=0.8)                     # Close record, the seventh entry
     L = e.lines()
     row("control: the same box at the full size (140 by 43; a window of 24 lines would be locked now, the cursor is no longer the test): no warning, the box is up",
         "The window is" not in text(L, 6) and any("[ Save ]" in l for l in L[17:22]), text(L[15:24], 9))

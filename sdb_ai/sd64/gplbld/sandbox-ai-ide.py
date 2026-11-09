@@ -277,6 +277,7 @@ class AccIde(ids.Ide):
         self.s.type("TERM xterm\r")
         self.s.type("TERM %d,%d\r" % (cols, rows))
         self.log = [cmd]
+        self.s.keeps_writing()
         self.s.type(cmd + "\r", idle=1.2)
 
     def lines(self):

@@ -47,7 +47,7 @@ $include sl.h
 
    deffun edit_msg(kind) calling '!edit_msg'
 
-   common /idehist/ ih.on, ih.files, ih.recs        ;* 9 Nov 26 (S.184 stage 3): the IDE's files and records of this session (gpl.bp/ide, hist.push); read only here
+   common /idehist/ ih.on, ih.files, ih.recs, ih.cmds        ;* 9 Nov 26 (S.184 stage 3): the IDE's files and records of this session (gpl.bp/ide, hist.push); read only here
 
    res = 'cancel'
    if system(25) then return                  ;* a phantom has no terminal

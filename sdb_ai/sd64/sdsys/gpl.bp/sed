@@ -74,6 +74,7 @@
 *               key wins, so the EMACS layout is as it was).  New View (Theme, Refresh screen) and Help (Keys in use) menus.  fmt.key writes Esc and
 *               one character as Alt-K, Alt-G ..., the way the IDE and the pages write them (it wrote Esc K).
 * 9 Nov 26 dm  S.186: what the program prints is in US spelling (the owner: "Everything SD prints"); its text only, no change of behaviour.
+* 09 Nov 26 dm  S.184: the extension language and the split window are removed (the owner: "skip extension language and split screen and remove from stand alone SED as well").  The action numbers stay, retired.
 * END-HISTORY
 *
 *
@@ -90,7 +91,7 @@
 *   B     Back char         Back word         Goto buffer      *List buffers
 *   C     Repeat            CapInit          *Exit             *Exit
 *   D     Del char          Delete word      *Display records   Dive
-*   E     End line          Run extension    *Execute macro
+*   E     End line                           *Execute macro
 *   F     Forward char      Forward word                       *Find file
 *   G     Cancel            Goto line
 *   H     Backspace
@@ -134,7 +135,7 @@
 *    BWORD         Basic program "word" search mode
 *    CASE_OFF      Case insensitive searches
 *    CASE_ON       Case sensitive searches (default)
-*    COMPILE       Save record and compile Basic program or extension
+*    COMPILE       Save record and compile Basic program
 *    EXPAND.TABS   Expand tab characters
 *    FANCY.FORMAT  Run FANCY.FORMAT utility
 *    FORMAT        Run FORMAT utility
@@ -275,13 +276,13 @@ $include sl.h
    equate F.EXPORT        to 57  ;* Export
    equate F.COMMAND       to 58  ;* Command
    equate F.CANCEL        to 59  ;* Cancel
-   equate F.RUN           to 60  ;* Run extension
+   equate F.RUN           to 60  ;* (retired: the extension language)
    equate F.ALIGN         to 61  ;* Align text
    equate F.UPCASE.REGION to 62  ;* Uppercase region
    equate F.DNCASE.REGION to 63  ;* Lowercase region
-   equate F.UNSPLIT       to 64  ;* Remove split window
-   equate F.SPLIT         to 65  ;* Split window
-   equate F.TOGGLE.WINDOW to 66  ;* Toggle windows
+   equate F.UNSPLIT       to 64  ;* (retired: the split window)
+   equate F.SPLIT         to 65  ;* (retired: the split window)
+   equate F.TOGGLE.WINDOW to 66  ;* (retired: the split window)
    equate F.DIVE          to 67  ;* Dive into include record
    equate F.COMPRUN       to 68  ;* Compile and run
    equate F.UNDO          to 69  ;* Undo the last change (13 Oct 26)
@@ -290,7 +291,7 @@ $include sl.h
 * Actions after here are not bound to keys
    equate F.INSERT        to 71  ;* Insert character
    equate F.KEY.CODE      to 72  ;* Expand a key code
-   equate F.BOUND.EXT     to 73  ;* Run bound extension
+   equate F.BOUND.EXT     to 73  ;* (retired: the extension language)
    equate F.MENU          to 74  ;* Open the menu bar (F10, or Esc on its own)
    equate F.MOUSE         to 75  ;* A mouse report arrived (13 Oct 26)
    equate F.THEME         to 76  ;* The next theme, kept for the person (8 Nov 26, S.179: Ctrl-T, as on every page)
@@ -318,43 +319,10 @@ $include sl.h
 * !!BINDINGS!!
 
 
-   * Extension control
-
-   equate INITIAL.EXT.TABLE.SIZE to 25
-   equate EXT.TABLE.SIZE.INCREMENT to 10
-   equate MAX.EXT.DEPTH to 15              ;* Maximum nested extension depth
-   equate MAX.LCALL.DEPTH to 30            ;* Maximum nested local call depth
-   equate E.STACK.SIZE to 100
-
-   * Compilation items
-   ext.funcs = ''  ;* Extension function names - Built by extension compiler
-
-   * Execution items
-   ext.start.up = @true             ;* Need to run START.UP
-   ext.func.bindings = ''           ;* Parallel of action.list
-
-   ext.table.size = INITIAL.EXT.TABLE.SIZE
-   dim ext.table(ext.table.size)    ;* Loaded extensions and...
-   extensions = ''                  ;* ...corresponding extension names
-
-   last.ext.name = ''               ;* Last run extension from keyboard
-   dim e.stack(E.STACK.SIZE)        ;* Evaluation stack
-
-   ext.var.stack.size = 1
-   dim ext.vars(ext.var.stack.size) ;* Local variables
-   ext.var.base = 0                 ;* First var at this value plus 1
-
-   ext.gvar.stack.size = 1
-   dim global.vars(ext.gvar.stack.size) ;* Global variables and...
-   mat global.vars = ''
-   global.var.names = ''            ;* ...corresponding names        
-
    key.char = ''                    ;* Data char from get.key if insert mode
    prefix.count = 0                 ;* Last prefix count from get.key
                                      * Negative if prefix count not set
 
-   extension.commands = ''          ;* Extensions bound to command names
-                                     * F1 = command names, F2 = extensions
    execution.depth = 0
 
 *-----------------------------------------------------------------------------
@@ -386,7 +354,6 @@ $include sl.h
    screen.lines = SED.ROWS - 1
    displayed.lines = screen.lines - 3         ;* (S.99: the file line, the status line and the key row are below the text)
    last.data.line = displayed.lines - 1
-   split.line = int((displayed.lines + 1) / 2)  ;* Top line of lower window
    file.line = displayed.lines
    status.line = displayed.lines + 1
    key.line = displayed.lines + 2             ;* S.99: the key row, the last row of the layout (terminal row key.line + 1)
@@ -512,9 +479,7 @@ $include sl.h
    dim syn.end(screen.lines + 1) ; mat syn.end = 0  ;* the state the line shown on each row ends in
    syn.chk = ''                       ;* field k: the state at the start of line (k - 1) * 100 + 1
    syn.chk.n = 1                      ;* how many of them are good (the first is always: state 0)
-   syn.other.state = 0                ;* the same for the first row of the other window (worked out on every update)
    syn.bm = 0                         ;* the last row of the window being drawn (syn.row marks the rows below a change)
-   syn.oth = @false                   ;* the window being drawn is the other one
    syn.top.state = 0                  ;* the state at the start of top.line, when syn.top.for = top.line
    syn.top.for = 0
    syn.lines.seen = 0                 ;* the line count when the checkpoints were last good
@@ -1044,12 +1009,6 @@ edit:
 
    if from.ide then ide.call = 2           ;* the record is open for editing (see /sedide/ at the top)
 
-   if ext.start.up then   ;* Look for START.UP extension
-      key.char = '' ; prefix.count = 1
-      ext.name = 'START.UP' ; ext.arg.count = 0 ; gosub run.extension
-      ext.start.up = @false
-   end
-
    loop
       line.len = len(current.line)
 
@@ -1151,7 +1110,7 @@ edit:
                      pre.export,        ;* F.EXPORT
                      pre.command,       ;* F.COMMAND
                      null.prelude,      ;* F.CANCEL
-                     pre.run,           ;* F.RUN
+                     null.prelude,         ;* F.RUN
                      null.prelude,      ;* F.ALIGN
                      null.prelude,      ;* F.UPPER.CASE.REGION
                      null.prelude,      ;* F.LOWER.CASE.REGION
@@ -1371,17 +1330,6 @@ pre.key.code:
    gosub insert.key.code
    goto skip.function
 
-pre.run:
-   prefix = sysmsg(6638) ;* Extension:
-   s = last.ext.name
-   gosub get.string
-   s = trimb(trimf(s))
-   if s = '' then goto skip.function
-   last.ext.name = upcase(s)
-   macro.qualifiers = @fm : last.ext.name
-   ext.name = last.ext.name
-   goto null.prelude
-
 null.prelude:
       * Save for macro?  (Not a refresh that is only the window changing: a macro replays what the user did)
 
@@ -1489,20 +1437,20 @@ action.split:
                   null.action,        ;* Export
                   null.action,        ;* Command
                   null.action,        ;* Cancel
-                  a.run,              ;* Run
+                  null.action,              ;* Run
                   a.align,            ;* Align text
                   a.upcase.region,    ;* Uppercase region
                   a.dncase.region,    ;* Lowercase region
-                  a.unsplit.window,   ;* Unsplit window
-                  a.split.window,     ;* Split window
-                  a.toggle.window,    ;* Toggle window
+                  null.action,        ;* Unsplit window
+                  null.action,        ;* Split window
+                  null.action,        ;* Toggle window
                   a.dive,             ;* Dive
                   a.comprun,          ;* Compile and run
                   a.undo,             ;* Undo
                   a.redo,             ;* Redo
                   a.insert,           ;* Insert character
                   null.action,        ;* Key code expansion
-                  a.bound.ext         ;* Run bound extension
+                  null.action        ;* Run bound extension
 * !!BINDINGS!!
 
 null.action:   ;* Come here when the action has all been done in the prelude
@@ -1872,120 +1820,13 @@ a.nudge.up:
 
 * -----------------------------------------------------------------------------
 
-a.unsplit.window:
-   if split.window then
-      gosub set.one.window
-      gosub clear.screen
-      gosub refresh.all
-   end
-   return
-
-* -----------------------------------------------------------------------------
-
-a.split.window:
-   if split.window = 0 then
-      split.window = 1  ;* Make upper window live
-      live.top = 0
-      live.btm = split.line - 2
-      live.height = live.btm - live.top + 1
-      scroll.increment = int(live.height / 2)
-
-      other.buffer = current.buffer
-
-      other.top = split.line
-      other.btm = last.data.line
-      other.live = @true   ;* Other window is also live buffer
-      other.line = line
-      other.col = col
-!     other.height = other.btm - other.top + 1
-      other.lcol.fmt= lcol.fmt
-      other.top.line = top.line
-      gosub clear.screen
-      gosub refresh.all
-   end
-   return
-
-* -----------------------------------------------------------------------------
-
-a.toggle.window:
-   if split.window then
-      gosub save.buffer
-
-      n = other.buffer
-      other.buffer = current.buffer
-      current.buffer = n
-
-      other.cache = other.top.line
-      if other.live then
-         other.cache<2> = other.line
-         other.cache<3> = other.col
-      end
-      other.top.line = top.line
-      other.line = line
-      other.col = col
-
-      gosub get.buffer
-      top.line = other.cache<1> + 0
-      if other.live then
-         line = other.cache<2> + 0
-         col = other.cache<3> + 0
-      end
-      gosub get.current
-
-      if split.window = 1 then  ;* Make lower window live
-         split.window = 2
-         live.top = split.line
-         live.btm = last.data.line
-         other.top = 0
-         other.btm = split.line - 2
-      end else                  ;* Make upper window live
-         split.window = 1
-         live.top = 0
-         live.btm = split.line - 2
-         live.height = live.btm - live.top + 1
-         scroll.increment = int(live.height / 2)
-         other.top = split.line
-         other.btm = last.data.line
-      end
-!     other.height = other.btm - other.top + 1
-      gosub clear.screen
-      gosub refresh.all
-   end
-   return
-
 set.one.window:
-   split.window = 0  ;* 0 = no split, 1 = upper live, 2 = lower live
    live.top = 0
    live.btm = last.data.line
    live.height = live.btm - live.top + 1
    scroll.increment = int(live.height / 2)
-   other.live = @false
    return
 
-* -----------------------------------------------------------------------------
-* Move the split point of a split window by sp.n lines (minus: up).  Both windows keep at least two lines and the cursor stays in the live one (26 Oct 26, sheet 578)
-
-move.split.point:
-   sp.new = split.line + sp.n
-   if sp.new < 3 then sp.new = 3
-   if sp.new > last.data.line - 1 then sp.new = last.data.line - 1
-   if sp.new # split.line then
-      split.line = sp.new
-      if split.window = 1 then       ;* Upper window is live
-         live.btm = split.line - 2
-         other.top = split.line
-      end else                       ;* Lower window is live
-         live.top = split.line
-         other.btm = split.line - 2
-      end
-      live.height = live.btm - live.top + 1
-      scroll.increment = int(live.height / 2)
-      if line < top.line then top.line = line
-      if line - top.line >= live.height then top.line = line - live.height + 1
-      gosub clear.screen
-      gosub refresh.all
-   end
-   return
 
 * *****************************************************************************
 * Search and replacement
@@ -2108,10 +1949,6 @@ a.newline:
             mark.col -= col - 1
          end
       end
-      if other.live then
-         if line <= other.line then other.line += 1
-         if line <= other.top.line then other.top.line += 1
-      end
 
       s = current.line[col, 99999999]
       if indent then
@@ -2160,10 +1997,6 @@ a.delete:
       if n <= 0 then       ;* At end of line
          if line = lines then exit
          if line < mark.line then mark.line -= 1
-         if other.live then
-            if line < other.line then other.line -= 1
-            if line < other.top.line then other.top.line -= 1
-         end
          gosub refresh.below
          s = current.line
          gosub delete.current
@@ -2216,10 +2049,6 @@ a.backspace:
          if mark.line > line then
             mark.line -= 1
             mark.col += line.len
-         end
-         if other.live then
-            if other.line > line then other.line -= 1
-            if other.top.line > line then other.top.line -= 1
          end
          col = line.len + 1
          current.line := s
@@ -2344,9 +2173,6 @@ a.kill.line:
                      gosub yes.no
                      if aborted or not(yes) then return
 
-                     if split.window then
-                        if k = other.buffer then gosub set.one.window
-                     end
 
                      * Free memory for chunks currently in use
                      hd = buffer(k)<BUFF.HEAD> ; gosub release.chunks
@@ -2387,10 +2213,6 @@ a.kill.line:
 
                * Remove it from the explore display
                if line < mark.line then mark.line -= 1
-               if other.live then 
-                  if other.line > line then other.line -= 1
-                  if other.top.line > line then other.top.line -= 1
-               end
                gosub refresh.below
                if lines = 1 then  ;* Deleting last displayed record
                   current.line = '--- ' : sysmsg(6958) : ' ---'  ;* No records
@@ -2419,10 +2241,6 @@ a.kill.line:
                if mark.line > line then
                   mark.line -= 1
                   if mark.line = line then mark.col += col - 1
-               end
-               if other.live then
-                  if other.line > line then other.line -= 1
-                  if other.top.line > line then other.top.line -= 1
                end
                gosub refresh.below
                s = current.line
@@ -2755,10 +2573,6 @@ a.yank:
             else mark.col += final.line.len
          end
       end
-      if other.live then
-         if other.line > line then other.line += kill.lines
-         if other.top.line > line then other.top.line += kill.lines
-      end
 
       if kill.lines then
          lines += kill.lines
@@ -2855,9 +2669,6 @@ a.execute:
                      repeat
                   end
 
-               case action = F.RUN
-                  remove ext.name from macro setting macro.delim
-
             end case
 
             gosub action.split
@@ -2870,37 +2681,6 @@ a.execute:
       while macro.rpt
       repeat
       executing.macro = @false
-   end
-   return
-
-* *****************************************************************************
-* Extension processing
-
-a.bound.ext:
-   ext.name = n
-
-a.run:
-   key.char = ''
-   prefix.count = if rpt.set then rpt else -1
-   ext.arg.count = 0
-   abort.macro = @false
-   gosub run.extension
-   if ext.code then
-      begin case
-         case ext.code = 1
-            message = sysmsg(6644, ext.name) ;* Extension %1 not found
-         case ext.code = 2      ;* Terminated by (stop)
-            message = ''
-         case ext.code = 3      ;* Func where proc required
-            message = 'Cannot run a FUNC extension'
-         case ext.code = 6      ;* XEQ'd command failure
-            message = ''
-         case ext.code = 9      ;* Quit executed
-            message = ''
-         case 1
-            message = sysmsg(6645, ext.code) ;* Error %1 running extension
-      end case
-      if len(message) then gosub error
    end
    return
 
@@ -2943,10 +2723,6 @@ a.import:
             else mark.col += final.line.len
          end
       end
-      if other.live then
-         if other.line > line then other.line += import.lines
-         if other.top.line > line then other.top.line += import.lines
-      end
 
       lines += i
       chunk.lines(current.chunk) += i
@@ -2981,9 +2757,6 @@ a.up.to.parent:
       gosub assemble.record
 
       * Delete the value buffer
-      if split.window then
-         if other.live then gosub set.one.window
-      end
 
       if buffer.itype then
          rec = change(rec, @fm, ';')
@@ -3015,13 +2788,6 @@ a.next.buffer:
       current.buffer = i
       gosub get.buffer
    end
-   if split.window then
-      other.live = (current.buffer = other.buffer)
-      if other.live then
-         other.line = line
-         other.col = col
-      end
-   end
    return
 
 * -----------------------------------------------------------------------------
@@ -3034,13 +2800,6 @@ a.prev.buffer:
       current.buffer = i
       gosub get.buffer
    end
-   if split.window then
-      other.live = (current.buffer = other.buffer)
-      if other.live then
-         other.line = line
-         other.col = col
-      end
-   end
    return
 
 * -----------------------------------------------------------------------------
@@ -3051,13 +2810,6 @@ a.goto.buffer:
          gosub save.buffer
          current.buffer = rpt
          gosub get.buffer
-      end
-      if split.window then
-         other.live = (current.buffer = other.buffer)
-         if other.live then
-            other.line = line
-            other.col = col
-         end
       end
    end else
       message = sysmsg(6647) ;* Illegal buffer number
@@ -3089,9 +2841,6 @@ a.delete.buffer:
                if aborted or not(yes) then return
             end
 
-            if split.window then
-               if other.live then gosub set.one.window
-            end
 
             hd = head ; gosub release.chunks ;* Free memory currently in use
    
@@ -3392,22 +3141,6 @@ delete.region:
       else mark.line = 0       ;* Mark was on a line which has been deleted
    end
 
-   if other.live then
-      if other.line >= region.start.line then
-         if other.line < region.end.line then  ;* Was in deleted text
-            other.line = region.start.line + 1
-         end else                              ;* Was after deleted text
-            other.line -= region.end.line - region.start.line
-         end
-      end
-      if other.top.line >= region.start.line then
-         if other.top.line < region.end.line then  ;* Was in deleted text
-            other.top.line = region.start.line + 1
-         end else                              ;* Was after deleted text
-            other.top.line -= region.end.line - region.start.line
-         end
-      end
-   end
 
    return
 
@@ -4353,7 +4086,6 @@ update.screen:
 
    if syn.on then gosub syn.prepare   ;* the record's language, and the state its first row starts in
    syn.bm = live.btm
-   syn.oth = @false                   ;* the rows being drawn are the live window's
    n = top.line       ;* Data record line
    for ln = live.top to live.btm
       i = ln + 1
@@ -4384,85 +4116,6 @@ update.screen:
       n += 1
    next ln
 
-   if split.window then  ;* Update non-live half of window ("other" window)
-      if other.live then     ;* Other window is live buffer
-         * Refresh lines that have changed
-         syn.bm = other.btm
-         syn.oth = @true                  ;* ... and now the other window's
-         n = other.top.line       ;* Data record line
-         for ln = other.top to other.btm
-            i = ln + 1
-            gosub check.keyready ; if keyready then goto exit.update.screen
-
-            if refresh(i) then
-               if n > lines then
-                  if image(i) # sw.space or simage(i) # '' then
-                     gosub clear.row
-                     image(i) = sw.space
-                     simage(i) = ''
-                  end
-               end else
-                  if n = line then syn.full = current.line
-                  else
-                     gosub find.line
-                     syn.full = chunk(ch)<fld>
-                  end
-                  ss = syn.full[pan, screen.width]
-                  if syn.on and syn.lang then gosub syn.row
-
-                  if lcol then ss = (fmt(n, lcol.fmt) : ': ' : ss)[1, screen.width]
-                  gosub zoned.update
-                  sty = ''
-               end
-               refresh(i) = @false
-            end
-            n += 1
-         next ln
-      end else               ;* Some other buffer
-         if refresh.other then       ;* Doing full refresh
-            other.buff = buffer(other.buffer)
-
-            other.file.line = if other.buff<BUFF.UPDATED> then '*' else ' '
-            if len(other.buff<BUFF.DICT.FLAG>) then other.file.line := "DICT "
-            other.file.line := other.buff<BUFF.FILE.NAME> : " " : other.buff<BUFF.RECORD.NAME>
-
-            other.lcol = other.buff<BUFF.LNUM> + 0
-            n = len(other.buff<BUFF.LINES>)
-            if n < 4 then n = 4
-            other.lcol.fmt = n : "'0'R"
-
-            n = other.top.line       ;* Data record line
-            ch = other.buff<BUFF.HEAD> + 0
-            other.lines = other.buff<BUFF.LINES> + 0
-            base = 1
-
-            for ln = other.top to other.btm
-               i = ln + 1
-               if n > other.lines then
-                  if image(i) # sw.space then
-                     gosub clear.row
-                     image(i) = sw.space
-                  end
-               end else
-                  loop
-                  while n >= (base + chunk.lines(ch))
-                     base += chunk.lines(ch)
-                     ch = chunk.next(ch)
-                  while ch
-                  repeat
-                  ss = chunk(ch)<(n - base) + 1>[pan, screen.width]
-   
-                  if other.lcol then ss = (fmt(n, other.lcol.fmt) : ': ' : ss)[1, screen.width]
-                  gosub zoned.update
-               end
-               refresh(i) = @false  ;* Ensure left clear
-               n += 1
-            next ln
-
-            refresh.other = @false
-         end
-      end
-   end
 
    if refresh.file and not(execution.depth) then
       gosub check.keyready  ; if keyready then goto exit.update.screen
@@ -4510,21 +4163,10 @@ paint.file.line:
    if record.updated then ss = "*"
    else ss = " "
    ss := fmt(full.name[1,swm2], swm2.fmt)
-   ln = if split.window = 1 then split.line - 1 else file.line
+   ln = file.line
    image(ln+1) = str(char(255), swm1):' ' ;* Force repaint of entire line
    gosub zoned.update
 
-   if split.window then   ;* Do other window too
-      ln = if split.window = 1 then file.line else split.line - 1
-      image(ln+1) = str(char(255), swm1):' ' ;* Force repaint of entire line
-      if other.live then   ;* Other window is live buffer
-         if record.updated then ss = "*" else ss = " "
-         ss := fmt(full.name[1,swm2], swm2.fmt)
-      end else             ;* Other window is some other buffer
-         ss = fmt(other.file.line[1,swm2], swm2.fmt)
-      end
-      gosub zoned.update
-   end
 
    display attr :
 
@@ -4797,13 +4439,6 @@ syn.state.top:
       syn.top.state = syn.st
       syn.top.for = top.line
    end
-   if split.window then
-      if other.live then                         ;* the other window shows the same record from another line
-         syn.tl = other.top.line
-         gosub syn.scan
-         syn.other.state = syn.st
-      end
-   end
    return
 
 * syn.st = the state at the start of line syn.tl, from the checkpoint before it (which are made on the way)
@@ -4837,9 +4472,6 @@ syn.scan:
 syn.row:
    syn.st = syn.end(i - 1)
    if ln = live.top then syn.st = syn.top.state
-   if syn.oth then                            ;* (other.top is not set until the window is split)
-      if ln = other.top then syn.st = syn.other.state     ;* the first row of the other window
-   end
    call $sl_syntax('line', syn.lang, syn.full, syn.st, syn.st2, sty)
    sty = sty[pan, screen.width]
    if lcol then sty = (str('n', lcol) : sty)[1, screen.width]      ;* the line number is plain
@@ -4921,15 +4553,6 @@ refresh.below:
       refresh(i) = @true
    repeat
 
-   if other.live then
-      i = line - other.top.line
-      if i < 0 then i = 0
-      loop
-      while i <= other.btm
-         i += 1
-         refresh(i) = @true
-      repeat
-   end
    return
 
 *****************************************************************************
@@ -4939,12 +4562,6 @@ refresh.line:
       refresh(refresh.line + 1) = @true
    end
 
-   if other.live then
-      refresh.line = other.top + line - other.top.line
-      if refresh.line >= 0 and refresh.line <= other.btm then
-         refresh(refresh.line + 1) = @true
-      end
-   end
    return
 
 *****************************************************************************
@@ -5019,10 +4636,6 @@ parse.key:
       n = seq(c)
       action = seq(action.list[n,1])
       if action then       ;* Single character action
-         if action = F.BOUND.EXT then
-            n = ext.func.bindings<n>
-            return
-         end
          exit
       end
       key.string = c 
@@ -5096,9 +4709,6 @@ key.found:
          mouse.x = field(mouse.seq, ';', 2) - 1
          mouse.y = field(mouse.seq, ';', 3) - 1
          mouse.release = (mouse.end = 'm')
-
-      case action = F.BOUND.EXT
-         n = key.actions<i,2>   ;* Extension name
 
       case action = F.QUOTE.CHAR
          action = F.INSERT  ;* For all except K mode below
@@ -5302,7 +4912,7 @@ set.default.bindings:
    key.rec<-1> = ''                 ;* F.EXPORT
    key.rec<-1> = '@[X'              ;* F.COMMAND
    key.rec<-1> = '@G'               ;* F.CANCEL
-   key.rec<-1> = '@[E'              ;* F.RUN
+   key.rec<-1> = ''                ;* F.RUN
    key.rec<-1> = '@[@I'             ;* F.ALIGN
    key.rec<-1> = ''                 ;* F.UPCASE.REGION
    key.rec<-1> = ''                 ;* F.DNCASE.REGION
@@ -5383,13 +4993,13 @@ set.emacs.bindings:
    key.rec<-1> = '@XX'              ;* F.EXPORT
    key.rec<-1> = '@[X'              ;* F.COMMAND
    key.rec<-1> = '@G'               ;* F.CANCEL
-   key.rec<-1> = '@[E'              ;* F.RUN
+   key.rec<-1> = ''                ;* F.RUN
    key.rec<-1> = '@[@I'             ;* F.ALIGN
    key.rec<-1> = '@X@U'             ;* F.UPCASE.REGION
    key.rec<-1> = '@X@L'             ;* F.DNCASE.REGION
-   key.rec<-1> = '@X1'              ;* F.UNSPLIT.WINDOW
-   key.rec<-1> = '@X2'              ;* F.SPLIT.WINDOW
-   key.rec<-1> = '@XO'              ;* F.TOGGLE.WINDOW
+   key.rec<-1> = ''                 ;* F.UNSPLIT.WINDOW
+   key.rec<-1> = ''                 ;* F.SPLIT.WINDOW
+   key.rec<-1> = ''                 ;* F.TOGGLE.WINDOW
    key.rec<-1> = '@X@D'             ;* F.DIVE
    key.rec<-1> = '@XM'              ;* F.COMPRUN
 * !!BINDINGS!!
@@ -5717,7 +5327,6 @@ read.record:
    end
 
    if new.record then
-      other.live = @false
       gosub get.current
       gosub refresh.all
       gosub update.screen
@@ -5887,10 +5496,6 @@ open.file:
 * FIND.FILE
 
 find.file:
-   if other.live then  ;* Was split live but no longer
-      line = other.line
-      col = other.col
-   end
 
    gosub save.buffer
 
@@ -6005,10 +5610,6 @@ read.specific.record:     ;* Side entry from dive function
    gosub save.buffer      ;* Just to force...
    gosub get.buffer       ;* ...update of variables and screen
 
-   if split.window then
-      other.live = (current.buffer = other.buffer)
-      refresh.other = @true
-   end
 
    return
 
@@ -6206,10 +5807,6 @@ a.dive:
          end
 
       case field(s, ' ', 1) = '$INCLUDE' and dcount(s, ' ') >= 2
-         if other.live then  ;* Was split live but no longer
-            line = other.line
-            col = other.col
-         end
          gosub save.buffer
          s = trim(field(current.line, ';', 1))
          rn = field(s, ' ', 3)
@@ -6302,10 +5899,6 @@ a.explore:
    force.select = @true
 
 explore:
-   if other.live then  ;* Was split live but no longer
-      line = other.line
-      col = other.col
-   end
 
    gosub save.buffer
    old.buffer = current.buffer
@@ -6535,10 +6128,6 @@ build.explore.list:
 *****************************************************************************
 
 dive:
-   if other.live then  ;* Was split live but no longer
-      line = other.line
-      col = other.col
-   end
 
    gosub save.buffer
    old.buffer = current.buffer
@@ -6780,7 +6369,6 @@ get.buffer:
    else full.name = file.name : " " : record.name : buffer.comment
    refresh.file = @true
 
-   if split.window then other.live = (current.buffer = other.buffer)
 
    if buffer.tag # uj.tag then gosub uj.reset      ;* the undo list is one buffer's: another buffer starts afresh
 
@@ -7231,8 +6819,7 @@ mouse.place:
    if mr >= live.top and mr <= live.btm then
       null
    end else
-      if split.window and mr >= other.top and mr <= other.btm and other.live then gosub a.toggle.window
-      else return
+      return
    end
    if mr < live.top or mr > live.btm then return
    gosub save.current
@@ -7318,7 +6905,7 @@ build.scr:
    gosub set.scr.size
    for mz = 0 to screen.lines - 1
       scr<SL.S.SHADOW, mz + 2> = convert(@fm : @vm : @sm : @tm : char(255), '.....', image(mz + 1))
-      if mz = file.line or mz = status.line or (split.window and mz = split.line - 1) then
+      if mz = file.line or mz = status.line then
          scr<SL.S.RATTR, mz + 2> = 'R'
       end
    next mz
@@ -7515,11 +7102,6 @@ build.menu.defs:
    ml = 'D&ive' ; ma = F.DIVE ; gosub add.item
 
    mi = 5
-   ml = '&Split window' ; ma = F.SPLIT ; gosub add.item
-   ml = '&Unsplit window' ; ma = F.UNSPLIT ; gosub add.item
-   ml = '&Toggle window' ; ma = F.TOGGLE.WINDOW ; gosub add.item
-   mf = (if split.window then '' else 'D') ; ml = 'Move split u&p' ; mc = 'c:SPLIT.UP' ; gosub add.item
-   mf = (if split.window then '' else 'D') ; ml = 'Move split &down' ; mc = 'c:SPLIT.DOWN' ; gosub add.item
    ml = '-' ; mc = 'x:' ; gosub add.item
    ml = '&Refresh screen' ; ma = F.REFRESH ; gosub add.item
 
@@ -7539,7 +7121,6 @@ build.menu.defs:
    ml = 'Release &lock' ; mc = 'c:RELEASE' ; gosub add.item
    ml = '&Keys in use' ; mc = 'c:KEYS' ; gosub add.item
    ml = '-' ; mc = 'x:' ; gosub add.item
-   ml = 'Run ex&tension...' ; ma = F.RUN ; gosub add.item
    ml = 'Comma&nd...' ; ma = F.COMMAND ; gosub add.item
    if ai.ok then
       ml = '-' ; mc = 'x:' ; gosub add.item
@@ -7574,13 +7155,6 @@ ext.command:
    s = convert(' ', @fm, s)
    c = upcase(s<1>)
 
-   if not(execution.depth) then  ;* Try extensions bound as commands
-      locate c in extension.commands<1,1> setting i then
-         ext.name = extension.commands<2,i>
-         gosub a.run
-         return
-      end
-   end
 
    begin case
       case upcase(s) = "BASIC"
@@ -7749,39 +7323,11 @@ ext.command:
                if record.updated then gosub save.record
                gosub clear.screen
 
-               * Are we compiling an extension?
-
-               s = chunk(head)
-               ch = chunk.next(head)
-               j = @false
-               loop
-                  n = dcount(s, @fm)
-                  for i = 1 to n
-                     z = upcase(trimf(s<i>))
-                     if len(z) and z[1,1] # '*' and z[1,1] # '!' and z[1,4] # 'REM ' then
-                        j = @true
-                        exit
-                     end
-                  next i
-               until j
-               while ch
-                  s = chunk(ch)
-                  ch = chunk.next(ch)
-               repeat
-
-               z = trim(field(z, '(', 1))
-               if j and (z = 'PROC' or z = 'FUNC') then  ;* Extension
-                  gosub assemble.record
-                  display sysmsg(6688) ;* Compiling extension...
-                  gosub compile
-                  rec = ''      ;* Release memory
-               end else
-                  printer close
-                  printer reset
-                  execute 'BASIC ' : file.name : ' ' : record.name
-                  unload.object
-                  if @system.return.code then gosub auto.catalog  ;* Catalog?
-               end
+               printer close
+               printer reset
+               execute 'BASIC ' : file.name : ' ' : record.name
+               unload.object
+               if @system.return.code then gosub auto.catalog  ;* Catalog?
 
                if not(suppress.command.cr) then
                   gosub press.return
@@ -7971,20 +7517,6 @@ ext.command:
                gosub refresh.all
          end case
 
-      case c = 'SPLIT.UP' or c = 'SPLIT.DOWN'
-         * Move the split point of a split window by the number of lines given (one without a number): SPLIT.UP gives the upper window fewer lines (26 Oct 26, sheet 578)
-         if split.window then
-            sp.n = trim(s<2>)
-            if sp.n = '' then sp.n = 1
-            if sp.n matches '1-3N' and sp.n > 0 then
-               if c = 'SPLIT.UP' then sp.n = 0 - sp.n
-               gosub move.split.point
-            end else
-               message = sysmsg(11985) ;* split.up and split.down take a number of lines
-               gosub error
-            end
-         end
-
       case c = 'VIEW'
          * VIEW {text}: a new read-only buffer of the lines of this one that hold the text; the prompt asks for it when it is left out (26 Oct 26, sheet 138)
          vw.text = trim(convert(@fm, ' ', field(s, @fm, 2, 9999)))
@@ -8155,10 +7687,6 @@ ext.command:
 
          if mark.line >= line then mark.line += 1
 
-         if other.live then
-            if other.line > line then other.line += 1
-            if other.top.line > line then other.top.line += 1
-         end
 
          lines += 1
          last.base = 99999999  ;* Restart line calculations
@@ -8385,2666 +7913,7 @@ delete.current.buffer:
 
    return
 
-* **********************************************************************
-
-* ======================================================================
-* compile  -  Compile extension program in rec
-
-compile:
-*  Extension header:
-*     1  x31
-*     2  0 if proc, 1 if func
-*     3  Arg count   (max 250)
-*     4  Var count   (max 250)
-*
-* Optional bits:
-*     Value 2 = SED revision
-*     Value 3 = Date/time of compilation
-*
-*     End marker (field mark)
-
-   equate EXT.HEADER.LEN to 5
-
-   equate EXT.JUMP.WIDTH to 5  ;* Digits in initial format of jump addresses
-
-   equate TKN.END to 0
-   equate TKN.LBR to 1
-   equate TKN.RBR to 2
-   equate TKN.STR to 3
-   equate TKN.SYS to 4    ;* @var or %var
-   equate TKN.NAM to 5    ;* name
-   equate TKN.NUM to 6    ;* number
-   equate TKN.GVR to 7    ;* $name
-   equate TKN.COM to 8    ;* Comma
-   equate TKN.ERR to 99
-
-   equate OP.LDLIT to 1     ;* Load string literal
-   equate OP.LDVAR to 2     ;* Load user variable reference
-   equate OP.UPROC to 3     ;* Run user procedure
-   equate OP.UFUNC to 4     ;* Run user function
-   equate OP.JZE   to 5     ;* Jump if zero (or null)
-   equate OP.JNZ   to 6     ;* Jump if non-zero
-   equate OP.JMP   to 7     ;* Unconditional jump
-   equate OP.LDGVR to 8     ;* Load global variable
-   equate OP.SETGV to 9     ;* Set global variable
-   equate OP.JNE   to 10    ;* Jump if not equal
-   equate OP.POP   to 11    ;* Pop top stack item
-   equate OP.LDNUM to 12    ;* Load numeric literal
-   equate OP.LCALL to 13    ;* Local call
-   equate OP.LRETN to 14    ;* Local return
-   equate OP.FUNC  to 30    ;* Opcode for first built-in function
-
-   if len(ext.funcs) = 0 then  ;* Not yet built function tables
-
-      * Function table. This must match the ext.split subroutine list
-      * The first value is the number of arguments required. A negative
-      * value has special meaning:
-      *   -1   An unrecognised (and hence user) function or procedure for
-      *        which we have not yet determined the number of arguments.
-      *
-      * The second value is the number of values returned. A negative
-      * value indicates that a procedure should follow the arguments.
-
-      func.defs = 'ADD 2 1|SUB 2 1|MUL 2 1|DIV 2 1'
-      func.defs := '|CAT 2 -1|SUBSTR 3 1|PAD 2 1|LEN 1 1'
-      func.defs := '|TRIMF 1 1|TRIMB 1 1'
-      func.defs := '|EXTRACT 4 1|REP 5 1|DEL 4 1|INS 5 1|FIELD 4 1'
-      func.defs := '|EQ 2 1|NE 2 1|GT 2 1|GE 2 1|LT 2 1|LE 2 1'
-      func.defs := '|AND 2 -1|OR 2 -1|NOT 1 1'
-      func.defs := '|IF 1 -1|SWITCH 1 -1|LOOP 0 -1|EXIT 0 -1|STOP 0 0'
-      func.defs := '|RETURN 0 -1'
-      func.defs := '|SET 0 -1'
-      func.defs := '|BACK.CHAR,LEFT 1 0|FWD.CHAR,RIGHT 1 0|TAB 1 0'
-      func.defs := '|PAGE.UP 1 0|PAGE.DOWN 1 0'
-      func.defs := '|UP.LINE,UP 1 0|DOWN.LINE,DOWN 1 0'
-      func.defs := '|TOP 0 0|BOTTOM 0 0|START.LINE,HOME 0 0|END.LINE,END 0 0'
-      func.defs := '|DEL.CHAR 1 0|BACKSPACE 1 0|KILL.LINE 1 0'
-      func.defs := '|INSERT 1 -1|NEWLINE 1 0|RETYPE 1 0|%KILL.BUFFER 0 1'
-      func.defs := '|FSEARCH 2 1|RSEARCH 2 1'
-      func.defs := '|%FILE 0 1|%ID 0 1|%BUFFER.NO 0 1|%BUFFER.TYPE 0 1|%READ.ONLY 0 1'
-      func.defs := '|%CURRENT.LINE 0 1|%CURRENT.CHAR 0 1'
-      func.defs := '|%COL 0 1|%LINE.LEN 0 1|%LINE 0 1|%LINES 0 1'
-      func.defs := '|%MARK.LINE 0 1|%MARK.COL 0 1|SET.MARK 0 0|SWAP.MARK 0 0'
-      func.defs := '|GOTO.LINE 1 0|GOTO.COL 1 0'
-      func.defs := '|PROMPT 2 1|%KEY.READY 0 1|GET.CHAR 0 1|GET.KEY 0 1'
-      func.defs := '|WAIT.INPUT 0 0'
-      func.defs := '|%KEY.CHAR 0 1|%PREFIX.COUNT 0 1|%PREFIX.SET 0 1'
-      func.defs := '|PAINT 1 0|STATUS.MSG 1 0|BEEP 0 0'
-      func.defs := '|%SCROLL 0 1|%PAN 0 1|SET.SCROLL 1 0|SET.PAN 1 0'
-      func.defs := '|XEQ 1 0'
-      func.defs := '|BIND.COMMAND 2 0|BIND.KEY 2 1|UNLOAD 0 0'
-      func.defs := '|@IM 0 1|@FM 0 1|@VM 0 1|@SM 0 1|@TM 0 1'
-      func.defs := '|@LOGNAME 0 1|@CRTHIGH 0 1|@CRTWIDE 0 1|@DATE 0 1'
-      func.defs := '|@PATH 0 1|@SENTENCE 0 1|@TERM.TYPE 0 1|@TIME 0 1'
-      func.defs := '|@TTY 0 1|@USERNO 0 1|@WHO 0 1'
-      func.defs := '|MAKE.BUFFER 1 1'
-      func.defs := '|FIND.RECORD 2 1|SAVE.RECORD 0 0|WRITE.RECORD 2 0'
-      func.defs := '|READ 2 1|WRITE 3 0|DELETE 2 0|EXISTS 2 1'
-      func.defs := '|%OVERLAY 0 1|SET.OVERLAY 1 0'
-      func.defs := '|%CHANGED 0 1|SET.CHANGED 1 0'
-      func.defs := '|SET.CASE 2 0|TOGGLE.CHARS 0 0'
-      func.defs := '|COPY.REGION 0 0|DELETE.REGION 0 0'
-      func.defs := '|FWD.WORD 1 0|BACK.WORD 1 0|DEL.WORD 1 0|DEL.BACK.WORD 1 0'
-      func.defs := '|CLOSE.SPACES 0 0'
-      func.defs := '|NEXT.BUFFER 1 0|PREV.BUFFER 1 0|GOTO.BUFFER 1 0'
-      func.defs := '|DELETE.BUFFER 0 0'
-      func.defs := '|%KEY.BINDINGS 0 1'
-      func.defs := '|NUM 1 1|ALPHA 1 1|CONVERT 3 1|DCOUNT 2 1|COUNT 2 1'
-      func.defs := '|INDEX 3 1|REM 2 1|SEQ 1 1|CHAR 1 1|ICONV 2 1|OCONV 2 1'
-      func.defs := '|%TAB.INTERVAL 0 1|SET.TAB.INTERVAL 1 0'
-      func.defs := '|INT 1 1|FIND.BUFFER 2 1|SET.READ.ONLY 1 0'
-      func.defs := '|%MACRO.STATE 0 1|QUIT 1 0|EXECUTE 1 0'
-      func.defs := '|%WIDTH 0 1|%HEIGHT 0 1|MIN 2 1|MAX 2 1'
-      func.defs := '|MATCHES 2 1|MATCHFIELD 3 1|TRIM 1 1'
-      func.defs := '|UPCASE 1 1 |DOWNCASE 1 1'
-
-
-      func.defs = convert('| ', @fm:@vm, func.defs)
-      ext.func.args = ''
-      ext.func.rets = ''
-
-      loop
-         ext.funcs<-1> = convert(',', @vm, remove(func.defs, delim))
-         ext.func.args<-1> = remove(func.defs, delim)
-         ext.func.rets<-1> = remove(func.defs, delim)
-      while delim
-      repeat
-      func.defs = ''
-      num.funcs = dcount(ext.funcs, @fm)
-
-      name.chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ.1234567890$'
-      mark.chars = @im:@fm:@vm:@sm:@tm
-   end else  ;* Been here before - remove user procs and funcs
-      ext.funcs = field(ext.funcs, @fm, 1, num.funcs)
-      ext.func.args = field(ext.func.args, @fm, 1, num.funcs)
-      ext.func.rets = field(ext.func.rets, @fm, 1, num.funcs)
-   end
-
-*  17 Oct 26 dm - S.64: the extension object is a record of this same file; it is not kept in one the session may not change (silently:
-*  an extension record in a VOC, a dictionary or a program file is not a thing the person asked to save).
-   ext.may.write = kernel(K$EDIT.OK, fileinfo(file(current.buffer), FL$PATH))
-   if ext.may.write then
-      recordlocku file(current.buffer), record.name : '-EXT'
-      delete file(current.buffer), record.name : '-EXT'    ;* Delete old version
-   end
-
-   locate record.name in extensions<1> setting i then   ;* Unload old version
-      ext.table(i) = ''
-      extensions<i> = ''
-   end
-
-   ext.err = @false
-   func.stack = ''
-   arg.stack = ''
-   ret.stack = ''
-   proc.stack = ''
-   ext.loop.depth = 0
-   local.vars = ''
-   ret.args = 0  ;* Initialised for error paths
-   ext.code = char(31) : str(char(0),EXT.HEADER.LEN - 1) 
-   ext.code<1,2> = SD.REV.STAMP
-   ext.code<1,3> = date() * 86400 + int(time())
-   ext.jump.format = EXT.JUMP.WIDTH:"'0'R"
-
-   * Local procedure stuff
-
-   lproc.no = 0
-   local.procs = ''      ;* LPROC/LFUNC list.  Fields are...
-   equate LPROC.NAME to 1   ;* Local PROC/FUNC name
-   equate LPROC.FUNC to 2   ;* LFUNC?
-   equate LPROC.ARGS to 3   ;* Arg count
-   equate LPROC.ADDR to 4   ;* Start address
-   equate LPROC.USED to 5   ;* Referenced?
-
-   * Set up source indexing
-
-   src.idx = 1
-   ext.line = 1
-   ext.line.start = 1
-
-   * Process PROC/FUNC token
-
-   gosub get.ext.token
-   begin case
-      case token.type = TKN.NAM and token = 'FUNC'
-         compiling.func = @true
-         ext.code[2,1] = char(1)
-      case token.type = TKN.NAM and token = 'PROC'
-         compiling.func = @false
-      case 1
-         message = sysmsg(6912) ;* Expected PROC or FUNC
-         goto ext.error
-   end case
-
-   * Set RETURN to expect arg in FUNC, none in PROC
-
-   locate 'RETURN' in ext.funcs<1> setting j then
-      ext.func.args<j> = compiling.func
-   end
-
-   * Look for PROC.FUNC qualifiers
-
-   gosub get.ext.token
-   loop
-   while token.type = TKN.NAM
-      begin case
-         case token = 'ARGS'
-            if len(local.vars) then
-               message = sysmsg(6913) ;* Arguments already defined
-               goto ext.error
-            end
-
-            loop
-               gosub get.ext.token
-               if token.type # TKN.NAM then
-                  message = sysmsg(6914) ;* Argument name not found where expected
-                  goto ext.error
-               end
-
-               locate token in local.vars<1> setting i then
-                  message = sysmsg(6915) ;* Duplicated argument name
-                  goto ext.error
-               end
-               local.vars<i> = token
-
-               gosub get.ext.token
-            while token.type = TKN.COM
-            repeat
-
-            n = dcount(local.vars, @fm)
-            if n > 250 then
-               message = sysmsg(6916) ;* Too many arguments
-               goto ext.error
-            end
-            ext.code[3,1] = char(n)
-
-            continue  ;* Already got next token
-
-         case 1
-            message = sysmsg(6917, token) ;* Unrecognised option : %1
-            goto ext.error
-      end case
-      gosub get.ext.token
-   repeat
-
-   * Process left bracket at start of procedure/function
-
-   if token.type # TKN.LBR then
-      message = sysmsg(6918) ;* Expected left bracket before procedure/function body
-      goto ext.error
-   end
-
-   gosub parse.procedure
-
-   if compiling.func then ext.code<-1> = char(OP.LDNUM):0 ;* Default value
-
-   locate 'RETURN' in ext.funcs<1> setting j then
-      ext.code<-1> = char(j + OP.FUNC - 1)
-   end
-
-   if token.type # TKN.RBR then
-      message = sysmsg(6919)  ;* Expected right bracket
-      goto ext.error
-   end
-
-   * Check for local PROCs and FUNCs
-
-   loop
-      gosub get.ext.token
-      
-   while token.type = TKN.NAM
-   
-      begin case
-         case token = 'LPROC' or token = 'LFUNC'  ;* Local PROC/FUNC
-            lproc.no += 1
-            compiling.func = (token = 'LFUNC')
-            
-            gosub get.ext.token
-            if token.type # TKN.NAM then
-               message = sysmsg(6920) ;* Expected name for local PROC/FUNC
-               gosub ext.error
-               exit
-            end
-
-            locate token in local.procs<LPROC.NAME,1> setting i then
-               message = sysmsg(6921) ;* Duplicate local PROC/FUNC name
-               gosub ext.error
-               exit
-            end
-            
-            local.procs<LPROC.NAME,-1> = token
-            local.procs<LPROC.FUNC,-1> = compiling.func
-            local.procs<LPROC.ADDR,-1> = dcount(ext.code, @fm) + 1
-            local.procs<LPROC.USED,-1> = @false  ;* Not yet been used
-            local.args = ''
-            
-            * Set RETURN to expect arg in FUNC, none in PROC
-
-            locate 'RETURN' in ext.funcs<1> setting j then
-               ext.func.args<j> = compiling.func
-            end
-
-            gosub get.ext.token
-            loop
-            while token.type = TKN.NAM
-               begin case
-                  case token = 'ARGS'
-                     * Arguments for local procs/funcs are just local variables
-                     * alongside the rest for the main proc/func.  There is
-                     * nothing to stop a program using these in any way the
-                     * programmer wishes.
-                     * Collect the names and then generate code to save the
-                     * values in reverse stack order.
-                     
-                     loop
-                        gosub get.ext.token
-                        if token.type # TKN.NAM then
-                           message = sysmsg(6914) ;* Argument name not found where expected
-                           goto ext.error
-                        end
-
-                        local.args<-1> = token
-
-                        gosub get.ext.token
-                     while token.type = TKN.COM
-                     repeat
-
-                     n = dcount(local.args, @fm)
-                     for i = n to 1 step -1
-                        s = local.args<i>
-                        locate s in local.vars<1> setting j else
-                           local.vars<j> = s  ;* Add new local var
-                        end
-
-                        locate 'SET' in ext.funcs<1> setting k then
-                           ext.code<-1> = char(k + OP.FUNC - 1):j
-                        end
-                     next i
-                     
-                     continue  ;* Already got next token
-
-                  case 1
-                     message = 'Unrecognized option : ' : token
-                     goto ext.error
-               end case
-               gosub get.ext.token
-            repeat
-
-            local.procs<LPROC.ARGS,-1> = dcount(local.args, @fm)
-            
-            * Process left bracket at start of procedure/function
-
-            if token.type # TKN.LBR then
-               message = sysmsg(6918) ;* Expected left bracket before procedure/function body
-               goto ext.error
-            end
-
-            gosub parse.procedure
-
-            if token.type # TKN.RBR then
-               message = sysmsg(6919) ;* Expected right bracket
-               goto ext.error
-            end
-
-            if compiling.func then ext.code<-1> = char(OP.LDNUM):0
-            ext.code<-1> = char(OP.LRETN)
-
-         case 1                ;* Something else...
-            exit               ;* ...let procedure end check catch error
-      end case
-   until ext.err
-   repeat
-
-   * Should now be at end of source
-   
-   if not(ext.err) then
-      if token.type # TKN.END then
-         message = sysmsg(6922) ;* Expected end of source
-         goto ext.error
-      end
-   end
-
-   if not(ext.err) then
-      display  ;* Terminate ... progress line
-      
-      * Fix up local proc/func references
-
-      if len(local.procs) then
-         n = dcount(ext.code, @fm)
-         for i = 2 to n
-            s = ext.code<i>
-            j = seq(s[1,1])
-            if j = OP.UPROC or j = OP.UFUNC then
-               ss = field(s[2,99999], '.', 2, 999)  ;* Name
-               locate ss in local.procs<LPROC.NAME,1> setting k then
-                  local.procs<LPROC.USED,k> = @true  ;* Mark as used
-
-                  if (j = OP.UFUNC) # local.procs<LPROC.FUNC,k> then
-                     ss = local.procs<LPROC.NAME,k>
-                     if j = OP.UFUNC then
-                        message = sysmsg(6923, ss) ;* Local PROC %1 used as FUNC
-                     end else
-                        message = sysmsg(6924, ss) ;* Local FUNC %1 used as PROC
-                     end
-                     goto ext.error
-                  end
-                  
-                  if field(s[2,99999], '.', 1) # local.procs<LPROC.ARGS,k> then
-                     message = sysmsg(6925, local.procs<LPROC.NAME,k>)
-                     * Argument count mismatch in local PROC/FUNC %1
-                     goto ext.error
-                  end
-                  ext.code<i> = char(OP.LCALL):fmt(local.procs<LPROC.ADDR,k>, ext.jump.format)
-               end
-            end
-         next i
-      end
-   end
-   
-   if not(ext.err) then
-      n = dcount(local.procs<LPROC.NAME>, @vm)
-      for i = 1 to n
-         if not(local.procs<LPROC.USED,i>) then
-            if local.procs<LPROC.FUNC,i> then
-               display sysmsg(6926) ;* Local PROC not referenced
-            end else
-               display sysmsg(6927) ;* Local FUNC not referenced
-            end
-         end
-      next i
-   end
-
-   if not(ext.err) then
-      n = dcount(ext.funcs, @FM)
-      if n > num.funcs then
-         k = @true
-         for i = num.funcs + 1 to n
-            s = ext.funcs<i>
-            locate s in local.procs<LPROC.NAME,1> setting j else
-               if k then   ;* First one
-                  display sysmsg(6928) ;* External references:
-                  k = @false
-               end
-               display s : ' (' :
-               if ext.func.rets<i> then
-                  display sysmsg(6929, s,  ext.func.args<i>)
-                  * %1 (function, %2 arguments)
-               end else
-                  display sysmsg(6930, s,  ext.func.args<i>)
-                  * %1 (%2 arguments)
-               end
-            end
-         next i
-      end
-
-      n = dcount(local.vars, @fm)
-      ext.code[4,1] = char(n)
-      if n > 253 then  ;* Must avoid field mark as variable count
-         message = sysmsg(6931) ;* Procedure has too many local variables
-         gosub ext.error
-      end
-   end
-
-   if not(ext.err) then
-      if len(len(ext.code)) > EXT.JUMP.WIDTH then
-         message = sysmsg(6932) ;* Object code is too large to process
-         gosub ext.error
-      end else  ;* Convert jump addresses to character offsets for setrem
-
-         * Construct list of all opcodes requiring conversion
-
-         ss = OP.JZE:@fm:OP.JNZ:@fm:OP.JMP:@fm:OP.JNE:@fm:OP.LCALL
-         locate 'LOOP' in ext.funcs<1> setting j then ss<-1> = j + OP.FUNC - 1
-
-         * How wide does jump address need to be?
-         * For the second pass to work, we must be replacing each jump field
-         * number with a character offset of the same number of digits. Work
-         * out the width we will use.
-
-         k = len(len(ext.code))      ;* No of digits to address any byte
-         z = 2 + EXT.JUMP.WIDTH - k  ;* Position to start extraction
-         ext.jump.format = k:"'0'R"  ;* Revised format for compacted jumps
-
-         n = dcount(ext.code, @fm)
-
-         * First pass - Change all jump field numbers to this width
-
-         for i = 2 to n
-            s = ext.code<i>
-            locate seq(s[1,1]) in ss<1> setting j then
-               ext.code<i> = s[1,1]:s[z,99]
-            end
-         next i
-
-         * Second pass - Replace field numbers with offsets
-
-         for i = 2 to n
-            s = ext.code<i>
-            locate seq(s[1,1]) in ss<1> setting j then
-               ext.code<i> = s[1,1]:fmt(index(ext.code, @fm, s[2,99]-1), ext.jump.format)
-            end
-         next i
-      end
-   end
-
-   if not(ext.err) then
-      s = ext.code<1> : @fm : convert(@fm, char(0), field(ext.code, @fm, 2, 9999999))
-      if kernel(K$EDIT.OK, fileinfo(file(current.buffer), FL$PATH)) then   ;* 17 Oct 26 dm - S.64, as above
-         recordlocku file(current.buffer), record.name : '-EXT'
-         write s to file(current.buffer), record.name : '-EXT'
-      end
-      s = ''
-      ext.code = ''
-   end
-
-   return
-
-* ======================================================================
-
-parse.procedure:
-   gosub get.ext.token
-   if token.type # TKN.LBR then
-      message = sysmsg(6933) ;* Expected left bracket
-      goto ext.error
-   end
-
-   loop
-   while token.type = TKN.LBR
-
-      is.func = @false ; gosub parse.function
-
-   until ext.err
-
-      if ret.args then
-         message = sysmsg(6934) ;* Misuse of function that returns a value
-         goto ext.error
-      end         
-
-      gosub get.ext.token
-
-   repeat
-
-   return
-
-* ======================================================================
-
-parse.function:
-   * Get function name
-
-   gosub get.ext.token
-   if token.type # TKN.NAM then
-      message = sysmsg(6935) ;* Expected function name
-      goto ext.error
-   end
-
-   find token in ext.funcs setting func.no else
-      func.no = dcount(ext.funcs,@fm) + 1
-      ext.funcs<func.no> = token
-      ext.func.args<func.no> = -1       ;* Don't yet know arg count
-      ext.func.rets<func.no> = is.func  ;* 1 if function (want return value)
-   end
-
-   * Push details
-
-   ins func.no before func.stack<1>
-   ins ext.func.args<func.no> before arg.stack<1>
-   ins ext.func.rets<func.no> before ret.stack<1>
-
-   * Collect arguments
-
-   loop
-      n = arg.stack<1> + 0
-   while n
-      gosub get.ext.token
-
-      if token.type = TKN.RBR then
-         n = arg.stack<1> + 0
-         i = func.stack<1>
-         if n > 0 then
-            message = sysmsg(6936, ext.funcs<i>, ext.func.args<i>)
-            * Insufficient arguments in %1 function. Expected %2.
-            goto ext.error
-         end
-
-         * This is a user function/procedure for which we did not
-         * previously know the expected agument count.
-
-         exit
-      end
-
-      gosub parse.value
-      if ext.err then return
-   repeat
-
-   ret.args = ret.stack<1>
-   if ret.args < 0 then   ;* Special case
-      ret.stack<1> = 0
-      n = ext.funcs<func.stack<1>>
-      begin case
-         case n = 'CAT' or n = 'OR' or n = 'AND'
-            loop
-               ext.code<-1> = char(func.stack<1> + OP.FUNC - 1)  ;* opcode
-               gosub get.ext.token
-            until token.type = TKN.RBR
-            until token.type = TKN.END
-            until token.type = TKN.ERR
-               gosub parse.value
-            repeat
-
-            if token.type # TKN.RBR then
-               message = sysmsg(6919) ;* Expected right bracket
-               goto ext.error
-            end
-            ret.stack<1> = 1
-
-         case n = 'EXIT'
-            if ext.loop.depth = 0 then
-               message = sysmsg(6937) ;* EXIT not in LOOP
-               goto ext.error
-            end
-
-            ext.code<-1> = char(func.stack<1> + OP.FUNC - 1)
-
-            gosub get.ext.token
-            if token.type # TKN.RBR then
-               message = sysmsg(6919) ;* Expected right bracket
-               goto ext.error
-            end
-
-         case n = 'IF'
-            ext.code<-1> = char(OP.JZE)
-            ins dcount(ext.code, @fm) before proc.stack<1>
-
-            gosub parse.procedure
-            if ext.err then return
-
-            if token.type = TKN.NAM and upcase(token) = 'ELSE' then
-               ext.code<-1> = char(OP.JMP)
-               n = proc.stack<1> + 0
-               ext.code<n> = ext.code<n> : fmt(dcount(ext.code, @fm) + 1, ext.jump.format) ;* Exit addr
-               proc.stack<1> = dcount(ext.code, @fm)
-
-               gosub parse.procedure
-               if ext.err then return
-            end
-
-            n = proc.stack<1> + 0
-            ext.code<n> = ext.code<n> : fmt(dcount(ext.code, @fm) + 1, ext.jump.format) ;* Exit addr
-
-            if token.type # TKN.RBR then
-               message = sysmsg(6919) ;* Expected right bracket
-               goto ext.error
-            end
-
-            del proc.stack<1>
-
-         case n = 'INSERT'
-            loop
-               ext.code<-1> = char(func.stack<1> + OP.FUNC - 1)  ;* INSERT
-               gosub get.ext.token
-            until token.type = TKN.RBR
-            until token.type = TKN.END
-            until token.type = TKN.ERR
-               gosub parse.value
-            repeat
-
-            if token.type # TKN.RBR then
-               message = sysmsg(6919) ;* Expected right bracket
-               goto ext.error
-            end
-            ret.stack<1> = 0
-
-         case n = 'LOOP'
-            ext.code<-1> = char(func.stack<1> + OP.FUNC - 1)
-            ins dcount(ext.code, @fm) before proc.stack<1>
-            ext.loop.depth += 1
-
-            gosub parse.procedure
-            if ext.err then return
-
-            n = proc.stack<1> + 0
-            ext.code<-1> = char(OP.JMP): fmt(n+1, ext.jump.format)  ;* Repeat loop
-            ext.loop.depth -= 1
-            ext.code<n> = ext.code<n> : fmt(dcount(ext.code, @fm) + 1, ext.jump.format)   ;* Fix up exit link
-
-            if token.type # TKN.RBR then
-               message = sysmsg(6919) ;* Expected right bracket
-               goto ext.error
-            end
-
-            del proc.stack<1>
-
-         case n = 'RETURN'
-            if lproc.no then  ext.code<-1> = char(OP.LRETN)
-            else ext.code<-1> = char(func.stack<1> + OP.FUNC - 1)
-
-            gosub get.ext.token
-            if token.type # TKN.RBR then
-               message = sysmsg(6919) ;* Expected right bracket
-               goto ext.error
-            end
-
-         case n = 'SET'
-            gosub get.ext.token   ;* Get variable name
-            begin case
-               case token.type = TKN.NAM
-                  locate token in local.vars<1> setting i else local.vars<-1> = token
-                  ins i before proc.stack<1>
-
-                  gosub get.ext.token
-                  gosub parse.value  ;* Get value
-                  if ext.err then return
-
-                  ext.code<-1> = char(func.stack<1> + OP.FUNC - 1) : proc.stack<1>
-                  del proc.stack<1>
-
-               case token.type = TKN.GVR
-                  ins token before proc.stack<1>
-
-                  gosub get.ext.token
-                  gosub parse.value  ;* Get value
-                  if ext.err then return
-
-                  ext.code<-1> = char(OP.SETGV) : proc.stack<1>
-                  del proc.stack<1>
-
-               case 1
-                  message = sysmsg(6938) ;* Expected variable name
-                  goto ext.error
-            end case
-
-
-            gosub get.ext.token
-            if token.type # TKN.RBR then
-               message = sysmsg(6919) ;* Expected right bracket
-               goto ext.error
-            end
-
-         case n = 'SWITCH'
-            ins '' before proc.stack<1>
-
-            gosub get.ext.token
-            loop
-            while token.type = TKN.NAM and token = 'CASE'
-               gosub get.ext.token
-               gosub parse.value
-               ext.code<-1> = char(OP.JNE)
-               proc.stack<1,1> = dcount(ext.code, @fm) ;* Forward link
-
-               gosub parse.procedure
-               if ext.err then return
-
-               ext.code<-1> = char(OP.JMP)
-               n = dcount(ext.code, @fm)
-               proc.stack<1,-1> = n ;* Exit link
-
-               i = proc.stack<1,1>
-               ext.code<i> = ext.code<i>:fmt(n+1, ext.jump.format)  ;* Fix up forward link
-            repeat
-
-            ext.code<-1> = char(OP.POP)
-            if token.type = TKN.NAM and token = 'ELSE' then
-               gosub parse.procedure
-               if ext.err then return
-            end
-
-            * Now fix up all exit links
-            
-            s = proc.stack<1>
-            del s<1,1>
-            if len(s) then
-               n = fmt(dcount(ext.code, @fm) + 1, ext.jump.format)
-               loop
-                  j = remove(s, delim)
-                  ext.code<j> = ext.code<j>:n
-               while delim
-               repeat
-            end
-
-            del proc.stack<1>
-
-            if token.type # TKN.RBR then
-               message = sysmsg(6919) ;* Expected right bracket
-               goto ext.error
-            end
-
-         case 1
-            message = sysmsg(6939) ;* Internal error - Invalid function for proc stack
-            goto ext.error
-      end case
-      ret.args = ret.stack<1>
-   end else
-      n = arg.stack<1>
-      if n < 0 then         ;* User function for which we did not know arg count
-         ext.func.args<i> = -(n + 1)  ;* Set it for next usage
-      end else              ;* Built-in or previously used user function
-                             * Check right bracket next
-         gosub get.ext.token
-         if token.type # TKN.RBR then
-            message = sysmsg(6919) ;* Expected right bracket
-            goto ext.error
-         end
-      end
-
-      * Generate code to perform function
-
-      n = func.stack<1>
-      if n > num.funcs then   ;* User function
-         if ext.func.rets<n> > 0 then
-            ext.code<-1> = char(OP.UFUNC):ext.func.args<n>:'.':ext.funcs<n>
-         end else
-            ext.code<-1> = char(OP.UPROC):ext.func.args<n>:'.':ext.funcs<n>
-         end
-      end else                ;* Built-in function
-         ext.code<-1> = char(n + OP.FUNC - 1)
-      end
-   end
-
-   * Pop function details
-
-   del func.stack<1>
-   del arg.stack<1>
-   del ret.stack<1>
-
-   return
-
-ext.error:
-   display  ;* Terminate ... progress line
-   display ext.line : '.' : (src.idx - ext.line.start) : ': ' : message
-   ext.err = @true
-   return
-
-* ======================================================================
-
-parse.value:
-   begin case
-      case token.type = TKN.END
-         message = sysmsg(6940) ;* Unexpected end of source program
-         goto ext.error
-
-      case token.type = TKN.LBR
-         is.func = @true ; gosub parse.function
-         if ext.err then return
-         if ret.args = 0 then
-            message = sysmsg(6941) ;* Function returns no value
-            goto ext.error
-         end
-         arg.stack<1> = arg.stack<1> - ret.args
-
-      case token.type = TKN.STR
-         ext.code<-1> = char(OP.LDLIT):token  ;* Push string
-         arg.stack<1> = arg.stack<1> - 1
-
-      case token.type = TKN.NAM
-         locate token in local.vars<1> setting i else local.vars<i> = token
-         ext.code<-1> = char(OP.LDVAR):i
-         arg.stack<1> = arg.stack<1> - 1
-
-      case token.type = TKN.NUM
-         token += 0  ;* Remove extraneous zeros by conversion
-         ext.code<-1> = char(OP.LDNUM):token
-         arg.stack<1> = arg.stack<1> - 1
-
-      case token.type = TKN.SYS
-         find token in ext.funcs setting n then
-            ext.code<-1> = char(n + OP.FUNC - 1)
-            arg.stack<1> = arg.stack<1> - 1
-         end else
-            message = sysmsg(6942, token) ;* Unrecognised system variable : %1
-            goto ext.error
-         end
-
-      case token.type = TKN.GVR
-         ext.code<-1> = char(OP.LDGVR):token
-         arg.stack<1> = arg.stack<1> - 1
-
-      case 1
-         message = sysmsg(6943) ;* Syntax error
-         gosub ext.error
-         return
-   end case
-
-   return
-
-* ======================================================================
-
-get.ext.token:
-   c = rec[src.idx,1]
-   src.idx += 1
-   token = ''
-
-   begin case
-      case len(c) = 0
-         token.type = TKN.END
-
-      case c = @fm   ;* (Must be before alpha() for Unidata)
-         ext.line += 1
-         ext.line.start = src.idx
-         if rem(ext.line, 10) = 0 then display '.' :
-         goto get.ext.token
-
-      case c = '('
-         token.type = TKN.LBR
-
-      case c = ')'
-         token.type = TKN.RBR
-
-      case alpha(c)
-         token.type = TKN.NAM
-         token = upcase(c)
-         loop
-            c = upcase(rec[src.idx,1])
-         while index(name.chars, c, 1)
-            token := c
-            src.idx += 1
-         repeat
-
-      case c = '"' or c = "'"
-         i = index(rec[src.idx,9999999], c, 1)
-         if i then
-            token.type = TKN.STR
-            token = rec[src.idx, i - 1]
-            src.idx += i
-            if convert(mark.chars, '', token) # token then
-               message = sysmsg(6944) ;* Mark characters not allowed in string literals
-               goto ext.error
-               token.type = TKN.ERR
-            end
-         end else
-            token.type = TKN.ERR
-         end
-
-      case c = '@' or c = '%'
-         token.type = TKN.SYS
-         token = c
-         loop
-            c = upcase(rec[src.idx,1])
-         while index(name.chars, c, 1)
-            token := c
-            src.idx += 1
-         repeat
-
-      case num(c) or c= '-' or c = '+'
-         token.type = TKN.NUM
-         loop
-            token := c
-            c = rec[src.idx,1]
-         while num(token:c)
-            src.idx += 1
-         repeat
-
-      case c = '$'
-         token.type = TKN.GVR
-         token = '$'
-         loop
-            c = upcase(rec[src.idx,1])
-         while index(name.chars, c, 1)
-            token := c
-            src.idx += 1
-         repeat
-
-      case c = ' '
-         goto get.ext.token
-
-      case c = '.'      ;* Key token constant
-         token = ''
-         loop
-            c = upcase(rec[src.idx,1])
-         while index(name.chars, c, 1)
-            token := c
-            src.idx += 1
-         repeat
-
-         s = upcase(convert('| ', @fm:'.', actions))
-         locate token in s<1> setting i then
-            if i > LAST.BINDABLE.ACTION then i += 500 - LAST.BINDABLE.ACTION
-            token.type = TKN.NUM
-            token = i
-         end else
-            token.type = TKN.ERR
-         end
-
-      case c = ','
-         token.type = TKN.COM
-
-      case c = '*'   ;* Start of comment
-         i = index(rec[src.idx,99999999], @fm, 1)
-         if i then
-            src.idx += i - 1  ;* Don't walk past @fm, want it for line counting
-            goto get.ext.token
-         end
-         token.type = TKN.END
-
-      case 1
-         token.type = TKN.ERR
-   end case
-
-   return
-
-* ======================================================================
-* Run extension named in ext.name
-*
-* ext.arg.count contains number of arguments being passed
-*
-* Returns ext.code = 0  OK
-*                    1  Extension not found
-*                    2  Terminated by (stop)
-*                    3  Trying to run func as proc
-*                    4  Trying to run proc as func
-*                    5  Nested too deep
-*                    6  XEQ'd command failure
-*                    7  Argument count mismatch
-*                    8  Local procs nested too deep
-*                    9  Quit executed
-
-run.extension:
-   unload.extensions = @false
-   loop.stack = ''
-   call.stack = ''    ;* V1 = ext.idx
-                       * V2 = index into proc
-                       * V3 = ext.var.base
-                       * V4 = lcall.stack
-   is.func = @false
-   e.stack.ptr = 0
-
-recursive:
-   locate ext.name in extensions<1> setting ext.idx else
-      * Must load extension
-
-      locate '' in extensions<1> setting j then ext.idx = j ;* Reuse dead entry
-
-      * Get list of files to search
-
-      s = '$$EXTENSION.FILES' ; gosub find.gvar
-      if global.vars(i) = '' then global.vars(i) = '&SED.EXTENSIONS&'
-      ss = convert(' ', @fm, trim(global.vars(i)))
-
-      j = @false
-      if len(ss) then
-         loop
-            open remove(ss, delim) to ext.f then
-               read s from ext.f, ext.name:'-EXT' then
-                  j = @true
-                  exit
-               end
-            end
-         while delim
-         repeat
-      end
-
-      if not(j) then
-         ext.code = 1
-         return
-      end
-
-      if ext.idx > ext.table.size then  ;* Must extend extensions table
-         ext.table.size += EXT.TABLE.SIZE.INCREMENT
-         dim ext.table(ext.table.size)
-      end
-
-      extensions<ext.idx> = ext.name
-      ext.table(ext.idx) = s<1> : @fm : convert(char(0), @fm, field(s, @fm, 2, 999999))
-   end
-
-   ext.proc = ext.table(ext.idx)
-
-   if seq(ext.proc[2,1]) # is.func then
-      ext.code = 3 + is.func
-      return
-   end
-
-   if seq(ext.proc[3,1]) # ext.arg.count then  ;* Arg count mismatch
-      ext.code = 7
-      return
-   end
-
-   execution.depth += 1
-
-   i = seq(ext.proc[4,1])  ;* Local variable count
-   if i then
-      j = ext.var.base + i  ;* Index of highest local variable
-      if j > ext.var.stack.size then
-         ext.var.stack.size = j
-         dim ext.vars(ext.var.stack.size)
-      end
-
-      for j = 1 to i
-         ext.vars(ext.var.base + j) = ''
-      next j
-   end
-
-   * Transfer arguments to local variables
-
-   if ext.arg.count then
-      for i = ext.arg.count to 1 step -1
-         ext.vars(ext.var.base+i) = e.stack(e.stack.ptr)
-         e.stack.ptr -= 1
-      next i
-   end
-
-   * Initialise local call stack
-
-   lcall.stack = ''
-
-   setrem index(ext.proc, @fm, 1) on ext.proc
-
-   loop
-      ext.op = remove(ext.proc, delim)
-      opcode = seq(ext.op[1,1])
-      on opcode gosub extop.ldlit,     ;* Load literal
-                      extop.ldvar,     ;* Load user variable reference
-                      extop.uproc,     ;* Run user procedure
-                      extop.ufunc,     ;* Run user function
-                      extop.jze,       ;* Jump if zero (or null)
-                      extop.jnz,       ;* Jump if non-zero
-                      extop.jmp,       ;* Unconditional jump
-                      extop.ldgvr,     ;* Load global variable
-                      extop.setgvar,   ;* Set global variable
-                      extop.jne,       ;* Jump if not equal
-                      extop.pop,       ;* Pop top stack item
-                      extop.ldnum,     ;* Load numeric literal
-                      extop.lcall,     ;* Local call
-                      extop.lretn,     ;* Local return
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.illegal,
-                      extop.add,            ;* Add
-                      extop.sub,            ;* Sub
-                      extop.mul,            ;* Mul
-                      extop.div,            ;* Div
-                      extop.concat,         ;* Concat
-                      extop.substr,         ;* Substr
-                      extop.pad,            ;* Pad
-                      extop.len,            ;* Len
-                      extop.trimf,          ;* Trimf
-                      extop.trimb,          ;* Trimb
-                      extop.extract,        ;* Extract
-                      extop.rep,            ;* Rep
-                      extop.del,            ;* Del
-                      extop.ins,            ;* Ins
-                      extop.field,          ;* Field
-                      extop.eq,             ;* Eq
-                      extop.ne,             ;* Ne
-                      extop.gt,             ;* Gt
-                      extop.ge,             ;* Ge
-                      extop.lt,             ;* Lt
-                      extop.le,             ;* Le
-                      extop.and,            ;* And
-                      extop.or,             ;* Or
-                      extop.not,            ;* Not
-                      extop.illegal,        ;* If (Should never be executed)
-                      extop.illegal,        ;* Switch (Should never be executed)
-                      extop.loop,           ;* Loop
-                      extop.exit,           ;* Exit
-                      extop.stop,           ;* Stop
-                      extop.return,         ;* Return
-                      extop.set,            ;* Set
-                      extop.left,           ;* Back.char
-                      extop.right,          ;* Fwd.char
-                      extop.tab,            ;* Tab
-                      extop.page.up,        ;* Page.up
-                      extop.page.down,      ;* Page.down
-                      extop.up,             ;* Up.line
-                      extop.down,           ;* Down.line
-                      extop.top,            ;* Top
-                      extop.bottom,         ;* Bottom
-                      extop.start.line,     ;* Start.line
-                      extop.end.line,       ;* End.line
-                      extop.del.char,       ;* Del.char
-                      extop.backspace,      ;* Backspace
-                      extop.kill.line,      ;* Kill.line
-                      extop.insert,         ;* Insert
-                      extop.newline,        ;* Newline
-                      extop.retype,         ;* Retype
-                      extop.kill.buffer,    ;* %Kill.buffer
-                      extop.fsearch,        ;* Fsearch
-                      extop.rsearch,        ;* Rsearch
-                      extop.file,           ;* File
-                      extop.id,             ;* Id
-                      extop.buffer.no,      ;* Buffer.no
-                      extop.buffer.type,    ;* Buffer.type
-                      extop.read.only,      ;* Read.only
-                      extop.current.line,   ;* Current line
-                      extop.current.char,   ;* Current char
-                      extop.col,            ;* Col
-                      extop.line.len,       ;* Line.len
-                      extop.line,           ;* Line
-                      extop.lines,          ;* Lines
-                      extop.mark.line,      ;* Mark.line
-                      extop.mark.col,       ;* Mark.col
-                      extop.set.mark,       ;* Set.mark
-                      extop.swap.mark,      ;* Swap.mark
-                      extop.goto.line,      ;* Goto.line
-                      extop.goto.col,       ;* Goto.col
-                      extop.prompt,         ;* Prompt
-                      extop.key.ready,      ;* Key.ready
-                      extop.get.char,       ;* Get.char
-                      extop.get.key,        ;* Get.key
-                      extop.wait.input,     ;* Wait.input
-                      extop.key.char,       ;* Key.char
-                      extop.prefix.count,   ;* Prefix.count
-                      extop.prefix.set,     ;* Prefix.set
-                      extop.paint,          ;* Paint
-                      extop.status.msg,     ;* Status.msg
-                      extop.beep,           ;* Beep
-                      extop.scroll,         ;* %Scroll
-                      extop.pan,            ;* %Pan
-                      extop.set.scroll,     ;* Set.scroll
-                      extop.set.pan,        ;* Set.pan
-                      extop.xeq,            ;* Xeq
-                      extop.bind.command,   ;* Bind.command
-                      extop.bind.key,       ;* Bind.key
-                      extop.unload,         ;* Unload extensions
-                      extop.at.im,
-                      extop.at.fm,
-                      extop.at.vm,
-                      extop.at.sm,
-                      extop.at.tm,
-                      extop.at.logname,
-                      extop.at.crthigh,
-                      extop.at.crtwide,
-                      extop.at.date,
-                      extop.at.path,
-                      extop.at.sentence,
-                      extop.at.term.type,
-                      extop.at.time,
-                      extop.at.tty,
-                      extop.at.userno,
-                      extop.at.who,
-                      extop.make.buffer,
-                      extop.find.record,    ;* Find.record
-                      extop.save.record,    ;* Save.record
-                      extop.write.record,   ;* Write.record
-                      extop.read,           ;* Read
-                      extop.write,          ;* Write
-                      extop.delete,         ;* Delete
-                      extop.exists,         ;* Exists
-                      extop.overlay,        ;* %overlay
-                      extop.set.overlay,    ;* Set.overlay
-                      extop.changed,        ;* %changed
-                      extop.set.changed,    ;* Set.changed
-                      extop.set.case,       ;* Set.case
-                      extop.toggle.chars,   ;* Toggle.chars
-                      extop.copy.region,    ;* Copy.region
-                      extop.delete.region,  ;* Delete.region
-                      extop.fwd.word,       ;* Fwd.word
-                      extop.back.word,      ;* Back.word
-                      extop.del.word,       ;* Del.word
-                      extop.del.back.word,  ;* Del.back.word
-                      extop.close.spaces,   ;* Close.spaces
-                      extop.next.buffer,    ;* Next.buffer
-                      extop.prev.buffer,    ;* Prev.buffer
-                      extop.goto.buffer,    ;* Goto.buffer
-                      extop.delete.buffer,  ;* Delete.buffer
-                      extop.key.bindings,   ;* %Key.bindings
-                      extop.num,            ;* Num
-                      extop.alpha,          ;* Alpha
-                      extop.convert,        ;* Convert
-                      extop.dcount,         ;* Dcount
-                      extop.count,          ;* Count
-                      extop.index,          ;* Index
-                      extop.rem,            ;* Rem
-                      extop.seq,            ;* Seq
-                      extop.char,           ;* Char
-                      extop.iconv,          ;* Iconv
-                      extop.oconv,          ;* Oconv
-                      extop.tab.interval,   ;* %Tab.interval
-                      extop.set.tab.interval, ;* Set.tab.interval
-                      extop.int,            ;* Int
-                      extop.find.buffer,    ;* Find.buffer
-                      extop.set.read.only,  ;* Set.read.only
-                      extop.macro.state,    ;* %Macro.state
-                      extop.quit,           ;* Quit
-                      extop.execute,        ;* Execute
-                      extop.width,          ;* %width
-                      extop.height,         ;* %height
-                      extop.min,            ;* min
-                      extop.max,            ;* max
-                      extop.matches,        ;* matches
-                      extop.matchfield,     ;* matchfield
-                      extop.trim,           ;* trim
-                      extop.upcase,         ;* upcase
-                      extop.downcase,       ;* downcase
-                      extop.illegal         ;* Catch out of range opcode
-   repeat
-
-
-ext.return:
-   execution.depth -= 1
-   if execution.depth = 0 and refresh.file then
-      gosub paint.file.line
-      refresh.file = @false
-   end
-
-   if unload.extensions then
-      extensions = ''
-      mat ext.table = ''
-   end
-
-   return
-
-
-extop.ldlit:     ;* Load string literal
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = ext.op[2,9999999]
-   return
-
-extop.ldvar:     ;* Load user variable reference
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = ext.vars(ext.var.base + ext.op[2,9999])
-   return
-
-extop.ufunc:     ;* Run user function
-extop.uproc:     ;* Run user procedure
-   if dcount(call.stack, @fm) = MAX.EXT.DEPTH then
-      ext.code = 5
-      return to ext.return  ;* Break out of dispatch loop
-   end
-
-   s = ext.idx:@vm:getrem(ext.proc):@vm:ext.var.base
-   ins s before call.stack<1>           ;* Save return information
-   ext.var.base += seq(ext.proc[4,1])   ;* Adjust local variable stack
-
-   s = ext.op[2,9999]
-   ext.arg.count = field(s, '.', 1)
-   ext.name = field(s, '.', 2, 9999)
-   is.func = (opcode = OP.UFUNC)
-   gosub recursive
-
-   ext.idx = call.stack<1,1> + 0
-   ext.proc = ext.table(ext.idx)
-   setrem call.stack<1,2> on ext.proc
-   ext.var.base = call.stack<1,3> + 0
-
-   del call.stack<1>
-
-   if ext.code then return to ext.return  ;* Stop or error - unwind 
-   return
-
-extop.return:    ;* Return to caller
-   ext.code = 0
-   return to ext.return  ;* Break out of dispatch loop
-
-extop.jze:
-   n = e.stack(e.stack.ptr)
-   e.stack.ptr -= 1
-   if not(n) then setrem ext.op[2,99] on ext.proc
-   return
-
-extop.jnz:
-   n = e.stack(e.stack.ptr)
-   e.stack.ptr -= 1
-   if n then setrem ext.op[2,99] on ext.proc
-   return
-
-extop.jmp:
-   setrem ext.op[2,99] on ext.proc
-   return
-
-extop.ldgvr:
-   s = ext.op[2,9999]
-   gosub find.gvar
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = global.vars(i)
-   return
-
-extop.setgvar:
-   s = ext.op[2,9999]
-   gosub find.gvar
-   global.vars(i) = e.stack(e.stack.ptr)
-   e.stack.ptr -= 1
-   return
-
-extop.jne:
-   if (e.stack(e.stack.ptr) # e.stack(e.stack.ptr-1)) then
-      e.stack.ptr -= 1
-      setrem ext.op[2,99] on ext.proc
-   end else
-      e.stack.ptr -= 2
-   end
-   return
-
-extop.pop:
-   e.stack.ptr -= 1
-   return
-
-extop.ldnum:     ;* Load numeric literal
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = ext.op[2,9999999] + 0
-   return
-
-extop.lcall:
-   if dcount(lcall.stack, @sm) > MAX.LCALL.DEPTH then
-      ext.code = 8
-      return to ext.return  ;* Break out of dispatch loop
-   end
-   ins getrem(ext.proc) before lcall.stack<1,1,1>
-   setrem ext.op[2,999] on ext.proc
-   return
-
-extop.lretn:
-   setrem lcall.stack<1,1,1> on ext.proc
-   del lcall.stack<1,1,1>
-   return
-
-extop.loop:
-   ins ext.op[2,99] before loop.stack<1>
-   return
-
-extop.exit:
-   setrem loop.stack<1> on ext.proc
-   del loop.stack<1>
-   return
-
-extop.stop:
-   ext.code = 2
-   return to ext.return  ;* Break out of dispatch loop
-
-extop.illegal:
-   stop 'Illegal opcode in extension'
-
-extop.add:       ;* Add
-   i = e.stack(e.stack.ptr) ; if not(num(i)) then i = 0
-   e.stack.ptr -= 1
-   j = e.stack(e.stack.ptr) ; if not(num(i)) then i = 0
-   e.stack(e.stack.ptr) = i + j
-   return
-
-extop.sub:       ;* Sub
-   i = e.stack(e.stack.ptr) ; if not(num(i)) then i = 0
-   e.stack.ptr -= 1
-   j = e.stack(e.stack.ptr) ; if not(num(i)) then i = 0
-   e.stack(e.stack.ptr) = j - i
-   return
-
-extop.mul:       ;* Mul
-   i = e.stack(e.stack.ptr) ; if not(num(i)) then i = 0
-   e.stack.ptr -= 1
-   j = e.stack(e.stack.ptr) ; if not(num(i)) then i = 0
-   e.stack(e.stack.ptr) = i * j
-   return
-
-extop.div:       ;* Div
-   i = e.stack(e.stack.ptr) ; if not(num(i)) then i = 1
-   e.stack.ptr -= 1
-   j = e.stack(e.stack.ptr) ; if not(num(i)) then i = 0
-   e.stack(e.stack.ptr) = j / i
-   return
-
-extop.concat:
-   e.stack.ptr -= 1
-   e.stack(e.stack.ptr) := e.stack(e.stack.ptr+1)
-   return
-   
-extop.substr:
-   e.stack.ptr -= 2
-   i = e.stack(e.stack.ptr+2) ; if not(num(i)) then i = 1 ;* Length
-   j = e.stack(e.stack.ptr+1)   ; if not(num(J)) then j = 0 ;* Start
-   e.stack(e.stack.ptr) = e.stack(e.stack.ptr)[j, i]
-   return
-
-extop.pad:
-   i = e.stack(e.stack.ptr)
-   e.stack.ptr -=1
-   if num(i) then
-      s = e.stack(e.stack.ptr)
-      if len(s) < i then e.stack(e.stack.ptr) := space(i - len(s)) 
-   end
-   return
-
-extop.len:
-   e.stack(e.stack.ptr) = len(e.stack(e.stack.ptr))
-   return
-
-extop.trimf:
-   e.stack(e.stack.ptr) = trimf(e.stack(e.stack.ptr))
-   return
-
-extop.trimb:
-   e.stack(e.stack.ptr) = trimb(e.stack(e.stack.ptr))
-   return
-
-extop.extract:
-   e.stack.ptr -= 3
-   i = e.stack(e.stack.ptr+1) ; if not(num(i)) then i = 1 ;* Field
-   j = e.stack(e.stack.ptr+2) ; if not(num(j)) then j = 0 ;* Value
-   k = e.stack(e.stack.ptr+3) ; if not(num(k)) then k = 0 ;* Subvalue
-   e.stack(e.stack.ptr) = e.stack(e.stack.ptr)<i,j,k>
-   return
-
-extop.rep:
-   e.stack.ptr -= 4
-   i = e.stack(e.stack.ptr+1) ; if not(num(i)) then i = 1 ;* Field
-   j = e.stack(e.stack.ptr+2) ; if not(num(j)) then j = 0 ;* Value
-   k = e.stack(e.stack.ptr+3) ; if not(num(k)) then k = 0 ;* Subvalue
-   e.stack(e.stack.ptr)<i,j,k> = e.stack(e.stack.ptr+4)
-   return
-
-extop.del:
-   e.stack.ptr -= 3
-   i = e.stack(e.stack.ptr+1) ; if not(num(i)) then i = 1 ;* Field
-   j = e.stack(e.stack.ptr+2) ; if not(num(j)) then j = 0 ;* Value
-   k = e.stack(e.stack.ptr+3) ; if not(num(k)) then k = 0 ;* Subvalue
-   del e.stack(e.stack.ptr)<i,j,k>
-   return
-
-extop.ins:
-   e.stack.ptr -= 4
-   i = e.stack(e.stack.ptr+1) ; if not(num(i)) then i = 1 ;* Field
-   j = e.stack(e.stack.ptr+2) ; if not(num(j)) then j = 0 ;* Value
-   k = e.stack(e.stack.ptr+3) ; if not(num(k)) then k = 0 ;* Subvalue
-   ins e.stack(e.stack.ptr+4) before e.stack(e.stack.ptr)<i,j,k>
-   return
-
-extop.field:
-   e.stack.ptr -= 3
-   j = e.stack(e.stack.ptr+2) ; if not(num(j)) then j = 1 ;* Occurrence
-   k = e.stack(e.stack.ptr+3) ; if not(num(k)) then k = 1 ;* Count
-   e.stack(e.stack.ptr) = field(e.stack(e.stack.ptr), e.stack(e.stack.ptr+1), j, k)
-   return
-
-extop.eq:
-   e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = (e.stack(e.stack.ptr) = e.stack(e.stack.ptr+1))
-   return
-
-extop.ne:
-   e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = (e.stack(e.stack.ptr) # e.stack(e.stack.ptr+1))
-   return
-
-extop.gt:
-   e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = (e.stack(e.stack.ptr) > e.stack(e.stack.ptr+1))
-   return
-
-extop.ge:
-   e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = (e.stack(e.stack.ptr) >= e.stack(e.stack.ptr+1))
-   return
-
-extop.lt:
-   e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = (e.stack(e.stack.ptr) < e.stack(e.stack.ptr+1))
-   return
-
-extop.le:
-   e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = (e.stack(e.stack.ptr) <= e.stack(e.stack.ptr+1))
-   return
-
-extop.and:
-   e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = (e.stack(e.stack.ptr) and e.stack(e.stack.ptr+1))
-   return
-
-extop.or:
-   e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = (e.stack(e.stack.ptr) or e.stack(e.stack.ptr+1))
-   return
-
-extop.not:
-   e.stack(e.stack.ptr) = not(e.stack(e.stack.ptr))
-   return
-
-extop.set:
-   ext.vars(ext.var.base + ext.op[2,9999]) = e.stack(e.stack.ptr)
-   e.stack.ptr -= 1
-   return
-   
-extop.left:      ;* Left
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.left
-   end
-   return
-
-extop.right:     ;* Right
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.right
-   end
-   return
-
-extop.tab:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 and not(read.only) then
-      rpt = int(i)
-      gosub a.tab
-   end
-   return
-
-extop.page.up:     ;* Page.up
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.page.up
-      line.len = len(current.line)
-   end
-   return
-
-extop.page.down:     ;* Page.down
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.page.down
-      line.len = len(current.line)
-   end
-   return
-
-extop.up:     ;* Up
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.up
-      line.len = len(current.line)
-   end
-   return
-
-extop.down:     ;* Down
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.down
-      line.len = len(current.line)
-   end
-   return
-
-extop.top:
-   gosub a.top
-   return
-
-extop.bottom:
-   gosub a.bottom
-   return
-
-extop.start.line:
-   gosub a.home
-   return
-
-extop.end.line:
-   gosub a.end
-   return
-
-extop.del.char:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if not(read.only) and num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.delete
-      line.len = len(current.line)
-   end
-   return
-
-extop.backspace:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if not(read.only) and int(i) and i > 0 then
-      rpt = int(i)
-      gosub a.backspace
-      line.len = len(current.line)
-   end
-   return
-
-extop.kill.line:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if not(read.only) and num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.kill.line
-      line.len = len(current.line)
-   end
-   return
-
-extop.insert:
-   if not(read.only) then
-      loop
-      while len(e.stack(e.stack.ptr))
-         c = field(e.stack(e.stack.ptr), @fm, 1)
-         e.stack(e.stack.ptr) = e.stack(e.stack.ptr)[col2(),9999999]
-         if len(c) then
-            if col > line.len then col = line.len + 1
-            if overlay then
-               current.line = current.line[1, col - 1] : c : current.line[col + len(c), 99999999]
-            end else
-               current.line = current.line[1, col - 1] : c : current.line[col, 99999999]
-               if line = mark.line then
-                  if mark.col >= col then mark.col += len(c)
-               end
-            end
-
-            col += len(c)
-            line.len = len(current.line)
-            line.updated = @true
-            if line > lines then gosub save.current  ;* Make new line
-            gosub refresh.line
-         end
-
-         loop
-         while e.stack(e.stack.ptr)[1,1] = @fm
-            e.stack(e.stack.ptr) = e.stack(e.stack.ptr)[2,999999]
-            rpt = 1 ; gosub a.newline
-            line.len = len(current.line)
-         repeat
-      repeat
-   end
-   e.stack.ptr -= 1
-   return
-
-extop.newline:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if not(read.only) and num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.newline
-      line.len = len(current.line)
-   end
-   return
-
-extop.retype:
-   if not(read.only) then
-      current.line = e.stack(e.stack.ptr)
-      line.len = len(current.line)
-      line.updated = @true
-      if line > lines then gosub save.current  ;* Make new line
-      gosub refresh.line
-   end
-   e.stack.ptr -= 1
-   return
-
-extop.kill.buffer:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = kill.buffer
-   return
-
-extop.fsearch:
-   search.string = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   saved.search.mode = search.mode
-   search.mode = e.stack(e.stack.ptr)
-   if not(num(search.mode)) then search.mode = 0
-   if col > line.len then col = line.len + 1
-   advance = 1
-   gosub fsearch
-   e.stack(e.stack.ptr) = found
-
-   search.mode = saved.search.mode
-
-   return
-
-extop.rsearch:
-   search.string = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   saved.search.mode = search.mode
-   search.mode = e.stack(e.stack.ptr)
-   if not(num(search.mode)) then search.mode = 0
-   if col > line.len then col = line.len + 1
-   gosub rsearch
-   e.stack(e.stack.ptr) = found
-
-   search.mode = saved.search.mode
-
-   return
-
-extop.file:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = if len(dict.flag) then ('DICT ':file.name) else file.name
-   return
-
-extop.id:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = record.name
-   return
-
-extop.buffer.no:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = current.buffer
-   return
-
-extop.buffer.type:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = buffer.type
-   return
-
-extop.read.only:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = read.only
-   return
-
-extop.current.line:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = current.line
-   return
-
-extop.current.char:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = current.line[col,1]
-   return
-
-extop.col:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = col
-   return
-   
-extop.line.len:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = len(current.line)
-   return
-   
-extop.line:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = line
-   return
-   
-extop.lines:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = lines
-   return
-
-extop.mark.line:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = mark.line
-   return
-
-extop.mark.col:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = if mark.line then mark.col else 0
-   return
-
-extop.set.mark:
-   gosub a.mark
-   return
-
-extop.swap.mark:
-   if mark.line then gosub a.swap.mark
-   return
-
-extop.goto.line:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.goto.line
-      line.len = len(current.line)
-   end
-   return
-
-extop.goto.col:
-   j = e.stack(e.stack.ptr)
-   e.stack.ptr -= 1
-   if num(j) and j > 0 then
-      col = j
-      i = col - (line.len + 1)
-      if i > 0 then
-         current.line := space(i)
-         line.len += i
-         line.updated = @true
-      end
-   end
-   return
-
-extop.prompt:
-   s = e.stack(e.stack.ptr)
-   e.stack.ptr -= 1
-   prefix = e.stack(e.stack.ptr) : ': '
-   gosub get.string
-   if aborted then s = ''
-   e.stack(e.stack.ptr) = s
-   return
-
-extop.key.ready:
-   gosub check.keyready
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = keyready
-   return
-
-extop.get.char:
-   gosub getch
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = c
-   return
-
-extop.get.key:
-   gosub update.screen
-   gosub place.cursor
-   gosub get.key
-   e.stack.ptr += 1
-   if action > LAST.BINDABLE.ACTION then
-      e.stack(e.stack.ptr) = 500 + action - LAST.BINDABLE.ACTION
-   end else
-      e.stack(e.stack.ptr) = action
-   end
-   key.char = if action = F.INSERT then c else ''
-   prefix.count = if rpt.set then rpt else -1
-   return
-
-extop.wait.input:
-   gosub wait.input
-   return
-
-extop.key.char:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = key.char
-   return
-
-extop.prefix.count:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = if prefix.count < 0 then 1 else prefix.count
-   return
-
-extop.prefix.set:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = (prefix.count >= 0)
-   return
-
-extop.paint:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if i then
-      gosub clear.screen
-      gosub refresh.all
-   end
-   gosub update.screen
-   gosub place.cursor
-   return   
-
-extop.status.msg:
-   message = e.stack(e.stack.ptr)[1,swm1]
-   e.stack.ptr -= 1
-   if len(message) then gosub file.msg else gosub paint.file.line
-   refresh.file = @true
-   return
-
-extop.beep:
-   display @sys.bell :
-   return
-
-extop.scroll:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = top.line
-   return
-
-extop.pan:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = pan
-   return
-
-extop.set.scroll:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 and i <= lines then
-      top.line = i
-      gosub refresh.all
-   end
-   return
-
-extop.set.pan:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      pan = i
-      gosub refresh.all
-   end
-   return
-
-extop.xeq:
-   suppress.command.cr = @false
-   goto extop.xeq.common
-extop.execute:
-   suppress.command.cr = @true
-extop.xeq.common:
-   s = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   gosub ext.command
-   if abort.macro then
-      ext.code = 6
-      return to ext.return  ;* Break out of dispatch loop
-   end
-   return
-
-extop.bind.command:
-   e.stack.ptr -= 2
-   s = e.stack(e.stack.ptr+2)
-   locate s in extension.commands<1,1> setting i else
-      extension.commands<1,i> = s
-   end
-   extension.commands<2,i> = upcase(e.stack(e.stack.ptr+1))
-   return
-
-extop.bind.key:
-   z = e.stack(e.stack.ptr) ; e.stack.ptr -= 1   ;* Key sequence
-   k = upcase(e.stack(e.stack.ptr))              ;* Extension name
-   e.stack(e.stack.ptr) = @false                  ;* Initialise for failure
-
-   n = len(z)
-   begin case
-      case n = 0
-         return
-
-      case n = 1   ;* Single key binding
-         n = seq(z[1,1])
-         if n >= 127 or seq(action.list[n,1]) = 0 then
-            action.list[n,1] = char(F.BOUND.EXT)
-            ext.func.bindings<n> = k    ;* Proc name
-            e.stack(e.stack.ptr) = @true
-         end
-
-      case 1
-         n = seq(z[1,1])
-         if n < 32 or n >= 127 then
-            if seq(action.list[n,1]) = 0 then
-               locate z in keys<1> by 'AL' setting i else
-                  ins z before keys<i>
-                  ins F.BOUND.EXT:@vm:k before key.actions<i>
-                  e.stack(e.stack.ptr) = @true
-               end
-            end
-         end
-   end case
-   return
-
-extop.unload:
-   unload.extensions = @true
-   return
-
-extop.at.im:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @im
-   return
-
-extop.at.fm:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @fm
-   return
-
-extop.at.vm:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @vm
-   return
-
-extop.at.sm:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @sm
-   return
-
-extop.at.tm:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @tm
-   return
-
-extop.at.logname:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @logname
-   return
-
-extop.at.crthigh:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @crthigh
-   return
-
-extop.at.crtwide:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @crtwide
-   return
-
-extop.at.date:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = date()
-   return
-
-extop.at.path:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @path
-   return
-
-extop.at.sentence:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @sentence
-   return
-
-extop.at.term.type:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @term.type
-   return
-
-extop.at.time:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = time()
-   return
-
-extop.at.tty:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @tty
-   return
-
-extop.at.userno:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @userno
-   return
-
-extop.at.who:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = @who
-   return
-
-extop.make.buffer:
-   gosub save.buffer
-
-   s = e.stack(e.stack.ptr)   ;* Buffer name
-
-   * Look for a buffer of the required name
-
-   for i = 1 to no.of.buffers
-      if buffer(i)<BUFF.TYPE> # BUFF.TYPE.DATA then continue
-      if buffer(i)<BUFF.FILE.NAME> # '' then continue
-      if buffer(i)<BUFF.DICT.FLAG> # '' then continue
-      if buffer(i)<BUFF.RECORD.NAME> # s then continue
-
-      current.buffer = i
-      gosub get.buffer
-      e.stack(e.stack.ptr) = @true
-      return
-   next i
-
-   if no.of.buffers < MAX.BUFFERS then
-      no.of.buffers += 1
-      current.buffer = no.of.buffers
-      buffer(no.of.buffers) = ''
-      file.name = ''
-      dict.flag = ''
-      gosub set.unames
-      if uppercase.names then record.name = upcase(e.stack(e.stack.ptr)[1,40])
-      else record.name = e.stack(e.stack.ptr)[1,40]
-      buffer.type = BUFF.TYPE.DATA
-      buffer.comment = ''
-      buffer.tag = next.buffer.tag
-      next.buffer.tag += 1
-      record.updated = @false
-      read.only = @false
-      record.locked = @false
-      rec = '' ; lines = 1 ; gosub split.into.chunks
-      mark.line = 0 ; mark.col = 0
-      lcol = 0
-      gosub save.buffer
-      gosub get.buffer    ;* Force reset of all sorts of things
-      gosub get.current
-
-      e.stack(e.stack.ptr) = @true
-   end else
-      e.stack(e.stack.ptr) = @false
-   end
-   return
-
-extop.find.record:
-   if other.live then  ;* Was split live but no longer
-      line = other.line
-      col = other.col
-   end
-
-   gosub save.buffer
-   record.name = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   file.name = e.stack(e.stack.ptr)
-   e.stack(e.stack.ptr) = 0  ;* Initialise for failure
-   if no.of.buffers >= MAX.BUFFERS then return
-   if len(file.name) = 0 then return
-   if len(record.name) = 0 then return
-
-   if (upcase(file.name[1,5]) = "DICT ") and len(file.name[6,999999]) then
-      dict.flag = "DICT"
-      file.name = file.name[6,999999]
-   end else
-      dict.flag = ""
-   end
-
-   no.of.buffers += 1
-   old.buffer = current.buffer
-   current.buffer = no.of.buffers
-   buffer(current.buffer) = ''
-
-   gosub open.file
-   if not(open.ok) then
-      no.of.buffers -= 1
-      current.buffer = old.buffer
-      gosub get.buffer
-      return
-   end
-
-   * Check if we already have this record
-   * Ensure we perform a string comparison otherwise buffer 0 and 00 are
-   * the same
-
-   for i = 1 to no.of.buffers - 1
-      if buffer(i)<BUFF.UNAMES> then
-         s = file.name : @fm : upcase(record.name) : @fm : dict.flag
-      end else
-         s = file.name : @fm : record.name : @fm : dict.flag
-      end
-
-      if buffer(i)<BUFF.FILE.NAME>:@fm:buffer(i)<BUFF.RECORD.NAME>:@fm:buffer(i)<BUFF.DICT.FLAG> = s then
-         no.of.buffers -= 1
-         current.buffer = i
-         gosub get.buffer
-         e.stack(e.stack.ptr) = @true
-         return
-      end
-   next i
-
-   gosub read.record
-   if read.blocked.by.lock or aborted then
-      no.of.buffers -= 1
-      current.buffer = old.buffer
-      gosub get.buffer
-      return
-   end
-
-   buffer.tag = next.buffer.tag
-   next.buffer.tag += 1
-
-   gosub save.buffer      ;* Just to force...
-   gosub get.buffer       ;* ...update of variables and screen
-   gosub update.screen
-   gosub place.cursor
-   return
-
-extop.save.record:
-   if len(file.name) and not(read.only) then gosub save.record
-   return
-
-extop.write.record:
-   write.record.name = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   write.file.name = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-
-   if (upcase(write.file.name[1,5]) = "DICT ") and len(write.file.name[6,999999]) then
-      write.dict.flag = "DICT"
-      write.file.name = write.file.name[6,999999]
-   end
-   else write.dict.flag = ""
-
-   open write.dict.flag, write.file.name to write.file else
-      write.file.name = upcase(write.file.name)
-      open write.dict.flag, write.file.name to write.file else
-         return
-      end
-   end
-
-   gosub set.unames
-   if uppercase.names then write.record.name = upcase(write.record.name)
-
-   * Use readvu rather than recordlocku for UniVerse rev 7 compatibility
-   readvu s from write.file, write.record.name, 0 locked
-      return   ;* Ignore write to locked record
-   end
-   then
-      null
-   end
-
-   if dict.flag # write.dict.flag or file.name # write.file.name or record.name # write.record.name then
-      if record.locked then
-         release file(current.buffer), record.name  ;* Release existing lock
-         record.locked = @false
-      end
-
-      dict.flag = write.dict.flag
-      file.name = write.file.name
-      record.name = write.record.name
-      file(current.buffer) = write.file
-      buffer.type = BUFF.TYPE.DATA
-   end
-
-   read.only = @false
-   record.locked = @true
-   gosub save.record
-   write.file = 0
-   return
-
-extop.read:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1  ;* Record id
-   j = e.stack(e.stack.ptr)                     ;* File name
-   e.stack(e.stack.ptr) = ''
-   if len(i) and len(j) then
-      open j to temp.f then
-         read s from temp.f, i then e.stack(e.stack.ptr) = s
-         close temp.f
-      end
-   end
-   return
-
-extop.write:
-   s = e.stack(e.stack.ptr) ; e.stack.ptr -= 1  ;* Data to write
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1  ;* Record id
-   j = e.stack(e.stack.ptr) ; e.stack.ptr -= 1  ;* File name
-
-   if len(i) and len(j) then
-      open j to temp.f then
-         recordlocku temp.f, i
-         write s to temp.f, i
-         close temp.f
-      end
-   end
-   return
-
-extop.delete:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1  ;* Record id
-   j = e.stack(e.stack.ptr) ; e.stack.ptr -= 1  ;* File name
-   if len(i) and len(j) then
-      open j to temp.f then
-         recordlocku temp.f, i
-         delete temp.f, i
-         close temp.f
-      end
-   end
-   return
-
-extop.exists:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1  ;* Record id
-   j = e.stack(e.stack.ptr)                     ;* File name
-   e.stack(e.stack.ptr) = @false
-   if len(i) and len(j) then
-      open j to temp.f then
-         readv s from temp.f, i, 0 then e.stack(e.stack.ptr) = @true
-         close temp.f
-      end
-   end
-   return
-
-extop.overlay:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = overlay
-   return
-
-extop.set.overlay:
-   overlay = (e.stack(e.stack.ptr) # 0)
-   e.stack.ptr -= 1
-   return
-
-extop.changed:
-   gosub save.current
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = record.updated
-   return
-
-extop.set.changed:
-   gosub save.current
-   record.updated = (e.stack(e.stack.ptr) # 0)
-   e.stack.ptr -= 1
-   refresh.file = @true
-   return
-
-extop.set.case:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   n = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if not(read.only) and num(i) and i > 0 then
-      rpt = int(i)
-      begin case
-         case n = 0 ; gosub a.dncase
-         case n = 1 ; gosub a.upcase
-         case n = 2 ; gosub a.cap.init
-      end case
-   end
-   return
-
-extop.toggle.chars:
-   if not(read.only) then gosub a.toggle
-   return
-
-extop.copy.region:
-   if mark.line then
-      gosub copy.region
-      kill.buffer = region.text
-      region.text = ''
-   end
-   return
-
-extop.delete.region:
-   if not(read.only) and mark.line then
-      gosub copy.region
-      kill.buffer = region.text
-      region.text = ''
-      gosub delete.region
-      mark.line = 0
-   end
-   return
-
-extop.fwd.word:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.fwd.word
-   end
-   return
-
-extop.back.word:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.back.word
-   end
-   return
-
-extop.del.word:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if not(read.only) and num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.del.word
-   end
-   return
-
-extop.del.back.word:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if not(read.only) and num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.del.back.word
-   end
-   return
-
-extop.close.spaces:
-   if not(read.only) then gosub a.close.spaces
-   return
-
-extop.next.buffer:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.next.buffer
-   end
-   return
-
-extop.prev.buffer:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 then
-      rpt = int(i)
-      gosub a.prev.buffer
-   end
-   return
-
-extop.goto.buffer:
-   rpt = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(rpt) and rpt > 0 and rpt <= no.of.buffers and rpt # current.buffer then
-      gosub save.buffer
-      current.buffer = int(rpt)
-      gosub get.buffer
-   end
-   return
-
-extop.delete.buffer:
-   if no.of.buffers > 1 then
-      gosub save.buffer
-
-      * Free memory for chunks currently in use
-      hd = head ; gosub release.chunks
-   
-      if not(read.only) and len(buffer(current.buffer)<BUFF.FILE.NAME>) then
-         release file(current.buffer), buffer(current.buffer)<BUFF.RECORD.NAME>
-      end
-   
-      gosub delete.current.buffer
-
-      if current.buffer > no.of.buffers then current.buffer = no.of.buffers
-      gosub get.buffer
-      gosub get.current
-   end
-   return
-
-extop.key.bindings:
-   gosub get.key.bindings
-   e.stack.ptr += 1 ; e.stack(e.stack.ptr) = s
-   return
-
-extop.num:
-   e.stack(e.stack.ptr) = num(e.stack(e.stack.ptr))
-   return
-
-extop.alpha:
-   e.stack(e.stack.ptr) = alpha(e.stack(e.stack.ptr))
-   return
-
-extop.convert:
-   s = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   j = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   i = e.stack(e.stack.ptr)
-   e.stack(e.stack.ptr) = convert(i, j, s)
-   return
-
-extop.dcount:
-   s = e.stack(e.stack.ptr)[1,1] ; e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = dcount(e.stack(e.stack.ptr), s)
-   return
-
-extop.count:
-   s = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = dcount(e.stack(e.stack.ptr), s)
-   return
-
-extop.index:
-   j = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if not(num(j)) then j = 1
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   s = e.stack(e.stack.ptr)
-   e.stack(e.stack.ptr) = index(s, i, j)
-   return
-
-extop.rem:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if not(num(i)) or i = 0 then i = 1
-   j = e.stack(e.stack.ptr) ; if not(num(j)) then j = 0
-   e.stack(e.stack.ptr) = rem(j,i)
-   return
-
-extop.seq:
-   e.stack(e.stack.ptr) = seq(e.stack(e.stack.ptr)[1,1])
-   return
-
-extop.char:
-   i = e.stack(e.stack.ptr)
-   e.stack(e.stack.ptr) = if num(i) then char(i) else ''
-   return
-
-extop.iconv:
-   s = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = iconv(e.stack(e.stack.ptr), s)
-   return
-
-extop.oconv:
-   s = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = oconv(e.stack(e.stack.ptr), s)
-   return
-
-extop.tab.interval:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = tab.interval
-   return
-
-extop.set.tab.interval:
-   i = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-   if num(i) and i > 0 and i < 100 then tab.interval = int(i)
-   return
-
-extop.int:
-   i = e.stack(e.stack.ptr)
-   if num(i) then e.stack(e.stack.ptr) = int(i)
-   return
-
-extop.find.buffer:
-   rn = e.stack(e.stack.ptr) ; e.stack.ptr -= 1  ;* Record name
-   s = e.stack(e.stack.ptr)   ;* File name
-   if len(s) > 5 and s[1,5] = 'DICT ' then
-      j = 'DICT'
-      s = trimf(s[6,99999])
-   end else
-      j = ''
-   end
-
-   * Look for a buffer of the required name
-
-   for i = 1 to no.of.buffers
-      if buffer(i)<BUFF.FILE.NAME> # s then continue
-      if buffer(i)<BUFF.DICT.FLAG> # j then continue
-      if buffer(i)<BUFF.RECORD.NAME> # rn then continue
-      e.stack(e.stack.ptr) = i
-      return
-   next i
-   e.stack(e.stack.ptr) = 0
-   return
-
-extop.set.read.only:
-   if buffer.type = BUFF.TYPE.DATA then
-      read.only = (e.stack(e.stack.ptr) # 0)
-      refresh.file = @true
-   end
-   e.stack.ptr -= 1
-   return
-
-extop.macro.state:
-   e.stack.ptr += 1
-   begin case
-      case collect         ; e.stack(e.stack.ptr) = 1
-      case executing.macro ; e.stack(e.stack.ptr) = 2
-      case 1               ; e.stack(e.stack.ptr) = 0
-   end case
-   return
-
-extop.quit:
-   gosub save.current
-   gosub save.buffer
-
-   j = e.stack(e.stack.ptr) ; e.stack.ptr -= 1
-
-   for i = 1 to no.of.buffers
-      if buffer(i)<BUFF.UPDATED> then return
-   next i
-
-   terminate = if j = 0 then TERMINATE.CURRENT else TERMINATE.ALL
-   ext.code = 9
-   return to ext.return  ;* Break out of dispatch loop
-
-   return
-
-extop.width:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = screen.width
-   return
-
-extop.height:
-   e.stack.ptr += 1
-   e.stack(e.stack.ptr) = displayed.lines
-   return
-
-extop.min:
-   e.stack.ptr -= 1
-   if e.stack(e.stack.ptr+1) < e.stack(e.stack.ptr) then
-      e.stack(e.stack.ptr) = e.stack(e.stack.ptr+1)
-   end
-   return
-
-extop.max:
-   e.stack.ptr -= 1
-   if e.stack(e.stack.ptr+1) > e.stack(e.stack.ptr) then
-      e.stack(e.stack.ptr) = e.stack(e.stack.ptr+1)
-   end
-   return
-
-extop.matches:
-   e.stack.ptr -= 1
-   e.stack(e.stack.ptr) = e.stack(e.stack.ptr) matches e.stack(e.stack.ptr+1)
-   return
-
-extop.matchfield:
-   e.stack.ptr -= 2
-   e.stack(e.stack.ptr) = matchfield(e.stack(e.stack.ptr), e.stack(e.stack.ptr+1), e.stack(e.stack.ptr+2))
-   return
-   
-extop.trim:
-   e.stack(e.stack.ptr) = trim(e.stack(e.stack.ptr))
-   return
-
-extop.upcase:
-   e.stack(e.stack.ptr) = upcase(e.stack(e.stack.ptr))
-   return
-
-extop.downcase:
-   e.stack(e.stack.ptr) = downcase(e.stack(e.stack.ptr))
-   return
-
-find.gvar:
-   locate s in global.var.names<1> setting i else
-      if i > ext.gvar.stack.size then
-         j = ext.gvar.stack.size + 10
-         dim global.vars(j)
-         loop
-            ext.gvar.stack.size += 1
-            global.vars(ext.gvar.stack.size) = ''
-         until ext.gvar.stack.size = j
-         repeat
-      end
-      global.var.names<i> = s
-   end
-   return
-
 * To do:
-* Track e.stack depth and allocate on entry
 * Undo for previous or last step of query replace, insert kill, import,
 * replace (all).  Do not do if damage done in macro (tough!)
 * Maintain file line using zoned update. Not so easy 'cos of error messages.

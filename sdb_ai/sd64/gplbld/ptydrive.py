@@ -35,6 +35,15 @@ from termscreen import Screen  # noqa: E402
 
 
 class PtySession:
+    idle_cap = None                     # see keeps_writing()
+
+    def keeps_writing(self):
+        """The program from here on writes a few bytes every second even when nothing is happening (the IDE does), so a settle
+        that asks for a second or more of silence would never see it and would run to its limit, 20 s each time.  Asked idles are
+        capped at 0.7 s for this session (9 Nov 26, S.191: ide-kinds, 805 s to 292 s, the same 64 rows).  Call it after sign-on,
+        just before the program starts: the sign-on's own pauses are longer and the prompt does not write."""
+        self.idle_cap = 0.7
+
     def __init__(self, argv, cwd, env, cols=100, rows=24, utf8=False):
         """utf8 True: what the program writes is decoded as UTF-8, so a three-byte character is one cell of the emulated
         screen, as on a UTF-8 terminal (the default is one cell to a byte, which is what every older suite relies on)."""
@@ -94,6 +103,8 @@ class PtySession:
 
     def settle(self, idle=0.35, limit=20.0):
         """Wait until the program has written nothing for `idle` seconds (or exited, or `limit` passes)."""
+        if self.idle_cap is not None:
+            idle = min(idle, self.idle_cap)
         end = time.time() + limit
         while time.time() < end and not self.exited:
             if not self._pump(idle):

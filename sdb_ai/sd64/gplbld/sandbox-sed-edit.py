@@ -308,19 +308,6 @@ def part_mouse(box):
     L = e.keys(click(40, 15), idle=0.9)
     row("a click outside the menu closes it, and puts nothing in the text", not any("Save as" in l for l in L[1:12]) and L[1] == base[1], "\n".join(L[:8]))
 
-    say("\n--- SED: a split window: a click in the other window goes there first -----------------------------------------")
-    e.keys(click(1, 2))
-    e.keys(F10, RIGHT, RIGHT, RIGHT, RIGHT, "s", idle=0.9)
-    L = e.lines()
-    srow = [i for i, l in enumerate(L) if i > 2 and F in l and i < 41]
-    row("control: Window > Split window cuts the screen in two: the file name is on a line in the middle", bool(srow) and 10 < srow[0] < 30, repr(srow))
-    L = e.keys(click(10, 24))
-    row("a click in the lower window (row 24: its third row) makes it the live one and puts the cursor on its line 3", at(e) is not None and at(e)[0] == 3, repr(at(e)))
-    L = e.keys(click(10, 4))
-    row("a click back in the upper window (row 4) goes there and puts the cursor on line 3 of it", at(e) is not None and at(e)[0] == 3, repr(at(e)))
-    e.keys(F10, RIGHT, RIGHT, RIGHT, RIGHT, "u", idle=0.9)
-    row("Window > Unsplit window puts the one window back", not any(F in l for l in e.lines()[3:39]), "")
-
     say("\n--- SED: a prompt takes no mouse report as an answer --------------------------------------------------------")
     e.keys(click(1, 2))
     e.keys("\x1bg")                                        # Alt-G, Goto line (S.179; Ctrl-L redraws)
@@ -374,7 +361,6 @@ def part_mouse(box):
 
 
 PAGE_DOWN = (F10, RIGHT, RIGHT, "d")                  # Search menu, "Page down"
-WINDOW = (F10, RIGHT, RIGHT, RIGHT, RIGHT)            # the Window menu: s split, u unsplit, p move split up, d move split down
 SEARCH = (F10, RIGHT, RIGHT)                          # the Search menu: v View lines...
 COMMAND = (F10, RIGHT, RIGHT, RIGHT, RIGHT, RIGHT, "n")   # the Tools menu, "Command..."
 TOOLS = (F10, RIGHT, RIGHT, RIGHT, RIGHT, RIGHT)          # the Tools menu: e Line numbers
@@ -496,45 +482,6 @@ def part_opts(box):
     row("VIEW: a text that no line holds is said so, and nothing is made", said(e, "No line holds that text"), "\n".join(e.lines()[-3:]))
     quit_asking(e)
     row("VIEW: control - the record on disk is as written", rec(box, "r1") == RECORD, repr(rec(box, "r1")))
-
-    # ---- SPLIT.UP / SPLIT.DOWN (578): the split point moves -----------------------------------------------------------------------------
-    alpha = lambda L: [i for i, l in enumerate(L) if "alpha one two" in l]            # noqa: E731 - the rows that show the first line
-    e = Term(box, "SED %s r1" % F)
-    one = alpha(e.lines())
-    row("SPLIT control: an unsplit window shows the first line once", len(one) == 1, repr(one))
-    e.keys(*WINDOW, "p", idle=0.9)
-    row("SPLIT: a move of the split point with no split does nothing", alpha(e.lines()) == one, repr(alpha(e.lines())))
-    e.keys(ESC, idle=0.9)                    # the item is dim when the window is not split, so the menu is still open: close it, or the next F10 would only close it
-    e.keys(*WINDOW, "s", idle=1.0)
-    two = alpha(e.lines())
-    row("SPLIT control: the split window shows the first line twice (the lower window starts at the second)", len(two) == 2,
-        "%r; the screen began %r" % (two, [l.strip() for l in e.lines() if l.strip()][:6]))
-    r0 = two[1] if len(two) == 2 else 0
-    e.keys(*WINDOW, "d", idle=0.9)
-    r1 = alpha(e.lines())
-    row("SPLIT: Move split down moves the lower window down one row", len(r1) == 2 and r1[1] == r0 + 1, "%r, was %d" % (r1, r0))
-    e.keys(*WINDOW, "p", idle=0.9)
-    e.keys(*WINDOW, "p", idle=0.9)
-    r2 = alpha(e.lines())
-    row("SPLIT: Move split up, twice, moves it up two rows (one above where it began)", len(r2) == 2 and r2[1] == r0 - 1, "%r, began at %d" % (r2, r0))
-    e.keys(*COMMAND, "SPLIT.DOWN 4", RET, idle=1.0)
-    r3 = alpha(e.lines())
-    row("SPLIT: SPLIT.DOWN 4 moves it four rows", len(r3) == 2 and r3[1] == r0 + 3, "%r, expected %d" % (r3, r0 + 3))
-    e.keys(*COMMAND, "SPLIT.DOWN 999", RET, idle=1.0)
-    rmax = alpha(e.lines())
-    e.keys(*WINDOW, "d", idle=0.9)
-    rmax2 = alpha(e.lines())
-    row("SPLIT: SPLIT.DOWN 999 stops where the lower window still has room, and one more row down changes nothing",
-        len(rmax) == 2 and rmax[1] > r0 + 3 and rmax2 == rmax, "%r then %r" % (rmax, rmax2))
-    e.keys(*COMMAND, "SPLIT.UP 999", RET, idle=1.0)
-    rmin = alpha(e.lines())
-    e.keys(*WINDOW, "p", idle=0.9)
-    rmin2 = alpha(e.lines())
-    row("SPLIT: SPLIT.UP 999 stops where the upper window still has room, and one more row up changes nothing",
-        len(rmin) == 2 and rmin[1] < r0 and rmin2 == rmin, "%r then %r" % (rmin, rmin2))
-    e.keys(*COMMAND, "SPLIT.UP x", RET, idle=1.0)
-    row("SPLIT: a point that is not a number is said so", said(e, "take a number of lines"), "\n".join(e.lines()[-3:]))
-    quit_asking(e)
 
 
 def main():

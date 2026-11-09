@@ -25,6 +25,7 @@
 * 9 Nov 26 dm  S.184 stage 2 (SED retired into the IDE): SED's editing commands in the area - Alt-Backspace and Alt-D delete a word, Alt-E cuts to the end of the
 *              line, Alt-T swaps two characters, Alt-U / Alt-L / Alt-C the word's case, Alt-Space closes a run of blanks, Alt-A aligns with the line above, Alt-M
 *              swaps the cursor and the selection's other end, Ctrl-Up / Ctrl-Down nudge the view (sed.edit, sed.move).
+* 09 Nov 26 dm S.184 stage 5: keyboard macros, SED's: Alt-R starts and ends the recording of the keys the area acts on, Alt-P plays them (macro.key).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -171,7 +172,7 @@ $include sl.h
 
       case op = 'key'
          gosub count
-         gosub handle.key
+         gosub macro.key
 
       case op = 'mouse'
          gosub count
@@ -1031,9 +1032,45 @@ find.prev:
    end
    return
 
+* A key, through the keyboard macro (9 Nov 26, S.184 stage 5).  Alt-R starts a recording (the old macro goes) and ends it; while it is on, every key the area acted on is
+*   kept in w{'macro'}, as fields; a key it passes back (a function key, a menu) and a paste are not.  Alt-P plays the keys, each as if typed, and stops at one the area does not
+*   act on; each is its own undo step, as it was when typed.  Not while recording, and neither key does anything while a macro plays.  A program's passkeys come first.
+macro.key:
+   if (key = 'alt-r' or key = 'alt-p') and not(index(@vm : w{'passkeys'} : @vm, @vm : key : @vm, 1)) then
+      ret = 'handled'
+      if w{'macrun'} + 0 then return
+      if key = 'alt-r' then
+         if w{'macrec'} + 0 then
+            w{'macrec'} = 0
+         end else
+            w{'macrec'} = 1
+            w{'macro'} = ''
+         end
+         return
+      end
+      if w{'macrec'} + 0 or w{'macro'} = '' then return
+      w{'macrun'} = 1
+      m.list = w{'macro'}
+      m.n = dcount(m.list, @fm)
+      for m.i = 1 to m.n
+         call $sl_memo('key', w, scr, m.list<m.i>, m.ret)
+      while m.ret<1> = 'handled'
+      next m.i
+      w{'macrun'} = 0
+      return
+   end
+   m.key = key
+   gosub handle.key
+   if w{'macrec'} + 0 and ret<1> = 'handled' and m.key # 'paste' then
+      m.list = w{'macro'}
+      m.list<-1> = m.key
+      w{'macro'} = m.list
+   end
+   return
+
 handle.key:
    ret = 'handled'
-   k0 = w{'lastop'}                  ;* what the key before did; a key that edits says what it did at the end
+   k0 = w{'lastop'}                 ;* what the key before did; a key that edits says what it did at the end
    w{'lastop'} = ''
    kind = ''
    vert = @false

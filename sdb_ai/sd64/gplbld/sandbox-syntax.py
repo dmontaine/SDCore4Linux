@@ -252,17 +252,6 @@ def main():
         row("a record whose id says no language (note.txt) is left plain, whatever it says: 'int main'", plain(t, 1, 0, 10) and plain(t, 2, 0, 8), repr((t.fg(1, 0), t.fg(2, 0))))
         t.end()
 
-        say("\n--- the window split in two ------------------------------------------------------------------")
-        t = Term(box, "SED %s demo.c" % F)
-        t.keys()
-        t.command("SYNTAX ON")
-        L = t.keys(F10, RIGHT, RIGHT, RIGHT, RIGHT, RET, idle=1.0)     # the Window menu's first item is Split window
-        n = sum(1 for l in L if "static int count" in l)
-        rows = [i for i, l in enumerate(L) if "static int count" in l]
-        row("Window, Split window: the record is on the screen twice", n == 2, "\n".join(L[:30]))
-        row("both windows are coloured: the keyword static in each", n == 2 and all(coloured(t, r, L[r].find("static"), 6) for r in rows), repr(rows))
-        t.end()
-
         say("\n--- NO.SYNTAX in &sed.options& starts SED with the colour off -----------------------------------")
         out = sess(box, "BASIC bp zzsyopt zzsyopt0", "RUN bp zzsyopt")
         row("setup: &sed.options& holds NO.SYNTAX", "OPT DONE" in out, out[-400:])

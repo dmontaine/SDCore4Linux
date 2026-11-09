@@ -109,6 +109,7 @@ class Ide:
         self.s.type("TERM xterm\r")
         self.s.type("TERM %s\r" % (term or "%d,%d" % (cols, rows)))        # term: a display that is not the window (19 Oct 26, verifier F4)
         self.log = [cmd]
+        self.s.keeps_writing()
         self.s.type(cmd + "\r", idle=1.2)
 
     def keys(self, *chunks):
@@ -618,7 +619,7 @@ end
 
         # ---- close with changes, discarding ------------------------------------------------------------------
         say("\n--- close a record with changes ----------------------------------------------------------------------")
-        L = e.keys(F10, DOWN * 5, RET)                     # File, Close record (the sixth entry: New, Open, Save, Save as, Write a copy, Close, Quit; S.88 Phase 4)
+        L = e.keys(F10, DOWN * 6, RET)                     # File, Close record (the seventh entry: New, Open, Save, Save as, Write a copy, Spool, Close, Quit)
         row("File, Close record on a changed record asks what to do", has(L, "has changes", "Save", "Discard", "Cancel"), e.text()[:500])
         L = e.keys(DOWN, RET)                              # Save, Discard, Cancel: down to Discard
         row("Discard closes the tab (one left) and the disk is as it was", B not in L[2] and "QQ" not in rec_text(box, B), L[2] + " | " + e.status())

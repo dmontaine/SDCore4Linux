@@ -77,8 +77,9 @@ def read(path):
 
 
 def load():
-    src = {"ide": read(os.path.join(GPL, "ide")), "tk_ai": read(os.path.join(GPL, "tk_ai")), "ide_name": read(os.path.join(GPL, "ide_name"))}
-    for n in NEWMSG + S184C + [11209, 11216, 11226, 11227, 11228, 11229]:
+    src = {"ide": read(os.path.join(GPL, "ide")), "tk_ai": read(os.path.join(GPL, "tk_ai")), "ide_name": read(os.path.join(GPL, "ide_name")),
+           "screen_ask": read(os.path.join(GPL, "screen_ask")), "bcomp": read(os.path.join(GPL, "bcomp")), "sl_memo": read(os.path.join(GPL, "sl_memo"))}
+    for n in NEWMSG + S184C + [11209, 11216, 11226, 11227, 11228, 11229, 14019, 14055, 14059, 14060]:
         src["m%d" % n] = read(os.path.join(MSG, str(n)))
     return src
 
@@ -91,7 +92,7 @@ def checks(src):
 
     ide = strip(src["ide"])
     names = ("ed.read", "ed.get", "ed.set", "find.in.line", "replace.line", "do.replace", "do.qreplace", "do.view", "do.findopts", "sel.range", "do.case", "do.export", "do.import", "do.xeq",
-             "do.refresh", "do.goto", "do.writeas", "write.copy", "run.cmd", "ed.source", "ed.shown", "do.find")
+             "do.refresh", "do.goto", "do.writeas", "write.copy", "run.cmd", "ed.source", "ed.shown", "do.find", "save.one", "source.control.hook", "do.spool", "spool.close", "do.filter", "list.ids", "load.file")
     L = {n: label(ide, n) for n in names}
     main = ide[: ide.find("apply.theme:")]
     ck("E0", "NULL CASE: the IDE was read and every routine this check reads is there (a check on nothing would pass)", len(ide) > 80000 and all(len(v) > 20 for v in L.values()),
@@ -215,11 +216,11 @@ def checks(src):
        and ordered(S["open.select"], "gosub open.record", "lst.ids = sel0", "lst.file = fn0", "lst.dict = dflag0", "lst.next = os.open + 1")
        and ordered(S["do.nextsel"], "if lst.ids = '' then", "sysmsg(14048)", "ns.id = lst.ids<lst.next>", "lst.next += 1", "gosub tab.find", "if tf.p = 0 then", "gosub open.record", "sysmsg(14050, ns.n)")
        and not re.search(r"\b(select|sselect|readnext|readlist)\b", re.sub(r"'[^']*'", "''", S["do.nextsel"])) and S["do.nextsel"].count("gosub open.record") == 1
-       and m26.endswith("|Next &record from the list~~nextsel") and "case cmd = 'nextsel'\n         gosub do.nextsel" in L["run.cmd"], "")
+       and m26.endswith("|Next &record from the list~~nextsel|Filter the r&ecords~~filter") and "case cmd = 'nextsel'\n         gosub do.nextsel" in L["run.cmd"], "")
     ck("E18", "the history (SED's stacks): /idehist/ is declared the same in ide and ide_name and set up once (ih.on); open.record pushes the file and the record for a record of a FILE (not a dictionary "
        "item, od = '') both when it opens a tab and when the record is already in one; hist.add moves a name already there to the top and keeps IH.MAX = 20; ide_name's Up and Down bring them back in "
        "Open's form only, the file entry from ih.files and the record entry from ih.recs, move the focus when nothing is kept, and never write the common",
-       "common /idehist/ ih.on, ih.files, ih.recs" in ide and "common /idehist/ ih.on, ih.files, ih.recs" in nm and re.search(r"^\s*IH\.MAX = 20\b", main, re.M)
+       "common /idehist/ ih.on, ih.files, ih.recs, ih.cmds" in ide and "common /idehist/ ih.on, ih.files, ih.recs, ih.cmds" in nm and re.search(r"^\s*IH\.MAX = 20\b", main, re.M)
        and ordered(main, "if ih.on + 0 # 1 then", "ih.files = ''", "ih.recs = ''", "ih.on = 1")
        and S["open.record"].count("if od = '' then gosub hist.push") == 2
        and ordered(S["hist.push"], "hp.item = or.file", "hp.list = ih.files", "gosub hist.add", "ih.files = hp.list", "hp.item = or.id", "hp.list = ih.recs", "gosub hist.add", "ih.recs = hp.list")
@@ -236,13 +237,50 @@ def checks(src):
        and src["m11229"].strip().endswith("|List of ta&bs~~tablist"), "")
     ck("E20", "Build > Run a command at the terminal (the last entry of Build): asked with 14053, the text kept (stash.current), the screen given over (leave.screen), ONE execute with TRAPPING ABORTS and "
        "no CAPTURING, and the screen taken back with Run's Press Return (retake.screen: the locks too); do.xeq still captures into the table",
-       ordered(S["do.xeqterm"], "screen ask sysmsg(14053) returning xm.cmd else return", "if xm.cmd = '' then return", "gosub stash.current", "gosub leave.screen",
+       ordered(S["do.xeqterm"], "screen ask sysmsg(14053) history ih.cmds returning xm.cmd else return", "if xm.cmd = '' then return", "gosub stash.current", "gosub leave.screen",
                "execute xm.cmd trapping aborts", "gosub retake.screen", "sysmsg(14054, xm.cmd)")
        and S["do.xeqterm"].count("execute") == 1 and "capturing" not in S["do.xeqterm"] and "retake.quiet" not in S["do.xeqterm"]
        and "execute xq.cmd trapping aborts capturing xq.out" in L["do.xeq"] and src["m11228"].strip().endswith("|Run a command at the termi&nal~~xeqterm"), "")
     ck("E21", "the messages 14047-14054 are there and not empty, and the help (11216) names the four: Run a command at the terminal, Next record from the list, Up and Down in Open, List of tabs",
        all(src["m%d" % n].strip() for n in S184C) and all(w in src["m11216"] for w in ("Run a command at the terminal", "Next record from the list", "Up, Down in the file or the record", "List of tabs")),
        repr([n for n in S184C if not src["m%d" % n].strip()]))
+    hk = L["source.control.hook"]
+    ck("E22", "S.184 stage 4: save.one calls source.control.hook after the overwrite question and BEFORE the write, as SED and ED do, and stops when it says no; the hook looks once for the catalogued subroutine, does nothing without one, "
+       "passes SED's arguments (dict flag, file, record as copies, the text, 1, allowed, updated), draws the screen again after it, refuses with 6653 and gives a lock it took back, and an update reaches the tab's text and what is written, a collection's through coll.value; the editor is loaded again",
+       ordered(L["save.one"], "Overwrite,Cancel", "gosub source.control.hook", "if not(srcc.ok) then return", "writeu sv.out on fv", "sv.reload = srcc.update")
+       and ordered(hk, "srcc.ok = @true", "srcc.update = @false", "if srcc.active < 0 then srcc.active = catalogued(srcc.name)", "if not(srcc.active) then return",
+                   "call @srcc.name((sv.dict), (bn<sv.i>), (sv.id), sv.text, 1, srcc.allowed, srcc.update)", "screen refresh", "last.status = char(1)", "if not(srcc.allowed) then",
+                   "if not(sv.slot) then release fv, sv.id", "srcc.ok = @false", "sysmsg(6653)", "if srcc.update then", "bx{k} = sv.text", "gosub coll.value", "sv.out = cv.y", "sv.out = sv.text")
+       and "srcc.name = 'source.control'" in ide and "srcc.active = -1" in ide, "")
+    sa = strip(src["screen_ask"])
+    ck("E23", "SCREEN ASK ... HISTORY: the compiler's row for ASK has the keyword after MASK and the subroutine takes hist between mask and ret; a MASK question recalls nothing and an empty list leaves Up and Down as they were; Up stops at the "
+       "oldest and keeps what was typed, Down gives it back; both IDE prompts offer ih.cmds and remember what was run through one routine, in the common's last place",
+       '"MASK:F":@sm:"HISTORY:1"' in src["bcomp"] and "subroutine screen_ask(prompt, value, width, title, ax, ay, mask, hist, ret, status)" in sa
+       and "hn = if mask # '' or hist = '' then 0 else dcount(hist, @fm)" in sa and "if (k = 'up' or k = 'down') and hn > 0 then" in sa
+       and ordered(sa, "recall:", "if hi >= hn then return", "if hi = 0 then draft = w{'value'}", "hi += 1", "if hi = 0 then return", "hi -= 1", "w{'value'} = if hi then hist<hi> else draft", "$sl_entry('init'", "$sl_entry('draw'")
+       and "screen ask sysmsg(11554) history ih.cmds returning xq.cmd" in ide and "screen ask sysmsg(14053) history ih.cmds returning xm.cmd" in ide
+       and ide.count("gosub hist.command") == 2 and "ih.cmds = hp.list" in ide, "")
+    me = strip(src["sl_memo"])
+    ck("E24", "keyboard macros: every key the area gets goes through macro.key; a program's passkeys come first; nothing happens to the two keys while a macro plays; a new recording empties the old; only a key the area acted on is recorded and a paste never; "
+       "the play stops at a key it does not act on and is not nested; the IDE keeps the macro across a remade form and has both on the Edit menu",
+       "gosub count\n         gosub macro.key" in me
+       and ordered(me, "macro.key:", "not(index(@vm : w{'passkeys'} : @vm, @vm : key : @vm, 1))", "if w{'macrun'} + 0 then return", "w{'macrec'} = 1", "w{'macro'} = ''", "if w{'macrec'} + 0 or w{'macro'} = '' then return",
+                   "w{'macrun'} = 1", "call $sl_memo('key', w, scr, m.list<m.i>, m.ret)", "while m.ret<1> = 'handled'", "w{'macrun'} = 0", "gosub handle.key", "if w{'macrec'} + 0 and ret<1> = 'handled' and m.key # 'paste' then")
+       and "mw{'macro'} = ed.macro" in ide and "ed.macro = ow{'macro'}" in ide and "|Start or end a macr&o~Alt-R~macrec|E&xecute the macro~Alt-P~macrun" in src["m14019"]
+       and src["m14055"].strip() != "" and "ctrl-down,alt-r,alt-p'" in ide, "")
+    sq = L["do.spool"]
+    ck("E25", "File, Spool the text: the words are at, lnum and region and anything else is refused before the printer is touched; region without a selection is refused; the text is the editor's, the record is neither read nor written; "
+       "a refused location ends the job and puts the unit back; after the job the screen is drawn again",
+       ordered(sq, "gosub ed.read", "screen ask sysmsg(14056)", "sp.c = 'at'", "sysmsg(6696", "sp.c = 'lnum'", "sp.c = 'region'", "sysmsg(14057", "sysmsg(11551)", "printer on", "!setpu(PU$LOCATION, 0, sp.at", "if sp.code then", "gosub spool.close", "return", "sp.l = ed.t<sp.ln>", "gosub spool.close")
+       and "write" not in re.sub(r"!setpu|sysmsg\([^)]*\)", "", sq).lower().replace("writeas", "")
+       and ordered(L["spool.close"], "printer off", "printer close", "printer on", "!setpu(PU$BANNER", "!setpu(PU$LOCATION", "printer off", "printer close", "screen refresh", "last.status = char(1)"), "")
+    fi, ls, lo = L["do.filter"], L["list.ids"], L["load.file"]
+    ck("E26", "Go, Filter the records and the tree's pages: a list the tree asks for names its key, and a caller with no key (Find in the records) sees every record; a bare word becomes WITH @ID LIKE, a quoted text is checked as SED checks it; a change goes back to page 0; "
+       "the filter goes through the query processor with its output captured and a refusal lists nothing; a page skips the earlier records; the N and B rows change the page and load the list again",
+       ordered(lo, "lr.key = 'F:' : lf.name", "gosub list.ids", "lr.key = ''") and ordered(ls, "if lr.key # '' then", "lr.tmpl = lt.text<lr.p>", "lr.skip = (lt.page<lr.p> + 0) * MAXREC", "if lr.tmpl # '' then",
+       "execute 'sselect ' : lr.sent : ' ' : lr.tmpl : ' to 9' trapping aborts capturing lr.cap", "if @system.return.code < 0 then", "lr.ok = @false", "msg = sysmsg(14063", "for lr.s = 1 to lr.skip", "readnext lr.id from 9 else exit")
+       and ordered(fi, "gosub get.context", "sysmsg(14059)", "screen ask sysmsg(14060", "'LIKE '", "'WITH '", "sysmsg(6674)", "with @id like", "sysmsg(6675)", "fx.t = 'with @id like \"' : fx.t : '\"'", "lt.text<fx.at> = fx.t", "lt.page<fx.at> = 0", "gosub load.dict", "gosub load.file", "gosub tree.apply")
+       and "case code[1, 2] = 'N:' or code[1, 2] = 'B:'" in ide and "lmore<lp> = lr.more" in ide and "del lmore<lp>" in ide and "lr.key = ''" in ide, "")
     return rows
 
 
@@ -388,10 +426,48 @@ MUTANTS += [
     ("List of tabs goes to a tab on Esc", "E19", sub("ide", "   if tq.st = 0 then\n      new.cb = tq.ret + 0", "   if 1 then\n      new.cb = tq.ret + 0")),
     ("the terminal command's output is captured", "E20", sub("ide", "   execute xm.cmd trapping aborts\n", "   execute xm.cmd trapping aborts capturing xm.out\n")),
     ("an abort of the terminal command ends the IDE", "E20", sub("ide", "   execute xm.cmd trapping aborts\n", "   execute xm.cmd\n")),
-    ("the terminal command loses the editor's text", "E20", sub("ide", "   if xm.cmd = '' then return\n   gosub stash.current\n", "   if xm.cmd = '' then return\n")),
+    ("the terminal command loses the editor's text", "E20", sub("ide", "   hp.item = xm.cmd\n   gosub hist.command\n   gosub stash.current\n", "   hp.item = xm.cmd\n   gosub hist.command\n")),
     ("the terminal command's screen comes back with no Press Return", "E20", sub("ide", "   execute xm.cmd trapping aborts\n   gosub retake.screen", "   execute xm.cmd trapping aborts\n   gosub retake.quiet")),
     ("the select list question is empty", "E21", sub("m14047", "A select list is active: %1 record(s), the first %2.  Open them in tabs?  (No leaves the list unused and clears it.)\n", "\n")),
     ("the help forgets List of tabs", "E21", sub("m11216", "List of tabs", "the tabs")),
+]
+
+M_S184D = len(MUTANTS)          # 9 Nov 26 (S.184 stage 4)
+MUTANTS += [
+    ("the hook runs after the write", "E22", sub("ide", "   gosub source.control.hook         ;*", "   null         ;*")),
+    ("a refusal does not stop the save", "E22", sub("ide", "   if not(srcc.ok) then return\n", "   null\n")),
+    ("the hook is called when it is not catalogued", "E22", sub("ide", "   if not(srcc.active) then return\n", "   null\n")),
+    ("the screen is not drawn again", "E22", sub("ide", "   prompt ''\n   screen refresh\n", "   prompt ''\n")),
+    ("a refusal keeps a lock the save took", "E22", sub("ide", "   if not(srcc.allowed) then\n      if not(sv.slot) then release fv, sv.id\n", "   if not(srcc.allowed) then\n")),
+    ("an update does not reach what is written", "E22", sub("ide", "      end else\n         sv.out = sv.text\n      end\n   end\n   return", "      end\n   end\n   return")),
+    ("an update does not reach the tab", "E22", sub("ide", "   if srcc.update then\n      k = 't' : u\n      bx{k} = sv.text\n", "   if srcc.update then\n")),
+    ("the editor is not loaded again after an update", "E22", sub("ide", "   sv.reload = srcc.update ", "   sv.reload = @false ")),
+    ("the hook is told it is not a full screen editor", "E22", sub("ide", "sv.text, 1, srcc.allowed", "sv.text, 0, srcc.allowed")),
+    ("the compiler does not know HISTORY", "E23", sub("bcomp", ':@sm:"HISTORY:1"', "")),
+    ("a password question recalls", "E23", sub("screen_ask", "hn = if mask # '' or hist = '' then 0", "hn = if hist = '' then 0")),
+    ("Up runs past the oldest", "E23", sub("screen_ask", "      if hi >= hn then return\n", "")),
+    ("what was typed is lost", "E23", sub("screen_ask", "      if hi = 0 then draft = w{'value'}\n", "")),
+    ("the field is not drawn again", "E23", sub("screen_ask", "   call $sl_entry('draw', w, scr, '', r)\n", "")),
+    ("the terminal prompt offers no history", "E23", sub("ide", "screen ask sysmsg(14053) history ih.cmds returning", "screen ask sysmsg(14053) returning")),
+    ("a command is not remembered", "E23", sub("ide", "   hp.item = xq.cmd\n   gosub hist.command\n", "")),
+    ("the memo takes keys past the macro", "E24", sub("sl_memo", "         gosub count\n         gosub macro.key", "         gosub count\n         gosub handle.key")),
+    ("a program's passkey is taken for the macro", "E24", sub("sl_memo", " and not(index(@vm : w{'passkeys'} : @vm, @vm : key : @vm, 1)) then", " then")),
+    ("a recording keeps the old keys", "E24", sub("sl_memo", "            w{'macrec'} = 1\n            w{'macro'} = ''\n", "            w{'macrec'} = 1\n")),
+    ("a macro plays inside itself", "E24", sub("sl_memo", "      if w{'macrun'} + 0 then return\n", "")),
+    ("the play runs past a key the area refused", "E24", sub("sl_memo", "      while m.ret<1> = 'handled'\n", "")),
+    ("a refused key is recorded", "E24", sub("sl_memo", "and ret<1> = 'handled' and m.key # 'paste'", "and m.key # 'paste'")),
+    ("a resize loses the macro", "E24", sub("ide", "      ed.macro = ow{'macro'}\n", "")),
+    ("a word Spool does not know is ignored", "E25", sub("ide", "            msg = sysmsg(14057, sp.c)\n            return\n", "            null\n")),
+    ("region with no selection prints everything", "E25", sub("ide", "      if not(sr.ok) then\n         msg = sysmsg(11551)\n         return\n      end\n      sp.from = sr.y1", "      sp.from = sr.y1")),
+    ("a refused location leaves the printer on", "E25", sub("ide", "         sp.at = ''                           ;* nothing to put back: the location was not changed\n         gosub spool.close\n", "         sp.at = ''                           ;* nothing to put back: the location was not changed\n")),
+    ("the banner is not put back", "E25", sub("ide", "   if sp.mode # 3 then call !setpu(PU$BANNER, 0, sp.banner, sp.code)\n", "")),
+    ("the screen is left as the job left it", "E25", sub("ide", "   printer close\n   screen refresh\n", "   printer close\n")),
+    ("a filter's output reaches the screen", "E26", sub("ide", " to 9' trapping aborts capturing lr.cap", " to 9' trapping aborts")),
+    ("a refused filter lists on", "E26", sub("ide", "         lr.ok = @false\n         msg = sysmsg(14063, lr.tmpl)\n         return\n", "         lr.ok = @false\n")),
+    ("a page does not skip", "E26", sub("ide", "   for lr.s = 1 to lr.skip ", "   for lr.s = 1 to 0 ")),
+    ("Find in the records is filtered", "E26", sub("ide", "   gosub list.ids\n   lr.key = ''\n   if lr.more and lr.skip = 0", "   gosub list.ids\n   if lr.more and lr.skip = 0")),
+    ("a new filter keeps the page", "E26", sub("ide", "   lt.page<fx.at> = 0\n", "")),
+    ("a word is taken as a query", "E26", sub("ide", "            fx.t = 'with @id like \"' : fx.t : '\"'", "            null")),
 ]
 
 
