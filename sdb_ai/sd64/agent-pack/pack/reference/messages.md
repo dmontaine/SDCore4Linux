@@ -3172,24 +3172,24 @@ cited by: `set_job`
 ```
 
 ### msg:11227
-> kind=message tier=reference since=- src=sdsys/messages/11227:1#0ebbdba8
+> kind=message tier=reference since=- src=sdsys/messages/11227:1#c249dacd
 
 ```
-&Search|&Find in the records~~find|&Replace in the record~^R~replace|&List matching lines~~view|&Query replace~~qreplace|Find &options~~findopts|&Upcase the selection~~upcase|&Downcase the selection~~downcase|&Import a record here~~import|E&xport the selection~~export
+&Search|&Find in the records~~find|&Replace in the record~^R~replace|&List matching lines~~view|&Query replace~~qreplace|Find &options~~findopts|&Upcase the selection~~upcase|&Downcase the selection~~downcase|&Import a record here~~import|E&xport the selection~~export|&Stamp a history line~~stamp|Expand &tabs~~expandtabs
 ```
 
 ### msg:11228
-> kind=message tier=reference since=- src=sdsys/messages/11228:1#4bb5f016
+> kind=message tier=reference since=- src=sdsys/messages/11228:1#d0a4caec
 
 ```
-&Build|&Compile~F8~compile|Compile and cat&alog~Shift-F9~catalog|&Run~F9~run|&Debug~F7~debug|Run a co&mmand~~xeq|&Format the program~~format|Debug from the first &line~~debug1|Toggle &breakpoint~Shift-F7~bptoggle|Clear breakpoin&ts~~bpclear
+&Build|&Compile~F8~compile|Compile and cat&alog~Shift-F9~catalog|&Run~F9~run|&Debug~F7~debug|Run a co&mmand~~xeq|&Format the program~~format|Debug from the first &line~~debug1|Toggle &breakpoint~Shift-F7~bptoggle|Clear breakpoin&ts~~bpclear|Run with ar&guments~~runargs
 ```
 
 ### msg:11229
-> kind=message tier=reference since=- src=sdsys/messages/11229:1#0329c0b2
+> kind=message tier=reference since=- src=sdsys/messages/11229:1#b033a070
 
 ```
-&View|&Theme~^T~theme|&Refresh~F5~refresh|&Overwrite mode~Ins~overwrite|&Auto-indent~~autoindent|Tab &width~~tabwidth
+&View|&Theme~^T~theme|&Refresh~F5~refresh|&Overwrite mode~Ins~overwrite|&Auto-indent~~autoindent|Tab &width~~tabwidth|&Syntax colour~~synswitch|&Line numbers~~lnumswitch|Character &code~Alt-=~charcode
 ```
 
 ### msg:1123
@@ -7478,10 +7478,10 @@ Insert mode: a typed character is put in before the one under the cursor
 cited by: `ide`
 
 ### msg:11769
-> kind=message tier=reference since=- src=sdsys/messages/11769:1#2b62d5fc
+> kind=message tier=reference since=- src=sdsys/messages/11769:1#73797c0c
 
 ```
-Tab width, 1 to 8 (Tab and Shift-Tab indent by it; Format uses it)
+Tab width, 1 to 99 (Tab and Shift-Tab indent by it; Format and Expand tabs use it)
 ```
 
 cited by: `ide`
@@ -10193,10 +10193,10 @@ It lists %1 (model names are case-sensitive)
 cited by: `setai`
 
 ### msg:14019
-> kind=message tier=reference since=- src=sdsys/messages/14019:1#f6097595
+> kind=message tier=reference since=- src=sdsys/messages/14019:1#7d880a63
 
 ```
-&Edit|&Undo~^Z~undo|&Redo~^Y~redo|Cu&t~^X~cut|&Copy~^C~copy|&Paste~^V~paste|Select &all~^A~selall|&Insert a field~Ins~finsert|&Delete a field~Del~fdelete|Re&name the field~F3~frename|Change the t&ype~Alt-T~ftype
+&Edit|&Undo~^Z~undo|&Redo~^Y~redo|Cu&t~^X~cut|&Copy~^C~copy|&Paste~^V~paste|Select &all~^A~selall|&Insert a field~Ins~finsert|&Delete a field~Del~fdelete|Re&name the field~F3~frename|Change the t&ype~Alt-T~ftype|Delete the &word before~Alt-Bksp~wordback|Cut to the &end of the line~Alt-E~killend|&Swap two characters~Alt-T~transpose|Word in capita&ls~Alt-U~wordup|Word in s&mall letters~Alt-L~worddown|Capital initial o&f the word~Alt-C~wordcap|Close a run of &blanks~Alt-Space~closesp|Align wit&h the line above~Alt-A~align|Swap cursor and mar&k~Alt-M~swapmark
 ```
 
 cited by: `ide`
@@ -10244,12 +10244,129 @@ zoomed
 
 cited by: `ide`
 
+### msg:14024
+> kind=message tier=reference since=- src=sdsys/messages/14024:1#c0c2d4fe
+
+```
+That command works on the text: F12 shows the text again.
+```
+
+cited by: `ide`
+
+### msg:14025
+> kind=message tier=reference since=- src=sdsys/messages/14025:1#fdd17939
+
+```
+Arguments for the program (the words after its name in RUN):
+```
+
+cited by: `ide`
+
+### msg:14026
+> kind=message tier=reference since=- src=sdsys/messages/14026:1#72b0b6ca
+
+```
+The arguments cannot hold field, value, subvalue or text marks.
+```
+
+cited by: `ide`
+
+### msg:14027
+> kind=message tier=reference since=- src=sdsys/messages/14027:1#b602e221
+
+```
+A history line was put above line %1 (not saved).
+```
+
+cited by: `ide`
+
+### msg:14028
+> kind=message tier=reference since=- src=sdsys/messages/14028:1#c6e4f195
+
+```
+%1 line(s) had tabs: they are blanks now, to tab stops every %2 (not saved).
+```
+
+cited by: `ide`
+
+### msg:14029
+> kind=message tier=reference since=- src=sdsys/messages/14029:1#0a8b2d5a
+
+```
+There is no tab in the text.
+```
+
+cited by: `ide`
+
 ### msg:1403
 > kind=message tier=reference since=- src=sdsys/messages/1403:1#a8637b41
 
 ```
 CLEARFILE on read-only file
 ```
+
+### msg:14030
+> kind=message tier=reference since=- src=sdsys/messages/14030:1#b3160504
+
+```
+Line %1, column %2: char(%3) %4
+```
+
+cited by: `ide`
+
+### msg:14031
+> kind=message tier=reference since=- src=sdsys/messages/14031:1#0f52e4f7
+
+```
+Line %1, column %2: the end of the line
+```
+
+cited by: `ide`
+
+### msg:14032
+> kind=message tier=reference since=- src=sdsys/messages/14032:1#4e246c4b
+
+```
+Syntax colour is on.
+```
+
+cited by: `ide`
+
+### msg:14033
+> kind=message tier=reference since=- src=sdsys/messages/14033:1#e6acbc2d
+
+```
+Syntax colour is off (View > Syntax colour puts it back).
+```
+
+cited by: `ide`
+
+### msg:14034
+> kind=message tier=reference since=- src=sdsys/messages/14034:1#aa3a9476
+
+```
+Line numbers are on.
+```
+
+cited by: `ide`
+
+### msg:14035
+> kind=message tier=reference since=- src=sdsys/messages/14035:1#f6c93c2a
+
+```
+Line numbers are off (View > Line numbers puts them back).
+```
+
+cited by: `ide`
+
+### msg:14036
+> kind=message tier=reference since=- src=sdsys/messages/14036:1#f63f1cf5
+
+```
+  <field %1, value %2, subvalue %3>
+```
+
+cited by: `ide`
 
 ### msg:1404
 > kind=message tier=reference since=- src=sdsys/messages/1404:1#0bc60524

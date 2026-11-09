@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 9 Nov 26 dm   S.184 stage 2: kc.alt also returns Esc and a blank, Esc and DEL, and Esc and ^H (Alt-Space, Alt-Backspace).
 * 22 Oct 26 dm  kc.alt (BINDKEY action -7): an unbound Esc and one printable character come back as the two characters, an Alt-letter.
 * 12 Oct 26 dm  ESC [ <(an xterm SGR mouse report) is bound to K$MOUSE.
 * 14 Sep 26 dm  Both Ctrl-H (8) and DEL (127) are bound to K$BACKSPACE as
@@ -226,8 +227,10 @@ $include keycode.h
       * 31 Oct 26 dm - S.94, THE LINUX CONSOLE'S SHIFT-TAB: the kernel's default keymap sends Esc and Tab (measured on a real console, Debian 13), not ESC [ Z, so the back-tab of every form
       *   and dialogue was dropped there.  Only for the linux terminal type: for another type Esc and Tab is Alt-Tab, which is not this key.  (A block of its own, ahead of the Alt-letter's.)
       if kc.alt and key.string = char(27) : char(9) and downcase(@term.type) = 'linux' then return value char(K$CTRL.TAB)
+      * 9 Nov 26 dm - S.184 stage 2: Esc and a blank (Alt-Space) and Esc and DEL or ^H (Alt-Backspace) come back too; $sl_key names them alt-  and alt-bs.
       if kc.alt and len(key.string) = 2 and key.string[1,1] = char(27) then
-         if seq(key.string[2,1]) > 32 and seq(key.string[2,1]) < 127 then return value key.string
+         alt.c = seq(key.string[2,1])
+         if (alt.c >= 32 and alt.c <= 127) or alt.c = 8 then return value key.string
       end
 
       if not(dropped) then display @sys.bell :

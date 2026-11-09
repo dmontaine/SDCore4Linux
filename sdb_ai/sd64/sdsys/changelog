@@ -1,6 +1,30 @@
 Next release - in progress
 --------------------------
 
+9 Nov 26   MORE OF SED'S COMMANDS IN THE IDE: STAMP, EXPAND TABS, RUN WITH ARGUMENTS, THE CHARACTER CODE.
+
+             What        - Search > Stamp a history line puts "* Updated by who (login) time and date" above the cursor's line;
+                           Search > Expand tabs turns tab characters into blanks to the tab stops; Build > Run with arguments
+                           asks for the words to put after the program's name; Alt-= (View > Character code) shows the code of
+                           the character at the cursor and its field, value and subvalue; View > Syntax colour and View > Line
+                           numbers switch those off and on; View > Tab width now takes 1 to 99 (it took 1 to 8).
+             Why         - The owner, 9 Nov: SED is retired into the IDE once the IDE has all its features. These were SED's
+                           STAMP, EXPAND.TABS, RUN, expand char, SYNTAX, LNUM and TABS.
+             Not changed - None of them saves the record; Stamp and Expand tabs are one step of undo each.
+
+9 Nov 26   SED'S EDITING COMMANDS IN THE IDE'S EDITOR AND IN EVERY SCREEN MEMO.
+
+             What        - Alt-Backspace and Alt-D delete the word before or at the cursor, Alt-E cuts to the end of the line,
+                           Alt-T swaps two characters, Alt-U, Alt-L and Alt-C put the word in capitals, in small letters or with
+                           a capital initial, Alt-Space closes a run of blanks into one, Alt-A indents the line as the line
+                           above, Alt-M swaps the cursor and the mark (Ctrl-G sets it), and Ctrl-Up and Ctrl-Down move the view
+                           a line. They are SED's keys for the same commands. In the IDE they are also on the Edit menu. Any
+                           program with a SCREEN MEMO has them too; each is one step of undo.
+             Why         - The owner, 9 Nov: SED is retired into the IDE once the IDE has all its features; these are the first
+                           of the editing commands only SED had.
+             Not changed - Alt-K still cuts the whole line (it is SED's kill to the end of the line that moved, to Alt-E). The
+                           view does not move with Ctrl-Up or Ctrl-Down in a memo that wraps its lines.
+
 9 Nov 26   CTRL-E IN THE IDE ZOOMS THE EDITOR TO THE WHOLE SCREEN.
 
              What        - Ctrl-E (and Go > Zoom the editor) hides the list of files and records and the messages, and the

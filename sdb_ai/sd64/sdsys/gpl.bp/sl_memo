@@ -22,6 +22,9 @@
 * 2 Nov 26 dm  S.88 p3.3a: the op 'size' (a new width and height for the area, everything it holds kept), for $sl_widget_move; the rectangle is worked out in one
 *              place (geom), read at every call as before and again by 'size'.
 * 8 Nov 26 dm  S.179: Alt-K cuts the line as Ctrl-K does, for a program that keeps Ctrl-K for itself (the IDE: the keys list on every page).
+* 9 Nov 26 dm  S.184 stage 2 (SED retired into the IDE): SED's editing commands in the area - Alt-Backspace and Alt-D delete a word, Alt-E cuts to the end of the
+*              line, Alt-T swaps two characters, Alt-U / Alt-L / Alt-C the word's case, Alt-Space closes a run of blanks, Alt-A aligns with the line above, Alt-M
+*              swaps the cursor and the selection's other end, Ctrl-Up / Ctrl-Down nudge the view (sed.edit, sed.move).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -565,6 +568,199 @@ scroll:
    if left < 1 then left = 1
    return
 
+* ======================================================================
+* 9 Nov 26 (S.184 stage 2) - SED's editing commands (the owner, 9 Nov: SED and CED are retired once the IDE has all their features).  One undo step each.
+*   alt-bs  delete the word before the cursor (the blanks before it and the word), or the selection; at the start of a line join it to the line above
+*   alt-d   delete the word at the cursor, as Ctrl-Del does in an area with edkeys
+*   alt-e   cut from the cursor to the end of the line into the clipboard; at the end of a line join the next line to it
+*   alt-t   swap the character before the cursor with the one at it (at the end of a line, the last two), and move on
+*   alt-u, alt-l, alt-c   the word at or after the cursor in capitals, in small letters, or with a capital initial; the cursor goes to its end
+*   alt-    (Alt and the space bar) a run of blanks at the cursor becomes one blank
+*   alt-a   the line is indented as the line above it is
+* A key that has nothing to act on (no word, one character) rings the bell and changes nothing.
+
+sed.edit:
+   ln = lines<cy>
+   begin case
+      case key = 'alt-bs'
+         kind = 'delword'
+         gosub snap.push
+         if has.sel then
+            gosub del.sel
+         end else
+            if cx > 1 then
+               cb = cx - 1
+               loop
+               while cb >= 1 and ln[cb, 1] = ' '
+                  cb -= 1
+               repeat
+               loop
+               while cb >= 1 and ln[cb, 1] # ' '
+                  cb -= 1
+               repeat
+               lines<cy> = ln[1, cb] : ln[cx, len(ln)]
+               cx = cb + 1
+            end else
+               if cy > 1 then
+                  cx = len(lines<cy - 1>) + 1
+                  lines<cy - 1> = lines<cy - 1> : ln
+                  del lines<cy>
+                  cy -= 1
+               end
+            end
+         end
+      case key = 'alt-d'
+         kind = 'delword'
+         gosub snap.push
+         if has.sel then
+            gosub del.sel
+         end else
+            if cx <= len(ln) then
+               ce = cx
+               loop
+               while ce <= len(ln) and ln[ce, 1] = ' '
+                  ce += 1
+               repeat
+               loop
+               while ce <= len(ln) and ln[ce, 1] # ' '
+                  ce += 1
+               repeat
+               lines<cy> = ln[1, cx - 1] : ln[ce, len(ln)]
+            end else
+               if cy < n then
+                  lines<cy> = ln : lines<cy + 1>
+                  del lines<cy + 1>
+               end
+            end
+         end
+      case key = 'alt-e'
+         kind = 'killend'
+         gosub snap.push
+         if cx <= len(ln) then
+            clip.text = ln[cx, len(ln)]
+            clip.has = 1
+            lines<cy> = ln[1, cx - 1]
+         end else
+            if cy < n then
+               lines<cy> = ln : lines<cy + 1>
+               del lines<cy + 1>
+            end
+         end
+      case key = 'alt-t'
+         if len(ln) < 2 then
+            gosub ring.bell
+         end else
+            p = cx
+            if p > len(ln) then p = len(ln)
+            if p < 2 then p = 2
+            kind = 'transpose'
+            gosub snap.push
+            lines<cy> = ln[1, p - 2] : ln[p, 1] : ln[p - 1, 1] : ln[p + 1, len(ln)]
+            cx = p + 1
+         end
+      case key = 'alt-u' or key = 'alt-l' or key = 'alt-c'
+         ws = cx
+         loop
+         while ws <= len(ln) and not(ln[ws, 1] matches '1A' or ln[ws, 1] matches '1N')
+            ws += 1
+         repeat
+         we = ws
+         loop
+         while we <= len(ln) and (ln[we, 1] matches '1A' or ln[we, 1] matches '1N')
+            we += 1
+         repeat
+         if we = ws then
+            gosub ring.bell
+         end else
+            kind = 'wordcase'
+            gosub snap.push
+            wd = ln[ws, we - ws]
+            begin case
+               case key = 'alt-u'
+                  wd = upcase(wd)
+               case key = 'alt-l'
+                  wd = downcase(wd)
+               case 1
+                  wd = upcase(wd[1, 1]) : downcase(wd[2, len(wd)])
+            end case
+            lines<cy> = ln[1, ws - 1] : wd : ln[we, len(ln)]
+            cx = we
+         end
+      case key = 'alt- '
+         cs = cx
+         loop
+         while cs > 1 and ln[cs - 1, 1] = ' '
+            cs -= 1
+         repeat
+         ce = cx
+         loop
+         while ce <= len(ln) and ln[ce, 1] = ' '
+            ce += 1
+         repeat
+         if ce - cs < 2 then
+            gosub ring.bell              ;* no run of two blanks here
+         end else
+            kind = 'closesp'
+            gosub snap.push
+            lines<cy> = ln[1, cs - 1] : ' ' : ln[ce, len(ln)]
+            cx = cs + 1
+         end
+      case key = 'alt-a'
+         if cy < 2 then
+            gosub ring.bell
+         end else
+            pl = lines<cy - 1>
+            al.p = len(pl) - len(trimf(pl))
+            if trim(pl) = '' then al.p = 0
+            al.c = len(ln) - len(trimf(ln))
+            if trim(ln) = '' then al.c = len(ln)
+            kind = 'align'
+            gosub snap.push
+            lines<cy> = space(al.p) : ln[al.c + 1, len(ln)]
+            cx += al.p - al.c
+            if cx < al.p + 1 then cx = al.p + 1
+         end
+   end case
+   if cx < 1 then cx = 1
+   want = cx
+   my = 0 ; mx = 0
+   return
+
+* alt-m swaps the cursor and the other end of the selection (SED's swap mark); ctrl-up / ctrl-down move the view a line up or down, the cursor staying on its line while
+*   that line can be seen (SED's nudge).  Neither changes the text.
+sed.move:
+   begin case
+      case key = 'alt-m'
+         if my > 0 and my <= n then
+            sw.y = my ; sw.x = mx
+            my = cy ; mx = cx
+            cy = sw.y ; cx = sw.x
+            want = cx
+         end else
+            gosub ring.bell
+         end
+      case key = 'ctrl-down'
+         if top + mh - 1 < n then
+            top += 1
+            if cy < top then cy = top
+         end
+         vert = @true
+      case key = 'ctrl-up'
+         if top > 1 then
+            top -= 1
+            if cy > top + mh - 1 then cy = top + mh - 1
+         end
+         vert = @true
+   end case
+   ln = lines<cy>
+   if cx > len(ln) + 1 then cx = len(ln) + 1
+   return
+
+* The bell, for a key that has nothing to act on: the memo's one place that rings it
+ring.bell:
+   display char(7) :
+   return
+
 * has.sel = a selection exists: it runs from (sy, sx) to (ey, ex), the end not included
 sel.range:
    has.sel = @false
@@ -782,7 +978,7 @@ find.next:
       cy = y ; cx = mx + len(fnd)
       want = cx
    end else
-      display char(7) :
+      gosub ring.bell
    end
    return
 
@@ -831,7 +1027,7 @@ find.prev:
       cy = y ; cx = p + len(fnd)
       want = cx
    end else
-      display char(7) :
+      gosub ring.bell
    end
    return
 
@@ -1027,6 +1223,8 @@ handle.key:
          gosub find.next
       case key = 'shift-f3'                     ;* 28 Oct 26 (Opus's review): and Shift-F3 the one before
          gosub find.prev
+      case key = 'alt-m' or ((key = 'ctrl-up' or key = 'ctrl-down') and not(wrap))
+         gosub sed.move                  ;* 9 Nov 26 (S.184 stage 2): swap the cursor and the other end of the selection; nudge the view a line (they change no text, so a viewer has them)
       case ro
          ret = 'unhandled' : @fm : key
       case key = 'tab' and ti > 0
@@ -1177,6 +1375,10 @@ handle.key:
             gosub paste.t
             my = 0 ; mx = 0
          end
+      case key = 'alt-bs' or key = 'alt-d' or key = 'alt-e' or key = 'alt-t' or key = 'alt-u' or key = 'alt-l' or key = 'alt-c' or key = 'alt- ' or key = 'alt-a'
+         * 9 Nov 26 (S.184 stage 2): SED's editing commands, in the area itself so that every program with a memo has them (Alt and the letter SED gives
+         *   them; the one exception is Alt-E, kill to the end of the line, since Alt-K cuts the whole line here)
+         gosub sed.edit
       case key = 'ctrl-z'
          gosub undo.step
       case key = 'ctrl-y'

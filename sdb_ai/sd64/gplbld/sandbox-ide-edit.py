@@ -13,6 +13,8 @@
 #               answers are guesses from the other IDE suites.
 # 29 Oct 26 dm  The review's rows (R1, R2): G3 and G4 (Go to a line alone and 1.5,2.5; the IDE is up) and C2/C3 (a command that aborts leaves the IDE up).  G1 already held R1's second form.
 #               WRITTEN, NOT RUN.
+# 9 Nov 26 dm  Section T (S.184 stage 3): Stamp, Expand tabs, the character code (Alt-=), the Syntax colour and Line numbers switches, a tab width over 8; the record zze<run>tab
+#               holds a tab.  Not held: Run with arguments (it needs a program and the screen given over).
 # END-HISTORY
 #
 # WHAT RUNS.  The IDE on a PSEUDO-TERMINAL at 140 by 43 in the sandbox user's own account (sandbox-ide.py's Ide), on a record of the file bp that this script writes.  EVERY VERDICT ON A RECORD IS READ
@@ -87,6 +89,7 @@ FIX = """   open 'bp' to p else stop 'EFIX no bp'
    write '%(l1)s':@fm:'%(l2)s':@fm:'%(l3)s':@fm:'%(l4)s' on p, '%(rec)s'
    write 'INS1':@fm:'INS2' on p, '%(rec)simp'
    write '      x = 1':@fm:'if x = 1 then':@fm:'y = 2':@fm:'end' on p, '%(rec)sfmt'
+   write 'a':char(9):'b':@fm:'no tab' on p, '%(rec)stab'
    delete p, '%(exp)s'
    crt 'EFIX done'
 end
@@ -388,6 +391,51 @@ def section_modes():
     done(e)
 
 
+def section_s184():
+    """9 Nov 26 (S.184 stage 3): SED's small commands in the IDE.  Search: Stamp (10th entry), Expand tabs (11th); View: Tab width (5th), Syntax colour (6th),
+    Line numbers (7th), Character code (8th, Alt-=).  Nothing is saved: the disk is read at the end."""
+    say("\n--- T: SED's small commands (S.184 stage 3) -------------------------------------------------------------------------------")
+    e = open_rec()
+    menu(e, 2, 9)                                                       # Search > Stamp a history line
+    t = editor_text(e)
+    row("T1 Stamp puts '* Updated by <who> (<login>) ...' above line 1 and says so; line 1 is now the old line 1's second", "* Updated by" in t.split("\n")[0] and "alpha beta" in t.split("\n")[1]
+        and "history line" in e.status(), repr((t[:160], e.status()[:120])))
+    e.keys(CTRL_Z)
+    e.quiet()
+    row("T2 one Ctrl-Z takes the stamp away", "* Updated by" not in editor_text(e) and "alpha beta" in editor_text(e).split("\n")[0], repr(editor_text(e)[:120]))
+    menu(e, 2, 10)                                                      # Search > Expand tabs
+    row("T3 control: Expand tabs on a text with no tab says so", "no tab" in e.status(), e.status()[:120])
+    e.keys("\x1b=")                                                     # Alt-= : the character code (line 1, column 1 is the a of alpha)
+    e.quiet()
+    row("T4 Alt-= shows the code of the character at the cursor: char(97) 'a', field 1 value 1 subvalue 1", "char(97) 'a'" in e.status() and "field 1, value 1, subvalue 1" in e.status(), e.status()[:160])
+    menu(e, 4, 5)                                                       # View > Syntax colour
+    row("T5 View > Syntax colour switches it off and says so", "Syntax colour is off" in e.status(), e.status()[:120])
+    menu(e, 4, 5)
+    row("T6 ...and on again", "Syntax colour is on" in e.status(), e.status()[:120])
+    with_n = e.lines()[3][28:40]
+    menu(e, 4, 6)                                                       # View > Line numbers
+    without_n = e.lines()[3][28:40]
+    row("T7 View > Line numbers takes the numbers away (line 1's row no longer begins with its number) and says so",
+        "Line numbers are off" in e.status() and re.search(r"\b1\b", with_n) is not None and "alpha" in without_n and re.search(r"^\s*\*?\s*1\s", without_n) is None, repr((with_n, without_n, e.status()[:80])))
+    menu(e, 4, 6)
+    row("T8 ...and puts them back", "Line numbers are on" in e.status(), e.status()[:120])
+    menu(e, 4, 4)                                                       # View > Tab width
+    e.keys("\x15", "50", RET)                                           # Ctrl-U empties the answer, then 50
+    e.quiet()
+    row("T9 Tab width takes 50 (it took 1 to 8 only)", "Tab width is 50" in e.status(), e.status()[:120])
+    done(e)
+    e = sb.Ide(BOX, "IDE bp %stab" % REC)
+    e.quiet()
+    menu(e, 4, 4)
+    e.keys("\x15", "3", RET)
+    menu(e, 2, 10)                                                      # Search > Expand tabs, tab width 3
+    t = editor_text(e)
+    row("T10 Expand tabs: the tab after 'a' becomes blanks to the next stop of 3 ('a  b'), and one line is counted", "a  b" in t and "1 line(s) had tabs" in e.status(), repr((t[:80], e.status()[:120])))
+    done(e)
+    d = disk()
+    row("T11 control: nothing was saved (the record on the disk is as the fixture wrote it)", d.get(REC) == "[%s]" % "^".join(LINES), repr(d.get(REC)))
+
+
 def teardown():
     if BOX:
         subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
@@ -422,6 +470,7 @@ def main():
         section_goto()
         section_xeq()
         section_modes()
+        section_s184()
     finally:
         teardown()
     say("\nsandbox-ide-edit: %d passed, %d failed" % (passed, failed))

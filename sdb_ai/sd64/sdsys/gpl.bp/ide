@@ -160,6 +160,8 @@
 *               the editor - the files, the separator, the messages and their pane marks are hidden (SCREEN SET ... VISIBLE 0) and the editor takes the whole inside of
 *               the form; Ctrl-E again puts them back.  Every key, menu and the AI line work as before: nothing is handed over.  Anything that fills the messages (a
 *               compile with errors, a search, a command's output) leaves the zoom so that it can be read.  SED is still on Go > Edit in SED (it was Ctrl-E).
+* 9 Nov 26 dm  S.184 stage 2: the Edit menu has SED's editing commands (message 14019; the keys are the editor's own, sl_memo): delete the word before, cut to the
+*               end of the line, swap two characters, the word's case, close blanks, align with the line above, swap cursor and mark.  Refused in the fields pane (14024).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -372,6 +374,8 @@ $include idebrk.h
    call $tk_keys('add', ide.keys, 'f9', 'run', 'run', '', 1)
    call $tk_keys('add', ide.keys, 'shift-f9', 'build', 'catalog', '', 1)
    call $tk_keys('add', ide.keys, 'alt-g', 'go to', 'goto', '', 1)          ;* S.179: Alt-G, as in SED (Ctrl-L redraws on every page)
+   call $tk_keys('add', ide.keys, 'alt-=', 'char code', 'charcode', '', 1)  ;* 9 Nov 26 (S.184 stage 3): SED's expand char, Alt-= as in SED; not on the key row
+   ide.keys<dcount(ide.keys, @fm), TK.K.ROW> = 0
    call $tk_keys('add', ide.keys, 'ctrl-t', 'theme', 'theme', '', 1)        ;* S.179: the theme and the keys, as on every page
    ide.keys<dcount(ide.keys, @fm), TK.K.ROW> = 0
    call $tk_keys('add', ide.keys, 'ctrl-k', 'keys', 'keys', '', 1)
@@ -463,6 +467,10 @@ $include idebrk.h
    out.kind = ''
    out.file = ''
    zm = 0                            ;* 9 Nov 26 (S.184 stage 1): 1 while Ctrl-E has the editor filling the screen
+   ra.args = ''                      ;* 9 Nov 26 (S.184 stage 3): Run with arguments: the words put after the program's name (' ' and the words), and the last ones typed
+   ra.last = ''
+   syn.off = 0                       ;* 9 Nov 26 (S.184 stage 3): View > Syntax colour and View > Line numbers switched off (SED's SYNTAX OFF and LNUM OFF)
+   lnum.off = 0
    focus.id = 'tree'
    msg = ''
    ai.sel = ''                       ;* the AI: the selected text and a sentence about it, for the request being made
@@ -865,6 +873,9 @@ new.form:
    mw = f{'widgets', en}
    mw{'hbar'} = 1
    mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'     ;* Ctrl-E zooms the editor (9 Nov 26, S.184 stage 1; it handed the record to SED) (the area's own meaning of it, end of row, is End); F3 / Shift-F3 are the area's find next / previous (the owner's D31).  8 Nov 26 (S.179): Ctrl-T (the theme) and Ctrl-K (the keys) are the IDE's, as on every page; the area cuts a line with Alt-K
+   mw{'syn.want'} = mw{'synlang'} + 0            ;* 9 Nov 26 (S.184 stage 3): the tab's language, kept so that View > Syntax colour can put it back
+   if syn.off then mw{'synlang'} = 0              ;* 9 Nov 26 (S.184 stage 3): View > Syntax colour off
+   if lnum.off then mw{'lnum'} = 0               ;* 9 Nov 26 (S.184 stage 3): View > Line numbers off
    mw{'stay'} = 1                                ;* 28 Oct 26 (I3): Up on the first line and Down on the last stay in the editor and do not move the focus to the tabs or the messages
    mw{'edkeys'} = 1                              ;* 29 Oct 26 (S.88 D2): Ctrl-Home / Ctrl-End (start and end of the text), Ctrl-Left / Ctrl-Right (a word) and Ctrl-Del (delete a word)
    mw{'over'} = ed.over
@@ -1284,6 +1295,8 @@ load.current:
    nl = 0
    if syn # '' then call $sl_syntax('index', syn, '', '', '', nl)
    mw{'synlang'} = nl + 0
+   if syn.off then mw{'synlang'} = 0              ;* 9 Nov 26 (S.184 stage 3): View > Syntax colour off holds for every tab
+   mw{'syn.want'} = nl + 0                        ;* the tab's language, so that View > Syntax colour can put it back
    mw{'readonly'} = ro
    if nbuf > 0 then gosub memo.cursor
    * 18 Oct 26 dm - only the tab strip and the editor have changed: drawing the whole form again wrote every cell of the screen, which the
@@ -2620,6 +2633,8 @@ do.key:
          cmd = 'catalog'                 ;* S.179: Shift-F9 (it was F9)
       case edata = 'alt-g'
          cmd = 'goto'                    ;* S.179: Alt-G, as in SED (it was Ctrl-L)
+      case edata = 'alt-='
+         cmd = 'charcode'                ;* 9 Nov 26 (S.184 stage 3): SED's expand char
       case edata = 'ctrl-t'
          cmd = 'theme'                   ;* S.179: the theme, kept for the person, as on every page
       case edata = 'ctrl-k'
@@ -2751,9 +2766,32 @@ run.cmd:
          if c.ok then
             gosub leave.screen
             qp.file = c.file ; qp.id = c.id ; gosub quote.pair
-            execute 'run ' : qp.f : ' ' : qp.i trapping aborts
+            execute 'run ' : qp.f : ' ' : qp.i : ra.args trapping aborts      ;* 9 Nov 26 (S.184 stage 3): ra.args is Run with arguments' words, '' for Run
             gosub retake.screen
          end
+      case cmd = 'runargs'
+         * 9 Nov 26 (S.184 stage 3): SED's RUN with arguments - the words are typed and put after the program's name, as RUN takes them (the program reads them with SENTENCE())
+         screen ask sysmsg(14025) width 60 value ra.last returning ra.text else ra.text = char(0)
+         if ra.text # char(0) then
+            ra.text = trim(ra.text)
+            if convert(@fm : @vm : @sm : @tm, '', ra.text) # ra.text then
+               msg = sysmsg(14026)
+            end else
+               ra.last = ra.text
+               if ra.text # '' then ra.args = ' ' : ra.text
+               cmd = 'run'
+               gosub run.cmd
+               ra.args = ''
+            end
+         end
+      case cmd = 'stamp'
+         gosub do.stamp
+      case cmd = 'expandtabs'
+         gosub do.expandtabs
+      case cmd = 'charcode'
+         gosub do.charcode
+      case cmd = 'synswitch' or cmd = 'lnumswitch'
+         gosub do.viewswitch
       case cmd = 'debug1'
          * 2 Nov 26 (S.98 H2): "Debug from the first line" stops at the first line as F7 always did; F7 (debug) runs on to the first breakpoint when the tab has marks
          bk.first = @true
@@ -2825,6 +2863,16 @@ run.cmd:
       case cmd = 'undo' or cmd = 'redo' or cmd = 'cut' or cmd = 'copy' or cmd = 'paste' or cmd = 'selall'
          ek.key = (if cmd = 'undo' then 'ctrl-z' else if cmd = 'redo' then 'ctrl-y' else if cmd = 'cut' then 'ctrl-x' else if cmd = 'copy' then 'ctrl-c' else if cmd = 'paste' then 'ctrl-v' else 'ctrl-a')
          gosub do.editkey
+      case cmd = 'wordback' or cmd = 'killend' or cmd = 'transpose' or cmd = 'wordup' or cmd = 'worddown' or cmd = 'wordcap' or cmd = 'closesp' or cmd = 'align' or cmd = 'swapmark'
+         * 9 Nov 26 (S.184 stage 2): SED's editing commands, the editor's own keys (sl_memo sed.edit / sed.move); not the fields pane's, where Alt-T is the type
+         if focus.id = 'fld' then
+            msg = sysmsg(14024)
+         end else
+            sk.l = 'wordback' : @vm : 'killend' : @vm : 'transpose' : @vm : 'wordup' : @vm : 'worddown' : @vm : 'wordcap' : @vm : 'closesp' : @vm : 'align' : @vm : 'swapmark'
+            locate cmd in sk.l<1> setting sk.i else sk.i = 0
+            ek.key = field('alt-bs,alt-e,alt-t,alt-u,alt-l,alt-c,alt- ,alt-a,alt-m', ',', sk.i)
+            gosub do.editkey
+         end
       case cmd = 'finsert' or cmd = 'fdelete' or cmd = 'frename' or cmd = 'ftype'
          if focus.id = 'fld' then
             fz.key = (if cmd = 'finsert' then 'ins' else if cmd = 'fdelete' then 'del' else if cmd = 'frename' then 'f3' else 'alt-t')
@@ -5700,12 +5748,100 @@ do.tabwidth:
    tw.text = trim(tw.text)
    if tw.text = '' or not(num(tw.text)) then return
    tw.n = int(tw.text + 0)
-   if tw.n < 1 or tw.n > 8 then return
+   if tw.n < 1 or tw.n > 99 then return            ;* 9 Nov 26 (S.184 stage 3): 1 to 99, as SED's TABS (it was 1 to 8)
    ed.tab = tw.n
    call $sl_form('find', f, '', 'ed', en)
    ed.mw = f{'widgets', en}
    ed.mw{'tabindent'} = ed.tab
    msg = sysmsg(11785, ed.tab)
+   return
+
+* ======================================================================
+* 9 Nov 26 (S.184 stage 3) - SED's small commands, for the IDE (the owner, 9 Nov: SED is retired once the IDE has all its features).  Each changes the text through ed.set as ONE
+*   undo step and saves nothing, or only looks.
+*   do.stamp       Search > Stamp a history line: '* Updated by <who> (<login name>) <time and date>' above the cursor's line, as SED's STAMP
+*   do.expandtabs  Search > Expand tabs: every tab character becomes blanks to the next tab stop (the tab width), as SED's EXPAND.TABS
+*   do.charcode    View > Character code (Alt-=): the code of the character at the cursor and where it is in the record's fields, as SED's expand char
+*   do.viewswitch  View > Syntax colour, View > Line numbers: switched off or on for every tab (SED's SYNTAX OFF / ON and LNUM OFF / ON)
+
+do.stamp:
+   gosub ed.get
+   if not(ed.ok) then return
+   st.y = ed.mw{'cy'} + 0
+   if st.y < 1 then st.y = 1
+   ed.new = ed.t
+   ins '* Updated by ' : @who : ' (' : @logname : ') ' : timedate() before ed.new<st.y>
+   ed.cy = st.y + 1
+   gosub ed.set
+   msg = sysmsg(14027, st.y)
+   return
+
+do.expandtabs:
+   gosub ed.get
+   if not(ed.ok) then return
+   if index(ed.t, char(9), 1) = 0 then
+      msg = sysmsg(14029)
+      return
+   end
+   ed.new = ed.t
+   xt.n = 0
+   xt.w = ed.tab + 0
+   if xt.w < 1 then xt.w = 3
+   xt.lines = dcount(ed.new, @fm)
+   for xt.i = 1 to xt.lines
+      xt.ln = ed.new<xt.i>
+      xt.j = index(xt.ln, char(9), 1)
+      if xt.j then
+         xt.n += 1
+         loop
+            xt.k = xt.w - mod(xt.j - 1, xt.w)
+            xt.ln = xt.ln[1, xt.j - 1] : space(xt.k) : xt.ln[xt.j + 1, len(xt.ln)]
+            xt.j = index(xt.ln, char(9), 1)
+         while xt.j
+         repeat
+         ed.new<xt.i> = xt.ln
+      end
+   next xt.i
+   ed.cy = 0
+   gosub ed.set
+   msg = sysmsg(14028, xt.n, xt.w)
+   return
+
+do.charcode:
+   gosub ed.read
+   if not(ed.ok) then return
+   cc.y = ed.mw{'cy'} + 0
+   cc.x = ed.mw{'cx'} + 0
+   cc.ln = ed.t<cc.y>
+   if cc.x > len(cc.ln) then
+      msg = sysmsg(14031, cc.y, cc.x)
+      return
+   end
+   cc.n = seq(cc.ln[cc.x, 1])
+   cc.name = ''
+   cc.names = 'NULSOHSTXETXEOTENQACKBELBS HT LF VT FF CR SO SI DLEDC1DC2DC3DC4NAKSYNETBCANEM SUBESCFS GS RS US '      ;* SED's ctrl.char.names
+   if cc.n < 32 then cc.name = trimb(cc.names[(cc.n * 3) + 1, 3])
+   if cc.n = 127 then cc.name = 'DEL'
+   if cc.n >= 32 and cc.n < 127 then cc.name = "'" : char(cc.n) : "'"
+   cc.pre = cc.ln[1, cc.x - 1]
+   cc.v = count(cc.pre, @vm) + 1
+   cc.s = count(field(cc.pre, @vm, cc.v), @sm) + 1
+   msg = sysmsg(14030, cc.y, cc.x, cc.n, cc.name) : sysmsg(14036, cc.y, cc.v, cc.s)
+   return
+
+do.viewswitch:
+   call $sl_form('find', f, '', 'ed', en)
+   vs.mw = f{'widgets', en}
+   if cmd = 'synswitch' then
+      syn.off = not(syn.off)
+      vs.mw{'synlang'} = (if syn.off then 0 else vs.mw{'syn.want'} + 0)
+      msg = (if syn.off then sysmsg(14033) else sysmsg(14032))
+   end else
+      lnum.off = not(lnum.off)
+      vs.mw{'lnum'} = (if lnum.off then 0 else 1)
+      msg = (if lnum.off then sysmsg(14035) else sysmsg(14034))
+   end
+   gosub redraw.editor
    return
 
 * Build > Format the program: !format() (the FORMAT verb's routine) lays the program in the tab out again with the tab width as its indent, in QUIET mode (the named common /fmtq/: no dots,

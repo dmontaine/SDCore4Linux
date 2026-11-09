@@ -70,8 +70,8 @@ ANCH = {
     "tool_viewers": [("allowed", ("t", 1), 2, r"Program\s+Test now", (2, 3)), ("allowed", ("t", 1), ("r", 5), r"\[\?\]", (2, 66)), ("found", ("t", 1), 2, r"Reader\s+Allowed\s+Could it be allowed", (2, 74)),
                      ("found", ("t", 1), ("r", 5), r"\[\?\]", (2, 134)), ("means", ("t", 2), 2, r"A program on this list is started by the pdf verb", (17, 3)),
                      ("help", ("t", 1), 2, r"Up and Down move\.", (33, 3)), ("help", ("t", 3), 2, r"F5 reads the machine again\.", (35, 3))],
-    "tool_mygates": [("gates", ("t", 1), 2, r"Gate\s+Now\s+As delivered", (2, 3)), ("gates", ("t", 1), ("r", 5), r"\[\?\]", (2, 134)), ("gates", ("b", 3), 2, r"Signed on as ", (19, 3)),
-                     ("gates", ("b", 2), 2, r"Only the administrator can change a gate", (20, 3)), ("cell", ("t", 1), 2, r"\S", (23, 3)), ("note", ("t", 1), 2, r"Gates are the administrator's", (35, 3))],
+    "tool_mygates": [("gates", ("t", 1), 2, r"Gate\s+Now\s+As delivered", (2, 3)), ("gates", ("t", 1), ("r", 5), r"\[\?\]", (2, 134)), ("gates", ("b", 3), 2, r"Signed on as ", (20, 3)),
+                     ("gates", ("b", 2), 2, r"Only the administrator can change a gate", (21, 3)), ("cell", ("t", 1), 2, r"\S", (24, 3)), ("note", ("t", 1), 2, r"Gates are the administrator's", (35, 3))],    # 9 Nov 26: rows 20, 21, 24, one lower, the gates box is a row taller (S.182)
     "tool_keys": [("terminal", ("t", 1), 2, r"TERM \(SD\)", (2, 3)), ("terminal", ("t", 3), 2, r"Window\s+\d+ x \d+", (4, 3)), ("seen", ("t", 1), 2, r"\[ \] up", (2, 49)),
                   ("styles", ("t", 1), 2, r"normal\s+sample text", (19, 49)), ("styles", ("t", 18), 2, r"A style is drawn in itself\.", (36, 49)), ("styles", ("t", 19), 2, r"The theme changes with Ctrl-T\.", (37, 49)),
                   ("mouse", ("t", 1), 2, r"Last\s+none yet", (2, 96)), ("mouse", ("t", 6), 2, r"Click, drag and turn the wheel", (7, 96)), ("boxes", ("t", 12), 2, r"The borders are", (23, 96)),

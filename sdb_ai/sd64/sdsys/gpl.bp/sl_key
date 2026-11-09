@@ -9,6 +9,7 @@
 *               before a key is read; off the screen, $sl_guard takes the keyboard.  'guardquit' is the new key name; a lift
 *               of the lock is reported as 'resize', since the screen is the guard's and the program must draw it again.
 * 22 Oct 26 dm  An Alt-letter is the key alt-x (KEYCODE is asked for it with BINDKEY(, -7) for the read; it used to ring the bell and drop it).
+* 9 Nov 26 dm   S.184 stage 2: Esc and DEL (or Esc and ^H) is the key alt-bs, Alt-Backspace; it was 'alt-' and a control character no program could name.
 * 28 Oct 26 dm  S.88 L1.  R-b: the cursor lock's layout mode ($sl_guardmode with 'layout'): the window against the floor decides, not the cursor.
 *               R-a: every 'resize' handed out is noted (common /slpend/) until the program's own wait (SCREEN KEY, SCREEN WAIT) has delivered one;
 *               a dialogue that read it ($sl_menu, $sl_msgbox, SCREEN ASK, $sl_pickwin, $tk_confirm's and $tk_ai's boxes, the IDE's name box) leaves
@@ -125,6 +126,8 @@ $include err.h
       case k[1, 2] = char(27) : char(2)
          name = k[3, 99]                       ;* KEYCODE took a whole control sequence: its modified-key name (ctrl-right, shift-up ...), or none, which is ignored
          if name = '' then ign = 1
+      case len(k) = 2 and k[1,1] = char(27) and (k[2,1] = char(127) or k[2,1] = char(8))
+         name = 'alt-bs'                       ;* 9 Nov 26 (S.184 stage 2): Alt-Backspace (Esc and DEL or ^H, whichever the terminal's Backspace sends): SED's delete the word before
       case len(k) = 2 and k[1,1] = char(27)
          name = 'alt-' : downcase(k[2,1])      ;* an Alt-letter (or Alt-digit or Alt-sign): Alt+S and Alt+s are both alt-s
       case len(k) > 1

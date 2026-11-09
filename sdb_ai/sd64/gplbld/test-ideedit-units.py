@@ -168,7 +168,7 @@ def checks(src):
        "a command that aborts is stopped, as Run and Debug's are - without TRAPPING ABORTS the abort cast the IDE off with every unsaved tab, 29 Oct 26 review R2), takes the tabs' "
        "locks again AFTER it, and shows what it printed in the table (rows that jump nowhere: err.lines 0)",
        ordered(xq, "screen ask sysmsg(11554)", "gosub rc.tick", "execute xq.cmd trapping aborts capturing xq.out", "gosub relock.all", "err.rows<-1> = xq.n", "err.lines<-1> = 0", "out.kind = 'xeq'", "gosub err.load")
-       and all(("execute 'run ' : qp.f : ' ' : qp.i trapping aborts" in L["run.cmd"], "execute 'debug ' : qp.f : ' ' : qp.i trapping aborts" in L["run.cmd"])), "")
+       and all(("execute 'run ' : qp.f : ' ' : qp.i : ra.args trapping aborts" in L["run.cmd"], "execute 'debug ' : qp.f : ' ' : qp.i trapping aborts" in L["run.cmd"])), "")    # 9 Nov 26 (S.184 stage 3): Run with arguments
     gt = L["do.goto"]
     ck("E12", "Go to takes a line, a line and column, or field, value and subvalue (the value after the (v - 1)-th ':@vm:', the subvalue after the (s - 1)-th ':@sm:' inside it, found in any case, "
        "a number out of range going to the last); each number must be a number of at least 1 and is made whole; gl.p is given a value BEFORE its first element is assigned (29 Oct 26 review R1: "

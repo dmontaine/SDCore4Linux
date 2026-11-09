@@ -96,10 +96,10 @@ def checks(s):
     dtw = re.search(r"(?m)^do\.tabwidth:\n(.*?)(?=^\S)", ide, re.S)
     dtw = dtw.group(1) if dtw else ""
     ck("K8 the IDE keeps the three modes: ed.over, ed.auto and ed.tab start at 0, 0 and 3, new.form gives all three to the editor, relayout reads overwrite back from the old editor before the form is made again, "
-       "the tab width is a whole number from 1 to 8 (anything else leaves it as it was), and the status line shows [overwrite] (11766) only in that mode",
+       "the tab width is a whole number from 1 to 99 (anything else leaves it as it was; 1 to 8 until 9 Nov 26, S.184 stage 3: SED's TABS took more), and the status line shows [overwrite] (11766) only in that mode",
        "ed.over = 0" in ide and "ed.auto = 0" in ide and "ed.tab = 3" in ide and ide.count("mw{'over'} = ed.over") == 2 and ide.count("mw{'autoindent'} = ed.auto") == 2 and ide.count("mw{'tabindent'} = ed.tab") == 2
        and re.search(r"relayout:\n   gosub stash\.current\n   if have\.form then\n.*?ed\.over = ow\{'over'\} \+ 0.*?end\n   screen clear", ide, re.S) is not None
-       and "if tw.n < 1 or tw.n > 8 then return" in dtw and "if tw.text = '' or not(num(tw.text)) then return" in dtw and "if mw{'over'} + 0 then t := '  ' : sysmsg(11766)" in ide, repr(dtw[:200]))
+       and "if tw.n < 1 or tw.n > 99 then return" in dtw and "if tw.text = '' or not(num(tw.text)) then return" in dtw and "if mw{'over'} + 0 then t := '  ' : sysmsg(11766)" in ide, repr(dtw[:200]))
     dsel = re.search(r"(?m)^del\.sel:\n(.*?)(?=^\S)", memo, re.S)
     dsel = dsel.group(1) if dsel else ""
     pst = re.search(r"(?m)^paste\.t:\n(.*?)(?=^\S)", memo, re.S)
