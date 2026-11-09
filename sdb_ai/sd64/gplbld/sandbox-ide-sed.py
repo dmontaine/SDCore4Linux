@@ -13,6 +13,7 @@
 # 18 Oct 26 dm  New (plan-terminal-140x42.md, Part B).
 # 28 Oct 26 dm  F3 is the editor's find next, not the tree: the tree is reached with ID.GOTO_TREE (Shift-F6 twice); the Go menu has Previous pane,
 #               so Edit in SED is its eighth entry.
+# 9 Nov 26 dm   S.184 stage 1: Ctrl-E zooms the editor; the hand-over to SED is Go > Edit in SED (TO_SED, the tenth entry), and a section holds the zoom.
 # END-HISTORY
 #
 # HOW IT DRIVES THEM.  The IDE and SED run on ONE pseudo-terminal at 140 by 42 (ptydrive.py, the screen read from termscreen.py), the keys
@@ -48,6 +49,10 @@ RUN = ID.RUN
 F8, F10, DOWN, RIGHT, RET, ESC, END = ID.F8, ID.F10, ID.DOWN, ID.RIGHT, ID.RET, ID.ESC, ID.END   # F8 is compile since S.88 Phase 4 (F7 is debug)
 CTRL = lambda ch: chr(ord(ch.upper()) - 64)         # noqa: E731
 CTRL_E, CTRL_Q, CTRL_S = CTRL("e"), CTRL("q"), CTRL("s")
+F6 = ID.F6
+# 9 Nov 26 (S.184 stage 1): Ctrl-E zooms the editor; the hand-over to SED is Go > Edit in SED, the tenth entry of Go (message 11226: Go to line, Next error,
+# Next tab, Previous tab, Files and records, Next pane, Previous pane, Open the include, Zoom the editor, Edit in SED)
+TO_SED = (F10, RIGHT * 2, DOWN * 9, RET)
 
 passed = failed = 0
 
@@ -108,6 +113,14 @@ def leave_sed(e):
 def line_of(e):
     m = re.search(r"Line (\d+), column (\d+)", e.status())
     return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def zz_col(L):
+    """The column where the record's first line (it begins ZZcrt after SED's save) is drawn, or -1: the row is found in rows 2 to 7."""
+    for l in L[2:8]:
+        if "ZZcrt" in l:
+            return l.find("ZZcrt")
+    return -1
 
 
 def table_empty(L):
@@ -171,9 +184,9 @@ end
         L = e.keys(F8)
         row("control: the IDE shows the record and its compile errors (the table has the error before the hand-over)",
             in_ide(L) and "1 error(s)" in e.status() and not table_empty(L), e.status() + " | " + " ".join(l[30:80] for l in L[35:38]))
-        L = e.keys(CTRL_E)
+        L = e.keys(*TO_SED)
         L = wait(e)
-        row("Ctrl-E opens SED on the record: its status line is up, the IDE's menu bar is gone, the first line is the record's",
+        row("Go > Edit in SED opens SED on the record: its status line is up, the IDE's menu bar is gone, the first line is the record's",
             in_sed(L) and 'crt "one"' in "\n".join(L[:4]), "\n".join(l[:60] for l in L[:3]) + " | " + L[-1][:80])
         e.keys("ZZ", idle=0.5)
         L = e.keys(CTRL_S, idle=0.5)
@@ -194,9 +207,9 @@ end
 
         say("\n--- leaving SED without saving returns too, and nothing changes --------------------------------------------------")
         before = ID.rec_text(box, P)
-        L = e.keys(CTRL_E)
+        L = e.keys(*TO_SED)
         L = wait(e)
-        row("control: Ctrl-E again opens SED", in_sed(L), L[-1][:80])
+        row("control: Go > Edit in SED again opens SED", in_sed(L), L[-1][:80])
         e.keys("YY", idle=0.5)
         L = e.keys(CTRL_Q, idle=1.0)
         row("control: with typing in it SED asks before it lets go (a box 'Record changed.  Quit without saving?')",
@@ -216,14 +229,14 @@ end
         e.quiet()
         row("control: typing marks the record changed (a star in the status line) and the disk does not have it",
             " *" in e.status() and "QQ" not in ID.rec_text(box, Q), e.status())
-        L = e.keys(CTRL_E, idle=1.0)
-        row("Ctrl-E on a changed record asks 'Save them, then edit in SED?' and SED is not started", "has changes" in "\n".join(L) and "edit in SED" in "\n".join(L) and in_ide(L),
+        L = e.keys(*TO_SED, idle=1.0)
+        row("Edit in SED on a changed record asks 'Save them, then edit in SED?' and SED is not started", "has changes" in "\n".join(L) and "edit in SED" in "\n".join(L) and in_ide(L),
             "\n".join(l[:80] for l in L[14:24]))
         L = e.keys("c", idle=1.0)
         L = e.quiet()
         row("Cancel leaves everything as it was: in the IDE, still changed, the disk without QQ", in_ide(L) and " *" in e.status() and "QQ" not in ID.rec_text(box, Q),
             e.status() + " | " + ID.rec_text(box, Q)[-80:])
-        L = e.keys(CTRL_E, idle=1.0)
+        L = e.keys(*TO_SED, idle=1.0)
         L = e.keys(RET, idle=0.5)                           # Save is the default button
         L = wait(e)
         row("Save writes the buffer, then SED opens on it (QQ is in SED's first line)", in_sed(L) and "QQ" in L[1] and "QQ" in ID.rec_text(box, Q),
@@ -235,12 +248,48 @@ end
         say("\n--- the menu entry -------------------------------------------------------------------------------------------")
         e = IdeK(box, "IDE bp %s" % P)
         L = e.keys(F10, RIGHT * 2)                          # Go is the third menu since S.180 (File, Edit, Go)
-        row("the Go menu lists Edit in SED with its key, ^E", any("Edit in SED" in l and "^E" in l for l in L[1:12]), "\n".join(l[:60] for l in L[:10]))
-        L = e.keys(DOWN * 8, RET, idle=0.8)                 # the ninth entry of Go (message 11226): Go to line, Next error, Next tab, Previous tab, Files and records, Next pane, Previous pane, Open the include, Edit in SED (29 Oct 26: Open the include is before it)
+        row("the Go menu lists Zoom the editor with its key, ^E, and Edit in SED with none (S.184 stage 1)",
+            any("Zoom the editor" in l and "^E" in l for l in L[1:14]) and any("Edit in SED" in l and "^E" not in l for l in L[1:14]), "\n".join(l[:60] for l in L[:13]))
+        L = e.keys(DOWN * 9, RET, idle=0.8)                 # the tenth entry of Go (message 11226): ... Open the include, Zoom the editor, Edit in SED
         L = wait(e)
         row("choosing it opens SED on the record", in_sed(L), L[-1][:80])
         L = leave_sed(e)
         row("...and leaving returns to the IDE", in_ide(L) and " *" not in e.status(), L[0][:60] + " | " + e.status())
+        e.end()
+
+        # 9 Nov 26 (S.184 stage 1): Ctrl-E zooms the editor and nothing is handed over
+        say("\n--- Ctrl-E zooms the editor: the files and the messages hidden, the editor the whole width; Ctrl-E again puts them back ---")
+        e = IdeK(box, "IDE bp %s" % P)
+        L = e.keys(F8, idle=1.5)
+        L = e.quiet()
+        col0 = zz_col(L)
+        row("control: unzoomed, the files take the left columns (the first line of the record starts right of column 28) and the messages hold the compile's error",
+            col0 > 28 and not table_empty(L) and "zoomed" not in e.status() and any(re.search(r"Line\s+Message", l) for l in L[28:40]), "col %d | %s" % (col0, e.status()))
+        L = e.keys(CTRL_E, idle=1.0)
+        L = e.quiet()
+        col1 = zz_col(L)
+        row("Ctrl-E zooms: still the IDE (its menu bar), the line starts at the left (column %d, was %d), the status line says zoomed" % (col1, col0),
+            in_ide(L) and 0 <= col1 < 12 and "zoomed" in e.status() and not in_sed(L), "col %d | %s" % (col1, e.status()))
+        row("...the messages are hidden: no Messages bar and no Line / Message heading below the editor (both are there unzoomed)",
+            not any(re.search(r"\bMessages\b", l) or re.search(r"Line\s+Message", l) for l in L[28:40]), "\n".join(l[:80] for l in L[28:40]))
+        L = e.keys(DOWN)
+        L = e.quiet()
+        row("...the IDE's keys work zoomed: Down moves the cursor to line 2", line_of(e) is not None and line_of(e)[0] == 2, e.status())
+        L = e.keys(F6)
+        L = e.quiet()
+        row("...F6 goes from the editor to the tabs, not to the hidden messages", e.status().startswith("[Tabs"), e.status())
+        L = e.keys(F6)
+        L = e.quiet()
+        row("...and F6 again back to the editor, not to the hidden files", e.status().startswith("[Editor"), e.status())
+        L = e.keys(F8, idle=1.5)
+        L = e.quiet()
+        row("a compile with an error while zoomed ends the zoom so that the error can be read (the table holds it, the line starts right of the files again)",
+            "zoomed" not in e.status() and not table_empty(L) and zz_col(L) > 28, "col %d | %s" % (zz_col(L), e.status()))
+        L = e.keys(CTRL_E, idle=1.0)
+        L = e.keys(CTRL_E, idle=1.0)
+        L = e.quiet()
+        row("Ctrl-E twice: zoomed, then the files and the messages back, the status line no longer zoomed", "zoomed" not in e.status() and zz_col(L) > 28,
+            "col %d | %s" % (zz_col(L), e.status()))
         e.end()
 
         say("\n--- the editor still ends a row with End; Ctrl-E is the IDE's now --------------------------------------------------")
@@ -257,9 +306,9 @@ end
         L = e.keys("z", RET)
         row("control: the record %r is open in the IDE, opened from the tree (its tab, its first line)" % SP,
             ("[%s]" % SP) in L[2] and "blank one" in "\n".join(L[3:6]), L[2][:90] + " | " + L[3][28:70])
-        e.keys(CTRL_E, idle=1.0)
+        e.keys(*TO_SED, idle=1.0)
         L = wait(e)
-        row("Ctrl-E opens SED on THAT record: its first line is the record's and SED does not say 'New record'",
+        row("Edit in SED opens SED on THAT record: its first line is the record's and SED does not say 'New record'",
             in_sed(L) and "blank one" in L[1] and "new record" not in "\n".join(L[-3:]).lower(), L[1][:60] + " | " + L[-1][:80])
         e.keys("Q", idle=0.5)
         e.keys(CTRL_S, idle=0.8)
@@ -270,7 +319,7 @@ end
 
         say("\n--- a save in a second buffer of SED does not end the edit and lose the first (the verifier's F2) --------------------")
         e = IdeK(box, "IDE bp %s" % Q)
-        e.keys(CTRL_E, idle=1.0)
+        e.keys(*TO_SED, idle=1.0)
         L = wait(e)
         e.keys("AA", idle=0.5)
         L = e.keys(CTRL("o"), idle=1.0)
@@ -296,7 +345,7 @@ end
         try:
             e = IdeK(box, "IDE bp %s" % L1)
             before = ID.rec_text(box, L1)
-            L = e.keys(CTRL_E, idle=1.0)
+            L = e.keys(*TO_SED, idle=1.0)
             L = wait(e, 3.0)
             say("      screen after Ctrl-E on a locked record: " + " | ".join(l.strip()[:60] for l in L if l.strip())[:300])
             row("SED opens a record someone else holds locked READ ONLY and says so on its screen (it is not edited and not refused)",

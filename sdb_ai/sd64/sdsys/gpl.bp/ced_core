@@ -9,6 +9,8 @@
 *               out of it unchanged except where a label wrote the file or painted.  The state lives in a collection, so that a host can hold more than one editor.
 * 31 Oct 26 dm  S.86 stage 4: the ops 'ai.request' and 'ai.explain' (the IDE's AI line in the fields view), and Ctrl-T / F4 on the empty top level asks collection or array (G3, the old CED's
 *               choice for a new record).
+* 9 Nov 26 dm  S.181 (the owner lifted CED's freeze, 9 Nov: "lift the freeze so it uses the shared keys"): F5, F6 and F7 no longer copy, cut and paste (Ctrl-C, X, V do,
+*               as in the IDE); Alt-T changes the type as F4 does.  The shared keys themselves (Ctrl-T, Ctrl-K, F5) are the host's: ced_edit and the IDE.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -375,13 +377,13 @@ handle.key:
          gosub ai.menu
       case c.key = 'f3'
          gosub rename.element
-      case c.key = 'f4'
+      case c.key = 'f4' or c.key = 'alt-t'
          gosub change.type
-      case c.key = 'f5' or c.key = 'ctrl-c'
+      case c.key = 'ctrl-c'                     ;* 9 Nov 26 (S.181): copy, cut and paste are Ctrl-C, X and V only; F5 and F6 are refresh and the boxes on every page
          gosub copy.element
-      case c.key = 'f6' or c.key = 'ctrl-x'
+      case c.key = 'ctrl-x'
          gosub cut.element
-      case c.key = 'f7' or c.key = 'ctrl-v'
+      case c.key = 'ctrl-v'
          gosub paste.element
       case c.key = 'ins' or c.key = 'tab'       ;* Ctrl-I is the tab character
          gosub insert.element

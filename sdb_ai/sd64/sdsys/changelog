@@ -1,6 +1,28 @@
 Next release - in progress
 --------------------------
 
+9 Nov 26   CTRL-E IN THE IDE ZOOMS THE EDITOR TO THE WHOLE SCREEN.
+
+             What        - Ctrl-E (and Go > Zoom the editor) hides the list of files and records and the messages, and the
+                           editor takes the whole screen, as SED's does; Ctrl-E again, or Go > Files and records, brings them
+                           back. The status line says "zoomed". All the IDE's keys, menus and the AI line work while zoomed,
+                           and F6 goes between the tabs and the editor. A compile with errors or warnings, a search, View and
+                           Run a command end the zoom so that what they say can be read; a clean compile does not.
+                           Handing a record to SED is now Go > Edit in SED (it was Ctrl-E).
+             Why         - The owner, 9 Nov: "if the IDE editor can be expanded on Ctrl+e to give the user the same full screen
+                           view that SED provides" - the first step of retiring SED into the IDE.
+             Not changed - SED itself; nothing is saved or read again when you zoom.
+
+9 Nov 26   !CED() TAKES THE SAME KEYS AS EVERY OTHER FULL-SCREEN PROGRAM.
+
+             What        - The collection editor a program opens with call !ced(c) now has Ctrl-T (the next theme, kept for
+                           you), Ctrl-K (its keys in a box) and F5 or Ctrl-L (draw the screen again), as every page has since
+                           8 Nov. Copy, cut and paste are Ctrl-C, Ctrl-X and Ctrl-V only (F5, F6 and F7 no longer do them), and
+                           Alt-T changes an element's type as F4 does, which is the key the IDE's fields pane uses.
+             Why         - The owner, 9 Nov: "lift the freeze so it uses the shared keys". !CED() was the one full-screen
+                           program left with keys of its own.
+             Not changed - What the editor does with the data; its Esc still goes up a level, and it has no menu bar.
+
 8 Nov 26   THE SAME KEYS ON EVERY FULL-SCREEN PROGRAM, A THEME OF YOUR OWN, AND EVERY ACTION ON A MENU.
 
              What        - On every page, the home screen, the IDE, SED, the debugger and SP.VIEW: Ctrl-T takes the next colour

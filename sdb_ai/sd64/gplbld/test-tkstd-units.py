@@ -87,8 +87,8 @@ def checks(src):
     users = [k for k, v in c.items() if "$tk_std('keys'" in v and k != "tk_std"]
     for p in users:
         v = c[p]
-        th = re.search(r"case (?:nm = 'ctrl-t'|act = 'theme')[^\n]*\n\s*call \$tk_std\('theme'", v)
-        kl = re.search(r"case (?:nm = 'ctrl-k'|act = 'keys')[^\n]*\n\s*call \$tk_std\('keylist'", v)
+        th = re.search(r"case (?:[a-z][\w.]* = 'ctrl-t'|act = 'theme')[^\n]*\n\s*call \$tk_std\('theme'", v)        # 9 Nov 26 (S.181): any key variable (!CED()'s is c.key)
+        kl = re.search(r"case (?:[a-z][\w.]* = 'ctrl-k'|act = 'keys')[^\n]*\n\s*call \$tk_std\('keylist'", v)
         if not (th and kl):
             bad.append(p)
     ck("S4 every program that adds the shared keys handles Ctrl-T through $tk_std('theme' and Ctrl-K through $tk_std('keylist'", users and not bad, "%d users, wrong: %s" % (len(users), bad))

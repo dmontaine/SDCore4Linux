@@ -55,7 +55,7 @@ KEYMAP = {
     "f1": "help", "ctrl-s": "save", "f4": "nexterr", "f5": "refresh", "ctrl-l": "refresh", "f9": "run", "shift-f9": "catalog", "f6": "nextpane", "shift-f6": "prevpane", "f7": "debug",
     "shift-f7": "bptoggle", "f8": "compile",
     "ctrl-pgdn": "nexttab", "ctrl-pgup": "prevtab", "alt-pgdn": "nexttab", "alt-pgup": "prevtab", "f10": "menu", "ctrl-q": "quit", "ctrl-w": "close", "ctrl-n": "new", "ctrl-o": "open",
-    "ctrl-e": "sed", "alt-g": "goto", "ctrl-r": "replace", "f12": "fields", "ctrl-t": "theme", "ctrl-k": "keys",
+    "ctrl-e": "zoom","alt-g": "goto", "ctrl-r": "replace", "f12": "fields", "ctrl-t": "theme", "ctrl-k": "keys",
 }
 # the help: the line that names a key, a word its description holds, the key name it stands for
 # a key name of None is a key the editor (the memo) owns and the IDE does not bind: only the help's wording is held (the memo's own keys are IK18)
@@ -65,14 +65,14 @@ HELP = (
     ("m11214", "Alt-PgDn, PgUp", "own tabs", "alt-pgdn"), ("m11214", "F6, Shift-F6", "previous pane", "shift-f6"),
     ("m11215", "F4", "Next error", "f4"), ("m11215", "F9", "Run", "f9"), ("m11215", "F7", "Debug", "f7"), ("m11215", "F8", "Compile", "f8"),
     ("m11215", "F5, Ctrl-L", "Draw the screen again", "f5"), ("m11215", "Ctrl-T", "theme", "ctrl-t"), ("m11215", "Ctrl-K", "keys", "ctrl-k"),
-    ("m11215", "Shift-F9", "compile and catalogue", "shift-f9"), ("m11215", "Alt-G", "Go to a line", "alt-g"), ("m11215", "Ctrl-E", "SED", "ctrl-e"),
+    ("m11215", "Shift-F9", "compile and catalogue", "shift-f9"), ("m11215", "Alt-G", "Go to a line", "alt-g"), ("m11215", "Ctrl-E", "fills the screen", "ctrl-e"),
     ("m11215", "F12", "as fields", "f12"),
     ("m11216", "F3, Shift-F3", "previous", None), ("m11216", "Esc, F10", "menus", "f10"), ("m11216", "Ctrl-Q", "Quit", "ctrl-q"), ("m11216", "F1", "This screen", "f1"),
     ("m11216", "Ctrl-R", "Replace", "ctrl-r"),
 )
 FILE_MENU = ["new", "open", "save", "saveas", "writeas", "close", "quit"]
-GO_MENU = ["goto", "nexterr", "nexttab", "prevtab", "tree", "nextpane", "prevpane", "include", "sed", "fields", "dform"]     # 31 Oct 26 (S.90 stage 2): the dictionary item form, last, no key
-UNKEYED = ["bpclear", "debug1", "dform", "downcase", "export", "find", "findopts", "format", "import", "include", "qreplace", "saveas", "tree", "upcase", "view", "writeas", "xeq"]       # 29 Oct 26 (stage D): the editing commands have no key
+GO_MENU = ["goto", "nexterr", "nexttab", "prevtab", "tree", "nextpane", "prevpane", "include", "zoom", "sed", "fields", "dform"]     # 31 Oct 26 (S.90 stage 2): the dictionary item form, last, no key; 9 Nov 26 (S.184 stage 1): Zoom the editor (Ctrl-E) before Edit in SED, which has no key
+UNKEYED = ["bpclear", "debug1", "dform", "downcase", "export", "find", "findopts", "format", "import", "include", "qreplace", "saveas", "sed", "tree", "upcase", "view", "writeas", "xeq"]       # 29 Oct 26 (stage D): the editing commands have no key
 SEARCH_MENU = ["find", "replace", "view", "qreplace", "findopts", "upcase", "downcase", "import", "export"]
 BUILD_MENU = ["compile", "catalog", "run", "debug", "xeq", "format", "debug1", "bptoggle", "bpclear"]     # 2 Nov 26 (S.98 H2): the breakpoint entries, last
 

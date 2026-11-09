@@ -2319,10 +2319,10 @@ Value
 cited by: `ced_core`, `ide`
 
 ### msg:11136
-> kind=message tier=reference since=- src=sdsys/messages/11136:1#c6cd9815
+> kind=message tier=reference since=- src=sdsys/messages/11136:1#d140f49b
 
 ```
-Collection editor\n\nCursor up/down   Select the previous/next element\nPage up/down     Previous/next page\nReturn           Dive into a collection or array; change a value\nEsc              Back to the parent element\nF2               The AI menu (only when the AI is on for your account)\nF3               Rename the selected element\nF4               Change its data type\nF5 or Ctrl-C     Copy the selected element\nF6 or Ctrl-X     Cut the selected element\nF7 or Ctrl-V     Paste what was copied or cut\nIns or Ctrl-I    Insert a new element\nDel              Delete the selected element\nCtrl-S           Save changes and carry on\nQ                Quit from the top level\nCtrl-Q           Quit from any level\nF1 or ?          This screen
+Collection editor\n\nCursor up/down   Select the previous/next element\nPage up/down     Previous/next page\nReturn           Dive into a collection or array; change a value\nEsc              Back to the parent element\nF2               The AI menu (only when the AI is on for your account)\nF3               Rename the selected element\nAlt-T or F4      Change its data type\nCtrl-C           Copy the selected element\nCtrl-X           Cut the selected element\nCtrl-V           Paste what was copied or cut\nIns or Ctrl-I    Insert a new element\nDel              Delete the selected element\nCtrl-S           Save changes and carry on\nQ                Quit from the top level\nCtrl-Q           Quit from any level\nCtrl-T           The next theme (kept for you)\nCtrl-K           The keys in use\nF5 or Ctrl-L     Draw the screen again\nF1 or ?          This screen
 ```
 
 cited by: `ced_core`
@@ -2344,10 +2344,10 @@ Path: %1
 cited by: `ced_edit`, `ide`
 
 ### msg:11139
-> kind=message tier=reference since=- src=sdsys/messages/11139:1#4afb33c0
+> kind=message tier=reference since=- src=sdsys/messages/11139:1#41e28261
 
 ```
-F1 help   Return open   Esc up   Ins insert   Del delete   Q quit
+F1 help   Return open   Esc up   Ins insert   Del delete   ^K keys   ^T theme   Q quit
 ```
 
 cited by: `ced_edit`
@@ -3061,10 +3061,10 @@ The IDE\n\nTab, Shift-Tab   In the editor: indent, outdent the line or the selec
 cited by: `ide`
 
 ### msg:11215
-> kind=message tier=reference since=- src=sdsys/messages/11215:1#36d38630
+> kind=message tier=reference since=- src=sdsys/messages/11215:1#d2176ef2
 
 ```
-F4               Next error or result\nF5, Ctrl-L       Draw the screen again (as on every page)\nF9               Run\nF7              Debug (it runs on to the first breakpoint mark; Build / Debug from the first line stops at the first line)\nShift-F7         Set or clear the breakpoint mark of the line (a click in the gutter does the same; Build / Clear breakpoints)\nF8               Compile\nShift-F9         Build: compile and catalogue\nAlt-G            Go to a line\nCtrl-T           The next theme (kept for you; View, Theme)\nCtrl-K           The keys (Help, Keys)\nCtrl-E           Edit the record in SED (its save returns here)\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A dictionary item's, a VOC record's or a data record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks (a program's never)\nLocks            A record open in a tab is locked; one another session has locked opens read-only\nNot ASCII        A record holding characters outside ASCII (bytes 128 to 247) opens read-only\nIdle             With autologout set, the status line counts down its last 60 seconds; any key stops it\nInclude          Go, Open the include: the record a $include line at the cursor names\nMenus            Save as, Write a copy and Find in the records of the file are in the File and Search menus\n
+F4               Next error or result\nF5, Ctrl-L       Draw the screen again (as on every page)\nF9               Run\nF7              Debug (it runs on to the first breakpoint mark; Build / Debug from the first line stops at the first line)\nShift-F7         Set or clear the breakpoint mark of the line (a click in the gutter does the same; Build / Clear breakpoints)\nF8               Compile\nShift-F9         Build: compile and catalogue\nAlt-G            Go to a line\nCtrl-T           The next theme (kept for you; View, Theme)\nCtrl-K           The keys (Help, Keys)\nCtrl-E           Zoom: the editor fills the screen, or the files come back\nF12              Edit the record as fields: values and subvalues in CED (Ctrl-S there brings the fields back here)\nMarks            A dictionary item's, a VOC record's or a data record's value, subvalue and text marks show as :@vm: :@sm: :@tm: and are read back as marks (a program's never)\nLocks            A record open in a tab is locked; one another session has locked opens read-only\nNot ASCII        A record holding characters outside ASCII (bytes 128 to 247) opens read-only\nIdle             With autologout set, the status line counts down its last 60 seconds; any key stops it\nInclude          Go, Open the include: the record a $include line at the cursor names\nMenus            Save as, Write a copy and Find in the records of the file are in the File and Search menus\n
 ```
 
 cited by: `ide`
@@ -3165,10 +3165,10 @@ cited by: `set_job`
 ```
 
 ### msg:11226
-> kind=message tier=reference since=- src=sdsys/messages/11226:1#69e2379c
+> kind=message tier=reference since=- src=sdsys/messages/11226:1#f0795d05
 
 ```
-&Go|Go to &line~Alt-G~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Open the include~~include|&Edit in SED~^E~sed|Edit as f&ields~F12~fields|Dictionary item as for&m~~dform
+&Go|Go to &line~Alt-G~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Open the include~~include|&Zoom the editor~^E~zoom|Edit in &SED~~sed|Edit as f&ields~F12~fields|Dictionary item as for&m~~dform
 ```
 
 ### msg:11227
@@ -10213,6 +10213,33 @@ Error %d opening file
 
 ```
 The field entries work in the fields pane (F12).
+```
+
+cited by: `ide`
+
+### msg:14021
+> kind=message tier=reference since=- src=sdsys/messages/14021:1#104309cf
+
+```
+The editor fills the screen: Ctrl-E puts the files and the messages back.
+```
+
+cited by: `ide`
+
+### msg:14022
+> kind=message tier=reference since=- src=sdsys/messages/14022:1#91030201
+
+```
+The files and the messages are back: Ctrl-E fills the screen with the editor again.
+```
+
+cited by: `ide`
+
+### msg:14023
+> kind=message tier=reference since=- src=sdsys/messages/14023:1#bb66e56a
+
+```
+zoomed
 ```
 
 cited by: `ide`

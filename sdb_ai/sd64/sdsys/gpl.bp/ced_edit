@@ -25,6 +25,9 @@
 * 13 Oct 26 dm  On the screen library (owner: "use the TUI on ced and debugger"): the element list is a
 *               table widget, the questions are dialogues (SCREEN ASK, MSGBOX, MENU), the keys are the
 *               library's names.  What the editor does with the data is as it was.
+* 9 Nov 26 dm  S.181 (the owner, 9 Nov: "lift the freeze so it uses the shared keys"): the keys every full-screen page shares (S.179) - Ctrl-T the next theme, kept for the
+*               person; Ctrl-K the keys of this screen; F5 and Ctrl-L draw it again - through $tk_std, from a key table ck that names every key the editor takes.
+*               Copy, cut and paste are Ctrl-C, X and V only, and Alt-T changes the type as F4 does (the engine).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -113,6 +116,7 @@ $include sl.h
    end
    call $sl_guardmode('CED', LAYW, LAYH)   ;* the cursor lock: the keys are not the editor's while its cursor is off the screen
    call $tk_ai('usable', '', ai.ok, ai.pm)  ;* 24 Oct 26: F2 is the AI's key, only when the AI is usable for the account
+   gosub build.keys
 
    gosub read.layout
 
@@ -219,9 +223,47 @@ handle.key:
       return
    end
    eof.count = 0
+   * 9 Nov 26 (S.181): the keys every page shares are this screen's, not the engine's
+   begin case
+      case c.key = 'ctrl-t'
+         call $tk_std('theme', '', ck, '', tr)
+         call $ced_core('message', st, tr<2>, out)
+         gosub pull
+         return
+      case c.key = 'ctrl-k'
+         call $tk_std('keylist', '', ck, '', tr)
+         return
+      case c.key = 'f5' or c.key = 'ctrl-l'
+         call $sl_scr('get', scr)
+         call $sl_repaint(scr)
+         call $sl_scr('put', scr)
+         return
+   end case
    call $ced_core('key', st, c.key, out)
    gosub pull
    if st{'req'} = 'save' then gosub save.record
+   return
+
+* ======================================================================
+* build.keys  -  9 Nov 26 (S.181): the table of every key this screen takes, for the keys list (Ctrl-K) and the shared rows ($tk_std): what each does, in the order help shows them
+
+build.keys:
+   ck = ''
+   call $tk_keys('add', ck, 'f1', 'help', 'help', '', 1)
+   if ai.ok then call $tk_keys('add', ck, 'f2', 'AI', 'ai', '', 1)
+   call $tk_keys('add', ck, 'enter', 'open or change', 'dive', '', 1)
+   call $tk_keys('add', ck, 'esc', 'up a level', 'up', '', 1)
+   call $tk_keys('add', ck, 'f3', 'rename', 'rename', '', 1)
+   call $tk_keys('add', ck, 'alt-t', 'type', 'type', '', 1)
+   call $tk_keys('add', ck, 'ins', 'insert', 'insert', '', 1)
+   call $tk_keys('add', ck, 'del', 'delete', 'delete', '', 1)
+   call $tk_keys('add', ck, 'ctrl-c', 'copy', 'copy', '', 1)
+   call $tk_keys('add', ck, 'ctrl-x', 'cut', 'cut', '', 1)
+   call $tk_keys('add', ck, 'ctrl-v', 'paste', 'paste', '', 1)
+   call $tk_keys('add', ck, 'f5', 'refresh', 'refresh', '', 1)
+   call $tk_keys('add', ck, 'ctrl-s', 'save', 'save', '', 1)
+   call $tk_keys('add', ck, 'ctrl-q', 'quit', 'quit', '', 1)
+   call $tk_std('keys', '', ck, '', tr)
    return
 
 * ======================================================================

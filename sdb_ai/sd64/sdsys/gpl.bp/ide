@@ -156,6 +156,10 @@
 * 8 Nov 26 dm  S.172: paper, not blue, when the site names no theme and as the fall-back for a name that is no theme (paper is the delivered SCREENTHEME).
 * 8 Nov 26 dm  S.176 (the owner: one key moves between the boxes on every page, "F6 for boxes is fine"): Tab and Shift-Tab no longer move the focus out of the
 *               file list, the tabs, the messages or the fields (f{'tabkeys'}); F6 / Shift-F6 are the only box keys, as on every page.  In the editor Tab still indents.
+* 9 Nov 26 dm  S.184 stage 1 (the owner, 9 Nov: "if the IDE editor can be expanded on Ctrl+e to give the user the same full screen view that SED provides"): Ctrl-E zooms
+*               the editor - the files, the separator, the messages and their pane marks are hidden (SCREEN SET ... VISIBLE 0) and the editor takes the whole inside of
+*               the form; Ctrl-E again puts them back.  Every key, menu and the AI line work as before: nothing is handed over.  Anything that fills the messages (a
+*               compile with errors, a search, a command's output) leaves the zoom so that it can be read.  SED is still on Go > Edit in SED (it was Ctrl-E).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -374,7 +378,7 @@ $include idebrk.h
    ide.keys<dcount(ide.keys, @fm), TK.K.ROW> = 0
    call $tk_keys('add', ide.keys, 'f12', 'fields', 'fields', '', 1)
    call $tk_keys('add', ide.keys, 'ctrl-n', 'new', 'new', '', 1)
-   call $tk_keys('add', ide.keys, 'ctrl-e', 'SED', 'sed', '', 1)
+   call $tk_keys('add', ide.keys, 'ctrl-e', 'zoom', 'zoom', '', 1)       ;* 9 Nov 26 (S.184 stage 1): the editor fills the screen, and back; SED is on the Go menu
    call $tk_keys('add', ide.keys, 'ctrl-r', 'replace', 'replace', '', 1)
    call $tk_keys('add', ide.keys, 'shift-f7', 'breakpoint', 'bptoggle', '', 1)
    * 31 Oct 26 (S.86 stage 4): the keys of the fields pane (F12), which fields.key hands to the engine ($ced_core 'key'); the pane's name is not one of the focus ring's.  Not on the
@@ -458,6 +462,7 @@ $include idebrk.h
    sln = ''
    out.kind = ''
    out.file = ''
+   zm = 0                            ;* 9 Nov 26 (S.184 stage 1): 1 while Ctrl-E has the editor filling the screen
    focus.id = 'tree'
    msg = ''
    ai.sel = ''                       ;* the AI: the selected text and a sentence about it, for the request being made
@@ -782,6 +787,13 @@ size.layout:
    err.y = 2 + mh
    ai.rows = (if ai.on then 1 else 0)          ;* the AI entry takes the last row of the form under the editor and the table: the table is one row shorter
    ai.y = ih
+   if zm then
+      * 9 Nov 26 (S.184 stage 1): zoomed, the editor (and the tabs, the fields view and the AI line, which share its columns) take the whole inside of the form.  The
+      *   files and the messages keep the places they have unzoomed, hidden (zoom.show), so that every widget is always inside the form
+      ex = 1
+      ew = iw
+      mh = ih - 1 - ai.rows
+   end
    return
 
 * The form and everything on it, from the state
@@ -852,7 +864,7 @@ new.form:
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    mw{'hbar'} = 1
-   mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'     ;* Ctrl-E hands the record to SED (the area's own meaning of it, end of row, is End); F3 / Shift-F3 are the area's find next / previous (the owner's D31).  8 Nov 26 (S.179): Ctrl-T (the theme) and Ctrl-K (the keys) are the IDE's, as on every page; the area cuts a line with Alt-K
+   mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'     ;* Ctrl-E zooms the editor (9 Nov 26, S.184 stage 1; it handed the record to SED) (the area's own meaning of it, end of row, is End); F3 / Shift-F3 are the area's find next / previous (the owner's D31).  8 Nov 26 (S.179): Ctrl-T (the theme) and Ctrl-K (the keys) are the IDE's, as on every page; the area cuts a line with Alt-K
    mw{'stay'} = 1                                ;* 28 Oct 26 (I3): Up on the first line and Down on the last stay in the editor and do not move the focus to the tabs or the messages
    mw{'edkeys'} = 1                              ;* 29 Oct 26 (S.88 D2): Ctrl-Home / Ctrl-End (start and end of the text), Ctrl-Left / Ctrl-Right (a word) and Ctrl-Del (delete a word)
    mw{'over'} = ed.over
@@ -897,7 +909,8 @@ new.form:
    screen label f, 'ixerr', ind.want<4> at ex + ew - 3,err.y width 3 attr 'window'
    ind.cur = ind.want
 
-   gosub fields.form                    ;* 30 Oct 26 (stage 2b): the form was made with the text area showing; a tab that shows its fields has the view put back
+   gosub zoom.show                      ;* 9 Nov 26 (S.184 stage 1): the files and the messages hidden while zoomed
+   gosub fields.form                   ;* 30 Oct 26 (stage 2b): the form was made with the text area showing; a tab that shows its fields has the view put back
    gosub tree.apply
    if nbuf > 0 then gosub memo.cursor
    screen focus f, focus.id
@@ -2096,6 +2109,7 @@ open.select:
       sln<-1> = 1
    next os.i
    out.kind = 'search'
+   gosub zoom.leave                     ;* 9 Nov 26 (S.184 stage 1): what fills the messages is shown
    out.file = fn0
    out.dict = dflag0
    gosub err.load
@@ -2552,6 +2566,7 @@ status.line:
       case 1
          pn = ''
    end case
+   if pn # '' and zm then pn := ', ' : sysmsg(14023)       ;* 9 Nov 26 (S.184 stage 1): the line says the editor fills the screen
    if pn # '' then t = '[' : pn : ']' : (if t = '' then '' else '  ' : t)
    t = fmt(t[1, lw], lw : 'L')
    if t # last.status then
@@ -2634,7 +2649,7 @@ do.key:
       case edata = 'ctrl-o'
          cmd = 'open'
       case edata = 'ctrl-e'
-         cmd = 'sed'                     ;* the record goes to SED and comes back (the editor leaves this key to the IDE: passkeys)
+         cmd = 'zoom'                    ;* 9 Nov 26 (S.184 stage 1): the editor fills the screen, or the files and messages come back (the editor leaves this key to the IDE: passkeys)
       case edata = 'ctrl-r'
          cmd = 'replace'                 ;* SED's replace
       case edata = 'f12'
@@ -2688,6 +2703,7 @@ run.cmd:
       case cmd = 'save'
          gosub save.current
       case cmd = 'tree'
+         if zm then gosub zoom.toggle      ;* 9 Nov 26 (S.184 stage 1): the files are hidden while zoomed: Go > Files and records shows them again
          ft.id = 'tree'                    ;* SCREEN FOCUS moves the pointer and draws nothing: the form's own op shows the change
          gosub focus.to
       case cmd = 'nexterr'
@@ -2708,6 +2724,7 @@ run.cmd:
          * F6 and Shift-F6: the focus goes round the panes in the order the status line and the [*] marks name them (S.176: the only box keys; Tab does not move the focus)
          gosub fields.is.on
          pane.ring = 'tree' : @fm : 'tabs' : @fm : (if fv.on then 'fld' else 'ed') : @fm : 'err'      ;* 30 Oct 26 (stage 2b): the editor pane is the fields table while the tab shows its fields
+         if zm then pane.ring = 'tabs' : @fm : (if fv.on then 'fld' else 'ed')                        ;* 9 Nov 26 (S.184 stage 1): zoomed, the files and the messages are hidden
          if ai.on then pane.ring<-1> = 'ai'
          locate focus.id in pane.ring<1> setting pane.at else pane.at = 0
          if cmd = 'nextpane' then pane.at += 1 else pane.at -= 1
@@ -2763,6 +2780,8 @@ run.cmd:
          gosub close.current
       case cmd = 'sed'
          gosub do.sed
+      case cmd = 'zoom'
+         gosub zoom.toggle
       case cmd = 'fields'
          gosub do.fields
       case cmd = 'dform'
@@ -3648,6 +3667,7 @@ do.compile:
    while delim
    repeat
    out.kind = 'errors'
+   gosub zoom.leave                     ;* 9 Nov 26 (S.184 stage 1): a compile with errors or warnings shows them; a clean one stays zoomed
    out.file = c.file
    gosub err.load
    if c.ok then
@@ -3889,6 +3909,43 @@ retake.quiet:
 * forgets the compile errors (they named lines of the old text), takes the screen back WITHOUT the "press Return" pause of Run, and says
 * which it was.  SED makes ide.call 2 once the record is open for editing: if it is still 1 on the way back SED stopped on a message of its
 * own (a record locked by another session, a refusal), and the IDE waits for a key so that the message can be read.
+* ======================================================================
+* 9 Nov 26 (S.184 stage 1) - the zoom.  The owner, 9 Nov: "if the IDE editor can be expanded on Ctrl+e to give the user the same full screen view that SED provides".
+*   zoom.toggle  Ctrl-E (and Go > Zoom the editor): zm flips, the focus leaves a pane that is about to be hidden, and the form is laid out again (size.layout gives the
+*                editor the whole inside while zm is 1; zoom.show hides or shows the rest).  Nothing is handed over and nothing is saved or read again.
+*   zoom.show    the files, the separator, the messages and their pane marks hidden while zoomed and shown when not; called by new.form and move.form, so a resize and a
+*                form made again keep the zoom.
+*   zoom.leave   what fills the messages (a search, a view, a command's output, a compile with errors or warnings) ends the zoom, so that it can be read.
+
+zoom.toggle:
+   zm = not(zm)
+   if zm and (focus.id = 'tree' or focus.id = 'err') then
+      ft.id = 'ed'
+      gosub focus.to
+   end
+   gosub relayout
+   if zm then msg = sysmsg(14021) else msg = sysmsg(14022)
+   return
+
+zoom.show:
+   zv = not(zm)
+   screen set f, 'tree' visible zv
+   for zr = 1 to ih
+      screen set f, 'sep' : zr visible zv
+   next zr
+   screen set f, 'errbar' visible zv
+   screen set f, 'err' visible zv
+   screen set f, 'ixtree' visible zv
+   screen set f, 'ixerr' visible zv
+   return
+
+zoom.leave:
+   if not(zm) then return
+   if out.kind = 'errors' and err.rows = '' then return      ;* a clean compile: nothing to read
+   zm = 0
+   gosub relayout
+   return
+
 do.sed:
    common /sedide/ ide.call
    if nbuf = 0 then
@@ -4623,6 +4680,7 @@ move.form:
    call $sl_widget_move(f, 'ixed', ex + ew - 4, 0, '', r) ; mv.bad += r
    call $sl_widget_move(f, 'ixerr', ex + ew - 3, err.y, '', r) ; mv.bad += r
    if mv.bad > 0 then return            ;* a widget the move refused: relayout builds the screen again (the text is kept: it stashed it first)
+   gosub zoom.show                      ;* 9 Nov 26 (S.184 stage 1)
    call $sl_form('layout', f, scr, '', r)
    gosub draw.bar
    return
@@ -5064,6 +5122,7 @@ do.find:
    until hits >= MAXHIT
    next i
    out.kind = 'search'
+   gosub zoom.leave                     ;* 9 Nov 26 (S.184 stage 1)
    out.file = ctx.file
    out.dict = ''
    gosub err.load
@@ -5363,6 +5422,7 @@ do.view:
       return
    end
    out.kind = 'view'
+   gosub zoom.leave                     ;* 9 Nov 26 (S.184 stage 1)
    out.file = ''
    out.dict = ''
    gosub err.load
@@ -5567,6 +5627,7 @@ do.xeq:
       return
    end
    out.kind = 'xeq'
+   gosub zoom.leave                     ;* 9 Nov 26 (S.184 stage 1)
    out.file = ''
    out.dict = ''
    gosub err.load
