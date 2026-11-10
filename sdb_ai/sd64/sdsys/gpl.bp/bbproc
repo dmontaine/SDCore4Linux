@@ -44,6 +44,8 @@
 * 06 Aug 24 comment out "<cr> to install" prompt 
 * 02 Jul 24 add check for install already complete
 * 9 Nov 26 dm  S.186: what the program prints is in US spelling (the owner: "Everything SD prints"); its text only, no change of behaviour.
+* 10 Nov 26 dm  S.207: the log is @sdsys/bbproc.log, not /tmp/bbproc.log, and a log that cannot be opened is skipped (ON ERROR),
+*               where it was fatal and the abort branch came back to the same open for ever.
 * END-HISTORY
 *
 *
@@ -130,14 +132,21 @@ end
 gosub reset.environment
 
 * we log the execution of BBPROC
+* 10 Nov 26 (S.207): in the system directory being built, not under a fixed name in /tmp (the installer runs this as root, and a
+*   /tmp/bbproc.log another user owned made the open fatal; the abort then came back here for ever).  A log that cannot be opened
+*   is skipped: ON ERROR keeps the open from being fatal.
 logging = @true
-openseq '/tmp/bbproc.log' overwrite to log.f then
+log.path = @sdsys : @ds : 'bbproc.log'
+openseq log.path overwrite to log.f on error
+   crt 'unable to log to ' : log.path : ' ' : status()
+   logging = @false
+end then
    writeseq 'BBPROC started at: ': timedate() to log.f else null
 end else
    if status() then
-    crt 'unable to log to /tmp/bbproc.log ':status()
+    crt 'unable to log to ' : log.path : ' ' : status()
     logging = @false
-   end 
+   end
 end
 
 * Main processing loop

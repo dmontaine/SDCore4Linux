@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+10 Nov 26  THE INSTALL'S COMPILE LOG IS NO LONGER WRITTEN TO /tmp.
+
+             What        - The bootstrap compile keeps its log as bbproc.log in the system directory, not /tmp/bbproc.log,
+                           and goes on without a log if it cannot open one.
+             Why         - The installer runs it as root, and root writing a fixed name in /tmp is unsafe. A /tmp/bbproc.log
+                           left by an earlier install, owned by someone else, made the compile loop for ever.
+             Not changed - What is compiled, and the order it is compiled in.
+
 10 Nov 26  CORRECTIONS TO THE FULL-SCREEN PAGES, AND A SESSION ON A PIPE NOW STOPS WHEN IT IS TOLD TO.
 
              What        - A line of explanation longer than its box is wrapped at every window size; it was cut at 140 by 43.
