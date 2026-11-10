@@ -3,7 +3,7 @@
 # witness-entries.py - TOOL.ENTRIES (S.96, the master files by pointer) on a REAL install: M7 of .claude/plan-s96-master-pages.md.  The half that
 # sandbox-tool-entries.py cannot show, because a sandbox is never the sdsys OS user: SDSYS's page writes, compiles and debugs in the installing user's
 # account as the REAL sdsys user through the REAL groups (S.103: sdsys is in every user account's group), the account itself being locked out of its own
-# VOC by its delivered edit gate; and the pointer rule refusing SDSYS's own gpl.bp, which the sdsys user could really write.
+# VOC by its delivered edit gate; and the pointer rule refusing SDSYS's own syscom, which the sdsys user could really write.
 #
 #   python3 witness-entries.py            (on the VM, as the installing user, with ptydrive.py and termscreen.py beside this file; sudo needs no password there)
 #
@@ -224,7 +224,7 @@ def fixture():
     sh("sudo rm -f '%s/bp.out/zm7prog' '%s/bp.out/zm7dbg'" % (ACCT, ACCT))
     for rid in ("zm7new", "zm7own"):
         voc_del(rid)
-    if (FIX["bp_voc"] and not voc_put("bp", ["F", "bp"])) or not voc_put("zsys.bp", ["F", "@SDSYS/gpl.bp"]):
+    if (FIX["bp_voc"] and not voc_put("bp", ["F", "bp"])) or not voc_put("zsys.bp", ["F", "@SDSYS/syscom"]):
         return "the fixture's VOC pointers bp / zsys.bp were not written"
     return ""
 
@@ -259,7 +259,7 @@ def main():
         row("the fixture", False, bad)
         return finish(1)
     a0 = audit_count()
-    gpl_m0 = (mtime(SDSYS_DIR + "/gpl.bp/ide"), mtime(SDSYS_DIR + "/gpl.bp.out/ide"))
+    gpl_m0 = mtime(SDSYS_DIR + "/syscom/keys.h")        # S.198: an install has no gpl.bp any more; syscom is the directory of SDSYS's own that stays
 
     # ---- the account is locked out of its own VOC (the gate), the disk unchanged
     out = me_cmds("ED VOC zm7own\nI\nX\nmine\n\nFI")
@@ -305,18 +305,18 @@ def main():
     row("W4 E opens zm7new in the IDE and the change is on the disk; the page says it came back from the editor",
         up_e and "made by sdsys and edited" in rec and "back from the editor" in st(), repr((up_e, rec, st())))
 
-    # ---- the pointer rule against SDSYS's own gpl.bp
+    # ---- the pointer rule against SDSYS's own syscom (S.198: an install has no gpl.bp)
     typed("k", 1.2)
     typed("k", 1.2)
-    filt("ide")
+    filt("keys.h")
     rows = norm()
     typed("e", 1.5)
     st_e, up_x = st(), ide_up(text())
     typed("c", 2.5)
     st_c = st()
-    row("W5 the pointer zsys.bp (to @SDSYS/gpl.bp) lists ide marked >; E and C on it are refused with 'lies outside %s', no editor, no compile; gpl.bp/ide and its object unchanged" % ME,
-        re.search(r"zsys\.bp > ide\b", rows) is not None and "lies outside " + ME in st_e and not up_x and "lies outside " + ME in st_c
-        and (mtime(SDSYS_DIR + "/gpl.bp/ide"), mtime(SDSYS_DIR + "/gpl.bp.out/ide")) == gpl_m0, repr((st_e, st_c, gpl_m0)) + "\n" + text())
+    row("W5 the pointer zsys.bp (to @SDSYS/syscom) lists keys.h marked >; E and C on it are refused with 'lies outside %s', no editor, no compile; syscom/keys.h unchanged" % ME,
+        re.search(r"zsys\.bp > keys\.h\b", rows) is not None and "lies outside " + ME in st_e and not up_x and "lies outside " + ME in st_c
+        and mtime(SDSYS_DIR + "/syscom/keys.h") == gpl_m0, repr((st_e, st_c, gpl_m0)) + "\n" + text())
     if up_x:
         to_page()
 

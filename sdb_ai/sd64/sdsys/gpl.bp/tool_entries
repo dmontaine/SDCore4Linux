@@ -59,6 +59,7 @@
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * 9 Nov 26 dm  S.186 (Fable's review): retake.page takes the page again as 'admin', as the start does; it said '', so after the editor or the debugger the
 *              administrator was not asked again and the bar named the user instead.  View > Mouse and Ctrl-O, as on every page (act:std.mouse, ctrl-o, $tk_std).
+* 10 Nov 26 dm  S.205: F11 is no longer the filter's second key: a terminal keeps it for its own full screen, and / is the key the page shows.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -1020,7 +1021,7 @@ on.key:
          end else
             gosub open.entry
          end
-      case nm = 'f11' or nm = '/'
+      case nm = '/'
          gosub do.filter
       case nm = 'f'
          gosub do.find

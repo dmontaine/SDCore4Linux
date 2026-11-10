@@ -1158,7 +1158,7 @@ clause of `openseq`
 `page` {*n*}
 
 - a statement of SD BASIC
-- docs: `User/markdown/12a-sd-basic-the-screen-statement.md` line 293
+- docs: `User/markdown/12a-sd-basic-the-screen-statement.md` line 310
 
 ### basic:stmt:panning
 > kind=basic.clause tier=reference since=- src=sdsys/gpl.bp/bcomp:10224#7502bc52 src2=docs:tools/syntax-shapes.txt:152#13ce5390

@@ -6568,4 +6568,6 @@ do.goto:
    gosub redraw.editor
    return
 
+end
+
 * END-CODE

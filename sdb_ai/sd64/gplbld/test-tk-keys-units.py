@@ -489,7 +489,7 @@ def run_b(raw):
     mb = m.group(1) if m else ""
     m = re.search(r" act\.state: (.*?) return key\.name:", tk)
     st = m.group(1) if m else ""
-    for what, text in (("the flag D from the action's state", "fl = (if ia then '' else 'D')"), ("the shown key derived (ik)", "ent = keys<i, TK.K.ENTRY> : @sm : ik : @sm : fa : @sm : fl"),
+    for what, text in (("the flag D from the action's state", "fl = (if ia then '' else 'D')"), ("the shown key derived (ik)", "ent = keys<i, TK.K.ENTRY> : @sm : ik : @sm : fa : @sm : fl"), ("the reason goes with the entry (S.133; the F2 finder shows subvalue 5)", "if iw # '' then ent := @sm : iw"),
                        ("one entry an action", "if index(seen, @fm : fa : @fm, 1) = 0 then"),
                        ("Quit held back and put last in its menu", "if fa = 'quit' then qent = ent else m<1, -1> = ent"), ("Quit put last", "if qent # '' then m<1, -1> = qent")):
         if text not in mb:

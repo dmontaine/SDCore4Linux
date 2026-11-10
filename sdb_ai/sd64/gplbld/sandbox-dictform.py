@@ -112,6 +112,7 @@ def disk(item):
 def ide(command, idle=3.2):
     h = H(admin=True)
     h.typed(command + "\r", idle=idle)
+    h.s.keeps_writing()                         # S.191: the IDE writes a few bytes a second, so a settle asking for a second of quiet ran to its 20 s limit
     return h
 
 

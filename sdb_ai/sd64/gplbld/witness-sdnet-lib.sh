@@ -184,6 +184,15 @@ wl_account_user() {
 # wl_account_path ACCOUNT    the directory an SD account's register record names (field 1); empty when there is no such record.
 wl_account_path() { sed -n '1p' "$WL_SDSYS/accounts/$1" 2>/dev/null; }
 
+# wl_src_has TEXT PROGRAM   the prechecks' question "is this install new enough to have TEXT in gpl.bp/PROGRAM?".  An install since S.198 (10 Nov 2026) has no gpl.bp at all, and that alone
+# makes it newer than every feature these witnesses ask about, so the answer is yes and the line says why.  A gpl.bp that is there is read as before, and a file it lacks is a no.
+wl_src_has() {
+  if [ ! -d "$WL_SDSYS/gpl.bp" ]; then
+    say "      (precheck: $WL_SDSYS has no gpl.bp, so this install is newer than S.198 and has '$1')"
+    return 0
+  fi
+  grep -q -- "$1" "$WL_SDSYS/gpl.bp/$2" 2>/dev/null
+}
 # wl_sed_esc TEXT   TEXT made safe to sit in the replacement half of a sed s/// command.
 wl_sed_esc() { printf '%s' "$1" | sed -e 's/[&/\\]/\\&/g'; }
 # wl_msg N [A1 [A2 [A3]]]   the text of message N as the INSTALL has it (first line of $WL_SDSYS/messages/N) with %1 %2 %3 replaced.  Empty when there is no such message,
@@ -268,6 +277,11 @@ wl_selftest() {
     [ -z "$(wl_msg 99999 a b)" ] || { echo "SELFTEST-WRONG: wl_msg of a message that is not there is not empty"; SELF_BAD=1; }
     [ "$(wl_account_path ann)" = "/home/sd/user_accounts/ann" ] && [ "$(wl_account_user ann)" = ann ] && [ -z "$(wl_account_path nobody)" ] \
       || { echo "SELFTEST-WRONG: wl_account_path / wl_account_user"; SELF_BAD=1; }
+    # wl_src_has: no gpl.bp at all is a yes (an install since S.198); a gpl.bp is read, so a text or a file it lacks is a no
+    wl_src_has 'anything' apisrvr >/dev/null || { echo "SELFTEST-WRONG: wl_src_has on an install with no gpl.bp"; SELF_BAD=1; }
+    mkdir -p "$tmp/gpl.bp"; printf 'files.admin = 1\n' > "$tmp/gpl.bp/apisrvr"
+    wl_src_has 'files.admin' apisrvr >/dev/null || { echo "SELFTEST-WRONG: wl_src_has misses a text that is there"; SELF_BAD=1; }
+    if wl_src_has 'no.such.text' apisrvr >/dev/null || wl_src_has 'files.admin' modifya >/dev/null; then echo "SELFTEST-WRONG: wl_src_has says yes to a text or a program that is not there"; SELF_BAD=1; fi
     WL_SDSYS=$saved_sdsys
     # wl_audit_offset: ONE number whatever the file holds (an empty file printed two lines "0" before), counted in the physical lines wl_audit_since starts from
     local saved_audit=$WL_AUDIT

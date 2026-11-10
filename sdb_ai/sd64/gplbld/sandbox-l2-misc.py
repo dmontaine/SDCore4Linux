@@ -71,7 +71,7 @@ ANCH = {
                      ("gates", ("b", 2), 2, r"Only the administrator can change a gate", (21, 3)), ("cell", ("t", 1), 2, r"\S", (24, 3)), ("note", ("t", 1), 2, r"Gates are the administrator's", (35, 3))],    # 9 Nov 26: rows 20, 21, 24, one lower, the gates box is a row taller (S.182)
     "tool_keys": [("terminal", ("t", 1), 2, r"TERM \(SD\)", (2, 3)), ("terminal", ("t", 3), 2, r"Window\s+\d+ x \d+", (4, 3)), ("seen", ("t", 1), 2, r"\[ \] up", (2, 49)),
                   ("styles", ("t", 1), 2, r"normal\s+sample text", (19, 49)), ("styles", ("t", 18), 2, r"A style is drawn in itself\.", (36, 49)), ("styles", ("t", 19), 2, r"The theme changes with Ctrl-T\.", (37, 49)),
-                  ("mouse", ("t", 1), 2, r"Last\s+none yet", (2, 96)), ("mouse", ("t", 6), 2, r"Click, drag and turn the wheel", (7, 96)), ("boxes", ("t", 12), 2, r"The borders are", (23, 96)),
+                  ("mouse", ("t", 1), 2, r"Last\s+none yet", (2, 96)), ("mouse", ("t", 6), 2, r"Click, drag or turn the wheel", (7, 96)), ("boxes", ("t", 12), 2, r"The borders are", (23, 96)),
                   ("help", ("t", 1), 2, r"Press any key", (26, 96))],
     "tool_voc": [("list", ("t", 1), 2, r"Name\s+Type\s+Points at", (2, 3)), ("list", ("t", 1), ("r", 5), r"\[\?\]", (2, 134)), ("list", ("b", 4), 2, r"\d+ entr(y|ies), \d+ shown", (19, 3)),
                  ("list", ("b", 3), 2, r"Your gates:", (20, 3)), ("detail", ("t", 1), 2, r"\S", (24, 3))],

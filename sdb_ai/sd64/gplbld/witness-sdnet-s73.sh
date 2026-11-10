@@ -57,7 +57,7 @@ say "  install : $(wl_commit_stamp)"
 [ -x "$WL_SD" ] || need "$WL_SD is not installed"
 for f in "$SPROBE" "$HANG" "$HERE/netfake.py"; do [ -f "$f" ] || need "no $f beside this script"; done
 grep -q -- '--open-sdnet' "$SPROBE" || need "$SPROBE has no --open-sdnet (it is older than 3 Nov 2026)"
-grep -q 'reason=os gate off' "$WL_SDSYS/gpl.bp/apisrvr" 2>/dev/null || need "the installed apisrvr has no 'reason=os gate off' (older than S.73, 20 Oct 2026)"
+wl_src_has 'reason=os gate off' apisrvr || need "the installed apisrvr has no 'reason=os gate off' (older than S.73, 20 Oct 2026)"
 command -v openssl >/dev/null 2>&1 || need "openssl is not installed"
 DIRTY=0
 [ -e "$WL_SDSYS/accounts/$ACC" ] && { say "  DIRTY: register record $ACC exists"; DIRTY=1; }

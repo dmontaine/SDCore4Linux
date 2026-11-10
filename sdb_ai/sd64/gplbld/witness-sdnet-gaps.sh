@@ -111,7 +111,7 @@ command -v openssl >/dev/null 2>&1 || need "openssl is not installed (the TLS ro
 command -v python3 >/dev/null 2>&1 || need "python3 is not installed"
 ss -ltn 2>/dev/null | grep -q -E "[:.]$PORT[[:space:]]" || need "nothing is listening on port $PORT (is the API server running on this install?)"
 grep -q 'cannot change or lock files here' "$WL_SDSYS/messages/11521" 2>/dev/null || need "the installed message 11521 is not the K1 text: this install predates the S.65 finish (19 Oct 2026)"
-grep -q 'route.files.write' "$WL_SDSYS/gpl.bp/restorea" 2>/dev/null || need "the installed restorea has no route.files.write: this install predates the write group"
+wl_src_has 'route.files.write' restorea || need "the installed restorea has no route.files.write: this install predates the write group"
 [ -r "$WL_AUDIT" ] || need "the audit file $WL_AUDIT cannot be read"
 [ -r "$HERE/verify-auditwords.py" ] || need "no verify-auditwords.py beside this script"
 DIRTY=0

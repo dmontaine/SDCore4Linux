@@ -7764,7 +7764,7 @@ cited by: `tk_open`
 administrator
 ```
 
-cited by: `debug`, `tk_open`, `tool_home`
+cited by: `debug`, `mymenu`, `tk_open`, `tool_home`
 
 ### msg:11804
 > kind=message tier=reference since=- src=sdsys/messages/11804:1#58a916a2

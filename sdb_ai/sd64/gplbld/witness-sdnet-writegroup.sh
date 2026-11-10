@@ -61,7 +61,7 @@ say "  sd      : $WL_SD   $(timeout 20 "$WL_SD" --version 2>&1 | head -1)"
 [ -x "$WL_ELEVATE" ] || need "$WL_ELEVATE is not installed"
 wl_group_exists sdfiles || need "no Linux group sdfiles on this machine (install from a tree that makes it)"
 wl_group_exists sdfileswrite || need "no Linux group sdfileswrite on this machine (install from a tree that makes it)"
-grep -q 'change.files.group' "$WL_SDSYS/gpl.bp/modifya" 2>/dev/null || need "the installed modifya has no change.files.group: this install predates K4a (19 Oct 2026); install a newer Dev"
+wl_src_has 'change.files.group' modifya || need "the installed modifya has no change.files.group: this install predates K4a (19 Oct 2026); install a newer Dev"
 grep -q 'has files %2' "$WL_SDSYS/messages/11482" 2>/dev/null || need "the installed message 11482 is not 'Account %1 has files %2': this install predates K2 (19 Oct 2026)"
 PERSON=$(wl_account_user "$ACC")
 [ -n "$PERSON" ] || need "the register record of account '$ACC' is not a user account (field 3 is not sdu_<user>): give --account NAME"

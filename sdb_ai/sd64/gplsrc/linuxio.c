@@ -52,6 +52,7 @@
  * 09 Nov 26 dm  S.125: keyin()'s t1 starts at 0 (-Wmaybe-uninitialized); it is read only under a timeout, which sets it.
  * 10 Nov 26 dm  S.196: signal_handler() no longer logs (it took ERRLOG_SEM inside the handler and deadlocked a session hung up
  *               while it held it); it records the signal, and log_termination_signal() writes the line from process_events().
+ * 10 Nov 26 dm  S.178: keyin() waits on a pipe with poll and sees the events, so a session idle on a pipe leaves on SIGTERM.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -670,6 +671,21 @@ int16_t keyin(timeout) int timeout; /* Milliseconds */
     goto exit_keyin;
   } else {
     if (piped_input) {
+      /* 10 Nov 26 dm - S.178: a read of a pipe is not woken by a signal (SA_RESTART), so a session idle on a pipe never saw
+         EVT_TERMINATE and `sd -stop` had to SIGKILL it after ten seconds.  Wait with poll, as the terminal branch below does,
+         and see the events once a second.  An error other than EINTR goes on to the read, which reports it.                  */
+      for (;;) {
+        poll_ret = sdpoll(0, 1000);
+        if ((poll_ret > 0) || ((poll_ret < 0) && (errno != EINTR)))
+          break;
+        if ((my_uptr != NULL) && (my_uptr->events))
+          process_events();
+        if (k_exit_cause & K_INTERRUPT) {
+          input_handler_enabled = TRUE;
+          return 0;
+        }
+      }
+
       if (read(0, &c, 1) <= 0) {
         process.status = ER_EOF;
         return -1;

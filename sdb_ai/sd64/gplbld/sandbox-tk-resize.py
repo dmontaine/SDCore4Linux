@@ -246,6 +246,14 @@ def sec_grow():
         row("R1a", "%s at 180x55 the program writes the footer on rows 53-55 (status, border, keys)" % cmd, f["ok"], "%r; %s; bytes written: %d" % (f, where([l.rstrip() for l in fr.lines()]), len(w.post(off))), phase=ph, ctrl=ctrl)
         row("R1b", "%s at 180x55 the frame is 180 wide: the border is 180 cells (columns 141-180 used)" % cmd, f["bd_w"] == 180, "border width written: %d" % f["bd_w"], phase=ph, ctrl=ctrl)
         w.end()
+    # S.133: a page with no menu bar leaves no old name on row 0.  These rows read the screen as it stands, cells from before the resize included: the old name is what they look for.
+    w = launch("R1n", "tool.keys", 140, 43)
+    top = w.lines()[0]
+    c = R.row("R1n0 tool.keys at 140x43 names itself once at the right end of row 0 (the control)", top.count("tool.keys") == 1 and top.index("tool.keys") > 100, repr(top.strip()), phase=None)
+    w.resize(180, 55, 2.0)
+    top = w.lines()[0]
+    row("R1n", "tool.keys at 180x55: the name is on row 0 once, at the new right end, and not at the old place", top.count("tool.keys") == 1 and top.index("tool.keys") > 140, repr(top.strip()), phase=None, ctrl=c)
+    w.end()
 
 
 # ------------------------------------------------------------------------------------------------------------------------ R2, R3, R7 (pages)

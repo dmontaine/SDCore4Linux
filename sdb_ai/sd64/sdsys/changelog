@@ -1,6 +1,35 @@
 Next release - in progress
 --------------------------
 
+10 Nov 26  CORRECTIONS TO THE FULL-SCREEN PAGES, AND A SESSION ON A PIPE NOW STOPS WHEN IT IS TOLD TO.
+
+             What        - A line of explanation longer than its box is wrapped at every window size; it was cut at 140 by 43.
+                           In the paper and night themes the selected entry of a menu is white on blue, with the new style
+                           hotkey.sel for its letter; it had the page's own colours and looked like a hole in the menu.
+                           F2's list shows up to 60 characters of an action's name, and choosing one that cannot be used now
+                           says why. A page with no menu bar leaves no old name on the top row after the window is widened.
+                           "Waiting for the answer" no longer stays behind the AI's answer.
+                           A session reading its input from a pipe now leaves on SIGTERM, so sd -stop no longer has to kill it.
+             Why         - Each was found by reviewing screen pictures, or by the release witness for sd -stop.
+             Not changed - The blue, classic and mono themes look as they did. The AI preview still breaks its text at exact
+                           widths, because it shows exactly what will be sent.
+
+10 Nov 26  F11 IS NO LONGER THE SECOND KEY OF THE FILTER ON THE DEVELOPMENT PAGES.
+
+             What        - tool.catalog, tool.dict, tool.files, tool.test, tool.voc and tool.entries filter on / alone.
+             Why         - Terminals keep F11 for their own full screen, so the key usually never reached SD.
+             Not changed - / is the key those pages always showed, and it works as before.
+
+10 Nov 26  A SCREEN PROGRAM CAN FOLLOW THE WINDOW WITHOUT ANY CODE OF ITS OWN.
+
+             What        - SCREEN FORM ... FILL takes the whole window and is laid out again when the window changes. SCREEN MEMO and
+                           SCREEN TABLE take STRETCH 'w', 'h' or 'both': that widget gets the spare room and what lies beyond it moves.
+                           Below the form's own size one warning holds the keyboard until the window is large enough. SCREEN MOVE
+                           now also gives a text area, table, tree, label or entry field a new size.
+             Why         - SD's own pages could do this and a program could not; pages are often written by an AI, and this is a
+                           pattern it can copy.
+             Not changed - A program that uses none of these behaves exactly as before.
+
 10 Nov 26  THE CED COMMAND IS BACK.
 
              What        - CED {DICT} file {id...} at the command prompt edits data collection records in the collection editor. An

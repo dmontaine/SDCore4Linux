@@ -279,8 +279,8 @@ def main():
         row("Enter on it starts MY.MENU: the page 'My programs' with the empty-list line, and the keys Ctrl-N add, Enter change, Del remove, U up, D down",
             "You have not added a program yet" in T and h.line(42).startswith("^N add  / find  ^Q quit"), repr(h.line(42)))     # / find: S.186, 9 Nov 26
         # 2 Nov 26 (S.88 U4): the box is a pane of the layout service at its old place (the rows above and below read it there) and the page has F1 help ($tk_help, tool.menus.mine)
-        row("S.88 U4: the box is where it always was at 140 by 43 (its top border on row 1, the header on row 2, the note on its bottom border, row 34) and a [?] ends the header row",
-            h.line(1)[1:3] == "+-" and "My programs" in h.line(1) and "Label" in h.line(2) and "this list is only yours" in h.line(34) and h.line(2)[134:137] == "[?]", repr((h.line(1)[:20], h.line(2)[128:140], h.line(34)[:60])))
+        row("S.88 U4: the box is where it always was at 140 by 43 (its top border on row 1, the header on row 2, the note inside it on row 33 and its bottom border on row 34, S.138) and a [?] ends the header row",
+            h.line(1)[1:3] == "+-" and "My programs" in h.line(1) and "Label" in h.line(2) and "this list is only yours" in h.line(33) and h.line(34)[1:3] == "+-" and h.line(2)[134:137] == "[?]", repr((h.line(1)[:20], h.line(2)[128:140], h.line(33)[:60], h.line(34)[:20])))
         h.typed("?", idle=1.5)                         # the page's ? is its F1 (sandbox-home's key table has no F1; the key table row is test-help-units P17r)
         HT = re.sub(r"[|\s]+", " ", h.text())
         row("S.88 U4: ? (the page's F1) opens the page's help box ($tk_help: the record tool.menus.mine, or the words that help is not installed here, where the sandbox has no shared account)",

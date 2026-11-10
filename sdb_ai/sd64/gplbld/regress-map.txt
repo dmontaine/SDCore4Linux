@@ -212,7 +212,8 @@ gplsrc/locks.h               : lock-b6 listu-a5 conf-b1
 gplsrc/op_tio.c              : @pty terminfo-ext apispin qmclient req29
 # S.88 phase 2 (28 Oct 26): keyin() keeps AUTOLOGOUT's idle clock across waits that end by their own timeout (autologout)
 # S.94 (31 Oct 26): the Linux console's mouse through gpm - the stand-in daemon's suite (gpm) and the key forms of the console (realkeys)
-gplsrc/linuxio.c             : @pty apispin qmclient req29 autologout gpm realkeys
+gplbld/sandbox-kfaults.py    : @self
+gplsrc/linuxio.c             : @pty apispin qmclient req29 autologout gpm realkeys kfaults
 gplsrc/gpmmouse.c            : gpm realkeys @pty
 gplsrc/gpmmouse.h            : gpm realkeys
 gplbld/gpmfake.py            : gpm
@@ -245,7 +246,7 @@ gpl.src                      : @core prof netfile gpm
 gplsrc/kernel.c : @core csvb q5 listu-a5 inhibit-q8  prof resetall  classinit sysexc try editgates apispin segtrust ipc lockids q4
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
-gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust lockids
+gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust lockids kfaults
 sdsys/messages/11930         : gcatmode
 # S.188: the catalog verbs' messages, 3029-3047, whose wording these suites expect
 sdsys/messages/3029          : callcase runin lock-b6 qm4def
@@ -254,7 +255,7 @@ sdsys/messages/304[0-7]      : callcase runin lock-b6 qm4def
 # 27 Oct 26 (S.87): the VOC deletion list's messages, 11900-11918
 sdsys/messages/1190?         : vocremoved
 sdsys/messages/1191?         : vocremoved
-gplsrc/k_error.c             : sysexc try @core netfile segtrust auditjournal auditwriter
+gplsrc/k_error.c             : sysexc try @core netfile segtrust auditjournal auditwriter kfaults
 gplsrc/messages.c            : sysexc @core segtrust
 gplsrc/sd.h                  : sysexc try editgates @core netfile shared
 gplsrc/k_funcs.c             : @core

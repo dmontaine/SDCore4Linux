@@ -4,7 +4,7 @@
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-themeroles-units.py
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-themeroles-units.py --selftest      (mutants)
 #
-#   R1  SL.CODES: 51 different letters, the five roles UVWXY after the scroll bar (B) and before the sixteen user styles, Z the only letter left; the old list is nowhere in gpl.bp
+#   R1  SL.CODES: 52 different letters, the five roles UVWXY and hotkey.sel (Z) after the scroll bar (B) and before the sixteen user styles; the old list is nowhere in gpl.bp
 #   R2  $sl_theme names the styles in the order of the codes: the roles are warning success readonly busy focus, error is code f, the user styles still come last
 #   R3  every theme gives every role a look: mono (flags only, no dim, six looks different from each other and from plain), classic and blue (both colours), dark and light (a colour and flags)
 #   R9  (8 Nov 26, S.172) paper and night: every style has both colours, the body / bar / selection / mnemonic / header pairs are the readable ones (black or dark blue on
@@ -33,7 +33,7 @@ for k in F:
     F[k] = os.environ.get("TR_" + re.sub(r"\W", "_", k).upper(), F[k])
 passed = failed = 0
 ROLES = ["warning", "success", "readonly", "busy", "focus"]
-EXPECT_CODES = "nruxbwhasjkedytgcqovplzfimGPTBUVWXYACDEFHIJKLMNOQRS"
+EXPECT_CODES = "nruxbwhasjkedytgcqovplzfimGPTBUVWXYZACDEFHIJKLMNOQRS"
 
 
 def row(name, ok, detail=""):
@@ -107,8 +107,8 @@ def run():
     sh = raw("sl.h")
     m = re.search(r"\$define SL\.CODES\s+'([^']+)'", sh)
     codes = m.group(1) if m else ""
-    row("R1 SL.CODES is the 51 letters in the one order (the roles UVWXY between B and the user styles)", codes == EXPECT_CODES, codes)
-    row("R1 ... all different, Z unused, and the last sixteen are still the user styles", len(set(codes)) == 51 and "Z" not in codes and codes.endswith("ACDEFHIJKLMNOQRS"))
+    row("R1 SL.CODES is the 52 letters in the one order (the roles UVWXY and S.173's Z between B and the user styles)", codes == EXPECT_CODES, codes)
+    row("R1 ... all different, and the last sixteen are still the user styles", len(set(codes)) == 52 and codes.endswith("ACDEFHIJKLMNOQRS"))
     old = "nruxbwhasjkedytgcqovplzfimGPTBACDEFHIJKLMNOQRS"
     stale = [n for n in os.listdir(BP) if os.path.isfile(os.path.join(BP, n)) and old in open(os.path.join(BP, n), encoding="latin-1").read()]
     row("R1 the old list of 46 is in no program of gpl.bp", not stale, repr(stale))
@@ -121,7 +121,7 @@ def run():
             names += re.findall(r"'([a-z.]+)'", ln)
     names = [n for n in names if n != "user"] + ["user%d" % i for i in range(1, 17)]
     pair = dict(zip(names, codes))
-    row("R2 $sl_theme names 51 styles", len(names) == 51, str(len(names)))
+    row("R2 $sl_theme names 52 styles", len(names) == 52, str(len(names)))
     row("R2 ... the roles are codes U V W X Y in the order warning success readonly busy focus", [pair.get(r) for r in ROLES] == list("UVWXY"), repr([pair.get(r) for r in ROLES]))
     row("R2 ... error is f, scroll is B, and user1 to user16 are the last sixteen", pair.get("error") == "f" and pair.get("scroll") == "B" and pair.get("user1") == "A" and pair.get("user16") == "S")
     row("R2 ... the user styles are still found as len(th.codes) - 15, in all three places", th.count("len(th.codes) - 15") == 3, str(th.count("len(th.codes) - 15")))
@@ -148,14 +148,14 @@ def run():
     row("R9 paper and night: every style they define has BOTH colours (a foreground alone would show the terminal's background in a light or black window)",
         all(looks[t][s][0] and looks[t][s][1] for t in ("paper", "night") for s in looks[t]),
         repr({t: [s for s in looks[t] if not (looks[t][s][0] and looks[t][s][1])] for t in ("paper", "night")}))
-    readable = {("black", "white"), ("blue", "white"), ("white", "black"), ("brown", "black")}
-    body = ["desktop", "window", "text", "pane", "field", "bar", "barsel", "highlight", "hotkey", "hotkey.bar", "header", "tab"]
+    readable = {("black", "white"), ("blue", "white"), ("white", "black"), ("brown", "black"), ("white", "blue"), ("brown", "blue")}       # the last two: S.173, the selected entry of a bar and its letter
+    body = ["desktop", "window", "text", "pane", "field", "bar", "barsel", "highlight", "hotkey", "hotkey.bar", "hotkey.sel", "header", "tab"]
     row("R9 ... the body, the bar, the selection, the mnemonic letters and the headers are one of the readable pairs (black or dark blue on light grey, white or yellow on black)",
         all(s in looks[t] and looks[t][s][:2] in readable for t in ("paper", "night") for s in body),
         repr({t: {s: looks[t].get(s) for s in body if s not in looks[t] or looks[t][s][:2] not in readable} for t in ("paper", "night")}))
     row("R9 ... the menu bar is the inverse of the page (paper light grey on black, night black on light grey), its letter underlined on the bar's background, no red on it",
         all(looks[t]["bar"][:2] == (looks[t]["window"][1], looks[t]["window"][0]) and "underline" in looks[t]["hotkey.bar"][2]
-            and looks[t]["hotkey.bar"][1] == looks[t]["bar"][1] and looks[t]["barsel"][1] == looks[t]["bar"][0]
+            and looks[t]["hotkey.bar"][1] == looks[t]["bar"][1] and looks[t]["barsel"][:2] == ("white", "blue") and looks[t]["barsel"][1] != looks[t]["window"][1] and looks[t]["barsel"][1] != looks[t]["bar"][1] and looks[t]["hotkey.sel"][1] == looks[t]["barsel"][1]
             and "red" not in looks[t]["hotkey.bar"][:2] and "red" not in looks[t]["barsel"][:2] for t in ("paper", "night")),
         repr({t: (looks[t].get("bar"), looks[t].get("hotkey.bar"), looks[t].get("barsel")) for t in ("paper", "night")}))
     row("R9 ... nothing on the light grey is bold (most terminals make bold text bright, and bright black or blue on light grey is pale: the first capture)",

@@ -1909,6 +1909,33 @@ end
    crt 'DONE'
 end
 """,
+    # S.183: a form made with FILL: the text area stretches, what lies right of it and below it moves; a bad STRETCH word is refused
+    "zzfill": """   screen open clear else crt 'NOTERM' ; stop
+   screen form title 'Fill' size 60,18 fill returning f
+   screen label f, 'top', 'TOPLABEL' at 2,1
+   screen memo f, 'm', 'line one':@fm:'line two' at 2,2 size 40,10 stretch 'both'
+   screen label f, 'rl', 'RIGHTLAB' at 44,3
+   screen label f, 'bl', 'BOTLAB' at 2,13
+   bad = 'accepted'
+   screen memo f, 'q', 'x' at 44,5 size 10,3 stretch 'sideways' else bad = 'refused'
+   screen label f, 'bd', 'BAD=':bad at 2,14
+   screen button f, 'ok', '&OK' at 2,15
+   screen run f returning pressed then null else null
+   screen close
+end
+""",
+    # S.183: SCREEN MOVE gives a text area a size, and keeps its text
+    "zzfmove": """   screen open clear else crt 'NOTERM' ; stop
+   screen form title 'Move' at 2,2 size 60,14 returning f
+   screen memo f, 'm', str('y', 50) at 2,1 size 20,5
+   mv = 'no'
+   screen move f, 'm' size 31,6 then mv = 'yes'
+   screen label f, 'l', 'MOVED=':mv at 2,9
+   screen button f, 'ok', '&OK' at 2,11
+   screen run f returning pressed then null else null
+   screen close
+end
+""",
     # a message box open while the terminal is resized
     "zzrsz4": """   screen open clear else crt 'NOTERM' ; stop
    screen text 'Background text' at 2,2
@@ -2000,6 +2027,43 @@ def part_resize(box):
     row("a resize while the program waits is the event resize, with the new size 70 by 20; the form is drawn again", any("[ OK ]" in l for l in L), "\n".join(L[:12]))
     L = t.keys(RET)
     row("the program saw the resize event (data 70x20) and then the button", result(L, "LOG") == "resize/70x20 button/", repr((result(L, "LOG"), L[10:20])))
+    t.end()
+
+
+def part_fill(box):
+    """S.183.  The expected places come from a run at exactly the form's own size, so the rows measure the move and not the library's offsets."""
+    say("\n--- S.183: a form with FILL follows the window; SCREEN MOVE sizes a text area -----------------------------")
+    t = Term(box, "RUN bp zzfill", cols=60, rows=18, termsize=False)
+    L = t.keys()
+    r0, b0 = at(L, "RIGHTLAB"), at(L, "BOTLAB")
+    row("control: at the form's own size, 60 by 18, the labels are drawn", r0 is not None and b0 is not None, "\n".join(L[:18]))
+    row("a STRETCH word that is not w, h or both is refused (ELSE)", any("BAD=refused" in l for l in L), "\n".join(L[:18]))
+    if r0 is None or b0 is None:
+        t.end()
+        return
+    t.keys("hello ")
+    L = t.resize(100, 30)
+    row("100 by 30: what lies right of the stretching area moved 40 columns, on the same row", at(L, "RIGHTLAB") == (r0[0], r0[1] + 40), repr(at(L, "RIGHTLAB")))
+    row("...and what lies below it moved 12 rows, in the same column", at(L, "BOTLAB") == (b0[0] + 12, b0[1]), repr(at(L, "BOTLAB")))
+    row("...a label above it did not move", at(L, "TOPLABEL") is not None and at(L, "TOPLABEL")[0] < r0[0], repr(at(L, "TOPLABEL")))
+    row("...the form's frame reaches the window's last row and column", L[29][99] != " " and L[29][0] != " ", repr(L[29][-4:]))
+    row("...and what was typed is still in the text area", any("hello line one" in l for l in L), "\n".join(L[:8]))
+    L = t.resize(120, 40)
+    row("120 by 40: the places follow (60 columns, 22 rows from the form's own size: worked out afresh, nothing accumulates)",
+        at(L, "RIGHTLAB") == (r0[0], r0[1] + 60) and at(L, "BOTLAB") == (b0[0] + 22, b0[1]), repr((at(L, "RIGHTLAB"), at(L, "BOTLAB"))))
+    L = t.resize(70, 20)
+    row("made smaller, 70 by 20: they come back (10 columns, 2 rows)", at(L, "RIGHTLAB") == (r0[0], r0[1] + 10) and at(L, "BOTLAB") == (b0[0] + 2, b0[1]),
+        repr((at(L, "RIGHTLAB"), at(L, "BOTLAB"))))
+    L = t.resize(50, 15)
+    row("below the form's own size, 50 by 15: the one warning, naming the program and that keys are ignored", any("The window is" in l for l in L) and any("Fill" in l for l in L), "\n".join(L[:8]))
+    L = t.resize(80, 24)
+    row("made big enough again the form is back by itself, at its new places", at(L, "RIGHTLAB") == (r0[0], r0[1] + 20) and at(L, "BOTLAB") == (b0[0] + 6, b0[1]),
+        repr((at(L, "RIGHTLAB"), at(L, "BOTLAB"))) + "\n" + "\n".join(L[:6]))
+    t.end()
+    t = Term(box, "RUN bp zzfmove", cols=90, rows=26, termsize=False)
+    L = t.keys()
+    row("SCREEN MOVE with a size on a text area is accepted (THEN)", any("MOVED=yes" in l for l in L), "\n".join(L[:18]))
+    row("...and the text area is that size: 30 of the 50 characters show in 31 columns (the last is the scroll bar)", any(("y" * 30) in l and ("y" * 31) not in l for l in L), "\n".join(L[:12]))
     t.end()
 
 
@@ -3017,6 +3081,7 @@ def main():
         parts = only[0].split(",") if only else ["owned", "dialogs", "forms", "events", "themes", "tabs", "memo", "table", "scroll", "mouse", "resize"]
         if "resize" in parts:
             part_resize(box)
+            part_fill(box)
         if "mouse" in parts:
             part_mouse(box)
         if "table" in parts:
