@@ -24,7 +24,7 @@
 # Any kernel or BASIC source with no rule of its own selects these.
 @core = oq2 coll gates q4 func-q1 stmt-q3 mode-q16 bcomp-a1 nocase list-q2
 # the pseudo-terminal suites (a terminal, keys, the screen library)
-@pty = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport sed-small ide-small ide-sed winsize eofkeys idedraw recarr spview ide-resize memokeys ide-tools
+@pty = screen ide ced dbgui input inputif inputraw inputfill inputtrap noecho viewport ide-small winsize eofkeys idedraw recarr spview ide-resize memokeys ide-tools
 # the debugger
 @debugger = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase idebrk dbgmain
 # select lists and everything that makes or reads one
@@ -89,6 +89,12 @@ gplbld/sandbox-tool-masters.py : none
 gplbld/sandbox-acctmodes.py  : @self
 # 2 Nov 26 (S.88 p3.3a): sandbox-ide-resize.py drives the IDE with sandbox-ide.py's Ide class, as sandbox-idedraw.py does
 gplbld/sandbox-ide.py        : @self idedraw ide-resize memokeys ide-tools
+# 9 Nov 26 (S.184 stage 7): the suites of SED's own program went with it
+gplbld/sandbox-sed-menu.py   : none
+gplbld/sandbox-syntax.py     : none
+gplbld/sandbox-sed-edit.py   : none
+gplbld/sandbox-sed-small.py  : none
+gplbld/sandbox-ide-sed.py    : none
 gplbld/sandbox-*.py          : @self
 # S.88 L1 (28 Oct 26): sandbox-tk-layout.py takes its expected rectangles from this free check's model of $tk_layout
 gplbld/test-tklayout-units.py : tk-layout l2-files l2-home l2-admin
@@ -241,6 +247,10 @@ gplsrc/kernel.c : @core csvb q5 listu-a5 inhibit-q8  prof resetall  classinit sy
 # every non-administrator session that runs a program meets
 gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc gcatmode segtrust lockids
 sdsys/messages/11930         : gcatmode
+# S.188: the catalog verbs' messages, 3029-3047, whose wording these suites expect
+sdsys/messages/3029          : callcase runin lock-b6 qm4def
+sdsys/messages/303?          : callcase runin lock-b6 qm4def
+sdsys/messages/304[0-7]      : callcase runin lock-b6 qm4def
 # 27 Oct 26 (S.87): the VOC deletion list's messages, 11900-11918
 sdsys/messages/1190?         : vocremoved
 sdsys/messages/1191?         : vocremoved
@@ -386,7 +396,7 @@ sdsys/gpl.bp/tk_startof      : tool-gates tool-mygates tool-accounts
 # gives back the break setting (D4: tk_open, tk_close, sl_cleanup, SED, home).  test-tkguards-units.py holds all three as text.
 sdsys/gpl.bp/tk_ownfile      : tool-query tool-bulk termsafe
 sdsys/gpl.bp/tk_word         : tool-voc tool-files termsafe
-sdsys/gpl.bp/tk_brk          : tk-base tk-keys @pages tk-resize termsafe sed-menu
+sdsys/gpl.bp/tk_brk          : tk-base tk-keys @pages tk-resize termsafe
 # 26 Oct 26 (task faults): the window cap is in $tk_open, the sixth argument of $tk_confirm and message 11865 are the faults suite's
 sdsys/gpl.bp/tk_open         : tk-base tk-keys tk-faults @pages tk-resize termsafe tk-layout tk-public
 # S.88 L1 (28 Oct 26): the layout service, its messages 11540 (the cursor lock's layout mode, which tool.keys' suite reads) and 11541-11542 (a declaration refused)
@@ -406,7 +416,7 @@ sdsys/gpl.bp/tk_*            : tk-base tk-keys @pages tk-resize termsafe tk-layo
 sdsys/gpl.bp/tool_tktest     : tk-base
 # S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
 sdsys/gpl.bp/tool_keys       : tk-keys l2-misc themeroles
-sdsys/gpl.bp/sl_key          : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys @pages realkeys tk-layout tk-resize
+sdsys/gpl.bp/sl_key          : screen viewport ide-small eofkeys idedraw ide ced dbgui tk-base tk-keys @pages realkeys tk-layout tk-resize
 sdsys/gpl.bp/_keycode        : @core tk-base tk-keys eofkeys input realkeys screen ide
 sdsys/syscom/keyin.h         : @core tk-base tk-keys eofkeys input realkeys screen ide
 # S.88 phase 1 (28 Oct 26): the account's login paragraph no longer forces TERM LINUX, so the terminal type of every suite that signs on is the environment's
@@ -633,12 +643,12 @@ sdsys/voc_template/set.ai    : aigate
 sdsys/messages/1160[6-9]     : aigate
 sdsys/messages/1161*         : aigate
 sdsys/messages/1162[0-2]     : aigate
-sdsys/gpl.bp/sl_theme       : screen sed-menu syntax viewport ide ced dbgui tk-base tk-keys home themeroles spview
+sdsys/gpl.bp/sl_theme       : screen viewport ide ced dbgui tk-base tk-keys home themeroles spview
 # 28 Oct 26 (S.88 phase 0): sl.h stood AFTER the *.h rule below, so it never matched and a change of the screen library's header ran the compiler suites; first match wins
-sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages themeroles
+sdsys/gpl.bp/sl.h            : screen viewport ide-small eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages themeroles
 sdsys/gpl.bp/*.h             : @compiler @core
 # S.88 phase 2 (28 Oct 26, S1): SCREEN TEXT draws through $sl_put, whose control-character scrub escdata reads from the raw bytes
-sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base tk-keys @pages termsafe escdata tk-layout
+sdsys/gpl.bp/screen_*        : screen viewport ide-small eofkeys idedraw tk-base tk-keys @pages termsafe escdata tk-layout
 # S.88 phase 3.10B (29 Oct 26): the output pane widget; it has no caller yet, its suite is tk-widgets (before the coarse sl_* rule below)
 sdsys/gpl.bp/sl_out          : tk-widgets
 # S.75 (22 Oct 26): the pick window is used by the toolkit only (tktest); no other screen suite draws it.
@@ -648,18 +658,18 @@ sdsys/gpl.bp/sl_pickwin      : tk-base tk-widgets tool-query home
 sdsys/gpl.bp/sl_palette      : tk-base tk-widgets tool-query
 sdsys/gpl.bp/sl_picker       : tk-base tk-widgets tool-query home
 # S.88 phase 2 (28 Oct 26): the cursor lock of a window smaller than the layout; used by SED, the debugger and $sl_key's guard mode; its AUTOLOGOUT work-around is gone
-sdsys/gpl.bp/sl_guard        : sed-small ide-small sed-menu dbgui tk-resize autologout tk-layout tk-keys
+sdsys/gpl.bp/sl_guard        : ide-small dbgui tk-resize autologout tk-layout tk-keys
 # S.88 phase 2 (28 Oct 26): the memo's undo steps (D3) and the control-character scrub of $sl_put (S1); any sl_ program draws through $sl_put, so escdata, and the memo is every editor's text area
-sdsys/gpl.bp/sl_memo         : memoundo escdata screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe recarr idebrk ide-resize memokeys
+sdsys/gpl.bp/sl_memo         : memoundo escdata screen viewport ide-small eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe recarr idebrk ide-resize memokeys
 # S.88 p3.3a (2 Nov 26): a widget moved and sized in place, and the 'size' ops of the table and the tree; the IDE's resize is its one caller (free check test-widgetmove-units.py)
 sdsys/gpl.bp/sl_widget_move  : ide-resize ide ide-small
-sdsys/gpl.bp/sl_table        : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout spview ide-fields ide-resize
-sdsys/gpl.bp/sl_tree         : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout spview ide-resize
+sdsys/gpl.bp/sl_table        : screen viewport ide-small eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout spview ide-fields ide-resize
+sdsys/gpl.bp/sl_tree         : screen viewport ide-small eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout spview ide-resize
 # S.94 (31 Oct 26): sl_mouse's on and off ask the kernel for the console's mouse (gpm); the stand-in daemon's suite and the key tester's are what judge it
 sdsys/gpl.bp/sl_mouse        : gpm realkeys screen viewport tk-keys ide ide-small tk-resize
-sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout spview
-sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys ai-apps gates
-sdsys/gpl.bp/ide             : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr recovery ide-kinds tool-voc tool-dict ide-path ide-edit ide-fields dictform idebrk ide-resize memokeys ide-tools
+sdsys/gpl.bp/sl_*            : screen viewport ide-small eofkeys idedraw ide ced dbgui tk-base tk-keys ai-ide @pages realkeys tk-resize ide-fresh termsafe escdata tk-layout spview
+sdsys/gpl.bp/sed             : screen edseqkey editgates shared eofkeys ai-apps gates
+sdsys/gpl.bp/ide             : ide-fresh ide ide-alone editgates shared ide-small eofkeys idedraw ai-ide recarr recovery ide-kinds tool-voc tool-dict ide-path ide-edit ide-fields dictform idebrk ide-resize memokeys ide-tools
 # S.88 d2b (29 Oct 26): FORMAT's quiet mode, used by the IDE's Format command (named COMMON /fmtq/); the free check is test-fmtquiet-units.py
 sdsys/gpl.bp/fmtsub          : ide-edit
 # The editor merge, stage B (28 Oct 26): the IDE's record kinds and locks - messages 11684-11698 (11215 and 11226 changed too), and its suite
@@ -676,7 +686,7 @@ sdsys/messages/1175[0-2]     : ide
 sdsys/messages/1175[34]      : ide-kinds ide
 sdsys/messages/11761         : ide-kinds ide
 # S.88 Phase 4 (28 Oct 26): the IDE's one name form, and its messages 11963-11975 (11214 and 11225 changed too)
-sdsys/gpl.bp/ide_name        : ide-fresh ide editgates shared ide-small ide-sed eofkeys idedraw ai-ide recarr ide-kinds ide-path
+sdsys/gpl.bp/ide_name        : ide-fresh ide editgates shared ide-small eofkeys idedraw ai-ide recarr ide-kinds ide-path
 # The editor merge, stage E (28 Oct 26): operating system files in the IDE - the helper (NOT $internal, so the kernel's OS gate and edit gates apply), messages 11727-11741, and its suite
 sdsys/gpl.bp/ide_osfile      : ide-path gates editgates ide-kinds
 sdsys/messages/1172[7-9]     : ide-path
@@ -695,15 +705,15 @@ sdsys/messages/1178[0-5]     : ide-edit
 sdsys/messages/1154[3-9]     : ide-edit
 sdsys/messages/1155[0-9]     : ide-edit
 sdsys/messages/11209         : ide-edit ide
-sdsys/messages/1122[789]     : ide ide-edit ide-small ide-sed
+sdsys/messages/1122[789]     : ide ide-edit ide-small
 gplbld/sandbox-ide-path.py   : @self
 gplbld/sandbox-ide-edit.py   : @self
 gplbld/sandbox-ide-fields.py : @self
 sdsys/messages/1199[5-9]     : ide-fields recarr
 sdsys/messages/1196[3-9]     : ide-fresh ide
 sdsys/messages/1197[0-5]     : ide-fresh ide
-sdsys/messages/11214         : ide ide-small ide-sed
-sdsys/messages/11225         : ide ide-small ide-sed ide-fresh idedraw
+sdsys/messages/11214         : ide ide-small
+sdsys/messages/11225         : ide ide-small ide-fresh idedraw
 # the IDE's key map and the memo's editing keys, held as text (28 Oct 26, S.88 Phase 4); a free check, so it needs no sandbox suite
 gplbld/test-idekeys-units.py : none
 sdsys/gpl.bp/ced*            : ced editgates shared ide-small ai-apps recarr ide-fields
@@ -915,11 +925,11 @@ sdsys/messages/1124[89]      : tk-base
 sdsys/messages/11179         : tk-widgets
 sdsys/messages/1118[1-5]     : tk-widgets
 sdsys/messages/117*          : crypt
-sdsys/messages/11197        : sed-menu sed-small
-sdsys/messages/1160[0-2]     : sed-small ide-small
-sdsys/messages/1160[3-5]     : ide-sed
-sdsys/messages/1121[56]      : ide ide-small ide-sed recarr ide-kinds ide-edit
-sdsys/messages/11226         : ide ide-sed recarr ide-kinds dictform
+sdsys/messages/11197        : none
+sdsys/messages/1160[0-2]     : ide-small
+sdsys/messages/1160[3-5]     : none
+sdsys/messages/1121[56]      : ide ide-small recarr ide-kinds ide-edit
+sdsys/messages/11226         : ide recarr ide-kinds dictform
 sdsys/messages/1123[7-9]     : ide idedraw
 sdsys/messages/11240         : ide idedraw
 # 19 Oct 26 (K2, K1): 11482 is printed by MODIFY.ACCOUNT and CREATE.ACCOUNT, 11521 is the refusal the netfile suite shows and the net suite pins; 11522 and 11523 are filesgrp's lines.

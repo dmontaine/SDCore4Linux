@@ -19,7 +19,7 @@ GPL = os.path.join(SD64, "sdsys", "gpl.bp")
 MSG = os.path.join(SD64, "sdsys", "messages")
 FILES = {"tk_ai": os.path.join(GPL, "tk_ai"), "tool_home": os.path.join(GPL, "tool_home"), "tk.h": os.path.join(GPL, "tk.h"),
          "ide": os.path.join(GPL, "ide"), "sl_form": os.path.join(GPL, "sl_form"),
-         "sed": os.path.join(GPL, "sed"), "ced_edit": os.path.join(GPL, "ced_edit"), "ced_core": os.path.join(GPL, "ced_core"), "debug": os.path.join(GPL, "debug")}
+         "ced_edit": os.path.join(GPL, "ced_edit"), "ced_core": os.path.join(GPL, "ced_core"), "debug": os.path.join(GPL, "debug")}
 MSGS = list(range(11635, 11653))
 MSGS2 = list(range(11653, 11682))              # AI line stage 2 (the IDE: edits as diffs, 11653-11669) and stage 3 (SED, CED, the debugger: 11670-11681)
 
@@ -162,8 +162,6 @@ def checks(s):
     ck("M3 messages 11653 to 11681 exist, each one line", all(s["msgs"][n] is not None and len(s["msgs"][n].rstrip("\n").split("\n")) == 1 for n in MSGS2), repr([n for n in MSGS2 if s["msgs"][n] is None]))
 
     # AI line stage 3 (24 Oct 2026): SED, CED and the debugger
-    sed = strip_bas(s["sed"])
-    sed_ai = sed[sed.find("ai.run:"):sed.find("ai.say:")]
     ced = strip_bas(s["ced_core"])               # 30 Oct 26: CED's AI code is the engine's (ced_core); the host (ced_edit) asks whether the AI is usable and hands the answer over
     ced_host = strip_bas(s["ced_edit"])
     ced_ai = ced[ced.find("ai.menu:"):ced.find("revert:")]
@@ -171,15 +169,8 @@ def checks(s):
     dbg_ai = dbg[dbg.find("ai.run:"):dbg.find("help:")]
     ck("X1 the shared routines are the library's: 'select', 'window' and 'splice' are in $tk_ai and the IDE and SED use them (SED the first, the IDE and CED the window), no editor has its own copy",
        all(("case op = '%s'" % o) in ai for o in ("select", "window", "splice")) and "call $tk_ai('window'" in ide and "call $tk_ai('splice'" in ide and "call $tk_ai('select'" in ide
-       and "call $tk_ai('window'" in sed and "call $tk_ai('splice'" in sed and "call $tk_ai('select'" in sed and "call $tk_ai('window'" in ced and "call $tk_ai('splice'" in ced
-       and "ai.total = dcount" in ide and "> 24000" not in ide and "> 24000" not in sed, "")
-    ck("X2 SED offers the AI only when it is usable for the account: the menu items and the command both ask ai.ok ($tk_ai 'usable', once at the start), and the command says 11670 otherwise",
-       "call $tk_ai('usable', '', ai.ok, ai.pm)" in sed and ordered(sed, "if ai.ok then", "'Ask the &AI...'", "'Ex&plain the selection'") and ordered(sed_ai, "if not(ai.ok) then", "sysmsg(11670)", "return"), "")
-    ck("X3 SED sends nothing but through $tk_ai 'ask' (ONE call: the preview, the wait, the answer), the text and the selection as the model is told, 'nocmd' (a command is ignored), the mouse reports off while it runs and the screen drawn again after",
-       sed_ai.count("call $tk_ai('ask'") == 1 and "'nocmd'" in sed_ai and ordered(sed_ai, "gosub mouse.disarm", "call $tk_ai('ask'", "mat image = sw.space ; mat simage = ''", "gosub refresh.all"), "")
-    ck("X4 SED applies an accepted set to its BUFFER only: not in a read only buffer, only if it still fits (11666), by rebuilding the chunks (the main loop's capture before the command is the undo step), and the routine saves nothing",
-       ordered(sed_ai, "ai.apply:", "if read.only then", "gosub read.only.buffer", "call $tk_ai('splice'", "if ai.sp = '' then", "sysmsg(11666)", "gosub rebuild.chunks", "record.updated = @true")
-       and not re.search(r"\b(save\.record|write|writeu|writev)\b", sed_ai), "")
+       and "call $tk_ai('window'" in ced and "call $tk_ai('splice'" in ced
+       and "ai.total = dcount" in ide and "> 24000" not in ide, "")
     ck("X5 CED offers F2 only when the AI is usable; an accepted set must leave a JSON collection or array (else 11677 and c is not touched); the old record is kept for one undo BEFORE c is replaced; the routines save nothing",
        "case c.key = 'f2' and ai.ok" in ced and "call $tk_ai('usable', '', ai.ok, ai.pm)" in ced_host and "st{'ai.ok'} = ai.ok" in ced_host
        and ordered(ced_ai, "ai.apply:", "call $tk_ai('splice'", "ai.y = jparse(ai.sp<1>)", "if ai.bad then", "sysmsg(11677)", "return", "ai.undo = jbuild(c)", "c = ai.y", "dirty = @true")
@@ -244,10 +235,6 @@ MUTANTS = [
     ("the IDE does not say nocmd", "ide", "ai.sel : @fm : 'nocmd'", "ai.sel", "I4"),
     ("every entry activates", "sl_form", "(aw{'type'} = 'entry' and aw{'activate'} + 0)", "aw{'type'} = 'entry'", "I7"),
     # AI line stage 3 (24 Oct 2026): the first of these is marker 18 for --from=18
-    ("SED saves after applying", "sed", "   message = sysmsg(11661, ai.sp<3>)\n   gosub ai.say\n", "   gosub save.record\n   message = sysmsg(11661, ai.sp<3>)\n   gosub ai.say\n", "X4"),
-    ("SED applies in a read only buffer", "sed", "   if read.only then\n      gosub read.only.buffer\n      return\n   end\n   gosub save.current\n   gosub assemble.record\n   ai.now", "   gosub save.current\n   gosub assemble.record\n   ai.now", "X4"),
-    ("SED offers the AI without the gate", "sed", "   if ai.ok then\n      ml = '-' ; mc = 'x:' ; gosub add.item\n      ml = 'Ask the &AI...'", "   if @true then\n      ml = '-' ; mc = 'x:' ; gosub add.item\n      ml = 'Ask the &AI...'", "X2"),
-    ("SED lets the mouse report during the wait", "sed", "   gosub mouse.disarm\n   call $tk_ai('ask'", "   call $tk_ai('ask'", "X3"),
     ("CED accepts invalid JSON", "ced_core", "   if ai.bad then\n      message.text = sysmsg(11677)\n      return\n   end\n", "   if ai.bad then\n      ai.y = jparse('{}')\n   end\n", "X5"),
     ("CED replaces c before keeping the old record", "ced_core", "   ai.undo = jbuild(c)\n   c = ai.y\n", "   c = ai.y\n   ai.undo = jbuild(c)\n", "X5"),
     ("CED saves after applying", "ced_core", "   message.text = sysmsg(11676, ai.sp<3>)\n", "   gosub save.record\n   message.text = sysmsg(11676, ai.sp<3>)\n", "X5"),

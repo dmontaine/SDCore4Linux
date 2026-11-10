@@ -543,11 +543,11 @@ def main():
 
         say("\n  SED, a new record")
         res = pipe_session(box, "sed1", "sed zzeof t1")
-        judge("SED", r"File\s+Edit\s+Search\s+Buffer\s+Window\s+Tools", res)
+        judge("SED", r"File\s+Edit\s+Go\s+Search\s+Build\s+View", res)
 
         say("\n  SED, a record with typed text in it (the buffer is changed)")
         res = pipe_session(box, "sed2", "sed zzeof t2", "hello")
-        judge("SED with typed text", r"File\s+Edit\s+Search\s+Buffer\s+Window\s+Tools", res)
+        judge("SED with typed text", r"File\s+Edit\s+Go\s+Search\s+Build\s+View", res)
         _e, _w, _c, text = pipe_session(box, "ct2", "ct zzeof t2")
         row("SED with typed text: the text was not written to the record (nobody was there to answer 'save?')",
             "Record 't2' not found" in text, repr(text[-300:]))

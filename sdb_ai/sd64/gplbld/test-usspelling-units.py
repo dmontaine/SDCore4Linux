@@ -7,11 +7,13 @@
 # START-HISTORY:
 # 9 Nov 26 dm  New (S.186).  The US spelling sweep of 9 Nov changed SD's messages, help, program texts, C strings and the guide; this check keeps a
 #              British form from coming back in a new text.  The owner asked for a check that catches "simple failures like spelling" before suites run.
+# 9 Nov 26 dm  S.192: reads what the two installer scripts print as well.
 # END-HISTORY
 #
 # WHAT IT READS.  sdsys/messages/* and sdsys/helptext/* (all of each); the STRING LITERALS of the code lines of sdsys/gpl.bp/* (not comments, so a
 # dated history line is left as it was written); the string literals of gplsrc/*.c; the prose of agent-pack/guide/sd-basic-guide.md (not its fenced
-# blocks, which are programs, and not a code span of one word, which is a name).
+# blocks, which are programs, and not a code span of one word, which is a name); the quoted texts of the echo, printf and read -p lines of
+# installsdcore.sh and deletesdcore.sh (S.192), from the repository root.
 #
 # THE RULE (the sweep's).  A British form (catalogue, colour, analyse, initialise, recognise, licence, behaviour, centre, cancelled, honour, labelled,
 # dialogue, grey ...) is a fault when it stands as a word.  It is NOT one when it is part of a name: next to a letter, digit, '_', '$', '%', '/' or '\',
@@ -102,11 +104,26 @@ def md_prose(src):
     return "\n".join(out)
 
 
+def sh_literals(line):
+    """The quoted texts an installer's line prints: those after echo, printf or read -p; nothing on a comment line or before the command."""
+    if line.lstrip().startswith("#"):
+        return []
+    m = re.search(r"(?:^\s*|[;&|(]\s*|\b(?:then|else|do)\s+)(?:echo|printf|read\s+-r?p)\b", line)
+    if not m:
+        return []
+    return [a or b for a, b in re.findall(r'"((?:[^"\\]|\\.)*)"|\'([^\']*)\'', line[m.end():])]
+
+
 def scan(files):
-    """files: {label: (kind, text)} where kind is text, basic, c or md.  Returns [(label, line number or '', word, context)]."""
+    """files: {label: (kind, text)} where kind is text, basic, c, md or sh.  Returns [(label, line number or '', word, context)]."""
     found = []
     for label, (kind, text) in sorted(files.items()):
-        if kind == "basic":
+        if kind == "sh":
+            for n, line in enumerate(text.split("\n"), 1):
+                for lit in sh_literals(line):
+                    for w in hits_in(lit):
+                        found.append((label, n, w, lit[:80]))
+        elif kind == "basic":
             for n, line in enumerate(text.split("\n"), 1):
                 for lit in basic_literals(line):
                     for w in hits_in(lit):
@@ -145,6 +162,11 @@ def read_tree():
     guide = os.path.join(SD64, "agent-pack", "guide", "sd-basic-guide.md")
     if os.path.isfile(guide):
         add(guide, "md", "agent-pack/guide/sd-basic-guide.md")
+    root = os.path.dirname(os.path.dirname(SD64))
+    for nm in ("installsdcore.sh", "deletesdcore.sh"):
+        p = os.path.join(root, nm)
+        if os.path.isfile(p):
+            add(p, "sh", nm)
     return files
 
 
@@ -153,10 +175,10 @@ def judge(files, quiet=False):
     kinds = {}
     for label, (kind, _t) in files.items():
         kinds[kind] = kinds.get(kind, 0) + 1
-    ok0 = kinds.get("text", 0) > 1000 and kinds.get("basic", 0) > 300 and kinds.get("c", 0) > 20
+    ok0 = kinds.get("text", 0) > 1000 and kinds.get("basic", 0) > 300 and kinds.get("c", 0) > 20 and kinds.get("sh", 0) == 2
     if not quiet:
         row("U0 the texts were read (not a run on nothing): %s" % ", ".join("%d %s" % (v, k) for k, v in sorted(kinds.items())), ok0, repr(kinds))
-        row("U1 no British spelling in what SD prints: messages, help, program texts, C strings, the guide's prose", not found,
+        row("U1 no British spelling in what SD prints: messages, help, program texts, C strings, the guide's prose, the installers' printed lines", not found,
             "; ".join("%s:%s %s (%s)" % f for f in found[:12]) + (" ... and %d more" % (len(found) - 12) if len(found) > 12 else ""))
     return ok0, found
 
@@ -169,6 +191,11 @@ def selftest():
         ("a program text says colour", ("gpl.bp/zzz", ("basic", "   msg = 'no colour here'\n")), True),
         ("a C string says Unrecognised", ("gplsrc/zz.c", ("c", 'printf("Unrecognised thing");')), True),
         ("a word that ends a sentence (catalogue.)", ("messages/99998", ("text", "Program is in the catalogue.")), True),
+        ("an installer's echo says catalogue", ("zz1.sh", ("sh", '  echo "  compile or catalogue."\n')), True),
+        ("an installer's printf after && says colour", ("zz2.sh", ("sh", "x && printf 'the colour %s\\n' a\n")), True),
+        ("an installer's read -p says licence", ("zz3.sh", ("sh", 'read -rp "Accept the licence? " a\n')), True),
+        ("CONTROL: an installer's comment", ("zz4.sh", ("sh", '# echo "the catalogue"\n')), False),
+        ("CONTROL: an installer's command that prints nothing", ("zz5.sh", ("sh", 'cp "catalogue" /tmp/x\n')), False),
         ("CONTROL: a comment line of a program", ("gpl.bp/zzy", ("basic", "* the catalogue of colours\n")), False),
         ("CONTROL: a name with a dot (analyse.index, catalogue.local)", ("messages/99997", ("text", "see analyse.index and option catalogue.local")), False),
         ("CONTROL: a keyword in capitals", ("messages/99996", ("text", "CATALOGUE is not a verb")), False),

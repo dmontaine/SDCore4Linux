@@ -56,7 +56,7 @@ F2 = "\x1bOQ"
 RUN = ai.RUN
 CED_REC = "zzaic" + RUN                  # {"name":"widget","size":3,"tags":["a","b"]}
 DBG_PROG = "zzaid" + RUN                 # x = 5 / y = 'abc' / debug / crt 'AFTER-DEBUG' / end
-PROGS = ("tk_ai", "sed", "ced_edit", "debug")
+PROGS = ("tk_ai", "ced_edit", "debug")
 TOOLS = RIGHT * 5                        # F10 opens File; Tools is the sixth title of SED's bar
 
 
@@ -66,13 +66,11 @@ def arow(rid, name, ok, detail=""):
 
 MUTANTS = {
     # name: (program of the sandbox, old text, new text, the row ids that must fail and no others)
-    "sed-saves": ("sed", "   message = sysmsg(11661, ai.sp<3>)\n   gosub ai.say\n", "   gosub save.record\n   message = sysmsg(11661, ai.sp<3>)\n   gosub ai.say\n", ["S5", "S8"]),   # (S8: the saved record no longer holds what S8's preview looks for)
-    "sed-no-selection": ("sed", "      if mark.line > 0 then\n         call $tk_ai('select'", "      if mark.line > 9999 then\n         call $tk_ai('select'", ["S8"]),
     "ced-saves": ("ced_edit", "   message.text = sysmsg(11676, ai.sp<3>)\n", "   gosub save.record\n   message.text = sysmsg(11676, ai.sp<3>)\n", ["C4"]),
     "ced-invalid-accepted": ("ced_edit", "   if ai.bad then\n      message.text = sysmsg(11677)\n      return\n   end\n", "   if ai.bad then\n      ai.y = jparse('{}')\n   end\n", ["C6", "C7"]),   # (C7: the record was replaced by {}, so there is no element to explain)
     "dbg-no-source": ("debug", "   for ai.q = ai.first to ai.last\n", "   for ai.q = ai.first to ai.first - 1\n", ["D2"]),   # (D2 reads the request at the fake; D1's preview shows only the first eight lines of the page)
 }
-MUTANT_SECTIONS = {"sed-saves": "sed", "sed-no-selection": "sed", "ced-saves": "ced", "ced-invalid-accepted": "ced", "dbg-no-source": "dbg"}
+MUTANT_SECTIONS = {"ced-saves": "ced", "ced-invalid-accepted": "ced", "dbg-no-source": "dbg"}
 
 
 def make_json_record():
@@ -115,94 +113,6 @@ def sed_ask(e, request):
     e.keys(request)
     e.keys(RET)
     return e.text()
-
-
-def sec_sed_off():
-    say("\n--- SED, the AI off")
-    ai.configure(provider=False)
-    ai.start_runner()
-    e = sed_open(ai.OK_REC)
-    arow("S0", "no provider: the Tools menu has no Ask the AI and no Explain the selection", tools_has(e, "Compile") and not tools_has(e, "Ask the AI") and not tools_has(e, "Explain the selecti"), "")
-    e.end()
-    ai.configure()
-    ai.start_runner()
-
-
-def sec_sed():
-    say("\n--- SED, the AI on")
-    fm = ai.STATE["fm"]
-    e = sed_open(ai.OK_REC)
-    arow("S1", "the Tools menu lists Ask the AI... and Explain the selection", tools_has(e, "Ask the AI...") and tools_has(e, "Explain the selecti"), e.text()[:300])
-    n0, a0 = len(fm.log), ai.audit_off()
-    T = sed_ask(e, "make the greeting longer [[edit_ok]]")
-    arow("S2", "Enter on the request shows the provider, the record's lines and the request - (S.175) NOT SD's instruction, which is sent - Send and Cancel, and sends nothing",
-         "This will be sent to anthropic" in T and "who is using SED" not in T and "crt 'hello'" in T and "x = 1" in T and "make the greeting longer [[edit_ok]]" in T
-         and "Send" in T and "Cancel" in T and len(fm.log) == n0, T[-1500:])
-    e.keys(RET)
-    arow("S3", "Enter on the default button is Cancel: nothing was sent (the fake's log and the audit file agree)", len(fm.log) == n0 and not ai.req_lines(ai.audit_new(a0)), repr((len(fm.log) - n0)))
-    T = sed_ask(e, "make the greeting longer [[edit_ok]]")
-    e.keys("s")
-    T = ai.wait_popup(e)
-    rq = ai.requests()
-    pr = ai.prompt_of(rq[-1][2]) if len(rq) > n0 else ""
-    rl = ai.req_lines(ai.audit_new(a0))
-    arow("S4a", "Send: ONE request at the fake, the request as its last line, with the record's lines; ONE audit line, the kernel's, program tk_ai, none holds the record's text",
-         len(fm.log) == n0 + 1 and pr.endswith("Request: make the greeting longer [[edit_ok]]") and "crt 'hello'" in pr and len(rl) == 1 and "program=tk_ai" in rl[0]
-         and "crt 'hello'" not in ai.audit_new(a0), repr((len(fm.log) - n0, pr[-100:], rl)))
-    arow("S4b", "the answer is a popup: what the AI said and the diff (the old line with -, the new with +) with Accept and Reject", "I made the greeting longer." in T and "- crt 'hello'" in T
-         and "+ crt 'hello world'" in T and "[ Accept ]" in T and "[ Reject ]" in T, T[-900:])
-    e.keys(RET)
-    arow("S4c", "Enter alone is Reject: the buffer is as it was and so is the disk", "hello world" not in e.text() and "hello world" not in ai.rec(ai.OK_REC), "")
-    sed_ask(e, "make the greeting longer [[edit_ok]]")
-    e.keys("s")
-    ai.wait_popup(e)
-    e.keys("a")
-    time.sleep(1.0)
-    e.s.settle(0.6)
-    T = e.text()
-    arow("S5", "Accept: the buffer shows the new line, the disk does not have it, the message says it is in the editor", "crt 'hello world'" in T and "hello world" not in ai.rec(ai.OK_REC), T[-600:])
-    e.keys(RIGHT)
-    e.keys(CTRL_Z)
-    time.sleep(0.8)
-    T = e.text()
-    arow("S6", "ONE Ctrl-Z takes the change back: the old line is in the buffer", "crt 'hello world'" not in T and "crt 'hello'" in T, T[-500:])
-    # an edit set that does not fit
-    sed_ask(e, "x [[edit_dup]]")
-    e.keys("s")
-    T = ai.wait_popup(e)
-    arow("S10", "edit_dup: a set that does not fit is ignored whole and said so (found more than once), no Accept button", ai.msg(11660, "old text found more than once") in T and "[ Accept ]" not in T and "[ Close ]" in T, T[-700:])
-    e.keys(RET)
-    e.end()
-    # the selection
-    e = sed_open(ai.OK_REC)
-    n0 = len(fm.log)
-    e.keys(F10, TOOLS)
-    e.keys(EXPLAIN_KEY)
-    arow("S7", "Explain the selection with no mark: the message row says to set one (11671) and nothing is sent", ai.msg(11671)[:30] in e.text() and len(fm.log) == n0, e.text()[-300:])
-    e.keys(RET)                                     # (the key that dismisses the message)
-    e.keys("\x1b.")                                 # Esc . sets the mark (one chunk: a lone Esc is the menu)
-    e.keys("\x1bOB")                                # a line down
-    e.keys(F10, TOOLS)
-    e.keys(EXPLAIN_KEY)
-    T = e.text()
-    arow("S8", "with a mark and the cursor a line down: the preview shows the selected text and its size and sends nothing", ai.msg(11669, 1).split("1")[0][:20] in T and "crt 'hello'" in T and len(fm.log) == n0, T[-900:])
-    e.keys("s")
-    T = ai.wait_popup(e)
-    rq = ai.requests()
-    pr = ai.prompt_of(rq[-1][2]) if len(rq) > n0 else ""
-    arow("S8b", "Send: the prompt has the selected-text block with the first line and the standard request", "The selected text:" in pr and "crt 'hello'" in pr.split("The selected text:")[-1] and "Explain the selected text" in pr, repr(pr[-300:]))
-    e.keys(RET)
-    e.end()
-    # the command typed, with its request
-    e = sed_open(ai.OK_REC)
-    n0 = len(fm.log)
-    e.keys("\x1bx")                                 # Esc X: the command prompt
-    e.keys("ai make it longer [[edit_ok]]", RET)
-    T = e.text()
-    arow("S9", "Esc X, then  ai make it longer [[edit_ok]]  goes straight to the preview with that request (the AI verb is not run), nothing sent yet", "This will be sent to anthropic" in T
-         and "make it longer [[edit_ok]]" in T and len(fm.log) == n0, T[-700:])
-    e.keys(RET)
-    e.end()
 
 
 def sec_ced_off():
@@ -360,11 +270,6 @@ def follow_check(e, rid, app, ask_again):
 def sec_follow():
     """3 Nov 26 (S.107): Follow up in SED, the collection editor and the debugger (the IDE's rows are sandbox-ai-ide.py F1-F5)."""
     say("\n--- Follow up in SED, CED and the debugger")
-    e = sed_open(ai.OK_REC)
-    sed_ask(e, "first question [[sayonly]]")
-    e.keys("s")
-    follow_check(e, "S11", "SED", lambda: sed_ask(e, "second question [[plain]]"))
-    e.end()
     make_json_record()
     e = ai.AccIde(ai.box(), cmd="CED bp %s" % CED_REC)
     ced_ask(e, "first question [[sayonly]]")
@@ -378,7 +283,7 @@ def sec_follow():
     e.end()
 
 
-SECTIONS = {"sedoff": "sec_sed_off", "sed": "sec_sed", "cedoff": "sec_ced_off", "ced": "sec_ced", "dbg": "sec_dbg", "follow": "sec_follow"}
+SECTIONS = {"cedoff": "sec_ced_off", "ced": "sec_ced", "dbg": "sec_dbg", "follow": "sec_follow"}
 
 
 def main():
@@ -423,7 +328,7 @@ def main():
             for name in (only or list(SECTIONS)):           # 3 Nov 26: --only=SECTION[,SECTION] (CLAUDE.md testing rule 7); the build and fixtures always run
                 globals()[SECTIONS[name]]()
         else:
-            {"sed": sec_sed, "ced": sec_ced, "dbg": sec_dbg}[MUTANT_SECTIONS[mutant]]()
+            {"ced": sec_ced, "dbg": sec_dbg}[MUTANT_SECTIONS[mutant]]()
     finally:
         ai.stop_runner()
         if "fm" in ai.STATE:

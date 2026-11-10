@@ -196,12 +196,11 @@ def checks(p):
     orc = code(section(i, "open.record"))
     row("I14 open.record sets the tab's kind (tab.state) BEFORE it sets the token mode, so the mode is the kind's",
         ordered(orc, [r"^ts\.kind = lk\.kind$", r"gosub tab\.state", r"gosub set\.token\.mode"]))
-    dsd = code(section(i, "do.sed"))
     dfl = code(section(i, "do.fields"))
     nf = code(section(i, "new.form"))
     lc_ = code(section(i, "load.current"))
     row("I12 the mode is set wherever the real record comes from (open.record, the return from SED, the return from CED) and the editor's text is made by tab.display (new.form, load.current)",
-        ordered(orc, [r"bx\{k\} = rec", r"gosub set\.token\.mode", r"gosub load\.current"]) and ordered(dsd, [r"bx\{k\} = disk", r"gosub set\.token\.mode"]) and ordered(code(section(i, "fields.writeback")), [r"bx\{fz\.k1\} = fz\.txt", r"gosub set\.token\.mode"])
+        ordered(orc, [r"bx\{k\} = rec", r"gosub set\.token\.mode", r"gosub load\.current"]) and ordered(code(section(i, "fields.writeback")), [r"bx\{fz\.k1\} = fz\.txt", r"gosub set\.token\.mode"])
         and ordered(nf, [r"gosub tab\.display", r"ed\.text = tb\.disp"]) and ordered(lc_, [r"gosub tab\.display", r"mw\{'value'\} = tb\.disp"]))
 
     row("G1 (g-P2) the record of an ordinary file whose text is a JSON object or array with no value or subvalue mark goes to CED as the tree (data type 0, no file, no id); marks, text that does not parse or a first character other than { or [ keep the multivalue view and say nothing about JSON",
@@ -213,7 +212,7 @@ def checks(p):
     entries = m.split("|")[1:]
     labels = [e.split("~")[0] for e in entries]
     mn = [re.search(r"&(.)", lab).group(1).lower() for lab in labels if re.search(r"&(.)", lab)]
-    row("M1 the Go menu has the entry 'Edit as fields~F12~fields' after the SED entry (the dictionary item form, ~~dform, Next record from the list, ~~nextsel, and Filter the records, ~~filter, follow it)", len(entries) >= 5 and entries[-4].endswith("~F12~fields") and entries[-5].endswith("~sed") and entries[-3].endswith("~~dform") and entries[-2].endswith("~~nextsel") and entries[-1].endswith("~~filter"), repr(entries[-5:]))
+    row("M1 the Go menu has the entry 'Edit as fields~F12~fields' after the SED entry (the dictionary item form, ~~dform, Next record from the list, ~~nextsel, and Filter the records, ~~filter, follow it)", len(entries) >= 5 and entries[-4].endswith("~F12~fields") and entries[-3].endswith("~~dform") and entries[-2].endswith("~~nextsel") and entries[-1].endswith("~~filter"), repr(entries[-5:]))
     row("M2 every entry of the Go menu has a mnemonic and no two share one", len(mn) == len(entries) and len(set(mn)) == len(mn), repr(mn))
     row("M3 the IDE's help names F12 and the tokens", "F12" in p["m11215"] and "fields" in p["m11215"] and ":@vm: :@sm: :@tm:" in p["m11215"])
     row("M5 messages 11991 and 11992 are there: 11991 names the three tokens in lower case, 11992 takes the field number (%1)",

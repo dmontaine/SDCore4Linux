@@ -445,7 +445,7 @@ def sec_ide_undo():
 
 def sec_editors_small():
     say("\n--- R7: below the minimum (120x36) the editors lock with a message like the pages")
-    for key, cmd, mark in (("ide", "IDE bp zzrrec", "File  Edit  Go  Search"), ("sed", "SED bp zzrrec", "File  Edit  Search"), ("ced", "CED zzrj j1", "Collection editor")):
+    for key, cmd, mark in (("ide", "IDE bp zzrrec", "File  Edit  Go  Search"), ("sed", "SED bp zzrrec", "File  Edit  Go  Search"), ("ced", "CED zzrj j1", "Collection editor")):
         w = launch("R7-" + key, cmd, 140, 43)
         c = R.row("R7c %s at 140x43 is up (%r on the screen)" % (cmd.split()[0], mark), mark in w.text(), w.text()[:200], phase=None)
         off = w.resize(120, 36, 2.0)

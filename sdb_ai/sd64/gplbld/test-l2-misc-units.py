@@ -628,7 +628,7 @@ MUTANTS = [
     ("voc: the hand-over does not declare the layout again", "L2-6", sub("tool_voc", "   gosub declare.layout                                         ;* the new context", "   null                                                         ;* the new context")),
     ("voc: E is SED again", "L2-9", sub("tool_voc", "sent = 'ide voc ' : vid", "sent = 'sed voc ' : vid")),
     ("voc: E hands over without the character check", "L2-9", sub("tool_voc", "   gosub check.name\n   if not(okname) then\n      msg = 'this id has a character the page does not give to a command: type  ide voc '", "   okname = 1\n   if not(okname) then\n      msg = 'this id has a character the page does not give to a command: type  ide voc '")),
-    ("voc: the hint names SED", "L2-9", sub("tool_voc", "E edits the entry in the IDE, D deletes it", "E edits the entry in SED, D deletes it")),
+    ("voc: the hint names SED", "L2-9", sub("tool_voc", "more fields; E shows them all in the IDE)", "more fields; E shows them all in SED)")),
     ("voc: the help text names SED", "L2-9", sub("help.voc", "E edits the entry in the IDE", "E edits the entry in SED")),
     # tool_dict
     ("dict: the detail box is a row short", "L2-2", sub("tool_dict", "d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 17 :", "d<2> = 'detail' : @vm : 2 : @vm : 1 : @vm : 16 :")),
@@ -638,7 +638,7 @@ MUTANTS = [
     ("dict: E is SED again", "L2-9", sub("tool_dict", "sent = 'ide dict ' : fn : ' ' : iid", "sent = 'sed dict ' : fn : ' ' : iid")),
     ("dict: the hand-over list names SED", "L2-9", sub("tool_dict", "show.allow = 'ide list.index'", "show.allow = 'sed list.index'")),
     ("dict: the hand-over does not declare the layout again", "L2-6", sub("tool_dict", "   gosub declare.layout                                                ;* the new context", "   null                                                                ;* the new context")),
-    ("dict: the help text names SED", "L2-9", sub("help.dict", "E edits the item in the IDE", "E edits the item in SED")),
+    ("dict: the help text names SED", "L2-9", sub("help.dict", "hands the terminal to the IDE on a new item", "hands the terminal to SED on a new item")),
     # the IDE
     ("ide: the dictionary form is lost", "L2-9", sub("ide", "if upcase(fn0) = 'DICT' then", "if upcase(fn0) = 'DICTS' then")),
     ("ide: the floor rises above the pages'", "L2-9", sub("ide", "LAYH = 43 ", "LAYH = 44 ")),

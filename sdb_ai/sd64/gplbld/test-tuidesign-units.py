@@ -230,7 +230,7 @@ def checks(s):
     titles = [s["msg:%d" % n].split("|")[0].replace("&", "").strip() for n in IDE_MENUS]
     ck("T10 the IDE's menus (messages 11225-11230, 11654, 14004, 14019) are File Go Search Build View Help, AI, Tools and Edit, as E5 says (Edit is put after File, Tools and AI before Help; S.180, 8 Nov 26)",
        titles == ["File", "Go", "Search", "Build", "View", "Help", "AI", "Tools", "Edit"] and "File, Edit, Go, Search, Build, View, Tools, AI, Help" in doc
-       and "if j = 11230 then\n         m = change(sysmsg(14004), '|', @vm)" in s["ide"]
+       and "if j = 11230 and not(alone) then\n         m = change(sysmsg(14004), '|', @vm)" in s["ide"]
        and "if j = 11226 then\n         m = change(sysmsg(14019), '|', @vm)" in s["ide"], repr(titles))
     codes = re.search(r"\$define SL\.CODES\s+'([^']+)'", s["sl.h"])
     ck("T11 the theme: SL.CODES holds the role letters f U V W X Y, the shipped sd.conf says SCREENTHEME=paper (S.172), and the document says the same (T1, T2)",

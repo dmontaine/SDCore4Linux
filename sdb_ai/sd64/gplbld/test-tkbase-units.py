@@ -78,7 +78,7 @@ def checks(raw):
     # 28 Oct 26 (S.88 L1): the size asked is the app's FLOOR (TK.MINW by TK.MINH unless the app declares another), and the cursor lock is armed by $tk_layout 'open' with it
     # (test-tklayout-units.py W3 and W4 hold the rest)
     add("T2", "ORDER in $tk_open: a phantom is turned away, then the size is asked, then the audience, and only then the screen is taken, then the layout and its cursor lock",
-        ordered(op, "system(25)", "call $sl_need(", "K$ADMINISTRATOR", "screen open", "call $tk_layout('open'"), "")
+        ordered(op, "system(25)", "call $sl_need(", "K$ADMINISTRATOR", "screen open", "call $tk_layout('open'") and "err = sysmsg(11801, app) return" in op, "")
     add("T3", "the size asked is the floor, TK.MINW by TK.MINH unless the app declares another (never a number typed in the program), and the layout is made from the same floor",
         "call $sl_need(app, floor.w, floor.h," in op and "floor.w = TK.MINW" in op and "floor.h = TK.MINH" in op and "ctx<TK.C.FLOORW> = floor.w" in op
         and "call $tk_layout('open', ctx," in op and not re.search(r"\b(140|42|43)\b", op), "")
@@ -95,7 +95,7 @@ def checks(raw):
     add("T8", "$tk_frame writes the status line in reverse video, only when its text changed since it was last written, and keeps the cursor where the widget left it",
         "attr 'reverse'" in fr and "if t = last.stat then" in fr and "call $sl_curat('get'" in fr and re.search(r"attr 'reverse' call \$sl_curat\('back'", fr) is not None, "")
     add("T9", "$tk_frame draws the border with the library's own line character ($sl_line 'h') and the function keys from $tk_fkeys, on rows the layout gives (never a literal row number)",
-        "call $sl_line('h'," in fr and "call $tk_fkeys(" in fr and not re.search(r"\bat \d+,\d+\b", fr) and "TK.C.YKEYS" in fr and "TK.C.YBORD" in fr and "TK.C.YSTAT" in fr
+        "call $sl_line('h', 0, hc)" in fr and "call $tk_fkeys(" in fr and not re.search(r"\bat \d+,\d+\b", fr) and "TK.C.YKEYS" in fr and "TK.C.YBORD" in fr and "TK.C.YSTAT" in fr
         and "if ft # last.keys then" in fr and "if b # last.bord then" in fr
         and re.search(r"at 0,ybord call \$sl_curat\('back'", fr) is not None and re.search(r"at 0,ykeys attr 'bar' call \$sl_curat\('back'", fr) is not None, "")
     fk = sq["tk_fkeys"]
@@ -387,7 +387,7 @@ MUT = [
     ("tk_run", "the characters of a word are not checked", "if index(good, w[j, 1], 1) = 0 then", "if 0 then"),
     ("tk_run", "the raw sentence is run, not the checked one", "execute s trapping aborts capturing out", "execute sentence trapping aborts capturing out"),
     ("tk_run", "aborts are not trapped", "execute s trapping aborts capturing out", "execute s capturing out"),
-    ("tk_run", "a refused sentence does not return", "err = sysmsg(11805, verb)\n      return", "err = sysmsg(11805, verb)"),
+    ("tk_run", "a refused sentence does not return", "err = sysmsg(11805, verb)\n      goto run.done", "err = sysmsg(11805, verb)"),
     ("tk_run", "an extra character is allowed (the semicolon)", "0123456789._-'", "0123456789._-;'"),
     ("tk_run", "the first word is matched as a prefix", "field(allow, ' ', i) = verb and verb # ''", "field(allow, ' ', i)[1, len(verb)] = verb"),
     # 23 Oct 26: $tk_runx, the wider word set of tool.ai
@@ -396,7 +396,7 @@ MUT = [
     ("tk_runx", "the raw sentence is run, not the checked one", "execute s trapping aborts capturing out", "execute sentence trapping aborts capturing out"),
     ("tk_runx", "a semicolon is allowed in a word", "0123456789._:/@+,-'", "0123456789._:/@+,-;'"),
     ("tk_runx", "a space is allowed in a word", "0123456789._:/@+,-'", "0123456789._:/@+,- '"),
-    ("tk_runx", "a refused sentence does not return", "err = sysmsg(11806, w)\n            return", "err = sysmsg(11806, w)"),
+    ("tk_runx", "a refused sentence does not return", "err = sysmsg(14040, w, bad.ch)\n            goto run.done", "err = sysmsg(14040, w, bad.ch)"),
     ("tk_gates", "the administrator is not asked", "if not(kernel(K$ADMINISTRATOR, -1)) then", "if 0 then"),
     ("tk_gates", "the administrator refusal does not return", "err = sysmsg(11800, 'tk_gates')\n      return", "err = sysmsg(11800, 'tk_gates')"),
     ("tk_gates", "the name is not checked", "if index(good, name[j, 1], 1) = 0 then", "if 0 then"),

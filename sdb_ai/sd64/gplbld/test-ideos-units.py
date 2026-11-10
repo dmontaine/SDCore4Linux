@@ -333,7 +333,7 @@ def checks(src):
                "oc.sent = cr.text", "gosub os.create", "if cr.why # '' then return", "oc.s = cr.slot", "tfv(oc.s) = cr.f", "close cr.f", "tused<oc.s> = 1", "ri = oc.i", "gosub rc.drop.tab",
                "tu.i = oc.i", "gosub tab.unlock", "bn<oc.i> = 'path:'", "bi<oc.i> = oc.path", "uid = oc.u", "ts.kind = 'path'", "ts.dict = ''", "ts.slot = oc.s", "gosub tab.state", "uid = oc.uid",
                "k = 'm' : oc.u", "bx{k} = 0", "k = 'p' : oc.u", "bx{k} = (cr.info<1> + 0) : @fm : (cr.info<2> + 0)", "k = 's' : oc.u", "bx{k} = cr.text",
-               "if (cr.text : '|') # (oc.sent : '|') then", "k = 't' : oc.u", "bx{k} = cr.text", "gosub na.mark", "oc.ok = @true", "msg = sysmsg(11202, 'path:', oc.path)",
+               "if (cr.text : '|') # (oc.sent : '|') then", "k = 't' : oc.u", "bx{k} = cr.text", "oc.ok = @true", "msg = sysmsg(11202, 'path:', oc.path)",
                "if oc.i = cb then gosub load.current", "os.fp = oc.path", "gosub os.refresh")
        and "oc.uid = uid" in cv and cv.find("oc.uid = uid") < cv.find("uid = oc.u\n") and re.search(r"bx\{[^}]*\}\s*=", pre_cv) is None
        and re.search(r"\b(tfv|tused)\b|\b(bn|bi)<|gosub (tab|rc)\.|\bri =", pre_cv) is None, "")
@@ -356,7 +356,7 @@ def checks(src):
        "tab is not touched), Write a copy / Export (write.copy's first test; both ask the form in the 'copy' mode and refuse a name another tab holds, 11691, before they write)",
        ordered(dn, "call $ide_name('new', nm.file, nm.id, nm.res)", "if nm.res # 'ok' then return", "if nm.file = 'path:' then", "gosub os.new", "if nbuf > 0 and cr.why = '' then", "ft.id = 'ed'",
                "gosub focus.to", "gosub redraw.tabs", "return", "upcase(nm.id) = 'CREATING.SEQKEY'", "gosub add.new.record")
-       and ordered(ds, "gosub na.check", "gosub path.not.for", "if pa.no then return", "gosub stash.current", "call $ide_name('saveas', sa.file, sa.id, sa.res)", "if sa.res # 'ok' then return",
+       and ordered(ds, "gosub path.not.for", "if pa.no then return", "gosub stash.current", "call $ide_name('saveas', sa.file, sa.id, sa.res)", "if sa.res # 'ok' then return",
                    "if sa.file = 'path:' then", "oc.i = cb", "oc.path = sa.id", "gosub os.convert", "return", "gosub tab.find", "gosub tab.unlock")
        and ordered(wc, "if wa.file = 'path:' then", "gosub copy.to.os", "return", "open wa.file to fv else")
        and ordered(dw, "call $ide_name('copy', wa.file, wa.id, wa.res)", "if wa.res # 'ok' then return", "tf.file = wa.file", "gosub tab.find", "if tf.p then", "sysmsg(11691, wa.file, wa.id)",
@@ -435,7 +435,6 @@ def checks(src):
     #   path.not.for AGAIN after save.current and return before they go on
     bad22 = []
     for lab, marks in (("do.compile", ("gosub save.current", "if not(sv.ok) then return", "gosub path.not.for", "if pa.no then return", "c.file = bn<cb>")),
-                       ("do.sed", ("gosub save.current", "if not(sv.ok) then return", "gosub path.not.for", "if pa.no then return", "gosub stash.current")),
                        ("do.fields", ("gosub save.current", "if not(sv.ok) then return", "pa.allow = 'coll'", "gosub path.not.for", "pa.allow = ''", "if pa.no then return", "fd.u = bu<cb>"))):
         body = LI.get(lab, "")
         if not body:

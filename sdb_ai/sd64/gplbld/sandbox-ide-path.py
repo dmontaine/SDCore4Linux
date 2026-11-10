@@ -30,7 +30,7 @@
 #   S0   setup and controls: the fixture files were written and read back exactly; the sentinel outside the account is there
 #   O    open, edit, save: LF; CR LF (kept); no final newline (none added); a CR in a LF file (kept as data); a tab; an empty file; a cut that shortens the file (no tail left); inode,
 #        mode, owner and link count unchanged by a save, and a hard link sees the new bytes
-#   R    refused: NUL; bytes 254 and 255; over 2 MB; a directory; a FIFO (and the IDE is not hung); a file that is not there; a relative path; a .. component; bytes 128 to 247
+#   R    refused: NUL; bytes 254 and 255; over 2 MB; a directory; a FIFO (and the IDE is not hung); a file that is not there; a relative path; a .. component
 #        (opens read-only, nothing changes); a file mode 0444 (opens read-only, nothing changes)
 #   L    a second session cannot open a file the first holds; after the first closes it can
 #   C    the file changed on disk between the open and the save: the overwrite question (Cancel is the default; Cancel leaves the other bytes; Overwrite writes ours); a
@@ -322,8 +322,9 @@ def section_refused():
     e.keys("ZZ")
     e.keys(CTRL_S)
     e.quiet()
-    row("R9 a file holding bytes 128 to 247 opens READ-ONLY: the status line says so, typing changes nothing, Ctrl-S is refused in a box, the disk keeps every byte",
-        "read-only" in st and rd(fpath("high")) == before and "ZZ" not in editor_text(e) and "outside ASCII" in e.text(), "%r | %r" % (st[:120], e.text()[-300:]))
+    after = rd(fpath("high"))
+    row("R9 a file holding bytes 128 to 247 can be edited (owner, 9 Nov: \"Editable everywhere\"): not read-only, and Ctrl-S writes the typed text with every other byte as it was",
+        "read-only" not in st and after == (b"ZZ" if isinstance(before, bytes) else "ZZ") + before, "%r | before %r | after %r" % (st[:120], before[:24], after[:24]))
     done(e)
 
     before = rd(fpath("ro"))
@@ -418,9 +419,6 @@ def section_notfor():
     e = sb.Ide(BOX, "IDE path:%s" % fpath("tab"))
     e.quiet()
     e.keys("Q")
-    menu(e, 1, 9)                                                   # 9 Nov 26 (S.184 stage 1): Go > Edit in SED, the tenth entry of Go (Ctrl-E zooms the editor now)
-    hit, st = says(e, "operating system file")                      # a box since 30 Oct 26 (9g)
-    row("N1 Go > Edit in SED says it is an operating system file and the IDE stays up with the tab", hit and in_ide(e), st[:160])
     disk0 = rd(fpath("tab"))                                        # 9 Nov 26: the file as it is before F8 (an earlier section may have changed it; --only=notfor skips that)
     e.keys(F8)
     e.quiet()

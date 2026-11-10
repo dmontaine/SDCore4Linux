@@ -113,9 +113,9 @@ def checks(src):
     ide = strip(raw)
     L = {n: label(ide, n) for n in ("load.file", "load.dict", "list.ids", "do.find", "tree.nodes", "do.act", "lock.take", "lock.free", "tab.unlock", "release.all",
                                      "tab.lock", "relock.all", "ro.check", "open.record", "save.one", "close.current", "retake.quiet", "do.saveas", "do.writeas",
-                                     "seq.take", "do.new", "open.select", "do.compile", "do.sed", "do.include", "kind.of", "dict.trim", "load.current", "new.form",
+                                     "seq.take", "do.new", "open.select", "do.compile", "do.include", "kind.of", "dict.trim", "load.current", "new.form",
                                      "do.replace", "do.fields", "ai.apply", "edit.check", "name.untitled", "add.new.record", "tab.find", "status.line",
-                                     "tab.state", "na.mark", "na.check", "ro.box", "idle.text", "rc.untitled", "coll.text", "coll.value", "path.not.for", "ed.get", "write.copy")}
+                                     "tab.state", "ro.box", "idle.text", "rc.untitled", "coll.text", "coll.value", "path.not.for", "ed.get", "write.copy")}
     head = ide[: ide.find("gosub open.screen")]
     main = ide[: ide.find("apply.theme:")]
     ck("K0", "NULL CASE: the IDE was read and every routine this check reads is there (a check on nothing would pass)",
@@ -204,7 +204,7 @@ def checks(src):
        "lines (11739) after it; the name form refuses a text saved into a collection file under a new name (11745) except for New record",
        ordered(pn, "pa.k = 'k' : bu<cb>", "if bx{pa.k} = 'coll' and pa.allow # 'coll' then", "sysmsg(11744, bn<cb>, bi<cb>)", "return", "if bn<cb> # 'path:' then return", "sysmsg(11739, bn<cb>, bi<cb>)")
        and ordered(strip(src["ide_name"]), "if mode # 'new' and (fileinfo(fv, FL$COLLECTION) + 0) # 0 then", "sysmsg(11745, ff)", "file = ff", "res = 'ok'")
-       and all((re.search(r"gosub (\S+)", L[n]) or [None, ""])[1] == "path.not.for" for n in ("do.compile", "do.sed", "do.include")), "")
+       and all((re.search(r"gosub (\S+)", L[n]) or [None, ""])[1] == "path.not.for" for n in ("do.compile", "do.include")), "")
     ck("K11", "lock.take reads with READU THROUGH THE TAB'S OWN FILE VARIABLE tfv(slot), ON ERROR; LOCKED takes the holder from STATUS() and reads without a lock (read-only); the "
        "slot is kept only when this session got the lock, otherwise the file variable is let go",
        ordered(lt, "readu lk.rec from tfv(lk.s), lk.id on error", "end locked", "lk.owner = status()", "read lk.rec from tfv(lk.s), lk.id then", "end then", "lk.got = @true",
@@ -276,7 +276,7 @@ def checks(src):
        "something to save (a changed text, an untitled buffer or a record not on the disk yet), so a read-only tab with nothing to save can be compiled, run, debugged and catalogued",
        ordered(L["do.compile"], "gosub stash.current", "gosub is.dirty", "if dirty or bi<cb> = '' or bx{k} then", "gosub save.current", "if not(sv.ok) then return",
                "if bx{k} = 'dict' then", "msg = sysmsg(11697, c.file, c.id)", "return", "execute 'basic '")
-       and ordered(L["do.sed"], "sd.dict = bx{k}", "if sd.dict # '' then qp.f = 'dict ' : qp.f", "execute 'sed '", "open sd.dict, sd.file to fv then"), "")
+       , "")
     di = L["do.include"]
     ck("K25", "Open the include: the first word is $include (a comment after ; is cut), one word looks in the tab's file and then syscom, two words name the file; a collection file "
        "is passed over before a read; not found says where it looked (11696); found opens it through open.record",
@@ -300,32 +300,6 @@ def checks(src):
     ck("K29", "the help names the locks and the include; the Go menu has Open the include",
        "Locks" in src["m11215"] and "read-only" in src["m11215"] and "Open the include" in src["m11215"] and "&Open the include~~include" in src["m11226"], "")
 
-    # ---- 28 Oct 26 (approved by the owner): a record holding bytes 128 to 247 is read-only -------------------------------------------------------------------------------
-    ck("K30", "the bytes that make a tab read-only are exactly 128 to 247 (NA.CHARS, built once at the start: the marks 248-255 are the token form's); na.mark only TESTS the text "
-       "(convert into a scratch value and compare) and changes no text; tab.state starts every tab at 0",
-       ordered(main, "NA.CHARS = ''", "for na.i = 128 to 247", "NA.CHARS := char(na.i)", "next na.i")
-       and [x.strip() for x in L["na.mark"].split("\n") if x.strip()] == ["k = 'a' : na.u", "bx{k} = (convert(NA.CHARS, '', na.text) # na.text)", "return"]
-       and ordered(L["tab.state"], "k = 'a' : uid", "bx{k} = 0") and ide.count("NA.CHARS") == 4 and "convert(NA.CHARS, '', im.x) # im.x" in ide, repr(L["na.mark"][:200]))      # (the fourth is Import's refusal of a record holding such bytes, stage D)
-    ck("K31", "the flag is set wherever a tab gets text from outside: open.record (the record AND the copy taken, before load.current, with 11761), SED's record read back (do.sed), "
-       "an untitled copy opened and a new record's copy taken; and while it is set the editor is readonly (load.current, new.form) and the status line says so (11753)",
-       ordered(L["open.record"], "gosub tab.state", "na.text = rec : @fm : tb.shown", "gosub na.mark", "if bx{k} then msg = sysmsg(11761, or.name, or.id)", "gosub load.current")
-       and ordered(L["do.sed"], "read disk from fv, sd.id", "na.text = disk", "gosub na.mark")
-       and ordered(L["rc.untitled"], "gosub rc.took", "na.text = rc.text", "gosub na.mark", "gosub load.current")
-       and ordered(L["add.new.record"], "gosub tab.state", "na.text = rc.text", "gosub na.mark", "an.made = @true")
-       and ordered(L["load.current"], "ro = (bx{k} # '')", "k = 'a' : u\n      if bx{k} then ro = 1", "mw{'readonly'} = ro")           # (the pair adjacent: stage E's own flag, 'z', follows it and would mask the 'a' test)
-       and ordered(L["new.form"], "ed.ro = (bx{k} # '')", "k = 'a' : u\n      if bx{k} then ed.ro = 1", "if ed.ro then")
-       and ordered(L["status.line"], "k = 'a' : bu<cb>", "if bx{k} then t := '  ' : sysmsg(11753)"), "")
-    ck("K32", "ro.check asks the ASCII flag FIRST (ro.why 'ascii', 11754) and the lock second ('lock'); ro.box shows a refusal in a box only for 'ascii' and 'osro' (a lock's stays on the status line); Save (save.one), "
-       "Replace, Edit as fields and an AI edit go through ro.check and ro.box (save.one's own box); Save as and Write a copy ask na.check before anything, which keeps a lock's "
-       "message out (a lock does not stop them)",
-       ordered(L["ro.check"], "ro.why = ''", "ro.k = 'a' : bu<ro.i>", "if bx{ro.k} then", "ro.why = 'ascii'", "msg = sysmsg(11754, bf.name, bf.id)", "return",
-               "ro.k = 'o' : bu<ro.i>", "ro.why = 'lock'", "msg = sysmsg(11688")
-       and ordered(L["ro.box"], "if ro.why # 'ascii' and ro.why # 'osro' then return", "rf.text = msg", "gosub refuse.box")
-       and ordered(L["save.one"], "gosub ro.check", "if not(ro.ok) then", "gosub refuse.box", "return", "write")
-       and all(ordered(L[n], "gosub na.check", "if not(na.ok) then return", "gosub stash.current") for n in ("do.saveas", "do.writeas"))
-       and ordered(L["na.check"], "na.msg = msg", "gosub ro.check", "if ro.why # 'ascii' then", "msg = na.msg", "return", "na.ok = @false", "gosub ro.box"), "")
-
-    # ---- 28 Oct 26 (approved by the owner): the AUTOLOGOUT countdown ---------------------------------------------------------------------------------------------------------
     loop = ide[ide.find("   loop\n      gosub fields.sync"): ide.find("until done")]
     ck("K33", "the countdown keeps no clock of its own (28 Oct 26, the L2 review: the IDE's guess was late by an AI wait and by a stall): no idl.t0, idl.fp, idl.el, idl.now, idle.count or "
        "IDL.SLACK anywhere in the IDE and no idl.ms set to 0; the loop waits one second and a timeout runs rc.tick; a program run needs no reset in retake.quiet",
@@ -448,18 +422,6 @@ MUTANTS = [
 # 28 Oct 26: bytes outside ASCII and the AUTOLOGOUT countdown (approved by the owner)
 M_NA = len(MUTANTS)
 MUTANTS += [
-    ("the marks count as outside ASCII", "K30", sub("ide", "   for na.i = 128 to 247\n", "   for na.i = 128 to 255\n")),
-    ("na.mark drops the bytes from the text", "K30", sub("ide", "   bx{k} = (convert(NA.CHARS, '', na.text) # na.text)\n", "   na.text = convert(NA.CHARS, '', na.text)\n   bx{k} = 0\n")),
-    ("a new tab inherits the flag", "K30", sub("ide", "   k = 'a' : uid\n   bx{k} = 0                         ;* 28 Oct 26: no byte outside ASCII until na.mark says so\n", "")),
-    ("open.record looks only at the copy", "K31", sub("ide", "   na.text = rec : @fm : tb.shown\n", "   na.text = tb.shown\n")),
-    ("the record read back from SED is not looked at", "K31", sub("ide", "   na.text = disk\n   gosub na.mark", "   na.text = disk\n   null")),
-    ("the editor is not read-only for the flag", "K31", sub("ide", "      if bx{k} then ro = 1               ;* 28 Oct 26", "      if 0 then ro = 1               ;* 28 Oct 26")),
-    ("ro.check asks the lock only", "K32", sub("ide", "   ro.k = 'a' : bu<ro.i>\n   if bx{ro.k} then\n", "   ro.k = 'a' : bu<ro.i>\n   if 0 then\n")),
-    ("the refusal is a status-line message", "K32", sub("ide", "   rf.text = msg\n   gosub refuse.box\n   return\n\n* 28 Oct 26: Save as", "   return\n\n* 28 Oct 26: Save as")),
-    ("an operating system file's refusal stays on the status line", "K32", sub("ide", "if ro.why # 'ascii' and ro.why # 'osro' then return", "if ro.why # 'ascii' then return")),
-    ("Save as writes a non-ASCII record", "K32", sub("ide", "do.saveas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   gosub na.check", "do.saveas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   na.ok = 1")),
-    ("Write a copy writes a non-ASCII record", "K32", sub("ide", "do.writeas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   gosub na.check", "do.writeas:\n   if nbuf = 0 then\n      msg = sysmsg(11218)\n      return\n   end\n   na.ok = 1")),
-    ("Save as of a locked tab says the lock's refusal", "K32", sub("ide", "      msg = na.msg                   ;* a lock's refusal is not this one's\n", "")),
     ("the IDE keeps its own clock again: the start of a wait is noted", "K33", sub("ide", "      screen wait f timeout 1 returning ev then\n", "      idl.t0 = system(1081)\n      screen wait f timeout 1 returning ev then\n")),
     ("Esc zeroes a count of the IDE's own", "K33", sub("ide", "            case 1\n               gosub fields.esc         ;* Esc", "            case 1\n               idl.ms = 0\n               gosub fields.esc         ;* Esc")),
     ("the countdown reads the period as the clock", "K34", sub("ide", "idl.ms = kernel(K$AUTOLOGOUT, -2) + 0", "idl.ms = kernel(K$AUTOLOGOUT, -1) + 0")),

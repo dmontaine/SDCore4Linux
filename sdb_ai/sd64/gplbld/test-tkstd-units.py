@@ -104,15 +104,6 @@ def checks(src):
        rid == "st.id = 'theme.' : downcase(@logname)" and "open '&menus&' to st.f then" in st and st.find("&menus&") < st.find("SCREENTHEME")
        and "locate sv.name in thorder<1> setting sv.i else return" in sv and "write sv.name to sv.f, st.id on error" in sv
        and "openseq" not in slt.lower() and "openpath" not in slt.lower() and "oswrite" not in slt.lower(), (rid, st[:120]))
-    sed = c.get("sed", "")
-    fsed = flat(sed)
-    ck("S8 SED: Ctrl-T and Ctrl-K bound only when free; kill line Esc K, toggle Esc T, go to Esc G, refresh F5 and Ctrl-L, run F9; View and Help menus with Theme, Refresh, Keys",
-       "if seq(action.list[20, 1]) = 0 then action.list[20, 1] = char(F.THEME)" in fsed and "if seq(action.list[11, 1]) = 0 then action.list[11, 1] = char(F.KEYS)" in fsed
-       and "key.rec<-1> = '@[K'" in sed and "key.rec<-1> = '@[T'" in sed and "key.rec<-1> = '@[G'" in sed
-       and "key.rec<-1> = '@[[15~':@VM:'@[[[E':@VM:'@L'" in sed and "key.rec<-1> = '@[[20~'" in sed
-       and "bar.titles := @fm : '&View' : @fm : '&Help'" in sed and "ml = '&Theme' ; ma = F.THEME ; gosub add.item" in sed
-       and "ml = '&Keys in use' ; ma = F.KEYS ; gosub add.item" in sed and "if action = F.THEME then gosub do.theme" in fsed
-       and "call $tk_theme(0, thm.chg, thm.msg)" in sed)
     dbg = c.get("debug", "")
     fdbg = flat(dbg)
     ck("S9 the debugger: F5 refresh, F9 run, Ctrl-T theme, Ctrl-K keys, Ctrl-L redraw, Esc K / Esc T, Esc or F10 the menu bar (Run View Help)",
@@ -126,7 +117,7 @@ def checks(src):
     ck("S10 the IDE: F5 and Ctrl-L refresh, F9 run, Shift-F9 catalog, Alt-G go to, Ctrl-T theme, Ctrl-K keys; the editor passes Ctrl-T and Ctrl-K; the Theme command is $tk_theme",
        "case edata = 'f5' or edata = 'ctrl-l' cmd = 'refresh'" in fide and "case edata = 'f9' cmd = 'run'" in fide and "case edata = 'shift-f9' cmd = 'catalog'" in fide
        and "case edata = 'alt-g' cmd = 'goto'" in fide and "case edata = 'ctrl-t' cmd = 'theme'" in fide and "case edata = 'ctrl-k' cmd = 'keys'" in fide
-       and "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'" in ide and "case cmd = 'theme' call $tk_theme(1, th.chg, th.msg)" in fide
+       and "mw{'passkeys'} = (if alone then '' else 'ctrl-e' : @vm) : 'ctrl-t' : @vm : 'ctrl-k'" in ide and "case cmd = 'theme' call $tk_theme(1, th.chg, th.msg)" in fide
        and "case cmd = 'keys' call $tk_std('keylist'" in fide)
 
     # S.180 (the owner: "all features available on a page need to appear somewhere on the menus"): a registry page's every keyed action is on a menu;
@@ -154,15 +145,6 @@ def checks(src):
     dkey = block(ide, "do.key")
     kcmds = set(re.findall(r"cmd = '([a-z.0-9]+)'", dkey)) - {"menu"}
     ck("S12 every command the IDE's keys run is on one of its menus (14019 the Edit menu among them)", kcmds and kcmds <= mcmds and 14019 in mm, sorted(kcmds - mcmds))
-    # S13 SED: every action the default layout gives a key is on a menu, the moves within the text, Return, Tab, Backspace and Cancel (Ctrl-G) aside
-    rsed = src.get("sed", "")                     # the raw text: each key.rec line names its action in its ;* comment
-    db = rsed[rsed.index("set.default.bindings:"):rsed.index("set.emacs.bindings:")] if "set.emacs.bindings:" in rsed else ""
-    keyed = [n for v, n in re.findall(r"key\.rec<-1> = ([^;\n]*);\*\s*(F\.[A-Z.]+)", db) if v.strip() not in ("''", "")]
-    mb = sed[sed.index("build.menu.defs:"):] if "build.menu.defs:" in sed else ""
-    inm = set(re.findall(r"ma = (F\.[A-Z.]+)", mb))
-    moves = {"F.HOME", "F.END", "F.LEFT", "F.RIGHT", "F.UP", "F.DOWN", "F.BACKSPACE", "F.TAB", "F.NEWLINE", "F.CANCEL"}
-    sgaps = sorted(set(keyed) - inm - moves)
-    ck("S13 SED: every action the default layout gives a key is on a menu (the moves, Return, Tab, Backspace and Cancel aside)", keyed and not sgaps, sgaps)
     # 9 Nov 26 (S.186): View > Mouse on every page.  The bar runs nothing (S.88 decision 25), so each page with a menu bar answers act:std.mouse itself,
     # through $tk_std; the switch is the session's ($tk_std's common), $tk_open puts it back after SCREEN OPEN and the IDE uses the same routine
     nomouse = [p for p in PAGES if not re.search(r"case nm = 'act:std\.mouse'[^\n]*\n\s*call \$tk_std\('mouse'", c.get(p, ""))]
@@ -215,13 +197,10 @@ def mutants(src):
         m("a page lacks the shared keys", "tool_audit", "call $tk_std('keys', ctx, keys, '', '')", "null"),
         m("a program reads SCREENTHEME itself", "spview", "call $sl_theme('site', '', '', '', '', site.theme)", "site.theme = downcase(trim(config('SCREENTHEME')))"),
         m("the theme is kept per account, not per person", "sl_theme", "st.id = 'theme.' : downcase(@logname)", "st.id = 'theme'"),
-        m("SED takes Ctrl-T whatever is bound", "sed", "if seq(action.list[20, 1]) = 0 then action.list[20, 1] = char(F.THEME)", "action.list[20, 1] = char(F.THEME)"),
-        m("SED's kill line keeps Ctrl-K", "sed", "key.rec<-1> = '@[K'", "key.rec<-1> = '@K'"),
-        m("SED runs on F5 again", "sed", "key.rec<-1> = '@[[20~'", "key.rec<-1> = '@[[15~'"),
         m("the debugger runs on F5 again", "debug", "case n = K$F9             ;* Free run", "case n = K$F5             ;* Free run"),
         m("the debugger has no View menu", "debug", "dm.m = '&View'", "dm.m = '&Vue'"),
         m("the IDE's F5 runs again", "ide", "case edata = 'f5' or edata = 'ctrl-l'\n         cmd = 'refresh'", "case edata = 'f5' or edata = 'ctrl-l'\n         cmd = 'run'"),
-        m("the IDE's editor keeps Ctrl-T", "ide", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-k'"),
+        m("the IDE's editor keeps Ctrl-T", "ide", "mw{'passkeys'} = (if alone then '' else 'ctrl-e' : @vm) : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-k'"),
         m("S11: a page's box key is on no menu", "tool_dict", "call $tk_keys('menu', keys, 'nextpane', '&View', '&Next box', '', '')", "null"),
         m("S12: an IDE key runs a command no menu has", "ide", "case edata = 'f4'\n         cmd = 'nexterr'", "case edata = 'f4'\n         cmd = 'nexterrx'"),
         m("S14: a page does not answer View > Mouse", "tool_gates", "      case nm = 'act:std.mouse'", "      case nm = 'act:std.mousex'"),
@@ -232,7 +211,6 @@ def mutants(src):
         m("S16: a page's '/' does not find", "tool_sessions", "         call $tk_findrow(fr.rows", "         call $tk_nofind(fr.rows"),
         m("S16: tool.audit's '/' is gone", "tool_audit", "      case nm = 'f' or nm = '/'", "      case nm = 'f'"),
         m("S17: the context menu holds View > Mouse", "tk_menubar", "if fa = 'std.mouse' or fa = 'std.output' then continue", "if fa = 'std.outputx' then continue"),
-        m("S13: a SED keyed action is on no menu", "sed", "   ml = 'Insert a control character, &quoted' ; ma = F.QUOTE.CHAR ; gosub add.item\n", ""),
     ]
 
 
@@ -241,7 +219,7 @@ def main():
         print("test-tkstd-units: CANNOT RUN - no %s" % BP)
         return 2
     src = load()
-    for need in ("tk_std", "tk_theme", "sl_theme", "sed", "debug", "ide"):
+    for need in ("tk_std", "tk_theme", "sl_theme", "debug", "ide"):
         if need not in src:
             print("test-tkstd-units: CANNOT RUN - no %s in %s" % (need, BP))
             return 2

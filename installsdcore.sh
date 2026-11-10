@@ -750,7 +750,7 @@ echo
 # 22 Sep 2026 - BACK, ON THE OWNER'S DIRECT INSTRUCTION OF THAT DAY, updated to
 #   the current release under test.  The 20 Sep reasoning was not wrong; the
 #   owner is choosing to accept that cost again rather than leave the line out.
-echo "Installer tested on Ubuntu 26.10."
+echo "Installer tested on Ubuntu 26.04 and 26.10 and Debian 13."
 echo
 # --------------------
 # 09 Sep 26  Was "from the selected branch", plus a paragraph offering the local
@@ -2171,7 +2171,7 @@ if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
         # signs in to and it would otherwise be a surprise that sh and the editors refuse.
         echo "  ${tuser} starts with no ssh, no API, no shell and no OS.EXECUTE, like every account SD makes."
         # 17 Oct 26 (S.64): and, the same way, no right to save changes to a VOC, a program file or a dictionary.
-        echo "  It also starts without the right to change the VOC, a program file (or compile and catalogue) or a dictionary."
+        echo "  It also starts without the right to change the VOC, a program file (or compile and catalog) or a dictionary."
         echo "  Signed in as sdsys, give it what it needs (several words may be given in one command, for example modify.account ${tuser_lc} sh-on os-on):"
         echo "      modify.account ${tuser_lc} both        (ssh and the API; or ssh, or api)"
         echo "      modify.account ${tuser_lc} sh-on"
@@ -2517,7 +2517,7 @@ if [ "$accounts_kept" = yes ]; then
     if [ "$oe_rc" -ne 0 ] || ! printf '%s\n' "$oe_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
         printf "%b\n" "$RED"
         echo "WARNING: the existing accounts' right to change the VOC, programs and dictionaries was not all set."
-        echo "  Until it is, an account without it cannot edit them, compile or catalogue."
+        echo "  Until it is, an account without it cannot edit them, compile or catalog."
         echo "  Run this installer again to retry, or give an account the right with"
         echo "      modify.account <account> voc-on"
         echo "      modify.account <account> bp-on"

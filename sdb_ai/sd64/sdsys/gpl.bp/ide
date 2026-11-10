@@ -181,6 +181,9 @@
 * 09 Nov 26 dm  S.184 stage 4: a save calls a catalogued source.control before it writes, with the arguments SED and ED give it (dict flag, file, record, the
 *               record's text, 1 for a full screen editor, write allowed, record updated); it can refuse the write (6653) or change the text, which then goes in the tab.
 *               Up and Down in the two Run a command prompts bring back this session's commands (SCREEN ASK ... HISTORY, /idehist/ ih.cmds).
+* 09 Nov 26 dm  S.184 stage 7: started by the verb SED the IDE is the editor alone: no files pane, SED's questions and ? for a list of records, the results under the editor, the last
+*               tab closed ends it.  A text in quotes is one word of the sentence.  A record or file holding bytes 128 to 247 is edited like any other (the owner: "Editable everywhere");
+*               the read-only rule of 28 Oct 26 is gone.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -254,6 +257,7 @@ $include idebrk.h
    * 31 Oct 26 (S.90 stage 2): a last word /form opens the dictionary item named as a FORM (do.dform) instead of as text; it is taken off the sentence here, so that no id is read from it
    * 31 Oct 26 (S.90): a dictionary item opens as the form whatever the last word (it is the default face); a last word /text asks for the text, and is taken off the same way
    sent.in = @sentence
+   alone = (upcase(field(trim(sent.in), ' ', 1)) = 'SED')      ;* 9 Nov 26 (S.184 stage 7): started as SED: the editor by itself, with no files pane
    form0 = @false
    text0 = @false
    * 2 Nov 26 (S.96 M4): a last word /in=account,file comes from the master files page (tool.entries), which opens a program of ANOTHER account through a temporary pointer in
@@ -290,6 +294,9 @@ $include idebrk.h
       fn0 = field(sent.in, ' ', 3)
       id0 = field(sent.in, ' ', 4)
    end
+   gosub sent.tokens                         ;* 9 Nov 26 (S.184 stage 7): the words of the sentence, a text in quotes being one word, as SED takes them: a record id may hold a blank
+   id0 = st.toks<(if dflag0 # '' then 4 else 3)>
+   if alone then text0 = @true               ;* started as SED a dictionary item is text, as it was: the form is the IDE's
    fn0 = downcase(fn0)
    seq0 = (upcase(id0) = 'CREATING.SEQKEY')
    q0 = id0[1, 1]
@@ -315,9 +322,8 @@ $include idebrk.h
    star0 = @false
    sel0.new = @false
    if fn0 # '' and id0 # '' and not(seq0) then
-      sent0 = trim(sent.in)
       id.base = (if dflag0 # '' then 4 else 3)
-      n.tok = dcount(sent0, ' ')
+      n.tok = dcount(st.toks, @fm)
       begin case
          case id0 = '*' and n.tok <= id.base
             star0 = @true
@@ -326,7 +332,7 @@ $include idebrk.h
             lr.more = @false
          case n.tok > id.base
             for g4.i = id.base to n.tok
-               g4.t = field(sent0, ' ', g4.i)
+               g4.t = st.toks<g4.i>
                g4.q = g4.t[1, 1]
                if len(g4.t) > 1 and (g4.q = '"' or g4.q = "'") and g4.t[len(g4.t), 1] = g4.q then g4.t = g4.t[2, len(g4.t) - 2]
                if g4.t # '' then ids0<-1> = g4.t
@@ -417,7 +423,7 @@ $include idebrk.h
    ide.keys<dcount(ide.keys, @fm), TK.K.ROW> = 0
    call $tk_keys('add', ide.keys, 'f12', 'fields', 'fields', '', 1)
    call $tk_keys('add', ide.keys, 'ctrl-n', 'new', 'new', '', 1)
-   call $tk_keys('add', ide.keys, 'ctrl-e', 'zoom', 'zoom', '', 1)       ;* 9 Nov 26 (S.184 stage 1): the editor fills the screen, and back; SED is on the Go menu
+   if not(alone) then call $tk_keys('add', ide.keys, 'ctrl-e', 'zoom', 'zoom', '', 1)     ;* 9 Nov 26 (S.184 stage 1): the editor fills the screen, and back; SED is on the Go menu
    call $tk_keys('add', ide.keys, 'ctrl-r', 'replace', 'replace', '', 1)
    call $tk_keys('add', ide.keys, 'shift-f7', 'breakpoint', 'bptoggle', '', 1)
    * 31 Oct 26 (S.86 stage 4): the keys of the fields pane (F12), which fields.key hands to the engine ($ced_core 'key'); the pane's name is not one of the focus ring's.  Not on the
@@ -452,7 +458,7 @@ $include idebrk.h
          m = change(m, '~', @sm)
          menus<-1> = m
       end
-      if j = 11230 then
+      if j = 11230 and not(alone) then
          m = change(sysmsg(14004), '|', @vm)             ;* 3 Nov 26 (S.75 DV10): the Tools menu, the development pages, before AI and Help
          m = change(m, '~', @sm)
          menus<-1> = m
@@ -464,6 +470,8 @@ $include idebrk.h
       end
       m = change(sysmsg(j), '|', @vm)
       m = change(m, '~', @sm)
+      if alone and j = 11226 then gosub alone.go.menu
+      if alone and j = 11225 then gosub alone.file.menu
       menus<-1> = m
    next j
 
@@ -506,7 +514,8 @@ $include idebrk.h
    sln = ''
    out.kind = ''
    out.file = ''
-   zm = 0                            ;* 9 Nov 26 (S.184 stage 1): 1 while Ctrl-E has the editor filling the screen
+   al.err = @false                   ;* 9 Nov 26 (S.184 stage 7): started as SED: 1 while the results table is shown under the editor
+   zm = alone                        ;* 9 Nov 26 (S.184 stage 1): 1 while Ctrl-E has the editor filling the screen
    ra.args = ''                      ;* 9 Nov 26 (S.184 stage 3): Run with arguments: the words put after the program's name (' ' and the words), and the last ones typed
    ra.last = ''
    lst.ids = ''                      ;* 9 Nov 26 (S.184 stage 3): the select list the IDE started with (open.select): its ids as fields, its file and dictionary flag, the next
@@ -517,7 +526,7 @@ $include idebrk.h
    lst.more = @false
    syn.off = 0                      ;* 9 Nov 26 (S.184 stage 3): View > Syntax colour and View > Line numbers switched off (SED's SYNTAX OFF and LNUM OFF)
    lnum.off = 0
-   focus.id = 'tree'
+   focus.id = (if alone then 'ed' else 'tree')
    msg = ''
    ai.sel = ''                       ;* the AI: the selected text and a sentence about it, for the request being made
    ai.note = ''
@@ -627,6 +636,7 @@ $include idebrk.h
       case sel0 # ''
          gosub open.select
    end case
+   if alone and id0 = '' and not(seq0) and sel0 = '' and path0 = '' and ids0 = '' and not(star0) then gosub alone.ask
    if fn0 # '' and (id0 # '' or seq0 or sel0 # '') then
       if nbuf = 0 then
          gosub add.untitled                    ;* nothing could be opened: the editor is never left without a buffer
@@ -899,11 +909,12 @@ size.layout:
    ai.rows = (if ai.on then 1 else 0)          ;* the AI entry takes the last row of the form under the editor and the table: the table is one row shorter
    ai.y = ih
    if zm then
+      * 9 Nov 26 (S.184 stage 7): started as SED, al.err keeps the results table under the editor, at the place it has unzoomed
       * 9 Nov 26 (S.184 stage 1): zoomed, the editor (and the tabs, the fields view and the AI line, which share its columns) take the whole inside of the form.  The
       *   files and the messages keep the places they have unzoomed, hidden (zoom.show), so that every widget is always inside the form
       ex = 1
       ew = iw
-      mh = ih - 1 - ai.rows
+      if not(al.err) then mh = ih - 1 - ai.rows
    end
    return
 
@@ -952,8 +963,6 @@ new.form:
       ed.text = tb.disp
       k = 'o' : u
       ed.ro = (bx{k} # '')                ;* 28 Oct 26 (stage B): read-only while another session holds the record's lock
-      k = 'a' : u
-      if bx{k} then ed.ro = 1              ;* 28 Oct 26: or while the record holds bytes 128 to 247 (na.mark)
       k = 'z' : u
       if bx{k} then ed.ro = 1              ;* 28 Oct 26 (stage E, review finding 7): or an operating system file this session may not change - load.current had it, the form made again after a resize did not
       sy.file = bn<cb>
@@ -975,7 +984,7 @@ new.form:
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    mw{'hbar'} = 1
-   mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'     ;* Ctrl-E zooms the editor (9 Nov 26, S.184 stage 1; it handed the record to SED) (the area's own meaning of it, end of row, is End); F3 / Shift-F3 are the area's find next / previous (the owner's D31).  8 Nov 26 (S.179): Ctrl-T (the theme) and Ctrl-K (the keys) are the IDE's, as on every page; the area cuts a line with Alt-K
+   mw{'passkeys'} = (if alone then '' else 'ctrl-e' : @vm) : 'ctrl-t' : @vm : 'ctrl-k'    ;* Ctrl-E zooms the editor (9 Nov 26, S.184 stage 1; it handed the record to SED) (the area's own meaning of it, end of row, is End); F3 / Shift-F3 are the area's find next / previous (the owner's D31).  8 Nov 26 (S.179): Ctrl-T (the theme) and Ctrl-K (the keys) are the IDE's, as on every page; the area cuts a line with Alt-K
    mw{'syn.want'} = mw{'synlang'} + 0            ;* 9 Nov 26 (S.184 stage 3): the tab's language, kept so that View > Syntax colour can put it back
    if syn.off then mw{'synlang'} = 0              ;* 9 Nov 26 (S.184 stage 3): View > Syntax colour off
    if lnum.off then mw{'lnum'} = 0               ;* 9 Nov 26 (S.184 stage 3): View > Line numbers off
@@ -1401,8 +1410,6 @@ load.current:
       gosub syntax.for
       k = 'o' : u
       ro = (bx{k} # '')                  ;* 28 Oct 26 (stage B): another session holds the record's lock: the tab is read-only
-      k = 'a' : u
-      if bx{k} then ro = 1               ;* 28 Oct 26: so is a record that holds bytes 128 to 247 (na.mark)
       k = 'z' : u
       if bx{k} then ro = 1               ;* 28 Oct 26 (stage E): and an operating system file this session may not change
    end else
@@ -1612,12 +1619,7 @@ open.record:
    tm.raw = tb.shown
    gosub set.token.mode
    if rc.choice = 'use' then gosub rc.took
-   na.u = uid
-   na.text = rec : @fm : tb.shown
-   gosub na.mark                         ;* 28 Oct 26: bytes 128 to 247 in the record (or in the copy taken) make the tab read-only
    if lk.owner # '' then msg = sysmsg(11689, or.name, or.id, lk.owner)    ;* %1 %2 is open read-only: user %3 holds its lock
-   k = 'a' : uid
-   if bx{k} then msg = sysmsg(11761, or.name, or.id)                     ;* %1 %2 is open read-only: it holds characters outside ASCII
    cb = nbuf
    if od = '' then gosub hist.push          ;* 9 Nov 26 (S.184 stage 3): the file and the record for Up and Down in Open's form (a dictionary item is not: the form names no dictionary)
    gosub load.current
@@ -1726,9 +1728,6 @@ path.tab.make:
    bx{k} = (op.info<1> + 0) : @fm : (op.info<2> + 0)
    k = 'z' : uid
    bx{k} = op.info<3> + 0
-   na.u = uid
-   na.text = op.text
-   gosub na.mark                               ;* bytes 128 to 247: read-only, as for a record
    cb = nbuf
    begin case
       case op.info<3> + 0
@@ -1736,8 +1735,6 @@ path.tab.make:
       case op.info<1> + 0
          msg = sysmsg(11740, 'path:', op.path)
    end case
-   k = 'a' : uid
-   if bx{k} then msg = sysmsg(11761, 'path:', op.path)      ;* %1 %2 is open read-only: it holds characters outside ASCII
    gosub load.current
    return
 
@@ -1898,9 +1895,6 @@ os.convert:
       k = 't' : oc.u
       bx{k} = cr.text
    end
-   na.u = oc.u
-   na.text = cr.text
-   gosub na.mark
    oc.ok = @true
    msg = sysmsg(11202, 'path:', oc.path)
    if oc.i = cb then gosub load.current
@@ -1953,20 +1947,10 @@ tab.state:
    bx{k} = ts.slot
    k = 'o' : uid
    bx{k} = ts.owner
-   k = 'a' : uid
-   bx{k} = 0                         ;* 28 Oct 26: no byte outside ASCII until na.mark says so
    k = 'z' : uid
    bx{k} = 0                         ;* 28 Oct 26 (stage E): not an operating system file that this session may not change (open.path sets it)
    k = 'p' : uid
    bx{k} = ''                        ;* an operating system file's line ends: 1 when every line ends CR LF, FM, 1 when the last line had its line end (the helper's INFO<1> and <2>, as they are passed to 'save')
-   return
-
-* In: na.u (a tab's uid), na.text (its record, and the text it shows).  28 Oct 26 (the owner's approval): bx a<uid> is 1 when the text holds a byte from 128 to
-*   247 - another character set's letters, or UTF-8, which the editor shows a byte at a time and cannot be trusted to keep.  Such a tab is read-only (load.current,
-*   new.form, ro.check) and nothing is converted: the bytes stay as the disk has them.  The marks (248 to 255) are not counted: the token form shows them.
-na.mark:
-   k = 'a' : na.u
-   bx{k} = (convert(NA.CHARS, '', na.text) # na.text)
    return
 
 * In: tf.dict, tf.file, tf.id.  Out: tf.p, the tab that holds that record (0: none).  A dictionary item and the data record of the same id are two records
@@ -2179,19 +2163,10 @@ relock.all:
    return
 
 * In: ro.i.  Out: ro.ok, false (and msg says why) when tab ro.i is read-only: another session holds its record's lock, so nothing may change its text;
-*   ro.why 'lock' for that, and (28 Oct 26) 'ascii' when the record holds bytes 128 to 247 (na.mark)
+*   ro.why 'lock' for that
 ro.check:
    ro.ok = @true
    ro.why = ''
-   ro.k = 'a' : bu<ro.i>
-   if bx{ro.k} then
-      ro.ok = @false
-      ro.why = 'ascii'
-      i = ro.i
-      gosub buf.label
-      msg = sysmsg(11754, bf.name, bf.id)                         ;* %1 %2 holds characters outside ASCII ... read-only in the IDE ...
-      return
-   end
    ro.k = 'z' : bu<ro.i>
    if bx{ro.k} then
       ro.ok = @false                                              ;* 28 Oct 26 (stage E): an operating system file this session may not change
@@ -2210,27 +2185,11 @@ ro.check:
    msg = sysmsg(11688, bf.name, bf.id, bx{ro.k})                 ;* %1 %2 is read-only here: user %3 holds its lock ...
    return
 
-* After ro.check refused: the refusal for bytes outside ASCII is shown in a box, whole (28 Oct 26; the owner's approval); the lock's stays on the status line
+* After ro.check refused: an operating system file's refusal is shown in a box, whole; the lock's stays on the status line
 ro.box:
-   if ro.why # 'ascii' and ro.why # 'osro' then return          ;* 30 Oct 26 (S.88 9g): 11737 (an operating system file this session may not change) is as long as the ASCII message and was cut by the status line
+   if ro.why # 'osro' then return         ;* 30 Oct 26 (S.88 9g): 11737 (an operating system file this session may not change) is as long as the ASCII message and was cut by the status line
    rf.text = msg
    gosub refuse.box
-   return
-
-* 28 Oct 26: Save as and Write a copy are refused for a tab whose record holds bytes 128 to 247, in a box (a lock does not stop them: they write another record).
-*   In: cb.  Out: na.ok
-na.check:
-   na.ok = @true
-   if nbuf = 0 then return
-   na.msg = msg
-   ro.i = cb
-   gosub ro.check
-   if ro.why # 'ascii' then
-      msg = na.msg                   ;* a lock's refusal is not this one's
-      return
-   end
-   na.ok = @false
-   gosub ro.box
    return
 
 * In: sq.dict, sq.file.  Out: sq.id, the file's next sequential record id (CREATING.SEQKEY, as SED takes it: $seqkey), or '' with the reason in msg.  The account's
@@ -2640,9 +2599,6 @@ rc.untitled:
                tm.raw = rc.text
                gosub set.token.mode
                gosub rc.took
-               na.u = uid
-               na.text = rc.text
-               gosub na.mark                ;* 28 Oct 26: a copy holding bytes outside ASCII is read-only, as a record is
 *              28 Oct 26 (TUI phase 2 review): the editor is made to hold this tab at once.  It still held the empty startup buffer, so the next Open's add.untitled
 *              (stash.current: the editor's text into the tab in the editor) wrote that empty text over THIS copy's tab, and the next tick deleted the copy from the
 *              disk as a buffer without changes.  The copy stays on the disk; it goes only by the rules of any tab's copy, now that its text is in a tab.
@@ -2740,8 +2696,6 @@ status.line:
       if dirty then t := ' *'
       k = 'o' : bu<cb>
       if bx{k} # '' then t := '  ' : sysmsg(11687, bx{k})        ;* 28 Oct 26 (stage B): [read-only: user %1 holds its lock]
-      k = 'a' : bu<cb>
-      if bx{k} then t := '  ' : sysmsg(11753)                    ;* 28 Oct 26: [read-only: characters outside ASCII]
       k = 'z' : bu<cb>
       if bx{k} then t := '  ' : sysmsg(11736)                    ;* 28 Oct 26 (stage E): [read-only: this session may not change it]
       gosub fields.is.on
@@ -2777,7 +2731,7 @@ status.line:
       case 1
          pn = ''
    end case
-   if pn # '' and zm then pn := ', ' : sysmsg(14023)       ;* 9 Nov 26 (S.184 stage 1): the line says the editor fills the screen
+   if pn # '' and zm and not(alone) then pn := ', ' : sysmsg(14023)      ;* 9 Nov 26 (S.184 stage 1): the line says the editor fills the screen
    if pn # '' then t = '[' : pn : ']' : (if t = '' then '' else '  ' : t)
    t = fmt(t[1, lw], lw : 'L')
    if t # last.status then
@@ -2941,7 +2895,7 @@ run.cmd:
          * F6 and Shift-F6: the focus goes round the panes in the order the status line and the [*] marks name them (S.176: the only box keys; Tab does not move the focus)
          gosub fields.is.on
          pane.ring = 'tree' : @fm : 'tabs' : @fm : (if fv.on then 'fld' else 'ed') : @fm : 'err'      ;* 30 Oct 26 (stage 2b): the editor pane is the fields table while the tab shows its fields
-         if zm then pane.ring = 'tabs' : @fm : (if fv.on then 'fld' else 'ed')                        ;* 9 Nov 26 (S.184 stage 1): zoomed, the files and the messages are hidden
+         if zm then pane.ring = 'tabs' : @fm : (if fv.on then 'fld' else 'ed') : (if al.err then @fm : 'err' else '')                       ;* 9 Nov 26 (S.184 stage 1): zoomed, the files and the messages are hidden
          if ai.on then pane.ring<-1> = 'ai'
          locate focus.id in pane.ring<1> setting pane.at else pane.at = 0
          if cmd = 'nextpane' then pane.at += 1 else pane.at -= 1
@@ -3018,8 +2972,6 @@ run.cmd:
          gosub bk.clear
       case cmd = 'close'
          gosub close.current
-      case cmd = 'sed'
-         gosub do.sed
       case cmd = 'zoom'
          gosub zoom.toggle
       case cmd = 'fields'
@@ -3038,6 +2990,8 @@ run.cmd:
          gosub do.writeas
       case cmd = 'spool'
          gosub do.spool
+      case cmd = 'listrecs'
+         gosub do.listrecs.menu
       case cmd = 'filter'
          gosub do.filter
       case cmd = 'saveas'
@@ -3800,9 +3754,6 @@ add.new.record:
       gosub set.token.mode
       gosub rc.took
    end
-   na.u = uid
-   na.text = rc.text
-   gosub na.mark                     ;* 28 Oct 26: a copy taken that holds bytes outside ASCII is read-only, as a record is
    cb = nbuf
    an.made = @true
    return
@@ -3870,7 +3821,13 @@ close.current:
    nbuf -= 1
    if cb > nbuf then cb = nbuf
    if cb < 1 then cb = 1
-   if nbuf = 0 then gosub add.untitled           ;* the editor is never left without a buffer to type in
+   if nbuf = 0 then
+      if alone then                              ;* 9 Nov 26 (S.184 stage 7): started as SED, closing the last record ends it
+         done = @true
+         return
+      end
+      gosub add.untitled                         ;* the editor is never left without a buffer to type in
+   end
    gosub load.current
    return
 
@@ -4231,6 +4188,17 @@ retake.quiet:
 *   zoom.leave   what fills the messages (a search, a view, a command's output, a compile with errors or warnings) ends the zoom, so that it can be read.
 
 zoom.toggle:
+   if alone then                        ;* 9 Nov 26 (S.184 stage 7): started as SED there is nothing to zoom to: this entry takes the results table away
+      if al.err then
+         al.err = @false
+         if focus.id = 'err' then
+            ft.id = 'ed'
+            gosub focus.to
+         end
+         gosub relayout
+      end
+      return
+   end
    zm = not(zm)
    if zm and (focus.id = 'tree' or focus.id = 'err') then
       ft.id = 'ed'
@@ -4242,89 +4210,201 @@ zoom.toggle:
 
 zoom.show:
    zv = not(zm)
+   zve = (zv or al.err)                 ;* 9 Nov 26 (S.184 stage 7): the results table, shown under the editor when started as SED
    screen set f, 'tree' visible zv
    for zr = 1 to ih
       screen set f, 'sep' : zr visible zv
    next zr
-   screen set f, 'errbar' visible zv
-   screen set f, 'err' visible zv
+   screen set f, 'errbar' visible zve
+   screen set f, 'err' visible zve
    screen set f, 'ixtree' visible zv
-   screen set f, 'ixerr' visible zv
+   screen set f, 'ixerr' visible zve
+   return
+
+* The words of sent.in in st.toks, as fields; a text in quotes is one word and keeps its quotes.
+sent.tokens:
+   st.toks = ''
+   st.s = trimf(trimb(sent.in))
+   st.n = len(st.s)
+   st.i = 1
+   loop
+   while st.i <= st.n
+      st.c = st.s[st.i, 1]
+      begin case
+         case st.c = ' '
+            st.i += 1
+         case st.c = '"' or st.c = "'"
+            st.e = index(st.s[st.i + 1, st.n], st.c, 1)
+            if st.e = 0 then st.e = st.n - st.i + 1      ;* no closing quote: the rest of the sentence
+            st.toks<-1> = st.s[st.i, st.e + 1]
+            st.i += st.e + 1
+         case 1
+            st.e = index(st.s[st.i, st.n] : ' ', ' ', 1)
+            st.toks<-1> = st.s[st.i, st.e - 1]
+            st.i += st.e
+      end case
+   repeat
+   return
+
+* Started as SED with no record named: SED's questions, File name? (when none was named) and Record name?, ? or ? and a filter at the record listing them to pick from.  An empty answer ends the editor, as in SED.
+alone.ask:
+   as.file = fn0
+   loop
+      if as.file = '' then
+         screen ask sysmsg(14066) history ih.files returning as.file else as.file = ''
+         as.file = downcase(trimf(trimb(as.file)))
+         if as.file = '' then
+            done = @true
+            return
+         end
+      end
+      open dflag0, as.file to as.fv then
+         close as.fv
+      end else
+         msg = sysmsg(11200, as.file)
+         gosub alone.say
+         as.file = ''
+         continue
+      end
+      screen ask sysmsg(14067, as.file) history ih.recs returning as.id else as.id = ''
+      as.id = trimf(trimb(as.id))
+      if as.id = '' then
+         done = @true
+         return
+      end
+      if as.id[1, 1] = '?' then
+         ls.file = as.file
+         ls.dict = dflag0
+         fx.t = trimf(trimb(as.id[2, len(as.id)]))
+         gosub filter.clause
+         if not(fx.ok) then
+            gosub alone.say
+            continue
+         end
+         ls.tmpl = fx.t
+         gosub do.listrecs
+         if ls.id = '' then continue
+         as.id = ls.id
+      end
+      if upcase(as.id) = 'CREATING.SEQKEY' then       ;* as on the command line: the file's next sequential id
+         sq.dict = dflag0
+         sq.file = as.file
+         gosub seq.take
+         if sq.id = '' then
+            gosub alone.say                           ;* seq.take says why in msg: a file that cannot give an id is said so and the question comes again
+            continue
+         end
+         as.id = sq.id
+      end
+      or.dict = dflag0
+      or.file = as.file
+      or.id = as.id
+      or.mknew = 1
+      gosub open.record
+      if nbuf > 0 then
+         screen focus f, 'ed'
+         focus.id = 'ed'
+         return
+      end
+   repeat
+
+* SED's questions come before the page's loop, the only thing that writes the status line, so a refusal is put there here or the question comes back with no reason
+alone.say:
+   gosub redraw
+   gosub status.line
+   return
+
+* File, List records (started as SED): the records of the file the editor is on, to pick one and open it.
+do.listrecs.menu:
+   gosub get.context
+   if ctx.file = '' then
+      msg = sysmsg(14059)
+      return
+   end
+   ls.file = ctx.file
+   ls.dict = ''
+   ls.tmpl = ''
+   gosub do.listrecs
+   if ls.id = '' then return
+   or.file = ls.file
+   or.id = ls.id
+   gosub open.record
+   if nbuf > 0 then
+      ft.id = 'ed'
+      gosub focus.to
+   end
+   return
+
+* In: ls.file, ls.dict, ls.tmpl (a filter clause, or null).  Out: ls.id, the record picked, or null.  With no filter the window reads the file itself and has no limit; a filter selects first.
+do.listrecs:
+   ls.id = ''
+   open ls.dict, ls.file to ls.fv else
+      msg = sysmsg(11200, ls.file)
+      return
+   end
+   ls.name = (if ls.dict # '' then 'dict ' else '') : ls.file
+   if ls.tmpl = '' then
+      call $sl_pickwin('', sysmsg(14068, ls.name), 0, 0, ls.ret, ls.st, ls.fv, '0' : @fm : 200 : @fm : 100000 : @fm : 20000)
+   end else
+      fv = ls.fv
+      lt.k = 'L:' : ls.name
+      gosub filter.slot
+      lt.text<lt.p> = ls.tmpl
+      lt.page<lt.p> = 0
+      lr.key = lt.k
+      lr.sent = ls.name
+      gosub list.ids
+      lr.key = ''
+      ls.st = 1
+      if lr.ok then
+         ls.items = convert(@vm, @fm, lr.ids)
+         call $sl_pickwin(ls.items, sysmsg(14068, ls.name), 0, 1, ls.n, ls.st, '', '')
+         if ls.st = 0 then ls.ret = ls.items<ls.n + 0>
+      end
+   end
+   last.status = char(1)
+   if ls.st = 0 then ls.id = ls.ret
+   return
+
+* Started as SED, the File menu has List records after Open record.
+alone.file.menu:
+   ag.new = ''
+   ag.n = dcount(m, @vm)
+   for ag.i = 1 to ag.n
+      ag.new<1, -1> = m<1, ag.i>
+      if m<1, ag.i, 3> = 'open' then ag.new<1, -1> = change(sysmsg(14069), '~', @sm)
+   next ag.i
+   m = ag.new
+   return
+
+* Started as SED, the Go menu has no files pane to go to and nothing to hand a record over to; Zoom the editor becomes the way to take the results table away.
+alone.go.menu:
+   ag.new = ''
+   ag.n = dcount(m, @vm)
+   for ag.i = 1 to ag.n
+      ag.c = m<1, ag.i, 3>
+      if ag.c = 'tree' or ag.c = 'filter' then continue
+      if ag.c = 'zoom' then
+         ag.new<1, -1> = change(sysmsg(14065), '~', @sm)
+      end else
+         ag.new<1, -1> = m<1, ag.i>
+      end
+   next ag.i
+   m = ag.new
    return
 
 zoom.leave:
    if not(zm) then return
    if out.kind = 'errors' and err.rows = '' then return      ;* a clean compile: nothing to read
-   zm = 0
-   gosub relayout
-   return
-
-do.sed:
-   common /sedide/ ide.call
-   if nbuf = 0 then
-      msg = sysmsg(11218)
+   if alone then
+      if not(al.err) then
+         al.err = @true                 ;* 9 Nov 26 (S.184 stage 7): started as SED, the table comes up under the editor until it is taken away
+         gosub relayout
+      end
       return
    end
-   gosub path.not.for                   ;* 28 Oct 26 (stage E): SED opens records, and none of the operating system's files since S.87
-   if pa.no then return
-   k = 'n' : bu<cb>
-   if bi<cb> = '' or bx{k} then
-      gosub save.current                ;* an untitled buffer, or a new record not yet on the disk, has no record for SED to open: it is named and written first
-      if not(sv.ok) then return
-      gosub path.not.for                ;* 30 Oct 26 (E2): the save may have made the tab an operating system file's (path:/name): SED opens records
-      if pa.no then return
-   end
-   gosub stash.current
-   i = cb
-   gosub is.dirty
-   if dirty then
-      screen msgbox sysmsg(11603, bn<cb>, bi<cb>) buttons 'Save,Cancel' default 1 returning b else b = 2
-      if b # 1 then return
-      sv.i = cb
-      gosub save.one
-      if not(sv.ok) then return
-   end
-   sd.file = bn<cb>
-   sd.id = bi<cb>
-   sd.u = bu<cb>
-   k = 's' : sd.u
-   sd.was = bx{k}
-   k = 'd' : sd.u
-   sd.dict = bx{k}                       ;* 28 Oct 26 (stage B): a dictionary item goes to SED as DICT file item
-   k = 'k' : sd.u
-   sd.kind = bx{k}
-   gosub leave.screen
-   ide.call = 1
-   qp.file = sd.file ; qp.id = sd.id ; gosub quote.pair
-   if sd.dict # '' then qp.f = 'dict ' : qp.f
-   * The tab keeps the record's lock while SED has it: SED's own READU in this session is granted, and moves the lock to SED's file; retake.quiet takes it back
-   execute 'sed ' : qp.f : ' ' : qp.i trapping aborts
-   sd.used = (ide.call = 2)
-   ide.call = 0
-   disk = sd.was
-   open sd.dict, sd.file to fv then
-      read disk from fv, sd.id else disk = sd.was
-      if sd.kind = 'dict' then
-         dt.rec = disk
-         gosub dict.trim
-         disk = dt.rec
-      end
-   end
-   k = 's' : sd.u
-   bx{k} = disk
-   k = 't' : sd.u
-   bx{k} = disk
-   tm.u = sd.u
-   tm.raw = disk
-   gosub set.token.mode
-   na.u = sd.u
-   na.text = disk
-   gosub na.mark                         ;* 28 Oct 26: the record as SED left it may hold bytes outside ASCII
-   err.rows = ''
-   err.lines = ''
-   out.kind = ''
-   if sd.used then gosub retake.quiet else gosub retake.screen
-   if disk # sd.was then msg = sysmsg(11604, sd.file, sd.id) else msg = sysmsg(11605, sd.file, sd.id)
+   zm = 0
+   gosub relayout
    return
 
 * F12, Go / Edit as fields: the record in the tab goes to CED's data mode as an array of fields (each a string or a list of values, each of those a string or a
@@ -5203,26 +5283,8 @@ do.filter:
    fx.at = lt.p
    screen ask sysmsg(14060, ctx.file) width 60 value lt.text<fx.at> returning fx.t else return
    fx.t = trimf(trimb(fx.t))
-   if fx.t # '' and upcase(fx.t[1, 5]) # 'LIKE ' and upcase(fx.t[1, 5]) # 'WITH ' then
-      fx.c = fx.t[1, 1]
-      if index(\'"\, fx.c, 1) then
-         if fx.t[1] # fx.c or len(fx.t) < 2 or index(fx.t, fx.c, 2) # len(fx.t) then
-            msg = sysmsg(6674)
-            return
-         end
-         fx.t = 'with @id like ' : fx.t
-      end else
-         if index(fx.t, '"', 1) then
-            if index(fx.t, "'", 1) then
-               msg = sysmsg(6675)
-               return
-            end
-            fx.t = "with @id like '" : fx.t : "'"
-         end else
-            fx.t = 'with @id like "' : fx.t : '"'
-         end
-      end
-   end
+   gosub filter.clause
+   if not(fx.ok) then return
    lt.text<fx.at> = fx.t
    lt.page<fx.at> = 0
    if fx.dict then
@@ -5235,6 +5297,33 @@ do.filter:
    cur.code = (if fx.dict then 'D:' else 'F:') : ctx.file
    gosub tree.apply
    gosub redraw.tree
+   return
+
+* In: fx.t, what the person typed.  Out: fx.t a query clause, or null for none; fx.ok false (and msg) for a text that cannot be one.  SED's check.template: a word is an @ID pattern, LIKE or WITH is a clause as it stands.
+filter.clause:
+   fx.ok = @true
+   if fx.t # '' and upcase(fx.t[1, 5]) # 'LIKE ' and upcase(fx.t[1, 5]) # 'WITH ' then
+      fx.c = fx.t[1, 1]
+      if index(\'"\, fx.c, 1) then
+         if fx.t[1] # fx.c or len(fx.t) < 2 or index(fx.t, fx.c, 2) # len(fx.t) then
+            msg = sysmsg(6674)
+            fx.ok = @false
+            return
+         end
+         fx.t = 'with @id like ' : fx.t
+      end else
+         if index(fx.t, '"', 1) then
+            if index(fx.t, "'", 1) then
+               msg = sysmsg(6675)
+               fx.ok = @false
+               return
+            end
+            fx.t = "with @id like '" : fx.t : "'"
+         end else
+            fx.t = 'with @id like "' : fx.t : '"'
+         end
+      end
+   end
    return
 
 * In: lt.k.  Out: lt.p, its place in lt.keys, 0 when it has none.
@@ -5363,8 +5452,6 @@ do.writeas:
       msg = sysmsg(11218)
       return
    end
-   gosub na.check                       ;* 28 Oct 26: not from a tab whose record holds bytes outside ASCII (a box)
-   if not(na.ok) then return
    * 28 Oct 26 (stage E, review finding 4): Write a copy WORKS on an operating system file's tab - it puts the text in a RECORD and touches neither the file nor the tab - because it is the
    *   way out of a save that failed, was refused or found the file replaced, when the editor holds the only copy of the text (a record's tab keeps one in the record; this tab keeps none
    *   in a recovery copy)
@@ -5463,8 +5550,6 @@ do.saveas:
       msg = sysmsg(11218)
       return
    end
-   gosub na.check                       ;* 28 Oct 26: not from a tab whose record holds bytes outside ASCII (a box)
-   if not(na.ok) then return
    gosub path.not.for                   ;* 28 Oct 26 (stage E): Save as would make the tab another record; Write a copy keeps the text
    if pa.no then return
    gosub stash.current
@@ -5971,8 +6056,6 @@ do.case:
 do.export:
    gosub ed.read
    if not(ed.ok) then return
-   gosub na.check                       ;* 29 Oct 26 (review R7): as Write a copy, not from a tab whose record holds bytes outside ASCII (a box)
-   if not(na.ok) then return
    gosub sel.range
    if not(sr.ok) then
       msg = sysmsg(11551)

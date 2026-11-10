@@ -127,7 +127,7 @@ first() { code | grep -E "$1" | head -1 | cut -d: -f1; }
 L_CALL=$(first '^[0-9]+:detect_distro[[:space:]]*$')
 N_CALL=$(code | grep -c -E '^[0-9]+:[[:space:]]*detect_distro[[:space:]]*$')
 L_GATE=$(first '^[0-9]+:if \[ -f +"/usr/local/sdsys/bin/sd" \]')
-L_NET=$(first '^[0-9]+:net_preflight +github\.com')
+L_NET=$(first '^[0-9]+:(if .*; then +)?net_preflight +github\.com')   # a release package skips the check, so the call has an if in front of it
 L_BANNER=$(first '^[0-9]+:printf "%bSD installer')
 L_ASK=$(first '^[0-9]+:read -r -p "Continue\?')
 L_SUDOV=$(first '^[0-9]+:if ! sudo -v')

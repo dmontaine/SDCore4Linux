@@ -42,7 +42,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.abspath(os.path.join(HERE, os.pardir))
 LINUXIO = os.path.join(SD64, "gplsrc", "linuxio.c")
 SLGUARD = os.path.join(SD64, "sdsys", "gpl.bp", "sl_guard")
-SED = os.path.join(SD64, "sdsys", "gpl.bp", "sed")
 MSG2503 = os.path.join(SD64, "sdsys", "messages", "2503")
 OPKERNEL = os.path.join(SD64, "gplsrc", "op_kernel.c")
 SDH = os.path.join(SD64, "gplsrc", "sd.h")
@@ -71,7 +70,7 @@ def squash(s):
 
 
 def checks(files):
-    src, guard, sed, msg = files["linuxio"], files["sl_guard"], files["sed"], files["2503"]
+    src, guard, msg = files["linuxio"], files["sl_guard"], files["2503"]
     out = []
 
     def ck(name, ok, detail=""):
@@ -132,8 +131,6 @@ def checks(files):
     ck("G2 $sl_guard waits a second at a time (k = keyin(1)) and keeps a timeout apart from an ended input (kst = status(), ER$TIMEOUT)",
        re.search(r"^\s*k = keyin\(1\)", g, re.M) and re.search(r"^\s*kst = status\(\)", g, re.M) and "if kst # ER$TIMEOUT then" in g)
     ck("G3 $sl_guard no longer includes int$keys.h (it needed it only for K$AUTOLOGOUT)", "$include int$keys.h" not in g)
-    ck("G4 SED keeps its own work-around (SED is frozen; it waits for the key alone with AUTOLOGOUT set, which still fires)",
-       "if kernel(K$AUTOLOGOUT, -1) then wk.slice = 0" in sed)
     return out
 
 
@@ -181,7 +178,6 @@ def mutants(files):
        "      k = keyin(1)", "      slice = (if kernel(K$AUTOLOGOUT, -1) then 0 else 1)\n      if slice then k = keyin(slice) else k = keyin()")
     gd("$sl_guard no longer tells a timeout from an ended input", "         if kst # ER$TIMEOUT then", "         if 1 then")
     gd("$sl_guard waits for ever", "      k = keyin(1)", "      k = keyin()")
-    M.append(("SED's own work-around is taken out", dict(files, sed=files["sed"].replace("if kernel(K$AUTOLOGOUT, -1) then wk.slice = 0", "wk.slice = 1", 1))))
     lx("keyin_idle_ms() gives the clock after a byte too (the carry is not asked)", "int64 ms = idle_carry ? idle_waited : 0;", "int64 ms = idle_waited;")
     M.append(("kernel(K$AUTOLOGOUT, -2) answers the period", dict(files, op_kernel=files["op_kernel"].replace(
         "(descr->data.value == -2) ? keyin_idle_ms() : autologout", "autologout", 1))))
@@ -190,7 +186,7 @@ def mutants(files):
 
 def load():
     files = {}
-    for k, p in (("linuxio", LINUXIO), ("sl_guard", SLGUARD), ("sed", SED), ("2503", MSG2503), ("op_kernel", OPKERNEL), ("sd_h", SDH)):
+    for k, p in (("linuxio", LINUXIO), ("sl_guard", SLGUARD), ("2503", MSG2503), ("op_kernel", OPKERNEL), ("sd_h", SDH)):
         if not os.path.isfile(p):
             return None, p
         with open(p, encoding="latin-1") as f:
@@ -226,7 +222,7 @@ def main():
                 bad += 1
         print("test-autologout-units --selftest: %d mutant(s), %d not caught" % (len(ms), bad))
         return 1 if bad else 0
-    print("linuxio.c : %s\nsl_guard  : %s\nsed       : %s\nmessage   : %s" % (LINUXIO, SLGUARD, SED, MSG2503))
+    print("linuxio.c : %s\nsl_guard  : %s\nmessage   : %s" % (LINUXIO, SLGUARD, MSG2503))
     res = checks(files)
     fails = 0
     for name, ok, detail in res:

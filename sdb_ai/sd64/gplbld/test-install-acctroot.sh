@@ -133,7 +133,7 @@ row "A3 no write bit for the group or others on any of the three (read from stat
 # A4 static
 bad=$(grep -n -E 'chmod[^#]*(ACCT_PATH|acct_path|/home/sd)' "$INST" | grep -v -E 'chmod 755 ' | grep -v -E '^\s*[0-9]+:\s*#' || true)
 row "A4 installsdcore.sh chmods an account root only to 755" "$([ -z "$bad" ] && echo 0 || echo 1)" "$bad"
-bad=$(grep -n -E 'chmod[^#]*(acct_path|/home/sd)' "$DELETER" || true)
+bad=$(grep -n -E 'chmod[^#]*(acct_path|/home/sd)' "$DELETER" | grep -v -F 'start.default.saved' || true)   # that file is the saved start setting, not an account root
 row "A4b deletesdcore.sh does not chmod /home/sd" "$([ -z "$bad" ] && echo 0 || echo 1)" "$bad"
 # A5 (24 Oct 26, W.11 F4): errlog is 664 - every session appends to it, nothing runs it
 el=$(grep -n -E '^[^#]*chmod[^#]*errlog' "$INST" || true)

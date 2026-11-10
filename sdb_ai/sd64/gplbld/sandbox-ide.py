@@ -535,9 +535,9 @@ end
         row("...Files and records is an entry of its own and carries no key (F3 is the editor's find next, not the tree's)",
             has(L[1:14], "Files and records") and any("Files and records" in l and not re.search(r"\^|F\d|Shift|Alt", l[l.index("Files and records"):][:29]) for l in L[1:14]),
             e.text()[:500])
-        row("...and the ten entries are all there: Go to line, Next error, Next tab, Previous tab, Files and records, Next pane, Previous pane, Open the include (stage B, "
-            "28 Oct 26), Edit in SED, Edit as fields",
-            has(L[1:15], "Go to line", "Next error", "Next tab", "Previous tab", "Files and records", "Next pane", "Previous pane", "Open the include", "Edit in SED",
+        row("...and the nine entries are all there: Go to line, Next error, Next tab, Previous tab, Files and records, Next pane, Previous pane, Open the include (stage B, "
+            "28 Oct 26), Edit as fields",
+            has(L[1:15], "Go to line", "Next error", "Next tab", "Previous tab", "Files and records", "Next pane", "Previous pane", "Open the include",
                 "Edit as fields", "Dictionary item as form"), e.text()[:500])
         row("...Open the include carries no key (a terminal sends Ctrl-Enter as Return)",
             any("Open the include" in l and not re.search(r"\^|F\d|Shift|Alt", l[l.index("Open the include"):][:29]) for l in L[1:15]), e.text()[:500])

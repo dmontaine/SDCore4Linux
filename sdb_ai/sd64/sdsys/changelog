@@ -1,6 +1,24 @@
 Next release - in progress
 --------------------------
 
+9 Nov 26   SED IS NOW THE IDE'S EDITOR, BY ITSELF; A RECORD WITH CHARACTERS OUTSIDE ASCII CAN BE EDITED IN IT.
+
+             What        - The verb SED starts the IDE with no files pane and no Tools menu: the same editor, keys and menus as
+                           the IDE. It asks File name? and Record name? when they are not given; ? at the record name lists
+                           the records and ? with a filter lists those that match; the results of a compile or a find come
+                           up under the editor, and closing the last record ends it. Ctrl-E is the end of the line, as it
+                           was. SED's separate program is gone, and with it rebinding keys, the EMACS layout, LOAD.KEYS and
+                           SAVE.KEYS, the repeat count, the quote character and the commands typed at Alt-X: those are menu
+                           entries and keys, or have no replacement. Keys that moved: Ctrl-A selects all, Ctrl-P and Ctrl-N
+                           are a word back and a new record, Ctrl-D duplicates the line, Ctrl-U is a word on, Ctrl-G sets the
+                           mark. A record or a file holding bytes 128 to 247 can now be edited in the IDE; it was read-only.
+                           The editor is also much faster on long records.
+             Why         - The owner, 9 Nov: SED "should be the same as the editor in the ide just stand alone", and
+                           such records "Editable everywhere". SD stores those bytes and gives them back unchanged.
+             Not changed - CED, !CED() and ED. The editor works a byte at a time, so deleting one byte of a UTF-8 character
+                           leaves a broken character. A select list opens its first ten records and Go, Next record walks
+                           the rest, as in the IDE; an operating system file over 2 MB is refused.
+
 9 Nov 26   SED NO LONGER HAS AN EXTENSION LANGUAGE OR A SPLIT WINDOW.
 
              What        - SED's extension language is removed: compiling and running PROC and FUNC extensions, their

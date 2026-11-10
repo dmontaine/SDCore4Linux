@@ -127,7 +127,7 @@ def checks(src):
     inm = strip(src["ide_name"])
     osf = strip(src["osf"])
     LI = {n: label(ide, n) for n in ("open.path", "path.tab.make", "path.refusal", "path.not.for", "save.one", "save.path", "tab.state", "tab.unlock", "relock.all", "ro.check", "rc.tick",
-                                       "load.current", "tab.labels", "default.file", "get.context", "do.open", "do.compile", "do.sed", "do.fields", "do.writeas", "do.saveas",
+                                       "load.current", "tab.labels", "default.file", "get.context", "do.open", "do.compile", "do.fields", "do.writeas", "do.saveas",
                                        "do.include", "ai.go", "status.line", "is.dirty", "new.form")}
     LO = {n: label(osf, n) for n in ("check.name", "open.file", "read.file", "read.all", "parse.raw", "write.file", "make.data", "put.data", "create.file", "list.dir")}
     ta = label(inm, "try.accept")
@@ -210,7 +210,7 @@ def checks(src):
     ck("P12b", "path.tab.make (the tail of open.path, which New with an operating system name uses too since 30 Oct 26): an untitled clean buffer is taken away before the tab is made; file 'path:', "
        "record the path, kind 'path', no dictionary flag, the slot, the line ends, the read-only flag, never the token form, and bytes 128 to 247 make it read-only (na.mark)",
        ordered(ptm, "gosub stash.current", "gosub drop.clean.untitled", "nbuf += 1", "bn<nbuf> = 'path:'", "bi<nbuf> = op.path", "ts.kind = 'path'", "ts.dict = ''", "ts.slot = op.s", "gosub tab.state",
-               "k = 'm' : uid", "bx{k} = 0", "k = 'p' : uid", "bx{k} = (op.info<1> + 0) : @fm : (op.info<2> + 0)", "k = 'z' : uid", "bx{k} = op.info<3> + 0", "gosub na.mark", "gosub load.current"), "")
+               "k = 'm' : uid", "bx{k} = 0", "k = 'p' : uid", "bx{k} = (op.info<1> + 0) : @fm : (op.info<2> + 0)", "k = 'z' : uid", "bx{k} = op.info<3> + 0", "gosub load.current"), "")
     ck("P13", "a new tab starts with no read-only flag and no line ends (tab.state), so a tab that is not an operating system file is never read-only for it",
        ordered(LI["tab.state"], "k = 'z' : uid", "bx{k} = 0", "k = 'p' : uid", "bx{k} = ''"), "")
     rf = LI["path.refusal"]
@@ -234,7 +234,7 @@ def checks(src):
        ordered(sp, "case sp.why = 'bytes' or sp.why = 'big'", "11741", "gosub refuse.box", "case 1", "11738", "sp.winfo<6>", "gosub refuse.box") and sp.count("k = 's' : u") == 1
        and sp[sp.find("case sp.why = 'ro'"):].count("sv.ok") == 0, "")
     ck("P15", "read-only: ro.check refuses a path tab the session may not change (bx z, message 11737) before it asks about a lock; the editor is read-only for it; the status line says so (11736)",
-       ordered(LI["ro.check"], "ro.k = 'a' : bu<ro.i>", "ro.k = 'z' : bu<ro.i>", "ro.why = 'osro'", "sysmsg(11737, bf.name, bf.id)", "ro.k = 'o' : bu<ro.i>")
+       ordered(LI["ro.check"], "ro.k = 'z' : bu<ro.i>", "ro.why = 'osro'", "sysmsg(11737, bf.name, bf.id)", "ro.k = 'o' : bu<ro.i>")
        and "ro.k = 'z' : bu<ro.i>\n   if bx{ro.k} then\n      ro.ok = @false" in LI["ro.check"]
        and ordered(LI["load.current"], "k = 'z' : u", "if bx{k} then ro = 1") and ordered(LI["status.line"], "k = 'z' : bu<cb>", "if bx{k} then t := '  ' : sysmsg(11736)"), "")
     ck("P16", "closing a path tab CLOSES its file variable (a record is RELEASEd; bi is a path, not a record id), the locks are not taken again after a program (nothing a program does has that lock "
@@ -248,10 +248,10 @@ def checks(src):
     ck("P17", "path.not.for answers true, and says why (11739), for a tab whose file is 'path:'; compile (and so run, debug and catalogue), SED, fields and the include ask it FIRST; Save as asks it after the "
        "non-ASCII check and before it asks the form; WRITE A COPY DOES NOT ASK IT: it puts the text in a record and touches neither the file nor the tab, and it is the way out of a save that failed (finding 4)",
        ordered(pnf, "if nbuf = 0 then return", "if bn<cb> # 'path:' then return", "pa.no = @true", "sysmsg(11739, bn<cb>, bi<cb>)")
-       and all(first_gosub(LI[n]) == "path.not.for" and "if pa.no then return" in LI[n] for n in ("do.compile", "do.sed", "do.include"))
+       and all(first_gosub(LI[n]) == "path.not.for" and "if pa.no then return" in LI[n] for n in ("do.compile", "do.include"))
        and ordered(LI["do.fields"], "gosub fields.is.on", "gosub fields.leave", "gosub path.not.for", "if pa.no then return", "gosub ro.check")         # 30 Oct 26 (stage 2b): F12 on a tab that shows its fields leaves; otherwise the file is asked first
-       and ordered(LI["do.saveas"], "gosub na.check", "gosub path.not.for", "if pa.no then return", "gosub stash.current")
-       and "path.not.for" not in LI["do.writeas"] and ordered(LI["do.writeas"], "gosub na.check", "wa.text = bx{k}", "gosub write.copy"), "")
+       and ordered(LI["do.saveas"], "gosub path.not.for", "if pa.no then return", "gosub stash.current")
+       and "path.not.for" not in LI["do.writeas"] and ordered(LI["do.writeas"], "wa.text = bx{k}", "gosub write.copy"), "")
     ck("P17b", "the forms start from a file of records (default.file and get.context never answer 'path:'), and the AI is told it is an operating system file, not a record",
        "if df = 'path:' then df = ''" in LI["default.file"] and "if ctx.file = 'path:' then ctx.file = ''" in LI["get.context"]
        and ordered(LI["ai.go"], "if bn<cb> = 'path:' then", "It is the operating system file", "end else", "'File ' : bn<cb>"), "")

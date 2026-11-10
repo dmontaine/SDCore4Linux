@@ -32,7 +32,7 @@ ROOT = os.path.dirname(os.path.dirname(SD64))
 C_FILES = ("op_sh.c", "op_dio3.c", "op_seqio.c", "op_kernel.c", "to_file.c", "kernel.c", "keys.h", "sysseg.h", "sd.h",
            "op_xfun.c", "op_skt.c", "op_dio1.c", "object.c")
 BP_PROGRAMS = ("login", "cproc", "apisrvr", "modifya", "createa", "create_account", "acc_os_info", "restorea", "upgrade_editgates", "edit_guard",
-               "clearfl", "delete", "copy", "cname", "ed", "edit", "deletef", "sed", "ide", "ced_edit", "basic", "catalog", "delcat",
+               "clearfl", "delete", "copy", "cname", "ed", "edit", "deletef", "ide", "ced_edit", "basic", "catalog", "delcat",
                "decat", "_oscopy", "_ioscopy",
                # S.64 part 2: the $internal verbs that write, delete or clear a record of a file the user names
                "fixdir", "format", "mapcat", "spview", "settrig", "ide_name", "copylst", "dellist", "getlist", "savelst", "sortlst", "qproc", "cd",
@@ -330,9 +330,6 @@ def checks(srcs, messages_dir):
        "kernel(K$EDIT.OK, ek.path)" in c["cname"] and "ek.path = rec<2>" in c["cname"] and "ek.path = new.file.name" in c["cname"], "")
     ck("G4 DELETE.FILE asks for the data part, and for a dictionary deleted on its own, and the ask is a subroutine at the END of the program",
        c["deletef"].count("gosub edit.check.path") == 2 and at(c["deletef"], "edit.check.path:") > at(c["deletef"], "delete.dict:"), "")
-    sd = c["sed"]
-    ck("G5 SED asks before it saves, exports and deletes a record, and puts the reason in the message line (not a DISPLAY)",
-       sd.count("gosub check.edit.file") >= 3 and "message = edit_msg(edit.kind)" in sd and "check.edit.file:" in sd, "")
     ide = c["ide"]
     # 28 Oct 26 (the editor merge, stage B): the IDE has more callers of edit.check now (a new record named on the command line, CREATING.SEQKEY), so the count
     #   alone no longer proves that the save and the copy ask: each is held by its own order, from its open of the file to its write
@@ -517,7 +514,6 @@ MUTANTS = [
     ("ED forgets to ask when it saves", "ed", "   if not(edit_guard(n.file)) then return\n\n   readvu s from n.file, new.record, 0 locked", "   readvu s from n.file, new.record, 0 locked"),
     ("COPY forgets the source of a move", "copy", "   if deleting then\n      if not(edit_guard(src.file)) then", "   if 0 then\n      if not(edit_guard(src.file)) then"),
     ("CNAME forgets the new name", "cname", "      if ek = 1 then ek.path = rec<2> else ek.path = new.file.name", "      if ek = 1 then ek.path = rec<2> else ek.path = ''"),
-    ("SED saves without asking", "sed", "   edit.f = file(current.buffer)\n   gosub check.edit.file\n   if not(edit.ok) then return\n\n   * Process source control actions if required", "   * Process source control actions if required"),
     ("IDE's write-a-copy forgets to ask at the write", "ide", "   gosub edit.check                  ;* asked again at the write, as save.one does: the form's answer is not the gate\n   if not(edit.ok) then\n      rf.text = msg\n      gosub refuse.box\n      return\n   end\n   * under the record's lock", "   * under the record's lock"),
     ("IDE's save forgets to ask (stage B)", "ide", "   gosub edit.check                  ;* 17 Oct 26 dm - S.64; the dictionary's own path", "   null                  ;* 17 Oct 26 dm - S.64; the dictionary's own path"),
     ("IDE's name form forgets to ask", "ide_name", "            if kernel(K$EDIT.OK, ep) then", "            if 1 then"),

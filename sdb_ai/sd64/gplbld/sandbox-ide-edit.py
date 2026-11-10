@@ -486,7 +486,7 @@ def section_s184c():
     e.quiet()
     row("K2 No opens no record of the list (no tab names %s01) and the IDE is up on the file's tree" % LREC, "IDE: " in "\n".join(e.lines()[:3]) and (LREC + "01") not in tab_row(e)
         and "select list" not in e.status(), "%r | %r" % (tab_row(e)[:120], e.status()[:120]))
-    menu(e, 1, 12)                                                      # Go > Next record from the list
+    menu(e, 1, 11)                                                      # Go > Next record from the list
     row("K2b ...and the list is not kept: Go > Next record from the list says there is none", "no select list" in e.status(), e.status()[:160])
     done(e)
     e = sb.Ide(BOX, "FORM.LIST bp %sids\rIDE bp" % LREC)
@@ -495,11 +495,11 @@ def section_s184c():
     e.quiet()
     row("K3 Yes opens the first ten in tabs, as before (the first tab is %s01, the status line says 12 listed and 10 open)" % LREC,
         (LREC + "01") in tab_row(e) and "12 record(s) of the select list" in e.status() and "first 10" in e.status(), "%r | %r" % (tab_row(e)[:120], e.status()[:160]))
-    menu(e, 1, 12)
+    menu(e, 1, 11)
     row("K4 Go > Next record from the list opens the 11th record in a tab of its own", status_names(e, LREC + "11") and "Record 11 of 12 of the select list" in e.status(), e.status()[:160])
-    menu(e, 1, 12)
+    menu(e, 1, 11)
     row("K5 ...and then the 12th", status_names(e, LREC + "12") and "Record 12 of 12" in e.status(), e.status()[:160])
-    menu(e, 1, 12)
+    menu(e, 1, 11)
     row("K6 ...and then says the list is used up (no tab is opened again)", "used up: all 12" in e.status(), e.status()[:160])
     done(e)
     # H: Up and Down in Open's form, within one IDE and in the next IDE of the same session
@@ -690,6 +690,45 @@ def teardown():
         subprocess.run([sys.executable, TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
 
 
+def snapshot(e):
+    """the editor's rows, as characters and as styles: what is on the screen, read from the emulator"""
+    return [(e.lines()[r], e.s.screen.attrs(r)) for r in range(2, 39)]
+
+
+def section_paint():
+    """9 Nov 26 (S.184 stage 7): a key redraws only the rows it changed.  The property: after any keys, what is on the screen equals a full repaint.  A seeded run of edits and moves in a C
+    record (a multi-line comment changes how later lines are coloured); every 20 keys the screen is read, a nudge down and up makes the area paint itself whole, and the two must be
+    equal, cell by cell, characters and styles.  WRITTEN, NOT YET RUN."""
+    say("\n--- D: a key redraws only what it changed, and the result equals a full repaint (S.184 stage 7) --------------------------------")
+    import random
+    rng = random.Random(20261109)
+    name = "zzspaint" + RUN + ".c"
+    with open(os.path.join(SYSD, "bp", name), "w", encoding="latin-1") as fh:
+        fh.write("".join("int v%d = %d; /* note %d */\n" % (i, i, i) for i in range(1, 80)))
+    e = sb.Ide(BOX, "IDE bp %s" % name)
+    e.quiet()
+    keys = list("abc /*") + ["\x7f", "\x1b[3~", sb.LEFT, sb.RIGHT, sb.UP, sb.DOWN, sb.HOME, sb.END]
+    checks = bad = 0
+    first = ""
+    for n in range(1, 321):
+        e.keys(rng.choice(keys))
+        if n % 20 == 0:
+            e.quiet()
+            before = snapshot(e)
+            e.keys("\x1b[1;5B", "\x1b[1;5A")
+            e.quiet()
+            after = snapshot(e)
+            checks += 1
+            if before != after:
+                bad += 1
+                if not first:
+                    d = [i + 2 for i, (x, y) in enumerate(zip(before, after)) if x != y]
+                    first = "key %d: rows %s differ; row %d was %r, a full paint gives %r" % (n, d[:6], d[0], before[d[0] - 2][0][28:90], after[d[0] - 2][0][28:90])
+    row("D1 the run did something: %d comparisons" % checks, checks == 16, "")
+    row("D2 after every 20 keys the screen equals a full repaint, characters and styles (%d of %d differ)" % (bad, checks), checks > 0 and bad == 0, first)
+    done(e)
+
+
 SCTL = """subroutine zzsc(df, fn, id, rec, fs, ok, upd)
    if index(rec, 'ZZREFUSE', 1) then ok = @false
    if index(rec, 'ZZUPDATE', 1) then
@@ -827,17 +866,17 @@ def section_s184d():
     row("P5 control: Spool did not save the record", bp_file(p).startswith("spool line one"), repr(bp_file(p)[:40]))
     # F: the filter
     e = open_rec()
-    menu(e, 1, 13)
+    menu(e, 1, 12)
     e.keys(LREC + "...", RET)
     e.quiet()
     tree = "\n".join(l[:28] for l in e.lines()[3:39])
     row("F1 the filter lists only the records that match", LREC + "01" in tree and REC not in tree, tree[:400])
     row("F2 ...and the status line says the file is filtered", "is filtered" in e.status(), e.status()[:160])
-    menu(e, 1, 13)
+    menu(e, 1, 12)
     e.keys("\x15", "with nosuchname = 1", RET)
     e.quiet()
     row("F3 a filter the query processor refuses is said so", "refused" in e.status(), e.status()[:160])
-    menu(e, 1, 13)
+    menu(e, 1, 12)
     e.keys("\x15", RET)
     e.quiet()
     row("F4 empty lists every record again", "is filtered" not in e.status() and "refused" not in e.status(), e.status()[:160])
@@ -877,6 +916,7 @@ def main():
         section_options()
         section_s184c()
         section_s184d()
+        section_paint()
     finally:
         teardown()
     say("\nsandbox-ide-edit: %d passed, %d failed" % (passed, failed))

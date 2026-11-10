@@ -51,11 +51,11 @@ MSG_USERS = {11513: {"edit_msg"}, 11514: {"edit_msg"}, 11515: {"create_account",
              11518: {"listshared"}, 11519: {"listshared"}, 11520: {"listshared"}}
 
 BP_PROGRAMS = ("login", "cproc", "apisrvr", "createa", "create_account", "modifya", "delacc", "acc_os_info", "restorea", "_voc_ref", "shared_ref",
-               "listshared", "edit_msg", "edit_guard", "ide", "ced_edit", "spview", "sed", "cname", "createf", "deletef", "basic")
+               "listshared", "edit_msg", "edit_guard", "ide", "ced_edit", "spview", "cname", "createf", "deletef", "basic")
 C_NAMED = ("keys.h", "sysseg.h", "sd.h", "op_sh.c", "op_kernel.c", "op_dio1.c", "op_dio2.c", "op_dio3.c", "dh_ak.c", "dh_misc.c", "op_seqio.c",
            "op_jumps.c", "kernel.c", "op_xfun.c")
 EDIT_MSG_SITES = (("edit_guard", "display edit_msg(kind)"), ("ide", "msg = edit_msg(edit.kind)"), ("ced_edit", "call $ced_core('message', st, edit_msg(edit.kind), out)"),
-                  ("spview", "prompt.text = edit_msg(edit.kind)"), ("sed", "message = edit_msg(edit.kind)"), ("cname", "stop edit_msg(ek.kind)"),
+                  ("spview", "prompt.text = edit_msg(edit.kind)"), ("cname", "stop edit_msg(ek.kind)"),
                   ("createf", "stop edit_msg(kernel(K$EDIT.KIND, vp))"), ("deletef", "stop edit_msg(ef.kind)"), ("apisrvr", "error.msg = edit_msg(ed.kind)"))
 
 

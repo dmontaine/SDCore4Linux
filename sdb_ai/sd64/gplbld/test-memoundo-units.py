@@ -132,8 +132,8 @@ def checks(src):
        ordered(red, "if rk.n < 1 then return", "cur = w{'r' : (rk.b + rk.n)}", "w{'r' : (rk.b + rk.n)} = ''", "rk.t -= len(cur)", "rk.n -= 1", "gosub snap.make", "uk.n += 1", "uk.t += len(snap)",
                "w{'u' : (uk.b + uk.n)} = snap", "gosub snap.apply"), red)
     add = "\n".join(code(section(memo, "snap.add")))
-    ck("M5 at most 100 steps and a million characters, the oldest dropped first (blanked, the base moved up) and the newest always kept",
-       ordered(add, "uk.n += 1", "uk.t += len(snap)", "w{'u' : (uk.b + uk.n)} = snap", "while uk.n > 100 or (uk.t > 1000000 and uk.n > 1)", "uk.t -= len(w{'u' : (uk.b + 1)})", "w{'u' : (uk.b + 1)} = ''",
+    ck("M5 at most 100 steps and 8,000,000 characters, the oldest dropped first (blanked, the base moved up) and the newest always kept",
+       ordered(add, "uk.n += 1", "uk.t += len(snap)", "w{'u' : (uk.b + uk.n)} = snap", "while uk.n > 100 or (uk.t > 8000000 and uk.n > 1)", "uk.t -= len(w{'u' : (uk.b + 1)})", "w{'u' : (uk.b + 1)} = ''",
                "uk.b += 1", "uk.n -= 1"), add)
     push = "\n".join(code(section(memo, "snap.push")))
     ck("M6 snap.push: a run of typing, bs or del is still one step; the step is made, added, and THEN the redo list ends",
@@ -220,7 +220,7 @@ def selftest():
     mutant("apply cuts at the third blank", "   lines = cur[sn.p + 1, len(cur)]\n", "   lines = field(cur, ' ', 3, 99999)\n")
     mutant("apply finds the first blank twice", "   sn.p = index(cur, ' ', 2)  ", "   sn.p = index(cur, ' ', 1)  ")
     mutant("cap of steps", "while uk.n > 100 or", "while uk.n > 1000 or")
-    mutant("cap of characters", "uk.t > 1000000 and uk.n > 1", "uk.t > 1000000000 and uk.n > 1")
+    mutant("cap of characters", "uk.t > 8000000 and uk.n > 1", "uk.t > 1000000000 and uk.n > 1")
     mutant("newest dropped, not oldest", "      w{'u' : (uk.b + 1)} = ''\n      uk.b += 1\n", "      w{'u' : (uk.b + uk.n)} = ''\n      uk.b += 1\n")
     mutant("redo not ended by a new edit", "   gosub snap.add\n   gosub snap.redo.clear\n   return\n\n* snap goes on", "   gosub snap.add\n   return\n\n* snap goes on")
     mutant("undo replaces the text before making the redo step", "   rk.t += len(snap)\n   w{'r' : (rk.b + rk.n)} = snap\n   gosub snap.apply\n",

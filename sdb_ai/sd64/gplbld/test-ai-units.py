@@ -395,7 +395,7 @@ def check_d(t):
         "audit line or display holds kv; SET.AI is told 'handover', never the key",
         ordered(hk, "hdir = @sdsys : @ds : '$aikey'", "hf = hdir : @ds : 'key'", "umask 077; mkdir -p", "openseq hf to kf", "writeseq kv to kf", "close kf kv = ''", "call $tk_runx(allow.set, 'set.ai key ' : p : ' handover', out, st, err)",
                 "os.execute \"rm -f '\" : hf : \"'\"") and v.count("writeseq") == 1 and len(re.findall(r"\bkv\b", hk)) >= 3
-        and not any(re.search(r"(^\s*|\bthen\s+|\belse\s+)(sent|msg|bad|el<-1>|cmsg|hint|spec|fv(<\d+>)?)\s*:?=.*\bkv\b|(display|crt|kernel\(K\$AUDIT|\$tk_runx?\(|\$tk_confirm\(|\$tk_form\('say').*\bkv\b", ln)
+        and not any(re.search(r"(^\s*|\bthen\s+|\belse\s+)(sent|msg|su\.say|bad|el<-1>|cmsg|hint|spec|fv(<\d+>)?)\s*:?=.*\bkv\b|(display|crt|kernel\(K\$AUDIT|\$tk_runx?\(|\$tk_confirm\(|\$tk_form\('say').*\bkv\b", ln)
                     for ln in bas(t["tool_ai"]).split("\n")), "")
     row("(S.170) Save takes the model from the LIST, or from Other name only when the list holds it (or there is no list); a Save with no key is refused; a list that has only just come is shown, not saved over",
         ordered(sv, "if not(pkey<pi>) and not(key.done) then", "screen get sf, 'other' returning ov", "gosub valid.word", "if lm.ok and lm.n > 0 then", "if lm.list<i> = ov then found = 1",
@@ -442,7 +442,7 @@ GROUP_A_MUTANTS = [
     ("helper", "the key is put in the log line", 'log("sd-ai: uid=%s provider=%s status=%s in=%s out=%s\\n" % (uid,', 'log("sd-ai: key=%s uid=%s provider=%s status=%s in=%s out=%s\\n" % (name, uid,'),
     ("helper", "the key file may be a link", "os.lstat(path)", "os.stat(path)"),
     ("helper", "the hygiene runs after the size test", "        text, replaced = hygiene(text)\n        if len(text.encode(\"ascii\"))", "        if len(text.encode(\"ascii\", \"replace\"))"),
-    ("helper", "the settings are checked for the administrator after they are done", '        if uid is None or not is_admin(uid):\n            return {"t": "err", "code": "noadmin"', '        if False:\n            return {"t": "err", "code": "noadmin"'),
+    ("helper", "the settings are checked for the administrator after they are done", '        if uid is None or not is_admin(uid):\n            return {"t": "err", "code": "noadmin", "msg": "only the administrator may change', '        if False:\n            return {"t": "err", "code": "noadmin", "msg": "only the administrator may change'),
     ("helper", "keyset echoes the key", 'return {"t": "ok", "key": "set"}', 'return {"t": "ok", "key": "set", "echo": key}'),
     ("helper", "the result of a setting is not checked before it is written", "        selected(new, table)", "        pass  #"),
     ("providers", "an http URL in the table", "url=https://api.openai.com", "url=http://api.openai.com"),

@@ -486,7 +486,7 @@ def section_locks():
         lk is not None and lk.startswith("LOCKED") and gone and lock_of("r4") == "GOT", repr(lock_of("r4")))
 
 
-# ---- NA: a record holding bytes 128 to 247 is read-only (28 Oct 26, approved by the owner; WRITTEN, NOT RUN) ---------------------------------------------------------
+# ---- NA: a record holding bytes 128 to 247 is edited like any other, and its bytes survive (9 Nov 26, the owner: "Editable everywhere") ---------------------------------
 def na_disk():
     o = sb.sess(BOX, "RUN bp zzknap" + RUN)
     m = re.search(r"(?m)^KNA r5 (\S+)\s*$", o)
@@ -496,20 +496,8 @@ def na_disk():
     return (m.group(1).upper() if m else None), (c.group(1) if c else None)
 
 
-def box_says(e, words):
-    """the refusal box is on the screen with these words; Return closes it"""
-    t = e.text()
-    seen = words in t
-    if seen:
-        e.keys(RET)
-        e.quiet()
-    return seen, t
-
-
 def section_nonascii():
-    say("\n--- NA: a record with characters outside ASCII opens read-only, and every way of changing or copying it is refused in a box ----")
-    F12 = "\x1b[24~"
-    CTRL_R = sb.CTRL_R
+    say("\n--- NA: a record with characters outside ASCII can be edited, and a save keeps every byte --------------------------------------")
     put("zzknap" + RUN, NAPROBE)
     o = sb.sess(BOX, "BASIC bp zzknap" + RUN)
     hx, cp = na_disk()
@@ -517,30 +505,16 @@ def section_nonascii():
         re.search(r"(?m)^Compiled 1 program\(s\) with no errors", o) is not None and hx == R5_HEX and cp == "absent", repr((hx, cp)) + o[-200:])
     e = sb.Ide(BOX, "IDE %s r5" % DF)
     e.quiet()
-    st = e.status()
-    row("NA1 it opens read-only: the status line says [read-only: characters outside ASCII]", "[read-only: characters outside ASCII]" in st, st)
+    row("NA1 it opens with no read-only tag", "read-only" not in e.status(), e.status())
     e.keys("ZZ")
     e.quiet()
-    row("NA2 typing changes nothing (no ZZ in the editor, the tab not marked changed)", "ZZ" not in editor_text(e) and ("%s r5 *" % DF) not in e.status(),
-        editor_text(e)[:120] + " | " + e.status())
-    refusal = "holds characters outside ASCII"
-    for key, label, name in ((CTRL_S, "Ctrl-S", "NA3"), (CTRL_R, "Ctrl-R (Replace)", "NA4"), (F12, "F12 (Edit as fields)", "NA5"),
-                             ((F10, DOWN * 3, RET), "File, Save as", "NA6"), ((F10, DOWN * 4, RET), "File, Write a copy", "NA7")):
-        e.keys(*(key if isinstance(key, tuple) else (key,)))
-        e.quiet()
-        seen, t = box_says(e, refusal)
-        named = "Name of the" in t or "File:" in t
-        row("%s %s is refused in a box that says why, before anything is asked (no name form, no question)" % (name, label), seen and not named, t[-500:])
-    row("NA8 the disk is as it was, byte for byte (nothing was decoded, encoded or normalised), and no copy was written", na_disk() == (R5_HEX, "absent"), repr(na_disk()))
-    done(e)
-    e = sb.Ide(BOX, "IDE %s r1" % DF)
+    row("NA2 typing goes into the text and marks the tab changed", "ZZ" in editor_text(e) and ("%s r5 *" % DF) in e.status(), editor_text(e)[:120] + " | " + e.status())
+    e.keys(CTRL_S)
     e.quiet()
-    e.keys(END, "Q")
-    e.quiet()
-    row("NA9 control: a record whose only bytes above 127 are SD's marks (r1, a value mark) is NOT read-only: no tag, and typing changes it",
-        "outside ASCII" not in e.status() and " *" in e.status(), e.status())
+    row("NA3 Ctrl-S writes the typed text and keeps every other byte: the E9, the field mark and the C3 A9 are as they were", na_disk()[0] == "5A5A" + R5_HEX, repr(na_disk()))
     done(e)
-    row("NA10 ...and after leaving both, r5 is still byte for byte what the fixture wrote", na_disk()[0] == R5_HEX, repr(na_disk()))
+
+
 
 
 # ---- M: a missing id ----------------------------------------------------------------------------------------------------------------------------------------------------

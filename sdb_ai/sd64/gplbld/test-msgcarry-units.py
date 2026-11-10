@@ -45,7 +45,6 @@ ALLOWED = {
     ("setptr", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32)",
     ("convertdata", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the CSV / JSON / XML task, 21 Oct 26)",
     ("importdata", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the CSV / JSON / XML task, 21 Oct 26)",
-    ("sed", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the screen library, SED and the IDE, carry 13, 22 Oct 26)",
     ("setnetlogin", "11460"): "the way to give the NET gate: Core modify.account NAME net-on, Solo set.net.access on (PAL-33, Solo SDNet client)",
     ("setserver", "11439"): "the way to give the NET gate: Core modify.account NAME net-on, Solo set.net.access on (PAL-33, Solo SDNet client)",
     # 23 Oct 26, Solo carry 14: Solo has no shared account, so context.help and pdf/ are in the SD system directory ("the install directory") and the messages say so

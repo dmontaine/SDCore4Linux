@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
-FILES = {n: os.path.join(GPL, n) for n in ("tk_ownfile", "tk_word", "tk_brk", "tk_open", "tk_close", "sl_cleanup", "sed", "tool_bulk", "tool_query", "tool_voc", "tool_files", "tool_home", "ced_edit")}
+FILES = {n: os.path.join(GPL, n) for n in ("tk_ownfile", "tk_word", "tk_brk", "tk_open", "tk_close", "sl_cleanup", "tool_bulk", "tool_query", "tool_voc", "tool_files", "tool_home", "ced_edit")}
 MESSAGES = [str(n) for n in range(11755, 11761)]
 
 
@@ -92,9 +92,9 @@ def checks(raw):
         rows.append((i, what, bool(ok), detail))
 
     own, word, brk = (strip_bas(raw[k]) for k in ("tk_ownfile", "tk_word", "tk_brk"))
-    op, cl, cu, sd = (strip_bas(raw[k]) for k in ("tk_open", "tk_close", "sl_cleanup", "sed"))
+    op, cl, cu = (strip_bas(raw[k]) for k in ("tk_open", "tk_close", "sl_cleanup"))
     ck("G0", "NULL CASE: the three guards, the callers and the six messages were found and are not empty (a check on nothing would pass)",
-       all(len(x) > 150 for x in (own, word, brk, op, cl, cu)) and len(sd) > 100000 and all(raw["m" + n].strip() for n in MESSAGES), repr([len(x) for x in (own, word, brk, op, cl, cu)]))
+       all(len(x) > 150 for x in (own, word, brk, op, cl, cu)) and all(raw["m" + n].strip() for n in MESSAGES), repr([len(x) for x in (own, word, brk, op, cl, cu)]))
 
     # ------------------------------------------------------------------------------------------------------------------------------------ $tk_ownfile (S2)
     ck("G1", "$tk_ownfile is an internal subroutine catalogued $tk_ownfile with the four arguments (file, name, ok, why); ok and why are set FIRST (a refusal can never be read as an old yes), and it changes nothing: "
@@ -146,9 +146,6 @@ def checks(raw):
     ck("G11", "$sl_cleanup - called by the command processor before a prompt and by a page that traps an abort - gives the break setting back with $tk_brk 'give' BEFORE it asks whether the library holds the screen "
        "(so the key comes back even where the screen was already closed), after the cursor lock is taken off, and writes nothing to the terminal for it",
        ordered(cu, "call $sl_guardmode('', 0, 0)", "call $tk_brk('give', '')", "call $sl_scr('get', scr)", "if not(scr<SL.S.OWNED>) then return"), "")
-    gs, rs = block(sd, "get.set.term.state"), block(sd, "reset.term.state")
-    ck("G12", "SED keeps the setting before PTERM BREAK OFF and gives it back where it gives the terminal up (reset.term.state), after the mouse is the terminal's again",
-       ordered(gs, "call $tk_brk('save', pterm(PT$BREAK, -1))", 'execute "PTERM BREAK OFF"') and ordered(rs, "gosub mouse.disarm", "call $tk_brk('give', '')"), "")
     th = strip_bas(raw["tool_home"])
     ck("G13", "HOME runs a tile's command trapping aborts and calls $sl_cleanup right after it (an app that was aborted may hold the screen and the break key)",
        ordered(block(th, "run.command"), "execute sentence trapping aborts", "call $sl_cleanup", "gosub reopen"), "")
@@ -217,8 +214,6 @@ MUTANTS = [
     ("$sl_cleanup does not give the break key back", "G11", sub("sl_cleanup", "   call $tk_brk('give', '')", "   null")),
     ("$sl_cleanup gives it back only where the library holds the screen", "G11", sub("sl_cleanup", "   call $tk_brk('give', '')                   ;* ... nor a dead break key: the setting an app of the toolkit took and did not give back (28 Oct 26, D4); nothing is written\n   call $sl_scr('get', scr)\n   if not(scr<SL.S.OWNED>) then return        ;* the library holds nothing\n",
                                                                                 "   call $sl_scr('get', scr)\n   if not(scr<SL.S.OWNED>) then return        ;* the library holds nothing\n   call $tk_brk('give', '')\n")),
-    ("SED does not keep the setting", "G12", sub("sed", "   call $tk_brk('save', pterm(PT$BREAK, -1))      ;* 28 Oct 26 (D4): the person's setting, kept for reset.term.state\n", "")),
-    ("SED does not give it back", "G12", sub("sed", "   call $tk_brk('give', '')           ;* 28 Oct 26 (D4): and the break key (Ctrl-C) is the person's again\n", "")),
     ("HOME's command is not trapped", "G13", sub("tool_home", "   execute sentence trapping aborts\n", "   execute sentence\n")),
     ("HOME does not clean up after the command", "G13", sub("tool_home", "   call $sl_cleanup\n   if pause or aborted then gosub wait.key", "   if pause or aborted then gosub wait.key")),
     ("CED keeps the setting after it is changed", "G13b", sub("ced_edit", "   call $tk_brk('save', saved.trap)         ;* 28 Oct 26: kept where $sl_cleanup can find it if the editor is aborted before it gives the setting back\n   void pterm(PT$BREAK, @false)\n   break off",

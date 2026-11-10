@@ -92,7 +92,7 @@ def checks(src):
 
     ide = strip(src["ide"])
     names = ("ed.read", "ed.get", "ed.set", "find.in.line", "replace.line", "do.replace", "do.qreplace", "do.view", "do.findopts", "sel.range", "do.case", "do.export", "do.import", "do.xeq",
-             "do.refresh", "do.goto", "do.writeas", "write.copy", "run.cmd", "ed.source", "ed.shown", "do.find", "save.one", "source.control.hook", "do.spool", "spool.close", "do.filter", "list.ids", "load.file")
+             "do.refresh", "do.goto", "do.writeas", "write.copy", "run.cmd", "ed.source", "ed.shown", "do.find", "save.one", "source.control.hook", "do.spool", "spool.close", "do.filter", "filter.clause", "list.ids", "load.file")
     L = {n: label(ide, n) for n in names}
     main = ide[: ide.find("apply.theme:")]
     ck("E0", "NULL CASE: the IDE was read and every routine this check reads is there (a check on nothing would pass)", len(ide) > 80000 and all(len(v) > 20 for v in L.values()),
@@ -155,7 +155,7 @@ def checks(src):
     ex = L["do.export"]
     ck("E9", "Export the selection reads without the read-only test, takes the AI's selection text, asks the name form in the 'copy' mode, refuses a record a tab holds, and writes through write.copy - "
        "itself it holds no write; Write a copy writes through the same label",
-       ordered(ex, "gosub ed.read", "gosub na.check", "if not(na.ok) then return", "gosub sel.range", "call $tk_ai('select', ed.t", "wa.text = change(xp.res<1>, char(10), @fm)", "ed.kk = 'm' : bu<cb>", "if bx{ed.kk} then",
+       ordered(ex, "gosub ed.read", "gosub sel.range", "call $tk_ai('select', ed.t", "wa.text = change(xp.res<1>, char(10), @fm)", "ed.kk = 'm' : bu<cb>", "if bx{ed.kk} then",
                "xp.last = ed.t<sr.y2>", "if sr.x1 = 1 and sr.x2 > len(xp.last) then", "call $recarr('fromtext', wa.text, ex.rec, ed.ok2)", "wa.text = ex.rec", "call $ide_name('copy', wa.file, wa.id, wa.res)", "gosub tab.find", "if tf.p then", "gosub write.copy")
        and not re.search(r"^\s*(write|writeu|readu)\s", ex, re.M) and ordered(L["do.writeas"], "call $ide_name('copy', wa.file, wa.id, wa.res)", "gosub tab.find", "gosub write.copy")
        and ordered(L["write.copy"], "open wa.file to fv else", "gosub edit.check", "readu x from fv, wa.id locked", "write wa.text on fv, wa.id on error", "release fv, wa.id", "gosub refresh.tree.for"), "")
@@ -279,7 +279,7 @@ def checks(src):
        "the filter goes through the query processor with its output captured and a refusal lists nothing; a page skips the earlier records; the N and B rows change the page and load the list again",
        ordered(lo, "lr.key = 'F:' : lf.name", "gosub list.ids", "lr.key = ''") and ordered(ls, "if lr.key # '' then", "lr.tmpl = lt.text<lr.p>", "lr.skip = (lt.page<lr.p> + 0) * MAXREC", "if lr.tmpl # '' then",
        "execute 'sselect ' : lr.sent : ' ' : lr.tmpl : ' to 9' trapping aborts capturing lr.cap", "if @system.return.code < 0 then", "lr.ok = @false", "msg = sysmsg(14063", "for lr.s = 1 to lr.skip", "readnext lr.id from 9 else exit")
-       and ordered(fi, "gosub get.context", "sysmsg(14059)", "screen ask sysmsg(14060", "'LIKE '", "'WITH '", "sysmsg(6674)", "with @id like", "sysmsg(6675)", "fx.t = 'with @id like \"' : fx.t : '\"'", "lt.text<fx.at> = fx.t", "lt.page<fx.at> = 0", "gosub load.dict", "gosub load.file", "gosub tree.apply")
+       and ordered(L["filter.clause"], "'LIKE '", "'WITH '", "sysmsg(6674)", "with @id like", "sysmsg(6675)", "fx.t = 'with @id like \"' : fx.t : '\"'") and ordered(fi, "gosub get.context", "sysmsg(14059)", "screen ask sysmsg(14060", "gosub filter.clause", "lt.text<fx.at> = fx.t", "lt.page<fx.at> = 0", "gosub load.dict", "gosub load.file", "gosub tree.apply")
        and "case code[1, 2] = 'N:' or code[1, 2] = 'B:'" in ide and "lmore<lp> = lr.more" in ide and "del lmore<lp>" in ide and "lr.key = ''" in ide, "")
     return rows
 
@@ -335,7 +335,7 @@ MUTANTS = [
     ("a menu entry has no command", "E1", sub("ide", "      case cmd = 'xeq'\n         gosub do.xeq", "      case cmd = 'xeqq'\n         gosub do.xeq")),
     ("two entries share a mnemonic", "E1", sub("m11227", "Find &options", "&Find options")),
     ("ed.get skips the read-only test", "E2", sub("ide", "   ro.i = cb\n   gosub ro.check\n   if not(ro.ok) then\n      gosub ro.box\n      return\n   end\n   gosub ed.read", "   gosub ed.read")),
-    ("ed.set assigns before it snaps", "E2", sub("ide", "   call $sl_memo('snap', ed.mw, '', '', ed.sr)\n   ed.mw{'value'} = ed.new", "   ed.mw{'value'} = ed.new\n   call $sl_memo('snap', ed.mw, '', '', ed.sr)")),
+    ("ed.set assigns before it snaps", "E2", sub("ide", "   call $sl_memo('snap', ed.mw, '', '', ed.sr)\n   ed.old = ed.mw{'value'}\n   ed.mw{'value'} = ed.new", "   ed.old = ed.mw{'value'}\n   ed.mw{'value'} = ed.new\n   call $sl_memo('snap', ed.mw, '', '', ed.sr)")),
     ("ed.set leaves the mark", "E2", sub("ide", "   ed.mw{'mx'} = 0\n   ed.mw{'my'} = 0\n   ed.nl", "   ed.nl")),
     ("whole words ignore the character before", "E3", sub("ide", "            if convert(WORDCH, '', fp.hay[fp.s - 1, 1]) = '' then fp.good = @false", "            null")),
     ("whole words ignore the character after", "E3", sub("ide", "            if convert(WORDCH, '', fp.c) = '' then fp.good = @false", "            null")),
@@ -365,19 +365,18 @@ MUTANTS = [
     ("Query replace writes when nothing was answered Yes", "E5", sub("ide", "   if qr.yes = 0 then\n      msg = sysmsg(11547, 0, qr.no)\n      return\n   end", "   if 0 then\n      msg = sysmsg(11547, 0, qr.no)\n      return\n   end")),
     ("List matching lines asks the read-only test", "E6", sub("ide", "do.view:\n   gosub ed.read", "do.view:\n   gosub ed.get")),
     ("List matching lines has no limit", "E6", sub("ide", "   until vw.n >= MAXHIT\n   next vw.j", "   next vw.j")),
-    ("List matching lines marks the table 'search'", "E6", sub("ide", "   out.kind = 'view'\n   out.file = ''\n   out.dict = ''\n   gosub err.load\n   msg = sysmsg(11544", "   out.kind = 'search'\n   out.file = ''\n   out.dict = ''\n   gosub err.load\n   msg = sysmsg(11544")),
+    ("List matching lines marks the table 'search'", "E6", sub("ide", "   out.kind = 'view'\n   gosub zoom.leave", "   out.kind = 'search'\n   gosub zoom.leave")),
     ("Find options reads W as C", "E7", sub("ide", "   fo.word = (index(fo.text, 'W', 1) > 0)", "   fo.word = (index(fo.text, 'C', 1) > 0)")),
     ("the selection includes the character under the later end", "E8", sub("ide", "      if dc.j = sr.y2 then dc.z = sr.x2 - 1", "      if dc.j = sr.y2 then dc.z = sr.x2")),
     ("the selection ignores where it starts", "E8", sub("ide", "      if dc.j = sr.y1 then dc.a = sr.x1", "      dc.a = 1")),
     ("nothing selected is the whole text", "E8", sub("ide", "   if sr.y1 = sr.y2 and sr.x1 = sr.x2 then return\n   sr.ok = @true", "   sr.ok = @true")),
     ("Export asks the read-only test", "E9", sub("ide", "do.export:\n   gosub ed.read", "do.export:\n   gosub ed.get")),
     ("Export writes itself", "E9", sub("ide", "      msg = sysmsg(11691, wa.file, wa.id)\n      return\n   end\n   gosub write.copy\n   return\n\n* Search / Import", "      msg = sysmsg(11691, wa.file, wa.id)\n      return\n   end\n   write wa.text on fv, wa.id\n   return\n\n* Search / Import")),
-    ("Write a copy loses the gate", "E9", sub("ide", "write.copy:\n   open wa.file to fv else\n      msg = sysmsg(11200, wa.file)\n      return\n   end\n   gosub edit.check", "write.copy:\n   open wa.file to fv else\n      msg = sysmsg(11200, wa.file)\n      return\n   end\n   edit.ok = 1")),
+    ("Write a copy loses the gate", "E9", sub("ide", "   open wa.file to fv else\n      msg = sysmsg(11200, wa.file)\n      return\n   end\n   gosub edit.check", "   open wa.file to fv else\n      msg = sysmsg(11200, wa.file)\n      return\n   end\n   edit.ok = 1")),
     ("Import takes a record with value marks", "E10", sub("ide", "   if index(im.x, @vm, 1) or index(im.x, @sm, 1) or index(im.x, @tm, 1) or convert(NA.CHARS, '', im.x) # im.x then", "   if convert(NA.CHARS, '', im.x) # im.x then")),
-    ("Import takes a collection file's record", "E10", sub("ide", "   if fileinfo(fv, FL$COLLECTION) then\n      msg = sysmsg(11557, im.file)", "   if 0 then\n      msg = sysmsg(11557, im.file)")),
+    ("Import takes a collection file's record", "E10", sub("ide", "if fileinfo(fv, FL$COLLECTION) then\n         msg = sysmsg(11557, im.file)", "if 0 then\n         msg = sysmsg(11557, im.file)")),
     ("Import refuses a collection file in the Find message's words", "E10", sub("ide", "      msg = sysmsg(11557, im.file)", "      msg = sysmsg(11698, im.file)")),
     ("Import cuts the line at 99999 again", "E10", sub("ide", "   im.block := im.ln[im.cx, len(im.ln)]", "   im.block := im.ln[im.cx, 99999]")),
-    ("Export skips the non-ASCII test", "E9", sub("ide", "   if not(na.ok) then return\n   gosub sel.range", "   gosub sel.range")),
     ("Export writes the token text, not the record", "E9", sub("ide", "         call $recarr('fromtext', wa.text, ex.rec, ed.ok2)\n         wa.text = ex.rec", "         null")),
     ("Export converts a cut that is inside a line", "E9", sub("ide", "      if sr.x1 = 1 and sr.x2 > len(xp.last) then", "      if 1 then")),
     ("Export reads another key for the token flag", "E9", sub("ide", "   ed.kk = 'm' : bu<cb>\n   if bx{ed.kk} then\n      * Only", "   ed.kk = 'n' : bu<cb>\n   if bx{ed.kk} then\n      * Only")),

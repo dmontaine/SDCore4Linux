@@ -25,6 +25,8 @@
 * 9 Nov 26 dm  S.184 stage 2 (SED retired into the IDE): SED's editing commands in the area - Alt-Backspace and Alt-D delete a word, Alt-E cuts to the end of the
 *              line, Alt-T swaps two characters, Alt-U / Alt-L / Alt-C the word's case, Alt-Space closes a run of blanks, Alt-A aligns with the line above, Alt-M
 *              swaps the cursor and the selection's other end, Ctrl-Up / Ctrl-Down nudge the view (sed.edit, sed.move).
+* 09 Nov 26 dm S.184 stage 7: for long records, syntax colour keeps a checkpoint every 100 lines instead of running through every line above the top on each paint, and undo
+*              holds 8,000,000 characters (it held 1,000,000: one step above about 500 KB).
 * 09 Nov 26 dm S.184 stage 5: keyboard macros, SED's: Alt-R starts and ends the recording of the keys the area acts on, Alt-P plays them (macro.key).
 * END-HISTORY
 *
@@ -114,6 +116,7 @@ $include sl.h
    common /slclip/ clip.has, clip.text
 
    ret = ''
+   pr.kind = ''                                  ;* paint.plan: every paint draws the whole area unless macro.key says otherwise
    ro = w{'readonly'} + 0
    ti = w{'tabindent'} + 0                       ;* 28 Oct 26: the indent width Tab and Shift-Tab use (0: they are not the area's keys)
    if ti < 0 then ti = 0
@@ -231,7 +234,8 @@ geom:
    end
    gut = 0
    if lnum then
-      gut = len(max(dcount(lines, @fm), 1)) + 1
+      gosub line.count
+      gut = len(max(lc, 1)) + 1
       if gut > mw - 4 then gut = 0               ;* an area too narrow for them has none
    end
    gn = gut                                      ;* 2 Nov 26 (S.98 H2): the width of the line numbers; the mark cell of bpon is in front of them
@@ -349,7 +353,8 @@ get.maxl:
 
 * n = the number of lines, nr the number of rows (the same without wrap); a text with nothing in it has one
 count:
-   n = dcount(lines, @fm)
+   gosub line.count
+   n = lc
    if n < 1 then n = 1
    if cy < 1 then cy = 1
    if cy > n then cy = n
@@ -361,6 +366,19 @@ count:
       gosub build.map
    end else
       nr = n
+   end
+   return
+
+* lc = the number of lines.  Counting them runs over the whole text, three times a key, so the count is kept with the text it was made from (9 Nov 26, S.184 stage 7; the length alone
+*   would not do: a program can put in a text of the same length with other lines).  Comparing is far cheaper than counting.  A typed character (macro.key) keeps the count.
+line.count:
+   lc.t = w{'nct'}
+   if len(lc.t) > 0 and lc.t = lines then
+      lc = w{'nc'} + 0
+   end else
+      lc = dcount(lines, @fm)
+      w{'nc'} = lc
+      w{'nct'} = lines
    end
    return
 
@@ -826,13 +844,13 @@ snap.push:
    gosub snap.redo.clear
    return
 
-* snap goes on the end of the undo steps; at most 100 steps and a million characters, the oldest going first (the newest is always kept)
+* snap goes on the end of the undo steps; at most 100 steps and 8,000,000 characters (SED's limit, 9 Nov 26), the oldest going first (the newest is always kept)
 snap.add:
    uk.n += 1
    uk.t += len(snap)
    w{'u' : (uk.b + uk.n)} = snap
    loop
-   while uk.n > 100 or (uk.t > 1000000 and uk.n > 1)
+   while uk.n > 100 or (uk.t > 8000000 and uk.n > 1)
       uk.t -= len(w{'u' : (uk.b + 1)})
       w{'u' : (uk.b + 1)} = ''
       uk.b += 1
@@ -1060,7 +1078,14 @@ macro.key:
       return
    end
    m.key = key
+   m.len = len(lines)
+   m.cy = cy
+   w{'synkey'} = (len(key) = 1 or key = 'bs' or key = 'del' or key = 'enter')      ;* these change the text at the cursor's line and nowhere above it (syn.sync)
+   pr.kind = ''                                  ;* paint.plan: what this key can have changed on the screen
+   if len(key) = 1 or key = 'bs' or key = 'del' then pr.kind = 'edit'
+   if key = 'up' or key = 'down' or key = 'left' or key = 'right' or key = 'home' or key = 'end' then pr.kind = 'move'
    gosub handle.key
+   if len(m.key) = 1 and len(lines) = m.len + 1 then w{'nct'} = lines              ;* a typed character: as many lines as before (line.count)
    if w{'macrec'} + 0 and ret<1> = 'handled' and m.key # 'paste' then
       m.list = w{'macro'}
       m.list<-1> = m.key
@@ -1548,7 +1573,63 @@ paint:
       sc.col = dcx - left + 1
    end
    sl.line = 0                                   ;* the line whose syntax styles are in sty (rows of a wrapped line share them)
+   if syl then gosub syn.sync
+   gosub paint.plan
+   gosub paint.rows
+   if pr.again then                               ;* the edit changed how the next line starts (a comment opened or closed): the rows below it are not as drawn
+      pr.all = @true
+      pr.again = @false
+      sl.line = 0
+      gosub paint.rows
+   end
+   if hb then
+      * 18 Oct 26: the horizontal bar in the row under the text: the gutter blank, the bar as wide as the text, a blank under the vertical bar
+      gosub get.maxl
+      call $sl_hscrollbar(tw, left, maxl, tw, hrow)
+      if gut then call $sl_put(scr, w{'ax'}, w{'ay'} + mh, space(gut), str(gc, gut))
+      call $sl_put(scr, w{'ax'} + gut, w{'ay'} + mh, hrow : ' ', str(wc, tw + 1))
+   end
+   if w{'focused'} then
+      gosub row.of
+      call $sl_curat(w{'ax'} + gut + dcx - left, w{'ay'} + dr - top)
+   end
+   return
+
+* Which rows this paint has to draw (9 Nov 26, S.184 stage 7; SED draws only the rows it has marked).  pr.kind comes from macro.key, for a key that cannot change anything but the
+*   cursor's line ('edit') or the cursor ('move'); every other paint is pr.all.  It holds only if the area is laid out exactly as the last paint left it (psig), with no selection and
+*   no wrapping.  An edit also needs the state the line began and ended in from when it was last drawn: pcyl says for which line those are.
+paint.plan:
+   pr.all = @true
+   pr.a = -1
+   pr.b = -1
+   pr.again = @false
+   pr.sig = top : @vm : left : @vm : nr : @vm : gut : @vm : tw : @vm : mh : @vm : w{'ax'} : @vm : w{'ay'} : @vm : ro : @vm : (w{'focused'} + 0) : @vm : has.sel : @vm : wrap : @vm : syl
+   if pr.kind # '' and not(has.sel) and not(wrap) and pr.sig = w{'psig'} then
+      begin case
+         case pr.kind = 'edit' and cy = m.cy
+            if not(syl) or w{'pcyl'} + 0 = cy then
+               pr.all = @false
+               pr.a = cy - top
+               if syl then
+                  w{'syntl'} = cy                 ;* syn.row starts this line from the state kept for it, not from a checkpoint
+                  w{'synts'} = w{'pcys'} + 0
+               end
+            end
+         case pr.kind = 'move'
+            pr.all = @false
+            if sc.row >= 0 then
+               pr.a = sc.row
+               pr.b = w{'psc'} + 0
+            end
+      end case
+   end
+   w{'psig'} = pr.sig
+   w{'psc'} = sc.row
+   return
+
+paint.rows:
    for r = 0 to mh - 1
+      if not(pr.all) and r # pr.a and r # pr.b then continue
       rr = top + r
       seg = ''
       base = 1
@@ -1565,6 +1646,12 @@ paint:
       attrs = str(tc, tw)
       if syl and rr <= nr then
          gosub syn.row
+         if rline = cy then
+            if not(pr.all) and pr.kind = 'edit' and sst2 # w{'pcye'} + 0 then pr.again = @true
+            w{'pcyl'} = cy
+            w{'pcys'} = sst
+            w{'pcye'} = sst2
+         end
          for k = 1 to len(seg)
             if k > tw then exit
             sc = sty[rstart + base + k - 2, 1]
@@ -1600,36 +1687,88 @@ paint:
       end
       call $sl_put(scr, w{'ax'} + gut, w{'ay'} + r, seg : bar[r + 1, 1], attrs : wc)
    next r
-   if hb then
-      * 18 Oct 26: the horizontal bar in the row under the text: the gutter blank, the bar as wide as the text, a blank under the vertical bar
-      gosub get.maxl
-      call $sl_hscrollbar(tw, left, maxl, tw, hrow)
-      if gut then call $sl_put(scr, w{'ax'}, w{'ay'} + mh, space(gut), str(gc, gut))
-      call $sl_put(scr, w{'ax'} + gut, w{'ay'} + mh, hrow : ' ', str(wc, tw + 1))
-   end
-   if w{'focused'} then
-      gosub row.of
-      call $sl_curat(w{'ax'} + gut + dcx - left, w{'ay'} + dr - top)
-   end
    return
 
 * The syntax styles of the line row rr belongs to (rline): in sty, one style code to each character.  A line's styles are made
-* from the state the line before ends in, so the state at the first line shown is found by running through the lines above it
-* (the cheap 'state' op) and a line that follows the last one done goes on from where that finished.  A text of some thousand lines
-* is slower to draw for it.
+* from the state the line before ends in, so the state at the first line shown is found from a checkpoint kept every 100 lines (9 Nov 26,
+* S.184 stage 7, as SED does: every line above it, on every paint, was about 100,000 calls per key at line 100,000) and a line that follows
+* the last one done goes on from where that finished.
 syn.row:
    if rline = sl.line then return
    if sl.line > 0 and rline = sl.line + 1 then
       sst = sst2
    end else
-      sst = 0 ; sst2 = 0
-      for q = 1 to rline - 1
-         call $sl_syntax('state', syl, lines<q>, sst, sst2, '')
-         sst = sst2
-      next q
+      if rline = w{'syntl'} + 0 then
+         sst = w{'synts'} + 0                       ;* the first row shown, as last time: nothing above it has changed (syn.sync)
+         sst2 = sst
+      end else
+         syc.k = int((rline - 1) / 100) + 1
+         if syc.k > syc.n then syc.k = syc.n
+         sst = if syc.k = 1 then 0 else syc.chk<syc.k> + 0
+         sst2 = sst
+         for q = ((syc.k - 1) * 100) + 1 to rline - 1
+            call $sl_syntax('state', syl, lines<q>, sst, sst2, '')
+            sst = sst2
+            if mod(q, 100) = 0 then
+               syc.k2 = (q / 100) + 1
+               if syc.k2 > syc.n then
+                  syc.chk<syc.k2> = sst
+                  syc.n = syc.k2
+               end
+            end
+         next q
+         w{'synchk'} = syc.chk
+         w{'synn'} = syc.n
+         w{'syntl'} = rline
+         w{'synts'} = sst
+      end
    end
    call $sl_syntax('line', syl, lines<rline>, sst, sst2, sty)
    sl.line = rline
+   return
+
+* The checkpoints as they stand for this text.  A checkpoint depends only on the lines above it, so after an edit those from the first changed line on go.  An edit by a key that
+*   works at the cursor (w{'synkey'}, macro.key) is at the cursor's line or the line it was on, and that is taken on trust: the proof, comparing the lines above, costs a copy of the
+*   text on every key.  Any other change (the program's, an undo, a paste) is proved or drops them all, and the next paint finds them again.
+syn.sync:
+   syc.chk = w{'synchk'}
+   syc.n = w{'synn'} + 0
+   if syc.n < 1 or w{'synfor'} # syl then
+      syc.chk = ''
+      syc.n = 1
+      w{'synfor'} = syl
+      w{'syntext'} = lines
+      w{'syncy'} = cy
+      w{'synchk'} = syc.chk
+      w{'synn'} = syc.n
+      w{'syntl'} = 0
+      return
+   end
+   syc.old = w{'syntext'}
+   if syc.old = lines then                       ;* a text that is one number equal to another as a number has no checkpoints to lose
+      w{'syncy'} = cy
+      w{'synkey'} = 0
+      return
+   end
+   syc.y = cy
+   if w{'syncy'} + 0 >= 1 and w{'syncy'} + 0 < syc.y then syc.y = w{'syncy'} + 0
+   syc.same = (syc.y = 1 or w{'synkey'} + 0)
+   if not(syc.same) then
+      syc.o = index(lines, @fm, syc.y - 1)
+      if syc.o then syc.same = ((syc.old[1, syc.o] : '|') = (lines[1, syc.o] : '|'))
+   end
+   if syc.same then
+      syc.k = int((syc.y - 1) / 100) + 1
+      if syc.n > syc.k then syc.n = syc.k
+      if syc.y < w{'syntl'} + 0 then w{'syntl'} = 0
+   end else
+      syc.n = 1
+      w{'syntl'} = 0
+   end
+   w{'syntext'} = lines
+   w{'syncy'} = cy
+   w{'synn'} = syc.n
+   w{'synkey'} = 0
    return
 end
 

@@ -30,11 +30,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.join(HERE, os.pardir, "sdsys")
 GPL = os.path.join(SDSYS, "gpl.bp")
 MSG = os.path.join(SDSYS, "messages")
-FILES = {k: os.path.join(GPL, v) for k, v in (("wall", "tk_aiwall"), ("ai", "tk_ai"), ("ide", "ide"), ("sed", "sed"), ("core", "ced_core"), ("cedit", "ced_edit"), ("dbg", "debug"),
+FILES = {k: os.path.join(GPL, v) for k, v in (("wall", "tk_aiwall"), ("ai", "tk_ai"), ("ide", "ide"), ("core", "ced_core"), ("cedit", "ced_edit"), ("dbg", "debug"),
                                                 ("dbgh", "debug.h"), ("home", "tool_home"), ("verb", "ai"), ("aipage", "tk_aipage"), ("dform", "dict_form"))}
 FILES.update({"m40": os.path.join(MSG, "11940"), "m41": os.path.join(MSG, "11941"), "m42": os.path.join(MSG, "11942")})
 # the programs that call $tk_ai('ask' and how each says where its text comes from
-CALLERS = {"ide": "@fm : '' : @fm : ai.org", "sed": "@fm : '' : @fm : ai.org", "ced_core": "@fm : '' : @fm : st{'origin'}", "debug": "@fm : '' : @fm : ai.org", "tool_home": "actx<13> = 'none'",
+CALLERS = {"ide": "@fm : '' : @fm : ai.org", "ced_core": "@fm : '' : @fm : st{'origin'}", "debug": "@fm : '' : @fm : ai.org", "tool_home": "actx<13> = 'none'",
            "tk_aipage": "actx<13> = 'none'",      # 1 Nov 26 (S.97 stage 1): the AI line on a page of the toolkit sends no text of any file, only what the page is and what it offers
            "dict_form": "actx<13> = ai.org"}      # 3 Nov 26 (S.97): the dictionary form sends the item's values; where the item is comes from its caller (the IDE)
 PROVIDER_WORDS = ("anthropic", "openai", "google", "gemini", "deepseek", "custom", "sonnet", "gpt")      # ("claude" is not here: CLAUDE.md is a file this program's header names)
@@ -74,9 +74,9 @@ def checks(src, tree_calls):
     def ck(name, ok, detail=""):
         rows.append((name, bool(ok), detail))
 
-    wall, ai, ide, sed, core, cedit, dbg, dbgh, home, verb, aipage, dform = (strip(src[k]) for k in ("wall", "ai", "ide", "sed", "core", "cedit", "dbg", "dbgh", "home", "verb", "aipage", "dform"))
-    ck("N0 NULL CASE: the reader sees the wall (over 2 KB of code), $tk_ai (over 15 KB), the IDE (over 100 KB) and SED (over 100 KB)", len(wall) > 2000 and len(ai) > 15000 and len(ide) > 100000 and len(sed) > 100000,
-       repr((len(wall), len(ai), len(ide), len(sed))))
+    wall, ai, ide, core, cedit, dbg, dbgh, home, verb, aipage, dform = (strip(src[k]) for k in ("wall", "ai", "ide", "core", "cedit", "dbg", "dbgh", "home", "verb", "aipage", "dform"))
+    ck("N0 NULL CASE: the reader sees the wall (over 2 KB of code), $tk_ai (over 15 KB), the IDE (over 100 KB) and SED (over 100 KB)", len(wall) > 2000 and len(ai) > 15000 and len(ide) > 100000,
+       repr((len(wall), len(ai), len(ide))))
     ck("W1 the wall is $internal, `subroutine tk_aiwall(op, a, why)`, catalogued as $tk_aiwall, and no other program takes the name",
        wall.lstrip().startswith("$internal") and re.search(r"^subroutine tk_aiwall\(op, a, why\)$", wall, re.M) is not None and "$catalog $tk_aiwall" in wall
        and sum(1 for t in tree_calls["catalog"] if t == "$tk_aiwall") == 1, repr(tree_calls["catalog"][:3]))
@@ -125,14 +125,12 @@ def checks(src, tree_calls):
     sites = tree_calls["ask"]
     ck("C1 EVERY PROGRAM THAT CALLS $tk_ai('ask' IS ON THE LIST HERE and says where its text comes from: %s (a new caller is refused by this check until it is added with its origin)" % ", ".join(sorted(CALLERS)),
        sorted(sites) == sorted(CALLERS), repr(sorted(sites)))
-    ok = {"ide": ide, "sed": sed, "ced_core": core, "debug": dbg, "tool_home": home, "tk_aipage": aipage, "dict_form": dform}
+    ok = {"ide": ide, "ced_core": core, "debug": dbg, "tool_home": home, "tk_aipage": aipage, "dict_form": dform}
     ck("C2 each of them has its origin in the request it builds", all(CALLERS[k] in ok[k] for k in CALLERS), repr([k for k in CALLERS if CALLERS[k] not in ok[k]]))
     d = between(ide, "ai.origin:", "* The fields view")
     ck("C3 the IDE's origin: untitled when there is no record yet, path (the operating system pathname) for a path: tab, a record with its file, its id and the dictionary flag otherwise; the fields view gets the same",
        ordered(d, "if bi<cb> = '' then", "ai.org = 'untitled'", "if bn<cb> = 'path:' then", "ai.org = 'path' : @vm : '' : @vm : bi<cb>", "ai.org = 'record' : @vm : bn<cb> : @vm : bi<cb> : @vm : (if bx{k} # '' then 1 else 0)")
        and ordered(ide, "gosub ai.origin", "actx = 'IDE'") and ordered(ide, "fz.st{'title'} = fz.title", "gosub ai.origin", "fz.st{'origin'} = ai.org"), "")
-    ck("C4 SED's origin: untitled for a buffer with no record name, else the file, the record and the dictionary flag", ordered(sed, "if record.name = '' then", "ai.org = 'untitled'",
-       "ai.org = 'record' : @vm : file.name : @vm : record.name : @vm : (if dict.flag = 'DICT' then 1 else 0)", "ai.actx = 'SED'"), "")
     ck("C5 the collection editor's host says none (a collection a program holds is no record of any file) and the engine passes whatever its host set", "st{'origin'} = 'none'" in cedit and "st{'origin'}" in core, "")
     ck("C6 the debugger's page text holds the program's SOURCE, so its origin is the source record's pathname, kept for each program in debug.h's common block when the program is first seen",
        "program.src(INITIAL.PROGRAMS)" in dbgh and "program.src(idx) = source.path" in dbg and ordered(dbg, "ai.org = 'path' : @vm : '' : @vm : program.src(src.idx)", "ai.actx = 'debugger'"), "")
@@ -201,7 +199,6 @@ MUTANTS = [
     ("wall", "op_name.c is not scanned", "         if low[q, 2] = '.c' then", "         if low[q, 2] = '.cx' then"),
     ("ide", "the IDE does not say where its text comes from", ": @fm : 'nocmd' : @fm : '' : @fm : ai.org", ": @fm : 'nocmd'"),
     ("ide", "the IDE's fields view does not say where its record comes from", "   fz.st{'origin'} = ai.org ", "   fz.st{'origin2'} = ai.org "),
-    ("sed", "SED does not say where its text comes from", ": @fm : 'nocmd' : @fm : '' : @fm : ai.org", ": @fm : 'nocmd'"),
     ("core", "the fields engine drops the origin", ": @fm : '' : @fm : st{'origin'}", ""),
     ("dbg", "the debugger does not keep a program's source path", "   program.src(idx) = source.path ", "   program.src(idx) = '' "),
     ("home", "the home screen no longer says none", "   actx<13> = 'none' ", "   actx<14> = 'none' "),

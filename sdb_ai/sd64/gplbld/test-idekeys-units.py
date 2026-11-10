@@ -44,7 +44,6 @@ FILES = {
     "ide": os.path.join(GPL, "ide"),
     "ide_name": os.path.join(GPL, "ide_name"),
     "memo": os.path.join(GPL, "sl_memo"),
-    "sed": os.path.join(GPL, "sed"),
 }
 for _n in (11204, 11207, 11214, 11215, 11216, 11225, 11226, 11227, 11228, 11683, 14004):
     FILES["m%d" % _n] = os.path.join(MSG, str(_n))
@@ -71,8 +70,8 @@ HELP = (
     ("m11216", "Ctrl-R", "Replace", "ctrl-r"),
 )
 FILE_MENU = ["new", "open", "save", "saveas", "writeas", "spool", "close", "quit"]
-GO_MENU = ["goto", "nexterr", "nexttab", "prevtab", "tree", "nextpane", "prevpane", "include", "zoom", "sed", "fields", "dform", "nextsel", "filter"]     # 31 Oct 26 (S.90 stage 2): the dictionary item form, last, no key; 9 Nov 26 (S.184 stage 1): Zoom the editor (Ctrl-E) before Edit in SED, which has no key; 9 Nov 26 (S.184 stage 3): Next record from the list, last, no key
-UNKEYED = ["bpclear", "debug1", "dform", "downcase", "expandtabs", "export", "filter", "find", "findopts", "format", "import", "include", "nextsel", "qreplace", "runargs", "saveas", "sed", "spool", "stamp", "tree", "upcase", "view", "writeas", "xeq", "xeqterm"]       # 29 Oct 26 (stage D): the editing commands have no key; 9 Nov 26 (S.184 stage 3): Stamp, Expand tabs, Run with arguments, Next record from the list, Run a command at the terminal
+GO_MENU = ["goto", "nexterr", "nexttab", "prevtab", "tree", "nextpane", "prevpane", "include", "zoom", "fields", "dform", "nextsel", "filter"]     # 31 Oct 26 (S.90 stage 2): the dictionary item form, last, no key; 9 Nov 26 (S.184 stage 1): Zoom the editor (Ctrl-E) before Edit in SED, which has no key; 9 Nov 26 (S.184 stage 3): Next record from the list, last, no key
+UNKEYED = ["bpclear", "debug1", "dform", "downcase", "expandtabs", "export", "filter", "find", "findopts", "format", "import", "include", "nextsel", "qreplace", "runargs", "saveas", "spool", "stamp", "tree", "upcase", "view", "writeas", "xeq", "xeqterm"]       # 29 Oct 26 (stage D): the editing commands have no key; 9 Nov 26 (S.184 stage 3): Stamp, Expand tabs, Run with arguments, Next record from the list, Run a command at the terminal
 SEARCH_MENU = ["find", "replace", "view", "qreplace", "findopts", "upcase", "downcase", "import", "export", "stamp", "expandtabs"]
 BUILD_MENU = ["compile", "catalog", "run", "debug", "xeq", "format", "debug1", "bptoggle", "bpclear", "runargs", "xeqterm"]     # 2 Nov 26 (S.98 H2): the breakpoint entries; 9 Nov 26 (S.184 stage 3): Run with arguments, then Run a command at the terminal, last
 
@@ -158,15 +157,14 @@ def checks(raw):
     ide = strip_bas(raw["ide"])
     inm = strip_bas(raw["ide_name"])
     memo = strip_bas(raw["memo"])
-    sed = raw["sed"]
     dk = block(ide, "do.key")
     rc = block(ide, "run.cmd")
     pairs = keymap_of(ide)
     bound = dict(pairs)
     menus = {n: menu_entries(raw["m%d" % n]) for n in (11225, 11226, 11227, 11228)}
     ck("IK0", "NULL CASE: the IDE, its name form, the memo, SED, the key map (22 pairs or more), run.cmd and the four menu messages were found and are not empty (a check on nothing would pass)",
-       len(ide) > 30000 and len(inm) > 3000 and len(memo) > 15000 and len(sed) > 100000 and len(pairs) >= 22 and len(rc) > 2000 and all(len(v) >= 2 for v in menus.values())
-       and all(raw[k].strip() for k in raw), "%d %d %d %d %d %d" % (len(ide), len(inm), len(memo), len(sed), len(pairs), len(rc)))
+       len(ide) > 30000 and len(inm) > 3000 and len(memo) > 15000 and len(pairs) >= 22 and len(rc) > 2000 and all(len(v) >= 2 for v in menus.values())
+       and all(raw[k].strip() for k in raw), "%d %d %d %d %d" % (len(ide), len(inm), len(memo), len(pairs), len(rc)))
     ck("IK1", "F2 and F11 have no case in do.key (F2 is the debugger's abort; find in the records is a menu entry with no key)",
        "f2" not in bound and "f11" not in bound and "case edata = 'f2'" not in dk and "case edata = 'f11'" not in dk, repr(sorted(bound)))
     wrong = {k: bound.get(k) for k, w in KEYMAP.items() if bound.get(k) != w}
@@ -204,6 +202,7 @@ def checks(raw):
     ck("IK6", "the help (11214-11216) names each settled key beside what it does: F6, Shift-F6 as the next / previous pane, Ctrl-PgDn, PgUp and Alt-PgDn, PgUp (a terminal may keep the Ctrl keys), "
        "F3, Shift-F3 as the next / previous find, Esc, F10 as the menus; and names neither F2 nor F11",
        not miss and not old and re.search(r"F6, Shift-F6\s+Next / previous pane", help_text(raw["m11214"])) is not None
+       and re.search(r"F7\s+Debug", help_text(raw["m11215"])) is not None
        and re.search(r"Alt-PgDn, PgUp too: a terminal may keep the Ctrl keys", help_text(raw["m11214"])) is not None, repr((miss[:3], old)))
     ck("IK7", "the help names every key do.key binds: F1, F3 (the editor's), F4, F5, F6, F7, F8, F9, F10, F12, Shift-F6, Shift-F3, Alt-PgDn and each Ctrl key of the map are all in it",
        all(re.search(r"\b" + k.upper() + r"\b", allhelp) for k in ("f1", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f12"))
@@ -223,7 +222,7 @@ def checks(raw):
     ck("IK11", "Ctrl-W closes the record: a changed one asks Save / Discard / Cancel (11204), Cancel and a refused save leave it open, and the last tab closed makes an Untitled buffer (the editor is never empty)",
        "screen msgbox sysmsg(11204, bf.name, bf.id) buttons 'Save,Discard,Cancel' default 1 returning b else b = 3" in cc
        and re.search(r"case 1\s*\n\s*return\s*\n\s*end case", cc) is not None and re.search(r"gosub save\.one\s*\n\s*if not\(sv\.ok\) then return", cc) is not None
-       and "if nbuf = 0 then gosub add.untitled" in cc and "write" not in cc, cc[:200])
+       and "if nbuf = 0 then" in cc and "gosub add.untitled" in cc and "write" not in cc, cc[:200])
     nmcase = case_block(rc, "case cmd = 'new'")
     ck("IK12", "Ctrl-N, Ctrl-O: 'new' and 'open' go to do.new and do.open, which ask the name form (ide_name), 'open' in the mode 'open' that needs an existing record",
        "gosub do.new" in nmcase and "gosub do.open" in case_block(rc, "case cmd = 'open'") and "case mode = 'open'" in inm and "read x from fv, ii" in inm, "")
@@ -235,10 +234,10 @@ def checks(raw):
     bf = block(ide, "build.files")
     ck("IK14", "the tree lists only files of records and leaves out the names that start with a dollar sign ($acc, $hold, $map, $release): the VOC walk tests the first character",
        re.search(r"if \(t1 = 'F' or t1\[1, 5\] = 'FILE '\) and ids<i>\[1, 1\] # '\$' then fl<-1> = ids<i>", bf) is not None, bf[:120])
-    pk = re.search(r"mw\{'passkeys'\} = ('[^']*'(?: : @vm : '[^']*')*)", ide)
+    pk = re.search(r"mw\{'passkeys'\} = (\(if alone then '' else 'ctrl-e' : @vm\) : '[^']*'(?: : @vm : '[^']*')*)", ide)
     ck("IK15", "the editor passes exactly Ctrl-E (SED), Ctrl-T (the theme) and Ctrl-K (the keys) to the IDE (S.179, 8 Nov 26) and keeps all the memo's other keys, F3 and Shift-F3 among them; "
        "the first buffer of a bare IDE is an untitled one",
-       pk is not None and pk.group(1) == "'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'" and "gosub add.untitled" in ide[: ide.find("do.key:")], pk.group(1) if pk else "no passkeys line")
+       pk is not None and pk.group(1) == "(if alone then '' else 'ctrl-e' : @vm) : 'ctrl-t' : @vm : 'ctrl-k'" and "gosub add.untitled" in ide[: ide.find("do.key:")], pk.group(1) if pk else "no passkeys line")
     # ---- the memo -------------------------------------------------------------------------------------------------------------------------------------------------
     ck("IK16", "the memo: Ctrl-A selects ALL (the mark at the start, the cursor at the end of the last line), it is not the start of the row (Home is)",
        re.search(r"case key = 'ctrl-a'\s*\n\s*my = 1 ; mx = 1\s*\n\s*cy = n\s*\n\s*cx = len\(lines<n>\) \+ 1", case_block(memo, "case key = 'ctrl-a'")) is not None
@@ -265,9 +264,6 @@ def checks(raw):
     bad_f3 = [ln for ln in allhelp.split("\n") if re.search(r"\bF3\b", ln) and re.search(r"tree|Files and records", ln, re.I)]
     ck("IK22", "no line of the help (11214-11216) names F3 beside the tree or Files and records",
        not bad_f3 and "F3, Shift-F3" in allhelp, repr(bad_f3[:2]))
-    ck("IK23", "SED's key.rec binds the Alt sequences beside the Ctrl ones: next buffer = Ctrl-PageDown ESC [ 6 ; 5 ~ and Alt-PageDown ESC [ 6 ; 3 ~, previous buffer = Ctrl-PageUp ESC [ 5 ; 5 ~ and Alt-PageUp ESC [ 5 ; 3 ~",
-       re.search(r"key\.rec<-1> = '@\[\[6;5~':@VM:'@\[\[6;3~'\s*;\*\s*F\.NEXT\.BUFFER", sed) is not None
-       and re.search(r"key\.rec<-1> = '@\[\[5;5~':@VM:'@\[\[5;3~'\s*;\*\s*F\.PREV\.BUFFER", sed) is not None, "")
     # ---- 28 Oct 26, stage B: Open the include --------------------------------------------------------------------------------------------------------------------
     inc = [(re.sub(r"&", "", a), b, c) for a, b, c in menus[11226] if c == "include"]
     di = block(ide, "do.include")
@@ -310,7 +306,7 @@ def checks(raw):
     ck("IK28", "the Tools menu (14004) is put before AI and Help and offers exactly the seven development pages, none with a key; run.cmd sends a tool. word to do.tool and nothing else does; do.tool runs only "
        "those seven, keeping the editor's text, through leave.screen, an execute with trapping aborts and NO capturing, and retake.screen (Run's hand-over), never do.xeq",
        [c for _, _, c in tools] == seven and all(not s for _, s, _ in tools) and raw["m14004"].startswith("&Tools|")
-       and ordered(ide, "for j = 11225 to 11230", "if j = 11230 then", "m = change(sysmsg(14004), '|', @vm)", "if j = 11230 and ai.on then")
+       and ordered(ide, "for j = 11225 to 11230", "if j = 11230 and not(alone) then", "m = change(sysmsg(14004), '|', @vm)", "if j = 11230 and ai.on then")
        and "case cmd[1, 5] = 'tool.'\n         gosub do.tool" in rc and ide.count("gosub do.tool") == 1
        and ordered(dt, "tl.verb = cmd", "if index(' " + " ".join(seven) + " ', ' ' : tl.verb : ' ', 1) = 0 then return", "gosub stash.current", "gosub leave.screen",
                    "execute tl.verb trapping aborts", "gosub retake.screen")
@@ -360,9 +356,9 @@ MUTANTS = [
                                                    "      b = 2\n      begin case\n         case b = 1\n            sv.i = cb")),
     ("the name form lets a dollar file through", "IK13", sub("ide_name", "case ff[1, 1] = '$'", "case ff[1, 1] = '%'")),
     ("the tree lists the dollar entries", "IK14", sub("ide", " and ids<i>[1, 1] # '$' then fl<-1>", " then fl<-1>")),
-    ("the editor passes F3 to the IDE again", "IK15", sub("ide", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k' : @vm : 'f3'")),
-    ("the editor passes nothing to the IDE", "IK15", sub("ide", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = ''")),
-    ("the editor keeps Ctrl-T for itself (S.179)", "IK15", sub("ide", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-k'")),
+    ("the editor passes F3 to the IDE again", "IK15", sub("ide", "mw{'passkeys'} = (if alone then '' else 'ctrl-e' : @vm) : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = (if alone then '' else 'ctrl-e' : @vm) : 'ctrl-t' : @vm : 'ctrl-k' : @vm : 'f3'")),
+    ("the editor passes nothing to the IDE", "IK15", sub("ide", "mw{'passkeys'} = (if alone then '' else 'ctrl-e' : @vm) : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = ''")),
+    ("the editor keeps Ctrl-T for itself (S.179)", "IK15", sub("ide", "mw{'passkeys'} = (if alone then '' else 'ctrl-e' : @vm) : 'ctrl-t' : @vm : 'ctrl-k'", "mw{'passkeys'} = 'ctrl-e' : @vm : 'ctrl-k'")),
     ("Ctrl-A is the start of the row", "IK16", sub("memo", "         my = 1 ; mx = 1\n         cy = n\n         cx = len(lines<n>) + 1\n         want = cx", "         my = 0 ; mx = 0\n         cx = 1\n         want = cx")),
     ("Ctrl-O copies again", "IK17", sub("memo", "case key = 'ctrl-c'", "case key = 'ctrl-c' or key = 'ctrl-o'")),
     ("Ctrl-N finds the next again", "IK17", sub("memo", "case key = 'f3'", "case key = 'f3' or key = 'ctrl-n'")),
@@ -393,9 +389,6 @@ MUTANTS += [
     ("the help calls Esc, F10 something else", "IK6", sub("m11216", "Esc, F10        The menus", "Esc, F10        The tree")),
     ("the memo has no Shift-F3", "IK18", sub("memo", "case key = 'shift-f3'", "case key = 'shift-f3x'")),
     ("Shift-F3 finds the next one", "IK18", sub("memo", "and Shift-F3 the one before\n         gosub find.prev", "and Shift-F3 the one before\n         gosub find.next")),
-    ("SED has no Alt-PageDown", "IK23", sub("sed", "'@[[6;5~':@VM:'@[[6;3~'", "'@[[6;5~'")),
-    ("SED has no Alt-PageUp", "IK23", sub("sed", "'@[[5;5~':@VM:'@[[5;3~'", "'@[[5;5~'")),
-    ("SED binds Alt-PageUp to the next buffer", "IK23", sub("sed", "'@[[5;5~':@VM:'@[[5;3~'          ;* F.PREV.BUFFER", "'@[[5;5~':@VM:'@[[5;3~'          ;* F.NEXT.BUFFER")),
 ]
 # 28 Oct 26, stage B: Open the include
 M_INC = len(MUTANTS)

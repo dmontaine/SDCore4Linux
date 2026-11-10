@@ -2746,7 +2746,7 @@ cited by: `movelist`
 %1 has no OS access, so a file or directory outside its own account cannot be reached by pathname (SDSYS can give it: modify.account %1 os-on)
 ```
 
-cited by: `convertdata`, `ide`, `ide_name`, `importdata`, `oscopya`, `qproc`, `sed`, `seldir` and 1 more
+cited by: `convertdata`, `ide`, `ide_name`, `importdata`, `oscopya`, `qproc`, `seldir`, `setptr`
 
 ### msg:11181
 > kind=message tier=reference since=- src=sdsys/messages/11181:1#29ff1ce7
@@ -2848,16 +2848,12 @@ cited by: `set_job`
 This terminal cannot show color
 ```
 
-cited by: `sed`
-
 ### msg:11193
 > kind=message tier=reference since=- src=sdsys/messages/11193:1#7bee43cb
 
 ```
 SYNTAX takes ON, OFF, LIGHT or DARK
 ```
-
-cited by: `sed`
 
 ### msg:11194
 > kind=message tier=reference since=- src=sdsys/messages/11194:1#93509bf6
@@ -2866,8 +2862,6 @@ cited by: `sed`
 Nothing to undo
 ```
 
-cited by: `sed`
-
 ### msg:11195
 > kind=message tier=reference since=- src=sdsys/messages/11195:1#97c7f367
 
@@ -2875,16 +2869,12 @@ cited by: `sed`
 Nothing to redo
 ```
 
-cited by: `sed`
-
 ### msg:11196
 > kind=message tier=reference since=- src=sdsys/messages/11196:1#1cf3ab93
 
 ```
 MOUSE takes ON or OFF
 ```
-
-cited by: `sed`
 
 ### msg:11197
 > kind=message tier=reference since=- src=sdsys/messages/11197:1#5cc349b1
@@ -3165,10 +3155,10 @@ cited by: `set_job`
 ```
 
 ### msg:11226
-> kind=message tier=reference since=- src=sdsys/messages/11226:1#c76a83ea
+> kind=message tier=reference since=- src=sdsys/messages/11226:1#bcdc5d7f
 
 ```
-&Go|Go to &line~Alt-G~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Open the include~~include|&Zoom the editor~^E~zoom|Edit in &SED~~sed|Edit as f&ields~F12~fields|Dictionary item as for&m~~dform|Next &record from the list~~nextsel|Filter the r&ecords~~filter
+&Go|Go to &line~Alt-G~goto|&Next error~F4~nexterr|Next &tab~^PgDn~nexttab|Pre&vious tab~^PgUp~prevtab|&Files and records~~tree|Next &pane~F6~nextpane|Previous p&ane~Shift-F6~prevpane|&Open the include~~include|&Zoom the editor~^E~zoom|Edit as f&ields~F12~fields|Dictionary item as for&m~~dform|Next &record from the list~~nextsel|Filter the r&ecords~~filter
 ```
 
 ### msg:11227
@@ -6012,8 +6002,6 @@ cited by: `sl_need`
 %1 %2 has changes.  Save them, then edit in SED?
 ```
 
-cited by: `ide`
-
 ### msg:11604
 > kind=message tier=reference since=- src=sdsys/messages/11604:1#cea0c5bc
 
@@ -6021,16 +6009,12 @@ cited by: `ide`
 Back from SED: %1 %2 is saved
 ```
 
-cited by: `ide`
-
 ### msg:11605
 > kind=message tier=reference since=- src=sdsys/messages/11605:1#f532bf4b
 
 ```
 Back from SED: %1 %2 is as it was
 ```
-
-cited by: `ide`
 
 ### msg:11606
 > kind=message tier=reference since=- src=sdsys/messages/11606:1#d9625a28
@@ -6309,7 +6293,7 @@ cited by: `tk_ai`
 AI>
 ```
 
-cited by: `ced_core`, `dict_form`, `ide`, `sed`, `tk_ai`
+cited by: `ced_core`, `dict_form`, `ide`, `tk_ai`
 
 ### msg:11637
 > kind=message tier=reference since=- src=sdsys/messages/11637:1#3334ecaa
@@ -6494,7 +6478,7 @@ cited by: `ide`
 Explain the selected text: what it does, and anything wrong with it.
 ```
 
-cited by: `ide`, `sed`
+cited by: `ide`
 
 ### msg:11658
 > kind=message tier=reference since=- src=sdsys/messages/11658:1#f4d8dead
@@ -6530,7 +6514,7 @@ cited by: `tk_ai`
 The AI's change is in the editor (%1 edits): Ctrl-Z takes it back as one step, and nothing is saved until you save
 ```
 
-cited by: `ide`, `sed`
+cited by: `ide`
 
 ### msg:11662
 > kind=message tier=reference since=- src=sdsys/messages/11662:1#70311a39
@@ -6575,7 +6559,7 @@ cited by: `tk_ai`
 The text changed while the AI was answering, so its change no longer fits: nothing was applied
 ```
 
-cited by: `ced_core`, `ide`, `sed`
+cited by: `ced_core`, `ide`
 
 ### msg:11667
 > kind=message tier=reference since=- src=sdsys/messages/11667:1#a2451611
@@ -6584,7 +6568,7 @@ cited by: `ced_core`, `ide`, `sed`
 The text sent is the record from line %1 on, as far as it fits (%2 lines); the AI cannot see the rest
 ```
 
-cited by: `ced_core`, `ide`, `sed`
+cited by: `ced_core`, `ide`
 
 ### msg:11668
 > kind=message tier=reference since=- src=sdsys/messages/11668:1#209376ed
@@ -6611,16 +6595,12 @@ cited by: `tk_ai`
 The AI is not available here: it is off for this account, or no provider, model and key have been set
 ```
 
-cited by: `sed`
-
 ### msg:11671
 > kind=message tier=reference since=- src=sdsys/messages/11671:1#473b6fec
 
 ```
 Nothing is selected: set the mark (Esc .) where the text starts, move to where it ends, then ask
 ```
-
-cited by: `sed`
 
 ### msg:11672
 > kind=message tier=reference since=- src=sdsys/messages/11672:1#5f20f247
@@ -7340,16 +7320,12 @@ cited by: `ide`
 [read-only: characters outside ASCII]
 ```
 
-cited by: `ide`
-
 ### msg:11754
 > kind=message tier=reference since=- src=sdsys/messages/11754:1#b6976128
 
 ```
 %1 %2 holds characters outside ASCII (bytes 128 to 247), so it is read-only in the IDE: it cannot be saved, saved as, written as a copy, changed by Replace or an AI edit, or edited as fields.  The editor shows such a character a byte at a time and could not be trusted to keep it as it is.
 ```
-
-cited by: `ide`
 
 ### msg:11755
 > kind=message tier=reference since=- src=sdsys/messages/11755:1#451a91b5
@@ -7411,8 +7387,6 @@ cited by: `tool_query`
 ```
 %1 %2 is open read-only: it holds characters outside ASCII
 ```
-
-cited by: `ide`
 
 ### msg:11762
 > kind=message tier=reference since=- src=sdsys/messages/11762:1#79fafe6e
@@ -9137,16 +9111,12 @@ split.up and split.down take a number of lines
 View lines containing:
 ```
 
-cited by: `sed`
-
 ### msg:11987
 > kind=message tier=reference since=- src=sdsys/messages/11987:1#b700615f
 
 ```
 No line holds that text
 ```
-
-cited by: `sed`
 
 ### msg:11988
 > kind=message tier=reference since=- src=sdsys/messages/11988:1#49c7d49a
@@ -10472,6 +10442,51 @@ cited by: `ide`
 
 cited by: `ide`
 
+### msg:14065
+> kind=message tier=reference since=- src=sdsys/messages/14065:1#d2afa163
+
+```
+Hide the &results~~zoom
+```
+
+cited by: `ide`
+
+### msg:14066
+> kind=message tier=reference since=- src=sdsys/messages/14066:1#1be539f4
+
+```
+File name?
+```
+
+cited by: `ide`
+
+### msg:14067
+> kind=message tier=reference since=- src=sdsys/messages/14067:1#ede65466
+
+```
+Record name in %1?  (? lists the records, ? and a filter lists those)
+```
+
+cited by: `ide`
+
+### msg:14068
+> kind=message tier=reference since=- src=sdsys/messages/14068:1#f8f36094
+
+```
+The records of %1
+```
+
+cited by: `ide`
+
+### msg:14069
+> kind=message tier=reference since=- src=sdsys/messages/14069:1#75ed0c73
+
+```
+&List records~~listrecs
+```
+
+cited by: `ide`
+
 ### msg:1407
 > kind=message tier=reference since=- src=sdsys/messages/1407:1#5f5e6a3b
 
@@ -10639,7 +10654,7 @@ cited by: `basic`, `como`, `cproc`, `printer`
 Record is locked by user %1
 ```
 
-cited by: `ed`, `sed`
+cited by: `ed`
 
 ### msg:1430
 > kind=message tier=reference since=- src=sdsys/messages/1430:1#4ffe33ab
@@ -11270,7 +11285,7 @@ cited by: `analyseidx`, `autologout`, `backupa`, `catalog`, `cd`, `cleanac`, `cl
 File not found
 ```
 
-cited by: `analyseidx`, `buildi`, `ced`, `clearfl`, `cname`, `createi`, `ct`, `delete` and 16 more
+cited by: `analyseidx`, `buildi`, `ced`, `clearfl`, `cname`, `createi`, `ct`, `delete` and 15 more
 
 ### msg:2020
 > kind=message tier=reference since=- src=sdsys/messages/2020:1#ddb8a0ce
@@ -11378,7 +11393,7 @@ cited by: `_voc_cat`
 Use active select list (First item '%1') (y/<n>)? 
 ```
 
-cited by: `cd`, `copy`, `ct`, `delete`, `deletef`, `ed`, `sed`, `setmode`
+cited by: `cd`, `copy`, `ct`, `delete`, `deletef`, `ed`, `setmode`
 
 ### msg:2051
 > kind=message tier=reference since=- src=sdsys/messages/2051:1#26979478
@@ -13929,7 +13944,7 @@ cited by: `settrig`
 Data validation error: %1
 ```
 
-cited by: `cname`, `copy`, `delete`, `ed`, `sed`
+cited by: `cname`, `copy`, `delete`, `ed`
 
 ### msg:3010
 > kind=message tier=reference since=- src=sdsys/messages/3010:1#8ebb8330
@@ -18711,7 +18726,7 @@ cited by: `ed`
 File name? 
 ```
 
-cited by: `ed`, `sed`
+cited by: `ed`
 
 ### msg:6502
 > kind=message tier=reference since=- src=sdsys/messages/6502:1#a95ef750
@@ -18720,7 +18735,7 @@ cited by: `ed`, `sed`
 File name = %1
 ```
 
-cited by: `ed`, `sed`
+cited by: `ed`
 
 ### msg:6503
 > kind=message tier=reference since=- src=sdsys/messages/6503:1#b91733b2
@@ -18729,7 +18744,7 @@ cited by: `ed`, `sed`
 Record name? 
 ```
 
-cited by: `ed`, `sed`
+cited by: `ed`
 
 ### msg:6504
 > kind=message tier=reference since=- src=sdsys/messages/6504:1#41ee50b9
@@ -19249,7 +19264,7 @@ Compiling %1
 Cannot format dictionary item
 ```
 
-cited by: `ed`, `sed`
+cited by: `ed`
 
 ### msg:6562
 > kind=message tier=reference since=- src=sdsys/messages/6562:1#6f050a46
@@ -19945,16 +19960,12 @@ Press Return to add a new item, Kill line to remove next item
 Tab interval in &SED.OPTIONS& must be in range 1 to 99
 ```
 
-cited by: `sed`
-
 ### msg:6628
 > kind=message tier=reference since=- src=sdsys/messages/6628:1#e7843bca
 
 ```
 Unrecognized option keyword in &SED.OPTIONS& (%1)
 ```
-
-cited by: `sed`
 
 ### msg:6629
 > kind=message tier=reference since=- src=sdsys/messages/6629:1#8c15b37b
@@ -19963,16 +19974,12 @@ cited by: `sed`
 Require line number or field,value,subvalue position
 ```
 
-cited by: `sed`
-
 ### msg:6630
 > kind=message tier=reference since=- src=sdsys/messages/6630:1#aeace272
 
 ```
 Error in field,value,subvalue position
 ```
-
-cited by: `sed`
 
 ### msg:6631
 > kind=message tier=reference since=- src=sdsys/messages/6631:1#2e26f7f8
@@ -19995,16 +20002,12 @@ Query replace:
 Replace by: 
 ```
 
-cited by: `sed`
-
 ### msg:6634
 > kind=message tier=reference since=- src=sdsys/messages/6634:1#eff060b9
 
 ```
 Too many buffers
 ```
-
-cited by: `sed`
 
 ### msg:6635
 > kind=message tier=reference since=- src=sdsys/messages/6635:1#a8e61f72
@@ -20013,8 +20016,6 @@ cited by: `sed`
 End of line
 ```
 
-cited by: `sed`
-
 ### msg:6636
 > kind=message tier=reference since=- src=sdsys/messages/6636:1#1d6d520e
 
@@ -20022,7 +20023,7 @@ cited by: `sed`
 Import file: 
 ```
 
-cited by: `ed`, `sed`
+cited by: `ed`
 
 ### msg:6637
 > kind=message tier=reference since=- src=sdsys/messages/6637:1#9b5e24d4
@@ -20031,7 +20032,7 @@ cited by: `ed`, `sed`
 Record: 
 ```
 
-cited by: `ed`, `sed`
+cited by: `ed`
 
 ### msg:6638
 > kind=message tier=reference since=- src=sdsys/messages/6638:1#e7e1f137
@@ -20047,16 +20048,12 @@ Extension:
 Value/subvalue not present. Extend item?
 ```
 
-cited by: `sed`
-
 ### msg:6640
 > kind=message tier=reference since=- src=sdsys/messages/6640:1#f1124044
 
 ```
 Not found.
 ```
-
-cited by: `sed`
 
 ### msg:6641
 > kind=message tier=reference since=- src=sdsys/messages/6641:1#beff1a84
@@ -20065,8 +20062,6 @@ cited by: `sed`
 Modified edit buffer for this record will be lost. Continue with delete?
 ```
 
-cited by: `sed`
-
 ### msg:6642
 > kind=message tier=reference since=- src=sdsys/messages/6642:1#6a3ea989
 
@@ -20074,16 +20069,12 @@ cited by: `sed`
 The buffer for this record will also be deleted. Continue with delete?
 ```
 
-cited by: `sed`
-
 ### msg:6643
 > kind=message tier=reference since=- src=sdsys/messages/6643:1#2acd6187
 
 ```
 Unable to delete item
 ```
-
-cited by: `sed`
 
 ### msg:6644
 > kind=message tier=reference since=- src=sdsys/messages/6644:1#31d4bafd
@@ -20106,16 +20097,12 @@ Error %1 running extension
 Record not found. Press RETURN to continue.
 ```
 
-cited by: `sed`
-
 ### msg:6647
 > kind=message tier=reference since=- src=sdsys/messages/6647:1#f63548ef
 
 ```
 Illegal buffer number
 ```
-
-cited by: `sed`
 
 ### msg:6648
 > kind=message tier=reference since=- src=sdsys/messages/6648:1#3f495ead
@@ -20124,16 +20111,12 @@ cited by: `sed`
 Cannot delete only buffer
 ```
 
-cited by: `sed`
-
 ### msg:6649
 > kind=message tier=reference since=- src=sdsys/messages/6649:1#efe2c63a
 
 ```
 Delete modified buffer?
 ```
-
-cited by: `sed`
 
 ### msg:6650
 > kind=message tier=reference since=- src=sdsys/messages/6650:1#81d7e4ab
@@ -20142,16 +20125,12 @@ cited by: `sed`
 Replace? (Space = replace, Return = skip, Cancel = abort)
 ```
 
-cited by: `sed`
-
 ### msg:6651
 > kind=message tier=reference since=- src=sdsys/messages/6651:1#962ae267
 
 ```
 Writing record...
 ```
-
-cited by: `sed`
 
 ### msg:6652
 > kind=message tier=reference since=- src=sdsys/messages/6652:1#5d0d53e4
@@ -20160,8 +20139,6 @@ cited by: `sed`
 Error %1 writing record
 ```
 
-cited by: `sed`
-
 ### msg:6653
 > kind=message tier=reference since=- src=sdsys/messages/6653:1#a362bce5
 
@@ -20169,7 +20146,7 @@ cited by: `sed`
 This record may not be written
 ```
 
-cited by: `ide`, `sed`
+cited by: `ide`
 
 ### msg:6654
 > kind=message tier=reference since=- src=sdsys/messages/6654:1#6b7e645e
@@ -20178,16 +20155,12 @@ cited by: `ide`, `sed`
 Search: 
 ```
 
-cited by: `sed`
-
 ### msg:6655
 > kind=message tier=reference since=- src=sdsys/messages/6655:1#efb4a5b7
 
 ```
 Key binding for action %1 does not start with a control character
 ```
-
-cited by: `sed`
 
 ### msg:6656
 > kind=message tier=reference since=- src=sdsys/messages/6656:1#1426f19e
@@ -20196,16 +20169,12 @@ cited by: `sed`
 Duplicate key bindings. Actions %1 and %2
 ```
 
-cited by: `sed`
-
 ### msg:6657
 > kind=message tier=reference since=- src=sdsys/messages/6657:1#042ae8d5
 
 ```
 Ambiguous key bindings. Actions %1 and %2
 ```
-
-cited by: `sed`
 
 ### msg:6658
 > kind=message tier=reference since=- src=sdsys/messages/6658:1#633d08ee
@@ -20214,16 +20183,12 @@ cited by: `sed`
 Press key for which encoding is to be inserted
 ```
 
-cited by: `sed`
-
 ### msg:6659
 > kind=message tier=reference since=- src=sdsys/messages/6659:1#343d9339
 
 ```
 Press RETURN to resume editing.
 ```
-
-cited by: `sed`
 
 ### msg:6660
 > kind=message tier=reference since=- src=sdsys/messages/6660:1#86eaebe6
@@ -20232,16 +20197,12 @@ cited by: `sed`
 Building list of records in file...
 ```
 
-cited by: `sed`
-
 ### msg:6661
 > kind=message tier=reference since=- src=sdsys/messages/6661:1#ae77090c
 
 ```
 Reading record...
 ```
-
-cited by: `sed`
 
 ### msg:6662
 > kind=message tier=reference since=- src=sdsys/messages/6662:1#172ecaf3
@@ -20250,16 +20211,12 @@ cited by: `sed`
 Record is locked for creation by another user.
 ```
 
-cited by: `sed`
-
 ### msg:6663
 > kind=message tier=reference since=- src=sdsys/messages/6663:1#54fe5462
 
 ```
 Create new record?
 ```
-
-cited by: `sed`
 
 ### msg:6664
 > kind=message tier=reference since=- src=sdsys/messages/6664:1#8a53e094
@@ -20268,16 +20225,12 @@ cited by: `sed`
 Record is locked by another user. Read only access available
 ```
 
-cited by: `sed`
-
 ### msg:6665
 > kind=message tier=reference since=- src=sdsys/messages/6665:1#75d6a174
 
 ```
 New record.
 ```
-
-cited by: `sed`
 
 ### msg:6666
 > kind=message tier=reference since=- src=sdsys/messages/6666:1#d4ca6304
@@ -20286,16 +20239,12 @@ cited by: `sed`
 Error reloading record.
 ```
 
-cited by: `sed`
-
 ### msg:6667
 > kind=message tier=reference since=- src=sdsys/messages/6667:1#67bfc9d5
 
 ```
 File name: 
 ```
-
-cited by: `sed`
 
 ### msg:6668
 > kind=message tier=reference since=- src=sdsys/messages/6668:1#f508640b
@@ -20304,16 +20253,12 @@ cited by: `sed`
 Old buffer
 ```
 
-cited by: `sed`
-
 ### msg:6669
 > kind=message tier=reference since=- src=sdsys/messages/6669:1#8a1a3d4d
 
 ```
 Write file: 
 ```
-
-cited by: `sed`
 
 ### msg:6670
 > kind=message tier=reference since=- src=sdsys/messages/6670:1#5275efb8
@@ -20322,16 +20267,12 @@ cited by: `sed`
 File not found. Press RETURN to continue.
 ```
 
-cited by: `sed`
-
 ### msg:6671
 > kind=message tier=reference since=- src=sdsys/messages/6671:1#1474cbed
 
 ```
 Record exists. Overwrite?
 ```
-
-cited by: `sed`
 
 ### msg:6672
 > kind=message tier=reference since=- src=sdsys/messages/6672:1#3fb9b97f
@@ -20340,16 +20281,12 @@ cited by: `sed`
 Export record: 
 ```
 
-cited by: `sed`
-
 ### msg:6673
 > kind=message tier=reference since=- src=sdsys/messages/6673:1#b91169f0
 
 ```
 No buffers available
 ```
-
-cited by: `sed`
 
 ### msg:6674
 > kind=message tier=reference since=- src=sdsys/messages/6674:1#d18b6c61
@@ -20358,7 +20295,7 @@ cited by: `sed`
 Quoted string contains delimiter
 ```
 
-cited by: `ide`, `sed`
+cited by: `ide`
 
 ### msg:6675
 > kind=message tier=reference since=- src=sdsys/messages/6675:1#f9d352b1
@@ -20367,7 +20304,7 @@ cited by: `ide`, `sed`
 Template string may not contain both single and double quotes
 ```
 
-cited by: `ide`, `sed`
+cited by: `ide`
 
 ### msg:6676
 > kind=message tier=reference since=- src=sdsys/messages/6676:1#270d6a33
@@ -20376,16 +20313,12 @@ cited by: `ide`, `sed`
 Rebuilding explore buffer...
 ```
 
-cited by: `sed`
-
 ### msg:6677
 > kind=message tier=reference since=- src=sdsys/messages/6677:1#aff2bf39
 
 ```
 (no lock)
 ```
-
-cited by: `sed`
 
 ### msg:6678
 > kind=message tier=reference since=- src=sdsys/messages/6678:1#2a088e48
@@ -20394,16 +20327,12 @@ cited by: `sed`
 No mark
 ```
 
-cited by: `sed`
-
 ### msg:6679
 > kind=message tier=reference since=- src=sdsys/messages/6679:1#e4571490
 
 ```
 Not now
 ```
-
-cited by: `sed`
 
 ### msg:6680
 > kind=message tier=reference since=- src=sdsys/messages/6680:1#608e2342
@@ -20412,16 +20341,12 @@ cited by: `sed`
 Buffer has no associated file
 ```
 
-cited by: `sed`
-
 ### msg:6681
 > kind=message tier=reference since=- src=sdsys/messages/6681:1#7468b69e
 
 ```
 Read only buffer
 ```
-
-cited by: `sed`
 
 ### msg:6682
 > kind=message tier=reference since=- src=sdsys/messages/6682:1#4c48c8b4
@@ -20430,16 +20355,12 @@ cited by: `sed`
 Record changed.  Quit without saving? 
 ```
 
-cited by: `sed`
-
 ### msg:6683
 > kind=message tier=reference since=- src=sdsys/messages/6683:1#e7d3c5a2
 
 ```
 Command: 
 ```
-
-cited by: `sed`
 
 ### msg:6684
 > kind=message tier=reference since=- src=sdsys/messages/6684:1#edc36dd8
@@ -20448,16 +20369,12 @@ cited by: `sed`
 Cannot compile dictionary item.
 ```
 
-cited by: `sed`
-
 ### msg:6685
 > kind=message tier=reference since=- src=sdsys/messages/6685:1#e5ccda5d
 
 ```
 Compiling %1 %2
 ```
-
-cited by: `sed`
 
 ### msg:6686
 > kind=message tier=reference since=- src=sdsys/messages/6686:1#30f33877
@@ -20466,16 +20383,12 @@ cited by: `sed`
 Compilation complete
 ```
 
-cited by: `sed`
-
 ### msg:6687
 > kind=message tier=reference since=- src=sdsys/messages/6687:1#c5c8167b
 
 ```
 Compiled with errors
 ```
-
-cited by: `sed`
 
 ### msg:6688
 > kind=message tier=reference since=- src=sdsys/messages/6688:1#a2631a48
@@ -20491,16 +20404,12 @@ Compiling extension...
 Key bindings = %1
 ```
 
-cited by: `sed`
-
 ### msg:6690
 > kind=message tier=reference since=- src=sdsys/messages/6690:1#2b56264d
 
 ```
 Default (fundamental) key bindings in use
 ```
-
-cited by: `sed`
 
 ### msg:6691
 > kind=message tier=reference since=- src=sdsys/messages/6691:1#b66e6348
@@ -20509,16 +20418,12 @@ cited by: `sed`
 Unrecognized LNUM option - Expected ON, OFF, ALL, ON ALL or OFF ALL
 ```
 
-cited by: `sed`
-
 ### msg:6692
 > kind=message tier=reference since=- src=sdsys/messages/6692:1#7d221130
 
 ```
 No key binding record name given
 ```
-
-cited by: `sed`
 
 ### msg:6693
 > kind=message tier=reference since=- src=sdsys/messages/6693:1#fde01dd0
@@ -20527,16 +20432,12 @@ cited by: `sed`
 Key binding record not found
 ```
 
-cited by: `sed`
-
 ### msg:6694
 > kind=message tier=reference since=- src=sdsys/messages/6694:1#49a8ccac
 
 ```
 Cannot load key bindings - &SED.BINDINGS& file not open
 ```
-
-cited by: `sed`
 
 ### msg:6695
 > kind=message tier=reference since=- src=sdsys/messages/6695:1#6ae99571
@@ -20545,8 +20446,6 @@ cited by: `sed`
 Cannot save key bindings - &SED.BINDINGS& file not open
 ```
 
-cited by: `sed`
-
 ### msg:6696
 > kind=message tier=reference since=- src=sdsys/messages/6696:1#2c273b1f
 
@@ -20554,7 +20453,7 @@ cited by: `sed`
 Destination printer name required after %1
 ```
 
-cited by: `ide`, `sed`
+cited by: `ide`
 
 ### msg:6697
 > kind=message tier=reference since=- src=sdsys/messages/6697:1#36eb50d1
@@ -20570,8 +20469,6 @@ Unexpected arguments in SPOOL command
 Wait...
 ```
 
-cited by: `sed`
-
 ### msg:6699
 > kind=message tier=reference since=- src=sdsys/messages/6699:1#9a7d0c4b
 
@@ -20579,7 +20476,7 @@ cited by: `sed`
 Destination printer not available. Error %1
 ```
 
-cited by: `ide`, `sed`
+cited by: `ide`
 
 ### msg:6700
 > kind=message tier=reference since=- src=sdsys/messages/6700:1#4bd3649a
@@ -21381,7 +21278,7 @@ cited by: `nls`
 (modified)
 ```
 
-cited by: `ide`, `sed`
+cited by: `ide`
 
 ### msg:6911
 > kind=message tier=reference since=- src=sdsys/messages/6911:1#61de5ba7
@@ -21389,8 +21286,6 @@ cited by: `ide`, `sed`
 ```
 Tab interval must be in range 1 to 99
 ```
-
-cited by: `sed`
 
 ### msg:6912
 > kind=message tier=reference since=- src=sdsys/messages/6912:1#4d53cf68
@@ -21721,8 +21616,6 @@ Data entry key bindings\n\nCtrl-A   Home   Position cursor at start of data\nCtr
 No records
 ```
 
-cited by: `sed`
-
 ### msg:6969
 > kind=message tier=reference since=- src=sdsys/messages/6969:1#c52495cf
 
@@ -21775,16 +21668,12 @@ cited by: `ed`
 A value edit buffer exists for this record
 ```
 
-cited by: `sed`
-
 ### msg:6975
 > kind=message tier=reference since=- src=sdsys/messages/6975:1#47e1745b
 
 ```
 This is a value edit buffer
 ```
-
-cited by: `sed`
 
 ### msg:6976
 > kind=message tier=reference since=- src=sdsys/messages/6976:1#273ccfbd

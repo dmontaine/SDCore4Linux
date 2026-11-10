@@ -96,7 +96,7 @@ run() {   # run BLOCK-VARIABLE-NAME [extra shell to run first]: prints what the 
       eval "$OPTS"
       sdsysdir="$SDSYSDIR"; RED=; NC=
       mkdir -p "$T/tmpd"; export TMPDIR="$T/tmpd"
-      REPO_BRANCH="$REPO_BRANCH_V"; DOCS_URL="$DOCS_URL_V"; REPO_URL="$REPO_URL_V"
+      REPO_BRANCH="$REPO_BRANCH_V"; DOCS_URL="$DOCS_URL_V"; REPO_URL="$REPO_URL_V"; pkg_source=""
       sudo() { ( IFS=" "; printf "%s\n" "$*" ) >> "$SUDO_LOG"; "$@"; }
       chown() { ( IFS=" "; printf "%s\n" "$*" ) >> "$T/chown.log"; }
       git() {

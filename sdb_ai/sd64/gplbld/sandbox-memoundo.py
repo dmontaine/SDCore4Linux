@@ -264,9 +264,9 @@ cap.test:
    crt char(10) : 'CAP2[LINES=':(count(w{'value'}, @fm) + 1):' LEFT=':(w{'ukn'} + 0):' REDO=':(w{'rkn'} + 0):']'
    return
 
-* a text of 30,000 characters and 60 Returns: the steps are over a million characters in all, so the oldest go
+* a text of 200,000 characters and 60 Returns: the steps are over 8,000,000 characters in all, so the oldest go
 big.test:
-   r0 = str('a', 30000)
+   r0 = str('a', 200000)
    gosub new.memo
    for kn = 1 to 60
       key.n = 'enter' ; gosub do.key
@@ -413,8 +413,8 @@ def main():
         row("CAP1: 150 Returns keep the newest 100 steps (STEPS 100) and the text has 151 lines", c1.get("STEPS") == "100" and c1.get("LINES") == "151", repr(tag(out, "CAP1")))
         row("CAP2: 250 undos go back exactly 100 steps and no further: 51 lines, nothing left to undo, 100 to redo", c2.get("LINES") == "51" and c2.get("LEFT") == "0" and c2.get("REDO") == "100", repr(tag(out, "CAP2")))
         bg = counts(tag(out, "BIG"))
-        row("BIG: steps of about 30,000 characters are kept to a million characters at most - between 30 and 34 steps, not 60, and the characters held do not pass 1,000,000",
-            30 <= num(bg, "STEPS") <= 34 and 0 < num(bg, "CHARS") <= 1000000, repr(tag(out, "BIG")))
+        row("BIG: steps of about 200,000 characters are kept to 8,000,000 characters at most - between 38 and 42 steps, not 60, and the characters held do not pass 8,000,000",
+            38 <= num(bg, "STEPS") <= 42 and 0 < num(bg, "CHARS") <= 8000000, repr(tag(out, "BIG")))
         for k in range(1, 7):
             cs = counts(tag(out, "CASE%d" % k))
             row("CASE%d: a record with marks and a few key runs comes back from Ctrl-Z exactly (and the keys did change it)" % k, cs.get("SAME") == "1" and cs.get("CHANGED") == "1", repr(tag(out, "CASE%d" % k)))
