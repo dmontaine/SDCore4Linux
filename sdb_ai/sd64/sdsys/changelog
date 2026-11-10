@@ -1,6 +1,24 @@
 Next release - in progress
 --------------------------
 
+10 Nov 26  THE SOURCE IS DISTRIBUTED WITH THE INSTALLER AND IS NO LONGER INSTALLED.
+
+             What        - The install compiles SD and then removes the BASIC programs' source (gpl.bp), the C source and objects (gplsrc,
+                           gplobj), the build files and their entries in the SDSYS VOC. An upgrade removes what an earlier install left.
+                           The compiled system runs as before, and programs of your own compile as before.
+             Why         - GPL 3 asks that the source goes with the program, not that it is installed. The complete source is in the
+                           source folder of the release zip and in the repository.
+             Not changed - syscom, whose headers your own programs include, and terminfo.src stay. Anyone who wants to read or change
+                           SD's source uses the zip or the repository and builds from there.
+
+10 Nov 26  CED NEEDS 140 BY 43, THE SAME WINDOW AS THE IDE AND THE FULL-SCREEN PAGES.
+
+             What        - The collection editor (!CED() and the IDE's F12 Edit as fields) is laid out for 140 columns by 43
+                           lines; it was 140 by 42. It shows one more element on a page.
+             Why         - Every other full-screen program needs 140 by 43, SD's default size; CED was the one exception.
+             Not changed - A window below the minimum is still refused at the start, and one made smaller while CED runs still
+                           holds the keyboard behind the warning.
+
 10 Nov 26  A SESSION WHOSE CONNECTION DROPS CAN NO LONGER STOP EVERY LOGIN.
 
              What        - When a session's terminal or ssh connection went away, SD wrote "Received termination signal"

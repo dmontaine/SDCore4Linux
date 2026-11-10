@@ -15,6 +15,7 @@
 #               ends its input.  The refusal, the shrink and the cursor lock are sandbox-ide-small.py's.
 # 29 Oct 26 dm  S.88 g-P1: the `ced` verb is no longer shipped (gpl.bp/ced is an unshipped test driver), so the run writes the VOC record
 #               itself with cedverb.install() after the sandbox starts; a failure to write it is exit 2.  WRITTEN, NOT RUN.
+# 10 Nov 26 dm  S.193: the window is 140 by 43: the default size of Ced(), the page of 38 elements, the piped session.
 # END-HISTORY
 #
 # HOW IT DRIVES THE EDITOR.  On a PSEUDO-TERMINAL (ptydrive.py), not a pipe: SD reads a piped stdin a byte at a time
@@ -89,7 +90,7 @@ def sess(box, *cmds):
 class Ced:
     """One run of a command on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd, cols=140, rows=42, pre=()):
+    def __init__(self, box, cmd, cols=140, rows=43, pre=()):
         self.box = box
         self.cols = cols
         self.rows = rows
@@ -361,9 +362,9 @@ end
         e = Ced(box, "CED %s big" % C)
         L = e.lines()
         per = len(names(L))
-        row("a window of 42 lines shows 37 elements at a time", per == 37 and nth(names(L), 0) == "k01", repr(names(L)))
+        row("a window of 43 lines shows 38 elements at a time", per == 38 and nth(names(L), 0) == "k01", repr(names(L)))
         L = e.keys(PGDN)
-        row("Page down moves to the next page", nth(names(L), 0) == "k38" and selected(L) == "k38", "%r %r" % (names(L)[:2], selected(L)))
+        row("Page down moves to the next page", nth(names(L), 0) == "k39" and selected(L) == "k39", "%r %r" % (names(L)[:2], selected(L)))
         L = e.keys(PGUP)
         row("Page up moves back", nth(names(L), 0) == "k01" and selected(L) == "k01", "%r %r" % (names(L)[:2], selected(L)))
         L = e.keys(END)
@@ -723,7 +724,7 @@ end
         e.s.type("PTERM DISPLAY\r", idle=0.8)
         row("after the editor the break key is trapped again (PTERM shows Break trapping: On)", ran and "Break trapping: On" in e.text(), e.text()[-300:])
         e.end()
-        p = subprocess.run([os.path.join(sysd, "bin", "sd")], input=("\nTERM 140,42\nCED %s e38\n" % C).encode(), cwd=os.path.join(box, "user_accounts"),
+        p = subprocess.run([os.path.join(sysd, "bin", "sd")], input=("\nTERM 140,43\nCED %s e38\n" % C).encode(), cwd=os.path.join(box, "user_accounts"),
                            env=dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf")), capture_output=True, timeout=90)
         row("when its input ends (a pipe, a dropped line) the editor gives up and the session ends: it does not loop",
             p.returncode == 0 and b"Collection editor" in p.stdout, "exit %s, editor drawn: %s" % (p.returncode, b"Collection editor" in p.stdout))

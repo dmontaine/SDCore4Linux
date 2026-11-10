@@ -31,6 +31,7 @@
 #               warning names 140 by 43 for it.  CED keeps 140 by 42.  WRITTEN with the change; run once with it.
 # 9 Nov 26 dm   S.134: CED holds the WINDOW lock (layout mode), so parts C and E judge it as part C judges the IDE: locked at once under 140 by 42 although its selected
 #               row shows, keys dropped (the layout drawn again equals the start's; '>' still on k01).  Mutant cedcursor puts the cursor mode back (parts c, e).
+# 10 Nov 26 dm  S.193: CED's floor is 140 by 43 (LAY_H, the path and message rows, the refused sizes, !CED()'s message).
 # END-HISTORY
 #
 # HOW IT DRIVES THEM.  On a PSEUDO-TERMINAL (ptydrive.py), the window size set BEFORE SD starts (it asks the tty when it starts) and
@@ -68,7 +69,7 @@ SCR = "zzisscr" + RUN                                # a user's SCREEN OPEN prog
 passed = failed = 0
 BOX = SYS = None
 
-LAY_W, LAY_H = 140, 42                              # what CED is laid out for
+LAY_W, LAY_H = 140, 43                             # what CED is laid out for
 DBG_H = 43                                          # what the debugger is laid out for since S.98 (1 Nov 26): the toolkit's floor, its foot the status line (row 40), a border and the key row
 IDE_H = 43                                          # what the IDE is laid out for since the window lock (28 Oct 26): 140 by 43, its foot is the status line (row 40), a border and the key row
 UP, DOWN, LEFT, RIGHT = "\x1bOA", "\x1bOB", "\x1bOD", "\x1bOC"
@@ -276,10 +277,10 @@ def part_a():
 
     e = Term(BOX, "CED %s j1" % F)
     base = list(e.lines())
-    row("control: CED is up at 140 by 42 with the record's members in the table (the first at row 2)",
+    row("control: CED is up at 140 by 43 with the record's members in the table (the first at row 2)",
         "k01" in base[2] and "value 01" in base[2], text(base, 4))
-    row("...the path is on row 40 and the message line on row 41", base[40].strip() != "" and base[41].strip() != "",
-        repr(base[40][:40]) + repr(base[41][:40]))
+    row("...the path is on row 41 and the message line on row 42", base[41].strip() != "" and base[42].strip() != "",
+        repr(base[41][:40]) + repr(base[42][:40]))
     e.end()
     e = Term(BOX, "CED %s j1" % F, 200, 60)
     L = e.lines()
@@ -289,9 +290,9 @@ def part_a():
 
 
 def part_b():
-    say("\n--- B: a window under the floor at the start (the IDE 140 by 43, CED 140 by 42, the debugger 140 by 43): refused, the debugger uses line mode ---")
+    say("\n--- B: a window under the floor at the start (the IDE, CED and the debugger, all 140 by 43): refused, the debugger uses line mode ---")
     for (cmd, name, fh, sizes) in (("IDE", "IDE", IDE_H, ((80, 24), (100, 30), (120, 36), (139, 43), (140, 42))),
-                                   ("CED %s j1" % F, "CED", LAY_H, ((80, 24), (100, 30), (120, 36), (139, 42), (140, 41)))):
+                                   ("CED %s j1" % F, "CED", LAY_H, ((80, 24), (100, 30), (120, 36), (139, 43), (140, 42)))):
         for (c, r) in sizes:
             e = Term(BOX, cmd, c, r)
             L = e.lines()
@@ -316,20 +317,20 @@ def part_b():
     e = Term(BOX, "IDE %s r1" % F, 140, IDE_H)
     row("control: exactly 140 by 43 starts the IDE", e.lines()[1].startswith("+- IDE"), repr(e.lines()[1][:20]))
     e.end()
-    e = Term(BOX, "CED %s j1" % F, 140, 42)
-    row("control: exactly 140 by 42 starts CED", "k01" in e.lines()[2], repr(e.lines()[2][:40]))
+    e = Term(BOX, "CED %s j1" % F, 140, LAY_H)
+    row("control: exactly 140 by 43 starts CED", "k01" in e.lines()[2], repr(e.lines()[2][:40]))
     leave(e)
 
     say("\n--- B: !CED() from a user's program is refused the same way, with the program going on --------------------------------")
     e = Term(BOX, "RUN bp zzisced", 100, 30)
     L = e.lines()
     row("100x30: !CED() prints the message and returns; the program goes on (CEDBACK) and nothing was drawn",
-        any("CED needs a window of at least 140 columns by 42 lines; this one is 100 by 30" in l for l in L) and any("CEDBACK" in l for l in L)
+        any("CED needs a window of at least 140 columns by 43 lines; this one is 100 by 30" in l for l in L) and any("CEDBACK" in l for l in L)
         and not any("k01" in l for l in L), text(L, 12))
     e.end()
-    e = Term(BOX, "RUN bp zzisced", 140, 42)
+    e = Term(BOX, "RUN bp zzisced", 140, LAY_H)
     L = e.lines()
-    row("control: at 140x42 the same program shows the editor", any("k01" in l for l in L) and not any("CEDBACK" in l for l in L), text(L, 6))
+    row("control: at 140x43 the same program shows the editor", any("k01" in l for l in L) and not any("CEDBACK" in l for l in L), text(L, 6))
     leave(e)
 
     say("\n--- B: the debugger on a window under 140 by 43: the message once, then line mode (not a refusal) ---------------------")

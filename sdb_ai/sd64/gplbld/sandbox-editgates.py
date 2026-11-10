@@ -19,6 +19,7 @@
 #               file, the private catalogue, a record called sample.bp).  Not driven: SP.VIEW, PHANTOM LOG, apisrvr.
 # 28 Oct 26 dm  The editor merge, stage B: the editors section has a row for the IDE on a dictionary item (IDE DICT zzd zzq), which is saved only through
 #               dict.edit; written, NOT run (the owner's rule: one complete run at the end).
+# 10 Nov 26 dm  S.193: every full-screen editor, CED included, is driven at 140 by 43.
 # END-HISTORY
 #
 # It uses sandbox-gates.py's way of making ordinary sessions in fixture accounts, by loading that file.  Every fixture account holds the
@@ -385,7 +386,7 @@ def pty_edit(account, cmd, keys, leave):
     env.pop("SDTEST_ADMIN", None)
     env.pop("SSH_CONNECTION", None)
     say("    > pty %s: %s | keys %r" % (account, cmd, keys))
-    rows = 43 if cmd.split()[0].upper() in ("IDE", "SED") else 42                   # 18 Oct 26: SED is 140 by 42 (it was 120 by 36); the IDE 140 by 43 since its window lock (28 Oct 26); SED 140 by 43 since S.99 (SED.ROWS, the key row)
+    rows = 43                                                                       # S.193: every full-screen editor (the IDE, SED, CED) is 140 by 43
     s = PtySession([g.SD, "-a" + account], acct_path(account), env, 140, rows)
     s.settle(1.0)
     s.type("TERM xterm\r")

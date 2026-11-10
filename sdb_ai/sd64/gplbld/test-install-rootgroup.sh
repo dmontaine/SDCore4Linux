@@ -100,7 +100,7 @@ row "R3 a failing gpasswd warns with the command and goes on with status 0" \
 
 ln_of() { grep -n -m1 -E "$1" "$INST" | cut -d: -f1; }
 lu=$(ln_of '^sudo usermod -a -G sdusers root$')
-lc=$(ln_of '^if ! sudo bin/sd -internal BASIC gpl.bp cproc; then$')
+lc=$(ln_of '^final_out=.*BASIC gpl\.bp cproc.*sudo bin/sd -internal ')   # S.198: the final compile is one session with the removal of the VOC records
 lb=$(ln_of '^# ROOT-SDUSERS-BEGIN$')
 # the last root-run SD session command: sudo ... bin/sd (or $sdsysdir/bin/sd) with anything but -start / -stop, not sudo -u sdsys, not a comment or an echo
 # Function BODIES are left out (a function's line says nothing of when it runs); the call of a function that holds one stands for it.

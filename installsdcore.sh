@@ -112,6 +112,9 @@
 #   30 Oct 2026 dm - S.89: that block never removed anything, because this script's
 #   IFS made its list of names one word; the names are now the literal words of the
 #   for statement.
+#
+#   10 Nov 2026 dm - S.198: the SOURCE-GONE block compiles the last program and then
+#   removes the source and the build files from the installed tree.
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -2593,14 +2596,33 @@ fix_gcat_modes() {
     sudo chown -R sdsys:sdusers "$sdsysdir/gcat"
 }
 # GCAT-MODE-END
+# 10 Nov 26 dm - S.198 (owner: "the gpl.bp and c source should never be installed just distributed with the installer"; "it applies to linux, as long is
+#            the source is available in the install zip package").  After this compile root can no longer run SD, so the VOC records that name the source
+#            go in the SAME session: the cproc in that session's memory is the installing one.  The records leave voc_template too, or the SDSYS account's
+#            VOC update at a login would bring them back.  An upgrade copies the source in for its build, so this also clears what an older install left.
+# SOURCE-GONE-BEGIN
 echo "Compiling CPROC without IS_INSTALL defined."
-sudo bash -c 'echo "*comment out * $define IS_INSTALL" > /usr/local/sdsys/gpl.bp/define_install.h'
-if ! sudo bin/sd -internal BASIC gpl.bp cproc; then
+sudo bash -c 'echo "*comment out * $define IS_INSTALL" > "$1"' define-install "$sdsysdir/gpl.bp/define_install.h"
+final_rc=0
+final_out=$(printf '\nTERM 200,9999\nBASIC gpl.bp cproc\nDELETE VOC gpl.bp first.compile second.compile\nOFF\n' | sudo bin/sd -internal 2>&1) || final_rc=$?
+printf '%s\n' "$final_out"
+if [ "$final_rc" -ne 0 ] || ! printf '%s\n' "$final_out" | grep -qF 'Compiled 1 program(s) with no errors' \
+   || ! printf '%s\n' "$final_out" | grep -qF '3 record(s) deleted'; then
     printf "%b\n" "$RED"
     echo "CPROC recompile failed. Install terminated!"
     printf "%b\n" "$NC"
     exit 1
 fi
+for source_item in gpl.bp gplsrc gplobj gplbld gpl.src Makefile voc_template/gpl.bp voc_template/first.compile voc_template/second.compile; do
+    sudo rm -rf -- "$sdsysdir/$source_item"
+    if sudo test -e "$sdsysdir/$source_item"; then
+        printf "%b\n" "$RED"
+        echo "$sdsysdir/$source_item could not be removed. Install terminated!"
+        printf "%b\n" "$NC"
+        exit 1
+    fi
+done
+# SOURCE-GONE-END
 fix_gcat_modes
 #
 echo

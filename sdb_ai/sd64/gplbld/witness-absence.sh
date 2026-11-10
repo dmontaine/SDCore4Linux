@@ -13,6 +13,15 @@
 #
 # ***NEEDS sudo, ONLY FOR --commit.***  The dry run changes nothing.
 #
+# ON A MACHINE WHERE ROOT CANNOT SET A LOGINUID (a container; S.197), the bridge below cannot make a sdsys login, so the administrator is
+# reached by a real ssh login as sdsys instead.  That needs remote.sdsys on and the password in a file only root can read:
+#
+#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-absence.sh --commit --sdsys-password-file /path/to/file
+#
+# With neither route the run stops, exit 2, and says so; it does not report the rows as failures of the product.
+#
+# 10 Nov 26 dm  S.197: the two administrator routes (sdsys_session, choose_sdsys_route).  S.198: M14 reads gpl.bp.out, and M15 holds that no source is installed.
+#
 # WHAT IT PROVES ABSENT
 #   M1  no tier policy: /usr/local/sdsys/tier.policy is not there, and the
 #       TIERGATE program is not in sdsys's VOC (S.25).
@@ -58,13 +67,19 @@ set -u
 SELF="$(readlink -f "$0")"
 SD_BIN="/usr/local/sdsys/bin/sd"
 COMMIT=0
-case "${1:-}" in
-  --commit) COMMIT=1 ;;
-  "") ;;
-  *) echo "usage: $0 [--commit]" >&2; exit 2 ;;
-esac
+SDSYS_PWFILE=""
+SDSYS_ROUTE=bridge   # S.197: bridge (root adopts sdsys's loginuid) or ssh (a real ssh login as sdsys); chosen once, by choose_sdsys_route
+ASKPASS=""
+usage() { echo "usage: $0 [--commit [--sdsys-password-file FILE]]" >&2; exit 2; }
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --commit) COMMIT=1; shift ;;
+    --sdsys-password-file) [ $# -ge 2 ] || usage; SDSYS_PWFILE="$2"; shift 2 ;;
+    *) usage ;;
+  esac
+done
 
-PASS=0; FAIL=0; NOT_REACHED=0
+PASS=0; FAIL=0; NOT_REACHED=0; SKIPPED=0
 say()  { printf '%s\n' "$*"; }
 head2() { say ""; say "=== $* ============================================"; }
 ck() {   # name, want, got
@@ -95,6 +110,46 @@ MARKER="$SDSYS/\$attach.$ACC"   # 19 Sep 26: ADOPT renamed ATTACH, the port's na
 PW_OS=""
 MADE_ACCOUNT=0
 SHSENT="/tmp/zzabst-sh-sentinel.$$"   # M4: made by SH as the account, read and removed by this script
+
+# 10 Nov 26 dm - S.197: one piped session as the administrator, its text on stdin.  The bridge (see run_sd_as) needs a root that may set a
+#   loginuid; an unprivileged container's root may not, and SD then rightly refuses the session (10195), so on such a machine the session
+#   is a real ssh login as sdsys, which is the administrator's documented route on a headless machine.
+sdsys_session() {
+  if [ "$SDSYS_ROUTE" = ssh ]; then
+    SSH_ASKPASS="$ASKPASS" SSH_ASKPASS_REQUIRE=force timeout 90 ssh -T -F /dev/null \
+      -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 \
+      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR sdsys@127.0.0.1
+  else
+    timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD_BIN"
+  fi
+}
+
+# S.197: the route, chosen by measuring, with what was measured printed.  The null case is refused: no route is exit 2, not 46 NOT REACHED.
+choose_sdsys_route() {
+  local uid got arm out
+  uid=$(id -u sdsys 2>/dev/null)
+  if [ -z "$uid" ]; then say "  administrator route: no sdsys user (M7c reports it); the bridge is left chosen"; return 0; fi
+  got=$(sh -c 'printf "%s\n" "$1" > /proc/self/loginuid 2>/dev/null; cat /proc/self/loginuid' sd-probe "$uid" 2>/dev/null)
+  say "  administrator route: wrote loginuid $uid in a child process, read back ${got:-<nothing>}"
+  if [ "$got" = "$uid" ]; then SDSYS_ROUTE=bridge; say "  administrator route: the bridge"; return 0; fi
+  arm=$(/usr/local/sbin/ssh-forcecommand --sdsys-state 2>/dev/null | sed -n 's/^sdsys-arm=//p')
+  say "  administrator route: root cannot set a loginuid here; sdsys ssh arm is ${arm:-<unknown>}; password file ${SDSYS_PWFILE:-<none given>}"
+  if [ "$arm" != open ] || [ -z "$SDSYS_PWFILE" ] || [ ! -s "$SDSYS_PWFILE" ]; then
+    say "  witness-absence: CANNOT RUN - no way to be the administrator here.  This machine needs remote.sdsys on and --sdsys-password-file."
+    exit 2
+  fi
+  ASKPASS=$(mktemp /tmp/zzabst-askpass.XXXXXX) || { say "  witness-absence: CANNOT RUN - mktemp failed"; exit 2; }
+  printf '#!/bin/sh\nexec cat -- %q\n' "$SDSYS_PWFILE" > "$ASKPASS"
+  chmod 700 "$ASKPASS"
+  SDSYS_ROUTE=ssh
+  out=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | sdsys_session 2>&1 | strip)
+  printf '%s\n' "$out" | sed -e 's/^/      | /'
+  if ! printf '%s' "$out" | grep -qF "SD administration granted"; then
+    say "  witness-absence: CANNOT RUN - an ssh login as sdsys did not reach SD as the administrator (output above)."
+    exit 2
+  fi
+  say "  administrator route: a real ssh login as sdsys"
+}
 
 # One piped sd session, run AS SDSYS - the administrator.  A _PW_ line is
 # replaced with $PW_OS (the throwaway Linux password) and echoed as
@@ -130,7 +185,7 @@ run_sd_as() {
 #   reproducing the credential state of a genuine sdsys login (OS user sdsys,
 #   local, loginuid sdsys).  It grants nothing to anybody who is not already
 #   root; M8f measures the un-bridged route and must be refused.
-    out=$(printf '%s' "$body" | timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD_BIN" 2>&1 | strip)
+    out=$(printf '%s' "$body" | sdsys_session 2>&1 | strip)
   elif [ "$user" = root ]; then
     out=$(printf '%s' "$body" | timeout 90 "$SD_BIN" 2>&1 | strip)
   else
@@ -187,8 +242,9 @@ cleanup() {
   if [ "$MADE_ACCOUNT" -eq 1 ] && [ -e "$REGISTER/$ACC" ]; then
     say "  $ACC is still registered; deleting it through SD (as sdsys, REMOVE.HOME)"
     printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC REMOVE.HOME"$'\n''y'$'\n''OFF'$'\n' \
-      | timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD_BIN" >/dev/null 2>&1
+      | sdsys_session >/dev/null 2>&1
   fi
+  [ -n "$ASKPASS" ] && rm -f "$ASKPASS"
   # 18 Sep 26 dm - AND ITS HOME, WHICH IS THIS WITNESS'S OWN TO TAKE AWAY.  A
   #   plain DELETE.ACCOUNT keeps the home by design - REMOVE.HOME is the other
   #   path, the owner's 10 Sep ruling - so a cleanup that did not ask for it left
@@ -201,6 +257,7 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+[ "$COMMIT" -eq 1 ] && choose_sdsys_route
 
 # ==========================================================================
 head2 "M1. no tier policy, no TIERGATE (S.25)"
@@ -567,11 +624,17 @@ if [ "$COMMIT" -eq 1 ]; then
   ck_says "M8c and it was audited" "elevation refused reason=root is not SD administrator" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
 fi
-OUT=$(run_sd "a sdsys login session, by the bridge (granted)" "WHO")
+OUT=$(run_sd "a sdsys login session, by the $SDSYS_ROUTE (granted)" "WHO")
 if [ "$COMMIT" -eq 1 ]; then
-  ck_says "M8d the sdsys login session is granted (10916)" "SD administration granted: this session is the sdsys OS user" "$OUT"
-  ck_says "M8e and the trail says so" "elevation granted reason=sdsys login" \
-    "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
+  if [ "$SDSYS_ROUTE" = ssh ]; then   # S.197: 11795, not the local 10916
+    ck_says "M8d the sdsys login session is granted (11795)" "this session is the sdsys OS user, signed in over ssh" "$OUT"
+    ck_says "M8e and the trail says so" "elevation granted reason=sdsys login over ssh from=127.0.0.1" \
+      "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
+  else
+    ck_says "M8d the sdsys login session is granted (10916)" "SD administration granted: this session is the sdsys OS user" "$OUT"
+    ck_says "M8e and the trail says so" "elevation granted reason=sdsys login" \
+      "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
+  fi
 fi
 if [ "$COMMIT" -eq 1 ]; then
 # 18 Sep 26 dm, NIGHT - THE OWNER'S RULING AS A ROW: no path from another
@@ -614,14 +677,21 @@ head2 "M12. sdsys over ssh: granted for a login that is sdsys's own, refused (10
 if [ "$COMMIT" -eq 0 ]; then
   for r in "M12a granted" "M12b not the old 10191 refusal" "M12c audited with the client address" "M12d su-style session refused in 10195's words" "M12e audited as a session without a sdsys login"; do not_reached "$r"; done
 else
-  say "  a bridged sdsys session (loginuid sdsys) with SSH_CONNECTION set"
-  OUT=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | timeout 90 sudo sh -c \
-        'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys SSH_CONNECTION="10.0.0.9 51000 10.0.0.1 22" "$1"' \
-        sd-run "$SD_BIN" 2>&1 | strip)
+  if [ "$SDSYS_ROUTE" = ssh ]; then   # S.197: the real thing, so the address is the loopback the login came from
+    say "  a real ssh login as sdsys"
+    M12_FROM=127.0.0.1
+    OUT=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | sdsys_session 2>&1 | strip)
+  else
+    say "  a bridged sdsys session (loginuid sdsys) with SSH_CONNECTION set"
+    M12_FROM=10.0.0.9
+    OUT=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | timeout 90 sudo sh -c \
+          'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys SSH_CONNECTION="10.0.0.9 51000 10.0.0.1 22" "$1"' \
+          sd-run "$SD_BIN" 2>&1 | strip)
+  fi
   printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
   ck_says "M12a the administrator is granted" "SD administration granted" "$OUT"
   ck_absent "M12b and NOT refused in the old words (10191)" "may not administer over ssh or the API" "$OUT"
-  ck_says "M12c audited as a login over ssh, with the client address" "elevation granted reason=sdsys login over ssh from=10.0.0.9" \
+  ck_says "M12c audited as a login over ssh, with the client address" "elevation granted reason=sdsys login over ssh from=$M12_FROM" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
   say "  the same variables, but a login that is somebody else's (su sdsys without a dash keeps them)"
   OUT=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | timeout 90 sudo -u sdsys SSH_CONNECTION="10.0.0.9 51000 10.0.0.1 22" "$SD_BIN" 2>&1 | strip)
@@ -848,9 +918,15 @@ else
   # and this still must be admitted - because elevation is checked FIRST and
   # skips the list (and the type test) entirely.  If elevation stopped
   # exempting the gate, this row would refuse with 11002 exactly as M13e did.
-  OUT=$(run_sd_batch sdsys "M13f sdsys, unlisted, a command that fails the type test" "who")
-  ck_absent "M13f elevation admits it anyway: no 11002" "has to be a paragraph or a sentence" "$OUT"
-  ck_absent "M13f2 and no 11000 either" "is not a command that account" "$OUT"
+  # S.197: ssh's ForceCommand drops the command line, so on the ssh route this would be an empty session and the two "absent" rows would
+  #   pass on nothing.  They are skipped, out loud, there.
+  if [ "$SDSYS_ROUTE" = ssh ]; then
+    SKIPPED=$((SKIPPED + 2)); say "  [SKIP] M13f, M13f2: a sd command line as sdsys cannot be given over ssh (ForceCommand); the bridge's rows, on a machine with a loginuid"
+  else
+    OUT=$(run_sd_batch sdsys "M13f sdsys, unlisted, a command that fails the type test" "who")
+    ck_absent "M13f elevation admits it anyway: no 11002" "has to be a paragraph or a sentence" "$OUT"
+    ck_absent "M13f2 and no 11000 either" "is not a command that account" "$OUT"
+  fi
 
   BJ_OWNER=$(stat -c '%U:%G' "$BATCHJOBS" 2>/dev/null)
   BJ_MODE=$(stat -c '%a' "$BATCHJOBS" 2>/dev/null)
@@ -875,9 +951,15 @@ fi
 #   and separators, not a language.  M14a-c no longer list it; M14e is the
 #   other direction - installed, catalogued, in a fresh account's VOC (the
 #   throwaway is made from NEWVOC) and printing its own message 6900.
+head2 "M15. the source is distributed with the installer and never installed (S.198)"
+for p in gpl.bp gplsrc gplobj gplbld gpl.src Makefile; do
+  ck "M15a $p is not in the installed tree" no "$(yesno_file "$SDSYS/$p")"
+done
+ck "M15b control: the compiled programs are (gpl.bp.out/cproc)" yes "$(yesno_file "$SDSYS/gpl.bp.out/cproc")"
+
 head2 "M14. English only: the language programs, their messages and catalog entries are gone; NLS is kept (S.46)"
 for p in setlang loadlang; do
-  ck "M14a gpl.bp/$p is not installed" no "$(yesno_file "$SDSYS/gpl.bp/$p")"
+  ck "M14a gpl.bp.out/$p is not installed" no "$(yesno_file "$SDSYS/gpl.bp.out/$p")"
 done
 # 06 Oct 26 (PAL-1 stage 3a): CATALOG stores lower-case names now, so the absence is checked in BOTH
 # cases; an upper-case-only check would pass for ever over a catalogue that holds the lower-case name.
@@ -889,7 +971,7 @@ for m in 3340 3341 3342; do
   ck "M14c message $m is not installed" no "$(yesno_file "$SDSYS/messages/$m")"
 done
 ck "M14c2 control: message 1500 (the month names) IS installed" yes "$(yesno_file "$SDSYS/messages/1500")"
-ck "M14e gpl.bp/nls IS installed (kept)" yes "$(yesno_file "$SDSYS/gpl.bp/nls")"
+ck "M14e gpl.bp.out/nls IS installed (kept)" yes "$(yesno_file "$SDSYS/gpl.bp.out/nls")"
 ck "M14e2 and catalogued as \$nls" yes "$(yesno_file "$SDSYS/gcat/\$nls")"
 for m in 6900 6901 6902 6903; do
   ck "M14e3 message $m IS installed (NLS's own)" yes "$(yesno_file "$SDSYS/messages/$m")"
@@ -935,6 +1017,7 @@ fi
 say "  passed      : $PASS"
 say "  failed      : $FAIL"
 say "  not reached : $NOT_REACHED   (counted in failed)"
+say "  skipped     : $SKIPPED   (administrator route: $SDSYS_ROUTE)"
 if [ "$((PASS + FAIL))" -eq 0 ]; then
   say "witness-absence: FAILED - no check ran, so this proves nothing."
   exit 1

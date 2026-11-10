@@ -30,6 +30,7 @@
 *               Copy, cut and paste are Ctrl-C, X and V only, and Alt-T changes the type as F4 does (the engine).
 * 9 Nov 26 dm  S.134: the editor asks $sl_guardmode for the LAYOUT mode, as the IDE does, so the keyboard is held while the window is smaller than LAYW by LAYH
 *               and not only while the cursor is off the screen: at 120 by 36 the editor redrew and took keys; it now writes the lock message and takes none.
+* 10 Nov 26 dm S.193: laid out for 140 by 43, the standing full-screen size (LAYH was 42).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -86,7 +87,7 @@ $include sl.h
    deffun edit_msg(emk) calling '!edit_msg'       ;* 18 Oct 26 dm, S.66
 
    LAYW = 140                         ;* what the screen is laid out for (a bigger window is used whole)
-   LAYH = 42
+   LAYH = 43
    result = ''
    kind = jtype(c)
    if kind # 'collection' and kind # 'array' then return
