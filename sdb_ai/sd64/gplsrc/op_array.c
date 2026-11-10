@@ -23,6 +23,7 @@
  * 28 Oct 26 dm  S.87: the PMATRIX descriptor type, op_pmatrix and AH_PICK_STYLE are gone: every matrix is an ARRAY with an element 0 (nothing made a Pick style matrix since $MODE PICK.MATRIX went).
  * 27 Oct 26 dm  S.87 batch 17: op_dimlclp ($MODE PICK.MATRIX) is gone and a_dimension() has no pick_style, so AH_PICK_STYLE is never set.  The PMATRIX descriptor type and op_pmatrix stay (unreachable: the compiler no longer emits OP_PMATRIX).
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.125: op_common()'s a_hdr and objdata start at NULL (-Wmaybe-uninitialized); each block kind sets what it uses.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -93,13 +94,13 @@ void op_common() {
   int16_t name_len;    /* Bytes in block name */
   u_char creation_flags;
   char block_name[32 + 1];
-  ARRAY_HEADER* a_hdr;
+  ARRAY_HEADER* a_hdr = NULL;
   ARRAY_CHUNK* a_chunk;
   DESCRIPTOR* descr;
   STRING_CHUNK* str_hdr;
   int16_t actual_size;
   bool add_block_to_common_chain = TRUE;
-  OBJDATA* objdata;
+  OBJDATA* objdata = NULL;
   bool is_persistent_vars; /* Persistent variables for object? */
   char* creator;           /* Name of the program making the block */
   int creator_len;

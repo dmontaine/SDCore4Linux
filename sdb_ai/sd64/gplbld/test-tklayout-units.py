@@ -609,10 +609,10 @@ def checks(raw):
        and "common /tkepoch/ ep.next, ep.drawn" in fr and "if ctx<TK.C.EPOCH> # ep.drawn then forget = 1" in fr and "if geo # last.geo then forget = 1" in fr
        and "if ctx<TK.C.GEN> # last.gen then forget = 1" in fr and ordered(fr, "if forget then", "ep.drawn = ctx<TK.C.EPOCH>", "last.stat = ''", "last.keys = ''", "last.bord = ''", "last.top = ''")
        and "common /tkepoch/ ep.next, ep.drawn" in cl and ordered(cl, "screen close", "call $tk_brk('close'", "ep.drawn = ''", "ctx<TK.C.EPOCH> = ''"), "")
-    ck("W13", "the IDE holds the WINDOW lock (28 Oct 26, handoff step 1): it calls $sl_guardmode in the layout mode with its floor and its layout size; CED keeps the cursor mode (three arguments), "
-              "the debugger $sl_guard with six; SCREEN CLOSE and $sl_cleanup still take the lock off",
+    ck("W13", "the IDE holds the WINDOW lock (28 Oct 26, handoff step 1) and CED does too (9 Nov 26, S.134): each calls $sl_guardmode in the layout mode with its floor and its layout size, "
+              "never the three-argument cursor mode; the debugger $sl_guard with six; SCREEN CLOSE and $sl_cleanup still take the lock off",
        "call $sl_guardmode('IDE', LAYW, LAYH, 'layout', LAYW, LAYH)" in code["ide"] and "call $sl_guardmode('IDE', LAYW, LAYH)" not in code["ide"]
-       and "call $sl_guardmode('CED', LAYW, LAYH)" in code["ced_edit"]
+       and "call $sl_guardmode('CED', LAYW, LAYH, 'layout', LAYW, LAYH)" in code["ced_edit"] and "call $sl_guardmode('CED', LAYW, LAYH)" not in code["ced_edit"]
        and "call $sl_guard('the debugger', LAY.WIDTH, LAY.DEPTH, cur.x, command.line, guard.result)" in code["debug"]
        and "call $sl_guardmode('', 0, 0)" in code["screen_close"] and "call $sl_guardmode('', 0, 0)" in code["sl_cleanup"], "")
     ck("W14", "$tk_layout is an internal subroutine catalogued $tk_layout, VAR.ARGS (op, ctx, arg, ret), and has the ops open, refresh, declare, pane and body",
@@ -709,7 +709,7 @@ MUTANTS = [
     ("$tk_close keeps the epoch", "W12", sub("tk_close", "   ep.drawn = ''", "   null")),
     ("$tk_open makes no new epoch", "W12", sub("tk_open", "   ep.next += 1\n", "")),
     ("the IDE is put back in the cursor mode", "W13", sub("ide", "call $sl_guardmode('IDE', LAYW, LAYH, 'layout', LAYW, LAYH)", "call $sl_guardmode('IDE', LAYW, LAYH)")),
-    ("CED is put in the layout mode", "W13", sub("ced_edit", "call $sl_guardmode('CED', LAYW, LAYH)", "call $sl_guardmode('CED', LAYW, LAYH, 'layout', LAYW, LAYH)")),
+    ("CED is put back in the cursor mode", "W13", sub("ced_edit", "call $sl_guardmode('CED', LAYW, LAYH, 'layout', LAYW, LAYH)", "call $sl_guardmode('CED', LAYW, LAYH)")),
     ("the warning is always the longest wording", "W8", sub("sl_guard", "            if nlines <= h then exit\n", "            null\n")),
     ("the middle wording is the cursor's", "W8", sub("sl_guard", "text = sysmsg(11725,", "text = sysmsg(11600,")),
     ("11540 stops saying that unsaved text is lost", "W8", sub("m11540", "; text not saved is lost unless a recovery copy is on", "")),

@@ -3,7 +3,10 @@
 # sandbox-tk-resize.py - the toolkit pages, home and the editors across a RESIZE of the window (S.88, Phase 0: rows R1-R5, F1, P2 of
 # ~/Documents/Audits/TUI/Opus_TUI_Plan.txt, section 4), driven on a PSEUDO-TERMINAL.  No install, no sudo.
 #
-#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-resize.py <dir> [--build] [--strict]
+#   SDBOX_KEYSET=n python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-tk-resize.py <dir> [--build] [--strict] [--only=grow,shrink,small,dialog,newfile,undo,editors] [--ai]
+#
+# --only (the owner's rule of 3 Nov 26: anything over five minutes has a section selector): grow is R1, shrink R2 (started big), small R2b, R3 and the pages' R7, dialog R4,
+# newfile R8, undo R6, editors R7 (the IDE, SED and CED).  The build, the fixture and the AI helper's setup always run; no section needs another.
 #
 # <dir> is a sandbox made by sandbox-fromtree.py (with --build it is built first from THIS tree; it must be empty or absent; keep the path SHORT).  Exit 0 no row
 # failed, 1 a row failed, 2 it could not run.  The result counter is tuirows.py: a failing row whose phase has not landed is PENDING; --strict counts every row at face value,
@@ -11,6 +14,7 @@
 #
 # START-HISTORY:
 # 28 Oct 26 dm  New (S.88, Phase 0), from the probes rt1/resize.py and rt1/ailine.py of the evaluation (Opus_TUI_Evidence/runtime.json R1-R13).
+# 9 Nov 26 dm   S.134: R7 counts at face value (no phase: CED takes the window lock now); --only, the section selector (rule 7 of the testing budget).
 # END-HISTORY
 #
 # THE INSTRUMENT (plan 7.4).  The emulator keeps the cells it had before a resize, so a row never reads them.  Every resize is judged on the BYTES THE PROGRAM WROTE
@@ -453,13 +457,24 @@ def sec_editors_small():
         msg = bool(LOCK.search("\n".join(fr.lines())))
         nb = bytes_for_down(w)
         row("R7", "%s at 120x36 locks: the program writes a message naming 140 by 43 and takes no key (Down writes %d bytes)" % (cmd.split()[0], nb), msg and nb <= 16,
-            "message: %s; bytes written by Down: %d; written rows: %r" % (msg, nb, [l.strip()[:50] for l in fr.lines() if l.strip()][:3]), phase=6, ctrl=c)
+            "message: %s; bytes written by Down: %d; written rows: %r" % (msg, nb, [l.strip()[:50] for l in fr.lines() if l.strip()][:3]), phase=None, ctrl=c)
         w.end()
 
 
 # ------------------------------------------------------------------------------------------------------------------------ main
+SECTIONS = (("grow", "sec_grow"), ("shrink", "sec_shrink_start_big"), ("small", "sec_small"), ("dialog", "sec_dialog_open"),
+            ("newfile", "sec_new_file_dialog"), ("undo", "sec_ide_undo"), ("editors", "sec_editors_small"))     # --only names, in the order they run
+
+
 def main():
     global BOX, SYS, UA
+    names = [n for n, _ in SECTIONS]
+    only = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--only=")), None)
+    chosen = set(only.split(",")) if only else set(names)
+    if chosen - set(names) or not chosen:
+        print("usage: sandbox-tk-resize.py <dir> [--build] [--strict] [--only=%s] [--ai]" % ",".join(names))
+        sys.exit(2)
+    say("sandbox-tk-resize: sections %s" % ", ".join(n for n in names if n in chosen))
     try:
         sh.setup("sandbox-tk-resize.py")
         BOX, SYS = sh.BOX, sh.SYS
@@ -471,13 +486,9 @@ def main():
         al.setup_ai(None)
         al.configure()
         sh.set_default("terminal")
-        sec_grow()
-        sec_shrink_start_big()
-        sec_small()
-        sec_dialog_open()
-        sec_new_file_dialog()
-        sec_ide_undo()
-        sec_editors_small()
+        for name, fn in SECTIONS:
+            if name in chosen:
+                globals()[fn]()
         # R5 (home's AI line keeps its draft across a resize) is NOT HELD: on 28 Oct 26 its CONTROL never reached the AI line (the ordinary home screen showed
         # the old hint on row 40, not 'AI>'), so the rows could prove nothing, and a test that proves nothing must not pass.  The fault is measured by hand (the
         # evaluation's probe rt1/ailine.py: the text and the focus are lost) and is plan R4; the section is kept in this file for the phase-3 sitting that makes its

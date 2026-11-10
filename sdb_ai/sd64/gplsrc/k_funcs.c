@@ -24,6 +24,7 @@
  *               k_unass_zero(), k_unass_null() and k_non_numeric_zero() (the substitution of zero or null with a warning) are deleted.
  * 16 Oct 26 dm  k_release() offers a file variable whose last reference has gone to park_fvar() (OPTION COMMAND.LEVEL.LOCKS)
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.125: k_copy_string() and k_str_to_num() locals start at NULL / 0 (-Wmaybe-uninitialized); no path read them unset.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -108,9 +109,9 @@ STRING_CHUNK* k_copy_string(STRING_CHUNK* src_str) {
   int32_t total_src_bytes_remaining;
 
   STRING_CHUNK* tgt_head = NULL;
-  STRING_CHUNK* tgt_str;
+  STRING_CHUNK* tgt_str = NULL;
   STRING_CHUNK* next_tgt;
-  char* tgt;
+  char* tgt = NULL;
   int16_t tgt_bytes_remaining = 0;
 
   int16_t n;
@@ -1313,8 +1314,8 @@ bool k_str_to_num(DESCRIPTOR* p) /* Returns FALSE if cannot convert */
   int16_t dp;     /* Decimal places */
   bool floating;
   int32_t value;
-  double float_value;
-  double dplace;
+  double float_value = 0.0;
+  double dplace = 0.0;
   char* q;
   u_char reuse_flag;
   bool num_array;

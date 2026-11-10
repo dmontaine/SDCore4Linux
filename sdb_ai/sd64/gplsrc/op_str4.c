@@ -23,6 +23,8 @@
  * 27 Oct 26 dm  S.87 batch 13: op_md5() (MD5()) is gone, with the OpenSSL include only it used; its opcode is an op_illegal row (write DIGEST(s, 0, 'MD5')).
  * 12 Oct 26 dm  MATCHES and MATCHFIELD set INMAT() to the number of the template that matched (1.2-0, 315)
  * 15 Oct 26 dm  $MODE COUNT.OVERLAP and INDEX.OVERLAP: count() and op_index() find overlapping occurrences (QM4 gaps Q-16)
+ * 09 Nov 26 dm  S.125: locals of op_matbuild(), op_matparse() and op_trimx() start at NULL / 0 / FALSE (-Wmaybe-uninitialized); the paths that
+ *               leave them unset end in k_error() with a message that does not begin '!', so it never returns.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -312,7 +314,7 @@ void op_matbuild() {
 
   STRING_CHUNK *delim_str;
 
-  ARRAY_HEADER *a_hdr;
+  ARRAY_HEADER *a_hdr = NULL;
   int32_t num_elements;
   int32_t indx;
   ARRAY_CHUNK *a_chunk;
@@ -609,7 +611,7 @@ void op_matparse() {
   int16_t no_delimiters; /* No of delimiters */
 
   DESCRIPTOR *array_descr; /* Target array */
-  ARRAY_HEADER *a_hdr;
+  ARRAY_HEADER *a_hdr = NULL;
   int lo_index;
   int32_t hi_index; /* Index of last element */
   int32_t indx;     /* Current target element number */
@@ -622,8 +624,8 @@ void op_matparse() {
   STRING_CHUNK *tgt_str;
   u_int16_t last_char = 256;
 
-  int rows;
-  int cols;
+  int rows = 0;
+  int cols = 0;
 
   register char c;
   int16_t i;
@@ -1244,10 +1246,10 @@ void op_trimx() {
   bool front_of_string;
   bool skip_count;
 
-  bool skip_leading;
-  bool skip_trailing;
+  bool skip_leading = FALSE;
+  bool skip_trailing = FALSE;
   bool skip_all;
-  bool compress;
+  bool compress = FALSE;
 
   char c;
 

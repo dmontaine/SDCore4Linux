@@ -19,6 +19,7 @@
  * START-HISTORY:
  * 27 Oct 26 dm  S.87 batch 17: op_locates (LOCATE with numeric data not special, $MODE STRING.LOCATE) is gone; its opcode is an op_illegal row.
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.125: locate()'s srch starts at NULL (-Wmaybe-uninitialized); a null search string leaves the compare before it is read.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -121,7 +122,7 @@ Private void locate(bool numeric_mode) {
   int16_t item_len;
   int32_t item_value;
   bool skipping;
-  char* srch;
+  char* srch = NULL;
   char c;
   char mark; /* Mark which ends item */
   int16_t n;

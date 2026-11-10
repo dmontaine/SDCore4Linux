@@ -39,6 +39,9 @@
  *               by the group sdusers (gcat_object_writable()).  The trust above, "only SDSYS can write the global catalogue", is
  *               kept by file modes, and a fresh install left gcat/$cproc 0664 sdusers (the final CPROC compile came after the
  *               chmod sweep), so any SD user with a shell could change the code every session loads, the administrator's too.
+ * 09 Nov 26 dm  S.125: load_object()'s object_bytes and convert start at 0 / FALSE (-Wmaybe-uninitialized): a bad magic number ends in k_error().
+ *               S.195: the object file is closed on the three failure exits (header unreadable, bad magic number, code unreadable), which
+ *               lost a file handle each time; only the successful load closed it.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -150,8 +153,8 @@ void* load_object(char* name, bool abort_on_error) {
   char obj_path[MAX_PATHNAME_LEN + 1];
   OSFILE obj_fu;
   struct OBJECT_HEADER obj_header;
-  int object_bytes;
-  bool convert;
+  int object_bytes = 0;
+  bool convert = FALSE;
   OBJECT* obj;
   bool is_runfile = FALSE;
   char mapped_name[MAX_PATHNAME_LEN + 1];
@@ -278,6 +281,7 @@ found:
   /* Object found  - read header */
 
   if (Read(obj_fu, (char*)(&obj_header), OBJECT_HEADER_SIZE) < 0) {
+    CloseFile(obj_fu); /* 09 Nov 26 (S.195): the file is given back on every way out, not only the one that loads it */
     if (abort_on_error)
       k_error(sysmsg(1126), name); /* TODO: Magic numbers are bad, mmkay? */
     else
@@ -294,6 +298,7 @@ found:
       object_bytes = SwapLong(obj_header.object_size);
       break;
     default:
+      CloseFile(obj_fu); /* 09 Nov 26 (S.195) */
       if (abort_on_error)
         k_error(sysmsg(1127), name); /* TODO: Magic numbers are bad, mmkay? */
       else
@@ -322,6 +327,7 @@ found:
   Seek(obj_fu, 0, SEEK_SET);
   if (Read(obj_fu, (char*)(&(obj->code)), object_bytes) < 0) {
     k_free(obj);
+    CloseFile(obj_fu); /* 09 Nov 26 (S.195) */
     k_error(sysmsg(1128), name); /* TODO: Magic numbers are bad, mmkay? */
   }
 

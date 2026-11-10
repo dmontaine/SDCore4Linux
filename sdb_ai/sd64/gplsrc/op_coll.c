@@ -17,6 +17,7 @@
  * 12 Oct 26 dm  coll_record_text() builds with JB_INVALID: an element a file cannot
  *               hold (a file variable) is stored as a JSON null, as the manual says,
  *               where the write failed with ER$BUILD.ERROR.
+ * 09 Nov 26 dm  S.125: op_coll()'s count and ahdr start at 0 / NULL (-Wmaybe-uninitialized): matrix_span() failing ends in k_error().
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -192,8 +193,8 @@ void op_coll() {
   int32_t max;
   int32_t setop = 0;
   int32_t first;
-  int32_t count;
-  ARRAY_HEADER* ahdr;
+  int32_t count = 0;
+  ARRAY_HEADER* ahdr = NULL;
   bool exists;
   bool star;
   int nseg;

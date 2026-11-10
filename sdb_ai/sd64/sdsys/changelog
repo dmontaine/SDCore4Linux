@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+9 Nov 26   THE ISO WEEK NUMBER OF A DATE CONVERSION IS RIGHT.
+
+             What        - The I code of a D conversion (OCONV(date, 'D...I'), the ISO week number) now gives the week of
+                           the year. It was worked out only when the YI code (the ISO year) was in the same conversion;
+                           without it, I gave whatever number happened to be left in memory.
+             Why         - Found while reading the compiler's warnings for the release build (S.125).
+             Not changed - The other date codes, and I with YI beside it, which was already right.
+
+9 Nov 26   CED NOW HOLDS THE KEYBOARD WHENEVER ITS WINDOW IS TOO SMALL, AS THE IDE DOES.
+
+             What        - If the window of the collection editor (!CED(), and the IDE's F12 Edit as fields) is made smaller
+                           than 140 by 42 while it runs, it writes the warning that names both sizes and takes no key until
+                           the window is large enough again; Ctrl-Q, then y, leaves without keeping anything. It used to hold
+                           the keyboard only when the cursor had gone off the part of the screen that still showed, so in a
+                           window a little smaller it went on drawing and taking keys.
+             Why         - The IDE and the full-screen pages already worked this way, and the difference was the one editor
+                           that did not.
+             Not changed - CED's minimum is still 140 by 42 (the IDE's is 140 by 43); a window below it is still refused at
+                           the start.
+
 9 Nov 26   SED IS NOW THE IDE'S EDITOR, BY ITSELF; A RECORD WITH CHARACTERS OUTSIDE ASCII CAN BE EDITED IN IT.
 
              What        - The verb SED starts the IDE with no files pane and no Tools menu: the same editor, keys and menus as

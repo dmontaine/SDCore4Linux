@@ -25,6 +25,7 @@
  *               Windows port's fix; UPSTREAM_FIXES 29).
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to % 
+ * 09 Nov 26 dm  S.125: dio_open() refuses a mode it does not know (EINVAL, an invalid handle) instead of calling open() with flags never set.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -259,6 +260,10 @@ OSFILE dio_open(char* fn, int mode) {
     case DIO_OVERWRITE_NOFOLLOW: /* As DIO_OVERWRITE, but a symbolic link at the end of the name is refused (ELOOP), even one that leads nowhere */
       open_modes = O_RDWR | O_CREAT | O_NOFOLLOW | O_BINARY;
       break;
+    default: /* 09 Nov 26 (S.125): a mode no caller should pass is refused, not opened with whatever open_modes held */
+      errno = EINVAL;
+      process.os_error = EINVAL;
+      return INVALID_FILE_HANDLE;
   }
 
   /* Check if we are about to hit the FDS limit */

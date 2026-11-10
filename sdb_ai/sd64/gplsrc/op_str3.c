@@ -18,6 +18,7 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.125: op_rmvtkn()'s tgt_str and tgt start at NULL (-Wmaybe-uninitialized); every token that reads them copied its first byte.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -271,10 +272,10 @@ void op_rmvtkn() {
   int16_t offset;       /* Offset into current source chunk */
   STRING_CHUNK* str_hdr;
   int16_t bytes_remaining;
-  STRING_CHUNK* tgt_str;
+  STRING_CHUNK* tgt_str = NULL;
   STRING_CHUNK* new_tgt;
   int16_t tgt_bytes_remaining;
-  char* tgt;
+  char* tgt = NULL;
   int16_t token_type;
   char* p;
   char c;

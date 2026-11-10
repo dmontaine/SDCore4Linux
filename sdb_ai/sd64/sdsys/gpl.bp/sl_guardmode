@@ -7,8 +7,9 @@
 * 18 Oct 26 dm  New (terminal 140 by 42, phase 3).
 * 28 Oct 26 dm  S.88 L1 (R-b): VAR.ARGS; the layout mode (a fourth argument 'layout', the layout's size fifth and sixth), in which the WINDOW decides:
 *               the lock holds while the window is smaller than minw by minh (the app's floor) and lifts as soon as it is not, wherever the cursor
-*               is.  The three-argument call keeps the cursor mode exactly as it was (the IDE and CED).  A layout re-arm of the app that already
+*               is.  The three-argument call keeps the cursor mode exactly as it was.  A layout re-arm of the app that already
 *               holds the lock keeps its "user chose to leave".
+* 9 Nov 26 dm  S.134: CED asks for the layout mode too, so no program of SD's own uses the three-argument cursor mode now; the mode itself is unchanged.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -23,7 +24,7 @@
 *                 window is at least the floor, so "smaller than the layout" and "smaller than the floor" are one test once the page has made its
 *                 layout again; a page that has not done so yet must not be locked and unlocked in turn on every redraw)
 *
-*   THE CURSOR MODE.  SD's own full-screen programs that read their keys through the library (the IDE and CED) are laid out for 140 by 42 and show
+*   THE CURSOR MODE (the three-argument call; none of SD's own programs uses it since 9 Nov 26, when CED joined the IDE in the layout mode).  A full-screen program that reads its keys through the library is laid out for 140 by 42 and shows
 *   the upper left corner of the layout when the window is smaller.  So long as the cursor ($sl_curat) is in the part that shows that is
 *   safe; when it is not, $sl_key does not hand the program a key but takes the keyboard itself ($sl_guard: a warning in the upper
 *   left, every key dropped, Ctrl-Q the one way out) until the window is made bigger.

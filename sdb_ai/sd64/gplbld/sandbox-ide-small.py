@@ -29,6 +29,8 @@
 # 1 Nov 26 dm   S.98 H1 (the debugger in the IDE's style): the debugger is laid out for 140 by 43 (DBG_H), so a 140 by 42 window is below its floor and gets line mode
 #               with message 11602 naming 43; its command line is row 39 and its messages rows 34 to 38; its source rows start with a gutter mark; the cursor lock's
 #               warning names 140 by 43 for it.  CED keeps 140 by 42.  WRITTEN with the change; run once with it.
+# 9 Nov 26 dm   S.134: CED holds the WINDOW lock (layout mode), so parts C and E judge it as part C judges the IDE: locked at once under 140 by 42 although its selected
+#               row shows, keys dropped (the layout drawn again equals the start's; '>' still on k01).  Mutant cedcursor puts the cursor mode back (parts c, e).
 # END-HISTORY
 #
 # HOW IT DRIVES THEM.  On a PSEUDO-TERMINAL (ptydrive.py), the window size set BEFORE SD starts (it asks the tty when it starts) and
@@ -188,11 +190,21 @@ def warn_shown(L, w, h, name):
     return ("The window is %d by %d and %s is laid out for 140 by %d" % (w, h, name, lh)) in t and "Ctrl-Q" in t
 
 
-def ide_warn(L, w, h):
-    """The IDE's window lock (layout mode) is up for a window w by h, in whichever of the three wordings fits: the window's size and the floor's are both in the first rows,
-    and Ctrl-Q is named (the shortest wording has it as '^Q'-less 'Ctrl-Q leaves')."""
+def lock_warn(L, w, h, floor_h):
+    """A window lock (layout mode) is up for a window w by h, in whichever of the three wordings fits: the window's size and the floor's (140 by floor_h) are both in the
+    first rows, and Ctrl-Q is named (the shortest wording has it as '^Q'-less 'Ctrl-Q leaves')."""
     t = " ".join(l.strip() for l in L[:6])
-    return re.search(r"\b%d by %d(?!\d)" % (w, h), t) is not None and "140 by 43" in t and "Ctrl-Q" in t
+    return re.search(r"\b%d by %d(?!\d)" % (w, h), t) is not None and ("140 by %d" % floor_h) in t and "Ctrl-Q" in t
+
+
+def ide_warn(L, w, h):
+    """The IDE's window lock, floor 140 by 43."""
+    return lock_warn(L, w, h, IDE_H)
+
+
+def ced_warn(L, w, h):
+    """CED's window lock (layout mode since S.134, 9 Nov 26), floor 140 by LAY_H."""
+    return lock_warn(L, w, h, LAY_H)
 
 
 def ide_at(e):
@@ -388,15 +400,20 @@ def part_c():
     e = Term(BOX, "CED %s j1" % F)
     base_ced = list(e.lines())
     e.end()
-    for (w, h) in ((100, 30), (80, 24), (139, 41), (140, 41)):
+    # 9 Nov 26 (S.134): CED holds the WINDOW lock too, as the IDE does above: any window under 140 by LAY_H is locked at once, although its selected row (row 2) shows.
+    #   The Downs typed while locked must not reach it: the layout drawn again at the full size equals the one at the start, cell for cell, '>' still on the first member.
+    for (w, h) in ((100, 30), (80, 24), (139, 42), (139, 41), (140, 41)):
         e = Term(BOX, "CED %s j1" % F)
-        m = e.resize(w, h)
-        check_corner(e, m, w, h, base_ced, "CED %dx%d" % (w, h))
-        e.keys("x")
+        e.resize(w, h)
+        L = e.lines()
+        row("CED %dx%d: locked at once although the selected row (row 2) shows: the warning names both sizes" % (w, h), ced_warn(L, w, h), text(L, 6))
+        L = e.keys(DOWN * 3)
+        row("CED %dx%d: ...and Downs do nothing: the warning is still up" % (w, h), ced_warn(L, w, h), text(L, 6))
         m2 = e.resize(LAY_W, LAY_H)
         got, n = e.replay(m2, LAY_W, LAY_H)
         d = corner_diff(got, base_ced, LAY_W, LAY_H)
-        row("CED %dx%d: made 140 by 42 again, it draws the whole layout again (replayed), as at the start" % (w, h), n > 0 and d is None, d or "no bytes")
+        row("CED %dx%d: made 140 by %d again, it draws the whole layout again (replayed) as at the start: the Downs did not move the selection" % (w, h, LAY_H),
+            n > 0 and d is None, d or "no bytes")
         e.end()
 
     say("\n--- C: a bigger window after the start --------------------------------------------------------------------------------")
@@ -566,7 +583,7 @@ def part_d():
 
 
 def part_e():
-    say("\n--- E: the cursor lock: CED ---------------------------------------------------------------------------------------------")
+    say("\n--- E: the window lock: CED (the layout mode since S.134; the keyboard is held while the window is under the floor) --------")
     burst = DOWN * 45
     e = Term(BOX, "CED %s j1" % F)
     L = e.keys(burst, idle=1.0)
@@ -579,27 +596,28 @@ def part_e():
     held = locked("j1")
     row("control: while CED has the record, another session finds it locked", held is True, repr(held))
     e.resize(100, 30)
-    L = e.keys(burst, idle=1.2)
-    row("100x30: 45 Downs in one burst: the selected row leaves the screen and CED shows the warning in the upper left",
-        warn_shown(L, 100, 30, "CED"), text(L, 8))
+    L = e.lines()
+    row("100x30: locked at once, with no key typed, although the selected row (row 2) shows: the warning in the upper left names both sizes",
+        ced_warn(L, 100, 30), text(L, 8))
     row("...the rest of the screen is blank", not any("k0" in l for l in L) and not any(l.strip() for l in L[8:]), text(L, 12))
+    L = e.keys(burst, idle=1.2)
     L = e.keys("xyz", RET, DOWN, "d", CTRL("s"), idle=0.6)
-    row("keys while locked are ignored (a Return would have opened the element, d... nothing was done)",
-        warn_shown(L, 100, 30, "CED") and not any("xyz" in l for l in L), text(L, 6))
+    row("45 Downs and other keys while locked are ignored (a Return would have opened the element, d... nothing was done)",
+        ced_warn(L, 100, 30) and not any("xyz" in l for l in L), text(L, 6))
     m2 = e.resize(LAY_W, LAY_H, wait=2.2)
     got, n = e.replay(m2, LAY_W, LAY_H)
     L = e.lines()
-    row("made 140 by 42 again: the lock is lifted without a key and CED draws the whole layout (replayed)",
+    row("made 140 by %d again: the lock is lifted without a key and CED draws the whole layout (replayed)" % LAY_H,
         n > 0 and "k01" in got[2] and "The window is" not in text(L, 6), "no bytes" if n == 0 else text(got, 3))
-    row("...the Downs after the first off-screen one were dropped: the selected member is k29 (the '>' is on it)",
-        any(l.startswith(">") and "k29" in l for l in L), "\n".join(l[:40] for l in L[26:34]))
+    row("...none of the keys reached CED: the selected member is still k01 (the '>' is on it)",
+        any(l.startswith(">") and "k01" in l for l in L), "\n".join(l[:40] for l in L[1:6]))
     e.resize(100, 30)
     L = e.lines()
-    row("shrunk to 100x30 with the selection on member 29 (row 30): locked at once", warn_shown(L, 100, 30, "CED"), text(L, 4))
+    row("shrunk to 100x30 again: locked at once", ced_warn(L, 100, 30), text(L, 4))
     L = e.keys(CTRL("q"))
     row("Ctrl-Q asks 'Leave? (changes are NOT saved) y/n' in the same box", any("Leave? (changes are NOT saved) y/n" in l for l in L[:4]), text(L, 4))
     L = e.keys("n")
-    row("n goes back to the warning", warn_shown(L, 100, 30, "CED"), text(L, 4))
+    row("n goes back to the warning", ced_warn(L, 100, 30), text(L, 4))
     held = locked("j1")
     row("control: CED still has the record locked", held is True, repr(held))
     e.keys(CTRL("q"))
@@ -700,6 +718,7 @@ MUTANTS = {
     "nokeyrow": ("ide", "   call $tk_fkeys(fk.ctx, ide.keys, '', fk.text)\n", "   fk.text = ''\n", "a,c"),
     "noneed": ("ide", "   if need.msg # '' then\n      break on\n", "   if 0 then\n      break on\n", "b"),
     "cednoneed": ("ced_edit", "   if need.msg # '' then\n      display need.msg\n", "   if 0 then\n      display need.msg\n", "b"),
+    "cedcursor": ("ced_edit", "call $sl_guardmode('CED', LAYW, LAYH, 'layout', LAYW, LAYH)", "call $sl_guardmode('CED', LAYW, LAYH)", "c,e"),
     "dbgnoneed": ("debug", "      if need.msg # '' then\n         full.screen = @false\n", "      if 0 then\n         full.screen = @false\n", "b"),
     "dbgnoguard": ("debug", "      if cur.x >= win.w or command.line >= win.h then\n", "      if 0 then\n", "f"),
     "dbgnoquit": ("debug", "         if guard.result = 'quit' then\n            key.quit = @true\n            return\n         end\n",

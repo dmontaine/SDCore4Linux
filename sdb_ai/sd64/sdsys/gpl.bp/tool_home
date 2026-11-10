@@ -51,6 +51,8 @@
 * 9 Nov 26 dm  S.186: the description's keys follow S.179 (Ctrl-Q leaves or signs out, Alt-T the Terminal); it still said Ctrl-Q signs out, Ctrl-T the Terminal.
 *               View > Mouse and Ctrl-O, as on every page (act:std.mouse, ctrl-o, $tk_std).
 * 9 Nov 26 dm  S.187: the Bypass programs tile is gone with tool.viewers and the pdf verb (owner, 9 Nov 2026: "remove").
+* 9 Nov 26 dm  S.136 (owner, 9 Nov: "your decision, should only appear once"): the hint row says only the keys the key row does not - arrows, a letter,
+*               PgDn; Enter and / are on the key row alone.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -714,7 +716,7 @@ draw.all:
       call $tk_ai('draw', ctx, aif, '')
    end else
       screen text '' at 0,hny width lw
-      screen text 'arrows move  -  Enter starts  -  a letter jumps  -  / finds a tile  -  PgDn next group' at hnx + 2,hny attr 'desktop'
+      screen text 'arrows move  -  a letter jumps  -  PgDn next group' at hnx + 2,hny attr 'desktop'      ;* S.136: Enter and / are on the key row; each is said once
    end
    return
 

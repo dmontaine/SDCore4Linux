@@ -24,6 +24,8 @@
  * 27 Oct 26 dm  S.87 batch 3: the conversions MCD, MCDX, MCX and MCXD (second spellings of MX) and conv_dtx() / conv_xtd() are gone.
  * 18 Oct 26 dm  The XE{;name} conversion: decrypt with a key in the process's key ring (xe_oconv(), sd_keyring.c).
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.125: the date conversion's I code (ISO week number) sets iso, so the week is worked out; it printed whatever iso_wk held, as
+ *               only YI set it.  The other -Wmaybe-uninitialized locals here (int_value, iso_wk, iso_year) start at 0: no path used them unset.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -1480,7 +1482,7 @@ Private int32_t masked_decimal_conversion(char* p) {
   int32_t status = 2;
   DESCRIPTOR* src_descr;
   double value;
-  int32_t int_value;
+  int32_t int_value = 0;
   char mode;            /* Conversion mode (D, L or R) */
   int16_t dp;           /* Decimal places */
   int16_t scale_factor; /* Scale factor */
@@ -2945,8 +2947,8 @@ int oconv_d(int dt,     /* Date value to convert */
   char z[12];
   bool leading_upper = FALSE;
   bool iso = FALSE;
-  int iso_wk;
-  int iso_year;
+  int iso_wk = 0;
+  int iso_year = 0;
   int w;
   int y;
   int jan1_dow;
@@ -3065,6 +3067,7 @@ int oconv_d(int dt,     /* Date value to convert */
       case 'I':
         format[i].code = c;
         format[i].width = 2;
+        iso = TRUE; /* 09 Nov 26 (S.125): the ISO week is worked out only when iso is set; without this the I code printed whatever iso_wk held */
         code++;
         break;
 

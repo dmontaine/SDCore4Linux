@@ -28,6 +28,8 @@
 * 9 Nov 26 dm  S.181 (the owner, 9 Nov: "lift the freeze so it uses the shared keys"): the keys every full-screen page shares (S.179) - Ctrl-T the next theme, kept for the
 *               person; Ctrl-K the keys of this screen; F5 and Ctrl-L draw it again - through $tk_std, from a key table ck that names every key the editor takes.
 *               Copy, cut and paste are Ctrl-C, X and V only, and Alt-T changes the type as F4 does (the engine).
+* 9 Nov 26 dm  S.134: the editor asks $sl_guardmode for the LAYOUT mode, as the IDE does, so the keyboard is held while the window is smaller than LAYW by LAYH
+*               and not only while the cursor is off the screen: at 120 by 36 the editor redrew and took keys; it now writes the lock message and takes none.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -114,7 +116,7 @@ $include sl.h
       call $tk_brk('close', saved.trap)
       return
    end
-   call $sl_guardmode('CED', LAYW, LAYH)   ;* the cursor lock: the keys are not the editor's while its cursor is off the screen
+   call $sl_guardmode('CED', LAYW, LAYH, 'layout', LAYW, LAYH)   ;* the window lock (layout mode, as the IDE): the keys are not the editor's while the WINDOW is smaller than LAYW by LAYH, wherever the cursor is
    call $tk_ai('usable', '', ai.ok, ai.pm)  ;* 24 Oct 26: F2 is the AI's key, only when the AI is usable for the account
    gosub build.keys
 

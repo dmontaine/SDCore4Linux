@@ -68,6 +68,8 @@
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  * 01 Jul 24 mab define max string size.
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.125: op_delete()'s fvar and txn_id, and op_write()'s id_len, start at NULL / 0 (-Wmaybe-uninitialized).  op_write's remote
+ *               CREATING.SEQKEY exit handed unlock_record() an id_len never set; that function returns at once for a remote file.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -556,7 +558,7 @@ void op_delete() {
   char id[MAX_ID_LEN + 1];
   char mapped_id[2 * MAX_ID_LEN + 1];
   int16_t id_len;
-  FILE_VAR *fvar;
+  FILE_VAR *fvar = NULL;
   DH_FILE *dh_file;
   u_int16_t op_flags;
   char subfilename[MAX_PATHNAME_LEN + 1];
@@ -564,7 +566,7 @@ void op_delete() {
   int16_t path_len;
   FILE_ENTRY *fptr;
   bool keep_lock;
-  u_int32_t txn_id;
+  u_int32_t txn_id = 0;
   struct stat statbuf;
 
   op_flags = process.op_flags;
@@ -1137,7 +1139,7 @@ void op_write() {
   char id[MAX_ID_LEN + 1];
   char lock_id[MAX_ID_LEN + 1];
   char mapped_id[2 * MAX_ID_LEN + 1];
-  int16_t id_len;
+  int16_t id_len = 0;   /* 09 Nov 26 (S.125): defined on the remote CREATING.SEQKEY exit, which reaches unlock_record() before an id is taken */
   FILE_VAR *fvar;
   DH_FILE *dh_file;
   STRING_CHUNK *str;

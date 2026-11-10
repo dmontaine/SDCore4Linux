@@ -42,6 +42,9 @@
  *           limit used + where * was meant, and ignored the offset already
  *           written into the buffer.
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.125: k_var_name()'s cols starts at 0 (-Wmaybe-uninitialized); it was set wherever element was.
+ *               S.194: an array that does not hold the variable sets element back to -1, so a common-block variable found after it is
+ *               no longer named with that array's element count as a subscript in an error message.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -580,7 +583,7 @@ char* k_var_name(DESCRIPTOR* descr) {
   int16_t c_no = -1; /* Common block variable index */
   ARRAY_HEADER* chdr;  /* Common block header... */
   ARRAY_CHUNK* cchnk;  /* ...and chunk */
-  int32_t cols;
+  int32_t cols = 0;
   int32_t element = -1;
   static char name[80 + 1]; /* Extracted variable name */
   u_char* p;
@@ -643,6 +646,7 @@ char* k_var_name(DESCRIPTOR* descr) {
 
           element += achnk->num_descr;
         }
+        element = -1; /* 09 Nov 26 (S.194): not in this array, so no subscript is carried to a variable found later */
         break;
 
       case COMMON:
@@ -676,6 +680,7 @@ char* k_var_name(DESCRIPTOR* descr) {
 
                 element += achnk->num_descr;
               }
+              element = -1; /* 09 Nov 26 (S.194): not in this array, so no subscript is carried to a variable found later */
             }
           }
 

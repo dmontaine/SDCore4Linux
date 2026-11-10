@@ -49,6 +49,7 @@
  *           the installer's bind/firewall choice.  See start_connection().
  * 20240219 mab move to only allow AF_UNIX socket types
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.125: keyin()'s t1 starts at 0 (-Wmaybe-uninitialized); it is read only under a timeout, which sets it.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -640,7 +641,7 @@ int16_t keyin(timeout) int timeout; /* Milliseconds */
 {
   char c;
   struct timeval tv;
-  int64 t1;
+  int64 t1 = 0;
   int64 t2;
   int td;
   int poll_ret;

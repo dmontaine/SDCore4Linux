@@ -51,6 +51,7 @@
  *               "base = -1" on a failed truncate.
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to % 
+ * 09 Nov 26 dm  S.125: openseq()'s rec_name_len starts at 0 (-Wmaybe-uninitialized); a port, the one path that leaves it, takes no lock.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -450,7 +451,7 @@ Private void openseq(bool map_name) {
   char record_name[MAX_PATHNAME_LEN + 1];
   char pathname[MAX_PATHNAME_LEN + 1];
   char fullpathname[MAX_PATHNAME_LEN + 1];
-  int16_t rec_name_len;
+  int16_t rec_name_len = 0;
   FILE_VAR* fvar = NULL;
   SQ_FILE* sq_file = NULL;
   OSFILE fu = INVALID_FILE_HANDLE;

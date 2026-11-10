@@ -18,6 +18,7 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 09 Nov 26 dm  S.125: op_compare()'s byte counters start at 0 (-Wmaybe-uninitialized); a null string's pointer stops the compare first.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -134,14 +135,14 @@ void op_compare() {
   /* char* str1; */
   char* str1 = NULL;
   /* -------------------- */
-  int16_t str1_bytes_remaining;
+  int16_t str1_bytes_remaining = 0;
 
   STRING_CHUNK* str2_hdr;
   int32_t str2_len;
   /* char* str2; */
   char* str2 = NULL;
   /* -------------------- */
-  int16_t str2_bytes_remaining;
+  int16_t str2_bytes_remaining = 0;
   int16_t d = 0;
   int32_t n;
 

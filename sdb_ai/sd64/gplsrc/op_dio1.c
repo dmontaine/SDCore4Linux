@@ -52,6 +52,7 @@
  * 12 Oct 26 dm  open_file() acts on the mode letters N and R in field 6 of the
  *           F-type VOC entry (openQM items 380 and 197); _voc_ref returns them.
  * 14 Oct 26 dm  open_file() acts on P_OPEN_ZERO ($MODE OPEN.FAIL.ZERO.FVAR, openQM item 514).
+ * 09 Nov 26 dm  S.125: open_file()'s open_dict starts FALSE (-Wmaybe-uninitialized); it is read only when the name is mapped, which sets it.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -726,7 +727,7 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   DESCRIPTOR* fvar_descr;
   DESCRIPTOR* dict_descr;
   DESCRIPTOR* filename_descr;
-  bool open_dict;
+  bool open_dict = FALSE;
   char voc_name[MAX_ID_LEN + 1];
   char mapped_name[MAX_PATHNAME_LEN + 1];
   char pathname[MAX_PATHNAME_LEN + 1];
