@@ -506,8 +506,18 @@ if [ -f /etc/ssh/sshd_config ]; then
   ARM=$(/usr/local/sbin/ssh-forcecommand --sdsys-state 2>/dev/null | sed -n 's/^sdsys-arm=//p')
   if [ "$ARM" = open ]; then
     ck_says "M7g the sdsys arm is OPEN (remote.sdsys on): a Match User sdsys block" "Match User sdsys" "$SSC"
-    ck_says "M7g' and it allows the password only" "AuthenticationMethods password" "$SSC"
-    ck_absent "M7g'' and no longer asks for the retired authenticator code" "keyboard-interactive" "$SSC"
+    # 10 Nov 26 dm - S.197: M7g' and M7g'' read the sdsys block ALONE (from its Match line to the next Match line).  Read over the whole
+    #   file, M7g'' found Debian's stock comment ("... enable keyboard-interactive authentication") and KbdInteractiveAuthentication no on
+    #   the sdtest VPS, a false failure.  An empty block is refused as such, never passed.
+    SDSYS_BLOCK=$(awk '/^Match User sdsys([[:space:]]|$)/ {f = 1; print; next} f && /^Match / {f = 0} f' /etc/ssh/sshd_config)
+    say "  the sdsys block: $(printf '%s\n' "$SDSYS_BLOCK" | grep -c .) line(s)"
+    if [ -n "$SDSYS_BLOCK" ]; then
+      ck_says "M7g' and it allows the password only" "AuthenticationMethods password" "$SDSYS_BLOCK"
+      ck_absent "M7g'' and no longer asks for the retired authenticator code" "keyboard-interactive" "$SDSYS_BLOCK"
+    else
+      not_reached "M7g' and it allows the password only"
+      not_reached "M7g'' and no longer asks for the retired authenticator code"
+    fi
   else
     ck_says "M7g and denies sdsys network login (as delivered: the arm is closed)" "DenyUsers sdsys" "$SSC"
   fi

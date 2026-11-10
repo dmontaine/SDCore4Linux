@@ -38,6 +38,7 @@
  * 17 Oct 26 dm  S.64: prototypes of the edit gates (op_sh.c): edit_kind_of_path, edit_permitted, edit_ok_for_path, edit_os_path_refusal.
  * 31 Dec 23 SD launch - prior history suppressed
  * 29 Sep 26 dm  load_language() is init_messages(): English only.
+ * 10 Nov 26 dm  S.196: log_termination_signal() (linuxio.c).
  * END-HISTORY
  * 
 */
@@ -593,6 +594,7 @@ void break_key(void);
 int16_t keyin(int timeout);
 int32_t keyin_idle_ms(void); /* ms waited with nothing typed, as AUTOLOGOUT judges it (kernel(K$AUTOLOGOUT, -2)) */
 bool keyready(void);
+void log_termination_signal(void); /* S.196: the SIGHUP/SIGTERM line, written by process_events(), never by the handler */
 int32_t type_ahead_count(void);
 bool write_socket(char * str, int bytes, bool flush);
 bool to_outbuf(char * str, int bytes);

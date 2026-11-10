@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+10 Nov 26  A SESSION WHOSE CONNECTION DROPS CAN NO LONGER STOP EVERY LOGIN.
+
+             What        - When a session's terminal or ssh connection went away, SD wrote "Received termination signal"
+                           to its error log from inside the signal itself. If the signal arrived while the session was
+                           already writing the error log or the audit trail (for example just after it logged "Forced
+                           logout"), the session waited for itself for ever, using the processor, and every later login
+                           waited behind it, since each login writes an audit line. The line is now written when the session
+                           acts on the signal, not inside it.
+             Why         - Found on a test server when an ssh connection was dropped at that moment.
+             Not changed - The error log still says "Received termination signal" with the signal's number; a session
+                           still leaves at once on SIGHUP or SIGTERM.
+
 9 Nov 26   THE ISO WEEK NUMBER OF A DATE CONVERSION IS RIGHT.
 
              What        - The I code of a D conversion (OCONV(date, 'D...I'), the ISO week number) now gives the week of

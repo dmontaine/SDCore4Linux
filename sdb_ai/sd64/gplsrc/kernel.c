@@ -41,6 +41,8 @@
  * 28 Jul 24 mab remove op code overwrites (removed from opcodes.h)
  * 14 Sep 26 dm  fatal_signal_handler() releases this process's semaphores
  *               before logging (W.0, owner's ruling of 14 Sep 26).
+ * 10 Nov 26 dm  S.196: process_events() writes the "Received termination signal" line (log_termination_signal()) when it
+ *               handles EVT_TERMINATE; the SIGHUP/SIGTERM handler no longer logs.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -1206,6 +1208,7 @@ void process_events() {
 
   if (events & EVT_TERMINATE) /* Terminate process gracefully */
   {
+    log_termination_signal(); /* 10 Nov 26 S.196: the signal handler's line, written here and not in the handler */
     k_exit_cause = K_TERMINATE;
     return; /* Ignore any other events */
   }

@@ -214,11 +214,25 @@ def rows_for(ctx):
         except KeyError:
             su_members, ssh_members = [], []
         both = sorted(u for u in su_members if u in ssh_members and u not in ("root", "sdsys"))
-        if "root" not in su_members or "root" in ssh_members or not both:
-            row("S.157 CANNOT RUN: needs root in sdusers and not in sdssh, and a user in both (sdusers=%s sdssh=%s)" % (su_members, ssh_members), False)
+        # 10 Nov 26 (S.158 made root LEAVE sdusers at the end of an install): on a machine installed since, root is in no arm's group, so
+        # the root row runs against a scratch copy of the arms whose group is root's own primary group "root" - root is then inside the
+        # arm's group and "User *,!root" is what decides, as on a machine where root is in sdusers.  The arms are otherwise the helper's.
+        root_cfg, root_grp = e.cfg, "sdusers"
+        if "root" not in su_members:
+            root_cfg, root_grp = e.cfg + ".rootgroup", "root"
+            with open(e.cfg) as fh:
+                txt = fh.read()
+            n_arms = txt.count("Match Group sdusers,")
+            with open(root_cfg, "w") as fh:
+                fh.write(txt.replace("Match Group sdusers,", "Match Group root,"))
+            say("  S.157: root is not in sdusers here (S.158); the root row reads a copy of the arms with group root (%d arm(s) changed)" % n_arms)
+            if n_arms < 2:
+                root_grp = ""
+        if "root" in ssh_members or not both or not root_grp:
+            row("S.157 CANNOT RUN: needs root outside sdssh, a user in sdusers and sdssh, and the two arms (sdusers=%s sdssh=%s)" % (su_members, ssh_members), False)
         else:
-            rc, eff = effective(ctx["sshd"], e.cfg, "root")
-            row("S.157 the REAL sshd gives root (in sdusers, not in sdssh) no ForceCommand: root's ssh is the machine's own",
+            rc, eff = effective(ctx["sshd"], root_cfg, "root")
+            row("S.157 the REAL sshd gives root (in the arms' group %s, not in sdssh) no ForceCommand: root's ssh is the machine's own" % root_grp,
                 rc == 0 and eff.get("forcecommand", "none") == "none", "forcecommand=%r" % eff.get("forcecommand"))
             rc, eff = effective(ctx["sshd"], e.cfg, both[0])
             row("S.157 ... and still forces %s (in sdusers and sdssh) into sd" % both[0], rc == 0 and eff.get("forcecommand") == e.sd,
