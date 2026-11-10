@@ -86,7 +86,6 @@ LEDGER = {
     },
     "twokeys": {
         "tool_query:option": "an option list chooses with Enter or the space bar (the table of two-key actions)",
-        "tool_home:signout": "3 Nov 26 (S.149): Ctrl-Q, or Ctrl-X when Ctrl-Q leaves for the prompt; make.keys registers only one of them at a time",
         "tool_audit:filter": "9 Nov 26 (S.186): F, and '/', the find key of every page (the filter form's last field is text anywhere); '/' is not on the key row",
     },
 }

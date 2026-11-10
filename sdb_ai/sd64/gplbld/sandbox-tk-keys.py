@@ -198,7 +198,7 @@ def main():
         rw, cw = next(((r_, l_.find("window       sample")) for r_, l_ in enumerate(t.lines()) if "window       sample" in l_), (0, 0))
         say("    [measured] night window style: %r" % (sc.style(rw, cw + 14),))
         row("...and the Styles box is drawn in it: the window style has colours now", sc.style(rw, cw + 14)[0] is not None or sc.style(rw, cw + 14)[1] is not None, repr(sc.style(rw, cw + 14)))
-        for want in ("paper", "blue", "classic", "dark", "light"):
+        for want in ("paper", "blue", "classic"):                # S.199: dark and light are no longer in the cycle
             press(t, "\x14")
             row("Ctrl-T again: %s" % want, "Theme       %s" % want in text(t), repr(t.line(40)))
         press(t, "\x14")

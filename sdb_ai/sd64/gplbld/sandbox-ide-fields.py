@@ -227,11 +227,11 @@ def main():
     row("Q4 Esc leaves the menu: the pane is as it was and the tab is not changed", rc.path_of(L) == "/" and rc.dirty_of(L) is False, repr(rc.path_of(L)))
     L = e.keys(sb.F6)
     st1 = e.status()
-    e.keys(sb.F6, sb.F6, sb.F6)
+    e.keys(sb.F6, sb.F6)
     st4 = e.status()
     L = e.keys(sb.DOWN, sb.RET)
-    row("Q5 F6 goes round the panes: from the table to the messages pane and, after three more, back to the table, which is the editor pane ([Editor]) and still works (Return dives)",
-        st1.startswith("[Messages]") and st4.startswith("[Editor]") and rc.path_of(L) in ("/1", "/2"), "%r %r %r" % (st1[:20], st4[:20], rc.path_of(L)))
+    row("Q5 F6 goes round the panes: from the table to the files (the empty messages box is not a stop, S.200) and, after two more, back to the table, which is the editor pane ([Editor]) and still works (Return dives)",
+        st1.startswith("[Files]") and st4.startswith("[Editor]") and rc.path_of(L) in ("/1", "/2"), "%r %r %r" % (st1[:20], st4[:20], rc.path_of(L)))
     e.keys(F12)
     e.end()
 

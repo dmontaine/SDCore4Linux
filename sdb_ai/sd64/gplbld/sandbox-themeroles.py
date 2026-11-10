@@ -46,7 +46,7 @@ PDEF = "zztd" + RUN       # SCREEN OPEN with nothing asked
 PEXT = "zztx" + RUN       # S.172: SCREEN OPEN, CLEAR, a text, SCREEN CLOSE, then a line printed at the prompt
 passed = failed = 0
 ROLES = ["warning", "success", "readonly", "busy", "focus", "error"]
-THEMES = ["mono", "blue", "classic", "dark", "light", "night", "paper"]      # 8 Nov 26, S.172: night and paper
+THEMES = ["mono", "blue", "classic", "night", "paper"]      # 10 Nov 26, S.199: dark and light are gone
 
 SRC_CFG = """$internal
    names = 'SCREENTHEME' : @fm : 'BACKUPDIR' : @fm : 'SDSYS' : @fm : 'ABCDEFGHIJKLMNOPQ' : @fm : 'NOSUCHKEY' : @fm : 'GRPSIZE'
@@ -71,8 +71,8 @@ $include gpl.bp sl.h
       cur = nx
    next i
    names = 'normal' : @fm : 'warning' : @fm : 'success' : @fm : 'readonly' : @fm : 'busy' : @fm : 'focus' : @fm : 'error'
-   themes = 'mono' : @fm : 'blue' : @fm : 'classic' : @fm : 'dark' : @fm : 'light' : @fm : 'night' : @fm : 'paper'
-   for t = 1 to 7
+   themes = 'mono' : @fm : 'blue' : @fm : 'classic' : @fm : 'night' : @fm : 'paper'
+   for t = 1 to 5
       call $sl_theme('set', themes<t>, '', '', '', r)
       if r # 0 then
          crt 'SEQ ' : themes<t> : ' refused ret=' : r
@@ -268,7 +268,7 @@ def main():
         #   xterm walked blue, classic, dark, light).  So the pipe is given a terminal type with no colour.
         out = isess(box, "RUN bp " + PSEQ, term="vt100")
         lst = tagged(out, "LST")
-        row("$sl_theme 'list' is blue,classic,dark,light,mono,night,paper", lst == ["LST blue,classic,dark,light,mono,night,paper"], repr(lst))
+        row("$sl_theme 'list' is blue,classic,mono,night,paper (S.199)", lst == ["LST blue,classic,mono,night,paper"], repr(lst))
         nx = tagged(out, "NXT")
         row("on a pipe whose terminal type (vt100) has no colour 'next' is mono whatever it is asked, and mono is the theme the program starts in",
             nx and nx[0] == "NXT start=mono" and all(re.match(r"NXT (mono->mono|set mono ret=0)$", x) for x in nx[1:]), repr(nx))
@@ -278,10 +278,10 @@ def main():
             lines = pty_internal(box, term, ["RUN bp " + PSEQ])
             nx = [x for x in tagged(lines, "NXT") if "->" in x]
             walk = [re.match(r"NXT (\S+)->(\S+)$", x).groups() for x in nx]
-            row("%s: 'next' walks mono -> night -> paper -> blue -> classic -> dark -> light -> mono -> night" % term,
-                [b for _, b in walk] == ["night", "paper", "blue", "classic", "dark", "light", "mono", "night"], repr(walk))
+            row("%s: 'next' walks mono -> night -> paper -> blue -> classic -> mono -> night -> paper -> blue (the probe's eight steps)" % term,
+                [b for _, b in walk] == ["night", "paper", "blue", "classic", "mono", "night", "paper", "blue"], repr(walk))
             sq = seqs(lines)
-            row("%s: the probe printed the sequences of all seven themes and all seven styles" % term, sorted(sq) == sorted(THEMES) and all(len(v) == 7 for v in sq.values()), repr({k: len(v) for k, v in sq.items()}))
+            row("%s: the probe printed the sequences of all five themes and all seven styles" % term, sorted(sq) == sorted(THEMES) and all(len(v) == 7 for v in sq.values()), repr({k: len(v) for k, v in sq.items()}))
             if not sq:
                 continue
             dim = (tagged(lines, "SEQ dim") or ["SEQ dim "])[0][len("SEQ dim "):]

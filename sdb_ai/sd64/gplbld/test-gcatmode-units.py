@@ -72,7 +72,7 @@ def run():
         row("I1 the group and other read and execute bits are kept", modes["a775"] == 0o755 and modes["a664"] == 0o644, str(modes))
     # I2: order
     lines = inst.split("\n")
-    comp = [i for i, l in enumerate(lines) if "sudo bin/sd -internal BASIC gpl.bp cproc" in l]
+    comp = [i for i, l in enumerate(lines) if "BASIC gpl.bp cproc" in l and "sudo bin/sd -internal" in l]   # 10 Nov 26 S.198: one piped session, the removal of the source between it and the call
     calls = [i for i, l in enumerate(lines) if l.strip() == "fix_gcat_modes"]
     if not comp:
         row("I2 the CPROC compile is found", False, "no compile line")
@@ -80,7 +80,7 @@ def run():
         c0 = comp[0]
         after = [i for i in calls if i > c0]
         nxt_sd = [i for i, l in enumerate(lines) if i > c0 and re.search(r"\b(sudo )?(\"\$\{?sdsysdir\}?/bin/sd\"|bin/sd)\b", l) and not l.strip().startswith("#")]
-        first_call_ok = bool(after) and after[0] < (nxt_sd[0] if nxt_sd else 10 ** 9) and after[0] - c0 <= 8
+        first_call_ok = bool(after) and after[0] < (nxt_sd[0] if nxt_sd else 10 ** 9) and after[0] - c0 <= 24
         row("I2 fix_gcat_modes is called straight after the CPROC compile", first_call_ok,
             "compile at %d, calls after it %s" % (c0 + 1, [i + 1 for i in after]))
         stops = [i for i, l in enumerate(lines) if l.strip() == "sd_install_start || true"]

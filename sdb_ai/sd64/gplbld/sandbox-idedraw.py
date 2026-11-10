@@ -255,8 +255,8 @@ end
             e.keys(sb.F6)                                  # 28 Oct 26: F6, the panes' key (Tab indents in the editor now)
             e.quiet()
             seen.append(e.status().split("]")[0] + "]")
-        row("F6 goes round four panes and the status line names each: %s" % seen,
-            sorted(set(seen)) == sorted(["[Files]", "[Tabs]", "[Editor]", "[Messages]"]), repr(seen))
+        row("F6 goes round three panes (S.200: the empty messages box is not a stop) and the status line names each: %s" % seen,
+            sorted(set(seen)) == sorted(["[Files]", "[Tabs]", "[Editor]"]), repr(seen))
         e.end()
         e = sb.Ide(box, "IDE bp %s" % A)
         row("a record opened from the command line starts in the editor: the status line says [Editor] and the record", e.status().startswith("[Editor]") and A in e.status(), e.status())
@@ -280,19 +280,19 @@ end
         row("...[*] on the editor (it has the focus at the start) and [-] on the other three",
             ps.get("ed") == "[*]" and [ps.get(k) for k in ("tree", "tabs", "err")] == ["[-]"] * 3, repr(ps))
         order = []
-        for _ in range(4):
+        for _ in range(3):
             e.keys(sb.F6)                                  # 28 Oct 26: F6 (Tab indents in the editor now)
             e.quiet()
             ps = panes_state(e.lines())
             on = [k for k, v in ps.items() if v == "[*]"]
             order.append(on[0] if len(on) == 1 and len(ps) == 4 else "BAD:" + repr(ps))
-        row("F6 moves the [*] round the panes, one at a time: %s" % order, order == ["err", "tree", "tabs", "ed"], repr(order))
+        row("F6 moves the [*] round the panes, one at a time, past the empty messages box (S.200): %s" % order, order == ["tree", "tabs", "ed"], repr(order))
         e.keys(sb.F10)
         e.keys(sb.RIGHT)
         e.keys(sb.ESC)
         e.quiet()
         ps = panes_state(e.lines())
-        row("after a menu has been opened and closed over the bar the four are as they were (four Tabs went round to the editor again)", sorted(ps) == ["ed", "err", "tabs", "tree"] and ps.get("ed") == "[*]", repr(ps))
+        row("after a menu has been opened and closed over the bar the four are as they were (three F6 went round to the editor again)", sorted(ps) == ["ed", "err", "tabs", "tree"] and ps.get("ed") == "[*]", repr(ps))
         m = len(e.s.raw)
         e.keys(sb.F6)
         e.quiet()
@@ -309,7 +309,7 @@ end
         e.keys(sb.SHIFT_F6)
         e.quiet()
         ps = panes_state(e.lines())
-        row("Shift-F6 once more: round the start of the ring to the messages ([*] on err)", ps.get("err") == "[*]" and ps.get("tree") == "[-]", repr(ps))
+        row("Shift-F6 once more: round the start of the ring, past the empty messages box, to the editor (S.200)", ps.get("ed") == "[*]" and ps.get("tree") == "[-]", repr(ps))
         e.end()
         e = sb.Ide(box, "IDE bp %s" % A)
         e.s.resize(200, 60, idle=3.0)

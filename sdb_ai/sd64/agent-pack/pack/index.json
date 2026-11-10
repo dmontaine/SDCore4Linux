@@ -26208,6 +26208,13 @@
 "tier": "reference",
 "words": 40
 },
+"tcl:ced": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "-",
+"tier": "reference",
+"words": 38
+},
 "tcl:changed": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",

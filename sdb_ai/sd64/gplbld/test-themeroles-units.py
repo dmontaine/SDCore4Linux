@@ -92,8 +92,7 @@ def theme_case(th, name, nxt):
 
 def theme_looks(th):
     """the style definitions each theme ends with: its own case plus the subroutines it gosubs"""
-    cases = {"mono": theme_case(th, "mono", "nm = 'classic'"), "classic": theme_case(th, "classic", "nm = 'dark'"), "dark": theme_case(th, "dark", "nm = 'light'"),
-             "light": theme_case(th, "light", "nm = 'blue'"), "blue": theme_case(th, "blue", "nm = 'paper'"),
+    cases = {"mono": theme_case(th, "mono", "nm = 'classic'"), "classic": theme_case(th, "classic", "nm = 'blue'"), "blue": theme_case(th, "blue", "nm = 'paper'"),
              "paper": theme_case(th, "paper", "nm = 'night'"), "night": theme_case(th, "night", "1")}
     out = {}
     for name, body in cases.items():
@@ -141,9 +140,7 @@ def run():
     row("R3 classic, blue, paper and night: a role has both colours, as a style replaces the whole attribute set",
         all(looks[t][r][0] and looks[t][r][1] for t in ("classic", "blue", "paper", "night") for r in ROLES),
         repr({t: {r: looks[t][r] for r in ROLES} for t in ("classic", "blue", "paper", "night")}))
-    row("R3 dark and light: a colour and at least one flag, no background (the terminal's own)",
-        all(looks[t][r][0] and looks[t][r][1] == "" and looks[t][r][2] for t in ("dark", "light") for r in ROLES), repr({t: {r: looks[t][r] for r in ROLES} for t in ("dark", "light")}))
-    row("R3 the colour themes keep error white on red, bold (the syntax colour)", all(looks[t]["error"] == ("white", "red", ("bold",)) for t in ("classic", "dark", "light", "blue", "paper", "night")))
+    row("R3 the colour themes keep error white on red, bold (the syntax colour)", all(looks[t]["error"] == ("white", "red", ("bold",)) for t in ("classic", "blue", "paper", "night")))
 
     # R9 (8 Nov 26, S.172): paper and night are the readable themes the owner asked for ("black or dark blue on light grey or white or yellow on black")
     bg_of = {"paper": "white", "night": "black"}
@@ -172,8 +169,8 @@ def run():
         all(looks[t][s][1] == bg_of[t] for t in ("paper", "night") for s in ("window", "text", "desktop", "pane")) and len(allpairs) > 20)
 
     fl = flat(th)
-    row("R4 'list' answers blue classic dark light mono night paper, in that order, from one place",
-        "thorder = 'blue' : @fm : 'classic' : @fm : 'dark' : @fm : 'light' : @fm : 'mono' : @fm : 'night' : @fm : 'paper'" in fl and fl.count("thorder = '") == 1 and "case op = 'list' gosub theme.order ret = thorder" in fl)
+    row("R4 'list' answers blue classic mono night paper (S.199: not dark or light), in that order, from one place",
+        "thorder = 'blue' : @fm : 'classic' : @fm : 'mono' : @fm : 'night' : @fm : 'paper'" in fl and fl.count("thorder = '") == 1 and "case op = 'list' gosub theme.order ret = thorder" in fl)
     nt = flat(label_block(th, "next.theme")).strip()
     i_col = nt.find("system(25)")
     i_37 = nt.find("@(-37, 7) = ''")
@@ -285,9 +282,7 @@ def selftest():
     mutant("mono has no look for error", "sl_theme", "   spec<-1> = 'error=,,reverse bold'\n", "")
     mutant("mono is not given the roles", "sl_theme", "         gosub roles.mono\n", "")
     mutant("blue readonly has no background", "sl_theme", "spec<-1> = 'readonly=cyan,black,'", "spec<-1> = 'readonly=cyan,,'")
-    mutant("classic is given no roles", "sl_theme", "         spec<-1> = 'focus=white,cyan,bold'\n         gosub syntax.dark\n      case nm = 'dark'", "         gosub syntax.dark\n      case nm = 'dark'")
-    mutant("dark roles lose their flags", "sl_theme", "spec<-1> = 'success=green,,bold'\n   spec<-1> = 'readonly=cyan,,underline'", "spec<-1> = 'success=green,,bold'\n   spec<-1> = 'readonly=cyan,,'")
-    mutant("light is not given the roles", "sl_theme", "         gosub syntax.light\n         gosub roles.light\n", "         gosub syntax.light\n")
+    mutant("classic is given no roles", "sl_theme", "         spec<-1> = 'focus=white,cyan,bold'\n         gosub syntax.dark\n      case nm = 'blue'", "         gosub syntax.dark\n      case nm = 'blue'")
     mutant("the list changes order", "sl_theme", "thorder = 'blue' : @fm : 'classic'", "thorder = 'classic' : @fm : 'blue'")
     mutant("next forgets the colourless terminal", "sl_theme", "   if system(25) then nxok = 0\n", "")
     mutant("next forgets setf and setb", "sl_theme", "      if @(-37, 7) = '' or @(-38, 0) = '' then nxok = 0\n", "")

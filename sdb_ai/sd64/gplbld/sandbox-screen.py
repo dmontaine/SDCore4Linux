@@ -2193,9 +2193,9 @@ def part_memo2(box):
 
 
 PROGS.update({
-    # a text area that shows SD BASIC in colour (the dark theme has the syntax styles) with line numbers, and a button after it
+    # a text area that shows SD BASIC in colour (the blue theme has the syntax styles) with line numbers, and a button after it
     "zzthsyn": dialogue_program("""   text = '* a comment':@fm:'if x = 5 then crt "hi"':@fm:'$include syscom.h':@fm:'end'
-   screen theme 'dark' returning th else th = 'NO-COLOUR'
+   screen theme 'blue' returning th else th = 'NO-COLOUR'
    screen form title 'Syntax' at 10,3 size 50,14 returning f
    screen memo f, 'm', text at 2,2 size 40,5 syntax 'sd.basic' lnum
    screen button f, 'ok', '&OK' at 10,11 default
@@ -2470,7 +2470,7 @@ def part_memo3(box):
     row("line numbers: the four lines are 1 * a comment, 2 if x ..., 3 $include ... and 4 end, the text two cells in from the numbers",
         p is not None and L[r0][c0 - 2:c0 + 11] == "1 * a comment" and L[r0 + 1][c0 - 2:c0 + 4] == "2 if x" and L[r0 + 2][c0 - 2:c0 + 6] == "3 $inclu"
         and L[r0 + 3][c0 - 2:c0 + 5] == "4 end  ", repr([l[c0 - 2:c0 + 22] for l in L[r0:r0 + 4]]))
-    row("control: the theme was given (the dark theme is coloured)", t.style(r0, c0) != (None, None, ""), repr(t.style(r0, c0)))
+    row("control: the theme was given (the blue theme is coloured)", t.style(r0, c0) != (None, None, ""), repr(t.style(r0, c0)))
     cm = t.style(r0, c0)
     row("a comment line is blue and bold, all of it", cm == (BLUE, None, "b") and t.style(r0, c0 + 8) == cm, repr((cm, t.style(r0, c0 + 8))))
     line2 = L[r0 + 1]
@@ -2478,13 +2478,13 @@ def part_memo3(box):
     kw = t.style(r0 + 1, ci)
     row("keywords are one colour, bold, and not the comment's: if, then and crt", kw[0] is not None and "b" in kw[2] and kw != cm
         and t.style(r0 + 1, ct) == kw and t.style(r0 + 1, line2.index("crt")) == kw, repr((kw, t.style(r0 + 1, ct), t.style(r0 + 1, line2.index("crt")))))
-    row("a name that is no keyword is plain: the x", t.style(r0 + 1, line2.index(" x ") + 1) == (None, None, ""), repr(t.style(r0 + 1, line2.index(" x ") + 1)))
+    row("a name that is no keyword is plain (the blue theme's text, white on black): the x", t.style(r0 + 1, line2.index(" x ") + 1) == (7, 0, ""), repr(t.style(r0 + 1, line2.index(" x ") + 1)))
     row("a string is green, and so are its quotes: \"hi\"", t.style(r0 + 1, cs) == (GREEN, None, "") and t.style(r0 + 1, cs + 3) == (GREEN, None, ""), repr((t.style(r0 + 1, cs), t.style(r0 + 1, cs + 3))))
-    row("a number is not plain and not a keyword's colour: the 5", t.style(r0 + 1, cn) not in ((None, None, ""), kw), repr(t.style(r0 + 1, cn)))
+    row("a number is not plain and not a keyword's colour: the 5", t.style(r0 + 1, cn) not in ((7, 0, ""), kw), repr(t.style(r0 + 1, cn)))
     row("a line that starts with $ is the preprocessor's, red, all of it", t.style(r0 + 2, c0) == (RED, None, "") and t.style(r0 + 2, c0 + 15) == (RED, None, ""), repr((t.style(r0 + 2, c0), t.style(r0 + 2, c0 + 15))))
     L = t.keys("q")
     row("typing goes in at the cursor and the colours follow the text: q* a comment is no comment now, the * is plain",
-        L[r0][c0:c0 + 12] == "q* a comment" and t.style(r0, c0 + 1) == (None, None, ""), repr((L[r0][c0:c0 + 12], t.style(r0, c0 + 1))))
+        L[r0][c0:c0 + 12] == "q* a comment" and t.style(r0, c0 + 1) == (7, 0, ""), repr((L[r0][c0:c0 + 12], t.style(r0, c0 + 1))))
     L = t.keys(HOME, DELK)                  # (Home: Ctrl-A selected all from 28 Oct 26 and Delete would have cleared the text)
     row("deleting the q gives the comment back its colour, in one go", L[r0][c0:c0 + 11] == "* a comment" and t.style(r0, c0) == cm, repr((L[r0][c0:c0 + 11], t.style(r0, c0))))
     # a click on the text: through the numbers

@@ -307,8 +307,8 @@ def sec_dialog_open():
     c = R.row("R4c home at 140x43 is up (footer on rows 41-43)", f0["ok"], repr(f0), phase=None)
     before = w.lines()
     w.send(F10, 1.0)
-    opened = any(("Sign out" in l and ("^Q" in l or "Alt-X" in l)) for l in w.lines()[1:9])    # 3 Nov 26 (S.149): `home` is typed at the prompt here, so Sign out has a key of its own (Alt-X since S.179) and ^Q is Back to the prompt
-    c2 = R.row("R4c2 F10 opens the File menu (an entry 'Sign out  Alt-X' appears in the rows under the menu bar)", opened, "\n".join(l for l in w.lines()[:9] if l.strip()), phase=None)
+    opened = any("Sign out" in l for l in w.lines()[1:9])    # 10 Nov 26 (S.201): `home` is typed at the prompt here, so ^Q is Back to the prompt and Sign out has no key of its own
+    c2 = R.row("R4c2 F10 opens the File menu (an entry 'Sign out' appears in the rows under the menu bar)", opened, "\n".join(l for l in w.lines()[:9] if l.strip()), phase=None)
     off = w.resize(180, 55, 1.5)
     w.send(ESC, 1.0)
     w.pump(2.5)

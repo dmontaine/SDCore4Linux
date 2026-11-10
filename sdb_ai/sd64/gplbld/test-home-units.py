@@ -134,7 +134,7 @@ def checks(s):
     fin = between(th, "\nfinish:\n", "\nreturn")
     t0 = fin.find("outcome = 'terminal'")
     ck("H5 the Terminal tile: the screen is given back FIRST, then the flag is set and the banner (11864) shown; the program then ends and the real prompt is there",
-       0 < t0 < fin.find("call $tk_close(ctx)", t0) < fin.find("hflag = 1") < fin.find("sysmsg(11864)"), fin[:500])
+       0 < t0 < fin.find("call $tk_close(ctx)", t0) < fin.find("hflag = (if menu.session then 1 else 2)") < fin.find("sysmsg(11864)"), fin[:500])
     s0 = fin.find("outcome = 'signout'")
     ck("H5b ...sign out gives the screen back, then runs QUIT; every other way out gives it back too",
        0 < s0 < fin.find("call $tk_close(ctx)", s0) < fin.find("execute 'quit'", s0) and "case 1\n         call $tk_close(ctx)" in fin, fin[:500])
@@ -168,7 +168,7 @@ def checks(s):
        "   if logto.reset then goto restart.cproc\n\n   if @tty[1, 5] = '/dev/' then call !home_entry('logto')\n\n   return" in cp)
     ck("H11d ...and these are the only two calls", cp.count("call !home_entry(") == 2)
 
-    ck("H12 EXIT: with the flag and a terminal it starts HOME (saying first that the screen is the session's own again: hstart = 1), otherwise it does what QUIT does", "if hflag and @tty[1, 5] = '/dev/' then\n      hstart = 1\n      execute 'home'\n   end else\n      execute 'quit'\n   end" in ex)
+    ck("H12 EXIT: with the flag and a terminal it starts HOME (saying first what kind of screen it was: hstart = (hflag = 1), S.201), otherwise it does what QUIT does", "if hflag and @tty[1, 5] = '/dev/' then\n      hstart = (hflag = 1)\n      execute 'home'\n   end else\n      execute 'quit'\n   end" in ex)
     ck("H13 SET.START.DEFAULT asks for the administrator first (2001), takes only menu or terminal, writes only the one file, audits it, and says what it is without a word",
        0 < ss.find("kernel(K$ADMINISTRATOR, -1)") < ss.find("stop sysmsg(2001)") < ss.find("openseq path overwrite to df else null") and "openseq path readonly to df then" in ss and "want = 'menu' or want = 'terminal'" in ss
        and "path = @sdsys : @ds : 'start.default'" in ss and "K$AUDIT, 'set.start.default ' : want" in ss and "case want = ''" in ss)
@@ -411,11 +411,11 @@ def checks(s):
     keyed = re.findall(r"call \$tk_keys\('add', keys, '([^']*)', '[^']*', '([^']*)', '', 1\)", mk9)
     menued = re.findall(r"call \$tk_keys\('menu', keys, '([^']*)'", mkm)
     ck("H82 ...every action on the bar has a key in the table (the bar replays the key through the page's own case), F10 has no row (it is the bar's), and the keys that are not on the function-key row are taken "
-       "off it right after their row (Backspace, Alt-T, Ctrl-W, Ctrl-R, and Alt-X when Ctrl-Q leaves for the prompt); 8 Nov 26 (S.179): Ctrl-T (the theme) and Ctrl-K (the keys) and their View and "
+       "off it right after their row (Backspace, Alt-T, Ctrl-W, Ctrl-R, and Sign out when Ctrl-Q leaves for the prompt); 8 Nov 26 (S.179): Ctrl-T (the theme) and Ctrl-K (the keys) and their View and "
        "Help entries are $tk_std's, off the row too (test-tkstd-units.py), and Go > Start the tile (Enter) is new (S.180), so the page's own menu entries are 11",
        set(menued) <= {a for k, a in keyed if k} and not any(k == "f10" for k, a in keyed) and len(menued) == 11
        and all(re.search(r"call \$tk_keys\('add', keys, '%s', [^\n]*\)\n   gosub off\.row\n" % k, mk9) for k in ("bs", "alt-t", "ctrl-w", "ctrl-r"))
-       and re.search(r"call \$tk_keys\('add', keys, 'alt-x', [^\n]*\)\n      gosub off\.row\n", mk9)
+       and re.search(r"call \$tk_keys\('add', keys, '', 'sign out', [^\n]*\)\n      gosub off\.row\n", mk9)
        and mk9.count("gosub off.row") == 5 and "keys<dcount(keys, @fm), TK.K.ROW> = 0" in th, repr((keyed, menued)))
     oky = between(th, "\non.key:\n", "\non.mouse:\n")
     ck("H83 ...a key of a tile that is off does nothing but say so, whether pressed or chosen from the bar: Alt-T (S.179; Ctrl-T before) asks terminal.off before it leaves for the Terminal, Ctrl-W asks the "
@@ -447,19 +447,19 @@ def checks(s):
        "and the Terminal tile is not off, worked out before the key table is made",
        ordered(th, "common /tkhome/ hflag, hlogto, hstart", "hlogto = 0", "menu.session = hstart + 0", "hstart = 0", "call $tk_open('home', '', ctx, err)")
        and ordered(th, "call !home_off(@who, off.list)", "leave.ok = (not(menu.session) and not(index(' ' : off.list : ' ', ' terminal ', 1)))", "gosub make.keys"), th[:200])
-    ck("H85b ...when it may, Ctrl-Q is 'prompt' (leave) and Alt-X (S.179; Ctrl-X before) is Sign out, off the key row, and the File menu has Back to the prompt before Sign out; when it may not, Ctrl-Q "
-       "is Sign out as before; the loop leaves on Ctrl-Q (outcome leave) and signs out on Alt-X only when leave.ok",
+    ck("H85b ...when it may, Ctrl-Q is 'prompt' (leave) and Sign out has no key of its own (S.201), and the File menu has Back to the prompt before Sign out; when it may not, Ctrl-Q "
+       "is Sign out as before; the loop leaves on Ctrl-Q (outcome leave), and no other key signs out",
        "if leave.ok then\n      call $tk_keys('add', keys, 'ctrl-q', 'prompt', 'leave', '', 1)\n   end else\n      call $tk_keys('add', keys, 'ctrl-q', 'sign out', 'signout', '', 1)\n   end" in mkk
-       and "if leave.ok then\n      call $tk_keys('add', keys, 'alt-x', 'sign out', 'signout', '', 1)\n      gosub off.row\n   end" in mkk
+       and "if leave.ok then\n      call $tk_keys('add', keys, '', 'sign out', 'signout', '', 1)\n      gosub off.row\n   end" in mkk
        and ordered(mkm, "if leave.ok then call $tk_keys('menu', keys, 'leave', '&File', '&Back to the prompt', '', '')", "call $tk_keys('menu', keys, 'signout', '&File', '&Sign out', '', '')")
-       and "case nm = 'ctrl-q'\n         if leave.ok then\n            outcome = 'leave'\n            done = 1\n         end else\n            gosub do.signout\n         end\n      case nm = 'alt-x' and leave.ok\n         gosub do.signout" in oky,
+       and "case nm = 'ctrl-q'\n         if leave.ok then\n            outcome = 'leave'\n            done = 1\n         end else\n            gosub do.signout\n         end\n" in oky and "alt-x" not in oky and "case nm = 'act:signout'" in oky,
        mkk[:300])
     leave_case = between(fin, "case outcome = 'leave'", "case 1")
     ck("H85c ...leaving closes the screen and nothing else (no QUIT, hflag untouched, so EXIT still ends the session), after the wall for an account whose Terminal tile is off; !home_entry and EXIT say "
        "hstart = 1 immediately before they start HOME",
        "call $tk_close(ctx)" in leave_case and "quit" not in leave_case and "hflag" not in leave_case
        and fin.find("case terminal.off and outcome # 'signout'") < fin.find("case outcome = 'leave'")
-       and "hstart = 1\n   execute 'home'" in he and "hstart = 1\n      execute 'home'" in ex, repr(leave_case))
+       and "hstart = 1\n   execute 'home'" in he and "hstart = (hflag = 1)\n      execute 'home'" in ex, repr(leave_case))
     return rows
 
 
@@ -491,8 +491,8 @@ MUTANTS = [
     ("EXIT never ends the session", "exit", "      execute 'quit'\n", "      null\n"),
     ("SET.START.DEFAULT does not ask for the administrator", "setstart", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      stop sysmsg(2001) ;* Command requires administrator privileges\n   end\n", ""),
     ("SET.START.DEFAULT takes any word", "setstart", "      case want = 'menu' or want = 'terminal'", "      case 1"),
-    ("the Terminal tile does not set the flag", "tool_home", "         hflag = 1                                        ;* EXIT comes back here\n", ""),
-    ("the Terminal tile shows the banner before giving the screen back", "tool_home", "         call $tk_close(ctx)\n         hflag = 1", "         hflag = 1"),
+    ("the Terminal tile does not set the flag", "tool_home", "         hflag = (if menu.session then 1 else 2)          ;* EXIT comes back here, to the same kind of screen (S.201)\n", ""),
+    ("the Terminal tile shows the banner before giving the screen back", "tool_home", "         call $tk_close(ctx)\n         hflag = (if", "         hflag = (if"),
     ("Sign out does not ask", "tool_home", "   if b = 1 then\n      outcome = 'signout'", "   if @true then\n      outcome = 'signout'"),
     ("Enter on the sign-out box signs out", "tool_home", "default 2 returning b", "default 1 returning b"),
     ("the logto does not mark hlogto", "tool_home", "   hlogto = 1\n   execute 'logto ' : acct trapping aborts", "   execute 'logto ' : acct trapping aborts"),
@@ -611,10 +611,12 @@ MUTANTS = [
     ("Ctrl-Q signs out of a screen typed at the prompt", "tool_home", "      case nm = 'ctrl-q'\n         if leave.ok then", "      case nm = 'ctrl-q'\n         if 0 then"),
     ("Ctrl-Q leaves a screen the session started in", "tool_home", "leave.ok = (not(menu.session) and not(index(' ' : off.list : ' ', ' terminal ', 1)))", "leave.ok = (not(index(' ' : off.list : ' ', ' terminal ', 1)))"),
     ("Ctrl-Q leaves an account whose Terminal tile is off", "tool_home", "leave.ok = (not(menu.session) and not(index(' ' : off.list : ' ', ' terminal ', 1)))", "leave.ok = (not(menu.session))"),
-    ("Sign out has no key when Ctrl-Q leaves", "tool_home", "      call $tk_keys('add', keys, 'alt-x', 'sign out', 'signout', '', 1)", "      null"),
+    ("Sign out is not in the table when Ctrl-Q leaves", "tool_home", "      call $tk_keys('add', keys, '', 'sign out', 'signout', '', 1)", "      null"),
+    ("a typed screen comes back from the Terminal tile as the session's own", "tool_home", "hflag = (if menu.session then 1 else 2)", "hflag = 1"),
+    ("File > Sign out does nothing on a typed screen", "tool_home", "      case nm = 'act:signout'  ", "      case nm = 'act:nothing'  "),
     ("the flag that says whose the screen is is never taken", "tool_home", "   hstart = 0                                           ;* taken: a later HOME typed at the prompt the screen gave is typed\n", ""),
     ("!home_entry does not say the screen is the session's own", "home_entry", "   hstart = 1                                  ;* 3 Nov 26: this screen is the session's own (the account starts in the menu), not one typed at the prompt: Ctrl-Q signs out\n", ""),
-    ("EXIT does not say the screen is the session's own again", "exit", "      hstart = 1                               ;* 3 Nov 26: back from the Terminal tile, the screen is the session's own again (Ctrl-Q signs out), as it was before the tile was used\n", ""),
+    ("EXIT does not say the screen is the session's own again", "exit", "      hstart = (hflag = 1)                     ;* 10 Nov 26 (S.201): back from the Terminal tile, the screen is what it was before the tile was used: the session's own (1) or typed at the prompt (2)\n", ""),
     ("leaving signs out", "tool_home", "      case outcome = 'leave'\n         call $tk_close(ctx)", "      case outcome = 'leave'\n         execute 'quit'\n         call $tk_close(ctx)"),
 ]
 M_U9 = len(MUTANTS) - 16 - 8

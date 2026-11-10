@@ -744,9 +744,9 @@ ck "M9c the installer seeds a PLAIN account (no ADMINISTRATOR keyword)" 0 \
 #   contains the general one as a prefix, and only the closing quote parts
 #   them.
 ck "M9d the ssh helper writes the general arm, excluding sdsys" 1 \
-   "$(grep -cF '"Match Group sdusers,!sdsys"' "$SRC/gplbld/ssh-forcecommand.sh" 2>/dev/null)"
+   "$(grep -cF '"Match Group sdusers,!sdsys User *,!root"' "$SRC/gplbld/ssh-forcecommand.sh" 2>/dev/null)"   # S.158: both arms leave root alone
 ck "M9d2 and the S.29 arm, excluding an account without the sdssh route" 1 \
-   "$(grep -cF '"Match Group sdusers,!sdsys,!sdssh"' "$SRC/gplbld/ssh-forcecommand.sh" 2>/dev/null)"
+   "$(grep -cF '"Match Group sdusers,!sdsys,!sdssh User *,!root"' "$SRC/gplbld/ssh-forcecommand.sh" 2>/dev/null)"
 # Comments are not code: the helper's START-HISTORY still records the sdadmin
 # split it replaced, which is history and must stay.  M7e makes the same
 # distinction for the sudoers drop-in, for the same reason.

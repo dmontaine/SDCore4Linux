@@ -1,6 +1,44 @@
 Next release - in progress
 --------------------------
 
+10 Nov 26  THE CED COMMAND IS BACK.
+
+             What        - CED {DICT} file {id...} at the command prompt edits data collection records in the collection editor. An
+                           install or upgrade gives every account the verb.
+             Why         - For people who prefer to work at the command line, as SED is.
+             Not changed - F12 (Edit as fields) in the IDE and SED, and !CED() in a program, are as they were; the Record editor tile
+                           on the home screen did not come back.
+
+10 Nov 26  CTRL-Q ON THE HOME SCREEN STILL GOES BACK TO THE PROMPT AFTER THE TERMINAL TILE.
+
+             What        - A home screen you typed at the prompt is still one after you use the Terminal tile and type exit, so Ctrl-Q
+                           goes back to the prompt. It used to change to Sign out. Alt-X is gone: Ctrl-Q is the one key that leaves.
+             Why         - After the Terminal tile and exit there was no key back to the prompt, and two keys signed out.
+             Not changed - A home screen the session started in still signs out on Ctrl-Q; Sign out stays on the File menu and the tile.
+
+10 Nov 26  F6 IN THE IDE PASSES THE MESSAGES BOX WHEN IT IS EMPTY.
+
+             What        - F6 and Shift-F6 go round the files, the tabs and the editor, and stop at the messages box only when it has
+                           something in it.
+             Why         - A stop on an empty box did nothing but cost a key press.
+             Not changed - The messages box is still shown, and F6 reaches it after a compile with errors or a find.
+
+10 Nov 26  THE THEMES DARK AND LIGHT ARE GONE.
+
+             What        - The themes are blue, classic, mono, night and paper. A program or SCREENTHEME that names dark or light
+                           gets what a name that is not a theme gets, and someone who had chosen one goes back to the site's theme.
+             Why         - On an ordinary page dark and light looked exactly like mono: they differed only in the colours of
+                           syntax text and a few status words. Paper and night are the real light and dark themes.
+             Not changed - The colouring of source text, and an editor's SYNTAX LIGHT setting for a light terminal background.
+
+10 Nov 26  THREE MEMORY FAULTS FOUND BY A CHECKED BUILD ARE FIXED.
+
+             What        - Making a matrix larger with DIM read past the end of its old header. MATCHES with a quoted literal
+                           could compare, or step, past the end of a string shorter than the literal. An abort while a dictionary
+                           I-type was running could read the I-type's code after it had been released.
+             Why         - A build of the kernel with the compiler's address checker, run over the C test suites for the release.
+             Not changed - What DIM and MATCHES answer; a program that was right gets the same result.
+
 10 Nov 26  THE SOURCE IS DISTRIBUTED WITH THE INSTALLER AND IS NO LONGER INSTALLED.
 
              What        - The install compiles SD and then removes the BASIC programs' source (gpl.bp), the C source and objects (gplsrc,

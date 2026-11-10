@@ -43,6 +43,7 @@
  *               before logging (W.0, owner's ruling of 14 Sep 26).
  * 10 Nov 26 dm  S.196: process_events() writes the "Received termination signal" line (log_termination_signal()) when it
  *               handles EVT_TERMINATE; the SIGHUP/SIGTERM handler no longer logs.
+ * 10 Nov 26 dm  S.125, found by AddressSanitizer: k_return() read the header of an I-type whose copy an abort had released.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -788,8 +789,9 @@ void k_return() {
     return; /* Not reached - k_error() aborts */
   }
   /* -------------------- */
-  if ((obj_hdr->id == 0) /* Return from recursive program */
-      || (process.program.flags & (PF_IS_TRIGGER | HDR_IS_CLASS))) {
+  /* S.125: the flags first.  The object of an I-type may be a string on the e-stack, which an abort has already released: its header must not be read. */
+  if ((process.program.flags & (PF_IS_TRIGGER | HDR_IS_CLASS | HDR_ITYPE)) ||
+      (obj_hdr->id == 0)) { /* Return from recursive program */
     k_exit_cause = K_EXIT_RECURSIVE;
   } else {
     if ((--(obj_hdr->ext_hdr.prog.refs) == 0) &&
