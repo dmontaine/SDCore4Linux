@@ -913,9 +913,18 @@ def main():
         say("\n--- M. SDLogto -------------------------------------------------------------------------------------------------")
         row("M1: SDLogto to another account returns true (sheet 272: it always returned false) and the session is in it (@WHO)",
             lib.SDLogto(b"zzab") == 1 and call("SDGetVar", b"@WHO") == b"zzab", s(call("SDGetVar", b"@WHO")))
+        pth_before = call("SDGetVar", b"@PATH")
         r = lib.SDLogto(b"nosuchaccountzz")
         row("M2: SDLogto to an account that is not there returns false, says why, and the session stays where it was",
             r == 0 and err() != b"" and call("SDGetVar", b"@WHO") == b"zzab", "result %d, error %s, @WHO %s" % (r, s(err()), s(call("SDGetVar", b"@WHO"))))
+        # 11 Nov 26 (S.215): found by Solo's carry of this suite - the refused LOGTO went back to the old directory but left @PATH naming the refused account,
+        #   so every later open by VOC name failed.  M3 below LOGTOs elsewhere at once, which hid it here.
+        pth_after = call("SDGetVar", b"@PATH")
+        fr = lib.SDOpen(b"VOC") if hasattr(lib, "SDOpen") else -1
+        row("M2b: ...and @PATH after the refused LOGTO is still the account's directory, and a file opens by its VOC name there",
+            pth_before != b"" and pth_after == pth_before and fr > 0, "@PATH before %s, after %s; SDOpen(VOC) %s" % (s(pth_before), s(pth_after), fr))
+        if fr > 0 and hasattr(lib, "SDClose"):
+            lib.SDClose(fr)
         row("M3: CONTROL: back to the first account it returns true again", lib.SDLogto(b"zzaa") == 1 and call("SDGetVar", b"@WHO") == b"zzaa", "")
 
         # ------------------------------------------------------------------------------------------------------ N

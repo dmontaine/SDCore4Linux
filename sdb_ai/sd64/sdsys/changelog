@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+11 Nov 26  A REFUSED SDLOGTO NO LONGER BREAKS THE API SESSION.
+
+             What        - when a client's SDLogto was refused (no such account, an entry the account does not allow,
+                           a directory that cannot be read), the API server put the session back in its old account's
+                           directory but went on naming the refused account as the session's account (@PATH). Every
+                           later open of a file by its VOC name in that session then failed. The server now puts both
+                           back, so the session carries on in the account it was in.
+             Not changed - the refusal itself and its error are as before; a successful SDLogto is unchanged.
+
 11 Nov 26  RUN.IN NO LONGER RUNS AN ACCOUNT'S OWN CODE AS THE ADMINISTRATOR.
 
              What        - run.in (the administrator's verb that compiles, catalogues or debugs a program inside another

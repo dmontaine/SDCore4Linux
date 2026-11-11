@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 11 Nov 26 dm  S.215: a refused SDLogto put the session back in its old directory but left @PATH (account.path) naming the account that was refused,
+*               so every later open by VOC name in that session failed.  revert.to.old.account puts account.path back.  Found by Solo's carry of
+*               sandbox-qmclient.py; its row M2b holds it.
 * 8 Nov 26 dm   Kimi's review: request 70 operation 9 (delete.file) forgot the file number even when the verb refused (the file still on the disk, the number
 *               dead).  The file is now opened again under its number after every operation, a delete included, and the number is forgotten only when it
 *               does not open - what is on the disk decides, not the verb's return code (which said 0 for "Data part is open" until deletef was fixed).
@@ -842,6 +845,7 @@ if not(ospath(old.account.path, OS$CD)) then
    error.msg = sysmsg(5162) ;* Fatal error : Cannot return to previous account
    return to abort.vbsrvr
 end
+account.path = old.account.path    ;* 11 Nov 26 (S.215): the LOGTO set @PATH to the refused account before its checks; the directory came back, @PATH did not
 
 return
 
