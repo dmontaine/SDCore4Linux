@@ -19,6 +19,8 @@
 *
 *
 * START-HISTORY:
+* 11 Nov 26 dm  Request 72 reserved for Solo's ssh-key request (comment on the dispatch list only).  Solo had used 49 for it since 30 Sep 26;
+*               the owner ruled that Solo follows this template (49 is QMRevision here) and moves it to 72.  Core's next request is 73.
 * 11 Nov 26 dm  S.215: a refused SDLogto put the session back in its old directory but left @PATH (account.path) naming the account that was refused,
 *               so every later open by VOC name in that session failed.  revert.to.old.account puts account.path back.  Found by Solo's carry of
 *               sandbox-qmclient.py; its row M2b holds it.
@@ -493,7 +495,7 @@ loop
    vb.writeseqkey,    ;*  68   Write a record under the file's next sequential id (QMWriteSeqKey)
    vb.writeuseqkey,   ;*  69   The same, keeping the update lock (QMWriteuSeqKey)
    vb.fileadmin,      ;*  70   A verb run on the server for the login: analyse, configure, index, create, delete (S.73 item 3)
-   vb.fcontrol,       ;*  71   FCONTROL(file, key, value) (S.73 item 3)
+   vb.fcontrol,       ;*  71   FCONTROL(file, key, value) (S.73 item 3).  72 is RESERVED: Solo's ssh-key request (owner 11 Nov 26); Core's next is 73
    vb.illegal.action
 
    st = status()
