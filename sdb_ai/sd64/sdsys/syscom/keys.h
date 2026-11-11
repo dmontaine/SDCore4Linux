@@ -450,6 +450,8 @@
       *   a group or other account is entered by several people, any of whom could rename the directory, so the words are refused there (11771).  Not a gate: nothing is
       *   loaded at sign-on; the editor reads the field when it writes a copy, so RECOVERY-OFF stops new copies at once.  No upgrade walk: existing accounts stay off.
       $define ACC$RECOVERY     19    ;* the editors keep a recovery copy of unsaved text (yes/no; blank = no)
+      * 11 Nov 26 dm - FIELDS 20 AND 21 ARE RESERVED FOR SD CORE FOR LINUX SOLO (S.211): its MCP door (ACC$MCP, ACC$MCP.WRITE).  SD Core for Linux has no MCP door (dropped 21 Oct 26) and
+      *   must not use these two for anything else without moving Solo's: the two products keep one numbering of the register record's fields so that a record can be read by both.
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *
