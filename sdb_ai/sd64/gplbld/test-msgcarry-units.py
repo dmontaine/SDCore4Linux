@@ -35,7 +35,6 @@ CORE = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 SOLO = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
 CITE = re.compile(r"sysmsg\(\s*(\d+)")
 ALLOWED = {
-    ("mapcat", "3046"): "9 Nov 26, S.186: the report heading 'Catalog name' has two more dots so the columns stay where they were; Solo's heading keeps its own until the carry",
     ("login", "10002"): "SDSYS is entered by sudo in Core; Solo has no sdsys and says type admin",
     ("login", "10172"): "update.accounts all: Core says log in as sdsys, Solo says the installer runs it",
     ("backupa", "13006"): "the syntax line: Solo has one account, so no names",
@@ -64,19 +63,13 @@ ALLOWED = {
     ("oscopya", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the OS-path programs, carry 18, 24 Oct 26)",
     ("seldir", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the OS-path programs, carry 18, 24 Oct 26)",
     ("setmode", "11314"): "the way to give OS access: Core modify.account os-on, Solo set.os.access os on (PAL-32; carried to Solo with the OS-path programs, carry 18, 24 Oct 26)",
-    # 26 Oct 26, task faults: Core's 11865 reads "Press Enter to return" (the pages come back to THEIR page; only the home screen comes back to the home screen); Solo's reads
-    # "... to the home screen" until the correction is carried (sequential order: Core first, Solo when the owner says).  The two entries go when the carry makes the texts the same.
-    ("tool_home", "11865"): "Core 'Press Enter to return' (26 Oct 26, the page is what Enter returns to), Solo 'Press Enter to return to the home screen' until the carry",
-    # 26 Oct 26, the one-editor plan stage 1: the IDE's help in Core names F12 (Edit as fields: CED's data mode); Solo's IDE has no F12 until the owner says to carry it (Core only)
-    ("ced_edit", "11139"): "Core's !CED() line names ^K keys and ^T theme (9 Nov 26, S.181, the shared keys); Solo's has neither until the carry",
     ("login", "11983"):"an UPDATE.ACCOUNTS that cannot write a VOC: Core names sdsys-on, Solo (no sdsys user) names the file permissions (Solo carry 22, 9 Nov 26; a product-shape difference)",
-    ("ide", "11209"): "Core's Go to prompt names line,column and field,value,subvalue (29 Oct 26, stage D); Solo's older IDE says 'Line number:' until the carry",
-    ("ide", "11215"): "Core's help names F12, Edit as fields (26 Oct 26, one-editor plan stage 1); Solo's does not until the carry",
-    ("setai", "11610"): "Core's list of providers has Google (1 Nov 26); Solo's does not until the carry (Core only, the owner's 26 Oct rule)",
-    ("ide", "11214"): "Core's help names Ctrl-N, New record, and the untitled buffer's first save (28 Oct 26, S.88 Phase 4); Solo's does not until the carry",
-    ("ide", "11216"): "Core's help names F3, F10, Ctrl-A, Ctrl-D and Ctrl-K by the owner's keys of 20 Oct (28 Oct 26, S.88 Phase 4); Solo's does not until the carry",
-    ("ide", "11219"): "Core's says the file has more records than the bounded list shows (28 Oct 26, the editor merge stage B: the tree stops at 2,000 without reading the whole file); Solo's does not until the carry",
-    ("debug", "6712"): "Core's debugger help names F5 refresh, F9 run, F10 the menu bar, Ctrl-T and Ctrl-K (8 Nov 26, S.179); Solo's does not until the carry",
+    # 11 Nov 26, the Solo carry merged into Solo Dev (S.117): the TUI pages and the IDE came across, and with them two differences that are the product's shape.  The ten entries that
+    # listed texts "until the carry" (mapcat 3046, tool_home 11865, ced_edit 11139, ide 11209 11214 11215 11216 11219, setai 11610, debug 6712) went: the carry made those texts the same.
+    ("ide", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; the IDE carried to Solo, S.117, 11 Nov 26)",
+    ("ide_name", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; the IDE carried to Solo, S.117, 11 Nov 26)",
+    ("tk_gates", "11800"): "the administrator-only refusal: Core 'it runs for SDSYS, logged in at the machine's own keyboard', Solo 'type ADMIN and the administrator's password first' - Solo has no sdsys user (S.117, 11 Nov 26)",
+    ("tk_open", "11800"): "the administrator-only refusal: Core 'it runs for SDSYS, logged in at the machine's own keyboard', Solo 'type ADMIN and the administrator's password first' - Solo has no sdsys user (S.117, 11 Nov 26)",
 }
 passed = failed = 0
 
