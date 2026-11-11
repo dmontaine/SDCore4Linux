@@ -1,6 +1,14 @@
 Next release - in progress
 --------------------------
 
+11 Nov 26  THE AI PAGE FOLLOWS THE WINDOW WITH ITS BOXES OPEN, AND THE EDITOR'S SIDEWAYS SCROLL BAR IS FULL WIDTH.
+
+             What        - On tool.ai, enlarging or shrinking the window while the standing text or key box is open now draws the
+                           page at the new size behind the box; it used to stay at the old size, blank, until the page was left.
+                           The horizontal scroll bar of the text area (SED, the IDE) runs under the line numbers too.
+             Why         - Both seen on the owner's screen.
+             Not changed - Pages without a box of their own already followed the window.
+
 10 Nov 26  THE INSTALL'S COMPILE LOG IS NO LONGER WRITTEN TO /tmp.
 
              What        - The bootstrap compile keeps its log as bbproc.log in the system directory, not /tmp/bbproc.log,

@@ -498,7 +498,7 @@ gplbld/ai-providers          : aigate ai-verb ai-line
 gplbld/sandbox-aigate.py     : @self ai-verb
 gplbld/sandbox-ai-verb.py    : @self
 gplbld/sandbox-tool-ai.py    : @self
-sdsys/gpl.bp/tool_ai         : tool-ai l2-cfg ai-pages
+sdsys/gpl.bp/tool_ai         : tool-ai l2-cfg ai-pages tk-resize
 sdsys/voc_template/tool.ai   : tool-ai
 # 24 Oct 26 (S.75 A2): the gate matrix runs the real modify.account against the scratch groups, so a change to the verb selects it
 # S.90 (31 Oct 26): the dictionary item form's engine (stage 1); the IDE face and tool_dict's N will add their suites to these rules

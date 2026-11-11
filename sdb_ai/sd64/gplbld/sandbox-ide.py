@@ -940,6 +940,11 @@ end
             t0 = L[br].index("#")
             row("...the text area is one row shorter: the bar is the row under the last line shown and the table's heading is below it",
                 "Messages" in L[br + 1], "\n".join(l[:70] for l in L[br - 1:br + 3]))
+            # S.210 (11 Nov 26, owner: "Full width"): the bar runs under the line numbers too; it used to start after them
+            # the record this row opens has no line numbers, so the bar is measured against the editor's own left border: its < is the first cell after it
+            bc = L[br].index("<")
+            row("S210 the bar starts at the editor's left edge (the cell after its border), under the line numbers when there are any",
+                bc > 0 and L[br][bc - 1] == "|", repr((bc, L[br][:60])))
             L = e.keys(END)
             t1 = L[br].index("#") if "#" in L[br] else -1
             row("End on the long line moves the thumb to the right (%d to %d)" % (t0, t1), t1 > t0, L[br][:140])

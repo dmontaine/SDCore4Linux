@@ -348,6 +348,21 @@ def sec_dialog_open():
     row("R4b", "tool.files: resized to 180x55 while the confirm box was open, after Esc the program writes the footer on rows 53-55", f["ok"],
         "%r; %s; bytes since the resize: %d" % (f, where([l.rstrip() for l in fr.lines()]), len(w.post(off))), phase=3, ctrl=c and c2)
     w.end()
+    # S.209 (11 Nov 26, the owner's picture): a page's OWN box, which runs its own SCREEN WAIT, took the resize, and the page was drawn at its old size when it closed.
+    w = launch("R4-ai", "tool.ai", 140, 43)
+    c = R.row("R4c7 tool.ai at 140x43 is up (footer on rows 41-43)", foot(w.lines(), 140, 43)["ok"], where(w.lines()), phase=None)
+    w.send("t", 1.5)
+    c2 = R.row("R4c8 tool.ai: T opens the standing text box", "Standing text sent with every AI request" in w.text(), w.text()[-300:], phase=None)
+    off = w.resize(180, 55, 1.5)
+    fo = foot(w.fresh(off).lines(), 180, 55)
+    row("R4d0", "tool.ai: resized to 180x55 with the standing text box OPEN, the page behind it is drawn at the new size (footer on rows 53-55, border 180 wide) and the box is on the screen",
+        fo["ok"] and fo["bd_w"] == 180 and "Standing text sent with every AI request" in w.text(), "%r; %s" % (fo, w.text()[-300:]), phase=None, ctrl=c and c2)
+    w.send(ESC, 1.0)
+    w.pump(2.5)
+    f = foot(w.lines(), 180, 55)                    # the whole screen: the foot was already written at the new size while the box was open (R4d0), and the frame does not write it twice
+    row("R4d", "tool.ai: after Esc the box is gone and the screen is the page at 180x55: the footer on rows 53-55 with a border 180 wide", f["ok"] and f["bd_w"] == 180
+        and "Standing text sent with every AI request" not in w.text(), "%r; %s" % (f, where(w.lines())), phase=None, ctrl=c and c2)
+    w.end()
 
 
 # ------------------------------------------------------------------------------------------------------------------------ R8

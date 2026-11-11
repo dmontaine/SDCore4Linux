@@ -29,6 +29,7 @@
 *              (Left and Right still do).  AI > Ask the AI is a menu entry of its own.
 * 8 Nov 26 dm  S.179: Ctrl-T the theme (View > Theme) and Ctrl-K the keys of the page (Help > Keys), through $tk_std as on every page.
 * 9 Nov 26 dm  S.186: View > Mouse and Ctrl-O (the log of the commands run), the same on every page (the cases act:std.mouse and ctrl-o, through $tk_std).
+* 11 Nov 26 dm  S.209: a resize while the key box or the standing-text box was open left the page at its old size when the box closed; after.box asks the layout again.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -774,6 +775,9 @@ do.setup:
    loop
       screen wait sf returning su.ev then                     ;* su.ev, NOT ev: names fold case, and EV is the page's explanation rows
          begin case
+            case su.ev<1> = 'resize'                          ;* S.209: the box goes, the page follows the window, and the next wait shows the box over it
+               screen hide sf
+               gosub box.resized
             case su.ev<1> = 'focus'
                if su.ev<3> = 'key' then gosub setup.takekey   ;* the Key entry was left: a new key in it goes to the helper and the list is asked with it
             case su.ev<1> = 'button' and su.ev<2> = 'ok'
@@ -789,6 +793,7 @@ do.setup:
    repeat
    kv = ''
    screen hide sf
+   gosub after.box
    if su.done then
       msg = (if key.done then 'The key for ' : nm.s : ' is set' else 'The key is unchanged')
       if mv # cur then                                         ;* cur is the model in use (the administrator's, else the default)
@@ -1049,6 +1054,10 @@ do.context:
    cx.act = ''
    loop
       screen wait cf returning cx.ev then                     ;* cx.ev, NOT ev: names fold case, and EV is the page's explanation rows
+         if cx.ev<1> = 'resize' then                          ;* S.209: the box goes, the page follows the window, and the next wait shows the box over it
+            screen hide cf
+            gosub box.resized
+         end
          if cx.ev<1> = 'button' then
             begin case
                case cx.ev<2> = 'cancel'
@@ -1076,6 +1085,7 @@ do.context:
    until cx.act # ''
    repeat
    screen hide cf
+   gosub after.box
    gen += 1
    ctx<TK.C.GEN> = gen
    gosub draw.all
@@ -1116,6 +1126,23 @@ do.context:
    msg = (if said # '' then said[1, 130] else 'ran, status ' : @system.return.code)
    gosub read.all
    gosub draw.all
+   return
+
+* S.209: the page's own boxes (the key box and the standing text) run their own SCREEN WAIT, and a resize that comes while one is open is taken by the box: the
+*   page never saw it and was drawn again at its old size.  So when a box closes the layout is asked again, which is the main loop's own resize step.
+after.box:
+   call $tk_layout('refresh', ctx, '', lay.chg)
+   gosub lay.get
+   gen += 1
+   ctx<TK.C.GEN> = gen
+   return
+
+* A resize while a box is open: the page is laid out and drawn at the new size behind it (the box was hidden first; its next SCREEN WAIT shows it again on top)
+box.resized:
+   gosub after.box
+   gosub draw.all
+   call $tk_menubar('draw', ctx, keys, pnames<pane>, '', '', mr)      ;* the bar and the foot too: the main loop that draws them is waiting for the box
+   call $tk_frame(ctx, keys, pnames<pane>, msg)
    return
 
 * In: cx.new.  Out: cx.bad, null when the helper would take it, else what is wrong (said in the box)
