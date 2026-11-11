@@ -93,9 +93,9 @@ ANCH = {
     },
     "tool_menus": {
         (140, 43): [("Account", 3, 2), ("[?]", 66, 2), ("Starts in", 74, 2), ("[?]", 134, 2), ("An account with no setting of its own starts in the", 3, 32), ("[?]", 66, 32),
-                    ("Arrows move, Tab changes pane", 3, 37)],
+                    ("Arrows move, F6 changes box", 3, 37)],
         (180, 55): [("Account", 3, 2), ("[?]", 86, 2), ("Starts in", 94, 2), ("[?]", 174, 2), ("An account with no setting of its own starts in the", 3, 44), ("[?]", 86, 44),
-                    ("Arrows move, Tab changes pane", 3, 49)],
+                    ("Arrows move, F6 changes box", 3, 49)],
     },
 }
 # A text that the page cut at 134 columns (or wrapped at 134) and shows whole (or on the row above) when the box is wider: (row at 140 by 43, row at 180 by 55, the text, where it must be)
