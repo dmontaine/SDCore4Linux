@@ -753,7 +753,8 @@ echo
 # 22 Sep 2026 - BACK, ON THE OWNER'S DIRECT INSTRUCTION OF THAT DAY, updated to
 #   the current release under test.  The 20 Sep reasoning was not wrong; the
 #   owner is choosing to accept that cost again rather than leave the line out.
-echo "Installer tested on Ubuntu 26.04 and 26.10 and Debian 13."
+# 11 Nov 2026 - the owner (S.150): the line says "Tested on current versions of Debian and Ubuntu", so it no longer ages with a version number.
+echo "Tested on current versions of Debian and Ubuntu."
 echo
 # --------------------
 # 09 Sep 26  Was "from the selected branch", plus a paragraph offering the local

@@ -1,6 +1,13 @@
 Next release - in progress
 --------------------------
 
+11 Nov 26  THE INSTALLER NO LONGER NAMES VERSIONS IN ITS "TESTED ON" LINE.
+
+             What        - the line the installer prints before it asks to continue now reads "Tested on current versions
+                           of Debian and Ubuntu." It named Ubuntu 26.04 and 26.10 and Debian 13.
+             Why         - a line that names versions is out of date the day one of them moves.
+             Does NOT    - Change which systems the installer accepts; it still refuses anything but Debian and Ubuntu.
+
 11 Nov 26  A REFUSED SDLOGTO NO LONGER BREAKS THE API SESSION.
 
              What        - when a client's SDLogto was refused (no such account, an entry the account does not allow,
