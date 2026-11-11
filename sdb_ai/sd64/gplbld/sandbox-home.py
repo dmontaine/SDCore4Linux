@@ -18,6 +18,7 @@
 #               and the long captions are whole (the owner on sdtest: "The boxes are cutting off the text").
 # 28 Oct 26 dm  S.85: setup() runs sandbox-tk-base.py's sudo_null_case() before anything else: every suite built on this setup (the page suites and docs) runs with the stub `sudo` first in PATH,
 #               and stops (exit 2) if a child shell or an SD session finds another.  WRITTEN, NOT RUN when added (the owner's rule of 28 Oct).
+# 11 Nov 26 (S.165): row S164f waits with a deadline and sends no key; its old eight-pump loop read the page too early and reported a blank page that was not one.
 # 9 Nov 26 (S.187): Bypass programs left the administrator's tile labels with tool.viewers and the pdf verb (owner: pdf only works at the machine's own display).
 # END-HISTORY
 #
@@ -800,20 +801,17 @@ def main():
         row("S164e a key in the lock is ignored: the warning is still there and the session alive", "Ctrl-Q" in h.text() and h.alive() and not h.home(), h.text()[-200:])
         h.s.resize(140, 43, idle=0.8)
         page = lambda: "Switch account" in h.line(2) and h.line(40).startswith("[Home]")     # the scrolled page: "Everyone" may be off the panel
-        for _ in range(8):                              # the lock looks at the window about once a second
-            h.s._pump(1.0)
-            if page():
-                break
-        drawn_alone = page()
-        say("    (S164f: the page drew by itself after the resize: %s)" % drawn_alone)
-        # S.165: it does not - the page stays blank until a key (F5 draws it whole).  A repaint in the reopen and on the next resize did not help (7 Nov), so the
-        #   row asks what S.164 promises (the lock lets go, the session lives, a key brings the page) and S.165 holds the blank page.
-        if not drawn_alone:
-            h.key("f5", idle=1.5)
+        # S.165, 11 Nov 26: NO KEY is sent here.  The loop this replaces called _pump(1.0) eight times, and _pump returns at the first byte: the page writes itself in
+        #   hundreds of small pieces, so the eight calls were over a few milliseconds after the clear, the row read "blank", sent F5 and S.165 was opened for a fault of
+        #   the instrument.  A trace of the session (strace, the suite's own run) shows the lock letting go within a second of the resize and the whole page written
+        #   by the reopen before any key is read.  The wait is a deadline (the lock looks at the window about once a second).
+        t_end = time.time() + 8.0
+        while time.time() < t_end and not page():
+            h.s._pump(0.5)
         ok = page() and h.alive()
         if not ok:
             dump(h, 45)
-        row("S164f the window made 140 by 43 again: the lock lets go and the session is at its home screen", ok, repr(h.text()[-300:]))
+        row("S164f the window made 140 by 43 again: the lock lets go and the home screen is drawn again BY ITSELF, with no key sent, within 8 s", ok, repr(h.text()[-300:]))
         h.end()
     finally:
         teardown()

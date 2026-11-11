@@ -567,7 +567,11 @@ def run_b(raw):
             for act in sorted(set(acts)):
                 if act not in keyed:
                     res["samehandler"].append("%s: the menu action '%s' has no key, so the bar has nothing to replay through the page's case; a keyless action needs its row read" % (prog, act))
-            for hook, want in (("'draw'", 1), ("'key'", 1), ("'click'", 1)):
+            # 11 Nov 26: tool_ai draws the bar a second time, in box.resized (S.209: a resize while its own box is open draws the page, the bar and the foot behind
+            #   the box, because the main loop that draws them is waiting for the box).  A draw answers nothing, so the one-handler rule is the key and click hooks';
+            #   a second draw is listed here by name, and any other is still refused.  Reported by the Windows agent (mail 2026-11-11T0140): the check was red on 7bc274b9.
+            draws = {"tool_ai": 2}
+            for hook, want in (("'draw'", draws.get(prog, 1)), ("'key'", 1), ("'click'", 1)):
                 n = len(re.findall(r"call \$tk_menubar\(%s," % hook, code))
                 if n != want:
                     res["samehandler"].append("%s: %d calls of $tk_menubar %s, expected %d" % (prog, n, hook, want))
@@ -767,10 +771,12 @@ mut("ide", "call $tk_keys('add', ide.keys, 'ctrl-v', 'paste', 'paste', 'fields',
 mut("ide", "call $tk_keys('add', ide.keys, 'ctrl-c', 'copy', 'copy', 'fields', 1)", "call $tk_keys('add', ide.keys, 'ctrl-t', 'copy', 'copy', 'fields', 1)", "Ctrl-T bound to two actions in the pane", "conflict")
 # 2 Nov 26 (S.88 U9): the home screen on $tk_menubar - the first of these is marker M_U9 for --from=
 M_U9 = len(M)
-mut("tool_home", "   call $tk_keys('add', keys, 'ctrl-k', 'keys', 'keys', '', 1)\n", "", "the home screen's Help > Keys entry has no key", "samehandler")
+# 11 Nov 26: four mutants here were dead since S.176 / S.179 (the Windows agent, mail 2026-11-11T0140): the home screen's Ctrl-K row and tool_test's Tab row are gone
+#   (their texts no longer occur), and Switch account moved to Ctrl-T met no parsed row, since the theme key is $tk_std's.  They are remade on rows that exist.
+mut("tool_home", "   call $tk_keys('add', keys, 'ctrl-r', 'recent', 'recent', '', 1)\n", "", "the home screen's View > Recent group entry has no key", "samehandler")
 mut("tool_home", "      if mr<1> # '' then nm = mr<4>\n", "", "the home screen's loop drops the bar's answer", "samehandler")
 mut("tool_home", "      case nm = '/'\n", "      case nm = '?'\n", "the home screen binds / and acts on another key", "handler")
-mut("tool_home", "   call $tk_keys('add', keys, 'ctrl-w', 'switch', 'switch', '', 1)\n", "   call $tk_keys('add', keys, 'ctrl-t', 'switch', 'switch', '', 1)\n", "Ctrl-T is Terminal and Switch account on the home screen", "conflict")
+mut("tool_home", "   call $tk_keys('add', keys, 'ctrl-w', 'switch', 'switch', '', 1)\n", "   call $tk_keys('add', keys, 'alt-t', 'switch', 'switch', '', 1)\n", "Alt-T is Terminal and Switch account on the home screen", "conflict")
 # 3 Nov 26 (S.88 K7/K8 and "Tab panes"): the first of these is marker M_K78 for --from=
 M_K78 = len(M)
 mut("tk_menubar", "            case nm = 'f2'\n               start = -1", "            case nm = 'f3'\n               start = -1", "the finder is on another key", "finder")
@@ -780,8 +786,8 @@ mut("tk_menubar", "         if uses then citems<1, -1>", "         citems<1, -1>
 mut("tk_menubar", "      if tt = 'File' or tt = 'Help' or tt[1, 1] = '>' then continue", "      if tt[1, 1] = '>' then continue", "the context menu holds File and Help", "finder")
 mut("tk_menubar", "      case 1\n         gosub answer.act\n   end case", "      case 1\n         execute pr\n   end case", "the context menu runs its answer", "finder")
 mut("tk_menubar", "      case op = 'click' and a<1> = 'press' and a<2> = 3\n", "      case op = 'click' and a<1> = 'press' and a<2> = 1\n", "a left press opens the context menu", "finder")
-mut("tool_test", "   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)", "   call $tk_keys('add', keys, 'f2', 'pane', 'pane', '', 1)", "a page binds F2 (the finder's key)", "reserved")
-mut("tool_test", "   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)", "   call $tk_keys('add', keys, 'shift-f10', 'pane', 'pane', '', 1)", "a page binds Shift-F10 (the context menu's key)", "reserved")
+mut("tool_test", "   call $tk_keys('add', keys, 'f6', 'box', 'pane', '', 1)", "   call $tk_keys('add', keys, 'f2', 'box', 'pane', '', 1)", "a page binds F2 (the finder's key)", "reserved")
+mut("tool_test", "   call $tk_keys('add', keys, 'f6', 'box', 'pane', '', 1)", "   call $tk_keys('add', keys, 'shift-f10', 'box', 'pane', '', 1)", "a page binds Shift-F10 (the context menu's key)", "reserved")
 mut("msg:14004", "&Programs~~tool.catalog", "&Queries again~~tool.catalog", "a duplicate mnemonic in the IDE's Tools menu", "mnemonic")
 mut("msg:14004", "&Tools|", "&File tools|", "the Tools menu's title takes File's letter", "mnemonic")
 # 3 Nov 26 (owner: "Move focus first")
