@@ -3,7 +3,11 @@
 # mkrelease.sh - stage the release package and zip it (S.144 and S.23; owner, 3 Nov 2026: "for this version the source code will be included in the
 # installer zip so that it does not need to be downloaded during install"; 15 Sep: "staging directory and then a zip").
 #
-#   bash sdb_ai/sd64/gplbld/mkrelease.sh L2.0-0 [--ref REF] [--docs-ref REF] [--readme FILE] [--clients DIR] [--force]
+# 11 Nov 26 dm - S.151: --clients-windows DIR, the Windows client libraries, to clients/Windows64 (owner: "we distribute windows client information with the
+#            linux core server just as we distribute the linux clients with the windows core server").  A clients folder with no file in it is now refused,
+#            for --clients as well: a package must not claim clients and carry none.  gplbld/test-mkrelease-clients.sh runs both options.
+#
+#   bash sdb_ai/sd64/gplbld/mkrelease.sh L2.0-0 [--ref REF] [--docs-ref REF] [--readme FILE] [--clients DIR] [--clients-windows DIR] [--force]
 #
 #   VERSION        the release, as named in the Changes document: L2.0-0
 #   --ref REF      main or a v* tag of THIS repository (default: main).  Only what is committed
@@ -11,7 +15,9 @@
 #   --docs-ref REF the same for the documentation repository (default: the same name as REF, which must exist there)
 #   --readme FILE  README.txt for the package (the owner reads it before anything is distributed; this script does not write one)
 #   --clients DIR  a folder copied to clients/Linux64 (libsdcli.so and sdclilib.so: built files, not in the repository)
-#   --books DIR    the book PDFs SD-Core-for-Linux-VERSION-*.pdf of this version, copied to documentation/ (built by tools/mkbook.py and mkbookpdf.py in the docs repository)
+#   --clients-windows DIR  a folder copied to clients/Windows64 (the Windows client library and its import library, built on the Windows machine)
+#                  Either clients folder must exist and hold at least one file, and no folder; neither is listed in SHA256SUMS.
+#   --books DIR   the book PDFs SD-Core-for-Linux-VERSION-*.pdf of this version, copied to documentation/ (built by tools/mkbook.py and mkbookpdf.py in the docs repository)
 #   --force        replace an existing staging folder and zip of this version
 #   --allow-dev    build from a branch other than main or a v* tag (a TEST package for the VM install; never distribute it)
 #   --label LABEL  names a release candidate: SDCore-L2.0-0-rc1.zip, from the tag v2.0-rc1 (the installer says "pre-release" when the tag ends -rcN; the version stamp is unchanged)
@@ -26,7 +32,7 @@
 #   sd-core-for-linux-lVERSION-changes.{pdf,html,md}   the Changes document, lower case (the installer's CHANGES-DOC block copies only that pattern)
 #   pdf/                                the per-chapter PDFs of the three books, as user-NN-..., administrator-NN-..., gettingstarted-NN-... (the names
 #                                       collide otherwise: all three books have 00a-copyright-and-licence.pdf; docs.install takes lower case, 80 characters)
-#   README.txt, clients/Linux64/        only when given
+#   README.txt, clients/Linux64/, clients/Windows64/   only when given
 #
 # THEN it unpacks the zip into a scratch folder and checks it as the installer will: SHA256SUMS, the tree against the list, SDCORE-RELEASE against REF,
 # bash -n on both scripts.  Exit 0 made and checked, 1 a check failed (the zip is removed), 2 it could not start.
@@ -46,18 +52,31 @@ DOCS="${DOCS_REPO:-$PROJECTS/SDCore4LinuxDocs}"
 STAGING="${STAGING_DIR:-$PROJECTS/Project_Staging}"
 ZIPS="${ZIPS_DIR:-$PROJECTS/Project_Zips}"
 
-version=""; ref=""; docs_ref=""; readme=""; clients=""; books=""; force=0; allow_dev=0; label=""
+check_clients() {   # check_clients OPTION DIR - a clients folder exists and holds files, and nothing but files (cp without -r stops at a folder, after staging has begun)
+    [ -z "$2" ] && return 0
+    [ -d "$2" ] || die "no clients folder $2 ($1 DIR)"
+    [ -n "$(find -L "$2" -mindepth 1 -maxdepth 1 -type f ! -name '.*' | head -1)" ] || die "the clients folder $2 is empty ($1 DIR: a package must not claim clients and carry none)"
+    [ -z "$(find -L "$2" -mindepth 1 -maxdepth 1 ! -type f ! -name '.*' | head -1)" ] || die "the clients folder $2 holds something that is not a file ($1 DIR: its files are copied, not its folders)"
+}
+copy_clients() {    # copy_clients DIR NAME - the folder's files to clients/NAME of the package
+    [ -z "$1" ] && return 0
+    mkdir -p "$stage/clients/$2"
+    cp -p "$1"/* "$stage/clients/$2/"
+}
+
+version=""; ref=""; docs_ref=""; readme=""; clients=""; clients_win=""; books=""; force=0; allow_dev=0; label=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --ref)      [ $# -ge 2 ] || die "--ref needs a value"; ref="$2"; shift 2 ;;
         --docs-ref) [ $# -ge 2 ] || die "--docs-ref needs a value"; docs_ref="$2"; shift 2 ;;
         --readme)   [ $# -ge 2 ] || die "--readme needs a value"; readme="$2"; shift 2 ;;
         --clients)  [ $# -ge 2 ] || die "--clients needs a value"; clients="$2"; shift 2 ;;
-        --books)    [ $# -ge 2 ] || die "--books needs a value"; books="$2"; shift 2 ;;
+        --clients-windows) [ $# -ge 2 ] || die "--clients-windows needs a value"; clients_win="$2"; shift 2 ;;
+        --books)   [ $# -ge 2 ] || die "--books needs a value"; books="$2"; shift 2 ;;
         --force)    force=1; shift ;;
         --allow-dev) allow_dev=1; shift ;;
         --label)    [ $# -ge 2 ] || die "--label needs a value"; label="$2"; shift 2 ;;
-        -h|--help)  sed -n '3,36p' "$0"; exit 0 ;;
+        -h|--help)  sed -n '3,42p' "$0"; exit 0 ;;
         -*)         die "unknown option $1" ;;
         *)          [ -z "$version" ] || die "one VERSION only"; version="$1"; shift ;;
     esac
@@ -84,7 +103,8 @@ esac
 [ -n "$docs_ref" ] || docs_ref="$ref"
 docs_commit=$(git -C "$DOCS" rev-parse --verify -q "${docs_ref}^{commit}") || die "no such ref in $DOCS: $docs_ref (--docs-ref)"
 [ -z "$readme" ] || [ -f "$readme" ] || die "no README file $readme"
-[ -z "$clients" ] || [ -d "$clients" ] || die "no clients folder $clients"
+check_clients --clients "$clients"
+check_clients --clients-windows "$clients_win"
 [ -z "$books" ] || ls "$books"/SD-Core-for-Linux-"$version"-*.pdf >/dev/null 2>&1 || die "no SD-Core-for-Linux-$version-*.pdf in $books (--books DIR: the book PDFs of THIS version)"
 
 if [ -n "$(git -C "$REPO" status --porcelain --untracked-files=no)" ]; then
@@ -156,7 +176,8 @@ for book in "User:user" "Administrator:administrator" "GettingStarted:gettingsta
 done
 
 [ -z "$readme" ]  || cp -p "$readme" "$stage/README.txt"
-[ -z "$clients" ] || { mkdir -p "$stage/clients/Linux64"; cp -p "$clients"/* "$stage/clients/Linux64/"; }
+copy_clients "$clients" Linux64
+copy_clients "$clients_win" Windows64
 if [ -n "$books" ]; then      # the books of this version only (an old L1.1-3 book in the same folder is never packaged), each a PDF
     mkdir -p "$stage/documentation"
     for b in "$books"/SD-Core-for-Linux-"$version"-*.pdf; do
@@ -193,6 +214,7 @@ echo "  source files $nsrc, per-chapter PDFs $npdf, commit $commit, branch $ref"
 [ -n "$readme" ]  || echo "  NOT INCLUDED: README.txt (--readme FILE; the owner reads it before anything is distributed)"
 [ -n "$books" ]   || echo "  NOT INCLUDED: documentation/ (--books DIR; the book PDFs of this version, made by mkbook.py and mkbookpdf.py)"
 [ -n "$clients" ] || echo "  NOT INCLUDED: clients/Linux64 (--clients DIR; libsdcli.so and sdclilib.so are built files, not in the repository)"
+[ -n "$clients_win" ] || echo "  NOT INCLUDED: clients/Windows64 (--clients-windows DIR; the Windows client library and its import library come from the Windows machine)"
 echo "  sha256 for the README:"
 echo "    installsdcore.sh  $(sha256sum < "$stage/installsdcore.sh" | cut -d' ' -f1)"
 echo "    deletesdcore.sh   $(sha256sum < "$stage/deletesdcore.sh" | cut -d' ' -f1)"

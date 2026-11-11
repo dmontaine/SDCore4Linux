@@ -109,6 +109,9 @@ gplbld/test-l2-cfg-units.py  : l2-cfg
 # S.88 L2 (28 Oct 26): sandbox-l2-misc.py reads the five pages' declarations with this free check's functions and takes its old boxes from its table
 gplbld/test-l2-misc-units.py : l2-misc
 gplbld/test-*.py             : none
+# S.151 (11 Nov 26): the release packager and its own check (bash gplbld/test-mkrelease-clients.sh, not run by --free): no sandbox suite reads either
+gplbld/mkrelease.sh          : none
+gplbld/test-mkrelease-clients.sh : none
 # S.130 (3 Nov 26): the public full-screen toolkit, the !tk wrappers over the $tk_* routines and their header; sandbox-tk-public.py is the suite (rule `gplbld/sandbox-*.py` above)
 sdsys/gpl.bp/tk[a-z]*        : tk-public
 sdsys/syscom/tkpub.h         : tk-public
