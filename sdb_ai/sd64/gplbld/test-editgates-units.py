@@ -275,8 +275,19 @@ def checks(srcs, messages_dir):
     lg, cp, ap = c["login"], c["cproc"], c["apisrvr"]
     ck("B1 LOGIN loads the three keys from the register, off unless 'yes'",
        all(re.search(r"kernel\(K\$%s,\s*upcase\(trim\(acc\.rec<ACC\$%s>\)\) = 'YES'\)" % (k, k), lg) for k in ("VOC.EDIT", "BP.EDIT", "DICT.EDIT")), "")
-    ck("B2 CPROC (LOGTO) never loads, restores or stacks them: the sign-on account decides (owner, 17 Oct)",
-       all(s not in cp for s in ("K$VOC.EDIT", "K$BP.EDIT", "K$DICT.EDIT", "ACC$VOC.EDIT", "ACC$BP.EDIT", "ACC$DICT.EDIT")), "")
+    # 11 Nov 26 (S.213): run.in, and only run.in, now sets the three gates in CPROC - ri.narrow turns on the one its command needs for that command and
+    #   revert.account puts back what the session had, from ri.sw<7..9> kept before the run.  That is not LOGTO loading them: no ACC$ field is read, and
+    #   outside those two routines and the line that keeps them CPROC still never touches them.
+    cp_out = cp
+    for lab in ("ri.narrow:", "revert.account:"):
+        i = cp_out.find(lab)
+        if i >= 0:
+            j = cp_out.find("\n   return", i)
+            cp_out = cp_out[:i] + cp_out[j:] if j > i else cp_out
+    cp_out = re.sub(r"ri\.sw<7> = kernel\(K\$VOC\.EDIT, -1\) ; ri\.sw<8> = kernel\(K\$BP\.EDIT, -1\) ; ri\.sw<9> = kernel\(K\$DICT\.EDIT, -1\)", "", cp_out)
+    ck("B2 CPROC (LOGTO) never loads, restores or stacks them: the sign-on account decides (owner, 17 Oct); run.in's narrowing and its revert are the one exception (S.213), and read no register field",
+       all(s not in cp_out for s in ("K$VOC.EDIT", "K$BP.EDIT", "K$DICT.EDIT")) and all(s not in cp for s in ("ACC$VOC.EDIT", "ACC$BP.EDIT", "ACC$DICT.EDIT"))
+       and "ri.narrow:" in cp and "revert.account:" in cp, "")
     m = re.search(r"if not\(master\.login\.done\) then\s*\n\s*void kernel\(K\$VOC\.EDIT,\s*api\.voc\.grant\)\s*\n\s*void kernel\(K\$BP\.EDIT,\s*api\.bp\.grant\)\s*"
                   r"\n\s*void kernel\(K\$DICT\.EDIT,\s*api\.dict\.grant\)\s*\n\s*end", ap)
     ck("B3 the API server loads them at the FIRST entry only (inside the master.login.done test), not at an SDLogto", m is not None, "")

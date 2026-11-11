@@ -16,6 +16,12 @@ design depends on, which a hand edit can break unnoticed:
   the flag first and puts the six switches back in the order they were kept; and the abort branch puts the session back before it does anything else - because LOGTO SDSYS is
   refused for everybody, an administrator who is not put back stays in the account for the rest of the session.
 
+11 Nov 26 dm, S.213 (R37-R49): the command word and the option words are compared with the shipped VOC before anything is kept (A); the command runs with the administrator flag
+off, SH and OS.EXECUTE off whatever the record says and one edit gate on, and revert.account puts the gates back first and the flag last (B); BCOMP refuses $execute, and an
+include file or dictionary outside the account, while ri.active is set (C).  bcomp is read as well.  --selftest --from=s213 runs that sitting's mutants on.
+Second part, the same day (R50, R51): LOGTO is refused during a run before it changes anything, and _voc_ref refuses a Q-pointer into any account but the run's
+(by its register name) before check.q.hop.  _voc_ref is read as well.  --selftest --from=s213b runs that part's 10 mutants only.
+
 ***AND THE CHECKS ARE THEMSELVES CHECKED.*** --selftest makes the changes that would plausibly break the verb and requires each to be CAUGHT.
 """
 
@@ -44,6 +50,9 @@ KW_TEMPLATE = os.path.join(SD64, "sdsys", "voc_template", "no.catalog")
 KW_NUMBER = 239
 NOCATALOG_MESSAGE = 11245
 OPARRAY = os.path.join(SD64, "gplsrc", "op_array.c")      # 2 Nov 26: op_common keeps $ / _ named commons to internal programs (R26b)
+BCOMP = os.path.join(SD64, "sdsys", "gpl.bp", "bcomp")    # 11 Nov 26, S.213: $execute and files outside the account are refused in a compile RUN.IN started (R46-R48)
+S213_MESSAGES = [14070, 14071, 14072, 14073]
+VOCREF = os.path.join(SD64, "sdsys", "gpl.bp", "_voc_ref")    # 11 Nov 26, S.213 second part: no Q-pointer out of the run's account (R51)
 
 
 def code(src):
@@ -170,7 +179,8 @@ def checks(src, voc_text, newvoc_names, extra=None):
     ck("R17 revert.account clears the flag FIRST (a failure below it must not run it twice)", bool(rev) and rev[0][1] == "revert.account:" and rev[1][1] == "ri.active = 0",
        "%s" % (rev[:2],))
     rtxt = "\n".join(s for n, s in rev)
-    order_r = re.findall(r"void kernel\((K\$[A-Z.]+),\s+ri\.sw<(\d)>\)", rtxt)
+    all_r = re.findall(r"void kernel\((K\$[A-Z.]+),\s+ri\.sw<(\d+)>\)", rtxt)
+    order_r = [(k, i) for k, i in all_r if k in SWITCHES]
     ck("R18 it restores the six switches from ri.sw in the order they were kept", [k for k, i in order_r] == SWITCHES and [i for k, i in order_r] == list("123456"), "%s" % order_r)
     kept = re.findall(r"kernel\((K\$[A-Z.]+), -1\)", next((s for n, s in run if s.startswith("ri.sw = ")), ""))
     ck("R19 ... and that is the order int.runin kept them in", kept == SWITCHES, "%s" % kept)
@@ -243,6 +253,123 @@ def checks(src, voc_text, newvoc_names, extra=None):
         mp = os.path.join(MESSAGES, str(NOCATALOG_MESSAGE))
         mt = open(mp, encoding="utf-8").read() if os.path.isfile(mp) else ""
         ck("R36 message 11245 exists, takes the program name and names the option", "%1" in mt and "no.catalog" in mt, repr(mt))
+
+    # ---- 11 Nov 26, S.213: SD's own words (A), not the administrator (B), no command at compile time (C) -------------------------------------------------
+    own = section(lines, "ri.own.words:", "ri.narrow:")
+    nar = section(lines, "ri.narrow:", "ri.plain.word:")
+    otxt = "\n".join(s for n, s in own)
+    runtxt = "\n".join(s for n, s in run)
+    ow = first(run, "gosub ri.own.words")
+    ow_ref = first(run, "display sysmsg(14070, ri.bad[1, 40], ri.acct)", ow or 0)
+    ow_aud = first(run, "'run.in refused account=' : ri.acct : ' word=' : ri.bad[1, 40] : ' reason=' : ri.why", ow or 0)
+    ow_ret = first(run, "return", ow_aud or 0)
+    ck("R37 (A) the words are asked after the register is read and BEFORE anything is kept or changed; a failure says so (14070, the word and the account), is audited "
+       "with word= and reason=, and returns before the flag is set",
+       None not in (ow, ow_ref, ow_aud, ow_ret, A["register"], A["save_path"], A["active"]) and A["register"] < ow < ow_ref < ow_aud < ow_ret < A["save_path"] < A["active"]
+       and count(run, "gosub ri.own.words") == 1, "own %s refuse %s audit %s return %s save %s" % (ow, ow_ref, ow_aud, ow_ret, A["save_path"]))
+    ck("R38 (A) ri.own.words reads the SHIPPED record (NEWVOC of the system directory) and the ACCOUNT's VOC by the register's path, for the command word and every word after "
+       "the names, and compares the type letter and every field after the first; a file it cannot open and a record that is missing are refusals",
+       "openpath @sdsys:@ds:'newvoc' to ri.nv.f then ri.nv.open = @true" in otxt and "openpath acc.rec:@ds:'voc' to ri.av.f then ri.av.open = @true" in otxt
+       and "if (ri.w = 1 or ri.w > 1 + ri.n.names) and ri.bad = '' then" in otxt and "ri.word = field(ri.sentence, ' ', ri.w)" in otxt
+       and "read ri.own from ri.nv.f, ri.word else ri.own = ''" in otxt and "read ri.vrec from ri.av.f, ri.word else ri.vrec = ''" in otxt
+       and "case upcase(ri.vrec[1, 1]) # upcase(ri.own[1, 1])" in otxt and "case field(ri.vrec, @fm, 2, 9999) # field(ri.own, @fm, 2, 9999)" in otxt
+       and "case ri.own = ''" in otxt and "case ri.vrec = ''" in otxt and "case not(ri.nv.open)" in otxt and "case not(ri.av.open)" in otxt
+       and otxt.count("ri.bad = ri.") == 6 and not re.search(r"\bexecute\b|proc\.sentence|write ", otxt), "")
+    kept = next((n for n, s in run if s.startswith("ri.sw<7> = kernel(K$VOC.EDIT, -1) ; ri.sw<8> = kernel(K$BP.EDIT, -1) ; ri.sw<9> = kernel(K$DICT.EDIT, -1)")), None)
+    kept10 = next((n for n, s in run if s.startswith("ri.sw<10> = kernel(K$ADMINISTRATOR, -1)")), None)
+    ck("R39 (B) the three edit gates and the administrator flag are kept in ri.sw<7> to ri.sw<10>, after the six and before the flag ri.active is set",
+       None not in (kept, kept10, A["save_sw"], A["active"]) and A["save_sw"] < kept < kept10 < A["active"], "kept %s %s" % (kept, kept10))
+    ntxt2 = [s for n, s in nar]
+    ck("R40 (B) ri.narrow is exactly: voc-edit off, bp-edit on for basic / catalog / decatalog / delete.catalog only, dict-edit on for compile.dict only, SH off, OS.EXECUTE off, "
+       "and the administrator flag off LAST",
+       ntxt2 == ["ri.narrow:", "void kernel(K$VOC.EDIT,  0)",
+                 "void kernel(K$BP.EDIT,   (ri.cmd = 'basic') or (ri.cmd = 'catalog') or (ri.cmd = 'decatalog') or (ri.cmd = 'delete.catalog'))",
+                 "void kernel(K$DICT.EDIT, (ri.cmd = 'compile.dict'))", "void kernel(K$SH, 0)", "void kernel(K$OS.EXEC, 0)", "void kernel(K$ADMINISTRATOR, 0)", "return"], "%s" % ntxt2)
+    idx = {n: i for i, (n, s) in enumerate(run)}
+    nr = first(run, "gosub ri.narrow")
+    ck("R41 (B) the flag is dropped once, on the line before the command runs (gosub ri.narrow, then gosub proc.sentence), after the account's switches were loaded",
+       nr is not None and count(run, "gosub ri.narrow") == 1 and A["proc"] is not None and idx[A["proc"]] == idx[nr] + 1 and A["switches"] < nr,
+       "narrow %s proc %s" % (nr, A["proc"]))
+    ck("R42 (B) nothing in the verb turns the flag ON, and nothing else in CPROC turns it off: (K$ADMINISTRATOR, 0) is in ri.narrow alone, and the only other setting of it "
+       "outside the sign-on block is revert.account's",
+       src.count("kernel(K$ADMINISTRATOR, 0)") == 1 and "kernel(K$ADMINISTRATOR, 1)" not in runtxt and "kernel(K$ADMINISTRATOR, 1)" not in rtxt
+       and src.count("kernel(K$ADMINISTRATOR, ri.sw<10>)") == 1, "")
+    sh_l = next((s for n, s in lsw if s.startswith("void kernel(K$SH,")), "")
+    os_l = next((s for n, s in lsw if s.startswith("void kernel(K$OS.EXEC,")), "")
+    ck("R43 (B) load.account.switches never turns SH or OS.EXECUTE on while a run is in progress (not(ri.active) and ...), so the account's record is not what decides - for RUN.IN's "
+       "own load and for a LOGTO executed inside the run",
+       sh_l == "void kernel(K$SH,      not(ri.active) and (upcase(trim(acc.record<ACC$SH>)) = 'YES'))"
+       and os_l == "void kernel(K$OS.EXEC, not(ri.active) and (upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'))", "%r / %r" % (sh_l, os_l))
+    rv = [s for n, s in rev]
+    cd_i = next((i for i, s in enumerate(rv) if "OS$CD" in s), None)
+    adm_i = next((i for i, s in enumerate(rv) if s.startswith("void kernel(K$ADMINISTRATOR, ri.sw<10>)")), None)
+    last_sw = max([i for i, s in enumerate(rv) if re.match(r"void kernel\(K\$[A-Z.]+,\s+ri\.sw<\d+>\)", s)] or [-1])
+    ck("R44 (B) the way back fails closed: the three edit gates go back right after the flag ri.active is cleared and before anything that can fail (the first OS$CD); the "
+       "administrator flag is restored from ri.sw<10>, after the six switches, and is the LAST switch set",
+       rv[2:5] == ["void kernel(K$VOC.EDIT,  ri.sw<7>)", "void kernel(K$BP.EDIT,   ri.sw<8>)", "void kernel(K$DICT.EDIT, ri.sw<9>)"] and cd_i is not None and cd_i > 4
+       and adm_i is not None and adm_i == last_sw and adm_i > next((i for i, s in enumerate(rv) if "K$SHARED.WRITE" in s), 10 ** 9), "%s" % rv[:6])
+    netl = [s for n, s in net]
+    ni = netl.index("if ri.active then") if "if ri.active then" in netl else -1
+    ck("R45 (B) the abort branch calls revert.account FIRST inside its test of the flag (nothing runs between), so an aborted command gets the same way back",
+       ni >= 0 and len(netl) > ni + 1 and netl[ni + 1] == "gosub revert.account", "%s" % netl[ni:ni + 2])
+    if extra is not None and "bcomp" in extra:
+        bsrc = extra["bcomp"]
+        bc = code(bsrc)
+        bcom = [s for n, s in bc if re.match(r"common /\$?runin/", s)]
+        ck("R46 (C) BCOMP declares the /$runin/ common exactly as CPROC does (the same names in the same order)", len(bcom) == 1 and commons == bcom, "%s / %s" % (commons, bcom))
+        e_case = first(bc, 'case u.token.string = "EXECUTE"')
+        e_next = first(bc, 'case u.token.string = "EXPLIST"', e_case or 0)
+        ex = [s for n, s in bc if e_case and e_next and e_case < n < e_next]
+        tail = ex[-6:]
+        ck("R47 (C) the $execute directive: under ri.active it is a compile error (14071, gosub error) and the one 'execute token.string' of the compiler is in the ELSE of that test",
+           tail == ["if ri.active then", "err.msg = sysmsg(14071) ;* $execute is refused in a compile started by run.in: it would run a command from the administrator's session",
+                    "gosub error", "end else", "execute token.string", "end"] and sum(1 for n, s in bc if s.startswith("execute token.string")) == 1, "%s" % tail)
+        outs = section(bc, "ri.outside:", "get.token:")
+        ck("R48 (C) an include file, the $dict dictionary and a FILE statement's dictionary are each asked of ri.outside (three calls), which refuses - only under ri.active - a "
+           "file that the kernel says is neither inside the account (@path) nor SD's SYSCOM",
+           sum(1 for n, s in bc if s == "gosub ri.outside") == 3
+           and [s for n, s in outs][:6] == ["ri.outside:", "ri.out = @false", "if ri.active then", "if not(kernel(K$PATH.IN, @path : @fm : ri.chk.path)) then",
+                                             "if not(kernel(K$PATH.IN, @sdsys : @ds : 'syscom' : @fm : ri.chk.path : @ds : 'x')) then ri.out = @true", "end"]
+           and bsrc.count("sysmsg(14072,") == 3 and "to dict.f" not in "\n".join(s for n, s in bc if s.startswith("open ")), "%s" % [s for n, s in outs][:6])
+    # ---- 11 Nov 26, S.213 second part: no LOGTO during a run, and no Q-pointer out of the run's account --------------------------------------------------
+    lg_tok = first(logto, "call @parser(PARSER$GET.TOKEN, token.type, new.account, keyword)")
+    lg_act = first(logto, "if ri.active then")
+    lg_msg = first(logto, "display sysmsg(14073, ri.account)")
+    lg_aud = first(logto, "'run.in refused account=' : ri.account : ' target=' : downcase(new.account)[1, 40] : ' reason=logto'")
+    lg_ret = first(logto, "return", lg_aud or 0)
+    lg_sys = first(logto, 'if (downcase(new.account) = "sdsys") then')
+    lg_first = min([n for n, s in logto if re.search(r"OS\$CD|K\$AUDIT, 'logto |gosub proc\.sentence|gosub load\.account\.switches|voc = new\.voc|K\$SET\.ACCOUNT", s)] or [10 ** 9])
+    ck("R50 LOGTO is refused while a run is in progress: right after the account name is read and BEFORE the sdsys test, ON.LOGTO, any directory change, switch, "
+       "VOC or audit line of LOGTO's own; it says so (14073 with the run's account), audits run.in refused ... reason=logto, and returns",
+       None not in (lg_tok, lg_act, lg_msg, lg_aud, lg_ret, lg_sys) and lg_tok < lg_act < lg_msg < lg_aud < lg_ret < lg_sys < lg_first,
+       "token %s active %s msg %s audit %s return %s sdsys %s first change %s" % (lg_tok, lg_act, lg_msg, lg_aud, lg_ret, lg_sys, lg_first))
+    if extra is not None and "_voc_ref" in extra:
+        vsrc = extra["_voc_ref"]
+        vc = code(vsrc)
+        vcom = [s for n, s in vc if re.match(r"common /\$?runin/", s)]
+        q_reg = first(vc, "q.registered = @true")
+        q_act = first(vc, "if ri.active then", q_reg or 0)
+        q_test = first(vc, "if not(q.registered and downcase(q.named) = ri.account) then", q_act or 0)
+        q_perm = first(vc, "set.status ER$PERM", q_test or 0)
+        q_hop = first(vc, "gosub check.q.hop")
+        q_open = first(vc, "openpath qpath:@ds:'voc' to qvoc else")
+        ck("R51 _voc_ref declares /$runin/ as CPROC does, and in the Q branch, after the register is read and BEFORE check.q.hop and the target VOC is opened, "
+           "refuses (ER$PERM) during a run any pointer whose account is not the run's account by its register name - whoever the session is",
+           len(vcom) == 1 and vcom == commons and None not in (q_reg, q_act, q_test, q_perm, q_hop, q_open) and q_reg < q_act < q_test < q_perm < q_hop < q_open
+           and not any("vr.admin" in s for n, s in vc if q_act <= n <= q_perm),
+           "common %s register %s active %s test %s perm %s hop %s open %s" % (vcom, q_reg, q_act, q_test, q_perm, q_hop, q_open))
+    texts = {}
+    for num in S213_MESSAGES:
+        mp = os.path.join(MESSAGES, str(num))
+        texts[num] = (extra or {}).get("msg%d" % num)          # the self-test hands a changed text in
+        if texts[num] is None:
+            texts[num] = open(mp, encoding="utf-8").read() if os.path.isfile(mp) else ""
+    ck("R49 the four messages exist: 14070 takes the word and the account and says the entry is not SD's own, 14071 names $execute and run.in, 14072 names run.in and syscom, "
+       "14073 names logto and run.in and takes the account; none is used in Solo",
+       "%1" in texts[14070] and "%2" in texts[14070] and "not SD's own entry in the VOC" in texts[14070] and "$execute" in texts[14071] and "run.in" in texts[14071]
+       and "%1" in texts[14072] and "run.in" in texts[14072] and "syscom" in texts[14072]
+       and texts[14073].startswith("logto ") and "run.in" in texts[14073] and "%1" in texts[14073]
+       and not any(os.path.exists(os.path.join(SOLO_MESSAGES, str(n))) for n in S213_MESSAGES), "%r" % texts)
     return out
 
 
@@ -251,7 +378,7 @@ def sandbox_mutants_still_match(src, extra):
     spec = importlib.util.spec_from_file_location("sbr", os.path.join(HERE, "sandbox-runin.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    texts = {"cproc": src, "basic": extra["basic"]}
+    texts = {"cproc": src, "basic": extra["basic"], "bcomp": extra["bcomp"], "_voc_ref": extra["_voc_ref"]}
     bad = [k for k, (f, old, new) in mod.MUTANTS.items() if f not in texts or texts[f].count(old) != 1]
     return [("R31 each --mutant of sandbox-runin.py still matches its program (cproc or basic) exactly once (%s)" % ", ".join(mod.MUTANTS), not bad, "stale: %s" % bad)]   # (name, ok, detail)
 
@@ -274,9 +401,14 @@ def load():
         voc = f.read()
     names = set(os.listdir(NEWVOC)) if os.path.isdir(NEWVOC) else set()
     extra = {}
-    for key, path in (("basic", BASIC), ("parser.h", PARSERH), ("kw.newvoc", KW_NEWVOC), ("kw.template", KW_TEMPLATE), ("op_array.c", OPARRAY)):
+    for key, path in (("basic", BASIC), ("parser.h", PARSERH), ("kw.newvoc", KW_NEWVOC), ("kw.template", KW_TEMPLATE), ("op_array.c", OPARRAY), ("bcomp", BCOMP), ("_voc_ref", VOCREF)):
         with open(path, encoding="utf-8", errors="replace") as f:
             extra[key] = f.read()
+    for num in S213_MESSAGES:
+        mp = os.path.join(MESSAGES, str(num))
+        if os.path.isfile(mp):
+            with open(mp, encoding="utf-8") as f:
+                extra["msg%d" % num] = f.read()
     return src, voc, names, extra
 
 
@@ -326,6 +458,62 @@ MUTANTS = [
     ("the kernel guards only $, not _", "op_array.c", "((*block_name == '$') || (*block_name == '_'))", "(*block_name == '$')"),
 ]
 
+# 11 Nov 26, S.213.  --selftest --from=N runs the mutants from index N on; M_S213 is this sitting's first.
+M_S213 = len(MUTANTS)
+MUTANTS += [
+    ("the words are not compared with the shipped VOC", "cproc", "   gosub ri.own.words\n   if ri.bad # '' then\n", "   ri.bad = ''\n   if ri.bad # '' then\n"),
+    ("the words are asked after the flag is set", "cproc", "   gosub ri.own.words\n   if ri.bad # '' then\n      display sysmsg(14070, ri.bad[1, 40], ri.acct)",
+     "   ri.active = 1\n   gosub ri.own.words\n   if ri.bad # '' then\n      display sysmsg(14070, ri.bad[1, 40], ri.acct)"),
+    ("only the command word is compared, not the options", "cproc", "            if (ri.w = 1 or ri.w > 1 + ri.n.names) and ri.bad = '' then", "            if (ri.w = 1) and ri.bad = '' then"),
+    ("only the type letter is compared", "cproc", "                  case field(ri.vrec, @fm, 2, 9999) # field(ri.own, @fm, 2, 9999)\n", "                  case 0\n"),
+    ("a missing record passes", "cproc", "                  case ri.vrec = ''\n                     ri.bad = ri.word ; ri.why = 'no entry in the voc of the account'\n", ""),
+    ("the refusal of a word is not audited", "cproc", "      void kernel(K$AUDIT, 'run.in refused account=' : ri.acct : ' word=' : ri.bad[1, 40] : ' reason=' : ri.why)\n", ""),
+    ("the command keeps the administrator flag", "cproc", "   void kernel(K$OS.EXEC, 0)\n   void kernel(K$ADMINISTRATOR, 0)\n   return\n", "   void kernel(K$OS.EXEC, 0)\n   return\n"),
+    ("the flag is never dropped (no call)", "cproc", "      gosub ri.narrow            ;* 11 Nov 26, S.213: not the administrator from here to revert.account\n", ""),
+    ("the flag is dropped after the command", "cproc", "      gosub ri.narrow            ;* 11 Nov 26, S.213: not the administrator from here to revert.account\n      gosub proc.sentence\n",
+     "      gosub proc.sentence\n      gosub ri.narrow\n"),
+    ("debug is given bp-edit", "cproc", "(ri.cmd = 'decatalog') or (ri.cmd = 'delete.catalog'))", "(ri.cmd = 'decatalog') or (ri.cmd = 'delete.catalog') or (ri.cmd = 'debug'))"),
+    ("every command is given voc-edit", "cproc", "   void kernel(K$VOC.EDIT,  0)\n", "   void kernel(K$VOC.EDIT,  1)\n"),
+    ("SH follows the account's record during a run", "cproc", "   void kernel(K$SH,      not(ri.active) and (upcase(trim(acc.record<ACC$SH>)) = 'YES'))", "   void kernel(K$SH,      (upcase(trim(acc.record<ACC$SH>)) = 'YES'))"),
+    ("OS.EXECUTE follows the account's record during a run", "cproc", "   void kernel(K$OS.EXEC, not(ri.active) and (upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'))",
+     "   void kernel(K$OS.EXEC, (upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'))"),
+    ("revert does not restore the flag", "cproc", "   void kernel(K$ADMINISTRATOR, ri.sw<10>)   ;* 11 Nov 26, S.213: LAST - see the note above\n", ""),
+    ("revert restores the flag first", "cproc", "revert.account:\n   ri.active = 0\n", "revert.account:\n   ri.active = 0\n   void kernel(K$ADMINISTRATOR, 1)\n"),
+    ("revert leaves the account's edit gate on", "cproc", "   void kernel(K$BP.EDIT,   ri.sw<8>)\n", ""),
+    ("the gates are restored after the directory change", "cproc",
+     "   void kernel(K$VOC.EDIT,  ri.sw<7>)\n   void kernel(K$BP.EDIT,   ri.sw<8>)\n   void kernel(K$DICT.EDIT, ri.sw<9>)\n   if not(ospath(ri.path, OS$CD)) then\n      display sysmsg(5162)   ;* Fatal error : Cannot return to previous account\n      return to abort.cproc\n   end\n",
+     "   if not(ospath(ri.path, OS$CD)) then\n      display sysmsg(5162)   ;* Fatal error : Cannot return to previous account\n      return to abort.cproc\n   end\n   void kernel(K$VOC.EDIT,  ri.sw<7>)\n   void kernel(K$BP.EDIT,   ri.sw<8>)\n   void kernel(K$DICT.EDIT, ri.sw<9>)\n"),
+    ("the flag is not kept", "cproc", "   ri.sw<10> = kernel(K$ADMINISTRATOR, -1)", "   ri.sw<10> = 1 ;* kernel(K$ADMINISTRATOR, -1)"),
+    ("the abort branch does something before revert", "cproc", "         if ri.active then\n            gosub revert.account\n            display sysmsg(11242, ri.account)",
+     "         if ri.active then\n            void kernel(K$ADMINISTRATOR, 1)\n            gosub revert.account\n            display sysmsg(11242, ri.account)"),
+    ("bcomp runs $execute under run.in", "bcomp", "         if ri.active then\n            err.msg = sysmsg(14071)", "         if 0 then\n            err.msg = sysmsg(14071)"),
+    ("bcomp runs $execute and then reports", "bcomp", "            gosub error\n         end else\n            execute token.string\n         end\n", "            gosub error\n         end\n         execute token.string\n"),
+    ("bcomp's common differs from cproc's", "bcomp", "   common /$runin/ ri.active, ri.path, ri.account.path, ri.who, ri.sw, ri.account\n", "   common /$runin/ ri.active\n"),
+    ("an include file is not asked", "bcomp", "   ri.chk.path = fileinfo(incl.file, FL$PATH)\n   gosub ri.outside\n", "   ri.out = @false\n"),
+    ("ri.outside refuses nothing", "bcomp", "then ri.out = @true\n", "then ri.out = @false\n"),
+    ("message 14070 does not name the account", "msg14070", " of account %2", ""),
+]
+
+# 11 Nov 26, S.213 second part.  --selftest --from=s213b runs these only.
+M_S213B = len(MUTANTS)
+MUTANTS += [
+    ("LOGTO is not refused during a run", "cproc", "   if ri.active then\n      display sysmsg(14073, ri.account)", "   if 0 then\n      display sysmsg(14073, ri.account)"),
+    ("the LOGTO refusal is not audited", "cproc", "      void kernel(K$AUDIT, 'run.in refused account=' : ri.account : ' target=' : downcase(new.account)[1, 40] : ' reason=logto')\n", ""),
+    ("the LOGTO refusal goes on into LOGTO", "cproc", "      display sysmsg(14073, ri.account) ;* logto is refused while run.in is running a command in account %1\n      void kernel(K$AUDIT, 'run.in refused account=' : ri.account : ' target=' : downcase(new.account)[1, 40] : ' reason=logto')\n      unwinding = 2\n      return\n",
+     "      display sysmsg(14073, ri.account) ;* logto is refused while run.in is running a command in account %1\n      void kernel(K$AUDIT, 'run.in refused account=' : ri.account : ' target=' : downcase(new.account)[1, 40] : ' reason=logto')\n      unwinding = 2\n"),
+    ("the LOGTO refusal comes after the sdsys test", "cproc",
+     "   if ri.active then\n      display sysmsg(14073, ri.account)", "   if (downcase(new.account) = \"sdsys\") then null\n   if ri.active then\n      display sysmsg(14073, ri.account)"),
+    ("_voc_ref follows any Q-pointer during a run", "_voc_ref", "                  if not(q.registered and downcase(q.named) = ri.account) then", "                  if 0 then"),
+    ("_voc_ref accepts an unregistered path during a run", "_voc_ref", "                  if not(q.registered and downcase(q.named) = ri.account) then",
+     "                  if q.registered and downcase(q.named) # ri.account then"),
+    ("_voc_ref asks only for a non-administrator", "_voc_ref", "               if ri.active then\n                  if not(q.registered", "               if ri.active and not(vr.admin) then\n                  if not(q.registered"),
+    ("_voc_ref asks after check.q.hop", "_voc_ref",
+     "               if ri.active then\n                  if not(q.registered and downcase(q.named) = ri.account) then\n                     set.status ER$PERM\n                     return\n                  end\n               end\n\n* 13 Oct 26 dm - second sitting: only into an account the user could LOGTO (see the note at the top).\n               if not(vr.admin) then\n                  gosub check.q.hop\n                  if not(q.ok) then\n                     set.status ER$PERM\n                     return\n                  end\n               end\n",
+     "\n* 13 Oct 26 dm - second sitting: only into an account the user could LOGTO (see the note at the top).\n               if not(vr.admin) then\n                  gosub check.q.hop\n                  if not(q.ok) then\n                     set.status ER$PERM\n                     return\n                  end\n               end\n               if ri.active then\n                  if not(q.registered and downcase(q.named) = ri.account) then\n                     set.status ER$PERM\n                     return\n                  end\n               end\n"),
+    ("_voc_ref's common differs from cproc's", "_voc_ref", "   common /$runin/ ri.active, ri.path, ri.account.path, ri.who, ri.sw, ri.account\n", "   common /$runin/ ri.active, ri.account\n"),
+    ("message 14073 does not name logto", "msg14073", "logto is refused", "it is refused"),
+]
+
 
 def selftest():
     src, voc, names, extra = load()
@@ -334,7 +522,13 @@ def selftest():
         print("selftest: the unmutated source already fails; fix that first")
         return 1
     missed = 0
-    for name, kind, old, new in MUTANTS:
+    start = 0
+    for a in sys.argv[1:]:
+        if a.startswith("--from="):
+            start = {"--from=s213": M_S213, "--from=s213b": M_S213B}.get(a) or int(a.split("=", 1)[1])
+    if start:
+        print("selftest: mutants from index %d on (%d of %d)" % (start, len(MUTANTS) - start, len(MUTANTS)))
+    for name, kind, old, new in MUTANTS[start:]:
         s, v, nm, ex = src, voc, set(names), dict(extra)
         if kind == "cproc":
             if s.count(old) != 1:

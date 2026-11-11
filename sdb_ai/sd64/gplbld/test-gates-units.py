@@ -257,7 +257,8 @@ def checks(srcs, messages_dir):
     # 3 Nov 26 (S.96): the loads are one routine, load.account.switches, which int.logto CALLS before its audit line (and RUN.IN calls too); the statements are in the routine
     ld = at(cp, "gosub load.account.switches")
     aud = at(cp, "void kernel(K$AUDIT, 'logto account='")
-    ldr = at(cp, "void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')")
+    # 11 Nov 26 (S.213): the two lines also say "and not while RUN.IN is running a command" (not(ri.active) and ...); test-runin-units.py R43 holds that half
+    ldr = at(cp, "void kernel(K$SH,      not(ri.active) and (upcase(trim(acc.record<ACC$SH>)) = 'YES'))")
     ck("B1 CPROC's LOGTO loads K$SH and K$OS.EXEC from the register record BEFORE the audit line (the call; the statements are in load.account.switches)",
        0 < ld < aud and ldr > 0 and "upcase(trim(acc.record<ACC$SH>)) = 'YES'" in cp and "upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'" in cp,
        "call %s, audit %s, routine %s" % (line_of(cp, ld), line_of(cp, aud), line_of(cp, ldr)))
@@ -539,7 +540,7 @@ MUTANTS = [
     ("key K_SH renumbered in the kernel only", sub("keys.h", "#define K_SH                 93", "#define K_SH                 92")),
     ("key K_OS_EXEC clashes with K_SH", sub("keys.h", "#define K_OS_EXEC            94", "#define K_OS_EXEC            93")),
     ("USR_SH and USR_OS_EXEC share a bit", sub("sysseg.h", "USR_OS_EXEC     0x0200", "USR_OS_EXEC     0x0100")),
-    ("LOGTO no longer loads the grants", sub("cproc", "   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')\n", "")),
+    ("LOGTO no longer loads the grants", sub("cproc", "   void kernel(K$SH,      not(ri.active) and (upcase(trim(acc.record<ACC$SH>)) = 'YES'))\n", "")),
     ("LOGTO loads them after the audit line", swap("cproc", "   gosub load.account.switches   ;* the account-scoped switches, from the new account's own register record (3 Nov 26: one routine, shared with RUN.IN)", "   void kernel(K$AUDIT, 'logto account=' : new.account)")),      # 3 Nov 26 (S.96): the call of the routine that loads the switches (it used to be the statements) and the audit line change places
     ("LOGTO no longer loads the SD.ACCOUNTS gate", sub("cproc", "   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')", "   void kernel(K$SD.ACCOUNTS, 1)")),
     ("LOGIN grants the SD.ACCOUNTS gate to everyone", sub("login", "void kernel(K$SD.ACCOUNTS, upcase(trim(acc.rec<ACC$SD.ACCOUNTS>)) = 'YES')", "void kernel(K$SD.ACCOUNTS, 1)")),

@@ -171,7 +171,9 @@ def checks(s):
         code = strip_bas(pages[p])
         for hook in ("draw", "key", "click"):
             n = len(re.findall(r"call \$tk_menubar\('%s'," % hook, code))
-            if n != 1:
+            # 11 Nov 26: tool_ai draws the bar a second time in box.resized (S.209: a resize while its own box is open draws the page, the bar and the foot
+            #   behind the box); a draw answers nothing.  The same allowance as test-tk-keys-units.py's draws table; every other page and hook is held to one.
+            if n != ({"tool_ai": 2}.get(p, 1) if hook == "draw" else 1):
                 mbad.append("%s: %d calls of $tk_menubar '%s'" % (p, n, hook))
         if code.find("call $tk_menubar('draw'") > code.find("call $tk_frame("):
             mbad.append("%s: the bar is drawn after the frame" % p)

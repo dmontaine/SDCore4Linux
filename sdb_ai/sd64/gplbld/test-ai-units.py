@@ -390,7 +390,9 @@ def check_d(t):
         "before anything is done with it, kv is cleared after the dialog, and only after the hand-over is the list asked WITH it and shown",
         ordered(tk, "screen get sf, 'key' returning kv", "kv = trim(kv)", "if kv = su.keep or kv = '' then kv = '' return", "gosub key.word", "gosub hand.key", "key.done = 1",
                 "screen set sf, 'key' value su.keep", "gosub fetch.models", "gosub setup.items", "screen set sf, 'model' items su.items")
-        and len(re.findall(r"\bkv\s*=\s*trim\(", v)) == 1 and "screen hide sf" in k and k.index("kv = ''") < k.index("screen hide sf"), "")
+        and len(re.findall(r"\bkv\s*=\s*trim\(", v)) == 1 and "screen hide sf" in k and k.index("kv = ''") < k.rindex("screen hide sf"), "")
+    # 11 Nov 26: rindex - S.209 added a first "screen hide sf" inside the dialog's resize branch (the box is hidden while the page is drawn behind it, then shown
+    #   again); the hide that ends the dialog is the LAST one, and kv must be cleared before it.
     row("(S.170) THE KEY GOES NOWHERE BUT THE HAND-OVER FILE: kv is written only by WRITESEQ to hf, in the directory made 0700 first; kv is cleared on every path of hand.key; no sentence, message, "
         "audit line or display holds kv; SET.AI is told 'handover', never the key",
         ordered(hk, "hdir = @sdsys : @ds : '$aikey'", "hf = hdir : @ds : 'key'", "umask 077; mkdir -p", "openseq hf to kf", "writeseq kv to kf", "close kf kv = ''", "call $tk_runx(allow.set, 'set.ai key ' : p : ' handover', out, st, err)",

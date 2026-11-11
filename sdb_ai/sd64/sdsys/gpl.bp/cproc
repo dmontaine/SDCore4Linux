@@ -18,6 +18,13 @@
 * 
 * 
 * START-HISTORY:
+* 11 Nov 26 dm S.213: RUN.IN no longer runs an account's own code as the administrator.  (A) the command word and every option word must be SD's own entry in
+*              the account's VOC (the shipped NEWVOC record's type and dispatch fields), or the verb refuses before anything changes (message 14070);
+*              (B) the command runs with the administrator flag OFF, SH and OS.EXECUTE forced OFF and only the edit gate it needs ON, and revert.account
+*              puts the gates, the switches and - last - the flag back; load.account.switches never turns SH or OS.EXECUTE on while a run is in progress.
+*              Measured that day on Dev b91adbee: an account whose VOC record basic named its own program had that program run as the administrator.
+*              Second part, the same day: LOGTO is refused while a run is in progress (message 14073; the OS user sdsys is in every account's group, so
+*              LOGTO's membership test let a debugged program enter any account), and _voc_ref refuses a Q-pointer into another account during a run.
 * 7 Nov 26 dm  S.156: SH with no command starts the interactive shell again.  The metacharacter filter (!valid_shell_cmd, June 2026) refuses an empty
 *              command, so a bare SH printed "Error 2 executing operating system command" for every account, the administrator and an account given
 *              the SH gate included (found on an RC1 container install).  The gate test still comes first; a typed command is still filtered.
@@ -315,6 +322,8 @@ $define max.elements 500
 *   saved must outlive the level that saved it.  ri.active is 0 until RUN.IN has entered an account and 0 again once revert.account has put everything back; ri.sw holds the six
 *   account-scoped switches, in the order load.account.switches sets them.
 *   A $ name (2 Nov 26): only an internal program can declare it or join it, so no user program can forge ri.active or ri.sw and ABORT into revert.account.
+*   11 Nov 26 (S.213): ri.sw has four more fields, kept and put back with the six: 7 to 9 the edit gates (voc, bp, dict) and 10 the administrator flag.
+*   BCOMP declares the same block, with the same six names, to read ri.active (it refuses $EXECUTE in a compile RUN.IN started).
    common /$runin/ ri.active, ri.path, ri.account.path, ri.who, ri.sw, ri.account
 
 * rev 0.9.0 define commands requiring admin (root) privilege 
@@ -2862,6 +2871,15 @@ int.logto:
       unwinding = 2
       return
    end
+* 11 Nov 26 dm - S.213.  NO LOGTO WHILE RUN.IN IS RUNNING A COMMAND.  The command runs with the reach of the account it was run in and no more; the session's
+*   operating system user is still sdsys, which is a member of every account's group, so LOGTO's membership test would let a program RUN.IN compiles or debugs
+*   walk into any account (measured: a debugged program's LOGTO zzon entered zzon).  Refused here, before anything is changed and before LOGTO's own audit line.
+   if ri.active then
+      display sysmsg(14073, ri.account) ;* logto is refused while run.in is running a command in account %1
+      void kernel(K$AUDIT, 'run.in refused account=' : ri.account : ' target=' : downcase(new.account)[1, 40] : ' reason=logto')
+      unwinding = 2
+      return
+   end
 * 20240330 mab only root can logto sdsys
 * 18 Sep 26 dm - TEARDOWN (S.26).  LOGTO SDSYS IS REFUSED FOR EVERYBODY,
 *   administrators included.  SDSYS is entered only by running SD as the
@@ -3091,9 +3109,12 @@ logto.unwind:
 *   account has none, so its fields read blank and it is denied - the safe default.  The administrator
 *   needs no grant: USR_ADMIN already passes the gate.  Account-scoped: a LOGTO to another account reloads
 *   from that account's own record, so one account's grant is never carried into another.
+* 11 Nov 26 dm - S.213.  WHILE RUN.IN IS RUNNING A COMMAND (ri.active) SH AND OS.EXECUTE ARE OFF WHATEVER THE RECORD SAYS: the session's operating system user is
+*   sdsys, and none of the six commands needs a shell.  Tested here and not after the call, so that a LOGTO executed by a program RUN.IN is debugging cannot load
+*   another account's grant either.  revert.account puts the administrator's own two values back.
 load.account.switches:
-   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')
-   void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')
+   void kernel(K$SH,      not(ri.active) and (upcase(trim(acc.record<ACC$SH>)) = 'YES'))
+   void kernel(K$OS.EXEC, not(ri.active) and (upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'))
    void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')   ;* 16 Oct 26: the SD.ACCOUNTS gate, off unless 'yes'
 * 17 Oct 26 dm - S.65 slice 1: the NET gate (SDNet remote files) is account-scoped like SD.ACCOUNTS: reloaded here from the new account's own
 *   record, off unless 'yes'.  It takes effect for the remote-file slices that follow and does nothing yet.
@@ -3124,6 +3145,20 @@ load.account.switches:
 * THE WAY BACK is revert.account, from two places: the end of this routine, and the top of the abort branch (a break, a run-time error, ABORT or a forced logout abandons this
 * routine's frame, and the bottom command processor is called again).  /$runin/ holds what is needed; ri.active says a run is in progress.  It is audited on the way in and the way out
 * (run.in begin ... / run.in end ... / run.in revert ... reason=abort).
+*
+* 11 Nov 26 dm - S.213.  THE COMMAND DOES NOT RUN AS THE ADMINISTRATOR, AND IT IS SD'S OWN COMMAND.  Until this date the administrator flag stayed on while the command ran
+* and the command word was looked up in the account's VOC, so an account whose VOC record basic named its own program had that program run with the administrator's reach
+* (measured: it wrote into another account's VOC), and a program run by debug opened other accounts' files.  Three things hold now:
+*   SD'S OWN WORDS (ri.own.words): the command word and every option word of the sentence must have, in the account's VOC, the type and the dispatch fields (everything
+*     after the description) of the record of the same name in the shipped VOC, NEWVOC.  A record that is missing or differs is refused BEFORE anything is kept or changed
+*     (message 14070, audit run.in refused account= word= reason=).  The names are not looked at: a name is a plain word that is not one of SD's keywords, see above.
+*   NOT THE ADMINISTRATOR (ri.narrow): from just before the command to revert.account the administrator flag is OFF, SH and OS.EXECUTE are OFF whatever the account's
+*     register record says (load.account.switches), and of the three edit gates only the one the command needs is ON: bp-edit for basic, catalog, decatalog and
+*     delete.catalog, dict-edit for compile.dict, none for debug (the program runs as a session of that account would run it, less its shell).  revert.account puts
+*     the gates back first, then the six switches, and the flag LAST: if the way back fails part way the session is left without the flag, never with it and an
+*     account's gate.  The session's operating system user is still sdsys: what the flag no longer opens, that user's group memberships still may (a Q-pointer or a
+*     LOGTO into an account whose group it is in).
+*   NO COMMAND AT COMPILE TIME (BCOMP): $EXECUTE in the source, and an include file or dictionary outside the account, are compile errors while ri.active is set.
 
 int.runin:
    if not(kernel(K$ADMINISTRATOR, -1)) then
@@ -3234,11 +3269,22 @@ int.runin:
    end
    acc.rec = parse.pathname.tokens(acc.record<ACC$PATH>)
 
+* 11 Nov 26 dm - S.213: the command word and the option words are SD's own in that account's VOC, or nothing is run.  Asked before anything is kept or changed.
+   gosub ri.own.words
+   if ri.bad # '' then
+      display sysmsg(14070, ri.bad[1, 40], ri.acct)   ;* run.in: %1 is not SD's own entry in the VOC of account %2; nothing was run
+      void kernel(K$AUDIT, 'run.in refused account=' : ri.acct : ' word=' : ri.bad[1, 40] : ' reason=' : ri.why)
+      unwinding = 2
+      return
+   end
+
 * what is needed to come back, kept in the common BEFORE anything changes
    ri.path = ospath('', os$cwd)
    ri.account.path = account.path
    ri.who = who
    ri.sw = kernel(K$SH, -1) : @fm : kernel(K$OS.EXEC, -1) : @fm : kernel(K$SD.ACCOUNTS, -1) : @fm : kernel(K$NET, -1) : @fm : kernel(K$SHARED.READ, -1) : @fm : kernel(K$SHARED.WRITE, -1)
+   ri.sw<7> = kernel(K$VOC.EDIT, -1) ; ri.sw<8> = kernel(K$BP.EDIT, -1) ; ri.sw<9> = kernel(K$DICT.EDIT, -1)   ;* 11 Nov 26, S.213: the edit gates ...
+   ri.sw<10> = kernel(K$ADMINISTRATOR, -1)                                                                     ;* ... and the flag (1: the verb refused anyone else above)
    ri.account = ri.acct
    ri.active = 1
    void kernel(K$AUDIT, 'run.in begin account=' : ri.acct : ' command=' : ri.sentence)
@@ -3281,6 +3327,7 @@ int.runin:
       new.sentence = ri.sentence
       ri.in.paragraph = in.paragraph
       unwinding = 0
+      gosub ri.narrow            ;* 11 Nov 26, S.213: not the administrator from here to revert.account
       gosub proc.sentence
       in.paragraph = ri.in.paragraph
    end else
@@ -3290,6 +3337,58 @@ int.runin:
 
    gosub revert.account
    void kernel(K$AUDIT, 'run.in end account=' : ri.acct)
+   return
+
+* 11 Nov 26 dm - S.213.  SD's own words: the command word (the first of ri.sentence) and the option words (those after the names) against the shipped VOC.  The answer is
+*   ri.bad (the first word that fails, '' when all pass) and ri.why (for the audit line).  What is compared is what decides what runs: the type letter and every field
+*   after the first (a V record's dispatch and program, a K record's number and anything it hands over to); the first field's description is not (an account may hold a
+*   [LOCKED] one).  Read under the ids the command processor and the parser read first: the words as they stand in the sentence, which is lower case.  Anything that
+*   cannot be read is a refusal.  No early return from the loop.
+ri.own.words:
+   ri.bad = '' ; ri.why = ''
+   ri.nv.open = @false ; ri.av.open = @false
+   openpath @sdsys:@ds:'newvoc' to ri.nv.f then ri.nv.open = @true
+   openpath acc.rec:@ds:'voc' to ri.av.f then ri.av.open = @true
+   begin case
+      case not(ri.nv.open)
+         ri.bad = ri.cmd ; ri.why = 'the shipped voc cannot be read'
+      case not(ri.av.open)
+         ri.bad = ri.cmd ; ri.why = 'the voc of the account cannot be read'
+      case 1
+         ri.n.sw = dcount(ri.sentence, ' ')
+         for ri.w = 1 to ri.n.sw
+            if (ri.w = 1 or ri.w > 1 + ri.n.names) and ri.bad = '' then
+               ri.word = field(ri.sentence, ' ', ri.w)
+               read ri.own from ri.nv.f, ri.word else ri.own = ''
+               read ri.vrec from ri.av.f, ri.word else ri.vrec = ''
+               begin case
+                  case ri.own = ''
+                     ri.bad = ri.word ; ri.why = 'not in the shipped voc'
+                  case ri.vrec = ''
+                     ri.bad = ri.word ; ri.why = 'no entry in the voc of the account'
+                  case upcase(ri.vrec[1, 1]) # upcase(ri.own[1, 1])
+                     ri.bad = ri.word ; ri.why = 'the entry in the voc of the account is not the shipped one'
+                  case field(ri.vrec, @fm, 2, 9999) # field(ri.own, @fm, 2, 9999)
+                     ri.bad = ri.word ; ri.why = 'the entry in the voc of the account is not the shipped one'
+               end case
+            end
+         next ri.w
+   end case
+   if ri.nv.open then close ri.nv.f
+   if ri.av.open then close ri.av.f
+   return
+
+* 11 Nov 26 dm - S.213.  Not the administrator: called once, just before the command.  The three edit gates are SET, not added to (the administrator's own session may hold
+*   any of them): only the one the command needs is on.  SH and OS.EXECUTE are off already (load.account.switches) and are set off again here, so that this routine alone
+*   says what the command runs with.  The flag goes LAST: the kernel takes all of these from this program whoever the session is, but the order says what is meant.
+*   Everything here is undone by revert.account from ri.sw<7> to ri.sw<10>.
+ri.narrow:
+   void kernel(K$VOC.EDIT,  0)
+   void kernel(K$BP.EDIT,   (ri.cmd = 'basic') or (ri.cmd = 'catalog') or (ri.cmd = 'decatalog') or (ri.cmd = 'delete.catalog'))
+   void kernel(K$DICT.EDIT, (ri.cmd = 'compile.dict'))
+   void kernel(K$SH, 0)
+   void kernel(K$OS.EXEC, 0)
+   void kernel(K$ADMINISTRATOR, 0)
    return
 
 * One plain word: in ri.word, answer in ri.ok.  No early return from the loop.
@@ -3315,9 +3414,17 @@ ri.plain.word:
 * Called at the end of int.runin and from the abort branch.  It is LOGTO's own change undone from what int.runin kept in /$runin/, and it asks for nothing LOGTO asked for: the process was
 * in that account already, so it is no new entry (no membership test, no ON.LOGTO, no LOGIN), and the account-scoped switches go back to what that account's entry had set, so the account
 * the command visited keeps nothing it granted.  ri.active goes to 0 FIRST: a failure below must not run this twice.  A directory that cannot be entered again is fatal, as in LOGTO.
+*
+* 11 Nov 26 dm - S.213.  THE ORDER FAILS CLOSED.  The command ran without the administrator flag and with one edit gate (ri.narrow).  The three edit gates go back to the
+* administrator's own values at once, before anything that can fail; the six switches after the session is in its own account again; the administrator flag LAST, when
+* everything else is back.  So a way back that stops part way (the two fatal returns below) leaves a session that is NOT the administrator and holds no gate the account
+* was given - never the flag together with an account's gate or shell switch.
 
 revert.account:
    ri.active = 0
+   void kernel(K$VOC.EDIT,  ri.sw<7>)
+   void kernel(K$BP.EDIT,   ri.sw<8>)
+   void kernel(K$DICT.EDIT, ri.sw<9>)
    if not(ospath(ri.path, OS$CD)) then
       display sysmsg(5162)   ;* Fatal error : Cannot return to previous account
       return to abort.cproc
@@ -3339,6 +3446,7 @@ revert.account:
    void kernel(K$NET,         ri.sw<4>)
    void kernel(K$SHARED.READ, ri.sw<5>)
    void kernel(K$SHARED.WRITE, ri.sw<6>)
+   void kernel(K$ADMINISTRATOR, ri.sw<10>)   ;* 11 Nov 26, S.213: LAST - see the note above
    void kernel(K$AUDIT, 'logto revert account=' : who)
    i = kernel(K$INVALIDATE.OBJECT, 0)
    gosub find.private.catalogue

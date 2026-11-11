@@ -10494,6 +10494,42 @@ cited by: `ide`
 Error %d (o/s %d) writing record (Possible full disk?)
 ```
 
+### msg:14070
+> kind=message tier=reference since=- src=sdsys/messages/14070:1#15e93383
+
+```
+run.in: %1 is not SD's own entry in the VOC of account %2 (it is missing or was changed there); nothing was run
+```
+
+cited by: `cproc`
+
+### msg:14071
+> kind=message tier=reference since=- src=sdsys/messages/14071:1#5cfc6983
+
+```
+$execute is refused in a compile started by run.in: it would run a command from the administrator's session
+```
+
+cited by: `bcomp`
+
+### msg:14072
+> kind=message tier=reference since=- src=sdsys/messages/14072:1#f07acc0f
+
+```
+%1 is outside the account: a compile started by run.in reads include records and dictionaries in the account and syscom only
+```
+
+cited by: `bcomp`
+
+### msg:14073
+> kind=message tier=reference since=- src=sdsys/messages/14073:1#84175fa0
+
+```
+logto is refused while run.in is running a command in account %1
+```
+
+cited by: `cproc`
+
 ### msg:1408
 > kind=message tier=reference since=- src=sdsys/messages/1408:1#c7e4fe7c
 

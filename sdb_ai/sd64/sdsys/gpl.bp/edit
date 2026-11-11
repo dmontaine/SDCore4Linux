@@ -410,7 +410,7 @@ find.editor:
          error.text := '   ' : pkg.install : @fm
       end else
          error.text := 'Install the ' : editor.exe : ' package with this'
-         error.text := ' distribution''s package manager.' : @fm
+         error.text := " distribution's package manager." : @fm     ;* 11 Nov 26: was ' distribution''s ...' - SD BASIC has no '' escape
       end
       error.text := 'or use ed, the line editor, which needs nothing installed.'
       error.text  = change(error.text, @fm, char(10))

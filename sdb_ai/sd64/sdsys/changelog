@@ -1,6 +1,31 @@
 Next release - in progress
 --------------------------
 
+11 Nov 26  RUN.IN NO LONGER RUNS AN ACCOUNT'S OWN CODE AS THE ADMINISTRATOR.
+
+             What        - run.in (the administrator's verb that compiles, catalogues or debugs a program inside another
+                           account, used by the master files page) now runs its command without administrator rights.
+                           For the length of the command the session has no shell and no OS.EXECUTE, whatever the account's
+                           own settings say, and only the right to change that account's programs (or its dictionaries,
+                           for compile.dict). A program run by debug gets no right to change anything.
+                           The command word and its option words must be SD's own entries in the account's VOC: if the
+                           account changed or removed one, run.in refuses, says which word and which account, and runs
+                           nothing.
+                           A program compiled through run.in may not use $execute, and may not take an include record
+                           or a dictionary from outside the account, except SD's own syscom. Each is a compile error.
+                           While run.in's command runs, LOGTO is refused and says so, and a Q-pointer (or an
+                           account:file name) opens a file only in the account the command runs in.
+             Why         - An account whose VOC entry "basic" named a program of its own had that program run with the
+                           administrator's reach when the administrator compiled something there: it wrote into another
+                           account's VOC. A line of source with $execute ran a command during the compile. A program
+                           under debug opened another account's files, and in an account with shell access it could
+                           start a shell as the sdsys user. All of these were measured before the change.
+             Not changed - The six commands and their options, and what they do in the account. Compiling outside
+                           run.in: $execute and includes from other accounts work as before there.
+             Does not    - Change who the session is to Linux: it still runs as the sdsys user, so the files the
+                           command touches by their operating system path are those that user may reach. Outside
+                           run.in, LOGTO and Q-pointers work as before.
+
 11 Nov 26  THE AI PAGE FOLLOWS THE WINDOW WITH ITS BOXES OPEN, AND THE EDITOR'S SIDEWAYS SCROLL BAR IS FULL WIDTH.
 
              What        - On tool.ai, enlarging or shrinking the window while the standing text or key box is open now draws the

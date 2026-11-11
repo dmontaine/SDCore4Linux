@@ -11,6 +11,13 @@
 # 3 Nov 26 dm   Written for S.96 (owner, 2 Nov 2026: mechanism C, reserved for sdsys, a fixed command list).  The probes of that day (scratchpad probe_s96.py) showed
 #               what the suite has to hold: the administrator's LOGTO into a locked-out account works, compile and catalogue work inside it, and after an ABORT the
 #               session stays there for good (LOGTO sdsys is refused) - so the rows that matter most are the ones after an abort.
+# 11 Nov 26 dm  S.213: section H, the HOSTILE account.  Measured that day on Dev b91adbee: an account whose VOC record basic named its own program had it run as the
+#               administrator; $execute in source ran a command during the compile; a debugged program opened another account's files.  H plants each of those and wants
+#               the disk unchanged; every plant has a control that shows it bites (a plain session, or the same source outside RUN.IN).  ZZWHERE prints the three edit
+#               gates too, so "back" covers them.  D3: a RUN.IN called from inside a run is now refused as "not the administrator" (the flag is off during the command).
+# 11 Nov 26 dm  S.213 second part: H6 a LOGTO inside a run is refused (14073) and one typed after a run works; H7 a Q-pointer into another account is refused
+#               during a run and one into the account's own file is not, with a plain session as the control; H1f the record basic deleted; H4c now meets
+#               _voc_ref's refusal (Include file zzq not found) before BCOMP's own outside test.
 # END-HISTORY
 #
 # THE INSTRUMENT.  It uses sandbox-gates.py's helpers: the sandbox user plays SDSYS (SDTEST_ADMIN=1 makes a session an administrator; a session without it is an ordinary one).
@@ -23,6 +30,9 @@
 #   no-safety-net  the abort branch no longer puts the session back          no-admin-check  the verb no longer asks for the administrator
 #   no-logto-switches  LOGTO no longer loads the account's switches (F1 and F2)
 #   no-nocatalog  run.in basic no longer gives NO.CATALOG                      basic-ignores-option  basic catalogues although NO.CATALOG is given (G1 and G2)
+#   keeps-admin  the command runs with the administrator flag (H3, H5, H6)      no-own-words  the VOC entries are not compared with the shipped ones (H1, H2)
+#   execute-allowed  the compiler runs $execute under run.in (H4a)              shell-from-record  SH and OS.EXECUTE follow the account's record during a run (H5, H6)
+#   (the four S.213 mutants were written with the section and NOT RUN: the unchanged tree, on which H was run red first, is all four at once)
 
 import importlib.util
 import os
@@ -49,6 +59,15 @@ MUTANTS = {
     "basic-ignores-option": ("basic", "      if catalogue.name # '' and no.catalog then\n", "      if 0 then\n"),
     "no-admin-check": ("cproc", "   if not(kernel(K$ADMINISTRATOR, -1)) then\n      display sysmsg(2001)   ;* Command requires administrator privileges\n      void kernel(K$AUDIT, 'run.in refused reason=not the administrator')",
                        "   if 0 then\n      display sysmsg(2001)   ;* Command requires administrator privileges\n      void kernel(K$AUDIT, 'run.in refused reason=not the administrator')"),
+    # 11 Nov 26, S.213 (written, not run)
+    "keeps-admin": ("cproc", "   void kernel(K$OS.EXEC, 0)\n   void kernel(K$ADMINISTRATOR, 0)\n   return\n", "   void kernel(K$OS.EXEC, 0)\n   return\n"),
+    "no-own-words": ("cproc", "   gosub ri.own.words\n   if ri.bad # '' then\n      display sysmsg(14070,", "   ri.bad = ''\n   if ri.bad # '' then\n      display sysmsg(14070,"),
+    "execute-allowed": ("bcomp", "         if ri.active then\n            err.msg = sysmsg(14071)", "         if 0 then\n            err.msg = sysmsg(14071)"),
+    "shell-from-record": ("cproc", "   void kernel(K$SH,      not(ri.active) and (upcase(trim(acc.record<ACC$SH>)) = 'YES'))\n   void kernel(K$OS.EXEC, not(ri.active) and (upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'))\n",
+                          "   void kernel(K$SH,      (upcase(trim(acc.record<ACC$SH>)) = 'YES'))\n   void kernel(K$OS.EXEC, (upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'))\n"),
+    # 11 Nov 26, S.213 second part (written, not run; a _voc_ref mutant would need the p-code library rebuilt, which this suite does not do)
+    "logto-allowed": ("cproc", "   if ri.active then\n      display sysmsg(14073, ri.account)", "   if 0 then\n      display sysmsg(14073, ri.account)"),
+    "qptr-any-account": ("_voc_ref", "                  if not(q.registered and downcase(q.named) = ri.account) then", "                  if 0 then"),
 }
 
 
@@ -176,7 +195,8 @@ def main():
     put(os.path.join(SYS, "gpl.bp", "zzwhere"), [
         "$internal", "program zzwhere", "$catalog $zzwhere", "$include keys.h", "$include int$keys.h",
         "   crt 'WHERE who=':@who:' path=':@path:' admin=':kernel(K$ADMINISTRATOR,-1):' sh=':kernel(K$SH,-1):' os=':kernel(K$OS.EXEC,-1):"
-        "' sdacc=':kernel(K$SD.ACCOUNTS,-1):' net=':kernel(K$NET,-1):' shr=':kernel(K$SHARED.READ,-1):' shw=':kernel(K$SHARED.WRITE,-1)",
+        "' sdacc=':kernel(K$SD.ACCOUNTS,-1):' net=':kernel(K$NET,-1):' shr=':kernel(K$SHARED.READ,-1):' shw=':kernel(K$SHARED.WRITE,-1):"
+        "' ve=':kernel(K$VOC.EDIT,-1):' be=':kernel(K$BP.EDIT,-1):' de=':kernel(K$DICT.EDIT,-1)",
         "end"])
     # the VOC records: SDSYS gets WHERE; zzoff gets a hand-made RUN.IN (control A3: an ordinary account that writes the verb into its own VOC)
     put(os.path.join(SYS, "bp", "zzvoc"), [
@@ -321,17 +341,254 @@ def main():
     row("D2: the debugger's Q (quit) did not run the program on", not sg.has(out, r"^ZZPROG ran"), "output %r" % (out,))
     back(w, p, "D2: after Q")
     # the debugger stops again on the line after an EXECUTE (measured 3 Nov 26), so the program needs a second R to finish
+    # 11 Nov 26 (S.213): the command runs WITHOUT the administrator flag, so the verb's first test refuses the inner call (it used to reach the nest test: "already running")
+    n_notadm = len(audit_has(r"run\.in refused reason=not the administrator$"))
     out, w, p = run(["RUN.IN zzoff debug bp zznest", "R", "R"])
-    row("D3: a program in the account that calls RUN.IN is refused (it does not nest), and the program goes on to its last line",
-        sg.has(out, r"run\.in is already running a command") and sg.has(out, r"^ZZNEST ended: who=zzoff") and not sg.has(out, r"SUITE-TIMEOUT"), "output %r" % (out,))
+    row("D3: a program in the account that calls RUN.IN is refused (the command does not run as the administrator), no second compile ran, and the program goes on to its last line",
+        sg.has(out, r"requires administrator privileges") and not sg.has(out, r"^Compiled") and sg.has(out, r"^ZZNEST ended: who=zzoff") and not sg.has(out, r"SUITE-TIMEOUT"), "output %r" % (out,))
+    row("D3b: ... and that refusal was audited (one more 'run.in refused reason=not the administrator' line)",
+        len(audit_has(r"run\.in refused reason=not the administrator$")) == n_notadm + 1, "before %d, now %d" % (n_notadm, len(audit_has(r"run\.in refused reason=not the administrator$"))))
     back(w, p, "D3")
     out, w, p = run(["RUN.IN zzoff debug bp zzabort", "R", "RUN.IN zzon basic bp zzprog"])
     row("D4: after an aborted run a NEW run.in works (the flag was cleared)", sg.has(out, r"^Compiled 1 program\(s\) with no errors"), "output %r" % (out,))
     back(w, p, "D4")
 
+    # --- H. the hostile account (11 Nov 26, S.213) -------------------------------------------------------------------------
+    say("\n--- H. THE HOSTILE ACCOUNT: its VOC, its source and its programs cannot use the administrator's session ---------------")
+    gcat = os.path.join(SYS, "gcat")
+    ZOFF, ZON = accts["zzoff"], accts["zzon"]
+
+    def sdsys_prog(lines, want):
+        """An internal program of SDSYS, compiled and run by an administrator -internal session (the suite's own hand, not RUN.IN).  Stops the suite when it did not finish."""
+        put(os.path.join(SYS, "bp", "zzh"), ["$internal"] + lines + ["end"])
+        o = sg.adm(["BASIC bp zzh", "RUN bp zzh"], internal=True)
+        if not sg.has(o, want):
+            bail("a fixture step of section H did not finish (wanted %r):\n%s" % (want, "\n".join(o[-8:])))
+        return o
+
+    def voc_put(acct, rid, expr):
+        sdsys_prog(["   openpath '%s/voc' to v else crt 'HV no voc' ; stop" % acct, "   write %s to v, '%s'" % (expr, rid), "   crt 'HV done'"], r"^HV done$")
+
+    def voc_shipped(acct, rid):
+        sdsys_prog(["   openpath '%s/voc' to v else crt 'HV no voc' ; stop" % acct, "   openpath '%s/newvoc' to nv else crt 'HV no newvoc' ; stop" % SYS,
+                    "   read r from nv, '%s' else crt 'HV no shipped record' ; stop" % rid, "   write r to v, '%s'" % rid, "   crt 'HV done'"], r"^HV done$")
+
+    def voc_take(acct, rid):
+        """Is the record in that account's VOC?  It is deleted when it is, so the next row starts clean.  The answer is read by a separate administrator program."""
+        o = sdsys_prog(["   openpath '%s/voc' to v else crt 'HV no voc' ; stop" % acct,
+                        "   read r from v, '%s' then" % rid, "      delete v, '%s'" % rid, "      crt 'HV FOUND'", "   end else crt 'HV ABSENT'"], r"^HV (FOUND|ABSENT)$")
+        return sg.has(o, r"^HV FOUND$")
+
+    def sent(acct, name):
+        return os.path.exists(os.path.join(accts[acct], "sent", name))
+
+    def clear_sent():
+        for a in ("zzoff", "zzon"):
+            d = os.path.join(accts[a], "sent")
+            for f in os.listdir(d):
+                os.remove(os.path.join(d, f))
+
+    def gcat_has(nm):
+        return os.path.isdir(gcat) and any(nm in f.lower() for f in os.listdir(gcat))
+
+    def adm_lines(o):
+        return [ln for ln in o if ln.startswith("ADM ")]
+
+    # the fixtures.  sent is an ordinary directory file in each account: a record a program writes there is a file the suite can see.
+    for a in (ZOFF, ZON):
+        os.makedirs(os.path.join(a, "sent"))
+        voc_put(a, "sent", "'F':@fm:'sent'")
+    voc_put(ZOFF, "zzq", "'Q':@fm:'zzon':@fm:'bp'")          # a Q-pointer from zzoff to the PEER account's program file
+
+    def adm_source(acct, peer):
+        return ["program zzadm", "   execute 'ZZKF'", "   open 'sent' to sf else crt 'ADM no sent' ; stop", "   write 'x' to sf, 'adm'", "   crt 'ADM ran in ':@who",
+                "   execute 'SH touch %s/sent/shell'" % acct,
+                "   openpath '%s/voc' to v then" % peer, "      write 'X' to v, 'pwned.adm' on error crt 'ADM PEER-VOC WRITE-ERROR'", "      crt 'ADM PEER-VOC OPENED'",
+                "   end else crt 'ADM PEER-VOC REFUSED'",
+                "   crt 'ADM before os.execute'", "   os.execute 'touch %s/sent/osx'" % acct, "   crt 'ADM done'", "end"]
+
+    put(os.path.join(ZOFF, "bp", "zzhost"), ["program zzhost", "   open 'sent' to sf then write 'x' to sf, 'host'", "   crt 'ZZHOST ran'",
+                                              "   openpath '%s/voc' to v then" % ZON, "      write 'X' to v, 'pwned.host' on error null", "      crt 'ZZHOST PEER-VOC OPENED'",
+                                              "   end else crt 'ZZHOST PEER-VOC REFUSED'", "end"])
+    put(os.path.join(ZOFF, "bp", "zzmark"), ["program zzmark", "   open 'sent' to sf then write 'x' to sf, 'exec'", "   crt 'ZZMARK ran'", "end"])
+    put(os.path.join(ZOFF, "bp", "zzsrcx"), ["program zzsrcx", '$execute "RUN bp zzmark"', "   crt 'zzsrcx'", "end"])
+    put(os.path.join(ZOFF, "bp", "zzincq"), ["program zzincq", "$include zzq zzinc", "end"])
+    put(os.path.join(ZON, "bp", "zzinc"), ["   crt 'TEXT OF THE PEER ACCOUNT'"])
+    put(os.path.join(ZOFF, "bp", "zzownh"), ["   crt 'own include'"])
+    put(os.path.join(ZOFF, "bp", "zzincs"), ["program zzincs", "$include keys.h", "$include zzownh", "end"])
+    put(os.path.join(ZOFF, "bp", "zzhglob"), ["program zzhglob", "$catalog global no.query", "   crt 'ZZHGLOB ran'", "end"])
+    put(os.path.join(ZOFF, "bp", "zzlog"), ["program zzlog", "   execute 'LOGTO zzon'", "   crt 'LOG now in ':@who", "   execute 'ZZKF'",
+                                             "   execute 'SH touch %s/sent/logsh'" % ZON, "   crt 'LOG done'", "end"])
+    put(os.path.join(ZOFF, "bp", "zzadm"), adm_source(ZOFF, ZON))
+    put(os.path.join(ZON, "bp", "zzadm"), adm_source(ZON, ZOFF))
+    out = sg.adm(["LOGTO zzoff", "BASIC bp zzhost zzmark", "CATALOG bp zzhost NO.QUERY", "BASIC bp zzadm zzlog DEBUGGING"])
+    if not os.path.isfile(os.path.join(catdir, "zzhost")) or not os.path.isfile(os.path.join(objdir, "zzadm")) or not os.path.isfile(os.path.join(objdir, "zzlog")):
+        bail("the hostile programs of zzoff were not compiled and catalogued by the setup:\n" + "\n".join(out[-10:]))
+    clear_sent()
+
+    # (a) the command word: zzoff's VOC record basic names its own catalogued program
+    voc_put(ZOFF, "basic", "'V':@fm:'CA':@fm:'zzhost'")
+    out = sg.plain("zzoff", ["basic bp zzprog"])
+    row("H1a (control): the plant bites - in a plain zzoff session the word basic now runs the account's program zzhost (its line, and its record in sent)",
+        sg.has(out, r"^ZZHOST ran$") and sent("zzoff", "host"), "output %r" % (out,))
+    clear_sent()
+    n_begin = len(audit_has(r"\brun\.in begin account="))
+    out, w, p = run(["RUN.IN zzoff basic bp zzprog"])
+    row("H1b: RUN.IN refuses a command word that is not SD's own VOC entry in the account, in words that name the word and the account; the program did not run and nothing was compiled",
+        sg.has(out, r"^run\.in: basic is not SD's own entry in the VOC of account zzoff") and not sg.has(out, r"ZZHOST") and not sg.has(out, r"^Compiled"), "output %r" % (out,))
+    row("H1c: ... the program's own sentinel was not written, and the PEER account's VOC has no record from it",
+        not sent("zzoff", "host") and not voc_take(ZON, "pwned.host"))
+    row("H1d: ... audited (run.in refused account=zzoff word=basic reason=...), and no begin line was written (nothing was entered)",
+        bool(audit_has(r"run\.in refused account=zzoff word=basic reason=the entry in the voc of the account is not the shipped one$"))
+        and len(audit_has(r"\brun\.in begin account=")) == n_begin, "refused lines %r" % (audit_has(r"run\.in refused account=zzoff word=")[-2:],))
+    back(w, p, "H1")
+    voc_shipped(ZOFF, "basic")
+    if os.path.exists(os.path.join(objdir, "zzprog")):
+        os.remove(os.path.join(objdir, "zzprog"))
+    out, w, p = run(["RUN.IN zzoff basic bp zzprog"])
+    row("H1e (control): with the shipped record back the same command compiles", sg.has(out, r"^Compiled 1 program\(s\) with no errors") and os.path.isfile(os.path.join(objdir, "zzprog")), "output %r" % (out,))
+    # the "record missing" branch: the account's VOC has no record basic at all
+    gone = voc_take(ZOFF, "basic")
+    out, w, p = run(["RUN.IN zzoff basic bp zzprog"])
+    row("H1f: with the record basic DELETED from zzoff's VOC (it was there: %s) RUN.IN refuses with 14070 and compiles nothing" % gone,
+        gone and sg.has(out, r"^run\.in: basic is not SD's own entry in the VOC of account zzoff") and not sg.has(out, r"^Compiled"), "output %r" % (out,))
+    row("H1g: ... audited with reason=no entry in the voc of the account",
+        bool(audit_has(r"run\.in refused account=zzoff word=basic reason=no entry in the voc of the account$")), "refused lines %r" % (audit_has(r"run\.in refused account=zzoff word=")[-2:],))
+    back(w, p, "H1f")
+    voc_shipped(ZOFF, "basic")
+
+    # (a) an option word: no.catalog (which RUN.IN adds to basic) redefined as another keyword, so that the $catalog global of the source would be honoured
+    voc_put(ZOFF, "no.catalog", "'K':@fm:'147'")
+    out, w, p = run(["RUN.IN zzoff basic bp zzhglob"])
+    row("H2a: an OPTION word that is not SD's own entry is refused the same way (no.catalog redefined in zzoff's VOC); nothing is compiled or catalogued globally",
+        sg.has(out, r"^run\.in: no\.catalog is not SD's own entry in the VOC of account zzoff") and not sg.has(out, r"^Compiled") and not gcat_has("zzhglob")
+        and not os.path.exists(os.path.join(objdir, "zzhglob")), "output %r, gcat has it: %s" % (out, gcat_has("zzhglob")))
+    row("H2b: ... audited with word=no.catalog", bool(audit_has(r"run\.in refused account=zzoff word=no\.catalog reason=")))
+    back(w, p, "H2")
+    voc_shipped(ZOFF, "no.catalog")
+    out, w, p = run(["RUN.IN zzoff basic bp zzhglob"])
+    row("H2c (control): with the shipped record back the source compiles, its catalog directive is not run and it is in no catalogue",
+        sg.has(out, r"^Compiled 1 program\(s\) with no errors") and sg.has(out, r"catalog directive was not run") and not gcat_has("zzhglob"), "output %r" % (out,))
+
+    # (b) compile-time directives
+    clear_sent()
+    out, w, p = run(["RUN.IN zzoff basic bp zzsrcx"])
+    row("H4a: $execute in the source is a compile error under RUN.IN (its own message); the command did not run (no line, no record in sent) and no object was written",
+        sg.has(out, r"\$execute is refused in a compile started by run\.in") and not sg.has(out, r"ZZMARK ran") and not sent("zzoff", "exec")
+        and not os.path.exists(os.path.join(objdir, "zzsrcx")) and not sg.has(out, r"with no errors"), "output %r" % (out,))
+    back(w, p, "H4a")
+    out = sg.adm(["LOGTO zzoff", "BASIC bp zzsrcx"])
+    row("H4b (control): the same source compiled by a plain BASIC (the administrator, after LOGTO) DOES run its $execute command", sg.has(out, r"^ZZMARK ran$") and sent("zzoff", "exec"), "output %r" % (out,))
+    clear_sent()
+    out, w, p = run(["RUN.IN zzoff basic bp zzincq"])
+    # 11 Nov 26, second part: _voc_ref refuses the Q-pointer during a run, so the compiler cannot open the file at all and says "Include file zzq not found"
+    #   (2848); BCOMP's own outside test (14072) is a second wall behind it that this row no longer reaches
+    row("H4c: an include file reached through a Q-pointer into the PEER account is not read under RUN.IN (the pointer is refused: Include file zzq not found); no object",
+        sg.has(out, r"Include file zzq not found") and not sg.has(out, r"TEXT OF THE PEER") and not os.path.exists(os.path.join(objdir, "zzincq"))
+        and not sg.has(out, r"with no errors"), "output %r" % (out,))
+    back(w, p, "H4c")
+    out = sg.adm(["LOGTO zzoff", "BASIC bp zzincq"])
+    row("H4d (control): the same source compiled by a plain BASIC includes the peer's text (it compiles; the object is there)",
+        sg.has(out, r"^Compiled 1 program\(s\) with no errors") and os.path.isfile(os.path.join(objdir, "zzincq")), "output %r" % (out,))
+    out, w, p = run(["RUN.IN zzoff basic bp zzincs"])
+    row("H4e (control): under RUN.IN an include record of the account's own file and one of SYSCOM (keys.h) are read: the program compiles",
+        sg.has(out, r"^Compiled 1 program\(s\) with no errors") and os.path.isfile(os.path.join(objdir, "zzincs")), "output %r" % (out,))
+    back(w, p, "H4e")
+
+    # (c) a program run by debug is the account's session, not the administrator's
+    clear_sent()
+    pl = sg.plain("zzoff", ["RUN bp zzadm"])
+    pl_f, pl_adm = sg.flags(pl), adm_lines(pl)
+    say("    plain zzoff session: KFLAGS %r, lines %r" % (pl_f, pl_adm))
+    row("H3a (the comparison): a plain zzoff session runs zzadm, is not the administrator and is refused the peer account's VOC by path",
+        pl_f is not None and pl_f[0] == "0" and "ADM ran in zzoff" in pl_adm and "ADM PEER-VOC REFUSED" in pl_adm and sent("zzoff", "adm"), "KFLAGS %r lines %r" % (pl_f, pl_adm))
+    clear_sent()
+    out, w, p = run(["RUN.IN zzoff debug bp zzadm", "R", "R", "R", "R"])
+    f = sg.flags(out)
+    say("    under run.in debug : KFLAGS %r, lines %r" % (f, adm_lines(out)))
+    row("H3b: under RUN.IN debug the program RAN (its line, its record in sent) and the administrator flag it reads is 0, with SH and OS.EXECUTE 0",
+        f is not None and f[:3] == ("0", "0", "0") and "ADM ran in zzoff" in adm_lines(out) and sent("zzoff", "adm"), "KFLAGS %r output %r" % (f, out))
+    row("H3c: ... and it is refused exactly what the plain session is refused (the same ADM lines, the peer's VOC REFUSED among them)",
+        adm_lines(out) == pl_adm and "ADM PEER-VOC REFUSED" in adm_lines(out), "run.in %r plain %r" % (adm_lines(out), pl_adm))
+    row("H3d: ... the peer account's VOC holds no record from it and no shell command ran (no sent/shell, no sent/osx)",
+        not voc_take(ZON, "pwned.adm") and not sent("zzoff", "shell") and not sent("zzoff", "osx"))
+    back(w, p, "H3")
+
+    # (d) an account whose register record has sh-on and os-on
+    out, w, p = run(["RUN.IN zzon basic bp zzadm debugging"])
+    if not os.path.isfile(os.path.join(ZON, "bp.out", "zzadm")):
+        bail("zzadm was not compiled in zzon through RUN.IN:\n" + "\n".join(out[-8:]))
+    clear_sent()
+    pl = sg.plain("zzon", ["RUN bp zzadm"])
+    row("H5a (control): a plain zzon session (sh-on, os-on) running the program DOES run its shell commands (sent/shell and sent/osx are written)",
+        sent("zzon", "shell") and sent("zzon", "osx") and (sg.flags(pl) or ("", "", ""))[1:3] == ("1", "1"), "KFLAGS %r shell %s osx %s output %r" % (sg.flags(pl), sent("zzon", "shell"), sent("zzon", "osx"), pl))
+    voc_take(ZOFF, "pwned.adm")
+    clear_sent()
+    out, w, p = run(["RUN.IN zzon debug bp zzadm", "R", "R", "R", "R"])
+    f = sg.flags(out)
+    say("    under run.in debug in zzon: KFLAGS %r, lines %r" % (f, adm_lines(out)))
+    row("H5b: under RUN.IN debug in zzon the program RAN, and the flag, SH and OS.EXECUTE it reads are all 0 although the register record says yes",
+        f is not None and f[:3] == ("0", "0", "0") and "ADM ran in zzon" in adm_lines(out) and sent("zzon", "adm"), "KFLAGS %r output %r" % (f, out))
+    row("H5c: ... no shell command ran (no sent/shell, no sent/osx) and zzoff's VOC holds no record from it",
+        not sent("zzon", "shell") and not sent("zzon", "osx") and not voc_take(ZOFF, "pwned.adm"), "shell %s osx %s" % (sent("zzon", "shell"), sent("zzon", "osx")))
+    back(w, p, "H5")
+
+    # a LOGTO executed by the debugged program is refused (11 Nov 26, second part; before it, it entered zzon and only the shell switches were held off)
+    clear_sent()
+    n_logto = len(audit_has(r"run\.in refused account=zzoff target=zzon reason=logto$"))
+    out, w, p = run(["RUN.IN zzoff debug bp zzlog", "R", "R", "R", "R", "R"])
+    f = sg.flags(out)
+    say("    a LOGTO zzon executed inside the run printed: %r, KFLAGS %r" % ([ln for ln in out if ln.startswith("LOG ") or "logto" in ln], f))
+    row("H6a: a LOGTO into zzon executed by the debugged program is REFUSED (14073, naming the run's account), the program is still in zzoff, and its flags are 0 0 0",
+        sg.has(out, r"^logto is refused while run\.in is running a command in account zzoff$") and sg.has(out, r"^LOG now in zzoff$") and not sg.has(out, r"^LOG now in zzon$")
+        and f is not None and f[:3] == ("0", "0", "0") and sg.has(out, r"^LOG done$"), "KFLAGS %r output %r" % (f, out))
+    row("H6b: ... its SH command did not run (no sent/logsh in zzon) and the refusal was audited (run.in refused account=zzoff target=zzon reason=logto)",
+        not sent("zzon", "logsh") and len(audit_has(r"run\.in refused account=zzoff target=zzon reason=logto$")) == n_logto + 1, "audit lines %d" % len(audit_has(r"reason=logto$")))
+    back(w, p, "H6 (after a refused LOGTO inside the run)")
+    out = adm_t(["RUN.IN zzoff basic bp zzprog", "LOGTO zzon", "ZZKF", "WHO"])
+    f = sg.flags(out)
+    row("H6c (control): a LOGTO typed by the administrator AFTER a run still works - it enters zzon, the flag stays and zzon's own SH and OS.EXECUTE (on) are loaded",
+        sg.has(out, r"^Compiled 1 program\(s\) with no errors") and not sg.has(out, r"logto is refused") and f is not None and f[:3] == ("1", "1", "1")
+        and sg.has(out, r"\bzzon\b"), "KFLAGS %r output %r" % (f, out))
+
+    # a Q-pointer in the account's own VOC into another account's data file (11 Nov 26, second part)
+    for a, d, rid, txt in ((ZON, "zzdata", "r1", "orig"), (ZOFF, "zzown", "o1", "own")):
+        os.makedirs(os.path.join(a, d), exist_ok=True)
+        put(os.path.join(a, d, rid), [txt])
+        voc_put(a, d, "'F':@fm:'%s'" % d)
+    voc_put(ZOFF, "zzqd", "'Q':@fm:'zzon':@fm:'zzdata'")      # into the PEER account's file
+    voc_put(ZOFF, "zzqo", "'Q':@fm:'zzoff':@fm:'zzown'")      # into the account's OWN file, by its register name
+    put(os.path.join(ZOFF, "bp", "zzqp"), ["program zzqp",
+        "   open 'zzqd' to f then", "      write 'changed' to f, 'r1'", "      crt 'QP PEER OPENED'", "   end else crt 'QP PEER REFUSED status=':status()",
+        "   open 'zzqo' to g then", "      write 'x' to g, 'o2'", "      crt 'QP OWN OPENED'", "   end else crt 'QP OWN REFUSED status=':status()", "   crt 'QP done'", "end"])
+    out = sg.adm(["LOGTO zzoff", "BASIC bp zzqp DEBUGGING"])
+    if not os.path.isfile(os.path.join(objdir, "zzqp")):
+        bail("zzqp was not compiled in zzoff:\n" + "\n".join(out[-8:]))
+    r1 = os.path.join(ZON, "zzdata", "r1")
+    o2 = os.path.join(ZOFF, "zzown", "o2")
+
+    def r1_text():
+        with open(r1) as fh:
+            return fh.read().strip()
+
+    pl = sg.plain("zzoff", ["RUN bp zzqp"])
+    say("    plain zzoff session: %r; zzon r1 now %r" % ([ln for ln in pl if ln.startswith("QP ")], r1_text()))
+    row("H7a (control, the rules as they are outside RUN.IN): a plain zzoff session follows the Q-pointer into zzon (the sandbox user is in zzon's register group, as "
+        "sdsys is in every account's group) and changes zzon's record r1; it also opens its own file through zzqo",
+        sg.has(pl, r"^QP PEER OPENED$") and r1_text() == "changed" and sg.has(pl, r"^QP OWN OPENED$"), "output %r r1 %r" % (pl, r1_text()))
+    put(r1, ["orig"])
+    if os.path.exists(o2):
+        os.remove(o2)
+    out, w, p = run(["RUN.IN zzoff debug bp zzqp", "R", "R", "R", "R", "R", "R"])
+    say("    under run.in debug: %r; zzon r1 now %r" % ([ln for ln in out if ln.startswith("QP ")], r1_text()))
+    row("H7b: under RUN.IN zzoff debug the Q-pointer into zzon is REFUSED (the ELSE ran, with a non-zero status, printed above) and zzon's record r1 is unchanged on the disk",
+        sg.has(out, r"^QP PEER REFUSED status=[1-9]\d*$") and not sg.has(out, r"^QP PEER OPENED$") and r1_text() == "orig", "output %r r1 %r" % (out, r1_text()))
+    row("H7c (control): ... and the Q-pointer to zzoff's OWN file, by its register name, still opens and writes (o2 is on the disk)",
+        sg.has(out, r"^QP OWN OPENED$") and os.path.isfile(o2) and sg.has(out, r"^QP done$"), "output %r o2 %s" % (out, os.path.isfile(o2)))
+    back(w, p, "H7")
+
     # --- G. BASIC through run.in is given NO.CATALOG ---------------------------------------------------------------------
     say("\n--- G. BASIC through run.in compiles WITHOUT cataloguing: a directive in an account's code cannot put it in a catalogue ----")
-    gcat = os.path.join(SYS, "gcat")
 
     def in_gcat(nm):
         return os.path.isdir(gcat) and any(nm in f.lower() for f in os.listdir(gcat))
@@ -369,16 +626,15 @@ def main():
     say("\n--- E. audit lines ---------------------------------------------------------------------------------------------------")
     begins = audit_has(r"\brun\.in begin account=")
     ends = audit_has(r"\brun\.in end account=")
-    reverts = audit_has(r"\brun\.in revert account=zzoff reason=abort")
+    reverts = audit_has(r"\brun\.in revert account=zz(off|on) reason=abort")      # 11 Nov 26: section H aborts a program in zzon too (os.execute refused)
     say("    audit: %d begin, %d end, %d revert-after-abort, %d refused" % (len(begins), len(ends), len(reverts), len(audit_has(r"\brun\.in refused"))))
     row("E1: a begin line names the account and the command built from the checked words",
         bool(audit_has(r"run\.in begin account=zzoff command=basic bp zzprog no\.catalog$")), "begin lines %r" % (begins[:3],))
     row("E2: every begin has its end or its revert (nothing is left open)", len(begins) > 0 and len(begins) == len(ends) + len(reverts), "%d / %d / %d" % (len(begins), len(ends), len(reverts)))
     row("E3: the abort wrote a revert line", len(reverts) >= 2, "revert lines %r" % (reverts,))
-    row("E4: the refusals were written (command not on the list, not registered, the administrator account, a word the command does not take, nested)",
+    row("E4: the refusals were written (command not on the list, not registered, the administrator account, a word the command does not take; the nested call is D3b's)",
         all(audit_has(p) for p in (r"run\.in refused account=zzoff reason=command not on the list", r"run\.in refused account=zzghost reason=not registered",
-                                    r"run\.in refused account=sdsys reason=the administrator account", r"run\.in refused account=zzoff reason=a word the command does not take",
-                                    r"run\.in refused reason=nested")))
+                                    r"run\.in refused account=sdsys reason=the administrator account", r"run\.in refused account=zzoff reason=a word the command does not take")))
 
     subprocess.run([sys.executable, sg.TOOL, BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
     say("\nsandbox-runin: %d passed, %d failed" % (passed, failed))

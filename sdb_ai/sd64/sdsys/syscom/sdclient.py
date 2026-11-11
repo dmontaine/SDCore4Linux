@@ -12,10 +12,12 @@ for the sequential file functions and SDClose.  The data of SDReadBlk may hold a
 give SDReadBlk a restype of c_void_p and read it with ctypes.string_at(ptr, ActualBytes).
 
 The library is loaded from the current directory; change the path below (the installed one is
-/usr/local/sdsys/bin/sdclilib.so).
+/usr/local/sdsys/bin/sdclilib.so).  On Windows it is sdclilib.dll (11 Nov 2026: one file for both
+platforms, as the Windows port has it; nothing changes on Linux).
 """
 
 import ctypes
+import sys
 
 # Server status constants (sorted)
 SV_ELSE = 2
@@ -26,7 +28,7 @@ SV_ON_ERROR = 1
 SV_PROMPT = 5
 
 # Library loading
-_lib = ctypes.CDLL('./sdclilib.so')
+_lib = ctypes.CDLL('./sdclilib.dll' if sys.platform == 'win32' else './sdclilib.so')
 
 # ctypes function bindings (sorted; argtypes / restype)
 SDCall = _lib.SDCall

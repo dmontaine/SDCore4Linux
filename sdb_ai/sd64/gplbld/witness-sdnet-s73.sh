@@ -2,7 +2,7 @@
 #
 # witness-sdnet-s73.sh - S.73 items 1 and 2 on a REAL install, ONE machine (3 Nov 2026, track G).  First run on the VM 3 Nov 2026: A and H1 as written; H2 / H3 and the hang server's start fixed after it.
 #
-#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-s73.sh [--only=A,H] [--client ACCOUNT]
+#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-s73.sh [--only=A,H] [--client=ACCOUNT]
 #   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-sdnet-s73.sh --selftest        (no sudo, no sd: the shared helpers on known texts)
 #
 # ***NEEDS sudo*** from the owner's login (SUDO_USER names the person; --client is that person's SD account, default the same name).  It RESTARTS sd.service twice (every SD

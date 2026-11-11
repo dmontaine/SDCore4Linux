@@ -24,7 +24,9 @@ SDSYS_DIR = "/usr/local/sdsys"
 SD = SDSYS_DIR + "/bin/sd"
 ME = subprocess.run(["id", "-un"], capture_output=True, text=True).stdout.strip()
 ACCT = "/home/sd/user_accounts/" + ME
-DBG_KEYS = "F1 help  F2 abort  F3 stop  F4 screen  F5 run  F7 step  F8 line  ^F7 parent  ^F8 program"
+# 11 Nov 26: the debugger's key row since S.179 / S.186 (F2 find, F5 refresh, F9 run, F10 menu), the same string sandbox-tool-entries.py holds.  The old one
+#   (F2 abort, F5 run) made W8 the one red row of the VM run of this day, although the debugger was entered and left (the status line and the audit line say so).
+DBG_KEYS = "F1 help  F2 find  F3 stop  F4 screen  F5 refresh  F7 step  F8 line  F9 run  F10 menu  ^F7 parent  ^F8 program"
 passed = failed = 0
 
 
@@ -188,6 +190,14 @@ def walk_to(name):
 
 
 def filt(word):
+    # 11 Nov 26: the filter is the Entries box's; in the Accounts box "/" looks for an account.  The page comes back from the editor with the keyboard in the
+    #   Accounts box (its status line starts [Accounts]), so F6 first, and the status line is read again before anything is typed.
+    for _ in range(3):
+        if st().startswith("[Entries]"):
+            break
+        typed("\x1b[17~", 0.6)
+    if not st().startswith("[Entries]"):
+        print("        | filt(%r): the keyboard is not in the Entries box after F6 (status line %r); the row that follows cannot be believed" % (word, st()))
     typed("/", 1.0)
     typed(word + "\r", 1.5)
 
@@ -277,7 +287,10 @@ def main():
     row("W2 SDSYS's tool.entries draws on a real terminal and lists the user's account", got, text()[-800:])
     if not got:
         return finish(1)
-    typed("\t", 0.6)
+    # 11 Nov 26: F6 goes to the Entries box.  This was Tab, which has moved no box since S.176 (8 Nov); with the keyboard left in the Accounts box the first
+    #   real-install run (the Debian VM, b91adbee) passed W3 (N needs no box) and then filtered and pressed E on the wrong list: W4 to W10 red for the witness's own key.
+    typed("\x1b[17~", 0.6)
+    row("W2b F6 put the keyboard in the Entries box (the status line names it)", "[Entries]" in st(), repr(st()))
 
     # ---- N: a VOC entry written by the administrator in the locked-out account
     typed("n", 1.2)
@@ -294,8 +307,12 @@ def main():
 
     # ---- E: change it
     filt("zm7new")
+    after_filter = text()                              # 11 Nov 26: kept for the row's detail - the first real-install run failed here and its output did not show the list E was pressed on
     typed("e", 1.2)
     up_e = wait_for(ide_up, 12)
+    if not up_e:
+        print("        | W4: E did not open the IDE.  The page after the filter, before E:\n" + "\n".join("        |   " + l for l in after_filter.split("\n")[:22]))
+        print("        | ...and after E:\n" + "\n".join("        |   " + l for l in text().split("\n")[:22]))
     typed("\x1b[B", 0.3)
     typed("\x1b[F", 0.3)
     typed(" and edited", 0.5)

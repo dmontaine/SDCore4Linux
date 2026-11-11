@@ -291,10 +291,11 @@ var
 begin
   Result := True;
   if SdCliLib <> NilHandle then Exit;
+  { 11 Nov 2026: sdclilib.dll on Windows, as the Windows port has it; nothing changes on Linux }
   if BasePath = '' then
-    Path := 'sdclilib.so'
+    Path := {$IFDEF WINDOWS}'sdclilib.dll'{$ELSE}'sdclilib.so'{$ENDIF}
   else
-    Path := IncludeTrailingPathDelimiter(BasePath) + 'sdclilib.so';
+    Path := IncludeTrailingPathDelimiter(BasePath) + {$IFDEF WINDOWS}'sdclilib.dll'{$ELSE}'sdclilib.so'{$ENDIF};
   SdCliLib := LoadLibrary(Path);
   if SdCliLib = NilHandle then
   begin

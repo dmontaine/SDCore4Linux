@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 11 Nov 26 dm  S.213: while RUN.IN is running a command (ri.active of the /$runin/ common) a Q-pointer, and so the Account:File form, leads only into
+*               the run's own account by its register name; anything else is ER$PERM.  The OS user is sdsys, a member of every account's group, so the
+*               LOGTO test of check.q.hop admitted every account to a program RUN.IN debugged.
 * 03 Nov 26 dm  The Account:File form of file name is back, always on (owner: "Just add FILERULE back in without the on/off switch"): it is
 *               resolved as a Q-pointer, so it meets every Q-pointer check.  No FILERULE setting; the PATH:pathname form stays removed.
 * 28 Oct 26 dm  S.87 C-020: the sd.voclib file (the ten ready-made list sentences) is gone; only the comment naming it as a stock pointer changed.
@@ -69,6 +72,10 @@ $include keys.h
 
    deffun is_grp_member(user,group) calling '!is_grp_member'
    deffun shared_ref(name, fno, quiet) calling '!shared_ref'      ;* 18 Oct 26 dm, S.66
+
+* 11 Nov 26 dm - S.213: RUN.IN's common, declared as CPROC declares it (the same six names).  ri.active is 1 while RUN.IN runs a command in the account
+*   ri.account; a $ name, so no user program can set either.  A named common starts at 0, so outside RUN.IN nothing below changes.
+   common /$runin/ ri.active, ri.path, ri.account.path, ri.who, ri.sw, ri.account
 
 * 13 Oct 26 dm - S.63, second sitting (owner: "try to make tighter ... q pointers should only be allowed into an
 *   account the user can logto in any case").  A VOC pointer is a way to name a file, and the first S.63 left
@@ -263,6 +270,16 @@ parse.as.q.pointer:
                if len(qpath) = 0 then
                   set.status ER$NPN
                   return
+               end
+
+* 11 Nov 26 dm - S.213: while RUN.IN is running a command, a Q-pointer leads only into the account the command runs in, named as the register
+*   names it (field 2 of the pointer is a registered account and is that account).  A path, an unregistered name, the stock sd.accounts and every
+*   other account are refused (3035), whatever check.q.hop would say: the session's OS user is sdsys, a member of every account's group.
+               if ri.active then
+                  if not(q.registered and downcase(q.named) = ri.account) then
+                     set.status ER$PERM
+                     return
+                  end
                end
 
 * 13 Oct 26 dm - second sitting: only into an account the user could LOGTO (see the note at the top).
