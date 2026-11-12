@@ -109,6 +109,66 @@ def run(env, cmd, cwd=None, timeout=900):
     return p.returncode, out
 
 
+# 12 Nov 26 dm - S.221 (owner, 12 Nov 2026, on how Solo's carried full-screen programs are tested: "Run Core's with --solo").  SDBOX_SOLO=1 makes the sandbox
+#   run SD Core for Linux Solo's FULL-SCREEN programs on this tree's kernel, for every suite at once.  Of the full-screen programs (the IDE, CED, the debugger,
+#   SP.VIEW, the screen library and toolkit, the tool pages and the home screen) 150 are byte for byte the same in both trees on 12 Nov 26, so a plain run of a
+#   suite already tests Solo's code for them; the ones that DIFFER (SOLO_FULLSCREEN, those that are in Solo and are not the same here), the Solo-only routines
+#   they call (SOLO_CALLED), Solo's help records and the message texts these programs cite are copied over the sandbox's sdsys before the bootstrap compiles
+#   them (the kernel is the same C in both products - solo_swap.py's reasoning, which four suites already use one program at a time).  Solo's WHOLE BASIC
+#   cannot be swapped in: 101 programs differ, the compiler and the account programs among them, and on this tree's headers pass 1 fails (measured 12 Nov 26).
+#   What is copied is printed, so a log says what was under test.  NOT a Solo install: Solo's installer, its one-account register, its ADMIN and its user
+#   units are not here, so a row that tests a planned difference (Switch account, another account, the administrator as sdsys) fails for that reason and is
+#   read as such.
+SOLO_SD64 = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64"
+SOLO_FULLSCREEN = ("ced_edit", "debug", "ide", "spview", "tk_aiwall", "tk_help", "tool_ai", "tool_backups", "tool_config", "tool_gates", "tool_home",
+                   "tool_menus", "tool_remote", "tool_sessions")
+SOLO_CALLED = ("voc_refusal", "voc_guard", "viewlist", "pdf", "setviewer", "tool_viewers")
+
+
+def solo_into_sandbox(sysd):
+    sgpl = os.path.join(SOLO_SD64, "sdsys", "gpl.bp")
+    if not os.path.isdir(sgpl):
+        sbx.die("sandbox-fromtree: CANNOT RUN - SDBOX_SOLO=1 and there is no %s" % sgpl)
+    cgpl = os.path.join(sysd, "gpl.bp")
+    swapped, same = [], []
+    for name in SOLO_FULLSCREEN + SOLO_CALLED:
+        src = os.path.join(sgpl, name)
+        if not os.path.isfile(src):
+            sbx.die("sandbox-fromtree: CANNOT RUN - SDBOX_SOLO=1 and Solo has no gpl.bp/%s" % name)
+        dst = os.path.join(cgpl, name)
+        if os.path.exists(dst) and open(src, "rb").read() == open(dst, "rb").read():
+            same.append(name)
+            continue
+        shutil.copyfile(src, dst)
+        swapped.append(name)
+    # The one Solo-only kernel key these programs ask: K$GLOBAL.SESSION (69, Solo's managed mode: a session signed in with the global password).  This tree's
+    # kernel has no key 69 and kernel() of an unknown key ends the program, so in the sandbox the question is answered 0 - which is the true answer here: no
+    # sandbox session signs in with a global password.  Said in the log; refused if the text is not there exactly once.
+    if "voc_refusal" in swapped:
+        sbx.replace_once(os.path.join(cgpl, "voc_refusal"), "if kernel(K$GLOBAL.SESSION, -1) then return 0", "if 0 then return 0",
+                         "SDBOX_SOLO: no global session in a sandbox (Solo's kernel key 69 is not this kernel's)")
+    # The message texts these programs use: those named in sysmsg(N), and every number of Solo's own blocks (11000-11999, 14000-14999) written in them, since a
+    # routine may hand its message number back to its caller (voc_refusal's "return 11008", shown by spview as "[11008] Message not found" until 12 Nov 26).
+    cited = set()
+    for name in swapped:
+        txt = open(os.path.join(sgpl, name), encoding="latin-1").read()
+        cited |= set(re.findall(r"sysmsg\((\d+)", txt))
+        cited |= set(re.findall(r"\b(1[14]\d{3})\b", txt))
+    nmsg = 0
+    for n in sorted(cited):
+        src = os.path.join(SOLO_SD64, "sdsys", "messages", n)
+        if os.path.isfile(src):
+            shutil.copyfile(src, os.path.join(sysd, "messages", n))
+            nmsg += 1
+    nhelp = 0
+    shelp = os.path.join(SOLO_SD64, "sdsys", "helptext")
+    for name in sorted(os.listdir(shelp)):
+        shutil.copyfile(os.path.join(shelp, name), os.path.join(sysd, "helptext", name))
+        nhelp += 1
+    sbx.say("    SDBOX_SOLO=1: Solo's programs swapped in (%d): %s" % (len(swapped), " ".join(swapped)))
+    sbx.say("    SDBOX_SOLO=1: already the same in both trees (%d): %s; %d message texts and %d help records are Solo's" % (len(same), " ".join(same), nmsg, nhelp))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dir")
@@ -171,6 +231,8 @@ def main():
                              "'python3 %s'" % os.path.join(tree, "gplbld", "sd-accarchive"), "s50: accos.h archiver")
             sbx.say("    --s50: %d sd-elevate call sites in gpl.bp now run %s" % (n, shim))
         shutil.copytree(os.path.join(tree, "sdsys"), sysd)
+        if os.environ.get("SDBOX_SOLO") == "1":
+            solo_into_sandbox(sysd)
         open(os.path.join(sysd, "gcat", "$cproc"), "w").close()   # 06 Oct 26: lower case, as config.c looks for it
         open(os.path.join(sysd, "errlog"), "w").close()
         if os.environ.get("SDBOX_NEWVOC_MODS"):     # 16 Oct 26: QM4 item 501, bbproc applies @SDSYS/newvoc.mods in pass 1 (sandbox-oq2.py)
