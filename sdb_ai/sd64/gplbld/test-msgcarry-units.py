@@ -70,6 +70,7 @@ ALLOWED = {
     ("ide_name", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; the IDE carried to Solo, S.117, 11 Nov 26)",
     ("tk_gates", "11800"): "the administrator-only refusal: Core 'it runs for SDSYS, logged in at the machine's own keyboard', Solo 'type ADMIN and the administrator's password first' - Solo has no sdsys user (S.117, 11 Nov 26)",
     ("tk_open", "11800"): "the administrator-only refusal: Core 'it runs for SDSYS, logged in at the machine's own keyboard', Solo 'type ADMIN and the administrator's password first' - Solo has no sdsys user (S.117, 11 Nov 26)",
+    ("setconfig", "11936"): "the restart sentence: Core 'sd -stop, then sd -start', Solo 'sd-solo -stop, then sd-solo -start' - Solo's command (found by the Windows agent, its mail 2026-11-12T1500)",
 }
 passed = failed = 0
 
