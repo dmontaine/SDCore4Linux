@@ -18,7 +18,8 @@ WHAT IS CHECKED, by reading gpl.bp (the only place BASIC writes the trail: kerne
   A  every audit call's event words, the tokens before the first key=, and that first key itself, hold
      no upper-case letter (the key was left out until 9 Oct; verify-auditwords.py judges it too)
   B  where the event words continue in a variable (remote.api <action>, modify.account route <word>), the
-     variable is passed through downcase() or every literal assigned to it in that program is lower case
+     variable is passed through downcase() or every literal assigned to it in that program is lower case;
+     an inline (if ... then '<a>' else '<b>') with both literals lower case passes too (12 Nov 26, Solo's setmcp)
   C  create.account's type= value is passed through downcase() (it is a keyword of the command)
   D  the NULL CASE: fewer than 20 call sites seen is a broken reader, not a pass
 Comment lines (a leading *) are not code and are not read.
@@ -125,6 +126,11 @@ def run(root):
         expr = rest.lstrip(": ").strip()
         if expr.startswith("downcase(") or re.match(r"(dcount|len|count)\(", expr):
             continue                      # downcased, or a count (a number is not a command word)
+        # 12 Nov 26: an inline IF whose two branches are literals, both lower case (Solo's setmcp: (if which = 'door' then '' else 'write ')).
+        # CALL stops at the first ')', so the IF's own ')' is not in expr.  Taken from Windows Solo's copy (its mail 2026-11-11T2200).
+        m_if = re.match(r"\(\s*if\b.*?\bthen\s*'([^']*)'\s*else\s*'([^']*)'\s*$", expr)
+        if m_if and not re.search(r"[A-Z]", m_if.group(1) + m_if.group(2)):
+            continue
         ident = re.match(r"[A-Za-z_][A-Za-z0-9_.$]*", expr)
         if not ident or not (lower_literals_only(root, p, ident.group(0)) or numeric_only(root, p, ident.group(0))):
             bad_var.append((p, n, expr[:40]))
@@ -204,6 +210,7 @@ def selftest():
         mutant("solo-admin-event-upper", "admin", "'admin refused reason=wrong password'", "'ADMIN refused reason=wrong password'")
         mutant("solo-admin-no-kv-upper", "admin", "'admin locked'", "'Admin locked'")
         mutant("solo-control-upper-in-reason", "admin", "reason=wrong password'", "reason=Wrong password'", expect_fail=False)
+        mutant("solo-inline-if-branch-upper", "setmcp", "else 'write ')", "else 'WRITE ')")
         print("selftest: %d mutants/controls behaved, %d did not, %d not applicable to this tree" % (caught, missed, na))
         if caught < 4:
             print("selftest: NOTHING MEASURED - fewer than 4 mutants could run, so the guard is untested")
