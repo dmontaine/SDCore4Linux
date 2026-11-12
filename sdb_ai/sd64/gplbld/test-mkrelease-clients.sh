@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# test-mkrelease-clients.sh - mkrelease.sh's two client-library options, --clients DIR (clients/Linux64) and --clients-windows DIR (clients/Windows64), S.151
+# test-mkrelease-clients.sh - mkrelease.sh's three client-library options, --clients DIR (clients/Linux64, OpenSSL 3), --clients-openssl4 DIR
+# (clients/Linux64-openssl4) and --clients-windows DIR (clients/Windows64), S.151
 # (owner: "we distribute windows client information with the linux core server just as we distribute the linux clients with the windows core server").
 #
 #   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-mkrelease-clients.sh
@@ -23,6 +24,9 @@
 #       the installer's PACKAGE-SOURCE block (the working tree's installsdcore.sh, under its own set and IFS) takes the unpacked package, and - the control -
 #       refuses the same package once a file is added under source/
 #   B   a package with --clients only: made; clients/Linux64 the same bytes; no clients/Windows64; the summary says NOT INCLUDED for Windows64 and not Linux64
+#   R7  (12 Nov 26) --clients-openssl4 with an empty folder: exit 2, "is empty", the option named
+#   C   (12 Nov 26) a package with all three (--clients, --clients-openssl4, --clients-windows): each folder the same bytes as its fixture, in the staging folder
+#       and the unpacked zip; the summary says NOT INCLUDED for none of them; SHA256SUMS names nothing under clients/
 #
 # NOT MEASURED HERE, and said so: real Windows client libraries (none exist yet; the fixture files are random bytes with made-up names), an install from the
 # package (the VM), and mutants of mkrelease.sh (the script finds the repository from its own path, so a mutated copy elsewhere would not run).
@@ -48,10 +52,11 @@ ls "$DOCS/Changes/pdf/"*"-changes-$VERSION.pdf" >/dev/null 2>&1 || cannot "no Ch
 T=$(mktemp -d) || cannot "mktemp"
 trap 'rm -rf "$T"' EXIT
 export TMPDIR="$T"                       # mkrelease.sh's own scratch folder goes here too
-mkdir "$T/st0" "$T/zp0" "$T/st" "$T/zp" "$T/win" "$T/lin" "$T/empty" "$T/withdir" "$T/withdir/sub"
+mkdir "$T/st0" "$T/zp0" "$T/st" "$T/zp" "$T/win" "$T/lin" "$T/lin4" "$T/empty" "$T/withdir" "$T/withdir/sub"
 head -c 4096 /dev/urandom > "$T/win/fixture-win-one.bin"
 head -c 1500 /dev/urandom > "$T/win/fixture-win-two.bin"
 head -c 3000 /dev/urandom > "$T/lin/fixture-lin-one.bin"
+head -c 2000 /dev/urandom > "$T/lin4/fixture-lin4-one.bin"
 printf 'x\n' > "$T/withdir/a-file"
 ABSENT="$T/absent"
 
@@ -61,7 +66,7 @@ echo "version / ref     : $VERSION from $REF ($(git -C "$REPO" rev-parse --short
 echo "scratch           : $T"
 echo "fixtures          : win $(ls "$T/win" | wc -l) files, lin $(ls "$T/lin" | wc -l) file, empty $(ls -A "$T/empty" | wc -l) entries, absent $([ -e "$ABSENT" ] && echo EXISTS || echo 'does not exist')"
 # THE NULL CASE: a fixture that is not what the rows say it is would let them pass on nothing
-[ "$(ls "$T/win" | wc -l)" = 2 ] && [ "$(ls "$T/lin" | wc -l)" = 1 ] && [ -d "$T/empty" ] && [ -z "$(ls -A "$T/empty")" ] && [ ! -e "$ABSENT" ] || cannot "the fixtures are not as made"
+[ "$(ls "$T/win" | wc -l)" = 2 ] && [ "$(ls "$T/lin" | wc -l)" = 1 ] && [ "$(ls "$T/lin4" | wc -l)" = 1 ] && [ -d "$T/empty" ] && [ -z "$(ls -A "$T/empty")" ] && [ ! -e "$ABSENT" ] || cannot "the fixtures are not as made"
 
 pass=0; fail=0
 row() {   # name, ok(0/1), detail
@@ -96,6 +101,7 @@ refused "R5 --clients-windows, a folder that holds a folder: exit 2, 'not a file
 OUT=$(mk "$T/st0" "$T/zp0" "${COMMON[@]}" --clients-windows)
 row "R6 --clients-windows with no value: exit 2, it says a value is needed, nothing staged" \
     "$(ok "$([ "$(rc_of "$OUT")" = 2 ] && printf '%s\n' "$OUT" | grep -q -F -- '--clients-windows needs a value' && nothing && echo yes)")" "$OUT"
+refused "R7 --clients-openssl4, an empty folder: exit 2, 'is empty', nothing staged, no zip" "the clients folder $T/empty is empty" --clients-openssl4 --clients-openssl4 "$T/empty"
 
 same_files() {   # same_files FIXTUREDIR PACKAGEDIR - the same names and, for each, the same bytes; and at least one file
   local a="$1" b="$2" f n=0
@@ -156,9 +162,29 @@ if [ "$made" = yes ]; then
       "$(ok "$(same_files "$T/lin" "$T/st/$PKG/clients/Linux64" && same_files "$T/lin" "$T/ub/$PKG/clients/Linux64" && echo yes)")" "$(ls -lA "$T/st/$PKG/clients/Linux64" "$T/ub/$PKG/clients/Linux64" 2>&1)"
   row "B3 no clients/Windows64 was made (the option was not given)" "$(ok "$([ ! -e "$T/st/$PKG/clients/Windows64" ] && [ ! -e "$T/ub/$PKG/clients/Windows64" ] && echo yes)")" "$(ls -A "$T/st/$PKG/clients")"
   row "B4 the summary says NOT INCLUDED for clients/Windows64, naming --clients-windows DIR, and does not say it for clients/Linux64" \
-      "$(ok "$(printf '%s\n' "$OUT" | grep -q -F 'NOT INCLUDED: clients/Windows64 (--clients-windows DIR' && ! printf '%s\n' "$OUT" | grep -q -F 'NOT INCLUDED: clients/Linux64' && echo yes)")" "$(printf '%s\n' "$OUT" | grep 'NOT INCLUDED')"
+      "$(ok "$(printf '%s\n' "$OUT" | grep -q -F 'NOT INCLUDED: clients/Windows64 (--clients-windows DIR' && ! printf '%s\n' "$OUT" | grep -q -F 'NOT INCLUDED: clients/Linux64 (' && echo yes)")" "$(printf '%s\n' "$OUT" | grep 'NOT INCLUDED')"
 else
   fail=$((fail+1)); echo "  [FAIL] B2-B4 NOT RUN: there is no package to look at"
+fi
+
+echo "--- C: a package with all three client folders"
+OUT=$(mk "$T/st" "$T/zp" "${COMMON[@]}" --label tsc --clients "$T/lin" --clients-openssl4 "$T/lin4" --clients-windows "$T/win")
+PKG="SDCore-$VERSION-tsc"
+printf '%s\n' "$OUT" | sed -n '/^Made /,$p' | sed 's/^/    | /'
+made=$([ "$(rc_of "$OUT")" = 0 ] && printf '%s\n' "$OUT" | grep -q -x -F "Made $T/zp/$PKG.zip" && ! printf '%s\n' "$OUT" | grep -q 'CHECK FAILED' && [ -f "$T/zp/$PKG.zip" ] && echo yes)
+row "C1 the package is made: exit 0, 'Made <zip>', no CHECK FAILED, the zip exists" "$(ok "$made")" "$OUT"
+if [ "$made" = yes ]; then
+  mkdir "$T/uc"; unzip -q "$T/zp/$PKG.zip" -d "$T/uc"
+  c2=yes
+  for pair in "lin:Linux64" "lin4:Linux64-openssl4" "win:Windows64"; do
+    same_files "$T/${pair%%:*}" "$T/st/$PKG/clients/${pair#*:}" && same_files "$T/${pair%%:*}" "$T/uc/$PKG/clients/${pair#*:}" || c2=no
+  done
+  row "C2 clients/Linux64, clients/Linux64-openssl4 and clients/Windows64 each hold exactly their fixture's files, the same bytes, staged and unpacked" \
+      "$(ok "$c2")" "$(ls -lAR "$T/uc/$PKG/clients" 2>&1)"
+  row "C3 the summary says NOT INCLUDED for no clients folder" "$(ok "$(! printf '%s\n' "$OUT" | grep -q -F 'NOT INCLUDED: clients/' && echo yes)")" "$(printf '%s\n' "$OUT" | grep 'NOT INCLUDED')"
+  row "C4 SHA256SUMS names nothing under clients/" "$(ok "$(! grep -q '  clients/' "$T/uc/$PKG/SHA256SUMS" && echo yes)")" "$(grep '  clients/' "$T/uc/$PKG/SHA256SUMS" | head -3)"
+else
+  fail=$((fail+1)); echo "  [FAIL] C2-C4 NOT RUN: there is no package to look at"
 fi
 
 echo

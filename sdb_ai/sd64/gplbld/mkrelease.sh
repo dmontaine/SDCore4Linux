@@ -6,17 +6,20 @@
 # 11 Nov 26 dm - S.151: --clients-windows DIR, the Windows client libraries, to clients/Windows64 (owner: "we distribute windows client information with the
 #            linux core server just as we distribute the linux clients with the windows core server").  A clients folder with no file in it is now refused,
 #            for --clients as well: a package must not claim clients and carry none.  gplbld/test-mkrelease-clients.sh runs both options.
+# 12 Nov 26 dm - S.151: --clients-openssl4 DIR, the Linux client libraries built against OpenSSL 4 (Ubuntu 26.10), to clients/Linux64-openssl4; --clients
+#            is the OpenSSL 3 build (Debian 13, Ubuntu 26.04).  Owner: "Both, one per OpenSSL".
 #
-#   bash sdb_ai/sd64/gplbld/mkrelease.sh L2.0-0 [--ref REF] [--docs-ref REF] [--readme FILE] [--clients DIR] [--clients-windows DIR] [--force]
+#   bash sdb_ai/sd64/gplbld/mkrelease.sh L2.0-0 [--ref REF] [--docs-ref REF] [--readme FILE] [--clients DIR] [--clients-openssl4 DIR] [--clients-windows DIR] [--force]
 #
 #   VERSION        the release, as named in the Changes document: L2.0-0
 #   --ref REF      main or a v* tag of THIS repository (default: main).  Only what is committed
 #                  there goes in; the working tree is not read.  Nothing is fetched, pushed, merged or tagged.
 #   --docs-ref REF the same for the documentation repository (default: the same name as REF, which must exist there)
 #   --readme FILE  README.txt for the package (the owner reads it before anything is distributed; this script does not write one)
-#   --clients DIR  a folder copied to clients/Linux64 (libsdcli.so and sdclilib.so: built files, not in the repository)
+#   --clients DIR  a folder copied to clients/Linux64 (libsdcli.so and sdclilib.so built against OpenSSL 3: built files, not in the repository)
+#   --clients-openssl4 DIR  a folder copied to clients/Linux64-openssl4 (the same two files built against OpenSSL 4, for Ubuntu 26.10)
 #   --clients-windows DIR  a folder copied to clients/Windows64 (the Windows client library and its import library, built on the Windows machine)
-#                  Either clients folder must exist and hold at least one file, and no folder; neither is listed in SHA256SUMS.
+#                  Each clients folder must exist and hold at least one file, and no folder; none is listed in SHA256SUMS.
 #   --books DIR   the book PDFs SD-Core-for-Linux-VERSION-*.pdf of this version, copied to documentation/ (built by tools/mkbook.py and mkbookpdf.py in the docs repository)
 #   --force        replace an existing staging folder and zip of this version
 #   --allow-dev    build from a branch other than main or a v* tag (a TEST package for the VM install; never distribute it)
@@ -32,7 +35,7 @@
 #   sd-core-for-linux-lVERSION-changes.{pdf,html,md}   the Changes document, lower case (the installer's CHANGES-DOC block copies only that pattern)
 #   pdf/                                the per-chapter PDFs of the three books, as user-NN-..., administrator-NN-..., gettingstarted-NN-... (the names
 #                                       collide otherwise: all three books have 00a-copyright-and-licence.pdf; docs.install takes lower case, 80 characters)
-#   README.txt, clients/Linux64/, clients/Windows64/   only when given
+#   README.txt, clients/Linux64/, clients/Linux64-openssl4/, clients/Windows64/   only when given
 #
 # THEN it unpacks the zip into a scratch folder and checks it as the installer will: SHA256SUMS, the tree against the list, SDCORE-RELEASE against REF,
 # bash -n on both scripts.  Exit 0 made and checked, 1 a check failed (the zip is removed), 2 it could not start.
@@ -64,19 +67,20 @@ copy_clients() {    # copy_clients DIR NAME - the folder's files to clients/NAME
     cp -p "$1"/* "$stage/clients/$2/"
 }
 
-version=""; ref=""; docs_ref=""; readme=""; clients=""; clients_win=""; books=""; force=0; allow_dev=0; label=""
+version=""; ref=""; docs_ref=""; readme=""; clients=""; clients_ssl4=""; clients_win=""; books=""; force=0; allow_dev=0; label=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --ref)      [ $# -ge 2 ] || die "--ref needs a value"; ref="$2"; shift 2 ;;
         --docs-ref) [ $# -ge 2 ] || die "--docs-ref needs a value"; docs_ref="$2"; shift 2 ;;
         --readme)   [ $# -ge 2 ] || die "--readme needs a value"; readme="$2"; shift 2 ;;
         --clients)  [ $# -ge 2 ] || die "--clients needs a value"; clients="$2"; shift 2 ;;
+        --clients-openssl4) [ $# -ge 2 ] || die "--clients-openssl4 needs a value"; clients_ssl4="$2"; shift 2 ;;
         --clients-windows) [ $# -ge 2 ] || die "--clients-windows needs a value"; clients_win="$2"; shift 2 ;;
         --books)   [ $# -ge 2 ] || die "--books needs a value"; books="$2"; shift 2 ;;
         --force)    force=1; shift ;;
         --allow-dev) allow_dev=1; shift ;;
         --label)    [ $# -ge 2 ] || die "--label needs a value"; label="$2"; shift 2 ;;
-        -h|--help)  sed -n '3,42p' "$0"; exit 0 ;;
+        -h|--help)  sed -n '3,44p' "$0"; exit 0 ;;
         -*)         die "unknown option $1" ;;
         *)          [ -z "$version" ] || die "one VERSION only"; version="$1"; shift ;;
     esac
@@ -104,6 +108,7 @@ esac
 docs_commit=$(git -C "$DOCS" rev-parse --verify -q "${docs_ref}^{commit}") || die "no such ref in $DOCS: $docs_ref (--docs-ref)"
 [ -z "$readme" ] || [ -f "$readme" ] || die "no README file $readme"
 check_clients --clients "$clients"
+check_clients --clients-openssl4 "$clients_ssl4"
 check_clients --clients-windows "$clients_win"
 [ -z "$books" ] || ls "$books"/SD-Core-for-Linux-"$version"-*.pdf >/dev/null 2>&1 || die "no SD-Core-for-Linux-$version-*.pdf in $books (--books DIR: the book PDFs of THIS version)"
 
@@ -177,6 +182,7 @@ done
 
 [ -z "$readme" ]  || cp -p "$readme" "$stage/README.txt"
 copy_clients "$clients" Linux64
+copy_clients "$clients_ssl4" Linux64-openssl4
 copy_clients "$clients_win" Windows64
 if [ -n "$books" ]; then      # the books of this version only (an old L1.1-3 book in the same folder is never packaged), each a PDF
     mkdir -p "$stage/documentation"
@@ -214,6 +220,7 @@ echo "  source files $nsrc, per-chapter PDFs $npdf, commit $commit, branch $ref"
 [ -n "$readme" ]  || echo "  NOT INCLUDED: README.txt (--readme FILE; the owner reads it before anything is distributed)"
 [ -n "$books" ]   || echo "  NOT INCLUDED: documentation/ (--books DIR; the book PDFs of this version, made by mkbook.py and mkbookpdf.py)"
 [ -n "$clients" ] || echo "  NOT INCLUDED: clients/Linux64 (--clients DIR; libsdcli.so and sdclilib.so are built files, not in the repository)"
+[ -n "$clients_ssl4" ] || echo "  NOT INCLUDED: clients/Linux64-openssl4 (--clients-openssl4 DIR; the same two files built against OpenSSL 4, for Ubuntu 26.10)"
 [ -n "$clients_win" ] || echo "  NOT INCLUDED: clients/Windows64 (--clients-windows DIR; the Windows client library and its import library come from the Windows machine)"
 echo "  sha256 for the README:"
 echo "    installsdcore.sh  $(sha256sum < "$stage/installsdcore.sh" | cut -d' ' -f1)"
