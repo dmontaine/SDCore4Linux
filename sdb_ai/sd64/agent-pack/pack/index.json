@@ -2476,7 +2476,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 22
+"words": 24
 },
 "basic:stmt:exit": {
 "kind": "basic.statement",
@@ -2966,7 +2966,7 @@
 "part": "reference/basic-statements.md",
 "since": "L1.1-0",
 "tier": "reference",
-"words": 15
+"words": 17
 },
 "basic:stmt:osdelete": {
 "kind": "basic.statement",
@@ -3575,7 +3575,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 28
+"words": 40
 },
 "basic:stmt:sleep": {
 "kind": "basic.statement",
