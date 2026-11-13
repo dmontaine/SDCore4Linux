@@ -423,7 +423,7 @@ def check_d(t):
     row("the accounts are read through $tk_gates and only a USER account is listed; the gate is the 'ai' row of the table; the page opens no record of the register itself",
         "call $tk_gates(names<i>, g, ainfo, gerr) if gerr = '' and ainfo<1> = 'USER' then" in v and "if g<k, 1> = 'ai' then ast<an> = g<k, 2>" in v and not re.search(r"\bread(v|u|vu)?\s+\w[\w.]*\s+from\b", v), "")
     row("tool.ai is in SDSYS's VOC only: voc_template has it as a verb for $tool_ai and newvoc has no tool.ai", t["voc_tool_ai"].split("\n")[:3] == ["V", "CA", "$tool_ai"] and not os.path.exists(os.path.join(SD64, "sdsys", "newvoc", "tool.ai")), "")
-    row("the two help records exist (title, documentation page, a paragraph) and the page asks for both by their keys", all(len(t[k].strip().split("\n")) >= 3 and t[k].split("\n")[1] == "20-the-ai-helper" for k in ("h_prov", "h_acc"))
+    row("the two help records exist (title, documentation page, a paragraph) and the page asks for both by their keys", all(len(t[k].strip().split("\n")) >= 3 and t[k].split("\n")[1] == "administrator-20-the-ai-helper" for k in ("h_prov", "h_acc"))
         and "'tool.ai.providers'" in v and "'tool.ai.accounts'" in v, "")
     gi = [ln for ln in re.findall(r'rows<-1> = "([^"]*)"', t["tk_gate_info"]) if ln.startswith("ai|")]
     cols = gi[0].split("|") if len(gi) == 1 else []

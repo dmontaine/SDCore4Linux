@@ -100,12 +100,22 @@ def arg_counts(text, name):
     return out
 
 
+BOOKS = {"user": "User", "administrator": "Administrator", "gettingstarted": "GettingStarted"}     # the book as a help record's line 2 names it -> its folder
+
+
+def book_pages():
+    """S.228: the pages of each book, by the lower-case name a record's line 2 starts with (user, administrator, gettingstarted)"""
+    out = {}
+    for pre, d in BOOKS.items():
+        p = os.path.join(DOCS, d, "markdown")
+        out[pre] = {f[:-3] for f in os.listdir(p) if f.endswith(".md")} if os.path.isdir(p) else set()
+    return out
+
+
 def docs_pages():
     pages = set()
-    for d in ("User", "Administrator", "GettingStarted"):
-        p = os.path.join(DOCS, d, "markdown")
-        if os.path.isdir(p):
-            pages |= {f[:-3] for f in os.listdir(p) if f.endswith(".md")}
+    for v in book_pages().values():
+        pages |= v
     return pages
 
 
@@ -169,8 +179,14 @@ def checks(s):
     bad_body = [k for k, v in hts.items() if len([ln for ln in v.split("\n")[2:] if ln.strip()]) < 1 or len(v.split("\n")) > 14 or "\t" in v or any(len(ln) > 1200 for ln in v.split("\n"))]
     ck("P11 every shipped help file has a key for a name, a title of 1 to 60 characters, a document that is blank or a plain name, and one to twelve paragraphs",
        not bad_title and not bad_doc and not bad_name and not bad_body, repr((bad_title, bad_doc, bad_name, bad_body)))
-    missing_docs = [k for k, v in hts.items() if len(v.split("\n")) > 1 and v.split("\n")[1].strip() and v.split("\n")[1].strip() not in pages]
-    ck("P12 ...and the document each names is a page of the documentation checkout (%s, %d pages; a missing checkout fails this row, it is not skipped)" % (DOCS, len(pages)),
+    by_book = book_pages()
+
+    def doc_page_found(doc):
+        """S.228: line 2 is the PDF's name without .pdf, <book>-<chapter>; the chapter must be a page of THAT book"""
+        pre, _, chapter = doc.partition("-")
+        return pre in by_book and chapter in by_book[pre]
+    missing_docs = [k for k, v in hts.items() if len(v.split("\n")) > 1 and v.split("\n")[1].strip() and not doc_page_found(v.split("\n")[1].strip())]
+    ck("P12 ...and the document each names is <book>-<page>, a page of that book in the documentation checkout (%s, %d pages; a missing checkout fails this row, it is not skipped)" % (DOCS, len(pages)),
        len(pages) > 50 and not missing_docs, repr(missing_docs))
 
     # keys asked for by the pages
@@ -386,6 +402,8 @@ MUTANTS = [
     ("a help record has no title", "ht.tool.menus.pins", "Programs of the account's own\n", "\n"),
     ("a help record has a tab in it", "ht.tool.menus.default", "Applies to every account", "\tApplies to every account"),
     ("a help record's document name has a slash", "ht.tool.menus.pins", "01-accounts-and-security", "../accounts"),
+    ("a help record names its page without the book (S.228: the file in the pdf directory is <book>-<page>.pdf)", "ht.tool.menus.pins", "administrator-01-accounts-and-security", "01-accounts-and-security"),
+    ("a help record names a page of another book (S.228)", "ht.tool.menus.pins", "administrator-01-accounts-and-security", "user-01-accounts-and-security"),
 ]
 
 
